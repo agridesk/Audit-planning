@@ -62,7 +62,9 @@
         }
 
         async function fetchAuditData() {
-            const auditorEmail = "rene@agriqa.es"; // 👉 Pas deze dynamisch aan in productie
+            const urlParams = new URLSearchParams(window.location.search);
+	const auditorEmail = urlParams.get('auditor') || "rene@agriqa.es";
+
             const url = `https://script.google.com/macros/s/AKfycbxqzz9Czn3b00Ly53qkZvxztfSS9keg3T7QCtzudKdxjgOV8LiwQZ90wLGqUhzJK30AKw/exec?auditor=${encodeURIComponent(auditorEmail)}`;
 
             try {

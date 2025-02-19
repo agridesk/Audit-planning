@@ -2,167 +2,59 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Audit Planning Dashboard</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 20px;
-        }
-        h2 {
-            text-align: center;
-            color: #333;
-        }
-        #audit-container {
-            max-width: 1200px;
-            margin: auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-            overflow-x: auto;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 10px;
-            text-align: center;
-        }
-        th {
-            background-color: #4CAF50;
-            color: white;
-        }
-        .error {
-            color: red;
-            font-weight: bold;
-            text-align: center;
-        }
+        body { font-family: Arial; background-color: #f4f4f4; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        th { background-color: #4CAF50; color: white; }
+        #audit-container { max-width: 1200px; margin: auto; }
     </style>
 </head>
 <body>
-
     <h2>Audit Planning Overview</h2>
-    <div id="audit-container">
-        <p>Loading audits...</p>
-    </div>
+    <div id="audit-container"><p>Loading audits...</p></div>
 
     <script>
-        // ✅ Format Date from ISO to dd-mm-yyyy
-        function formatDate(isoDate) {
-            if (!isoDate) return "";
-            const date = new Date(isoDate);
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-            return `${day}-${month}-${year}`;
-        }
-
-        // ✅ Get URL parameter (for dynamic auditor selection)
         function getQueryParam(param) {
             const urlParams = new URLSearchParams(window.location.search);
             return urlParams.get(param);
         }
 
-        // ✅ Fetch data from Google Apps Script
-        async function fetchAuditData() {
-            const auditorEmail = getQueryParam("auditor");
-            if (!auditorEmail) {
-                document.getElementById("audit-container").innerHTML = `<p class="error">❌ Auditor e-mail ontbreekt in URL.</p>`;
-                return;
-            }
-            const url = `https://script.google.com/macros/s/AKfycbx0OxULJzP1l1Ae7AsYlShi-F0rOITkpsZU3UmXjW4M4njW1EHCHGvWkiSff6X1FdqPyA/exec?auditor=${encodeURIComponent(auditorEmail)}`;
-
-            try {
-                console.log("📡 Ophalen van data vanaf:", url);
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`HTTP-fout! Status: ${response.status}`);
-                const data = await response.json();
-
-                if (data.error) {
-                    console.error("🚨 API Error:", data.error);
-                    document.getElementById("audit-container").innerHTML = `<p class="error">❌ Foutmelding: ${data.error}</p>`;
-                    return;
-                }
-                console.log("✅ Data ontvangen:", data);
-                displayAuditData(data);
-            } catch (error) {
-                console.error("❌ Ophalen mislukt:", error);
-                document.getElementById("audit-container").innerHTML = `<p class="error">❌ Ophalen van data mislukt. Bekijk console voor details.</p>`;
-            }
+        function formatDate(isoDate) {
+            if (!isoDate) return "";
+            const date = new Date(isoDate);
+            return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
         }
 
-       function displayAuditData(data) {
-    const container = document.getElementById("audit-container");
-    container.innerHTML = "";
+        async function fetchAuditData() {
+            const auditorEmail = getQueryParam("auditor");
+            if (!auditorEmail) return document.getElementById("audit-container").innerHTML = "<p>Email ontbreekt in URL.</p>";
 
-    if (!data.length) {
-        container.innerHTML = "<p>Geen audits toegewezen.</p>";
-        return;
-    }
+            const response = await fetch(`https://script.google.com/macros/s/AKfycbxGhu_xOm5ln_MK-VcYNPOhr8DBfFYJnUWMaS9Z_Kspfc_Msi4GS_oXsJG87r12YXSdMw/exec?auditor=${encodeURIComponent(auditorEmail)}`);
+            const data = await response.json();
 
-    // ✅ Specifieke kolomnamen definiëren (zoals in de Google Sheet)
-    const columns = [
-        "Company",
-        "Region",
-        "Preassigned Auditor",
-        "January 2025 - Planned",
-        "February 2025 - Planned",
-        "March 2025 - Planned"
-    ];
+            if (data.error) return document.getElementById("audit-container").innerHTML = `<p style="color:red;">${data.error}</p>`;
+            displayAuditData(data);
+        }
 
-    let table = `<table><tr>`;
-    columns.forEach(col => {
-        table += `<th>${col}</th>`;
-    });
-    table += `</tr>`;
+        function displayAuditData(data) {
+            if (!data.length) return document.getElementById("audit-container").innerHTML = "<p>Geen audits toegewezen.</p>";
 
-    data.forEach(audit => {
-        table += `<tr>`;
-        columns.forEach(col => {
-            const value = audit[col] ? (col.includes("Planned") ? formatDate(audit[col]) : audit[col]) : "";
-            table += `<td>${value}</td>`;
-        });
-        table += `</tr>`;
-    });
-
-    table += `</table>`;
-    container.innerHTML = table;
-}
-
-
-    // ✅ Dynamisch kolomnamen ophalen
-    const columns = Object.keys(data[0]);
-    let table = `<table><tr>`;
-    columns.forEach(col => {
-        table += `<th>${col}</th>`;
-    });
-    table += `</tr>`;
-
-    // ✅ Gegevens per rij invullen
-    data.forEach(audit => {
-        table += `<tr>`;
-        columns.forEach(col => {
-            const value = audit[col] ? (col.includes("Planned") ? formatDate(audit[col]) : audit[col]) : "";
-            table += `<td>${value}</td>`;
-        });
-        table += `</tr>`;
-    });
-
-    table += `</table>`;
-    container.innerHTML = table;
-}
-
+            let table = `<table><tr><th>Company</th><th>Region</th><th>Preassigned Auditor</th><th>January 2025 - Planned</th></tr>`;
+            data.forEach(audit => {
+                table += `<tr>
+                            <td>${audit.Company}</td>
+                            <td>${audit.Region}</td>
+                            <td>${audit["Preassigned Auditor"]}</td>
+                            <td>${formatDate(audit["January 2025 - Planned"])}</td>
+                          </tr>`;
+            });
+            table += `</table>`;
+            document.getElementById("audit-container").innerHTML = table;
+        }
 
         window.onload = fetchAuditData;
     </script>
-
 </body>
 </html>
-
-

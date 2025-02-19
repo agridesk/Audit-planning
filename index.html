@@ -13,6 +13,7 @@
         }
         h2 {
             text-align: center;
+            color: #333;
         }
         #audit-container {
             max-width: 1200px;
@@ -52,6 +53,7 @@
     </div>
 
     <script>
+        // ✅ Format Date from ISO to dd-mm-yyyy
         function formatDate(isoDate) {
             if (!isoDate) return "";
             const date = new Date(isoDate);
@@ -61,48 +63,47 @@
             return `${day}-${month}-${year}`;
         }
 
-        async function fetchAuditData() {
-            // 🔍 **Dynamisch e-mail ophalen via URL-param**
+        // ✅ Get URL parameter (for dynamic auditor selection)
+        function getQueryParam(param) {
             const urlParams = new URLSearchParams(window.location.search);
-            const auditorEmail = urlParams.get('auditor');
+            return urlParams.get(param);
+        }
 
+        // ✅ Fetch data from Google Apps Script
+        async function fetchAuditData() {
+            const auditorEmail = getQueryParam("auditor");
             if (!auditorEmail) {
-                document.getElementById("audit-container").innerHTML = `<p class="error">❌ No auditor email provided in URL.</p>`;
-                console.error("❌ No auditor email found in URL.");
+                document.getElementById("audit-container").innerHTML = `<p class="error">❌ Auditor e-mail ontbreekt in URL.</p>`;
                 return;
             }
-
-            const url = `https://script.google.com/macros/s/AKfycbwb06nr9tKqYCnmRwdgdXN0tGueYn8LHfYaMcDGTRbMhECGlSxPXkjJ03WtO-zWDghwNg/exec?auditor=${encodeURIComponent(auditorEmail)}`;
+            const url = `https://script.google.com/macros/s/AKfycbxt0OwTwFBa5abF9Ld9kui7rt9Rd94n7figLvM0WNzrbtz1OPk9CorCsI1ygpwv8hI7Zw/exec?auditor=${encodeURIComponent(auditorEmail)}`;
 
             try {
-                console.log("📡 Fetching data from:", url);
+                console.log("📡 Ophalen van data vanaf:", url);
                 const response = await fetch(url);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-
+                if (!response.ok) throw new Error(`HTTP-fout! Status: ${response.status}`);
                 const data = await response.json();
-                console.log("✅ Data received:", data);
 
                 if (data.error) {
-                    document.getElementById("audit-container").innerHTML = `<p class="error">Error: ${data.error}</p>`;
+                    console.error("🚨 API Error:", data.error);
+                    document.getElementById("audit-container").innerHTML = `<p class="error">❌ Foutmelding: ${data.error}</p>`;
                     return;
                 }
-
+                console.log("✅ Data ontvangen:", data);
                 displayAuditData(data);
             } catch (error) {
-                console.error("❌ Fetch error:", error);
-                document.getElementById("audit-container").innerHTML = `<p class="error">Failed to load data. Check console for details.</p>`;
+                console.error("❌ Ophalen mislukt:", error);
+                document.getElementById("audit-container").innerHTML = `<p class="error">❌ Ophalen van data mislukt. Bekijk console voor details.</p>`;
             }
         }
 
+        // ✅ Toon auditdata in een nette tabel
         function displayAuditData(data) {
             const container = document.getElementById("audit-container");
             container.innerHTML = "";
 
             if (!data.length) {
-                container.innerHTML = "<p>No audits assigned.</p>";
+                container.innerHTML = "<p>Geen audits toegewezen.</p>";
                 return;
             }
 
@@ -118,9 +119,9 @@
 
             data.forEach(audit => {
                 table += `<tr>
-                            <td>${audit.Company}</td>
-                            <td>${audit.Region}</td>
-                            <td>${audit["Preassigned Auditor"]}</td>
+                            <td>${audit.Company || ""}</td>
+                            <td>${audit.Region || ""}</td>
+                            <td>${audit["Preassigned Auditor"] || ""}</td>
                             <td>${formatDate(audit["January 2025 - Planned"])}</td>
                             <td>${formatDate(audit["February 2025 - Planned"])}</td>
                             <td>${formatDate(audit["March 2025 - Planned"])}</td>
@@ -136,3 +137,4 @@
 
 </body>
 </html>
+

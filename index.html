@@ -76,7 +76,7 @@
                 document.getElementById("audit-container").innerHTML = `<p class="error">❌ Auditor e-mail ontbreekt in URL.</p>`;
                 return;
             }
-            const url = `https://script.google.com/macros/s/AKfycbzrByTRPojGyfP9fXIcvp_m1mgC1tKFkkO17wVn62vJQS7UBkdNoraLObHT6px65vVaIA/exec?auditor=${encodeURIComponent(auditorEmail)}`;
+            const url = `https://script.google.com/macros/s/AKfycbx0OxULJzP1l1Ae7AsYlShi-F0rOITkpsZU3UmXjW4M4njW1EHCHGvWkiSff6X1FdqPyA/exec?auditor=${encodeURIComponent(auditorEmail)}`;
 
             try {
                 console.log("📡 Ophalen van data vanaf:", url);
@@ -97,8 +97,7 @@
             }
         }
 
-        // ✅ Toon auditdata in een nette tabel
-        function displayAuditData(data) {
+       function displayAuditData(data) {
     const container = document.getElementById("audit-container");
     container.innerHTML = "";
 
@@ -106,6 +105,36 @@
         container.innerHTML = "<p>Geen audits toegewezen.</p>";
         return;
     }
+
+    // ✅ Specifieke kolomnamen definiëren (zoals in de Google Sheet)
+    const columns = [
+        "Company",
+        "Region",
+        "Preassigned Auditor",
+        "January 2025 - Planned",
+        "February 2025 - Planned",
+        "March 2025 - Planned"
+    ];
+
+    let table = `<table><tr>`;
+    columns.forEach(col => {
+        table += `<th>${col}</th>`;
+    });
+    table += `</tr>`;
+
+    data.forEach(audit => {
+        table += `<tr>`;
+        columns.forEach(col => {
+            const value = audit[col] ? (col.includes("Planned") ? formatDate(audit[col]) : audit[col]) : "";
+            table += `<td>${value}</td>`;
+        });
+        table += `</tr>`;
+    });
+
+    table += `</table>`;
+    container.innerHTML = table;
+}
+
 
     // ✅ Dynamisch kolomnamen ophalen
     const columns = Object.keys(data[0]);
@@ -135,4 +164,5 @@
 
 </body>
 </html>
+
 

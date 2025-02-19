@@ -76,7 +76,7 @@
                 document.getElementById("audit-container").innerHTML = `<p class="error">❌ Auditor e-mail ontbreekt in URL.</p>`;
                 return;
             }
-            const url = `https://script.google.com/macros/s/AKfycbxt0OwTwFBa5abF9Ld9kui7rt9Rd94n7figLvM0WNzrbtz1OPk9CorCsI1ygpwv8hI7Zw/exec?auditor=${encodeURIComponent(auditorEmail)}`;
+            const url = `https://script.google.com/macros/s/AKfycbzrByTRPojGyfP9fXIcvp_m1mgC1tKFkkO17wVn62vJQS7UBkdNoraLObHT6px65vVaIA/exec?auditor=${encodeURIComponent(auditorEmail)}`;
 
             try {
                 console.log("📡 Ophalen van data vanaf:", url);
@@ -99,38 +99,36 @@
 
         // ✅ Toon auditdata in een nette tabel
         function displayAuditData(data) {
-            const container = document.getElementById("audit-container");
-            container.innerHTML = "";
+    const container = document.getElementById("audit-container");
+    container.innerHTML = "";
 
-            if (!data.length) {
-                container.innerHTML = "<p>Geen audits toegewezen.</p>";
-                return;
-            }
+    if (!data.length) {
+        container.innerHTML = "<p>Geen audits toegewezen.</p>";
+        return;
+    }
 
-            let table = `<table>
-                            <tr>
-                                <th>Company</th>
-                                <th>Region</th>
-                                <th>Preassigned Auditor</th>
-                                <th>January 2025 - Planned</th>
-                                <th>February 2025 - Planned</th>
-                                <th>March 2025 - Planned</th>
-                            </tr>`;
+    // ✅ Dynamisch kolomnamen ophalen
+    const columns = Object.keys(data[0]);
+    let table = `<table><tr>`;
+    columns.forEach(col => {
+        table += `<th>${col}</th>`;
+    });
+    table += `</tr>`;
 
-            data.forEach(audit => {
-                table += `<tr>
-                            <td>${audit.Company || ""}</td>
-                            <td>${audit.Region || ""}</td>
-                            <td>${audit["Preassigned Auditor"] || ""}</td>
-                            <td>${formatDate(audit["January 2025 - Planned"])}</td>
-                            <td>${formatDate(audit["February 2025 - Planned"])}</td>
-                            <td>${formatDate(audit["March 2025 - Planned"])}</td>
-                          </tr>`;
-            });
+    // ✅ Gegevens per rij invullen
+    data.forEach(audit => {
+        table += `<tr>`;
+        columns.forEach(col => {
+            const value = audit[col] ? (col.includes("Planned") ? formatDate(audit[col]) : audit[col]) : "";
+            table += `<td>${value}</td>`;
+        });
+        table += `</tr>`;
+    });
 
-            table += `</table>`;
-            container.innerHTML = table;
-        }
+    table += `</table>`;
+    container.innerHTML = table;
+}
+
 
         window.onload = fetchAuditData;
     </script>

@@ -31,7 +31,7 @@
             const auditorEmail = getQueryParam("auditor");
             if (!auditorEmail) return document.getElementById("audit-container").innerHTML = "<p>Email ontbreekt in URL.</p>";
 
-            const response = await fetch(`https://script.google.com/macros/s/AKfycbxK7NgNACgdwcEBTGT03Z5Hs_NmpUjNEA2vLaeTnKVSQq22tkWrx9R906wH7TfUzUJ8Gg/exec?auditor=${encodeURIComponent(auditorEmail)}`);
+            const response = await fetch(`https://script.google.com/macros/s/YOUR_DEPLOYED_ID/exec?auditor=${encodeURIComponent(auditorEmail)}`);
             const data = await response.json();
 
             if (data.error) return document.getElementById("audit-container").innerHTML = `<p style="color:red;">${data.error}</p>`;
@@ -58,64 +58,3 @@
     </script>
 </body>
 </html>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Audit Planning Dashboard</title>
-    <style>
-        body { font-family: Arial; background-color: #f4f4f4; padding: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
-        th { background-color: #4CAF50; color: white; }
-        #audit-container { max-width: 1200px; margin: auto; }
-    </style>
-</head>
-<body>
-    <h2>Audit Planning Overview</h2>
-    <div id="audit-container"><p>Loading audits...</p></div>
-
-    <script>
-        function getQueryParam(param) {
-            const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get(param);
-        }
-
-        function formatDate(isoDate) {
-            if (!isoDate) return "";
-            const date = new Date(isoDate);
-            return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
-        }
-
-        async function fetchAuditData() {
-            const auditorEmail = getQueryParam("auditor");
-            if (!auditorEmail) return document.getElementById("audit-container").innerHTML = "<p>Email ontbreekt in URL.</p>";
-
-            const response = await fetch(`https://script.google.com/macros/s/AKfycbxK7NgNACgdwcEBTGT03Z5Hs_NmpUjNEA2vLaeTnKVSQq22tkWrx9R906wH7TfUzUJ8Gg/exec?auditor=${encodeURIComponent(auditorEmail)}`);
-            const data = await response.json();
-
-            if (data.error) return document.getElementById("audit-container").innerHTML = `<p style="color:red;">${data.error}</p>`;
-            displayAuditData(data);
-        }
-
-        function displayAuditData(data) {
-            if (!data.length) return document.getElementById("audit-container").innerHTML = "<p>Geen audits toegewezen.</p>";
-
-            let table = `<table><tr><th>Company</th><th>Region</th><th>Preassigned Auditor</th><th>January 2025 - Planned</th></tr>`;
-            data.forEach(audit => {
-                table += `<tr>
-                            <td>${audit.Company}</td>
-                            <td>${audit.Region}</td>
-                            <td>${audit["Preassigned Auditor"]}</td>
-                            <td>${formatDate(audit["January 2025 - Planned"])}</td>
-                          </tr>`;
-            });
-            table += `</table>`;
-            document.getElementById("audit-container").innerHTML = table;
-        }
-
-        window.onload = fetchAuditData;
-    </script>
-</body>
-</html>
-

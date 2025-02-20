@@ -69,7 +69,7 @@
                 document.getElementById("audit-container").innerHTML = "<p style='color:red;'>❌ E-mail ontbreekt in URL.</p>";
                 return;
             }
-            const response = await fetch(`https://script.google.com/macros/s/AKfycbyd-F-ccPk1plToQEUgJASQoNq55w5_0sYZWUlYdgLuWy8DuBC60jAFdi0Ogt8ZTS-ByQ/exec?auditor=${encodeURIComponent(auditorEmail)}`);
+            const response = await fetch(`https://script.google.com/macros/s/AKfycbwGQ8ewTjznVAgDZki1GvFlPgmxBMO-Rb8PsQXVq0Bz8Mm57x0ppoycYVzOFaKhO8_vBw/exec?auditor=${encodeURIComponent(auditorEmail)}`);
             const data = await response.json();
 
             if (data.error) {

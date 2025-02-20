@@ -31,7 +31,7 @@
             const auditorEmail = getQueryParam("auditor");
             if (!auditorEmail) return document.getElementById("audit-container").innerHTML = "<p>Email ontbreekt in URL.</p>";
 
-            const response = await fetch(`https://script.google.com/macros/s/AKfycbxK7NgNACgdwcEBTGT03Z5Hs_NmpUjNEA2vLaeTnKVSQq22tkWrx9R906wH7TfUzUJ8Gg/exec?auditor=${encodeURIComponent(auditorEmail)}`);
+            const response = await fetch(`https://script.google.com/macros/s/AKfycbyuAZGlxIG38G1cy2zvzMGepf_vxVN1Wg80NmOBCJgnyBARVN3bodNxpxEOLabInMC3IA/exec?auditor=${encodeURIComponent(auditorEmail)}`);
             const data = await response.json();
 
             if (data.error) return document.getElementById("audit-container").innerHTML = `<p style="color:red;">${data.error}</p>`;
@@ -58,3 +58,4 @@
     </script>
 </body>
 </html>
+

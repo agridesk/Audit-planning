@@ -2,60 +2,119 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Audit Planning Dashboard</title>
     <style>
-        body { font-family: Arial; background-color: #f4f4f4; padding: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
-        th { background-color: #4CAF50; color: white; }
-        #audit-container { max-width: 1200px; margin: auto; }
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #f4f4f4; 
+            margin: 0; 
+            padding: 20px; 
+        }
+        h2 {
+            text-align: center;
+        }
+        #audit-container {
+            max-width: 1200px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
-    
-    <div id="audit-container"><p>Loading audits...</p></div>
+
+    <h2>Audit Planning Overview</h2>
+    <div id="audit-container">
+        <p>Loading audits...</p>
+    </div>
 
     <script>
-        function getQueryParam(param) {
-            const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get(param);
-        }
+        // 🔥 Dynamisch ontvangen van GAS
+        const auditorEmail = '<?= auditorEmail ?>'; 
 
         function formatDate(isoDate) {
             if (!isoDate) return "";
             const date = new Date(isoDate);
-            return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}-${month}-${year}`;
         }
 
         async function fetchAuditData() {
-            const auditorEmail = getQueryParam("auditor");
-            if (!auditorEmail) return document.getElementById("audit-container").innerHTML = "<p>Email ontbreekt in URL.</p>";
-
-            const response = await fetch(`https://script.google.com/macros/s/AKfycbyuAZGlxIG38G1cy2zvzMGepf_vxVN1Wg80NmOBCJgnyBARVN3bodNxpxEOLabInMC3IA/exec?auditor=${encodeURIComponent(auditorEmail)}`);
+            if (!auditorEmail) {
+                document.getElementById("audit-container").innerHTML = "<p style='color:red;'>❌ E-mail ontbreekt in URL.</p>";
+                return;
+            }
+            const response = await fetch(`https://script.google.com/macros/s/AKfycbyd-F-ccPk1plToQEUgJASQoNq55w5_0sYZWUlYdgLuWy8DuBC60jAFdi0Ogt8ZTS-ByQ/exec?auditor=${encodeURIComponent(auditorEmail)}`);
             const data = await response.json();
 
-            if (data.error) return document.getElementById("audit-container").innerHTML = `<p style="color:red;">${data.error}</p>`;
+            if (data.error) {
+                document.getElementById("audit-container").innerHTML = `<p style="color:red;">${data.error}</p>`;
+                return;
+            }
             displayAuditData(data);
         }
 
         function displayAuditData(data) {
-            if (!data.length) return document.getElementById("audit-container").innerHTML = "<p>Geen audits toegewezen.</p>";
+            const container = document.getElementById("audit-container");
+            container.innerHTML = "";
 
-            let table = `<table><tr><th>Company</th><th>Region</th><th>Preassigned Auditor</th><th>January 2025 - Planned</th></tr>`;
+            if (!data.length) {
+                container.innerHTML = "<p>Geen audits toegewezen.</p>";
+                return;
+            }
+
+            let table = `<table>
+                            <tr>
+                                <th>Company</th>
+                                <th>Region</th>
+                                <th>Preassigned Auditor</th>
+                                <th>January 2025 - Planned</th>
+                                <th>February 2025 - Planned</th>
+                                <th>March 2025 - Planned</th>
+                            </tr>`;
+
             data.forEach(audit => {
                 table += `<tr>
                             <td>${audit.Company}</td>
                             <td>${audit.Region}</td>
                             <td>${audit["Preassigned Auditor"]}</td>
                             <td>${formatDate(audit["January 2025 - Planned"])}</td>
+                            <td>${formatDate(audit["February 2025 - Planned"])}</td>
+                            <td>${formatDate(audit["March 2025 - Planned"])}</td>
                           </tr>`;
             });
+
             table += `</table>`;
-            document.getElementById("audit-container").innerHTML = table;
+            container.innerHTML = table;
         }
 
         window.onload = fetchAuditData;
     </script>
+
 </body>
 </html>
-

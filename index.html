@@ -12,8 +12,19 @@
         th { background-color: #4CAF50; color: white; }
         .error { color: red; font-weight: bold; text-align: center; }
         #loadingMessage { display: none; text-align: center; font-weight: bold; }
-        .spinner { border: 6px solid #f3f3f3; border-top: 6px solid #3498db; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .spinner {
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -35,41 +46,51 @@
         }
 
         function formatText(value) {
-            return value ? String(value).trim() : "-";
+            try {
+                return value !== undefined && value !== null ? String(value).trim() : "-";
+            } catch (e) {
+                console.error("Fout bij formatText:", e);
+                return "-";
+            }
         }
 
         function formatDate(isoDate) {
-            if (!isoDate) return "-";
-            const date = new Date(isoDate);
-            return isNaN(date) ? "-" : `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
+            try {
+                if (!isoDate) return "-";
+                const date = new Date(isoDate);
+                return isNaN(date) ? "-" : `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
+            } catch (e) {
+                console.error("Fout bij formatDate:", e);
+                return "-";
+            }
         }
 
         async function fetchAuditData() {
             const auditorEmail = getQueryParam("auditor");
             if (!auditorEmail) {
-                document.getElementById("audit-container").innerHTML = "<p class='error'>❌ Geen e-mail opgegeven in URL.</p>";
+                document.getElementById("audit-container").innerText = "❌ Geen e-mail opgegeven in URL.";
                 return;
             }
 
-            const endpointUrl = `https://script.google.com/macros/s/AKfycbzk3QWQ4uWFykTktMbCcUQd6q6EHyKie3nE92GHpCsZWG_djMNFXOSyeBLq47tpVNFV0g/exec?auditor=${encodeURIComponent(auditorEmail)}`;
+            const endpointUrl = `https://script.google.com/macros/s/AKfycbxIuHbOhKzsr6kX0IptywGqX4Q1o-N6nSyo1YyMtuehs_bD3ON2K-zpY7S2pojPAzGa5w/exec?auditor=${encodeURIComponent(auditorEmail)}`;
 
             try {
-                console.log(`📡 Ophalen van data voor: ${auditorEmail}`);
+                document.getElementById("loadingMessage").style.display = "block";
                 const response = await fetch(endpointUrl);
+                document.getElementById("loadingMessage").style.display = "none";
+
                 if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
 
                 const data = await response.json();
-                console.log("✅ Gegevens ontvangen:", data);
-
                 if (data.error) {
-                    document.getElementById("audit-container").innerHTML = `<p class="error">❌ ${data.error}</p>`;
+                    document.getElementById("audit-container").innerText = `❌ ${data.error}`;
                     return;
                 }
 
                 displayAuditData(data);
             } catch (error) {
                 console.error("❌ Fout bij ophalen:", error);
-                document.getElementById("audit-container").innerHTML = `<p class="error">❌ Kon data niet laden. Controleer console voor details.</p>`;
+                document.getElementById("audit-container").innerText = "❌ Kon data niet laden. Controleer console voor details.";
             }
         }
 
@@ -77,7 +98,7 @@
             const container = document.getElementById("audit-container");
             container.innerHTML = "";
 
-            if (!data.length) {
+            if (!data || !Array.isArray(data) || data.length === 0) {
                 container.innerHTML = "<p>Geen audits toegewezen.</p>";
                 return;
             }
@@ -93,13 +114,20 @@
                             </tr>`;
 
             data.forEach(audit => {
+                const company = formatText(audit.Company);
+                const region = formatText(audit.Region);
+                const auditor = formatText(audit["Preassigned Auditor"]);
+                const janPlan = formatDate(audit["January 2025 - Planned"]);
+                const febPlan = formatDate(audit["February 2025 - Planned"]);
+                const marPlan = formatDate(audit["March 2025 - Planned"]);
+
                 table += `<tr>
-                            <td>${formatText(audit.Company)}</td>
-                            <td>${formatText(audit.Region)}</td>
-                            <td>${formatText(audit["Preassigned Auditor"])}</td>
-                            <td>${formatDate(audit["January 2025 - Planned"])}</td>
-                            <td>${formatDate(audit["February 2025 - Planned"])}</td>
-                            <td>${formatDate(audit["March 2025 - Planned"])}</td>
+                            <td>${company}</td>
+                            <td>${region}</td>
+                            <td>${auditor}</td>
+                            <td>${janPlan}</td>
+                            <td>${febPlan}</td>
+                            <td>${marPlan}</td>
                           </tr>`;
             });
 

@@ -4,31 +4,78 @@
     <meta charset="UTF-8">
     <title>Audit Planning Dashboard</title>
     <style>
-        body { font-family: Arial; background-color: #f4f4f4; padding: 20px; }
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px; }
+        h2 { text-align: center; }
+        #audit-container { max-width: 1200px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1); overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
         th { background-color: #4CAF50; color: white; }
-        #audit-container { max-width: 1200px; margin: auto; }
-        .error { color: red; font-weight: bold; }
+        .error { color: red; font-weight: bold; text-align: center; }
+        #loadingMessage { display: none; text-align: center; font-weight: bold; }
+        .spinner { border: 6px solid #f3f3f3; border-top: 6px solid #3498db; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+
+    <div id="loadingMessage">
+        <div class="spinner"></div>
+        Bezig met laden...
+    </div>
+
     <h2>Audit Planning Overview</h2>
-    <div id="audit-container"><p>Loading audits...</p></div>
+    <div id="audit-container">
+        <p>Loading audits...</p>
+    </div>
 
     <script>
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        function formatText(value) {
+            return value ? String(value).trim() : "-";
+        }
+
         function formatDate(isoDate) {
-            if (!isoDate) return "";
+            if (!isoDate) return "-";
             const date = new Date(isoDate);
-            return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
+            return isNaN(date) ? "-" : `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
+        }
+
+        async function fetchAuditData() {
+            const auditorEmail = getQueryParam("auditor");
+            if (!auditorEmail) {
+                document.getElementById("audit-container").innerHTML = "<p class='error'>❌ Geen e-mail opgegeven in URL.</p>";
+                return;
+            }
+
+            const endpointUrl = `https://script.google.com/macros/s/AKfycbzk3QWQ4uWFykTktMbCcUQd6q6EHyKie3nE92GHpCsZWG_djMNFXOSyeBLq47tpVNFV0g/exec?auditor=${encodeURIComponent(auditorEmail)}`;
+
+            try {
+                console.log(`📡 Ophalen van data voor: ${auditorEmail}`);
+                const response = await fetch(endpointUrl);
+                if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+
+                const data = await response.json();
+                console.log("✅ Gegevens ontvangen:", data);
+
+                if (data.error) {
+                    document.getElementById("audit-container").innerHTML = `<p class="error">❌ ${data.error}</p>`;
+                    return;
+                }
+
+                displayAuditData(data);
+            } catch (error) {
+                console.error("❌ Fout bij ophalen:", error);
+                document.getElementById("audit-container").innerHTML = `<p class="error">❌ Kon data niet laden. Controleer console voor details.</p>`;
+            }
         }
 
         function displayAuditData(data) {
             const container = document.getElementById("audit-container");
-            if (!data || data.error) {
-                container.innerHTML = `<p class="error">${data ? data.error : "No audits found."}</p>`;
-                return;
-            }
+            container.innerHTML = "";
 
             if (!data.length) {
                 container.innerHTML = "<p>Geen audits toegewezen.</p>";
@@ -41,29 +88,27 @@
                                 <th>Region</th>
                                 <th>Preassigned Auditor</th>
                                 <th>January 2025 - Planned</th>
+                                <th>February 2025 - Planned</th>
+                                <th>March 2025 - Planned</th>
                             </tr>`;
+
             data.forEach(audit => {
                 table += `<tr>
-                            <td>${audit.Company}</td>
-                            <td>${audit.Region}</td>
-                            <td>${audit["Preassigned Auditor"]}</td>
+                            <td>${formatText(audit.Company)}</td>
+                            <td>${formatText(audit.Region)}</td>
+                            <td>${formatText(audit["Preassigned Auditor"])}</td>
                             <td>${formatDate(audit["January 2025 - Planned"])}</td>
+                            <td>${formatDate(audit["February 2025 - Planned"])}</td>
+                            <td>${formatDate(audit["March 2025 - Planned"])}</td>
                           </tr>`;
             });
+
             table += `</table>`;
             container.innerHTML = table;
         }
 
-        function loadAuditData() {
-            google.script.run
-                .withSuccessHandler(displayAuditData)
-                .withFailureHandler(error => {
-                    document.getElementById("audit-container").innerHTML = `<p class="error">❌ ${error.message}</p>`;
-                })
-                .getAuditData();
-        }
-
-        window.onload = loadAuditData;
+        window.onload = fetchAuditData;
     </script>
+
 </body>
 </html>

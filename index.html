@@ -45,24 +45,10 @@
             return urlParams.get(param);
         }
 
-        function formatText(value) {
-            try {
-                return value !== undefined && value !== null ? String(value).trim() : "-";
-            } catch (e) {
-                console.error("Fout bij formatText:", e);
-                return "-";
-            }
-        }
-
         function formatDate(isoDate) {
-            try {
-                if (!isoDate) return "-";
-                const date = new Date(isoDate);
-                return isNaN(date) ? "-" : `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
-            } catch (e) {
-                console.error("Fout bij formatDate:", e);
-                return "-";
-            }
+            if (!isoDate) return "-";
+            const date = new Date(isoDate);
+            return isNaN(date) ? "-" : `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
         }
 
         async function fetchAuditData() {
@@ -72,7 +58,7 @@
                 return;
             }
 
-            const endpointUrl = `https://script.google.com/macros/s/AKfycbxIuHbOhKzsr6kX0IptywGqX4Q1o-N6nSyo1YyMtuehs_bD3ON2K-zpY7S2pojPAzGa5w/exec?auditor=${encodeURIComponent(auditorEmail)}`;
+            const endpointUrl = `https://script.google.com/macros/s/AKfycbwF-7XwBCPian_qtnPEFK5AtN1YrRmqg9PxQVolMUqUWZGGIs5UjRs3h_V47NcmAIQEnA/exec?auditor=${encodeURIComponent(auditorEmail)}`;
 
             try {
                 document.getElementById("loadingMessage").style.display = "block";
@@ -114,20 +100,13 @@
                             </tr>`;
 
             data.forEach(audit => {
-                const company = formatText(audit.Company);
-                const region = formatText(audit.Region);
-                const auditor = formatText(audit["Preassigned Auditor"]);
-                const janPlan = formatDate(audit["January 2025 - Planned"]);
-                const febPlan = formatDate(audit["February 2025 - Planned"]);
-                const marPlan = formatDate(audit["March 2025 - Planned"]);
-
                 table += `<tr>
-                            <td>${company}</td>
-                            <td>${region}</td>
-                            <td>${auditor}</td>
-                            <td>${janPlan}</td>
-                            <td>${febPlan}</td>
-                            <td>${marPlan}</td>
+                            <td>${audit.Company || "-"}</td>
+                            <td>${audit.Region || "-"}</td>
+                            <td>${audit["Preassigned Auditor"] || "-"}</td>
+                            <td>${formatDate(audit["January 2025 - Planned"])}</td>
+                            <td>${formatDate(audit["February 2025 - Planned"])}</td>
+                            <td>${formatDate(audit["March 2025 - Planned"])}</td>
                           </tr>`;
             });
 

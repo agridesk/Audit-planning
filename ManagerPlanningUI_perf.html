@@ -1,0 +1,136 @@
+<script>
+(function () {
+  'use strict';
+
+  try {
+    if (typeof V5_isDevRuntime_ === 'function' && !V5_isDevRuntime_()) return;
+  } catch (e0) {
+    return;
+  }
+
+  var navStart = Date.now();
+  try {
+    if (window.performance && performance.timeOrigin) navStart = Math.round(performance.timeOrigin);
+    else if (window.performance && performance.timing && performance.timing.navigationStart) navStart = performance.timing.navigationStart;
+  } catch (e1) {}
+
+  var trace = {
+    build: 'AMS01_TOOLKIT_MILESTONES_20260907',
+    auditId: (typeof auditId !== 'undefined' && auditId) ? String(auditId) : '',
+    role: (typeof V5_ROLE !== 'undefined' && V5_ROLE) ? String(V5_ROLE) : '',
+    startedAt: new Date(navStart).toISOString(),
+    navStartMs: navStart,
+    milestones: {},
+    events: []
+  };
+
+  window.__AMS01_PERF__ = trace;
+
+  function emit_(name, extra) {
+    if (trace.milestones[name]) return trace.milestones[name];
+    var now = Date.now();
+    var item = {
+      milestone: name,
+      ts: now,
+      fromNavigationMs: now - navStart,
+      auditId: trace.auditId,
+      role: trace.role
+    };
+    if (extra && typeof extra === 'object') {
+      Object.keys(extra).forEach(function (k) { item[k] = extra[k]; });
+    }
+    trace.milestones[name] = item;
+    trace.events.push(item);
+    try {
+      if (typeof log === 'function') log('AMS01_PERF_MILESTONE ' + JSON.stringify(item));
+    } catch (e2) {}
+    try { console.log('AMS01_PERF_MILESTONE', item); } catch (e3) {}
+    return item;
+  }
+
+  function auditorReady_() {
+    try {
+      if (typeof V5_ROLE !== 'undefined' && String(V5_ROLE).toUpperCase() === 'AUDITOR') {
+        if (typeof V5_LOCKED_AUDITOR_EMAIL !== 'undefined' && String(V5_LOCKED_AUDITOR_EMAIL || '').trim()) return true;
+      }
+      return !!(typeof ctx !== 'undefined' && ctx && ctx.auditorsHydrated);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function calendarReady_() {
+    try {
+      if (typeof dayAvail === 'undefined' || dayAvail === null) return false;
+      if (typeof window.__mp_calendarBusy !== 'undefined' && window.__mp_calendarBusy) return false;
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function tryDecisionReady_(source) {
+    if (trace.milestones['Planning Decision-Ready']) return;
+    if (!auditorReady_() || !calendarReady_()) return;
+    emit_('Planning Decision-Ready', {
+      source: source || '',
+      auditorHydrated: auditorReady_(),
+      calendarReady: calendarReady_(),
+      visibleMonth: (typeof currentMonth !== 'undefined' && currentMonth) ? (currentMonth.getFullYear() + '-' + ('0' + (currentMonth.getMonth() + 1)).slice(-2)) : ''
+    });
+  }
+
+  try {
+    if (typeof onContextLoaded === 'function') {
+      var originalContextLoaded = onContextLoaded;
+      onContextLoaded = function (res) {
+        var out = originalContextLoaded.apply(this, arguments);
+        try {
+          requestAnimationFrame(function () {
+            emit_('Calendar Shell Interactive', {
+              source: 'onContextLoaded/requestAnimationFrame',
+              serverMs: res && res.__serverMs != null ? Number(res.__serverMs) : null,
+              bundleServerMs: res && res.__bundleServerMs != null ? Number(res.__bundleServerMs) : null,
+              cacheHit: !!(res && res.__cacheHit),
+              responseBytesEstimate: (res && res.__d48OpenRouteInstrumentation) ? (res.__d48OpenRouteInstrumentation.responseBytesEstimate || null) : null
+            });
+            tryDecisionReady_('contextLoaded');
+          });
+        } catch (e4) {
+          setTimeout(function () {
+            emit_('Calendar Shell Interactive', { source: 'onContextLoaded/setTimeout' });
+            tryDecisionReady_('contextLoadedFallback');
+          }, 0);
+        }
+        return out;
+      };
+    }
+  } catch (e5) {}
+
+  try {
+    if (typeof onAuditorsHydrated === 'function') {
+      var originalAuditorsHydrated = onAuditorsHydrated;
+      onAuditorsHydrated = function () {
+        var out = originalAuditorsHydrated.apply(this, arguments);
+        tryDecisionReady_('auditorsHydrated');
+        return out;
+      };
+    }
+  } catch (e6) {}
+
+  try {
+    if (typeof renderCalendarOnceLoaded_ === 'function') {
+      var originalRenderCalendarOnceLoaded = renderCalendarOnceLoaded_;
+      renderCalendarOnceLoaded_ = function () {
+        var out = originalRenderCalendarOnceLoaded.apply(this, arguments);
+        try {
+          requestAnimationFrame(function () { tryDecisionReady_('calendarRendered'); });
+        } catch (e7) {
+          setTimeout(function () { tryDecisionReady_('calendarRenderedFallback'); }, 0);
+        }
+        return out;
+      };
+    }
+  } catch (e8) {}
+})();
+</script>

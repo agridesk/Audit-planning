@@ -1,6 +1,6 @@
 /**
  * FILE: StatusNotificationBridge_PerformanceRoute.js
- * BUILD: AMS01_STATUS_NOTIFICATION_PERF_20260907_R2
+ * BUILD: AMS01_STATUS_NOTIFICATION_PERF_20260907_R3
  *
  * DEV performance route for the existing StatusNotificationBridge contract.
  * Functional semantics preserved:
@@ -15,10 +15,12 @@
  *    Diagnostics_Log writes inside the user action;
  * 2) ECAS digest reuses the briefing already attached by Dispatch_ and only
  *    reloads it when that payload is incomplete;
- * 3) canonical AuditPlanningRowIndexCache is reused for ACCEPT briefing reads.
+ * 3) canonical AuditPlanningRowIndexCache is reused for ACCEPT briefing reads;
+ * 4) MPS number enrichment uses canonical CompaniesIndexService first, avoiding
+ *    the Companies TextFinder + row reread in the ACCEPT hot path.
  */
 
-var AMS01_STATUS_NOTIFICATION_PERF_BUILD = 'AMS01_STATUS_NOTIFICATION_PERF_20260907_R2';
+var AMS01_STATUS_NOTIFICATION_PERF_BUILD = 'AMS01_STATUS_NOTIFICATION_PERF_20260907_R3';
 
 function StatusNotificationBridge_QueueWithLock_(recipientEmail, eventCode, queuePayload, auditId) {
   var lock = LockService.getScriptLock();
@@ -181,7 +183,8 @@ function StatusNotificationBridge_LoadEcasAuditBriefing_(auditId) {
     planningJson:'',
     auditorEmail:'',
     auditorName:'',
-    __ams01BriefingBuild:AMS01_STATUS_NOTIFICATION_PERF_BUILD
+    __ams01BriefingBuild:AMS01_STATUS_NOTIFICATION_PERF_BUILD,
+    __ams01MpsSource:''
   };
   if (!auditId) return out;
 
@@ -201,10 +204,29 @@ function StatusNotificationBridge_LoadEcasAuditBriefing_(auditId) {
     out.companyUid = StatusNotificationBridge_CellLoose_(row, idx, [
       'Company_UID', 'Company UID', 'CompanyUID', 'UID', 'Company Id', 'Company ID'
     ]);
-    out.mpsNumber = StatusNotificationBridge_LoadMpsNumberFromCompaniesByUid_(ss, out.companyUid);
+
+    var companyCore = null;
+    try {
+      if (typeof CompaniesIndex_GetCompanyCoreByUidOrName === 'function') {
+        companyCore = CompaniesIndex_GetCompanyCoreByUidOrName(out.companyUid, out.company);
+      }
+    } catch (eCore) { companyCore = null; }
+
+    if (companyCore) {
+      out.mpsNumber = StatusNotificationBridge_NormalizeMpsNumber_(companyCore.number || '');
+      if (out.mpsNumber) out.__ams01MpsSource = 'CompaniesIndexService';
+    }
+
     if (!out.mpsNumber) {
       out.mpsNumber = StatusNotificationBridge_ExtractMpsNumberFromAuditRow_(hdr, row, idx, row);
+      if (out.mpsNumber) out.__ams01MpsSource = 'AuditPlanningRow';
     }
+
+    if (!out.mpsNumber) {
+      out.mpsNumber = StatusNotificationBridge_LoadMpsNumberFromCompaniesByUid_(ss, out.companyUid);
+      if (out.mpsNumber) out.__ams01MpsSource = 'CompaniesFallback';
+    }
+
     out.planningJson = StatusNotificationBridge_CellLoose_(row, idx, [
       'Planning JSON', 'PlanningJSON', 'Planning', 'Planning json', 'Planning_Js', 'Planning js'
     ]);
@@ -224,6 +246,7 @@ function StatusNotificationBridge_LoadEcasAuditBriefing_(auditId) {
         auditId:auditId,
         row:pack.rowNumber || 0,
         indexFromCache:!!pack.indexFromCache,
+        mpsSource:out.__ams01MpsSource,
         scopes:out.scopes.length,
         blocks:out.blocks.length
       }));
@@ -241,6 +264,7 @@ function AMS01_StatusNotificationPerfStatus() {
     build:AMS01_STATUS_NOTIFICATION_PERF_BUILD,
     duplicateBriefingAvoided:true,
     successPathQueueDiagnostics:'LOGGER_ONLY',
-    briefingReadOwner:'AuditPlanningRowIndexCache'
+    briefingReadOwner:'AuditPlanningRowIndexCache',
+    companyEnrichmentOwner:'CompaniesIndexService'
   };
 }

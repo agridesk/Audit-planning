@@ -1,8 +1,8 @@
 /**
  * FILE: AMS01_PromotionCheck.js
- * BUILD: AMS01_PROMOTION_CHECK_20260907_R1
+ * BUILD: AMS01_PROMOTION_CHECK_20260907_R2
  * PURPOSE:
- *   Read-only verification of promoted AMS-01 hot paths after DEV sync.
+ *   Read-only verification of promoted/candidate AMS-01 hot paths after DEV sync.
  */
 
 function AMS01_RunPromotionCheck() {
@@ -10,7 +10,7 @@ function AMS01_RunPromotionCheck() {
   var monthKey = '2026-09';
   var auditorEmail = 'david@agriqa.es';
   var out = {
-    build:'AMS01_PROMOTION_CHECK_20260907_R1',
+    build:'AMS01_PROMOTION_CHECK_20260907_R2',
     generatedAt:new Date().toISOString(),
     runtimeEnv:(typeof AMS01_env_ === 'function' ? AMS01_env_() : 'UNKNOWN'),
     probes:[]
@@ -47,6 +47,10 @@ function AMS01_RunPromotionCheck() {
     return AMS01_GetAvailabilityMonthCandidate(auditorEmail, monthKey);
   });
 
+  probe_('Auditor Portal targeted Companies candidate', function(){
+    return AMS01_RunAuditorCompaniesCandidate();
+  });
+
   var compact = out.probes.map(function(p){
     var r = p.result || {};
     return {
@@ -56,9 +60,14 @@ function AMS01_RunPromotionCheck() {
       bundleStage:r.__bundleStage || '',
       bundleServerMs:r.__bundleServerMs || null,
       openServerMs:r.__serverMs || null,
+      liteManager:!!r.__ams01LiteContext,
       auditorBundleServerMs:r.auditorsBundle && r.auditorsBundle.__serverMs != null ? r.auditorsBundle.__serverMs : null,
       qualificationOnly:!!(r.auditorsBundle && r.auditorsBundle.auditorEligibilityMeta && r.auditorsBundle.auditorEligibilityMeta.ams01PromotedFirstPaint),
       rows:Array.isArray(r.auditors) ? r.auditors.length : (r.meta && r.meta.rowsMatched != null ? r.meta.rowsMatched : null),
+      semanticEqual:r.semanticEqual != null ? r.semanticEqual : null,
+      oldMs:r.oldMs != null ? r.oldMs : null,
+      candidateMs:r.candidateMs != null ? r.candidateMs : null,
+      wantedCompanies:r.wantedCompanies != null ? r.wantedCompanies : null,
       meta:r.meta || null,
       error:p.error || ''
     };

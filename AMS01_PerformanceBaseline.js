@@ -1,39 +1,82 @@
 /**
  * FILE: AMS01_PerformanceBaseline.js
- * BUILD: AMS01_PERFORMANCE_BASELINE_20260907
+ * BUILD: AMS01_PERFORMANCE_BASELINE_20260907_R2
  * PURPOSE:
- *   Read-only consolidated baseline runner for AMS-01 — Performance & Hot Paths.
+ *   Consolidated AMS-01 diagnostics for server-side hot paths.
  *
  * GOVERNANCE:
- *   - No writes, no status transitions.
- *   - Reuses existing canonical runtime endpoints.
- *   - Measures server execution only. Browser/GAS proxy/paint metrics remain owned by
- *     existing UI instrumentation (including ManagerPlanningUI_perf.html).
+ *   - Business data is read-only.
+ *   - AMS01_RunAndStorePerformanceBaseline writes diagnostics only to
+ *     AMS01_Performance_Baseline so results can be inspected without copy/paste.
+ *   - No status transitions, planning writes or availability writes.
+ *   - Browser/GAS proxy/paint metrics remain owned by UI instrumentation.
  */
 
+var AMS01_BASELINE_BUILD = 'AMS01_PERFORMANCE_BASELINE_20260907_R2';
+var AMS01_BASELINE_SHEET = 'AMS01_Performance_Baseline';
+
 function AMS01_RunPerformanceBaseline() {
-  return AMS01_RunPerformanceBaselineWithOptions({});
+  return AMS01_RunPerformanceBaselineWithOptions({ forceFresh:true });
+}
+
+function AMS01_RunAndStorePerformanceBaseline() {
+  var result = AMS01_RunPerformanceBaselineWithOptions({ forceFresh:true });
+  var stored = AMS01_store_(result);
+  result.storage = stored;
+  return result;
 }
 
 function AMS01_RunPerformanceBaselineWithOptions(opts) {
   opts = opts || {};
   var started = Date.now();
+  var selection = AMS01_fixture_(opts);
   var out = {
-    build: 'AMS01_PERFORMANCE_BASELINE_20260907',
+    build: AMS01_BASELINE_BUILD,
     generatedAt: new Date().toISOString(),
     runtimeEnv: AMS01_env_(),
-    selection: {},
+    forceFresh: opts.forceFresh !== false,
+    sequentialComposite: true,
+    selection: selection,
     probes: [],
     summary: {},
     notes: [
-      'Server-side timings only.',
-      'Calendar Shell Interactive and Planning Decision-Ready are measured client-side in DEV.',
-      'No probe performs a write or status transition.'
+      'Server-side diagnostic composite; probes share one Apps Script execution.',
+      'User-facing bundle is measured before its component probes to reduce warm-up bias.',
+      'Business data is not mutated.',
+      'Calendar Shell Interactive and Planning Decision-Ready are measured client-side in DEV.'
     ]
   };
 
-  var selection = AMS01_selectFixture_(opts);
-  out.selection = selection;
+  var forceFresh = opts.forceFresh !== false;
+
+  if (selection.auditId) {
+    AMS01_probe_(out, 'Planning Toolkit — user-facing open bundle', 'getToolkitOpenBundleV5_d13', function() {
+      if (typeof getToolkitOpenBundleV5_d13 !== 'function') return AMS01_missing_('getToolkitOpenBundleV5_d13');
+      return getToolkitOpenBundleV5_d13(selection.auditId, selection.monthKey, {
+        role:'MANAGER',
+        withCalendar:false,
+        forceFresh:forceFresh
+      });
+    });
+  }
+
+  if (selection.auditorEmail && selection.monthKey) {
+    AMS01_probe_(out, 'Planning Toolkit — visible month availability', 'getToolkitAvailabilityMonthDirectV5', function() {
+      if (typeof getToolkitAvailabilityMonthDirectV5 !== 'function') return AMS01_missing_('getToolkitAvailabilityMonthDirectV5');
+      return getToolkitAvailabilityMonthDirectV5(selection.auditorEmail, selection.monthKey, { forceFresh:forceFresh });
+    });
+  }
+
+  if (selection.auditorEmail) {
+    AMS01_probe_(out, 'Auditor Portal — active grid', 'AuditorV5B_GetAuditorGrid_U20409', function() {
+      if (typeof AuditorV5B_GetAuditorGrid_U20409 !== 'function') return AMS01_missing_('AuditorV5B_GetAuditorGrid_U20409');
+      return AuditorV5B_GetAuditorGrid_U20409({
+        view:'active',
+        auditorEmail:selection.auditorEmail,
+        noCache:forceFresh
+      });
+    });
+  }
 
   AMS01_probe_(out, 'Manager Portal — open grid', 'getManagerV5Open', function() {
     if (typeof getManagerV5Open !== 'function') return AMS01_missing_('getManagerV5Open');
@@ -45,73 +88,58 @@ function AMS01_RunPerformanceBaselineWithOptions(opts) {
     return getManagerV5DashboardData();
   });
 
+  AMS01_probe_(out, 'Notification Queue — duplicate scan', 'NB_recentQueueDuplicate_', function() {
+    if (typeof NB_recentQueueDuplicate_ !== 'function') return AMS01_missing_('NB_recentQueueDuplicate_');
+    var ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.getActive();
+    var sh = ss && ss.getSheetByName('Notification Queue');
+    if (!sh) return { success:false, message:'Missing Notification Queue' };
+    return { success:true, result:NB_recentQueueDuplicate_(sh, 'AMS01_NON_MATCH_' + Utilities.getUuid(), 'AMS01', '', '') };
+  });
+
   if (selection.auditId) {
-    AMS01_probe_(out, 'Planning Toolkit — fast open', 'getToolkitOpenFastV5', function() {
+    AMS01_probe_(out, 'Planning Toolkit — fast open component', 'getToolkitOpenFastV5', function() {
       if (typeof getToolkitOpenFastV5 !== 'function') return AMS01_missing_('getToolkitOpenFastV5');
-      return getToolkitOpenFastV5(selection.auditId, selection.monthKey || '', {
-        role: 'MANAGER',
-        withCalendar: false,
-        forceFresh: !!opts.forceFresh
+      return getToolkitOpenFastV5(selection.auditId, selection.monthKey, {
+        role:'MANAGER',
+        withCalendar:false,
+        forceFresh:forceFresh
       });
     });
 
-    AMS01_probe_(out, 'Planning Toolkit — open bundle', 'getToolkitOpenBundleV5_d13', function() {
-      if (typeof getToolkitOpenBundleV5_d13 !== 'function') return AMS01_missing_('getToolkitOpenBundleV5_d13');
-      return getToolkitOpenBundleV5_d13(selection.auditId, selection.monthKey || '', {
-        role: 'MANAGER',
-        withCalendar: false,
-        forceFresh: !!opts.forceFresh
-      });
-    });
-
-    AMS01_probe_(out, 'Planning Toolkit — auditor eligibility', 'getToolkitAuditorsV5', function() {
+    AMS01_probe_(out, 'Planning Toolkit — eligibility component', 'getToolkitAuditorsV5', function() {
       if (typeof getToolkitAuditorsV5 !== 'function') return AMS01_missing_('getToolkitAuditorsV5');
       return getToolkitAuditorsV5(selection.auditId);
     });
   }
 
-  if (selection.auditorEmail && selection.monthKey) {
-    AMS01_probe_(out, 'Planning Toolkit — visible month availability', 'getToolkitAvailabilityMonthDirectV5', function() {
-      if (typeof getToolkitAvailabilityMonthDirectV5 !== 'function') return AMS01_missing_('getToolkitAvailabilityMonthDirectV5');
-      return getToolkitAvailabilityMonthDirectV5(selection.auditorEmail, selection.monthKey, {
-        forceFresh: !!opts.forceFresh
-      });
-    });
-  }
-
-  if (selection.auditorEmail) {
-    AMS01_probe_(out, 'Auditor Portal — active grid', 'AuditorV5B_GetAuditorGrid_U20409', function() {
-      if (typeof AuditorV5B_GetAuditorGrid_U20409 !== 'function') return AMS01_missing_('AuditorV5B_GetAuditorGrid_U20409');
-      return AuditorV5B_GetAuditorGrid_U20409({
-        view: 'active',
-        auditorEmail: selection.auditorEmail,
-        noCache: !!opts.forceFresh
-      });
-    });
-  }
-
   out.summary = AMS01_summarize_(out.probes);
   out.totalRunnerMs = Date.now() - started;
-
   try { Logger.log('[AMS01_BASELINE] ' + JSON.stringify(out)); } catch (eLog) {}
   return out;
+}
+
+function AMS01_fixture_(opts) {
+  return {
+    auditId: String(opts.auditId || 'AUD_CultiusItxartSCP_HQ_1777531729225_18').trim(),
+    auditorEmail: String(opts.auditorEmail || 'david@agriqa.es').trim().toLowerCase(),
+    monthKey: /^\d{4}-\d{2}$/.test(String(opts.monthKey || '2026-09')) ? String(opts.monthKey || '2026-09') : '2026-09'
+  };
 }
 
 function AMS01_probe_(out, label, fnName, fn) {
   var t0 = Date.now();
   var probe = {
-    label: label,
-    functionName: fnName,
-    ok: false,
-    wallMs: 0,
-    serverReportedMs: null,
-    cacheHit: null,
-    rowsReturned: null,
-    payloadBytesEstimate: null,
-    perf: null,
-    error: ''
+    label:label,
+    functionName:fnName,
+    ok:false,
+    wallMs:0,
+    serverReportedMs:null,
+    cacheHit:null,
+    rowsReturned:null,
+    payloadBytesEstimate:null,
+    perf:null,
+    error:''
   };
-
   try {
     var res = fn();
     probe.wallMs = Date.now() - t0;
@@ -119,8 +147,8 @@ function AMS01_probe_(out, label, fnName, fn) {
       probe.error = res.message || 'MISSING_FUNCTION';
     } else {
       probe.ok = !(res && res.success === false);
-      probe.serverReportedMs = AMS01_pickNumber_(res, ['__serverMs', 'serverMs', 'totalMs']);
-      probe.cacheHit = AMS01_pickBool_(res, ['__cacheHit', 'cacheHit']);
+      probe.serverReportedMs = AMS01_pickNumber_(res, ['__bundleServerMs','__serverMs','serverMs','totalMs']);
+      probe.cacheHit = AMS01_pickBool_(res, ['__cacheHit','cacheHit']);
       probe.rowsReturned = AMS01_rowsReturned_(res);
       probe.payloadBytesEstimate = AMS01_payloadBytes_(res);
       probe.perf = AMS01_compactPerf_(res);
@@ -130,91 +158,7 @@ function AMS01_probe_(out, label, fnName, fn) {
     probe.wallMs = Date.now() - t0;
     probe.error = String(e && e.message ? e.message : e);
   }
-
   out.probes.push(probe);
-}
-
-function AMS01_selectFixture_(opts) {
-  var selected = {
-    auditId: String(opts.auditId || '').trim(),
-    auditorEmail: String(opts.auditorEmail || '').trim().toLowerCase(),
-    monthKey: String(opts.monthKey || '').trim()
-  };
-
-  if (!/^\d{4}-\d{2}$/.test(selected.monthKey)) selected.monthKey = '';
-
-  try {
-    var ss = SpreadsheetApp.getActive();
-    var sh = ss && ss.getSheetByName('Audit planning');
-    if (!sh) return selected;
-    var lastRow = sh.getLastRow();
-    var lastCol = sh.getLastColumn();
-    if (lastRow < 2 || lastCol < 1) return selected;
-
-    var hdr = sh.getRange(1, 1, 1, lastCol).getValues()[0] || [];
-    var idxAudit = AMS01_header_(hdr, ['Audit ID', 'Audit_ID', 'AuditID']);
-    var idxStatus = AMS01_header_(hdr, ['Status']);
-    var idxAssigned = AMS01_header_(hdr, ['Assigned to', 'Assigned To', 'Auditor']);
-    var idxJson = AMS01_header_(hdr, ['Planning JSON', 'Planning_JSON']);
-    var idxExpire = AMS01_header_(hdr, ['Date - Will Expire', 'Expiration date', 'Expiry date']);
-
-    var width = lastCol;
-    var values = sh.getRange(2, 1, Math.min(lastRow - 1, 250), width).getValues();
-
-    for (var r = 0; r < values.length; r++) {
-      var row = values[r] || [];
-      var status = idxStatus >= 0 ? String(row[idxStatus] || '').trim().toUpperCase() : '';
-      if (status && ['COMPLETED', 'REJECTED'].indexOf(status.replace(/\s+/g, '_')) >= 0) continue;
-
-      if (!selected.auditId && idxAudit >= 0) selected.auditId = String(row[idxAudit] || '').trim();
-
-      if (!selected.auditorEmail) {
-        var em = '';
-        if (idxAssigned >= 0) {
-          var assigned = String(row[idxAssigned] || '').trim().toLowerCase();
-          if (assigned.indexOf('@') > 0) em = assigned;
-        }
-        if (!em && idxJson >= 0 && row[idxJson]) {
-          try {
-            var pj = JSON.parse(String(row[idxJson]));
-            em = String((pj && pj.auditorEmail) || '').trim().toLowerCase();
-          } catch (eJson) {}
-        }
-        if (em) selected.auditorEmail = em;
-      }
-
-      if (!selected.monthKey && idxExpire >= 0) {
-        var v = row[idxExpire];
-        var d = null;
-        if (Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v.getTime())) d = v;
-        else {
-          var s = String(v || '').trim();
-          var m = s.match(/^(\d{4})[-\/](\d{1,2})/);
-          if (m) selected.monthKey = m[1] + '-' + ('0' + m[2]).slice(-2);
-        }
-        if (d) selected.monthKey = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
-      }
-
-      if (selected.auditId && selected.auditorEmail && selected.monthKey) break;
-    }
-  } catch (e) {}
-
-  if (!selected.monthKey) {
-    var now = new Date();
-    selected.monthKey = now.getFullYear() + '-' + ('0' + (now.getMonth() + 1)).slice(-2);
-  }
-  return selected;
-}
-
-function AMS01_header_(hdr, names) {
-  var norm = function(v) { return String(v || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ''); };
-  var map = {};
-  for (var i = 0; i < hdr.length; i++) map[norm(hdr[i])] = i;
-  for (var j = 0; j < names.length; j++) {
-    var k = norm(names[j]);
-    if (Object.prototype.hasOwnProperty.call(map, k)) return map[k];
-  }
-  return -1;
 }
 
 function AMS01_pickNumber_(obj, keys) {
@@ -243,6 +187,7 @@ function AMS01_rowsReturned_(res) {
   if (!res) return null;
   if (Array.isArray(res.rows)) return res.rows.length;
   if (Array.isArray(res.auditors)) return res.auditors.length;
+  if (res.auditorsBundle && Array.isArray(res.auditorsBundle.auditors)) return res.auditorsBundle.auditors.length;
   if (res.perf && isFinite(Number(res.perf.rowsReturned))) return Number(res.perf.rowsReturned);
   return null;
 }
@@ -253,9 +198,7 @@ function AMS01_payloadBytes_(res) {
       return Number(res.__d48OpenRouteInstrumentation.responseBytesEstimate);
     }
     return Utilities.newBlob(JSON.stringify(res || {})).getBytes().length;
-  } catch (e) {
-    return null;
-  }
+  } catch (e) { return null; }
 }
 
 function AMS01_compactPerf_(res) {
@@ -268,26 +211,52 @@ function AMS01_compactPerf_(res) {
 }
 
 function AMS01_summarize_(probes) {
-  var ok = (probes || []).filter(function(p) { return p.ok; });
-  var sorted = ok.slice().sort(function(a, b) { return Number(b.wallMs || 0) - Number(a.wallMs || 0); });
+  var ok = (probes || []).filter(function(p){ return p.ok; });
+  var sorted = ok.slice().sort(function(a,b){ return Number(b.wallMs || 0) - Number(a.wallMs || 0); });
   return {
-    successfulProbes: ok.length,
-    failedProbes: (probes || []).length - ok.length,
-    slowest: sorted.slice(0, 5).map(function(p) {
+    successfulProbes:ok.length,
+    failedProbes:(probes || []).length - ok.length,
+    slowest:sorted.slice(0,5).map(function(p){
       return {
-        label: p.label,
-        wallMs: p.wallMs,
-        serverReportedMs: p.serverReportedMs,
-        cacheHit: p.cacheHit,
-        rowsReturned: p.rowsReturned,
-        payloadBytesEstimate: p.payloadBytesEstimate
+        label:p.label,
+        wallMs:p.wallMs,
+        serverReportedMs:p.serverReportedMs,
+        cacheHit:p.cacheHit,
+        rowsReturned:p.rowsReturned,
+        payloadBytesEstimate:p.payloadBytesEstimate
       };
     })
   };
 }
 
+function AMS01_store_(result) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.getActive();
+    if (!ss) return { success:false, message:'No active spreadsheet' };
+    var sh = ss.getSheetByName(AMS01_BASELINE_SHEET);
+    if (!sh) sh = ss.insertSheet(AMS01_BASELINE_SHEET);
+    if (sh.getLastRow() < 1) {
+      sh.getRange(1,1,1,8).setValues([['Timestamp','Build','Runtime','Audit_ID','Auditor','Month','Total_Runner_Ms','Result_JSON']]);
+    }
+    var row = [
+      new Date(),
+      String(result.build || ''),
+      String(result.runtimeEnv || ''),
+      String((result.selection && result.selection.auditId) || ''),
+      String((result.selection && result.selection.auditorEmail) || ''),
+      String((result.selection && result.selection.monthKey) || ''),
+      Number(result.totalRunnerMs || 0),
+      JSON.stringify(result || {})
+    ];
+    sh.getRange(sh.getLastRow()+1,1,1,row.length).setValues([row]);
+    return { success:true, sheet:AMS01_BASELINE_SHEET, row:sh.getLastRow() };
+  } catch (e) {
+    return { success:false, message:String(e && e.message ? e.message : e) };
+  }
+}
+
 function AMS01_missing_(name) {
-  return { __missing: true, success: false, message: 'Missing function: ' + name };
+  return { __missing:true, success:false, message:'Missing function: ' + name };
 }
 
 function AMS01_env_() {

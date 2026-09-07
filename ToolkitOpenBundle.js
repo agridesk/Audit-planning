@@ -1,23 +1,21 @@
 /**
- * ToolkitOpenBundle_d15_AMS01_QUALIFICATION_ONLY_20260907.js
+ * ToolkitOpenBundle_d16_AMS01_LITE_CONTEXT_20260907.js
  *
  * Single-roundtrip bundle for Manager Planning Toolkit open.
  *
- * AMS-01 promotion 2026-09-07:
- * - Regression gate proved qualification-only membership is identical to the
- *   existing full eligibility route for the current DEV fixture.
- * - Manager first paint therefore uses AMS01_GetQualifiedAuditorsFastCandidate
- *   for the bundled auditor membership when available.
- * - Rotation remains explicitly pending and is hydrated by the existing
- *   non-open rotation path; no planning/status/availability truth changes.
- * - Locked AUDITOR route still skips full dropdown hydration.
+ * AMS-01 promotions 2026-09-07:
+ * - Manager first paint uses getToolkitOpenLiteV5 after the deep-dive proved
+ *   all critical planning/context fields equal to getToolkitOpenFastV5.
+ * - Locked AUDITOR route keeps getToolkitOpenFastV5 because that route may
+ *   include its inline first-month calendar contract.
+ * - Manager bundled auditor membership remains HARD qualification only;
+ *   rotation is explicitly pending and hydrated later.
  */
 
 function getToolkitOpenBundleV5_d13(auditId, monthKey, opts) {
   var __tBundle0 = Date.now();
   var stages = [];
-
-  function __stage_(name, ms) { stages.push({ name: name, ms: ms }); }
+  function __stage_(name, ms) { stages.push({ name:name, ms:ms }); }
 
   opts = opts || {};
   var __role = String(opts.role || '').trim().toUpperCase();
@@ -25,36 +23,39 @@ function getToolkitOpenBundleV5_d13(auditId, monthKey, opts) {
   var __isLockedAuditorRoute = (__role === 'AUDITOR' && !!__lockedAuditorEmail);
 
   auditId = String(auditId || '').trim();
-  if (!auditId) {
-    return { success: false, message: 'Missing auditId', __bundleStage: 'd15' };
-  }
+  if (!auditId) return { success:false, message:'Missing auditId', __bundleStage:'d16' };
 
-  // 1) OPEN — existing canonical fast-open context owner.
   var __tOpen0 = Date.now();
   var openRes;
   try {
-    openRes = getToolkitOpenFastV5(auditId, monthKey, opts);
+    if (__isLockedAuditorRoute) {
+      openRes = getToolkitOpenFastV5(auditId, monthKey, opts);
+    } else if (typeof getToolkitOpenLiteV5 === 'function') {
+      openRes = getToolkitOpenLiteV5(auditId);
+      openRes = openRes || {};
+      openRes.__ams01LiteContext = true;
+    } else {
+      openRes = getToolkitOpenFastV5(auditId, monthKey, opts);
+    }
   } catch (eOpen) {
     return {
-      success: false,
-      message: 'open failed: ' + (eOpen && eOpen.message ? eOpen.message : eOpen),
-      __bundleStage: 'd15'
+      success:false,
+      message:'open failed: ' + (eOpen && eOpen.message ? eOpen.message : eOpen),
+      __bundleStage:'d16'
     };
   }
-  __stage_('bundle.open', Date.now() - __tOpen0);
+  __stage_(__isLockedAuditorRoute ? 'bundle.open[FAST_LOCKED_AUDITOR]' : 'bundle.open[LITE_MANAGER]', Date.now() - __tOpen0);
 
-  // 2) AUDITORS — first-paint membership only.
-  // Rotation is intentionally excluded from this first-paint bundle.
   var __tAud0 = Date.now();
   var audRes = null;
   if (__isLockedAuditorRoute) {
     audRes = {
-      success: true,
-      skipped: true,
-      reason: 'LOCKED_AUDITOR_ROUTE_SKIP_FULL_AUDITOR_BUNDLE',
-      auditors: (openRes && openRes.auditors && openRes.auditors.length) ? openRes.auditors : [],
-      auditorEligibilityMeta: (openRes && openRes.auditorEligibilityMeta) ? openRes.auditorEligibilityMeta : { selectedOnly: true },
-      __serverMs: 0
+      success:true,
+      skipped:true,
+      reason:'LOCKED_AUDITOR_ROUTE_SKIP_FULL_AUDITOR_BUNDLE',
+      auditors:(openRes && openRes.auditors && openRes.auditors.length) ? openRes.auditors : [],
+      auditorEligibilityMeta:(openRes && openRes.auditorEligibilityMeta) ? openRes.auditorEligibilityMeta : { selectedOnly:true },
+      __serverMs:0
     };
     __stage_('bundle.auditors[SKIPPED_LOCKED_AUDITOR]', Date.now() - __tAud0);
   } else {
@@ -69,41 +70,37 @@ function getToolkitOpenBundleV5_d13(auditId, monthKey, opts) {
         audRes = getToolkitAuditorsV5(auditId);
       }
     } catch (eAud) {
-      audRes = {
-        success: false,
-        message: 'auditors failed: ' + (eAud && eAud.message ? eAud.message : eAud)
-      };
+      audRes = { success:false, message:'auditors failed: ' + (eAud && eAud.message ? eAud.message : eAud) };
     }
     __stage_('bundle.auditors[QUALIFICATION_ONLY]', Date.now() - __tAud0);
   }
 
-  // 3) ATTACH
   if (openRes && typeof openRes === 'object') {
     openRes.auditorsBundle = audRes;
-    openRes.__bundleStage = 'd15';
+    openRes.__bundleStage = 'd16';
     openRes.__bundleServerMs = Date.now() - __tBundle0;
     try {
       if (!openRes.__diag) openRes.__diag = {};
       if (!Array.isArray(openRes.__diag.stages)) openRes.__diag.stages = [];
-      for (var i = 0; i < stages.length; i++) openRes.__diag.stages.push(stages[i]);
+      for (var i=0; i<stages.length; i++) openRes.__diag.stages.push(stages[i]);
     } catch (_eD) {}
   } else {
     openRes = {
-      success: false,
-      message: 'open returned non-object',
-      auditorsBundle: audRes,
-      __bundleStage: 'd15',
-      __bundleServerMs: Date.now() - __tBundle0
+      success:false,
+      message:'open returned non-object',
+      auditorsBundle:audRes,
+      __bundleStage:'d16',
+      __bundleServerMs:Date.now() - __tBundle0
     };
   }
 
   try {
     Logger.log(
-      '[d15][BUNDLE] auditId=' + auditId +
+      '[d16][BUNDLE] auditId=' + auditId +
       ' open=' + (openRes && openRes.__serverMs) + 'ms' +
       ' aud=' + (audRes && audRes.__serverMs) + 'ms' +
       ' total=' + (Date.now() - __tBundle0) + 'ms' +
-      ' openCacheHit=' + !!(openRes && openRes.__cacheHit) +
+      ' liteManager=' + !!(openRes && openRes.__ams01LiteContext) +
       ' audSuccess=' + !!(audRes && audRes.success) +
       ' qualOnly=' + !!(audRes && audRes.auditorEligibilityMeta && audRes.auditorEligibilityMeta.ams01PromotedFirstPaint)
     );

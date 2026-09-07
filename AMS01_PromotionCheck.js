@@ -1,6 +1,6 @@
 /**
  * FILE: AMS01_PromotionCheck.js
- * BUILD: AMS01_PROMOTION_CHECK_20260907_R5
+ * BUILD: AMS01_PROMOTION_CHECK_20260907_R6
  * PURPOSE:
  *   Read-only verification of promoted/candidate AMS-01 hot paths after DEV sync.
  */
@@ -10,7 +10,7 @@ function AMS01_RunPromotionCheck() {
   var monthKey = '2026-09';
   var auditorEmail = 'david@agriqa.es';
   var out = {
-    build:'AMS01_PROMOTION_CHECK_20260907_R5',
+    build:'AMS01_PROMOTION_CHECK_20260907_R6',
     generatedAt:new Date().toISOString(),
     runtimeEnv:(typeof AMS01_env_ === 'function' ? AMS01_env_() : 'UNKNOWN'),
     probes:[]
@@ -37,6 +37,12 @@ function AMS01_RunPromotionCheck() {
       : { success:false, active:false, message:'AMS01_AuditorPerfOverrideStatus missing' };
   });
 
+  probe_('Toolkit availability route status', function(){
+    return (typeof AMS01_GetAvailabilityRouteStatus === 'function')
+      ? AMS01_GetAvailabilityRouteStatus()
+      : { success:false, active:false, message:'AMS01_GetAvailabilityRouteStatus missing' };
+  });
+
   probe_('Promoted manager Toolkit bundle', function(){
     return getToolkitOpenBundleV5_d13(auditId, monthKey, {
       role:'MANAGER',
@@ -49,12 +55,12 @@ function AMS01_RunPromotionCheck() {
     return AMS01_GetQualifiedAuditorsFastCandidate(auditId);
   });
 
-  probe_('Canonical-lite availability candidate', function(){
-    return AMS01_GetAvailabilityMonthCandidate(auditorEmail, monthKey);
-  });
-
-  probe_('Auditor Portal planning-summary candidate', function(){
-    return AMS01_RunPlanningSummaryCandidate();
+  probe_('Promoted Toolkit visible-month availability', function(){
+    return getToolkitAvailabilityMonthDirectV5(auditorEmail, monthKey, {
+      forceFresh:true,
+      bypassCache:true,
+      failOnOverlayError:false
+    });
   });
 
   probe_('Auditor Portal active grid COLD after timezone override', function(){
@@ -74,7 +80,8 @@ function AMS01_RunPromotionCheck() {
       ok:p.ok,
       wallMs:p.wallMs,
       active:r.active != null ? !!r.active : null,
-      overrideBuild:r.build || '',
+      build:r.build || (r.meta && r.meta.build) || '',
+      owner:r.owner || (r.meta && r.meta.routeOwner) || '',
       resolvedTimeZone:r.resolvedTimeZone || '',
       bundleStage:r.__bundleStage || '',
       bundleServerMs:r.__bundleServerMs || null,
@@ -83,10 +90,6 @@ function AMS01_RunPromotionCheck() {
       auditorBundleServerMs:r.auditorsBundle && r.auditorsBundle.__serverMs != null ? r.auditorsBundle.__serverMs : null,
       qualificationOnly:!!(r.auditorsBundle && r.auditorsBundle.auditorEligibilityMeta && r.auditorsBundle.auditorEligibilityMeta.ams01PromotedFirstPaint),
       rows:Array.isArray(r.auditors) ? r.auditors.length : (Array.isArray(r.rows) ? r.rows.length : (r.meta && r.meta.rowsMatched != null ? r.meta.rowsMatched : null)),
-      semanticEqual:r.semanticEqual != null ? r.semanticEqual : null,
-      oldMs:r.oldMs != null ? r.oldMs : null,
-      candidateMs:r.candidateMs != null ? r.candidateMs : null,
-      checked:r.checked != null ? r.checked : null,
       perf:r.perf || null,
       meta:r.meta || null,
       error:p.error || ''

@@ -1,6 +1,6 @@
 /**
  * FILE: StatusNotificationBridge_PerformanceRoute.js
- * BUILD: AMS01_STATUS_NOTIFICATION_PERF_20260907_R1
+ * BUILD: AMS01_STATUS_NOTIFICATION_PERF_20260907_R2
  *
  * DEV performance route for the existing StatusNotificationBridge contract.
  * Functional semantics preserved:
@@ -14,10 +14,11 @@
  * 1) success-path queue diagnostics are Logger-only instead of synchronous
  *    Diagnostics_Log writes inside the user action;
  * 2) ECAS digest reuses the briefing already attached by Dispatch_ and only
- *    reloads it when that payload is incomplete.
+ *    reloads it when that payload is incomplete;
+ * 3) canonical AuditPlanningRowIndexCache is reused for ACCEPT briefing reads.
  */
 
-var AMS01_STATUS_NOTIFICATION_PERF_BUILD = 'AMS01_STATUS_NOTIFICATION_PERF_20260907_R1';
+var AMS01_STATUS_NOTIFICATION_PERF_BUILD = 'AMS01_STATUS_NOTIFICATION_PERF_20260907_R2';
 
 function StatusNotificationBridge_QueueWithLock_(recipientEmail, eventCode, queuePayload, auditId) {
   var lock = LockService.getScriptLock();
@@ -166,12 +167,80 @@ function StatusNotificationBridge_QueueAcceptedExternalDigest_(recipientEmail, q
   }
 }
 
+function StatusNotificationBridge_LoadEcasAuditBriefing_(auditId) {
+  auditId = String(auditId || '').trim();
+  var out = {
+    auditId:auditId,
+    company:'',
+    companyUid:'',
+    mpsNumber:'',
+    scopes:[],
+    blocks:[],
+    plannedDates:[],
+    plannedHours:'',
+    planningJson:'',
+    auditorEmail:'',
+    auditorName:'',
+    __ams01BriefingBuild:AMS01_STATUS_NOTIFICATION_PERF_BUILD
+  };
+  if (!auditId) return out;
+
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.getActive();
+    if (!ss || typeof __mp_getAuditPlanningRow_ !== 'function') return out;
+    var pack = __mp_getAuditPlanningRow_(ss, auditId);
+    if (!pack || !pack.row || !pack.hdr) return out;
+
+    var hdr = pack.hdr || [];
+    var row = pack.row || [];
+    var idx = StatusNotificationBridge_HeaderMapLoose_(hdr);
+
+    out.company = StatusNotificationBridge_CellLoose_(row, idx, [
+      'Company', 'Company name', 'Client', 'Customer', 'Organisation', 'Organization'
+    ]);
+    out.companyUid = StatusNotificationBridge_CellLoose_(row, idx, [
+      'Company_UID', 'Company UID', 'CompanyUID', 'UID', 'Company Id', 'Company ID'
+    ]);
+    out.mpsNumber = StatusNotificationBridge_LoadMpsNumberFromCompaniesByUid_(ss, out.companyUid);
+    if (!out.mpsNumber) {
+      out.mpsNumber = StatusNotificationBridge_ExtractMpsNumberFromAuditRow_(hdr, row, idx, row);
+    }
+    out.planningJson = StatusNotificationBridge_CellLoose_(row, idx, [
+      'Planning JSON', 'PlanningJSON', 'Planning', 'Planning json', 'Planning_Js', 'Planning js'
+    ]);
+    out.scopes = StatusNotificationBridge_ExtractScopesFromAuditRow_(hdr, row);
+
+    var parsed = StatusNotificationBridge_ParsePlanningJson_(out.planningJson);
+    out.blocks = parsed.blocks;
+    out.plannedDates = parsed.plannedDates;
+    out.plannedHours = parsed.plannedHours;
+    out.auditorEmail = parsed.auditorEmail;
+    out.auditorName = parsed.auditorName;
+    if (!out.plannedHours && out.blocks.length) out.plannedHours = StatusNotificationBridge_SumBlockHours_(out.blocks);
+
+    try {
+      Logger.log('[AMS01_ACCEPT_BRIEFING] ' + JSON.stringify({
+        build:AMS01_STATUS_NOTIFICATION_PERF_BUILD,
+        auditId:auditId,
+        row:pack.rowNumber || 0,
+        indexFromCache:!!pack.indexFromCache,
+        scopes:out.scopes.length,
+        blocks:out.blocks.length
+      }));
+    } catch (eLog) {}
+  } catch (e) {
+    try { Logger.log('[AMS01_ACCEPT_BRIEFING_ERROR] ' + String(e && e.message ? e.message : e)); } catch (eLog2) {}
+  }
+  return out;
+}
+
 function AMS01_StatusNotificationPerfStatus() {
   return {
     success:true,
     active:true,
     build:AMS01_STATUS_NOTIFICATION_PERF_BUILD,
     duplicateBriefingAvoided:true,
-    successPathQueueDiagnostics:'LOGGER_ONLY'
+    successPathQueueDiagnostics:'LOGGER_ONLY',
+    briefingReadOwner:'AuditPlanningRowIndexCache'
   };
 }

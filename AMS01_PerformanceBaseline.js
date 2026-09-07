@@ -1,6 +1,6 @@
 /**
  * FILE: AMS01_PerformanceBaseline.js
- * BUILD: AMS01_PERFORMANCE_BASELINE_20260907_R4
+ * BUILD: AMS01_PERFORMANCE_BASELINE_20260907_R5
  * PURPOSE:
  *   Consolidated AMS-01 diagnostics for server-side hot paths.
  *
@@ -12,7 +12,7 @@
  *   - Browser/GAS proxy/paint metrics remain owned by UI instrumentation.
  */
 
-var AMS01_BASELINE_BUILD = 'AMS01_PERFORMANCE_BASELINE_20260907_R4';
+var AMS01_BASELINE_BUILD = 'AMS01_PERFORMANCE_BASELINE_20260907_R5';
 var AMS01_BASELINE_SHEET = 'AMS01_Performance_Baseline';
 
 function AMS01_RunPerformanceBaseline() {
@@ -43,7 +43,7 @@ function AMS01_RunPerformanceBaselineWithOptions(opts) {
       'Server-side diagnostic composite; probes share one Apps Script execution.',
       'User-facing bundle is measured before its component probes to reduce warm-up bias.',
       'Business data is not mutated.',
-      'Availability candidate is read-only and does not replace the canonical route.',
+      'Availability and qualification candidates are read-only and do not replace canonical routes.',
       'Calendar Shell Interactive and Planning Decision-Ready are measured client-side in DEV.'
     ]
   };
@@ -86,6 +86,11 @@ function AMS01_RunPerformanceBaselineWithOptions(opts) {
         noCache:forceFresh
       });
     });
+
+    AMS01_probe_(out, 'Auditor Portal — fallback diagnostic', 'AMS01_DiagnoseAuditorPortalFallbackFor_', function() {
+      if (typeof AMS01_DiagnoseAuditorPortalFallbackFor_ !== 'function') return AMS01_missing_('AMS01_DiagnoseAuditorPortalFallbackFor_');
+      return AMS01_DiagnoseAuditorPortalFallbackFor_(selection.auditorEmail);
+    });
   }
 
   AMS01_probe_(out, 'Manager Portal — open grid', 'getManagerV5Open', function() {
@@ -127,6 +132,11 @@ function AMS01_RunPerformanceBaselineWithOptions(opts) {
       if (typeof getToolkitAuditorsV5 !== 'function') return AMS01_missing_('getToolkitAuditorsV5');
       return getToolkitAuditorsV5(selection.auditId);
     });
+
+    AMS01_probe_(out, 'Planning Toolkit — qualification-only candidate', 'AMS01_GetQualifiedAuditorsFastCandidate', function() {
+      if (typeof AMS01_GetQualifiedAuditorsFastCandidate !== 'function') return AMS01_missing_('AMS01_GetQualifiedAuditorsFastCandidate');
+      return AMS01_GetQualifiedAuditorsFastCandidate(selection.auditId);
+    });
   }
 
   out.summary = AMS01_summarize_(out.probes);
@@ -156,6 +166,7 @@ function AMS01_probe_(out, label, fnName, fn) {
     payloadBytesEstimate:null,
     perf:null,
     meta:null,
+    diagnostics:null,
     error:''
   };
   try {
@@ -171,6 +182,7 @@ function AMS01_probe_(out, label, fnName, fn) {
       probe.payloadBytesEstimate = AMS01_payloadBytes_(res);
       probe.perf = AMS01_compactPerf_(res);
       probe.meta = AMS01_compactMeta_(res);
+      if (res && res.diagnostics) probe.diagnostics = res.diagnostics;
       if (!probe.ok) probe.error = String((res && (res.message || res.error)) || 'FAILED');
     }
   } catch (e) {
@@ -232,7 +244,7 @@ function AMS01_payloadBytes_(res) {
 function AMS01_compactPerf_(res) {
   var p = res && res.perf && typeof res.perf === 'object' ? res.perf : null;
   if (!p) return null;
-  var keep = ['serverMs','totalMs','readMs','mapsMs','loopMs','candidateRows','rowsReturned','fromCache','cacheSource','fastFirstPaint','enrichmentDeferred','mode'];
+  var keep = ['serverMs','totalMs','readMs','mapsMs','loopMs','candidateRows','rowsReturned','availabilityFallbackRows','usedAvailabilityFallback','companiesFiltered','rowsTotal','contextMs','auditorsReadMs','filterMs','rowsRead','fromCache','cacheSource','fastFirstPaint','enrichmentDeferred','mode'];
   var out = {};
   for (var i = 0; i < keep.length; i++) if (p[keep[i]] != null) out[keep[i]] = p[keep[i]];
   return out;
@@ -242,7 +254,7 @@ function AMS01_compactMeta_(res) {
   var m = res && res.meta && typeof res.meta === 'object' ? res.meta : null;
   if (!m) return null;
   var out = {};
-  var keep = ['build','serverMs','cacheHit','sourceMode','rowDiscoveryMethod','rowsForAuditor','rowsMatched','blocksRead','matchedRowNumbers','identityColumnsRead','identityRowsRead','preOverlayMs','candidatePreOverlayMs'];
+  var keep = ['build','serverMs','cacheHit','sourceMode','rowDiscoveryMethod','rowsForAuditor','rowsMatched','blocksRead','matchedRowNumbers','identityColumnsRead','identityRowsRead','preOverlayMs','candidatePreOverlayMs','ams01CanonicalAvailabilityMs','ams01OverlayWallMs','ams01CandidateBuild'];
   for (var i = 0; i < keep.length; i++) if (m[keep[i]] != null) out[keep[i]] = m[keep[i]];
   if (m.timing) out.timing = m.timing;
   if (m.candidateTiming) out.candidateTiming = m.candidateTiming;
@@ -265,7 +277,7 @@ function AMS01_summarize_(probes) {
   return {
     successfulProbes:ok.length,
     failedProbes:(probes || []).length - ok.length,
-    slowest:sorted.slice(0,6).map(function(p){
+    slowest:sorted.slice(0,8).map(function(p){
       return {
         label:p.label,
         wallMs:p.wallMs,

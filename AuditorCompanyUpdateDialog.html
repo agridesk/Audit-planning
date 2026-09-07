@@ -1,0 +1,568 @@
+<!-- FILE: AuditorCompanyUpdateDialog.html -->
+<!-- BUILD: 2026-05-23_R6_REAL_UI_FIX_CHECKBOX_LABELS_AND_COLORS -->
+<style>
+.cup-section{margin:0 0 14px 0;border:1px solid #e5e7eb;border-radius:12px;background:#fff;overflow:hidden;}
+  .cup-section-title{font-weight:800;margin:0;padding:9px 12px;font-size:13px;line-height:1.2;background:#f8fafc;border-bottom:1px solid #e5e7eb;}
+  .cup-contract-note{margin:0 0 12px 0;padding:10px 12px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:10px;font-size:12px;line-height:1.35;color:#1e3a8a;}
+  .cup-columns-head{display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1fr);gap:10px;padding:8px 12px;background:#f9fafb;border-bottom:1px solid #e5e7eb;font-size:11px;font-weight:800;color:#374151;text-transform:uppercase;letter-spacing:.04em;}
+  .cup-global-columns-head{position:sticky;top:0;z-index:2;margin:0 0 12px 0;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;}
+  .cup-columns-head div:nth-child(2){background:#e5e7eb;border:1px solid #cbd5e1;border-radius:999px;padding:4px 8px;color:#111827;text-align:center;}
+  .cup-columns-head div:nth-child(3){background:#ffffff;border:1px solid #d1d5db;border-radius:999px;padding:4px 8px;color:#1d4ed8;text-align:center;}
+  .cup-row{display:grid;grid-template-columns:150px minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:start;padding:8px 12px;border-bottom:1px solid #f1f5f9;}
+  .cup-row:last-child{border-bottom:0;}
+  .cup-label{font-weight:700;padding-top:7px;font-size:12px;line-height:1.2;color:#374151;}
+  .cup-current,.cup-proposed{min-width:0;}
+  .cup-current{background:#eaf1f8;border:1px solid #c9d7e8;border-radius:10px;padding:6px;}
+  .cup-proposed{padding:6px;background:#f7fbf6;border:1px solid #dbeed7;border-radius:10px;}
+  .cup-current-val{min-height:34px;padding:8px 10px;border:1px solid #b8c8db;border-radius:8px;background:#dfe8f2;box-shadow:inset 0 1px 2px rgba(15,23,42,.07);white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.25;color:#111827;font-weight:600;}
+  .cup-input,.cup-textarea{width:100%;border:1px solid #d1d5db;border-radius:8px;padding:8px 10px;font:inherit;background:#fff;font-size:12px;line-height:1.25;color:#111827;}
+  .cup-input:focus,.cup-textarea:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,.14);}
+  .cup-proposed.cup-has-change .cup-input,.cup-proposed.cup-has-change .cup-textarea,.cup-proposed.cup-has-change .cup-days,.cup-proposed.cup-has-change .cup-months{border-color:#2563eb;background:#eff6ff;}
+  .cup-textarea{resize:vertical;min-height:54px;}
+  .cup-days,.cup-months{display:flex;gap:10px;flex-wrap:nowrap;min-height:52px;align-items:center;justify-content:space-around;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;background:#fff;}
+  .cup-readonly-control{background:#dfe8f2;border-color:#b8c8db;box-shadow:inset 0 1px 2px rgba(15,23,42,.07);}
+  .cup-proposed .cup-days,.cup-proposed .cup-months{background:#fbfffa;border-color:#d2e7cf;}
+  .cup-readonly-control input[type=checkbox]{cursor:not-allowed;}
+  .cup-day,.cup-month{display:inline-flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:5px;min-width:28px;font-size:12px;font-weight:700;text-align:center;line-height:1.05;white-space:nowrap;}
+  .cup-day input,.cup-month input{margin:0;}
+  .cup-months{gap:6px;}
+  .cup-hours{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;}
+  .cup-time{max-width:92px;text-align:center;}
+  .cup-hours-sep{font-size:12px;opacity:.8;font-weight:700;}
+  .cup-location-grid{display:grid;grid-template-columns:1fr;gap:10px;padding:10px 12px;}
+  .cup-location-block{border:1px solid #e5e7eb;border-radius:10px;padding:0;margin:0;background:#fbf8ff;overflow:hidden;}
+  .cup-location-title{font-weight:800;margin:0;padding:8px 10px;font-size:12px;line-height:1.1;background:#f8fafc;border-bottom:1px solid #e5e7eb;}
+  .cup-location-row{grid-template-columns:120px minmax(0,1fr) minmax(0,1fr);gap:10px;margin:0;padding:7px 10px;}
+  .cup-helper{margin:0;padding:8px 12px 0 12px;font-size:12px;line-height:1.35;color:#475569;}
+  .cup-field-help{margin-top:5px;font-size:11px;line-height:1.3;color:#64748b;}
+  .cup-location-code{font-size:11px;color:#64748b;font-weight:700;margin-left:6px;}
+  .cup-change-count{font-size:12px;color:#374151;margin-right:auto;}
+  .cup-row-days .cup-current{background:#eaf1f8;border-color:#c9d7e8;}
+  .cup-row-days .cup-proposed{background:#f5fbff;border-color:#d5eaf8;}
+  .cup-row-months .cup-current{background:#eef8ec;border-color:#cfe8ca;}
+  .cup-row-months .cup-proposed{background:#f6fcf3;border-color:#d8eed2;}
+  .cup-row-hours .cup-current{background:#fff6e8;border-color:#f3d5a6;}
+  .cup-row-hours .cup-proposed{background:#fffbf2;border-color:#f0dfb8;}
+  @media (max-width: 1180px){
+    .cup-row{grid-template-columns:140px minmax(0,1fr) minmax(0,1fr);gap:8px;}
+    .cup-days,.cup-months{padding-left:6px;padding-right:6px;}
+    .cup-month{min-width:24px;font-size:11px;}
+  }
+  @media (max-width: 900px){
+    .cup-columns-head{display:none;}
+    .cup-row,.cup-location-row{grid-template-columns:1fr;}
+    .cup-label{padding-top:0;}
+  }
+
+
+  /* R6 HARD UI FIX — real file, no mock. Override portal/global label CSS. */
+  #modalCompanyUpdate .cup-days,
+  #modalCompanyUpdate .cup-months{
+    display:flex !important;
+    flex-direction:row !important;
+    flex-wrap:nowrap !important;
+    align-items:center !important;
+    justify-content:space-around !important;
+    gap:8px !important;
+    min-height:58px !important;
+    width:100% !important;
+    overflow:hidden !important;
+  }
+  #modalCompanyUpdate .cup-day,
+  #modalCompanyUpdate .cup-month{
+    display:flex !important;
+    flex-direction:column !important;
+    align-items:center !important;
+    justify-content:center !important;
+    gap:6px !important;
+    margin:0 !important;
+    padding:0 !important;
+    min-width:30px !important;
+    max-width:42px !important;
+    white-space:nowrap !important;
+    text-align:center !important;
+    line-height:1.05 !important;
+    font-size:12px !important;
+    font-weight:700 !important;
+  }
+  #modalCompanyUpdate .cup-day input[type=checkbox],
+  #modalCompanyUpdate .cup-month input[type=checkbox]{
+    display:block !important;
+    margin:0 auto !important;
+    width:13px !important;
+    height:13px !important;
+    flex:0 0 auto !important;
+  }
+  #modalCompanyUpdate .cup-day span,
+  #modalCompanyUpdate .cup-month span{
+    display:block !important;
+    width:100% !important;
+    text-align:center !important;
+    margin:0 !important;
+    padding:0 !important;
+  }
+  #modalCompanyUpdate .cup-months .cup-month{min-width:28px !important;}
+  #modalCompanyUpdate .cup-row-days .cup-current{background:#eaf3ff !important;border-color:#bfdbfe !important;}
+  #modalCompanyUpdate .cup-row-days .cup-current .cup-days{background:#dbeafe !important;border-color:#93c5fd !important;}
+  #modalCompanyUpdate .cup-row-days .cup-proposed{background:#f0fdf4 !important;border-color:#bbf7d0 !important;}
+  #modalCompanyUpdate .cup-row-days .cup-proposed .cup-days{background:#f7fee7 !important;border-color:#bbf7d0 !important;}
+  #modalCompanyUpdate .cup-row-months .cup-current{background:#f5f3ff !important;border-color:#ddd6fe !important;}
+  #modalCompanyUpdate .cup-row-months .cup-current .cup-months{background:#ede9fe !important;border-color:#c4b5fd !important;}
+  #modalCompanyUpdate .cup-row-months .cup-proposed{background:#f0fdf4 !important;border-color:#bbf7d0 !important;}
+  #modalCompanyUpdate .cup-row-months .cup-proposed .cup-months{background:#f7fee7 !important;border-color:#bbf7d0 !important;}
+  #modalCompanyUpdate .cup-row-hours .cup-current{background:#fff7ed !important;border-color:#fed7aa !important;}
+  #modalCompanyUpdate .cup-row-hours .cup-current .cup-current-val{background:#ffedd5 !important;border-color:#fdba74 !important;}
+  #modalCompanyUpdate .cup-row-hours .cup-proposed{background:#f0fdf4 !important;border-color:#bbf7d0 !important;}
+
+  #modalCompanyUpdate{z-index:6000 !important; padding:12px !important; align-items:flex-start !important;}
+  #modalCompanyUpdate.open{display:flex !important;}
+  #modalCompanyUpdate .v5-modal{width:min(1480px,98vw) !important; max-width:1480px !important; margin:10px auto 0 auto; max-height:calc(100vh - 20px); display:flex; flex-direction:column;}
+  #modalCompanyUpdate .body{padding:12px 14px 10px 14px !important; max-height:calc(100vh - 126px) !important; overflow:auto !important;}
+  #modalCompanyUpdate footer{position:sticky; bottom:0; background:#fff;display:flex;align-items:center;gap:8px;}
+</style>
+
+<script>
+// AuditorCompanyUpdateDialogClient.js
+// One popup per company. Bundled submit to Company_Update_Proposals.
+
+var __COMPANY_EDITOR_STATE = {
+  companyUid: '',
+  auditId: '',
+  auditorEmail: '',
+  snapshot: null
+};
+
+function companyEditor_escapeHtml_(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function companyEditor_norm_(v) {
+  return String(v == null ? '' : v).trim();
+}
+
+function companyEditor_parseHours_(v) {
+  var s = companyEditor_norm_(v);
+  var m = s.match(/^(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$/);
+  return { from: m ? m[1] : '', to: m ? m[2] : '' };
+}
+
+function companyEditor_normDaysString_(v) {
+  var allowed = {mo:'Mo',tu:'Tu',we:'We',th:'Th',fr:'Fr'};
+  var out = [];
+  String(v || '').split(/[,\s;|]+/).forEach(function(x){
+    var k = String(x || '').trim().toLowerCase();
+    if (allowed[k] && out.indexOf(allowed[k]) === -1) out.push(allowed[k]);
+  });
+  return out.join(', ');
+}
+
+function companyEditor_splitDays_(v) {
+  var s = companyEditor_normDaysString_(v);
+  return s ? s.split(/\s*,\s*/) : [];
+}
+
+function companyEditor_monthDefs_() {
+  return [
+    { key:'Jan', aliases:['jan','january','januari','01','1'] },
+    { key:'Feb', aliases:['feb','february','februari','02','2'] },
+    { key:'Mar', aliases:['mar','march','maart','03','3'] },
+    { key:'Apr', aliases:['apr','april','04','4'] },
+    { key:'May', aliases:['may','mei','05','5'] },
+    { key:'Jun', aliases:['jun','june','juni','06','6'] },
+    { key:'Jul', aliases:['jul','july','juli','07','7'] },
+    { key:'Aug', aliases:['aug','august','augustus','08','8'] },
+    { key:'Sep', aliases:['sep','sept','september','09','9'] },
+    { key:'Oct', aliases:['oct','okt','october','oktober','10'] },
+    { key:'Nov', aliases:['nov','november','11'] },
+    { key:'Dec', aliases:['dec','december','12'] }
+  ];
+}
+
+function companyEditor_normMonthToken_(v) {
+  var raw = String(v == null ? '' : v).trim();
+  if (!raw) return '';
+  var k = raw.toLowerCase().replace(/\./g, '').trim();
+  var defs = companyEditor_monthDefs_();
+  for (var i = 0; i < defs.length; i++) {
+    if (defs[i].aliases.indexOf(k) >= 0) return defs[i].key;
+  }
+  return '';
+}
+
+function companyEditor_splitMonths_(v) {
+  var out = [];
+  String(v || '').split(/[,;|\s]+/).forEach(function(x){
+    var m = companyEditor_normMonthToken_(x);
+    if (m && out.indexOf(m) === -1) out.push(m);
+  });
+  return out;
+}
+
+function companyEditor_normMonthsString_(v) {
+  return companyEditor_splitMonths_(v).join(',');
+}
+
+function companyEditor_getPreferredAuditMonths_(snapshot) {
+  snapshot = snapshot || {};
+  var planning = snapshot.planning || {};
+  var principal = snapshot.principal || {};
+  var candidates = [
+    planning.preferredAuditMonths,
+    planning.preferred_audit_months,
+    planning.preferredAuditPeriod,
+    planning.preferred_audit_period,
+    planning.preferredMonths,
+    planning.preferred_months,
+    principal.preferredAuditMonths,
+    principal.preferred_audit_months,
+    snapshot.preferredAuditMonths,
+    snapshot.preferred_audit_months
+  ];
+  for (var i = 0; i < candidates.length; i++) {
+    var s = companyEditor_normMonthsString_(candidates[i]);
+    if (s) return s;
+  }
+  return '';
+}
+
+function companyEditor_buildFieldRow_(label, currentHtml, editorHtml, extraCls) {
+  return '<div class="cup-row ' + (extraCls || '') + '">' +
+    '<div class="cup-label">' + companyEditor_escapeHtml_(label) + '</div>' +
+    '<div class="cup-current">' + currentHtml + '</div>' +
+    '<div class="cup-proposed" data-cup-proposed-wrap="1">' + editorHtml + '</div>' +
+    '</div>';
+}
+
+function companyEditor_buildColumnHeader_() {
+  return '';
+}
+
+function companyEditor_buildGlobalColumnHeader_() {
+  return '<div class="cup-global-columns-head"><div class="cup-columns-head">' +
+    '<div>Field</div>' +
+    '<div>Current</div>' +
+    '<div>Proposed</div>' +
+    '</div></div>';
+}
+
+function companyEditor_markChangeState_() {
+  var body = document.getElementById('companyUpdateBody');
+  if (!body) return;
+  var count = 0;
+  body.querySelectorAll('[data-cup-proposed-wrap="1"]').forEach(function(wrap){
+    var has = false;
+
+    var monthsWrap = wrap.querySelector('.cup-months');
+    if (monthsWrap) {
+      var oldMonths = companyEditor_normMonthsString_(monthsWrap.getAttribute('data-cup-months-current') || '');
+      var newMonths = Array.prototype.slice.call(monthsWrap.querySelectorAll('[data-cup-month]:checked'))
+        .map(function(el){ return companyEditor_normMonthToken_(el.getAttribute('data-cup-month')); })
+        .filter(Boolean)
+        .join(',');
+      has = (newMonths !== oldMonths);
+    } else {
+      wrap.querySelectorAll('input[type="text"], textarea').forEach(function(el){
+        if (companyEditor_norm_(el.value)) has = true;
+      });
+      if (!has && wrap.querySelector('[data-cup-day]:checked')) has = true;
+    }
+
+    wrap.classList.toggle('cup-has-change', has);
+    if (has) count++;
+  });
+  var el = document.getElementById('companyUpdateChangeCount');
+  if (el) el.textContent = 'Proposed fields entered: ' + count;
+}
+
+
+function companyEditor_bindChangeTracking_() {
+  var body = document.getElementById('companyUpdateBody');
+  if (!body || body.getAttribute('data-cup-bound') === '1') return;
+  body.setAttribute('data-cup-bound', '1');
+  body.addEventListener('input', companyEditor_markChangeState_);
+  body.addEventListener('change', companyEditor_markChangeState_);
+}
+
+function companyEditor_buildDaysEditor_(selected, options) {
+  options = options || {};
+  var arr = companyEditor_splitDays_(selected);
+  var opts = ['Mo','Tu','We','Th','Fr'];
+  var readonly = options.readonly === true;
+  var cls = readonly ? 'cup-days cup-readonly-control' : 'cup-days';
+  var dataAttr = readonly ? '' : ' data-cup-days-proposed="1"';
+  return '<div class="' + cls + '"' + dataAttr + '>' + opts.map(function(d){
+    var checked = arr.indexOf(d) >= 0 ? ' checked' : '';
+    var disabled = readonly ? ' disabled aria-disabled="true"' : '';
+    return '<label class="cup-day"><input type="checkbox" data-cup-day="' + d + '"' + checked + disabled + '> <span>' + d + '</span></label>';
+  }).join('') + '</div>';
+}
+
+
+function companyEditor_buildMonthsEditor_(selected, options) {
+  options = options || {};
+  var arr = companyEditor_splitMonths_(selected);
+  var opts = companyEditor_monthDefs_().map(function(x){ return x.key; });
+  var readonly = options.readonly === true;
+  var cls = readonly ? 'cup-months cup-readonly-control' : 'cup-months';
+  var currentAttr = readonly ? '' : ' data-cup-months-current="' + companyEditor_escapeHtml_(companyEditor_normMonthsString_(selected)) + '"';
+  return '<div class="' + cls + '"' + currentAttr + '>' + opts.map(function(m){
+    var checked = arr.indexOf(m) >= 0 ? ' checked' : '';
+    var disabled = readonly ? ' disabled aria-disabled="true"' : '';
+    return '<label class="cup-month"><input type="checkbox" data-cup-month="' + m + '"' + checked + disabled + '> <span>' + m + '</span></label>';
+  }).join('') + '</div>';
+}
+
+function companyEditor_buildModalHtml_(snapshot) {
+  snapshot = snapshot || {};
+  var principal = snapshot.principal || {};
+  var planning = snapshot.planning || {};
+  var locations = Array.isArray(snapshot.locations) ? snapshot.locations : [];
+  var hours = companyEditor_parseHours_(planning.hours);
+  var currentPreferredAuditMonths = companyEditor_getPreferredAuditMonths_(snapshot);
+
+  var parts = [];
+  parts.push('<div class="cup-section"><div class="cup-section-title">Contact</div>' + companyEditor_buildColumnHeader_());
+  parts.push(companyEditor_buildFieldRow_('Contactperson',
+    '<div class="cup-current-val">' + companyEditor_escapeHtml_(principal.contactperson || '—') + '</div>',
+    '<input class="cup-input" data-cup-section="principal" data-cup-field="contactperson" type="text" value="">'
+  ));
+  parts.push(companyEditor_buildFieldRow_('Contact e-mail',
+    '<div class="cup-current-val">' + companyEditor_escapeHtml_(principal.contact_email || '—') + '</div>',
+    '<input class="cup-input" data-cup-section="principal" data-cup-field="contact_email" type="text" value="" placeholder="name@company.com, audits@company.com">'
+  ));
+  parts.push(companyEditor_buildFieldRow_('Contact phone',
+    '<div class="cup-current-val">' + companyEditor_escapeHtml_(principal.contact_phone || '—') + '</div>',
+    '<input class="cup-input" data-cup-section="principal" data-cup-field="contact_phone" type="text" value="" placeholder="+34 ...">'
+  ));
+  parts.push(companyEditor_buildFieldRow_('Comments',
+    '<div class="cup-current-val">' + companyEditor_escapeHtml_(principal.comments || '—') + '</div>',
+    '<textarea class="cup-textarea" data-cup-section="principal" data-cup-field="comments" rows="2"></textarea>'
+  ));
+  parts.push('</div>');
+
+  parts.push('<div class="cup-section"><div class="cup-section-title">Planning preferences and soft blocks</div><p class="cup-helper">These values are planning preferences only. They support scheduling, but do not block planning as hard constraints.</p>' + companyEditor_buildColumnHeader_());
+  parts.push(companyEditor_buildFieldRow_('Less suitable weekdays',
+    companyEditor_buildDaysEditor_(planning.days, { readonly:true }) + '<div class="cup-field-help">Checked days are days the company preferably does not want. Soft blocks only.</div>',
+    companyEditor_buildDaysEditor_('') + '<div class="cup-field-help">Propose weekdays that are less suitable for planning.</div>',
+    'cup-row-days'
+  ));
+  parts.push(companyEditor_buildFieldRow_('Preferred audit months',
+    companyEditor_buildMonthsEditor_(currentPreferredAuditMonths, { readonly:true }) + '<div class="cup-field-help">These months are informational only for the moment. They do not block or restrict planning.</div>',
+    companyEditor_buildMonthsEditor_(currentPreferredAuditMonths) + '<div class="cup-field-help">Propose the months that would be preferred for this company. Informational only for now.</div>',
+    'cup-row-months'
+  ));
+  parts.push(companyEditor_buildFieldRow_('Hours',
+    '<div class="cup-current-val">' + companyEditor_escapeHtml_(planning.hours || '—') + '</div><div class="cup-field-help">Current time preference. Soft block only.</div>',
+    '<div class="cup-hours">' +
+      '<input class="cup-input cup-time" data-cup-hours="from" type="text" value="" placeholder="' + companyEditor_escapeHtml_(hours.from || 'HH:mm') + '">' +
+      '<span class="cup-hours-sep">to</span>' +
+      '<input class="cup-input cup-time" data-cup-hours="to" type="text" value="" placeholder="' + companyEditor_escapeHtml_(hours.to || 'HH:mm') + '">' +
+    '</div><div class="cup-field-help">Proposed time window is a soft planning preference.</div>',
+    'cup-row-hours'
+  ));
+  parts.push('</div>');
+
+  parts.push('<div class="cup-section"><div class="cup-section-title">Locations</div><div class="cup-location-grid">');
+  locations.forEach(function(loc){
+    var code = companyEditor_norm_(loc.code || '');
+    if (!code) return;
+    parts.push('<div class="cup-location-block">');
+    var locTitle = (code.toUpperCase() === 'HQ') ? 'First place to meet' : code;
+    var locCodeSuffix = (code.toUpperCase() === 'HQ') ? '<span class="cup-location-code">HQ</span>' : '';
+    parts.push('<div class="cup-location-title">' + companyEditor_escapeHtml_(locTitle) + locCodeSuffix + '</div>' + companyEditor_buildColumnHeader_());
+    parts.push(companyEditor_buildFieldRow_('Name',
+      '<div class="cup-current-val">' + companyEditor_escapeHtml_(loc.name || '—') + '</div>',
+      '<input class="cup-input" data-cup-section="location" data-cup-location="' + companyEditor_escapeHtml_(code) + '" data-cup-field="name" type="text" value="">',
+      'cup-location-row'
+    ));
+    parts.push(companyEditor_buildFieldRow_('GPS',
+      '<div class="cup-current-val">' + companyEditor_escapeHtml_(loc.gps || '—') + '</div>',
+      '<input class="cup-input" data-cup-section="location" data-cup-location="' + companyEditor_escapeHtml_(code) + '" data-cup-field="gps" type="text" value="" placeholder="37.51038888888889, -8.696972222222222">',
+      'cup-location-row'
+    ));
+    parts.push(companyEditor_buildFieldRow_('Comment',
+      '<div class="cup-current-val">' + companyEditor_escapeHtml_(loc.comment || '—') + '</div>',
+      '<textarea class="cup-textarea" data-cup-section="location" data-cup-location="' + companyEditor_escapeHtml_(code) + '" data-cup-field="comment" rows="2"></textarea>',
+      'cup-location-row'
+    ));
+    parts.push('</div>');
+  });
+  parts.push('</div></div>');
+
+  return parts.join('');
+}
+
+function companyEditor_openModal_(snapshot) {
+  __COMPANY_EDITOR_STATE.snapshot = snapshot || {};
+  var title = document.getElementById('companyUpdateTitle');
+  var body = document.getElementById('companyUpdateBody');
+  if (!title || !body) {
+    try { V5.toast('Company update dialog markup missing.'); } catch(e) {}
+    return;
+  }
+  title.textContent = 'Suggest company update — ' + String((snapshot && snapshot.company) || '').trim();
+  body.innerHTML = companyEditor_buildModalHtml_(snapshot);
+  companyEditor_bindChangeTracking_();
+  companyEditor_markChangeState_();
+  try { V5.modal.open('modalCompanyUpdate'); } catch(e) {
+    var el = document.getElementById('modalCompanyUpdate');
+    if (el) el.style.display = 'flex';
+  }
+}
+
+function companyEditor_closeModal_() {
+  try { V5.modal.close('modalCompanyUpdate'); } catch(e) {
+    var el = document.getElementById('modalCompanyUpdate');
+    if (el) el.style.display = 'none';
+  }
+}
+
+async function auditorOpenCompanyUpdateDialog(opts) {
+  opts = opts || {};
+  var companyUid = companyEditor_norm_(opts.companyUid);
+  var auditId = companyEditor_norm_(opts.auditId);
+  var auditorEmail = companyEditor_norm_(opts.auditorEmail).toLowerCase();
+  if (!companyUid || !auditorEmail) {
+    await UiDialogs.error({ title:'Error', message:'Missing company UID or auditor e-mail.' });
+    return;
+  }
+  __COMPANY_EDITOR_STATE.companyUid = companyUid;
+  __COMPANY_EDITOR_STATE.auditId = auditId;
+  __COMPANY_EDITOR_STATE.auditorEmail = auditorEmail;
+
+  google.script.run
+    .withSuccessHandler(function(snapshot){
+      companyEditor_openModal_(snapshot || {});
+    })
+    .withFailureHandler(function(err){
+      UiDialogs.error({ title:'Error', message: err && err.message ? err.message : String(err) });
+    })
+    .companyUpdate_getCompanySnapshot(companyUid);
+}
+
+function companyEditor_collectChanges_() {
+  var snapshot = __COMPANY_EDITOR_STATE.snapshot || {};
+  var changes = [];
+  var principal = snapshot.principal || {};
+  var planning = snapshot.planning || {};
+  var locations = Array.isArray(snapshot.locations) ? snapshot.locations : [];
+
+  function pushChange(section, fieldKey, currentValue, proposedValue, locationCode, opts) {
+    opts = opts || {};
+    var oldVal = opts.months ? companyEditor_normMonthsString_(currentValue) : companyEditor_norm_(currentValue);
+    var newVal = opts.months ? companyEditor_normMonthsString_(proposedValue) : companyEditor_norm_(proposedValue);
+
+    // Contract: Current = source value. Proposed = correction proposal.
+    // Empty Proposed fields mean no change; they do not clear existing company data,
+    // except complete-list controls such as Preferred audit months.
+    if (!newVal && opts.allowEmpty !== true) return;
+    if (newVal === oldVal) return;
+
+    changes.push({
+      section: section,
+      fieldKey: fieldKey,
+      locationCode: locationCode || '',
+      proposedValue: newVal
+    });
+  }
+
+  document.querySelectorAll('#companyUpdateBody [data-cup-section="principal"]').forEach(function(el){
+    var field = companyEditor_norm_(el.getAttribute('data-cup-field'));
+    var value = companyEditor_norm_(el.value);
+    pushChange('principal', field, principal[field] || '', value, '');
+  });
+
+  var dayChecks = Array.prototype.slice.call(document.querySelectorAll('#companyUpdateBody [data-cup-days-proposed="1"] [data-cup-day]:checked'))
+    .map(function(el){ return companyEditor_norm_(el.getAttribute('data-cup-day')); });
+  pushChange('planning', 'days', planning.days || '', dayChecks.join(', '), '');
+
+  var monthChecks = Array.prototype.slice.call(document.querySelectorAll('#companyUpdateBody .cup-proposed [data-cup-month]:checked'))
+    .map(function(el){ return companyEditor_normMonthToken_(el.getAttribute('data-cup-month')); })
+    .filter(Boolean);
+  var currentPreferredAuditMonths = companyEditor_getPreferredAuditMonths_(snapshot);
+  pushChange('planning', 'preferredAuditMonths', currentPreferredAuditMonths, monthChecks.join(','), '', { months:true, allowEmpty:true });
+
+  var fromEl = document.querySelector('#companyUpdateBody [data-cup-hours="from"]');
+  var toEl = document.querySelector('#companyUpdateBody [data-cup-hours="to"]');
+  var hourFrom = companyEditor_norm_(fromEl && fromEl.value);
+  var hourTo = companyEditor_norm_(toEl && toEl.value);
+  var hourCombined = (hourFrom && hourTo) ? (hourFrom + '-' + hourTo) : '';
+  pushChange('planning', 'hours', planning.hours || '', hourCombined, '');
+
+  document.querySelectorAll('#companyUpdateBody [data-cup-section="location"]').forEach(function(el){
+    var field = companyEditor_norm_(el.getAttribute('data-cup-field'));
+    var code = companyEditor_norm_(el.getAttribute('data-cup-location')).toUpperCase();
+    var loc = locations.filter(function(x){ return companyEditor_norm_(x.code).toUpperCase() === code; })[0] || {};
+    var value = companyEditor_norm_(el.value);
+    pushChange('location', field, loc[field] || '', value, code);
+  });
+
+  return changes;
+}
+
+function companyEditor_validate_() {
+  var bad = [];
+  document.querySelectorAll('#companyUpdateBody .cup-time').forEach(function(el){
+    var v = companyEditor_norm_(el.value);
+    if (!v) return;
+    if (!/^\d{2}:\d{2}$/.test(v)) bad.push('Hours must use HH:mm');
+  });
+  return bad;
+}
+
+function companyEditor_submit_() {
+  var errs = companyEditor_validate_();
+  if (errs.length) {
+    UiDialogs.error({ title:'Validation', message: errs.join('\n') });
+    return;
+  }
+  var changes = companyEditor_collectChanges_();
+  if (!changes.length) {
+    UiDialogs.info({ title:'No changes', message:'No effective changes were entered.' });
+    return;
+  }
+  var btn = document.getElementById('btnCompanyUpdateSave');
+  if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+
+  google.script.run
+    .withSuccessHandler(function(res){
+      if (btn) { btn.disabled = false; btn.textContent = 'Submit proposal'; }
+      if (!res || res.success !== true) {
+        UiDialogs.error({ title:'Error', message:(res && res.message) || 'Submit failed.' });
+        return;
+      }
+      companyEditor_closeModal_();
+      UiDialogs.flashSuccess('Proposal submitted', 900);
+    })
+    .withFailureHandler(function(err){
+      if (btn) { btn.disabled = false; btn.textContent = 'Submit proposal'; }
+      UiDialogs.error({ title:'Error', message: err && err.message ? err.message : String(err) });
+    })
+    .companyUpdate_submitProposalBundle({
+      companyUid: __COMPANY_EDITOR_STATE.companyUid,
+      auditId: __COMPANY_EDITOR_STATE.auditId,
+      auditorEmail: __COMPANY_EDITOR_STATE.auditorEmail,
+      changes: changes
+    });
+}
+</script>
+
+<!-- Modal: Company update -->
+    <div class="v5-modal-backdrop" id="modalCompanyUpdate">
+      <div class="v5-modal">
+        <header id="companyUpdateTitle">Suggest company update</header>
+        <div class="body">
+          <div class="cup-contract-note"><strong>Current</strong> shows the company data currently known in the system. <strong>Proposed</strong> is the auditor correction proposal for manager review. Leave Proposed empty when no change is needed.</div>
+          <script>document.write(companyEditor_buildGlobalColumnHeader_());</script>
+          <div id="companyUpdateBody"></div>
+        </div>
+        <footer>
+          <button class="v5-btn" type="button" onclick="companyEditor_closeModal_()">Cancel</button>
+          <span class="cup-change-count" id="companyUpdateChangeCount">Proposed fields entered: 0</span><button class="v5-btn primary" id="btnCompanyUpdateSave" type="button" onclick="companyEditor_submit_()">Submit proposal</button>
+        </footer>
+      </div>
+    </div>

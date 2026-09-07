@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <title>AMS - Map</title>
+  <script>
+(function enforceAmsShortBrowserTitle() {
+  var AMS_SHORT_BROWSER_TITLE = 'AMS - Map';
+  function setAmsShortBrowserTitle() {
+    try { document.title = AMS_SHORT_BROWSER_TITLE; } catch (e) {}
+  }
+  setAmsShortBrowserTitle();
+  try { document.addEventListener('DOMContentLoaded', setAmsShortBrowserTitle); } catch (e) {}
+  try { window.addEventListener('load', setAmsShortBrowserTitle); } catch (e) {}
+  try { setTimeout(setAmsShortBrowserTitle, 0); setTimeout(setAmsShortBrowserTitle, 250); setTimeout(setAmsShortBrowserTitle, 1000); } catch (e) {}
+})();
+</script>
+  <!-- BUILD: COMPANY_MAP_AUDITOR_WORKLOAD_LAYER_C05_20260524_TIME_IN_AUDIT_CARD -->
+  <style>
+    html, body { height:100%; margin:0; overflow:hidden; font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#111827; }
+    body { position:fixed; inset:0; width:100%; height:100%; }
+    .shell { height:100vh; min-height:0; display:grid; grid-template-columns: 370px minmax(0, 1fr); background:#f3f4f6; }
+    .side { border-right:1px solid #d1d5db; background:#fff; display:flex; flex-direction:column; min-width:0; height:100vh; min-height:0; overflow:hidden; }
+    .head { padding:12px 14px; border-bottom:1px solid #e5e7eb; display:flex; flex-direction:column; gap:8px; }
+    .title { font-size:17px; font-weight:800; }
+    .meta { font-size:11px; color:#6b7280; }
+    .filters { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+    .filters input, .filters select { height:32px; border:1px solid #d1d5db; border-radius:8px; padding:0 8px; font:inherit; font-size:12px; background:#fff; }
+    .toggles { display:flex; gap:8px; flex-wrap:wrap; font-size:12px; align-items:center; }
+    .toggles label { display:flex; gap:4px; align-items:center; }
+    .stats { display:flex; gap:6px; flex-wrap:wrap; }
+    .pill { display:inline-flex; align-items:center; border:1px solid #d1d5db; border-radius:999px; padding:3px 8px; font-size:11px; background:#f9fafb; }
+    button.pill { cursor:pointer; }
+    .list { flex:1 1 auto; overflow-y:auto; overflow-x:hidden; padding:8px; min-height:0; max-height:calc(100vh - 214px); overscroll-behavior:contain; }
+    .company { border:1px solid #e5e7eb; border-radius:10px; margin-bottom:8px; overflow:hidden; background:#fff; }
+    .company-h { padding:8px 10px; display:flex; justify-content:space-between; gap:8px; cursor:pointer; background:#f9fafb; }
+    .company-name { font-size:13px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .company-sub { font-size:11px; color:#6b7280; margin-top:2px; }
+    .loc { padding:7px 10px; border-top:1px solid #f3f4f6; cursor:pointer; display:grid; grid-template-columns:30px minmax(0,1fr); gap:6px; align-items:start; }
+    .loc:hover, .company-h:hover { background:#eff6ff; }
+    .loc-code { font-size:11px; font-weight:800; }
+    .loc-code.hq { color:#2563eb; }
+    .loc-code.site { color:#16a34a; }
+    .loc-title { font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .loc-gps { font-size:10px; color:#6b7280; }
+    .mapwrap { position:relative; min-width:0; height:100vh; overflow:hidden; background:#e5e7eb; }
+    #map { position:absolute; inset:0; height:100%; width:100%; }
+    .loading { position:absolute; z-index:10; top:12px; left:50%; transform:translateX(-50%); background:#111827; color:white; border-radius:999px; padding:8px 14px; font-size:12px; box-shadow:0 8px 24px rgba(0,0,0,.22); }
+    .error { margin:12px; padding:12px; border:1px solid #fecaca; border-radius:10px; color:#991b1b; background:#fef2f2; font-size:12px; white-space:pre-wrap; }
+    .popup { min-width:220px; max-width:310px; }
+    .popup-title { font-weight:800; margin-bottom:4px; }
+    .popup-row { font-size:12px; margin:2px 0; }
+    .popup a { color:#2563eb; text-decoration:none; font-weight:700; }
+    .legend { position:absolute; right:12px; bottom:18px; z-index:5; background:#fff; border:1px solid #d1d5db; border-radius:10px; padding:8px 10px; font-size:12px; box-shadow:0 8px 24px rgba(0,0,0,.16); }
+    .legend div { display:flex; align-items:center; gap:6px; margin:3px 0; }
+    .dot { width:14px; height:14px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:10px; color:white; }
+    .dot.hq { background:#2563eb; border-radius:3px; }
+    .dot.site { background:#16a34a; }
+    .dot.audit-my { background:#f59e0b; }
+    .dot.audit-other { background:#7c3aed; }
+    .audit-card { border:1px solid #fde68a; border-radius:10px; margin-bottom:8px; background:#fffbeb; padding:8px 10px; cursor:pointer; }
+    .audit-card.other { border-color:#ddd6fe; background:#f5f3ff; }
+    .audit-title { font-size:13px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .audit-meta { font-size:11px; color:#6b7280; margin-top:2px; }
+    .audit-scopes { font-size:11px; color:#111827; margin-top:4px; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="side">
+      <div class="head">
+        <div>
+          <div class="title">Company Map</div>
+          <div class="meta" id="mapMeta">Loading…</div>
+        </div>
+        <div class="filters">
+          <input id="q" placeholder="Search company/location…" autocomplete="off">
+          <select id="country"><option value="">All countries</option></select>
+          <select id="region"><option value="">All regions</option></select>
+          <select id="type"><option value="">HQ + sites</option><option value="COMPANY_HQ">HQ only</option><option value="COMPANY_SITE">Sites only</option></select>
+        </div>
+        <div class="toggles">
+          <label><input type="checkbox" id="activeOnly" checked> Active only</label>
+          <label><input type="checkbox" id="showCompanies" checked> Companies</label>
+          <label><input type="checkbox" id="showMyAudits" checked> My audit workload</label>
+          <label><input type="checkbox" id="showOtherAudits"> Other future audits</label>
+          <button class="pill" type="button" id="fitBtn">Fit map</button>
+          <button class="pill" type="button" id="reloadBtn">Reload</button>
+        </div>
+        <div class="stats">
+          <span class="pill" id="countEntities">0 markers</span>
+          <span class="pill" id="countCompanies">0 companies</span>
+          <span class="pill" id="countMyAudits">0 my audits</span>
+          <span class="pill" id="countOtherAudits">0 other audits</span>
+          <span class="pill" id="countIssues" style="display:none;"></span>
+        </div>
+      </div>
+      <div class="list" id="companyList"></div>
+    </aside>
+    <main class="mapwrap">
+      <div class="loading" id="loading">Loading map…</div>
+      <div id="map"></div>
+      <div class="legend"><div><span class="dot hq">★</span> HQ — First point of contact</div><div><span class="dot site"></span> Site</div><div><span class="dot audit-my"></span> My audit workload</div><div><span class="dot audit-other"></span> Other future audits</div></div>
+    </main>
+  </div>
+
+<script>
+var CompanyMap = {
+  map: null,
+  info: null,
+  dataset: { entities: [], companies: [], gpsIssues: [], auditLayers: { myAuditWorkload: [], otherFutureAudits: [] } },
+  markersById: {},
+  visibleEntities: [],
+  didInitialFit: false
+};
+
+const CUR_EMAIL = '<?= typeof __email !== "undefined" ? __email : "" ?>';
+
+function queryParam(name){
+  try { return new URLSearchParams(window.location.search || '').get(name) || ''; } catch(e) { return ''; }
+}
+function currentAuditorEmail(){ return String(CUR_EMAIL || queryParam('email') || '').trim(); }
+
+function esc(v){ return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function jsq(v){ return String(v == null ? '' : v).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,' '); }
+function val(id){ var e=document.getElementById(id); return e ? String(e.value || '').trim() : ''; }
+function checked(id){ var e=document.getElementById(id); return !!(e && e.checked); }
+function setLoading(s){ var e=document.getElementById('loading'); if(e) e.style.display = s ? 'block':'none'; if(e && s) e.textContent=s; }
+function mapsUrl(e){ return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(String(e.lat) + ',' + String(e.lng)); }
+
+function showError(msg){
+  setLoading('');
+  var list=document.getElementById('companyList');
+  if(list) list.innerHTML='<div class="error">'+esc(msg)+'</div>';
+  try { console.error('[CompanyMap]', msg); } catch(e) {}
+}
+
+function boot(){
+  setLoading('Loading configuration…');
+  google.script.run
+    .withSuccessHandler(function(cfg){
+      if (!cfg || !cfg.mapsApiKey) { showError('Missing Script Property GOOGLE_MAPS_API_KEY.'); return; }
+      loadMapsScript(cfg.mapsApiKey);
+    })
+    .withFailureHandler(function(err){ showError(err && err.message ? err.message : String(err)); })
+    .getCompanyMapConfig();
+}
+
+function loadMapsScript(key){
+  if (window.google && google.maps) { initCompanyMap(); return; }
+  var s=document.createElement('script');
+  s.src='https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) + '&callback=initCompanyMap';
+  s.async=true;
+  s.defer=true;
+  s.onerror=function(){ showError('Google Maps script failed to load. Check API key restrictions and Maps JavaScript API.'); };
+  document.head.appendChild(s);
+}
+
+window.initCompanyMap=function(){
+  try {
+    var mapEl = document.getElementById('map');
+    CompanyMap.map = new google.maps.Map(mapEl, {
+      center:{lat:40.4168,lng:-3.7038},
+      zoom:5,
+      mapTypeControl:true,
+      streetViewControl:false,
+      fullscreenControl:true,
+      gestureHandling:'greedy',
+      backgroundColor:'#e5e7eb'
+    });
+    CompanyMap.info = new google.maps.InfoWindow();
+    bindUi();
+    google.maps.event.addListenerOnce(CompanyMap.map, 'idle', function(){
+      loadDataset();
+    });
+    window.setTimeout(function(){
+      try { google.maps.event.trigger(CompanyMap.map, 'resize'); } catch(e) {}
+      if (!CompanyMap.dataset || !(CompanyMap.dataset.entities || []).length) loadDataset();
+    }, 900);
+  } catch(err) {
+    showError('Map init failed: ' + (err && err.message ? err.message : err));
+  }
+};
+
+function loadDataset(){
+  setLoading('Loading locations…');
+  google.script.run
+    .withSuccessHandler(function(ds){
+      try {
+        CompanyMap.dataset = ds || { entities:[], companies:[], gpsIssues:[], auditLayers:{myAuditWorkload:[],otherFutureAudits:[]} };
+        if (!CompanyMap.dataset.auditLayers) CompanyMap.dataset.auditLayers = { myAuditWorkload: [], otherFutureAudits: [] };
+        document.getElementById('mapMeta').textContent = 'Build: ' + String(CompanyMap.dataset.build || 'unknown') + ' | Generated: ' + String(CompanyMap.dataset.generatedAt || '').replace('T',' ').replace('Z','');
+        buildFilterOptions();
+        CompanyMap.didInitialFit = false;
+        renderAll();
+        setLoading('');
+      } catch(err) {
+        showError('Render failed: ' + (err && err.message ? err.message : err));
+      }
+    })
+    .withFailureHandler(function(err){ showError(err && err.message ? err.message : String(err)); })
+    .getCompanyMapDataset_AuditorLayer(currentAuditorEmail());
+}
+
+function bindUi(){
+  ['q','country','region','type','activeOnly','showCompanies','showMyAudits','showOtherAudits'].forEach(function(id){
+    var e=document.getElementById(id); if(!e) return;
+    e.addEventListener(id==='q'?'input':'change', renderAll);
+  });
+  var fit = document.getElementById('fitBtn'); if (fit) fit.onclick=function(){ fitVisible(false); };
+  var reload = document.getElementById('reloadBtn'); if (reload) reload.onclick=function(){ loadDataset(); };
+}
+
+function buildFilterOptions(){
+  var countries={}, regions={};
+  (CompanyMap.dataset.entities||[]).forEach(function(e){ if(e.country) countries[e.country]=true; if(e.region) regions[e.region]=true; });
+  fillSelect('country', countries, 'All countries');
+  fillSelect('region', regions, 'All regions');
+}
+function fillSelect(id, obj, first){
+  var sel=document.getElementById(id); if (!sel) return;
+  var cur=sel.value;
+  var keys=Object.keys(obj).sort(function(a,b){return a.localeCompare(b);});
+  sel.innerHTML='<option value="">'+esc(first)+'</option>'+keys.map(function(k){return '<option value="'+esc(k)+'">'+esc(k)+'</option>';}).join('');
+  if(keys.indexOf(cur)>=0) sel.value=cur;
+}
+
+function getFilteredEntities(){
+  var q=val('q').toLowerCase(), country=val('country'), region=val('region'), type=val('type'), activeOnly=checked('activeOnly');
+  var layers = CompanyMap.dataset.auditLayers || {};
+  var all = [];
+  if (checked('showCompanies')) all = all.concat(CompanyMap.dataset.entities || []);
+  if (checked('showMyAudits')) all = all.concat(layers.myAuditWorkload || []);
+  if (checked('showOtherAudits')) all = all.concat(layers.otherFutureAudits || []);
+
+  return all.filter(function(e){
+    var isAudit = String(e.entityType || '').indexOf('AUDIT_') === 0;
+    if(!isAudit && activeOnly && !e.active) return false;
+    if(country && e.country!==country) return false;
+    if(region && e.region!==region) return false;
+    if(!isAudit && type && e.entityType!==type) return false;
+    if(!e.gpsValid) return false;
+    var lat = Number(e.lat), lng = Number(e.lng);
+    if (!isFinite(lat) || !isFinite(lng)) return false;
+    if(q){
+      var hay=[e.companyName,e.locationCode,e.locationLabel,e.country,e.region,e.rawGps,e.dateLabel,e.scopesLabel,e.status,e.auditStatus].join(' ').toLowerCase();
+      if(hay.indexOf(q)===-1) return false;
+    }
+    return true;
+  });
+}
+
+function renderAll(){
+  if (!CompanyMap.map) return;
+  CompanyMap.visibleEntities = getFilteredEntities();
+  renderMarkers();
+  renderSidebar();
+  updateStats();
+
+  try { google.maps.event.trigger(CompanyMap.map, 'resize'); } catch(e) {}
+
+  try { window.scrollTo(0,0); } catch(e) {}
+
+  if (!CompanyMap.didInitialFit) {
+    CompanyMap.didInitialFit = true;
+    window.setTimeout(function(){
+      try { window.scrollTo(0,0); } catch(e) {}
+      try { google.maps.event.trigger(CompanyMap.map, 'resize'); } catch(e) {}
+      fitVisible(false);
+      try { window.scrollTo(0,0); } catch(e) {}
+    }, 650);
+  }
+}
+
+
+function markerTitle(e){
+  if (String(e.entityType || '').indexOf('AUDIT_') === 0) {
+    return [e.companyName, e.dateLabel, e.scopesLabel, e.status || e.auditStatus].filter(Boolean).join('\n');
+  }
+  return String(e.companyName || '') + ' — ' + String(e.locationCode || '');
+}
+
+function markerIcon(e){
+  if (e.entityType === 'AUDIT_MY_WORKLOAD') {
+    return { path: google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: '#f59e0b', fillOpacity: 0.96, strokeColor: '#ffffff', strokeWeight: 2 };
+  }
+  if (e.entityType === 'AUDIT_OTHER_FUTURE') {
+    return { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: '#7c3aed', fillOpacity: 0.92, strokeColor: '#ffffff', strokeWeight: 2 };
+  }
+  var isHq = e.entityType === 'COMPANY_HQ';
+  return {
+    path: google.maps.SymbolPath.CIRCLE,
+    scale: isHq ? 7 : 5,
+    fillColor: isHq ? '#2563eb' : '#16a34a',
+    fillOpacity: 0.95,
+    strokeColor: '#ffffff',
+    strokeWeight: 1
+  };
+}
+
+function clearMarkers(){
+  Object.keys(CompanyMap.markersById).forEach(function(id){
+    try { CompanyMap.markersById[id].setMap(null); } catch(e) {}
+  });
+  CompanyMap.markersById = {};
+}
+
+function renderMarkers(){
+  clearMarkers();
+
+  var n = 0;
+  CompanyMap.visibleEntities.forEach(function(e){
+    var lat = Number(e.lat), lng = Number(e.lng);
+    if (!isFinite(lat) || !isFinite(lng)) return;
+
+    var marker = new google.maps.Marker({
+      map: CompanyMap.map,
+      position:{lat:lat, lng:lng},
+      title:markerTitle(e),
+      icon:markerIcon(e),
+      zIndex: String(e.entityType || '').indexOf('AUDIT_') === 0 ? 40 : (e.entityType === 'COMPANY_HQ' ? 20 : 10)
+    });
+
+    marker.addListener('click', function(){ openEntity(e.entityId, false); });
+    CompanyMap.markersById[e.entityId] = marker;
+    n++;
+  });
+
+  try { console.log('[CompanyMap] markers rendered:', n); } catch(err) {}
+  if (n === 0 && (CompanyMap.dataset.entities || []).length > 0) {
+    showError('No markers rendered, although dataset has entities. Check lat/lng fields in dataset.');
+  }
+}
+
+function popupHtml(e){
+  if (String(e.entityType || '').indexOf('AUDIT_') === 0) {
+    return '<div class="popup">' +
+      '<div class="popup-title">'+esc(e.companyName)+'</div>' +
+      '<div class="popup-row"><b>'+esc(e.locationCode || '')+'</b> '+esc(e.locationLabel || '')+'</div>' +
+      '<div class="popup-row">'+esc([e.region,e.country].filter(Boolean).join(', '))+'</div>' +
+      (e.dateLabel ? '<div class="popup-row"><b>Date:</b> '+esc(e.dateLabel)+'</div>' : '') +
+      (e.timeLabel ? '<div class="popup-row"><b>Time:</b> '+esc(e.timeLabel)+'</div>' : '') +
+      (e.scopesLabel ? '<div class="popup-row"><b>Scopes:</b> '+esc(e.scopesLabel)+'</div>' : '') +
+      (e.status || e.auditStatus ? '<div class="popup-row"><b>Status:</b> '+esc(e.status || e.auditStatus)+'</div>' : '') +
+      (e.auditHours ? '<div class="popup-row"><b>Hours:</b> '+esc(e.auditHours)+'</div>' : '') +
+      (e.assignedAuditor ? '<div class="popup-row"><b>Assigned:</b> '+esc(e.assignedAuditor)+'</div>' : '') +
+      (e.preassignedAuditor ? '<div class="popup-row"><b>Preassigned:</b> '+esc(e.preassignedAuditor)+'</div>' : '') +
+      '<div class="popup-row"><a target="_blank" rel="noopener" href="'+esc(mapsUrl(e))+'">Open in Google Maps</a></div>' +
+      '</div>';
+  }
+  return '<div class="popup">' +
+    '<div class="popup-title">'+esc(e.companyName)+'</div>' +
+    '<div class="popup-row"><b>'+esc(e.locationCode)+'</b> '+esc(e.locationLabel || '')+'</div>' +
+    '<div class="popup-row">'+esc([e.region,e.country].filter(Boolean).join(', '))+'</div>' +
+    '<div class="popup-row">GPS: '+esc(e.rawGps)+'</div>' +
+    (e.comment ? '<div class="popup-row">'+esc(e.comment)+'</div>' : '') +
+    '<div class="popup-row"><a target="_blank" rel="noopener" href="'+esc(mapsUrl(e))+'">Open in Google Maps</a></div>' +
+    '</div>';
+}
+
+
+function scrollSidebarRowIntoView_(row){
+  try {
+    var list = document.getElementById('companyList');
+    if (!list || !row) return;
+    var listRect = list.getBoundingClientRect();
+    var rowRect = row.getBoundingClientRect();
+    var delta = (rowRect.top - listRect.top) - (list.clientHeight / 2) + (row.offsetHeight / 2);
+    list.scrollTop += delta;
+  } catch(e) {}
+}
+
+function findEntityById(entityId){
+  var layers = (CompanyMap.dataset && CompanyMap.dataset.auditLayers) ? CompanyMap.dataset.auditLayers : {};
+  var all = []
+    .concat(CompanyMap.dataset.entities || [])
+    .concat(layers.myAuditWorkload || [])
+    .concat(layers.otherFutureAudits || []);
+  for (var i = 0; i < all.length; i++) {
+    if (String(all[i].entityId || '') === String(entityId || '')) return all[i];
+  }
+  return null;
+}
+
+function openEntity(entityId, zoomIn){
+  var e=findEntityById(entityId);
+  var marker = CompanyMap.markersById[entityId];
+  if(!e || !marker) return;
+  var lat = Number(e.lat), lng = Number(e.lng);
+  if (!isFinite(lat) || !isFinite(lng)) return;
+
+  CompanyMap.map.panTo({lat:lat, lng:lng});
+  if (zoomIn !== false) {
+    var z = CompanyMap.map.getZoom();
+    if(!z || z < 7) CompanyMap.map.setZoom(7);
+    if(z && z > 9) CompanyMap.map.setZoom(9);
+  }
+
+  CompanyMap.info.setContent(popupHtml(e));
+  CompanyMap.info.open(CompanyMap.map, marker);
+
+  var row=document.querySelector('[data-entity-id="'+esc(entityId)+'"]');
+  if(row) scrollSidebarRowIntoView_(row);
+}
+
+function fitVisible(){
+  if (!CompanyMap.map) return;
+  var pts = [];
+  (CompanyMap.visibleEntities || []).forEach(function(e){
+    var lat = Number(e.lat), lng = Number(e.lng);
+    if (isFinite(lat) && isFinite(lng)) pts.push({lat:lat, lng:lng});
+  });
+
+  if (!pts.length) {
+    CompanyMap.map.setCenter({lat:40.4168,lng:-3.7038});
+    CompanyMap.map.setZoom(5);
+    return;
+  }
+
+  if (pts.length === 1) {
+    CompanyMap.map.setCenter(pts[0]);
+    CompanyMap.map.setZoom(7);
+    return;
+  }
+
+  var bounds = new google.maps.LatLngBounds();
+  pts.forEach(function(p){ bounds.extend(p); });
+  CompanyMap.map.fitBounds(bounds, 60);
+
+  window.setTimeout(function(){
+    try {
+      var z = CompanyMap.map.getZoom();
+      if (z && z > 7) CompanyMap.map.setZoom(7);
+      if (z && z < 4) CompanyMap.map.setZoom(4);
+    } catch(e) {}
+  }, 300);
+}
+
+function renderSidebar(){
+  var visibleMap={};
+  CompanyMap.visibleEntities.forEach(function(e){ visibleMap[e.entityId]=true; });
+  var html=[];
+  var auditVisible = CompanyMap.visibleEntities.filter(function(e){ return String(e.entityType || '').indexOf('AUDIT_') === 0; });
+
+  if (auditVisible.length) {
+    html.push('<div class="company"><div class="company-h"><div><div class="company-name">Audit workload</div><div class="company-sub">Visible audit markers</div></div><span class="pill">'+auditVisible.length+'</span></div>');
+    auditVisible.forEach(function(a){
+      var otherClass = a.entityType === 'AUDIT_OTHER_FUTURE' ? ' other' : '';
+      html.push('<div class="audit-card'+otherClass+'" data-entity-id="'+esc(a.entityId)+'" onclick="openEntity(\''+jsq(a.entityId)+'\', true)">' +
+        '<div class="audit-title">'+esc(a.companyName)+'</div>' +
+        '<div class="audit-meta">'+esc([a.dateLabel, a.timeLabel, a.status || a.auditStatus].filter(Boolean).join(' · '))+'</div>' +
+        '<div class="audit-scopes">'+esc(a.scopesLabel || '')+'</div>' +
+        '</div>');
+    });
+    html.push('</div>');
+  }
+
+  if (checked('showCompanies')) {
+    (CompanyMap.dataset.companies||[]).forEach(function(c){
+      var locs=(c.locations||[]).filter(function(l){return visibleMap[l.entityId];});
+      if(!locs.length) return;
+
+      html.push('<div class="company"><div class="company-h" onclick="fitCompany(\''+jsq(c.companyId)+'\')"><div><div class="company-name">'+esc(c.companyName)+'</div><div class="company-sub">'+esc([c.region,c.country].filter(Boolean).join(', '))+'</div></div><span class="pill" title="Visible / total planned locations">'+locs.length+' / '+esc(c.locationsToPlan || locs.length)+'</span></div>');
+      locs.forEach(function(l){
+        var locCodeClass = (String(l.locationCode || '').toUpperCase() === 'HQ') ? 'hq' : 'site';
+        html.push('<div class="loc" data-entity-id="'+esc(l.entityId)+'" onclick="openEntity(\''+jsq(l.entityId)+'\', true)"><div class="loc-code '+locCodeClass+'">'+esc(l.locationCode)+'</div><div><div class="loc-title">'+esc(l.locationLabel || (l.locationCode==='HQ'?'HQ':'Site'))+'</div><div class="loc-gps">'+esc(l.rawGps)+'</div></div></div>');
+      });
+      html.push('</div>');
+    });
+  }
+
+  document.getElementById('companyList').innerHTML = html.join('') || '<div class="error">No visible markers for current filters.</div>';
+}
+
+function fitCompany(companyId){
+  var arr=CompanyMap.visibleEntities.filter(function(e){return e.companyId===companyId;});
+  if(!arr.length) return;
+  var pts=[];
+  arr.forEach(function(e){ var lat=Number(e.lat), lng=Number(e.lng); if(isFinite(lat)&&isFinite(lng)) pts.push({lat:lat,lng:lng}); });
+  if(!pts.length) return;
+
+  if(pts.length===1){
+    CompanyMap.map.panTo(pts[0]);
+    CompanyMap.map.setZoom(7);
+    openEntity(arr[0].entityId, false);
+    return;
+  }
+
+  var bounds=new google.maps.LatLngBounds();
+  pts.forEach(function(p){ bounds.extend(p); });
+  CompanyMap.map.fitBounds(bounds, 60);
+  window.setTimeout(function(){
+    try{
+      var z=CompanyMap.map.getZoom();
+      if(z && z>7) CompanyMap.map.setZoom(7);
+      if(z && z<5) CompanyMap.map.setZoom(5);
+    }catch(e){}
+  }, 300);
+}
+
+function updateStats(){
+  var companyIds={}, my=0, other=0, companyMarkers=0;
+  CompanyMap.visibleEntities.forEach(function(e){
+    if (e.entityType === 'AUDIT_MY_WORKLOAD') my++;
+    else if (e.entityType === 'AUDIT_OTHER_FUTURE') other++;
+    else { companyMarkers++; companyIds[e.companyId]=true; }
+  });
+  document.getElementById('countEntities').textContent = CompanyMap.visibleEntities.length + ' markers';
+  document.getElementById('countCompanies').textContent = Object.keys(companyIds).length + ' companies';
+  var myEl = document.getElementById('countMyAudits'); if (myEl) myEl.textContent = my + ' my audits';
+  var otherEl = document.getElementById('countOtherAudits'); if (otherEl) otherEl.textContent = other + ' other audits';
+  document.getElementById('countIssues').textContent = ((CompanyMap.dataset.gpsIssues||[]).length) + ' GPS issues';
+}
+
+
+boot();
+</script>
+</body>
+</html>

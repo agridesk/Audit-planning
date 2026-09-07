@@ -1,0 +1,134 @@
+<!--
+EntryBootstrapV5_d16_FAST_RESOLVE_FIRST_20260503_1905.html
+Purpose: speed-first bootstrap.
+Change vs d15:
+- Starts V5_ENTRY_resolve immediately, before branded/skeleton DOM work.
+- Removes spinner/skeleton/shimmer page.
+- Keeps trusted-token flow unchanged.
+- Keeps V5_ENTRY_resolve contract unchanged.
+- Keeps document.write returned HTML contract unchanged.
+- No business logic, status, planning, availability or auth semantics changed.
+-->
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>AMS - Opening</title>
+  <script>
+(function enforceAmsShortBrowserTitle() {
+  var AMS_SHORT_BROWSER_TITLE = 'AMS - Opening';
+  function setAmsShortBrowserTitle() {
+    try { document.title = AMS_SHORT_BROWSER_TITLE; } catch (e) {}
+  }
+  setAmsShortBrowserTitle();
+  try { document.addEventListener('DOMContentLoaded', setAmsShortBrowserTitle); } catch (e) {}
+  try { window.addEventListener('load', setAmsShortBrowserTitle); } catch (e) {}
+  try { setTimeout(setAmsShortBrowserTitle, 0); setTimeout(setAmsShortBrowserTitle, 250); setTimeout(setAmsShortBrowserTitle, 1000); } catch (e) {}
+})();
+</script>
+  <style>
+    html,body{
+      margin:0;
+      padding:0;
+      height:100%;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      color:#1f2937;
+      background:#f5f7fa;
+    }
+    .fallback{
+      padding:18px 22px;
+      font-size:13px;
+      color:#475569;
+    }
+    .fallback strong{
+      display:block;
+      font-size:15px;
+      color:#111827;
+      margin-bottom:4px;
+    }
+    .error{
+      padding:20px;
+      font-family:ui-monospace,Menlo,Consolas,monospace;
+      color:#b91c1c;
+      white-space:pre-wrap;
+    }
+  </style>
+</head>
+<body>
+<script>
+(function() {
+  'use strict';
+
+  const LS = 'V5_AUTH_';
+  const AUDITOR_EMAIL_HINT = '<?!= (typeof __auditorEmail !== "undefined" ? __auditorEmail : "") ?>';
+  const MONTHKEY_HINT = '<?!= (typeof __monthKey !== "undefined" ? __monthKey : "") ?>';
+
+  let ctx = {
+    email: (localStorage.getItem(LS + 'email') || '').toLowerCase(),
+    role: localStorage.getItem(LS + 'role') || '',
+    token: localStorage.getItem(LS + 'token') || '',
+    deviceId: localStorage.getItem(LS + 'deviceId') || '',
+    action: '<?!= __action ?>',
+    auditorEmail: AUDITOR_EMAIL_HINT,
+    monthKey: MONTHKEY_HINT,
+    auditId: '<?!= (typeof __auditId !== "undefined" ? __auditId : "") ?>'.trim()
+  };
+
+  // Logout without revoke: force showing Login once, while keeping trusted token stored.
+  try {
+    if (localStorage.getItem(LS + 'FORCE_LOGIN')) {
+      ctx.token = '';
+      ctx.deviceId = '';
+    }
+  } catch (e) {}
+
+  // FAST PATH: start server resolution immediately. Do not wait for branded DOM,
+  // skeletons, animations, contextual text, or any other cosmetic work.
+  google.script.run
+    .withSuccessHandler(function(html) {
+      document.open();
+      document.write(html);
+      document.close();
+    })
+    .withFailureHandler(function(err) {
+      var msg = (err && err.message) ? err.message : String(err || 'Unknown bootstrap error');
+      document.body.innerHTML = '<pre class="error">Bootstrap error: ' + escapeHtml_(msg) + '</pre>';
+    })
+    .V5_ENTRY_resolve(ctx);
+
+  // Minimal fallback text only. No spinner, no skeleton, no animation.
+  // It appears only if the server roundtrip is not already replacing the document.
+  window.setTimeout(function() {
+    try {
+      if (!document.body || document.body.getAttribute('data-resolved') === '1') return;
+      if (document.body.children.length > 1) return;
+      var label = resolveLabel_(ctx.action);
+      document.body.insertAdjacentHTML(
+        'beforeend',
+        '<div class="fallback"><strong>' + escapeHtml_(label) + '</strong>Opening audit data...</div>'
+      );
+    } catch (e) {}
+  }, 250);
+
+  function resolveLabel_(action) {
+    var act = String(action || '').toLowerCase();
+    if (act === 'managertoolkit' || act === 'managerplanningtoolkit') return 'Planning Toolkit';
+    if (act === 'auditortoolkit' || act === 'auditorplanningtoolkit') return 'Auditor Planning';
+    if (act === 'manager' || act === 'manageroverview') return 'Manager Overview';
+    if (act === 'auditor' || act === 'auditoroverview') return 'Auditor Overview';
+    if (act === 'auditoravailability') return 'Auditor Availability';
+    return 'Audit System';
+  }
+
+  function escapeHtml_(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+})();
+</script>
+</body>
+</html>

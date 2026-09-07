@@ -1,0 +1,517 @@
+/* BUILD: ManagerPlanningUI_styles_R2C_CONSTRAINTS_LABEL_FIX_20260522 */
+      
+      .hoursWarnMsg{
+        margin-top:10px;
+        padding:10px 12px;
+        border-radius:10px;
+        font-size:13px;
+        line-height:18px;
+        border:1px solid rgba(17,24,39,0.14);
+        background:#fff;
+      }
+      .hoursWarnMsg.warn{
+        border-color: rgba(220,38,38,0.35);
+        background: rgba(220,38,38,0.06);
+      }
+      .hoursWarnMsg.ok{
+        border-color: rgba(16,185,129,0.25);
+        background: rgba(16,185,129,0.06);
+      }
+
+body{font-family:system-ui,sans-serif;background:#f5f7fa;margin:0;padding:16px 28px;}
+      h1{margin:0 0 10px;font-size:22px;font-weight:700;}
+      .box{background:#fff;border-radius:12px;padding:20px;border:1px solid #e5e7eb;max-width:none;margin:0 auto;width:100%;}
+      .banner{padding:8px 12px;border-radius:8px;margin-bottom:10px;background:#f8fafc;color:#334155;font-size:13px;border:1px solid #e2e8f0;}
+      .banner.success{background:#ecfdf3;color:#166534;border-color:rgba(22,163,74,.25);font-weight:700;}
+      .banner.warning{background:#fffbeb;color:#92400e;border-color:rgba(245,158,11,.30);}
+      .banner.error{background:#fef2f2;color:#b91c1c;border-color:rgba(220,38,38,.25);}
+      .grid{display:grid;grid-template-columns:1.2fr 2fr;gap:20px;margin-top:8px;}
+      .card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;}
+      .label{font-weight:600;color:#475569;margin-top:4px;}
+      .value{color:#0f172a;margin-bottom:4px;}
+      .value.ok{color:#166534;font-weight:700;}
+      .value.warn{color:#b45309;font-weight:800;}
+      .monthBar{display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;}
+      .monthBar #monthLabel{flex:1 1 auto;text-align:center;font-weight:600;color:#0f172a;}
+      .monthBar input.monthJumpInput{font:inherit;padding:3px 6px;border:1px solid #cbd5e1;border-radius:4px;color:#1e293b;background:#fff;cursor:pointer;height:28px;}
+      .monthBar input.monthJumpInput:focus{outline:none;border-color:#7c3aed;box-shadow:0 0 0 2px rgba(124,58,237,.15);}
+      .monthBar button.todayBtn{font:inherit;padding:3px 10px;border:1px solid #cbd5e1;border-radius:4px;background:#f1f5f9;color:#1e293b;cursor:pointer;height:28px;}
+      .monthBar button.todayBtn:hover{background:#e2e8f0;}
+      .monthBar button.todayBtn:active{background:#cbd5e1;}
+      .legend{display:flex;flex-wrap:wrap;gap:10px;margin:6px 0 10px;font-size:12px;color:#475569;}
+      .legend .item{display:inline-flex;align-items:center;gap:6px;}
+      .legend .sw{width:14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.15);display:inline-block;}
+      .sw.av{background:rgba(22,163,74,.18);}
+      .sw.mx{background:#fee2e2;}
+      .sw.bl{background:rgba(220,38,38,.18);}
+.calDow{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:6px;margin-bottom:4px;font-size:12px;color:#6b7280;text-align:center;user-select:none;}
+      .calDow div{padding:6px 0;font-weight:600;}
+      .calGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:12px;}
+
+      .calCell{
+        height:44px;border-radius:6px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;
+        cursor:pointer;border:1px solid transparent;position:relative;user-select:none;overflow:hidden;
+      }
+      .calCell.calEmpty{visibility:hidden;pointer-events:none;}
+      .calCell.disabled{background:#f3f4f6;color:#cbd5e1;cursor:default;}
+      .calCell.selected{background:#2563eb !important;color:#fff;font-weight:600;border-color:#1d4ed8;}
+      .calCell.locked{cursor:default;opacity:.6;}
+
+      /* Availability summary backgrounds (ONLY source: backend grid derived from Auditor Availability sheet) */
+      .calCell.sumAvail{ background: rgba(22,163,74,.14); }
+      .calCell.sumBlock{ background:#f8d7da; }
+      .calCell.sumMixed{ background:#fee2e2; }
+      .calCell.companyOnlySoft{ background:#fee2e2; }
+
+      /* mini time bar — R5: one horizontal timeline per day; multiple audits are segments */
+      .timeBarWrap{
+        position:absolute;left:6px;right:6px;bottom:4px;height:8px;
+        background:transparent;border:0;overflow:hidden;pointer-events:none;
+      }
+      .timeBar{
+        position:relative;height:6px;width:100%;border-radius:999px;
+        border:1px solid rgba(0,0,0,.06);overflow:hidden;
+      }
+      .timeBarSeg{
+        position:absolute;top:0;bottom:0;border-radius:999px;
+        background:rgba(220,38,38,.28);
+      }
+
+      /* Loading overlay (prevents any "two layer" repaint impression) */
+      .loadingMask{
+        position:absolute; inset:0; background:rgba(255,255,255,.65);
+        display:flex; align-items:center; justify-content:center;
+        font-size:12px; color:#64748b;
+        border-radius:12px;
+      }
+
+      table{width:100%;border-collapse:collapse;margin-top:10px;}
+      th,td{border-bottom:1px solid #e2e8f0;padding:6px;font-size:12px;}
+      th{text-align:left;font-weight:600;color:#475569;}
+      .actions{margin-top:20px;text-align:right;}
+      button{padding:8px 14px;border-radius:6px;border:none;font-size:14px;cursor:pointer;}
+      button:disabled{opacity:.6;cursor:default;}
+      .saveBtn{background:#2563eb;color:#fff;}
+      .cancelBtn{background:#e5e7eb;color:#111827;margin-right:8px;}
+      #log{display:none;margin-top:10px;font-family:monospace;font-size:11px;white-space:pre-wrap;max-height:180px;overflow:auto;color:#4b5563;}
+      .lockedOverlay{pointer-events:none;opacity:.7;}
+    
+      .hoursCheck{margin-top:12px;padding:10px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;}
+      .hoursCheckRow{display:flex;justify-content:space-between;align-items:center;margin:4px 0;}
+      .hoursCheckLabel{color:#6b7280;font-size:12px;}
+      .hoursCheckValue{font-weight:600;}
+
+      /* Planning window outline (Mon–Fri only). Does not override fill colors. */
+      .pwOutline{
+        box-shadow: inset 0 0 0 3px #14532d;
+        border-radius: 6px;
+      }
+    
+      .softWarn{
+        color:#b45309;
+        font-weight:600;
+        margin-top:6px;
+      }
+      .timeInvalid{
+        outline: 2px solid #dc2626;
+        background: #fee2e2;
+      }
+  .scope-badges { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
+  .scope-badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; line-height:18px; border:1px solid rgba(0,0,0,0.08); }
+
+
+/* ===== SLOT TABLE WIDTH CONTROL (prevent calendar shrink) ===== */
+#leftCard, #rightCard { min-width: 0; }
+#mainGrid.grid { grid-template-columns: minmax(420px, 520px) 1fr; }
+
+#rightCard{display:flex;flex-direction:column;gap:14px;}
+#calendarPane{position:relative;min-height:360px;}
+#rightLocPane{display:none;border-top:1px solid #e5e7eb;padding-top:12px;}
+#rightLocPane .cardSubTitle{font-weight:700;color:#334155;margin-bottom:8px;}
+
+#slotsTable { table-layout: fixed; }
+#slotsTable th, #slotsTable td { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+#slotsTable th:nth-child(1), #slotsTable td:nth-child(1) { width: 26px; }
+#slotsTable th:nth-child(2), #slotsTable td:nth-child(2) { width: 118px; }
+#slotsTable th:nth-child(3), #slotsTable td:nth-child(3) { width: 86px; }
+#slotsTable th:nth-child(4), #slotsTable td:nth-child(4) { width: 86px; }
+#slotsTable th:nth-child(5), #slotsTable td:nth-child(5) { width: 140px; }
+#slotsTable th:nth-child(6), #slotsTable td:nth-child(6) { width: 52px; text-align:center; }
+#slotsTable th:nth-child(7), #slotsTable td:nth-child(7) { width: 180px; }
+#slotsTable th:nth-child(8), #slotsTable td:nth-child(8) { width: 34px; text-align:center; }
+
+#slotsTable input, #slotsTable select { box-sizing: border-box; max-width: 100%; }
+#slotsTable input[type="time"] { width: 86px; }
+#slotsTable input[type="date"] { width: 118px; }
+#slotsTable select { width: 140px; }
+#slotsTable .slotCommentInput { width: 100%; }
+
+
+/* ===== LAYOUT FIX: SLOT EDITOR FULL-WIDTH BELOW CALENDAR (NO SCROLLBARS) ===== */
+#slotEditorWrap{
+  margin-top: 16px;
+  padding: 16px 20px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+#slotEditorWrap table{ table-layout: fixed; }
+
+#slotEditorWrap th:nth-child(1){ width: 34px; }
+#slotEditorWrap th:nth-child(2){ width: 140px; }
+#slotEditorWrap th:nth-child(3){ width: 90px; }
+#slotEditorWrap th:nth-child(4){ width: 90px; }
+#slotEditorWrap th:nth-child(5){ width: 170px; }
+#slotEditorWrap th:nth-child(6){ width: 52px; }
+#slotEditorWrap th:nth-child(7){ width: auto; }
+#slotEditorWrap th:nth-child(8){ width: 32px; }
+
+#slotEditorWrap td, #slotEditorWrap th{
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 4px 4px;
+}
+
+#slotEditorWrap input[type="text"], #slotEditorWrap select{
+  width: 100%;
+  box-sizing: border-box;
+}
+#slotEditorWrap input[type="date"]{ width:132px; }
+#slotEditorWrap input[type="time"]{ width:78px; }
+#slotEditorWrap select{ font-size:12px; }
+#slotEditorWrap .execLocSelect{ width:100%; }
+#slotEditorWrap .gpsCell{ text-align:center; }
+#slotEditorWrap .gpsLink{ display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; text-decoration:none; font-size:15px; line-height:1; }
+#slotEditorWrap .gpsEmpty{ color:#94a3b8; font-size:12px; }
+#slotEditorWrap .slotCommentInput{ width:100%; }
+#slotEditorWrap .deleteBtn{ padding:0; width:22px; height:22px; border-radius:999px; background:#eef2f7; color:#334155; font-size:16px; line-height:20px; }
+
+
+      .auditorHint{margin-top:6px;font-size:12px;color:#64748b;}
+      .rotationBox{margin-top:8px;padding:10px 12px;border-radius:10px;border:1px solid rgba(15,23,42,0.10);background:#f8fafc;}
+      .rotationBox.warn{border-color:rgba(217,119,6,.35);background:rgba(245,158,11,.08);}
+      .rotationBox.alert{border-color:rgba(220,38,38,.30);background:rgba(220,38,38,.08);}
+      .rotationTitle{font-size:12px;font-weight:700;color:#334155;margin-bottom:4px;}
+      .rotationMain{font-size:13px;color:#0f172a;line-height:18px;}
+      .rotationSub{font-size:12px;color:#475569;line-height:17px;margin-top:4px;white-space:pre-line;}
+
+
+      .toolkit-brand{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+      .toolkit-logo{width:44px;height:44px;border-radius:999px;background:#020403;box-shadow:0 0 0 1px rgba(15,23,42,.12);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px;letter-spacing:.4px;flex:0 0 auto;}
+      .toolkit-title-main{font-size:22px;font-weight:700;color:#0f172a;line-height:1.15;}
+      .toolkit-title-sub{font-size:12px;color:#64748b;margin-top:2px;}
+      .owner-note{font-size:10px;color:#64748b;margin-top:10px;text-align:right;}
+
+
+
+      .planningSavedCard{
+        margin-top:12px;
+        padding:14px 16px;
+        border-radius:12px;
+        border:1px solid rgba(22,163,74,.28);
+        background:rgba(22,163,74,.08);
+        color:#14532d;
+        font-size:13px;
+        line-height:19px;
+      }
+      .planningSavedTitle{font-weight:900;font-size:14px;margin-bottom:4px;}
+      .planningSavedMeta{color:#166534;}
+
+/* ============================================================
+ * PHASE 1 — TOOLKIT UI REFACTOR ONLY
+ * Visual/layout only. No open path, cache, hydration or save logic changes.
+ * ============================================================ */
+.toolkitPhase1.box{padding:16px;background:#f6f8fb;border-radius:18px;border:1px solid #e2e8f0;}
+.toolkitTopbar{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:12px;padding:14px 16px;border:1px solid #e2e8f0;border-radius:16px;background:#ffffff;box-shadow:0 12px 30px rgba(15,23,42,.05)}
+.toolkitEyebrow{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin-bottom:3px;}
+.toolkitTitleLine{font-size:20px;font-weight:800;color:#0f172a;line-height:1.2;}
+.toolkitMetaLine{font-size:12px;color:#475569;margin-top:4px;}
+.toolkitTopStatus{font-size:12px;font-weight:800;color:#075985;background:#e0f2fe;border:1px solid #bae6fd;border-radius:999px;padding:7px 11px;white-space:nowrap;}
+.phase1Grid.grid{grid-template-columns:minmax(330px,390px) minmax(0,1fr);gap:14px;align-items:start;}
+.phase1Left.card,.phase1Right.card{border:1px solid #e2e8f0;border-radius:16px;background:#fff;box-shadow:0 14px 35px rgba(15,23,42,.06);}
+.phase1Left.card{padding:12px;display:flex;flex-direction:column;gap:10px;max-height:calc(100vh - 230px);overflow:auto;}
+.phase1Right.card{padding:12px;display:flex;flex-direction:column;gap:12px;min-width:0;}
+.phase1Panel{border:1px solid #e2e8f0;border-radius:14px;background:#ffffff;padding:10px 12px;}
+.phase1PanelTitle{font-size:11px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;color:#64748b;margin-bottom:7px;}
+.phase1CompanyName{font-size:16px;font-weight:850;color:#0f172a;line-height:1.22;margin-bottom:6px;overflow-wrap:anywhere;}
+.phase1CompanyName.small{font-size:13px;margin-bottom:4px;}
+.phase1InfoGrid{display:grid;grid-template-columns:1fr 1fr;gap:7px 10px;}
+.phase1InfoGrid div,.phase1KV{display:flex;justify-content:space-between;gap:12px;align-items:baseline;border-top:1px solid rgba(226,232,240,.7);padding-top:6px;margin-top:6px;}
+.phase1InfoGrid div:first-child,.phase1InfoGrid div:nth-child(2){border-top:0;padding-top:0;margin-top:0;}
+.phase1InfoGrid span,.phase1KV span{font-size:11px;color:#64748b;font-weight:700;white-space:nowrap;}
+.phase1InfoGrid strong,.phase1KV strong{font-size:12px;color:#0f172a;font-weight:750;text-align:right;overflow-wrap:anywhere;}
+.phase1Hint{font-size:10.5px;color:#64748b;margin-top:6px;}
+.phase1ScopeBadges{display:flex;flex-wrap:wrap;gap:5px;margin:5px 0 2px 0;}
+.phase1ScopeBadges .scope-badge{font-size:10.5px;line-height:16px;padding:2px 8px;}
+.phase1Comment{width:100%;height:54px;min-height:54px;resize:vertical;border:1px solid #cbd5e1;border-radius:10px;padding:8px 9px;font-size:12px;line-height:1.35;box-sizing:border-box;}
+.phase1LegacyHidden{display:none!important;}
+.phase1WorkspaceCard{border:1px solid #e2e8f0;border-radius:15px;background:#ffffff;padding:12px;}
+.phase1WorkspaceHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:10px;}
+.phase1WorkspaceTitle{font-size:13px;font-weight:850;color:#0f172a;margin-bottom:3px;}
+.phase1LocationsTable{width:100%;border-collapse:collapse;}
+.phase1LocationsTable th{font-size:11px;color:#64748b;font-weight:800;border-bottom:1px solid #e2e8f0;padding:6px 5px;}
+.phase1LocationsTable td{font-size:12px;border-bottom:1px solid #f1f5f9;padding:6px 5px;vertical-align:top;}
+.phase1Right #calendarPane{position:relative;}
+.phase1Right #slotEditorWrap{overflow:auto;}
+.phase1Right #slotsTable{width:100%;}
+.phase1Actions.actions{margin-top:12px;}
+.phase1Left .rotationBox{margin-top:8px;}
+.phase1Left .auditorHint{font-size:11px;line-height:1.3;color:#64748b;margin-top:5px;}
+@media(max-width:1100px){.phase1Grid.grid{grid-template-columns:1fr}.phase1Left.card{max-height:none}.toolkitTopbar{flex-direction:column}.toolkitTopStatus{align-self:flex-start}}
+
+
+/* ============================================================
+ * PHASE 1 R2 — NO DUPLICATE INFO + LOW VERTICAL SCROLL
+ * Visual/layout only. No open path, cache, hydration, availability or save logic changes.
+ * ============================================================ */
+body{padding:10px 16px;background:#f6f8fb;overflow-x:hidden;}
+.toolkitPhase1NoDup.box{padding:10px;border-radius:12px;min-height:auto;}
+.toolkitPhase1NoDup .banner{display:none;}
+.toolkitPhase1NoDup .toolkitTopbar{display:grid;grid-template-columns:minmax(260px,1.2fr) minmax(230px,.8fr) minmax(220px,.8fr) auto;align-items:center;gap:18px;margin-bottom:8px;padding:10px 14px;border-radius:12px;}
+.toolkitTopIdentity{min-width:0;}
+.toolkitTitleRow{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap;}
+.toolkitPhase1NoDup .toolkitTitleLine{font-size:20px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.toolkitPhase1NoDup .toolkitEyebrow{font-size:10px;margin-bottom:2px;}
+.toolkitPhase1NoDup .topScopeBadges{margin:0;display:inline-flex;gap:5px;}
+.toolkitPhase1NoDup .topScopeBadges .scope-badge{font-size:10px;line-height:15px;padding:1px 7px;}
+.toolkitTopFact{display:grid;grid-template-columns:auto 1fr;gap:5px 8px;align-items:center;min-width:0;}
+.toolkitFactLabel{font-size:12px;font-weight:800;color:#334155;}
+.toolkitFactValue{font-size:14px;font-weight:800;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.toolkitFactValue.preferred{color:#1d4ed8;}
+.toolkitInfoIcon{font-size:13px;color:#334155;cursor:help;}
+.toolkitPhase1NoDup .toolkitTopStatus{align-self:center;justify-self:end;padding:6px 11px;}
+.toolkitPhase1NoDup .phase1Grid.grid{grid-template-columns:minmax(300px,365px) minmax(0,1fr);gap:10px;margin-top:0;}
+.toolkitPhase1NoDup .phase1Left.card{padding:8px;gap:7px;max-height:none;overflow:visible;border-radius:12px;box-shadow:none;}
+.toolkitPhase1NoDup .phase1Right.card{padding:8px;gap:8px;border-radius:12px;box-shadow:none;}
+.toolkitPhase1NoDup .phase1Panel{padding:8px 10px;border-radius:10px;}
+.toolkitPhase1NoDup .phase1PanelTitle{font-size:10px;margin-bottom:5px;letter-spacing:.04em;}
+.auditorRow{display:flex;gap:8px;align-items:center;}
+.auditorSelectCompact{flex:1 1 auto;min-width:0;height:30px;font-size:12px;border:1px solid #cbd5e1;border-radius:7px;padding:4px 8px;background:#fff;}
+.loadCalendarBtn{background:#2563eb;color:#fff;white-space:nowrap;height:30px;padding:4px 10px;font-size:12px;border-radius:7px;}
+.preassignedLine{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:7px;font-size:12px;}
+.preassignedLine span{font-weight:800;color:#334155;}
+.preassignedLine strong{font-weight:800;color:#0f172a;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:185px;}
+.toolkitPhase1NoDup .auditorHint{display:none;}
+.toolkitPhase1NoDup .rotationBox{margin-top:7px;padding:8px 10px;border-radius:9px;}
+.toolkitPhase1NoDup .rotationTitle{font-size:11px;margin-bottom:2px;}
+.toolkitPhase1NoDup .rotationMain,.toolkitPhase1NoDup .rotationSub{font-size:11px;line-height:15px;}
+.toolkitPhase1NoDup .phase1CompanyName{font-size:14px;margin-bottom:4px;}
+.toolkitPhase1NoDup .phase1InfoGrid{grid-template-columns:1fr;gap:0;}
+.toolkitPhase1NoDup .phase1InfoGrid div,.toolkitPhase1NoDup .phase1KV{padding-top:4px;margin-top:4px;}
+.toolkitPhase1NoDup .phase1InfoGrid span,.toolkitPhase1NoDup .phase1KV span{font-size:10.5px;}
+.toolkitPhase1NoDup .phase1InfoGrid strong,.toolkitPhase1NoDup .phase1KV strong{font-size:11.5px;}
+.phase1InlineMain{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12px;}
+.phase1InlineMain strong{font-size:12px;color:#0f172a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.phase1InlineMain span{white-space:nowrap;}
+.compactComment{height:42px;min-height:42px;font-size:11.5px;padding:6px 8px;resize:none;}
+.compactConstraints{padding-top:6px!important;padding-bottom:6px!important;}
+.phase1ConstraintsLine{display:flex;flex-wrap:wrap;gap:7px 12px;font-size:10.5px;color:#64748b;line-height:1.2;}
+.phase1ConstraintsLine strong{font-size:10.5px;color:#0f172a;font-weight:750;}
+.locationsTitleRow{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.toolkitPhase1NoDup .compactLocationsPanel{display:block!important;}
+.toolkitPhase1NoDup #locRegistryBox{display:block;}
+.toolkitPhase1NoDup .compactLocationsTable{margin-top:0;font-size:11px;}
+.toolkitPhase1NoDup .compactLocationsTable th,.toolkitPhase1NoDup .compactLocationsTable td{padding:4px 3px;font-size:10.5px;}
+/* Boot renderLocRegistry_ writes 5 cells. In compact left mode only show Code, Location, Map. */
+.toolkitPhase1NoDup .compactLocationsTable th:nth-child(3),
+.toolkitPhase1NoDup .compactLocationsTable th:nth-child(4),
+.toolkitPhase1NoDup .compactLocationsTable td:nth-child(3),
+.toolkitPhase1NoDup .compactLocationsTable td:nth-child(4){display:none;}
+.toolkitPhase1NoDup .compactLocationsTable td:nth-child(5),
+.toolkitPhase1NoDup .compactLocationsTable th:nth-child(5){width:42px;text-align:right;}
+.toolkitPhase1NoDup .compactLocationsTable tbody tr:nth-child(n+4){display:none;}
+.toolkitPhase1NoDup .phase1WorkspaceCard{padding:8px;border-radius:11px;}
+.toolkitPhase1NoDup .calendarCompactCard{padding:8px 10px 10px;}
+.toolkitPhase1NoDup .monthBar{margin-bottom:4px;gap:7px;}
+.toolkitPhase1NoDup .monthBar #monthLabel{font-size:15px;font-weight:800;}
+.toolkitPhase1NoDup .monthBar button,.toolkitPhase1NoDup .monthBar input.monthJumpInput{height:28px;font-size:12px;border-radius:7px;}
+.toolkitPhase1NoDup .legend{justify-content:flex-end;margin:2px 0 6px;font-size:11px;gap:12px;}
+.toolkitPhase1NoDup .legend .sw{width:12px;height:12px;}
+.toolkitPhase1NoDup .calDow{margin-top:2px;margin-bottom:2px;gap:2px;font-size:11px;}
+.toolkitPhase1NoDup .calDow div{padding:4px 0;}
+.toolkitPhase1NoDup .calGrid{gap:2px;font-size:12px;}
+.toolkitPhase1NoDup .calCell{height:48px;border-radius:4px;align-items:flex-start;justify-content:flex-start;padding:6px;box-sizing:border-box;font-weight:650;}
+.toolkitPhase1NoDup .timeBarWrap{left:5px;right:5px;bottom:4px;height:6px;}
+.toolkitPhase1NoDup .timeBar{height:5px;}
+.phase1BelowCalendar{display:grid;grid-template-columns:minmax(220px,280px) minmax(0,1fr);gap:10px;align-items:stretch;}
+.toolkitPhase1NoDup #slotEditorWrap{margin-top:0;padding:8px;overflow:auto;}
+.selectedCompactCard{min-height:0;}
+.selectedCountLarge{font-size:14px;font-weight:800;color:#0f172a;margin-bottom:5px;}
+.compactHoursCheck.hoursCheck{margin-top:4px;padding:0;border:0;background:transparent;}
+.compactHoursCheck .hoursCheckRow{margin:3px 0;font-size:12px;}
+.compactHoursCheck .hoursCheckLabel{font-size:11px;}
+.compactHoursCheck .hoursCheckValue{font-size:12px;}
+.compactHoursCheck .hoursWarnMsg{margin-top:7px;padding:7px 8px;font-size:11px;line-height:15px;border-radius:8px;}
+.compactSlotsHeader{margin-bottom:3px;}
+.toolkitPhase1NoDup #slotsTable{margin-top:4px;}
+.toolkitPhase1NoDup #slotEditorWrap th,.toolkitPhase1NoDup #slotEditorWrap td{padding:3px 4px;font-size:11px;}
+.toolkitPhase1NoDup .phase1Actions.actions{margin-top:8px;}
+.toolkitPhase1NoDup .owner-note{display:none;}
+.toolkitPhase1NoDup #log{max-height:110px;}
+@media(max-height:820px){
+  body{padding:6px 10px;}
+  .toolkitPhase1NoDup.box{padding:8px;}
+  .toolkitPhase1NoDup .toolkitTopbar{padding:8px 12px;margin-bottom:6px;}
+  .toolkitPhase1NoDup .phase1Panel{padding:6px 8px;}
+  .toolkitPhase1NoDup .calCell{height:42px;padding:5px;}
+  .compactComment{height:34px;min-height:34px;}
+  .toolkitPhase1NoDup .phase1Left.card{gap:5px;}
+}
+@media(max-width:1280px){
+  .toolkitPhase1NoDup .phase1Grid.grid{grid-template-columns:minmax(280px,340px) minmax(0,1fr);}
+  .toolkitPhase1NoDup .toolkitTopbar{grid-template-columns:1fr auto;}
+  .toolkitTopFact{display:none;}
+  .phase1BelowCalendar{grid-template-columns:1fr;}
+}
+
+
+/* ============================================================
+ * PHASE 1 R2B — MINIMAL UI ONLY
+ * - Remove First point to meet block
+ * - Move Company locations to right column
+ * - Move Constraints up under Contact
+ * - No runtime/open/cache/save changes
+ * ============================================================ */
+.toolkitPhase1NoDup .phase1Left.card{
+  gap:6px;
+}
+.toolkitPhase1NoDup .compactConstraints{
+  order:4;
+}
+.toolkitPhase1NoDup .phase1CommentPanel{
+  order:5;
+}
+
+/* Right-side Company locations: visible under the planning workspace */
+.toolkitPhase1NoDup .phase1Right .rightLocationsPanel{
+  display:block!important;
+  margin-top:0;
+  padding:8px;
+  border:1px solid #e2e8f0;
+  border-radius:11px;
+  background:#fff;
+}
+.toolkitPhase1NoDup .phase1Right .rightLocationsPanel #locRegistryBox{
+  display:block;
+}
+.toolkitPhase1NoDup .phase1Right .rightLocationsPanel .compactLocationsTable{
+  width:100%;
+  margin-top:0;
+  table-layout:fixed;
+}
+.toolkitPhase1NoDup .phase1Right .rightLocationsPanel .compactLocationsTable th,
+.toolkitPhase1NoDup .phase1Right .rightLocationsPanel .compactLocationsTable td{
+  display:table-cell!important;
+  padding:4px 5px;
+  font-size:10.5px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.toolkitPhase1NoDup .phase1Right .rightLocationsPanel .compactLocationsTable tbody tr{
+  display:table-row!important;
+}
+.toolkitPhase1NoDup .phase1Right .rightLocationsPanel .compactLocationsTable th:nth-child(1),
+.toolkitPhase1NoDup .phase1Right .rightLocationsPanel .compactLocationsTable td:nth-child(1){
+  width:52px;
+}
+.toolkitPhase1NoDup .phase1Right .rightLocationsPanel .compactLocationsTable th:nth-child(3),
+.toolkitPhase1NoDup .phase1Right .rightLocationsPanel .compactLocationsTable td:nth-child(3){
+  width:160px;
+}
+.toolkitPhase1NoDup .phase1Right .rightLocationsPanel .compactLocationsTable th:nth-child(5),
+.toolkitPhase1NoDup .phase1Right .rightLocationsPanel .compactLocationsTable td:nth-child(5){
+  width:54px;
+  text-align:right;
+}
+
+/* Prevent the old global #rightLocPane rule from adding left-panel styling when placed right. */
+.toolkitPhase1NoDup .phase1Right #rightLocPane{
+  border-top:1px solid #e2e8f0;
+  padding-top:8px;
+}
+
+/* First point block is intentionally removed in markup; safety hide if stale DOM remains. */
+.toolkitPhase1NoDup .phase1InlineMain #mpFirstMeetName,
+.toolkitPhase1NoDup .phase1InlineMain #mpFirstMeetGps{
+  display:none;
+}
+
+
+/* ============================================================
+ * PHASE 1 R2C — Constraints label fix only
+ * Visual only. No runtime/open/cache/save changes.
+ * ============================================================ */
+.toolkitPhase1NoDup .constraintsTitleRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+}
+.toolkitPhase1NoDup .softConstraintsBadge{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  border:1px solid #fde68a;
+  background:#fffbeb;
+  color:#92400e;
+  border-radius:999px;
+  padding:2px 7px;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:0;
+  text-transform:none;
+  white-space:nowrap;
+}
+.toolkitPhase1NoDup .constraintsRows{
+  display:flex;
+  flex-direction:column;
+  gap:0;
+  border-top:1px solid rgba(226,232,240,.7);
+}
+.toolkitPhase1NoDup .constraintRow{
+  display:grid;
+  grid-template-columns:18px minmax(0,1fr) auto;
+  align-items:center;
+  gap:7px;
+  min-height:24px;
+  border-bottom:1px solid rgba(226,232,240,.7);
+  font-size:10.5px;
+}
+.toolkitPhase1NoDup .constraintRow:last-child{
+  border-bottom:0;
+}
+.toolkitPhase1NoDup .constraintIcon{
+  color:#64748b;
+  font-size:12px;
+  text-align:center;
+}
+.toolkitPhase1NoDup .constraintLabel{
+  color:#475569;
+  font-weight:700;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.toolkitPhase1NoDup .constraintRow strong{
+  color:#0f172a;
+  font-size:10.5px;
+  font-weight:800;
+  max-width:130px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  text-align:right;
+}
+.toolkitPhase1NoDup .constraintsSoftNote{
+  margin-top:6px;
+  padding:5px 7px;
+  border-radius:8px;
+  background:#f8fafc;
+  color:#475569;
+  font-size:10.5px;
+  line-height:1.25;
+}
+

@@ -1,0 +1,705 @@
+<!-- UiDialogs.html -->
+<!-- BUILD: 2026-05-21_UI_ACTION_STATUS_TONE_CONTRACT_R2_SYNCED -->
+<style>
+  .uiDlgOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20000;
+    padding: 20px;
+  }
+
+  .uiDlgBox {
+    width: min(520px, 94vw);
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
+    overflow: hidden;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    color: #0f172a;
+  }
+
+  .uiDlgHd {
+    padding: 16px 18px 10px;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  .uiDlgBody {
+    padding: 0 18px 16px;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+
+  .uiDlgInputWrap {
+    padding: 0 18px 16px;
+  }
+
+  .uiDlgLabel {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+  }
+
+  .uiDlgTextarea {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font: inherit;
+    color: inherit;
+    resize: vertical;
+    min-height: 96px;
+  }
+
+  .uiDlgTextarea.uiDlgInvalid {
+    border-color: #dc2626;
+    background: #fef2f2;
+  }
+
+  .uiDlgFt {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 18px 18px;
+    border-top: 1px solid #e5e7eb;
+    background: #f8fafc;
+  }
+
+  .uiDlgBtn {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #0f172a;
+    border-radius: 10px;
+    padding: 9px 14px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .uiDlgBtn:hover {
+    background: #f8fafc;
+  }
+
+  .uiDlgBtnPrimary {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+  }
+
+  .uiDlgBtnPrimary:hover {
+    background: #1d4ed8;
+  }
+
+  .uiDlgToneConfirm .uiDlgHd { color: #0f172a; }
+  .uiDlgToneWarning .uiDlgHd { color: #b45309; }
+  .uiDlgToneError .uiDlgHd { color: #b91c1c; }
+  .uiDlgToneSuccess .uiDlgHd { color: #166534; }
+  .uiDlgToneInfo .uiDlgHd { color: #1d4ed8; }
+
+  .uiDlgFlash {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 20010;
+    background: #166534;
+    color: #ffffff;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font: 700 14px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    box-shadow: 0 14px 36px rgba(15, 23, 42, 0.22);
+  }
+
+  /* ============================================================
+   * UI ACTION STYLE BOOK
+   * - Same action button remains visible while busy.
+   * - Busy state changes label inside the button.
+   * - Shared tones across Manager, Auditor, Tools, Planning Toolkit.
+   * ============================================================ */
+
+  :root {
+    --ui-action-primary:#2563eb;
+    --ui-action-primary-hover:#1d4ed8;
+    --ui-action-success:#16a34a;
+    --ui-action-success-hover:#15803d;
+    --ui-action-accept:#0f766e;
+    --ui-action-accept-hover:#115e59;
+    --ui-action-complete:#7c3aed;
+--ui-action-complete-hover:#6d28d9;
+    --ui-action-warning:#d97706;
+    --ui-action-warning-hover:#b45309;
+    --ui-action-danger:#dc2626;
+    --ui-action-danger-hover:#b91c1c;
+    --ui-action-neutral:#f9fafb;
+    --ui-action-neutral-hover:#f3f4f6;
+    --ui-action-neutral-border:#d1d5db;
+    --ui-action-neutral-text:#111827;
+
+    --ui-status-pending-planning-bg:#dbeafe;
+    --ui-status-pending-planning-border:#60a5fa;
+    --ui-status-pending-planning-text:#1e3a8a;
+
+    --ui-status-pending-approval-bg:#ffedd5;
+    --ui-status-pending-approval-border:#fb923c;
+    --ui-status-pending-approval-text:#7c2d12;
+
+    --ui-status-approved-bg:#dcfce7;
+    --ui-status-approved-border:#4ade80;
+    --ui-status-approved-text:#14532d;
+
+    --ui-status-accepted-bg:#ccfbf1;
+    --ui-status-accepted-border:#2dd4bf;
+    --ui-status-accepted-text:#134e4a;
+
+    --ui-status-completed-bg:#e2e8f0;
+    --ui-status-completed-border:#94a3b8;
+    --ui-status-completed-text:#334155;
+
+    --ui-status-default-bg:#f3f4f6;
+    --ui-status-default-border:#d1d5db;
+    --ui-status-default-text:#374151;
+  }
+
+  .ui-action-btn,
+  .v5-action-btn {
+    appearance:none;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    border-radius:999px;
+    border:1px solid transparent;
+    padding:6px 10px;
+    font-size:12px;
+    font-weight:700;
+    line-height:1;
+    cursor:pointer;
+    white-space:nowrap;
+    min-height:28px;
+    vertical-align:middle;
+  }
+
+  .ui-action-primary,.v5-action-primary {
+    background:var(--ui-action-primary);
+    border-color:var(--ui-action-primary);
+    color:#fff;
+  }
+  .ui-action-primary:hover,.v5-action-primary:hover {
+    background:var(--ui-action-primary-hover);
+    border-color:var(--ui-action-primary-hover);
+  }
+
+  .ui-action-success,.v5-action-success {
+    background:var(--ui-action-success);
+    border-color:var(--ui-action-success);
+    color:#fff;
+  }
+  .ui-action-success:hover,.v5-action-success:hover {
+    background:var(--ui-action-success-hover);
+    border-color:var(--ui-action-success-hover);
+  }
+
+  .ui-action-accept,.v5-action-accept {
+    background:var(--ui-action-accept);
+    border-color:var(--ui-action-accept);
+    color:#fff;
+  }
+  .ui-action-accept:hover,.v5-action-accept:hover {
+    background:var(--ui-action-accept-hover);
+    border-color:var(--ui-action-accept-hover);
+  }
+
+  .ui-action-complete,.v5-action-complete {
+    background:var(--ui-action-complete);
+    border-color:var(--ui-action-complete);
+    color:#fff;
+  }
+  .ui-action-complete:hover,.v5-action-complete:hover {
+    background:var(--ui-action-complete-hover);
+    border-color:var(--ui-action-complete-hover);
+  }
+
+  .ui-action-warning,.v5-action-warning {
+    background:var(--ui-action-warning);
+    border-color:var(--ui-action-warning);
+    color:#fff;
+  }
+  .ui-action-warning:hover,.v5-action-warning:hover {
+    background:var(--ui-action-warning-hover);
+    border-color:var(--ui-action-warning-hover);
+  }
+
+  .ui-action-danger,.v5-action-danger {
+    background:var(--ui-action-danger);
+    border-color:var(--ui-action-danger);
+    color:#fff;
+  }
+  .ui-action-danger:hover,.v5-action-danger:hover {
+    background:var(--ui-action-danger-hover);
+    border-color:var(--ui-action-danger-hover);
+  }
+
+  .ui-action-neutral,.v5-action-neutral {
+    background:var(--ui-action-neutral);
+    border-color:var(--ui-action-neutral-border);
+    color:var(--ui-action-neutral-text);
+  }
+  .ui-action-neutral:hover,.v5-action-neutral:hover {
+    background:var(--ui-action-neutral-hover);
+  }
+
+  .ui-action-btn:disabled,
+  .v5-action-btn:disabled,
+  .ui-action-busy,
+  .v5-action-busy {
+    opacity:.68;
+    cursor:not-allowed;
+    filter:saturate(.75);
+  }
+
+  .ui-action-spinner {
+    width:12px;
+    height:12px;
+    border:2px solid rgba(255,255,255,.45);
+    border-top-color:#fff;
+    border-radius:50%;
+    animation:uiActionSpin .8s linear infinite;
+    flex:0 0 auto;
+  }
+
+  .ui-action-neutral .ui-action-spinner,
+  .v5-action-neutral .ui-action-spinner {
+    border-color:rgba(17,24,39,.18);
+    border-top-color:rgba(17,24,39,.70);
+  }
+
+  @keyframes uiActionSpin { to { transform:rotate(360deg); } }
+
+  /* Compatibility with existing button class systems */
+  .v5-btn.success,
+  .btn-success,
+  .btn-approve {
+    background:var(--ui-action-success) !important;
+    border-color:var(--ui-action-success) !important;
+    color:#fff !important;
+  }
+  .btn-accept {
+    background:var(--ui-action-accept) !important;
+    border-color:var(--ui-action-accept) !important;
+    color:#fff !important;
+  }
+  .btn-complete {
+    background:var(--ui-action-complete) !important;
+    border-color:var(--ui-action-complete) !important;
+    color:#fff !important;
+  }
+  .btn-deny,
+  .v5-btn.warning {
+    background:var(--ui-action-warning) !important;
+    border-color:var(--ui-action-warning) !important;
+    color:#fff !important;
+  }
+  .btn-reject,
+  .btn-danger,
+  .v5-btn.danger {
+    background:var(--ui-action-danger) !important;
+    border-color:var(--ui-action-danger) !important;
+    color:#fff !important;
+  }
+  .btn-primary,
+  .v5-btn.primary {
+    background:var(--ui-action-primary) !important;
+    border-color:var(--ui-action-primary) !important;
+    color:#fff !important;
+  }
+  .btn-ghost,
+  .v5-btn-secondary,
+  .v5-btn.neutral {
+    background:var(--ui-action-neutral) !important;
+    border-color:var(--ui-action-neutral-border) !important;
+    color:var(--ui-action-neutral-text) !important;
+  }
+
+
+  /* Shared 3S row-level action pending state */
+  tr.v5-row-busy {
+    opacity: .72;
+    background: rgba(37, 99, 235, .045);
+  }
+  .v5-cell-pending {
+    color: #64748b;
+    font-style: italic;
+  }
+
+  /* ============================================================
+   * UI STATUS BUTTON CONTRACT
+   * - Status badges follow the action tone they represent.
+   * - Same geometry as action buttons.
+   * - No icons/dots, no uppercase forcing, no bold.
+   * ============================================================ */
+
+  .aud-status-badge,
+  .v5-status-badge,
+  .v5-status-pill {
+    appearance:none;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:0;
+    border-radius:999px;
+    border:1px solid transparent;
+    padding:4px 8px;
+    font-size:11px;
+    font-weight:400 !important;
+    line-height:1;
+    white-space:nowrap;
+    min-height:24px;
+    vertical-align:middle;
+    text-transform:none !important;
+    letter-spacing:0;
+    box-shadow:none !important;
+  }
+
+  .aud-status-pending-planning,
+  .v5-status-pending-planning {
+    background:var(--ui-status-pending-planning-bg);
+    border-color:var(--ui-status-pending-planning-border);
+    color:var(--ui-status-pending-planning-text);
+  }
+
+  .aud-status-pending-approval,
+  .v5-status-pending-approval {
+    background:var(--ui-status-pending-approval-bg);
+    border-color:var(--ui-status-pending-approval-border);
+    color:var(--ui-status-pending-approval-text);
+  }
+
+  .aud-status-approved,
+  .v5-status-approved,
+  .aud-status-pending-acceptance,
+  .v5-status-pending-acceptance {
+    background:var(--ui-status-approved-bg);
+    border-color:var(--ui-status-approved-border);
+    color:var(--ui-status-approved-text);
+  }
+
+  .aud-status-accepted,
+  .v5-status-accepted {
+    background:var(--ui-status-accepted-bg);
+    border-color:var(--ui-status-accepted-border);
+    color:var(--ui-status-accepted-text);
+  }
+
+  .aud-status-completed,
+  .v5-status-completed {
+    background:var(--ui-status-completed-bg);
+    border-color:var(--ui-status-completed-border);
+    color:var(--ui-status-completed-text);
+  }
+
+  .aud-status-default,
+  .v5-status-default {
+    background:var(--ui-status-default-bg);
+    border-color:var(--ui-status-default-border);
+    color:var(--ui-status-default-text);
+  }
+
+
+</style>
+
+<script>
+  
+    var UI_ACTIONS = {
+      save:     { idle: 'Save',          busy: 'Saving…',      done: 'Saved',      tone: 'primary' },
+      savePlanning:{ idle: 'Save planning', busy: 'Saving…',   done: 'Saved',      tone: 'primary' },
+      complete: { idle: 'Complete',      busy: 'Completing…',  done: 'Completed',  tone: 'complete' },
+      accept:   { idle: 'Accept',        busy: 'Accepting…',   done: 'Accepted',   tone: 'accept' },
+      approve:  { idle: 'Approve',       busy: 'Approving…',   done: 'Approved',   tone: 'success' },
+      deny:     { idle: 'Deny',          busy: 'Returning to Pending Planning…', done: 'Pending Planning', tone: 'warning' },
+      cancel:   { idle: 'Cancel',        busy: 'Returning to Pending Planning…', done: 'Pending Planning', tone: 'neutral' },
+      reject:   { idle: 'Reject',        busy: 'Rejecting…',   done: 'Rejected',   tone: 'danger' },
+      plan:     { idle: 'Plan',          busy: 'Opening…',     done: 'Opened',     tone: 'primary' },
+      reload:   { idle: 'Reload',        busy: 'Reloading…',   done: 'Reloaded',   tone: 'neutral' },
+      refresh:  { idle: 'Refresh',       busy: 'Refreshing…',  done: 'Refreshed',  tone: 'neutral' },
+      export:   { idle: 'Export',        busy: 'Exporting…',   done: 'Exported',   tone: 'neutral' },
+      diag:     { idle: 'Diag',          busy: 'Loading…',     done: 'Loaded',     tone: 'neutral' }
+    };
+
+    function uiActionCfg_(action) {
+      var raw = String(action || '').trim();
+      var k = raw || '';
+      return UI_ACTIONS[k] || UI_ACTIONS[k.toLowerCase()] || {
+        idle: raw || 'Action',
+        busy: 'Working…',
+        done: 'Done',
+        tone: 'neutral'
+      };
+    }
+
+    function uiActionLabel_(action, phase) {
+      var cfg = uiActionCfg_(action);
+      return cfg[String(phase || 'idle')] || cfg.idle || 'Action';
+    }
+
+    function uiActionTone_(action) {
+      return uiActionCfg_(action).tone || 'neutral';
+    }
+
+    function uiActionButtonHtml_(action, attrs, labelOverride) {
+      var cfg = uiActionCfg_(action);
+      var tone = cfg.tone || 'neutral';
+      var label = labelOverride || cfg.idle || 'Action';
+      attrs = String(attrs || '');
+      return '<button class="v5-action-btn v5-action-' + tone + '" data-ui-action="' + String(action || '').toLowerCase() + '" ' + attrs + '>' + label + '</button>';
+    }
+
+    function uiSetButtonBusy_(btn, action, busy, labelOverride) {
+      if (!btn) return;
+      var actionKey = String(action || btn.getAttribute('data-ui-action') || btn.dataset.uiAction || '').trim();
+      var cfg = uiActionCfg_(actionKey || btn.textContent || '');
+      if (busy) {
+        if (!btn.dataset.prevText) btn.dataset.prevText = btn.textContent || cfg.idle || 'Action';
+        btn.dataset.uiAction = actionKey || '';
+        btn.disabled = true;
+        btn.classList.add('ui-action-busy', 'v5-action-busy');
+        btn.innerHTML = '<span class="ui-action-spinner" aria-hidden="true"></span><span>' + (labelOverride || cfg.busy || 'Working…') + '</span>';
+        return;
+      }
+      btn.disabled = false;
+      btn.classList.remove('ui-action-busy', 'v5-action-busy');
+      btn.textContent = labelOverride || btn.dataset.prevText || cfg.idle || 'Action';
+      delete btn.dataset.prevText;
+    }
+
+    window.UiActions = window.UiActions || {
+      get: uiActionCfg_,
+      label: uiActionLabel_,
+      tone: uiActionTone_,
+      buttonHtml: uiActionButtonHtml_,
+      setBusy: uiSetButtonBusy_
+    };
+    window.V5Actions = window.UiActions;
+
+
+  window.UiDialogs = (function () {
+    var activeOverlay = null;
+
+    function escText_(v, fb) {
+      var s = String(v == null ? '' : v).trim();
+      return s || String(fb == null ? '' : fb);
+    }
+
+    function normalizeCfg_(cfg, fallbackType) {
+      cfg = cfg || {};
+      return {
+        type: escText_(cfg.type, fallbackType || 'info').toLowerCase(),
+        title: escText_(cfg.title, ''),
+        message: escText_(cfg.message, ''),
+        confirmLabel: escText_(cfg.confirmLabel, 'Confirm'),
+        cancelLabel: escText_(cfg.cancelLabel, 'Cancel'),
+        allowCancel: cfg.allowCancel !== false,
+        requireInput: cfg.requireInput === true,
+        inputLabel: escText_(cfg.inputLabel, ''),
+        inputPlaceholder: escText_(cfg.inputPlaceholder, ''),
+        inputRequired: cfg.inputRequired === true,
+        rows: Number(cfg.rows || 4),
+        autoCloseMs: Number(cfg.autoCloseMs || 0)
+      };
+    }
+
+    function closeActive() {
+      if (activeOverlay && activeOverlay.parentNode) {
+        activeOverlay.parentNode.removeChild(activeOverlay);
+      }
+      activeOverlay = null;
+    }
+
+    function toneClass_(type) {
+      if (type === 'warning' || type === 'reason_required') return 'uiDlgToneWarning';
+      if (type === 'error') return 'uiDlgToneError';
+      if (type === 'success') return 'uiDlgToneSuccess';
+      if (type === 'confirm') return 'uiDlgToneConfirm';
+      return 'uiDlgToneInfo';
+    }
+
+    function show(cfg) {
+      cfg = normalizeCfg_(cfg, 'info');
+      closeActive();
+
+      return new Promise(function (resolve) {
+        var overlay = document.createElement('div');
+        overlay.className = 'uiDlgOverlay';
+
+        var box = document.createElement('div');
+        box.className = 'uiDlgBox ' + toneClass_(cfg.type);
+
+        if (cfg.title) {
+          var hd = document.createElement('div');
+          hd.className = 'uiDlgHd';
+          hd.textContent = cfg.title;
+          box.appendChild(hd);
+        }
+
+        var body = document.createElement('div');
+        body.className = 'uiDlgBody';
+        body.textContent = cfg.message || '';
+        box.appendChild(body);
+
+        var input = null;
+        if (cfg.requireInput) {
+          var inputWrap = document.createElement('div');
+          inputWrap.className = 'uiDlgInputWrap';
+
+          if (cfg.inputLabel) {
+            var lbl = document.createElement('label');
+            lbl.className = 'uiDlgLabel';
+            lbl.textContent = cfg.inputLabel;
+            inputWrap.appendChild(lbl);
+          }
+
+          input = document.createElement('textarea');
+          input.className = 'uiDlgTextarea';
+          input.placeholder = cfg.inputPlaceholder || '';
+          input.rows = Math.max(3, Number(cfg.rows || 4));
+          inputWrap.appendChild(input);
+          box.appendChild(inputWrap);
+        }
+
+        var ft = document.createElement('div');
+        ft.className = 'uiDlgFt';
+
+        if (cfg.allowCancel) {
+          var btnCancel = document.createElement('button');
+          btnCancel.className = 'uiDlgBtn';
+          btnCancel.textContent = cfg.cancelLabel || 'Cancel';
+          btnCancel.onclick = function () {
+            closeActive();
+            resolve({ ok: false, value: '' });
+          };
+          ft.appendChild(btnCancel);
+        }
+
+        var btnConfirm = document.createElement('button');
+        btnConfirm.className = 'uiDlgBtn uiDlgBtnPrimary';
+        btnConfirm.textContent = cfg.confirmLabel || 'Confirm';
+        btnConfirm.onclick = function () {
+          if (cfg.requireInput && cfg.inputRequired) {
+            var value0 = String((input && input.value) || '').trim();
+            if (!value0) {
+              if (input) input.classList.add('uiDlgInvalid');
+              return;
+            }
+          }
+          var value = String((input && input.value) || '').trim();
+          closeActive();
+          resolve({ ok: true, value: value });
+        };
+        ft.appendChild(btnConfirm);
+
+        box.appendChild(ft);
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+        activeOverlay = overlay;
+
+        if (cfg.requireInput && input) {
+          setTimeout(function () { try { input.focus(); } catch (e) {} }, 0);
+          input.addEventListener('input', function () {
+            input.classList.remove('uiDlgInvalid');
+          });
+        } else {
+          setTimeout(function () { try { btnConfirm.focus(); } catch (e) {} }, 0);
+        }
+
+        if (cfg.autoCloseMs > 0) {
+          setTimeout(function () {
+            if (activeOverlay === overlay) {
+              closeActive();
+              resolve({ ok: true, value: '' });
+            }
+          }, cfg.autoCloseMs);
+        }
+      });
+    }
+
+    function confirm(cfg) {
+      cfg = normalizeCfg_(cfg, 'confirm');
+      return show(cfg).then(function (res) { return !!(res && res.ok); });
+    }
+
+    function warning(cfg) {
+      cfg = normalizeCfg_(cfg, 'warning');
+      return show(cfg).then(function (res) { return !!(res && res.ok); });
+    }
+
+    function error(cfg) {
+      if (typeof cfg === 'string') cfg = { message: cfg };
+      cfg = normalizeCfg_(cfg, 'error');
+      cfg.title = escText_(cfg.title, 'Error');
+      cfg.confirmLabel = escText_(cfg.confirmLabel, 'Close');
+      cfg.allowCancel = false;
+      return show(cfg).then(function () { return true; });
+    }
+
+    function info(cfg) {
+      if (typeof cfg === 'string') cfg = { message: cfg };
+      cfg = normalizeCfg_(cfg, 'info');
+      cfg.confirmLabel = escText_(cfg.confirmLabel, 'Close');
+      cfg.allowCancel = false;
+      return show(cfg).then(function () { return true; });
+    }
+
+    function success(cfg) {
+      if (typeof cfg === 'string') cfg = { message: cfg };
+      cfg = normalizeCfg_(cfg, 'success');
+      cfg.confirmLabel = escText_(cfg.confirmLabel, 'Close');
+      cfg.allowCancel = false;
+      return show(cfg).then(function () { return true; });
+    }
+
+    function prompt(cfg) {
+      cfg = normalizeCfg_(cfg, 'prompt');
+      cfg.requireInput = true;
+      return show(cfg);
+    }
+
+    function reasonRequired(cfg) {
+      cfg = normalizeCfg_(cfg, 'reason_required');
+      cfg.requireInput = true;
+      cfg.inputRequired = true;
+      return show(cfg);
+    }
+
+    function flashSuccess(message, autoCloseMs, done) {
+      var flash = document.createElement('div');
+      flash.className = 'uiDlgFlash';
+      flash.textContent = escText_(message, 'Saved');
+      document.body.appendChild(flash);
+      setTimeout(function () {
+        if (flash.parentNode) flash.parentNode.removeChild(flash);
+        if (typeof done === 'function') done();
+      }, Math.max(200, Number(autoCloseMs || 500)));
+    }
+
+    return {
+      show: show,
+      closeActive: closeActive,
+      confirm: confirm,
+      warning: warning,
+      error: error,
+      info: info,
+      success: success,
+      prompt: prompt,
+      reasonRequired: reasonRequired,
+      flashSuccess: flashSuccess
+    };
+  })();
+</script>

@@ -1,0 +1,1725 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>AMS - Availability</title>
+  <!-- BUILD: AUDITOR_AVAILABILITY_D7_OPTIMISTIC_TICK_ACTION_MAP_20260517 -->
+  <script>
+(function enforceAmsShortBrowserTitle() {
+  var AMS_SHORT_BROWSER_TITLE = 'AMS - Availability';
+  function setAmsShortBrowserTitle() {
+    try { document.title = AMS_SHORT_BROWSER_TITLE; } catch (e) {}
+  }
+  setAmsShortBrowserTitle();
+  try { document.addEventListener('DOMContentLoaded', setAmsShortBrowserTitle); } catch (e) {}
+  try { window.addEventListener('load', setAmsShortBrowserTitle); } catch (e) {}
+  try { setTimeout(setAmsShortBrowserTitle, 0); setTimeout(setAmsShortBrowserTitle, 250); setTimeout(setAmsShortBrowserTitle, 1000); } catch (e) {}
+})();
+</script>
+  <script>
+    (function enforceBrowserTabTitle() {
+      var AMS_BROWSER_TITLE = 'AMS - Availability';
+      function setBrowserTabTitle() {
+        try { document.title = AMS_BROWSER_TITLE; } catch (e) {}
+      }
+      setBrowserTabTitle();
+      try { document.addEventListener('DOMContentLoaded', setBrowserTabTitle); } catch (e) {}
+      try { window.addEventListener('load', setBrowserTabTitle); } catch (e) {}
+      try { setTimeout(setBrowserTabTitle, 0); setTimeout(setBrowserTabTitle, 250); setTimeout(setBrowserTabTitle, 1000); } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      --bg:#f6f7fb; --card:#fff; --ink:#111827; --muted:#6b7280; --line:#e5e7eb;
+      --ok:#16a34a; --hard:#7c3aed; --soft:#64748b;
+      --barOk:rgba(22,163,74,.18);
+      --barHard:rgba(124,58,237,.18); --barSoft:rgba(100,116,139,.18);
+      --errBg:#fff1f2; --errInk:#9f1239;
+    }
+    html,body{margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg);}
+    .wrap{padding:14px 16px;max-width:1680px;margin:0 auto;}
+    .top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;}
+    h1{font-size:24px;margin:0 0 3px 0;font-weight:800;}
+    .sub{font-size:12px;color:var(--muted);}
+    .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 9px;font-size:11px;color:#111827;white-space:nowrap;}
+    .grid2{display:grid;grid-template-columns:minmax(760px,1fr) minmax(340px,370px);gap:12px;align-items:start;}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 2px rgba(0,0,0,.04);}
+    .cardHd{padding:9px 11px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px;}
+    .left{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+    .btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:6px 9px;cursor:pointer;font-weight:800;line-height:1;user-select:none;}
+    .btn:active{transform:translateY(1px);}
+    .btn.on{background:#111827;color:#fff;border-color:#111827;}
+    .btnWide{width:100%;justify-content:center;}
+    .sec{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+    .rowStack{display:flex;flex-direction:column;gap:8px;align-items:stretch;}
+    .mk{font-weight:900;font-size:16px;padding:4px 8px;border-radius:10px;background:#f3f4f6;border:1px solid var(--line);}
+    .legend{display:flex;align-items:center;gap:14px;padding:9px 11px 8px;flex-wrap:wrap;}
+    .lgItem{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:#111827;}
+    .dot{width:10px;height:10px;border-radius:3px;border:1px solid rgba(0,0,0,.12);background:#ddd;}
+    .dOk{background:var(--ok);} .dHard{background:var(--hard);} .dSoft{background:var(--soft);}
+    .err{margin:10px 12px 12px;padding:10px 12px;border-radius:10px;border:1px solid rgba(225,29,72,.25);background:var(--errBg);color:var(--errInk);font-size:13px;display:none;white-space:pre-wrap;}
+    .debug{margin:10px 12px 0;border-radius:10px;border:1px solid var(--line);background:#0b1220;color:#d1d5db;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;font-size:12px;padding:10px 12px;white-space:pre-wrap;overflow:auto;max-height:220px;display:none;}
+    .calWrap{padding:10px;}
+    .dow{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;padding:0 2px 7px;color:var(--muted);font-size:12px;font-weight:800;}
+    .cells{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;}
+    .cell{background:#fff;border:1px solid var(--line);border-radius:12px;height:76px;padding:8px 9px 7px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;position:relative;overflow:hidden;}
+    .cell.out{opacity:.45;} .cell.sel{outline:3px solid rgba(59,130,246,.35);border-color:rgba(59,130,246,.55);}
+    .dnum{font-size:15px;font-weight:900;} .iso{font-size:11px;color:var(--muted);margin-top:1px;}
+    .bar{height:9px;border-radius:999px;border:1px solid rgba(0,0,0,.08);background:var(--barOk);}
+    .bOk{background:var(--barOk);} .bHard{background:var(--barHard);} .bSoft{background:var(--barSoft);}
+    .details{padding:9px 10px;} .kv{display:grid;grid-template-columns:118px minmax(0,1fr);gap:4px 10px;font-size:12px;align-items:center;border:1px solid #eef2f7;border-radius:10px;padding:7px 8px;background:#fff;}
+    .k{color:#475569;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .v{font-weight:800;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;word-break:normal;color:#111827;}
+    .v.empty{color:#94a3b8;font-weight:700;}
+    .small{margin-top:7px;color:var(--muted);font-size:11px;line-height:1.35;}
+    @media (max-width:1040px){.grid2{grid-template-columns:1fr;}.wrap{padding:12px;}}
+    .btn.disabled{opacity:.55;pointer-events:none;}
+    .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(0,0,0,.18);border-top-color:rgba(0,0,0,.65);border-radius:50%;animation:spin 0.8s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+
+
+    /* UX polish: lightweight month-switch feedback and clearer setting sections */
+    .mk.loading{display:inline-flex;align-items:center;gap:8px;}
+    .av5MiniSpin{display:inline-block;width:12px;height:12px;border:2px solid rgba(17,24,39,.18);border-top-color:rgba(17,24,39,.68);border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;}
+    .cardHd .pill.loadingPill{background:#f8fafc;color:#475569;}
+    .settingsIntro{margin:0 0 8px;padding:8px 10px;border:1px solid #dbeafe;background:#eff6ff;color:#1e3a8a;border-radius:10px;font-size:11px;line-height:1.35;}
+    .sec.av5SettingBlock{padding:10px;border:1px solid var(--line);border-radius:12px;background:#fff;margin-top:9px;}
+    .sec.av5SettingBlock + .sec.av5SettingBlock{margin-top:9px;}
+    .av5BlockTitle{font-weight:900;margin-bottom:3px;color:#111827;font-size:14px;}
+    .av5BlockHelp{font-size:11px;line-height:1.35;color:var(--muted);margin:0 0 8px;}
+    .legendHelp{padding:0 11px 10px;color:var(--muted);font-size:11px;line-height:1.35;}
+    .lgItem .lgText{display:inline-flex;flex-direction:column;gap:1px;}
+    .lgItem .lgMain{font-weight:800;color:#111827;}
+    .lgItem .lgSub{color:var(--muted);font-size:11px;}
+    .av5SettingBlock.rangeBlock{border-color:#fecaca;background:linear-gradient(180deg,#fff7f7 0%,#fff 100%);box-shadow:inset 3px 0 0 #ef4444;}
+    .av5SettingBlock.weekBlock{border-color:#bbf7d0;background:linear-gradient(180deg,#f7fff9 0%,#fff 100%);box-shadow:inset 3px 0 0 #16a34a;}
+    .av5SettingBlock.manualBlock{border-color:#bfdbfe;background:linear-gradient(180deg,#f7fbff 0%,#fff 100%);box-shadow:inset 3px 0 0 #2563eb;}
+    .preserveNote{margin-top:8px;padding:8px 10px;border-radius:10px;border:1px solid #bbf7d0;background:#f0fdf4;color:#14532d;font-size:11px;line-height:1.35;}
+    .preserveNote b{font-weight:900;}
+    #wd_applyBtn{background:#16a34a;color:#fff;border-color:#16a34a;}
+    #rng_applyBtn{background:#dc2626;color:#fff;border-color:#dc2626;}
+
+    /* UX polish: action feedback for longer writes. Prevents double-clicking while backend updates. */
+    .av5ActionBusy{opacity:.72;pointer-events:none;filter:saturate(.92);}
+    .av5ActionSpin{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;margin-right:7px;vertical-align:-2px;}
+    .btn.av5BusyBtn{cursor:wait;}
+    .pill.av5BusyPill{background:#f8fafc;color:#334155;border-color:#cbd5e1;}
+    /* d5 optimistic manual tick: lightweight non-blocking sync indicator. */
+    .cell.av5TickSync{box-shadow:inset 0 0 0 2px rgba(37,99,235,.18);}
+    .cell.av5TickSync::after{
+      content:"";
+      position:absolute;
+      top:7px;
+      right:7px;
+      width:7px;
+      height:7px;
+      border-radius:999px;
+      background:#2563eb;
+      box-shadow:0 0 0 0 rgba(37,99,235,.45);
+      animation:av5TickPulse 1s ease-in-out infinite;
+    }
+    @keyframes av5TickPulse{
+      0%{box-shadow:0 0 0 0 rgba(37,99,235,.42);}
+      70%{box-shadow:0 0 0 7px rgba(37,99,235,0);}
+      100%{box-shadow:0 0 0 0 rgba(37,99,235,0);}
+    }
+    .cell.actionLocked{cursor:wait;opacity:.78;}
+
+
+  
+
+/* ============================================================
+ * AUDITOR_AVAILABILITY_COMPACT_DENSITY_PASS_R1_20260515
+ * UI-only density pass: desktop operational compactness.
+ * No backend/availability logic changes.
+ * ============================================================ */
+html,body{
+  font-size:12px;
+}
+.wrap{
+  padding:9px 12px !important;
+  max-width:1760px !important;
+}
+.top{
+  margin-bottom:7px !important;
+  gap:8px !important;
+}
+h1{
+  font-size:21px !important;
+  margin-bottom:1px !important;
+  line-height:1.08 !important;
+}
+.sub{
+  font-size:11px !important;
+}
+.pill{
+  font-size:10.5px !important;
+  padding:4px 7px !important;
+  gap:5px !important;
+}
+.grid2{
+  grid-template-columns:minmax(820px,1fr) minmax(318px,340px) !important;
+  gap:9px !important;
+}
+.card{
+  border-radius:10px !important;
+}
+.cardHd{
+  padding:7px 9px !important;
+  gap:6px !important;
+}
+.left{
+  gap:7px !important;
+}
+.btn{
+  font-size:11px !important;
+  padding:5px 7px !important;
+  border-radius:8px !important;
+  min-height:24px !important;
+  line-height:1.05 !important;
+}
+.mk{
+  font-size:15px !important;
+  padding:3px 7px !important;
+  border-radius:8px !important;
+}
+#monthJump{
+  min-width:122px !important;
+  padding:5px 7px !important;
+}
+.legend{
+  gap:10px !important;
+  padding:7px 9px 5px !important;
+}
+.lgItem{
+  gap:6px !important;
+  font-size:11px !important;
+}
+.lgItem .lgSub,
+.legendHelp{
+  font-size:10.5px !important;
+  line-height:1.25 !important;
+}
+.legendHelp{
+  padding:0 9px 7px !important;
+}
+.dot{
+  width:9px !important;
+  height:9px !important;
+}
+.calWrap{
+  padding:8px !important;
+}
+.dow{
+  gap:6px !important;
+  padding-bottom:5px !important;
+  font-size:11px !important;
+}
+.cells{
+  gap:6px !important;
+}
+.cell{
+  height:64px !important;
+  padding:6px 7px 6px !important;
+  border-radius:9px !important;
+}
+.dnum{
+  font-size:14px !important;
+  line-height:1.05 !important;
+}
+.iso{
+  font-size:10px !important;
+  margin-top:0 !important;
+}
+.bar{
+  height:7px !important;
+}
+.details{
+  padding:7px 8px !important;
+}
+.settingsIntro{
+  font-size:10.5px !important;
+  line-height:1.25 !important;
+  padding:6px 8px !important;
+  margin-bottom:6px !important;
+  border-radius:8px !important;
+}
+.kv{
+  grid-template-columns:104px minmax(0,1fr) !important;
+  gap:3px 8px !important;
+  font-size:11px !important;
+  padding:5px 7px !important;
+  border-radius:8px !important;
+}
+.k,.v{
+  font-size:11px !important;
+  line-height:1.18 !important;
+}
+.sec.av5SettingBlock{
+  padding:8px !important;
+  margin-top:7px !important;
+  border-radius:10px !important;
+}
+.sec.av5SettingBlock + .sec.av5SettingBlock{
+  margin-top:7px !important;
+}
+.av5BlockTitle{
+  font-size:13px !important;
+  margin-bottom:2px !important;
+  line-height:1.1 !important;
+}
+.av5BlockHelp{
+  font-size:10.5px !important;
+  line-height:1.25 !important;
+  margin-bottom:6px !important;
+}
+.row{
+  gap:6px !important;
+}
+.rowStack{
+  gap:6px !important;
+}
+.small{
+  font-size:10.5px !important;
+  line-height:1.25 !important;
+  margin-top:5px !important;
+}
+.preserveNote{
+  font-size:10.5px !important;
+  line-height:1.25 !important;
+  padding:6px 8px !important;
+  margin-top:6px !important;
+  border-radius:8px !important;
+}
+#rng_fromDate,#rng_toDate{
+  min-width:128px !important;
+}
+#ed_from,#ed_to{
+  min-width:76px !important;
+}
+.av5MiniSpin,
+.av5ActionSpin{
+  width:11px !important;
+  height:11px !important;
+}
+.err{
+  margin:7px 9px 8px !important;
+  padding:7px 9px !important;
+  font-size:11px !important;
+  border-radius:8px !important;
+}
+@media (max-width:1180px){
+  .grid2{
+    grid-template-columns:minmax(700px,1fr) minmax(310px,330px) !important;
+  }
+  .cell{height:60px !important;}
+}
+@media (max-width:1040px){
+  .grid2{grid-template-columns:1fr !important;}
+  .wrap{padding:9px !important;}
+}
+
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>My availability</h1>
+        <div class="sub">Manage your usual unavailable days and review planned audit blocks.</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <div class="pill" id="perfFetchPill">fetch: —</div>
+        <div class="pill" id="perfRenderPill">render: —</div>
+        <div class="pill" id="perfTotalPill">total: —</div>
+        <div class="pill" id="buildPill">BUILD …</div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="cardHd">
+          <div class="left">
+            <button class="btn" id="prevBtn">◀</button>
+            <span class="mk" id="mkLbl">YYYY-MM</span>
+            <button class="btn" id="nextBtn">▶</button>
+            <label style="display:inline-flex;align-items:center;gap:6px;margin-left:8px;">
+              <span style="font-size:12px;color:var(--muted);font-weight:800;">jump</span>
+              <input type="month" id="monthJump" class="btn" style="font-weight:900;min-width:140px;padding:6px 8px;">
+            </label>
+            <button class="btn" id="monthJumpBtn">Go</button>
+            <button class="btn" id="todayBtn">Today</button>
+          </div>
+          <div class="pill" id="emailPill">email: —</div>
+        </div>
+
+        <div class="legend">
+          <span class="lgItem"><span class="dot dOk"></span><span class="lgText"><span class="lgMain">Available</span><span class="lgSub">No block for this day</span></span></span>
+          <span class="lgItem"><span class="dot dHard"></span><span class="lgText"><span class="lgMain">Planned audit</span><span class="lgSub">Read-only</span></span></span>
+          <span class="lgItem"><span class="dot dSoft"></span><span class="lgText"><span class="lgMain">Unavailable</span><span class="lgSub">Your usual/manual block</span></span></span>
+        </div>
+        <div class="legendHelp">Calendar colors are system signals. You can only change your own unavailable blocks; planned audit days are locked.</div>
+
+        <div class="err" id="errBox"></div>
+        <div class="debug" id="dbgBox"></div>
+
+        <div class="calWrap">
+          <div class="dow">
+            <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
+          </div>
+          <div class="cells" id="cells"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="cardHd">
+          <div class="left"><b>Day details</b></div>
+          <div class="pill" id="selPill">none</div>
+        </div>
+        <div class="details">
+          <div class="settingsIntro"><b>How to use this page:</b> select a day in the calendar, then use the blocks below to set manual or recurring unavailability. Planned audits are shown for reference and cannot be changed here.</div>
+          <div class="kv">
+            <div class="k" title="Date">Date</div><div class="v empty" id="d_date" title="—">—</div>
+            <div class="k" title="Audit reference">Audit</div><div class="v empty" id="d_a1_company" title="—">—</div>
+            <div class="k" title="Time window">Time window</div><div class="v empty" id="d_a1_time" title="—">—</div>
+            <div class="k" title="Scopes applied">Scopes applied</div><div class="v empty" id="d_a1_scopes" title="—">—</div>
+            <div class="k" title="Audit reference second slot">Audit 2</div><div class="v empty" id="d_a2_company" title="—">—</div>
+            <div class="k" title="Time window second slot">Time window 2</div><div class="v empty" id="d_a2_time" title="—">—</div>
+            <div class="k" title="Scopes applied second slot">Scopes applied 2</div><div class="v empty" id="d_a2_scopes" title="—">—</div>
+          </div>
+
+          <div class="sec av5SettingBlock rangeBlock" id="rng_sec">
+            <div class="av5BlockTitle">Range unavailable</div>
+            <div class="av5BlockHelp">Use this for holidays, travel, or another period where you are not available. Planned audit days are skipped automatically.</div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <label style="font-size:12px;color:var(--muted);font-weight:800;">from date
+                <input id="rng_fromDate" type="date" class="btn" style="font-weight:900;min-width:150px;">
+              </label>
+              <label style="font-size:12px;color:var(--muted);font-weight:800;">to date
+                <input id="rng_toDate" type="date" class="btn" style="font-weight:900;min-width:150px;">
+              </label>
+              <button class="btn" id="rng_applyBtn">Apply range unavailable</button>
+              <span class="pill" id="rng_status">—</span>
+            </div>
+            <div class="small" style="margin-top:8px;">Uses selected hours. Planned audit days remain read-only.</div>
+          </div>
+
+          <div class="sec av5SettingBlock weekBlock" id="wd_sec">
+            <div class="av5BlockTitle">Recurring unavailable weekdays</div>
+            <div class="av5BlockHelp">Select weekdays on which you are usually <b>not available</b>. This creates soft unavailability for future months.</div>
+            <div class="row" style="margin-bottom:6px;">
+              <button class="btn" data-wd="Mo" id="wd_Mo">Mo</button>
+              <button class="btn" data-wd="Tu" id="wd_Tu">Tu</button>
+              <button class="btn" data-wd="We" id="wd_We">We</button>
+              <button class="btn" data-wd="Th" id="wd_Th">Th</button>
+              <button class="btn" data-wd="Fr" id="wd_Fr">Fr</button>
+            </div>
+            <div class="rowStack">
+              <button class="btn btnWide" id="wd_applyBtn">Confirm unavailable weekdays</button>
+              <span class="pill" id="wd_status">—</span>
+            </div>
+            <div class="preserveNote"><b>Manual day changes are preserved.</b><br>This action only updates future days without a manual override or planned audit. Planned audits are never overwritten.</div>
+          </div>
+
+          <div class="sec av5SettingBlock manualBlock" id="man_sec">
+            <div class="av5BlockTitle">Manual day toggle</div>
+            <div class="av5BlockHelp">Use this for one specific day. Select from/to times, then click a calendar day to add or remove your unavailable block.</div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <label style="font-size:12px;color:var(--muted);font-weight:800;">from
+                <select id="ed_from" class="btn" style="font-weight:900;"></select>
+              </label>
+              <label style="font-size:12px;color:var(--muted);font-weight:800;">to
+                <select id="ed_to" class="btn" style="font-weight:900;"></select>
+              </label>
+              <span class="pill" id="ed_hint">select a day</span>
+            </div>
+            <div class="small" style="margin-top:8px;">Rule: click a calendar day to add or remove your manual unavailable block. Planned audit days remain read-only.</div>
+          </div>
+        </div>
+        <div class="small" style="padding:0 10px 10px;">Rule: if no availability block exists for a day, the system treats it as <b>available</b>.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const AV5_EXEC_URL_INJ = <?= JSON.stringify(AV5_EXEC_URL || "") ?>;
+    const AV5_EMAIL_INJ = <?= JSON.stringify(AV5_AUDITOR_EMAIL || "") ?>;
+    const AV5_MONTHKEY_INJ = <?= JSON.stringify(AV5_MONTHKEY || "") ?>;
+    const AV5_BUILD_TS_INJ = <?= JSON.stringify(AV5_BUILD_TS || "") ?>;
+    const AV5_BOOTSTRAP_JSON_INJ = <?= JSON.stringify(AV5_BOOTSTRAP_JSON || "") ?>;
+    const AV5_TRUSTED_TOKEN_INJ = <?= JSON.stringify(__trustedToken || "") ?>;
+    const AV5_DEVICE_FINGERPRINT_INJ = <?= JSON.stringify(__deviceFingerprint || "") ?>;
+
+    const state = { monthKey:"", auditorEmail:"", days:{}, selectedISO:"", pending:{}, loading:false, actionBusy:false, blockedWeekdaysCsv:"" };
+    let AV5_LOAD_SEQ = 0;
+    let AV5_BOOTSTRAP_SUMMARY = { used:false, payloadBytes:0, monthKey:'', daysCount:0, reason:'' };
+    const AV5_MONTH_CACHE = {};
+    const AV5_INFLIGHT = {};
+    const AV5_DEFAULT_FROM = "08:00";
+    const AV5_DEFAULT_TO   = "18:00";
+    const AV5_STEP_MIN     = 15;
+    var AV5_BAR_START = '08:00';
+    var AV5_BAR_END   = '18:00';
+    let AV5_rebuildRunning = false;
+    const AV5_weekdayState = { Mo:false, Tu:false, We:false, Th:false, Fr:false };
+    const AV5_AUDIT_META_CACHE = {};
+    let AV5_TICK_SEQ = 0;
+    const AV5_TICK_PENDING = {};
+    const AV5_TICK_QUEUE = [];
+    let AV5_TICK_QUEUE_ACTIVE = null;
+    const AV5_TICK_DEBOUNCE_MS = 180;
+
+    // PERFORMANCE PATCH 2026-04-26
+    // Warm a wider month window in the background so second-step month navigation is already cached.
+    // This is frontend-only: no backend/write/rebuild behavior changes.
+    // Sliding prefetch window: after every month load/switch, warm two months backward and forward.
+    const AV5_PREFETCH_DELTAS_FAST = [1, -1];
+    const AV5_PREFETCH_DELTAS_SLOW = [2, -2];
+    const AV5_PREFETCH_DELAY_MS = 250;
+    const AV5_PREFETCH_STAGGER_MS = 350;
+    const AV5_PREFETCH_SECOND_WAVE_DELAY_MS = 1400;
+    window.__AV5_PREFETCH_SCHEDULED = window.__AV5_PREFETCH_SCHEDULED || {};
+
+
+    function unquote_(v){ let s=String(v ?? '').trim(); if(!s) return ''; if((s.startsWith('"')&&s.endsWith('"'))||(s.startsWith("'")&&s.endsWith("'"))) s=s.slice(1,-1); return String(s).trim(); }
+    function mkNow_(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+    function normMonthKey_(mk){ const s=unquote_(mk); return /^\d{4}-\d{2}$/.test(s) ? s : mkNow_(); }
+    function ymd2(n){ return String(n).padStart(2,'0'); }
+    function isoFromParts(y,m,d){ return y + "-" + ymd2(m) + "-" + ymd2(d); }
+    function mkAdd(mk,delta){ mk=normMonthKey_(mk); const m=/^(\d{4})-(\d{2})$/.exec(mk); if(!m) return mkNow_(); let y=parseInt(m[1],10), mo=parseInt(m[2],10)+delta; while(mo<=0){mo+=12;y-=1;} while(mo>=13){mo-=12;y+=1;} return y+"-"+ymd2(mo); }
+    function AV5_cacheKey_(email, monthKey){ return String(email||'').toLowerCase() + '|' + String(monthKey||''); }
+    function AV5_getCachedMonth_(email, monthKey){
+      var key = AV5_cacheKey_(email, monthKey);
+      var mem = AV5_MONTH_CACHE[key] || null;
+      if (AV5_isValidMonthCache_(mem, monthKey)) return mem;
+      if (mem && !AV5_isValidMonthCache_(mem, monthKey)) delete AV5_MONTH_CACHE[key];
+      var sess = AV5_getSessionMonth_(email, monthKey);
+      if (AV5_isValidMonthCache_(sess, monthKey)) {
+        AV5_MONTH_CACHE[key] = sess;
+        return sess;
+      }
+      try { sessionStorage.removeItem(AV5_sessionKey_(email, monthKey)); } catch(e){}
+      return null;
+    }
+    function AV5_setCachedMonth_(email, monthKey, obj){
+      var wrapped = Object.assign({}, obj || {}, { monthKey:String(monthKey || '').trim(), ready:true });
+      AV5_MONTH_CACHE[AV5_cacheKey_(email, monthKey)] = wrapped;
+      AV5_setSessionMonth_(email, monthKey, wrapped);
+    }
+    function AV5_clearMonthCache_(){
+      try { Object.keys(AV5_MONTH_CACHE).forEach(k => delete AV5_MONTH_CACHE[k]); } catch(e){}
+      try {
+        Object.keys(sessionStorage).forEach(function(k){
+          if (String(k || '').indexOf('AV5_MONTH|') === 0) sessionStorage.removeItem(k);
+        });
+      } catch(e){}
+    }
+    function AV5_sessionKey_(email, monthKey){ return 'AV5_MONTH|' + String(email||'').toLowerCase() + '|' + String(monthKey||''); }
+    function AV5_getSessionMonth_(email, monthKey){
+      try {
+        var raw = sessionStorage.getItem(AV5_sessionKey_(email, monthKey));
+        if (!raw) return null;
+        var obj = JSON.parse(raw);
+        return (obj && obj.ready) ? obj : null;
+      } catch(e){ return null; }
+    }
+    function AV5_setSessionMonth_(email, monthKey, obj){
+      try { sessionStorage.setItem(AV5_sessionKey_(email, monthKey), JSON.stringify(obj)); } catch(e){}
+    }
+    function AV5_isValidMonthCache_(obj, monthKey){
+      if (!obj || !obj.ready) return false;
+      var mk = String(obj.monthKey || '').trim();
+      return !!mk && mk === String(monthKey || '').trim();
+    }
+    function AV5_inflightKey_(email, monthKey){ return String(email||'').toLowerCase() + '|' + String(monthKey||''); }
+    function AV5_getInflight_(email, monthKey){ return AV5_INFLIGHT[AV5_inflightKey_(email, monthKey)] || null; }
+    function AV5_setInflight_(email, monthKey, promiseOrEntry, priority){
+      var entry = promiseOrEntry && typeof promiseOrEntry === 'object' && promiseOrEntry.promise
+        ? promiseOrEntry
+        : { promise: promiseOrEntry };
+      entry.priority = String(entry.priority || priority || 'visible').toLowerCase() === 'prefetch' ? 'prefetch' : 'visible';
+      entry.monthKey = String(monthKey || '').trim();
+      entry.auditorEmail = String(email || '').trim().toLowerCase();
+      entry.startedAt = entry.startedAt || Date.now();
+      AV5_INFLIGHT[AV5_inflightKey_(email, monthKey)] = entry;
+      return entry;
+    }
+    function AV5_clearInflight_(email, monthKey, entry){
+      var key = AV5_inflightKey_(email, monthKey);
+      if (entry && AV5_INFLIGHT[key] && AV5_INFLIGHT[key] !== entry) return;
+      delete AV5_INFLIGHT[key];
+    }
+    function AV5_getExecUrl_(){ const execUrl0=unquote_(AV5_EXEC_URL_INJ || '').trim(); return execUrl0 || String(window.location && window.location.href ? window.location.href.split('?')[0] : '').trim(); }
+    function AV5_getEmail_(){ return String(state.auditorEmail || unquote_(AV5_EMAIL_INJ || '')).trim().toLowerCase(); }
+    function AV5_requireGas_(){ return (typeof google !== 'undefined' && google.script && google.script.run); }
+    function showErr(msg){ const b=document.getElementById('errBox'); b.textContent=String(msg||''); b.style.display='block'; }
+    function hideErr(){ const b=document.getElementById('errBox'); b.textContent=''; b.style.display='none'; }
+    function AV5_isDevEnv_(){
+      try {
+        const href = String(window.location.href || '');
+        if (/[?&]env=DEV\b/i.test(href)) return true;
+      } catch(e) {}
+      try {
+        const build = String(AV5_BUILD_TS_INJ || '');
+        if (/\bDEV\b/i.test(build)) return true;
+      } catch(e2) {}
+      return false;
+    }
+    function AV5_applyDebugChromeVisibility_(){
+      const show = AV5_isDevEnv_();
+      const dbg = document.getElementById('dbgBox');
+      const build = document.getElementById('buildPill');
+      if (dbg && !show) {
+        dbg.style.display = 'none';
+        dbg.textContent = '';
+      }
+      if (build) build.style.display = show ? 'inline-flex' : 'none';
+    }
+    function AV5_consoleLog_(){
+      if (!AV5_isDevEnv_()) return;
+      try { console.log.apply(console, arguments); } catch(e) {}
+    }
+    function AV5_diagLog_(tag, obj){
+      try {
+        var payload = obj || {};
+        payload.tag = tag;
+        payload.clientTs = new Date().toISOString();
+        console.log('[' + tag + '] ' + JSON.stringify(payload));
+      } catch(e) {
+        try { console.log('[' + tag + ']'); } catch(_e) {}
+      }
+    }
+    function showDbg(obj){
+      const b=document.getElementById('dbgBox');
+      if(!b) return;
+      if(!AV5_isDevEnv_()){
+        b.style.display='none';
+        b.textContent='';
+        return;
+      }
+      b.style.display='block';
+      b.textContent=JSON.stringify(obj,null,2);
+    }
+    function AV5_setPerfPills_(fetchMs, renderMs, totalMs){
+      var a=document.getElementById('perfFetchPill');
+      var b=document.getElementById('perfRenderPill');
+      var c=document.getElementById('perfTotalPill');
+      if (a) a.textContent = 'fetch: ' + (fetchMs == null ? '—' : String(fetchMs) + 'ms');
+      if (b) b.textContent = 'render: ' + (renderMs == null ? '—' : String(renderMs) + 'ms');
+      if (c) c.textContent = 'total: ' + (totalMs == null ? '—' : String(totalMs) + 'ms');
+    }
+    function AV5_setHint_(txt){ const el=document.getElementById('ed_hint'); if(el) el.textContent = txt || ''; }
+    function AV5_setDisabled_(id, dis){ const el=document.getElementById(id); if(!el) return; if(dis) el.classList.add('disabled'); else el.classList.remove('disabled'); el.disabled=!!dis; }
+    function AV5_setText_(id, txt){ const el=document.getElementById(id); if(el) el.textContent = txt || ''; }
+    function AV5_cloneJson_(obj){
+      try { return JSON.parse(JSON.stringify(obj || null)); } catch(e) { return obj || null; }
+    }
+    function AV5_tickKey_(monthKey, iso){ return String(monthKey || '') + '|' + String(iso || ''); }
+    function AV5_getMonthCacheForMutation_(email, monthKey){
+      var cache = AV5_getCachedMonth_(email, monthKey);
+      if (!cache || !cache.ready) {
+        cache = { ready:true, monthKey:String(monthKey || '').trim(), days:{}, blockedWeekdaysCsv:String(state.blockedWeekdaysCsv || '').trim() };
+        AV5_setCachedMonth_(email, monthKey, cache);
+      }
+      cache.days = cache.days || {};
+      return cache;
+    }
+    function AV5_applyDayToLocalCache_(email, monthKey, iso, dayObj){
+      var cache = AV5_getMonthCacheForMutation_(email, monthKey);
+      if (dayObj) {
+        state.days[iso] = AV5_cloneJson_(dayObj);
+        cache.days[iso] = AV5_cloneJson_(dayObj);
+      } else {
+        delete state.days[iso];
+        delete cache.days[iso];
+      }
+      cache.blockedWeekdaysCsv = String(state.blockedWeekdaysCsv || cache.blockedWeekdaysCsv || '').trim();
+      AV5_setCachedMonth_(email, monthKey, cache);
+    }
+    function AV5_setTickSync_(iso, on){
+      if (!iso) return;
+      if (!state.pending) state.pending = {};
+      if (on) state.pending[iso] = true;
+      else delete state.pending[iso];
+    }
+
+    function AV5_setActionBusy_(scope, busy, label){
+      scope = String(scope || '').trim();
+      busy = !!busy;
+      state.actionBusy = busy;
+      var cfg = {
+        range: { btn:'rng_applyBtn', status:'rng_status', panel:'rng_sec', idle:'Apply range unavailable' },
+        weekdays: { btn:'wd_applyBtn', status:'wd_status', panel:'wd_sec', idle:'Confirm unavailable weekdays' },
+        manual: { btn:null, status:'ed_hint', panel:'man_sec', idle:'select a day' }
+      }[scope] || {};
+
+      function setBtn_(id, isBusy, text){
+        if(!id) return;
+        var el = document.getElementById(id);
+        if(!el) return;
+        if(isBusy){
+          if(!el.getAttribute('data-av5-idle-label')) el.setAttribute('data-av5-idle-label', el.textContent || text || '');
+          el.innerHTML = '<span class="av5ActionSpin" aria-hidden="true"></span>' + (text || 'Working…');
+          el.classList.add('av5BusyBtn');
+        } else {
+          el.textContent = el.getAttribute('data-av5-idle-label') || text || cfg.idle || '';
+          el.classList.remove('av5BusyBtn');
+        }
+        AV5_setDisabled_(id, isBusy);
+      }
+
+      setBtn_(cfg.btn, busy, label);
+
+      if(cfg.status){
+        var st = document.getElementById(cfg.status);
+        if(st){
+          st.classList.toggle('av5BusyPill', busy);
+          if(busy) st.innerHTML = '<span class="av5MiniSpin" aria-hidden="true"></span>' + (label || 'Working…');
+        }
+      }
+      if(cfg.panel){
+        var pn = document.getElementById(cfg.panel);
+        if(pn) pn.classList.toggle('av5ActionBusy', busy);
+      }
+
+      ['rng_fromDate','rng_toDate','ed_from','ed_to','monthJump','monthJumpBtn','prevBtn','nextBtn','todayBtn'].forEach(function(id){
+        if(id === 'monthJumpBtn' || id === 'prevBtn' || id === 'nextBtn' || id === 'todayBtn') { if(!state.loading) AV5_setDisabled_(id, busy); return; }
+        AV5_setDisabled_(id, busy);
+      });
+      ['wd_Mo','wd_Tu','wd_We','wd_Th','wd_Fr'].forEach(function(id){ AV5_setDisabled_(id, busy); });
+      try { render(); } catch(e) {}
+    }
+    function AV5_setDetailText_(id, txt){
+      const el=document.getElementById(id);
+      if(!el) return;
+      const v = (txt === null || txt === undefined || String(txt).trim() === '') ? '—' : String(txt);
+      el.textContent = v;
+      el.title = v;
+      if(v === '—') el.classList.add('empty'); else el.classList.remove('empty');
+    }
+    function AV5_setNavLoading_(loading){
+      AV5_setDisabled_('prevBtn', loading);
+      AV5_setDisabled_('nextBtn', loading);
+      AV5_setDisabled_('todayBtn', loading);
+      AV5_setDisabled_('monthJumpBtn', loading);
+      state.loading=!!loading;
+      try {
+        var lbl = document.getElementById('mkLbl');
+        if (lbl) {
+          lbl.classList.toggle('loading', !!loading);
+          var mk = state.monthKey || 'YYYY-MM';
+          lbl.innerHTML = loading ? ('<span class="av5MiniSpin" aria-hidden="true"></span><span>' + mk + '</span>') : mk;
+        }
+        var emailPill = document.getElementById('emailPill');
+        if (emailPill) emailPill.classList.toggle('loadingPill', !!loading);
+      } catch(e) {}
+    }
+    function AV5_pad2_(n){ return String(n).padStart(2,'0'); }
+    function AV5_fillTimeSelects_(){
+      const selF=document.getElementById('ed_from'), selT=document.getElementById('ed_to');
+      if(!selF||!selT) return;
+      const opts=[];
+      for(let m=0;m<=24*60;m+=AV5_STEP_MIN){
+        const hh=Math.floor(m/60), mm=m%60;
+        if(hh===24&&mm>0) break;
+        if(hh===24&&mm===0) continue;
+        opts.push(AV5_pad2_(hh)+":"+AV5_pad2_(mm));
+      }
+      selF.innerHTML=opts.map(v=>'<option value="'+v+'">'+v+'</option>').join('');
+      selT.innerHTML=opts.map(v=>'<option value="'+v+'">'+v+'</option>').join('');
+      selF.value=AV5_DEFAULT_FROM;
+      selT.value=AV5_DEFAULT_TO;
+    }
+    function AV5_getEditorTimes_(){
+      const selF=document.getElementById('ed_from'), selT=document.getElementById('ed_to');
+      return { from: selF&&selF.value ? selF.value : AV5_DEFAULT_FROM, to: selT&&selT.value ? selT.value : AV5_DEFAULT_TO };
+    }
+    function AV5_setBtnOn_(id,on){ const el=document.getElementById(id); if(!el) return; if(on) el.classList.add('on'); else el.classList.remove('on'); }
+    function AV5_applyWeekdayStateFromCsv_(csv){
+      const s=String(csv||'').trim();
+      const parts=s ? s.split(',').map(x=>String(x||'').trim()).filter(Boolean) : [];
+      ['Mo','Tu','We','Th','Fr'].forEach(function(d){ AV5_weekdayState[d]=false; AV5_setBtnOn_('wd_'+d,false); });
+      parts.forEach(function(p){ if(p in AV5_weekdayState){ AV5_weekdayState[p]=true; AV5_setBtnOn_('wd_'+p,true); } });
+      AV5_setText_('wd_status', s ? ('current: '+parts.join(', ')) : '—');
+    }
+    function AV5_seedBootstrap_(){
+      var raw = String(AV5_BOOTSTRAP_JSON_INJ || '').trim();
+      var obj = null;
+      var decodeLayers = 0;
+      AV5_BOOTSTRAP_SUMMARY.payloadBytes = raw.length;
+      AV5_BOOTSTRAP_SUMMARY.rawPreview = raw.slice(0, 500);
+
+      try {
+        if (!raw) {
+          AV5_BOOTSTRAP_SUMMARY.reason = 'EMPTY_BOOTSTRAP';
+          AV5_BOOTSTRAP_SUMMARY.decodeLayers = decodeLayers;
+          AV5_diagLog_('AV_BOOT', AV5_BOOTSTRAP_SUMMARY);
+          return;
+        }
+
+        var parsed1 = JSON.parse(raw);
+        decodeLayers = 1;
+        if (typeof parsed1 === 'string') {
+          obj = JSON.parse(parsed1);
+          decodeLayers = 2;
+        } else if (parsed1 && typeof parsed1 === 'object') {
+          obj = parsed1;
+        }
+
+        AV5_BOOTSTRAP_SUMMARY.decodeLayers = decodeLayers;
+        AV5_BOOTSTRAP_SUMMARY.objKeys = obj && typeof obj === 'object' ? Object.keys(obj) : [];
+        AV5_BOOTSTRAP_SUMMARY.objSuccess = obj && obj.success;
+        AV5_BOOTSTRAP_SUMMARY.objMonthKey = obj && obj.monthKey;
+        AV5_BOOTSTRAP_SUMMARY.objDaysCount = obj && obj.days ? Object.keys(obj.days || {}).length : 0;
+
+        var email = AV5_getEmail_();
+        if (!email) {
+          AV5_BOOTSTRAP_SUMMARY.reason = 'MISSING_EMAIL';
+          AV5_diagLog_('AV_BOOT', AV5_BOOTSTRAP_SUMMARY);
+          return;
+        }
+
+        // d4 multi-month bootstrap shape:
+        // { primaryMonthKey: 'YYYY-MM', months: { 'YYYY-MM': { success, monthKey, days, blockedWeekdaysCsv } } }
+        if (obj && obj.months && typeof obj.months === 'object') {
+          var monthKeys = Object.keys(obj.months || {}).sort();
+          var monthsSeeded = 0;
+          monthKeys.forEach(function(mk){
+            mk = String(mk || '').trim();
+            if (!/^\d{4}-\d{2}$/.test(mk)) return;
+            var item = obj.months[mk] || {};
+            var itemMonthKey = String(item.monthKey || mk).trim();
+            var itemDays = item.days || {};
+            var itemUsable = !!(item && (item.success === true || (itemDays && itemMonthKey)));
+            if (!itemUsable) return;
+            AV5_setCachedMonth_(email, itemMonthKey, {
+              ready:true,
+              monthKey: itemMonthKey,
+              days: itemDays,
+              blockedWeekdaysCsv:String(item.blockedWeekdaysCsv || '').trim()
+            });
+            monthsSeeded++;
+          });
+
+          AV5_BOOTSTRAP_SUMMARY = {
+            used: monthsSeeded > 0,
+            payloadBytes: raw.length,
+            rawPreview: raw.slice(0, 500),
+            objKeys: obj && typeof obj === 'object' ? Object.keys(obj) : [],
+            objSuccess: obj && obj.success,
+            objMonthKey: obj && obj.monthKey,
+            objDaysCount: obj && obj.days ? Object.keys(obj.days || {}).length : 0,
+            decodeLayers: decodeLayers,
+            primaryMonthKey: String(obj.primaryMonthKey || AV5_MONTHKEY_INJ || mkNow_()).trim(),
+            monthsSeeded: monthsSeeded,
+            reason: monthsSeeded > 0 ? 'SEEDED_SESSION_CACHE_MULTIMONTH' : 'INVALID_MULTIMONTH_BOOTSTRAP_PAYLOAD'
+          };
+          AV5_diagLog_('AV_BOOT', AV5_BOOTSTRAP_SUMMARY);
+          return;
+        }
+
+        // Backward-compatible legacy single-month shape.
+        var monthKey = String((obj && obj.monthKey) || AV5_MONTHKEY_INJ || mkNow_()).trim();
+        var hasUsablePayload = !!(obj && (obj.success === true || (obj.days && monthKey)));
+        if (!hasUsablePayload) {
+          AV5_BOOTSTRAP_SUMMARY.reason = 'INVALID_BOOTSTRAP_PAYLOAD';
+          AV5_diagLog_('AV_BOOT', AV5_BOOTSTRAP_SUMMARY);
+          return;
+        }
+
+        if (!monthKey) {
+          AV5_BOOTSTRAP_SUMMARY.reason = 'MISSING_MONTH';
+          AV5_diagLog_('AV_BOOT', AV5_BOOTSTRAP_SUMMARY);
+          return;
+        }
+        AV5_setCachedMonth_(email, monthKey, {
+          ready:true,
+          monthKey: monthKey,
+          days:(obj.days || {}),
+          blockedWeekdaysCsv:String(obj.blockedWeekdaysCsv || '').trim()
+        });
+        AV5_BOOTSTRAP_SUMMARY = {
+          used:true,
+          payloadBytes: raw.length,
+          rawPreview: raw.slice(0, 500),
+          objKeys: obj && typeof obj === 'object' ? Object.keys(obj) : [],
+          objSuccess: obj && obj.success,
+          objMonthKey: obj && obj.monthKey,
+          objDaysCount: obj && obj.days ? Object.keys(obj.days || {}).length : 0,
+          decodeLayers: decodeLayers,
+          primaryMonthKey: monthKey,
+          monthKey: monthKey,
+          monthsSeeded: 1,
+          daysCount: Object.keys(obj.days || {}).length,
+          reason: 'SEEDED_SESSION_CACHE_LEGACY'
+        };
+        AV5_diagLog_('AV_BOOT', AV5_BOOTSTRAP_SUMMARY);
+      } catch(e){
+        AV5_BOOTSTRAP_SUMMARY.decodeLayers = decodeLayers;
+        AV5_BOOTSTRAP_SUMMARY.reason = 'BOOTSTRAP_EXCEPTION: ' + String(e && e.message ? e.message : e);
+        AV5_diagLog_('AV_BOOT', AV5_BOOTSTRAP_SUMMARY);
+      }
+    }
+
+    function AV5_monthStartEnd_(monthKey){
+      const m=/^(\d{4})-(\d{2})$/.exec(String(monthKey||''));
+      if(!m) return { startISO:'', endISO:'' };
+      const y=parseInt(m[1],10), mo=parseInt(m[2],10);
+      const first=new Date(y,mo-1,1), last=new Date(y,mo,0);
+      return { startISO:isoFromParts(first.getFullYear(), first.getMonth()+1, first.getDate()), endISO:isoFromParts(last.getFullYear(), last.getMonth()+1, last.getDate()) };
+    }
+    function AV5_initRangeDefaults_(){
+      const f=document.getElementById('rng_fromDate'), t=document.getElementById('rng_toDate');
+      if(!f||!t) return;
+      const se=AV5_monthStartEnd_(state.monthKey);
+      f.value = se.startISO || '';
+      t.value = se.endISO || '';
+    }
+
+    function AV5_getAuditMetaCached_(auditId){
+      return AV5_AUDIT_META_CACHE[String(auditId || '').trim()] || null;
+    }
+    function AV5_setAuditMetaCached_(auditId, meta){
+      AV5_AUDIT_META_CACHE[String(auditId || '').trim()] = meta || {};
+    }
+    function AV5_findIntervalByAuditId_(dayObj, auditId){
+      if (!dayObj || !auditId || !Array.isArray(dayObj.intervals)) return null;
+      for (var i = 0; i < dayObj.intervals.length; i++) {
+        var iv = dayObj.intervals[i];
+        if (String((iv && iv.auditId) || '').trim() === String(auditId).trim()) return iv;
+      }
+      return null;
+    }
+    function AV5_timeRangeForAudit_(dayObj, auditId, slotNo){
+      var iv = AV5_findIntervalByAuditId_(dayObj, auditId);
+      if (iv && iv.start && iv.end) return String(iv.start) + ' – ' + String(iv.end);
+      if (slotNo === 1 && dayObj && dayObj.auditId1) return String(dayObj.from || dayObj.auditFrom || '') + ' – ' + String(dayObj.to || dayObj.auditTo || '');
+      if (slotNo === 2 && dayObj && dayObj.auditId2) return String(dayObj.from2 || '') + ' – ' + String(dayObj.to2 || '');
+      return '—';
+    }
+    function AV5_setAuditDetailsPlaceholders_(iso, dayObj){
+      AV5_setDetailText_('d_date', iso || '—');
+      AV5_setDetailText_('d_a1_company', dayObj && dayObj.auditId1 ? 'loading…' : '—');
+      AV5_setDetailText_('d_a1_time', dayObj && dayObj.auditId1 ? AV5_timeRangeForAudit_(dayObj, dayObj.auditId1, 1) : '—');
+      AV5_setDetailText_('d_a1_scopes', dayObj && dayObj.auditId1 ? 'loading…' : '—');
+      AV5_setDetailText_('d_a2_company', dayObj && dayObj.auditId2 ? 'loading…' : '—');
+      AV5_setDetailText_('d_a2_time', dayObj && dayObj.auditId2 ? AV5_timeRangeForAudit_(dayObj, dayObj.auditId2, 2) : '—');
+      AV5_setDetailText_('d_a2_scopes', dayObj && dayObj.auditId2 ? 'loading…' : '—');
+    }
+    function AV5_applyAuditMetaToDetails_(iso, dayObj){
+      if (state.selectedISO !== iso) return;
+      AV5_setDetailText_('d_date', iso || '—');
+
+      var m1 = dayObj && dayObj.auditId1 ? AV5_getAuditMetaCached_(dayObj.auditId1) : null;
+      var m2 = dayObj && dayObj.auditId2 ? AV5_getAuditMetaCached_(dayObj.auditId2) : null;
+
+      AV5_setDetailText_('d_a1_company', dayObj && dayObj.auditId1 ? (m1 && m1.company ? m1.company : dayObj.auditId1) : '—');
+      AV5_setDetailText_('d_a1_time', dayObj && dayObj.auditId1 ? AV5_timeRangeForAudit_(dayObj, dayObj.auditId1, 1) : '—');
+      AV5_setDetailText_('d_a1_scopes', dayObj && dayObj.auditId1 ? ((m1 && m1.scopes) ? m1.scopes : '—') : '—');
+
+      AV5_setDetailText_('d_a2_company', dayObj && dayObj.auditId2 ? (m2 && m2.company ? m2.company : dayObj.auditId2) : '—');
+      AV5_setDetailText_('d_a2_time', dayObj && dayObj.auditId2 ? AV5_timeRangeForAudit_(dayObj, dayObj.auditId2, 2) : '—');
+      AV5_setDetailText_('d_a2_scopes', dayObj && dayObj.auditId2 ? ((m2 && m2.scopes) ? m2.scopes : '—') : '—');
+    }
+    function AV5_loadAuditMetaForDay_(iso, dayObj){
+      if (!dayObj) return;
+      var ids = [];
+      if (dayObj.auditId1) ids.push(String(dayObj.auditId1).trim());
+      if (dayObj.auditId2) ids.push(String(dayObj.auditId2).trim());
+      ids = ids.filter(Boolean);
+      if (!ids.length) return;
+
+      var missing = ids.filter(function(id){ return !AV5_getAuditMetaCached_(id); });
+      if (!missing.length) {
+        AV5_applyAuditMetaToDetails_(iso, dayObj);
+        return;
+      }
+      if (!AV5_requireGas_()) return;
+
+      google.script.run
+        .withSuccessHandler(function(res){
+          if (!res || res.success !== true || !res.auditMeta) return;
+          Object.keys(res.auditMeta).forEach(function(id){
+            AV5_setAuditMetaCached_(id, res.auditMeta[id] || {});
+          });
+          AV5_applyAuditMetaToDetails_(iso, dayObj);
+        })
+        .withFailureHandler(function(){})
+        .AV5_getAuditMetaMapStandalone({ auditIds: missing });
+    }
+
+    function classify(dayObj){
+      if(!dayObj) return { bar:'bOk', label:'available', source:'available (no block)', raw:'', from:'', to:'' };
+      const st=String(dayObj.status||'').toLowerCase();
+      const rowLabel='sheet row ' + (dayObj.rowNumber||'');
+      if(st==='hard') return { bar:'bHard', label:'hard', source:rowLabel, raw:(dayObj.availableRaw||''), from:(dayObj.from||''), to:(dayObj.to||'') };
+      return { bar:'bSoft', label:'soft', source:rowLabel, raw:(dayObj.availableRaw||''), from:(dayObj.from||''), to:(dayObj.to||'') };
+    }
+    function setDetails(iso, opts){
+      opts = opts || {};
+      var skipMetaLoad = !!opts.skipMetaLoad;
+      state.selectedISO=iso||'';
+      document.getElementById('selPill').textContent = iso ? iso : 'none';
+      const d=iso ? (state.days[iso]||null) : null;
+
+      if (!d) {
+        AV5_setDetailText_('d_date', iso || '—');
+        AV5_setDetailText_('d_a1_company', '—');
+        AV5_setDetailText_('d_a1_time', '—');
+        AV5_setDetailText_('d_a1_scopes', '—');
+        AV5_setDetailText_('d_a2_company', '—');
+        AV5_setDetailText_('d_a2_time', '—');
+        AV5_setDetailText_('d_a2_scopes', '—');
+        return;
+      }
+
+      AV5_setAuditDetailsPlaceholders_(iso, d);
+      AV5_applyAuditMetaToDetails_(iso, d);
+      if (!skipMetaLoad) AV5_loadAuditMetaForDay_(iso, d);
+    }
+
+    function AV5_clearDetails_(){
+      state.selectedISO = '';
+      document.getElementById('selPill').textContent = 'none';
+      AV5_setDetailText_('d_date', '—');
+      AV5_setDetailText_('d_a1_company', '—');
+      AV5_setDetailText_('d_a1_time', '—');
+      AV5_setDetailText_('d_a1_scopes', '—');
+      AV5_setDetailText_('d_a2_company', '—');
+      AV5_setDetailText_('d_a2_time', '—');
+      AV5_setDetailText_('d_a2_scopes', '—');
+    }
+
+    function AV5_schedulePrefetch_(email, monthKey, delayMs){
+      try {
+        var e = String(email || '').trim().toLowerCase();
+        var mk = String(monthKey || '').trim();
+        if (!e || !mk) return;
+        if (AV5_getCachedMonth_(e, mk)) return;
+        var key = e + '|' + mk;
+        if (window.__AV5_PREFETCH_SCHEDULED[key]) return;
+        window.__AV5_PREFETCH_SCHEDULED[key] = true;
+        setTimeout(function(){
+          try { AV5_setHint_('loading nearby months in background…'); } catch(_e) {}
+          void AV5_prefetchMonth_(e, mk).finally(function(){
+            try { window.__AV5_PREFETCH_SCHEDULED[key] = false; } catch(_e2) {}
+          });
+        }, Math.max(0, Number(delayMs || 0)));
+      } catch(e){}
+    }
+
+    function AV5_schedulePrefetchAround_(email, baseMonthKey){
+      try {
+        var base = String(baseMonthKey || '').trim();
+        if (!base) return;
+        AV5_PREFETCH_DELTAS_FAST.forEach(function(delta, index){
+          AV5_schedulePrefetch_(email, mkAdd(base, delta), AV5_PREFETCH_DELAY_MS + (index * AV5_PREFETCH_STAGGER_MS));
+        });
+        setTimeout(function(){
+          AV5_PREFETCH_DELTAS_SLOW.forEach(function(delta, index){
+            AV5_schedulePrefetch_(email, mkAdd(base, delta), index * AV5_PREFETCH_STAGGER_MS);
+          });
+        }, AV5_PREFETCH_SECOND_WAVE_DELAY_MS);
+      } catch(e) {}
+    }
+    function AV5_isReadOnly_(dayObj){
+      if(!dayObj) return false;
+      if(dayObj.readonly===true) return true;
+      const st=String(dayObj.status||'').toLowerCase();
+      return (st==='hard'||st==='partial');
+    }
+
+    function AV5_timeToMin_(hhmm){
+      const m=/^\s*(\d{1,2}):(\d{2})\s*$/.exec(String(hhmm||''));
+      if(!m) return null;
+      const h=parseInt(m[1],10), mm=parseInt(m[2],10);
+      if(isNaN(h)||isNaN(mm)) return null;
+      return (h*60)+mm;
+    }
+    function AV5_minToPct_(min){
+      const s=AV5_timeToMin_(AV5_BAR_START), e=AV5_timeToMin_(AV5_BAR_END);
+      if(s==null||e==null||e<=s) return 0;
+      let v=((min-s)/(e-s))*100;
+      if(v<0) v=0; if(v>100) v=100;
+      return v;
+    }
+    function AV5_kindMax_(a,b){
+      const rank={ soft:1, block:2, hard:3 };
+      const ra=rank[String(a||'')]||0, rb=rank[String(b||'')]||0;
+      return (rb>ra)?b:a;
+    }
+    function AV5_kindColor_(kind){
+      if(kind==='hard') return 'rgba(168,85,247,0.55)';
+      if(kind==='soft') return 'rgba(148,163,184,0.55)';
+      return 'rgba(148,163,184,0.55)';
+    }
+    function AV5_gapColor_(){ return 'rgba(34,197,94,0.40)'; }
+    function AV5_mergeIntervals_(intervals){
+      const arr=(intervals||[]).slice().filter(x=>x&&typeof x.startMin==='number'&&typeof x.endMin==='number'&&x.endMin>x.startMin).sort((a,b)=>a.startMin-b.startMin);
+      if(!arr.length) return [];
+      const out=[arr[0]];
+      for(let i=1;i<arr.length;i++){
+        const cur=arr[i], last=out[out.length-1];
+        if(cur.startMin<=last.endMin){
+          last.endMin=Math.max(last.endMin,cur.endMin);
+          last.kind=AV5_kindMax_(last.kind,cur.kind);
+        } else out.push(cur);
+      }
+      return out;
+    }
+    function AV5_extractIntervals_(dayObj){
+      const out=[];
+      if(!dayObj) return out;
+      const sWork=AV5_timeToMin_(AV5_BAR_START), eWork=AV5_timeToMin_(AV5_BAR_END);
+      function add(startHHMM,endHHMM,kind){
+        let s=AV5_timeToMin_(startHHMM), e=AV5_timeToMin_(endHHMM);
+        if(s==null||e==null||e<=s) return;
+        if(s<sWork) s=sWork;
+        if(e>eWork) e=eWork;
+        if(e<=s) return;
+        out.push({ startMin:s, endMin:e, kind:kind||'block' });
+      }
+      if(Array.isArray(dayObj.intervals)&&dayObj.intervals.length){
+        dayObj.intervals.forEach(function(iv){
+          if(!iv) return;
+          add(iv.start, iv.end, iv.kind || (dayObj.status==='hard' ? 'hard' : 'soft'));
+        });
+        return AV5_mergeIntervals_(out);
+      }
+      if(dayObj.auditFrom&&dayObj.auditTo){
+        add(dayObj.auditFrom, dayObj.auditTo, dayObj.status==='hard' ? 'hard' : 'block');
+        return AV5_mergeIntervals_(out);
+      }
+      if(dayObj.from&&dayObj.to){
+        add(dayObj.from, dayObj.to, dayObj.status==='hard' ? 'hard' : 'soft');
+        return AV5_mergeIntervals_(out);
+      }
+      if(dayObj.status==='blocked'||dayObj.status==='hard'||dayObj.status==='soft'){
+        add(AV5_BAR_START, AV5_BAR_END, dayObj.status==='hard' ? 'hard' : 'soft');
+      }
+      return AV5_mergeIntervals_(out);
+    }
+    function AV5_barGradient_(intervals){
+      const sWork=AV5_timeToMin_(AV5_BAR_START), eWork=AV5_timeToMin_(AV5_BAR_END);
+      if(sWork==null||eWork==null||eWork<=sWork) return '';
+      const green=AV5_gapColor_();
+      const segs=intervals||[];
+      if(!segs.length) return 'linear-gradient(90deg, ' + green + ' 0%, ' + green + ' 100%)';
+      const stops=[]; let lastPct=0;
+      for(let i=0;i<segs.length;i++){
+        const iv=segs[i], aPct=AV5_minToPct_(iv.startMin), bPct=AV5_minToPct_(iv.endMin), col=AV5_kindColor_(iv.kind);
+        if(aPct>lastPct){
+          stops.push(green+' '+lastPct.toFixed(2)+'%');
+          stops.push(green+' '+aPct.toFixed(2)+'%');
+        }
+        stops.push(col+' '+aPct.toFixed(2)+'%');
+        stops.push(col+' '+bPct.toFixed(2)+'%');
+        lastPct=bPct;
+      }
+      if(lastPct<100){
+        stops.push(green+' '+lastPct.toFixed(2)+'%');
+        stops.push(green+' 100%');
+      }
+      return 'linear-gradient(90deg, ' + stops.join(', ') + ')';
+    }
+    function AV5_buildTooltip_(iso, dayObj, intervals){
+      if(!iso) return '';
+      if(!dayObj) return iso + '\nstatus: available (no row)';
+      const parts=[iso, 'status: '+String(dayObj.status||'')];
+      // Keep technical SSoT status codes out of user-facing tooltips.
+      if(dayObj.status1 || dayObj.status2) parts.push('type: unavailable block');
+      if(dayObj.from||dayObj.to) parts.push('from/to: '+String(dayObj.from||'')+' - '+String(dayObj.to||''));
+      if(dayObj.auditFrom||dayObj.auditTo) parts.push('audit: '+String(dayObj.auditFrom||'')+' - '+String(dayObj.auditTo||''));
+      if(intervals&&intervals.length){
+        parts.push('workday: '+AV5_BAR_START+' - '+AV5_BAR_END);
+        parts.push('blocked intervals:');
+        intervals.forEach(function(iv){
+          function fmt(m){ const h=Math.floor(m/60), mm=m%60; return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0'); }
+          parts.push(' - '+fmt(iv.startMin)+' - '+fmt(iv.endMin)+' ('+iv.kind+')');
+        });
+      }
+      return parts.join('\n');
+    }
+
+    function render(){
+      state.monthKey=normMonthKey_(state.monthKey);
+      document.getElementById('mkLbl').textContent = state.monthKey || 'YYYY-MM';
+      var mj = document.getElementById('monthJump');
+      if (mj && state.monthKey) mj.value = state.monthKey;
+      document.getElementById('emailPill').textContent = state.auditorEmail ? ('email: '+state.auditorEmail) : 'email: —';
+      const cells=document.getElementById('cells');
+      cells.innerHTML='';
+      const m=/^(\d{4})-(\d{2})$/.exec(state.monthKey);
+      if(!m){ showErr('Invalid monthKey: '+String(state.monthKey)); return; }
+      const y=parseInt(m[1],10), mo=parseInt(m[2],10);
+      const first=new Date(y,mo-1,1), last=new Date(y,mo,0);
+      const daysInMonth=last.getDate();
+      const firstDow=(first.getDay()+6)%7;
+      const totalCells=Math.ceil((firstDow+daysInMonth)/7)*7;
+      for(let i=0;i<totalCells;i++){
+        const dayNum=i-firstDow+1;
+        const isThisMonth=(dayNum>=1&&dayNum<=daysInMonth);
+        const dt=isThisMonth ? new Date(y,mo-1,dayNum) : new Date(y,mo-1,1+(dayNum-1));
+        const iso=isoFromParts(dt.getFullYear(),dt.getMonth()+1,dt.getDate());
+        const dayObj=state.days[iso]||null;
+        const c=classify(dayObj);
+        const el=document.createElement('div');
+        el.className='cell'+(isThisMonth?'':' out')+(state.selectedISO===iso?' sel':'')+(state.pending && state.pending[iso] ? ' av5TickSync' : '')+(state.actionBusy?' actionLocked':'');
+        el.innerHTML='<div><div class="dnum">'+dt.getDate()+'</div><div class="iso">'+iso+'</div></div><div class="bar '+c.bar+'"></div>';
+        const barEl=el.querySelector('.bar');
+        if(barEl){
+          const intervals=AV5_extractIntervals_(dayObj);
+          barEl.style.background=AV5_barGradient_(intervals);
+          barEl.title=AV5_buildTooltip_(iso,dayObj,intervals);
+        }
+        el.addEventListener('click',()=>{ if(state.actionBusy){ AV5_setHint_('please wait…'); return; } setDetails(iso); render(); AV5_toggleDay_(iso); });
+        cells.appendChild(el);
+      }
+    }
+
+    let AV5_INIT_FORCE_FRESH_DONE = false;
+
+    async function AV5_fetchMonthJson_(execUrl, email, monthKey, opts){
+      opts = opts || {};
+      const forceFresh = !!opts.forceFresh;
+      const api=new URL(execUrl);
+      const trustedToken = unquote_(AV5_TRUSTED_TOKEN_INJ || '');
+      const deviceFingerprint = unquote_(AV5_DEVICE_FINGERPRINT_INJ || '');
+      api.searchParams.set('action','auditorAvailability');
+      api.searchParams.set('format','json');
+      api.searchParams.set('auditorEmail', email);
+      api.searchParams.set('email', email);
+      api.searchParams.set('monthKey', monthKey);
+      api.searchParams.set('lite', '1');
+      if (forceFresh) api.searchParams.set('forceFresh', '1');
+      if (opts.noCache) api.searchParams.set('noCache', '1');
+      if (opts.cacheBust) api.searchParams.set('_cb', String(opts.cacheBust));
+      if (trustedToken) api.searchParams.set('trustedToken', trustedToken);
+      if (deviceFingerprint) api.searchParams.set('deviceFingerprint', deviceFingerprint);
+      const resp=await fetch(api.toString(), { method:'GET', credentials:'omit', cache:'no-store', redirect:'follow' });
+      const txt=await resp.text();
+      let obj=null;
+      try { obj=JSON.parse(txt); }
+      catch(e){ return { ok:false, monthKey:monthKey, httpStatus:resp.status, raw:txt.slice(0,900), url:api.toString() }; }
+      if(!obj || obj.success !== true) return { ok:false, monthKey:monthKey, parsed:obj, url:api.toString() };
+      return { ok:true, monthKey:monthKey, obj:obj, httpStatus:resp.status, url:api.toString() };
+    }
+
+    async function AV5_prefetchMonth_(email, monthKey){
+      try{
+        if(AV5_getCachedMonth_(email, monthKey)) return;
+        var existingInflight = AV5_getInflight_(email, monthKey);
+        if(existingInflight) return;
+        const execUrl=AV5_getExecUrl_();
+        var entry = null;
+        const p = AV5_fetchMonthJson_(execUrl, email, monthKey, { forceFresh:false })
+          .then(function(res){
+            if(res && res.ok){
+              AV5_setCachedMonth_(email, monthKey, {
+                ready:true,
+                days:(res.obj && res.obj.days) ? res.obj.days : {},
+                blockedWeekdaysCsv:String((res.obj && res.obj.blockedWeekdaysCsv) || '').trim()
+              });
+            }
+          })
+          .catch(function(){})
+          .finally(function(){
+            AV5_clearInflight_(email, monthKey, entry);
+          });
+        entry = AV5_setInflight_(email, monthKey, { promise:p, priority:'prefetch' });
+        await p;
+      } catch(e){}
+    }
+
+    async function loadMonth(opts){
+      opts = opts || {};
+      const forceFresh = !!opts.forceFresh;
+      hideErr();
+      var __totalStarted = Date.now();
+      var __fetchMs = null;
+      var __seq = ++AV5_LOAD_SEQ;
+      var __reason = String(opts.reason || (AV5_LOAD_SEQ === 1 ? 'open' : 'switch')).trim() || 'load';
+      const email=AV5_getEmail_();
+      if(!email){
+        showErr('Missing injected email (AV5_AUDITOR_EMAIL).');
+        showDbg({ injectedEmail:AV5_EMAIL_INJ, injectedMonthKey:AV5_MONTHKEY_INJ, injectedExecUrl:AV5_EXEC_URL_INJ });
+        return;
+      }
+      const execUrl=AV5_getExecUrl_();
+      if(!execUrl){
+        showErr('Missing injected exec URL (AV5_EXEC_URL).');
+        showDbg({ injectedExecUrl:AV5_EXEC_URL_INJ });
+        return;
+      }
+
+      state.monthKey=normMonthKey_(state.monthKey);
+      const requestedMonthKey = state.monthKey;
+      state.auditorEmail=email;
+      document.getElementById('buildPill').textContent='BUILD '+unquote_(AV5_BUILD_TS_INJ||'')+' | '+state.auditorEmail+' | '+requestedMonthKey+' | '+(forceFresh ? 'fresh…' : 'loading…');
+      AV5_applyDebugChromeVisibility_();
+      AV5_setNavLoading_(true);
+      AV5_diagLog_('AV_REQ_START', {
+        seq: __seq,
+        auditorEmail: email,
+        monthKey: requestedMonthKey,
+        reason: __reason,
+        forceFresh: forceFresh,
+        ts: new Date().toISOString()
+      });
+
+      var visibleInflightEntry = null;
+      try{
+        const inflight = forceFresh ? null : AV5_getInflight_(email, requestedMonthKey);
+        if (inflight && inflight.priority !== 'prefetch') {
+          await inflight.promise;
+          const cachedAfterInflight = AV5_getCachedMonth_(email, requestedMonthKey);
+          if (cachedAfterInflight && cachedAfterInflight.ready && __seq === AV5_LOAD_SEQ && state.monthKey === requestedMonthKey) {
+            state.days=cachedAfterInflight.days || {};
+            state.blockedWeekdaysCsv=cachedAfterInflight.blockedWeekdaysCsv || '';
+            AV5_applyWeekdayStateFromCsv_(state.blockedWeekdaysCsv);
+            document.getElementById('buildPill').textContent='BUILD '+unquote_(AV5_BUILD_TS_INJ||'')+' | '+state.auditorEmail+' | '+requestedMonthKey+' | shared-cache';
+            showDbg({ ok:true, monthFetched:requestedMonthKey, daysCount:Object.keys(state.days||{}).length, elapsedMs:0, source:'shared-cache' });
+            AV5_initRangeDefaults_();
+            AV5_clearDetails_();
+            var renderStartedShared = Date.now();
+            render();
+            var renderMsShared = Date.now() - renderStartedShared;
+            var totalShared = Date.now() - __totalStarted;
+            AV5_diagLog_('AV_CACHE_PATH', { seq:__seq, reason:__reason, monthKey:requestedMonthKey, sessionHit:true, serverCacheHit:false, sourceMode:'INFLIGHT_TO_SESSION_CACHE', serverMs:0, priority:'visible' });
+            AV5_diagLog_('AV_APPLY', { seq:__seq, reason:__reason, monthKey:requestedMonthKey, waitMs:totalShared - renderMsShared, renderMs:renderMsShared, priority:'visible' });
+            AV5_setPerfPills_(0, renderMsShared, totalShared);
+            AV5_setNavLoading_(false);
+            AV5_schedulePrefetchAround_(email, requestedMonthKey);
+            return;
+          }
+        }
+        const cached = forceFresh ? null : AV5_getCachedMonth_(email, requestedMonthKey);
+        if(cached && cached.ready){
+          state.days=cached.days || {};
+          state.blockedWeekdaysCsv=cached.blockedWeekdaysCsv || '';
+          AV5_applyWeekdayStateFromCsv_(state.blockedWeekdaysCsv);
+          document.getElementById('buildPill').textContent='BUILD '+unquote_(AV5_BUILD_TS_INJ||'')+' | '+state.auditorEmail+' | '+requestedMonthKey+' | cache';
+          showDbg({ ok:true, monthFetched:requestedMonthKey, daysCount:Object.keys(state.days||{}).length, elapsedMs:0, source:'cache' });
+          AV5_initRangeDefaults_();
+          AV5_clearDetails_();
+          var renderStarted0 = Date.now();
+          render();
+          var renderMs0 = Date.now() - renderStarted0;
+          var totalCache = Date.now() - __totalStarted;
+          AV5_diagLog_('AV_CACHE_PATH', { seq:__seq, reason:__reason, monthKey:requestedMonthKey, sessionHit:true, serverCacheHit:false, sourceMode:'SESSION_CACHE', serverMs:0 });
+          AV5_diagLog_('AV_APPLY', { seq:__seq, reason:__reason, monthKey:requestedMonthKey, waitMs:totalCache - renderMs0, renderMs:renderMs0 });
+          AV5_setPerfPills_(0, renderMs0, totalCache);
+          AV5_setNavLoading_(false);
+          AV5_schedulePrefetchAround_(email, requestedMonthKey);
+          return;
+        }
+
+        const started=Date.now();
+        const fetchStarted=Date.now();
+        const fetchPromise = AV5_fetchMonthJson_(execUrl, email, requestedMonthKey, { forceFresh: forceFresh, noCache: forceFresh, cacheBust: forceFresh ? Date.now() : null });
+        visibleInflightEntry = AV5_setInflight_(email, requestedMonthKey, { promise:fetchPromise, priority:'visible', seq:__seq });
+        const res=await fetchPromise;
+        AV5_clearInflight_(email, requestedMonthKey, visibleInflightEntry);
+        __fetchMs = Date.now() - fetchStarted;
+        var __serverMs = Number(res && res.obj && res.obj.debug && (res.obj.debug.serverMs || (res.obj.debug.timing && res.obj.debug.timing.serverMs)) || 0);
+        var __serverCacheHit = !!(res && res.obj && res.obj.debug && res.obj.debug.timing && res.obj.debug.timing.cacheHit);
+        var __sourceMode = String(res && res.obj && res.obj.debug && (res.obj.debug.sourceMode || res.obj.debug.cacheService || '') || (__serverCacheHit ? 'SERVER_CACHE' : 'SERVER_LIVE'));
+        AV5_diagLog_('AV_RPC_DONE', { seq:__seq, reason:__reason, monthKey:requestedMonthKey, fetchMs:__fetchMs, serverMs:__serverMs, transportMs:(__fetchMs - __serverMs), cacheHit:__serverCacheHit, sourceMode:__sourceMode, httpStatus:res && res.httpStatus });
+        if(!res.ok){
+          showErr('Backend failure: '+JSON.stringify(res.parsed || res.raw || res));
+          showDbg(res);
+          AV5_setPerfPills_(__fetchMs, null, Date.now() - __totalStarted);
+          AV5_setNavLoading_(false);
+          return;
+        }
+
+        const monthData={
+          ready:true,
+          days:(res.obj && res.obj.days) ? res.obj.days : {},
+          blockedWeekdaysCsv:String((res.obj && res.obj.blockedWeekdaysCsv) || '').trim()
+        };
+        AV5_setCachedMonth_(email, requestedMonthKey, monthData);
+        if (__seq !== AV5_LOAD_SEQ || state.monthKey !== requestedMonthKey) {
+          return;
+        }
+        state.days=monthData.days;
+        state.blockedWeekdaysCsv=monthData.blockedWeekdaysCsv;
+        AV5_applyWeekdayStateFromCsv_(state.blockedWeekdaysCsv);
+        document.getElementById('buildPill').textContent='BUILD '+unquote_(AV5_BUILD_TS_INJ||'')+' | '+state.auditorEmail+' | '+requestedMonthKey+' | '+(forceFresh ? 'fresh' : 'fetched');
+        showDbg({ ok:true, monthFetched:requestedMonthKey, daysCount:Object.keys(state.days||{}).length, elapsedMs:Date.now()-started });
+        AV5_initRangeDefaults_();
+        AV5_clearDetails_();
+        var renderStarted1 = Date.now();
+        render();
+        var renderMs1 = Date.now() - renderStarted1;
+        var totalFetch = Date.now() - __totalStarted;
+        AV5_diagLog_('AV_CACHE_PATH', { seq:__seq, reason:__reason, monthKey:requestedMonthKey, sessionHit:false, serverCacheHit:__serverCacheHit, sourceMode:__sourceMode, serverMs:__serverMs });
+        AV5_diagLog_('AV_APPLY', { seq:__seq, reason:__reason, monthKey:requestedMonthKey, waitMs:totalFetch - renderMs1, renderMs:renderMs1, priority:'visible' });
+        AV5_setPerfPills_(__fetchMs, renderMs1, totalFetch);
+        AV5_setNavLoading_(false);
+
+        AV5_schedulePrefetchAround_(email, requestedMonthKey);
+      } catch(err){
+        AV5_clearInflight_(email, requestedMonthKey, visibleInflightEntry);
+        showErr('Load failed: '+String(err && err.message ? err.message : err));
+        showDbg({ error:String(err && err.message ? err.message : err), monthKey:requestedMonthKey, email:email });
+        AV5_setPerfPills_(__fetchMs, null, Date.now() - __totalStarted);
+        AV5_setNavLoading_(false);
+      }
+    }
+
+    function AV5_normalizeTickAction_(rawAction){
+      var action = String(rawAction || '').trim().toUpperCase();
+      if (action === 'INSERT' || action === 'UPDATE_TO_SOFT') return 'SET';
+      if (action === 'REMOVE' || action === 'UPDATE_TO_AVAILABLE') return 'REMOVE';
+      if (action === 'READ_ONLY') return 'READ_ONLY';
+      return 'UNKNOWN';
+    }
+
+    function AV5_tickQueueRemoveKey_(tickKey){
+      for (var i = AV5_TICK_QUEUE.length - 1; i >= 0; i--) {
+        if (AV5_TICK_QUEUE[i] === tickKey) AV5_TICK_QUEUE.splice(i, 1);
+      }
+    }
+
+    function AV5_tickQueueEnqueue_(tickKey, entry){
+      // Same-day dedupe before dispatch: replace not-yet-sent queued item.
+      AV5_tickQueueRemoveKey_(tickKey);
+      AV5_TICK_PENDING[tickKey] = entry;
+      AV5_TICK_QUEUE.push(tickKey);
+      AV5_diagLog_('AV_TICK_QUEUED', { seq:entry.seq, date:entry.iso, monthKey:entry.monthKey, queueLen:AV5_TICK_QUEUE.length });
+      AV5_tickQueueProcessNext_();
+    }
+
+    function AV5_tickQueueProcessNext_(){
+      if (AV5_TICK_QUEUE_ACTIVE) return;
+      if (!AV5_TICK_QUEUE.length) return;
+      var tickKey = AV5_TICK_QUEUE.shift();
+      var entry = AV5_TICK_PENDING[tickKey];
+      if (!entry) {
+        AV5_tickQueueProcessNext_();
+        return;
+      }
+      entry.sent = true;
+      entry.dispatchedAt = Date.now();
+      AV5_TICK_QUEUE_ACTIVE = entry;
+      AV5_diagLog_('AV_TICK_DISPATCH', { seq:entry.seq, date:entry.iso, monthKey:entry.monthKey, queueLen:AV5_TICK_QUEUE.length });
+      AV5_dispatchTickEntry_(tickKey, entry);
+    }
+
+    function AV5_tickQueueComplete_(entry){
+      if (AV5_TICK_QUEUE_ACTIVE && AV5_TICK_QUEUE_ACTIVE.seq === entry.seq) {
+        AV5_TICK_QUEUE_ACTIVE = null;
+      }
+      setTimeout(AV5_tickQueueProcessNext_, 0);
+    }
+
+    function AV5_dispatchTickEntry_(tickKey, entry){
+      google.script.run
+        .withSuccessHandler(function(res){
+          var current = AV5_TICK_PENDING[tickKey];
+          var latencyMs = Date.now() - entry.startedAt;
+          if (!current || current.seq !== entry.seq) {
+            AV5_diagLog_('AV_TICK_STALE_CONFIRM', { seq:entry.seq, date:entry.iso, monthKey:entry.monthKey, latencyMs:latencyMs, queueLen:AV5_TICK_QUEUE.length });
+            AV5_tickQueueComplete_(entry);
+            return;
+          }
+
+          if(!res || res.success !== true){
+            delete AV5_TICK_PENDING[tickKey];
+            AV5_setTickSync_(entry.iso, false);
+            AV5_applyDayToLocalCache_(entry.email, entry.monthKey, entry.iso, entry.previousDay);
+            if(entry.previousCache && entry.previousCache.ready) AV5_setCachedMonth_(entry.email, entry.monthKey, entry.previousCache);
+            showErr('Save failed: '+JSON.stringify(res));
+            AV5_setHint_('save failed');
+            AV5_diagLog_('AV_TICK_ROLLBACK', { seq:entry.seq, date:entry.iso, monthKey:entry.monthKey, latencyMs:latencyMs, rollbackReason:'BACKEND_SUCCESS_FALSE' });
+            setDetails(entry.iso, { skipMetaLoad:true });
+            render();
+            AV5_tickQueueComplete_(entry);
+            return;
+          }
+
+          var normalizedAction = AV5_normalizeTickAction_(res.action);
+          var hadDayState = !!res.dayState;
+          var keptOptimistic = false;
+
+          if (normalizedAction === 'READ_ONLY') {
+            delete AV5_TICK_PENDING[tickKey];
+            AV5_setTickSync_(entry.iso, false);
+            var restored = res.dayState ? res.dayState : entry.previousDay;
+            AV5_applyDayToLocalCache_(entry.email, entry.monthKey, entry.iso, restored);
+            AV5_setHint_('read-only: planned audit');
+            AV5_diagLog_('AV_TICK_ROLLBACK', { seq:entry.seq, date:entry.iso, monthKey:entry.monthKey, latencyMs:latencyMs, rollbackReason:'READ_ONLY' });
+            setDetails(entry.iso, { skipMetaLoad:true });
+            render();
+            AV5_tickQueueComplete_(entry);
+            return;
+          }
+
+          if (normalizedAction === 'SET') {
+            if (hadDayState) {
+              AV5_applyDayToLocalCache_(entry.email, entry.monthKey, entry.iso, res.dayState);
+            } else {
+              keptOptimistic = true;
+              AV5_applyDayToLocalCache_(entry.email, entry.monthKey, entry.iso, entry.optimisticDay);
+            }
+          } else if (normalizedAction === 'REMOVE') {
+            if (hadDayState) {
+              AV5_applyDayToLocalCache_(entry.email, entry.monthKey, entry.iso, res.dayState);
+            } else {
+              AV5_applyDayToLocalCache_(entry.email, entry.monthKey, entry.iso, null);
+            }
+          } else {
+            keptOptimistic = true;
+            if (entry.optimisticDay) AV5_applyDayToLocalCache_(entry.email, entry.monthKey, entry.iso, entry.optimisticDay);
+            AV5_diagLog_('AV_TICK_UNKNOWN_ACTION', { seq:entry.seq, date:entry.iso, monthKey:entry.monthKey, latencyMs:latencyMs, action:String(res.action || ''), normalizedAction:normalizedAction, hadDayState:hadDayState });
+          }
+
+          delete AV5_TICK_PENDING[tickKey];
+          AV5_setTickSync_(entry.iso, false);
+          AV5_setHint_((res.action || 'ok') + ' ' + entry.iso);
+          AV5_diagLog_('AV_TICK_CONFIRM', { seq:entry.seq, date:entry.iso, monthKey:entry.monthKey, latencyMs:latencyMs, action:(res.action || ''), normalizedAction:normalizedAction, keptOptimistic:keptOptimistic, hadDayState:hadDayState });
+          setDetails(entry.iso, { skipMetaLoad:true });
+          render();
+          AV5_tickQueueComplete_(entry);
+        })
+        .withFailureHandler(function(err){
+          var current = AV5_TICK_PENDING[tickKey];
+          var latencyMs = Date.now() - entry.startedAt;
+          if (!current || current.seq !== entry.seq) {
+            AV5_diagLog_('AV_TICK_STALE_ROLLBACK', { seq:entry.seq, date:entry.iso, monthKey:entry.monthKey, latencyMs:latencyMs, queueLen:AV5_TICK_QUEUE.length });
+            AV5_tickQueueComplete_(entry);
+            return;
+          }
+          delete AV5_TICK_PENDING[tickKey];
+          AV5_setTickSync_(entry.iso, false);
+          AV5_applyDayToLocalCache_(entry.email, entry.monthKey, entry.iso, entry.previousDay);
+          if(entry.previousCache && entry.previousCache.ready) AV5_setCachedMonth_(entry.email, entry.monthKey, entry.previousCache);
+          showErr('Save failed: '+String(err && err.message ? err.message : err));
+          AV5_setHint_('save failed');
+          AV5_diagLog_('AV_TICK_ROLLBACK', { seq:entry.seq, date:entry.iso, monthKey:entry.monthKey, latencyMs:latencyMs, rollbackReason:'RPC_FAILURE' });
+          setDetails(entry.iso, { skipMetaLoad:true });
+          render();
+          AV5_tickQueueComplete_(entry);
+        })
+        .AV5_toggleManualSoftDayStandalone({ auditorEmail:entry.email, dateISO:entry.iso, from:entry.from, to:entry.to });
+    }
+
+    function AV5_toggleDay_(iso){
+      if(!iso) return;
+      const dayObj=state.days[iso] || null;
+      if(AV5_isReadOnly_(dayObj)){ AV5_setHint_('read-only: planned audit'); return; }
+      if(!AV5_requireGas_()){ showErr('google.script.run not available (must run as WebApp HtmlService).'); return; }
+
+      const monthKey = state.monthKey;
+      const email = state.auditorEmail;
+      const tickKey = AV5_tickKey_(monthKey, iso);
+      const existingTick = AV5_TICK_PENDING[tickKey] || null;
+      if (existingTick && existingTick.timer) {
+        try { clearTimeout(existingTick.timer); } catch(eClear) {}
+      }
+
+      const isToggleableSoft = !!(
+        dayObj &&
+        String(dayObj.status || '').toLowerCase() === 'soft' &&
+        String(dayObj.status1 || '').trim().toUpperCase() === 'DEFAULT_AUDITOR_BLOCKED_SOFT' &&
+        !dayObj.readonly
+      );
+      const t=AV5_getEditorTimes_();
+      const prevDay = AV5_cloneJson_(dayObj);
+      const prevCache = AV5_cloneJson_(AV5_getCachedMonth_(email, monthKey));
+      const seq = ++AV5_TICK_SEQ;
+      const startedAt = Date.now();
+
+      var optimisticDay = null;
+      if (!isToggleableSoft) {
+        optimisticDay = {
+          date: iso,
+          status: 'soft',
+          status1: 'DEFAULT_AUDITOR_BLOCKED_SOFT',
+          status2: '',
+          availableRaw: 'NO',
+          from: t.from,
+          to: t.to,
+          readonly: false,
+          intervals: [{ slot:1, kind:'soft', auditId:'', status:'DEFAULT_AUDITOR_BLOCKED_SOFT', start:t.from, end:t.to }],
+          decisionReason: 'Optimistic manual unavailable pending backend confirmation'
+        };
+      }
+
+      var entry = {
+        seq: seq,
+        iso: iso,
+        monthKey: monthKey,
+        email: email,
+        from: t.from,
+        to: t.to,
+        previousDay: prevDay,
+        previousCache: prevCache,
+        optimisticDay: optimisticDay,
+        startedAt: startedAt,
+        timer: null,
+        sent: false
+      };
+
+      AV5_TICK_PENDING[tickKey] = entry;
+      AV5_applyDayToLocalCache_(email, monthKey, iso, optimisticDay);
+      AV5_setTickSync_(iso, true);
+      hideErr();
+      AV5_setHint_((isToggleableSoft ? 'queued remove' : 'queued save') + ' ' + iso + '…');
+      setDetails(iso, { skipMetaLoad:true });
+      render();
+      AV5_diagLog_('AV_TICK_OPTIMISTIC', { seq:seq, date:iso, monthKey:monthKey, action:(isToggleableSoft ? 'remove' : 'set'), debounceMs:AV5_TICK_DEBOUNCE_MS });
+
+      entry.timer = setTimeout(function(){
+        var latest = AV5_TICK_PENDING[tickKey];
+        if (!latest || latest.seq !== seq) return;
+        latest.timer = null;
+        AV5_tickQueueEnqueue_(tickKey, latest);
+      }, AV5_TICK_DEBOUNCE_MS);
+    }
+
+    function AV5_applyRangeUnavailable_(){
+      if(!AV5_requireGas_()){ showErr('google.script.run not available (must run as WebApp HtmlService).'); return; }
+      const f=document.getElementById('rng_fromDate'), t=document.getElementById('rng_toDate');
+      if(!f||!t) return;
+      const fromISO=String(f.value||'').trim(), toISO=String(t.value||'').trim();
+      if(!fromISO || !toISO){ AV5_setText_('rng_status','missing dates'); return; }
+      if(toISO < fromISO){ AV5_setText_('rng_status','invalid range'); return; }
+
+      if(state.actionBusy){ AV5_setText_('rng_status','please wait…'); return; }
+      const times=AV5_getEditorTimes_();
+      AV5_setActionBusy_('range', true, 'Applying range…');
+
+      google.script.run
+        .withSuccessHandler(function(res){
+          AV5_setActionBusy_('range', false);
+          if(!res || res.success !== true){ AV5_setText_('rng_status','failed'); showErr('Range apply failed: '+JSON.stringify(res)); return; }
+          const ins=Array.isArray(res.inserted) ? res.inserted : [];
+          const cache=AV5_getCachedMonth_(state.auditorEmail, state.monthKey);
+          ins.forEach(function(iso){
+            const mk=iso.slice(0,7);
+            const obj={ date:iso, status:'soft', status1:'DEFAULT_AUDITOR_BLOCKED_SOFT', availableRaw:'NO', from:times.from, to:times.to, readonly:false };
+            if(mk === state.monthKey) state.days[iso]=obj;
+            const c=AV5_getCachedMonth_(state.auditorEmail, mk);
+            if(c && c.ready) c.days[iso]=obj;
+          });
+          AV5_setText_('rng_status','ok: +'+(res.countInserted||ins.length)+'; skipped '+((res.skipped||[]).length));
+          setDetails(state.selectedISO || '');
+          render();
+        })
+        .withFailureHandler(function(err){
+          AV5_setActionBusy_('range', false);
+          AV5_setText_('rng_status','failed');
+          showErr('Range apply failed: '+String(err && err.message ? err.message : err));
+        })
+        .AV5_applyRangeManualSoftDaysStandalone({ auditorEmail:state.auditorEmail, fromISO:fromISO, toISO:toISO, from:times.from, to:times.to });
+    }
+
+    function AV5_toggleWeekday_(tok){
+      if(state.actionBusy) return;
+      if(!(tok in AV5_weekdayState)) return;
+      AV5_weekdayState[tok]=!AV5_weekdayState[tok];
+      AV5_setBtnOn_('wd_'+tok, AV5_weekdayState[tok]);
+    }
+
+    function AV5_applyWeekdaysRebuild_(){
+      if(AV5_rebuildRunning || state.actionBusy){ AV5_setText_('wd_status','rebuild running…'); return; }
+      if(!AV5_requireGas_()){ showErr('google.script.run not available (must run as WebApp HtmlService).'); return; }
+
+      const days=Object.keys(AV5_weekdayState).filter(k=>AV5_weekdayState[k]);
+      AV5_rebuildRunning=true;
+      AV5_setActionBusy_('weekdays', true, 'Updating weekdays…');
+      AV5_setHint_('updating recurring unavailable weekdays…');
+
+      google.script.run
+        .withSuccessHandler(function(res){
+          AV5_rebuildRunning=false;
+          AV5_setActionBusy_('weekdays', false);
+          if(!res || res.success !== true){ AV5_setText_('wd_status','failed'); showErr('Rebuild failed: '+JSON.stringify(res)); return; }
+          AV5_setText_('wd_status','ok (ins '+(res.inserts||0)+', del '+(res.deletes||0)+')');
+          AV5_clearMonthCache_();
+          loadMonth({ forceFresh:true, reason:'weekday-rebuild-refresh' });
+        })
+        .withFailureHandler(function(err){
+          AV5_rebuildRunning=false;
+          AV5_setActionBusy_('weekdays', false);
+          AV5_setText_('wd_status','failed');
+          showErr('Rebuild failed: '+String(err && err.message ? err.message : err));
+        })
+        .AV5_applyDefaultWeekdaysAndRebuild12mStandalone({ auditorEmail:state.auditorEmail, weekdays:days });
+    }
+
+    async function init(){
+      const mkClean = unquote_(AV5_MONTHKEY_INJ || '');
+state.monthKey = /^\d{4}-\d{2}$/.test(mkClean) ? mkClean : mkNow_();
+
+state.auditorEmail = unquote_(AV5_EMAIL_INJ || '').trim().toLowerCase();
+
+      document.getElementById('prevBtn').addEventListener('click',()=>{
+        if(state.loading) return;
+        state.monthKey=mkAdd(state.monthKey,-1);
+        loadMonth({ forceFresh:false, reason:'switch-prev' });
+      });
+      document.getElementById('nextBtn').addEventListener('click',()=>{
+        if(state.loading) return;
+        state.monthKey=mkAdd(state.monthKey,+1);
+        loadMonth({ forceFresh:false, reason:'switch-next' });
+      });
+
+      var jumpInput = document.getElementById('monthJump');
+      var jumpBtn = document.getElementById('monthJumpBtn');
+      function AV5_jumpToMonth_(){
+        if(state.loading) return;
+        var v = String((jumpInput && jumpInput.value) || '').trim();
+        if(!/^\d{4}-\d{2}$/.test(v)) return;
+        if(v === state.monthKey) return;
+        state.monthKey = v;
+        loadMonth({ forceFresh:false, reason:'jump' });
+      }
+      if (jumpBtn) jumpBtn.addEventListener('click', AV5_jumpToMonth_);
+      if (jumpInput) {
+        jumpInput.addEventListener('change', AV5_jumpToMonth_);
+        jumpInput.addEventListener('keydown', function(ev){
+          if (ev.key === 'Enter') AV5_jumpToMonth_();
+        });
+      }
+
+      var todayBtn = document.getElementById('todayBtn');
+      if (todayBtn) {
+        todayBtn.addEventListener('click', function(){
+          if(state.loading) return;
+          var todayMonth = mkNow_();
+          if (todayMonth === state.monthKey) return;
+          state.monthKey = todayMonth;
+          loadMonth({ forceFresh:false, reason:'today' });
+        });
+      }
+
+      document.getElementById('buildPill').textContent='BUILD '+unquote_(AV5_BUILD_TS_INJ||'')+' | loading…';
+      AV5_applyDebugChromeVisibility_();
+      AV5_seedBootstrap_();
+      AV5_fillTimeSelects_();
+
+      const rngBtn=document.getElementById('rng_applyBtn');
+      if(rngBtn) rngBtn.addEventListener('click', AV5_applyRangeUnavailable_);
+      ['Mo','Tu','We','Th','Fr'].forEach(function(tok){
+        const el=document.getElementById('wd_'+tok);
+        if(el) el.addEventListener('click', function(){ AV5_toggleWeekday_(tok); });
+      });
+      const wdBtn=document.getElementById('wd_applyBtn');
+      if(wdBtn) wdBtn.addEventListener('click', AV5_applyWeekdaysRebuild_);
+
+      await loadMonth({ forceFresh:false, reason:'open' });
+      AV5_INIT_FORCE_FRESH_DONE = true;
+    }
+
+    AV5_consoleLog_('AV5 UI (date-only aligned + fast month load) loaded', { build:AV5_BUILD_TS_INJ, email:AV5_EMAIL_INJ, mk:AV5_MONTHKEY_INJ, exec:AV5_EXEC_URL_INJ });
+    init();
+  </script>
+</body>
+<!-- BUILD: AuditorAvailabilityV5_d6_OPTIMISTIC_TICK_CONFIRM_FIX_20260517 -->
+</html>

@@ -1,0 +1,4376 @@
+<!DOCTYPE html>
+<html>
+<!-- FILE: ManagerV5UI | Timestamp: 20260205_204103 -->
+<!--
+  INTERNAL ORGANIZATION PASS — 2026-04-24 T12
+  SAFE MODE:
+  - no function renames
+  - no function moves
+  - no include changes
+  - no behavior changes
+  - only section markers / readability structure
+  T13: Completed view stable toggle; no rapid polling; no open/completed cache mix
+
+  NEXT PHASE ONLY AFTER TEST:
+  - extract CSS
+  - extract single-grid renderer
+  - extract actions
+  - extract filters/sort
+  - extract company updates modal
+-->
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <title>Audit Management System — Manager Portal</title>
+  <script>
+    (function enforceBrowserTabTitle() {
+      var AMS_BROWSER_TITLE = 'Audit Management System — Manager Portal';
+      function setBrowserTabTitle() {
+        try { document.title = AMS_BROWSER_TITLE; } catch (e) {}
+      }
+      setBrowserTabTitle();
+      try { document.addEventListener('DOMContentLoaded', setBrowserTabTitle); } catch (e) {}
+      try { window.addEventListener('load', setBrowserTabTitle); } catch (e) {}
+      try { setTimeout(setBrowserTabTitle, 0); setTimeout(setBrowserTabTitle, 250); setTimeout(setBrowserTabTitle, 1000); } catch (e) {}
+    })();
+  </script>
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" />
+    <!-- Injected by EntryV5: __execUrl -->
+    <!-- BUILD: ManagerV5UI_2026-05-14_T14_PROD_HIDE_RUNTIME_LOG -->
+    <style>
+
+      /* ============================================================
+       * SECTION 01 — BASE STYLES / LAYOUT / GRID
+       * ============================================================ */
+      
+      
+      th.col-hours, td.col-hours { width: 82px; text-align: right; }
+      th.col-days, td.col-days { width: 96px; }
+      td.col-days .md-flag { cursor: help; text-decoration: underline dotted; }
+      .hours-match { color: #166534; font-weight: 700; }
+      .hours-under { color: #dc2626; font-weight: 700; }
+      .hours-over { color: #f97316; font-weight: 700; }
+
+/* Scopes pills (grids, constrained) */
+
+      /* Scopes column: constrain width and allow wrap (terugloop) */
+      th.col-scopes, td.col-scopes {
+        max-width: 200px;          /* reasonable max for laptop */
+        width: 200px;
+        vertical-align: middle;
+        white-space: normal;
+      }
+
+      .scopes-wrap {
+        display: flex;
+        flex-wrap: wrap;           /* allow line breaks */
+        gap: 6px 6px;
+        align-items: center;
+      }
+
+      .scope-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 8px;          /* smaller than action buttons */
+        border-radius: 999px;
+        font-size: 11px;
+        line-height: 16px;
+        font-weight: 600;
+        background: #e9eef5;
+        color: #111827;
+        border: 1px solid rgba(17,24,39,0.12);
+        white-space: nowrap;
+      }
+
+
+
+:root {
+        --bg-main: #f4f5f7;
+        --bg-card: #ffffff;
+        --bg-header: #111827;
+        --bg-bucket-header: #1f2937;
+        --bg-badge: #e5e7eb;
+        --border-soft: #e5e7eb;
+        --border-strong: #d1d5db;
+        --text-main: #111827;
+        --text-muted: #6b7280;
+        --accent: #2563eb;
+        --accent-soft: #dbeafe;
+        --danger: #dc2626;
+        --warning: #f97316;
+        --success: #16a34a;
+        --table-header: #f9fafb;
+      }
+
+      * { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg-main);
+        color: var(--text-main);
+      }
+
+      body { display: flex; flex-direction: column; }
+
+      .app-shell {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      header.app-header {
+        background: var(--bg-header);
+        color: #fff;
+        padding: 14px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .app-title { font-size: 18px; font-weight: 600; }
+
+      .header-meta {
+        display: flex;
+        gap: 16px;
+        font-size: 12px;
+        color: #e5e7eb;
+        align-items: center;
+      }
+
+
+      .diag-pill{
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(59,130,246,0.18);
+        border: 1px solid rgba(96,165,250,0.45);
+        font-size: 11px;
+        color: #dbeafe;
+      }
+
+      .build-stamp{
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(34,197,94,0.18);
+        border: 1px solid rgba(74,222,128,0.45);
+        font-size: 11px;
+        color: #dcfce7;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        letter-spacing: 0.02em;
+      }
+
+      .pill {
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(15, 118, 110, 0.15);
+        border: 1px solid rgba(45, 212, 191, 0.45);
+        font-size: 11px;
+      }
+
+      
+      .hdr-tools { display:flex; gap:8px; align-items:center; }
+      .hdr-btn {
+        font-size: 11px;
+        border-radius: 999px;
+        border: 1px solid rgba(229,231,235,0.35);
+        padding: 5px 10px;
+        cursor: pointer;
+        background: rgba(255,255,255,0.10);
+        color: #e5e7eb;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .hdr-btn:hover { background: rgba(255,255,255,0.18); }
+      .hdr-btn:disabled { opacity: .55; cursor: not-allowed; }
+
+      /* === OVERVIEW BADGE LARGE === */
+      .company-review-grid{display:grid;grid-template-columns:180px minmax(0,1fr) minmax(0,1fr) 150px;gap:8px 10px;align-items:center;}
+      .company-review-grid .hd{font-weight:700;font-size:12px;color:#6b7280;}
+      .company-review-grid .lbl{font-size:12px;font-weight:600;}
+      .company-review-grid .cur{font-size:12px;color:#374151;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:8px;padding:8px 10px;min-height:36px;}
+      .company-review-grid input[type=text], .company-review-grid textarea, .company-review-grid select{width:100%;border:1px solid #d1d5db;border-radius:8px;padding:8px 10px;font:inherit;}
+      .company-review-grid textarea{min-height:54px;resize:vertical;}
+      .company-review-grid .decision{display:grid;grid-template-columns:1fr 1fr;gap:6px;align-items:center;}
+      .company-review-title{font-weight:700;margin:12px 0 8px;}
+      .company-review-toolbar{display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap;}
+      #companyReviewGroupSelect{min-width:340px;max-width:520px;}
+      .company-review-empty{padding:10px 0;color:#6b7280;font-size:12px;}
+      .company-review-grid input[type=text]{height:34px;}
+      .overview-badge-large{
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        min-width:36px;
+        height:28px;
+        padding:0 10px;
+        border-radius:999px;
+        background:#2563eb;
+        color:#fff;
+        font-size:14px;
+        font-weight:700;
+        margin-left:8px;
+      }
+
+main.app-main {
+padding: 18px 24px 12px 24px;
+        padding-bottom: 96px; /* room for fixed log + footer */
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-height: 0;
+      }
+
+      .summary-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .summary-card {
+        background: var(--bg-card);
+        border-radius: 10px;
+        padding: 10px 14px;
+        border: 1px solid var(--border-soft);
+        min-width: 160px;
+      }
+      .summary-card-filter { cursor: pointer; }
+      .summary-card-filter.active {
+        border-color: rgba(37,99,235,0.45);
+        box-shadow: inset 0 0 0 1px rgba(37,99,235,0.18);
+        background: #eef4ff;
+      }
+
+      .summary-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        margin-bottom: 2px;
+      }
+
+      .summary-value { font-size: 18px; font-weight: 600; }
+      .summary-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+      .buckets-column {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-height: 0;
+        flex: 1;
+      }
+
+      .bucket {
+        background: var(--bg-card);
+        border-radius: 10px;
+        border: 1px solid var(--border-soft);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      .bucket-header {
+        padding: 10px 14px 8px 14px;
+        border-bottom: 1px solid var(--border-soft);
+        background: var(--bg-bucket-header);
+        color: #e5e7eb;
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+
+      .bucket-title { font-size: 14px; font-weight: 600; }
+      .bucket-sub { font-size: 11px; color: #9ca3af; }
+
+      .bucket-counter {
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: rgba(55, 65, 81, 0.9);
+        border: 1px solid rgba(156, 163, 175, 0.6);
+      }
+
+      .bucket-body {
+        padding: 8px 10px 10px 10px;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .table-wrapper {
+        border-radius: 8px;
+        border: 1px solid var(--border-strong);
+        overflow: auto;
+        background: #fff;
+      }
+
+      /* approvals a bit smaller */
+      #bucketApprovals .table-wrapper{max-height:200px}
+      /* Pending Approval: center-align columns from Expiration date through Actions */
+      #bucketApprovals th.col-date,
+      #bucketApprovals td.col-date,
+      #bucketApprovals th.col-hours,
+      #bucketApprovals td.col-hours,
+      #bucketApprovals th.col-assigned,
+      #bucketApprovals td.col-assigned,
+      #bucketApprovals th.col-actions,
+      #bucketApprovals td.col-actions{
+        text-align:center;
+      }
+
+
+      /* Planning gets more space */
+      #bucketPlanning{flex:2}
+      #bucketPlanning .bucket-body{flex:1}
+      #bucketPlanning .table-wrapper{flex:1;min-height:520px}
+
+      table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+      thead { background: var(--table-header); position: sticky; top: 0; z-index: 1; }
+      th, td { padding: 6px 8px; border-bottom: 1px solid var(--border-soft); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      th { font-weight: 600; font-size: 11px; color: var(--text-muted); }
+      tbody tr:nth-child(even) { background: #f9fafb; }
+      tbody tr:hover { background: #eff6ff; }
+
+      /* Column widths tuned for laptop: avoid horizontal scroll */
+      /* Pending Approval: enforce no horizontal scroll + actions inline */
+      #bucketApprovals table { table-layout: fixed; width: 100%; }
+      #bucketApprovals .col-company { width: 200px; min-width: 160px; max-width: 220px; }
+      #bucketApprovals .col-location { width: 48px; min-width: 48px; max-width: 48px; text-align: center; }
+      #bucketApprovals .col-region { width: 88px; min-width: 72px; max-width: 105px; }
+      #bucketApprovals .col-gps { width: 46px; min-width: 46px; max-width: 46px; text-align: center; }
+      #bucketApprovals .col-scopes { width: 170px; max-width: 170px; }
+      #bucketApprovals .col-status { width: 120px; min-width: 120px; text-align: center; }
+      #bucketApprovals .col-date { width: 100px; min-width: 100px; text-align: center; }
+      #bucketApprovals .col-hours { width: 75px; min-width: 75px; text-align: center; }
+      #bucketApprovals .col-assigned { width: 130px; min-width: 110px; text-align: center; }
+      #bucketApprovals .col-actions { width: 260px; min-width: 260px; max-width: 260px; text-align: right; white-space: nowrap; }
+      #bucketApprovals th.col-actions { text-align: right; }
+      #bucketApprovals td.col-actions { text-align: right; }
+      #bucketApprovals td.col-actions .btn { margin-left: 6px; }
+      #bucketApprovals td.col-actions .btn:first-child { margin-left: 0; }
+
+      /* Pending Planning column sizing & alignment (laptop-friendly, no horizontal scroll) */
+      #bucketPlanning table { table-layout: fixed; width: 100%; }
+      #bucketPlanning th, #bucketPlanning td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+      #bucketPlanning .col-company { width: 220px; min-width: 180px; }
+      #bucketPlanning .col-location { width: 48px; min-width: 48px; max-width: 48px; text-align: center; }
+      #bucketPlanning .col-region { width: 88px; min-width: 72px; max-width: 105px; }
+      #bucketPlanning .col-gps { width: 46px; min-width: 46px; max-width: 46px; text-align: center; }
+      #bucketPlanning .col-scopes { width: 170px; max-width: 170px; }
+      #bucketPlanning .col-status { width: 120px; min-width: 120px; text-align: center; }
+
+      /* Emphasis: Expiration date must fit date + EXT/+3m badge */
+      #bucketPlanning .col-expiry { width: 150px; min-width: 150px; text-align: left; }
+      #bucketPlanning .col-expiry > div { justify-content: flex-start; }
+
+      #bucketPlanning .col-date { width: 210px; min-width: 180px; text-align: center; } /* Planning window */
+      #bucketPlanning .col-hours { width: 70px; min-width: 70px; text-align: center; }
+      #bucketPlanning .col-preassigned { width: 135px; min-width: 110px; text-align: center; }
+      #bucketPlanning .col-selfplan { width: 80px; min-width: 80px; text-align: center; }
+      #bucketPlanning .col-assigned { width: 130px; min-width: 110px; text-align: center; }
+
+      #bucketPlanning .col-actions { width: 90px; min-width: 90px; text-align: right; }
+      #bucketPlanning th.col-actions, #bucketPlanning td.col-actions { text-align: right; }
+
+
+      .col-company { width: 180px; min-width: 150px; max-width: 190px; }
+
+      /* Locs is numeric (1–99): keep very narrow and centered */
+      .col-location { width: 48px; min-width: 48px; max-width: 48px; text-align: center; }
+      .col-region { width: 92px; min-width: 78px; max-width: 110px; }
+      .col-gps { width: 52px; min-width: 52px; }
+      .col-scopes { min-width: 140px; }
+      .col-status { width: 120px; min-width: 120px; }
+      .col-preassigned { width: 160px; min-width: 140px; }
+      .col-selfplan { width: 82px; min-width: 82px; text-align:center; }
+      .col-assigned { width: 140px; min-width: 120px; }
+      .col-date { width: 110px; min-width: 110px; }
+      /* Actions: allow wrapping so all buttons remain visible without horizontal scroll */
+      .col-actions { width: 132px; min-width: 132px; text-align: right; white-space: normal; }
+      .col-actions .btn { padding: 4px 8px; }
+
+      .badge-status {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--bg-badge);
+        font-size: 11px;
+      }
+
+      .badge-status.pending-planning { background: var(--accent-soft); color: var(--accent); }
+      .badge-status.pending-approval { background: #fef3c7; color: #92400e; }
+      .badge-status.approved { background: #dcfce7; color: #166534; }
+
+      .btn {
+        font-size: 11px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        padding: 4px 10px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        background: #e5e7eb;
+        color: #111827;
+      }
+
+      .btn-primary { background: var(--accent); color: #fff; }
+      .btn-approve { background: var(--success); color: #fff; }
+      .btn-deny { background: var(--warning); color: #fff; }
+      .btn-reject { background: var(--danger); color: #fff; }
+      .btn-ghost { background: #f9fafb; color: var(--text-muted); }
+
+      .empty-state { padding: 8px; font-size: 12px; color: var(--text-muted); }
+
+      .footer-bar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 32px;
+        padding: 6px 12px 8px 12px;
+        font-size: 11px;
+        color: var(--text-muted);
+        border-top: 1px solid var(--border-soft);
+        background: #fff;
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        align-items: center;
+        z-index: 900;
+      }
+
+      #logArea {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 32px; /* sits above fixed footer */
+        height: 52px;
+        overflow: auto;
+        background: #111827;
+        color: #e5e7eb;
+        padding: 6px 10px;
+        border-top: 1px solid #374151;
+        border-radius: 0;
+        white-space: pre-wrap;
+        font-size: 9px;
+        line-height: 11px;
+        z-index: 850;
+        display: none;
+      }
+
+      body.m5-dev-diagnostics #logArea { display: block; }
+      body.m5-prod-clean main.app-main { padding-bottom: 44px; }
+
+      .toast {
+        position: fixed;
+        left: 50%;
+        top: 10px;
+        transform: translateX(-50%);
+        background: #0f172a;
+        color: #e5e7eb;
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 11px;
+        border: 1px solid #374151;
+        z-index: 1000;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.18s ease-out;
+      }
+
+      .toast.visible { opacity: 1; }
+    
+      /* Pending Planning: filter & sorting bar (UI-only) */
+      .filter-bar{
+        display:flex;
+        flex-wrap:wrap;
+        gap:10px;
+        align-items:center;
+        justify-content:space-between;
+        padding:8px 6px 10px 6px;
+      }
+      .filter-chips{display:flex; flex-wrap:wrap; gap:6px; align-items:center;}
+      .chip{
+        font-size:10px;
+        padding:3px 8px;
+        border-radius:999px;
+        border:1px solid var(--border-strong);
+        background:#f9fafb;
+        color: var(--text-main);
+        cursor:pointer;
+        user-select:none;
+        line-height:1.1;
+      }
+      .chip.active{
+        background: var(--accent-soft);
+        border-color: rgba(37,99,235,0.45);
+        color: var(--accent);
+        font-weight:600;
+      }
+      .chip-group.compact{
+        display:inline-flex;
+        gap:6px;
+        margin-left:8px;
+      }
+      .chip.chip-green.active{
+        background: rgba(16,185,129,0.18);
+        border-color: rgba(16,185,129,0.55);
+        color: rgba(5,150,105,1);
+      }
+      .chip.chip-orange.active{
+        background: rgba(245,158,11,0.18);
+        border-color: rgba(245,158,11,0.55);
+        color: rgba(180,83,9,1);
+      }
+      .chip.chip-red.active{
+        background: rgba(239,68,68,0.18);
+        border-color: rgba(239,68,68,0.55);
+        color: rgba(185,28,28,1);
+      }
+      .chip-group{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+      .mini-label{ font-size:11px; color: var(--text-muted); margin-right:2px; }
+      .mini-select{
+        height: 28px;
+        font-size: 11px;
+        padding: 0 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border-strong);
+        background: #fff;
+        color: var(--text-main);
+        outline: none;
+      }
+      .filter-search{display:flex; gap:6px; align-items:center;}
+      .filter-search input{
+        font-size:11px;
+        padding:6px 10px;
+        border-radius:999px;
+        border:1px solid var(--border-strong);
+        min-width:220px;
+        outline:none;
+      }
+      .filter-search input.sg-filter-narrow{
+        min-width:190px;
+      }
+      .btn-xs{ padding:3px 8px; font-size:10px; }
+
+      .badge-ext {
+        display: inline-flex;
+        align-items: center;
+        padding: 0 5px;
+        border-radius: 999px;
+        background: #e5e7eb;
+        color: #374151;
+        font-size: 9px;
+        line-height: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+        flex: 0 0 auto;
+      }
+      .col-planning-window { width: 170px; min-width: 170px; }
+      .col-expiry-single { width: 185px; min-width: 185px; }
+      th.sortable{ cursor:pointer; }
+      th.sortable::after{ content:""; }
+
+    
+      /* Logout modal (minimal, isolated) */
+      .v5-modal-backdrop{
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.45);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+        padding: 18px;
+      }
+      .v5-modal-backdrop.open{ display:flex; }
+      .v5-modal{
+        width: min(720px, 96vw);
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+        border: 1px solid rgba(0,0,0,0.08);
+        overflow: hidden;
+      }
+      .v5-modal header{
+        font-size: 14px;
+        font-weight: 700;
+        padding: 14px 16px;
+        border-bottom: 1px solid #e5e7eb;
+        background: #f9fafb;
+      }
+      .v5-modal .body{
+        padding: 14px 16px 10px 16px;
+        font-size: 12px;
+        color: var(--text-main);
+      }
+      .v5-modal .muted{ color: var(--text-muted); }
+      .v5-modal footer{
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 12px 16px;
+        border-top: 1px solid #e5e7eb;
+        background: #ffffff;
+      }
+      .btn-danger{
+        background: var(--danger);
+        color: #fff;
+      }
+
+
+      #singleGridWrap { max-height: calc(100vh - 330px); overflow: auto; }
+      #singleGridTable { min-width: 1380px; }
+
+
+      /* Central diagnostics panel */
+      .diag-panel-backdrop{
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.30);
+        display: none;
+        align-items: flex-start;
+        justify-content: flex-end;
+        z-index: 2100;
+        padding: 58px 18px 18px 18px;
+      }
+      .diag-panel-backdrop.open{ display:flex; }
+      .diag-panel{
+        width: min(720px, 96vw);
+        max-height: calc(100vh - 90px);
+        background: #ffffff;
+        border: 1px solid #d1d5db;
+        border-radius: 12px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.30);
+        overflow: hidden;
+      }
+      .diag-panel-head{
+        padding: 10px 12px;
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        gap:10px;
+        border-bottom: 1px solid #e5e7eb;
+        background:#f9fafb;
+      }
+      .diag-panel-title{ font-weight:700; font-size:13px; }
+      .diag-panel-actions{ display:flex; gap:8px; align-items:center; }
+      .diag-logbox{
+        margin: 10px 12px 12px 12px;
+        padding: 8px 10px;
+        height: 72px;
+        max-height: 72px;
+        overflow: auto;
+        white-space: pre-wrap;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+        line-height: 17px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        background:#111827;
+        color:#e5e7eb;
+      }
+      .diag-logbox.expanded{
+        height: 420px;
+        max-height: calc(100vh - 210px);
+      }
+      .diag-muted{ color:#6b7280; font-size:11px; }
+
+
+      @media (max-width: 1366px) {
+        header.app-header { padding: 10px 14px; align-items: flex-start; }
+        .header-meta { flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+        main.app-main { padding: 12px 14px 84px 14px; }
+        .summary-strip { gap: 8px; }
+        .summary-card { min-width: 145px; padding: 8px 10px; }
+        #singleGridWrap { max-height: calc(100vh - 290px); }
+        #logArea { height: 40px; font-size: 8px; line-height: 10px; }
+      }
+
+      @media (max-width: 1100px) {
+        .app-title { font-size: 16px; }
+        .hdr-tools { flex-wrap: wrap; justify-content: flex-end; }
+        #singleGridWrap { max-height: calc(100vh - 270px); }
+      }
+
+
+    </style>
+  
+
+<script>
+/* ============================================================
+ * SECTION 02 — SHARED CLIENT FALLBACKS
+ * ============================================================ */
+window.V5 = window.V5 || {};
+window.V5.escape = window.V5.escape || function(s){
+  if (s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+};
+window.V5.toast = window.V5.toast || function(msg){
+  try { console.log(String(msg || '')); } catch(e) {}
+};
+window.V5.modal = window.V5.modal || {
+  open: function(id){
+    try {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.classList.add('open');
+      el.style.display = 'flex';
+    } catch(e) {}
+  },
+  close: function(id){
+    try {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove('open');
+      el.style.display = 'none';
+    } catch(e) {}
+  }
+};
+</script>
+
+  <!-- SECTION 03 — SHARED DIALOG INCLUDE -->
+  <?!= HtmlService.createHtmlOutputFromFile('UiDialogs_HTML').getContent(); ?>
+</head>
+
+  <body>
+    <!-- ============================================================
+     SECTION 04 — STATIC HTML SHELL
+     ============================================================ -->
+    <div class="app-shell">
+      <header class="app-header">
+        <div class="app-title">Manager Portal — Approval &amp; Planning</div>
+        <div class="header-meta">
+          <div id="hdrManager" class="pill">Manager: …</div>
+          <div id="hdrBuild" class="build-stamp" style="display:none;" title="Deployed UI build">UI: 2026-04-26 T17</div>
+          <div id="hdrEnv" style="display:none;">Env: …</div>
+          <div id="hdrVersion" style="display:none;">Version: …</div>
+          <div id="hdrDeploy" style="display:none;">Deploy: …</div>
+          <div id="hdrNotifications" style="display:none;">Notifications: …</div>
+          <div id="hdrDevWrites" style="display:none;">DEV writes: …</div>
+          <div class="hdr-tools">
+            <button class="hdr-btn" id="btnLogout" type="button" onclick="window.openLogout()" style="border-color: rgba(220,38,38,0.55); color:#fecaca;">Log out</button>
+            <button class="hdr-btn" type="button" onclick="try{ m5t_openScopes(); }catch(e){ showToast('Tools not loaded: Scopes'); }">Scopes</button>
+            <button class="hdr-btn" type="button" onclick="try{ m5t_openRotation(); }catch(e){ showToast('Tools not loaded: Rotation'); }">Rotation</button>
+            <button class="hdr-btn" type="button" onclick="try{ m5t_openPlanning(); }catch(e){ showToast('Tools not loaded: Planning'); }">Planning</button>
+            <button class="hdr-btn" type="button" onclick="openCompaniesPopup()">Companies</button>
+            <button class="hdr-btn" type="button" onclick="openCompanyMapPopup()">Company Map</button>
+            <button class="hdr-btn" id="btnManagerDiagnostics" type="button" onclick="openManagerDiagnosticsPanel()">Diagnose</button>
+            <button class="hdr-btn" id="btnCompanyUpdates" type="button" onclick="openCompanyUpdatesReview()">Company updates <span id="companyUpdatesCount" class="overview-badge-large" style="min-width:28px;height:22px;font-size:12px;margin-left:6px;">0</span></button>
+            <label class="hdr-btn" for="chkArchivedManager" style="cursor:pointer;"><input type="checkbox" id="chkArchivedManager" style="margin-right:6px;"> Show completed</label>
+          </div>
+        </div>
+      </header>
+
+      <main class="app-main">
+        <section class="summary-strip">
+          <div class="summary-card summary-card-filter" id="cardPendingPlanning" data-sgsummary-status="Pending Planning">
+            <div class="summary-label">Pending planning</div>
+            <div class="summary-value" id="sumPendingPlanning">–</div>
+            <div class="summary-sub">Status = Pending Planning</div>
+          </div>
+          <div class="summary-card summary-card-filter" id="cardPendingApprovals" data-sgsummary-status="Pending Approval">
+            <div class="summary-label">Pending approvals</div>
+            <div class="summary-value" id="sumPendingApprovals">–</div>
+            <div class="summary-sub">Status = Pending Approval</div>
+          </div>
+          <div class="summary-card summary-card-filter" id="cardPendingAcceptance" data-sgsummary-status="Approved">
+            <div class="summary-label">Pending acceptance</div>
+            <div class="summary-value" id="sumPendingAcceptance">–</div>
+            <div class="summary-sub">Internal status = Approved</div>
+          </div>
+          <div class="summary-card summary-card-filter" id="cardPendingCompletion" data-sgsummary-status="Accepted">
+            <div class="summary-label">Pending completion</div>
+            <div class="summary-value" id="sumPendingCompletion">–</div>
+            <div class="summary-sub">Status = Accepted</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Audits (in scope)</div>
+            <div class="summary-value" id="sumTotal">–</div>
+            <div class="summary-sub">Filtered for this manager</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Location issues</div>
+            <div class="summary-value" id="sumLocationIssues">–</div>
+            <div class="summary-sub">Companies with multiple / mismatched locations</div>
+          </div>
+        </section>
+
+        <section class="bucket" id="bucketSingleGrid">
+          <div class="bucket-header">
+            <div>
+              <div class="bucket-title" id="singleGridTitle">Open audits</div>
+              <div class="bucket-sub" id="singleGridSub">Pending Planning, Pending Approval, Pending acceptance and Pending completion</div>
+            </div>
+            <div class="bucket-counter"><span id="cntSingleGrid">0</span> audits</div>
+          </div>
+
+          <div class="bucket-body">
+            <div class="filter-bar" id="singleFilterBar">
+              <div class="filter-chips">
+                <button class="chip active" id="sgChipAll" type="button">All</button>
+                <button class="chip" id="sgChipWindowExpired" type="button">Planning window expired</button>
+                <div class="chip-group compact" id="sgStatusChips" aria-label="Status filters">
+                  <button class="chip" data-sgstatus="Pending Planning" type="button">Pending Planning</button>
+                  <button class="chip" data-sgstatus="Pending Approval" type="button">Pending Approval</button>
+                  <button class="chip" data-sgstatus="Approved" type="button">Pending acceptance</button>
+                  <button class="chip" data-sgstatus="Accepted" type="button">Pending completion</button>
+                </div>
+              </div>
+              <div class="filter-search">
+                <input id="sgCompanySearch" type="text" placeholder="Company contains…" autocomplete="off">
+                <input id="sgScopeSearch" class="sg-filter-narrow" type="text" placeholder="Scope contains…" autocomplete="off">
+                <input id="sgAuditorSearch" class="sg-filter-narrow" type="text" placeholder="Auditor contains…" autocomplete="off">
+                <button class="btn btn-ghost btn-xs" id="sgResetBtn" type="button">Reset</button>
+              </div>
+            </div>
+
+            <div class="table-wrapper" id="singleGridWrap">
+              <table id="singleGridTable">
+                <thead id="singleGridHead"></thead>
+                <tbody id="singleGridBody"></tbody>
+              </table>
+            </div>
+            <div class="empty-state" id="emptySingleGrid" style="display:none;">No audits found.</div>
+          </div>
+        </section>
+
+        <div id="logArea"></div>
+      </main>
+
+      <footer class="footer-bar">
+        <div id="footerLeft">Manager Portal — dashboard</div>
+        <div id="footerRight">
+          <span id="footerRuntime">Runtime: …</span>
+          <span id="footerEnv" style="display:none;">Env: …</span>
+          <span id="footerVersion" style="display:none;">Version: …</span>
+        </div>
+      </footer>
+    </div>
+
+    
+    <!-- Logout modal -->
+    <div class="v5-modal-backdrop" id="modalLogout" aria-hidden="true">
+      <div class="v5-modal" role="dialog" aria-modal="true" aria-labelledby="modalLogoutTitle">
+        <header id="modalLogoutTitle">Log out</header>
+        <div class="body">
+          <div class="muted">You will be logged out of this portal.</div>
+
+          <label style="display:flex; gap:10px; align-items:flex-start; margin-top:14px; cursor:pointer;">
+            <input type="checkbox" id="chkRevokeTrust" style="margin-top:2px;">
+            <span>
+              <div style="font-weight:600;">No longer trust this device</div>
+              <div class="muted" style="font-size:12px; margin-top:2px;">You will need to re-verify next time you log in from this device.</div>
+            </span>
+          </label>
+        </div>
+        <footer>
+          <button class="btn btn-ghost" type="button" onclick="window.closeLogout()">Cancel</button>
+          <button class="btn btn-danger" type="button" onclick="window.confirmLogout()">Log out</button>
+        </footer>
+      </div>
+    </div>
+
+
+
+    <div class="diag-panel-backdrop" id="managerDiagnosticsPanel" aria-hidden="true">
+      <div class="diag-panel" role="dialog" aria-modal="true" aria-labelledby="managerDiagnosticsTitle">
+        <div class="diag-panel-head">
+          <div>
+            <div class="diag-panel-title" id="managerDiagnosticsTitle">Diagnose</div>
+            <div class="diag-muted" id="managerDiagnosticsMeta">Read-only diagnostics</div>
+          </div>
+          <div class="diag-panel-actions">
+            <button class="btn btn-ghost btn-xs" type="button" onclick="toggleManagerDiagnosticsExpand()">Expand</button>
+            <button class="btn btn-primary btn-xs" type="button" onclick="runManagerDiagnostics()">Run</button>
+            <button class="btn btn-ghost btn-xs" type="button" onclick="closeManagerDiagnosticsPanel()">Close</button>
+          </div>
+        </div>
+        <pre class="diag-logbox" id="managerDiagnosticsLog">Click Run to load diagnostics.</pre>
+      </div>
+    </div>
+
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+      // ====================================================
+      // SECTION 05 — TEMPLATE INJECTION / BOOT CONTEXT
+      // ====================================================
+      // Injected by EntryV5 template
+      // ====================================================
+      // EntryV5 sets: t.webAppUrl, t.version, t.environment, t.currentUser
+      var MANAGER_EXEC_BASE_PROD = '<?!= __execUrl ?>';
+      var MANAGER_EMAIL_TEMPLATE = '<?!= __email ?>';
+      var MANAGER_UI_FILE = 'ManagerV5UI.html';
+      var MANAGER_UI_BUILD = '2026-05-14 T14 PROD-HIDE-RUNTIME-LOG';
+      window.EXPECTED_ROLE = 'Manager';
+
+      (function initManagerDynamicBrowserTitle() {
+        try {
+
+          var env = '';
+
+          try {
+            env =
+              (window.APP_ENV || window.ENVIRONMENT || '')
+                .toString()
+                .trim();
+          } catch (e) {}
+
+          var title = 'Audit Management System — Manager Portal';
+
+          if (env && env !== 'PROD') {
+            title += ' [' + env + ']';
+          }
+
+          document.title = title;
+
+        } catch (err) {
+          console.error('Manager dynamic browser title init failed', err);
+        }
+      })();
+
+
+
+
+      // ====================================================
+      // SECTION 06 — LOGOUT / TRUSTED DEVICE CLIENT FLOW
+      // ====================================================
+      // Logout (Option B supported via V5_AUTH_FORCE_LOGIN)
+      // ====================================================
+      function v5_collectAuth_(){
+        var email = "";
+        var token = "";
+        var deviceId = "";
+        try { email = String(localStorage.getItem('V5_AUTH_email') || '').trim().toLowerCase(); } catch(e) {}
+        try { token = String(localStorage.getItem('V5_AUTH_token') || '').trim(); } catch(e) {}
+        try { deviceId = String(localStorage.getItem('V5_AUTH_deviceId') || '').trim(); } catch(e) {}
+        return { email: email, token: token, deviceId: deviceId };
+      }
+
+      window.openLogout = function(){
+        try {
+          var m = document.getElementById('modalLogout');
+          if (m) { m.classList.add('open'); m.setAttribute('aria-hidden','false'); }
+        } catch(e) {}
+      };
+      window.closeLogout = function(){
+        try {
+          var m = document.getElementById('modalLogout');
+          if (m) { m.classList.remove('open'); m.setAttribute('aria-hidden','true'); }
+        } catch(e) {}
+      };
+
+      function doLocalLogout_(keepTrusted){
+        keepTrusted = !!keepTrusted;
+
+        // Local logout behavior:
+        // - keepTrusted=true  -> keep token/deviceId/email/role so next login can be fast (no code),
+        //                        but force showing Login once (no auto-resolve).
+        // - keepTrusted=false -> clear token/deviceId as well (full re-verify next time).
+        try {
+          var keys = [];
+          for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            if (!k) continue;
+
+            var isAuth =
+              (k.indexOf('V5_AUTH_') === 0) ||
+              (k.indexOf('AV5_') === 0) ||
+              (k.indexOf('V5_AUDITOR_') === 0) ||
+              (k.indexOf('V5_TRUSTED_') === 0) ||
+              (k === 'AUDITOR_EMAIL' || k === 'TRUSTED_TOKEN' || k === 'DEVICE_ID' ||
+               k === 'email' || k === 'token' || k === 'deviceId' || k === 'deviceFingerprint');
+
+            if (!isAuth) continue;
+
+            if (keepTrusted) {
+              // Keep trust material + routing context
+              if (k === 'V5_AUTH_email' || k === 'V5_AUTH_role') continue;
+              if (k === 'V5_AUTH_token' || k === 'V5_AUTH_deviceId' || k === 'V5_AUTH_tokenExpiresAt' || k === 'V5_AUTH_tokenType') continue;
+              if (k === 'AV5_TRUSTED_TOKEN' || k === 'AV5_DEVICE_ID') continue;
+              if (k === 'TRUSTED_TOKEN' || k === 'DEVICE_ID' || k === 'token' || k === 'deviceId' || k === 'deviceFingerprint') continue;
+            }
+
+            keys.push(k);
+          }
+          keys.forEach(function(k){ try { localStorage.removeItem(k); } catch(_e){} });
+        } catch(e) {}
+
+        try {
+          if (keepTrusted) localStorage.setItem('V5_AUTH_FORCE_LOGIN', '1');
+          else localStorage.removeItem('V5_AUTH_FORCE_LOGIN');
+        } catch(e) {}
+
+        try { window.closeLogout(); } catch(e) {}
+
+        var base = MANAGER_EXEC_BASE_PROD || "";
+        try{
+          if (!base || base.indexOf('script.google.com') === -1) {
+            var href = window.location.href || '';
+            if (href.indexOf('/exec') !== -1) base = href.split('?')[0].split('#')[0];
+          }
+        }catch(e){}
+
+        if (base) {
+          window.top.location.href = v5_buildActionUrl_(base, 'manager', {});
+        } else {
+          window.top.location.reload();
+        }
+      }
+
+      window.confirmLogout = function(){
+        var revoke = false;
+        try { revoke = !!document.getElementById('chkRevokeTrust').checked; } catch(e) {}
+
+        if (!revoke) {
+          // Option B: show login once, keep trusted token/deviceId/email/role
+          doLocalLogout_(true);
+          return;
+        }
+
+        // Revoke trust on server, then local logout (full)
+        var auth = v5_collectAuth_();
+        var email = auth.email || "";
+        var token = auth.token || "";
+        var deviceId = auth.deviceId || "";
+        if (!email) { showToast('Missing auth email — please reload and try again.'); return; }
+
+        google.script.run
+          .withSuccessHandler(function(res){
+            try { log({ revoke: true, res: res }); } catch(e) {}
+            doLocalLogout_(false);
+          })
+          .withFailureHandler(function(err){
+            // Even if revoke fails, still log out locally (full) to avoid stuck sessions.
+            try { log({ revoke: true, err: (err && err.message) ? err.message : err }); } catch(e) {}
+            doLocalLogout_(false);
+          })
+          .V5_AUTH_revokeDeviceTrust(email, 'Manager', deviceId, token);
+      };
+
+      // Trusted Device v2 fallback (client-side display only):
+      // Manager identity in header previously came from backend `data.user`.
+      // If backend has no current-user context yet, fall back to localStorage.
+      var MANAGER_EMAIL_FALLBACK = ''; // do not trust template/local fallback for display or actions
+
+      try {
+        var __ls = String(localStorage.getItem('V5_AUTH_email') || '').trim().toLowerCase();
+        if (__ls) MANAGER_EMAIL_FALLBACK = __ls;
+      } catch (e) {}
+// Show immediately (will be overwritten by dashboard response if provided)
+      try {
+        var _m = document.getElementById('hdrManager');
+        var _authMgr = v5_getAuthenticatedManagerEmail_();
+        if (_m && _authMgr) _m.textContent = 'Manager: ' + _authMgr;
+        else if (_m && MANAGER_EMAIL_FALLBACK) _m.textContent = 'Manager: ' + MANAGER_EMAIL_FALLBACK;
+      } catch(e) {}
+
+
+      // Defensive fallback if template var is empty (should not happen)
+      if (!MANAGER_EXEC_BASE_PROD || MANAGER_EXEC_BASE_PROD.indexOf('script.google.com') === -1) {
+        try {
+          // When running under /exec, current URL without query is the best base
+          var href = window.location.href || '';
+          if (href.indexOf('/exec') !== -1) MANAGER_EXEC_BASE_PROD = href.split('?')[0].split('#')[0];
+        } catch(e) {}
+      }
+
+
+      // ====================================================
+      // SECTION 07 — GENERAL UI HELPERS / POPUP LAUNCHERS
+      // ====================================================
+      // UI helpers
+      // ====================================================
+      function el(id) { return document.getElementById(id); }
+
+      function v5_getAuthenticatedManagerEmail_() {
+        var fromTemplate = String(MANAGER_EMAIL_TEMPLATE || '').trim().toLowerCase();
+        if (fromTemplate && fromTemplate.indexOf('@') > 0) return fromTemplate;
+
+        try {
+          var ls = String(localStorage.getItem('V5_AUTH_email') || '').trim().toLowerCase();
+          if (ls && ls.indexOf('@') > 0) return ls;
+        } catch (e) {}
+
+        return '';
+      }
+
+
+      function v5_buildActionUrl_(base, action, params) {
+        base = String(base || '').trim();
+        if (!base) {
+          try {
+            var href = window.location.href || '';
+            base = href.split('#')[0];
+          } catch(e) {}
+        }
+        if (!base) return '';
+
+        var u = null;
+        try {
+          u = new URL(base, window.location.href);
+        } catch(eUrl) {
+          var sep = base.indexOf('?') >= 0 ? '&' : '?';
+          var raw = base + sep + 'action=' + encodeURIComponent(action || '');
+          params = params || {};
+          for (var k in params) {
+            if (!params.hasOwnProperty(k)) continue;
+            raw += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k] == null ? '' : String(params[k]));
+          }
+          return raw;
+        }
+
+        u.searchParams.set('action', String(action || '').trim());
+        params = params || {};
+        for (var key in params) {
+          if (!params.hasOwnProperty(key)) continue;
+          u.searchParams.set(key, params[key] == null ? '' : String(params[key]));
+        }
+        u.searchParams.set('ts', String(Date.now()));
+        return u.toString();
+      }
+
+
+
+      // Navigate to Overview (preserves current querystring incl. auth params)
+      function v5_goOverview_(){
+        try{
+          var base = String(MANAGER_EXEC_BASE_PROD || '').trim();
+
+          if (!base) {
+            var href = window.location.href || '';
+            base = href.split('?')[0].split('#')[0];
+          }
+
+          var u = new URL(base);
+          u.searchParams.set('action','managerOverviewUI');
+          u.searchParams.set('ts', String(Date.now()));
+          window.top.location.href = u.toString();
+        }catch(e){
+          var base2 = String(MANAGER_EXEC_BASE_PROD || '').trim();
+          if (!base2) base2 = (window.location.href || '').split('?')[0].split('#')[0];
+          window.top.location.href = base2 + '?action=managerOverviewUI&ts=' + Date.now();
+        }
+      }
+
+      // UI BUILD PATCH: Locs column (Companies!R Locations_to_plan) — 2025-12-31 16:15
+      // Replaces legacy "HQ" display in grids with numeric locations-to-plan.
+      function v5_renderLocs_(a){
+        // Preferred: Companies!R "Locations_to_plan" exposed as locationsToPlan
+        try{
+          if (!a) return "1";
+          var candidates = [
+            a.locationsToPlan,
+            a.locations_to_plan,
+            a.locationsToPlanText,
+            a.locations_to_plan_text,
+            a.locationsCount,
+            a.locations_count,
+            a.locs,
+            a.Locs,
+            a.locations,
+            a.locationCount,
+            a.location_count
+          ];
+          for (var i = 0; i < candidates.length; i++) {
+            var n = candidates[i];
+            if (n != null && String(n).trim() !== "" && !isNaN(Number(n))) return String(Number(n));
+          }
+
+          // If location itself is numeric, accept it
+          var loc = (a.location != null) ? String(a.location).trim() : "";
+          if (loc !== "" && !isNaN(Number(loc))) return String(Number(loc));
+        }catch(e){}
+        return "1";
+      }
+      // Region helper (Companies!I "Region"). Backend may expose it as region/Region/companyRegion.
+      function v5_renderRegion_(a){
+        try {
+          if (!a) return "-";
+          var candidates = [
+            a.region,
+            a.Region,
+            a.companyRegion,
+            a.company_region,
+            a.regionName,
+            a.region_name,
+            a["Region"]
+          ];
+          for (var i = 0; i < candidates.length; i++) {
+            var v = candidates[i];
+            if (v != null && String(v).trim() !== "") return String(v).trim();
+          }
+        } catch(e) {}
+        return "-";
+      }
+
+      // GPS helper (expects Companies!K "GPS-data" format: "lat, lon")
+      function v5_buildGpsUrl_(gpsRaw) {
+        if (gpsRaw === null || gpsRaw === undefined) return null;
+        var s = String(gpsRaw).trim();
+        if (!s) return null;
+        var parts = s.split(",");
+        if (parts.length < 2) return null;
+        var lat = parts[0].trim();
+        var lon = parts[1].trim();
+        if (!lat || !lon) return null;
+        if (isNaN(parseFloat(lat)) || isNaN(parseFloat(lon))) return null;
+        return "https://www.google.com/maps?q=" + encodeURIComponent(lat + "," + lon);
+      }
+
+      function v5_makeGpsTd_(auditObj) {
+        var tdCell = document.createElement("td");
+        tdCell.className = "col-gps";
+        var gpsVal = auditObj && (auditObj.gpsData || auditObj.gps || auditObj.GPS || auditObj["GPS-data"]); 
+        var url = v5_buildGpsUrl_(gpsVal);
+        if (!url) { tdCell.textContent = "-"; return tdCell; }
+        var a = document.createElement("a");
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.title = "Open in Google Maps";
+        a.textContent = "Map";
+        tdCell.appendChild(a);
+        return tdCell;
+      }
+      // Planning window cell (display-only).
+      // MUST come from backend derived with the same logic as the Planning Toolkit.
+      function v5_makePlanningWindowTd_(a){
+        var tdCell = document.createElement("td");
+        tdCell.className = "col-date";
+        tdCell.textContent = (a && a.planningWindowText) ? String(a.planningWindowText) : "-";
+        return tdCell;
+      }
+
+
+
+
+      function log(msg) {
+        var area = el("logArea");
+        if (!area) return;
+        var line = "[" + new Date().toLocaleTimeString() + "] " + (typeof msg === "string" ? msg : JSON.stringify(msg));
+        area.textContent = line + "\n" + area.textContent;
+      }
+
+      function v5_logPerf_(label, perf) {
+        try {
+          if (!perf) return;
+          var total = (perf.totalMs != null) ? perf.totalMs : null;
+          var p = perf.phases || {};
+          var parts = [];
+          if (total != null) parts.push("total " + Math.round(total) + "ms");
+          if (p.headers != null) parts.push("headers " + Math.round(p.headers) + "ms");
+          if (p.readRows != null) parts.push("readRows " + Math.round(p.readRows) + "ms");
+          if (p.findRow != null) parts.push("find " + Math.round(p.findRow) + "ms");
+          if (p.decisionLog != null) parts.push("decisionLog " + Math.round(p.decisionLog) + "ms");
+          if (p.writeRow != null) parts.push("writeRow " + Math.round(p.writeRow) + "ms");
+          if (p.queueMail != null) parts.push("queueMail " + Math.round(p.queueMail) + "ms");
+          if (p.queueNotif != null) parts.push("queueNotif " + Math.round(p.queueNotif) + "ms");
+          if (p.computePW != null) parts.push("planningWindow " + Math.round(p.computePW) + "ms");
+          log(label + ": " + parts.join(" | "));
+        } catch(e) {}
+      }
+
+
+
+      function openManagerDiagnosticsPanel() {
+        try {
+          var p = el("managerDiagnosticsPanel");
+          if (p) { p.classList.add("open"); p.setAttribute("aria-hidden", "false"); }
+          runManagerDiagnostics();
+        } catch(e) {}
+      }
+
+      function closeManagerDiagnosticsPanel() {
+        try {
+          var p = el("managerDiagnosticsPanel");
+          if (p) { p.classList.remove("open"); p.setAttribute("aria-hidden", "true"); }
+        } catch(e) {}
+      }
+
+      function toggleManagerDiagnosticsExpand() {
+        try {
+          var box = el("managerDiagnosticsLog");
+          if (box) box.classList.toggle("expanded");
+        } catch(e) {}
+      }
+
+      function formatManagerDiagnostics_(res) {
+        try {
+          if (!res) return "❌ Error\nNo diagnostics response.";
+          var lines = [];
+          if (Array.isArray(res.summaryLines) && res.summaryLines.length) {
+            lines = lines.concat(res.summaryLines);
+          } else {
+            lines.push((res.ok ? "✅ OK" : "❌ Error") + " Diagnostics completed" + (res.durationMs != null ? " in " + res.durationMs + " ms" : ""));
+          }
+
+          try {
+            var client = v5_collectManagerClientDiagnostics_();
+            lines.push("");
+            lines.push("Client UI:");
+            if (client.ui.file) lines.push("• UI file: " + client.ui.file);
+            if (client.ui.build) lines.push("• UI build: " + client.ui.build);
+            if (client.header.buildStamp) lines.push("• Header build: " + client.header.buildStamp);
+            lines.push("• Tools UI loaded: " + client.tools.toolsUiLoaded);
+            lines.push("• m5t_openScopes: " + client.tools.m5t_openScopes);
+            lines.push("• m5t_openRotation: " + client.tools.m5t_openRotation);
+            lines.push("• m5t_openPlanning: " + client.tools.m5t_openPlanning);
+            if (client.header.env) lines.push("• " + client.header.env);
+            if (client.header.version) lines.push("• " + client.header.version);
+            if (client.header.deploy) lines.push("• " + client.header.deploy);
+            if (client.header.notifications) lines.push("• " + client.header.notifications);
+            if (client.header.devWrites) lines.push("• " + client.header.devWrites);
+            lines.push("• Grid rows: " + client.grid.singleGridRows + " | log lines: " + client.grid.logAreaLines);
+            if (client.recentLogLines && client.recentLogLines.length) {
+              lines.push("");
+              lines.push("Recent UI log:");
+              client.recentLogLines.slice(0, 8).forEach(function(x){ lines.push("• " + x); });
+            }
+          } catch(eClient) {}
+
+          var timing = res.blocks && res.blocks.filter(function(b){ return b && b.name === "Action timings"; })[0];
+          if (timing && timing.details && Array.isArray(timing.details.actions) && timing.details.actions.length) {
+            lines.push("");
+            lines.push("Action timings:");
+            timing.details.actions.forEach(function(a){
+              lines.push("• " + a.action + " last " + a.lastMs + " ms | avg " + a.avgMs + " ms | count " + a.count);
+            });
+          }
+
+          if (res.warnings && res.warnings.length) {
+            lines.push("");
+            lines.push("Warnings:");
+            res.warnings.slice(0, 12).forEach(function(w){ lines.push("⚠ " + w); });
+          }
+
+          if (res.errors && res.errors.length) {
+            lines.push("");
+            lines.push("Errors:");
+            res.errors.slice(0, 12).forEach(function(e){ lines.push("❌ " + e); });
+          }
+
+          return lines.join("\n");
+        } catch(e) {
+          return "❌ Error\nCould not render diagnostics: " + (e && e.message ? e.message : e);
+        }
+      }
+
+      function runManagerDiagnostics() {
+        try {
+          var box = el("managerDiagnosticsLog");
+          var meta = el("managerDiagnosticsMeta");
+          var btn = el("btnManagerDiagnostics");
+          if (box) box.textContent = "Running diagnostics…";
+          if (meta) meta.textContent = "Running…";
+          if (btn) btn.disabled = true;
+
+          google.script.run
+            .withSuccessHandler(function(res){
+              if (btn) btn.disabled = false;
+              if (meta) meta.textContent = res && res.generatedAt ? ("Generated: " + res.generatedAt + " | " + (res.durationMs || 0) + " ms") : "Completed";
+              if (box) box.textContent = formatManagerDiagnostics_(res);
+            })
+            .withFailureHandler(function(err){
+              if (btn) btn.disabled = false;
+              if (meta) meta.textContent = "Failed";
+              if (box) box.textContent = "❌ Error\n" + ((err && err.message) ? err.message : String(err));
+            })
+            .Diagnostics_RunAll();
+        } catch(e) {
+          var box2 = el("managerDiagnosticsLog");
+          if (box2) box2.textContent = "❌ Error\n" + (e && e.message ? e.message : e);
+        }
+      }
+
+
+      function showToast(msg) {
+        var t = el("toast");
+        if (!t) return;
+        t.textContent = msg;
+        t.classList.add("visible");
+        setTimeout(function () { t.classList.remove("visible"); }, 2200);
+      }
+
+
+      function v5IsInvalidActionAudit_(audit) {
+        var id = String((audit && audit.auditId) || '').trim();
+        return !id || id.indexOf('ROW_') === 0;
+      }
+
+      function handleError(where, err) {
+        var message = "Error in " + where + ": " + (err && err.message ? err.message : JSON.stringify(err));
+        log(message);
+        showToast(message);
+      }
+
+      function runServer(fnNames, args, onOk, onFail) {
+        // Try a list of function names until one exists
+        var i = 0;
+        function tryNext() {
+          if (i >= fnNames.length) {
+            onFail({ message: "No server function found: " + fnNames.join(", ") });
+            return;
+          }
+          var fn = fnNames[i++];
+          try {
+            google.script.run
+              .withSuccessHandler(function (res) { onOk(res); })
+              .withFailureHandler(function (err) {
+                // If function not found, try next
+                var msg = (err && err.message) ? err.message : "";
+                if (msg.indexOf("is not a function") !== -1 || msg.indexOf("not found") !== -1) tryNext();
+                else onFail(err);
+              })[fn].apply(google.script.run, args || []);
+          } catch (e) {
+            tryNext();
+          }
+        }
+        tryNext();
+      }
+
+
+
+      function openCompanyMapPopup() {
+        var base = String(MANAGER_EXEC_BASE_PROD || '').trim();
+        if (!base) {
+          try {
+            var href = window.location.href || '';
+            base = href.split('?')[0].split('#')[0];
+          } catch(e) {}
+        }
+
+        var mgrEmail = String(v5_getAuthenticatedManagerEmail_() || '').trim();
+        try { if (!mgrEmail) mgrEmail = String(localStorage.getItem('V5_AUTH_email') || '').trim(); } catch(e) {}
+        var token = '';
+        var deviceId = '';
+        try { token = String(localStorage.getItem('V5_AUTH_token') || '').trim(); } catch(e) {}
+        try { deviceId = String(localStorage.getItem('V5_AUTH_deviceId') || '').trim(); } catch(e) {}
+
+        var url = v5_buildActionUrl_(base, 'companymap', {
+          role: 'Manager',
+          email: mgrEmail || '',
+          trustedToken: token || '',
+          deviceFingerprint: deviceId || ''
+        });
+
+        var w = 1540;
+        var h = 980;
+        var left = Math.max(0, Math.round((window.screenX || window.screenLeft || 0) + (((window.outerWidth || screen.width) - w) / 2)));
+        var top = Math.max(0, Math.round((window.screenY || window.screenTop || 0) + (((window.outerHeight || screen.height) - h) / 2)));
+        var features = [
+          'popup=yes','toolbar=no','location=yes','status=no','menubar=no','scrollbars=yes','resizable=yes',
+          'width=' + w,'height=' + h,'left=' + left,'top=' + top
+        ].join(',');
+
+        var child = null;
+        try { child = window.open(url, 'CompanyMapPopup', features); } catch(e) {}
+        if (!child) {
+          showToast('Company Map popup was blocked. Please allow popups for this site.');
+          return;
+        }
+        try { child.focus(); } catch(e) {}
+      }
+
+      function openCompaniesPopup() {
+        var base = String(MANAGER_EXEC_BASE_PROD || '').trim();
+        if (!base) {
+          try {
+            var href = window.location.href || '';
+            base = href.split('?')[0].split('#')[0];
+          } catch(e) {}
+        }
+
+        var mgrEmail = String(v5_getAuthenticatedManagerEmail_() || '').trim();
+        try {
+          if (!mgrEmail) mgrEmail = String(localStorage.getItem('V5_AUTH_email') || '').trim();
+        } catch(e) {}
+
+        var token = '';
+        var deviceId = '';
+        try { token = String(localStorage.getItem('V5_AUTH_token') || '').trim(); } catch(e) {}
+        try { deviceId = String(localStorage.getItem('V5_AUTH_deviceId') || '').trim(); } catch(e) {}
+
+        var url = v5_buildActionUrl_(base, 'companies', {
+          role: 'manager',
+          email: mgrEmail || '',
+          trustedToken: token || '',
+          deviceFingerprint: deviceId || ''
+        });
+
+        var w = 1540;
+        var h = 980;
+        var left = Math.max(0, Math.round((window.screenX || window.screenLeft || 0) + (((window.outerWidth || screen.width) - w) / 2)));
+        var top = Math.max(0, Math.round((window.screenY || window.screenTop || 0) + (((window.outerHeight || screen.height) - h) / 2)));
+        var features = [
+          'popup=yes','toolbar=no','location=yes','status=no','menubar=no','scrollbars=yes','resizable=yes',
+          'width=' + w,'height=' + h,'left=' + left,'top=' + top
+        ].join(',');
+
+        var child = null;
+        try { child = window.open(url, 'CompaniesPopup', features); } catch(e) {}
+        if (!child) {
+          showToast('Companies popup was blocked. Please allow popups for this site.');
+          return;
+        }
+        try { child.focus(); } catch(e) {}
+      }
+
+      function V5_loadOverviewCount(){
+        runServer(
+          ['V5_MGR_OVERVIEW_getDatasetForUi','V5_MGR_OVERVIEW_getDataset_'],
+          [],
+          function(res){
+            var elBadge = el('overviewBadge');
+            if (!elBadge) return;
+            var n = 0;
+            try {
+              n = Array.isArray(res && res.active) ? res.active.length : 0;
+            } catch(e) { n = 0; }
+            elBadge.textContent = String(n);
+            elBadge.style.display = '';
+          },
+          function(err){
+            log("overviewCount error: " + (err && err.message ? err.message : JSON.stringify(err)));
+          }
+        );
+      }
+
+      // ====================================================
+      // SECTION 08 — DASHBOARD SUMMARY
+      // ====================================================
+      // Dashboard summary
+      // ====================================================
+      function m5_setTextIfExists_(id, text) {
+        try {
+          var node = el(id);
+          if (node) node.textContent = String(text || '');
+        } catch(e) {}
+      }
+
+      function m5_setRuntimeDiagnosticsVisibility_(env) {
+        try {
+          var normalized = String(env || '').trim().toUpperCase();
+          var isDev = normalized === 'DEV';
+          var body = document.body;
+          if (!body) return;
+          body.classList.toggle('m5-dev-diagnostics', isDev);
+          body.classList.toggle('m5-prod-clean', normalized === 'PROD');
+          var logArea = el('logArea');
+          if (logArea) logArea.style.display = isDev ? 'block' : 'none';
+        } catch(e) {}
+      }
+
+      function m5_formatRuntimeFooter_(data) {
+        data = data || {};
+        var env = String(data.env || '').trim().toUpperCase();
+        var version = String(data.version || data.appVersion || '').trim();
+        var deploy = String(data.deployLabel || '').trim();
+        var notificationMode = String(data.notificationMode || '').trim();
+        var devWriteMode = String(data.devWriteMode || '').trim();
+
+        var parts = [];
+        if (env === 'DEV') {
+          parts.push('DEV');
+          if (version) parts.push(version);
+          if (deploy) parts.push(deploy);
+          if (notificationMode) parts.push('Notifications: ' + notificationMode);
+          if (devWriteMode) parts.push('Writes: ' + devWriteMode);
+          return parts.join(' · ');
+        }
+
+        if (env === 'PROD') {
+          parts.push('Production');
+          if (version) parts.push(version);
+          if (deploy) parts.push(deploy);
+          return parts.join(' · ');
+        }
+
+        if (env) parts.push(env);
+        if (version) parts.push(version);
+        if (deploy) parts.push(deploy);
+        return parts.length ? parts.join(' · ') : 'Runtime: unknown';
+      }
+
+      function loadDashboardSummary() {
+        runServer(
+          ['getManagerV5DashboardData', 'ManagerV5_GetDashboard'],
+          [],
+          function (data) {
+            if (!data || !data.counts) { log("Dashboard empty: " + JSON.stringify(data)); return; }
+            var c = data.counts;
+
+            el("sumTotal").textContent = (c.total != null ? c.total : "–");
+            el("sumPendingApprovals").textContent = (c.pendingApproval != null ? c.pendingApproval : "–");
+            el("sumPendingPlanning").textContent = (c.pendingPlanning != null ? c.pendingPlanning : "–");
+            el("sumLocationIssues").textContent = (data.locationIssues || []).length;
+
+            var __authMgr = v5_getAuthenticatedManagerEmail_();
+            var __u = String((data && data.user) ? data.user : '').trim().toLowerCase();
+            if (__authMgr) {
+              el("hdrManager").textContent = "Manager: " + __authMgr;
+            } else if (!__u || __u === 'unknown') {
+              el("hdrManager").textContent = "Manager: (verifying…)";
+            } else {
+              el("hdrManager").textContent = "Manager: " + (data.user);
+            }
+            if (data.version) {
+              m5_setTextIfExists_("hdrVersion", "Version: " + data.version);
+              m5_setTextIfExists_("footerVersion", "Version: " + data.version);
+            }
+            if (data.env) {
+              m5_setTextIfExists_("hdrEnv", "Env: " + data.env);
+              m5_setTextIfExists_("footerEnv", "Env: " + data.env);
+              m5_setRuntimeDiagnosticsVisibility_(data.env);
+            } else {
+              m5_setRuntimeDiagnosticsVisibility_('');
+            }
+            if (data.deployLabel) m5_setTextIfExists_("hdrDeploy", "Deploy: " + data.deployLabel);
+            if (data.notificationMode) m5_setTextIfExists_("hdrNotifications", "Notifications: " + data.notificationMode);
+            if (data.devWriteMode) m5_setTextIfExists_("hdrDevWrites", "DEV writes: " + data.devWriteMode);
+            m5_setTextIfExists_("footerRuntime", m5_formatRuntimeFooter_(data));
+
+            log({
+              env: data.env,
+              version: data.version,
+              deployLabel: data.deployLabel,
+              notificationMode: data.notificationMode,
+              devWriteMode: data.devWriteMode,
+              counts: data.counts
+            });
+          },
+          function (err) { handleError("dashboard", err); }
+        );
+      }
+
+      // ====================================================
+      // SECTION 09 — LEGACY PENDING PLANNING BUCKET SUPPORT
+      // ====================================================
+      // Pending Planning bucket
+      // ====================================================
+      function openPlanningToolkit(auditId) {
+        if (!auditId) { showToast("Missing auditId"); return; }
+        var href = window.location.href || "";
+        var base = (href.indexOf("/exec") !== -1 && href.indexOf("script.google.com") !== -1)
+          ? href.split("?")[0].split("#")[0]
+          : MANAGER_EXEC_BASE_PROD;
+
+        var mgrEmail = String(v5_getAuthenticatedManagerEmail_() || MANAGER_EMAIL_FALLBACK || '').trim();
+        if (!mgrEmail) {
+          try { mgrEmail = String(localStorage.getItem('V5_AUTH_email') || '').trim(); } catch(e) {}
+        }
+
+        var url = v5_buildActionUrl_(base, 'planningtoolkit', {
+          auditId: auditId,
+          role: 'manager',
+          email: mgrEmail || '',
+          managerEmail: mgrEmail || ''
+        });
+
+        var w = 1460;
+        var h = 980;
+        var left = Math.max(0, Math.round((window.screenX || window.screenLeft || 0) + (((window.outerWidth || screen.width) - w) / 2)));
+        var top = Math.max(0, Math.round((window.screenY || window.screenTop || 0) + (((window.outerHeight || screen.height) - h) / 2)));
+        var features = [
+          'popup=yes','toolbar=no','location=yes','status=no','menubar=no','scrollbars=yes','resizable=yes',
+          'width=' + w,'height=' + h,'left=' + left,'top=' + top
+        ].join(',');
+
+        var child = null;
+        try { child = window.open(url, 'V5PlanningToolkit', features); } catch(e) {}
+        if (!child) {
+          showToast('Planning toolkit popup was blocked. Please allow popups for this site.');
+          return;
+        }
+        try { child.focus(); } catch(e) {}
+      }
+      function renderPlanningBucket(result) {
+        // UI-only filtering uses _pp_rawAudits as source; avoid re-seeding during internal rerenders.
+        var tbody = el("tblPlanningBody");
+        var empty = el("emptyPlanning");
+        tbody.innerHTML = "";
+
+        var audits = (result && (result.planning || result.audits)) || [];
+        try {
+          if (result && !result.__ppInternal) {
+            _pp_rawAudits = audits.slice ? audits.slice() : audits;
+            _pp_wireUIOnce_();
+            _pp_refreshFilterOptions_();
+            audits = _pp_applyFiltersAndSort_(_pp_rawAudits);
+          }
+        } catch(e) {}
+        el("cntPlanning").textContent = audits.length;
+
+        if (!audits.length) {
+          empty.style.display = "block";
+          empty.textContent = "No audits in Pending Planning.";
+          return;
+        }
+        empty.style.display = "none";
+
+        audits.forEach(function (a) {
+          var tr = document.createElement("tr");
+
+          function td(val, cls) {
+            var cell = document.createElement("td");
+            if (cls) cell.className = cls;
+            if (val && typeof val === 'object' && val.nodeType === 1) {
+              cell.appendChild(val);
+            } else {
+              cell.textContent = val;
+            }
+            return cell;
+          }
+
+          tr.appendChild(td(a.company || "-", "col-company"));
+          tr.appendChild(td(v5_renderLocs_(a), "col-location"));
+          tr.appendChild(td(v5_renderRegion_(a), "col-region"));
+          tr.appendChild(v5_makeGpsTd_(a));
+          tr.appendChild(v5_makeScopesTd_(a));
+
+          var st = document.createElement("td");
+          st.className = "col-status";
+          var badge = document.createElement("span");
+          badge.className = "badge-status pending-planning";
+          badge.textContent = a.status || "Pending Planning";
+          st.appendChild(badge);
+          tr.appendChild(st);
+
+          tr.appendChild(td(mkExpiryCell(a), "col-expiry"));
+          tr.appendChild(v5_makePlanningWindowTd_(a));
+          tr.appendChild(td(v5_fmtHours_(a.requiredHours), "col-hours"));
+          tr.appendChild(td((String(a.preassignedAuditor||"").trim()||"-"), "col-preassigned"));
+          tr.appendChild(td((String(a.allowSelfPlanning||"").trim()||"-"), "col-selfplan"));
+          tr.appendChild(td(a.auditor || "-", "col-assigned"));
+
+          var act = document.createElement("td");
+          act.className = "col-actions";
+          var btn = document.createElement("button");
+          btn.className = "btn btn-primary";
+          btn.textContent = "Plan";
+          btn.onclick = function () { openPlanningToolkit(a.auditId); };
+          act.appendChild(btn);
+          tr.appendChild(act);
+
+          tbody.appendChild(tr);
+        });
+      }
+
+      function loadPlanningBucket() {
+        runServer(
+          ['getManagerPlanningV5Audits', 'getManagerPendingPlanning'],
+          [],
+          function (result) { try{ if(result) result.__ppInternal = false; }catch(e){} renderPlanningBucket(result); },
+          function (err) { handleError("pendingPlanning", err); }
+        );
+      }
+
+      // ====================================================
+      // SECTION 10 — LEGACY PENDING APPROVAL BUCKET SUPPORT
+      // ====================================================
+      // Pending Approvals bucket
+      // ====================================================
+      async function callManagerAction(action, audit, btnEl) {
+        function actionPastLabel_(a){
+          a = String(a || '').toLowerCase();
+          if (a === 'approve') return 'Approved';
+          if (a === 'deny') return 'Denied';
+          if (a === 'cancel') return 'Cancelled';
+          if (a === 'reject') return 'Rejected';
+          return 'Saved';
+        }
+        function actionBusyLabel_(a){
+          a = String(a || '').toLowerCase();
+          if (a === 'approve') return 'Approving…';
+          if (a === 'deny') return 'Denying…';
+          if (a === 'cancel') return 'Cancelling…';
+          if (a === 'reject') return 'Rejecting…';
+          return 'Working…';
+        }
+        function actionRestoreLabel_(a){
+          a = String(a || '').toLowerCase();
+          if (a === 'approve') return 'Approve';
+          if (a === 'deny') return 'Deny';
+          if (a === 'cancel') return 'Cancel';
+          if (a === 'reject') return 'Reject';
+          return 'Action';
+        }
+        function setActionBtn_(state){
+          try {
+            if (!btnEl) return;
+            if (state === 'busy') {
+              btnEl.disabled = true;
+              btnEl.dataset.v5PrevText = btnEl.dataset.v5PrevText || btnEl.textContent || actionRestoreLabel_(action);
+              if (window.V5Actions && V5Actions.setBusy) V5Actions.setBusy(btnEl, String(action || '').toLowerCase(), true);
+              else btnEl.textContent = actionBusyLabel_(action);
+              return;
+            }
+            if (state === 'success') {
+              btnEl.disabled = true;
+              btnEl.textContent = actionPastLabel_(action);
+              return;
+            }
+            btnEl.disabled = false;
+            if (window.V5Actions && V5Actions.setBusy) V5Actions.setBusy(btnEl, String(action || '').toLowerCase(), false, actionRestoreLabel_(action));
+            else btnEl.textContent = btnEl.dataset.v5PrevText || actionRestoreLabel_(action);
+          } catch(e) {}
+        }
+        if (v5IsInvalidActionAudit_(audit)) { showToast("Invalid audit record. Action blocked."); return; }
+
+        var options = { rowIndex: audit.rowIndex, managerEmail: v5_getAuthenticatedManagerEmail_() || MANAGER_EMAIL_FALLBACK || '' };
+
+        // Comment mandatory for Reject / Deny / Cancel
+        var actionLc = String(action || '').toLowerCase();
+        if (['reject','deny','cancel'].indexOf(actionLc) !== -1) {
+          if (!window.UiDialogs) {
+            showToast('UiDialogs is not available.');
+            return;
+          }
+
+          var dialogCfg = {
+            reject: {
+              title: 'Reject audit',
+              message: 'A comment is required for Reject.',
+              confirmLabel: 'Reject'
+            },
+            deny: {
+              title: 'Deny audit',
+              message: 'A comment is required for Deny.',
+              confirmLabel: 'Deny'
+            },
+            cancel: {
+              title: 'Cancel audit',
+              message: 'A comment is required for Cancel.',
+              confirmLabel: 'Cancel'
+            }
+          };
+
+          var cfg = dialogCfg[actionLc] || {
+            title: 'Manager action',
+            message: 'A comment is required for this action.',
+            confirmLabel: 'Save'
+          };
+
+          var reasonRes = await window.UiDialogs.reasonRequired({
+            title: cfg.title,
+            message: cfg.message,
+            inputLabel: 'Comment',
+            inputPlaceholder: 'Type the comment…',
+            confirmLabel: cfg.confirmLabel,
+            cancelLabel: 'Back'
+          });
+
+          if (!reasonRes || !reasonRes.ok) {
+            log(cfg.title + " cancelled by user for " + audit.auditId);
+            return;
+          }
+
+          options.reason = String(reasonRes.value || '').trim();
+          if (!options.reason) {
+            showToast('Comment is required.');
+            return;
+          }
+        }
+
+        setActionBtn_('busy');
+
+        runServer(
+          ['managerV5Action', 'ManagerV5_Action'],
+          // Keep existing call shape to avoid breaking fallback behavior
+          (action === 'ManagerV5_Action')
+            ? [action, audit.auditId, options]
+            : [audit.auditId, action, options],
+          function (res) {
+            try { v5_logPerf_("ACTION " + action + " " + audit.auditId, res && res.perf); } catch(e) {}
+            log(res);
+            if (!res || res.success === false) {
+              setActionBtn_('idle');
+              handleError("action:" + action, res || { message: "Unknown action error" });
+              return;
+            }
+            setActionBtn_('success');
+            showToast("Action saved (" + (res.newStatus || "") + ")");
+            try { m5_startTurboPoll_(); } catch(e) {}
+            try {
+              m5_singleGridMicroRefreshAfterAction_(action, audit, res);
+            } catch(e1) {
+              try { v5_microRefreshAfterAction_(action, audit, res); } catch(e2) { refreshAll("action:" + action); }
+            }
+          },
+          function (err) {
+            setActionBtn_('idle');
+            handleError("action:" + action, err);
+          }
+        );
+      }
+
+      
+      function mkExpiryCell(a){
+        a = a || {};
+        var wrap = document.createElement("div");
+        wrap.style.display = "flex";
+        wrap.style.alignItems = "center";
+        wrap.style.gap = "4px";
+
+        function pick_(){
+          for (var i = 0; i < arguments.length; i++) {
+            var v = arguments[i];
+            if (v !== null && v !== undefined && String(v).trim() !== '') return v;
+          }
+          return '';
+        }
+        function truthy_(v){
+          var s = String(v || '').trim().toLowerCase();
+          return v === true || s === 'yes' || s === 'true' || s === '1';
+        }
+
+        var expiry = pick_(a.expiryZ, a.extendedExpiryDate, a.extendedExpirationDate, a.expirationDate, a.expiryY, a.willExpireDate);
+        var txt = document.createElement("div");
+        txt.textContent = expiry || "-";
+        wrap.appendChild(txt);
+
+        var months = Number(pick_(a.extMonths, a.extensionMonths, a.extension, 0));
+        if (!isFinite(months)) months = 0;
+        var applied = truthy_(pick_(a.extApplied, a.extensionApplied, false));
+        var canExtend = (typeof a.canExtend === 'undefined') ? (months > 0) : truthy_(a.canExtend);
+        var status = (typeof m5_normStatus_ === 'function' ? m5_normStatus_(a && a.status) : String((a && a.status) || '').trim());
+        var isPendingPlanning = status === 'Pending Planning';
+
+        if (!isPendingPlanning) {
+          if (applied && months > 0) {
+            var bRO = document.createElement("span");
+            bRO.className = "badge-ext";
+            bRO.textContent = "EXT +" + months + "m";
+            wrap.appendChild(bRO);
+          }
+          return wrap;
+        }
+
+        if (applied) {
+          var undo = mkBtn("Undo", "btn-ghost", function(){
+            if (!v5_beginExtClick_(a.auditId, undo, "Undoing…")) return;
+            google.script.run
+              .withSuccessHandler(function(res){
+                if (!res || res.success === false) {
+                  v5_endExtClick_(a.auditId, undo, true);
+                  handleError("undoExtension", res || {message:'Undo extension failed'});
+                  return;
+                }
+                v5_endExtClick_(a.auditId, undo, false);
+                try{ v5_logPerf_("EXT undo " + a.auditId, res && res.perf); }catch(e){}
+                try{ v5_microRefreshAfterExtension_(a.auditId, res, true); }catch(e){ try{ m5_invalidateSingleGridCache_(); loadManagerSingleGrid(true); }catch(_e){} }
+              })
+              .withFailureHandler(function(err){
+                v5_endExtClick_(a.auditId, undo, true);
+                handleError("undoExtension", err);
+              })
+              .v5_undoExtension(a.auditId);
+          });
+          undo.classList.add("btn-xs");
+          wrap.appendChild(undo);
+
+          if (months > 0) {
+            var b = document.createElement("span");
+            b.className = "badge-ext";
+            b.textContent = "EXT +" + months + "m";
+            wrap.appendChild(b);
+          }
+        } else if (months > 0 && canExtend) {
+          var ap = mkBtn("+" + months + " mo", "btn-ghost", function(){
+            if (!v5_beginExtClick_(a.auditId, ap, "Applying…")) return;
+            google.script.run
+              .withSuccessHandler(function(res){
+                if (!res || res.success === false) {
+                  v5_endExtClick_(a.auditId, ap, true);
+                  handleError("applyExtension", res || {message:'Apply extension failed'});
+                  return;
+                }
+                v5_endExtClick_(a.auditId, ap, false);
+                try{ v5_logPerf_("EXT apply " + a.auditId, res && res.perf); }catch(e){}
+                try{ v5_microRefreshAfterExtension_(a.auditId, res, false); }catch(e){ try{ m5_invalidateSingleGridCache_(); loadManagerSingleGrid(true); }catch(_e){} }
+              })
+              .withFailureHandler(function(err){
+                v5_endExtClick_(a.auditId, ap, true);
+                handleError("applyExtension", err);
+              })
+              .v5_applyExtension(a.auditId);
+          });
+          ap.classList.add("btn-xs");
+          wrap.appendChild(ap);
+        }
+        return wrap;
+      }
+
+      // Extension click-guard: prevents double apply/undo while server is busy.
+      // Pure UI safety: no business-logic changes.
+      window.__v5ExtInFlight = window.__v5ExtInFlight || {};
+      function v5_beginExtClick_(auditId, btnEl, busyLabel){
+        auditId = String(auditId||"");
+        if (!auditId) return false;
+        if (window.__v5ExtInFlight[auditId]) return false;
+        window.__v5ExtInFlight[auditId] = true;
+        try{
+          if (btnEl){
+            btnEl.disabled = true;
+            btnEl.dataset.v5PrevText = btnEl.textContent;
+            btnEl.textContent = busyLabel || "Working…";
+            btnEl.classList.add("btn-disabled");
+          }
+        }catch(e){}
+        return true;
+      }
+      function v5_endExtClick_(auditId, btnEl, restore){
+        auditId = String(auditId||"");
+        if (auditId) delete window.__v5ExtInFlight[auditId];
+        try{
+          if (btnEl){
+            btnEl.disabled = false;
+            btnEl.classList.remove("btn-disabled");
+            if (restore && btnEl.dataset && btnEl.dataset.v5PrevText != null){
+              btnEl.textContent = btnEl.dataset.v5PrevText;
+            }
+          }
+        }catch(e){}
+      }
+      function v5_snoozeRefresh_(ms){
+        try{
+          ms = Number(ms||0);
+          if (!isFinite(ms) || ms<=0) return;
+          window.__v5RefreshSnoozeUntil = Date.now() + ms;
+        }catch(e){}
+      }
+
+      function v5_renderExtApplyBtn_(wrap, auditId, months){
+        try{
+          wrap.innerHTML = "";
+          var ap = mkBtn("+"+months+" mo", "btn-secondary", function(){
+            if (!v5_beginExtClick_(auditId, ap, "Applying…")) { return; }
+            v5_snoozeRefresh_(12000);
+            google.script.run
+              .withSuccessHandler(function(res){
+                v5_endExtClick_(auditId, ap, false);
+                try{ v5_logPerf_("EXT apply " + auditId, res && res.perf); }catch(e){}
+                // Immediately swap button to Undo to avoid waiting for refresh cycles.
+                v5_renderExtUndoBtn_(wrap, auditId, months);
+              })
+              .withFailureHandler(function(err){
+                v5_endExtClick_(auditId, ap, true);
+                log("Apply extension failed: "+(err&&err.message?err.message:err));
+              })
+              .v5_applyExtension(auditId);
+          });
+          ap.classList.add("btn-xs");
+          wrap.appendChild(ap);
+        }catch(e){}
+      }
+
+      function v5_renderExtUndoBtn_(wrap, auditId, months){
+        try{
+          wrap.innerHTML = "";
+          var undo = mkBtn("Undo", "btn-warning", function(){
+            if (!v5_beginExtClick_(auditId, undo, "Undoing…")) { return; }
+            v5_snoozeRefresh_(12000);
+            google.script.run
+              .withSuccessHandler(function(res){
+                v5_endExtClick_(auditId, undo, false);
+                try{ v5_logPerf_("EXT undo " + auditId, res && res.perf); }catch(e){}
+                // Immediately swap button back to Apply so user sees it without waiting for refresh.
+                v5_renderExtApplyBtn_(wrap, auditId, months);
+              })
+              .withFailureHandler(function(err){
+                v5_endExtClick_(auditId, undo, true);
+                log("Undo extension failed: "+(err&&err.message?err.message:err));
+              })
+              .v5_undoExtension(auditId);
+          });
+          undo.classList.add("btn-xs");
+          wrap.appendChild(undo);
+        }catch(e){}
+      }
+
+
+function mkBtn(text, cls, onClick) {
+        var b = document.createElement("button");
+        b.className = "btn " + cls;
+        b.textContent = text;
+        b.onclick = onClick;
+        return b;
+      }
+
+      // ====================================================
+      // Pending Approval — UI-only sorting (SAFE)
+      // ====================================================
+      var _pa_rawApprovals = [];
+      var _pa_state = { userSort: null };
+
+      function _pa_getPlannedFirstISO_(a){
+        try {
+          if (a && a.datePlanned) return String(a.datePlanned);
+          var pd = (a && (a.plannedDates || (a.planningSummary && a.planningSummary.dates))) || [];
+          if (Array.isArray(pd) && pd.length) return String(pd[0] || "");
+          if (a && a.planningSummary && a.planningSummary.firstDate) return String(a.planningSummary.firstDate);
+        } catch(e) {}
+        return "";
+      }
+
+      function _pa_derive_(a, idx){
+        a = a || {};
+        var scopesText = (a.scopesText || (Array.isArray(a.scopes) ? a.scopes.join(", ") : (a.scopes || "")) || "");
+        return {
+          __i: idx,
+          company: a.company || "",
+          location: v5_renderLocs_(a),
+          region: v5_renderRegion_(a),
+          gps: String((a.gpsData || a.gps || a.GPS || a["GPS-data"] || "") || ""),
+          scopesText: scopesText,
+          status: (a.status || ""),
+          expiryZ: _pp_pickExpiryISO_(a),
+          plannedFirst: _pa_getPlannedFirstISO_(a),
+          requiredHours: (a.requiredHours != null ? Number(a.requiredHours) : 0),
+          hoursPlanned: (a.hoursPlanned != null ? Number(a.hoursPlanned) : 0),
+          auditor: (a.auditor || "")
+        };
+      }
+
+      function _pa_applySort_(rows){
+        var out = [];
+        for (var i = 0; i < (rows || []).length; i++) out.push({ a: rows[i], d: _pa_derive_(rows[i], i) });
+
+        function cmpStr_(x,y){ return String(x||"").localeCompare(String(y||""), undefined, { sensitivity:"base" }); }
+        function cmpISO_(x,y){
+          var ax = String(x||"").trim();
+          var by = String(y||"").trim();
+          if (!ax) ax = "9999-12-31";
+          if (!by) by = "9999-12-31";
+          return ax.localeCompare(by);
+        }
+        function cmpNum_(x,y){
+          var a = Number(x||0), b = Number(y||0);
+          if (!isFinite(a)) a = 0;
+          if (!isFinite(b)) b = 0;
+          return a - b;
+        }
+
+        var s = _pa_state.userSort;
+        out.sort(function(p,q){
+          var A = p.d, B = q.d;
+          if (s && s.key) {
+            var k = s.key;
+            var dir = (s.dir === "desc") ? -1 : 1;
+            var c = 0;
+            if (k === "company") c = cmpStr_(A.company, B.company);
+            else if (k === "location") c = cmpStr_(A.location, B.location);
+            else if (k === "region") c = cmpStr_(A.region, B.region);
+            else if (k === "gps") c = cmpStr_(A.gps, B.gps);
+            else if (k === "scopesText") c = cmpStr_(A.scopesText, B.scopesText);
+            else if (k === "status") c = cmpStr_(A.status, B.status);
+            else if (k === "expiryZ") c = cmpISO_(A.expiryZ, B.expiryZ);
+            else if (k === "plannedFirst") c = cmpISO_(A.plannedFirst, B.plannedFirst);
+            else if (k === "requiredHours") c = cmpNum_(A.requiredHours, B.requiredHours);
+            else if (k === "hoursPlanned") c = cmpNum_(A.hoursPlanned, B.hoursPlanned);
+            else if (k === "auditor") c = cmpStr_(A.auditor, B.auditor);
+            if (c !== 0) return c * dir;
+            return A.__i - B.__i;
+          }
+          // Default sort: planned date ASC, then company ASC
+          var c1 = cmpISO_(A.plannedFirst, B.plannedFirst);
+          if (c1 !== 0) return c1;
+          var c2 = cmpStr_(A.company, B.company);
+          if (c2 !== 0) return c2;
+          return A.__i - B.__i;
+        });
+
+        return out.map(function(x){ return x.a; });
+      }
+
+      function _pa_wireUIOnce_(){
+        var bucket = el("bucketApprovals");
+        if (!bucket || bucket.__wiredSort) return;
+        bucket.__wiredSort = true;
+        var ths = document.querySelectorAll("#bucketApprovals thead th[data-pasort]");
+        for (var i = 0; i < ths.length; i++){
+          (function(th){
+            th.addEventListener("click", function(){
+              var key = th.getAttribute("data-pasort");
+              if (!key) return;
+              var cur = _pa_state.userSort;
+              var dir = "asc";
+              if (cur && cur.key === key) dir = (cur.dir === "asc" ? "desc" : "asc");
+              _pa_state.userSort = { key: key, dir: dir };
+              try { renderApprovalsBucket({ approvals: _pa_applySort_(_pa_rawApprovals), __paInternal: true }); } catch(e) {}
+            });
+          })(ths[i]);
+        }
+      }
+
+      function renderApprovalsBucket(result) {
+        var tbody = el("tblApprovalsBody");
+        var empty = el("emptyApprovals");
+        tbody.innerHTML = "";
+
+        var approvals = (result && result.approvals) || [];
+        try {
+          if (result && !result.__paInternal) {
+            _pa_rawApprovals = approvals.slice ? approvals.slice() : approvals;
+            _pa_wireUIOnce_();
+            approvals = _pa_applySort_(_pa_rawApprovals);
+          }
+        } catch(e) {}
+        el("cntApprovals").textContent = approvals.length;
+
+        if (!approvals.length) {
+          empty.style.display = "block";
+          empty.textContent = "No audits in Pending Approval.";
+          return;
+        }
+        empty.style.display = "none";
+
+        approvals.forEach(function (a) {
+          var tr = document.createElement("tr");
+
+          function td(text, cls) {
+            var cell = document.createElement("td");
+            if (cls) cell.className = cls;
+            cell.textContent = text;
+            return cell;
+          }
+
+          tr.appendChild(td(a.company || "-", "col-company"));
+          tr.appendChild(td(v5_renderLocs_(a), "col-location"));
+          tr.appendChild(td(v5_renderRegion_(a), "col-region"));
+          tr.appendChild(v5_makeGpsTd_(a));
+
+          // Scopes (read-only; matches Pending Planning width)
+          tr.appendChild(v5_makeScopesTd_(a));
+
+
+          var st = document.createElement("td");
+          st.className = "col-status";
+          var badge = document.createElement("span");
+          badge.className = "badge-status pending-approval";
+          badge.textContent = a.status || "Pending Approval";
+          st.appendChild(badge);
+          tr.appendChild(st);
+
+          tr.appendChild(td(a.expiryZ || "-", "col-date"));
+          tr.appendChild(v5_makePlannedDaysTd_(a));
+          tr.appendChild(td(v5_fmtHours_(a.requiredHours), "col-hours"));
+          tr.appendChild(td(v5_fmtHours_(a.hoursPlanned), "col-hours"));
+          tr.appendChild(td(a.auditor || "-", "col-assigned"));
+
+          var actTd = document.createElement("td");
+          actTd.className = "col-actions";
+
+          var approveBtn = mkBtn("Approve", "btn-approve", function () { callManagerAction("approve", a); });
+          actTd.appendChild(approveBtn);
+
+          var denyBtn = mkBtn("Deny", "btn-deny", function () { callManagerAction("deny", a); });
+          actTd.appendChild(denyBtn);
+
+          var cancelBtn = mkBtn("Cancel", "btn-ghost", function () { callManagerAction("cancel", a); });
+          actTd.appendChild(cancelBtn);
+
+          var rejectBtn = mkBtn("Reject", "btn-reject", function () { callManagerAction("reject", a); });
+          actTd.appendChild(rejectBtn);
+
+          tr.appendChild(actTd);
+          tbody.appendChild(tr);
+        });
+      }
+
+      function loadApprovalsBucket() {
+        runServer(
+          ['getManagerV5PendingApprovals', 'getManagerPendingApprovals'],
+          [],
+          function (result) { renderApprovalsBucket(result); },
+          function (err) { handleError("pendingApprovals", err); }
+        );
+      }
+
+      
+      // ====================================================
+      // SECTION 11 — MICRO-REFRESH / EXTENSION UI SYNC
+      // ====================================================
+      // Micro-refresh (no full reload) for actions & extensions
+      // ====================================================
+      function _v5_parseInt_(x){
+        var n = parseInt(String(x||"").replace(/[^0-9\-]/g,""),10);
+        return isFinite(n) ? n : null;
+      }
+
+      function _v5_setCount_(id, val){
+        try{ var e = el(id); if(!e) return; e.textContent = String(val); }catch(e){}
+      }
+
+      function _v5_adjustCounts_(dPendingApproval, dPendingPlanning){
+        // Best-effort UI counters only; will be corrected by periodic refresh.
+        var pa = _v5_parseInt_(el("sumPendingApprovals") && el("sumPendingApprovals").textContent);
+        var pp = _v5_parseInt_(el("sumPendingPlanning") && el("sumPendingPlanning").textContent);
+        if (pa != null && dPendingApproval) _v5_setCount_("sumPendingApprovals", pa + dPendingApproval);
+        if (pp != null && dPendingPlanning) _v5_setCount_("sumPendingPlanning", pp + dPendingPlanning);
+      }
+
+      function _v5_removeByAuditId_(arr, auditId){
+        if (!arr || !arr.length) return null;
+        for (var i=0;i<arr.length;i++){
+          if (String(arr[i].auditId||"") === String(auditId||"")) {
+            return arr.splice(i,1)[0];
+          }
+        }
+        return null;
+      }
+
+      function _v5_findByAuditId_(arr, auditId){
+        if (!arr || !arr.length) return null;
+        for (var i=0;i<arr.length;i++){
+          if (String(arr[i].auditId||"") === String(auditId||"")) return arr[i];
+        }
+        return null;
+      }
+
+      function _v5_rerenderApprovals_(){
+        try{ renderApprovalsBucket({__paInternal:true, approvals:_pa_rawApprovals}); }catch(e){ loadApprovalsBucket(); }
+      }
+
+      function _v5_rerenderPlanning_(){
+        try{ renderPlanningBucket({__ppInternal:true, planning:_pp_rawAudits}); }catch(e){ loadPlanningBucket(); }
+      }
+
+      function v5_microRefreshAfterAction_(action, audit, res){
+        action = String(action||"").toLowerCase();
+        var auditId = audit && audit.auditId;
+        var newStatus = (res && res.newStatus) ? String(res.newStatus) : "";
+
+        // Remove from where it currently is (based on current UI bucket)
+        var removedFromApprovals = _v5_removeByAuditId_(_pa_rawApprovals, auditId);
+        var removedFromPlanning  = _v5_removeByAuditId_(_pp_rawAudits, auditId);
+
+        // Decide target bucket
+        if (newStatus === "Pending Planning") {
+          // Move into Pending Planning bucket
+          var row = removedFromApprovals || removedFromPlanning || audit;
+          if (row) {
+            row.status = "Pending Planning";
+
+            // Cleanup fields that must be cleared after Deny/Cancel in UI,
+            // but KEEP the planning window context visible.
+            row.auditor = "";
+            row.assignedTo = "";
+            row.assignedToEmail = "";
+            // T20 CANCEL/DENY MICRO-REFRESH FIX: do not render a temporary red 0.00.
+            row.hoursPlanned = '';
+            row.plannedHours = '';
+            row.hoursPlannedDisplay = '-';
+            row.planningSummary = null;
+            row.plannedDates = [];
+            row.datePlanned = "";
+
+            _pp_rawAudits.unshift(row);
+
+            // Rows coming from Pending Approval usually do not contain planningWindowText.
+            // Fetch it explicitly so the Pending Planning grid keeps the correct window visible.
+            if (!row.planningWindowText && row.auditId) {
+              runServer(
+                ['v5_getPlanningWindowTextForAuditId_'],
+                [row.auditId],
+                function(pwText){
+                  try {
+                    for (var i = 0; i < (_pp_rawAudits || []).length; i++) {
+                      if (String((_pp_rawAudits[i] && _pp_rawAudits[i].auditId) || '') === String(row.auditId)) {
+                        _pp_rawAudits[i].planningWindowText = String(pwText || '').trim() || '-';
+                        break;
+                      }
+                    }
+                    _v5_rerenderPlanning_();
+                  } catch(e) {}
+                },
+                function(err){
+                  try { log("Planning window fetch failed for " + row.auditId + ": " + (err && err.message ? err.message : err)); } catch(e) {}
+                }
+              );
+            }
+          }
+          _v5_adjustCounts_(-1, +1);
+        } else if (newStatus === "Pending Approval") {
+          // Rare: if action ever moves back to PA
+          var row2 = removedFromApprovals || removedFromPlanning || audit;
+          if (row2) {
+            row2.status = "Pending Approval";
+            _pa_rawApprovals.unshift(row2);
+          }
+          _v5_adjustCounts_(+1, -1);
+        } else {
+          // Approved / Rejected / etc: it leaves both buckets
+          if (removedFromApprovals) _v5_adjustCounts_(-1, 0);
+          if (removedFromPlanning)  _v5_adjustCounts_(0, -1);
+        }
+
+        // Rerender only affected buckets
+        if (removedFromApprovals || newStatus === "Pending Approval") _v5_rerenderApprovals_();
+        if (removedFromPlanning  || newStatus === "Pending Planning") _v5_rerenderPlanning_();
+
+        // Update bucket counters
+        try{ el("cntApprovals").textContent = String((_pa_rawApprovals||[]).length); }catch(e){}
+        try{ el("cntPlanning").textContent  = String((_pp_rawAudits||[]).length); }catch(e){}
+
+        // Background correction (optional): do nothing; periodic refresh will sync.
+      }
+
+      function v5_microRefreshAfterExtension_(auditId, res, isUndo){
+        auditId = String(auditId || '').trim();
+        if (!auditId) return;
+
+        function applyToRow_(row){
+          if (!row || !res || res.success === false) return;
+          var applied = (typeof res.applied !== 'undefined') ? !!res.applied : !isUndo;
+          var months = Number(res.months || row.extMonths || row.extensionMonths || 0) || 0;
+          var z = String(res.z || res.expiryZ || res.extendedExpiryDate || res.y || row.expiryZ || '').trim();
+          var y = String(res.y || res.expiryY || res.willExpireDate || row.expiryY || '').trim();
+          var pwText = String(res.planningWindowText || '').trim();
+          if (!pwText && (res.planningWindowFrom || res.planningWindowTo)) {
+            pwText = String(res.planningWindowFrom || '') + ' → ' + String(res.planningWindowTo || '');
+          }
+          row.extApplied = applied;
+          row.extensionApplied = applied;
+          row.extMonths = months;
+          row.extensionMonths = months;
+          row.canExtend = !applied && months > 0 && (typeof m5_normStatus_ === 'function' ? m5_normStatus_(row.status) : String(row.status || '').trim()) === 'Pending Planning';
+          if (y) row.expiryY = y;
+          if (z) {
+            row.expiryZ = z;
+            row.extendedExpiryDate = z;
+            row.extendedExpirationDate = z;
+          }
+          if (pwText) {
+            row.planningWindowText = pwText;
+            row.planningWindow = pwText;
+          }
+          if (res.planningWindowState) row.planningWindowState = res.planningWindowState;
+        }
+
+        var rowSingle = m5_getRowByAuditId_(auditId);
+        var rowPp = _v5_findByAuditId_(_pp_rawAudits, auditId);
+        applyToRow_(rowSingle);
+        if (rowPp && rowPp !== rowSingle) applyToRow_(rowPp);
+
+        try { MANAGER_SINGLE_CACHE.open = (MANAGER_SINGLE_RAW_ROWS || []).slice(); } catch(e) {}
+        try { m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS || []); } catch(e) {}
+        try { _v5_rerenderPlanning_(); } catch(e) {}
+      }
+// ====================================================
+      // SECTION 12 — REFRESH STRATEGY / POLLING
+      // ====================================================
+      // Refresh strategy
+      // ====================================================
+      function refreshAll_LEGACY_DISABLED(reason, force) {
+        // Snooze refreshes during slow extension writes to avoid UI shuffle/jump.
+        try{
+          if (!force && window.__v5RefreshSnoozeUntil && Date.now() < window.__v5RefreshSnoozeUntil) {
+            log("RefreshAll snoozed (" + (reason||"") + ")");
+            return;
+          }
+        }catch(e){}
+        log("RefreshAll LEGACY DISABLED → " + (reason || ""));
+        return;
+      }
+
+      function m5_singleGridMicroRefreshAfterPlanningSave_(data) {
+        data = data || {};
+        var auditId = String(data.auditId || '').trim();
+        if (!auditId) return false;
+
+        var row = m5_getRowByAuditId_(auditId);
+        if (!row) return false;
+
+        var actorRole = String(data.actorRole || '').trim().toUpperCase();
+        var newStatus = String(data.newStatus || '').trim();
+        if (!newStatus) {
+          newStatus = (actorRole === 'MANAGER') ? 'Approved' : 'Pending Approval';
+        }
+        var blocks = Array.isArray(data.blocks) ? data.blocks.filter(function(x){ return x && String(x.date || '').trim(); }) : [];
+        var plannedDates = Array.isArray(data.plannedDates) ? data.plannedDates.filter(function(x){ return !!String(x || '').trim(); }) : [];
+        if (!plannedDates.length && blocks.length) {
+          plannedDates = blocks.map(function(b){ return String(b.date || '').trim(); }).filter(function(x){ return !!x; });
+        }
+        var firstDate = plannedDates.length ? plannedDates[0] : (blocks.length ? String(blocks[0].date || '').trim() : '');
+        var plannedTooltip = blocks.length
+          ? blocks.map(function(b){
+              var d = String(b.date || '').trim();
+              var f = String(b.start || b.from || '').trim();
+              var t = String(b.end || b.to || '').trim();
+              return d + ((f || t) ? ('  ' + (f || '–') + '–' + (t || '–')) : '');
+            }).join('\n')
+          : (plannedDates.length > 1 ? plannedDates.join('\n') : (firstDate || ''));
+
+        row.status = newStatus;
+        row.datePlanned = firstDate || row.datePlanned || '';
+        if (typeof data.planningWindowText !== 'undefined' && String(data.planningWindowText || '').trim()) {
+          row.planningWindowText = String(data.planningWindowText || '').trim();
+        } else {
+          row.planningWindowText = row.planningWindowText || row.planningWindow || '';
+        }
+        row.plannedDates = plannedDates.length ? plannedDates.slice() : row.plannedDates;
+        row.plannedTooltip = plannedTooltip || row.plannedTooltip || '';
+        if (blocks.length) {
+          row.planningSummary = row.planningSummary || {};
+          row.planningSummary.blocks = blocks.map(function(b){
+            return {
+              date: String(b.date || '').trim(),
+              from: String(b.start || b.from || '').trim(),
+              to: String(b.end || b.to || '').trim()
+            };
+          });
+          row.planningSummary.dates = plannedDates.slice();
+        }
+        if (data.plannedHours != null && data.plannedHours !== '') {
+          row.plannedHours = data.plannedHours;
+          row.hoursPlanned = data.plannedHours;
+        }
+        if (data.auditorEmail) {
+          row.assignedTo = data.auditorEmail;
+          row.assigned = data.auditorEmail;
+          row.assignedToEmail = data.auditorEmail;
+          row.auditor = data.auditorEmail;
+        }
+
+        MANAGER_SINGLE_CACHE.open = (MANAGER_SINGLE_RAW_ROWS || []).slice();
+        m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS || []);
+        return true;
+      }
+
+      window.addEventListener('message', function (event) {
+        var data = event.data;
+        if (!data || typeof data !== 'object') return;
+        if (data.type !== 'PLANNING_SAVED_V5') return;
+
+        log("Received PLANNING_SAVED_V5 for auditId=" + (data.auditId || ''));
+        window.__m5SkipFocusRefreshUntil = Date.now() + 4000;
+        try { m5_startTurboPoll_(); } catch(e) {}
+        if (m5_singleGridMicroRefreshAfterPlanningSave_(data)) {
+          showToast("Planning saved");
+          return;
+        }
+        showToast("Planning saved, refreshing…");
+        refreshAll("postMessage", true);
+      });
+
+      var _v5_focusRefreshTimer = null;
+      var __m5RefreshInFlight = false;
+      function refreshGridOnly(reason) {
+        if (window.__m5SkipFocusRefreshUntil && Date.now() < window.__m5SkipFocusRefreshUntil) return;
+        if (__m5RefreshInFlight) return;
+        __m5RefreshInFlight = true;
+        try { loadManagerSingleGrid(true); } catch(e) {}
+        window.setTimeout(function(){ __m5RefreshInFlight = false; }, 1500);
+      }
+
+      function triggerFocusRefresh(reason) {
+        if (window.__m5SkipFocusRefreshUntil && Date.now() < window.__m5SkipFocusRefreshUntil) return;
+        if (_v5_focusRefreshTimer) clearTimeout(_v5_focusRefreshTimer);
+        _v5_focusRefreshTimer = setTimeout(function () {
+          if (window.__m5SkipFocusRefreshUntil && Date.now() < window.__m5SkipFocusRefreshUntil) return;
+          refreshGridOnly(reason || "focus");
+        }, 250);
+      }
+
+      function m5_startTurboPoll_(){
+        // Compatibility stub. No rapid polling here; deploy1589-style stability.
+      }
+
+      window.addEventListener('focus', function(){ triggerFocusRefresh('focus'); });
+      document.addEventListener('visibilitychange', function(){
+        if (!document.hidden) triggerFocusRefresh('visibility');
+      });
+      window.addEventListener('pageshow', function(){ triggerFocusRefresh('pageshow'); });
+
+      setInterval(function(){
+        if (!document.hidden) refreshGridOnly('interval');
+      }, 60000);
+
+      function initManagerUI_LEGACY_DISABLED() {
+        log("INIT Manager Portal — Approval & Planning [LEGACY DISABLED]");
+        return;
+      }
+
+      
+      // Logout modal UX: backdrop click + ESC
+      (function(){
+        try{
+          var m = document.getElementById('modalLogout');
+          if (m) {
+            m.addEventListener('click', function(ev){
+              if (ev && ev.target === m) window.closeLogout();
+            });
+          }
+          document.addEventListener('keydown', function(ev){
+            if (ev && ev.key === 'Escape') {
+              var mm = document.getElementById('modalLogout');
+              if (mm && mm.classList.contains('open')) window.closeLogout();
+            }
+          });
+        }catch(e){}
+      })();
+
+
+
+      function v5_collectManagerClientDiagnostics_(){
+        var out = {
+          generatedAt: new Date().toISOString(),
+          ui: {
+            title: document.title || '',
+            file: (typeof MANAGER_UI_FILE !== 'undefined' ? MANAGER_UI_FILE : ''),
+            build: (typeof MANAGER_UI_BUILD !== 'undefined' ? MANAGER_UI_BUILD : ''),
+            href: String(window.location.href || '').split('#')[0],
+            userAgent: navigator.userAgent || '',
+            viewport: (window.innerWidth || 0) + 'x' + (window.innerHeight || 0)
+          },
+          header: {
+            manager: (el('hdrManager') && el('hdrManager').textContent) || '',
+            buildStamp: (el('hdrBuild') && el('hdrBuild').textContent) || '',
+            env: (el('hdrEnv') && el('hdrEnv').textContent) || '',
+            version: (el('hdrVersion') && el('hdrVersion').textContent) || '',
+            deploy: (el('hdrDeploy') && el('hdrDeploy').textContent) || '',
+            notifications: (el('hdrNotifications') && el('hdrNotifications').textContent) || '',
+            devWrites: (el('hdrDevWrites') && el('hdrDevWrites').textContent) || '',
+            footerEnv: (el('footerEnv') && el('footerEnv').textContent) || '',
+            footerVersion: (el('footerVersion') && el('footerVersion').textContent) || '',
+            footerRuntime: (el('footerRuntime') && el('footerRuntime').textContent) || ''
+          },
+          tools: {
+            toolsUiLoaded: 'NO',
+            m5t_openScopes: typeof window.m5t_openScopes,
+            m5t_openRotation: typeof window.m5t_openRotation,
+            m5t_openPlanning: typeof window.m5t_openPlanning,
+            openCompaniesPopup: typeof window.openCompaniesPopup,
+            openCompanyMapPopup: typeof window.openCompanyMapPopup
+          },
+          grid: {
+            singleGridRows: (document.querySelectorAll('#singleGridBody tr') || []).length,
+            logAreaLines: 0
+          },
+          recentLogLines: []
+        };
+        if (out.tools.m5t_openScopes === 'function' || out.tools.m5t_openRotation === 'function' || out.tools.m5t_openPlanning === 'function') {
+          out.tools.toolsUiLoaded = 'YES';
+        }
+        try {
+          var logText = (el('logArea') && el('logArea').textContent) || '';
+          var lines = logText.split(/\n/).filter(function(x){ return String(x||'').trim(); });
+          out.grid.logAreaLines = lines.length;
+          out.recentLogLines = lines.slice(0, 20);
+        } catch(e) {}
+        return out;
+      }
+
+      function v5_updateToolsDiagnostics_(){
+        try {
+          window.__MANAGER_CLIENT_DIAGNOSTICS = v5_collectManagerClientDiagnostics_();
+        } catch(e) {}
+      }
+
+      document.addEventListener("DOMContentLoaded", function(){
+        setTimeout(v5_updateToolsDiagnostics_, 0);
+        setTimeout(v5_updateToolsDiagnostics_, 500);
+        setTimeout(v5_updateToolsDiagnostics_, 1500);
+      });
+
+
+      document.addEventListener("DOMContentLoaded", function(){ /* legacy init disabled */ });
+    
+      // ====================================================
+      // SECTION 13 — CELL RENDER HELPERS
+      // ====================================================
+      // Scopes helper: returns <td class="col-scopes"> with colored pills when scopes array is present.
+      // Falls back to scopesText (string) or "-" (dash).      // Planned date cell for Pending Approval:
+      // - 1 day: show date, tooltip shows date + time block (from–to)
+      // - 2+ days: show first date + multi-day icon; tooltip lists all days with time blocks line-by-line
+      function v5_plannedDateOnly_(v) {
+        // LIVE-DAY CONTRACT FIX — date display must never be derived through JS Date timezone conversion.
+        // Accept only explicit date tokens and keep them as plain YYYY-MM-DD strings.
+        if (v == null || v === '') return '';
+        var s = String(v || '').trim();
+        if (!s) return '';
+        var mIso = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+        if (mIso) return mIso[1] + '-' + mIso[2] + '-' + mIso[3];
+        var mDmy = s.match(/\b(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})\b/);
+        if (mDmy) return mDmy[3] + '-' + ('0' + mDmy[2]).slice(-2) + '-' + ('0' + mDmy[1]).slice(-2);
+        return '';
+      }
+
+      function v5_extractPlannedBlocksFromTooltip_(tooltipText) {
+        var out = [];
+        var txt = String(tooltipText || '').trim();
+        if (!txt) return out;
+        txt.split(/\n+/).forEach(function(line){
+          line = String(line || '').trim();
+          if (!line) return;
+          var d = v5_plannedDateOnly_(line);
+          if (!d) return;
+          var time = line.match(/(?:^|\s)(\d{1,2}:\d{2})\s*[–-]\s*(\d{1,2}:\d{2})(?:\s|$)/);
+          out.push({
+            date: d,
+            from: time ? time[1] : '',
+            to: time ? time[2] : ''
+          });
+        });
+        return out;
+      }
+
+      function v5_extractPlannedBlocks_(a){
+        var out = [];
+        if (!a) return out;
+
+        function pushBlock_(d, f, t) {
+          var dateOnly = v5_plannedDateOnly_(d);
+          if (!dateOnly) return;
+          out.push({ date: dateOnly, from: f ? String(f) : '', to: t ? String(t) : '' });
+        }
+
+        // LIVE-DAY DISPLAY CONTRACT:
+        // plannedTooltip is generated from the Planning JSON detail used for the hover text.
+        // datePlanned/planningSummary can be a derived display field and may contain the known -1 day drift.
+        // Therefore, when plannedTooltip contains explicit date lines, it is the safest UI display source.
+        out = v5_extractPlannedBlocksFromTooltip_(a.plannedTooltip);
+
+        // Fallback 1: real planning block structures when no tooltip date exists.
+        if (!out.length && a.planningSummary && Array.isArray(a.planningSummary.blocks)) {
+          a.planningSummary.blocks.forEach(function(b){
+            if (!b) return;
+            pushBlock_(b.date || b.day || b.d, b.from || b.start || b.tFrom || b.timeFrom, b.to || b.end || b.tTo || b.timeTo);
+          });
+        }
+
+        if (!out.length && a.planningSummary && Array.isArray(a.planningSummary.entries)) {
+          a.planningSummary.entries.forEach(function(b){
+            if (!b) return;
+            pushBlock_(b.date || b.day, b.from || b.start, b.to || b.end);
+          });
+        }
+
+        if (!out.length && Array.isArray(a.plannedSlots)) {
+          a.plannedSlots.forEach(function(b){
+            if (!b) return;
+            pushBlock_(b.date || b.day, b.from || b.start, b.to || b.end);
+          });
+        }
+
+        // Fallback 2: plannedDates array (no times).
+        if (!out.length) {
+          var dates = (a.plannedDates || (a.planningSummary && a.planningSummary.dates)) || [];
+          if (Array.isArray(dates) && dates.length) {
+            dates.forEach(function(d){ pushBlock_(d, '', ''); });
+          }
+        }
+
+        // Fallback 3: single planned date string.
+        if (!out.length && a.datePlanned) {
+          pushBlock_(a.datePlanned, '', '');
+        }
+
+        out.sort(function(x,y){ return String(x.date).localeCompare(String(y.date)); });
+        return out;
+      }
+
+      function v5_makePlannedDaysTd_(a){
+        var td = document.createElement("td");
+        td.className = "col-days";
+
+        var blocks = v5_extractPlannedBlocks_(a);
+        var plannedTooltip = String((a && a.plannedTooltip) || '').trim();
+        if (!blocks.length) {
+          td.textContent = "-";
+          return td;
+        }
+
+        function fmtLine(b){
+          var time = "";
+          if (b.from || b.to) time = "  " + (b.from || "–") + "–" + (b.to || "–");
+          return String(b.date) + time;
+        }
+
+        function distinctDateCount_(arr){
+          var seen = {};
+          var count = 0;
+          (arr || []).forEach(function(b){
+            var d = v5_plannedDateOnly_(b && b.date);
+            if (!d || seen[d]) return;
+            seen[d] = true;
+            count++;
+          });
+          return count;
+        }
+
+        var tooltipBlocks = v5_extractPlannedBlocksFromTooltip_(plannedTooltip);
+        var tooltipText = plannedTooltip || blocks.map(fmtLine).join("\n");
+        var showMultiDayIcon =
+          blocks.length > 1 ||
+          tooltipBlocks.length > 1 ||
+          distinctDateCount_(blocks) > 1 ||
+          distinctDateCount_(tooltipBlocks) > 1;
+
+        if (!showMultiDayIcon) {
+          td.textContent = blocks[0].date;
+          td.title = tooltipText || fmtLine(blocks[0]);
+          return td;
+        }
+
+        var wrap = document.createElement("span");
+        wrap.style.display = "inline-flex";
+        wrap.style.alignItems = "center";
+        wrap.style.gap = "4px";
+        wrap.title = tooltipText || blocks.map(fmtLine).join("\n");
+
+        var d0 = document.createElement("span");
+        d0.textContent = blocks[0].date;
+
+        var icon = document.createElement("span");
+        icon.className = "md-flag";
+        icon.textContent = "▦";
+        icon.title = wrap.title;
+
+        wrap.appendChild(d0);
+        wrap.appendChild(icon);
+        td.appendChild(wrap);
+        td.title = wrap.title;
+        return td;
+      }
+
+      function v5_fmtHours_(n){
+        if (n == null || String(n).trim() === '') return "-";
+        var x = Number(n);
+        if (!isFinite(x)) return "-";
+        return x.toFixed(2);
+      }
+
+      function v5_makeScopesTd_(a) {
+        var tdCell = document.createElement("td");
+        tdCell.className = "col-scopes";
+
+        var scopesArr = (a && Array.isArray(a.scopes)) ? a.scopes : [];
+        if (scopesArr.length > 0) {
+          var wrap = document.createElement("div");
+          wrap.className = "scopes-wrap";
+          for (var i = 0; i < scopesArr.length; i++) {
+            var s = scopesArr[i] || {};
+            var pill = document.createElement("span");
+            pill.className = "scope-pill";
+            pill.textContent = String(s.code || s.name || s.label || s.slot || "");
+            if (s.color) pill.style.background = s.color;
+            if (s.textColor) pill.style.color = s.textColor;
+            wrap.appendChild(pill);
+          }
+          tdCell.appendChild(wrap);
+          return tdCell;
+        }
+
+        tdCell.textContent = (a && a.scopesText) ? a.scopesText : "-";
+        return tdCell;
+      }
+
+
+
+      // ====================================================
+      // SECTION 14 — LEGACY PENDING PLANNING FILTERS / SORTING
+      // ====================================================
+      // Pending Planning — UI-only filters & sorting (SAFE)
+      // ====================================================
+      var _pp_rawAudits = [];
+      var _pp_state = {
+        chips: { windowExpired: false, expiry90: false, expiry60: false, expiry30: false },
+        selectedScopes: {}, // { 'MPS-GAP': true, ... } (OR-match)
+        assignedAuditor: "", // exact match; empty = Any
+        companyQuery: "",
+        userSort: null // {key, dir} or null
+      };
+
+      function _pp_todayISO_(){
+        var d = new Date();
+        var y = d.getFullYear();
+        var m = ("0" + (d.getMonth()+1)).slice(-2);
+        var dd = ("0" + d.getDate()).slice(-2);
+        return y + "-" + m + "-" + dd;
+      }
+
+      
+      function _pp_parseAnyToISO_(v){
+        try {
+          if (v == null) return "";
+          var s = String(v).trim();
+          if (!s) return "";
+          // Already ISO
+          if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+          // dd-mm-yyyy
+          var m1 = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+          if (m1) {
+            var dd = ("0"+m1[1]).slice(-2);
+            var mm = ("0"+m1[2]).slice(-2);
+            return m1[3] + "-" + mm + "-" + dd;
+          }
+          // dd/mm/yyyy
+          var m2 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+          if (m2) {
+            var dd2 = ("0"+m2[1]).slice(-2);
+            var mm2 = ("0"+m2[2]).slice(-2);
+            return m2[3] + "-" + mm2 + "-" + dd2;
+          }
+          // yyyy/mm/dd
+          var m3 = s.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+          if (m3) {
+            var mm3 = ("0"+m3[2]).slice(-2);
+            var dd3 = ("0"+m3[3]).slice(-2);
+            return m3[1] + "-" + mm3 + "-" + dd3;
+          }
+          return "";
+        } catch(e) { return ""; }
+      }
+
+      function _pp_pickExpiryISO_(a){
+        try {
+          if (!a) return "";
+          var keys = [
+            "Expiration date",
+            "expiration date",
+            "expirationDate",
+            "expirationDateText",
+            "expiryDate",
+            "expiry",
+            "expiration",
+            "expiryZ"
+          ];
+          for (var i=0;i<keys.length;i++){
+            var k = keys[i];
+            if (a[k] != null && String(a[k]).trim()) {
+              var iso = _pp_parseAnyToISO_(a[k]);
+              if (iso) return iso;
+            }
+          }
+          return "";
+        } catch(e) { return ""; }
+      }
+
+function _pp_daysUntil_(iso){
+        try {
+          if (!iso) return null;
+          var s = String(iso).trim();
+          // Expect yyyy-mm-dd (backend governance)
+          var parts = s.split("-");
+          if (parts.length !== 3) return null;
+          var y = Number(parts[0]), m = Number(parts[1]), d = Number(parts[2]);
+          if (!y || !m || !d) return null;
+          var target = Date.UTC(y, m-1, d);
+          var now = new Date();
+          var today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+          var diff = Math.floor((target - today) / 86400000);
+          return diff;
+        } catch(e){
+          return null;
+        }
+      }
+
+      function _pp_parsePlanningWindow_(txt){
+        // Expected: "YYYY-MM-DD → YYYY-MM-DD" optionally with " (conflict)"
+        var s = String(txt || "").trim();
+        if (!s) return { start:"", end:"" };
+        var m = s.match(/(\d{4}-\d{2}-\d{2})\s*→\s*(\d{4}-\d{2}-\d{2})/);
+        if (!m) return { start:"", end:"" };
+        return { start: m[1], end: m[2] };
+      }
+
+      function _pp_windowState_(startISO, endISO){
+        if (!startISO || !endISO) return "";
+        var today = _pp_todayISO_();
+        if (today < startISO) return "NOT_STARTED";
+        if (today > endISO) return "EXPIRED";
+        return "ACTIVE";
+      }
+
+      function _pp_bool_(v){
+        return v === true || String(v || "").trim().toLowerCase() === "true" || String(v || "").trim().toLowerCase() === "yes";
+      }
+
+      function _pp_derive_(a, idx){
+        a = a || {};
+        var pw = _pp_parsePlanningWindow_(a.planningWindowText);
+        var ws = _pp_windowState_(pw.start, pw.end);
+
+        var plannedDates = (a && (a.plannedDates || (a.planningSummary && a.planningSummary.dates))) || [];
+        var hasPlanned = !!(a.datePlanned || (Array.isArray(plannedDates) && plannedDates.length) || (a.planningSummary && a.planningSummary.hoursPlanned > 0));
+        var isUnplanned = !hasPlanned;
+
+        var scopesText = (a.scopesText || (Array.isArray(a.scopes) ? a.scopes.join(", ") : (a.scopes || "")) || "");
+        var scopesList = [];
+        try {
+          scopesList = String(scopesText || "").split(",").map(function(x){ return String(x||"").trim(); }).filter(function(x){ return !!x; });
+        } catch(e) { scopesList = []; }
+
+        return {
+          __i: idx,
+          company: a.company || "",
+          location: v5_renderLocs_(a),
+          region: v5_renderRegion_(a),
+          gps: String((a.gpsData || a.gps || a.GPS || a["GPS-data"] || "") || ""),
+          scopesText: scopesText,
+          scopesList: scopesList,
+          status: (a.status || ""),
+          planningWindowText: (a.planningWindowText || ""),
+          planningWindowStart: pw.start || "",
+          planningWindowEnd: pw.end || "",
+          planningWindowState: ws,
+          isUnplanned: isUnplanned,
+          requiredHours: (a.requiredHours != null ? Number(a.requiredHours) : 0),
+          auditor: (a.auditor || ""),
+          expiryZ: _pp_pickExpiryISO_(a)
+        };
+      }
+
+      function _pp_applyFiltersAndSort_(audits){
+        var out = [];
+        for (var i = 0; i < audits.length; i++){
+          var a = audits[i];
+          var d = _pp_derive_(a, i);
+
+          if (_pp_state.chips.windowExpired && d.planningWindowState !== "EXPIRED") continue;
+
+          // Certificate expiry filters (within N days, upcoming only)
+          var c = _pp_state.chips || {};
+          var expN = null;
+          if (c.expiry30) expN = 30;
+          else if (c.expiry60) expN = 60;
+          else if (c.expiry90) expN = 90;
+          if (expN != null) {
+            var days = _pp_daysUntil_(d.expiryZ);
+            // If invalid expiry date -> fail-open (do not exclude)
+            if (days != null) {
+              if (days < 0 || days > expN) continue;
+            }
+          }
+
+
+          // Scope filter (OR): if any scope selected, match if row contains at least one
+          try {
+            var sel = _pp_state.selectedScopes || {};
+            var hasAnySel = false;
+            for (var k in sel) { if (sel.hasOwnProperty(k) && sel[k]) { hasAnySel = true; break; } }
+            if (hasAnySel) {
+              var hit = false;
+              for (var j = 0; j < (d.scopesList || []).length; j++) {
+                var sc = d.scopesList[j];
+                if (sel[sc]) { hit = true; break; }
+              }
+              if (!hit) continue;
+            }
+          } catch(e) {}
+
+          // Assigned auditor filter (exact; case-insensitive)
+          if (_pp_state.assignedAuditor) {
+            var want = String(_pp_state.assignedAuditor || "").trim().toLowerCase();
+            var got = String(d.auditor || "").trim().toLowerCase();
+            if (want && got !== want) continue;
+          }
+
+          if (_pp_state.companyQuery) {
+            var q = String(_pp_state.companyQuery).trim().toLowerCase();
+            if (q && String(d.company || "").toLowerCase().indexOf(q) === -1) continue;
+          }
+
+          out.push({ a: a, d: d });
+        }
+
+        function cmpStr_(x,y){
+          return String(x||"").localeCompare(String(y||""), undefined, { sensitivity:"base" });
+        }
+
+        function cmpISO_(x,y){
+          var ax = String(x||"").trim();
+          var by = String(y||"").trim();
+          if (!ax) ax = "9999-12-31";
+          if (!by) by = "9999-12-31";
+          return ax.localeCompare(by);
+        }
+
+        function cmpNum_(x,y){
+          var a = Number(x||0), b = Number(y||0);
+          if (!isFinite(a)) a = 0;
+          if (!isFinite(b)) b = 0;
+          return a - b;
+        }
+
+        var s = _pp_state.userSort;
+
+        out.sort(function(p,q){
+          var A = p.d, B = q.d;
+
+          if (s && s.key) {
+            var k = s.key;
+            var dir = (s.dir === "desc") ? -1 : 1;
+            var c = 0;
+
+            if (k === "company") c = cmpStr_(A.company, B.company);
+            else if (k === "location") c = cmpStr_(A.location, B.location);
+            else if (k === "region") c = cmpStr_(A.region, B.region);
+            else if (k === "gps") c = cmpStr_(A.gps, B.gps);
+            else if (k === "scopesText") c = cmpStr_(A.scopesText, B.scopesText);
+            else if (k === "status") c = cmpStr_(A.status, B.status);
+            else if (k === "planningWindowText") c = cmpISO_(A.planningWindowEnd, B.planningWindowEnd);
+            else if (k === "requiredHours") c = cmpNum_(A.requiredHours, B.requiredHours);
+            else if (k === "auditor") c = cmpStr_(A.auditor, B.auditor);
+            else if (k === "expiryZ") c = cmpISO_(A.expiryZ, B.expiryZ);
+            else c = 0;
+
+            if (c !== 0) return c * dir;
+            return A.__i - B.__i;
+          }
+
+          // Default sort:
+          // 1) planning window end ASC
+          var c1 = cmpISO_(A.planningWindowEnd, B.planningWindowEnd);
+          if (c1 !== 0) return c1;
+
+          // 2) company ASC
+          var c3 = cmpStr_(A.company, B.company);
+          if (c3 !== 0) return c3;
+
+          return A.__i - B.__i;
+        });
+
+        // unwrap
+        return out.map(function(x){ return x.a; });
+      }
+
+      function _pp_setChip_(chipKey, active){
+        if (chipKey === "all") {
+          _pp_state.chips.windowExpired = false;
+          _pp_state.chips.expiry90 = false;
+          _pp_state.chips.expiry60 = false;
+          _pp_state.chips.expiry30 = false;
+          _pp_state.selectedScopes = {};
+          _pp_state.assignedAuditor = "";
+          _pp_state.companyQuery = "";
+          _pp_state.userSort = null;
+          try { el("ppCompanySearch").value = ""; } catch(e){}
+          try { el("ppAuditorSelect").value = ""; } catch(e){}
+          _pp_updateChipUI_();
+          _pp_renderFromState_();
+          return;
+        }
+
+        _pp_state.chips[chipKey] = !!active;
+        // Expiry chips are mutually exclusive
+        if (chipKey === "expiry90" || chipKey === "expiry60" || chipKey === "expiry30") {
+          if (active) {
+            _pp_state.chips.expiry90 = (chipKey === "expiry90");
+            _pp_state.chips.expiry60 = (chipKey === "expiry60");
+            _pp_state.chips.expiry30 = (chipKey === "expiry30");
+          }
+        }
+        // If any chip active, "All" becomes inactive. If none active and query empty, All active.
+        _pp_updateChipUI_();
+        _pp_renderFromState_();
+      }
+
+      function _pp_anyFilterActive_(){
+        var c = _pp_state.chips;
+        if (c && c.windowExpired) return true;
+        if (c && (c.expiry90 || c.expiry60 || c.expiry30)) return true;
+        if (_pp_state.companyQuery && String(_pp_state.companyQuery).trim()) return true;
+        if (_pp_state.assignedAuditor && String(_pp_state.assignedAuditor).trim()) return true;
+        try {
+          var sel = _pp_state.selectedScopes || {};
+          for (var k in sel) { if (sel.hasOwnProperty(k) && sel[k]) return true; }
+        } catch(e) {}
+        return false;
+      }
+
+      function _pp_updateChipUI_(){
+        function setActive(id, on){
+          var b = el(id);
+          if (!b) return;
+          if (on) b.classList.add("active"); else b.classList.remove("active");
+        }
+        setActive("ppChipWindowExpired", _pp_state.chips.windowExpired);
+        setActive("ppChipExpiry90", _pp_state.chips.expiry90);
+        setActive("ppChipExpiry60", _pp_state.chips.expiry60);
+        setActive("ppChipExpiry30", _pp_state.chips.expiry30);
+        setActive("ppChipAll", !_pp_anyFilterActive_());
+
+        // Scope chips
+        try {
+          var box = el("ppScopeChips");
+          if (box) {
+            var btns = box.querySelectorAll("button[data-scope]");
+            for (var i = 0; i < btns.length; i++) {
+              var sc = btns[i].getAttribute("data-scope") || "";
+              var on = !!(_pp_state.selectedScopes && _pp_state.selectedScopes[sc]);
+              if (on) btns[i].classList.add("active"); else btns[i].classList.remove("active");
+            }
+          }
+        } catch(e) {}
+      }
+
+      function _pp_refreshFilterOptions_(){
+        // Build scope chip set + auditor dropdown from _pp_rawAudits (Pending Planning only)
+        try {
+          var scopes = {};
+          var auditors = {};
+          for (var i = 0; i < (_pp_rawAudits || []).length; i++) {
+            var d = _pp_derive_(_pp_rawAudits[i], i);
+            (d.scopesList || []).forEach(function(s){ scopes[s] = true; });
+            if (d.auditor) auditors[String(d.auditor).trim()] = true;
+          }
+
+          // Scopes chips
+          var box = el("ppScopeChips");
+          if (box) {
+            box.innerHTML = "";
+            var keys = Object.keys(scopes).sort(function(a,b){ return String(a).localeCompare(String(b), undefined, {sensitivity:"base"}); });
+            keys.forEach(function(sc){
+              var b = document.createElement("button");
+              b.className = "chip";
+              b.type = "button";
+              b.setAttribute("data-scope", sc);
+              b.textContent = sc;
+              box.appendChild(b);
+            });
+          }
+
+          // Auditor dropdown
+          var sel = el("ppAuditorSelect");
+          if (sel) {
+            var cur = String(_pp_state.assignedAuditor || "");
+            sel.innerHTML = "";
+            var optAny = document.createElement("option");
+            optAny.value = "";
+            optAny.textContent = "Any";
+            sel.appendChild(optAny);
+            var akeys = Object.keys(auditors).sort(function(a,b){ return String(a).localeCompare(String(b), undefined, {sensitivity:"base"}); });
+            akeys.forEach(function(aud){
+              var o = document.createElement("option");
+              o.value = aud;
+              o.textContent = aud;
+              sel.appendChild(o);
+            });
+            sel.value = cur;
+          }
+        } catch(e) {}
+
+        _pp_updateChipUI_();
+      }
+
+      function _pp_wireUIOnce_(){
+        var bar = el("ppFilterBar");
+        if (!bar || bar.__wired) return;
+        bar.__wired = true;
+
+        function onChipClick(e){
+          var t = e && e.target;
+          if (!t || !t.getAttribute) return;
+          var key = t.getAttribute("data-ppchip");
+          if (!key) return;
+          if (key === "all") { _pp_setChip_("all", true); return; }
+          var next = !_pp_state.chips[key];
+          _pp_setChip_(key, next);
+        }
+
+        bar.addEventListener("click", function(e){
+          try {
+            var t = e && e.target;
+            if (!t) return;
+            // Scope chips
+            if (t.getAttribute && t.getAttribute("data-scope")) {
+              var sc = t.getAttribute("data-scope");
+              if (!_pp_state.selectedScopes) _pp_state.selectedScopes = {};
+              _pp_state.selectedScopes[sc] = !_pp_state.selectedScopes[sc];
+              _pp_updateChipUI_();
+              _pp_renderFromState_();
+              return;
+            }
+            // Regular chips (All + WindowExpired)
+            onChipClick(e);
+          } catch(err){}
+        });
+
+        var inp = el("ppCompanySearch");
+        if (inp) {
+          var timer = null;
+          inp.addEventListener("input", function(){
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(function(){
+              _pp_state.companyQuery = String(inp.value || "");
+              _pp_updateChipUI_();
+              _pp_renderFromState_();
+            }, 150);
+          });
+        }
+
+        var resetBtn = el("ppResetBtn");
+        if (resetBtn) resetBtn.addEventListener("click", function(){ _pp_setChip_("all", true); });
+
+        var audSel = el("ppAuditorSelect");
+        if (audSel) {
+          audSel.addEventListener("change", function(){
+            _pp_state.assignedAuditor = String(audSel.value || "");
+            _pp_updateChipUI_();
+            _pp_renderFromState_();
+          });
+        }
+
+        // Sorting: attach to Pending Planning table headers
+        var ths = document.querySelectorAll("#bucketPlanning thead th[data-ppsort]");
+        for (var i = 0; i < ths.length; i++){
+          (function(th){
+            th.addEventListener("click", function(){
+              var key = th.getAttribute("data-ppsort");
+              if (!key) return;
+              var cur = _pp_state.userSort;
+              var dir = "asc";
+              if (cur && cur.key === key) dir = (cur.dir === "asc" ? "desc" : "asc");
+              _pp_state.userSort = { key: key, dir: dir };
+              _pp_renderFromState_();
+            });
+          })(ths[i]);
+        }
+
+        _pp_updateChipUI_();
+      }
+
+      function _pp_renderFromState_(){
+        try {
+          if (!_pp_rawAudits || !_pp_rawAudits.length) {
+            // still render empty if needed
+            renderPlanningBucket({ planning: _pp_rawAudits || [] });
+            return;
+          }
+          var view = _pp_applyFiltersAndSort_(_pp_rawAudits);
+          // Render using existing renderer to avoid UI drift
+          renderPlanningBucket({ planning: view, __ppInternal: true });
+        } catch(e) {
+          // Fail-safe: render raw
+          try { renderPlanningBucket({ planning: _pp_rawAudits }); } catch(e2) {}
+        }
+      }
+
+</script>
+    
+<script>
+/* ============================================================
+ * SECTION 15 — MANAGER SINGLE GRID STATE / RENDER / ACTIONS
+ * ============================================================ */
+/* MANAGER SINGLE GRID REFACTOR STEP 2 */
+var MANAGER_SINGLE_RAW_ROWS = [];
+var MANAGER_SINGLE_VIEW_ROWS = [];
+var MANAGER_SINGLE_CACHE = { open: null, archived: null };
+var __m5SingleGridReqSeq = 0;
+var __m5CompleteBusy = {};
+
+var MANAGER_SINGLE_SORT = { key: 'company', dir: 'asc' };
+var MANAGER_SINGLE_FILTER = {
+  companyQuery: '',
+  scopeQuery: '',
+  auditorQuery: '',
+  planningWindowExpired: false,
+  statuses: {
+    'Pending Planning': false,
+    'Pending Approval': false,
+    'Approved': false,
+    'Accepted': false
+  }
+};
+
+function m5_isArchivedView_() {
+  var chk = el('chkArchivedManager');
+  return !!(chk && chk.checked);
+}
+
+function m5_setSingleHeader_() {
+  var archived = m5_isArchivedView_();
+  var title = el('singleGridTitle');
+  var sub = el('singleGridSub');
+  var head = el('singleGridHead');
+  if (title) title.textContent = archived ? 'Completed audits' : 'Open audits';
+  if (sub) sub.textContent = archived
+    ? 'Read-only history from Log realized audits'
+    : 'Pending Planning, Pending Approval, Approved and Accepted';
+
+  var html = '';
+  if (archived) {
+    html = '<tr>'
+      + '<th class="col-company sortable" data-m5sort="company">Company</th>'
+      + '<th class="col-location sortable" data-m5sort="location">Locs</th>'
+      + '<th class="col-region sortable" data-m5sort="region">Region</th>'
+      + '<th class="col-scopes sortable" data-m5sort="scopesText">Scopes</th>'
+      + '<th class="col-date sortable" data-m5sort="executedOn">Executed on</th>'
+      + '<th class="col-assigned sortable" data-m5sort="auditor">Auditor</th>'
+      + '<th class="col-hours sortable" data-m5sort="hoursPlanned">Hours planned</th>'
+      + '<th class="col-hours sortable" data-m5sort="hoursDedicated">Hours dedicated</th>'
+      + '<th class="col-date sortable" data-m5sort="completedDate">Completed date</th>'
+      + '<th class="col-status sortable" data-m5sort="status">Status</th>'
+      + '</tr>';
+  } else {
+    html = '<tr>'
+      + '<th class="col-company sortable" data-m5sort="company">Company</th>'
+      + '<th class="col-location sortable" data-m5sort="location">Locs</th>'
+      + '<th class="col-region sortable" data-m5sort="region">Region</th>'
+      + '<th class="col-gps sortable" data-m5sort="gps">GPS</th>'
+      + '<th class="col-scopes sortable" data-m5sort="scopesText">Scopes</th>'
+      + '<th class="col-status sortable" data-m5sort="status">Status</th>'
+      + '<th class="col-date sortable" data-m5sort="expiryZ">Expiration date</th>'
+      + '<th class="col-planning-window sortable" data-m5sort="planningWindowText">Planning window</th>'
+      + '<th class="col-selfplan sortable" data-m5sort="allowSelfPlanning">Self planning</th>'
+      + '<th class="col-days sortable" data-m5sort="datePlanned">Date planned</th>'
+      + '<th class="col-hours sortable" data-m5sort="requiredHours">To be planned</th>'
+      + '<th class="col-hours sortable" data-m5sort="hoursPlanned">Hours planned</th>'
+      + '<th class="col-assigned sortable" data-m5sort="auditor">Auditor</th>'
+      + '<th class="col-actions">Actions</th>'
+      + '</tr>';
+  }
+  if (head) head.innerHTML = html;
+}
+
+function m5_normStatus_(s) {
+  s = String(s || '').trim();
+  if (!s) return '';
+  var u = s.toUpperCase().replace(/_/g, ' ');
+  if (u === 'PENDING PLANNING') return 'Pending Planning';
+  if (u === 'PENDING APPROVAL') return 'Pending Approval';
+  if (u === 'APPROVED') return 'Approved';
+  if (u === 'ACCEPTED') return 'Accepted';
+  if (u === 'COMPLETED') return 'Completed';
+  if (u === 'REJECTED') return 'Rejected';
+  return s;
+}
+
+function m5_badgeHtml_(status) {
+  var st = m5_normStatus_(status);
+  var cls = 'badge-status';
+  var key = String(st || '').toLowerCase().replace(/\s+/g, '-');
+  if (key) cls += ' ' + key;
+  var display = (st === 'Approved') ? 'Pending acceptance' : st;
+  return '<span class="' + cls + '">' + V5.escape(display || '-') + '</span>';
+}
+
+function m5_isoDateOnly_(v) {
+  if (v == null || v === '') return '';
+  var s = String(v || '').trim();
+  if (!s) return '';
+  if (typeof v5_plannedDateOnly_ === 'function') {
+    var safe = v5_plannedDateOnly_(s);
+    if (safe) return safe;
+  }
+  return s;
+}
+
+function m5_normalizeCompletedRowForUi_(r, fallbackHoursDedicated) {
+  r = r || {};
+  var scopesText = String(r.scopesText || '').trim();
+  var scopesArr = Array.isArray(r.scopes) ? r.scopes.slice() : [];
+  if (!scopesArr.length && scopesText) {
+    scopesArr = scopesText.split(/[;,]/g).map(function(x){
+      x = String(x || '').trim();
+      return x ? { name:x, code:x, slot:x, color:'', textColor:'' } : null;
+    }).filter(function(x){ return !!x; });
+  }
+  if (!scopesText && scopesArr.length) {
+    scopesText = scopesArr.map(function(x){ return String((x && (x.name || x.code || x.label || x.slot)) || '').trim(); }).filter(function(x){ return !!x; }).join(', ');
+  }
+
+  return {
+    auditId: String(r.auditId || '').trim(),
+    company: String(r.company || '').trim(),
+    location: String(r.location || '').trim(),
+    region: String(r.region || r.Region || r.companyRegion || r.company_region || r.regionName || r.region_name || '').trim(),
+    locationsToPlan: r.locationsToPlan || r.locations_to_plan || r.locationCount || r.locationsCount || '',
+    gpsData: String(r.gpsData || r.gps || r.GPS || r['GPS-data'] || '').trim(),
+    scopesText: scopesText,
+    scopes: scopesArr,
+    status: 'Completed',
+    executedOn: m5_isoDateOnly_(r.executedOn || r.dateExecuted || r.datePlanned || r.plannedDate || ''),
+    auditor: String(r.auditor || r.auditorEmailOrName || r.assignedToEmail || r.assignedTo || '').trim(),
+    hoursPlanned: (r.hoursPlanned != null && r.hoursPlanned !== '') ? r.hoursPlanned : (r.plannedHours != null ? r.plannedHours : ''),
+    hoursDedicated: (r.hoursDedicated != null && r.hoursDedicated !== '') ? r.hoursDedicated : (fallbackHoursDedicated != null ? fallbackHoursDedicated : ''),
+    completedDate: m5_isoDateOnly_(r.completedDate || r.dateCompleted || ''),
+    readOnly: true
+  };
+}
+
+function m5_hoursDeltaClass_(requiredHours, plannedHours) {
+  if (plannedHours == null || String(plannedHours).trim() === '') return '';
+  var req = Number(requiredHours);
+  var plan = Number(plannedHours);
+  if (!isFinite(req) || !isFinite(plan)) return '';
+  var delta = plan - req;
+  if (Math.abs(delta) <= 0.25) return 'hours-match';
+  if (delta < -0.25) return 'hours-under';
+  return 'hours-over';
+}
+
+function m5_selfPlanningText_(v) {
+  return String(v || '').trim().toUpperCase() === 'YES' ? 'YES' : '';
+}
+
+function m5_scopeTokenText_(scope) {
+  if (scope == null) return '';
+  if (typeof scope === 'string' || typeof scope === 'number') return String(scope).trim();
+  if (typeof scope === 'object') {
+    return String(scope.name || scope.code || scope.label || scope.slot || scope.displayName || scope.scope || '').trim();
+  }
+  return '';
+}
+
+function m5_rowScopesText_(r) {
+  r = r || {};
+  var parts = [];
+
+  function add_(v) {
+    v = String(v == null ? '' : v).trim();
+    if (v) parts.push(v);
+  }
+
+  add_(r.scopesText);
+  add_(r.scopeText);
+  add_(r.scope);
+
+  if (Array.isArray(r.scopes)) {
+    r.scopes.forEach(function(sc){ add_(m5_scopeTokenText_(sc)); });
+  }
+
+  return parts.join(' ').replace(/\s+/g, ' ').trim();
+}
+
+function m5_rowAuditorText_(r) {
+  r = r || {};
+  return [
+    r.auditor,
+    r.assignedToEmail,
+    r.assignedTo,
+    r.assigned,
+    r.preassignedAuditor,
+    r.auditorEmailOrName
+  ].map(function(x){ return String(x == null ? '' : x).trim(); })
+   .filter(function(x){ return !!x; })
+   .join(' ')
+   .replace(/\s+/g, ' ')
+   .trim();
+}
+
+function m5_cmp_(a, b, key) {
+  function sval(v){ return String(v == null ? '' : v).toLowerCase(); }
+  function nval(v){ var n = Number(v); return isFinite(n) ? n : -999999; }
+  if (key === 'requiredHours' || key === 'hoursPlanned' || key === 'hoursDedicated') {
+    return nval(a[key]) - nval(b[key]);
+  }
+  if (key === 'region') return sval(v5_renderRegion_(a)).localeCompare(sval(v5_renderRegion_(b)));
+  if (key === 'scopesText') return sval(m5_rowScopesText_(a)).localeCompare(sval(m5_rowScopesText_(b)));
+  if (key === 'auditor') return sval(m5_rowAuditorText_(a)).localeCompare(sval(m5_rowAuditorText_(b)));
+  return sval(a[key]).localeCompare(sval(b[key]));
+}
+
+function m5_applyFiltersAndSort_(rows) {
+  rows = Array.isArray(rows) ? rows.slice() : [];
+  var archived = m5_isArchivedView_();
+  var q = String(MANAGER_SINGLE_FILTER.companyQuery || '').trim().toLowerCase();
+  var sq = String(MANAGER_SINGLE_FILTER.scopeQuery || '').trim().toLowerCase();
+  var aq = String(MANAGER_SINGLE_FILTER.auditorQuery || '').trim().toLowerCase();
+
+  rows = rows.filter(function(r) {
+    if (q && String(r.company || '').toLowerCase().indexOf(q) === -1) return false;
+    if (sq && m5_rowScopesText_(r).toLowerCase().indexOf(sq) === -1) return false;
+    if (aq && m5_rowAuditorText_(r).toLowerCase().indexOf(aq) === -1) return false;
+    if (archived) return true;
+
+    var activeStatuses = [];
+    for (var k in MANAGER_SINGLE_FILTER.statuses) {
+      if (MANAGER_SINGLE_FILTER.statuses.hasOwnProperty(k) && MANAGER_SINGLE_FILTER.statuses[k]) activeStatuses.push(k);
+    }
+    var st = m5_normStatus_(r.status);
+    if (activeStatuses.length && activeStatuses.indexOf(st) === -1) return false;
+
+    if (MANAGER_SINGLE_FILTER.planningWindowExpired) {
+      var txt = String(r.planningWindowText || r.planningWindow || '');
+      var m = txt.match(/(\d{4}-\d{2}-\d{2})\s*→\s*(\d{4}-\d{2}-\d{2})/);
+      if (!m) return false;
+      var end = m[2];
+      var d = new Date();
+      var today = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      if (!(today > end)) return false;
+    }
+    return true;
+  });
+
+  var key = MANAGER_SINGLE_SORT.key || 'company';
+  var dir = MANAGER_SINGLE_SORT.dir === 'desc' ? -1 : 1;
+  rows.sort(function(x, y){
+    var c = m5_cmp_(x, y, key);
+    if (c !== 0) return c * dir;
+    return String(x.auditId || '').localeCompare(String(y.auditId || ''));
+  });
+  return rows;
+}
+
+function m5_getRowByAuditId_(auditId) {
+  auditId = String(auditId || '');
+  for (var i = 0; i < (MANAGER_SINGLE_RAW_ROWS || []).length; i++) {
+    if (String((MANAGER_SINGLE_RAW_ROWS[i] && MANAGER_SINGLE_RAW_ROWS[i].auditId) || '') === auditId) return MANAGER_SINGLE_RAW_ROWS[i];
+  }
+  return null;
+}
+
+function managerActionById_(action, auditId, btnEl) {
+  var row = m5_getRowByAuditId_(auditId);
+  if (!row) { showToast('Audit not found'); return; }
+  callManagerAction(action, row, btnEl);
+}
+
+
+function m5_actionButtonHtml_(action, attrs, label) {
+  if (window.V5Actions && V5Actions.buttonHtml) return V5Actions.buttonHtml(action, attrs, label);
+  var tone = (action === 'approve' || action === 'complete') ? 'success' :
+    (action === 'deny') ? 'warning' :
+    (action === 'reject') ? 'danger' :
+    (action === 'cancel') ? 'neutral' : 'primary';
+  return '<button class="btn v5-action-btn v5-action-' + tone + '" data-ui-action="' + String(action || '').toLowerCase() + '" ' + String(attrs || '') + '>' + V5.escape(label || action || 'Action') + '</button>';
+}
+
+function m5_actionButtons_(r) {
+  var st = m5_normStatus_(r.status);
+  var id = String(r.auditId || '');
+  var eid = V5.escape(id);
+  var html = [];
+
+  if (st === 'Pending Planning') html.push(m5_actionButtonHtml_('plan', 'onclick="openPlanningToolkit(\'' + eid + '\')"', 'Plan'));
+  if (st === 'Pending Approval') html.push(m5_actionButtonHtml_('approve', 'onclick="managerActionById_(\'approve\',\'' + eid + '\', this)"', 'Approve'));
+  if (st === 'Pending Approval') html.push(m5_actionButtonHtml_('deny', 'onclick="managerActionById_(\'deny\',\'' + eid + '\', this)"', 'Deny'));
+  if (st === 'Accepted') html.push(m5_actionButtonHtml_('complete', 'onclick="managerCompletePrompt_(\'' + eid + '\', this)"', 'Complete'));
+  if (st === 'Pending Approval' || st === 'Approved' || st === 'Accepted') html.push(m5_actionButtonHtml_('cancel', 'onclick="managerActionById_(\'cancel\',\'' + eid + '\', this)"', 'Cancel'));
+  if (st === 'Pending Planning' || st === 'Pending Approval' || st === 'Approved' || st === 'Accepted') html.push(m5_actionButtonHtml_('reject', 'onclick="managerActionById_(\'reject\',\'' + eid + '\', this)"', 'Reject'));
+  return html.join(' ');
+}
+
+
+function m5_removeRawByAuditId_(auditId) {
+  auditId = String(auditId || '');
+  for (var i = 0; i < (MANAGER_SINGLE_RAW_ROWS || []).length; i++) {
+    if (String((MANAGER_SINGLE_RAW_ROWS[i] && MANAGER_SINGLE_RAW_ROWS[i].auditId) || '') === auditId) {
+      return MANAGER_SINGLE_RAW_ROWS.splice(i, 1)[0];
+    }
+  }
+  return null;
+}
+
+function m5_singleGridMicroRefreshAfterAction_(action, audit, res) {
+  action = String(action || '').toLowerCase();
+  var auditId = String((audit && audit.auditId) || '');
+  if (!auditId) return;
+
+  var row = m5_getRowByAuditId_(auditId);
+  if (!row) row = audit;
+  if (!row) return;
+
+  if (action === 'approve') {
+    row.status = 'Approved';
+  } else if (action === 'deny' || action === 'cancel') {
+    row.status = 'Pending Planning';
+    row.auditor = '';
+    row.assigned = '';
+    row.assignedTo = '';
+    row.assignedToEmail = '';
+    // T20 CANCEL/DENY MICRO-REFRESH FIX:
+    // A cancelled/denied audit moves back to Pending Planning and has no active planning.
+    // Do not write numeric 0 here; numeric 0 renders as red underplanned 0.00 before
+    // the backend refresh catches up.
+    row.hoursPlanned = '';
+    row.plannedHours = '';
+    row.hoursPlannedDisplay = '-';
+    row.planningSummary = null;
+    row.plannedDates = [];
+    row.plannedTooltip = '';
+    row.datePlanned = '';
+  } else if (action === 'reject') {
+    m5_removeRawByAuditId_(auditId);
+  }
+
+  MANAGER_SINGLE_CACHE.open = (MANAGER_SINGLE_RAW_ROWS || []).slice();
+  m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS || []);
+}
+
+
+function m5_singleGridMicroRefreshAfterComplete_(auditId, hoursDedicated, res) {
+  auditId = String(auditId || '');
+  if (!auditId) return;
+  res = res || {};
+
+  var removed = m5_removeRawByAuditId_(auditId);
+  MANAGER_SINGLE_CACHE.open = (MANAGER_SINGLE_RAW_ROWS || []).slice();
+
+  if (removed) {
+    if (res.completedDate || res.dateCompleted) removed.completedDate = res.completedDate || res.dateCompleted;
+    if (res.executedOn || res.datePlanned || res.plannedDate) removed.executedOn = res.executedOn || res.datePlanned || res.plannedDate;
+    if (res.hoursDedicated != null) removed.hoursDedicated = res.hoursDedicated;
+
+    var archivedRow = m5_normalizeCompletedRowForUi_(removed, hoursDedicated);
+    if (!MANAGER_SINGLE_CACHE.archived) MANAGER_SINGLE_CACHE.archived = [];
+    MANAGER_SINGLE_CACHE.archived = (MANAGER_SINGLE_CACHE.archived || []).filter(function(x){
+      return String((x && x.auditId) || '') !== auditId;
+    });
+    MANAGER_SINGLE_CACHE.archived.unshift(archivedRow);
+  }
+
+  if (m5_isArchivedView_()) {
+    MANAGER_SINGLE_RAW_ROWS = (MANAGER_SINGLE_CACHE.archived || []).slice();
+    m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS);
+  } else {
+    m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS || []);
+  }
+}
+
+
+async function managerCompletePrompt_(auditId, btnEl) {
+  auditId = String(auditId || '').trim();
+  if (!auditId) return;
+
+  var raw = '';
+
+  if (window.UiDialogs && typeof window.UiDialogs.prompt === 'function') {
+    var promptRes = await window.UiDialogs.prompt({
+      title: 'Complete audit',
+      message: 'Enter the hours dedicated for this audit.',
+      inputLabel: 'Hours dedicated',
+      inputPlaceholder: 'Example: 5 or 5.5',
+      inputRequired: true,
+      rows: 3,
+      confirmLabel: 'Complete',
+      cancelLabel: 'Back'
+    });
+
+    if (!promptRes || !promptRes.ok) return;
+    raw = String(promptRes.value || '').trim();
+  } else {
+    raw = window.prompt('Hours dedicated', '');
+    if (raw == null) return;
+  }
+
+  var n = Number(String(raw).replace(',', '.'));
+  if (!(n > 0)) { showToast('Hours dedicated must be > 0'); return; }
+
+  var busyKey = auditId;
+  __m5CompleteBusy[busyKey] = true;
+  try {
+    if (btnEl) {
+      if (window.V5Actions) V5Actions.setBusy(btnEl, 'complete', true);
+      else {
+        btnEl.disabled = true;
+        btnEl.dataset.prevText = btnEl.textContent || 'Complete';
+        btnEl.textContent = 'Completing…';
+      }
+    }
+  } catch(e) {}
+
+  runServer(
+    ['ManagerV5_CommitCompletion'],
+    [{ auditId: auditId, hoursDedicated: n, mode: 'MANAGER_ON_BEHALF', actorEmail: (v5_getAuthenticatedManagerEmail_() || MANAGER_EMAIL_FALLBACK || '') }],
+    function(res){
+      log(res);
+      if (!res || res.success === false) {
+        __m5CompleteBusy[busyKey] = false;
+        try {
+          if (btnEl) {
+            if (window.V5Actions) V5Actions.setBusy(btnEl, 'complete', false, 'Complete');
+            else {
+              btnEl.disabled = false;
+              btnEl.textContent = btnEl.dataset.prevText || 'Complete';
+            }
+          }
+        } catch(e) {}
+        handleError('complete', res || { message: 'Complete failed' });
+        return;
+      }
+      showToast('Completed');
+      try { m5_startTurboPoll_(); } catch(e) {}
+      try {
+        m5_singleGridMicroRefreshAfterComplete_(auditId, n, res || {});
+      } finally {
+        __m5CompleteBusy[busyKey] = false;
+      }
+    },
+    function(err){
+      __m5CompleteBusy[busyKey] = false;
+      try {
+        if (btnEl) {
+          if (window.V5Actions) V5Actions.setBusy(btnEl, 'complete', false, 'Complete');
+          else {
+            btnEl.disabled = false;
+            btnEl.textContent = btnEl.dataset.prevText || 'Complete';
+          }
+        }
+      } catch(e) {}
+      handleError('complete', err);
+    }
+  );
+}
+
+
+function m5_renderSingleGrid_(rows) {
+  MANAGER_SINGLE_VIEW_ROWS = m5_applyFiltersAndSort_(rows);
+  var body = el('singleGridBody');
+  var empty = el('emptySingleGrid');
+  if (!body) return;
+  el('cntSingleGrid').textContent = MANAGER_SINGLE_VIEW_ROWS.length;
+  body.innerHTML = '';
+
+  if (!MANAGER_SINGLE_VIEW_ROWS.length) {
+    if (empty) empty.style.display = 'block';
+    m5_updateSummaryCardsFromOpenRows_();
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  var archived = m5_isArchivedView_();
+  m5_updateSummaryCardsFromOpenRows_();
+
+  function tdText_(val, cls, title){
+    var td = document.createElement('td');
+    if (cls) td.className = cls;
+    td.textContent = (val == null || val === '') ? '-' : String(val);
+    if (title) td.title = String(title);
+    return td;
+  }
+
+  MANAGER_SINGLE_VIEW_ROWS.forEach(function(r){
+    var tr = document.createElement('tr');
+
+    if (archived) {
+      tr.appendChild(tdText_(r.company || '-', 'col-company'));
+      tr.appendChild(tdText_(v5_renderLocs_(r), 'col-location'));
+      tr.appendChild(tdText_(v5_renderRegion_(r), 'col-region', v5_renderRegion_(r)));
+      var tdScopesA = document.createElement('td'); tdScopesA.className = 'col-scopes'; tdScopesA.appendChild(v5_makeScopesTd_(r).firstChild ? v5_makeScopesTd_(r).firstChild.cloneNode(true) : document.createTextNode(v5_makeScopesTd_(r).textContent || '-')); tr.appendChild(tdScopesA);
+      tr.appendChild(tdText_(r.executedOn || r.dateExecuted || '-', 'col-date'));
+      tr.appendChild(tdText_(r.auditor || r.auditorEmailOrName || '-', 'col-assigned'));
+      tr.appendChild(tdText_(v5_fmtHours_(r.hoursPlanned), 'col-hours'));
+      tr.appendChild(tdText_(v5_fmtHours_(r.hoursDedicated), 'col-hours'));
+      tr.appendChild(tdText_(r.completedDate || r.dateCompleted || '-', 'col-date'));
+      var tdStA = document.createElement('td'); tdStA.className = 'col-status'; tdStA.innerHTML = m5_badgeHtml_(r.status || 'Completed'); tr.appendChild(tdStA);
+      body.appendChild(tr);
+      return;
+    }
+
+    var hoursClass = m5_hoursDeltaClass_(r.requiredHours, r.hoursPlanned);
+    tr.appendChild(tdText_(r.company || '-', 'col-company'));
+    tr.appendChild(tdText_(v5_renderLocs_(r), 'col-location'));
+    tr.appendChild(tdText_(v5_renderRegion_(r), 'col-region', v5_renderRegion_(r)));
+    tr.appendChild(v5_makeGpsTd_(r));
+    tr.appendChild(v5_makeScopesTd_(r));
+
+    var tdSt = document.createElement('td'); tdSt.className = 'col-status'; tdSt.innerHTML = m5_badgeHtml_(r.status); tr.appendChild(tdSt);
+
+    var tdExp = document.createElement('td'); tdExp.className = 'col-date col-expiry-single'; tdExp.appendChild(mkExpiryCell(r)); tr.appendChild(tdExp);
+
+    tr.appendChild(tdText_(r.planningWindowText || '-', 'col-planning-window', r.planningWindowText || '-'));
+    tr.appendChild(tdText_(m5_selfPlanningText_(r.allowSelfPlanning), 'col-selfplan'));
+    tr.appendChild(v5_makePlannedDaysTd_(r));
+    tr.appendChild(tdText_(v5_fmtHours_(r.requiredHours), 'col-hours'));
+    tr.appendChild(tdText_(v5_fmtHours_(r.hoursPlanned), 'col-hours ' + (hoursClass || '')));
+    tr.appendChild(tdText_(r.auditor || r.assignedToEmail || r.preassignedAuditor || '-', 'col-assigned'));
+
+    var tdAct = document.createElement('td');
+    tdAct.className = 'col-actions';
+    var st = m5_normStatus_(r.status);
+    if (st === 'Pending Planning') tdAct.appendChild(mkBtn('Plan', 'btn-primary', function(){ openPlanningToolkit(String(r.auditId || '')); }));
+    if (st === 'Pending Approval') tdAct.appendChild(mkBtn('Approve', 'btn-approve', function(){ managerActionById_('approve', String(r.auditId || ''), this); }));
+    if (st === 'Pending Approval') tdAct.appendChild(mkBtn('Deny', 'btn-deny', function(){ managerActionById_('deny', String(r.auditId || ''), this); }));
+    if (st === 'Accepted') {
+      var completeBtn = mkBtn((__m5CompleteBusy[String(r.auditId || '')] ? 'Completing…' : 'Complete'), 'btn-approve', function(){ managerCompletePrompt_(String(r.auditId || ''), completeBtn); });
+      if (__m5CompleteBusy[String(r.auditId || '')]) completeBtn.disabled = true;
+      tdAct.appendChild(completeBtn);
+    }
+    // T09 — Cancel only makes sense once something has been planned/approved/
+    // accepted; in 'Pending Planning' there is nothing to cancel yet.
+    // Spec: Pending Planning → Plan + Reject only.
+    if (st === 'Pending Approval' || st === 'Approved' || st === 'Accepted') tdAct.appendChild(mkBtn('Cancel', 'btn-ghost', function(){ managerActionById_('cancel', String(r.auditId || ''), this); }));
+    if (st === 'Pending Planning' || st === 'Pending Approval' || st === 'Approved' || st === 'Accepted') tdAct.appendChild(mkBtn('Reject', 'btn-reject', function(){ managerActionById_('reject', String(r.auditId || ''), this); }));
+    tr.appendChild(tdAct);
+
+    body.appendChild(tr);
+  });
+}
+
+function m5_refreshAllChipState_() {
+  var any = !!MANAGER_SINGLE_FILTER.planningWindowExpired || !!MANAGER_SINGLE_FILTER.companyQuery || !!MANAGER_SINGLE_FILTER.scopeQuery || !!MANAGER_SINGLE_FILTER.auditorQuery;
+  for (var k in MANAGER_SINGLE_FILTER.statuses) {
+    if (MANAGER_SINGLE_FILTER.statuses.hasOwnProperty(k) && MANAGER_SINGLE_FILTER.statuses[k]) { any = true; break; }
+  }
+  if (el('sgChipAll')) el('sgChipAll').classList.toggle('active', !any);
+  m5_updateSummaryCardActiveState_();
+}
+
+function m5_updateSummaryCardsFromOpenRows_() {
+  var rows = Array.isArray(MANAGER_SINGLE_RAW_ROWS) ? MANAGER_SINGLE_RAW_ROWS : [];
+  var counts = {
+    'Pending Planning': 0,
+    'Pending Approval': 0,
+    'Approved': 0,
+    'Accepted': 0
+  };
+  rows.forEach(function(r){
+    var st = m5_normStatus_(r && r.status);
+    if (counts.hasOwnProperty(st)) counts[st] += 1;
+  });
+  _v5_setCount_('sumPendingPlanning', counts['Pending Planning']);
+  _v5_setCount_('sumPendingApprovals', counts['Pending Approval']);
+  _v5_setCount_('sumPendingAcceptance', counts['Approved']);
+  _v5_setCount_('sumPendingCompletion', counts['Accepted']);
+}
+
+function m5_updateSummaryCardActiveState_() {
+  var map = {
+    'cardPendingPlanning': 'Pending Planning',
+    'cardPendingApprovals': 'Pending Approval',
+    'cardPendingAcceptance': 'Approved',
+    'cardPendingCompletion': 'Accepted'
+  };
+  Object.keys(map).forEach(function(id){
+    var node = el(id);
+    if (!node) return;
+    var st = map[id];
+    node.classList.toggle('active', !!MANAGER_SINGLE_FILTER.statuses[st]);
+  });
+}
+
+function m5_applySingleStatusFilter_(status) {
+  status = String(status || '').trim();
+  for (var k in MANAGER_SINGLE_FILTER.statuses) {
+    if (MANAGER_SINGLE_FILTER.statuses.hasOwnProperty(k)) MANAGER_SINGLE_FILTER.statuses[k] = false;
+  }
+  if (status && MANAGER_SINGLE_FILTER.statuses.hasOwnProperty(status)) {
+    MANAGER_SINGLE_FILTER.statuses[status] = true;
+  }
+  var btns = document.querySelectorAll('#sgStatusChips [data-sgstatus]');
+  for (var i = 0; i < btns.length; i++) {
+    var st = btns[i].getAttribute('data-sgstatus');
+    btns[i].classList.toggle('active', !!MANAGER_SINGLE_FILTER.statuses[st]);
+  }
+  m5_refreshAllChipState_();
+  m5_updateSummaryCardActiveState_();
+  m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS);
+}
+
+function m5_readSingleGridWarmCache_(cacheKey) {
+  cacheKey = String(cacheKey || '').trim();
+  if (!cacheKey) return [];
+
+  var rows = [];
+  try {
+    if (MANAGER_SINGLE_CACHE[cacheKey] && Array.isArray(MANAGER_SINGLE_CACHE[cacheKey])) {
+      rows = MANAGER_SINGLE_CACHE[cacheKey].slice();
+    }
+  } catch(e) { rows = []; }
+
+  if (!rows.length) {
+    try {
+      var raw = localStorage.getItem('m5_singleGridCache_' + cacheKey);
+      if (raw) {
+        var obj = JSON.parse(raw);
+        if (obj && Array.isArray(obj.rows) && obj.rows.length) rows = obj.rows.slice();
+      }
+    } catch(e2) { rows = []; }
+  }
+
+  if (cacheKey === 'archived' && rows.length) {
+    try { rows = rows.map(function(r){ return m5_normalizeCompletedRowForUi_(r); }); } catch(e3) {}
+  }
+
+  return rows;
+}
+
+function m5_paintSingleGridWarmCache_(cacheKey, label) {
+  var rows = m5_readSingleGridWarmCache_(cacheKey);
+  if (!rows.length) return false;
+  MANAGER_SINGLE_CACHE[cacheKey] = rows.slice();
+  MANAGER_SINGLE_RAW_ROWS = rows.slice();
+  m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS);
+  try { log((label || 'Warm cache paint') + ': ' + cacheKey + ' ' + rows.length + ' rows'); } catch(e) {}
+  return true;
+}
+
+function m5_invalidateSingleGridCache_() {
+  // Only refreshAll() invalidates memory snapshots.
+  // View toggle itself must use same-view memory cache to avoid slow reloads.
+  MANAGER_SINGLE_CACHE.open = null;
+  MANAGER_SINGLE_CACHE.archived = null;
+}
+
+
+
+function m5_extractRowsFromOpenResponse_(res, archived) {
+  var rows = [];
+  if (res && Array.isArray(res.rows)) rows = res.rows;
+  else if (Array.isArray(res)) rows = res;
+  else if (res && Array.isArray(res.open)) rows = res.open;
+  else if (res && Array.isArray(res.archived)) rows = res.archived;
+  if (archived) rows = rows.map(function(r){ return m5_normalizeCompletedRowForUi_(r); });
+  return rows;
+}
+
+function m5_persistSingleGridSnapshot_(cacheKey, rows) {
+  rows = Array.isArray(rows) ? rows : [];
+  MANAGER_SINGLE_CACHE[cacheKey] = rows.slice();
+  MANAGER_SINGLE_RAW_ROWS = rows.slice();
+  try {
+    localStorage.setItem('m5_singleGridCache_' + cacheKey, JSON.stringify({ t: Date.now(), rows: rows }));
+  } catch(__m5wcErr) {}
+}
+
+function m5_loadManagerOpenEnrichment_(reqSeq) {
+  google.script.run
+    .withSuccessHandler(function(res){
+      if (reqSeq !== __m5SingleGridReqSeq) return;
+      if (m5_isArchivedView_()) return;
+      if (!res || res.success === false) return;
+      var rows = m5_extractRowsFromOpenResponse_(res, false);
+      m5_persistSingleGridSnapshot_('open', rows);
+      m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS);
+      try { log('Manager enrichment loaded: ' + rows.length + ' rows'); } catch(e) {}
+    })
+    .withFailureHandler(function(err){
+      try { log('Manager enrichment skipped: ' + ((err && err.message) ? err.message : err)); } catch(e) {}
+    })
+    .getManagerV5OpenEnriched();
+}
+
+function loadManagerSingleGrid(force) {
+  var archived = m5_isArchivedView_();
+  var cacheKey = archived ? 'archived' : 'open';
+  var reqSeq = ++__m5SingleGridReqSeq;
+
+  m5_setSingleHeader_();
+  var bar = el('singleFilterBar');
+  if (bar) bar.style.display = archived ? 'none' : 'flex';
+
+  // Stable deploy1589 behavior: view toggle may use same-view memory cache.
+  // Do NOT repaint from opposite view and do NOT clear the grid during polling.
+  if (!force && MANAGER_SINGLE_CACHE[cacheKey] && Array.isArray(MANAGER_SINGLE_CACHE[cacheKey])) {
+    MANAGER_SINGLE_RAW_ROWS = MANAGER_SINGLE_CACHE[cacheKey].slice();
+    m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS);
+    return;
+  }
+
+  if (archived) {
+    runServer(
+      ['getManagerV5Archived'],
+      [],
+      function(res){
+        if (reqSeq !== __m5SingleGridReqSeq) return;
+        if (archived !== m5_isArchivedView_()) return;
+        if (!res || res.success === false) {
+          log('singleGrid fetch non-success for archived; keeping current view. msg=' + ((res && res.message) ? res.message : '(none)'));
+          if (MANAGER_SINGLE_CACHE.archived && Array.isArray(MANAGER_SINGLE_CACHE.archived)) {
+            MANAGER_SINGLE_RAW_ROWS = MANAGER_SINGLE_CACHE.archived.slice();
+            m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS);
+          }
+          return;
+        }
+        var rows = m5_extractRowsFromOpenResponse_(res, true);
+        m5_persistSingleGridSnapshot_('archived', rows);
+        m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS);
+      },
+      function(err){
+        if (reqSeq !== __m5SingleGridReqSeq) return;
+        if (archived !== m5_isArchivedView_()) return;
+        handleError('singleGrid', err);
+      }
+    );
+    return;
+  }
+
+  // 3S RULE: fast paint is only for an empty first visible grid.
+  // Once an enriched/current grid exists, refresh must not downgrade it to the minimal fast payload.
+  if (force && MANAGER_SINGLE_RAW_ROWS && MANAGER_SINGLE_RAW_ROWS.length) {
+    m5_loadManagerOpenEnrichment_(reqSeq);
+    return;
+  }
+
+  // 3S FAST FIRST PAINT CONTRACT — Manager grid only.
+  // 1) getManagerV5Open() is the backend d24 fast open endpoint.
+  // 2) Render immediately from that minimal dataset.
+  // 3) getManagerV5OpenEnriched() updates scopes/company details/tooltips after paint.
+  google.script.run
+    .withSuccessHandler(function(res){
+      if (reqSeq !== __m5SingleGridReqSeq) return;
+      if (m5_isArchivedView_()) return;
+      if (!res || res.success === false) {
+        log('singleGrid fast open failed; keeping current open grid. msg=' + ((res && res.message) ? res.message : '(none)'));
+        if (MANAGER_SINGLE_CACHE.open && Array.isArray(MANAGER_SINGLE_CACHE.open)) {
+          MANAGER_SINGLE_RAW_ROWS = MANAGER_SINGLE_CACHE.open.slice();
+          m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS);
+        }
+        return;
+      }
+      var rows = m5_extractRowsFromOpenResponse_(res, false);
+      // Minimal fast payload is for visible first paint only; do not persist it as warm-cache truth.
+      MANAGER_SINGLE_CACHE.open = rows.slice();
+      MANAGER_SINGLE_RAW_ROWS = rows.slice();
+      m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS);
+      try { log('Manager fast first paint: ' + rows.length + ' rows'); } catch(e) {}
+      try {
+        var __m5Enrich = function(){ m5_loadManagerOpenEnrichment_(reqSeq); };
+        if (window.requestAnimationFrame) window.requestAnimationFrame(function(){ window.setTimeout(__m5Enrich, 60); });
+        else window.setTimeout(__m5Enrich, 120);
+      } catch(__m5e) { window.setTimeout(function(){ m5_loadManagerOpenEnrichment_(reqSeq); }, 120); }
+    })
+    .withFailureHandler(function(err){
+      if (reqSeq !== __m5SingleGridReqSeq) return;
+      if (m5_isArchivedView_()) return;
+      if (MANAGER_SINGLE_CACHE.open && Array.isArray(MANAGER_SINGLE_CACHE.open)) {
+        MANAGER_SINGLE_RAW_ROWS = MANAGER_SINGLE_CACHE.open.slice();
+        m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS);
+      }
+      handleError('singleGrid fast open', err);
+    })
+    .getManagerV5Open();
+}
+
+
+
+function refreshAll(reason) {
+  log('RefreshAll → ' + (reason || ''));
+  m5_invalidateSingleGridCache_();
+  loadManagerSingleGrid(true);
+
+  // 3S first-paint order: grid owns the hot path.
+  // Summary tiles are useful, but not required before the first visible grid.
+  // Delay especially on init so Apps Script server work does not compete with open grid.
+  var __m5SummaryDelay = (String(reason || '').toLowerCase() === 'init') ? 900 : 180;
+  window.setTimeout(function(){
+    try { loadDashboardSummary(); } catch(e) { handleError('dashboard', e); }
+  }, __m5SummaryDelay);
+}
+
+function initManagerUI() {
+  log('INIT Manager Portal — single grid');
+  var chk = el('chkArchivedManager');
+  if (chk && !chk.__wired) {
+    chk.__wired = true;
+    chk.addEventListener('change', function(){ loadManagerSingleGrid(false); });
+  }
+  var q = el('sgCompanySearch');
+  if (q && !q.__wired) {
+    q.__wired = true;
+    q.addEventListener('input', function(){
+      MANAGER_SINGLE_FILTER.companyQuery = q.value || '';
+      m5_refreshAllChipState_();
+      m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS);
+    });
+  }
+
+  var scopeQ = el('sgScopeSearch');
+  if (scopeQ && !scopeQ.__wired) {
+    scopeQ.__wired = true;
+    scopeQ.addEventListener('input', function(){
+      MANAGER_SINGLE_FILTER.scopeQuery = scopeQ.value || '';
+      m5_refreshAllChipState_();
+      m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS);
+    });
+  }
+
+  var auditorQ = el('sgAuditorSearch');
+  if (auditorQ && !auditorQ.__wired) {
+    auditorQ.__wired = true;
+    auditorQ.addEventListener('input', function(){
+      MANAGER_SINGLE_FILTER.auditorQuery = auditorQ.value || '';
+      m5_refreshAllChipState_();
+      m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS);
+    });
+  }
+
+  var reset = el('sgResetBtn');
+  if (reset && !reset.__wired) {
+    reset.__wired = true;
+    reset.addEventListener('click', function(){
+      MANAGER_SINGLE_FILTER.companyQuery = '';
+      MANAGER_SINGLE_FILTER.scopeQuery = '';
+      MANAGER_SINGLE_FILTER.auditorQuery = '';
+      MANAGER_SINGLE_FILTER.planningWindowExpired = false;
+      for (var k in MANAGER_SINGLE_FILTER.statuses) if (MANAGER_SINGLE_FILTER.statuses.hasOwnProperty(k)) MANAGER_SINGLE_FILTER.statuses[k] = false;
+      if (el('sgCompanySearch')) el('sgCompanySearch').value = '';
+      if (el('sgScopeSearch')) el('sgScopeSearch').value = '';
+      if (el('sgAuditorSearch')) el('sgAuditorSearch').value = '';
+      if (el('sgChipWindowExpired')) el('sgChipWindowExpired').classList.remove('active');
+      var btns = document.querySelectorAll('#sgStatusChips [data-sgstatus]');
+      for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+      m5_refreshAllChipState_();
+      m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS);
+    });
+  }
+  var chipAll = el('sgChipAll');
+  if (chipAll && !chipAll.__wired) {
+    chipAll.__wired = true;
+    chipAll.addEventListener('click', function(){ if (el('sgResetBtn')) el('sgResetBtn').click(); });
+  }
+  var chipExp = el('sgChipWindowExpired');
+  if (chipExp && !chipExp.__wired) {
+    chipExp.__wired = true;
+    chipExp.addEventListener('click', function(){
+      MANAGER_SINGLE_FILTER.planningWindowExpired = !MANAGER_SINGLE_FILTER.planningWindowExpired;
+      chipExp.classList.toggle('active', MANAGER_SINGLE_FILTER.planningWindowExpired);
+      m5_refreshAllChipState_();
+      m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS);
+    });
+  }
+  var statusBtns = document.querySelectorAll('#sgStatusChips [data-sgstatus]');
+  for (var j = 0; j < statusBtns.length; j++) {
+    (function(btn){
+      if (btn.__wired) return;
+      btn.__wired = true;
+      btn.addEventListener('click', function(){
+        var st = btn.getAttribute('data-sgstatus');
+        MANAGER_SINGLE_FILTER.statuses[st] = !MANAGER_SINGLE_FILTER.statuses[st];
+        btn.classList.toggle('active', !!MANAGER_SINGLE_FILTER.statuses[st]);
+        m5_refreshAllChipState_();
+        m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS);
+      });
+    })(statusBtns[j]);
+  }
+  var summaryCards = document.querySelectorAll('[data-sgsummary-status]');
+  for (var k2 = 0; k2 < summaryCards.length; k2++) {
+    (function(card){
+      if (card.__wired) return;
+      card.__wired = true;
+      card.addEventListener('click', function(){
+        if (m5_isArchivedView_()) return;
+        m5_applySingleStatusFilter_(card.getAttribute('data-sgsummary-status') || '');
+      });
+    })(summaryCards[k2]);
+  }
+
+  document.addEventListener('click', function(ev){
+    var th = ev.target && ev.target.closest ? ev.target.closest('#singleGridHead th[data-m5sort]') : null;
+    if (!th) return;
+    var key = th.getAttribute('data-m5sort') || 'company';
+    if (MANAGER_SINGLE_SORT.key === key) MANAGER_SINGLE_SORT.dir = (MANAGER_SINGLE_SORT.dir === 'asc' ? 'desc' : 'asc');
+    else { MANAGER_SINGLE_SORT.key = key; MANAGER_SINGLE_SORT.dir = 'asc'; }
+    m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS);
+  }, true);
+
+  m5_refreshAllChipState_();
+
+  // T06 — instant first-paint from localStorage warm cache.
+  // Two cold sheet-reads on init (dashboard + single-grid) ran serially via
+  // google.script.run, so the grid stayed blank until both backend calls
+  // returned. We now paint the last-known rows immediately, then let
+  // refreshAll('init') overwrite with fresh data when it arrives.
+  try {
+    var __m5wcArchived = m5_isArchivedView_();
+    var __m5wcKey = 'm5_singleGridCache_' + (__m5wcArchived ? 'archived' : 'open');
+    var __m5wcRaw = localStorage.getItem(__m5wcKey);
+    if (__m5wcRaw) {
+      var __m5wcObj = JSON.parse(__m5wcRaw);
+      if (__m5wcObj && Array.isArray(__m5wcObj.rows) && __m5wcObj.rows.length) {
+        MANAGER_SINGLE_RAW_ROWS = __m5wcObj.rows.slice();
+        if (__m5wcArchived) MANAGER_SINGLE_RAW_ROWS = MANAGER_SINGLE_RAW_ROWS.map(function(r){ return m5_normalizeCompletedRowForUi_(r); });
+        MANAGER_SINGLE_CACHE[__m5wcArchived ? 'archived' : 'open'] = MANAGER_SINGLE_RAW_ROWS.slice();
+        m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS);
+        log('First-paint from warm cache: ' + __m5wcObj.rows.length +
+            ' rows (age ' + Math.round((Date.now() - (__m5wcObj.t || 0)) / 1000) + 's)');
+      }
+    }
+  } catch (__m5wcInitErr) { log('warm-cache read failed: ' + (__m5wcInitErr && __m5wcInitErr.message)); }
+
+  refreshAll('init');
+}
+
+document.addEventListener("DOMContentLoaded", initManagerUI);
+</script>
+
+<!-- SECTION 16 — MANAGER TOOLS INCLUDE -->
+<?!= HtmlService.createHtmlOutputFromFile('ManagerV5ToolsUI').getContent(); ?>
+  
+<!-- ============================================================
+ SECTION 17 — COMPANY UPDATES REVIEW MODAL
+ ============================================================ -->
+<div class="v5-modal-backdrop" id="modalCompanyUpdates" aria-hidden="true">
+  <div class="v5-modal" style="width:min(1180px,96vw)">
+    <header>Company updates review</header>
+    <div class="body">
+      <div id="companyReviewMeta" class="muted" style="margin-bottom:8px;"></div>
+      <div class="company-review-toolbar">
+        <select id="companyReviewGroupSelect" onchange="loadSelectedCompanyReviewGroup()" style="max-width:420px;"></select>
+        <button class="btn btn-ghost" type="button" onclick="refreshCompanyUpdatesCount()">Refresh</button>
+      </div>
+      <div class="company-review-grid" id="companyReviewGrid"></div>
+    </div>
+    <footer>
+      <button class="btn btn-ghost" type="button" onclick="closeCompanyUpdatesReview()">Close</button>
+      <button class="btn btn-primary" type="button" onclick="saveCompanyUpdatesReview()">Save</button>
+    </footer>
+  </div>
+</div>
+<script>
+/* ============================================================
+ * SECTION 18 — COMPANY UPDATES REVIEW CLIENT
+ * ============================================================ */
+var __COMPANY_REVIEW_GROUPS = [];
+var __COMPANY_REVIEW_CTX = null;
+function closeCompanyUpdatesReview(){ try{ V5.modal.close('modalCompanyUpdates'); }catch(e){} }
+function refreshCompanyUpdatesCount(openAndLoad){
+  google.script.run.withSuccessHandler(function(res){
+    var groups = (res&&res.groups)||[]; __COMPANY_REVIEW_GROUPS = groups;
+    var badge = document.getElementById('companyUpdatesCount'); if(badge) badge.textContent = String(groups.length||0);
+    var sel = document.getElementById('companyReviewGroupSelect');
+    if(sel){
+      sel.innerHTML = groups.map(function(g,i){ return '<option value="'+V5.escape(g.proposalId)+'">'+V5.escape(g.company||'')+' ('+g.rowCount+')</option>'; }).join('');
+    }
+    if (openAndLoad) {
+      V5.modal.open('modalCompanyUpdates');
+      if (groups.length) loadSelectedCompanyReviewGroup();
+      else {
+        __COMPANY_REVIEW_CTX = null;
+        var meta = document.getElementById('companyReviewMeta'); if(meta) meta.textContent = 'No pending company updates.';
+        var grid = document.getElementById('companyReviewGrid'); if(grid) grid.innerHTML = '<div class="company-review-empty">No pending company updates.</div>';
+      }
+    }
+  }).withFailureHandler(function(err){ showToast(String(err&&err.message?err.message:err)); }).companyUpdate_listPendingProposalGroups(200);
+}
+function openCompanyUpdatesReview(){ refreshCompanyUpdatesCount(true); }
+function loadSelectedCompanyReviewGroup(){
+  var sel = document.getElementById('companyReviewGroupSelect'); if(!sel || !sel.value){ var grid=document.getElementById('companyReviewGrid'); if(grid) grid.innerHTML = '<div class="company-review-empty">Select a company.</div>'; return; }
+  google.script.run.withSuccessHandler(function(res){
+    if(!res || res.success===false) { showToast((res&&res.message)||'Failed'); return; }
+    __COMPANY_REVIEW_CTX = res;
+    document.getElementById('companyReviewMeta').textContent = (res.company||'') + ' · auditor ' + (res.auditorEmail||'');
+    var html = [];
+    html.push('<div class="hd">Field</div><div class="hd">Current</div><div class="hd">Proposed / Adjust</div><div class="hd">Decision</div>');
+    (res.items||[]).forEach(function(it){
+      var key = 'mgr_' + it.rowNumber;
+      html.push('<div class="lbl">'+V5.escape(it.section + (it.locationCode ? ' / '+it.locationCode : '') + ' / ' + it.fieldKey)+'</div>');
+      html.push('<div class="cur">'+V5.escape(it.oldValue||'')+'</div>');
+      html.push('<div><input type="text" id="'+key+'_value" value="'+V5.escape(it.proposedValue||'')+'"></div>');
+      html.push('<div class="decision"><select id="'+key+'_decision"><option value="accept">Accept</option><option value="reject">Reject</option><option value="adjust">Adjust</option></select><input type="hidden" id="'+key+'_row" value="'+it.rowNumber+'"></div>');
+    });
+    document.getElementById('companyReviewGrid').innerHTML = html.join('');
+  }).withFailureHandler(function(err){ showToast(String(err&&err.message?err.message:err)); }).companyUpdate_getProposalGroup(sel.value);
+}
+function saveCompanyUpdatesReview(){
+  if(!__COMPANY_REVIEW_CTX) return;
+  var decisions = (__COMPANY_REVIEW_CTX.items||[]).map(function(it){ var key='mgr_'+it.rowNumber; return { rowNumber: it.rowNumber, decision: document.getElementById(key+'_decision').value, adjustedValue: document.getElementById(key+'_value').value }; });
+  google.script.run.withSuccessHandler(function(res){ closeCompanyUpdatesReview(); refreshCompanyUpdatesCount(); showToast('Company updates saved'); }).withFailureHandler(function(err){ showToast(String(err&&err.message?err.message:err)); }).companyUpdate_saveManagerReview({ managerEmail: String(MANAGER_EMAIL_TEMPLATE||'').trim().toLowerCase(), decisions: decisions });
+}
+document.addEventListener('DOMContentLoaded', function(){
+  // Not first-paint critical. Keep it out of the Manager grid hot path.
+  window.setTimeout(function(){ try{ refreshCompanyUpdatesCount(); }catch(e){} }, 2500);
+});
+</script>
+
+</body>
+</html>

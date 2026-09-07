@@ -1,0 +1,3633 @@
+<!-- CONSOLIDATED_AUDITOR_STABLE_20260410_091500 -->
+<!-- GATE2_CAL_EMBED_NO_MODAL_20260129_115529 -->
+<!-- GATE1_UIMODE_HIDE_MYAVAIL_BTN_20260129_103102 -->
+<!-- OPTIONB_TESTFLAG_PORTAL_20260128_074016 -->
+<!--
+AuditorPortalV5.html
+Baseline: 671
+Availability Calendar — Deploy 2.3 (SOFT/HARD colors fixed, softBlocked priority)
+Timestamp: 20260119_195631
+-->
+
+<!-- BUILD: AuditorPortalV5_3S_FAST_GRID_RACE_AND_TOOLKIT_URLFIX_20260504_163810 -->
+<!-- BUILD: AUDITOR_COMPANY_UPDATE_CURRENT_PROPOSED_UI_R1_20260514 -->
+<!-- BUILD: AUDITOR_PORTAL_GRID_ALIGNMENT_POLISH_R3_20260515 -->
+<!-- BUILD: AUDITOR_PORTAL_UX_POLISH_LOW_RISK_20260515 -->
+<!-- BUILD: AUDITOR_PORTAL_UI_POLISH_R2_ACTION_FEEDBACK_20260515 -->
+<!-- BUILD: AUDITOR_PORTAL_FILTER_HQ_STATUS_R5_PENDING_APPROVAL_WARNING_20260516 -->
+<!-- BUILD: AUDITOR_PORTAL_UI_POLISH_FILTER_HQ_STATUS_R4_20260515 -->
+<!-- BUILD: 2026-05-21_UI_ACTION_STATUS_TONE_CONTRACT_R2_SYNCED_AUDITOR_PORTAL_SYNC -->
+<!-- BUILD: AUDITOR_PORTAL_HQ_GPS_COLUMN_R2_ALIGNMENT_FIX_20260524 -->
+<!-- BUILD: AUDITOR_PORTAL_HQ_GPS_COLUMN_R1_20260524 -->
+<!DOCTYPE html>
+<html>
+<!-- FILE: AuditorPortalV5.html | Timestamp: 2026-01-04 12:36:53 -->
+<!-- BUILD: AUDITOR_UI_DENY_CANCEL_HEADERGUARD_20260110_120522 -->
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <title>AMS - Auditor</title>
+  <script>
+(function enforceAmsShortBrowserTitle() {
+  var AMS_SHORT_BROWSER_TITLE = 'AMS - Auditor';
+  function setAmsShortBrowserTitle() {
+    try { document.title = AMS_SHORT_BROWSER_TITLE; } catch (e) {}
+  }
+  setAmsShortBrowserTitle();
+  try { document.addEventListener('DOMContentLoaded', setAmsShortBrowserTitle); } catch (e) {}
+  try { window.addEventListener('load', setAmsShortBrowserTitle); } catch (e) {}
+  try { setTimeout(setAmsShortBrowserTitle, 0); setTimeout(setAmsShortBrowserTitle, 250); setTimeout(setAmsShortBrowserTitle, 1000); } catch (e) {}
+})();
+</script>
+  <script>window.EXPECTED_ROLE = 'Auditor';</script>
+ <?!= HtmlService.createHtmlOutputFromFile('SharedUI').getContent(); ?>
+  <style>
+  .md-flag { cursor: help; text-decoration: underline dotted; }
+  .scope-badges { display:flex; flex-wrap:wrap; gap:6px; margin-top:2px; }
+  .scope-badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; line-height:18px; border:1px solid rgba(0,0,0,0.08); white-space:nowrap; }
+  /* Auditor status badges: central UiDialogs contract owns colors. */
+  .aud-status-badge{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:4px 8px;
+    border-radius:999px;
+    font-size:11px;
+    font-weight:400 !important;
+    line-height:1;
+    min-height:24px;
+    white-space:nowrap;
+    border:1px solid transparent;
+    box-shadow:none !important;
+    text-transform:none !important;
+    letter-spacing:0 !important;
+  }
+
+.col-select { width:42px; text-align:center; }
+  .col-company-adjust { width:28px; min-width:28px; max-width:28px; text-align:center; padding-left:0; padding-right:0; }
+  .company-adjust-cell { width:28px; min-width:28px; max-width:28px; text-align:center; padding:0; }
+  .company-adjust-btn { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border:0; background:transparent; cursor:pointer; border-radius:4px; font-size:16px; font-weight:700; line-height:22px; color:#2563eb; padding:0; margin:0 auto; }
+  .company-adjust-btn:hover { background:rgba(0,0,0,.06); }
+  .select-cell { text-align:center; }
+  .export-controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .export-controls select,.export-controls input[type=text] { height:32px; border:1px solid #d1d5db; border-radius:6px; padding:0 8px; background:#fff; font-size:12px; }
+  .export-controls input[type=text]{width:170px;}
+  .export-controls .muted-mini { font-size:12px; opacity:.75; }
+  
+  /* Layout: use full width */
+  .wrap, .container, .page, .shell { max-width: none !important; }
+  body { padding-left: 8px; padding-right: 8px; }
+
+  /* Auditor grid: Manager-like sorting (click header) */
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable.sorted { text-decoration: underline; }
+
+
+  /* ===============================
+   * Full-width layout + prevent horizontal scrolling
+   * BUILD: AUDITOR_UI_FULLWIDTH_20260119_073519
+   * =============================== */
+  html, body { width: 100%; }
+  body { margin: 0; padding: 10px; box-sizing: border-box; overflow-x: hidden; }
+
+  .v5-page { width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; }
+  .v5-card { width: 100% !important; max-width: none !important; margin-left: 0 !important; margin-right: 0 !important; }
+
+  /* Grid/table should fill available width */
+  table.v5-grid#grid { width: 100% !important; table-layout: fixed; border-collapse: collapse; }
+
+  /* Wrap cell content instead of forcing table wider */
+  table.v5-grid#grid td { white-space: normal; word-break: break-word; overflow-wrap: anywhere; }
+
+  /* Keep header labels on one line, but let cells wrap */
+  table.v5-grid#grid th { white-space: nowrap; }
+
+  /* Make sure the page doesn't create a horizontal scrollbar */
+  * { box-sizing: border-box; }
+
+
+/* ===============================
+ * Availability Calendar (Deploy 2.1 CLEAN DOMREADY)
+ * Timestamp: 20260119_195631
+ * =============================== */
+.monthBar{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:8px 0;}
+.calDow{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;font-size:12px;opacity:.8;margin-top:8px;}
+.calGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:6px;}
+.calCell{border:1px solid rgba(0,0,0,.15);border-radius:10px;min-height:44px;padding:6px 8px;position:relative;user-select:none;}
+.calCell.calEmpty{border:none;background:transparent;}
+.calCell.sumAvail{background:rgba(0,128,0,.12);}
+.calCell.sumMixed{background:rgba(255,165,0,.16);}
+.calCell.sumBlock{background:rgba(255,0,0,.10);}
+.calCell.locked{opacity:.65;cursor:not-allowed;}
+.calCell.clickable{cursor:pointer;}
+.calCell.saving{opacity:.6;pointer-events:none;}
+.loadingMask{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.85);border-radius:10px;font-weight:700;}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;opacity:.85}
+.legend .item{display:flex;gap:6px;align-items:center}
+.legend .sw{width:12px;height:12px;border-radius:3px;border:1px solid rgba(0,0,0,.2);display:inline-block}
+.legend .sw.av{background:rgba(0,128,0,.12);}
+.legend .sw.mx{background:rgba(255,165,0,.16);}
+.legend .sw.bl{background:rgba(255,0,0,.10);}
+.legend .sw.neu{background:transparent;}
+
+
+.legend .sw.hd{background:rgba(180,0,0,.32);}
+.calCell.sumHardBlock{background:rgba(180,0,0,.32); border:1px solid rgba(120,0,0,.65); background-image:repeating-linear-gradient(135deg, rgba(120,0,0,.20) 0, rgba(120,0,0,.20) 6px, rgba(180,0,0,.00) 6px, rgba(180,0,0,.00) 12px);}
+
+  /* Skeleton loading */
+  .sk-row { animation: v5Shimmer 1.2s linear infinite; background: linear-gradient(90deg, rgba(0,0,0,0.04) 25%, rgba(0,0,0,0.08) 37%, rgba(0,0,0,0.04) 63%); background-size: 400% 100%; }
+  .sk-line { height: 14px; border-radius: 8px; background: rgba(0,0,0,0.08); display:block; width:100%; min-width:24px; }
+  .sk-line.sm { width: 50%; margin: 0 auto; }
+  .sk-line.md { width: 70%; }
+  .sk-line.lg { width: 90%; }
+  @keyframes v5Shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+
+
+
+
+  .build-stamp-aud{
+    display:inline-block;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: rgba(34,197,94,0.14);
+    border: 1px solid rgba(74,222,128,0.45);
+    font-size: 11px;
+    color: #166534;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: 0.02em;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+
+
+  /* Production presentation pass */
+  .build-stamp-aud { display:none !important; }
+
+  .aqa-portal-brand{display:flex;align-items:center;gap:12px;}
+  .aqa-logo{width:42px;height:42px;object-fit:contain;border-radius:999px;background:#020403;box-shadow:0 0 0 1px rgba(255,255,255,.18);}
+  .owner-note{font-size:10px;opacity:.70;margin-top:3px;}
+
+  .portal-title-main { display:block; font-size:18px; font-weight:800; line-height:1.15; }
+  .portal-title-sub { display:block; font-size:12px; font-weight:600; color:#d1d5db; margin-top:2px; }
+  #perfLine { display:none !important; }
+  #logDock, #mpDiag { display:none !important; }
+  .v5-topbar { padding: 12px 16px; border-radius: 12px; }
+  .v5-card-header { padding: 10px 12px; }
+
+
+  /* 3S row-level action pending state — Auditor grid matches Manager grid */
+  tr.v5-row-busy {
+    opacity: .72;
+    background: rgba(37, 99, 235, .045) !important;
+  }
+  tr.v5-row-busy td {
+    background: rgba(37, 99, 235, .035) !important;
+  }
+  .v5-cell-pending {
+    color: #64748b;
+    font-style: italic;
+  }
+
+  /* Auditor Portal UX polish — low-risk UI-only pass */
+  .aud-grid-wrap{
+    overflow-x:auto !important;
+    overflow-y:visible;
+    width:100%;
+    border-radius:10px;
+  }
+  table.v5-grid#grid th{
+    position:sticky;
+    top:0;
+    z-index:5;
+    background:#f8fafc;
+    box-shadow:0 1px 0 rgba(15,23,42,.10);
+  }
+  table.v5-grid#grid th,
+  table.v5-grid#grid td{
+    padding:6px 7px;
+    vertical-align:top;
+    line-height:1.28;
+  }
+  table.v5-grid#grid td{
+    overflow-wrap:anywhere;
+    word-break:normal;
+  }
+  table.v5-grid#grid td:nth-child(2),
+  table.v5-grid#grid td:nth-child(5),
+  table.v5-grid#grid td:nth-child(8),
+  table.v5-grid#grid td:nth-child(12),
+  table.v5-grid#grid td:nth-child(13){
+    hyphens:auto;
+  }
+  .aud-gps-link{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:22px;
+    width:22px;
+    height:22px;
+    padding:0;
+    border:1px solid rgba(37,99,235,.20);
+    border-radius:999px;
+    background:rgba(37,99,235,.06);
+    color:#1d4ed8;
+    font-size:13px;
+    font-weight:700;
+    text-decoration:none !important;
+    white-space:nowrap;
+  }
+  .aud-gps-link:hover{ background:rgba(37,99,235,.12); }
+  .col-hq { width:46px; min-width:46px; max-width:46px; text-align:center; }
+
+  .aud-action-feedback{
+    display:none;
+    margin:8px 0 10px;
+    padding:10px 12px;
+    border-radius:10px;
+    border:1px solid rgba(15,23,42,.12);
+    background:#f8fafc;
+    color:#334155;
+    font-size:13px;
+    font-weight:700;
+    line-height:1.35;
+  }
+  .aud-action-feedback.success{
+    display:block;
+    border-color:rgba(22,163,74,.28);
+    background:rgba(22,163,74,.08);
+    color:#166534;
+  }
+  .aud-action-feedback.error{
+    display:block;
+    border-color:rgba(220,38,38,.30);
+    background:rgba(220,38,38,.08);
+    color:#991b1b;
+  }
+
+  .aud-legend-note{
+    margin-top:6px;
+    font-size:12px;
+    color:#475569;
+    line-height:1.35;
+  }
+  .legend .item{ cursor:help; }
+  .v5-modal .body{
+    padding-top:10px;
+  }
+  .v5-modal .body label{
+    margin-top:8px;
+    margin-bottom:4px;
+  }
+  .v5-modal textarea{
+    min-height:82px;
+  }
+
+
+  /* Auditor Portal R3 — grid readability/alignment polish only */
+  table.v5-grid#grid td.align-center,
+  table.v5-grid#grid th.align-center,
+  table.v5-grid#grid td.company-adjust-cell,
+  table.v5-grid#grid td.select-cell{
+    text-align:center;
+  }
+  table.v5-grid#grid td.col-action,
+  table.v5-grid#grid th.col-action{
+    text-align:right;
+  }
+  .aud-empty{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:100%;
+    color:#94a3b8;
+    font-weight:600;
+  }
+  .aud-empty-left{
+    display:inline-block;
+    color:#94a3b8;
+    font-weight:600;
+  }
+  .aud-hq-hint{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    border-bottom:1px dotted rgba(71,85,105,.65);
+    cursor:help;
+  }
+  .aud-hq-hint::after{
+    content:"?";
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:13px;
+    height:13px;
+    border-radius:999px;
+    background:#eef2ff;
+    color:#3730a3;
+    font-size:9px;
+    font-weight:900;
+  }
+  .aud-archive-row .aud-empty,
+  .aud-archive-row .aud-empty-left{
+    color:#9ca3af;
+  }
+  .aud-archive-row td{
+    background:#fcfcfd;
+  }
+
+  @media (max-width:1200px){
+    table.v5-grid#grid th,
+    table.v5-grid#grid td{ font-size:12px; padding:5px 6px; }
+    .scope-badge{ font-size:11px; padding:1px 6px; }
+    .v5-action-btn,.ui-action-btn{ padding:5px 8px; min-height:26px; }
+  }
+  @media (max-width:980px){
+    .export-controls{ gap:6px; }
+    .export-controls input[type=text]{ width:130px; }
+    table.v5-grid#grid{ min-width:1080px; }
+  }
+  @media (max-width:760px){
+    .v5-topbar{ align-items:flex-start; flex-direction:column; }
+    .aqa-logo{ width:36px; height:36px; }
+    table.v5-grid#grid{ min-width:980px; }
+  }
+
+
+
+/* ============================================================
+ * AUDITOR_PORTAL_COMPACT_DENSITY_PASS_R1_20260515
+ * UI-only density pass: desktop operational compactness.
+ * No backend/status/availability logic changes.
+ * ============================================================ */
+:root{
+  --aud-compact-font:11.5px;
+}
+html,body{
+  font-size:12px;
+}
+body{
+  padding:6px !important;
+}
+.v5-page{
+  padding:0 !important;
+}
+.v5-topbar{
+  padding:8px 12px !important;
+  border-radius:10px !important;
+  min-height:auto !important;
+}
+.aqa-portal-brand{
+  gap:9px !important;
+}
+.aqa-logo{
+  width:34px !important;
+  height:34px !important;
+}
+.portal-title-main{
+  font-size:15px !important;
+  line-height:1.08 !important;
+}
+.portal-title-sub{
+  font-size:10.5px !important;
+  margin-top:1px !important;
+}
+.v5-subtitle{
+  font-size:10.5px !important;
+  line-height:1.15 !important;
+}
+.owner-note{
+  font-size:9px !important;
+  margin-top:1px !important;
+}
+.v5-btn,
+.ui-action-btn,
+.v5-action-btn,
+button.v5-btn{
+  font-size:11px !important;
+  padding:4px 8px !important;
+  min-height:24px !important;
+  line-height:1.1 !important;
+  border-radius:8px !important;
+}
+.v5-card{
+  border-radius:10px !important;
+}
+.v5-card-header{
+  padding:7px 9px !important;
+  gap:7px !important;
+}
+.v5-card-header h2{
+  font-size:14px !important;
+  line-height:1.1 !important;
+  margin:0 !important;
+}
+.v5-pill{
+  font-size:10.5px !important;
+  padding:3px 8px !important;
+  line-height:1.1 !important;
+}
+.export-controls{
+  gap:5px !important;
+}
+.export-controls select,
+.export-controls input[type=text]{
+  height:27px !important;
+  font-size:11px !important;
+  padding:0 7px !important;
+  border-radius:7px !important;
+}
+.export-controls input[type=text]{
+  width:150px !important;
+}
+.export-controls label{
+  font-size:11px !important;
+  gap:5px !important;
+}
+.export-controls .muted-mini{
+  font-size:10.5px !important;
+}
+.aud-grid-wrap{
+  border-radius:8px !important;
+}
+table.v5-grid#grid{
+  font-size:var(--aud-compact-font) !important;
+}
+table.v5-grid#grid th,
+table.v5-grid#grid td{
+  padding:4px 5px !important;
+  line-height:1.14 !important;
+  vertical-align:middle !important;
+}
+table.v5-grid#grid th{
+  font-size:11px !important;
+  font-weight:800 !important;
+}
+table.v5-grid#grid td{
+  font-size:11.5px !important;
+}
+.scope-badges{
+  gap:3px !important;
+  margin-top:0 !important;
+}
+.scope-badge{
+  font-size:10.5px !important;
+  line-height:15px !important;
+  padding:1px 6px !important;
+}
+.aud-status-badge{
+  font-size:11px !important;
+  font-weight:400 !important;
+  line-height:1 !important;
+  padding:4px 8px !important;
+  min-height:24px !important;
+  text-transform:none !important;
+}
+.aud-gps-link{
+  font-size:10.5px !important;
+  min-width:30px !important;
+  padding:2px 6px !important;
+}
+.company-adjust-btn{
+  width:18px !important;
+  height:18px !important;
+  line-height:18px !important;
+  font-size:14px !important;
+}
+.col-company-adjust,
+.company-adjust-cell{
+  width:24px !important;
+  min-width:24px !important;
+  max-width:24px !important;
+}
+.col-select{
+  width:34px !important;
+}
+input[type="checkbox"]{
+  width:12px;
+  height:12px;
+}
+.aud-action-feedback{
+  margin:6px 0 8px !important;
+  padding:7px 9px !important;
+  font-size:11.5px !important;
+  border-radius:8px !important;
+}
+.v5-modal header{
+  padding:10px 12px !important;
+  font-size:14px !important;
+}
+.v5-modal .body{
+  padding:10px 12px !important;
+  font-size:12px !important;
+}
+.v5-modal footer{
+  padding:9px 12px !important;
+}
+@media (max-width:1200px){
+  table.v5-grid#grid th,
+  table.v5-grid#grid td{
+    font-size:11px !important;
+    padding:4px 5px !important;
+  }
+  .export-controls input[type=text]{width:135px !important;}
+}
+
+</style>
+
+  <?!= HtmlService.createHtmlOutputFromFile('UiDialogs_HTML').getContent(); ?>
+
+</head>
+<body>
+
+<script>
+  // Gate 1: server-injected mode & page (no URL parsing, no iframe hacks)
+  var __UI_MODE = '<?= __UI_MODE ?>';
+  var __PAGE = '<?= __PAGE ?>';
+</script>
+
+<script>
+  try {
+    if (typeof __TEST_FLAG !== 'undefined' && __TEST_FLAG) {
+      document.getElementById('TEST_FLAG_BANNER').textContent = 'TEST FLAG SEEN: ' + __TEST_FLAG;
+    }
+  } catch(e) {}
+</script>
+
+  <div class="v5-page">
+<!-- GATE 1: AVAILABILITY_ONLY SCAFFOLD -->
+<div class="v5-card" id="v5AvailOnlyCard" style="display:none; margin-top:12px;">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+    <div>
+      <div style="font-size:18px; font-weight:800;">My availability</div>
+      <div style="opacity:.75; margin-top:2px;">AVAILABILITY_ONLY — scaffold confirmed. Calendar engine comes next gate.</div>
+    </div>
+    <button class="v5-btn v5-btn-secondary" id="btnBackToAudits">Back to audits</button>
+
+  <!-- GATE2_CAL_RO_READONLY_20260129_121730 -->
+  <div id="av2Wrap" style="margin-top:12px;">
+    <div class="monthBar">
+      <button class="v5-btn v5-btn-secondary" type="button" id="av2Prev">&lt;</button>
+      <div id="av2MonthLabel" style="font-weight:800;"></div>
+      <button class="v5-btn v5-btn-secondary" type="button" id="av2Next">&gt;</button>
+    </div>
+
+    <div class="legend" id="av2Legend">
+      <span class="item" title="No system conflict known for this day."><span class="sw av"></span>Available</span>
+      <span class="item" title="Some hours are available, but the system sees existing constraints or bookings."><span class="sw mx"></span>Partial</span>
+      <span class="item" title="System-generated soft warning. This is not a personal availability setting."><span class="sw bl"></span>Soft warning</span>
+      <span class="item" title="Hard system block: already booked or unavailable for planning."><span class="sw hd"></span>Hard block</span>
+    </div>
+    <div class="aud-legend-note">Legend shows system availability/conflict signals. It does not mean the auditor manually created these blocks.</div>
+
+    <div class="calDow" id="av2Dow"></div>
+    <div class="calGrid" id="av2Grid"></div>
+
+    <div id="av2Diag" style="margin-top:10px; font-size:12px; opacity:.75;"></div>
+  </div>
+
+  </div>
+
+<!-- GATE2: Embedded calendar (no modal, read-only for now) -->
+<div id="v5AvailCalWrap" style="margin-top:10px;">
+  <div class="monthBar">
+    <button class="v5-btn v5-btn-secondary" id="btnAvailPrev">◀</button>
+    <div id="availMonthLabel" style="font-weight:700;"></div>
+    <button class="v5-btn v5-btn-secondary" id="btnAvailNext">▶</button>
+  </div>
+  <div class="legend" style="margin-top:8px;">
+    <span class="item" title="No system conflict known for this day."><span class="sw av"></span> Available</span>
+    <span class="item" title="Some hours are available, but the system sees existing constraints or bookings."><span class="sw mx"></span> Partial</span>
+    <span class="item" title="System-generated soft warning. This is not a personal availability setting."><span class="sw bl"></span> Soft warning</span>
+    <span class="item" title="Hard system block: already booked or unavailable for planning."><span class="sw hd"></span> Hard block</span>
+  </div>
+  <div class="aud-legend-note">Legend shows system availability/conflict signals. It does not mean the auditor manually created these blocks.</div>
+  <div class="calDow" id="availCalDow"></div>
+  <div class="calGrid" id="availCalGrid"></div>
+  <div class="loadingMask" id="availLoadingMask" style="display:none;">Loading availability…</div>
+</div>
+
+
+</div>
+
+
+    <div class="v5-topbar">
+      <div class="aqa-portal-brand"><img class="aqa-logo" src="data:image/png;base64,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" alt="Agri Quality Assurance"><div>
+        <div class="v5-title"><span class="portal-title-main">Audit Management System</span><span class="portal-title-sub">Auditor Portal</span></div>
+        <div class="v5-subtitle">Plan audits, manage availability and review assigned work.</div>
+        <div class="owner-note">© Project owner: René Rombouts</div>
+      </div></div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <button class="v5-btn v5-btn-secondary" id="btnCompanyMap" type="button" onclick="auditorOpenCompanyMap_()">Company Map</button>
+        <button class="v5-btn v5-btn-secondary" id="btnMyAvailability">My availability</button>
+              <button class="v5-btn v5-btn-secondary" id="btnLogout" style="color:#dc2626;">Log out</button>
+</div>
+    </div>
+
+    <div class="v5-card">
+      <div class="v5-card-header">
+        <div class="left">
+          <h2>Audits</h2>
+          <span class="v5-pill" id="pillCount">0 rows</span>
+          <span class="v5-pill" id="pillView">Active</span>
+          <span class="v5-pill" id="perfLine" style="max-width:360px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
+        </div>
+        <div class="export-controls">
+          <label style="display:flex; gap:8px; align-items:center; font-size:12px;">
+            <input type="checkbox" id="chkArchived" onchange="auditorUi_saveFilterState_(); loadGrid()">
+            Show archived (read-only)
+          </label>
+          <label style="display:flex; gap:6px; align-items:center; font-size:12px;">
+            <span>Status</span>
+            <select id="selStatusFilter" onchange="auditorUi_applyFilters_()">
+              <option value="">All</option>
+              <option value="ACCEPTED">Accepted</option>
+              <option value="APPROVED">Pending acceptance</option>
+              <option value="PENDING_APPROVAL">Pending approval</option>
+              <option value="PENDING_PLANNING">Pending planning</option>
+            </select>
+          </label>
+          <label style="display:flex; gap:6px; align-items:center; font-size:12px;">
+            <span>Scope</span>
+            <input id="txtScopeFilter" type="text" placeholder="Scope contains…" oninput="auditorUi_applyFilters_()">
+          </label>
+          <button class="v5-btn v5-btn-secondary" type="button" id="btnSelectAll">Select all</button>
+          <button class="v5-btn v5-btn-secondary" type="button" id="btnUnselectAll">Unselect all</button>
+          <button class="v5-btn v5-btn-secondary" type="button" id="btnExportExcel" disabled>Export Excel</button>
+          <button class="v5-btn v5-btn-secondary" type="button" id="btnExportPdf" disabled>Export PDF</button>
+          <span class="muted-mini" id="selCountLabel">0 selected</span>
+        </div>
+      </div>
+
+      <div class="aud-grid-wrap">
+        <table class="v5-grid" id="grid">
+          <thead>
+            <tr>
+              <th class="col-select">Sel</th>
+              <th class="sortable" data-key="company">Company</th>
+              <th class="col-company-adjust align-center" title="Suggest company update">✎</th>
+              <th class="align-center sortable" data-key="locs">Locs</th>
+              <th class="align-center sortable col-hq" data-key="gps" title="First point of contact">HQ</th>
+              <th class="sortable" data-key="companyRegion">Region</th>
+              <th class="sortable" data-key="scopesText">Scopes</th>
+              <th class="align-center sortable" data-key="status">Status</th>
+              <th class="align-center sortable" data-key="allowSelfPlanning">Self planning</th>
+              <th class="align-center sortable" data-key="expirationDate">Expiration date</th>
+              <th class="sortable" data-key="planningWindow">Planning window</th>
+              <th class="align-center sortable" data-key="plannedDates">Planned date(s)</th>
+              <th class="align-center sortable" data-key="toBePlanned">To be planned</th>
+              <th class="align-center sortable" data-key="plannedHours">Planned hours</th>
+              <th class="col-action align-right">Action</th>
+            </tr>
+          </thead>
+          <tbody id="gridBody">
+            <tr><td colspan="15" class="muted">Preparing grid…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="v5-toast" id="v5Toast"></div>
+    <div class="aud-action-feedback" id="audActionFeedback" role="status" aria-live="polite"></div>
+
+    <!-- Modal: Reason -->
+    <div class="v5-modal-backdrop" id="modalReason">
+      <div class="v5-modal">
+        <header id="modalReasonTitle">Action</header>
+        <div class="body">
+          <div class="muted" id="modalReasonMsg"></div>
+          <label for="txtReason">Reason (required)</label>
+          <textarea id="txtReason" placeholder="Type the reason…"></textarea>
+        </div>
+        <footer>
+          <button class="v5-btn" onclick="closeReason()">Cancel</button>
+          <button class="v5-btn danger" id="btnReasonConfirm" onclick="confirmReason()">Confirm</button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Modal: Complete -->
+    <div class="v5-modal-backdrop" id="modalComplete">
+      <div class="v5-modal">
+        <header>Complete audit</header>
+        <div class="body">
+          <div class="muted" id="modalCompleteMsg"></div>
+          <label for="numHoursDedicated">Hours dedicated (required)</label>
+          <input id="numHoursDedicated" type="number" min="0" step="0.25" />
+          <div class="muted" style="margin-top:6px;">
+            Validation: &gt; 0 and steps of 0.25. Suggested value = planned hours.
+          </div>
+        </div>
+        <footer>
+          <button class="v5-btn" onclick="closeComplete()">Cancel</button>
+          <button class="v5-btn primary" onclick="confirmComplete()">Complete</button>
+        </footer>
+      </div>
+    </div>
+
+  </div>
+
+  
+
+    <?!= HtmlService.createHtmlOutputFromFile('AuditorCompanyUpdateDialog').getContent(); ?>
+
+    <!-- Modal: Logout -->
+    <div class="v5-modal-backdrop" id="modalLogout">
+      <div class="v5-modal">
+        <header>Log out</header>
+        <div class="body">
+          <div class="muted">You will be logged out of this portal.</div>
+          <label style="display:grid; grid-template-columns:auto 1fr; gap:6px; align-items:start; margin-top:12px; cursor:pointer;">
+        <input type="checkbox" id="chkRevokeTrust" style="margin-top:2px;">
+        <span>No longer trust this device<br>
+          <span class="muted" style="font-size:12px;">You will need to re-verify next time you log in from this device.</span>
+        </span>
+      </label>
+        </div>
+        <footer>
+          <button class="v5-btn" onclick="window.closeLogout()">Cancel</button>
+          <button class="v5-btn danger" onclick="window.confirmLogout()">Log out</button>
+        </footer>
+      </div>
+    </div>
+
+
+<script>
+// Injected by EntryV5 (email-token auth)
+const __AUDITOR_EMAIL = '<?= (__auditorEmail || "").toString() ?>'.trim().toLowerCase();
+const __AUDITOR_TOKEN = '<?= (__token || "").toString() ?>'.trim();
+const __EXEC_URL = '<?= (__execUrl || "").toString() ?>'.trim();
+const __DEVICE_ID = '<?= (__deviceFingerprint || "").toString() ?>'.trim();
+
+// ===============================
+// Logout (stable binding: event delegation)
+// ===============================
+(function(){
+  function v5_collectAuth_(){
+    function lsFirst_(keys){
+      try {
+        for (var i=0;i<keys.length;i++){
+          var v = localStorage.getItem(keys[i]) || '';
+          v = String(v||'').trim();
+          if (v) return v;
+        }
+      } catch(e) {}
+      return '';
+    }
+
+    var email = String((typeof __AUDITOR_EMAIL !== 'undefined' ? __AUDITOR_EMAIL : '') || '').trim().toLowerCase();
+    if (!email) email = lsFirst_(['V5_AUTH_email','V5_AUDITOR_EMAIL','AUDITOR_EMAIL','email','AV5_AUDITOR_EMAIL']);
+
+    var token = String((typeof __AUDITOR_TOKEN !== 'undefined' ? __AUDITOR_TOKEN : '') || '').trim();
+    if (!token) token = lsFirst_(['V5_AUTH_token','V5_TRUSTED_TOKEN','TRUSTED_TOKEN','token','AV5_TRUSTED_TOKEN']);
+
+    var deviceId = String((typeof __DEVICE_ID !== 'undefined' ? __DEVICE_ID : '') || '').trim();
+    if (!deviceId) deviceId = lsFirst_(['V5_AUTH_deviceId','V5_DEVICE_ID','DEVICE_ID','deviceId','deviceFingerprint','AV5_DEVICE_ID']);
+
+    return { email: email, token: token, deviceId: deviceId };
+  }
+
+  window.closeLogout = function(){
+    try { if (window.V5 && V5.modal) V5.modal.close('modalLogout'); } catch(e) {}
+  };
+
+  window.confirmLogout = function(){
+    var revoke = false;
+    try { revoke = !!document.getElementById('chkRevokeTrust') && document.getElementById('chkRevokeTrust').checked; } catch(e) {}
+
+    var base = String(__EXEC_URL || AUDITOR_EXEC_BASE_PROD || '').trim();
+    var auth = v5_collectAuth_();
+
+    function doLocalLogout_(keepTrusted){
+      keepTrusted = !!keepTrusted;
+
+      // Local logout behavior:
+      // - keepTrusted=true  -> keep token/deviceId so next login can be fast (no code),
+      //                        but force showing Login once (no auto-resolve).
+      // - keepTrusted=false -> clear token/deviceId as well (full re-verify next time).
+      try {
+        var keys = [];
+        for (var i = 0; i < localStorage.length; i++) {
+          var k = localStorage.key(i);
+          if (!k) continue;
+
+          var isAuth =
+            (k.indexOf('V5_AUTH_') === 0) ||
+            (k.indexOf('AV5_') === 0) ||
+            (k.indexOf('V5_AUDITOR_') === 0) ||
+            (k.indexOf('V5_TRUSTED_') === 0) ||
+            (k === 'AUDITOR_EMAIL' || k === 'TRUSTED_TOKEN' || k === 'DEVICE_ID' ||
+             k === 'email' || k === 'token' || k === 'deviceId' || k === 'deviceFingerprint');
+
+          if (!isAuth) continue;
+
+          if (keepTrusted) {
+            // Keep trust material (and email/role for resolve)
+            if (k === 'V5_AUTH_email' || k === 'V5_AUTH_role') continue;
+            if (k === 'V5_AUTH_token' || k === 'V5_AUTH_deviceId' || k === 'V5_AUTH_tokenExpiresAt' || k === 'V5_AUTH_tokenType') continue;
+            if (k === 'AV5_TRUSTED_TOKEN' || k === 'AV5_DEVICE_ID') continue;
+            if (k === 'TRUSTED_TOKEN' || k === 'DEVICE_ID' || k === 'token' || k === 'deviceId' || k === 'deviceFingerprint') continue;
+          }
+
+          keys.push(k);
+        }
+        keys.forEach(function(k){ try { localStorage.removeItem(k); } catch(_e){} });
+      } catch(e) {}
+
+      try {
+        if (keepTrusted) localStorage.setItem('V5_AUTH_FORCE_LOGIN', '1');
+        else localStorage.removeItem('V5_AUTH_FORCE_LOGIN');
+      } catch(e) {}
+
+      try { window.closeLogout(); } catch(e) {}
+
+      if (base) {
+        window.top.location.href = base + '?action=auditorPortal&ts=' + Date.now();
+      } else {
+        window.top.location.reload();
+      }
+    }
+
+    if (!revoke) {
+      doLocalLogout_(true);
+      return;
+    }
+
+    // Revoke trust server-side (device hash match) THEN local logout
+    try {
+      google.script.run
+        .withSuccessHandler(function(res){
+          try { if (typeof uiLog_ === 'function') uiLog_('[LOGOUT] revoke result: ' + JSON.stringify(res||{})); } catch(e){}
+          doLocalLogout_(false);
+        })
+        .withFailureHandler(function(err){
+          try { console.error('[LOGOUT] revoke failed', err); } catch(e){}
+          try { if (typeof uiLog_ === 'function') uiLog_('[LOGOUT] revoke FAILED: ' + (err&&err.message?err.message:JSON.stringify(err))); } catch(e){}
+          doLocalLogout_(false);
+        })
+        .V5_AUTH_revokeDeviceTrust(auth.email, 'Auditor', auth.deviceId, auth.token);
+    } catch(e) {
+      doLocalLogout_(false);
+    }
+  };
+
+  // Stable click binding (works even if header re-renders)
+  document.addEventListener('click', function(ev){
+    var btn = ev && ev.target && ev.target.closest ? ev.target.closest('#btnLogout') : null;
+    if (!btn) return;
+    ev.preventDefault();
+    try {
+      var chk = document.getElementById('chkRevokeTrust');
+      if (chk) chk.checked = false;
+      if (window.V5 && V5.modal) V5.modal.open('modalLogout');
+      else if (window.UiDialogs) window.UiDialogs.error({ title:'Logout UI unavailable', message:'Logout UI is not available.' });
+      else console.error('Logout UI not available (missing V5.modal).');
+    } catch(e) {
+      if (window.UiDialogs) window.UiDialogs.error({ title:'Logout UI error', message:String(e && e.message ? e.message : e) });
+      else console.error('Logout UI error:', e);
+    }
+  }, true);
+})();
+
+
+// --- Mandatory comment helper (Deny/Cancel) ---
+async function promptRequiredComment_(title) {
+  if (!window.UiDialogs) {
+    try { V5.toast('UiDialogs is not available.'); } catch(e) {}
+    return null;
+  }
+  var res = await window.UiDialogs.reasonRequired({
+    title: title,
+    message: 'Comment is required.',
+    inputLabel: 'Comment',
+    inputPlaceholder: 'Type the comment…',
+    confirmLabel: 'Confirm',
+    cancelLabel: 'Cancel'
+  });
+  if (!res || !res.ok) return null;
+  return String(res.value || '').trim();
+}
+
+async function doDeny(auditId, btnEl, setBtnBusyFn) {
+  auditId = String(auditId || '').trim();
+  if (!auditId) return;
+
+  var reason = await promptRequiredComment_('Deny planning proposal');
+  if (reason == null) return;
+
+  if (setBtnBusyFn) setBtnBusyFn(btnEl, true, 'Denying…');
+  v5_callAuditorAction_(auditId, 'deny', { reason: reason }, btnEl, setBtnBusyFn);
+}
+
+async function doCancel(auditId) {
+  auditId = String(auditId || '').trim();
+  if (!auditId) return;
+  var reason = await promptRequiredComment_('Cancel audit');
+  if (reason == null) return;
+  try { uiLog_('Cancel clicked for ' + auditId); } catch(e){}
+  v5_callAuditorAction_(auditId, 'cancel', { reason: reason });
+}
+
+
+async function doArchive(auditId) {
+  auditId = String(auditId || '').trim();
+  if (!auditId) return;
+
+  if (!window.UiDialogs) {
+    try { V5.toast('UiDialogs is not available.'); } catch(e) {}
+    return;
+  }
+  var okArchive = await window.UiDialogs.confirm({
+    title: 'Archive completed audit',
+    message: 'Archive this completed audit?',
+    confirmLabel: 'Archive',
+    cancelLabel: 'Cancel'
+  });
+  if (!okArchive) return;
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      try { uiLog_('Archive OK: ' + auditId); } catch(e) {}
+      try { V5.toast('Archived'); } catch(e) {}
+
+      try { cacheInvalidate(); } catch(e) {}
+    invalidateBackendGridCache_(function(){});
+        if (setBtnBusyFn) setBtnBusyFn(btnEl, false);
+      try {
+        CURRENT_ROWS = (CURRENT_ROWS || []).filter(function(r){ return String(r.auditId||'') !== auditId; });
+        renderGrid(CURRENT_ROWS);
+      } catch(e) {
+        loadGrid({ force:true });
+      }
+    })
+    .withFailureHandler(function(err) {
+      V5.toast(err && err.message ? err.message : 'Archive failed');
+    })
+    .AuditorV5_ArchiveAudit_V2(auditId);
+}
+
+
+
+// Exec base URL (server-known). Used when UI runs inside userCodeAppPanel/test container.
+var AUDITOR_EXEC_BASE_PROD = "<?!= ScriptApp.getService().getUrl(); ?>";
+
+function auditorOpenCompanyMap_() {
+  var base = String(__EXEC_URL || AUDITOR_EXEC_BASE_PROD || '').trim();
+  if (!base) {
+    try { base = (window.location.href || '').split('#')[0]; } catch(e) {}
+  }
+  if (!base) {
+    try { V5.toast('Missing webapp base URL'); } catch(e) {}
+    return;
+  }
+
+  var url = '';
+  try {
+    var u = new URL(base, window.location.href);
+    u.searchParams.set('action', 'companymap');
+    u.searchParams.set('role', 'Auditor');
+    u.searchParams.set('email', String(__AUDITOR_EMAIL || '').trim());
+    u.searchParams.set('trustedToken', String(__AUDITOR_TOKEN || '').trim());
+    u.searchParams.set('deviceFingerprint', String(__DEVICE_ID || '').trim());
+    u.searchParams.set('ts', String(Date.now()));
+    url = u.toString();
+  } catch(e) {
+    var sep = base.indexOf('?') >= 0 ? '&' : '?';
+    url = base
+      + sep + 'action=companymap'
+      + '&role=Auditor'
+      + '&email=' + encodeURIComponent(String(__AUDITOR_EMAIL || '').trim())
+      + '&trustedToken=' + encodeURIComponent(String(__AUDITOR_TOKEN || '').trim())
+      + '&deviceFingerprint=' + encodeURIComponent(String(__DEVICE_ID || '').trim())
+      + '&ts=' + Date.now();
+  }
+
+  var w = 1540;
+  var h = 980;
+  var left = Math.max(0, Math.round((window.screenX || window.screenLeft || 0) + (((window.outerWidth || screen.width) - w) / 2)));
+  var top = Math.max(0, Math.round((window.screenY || window.screenTop || 0) + (((window.outerHeight || screen.height) - h) / 2)));
+  var features = ['popup=yes','toolbar=no','location=yes','status=no','menubar=no','scrollbars=yes','resizable=yes','width=' + w,'height=' + h,'left=' + left,'top=' + top].join(',');
+  var child = null;
+  try { child = window.open(url, 'CompanyMapPopup', features); } catch(e) {}
+  if (!child) {
+    try { V5.toast('Company Map popup was blocked. Please allow popups for this site.'); } catch(e) {}
+    return;
+  }
+  try { child.focus(); } catch(e) {}
+}
+
+
+
+
+// ---------------------------
+// DevTools diagnostics (safe)
+// ---------------------------
+(function(){
+  function safeStr(x){
+    try { return (typeof x === 'string') ? x : JSON.stringify(x); } catch(e){ return String(x); }
+  }
+  function logBoth(msg, obj){
+    try { if (typeof uiLog_ === 'function') uiLog_('[DIAG] ' + msg + (obj ? ' ' + safeStr(obj) : '')); } catch(e) {}
+  }
+
+  window.addEventListener('error', function(ev){
+    logBoth('window.error: ' + (ev && ev.message ? ev.message : 'unknown'), {
+      filename: ev && ev.filename, lineno: ev && ev.lineno, colno: ev && ev.colno,
+      error: ev && ev.error ? (ev.error.stack || String(ev.error)) : null
+    });
+  });
+
+  window.addEventListener('unhandledrejection', function(ev){
+    logBoth('unhandledrejection', { reason: ev && ev.reason ? (ev.reason.stack || safeStr(ev.reason)) : null });
+  });
+
+  document.addEventListener('DOMContentLoaded', function(){
+    logBoth('DOMContentLoaded', { href: location.href });
+    logBoth('typeof renderGrid', { t: typeof window.renderGrid });
+    logBoth('typeof loadGrid', { t: typeof window.loadGrid });
+  });
+})();
+
+
+// --- Debug log helpers (BUILD 20260109_124633) ---
+function uiNow_() {
+  const d = new Date();
+  const p = (n)=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+function uiLog_(msg) {
+  try {
+    const dock = document.getElementById('logDock');
+    const pre = document.getElementById('logText');
+    if (!dock || !pre) return;
+    dock.style.display = 'block';
+    pre.textContent += `[${uiNow_()}] ${String(msg)}\n`;
+    pre.scrollTop = pre.scrollHeight;
+  } catch(e) {}
+}
+function uiLogShow_() {
+  const dock = document.getElementById('logDock');
+  if (dock) dock.style.display = 'block';
+}
+function uiLogHide_() {
+  const dock = document.getElementById('logDock');
+  if (dock) dock.style.display = 'none';
+}
+window.addEventListener('error', (e)=>uiLog_(`JS ERROR: ${e.message} @ ${e.filename}:${e.lineno}`));
+window.addEventListener('unhandledrejection', (e)=>uiLog_(`PROMISE REJECTION: ${e.reason}`));
+
+document.addEventListener('click', (ev)=>{
+  const t = ev.target;
+  if (!t) return;
+  if (t.id === 'logCloseBtn') uiLogHide_();
+  if (t.id === 'logClearBtn') {
+    const pre = document.getElementById('logText'); if (pre) pre.textContent = '';
+    uiLog_('Log cleared');
+  }
+  if (t.id === 'logCopyBtn') {
+    const pre = document.getElementById('logText');
+    if (pre && navigator.clipboard) navigator.clipboard.writeText(pre.textContent||'').then(()=>uiLog_('Log copied'));
+  }
+});
+
+
+  let CURRENT_ROWS = [];
+  let ALL_ROWS = [];
+  let __AUDITOR_SELECTED_IDS = new Set();
+  let __AUDITOR_EMAIL_CANONICAL = '';
+  var __AUDITOR_ACTION_BUSY = {};
+  const V5_COMPLETED_HIDE_TTL_MS = 12 * 60 * 60 * 1000;
+
+  function v5CompletedHideKey_() {
+    return 'V5_AUDITOR_COMPLETED_HIDE|' + String(__AUDITOR_EMAIL || '').trim().toLowerCase();
+  }
+
+  function v5GetHiddenCompletedIds_() {
+    try {
+      var raw = localStorage.getItem(v5CompletedHideKey_()) || '[]';
+      var arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) arr = [];
+      var now = Date.now();
+      arr = arr.filter(function(x){
+        return x && x.auditId && x.ts && (now - Number(x.ts || 0) < V5_COMPLETED_HIDE_TTL_MS);
+      });
+      localStorage.setItem(v5CompletedHideKey_(), JSON.stringify(arr));
+      var map = {};
+      arr.forEach(function(x){ map[String(x.auditId).trim()] = true; });
+      return map;
+    } catch(e) {
+      return {};
+    }
+  }
+
+  function v5RememberCompletedId_(auditId) {
+    auditId = String(auditId || '').trim();
+    if (!auditId) return;
+    try {
+      var raw = localStorage.getItem(v5CompletedHideKey_()) || '[]';
+      var arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) arr = [];
+      var now = Date.now();
+      arr = arr.filter(function(x){
+        return x && x.auditId && x.ts && (now - Number(x.ts || 0) < V5_COMPLETED_HIDE_TTL_MS) && String(x.auditId).trim() !== auditId;
+      });
+      arr.push({ auditId: auditId, ts: now });
+      localStorage.setItem(v5CompletedHideKey_(), JSON.stringify(arr));
+    } catch(e) {}
+  }
+
+  function v5FilterHiddenCompleted_(rows) {
+    var hidden = v5GetHiddenCompletedIds_();
+    return (rows || []).filter(function(r){
+      var id = String((r && r.auditId) || '').trim();
+      if (!id) return true;
+      return !hidden[id];
+    });
+  }
+
+  function v5ResolveCanonicalAuditorEmail_(done) {
+    done = (typeof done === 'function') ? done : function(){};
+    if (__AUDITOR_EMAIL_CANONICAL) { done(__AUDITOR_EMAIL_CANONICAL); return; }
+    var fast = String(__AUDITOR_EMAIL || '').trim().toLowerCase();
+    if (fast) {
+      __AUDITOR_EMAIL_CANONICAL = fast;
+      done(fast);
+      return;
+    }
+
+    try {
+      google.script.run
+        .withSuccessHandler(function(res){
+          var em = String(res && res.email ? res.email : '').trim().toLowerCase();
+          if (em) {
+            __AUDITOR_EMAIL_CANONICAL = em;
+            try { if (typeof uiLog_ === 'function') uiLog_('[IDENTITY] canonical auditor email=' + em); } catch(e) {}
+            done(em);
+            return;
+          }
+          var fallback = String(__AUDITOR_EMAIL || '').trim().toLowerCase();
+          __AUDITOR_EMAIL_CANONICAL = fallback;
+          try { if (typeof uiLog_ === 'function') uiLog_('[IDENTITY] fallback auditor email=' + fallback); } catch(e) {}
+          done(fallback);
+        })
+        .withFailureHandler(function(err){
+          var fallback = String(__AUDITOR_EMAIL || '').trim().toLowerCase();
+          __AUDITOR_EMAIL_CANONICAL = fallback;
+          try { if (typeof uiLog_ === 'function') uiLog_('[IDENTITY] resolve failed; fallback=' + fallback); } catch(e) {}
+          done(fallback);
+        })
+        .V5_AUTH_RESOLVE_IDENTITY('Auditor', __AUDITOR_TOKEN, __DEVICE_ID);
+    } catch (e) {
+      var fallback2 = String(__AUDITOR_EMAIL || '').trim().toLowerCase();
+      __AUDITOR_EMAIL_CANONICAL = fallback2;
+      done(fallback2);
+    }
+  }
+
+// === NEW: backend cache invalidation helper (defensive refresh) ===
+function invalidateBackendGridCache_(done){
+  done = (typeof done === 'function') ? done : function(){};
+  try{
+    google.script.run
+      .withSuccessHandler(function(){ done(); })
+      .withFailureHandler(function(){ done(); })
+      .AuditorV5_InvalidateGridCache();
+  }catch(e){
+    done();
+  }
+}
+
+  window.__V5_RECENT_PLAN_CACHE = window.__V5_RECENT_PLAN_CACHE || {};
+
+  function v5RecentPlanKey_(auditorEmail) {
+    return 'V5_PORTAL_RECENT_PLAN|' + String(auditorEmail || '').trim().toLowerCase();
+  }
+
+  function v5StoreRecentPlans_(auditorEmail, blocks) {
+    try {
+      var a = String(auditorEmail || '').trim().toLowerCase();
+      if (!a || !Array.isArray(blocks) || !blocks.length) return;
+      var key = v5RecentPlanKey_(a);
+      var now = Date.now();
+      var arr = [];
+      try { arr = JSON.parse(localStorage.getItem(key) || '[]') || []; } catch(e) { arr = []; }
+      arr = arr.filter(function(x){ return x && x.ts && (now - Number(x.ts || 0) < 30 * 60 * 1000); });
+      blocks.forEach(function(b){
+        if (!b || !b.date || !b.start || !b.end) return;
+        arr.push({
+          ts: now,
+          date: String(b.date),
+          start: String(b.start),
+          end: String(b.end)
+        });
+      });
+      window.__V5_RECENT_PLAN_CACHE[a] = arr;
+      localStorage.setItem(key, JSON.stringify(arr));
+    } catch(e) {}
+  }
+
+  function v5GetRecentPlans_(auditorEmail) {
+    try {
+      var a = String(auditorEmail || '').trim().toLowerCase();
+      if (!a) return [];
+      if (window.__V5_RECENT_PLAN_CACHE[a] && window.__V5_RECENT_PLAN_CACHE[a].length) return window.__V5_RECENT_PLAN_CACHE[a];
+      var key = v5RecentPlanKey_(a);
+      var now = Date.now();
+      var arr = [];
+      try { arr = JSON.parse(localStorage.getItem(key) || '[]') || []; } catch(e) { arr = []; }
+      arr = arr.filter(function(x){ return x && x.ts && (now - Number(x.ts || 0) < 30 * 60 * 1000); });
+      window.__V5_RECENT_PLAN_CACHE[a] = arr;
+      try { localStorage.setItem(key, JSON.stringify(arr)); } catch(e) {}
+      return arr;
+    } catch(e) { return []; }
+  }
+
+  function v5PendingToolkitKey_() {
+    return 'V5_PORTAL_PENDING_TOOLKIT_RETURN';
+  }
+
+  function v5MarkToolkitPendingReturn_(auditId) {
+    try {
+      localStorage.setItem(v5PendingToolkitKey_(), JSON.stringify({
+        auditId: String(auditId || ''),
+        ts: Date.now()
+      }));
+    } catch(e) {}
+  }
+
+  function v5ClearToolkitPendingReturn_() {
+    try { localStorage.removeItem(v5PendingToolkitKey_()); } catch(e) {}
+  }
+
+  function v5ConsumeToolkitPendingReturn_() {
+    try {
+      var raw = localStorage.getItem(v5PendingToolkitKey_()) || '';
+      if (!raw) return null;
+      localStorage.removeItem(v5PendingToolkitKey_());
+      var obj = JSON.parse(raw);
+      if (!obj || !obj.ts) return null;
+      if ((Date.now() - Number(obj.ts || 0)) > (2 * 60 * 60 * 1000)) return null;
+      return obj;
+    } catch(e) {
+      return null;
+    }
+  }
+
+  function v5RefreshAfterToolkitReturn_(source) {
+    // Disabled by design: returning from or closing the toolkit without Save
+    // must not reload the Auditor Portal.
+    return;
+  }
+
+
+  function auditorUi_normalizeStatus_(s) {
+    return String(s || '').trim().toUpperCase().replace(/\s+/g, '_');
+  }
+
+  function auditorUi_scopeText_(row) {
+    row = row || {};
+    var parts = [];
+    function add_(v) {
+      v = String(v == null ? '' : v).trim();
+      if (v) parts.push(v);
+    }
+    add_(row.scopesText);
+    add_(row.scopeText);
+    add_(row.scope);
+    if (Array.isArray(row.scopes)) {
+      row.scopes.forEach(function(sc){
+        if (sc == null) return;
+        if (typeof sc === 'string' || typeof sc === 'number') add_(sc);
+        else add_(sc.name || sc.code || sc.label || sc.slot || sc.displayName || sc.scope);
+      });
+    }
+    return parts.join(' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function auditorUi_isRowVisibleByFilter_(row) {
+    var sel = document.getElementById('selStatusFilter');
+    var want = sel ? String(sel.value || '').trim().toUpperCase() : '';
+    if (want && auditorUi_normalizeStatus_(row && row.status) !== want) return false;
+
+    var scopeEl = document.getElementById('txtScopeFilter');
+    var scopeQ = scopeEl ? String(scopeEl.value || '').trim().toLowerCase() : '';
+    if (scopeQ && auditorUi_scopeText_(row || {}).toLowerCase().indexOf(scopeQ) === -1) return false;
+
+    return true;
+  }
+
+    function auditorUi_filterStateKey_() {
+    return 'AUDITOR_PORTAL_FILTER_STATE|' + String(__AUDITOR_EMAIL || '').trim().toLowerCase();
+  }
+
+  function auditorUi_saveFilterState_() {
+    try {
+      var sel = document.getElementById('selStatusFilter');
+      var scope = document.getElementById('txtScopeFilter');
+      var archived = document.getElementById('chkArchived');
+      var state = {
+        status: sel ? String(sel.value || '') : '',
+        scope: scope ? String(scope.value || '') : '',
+        archived: archived ? !!archived.checked : false
+      };
+      localStorage.setItem(auditorUi_filterStateKey_(), JSON.stringify(state));
+    } catch(e) {}
+  }
+
+  function auditorUi_restoreFilterState_() {
+    try {
+      var raw = localStorage.getItem(auditorUi_filterStateKey_()) || '';
+      if (!raw) return;
+      var state = JSON.parse(raw);
+      if (!state || typeof state !== 'object') return;
+      var sel = document.getElementById('selStatusFilter');
+      var scope = document.getElementById('txtScopeFilter');
+      var archived = document.getElementById('chkArchived');
+      if (sel && typeof state.status !== 'undefined') sel.value = String(state.status || '');
+      if (scope && typeof state.scope !== 'undefined') scope.value = String(state.scope || '');
+      if (archived && typeof state.archived !== 'undefined') archived.checked = !!state.archived;
+    } catch(e) {}
+  }
+
+function auditorUi_applyFilters_() {
+    try {
+      var visibleCount = 0;
+      document.querySelectorAll('#gridBody tr[data-auditid]').forEach(function(tr){
+        var id = String(tr.getAttribute('data-auditid') || '').trim();
+        var row = (CURRENT_ROWS || []).find(function(x){ return String(x.auditId || '') === id; });
+        var show = auditorUi_isRowVisibleByFilter_(row || {});
+        tr.style.display = show ? '' : 'none';
+        if (show) visibleCount++;
+      });
+      var pill = document.getElementById('pillCount');
+      if (pill) pill.textContent = visibleCount + ' rows';
+    } catch(e) {}
+    auditorUi_saveFilterState_();
+    auditorUi_updateExportButtons_();
+  }
+
+  function auditorUi_getVisibleAuditIds_() {
+    var out = [];
+    document.querySelectorAll('#gridBody tr[data-auditid]').forEach(function(tr){
+      if (tr.style.display === 'none') return;
+      var id = String(tr.getAttribute('data-auditid') || '').trim();
+      if (id) out.push(id);
+    });
+    return out;
+  }
+
+  function auditorUi_updateSelectionUi_() {
+    document.querySelectorAll('.aud-select-row').forEach(function(cb){
+      var id = String(cb.getAttribute('data-audit-id') || '').trim();
+      cb.checked = __AUDITOR_SELECTED_IDS.has(id);
+    });
+    var lab = document.getElementById('selCountLabel');
+    if (lab) lab.textContent = __AUDITOR_SELECTED_IDS.size + ' selected';
+    auditorUi_updateExportButtons_();
+  }
+
+  function auditorUi_updateExportButtons_() {
+    var has = __AUDITOR_SELECTED_IDS.size > 0;
+    var b1 = document.getElementById('btnExportExcel');
+    var b2 = document.getElementById('btnExportPdf');
+    if (b1) b1.disabled = !has;
+    if (b2) b2.disabled = !has;
+  }
+
+  function auditorUi_toggleSelection_(auditId, checked) {
+    auditId = String(auditId || '').trim();
+    if (!auditId) return;
+    if (checked) __AUDITOR_SELECTED_IDS.add(auditId);
+    else __AUDITOR_SELECTED_IDS.delete(auditId);
+    auditorUi_updateSelectionUi_();
+  }
+
+  function auditorUi_selectAllVisible_() {
+    auditorUi_getVisibleAuditIds_().forEach(function(id){ __AUDITOR_SELECTED_IDS.add(id); });
+    auditorUi_updateSelectionUi_();
+  }
+
+  function auditorUi_unselectAllVisible_() {
+    auditorUi_getVisibleAuditIds_().forEach(function(id){ __AUDITOR_SELECTED_IDS.delete(id); });
+    auditorUi_updateSelectionUi_();
+  }
+
+  function auditorUi_downloadBlob_(filename, mimeType, b64) {
+    var bin = atob(String(b64 || ''));
+    var arr = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    var blob = new Blob([arr], { type: mimeType || 'application/octet-stream' });
+    auditorUi_downloadBlobObject_(filename, blob);
+  }
+
+  function auditorUi_downloadBlobObject_(filename, blob) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename || 'download.bin';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){
+      try { URL.revokeObjectURL(url); } catch(e) {}
+      try { a.remove(); } catch(e) {}
+    }, 1500);
+  }
+
+  function auditorUi_exportEscapeHtml_(v) {
+    return String(v == null ? '' : v)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function auditorUi_exportFilenameSafe_(name, fallbackExt) {
+    var s = String(name || '').trim();
+    if (!s) s = 'Auditor_export';
+    s = s.replace(/[\\/:*?"<>|]+/g, '_');
+    if (fallbackExt && s.toLowerCase().slice(-fallbackExt.length) !== fallbackExt.toLowerCase()) s += fallbackExt;
+    return s;
+  }
+
+  function auditorUi_buildExcelHtml_(headers, rows) {
+    headers = Array.isArray(headers) ? headers : [];
+    rows = Array.isArray(rows) ? rows : [];
+    var th = headers.map(function(h){
+      return '<th>' + auditorUi_exportEscapeHtml_(h) + '</th>';
+    }).join('');
+    var tr = rows.map(function(row){
+      row = Array.isArray(row) ? row : [];
+      return '<tr>' + row.map(function(v){
+        return '<td style="mso-number-format:\\@;">' + auditorUi_exportEscapeHtml_(v) + '</td>';
+      }).join('') + '</tr>';
+    }).join('');
+    return '<html xmlns:o="urn:schemas-microsoft-com:office:office" ' +
+      'xmlns:x="urn:schemas-microsoft-com:office:excel" ' +
+      'xmlns="http://www.w3.org/TR/REC-html40">' +
+      '<head><meta charset="UTF-8">' +
+      '<style>' +
+      'table{border-collapse:collapse;font-family:Arial,sans-serif;font-size:11pt;}' +
+      'th,td{border:1px solid #d7d7d7;padding:6px 8px;vertical-align:top;text-align:left;}' +
+      'th{background:#f3f4f6;font-weight:700;}' +
+      '</style></head><body>' +
+      '<table><thead><tr>' + th + '</tr></thead><tbody>' + tr + '</tbody></table>' +
+      '</body></html>';
+  }
+
+  function auditorUi_exportExcelClient_(res) {
+    var headers = Array.isArray(res && res.headers) ? res.headers : [];
+    var rows = Array.isArray(res && res.rows) ? res.rows : [];
+    if (!headers.length || !rows.length) {
+      try { V5.toast('Export payload missing'); } catch(e) {}
+      return;
+    }
+    var html = auditorUi_buildExcelHtml_(headers, rows);
+    var blob = new Blob(['\ufeff', html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    var filename = auditorUi_exportFilenameSafe_((res && res.filenameBase) || 'Auditor_export', '.xls');
+    auditorUi_downloadBlobObject_(filename, blob);
+    try { V5.toast('Excel export ready.'); } catch(e) {}
+  }
+
+  function auditorUi_pdfEscape_(s) {
+    return String(s == null ? '' : s)
+      .replace(/\\/g, '\\\\')
+      .replace(/\(/g, '\\(')
+      .replace(/\)/g, '\\)')
+      .replace(/[^\x20-\x7E]/g, '?');
+  }
+
+  function auditorUi_pdfTextLinesFromDataset_(headers, rows) {
+    headers = Array.isArray(headers) ? headers : [];
+    rows = Array.isArray(rows) ? rows : [];
+    function widthFor_(i) {
+      if (i === 0) return 22;
+      if (i === 1) return 8;
+      if (i === 5) return 18;
+      if (i === 6 || i === 8) return 14;
+      if (i === 7) return 10;
+      if (i === 9) return 18;
+      if (i >= 10 && i <= 13) return 20;
+      if (i >= 14) return 24;
+      return 16;
+    }
+    function fit_(txt, width) {
+      txt = String(txt == null ? '' : txt).replace(/\s+/g, ' ').trim();
+      if (!txt) return [''];
+      var parts = [];
+      while (txt.length > width) {
+        parts.push(txt.slice(0, width));
+        txt = txt.slice(width);
+      }
+      parts.push(txt);
+      return parts;
+    }
+    function rowToLines_(vals) {
+      vals = Array.isArray(vals) ? vals : [];
+      var cellLines = vals.map(function(v, i){
+        return fit_(v, (typeof widthFor_ === 'function' ? widthFor_(i) : 16));
+      });
+      var maxLines = 1;
+      cellLines.forEach(function(a){ if (a.length > maxLines) maxLines = a.length; });
+      var out = [];
+      for (var line = 0; line < maxLines; line++) {
+        var segs = [];
+        for (var c = 0; c < cellLines.length; c++) {
+          var width = (typeof widthFor_ === 'function' ? widthFor_(c) : 16);
+          var cell = String((cellLines[c][line] || ''));
+          while (cell.length < width) cell += ' ';
+          segs.push(cell);
+        }
+        out.push(segs.join(' | '));
+      }
+      return out;
+    }
+    var lines = [];
+    lines.push('AUDITOR EXPORT');
+    lines.push('');
+    lines = lines.concat(rowToLines_(headers));
+    lines.push(Array(220).join('-'));
+    rows.forEach(function(r){
+      lines = lines.concat(rowToLines_(r));
+      lines.push('');
+    });
+    return lines;
+  }
+
+  function auditorUi_buildSimplePdfBlob_(headers, rows) {
+    var lines = auditorUi_pdfTextLinesFromDataset_(headers, rows);
+    var pageWidth = 842;
+    var pageHeight = 595;
+    var margin = 24;
+    var fontSize = 7;
+    var leading = 9;
+    var maxLinesPerPage = Math.max(1, Math.floor((pageHeight - margin * 2) / leading));
+    var pages = [];
+    for (var i = 0; i < lines.length; i += maxLinesPerPage) {
+      pages.push(lines.slice(i, i + maxLinesPerPage));
+    }
+    if (!pages.length) pages = [['No data']];
+
+    var objs = [];
+    function addObj_(s) { objs.push(String(s)); return objs.length; }
+
+    var fontId = addObj_('<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>');
+    var pageIds = [];
+
+    pages.forEach(function(pageLines){
+      var content = 'BT\n/F1 ' + fontSize + ' Tf\n';
+      var y = pageHeight - margin;
+      pageLines.forEach(function(line){
+        content += '1 0 0 1 ' + margin + ' ' + y + ' Tm (' + auditorUi_pdfEscape_(line) + ') Tj\n';
+        y -= leading;
+      });
+      content += 'ET';
+      var contentId = addObj_('<< /Length ' + content.length + ' >>\nstream\n' + content + '\nendstream');
+      var pageId = addObj_('<< /Type /Page /Parent PAGES_ID 0 R /MediaBox [0 0 ' + pageWidth + ' ' + pageHeight + '] /Resources << /Font << /F1 ' + fontId + ' 0 R >> >> /Contents ' + contentId + ' 0 R >>');
+      pageIds.push(pageId);
+    });
+
+    var kids = pageIds.map(function(id){ return id + ' 0 R'; }).join(' ');
+    var pagesId = addObj_('<< /Type /Pages /Kids [ ' + kids + ' ] /Count ' + pageIds.length + ' >>');
+    var catalogId = addObj_('<< /Type /Catalog /Pages ' + pagesId + ' 0 R >>');
+
+    pageIds.forEach(function(pageId){
+      objs[pageId - 1] = objs[pageId - 1].replace('PAGES_ID', String(pagesId));
+    });
+
+    var pdf = '%PDF-1.4\n';
+    var offsets = [0];
+    for (var n = 0; n < objs.length; n++) {
+      offsets.push(pdf.length);
+      pdf += (n + 1) + ' 0 obj\n' + objs[n] + '\nendobj\n';
+    }
+    var xrefPos = pdf.length;
+    pdf += 'xref\n0 ' + (objs.length + 1) + '\n';
+    pdf += '0000000000 65535 f \n';
+    for (var x = 1; x < offsets.length; x++) {
+      pdf += String(offsets[x]).padStart(10, '0') + ' 00000 n \n';
+    }
+    pdf += 'trailer\n<< /Size ' + (objs.length + 1) + ' /Root ' + catalogId + ' 0 R >>\n';
+    pdf += 'startxref\n' + xrefPos + '\n%%EOF';
+
+    var bytes = new Uint8Array(pdf.length);
+    for (var b = 0; b < pdf.length; b++) bytes[b] = pdf.charCodeAt(b) & 0xFF;
+    return new Blob([bytes], { type: 'application/pdf' });
+  }
+
+  function auditorUi_exportPdfClient_(res) {
+    var headers = Array.isArray(res && res.headers) ? res.headers : [];
+    var rows = Array.isArray(res && res.rows) ? res.rows : [];
+    if (!headers.length || !rows.length) {
+      try { V5.toast('Export payload missing'); } catch(e) {}
+      return;
+    }
+    var blob = auditorUi_buildSimplePdfBlob_(headers, rows);
+    var filename = auditorUi_exportFilenameSafe_((res && res.filenameBase) || 'Auditor_export', '.pdf');
+    auditorUi_downloadBlobObject_(filename, blob);
+    try { V5.toast('PDF export ready.'); } catch(e) {}
+  }
+
+  function auditorUi_exportExcel_() {
+    var ids = Array.from(__AUDITOR_SELECTED_IDS || []);
+    if (!ids.length) { try { V5.toast('Select at least one row.'); } catch(e) {} return; }
+    v5ResolveCanonicalAuditorEmail_(function(resolvedEmail){
+      google.script.run
+        .withSuccessHandler(function(res){
+          if (!res || res.success === false) { try { V5.toast((res && res.message) ? res.message : 'Export failed'); } catch(e) {} return; }
+          auditorUi_exportExcelClient_(res);
+        })
+        .withFailureHandler(function(err){ try { V5.toast(err && err.message ? err.message : 'Export failed'); } catch(e) {} })
+        .AuditorV5_ExportSelectedAudits({ auditIds: ids, auditorEmail: resolvedEmail, format: 'excel' });
+    });
+  }
+
+  function auditorUi_exportPdf_() {
+    var ids = Array.from(__AUDITOR_SELECTED_IDS || []);
+    if (!ids.length) { try { V5.toast('Select at least one row.'); } catch(e) {} return; }
+    v5ResolveCanonicalAuditorEmail_(function(resolvedEmail){
+      google.script.run
+        .withSuccessHandler(function(res){
+          if (!res || res.success === false) { try { V5.toast((res && res.message) ? res.message : 'Export failed'); } catch(e) {} return; }
+          auditorUi_exportPdfClient_(res);
+        })
+        .withFailureHandler(function(err){ try { V5.toast(err && err.message ? err.message : 'Export failed'); } catch(e) {} })
+        .AuditorV5_ExportSelectedAudits({ auditIds: ids, auditorEmail: resolvedEmail, format: 'pdf' });
+    });
+  }
+
+
+
+  // ---------------------------
+  // Sorting (Manager-like: click header, toggle asc/desc)
+  // ---------------------------
+  let AUD_SORT_STATE = { key: null, dir: 1 }; // dir: 1=asc, -1=desc
+
+  function audParseISODate_(s) {
+    const m = String(s||'').trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return null;
+    const d = new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function audNum_(v) {
+    const n = Number(String(v||'').replace(',', '.'));
+    return isFinite(n) ? n : null;
+  }
+
+  function audVal_(row, key) {
+    if (!row) return '';
+    switch(key) {
+      case 'locs': return audNum_(row.locs);
+      case 'plannedHours': return audNum_(row.plannedHours);
+      case 'totalAuditDays': return audNum_(row.totalAuditDays);
+      case 'toBePlanned': return audNum_(row.toBePlanned);
+      case 'expirationDate': return audParseISODate_(row.expirationDate) || row.expirationDate || '';
+      case 'plannedDates': {
+        const d = audParseISODate_(row.plannedDates);
+        return d || row.plannedDates || '';
+      }
+      case 'planningWindow': {
+        const d = audParseISODate_(row.planningWindow);
+        return d || row.planningWindow || '';
+      }
+      case 'status': return String(row.status||'');
+      case 'gps': return String(row.gps||'');
+      case 'company': return String(row.company||'');
+      case 'companyLocation': return String(row.companyLocation||'');
+      case 'companyRegion': return String(row.companyRegion||'');
+      case 'allowSelfPlanning': return String(row.allowSelfPlanning||'');
+      case 'scopesText': return String(row.scopesText||'');
+      default: return String(row[key]||'');
+    }
+  }
+
+  function audCompare_(a, b, key) {
+    const va = audVal_(a, key);
+    const vb = audVal_(b, key);
+
+    if (va instanceof Date || vb instanceof Date) {
+      const ta = (va instanceof Date) ? va.getTime() : -Infinity;
+      const tb = (vb instanceof Date) ? vb.getTime() : -Infinity;
+      return ta - tb;
+    }
+
+    if (typeof va === 'number' || typeof vb === 'number') {
+      const na = (typeof va === 'number') ? va : -Infinity;
+      const nb = (typeof vb === 'number') ? vb : -Infinity;
+      return na - nb;
+    }
+
+    const sa = String(va||'').toLowerCase();
+    const sb = String(vb||'').toLowerCase();
+    if (sa < sb) return -1;
+    if (sa > sb) return 1;
+    return 0;
+  }
+
+  function audApplySort_(key) {
+    if (!key) return;
+    if (AUD_SORT_STATE.key === key) {
+      AUD_SORT_STATE.dir = AUD_SORT_STATE.dir * -1;
+    } else {
+      AUD_SORT_STATE.key = key;
+      AUD_SORT_STATE.dir = 1;
+    }
+
+    try {
+      document.querySelectorAll('#grid thead th.sortable').forEach(th=>th.classList.remove('sorted'));
+      const th = document.querySelector('#grid thead th.sortable[data-key="' + CSS.escape(key) + '"]');
+      if (th) th.classList.add('sorted');
+    } catch(e) {}
+
+    const sorted = (CURRENT_ROWS || []).slice().sort((x,y)=> AUD_SORT_STATE.dir * audCompare_(x,y,key));
+    CURRENT_ROWS = sorted;
+    renderGrid(CURRENT_ROWS);
+  }
+
+  document.addEventListener('click', function(ev){
+    const th = ev.target && ev.target.closest ? ev.target.closest('#grid thead th.sortable') : null;
+    if (!th) return;
+    const key = th.getAttribute('data-key') || '';
+    if (!key) return;
+    audApplySort_(key);
+  }, true);
+
+
+  let PENDING_ACTION = null;
+  function findRowIndexByAuditId(auditId) {
+    const id = String(auditId||'');
+    for (let i = 0; i < CURRENT_ROWS.length; i++) {
+      if (String(CURRENT_ROWS[i].auditId) === id) return i;
+    }
+    return -1;
+  }
+
+  function normalizeStatus(s) {
+    return String(s || '').trim().toUpperCase();
+  }
+
+  
+  function auditorCompanyKeyFromRow_(r) {
+    r = r || {};
+    // HARD RULE: Company update popup may ONLY use Companies!T = Company_UID.
+    // No fallback to company name / legacy id / normalized name, because that reopens
+    // the old mismatch bug for companies with similar or changed names.
+    return String(r.companyUid || '').trim();
+  }
+
+  function auditorOpenCompanyUpdateForAudit_(auditId) {
+    auditId = String(auditId || '').trim();
+    if (!auditId) return;
+    var row = (CURRENT_ROWS || []).find(function(x){ return String((x && x.auditId) || '').trim() === auditId; });
+    var companyKey = auditorCompanyKeyFromRow_(row);
+    if (!row || row.readOnly || !companyKey) {
+      try { V5.toast('Company update not available for this row.'); } catch(e) {}
+      return;
+    }
+    if (typeof auditorOpenCompanyUpdateDialog !== 'function') {
+      try { V5.toast('Company update dialog is not loaded.'); } catch(e) {}
+      return;
+    }
+    auditorOpenCompanyUpdateDialog({
+      companyUid: companyKey,
+      auditId: String(row.auditId || '').trim(),
+      auditorEmail: String(__AUDITOR_EMAIL || '').trim().toLowerCase()
+    });
+  }
+
+  function renderCompanyAdjustCell_(r) {
+    if (!r || r.readOnly) return '<span class="muted">—</span>';
+    if (!auditorCompanyKeyFromRow_(r)) return '<span class="muted">—</span>';
+    return '<button class="company-adjust-btn" type="button" title="Suggest company update" aria-label="Suggest company update" onclick="auditorOpenCompanyUpdateForAudit_(\'' + V5.escape(String(r.auditId || '')) + '\')">✎</button>';
+  }
+
+  function gpsCell(r) {
+    const gps = String(r.gps || '').trim();
+    if (!gps) return '<span class="muted">—</span>';
+    const url = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(gps);
+    return `<a class="aud-gps-link" href="${url}" target="_blank" rel="noopener" title="First point of contact: ${V5.escape(gps)}" aria-label="Open first point of contact in Google Maps">📍</a>`;
+  }
+
+  function parseScopesList(scopesRaw) {
+    const s = String(scopesRaw || '').trim();
+    if (!s) return [];
+    // Accept either JSON array string, comma-separated, or plain string
+    if (s.startsWith('[') && s.endsWith(']')) {
+      try {
+        const arr = JSON.parse(s);
+        if (Array.isArray(arr)) return arr.map(x => String(x||'').trim()).filter(Boolean);
+      } catch(e) {}
+    }
+    return s.split(/[,;|]/g).map(x => x.trim()).filter(Boolean);
+  }
+
+  function scopePills(r) {
+    const scopesRaw = r && (r.scopes || r.scopesText || '');
+
+    // Preferred: backend provides array of scope objects (Manager model)
+    if (Array.isArray(scopesRaw)) {
+      if (!scopesRaw.length) return '<span class="muted">—</span>';
+      const badges = scopesRaw.map(s => {
+        const name = (s && (s.name || s.code || s.slot)) ? String(s.name || s.code || s.slot) : '';
+        if (!name) return '';
+        let style = '';
+        if (s && s.color) {
+          style += 'background:' + String(s.color) + ';';
+        }
+        if (s && s.textColor) {
+          style += 'color:' + String(s.textColor) + ';';
+        }
+        const styleAttr = style ? (' style="' + V5.escape(style) + '"') : '';
+        return '<span class="scope-badge"' + styleAttr + ' title="' + V5.escape(name) + '">' + V5.escape(name) + '</span>';
+      }).join('');
+      return '<div class="scope-badges">' + (badges || '<span class="muted">—</span>') + '</div>';
+    }
+
+    // Fallback: accept comma-separated text (legacy)
+    const scopes = parseScopesList(scopesRaw);
+    if (!scopes.length) return '<span class="muted">—</span>';
+
+    const max = 3;
+    const head = scopes.slice(0, max);
+    const rest = scopes.length - head.length;
+    const pills = head.map(name => '<span class="scope-badge" title="' + V5.escape(name) + '">' + V5.escape(name) + '</span>').join('');
+    const more = rest > 0 ? ('<span class="muted" title="' + V5.escape(scopes.join(', ')) + '">+' + rest + '</span>') : '';
+    return '<div class="scope-badges">' + pills + more + '</div>';
+  }
+
+
+  function yesNoCell(val) {
+    const v = String(val || '').trim().toUpperCase();
+    if (!v) return '<span class="muted">—</span>';
+    if (v === 'YES' || v === 'Y' || v === 'TRUE' || v === '1') return 'YES';
+    if (v === 'NO' || v === 'N' || v === 'FALSE' || v === '0') return 'NO';
+    return V5.escape(val);
+  }
+
+  function splitMultiDayParts_(value) {
+    var txt = String(value || '').trim();
+    if (!txt) return [];
+    if (txt.indexOf('\n') !== -1) {
+      return txt.split(/\n+/).map(function(x){ return String(x || '').trim(); }).filter(Boolean);
+    }
+    if (txt.indexOf(',') !== -1) {
+      return txt.split(/\s*,\s*/).map(function(x){ return String(x || '').trim(); }).filter(Boolean);
+    }
+    return txt ? [txt] : [];
+  }
+
+  function renderMultiDayLabel_(value, tooltip) {
+    var tip = String(tooltip || '').trim();
+
+    function partsFrom_(v) {
+      if (Array.isArray(v)) {
+        return v.map(function(x){ return String(x || '').trim(); }).filter(Boolean);
+      }
+      var txt = String(v || '').trim();
+      if (!txt) return [];
+      if (txt.indexOf('\n') !== -1) {
+        return txt.split(/\n+/).map(function(x){ return String(x || '').trim(); }).filter(Boolean);
+      }
+      if (txt.indexOf('\\n') !== -1) {
+        return txt.split(/\\n+/).map(function(x){ return String(x || '').trim(); }).filter(Boolean);
+      }
+      if (txt.indexOf(',') !== -1) {
+        return txt.split(/\s*,\s*/).map(function(x){ return String(x || '').trim(); }).filter(Boolean);
+      }
+      return txt ? [txt] : [];
+    }
+
+    function firstDateOnly_(s) {
+      s = String(s || '').trim();
+      var m = s.match(/(\d{4}-\d{2}-\d{2})/);
+      return m ? m[1] : s;
+    }
+
+    var tipParts = partsFrom_(tip);
+    var valueParts = partsFrom_(value);
+    var parts = tipParts.length ? tipParts : valueParts;
+    if (!parts.length) return '';
+
+    var first = firstDateOnly_(parts[0]);
+    var seen = {};
+    var distinctDates = 0;
+    parts.forEach(function(p){
+      var d = firstDateOnly_(p);
+      if (!d || seen[d]) return;
+      seen[d] = true;
+      distinctDates++;
+    });
+
+    var isMulti = parts.length > 1 || distinctDates > 1;
+    var titleText = tip || parts.join('\n');
+    var titleAttr = titleText ? (' title="' + V5.escape(titleText) + '"') : '';
+    var icon = isMulti ? ' <span class="md-flag" style="cursor:help;text-decoration:underline dotted;"' + titleAttr + '>▦</span>' : '';
+
+    return '<span' + titleAttr + '>' + V5.escape(first) + icon + '</span>';
+  }
+
+
+  function audGridText_(value) {
+    var s = String(value == null ? '' : value).trim();
+    return s ? V5.escape(s) : '<span class="aud-empty-left">—</span>';
+  }
+
+  function audGridLocationText_(value) {
+    var s = String(value == null ? '' : value).trim();
+    if (!s) return '<span class="aud-empty-left">—</span>';
+    var escaped = V5.escape(s);
+    if (/\bHQ\b/i.test(s)) {
+      return '<span class="aud-hq-hint" title="HQ = First point of contact">' + escaped + '</span>';
+    }
+    return escaped;
+  }
+
+  function audGridCenterText_(value) {
+    var s = String(value == null ? '' : value).trim();
+    return s ? V5.escape(s) : '<span class="aud-empty">—</span>';
+  }
+
+  function audGridHtmlOrEmpty_(html) {
+    var s = String(html == null ? '' : html).trim();
+    return s ? s : '<span class="aud-empty">—</span>';
+  }
+
+function renderRowHtml(r) {
+    r = r || {};
+    var isArchiveRow = !!r.readOnly;
+    return `
+      <tr data-auditid="${V5.escape(r.auditId)}" class="${isArchiveRow ? 'aud-archive-row' : ''}">
+       <td class="select-cell"><input type="checkbox" class="aud-select-row" data-audit-id="${V5.escape(r.auditId)}" ${__AUDITOR_SELECTED_IDS.has(String(r.auditId || '')) ? 'checked' : ''}></td>
+       <td>${audGridText_(r.company)}</td>
+<td class="company-adjust-cell">${renderCompanyAdjustCell_(r)}</td>
+<td class="align-center">${audGridCenterText_(r.locs)}</td>
+<td class="align-center">${gpsCell(r)}</td>
+<td>${audGridText_(r.companyRegion)}</td>
+<td>${scopePills(r)}</td>
+
+<td class="align-center">${badgeForStatus(r.status)}</td>
+<td class="align-center">${yesNoCell(r.allowSelfPlanning)}</td>
+
+<td class="align-center">${audGridCenterText_(r.expirationDate)}</td>
+<td>${audGridText_(r.planningWindow)}</td>
+<td class="align-center">${audGridHtmlOrEmpty_(renderMultiDayLabel_(r.plannedDates, r.plannedTooltip))}</td>
+
+<td class="align-center">${audGridCenterText_(r.toBePlanned)}</td>
+<td class="align-center">${audGridCenterText_(r.plannedHours)}</td>
+
+<td class="col-action">${audGridHtmlOrEmpty_(actionButtons(r))}</td>
+      </tr>
+    `;
+  }
+
+  function patchRowInDom(auditId) {
+    const idx = findRowIndexByAuditId(auditId);
+    if (idx < 0) return false;
+    const r = CURRENT_ROWS[idx];
+    const tr = document.querySelector('tr[data-auditid="' + CSS.escape(String(auditId)) + '"]');
+    if (!tr) return false;
+    tr.outerHTML = renderRowHtml(r);
+    return true;
+  }
+
+  function v5RemoveRowFromActiveGrid_(auditId) {
+    auditId = String(auditId || '').trim();
+    if (!auditId) return false;
+    var idx = findRowIndexByAuditId(auditId);
+    if (idx < 0) return false;
+    CURRENT_ROWS.splice(idx, 1);
+    renderGrid(CURRENT_ROWS || []);
+    try {
+      var pill = document.getElementById('pillCount');
+      if (pill) pill.textContent = (CURRENT_ROWS ? CURRENT_ROWS.length : 0) + ' rows';
+    } catch(e) {}
+    try { setPerf('Completed via micro refresh'); } catch(e) {}
+    return true;
+  }
+
+  
+function auditorUi_applyActionMicroRefresh_(auditId, action, payload, resp) {
+    auditId = String(auditId || '').trim();
+    action = String(action || '').trim().toLowerCase();
+    var idx = findRowIndexByAuditId(auditId);
+    if (idx < 0) {
+      try { uiLog_('[MICROREFRESH][AUDITOR][SKIP] row not found action=' + action + ' auditId=' + auditId); } catch(e) {}
+      return false;
+    }
+
+    var row = CURRENT_ROWS[idx];
+    var newStatus =
+      (resp && (resp.newStatus || resp.status || (resp.uiPatch && resp.uiPatch.newStatus))) ||
+      (action === 'accept' ? 'ACCEPTED' :
+       (action === 'deny' || action === 'cancel') ? 'PENDING_PLANNING' :
+       action === 'complete' ? 'COMPLETED' : '');
+
+    if (action === 'complete') {
+      try { v5RememberCompletedId_(auditId); } catch(e) {}
+      var removedOk = v5RemoveRowFromActiveGrid_(auditId);
+      if (!removedOk) try { uiLog_('[MICROREFRESH][AUDITOR][SKIP] complete remove failed auditId=' + auditId); } catch(e) {}
+      else try { uiLog_('[MICROREFRESH][AUDITOR][OK] action=complete auditId=' + auditId); } catch(e2) {}
+      return removedOk;
+    }
+
+    if (action === 'deny' || action === 'cancel') {
+      delete row.__pending; delete row.__pendingAction; delete row.__pendingLabel; delete row.__pendingStatus; delete row.__pendingPlannedDates; delete row.__pendingPlannedHours;
+      row.status = 'PENDING_PLANNING';
+      row.plannedDates = '';
+      row.plannedHours = '';
+      row.plannedTooltip = '';
+      row.assignedAuditor = '';
+      row.assignedTo = '';
+      row.isAssignedMatch = false;
+
+      // Hard rule for portal micro-refresh:
+      // after CANCEL or DENY the audit must remain visible in this session as Pending Planning.
+      // Backend + hard refresh already return the row correctly; removing it locally is the bug.
+      row.isPreassignedMatch = true;
+      row.expectedOnly = true;
+      row.canPlan = true;
+
+      if (!patchRowInDom(auditId)) {
+        try { uiLog_('[MICROREFRESH][AUDITOR][PATCH_DOM_MISS] action=' + action + ' auditId=' + auditId + ' rerender grid'); } catch(e) {}
+        renderGrid(CURRENT_ROWS);
+      }
+      var pill = document.getElementById('pillCount');
+      if (pill) pill.textContent = (CURRENT_ROWS ? CURRENT_ROWS.length : 0) + ' rows';
+      __AUDITOR_GRID_SIGNATURE = auditorUi_buildGridSignature_(CURRENT_ROWS);
+      try { uiLog_('[MICROREFRESH][AUDITOR][OK] action=' + action + ' auditId=' + auditId + ' newStatus=PENDING_PLANNING'); } catch(e) {}
+      return true;
+    }
+
+    if (action === 'accept') {
+      delete row.__pending; delete row.__pendingAction; delete row.__pendingLabel; delete row.__pendingStatus; delete row.__pendingPlannedDates; delete row.__pendingPlannedHours;
+      row.status = normalizeStatus(newStatus || 'ACCEPTED');
+      if (!patchRowInDom(auditId)) {
+        try { uiLog_('[MICROREFRESH][AUDITOR][PATCH_DOM_MISS] action=' + action + ' auditId=' + auditId + ' rerender grid'); } catch(e) {}
+        renderGrid(CURRENT_ROWS);
+      }
+      var pill2 = document.getElementById('pillCount');
+      if (pill2) pill2.textContent = (CURRENT_ROWS ? CURRENT_ROWS.length : 0) + ' rows';
+      __AUDITOR_GRID_SIGNATURE = auditorUi_buildGridSignature_(CURRENT_ROWS);
+      try { uiLog_('[MICROREFRESH][AUDITOR][OK] action=accept auditId=' + auditId + ' newStatus=' + row.status); } catch(e) {}
+      try { setPerf('Accepted via micro refresh'); } catch(e) {}
+      return true;
+    }
+
+    try { uiLog_('[MICROREFRESH][AUDITOR][SKIP] unsupported action=' + action + ' auditId=' + auditId); } catch(e) {}
+    return false;
+  }
+
+
+  function badgeForStatus(status) {
+    const raw = String(status || '').trim();
+    const s = raw.toUpperCase().replace(/\s+/g, '_');
+
+    if (window.UiStatuses && typeof window.UiStatuses.badgeHtml === 'function') {
+      if (s === 'APPROVED') return window.UiStatuses.badgeHtml('approved', 'Pending acceptance');
+      if (s === 'PENDING_APPROVAL') return window.UiStatuses.badgeHtml('pending_approval', 'Pending approval');
+      if (s === 'PENDING_PLANNING') return window.UiStatuses.badgeHtml('pending_planning', 'Pending planning');
+      if (s === 'ACCEPTED') return window.UiStatuses.badgeHtml('accepted', 'Accepted');
+      if (s === 'COMPLETED') return window.UiStatuses.badgeHtml('completed', 'Completed');
+      if (!s) return window.UiStatuses.badgeHtml('', '—');
+      return window.UiStatuses.badgeHtml(raw, V5.escape(raw));
+    }
+
+    if (s === 'ACCEPTED') return '<span class="aud-status-badge v5-status-pill aud-status-accepted v5-status-accepted">Accepted</span>';
+    if (s === 'APPROVED') return '<span class="aud-status-badge v5-status-pill aud-status-approved v5-status-approved">Pending acceptance</span>';
+    if (s === 'PENDING_APPROVAL') return '<span class="aud-status-badge v5-status-pill aud-status-pending-approval v5-status-pending-approval">Pending approval</span>';
+    if (s === 'PENDING_PLANNING') return '<span class="aud-status-badge v5-status-pill aud-status-pending-planning v5-status-pending-planning">Pending planning</span>';
+    if (s === 'COMPLETED') return '<span class="aud-status-badge v5-status-pill aud-status-completed v5-status-completed">Completed</span>';
+    if (!s) return '<span class="aud-status-badge v5-status-pill aud-status-default v5-status-default">—</span>';
+    return '<span class="aud-status-badge v5-status-pill aud-status-default v5-status-default">' + V5.escape(raw) + '</span>';
+  }
+
+
+  function auditorActionButtonHtml_(action, attrs, labelOverride) {
+    action = String(action || '').trim().toLowerCase();
+    attrs = String(attrs || '');
+    if (window.V5Actions && typeof V5Actions.buttonHtml === 'function') {
+      return V5Actions.buttonHtml(action, attrs, labelOverride);
+    }
+    var tone = action === 'approve' ? 'success' :
+      action === 'accept' ? 'accept' :
+      action === 'complete' ? 'complete' :
+      action === 'deny' ? 'warning' :
+      action === 'reject' ? 'danger' :
+      (action === 'plan' || action === 'save' || action === 'saveplanning') ? 'primary' : 'neutral';
+    var label = labelOverride || (action ? action.charAt(0).toUpperCase() + action.slice(1) : 'Action');
+    return '<button class="v5-action-btn v5-action-' + tone + '" data-ui-action="' + V5.escape(action) + '" ' + attrs + '>' + V5.escape(label) + '</button>';
+  }
+
+
+  
+  function actionButtons(row) {
+    const statusRaw = String(row.status||'').trim();
+    const s = statusRaw.toUpperCase().replace(/\s+/g, '_');
+    const ro = !!row.readOnly;
+    const id = V5.escape(row.auditId);
+    const self = String(row.allowSelfPlanning||'').trim().toUpperCase() === 'YES';
+    const canPlan = !!row.canPlan;
+
+    if (ro) return '<span class="muted">—</span>';
+
+    let out = [];
+
+    if (s === 'PENDING_PLANNING' && self && canPlan) {
+      out.push(auditorActionButtonHtml_('plan', 'onclick="doPlan(\'' + id + '\')"', 'Plan'));
+    }
+
+    if (s === 'PENDING_APPROVAL') {
+      out.push(auditorActionButtonHtml_('cancel', 'onclick="doCancel(\'' + id + '\')"', 'Cancel'));
+      out.push(auditorActionButtonHtml_('deny', 'data-audit-id="' + id + '"', 'Deny'));
+    }
+
+    if (s === 'APPROVED') {
+      out.push(auditorActionButtonHtml_('accept', 'data-audit-id="' + id + '"', 'Accept'));
+      out.push(auditorActionButtonHtml_('deny', 'data-audit-id="' + id + '"', 'Deny'));
+      out.push(auditorActionButtonHtml_('cancel', 'onclick="doCancel(\'' + id + '\')"', 'Cancel'));
+    }
+
+    if (s === 'ACCEPTED') {
+      out.push(auditorActionButtonHtml_('cancel', 'onclick="doCancel(\'' + id + '\')"', 'Cancel'));
+      out.push(auditorActionButtonHtml_('complete', 'onclick="openComplete(\'' + id + '\')"', 'Complete'));
+    }
+
+    return out.join(' ');
+  }
+
+
+
+  function renderGrid(rows) {
+  CURRENT_ROWS = rows || [];
+  const tb = document.getElementById('gridBody');
+  const pill = document.getElementById('pillCount');
+  pill.textContent = CURRENT_ROWS.length + ' rows';
+
+  if (!CURRENT_ROWS.length) {
+    tb.innerHTML = '<tr><td colspan="15" class="muted">No audits found for this view.</td></tr>';
+    auditorUi_updateSelectionUi_();
+    return;
+  }
+
+  tb.innerHTML = CURRENT_ROWS.map(r => renderRowHtml(r)).join('');
+  auditorUi_updateSelectionUi_();
+  auditorUi_applyFilters_();
+}
+
+
+  // Client-side grid cache (session memory)
+const GRID_CACHE_TTL_MS = 500; // 0.5s
+const GRID_CACHE = { active: null, archived: null }; // {ts:number, rows:[], warning?:string}
+const AUDITOR_LIVE_REVALIDATE_ACTIVE_MS = 5000;
+const AUDITOR_LIVE_REVALIDATE_IDLE_MS = 15000;
+var __AUDITOR_GRID_SIGNATURE = '';
+var __AUDITOR_ACTIVE_GRID_HYDRATED = false;
+var __AUDITOR_LAST_LOAD_AT = 0;
+var __AUDITOR_LAST_INTERACTION_AT = 0;
+var __AUDITOR_REVALIDATE_TIMER = null;
+var __AUDITOR_ACTION_ROW_SNAPSHOTS = {};
+
+function auditorUi_cloneRow_(row) {
+  try { return JSON.parse(JSON.stringify(row || {})); } catch(e) { return Object.assign({}, row || {}); }
+}
+
+function auditorUi_pendingLabel_(action) {
+  var a = String(action || '').trim().toLowerCase();
+  if (a === 'accept') return 'Accepting…';
+  if (a === 'complete') return 'Completing…';
+  if (a === 'cancel') return 'Returning to Pending Planning…';
+  if (a === 'deny') return 'Returning to Pending Planning…';
+  if (a === 'approve') return 'Approving…';
+  if (a === 'plan') return 'Opening…';
+  return 'Updating…';
+}
+
+function auditorUi_applyPendingRowState_(auditId, action) {
+  auditId = String(auditId || '').trim();
+  action = String(action || '').trim().toLowerCase();
+  if (!auditId) return false;
+  var idx = findRowIndexByAuditId(auditId);
+  if (idx < 0) return false;
+  var row = CURRENT_ROWS[idx];
+  if (!__AUDITOR_ACTION_ROW_SNAPSHOTS[auditId]) {
+    __AUDITOR_ACTION_ROW_SNAPSHOTS[auditId] = auditorUi_cloneRow_(row);
+  }
+  row.__pending = true;
+  row.__pendingAction = action;
+  row.__pendingLabel = auditorUi_pendingLabel_(action);
+  row.__pendingStatus = 'Updating…';
+  if (action === 'cancel' || action === 'deny' || action === 'complete') {
+    row.__pendingPlannedDates = '…';
+    row.__pendingPlannedHours = '…';
+  }
+  __AUDITOR_ACTION_BUSY[auditId] = { label: row.__pendingLabel };
+  if (!patchRowInDom(auditId)) renderGrid(CURRENT_ROWS || []);
+  return true;
+}
+
+function auditorUi_clearPendingRowState_(auditId) {
+  auditId = String(auditId || '').trim();
+  if (!auditId) return;
+  var idx = findRowIndexByAuditId(auditId);
+  if (idx >= 0 && CURRENT_ROWS[idx]) {
+    delete CURRENT_ROWS[idx].__pending;
+    delete CURRENT_ROWS[idx].__pendingAction;
+    delete CURRENT_ROWS[idx].__pendingLabel;
+    delete CURRENT_ROWS[idx].__pendingStatus;
+    delete CURRENT_ROWS[idx].__pendingPlannedDates;
+    delete CURRENT_ROWS[idx].__pendingPlannedHours;
+  }
+  try { delete __AUDITOR_ACTION_BUSY[auditId]; } catch(e) {}
+  try { delete __AUDITOR_ACTION_ROW_SNAPSHOTS[auditId]; } catch(e2) {}
+  if (idx >= 0) {
+    try { if (!patchRowInDom(auditId)) renderGrid(CURRENT_ROWS || []); } catch(e3) {}
+  }
+}
+
+function auditorUi_restorePendingRowSnapshot_(auditId) {
+  auditId = String(auditId || '').trim();
+  if (!auditId) return false;
+  var snap = __AUDITOR_ACTION_ROW_SNAPSHOTS[auditId];
+  var idx = findRowIndexByAuditId(auditId);
+  if (snap && idx >= 0) {
+    CURRENT_ROWS[idx] = auditorUi_cloneRow_(snap);
+    try { delete __AUDITOR_ACTION_ROW_SNAPSHOTS[auditId]; } catch(e) {}
+    try { delete __AUDITOR_ACTION_BUSY[auditId]; } catch(e2) {}
+    if (!patchRowInDom(auditId)) renderGrid(CURRENT_ROWS || []);
+    return true;
+  }
+  try { delete __AUDITOR_ACTION_BUSY[auditId]; } catch(e3) {}
+  return false;
+}
+
+function auditorUi_markGridHydrated_(rows) {
+  try {
+    var active = !(typeof v5IsArchivedView_ === 'function' && v5IsArchivedView_());
+    if (!active) return;
+    var arr = rows || [];
+    window.__AUDITOR_ACTIVE_GRID_HYDRATED = true;
+    window.__AUDITOR_ACTIVE_GRID_MINIMAL = !!(arr.length && arr.every(function(r){ return !!(r && r.needsEnrichment === true); }));
+  } catch(e) {}
+}
+
+function setPerf(text) {
+  const el = document.getElementById('perfLine');
+  if (el) el.textContent = text || '';
+}
+
+function auditorUi_buildGridSignature_(rows) {
+  try {
+    return JSON.stringify((rows || []).map(function(r){
+      return [
+        String((r && r.auditId) || ''),
+        String((r && r.status) || ''),
+        String((r && r.plannedDates) || ''),
+        String((r && r.plannedHours) || ''),
+        String((r && r.assignedAuditor) || ''),
+        String((r && r.preassignedAuditor) || ''),
+        String((r && r.planningWindow) || ''),
+        String((r && r.allowSelfPlanning) || ''),
+        !!(r && r.canPlan),
+        !!(r && r.expectedOnly)
+      ];
+    }));
+  } catch(e) {
+    return String(Date.now());
+  }
+}
+
+function auditorUi_shouldUseClientCache_(view, opts) {
+  opts = opts || {};
+  if (opts.force) return false;
+  if (opts.background) return false;
+  return true;
+}
+
+function auditorUi_applyFreshRows_(view, rows, warning, meta) {
+  rows = v5FilterHiddenCompleted_(rows || []);
+  var nextSig = auditorUi_buildGridSignature_(rows);
+  var same = (__AUDITOR_GRID_SIGNATURE === nextSig);
+  if (!same) {
+    renderGrid(rows);
+    __AUDITOR_GRID_SIGNATURE = nextSig;
+  } else {
+    CURRENT_ROWS = rows.slice();
+  }
+  cacheSet(view, rows, warning || '');
+  if (warning && !(meta && meta.silent)) V5.toast(warning);
+  return { same: same, rows: rows };
+}
+
+function auditorUi_markInteraction_() {
+  __AUDITOR_LAST_INTERACTION_AT = Date.now();
+}
+
+function auditorUi_scheduleBackgroundRefresh_() {
+  try {
+    if (__AUDITOR_REVALIDATE_TIMER) clearTimeout(__AUDITOR_REVALIDATE_TIMER);
+    __AUDITOR_REVALIDATE_TIMER = null;
+  } catch(e) {}
+}
+
+function renderGridSkeleton_(count, cols) {
+  count = Number(count || 5);
+  cols = Number(cols || 14);
+  var tb = document.getElementById('gridBody');
+  if (!tb) return;
+  var rows = [];
+  for (var r = 0; r < count; r++) {
+    var tds = [];
+    for (var c = 0; c < cols; c++) {
+      var cls = 'sk-line';
+      if (c === 0 || c === 2 || c === 5 || c === 9) cls += ' lg';
+      else if (c === 1 || c === 4 || c === 6 || c === 7 || c === 10 || c === 11 || c === 12 || c === 13) cls += ' sm';
+      else cls += ' md';
+      tds.push('<td><span class="' + cls + '"></span></td>');
+    }
+    rows.push('<tr class="sk-row">' + tds.join('') + '</tr>');
+  }
+  tb.innerHTML = rows.join('');
+}
+
+function onClickRefresh_() {
+  // SPEED: skip de extra backend-invalidate roundtrip — loadGrid({force:true})
+  // stuurt al noCache:true mee, dat bypasst de backend cache rechtstreeks.
+  // De backend invalidate in de achtergrond is alleen nodig om OOK voor andere
+  // sessies de cache te wissen — daarom asynchroon, parallel met de fetch.
+  try { cacheInvalidate(); } catch(e) {}
+  try { invalidateBackendGridCache_(function(){}); } catch(e) {}
+  loadGrid({ force: true });
+}
+
+function cacheGet(view) {
+  const c = GRID_CACHE[view];
+  if (!c) return null;
+  if ((Date.now() - c.ts) > GRID_CACHE_TTL_MS) return null;
+  return c;
+}
+
+function cacheSet(view, rows, warning) {
+  GRID_CACHE[view] = { ts: Date.now(), rows: rows || [], warning: warning || '' };
+}
+
+function cacheInvalidate() {
+  GRID_CACHE.active = null;
+  GRID_CACHE.archived = null;
+}
+
+
+function loadGrid(opts) {
+  opts = opts || {};
+  const archived = document.getElementById('chkArchived').checked;
+  const view = archived ? 'archived' : 'active';
+  document.getElementById('pillView').textContent = archived ? 'Archived' : 'Active';
+
+  const t0 = performance.now();
+  __AUDITOR_LAST_LOAD_AT = Date.now();
+  auditorUi_markInteraction_();
+  try { auditorActionFeedback_('', ''); } catch(e) {}
+
+  if (!opts.silent) {
+    renderGridSkeleton_(5, 14);
+  }
+
+  const cached = auditorUi_shouldUseClientCache_(view, opts) ? cacheGet(view) : null;
+  if (cached) {
+    auditorUi_applyFreshRows_(view, cached.rows || [], cached.warning || '', { silent: !!opts.silent });
+    const ms = Math.round(performance.now() - t0);
+    setPerf('Loaded from UI cache in ' + ms + 'ms');
+    return;
+  }
+
+  v5ResolveCanonicalAuditorEmail_(function(resolvedEmail){
+    if (view === 'archived') {
+      google.script.run
+        .withSuccessHandler(function(res){
+          try { if (typeof uiLog_==='function') uiLog_('[DIAG] GetArchivedGrid_DIRECT success rows=' + ((res&&res.rows)?res.rows.length:'?') + ' email=' + resolvedEmail); } catch(e) {}
+          if (!res || res.success === false) {
+            if (!opts.silent) V5.toast((res && res.message) ? res.message : 'Failed to load archived grid');
+            if (!opts.silent) renderGrid([]);
+            setPerf('Load failed');
+            return;
+          }
+          auditorUi_applyFreshRows_(view, res.rows || [], res.warning || '', { silent: !!opts.silent });
+          const ms = Math.round(performance.now() - t0);
+          const hit = res.cacheHit ? ' (server cache hit)' : '';
+          setPerf('Loaded in ' + ms + 'ms' + hit);
+        })
+        .withFailureHandler(function(err){
+          try { if (typeof uiLog_==='function') uiLog_('[ERROR] GetArchivedGrid_DIRECT FAILURE ' + (err&&err.message?err.message:JSON.stringify(err))); } catch(e) {}
+          if (!opts.silent) V5.toast(err && err.message ? err.message : 'Load error');
+          if (!opts.silent) renderGrid([]);
+          setPerf('Load error');
+        })
+        .AuditorV5B_GetArchivedGrid_DIRECT(resolvedEmail);
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function(res){
+        try { if (typeof uiLog_==='function') uiLog_('[DIAG] GetAuditorGrid success rows=' + ((res&&res.rows)?res.rows.length:'?') + ' email=' + resolvedEmail); } catch(e) {}
+        if (!res || res.success === false) {
+          if (!opts.silent) V5.toast((res && res.message) ? res.message : 'Failed to load grid');
+          if (!opts.silent) renderGrid([]);
+          setPerf('Load failed');
+          return;
+        }
+        var applyRes = auditorUi_applyFreshRows_(view, res.rows || [], res.warning || '', { silent: !!opts.silent });
+        const ms = Math.round(performance.now() - t0);
+        const hit = res.cacheHit ? ' (server cache hit)' : '';
+        setPerf((opts.background ? 'Revalidated' : 'Loaded') + ' in ' + ms + 'ms' + hit + (applyRes.same && opts.background ? ' (no changes)' : ''));
+      })
+      .withFailureHandler(function(err){
+        try { if (typeof uiLog_==='function') uiLog_('[ERROR] GetAuditorGrid FAILURE ' + (err&&err.message?err.message:JSON.stringify(err))); } catch(e) {}
+        if (!opts.silent) V5.toast(err && err.message ? err.message : 'Load error');
+        if (!opts.silent) renderGrid([]);
+        setPerf('Load error');
+      })
+      .AuditorV5B_GetAuditorGrid_U20409({ view: view, auditorEmail: resolvedEmail, token: __AUDITOR_TOKEN, noCache: !!(opts.force || opts.background), background: !!opts.background });
+  });
+}
+
+  function openReason(auditId, action) {
+    const row = CURRENT_ROWS.find(x => String(x.auditId) === String(auditId));
+    if (!row) return;
+
+    const actionLabel = action === 'deny' ? 'Deny (plan does not fit)' : 'Cancel (company cannot do audit)';
+    PENDING_ACTION = { auditId, action };
+
+    document.getElementById('modalReasonTitle').textContent = actionLabel;
+    document.getElementById('modalReasonMsg').textContent =
+      'Confirm ' + actionLabel + ' for: ' + (row.company || auditId) + '. This will set status back to PENDING_PLANNING.';
+
+    document.getElementById('txtReason').value = '';
+    V5.modal.open('modalReason');
+  }
+
+  function closeReason() {
+    V5.modal.close('modalReason');
+    PENDING_ACTION = null;
+  }
+
+  function doPlan(auditId) {
+    auditId = String(auditId || '').trim();
+    if (!auditId) { try { uiLog_('Missing auditId for Plan'); } catch(e) {} return; }
+
+    var row = (CURRENT_ROWS || []).find(function(x){ return String(x.auditId || '').trim() === auditId; });
+    if (!row || !row.canPlan) {
+      try { V5.toast('This audit is visible as expected workload, but not planable by you.'); } catch(e) {}
+      try { uiLog_('Plan blocked for auditId=' + auditId + ' because canPlan != true'); } catch(e) {}
+      return;
+    }
+
+    // Open Planning Toolkit in SAME deployment, authenticated as Auditor (trusted device), and lock auditor selection.
+    // IMPORTANT: EntryV5 expects query params: action, auditId, email, role, token, deviceId.
+
+    var base = String(__EXEC_URL || AUDITOR_EXEC_BASE_PROD || '').trim();
+    if (!base) {
+      V5.toast('Missing webapp base URL');
+      return;
+    }
+
+    var recentPlans = [];
+    try { recentPlans = v5GetRecentPlans_(__AUDITOR_EMAIL || ''); } catch(e) {}
+    var recentPlansEncoded = '';
+    try {
+      if (recentPlans && recentPlans.length) {
+        recentPlansEncoded = encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(recentPlans)))));
+      }
+    } catch(e) {}
+
+    var auditorEmail = String(__AUDITOR_EMAIL || '').trim();
+    var url = '';
+    try {
+      var u = new URL(base, window.location.href);
+      u.searchParams.set('action', 'planningtoolkit');
+      u.searchParams.set('auditId', auditId);
+      u.searchParams.set('email', auditorEmail);
+      u.searchParams.set('auditorEmail', auditorEmail);
+      u.searchParams.set('auditor', auditorEmail);
+      u.searchParams.set('role', 'auditor');
+      u.searchParams.set('mode', 'auditor');
+      u.searchParams.set('lockAuditor', '1');
+      u.searchParams.set('readonlyAuditor', '1');
+      u.searchParams.set('source', 'auditorPortal');
+      u.searchParams.set('token', String(__AUDITOR_TOKEN || ''));
+      u.searchParams.set('trustedToken', String(__AUDITOR_TOKEN || ''));
+      u.searchParams.set('deviceId', String(__DEVICE_ID || ''));
+      u.searchParams.set('deviceFingerprint', String(__DEVICE_ID || ''));
+      if (recentPlansEncoded) u.searchParams.set('recentReservations', recentPlansEncoded);
+      u.searchParams.set('ts', String(Date.now()));
+      url = u.toString();
+    } catch(eUrl) {
+      var sep = base.indexOf('?') >= 0 ? '&' : '?';
+      url = base
+        + sep + 'action=planningtoolkit'
+        + '&auditId=' + encodeURIComponent(auditId)
+        + '&email=' + encodeURIComponent(auditorEmail)
+        + '&auditorEmail=' + encodeURIComponent(auditorEmail)
+        + '&auditor=' + encodeURIComponent(auditorEmail)
+        + '&role=' + encodeURIComponent('auditor')
+        + '&mode=' + encodeURIComponent('auditor')
+        + '&lockAuditor=1'
+        + '&readonlyAuditor=1'
+        + '&source=auditorPortal'
+        + '&token=' + encodeURIComponent(__AUDITOR_TOKEN || '')
+        + '&trustedToken=' + encodeURIComponent(__AUDITOR_TOKEN || '')
+        + '&deviceId=' + encodeURIComponent(__DEVICE_ID || '')
+        + '&deviceFingerprint=' + encodeURIComponent(__DEVICE_ID || '')
+        + (recentPlansEncoded ? ('&recentReservations=' + recentPlansEncoded) : '')
+        + '&ts=' + Date.now();
+    }
+
+    auditorUi_markInteraction_();
+    try { uiLog_('Plan → open planning toolkit: ' + url); } catch(e) {}
+    var w = 1460;
+    var h = 980;
+    var left = Math.max(0, Math.round((window.screenX || window.screenLeft || 0) + (((window.outerWidth || screen.width) - w) / 2)));
+    var top = Math.max(0, Math.round((window.screenY || window.screenTop || 0) + (((window.outerHeight || screen.height) - h) / 2)));
+    var features = ['popup=yes','toolbar=no','location=yes','status=no','menubar=no','scrollbars=yes','resizable=yes','width=' + w,'height=' + h,'left=' + left,'top=' + top].join(',');
+    var child = null;
+    try { child = window.open(url, 'V5PlanningToolkit', features); } catch(e) {}
+    if (!child) {
+      V5.toast('Planning toolkit popup was blocked. Please allow popups for this site.');
+      return;
+    }
+    try { child.focus(); } catch(e) {}
+  }
+
+  function v5ApplyCancelDenyMicroRefresh_(auditId, verb, payload, resp){
+    auditId = String(auditId || '').trim();
+    verb = String(verb || '').trim().toLowerCase();
+    var idx = findRowIndexByAuditId(auditId);
+    if (idx < 0) return false;
+
+    var row = CURRENT_ROWS[idx];
+
+    row.status = 'PENDING_PLANNING';
+    row.plannedDates = '';
+    row.plannedHours = '';
+    row.plannedTooltip = '';
+    row.assignedAuditor = '';
+    row.assignedTo = '';
+    row.isAssignedMatch = false;
+
+    // Hard rule for portal micro-refresh:
+    // after CANCEL or DENY the audit must remain visible in this session as Pending Planning.
+    row.isPreassignedMatch = true;
+    row.expectedOnly = true;
+    row.canPlan = true;
+
+    if (!patchRowInDom(auditId)) renderGrid(CURRENT_ROWS);
+
+    var pill = document.getElementById('pillCount');
+    if (pill) pill.textContent = (CURRENT_ROWS ? CURRENT_ROWS.length : 0) + ' rows';
+    return true;
+  }
+
+  // Helper: call the unique live auditor action endpoint directly
+  
+
+function auditorActionFeedback_(type, message, options){
+    try {
+      var el = document.getElementById('audActionFeedback');
+      if (!el) return;
+
+      var t = String(type || '').trim().toLowerCase();
+      var msg = String(message || '').trim();
+      var opts = options || {};
+
+      el.className = 'aud-action-feedback' + (t ? (' ' + t) : '');
+      el.textContent = msg;
+      el.style.display = msg ? 'block' : 'none';
+
+      /*
+       * 3S scroll-stability guard.
+       *
+       * Do not auto-scroll after normal auditor actions.
+       * Accept / Deny / Cancel use micro-refresh and must keep the user's
+       * viewport stable. Complete may have its own heavier flow elsewhere.
+       *
+       * Any future scroll must be explicit at the call site:
+       *   auditorActionFeedback_(type, message, { scroll: true })
+       */
+      if (msg && opts && opts.scroll === true) {
+        try { el.scrollIntoView({ block:'nearest', behavior:'smooth' }); } catch(_e) {}
+      }
+    } catch(e) {}
+  }
+
+function v5_callAuditorAction_(auditId, verb, payload, btnEl, setBtnBusyFn, onSuccess, onFailure){
+    payload = payload || {};
+    auditId = String(auditId || '').trim();
+    verb = String(verb || '').trim().toLowerCase();
+    var fnName = 'AuditorV5_Action_U20260410';
+
+    try { uiLog_('Calling server: ' + fnName + '(' + auditId + ', ' + verb + ')'); } catch(e) {}
+    try { auditorUi_applyPendingRowState_(auditId, verb); } catch(ePending) { try { __AUDITOR_ACTION_BUSY[String(auditId)] = { label: auditorUi_pendingLabel_(verb) }; patchRowInDom(String(auditId)); } catch(_e) {} }
+
+    google.script.run
+      .withSuccessHandler(function(resp){
+        if (typeof onSuccess === 'function') {
+          try { auditorUi_clearPendingRowState_(String(auditId)); } catch(eClearCustom) {}
+          try { onSuccess(resp || {}); } catch(cbErr) { console.error('[AUDITOR] custom success handler failed', cbErr); }
+          return;
+        }
+        try { cacheInvalidate(); } catch(e) {}
+        try { invalidateBackendGridCache_(function(){}); } catch(e) {}
+        try { if (typeof auditorUi_startTurboPoll_ === 'function') auditorUi_startTurboPoll_(); } catch(e) {}
+        try { delete __AUDITOR_ACTION_BUSY[String(auditId)]; } catch(e) {}
+
+        var ok = false;
+        try {
+          ok = auditorUi_applyActionMicroRefresh_(String(auditId), String(verb), payload, resp || {});
+        } catch(e1) {
+          console.warn('[AUDITOR] central micro-refresh failed', e1);
+          ok = false;
+        }
+
+        if (!ok) {
+          try { auditorUi_clearPendingRowState_(String(auditId)); } catch(eClearReload) {}
+          try { uiLog_('[MICROREFRESH][AUDITOR][FULL_RELOAD] action=' + verb + ' auditId=' + auditId); } catch(eReloadLog) {}
+          loadGrid({ force: true });
+        } else {
+          try { auditorUi_clearPendingRowState_(String(auditId)); } catch(eClearOk) {}
+        }
+
+        try {
+          var verbLc = String(verb || '').toLowerCase();
+          var msg = 'Action completed.';
+          if (verbLc === 'accept') msg = 'Accepted. The audit is now marked as Accepted.';
+          else if (verbLc === 'deny') msg = 'Returned to Pending Planning. The planning block has been released.';
+          else if (verbLc === 'cancel') msg = 'Returned to Pending Planning. The planning block has been released.';
+          else if (verbLc === 'complete') msg = 'Completed. The audit is now marked as Completed.';
+          V5.toast(msg);
+          try { auditorActionFeedback_('success', msg); } catch(_eFeedback) {}
+        } catch(e2) {}
+
+        if (setBtnBusyFn) setBtnBusyFn(btnEl, false);
+      })
+      .withFailureHandler(function(err){
+        if (typeof onFailure === 'function') {
+          try { onFailure(err); } catch(cbErr2) { console.error('[AUDITOR] custom failure handler failed', cbErr2); }
+          return;
+        }
+        console.error('[AUDITOR] Action failed', err);
+        try { auditorUi_restorePendingRowSnapshot_(String(auditId)); } catch(eRestore) { try { delete __AUDITOR_ACTION_BUSY[String(auditId)]; } catch(e) {} }
+        try {
+          var failMsg = err && err.message ? ('Action failed: ' + err.message) : 'Action failed. Please refresh if the row does not recover.';
+          V5.toast(failMsg);
+          try { auditorActionFeedback_('error', failMsg); } catch(_eFeedbackFail) {}
+        } catch(e) {}
+        if (setBtnBusyFn) setBtnBusyFn(btnEl, false);
+      })
+      [fnName](String(auditId), String(verb), payload);
+  }
+
+
+  function doAccept(auditId, btnEl, setBtnBusyFn) {
+    const row = CURRENT_ROWS.find(x => String(x.auditId) === String(auditId));
+    if (!row) {
+      try { V5.toast('Row not found (maybe refreshed).'); } catch(e) {}
+      return;
+    }
+    // optimistic UI hint (badge will update on success)
+    auditorUi_markInteraction_();
+    v5_callAuditorAction_(String(auditId), 'accept', {}, btnEl, setBtnBusyFn);
+  }
+
+
+
+// === FIX: delegated click handler for Accept/Deny (dynamic rows safe) ===
+document.addEventListener('DOMContentLoaded', function () {
+  var grid = document.getElementById('grid') || document.body;
+
+  function setBtnBusy_(btn, busy, label) {
+    if (!btn) return;
+    if (busy) {
+      btn.dataset.v5OldText = btn.dataset.v5OldText || btn.textContent;
+      btn.disabled = true;
+      btn.classList.add('busy');
+      btn.textContent = label || 'Processing…';
+    } else {
+      btn.disabled = false;
+      btn.classList.remove('busy');
+      if (btn.dataset.v5OldText) btn.textContent = btn.dataset.v5OldText;
+      delete btn.dataset.v5OldText;
+    }
+  }
+
+  grid.addEventListener('click', function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest('button') : null;
+    if (!btn) return;
+
+    var auditId = btn.getAttribute('data-audit-id');
+    if (!auditId) return;
+
+    var uiAction = String(btn.getAttribute('data-ui-action') || btn.dataset.uiAction || '').trim().toLowerCase();
+
+    if (btn.classList.contains('btn-accept') || uiAction === 'accept') {
+      setBtnBusy_(btn, true, 'Accepting…');
+      if (typeof doAccept === 'function') doAccept(auditId, btn, setBtnBusy_);
+      return;
+    }
+    if (btn.classList.contains('btn-deny') || uiAction === 'deny') {
+      // prompt first; only show busy once we proceed
+      if (typeof doDeny === 'function') doDeny(auditId, btn, setBtnBusy_);
+      return;
+    }
+  }, true);
+});
+function confirmReason() {
+    if (!PENDING_ACTION) return;
+    var reason = String(document.getElementById('txtReason').value || '').trim();
+    if (!reason) { try { V5.toast('Reason is required.'); } catch(e) {} return; }
+
+    auditorUi_markInteraction_();
+    var payload = { reason: reason };
+    var auditId = PENDING_ACTION.auditId;
+    var action = PENDING_ACTION.action; // e.g. 'deny'
+
+    v5_callAuditorAction_(auditId, action, payload);
+    closeReason();
+  }
+
+  function openComplete(auditId) {
+    const row = CURRENT_ROWS.find(x => String(x.auditId) === String(auditId));
+    if (!row) return;
+
+    PENDING_ACTION = { auditId, action: 'complete' };
+    document.getElementById('modalCompleteMsg').textContent =
+      'Complete audit for ' + (row.company || auditId) + '. Hours dedicated is required.';
+
+    // default prefill = planned hours
+    const ph = Number(row.plannedHours || 0);
+    document.getElementById('numHoursDedicated').value = (isFinite(ph) && ph>0) ? ph : '';
+
+    V5.modal.open('modalComplete');
+  }
+
+  function closeComplete() {
+    try { document.getElementById('numHoursDedicated').value = ''; } catch(e) {}
+    try { document.getElementById('modalCompleteMsg').textContent = ''; } catch(e) {}
+    V5.modal.close('modalComplete');
+    PENDING_ACTION = null;
+  }
+
+  function confirmComplete() {
+    if (!PENDING_ACTION) return;
+
+    const auditId = PENDING_ACTION.auditId;
+    const n = Number(document.getElementById('numHoursDedicated').value);
+
+    if (!(n > 0)) {
+      V5.toast('Hours dedicated must be > 0.');
+      return;
+    }
+    const q = Math.round(n * 4) / 4;
+    if (Math.abs(q - n) > 1e-9) {
+      V5.toast('Hours dedicated must be in steps of 0.25.');
+      return;
+    }
+
+    closeComplete();
+    auditorUi_markInteraction_();
+    __AUDITOR_ACTION_BUSY[String(auditId)] = { label: 'Completing…' };
+    try { patchRowInDom(String(auditId)); } catch(e) { try { renderGrid(CURRENT_ROWS); } catch(_e) {} }
+    // T07 — guarantee visible "Completing…" feedback regardless of which
+    // actionButtons() implementation is active (there are two: original at
+    // L1450 + override at L2420; only the override checks __AUDITOR_ACTION_BUSY,
+    // so the busy label was getting lost). Direct DOM patch runs AFTER
+    // patchRowInDom so it always wins until the backend response arrives
+    // (~10s for Complete) and the row is re-rendered/removed.
+    try {
+      var __cBusyTr = document.querySelector('tr[data-auditid="' + CSS.escape(String(auditId)) + '"]');
+      if (__cBusyTr) {
+        var __cBusyCell = __cBusyTr.querySelector('td.col-action');
+        if (__cBusyCell) {
+          __cBusyCell.innerHTML =
+            '<span class="muted" style="font-style:italic;">Completing…</span>';
+        }
+      }
+    } catch(__cBusyErr) { /* DOM not ready — ignore */ }
+    v5_callAuditorAction_(auditId, 'complete', { hoursDedicated: q });
+  }
+
+  // init
+  document.addEventListener('DOMContentLoaded', function(){
+    try { auditorUi_restoreFilterState_(); } catch(e) {}
+    var b1 = document.getElementById('btnSelectAll'); if (b1) b1.addEventListener('click', auditorUi_selectAllVisible_);
+    var b2 = document.getElementById('btnUnselectAll'); if (b2) b2.addEventListener('click', auditorUi_unselectAllVisible_);
+    var b3 = document.getElementById('btnExportExcel'); if (b3) b3.addEventListener('click', auditorUi_exportExcel_);
+    var b4 = document.getElementById('btnExportPdf'); if (b4) b4.addEventListener('click', auditorUi_exportPdf_);
+    var body = document.getElementById('gridBody');
+    if (body) body.addEventListener('change', function(ev){
+      var cb = ev.target && ev.target.closest ? ev.target.closest('.aud-select-row') : null;
+      if (!cb) return;
+      auditorUi_toggleSelection_(cb.getAttribute('data-audit-id') || '', !!cb.checked);
+    }, true);
+    loadGrid();
+  });
+</script>
+<script>
+/* ============================================================
+ * Micro-refresh after Planning Toolkit save (Step B2)
+ * Receives full payload and patches the grid locally.
+ * No full grid reload.
+ * ============================================================ */
+(function(){
+  function v5PortalToMin_(hhmm){
+    var m = String(hhmm || '').trim().match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) return NaN;
+    return Number(m[1]) * 60 + Number(m[2]);
+  }
+
+  function v5BuildPlannedFields_(blocks){
+    var arr = Array.isArray(blocks) ? blocks.slice() : [];
+    arr = arr.filter(function(b){ return b && b.date; });
+    arr.sort(function(a,b){ return String(a.date||'').localeCompare(String(b.date||'')); });
+    var dates = arr.map(function(b){ return String(b.date||''); }).join(', ');
+    var mins = 0;
+    var tip = [];
+    arr.forEach(function(b){
+      var s = String(b.start||'');
+      var e = String(b.end||'');
+      if (s && e) {
+        var sm = v5PortalToMin_(s), em = v5PortalToMin_(e);
+        if (isFinite(sm) && isFinite(em) && em > sm) mins += (em - sm);
+      }
+      tip.push(String(b.date||'') + (s && e ? (' ' + s + '–' + e) : ''));
+    });
+    return {
+      plannedDates: dates,
+      plannedHours: (Math.round((mins/60)*100)/100).toFixed(2),
+      plannedTooltip: tip.join('\n')
+    };
+  }
+
+  function handlePlanningSaved_(src, payload){
+    payload = payload || {};
+    var auditId = String(payload.auditId || '');
+    var auditorEmail = String(payload.auditorEmail || '').trim().toLowerCase();
+    var blocks = Array.isArray(payload.blocks) ? payload.blocks : [];
+    try { if (typeof uiLog_ === 'function') uiLog_('[STEP B2] Planning saved signal ('+src+') auditId='+(auditId||'')+' auditor='+(auditorEmail||'')+' blocks=' + blocks.length); } catch(e) {}
+    try { if (window.V5 && V5.toast) V5.toast('Planning saved.'); } catch(e) {}
+    try { cacheInvalidate(); } catch(e) {}
+    invalidateBackendGridCache_(function(){});
+    try { v5ClearToolkitPendingReturn_(); } catch(e) {}
+    try { if (auditorEmail && blocks.length) v5StoreRecentPlans_(auditorEmail, blocks); } catch(e) {}
+
+    try {
+      if (window.V5_AUDITOR_AVAIL && typeof window.V5_AUDITOR_AVAIL.clearCache === 'function') window.V5_AUDITOR_AVAIL.clearCache();
+      if (window.V5_AUDITOR_AVAIL && typeof window.V5_AUDITOR_AVAIL.refresh === 'function') window.V5_AUDITOR_AVAIL.refresh();
+      try { if (typeof auditorUi_startTurboPoll_ === 'function') auditorUi_startTurboPoll_(); } catch(e) {}
+    } catch(e) {}
+
+    try {
+      var idx = findRowIndexByAuditId(auditId);
+      if (idx >= 0) {
+        var pf = v5BuildPlannedFields_(blocks);
+        auditorUi_markInteraction_();
+        CURRENT_ROWS[idx].status = 'PENDING_APPROVAL';
+        CURRENT_ROWS[idx].plannedDates = pf.plannedDates || CURRENT_ROWS[idx].plannedDates || '';
+        CURRENT_ROWS[idx].plannedHours = pf.plannedHours || CURRENT_ROWS[idx].plannedHours || '';
+        CURRENT_ROWS[idx].plannedTooltip = pf.plannedTooltip || CURRENT_ROWS[idx].plannedTooltip || '';
+        CURRENT_ROWS[idx].canPlan = false;
+        CURRENT_ROWS[idx].expectedOnly = false;
+        if (!patchRowInDom(auditId)) {
+          renderGrid(CURRENT_ROWS);
+        }
+        var pill = document.getElementById('pillCount');
+        if (pill) pill.textContent = (CURRENT_ROWS ? CURRENT_ROWS.length : 0) + ' rows';
+        return;
+      }
+    } catch(e) {
+      try { if (typeof uiLog_ === 'function') uiLog_('[STEP B2] micro-refresh failed: ' + String(e && e.message ? e.message : e)); } catch(_e) {}
+    }
+
+    return;
+  }
+
+  window.addEventListener('message', function(ev){
+    try{
+      var d = ev && ev.data ? ev.data : null;
+      if (!d || d.type !== 'PLANNING_SAVED_V5') return;
+      handlePlanningSaved_('postMessage', d);
+    }catch(e){}
+  });
+
+  window.addEventListener('storage', function(ev){
+    try{
+      if (!ev) return;
+      if (ev.key === 'V5_PLANNING_SAVED_PAYLOAD') {
+        var payload = null;
+        try { payload = JSON.parse(ev.newValue || '{}') || {}; } catch(_e) { payload = {}; }
+        handlePlanningSaved_('localStorage.payload', payload);
+        return;
+      }
+    }catch(e){}
+  });
+
+  window.handlePlanningSaved_ = handlePlanningSaved_;
+})();
+</script>
+
+
+
+  <!-- Debug log dock -->
+  <div id="logDock" aria-live="polite">
+    <div id="logDockHeader">
+      <div><b>Debug log</b> <span class="muted">(Auditor UI)</span></div>
+      <div style="display:flex; gap:8px;">
+        <button class="logBtn" id="logCopyBtn" type="button">Copy</button>
+        <button class="logBtn" id="logClearBtn" type="button">Clear</button>
+        <button class="logBtn" id="logCloseBtn" type="button">Close</button>
+      </div>
+    </div>
+    <pre id="logText"></pre>
+  </div>
+
+
+
+<!-- [REMOVED legacy availability modal block] -->
+
+
+
+<!-- [REMOVED legacy availability modal script] -->
+<script>
+(function(){
+  function v5_toggleAvailabilityOnly_(){
+    var mode = String(__UI_MODE || '').trim();
+    var isAvail = (mode === 'AVAILABILITY_ONLY');
+    // Hide audits/grid section(s)
+    var gridWrap = document.getElementById('cardAudits') ||
+                   document.getElementById('gridCard') ||
+                   document.getElementById('auditorGridCard');
+    var availCard = document.getElementById('v5AvailOnlyCard');
+
+    if (isAvail) {
+      if (gridWrap) gridWrap.style.display = 'none';
+      if (availCard) availCard.style.display = 'block';
+
+      // Hide top-right actions that don't belong in AVAILABILITY_ONLY
+      var btnMy = document.getElementById('btnMyAvailability');
+      if (btnMy) btnMy.style.display = 'none';
+      var btnMap = document.getElementById('btnCompanyMap');
+      if (btnMap) btnMap.style.display = 'none';
+      var btnRefresh = document.getElementById('btnRefresh') || document.querySelector('button.v5-btn-primary');
+      if (btnRefresh) btnRefresh.style.display = 'none';
+    } else {
+      if (gridWrap) gridWrap.style.display = '';
+      if (availCard) availCard.style.display = 'none';
+    }
+  }
+
+  function v5_bindMyAvailabilityNav_(){
+    var btn = document.getElementById('btnMyAvailability') || document.querySelector('button[data-action="myavailability"]');
+    if (!btn || btn.__v5Bound) return;
+    btn.__v5Bound = true;
+    btn.addEventListener('click', function(e){
+      e.preventDefault();
+      // Always open My Availability in the SAME deployment as the current portal (no re-identification).
+      var base = String((typeof __EXEC_URL !== 'undefined' ? __EXEC_URL : '') || (typeof AUDITOR_EXEC_BASE_PROD !== 'undefined' ? AUDITOR_EXEC_BASE_PROD : '') || '').trim();
+      if (!base) { console.error('[AV5] Missing exec base URL'); return; }
+
+      // Pull identity/token from template vars first; fall back to localStorage (prevents re-login regressions).
+      function v5_lsFirst_(keys){
+        try {
+          for (var i=0;i<keys.length;i++){
+            var v = (window.localStorage ? localStorage.getItem(keys[i]) : '') || '';
+            v = String(v||'').trim();
+            if (v) return v;
+          }
+        } catch(e) {}
+        return '';
+      }
+
+      var email = (typeof __AUDITOR_EMAIL !== 'undefined' ? String(__AUDITOR_EMAIL||'') : '').trim().toLowerCase();
+      if (!email) email = v5_lsFirst_(['AV5_AUDITOR_EMAIL','V5_AUDITOR_EMAIL','AUDITOR_EMAIL','email']);
+
+      var token = (typeof __AUDITOR_TOKEN !== 'undefined' ? String(__AUDITOR_TOKEN||'') : '').trim();
+      if (!token) token = v5_lsFirst_(['AV5_TRUSTED_TOKEN','V5_TRUSTED_TOKEN','TRUSTED_TOKEN','token','__token','_token']);
+
+      var deviceId = (typeof __DEVICE_ID !== 'undefined' ? String(__DEVICE_ID||'') : '').trim();
+      if (!deviceId) deviceId = v5_lsFirst_(['AV5_DEVICE_ID','V5_DEVICE_ID','DEVICE_ID','deviceId','deviceFingerprint','__deviceFingerprint']);
+
+      var url = new URL(base);
+      url.searchParams.set('action','auditorAvailability');
+      // Bootstrap expects 'email' + optional 'role'
+      url.searchParams.set('email', email);
+      url.searchParams.set('role', 'auditor');      url.searchParams.set('ts', String(Date.now()));
+      window.open(url.toString(), '_blank', 'noopener');
+    }, true);
+  }
+
+  function v5_bindBackToAudits_(){
+    var btn = document.getElementById('btnBackToAudits');
+    if (!btn || btn.__v5Bound) return;
+    btn.__v5Bound = true;
+    btn.addEventListener('click', function(e){
+      e.preventDefault();
+      try {
+        var base = String(__EXEC_URL || AUDITOR_EXEC_BASE_PROD || '').trim();
+        if (!base) throw new Error('Missing AUDITOR_EXEC_BASE_PROD');
+        var url = new URL(base);
+        url.searchParams.set('action','auditorPortal');
+        url.searchParams.set('auditorEmail', (__AUDITOR_EMAIL||''));
+        url.searchParams.set('page','auditor');
+        url.searchParams.set('ts', String(Date.now()));
+        window.top.location.href = url.toString();
+      } catch(err) {
+        console.error('[BACK]', err);
+      }
+    }, true);
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    try { v5_bindMyAvailabilityNav_(); } catch(e){}
+    try { v5_bindBackToAudits_(); } catch(e){}
+    try { v5_toggleAvailabilityOnly_(); } catch(e){}
+  });
+})();
+</script>
+
+
+<script>
+// GATE2: Read-only embedded calendar boot (no modal). 
+(function(){
+  // Minimal month nav + render shell; delegates day-state mapping to backend response if present.
+  var currentMonth = new Date();
+  currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+  var dayAvail = {};
+
+  function isoDate_(d){
+    var y=d.getFullYear();
+    var m=String(d.getMonth()+1).padStart(2,'0');
+    var da=String(d.getDate()).padStart(2,'0');
+    return y+'-'+m+'-'+da;
+  }
+  function monthLabel_(d){
+    return d.toLocaleString('en-US',{month:'long', year:'numeric'});
+  }
+  function monthStartEnd_(d){
+    var y=d.getFullYear(), m=d.getMonth();
+    var start=new Date(y,m,1);
+    var end=new Date(y,m+1,0);
+    return {start:start,end:end};
+  }
+  function setLoading_(on){
+    var el=document.getElementById('availLoadingMask');
+    if(el) el.style.display = on ? 'flex':'none';
+  }
+  function renderDow_(){
+    var el=document.getElementById('availCalDow');
+    if(!el) return;
+    el.innerHTML='';
+    ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(function(n){
+      var d=document.createElement('div'); d.textContent=n; el.appendChild(d);
+    });
+  }
+  function cellClass_(sum){
+    if(sum==='hard') return 'sumHardBlock';
+    if(sum==='block') return 'sumBlock';
+    if(sum==='mixed') return 'sumMixed';
+    if(sum==='avail') return 'sumAvail';
+    return '';
+  }
+  function renderGrid_(){
+    var label=document.getElementById('availMonthLabel');
+    if(label) label.textContent = monthLabel_(currentMonth);
+    renderDow_();
+    var grid=document.getElementById('availCalGrid');
+    if(!grid) return;
+    grid.innerHTML='';
+    var r=monthStartEnd_(currentMonth);
+    var firstDow = (r.start.getDay()+6)%7; // Mon=0
+    for(var i=0;i<firstDow;i++){
+      var e=document.createElement('div'); e.className='calCell calEmpty'; grid.appendChild(e);
+    }
+    var daysInMonth = r.end.getDate();
+    for(var day=1; day<=daysInMonth; day++){
+      var d=new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+      var iso=isoDate_(d);
+      var sum = (dayAvail && dayAvail[iso] && dayAvail[iso].sum) ? dayAvail[iso].sum : '';
+      var cell=document.createElement('div');
+      cell.className='calCell ' + cellClass_(sum) + ' locked';
+      cell.textContent=String(day);
+      grid.appendChild(cell);
+    }
+  }
+
+  function fetchMonth_(){
+    try{
+      setLoading_(true);
+      var email = (typeof __AUDITOR_EMAIL!=='undefined') ? String(__AUDITOR_EMAIL).trim().toLowerCase() : '';
+      google.script.run
+        .withSuccessHandler(function(resp){
+          // Accept either direct dayAvail map or wrapped objects
+          if(resp && resp.dayAvail) dayAvail = resp.dayAvail;
+          else if(resp && resp.days) dayAvail = resp.days;
+          else if(resp && typeof resp === 'object') dayAvail = resp;
+          else dayAvail = {};
+          setLoading_(false);
+          renderGrid_();
+        })
+        .withFailureHandler(function(err){
+          console.error('[GATE2] fetch failed', err);
+          dayAvail = {};
+          setLoading_(false);
+          renderGrid_();
+        })
+        .v5_getAuditorAvailabilityRaw(email);
+    }catch(e){
+      console.error(e);
+      setLoading_(false);
+    }
+  }
+
+  function bindNav_(){
+    var p=document.getElementById('btnAvailPrev');
+    var n=document.getElementById('btnAvailNext');
+    if(p) p.onclick=function(){ currentMonth=new Date(currentMonth.getFullYear(), currentMonth.getMonth()-1,1); fetchMonth_(); };
+    if(n) n.onclick=function(){ currentMonth=new Date(currentMonth.getFullYear(), currentMonth.getMonth()+1,1); fetchMonth_(); };
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    if(typeof __UI_MODE !== 'undefined' && String(__UI_MODE)==='AVAILABILITY_ONLY'){
+      bindNav_();
+      fetchMonth_();
+    }
+  });
+})();
+</script>
+
+
+
+<!-- GATE2_CAL_RO_READONLY_20260129_121730 REMOVED (syntax hardening) -->
+
+
+
+<script>
+/* BUILD: ARCHIVED_CLEAN_UI_20260412_022700 */
+(function(){
+  var ACTIVE_COLUMNS = [
+    { key:'select', label:'Sel', cls:'col-select' },
+    { key:'company', label:'Company', cls:'sortable' },
+    { key:'companyAdjust', label:'✎', cls:'col-company-adjust align-center' },
+    { key:'locs', label:'Locs', cls:'align-center sortable' },
+    { key:'gps', label:'HQ', cls:'align-center sortable col-hq', title:'First point of contact' },
+    { key:'companyRegion', label:'Region', cls:'sortable' },
+    { key:'scopesText', label:'Scopes', cls:'sortable' },
+    { key:'status', label:'Status', cls:'align-center sortable' },
+    { key:'allowSelfPlanning', label:'Self planning', cls:'align-center sortable' },
+    { key:'expirationDate', label:'Expiration date', cls:'align-center sortable' },
+    { key:'planningWindow', label:'Planning window', cls:'sortable' },
+    { key:'plannedDates', label:'Planned date(s)', cls:'align-center sortable' },
+    { key:'toBePlanned', label:'To be planned', cls:'align-center sortable' },
+    { key:'plannedHours', label:'Planned hours', cls:'align-center sortable' },
+    { key:'actionText', label:'Action', cls:'col-action align-right sortable' }
+  ];
+
+  var ARCHIVED_COLUMNS = [
+    { key:'select', label:'Sel', cls:'col-select' },
+    { key:'company', label:'Company', cls:'sortable' },
+    { key:'companyAdjust', label:'✎', cls:'col-company-adjust align-center' },
+    { key:'location', label:'Location', cls:'sortable' },
+    { key:'scopesText', label:'Scopes', cls:'sortable' },
+    { key:'executedOn', label:'Executed on', cls:'align-center sortable' },
+    { key:'selfPlanning', label:'Self planning', cls:'align-center sortable' },
+    { key:'toBePlanned', label:'Hours to be planned', cls:'align-center sortable' },
+    { key:'plannedHours', label:'Hours planned', cls:'align-center sortable' },
+    { key:'hoursDedicated', label:'Hours dedicated', cls:'align-center sortable' },
+    { key:'completedDate', label:'Completed date', cls:'align-center sortable' },
+    { key:'status', label:'Status', cls:'align-center sortable' },
+    { key:'actionText', label:'Action', cls:'col-action align-right sortable' }
+  ];
+
+  function v5IsArchivedView_() {
+    var chk = document.getElementById('chkArchived');
+    return !!(chk && chk.checked);
+  }
+
+  function v5Cols_() {
+    return v5IsArchivedView_() ? ARCHIVED_COLUMNS : ACTIVE_COLUMNS;
+  }
+
+  function v5ApplyHeaderSortState_() {
+    try {
+      document.querySelectorAll('#grid thead th.sortable').forEach(function(th){ th.classList.remove('sorted'); });
+      if (!AUD_SORT_STATE || !AUD_SORT_STATE.key) return;
+      var th = document.querySelector('#grid thead th.sortable[data-key="' + CSS.escape(String(AUD_SORT_STATE.key)) + '"]');
+      if (th) th.classList.add('sorted');
+    } catch(e) {}
+  }
+
+  function v5SetGridHeaders_() {
+    var thead = document.querySelector('#grid thead');
+    if (!thead) return;
+    var cols = v5Cols_();
+    var html = '<tr>' + cols.map(function(c){
+      var label = String(c.label || '');
+      var labelHtml = (String(c.key || '') === 'companyAdjust') ? label : V5.escape(label);
+      return '<th class="' + (c.cls || '') + '" data-key="' + V5.escape(c.key) + '">' + labelHtml + '</th>';
+    }).join('') + '</tr>';
+    thead.innerHTML = html;
+    v5ApplyHeaderSortState_();
+  }
+
+  audVal_ = function(row, key) {
+    if (!row) return '';
+    switch(String(key || '')) {
+      case 'locs': return audNum_(row.locs);
+      case 'plannedHours': return audNum_(row.plannedHours);
+      case 'hoursDedicated': return audNum_(row.hoursDedicated);
+      case 'toBePlanned': return audNum_(row.toBePlanned);
+      case 'expirationDate': return audParseISODate_(row.expirationDate) || row.expirationDate || '';
+      case 'plannedDates': return audParseISODate_(row.plannedDates) || row.plannedDates || '';
+      case 'executedOn': return audParseISODate_(row.executedOn) || row.executedOn || '';
+      case 'completedDate': return audParseISODate_(row.completedDate) || row.completedDate || '';
+      case 'planningWindow': return audParseISODate_(row.planningWindow) || row.planningWindow || '';
+      case 'status': return String(row.status || '');
+      case 'gps': return String(row.gps || '');
+      case 'company': return String(row.company || '');
+      case 'companyLocation': return String(row.companyLocation || '');
+      case 'companyRegion': return String(row.companyRegion || '');
+      case 'location': return String(row.location || '');
+      case 'allowSelfPlanning': return String(row.allowSelfPlanning || '');
+      case 'selfPlanning': return String(row.selfPlanning || '');
+      case 'scopesText': return String(row.scopesText || '');
+      case 'actionText': return '';
+      default: return String(row[key] || '');
+    }
+  };
+
+  actionButtons = function(row) {
+    var ro = !!row.readOnly;
+    if (ro || v5IsArchivedView_()) return '<span class="muted">—</span>';
+    var statusRaw = String(row.status||'').trim();
+    var s = statusRaw.toUpperCase().replace(/\s+/g, '_');
+    var id = V5.escape(row.auditId);
+    var self = String(row.allowSelfPlanning||'').trim().toUpperCase() === 'YES';
+    var canPlan = !!row.canPlan;
+    var busyState = __AUDITOR_ACTION_BUSY[String(row.auditId || '')] || null;
+    var out = [];
+    if (busyState) return '<span class="muted">' + V5.escape(busyState.label || 'Working…') + '</span>';
+    if (s === 'PENDING_PLANNING' && self && canPlan) {
+      out.push(auditorActionButtonHtml_('plan', 'onclick="doPlan(\'' + id + '\')"', 'Plan'));
+    }
+    if (s === 'PENDING_APPROVAL') {
+      out.push(auditorActionButtonHtml_('cancel', 'onclick="doCancel(\'' + id + '\')"', 'Cancel'));
+      out.push(auditorActionButtonHtml_('deny', 'data-audit-id="' + id + '"', 'Deny'));
+    }
+    if (s === 'APPROVED') {
+      out.push(auditorActionButtonHtml_('accept', 'data-audit-id="' + id + '"', 'Accept'));
+      out.push(auditorActionButtonHtml_('cancel', 'onclick="doCancel(\'' + id + '\')"', 'Cancel'));
+      out.push(auditorActionButtonHtml_('deny', 'data-audit-id="' + id + '"', 'Deny'));
+    }
+    if (s === 'ACCEPTED') {
+      out.push(auditorActionButtonHtml_('cancel', 'onclick="doCancel(\'' + id + '\')"', 'Cancel'));
+      out.push(auditorActionButtonHtml_('complete', 'onclick="openComplete(\'' + id + '\')"', 'Complete'));
+    }
+    return out.join(' ');
+  };
+
+
+  renderRowHtml = function(r) {
+    if (v5IsArchivedView_()) {
+      return [
+        '<tr data-auditid="' + V5.escape(r.auditId) + '">',
+        '<td class="select-cell"><input type="checkbox" class="aud-select-row" data-audit-id="' + V5.escape(r.auditId) + '" ' + (__AUDITOR_SELECTED_IDS.has(String(r.auditId || '')) ? 'checked' : '') + '></td>',
+        '<td>' + V5.escape(r.company || '') + '</td>',
+        '<td class="company-adjust-cell"><span class="muted">—</span></td>',
+        '<td>' + audGridLocationText_(r.location || '') + '</td>',
+        '<td>' + scopePills(r) + '</td>',
+        '<td class="align-center">' + V5.escape(r.executedOn || '') + '</td>',
+        '<td class="align-center">' + yesNoCell(r.selfPlanning) + '</td>',
+        '<td class="align-center">' + V5.escape(r.toBePlanned || '') + '</td>',
+        '<td class="align-center">' + V5.escape(r.plannedHours || '') + '</td>',
+        '<td class="align-center">' + V5.escape(r.hoursDedicated || '') + '</td>',
+        '<td class="align-center">' + V5.escape(r.completedDate || '') + '</td>',
+        '<td class="align-center">' + badgeForStatus(r.status) + '</td>',
+        '<td class="col-action"><span class="muted">—</span></td>',
+        '</tr>'
+      ].join('');
+    }
+    var isPending = !!(r && r.__pending);
+    var trClass = isPending ? ' class="v5-row-busy"' : '';
+    var statusHtml = isPending
+      ? '<span class="v5-cell-pending">Updating…</span>'
+      : badgeForStatus(r.status);
+    var plannedDatesHtml = isPending && r.__pendingPlannedDates
+      ? '<span class="v5-cell-pending">…</span>'
+      : renderMultiDayLabel_(r.plannedDates || '', r.plannedTooltip || '');
+    var plannedHoursHtml = isPending && r.__pendingPlannedHours
+      ? '<span class="v5-cell-pending">…</span>'
+      : V5.escape(r.plannedHours || '');
+    return [
+      '<tr data-auditid="' + V5.escape(r.auditId) + '"' + trClass + '>',
+      '<td class="select-cell"><input type="checkbox" class="aud-select-row" data-audit-id="' + V5.escape(r.auditId) + '" ' + (__AUDITOR_SELECTED_IDS.has(String(r.auditId || '')) ? 'checked' : '') + (isPending ? ' disabled' : '') + '></td>',
+      '<td>' + V5.escape(r.company || '') + '</td>',
+      '<td class="company-adjust-cell">' + (isPending ? '<span class="v5-cell-pending">…</span>' : renderCompanyAdjustCell_(r)) + '</td>',
+      '<td class="align-center">' + V5.escape(r.locs || '') + '</td>',
+      '<td class="align-center">' + gpsCell(r) + '</td>',
+      '<td>' + V5.escape(r.companyRegion || '') + '</td>',
+      '<td>' + scopePills(r) + '</td>',
+      '<td class="align-center">' + statusHtml + '</td>',
+      '<td class="align-center">' + yesNoCell(r.allowSelfPlanning) + '</td>',
+      '<td class="align-center">' + V5.escape(r.expirationDate || '') + '</td>',
+      '<td>' + V5.escape(r.planningWindow || '') + '</td>',
+      '<td class="align-center">' + plannedDatesHtml + '</td>',
+      '<td class="align-center">' + V5.escape(r.toBePlanned || '') + '</td>',
+      '<td class="align-center">' + plannedHoursHtml + '</td>',
+      '<td class="col-action">' + actionButtons(r) + '</td>',
+      '</tr>'
+    ].join('');
+  };
+
+  renderGrid = function(rows) {
+    CURRENT_ROWS = rows || [];
+    v5SetGridHeaders_();
+    var tb = document.getElementById('gridBody');
+    var pill = document.getElementById('pillCount');
+    if (pill) pill.textContent = CURRENT_ROWS.length + ' rows';
+    var colspan = v5Cols_().length;
+    if (!CURRENT_ROWS.length) {
+      tb.innerHTML = '<tr><td colspan="' + colspan + '" class="muted">No audits found for this view.</td></tr>';
+      return;
+    }
+    tb.innerHTML = CURRENT_ROWS.map(function(r){ return renderRowHtml(r); }).join('');
+    try { auditorUi_markGridHydrated_(CURRENT_ROWS); } catch(e) {}
+  };
+
+  function v5SortRowsNow_() {
+    if (!CURRENT_ROWS || !CURRENT_ROWS.length || !AUD_SORT_STATE || !AUD_SORT_STATE.key) return;
+    CURRENT_ROWS = CURRENT_ROWS.slice().sort(function(x, y){
+      return AUD_SORT_STATE.dir * audCompare_(x, y, AUD_SORT_STATE.key);
+    });
+  }
+
+  loadGrid = function(opts) {
+    opts = opts || {};
+    var archived = v5IsArchivedView_();
+    var view = archived ? 'archived' : 'active';
+    document.getElementById('pillView').textContent = archived ? 'Archived' : 'Active';
+    v5SetGridHeaders_();
+
+    function setDefaultSort_() {
+      if (!AUD_SORT_STATE) AUD_SORT_STATE = { key:null, dir:1 };
+      if (AUD_SORT_STATE.__view !== view) {
+        if (view === 'archived') {
+          AUD_SORT_STATE.key = 'completedDate';
+          AUD_SORT_STATE.dir = -1;
+        } else {
+          AUD_SORT_STATE.key = 'planningWindow';
+          AUD_SORT_STATE.dir = 1;
+        }
+        AUD_SORT_STATE.__view = view;
+      }
+    }
+
+    function applyRows_(rows, warning, meta) {
+      meta = meta || {};
+
+      // 3S guard: FAST is first-paint only. Once the active grid has been
+      // hydrated by the enriched/full dataset, a later FAST/background response
+      // may never overwrite richer cells such as Scopes, GPS and company data.
+      if (view === 'active' && meta.fastFirstPaint && __AUDITOR_ACTIVE_GRID_HYDRATED) {
+        try { if (typeof uiLog_ === 'function') uiLog_('[3S][AUDITOR_GRID] ignored late FAST payload after hydration'); } catch(e) {}
+        return true;
+      }
+
+      ALL_ROWS = v5FilterHiddenCompleted_(rows || []).slice();
+      var nextSig = auditorUi_buildGridSignature_(ALL_ROWS);
+      var same = (__AUDITOR_GRID_SIGNATURE === nextSig);
+      CURRENT_ROWS = ALL_ROWS.slice();
+      setDefaultSort_();
+      v5SortRowsNow_();
+      if (!(meta.silent && same)) {
+        renderGrid(CURRENT_ROWS);
+      }
+      __AUDITOR_GRID_SIGNATURE = nextSig;
+
+      if (view === 'active' && !meta.fastFirstPaint) {
+        __AUDITOR_ACTIVE_GRID_HYDRATED = true;
+      }
+
+      if (!meta.silent && !meta.fastFirstPaint) cacheSet(view, ALL_ROWS, warning || '');
+      if (warning && !meta.silent) V5.toast(warning);
+      return same;
+    }
+
+    function loadFullActive_(resolvedEmail, t0, meta) {
+      meta = meta || {};
+      google.script.run
+        .withSuccessHandler(function(res){
+          try { if (typeof uiLog_==='function') uiLog_('[DIAG] GetAuditorGrid FULL success rows=' + ((res&&res.rows)?res.rows.length:'?') + ' email=' + resolvedEmail); } catch(e) {}
+          if (!res || res.success === false) {
+            if (!opts.silent && !meta.enrichment) V5.toast((res && res.message) ? res.message : 'Failed to load grid');
+            if (!opts.silent && !meta.enrichment) renderGrid([]);
+            if (!meta.enrichment) setPerf('Load failed');
+            return;
+          }
+          var same = applyRows_(res.rows || [], res.warning || '', { silent:!!opts.silent && !meta.enrichment, background:!!opts.background, enrichment:!!meta.enrichment });
+          if (!opts.silent) cacheSet(view, ALL_ROWS, res.warning || '');
+          var ms = Math.round(performance.now() - t0);
+          var hit = res.cacheHit ? ' (server cache hit)' : '';
+          setPerf((meta.enrichment ? 'Enriched' : (opts.background ? 'Revalidated' : 'Loaded')) + ' in ' + ms + 'ms' + hit + ((same && opts.background) ? ' (no changes)' : ''));
+        })
+        .withFailureHandler(function(err){
+          try { if (typeof uiLog_==='function') uiLog_('[ERROR] GetAuditorGrid FULL FAILURE ' + (err&&err.message?err.message:JSON.stringify(err))); } catch(e) {}
+          if (!meta.enrichment) {
+            if (!opts.silent) V5.toast(err && err.message ? err.message : 'Load error');
+            if (!opts.silent) renderGrid([]);
+            setPerf('Load error');
+          }
+        })
+        .AuditorV5B_GetAuditorGrid_U20409({ view: view, auditorEmail: resolvedEmail, token: __AUDITOR_TOKEN, noCache: !!(opts.force || opts.background || meta.enrichment) });
+    }
+
+    function loadActiveEnrichment_(resolvedEmail, t0) {
+      google.script.run
+        .withSuccessHandler(function(res){
+          if (!res || res.success === false) return loadFullActive_(resolvedEmail, t0, { enrichment:true });
+          applyRows_(res.rows || [], res.warning || '', { silent:!!opts.silent, background:!!opts.background, enrichment:true });
+          if (!opts.silent) cacheSet(view, ALL_ROWS, res.warning || '');
+          setPerf('Enriched in ' + Math.round(performance.now() - t0) + 'ms');
+        })
+        .withFailureHandler(function(){
+          loadFullActive_(resolvedEmail, t0, { enrichment:true });
+        })
+        .AuditorV5B_GetAuditorGrid_ENRICHED({ view: view, auditorEmail: resolvedEmail, token: __AUDITOR_TOKEN, noCache: true });
+    }
+
+    var t0 = performance.now();
+    if (!opts.silent) {
+      renderGridSkeleton_(5, v5Cols_().length);
+    }
+
+    var cached = (!opts.force) ? cacheGet(view) : null;
+    if (cached && view !== 'active') {
+      applyRows_(cached.rows || [], cached.warning || '', { silent:false, fromCache:true });
+      setPerf('Loaded from UI cache in ' + Math.round(performance.now() - t0) + 'ms');
+      return;
+    }
+
+    v5ResolveCanonicalAuditorEmail_(function(resolvedEmail){
+      if (view === 'archived') {
+        google.script.run
+          .withSuccessHandler(function(res){
+            try { if (typeof uiLog_==='function') uiLog_('[DIAG] GetArchivedGrid_DIRECT success rows=' + ((res&&res.rows)?res.rows.length:'?') + ' email=' + resolvedEmail); } catch(e) {}
+            if (!res || res.success === false) {
+              if (!opts.silent) V5.toast((res && res.message) ? res.message : 'Failed to load archived grid');
+              if (!opts.silent) renderGrid([]);
+              setPerf('Load failed');
+              return;
+            }
+            applyRows_(res.rows || [], res.warning || '', { silent:!!opts.silent, background:!!opts.background });
+            var ms = Math.round(performance.now() - t0);
+            var hit = res.cacheHit ? ' (server cache hit)' : '';
+            setPerf((opts.background ? 'Revalidated' : 'Loaded') + ' in ' + ms + 'ms' + hit);
+          })
+          .withFailureHandler(function(err){
+            try { if (typeof uiLog_==='function') uiLog_('[ERROR] GetArchivedGrid_DIRECT FAILURE ' + (err&&err.message?err.message:JSON.stringify(err))); } catch(e) {}
+            if (!opts.silent) V5.toast(err && err.message ? err.message : 'Load error');
+            if (!opts.silent) renderGrid([]);
+            setPerf('Load error');
+          })
+          .AuditorV5B_GetArchivedGrid_DIRECT(resolvedEmail);
+      } else {
+        // 3S STABILITY CONTRACT:
+        // Auditor active grid has one render owner: the full U20409 dataset.
+        // FAST/minimal first paint is disabled here because it caused the
+        // active grid to alternate between enriched and non-enriched layouts.
+        loadFullActive_(resolvedEmail, t0, {});
+      }
+    });
+  };
+
+  document.addEventListener('DOMContentLoaded', function(){
+    try { v5SetGridHeaders_(); } catch(e) {}
+  });
+})();
+</script>
+
+
+<!-- DATE DIAG MODAL -->
+<div class="v5-modal-backdrop" id="modalDateDiag">
+  <div class="v5-modal" style="max-width:900px; width:min(900px,96vw);">
+    <header>Date diag</header>
+    <div class="body">
+      <div class="muted" id="dateDiagTitle">Loading…</div>
+      <pre id="dateDiagText" style="white-space:pre-wrap; max-height:60vh; overflow:auto; background:#f6f6f6; padding:12px; border-radius:8px;"></pre>
+    </div>
+    <footer>
+      <button class="v5-btn" onclick="closeDateDiag()">Close</button>
+    </footer>
+  </div>
+</div>
+
+<script>
+function closeDateDiag() {
+  try { V5.modal.close('modalDateDiag'); } catch(e) {}
+}
+function openDateDiag(auditId) {
+  auditId = String(auditId || '').trim();
+  if (!auditId) return;
+  try {
+    document.getElementById('dateDiagTitle').textContent = 'Loading date diagnostics for ' + auditId + '…';
+    document.getElementById('dateDiagText').textContent = '';
+    V5.modal.open('modalDateDiag');
+  } catch(e) {}
+  v5ResolveCanonicalAuditorEmail_(function(resolvedEmail){
+    google.script.run
+      .withSuccessHandler(function(res){
+        try {
+          document.getElementById('dateDiagTitle').textContent = 'Date diagnostics for ' + auditId;
+          document.getElementById('dateDiagText').textContent = JSON.stringify(res || {}, null, 2);
+        } catch(e) {}
+      })
+      .withFailureHandler(function(err){
+        try {
+          document.getElementById('dateDiagTitle').textContent = 'Date diagnostics failed for ' + auditId;
+          document.getElementById('dateDiagText').textContent = String(err && err.message ? err.message : err);
+        } catch(e) {}
+      })
+      .AuditorV5_DateDiag_U20260413(auditId, resolvedEmail);
+  });
+}
+</script>
+
+
+<script>
+(function(){
+  // T05 — was 1000/1000 (= 1s polling permanent). That created continuous
+  // backend load (slow first-open, slow saves) and didn't actually improve
+  // sync, because the backend persistent cache was stale anyway. Combined
+  // with StatusMachine T05 (persist-cache flush on every action) the grids
+  // now sync within at most one idle interval = 5s.
+  var AUDITOR_POLL_FAST_MS = 5000;
+  var AUDITOR_POLL_IDLE_MS = 15000;
+  var __AUDITOR_TURBO_POLL_UNTIL = 0;
+  var __AUDITOR_BG_INFLIGHT = false;
+
+  window.auditorUi_startTurboPoll_ = function(){
+    __AUDITOR_TURBO_POLL_UNTIL = Date.now() + 10000;
+  };
+
+  window.auditorUi_triggerBackgroundRefresh_ = function(reason) {
+    if (document.hidden) return;
+    if (__AUDITOR_BG_INFLIGHT) return;
+    __AUDITOR_BG_INFLIGHT = true;
+    try {
+      loadGrid({ force:true, silent:true, background:true });
+    } finally {
+      window.setTimeout(function(){ __AUDITOR_BG_INFLIGHT = false; }, 700);
+    }
+  };
+
+  window.auditorUi_scheduleBackgroundRefresh_ = function() {
+    try {
+      if (window.__AUDITOR_REVALIDATE_TIMER_FAST) clearInterval(window.__AUDITOR_REVALIDATE_TIMER_FAST);
+      if (window.__AUDITOR_REVALIDATE_TIMER_IDLE) clearInterval(window.__AUDITOR_REVALIDATE_TIMER_IDLE);
+    } catch(e) {}
+
+    window.__AUDITOR_REVALIDATE_TIMER_FAST = window.setInterval(function(){
+      if (document.hidden) return;
+      if (Date.now() < __AUDITOR_TURBO_POLL_UNTIL) window.auditorUi_triggerBackgroundRefresh_('turbo');
+    }, AUDITOR_POLL_FAST_MS);
+
+    window.__AUDITOR_REVALIDATE_TIMER_IDLE = window.setInterval(function(){
+      if (document.hidden) return;
+      if (Date.now() < __AUDITOR_TURBO_POLL_UNTIL) return;
+      window.auditorUi_triggerBackgroundRefresh_('idle');
+    }, AUDITOR_POLL_IDLE_MS);
+  };
+
+  document.addEventListener('visibilitychange', function(){
+    if (!document.hidden) {
+      try { window.auditorUi_startTurboPoll_(); } catch(e) {}
+      try { window.auditorUi_triggerBackgroundRefresh_('visibility'); } catch(e) {}
+    }
+  });
+  window.addEventListener('focus', function(){
+    try { window.auditorUi_startTurboPoll_(); } catch(e) {}
+    try { window.auditorUi_triggerBackgroundRefresh_('focus'); } catch(e) {}
+  });
+  window.addEventListener('pageshow', function(){
+    try { window.auditorUi_startTurboPoll_(); } catch(e) {}
+    try { window.auditorUi_triggerBackgroundRefresh_('pageshow'); } catch(e) {}
+  });
+
+  document.addEventListener('DOMContentLoaded', function(){
+    try { window.auditorUi_scheduleBackgroundRefresh_(); } catch(e) {}
+    try { window.auditorUi_startTurboPoll_(); } catch(e) {}
+  });
+})();
+</script>
+</body>
+</html>
+
+
+<!-- © René Rombouts. Licensed for use by Agri Quality Assurance until further notice. -->

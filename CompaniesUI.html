@@ -1,0 +1,554 @@
+<!-- FILE: CompaniesUI.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <title>AMS - Companies</title>
+  <script>
+(function enforceAmsShortBrowserTitle() {
+  var AMS_SHORT_BROWSER_TITLE = 'AMS - Companies';
+  function setAmsShortBrowserTitle() {
+    try { document.title = AMS_SHORT_BROWSER_TITLE; } catch (e) {}
+  }
+  setAmsShortBrowserTitle();
+  try { document.addEventListener('DOMContentLoaded', setAmsShortBrowserTitle); } catch (e) {}
+  try { window.addEventListener('load', setAmsShortBrowserTitle); } catch (e) {}
+  try { setTimeout(setAmsShortBrowserTitle, 0); setTimeout(setAmsShortBrowserTitle, 250); setTimeout(setAmsShortBrowserTitle, 1000); } catch (e) {}
+})();
+</script>
+  <style>
+    :root{--bg:#f3f4f6;--card:#fff;--line:#d1d5db;--text:#111827;--muted:#6b7280;--primary:#2563eb;--primary-dark:#1d4ed8;--soft:#eef4ff;}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+    .topbar{background:#111827;color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .title{font-size:22px;font-weight:700}
+    .sub{font-size:12px;color:#cbd5e1;margin-top:2px}
+    .actions{display:flex;gap:8px;align-items:center}
+    .btn{appearance:none;border:1px solid rgba(17,24,39,.14);background:#fff;color:#111827;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer}
+    .btn:hover{filter:brightness(.98)}
+    .btn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+    .btn.primary:hover{background:var(--primary-dark);border-color:var(--primary-dark)}
+    .btn.dark{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.18)}
+    .btn.dark:hover{background:rgba(255,255,255,.12)}
+    .page{padding:16px 18px}
+    .layout{display:grid;grid-template-columns:1.05fr 1.45fr;gap:16px;min-height:calc(100vh - 92px)}
+    .card{background:var(--card);border:1px solid #e5e7eb;border-radius:12px;padding:14px}
+    .card h3{margin:0 0 10px 0;font-size:18px}
+    .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+    .toolbar input{flex:1;border:1px solid var(--line);border-radius:10px;padding:9px 10px;font-size:13px;background:#fff}
+    .tablewrap{border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:calc(100vh - 200px);background:#fff}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:left}
+    th{background:#f9fafb;position:sticky;top:0;z-index:1}
+    tr:hover{background:#f8fbff}
+    tr.active-row{background:var(--soft)}
+
+    .formgrid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr);gap:10px 12px;align-items:start}
+    .field{display:flex;flex-direction:column;gap:4px;min-width:0}
+    .span-1{grid-column:span 1}
+    .span-2{grid-column:span 2}
+    .span-3{grid-column:1 / -1}
+    label{font-size:12px;color:var(--muted);font-weight:700}
+    input[type=text],input[type=email],textarea,select{width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 10px;font-size:13px;background:#fff;color:var(--text)}
+    textarea{min-height:76px;resize:vertical}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .sectiontitle{margin:16px 0 8px 0;font-size:14px;font-weight:700}
+    .muted{color:var(--muted);font-size:12px}
+    .hint{font-size:11px;color:var(--muted)}
+    .loc-table{width:100%;border-collapse:collapse;margin-top:8px}
+    .loc-table th,.loc-table td{padding:6px;border-bottom:1px solid #e5e7eb;font-size:12px;vertical-align:middle}
+    .loc-table input[type=text]{padding:8px 9px;font-size:12px}
+    .loc-table input[type=checkbox]{transform:scale(1.1)}
+    .notice{margin-top:10px;padding:10px 12px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:10px;font-size:12px}
+    .footer-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+    .saveBig{min-width:140px;box-shadow:0 1px 0 rgba(0,0,0,.05)}
+    .statusline{margin-top:10px;font-size:12px;color:var(--muted)}
+    .hours-wrap{display:grid;grid-template-columns:minmax(0,1fr) 28px minmax(0,1fr);gap:8px;align-items:end}
+    .hours-sep{display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--muted);padding-bottom:8px}
+    .days-wrap{display:flex;gap:10px;flex-wrap:wrap;padding-top:4px}
+    .days-wrap label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text)}
+    .days-wrap input[type=checkbox]{transform:scale(1.05)}
+
+    @media (max-width: 1200px){
+      .layout{grid-template-columns:1fr}
+    }
+    @media (max-width: 900px){
+      .formgrid{grid-template-columns:1fr 1fr}
+      .span-3{grid-column:1 / -1}
+    }
+    @media (max-width: 640px){
+      .formgrid{grid-template-columns:1fr}
+      .span-1,.span-2,.span-3{grid-column:1 / -1}
+      .topbar{flex-direction:column;align-items:flex-start}
+      .actions{flex-wrap:wrap}
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div>
+      <div class="title">Companies</div>
+      <div class="sub">Company masterdata + locations</div>
+    </div>
+    <div class="actions">
+      <button class="btn dark" type="button" onclick="goBackToManager()">← Back to manager grid</button>
+      <button class="btn dark" type="button" onclick="loadCompaniesDataset()">Refresh</button>
+      <button class="btn primary" type="button" onclick="startNewCompany()">+ New company</button>
+    </div>
+  </div>
+
+  <div class="page">
+    <div class="layout">
+      <div class="card">
+        <h3>Company list</h3>
+        <div class="toolbar">
+          <input id="searchBox" type="text" placeholder="Search company..." oninput="renderCompanyTable()">
+        </div>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Company</th>
+                <th>Status</th>
+                <th>Country</th>
+                <th>Locs</th>
+              </tr>
+            </thead>
+            <tbody id="companyTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 id="editorTitle">Edit company</h3>
+
+        <div class="formgrid">
+          <div class="field span-3">
+            <label>Company</label>
+            <input id="fCompany" type="text" placeholder="Company name">
+          </div>
+
+          <div class="field span-1">
+            <label>Status</label>
+            <input id="fStatus" type="text" placeholder="Active">
+          </div>
+
+          <div class="field span-1">
+            <label>Country</label>
+            <select id="fCountry">
+              <option value=""></option>
+              <option value="Spain">Spain</option>
+              <option value="Portugal">Portugal</option>
+              <option value="Netherlands">Netherlands</option>
+            </select>
+            <div class="hint">Use short fixed country list.</div>
+          </div>
+
+          <div class="field span-1">
+            <label>Time zone</label>
+            <select id="fTimeZone">
+              <option value="Europe/Madrid">Europe/Madrid</option>
+              <option value="Europe/Lisbon">Europe/Lisbon</option>
+            </select>
+          </div>
+
+          <div class="field span-1">
+            <label>Contactperson</label>
+            <input id="fContactperson" type="text" placeholder="Contact name">
+          </div>
+
+          <div class="field span-1">
+            <label>Contactperson e-mail</label>
+            <input id="fContactEmail" type="email" placeholder="name@example.com">
+          </div>
+
+          <div class="field span-1">
+            <label>Contactperson phone</label>
+            <input id="fContactPhone" type="text" placeholder="+34 ...">
+          </div>
+
+          <div class="field span-1">
+            <label>Language communication</label>
+            <select id="fLanguage">
+              <option value=""></option>
+              <option value="SP">SP</option>
+              <option value="EN">EN</option>
+              <option value="PT">PT</option>
+              <option value="NL">NL</option>
+            </select>
+            <div class="hint">Use fixed codes.</div>
+          </div>
+
+          <div class="field span-2">
+            <label>Region</label>
+            <input id="fRegion" type="text" placeholder="Region">
+          </div>
+
+          <div class="field span-1">
+            <label>Locations_to_plan</label>
+            <input id="fLocationsToPlan" type="text" readonly>
+            <div class="hint">Derived automatically from active locations.</div>
+          </div>
+
+          <div class="field span-2">
+            <label>Days (less suitable)</label>
+            <div class="days-wrap">
+              <label><input type="checkbox" id="dMo"> Mo</label>
+              <label><input type="checkbox" id="dTu"> Tu</label>
+              <label><input type="checkbox" id="dWe"> We</label>
+              <label><input type="checkbox" id="dTh"> Th</label>
+              <label><input type="checkbox" id="dFr"> Fr</label>
+            </div>
+            <div class="hint">Weekdays only. Stored as comma separated English 2-letter values.</div>
+          </div>
+
+          <div class="field span-1">
+            <label>Hours (typical working hours)</label>
+            <div class="hours-wrap">
+              <div>
+                <input id="fHoursFrom" type="text" placeholder="09:00">
+              </div>
+              <div class="hours-sep">-</div>
+              <div>
+                <input id="fHoursTo" type="text" placeholder="17:00">
+              </div>
+            </div>
+            <div class="hint">HH:mm to HH:mm (24h).</div>
+          </div>
+
+          <div class="field span-3">
+            <label>Preferred audit months</label>
+            <div class="days-wrap">
+              <label><input type="checkbox" class="pam" value="Jan"> Jan</label>
+              <label><input type="checkbox" class="pam" value="Feb"> Feb</label>
+              <label><input type="checkbox" class="pam" value="Mar"> Mar</label>
+              <label><input type="checkbox" class="pam" value="Apr"> Apr</label>
+              <label><input type="checkbox" class="pam" value="May"> May</label>
+              <label><input type="checkbox" class="pam" value="Jun"> Jun</label>
+              <label><input type="checkbox" class="pam" value="Jul"> Jul</label>
+              <label><input type="checkbox" class="pam" value="Aug"> Aug</label>
+              <label><input type="checkbox" class="pam" value="Sep"> Sep</label>
+              <label><input type="checkbox" class="pam" value="Oct"> Oct</label>
+              <label><input type="checkbox" class="pam" value="Nov"> Nov</label>
+              <label><input type="checkbox" class="pam" value="Dec"> Dec</label>
+            </div>
+            <div class="hint">Stored canonically as: Jan,Feb,Mar</div>
+          </div>
+
+          <div class="field span-3">
+            <label>Comments</label>
+            <textarea id="fComments" placeholder="General company comments"></textarea>
+          </div>
+        </div>
+
+        <div class="sectiontitle">Locations</div>
+        <div class="muted">HQ mandatory. S1-S4 optional. Locations_to_plan is derived from active locations.</div>
+
+        <table class="loc-table">
+          <thead>
+            <tr>
+              <th style="width:70px;">Active</th>
+              <th style="width:70px;">Code</th>
+              <th>Location name</th>
+              <th>GPS</th>
+              <th>Comment</th>
+            </tr>
+          </thead>
+          <tbody id="locationsBody"></tbody>
+        </table>
+
+        <div class="notice">
+          <strong>Save</strong> writes Location = HQ name, GPS-data = HQ gps, Locations_to_plan = active locations count, Locations_JSON = full locations structure.
+        </div>
+
+        <div class="footer-actions">
+          <button class="btn" type="button" onclick="reloadSelectedFromDataset()">Reset</button>
+          <button id="btnSaveCompany" class="btn primary saveBig" type="button" onclick="saveCompany()">Save company</button>
+        </div>
+
+        <div class="statusline" id="statusLine"></div>
+
+        <input id="fCompanyUid" type="hidden">
+        <input id="fManagerEmail" type="hidden">
+      </div>
+    </div>
+  </div>
+
+<script>
+const EXEC_URL='<?= typeof __execUrl !== "undefined" ? __execUrl : "" ?>';
+const CUR_EMAIL='<?= typeof __email !== "undefined" ? __email : "" ?>';
+const CUR_TOKEN='<?= typeof __trustedToken !== "undefined" ? __trustedToken : "" ?>';
+const CUR_DEVICE='<?= typeof __deviceFingerprint !== "undefined" ? __deviceFingerprint : "" ?>';
+
+let ALL_COMPANIES=[];
+let DETAIL_BY_UID={};
+let SELECTED_UID='';
+let CURRENT_DETAIL=null;
+
+function esc(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function cloneObj(obj){ return JSON.parse(JSON.stringify(obj||{})); }
+function setStatus(msg){ document.getElementById('statusLine').textContent=String(msg||''); }
+
+function goBackToManager(){
+  var url=String(EXEC_URL||'').trim();
+  if(!url) return;
+  url+='?action=manager'
+      +'&email='+encodeURIComponent(CUR_EMAIL||'')
+      +'&trustedToken='+encodeURIComponent(CUR_TOKEN||'')
+      +'&deviceFingerprint='+encodeURIComponent(CUR_DEVICE||'')
+      +'&ts='+Date.now();
+  window.location.href=url;
+}
+
+function loadCompaniesDataset(){
+  google.script.run
+    .withSuccessHandler(function(res){
+      ALL_COMPANIES=Array.isArray(res&&res.list)?res.list:[];
+      DETAIL_BY_UID=(res&&res.detailsByUid)?res.detailsByUid:{};
+      renderCompanyTable();
+
+      if(SELECTED_UID && DETAIL_BY_UID[SELECTED_UID]){
+        CURRENT_DETAIL=cloneObj(DETAIL_BY_UID[SELECTED_UID]);
+        fillEditor(CURRENT_DETAIL);
+      } else if(!CURRENT_DETAIL && ALL_COMPANIES.length){
+        SELECTED_UID=String(ALL_COMPANIES[0].uid||'');
+        if(SELECTED_UID && DETAIL_BY_UID[SELECTED_UID]){
+          CURRENT_DETAIL=cloneObj(DETAIL_BY_UID[SELECTED_UID]);
+          fillEditor(CURRENT_DETAIL);
+          renderCompanyTable();
+        }
+      }
+      setStatus('Companies preloaded');
+    })
+    .withFailureHandler(function(err){ alert(err&&err.message?err.message:err); })
+    .getCompaniesDataset();
+}
+
+function renderCompanyTable(){
+  var q=String(document.getElementById('searchBox').value||'').trim().toLowerCase();
+  var rows=ALL_COMPANIES.filter(function(r){
+    if(!q) return true;
+    return String(r.company||'').toLowerCase().indexOf(q)>=0;
+  });
+
+  var html='';
+  rows.forEach(function(r){
+    html+='<tr class="'+(String(r.uid||'')===String(SELECTED_UID||'')?'active-row':'')+'" onclick="selectCompany(\''+esc(r.uid)+'\')">'
+         +'<td>'+esc(r.company)+'</td>'
+         +'<td>'+esc(r.status||'')+'</td>'
+         +'<td>'+esc(r.country||'')+'</td>'
+         +'<td>'+esc(r.locations||'')+'</td>'
+         +'</tr>';
+  });
+  document.getElementById('companyTableBody').innerHTML=html||'<tr><td colspan="4" class="muted">No companies found.</td></tr>';
+}
+
+function selectCompany(uid){
+  SELECTED_UID=String(uid||'');
+  renderCompanyTable();
+  if(DETAIL_BY_UID[SELECTED_UID]){
+    CURRENT_DETAIL=cloneObj(DETAIL_BY_UID[SELECTED_UID]);
+    fillEditor(CURRENT_DETAIL);
+    setStatus('Company loaded instantly');
+  }
+}
+
+function startNewCompany(){
+  SELECTED_UID='';
+  CURRENT_DETAIL={
+    isNew:true,
+    uid:'',
+    company:'',
+    status:'Active',
+    managerEmail:CUR_EMAIL||'',
+    contactperson:'',
+    contactEmail:'',
+    contactPhone:'',
+    language:'ES',
+    region:'',
+    country:'Spain',
+    timeZone:'Europe/Madrid',
+    days:'',
+    hours:'',
+    comments:'',
+    preferredAuditMonths:'',
+    locations:[
+      {code:'HQ',name:'',gps:'',comment:'',active:true},
+      {code:'S1',name:'',gps:'',comment:'',active:false},
+      {code:'S2',name:'',gps:'',comment:'',active:false},
+      {code:'S3',name:'',gps:'',comment:'',active:false},
+      {code:'S4',name:'',gps:'',comment:'',active:false}
+    ]
+  };
+  fillEditor(CURRENT_DETAIL);
+  renderCompanyTable();
+  setStatus('New company');
+}
+
+function reloadSelectedFromDataset(){
+  if(!SELECTED_UID || !DETAIL_BY_UID[SELECTED_UID]) return;
+  CURRENT_DETAIL=cloneObj(DETAIL_BY_UID[SELECTED_UID]);
+  fillEditor(CURRENT_DETAIL);
+  setStatus('Reset from preloaded data');
+}
+
+function setDaysFromString(val){
+  var set={};
+  String(val||'').split(',').forEach(function(x){ set[String(x||'').trim()]=true; });
+  ['Mo','Tu','We','Th','Fr'].forEach(function(d){
+    var el=document.getElementById('d'+d);
+    if(el) el.checked=!!set[d];
+  });
+}
+
+function getDaysString(){
+  var out=[];
+  ['Mo','Tu','We','Th','Fr'].forEach(function(d){
+    var el=document.getElementById('d'+d);
+    if(el && el.checked) out.push(d);
+  });
+  return out.join(',');
+}
+
+function splitHours(val){
+  var s=String(val||'').trim();
+  if(!s) return {from:'',to:''};
+  var m=s.match(/^(.+?)\s*-\s*(.+)$/);
+  if(!m) return {from:'',to:''};
+  return {from:String(m[1]).trim(),to:String(m[2]).trim()};
+}
+
+function buildHoursString(){
+  var from=String(document.getElementById('fHoursFrom').value||'').trim();
+  var to=String(document.getElementById('fHoursTo').value||'').trim();
+  if(!from && !to) return '';
+  return from + '-' + to;
+}
+
+function fillEditor(d){
+  d=d||{};
+  document.getElementById('editorTitle').textContent=d.isNew?'New company':'Edit company';
+  document.getElementById('fCompanyUid').value=d.uid||'';
+  document.getElementById('fManagerEmail').value=d.managerEmail||CUR_EMAIL||'';
+  document.getElementById('fCompany').value=d.company||'';
+  document.getElementById('fStatus').value=d.status||'';
+  document.getElementById('fContactperson').value=d.contactperson||'';
+  document.getElementById('fContactEmail').value=d.contactEmail||'';
+  document.getElementById('fContactPhone').value=d.contactPhone||'';
+  document.getElementById('fLanguage').value=d.language||'';
+  document.getElementById('fRegion').value=d.region||'';
+  document.getElementById('fCountry').value=d.country||'';
+  document.getElementById('fTimeZone').value=d.timeZone||'Europe/Madrid';
+  setDaysFromString(d.days||'');
+  var hh=splitHours(d.hours||'');
+  document.getElementById('fHoursFrom').value=hh.from||'';
+  document.getElementById('fHoursTo').value=hh.to||'';
+  document.getElementById('fComments').value=d.comments||'';
+
+  var preferredMonths = String(d.preferredAuditMonths || '')
+    .split(',')
+    .map(function(x){ return String(x || '').trim(); });
+
+  document.querySelectorAll('.pam').forEach(function(cb){
+    cb.checked = preferredMonths.indexOf(cb.value) !== -1;
+  });
+  renderLocations(Array.isArray(d.locations)?d.locations:[]);
+}
+
+function renderLocations(locations){
+  var html='';
+  var rows=['HQ','S1','S2','S3','S4'].map(function(code){
+    var found=(locations||[]).find(function(x){ return String(x.code||'')===code; });
+    return found||{code:code,name:'',gps:'',comment:'',active:(code==='HQ')};
+  });
+
+  CURRENT_DETAIL.locations=rows;
+  rows.forEach(function(l,idx){
+    var activeDisabled=l.code==='HQ'?'disabled':'';
+    var checked=l.active?'checked':'';
+    var gpsPlaceholder='37.51038888888889, -8.696972222222222';
+    html+='<tr>'
+         +'<td><input type="checkbox" '+checked+' '+activeDisabled+' onchange="updLoc('+idx+', \'active\', this.checked)"></td>'
+         +'<td class="mono">'+esc(l.code)+'</td>'
+         +'<td><input type="text" value="'+esc(l.name)+'" onchange="updLoc('+idx+', \'name\', this.value)"></td>'
+         +'<td><input type="text" placeholder="'+gpsPlaceholder+'" value="'+esc(l.gps)+'" onchange="updLoc('+idx+', \'gps\', this.value)"></td>'
+         +'<td><input type="text" value="'+esc(l.comment)+'" onchange="updLoc('+idx+', \'comment\', this.value)"></td>'
+         +'</tr>';
+  });
+  document.getElementById('locationsBody').innerHTML=html;
+  recalcLocationsToPlan();
+}
+
+function updLoc(idx,key,value){
+  if(!CURRENT_DETAIL||!CURRENT_DETAIL.locations) return;
+  CURRENT_DETAIL.locations[idx][key]=value;
+  if(CURRENT_DETAIL.locations[idx].code==='HQ') CURRENT_DETAIL.locations[idx].active=true;
+  recalcLocationsToPlan();
+}
+
+function recalcLocationsToPlan(){
+  var rows=(CURRENT_DETAIL&&CURRENT_DETAIL.locations)?CURRENT_DETAIL.locations:[];
+  var n=rows.filter(function(x){ return !!x.active; }).length;
+  if(n<1) n=1;
+  document.getElementById('fLocationsToPlan').value=String(n);
+}
+
+function collectPayload(){
+  return {
+    isNew:!!(CURRENT_DETAIL&&CURRENT_DETAIL.isNew),
+    uid:document.getElementById('fCompanyUid').value,
+    company:document.getElementById('fCompany').value,
+    status:document.getElementById('fStatus').value,
+    managerEmail:document.getElementById('fManagerEmail').value,
+    contactperson:document.getElementById('fContactperson').value,
+    contactEmail:document.getElementById('fContactEmail').value,
+    contactPhone:document.getElementById('fContactPhone').value,
+    language:document.getElementById('fLanguage').value,
+    region:document.getElementById('fRegion').value,
+    country:document.getElementById('fCountry').value,
+    timeZone:document.getElementById('fTimeZone').value,
+    days:getDaysString(),
+    hours:buildHoursString(),
+    comments:document.getElementById('fComments').value,
+    preferredAuditMonths:Array.from(document.querySelectorAll('.pam:checked'))
+      .map(function(x){ return x.value; })
+      .join(','),
+    locations:CURRENT_DETAIL.locations||[]
+  };
+}
+
+function saveCompany(){
+  var btn=document.getElementById('btnSaveCompany');
+  btn.disabled=true;
+  btn.textContent='Saving...';
+
+  var payload=collectPayload();
+  google.script.run
+    .withSuccessHandler(function(res){
+      btn.disabled=false;
+      btn.textContent='Save company';
+      if(!res||res.success===false){
+        alert(res&&res.message?res.message:'Save failed');
+        return;
+      }
+      if(res.uid) SELECTED_UID=String(res.uid);
+      loadCompaniesDataset();
+      setStatus('Saved');
+    })
+    .withFailureHandler(function(err){
+      btn.disabled=false;
+      btn.textContent='Save company';
+      alert(err&&err.message?err.message:err);
+    })
+    .saveCompanyDetail(payload);
+}
+
+loadCompaniesDataset();
+</script>
+</body>
+</html>

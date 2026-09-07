@@ -1,0 +1,194 @@
+<!-- BUILD: ManagerPlanningUI_markup_PHASE1_R2B_MINIMAL_LOCATIONS_RIGHT_NO_FIRST_MEET_20260522 -->
+<div class="box toolkitPhase1 toolkitPhase1NoDup">
+  <div class="toolkitTopbar">
+    <div class="toolkitTopIdentity">
+      <div class="toolkitEyebrow">Planning Toolkit</div>
+      <div class="toolkitTitleRow">
+        <div class="toolkitTitleLine" id="mpTopTitle">Loading audit…</div>
+        <div id="fScopesBadges" class="phase1ScopeBadges topScopeBadges"></div>
+      </div>
+    </div>
+
+    <div class="toolkitTopFact">
+      <div class="toolkitFactLabel">Planning window</div>
+      <div class="toolkitFactValue" id="mpTopPlanningWindow">-</div>
+    </div>
+
+    <div class="toolkitTopFact">
+      <div class="toolkitFactLabel">Preferred audit period</div>
+      <div class="toolkitFactValue preferred" id="mpTopPreferredPeriod" title="">-</div>
+      <span class="toolkitInfoIcon" id="mpTopPreferredInfo" title="">ⓘ</span>
+    </div>
+
+    <div class="toolkitTopStatus" id="mpTopStatus">-</div>
+  </div>
+
+  <div id="banner" class="banner">Loading…</div>
+
+  <div class="grid phase1Grid" id="mainGrid">
+    <div class="card phase1Left" id="leftCard">
+      <section class="phase1Panel phase1AuditorPanel">
+        <div class="phase1PanelTitle">Auditor</div>
+        <div class="auditorRow">
+          <select id="auditorSelect" class="auditorSelectCompact"></select>
+          <button type="button" id="loadCalendarBtn" class="loadCalendarBtn" style="display:none;">Load calendar</button>
+        </div>
+        <div class="preassignedLine"><span>Preassigned auditor</span><strong id="mpPreassignedAuditor">-</strong></div>
+        <div id="auditorEligibilityBadge" style="display:none; margin-top:4px; font-size:11px; color:#6b7280; font-style:italic;">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;margin-right:6px;vertical-align:middle;animation:mpPulse 1s infinite;"></span>Loading eligible auditors &amp; rotation info…
+        </div>
+        <style>@keyframes mpPulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }</style>
+        <div id="auditorRotationInfo" class="rotationBox" style="display:none;"></div>
+      </section>
+
+      <section class="phase1Panel compactPanel">
+        <div class="phase1PanelTitle">Company</div>
+        <div class="phase1CompanyName" id="mpCompanyName">-</div>
+        <div class="phase1InfoGrid compactInfoGrid">
+          <div><span>Number</span><strong id="mpCompanyNumber">-</strong></div>
+          <div><span>Group</span><strong id="mpCompanyGroup">-</strong></div>
+          <div><span>Region</span><strong id="mpCompanyRegion">-</strong></div>
+          <div><span>Country</span><strong id="mpCompanyCountry">-</strong></div>
+        </div>
+      </section>
+<section class="phase1Panel compactPanel">
+        <div class="phase1PanelTitle">Contact</div>
+        <div class="phase1KV"><span>Name</span><strong id="mpContactName">-</strong></div>
+        <div class="phase1KV"><span>Telephone</span><strong id="mpContactTelephone">-</strong></div>
+        <div class="phase1KV"><span>E-mail</span><strong id="mpContactEmail">-</strong></div>
+      </section>
+
+<section class="phase1Panel compactPanel compactConstraints">
+        <div class="phase1PanelTitle constraintsTitleRow">
+          <span>Constraints</span>
+          <span class="softConstraintsBadge" title="Soft constraints are preferences only and will not block planning.">Soft constraints ⓘ</span>
+        </div>
+
+        <div class="constraintsRows">
+          <div class="constraintRow">
+            <span class="constraintIcon">◷</span>
+            <span class="constraintLabel">Timezone</span>
+            <strong id="mpCompanyTimeZone">-</strong>
+          </div>
+          <div class="constraintRow">
+            <span class="constraintIcon">▦</span>
+            <span class="constraintLabel">Company is less available on:</span>
+            <strong id="mpCompanyBlockedWeekdays">-</strong>
+          </div>
+          <div class="constraintRow">
+            <span class="constraintIcon">▣</span>
+            <span class="constraintLabel">Company prefers audits between:</span>
+            <strong id="mpCompanyTimeWindow">-</strong>
+          </div>
+          <div class="constraintRow">
+            <span class="constraintIcon">●</span>
+            <span class="constraintLabel">Auditor is less available on:</span>
+            <strong id="mpAuditorUnavailable">-</strong>
+          </div>
+        </div>
+
+        <div class="constraintsSoftNote">Soft constraints are preferences only and will not block planning.</div>
+        <div class="value softWarn" id="softTimeWarn" style="display:none;">Selected hours fall outside company time window (soft warning)</div>
+      </section>
+
+      
+
+      <section class="phase1Panel compactPanel">
+        <div class="phase1PanelTitle">Company comment</div>
+        <textarea id="comment" class="phase1Comment compactComment"></textarea>
+      </section>
+<div class="phase1LegacyHidden" aria-hidden="true">
+        <div class="value" id="fCompany">-</div>
+        <div class="value" id="fLocation">-</div>
+        <div class="value" id="fAuditId">-</div>
+        <div class="value" id="fStatus">-</div>
+        <div class="value" id="fScopesText">-</div>
+        <div class="value" id="fPreassign">-</div>
+        <div class="value" id="fWindow">-</div>
+        <div class="value" id="fExtensionApplied">-</div>
+        <div class="value" id="fCompanyTimeZone">-</div>
+        <div class="value" id="fCompanyBlockedWeekdays">-</div>
+        <div class="value" id="fAuditorDefaultBlockedWeekdays">-</div>
+        <div class="value" id="fCompanyTimeWindow">-</div>
+        <div class="value" id="fOpenAt">-</div>
+        <input id="locationsToPlan" type="number" min="1" max="5" value="1">
+      </div>
+    </div>
+
+    <div class="card phase1Right" id="rightCard">
+      <div id="calendarPane" class="phase1WorkspaceCard calendarCompactCard">
+        <div class="monthBar">
+          <button type="button" onclick="shiftMonth(-1)" title="Previous month">&lt;</button>
+          <button type="button" id="todayBtn" class="todayBtn" onclick="goToToday()" title="Back to current month">Today</button>
+          <div id="monthLabel"></div>
+          <button type="button" onclick="shiftMonth(1)" title="Next month">&gt;</button>
+          <input type="month" id="monthJumpInput" class="monthJumpInput" oninput="jumpToMonthFromInput_(event)" title="Jump to month" />
+        </div>
+
+        <div class="legend" id="legend">
+          <span class="item"><span class="sw av"></span>Available</span>
+          <span class="item"><span class="sw mx"></span>Partially blocked</span>
+          <span class="item"><span class="sw bl"></span>Fully blocked</span>
+        </div>
+
+        <div class="calDow" id="calDow"></div>
+        <div class="calGrid" id="calGrid"></div>
+        <div id="loadingMask" class="loadingMask" style="display:flex;">Loading availability…</div>
+      </div>
+
+      <div class="phase1BelowCalendar">
+        <div id="slotSummaryWrap" class="phase1WorkspaceCard selectedCompactCard">
+          <div class="phase1WorkspaceTitle">Selected days</div>
+          <div id="selectedCount" class="selectedCountLarge">0 / 5</div>
+          <div class="hoursCheck compactHoursCheck" id="hoursCheckBox">
+            <div class="hoursCheckRow"><div class="hoursCheckLabel">Required</div><div class="hoursCheckValue" id="fReqHours">-</div></div>
+            <div class="hoursCheckRow"><div class="hoursCheckLabel">Planned</div><div class="hoursCheckValue" id="fPlanHours">0</div></div>
+            <div class="hoursCheckRow"><div class="hoursCheckLabel">Remaining</div><div class="hoursCheckValue" id="fDeltaHours">0</div></div>
+            <div class="hoursWarnMsg" id="hoursWarnMsg" style="display:none;"></div>
+          </div>
+        </div>
+
+        <div id="slotEditorWrap" class="phase1WorkspaceCard slotsCompactCard">
+          <div class="phase1WorkspaceHeader compactSlotsHeader">
+            <div class="phase1WorkspaceTitle">Planned slots</div>
+          </div>
+          <table id="slotsTable">
+            <thead><tr><th>#</th><th>Date</th><th>Start</th><th>End</th><th>Execution location</th><th>GPS</th><th>Slot comment</th><th></th></tr></thead>
+            <tbody id="daysTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+
+      <section id="rightLocPane" class="phase1Panel compactPanel compactLocationsPanel rightLocationsPanel">
+        <div class="phase1PanelTitle locationsTitleRow">
+          <span>Company locations</span>
+          <span class="phase1Hint">read-only</span>
+        </div>
+        <div id="locRegistryBox" style="display:none; margin-bottom:0;">
+          <table class="phase1LocationsTable compactLocationsTable">
+            <thead>
+              <tr>
+                <th style="text-align:left; width:54px;">Code</th>
+                <th style="text-align:left;">Location</th>
+                <th style="text-align:left; width:160px;">GPS</th>
+                <th style="text-align:left;">Comment</th>
+                <th style="text-align:left; width:54px;">Map</th>
+              </tr>
+            </thead>
+            <tbody id="locRegistryTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+          </div>
+  </div>
+
+  <div class="actions phase1Actions">
+    <button class="cancelBtn" id="btnCancel" onclick="closeWindow()">Close browser tab</button>
+    <button class="saveBtn" id="btnSave" data-ui-action="savePlanning" onclick="savePlanning()">Save planning</button>
+  </div>
+
+  <div class="owner-note">© Project owner: René Rombouts</div>
+  <div id="log"></div>
+</div>

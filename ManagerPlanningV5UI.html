@@ -1,0 +1,44 @@
+<!-- BUILD: ManagerPlanningV5UI_d26_ENV_AWARE_TOOLKIT_LOGGING_20260514 -->
+<!-- d26: DEV/PROD-aware Toolkit logging. Runtime V5 API names preserved. No async JS fetch. -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <title>AMS - Planning</title>
+  <script>
+(function enforceAmsShortBrowserTitle() {
+  var AMS_SHORT_BROWSER_TITLE = 'AMS - Planning';
+  function setAmsShortBrowserTitle() {
+    try { document.title = AMS_SHORT_BROWSER_TITLE; } catch (e) {}
+  }
+  setAmsShortBrowserTitle();
+  try { document.addEventListener('DOMContentLoaded', setAmsShortBrowserTitle); } catch (e) {}
+  try { window.addEventListener('load', setAmsShortBrowserTitle); } catch (e) {}
+  try { setTimeout(setAmsShortBrowserTitle, 0); setTimeout(setAmsShortBrowserTitle, 250); setTimeout(setAmsShortBrowserTitle, 1000); } catch (e) {}
+})();
+</script>
+    <script>
+      window.__MP_TEMPLATE__ = {
+        auditId: '<?= typeof auditId !== "undefined" ? auditId : "" ?>',
+        action:  '<?= typeof __action !== "undefined" ? __action : "" ?>',
+        role:    '<?= typeof __role !== "undefined" ? __role : "" ?>',
+        email:   '<?= typeof __email !== "undefined" ? __email : "" ?>',
+        runtimeEnv: '<?!= (typeof EnvironmentGuard_getRuntimeEnv === "function" ? EnvironmentGuard_getRuntimeEnv() : (typeof SYS_getActiveEnv === "function" ? SYS_getActiveEnv() : "PROD")) ?>'
+      };
+    </script>
+    <style>
+<?!= HtmlService.createHtmlOutputFromFile('ManagerPlanningUI_styles').getContent(); ?>
+    </style>
+    <?!= HtmlService.createHtmlOutputFromFile('UiDialogs_HTML').getContent(); ?>
+  </head>
+  <body>
+<?!= HtmlService.createHtmlOutputFromFile('ManagerPlanningUI_markup').getContent(); ?>
+
+<pre id="mpDiag" style="display:none; margin:12px; padding:8px; background:#f7f7f7; border:1px solid #ddd; font-size:12px; white-space:pre-wrap; max-height:160px; overflow:auto;"></pre>
+
+<?!= HtmlService.createHtmlOutputFromFile('ManagerPlanningUI_boot').getContent(); ?>
+  </body>
+</html>
+
+<!-- © René Rombouts. Licensed for use by Agri Quality Assurance until further notice. -->

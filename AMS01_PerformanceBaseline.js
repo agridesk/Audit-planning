@@ -1,6 +1,6 @@
 /**
  * FILE: AMS01_PerformanceBaseline.js
- * BUILD: AMS01_PERFORMANCE_BASELINE_20260907_R3
+ * BUILD: AMS01_PERFORMANCE_BASELINE_20260907_R4
  * PURPOSE:
  *   Consolidated AMS-01 diagnostics for server-side hot paths.
  *
@@ -12,7 +12,7 @@
  *   - Browser/GAS proxy/paint metrics remain owned by UI instrumentation.
  */
 
-var AMS01_BASELINE_BUILD = 'AMS01_PERFORMANCE_BASELINE_20260907_R3';
+var AMS01_BASELINE_BUILD = 'AMS01_PERFORMANCE_BASELINE_20260907_R4';
 var AMS01_BASELINE_SHEET = 'AMS01_Performance_Baseline';
 
 function AMS01_RunPerformanceBaseline() {
@@ -43,6 +43,7 @@ function AMS01_RunPerformanceBaselineWithOptions(opts) {
       'Server-side diagnostic composite; probes share one Apps Script execution.',
       'User-facing bundle is measured before its component probes to reduce warm-up bias.',
       'Business data is not mutated.',
+      'Availability candidate is read-only and does not replace the canonical route.',
       'Calendar Shell Interactive and Planning Decision-Ready are measured client-side in DEV.'
     ]
   };
@@ -63,7 +64,16 @@ function AMS01_RunPerformanceBaselineWithOptions(opts) {
   if (selection.auditorEmail && selection.monthKey) {
     AMS01_probe_(out, 'Planning Toolkit — visible month availability', 'getToolkitAvailabilityMonthDirectV5', function() {
       if (typeof getToolkitAvailabilityMonthDirectV5 !== 'function') return AMS01_missing_('getToolkitAvailabilityMonthDirectV5');
-      return getToolkitAvailabilityMonthDirectV5(selection.auditorEmail, selection.monthKey, { forceFresh:forceFresh });
+      return getToolkitAvailabilityMonthDirectV5(selection.auditorEmail, selection.monthKey, {
+        forceFresh:forceFresh,
+        bypassCache:forceFresh,
+        verifyFreshness:false
+      });
+    });
+
+    AMS01_probe_(out, 'Planning Toolkit — availability candidate', 'AMS01_GetAvailabilityMonthCandidate', function() {
+      if (typeof AMS01_GetAvailabilityMonthCandidate !== 'function') return AMS01_missing_('AMS01_GetAvailabilityMonthCandidate');
+      return AMS01_GetAvailabilityMonthCandidate(selection.auditorEmail, selection.monthKey);
     });
   }
 
@@ -145,6 +155,7 @@ function AMS01_probe_(out, label, fnName, fn) {
     rowsReturned:null,
     payloadBytesEstimate:null,
     perf:null,
+    meta:null,
     error:''
   };
   try {
@@ -159,6 +170,7 @@ function AMS01_probe_(out, label, fnName, fn) {
       probe.rowsReturned = AMS01_rowsReturned_(res);
       probe.payloadBytesEstimate = AMS01_payloadBytes_(res);
       probe.perf = AMS01_compactPerf_(res);
+      probe.meta = AMS01_compactMeta_(res);
       if (!probe.ok) probe.error = String((res && (res.message || res.error)) || 'FAILED');
     }
   } catch (e) {
@@ -178,6 +190,11 @@ function AMS01_pickNumber_(obj, keys) {
       if (obj.perf[keys[j]] != null && isFinite(Number(obj.perf[keys[j]]))) return Number(obj.perf[keys[j]]);
     }
   }
+  if (obj.meta && typeof obj.meta === 'object') {
+    for (var k = 0; k < keys.length; k++) {
+      if (obj.meta[keys[k]] != null && isFinite(Number(obj.meta[keys[k]]))) return Number(obj.meta[keys[k]]);
+    }
+  }
   return null;
 }
 
@@ -186,6 +203,9 @@ function AMS01_pickBool_(obj, keys) {
   for (var i = 0; i < keys.length; i++) if (typeof obj[keys[i]] === 'boolean') return obj[keys[i]];
   if (obj.perf && typeof obj.perf === 'object') {
     for (var j = 0; j < keys.length; j++) if (typeof obj.perf[keys[j]] === 'boolean') return obj.perf[keys[j]];
+  }
+  if (obj.meta && typeof obj.meta === 'object') {
+    for (var k = 0; k < keys.length; k++) if (typeof obj.meta[keys[k]] === 'boolean') return obj.meta[keys[k]];
   }
   return null;
 }
@@ -196,6 +216,7 @@ function AMS01_rowsReturned_(res) {
   if (Array.isArray(res.auditors)) return res.auditors.length;
   if (res.auditorsBundle && Array.isArray(res.auditorsBundle.auditors)) return res.auditorsBundle.auditors.length;
   if (res.perf && isFinite(Number(res.perf.rowsReturned))) return Number(res.perf.rowsReturned);
+  if (res.meta && isFinite(Number(res.meta.rowsMatched))) return Number(res.meta.rowsMatched);
   return null;
 }
 
@@ -217,13 +238,34 @@ function AMS01_compactPerf_(res) {
   return out;
 }
 
+function AMS01_compactMeta_(res) {
+  var m = res && res.meta && typeof res.meta === 'object' ? res.meta : null;
+  if (!m) return null;
+  var out = {};
+  var keep = ['build','serverMs','cacheHit','sourceMode','rowDiscoveryMethod','rowsForAuditor','rowsMatched','blocksRead','matchedRowNumbers','identityColumnsRead','identityRowsRead','preOverlayMs','candidatePreOverlayMs'];
+  for (var i = 0; i < keep.length; i++) if (m[keep[i]] != null) out[keep[i]] = m[keep[i]];
+  if (m.timing) out.timing = m.timing;
+  if (m.candidateTiming) out.candidateTiming = m.candidateTiming;
+  if (m.planningJsonOverlay) {
+    out.planningJsonOverlay = {
+      rowsScanned:m.planningJsonOverlay.rowsScanned,
+      rowsMatched:m.planningJsonOverlay.rowsMatched,
+      auditsMatched:m.planningJsonOverlay.auditsMatched,
+      intervalsAdded:m.planningJsonOverlay.intervalsAdded,
+      ms:m.planningJsonOverlay.ms,
+      error:m.planningJsonOverlay.error || ''
+    };
+  }
+  return out;
+}
+
 function AMS01_summarize_(probes) {
   var ok = (probes || []).filter(function(p){ return p.ok; });
   var sorted = ok.slice().sort(function(a,b){ return Number(b.wallMs || 0) - Number(a.wallMs || 0); });
   return {
     successfulProbes:ok.length,
     failedProbes:(probes || []).length - ok.length,
-    slowest:sorted.slice(0,5).map(function(p){
+    slowest:sorted.slice(0,6).map(function(p){
       return {
         label:p.label,
         wallMs:p.wallMs,

@@ -1,6 +1,6 @@
 /**
  * FILE: AMS01_PromotionCheck.js
- * BUILD: AMS01_PROMOTION_CHECK_20260907_R6
+ * BUILD: AMS01_PROMOTION_CHECK_20260907_R7
  * PURPOSE:
  *   Read-only verification of promoted/candidate AMS-01 hot paths after DEV sync.
  */
@@ -10,7 +10,7 @@ function AMS01_RunPromotionCheck() {
   var monthKey = '2026-09';
   var auditorEmail = 'david@agriqa.es';
   var out = {
-    build:'AMS01_PROMOTION_CHECK_20260907_R6',
+    build:'AMS01_PROMOTION_CHECK_20260907_R7',
     generatedAt:new Date().toISOString(),
     runtimeEnv:(typeof AMS01_env_ === 'function' ? AMS01_env_() : 'UNKNOWN'),
     probes:[]
@@ -41,6 +41,12 @@ function AMS01_RunPromotionCheck() {
     return (typeof AMS01_GetAvailabilityRouteStatus === 'function')
       ? AMS01_GetAvailabilityRouteStatus()
       : { success:false, active:false, message:'AMS01_GetAvailabilityRouteStatus missing' };
+  });
+
+  probe_('Status notification performance route status', function(){
+    return (typeof AMS01_StatusNotificationPerfStatus === 'function')
+      ? AMS01_StatusNotificationPerfStatus()
+      : { success:false, active:false, message:'AMS01_StatusNotificationPerfStatus missing' };
   });
 
   probe_('Promoted manager Toolkit bundle', function(){
@@ -82,6 +88,8 @@ function AMS01_RunPromotionCheck() {
       active:r.active != null ? !!r.active : null,
       build:r.build || (r.meta && r.meta.build) || '',
       owner:r.owner || (r.meta && r.meta.routeOwner) || '',
+      duplicateBriefingAvoided:r.duplicateBriefingAvoided === true,
+      successPathQueueDiagnostics:r.successPathQueueDiagnostics || '',
       resolvedTimeZone:r.resolvedTimeZone || '',
       bundleStage:r.__bundleStage || '',
       bundleServerMs:r.__bundleServerMs || null,

@@ -1,6 +1,6 @@
 /**
  * FILE: AMS01_PerformanceBaseline.js
- * BUILD: AMS01_PERFORMANCE_BASELINE_20260907_R2
+ * BUILD: AMS01_PERFORMANCE_BASELINE_20260907_R3
  * PURPOSE:
  *   Consolidated AMS-01 diagnostics for server-side hot paths.
  *
@@ -12,7 +12,7 @@
  *   - Browser/GAS proxy/paint metrics remain owned by UI instrumentation.
  */
 
-var AMS01_BASELINE_BUILD = 'AMS01_PERFORMANCE_BASELINE_20260907_R2';
+var AMS01_BASELINE_BUILD = 'AMS01_PERFORMANCE_BASELINE_20260907_R3';
 var AMS01_BASELINE_SHEET = 'AMS01_Performance_Baseline';
 
 function AMS01_RunPerformanceBaseline() {
@@ -87,6 +87,13 @@ function AMS01_RunPerformanceBaselineWithOptions(opts) {
     if (typeof getManagerV5DashboardData !== 'function') return AMS01_missing_('getManagerV5DashboardData');
     return getManagerV5DashboardData();
   });
+
+  if (selection.auditId) {
+    AMS01_probe_(out, 'Status action support — ACCEPT briefing load', 'StatusNotificationBridge_LoadEcasAuditBriefing_', function() {
+      if (typeof StatusNotificationBridge_LoadEcasAuditBriefing_ !== 'function') return AMS01_missing_('StatusNotificationBridge_LoadEcasAuditBriefing_');
+      return { success:true, briefing:StatusNotificationBridge_LoadEcasAuditBriefing_(selection.auditId) };
+    });
+  }
 
   AMS01_probe_(out, 'Notification Queue — duplicate scan', 'NB_recentQueueDuplicate_', function() {
     if (typeof NB_recentQueueDuplicate_ !== 'function') return AMS01_missing_('NB_recentQueueDuplicate_');

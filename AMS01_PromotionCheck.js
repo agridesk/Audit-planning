@@ -1,6 +1,6 @@
 /**
  * FILE: AMS01_PromotionCheck.js
- * BUILD: AMS01_PROMOTION_CHECK_20260907_R7
+ * BUILD: AMS01_PROMOTION_CHECK_20260907_R8
  * PURPOSE:
  *   Read-only verification of promoted/candidate AMS-01 hot paths after DEV sync.
  */
@@ -10,7 +10,7 @@ function AMS01_RunPromotionCheck() {
   var monthKey = '2026-09';
   var auditorEmail = 'david@agriqa.es';
   var out = {
-    build:'AMS01_PROMOTION_CHECK_20260907_R7',
+    build:'AMS01_PROMOTION_CHECK_20260907_R8',
     generatedAt:new Date().toISOString(),
     runtimeEnv:(typeof AMS01_env_ === 'function' ? AMS01_env_() : 'UNKNOWN'),
     probes:[]
@@ -49,6 +49,12 @@ function AMS01_RunPromotionCheck() {
       : { success:false, active:false, message:'AMS01_StatusNotificationPerfStatus missing' };
   });
 
+  probe_('Status core performance override status', function(){
+    return (typeof AMS01_StatusActionCorePerfStatus === 'function')
+      ? AMS01_StatusActionCorePerfStatus()
+      : { success:false, active:false, message:'AMS01_StatusActionCorePerfStatus missing' };
+  });
+
   probe_('Promoted manager Toolkit bundle', function(){
     return getToolkitOpenBundleV5_d13(auditId, monthKey, {
       role:'MANAGER',
@@ -79,6 +85,12 @@ function AMS01_RunPromotionCheck() {
     return AuditorV5_GetAuditorGrid_U20409({ auditorEmail:auditorEmail, view:'active', noCache:true, diag:true });
   });
 
+  probe_('Status action component benchmark', function(){
+    return (typeof AMS01_RunStatusActionComponentBenchmark === 'function')
+      ? AMS01_RunStatusActionComponentBenchmark()
+      : { success:false, message:'AMS01_RunStatusActionComponentBenchmark missing' };
+  });
+
   var compact = out.probes.map(function(p){
     var r = p.result || {};
     return {
@@ -90,6 +102,8 @@ function AMS01_RunPromotionCheck() {
       owner:r.owner || (r.meta && r.meta.routeOwner) || '',
       duplicateBriefingAvoided:r.duplicateBriefingAvoided === true,
       successPathQueueDiagnostics:r.successPathQueueDiagnostics || '',
+      statusDiagnostics:r.statusDiagnostics || '',
+      managerActionTiming:r.managerActionTiming || '',
       resolvedTimeZone:r.resolvedTimeZone || '',
       bundleStage:r.__bundleStage || '',
       bundleServerMs:r.__bundleServerMs || null,
@@ -98,6 +112,8 @@ function AMS01_RunPromotionCheck() {
       auditorBundleServerMs:r.auditorsBundle && r.auditorsBundle.__serverMs != null ? r.auditorsBundle.__serverMs : null,
       qualificationOnly:!!(r.auditorsBundle && r.auditorsBundle.auditorEligibilityMeta && r.auditorsBundle.auditorEligibilityMeta.ams01PromotedFirstPaint),
       rows:Array.isArray(r.auditors) ? r.auditors.length : (Array.isArray(r.rows) ? r.rows.length : (r.meta && r.meta.rowsMatched != null ? r.meta.rowsMatched : null)),
+      totalMs:r.totalMs != null ? r.totalMs : null,
+      probes:Array.isArray(r.probes) ? r.probes : null,
       perf:r.perf || null,
       meta:r.meta || null,
       error:p.error || ''

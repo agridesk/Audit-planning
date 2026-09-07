@@ -1,6 +1,6 @@
 /**
  * FILE: AMS01_PromotionCheck.js
- * BUILD: AMS01_PROMOTION_CHECK_20260907_R3
+ * BUILD: AMS01_PROMOTION_CHECK_20260907_R4
  * PURPOSE:
  *   Read-only verification of promoted/candidate AMS-01 hot paths after DEV sync.
  */
@@ -10,7 +10,7 @@ function AMS01_RunPromotionCheck() {
   var monthKey = '2026-09';
   var auditorEmail = 'david@agriqa.es';
   var out = {
-    build:'AMS01_PROMOTION_CHECK_20260907_R3',
+    build:'AMS01_PROMOTION_CHECK_20260907_R4',
     generatedAt:new Date().toISOString(),
     runtimeEnv:(typeof AMS01_env_ === 'function' ? AMS01_env_() : 'UNKNOWN'),
     probes:[]
@@ -47,12 +47,22 @@ function AMS01_RunPromotionCheck() {
     return AMS01_GetAvailabilityMonthCandidate(auditorEmail, monthKey);
   });
 
-  probe_('Auditor Portal targeted Companies candidate', function(){
-    return AMS01_RunAuditorCompaniesCandidate();
-  });
-
   probe_('Auditor Portal planning-summary candidate', function(){
     return AMS01_RunPlanningSummaryCandidate();
+  });
+
+  probe_('Auditor Portal active grid COLD after Companies V4', function(){
+    try { if (typeof CompaniesIndex_ClearCache === 'function') CompaniesIndex_ClearCache(); } catch (e0) {}
+    try { if (typeof AuditorV5B_ClearCache === 'function') AuditorV5B_ClearCache({auditorEmail:auditorEmail, view:'active'}); } catch (e1) {}
+    var r = AuditorV5_GetAuditorGrid_U20409({ auditorEmail:auditorEmail, view:'active', noCache:true, diag:true });
+    r.__ams01CompaniesIndexBuild = (typeof COMPANIESINDEX_EXEC_CACHE !== 'undefined' && COMPANIESINDEX_EXEC_CACHE && COMPANIESINDEX_EXEC_CACHE.nameCore && COMPANIESINDEX_EXEC_CACHE.nameCore.build) ? COMPANIESINDEX_EXEC_CACHE.nameCore.build : '';
+    return r;
+  });
+
+  probe_('Auditor Portal active grid WARM after Companies V4', function(){
+    var r = AuditorV5_GetAuditorGrid_U20409({ auditorEmail:auditorEmail, view:'active', noCache:true, diag:true });
+    r.__ams01CompaniesIndexBuild = (typeof COMPANIESINDEX_EXEC_CACHE !== 'undefined' && COMPANIESINDEX_EXEC_CACHE && COMPANIESINDEX_EXEC_CACHE.nameCore && COMPANIESINDEX_EXEC_CACHE.nameCore.build) ? COMPANIESINDEX_EXEC_CACHE.nameCore.build : '';
+    return r;
   });
 
   var compact = out.probes.map(function(p){
@@ -67,12 +77,13 @@ function AMS01_RunPromotionCheck() {
       liteManager:!!r.__ams01LiteContext,
       auditorBundleServerMs:r.auditorsBundle && r.auditorsBundle.__serverMs != null ? r.auditorsBundle.__serverMs : null,
       qualificationOnly:!!(r.auditorsBundle && r.auditorsBundle.auditorEligibilityMeta && r.auditorsBundle.auditorEligibilityMeta.ams01PromotedFirstPaint),
-      rows:Array.isArray(r.auditors) ? r.auditors.length : (r.meta && r.meta.rowsMatched != null ? r.meta.rowsMatched : null),
+      rows:Array.isArray(r.auditors) ? r.auditors.length : (Array.isArray(r.rows) ? r.rows.length : (r.meta && r.meta.rowsMatched != null ? r.meta.rowsMatched : null)),
       semanticEqual:r.semanticEqual != null ? r.semanticEqual : null,
       oldMs:r.oldMs != null ? r.oldMs : null,
       candidateMs:r.candidateMs != null ? r.candidateMs : null,
       checked:r.checked != null ? r.checked : null,
-      wantedCompanies:r.wantedCompanies != null ? r.wantedCompanies : null,
+      companiesIndexBuild:r.__ams01CompaniesIndexBuild || '',
+      perf:r.perf || null,
       meta:r.meta || null,
       error:p.error || ''
     };

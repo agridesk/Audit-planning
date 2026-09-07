@@ -1,6 +1,6 @@
 /**
  * FILE: AMS01_PromotionCheck.js
- * BUILD: AMS01_PROMOTION_CHECK_20260907_R9
+ * BUILD: AMS01_PROMOTION_CHECK_20260907_R10
  * PURPOSE:
  *   Read-only verification of promoted/candidate AMS-01 hot paths after DEV sync.
  */
@@ -10,7 +10,7 @@ function AMS01_RunPromotionCheck() {
   var monthKey = '2026-09';
   var auditorEmail = 'david@agriqa.es';
   var out = {
-    build:'AMS01_PROMOTION_CHECK_20260907_R9',
+    build:'AMS01_PROMOTION_CHECK_20260907_R10',
     generatedAt:new Date().toISOString(),
     runtimeEnv:(typeof AMS01_env_ === 'function' ? AMS01_env_() : 'UNKNOWN'),
     probes:[]
@@ -76,6 +76,7 @@ function AMS01_RunPromotionCheck() {
       build:r.build || (r.meta && r.meta.build) || '',
       owner:r.owner || (r.meta && r.meta.routeOwner) || '',
       briefingReadOwner:r.briefingReadOwner || '',
+      companyEnrichmentOwner:r.companyEnrichmentOwner || '',
       indexFromCache:r.indexFromCache != null ? !!r.indexFromCache : null,
       duplicateBriefingAvoided:r.duplicateBriefingAvoided === true,
       successPathQueueDiagnostics:r.successPathQueueDiagnostics || '',

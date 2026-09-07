@@ -1,6 +1,6 @@
 /**
  * FILE: AMS01_PromotionCheck.js
- * BUILD: AMS01_PROMOTION_CHECK_20260907_R2
+ * BUILD: AMS01_PROMOTION_CHECK_20260907_R3
  * PURPOSE:
  *   Read-only verification of promoted/candidate AMS-01 hot paths after DEV sync.
  */
@@ -10,7 +10,7 @@ function AMS01_RunPromotionCheck() {
   var monthKey = '2026-09';
   var auditorEmail = 'david@agriqa.es';
   var out = {
-    build:'AMS01_PROMOTION_CHECK_20260907_R2',
+    build:'AMS01_PROMOTION_CHECK_20260907_R3',
     generatedAt:new Date().toISOString(),
     runtimeEnv:(typeof AMS01_env_ === 'function' ? AMS01_env_() : 'UNKNOWN'),
     probes:[]
@@ -51,6 +51,10 @@ function AMS01_RunPromotionCheck() {
     return AMS01_RunAuditorCompaniesCandidate();
   });
 
+  probe_('Auditor Portal planning-summary candidate', function(){
+    return AMS01_RunPlanningSummaryCandidate();
+  });
+
   var compact = out.probes.map(function(p){
     var r = p.result || {};
     return {
@@ -67,6 +71,7 @@ function AMS01_RunPromotionCheck() {
       semanticEqual:r.semanticEqual != null ? r.semanticEqual : null,
       oldMs:r.oldMs != null ? r.oldMs : null,
       candidateMs:r.candidateMs != null ? r.candidateMs : null,
+      checked:r.checked != null ? r.checked : null,
       wantedCompanies:r.wantedCompanies != null ? r.wantedCompanies : null,
       meta:r.meta || null,
       error:p.error || ''

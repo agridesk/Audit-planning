@@ -15,7 +15,7 @@
   } catch (e1) {}
 
   var trace = {
-    build: 'AMS01_TOOLKIT_MILESTONES_20260908_R7_BATCH3_FRESHNESS_AWARE',
+    build: 'AMS01_TOOLKIT_MILESTONES_20260908_R8_BATCH3_AUTOLOAD_SELECTION',
     auditId: (typeof auditId !== 'undefined' && auditId) ? String(auditId) : '',
     role: (typeof V5_ROLE !== 'undefined' && V5_ROLE) ? String(V5_ROLE) : '',
     startedAt: new Date(navStart).toISOString(),
@@ -120,9 +120,6 @@
     return String(d.getFullYear()) + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
   }
 
-  // The canonical recent-save guard must reject stale local data, not fresh data
-  // produced after the dirty stamp. This prevents a fresh batch prefetch from
-  // being ignored and followed by a duplicate visible-month RPC.
   try {
     if (typeof V5_ROLE !== 'undefined' && String(V5_ROLE).toUpperCase() === 'MANAGER' &&
         typeof v5_hasRecentSaveForAuditorMonth_ === 'function') {
@@ -135,10 +132,8 @@
           var mk = String(monthKey || '').trim();
           var dirty = (typeof v5_getAvailMonthDirtyStamp_ === 'function') ? Number(v5_getAvailMonthDirtyStamp_(a, mk) || 0) : 0;
           if (!dirty) return hasRecent;
-
           var localHit = (typeof avMonthRenderCache !== 'undefined' && avMonthRenderCache[a]) ? avMonthRenderCache[a][mk] : null;
           if (localHit && Number(localHit.t || 0) >= dirty) return false;
-
           var key = (typeof mpMonthFetchKey_ === 'function') ? mpMonthFetchKey_(a, mk) : (a + '|' + mk);
           var entry = window.__mp_monthFetches && window.__mp_monthFetches[key];
           if (entry && entry.batch === true && Number(entry.startedAt || 0) >= dirty) return false;
@@ -152,46 +147,33 @@
   function managerBatchPrefetch_(auditorEmail, reason) {
     try {
       var a = String(auditorEmail || '').trim().toLowerCase();
-      if (!a || !currentMonth || typeof mpRpcCall_ !== 'function' ||
-          typeof mpMonthFetchKey_ !== 'function' || typeof mapSlotStatesToDayAvail_ !== 'function' ||
-          typeof storeMonthRenderCache_ !== 'function') return false;
-
+      if (!a || !currentMonth || typeof mpRpcCall_ !== 'function' || typeof mpMonthFetchKey_ !== 'function' || typeof mapSlotStatesToDayAvail_ !== 'function' || typeof storeMonthRenderCache_ !== 'function') return false;
       if (reason === 'auditor-select' || reason === 'manager-default') {
         if (typeof mpSetActivePrefetchAuditor_ === 'function') mpSetActivePrefetchAuditor_(a, reason);
       }
-
       var visibleKey = monthKeyFromDate_(currentMonth);
       var months = [visibleKey];
       for (var offset = 1; offset <= 2; offset++) {
         var mkNext = shiftMonthKey_(visibleKey, offset);
         if (mkNext && (typeof mpMonthInsideWindowByKey_ !== 'function' || mpMonthInsideWindowByKey_(mkNext))) months.push(mkNext);
       }
-
       window.__mp_monthFetches = window.__mp_monthFetches || {};
       var gen = window.__mp_prefetchGeneration || 0;
       var startedAt = Date.now();
       var entries = {};
       var startedMonths = [];
-
       months.forEach(function(mk) {
         var existingCached = (typeof getMonthRenderCache_ === 'function') ? getMonthRenderCache_(a, mk) : null;
         if (existingCached) return;
         var key = mpMonthFetchKey_(a, mk);
         if (window.__mp_monthFetches[key]) return;
-        var entry = {
-          callbacks:[], done:false, result:null, error:null,
-          startedAt:startedAt, reason:'ams01-visible-next2-batch', generation:gen,
-          auditor:a, timer:null, seq:(window.__mp_avSeq || 0), batch:true
-        };
+        var entry = {callbacks:[],done:false,result:null,error:null,startedAt:startedAt,reason:'ams01-visible-next2-batch',generation:gen,auditor:a,timer:null,seq:(window.__mp_avSeq || 0),batch:true};
         window.__mp_monthFetches[key] = entry;
         entries[mk] = { key:key, entry:entry };
         startedMonths.push(mk);
       });
-
       if (!startedMonths.length) return false;
-
       try { if (typeof log === 'function') log('CAL: AMS01 batch3 prefetch start auditor=' + a + ' months=' + startedMonths.join(',') + ' reason=' + String(reason || '')); } catch(eLog0) {}
-
       mpRpcCall_('getToolkitAvailabilityMonthsDirectV5', [a, startedMonths, { uiTrace:true, prefetch:true, reason:String(reason||''), auditId:auditId }], function(batchRes, __rpcCtx) {
         try {
           var stale = gen !== (window.__mp_prefetchGeneration || 0) || String(window.__mp_activePrefetchAuditor || '').toLowerCase() !== a;
@@ -200,7 +182,6 @@
             if (typeof mpRpcApplied_ === 'function') mpRpcApplied_(__rpcCtx);
             return;
           }
-
           startedMonths.forEach(function(mk) {
             var x = entries[mk];
             if (!x) return;
@@ -210,19 +191,14 @@
               var mapped = mapSlotStatesToDayAvail_(res);
               storeMonthRenderCache_(a, mk, mapped);
               entry.result = res;
-            } else {
-              entry.error = res || { message:'batch month missing: ' + mk };
-            }
+            } else entry.error = res || { message:'batch month missing: ' + mk };
             entry.done = true;
             entry.completedAt = Date.now();
             var callbacks = entry.callbacks.slice();
             callbacks.forEach(function(cb){ try { cb(entry.result, entry.error); } catch(_eCb) {} });
             setTimeout(function(){ try { if(window.__mp_monthFetches && window.__mp_monthFetches[x.key] === entry) delete window.__mp_monthFetches[x.key]; } catch(_eCleanup) {} }, 1000);
           });
-
-          try {
-            if (typeof log === 'function') log('CAL: AMS01 batch3 prefetch done months=' + startedMonths.join(',') + ' wall=' + (Date.now()-startedAt) + 'ms server=' + (batchRes && batchRes.meta ? batchRes.meta.serverMs : '?') + 'ms');
-          } catch(eLog1) {}
+          try { if (typeof log === 'function') log('CAL: AMS01 batch3 prefetch done months=' + startedMonths.join(',') + ' wall=' + (Date.now()-startedAt) + 'ms server=' + (batchRes && batchRes.meta ? batchRes.meta.serverMs : '?') + 'ms'); } catch(eLog1) {}
           if (typeof mpRpcApplied_ === 'function') mpRpcApplied_(__rpcCtx);
         } catch(eSuccess) {
           startedMonths.forEach(function(mk){ var x=entries[mk]; if(x) delete window.__mp_monthFetches[x.key]; });
@@ -248,30 +224,39 @@
     }
   }
 
-  // Manager: visible + next two months share ONE RPC at actual auditor selection.
   try {
-    if (typeof V5_ROLE !== 'undefined' && String(V5_ROLE).toUpperCase() === 'MANAGER' &&
-        typeof prefetchCalendarMonthsForAuditorSelection_ === 'function') {
+    if (typeof V5_ROLE !== 'undefined' && String(V5_ROLE).toUpperCase() === 'MANAGER' && typeof prefetchCalendarMonthsForAuditorSelection_ === 'function') {
       var originalAuditorSelectionPrefetch_ = prefetchCalendarMonthsForAuditorSelection_;
       prefetchCalendarMonthsForAuditorSelection_ = function(auditorEmail, reason) {
         if (String(reason || '') === 'manager-default') {
           try { if (typeof log === 'function') log('CAL: AMS01 manager-default prefetch suppressed; waiting for actual auditor selection'); } catch(e10) {}
           return false;
         }
-        if (String(reason || '') === 'auditor-select') return managerBatchPrefetch_(auditorEmail, reason);
+        if (String(reason || '') === 'auditor-select') {
+          var started = managerBatchPrefetch_(auditorEmail, reason);
+          // Selecting an auditor is already an explicit manager action. Start the
+          // visible calendar immediately and attach it to the batch; do not require
+          // an extra Load Calendar click before useful planning can begin.
+          try { managerCalendarLoaded = true; } catch(_eLoaded) {}
+          try { if (typeof updateLoadCalendarUi_ === 'function') updateLoadCalendarUi_(); } catch(_eUi) {}
+          try {
+            setTimeout(function(){
+              try { if (typeof refreshAvailabilityForVisibleMonth_ === 'function') refreshAvailabilityForVisibleMonth_(); } catch(_eRefresh) {}
+            },0);
+          } catch(_eTimer) {}
+          return started;
+        }
         return originalAuditorSelectionPrefetch_.apply(this, arguments);
       };
       window.__AMS01_MANAGER_DEFAULT_PREFETCH_DISABLED = true;
       window.__AMS01_MANAGER_VISIBLE_NEXT2_BATCH_ENABLED = true;
+      window.__AMS01_MANAGER_AUTOLOAD_AFTER_SELECTION = true;
       window.__AMS01_MANAGER_SELECTION_PREFETCH_CANONICAL = originalAuditorSelectionPrefetch_;
     }
   } catch (e11) {}
 
-  // No background chaining after every visible apply. The initial manager batch
-  // covers the normal planning navigation horizon without competing with Save.
   try {
-    if (typeof V5_ROLE !== 'undefined' && String(V5_ROLE).toUpperCase() === 'MANAGER' &&
-        typeof mpPrefetchNextMonthsAfterVisible_ === 'function') {
+    if (typeof V5_ROLE !== 'undefined' && String(V5_ROLE).toUpperCase() === 'MANAGER' && typeof mpPrefetchNextMonthsAfterVisible_ === 'function') {
       window.__AMS01_MANAGER_NEXT_PREFETCH_CANONICAL = mpPrefetchNextMonthsAfterVisible_;
       mpPrefetchNextMonthsAfterVisible_ = function(){ return false; };
       window.__AMS01_MANAGER_CHAINED_PREFETCH_DISABLED = true;

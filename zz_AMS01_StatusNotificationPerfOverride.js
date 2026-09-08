@@ -1,11 +1,13 @@
 /**
  * FILE: zz_AMS01_StatusNotificationPerfOverride.js
- * BUILD: AMS01_STATUS_NOTIFICATION_PERF_ZZ_20260908_R2
+ * BUILD: AMS01_STATUS_NOTIFICATION_PERF_ZZ_20260908_R3
  * DEV-only late-load override for AMS-01 notification performance validation.
+ * R3: reuse execution-local status row and briefing result; no repeated AP row read.
  */
-var AMS01_STATUS_NOTIFICATION_PERF_ZZ_BUILD='AMS01_STATUS_NOTIFICATION_PERF_ZZ_20260908_R2';
+var AMS01_STATUS_NOTIFICATION_PERF_ZZ_BUILD='AMS01_STATUS_NOTIFICATION_PERF_ZZ_20260908_R3';
 var AMS01_COMPANY_NUMBER_CACHE_KEY='AMS01_COMPANY_NUMBER_BY_UID_V2';
 var AMS01_COMPANY_NUMBER_EXEC_CACHE=null;
+var AMS01_ACCEPT_BRIEFING_EXEC_CACHE={};
 
 function StatusNotificationBridge_QueueWithLock_(recipientEmail,eventCode,queuePayload,auditId){
   var lock=LockService.getScriptLock(),acquired=false,txStarted=Date.now(),txId=Utilities.getUuid();
@@ -68,11 +70,21 @@ function AMS01_GetCompanyNumberByUid_(ss,companyUid){
 }
 
 function StatusNotificationBridge_LoadEcasAuditBriefing_(auditId){
-  auditId=String(auditId||'').trim();var out={auditId:auditId,company:'',companyUid:'',mpsNumber:'',scopes:[],blocks:[],plannedDates:[],plannedHours:'',planningJson:'',auditorEmail:'',auditorName:'',__ams01BriefingBuild:AMS01_STATUS_NOTIFICATION_PERF_ZZ_BUILD,__ams01MpsSource:''};if(!auditId)return out;
+  auditId=String(auditId||'').trim();
+  if(!auditId)return {auditId:'',company:'',companyUid:'',mpsNumber:'',scopes:[],blocks:[],plannedDates:[],plannedHours:'',planningJson:'',auditorEmail:'',auditorName:'',__ams01BriefingBuild:AMS01_STATUS_NOTIFICATION_PERF_ZZ_BUILD,__ams01MpsSource:''};
+  if(AMS01_ACCEPT_BRIEFING_EXEC_CACHE[auditId]){
+    var cached=AMS01_ACCEPT_BRIEFING_EXEC_CACHE[auditId];
+    try{Logger.log('[AMS01_ACCEPT_BRIEFING] '+JSON.stringify({build:AMS01_STATUS_NOTIFICATION_PERF_ZZ_BUILD,auditId:auditId,row:cached.__rowNumber||0,indexFromCache:true,mpsSource:cached.__ams01MpsSource,scopes:cached.scopes.length,blocks:cached.blocks.length,source:'BRIEFING_EXEC_CACHE'}));}catch(eCacheLog){}
+    return cached;
+  }
+  var out={auditId:auditId,company:'',companyUid:'',mpsNumber:'',scopes:[],blocks:[],plannedDates:[],plannedHours:'',planningJson:'',auditorEmail:'',auditorName:'',__ams01BriefingBuild:AMS01_STATUS_NOTIFICATION_PERF_ZZ_BUILD,__ams01MpsSource:'',__rowNumber:0};
   try{
-    var ss=SpreadsheetApp.getActiveSpreadsheet()||SpreadsheetApp.getActive();if(!ss||typeof __mp_getAuditPlanningRow_!=='function')return out;
-    var pack=__mp_getAuditPlanningRow_(ss,auditId);if(!pack||!pack.row||!pack.hdr)return out;
-    var hdr=pack.hdr||[],row=pack.row||[],idx=StatusNotificationBridge_HeaderMapLoose_(hdr);
+    var ss=SpreadsheetApp.getActiveSpreadsheet()||SpreadsheetApp.getActive();if(!ss)return out;
+    var pack=null,source='';
+    if(typeof AMS01_STATUS_AUDIT_CONTEXT_CACHE==='object'&&AMS01_STATUS_AUDIT_CONTEXT_CACHE&&AMS01_STATUS_AUDIT_CONTEXT_CACHE[auditId]){pack=AMS01_STATUS_AUDIT_CONTEXT_CACHE[auditId];source='STATUS_EXEC_CONTEXT';}
+    if(!pack&&typeof __mp_getAuditPlanningRow_==='function'){pack=__mp_getAuditPlanningRow_(ss,auditId);source='AP_ROW_INDEX';}
+    if(!pack||!pack.row||!pack.hdr)return out;
+    var hdr=pack.hdr||[],row=pack.row||[],idx=StatusNotificationBridge_HeaderMapLoose_(hdr);out.__rowNumber=pack.rowNumber||0;
     out.company=StatusNotificationBridge_CellLoose_(row,idx,['Company','Company name','Client','Customer','Organisation','Organization']);
     out.companyUid=StatusNotificationBridge_CellLoose_(row,idx,['Company_UID','Company UID','CompanyUID','UID','Company Id','Company ID']);
     out.mpsNumber=AMS01_GetCompanyNumberByUid_(ss,out.companyUid);if(out.mpsNumber)out.__ams01MpsSource='CompactUidNumberIndex';
@@ -80,7 +92,8 @@ function StatusNotificationBridge_LoadEcasAuditBriefing_(auditId){
     if(!out.mpsNumber){out.mpsNumber=StatusNotificationBridge_LoadMpsNumberFromCompaniesByUid_(ss,out.companyUid);if(out.mpsNumber)out.__ams01MpsSource='CompaniesFallback';}
     out.planningJson=StatusNotificationBridge_CellLoose_(row,idx,['Planning JSON','PlanningJSON','Planning','Planning json','Planning_Js','Planning js']);out.scopes=StatusNotificationBridge_ExtractScopesFromAuditRow_(hdr,row);
     var parsed=StatusNotificationBridge_ParsePlanningJson_(out.planningJson);out.blocks=parsed.blocks;out.plannedDates=parsed.plannedDates;out.plannedHours=parsed.plannedHours;out.auditorEmail=parsed.auditorEmail;out.auditorName=parsed.auditorName;if(!out.plannedHours&&out.blocks.length)out.plannedHours=StatusNotificationBridge_SumBlockHours_(out.blocks);
-    try{Logger.log('[AMS01_ACCEPT_BRIEFING] '+JSON.stringify({build:AMS01_STATUS_NOTIFICATION_PERF_ZZ_BUILD,auditId:auditId,row:pack.rowNumber||0,indexFromCache:!!pack.indexFromCache,mpsSource:out.__ams01MpsSource,scopes:out.scopes.length,blocks:out.blocks.length}));}catch(eLog){}
+    AMS01_ACCEPT_BRIEFING_EXEC_CACHE[auditId]=out;
+    try{Logger.log('[AMS01_ACCEPT_BRIEFING] '+JSON.stringify({build:AMS01_STATUS_NOTIFICATION_PERF_ZZ_BUILD,auditId:auditId,row:pack.rowNumber||0,indexFromCache:!!pack.indexFromCache,mpsSource:out.__ams01MpsSource,scopes:out.scopes.length,blocks:out.blocks.length,source:source}));}catch(eLog){}
   }catch(e){try{Logger.log('[AMS01_ACCEPT_BRIEFING_ERROR] '+String(e&&e.message?e.message:e));}catch(eLog2){}}
   return out;
 }

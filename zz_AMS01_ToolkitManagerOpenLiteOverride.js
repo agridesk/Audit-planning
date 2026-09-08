@@ -1,15 +1,20 @@
 /**
  * FILE: zz_AMS01_ToolkitManagerOpenLiteOverride.js
- * BUILD: AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_20260908_R5_OPEN_SAVE_CACHE_BRIDGE
+ * BUILD: AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_20260908_R6_SAFE_SCRIPT_CACHE
  * DEV-only routing optimization.
  *
  * Manager Toolkit open keeps canonical getToolkitOpenLiteV5 business logic,
- * seeds only the target Audit planning row, reuses canonical open cache, and
- * seeds the canonical fast qualification cache consumed later by Save.
+ * seeds only the target Audit planning row, reuses only the safe volatile
+ * ScriptCache tier, and seeds the canonical fast qualification cache consumed
+ * later by Save.
+ *
+ * Tier-2 sheet-persistent open cache is deliberately NOT used here because the
+ * Save hot path performs lite invalidation and that tier can lag current
+ * status/planning truth.
  *
  * Locked AUDITOR/self-planning remains on canonical Fast unchanged.
  */
-var AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD='AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_20260908_R5_OPEN_SAVE_CACHE_BRIDGE';
+var AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD='AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_20260908_R6_SAFE_SCRIPT_CACHE';
 
 (function(){
   if(typeof getToolkitOpenFastV5!=='function' || typeof getToolkitOpenLiteV5!=='function') return;
@@ -53,10 +58,10 @@ var AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD='AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ
   function managerCacheGet_(auditId){
     try{
       if(typeof _mp_open_cacheGet_!=='function') return null;
-      var hit=_mp_open_cacheGet_(auditId,{cacheKey:auditId,auditId:auditId,routeLabel:'MANAGER_LITE_AMS01',allowTier2:true});
+      var hit=_mp_open_cacheGet_(auditId,{cacheKey:auditId,auditId:auditId,routeLabel:'MANAGER_LITE_AMS01',allowTier2:false});
       if(hit&&hit.success===true){
         hit.__ams01LiteContext=true;
-        hit.__ams01ManagerPrimaryRoute='LITE_VIA_FAST_COMPAT_OPEN_CACHE';
+        hit.__ams01ManagerPrimaryRoute='LITE_VIA_FAST_COMPAT_SCRIPT_CACHE';
         hit.__ams01ManagerPrimaryRouteBuild=AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD;
         seedQualificationCache_(hit);
         return hit;
@@ -70,7 +75,7 @@ var AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD='AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ
       if(!res||res.success!==true) return false;
       seedQualificationCache_(res);
       if(typeof _mp_open_cachePut_!=='function') return false;
-      return !!_mp_open_cachePut_(auditId,res,{cacheKey:auditId,auditId:auditId,routeLabel:'MANAGER_LITE_AMS01',allowTier2:true});
+      return !!_mp_open_cachePut_(auditId,res,{cacheKey:auditId,auditId:auditId,routeLabel:'MANAGER_LITE_AMS01',allowTier2:false});
     }catch(e){ return false; }
   }
 
@@ -78,7 +83,7 @@ var AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD='AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ
     var id=String(auditId||'').trim();
     var cached=managerCacheGet_(id);
     if(cached){
-      cached.__ams01TargetRowSeed={used:false,source:'OPEN_CACHE',seedMs:0};
+      cached.__ams01TargetRowSeed={used:false,source:'OPEN_SCRIPT_CACHE',seedMs:0};
       return cached;
     }
 
@@ -150,4 +155,4 @@ var AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD='AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ
   };
 })();
 
-function AMS01_ToolkitManagerOpenLiteStatus(){ return {success:true,active:true,build:AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD,openCacheRestored:true,saveQualificationCacheSeed:true}; }
+function AMS01_ToolkitManagerOpenLiteStatus(){ return {success:true,active:true,build:AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD,openCacheTier:'SCRIPT_ONLY',saveQualificationCacheSeed:true}; }

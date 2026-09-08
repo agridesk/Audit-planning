@@ -1,6 +1,6 @@
 /**
  * FILE: zz_AMS01_ToolkitFastQualificationOverride.js
- * BUILD: AMS01_TOOLKIT_FAST_QUALIFICATION_ZZ_20260908_R2
+ * BUILD: AMS01_TOOLKIT_FAST_QUALIFICATION_ZZ_20260908_R3
  * DEV-only late-load override for AMS-01 Toolkit first-paint performance.
  *
  * Purpose:
@@ -10,9 +10,12 @@
  * - Replace generic persisted full-sheet Auditors read with one bounded
  *   A:P read. Current DEV Auditors qualification/profile contract lives in
  *   A:P; all qualification scope columns and Blocked weekdays are included.
+ * - Cache the resulting auditor profiles for same-execution reuse by the
+ *   blocked-weekday enrichment path. Cache is execution-local only.
  * - No planning/status/availability truth changes.
  */
-var AMS01_TOOLKIT_FAST_QUALIFICATION_ZZ_BUILD='AMS01_TOOLKIT_FAST_QUALIFICATION_ZZ_20260908_R2';
+var AMS01_TOOLKIT_FAST_QUALIFICATION_ZZ_BUILD='AMS01_TOOLKIT_FAST_QUALIFICATION_ZZ_20260908_R3';
+var AMS01_FAST_QUAL_EXEC_PROFILES={byEmail:{},byName:{}};
 
 function _mp_getQualifiedAuditorsFastList_(ss,requiredScopes,preassignedName,opts){
   var t0=Date.now();
@@ -45,6 +48,8 @@ function _mp_getQualifiedAuditorsFastList_(ss,requiredScopes,preassignedName,opt
   }
 
   var out=[];
+  AMS01_FAST_QUAL_EXEC_PROFILES={byEmail:{},byName:{}};
+
   for(var r=1;r<data.length;r++){
     var row=data[r]||[];
     if(!_mp_isYes_(row[idxActive])) continue;
@@ -56,7 +61,7 @@ function _mp_getQualifiedAuditorsFastList_(ss,requiredScopes,preassignedName,opt
     if(!name&&!email) continue;
     var isPre=!!pre&&(name.toLowerCase()===pre||email.toLowerCase()===pre);
 
-    out.push({
+    var item={
       name:name,
       email:email,
       blockedWeekdays:idxBW>=0?String(row[idxBW]||'').trim():'',
@@ -74,7 +79,11 @@ function _mp_getQualifiedAuditorsFastList_(ss,requiredScopes,preassignedName,opt
       rotationPending:true,
       qualifiedFast:true,
       __ams01FastQualificationBuild:AMS01_TOOLKIT_FAST_QUALIFICATION_ZZ_BUILD
-    });
+    };
+
+    out.push(item);
+    if(email) AMS01_FAST_QUAL_EXEC_PROFILES.byEmail[email.toLowerCase()]=item;
+    if(name) AMS01_FAST_QUAL_EXEC_PROFILES.byName[name.toLowerCase()]=item;
   }
 
   out.sort(function(a,b){

@@ -1,16 +1,20 @@
 /**
  * FILE: zz_AMS01_LifecycleInvalidationPerfOverride.js
- * BUILD: AMS01_LIFECYCLE_INVALIDATION_PERF_ZZ_20260908_R2
+ * BUILD: AMS01_LIFECYCLE_INVALIDATION_PERF_ZZ_20260908_R3
  * DEV-only late-load override.
  *
- * R2:
+ * R3:
  * - Removes duplicate V5_clearManagerOpenCache_ from lifecycle invalidation.
  * - When lifecycle is called by CoreStatusMachine, skips the two Audit planning
  *   invalidations that CoreStatusMachine immediately performs itself through
  *   Status_invalidateAuditPlanningPack_().
- * - Keeps open-cache, auditor-cache and UI namespace invalidation in lifecycle.
+ * - CoreStatusMachine uses _mp_open_cacheInvalidate_(auditId,{lite:true}):
+ *   ScriptCache base + route keys are still invalidated immediately, while the
+ *   historical tier-2 sheet invalidation is skipped. Current d16 manager open
+ *   uses getToolkitOpenLiteV5 and locked-auditor open explicitly disables tier 2.
+ * - Non-CoreStatus lifecycle callers retain full open-cache invalidation.
  */
-var AMS01_LIFECYCLE_INVALIDATION_PERF_ZZ_BUILD='AMS01_LIFECYCLE_INVALIDATION_PERF_ZZ_20260908_R2';
+var AMS01_LIFECYCLE_INVALIDATION_PERF_ZZ_BUILD='AMS01_LIFECYCLE_INVALIDATION_PERF_ZZ_20260908_R3';
 
 function Lifecycle_invalidateAfterLifecycleChange_(ctx) {
   ctx = ctx || {};
@@ -54,9 +58,16 @@ function Lifecycle_invalidateAfterLifecycleChange_(ctx) {
   }
 
   if (auditId) {
-    run_('_mp_open_cacheInvalidate_', function(){
-      if (typeof _mp_open_cacheInvalidate_ === 'function') _mp_open_cacheInvalidate_(auditId);
-    });
+    if (coreOwnsAuditPlanningInvalidation) {
+      run_('_mp_open_cacheInvalidate_:lite', function(){
+        if (typeof _mp_open_cacheInvalidate_ === 'function') _mp_open_cacheInvalidate_(auditId, {lite:true});
+      });
+      out.skipped.push('MP_OPEN_SHEET_INVALIDATE:inactive on current CoreStatus d16 hot path');
+    } else {
+      run_('_mp_open_cacheInvalidate_', function(){
+        if (typeof _mp_open_cacheInvalidate_ === 'function') _mp_open_cacheInvalidate_(auditId);
+      });
+    }
 
     run_('_mp_aud_cacheInvalidate_', function(){
       if (typeof _mp_aud_cacheInvalidate_ === 'function') _mp_aud_cacheInvalidate_(auditId);
@@ -89,6 +100,7 @@ function AMS01_LifecycleInvalidationPerfStatus(){
     active:(typeof Lifecycle_invalidateAfterLifecycleChange_==='function'),
     build:AMS01_LIFECYCLE_INVALIDATION_PERF_ZZ_BUILD,
     duplicateV5ClearRemoved:true,
-    coreDuplicateAuditPlanningInvalidationRemoved:true
+    coreDuplicateAuditPlanningInvalidationRemoved:true,
+    coreOpenCacheInvalidation:'LITE_SCRIPT_AND_ROUTE_KEYS_ONLY'
   };
 }

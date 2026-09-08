@@ -1,20 +1,16 @@
 /**
  * FILE: zz_AMS01_ToolkitManagerOpenLiteOverride.js
- * BUILD: AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_20260908_R1
+ * BUILD: AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_20260908_R2
  * DEV-only late-load routing optimization.
  *
- * Problem:
- * - ManagerPlanningUI_boot currently invokes getToolkitOpenFastV5() as the
- *   manager primary route even though ToolkitOpenBundle already proved the
- *   Manager Lite context equivalent for first-paint planning fields.
+ * Manager Toolkit open uses the proven Lite context. R2 also exposes the
+ * already-returned Lite auditors through the UI's existing auditorsBundle
+ * contract, preventing a second getToolkitAuditorsV5() hydration RPC.
  *
- * Change:
- * - Manager calls to getToolkitOpenFastV5() are transparently routed to
- *   getToolkitOpenLiteV5(auditId).
- * - Locked AUDITOR/self-planning calls remain on canonical Fast unchanged.
- * - No calendar, qualification, status, planning or availability truth changes.
+ * Locked AUDITOR/self-planning remains on canonical Fast unchanged.
+ * No calendar, qualification, status, planning or availability truth changes.
  */
-var AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD='AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_20260908_R1';
+var AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD='AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_20260908_R2';
 
 (function(){
   if(typeof getToolkitOpenFastV5!=='function') return;
@@ -34,13 +30,37 @@ var AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD='AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ
       res.__ams01ManagerPrimaryRoute='LITE_VIA_FAST_COMPAT';
       res.__ams01ManagerPrimaryRouteBuild=AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD;
       if(typeof res.__serverMs==='undefined') res.__serverMs=Date.now()-t0;
+
+      // ManagerPlanningUI_boot treats auditorsBundle as the signal that the
+      // initial auditors are already hydrated. getToolkitOpenLiteV5 already
+      // returns the same HARD-qualified first-paint list, so reuse it instead
+      // of starting another server RPC.
+      if(!res.auditorsBundle && Array.isArray(res.auditors)){
+        res.auditorsBundle={
+          success:true,
+          auditors:res.auditors,
+          auditorEligibilityMeta:res.auditorEligibilityMeta||{
+            qualifiedFast:true,
+            rotationPending:true
+          },
+          reusedFromLiteOpen:true,
+          __serverMs:0,
+          __ams01Build:AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD
+        };
+        res.auditorsBundle.auditorEligibilityMeta=res.auditorsBundle.auditorEligibilityMeta||{};
+        res.auditorsBundle.auditorEligibilityMeta.rotationPending=true;
+        res.auditorsBundle.auditorEligibilityMeta.reusedFromLiteOpen=true;
+      }
+
       try{
         Logger.log('[AMS01_TOOLKIT_MANAGER_OPEN_LITE] '+JSON.stringify({
           build:AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD,
           auditId:String(auditId||'').trim(),
           role:role||'MANAGER',
           ms:Date.now()-t0,
-          success:!!(res&&res.success!==false)
+          success:!!(res&&res.success!==false),
+          auditors:Array.isArray(res.auditors)?res.auditors.length:0,
+          auditorsBundleReused:!!(res.auditorsBundle&&res.auditorsBundle.reusedFromLiteOpen)
         }));
       }catch(eLog){}
       return res;

@@ -1,13 +1,13 @@
 /**
  * FILE: Toolkit_AvailabilityRoute.js
- * BUILD: AMS01_TOOLKIT_AVAILABILITY_ROUTE_20260908_R2_BATCH_MONTHS
+ * BUILD: AMS01_TOOLKIT_AVAILABILITY_ROUTE_20260908_R3_BATCH_3_MONTHS
  *
  * AMS-01 promoted availability routes.
  * Reuses canonical AvailabilityService lite reader and existing Planning JSON
  * overlay. No second availability model; no business writes.
  */
 
-var AMS01_TOOLKIT_AVAILABILITY_ROUTE_BUILD = 'AMS01_TOOLKIT_AVAILABILITY_ROUTE_20260908_R2_BATCH_MONTHS';
+var AMS01_TOOLKIT_AVAILABILITY_ROUTE_BUILD = 'AMS01_TOOLKIT_AVAILABILITY_ROUTE_20260908_R3_BATCH_3_MONTHS';
 
 function getToolkitAvailabilityMonthDirectV5(auditorEmail, monthKey, opts) {
   var t0 = Date.now();
@@ -61,17 +61,17 @@ function getToolkitAvailabilityMonthDirectV5(auditorEmail, monthKey, opts) {
 
 /**
  * Batched calendar-navigation route.
- * Executes multiple canonical month reads inside ONE google.script.run server
+ * Executes up to three canonical month reads inside ONE google.script.run
  * execution so AvailabilityService execution-local header/row indexes are reused
  * and browser transport overhead is paid once.
  *
- * Intended manager hot path: visible month + next month only.
+ * Manager hot path: visible month + next two months.
  */
 function getToolkitAvailabilityMonthsDirectV5(auditorEmail, monthKeys, opts) {
   var t0 = Date.now();
   opts = opts || {};
   auditorEmail = _mp_tdm_normEmail_(auditorEmail);
-  monthKeys = Array.isArray(monthKeys) ? monthKeys.slice(0, 2) : [];
+  monthKeys = Array.isArray(monthKeys) ? monthKeys.slice(0, 3) : [];
 
   if (!auditorEmail) return { success:false, message:'Missing auditorEmail' };
   if (!monthKeys.length) return { success:false, message:'Missing monthKeys' };
@@ -118,7 +118,7 @@ function getToolkitAvailabilityMonthsDirectV5(auditorEmail, monthKeys, opts) {
     meta:{
       build:AMS01_TOOLKIT_AVAILABILITY_ROUTE_BUILD,
       routeOwner:'AvailabilityService.getAuditorAvailabilityLite',
-      batchMode:'VISIBLE_PLUS_NEXT_SINGLE_RPC',
+      batchMode:'VISIBLE_PLUS_NEXT2_SINGLE_RPC',
       monthTimings:timings,
       serverMs:Date.now() - t0
     }
@@ -131,6 +131,7 @@ function AMS01_GetAvailabilityRouteStatus() {
     active:true,
     build:AMS01_TOOLKIT_AVAILABILITY_ROUTE_BUILD,
     owner:'AvailabilityService.getAuditorAvailabilityLite',
-    batchMonths:true
+    batchMonths:true,
+    batchMonthCount:3
   };
 }

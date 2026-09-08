@@ -15,7 +15,7 @@
   } catch (e1) {}
 
   var trace = {
-    build: 'AMS01_TOOLKIT_MILESTONES_20260908_R2',
+    build: 'AMS01_TOOLKIT_MILESTONES_20260908_R3',
     auditId: (typeof auditId !== 'undefined' && auditId) ? String(auditId) : '',
     role: (typeof V5_ROLE !== 'undefined' && V5_ROLE) ? String(V5_ROLE) : '',
     startedAt: new Date(navStart).toISOString(),
@@ -133,12 +133,7 @@
     }
   } catch (e8) {}
 
-  // AMS-01 R2: manager first-use responsiveness.
-  // The visible month is the only planning-critical availability payload.
-  // The legacy next4 prefetch starts up to four additional google.script.run
-  // calls immediately after applying the visible month, which can contend with
-  // normal interaction/save RPCs. Disable that speculative prefetch for Manager
-  // in DEV. Auditor self-planning behavior remains unchanged.
+  // Manager first-use responsiveness: suppress speculative next4 months.
   try {
     if (typeof V5_ROLE !== 'undefined' && String(V5_ROLE).toUpperCase() === 'MANAGER' &&
         typeof mpPrefetchNextMonthsAfterVisible_ === 'function') {
@@ -153,5 +148,28 @@
       window.__AMS01_MANAGER_NEXT4_PREFETCH_CANONICAL = originalPrefetchNextMonths_;
     }
   } catch (e10) {}
+
+  // R3: Do not start a visible-month RPC for the manager's provisional
+  // default auditor during Toolkit bootstrap. In normal use the manager often
+  // chooses another auditor immediately; the stale RPC still consumes GAS/
+  // transport capacity and delays the real selection. Explicit auditor-select
+  // and visible-month refresh behavior remain canonical.
+  try {
+    if (typeof V5_ROLE !== 'undefined' && String(V5_ROLE).toUpperCase() === 'MANAGER' &&
+        typeof prefetchCalendarMonthsForAuditorSelection_ === 'function') {
+      var originalAuditorSelectionPrefetch_ = prefetchCalendarMonthsForAuditorSelection_;
+      prefetchCalendarMonthsForAuditorSelection_ = function(auditorEmail, reason) {
+        if (String(reason || '') === 'manager-default') {
+          try {
+            if (typeof log === 'function') log('CAL: AMS01 manager-default visible prefetch suppressed; waiting for actual auditor selection');
+          } catch(e11) {}
+          return false;
+        }
+        return originalAuditorSelectionPrefetch_.apply(this, arguments);
+      };
+      window.__AMS01_MANAGER_DEFAULT_PREFETCH_DISABLED = true;
+      window.__AMS01_MANAGER_DEFAULT_PREFETCH_CANONICAL = originalAuditorSelectionPrefetch_;
+    }
+  } catch (e12) {}
 })();
 </script>

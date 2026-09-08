@@ -1,12 +1,14 @@
-// BUILD: AuditPlanningRowIndexCache_d16_AMS01_EXEC_ROW_REUSE_20260908
+// BUILD: AuditPlanningRowIndexCache_d18_AMS01_CROSS_EXEC_INDEX_20260908
 // =====================================================================
 // PURPOSE
 //   Targeted single-row fetch for the 'Audit planning' sheet.
-//   AMS-01 d16 adds a true execution-local row payload tier so repeated
-//   reads of the same audit within one transaction do not call Sheets again.
+//   d18 keeps d16 execution-row reuse and makes the Audit ID -> row index
+//   explicitly persistent across GAS executions through ScriptCache as a
+//   backup to AUDIT_CACHE. The index is acceleration-only; sheet truth stays
+//   authoritative. PLAN/status cell updates do not structurally move rows.
 // =====================================================================
 
-var MP_AP_INDEX_BUILD     = 'AuditPlanningRowIndexCache_d16_AMS01_EXEC_ROW_REUSE_20260908';
+var MP_AP_INDEX_BUILD     = 'AuditPlanningRowIndexCache_d18_AMS01_CROSS_EXEC_INDEX_20260908';
 var MP_AP_INDEX_NS        = 'mp_audit_planning_index';
 var MP_AP_INDEX_KEY       = 'ap_row_index_v1';
 var MP_AP_INDEX_TTL_SEC   = 1500;
@@ -17,6 +19,10 @@ var MP_AP_ROW_NS          = 'MP_AP_ROW_V1';
 var MP_AP_ROW_TTL_SEC     = 1500;
 var MP_AP_ROW_GEN_KEY     = 'MP_AP_ROW_GEN_V1';
 var MP_AP_ROW_WARM_CAP    = 200;
+
+function __mp_apIndexNativeKey_() {
+  return 'MP_PERSIST::' + MP_AP_INDEX_NS + '::' + MP_AP_INDEX_KEY;
+}
 
 function __mp_apRowGen_() {
   try {
@@ -109,21 +115,47 @@ function __mp_readAuditPlanningIndexPersist_() {
       var v = __mp_auditCacheGet_(MP_AP_INDEX_NS, MP_AP_INDEX_KEY);
       if (v && v.hdr && v.index) return v;
     }
-  } catch (e) {
-    Logger.log('[AP_INDEX_DIAG] persist read err=' + (e && e.message || e));
+  } catch (e0) {
+    Logger.log('[AP_INDEX_DIAG] audit-cache persist read err=' + (e0 && e0.message || e0));
+  }
+  try {
+    var raw = CacheService.getScriptCache().get(__mp_apIndexNativeKey_());
+    if (raw) {
+      var p = JSON.parse(raw);
+      if (p && p.hdr && p.index) {
+        Logger.log('[AP_INDEX_DIAG] tier=NATIVE_INDEX_BACKUP');
+        return p;
+      }
+    }
+  } catch (e1) {
+    Logger.log('[AP_INDEX_DIAG] native persist read err=' + (e1 && e1.message || e1));
   }
   return null;
 }
 
 function __mp_writeAuditPlanningIndexPersist_(payload, ttlSec) {
+  var ttl = ttlSec || MP_AP_INDEX_TTL_SEC;
+  var okAudit = false;
+  var okNative = false;
   try {
     if (typeof __mp_auditCachePut_ === 'function') {
-      return __mp_auditCachePut_(MP_AP_INDEX_NS, MP_AP_INDEX_KEY, payload, ttlSec || MP_AP_INDEX_TTL_SEC);
+      okAudit = !!__mp_auditCachePut_(MP_AP_INDEX_NS, MP_AP_INDEX_KEY, payload, ttl);
     }
-  } catch (e) {
-    Logger.log('[AP_INDEX_OVERFLOW] put err=' + (e && e.message || e));
+  } catch (e0) {
+    Logger.log('[AP_INDEX_OVERFLOW] audit-cache put err=' + (e0 && e0.message || e0));
   }
-  return false;
+  try {
+    var json = JSON.stringify(payload || {});
+    if (json.length < 90000) {
+      CacheService.getScriptCache().put(__mp_apIndexNativeKey_(), json, ttl);
+      okNative = true;
+    } else {
+      Logger.log('[AP_INDEX_OVERFLOW] native index bytes=' + json.length);
+    }
+  } catch (e1) {
+    Logger.log('[AP_INDEX_OVERFLOW] native put err=' + (e1 && e1.message || e1));
+  }
+  return okAudit || okNative;
 }
 
 function __mp_getAuditPlanningRow_(ss, auditId) {
@@ -152,7 +184,7 @@ function __mp_getAuditPlanningRow_(ss, auditId) {
   var rowCached = __mp_apRowCacheGet_(key);
   if (rowCached && rowCached.row) {
     __mp_apExecRowPut_(key, rowCached.hdr || [], rowCached.row, rowCached.rowNumber || 0, rowCached.lastCol || (rowCached.hdr || []).length);
-    Logger.log('[AP_INDEX_DIAG] tier=ROW_CACHE_d16 cols=' + (rowCached.row.length || 0) + ' ms=' + (Date.now() - t0));
+    Logger.log('[AP_INDEX_DIAG] tier=ROW_CACHE_d18 cols=' + (rowCached.row.length || 0) + ' ms=' + (Date.now() - t0));
     return { sh: sh, hdr: rowCached.hdr || [], row: rowCached.row, rowNumber: rowCached.rowNumber || 0, indexFromCache: true };
   }
 
@@ -183,12 +215,17 @@ function __mp_getAuditPlanningRow_(ss, auditId) {
         __MP_EXEC_CACHE[MP_AP_INDEX_EXEC_KEY] = hotPack;
       }
       var hotRow = sh.getRange(rowNum, 1, 1, parsed.lastCol).getValues()[0] || [];
-      __mp_apExecRowPut_(key, hotPack.hdr || [], hotRow, rowNum, parsed.lastCol);
-      __mp_apRowCachePut_(key, hotPack.hdr || [], hotRow, rowNum, parsed.lastCol);
-      Logger.log('[AP_INDEX_DIAG] tier=PERSIST_HIT count=' + hotPack.count + ' ms=' + (Date.now() - t0));
-      return { sh: sh, hdr: hotPack.hdr, row: hotRow, rowNumber: rowNum, indexFromCache: true };
+      if (String(hotRow[__mp_findAuditIdCol_(hotPack.hdr)] || '').trim() !== key) {
+        Logger.log('[AP_INDEX_DIAG] persisted row mismatch auditId=' + key + ' row=' + rowNum + '; rebuilding');
+      } else {
+        __mp_apExecRowPut_(key, hotPack.hdr || [], hotRow, rowNum, parsed.lastCol);
+        __mp_apRowCachePut_(key, hotPack.hdr || [], hotRow, rowNum, parsed.lastCol);
+        Logger.log('[AP_INDEX_DIAG] tier=PERSIST_HIT count=' + hotPack.count + ' ms=' + (Date.now() - t0));
+        return { sh: sh, hdr: hotPack.hdr, row: hotRow, rowNumber: rowNum, indexFromCache: true };
+      }
+    } else {
+      Logger.log('[AP_INDEX_DIAG] tier=PERSIST_HIT_BUT_MISS auditId=' + key + ' (rebuilding)');
     }
-    Logger.log('[AP_INDEX_DIAG] tier=PERSIST_HIT_BUT_MISS auditId=' + key + ' (rebuilding)');
   }
 
   var data = sh.getDataRange().getValues() || [];
@@ -240,7 +277,7 @@ function __mp_invalidateAuditPlanningPack_() {
   try { __mp_apRowGenBump_(); } catch (e0) {}
   try { if (typeof _mp_pwGenBump_ === 'function') _mp_pwGenBump_(); } catch (e0b) {}
   try {
-    CacheService.getScriptCache().remove('MP_PERSIST::' + MP_AP_INDEX_NS + '::' + MP_AP_INDEX_KEY);
+    CacheService.getScriptCache().remove(__mp_apIndexNativeKey_());
   } catch (e1) {}
   try {
     if (typeof AUDIT_CACHE !== 'undefined' && AUDIT_CACHE) {
@@ -256,7 +293,7 @@ function __mp_invalidateAuditPlanningPack_() {
       __mp_apExecRowsClear_();
     }
   } catch (e3) {}
-  Logger.log('[' + MP_AP_INDEX_BUILD + '] invalidated');
+  Logger.log('[' + MP_AP_INDEX_BUILD + '] structurally invalidated');
 }
 
 function __mp_warmAuditPlanningRowIndex_(ss) {
@@ -266,9 +303,7 @@ function __mp_warmAuditPlanningRowIndex_(ss) {
     var sh = ss.getSheetByName('Audit planning');
     if (!sh) return { ok: false, error: 'sheet not found', ms: Date.now() - t0 };
 
-    try {
-      CacheService.getScriptCache().remove('MP_PERSIST::' + MP_AP_INDEX_NS + '::' + MP_AP_INDEX_KEY);
-    } catch (eRm) {}
+    try { CacheService.getScriptCache().remove(__mp_apIndexNativeKey_()); } catch (eRm) {}
     try {
       if (typeof __MP_EXEC_CACHE === 'object' && __MP_EXEC_CACHE) {
         delete __MP_EXEC_CACHE[MP_AP_INDEX_EXEC_KEY];
@@ -305,7 +340,7 @@ function __mp_warmAuditPlanningRowIndex_(ss) {
         lastRow: data.length, lastCol: hdr.length
       };
     }
-    return { ok: !!ok, count: count, ms: Date.now() - t0 };
+    return { ok: !!ok, count: count, rowsWarmed: rowsWritten, ms: Date.now() - t0 };
   } catch (e) {
     Logger.log('[' + MP_AP_INDEX_BUILD + '] warm FAIL: ' + (e && e.message || e));
     return { ok: false, error: String(e && e.message || e), ms: Date.now() - t0 };

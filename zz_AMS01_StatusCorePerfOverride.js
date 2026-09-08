@@ -1,14 +1,14 @@
 /**
  * FILE: zz_AMS01_StatusCorePerfOverride.js
- * BUILD: AMS01_STATUS_CORE_PERF_ZZ_20260908_R7_TARGETED_STATUS_LOAD
+ * BUILD: AMS01_STATUS_CORE_PERF_ZZ_20260908_R8_LOCK_SAFE_TARGETED_STATUS_LOAD
  * DEV-only hot-path performance overrides.
  * - synchronous diagnostics -> Logger only
  * - status cache invalidation keeps Audit-ID row index intact
- * - StatusMachine reuses canonical __mp_getAuditPlanningRow_ target row
+ * - StatusMachine uses canonical Audit-ID -> row index, then reads that row fresh
  * - lifecycle metadata uses one bounded span read/write instead of multiple writes
  * - no status/planning/availability/notification truth changes
  */
-var AMS01_STATUS_CORE_PERF_ZZ_BUILD='AMS01_STATUS_CORE_PERF_ZZ_20260908_R7_TARGETED_STATUS_LOAD';
+var AMS01_STATUS_CORE_PERF_ZZ_BUILD='AMS01_STATUS_CORE_PERF_ZZ_20260908_R8_LOCK_SAFE_TARGETED_STATUS_LOAD';
 var AMS01_STATUS_CORE_CANONICAL_LOAD_=(typeof Status_loadAudit_==='function')?Status_loadAudit_:null;
 
 function Status_diagLog_(diagType,auditId,details){
@@ -38,34 +38,40 @@ function Status_loadAudit_(auditId){
   try{
     if(typeof __mp_getAuditPlanningRow_==='function'){
       var pack=__mp_getAuditPlanningRow_(SpreadsheetApp.getActive(),auditId);
-      if(pack&&pack.sh&&pack.hdr&&pack.row&&pack.rowNumber){
+      if(pack&&pack.sh&&pack.hdr&&pack.rowNumber){
         var hdr=(pack.hdr||[]).slice();
-        var row=(pack.row||[]).slice();
-        var idxAI=AMS01_statusFindHeader_(hdr,['Audit ID','Audit_ID','AuditId']);
-        var idxStatus=AMS01_statusFindHeader_(hdr,['Status']);
-        if(idxAI>=0&&idxStatus>=0&&String(row[idxAI]||'').trim()===auditId){
-          var out={
-            found:true,
-            sheet:pack.sh,
-            rowIndex:Number(pack.rowNumber||0),
-            row:row,
-            hdr:hdr,
-            auditId:auditId,
-            status:String(row[idxStatus]||'').trim(),
-            col:{
-              ai:idxAI,
-              status:idxStatus,
-              assigned:AMS01_statusFindHeader_(hdr,['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned']),
-              planned:AMS01_statusFindHeader_(hdr,['Date - Planned','Date – Planned','Date planned','Date Planned']),
-              approved:AMS01_statusFindHeader_(hdr,['Date - Approved','Date – Approved','Date approved','Date Approved']),
-              hours:AMS01_statusFindHeader_(hdr,['Hours planned','Planned hours','Hours Planned']),
-              json:AMS01_statusFindHeader_(hdr,['Planning JSON','PlanningJSON','Planning'])
-            },
-            __ams01TargetedStatusLoad:true,
-            __ams01TargetSource:pack.execRowHit?'EXEC_ROW':(pack.indexFromCache?'ROW_OR_INDEX_CACHE':'TARGETED')
-          };
-          try{Logger.log('[AMS01_STATUS_TARGETED_LOAD] '+JSON.stringify({build:AMS01_STATUS_CORE_PERF_ZZ_BUILD,auditId:auditId,rowIndex:out.rowIndex,source:out.__ams01TargetSource}));}catch(eLog){}
-          return out;
+        var rowIndex=Number(pack.rowNumber||0);
+        if(rowIndex>=2&&hdr.length){
+          // Lock-safe: the row index is acceleration-only; truth is reread from
+          // Audit planning now, inside the StatusMachine call/save lock.
+          var row=pack.sh.getRange(rowIndex,1,1,hdr.length).getValues()[0]||[];
+          var idxAI=AMS01_statusFindHeader_(hdr,['Audit ID','Audit_ID','AuditId']);
+          var idxStatus=AMS01_statusFindHeader_(hdr,['Status']);
+          if(idxAI>=0&&idxStatus>=0&&String(row[idxAI]||'').trim()===auditId){
+            var out={
+              found:true,
+              sheet:pack.sh,
+              rowIndex:rowIndex,
+              row:row,
+              hdr:hdr,
+              auditId:auditId,
+              status:String(row[idxStatus]||'').trim(),
+              col:{
+                ai:idxAI,
+                status:idxStatus,
+                assigned:AMS01_statusFindHeader_(hdr,['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned']),
+                planned:AMS01_statusFindHeader_(hdr,['Date - Planned','Date – Planned','Date planned','Date Planned']),
+                approved:AMS01_statusFindHeader_(hdr,['Date - Approved','Date – Approved','Date approved','Date Approved']),
+                hours:AMS01_statusFindHeader_(hdr,['Hours planned','Planned hours','Hours Planned']),
+                json:AMS01_statusFindHeader_(hdr,['Planning JSON','PlanningJSON','Planning'])
+              },
+              __ams01TargetedStatusLoad:true,
+              __ams01FreshRowRead:true,
+              __ams01TargetSource:pack.execRowHit?'EXEC_INDEX_FRESH_ROW':(pack.indexFromCache?'ROW_INDEX_CACHE_FRESH_ROW':'TARGETED_INDEX_FRESH_ROW')
+            };
+            try{Logger.log('[AMS01_STATUS_TARGETED_LOAD] '+JSON.stringify({build:AMS01_STATUS_CORE_PERF_ZZ_BUILD,auditId:auditId,rowIndex:rowIndex,source:out.__ams01TargetSource,freshRowRead:true}));}catch(eLog){}
+            return out;
+          }
         }
       }
     }
@@ -137,7 +143,7 @@ function AMS01_StatusCorePerfZZStatus(){
     wallMs:Date.now()-t0,
     statusDiagnostics:'LOGGER_ONLY',
     managerActionTiming:'LOGGER_ONLY',
-    statusLoad:'CANONICAL_TARGET_ROW_WITH_FALLBACK',
+    statusLoad:'CANONICAL_INDEX_PLUS_FRESH_ROW_WITH_FALLBACK',
     statusInvalidation:'ROW_PAYLOAD_NATIVE_KEYS_ONLY',
     lifecycleWrites:'SINGLE_BOUNDED_SPAN'
   };

@@ -1,6 +1,6 @@
 /**
  * FILE: zz_AMS01_PlanSaveTailPerfOverride.js
- * BUILD: AMS01_PLAN_SAVE_TAIL_PERF_ZZ_20260908_R1
+ * BUILD: AMS01_PLAN_SAVE_TAIL_PERF_ZZ_20260908_R2
  * DEV-only late-load optimization/instrumentation for real PLAN saves.
  *
  * Changes:
@@ -9,13 +9,14 @@
  *   and all non-PLAN diagnostics retain canonical behavior.
  * - Lifecycle metadata writes are grouped by contiguous columns to reduce
  *   Spreadsheet service calls while preserving exactly the same cell values.
- * - Adds timing around availability validate/writeback and lifecycle audit-trail
- *   append so the next normal DEV PLAN save identifies any remaining hot tail.
+ * - Adds timing around availability validate/writeback, Status_applyPlan_, the
+ *   complete lifecycle side-effect call and lifecycle audit-trail append so the
+ *   next normal DEV PLAN save identifies any remaining hot tail.
  *
  * No status, transition, planning, availability, queue, audit-trail or cache truth
  * is changed.
  */
-var AMS01_PLAN_SAVE_TAIL_PERF_ZZ_BUILD='AMS01_PLAN_SAVE_TAIL_PERF_ZZ_20260908_R1';
+var AMS01_PLAN_SAVE_TAIL_PERF_ZZ_BUILD='AMS01_PLAN_SAVE_TAIL_PERF_ZZ_20260908_R2';
 
 (function(){
   function log_(tag,obj){
@@ -98,6 +99,29 @@ var AMS01_PLAN_SAVE_TAIL_PERF_ZZ_BUILD='AMS01_PLAN_SAVE_TAIL_PERF_ZZ_20260908_R1
       var t0=Date.now();
       var res=canonicalAuditTrail_.apply(this,arguments);
       log_('[AMS01_PLAN_AUDIT_TRAIL]',{build:AMS01_PLAN_SAVE_TAIL_PERF_ZZ_BUILD,ms:Date.now()-t0,success:!!(res&&res.success!==false)});
+      return res;
+    };
+  }
+
+  if(typeof Lifecycle_onStatusChanged_==='function'){
+    var canonicalLifecycle_=Lifecycle_onStatusChanged_;
+    Lifecycle_onStatusChanged_=function(ctx){
+      var t0=Date.now();
+      var res=canonicalLifecycle_.apply(this,arguments);
+      var action=String((ctx&&ctx.action)||'').trim().toUpperCase();
+      if(action==='PLAN'){
+        log_('[AMS01_PLAN_LIFECYCLE]',{build:AMS01_PLAN_SAVE_TAIL_PERF_ZZ_BUILD,ms:Date.now()-t0,success:!!(res&&res.success!==false),statusSinceWritten:!!(res&&res.statusSinceWritten),managerMetadataWritten:!!(res&&res.managerMetadataWritten)});
+      }
+      return res;
+    };
+  }
+
+  if(typeof Status_applyPlan_==='function'){
+    var canonicalApplyPlan_=Status_applyPlan_;
+    Status_applyPlan_=function(){
+      var t0=Date.now();
+      var res=canonicalApplyPlan_.apply(this,arguments);
+      log_('[AMS01_PLAN_STATUS_CORE]',{build:AMS01_PLAN_SAVE_TAIL_PERF_ZZ_BUILD,ms:Date.now()-t0,success:!!(res&&res.success!==false)});
       return res;
     };
   }

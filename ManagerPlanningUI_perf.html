@@ -15,7 +15,7 @@
   } catch (e1) {}
 
   var trace = {
-    build: 'AMS01_TOOLKIT_MILESTONES_20260908_R3',
+    build: 'AMS01_TOOLKIT_MILESTONES_20260908_R4',
     auditId: (typeof auditId !== 'undefined' && auditId) ? String(auditId) : '',
     role: (typeof V5_ROLE !== 'undefined' && V5_ROLE) ? String(V5_ROLE) : '',
     startedAt: new Date(navStart).toISOString(),
@@ -133,27 +133,53 @@
     }
   } catch (e8) {}
 
-  // Manager first-use responsiveness: suppress speculative next4 months.
+  // Manager month navigation: keep visible-month priority, then warm only
+  // the immediately adjacent months. This replaces the former next4 batch.
+  // It keeps first-use load bounded while making previous/next month switches
+  // attach to an in-flight request or hit the in-session render cache.
   try {
     if (typeof V5_ROLE !== 'undefined' && String(V5_ROLE).toUpperCase() === 'MANAGER' &&
         typeof mpPrefetchNextMonthsAfterVisible_ === 'function') {
       var originalPrefetchNextMonths_ = mpPrefetchNextMonthsAfterVisible_;
       mpPrefetchNextMonthsAfterVisible_ = function(auditorEmail, visibleMonthKey, reason) {
         try {
-          if (typeof log === 'function') log('CAL: AMS01 manager next4 prefetch suppressed; visible month only reason=' + String(reason || ''));
-        } catch(e9) {}
-        return false;
+          var a = String(auditorEmail || '').trim();
+          var mk = String(visibleMonthKey || '').trim();
+          var m = /^(\d{4})-(\d{2})$/.exec(mk);
+          if (!a || !m || typeof mpStartMonthFetch_ !== 'function') return false;
+
+          var y = Number(m[1]);
+          var mo = Number(m[2]) - 1;
+          var prev = new Date(y, mo - 1, 1);
+          var next = new Date(y, mo + 1, 1);
+          var prevKey = String(prev.getFullYear()) + '-' + ('0' + (prev.getMonth() + 1)).slice(-2);
+          var nextKey = String(next.getFullYear()) + '-' + ('0' + (next.getMonth() + 1)).slice(-2);
+          var started = 0;
+
+          if (typeof mpMonthInsideWindowByKey_ !== 'function' || mpMonthInsideWindowByKey_(prevKey)) {
+            if (mpStartMonthFetch_(a, prevKey, 'ams01-adjacent-prev', 100)) started++;
+          }
+          if (typeof mpMonthInsideWindowByKey_ !== 'function' || mpMonthInsideWindowByKey_(nextKey)) {
+            if (mpStartMonthFetch_(a, nextKey, 'ams01-adjacent-next', 180)) started++;
+          }
+
+          try {
+            if (typeof log === 'function') log('CAL: AMS01 adjacent prefetch visible=' + mk + ' prev=' + prevKey + ' next=' + nextKey + ' started=' + started + ' reason=' + String(reason || ''));
+          } catch(e9) {}
+          return started > 0;
+        } catch(e10) {
+          return false;
+        }
       };
       window.__AMS01_MANAGER_NEXT4_PREFETCH_DISABLED = true;
+      window.__AMS01_MANAGER_ADJACENT_PREFETCH_ENABLED = true;
       window.__AMS01_MANAGER_NEXT4_PREFETCH_CANONICAL = originalPrefetchNextMonths_;
     }
-  } catch (e10) {}
+  } catch (e11) {}
 
-  // R3: Do not start a visible-month RPC for the manager's provisional
-  // default auditor during Toolkit bootstrap. In normal use the manager often
-  // chooses another auditor immediately; the stale RPC still consumes GAS/
-  // transport capacity and delays the real selection. Explicit auditor-select
-  // and visible-month refresh behavior remain canonical.
+  // Do not start a visible-month RPC for the manager's provisional default
+  // auditor during Toolkit bootstrap. The real auditor selection owns the
+  // first visible-month request.
   try {
     if (typeof V5_ROLE !== 'undefined' && String(V5_ROLE).toUpperCase() === 'MANAGER' &&
         typeof prefetchCalendarMonthsForAuditorSelection_ === 'function') {
@@ -162,7 +188,7 @@
         if (String(reason || '') === 'manager-default') {
           try {
             if (typeof log === 'function') log('CAL: AMS01 manager-default visible prefetch suppressed; waiting for actual auditor selection');
-          } catch(e11) {}
+          } catch(e12) {}
           return false;
         }
         return originalAuditorSelectionPrefetch_.apply(this, arguments);
@@ -170,6 +196,6 @@
       window.__AMS01_MANAGER_DEFAULT_PREFETCH_DISABLED = true;
       window.__AMS01_MANAGER_DEFAULT_PREFETCH_CANONICAL = originalAuditorSelectionPrefetch_;
     }
-  } catch (e12) {}
+  } catch (e13) {}
 })();
 </script>

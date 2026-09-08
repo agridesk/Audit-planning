@@ -1,13 +1,10 @@
 <!--
-EntryBootstrapV5_d16_FAST_RESOLVE_FIRST_20260503_1905.html
-Purpose: speed-first bootstrap.
-Change vs d15:
-- Starts V5_ENTRY_resolve immediately, before branded/skeleton DOM work.
-- Removes spinner/skeleton/shimmer page.
-- Keeps trusted-token flow unchanged.
-- Keeps V5_ENTRY_resolve contract unchanged.
-- Keeps document.write returned HTML contract unchanged.
-- No business logic, status, planning, availability or auth semantics changed.
+EntryBootstrapV5_d17_IMMEDIATE_FIRST_PAINT_20260908.html
+Purpose: speed-first bootstrap with immediate visible shell.
+Change vs d16:
+- Keeps V5_ENTRY_resolve as the first server roundtrip.
+- Paints the minimal "Opening audit data..." shell immediately instead of after 250 ms.
+- Does not change auth, routing, app rendering or backend data loading.
 -->
 <!doctype html>
 <html>
@@ -55,6 +52,7 @@ Change vs d15:
   </style>
 </head>
 <body>
+<div class="fallback" id="entryFallback"><strong id="entryFallbackLabel">Audit System</strong>Opening audit data...</div>
 <script>
 (function() {
   'use strict';
@@ -74,6 +72,11 @@ Change vs d15:
     auditId: '<?!= (typeof __auditId !== "undefined" ? __auditId : "") ?>'.trim()
   };
 
+  try {
+    var labelEl = document.getElementById('entryFallbackLabel');
+    if (labelEl) labelEl.textContent = resolveLabel_(ctx.action);
+  } catch (eLabel) {}
+
   // Logout without revoke: force showing Login once, while keeping trusted token stored.
   try {
     if (localStorage.getItem(LS + 'FORCE_LOGIN')) {
@@ -82,8 +85,7 @@ Change vs d15:
     }
   } catch (e) {}
 
-  // FAST PATH: start server resolution immediately. Do not wait for branded DOM,
-  // skeletons, animations, contextual text, or any other cosmetic work.
+  // FAST PATH: start server resolution immediately after the minimal shell exists.
   google.script.run
     .withSuccessHandler(function(html) {
       document.open();
@@ -96,26 +98,12 @@ Change vs d15:
     })
     .V5_ENTRY_resolve(ctx);
 
-  // Minimal fallback text only. No spinner, no skeleton, no animation.
-  // It appears only if the server roundtrip is not already replacing the document.
-  window.setTimeout(function() {
-    try {
-      if (!document.body || document.body.getAttribute('data-resolved') === '1') return;
-      if (document.body.children.length > 1) return;
-      var label = resolveLabel_(ctx.action);
-      document.body.insertAdjacentHTML(
-        'beforeend',
-        '<div class="fallback"><strong>' + escapeHtml_(label) + '</strong>Opening audit data...</div>'
-      );
-    } catch (e) {}
-  }, 250);
-
   function resolveLabel_(action) {
     var act = String(action || '').toLowerCase();
-    if (act === 'managertoolkit' || act === 'managerplanningtoolkit') return 'Planning Toolkit';
+    if (act === 'managertoolkit' || act === 'managerplanningtoolkit' || act === 'planningtoolkit') return 'Planning Toolkit';
     if (act === 'auditortoolkit' || act === 'auditorplanningtoolkit') return 'Auditor Planning';
     if (act === 'manager' || act === 'manageroverview') return 'Manager Overview';
-    if (act === 'auditor' || act === 'auditoroverview') return 'Auditor Overview';
+    if (act === 'auditor' || act === 'auditoroverview' || act === 'auditorportal') return 'Auditor Overview';
     if (act === 'auditoravailability') return 'Auditor Availability';
     return 'Audit System';
   }

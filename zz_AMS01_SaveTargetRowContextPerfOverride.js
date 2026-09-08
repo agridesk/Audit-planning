@@ -1,6 +1,6 @@
 /**
  * FILE: zz_AMS01_SaveTargetRowContextPerfOverride.js
- * BUILD: AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_20260908_R1
+ * BUILD: AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_20260908_R2
  *
  * DEV hot-path routing shim only.
  *
@@ -15,6 +15,8 @@
  * - Before the canonical save runs, fetch the current audit through the canonical
  *   __mp_getAuditPlanningRow_ owner.
  * - Seed the EXISTING execution cache contract with header + target row only.
+ * - Add a compact performance summary derived only from canonical debugTiming.
+ *   No extra Spreadsheet/Cache/Lock calls are introduced for instrumentation.
  * - The canonical save function, validators, StatusMachine, AvailabilityService,
  *   Notification Queue and all writes remain unchanged.
  *
@@ -23,20 +25,54 @@
  * - Cache is execution-local only and cannot outlive this server execution.
  * - If targeted row lookup is unavailable/fails, canonical save runs unchanged.
  */
-var AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_BUILD='AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_20260908_R1';
+var AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_BUILD='AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_20260908_R2';
 
 (function(){
   if(typeof saveManagerPlanning!=='function') return;
   var canonicalSaveManagerPlanning_=saveManagerPlanning;
 
   function clean_(v){ return String(v==null?'':v).trim(); }
+  function ms_(dbg,key){
+    try{return dbg&&dbg[key]&&isFinite(Number(dbg[key].ms))?Number(dbg[key].ms):null;}catch(e){return null;}
+  }
+  function delta_(a,b){
+    return (a!==null&&b!==null&&isFinite(a)&&isFinite(b))?Math.max(0,b-a):null;
+  }
+  function compactPerf_(result,prepMs,wrapperWallMs){
+    var d=(result&&result.debugTiming)||{};
+    var company=ms_(d,'companyConstraints');
+    var role=ms_(d,'roleContext');
+    var qual=ms_(d,'qualificationGuard');
+    var lock=ms_(d,'lockAcquired');
+    var avVal=ms_(d,'V5_availabilityValidate_');
+    var avWrite=ms_(d,'V5_availabilityWriteBack_');
+    var status=ms_(d,'Status_applyAction_PLAN');
+    var artifact=ms_(d,'V5_syncAuditArtifactsAfterPlanningSave_');
+    var tailOpen=ms_(d,'tail_openInvalidated');
+    var tailCal=ms_(d,'tail_calInvalidated');
+    var total=(result&&isFinite(Number(result.totalMs)))?Number(result.totalMs):ms_(d,'tail_returnReady');
+    return {
+      prepTargetRowMs:Number(prepMs||0),
+      companyConstraintsCumMs:company,
+      roleContextDeltaMs:delta_(company,role),
+      qualificationDeltaMs:delta_(role,qual),
+      lockWaitDeltaMs:delta_(qual,lock),
+      availabilityValidateDeltaMs:delta_(lock,avVal),
+      availabilityWriteDeltaMs:delta_(avVal,avWrite),
+      statusNotifyLifecycleDeltaMs:delta_(avWrite,status),
+      postStatusToArtifactDeltaMs:delta_(status,artifact),
+      tailOpenDeltaMs:delta_(artifact,tailOpen),
+      tailCalendarDeltaMs:delta_(tailOpen,tailCal),
+      canonicalTotalMs:total,
+      wrapperWallMs:Number(wrapperWallMs||0)
+    };
+  }
 
   saveManagerPlanning=function(auditId,payload){
     var t0=Date.now();
     var id=auditId;
     var pl=payload;
 
-    // Preserve canonical alternate argument-order tolerance.
     if(id && typeof id==='object' && id!==null && (typeof pl==='string' || typeof pl==='undefined')){
       var tmp=pl; pl=id; id=tmp;
     }
@@ -55,9 +91,6 @@ var AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_BUILD='AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_202
         var pack=__mp_getAuditPlanningRow_(ss,id);
         prepMs=Date.now()-r0;
         if(pack && pack.sh && pack.hdr && pack.row && pack.rowNumber){
-          // Existing __mp_getSheetDataCached_ contract: {sh,data,hdr}.
-          // Only callers that need the current audit during this save use this
-          // execution-local Audit planning view.
           __MP_EXEC_CACHE['SHEET:Audit planning']={
             sh:pack.sh,
             hdr:(pack.hdr||[]).slice(),
@@ -89,13 +122,15 @@ var AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_BUILD='AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_202
     var result=canonicalSaveManagerPlanning_.apply(this,arguments);
     try{
       if(result && typeof result==='object'){
+        var wall=Date.now()-t0;
         result.ams01TargetRowContext={
           build:AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_BUILD,
           seeded:seeded,
           source:source,
           prepMs:prepMs,
-          wrapperWallMs:Date.now()-t0
+          wrapperWallMs:wall
         };
+        result.ams01PerfSummary=compactPerf_(result,prepMs,wall);
       }
     }catch(_eResult){}
     return result;

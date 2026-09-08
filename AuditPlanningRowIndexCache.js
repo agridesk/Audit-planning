@@ -1,12 +1,16 @@
-// BUILD: AuditPlanningRowIndexCache_d16_AMS01_EXEC_ROW_REUSE_20260908
+// BUILD: AuditPlanningRowIndexCache_d17_AMS01_TARGETED_COLD_20260908
 // =====================================================================
 // PURPOSE
-//   Targeted single-row fetch for the 'Audit planning' sheet.
-//   AMS-01 d16 adds a true execution-local row payload tier so repeated
-//   reads of the same audit within one transaction do not call Sheets again.
+//   Targeted single-row fetch for the canonical 'Audit planning' sheet.
+//   d17 keeps d16 execution-row reuse and removes the full-sheet rebuild
+//   from the cold single-audit path. A cold lookup now reads only:
+//     1) the header row,
+//     2) the Audit ID column through TextFinder,
+//     3) the matched audit row.
+//   Full index construction remains available through the explicit warmer.
 // =====================================================================
 
-var MP_AP_INDEX_BUILD     = 'AuditPlanningRowIndexCache_d16_AMS01_EXEC_ROW_REUSE_20260908';
+var MP_AP_INDEX_BUILD     = 'AuditPlanningRowIndexCache_d17_AMS01_TARGETED_COLD_20260908';
 var MP_AP_INDEX_NS        = 'mp_audit_planning_index';
 var MP_AP_INDEX_KEY       = 'ap_row_index_v1';
 var MP_AP_INDEX_TTL_SEC   = 1500;
@@ -130,14 +134,14 @@ function __mp_getAuditPlanningRow_(ss, auditId) {
   var t0 = Date.now();
   var key = String(auditId || '').trim();
   if (!key) return null;
+  ss = ss || SpreadsheetApp.getActive();
   var sh = ss.getSheetByName('Audit planning');
   if (!sh) {
     Logger.log('[AP_INDEX_FAIL] sheet "Audit planning" not found');
     return null;
   }
 
-  // Tier 0: true execution-local row payload. This is authoritative only
-  // within the current execution and is cleared by canonical invalidation.
+  // Tier 0: true execution-local row payload.
   var execRowPayload = __mp_apExecRowGet_(key);
   if (execRowPayload) {
     Logger.log('[AP_INDEX_DIAG] tier=EXEC_ROW ms=' + (Date.now() - t0));
@@ -151,18 +155,15 @@ function __mp_getAuditPlanningRow_(ss, auditId) {
     };
   }
 
-  // Tier 1: per-audit CacheService row payload BEFORE index-only execution tier.
-  // The previous order caused an unnecessary getRange whenever an execution
-  // index was present, even though the exact row payload was already cached.
+  // Tier 1: generation-scoped per-audit CacheService payload.
   var rowCached = __mp_apRowCacheGet_(key);
   if (rowCached && rowCached.row) {
     __mp_apExecRowPut_(key, rowCached.hdr || [], rowCached.row, rowCached.rowNumber || 0, rowCached.lastCol || (rowCached.hdr || []).length);
-    Logger.log('[AP_INDEX_DIAG] tier=ROW_CACHE_d16 cols=' + (rowCached.row.length || 0) + ' ms=' + (Date.now() - t0));
+    Logger.log('[AP_INDEX_DIAG] tier=ROW_CACHE_d17 cols=' + (rowCached.row.length || 0) + ' ms=' + (Date.now() - t0));
     return { sh: sh, hdr: rowCached.hdr || [], row: rowCached.row, rowNumber: rowCached.rowNumber || 0, indexFromCache: true };
   }
 
-  // Tier 1.5: execution-local index. A sheet row read is required only when
-  // neither execution-row nor CacheService row payload exists.
+  // Tier 1.5: execution-local complete index, if already present.
   if (typeof __MP_EXEC_CACHE === 'object' && __MP_EXEC_CACHE && __MP_EXEC_CACHE[MP_AP_INDEX_EXEC_KEY]) {
     var execPack = __MP_EXEC_CACHE[MP_AP_INDEX_EXEC_KEY];
     var execRowNum = execPack.index && execPack.index[key];
@@ -175,7 +176,7 @@ function __mp_getAuditPlanningRow_(ss, auditId) {
     }
   }
 
-  // Tier 2: persisted index.
+  // Tier 2: persisted complete index, if available.
   var parsed = __mp_readAuditPlanningIndexPersist_();
   if (parsed && parsed.index && parsed.lastCol > 0) {
     var rowNum = parsed.index[key];
@@ -187,76 +188,57 @@ function __mp_getAuditPlanningRow_(ss, auditId) {
         lastRow: parsed.lastRow || 0,
         lastCol: parsed.lastCol
       };
-      if (typeof __MP_EXEC_CACHE === 'object' && __MP_EXEC_CACHE) {
-        __MP_EXEC_CACHE[MP_AP_INDEX_EXEC_KEY] = hotPack;
-      }
+      if (typeof __MP_EXEC_CACHE === 'object' && __MP_EXEC_CACHE) __MP_EXEC_CACHE[MP_AP_INDEX_EXEC_KEY] = hotPack;
       var hotRow = sh.getRange(rowNum, 1, 1, parsed.lastCol).getValues()[0] || [];
       __mp_apExecRowPut_(key, hotPack.hdr || [], hotRow, rowNum, parsed.lastCol);
       __mp_apRowCachePut_(key, hotPack.hdr || [], hotRow, rowNum, parsed.lastCol);
       Logger.log('[AP_INDEX_DIAG] tier=PERSIST_HIT count=' + hotPack.count + ' ms=' + (Date.now() - t0));
       return { sh: sh, hdr: hotPack.hdr, row: hotRow, rowNumber: rowNum, indexFromCache: true };
     }
-    Logger.log('[AP_INDEX_DIAG] tier=PERSIST_HIT_BUT_MISS auditId=' + key + ' (rebuilding)');
+    Logger.log('[AP_INDEX_DIAG] tier=PERSIST_HIT_BUT_MISS auditId=' + key + ' (targeted cold lookup)');
   }
 
-  // Tier 3: cold rebuild.
-  var data = sh.getDataRange().getValues() || [];
-  var hdr = (data.length > 0) ? (data[0] || []) : [];
+  // Tier 3 d17: targeted cold lookup. DO NOT rebuild/read the whole sheet.
+  var lastRow = sh.getLastRow();
+  var lastCol = sh.getLastColumn();
+  if (lastRow < 2 || lastCol < 1) return null;
+
+  var hdr = sh.getRange(1, 1, 1, lastCol).getValues()[0] || [];
   var colAI = __mp_findAuditIdCol_(hdr);
   if (colAI < 0) {
-    Logger.log('[AP_INDEX_FAIL] no Audit ID column; aborting cold build');
+    Logger.log('[AP_INDEX_FAIL] no Audit ID column; aborting targeted cold lookup');
     return null;
   }
-  var index = {};
-  var count = 0;
-  var targetRow = null;
-  var targetRowNum = -1;
-  for (var r = 1; r < data.length; r++) {
-    var rowAi = String(data[r][colAI] || '').trim();
-    if (!rowAi) continue;
-    var sheetRowNum = r + 1;
-    index[rowAi] = sheetRowNum;
-    count++;
-    if (rowAi === key) {
-      targetRow = data[r];
-      targetRowNum = sheetRowNum;
-    }
-  }
-  var lastCol = hdr.length;
 
-  __mp_writeAuditPlanningIndexPersist_({
-    hdr: hdr, index: index, count: count,
-    lastRow: data.length, lastCol: lastCol
-  }, MP_AP_INDEX_TTL_SEC);
-  if (typeof __MP_EXEC_CACHE === 'object' && __MP_EXEC_CACHE) {
-    __MP_EXEC_CACHE[MP_AP_INDEX_EXEC_KEY] = {
-      hdr: hdr, index: index, count: count,
-      lastRow: data.length, lastCol: lastCol
-    };
+  var searchRange = sh.getRange(2, colAI + 1, lastRow - 1, 1);
+  var cell = searchRange.createTextFinder(key).matchEntireCell(true).findNext();
+  if (!cell) {
+    Logger.log('[AP_INDEX_DIAG] tier=TARGETED_COLD_NOT_FOUND auditId=' + key + ' ms=' + (Date.now() - t0));
+    return null;
   }
 
-  if (targetRow) {
-    __mp_apExecRowPut_(key, hdr, targetRow, targetRowNum, lastCol);
-    __mp_apRowCachePut_(key, hdr, targetRow, targetRowNum, lastCol);
+  var targetRowNum = cell.getRow();
+  var targetRow = sh.getRange(targetRowNum, 1, 1, lastCol).getValues()[0] || [];
+  if (String(targetRow[colAI] || '').trim() !== key) {
+    Logger.log('[AP_INDEX_FAIL] targeted cold Audit ID mismatch auditId=' + key + ' row=' + targetRowNum);
+    return null;
   }
 
-  Logger.log('[AP_INDEX_DIAG] tier=COLD_BUILD count=' + count + ' ms=' + (Date.now() - t0));
-  if (!targetRow) return null;
-  return { sh: sh, hdr: hdr, row: targetRow, rowNumber: targetRowNum, indexFromCache: false };
+  __mp_apExecRowPut_(key, hdr, targetRow, targetRowNum, lastCol);
+  __mp_apRowCachePut_(key, hdr, targetRow, targetRowNum, lastCol);
+
+  Logger.log('[AP_INDEX_DIAG] tier=TARGETED_COLD row=' + targetRowNum + ' cols=' + lastCol + ' ms=' + (Date.now() - t0));
+  return { sh: sh, hdr: hdr, row: targetRow, rowNumber: targetRowNum, indexFromCache: false, targetedCold: true };
 }
 
 function __mp_invalidateAuditPlanningPack_() {
   try { __mp_apRowGenBump_(); } catch (e0) {}
   try { if (typeof _mp_pwGenBump_ === 'function') _mp_pwGenBump_(); } catch (e0b) {}
+  try { CacheService.getScriptCache().remove('MP_PERSIST::' + MP_AP_INDEX_NS + '::' + MP_AP_INDEX_KEY); } catch (e1) {}
   try {
-    CacheService.getScriptCache().remove('MP_PERSIST::' + MP_AP_INDEX_NS + '::' + MP_AP_INDEX_KEY);
-  } catch (e1) {}
-  try {
-    if (typeof AUDIT_CACHE !== 'undefined' && AUDIT_CACHE) {
-      if (typeof AUDIT_CACHE.remove === 'function') {
-        try { AUDIT_CACHE.remove(MP_AP_INDEX_NS, MP_AP_INDEX_KEY); }
-        catch (e2a) { AUDIT_CACHE.remove(MP_AP_INDEX_NS + '::' + MP_AP_INDEX_KEY); }
-      }
+    if (typeof AUDIT_CACHE !== 'undefined' && AUDIT_CACHE && typeof AUDIT_CACHE.remove === 'function') {
+      try { AUDIT_CACHE.remove(MP_AP_INDEX_NS, MP_AP_INDEX_KEY); }
+      catch (e2a) { AUDIT_CACHE.remove(MP_AP_INDEX_NS + '::' + MP_AP_INDEX_KEY); }
     }
   } catch (e2) {}
   try {
@@ -273,11 +255,9 @@ function __mp_warmAuditPlanningRowIndex_(ss) {
   try {
     if (!ss) ss = SpreadsheetApp.getActive();
     var sh = ss.getSheetByName('Audit planning');
-    if (!sh) return { ok: false, error: 'sheet not found', ms: Date.now() - t0 };
+    if (!sh) return { ok:false, error:'sheet not found', ms:Date.now()-t0 };
 
-    try {
-      CacheService.getScriptCache().remove('MP_PERSIST::' + MP_AP_INDEX_NS + '::' + MP_AP_INDEX_KEY);
-    } catch (eRm) {}
+    try { CacheService.getScriptCache().remove('MP_PERSIST::' + MP_AP_INDEX_NS + '::' + MP_AP_INDEX_KEY); } catch (eRm) {}
     try {
       if (typeof __MP_EXEC_CACHE === 'object' && __MP_EXEC_CACHE) {
         delete __MP_EXEC_CACHE[MP_AP_INDEX_EXEC_KEY];
@@ -286,12 +266,10 @@ function __mp_warmAuditPlanningRowIndex_(ss) {
     } catch (eRm2) {}
 
     var data = sh.getDataRange().getValues() || [];
-    var hdr = (data.length > 0) ? (data[0] || []) : [];
+    var hdr = data.length ? (data[0] || []) : [];
     var colAI = __mp_findAuditIdCol_(hdr);
-    if (colAI < 0) {
-      Logger.log('[' + MP_AP_INDEX_BUILD + '] warm SKIPPED: no Audit ID column');
-      return { ok: false, error: 'no Audit ID column', ms: Date.now() - t0 };
-    }
+    if (colAI < 0) return { ok:false, error:'no Audit ID column', ms:Date.now()-t0 };
+
     var index = {};
     var count = 0;
     var rowsWritten = 0;
@@ -300,23 +278,15 @@ function __mp_warmAuditPlanningRowIndex_(ss) {
       if (!v) continue;
       index[v] = r + 1;
       count++;
-      if (rowsWritten < MP_AP_ROW_WARM_CAP) {
-        if (__mp_apRowCachePut_(v, hdr, data[r], r + 1, hdr.length)) rowsWritten++;
-      }
+      if (rowsWritten < MP_AP_ROW_WARM_CAP && __mp_apRowCachePut_(v, hdr, data[r], r + 1, hdr.length)) rowsWritten++;
     }
-    var ok = __mp_writeAuditPlanningIndexPersist_({
-      hdr: hdr, index: index, count: count,
-      lastRow: data.length, lastCol: hdr.length
-    }, MP_AP_INDEX_TTL_SEC);
-    if (typeof __MP_EXEC_CACHE === 'object' && __MP_EXEC_CACHE) {
-      __MP_EXEC_CACHE[MP_AP_INDEX_EXEC_KEY] = {
-        hdr: hdr, index: index, count: count,
-        lastRow: data.length, lastCol: hdr.length
-      };
-    }
-    return { ok: !!ok, count: count, ms: Date.now() - t0 };
+
+    var payload = { hdr:hdr, index:index, count:count, lastRow:data.length, lastCol:hdr.length };
+    var ok = __mp_writeAuditPlanningIndexPersist_(payload, MP_AP_INDEX_TTL_SEC);
+    if (typeof __MP_EXEC_CACHE === 'object' && __MP_EXEC_CACHE) __MP_EXEC_CACHE[MP_AP_INDEX_EXEC_KEY] = payload;
+    return { ok:!!ok, count:count, rowsWarmed:rowsWritten, ms:Date.now()-t0 };
   } catch (e) {
     Logger.log('[' + MP_AP_INDEX_BUILD + '] warm FAIL: ' + (e && e.message || e));
-    return { ok: false, error: String(e && e.message || e), ms: Date.now() - t0 };
+    return { ok:false, error:String(e && e.message || e), ms:Date.now()-t0 };
   }
 }

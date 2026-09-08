@@ -2,7 +2,7 @@
  * =========================================================
  * AUDIT LIFECYCLE SERVICE
  * =========================================================
- * Build: 2026-05-01_LIFECYCLE_SIDE_EFFECTS_003_PROTECTED_FIELDS
+ * Build: 2026-09-08_LIFECYCLE_SIDE_EFFECTS_004_AMS01_BATCHED
  *
  * PURPOSE
  * - Central owner for lifecycle side effects after CoreStatusMachine or
@@ -30,33 +30,16 @@
  *   afterStatusDisplay?: string,
  *   reason?: string,
  *   source?: string,
- *
- *   // Optional direct Audit planning row target for active-row mutations.
  *   sheet?: GoogleAppsScript.Spreadsheet.Sheet,
- *   rowIndex?: number,             // 1-based sheet row
+ *   rowIndex?: number,
  *   headers?: string[] | any[],
  *   hdr?: string[] | any[],
- *
- *   // Optional arbitrary payload from the calling route.
  *   payload?: object
  * })
- *
- * RETURN DTO
- * {
- *   success: boolean,
- *   auditId: string,
- *   action: string,
- *   actorRole: string,
- *   statusChanged: boolean,
- *   managerMetadataWritten: boolean,
- *   statusSinceWritten: boolean,
- *   invalidation: object,
- *   auditTrail: object
- * }
  * =========================================================
  */
 
-var AUDIT_LIFECYCLE_SERVICE_BUILD = '2026-05-01_LIFECYCLE_SIDE_EFFECTS_003_PROTECTED_FIELDS';
+var AUDIT_LIFECYCLE_SERVICE_BUILD = '2026-09-08_LIFECYCLE_SIDE_EFFECTS_004_AMS01_BATCHED';
 
 function Lifecycle_onStatusChanged_(ctx) {
   ctx = ctx || {};
@@ -98,21 +81,34 @@ function Lifecycle_onStatusChanged_(ctx) {
   }
 
   var stamp = lifecycle_nowStamp_();
+  var target = lifecycle_resolveSheetTarget_(ctx);
+  if (target && target.success) {
+    var updates = [];
+    lifecycle_addCellUpdate_(updates, target, ['Status since'], stamp);
 
-  var stampRes = Lifecycle_stampStatusSince_(ctx, stamp);
-  result.statusSinceWritten = !!(stampRes && stampRes.written);
-  if (stampRes && stampRes.warning) result.warnings.push(stampRes.warning);
+    if (actorRole === 'MANAGER') {
+      var managerDecision = lifecycle_managerDecisionText_(action, afterStatus, ctx);
+      var managerComment = lifecycle_clean_(ctx.reason || (ctx.payload && (ctx.payload.reason || ctx.payload.comment || ctx.payload.managerComment)) || '');
+      lifecycle_addCellUpdate_(updates, target, ['Last manager decision'], managerDecision);
+      lifecycle_addCellUpdate_(updates, target, ['Last decision timestamp'], stamp);
+      lifecycle_addCellUpdate_(updates, target, ['Manager comment (last)'], managerComment);
+    }
 
-  if (actorRole === 'MANAGER') {
-    var mgrRes = Lifecycle_stampManagerDecision_(ctx, stamp);
-    result.managerMetadataWritten = !!(mgrRes && mgrRes.written);
-    if (mgrRes && mgrRes.warning) result.warnings.push(mgrRes.warning);
-  }
+    if (actorRole === 'AUDITOR') {
+      var auditorComment = lifecycle_clean_(ctx.reason || (ctx.payload && (ctx.payload.reason || ctx.payload.comment)) || '');
+      lifecycle_addCellUpdate_(updates, target, ['Last auditor decision'], action || 'STATUS_CHANGED');
+      lifecycle_addCellUpdate_(updates, target, ['Last auditor decision timestamp'], stamp);
+      lifecycle_addCellUpdate_(updates, target, ['Auditor comment (last)'], auditorComment);
+    }
 
-  if (actorRole === 'AUDITOR') {
-    var audRes = Lifecycle_stampAuditorDecision_(ctx, stamp);
-    result.auditorMetadataWritten = !!(audRes && audRes.written);
-    if (audRes && audRes.warning) result.warnings.push(audRes.warning);
+    var metaRes = lifecycle_writeUpdates_(target.sheet, target.rowIndex, updates, 'lifecycle status metadata');
+    result.statusSinceWritten = !!(metaRes && metaRes.written);
+    if (actorRole === 'MANAGER') result.managerMetadataWritten = !!(metaRes && metaRes.written);
+    if (actorRole === 'AUDITOR') result.auditorMetadataWritten = !!(metaRes && metaRes.written);
+    if (metaRes && metaRes.warning) result.warnings.push(metaRes.warning);
+    result.metadataBatches = metaRes && metaRes.batches ? metaRes.batches : 0;
+  } else if (target && target.warning) {
+    result.warnings.push(target.warning);
   }
 
   result.invalidation = Lifecycle_invalidateAfterLifecycleChange_(ctx);
@@ -130,7 +126,6 @@ function Lifecycle_stampManagerDecision_(ctx, stampOpt) {
   var action = lifecycle_normAction_(ctx.action);
   var afterStatus = lifecycle_statusDisplay_(ctx.afterStatusDisplay || ctx.afterStatus || '');
   var decisionText = lifecycle_managerDecisionText_(action, afterStatus, ctx);
-
   var comment = lifecycle_clean_(ctx.reason || (ctx.payload && (ctx.payload.reason || ctx.payload.comment || ctx.payload.managerComment)) || '');
 
   var updates = [];
@@ -171,10 +166,22 @@ function Lifecycle_stampStatusSince_(ctx, stampOpt) {
 function Lifecycle_invalidateAfterLifecycleChange_(ctx) {
   ctx = ctx || {};
   var auditId = lifecycle_clean_(ctx.auditId);
+  var action = lifecycle_normAction_(ctx.action);
+  var payload = ctx.payload || {};
+  var auditorEmail = lifecycle_clean_(payload.auditorEmail || payload.email || payload.userEmail || '');
+  var source = lifecycle_clean_(ctx.source || '');
+  var coreOwnsApInvalidation = source.indexOf('CoreStatusMachine') === 0;
+
   var out = {
     success:true,
+    build:AUDIT_LIFECYCLE_SERVICE_BUILD,
     auditId:auditId,
+    action:action,
+    source:source,
+    coreOwnsAuditPlanningInvalidation:coreOwnsApInvalidation,
+    auditorEmail:auditorEmail,
     events:[],
+    skipped:[],
     errors:[]
   };
 
@@ -187,39 +194,46 @@ function Lifecycle_invalidateAfterLifecycleChange_(ctx) {
     }
   }
 
-  run_('__mp_invalidateAuditPlanningPack_', function(){
-    if (typeof __mp_invalidateAuditPlanningPack_ === 'function') __mp_invalidateAuditPlanningPack_();
-  });
-
-  run_('__mp_invalidatePersistCaches_:Audit planning', function(){
-    if (typeof __mp_invalidatePersistCaches_ === 'function') __mp_invalidatePersistCaches_(['Audit planning']);
-  });
+  if (!coreOwnsApInvalidation) {
+    run_('__mp_invalidateAuditPlanningPack_', function(){
+      if (typeof __mp_invalidateAuditPlanningPack_ === 'function') __mp_invalidateAuditPlanningPack_();
+    });
+    run_('__mp_invalidatePersistCaches_:Audit planning', function(){
+      if (typeof __mp_invalidatePersistCaches_ === 'function') __mp_invalidatePersistCaches_(['Audit planning']);
+    });
+  } else {
+    out.skipped.push('__mp_invalidateAuditPlanningPack_:owned by CoreStatusMachine.Status_invalidateAuditPlanningPack_');
+    out.skipped.push('__mp_invalidatePersistCaches_:Audit planning:owned by CoreStatusMachine.Status_invalidateAuditPlanningPack_');
+  }
 
   if (auditId) {
-    run_('_mp_open_cacheInvalidate_', function(){
-      if (typeof _mp_open_cacheInvalidate_ === 'function') _mp_open_cacheInvalidate_(auditId);
+    run_('_mp_open_cacheInvalidate_:lite', function(){
+      if (typeof _mp_open_cacheInvalidate_ === 'function') _mp_open_cacheInvalidate_(auditId, { lite:true });
     });
-
     run_('_mp_aud_cacheInvalidate_', function(){
       if (typeof _mp_aud_cacheInvalidate_ === 'function') _mp_aud_cacheInvalidate_(auditId);
     });
   }
 
-  run_('V5_clearManagerOpenCache_', function(){
-    if (typeof V5_clearManagerOpenCache_ === 'function') V5_clearManagerOpenCache_();
-  });
-
-  run_('AUDIT_CACHE.removeNamespace(manager)', function(){
-    if (typeof AUDIT_CACHE !== 'undefined' && AUDIT_CACHE && typeof AUDIT_CACHE.removeNamespace === 'function') {
-      AUDIT_CACHE.removeNamespace('manager');
+  if (action === 'PLAN') {
+    out.skipped.push('V5_clearManagerOpenCache_:duplicate');
+    out.skipped.push('AUDIT_CACHE.removeNamespace(manager):PLAN uses audit-scoped open invalidation');
+    if (auditorEmail && typeof AUDIT_CACHE !== 'undefined' && AUDIT_CACHE && typeof AUDIT_CACHE.removeAuditorGrid === 'function') {
+      run_('AUDIT_CACHE.removeAuditorGrid(targeted)', function(){ AUDIT_CACHE.removeAuditorGrid(auditorEmail); });
+    } else {
+      out.skipped.push('AUDIT_CACHE.removeNamespace(auditor_grid):PLAN targeted key unavailable/unsupported');
     }
-  });
-
-  run_('AUDIT_CACHE.removeNamespace(auditor_grid)', function(){
-    if (typeof AUDIT_CACHE !== 'undefined' && AUDIT_CACHE && typeof AUDIT_CACHE.removeNamespace === 'function') {
-      AUDIT_CACHE.removeNamespace('auditor_grid');
-    }
-  });
+  } else {
+    run_('V5_clearManagerOpenCache_', function(){
+      if (typeof V5_clearManagerOpenCache_ === 'function') V5_clearManagerOpenCache_();
+    });
+    run_('AUDIT_CACHE.removeNamespace(manager)', function(){
+      if (typeof AUDIT_CACHE !== 'undefined' && AUDIT_CACHE && typeof AUDIT_CACHE.removeNamespace === 'function') AUDIT_CACHE.removeNamespace('manager');
+    });
+    run_('AUDIT_CACHE.removeNamespace(auditor_grid)', function(){
+      if (typeof AUDIT_CACHE !== 'undefined' && AUDIT_CACHE && typeof AUDIT_CACHE.removeNamespace === 'function') AUDIT_CACHE.removeNamespace('auditor_grid');
+    });
+  }
 
   out.success = out.errors.length === 0;
   return out;
@@ -293,12 +307,7 @@ function lifecycle_resolveSheetTarget_(ctx) {
     headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0] || [];
   }
 
-  return {
-    success:true,
-    sheet:sheet,
-    rowIndex:rowIndex,
-    headers:headers
-  };
+  return { success:true, sheet:sheet, rowIndex:rowIndex, headers:headers };
 }
 
 function lifecycle_addCellUpdate_(updates, target, candidates, value) {
@@ -314,10 +323,36 @@ function lifecycle_writeUpdates_(sheet, rowIndex, updates, label) {
   if (!updates.length) return { success:true, written:false, warning:'No matching columns for ' + label };
 
   try {
+    var normalized = [];
+    var seen = {};
     for (var i = 0; i < updates.length; i++) {
-      sheet.getRange(rowIndex, updates[i].col).setValue(updates[i].value);
+      var col = Number(updates[i] && updates[i].col || 0);
+      if (!col) continue;
+      seen[col] = { col:col, value:updates[i].value };
     }
-    return { success:true, written:true, count:updates.length };
+    Object.keys(seen).forEach(function(k){ normalized.push(seen[k]); });
+    normalized.sort(function(a,b){ return a.col - b.col; });
+    if (!normalized.length) return { success:true, written:false, warning:'No valid columns for ' + label };
+
+    var runs = [];
+    var run = [];
+    for (var n = 0; n < normalized.length; n++) {
+      if (!run.length || normalized[n].col === run[run.length - 1].col + 1) {
+        run.push(normalized[n]);
+      } else {
+        runs.push(run);
+        run = [normalized[n]];
+      }
+    }
+    if (run.length) runs.push(run);
+
+    for (var r = 0; r < runs.length; r++) {
+      var cur = runs[r];
+      var vals = [];
+      for (var j = 0; j < cur.length; j++) vals.push(cur[j].value);
+      sheet.getRange(rowIndex, cur[0].col, 1, cur.length).setValues([vals]);
+    }
+    return { success:true, written:true, count:normalized.length, batches:runs.length };
   } catch (e) {
     return { success:false, written:false, warning:'Write failed for ' + label + ': ' + lifecycle_err_(e) };
   }
@@ -347,12 +382,8 @@ function lifecycle_findHeaderIndex_(headers, candidates) {
 }
 
 function lifecycle_managerDecisionText_(action, afterStatus, ctx) {
-  // Governance: AJ "Last manager decision" stores ONLY the manager action label.
-  // No transition prose, no target status, no reason/comment concatenation.
-  // Reason/comment belongs in dedicated comment/audit-trail fields, not in AJ.
   var a = lifecycle_normAction_(action);
   if (!a) return 'STATUS_CHANGED';
-
   if (a === 'PLAN') return 'PLAN';
   if (a === 'APPROVE') return 'APPROVE';
   if (a === 'DENY') return 'DENY';
@@ -360,41 +391,22 @@ function lifecycle_managerDecisionText_(action, afterStatus, ctx) {
   if (a === 'REJECT') return 'REJECT';
   if (a === 'COMPLETE') return 'COMPLETE';
   if (a === 'ACCEPT') return 'ACCEPT';
-
   return a;
 }
 
 function lifecycle_statusDisplay_(v) {
   var raw = lifecycle_clean_(v);
   if (!raw) return '';
-  try {
-    if (typeof Status_toDisplayStatus_ === 'function') return Status_toDisplayStatus_(raw);
-  } catch (e) {}
+  try { if (typeof Status_toDisplayStatus_ === 'function') return Status_toDisplayStatus_(raw); } catch (e) {}
   return raw;
 }
 
-function lifecycle_normAction_(v) {
-  return lifecycle_clean_(v).toUpperCase().replace(/[\s\-]+/g, '_');
-}
+function lifecycle_normAction_(v) { return lifecycle_clean_(v).toUpperCase().replace(/[\s\-]+/g, '_'); }
+function lifecycle_normRole_(v) { return lifecycle_clean_(v).toUpperCase().replace(/[\s\-]+/g, '_'); }
+function lifecycle_normHeader_(v) { return lifecycle_clean_(v).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' '); }
+function lifecycle_clean_(v) { return String(v == null ? '' : v).replace(/\u00A0/g, ' ').replace(/[\u200B-\u200D\uFEFF]/g, '').trim(); }
 
-function lifecycle_normRole_(v) {
-  return lifecycle_clean_(v).toUpperCase().replace(/[\s\-]+/g, '_');
-}
-
-function lifecycle_normHeader_(v) {
-  return lifecycle_clean_(v).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
-}
-
-function lifecycle_clean_(v) {
-  return String(v == null ? '' : v)
-    .replace(/\u00A0/g, ' ')
-    .replace(/[\u200B-\u200D\uFEFF]/g, '')
-    .trim();
-}
-
-function lifecycle_nowStamp_() {
-  return Utilities.formatDate(new Date(), lifecycle_getTimezone_(), 'yyyy-MM-dd HH:mm:ss');
-}
+function lifecycle_nowStamp_() { return Utilities.formatDate(new Date(), lifecycle_getTimezone_(), 'yyyy-MM-dd HH:mm:ss'); }
 
 function lifecycle_getTimezone_() {
   try {
@@ -419,26 +431,8 @@ function lifecycle_getSpreadsheet_() {
   return SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.getActive();
 }
 
-function lifecycle_err_(e) {
-  return String(e && e.message ? e.message : e);
-}
+function lifecycle_err_(e) { return String(e && e.message ? e.message : e); }
 
-
-/**
- * Snapshot fields that lifecycle actions must never clear or mutate.
- * This service does not decide statuses; it only protects persistence side effects.
- *
- * Protected fields for Cancel/Deny/Reopen-style routes:
- * - Date - Will Expire
- * - Extended Expiration Date
- * - Planning window from
- * - Planning window to
- * - Company_UID
- *
- * Call before a route clears planning allocation fields, then call restore after
- * the route has written status/planning cleanup. Restore only writes if a
- * protected value changed during the route.
- */
 function Lifecycle_snapshotProtectedPlanningFields_(ctx) {
   ctx = ctx || {};
   var target = lifecycle_resolveSheetTarget_(ctx);
@@ -452,12 +446,7 @@ function Lifecycle_snapshotProtectedPlanningFields_(ctx) {
     var def = protectedDefs[i];
     var idx = lifecycle_findHeaderIndex_(target.headers, def.candidates);
     if (idx < 0) continue;
-    fields.push({
-      key: def.key,
-      label: def.label,
-      col: idx + 1,
-      value: rowValues[idx]
-    });
+    fields.push({ key:def.key, label:def.label, col:idx + 1, value:rowValues[idx] });
   }
 
   return {
@@ -525,9 +514,7 @@ function lifecycle_valuesEqual_(a, b) {
   if (a === b) return true;
   if (a === null || typeof a === 'undefined') a = '';
   if (b === null || typeof b === 'undefined') b = '';
-  if (Object.prototype.toString.call(a) === '[object Date]' && Object.prototype.toString.call(b) === '[object Date]') {
-    return a.getTime() === b.getTime();
-  }
+  if (Object.prototype.toString.call(a) === '[object Date]' && Object.prototype.toString.call(b) === '[object Date]') return a.getTime() === b.getTime();
   return String(a) === String(b);
 }
 

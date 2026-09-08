@@ -15,7 +15,7 @@
   } catch (e1) {}
 
   var trace = {
-    build: 'AMS01_TOOLKIT_MILESTONES_20260907',
+    build: 'AMS01_TOOLKIT_MILESTONES_20260908_R2',
     auditId: (typeof auditId !== 'undefined' && auditId) ? String(auditId) : '',
     role: (typeof V5_ROLE !== 'undefined' && V5_ROLE) ? String(V5_ROLE) : '',
     startedAt: new Date(navStart).toISOString(),
@@ -132,5 +132,26 @@
       };
     }
   } catch (e8) {}
+
+  // AMS-01 R2: manager first-use responsiveness.
+  // The visible month is the only planning-critical availability payload.
+  // The legacy next4 prefetch starts up to four additional google.script.run
+  // calls immediately after applying the visible month, which can contend with
+  // normal interaction/save RPCs. Disable that speculative prefetch for Manager
+  // in DEV. Auditor self-planning behavior remains unchanged.
+  try {
+    if (typeof V5_ROLE !== 'undefined' && String(V5_ROLE).toUpperCase() === 'MANAGER' &&
+        typeof mpPrefetchNextMonthsAfterVisible_ === 'function') {
+      var originalPrefetchNextMonths_ = mpPrefetchNextMonthsAfterVisible_;
+      mpPrefetchNextMonthsAfterVisible_ = function(auditorEmail, visibleMonthKey, reason) {
+        try {
+          if (typeof log === 'function') log('CAL: AMS01 manager next4 prefetch suppressed; visible month only reason=' + String(reason || ''));
+        } catch(e9) {}
+        return false;
+      };
+      window.__AMS01_MANAGER_NEXT4_PREFETCH_DISABLED = true;
+      window.__AMS01_MANAGER_NEXT4_PREFETCH_CANONICAL = originalPrefetchNextMonths_;
+    }
+  } catch (e10) {}
 })();
 </script>

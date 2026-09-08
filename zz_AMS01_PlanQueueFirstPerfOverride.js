@@ -1,6 +1,6 @@
 /**
  * FILE: zz_AMS01_PlanQueueFirstPerfOverride.js
- * BUILD: AMS01_PLAN_QUEUE_FIRST_PERF_ZZ_20260908_R1
+ * BUILD: AMS01_PLAN_QUEUE_FIRST_PERF_ZZ_20260908_R2
  * DEV-only performance override.
  *
  * AUDIT_PLANNED_BY_MANAGER is queued with a lightweight, lossless core payload.
@@ -8,9 +8,13 @@
  * NotificationSender -> NB_renderDigestEmail_, which already owns final mail
  * rendering from the queued payload.
  *
+ * R2:
+ * - Preserve hash-only duplicate semantics, but read only Status + PayloadHash
+ *   for the recent queue window instead of 13+ columns.
+ *
  * Queue remains SSoT. No lifecycle/planning/status/availability decision moves.
  */
-var AMS01_PLAN_QUEUE_FIRST_PERF_ZZ_BUILD='AMS01_PLAN_QUEUE_FIRST_PERF_ZZ_20260908_R1';
+var AMS01_PLAN_QUEUE_FIRST_PERF_ZZ_BUILD='AMS01_PLAN_QUEUE_FIRST_PERF_ZZ_20260908_R2';
 var AMS01_PLAN_QUEUE_FIRST_NEXT_PREVIEW=false;
 
 (function(){
@@ -131,6 +135,34 @@ var AMS01_PLAN_QUEUE_FIRST_NEXT_PREVIEW=false;
   };
 })();
 
+function NB_recentQueueDuplicate_(sh,hash,eventCode,recipientEmail,auditId){
+  var out={found:false};
+  if(!sh||!hash)return out;
+  try{
+    var lastRow=sh.getLastRow();
+    if(lastRow<2)return out;
+    var firstRow=Math.max(2,lastRow-199);
+    var rowCount=lastRow-firstRow+1;
+    var statuses=sh.getRange(firstRow,2,rowCount,1).getDisplayValues();
+    var hashes=sh.getRange(firstRow,11,rowCount,1).getDisplayValues();
+    for(var i=rowCount-1;i>=0;i--){
+      var status=cleanQueue_(statuses[i]&&statuses[i][0]).toUpperCase();
+      if(status!=='PENDING'&&status!=='RESERVED'&&status!=='SENT'&&status!=='SENT_DEV_REDIRECT')continue;
+      var rowHash=cleanQueue_(hashes[i]&&hashes[i][0]);
+      if(rowHash&&rowHash===hash){
+        out.found=true;
+        out.row=firstRow+i;
+        out.status=status;
+        out.match='HASH';
+        return out;
+      }
+    }
+  }catch(e){}
+  return out;
+}
+
+function cleanQueue_(v){return String(v==null?'':v).trim();}
+
 function AMS01_PlanQueueFirstPerfStatus(){
-  return {success:true,active:true,build:AMS01_PLAN_QUEUE_FIRST_PERF_ZZ_BUILD};
+  return {success:true,active:true,build:AMS01_PLAN_QUEUE_FIRST_PERF_ZZ_BUILD,duplicateScan:'STATUS_AND_HASH_ONLY'};
 }

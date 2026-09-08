@@ -1,17 +1,13 @@
 /**
  * FILE: Toolkit_AvailabilityRoute.js
- * BUILD: AMS01_TOOLKIT_AVAILABILITY_ROUTE_20260907_R1
+ * BUILD: AMS01_TOOLKIT_AVAILABILITY_ROUTE_20260908_R2_BATCH_MONTHS
  *
- * AMS-01 promoted visible-month route.
- * Reuses canonical AvailabilityService lite month reader and the existing
- * Planning JSON overlay. No second availability model; no business writes.
- *
- * The previous direct-month implementation remains in Toolkit_AvailabilityMonth.js
- * during DEV verification. This route owns the public endpoint in the current
- * DEV runtime; AMS01_GetAvailabilityRouteStatus verifies that ownership.
+ * AMS-01 promoted availability routes.
+ * Reuses canonical AvailabilityService lite reader and existing Planning JSON
+ * overlay. No second availability model; no business writes.
  */
 
-var AMS01_TOOLKIT_AVAILABILITY_ROUTE_BUILD = 'AMS01_TOOLKIT_AVAILABILITY_ROUTE_20260907_R1';
+var AMS01_TOOLKIT_AVAILABILITY_ROUTE_BUILD = 'AMS01_TOOLKIT_AVAILABILITY_ROUTE_20260908_R2_BATCH_MONTHS';
 
 function getToolkitAvailabilityMonthDirectV5(auditorEmail, monthKey, opts) {
   var t0 = Date.now();
@@ -63,11 +59,78 @@ function getToolkitAvailabilityMonthDirectV5(auditorEmail, monthKey, opts) {
   return out;
 }
 
+/**
+ * Batched calendar-navigation route.
+ * Executes multiple canonical month reads inside ONE google.script.run server
+ * execution so AvailabilityService execution-local header/row indexes are reused
+ * and browser transport overhead is paid once.
+ *
+ * Intended manager hot path: visible month + next month only.
+ */
+function getToolkitAvailabilityMonthsDirectV5(auditorEmail, monthKeys, opts) {
+  var t0 = Date.now();
+  opts = opts || {};
+  auditorEmail = _mp_tdm_normEmail_(auditorEmail);
+  monthKeys = Array.isArray(monthKeys) ? monthKeys.slice(0, 2) : [];
+
+  if (!auditorEmail) return { success:false, message:'Missing auditorEmail' };
+  if (!monthKeys.length) return { success:false, message:'Missing monthKeys' };
+
+  var seen = {};
+  var normalized = [];
+  for (var i = 0; i < monthKeys.length; i++) {
+    var mk = _mp_tdm_clean_(monthKeys[i]);
+    if (!/^\d{4}-\d{2}$/.test(mk) || seen[mk]) continue;
+    seen[mk] = true;
+    normalized.push(mk);
+  }
+  if (!normalized.length) return { success:false, message:'No valid monthKeys' };
+
+  var results = {};
+  var timings = {};
+  for (var j = 0; j < normalized.length; j++) {
+    var monthKey = normalized[j];
+    var m0 = Date.now();
+    var res = getToolkitAvailabilityMonthDirectV5(auditorEmail, monthKey, opts);
+    timings[monthKey] = Date.now() - m0;
+    results[monthKey] = res;
+    if (!res || res.success === false) {
+      return {
+        success:false,
+        message:(res && res.message) ? res.message : ('Month load failed: ' + monthKey),
+        failedMonth:monthKey,
+        results:results,
+        meta:{
+          build:AMS01_TOOLKIT_AVAILABILITY_ROUTE_BUILD,
+          routeOwner:'AvailabilityService.getAuditorAvailabilityLite',
+          monthTimings:timings,
+          serverMs:Date.now() - t0
+        }
+      };
+    }
+  }
+
+  return {
+    success:true,
+    auditorEmail:auditorEmail,
+    monthKeys:normalized,
+    results:results,
+    meta:{
+      build:AMS01_TOOLKIT_AVAILABILITY_ROUTE_BUILD,
+      routeOwner:'AvailabilityService.getAuditorAvailabilityLite',
+      batchMode:'VISIBLE_PLUS_NEXT_SINGLE_RPC',
+      monthTimings:timings,
+      serverMs:Date.now() - t0
+    }
+  };
+}
+
 function AMS01_GetAvailabilityRouteStatus() {
   return {
     success:true,
     active:true,
     build:AMS01_TOOLKIT_AVAILABILITY_ROUTE_BUILD,
-    owner:'AvailabilityService.getAuditorAvailabilityLite'
+    owner:'AvailabilityService.getAuditorAvailabilityLite',
+    batchMonths:true
   };
 }

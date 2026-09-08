@@ -1,19 +1,24 @@
 /**
  * FILE: zz_AMS01_CompanyConstraintsPerfOverride.js
- * BUILD: AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_20260908_R2
+ * BUILD: AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_20260908_R3
  * DEV-only late-load performance override.
  *
  * Canonical Companies sheet remains truth.
- * R2 removes the N+1 TextFinder/row-read pattern: one bounded A:W read per
- * execution is indexed by Company_UID and reused for all manager enrichment
- * rows and Toolkit company-constraint lookups.
+ * R2 removed N+1 sheet reads with one bounded A:W execution index.
+ * R3 also bypasses the legacy per-row persistent cache miss path once the
+ * execution index is active. One execution-local result cache is used instead.
  */
-var AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_BUILD='AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_20260908_R2';
+var AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_BUILD='AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_20260908_R3';
 var AMS01_COMPANY_CONSTRAINTS_EXEC_INDEX=null;
+var AMS01_COMPANY_CONSTRAINTS_EXEC_RESULTS={};
 
 (function(){
   if(typeof _mp_getCompanyConstraints_!=='function') return;
-  var canonical_=_mp_getCompanyConstraints_;
+  var canonicalGet_=_mp_getCompanyConstraints_;
+  var canonicalCached_=(typeof _mp_companyConstraintsCached_==='function')?_mp_companyConstraintsCached_:null;
+
+  function clean_(v){return String(v==null?'':v).trim();}
+  function resultKey_(company,location,uid){return clean_(uid)||('NM::'+clean_(company).toLowerCase()+'|'+clean_(location).toLowerCase());}
 
   function buildIndex_(ss){
     if(AMS01_COMPANY_CONSTRAINTS_EXEC_INDEX) return AMS01_COMPANY_CONSTRAINTS_EXEC_INDEX;
@@ -29,7 +34,7 @@ var AMS01_COMPANY_CONSTRAINTS_EXEC_INDEX=null;
     if(uidCol<0) return null;
     var byUid={};
     for(var r=1;r<data.length;r++){
-      var uid=String(data[r][uidCol]||'').trim();
+      var uid=clean_(data[r][uidCol]);
       if(uid&&!byUid[uid]) byUid[uid]={row:data[r],rowNumber:r+1};
     }
     AMS01_COMPANY_CONSTRAINTS_EXEC_INDEX={sh:sh,hdr:hdr,width:width,uidCol:uidCol,byUid:byUid,readMs:Date.now()-t0,rowsRead:Math.max(0,data.length-1)};
@@ -40,12 +45,15 @@ var AMS01_COMPANY_CONSTRAINTS_EXEC_INDEX=null;
   _mp_getCompanyConstraints_=function(ss,auditCompany,auditLocation,companyUid){
     var t0=Date.now();
     ss=ss||SpreadsheetApp.getActive();
-    var uid=String(companyUid||'').trim();
-    if(!uid) return canonical_(ss,auditCompany,auditLocation,companyUid);
+    var uid=clean_(companyUid);
+    if(!uid) return canonicalGet_(ss,auditCompany,auditLocation,companyUid);
+
+    var rk=resultKey_(auditCompany,auditLocation,uid);
+    if(AMS01_COMPANY_CONSTRAINTS_EXEC_RESULTS[rk]) return AMS01_COMPANY_CONSTRAINTS_EXEC_RESULTS[rk];
 
     try{
       var ix=buildIndex_(ss);
-      if(!ix||!ix.byUid[uid]) return canonical_(ss,auditCompany,auditLocation,companyUid);
+      if(!ix||!ix.byUid[uid]) return canonicalGet_(ss,auditCompany,auditLocation,companyUid);
       var hdr=ix.hdr||[];
       var rec=ix.byUid[uid];
       var row=rec.row||[];
@@ -64,8 +72,8 @@ var AMS01_COMPANY_CONSTRAINTS_EXEC_INDEX=null;
         colLocationsJson:_mp_findCol_(hdr,['Locations_JSON','Locations JSON']),
         colSlotTemplates:_mp_findCol_(hdr,['Slot_Templates','Slot Templates'])
       };
-      var bestRow=_mp_chooseBestCompanyRow_(data,cols.colUid,cols.colName,cols.colLoc,cols.colLocationsJson,cols.colSlotTemplates,uid,String(auditCompany||'').trim(),String(auditLocation||'').trim());
-      if(!bestRow) return canonical_(ss,auditCompany,auditLocation,companyUid);
+      var bestRow=_mp_chooseBestCompanyRow_(data,cols.colUid,cols.colName,cols.colLoc,cols.colLocationsJson,cols.colSlotTemplates,uid,clean_(auditCompany),clean_(auditLocation));
+      if(!bestRow) return canonicalGet_(ss,auditCompany,auditLocation,companyUid);
 
       var hqNameLegacy=cols.colLoc>=0?_mp_safeStr_(bestRow[cols.colLoc]):'';
       var hqGpsLegacy=cols.colGps>=0?_mp_safeStr_(bestRow[cols.colGps]):'';
@@ -97,13 +105,24 @@ var AMS01_COMPANY_CONSTRAINTS_EXEC_INDEX=null;
         __ams01CompanyIndexReadMs:ix.readMs,
         __ams01Ms:Date.now()-t0
       };
+      AMS01_COMPANY_CONSTRAINTS_EXEC_RESULTS[rk]=out;
       return out;
     }catch(e){
-      return canonical_(ss,auditCompany,auditLocation,companyUid);
+      return canonicalGet_(ss,auditCompany,auditLocation,companyUid);
     }
   };
+
+  if(canonicalCached_){
+    _mp_companyConstraintsCached_=function(ss,auditCompany,auditLocation,companyUid){
+      var uid=clean_(companyUid);
+      if(!uid) return canonicalCached_(ss,auditCompany,auditLocation,companyUid);
+      var rk=resultKey_(auditCompany,auditLocation,uid);
+      if(AMS01_COMPANY_CONSTRAINTS_EXEC_RESULTS[rk]) return AMS01_COMPANY_CONSTRAINTS_EXEC_RESULTS[rk];
+      return _mp_getCompanyConstraints_(ss||SpreadsheetApp.getActive(),auditCompany,auditLocation,uid);
+    };
+  }
 })();
 
 function AMS01_CompanyConstraintsPerfStatus(){
-  return {success:true,active:true,build:AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_BUILD,indexBuilt:!!AMS01_COMPANY_CONSTRAINTS_EXEC_INDEX};
+  return {success:true,active:true,build:AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_BUILD,indexBuilt:!!AMS01_COMPANY_CONSTRAINTS_EXEC_INDEX,resultCount:Object.keys(AMS01_COMPANY_CONSTRAINTS_EXEC_RESULTS||{}).length};
 }

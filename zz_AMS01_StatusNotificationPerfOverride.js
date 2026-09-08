@@ -1,26 +1,64 @@
 /**
  * FILE: zz_AMS01_StatusNotificationPerfOverride.js
- * BUILD: AMS01_STATUS_NOTIFICATION_PERF_ZZ_20260908_R3
- * DEV-only late-load override for AMS-01 notification performance validation.
- * R3: reuse execution-local status row and briefing result; no repeated AP row read.
+ * BUILD: AMS01_STATUS_NOTIFICATION_PERF_ZZ_20260908_R4
+ * DEV-only late-load override for AMS-01 notification performance.
+ * R4:
+ * - PLAN notification queue reuses saveManagerPlanning's existing ScriptLock.
+ * - All non-PLAN notification events retain the canonical 5s queue lock.
+ * - Queue timing is attached to the returned queue result for end-to-end SAVE RCA.
+ * - Reuse execution-local status row and briefing result; no repeated AP row read.
  */
-var AMS01_STATUS_NOTIFICATION_PERF_ZZ_BUILD='AMS01_STATUS_NOTIFICATION_PERF_ZZ_20260908_R3';
+var AMS01_STATUS_NOTIFICATION_PERF_ZZ_BUILD='AMS01_STATUS_NOTIFICATION_PERF_ZZ_20260908_R4';
 var AMS01_COMPANY_NUMBER_CACHE_KEY='AMS01_COMPANY_NUMBER_BY_UID_V2';
 var AMS01_COMPANY_NUMBER_EXEC_CACHE=null;
 var AMS01_ACCEPT_BRIEFING_EXEC_CACHE={};
 
 function StatusNotificationBridge_QueueWithLock_(recipientEmail,eventCode,queuePayload,auditId){
-  var lock=LockService.getScriptLock(),acquired=false,txStarted=Date.now(),txId=Utilities.getUuid();
-  var action=queuePayload&&queuePayload.action?String(queuePayload.action):'';
+  var txStarted=Date.now(),txId=Utilities.getUuid();
+  var action=queuePayload&&queuePayload.action?String(queuePayload.action).trim().toUpperCase():'';
   var actorRole=queuePayload&&queuePayload.actorRole?String(queuePayload.actorRole):'';
+  var reuseOuterPlanLock=(action==='PLAN');
+  var lock=null,acquired=false,waitMs=0,q0=0,result=null;
+
   try{
-    acquired=lock.tryLock(5000);var waitMs=Date.now()-txStarted;
-    if(!acquired){var deferred={success:false,retryable:true,reason:'QUEUE_LOCK_TIMEOUT_RECONCILER_FALLBACK',bufferedBy:'AcceptedNotificationReconciler',recipient:String(recipientEmail||'').trim(),eventType:String(eventCode||'').trim(),auditId:String(auditId||'').trim(),txId:txId,waitMs:waitMs};StatusNotificationBridge_Diag_('QUEUE_LOCK_TIMEOUT_AMS01',auditId||'',action,actorRole,'','',false,'Notification Queue lock not acquired within 5 seconds; reconciler fallback.',deferred);return deferred;}
-    var q0=Date.now(),result=NB_queueNotification_(recipientEmail,eventCode,queuePayload);
-    try{Logger.log('[AMS01_QUEUE_TX] '+JSON.stringify({build:AMS01_STATUS_NOTIFICATION_PERF_ZZ_BUILD,txId:txId,eventCode:eventCode||'',auditId:auditId||'',waitMs:waitMs,queueMs:Date.now()-q0,totalMs:Date.now()-txStarted,success:!!(result&&result.success!==false),skipped:!!(result&&result.skipped===true)}));}catch(eLog){}
+    if(!reuseOuterPlanLock){
+      lock=LockService.getScriptLock();
+      var wait0=Date.now();
+      acquired=lock.tryLock(5000);
+      waitMs=Date.now()-wait0;
+      if(!acquired){
+        var deferred={
+          success:false,retryable:true,reason:'QUEUE_LOCK_TIMEOUT_RECONCILER_FALLBACK',
+          bufferedBy:'AcceptedNotificationReconciler',recipient:String(recipientEmail||'').trim(),
+          eventType:String(eventCode||'').trim(),auditId:String(auditId||'').trim(),txId:txId,waitMs:waitMs,
+          __ams01QueueTiming:{build:AMS01_STATUS_NOTIFICATION_PERF_ZZ_BUILD,reusedOuterPlanLock:false,waitMs:waitMs,queueMs:0,totalMs:Date.now()-txStarted}
+        };
+        StatusNotificationBridge_Diag_('QUEUE_LOCK_TIMEOUT_AMS01',auditId||'',action,actorRole,'','',false,'Notification Queue lock not acquired within 5 seconds; reconciler fallback.',deferred);
+        return deferred;
+      }
+    }
+
+    q0=Date.now();
+    result=NB_queueNotification_(recipientEmail,eventCode,queuePayload);
+    var queueMs=Date.now()-q0;
+    var timing={
+      build:AMS01_STATUS_NOTIFICATION_PERF_ZZ_BUILD,
+      reusedOuterPlanLock:reuseOuterPlanLock,
+      waitMs:waitMs,
+      queueMs:queueMs,
+      totalMs:Date.now()-txStarted
+    };
+    if(result&&typeof result==='object') result.__ams01QueueTiming=timing;
+    try{Logger.log('[AMS01_QUEUE_TX] '+JSON.stringify({build:AMS01_STATUS_NOTIFICATION_PERF_ZZ_BUILD,txId:txId,eventCode:eventCode||'',auditId:auditId||'',action:action,reusedOuterPlanLock:reuseOuterPlanLock,waitMs:waitMs,queueMs:queueMs,totalMs:Date.now()-txStarted,success:!!(result&&result.success!==false),skipped:!!(result&&result.skipped===true)}));}catch(eLog){}
     return result;
-  }catch(e){var msg=String(e&&e.message?e.message:e),failed={success:false,retryable:true,reason:'QUEUE_WRITE_ERROR',error:msg,recipient:String(recipientEmail||'').trim(),eventType:String(eventCode||'').trim(),auditId:String(auditId||'').trim(),txId:txId};StatusNotificationBridge_Diag_('QUEUE_WRITE_ERROR_AMS01',auditId||'',action,actorRole,'','',false,msg,failed);return failed;}
-  finally{if(acquired){try{lock.releaseLock();}catch(eRelease){}}}
+  }catch(e){
+    var msg=String(e&&e.message?e.message:e);
+    var failed={success:false,retryable:true,reason:'QUEUE_WRITE_ERROR',error:msg,recipient:String(recipientEmail||'').trim(),eventType:String(eventCode||'').trim(),auditId:String(auditId||'').trim(),txId:txId,__ams01QueueTiming:{build:AMS01_STATUS_NOTIFICATION_PERF_ZZ_BUILD,reusedOuterPlanLock:reuseOuterPlanLock,waitMs:waitMs,queueMs:q0?(Date.now()-q0):0,totalMs:Date.now()-txStarted}};
+    StatusNotificationBridge_Diag_('QUEUE_WRITE_ERROR_AMS01',auditId||'',action,actorRole,'','',false,msg,failed);
+    return failed;
+  }finally{
+    if(acquired&&lock){try{lock.releaseLock();}catch(eRelease){}}
+  }
 }
 
 function StatusNotificationBridge_QueueAcceptedExternalDigest_(recipientEmail,queuePayload){

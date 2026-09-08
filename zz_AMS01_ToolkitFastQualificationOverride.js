@@ -1,20 +1,20 @@
 /**
  * FILE: zz_AMS01_ToolkitFastQualificationOverride.js
- * BUILD: AMS01_TOOLKIT_FAST_QUALIFICATION_ZZ_20260908_R3
- * DEV-only late-load override for AMS-01 Toolkit first-paint performance.
+ * BUILD: AMS01_TOOLKIT_FAST_QUALIFICATION_ZZ_20260908_R4
+ * DEV late-load implementation for AMS-01 Toolkit first-paint performance.
  *
  * Purpose:
  * - First paint remains HARD qualification only, using canonical
  *   TK3S_isAuditorQualified_R24_.
  * - Rotation/history enrichment remains pending/on-demand.
- * - Replace generic persisted full-sheet Auditors read with one bounded
- *   A:P read. Current DEV Auditors qualification/profile contract lives in
- *   A:P; all qualification scope columns and Blocked weekdays are included.
- * - Cache the resulting auditor profiles for same-execution reuse by the
- *   blocked-weekday enrichment path. Cache is execution-local only.
+ * - Avoid generic persisted full-sheet Auditors reads.
+ * - Read width is derived from actual headers + required scopes; there is no
+ *   hardcoded maximum scope column.
+ * - Cache resulting auditor profiles for same-execution reuse by blocked-weekday
+ *   enrichment. Cache is execution-local only.
  * - No planning/status/availability truth changes.
  */
-var AMS01_TOOLKIT_FAST_QUALIFICATION_ZZ_BUILD='AMS01_TOOLKIT_FAST_QUALIFICATION_ZZ_20260908_R3';
+var AMS01_TOOLKIT_FAST_QUALIFICATION_ZZ_BUILD='AMS01_TOOLKIT_FAST_QUALIFICATION_ZZ_20260908_R4';
 var AMS01_FAST_QUAL_EXEC_PROFILES={byEmail:{},byName:{}};
 
 function _mp_getQualifiedAuditorsFastList_(ss,requiredScopes,preassignedName,opts){
@@ -32,20 +32,61 @@ function _mp_getQualifiedAuditorsFastList_(ss,requiredScopes,preassignedName,opt
   if(!sh) throw new Error("Missing sheet 'Auditors'");
 
   var lastRow=Math.max(1,sh.getLastRow());
-  var readWidth=Math.min(16,Math.max(1,sh.getLastColumn()));
+  var lastCol=Math.max(1,sh.getLastColumn());
   var tRead=Date.now();
-  var data=sh.getRange(1,1,lastRow,readWidth).getValues();
+
+  // Header is tiny and is the schema truth. Read it completely so future scope
+  // columns can move or extend without changing code.
+  var fullHdr=sh.getRange(1,1,1,lastCol).getValues()[0]||[];
+
+  function idxCI_(candidates){
+    return _mp_findHeaderIdxCI_(fullHdr,candidates||[]);
+  }
+
+  var idxNameFull=idxCI_(['Name','Auditor','Auditor name']);
+  var idxEmailFull=idxCI_(['E-mail','Email','E-mail address','Mail']);
+  var idxActiveFull=idxCI_(['Active','Is active']);
+  var idxRoleFull=idxCI_(['Role','Function']);
+  var idxBWFull=idxCI_(['Blocked weekdays','Blocked days','Default unavailable','Default unavailable weekdays']);
+  if(idxNameFull<0||idxEmailFull<0||idxActiveFull<0||idxRoleFull<0){
+    throw new Error('Auditors headers missing (Name/E-mail/Active/Role)');
+  }
+
+  // Reproduce the canonical qualification header mapping only to determine
+  // which columns are needed for this request. Final qualification decision is
+  // still made exclusively by TK3S_isAuditorQualified_R24_.
+  var scopeHeaderIndex={};
+  for(var h=0;h<fullHdr.length;h++){
+    var raw=String(fullHdr[h]||'').trim();
+    if(!raw) continue;
+    scopeHeaderIndex[raw]=h;
+    try{
+      var canon=_mp_scopeCanonicalForRotation_(ss,raw);
+      if(canon) scopeHeaderIndex[canon]=h;
+    }catch(eCanon){}
+  }
+
+  var maxNeeded=Math.max(idxNameFull,idxEmailFull,idxActiveFull,idxRoleFull,idxBWFull);
+  for(var s=0;s<requiredScopes.length;s++){
+    var sc=String(requiredScopes[s]||'').trim();
+    if(!sc) continue;
+    try{ sc=_mp_scopeCanonicalForRotation_(ss,sc)||sc; }catch(eSc){}
+    if(scopeHeaderIndex.hasOwnProperty(sc)){
+      maxNeeded=Math.max(maxNeeded,Number(scopeHeaderIndex[sc]));
+    }
+  }
+
+  var readWidth=Math.min(lastCol,Math.max(1,maxNeeded+1));
+  var hdr=fullHdr.slice(0,readWidth);
+  var body=lastRow>=2?sh.getRange(2,1,lastRow-1,readWidth).getValues():[];
+  var data=[hdr].concat(body);
   var readMs=Date.now()-tRead;
-  var hdr=data[0]||[];
 
   var idxName=_mp_findHeaderIdxCI_(hdr,['Name','Auditor','Auditor name']);
   var idxEmail=_mp_findHeaderIdxCI_(hdr,['E-mail','Email','E-mail address','Mail']);
   var idxActive=_mp_findHeaderIdxCI_(hdr,['Active','Is active']);
   var idxRole=_mp_findHeaderIdxCI_(hdr,['Role','Function']);
   var idxBW=_mp_findHeaderIdxCI_(hdr,['Blocked weekdays','Blocked days','Default unavailable','Default unavailable weekdays']);
-  if(idxName<0||idxEmail<0||idxActive<0||idxRole<0){
-    throw new Error('Auditors headers missing (Name/E-mail/Active/Role)');
-  }
 
   var out=[];
   AMS01_FAST_QUAL_EXEC_PROFILES={byEmail:{},byName:{}};
@@ -96,8 +137,9 @@ function _mp_getQualifiedAuditorsFastList_(ss,requiredScopes,preassignedName,opt
       build:AMS01_TOOLKIT_FAST_QUALIFICATION_ZZ_BUILD,
       auditId:String(opts.auditId||''),
       requiredScopes:requiredScopes,
-      source:'DIRECT_BOUNDED_A_P',
+      source:'DIRECT_SCOPE_DRIVEN',
       rowsRead:data.length>0?data.length-1:0,
+      headerColumns:lastCol,
       columnsRead:readWidth,
       readMs:readMs,
       rowsReturned:out.length,

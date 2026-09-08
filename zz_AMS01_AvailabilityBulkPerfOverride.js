@@ -1,15 +1,14 @@
 /**
  * FILE: zz_AMS01_AvailabilityBulkPerfOverride.js
- * BUILD: AMS01_AVAILABILITY_BULK_PERF_ZZ_20260908_R1
+ * BUILD: AMS01_AVAILABILITY_BULK_PERF_ZZ_20260908_R2
  * DEV-only late-load performance override.
  *
  * Replaces only AvailabilityService.getAuditorAvailabilityLite.
- * Canonical Auditor Availability sheet remains truth; output contract is kept.
- * Index strategy: one contiguous read spanning Date + Auditor column, then
- * in-memory filter for the requested auditor/range. This replaces TextFinder
- * for the current ~560-row sheet where the measured bulk scan is faster.
+ * Canonical Auditor Availability sheet remains truth.
+ * Index strategy: one contiguous Date+Auditor read, then in-memory filter.
+ * R2 preserves canonical interval/day metadata contract while retaining bulk scan.
  */
-var AMS01_AVAILABILITY_BULK_PERF_ZZ_BUILD='AMS01_AVAILABILITY_BULK_PERF_ZZ_20260908_R1';
+var AMS01_AVAILABILITY_BULK_PERF_ZZ_BUILD='AMS01_AVAILABILITY_BULK_PERF_ZZ_20260908_R2';
 
 (function(){
   if (typeof AvailabilityService === 'undefined' || !AvailabilityService) return;
@@ -84,6 +83,16 @@ var AMS01_AVAILABILITY_BULK_PERF_ZZ_BUILD='AMS01_AVAILABILITY_BULK_PERF_ZZ_20260
     out.push({start:start,count:prev-start+1});
     return out;
   }
+  function ensureDay_(days,dateISO,availableCell){
+    if(!days[dateISO]){
+      days[dateISO]={intervals:[],meta:{availableCell:availableCell||'',plannedAuditIds:[]}};
+    }else{
+      days[dateISO].meta=days[dateISO].meta||{};
+      days[dateISO].meta.availableCell=availableCell||'';
+      if(!Array.isArray(days[dateISO].meta.plannedAuditIds)) days[dateISO].meta.plannedAuditIds=[];
+    }
+    return days[dateISO];
+  }
 
   AvailabilityService.getAuditorAvailabilityLite=function(auditorEmail,rangeStartISO,rangeEndISO,opts){
     opts=opts||{};
@@ -144,7 +153,7 @@ var AMS01_AVAILABILITY_BULK_PERF_ZZ_BUILD='AMS01_AVAILABILITY_BULK_PERF_ZZ_20260
     if(rowNumbers.length===1){
       rowByNumber[rowNumbers[0]]=sh.getRange(rowNumbers[0],1,1,lastCol).getValues()[0]||[];
       readBlocks=[{start:rowNumbers[0],count:1}];
-    } else {
+    }else{
       var minR=rowNumbers[0], maxR=rowNumbers[rowNumbers.length-1], span=maxR-minR+1;
       var maxSpan=Math.max(rowNumbers.length*30,800);
       if(span<=maxSpan && span<=5000){
@@ -156,7 +165,7 @@ var AMS01_AVAILABILITY_BULK_PERF_ZZ_BUILD='AMS01_AVAILABILITY_BULK_PERF_ZZ_20260
           if(set[actual]) rowByNumber[actual]=spanVals[k]||[];
         }
         readBlocks=[{start:minR,count:span}];
-      } else {
+      }else{
         readBlocks=blocks_(rowNumbers);
         for(var b=0;b<readBlocks.length;b++){
           var bl=readBlocks[b];
@@ -173,6 +182,7 @@ var AMS01_AVAILABILITY_BULK_PERF_ZZ_BUILD='AMS01_AVAILABILITY_BULK_PERF_ZZ_20260
       if(email_(row[cm.iAud])!==auditorKey) continue;
       var dateISO=normDate_(row[cm.iDate],tz);
       if(!dateISO||dateISO<rangeStart||dateISO>rangeEnd) continue;
+
       var info={
         avail:avail_(row[cm.iAvail]),
         s1:cm.iS1>=0?mins_(row[cm.iS1]):null,
@@ -184,20 +194,87 @@ var AMS01_AVAILABILITY_BULK_PERF_ZZ_BUILD='AMS01_AVAILABILITY_BULK_PERF_ZZ_20260
         st1:cm.iSt1>=0?clean_(row[cm.iSt1]):'',
         st2:cm.iSt2>=0?clean_(row[cm.iSt2]):''
       };
-      if(!days[dateISO]) days[dateISO]={intervals:[],meta:{}};
-      var day=days[dateISO];
-      if(!day.meta.availableCell && info.avail) day.meta.availableCell=info.avail;
+
+      var slot1Start=isFinite(info.s1)?hhmm_(info.s1):'09:00';
+      var slot1End=isFinite(info.e1)?hhmm_(info.e1):'17:00';
+      var slot2Start=isFinite(info.s2)?hhmm_(info.s2):'09:00';
+      var slot2End=isFinite(info.e2)?hhmm_(info.e2):'17:00';
+      var day=ensureDay_(days,dateISO,info.avail);
+
+      if(info.id1){
+        if(!day.meta.auditId1) day.meta.auditId1=info.id1;
+        if(!day.meta.slot1Start) day.meta.slot1Start=slot1Start;
+        if(!day.meta.slot1End) day.meta.slot1End=slot1End;
+        if(!day.meta.status1) day.meta.status1=info.st1;
+        if(day.meta.plannedAuditIds.indexOf(info.id1)<0) day.meta.plannedAuditIds.push(info.id1);
+      }
+      if(info.id2){
+        if(!day.meta.auditId2) day.meta.auditId2=info.id2;
+        if(!day.meta.slot2Start) day.meta.slot2Start=slot2Start;
+        if(!day.meta.slot2End) day.meta.slot2End=slot2End;
+        if(!day.meta.status2) day.meta.status2=info.st2;
+        if(day.meta.plannedAuditIds.indexOf(info.id2)<0) day.meta.plannedAuditIds.push(info.id2);
+      }
+
       if(info.avail==='NO'&&!info.id1&&!info.id2){
         var st1=clean_(info.st1).toUpperCase(), st2=clean_(info.st2).toUpperCase();
         var isSoft=soft_(st1)||soft_(st2);
         day.meta.softFullDay=!!isSoft;
-        day.intervals.push({startTime:isFinite(info.s1)?hhmm_(info.s1):'08:00',endTime:isFinite(info.e1)?hhmm_(info.e1):'18:00',hard:!isSoft,kind:isSoft?'soft':'hard',reason:isSoft?(st1||st2||'Soft unavailable'):'Available=NO'});
+        day.intervals.push({
+          startTime:isFinite(info.s1)?hhmm_(info.s1):'08:00',
+          endTime:isFinite(info.e1)?hhmm_(info.e1):'18:00',
+          reason:isSoft?(info.st1||info.st2||'Soft unavailable'):'Available=NO',
+          state:'BLOCKED',
+          kind:isSoft?'soft':'hard',
+          hard:!isSoft,
+          auditId:'',
+          slot:''
+        });
         continue;
       }
-      if(info.id1&&isFinite(info.s1)&&isFinite(info.e1)&&info.e1>info.s1) day.intervals.push({startTime:hhmm_(info.s1),endTime:hhmm_(info.e1),hard:true});
-      if(info.id2&&isFinite(info.s2)&&isFinite(info.e2)&&info.e2>info.s2) day.intervals.push({startTime:hhmm_(info.s2),endTime:hhmm_(info.e2),hard:true});
+
+      if(info.id1){
+        day.intervals.push({
+          startTime:slot1Start,
+          endTime:slot1End,
+          reason:'Occupied (Audit_ID_1='+info.id1+')',
+          state:'BLOCKED',
+          kind:'hard',
+          hard:true,
+          auditId:info.id1,
+          slot:'S1'
+        });
+      }
+      if(info.id2){
+        day.intervals.push({
+          startTime:slot2Start,
+          endTime:slot2End,
+          reason:'Occupied (Audit_ID_2='+info.id2+')',
+          state:'BLOCKED',
+          kind:'hard',
+          hard:true,
+          auditId:info.id2,
+          slot:'S2'
+        });
+      }
     }
-    Object.keys(days).forEach(function(d){ if(!days[d]||!days[d].intervals||!days[d].intervals.length) delete days[d]; });
+
+    Object.keys(days).forEach(function(d){
+      var day=days[d];
+      if(!day.meta) day.meta={};
+      if(!Array.isArray(day.meta.plannedAuditIds)) day.meta.plannedAuditIds=[];
+      if(day.meta.auditId1===undefined) day.meta.auditId1='';
+      if(day.meta.auditId2===undefined) day.meta.auditId2='';
+      if(day.meta.slot1Start===undefined) day.meta.slot1Start='';
+      if(day.meta.slot1End===undefined) day.meta.slot1End='';
+      if(day.meta.slot2Start===undefined) day.meta.slot2Start='';
+      if(day.meta.slot2End===undefined) day.meta.slot2End='';
+      if(day.meta.status1===undefined) day.meta.status1='';
+      if(day.meta.status2===undefined) day.meta.status2='';
+      if(day.meta.softFullDay===undefined) day.meta.softFullDay=false;
+      if(!day.intervals||!day.intervals.length) delete days[d];
+    });
+
     var buildMs=Date.now()-tBuild0;
     return {success:true,auditorKey:auditorKey,rangeStart:rangeStart,rangeEnd:rangeEnd,days:days,meta:{version:AMS01_AVAILABILITY_BULK_PERF_ZZ_BUILD,serverMs:Date.now()-t0,lite:true,optimized:true,rowsMatched:rowNumbers.length,rowBlocksRead:readBlocks.length,timing:{packMs:packMs,rowReadMs:rowReadMs,buildMs:buildMs},indexStrategy:'BULK_DATE_AUDITOR'}};
   };

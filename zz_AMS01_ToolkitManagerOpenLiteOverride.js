@@ -1,15 +1,15 @@
 /**
  * FILE: zz_AMS01_ToolkitManagerOpenLiteOverride.js
- * BUILD: AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_20260908_R4_CACHE_RESTORED
+ * BUILD: AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_20260908_R5_OPEN_SAVE_CACHE_BRIDGE
  * DEV-only routing optimization.
  *
  * Manager Toolkit open keeps canonical getToolkitOpenLiteV5 business logic,
- * seeds only the target Audit planning row, and now also reuses the canonical
- * route-aware open cache that the previous override accidentally bypassed.
+ * seeds only the target Audit planning row, reuses canonical open cache, and
+ * seeds the canonical fast qualification cache consumed later by Save.
  *
  * Locked AUDITOR/self-planning remains on canonical Fast unchanged.
  */
-var AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD='AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_20260908_R4_CACHE_RESTORED';
+var AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD='AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_20260908_R5_OPEN_SAVE_CACHE_BRIDGE';
 
 (function(){
   if(typeof getToolkitOpenFastV5!=='function' || typeof getToolkitOpenLiteV5!=='function') return;
@@ -30,6 +30,26 @@ var AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD='AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ
     return { sh:pack.sh, hdr:hdr, data:data, __ams01TargetRowOnly:true, __ams01RowNumber:physicalRow };
   }
 
+  function seedQualificationCache_(res){
+    try{
+      if(!res||!Array.isArray(res.auditors)||typeof _mp_fastOpenQualifiedCachePut_!=='function') return false;
+      var scopes=[];
+      var rawScopes=res.audit&&Array.isArray(res.audit.scopes)?res.audit.scopes:[];
+      for(var i=0;i<rawScopes.length;i++){
+        var s=rawScopes[i]||{};
+        var v=(s&&typeof s==='object')?String(s.name||s.code||s.slot||'').trim():String(s||'').trim();
+        if(v) scopes.push(v);
+      }
+      var pre=String((res.audit&&res.audit.preassignedAuditor)||'').trim();
+      var ok=_mp_fastOpenQualifiedCachePut_(scopes,pre,res.auditors);
+      if(ok){
+        res.__ams01QualificationCacheSeeded=true;
+        res.__ams01QualificationCacheScopes=scopes;
+      }
+      return !!ok;
+    }catch(e){ return false; }
+  }
+
   function managerCacheGet_(auditId){
     try{
       if(typeof _mp_open_cacheGet_!=='function') return null;
@@ -38,6 +58,7 @@ var AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD='AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ
         hit.__ams01LiteContext=true;
         hit.__ams01ManagerPrimaryRoute='LITE_VIA_FAST_COMPAT_OPEN_CACHE';
         hit.__ams01ManagerPrimaryRouteBuild=AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD;
+        seedQualificationCache_(hit);
         return hit;
       }
     }catch(e){}
@@ -46,7 +67,9 @@ var AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD='AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ
 
   function managerCachePut_(auditId,res){
     try{
-      if(typeof _mp_open_cachePut_!=='function'||!res||res.success!==true) return false;
+      if(!res||res.success!==true) return false;
+      seedQualificationCache_(res);
+      if(typeof _mp_open_cachePut_!=='function') return false;
       return !!_mp_open_cachePut_(auditId,res,{cacheKey:auditId,auditId:auditId,routeLabel:'MANAGER_LITE_AMS01',allowTier2:true});
     }catch(e){ return false; }
   }
@@ -119,7 +142,7 @@ var AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD='AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ
         res.auditorsBundle.auditorEligibilityMeta.reusedFromLiteOpen=true;
       }
 
-      try{Logger.log('[AMS01_TOOLKIT_MANAGER_OPEN_LITE] '+JSON.stringify({build:AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD,auditId:String(auditId||'').trim(),role:role||'MANAGER',ms:Date.now()-t0,success:!!(res&&res.success!==false),cacheHit:!!res.__cacheHit,cacheTier:res.__cacheTier||'',auditors:Array.isArray(res.auditors)?res.auditors.length:0,targetRowSeed:res.__ams01TargetRowSeed||null,auditorsBundleReused:!!(res.auditorsBundle&&res.auditorsBundle.reusedFromLiteOpen)}));}catch(eLog){}
+      try{Logger.log('[AMS01_TOOLKIT_MANAGER_OPEN_LITE] '+JSON.stringify({build:AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD,auditId:String(auditId||'').trim(),role:role||'MANAGER',ms:Date.now()-t0,success:!!(res&&res.success!==false),cacheHit:!!res.__cacheHit,cacheTier:res.__cacheTier||'',qualificationCacheSeeded:!!res.__ams01QualificationCacheSeeded,auditors:Array.isArray(res.auditors)?res.auditors.length:0,targetRowSeed:res.__ams01TargetRowSeed||null,auditorsBundleReused:!!(res.auditorsBundle&&res.auditorsBundle.reusedFromLiteOpen)}));}catch(eLog){}
       return res;
     }
 
@@ -127,4 +150,4 @@ var AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD='AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ
   };
 })();
 
-function AMS01_ToolkitManagerOpenLiteStatus(){ return {success:true,active:true,build:AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD,openCacheRestored:true}; }
+function AMS01_ToolkitManagerOpenLiteStatus(){ return {success:true,active:true,build:AMS01_TOOLKIT_MANAGER_OPEN_LITE_ZZ_BUILD,openCacheRestored:true,saveQualificationCacheSeed:true}; }

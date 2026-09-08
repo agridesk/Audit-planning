@@ -1,6 +1,6 @@
 /**
  * FILE: zz_AMS01_SaveTargetRowContextPerfOverride.js
- * BUILD: AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_20260908_R2
+ * BUILD: AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_20260908_R3
  *
  * DEV hot-path routing shim only.
  *
@@ -15,6 +15,8 @@
  * - Before the canonical save runs, fetch the current audit through the canonical
  *   __mp_getAuditPlanningRow_ owner.
  * - Seed the EXISTING execution cache contract with header + target row only.
+ * - Preserve the target's REAL physical row position in the synthetic data array,
+ *   because V5_findAuditPlanningRowById_ derives row numbers from that contract.
  * - Add a compact performance summary derived only from canonical debugTiming.
  *   No extra Spreadsheet/Cache/Lock calls are introduced for instrumentation.
  * - The canonical save function, validators, StatusMachine, AvailabilityService,
@@ -25,7 +27,7 @@
  * - Cache is execution-local only and cannot outlive this server execution.
  * - If targeted row lookup is unavailable/fails, canonical save runs unchanged.
  */
-var AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_BUILD='AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_20260908_R2';
+var AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_BUILD='AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_20260908_R3';
 
 (function(){
   if(typeof saveManagerPlanning!=='function') return;
@@ -68,6 +70,52 @@ var AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_BUILD='AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_202
     };
   }
 
+  function seedTargetRowView_(pack,id){
+    if(!pack||!pack.sh||!pack.hdr||!pack.row||!pack.rowNumber) return false;
+    if(typeof __MP_EXEC_CACHE!=='object'||!__MP_EXEC_CACHE) return false;
+
+    var physicalRow=Number(pack.rowNumber||0);
+    if(physicalRow<2) return false;
+    var hdr=(pack.hdr||[]).slice();
+    var row=(pack.row||[]).slice();
+
+    // Dense empty rows preserve physical row numbering for legacy callers that
+    // derive rowNumber from the array index. Empty arrays are safe for their
+    // column lookups and keep payload tiny compared with 92-column real rows.
+    var data=new Array(physicalRow);
+    data[0]=hdr;
+    for(var i=1;i<physicalRow-1;i++) data[i]=[];
+    data[physicalRow-1]=row;
+
+    __MP_EXEC_CACHE['SHEET:Audit planning']={
+      sh:pack.sh,
+      hdr:hdr,
+      data:data,
+      __ams01TargetRowOnly:true,
+      __ams01AuditId:id,
+      __ams01RowNumber:physicalRow
+    };
+
+    // __mp_getAuditPlanningPack_ is object-cached separately. Seed its exact
+    // contract too so V5_findAuditPlanningRowById_ returns the physical row
+    // without rebuilding/scanning the synthetic view.
+    var headerMap={};
+    for(var h=0;h<hdr.length;h++) headerMap[String(hdr[h]||'').trim()]=h;
+    var rowByAuditId={};
+    rowByAuditId[id]=physicalRow;
+    __MP_EXEC_CACHE['OBJ:AUDIT_PLANNING_PACK']={
+      ss:SpreadsheetApp.getActive(),
+      sh:pack.sh,
+      hdr:hdr,
+      data:data,
+      headerMap:headerMap,
+      rowByAuditId:rowByAuditId,
+      lastCol:hdr.length,
+      __ams01TargetRowOnly:true
+    };
+    return true;
+  }
+
   saveManagerPlanning=function(auditId,payload){
     var t0=Date.now();
     var id=auditId;
@@ -91,15 +139,7 @@ var AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_BUILD='AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_202
         var pack=__mp_getAuditPlanningRow_(ss,id);
         prepMs=Date.now()-r0;
         if(pack && pack.sh && pack.hdr && pack.row && pack.rowNumber){
-          __MP_EXEC_CACHE['SHEET:Audit planning']={
-            sh:pack.sh,
-            hdr:(pack.hdr||[]).slice(),
-            data:[(pack.hdr||[]).slice(),(pack.row||[]).slice()],
-            __ams01TargetRowOnly:true,
-            __ams01AuditId:id,
-            __ams01RowNumber:Number(pack.rowNumber||0)
-          };
-          seeded=true;
+          seeded=seedTargetRowView_(pack,id);
           source=pack.execRowHit?'EXEC_ROW':(pack.indexFromCache?'TARGETED_CACHE':'TARGETED_COLD');
           rowNumber=Number(pack.rowNumber||0);
         }
@@ -127,6 +167,7 @@ var AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_BUILD='AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_202
           build:AMS01_SAVE_TARGET_ROW_CONTEXT_ZZ_BUILD,
           seeded:seeded,
           source:source,
+          rowNumber:rowNumber,
           prepMs:prepMs,
           wrapperWallMs:wall
         };

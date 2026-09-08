@@ -1,15 +1,41 @@
 /**
  * FILE: zz_AMS01_CompanyConstraintsPerfOverride.js
- * BUILD: AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_20260908_R1
+ * BUILD: AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_20260908_R2
  * DEV-only late-load performance override.
- * Canonical Companies sheet remains truth. Uses Company_UID targeted lookup first;
- * falls back to the existing canonical implementation when UID lookup is unavailable.
+ *
+ * Canonical Companies sheet remains truth.
+ * R2 removes the N+1 TextFinder/row-read pattern: one bounded A:W read per
+ * execution is indexed by Company_UID and reused for all manager enrichment
+ * rows and Toolkit company-constraint lookups.
  */
-var AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_BUILD='AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_20260908_R1';
+var AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_BUILD='AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_20260908_R2';
+var AMS01_COMPANY_CONSTRAINTS_EXEC_INDEX=null;
 
 (function(){
   if(typeof _mp_getCompanyConstraints_!=='function') return;
   var canonical_=_mp_getCompanyConstraints_;
+
+  function buildIndex_(ss){
+    if(AMS01_COMPANY_CONSTRAINTS_EXEC_INDEX) return AMS01_COMPANY_CONSTRAINTS_EXEC_INDEX;
+    var t0=Date.now();
+    var sh=ss.getSheetByName('Companies');
+    if(!sh) return null;
+    var lastRow=sh.getLastRow();
+    var width=Math.min(sh.getLastColumn(),23);
+    if(lastRow<1||width<1) return null;
+    var data=sh.getRange(1,1,lastRow,width).getValues();
+    var hdr=data[0]||[];
+    var uidCol=_mp_findCol_(hdr,['Company_UID','Company UID','UID']);
+    if(uidCol<0) return null;
+    var byUid={};
+    for(var r=1;r<data.length;r++){
+      var uid=String(data[r][uidCol]||'').trim();
+      if(uid&&!byUid[uid]) byUid[uid]={row:data[r],rowNumber:r+1};
+    }
+    AMS01_COMPANY_CONSTRAINTS_EXEC_INDEX={sh:sh,hdr:hdr,width:width,uidCol:uidCol,byUid:byUid,readMs:Date.now()-t0,rowsRead:Math.max(0,data.length-1)};
+    try{Logger.log('[AMS01_COMPANY_INDEX] '+JSON.stringify({build:AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_BUILD,rowsRead:Math.max(0,data.length-1),width:width,mapSize:Object.keys(byUid).length,readMs:Date.now()-t0}));}catch(eLog){}
+    return AMS01_COMPANY_CONSTRAINTS_EXEC_INDEX;
+  }
 
   _mp_getCompanyConstraints_=function(ss,auditCompany,auditLocation,companyUid){
     var t0=Date.now();
@@ -18,23 +44,11 @@ var AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_BUILD='AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_2
     if(!uid) return canonical_(ss,auditCompany,auditLocation,companyUid);
 
     try{
-      var sh=ss.getSheetByName('Companies');
-      if(!sh) return canonical_(ss,auditCompany,auditLocation,companyUid);
-      var lastRow=sh.getLastRow();
-      if(lastRow<2) return canonical_(ss,auditCompany,auditLocation,companyUid);
-
-      // Current canonical Companies contract is contained within A:W.
-      var width=Math.min(sh.getLastColumn(),23);
-      var hdr=sh.getRange(1,1,1,width).getValues()[0]||[];
-      var uidCol=_mp_findCol_(hdr,['Company_UID','Company UID','UID']);
-      if(uidCol<0) return canonical_(ss,auditCompany,auditLocation,companyUid);
-
-      var matches=sh.getRange(2,uidCol+1,lastRow-1,1)
-        .createTextFinder(uid).matchEntireCell(true).matchCase(true).findAll()||[];
-      if(!matches.length) return canonical_(ss,auditCompany,auditLocation,companyUid);
-
-      var rn=matches[0].getRow();
-      var row=sh.getRange(rn,1,1,width).getValues()[0]||[];
+      var ix=buildIndex_(ss);
+      if(!ix||!ix.byUid[uid]) return canonical_(ss,auditCompany,auditLocation,companyUid);
+      var hdr=ix.hdr||[];
+      var rec=ix.byUid[uid];
+      var row=rec.row||[];
       var data=[hdr,row];
       var cols={
         colUid:_mp_findCol_(hdr,['Company_UID','Company UID','UID']),
@@ -79,13 +93,17 @@ var AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_BUILD='AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_2
         slotTemplates:{locations:(locations||[]).map(function(loc){return {code:loc.code,label:loc.name,gps:loc.gps,comment:loc.comment};}),slots:[]},
         timeWindow:(function(){var raw=cols.colHours>=0?_mp_safeStr_(bestRow[cols.colHours]):'';var p=V5_parseCompanyTimeWindow_(raw);return p?p.normalized:'';})(),
         __ams01CompanyConstraintsBuild:AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_BUILD,
-        __ams01Source:'TARGETED_COMPANY_UID',
+        __ams01Source:'EXEC_UID_INDEX',
+        __ams01CompanyIndexReadMs:ix.readMs,
         __ams01Ms:Date.now()-t0
       };
-      try{Logger.log('[AMS01_COMPANY_CONSTRAINTS] '+JSON.stringify({build:AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_BUILD,uid:uid,row:rn,width:width,ms:Date.now()-t0}));}catch(eLog){}
       return out;
     }catch(e){
       return canonical_(ss,auditCompany,auditLocation,companyUid);
     }
   };
 })();
+
+function AMS01_CompanyConstraintsPerfStatus(){
+  return {success:true,active:true,build:AMS01_COMPANY_CONSTRAINTS_PERF_ZZ_BUILD,indexBuilt:!!AMS01_COMPANY_CONSTRAINTS_EXEC_INDEX};
+}

@@ -1,13 +1,15 @@
 /**
  * FILE: zz_AMS01_StatusCorePerfOverride.js
- * BUILD: AMS01_STATUS_CORE_PERF_ZZ_20260908_R6_SINGLE_LIFECYCLE_SPAN
+ * BUILD: AMS01_STATUS_CORE_PERF_ZZ_20260908_R7_TARGETED_STATUS_LOAD
  * DEV-only hot-path performance overrides.
  * - synchronous diagnostics -> Logger only
  * - status cache invalidation keeps Audit-ID row index intact
+ * - StatusMachine reuses canonical __mp_getAuditPlanningRow_ target row
  * - lifecycle metadata uses one bounded span read/write instead of multiple writes
  * - no status/planning/availability/notification truth changes
  */
-var AMS01_STATUS_CORE_PERF_ZZ_BUILD='AMS01_STATUS_CORE_PERF_ZZ_20260908_R6_SINGLE_LIFECYCLE_SPAN';
+var AMS01_STATUS_CORE_PERF_ZZ_BUILD='AMS01_STATUS_CORE_PERF_ZZ_20260908_R7_TARGETED_STATUS_LOAD';
+var AMS01_STATUS_CORE_CANONICAL_LOAD_=(typeof Status_loadAudit_==='function')?Status_loadAudit_:null;
 
 function Status_diagLog_(diagType,auditId,details){
   try{Logger.log('[AMS01_STATUS_DIAG] '+JSON.stringify({build:AMS01_STATUS_CORE_PERF_ZZ_BUILD,type:String(diagType||''),auditId:String(auditId||''),details:details||{}}));}catch(e){}
@@ -19,6 +21,61 @@ function ManagerDiagnostics_RecordActionTiming(action,auditId,durationMs,success
   return {success:true,loggerOnly:true,build:AMS01_STATUS_CORE_PERF_ZZ_BUILD};
 }
 
+function AMS01_statusFindHeader_(hdr,candidates){
+  function norm_(v){return String(v||'').replace(/[–—−]/g,'-').replace(/\u00A0/g,' ').replace(/[\u200B-\u200D\uFEFF]/g,'').trim().toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();}
+  var map={};
+  for(var i=0;i<(hdr||[]).length;i++){var k=norm_(hdr[i]);if(k&&map[k]===undefined)map[k]=i;}
+  for(var j=0;j<(candidates||[]).length;j++){var c=norm_(candidates[j]);if(c&&map[c]!==undefined)return map[c];}
+  return -1;
+}
+
+function Status_loadAudit_(auditId){
+  auditId=String(auditId||'').trim();
+  if(!auditId){
+    if(AMS01_STATUS_CORE_CANONICAL_LOAD_) return AMS01_STATUS_CORE_CANONICAL_LOAD_(auditId);
+    return {found:false,error:(typeof Status_fail_==='function'?Status_fail_('Missing auditId'):{success:false,message:'Missing auditId'})};
+  }
+  try{
+    if(typeof __mp_getAuditPlanningRow_==='function'){
+      var pack=__mp_getAuditPlanningRow_(SpreadsheetApp.getActive(),auditId);
+      if(pack&&pack.sh&&pack.hdr&&pack.row&&pack.rowNumber){
+        var hdr=(pack.hdr||[]).slice();
+        var row=(pack.row||[]).slice();
+        var idxAI=AMS01_statusFindHeader_(hdr,['Audit ID','Audit_ID','AuditId']);
+        var idxStatus=AMS01_statusFindHeader_(hdr,['Status']);
+        if(idxAI>=0&&idxStatus>=0&&String(row[idxAI]||'').trim()===auditId){
+          var out={
+            found:true,
+            sheet:pack.sh,
+            rowIndex:Number(pack.rowNumber||0),
+            row:row,
+            hdr:hdr,
+            auditId:auditId,
+            status:String(row[idxStatus]||'').trim(),
+            col:{
+              ai:idxAI,
+              status:idxStatus,
+              assigned:AMS01_statusFindHeader_(hdr,['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned']),
+              planned:AMS01_statusFindHeader_(hdr,['Date - Planned','Date – Planned','Date planned','Date Planned']),
+              approved:AMS01_statusFindHeader_(hdr,['Date - Approved','Date – Approved','Date approved','Date Approved']),
+              hours:AMS01_statusFindHeader_(hdr,['Hours planned','Planned hours','Hours Planned']),
+              json:AMS01_statusFindHeader_(hdr,['Planning JSON','PlanningJSON','Planning'])
+            },
+            __ams01TargetedStatusLoad:true,
+            __ams01TargetSource:pack.execRowHit?'EXEC_ROW':(pack.indexFromCache?'ROW_OR_INDEX_CACHE':'TARGETED')
+          };
+          try{Logger.log('[AMS01_STATUS_TARGETED_LOAD] '+JSON.stringify({build:AMS01_STATUS_CORE_PERF_ZZ_BUILD,auditId:auditId,rowIndex:out.rowIndex,source:out.__ams01TargetSource}));}catch(eLog){}
+          return out;
+        }
+      }
+    }
+  }catch(eTarget){
+    try{Logger.log('[AMS01_STATUS_TARGETED_LOAD_FAIL] '+String(eTarget&&eTarget.message?eTarget.message:eTarget));}catch(_eLog){}
+  }
+  if(AMS01_STATUS_CORE_CANONICAL_LOAD_) return AMS01_STATUS_CORE_CANONICAL_LOAD_(auditId);
+  return {found:false,error:(typeof Status_fail_==='function'?Status_fail_('Audit not found: '+auditId):{success:false,message:'Audit not found: '+auditId})};
+}
+
 function Status_invalidateAuditPlanningPack_(){
   var t0=Date.now();
   var stages=[];
@@ -27,7 +84,6 @@ function Status_invalidateAuditPlanningPack_(){
     try{fn();stages.push({name:name,wallMs:Date.now()-s,ok:true});}
     catch(e){stages.push({name:name,wallMs:Date.now()-s,ok:false,error:String(e&&e.message?e.message:e)});}
   }
-
   run_('__mp_apRowGenBump_',function(){ if(typeof __mp_apRowGenBump_==='function') __mp_apRowGenBump_(); });
   run_('__MP_EXEC_CACHE clear',function(){
     if(typeof __MP_EXEC_CACHE==='object'&&__MP_EXEC_CACHE){
@@ -40,15 +96,11 @@ function Status_invalidateAuditPlanningPack_(){
     c.remove('MP_PERSIST::mp_readonly_sheet::sheet::Audit planning');
     c.remove('MP_PERSIST::Audit planning');
   });
-
   var out={success:true,build:AMS01_STATUS_CORE_PERF_ZZ_BUILD,mode:'STATUS_ROW_PAYLOAD_NATIVE_KEYS_ONLY',wallMs:Date.now()-t0,stages:stages};
   try{Logger.log('[AMS01_STATUS_INVALIDATE] '+JSON.stringify(out));}catch(eLog){}
   return out;
 }
 
-// Canonical AuditLifecycleService remains owner of metadata semantics.
-// This late-load writer changes only physical persistence: all distinct values
-// are merged into one bounded row span, preserving untouched cells in-between.
 function lifecycle_writeUpdates_(sheet,rowIndex,updates,label){
   updates=updates||[];
   if(!sheet||!rowIndex) return {success:false,written:false,warning:'Missing sheet target for '+label};
@@ -85,6 +137,7 @@ function AMS01_StatusCorePerfZZStatus(){
     wallMs:Date.now()-t0,
     statusDiagnostics:'LOGGER_ONLY',
     managerActionTiming:'LOGGER_ONLY',
+    statusLoad:'CANONICAL_TARGET_ROW_WITH_FALLBACK',
     statusInvalidation:'ROW_PAYLOAD_NATIVE_KEYS_ONLY',
     lifecycleWrites:'SINGLE_BOUNDED_SPAN'
   };

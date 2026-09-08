@@ -1,17 +1,18 @@
 /**
  * FILE: zz_AMS01_ToolkitFastQualificationOverride.js
- * BUILD: AMS01_TOOLKIT_FAST_QUALIFICATION_ZZ_20260908_R1
+ * BUILD: AMS01_TOOLKIT_FAST_QUALIFICATION_ZZ_20260908_R2
  * DEV-only late-load override for AMS-01 Toolkit first-paint performance.
  *
  * Purpose:
- * - Replace the historical "fast" helper that still delegates into the full
- *   canonical eligibility/rotation stack.
- * - First paint remains HARD qualification only, using the canonical
- *   TK3S_isAuditorQualified_R24_ predicate.
+ * - First paint remains HARD qualification only, using canonical
+ *   TK3S_isAuditorQualified_R24_.
  * - Rotation/history enrichment remains pending/on-demand.
+ * - Replace generic persisted full-sheet Auditors read with one bounded
+ *   A:P read. Current DEV Auditors qualification/profile contract lives in
+ *   A:P; all qualification scope columns and Blocked weekdays are included.
  * - No planning/status/availability truth changes.
  */
-var AMS01_TOOLKIT_FAST_QUALIFICATION_ZZ_BUILD='AMS01_TOOLKIT_FAST_QUALIFICATION_ZZ_20260908_R1';
+var AMS01_TOOLKIT_FAST_QUALIFICATION_ZZ_BUILD='AMS01_TOOLKIT_FAST_QUALIFICATION_ZZ_20260908_R2';
 
 function _mp_getQualifiedAuditorsFastList_(ss,requiredScopes,preassignedName,opts){
   var t0=Date.now();
@@ -24,13 +25,16 @@ function _mp_getQualifiedAuditorsFastList_(ss,requiredScopes,preassignedName,opt
     throw new Error('Missing TK3S_isAuditorQualified_R24_');
   }
 
-  var pack=(typeof __mp_getSheetDataPersistCached_==='function')
-    ? __mp_getSheetDataPersistCached_(ss,'Auditors',300)
-    : null;
-  if(!pack||!pack.sh) throw new Error("Missing sheet 'Auditors'");
+  var sh=ss.getSheetByName('Auditors');
+  if(!sh) throw new Error("Missing sheet 'Auditors'");
 
-  var data=pack.data||[];
-  var hdr=pack.hdr||data[0]||[];
+  var lastRow=Math.max(1,sh.getLastRow());
+  var readWidth=Math.min(16,Math.max(1,sh.getLastColumn()));
+  var tRead=Date.now();
+  var data=sh.getRange(1,1,lastRow,readWidth).getValues();
+  var readMs=Date.now()-tRead;
+  var hdr=data[0]||[];
+
   var idxName=_mp_findHeaderIdxCI_(hdr,['Name','Auditor','Auditor name']);
   var idxEmail=_mp_findHeaderIdxCI_(hdr,['E-mail','Email','E-mail address','Mail']);
   var idxActive=_mp_findHeaderIdxCI_(hdr,['Active','Is active']);
@@ -83,7 +87,10 @@ function _mp_getQualifiedAuditorsFastList_(ss,requiredScopes,preassignedName,opt
       build:AMS01_TOOLKIT_FAST_QUALIFICATION_ZZ_BUILD,
       auditId:String(opts.auditId||''),
       requiredScopes:requiredScopes,
+      source:'DIRECT_BOUNDED_A_P',
       rowsRead:data.length>0?data.length-1:0,
+      columnsRead:readWidth,
+      readMs:readMs,
       rowsReturned:out.length,
       serverMs:Date.now()-t0
     }));

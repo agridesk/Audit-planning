@@ -1,17 +1,17 @@
 /**
  * FILE: zz_AMS01_ManagerToolkitColdOpenPerfOverride.js
- * BUILD: AMS01_MANAGER_TOOLKIT_COLD_OPEN_PERF_ZZ_20260908_R3
- * DEV-only late-load override for AMS-01 Manager Toolkit cold-open validation.
+ * BUILD: AMS01_MANAGER_TOOLKIT_COLD_OPEN_PERF_ZZ_20260908_R4
+ * DEV late-load implementation for AMS-01 Manager Toolkit cold-open performance.
  *
  * Purpose:
  * - Avoid generic persisted/full-sheet Auditors reads on Manager Toolkit open.
  * - If no auditor is selected/assigned/preassigned, return empty enrichment.
  * - Reuse same-execution auditor profiles produced by fast qualification when available.
- * - Otherwise read only Auditors A:P and resolve blocked weekdays.
+ * - Otherwise derive the minimal required Auditors read width from headers.
  * - Preserve the existing companyConstraints output contract.
  */
 
-var AMS01_MANAGER_TOOLKIT_COLD_OPEN_PERF_BUILD = 'AMS01_MANAGER_TOOLKIT_COLD_OPEN_PERF_ZZ_20260908_R3';
+var AMS01_MANAGER_TOOLKIT_COLD_OPEN_PERF_BUILD = 'AMS01_MANAGER_TOOLKIT_COLD_OPEN_PERF_ZZ_20260908_R4';
 
 function ManagerV5_applyToolkitAuditorBlockedWeekdays_(companyConstraints, ss, auditorEmail, auditorName) {
   companyConstraints = companyConstraints || {};
@@ -49,17 +49,24 @@ function ManagerV5_applyToolkitAuditorBlockedWeekdays_(companyConstraints, ss, a
         var sh = ss.getSheetByName('Auditors');
         if (sh) {
           var lastRow = sh.getLastRow();
+          var lastCol = Math.max(1, sh.getLastColumn());
           if (lastRow >= 2) {
-            var width = Math.min(sh.getLastColumn(), 16);
-            var data = sh.getRange(1, 1, lastRow, width).getValues();
-            var hdr = data[0] || [];
+            var fullHdr = sh.getRange(1, 1, 1, lastCol).getValues()[0] || [];
+            var cNameFull = _mp_findCol_(fullHdr, ['Name','Auditor','Auditor name']);
+            var cEmailFull = _mp_findCol_(fullHdr, ['E-mail','Email','E mail']);
+            var cActiveFull = _mp_findCol_(fullHdr, ['Active']);
+            var cBlockFull = _mp_findCol_(fullHdr, ['Blocked weekdays','Default blocked weekdays','Blocked weekdays (default)']);
+            var maxNeeded = Math.max(cNameFull, cEmailFull, cActiveFull, cBlockFull);
+            var width = Math.min(lastCol, Math.max(1, maxNeeded + 1));
+            var hdr = fullHdr.slice(0, width);
+            var body = sh.getRange(2, 1, lastRow - 1, width).getValues();
             var cName = _mp_findCol_(hdr, ['Name','Auditor','Auditor name']);
             var cEmail = _mp_findCol_(hdr, ['E-mail','Email','E mail']);
             var cActive = _mp_findCol_(hdr, ['Active']);
             var cBlock = _mp_findCol_(hdr, ['Blocked weekdays','Default blocked weekdays','Blocked weekdays (default)']);
 
-            for (var r = 1; r < data.length; r++) {
-              var row = data[r] || [];
+            for (var r = 0; r < body.length; r++) {
+              var row = body[r] || [];
               var rowEmail = cEmail >= 0 ? String(row[cEmail] || '').trim().toLowerCase() : '';
               var rowName = cName >= 0 ? String(row[cName] || '').trim().toLowerCase() : '';
               if ((auditorEmail && rowEmail === auditorEmail) || (auditorName && rowName === auditorName)) {
@@ -69,7 +76,7 @@ function ManagerV5_applyToolkitAuditorBlockedWeekdays_(companyConstraints, ss, a
                 }
                 found = true;
                 bw = cBlock >= 0 ? String(row[cBlock] || '').trim() : '';
-                source = 'DIRECT_BOUNDED_A_P';
+                source = 'DIRECT_HEADER_DRIVEN';
                 break;
               }
             }
@@ -84,7 +91,7 @@ function ManagerV5_applyToolkitAuditorBlockedWeekdays_(companyConstraints, ss, a
   companyConstraints.auditorLessAvailableOn = bw;
   companyConstraints.auditorAvailabilityLimitationsDays = bw;
   companyConstraints.__d44AuditorBlockedWeekdaysMatched = found;
-  companyConstraints.__d44AuditorBlockedWeekdaysSource = bw ? 'Auditors!P' : '';
+  companyConstraints.__d44AuditorBlockedWeekdaysSource = bw ? 'Auditors blocked-weekday header' : '';
   companyConstraints.__ams01BlockedWeekdaysSkipped = skipped;
   companyConstraints.__ams01BlockedWeekdaysBuild = AMS01_MANAGER_TOOLKIT_COLD_OPEN_PERF_BUILD;
   companyConstraints.__ams01BlockedWeekdaysMs = Date.now() - t0;

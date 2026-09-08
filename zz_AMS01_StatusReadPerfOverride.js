@@ -1,10 +1,12 @@
 /**
  * FILE: zz_AMS01_StatusReadPerfOverride.js
- * BUILD: AMS01_STATUS_READ_PERF_20260907_R1
+ * BUILD: AMS01_STATUS_READ_PERF_20260908_R2
  * DEV hot-path override only. Reuses canonical AuditPlanningRowIndexCache.
+ * R2: exposes execution-local audit row context for downstream notification briefing.
  */
 
-var AMS01_STATUS_READ_PERF_BUILD = 'AMS01_STATUS_READ_PERF_20260907_R1';
+var AMS01_STATUS_READ_PERF_BUILD = 'AMS01_STATUS_READ_PERF_20260908_R2';
+var AMS01_STATUS_AUDIT_CONTEXT_CACHE = {};
 
 function Status_loadAudit_(auditId) {
   auditId = String(auditId || '').trim();
@@ -44,6 +46,15 @@ function Status_loadAudit_(auditId) {
   var idxHours = findHeader_(['Hours planned', 'Planned hours', 'Hours Planned']);
   if (idxAI < 0 || idxStatus < 0) return { found:false, error: Status_fail_('Missing Audit ID/Status columns') };
   if (String(row[idxAI] || '').trim() !== auditId) return { found:false, error: Status_fail_('Audit ID lookup mismatch for: ' + auditId) };
+
+  AMS01_STATUS_AUDIT_CONTEXT_CACHE[auditId] = {
+    sh: pack.sh,
+    hdr: hdr,
+    row: row,
+    rowNumber: pack.rowNumber,
+    indexFromCache: !!pack.indexFromCache
+  };
+
   return {
     found:true,
     sheet:pack.sh,

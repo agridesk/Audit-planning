@@ -1,11 +1,12 @@
 /***********************************************************************
  * ConceptPlanningAvailabilityOverlay.js
- * BUILD: 2026-09-09_ROADMAP_2_4_CONCEPT_PLANNING_AVAILABILITY_OVERLAY_R1
+ * BUILD: 2026-09-09_ROADMAP_2_4_CONCEPT_PLANNING_AVAILABILITY_OVERLAY_R2_REUSE_CONTEXT
  *
  * PURPOSE
- *   Optional read-only availability overlay for Concept Planning.
- *   Keeps the fast ConceptPlanningService_get path unchanged and only loads
- *   Availability when the planner explicitly requests availability signals.
+ *   Optional read-only Availability dataset for an already loaded Concept
+ *   Planning advisory result. The workspace supplies the unique candidate
+ *   auditor emails and the visible/requested period; this endpoint only
+ *   loads Availability and returns a compact overlay projection.
  *
  * GOVERNANCE
  *   - ConceptPlanningService remains advisory only.
@@ -15,14 +16,14 @@
  *   - Commit must still revalidate through canonical validators.
  *
  * SPEED CONTRACT
- *   - One Concept Planning advisory read.
+ *   - Does NOT call ConceptPlanningService_get.
  *   - One AvailabilityPeriodReadModel batch read for all unique candidates.
  *   - No per-audit/per-auditor Sheet calls.
- *   - All per-window scoring happens in memory.
+ *   - Concept Planning rows stay client-side / caller-side and are reused.
  *   - DEV-only performance telemetry.
  ***********************************************************************/
 
-var CONCEPT_PLANNING_AVAILABILITY_OVERLAY_BUILD = '2026-09-09_ROADMAP_2_4_CONCEPT_PLANNING_AVAILABILITY_OVERLAY_R1';
+var CONCEPT_PLANNING_AVAILABILITY_OVERLAY_BUILD = '2026-09-09_ROADMAP_2_4_CONCEPT_PLANNING_AVAILABILITY_OVERLAY_R2_REUSE_CONTEXT';
 
 function CPAO_clean_(v) {
   return String(v == null ? '' : v).trim();
@@ -54,6 +55,19 @@ function CPAO_candidateEmails_(conceptRows) {
       seen[email] = true;
       out.push(email);
     }
+  }
+  return out;
+}
+
+function CPAO_normalizeEmails_(raw) {
+  var arr = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+  var out = [];
+  var seen = {};
+  for (var i = 0; i < arr.length; i++) {
+    var email = CPAO_norm_(arr[i]);
+    if (!email || seen[email]) continue;
+    seen[email] = true;
+    out.push(email);
   }
   return out;
 }
@@ -109,28 +123,25 @@ function CPAO_signalForWindow_(records, from, to) {
 
 function ConceptPlanningAvailabilityOverlay_get(input) {
   input = input || {};
+  var from = CPAO_clean_(input.from || input.start || input.periodFrom);
+  var to = CPAO_clean_(input.to || input.end || input.periodTo);
+  var emails = CPAO_normalizeEmails_(
+    input.auditorEmails || input.candidateAuditorEmails || input.auditors
+  );
+
   var perf = (typeof DPL_start_ === 'function') ? DPL_start_('ConceptPlanningAvailabilityOverlay_get', {
-    from: input.from || input.start || input.periodFrom || '',
-    to: input.to || input.end || input.periodTo || ''
+    from: from,
+    to: to,
+    candidateAuditors: emails.length
   }) : null;
 
-  if (typeof ConceptPlanningService_get !== 'function') {
-    throw new Error('ConceptPlanningAvailabilityOverlay: ConceptPlanningService_get unavailable');
-  }
   if (typeof AvailabilityPeriodReadModel_get !== 'function') {
     throw new Error('ConceptPlanningAvailabilityOverlay: AvailabilityPeriodReadModel_get unavailable');
   }
 
-  var concept = ConceptPlanningService_get(input);
-  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'conceptPlanning', {
-    audits: concept && concept.rows ? concept.rows.length : 0
-  });
-
-  var rows = concept && Array.isArray(concept.rows) ? concept.rows : [];
-  var emails = CPAO_candidateEmails_(rows);
   var availability = AvailabilityPeriodReadModel_get({
-    from: concept.period.from,
-    to: concept.period.to,
+    from: from,
+    to: to,
     auditorEmails: emails
   });
   if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'availabilityBatch', {
@@ -139,33 +150,15 @@ function ConceptPlanningAvailabilityOverlay_get(input) {
   });
 
   var idx = CPAO_indexAvailability_(availability && availability.rows ? availability.rows : []);
-  var annotatedCandidates = 0;
-
-  for (var i = 0; i < rows.length; i++) {
-    var audit = rows[i] || {};
-    var candidates = Array.isArray(audit.candidateAuditors) ? audit.candidateAuditors : [];
-    for (var j = 0; j < candidates.length; j++) {
-      var c = candidates[j] || {};
-      var email = CPAO_norm_(c.email);
-      var signal = CPAO_signalForWindow_(idx[email] || [], audit.planningWindowFrom, audit.planningWindowTo);
-      c.availabilitySignal = signal.signal;
-      c.availabilityKnownDays = signal.knownDays;
-      c.availabilityAvailableDays = signal.availableDays;
-      c.availabilityUnavailableDays = signal.unavailableDays;
-      annotatedCandidates++;
-    }
-  }
-
-  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'annotateInMemory', {
-    annotatedCandidates: annotatedCandidates
+  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'projectOverlay', {
+    indexedAuditors: Object.keys(idx).length
   });
 
   var result = {
     success: true,
     build: CONCEPT_PLANNING_AVAILABILITY_OVERLAY_BUILD,
-    period: concept.period,
-    rows: rows,
-    totals: concept.totals,
+    period: { from: from, to: to },
+    byAuditorEmail: idx,
     meta: {
       writes: false,
       advisoryOnly: true,
@@ -173,20 +166,18 @@ function ConceptPlanningAvailabilityOverlay_get(input) {
       availabilityAffectsRanking: false,
       absenceMeansUnknown: true,
       commitRevalidationRequired: true,
-      canonicalOwners: {
-        demand: 'Audit planning / lifecycle',
-        eligibility: 'EligibilityService',
-        availability: 'AvailabilityService / Auditor Availability'
-      },
+      reusesLoadedConceptPlanning: true,
+      conceptPlanningReadPerformed: false,
+      canonicalOwner: 'AvailabilityService / Auditor Availability',
       candidateAuditorsRead: emails.length,
       availabilityRowsRead: availability && availability.rows ? availability.rows.length : 0
     }
   };
 
   if (typeof DPL_end_ === 'function') result.devPerformance = DPL_end_(perf, {
-    audits: rows.length,
     candidateAuditors: emails.length,
-    annotatedCandidates: annotatedCandidates
+    availabilityRows: availability && availability.rows ? availability.rows.length : 0,
+    indexedAuditors: Object.keys(idx).length
   });
   return result;
 }

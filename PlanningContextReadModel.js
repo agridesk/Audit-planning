@@ -1,35 +1,35 @@
 /***********************************************************************
  * PlanningContextReadModel.js
- * BUILD: 2026-09-09_ROADMAP_2_4_PLANNING_CONTEXT_R1
+ * BUILD: 2026-09-09_ROADMAP_2_4_PLANNING_CONTEXT_R2_SINGLE_COMPANIES_READ
  *
  * PURPOSE
  *   Coarse-grained, read-only planning context for Concept Planning and
  *   Planning Workspace 2.0.
  *
- * COMPOSES
- *   - PlanningDemandService_get
- *   - PlanningProfilesService_get
- *   - AvailabilityPeriodReadModel_get
- *
  * GOVERNANCE
- *   - No new source of truth.
+ *   - No new source of truth and no writes.
  *   - Audit planning remains demand/lifecycle source.
  *   - Companies / Auditors / Config_Scopes remain profile owners.
  *   - AvailabilityService / Auditor Availability remains availability owner.
- *   - No writes and no lifecycle side effects.
  *
  * SPEED CONTRACT
- *   - One server RPC can hydrate demand + relevant profiles + availability.
- *   - Scope catalog loaded once and reused as canonical precomputed evidence.
- *   - Company profiles limited to companies appearing in demand result.
- *   - Availability limited to auditor profiles returned by this request.
+ *   - One RPC hydrates demand + relevant profiles + availability.
+ *   - Scope catalog loaded once and reused as canonical evidence.
+ *   - Normal context flow suppresses PlanningDemand Companies enrichment,
+ *     then enriches demand rows from canonical Planning Profiles, avoiding a
+ *     second Companies sheet read in the same request.
+ *   - Country/region filters keep PlanningDemand canonical filtering path.
  *   - DEV-only performance telemetry.
  ***********************************************************************/
 
-var PLANNING_CONTEXT_BUILD = '2026-09-09_ROADMAP_2_4_PLANNING_CONTEXT_R1';
+var PLANNING_CONTEXT_BUILD = '2026-09-09_ROADMAP_2_4_PLANNING_CONTEXT_R2_SINGLE_COMPANIES_READ';
 
 function PCRM_clean_(v) {
   return String(v == null ? '' : v).trim();
+}
+
+function PCRM_norm_(v) {
+  return PCRM_clean_(v).toLowerCase().replace(/\s+/g, ' ');
 }
 
 function PCRM_unique_(arr, normalizer) {
@@ -74,15 +74,56 @@ function PCRM_auditorEmails_(auditors) {
   }), function(x){ return x; });
 }
 
-/**
- * input:
- *   from/to required
- *   Optional PlanningDemand filters are passed through:
- *     status, auditor, country, region, scope, limit, includeCompanyMeta
- *   includeCompanies?: boolean (default true)
- *   includeAuditors?: boolean (default true)
- *   includeAvailability?: boolean (default true)
- */
+function PCRM_demandInput_(input) {
+  var out = {};
+  var keys = ['from','start','periodFrom','to','end','periodTo','status','auditor','country','region','scope','limit'];
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i];
+    if (Object.prototype.hasOwnProperty.call(input, k)) out[k] = input[k];
+  }
+
+  /*
+   * When country/region filtering is requested, PlanningDemand must perform
+   * its own Companies enrichment before filtering. Otherwise context defers
+   * Companies enrichment to PlanningProfilesService so Companies is read once.
+   */
+  var needsDemandCompanyRead = !!(PCRM_clean_(input.country) || PCRM_clean_(input.region));
+  out.includeCompanyMeta = needsDemandCompanyRead;
+  return { input: out, needsDemandCompanyRead: needsDemandCompanyRead };
+}
+
+function PCRM_profileIndex_(companies) {
+  var byUid = {};
+  var byName = {};
+  for (var i = 0; i < (companies || []).length; i++) {
+    var c = companies[i] || {};
+    var uid = PCRM_clean_(c.companyUid);
+    var name = PCRM_norm_(c.companyName);
+    if (uid) byUid[uid.toLowerCase()] = c;
+    if (name) byName[name] = c;
+  }
+  return { byUid: byUid, byName: byName };
+}
+
+function PCRM_enrichDemandFromProfiles_(demandRows, companyProfiles) {
+  var idx = PCRM_profileIndex_(companyProfiles);
+  var enriched = 0;
+  for (var i = 0; i < (demandRows || []).length; i++) {
+    var r = demandRows[i] || {};
+    var p = null;
+    var uid = PCRM_clean_(r.companyUid);
+    if (uid) p = idx.byUid[uid.toLowerCase()] || null;
+    if (!p && r.company) p = idx.byName[PCRM_norm_(r.company)] || null;
+    if (!p) continue;
+
+    if (!r.companyUid && p.companyUid) r.companyUid = p.companyUid;
+    r.country = PCRM_clean_(p.country);
+    r.region = PCRM_clean_(p.region);
+    enriched++;
+  }
+  return enriched;
+}
+
 function PlanningContextReadModel_get(input) {
   input = input || {};
 
@@ -92,25 +133,21 @@ function PlanningContextReadModel_get(input) {
     includeAvailability: input.includeAvailability !== false
   }) : null;
 
-  if (typeof PlanningDemandService_get !== 'function') {
-    throw new Error('PlanningContextReadModel: PlanningDemandService_get unavailable');
-  }
-  if (typeof PlanningProfilesService_get !== 'function') {
-    throw new Error('PlanningContextReadModel: PlanningProfilesService_get unavailable');
-  }
+  if (typeof PlanningDemandService_get !== 'function') throw new Error('PlanningContextReadModel: PlanningDemandService_get unavailable');
+  if (typeof PlanningProfilesService_get !== 'function') throw new Error('PlanningContextReadModel: PlanningProfilesService_get unavailable');
   if (input.includeAvailability !== false && typeof AvailabilityPeriodReadModel_get !== 'function') {
     throw new Error('PlanningContextReadModel: AvailabilityPeriodReadModel_get unavailable');
   }
 
-  var demand = PlanningDemandService_get(input);
+  var demandPlan = PCRM_demandInput_(input);
+  var demand = PlanningDemandService_get(demandPlan.input);
   if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'demand', {
-    returned: demand && demand.rows ? demand.rows.length : 0
+    returned: demand && demand.rows ? demand.rows.length : 0,
+    companyReadRequired: demandPlan.needsDemandCompanyRead
   });
 
   var scopeNames = PCRM_activeScopeNames_();
-  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'scopeEvidence', {
-    activeScopes: scopeNames.length
-  });
+  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'scopeEvidence', { activeScopes: scopeNames.length });
 
   var selectors = PCRM_companySelectors_(demand.rows || []);
   var profiles = PlanningProfilesService_get({
@@ -118,13 +155,20 @@ function PlanningContextReadModel_get(input) {
     companyNames: selectors.companyNames,
     includeCompanies: input.includeCompanies !== false,
     includeAuditors: input.includeAuditors !== false,
-    precomputedEvidence: {
-      activeScopeNames: scopeNames
-    }
+    precomputedEvidence: { activeScopeNames: scopeNames }
   });
   if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'profiles', {
     companies: profiles && profiles.companies ? profiles.companies.length : 0,
     auditors: profiles && profiles.auditors ? profiles.auditors.length : 0
+  });
+
+  var enrichedDemandRows = 0;
+  if (!demandPlan.needsDemandCompanyRead && input.includeCompanies !== false) {
+    enrichedDemandRows = PCRM_enrichDemandFromProfiles_(demand.rows || [], profiles.companies || []);
+  }
+  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'demandCompanyEnrichment', {
+    enriched: enrichedDemandRows,
+    source: demandPlan.needsDemandCompanyRead ? 'PlanningDemand' : 'PlanningProfiles'
   });
 
   var availability = null;
@@ -151,6 +195,8 @@ function PlanningContextReadModel_get(input) {
     meta: {
       writes: false,
       coarseGrainedRpc: true,
+      duplicateCompaniesReadAvoided: !demandPlan.needsDemandCompanyRead,
+      demandCompanyReadRequiredForFilter: demandPlan.needsDemandCompanyRead,
       canonicalOwners: {
         demand: 'Audit planning / lifecycle',
         company: 'Companies',
@@ -162,7 +208,8 @@ function PlanningContextReadModel_get(input) {
       companySelectors: {
         uids: selectors.companyUids.length,
         names: selectors.companyNames.length
-      }
+      },
+      demandRowsEnrichedFromProfiles: enrichedDemandRows
     }
   };
 

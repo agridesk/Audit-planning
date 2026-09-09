@@ -1,21 +1,23 @@
 /***********************************************************************
  * CanonicalPlanningValidatorGateway.js
  *
- * BUILD: 2026-09-09_ROADMAP_2_4_CANONICAL_VALIDATOR_GATEWAY_R1
+ * BUILD: 2026-09-09_ROADMAP_2_4_CANONICAL_VALIDATOR_GATEWAY_R3_DEV_PERF
  *
  * PURPOSE
  *   Audit-level read-only gateway for the shared planning validators.
  *
  *   This is the stable backend entry point intended for current planning,
  *   Planning Demand, Concept Planning, self-planning and later Commit.
- *   It loads one audit context, invokes canonical owners once, reuses the
- *   qualification result for current rotation metadata, and returns the
- *   shared verdict DTO.
+ *   It loads one audit context and delegates decisions to canonical owners.
+ *
+ * PERFORMANCE
+ *   DEV-only timing is emitted through DevPerformanceLog when available.
+ *   The logger performs no sheet writes and emits one completion record.
  *
  *   NO writes. NO lifecycle changes. NO Availability writes.
  ***********************************************************************/
 
-var CANONICAL_VALIDATOR_GATEWAY_BUILD = '2026-09-09_ROADMAP_2_4_CANONICAL_VALIDATOR_GATEWAY_R1';
+var CANONICAL_VALIDATOR_GATEWAY_BUILD = '2026-09-09_ROADMAP_2_4_CANONICAL_VALIDATOR_GATEWAY_R3_DEV_PERF';
 
 function CPVG_clean_(v) {
   return String(v == null ? '' : v).trim();
@@ -41,7 +43,7 @@ function CPVG_findCol_(headers, candidates) {
   return -1;
 }
 
-function CPVG_readAudit_(auditId) {
+function CPVG_readAudit_(auditId, perf) {
   auditId = CPVG_clean_(auditId);
   if (!auditId) throw new Error('CanonicalPlanningValidatorGateway: auditId is required');
 
@@ -50,6 +52,7 @@ function CPVG_readAudit_(auditId) {
   if (typeof __mp_getAuditPlanningRow_ === 'function') {
     var targeted = __mp_getAuditPlanningRow_(ss, auditId);
     if (targeted && targeted.row) {
+      if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'auditReadTargeted', { rowNumber: targeted.rowNumber || 0 });
       return {
         ss: ss,
         headers: targeted.hdr || [],
@@ -72,6 +75,7 @@ function CPVG_readAudit_(auditId) {
 
   for (var r = 1; r < values.length; r++) {
     if (CPVG_clean_(values[r][cAuditId]) === auditId) {
+      if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'auditReadFallbackScan', { rowNumber: r + 1, rowsScanned: values.length - 1 });
       return {
         ss: ss,
         headers: headers,
@@ -100,6 +104,11 @@ function CPVG_company_(headers, row) {
   return c >= 0 ? CPVG_clean_(row[c]) : '';
 }
 
+function CPVG_companyUid_(headers, row) {
+  var c = CPVG_findCol_(headers, ['Company_UID', 'Company UID', 'CompanyUid', 'Company uid']);
+  return c >= 0 ? CPVG_clean_(row[c]) : '';
+}
+
 function CPVG_rotationFromQualification_(qualificationVerdict) {
   if (!qualificationVerdict || qualificationVerdict.level !== 'OK') return null;
   var evidence = qualificationVerdict.evidence || {};
@@ -121,32 +130,75 @@ function CPVG_rotationMetadataUnavailable_(ctx) {
     'Rotation metadata is not available for the selected auditor in this evaluation',
     {
       subject: CPV_subject_(ctx),
-      source: 'qualification verdict / existing eligibility metadata',
+      source: 'rotation governance / existing eligibility metadata',
       evidence: null
     }
   );
 }
 
+function CPVG_rotationVerdict_(ctx, qualificationVerdict) {
+  var explicitRotation = CPV_precomputed_(ctx, 'rotation');
+
+  if (explicitRotation && explicitRotation.kind === CanonicalValidatorKind.ROTATION && explicitRotation.level) {
+    return CanonicalValidator_makeVerdict(explicitRotation);
+  }
+
+  if (typeof RotationGovernanceService_worstVerdict === 'function') {
+    try {
+      return RotationGovernanceService_worstVerdict({
+        auditId: ctx.auditId,
+        companyUid: ctx.companyUid,
+        company: ctx.company,
+        auditorEmail: ctx.auditorEmail,
+        auditorName: ctx.auditorName,
+        scopes: ctx.requiredScopes
+      });
+    } catch (eGov) {
+      return CanonicalValidator_hardBlock(
+        CanonicalValidatorKind.ROTATION,
+        'ROTATION_GOVERNANCE_FAILED',
+        CPVG_clean_(eGov && eGov.message) || 'Rotation governance failed',
+        {
+          subject: CPV_subject_(ctx),
+          source: 'RotationGovernanceService',
+          evidence: null
+        }
+      );
+    }
+  }
+
+  var rotationMeta = explicitRotation != null
+    ? explicitRotation
+    : CPVG_rotationFromQualification_(qualificationVerdict);
+
+  if (rotationMeta) {
+    return CPV_rotation({
+      auditId: ctx.auditId,
+      auditorEmail: ctx.auditorEmail,
+      auditorName: ctx.auditorName,
+      company: ctx.company,
+      requiredScopes: ctx.requiredScopes,
+      rotationMeta: rotationMeta
+    });
+  }
+
+  return CPVG_rotationMetadataUnavailable_(ctx);
+}
+
 /**
  * Public read-only gateway.
- *
- * input:
- *   auditId       required
- *   auditorEmail  required for Availability; email remains canonical identity
- *   auditorName   optional compatibility/display field
- *   blocks        planned blocks; required when Availability/Planning Window are evaluated
- *   include       optional flags: qualification, availability, planningWindow, rotation
- *   precomputed   optional canonical-owner results for callers that already executed an owner
- *
- * output:
- *   CanonicalValidator aggregate + auditContext metadata.
  */
 function CanonicalPlanningValidators_evaluateAudit(input) {
   input = input || {};
   var auditId = CPVG_clean_(input.auditId);
   if (!auditId) throw new Error('CanonicalPlanningValidators_evaluateAudit: auditId is required');
 
-  var audit = CPVG_readAudit_(auditId);
+  var __perf = (typeof DPL_start_ === 'function') ? DPL_start_('CanonicalPlanningValidators_evaluateAudit', {
+    auditId: auditId,
+    auditorEmail: CPVG_clean_(input.auditorEmail).toLowerCase()
+  }) : null;
+
+  var audit = CPVG_readAudit_(auditId, __perf);
   var include = input.include || {};
   var ctx = {
     ss: audit.ss,
@@ -156,11 +208,14 @@ function CanonicalPlanningValidators_evaluateAudit(input) {
     auditorEmail: CPVG_clean_(input.auditorEmail).toLowerCase(),
     auditorName: CPVG_clean_(input.auditorName),
     company: CPVG_company_(audit.headers, audit.row),
+    companyUid: CPVG_companyUid_(audit.headers, audit.row),
     requiredScopes: CPVG_requiredScopes_(audit.headers, audit.row),
     blocks: Array.isArray(input.blocks) ? input.blocks : [],
     include: include,
     precomputed: input.precomputed || {}
   };
+
+  if (typeof DPL_mark_ === 'function') DPL_mark_(__perf, 'contextPrepared', { scopeCount: ctx.requiredScopes.length, blockCount: ctx.blocks.length });
 
   var verdicts = [];
   var qualificationVerdict = null;
@@ -168,35 +223,25 @@ function CanonicalPlanningValidators_evaluateAudit(input) {
   if (include.qualification !== false) {
     qualificationVerdict = CPV_qualification(ctx);
     verdicts.push(qualificationVerdict);
+    if (typeof DPL_mark_ === 'function') DPL_mark_(__perf, 'qualification', { level: qualificationVerdict.level });
   }
 
   if (include.availability !== false) {
-    verdicts.push(CPV_availability(ctx));
+    var availabilityVerdict = CPV_availability(ctx);
+    verdicts.push(availabilityVerdict);
+    if (typeof DPL_mark_ === 'function') DPL_mark_(__perf, 'availability', { level: availabilityVerdict.level });
   }
 
   if (include.planningWindow !== false) {
-    verdicts.push(CPV_planningWindow(ctx));
+    var windowVerdict = CPV_planningWindow(ctx);
+    verdicts.push(windowVerdict);
+    if (typeof DPL_mark_ === 'function') DPL_mark_(__perf, 'planningWindow', { level: windowVerdict.level });
   }
 
   if (include.rotation !== false) {
-    var explicitRotation = CPV_precomputed_(ctx, 'rotation');
-    var rotationMeta = explicitRotation != null
-      ? explicitRotation
-      : CPVG_rotationFromQualification_(qualificationVerdict);
-
-    if (rotationMeta) {
-      var rotationCtx = {
-        auditId: ctx.auditId,
-        auditorEmail: ctx.auditorEmail,
-        auditorName: ctx.auditorName,
-        company: ctx.company,
-        requiredScopes: ctx.requiredScopes,
-        rotationMeta: rotationMeta
-      };
-      verdicts.push(CPV_rotation(rotationCtx));
-    } else {
-      verdicts.push(CPVG_rotationMetadataUnavailable_(ctx));
-    }
+    var rotationVerdict = CPVG_rotationVerdict_(ctx, qualificationVerdict);
+    verdicts.push(rotationVerdict);
+    if (typeof DPL_mark_ === 'function') DPL_mark_(__perf, 'rotation', { level: rotationVerdict.level });
   }
 
   var aggregate = CanonicalValidator_aggregate(verdicts);
@@ -204,11 +249,21 @@ function CanonicalPlanningValidators_evaluateAudit(input) {
   aggregate.gatewayBuild = CANONICAL_VALIDATOR_GATEWAY_BUILD;
   aggregate.auditContext = {
     auditId: auditId,
+    companyUid: ctx.companyUid,
     company: ctx.company,
     requiredScopes: ctx.requiredScopes.slice(),
     rowNumber: audit.rowNumber || 0,
     contextSource: audit.source
   };
+
+  if (typeof DPL_end_ === 'function') {
+    var perfPayload = DPL_end_(__perf, {
+      overallLevel: aggregate.overallLevel,
+      verdictCount: verdicts.length,
+      contextSource: audit.source
+    });
+    if (perfPayload) aggregate.devPerformance = perfPayload;
+  }
 
   return aggregate;
 }

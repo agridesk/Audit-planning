@@ -1,11 +1,11 @@
 /***********************************************************************
  * AvailabilityPeriodReadModelTests.js
- * BUILD: 2026-09-09_ROADMAP_2_4_AVAILABILITY_PERIOD_READ_MODEL_TESTS_R1
+ * BUILD: 2026-09-09_ROADMAP_2_4_AVAILABILITY_PERIOD_READ_MODEL_TESTS_R2_LOGGED
  *
  * Permanent, non-destructive regression for the read-only period projection.
  ***********************************************************************/
 
-var AVAILABILITY_PERIOD_READ_MODEL_TEST_BUILD = '2026-09-09_ROADMAP_2_4_AVAILABILITY_PERIOD_READ_MODEL_TESTS_R1';
+var AVAILABILITY_PERIOD_READ_MODEL_TEST_BUILD = '2026-09-09_ROADMAP_2_4_AVAILABILITY_PERIOD_READ_MODEL_TESTS_R2_LOGGED';
 
 function APRMT_assert_(name, condition, detail, out) {
   var ok = !!condition;
@@ -45,7 +45,7 @@ function RUN_AVAILABILITY_PERIOD_READ_MODEL_REGRESSION() {
   APRMT_assert_('canonicalOwnerDeclared', smoke && smoke.meta && smoke.meta.canonicalOwner === 'AvailabilityService / Auditor Availability', 'canonical owner', results);
 
   var passed = results.filter(function(x){ return x.ok; }).length;
-  return {
+  var out = {
     ok: passed === results.length,
     build: AVAILABILITY_PERIOD_READ_MODEL_TEST_BUILD,
     total: results.length,
@@ -59,4 +59,7 @@ function RUN_AVAILABILITY_PERIOD_READ_MODEL_REGRESSION() {
     devPerformance: smoke ? smoke.devPerformance || null : null,
     results: results
   };
+
+  Logger.log(JSON.stringify(out, null, 2));
+  return out;
 }

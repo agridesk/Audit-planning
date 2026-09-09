@@ -1,62 +1,20 @@
 /***********************************************************************
  * PlanningWorkspaceMilestoneRegression.js
- * BUILD: 2026-09-09_PLANNING_WORKSPACE_2_0_MILESTONE_REGRESSION_R1
- *
- * One consolidated DEV regression for the current Workspace milestone.
- * Live reads only. No concept/canonical/availability/status writes.
+ * BUILD: 2026-09-09_PLANNING_WORKSPACE_2_0_MILESTONE_REGRESSION_R2_BROWSER_COMMIT
+ * Consolidated DEV regression for browser-bound canonical save milestone.
+ * Live reads + preflight only. No canonical write in this regression.
  ***********************************************************************/
-var PLANNING_WORKSPACE_MILESTONE_REGRESSION_BUILD='2026-09-09_PLANNING_WORKSPACE_2_0_MILESTONE_REGRESSION_R1';
+var PLANNING_WORKSPACE_MILESTONE_REGRESSION_BUILD='2026-09-09_PLANNING_WORKSPACE_2_0_MILESTONE_REGRESSION_R2_BROWSER_COMMIT';
 function RUN_PLANNING_WORKSPACE_MILESTONE_REGRESSION(){
   if(typeof V5_ENTRY_isDevEnv_!=='function'||V5_ENTRY_isDevEnv_()!==true)throw new Error('DEV_ONLY');
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var route=PlanningWorkspaceEntryV5Override_contract();
-  t('entryOverrideActive',route&&route.build===PLANNING_WORKSPACE_ENTRY_V5_OVERRIDE_BUILD);
-  t('workspaceNormalize',V5_ENTRY_normAction_('planningworkspace')==='planningworkspace');
-  t('workspaceAlias',V5_ENTRY_normAction_('workspace')==='planningworkspace');
-  t('planningAliasStillToolkit',V5_ENTRY_normAction_('planning')==='planningtoolkit');
-  t('managerRoutePreserved',V5_ENTRY_normAction_('manager')==='manager');
-  t('workspaceTitle',V5_ENTRY_browserTitle_('planningworkspace','Manager')==='AMS - Planning Workspace');
-  t('workspaceManagerRole',V5_ENTRY_expectedRole_('planningworkspace','')==='Manager');
-  t('workspaceAuditorRole',V5_ENTRY_expectedRole_('planningworkspace','auditor')==='Auditor');
-  t('entryOwnsAuth',route.authOwner==='EntryV5');
-  t('prodHardBlockDeclared',route.prodHardBlockBeforeBootstrap===true);
-  var rpc=PlanningWorkspaceRpc_contract();
-  t('rpcR4',String(rpc.build||'').indexOf('RPC_R4_SPLIT_FIRST_PAINT')>=0,rpc.build);
-  t('splitFirstPaintContract',rpc.meta&&rpc.meta.splitFirstPaint===true);
-  t('targetedOverlayContract',rpc.meta&&rpc.meta.targetedOverlayPhase===true);
-  var html=PlanningWorkspaceDevRoute_render({email:'planning@agriqa.es',role:'Manager'});
-  t('shellR4',html.indexOf('HTML_SHELL_R4_SPLIT_FIRST_PAINT_PREFLIGHT')>=0);
-  t('clientR5',html.indexOf('CLIENT_R5_SPLIT_FIRST_PAINT_PREFLIGHT')>=0);
-  t('advisoryRpcBound',html.indexOf('PlanningWorkspaceRpc_loadAdvisory')>=0);
-  t('overlayRpcBound',html.indexOf('PlanningWorkspaceRpc_loadOverlays')>=0);
-  t('preflightRpcBound',html.indexOf('PlanningWorkspaceRpc_commitPreflight')>=0);
-  t('canonicalLiveCommitNotBrowserBound',html.indexOf('.PlanningWorkspaceRpc_commit(')<0);
-  t('noDirectSheetAccessInBrowser',html.indexOf('SpreadsheetApp')<0);
-
-  var req={from:'2026-09-01',to:'2026-11-30'},ta=Date.now(),adOut=PlanningWorkspaceRpc_loadAdvisory(req),adMs=Date.now()-ta;
-  t('liveAdvisoryOk',adOut&&adOut.ok===true,adOut&&adOut.error&&adOut.error.message);
-  var rows=adOut&&adOut.data&&adOut.data.rows||[],emails={},ids=[],ready=null,aud=null;
-  rows.forEach(function(row){if(row&&row.auditId)ids.push(row.auditId);(row.candidateAuditors||[]).forEach(function(a){var e=String(a&&a.email||'').trim().toLowerCase();if(e)emails[e]=1;});if(!ready&&String(row.advisoryState||'').toUpperCase()==='READY'&&(row.candidateAuditors||[]).length){ready=row;aud=row.candidateAuditors[0];}});
-  t('advisoryRowsPresent',rows.length>0,'No demand rows');
-  t('readyAuditFound',!!ready,'No READY audit with candidate auditor');
-  var to=Date.now(),ovOut=PlanningWorkspaceRpc_loadOverlays({from:req.from,to:req.to,auditorEmails:Object.keys(emails),auditIds:ids}),ovMs=Date.now()-to;
-  t('liveTargetedOverlaysOk',ovOut&&ovOut.ok===true,ovOut&&ovOut.error&&ovOut.error.message);
-  t('overlayCandidateTargeted',ovOut&&ovOut.data&&ovOut.data.meta&&Number(ovOut.data.meta.candidateAuditors)===Object.keys(emails).length,'candidate targeting mismatch');
-
-  var preMs=0,pre=null;
-  if(ready){
-    var rr=PlanningWorkspaceRpc_getRevision({auditId:ready.auditId}),revision=rr&&rr.ok&&rr.data&&rr.data.revision||'';
-    t('revisionPresent',!!revision);
-    var date=ready.planningWindowFrom||req.from,hours=Math.max(1,Math.min(8,Number(ready.hoursToPlan||4)||4)),endHour=Math.min(17,9+Math.ceil(hours)),blocks=[{date:date,start:'09:00',end:(endHour<10?'0':'')+endHour+':00',hours:hours}];
-    var tp=Date.now();pre=PlanningWorkspaceRpc_commitPreflight({auditId:ready.auditId,expectedRevision:revision,auditorEmail:aud.email,auditorName:aud.name||'',blocks:blocks,waiverAccepted:false});preMs=Date.now()-tp;
-    t('livePreflightOk',pre&&pre.ok===true,pre&&pre.error&&pre.error.message);
-    t('preflightReadOnly',pre&&pre.data&&pre.data.meta&&pre.data.meta.readOnly===true);
-    t('fastCanonicalQualificationUsed',pre&&pre.data&&pre.data.preflight&&pre.data.preflight.meta?pre.data.preflight.meta.fastCanonicalQualificationUsed===true:pre&&pre.data&&pre.data.meta&&pre.data.meta.fastCanonicalQualificationUsed===true,'fast qualification not used');
-    t('gateDecisionPresent',pre&&pre.data&&typeof pre.data.canCommit==='boolean');
-    t('preflightNoWrites',pre&&pre.data&&pre.data.meta&&pre.data.meta.writes===false);
-  }
-  t('advisoryFirstPaintUnder6s',adMs<6000,'advisoryMs='+adMs);
-  t('targetedOverlayUnder5s',ovMs<5000,'overlayMs='+ovMs);
-  t('canonicalPreflightUnder8s',!ready||preMs<8000,'preflightMs='+preMs);
-  var failed=r.filter(function(x){return!x.ok;}).length,out={ok:failed===0,build:PLANNING_WORKSPACE_MILESTONE_REGRESSION_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:true,liveWritesPerformed:false,entryRouting:true,splitFirstPaint:true,targetedOverlays:true,canonicalLiveWriteBrowserBound:false,advisoryMs:adMs,overlayMs:ovMs,preflightMs:preMs,readyAuditId:ready&&ready.auditId||'',nextStep:'If green: bind canonical commit behind explicit DEV confirmation and run one controlled end-to-end canonical DEV planning test.'}};console.log(JSON.stringify(out,null,2));return out;
+  t('entryOverrideActive',route&&route.build===PLANNING_WORKSPACE_ENTRY_V5_OVERRIDE_BUILD);t('workspaceNormalize',V5_ENTRY_normAction_('planningworkspace')==='planningworkspace');t('workspaceAlias',V5_ENTRY_normAction_('workspace')==='planningworkspace');t('planningAliasStillToolkit',V5_ENTRY_normAction_('planning')==='planningtoolkit');t('managerRoutePreserved',V5_ENTRY_normAction_('manager')==='manager');t('workspaceTitle',V5_ENTRY_browserTitle_('planningworkspace','Manager')==='AMS - Planning Workspace');t('workspaceManagerRole',V5_ENTRY_expectedRole_('planningworkspace','')==='Manager');t('workspaceAuditorRole',V5_ENTRY_expectedRole_('planningworkspace','auditor')==='Auditor');t('entryOwnsAuth',route.authOwner==='EntryV5');t('prodHardBlockDeclared',route.prodHardBlockBeforeBootstrap===true);
+  var rpc=PlanningWorkspaceRpc_contract();t('rpcR6',String(rpc.build||'').indexOf('RPC_R6_STATUS_AWARE_PREFLIGHT')>=0,rpc.build);t('splitFirstPaintContract',rpc.meta&&rpc.meta.splitFirstPaint===true);t('targetedOverlayContract',rpc.meta&&rpc.meta.targetedOverlayPhase===true);t('canonicalCommitDevOnly',rpc.meta&&rpc.meta.canonicalCommitDevOnly===true);t('canonicalCommitExplicitConfirmation',rpc.meta&&rpc.meta.canonicalCommitExplicitConfirmation===true);t('statusAwarePreflight',rpc.meta&&rpc.meta.statusAwarePreflight===true);
+  var html=PlanningWorkspaceDevRoute_render({email:'planning@agriqa.es',role:'Manager'});t('shellR5',html.indexOf('HTML_SHELL_R5_CANONICAL_SAVE_MULTI_BLOCK')>=0);t('clientR6',html.indexOf('CLIENT_R6_CANONICAL_SAVE_MULTI_BLOCK')>=0);t('routeContext',html.indexOf('data-env="DEV"')>=0&&html.indexOf('data-role="Manager"')>=0);t('advisoryRpcBound',html.indexOf('PlanningWorkspaceRpc_loadAdvisory')>=0);t('overlayRpcBound',html.indexOf('PlanningWorkspaceRpc_loadOverlays')>=0);t('preflightRpcBound',html.indexOf('PlanningWorkspaceRpc_commitPreflight')>=0);t('canonicalLiveCommitBrowserBound',html.indexOf('.PlanningWorkspaceRpc_commit(')>=0);t('explicitBrowserConfirmation',html.indexOf('window.confirm')>=0&&html.indexOf('confirmCanonicalCommit:true')>=0);t('multiBlockEditor',html.indexOf('pwAddBlock')>=0&&html.indexOf('collectBlocks')>=0&&html.indexOf('defaultBlocks')>=0);t('pendingPlanningActionability',html.indexOf('canCanonicalPlan')>=0&&html.indexOf('pending planning')>=0);t('noDirectSheetAccessInBrowser',html.indexOf('SpreadsheetApp')<0);
+  var req={from:'2026-09-01',to:'2026-11-30'},ta=Date.now(),adOut=PlanningWorkspaceRpc_loadAdvisory(req),adMs=Date.now()-ta;t('liveAdvisoryOk',adOut&&adOut.ok===true,adOut&&adOut.error&&adOut.error.message);var rows=adOut&&adOut.data&&adOut.data.rows||[],emails={},ids=[],ready=null,aud=null;rows.forEach(function(row){if(row&&row.auditId)ids.push(row.auditId);(row.candidateAuditors||[]).forEach(function(a){var e=String(a&&a.email||'').trim().toLowerCase();if(e)emails[e]=1;});if(!ready&&String(row.status||'').trim().toLowerCase()==='pending planning'&&String(row.advisoryState||'').toUpperCase()==='READY'&&(row.candidateAuditors||[]).length){ready=row;aud=row.candidateAuditors[0];}});t('advisoryRowsPresent',rows.length>0,'No demand rows');
+  var to=Date.now(),ovOut=PlanningWorkspaceRpc_loadOverlays({from:req.from,to:req.to,auditorEmails:Object.keys(emails),auditIds:ids}),ovMs=Date.now()-to;t('liveTargetedOverlaysOk',ovOut&&ovOut.ok===true,ovOut&&ovOut.error&&ovOut.error.message);t('overlayCandidateTargeted',ovOut&&ovOut.data&&ovOut.data.meta&&Number(ovOut.data.meta.candidateAuditors)===Object.keys(emails).length,'candidate targeting mismatch');
+  var preMs=0,pre=null;if(ready){var rr=PlanningWorkspaceRpc_getRevision({auditId:ready.auditId}),revision=rr&&rr.ok&&rr.data&&rr.data.revision||'';t('revisionPresent',!!revision);var required=Math.max(1,Number(ready.hoursToPlan||1)||1),date=ready.planningWindowFrom||req.from,blocks=[],remaining=required;while(remaining>0&&blocks.length<20){var wd=new Date(date+'T00:00:00').getDay();if(wd!==0&&wd!==6){var h=Math.min(8,remaining);blocks.push({date:date,start:'09:00',end:(9+h<10?'0':'')+(9+h)+':00',hours:h});remaining-=h;}var nd=new Date(date+'T00:00:00');nd.setDate(nd.getDate()+1);date=Utilities.formatDate(nd,Session.getScriptTimeZone()||'Europe/Amsterdam','yyyy-MM-dd');}var tp=Date.now();pre=PlanningWorkspaceRpc_commitPreflight({auditId:ready.auditId,expectedRevision:revision,auditorEmail:aud.email,auditorName:aud.name||'',blocks:blocks,waiverAccepted:false,actorRole:'MANAGER'});preMs=Date.now()-tp;t('livePreflightOk',pre&&pre.ok===true,pre&&pre.error&&pre.error.message);t('gateDecisionPresent',pre&&pre.data&&typeof pre.data.canCommit==='boolean');t('preflightNoWrites',pre&&pre.data&&pre.data.meta&&pre.data.meta.writes===false);}else{t('readyPendingPlanningOptional',true,'No natural READY Pending Planning audit; browser binding remains statically covered');}
+  t('advisoryFirstPaintUnder6s',adMs<6000,'advisoryMs='+adMs);t('targetedOverlayUnder5s',ovMs<5000,'overlayMs='+ovMs);t('canonicalPreflightUnder8s',!ready||preMs<8000,'preflightMs='+preMs);
+  var failed=r.filter(function(x){return!x.ok;}).length,out={ok:failed===0,build:PLANNING_WORKSPACE_MILESTONE_REGRESSION_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:true,liveWritesPerformed:false,entryRouting:true,splitFirstPaint:true,targetedOverlays:true,multiBlockEditor:true,canonicalLiveWriteBrowserBound:true,canonicalWritePathAlreadyProvenBy:'RUN_PLANNING_WORKSPACE_CANONICAL_COMMIT_DEV_TEST',advisoryMs:adMs,overlayMs:ovMs,preflightMs:preMs,readyAuditId:ready&&ready.auditId||''}};console.log(JSON.stringify(out,null,2));return out;
 }

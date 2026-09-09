@@ -1,14 +1,15 @@
 /**
  * FILE: zz_AMS01_AuditorAvailabilitySummaryPerfOverride.js
- * BUILD: AMS01_AUDITOR_AVAIL_SUMMARY_PERF_ZZ_20260908_R1
- * DEV-only late-load performance override for Auditor Portal fallback summary.
+ * BUILD: AMS01_AUDITOR_AVAIL_SUMMARY_PERF_ZZ_20260909_R2
+ * DEV late-load performance override for Auditor Portal fallback summary.
  *
  * Keeps Auditor Availability as canonical truth and preserves the existing
  * auditId -> {days, mins} summary contract. Replaces a full-width sheet read
  * with one contiguous read spanning only the columns needed for summary data.
+ * Spreadsheet timezone is resolved once per execution instead of once per row.
  * No status/planning/availability writes and no UI/render-owner changes.
  */
-var AMS01_AUDITOR_AVAIL_SUMMARY_PERF_ZZ_BUILD='AMS01_AUDITOR_AVAIL_SUMMARY_PERF_ZZ_20260908_R1';
+var AMS01_AUDITOR_AVAIL_SUMMARY_PERF_ZZ_BUILD='AMS01_AUDITOR_AVAIL_SUMMARY_PERF_ZZ_20260909_R2';
 var AMS01_AUDITOR_AVAIL_SUMMARY_EXEC_CACHE=null;
 
 function auditorV5_buildAvailabilitySummaryMap_(){
@@ -23,6 +24,12 @@ function auditorV5_buildAvailabilitySummaryMap_(){
   var lastCol=sh.getLastColumn();
   if(lastRow<2||lastCol<1){ AMS01_AUDITOR_AVAIL_SUMMARY_EXEC_CACHE={}; return AMS01_AUDITOR_AVAIL_SUMMARY_EXEC_CACHE; }
 
+  var tz='Europe/Amsterdam';
+  try{
+    if(typeof auditorV5_getTz_==='function') tz=String(auditorV5_getTz_()||tz).trim()||tz;
+    else tz=String(ss.getSpreadsheetTimeZone()||tz).trim()||tz;
+  }catch(eTz){}
+
   var hdr=sh.getRange(1,1,1,lastCol).getValues()[0]||[];
   function hk_(v){return String(v==null?'':v).trim().toLowerCase().replace(/\s+/g,'_');}
   function find_(names){
@@ -34,7 +41,7 @@ function auditorV5_buildAvailabilitySummaryMap_(){
   function clean_(v){return String(v==null?'':v).trim();}
   function date_(v){
     if(!v) return '';
-    if(Object.prototype.toString.call(v)==='[object Date]'&&!isNaN(v.getTime())) return Utilities.formatDate(v,ss.getSpreadsheetTimeZone(),'yyyy-MM-dd');
+    if(Object.prototype.toString.call(v)==='[object Date]'&&!isNaN(v.getTime())) return Utilities.formatDate(v,tz,'yyyy-MM-dd');
     var s=clean_(v); return /^\d{4}-\d{2}-\d{2}$/.test(s)?s:'';
   }
   function mins_(v){
@@ -52,7 +59,7 @@ function auditorV5_buildAvailabilitySummaryMap_(){
   var iS2=find_(['Second_Audit_Start_Time','Second Audit Start Time']);
   var iE2=find_(['Second_Audit_End_Time','Second Audit End Time']);
   var needed=[iDate,iID1,iS1,iE1,iID2,iS2,iE2].filter(function(x){return x>=0;});
-  if(iDate<0||(! (iID1>=0||iID2>=0))||!needed.length){
+  if(iDate<0||(!(iID1>=0||iID2>=0))||!needed.length){
     AMS01_AUDITOR_AVAIL_SUMMARY_EXEC_CACHE={};
     return AMS01_AUDITOR_AVAIL_SUMMARY_EXEC_CACHE;
   }

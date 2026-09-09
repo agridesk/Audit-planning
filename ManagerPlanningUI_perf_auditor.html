@@ -1,59 +1,58 @@
 <script>
 (function () {
   'use strict';
-
-  try {
-    if (typeof V5_isDevRuntime_ === 'function' && !V5_isDevRuntime_()) return;
-  } catch (e0) {
-    return;
-  }
-
+  try { if (typeof V5_isDevRuntime_ === 'function' && !V5_isDevRuntime_()) return; } catch (e0) { return; }
   try {
     if (typeof V5_ROLE === 'undefined' || String(V5_ROLE).toUpperCase() !== 'AUDITOR') return;
-    if (typeof mpPrefetchNextMonthsAfterVisible_ !== 'function') return;
-    if (typeof mpStartMonthFetch_ !== 'function') return;
-  } catch (e1) {
-    return;
+    if (typeof mpPrefetchNextMonthsAfterVisible_ !== 'function' || typeof mpStartMonthFetch_ !== 'function') return;
+  } catch (e1) { return; }
+
+  var BUILD='AMS01_AUDITOR_MONTH_PREFETCH_SERIAL_20260909_R2_SAVE_GUARD';
+  var canonicalNextPrefetch_=mpPrefetchNextMonthsAfterVisible_;
+
+  function saveBusy_(){
+    try {
+      if(window.__AMS01_SAVE_IN_PROGRESS===true)return true;
+      if(typeof saveInFlight!=='undefined'&&saveInFlight)return true;
+      if(typeof saving!=='undefined'&&saving)return true;
+      if(typeof isSaving!=='undefined'&&isSaving)return true;
+    }catch(e){}
+    return false;
   }
 
-  var BUILD = 'AMS01_AUDITOR_MONTH_PREFETCH_SERIAL_20260909_R1';
-  var canonicalNextPrefetch_ = mpPrefetchNextMonthsAfterVisible_;
-
-  mpPrefetchNextMonthsAfterVisible_ = function (auditorEmail, baseMonthKey, reason) {
-    try {
-      var a = String(auditorEmail || '').trim();
-      var base = (typeof mpMonthDateFromKey_ === 'function') ? mpMonthDateFromKey_(baseMonthKey) : null;
-      if (!a || !base) return false;
-
-      // RCA 2026-09-09: three parallel google.script.run month requests caused
-      // transport queue collapse: one request reached ~39s wall with only ~1.8s
-      // server time. For auditor self-planning there must be at most ONE speculative
-      // Availability RPC at a time. The next visible month gets priority.
-      if (typeof mpRpcInflightCount_ === 'function' && mpRpcInflightCount_() > 0) {
-        try { if (typeof log === 'function') log('CAL: AMS01 auditor prefetch skipped while RPC active build=' + BUILD); } catch (_eLogBusy) {}
-        return false;
-      }
-
-      var next = new Date(base.getFullYear(), base.getMonth() + 1, 1);
-      var mk = (typeof monthKeyFromDate_ === 'function') ? monthKeyFromDate_(next) : '';
-      if (!mk) return false;
-      if (typeof mpMonthInsideWindowByKey_ === 'function' && !mpMonthInsideWindowByKey_(mk)) return false;
-      if (typeof getMonthRenderCache_ === 'function' && getMonthRenderCache_(a, mk)) return false;
-
-      var started = mpStartMonthFetch_(a, mk, 'ams01-auditor-next1-serial', 0);
-      try {
-        if (typeof log === 'function') {
-          log('CAL: AMS01 auditor serial next-month prefetch ' + (started ? 'started' : 'skipped') + ' month=' + mk + ' build=' + BUILD + ' reason=' + String(reason || ''));
-        }
-      } catch (_eLog) {}
-      return !!started;
-    } catch (e) {
-      try { if (typeof log === 'function') log('CAL: AMS01 auditor serial prefetch error ' + String(e && e.message ? e.message : e)); } catch (_eLogErr) {}
-      return false;
-    }
+  mpPrefetchNextMonthsAfterVisible_=function(auditorEmail,baseMonthKey,reason){
+    try{
+      if(saveBusy_())return false;
+      var a=String(auditorEmail||'').trim();
+      var base=(typeof mpMonthDateFromKey_==='function')?mpMonthDateFromKey_(baseMonthKey):null;
+      if(!a||!base)return false;
+      if(typeof mpRpcInflightCount_==='function'&&mpRpcInflightCount_()>0)return false;
+      var next=new Date(base.getFullYear(),base.getMonth()+1,1);
+      var mk=(typeof monthKeyFromDate_==='function')?monthKeyFromDate_(next):'';
+      if(!mk)return false;
+      if(typeof mpMonthInsideWindowByKey_==='function'&&!mpMonthInsideWindowByKey_(mk))return false;
+      if(typeof getMonthRenderCache_==='function'&&getMonthRenderCache_(a,mk))return false;
+      return !!mpStartMonthFetch_(a,mk,'ams01-auditor-next1-serial',0);
+    }catch(e){return false;}
   };
 
-  window.__AMS01_AUDITOR_MONTH_PREFETCH_SERIAL_BUILD = BUILD;
-  window.__AMS01_AUDITOR_MONTH_PREFETCH_CANONICAL = canonicalNextPrefetch_;
+  try{
+    if(typeof doSave==='function'){
+      var canonicalDoSave_=doSave;
+      doSave=function(){
+        window.__AMS01_SAVE_IN_PROGRESS=true;
+        var r;
+        try{r=canonicalDoSave_.apply(this,arguments);}catch(e){window.__AMS01_SAVE_IN_PROGRESS=false;throw e;}
+        if(r&&typeof r.then==='function'){
+          return r.then(function(v){window.__AMS01_SAVE_IN_PROGRESS=false;return v;},function(e2){window.__AMS01_SAVE_IN_PROGRESS=false;throw e2;});
+        }
+        window.__AMS01_SAVE_IN_PROGRESS=false;
+        return r;
+      };
+    }
+  }catch(eHook){}
+
+  window.__AMS01_AUDITOR_MONTH_PREFETCH_SERIAL_BUILD=BUILD;
+  window.__AMS01_AUDITOR_MONTH_PREFETCH_CANONICAL=canonicalNextPrefetch_;
 })();
 </script>

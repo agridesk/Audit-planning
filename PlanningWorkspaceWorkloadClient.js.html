@@ -1,0 +1,12 @@
+<!-- PlanningWorkspaceWorkloadClient.js -->
+<script>
+(function(){
+'use strict';
+var BUILD='2026-09-09_PLANNING_WORKSPACE_WORKLOAD_CLIENT_R1';
+function e(id){return document.getElementById(id);}function clean(v){return String(v==null?'':v).trim();}function val(id){return clean(e(id)&&e(id).value);}function esc(v){return clean(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}function num(v){return Math.round((Number(v)||0)*100)/100;}
+function render(out){var body=e('pwWorkloadBody'),count=e('pwWorkloadCount');if(!body)return;var d=out&&out.data;if(!out||out.ok!==true||!d||d.success!==true){body.innerHTML='<div class="pw-empty">Workload summary unavailable.</div>';if(count)count.textContent='0';return;}var rows=(d.auditors||[]).slice();if(d.unassigned&&d.unassigned.totalAudits)rows.push(Object.assign({},d.unassigned,{auditorEmail:'Unassigned'}));if(count)count.textContent=String(rows.length);if(!rows.length){body.innerHTML='<div class="pw-empty">No auditor workload in this period.</div>';return;}body.innerHTML='<table class="pw-workload-table"><thead><tr><th>Auditor</th><th>Audits to plan</th><th>Hours to plan</th><th>Dedicated audits</th><th>Dedicated hours</th></tr></thead><tbody>'+rows.map(function(r){return'<tr><td>'+esc(r.auditorEmail)+'</td><td>'+num(r.auditsToPlan)+'</td><td>'+num(r.hoursToPlan)+'</td><td>'+num(r.auditsDedicated)+'</td><td>'+num(r.hoursDedicated)+'</td></tr>';}).join('')+'</tbody></table>';}
+function load(){var from=val('pwFrom'),to=val('pwTo');if(!from||!to)return;google.script.run.withSuccessHandler(render).withFailureHandler(function(){render(null);}).PlanningWorkspaceRpc_loadWorkloadSummary({from:from,to:to,country:val('pwCountry'),scope:val('pwScope')});}
+document.addEventListener('click',function(ev){if(ev.target&&ev.target.id==='pwLoad')setTimeout(load,0);},false);
+window.PlanningWorkspaceWorkloadClient={build:BUILD,load:load,contract:{readOnly:true,existingFunctionalityPreserved:true,bulkPlanningReadyProjection:true}};
+})();
+</script>

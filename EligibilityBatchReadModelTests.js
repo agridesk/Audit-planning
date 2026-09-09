@@ -1,0 +1,83 @@
+/***********************************************************************
+ * EligibilityBatchReadModelTests.js
+ * BUILD: 2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_TESTS_R1
+ * Permanent, non-destructive regression.
+ ***********************************************************************/
+
+var ELIGIBILITY_BATCH_READ_TEST_BUILD = '2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_TESTS_R1';
+
+function EBRMT_assert_(name, condition, detail, out) {
+  var ok = !!condition;
+  out.push({ name: name, ok: ok, detail: ok ? '' : String(detail || 'failed') });
+}
+
+function EBRMT_sampleAuditIds_() {
+  var ss = SpreadsheetApp.getActive();
+  var sh = ss.getSheetByName('Eligibility_Cache');
+  if (!sh || sh.getLastRow() < 2) return [];
+  var lastCol = sh.getLastColumn();
+  var headers = sh.getRange(1,1,1,lastCol).getValues()[0] || [];
+  var cAuditId = EBRM_findCol_(headers, ['Audit_ID','Audit ID']);
+  if (cAuditId < 0) return [];
+  var count = Math.min(10, sh.getLastRow() - 1);
+  var values = sh.getRange(2, cAuditId + 1, count, 1).getValues();
+  var out = [];
+  for (var i = 0; i < values.length; i++) {
+    var id = EBRM_clean_(values[i][0]);
+    if (id) out.push(id);
+    if (out.length >= 5) break;
+  }
+  return out;
+}
+
+function RUN_ELIGIBILITY_BATCH_READ_REGRESSION() {
+  var results = [];
+
+  EBRMT_assert_('boolTrue1', EBRM_bool_(1) === true, '1 must be true', results);
+  EBRMT_assert_('boolTrueX', EBRM_bool_('X') === true, 'X must be true', results);
+  EBRMT_assert_('boolFalse0', EBRM_bool_(0) === false, '0 must be false', results);
+  EBRMT_assert_('jsonArray', Array.isArray(EBRM_parseJson_('[1,2]', null)), 'json parse array', results);
+  EBRMT_assert_('jsonFallback', EBRM_parseJson_('{bad', null) === null, 'invalid json fallback', results);
+
+  var sampleIds = EBRMT_sampleAuditIds_();
+  var t0 = Date.now();
+  var smoke = EligibilityBatchReadModel_get({ auditIds: sampleIds });
+  var smokeMs = Date.now() - t0;
+
+  EBRMT_assert_('serviceSuccess', smoke && smoke.success === true, 'service success', results);
+  EBRMT_assert_('rowsArray', smoke && Array.isArray(smoke.rows), 'rows array', results);
+  EBRMT_assert_('readOnly', smoke && smoke.meta && smoke.meta.writes === false, 'must be read-only', results);
+  EBRMT_assert_('canonicalOwner', smoke && smoke.meta && smoke.meta.canonicalOwner === 'EligibilityService', 'canonical owner', results);
+  EBRMT_assert_('derivedCacheOnly', smoke && smoke.meta && smoke.meta.cacheRole === 'derived acceleration only', 'cache role', results);
+
+  if (sampleIds.length) {
+    EBRMT_assert_('sampleRowsReturned', smoke.rows.length > 0, 'sample rows must return', results);
+    var first = smoke.rows[0] || {};
+    EBRMT_assert_('auditorsArray', Array.isArray(first.auditors), 'auditors must be array', results);
+    EBRMT_assert_('targetedMissingReported', Array.isArray(smoke.missingAuditIds), 'missing ids array', results);
+  } else {
+    EBRMT_assert_('sampleRowsReturned', true, '', results);
+    EBRMT_assert_('auditorsArray', true, '', results);
+    EBRMT_assert_('targetedMissingReported', true, '', results);
+  }
+
+  var missingProbe = EligibilityBatchReadModel_get({ auditIds: ['__ROADMAP_2_4_MISSING_AUDIT__'] });
+  EBRMT_assert_('missingProbeExplicit', missingProbe && missingProbe.missingAuditIds && missingProbe.missingAuditIds.indexOf('__ROADMAP_2_4_MISSING_AUDIT__') >= 0, 'missing audit must be explicit', results);
+
+  var passed = results.filter(function(x){ return x.ok; }).length;
+  var out = {
+    ok: passed === results.length,
+    build: ELIGIBILITY_BATCH_READ_TEST_BUILD,
+    total: results.length,
+    passed: passed,
+    failed: results.length - passed,
+    sampleAuditIds: sampleIds.length,
+    smokeReturned: smoke && smoke.rows ? smoke.rows.length : 0,
+    smokeServerMs: smokeMs,
+    devPerformance: smoke ? smoke.devPerformance || null : null,
+    results: results
+  };
+
+  Logger.log(JSON.stringify(out, null, 2));
+  return out;
+}

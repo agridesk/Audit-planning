@@ -1,0 +1,37 @@
+<!-- BUILD: AMS01_TOOLKIT_AVAILABILITY_CACHE_FRESHNESS_20260909_R1 -->
+<script>
+(function(){
+  'use strict';
+  try {
+    if (typeof V5_isDevRuntime_ === 'function' && !V5_isDevRuntime_()) return;
+  } catch(e0) { return; }
+
+  if (typeof storeMonthRenderCache_ !== 'function' || typeof v5_avMonthDirtyKey_ !== 'function') return;
+
+  var canonicalStoreMonthRenderCache_ = storeMonthRenderCache_;
+  storeMonthRenderCache_ = function(auditorEmail, monthKey, dayMap){
+    var ok = canonicalStoreMonthRenderCache_.apply(this, arguments);
+    if (!ok) return ok;
+
+    try {
+      var a = String(auditorEmail || '').trim().toLowerCase();
+      var mk = String(monthKey || '').trim();
+      if (!a || !mk) return ok;
+
+      var dirtyKey = v5_avMonthDirtyKey_(a, mk);
+      var dirty = Number(localStorage.getItem(dirtyKey) || 0);
+      if (dirty) {
+        localStorage.removeItem(dirtyKey);
+        try {
+          if (typeof log === 'function') {
+            log('CAL: AMS01 fresh backend month closed dirty stamp auditor=' + a + ' month=' + mk + ' dirtyAgeMs=' + Math.max(0, Date.now() - dirty));
+          }
+        } catch(_eLog) {}
+      }
+    } catch(e1) {}
+    return ok;
+  };
+
+  window.__AMS01_TOOLKIT_AVAILABILITY_CACHE_FRESHNESS = 'AMS01_TOOLKIT_AVAILABILITY_CACHE_FRESHNESS_20260909_R1';
+})();
+</script>

@@ -1,10 +1,10 @@
 /***********************************************************************
  * ConceptPlanningServiceTests.js
- * BUILD: 2026-09-09_ROADMAP_2_4_CONCEPT_PLANNING_ADVISORY_TESTS_R1
+ * BUILD: 2026-09-09_ROADMAP_2_4_CONCEPT_PLANNING_ADVISORY_TESTS_R2
  * Permanent, non-destructive regression.
  ***********************************************************************/
 
-var CONCEPT_PLANNING_TEST_BUILD = '2026-09-09_ROADMAP_2_4_CONCEPT_PLANNING_ADVISORY_TESTS_R1';
+var CONCEPT_PLANNING_TEST_BUILD = '2026-09-09_ROADMAP_2_4_CONCEPT_PLANNING_ADVISORY_TESTS_R2';
 
 function CPST_assert_(name, condition, detail, out) {
   var ok = !!condition;
@@ -28,6 +28,11 @@ function RUN_CONCEPT_PLANNING_REGRESSION() {
   CPST_assert_('preassignedRanksFirst', ranked[0] && ranked[0].name === 'P', 'preassigned first', results);
   CPST_assert_('lowerRotationCountRanksEarlier', ranked[1] && ranked[1].name === 'A', 'lower performedCount first among normal candidates', results);
 
+  var normalPlan = CPS_demandInput_({ from:'2026-01-01', to:'2026-12-31' });
+  CPST_assert_('normalFlowSkipsCompanyMeta', normalPlan && normalPlan.input && normalPlan.input.includeCompanyMeta === false, 'normal advisory path must skip Companies enrichment', results);
+  var countryPlan = CPS_demandInput_({ from:'2026-01-01', to:'2026-12-31', country:'NL' });
+  CPST_assert_('countryFilterLoadsCompanyMeta', countryPlan && countryPlan.input && countryPlan.input.includeCompanyMeta === true, 'country filter needs Companies enrichment', results);
+
   var p = CPST_period_();
   var t0 = Date.now();
   var smoke = ConceptPlanningService_get({ from:p.from, to:p.to, maxCandidates:5 });
@@ -41,6 +46,9 @@ function RUN_CONCEPT_PLANNING_REGRESSION() {
   CPST_assert_('noPerAuditReads', smoke && smoke.meta && smoke.meta.noPerAuditReads === true, 'batch read contract', results);
   CPST_assert_('eligibilityOwner', smoke && smoke.meta && smoke.meta.canonicalOwners && smoke.meta.canonicalOwners.eligibility === 'EligibilityService', 'eligibility owner', results);
   CPST_assert_('totalsPresent', smoke && smoke.totals && Number(smoke.totals.audits) >= 0, 'totals', results);
+  CPST_assert_('directDemandFastPath', smoke && smoke.meta && smoke.meta.directDemandFastPath === true, 'direct demand fast path', results);
+  CPST_assert_('planningContextSkipped', smoke && smoke.meta && smoke.meta.planningContextSkipped === true, 'PlanningContext must be skipped', results);
+  CPST_assert_('companyMetaSkippedByDefault', smoke && smoke.meta && smoke.meta.companyMetaLoaded === false, 'Companies enrichment skipped by default', results);
 
   var statesOk = true;
   var candidatesOk = true;

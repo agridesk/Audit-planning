@@ -1,25 +1,30 @@
 /***********************************************************************
  * ConceptPlanningService.js
- * BUILD: 2026-09-09_ROADMAP_2_4_CONCEPT_PLANNING_ADVISORY_R1
+ * BUILD: 2026-09-09_ROADMAP_2_4_CONCEPT_PLANNING_ADVISORY_R2_DIRECT_DEMAND
  *
  * PURPOSE
  *   Read-only advisory shortlist for Concept Planning.
- *   Uses Planning Context + Eligibility batch cache projection.
+ *   Uses Planning Demand + Eligibility batch projection directly.
  *
  * GOVERNANCE
  *   - No writes, holds, commits or lifecycle changes.
  *   - EligibilityService remains canonical qualification/rotation owner.
+ *   - Audit planning remains canonical demand/lifecycle source.
  *   - Stale/missing eligibility is never silently accepted.
  *   - Output is advisory only; Commit must revalidate canonically.
  *
  * SPEED CONTRACT
- *   - One PlanningContext RPC composition.
+ *   - No PlanningContext hydration for this advisory path.
+ *   - One PlanningDemand read.
  *   - One Eligibility_Cache batch read for all demand audits.
+ *   - No Config_Scopes, Auditors, Availability or Planning Profiles reads.
+ *   - Companies enrichment only when explicitly required by country/region
+ *     filtering or includeCompanyMeta=true.
  *   - No per-audit/per-auditor Sheet calls.
  *   - DEV-only performance telemetry.
  ***********************************************************************/
 
-var CONCEPT_PLANNING_BUILD = '2026-09-09_ROADMAP_2_4_CONCEPT_PLANNING_ADVISORY_R1';
+var CONCEPT_PLANNING_BUILD = '2026-09-09_ROADMAP_2_4_CONCEPT_PLANNING_ADVISORY_R2_DIRECT_DEMAND';
 
 function CPS_clean_(v) {
   return String(v == null ? '' : v).trim();
@@ -75,6 +80,24 @@ function CPS_demandAuditIds_(rows) {
   return out;
 }
 
+function CPS_demandInput_(input) {
+  input = input || {};
+  var out = {};
+  var pass = ['from','start','periodFrom','to','end','periodTo','status','auditor','country','region','scope','limit'];
+  for (var p = 0; p < pass.length; p++) {
+    var k = pass[p];
+    if (Object.prototype.hasOwnProperty.call(input, k)) out[k] = input[k];
+  }
+
+  var needsCompanyMeta = !!(
+    CPS_clean_(input.country) ||
+    CPS_clean_(input.region) ||
+    input.includeCompanyMeta === true
+  );
+  out.includeCompanyMeta = needsCompanyMeta;
+  return { input: out, needsCompanyMeta: needsCompanyMeta };
+}
+
 function ConceptPlanningService_get(input) {
   input = input || {};
   var perf = (typeof DPL_start_ === 'function') ? DPL_start_('ConceptPlanningService_get', {
@@ -82,36 +105,29 @@ function ConceptPlanningService_get(input) {
     to: input.to || input.end || input.periodTo || ''
   }) : null;
 
-  if (typeof PlanningContextReadModel_get !== 'function') {
-    throw new Error('ConceptPlanningService: PlanningContextReadModel_get unavailable');
+  if (typeof PlanningDemandService_get !== 'function') {
+    throw new Error('ConceptPlanningService: PlanningDemandService_get unavailable');
   }
   if (typeof EligibilityBatchReadModel_get !== 'function') {
     throw new Error('ConceptPlanningService: EligibilityBatchReadModel_get unavailable');
   }
 
-  var contextInput = {};
-  var pass = ['from','start','periodFrom','to','end','periodTo','status','auditor','country','region','scope','limit'];
-  for (var p = 0; p < pass.length; p++) {
-    var k = pass[p];
-    if (Object.prototype.hasOwnProperty.call(input, k)) contextInput[k] = input[k];
-  }
-  contextInput.includeAvailability = false;
-  contextInput.includeCompanies = input.includeCompanies !== false;
-  contextInput.includeAuditors = false;
-
-  var context = PlanningContextReadModel_get(contextInput);
-  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'planningContext', {
-    demandRows: context && context.demand && context.demand.rows ? context.demand.rows.length : 0
+  var demandPlan = CPS_demandInput_(input);
+  var demand = PlanningDemandService_get(demandPlan.input);
+  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'planningDemand', {
+    demandRows: demand && demand.rows ? demand.rows.length : 0,
+    companyMetaLoaded: demandPlan.needsCompanyMeta
   });
 
-  var demandRows = context && context.demand && Array.isArray(context.demand.rows) ? context.demand.rows : [];
+  var demandRows = demand && Array.isArray(demand.rows) ? demand.rows : [];
   var auditIds = CPS_demandAuditIds_(demandRows);
   var eligibility = EligibilityBatchReadModel_get({ auditIds: auditIds });
   if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'eligibilityBatch', {
     requested: auditIds.length,
     returned: eligibility && eligibility.rows ? eligibility.rows.length : 0,
     stale: eligibility && eligibility.meta ? eligibility.meta.stale || 0 : 0,
-    missing: eligibility && eligibility.meta ? eligibility.meta.missing || 0 : 0
+    missing: eligibility && eligibility.meta ? eligibility.meta.missing || 0 : 0,
+    parseErrors: eligibility && eligibility.meta ? eligibility.meta.parseErrors || 0 : 0
   });
 
   var rows = [];
@@ -175,7 +191,7 @@ function ConceptPlanningService_get(input) {
   var result = {
     success: true,
     build: CONCEPT_PLANNING_BUILD,
-    period: context.period,
+    period: demand.period,
     rows: rows,
     totals: {
       audits: rows.length,
@@ -188,6 +204,9 @@ function ConceptPlanningService_get(input) {
       advisoryOnly: true,
       commitRevalidationRequired: true,
       noPerAuditReads: true,
+      directDemandFastPath: true,
+      planningContextSkipped: true,
+      companyMetaLoaded: demandPlan.needsCompanyMeta,
       canonicalOwners: {
         demand: 'Audit planning / lifecycle',
         eligibility: 'EligibilityService',

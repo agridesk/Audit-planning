@@ -1,6 +1,6 @@
 /***********************************************************************
  * EligibilityBatchReadModel.js
- * BUILD: 2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_R2_PAYLOAD_NORMALIZE
+ * BUILD: 2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_R3_CACHE_VALIDITY_PARITY
  *
  * PURPOSE
  *   Read-only batch projection of canonical EligibilityService cache data.
@@ -11,17 +11,20 @@
  *   - EligibilityService remains canonical eligibility owner.
  *   - Eligibility_Cache is derived acceleration data, never a new SSoT.
  *   - This model never computes eligibility and never writes/refreshes cache.
+ *   - Cache-validity classification mirrors EligibilityService sheet-cache
+ *     acceptance signals only; it does not own eligibility rules.
  *   - Missing/stale/invalid rows are surfaced explicitly and must be
  *     canonically refreshed/validated before Commit.
  *
  * SPEED CONTRACT
  *   - One header read + one bounded bulk data read per request.
  *   - Requested audit IDs filtered in memory.
+ *   - Current auditor-scope generation resolved once per batch, never per row.
  *   - No per-audit Sheet calls.
  *   - DEV-only performance telemetry.
  ***********************************************************************/
 
-var ELIGIBILITY_BATCH_READ_BUILD = '2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_R2_PAYLOAD_NORMALIZE';
+var ELIGIBILITY_BATCH_READ_BUILD = '2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_R3_CACHE_VALIDITY_PARITY';
 
 function EBRM_clean_(v) {
   return String(v == null ? '' : v).trim();
@@ -118,6 +121,45 @@ function EBRM_normalizeMetaPayload_(raw) {
   };
 }
 
+function EBRM_currentEligibilityBuild_() {
+  return (typeof ELIG_BUILD !== 'undefined') ? EBRM_clean_(ELIG_BUILD) : '';
+}
+
+function EBRM_currentAuditorScopeGeneration_() {
+  var generation = 'GEN_LEGACY';
+  try {
+    if (typeof AUDITOR_SCOPE_getCacheGeneration_ === 'function') {
+      generation = EBRM_clean_(AUDITOR_SCOPE_getCacheGeneration_()) || 'GEN_LEGACY';
+    }
+  } catch (e) {}
+  return generation;
+}
+
+function EBRM_cacheValidity_(args) {
+  args = args || {};
+  var reasons = [];
+  var computedBuild = EBRM_clean_(args.computedBuild);
+  var currentBuild = EBRM_clean_(args.currentBuild);
+  var notes = EBRM_clean_(args.notes);
+  var currentGeneration = EBRM_clean_(args.currentGeneration) || 'GEN_LEGACY';
+
+  var buildMismatch = !!currentBuild && computedBuild !== currentBuild;
+  if (buildMismatch) reasons.push('BUILD_MISMATCH');
+
+  var generationMarkerPresent = notes.indexOf('auditorScopeGeneration=') >= 0;
+  var generationMismatch = generationMarkerPresent &&
+    notes.indexOf('auditorScopeGeneration=' + currentGeneration) < 0;
+  if (generationMismatch) reasons.push('AUDITOR_SCOPE_GENERATION_MISMATCH');
+
+  return {
+    validByEligibilityServiceSheetContract: !buildMismatch && !generationMismatch,
+    buildMismatch: buildMismatch,
+    generationMarkerPresent: generationMarkerPresent,
+    generationMismatch: generationMismatch,
+    reasons: reasons
+  };
+}
+
 function EligibilityBatchReadModel_get(input) {
   input = input || {};
   var requested = EBRM_requestedSet_(input);
@@ -173,19 +215,26 @@ function EligibilityBatchReadModel_get(input) {
   var cStale = EBRM_findCol_(headers, ['Stale']);
   var cScopesHash = EBRM_findCol_(headers, ['Scopes_Hash']);
   var cSourceHash = EBRM_findCol_(headers, ['Source_Mtime_Hash']);
+  var cNotes = EBRM_findCol_(headers, ['Notes']);
 
   if (cAuditId < 0) throw new Error("EligibilityBatchReadModel: missing 'Audit_ID' column");
 
-  var used = [cAuditId,cCompanyUid,cA1,cA2,cA3,cA4,cMeta,cComputedAt,cComputedBuild,cStale,cScopesHash,cSourceHash]
+  var used = [cAuditId,cCompanyUid,cA1,cA2,cA3,cA4,cMeta,cComputedAt,cComputedBuild,cStale,cScopesHash,cSourceHash,cNotes]
     .filter(function(x){ return x >= 0; });
   var maxCol = used.length ? Math.max.apply(null, used) + 1 : lastCol;
   var values = lastRow >= 2 ? sh.getRange(2, 1, lastRow - 1, maxCol).getValues() : [];
   if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'bulkRead', { rows: values.length, cols: maxCol });
 
+  var currentBuild = EBRM_currentEligibilityBuild_();
+  var currentGeneration = EBRM_currentAuditorScopeGeneration_();
+
   var rows = [];
   var byAuditId = {};
   var staleCount = 0;
   var parseErrors = 0;
+  var buildMismatchCount = 0;
+  var generationMismatchCount = 0;
+  var refreshRequiredCount = 0;
 
   for (var r = 0; r < values.length; r++) {
     var row = values[r] || [];
@@ -203,6 +252,27 @@ function EligibilityBatchReadModel_get(input) {
     var stale = cStale >= 0 ? EBRM_bool_(row[cStale]) : false;
     if (stale) staleCount++;
 
+    var computedBuild = cComputedBuild >= 0 ? EBRM_clean_(row[cComputedBuild]) : '';
+    var notes = cNotes >= 0 ? EBRM_clean_(row[cNotes]) : '';
+    var validity = EBRM_cacheValidity_({
+      computedBuild: computedBuild,
+      currentBuild: currentBuild,
+      notes: notes,
+      currentGeneration: currentGeneration
+    });
+    if (validity.buildMismatch) buildMismatchCount++;
+    if (validity.generationMismatch) generationMismatchCount++;
+
+    var requiresRefresh = stale || !auditorsRaw || !auditorsPayload.ok || !metaPayload.ok ||
+      !validity.validByEligibilityServiceSheetContract;
+    if (requiresRefresh) refreshRequiredCount++;
+
+    var refreshReasons = validity.reasons.slice();
+    if (stale) refreshReasons.push('STALE');
+    if (!auditorsRaw) refreshReasons.push('AUDITORS_PAYLOAD_MISSING');
+    if (!auditorsPayload.ok) refreshReasons.push('AUDITORS_PAYLOAD_INVALID');
+    if (!metaPayload.ok) refreshReasons.push('META_PAYLOAD_INVALID');
+
     var rec = {
       auditId: auditId,
       companyUid: cCompanyUid >= 0 ? EBRM_clean_(row[cCompanyUid]) : '',
@@ -211,11 +281,16 @@ function EligibilityBatchReadModel_get(input) {
       requiredScopes: metaPayload.requiredScopes,
       scopesRes: metaPayload.scopesRes,
       computedAt: cComputedAt >= 0 ? EBRM_clean_(row[cComputedAt]) : '',
-      computedBuild: cComputedBuild >= 0 ? EBRM_clean_(row[cComputedBuild]) : '',
+      computedBuild: computedBuild,
+      currentEligibilityBuild: currentBuild,
       stale: stale,
       scopesHash: cScopesHash >= 0 ? EBRM_clean_(row[cScopesHash]) : '',
       sourceMtimeHash: cSourceHash >= 0 ? EBRM_clean_(row[cSourceHash]) : '',
-      requiresCanonicalRefresh: stale || !auditorsRaw || !auditorsPayload.ok || !metaPayload.ok,
+      notes: notes,
+      auditorScopeGeneration: currentGeneration,
+      cacheValidity: validity,
+      requiresCanonicalRefresh: requiresRefresh,
+      refreshReasons: refreshReasons,
       sourceRow: r + 2
     };
 
@@ -226,7 +301,10 @@ function EligibilityBatchReadModel_get(input) {
   if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'filterProject', {
     returned: rows.length,
     stale: staleCount,
-    parseErrors: parseErrors
+    parseErrors: parseErrors,
+    buildMismatch: buildMismatchCount,
+    generationMismatch: generationMismatchCount,
+    refreshRequired: refreshRequiredCount
   });
 
   var requestedIds = requested ? Object.keys(requested) : [];
@@ -248,10 +326,16 @@ function EligibilityBatchReadModel_get(input) {
       missing: missingIds.length,
       stale: staleCount,
       parseErrors: parseErrors,
+      buildMismatch: buildMismatchCount,
+      generationMismatch: generationMismatchCount,
+      refreshRequired: refreshRequiredCount,
+      currentEligibilityBuild: currentBuild,
+      auditorScopeGeneration: currentGeneration,
       columnsRead: maxCol,
       writes: false,
       canonicalOwner: 'EligibilityService',
-      cacheRole: 'derived acceleration only'
+      cacheRole: 'derived acceleration only',
+      cacheValidityContract: 'EligibilityService sheet acceptance parity'
     }
   };
 
@@ -259,7 +343,10 @@ function EligibilityBatchReadModel_get(input) {
     returned: rows.length,
     missing: missingIds.length,
     stale: staleCount,
-    parseErrors: parseErrors
+    parseErrors: parseErrors,
+    buildMismatch: buildMismatchCount,
+    generationMismatch: generationMismatchCount,
+    refreshRequired: refreshRequiredCount
   });
   return result;
 }

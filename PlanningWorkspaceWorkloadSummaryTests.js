@@ -1,6 +1,6 @@
 /***********************************************************************
  * PlanningWorkspaceWorkloadSummaryTests.js
- * BUILD: 2026-09-09_PLANNING_WORKSPACE_WORKLOAD_SUMMARY_TEST_R1
+ * BUILD: 2026-09-09_PLANNING_WORKSPACE_WORKLOAD_SUMMARY_TEST_R2_SCOPE
  ***********************************************************************/
 function RUN_PLANNING_WORKSPACE_WORKLOAD_SUMMARY_REGRESSION(){
   var results=[];
@@ -16,11 +16,13 @@ function RUN_PLANNING_WORKSPACE_WORKLOAD_SUMMARY_REGRESSION(){
   check('hoursToPlanField',c.fields.indexOf('hoursToPlan')>=0);
   check('dedicatedAuditsField',c.fields.indexOf('auditsDedicated')>=0);
   check('dedicatedHoursField',c.fields.indexOf('hoursDedicated')>=0);
+  check('scopeBreakdownField',c.fields.indexOf('scopeBreakdown')>=0);
+  check('scopeBreakdownContract',c.scopeBreakdown===true);
   check('rpcEndpoint',rpc.endpoints.indexOf('PlanningWorkspaceRpc_loadWorkloadSummary')>=0);
   check('rpcOwner',rpc.meta.workloadSummaryOwner==='PlanningWorkspaceWorkloadSummary via PlanningDemandService');
   check('legacyPlanningPreserved',rpc.meta.legacyPlanningEntrypointsPreserved===true);
   var passed=results.filter(function(x){return x.ok;}).length;
-  var out={ok:passed===results.length,build:'2026-09-09_PLANNING_WORKSPACE_WORKLOAD_SUMMARY_TEST_R1',total:results.length,passed:passed,failed:results.length-passed,results:results,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,existingFunctionalityRemoved:false}};
+  var out={ok:passed===results.length,build:'2026-09-09_PLANNING_WORKSPACE_WORKLOAD_SUMMARY_TEST_R2_SCOPE',total:results.length,passed:passed,failed:results.length-passed,results:results,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,existingFunctionalityRemoved:false,scopeBreakdown:true}};
   Logger.log(JSON.stringify(out,null,2));
   return out;
 }

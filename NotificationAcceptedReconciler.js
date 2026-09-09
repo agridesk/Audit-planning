@@ -1,34 +1,38 @@
 /***********************************************************************
  * FILE: NotificationAcceptedReconciler.gs
- * BUILD: 2026-07-08_ACCEPTED_NOTIFICATION_RECONCILER_R1
+ * BUILD: 2026-09-09_ACCEPTED_NOTIFICATION_RECONCILER_R2_DURABLE
  *
  * PURPOSE
- * - Repairs missing notification side-effects after auditor ACCEPT actions.
- * - Source of truth is lifecycle/audit trail:
+ * - Durable recovery for notification side-effects after auditor ACCEPT.
+ * - Lifecycle trail is the source of truth / outbox:
  *      LIFECYCLE_STATUS_CHANGED
  *      action = ACCEPT
  *      beforeStatus = Approved
  *      afterStatus = Accepted
+ * - Required notification side-effects per ACCEPT:
+ *      1. AUDIT_ACCEPTED
+ *      2. ECAS_AUDIT_APPROVAL_DIGEST
  *
- * SAFE
- * - No status writes.
- * - No planning writes.
- * - No availability writes.
- * - Queue-only repair.
- * - Idempotent: existing queue rows are detected and skipped.
- *
- * DEPENDS ON
- * - Audit planning sheet
- * - Notification Queue sheet
- * - StatusNotificationBridge_Dispatch_
- * - StatusMachine constants/functions
+ * R2
+ * - A repair counts as REPAIRED only after both required queue events are
+ *   proven present in a fresh Notification Queue read.
+ * - Adds canonical 1-minute reconciler trigger installer.
+ * - Keeps the old Trigger10M handler as compatibility alias.
+ * - Adds health / dry-run validation.
+ * - Queue-only. Never writes lifecycle, planning or availability.
+ * - Idempotent. Existing queue events are never intentionally duplicated.
  ***********************************************************************/
+
+var ANR_BUILD = '2026-09-09_ACCEPTED_NOTIFICATION_RECONCILER_R2_DURABLE';
+var ANR_TRIGGER_HANDLER = 'AcceptedNotificationReconciler_Trigger1M';
+var ANR_LEGACY_TRIGGER_HANDLER = 'AcceptedNotificationReconciler_Trigger10M';
+var ANR_REQUIRED_EVENTS = ['AUDIT_ACCEPTED', 'ECAS_AUDIT_APPROVAL_DIGEST'];
 
 function RUN_ACCEPTED_NOTIFICATION_RECONCILER_7D() {
   return AcceptedNotificationReconciler_Run_({
     lookbackDays: 7,
     dryRun: false,
-    maxRepairs: 50
+    maxRepairs: 100
   });
 }
 
@@ -36,7 +40,7 @@ function RUN_ACCEPTED_NOTIFICATION_RECONCILER_7D_DRYRUN() {
   return AcceptedNotificationReconciler_Run_({
     lookbackDays: 7,
     dryRun: true,
-    maxRepairs: 100
+    maxRepairs: 250
   });
 }
 
@@ -49,25 +53,99 @@ function RUN_ACCEPTED_NOTIFICATION_RECONCILER_ONE_AUDIT(auditId) {
   });
 }
 
-function AcceptedNotificationReconciler_Trigger10M() {
+function AcceptedNotificationReconciler_Trigger1M() {
   return AcceptedNotificationReconciler_Run_({
     lookbackDays: 2,
     dryRun: false,
-    maxRepairs: 25
+    maxRepairs: 100
   });
+}
+
+// Backward-compatible handler. If an old trigger still exists it remains safe.
+function AcceptedNotificationReconciler_Trigger10M() {
+  return AcceptedNotificationReconciler_Trigger1M();
+}
+
+function RUN_INSTALL_ACCEPTED_NOTIFICATION_RECONCILER_1M() {
+  var all = ScriptApp.getProjectTriggers();
+  var removed = [];
+
+  for (var i = 0; i < all.length; i++) {
+    var handler = String(all[i].getHandlerFunction() || '').trim();
+    if (handler !== ANR_TRIGGER_HANDLER && handler !== ANR_LEGACY_TRIGGER_HANDLER) continue;
+    ScriptApp.deleteTrigger(all[i]);
+    removed.push(handler);
+  }
+
+  var trigger = ScriptApp.newTrigger(ANR_TRIGGER_HANDLER)
+    .timeBased()
+    .everyMinutes(1)
+    .create();
+
+  var immediate = AcceptedNotificationReconciler_Trigger1M();
+  var health = RUN_ACCEPTED_NOTIFICATION_RECONCILER_HEALTH_2D();
+
+  return {
+    ok: !!(health && health.ok),
+    build: ANR_BUILD,
+    removedHandlers: removed,
+    installedHandler: ANR_TRIGGER_HANDLER,
+    intervalMinutes: 1,
+    triggerId: trigger && trigger.getUniqueId ? trigger.getUniqueId() : '',
+    immediateRun: immediate,
+    health: health
+  };
+}
+
+function RUN_ACCEPTED_NOTIFICATION_RECONCILER_HEALTH_2D() {
+  var dry = AcceptedNotificationReconciler_Run_({
+    lookbackDays: 2,
+    dryRun: true,
+    maxRepairs: 500
+  });
+
+  var triggers = [];
+  try {
+    var all = ScriptApp.getProjectTriggers();
+    for (var i = 0; i < all.length; i++) {
+      var handler = String(all[i].getHandlerFunction() || '').trim();
+      if (handler === ANR_TRIGGER_HANDLER || handler === ANR_LEGACY_TRIGGER_HANDLER) {
+        triggers.push({
+          handler: handler,
+          id: all[i].getUniqueId ? all[i].getUniqueId() : '',
+          source: String(all[i].getTriggerSource() || '')
+        });
+      }
+    }
+  } catch (e) {}
+
+  var canonicalTriggerInstalled = triggers.some(function(t) {
+    return t.handler === ANR_TRIGGER_HANDLER;
+  });
+
+  return {
+    ok: !!(dry && dry.ok && dry.candidates === 0 && dry.errors.length === 0 && canonicalTriggerInstalled),
+    build: ANR_BUILD,
+    canonicalTriggerInstalled: canonicalTriggerInstalled,
+    triggers: triggers,
+    unresolvedAccepts: dry ? dry.candidates : null,
+    errors: dry ? dry.errors : [{ message: 'Dry-run unavailable' }],
+    items: dry ? dry.items : []
+  };
 }
 
 function AcceptedNotificationReconciler_Run_(opts) {
   opts = opts || {};
-  var started = new Date();
+
+  var startedMs = Date.now();
   var dryRun = opts.dryRun === true;
-  var lookbackDays = Number(opts.lookbackDays || 7);
+  var lookbackDays = Math.max(1, Number(opts.lookbackDays || 7));
   var auditIdFilter = String(opts.auditId || '').trim();
   var maxRepairs = Math.max(1, Number(opts.maxRepairs || 50));
 
   var out = {
     ok: true,
-    build: '2026-07-08_ACCEPTED_NOTIFICATION_RECONCILER_R1',
+    build: ANR_BUILD,
     dryRun: dryRun,
     lookbackDays: lookbackDays,
     auditIdFilter: auditIdFilter,
@@ -75,12 +153,16 @@ function AcceptedNotificationReconciler_Run_(opts) {
     candidates: 0,
     repaired: 0,
     skipped: 0,
+    unresolved: 0,
     errors: [],
     items: []
   };
 
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) ss = SpreadsheetApp.getActive();
+    if (!ss) throw new Error('Active spreadsheet unavailable');
+
     var queueSheet = ss.getSheetByName('Notification Queue');
     if (!queueSheet) throw new Error("Missing sheet 'Notification Queue'");
 
@@ -97,18 +179,15 @@ function AcceptedNotificationReconciler_Run_(opts) {
 
       var ev = lifecycleEvents[i];
       var auditId = ev.auditId;
+      var beforeState = AcceptedNotificationReconciler_GetRequiredEventState_(queue, auditId);
 
-      var hasAccepted = AcceptedNotificationReconciler_HasQueueEvent_(queue, auditId, 'AUDIT_ACCEPTED');
-      var hasEcas = AcceptedNotificationReconciler_HasQueueEvent_(queue, auditId, 'ECAS_AUDIT_APPROVAL_DIGEST');
-
-      if (hasAccepted && hasEcas) {
+      if (beforeState.complete) {
         out.skipped++;
         out.items.push({
           auditId: auditId,
           action: 'SKIP',
-          reason: 'QUEUE_ROWS_ALREADY_PRESENT',
-          hasAccepted: true,
-          hasEcas: true
+          reason: 'REQUIRED_QUEUE_EVENTS_PRESENT',
+          state: beforeState
         });
         continue;
       }
@@ -119,9 +198,8 @@ function AcceptedNotificationReconciler_Run_(opts) {
         out.items.push({
           auditId: auditId,
           action: 'DRYRUN_REPAIR_NEEDED',
-          hasAccepted: hasAccepted,
-          hasEcas: hasEcas,
-          lifecycleRow: ev.rowNumber
+          lifecycleRow: ev.rowNumber,
+          state: beforeState
         });
         continue;
       }
@@ -156,52 +234,82 @@ function AcceptedNotificationReconciler_Run_(opts) {
 
         var bridgeResult = StatusNotificationBridge_Dispatch_('ACCEPT', 'AUDITOR', ctx, payload, result);
 
-        out.repaired++;
-        out.items.push({
-          auditId: auditId,
-          action: 'REPAIRED',
-          hadAcceptedBefore: hasAccepted,
-          hadEcasBefore: hasEcas,
-          lifecycleRow: ev.rowNumber,
-          bridgeResult: bridgeResult || null
-        });
+        // Proof-based postcondition: never claim repair from a return value alone.
+        var freshQueue = AcceptedNotificationReconciler_LoadQueue_(queueSheet);
+        var afterState = AcceptedNotificationReconciler_GetRequiredEventState_(freshQueue, auditId);
+
+        if (afterState.complete) {
+          out.repaired++;
+          queue = freshQueue;
+          out.items.push({
+            auditId: auditId,
+            action: 'REPAIRED',
+            lifecycleRow: ev.rowNumber,
+            beforeState: beforeState,
+            afterState: afterState,
+            bridgeResult: bridgeResult || null
+          });
+        } else {
+          out.unresolved++;
+          queue = freshQueue;
+          out.items.push({
+            auditId: auditId,
+            action: 'UNRESOLVED_RETRY_NEXT_TRIGGER',
+            lifecycleRow: ev.rowNumber,
+            beforeState: beforeState,
+            afterState: afterState,
+            bridgeResult: bridgeResult || null
+          });
+        }
 
       } catch (repairErr) {
         var msg = String(repairErr && repairErr.message ? repairErr.message : repairErr);
-        out.errors.push({
-          auditId: auditId,
-          message: msg
-        });
+        out.unresolved++;
+        out.errors.push({ auditId: auditId, message: msg });
         out.items.push({
           auditId: auditId,
-          action: 'ERROR',
+          action: 'ERROR_RETRY_NEXT_TRIGGER',
           message: msg,
-          lifecycleRow: ev.rowNumber
+          lifecycleRow: ev.rowNumber,
+          state: beforeState
         });
       }
     }
 
   } catch (e) {
     out.ok = false;
-    out.errors.push({
-      message: String(e && e.message ? e.message : e)
-    });
+    out.errors.push({ message: String(e && e.message ? e.message : e) });
   }
 
-  out.durationMs = new Date().getTime() - started.getTime();
+  if (out.errors.length || out.unresolved > 0) out.ok = false;
+  out.durationMs = Date.now() - startedMs;
 
-  try {
-    Logger.log(JSON.stringify(out, null, 2));
-  } catch (logErr) {}
-
+  try { Logger.log(JSON.stringify(out, null, 2)); } catch (logErr) {}
   return out;
+}
+
+function AcceptedNotificationReconciler_GetRequiredEventState_(queue, auditId) {
+  var state = {
+    auditId: String(auditId || '').trim(),
+    AUDIT_ACCEPTED: false,
+    ECAS_AUDIT_APPROVAL_DIGEST: false,
+    complete: false
+  };
+
+  for (var i = 0; i < ANR_REQUIRED_EVENTS.length; i++) {
+    var eventType = ANR_REQUIRED_EVENTS[i];
+    state[eventType] = AcceptedNotificationReconciler_HasQueueEvent_(queue, state.auditId, eventType);
+  }
+
+  state.complete = !!(state.AUDIT_ACCEPTED && state.ECAS_AUDIT_APPROVAL_DIGEST);
+  return state;
 }
 
 function AcceptedNotificationReconciler_LoadQueue_(sh) {
   var lastRow = sh.getLastRow();
   var lastCol = sh.getLastColumn();
 
-  if (lastRow < 2 || lastCol < 1) {
+  if (lastRow < 1 || lastCol < 1) {
     return { sheet: sh, headers: [], values: [], displayValues: [], rows: [] };
   }
 
@@ -210,7 +318,9 @@ function AcceptedNotificationReconciler_LoadQueue_(sh) {
   var headers = displayValues[0] || [];
   var rows = [];
 
-  for (var r = 1; r < displayValues.length; r++) {
+  // Keep row 1 in the searchable set because legacy Notification Queue instances
+  // have existed without a formal header row. Header-like rows are harmless.
+  for (var r = 0; r < displayValues.length; r++) {
     var drow = displayValues[r] || [];
     var vrow = values[r] || [];
     rows.push({
@@ -228,7 +338,7 @@ function AcceptedNotificationReconciler_FindAcceptedLifecycleEvents_(queue, opts
   opts = opts || {};
   var auditIdFilter = String(opts.auditId || '').trim();
   var lookbackDays = Number(opts.lookbackDays || 7);
-  var cutoffMs = new Date().getTime() - (lookbackDays * 24 * 60 * 60 * 1000);
+  var cutoffMs = Date.now() - (lookbackDays * 24 * 60 * 60 * 1000);
   var out = [];
   var seen = {};
 
@@ -263,6 +373,12 @@ function AcceptedNotificationReconciler_FindAcceptedLifecycleEvents_(queue, opts
     });
   }
 
+  out.sort(function(a, b) {
+    var da = AcceptedNotificationReconciler_ParseDateLoose_(a.timestamp);
+    var db = AcceptedNotificationReconciler_ParseDateLoose_(b.timestamp);
+    return (da ? da.getTime() : 0) - (db ? db.getTime() : 0);
+  });
+
   return out;
 }
 
@@ -272,7 +388,16 @@ function AcceptedNotificationReconciler_HasQueueEvent_(queue, auditId, eventType
   if (!auditId || !eventType) return false;
 
   for (var i = 0; i < (queue.rows || []).length; i++) {
-    var blob = queue.rows[i].blob || '';
+    var row = queue.rows[i];
+    var cells = row.displayValues || [];
+
+    // Canonical queue contract: C=Type, E=Audit ID. Prefer exact columns.
+    var rowType = String(cells[2] || '').trim();
+    var rowAuditId = String(cells[4] || '').trim();
+    if (rowType === eventType && rowAuditId === auditId) return true;
+
+    // Legacy compatibility fallback.
+    var blob = row.blob || '';
     if (blob.indexOf(auditId) < 0) continue;
     if (blob.indexOf(eventType) < 0) continue;
     return true;
@@ -286,8 +411,7 @@ function AcceptedNotificationReconciler_ExtractJsonPayloadFromRow_(row) {
 
   for (var i = cells.length - 1; i >= 0; i--) {
     var txt = String(cells[i] || '').trim();
-    if (!txt) continue;
-    if (txt.indexOf('{') < 0 || txt.indexOf('}') < 0) continue;
+    if (!txt || txt.indexOf('{') < 0 || txt.indexOf('}') < 0) continue;
 
     var parsed = AcceptedNotificationReconciler_ParseJsonLoose_(txt);
     if (!parsed) continue;
@@ -303,16 +427,12 @@ function AcceptedNotificationReconciler_ParseJsonLoose_(txt) {
   txt = String(txt || '').trim();
   if (!txt) return null;
 
-  try {
-    return JSON.parse(txt);
-  } catch (e1) {}
+  try { return JSON.parse(txt); } catch (e1) {}
 
   var first = txt.indexOf('{');
   var last = txt.lastIndexOf('}');
   if (first >= 0 && last > first) {
-    try {
-      return JSON.parse(txt.substring(first, last + 1));
-    } catch (e2) {}
+    try { return JSON.parse(txt.substring(first, last + 1)); } catch (e2) {}
   }
 
   return null;
@@ -323,7 +443,8 @@ function AcceptedNotificationReconciler_LoadAuditContext_(auditId) {
   if (!auditId) return { found: false, error: 'missing auditId' };
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName('Audit planning');
+  if (!ss) ss = SpreadsheetApp.getActive();
+  var sh = ss ? ss.getSheetByName('Audit planning') : null;
   if (!sh) return { found: false, error: "Missing sheet 'Audit planning'" };
 
   var lastRow = sh.getLastRow();
@@ -337,7 +458,7 @@ function AcceptedNotificationReconciler_LoadAuditContext_(auditId) {
   var idxPlanned = AcceptedNotificationReconciler_FindHeader_(hdr, ['Date - Planned', 'Date – Planned', 'Date planned', 'Date Planned']);
   var idxApproved = AcceptedNotificationReconciler_FindHeader_(hdr, ['Date - Approved', 'Date – Approved', 'Date approved', 'Date Approved']);
   var idxJson = AcceptedNotificationReconciler_FindHeader_(hdr, ['Planning JSON', 'PlanningJSON', 'Planning']);
-  var idxHours = AcceptedNotificationReconciler_FindHeader_(hdr, ['Hours planned', 'Planned hours', 'Hours Planned']);
+  var idxHours = AcceptedNotificationReconciler_FindHeader_(hdr, ['Hours planned', 'Planned hours', 'Hours Planned', 'Total audit time in hours']);
 
   if (idxAuditId < 0) return { found: false, error: 'Missing Audit ID column' };
 
@@ -407,7 +528,10 @@ function AcceptedNotificationReconciler_ParseDateLoose_(v) {
 
   var m = v.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/);
   if (m) {
-    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6] || 0));
+    return new Date(
+      Number(m[1]), Number(m[2]) - 1, Number(m[3]),
+      Number(m[4]), Number(m[5]), Number(m[6] || 0)
+    );
   }
 
   return null;

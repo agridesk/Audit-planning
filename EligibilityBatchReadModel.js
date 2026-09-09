@@ -1,6 +1,6 @@
 /***********************************************************************
  * EligibilityBatchReadModel.js
- * BUILD: 2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_R1
+ * BUILD: 2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_R2_PAYLOAD_NORMALIZE
  *
  * PURPOSE
  *   Read-only batch projection of canonical EligibilityService cache data.
@@ -11,8 +11,8 @@
  *   - EligibilityService remains canonical eligibility owner.
  *   - Eligibility_Cache is derived acceleration data, never a new SSoT.
  *   - This model never computes eligibility and never writes/refreshes cache.
- *   - Missing/stale rows are surfaced explicitly and must be canonically
- *     refreshed/validated before Commit.
+ *   - Missing/stale/invalid rows are surfaced explicitly and must be
+ *     canonically refreshed/validated before Commit.
  *
  * SPEED CONTRACT
  *   - One header read + one bounded bulk data read per request.
@@ -21,7 +21,7 @@
  *   - DEV-only performance telemetry.
  ***********************************************************************/
 
-var ELIGIBILITY_BATCH_READ_BUILD = '2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_R1';
+var ELIGIBILITY_BATCH_READ_BUILD = '2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_R2_PAYLOAD_NORMALIZE';
 
 function EBRM_clean_(v) {
   return String(v == null ? '' : v).trim();
@@ -72,6 +72,50 @@ function EBRM_joinChunks_(row, cols) {
     parts.push(String(v));
   }
   return parts.join('');
+}
+
+function EBRM_normalizeAuditorsPayload_(raw) {
+  var parsed = EBRM_parseJson_(raw, null);
+  if (Array.isArray(parsed)) return { ok: true, auditors: parsed };
+  if (parsed && typeof parsed === 'object' && Array.isArray(parsed.auditors)) {
+    return { ok: true, auditors: parsed.auditors };
+  }
+  return { ok: !raw, auditors: [] };
+}
+
+function EBRM_normalizeMetaPayload_(raw) {
+  var parsed = EBRM_parseJson_(raw, null);
+  if (!raw) {
+    return {
+      ok: true,
+      meta: {},
+      requiredScopes: [],
+      scopesRes: { scopes: [], scopesText: '' }
+    };
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return {
+      ok: false,
+      meta: {},
+      requiredScopes: [],
+      scopesRes: { scopes: [], scopesText: '' }
+    };
+  }
+  var meta = parsed.meta && typeof parsed.meta === 'object' && !Array.isArray(parsed.meta)
+    ? parsed.meta
+    : parsed;
+  var requiredScopes = Array.isArray(parsed.requiredScopes)
+    ? parsed.requiredScopes
+    : (Array.isArray(meta.requiredScopes) ? meta.requiredScopes : []);
+  var scopesRes = parsed.scopesRes && typeof parsed.scopesRes === 'object'
+    ? parsed.scopesRes
+    : { scopes: [], scopesText: '' };
+  return {
+    ok: true,
+    meta: meta || {},
+    requiredScopes: requiredScopes,
+    scopesRes: scopesRes
+  };
 }
 
 function EligibilityBatchReadModel_get(input) {
@@ -150,14 +194,11 @@ function EligibilityBatchReadModel_get(input) {
     if (requested && !requested[auditId]) continue;
 
     var auditorsRaw = EBRM_joinChunks_(row, [cA1,cA2,cA3,cA4]);
-    var auditors = EBRM_parseJson_(auditorsRaw, null);
-    if (!Array.isArray(auditors)) {
-      if (auditorsRaw) parseErrors++;
-      auditors = [];
-    }
-    var metaRaw = cMeta >= 0 ? row[cMeta] : '';
-    var eligibilityMeta = EBRM_parseJson_(metaRaw, null);
-    if (metaRaw && eligibilityMeta == null) parseErrors++;
+    var auditorsPayload = EBRM_normalizeAuditorsPayload_(auditorsRaw);
+    var metaRaw = cMeta >= 0 ? EBRM_clean_(row[cMeta]) : '';
+    var metaPayload = EBRM_normalizeMetaPayload_(metaRaw);
+    if (!auditorsPayload.ok) parseErrors++;
+    if (!metaPayload.ok) parseErrors++;
 
     var stale = cStale >= 0 ? EBRM_bool_(row[cStale]) : false;
     if (stale) staleCount++;
@@ -165,14 +206,16 @@ function EligibilityBatchReadModel_get(input) {
     var rec = {
       auditId: auditId,
       companyUid: cCompanyUid >= 0 ? EBRM_clean_(row[cCompanyUid]) : '',
-      auditors: auditors,
-      eligibilityMeta: eligibilityMeta,
+      auditors: auditorsPayload.auditors,
+      eligibilityMeta: metaPayload.meta,
+      requiredScopes: metaPayload.requiredScopes,
+      scopesRes: metaPayload.scopesRes,
       computedAt: cComputedAt >= 0 ? EBRM_clean_(row[cComputedAt]) : '',
       computedBuild: cComputedBuild >= 0 ? EBRM_clean_(row[cComputedBuild]) : '',
       stale: stale,
       scopesHash: cScopesHash >= 0 ? EBRM_clean_(row[cScopesHash]) : '',
       sourceMtimeHash: cSourceHash >= 0 ? EBRM_clean_(row[cSourceHash]) : '',
-      requiresCanonicalRefresh: stale || !auditorsRaw,
+      requiresCanonicalRefresh: stale || !auditorsRaw || !auditorsPayload.ok || !metaPayload.ok,
       sourceRow: r + 2
     };
 
@@ -215,7 +258,8 @@ function EligibilityBatchReadModel_get(input) {
   if (typeof DPL_end_ === 'function') result.devPerformance = DPL_end_(perf, {
     returned: rows.length,
     missing: missingIds.length,
-    stale: staleCount
+    stale: staleCount,
+    parseErrors: parseErrors
   });
   return result;
 }

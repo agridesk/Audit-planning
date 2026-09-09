@@ -1,20 +1,18 @@
 /***********************************************************************
  * PlanningCanonicalAvailabilityOwnerGuard.js
- * BUILD: 2026-09-09_ROADMAP_2_4_CANONICAL_AVAILABILITY_OWNER_GUARD_R1
+ * BUILD: 2026-09-09_ROADMAP_2_4_CANONICAL_AVAILABILITY_OWNER_GUARD_R2_ACTUAL_API
  *
- * Canonical Workspace commit must not depend on the direct Availability
- * fallback when no canonical Availability reservation service is available.
- * This guard is read-only and runs before the canonical writer.
+ * AvailabilityService is the canonical owner. Its actual public write API is
+ * validate + writeBack + clearAuditId; legacy reserve aliases are not required.
  ***********************************************************************/
-var PLANNING_CANONICAL_AVAILABILITY_OWNER_GUARD_BUILD='2026-09-09_ROADMAP_2_4_CANONICAL_AVAILABILITY_OWNER_GUARD_R1';
+var PLANNING_CANONICAL_AVAILABILITY_OWNER_GUARD_BUILD='2026-09-09_ROADMAP_2_4_CANONICAL_AVAILABILITY_OWNER_GUARD_R2_ACTUAL_API';
 function PlanningCanonicalAvailabilityOwnerGuard_evaluate(){
+  var serviceObject=typeof AvailabilityService!=='undefined'&&AvailabilityService;
+  var canonicalAvailable=!!(serviceObject&&typeof serviceObject.validate==='function'&&typeof serviceObject.writeBack==='function'&&typeof serviceObject.clearAuditId==='function');
   var candidates=[
-    {name:'AvailabilityService_reserveAudit_',available:typeof AvailabilityService_reserveAudit_==='function'},
-    {name:'AvailabilityService_applyPlanningBlocks_',available:typeof AvailabilityService_applyPlanningBlocks_==='function'},
-    {name:'AV_reserveAudit_',available:typeof AV_reserveAudit_==='function'},
-    {name:'V5_availabilityReserveAuditBlocks_',available:typeof V5_availabilityReserveAuditBlocks_==='function'}
+    {name:'AvailabilityService.validate',available:!!(serviceObject&&typeof serviceObject.validate==='function')},
+    {name:'AvailabilityService.writeBack',available:!!(serviceObject&&typeof serviceObject.writeBack==='function')},
+    {name:'AvailabilityService.clearAuditId',available:!!(serviceObject&&typeof serviceObject.clearAuditId==='function')}
   ];
-  var selected='';
-  for(var i=0;i<candidates.length;i++){if(candidates[i].available){selected=candidates[i].name;break;}}
-  return{success:true,build:PLANNING_CANONICAL_AVAILABILITY_OWNER_GUARD_BUILD,canProceed:!!selected,reason:selected?'CANONICAL_AVAILABILITY_OWNER_AVAILABLE':'CANONICAL_AVAILABILITY_OWNER_UNAVAILABLE',selectedOwner:selected,candidates:candidates,meta:{readOnly:true,writes:false,directFallbackAccepted:false,canonicalCommitOnly:true,legacyEntrypointsUntouched:true}};
+  return{success:true,build:PLANNING_CANONICAL_AVAILABILITY_OWNER_GUARD_BUILD,canProceed:canonicalAvailable,reason:canonicalAvailable?'CANONICAL_AVAILABILITY_OWNER_AVAILABLE':'CANONICAL_AVAILABILITY_OWNER_UNAVAILABLE',selectedOwner:canonicalAvailable?'AvailabilityService.writeBack':'',candidates:candidates,meta:{readOnly:true,writes:false,directFallbackAccepted:false,canonicalCommitOnly:true,legacyEntrypointsUntouched:true,canonicalOwner:'AvailabilityService',actualPublicWriteApi:'AvailabilityService.writeBack'}};
 }

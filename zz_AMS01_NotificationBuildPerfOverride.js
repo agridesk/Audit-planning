@@ -1,42 +1,35 @@
 /**
  * FILE: zz_AMS01_NotificationBuildPerfOverride.js
- * BUILD: AMS01_NOTIFICATION_BUILD_PERF_ZZ_20260909_R3_PLAN_CONTEXT_SINGLE_NORMALIZE
+ * BUILD: AMS01_NOTIFICATION_BUILD_PERF_ZZ_20260909_R4_PLAN_NO_BRIEFING_RELOAD
  *
  * RCA correction for V1.0 Save performance.
- * - PLAN reuses the already-current execution context/briefing assembled by
- *   StatusNotificationBridge instead of rereading audit context in Builder.
- * - Queue notification normalization runs exactly once; renderer consumes the
- *   normalized object directly instead of normalizing it a second time.
+ *
+ * R4:
+ * - PLAN no longer reloads StatusNotificationBridge_LoadEcasAuditBriefing_ from
+ *   inside NB_queueNotification_. The StatusNotificationBridge already supplies
+ *   the current PLAN queue context and Builder normalization can consume it.
+ * - Queue normalization still runs exactly once; renderer consumes that same
+ *   normalized object directly.
+ * - Non-PLAN behavior is unchanged.
  *
  * Canonical event config, renderer choice, queue, hash/duplicate semantics and
  * 13-column queue schema remain unchanged.
  */
-var AMS01_NOTIFICATION_BUILD_PERF_ZZ_BUILD='AMS01_NOTIFICATION_BUILD_PERF_ZZ_20260909_R3_PLAN_CONTEXT_SINGLE_NORMALIZE';
+var AMS01_NOTIFICATION_BUILD_PERF_ZZ_BUILD='AMS01_NOTIFICATION_BUILD_PERF_ZZ_20260909_R4_PLAN_NO_BRIEFING_RELOAD';
 
 function AMS01_NB_enrichPlanContext_(data){
   data=data||{};
   if(String(data.action||'').trim().toUpperCase()!=='PLAN') return data;
-  var auditId=String(data.auditId||'').trim();
-  if(!auditId||typeof StatusNotificationBridge_LoadEcasAuditBriefing_!=='function') return data;
-  try{
-    var b=StatusNotificationBridge_LoadEcasAuditBriefing_(auditId)||{};
-    if(!b.company) return data;
-    var out={};Object.keys(data).forEach(function(k){out[k]=data[k];});
-    if(!out.company)out.company=b.company||'';
-    if(!out.companyUid)out.companyUid=b.companyUid||'';
-    if(!out.mpsNumber)out.mpsNumber=b.mpsNumber||'';
-    if(!out.auditNumber)out.auditNumber=out.mpsNumber||b.mpsNumber||'';
-    if(!Array.isArray(out.scopes)||!out.scopes.length)out.scopes=b.scopes||[];
-    if(!Array.isArray(out.blocks)||!out.blocks.length)out.blocks=b.blocks||[];
-    if(!Array.isArray(out.plannedDates)||!out.plannedDates.length)out.plannedDates=b.plannedDates||[];
-    if(out.plannedHours==null||out.plannedHours==='')out.plannedHours=b.plannedHours;
-    if(!out.planningJson)out.planningJson=b.planningJson||'';
-    if(!out.auditorEmail)out.auditorEmail=b.auditorEmail||'';
-    if(!out.auditorName)out.auditorName=b.auditorName||'';
-    out.skipAuditBriefing=true;
-    out.__ams01PlanContextReused=true;
-    return out;
-  }catch(e){return data;}
+
+  // R4: do NOT reread the audit/company/planning briefing here. PLAN is already
+  // inside the canonical save/status execution and StatusNotificationBridge has
+  // supplied the queue context. A second briefing load was pure synchronous I/O
+  // on the Save critical path.
+  var out={};Object.keys(data).forEach(function(k){out[k]=data[k];});
+  out.skipAuditBriefing=true;
+  out.__ams01PlanContextReused=true;
+  out.__ams01PlanBriefingReloadSkipped=true;
+  return out;
 }
 
 function AMS01_NB_payloadFromNormalized_(n,cfg,data){
@@ -78,6 +71,7 @@ function NB_queueNotification_(recipientEmail,eventType,data){
   var t0=Date.now(),timing={build:AMS01_NOTIFICATION_BUILD_PERF_ZZ_BUILD};
   data=AMS01_NB_enrichPlanContext_(data||{});
   timing.planContextReused=!!data.__ams01PlanContextReused;
+  timing.planBriefingReloadSkipped=!!data.__ams01PlanBriefingReloadSkipped;
   var eventCode=NB_eventCode_(eventType||data.eventType||data.type);
   var t=Date.now(),cfg=NB_getEventConfig_(eventCode);timing.configMs=Date.now()-t;
   if(!cfg.active){timing.totalMs=Date.now()-t0;return {success:true,skipped:true,reason:'EVENT_DISABLED',eventType:eventCode,__ams01BuildTiming:timing};}
@@ -95,4 +89,4 @@ function NB_queueNotification_(recipientEmail,eventType,data){
   return {success:true,recipient:effectiveRecipient,eventType:eventCode,eventFamily:payload.eventFamily,rendererProfile:payload.rendererProfile,queueSheet:sh.getName(),status:initialStatus,__ams01BuildTiming:timing};
 }
 
-function AMS01_NotificationBuildPerfStatus(){return {success:true,active:true,build:AMS01_NOTIFICATION_BUILD_PERF_ZZ_BUILD,normalizationPassesPerQueue:1,planContextReuse:true,queueSchemaColumns:13};}
+function AMS01_NotificationBuildPerfStatus(){return {success:true,active:true,build:AMS01_NOTIFICATION_BUILD_PERF_ZZ_BUILD,normalizationPassesPerQueue:1,planContextReuse:true,planBriefingReloadSkipped:true,queueSchemaColumns:13};}

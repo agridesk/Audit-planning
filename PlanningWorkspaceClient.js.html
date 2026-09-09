@@ -1,17 +1,28 @@
-<!-- BUILD: 2026-09-09_PLANNING_WORKSPACE_2_0_CLIENT_R1 -->
+<!-- PlanningWorkspaceClient.js -->
 <script>
 (function(){
   'use strict';
+  var PLANNING_WORKSPACE_CLIENT_BUILD='2026-09-09_PLANNING_WORKSPACE_2_0_CLIENT_R2_SHELL_IDS';
   var state={loaded:false,loading:false,data:null,lastError:null};
   function el(id){return document.getElementById(id);}
   function value(id){var n=el(id);return n?String(n.value||'').trim():'';}
-  function setStatus(text){var n=el('pw-status');if(n)n.textContent=String(text||'');}
-  function request(){return{from:value('pw-from'),to:value('pw-to'),country:value('pw-country'),scope:value('pw-scope')};}
-  function render(result){state.loading=false;if(!result||result.ok!==true){state.loaded=false;state.lastError=result&&result.error||{message:'Load failed'};setStatus(state.lastError.message||'Load failed');return;}state.loaded=true;state.lastError=null;state.data=result.data;setStatus('Loaded');var demand=el('pw-demand-content'),planning=el('pw-planning-content');if(demand)demand.textContent=JSON.stringify(result.data&&result.data.advisory||{},null,2);if(planning)planning.textContent=JSON.stringify(result.data&&result.data.overlays||{},null,2);}
+  function setStatus(text){var n=el('pwStatus');if(n)n.textContent=String(text||'');}
+  function request(){return{from:value('pwFrom'),to:value('pwTo'),country:value('pwCountry'),scope:value('pwScope')};}
+  function render(result){
+    state.loading=false;
+    if(!result||result.ok!==true){state.loaded=false;state.lastError=result&&result.error||{message:'Load failed'};setStatus(state.lastError.message||'Load failed');return;}
+    state.loaded=true;state.lastError=null;state.data=result.data;setStatus('Loaded');
+    var advisory=result.data&&result.data.advisory||{},overlays=result.data&&result.data.overlays||{};
+    var demand=el('pwDemandBody'),planning=el('pwPlanningBody'),dc=el('pwDemandCount'),pc=el('pwPlanningCount');
+    if(demand)demand.textContent=JSON.stringify(advisory,null,2);
+    if(planning)planning.textContent=JSON.stringify(overlays,null,2);
+    if(dc)dc.textContent=String(advisory&&advisory.rows?advisory.rows.length:0);
+    if(pc)pc.textContent=String(overlays&&overlays.rows?overlays.rows.length:0);
+  }
   function fail(err){render({ok:false,error:{message:String(err&&err.message||err||'Load failed')}});}
   function load(){if(state.loading)return;state.loading=true;setStatus('Loading…');google.script.run.withSuccessHandler(render).withFailureHandler(fail).PlanningWorkspaceRpc_bootstrap(request());}
-  function bind(){var b=el('pw-load');if(b)b.addEventListener('click',load);}
-  window.PlanningWorkspaceClient={load:load,state:function(){return state;}};
+  function bind(){var b=el('pwLoad');if(b)b.addEventListener('click',load);}
+  window.PlanningWorkspaceClient={BUILD:PLANNING_WORKSPACE_CLIENT_BUILD,load:load,state:function(){return state;}};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
 })();
 </script>

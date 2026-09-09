@@ -7,8 +7,10 @@
     if (typeof mpPrefetchNextMonthsAfterVisible_ !== 'function' || typeof mpStartMonthFetch_ !== 'function') return;
   } catch (e1) { return; }
 
-  var BUILD='AMS01_AUDITOR_MONTH_PREFETCH_SERIAL_20260909_R2_SAVE_GUARD';
+  var BUILD='AMS01_AUDITOR_MONTH_PREFETCH_IDLE_20260909_R3';
+  var IDLE_DELAY_MS=8000;
   var canonicalNextPrefetch_=mpPrefetchNextMonthsAfterVisible_;
+  var prefetchTimer_=null;
 
   function saveBusy_(){
     try {
@@ -20,19 +22,34 @@
     return false;
   }
 
+  function cancelPendingPrefetch_(){
+    try{if(prefetchTimer_)clearTimeout(prefetchTimer_);}catch(e){}
+    prefetchTimer_=null;
+  }
+
   mpPrefetchNextMonthsAfterVisible_=function(auditorEmail,baseMonthKey,reason){
     try{
-      if(saveBusy_())return false;
+      cancelPendingPrefetch_();
       var a=String(auditorEmail||'').trim();
       var base=(typeof mpMonthDateFromKey_==='function')?mpMonthDateFromKey_(baseMonthKey):null;
-      if(!a||!base)return false;
-      if(typeof mpRpcInflightCount_==='function'&&mpRpcInflightCount_()>0)return false;
+      if(!a||!base||saveBusy_())return false;
+
       var next=new Date(base.getFullYear(),base.getMonth()+1,1);
       var mk=(typeof monthKeyFromDate_==='function')?monthKeyFromDate_(next):'';
       if(!mk)return false;
       if(typeof mpMonthInsideWindowByKey_==='function'&&!mpMonthInsideWindowByKey_(mk))return false;
       if(typeof getMonthRenderCache_==='function'&&getMonthRenderCache_(a,mk))return false;
-      return !!mpStartMonthFetch_(a,mk,'ams01-auditor-next1-serial',0);
+
+      prefetchTimer_=setTimeout(function(){
+        prefetchTimer_=null;
+        try{
+          if(saveBusy_())return;
+          if(typeof mpRpcInflightCount_==='function'&&mpRpcInflightCount_()>0)return;
+          if(typeof getMonthRenderCache_==='function'&&getMonthRenderCache_(a,mk))return;
+          mpStartMonthFetch_(a,mk,'ams01-auditor-idle-prefetch',0);
+        }catch(e2){}
+      },IDLE_DELAY_MS);
+      return true;
     }catch(e){return false;}
   };
 
@@ -40,6 +57,7 @@
     if(typeof doSave==='function'){
       var canonicalDoSave_=doSave;
       doSave=function(){
+        cancelPendingPrefetch_();
         window.__AMS01_SAVE_IN_PROGRESS=true;
         var r;
         try{r=canonicalDoSave_.apply(this,arguments);}catch(e){window.__AMS01_SAVE_IN_PROGRESS=false;throw e;}

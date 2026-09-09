@@ -14,7 +14,9 @@ MEASURED V1.0 FAILURE PATTERN
 6. Notification building duplicated expensive work. Queue construction normalized operational audit context, then renderer construction normalized it again. Operational normalization may load audit/company/validation context.
 7. Micro-optimizing queue append/dedup alone did not solve Save latency. One experiment regressed performance. The dominant issue is repeated context construction and synchronous orchestration, not the physical 13-column append alone.
 8. Cold/warm GAS and Spreadsheet latency varies materially. Architecture must minimize the number of serial service/Sheet/RPC boundaries rather than depend on best-case warm timings.
-9. Latest V1.0 save test after RCA corrections showed meaningful improvement versus the prior regression: wrapper walltime ~12.2s, canonical save ~10.5s, notification queue ~2.2s. This is progress but still above acceptable interactive latency and confirms lifecycle/status plus synchronous side effects remain a major critical-path cost.
+9. Latest measured Save regression reached ~17.4s walltime. Breakdown showed Availability validation ~4.26s, Availability write ~1.39s, qualification ~1.30s, lifecycle/status ~9.31s, with notification ~6.27s. This proves Save cannot be treated as one opaque transaction; each side effect must have an explicit critical-path budget.
+10. PLAN notification code still performed an avoidable audit/company/planning briefing reload inside the queue builder after StatusNotificationBridge had already assembled the queue context. V1.0 tactical correction removes this second synchronous briefing read for PLAN.
+11. Background/speculative Availability prefetch must be suspended while Save/Commit is active. Even serialized prefetch is not allowed to consume a GAS execution/RPC slot while a visible mutation is pending.
 
 ROADMAP 2.4 DESIGN REQUIREMENTS
 A. READ MODEL FIRST
@@ -30,7 +32,7 @@ D. AVAILABILITY READ LAYER
 Availability needs a canonical read/projection service separate from its write owner. Month/week/range retrieval should be batched. UI must not issue several parallel RPCs for adjacent months when one range/batch response can serve the planning surface.
 
 D1. VISIBLE-WORK PRIORITY / PREFETCH BUDGET
-Speculative data loading must never contend with visible user work. On GAS, do not fire multiple parallel month RPCs after first render. Prefer one coarse-grained range/batch read or at most one serialized low-priority prefetch. If the user navigates to a month, that visible request must pre-empt/cancel speculative work rather than attach to a long-running queued prefetch. Performance acceptance must include queue depth and browser walltime, not only serverMs.
+Speculative data loading must never contend with visible user work. On GAS, do not fire multiple parallel month RPCs after first render. Prefer one coarse-grained range/batch read or at most one serialized low-priority prefetch. If the user navigates to a month, that visible request must pre-empt/cancel speculative work rather than attach to a long-running queued prefetch. While Save/Validate/Commit is pending, speculative prefetch budget is zero. Performance acceptance must include queue depth and browser walltime, not only serverMs.
 
 E. CLIENT FRESHNESS CONTRACT
 Every read projection returned to UI carries version/freshness metadata. After a successful write, only affected periods/entities are invalidated. A successful fresh reread closes that dirty marker. Do not leave sessions permanently bypassing a valid local projection.
@@ -39,7 +41,7 @@ F. OPTIMISTIC UI
 User interactions such as marking Availability should update visually immediately. Backend persistence follows. Failure rolls back the optimistic state. User-perceived response must not wait for a multi-second Apps Script roundtrip.
 
 G. NOTIFICATION SIDE EFFECT BOUNDARY
-Commit creates the canonical lifecycle/planning result and a durable notification intent/outbox record using already-built command context. Expensive rendering/delivery enrichment must not lengthen the user's Commit critical path when it can safely happen after durable intent creation. Notification Queue/outbox remains mandatory; lifecycle success must not depend on email rendering latency.
+Commit creates the canonical lifecycle/planning result and a durable notification intent/outbox record using already-built command context. Expensive rendering/delivery enrichment must not lengthen the user's Commit critical path when it can safely happen after durable intent creation. Notification Queue/outbox remains mandatory; lifecycle success must not depend on email rendering latency. Notification builders may not reread audit/company/planning context already present in the Commit command context.
 
 H. CONCEPT VS COMMIT
 Roadmap 2.4 Concept/Hold operations must remain lightweight. Dragging/reshuffling concepts must not repeatedly trigger canonical lifecycle writes, notification generation or full validator/Sheet reconstruction. Full canonical revalidation belongs at Commit.
@@ -48,19 +50,7 @@ I. RPC BUDGET
 Planning Workspace should use coarse-grained/batched backend calls. Avoid one RPC per month, validator, panel or audit when the same planning session can obtain a combined projection. Measure both serverMs and browser walltime/transport. Parallel speculative RPC count should be explicitly budgeted; default target is zero concurrent speculative calls when a visible command/read is pending.
 
 J. PERFORMANCE BUDGETS AS DEFINITION OF DONE
-At minimum measure:
-- login/route -> first usable planning screen;
-- Calendar Shell Interactive;
-- Planning Decision-Ready;
-- Availability interaction perceived latency;
-- month/range navigation walltime;
-- Validate walltime;
-- Commit walltime;
-- batch size scaling;
-- cold vs warm execution;
-- RPC queue depth / concurrent request count;
-- visible-vs-speculative request contention.
-A feature is not DONE if it meets server timing but browser walltime remains poor.
+At minimum measure login/route -> first usable planning screen; Calendar Shell Interactive; Planning Decision-Ready; Availability interaction perceived latency; month/range navigation walltime; Validate walltime; Commit walltime; batch size scaling; cold vs warm execution; RPC queue depth/concurrent request count; visible-vs-speculative request contention. A feature is not DONE if it meets server timing but browser walltime remains poor.
 
 K. NO SECOND SOURCE OF TRUTH
 Read models, projections, caches and Concept Holds never become canonical planning/Availability/lifecycle truth. Canonical owners remain those defined in Roadmap 2.4. Projections are disposable/rebuildable.
@@ -69,13 +59,7 @@ L. GAS CONSTRAINT
 As long as GAS remains runtime, design around its high RPC and Spreadsheet boundary costs: fewer calls, fewer serial reads, targeted/batched reads, execution-local shared context, serialized/controlled prefetch, and durable asynchronous side effects where governance allows. Do not add framework abstraction merely to hide latency.
 
 V1.0 TACTICAL LESSON
-The correct tactical optimization order is:
-1. eliminate duplicate context construction;
-2. eliminate duplicate RPCs and stale-cache bypass loops;
-3. prevent parallel speculative RPCs from competing with visible user work;
-4. share canonical validation inputs within one Save/Commit;
-5. keep notification rendering outside repeated normalization;
-6. only then micro-optimize individual Sheet reads/writes.
+Optimization order: eliminate duplicate context construction; eliminate duplicate RPCs/stale-cache bypass loops; prevent speculative RPC contention; share canonical validation inputs within one Save/Commit; keep notification rendering outside repeated normalization/context reads; then micro-optimize individual Sheet reads/writes.
 
 ROADMAP 2.4 ACCEPTANCE PRINCIPLE
 The rebuild must replace the V1.0 pattern 'many small canonical calls chained synchronously' with 'one coherent read projection for planning + one coherent validated Commit command', while preserving one canonical owner per truth and canonical revalidation at Commit. Visible user interactions must never be held behind speculative prefetch work.

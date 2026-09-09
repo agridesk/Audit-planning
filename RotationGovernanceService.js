@@ -1,13 +1,17 @@
 /***********************************************************************
  * RotationGovernanceService.js
- * BUILD: 2026-09-09_ROADMAP_2_4_ROTATION_GOVERNANCE_R1
+ * BUILD: 2026-09-09_ROADMAP_2_4_ROTATION_GOVERNANCE_R2_DEV_PERF
  *
  * PURPOSE
  *   Bridge canonical RotationAuditorService evidence to TieredRotationPolicy.
  *   No rotation history is duplicated and no writes are performed.
+ *
+ * PERFORMANCE
+ *   DEV-only timing is emitted through DevPerformanceLog when available.
+ *   Logging performs no sheet writes and emits one Logger record per call.
  ***********************************************************************/
 
-var ROTATION_GOVERNANCE_BUILD = '2026-09-09_ROADMAP_2_4_ROTATION_GOVERNANCE_R1';
+var ROTATION_GOVERNANCE_BUILD = '2026-09-09_ROADMAP_2_4_ROTATION_GOVERNANCE_R2_DEV_PERF';
 
 function RGS_clean_(v) {
   return String(v == null ? '' : v).trim();
@@ -28,6 +32,11 @@ function RGS_uniqueScopes_(scopes) {
 
 function RotationGovernanceService_evaluate(input) {
   input = input || {};
+  var __perf = (typeof DPL_start_ === 'function') ? DPL_start_('RotationGovernanceService_evaluate', {
+    auditId: RGS_clean_(input.auditId),
+    auditorEmail: RGS_clean_(input.auditorEmail).toLowerCase()
+  }) : null;
+
   if (typeof TieredRotationPolicy_evaluate !== 'function') {
     throw new Error('RotationGovernanceService: TieredRotationPolicy is required');
   }
@@ -39,8 +48,11 @@ function RotationGovernanceService_evaluate(input) {
   var verdicts = [];
   var evidence = [];
 
+  if (typeof DPL_mark_ === 'function') DPL_mark_(__perf, 'normalizeScopes', { scopeCount: scopes.length });
+
   for (var i = 0; i < scopes.length; i++) {
     var scope = scopes[i];
+    var tScope = Date.now();
     var raw = RotationAuditorService_getAuditorScopeResult({
       companyUid: RGS_clean_(input.companyUid),
       companyName: RGS_clean_(input.company || input.companyName),
@@ -61,6 +73,14 @@ function RotationGovernanceService_evaluate(input) {
       consecutiveYears: raw.consecutiveYears,
       maxConsecutive: raw.maxConsecutive
     }));
+
+    if (typeof DPL_mark_ === 'function') {
+      DPL_mark_(__perf, 'scope:' + scope, {
+        scopeMs: Date.now() - tScope,
+        consecutiveYears: raw.consecutiveYears,
+        maxConsecutive: raw.maxConsecutive
+      });
+    }
   }
 
   if (!scopes.length) {
@@ -85,6 +105,15 @@ function RotationGovernanceService_evaluate(input) {
   var aggregate = CanonicalValidator_aggregate(verdicts);
   aggregate.rotationEvidence = evidence;
   aggregate.governanceBuild = ROTATION_GOVERNANCE_BUILD;
+
+  if (typeof DPL_end_ === 'function') {
+    var perfPayload = DPL_end_(__perf, {
+      overallLevel: aggregate.overallLevel,
+      verdictCount: verdicts.length
+    });
+    if (perfPayload) aggregate.devPerformance = perfPayload;
+  }
+
   return aggregate;
 }
 

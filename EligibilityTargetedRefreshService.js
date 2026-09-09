@@ -1,6 +1,6 @@
 /***********************************************************************
  * EligibilityTargetedRefreshService.js
- * BUILD: 2026-09-09_ROADMAP_2_4_ELIGIBILITY_TARGETED_REFRESH_R1
+ * BUILD: 2026-09-09_ROADMAP_2_4_ELIGIBILITY_TARGETED_REFRESH_R2_ORPHAN_SAFE
  *
  * PURPOSE
  *   Bounded targeted refresh of derived EligibilityService cache entries.
@@ -13,17 +13,22 @@
  *     eligService_cacheWrite_. It owns no eligibility rules.
  *   - Eligibility_Cache remains derived acceleration only.
  *   - No lifecycle, Planning, Availability or Status writes.
+ *   - Cache rows whose Audit ID no longer exists in Audit planning are
+ *     classified as ORPHANED_CACHE_ENTRY and skipped, never treated as a
+ *     refresh failure.
  *
  * SPEED CONTRACT
  *   - One batch classification before refresh.
  *   - Refresh only requested rows that need it, unless force=true.
  *   - Hard bounded refresh count; never an unbounded warmer in a user path.
- *   - One batch verification after refresh.
+ *   - One batch verification after refresh for successfully refreshed IDs.
+ *   - No extra Audit planning existence scan; orphan detection reuses the
+ *     canonical elig_compute_ result/error path.
  *   - No per-audit eligibility sheet lookup before compute.
  *   - DEV-only performance telemetry.
  ***********************************************************************/
 
-var ELIGIBILITY_TARGETED_REFRESH_BUILD = '2026-09-09_ROADMAP_2_4_ELIGIBILITY_TARGETED_REFRESH_R1';
+var ELIGIBILITY_TARGETED_REFRESH_BUILD = '2026-09-09_ROADMAP_2_4_ELIGIBILITY_TARGETED_REFRESH_R2_ORPHAN_SAFE';
 
 function ETRS_clean_(v) {
   return String(v == null ? '' : v).trim();
@@ -59,6 +64,12 @@ function ETRS_selectTargets_(auditIds, batch, force, maxRefresh) {
   return targets;
 }
 
+function ETRS_isAuditNotFoundError_(e, auditId) {
+  var msg = String(e && e.message || e || '');
+  var id = ETRS_clean_(auditId);
+  return msg.indexOf('elig_compute_: audit not found:') >= 0 && (!id || msg.indexOf(id) >= 0);
+}
+
 function EligibilityTargetedRefreshService_refresh(input) {
   input = input || {};
   var auditIds = ETRS_ids_(input);
@@ -91,6 +102,7 @@ function EligibilityTargetedRefreshService_refresh(input) {
       selected: 0,
       refreshed: 0,
       skipped: 0,
+      orphaned: 0,
       failed: 0,
       dryRun: dryRun,
       items: [],
@@ -99,10 +111,11 @@ function EligibilityTargetedRefreshService_refresh(input) {
         maxRefresh: maxRefresh,
         canonicalOwner: 'EligibilityService',
         cacheRole: 'derived acceleration only',
-        writesBusinessTruth: false
+        writesBusinessTruth: false,
+        orphanPolicy: 'skip-orphaned-cache-entry'
       }
     };
-    if (typeof DPL_end_ === 'function') none.devPerformance = DPL_end_(perf, { requested:0, selected:0, refreshed:0 });
+    if (typeof DPL_end_ === 'function') none.devPerformance = DPL_end_(perf, { requested:0, selected:0, refreshed:0, orphaned:0 });
     return none;
   }
 
@@ -118,6 +131,8 @@ function EligibilityTargetedRefreshService_refresh(input) {
   var items = [];
   var refreshed = 0;
   var failed = 0;
+  var orphaned = 0;
+  var refreshedIds = [];
 
   if (!dryRun && targets.length) {
     try { if (typeof elig_resetExec_ === 'function') elig_resetExec_(); } catch (e1) {}
@@ -137,7 +152,12 @@ function EligibilityTargetedRefreshService_refresh(input) {
       var fresh = elig_compute_(t.auditId);
       var write = eligService_cacheWrite_(t.auditId, fresh);
       var ok = !!(write && write.ok === true);
-      if (ok) refreshed++; else failed++;
+      if (ok) {
+        refreshed++;
+        refreshedIds.push(t.auditId);
+      } else {
+        failed++;
+      }
       items.push({
         auditId: t.auditId,
         ok: ok,
@@ -150,30 +170,42 @@ function EligibilityTargetedRefreshService_refresh(input) {
         scriptWritten: !!(write && write.scriptWritten)
       });
     } catch (e) {
-      failed++;
-      items.push({
-        auditId: t.auditId,
-        ok: false,
-        action: 'ERROR',
-        reason: t.reason,
-        elapsedMs: Date.now() - t0,
-        error: String(e && e.message || e)
-      });
+      if (ETRS_isAuditNotFoundError_(e, t.auditId)) {
+        orphaned++;
+        items.push({
+          auditId: t.auditId,
+          ok: true,
+          action: 'ORPHANED_CACHE_ENTRY',
+          reason: t.reason,
+          elapsedMs: Date.now() - t0,
+          error: String(e && e.message || e)
+        });
+      } else {
+        failed++;
+        items.push({
+          auditId: t.auditId,
+          ok: false,
+          action: 'ERROR',
+          reason: t.reason,
+          elapsedMs: Date.now() - t0,
+          error: String(e && e.message || e)
+        });
+      }
     }
   }
 
   if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'refreshLoop', {
     selected: targets.length,
     refreshed: refreshed,
+    orphaned: orphaned,
     failed: failed,
     dryRun: dryRun,
     loopMs: Date.now() - loopStart
   });
 
   var after = null;
-  if (!dryRun && targets.length) {
-    var targetIds = targets.map(function(x){ return x.auditId; });
-    after = EligibilityBatchReadModel_get({ auditIds: targetIds });
+  if (!dryRun && refreshedIds.length) {
+    after = EligibilityBatchReadModel_get({ auditIds: refreshedIds });
   }
   if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'verifyBatch', {
     performed: !!after,
@@ -188,6 +220,7 @@ function EligibilityTargetedRefreshService_refresh(input) {
     selected: targets.length,
     refreshed: refreshed,
     skipped: Math.max(0, auditIds.length - targets.length),
+    orphaned: orphaned,
     failed: failed,
     dryRun: dryRun,
     force: force,
@@ -206,7 +239,8 @@ function EligibilityTargetedRefreshService_refresh(input) {
       writesBusinessTruth: false,
       lifecycleWrites: false,
       availabilityWrites: false,
-      planningWrites: false
+      planningWrites: false,
+      orphanPolicy: 'skip-orphaned-cache-entry'
     }
   };
 
@@ -214,6 +248,7 @@ function EligibilityTargetedRefreshService_refresh(input) {
     requested: auditIds.length,
     selected: targets.length,
     refreshed: refreshed,
+    orphaned: orphaned,
     failed: failed,
     dryRun: dryRun
   });

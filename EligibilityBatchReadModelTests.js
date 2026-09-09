@@ -1,10 +1,10 @@
 /***********************************************************************
  * EligibilityBatchReadModelTests.js
- * BUILD: 2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_TESTS_R1
+ * BUILD: 2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_TESTS_R2
  * Permanent, non-destructive regression.
  ***********************************************************************/
 
-var ELIGIBILITY_BATCH_READ_TEST_BUILD = '2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_TESTS_R1';
+var ELIGIBILITY_BATCH_READ_TEST_BUILD = '2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_TESTS_R2';
 
 function EBRMT_assert_(name, condition, detail, out) {
   var ok = !!condition;
@@ -39,6 +39,12 @@ function RUN_ELIGIBILITY_BATCH_READ_REGRESSION() {
   EBRMT_assert_('jsonArray', Array.isArray(EBRM_parseJson_('[1,2]', null)), 'json parse array', results);
   EBRMT_assert_('jsonFallback', EBRM_parseJson_('{bad', null) === null, 'invalid json fallback', results);
 
+  var wrappedAuditors = EBRM_normalizeAuditorsPayload_('{"auditors":[{"email":"x@example.com"}]}');
+  EBRMT_assert_('wrappedAuditorsPayload', wrappedAuditors.ok === true && wrappedAuditors.auditors.length === 1, 'wrapped auditors payload', results);
+
+  var wrappedMeta = EBRM_normalizeMetaPayload_('{"meta":{"companyUid":"C1"},"requiredScopes":["MPS-ABC"],"scopesRes":{"scopes":[],"scopesText":"MPS-ABC"}}');
+  EBRMT_assert_('wrappedMetaPayload', wrappedMeta.ok === true && wrappedMeta.meta.companyUid === 'C1' && wrappedMeta.requiredScopes.length === 1, 'wrapped meta payload', results);
+
   var sampleIds = EBRMT_sampleAuditIds_();
   var t0 = Date.now();
   var smoke = EligibilityBatchReadModel_get({ auditIds: sampleIds });
@@ -49,15 +55,20 @@ function RUN_ELIGIBILITY_BATCH_READ_REGRESSION() {
   EBRMT_assert_('readOnly', smoke && smoke.meta && smoke.meta.writes === false, 'must be read-only', results);
   EBRMT_assert_('canonicalOwner', smoke && smoke.meta && smoke.meta.canonicalOwner === 'EligibilityService', 'canonical owner', results);
   EBRMT_assert_('derivedCacheOnly', smoke && smoke.meta && smoke.meta.cacheRole === 'derived acceleration only', 'cache role', results);
+  EBRMT_assert_('noParseErrors', smoke && smoke.meta && smoke.meta.parseErrors === 0, 'canonical EligibilityService payloads must decode without parse errors', results);
 
   if (sampleIds.length) {
     EBRMT_assert_('sampleRowsReturned', smoke.rows.length > 0, 'sample rows must return', results);
     var first = smoke.rows[0] || {};
     EBRMT_assert_('auditorsArray', Array.isArray(first.auditors), 'auditors must be array', results);
+    EBRMT_assert_('requiredScopesArray', Array.isArray(first.requiredScopes), 'requiredScopes must be array', results);
+    EBRMT_assert_('eligibilityMetaObject', first.eligibilityMeta && typeof first.eligibilityMeta === 'object', 'eligibility meta object', results);
     EBRMT_assert_('targetedMissingReported', Array.isArray(smoke.missingAuditIds), 'missing ids array', results);
   } else {
     EBRMT_assert_('sampleRowsReturned', true, '', results);
     EBRMT_assert_('auditorsArray', true, '', results);
+    EBRMT_assert_('requiredScopesArray', true, '', results);
+    EBRMT_assert_('eligibilityMetaObject', true, '', results);
     EBRMT_assert_('targetedMissingReported', true, '', results);
   }
 
@@ -74,6 +85,8 @@ function RUN_ELIGIBILITY_BATCH_READ_REGRESSION() {
     sampleAuditIds: sampleIds.length,
     smokeReturned: smoke && smoke.rows ? smoke.rows.length : 0,
     smokeServerMs: smokeMs,
+    parseErrors: smoke && smoke.meta ? smoke.meta.parseErrors : null,
+    staleRows: smoke && smoke.meta ? smoke.meta.stale : null,
     devPerformance: smoke ? smoke.devPerformance || null : null,
     results: results
   };

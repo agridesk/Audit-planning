@@ -1,9 +1,9 @@
 /***********************************************************************
  * ConceptPlanningDateSlotAdvisoryTests.js
- * BUILD: 2026-09-09_ROADMAP_2_4_CONCEPT_DATE_SLOT_ADVISORY_TESTS_R1
+ * BUILD: 2026-09-09_ROADMAP_2_4_CONCEPT_DATE_SLOT_ADVISORY_TESTS_R2
  * Permanent, non-destructive regression.
  ***********************************************************************/
-var CONCEPT_DATE_SLOT_TEST_BUILD='2026-09-09_ROADMAP_2_4_CONCEPT_DATE_SLOT_ADVISORY_TESTS_R1';
+var CONCEPT_DATE_SLOT_TEST_BUILD='2026-09-09_ROADMAP_2_4_CONCEPT_DATE_SLOT_ADVISORY_TESTS_R2';
 function CDSAT_assert_(name,condition,detail,out){var ok=!!condition;out.push({name:name,ok:ok,detail:ok?'':String(detail||'failed')});}
 function RUN_CONCEPT_DATE_SLOT_ADVISORY_REGRESSION(){
   var results=[];
@@ -39,10 +39,11 @@ function RUN_CONCEPT_DATE_SLOT_ADVISORY_REGRESSION(){
   CDSAT_assert_('threeAuditsReturned',smoke&&smoke.rows&&smoke.rows.length===3,'three audits',results);
   CDSAT_assert_('refreshAuditHasNoSlots',smoke.rows[1].advisoryState==='REFRESH_REQUIRED'&&smoke.rows[1].slotCount===0,'refresh guard',results);
   CDSAT_assert_('outsideWindowHasNoSlots',smoke.rows[2].advisoryState==='NO_DATE_SLOTS'&&smoke.rows[2].slotCount===0,'outside visible window',results);
-  CDSAT_assert_('windowRespected',smoke.rows[0].slots.length===3&&smoke.rows[0].slots[0].date==='2026-09-02'&&smoke.rows[0].slots[2].date==='2026-09-04','window slots',results);
+  CDSAT_assert_('windowRespected',smoke.rows[0].slots.length===2&&smoke.rows[0].slots[0].date==='2026-09-02'&&smoke.rows[0].slots[1].date==='2026-09-04','window slots',results);
   CDSAT_assert_('availablePreferredSignal',smoke.rows[0].slots[0].signal==='AVAILABLE','available signal',results);
-  CDSAT_assert_('unknownAllowed',smoke.rows[0].slots[2].signal==='UNKNOWN','unknown allowed',results);
-  CDSAT_assert_('totalsBalance',smoke&&smoke.totals&&smoke.totals.audits===3&&smoke.totals.refreshRequired===1&&smoke.totals.readyAudits===1,'totals',results);
+  CDSAT_assert_('allUnavailableOrBlockedExcluded',smoke.rows[0].slots.filter(function(s){return s.date==='2026-09-03';}).length===0,'all unavailable or blocked date excluded',results);
+  CDSAT_assert_('unknownAllowed',smoke.rows[0].slots[1].signal==='UNKNOWN','unknown allowed',results);
+  CDSAT_assert_('totalsBalance',smoke&&smoke.totals&&smoke.totals.audits===3&&smoke.totals.refreshRequired===1&&smoke.totals.readyAudits===1&&smoke.totals.totalSlots===2,'totals',results);
   CDSAT_assert_('boundedSlotCount',smoke.rows[0].slotCount<=10,'bounded slots',results);
 
   var passed=results.filter(function(x){return x.ok;}).length;

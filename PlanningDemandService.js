@@ -1,6 +1,6 @@
 /***********************************************************************
  * PlanningDemandService.js
- * BUILD: 2026-09-09_ROADMAP_2_4_PLANNING_DEMAND_R1_SPEED_FIRST
+ * BUILD: 2026-09-09_ROADMAP_2_4_PLANNING_DEMAND_R2_TARGETED_COMPANIES
  *
  * PURPOSE
  *   First Roadmap 2.4 Planning Demand product slice.
@@ -11,13 +11,14 @@
  *   - One bulk read of Audit planning per request.
  *   - Filter on persisted planning-window columns BEFORE enrichment.
  *   - No per-row Spreadsheet reads.
- *   - Company enrichment loaded once through CompaniesIndexService.
+ *   - Company enrichment reads one bounded projection only for needed fields.
+ *   - Never builds/loads the oversized full Companies name-core index here.
  *   - Scope extraction happens only for period candidates.
  *   - DEV-only lightweight timing via DevPerformanceLog.
  *   - No writes, no lifecycle effects, no Availability writes.
  ***********************************************************************/
 
-var PLANNING_DEMAND_BUILD = '2026-09-09_ROADMAP_2_4_PLANNING_DEMAND_R1_SPEED_FIRST';
+var PLANNING_DEMAND_BUILD = '2026-09-09_ROADMAP_2_4_PLANNING_DEMAND_R2_TARGETED_COMPANIES';
 
 function PDS_clean_(v) {
   return String(v == null ? '' : v).trim();
@@ -85,20 +86,78 @@ function PDS_scopeNames_(headers, row) {
   }).filter(function(x) { return !!x; });
 }
 
-function PDS_companyIndex_() {
-  if (typeof CompaniesIndex_GetNameCoreIndex !== 'function') return null;
-  try {
-    var idx = CompaniesIndex_GetNameCoreIndex(false);
-    return idx && idx.byName ? idx : null;
-  } catch (e) {
-    return null;
-  }
+function PDS_companyLookupKey_(uid, company) {
+  uid = PDS_clean_(uid);
+  company = PDS_norm_(company).replace(/\s+/g, ' ');
+  return uid ? ('UID::' + uid) : ('NAME::' + company);
 }
 
-function PDS_companyCore_(companyIndex, company) {
-  if (!companyIndex || !companyIndex.byName) return null;
-  var key = PDS_norm_(company).replace(/\s+/g, ' ');
-  return companyIndex.byName[key] || null;
+/**
+ * Speed-first bounded Companies projection.
+ * Reads only the contiguous span needed for UID/name/country/region and only
+ * once per Planning Demand request. No persistent oversized cache payload.
+ */
+function PDS_companyProjection_(ss, candidates, cCompany, cCompanyUid) {
+  var needed = {};
+  for (var i = 0; i < candidates.length; i++) {
+    var row = candidates[i].row || [];
+    var company = cCompany >= 0 ? PDS_clean_(row[cCompany]) : '';
+    var uid = cCompanyUid >= 0 ? PDS_clean_(row[cCompanyUid]) : '';
+    needed[PDS_companyLookupKey_(uid, company)] = true;
+    if (company) needed['NAME::' + PDS_norm_(company).replace(/\s+/g, ' ')] = true;
+  }
+
+  var sh = ss.getSheetByName('Companies');
+  if (!sh || sh.getLastRow() < 2) return { byKey: {}, rowsRead: 0, colsRead: 0 };
+
+  var lastCol = sh.getLastColumn();
+  var headers = sh.getRange(1, 1, 1, lastCol).getValues()[0] || [];
+  var iUid = PDS_findCol_(headers, ['Company_UID','Company UID','CompanyUID','UID']);
+  var iName = PDS_findCol_(headers, ['Company','Company name','Name','Bedrijf']);
+  var iCountry = PDS_findCol_(headers, ['Country']);
+  var iRegion = PDS_findCol_(headers, ['Region']);
+
+  var used = [iUid, iName, iCountry, iRegion].filter(function(x) { return x >= 0; });
+  if (!used.length || iName < 0) return { byKey: {}, rowsRead: 0, colsRead: 0 };
+
+  var minCol = Math.min.apply(null, used);
+  var maxCol = Math.max.apply(null, used);
+  var width = maxCol - minCol + 1;
+  var rowCount = sh.getLastRow() - 1;
+  var values = sh.getRange(2, minCol + 1, rowCount, width).getValues();
+  var byKey = {};
+
+  function rel_(absoluteIndex) { return absoluteIndex < 0 ? -1 : absoluteIndex - minCol; }
+  var rUid = rel_(iUid), rName = rel_(iName), rCountry = rel_(iCountry), rRegion = rel_(iRegion);
+
+  for (var r = 0; r < values.length; r++) {
+    var v = values[r] || [];
+    var uid = rUid >= 0 ? PDS_clean_(v[rUid]) : '';
+    var name = rName >= 0 ? PDS_clean_(v[rName]) : '';
+    if (!name && !uid) continue;
+    var uidKey = uid ? ('UID::' + uid) : '';
+    var nameKey = name ? ('NAME::' + PDS_norm_(name).replace(/\s+/g, ' ')) : '';
+    if (!(uidKey && needed[uidKey]) && !(nameKey && needed[nameKey])) continue;
+
+    var core = {
+      companyUid: uid,
+      companyName: name,
+      country: rCountry >= 0 ? PDS_clean_(v[rCountry]) : '',
+      region: rRegion >= 0 ? PDS_clean_(v[rRegion]) : ''
+    };
+    if (uidKey) byKey[uidKey] = core;
+    if (nameKey) byKey[nameKey] = core;
+  }
+
+  return { byKey: byKey, rowsRead: values.length, colsRead: width };
+}
+
+function PDS_companyCore_(projection, uid, company) {
+  if (!projection || !projection.byKey) return null;
+  var uidKey = PDS_clean_(uid) ? ('UID::' + PDS_clean_(uid)) : '';
+  if (uidKey && projection.byKey[uidKey]) return projection.byKey[uidKey];
+  var nameKey = 'NAME::' + PDS_norm_(company).replace(/\s+/g, ' ');
+  return projection.byKey[nameKey] || null;
 }
 
 function PDS_parsePlanningJsonHours_(raw) {
@@ -145,18 +204,6 @@ function PDS_urgency_(windowTo, period) {
   return 'OPEN_IN_PERIOD';
 }
 
-/**
- * Public read-only endpoint.
- *
- * input:
- *   from / to          required ISO dates
- *   country            optional exact filter
- *   region             optional exact filter
- *   scope              optional exact scope filter
- *   status             optional exact status filter
- *   auditor            optional Assigned/Preassigned filter
- *   limit              optional, default 500, max 2000
- */
 function PlanningDemandService_get(input) {
   input = input || {};
   var perf = (typeof DPL_start_ === 'function') ? DPL_start_('PlanningDemandService_get', {
@@ -218,9 +265,15 @@ function PlanningDemandService_get(input) {
   }
   if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'periodFilter', { candidates: candidates.length });
 
-  var companyIndex = null;
-  if (input.country || input.region || input.includeCompanyMeta !== false) companyIndex = PDS_companyIndex_();
-  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'companyIndex', { loaded: !!companyIndex });
+  var companyProjection = { byKey: {}, rowsRead: 0, colsRead: 0 };
+  if (input.country || input.region || input.includeCompanyMeta !== false) {
+    companyProjection = PDS_companyProjection_(ss, candidates, cCompany, cCompanyUid);
+  }
+  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'companyProjection', {
+    rowsRead: companyProjection.rowsRead || 0,
+    colsRead: companyProjection.colsRead || 0,
+    matches: Object.keys(companyProjection.byKey || {}).length
+  });
 
   var out = [];
   var totals = { audits: 0, hoursToPlan: 0, hoursPlanned: 0, hoursDedicated: 0 };
@@ -231,7 +284,7 @@ function PlanningDemandService_get(input) {
     var row2 = c.row;
     var company = PDS_clean_(row2[cCompany]);
     var companyUid = cCompanyUid >= 0 ? PDS_clean_(row2[cCompanyUid]) : '';
-    var core = PDS_companyCore_(companyIndex, company) || {};
+    var core = PDS_companyCore_(companyProjection, companyUid, company) || {};
     var country = PDS_clean_(core.country);
     var region = PDS_clean_(core.region);
 
@@ -298,7 +351,7 @@ function PlanningDemandService_get(input) {
       periodCandidates: candidates.length,
       returned: out.length,
       truncated: out.length >= limit && candidates.length > out.length,
-      readModel: 'Audit planning + CompaniesIndex',
+      readModel: 'Audit planning + targeted Companies projection',
       writes: false
     }
   };

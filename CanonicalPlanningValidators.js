@@ -1,22 +1,26 @@
 /***********************************************************************
  * CanonicalPlanningValidators.js
  *
- * BUILD: 2026-09-09_ROADMAP_2_4_CANONICAL_PLANNING_VALIDATORS_R1
+ * BUILD: 2026-09-09_ROADMAP_2_4_CANONICAL_PLANNING_VALIDATORS_R2
  *
  * PURPOSE
  *   Canonical backend facade for planning validation.
  *
- *   It consumes existing canonical owners instead of reimplementing them:
+ *   Existing canonical owners keep deciding the business rules:
  *     - Qualification: _mp_assertAuditorQualifiedForPlanning_
- *     - Availability:  AvailabilityService.validate
- *     - Planning Window: persisted Audit planning window columns
+ *     - Availability: AvailabilityService.validate
+ *     - Planning Window: _mp_resolvePlanningWindowCached_ / _mp_resolvePlanningWindow_
  *     - Rotation: existing eligibility/rotation metadata (soft in this gate)
  *
- *   Tiered rotation policy is intentionally NOT introduced here. Roadmap
- *   2.4 schedules that after this contract is established.
+ *   This file normalizes those outcomes to CanonicalValidatorContract.
+ *   It performs NO writes.
+ *
+ * ROADMAP 2.4 GATE
+ *   Tiered rotation policy is intentionally NOT introduced here.
+ *   Rotation remains advisory until the dedicated governed release.
  ***********************************************************************/
 
-var CANONICAL_PLANNING_VALIDATORS_BUILD = '2026-09-09_ROADMAP_2_4_CANONICAL_PLANNING_VALIDATORS_R1';
+var CANONICAL_PLANNING_VALIDATORS_BUILD = '2026-09-09_ROADMAP_2_4_CANONICAL_PLANNING_VALIDATORS_R2';
 
 function CPV_clean_(v) {
   return String(v == null ? '' : v).trim();
@@ -24,20 +28,6 @@ function CPV_clean_(v) {
 
 function CPV_normEmail_(v) {
   return CPV_clean_(v).toLowerCase();
-}
-
-function CPV_headerIndex_(headers, candidates) {
-  headers = headers || [];
-  candidates = candidates || [];
-  var exact = {};
-  for (var i = 0; i < headers.length; i++) {
-    exact[CPV_clean_(headers[i]).toLowerCase()] = i;
-  }
-  for (var j = 0; j < candidates.length; j++) {
-    var key = CPV_clean_(candidates[j]).toLowerCase();
-    if (Object.prototype.hasOwnProperty.call(exact, key)) return exact[key];
-  }
-  return -1;
 }
 
 function CPV_isoDate_(v) {
@@ -71,26 +61,41 @@ function CPV_requireContract_() {
   }
 }
 
+function CPV_ownerFailure_(kind, ruleCode, reason, subject, source, evidence) {
+  return CanonicalValidator_hardBlock(kind, ruleCode, reason, {
+    subject: subject,
+    source: source,
+    evidence: evidence == null ? null : evidence
+  });
+}
+
+/* =====================================================================
+ * QUALIFICATION
+ * ===================================================================== */
+
 function CPV_qualification(ctx) {
   CPV_requireContract_();
   ctx = ctx || {};
   var subject = CPV_subject_(ctx);
+  var source = '_mp_assertAuditorQualifiedForPlanning_';
 
   if (!subject.auditorEmail && !subject.auditorName) {
-    return CanonicalValidator_hardBlock(
+    return CPV_ownerFailure_(
       CanonicalValidatorKind.QUALIFICATION,
       'QUALIFICATION_AUDITOR_REQUIRED',
       'Missing auditor for qualification check',
-      { subject: subject, source: '_mp_assertAuditorQualifiedForPlanning_' }
+      subject,
+      source
     );
   }
 
   if (typeof _mp_assertAuditorQualifiedForPlanning_ !== 'function') {
-    return CanonicalValidator_hardBlock(
+    return CPV_ownerFailure_(
       CanonicalValidatorKind.QUALIFICATION,
       'QUALIFICATION_OWNER_UNAVAILABLE',
       'Canonical qualification owner is unavailable',
-      { subject: subject, source: '_mp_assertAuditorQualifiedForPlanning_' }
+      subject,
+      source
     );
   }
 
@@ -105,11 +110,13 @@ function CPV_qualification(ctx) {
       subject.auditorName
     ) || {};
   } catch (e) {
-    return CanonicalValidator_hardBlock(
+    return CPV_ownerFailure_(
       CanonicalValidatorKind.QUALIFICATION,
       'QUALIFICATION_CHECK_FAILED',
       CPV_clean_(e && e.message) || 'Qualification check failed',
-      { subject: subject, source: '_mp_assertAuditorQualifiedForPlanning_' }
+      subject,
+      source,
+      { error: CPV_clean_(e && e.message) }
     );
   }
 
@@ -118,7 +125,7 @@ function CPV_qualification(ctx) {
       CanonicalValidatorKind.QUALIFICATION,
       'QUALIFICATION_OK',
       result.message || 'Auditor qualified',
-      { subject: subject, source: '_mp_assertAuditorQualifiedForPlanning_', evidence: result }
+      { subject: subject, source: source, evidence: result }
     );
   }
 
@@ -126,30 +133,37 @@ function CPV_qualification(ctx) {
     CanonicalValidatorKind.QUALIFICATION,
     'QUALIFICATION_NOT_QUALIFIED',
     result.message || 'Auditor is not qualified for the required scope(s)',
-    { subject: subject, source: '_mp_assertAuditorQualifiedForPlanning_', evidence: result }
+    { subject: subject, source: source, evidence: result }
   );
 }
+
+/* =====================================================================
+ * AVAILABILITY
+ * ===================================================================== */
 
 function CPV_availability(ctx) {
   CPV_requireContract_();
   ctx = ctx || {};
   var subject = CPV_subject_(ctx);
+  var source = 'AvailabilityService.validate';
 
   if (!subject.auditorEmail) {
-    return CanonicalValidator_hardBlock(
+    return CPV_ownerFailure_(
       CanonicalValidatorKind.AVAILABILITY,
       'AVAILABILITY_AUDITOR_EMAIL_REQUIRED',
       'Missing auditor email for Availability validation',
-      { subject: subject, source: 'AvailabilityService.validate' }
+      subject,
+      source
     );
   }
 
   if (typeof AvailabilityService === 'undefined' || !AvailabilityService || typeof AvailabilityService.validate !== 'function') {
-    return CanonicalValidator_hardBlock(
+    return CPV_ownerFailure_(
       CanonicalValidatorKind.AVAILABILITY,
       'AVAILABILITY_OWNER_UNAVAILABLE',
       'Canonical Availability owner is unavailable',
-      { subject: subject, source: 'AvailabilityService.validate' }
+      subject,
+      source
     );
   }
 
@@ -162,11 +176,13 @@ function CPV_availability(ctx) {
       ctx.blocks || []
     ) || {};
   } catch (e) {
-    return CanonicalValidator_hardBlock(
+    return CPV_ownerFailure_(
       CanonicalValidatorKind.AVAILABILITY,
       'AVAILABILITY_CHECK_FAILED',
       CPV_clean_(e && e.message) || 'Availability validation failed',
-      { subject: subject, source: 'AvailabilityService.validate' }
+      subject,
+      source,
+      { error: CPV_clean_(e && e.message) }
     );
   }
 
@@ -175,7 +191,7 @@ function CPV_availability(ctx) {
       CanonicalValidatorKind.AVAILABILITY,
       'AVAILABILITY_OK',
       result.message || 'Availability OK',
-      { subject: subject, source: 'AvailabilityService.validate', evidence: result }
+      { subject: subject, source: source, evidence: result }
     );
   }
 
@@ -183,47 +199,71 @@ function CPV_availability(ctx) {
     CanonicalValidatorKind.AVAILABILITY,
     'AVAILABILITY_CONFLICT',
     result.message || 'Auditor is unavailable or has a planning collision',
-    { subject: subject, source: 'AvailabilityService.validate', evidence: result }
+    { subject: subject, source: source, evidence: result }
   );
+}
+
+/* =====================================================================
+ * PLANNING WINDOW
+ * ===================================================================== */
+
+function CPV_resolvePlanningWindow_(ctx) {
+  ctx = ctx || {};
+  var ss = ctx.ss || SpreadsheetApp.getActive();
+  var headers = ctx.headers || [];
+  var row = ctx.row || [];
+  var auditId = CPV_clean_(ctx.auditId);
+
+  if (typeof _mp_resolvePlanningWindowCached_ === 'function') {
+    return _mp_resolvePlanningWindowCached_(ss, headers, row, auditId) || null;
+  }
+  if (typeof _mp_resolvePlanningWindow_ === 'function') {
+    return _mp_resolvePlanningWindow_(ss, headers, row) || null;
+  }
+  return null;
 }
 
 function CPV_planningWindow(ctx) {
   CPV_requireContract_();
   ctx = ctx || {};
   var subject = CPV_subject_(ctx);
-  var headers = ctx.headers || [];
-  var row = ctx.row || [];
+  var source = '_mp_resolvePlanningWindowCached_/_mp_resolvePlanningWindow_';
 
-  var iFrom = CPV_headerIndex_(headers, [
-    'Planning window from', 'Plan van', 'Planning from', 'Planning from date',
-    'Plan from', 'Planning start', 'Plan start'
-  ]);
-  var iTo = CPV_headerIndex_(headers, [
-    'Planning window to', 'Plan tot', 'Planning to', 'Planning to date',
-    'Plan to', 'Planning end', 'Plan end'
-  ]);
-
-  if (iFrom < 0 || iTo < 0) {
-    return CanonicalValidator_hardBlock(
+  if (typeof _mp_resolvePlanningWindowCached_ !== 'function' &&
+      typeof _mp_resolvePlanningWindow_ !== 'function') {
+    return CPV_ownerFailure_(
       CanonicalValidatorKind.PLANNING_WINDOW,
-      'PLANNING_WINDOW_COLUMNS_MISSING',
-      'Canonical planning-window columns are missing',
-      { subject: subject, source: 'Audit planning persisted planning window' }
+      'PLANNING_WINDOW_OWNER_UNAVAILABLE',
+      'Canonical planning-window owner is unavailable',
+      subject,
+      source
     );
   }
 
-  var fromISO = CPV_isoDate_(row[iFrom]);
-  var toISO = CPV_isoDate_(row[iTo]);
+  var resolved;
+  try {
+    resolved = CPV_resolvePlanningWindow_(ctx);
+  } catch (e) {
+    return CPV_ownerFailure_(
+      CanonicalValidatorKind.PLANNING_WINDOW,
+      'PLANNING_WINDOW_CHECK_FAILED',
+      CPV_clean_(e && e.message) || 'Planning-window resolution failed',
+      subject,
+      source,
+      { error: CPV_clean_(e && e.message) }
+    );
+  }
+
+  var fromISO = CPV_isoDate_(resolved && resolved.startDate);
+  var toISO = CPV_isoDate_(resolved && resolved.endDate);
   if (!fromISO || !toISO) {
-    return CanonicalValidator_hardBlock(
+    return CPV_ownerFailure_(
       CanonicalValidatorKind.PLANNING_WINDOW,
       'PLANNING_WINDOW_UNAVAILABLE',
       'Planning window is unavailable for this audit',
-      {
-        subject: subject,
-        source: 'Audit planning persisted planning window',
-        evidence: { from: fromISO, to: toISO }
-      }
+      subject,
+      source,
+      resolved
     );
   }
 
@@ -235,7 +275,7 @@ function CPV_planningWindow(ctx) {
         CanonicalValidatorKind.PLANNING_WINDOW,
         'PLANNING_WINDOW_INVALID_DATE',
         'Invalid planned date',
-        { subject: subject, source: 'Audit planning persisted planning window' }
+        { subject: subject, source: source, evidence: resolved }
       );
     }
     if (d < fromISO || d > toISO) {
@@ -245,11 +285,40 @@ function CPV_planningWindow(ctx) {
         'Planned date ' + d + ' is outside planning window ' + fromISO + ' to ' + toISO,
         {
           subject: subject,
-          source: 'Audit planning persisted planning window',
-          evidence: { plannedDate: d, from: fromISO, to: toISO }
+          source: source,
+          evidence: {
+            plannedDate: d,
+            from: fromISO,
+            to: toISO,
+            mode: resolved.mode || '',
+            warnings: resolved.warnings || [],
+            activeScopes: resolved.activeScopes || [],
+            scopeWindows: resolved.scopeWindows || []
+          }
         }
       );
     }
+  }
+
+  var warnings = Array.isArray(resolved.warnings) ? resolved.warnings : [];
+  if (warnings.length) {
+    return CanonicalValidator_warning(
+      CanonicalValidatorKind.PLANNING_WINDOW,
+      'PLANNING_WINDOW_SOFT_WARNING',
+      CPV_clean_(warnings[0] && warnings[0].message) || 'Planning window contains a soft warning',
+      {
+        subject: subject,
+        source: source,
+        evidence: {
+          from: fromISO,
+          to: toISO,
+          mode: resolved.mode || '',
+          warnings: warnings,
+          activeScopes: resolved.activeScopes || [],
+          scopeWindows: resolved.scopeWindows || []
+        }
+      }
+    );
   }
 
   return CanonicalValidator_ok(
@@ -258,20 +327,29 @@ function CPV_planningWindow(ctx) {
     'Planning date(s) are within the canonical planning window',
     {
       subject: subject,
-      source: 'Audit planning persisted planning window',
-      evidence: { from: fromISO, to: toISO }
+      source: source,
+      evidence: {
+        from: fromISO,
+        to: toISO,
+        mode: resolved.mode || '',
+        activeScopes: resolved.activeScopes || [],
+        scopeWindows: resolved.scopeWindows || []
+      }
     }
   );
 }
+
+/* =====================================================================
+ * ROTATION — current soft policy only
+ * ===================================================================== */
 
 function CPV_rotation(ctx) {
   CPV_requireContract_();
   ctx = ctx || {};
   var subject = CPV_subject_(ctx);
   var meta = ctx.rotationMeta || {};
+  var source = 'existing eligibility/rotation metadata';
 
-  // Roadmap 2.4 gate: current rotation remains advisory/soft here.
-  // Tiered WAIVER_REQUIRED/HARD_BLOCK policy is a later governed release.
   var soft = meta.softBlockRotation === true;
   var performed = Number(meta.performedCount || 0) || 0;
   var maxAllowed = Number(meta.maxAllowed || 0) || 0;
@@ -283,7 +361,7 @@ function CPV_rotation(ctx) {
       'Rotation limitation requires manager attention',
       {
         subject: subject,
-        source: 'existing eligibility/rotation metadata',
+        source: source,
         evidence: {
           softBlockRotation: soft,
           performedCount: performed,
@@ -300,7 +378,7 @@ function CPV_rotation(ctx) {
     'No current rotation limitation',
     {
       subject: subject,
-      source: 'existing eligibility/rotation metadata',
+      source: source,
       evidence: {
         performedCount: performed,
         maxAllowed: maxAllowed,
@@ -310,10 +388,10 @@ function CPV_rotation(ctx) {
   );
 }
 
-/**
- * Shared facade. Callers may disable a validator only explicitly.
- * No writes are performed.
- */
+/* =====================================================================
+ * SHARED FACADE
+ * ===================================================================== */
+
 function CanonicalPlanningValidators_evaluate(ctx) {
   ctx = ctx || {};
   var verdicts = [];

@@ -1,0 +1,73 @@
+AMS-01 — PERFORMANCE RCA BRIEFING FOR ROADMAP 2.4
+Date: 2026-09-09
+Status: BINDING INPUT FOR V2.4 REBUILD
+
+PURPOSE
+Carry the measured V1.0 performance findings into Roadmap 2.4 so the rebuild does not reproduce the same latency architecture.
+
+MEASURED V1.0 FAILURE PATTERN
+1. Planning Toolkit open is a serial backend chain: audit row -> planning window -> company constraints -> qualification -> first Availability month -> cache/write tail.
+2. Availability UI suffers from expensive google.script.run roundtrips. Server work can be ~1-2 seconds while walltime is ~5-8 seconds. Parallel month prefetch can add queue/transport pressure.
+3. A prefetched month can still be fetched again when a stale month-dirty marker forces local-cache bypass. Fresh backend retrieval must close the dirty state.
+4. Save is a large synchronous transaction: role/qualification -> Availability validate -> Availability write -> lifecycle/status -> notification build/queue -> invalidations.
+5. Notification building duplicated expensive work. Queue construction normalized operational audit context, then renderer construction normalized it again. Operational normalization may load audit/company/validation context.
+6. Micro-optimizing queue append/dedup alone did not solve Save latency. One experiment regressed performance. The dominant issue is repeated context construction and synchronous orchestration, not the physical 13-column append alone.
+7. Cold/warm GAS and Spreadsheet latency varies materially. Architecture must minimize the number of serial service/Sheet/RPC boundaries rather than depend on best-case warm timings.
+
+ROADMAP 2.4 DESIGN REQUIREMENTS
+A. READ MODEL FIRST
+Planning Demand, Auditor Feasibility, Concept Planning and Planning Workspace must consume purpose-built read/projection models. They must not reconstruct the same audit/company/scope/availability context independently per widget/action.
+
+B. ONE REQUEST CONTEXT PER COMMAND
+Validate/Commit/Re-adjust must build one immutable command context containing actor, audit/obligations, scopes, company profile, auditor profile, planning window and relevant Availability snapshot/version. Canonical validators consume this context. They must not reread the same Sheets independently.
+
+C. VALIDATE ONCE PER COMMIT PHASE
+Qualification, rotation, planning-window and Availability rules remain canonical and must be revalidated at Commit, but repeated equivalent validation/context loading inside one command is prohibited. Batch Commit shares indexes/context across items and returns per-item outcomes.
+
+D. AVAILABILITY READ LAYER
+Availability needs a canonical read/projection service separate from its write owner. Month/week/range retrieval should be batched. UI must not issue several parallel RPCs for adjacent months when one range/batch response can serve the planning surface.
+
+E. CLIENT FRESHNESS CONTRACT
+Every read projection returned to UI carries version/freshness metadata. After a successful write, only affected periods/entities are invalidated. A successful fresh reread closes that dirty marker. Do not leave sessions permanently bypassing a valid local projection.
+
+F. OPTIMISTIC UI
+User interactions such as marking Availability should update visually immediately. Backend persistence follows. Failure rolls back the optimistic state. User-perceived response must not wait for a multi-second Apps Script roundtrip.
+
+G. NOTIFICATION SIDE EFFECT BOUNDARY
+Commit creates the canonical lifecycle/planning result and a durable notification intent/outbox record using already-built command context. Expensive rendering/delivery enrichment must not lengthen the user's Commit critical path when it can safely happen after durable intent creation. Notification Queue/outbox remains mandatory; lifecycle success must not depend on email rendering latency.
+
+H. CONCEPT VS COMMIT
+Roadmap 2.4 Concept/Hold operations must remain lightweight. Dragging/reshuffling concepts must not repeatedly trigger canonical lifecycle writes, notification generation or full validator/Sheet reconstruction. Full canonical revalidation belongs at Commit.
+
+I. RPC BUDGET
+Planning Workspace should use coarse-grained/batched backend calls. Avoid one RPC per month, validator, panel or audit when the same planning session can obtain a combined projection. Measure both serverMs and browser walltime/transport.
+
+J. PERFORMANCE BUDGETS AS DEFINITION OF DONE
+At minimum measure:
+- login/route -> first usable planning screen;
+- Calendar Shell Interactive;
+- Planning Decision-Ready;
+- Availability interaction perceived latency;
+- month/range navigation walltime;
+- Validate walltime;
+- Commit walltime;
+- batch size scaling;
+- cold vs warm execution.
+A feature is not DONE if it meets server timing but browser walltime remains poor.
+
+K. NO SECOND SOURCE OF TRUTH
+Read models, projections, caches and Concept Holds never become canonical planning/Availability/lifecycle truth. Canonical owners remain those defined in Roadmap 2.4. Projections are disposable/rebuildable.
+
+L. GAS CONSTRAINT
+As long as GAS remains runtime, design around its high RPC and Spreadsheet boundary costs: fewer calls, fewer serial reads, targeted/batched reads, execution-local shared context, and durable asynchronous side effects where governance allows. Do not add framework abstraction merely to hide latency.
+
+V1.0 TACTICAL LESSON
+The correct tactical optimization order is:
+1. eliminate duplicate context construction;
+2. eliminate duplicate RPCs and stale-cache bypass loops;
+3. share canonical validation inputs within one Save/Commit;
+4. keep notification rendering outside repeated normalization;
+5. only then micro-optimize individual Sheet reads/writes.
+
+ROADMAP 2.4 ACCEPTANCE PRINCIPLE
+The rebuild must replace the V1.0 pattern 'many small canonical calls chained synchronously' with 'one coherent read projection for planning + one coherent validated Commit command', while preserving one canonical owner per truth and canonical revalidation at Commit.

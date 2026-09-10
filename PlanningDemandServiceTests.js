@@ -1,11 +1,11 @@
 /***********************************************************************
  * PlanningDemandServiceTests.js
- * BUILD: 2026-09-09_ROADMAP_2_4_PLANNING_DEMAND_TESTS_R1
+ * BUILD: 2026-09-10_AMS01_2_PLANNING_DEMAND_TESTS_R2_PERF_ISOLATION
  *
  * Non-destructive regression + real-data DEV smoke.
  ***********************************************************************/
 
-var PLANNING_DEMAND_TEST_BUILD = '2026-09-09_ROADMAP_2_4_PLANNING_DEMAND_TESTS_R1';
+var PLANNING_DEMAND_TEST_BUILD = '2026-09-10_AMS01_2_PLANNING_DEMAND_TESTS_R2_PERF_ISOLATION';
 
 function PDS_TEST_assert_(cond, name, detail, results) {
   results.push({ name: name, ok: !!cond, detail: cond ? '' : String(detail || '') });
@@ -56,6 +56,7 @@ function RUN_PLANNING_DEMAND_REGRESSION() {
   PDS_TEST_assert_(smoke && Array.isArray(smoke.rows), 'realDataRowsArray', '', results);
   PDS_TEST_assert_(smoke && smoke.totals && typeof smoke.totals.audits === 'number', 'realDataTotals', '', results);
   PDS_TEST_assert_(smoke && smoke.meta && smoke.meta.writes === false, 'readOnlyContract', '', results);
+  PDS_TEST_assert_(smoke && smoke.meta && smoke.meta.perfProbe && typeof smoke.meta.perfProbe.scopeExtractMs === 'number', 'perfProbeContract', '', results);
 
   var failed = results.filter(function(x){ return !x.ok; });
   var out = {
@@ -69,7 +70,44 @@ function RUN_PLANNING_DEMAND_REGRESSION() {
     smokeCandidates: smoke && smoke.meta ? smoke.meta.periodCandidates : null,
     smokeServerMs: wallServerMs,
     devPerformance: smoke ? smoke.devPerformance || null : null,
+    perfProbe: smoke && smoke.meta ? smoke.meta.perfProbe || null : null,
     results: results
+  };
+  Logger.log(JSON.stringify(out, null, 2));
+  return out;
+}
+
+function RUN_AMS01_2_PLANNING_DEMAND_PERF() {
+  var period = PDS_TEST_findSmokePeriod_();
+
+  function run_(label, includeCompanyMeta) {
+    var started = Date.now();
+    var result = PlanningDemandService_get({
+      from: period.from,
+      to: period.to,
+      limit: 500,
+      includeCompanyMeta: includeCompanyMeta
+    });
+    return {
+      label: label,
+      wallServerMs: Date.now() - started,
+      returned: result && result.rows ? result.rows.length : 0,
+      candidates: result && result.meta ? result.meta.periodCandidates : null,
+      devPerformance: result ? result.devPerformance || null : null,
+      perfProbe: result && result.meta ? result.meta.perfProbe || null : null
+    };
+  }
+
+  var withoutCompanyProjection = run_('NO_COMPANY_PROJECTION', false);
+  var withCompanyProjection = run_('WITH_COMPANY_PROJECTION', true);
+  var out = {
+    ok: true,
+    build: PLANNING_DEMAND_TEST_BUILD,
+    serviceBuild: PLANNING_DEMAND_BUILD,
+    period: period,
+    withoutCompanyProjection: withoutCompanyProjection,
+    withCompanyProjection: withCompanyProjection,
+    companyProjectionDeltaMs: withCompanyProjection.wallServerMs - withoutCompanyProjection.wallServerMs
   };
   Logger.log(JSON.stringify(out, null, 2));
   return out;

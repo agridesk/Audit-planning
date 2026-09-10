@@ -1,15 +1,15 @@
 /***********************************************************************
  * PlanningWorkspaceToolkit2InteractionTests.js
- * BUILD: 2026-09-10_PLANNING_WORKSPACE_TOOLKIT2_INTERACTION_TEST_R3_DENSITY_METADATA
+ * BUILD: 2026-09-10_PLANNING_WORKSPACE_TOOLKIT2_INTERACTION_TEST_R4_CALENDAR_FORWARD_COMPAT
  * Non-destructive browser contract regression. No business writes.
  ***********************************************************************/
-var PLANNING_WORKSPACE_TOOLKIT2_INTERACTION_TEST_BUILD='2026-09-10_PLANNING_WORKSPACE_TOOLKIT2_INTERACTION_TEST_R3_DENSITY_METADATA';
+var PLANNING_WORKSPACE_TOOLKIT2_INTERACTION_TEST_BUILD='2026-09-10_PLANNING_WORKSPACE_TOOLKIT2_INTERACTION_TEST_R4_CALENDAR_FORWARD_COMPAT';
 function RUN_PLANNING_WORKSPACE_TOOLKIT2_INTERACTION_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var cal=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceCalendarClient.js').getContent();
   var cc=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceConceptCalendarClient.js').getContent();
   var shell=HtmlService.createHtmlOutputFromFile('PlanningWorkspace').getContent();
-  t('calendarR4',cal.indexOf('CALENDAR_CLIENT_R4_DENSITY_METADATA')>=0);
+  t('calendarR4OrLater',/CALENDAR_CLIENT_R(?:[4-9]|[1-9][0-9])_/.test(cal));
   t('conceptItemsDraggable',cal.indexOf('conceptItemsDraggable:true')>=0&&cal.indexOf('data-pw-cal-source')>=0);
   t('availabilityWarnings',cal.indexOf('availabilityWarnings:true')>=0&&cal.indexOf('auditor unavailable')>=0);
   t('densityMetadata',cal.indexOf('densityMetadata:true')>=0&&cal.indexOf('data-pw-cal-auditor')>=0&&cal.indexOf('data-pw-cal-hours')>=0);
@@ -28,6 +28,6 @@ function RUN_PLANNING_WORKSPACE_TOOLKIT2_INTERACTION_REGRESSION(){
   t('existingDndPreserved',shell.indexOf('PlanningWorkspaceDragDropClient.js')>=0);
   t('existingSelfPlanningPreserved',shell.indexOf('PlanningWorkspaceSelfPlanningClient.js')>=0);
   t('conceptPanePreserved',shell.indexOf('id="pwPlanningPane"')>=0);
-  var f=r.filter(function(x){return!x.ok;}).length,out={ok:f===0,build:PLANNING_WORKSPACE_TOOLKIT2_INTERACTION_TEST_BUILD,total:r.length,passed:r.length-f,failed:f,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,existingFunctionalityRemoved:false,conceptCalendarInteraction:true,sourceScoped:true,availabilityWarnings:true,densityMetadata:true,previewBeforePersist:true}};
+  var f=r.filter(function(x){return!x.ok;}).length,out={ok:f===0,build:PLANNING_WORKSPACE_TOOLKIT2_INTERACTION_TEST_BUILD,total:r.length,passed:r.length-f,failed:f,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,existingFunctionalityRemoved:false,conceptCalendarInteraction:true,sourceScoped:true,availabilityWarnings:true,densityMetadata:true,previewBeforePersist:true,calendarBuildForwardCompatible:true}};
   Logger.log(JSON.stringify(out,null,2));return out;
 }

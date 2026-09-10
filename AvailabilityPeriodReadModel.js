@@ -1,6 +1,6 @@
 /***********************************************************************
  * AvailabilityPeriodReadModel.js
- * BUILD: 2026-09-09_ROADMAP_2_4_AVAILABILITY_PERIOD_READ_MODEL_R1
+ * BUILD: 2026-09-10_AMS01_2_AVAILABILITY_PERIOD_READ_MODEL_R2_DATE_BOUNDED
  *
  * PURPOSE
  *   Read-only compact period projection of canonical Auditor Availability.
@@ -12,14 +12,18 @@
  *   - Commit/save validation must still call canonical AvailabilityService.
  *
  * SPEED CONTRACT
- *   - One header read + one bounded bulk data read per request.
- *   - Filter by period/auditor in memory.
+ *   - One header read.
+ *   - Read Date column once to derive the contiguous requested period span.
+ *   - Read only that bounded body span when canonical date ordering is intact.
+ *   - Safe fallback to the previous full-body read when date ordering is not
+ *     monotonic, so correctness never depends on an unchecked sort assumption.
+ *   - Filter by auditor in memory.
  *   - No per-row Spreadsheet calls.
  *   - No cache writes, no persistent telemetry.
  *   - DEV-only timing through DevPerformanceLog.
  ***********************************************************************/
 
-var AVAILABILITY_PERIOD_READ_MODEL_BUILD = '2026-09-09_ROADMAP_2_4_AVAILABILITY_PERIOD_READ_MODEL_R1';
+var AVAILABILITY_PERIOD_READ_MODEL_BUILD = '2026-09-10_AMS01_2_AVAILABILITY_PERIOD_READ_MODEL_R2_DATE_BOUNDED';
 
 function APRM_clean_(v) {
   return String(v == null ? '' : v).replace(/\u00A0/g, ' ').trim();
@@ -103,6 +107,34 @@ function APRM_slot_(row, startCol, endCol, auditIdCol, statusCol, tz, slot) {
   return { slot: slot, start: start, end: end, auditId: auditId, status: status };
 }
 
+function APRM_dateSpan_(dateValues, period, tz) {
+  var firstOffset = -1;
+  var lastOffset = -1;
+  var previous = '';
+  var monotonic = true;
+  var validDates = 0;
+
+  for (var i = 0; i < (dateValues || []).length; i++) {
+    var d = APRM_isoDate_(dateValues[i] && dateValues[i][0], tz);
+    if (!d) continue;
+    validDates++;
+    if (previous && d < previous) monotonic = false;
+    previous = d;
+    if (d >= period.from && d <= period.to) {
+      if (firstOffset < 0) firstOffset = i;
+      lastOffset = i;
+    }
+  }
+
+  return {
+    monotonic: monotonic,
+    validDates: validDates,
+    firstOffset: firstOffset,
+    lastOffset: lastOffset,
+    matchedRows: firstOffset >= 0 ? (lastOffset - firstOffset + 1) : 0
+  };
+}
+
 function AvailabilityPeriodReadModel_get(input) {
   input = input || {};
   var perf = (typeof DPL_start_ === 'function') ? DPL_start_('AvailabilityPeriodReadModel_get', {
@@ -146,8 +178,37 @@ function AvailabilityPeriodReadModel_get(input) {
 
   var required = [cDate,cAud,cAvail,cS1,cE1,cID1,cSt1,cS2,cE2,cID2,cSt2,cUpd].filter(function(x){ return x >= 0; });
   var maxCol = required.length ? (Math.max.apply(null, required) + 1) : lastCol;
-  var values = lastRow >= 2 ? sh.getRange(2, 1, lastRow - 1, maxCol).getValues() : [];
-  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'bulkRead', { rows: values.length, cols: maxCol });
+  var sourceRows = Math.max(0, lastRow - 1);
+
+  var dateValues = sourceRows ? sh.getRange(2, cDate + 1, sourceRows, 1).getValues() : [];
+  var span = APRM_dateSpan_(dateValues, period, tz);
+  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'dateIndexRead', {
+    rows: dateValues.length,
+    monotonic: span.monotonic,
+    matchedRows: span.matchedRows
+  });
+
+  var bodyStartRow = 2;
+  var bodyRowCount = sourceRows;
+  var bounded = false;
+  if (span.monotonic) {
+    bounded = true;
+    if (span.firstOffset < 0) {
+      bodyRowCount = 0;
+    } else {
+      bodyStartRow = span.firstOffset + 2;
+      bodyRowCount = span.matchedRows;
+    }
+  }
+
+  var values = bodyRowCount > 0 ? sh.getRange(bodyStartRow, 1, bodyRowCount, maxCol).getValues() : [];
+  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'bulkRead', {
+    rows: values.length,
+    cols: maxCol,
+    bounded: bounded,
+    bodyStartRow: bodyStartRow,
+    sourceRows: sourceRows
+  });
 
   var rows = [];
   var days = {};
@@ -166,7 +227,7 @@ function AvailabilityPeriodReadModel_get(input) {
       available: APRM_clean_(row[cAvail]),
       slots: [],
       lastUpdated: cUpd >= 0 ? APRM_clean_(row[cUpd]) : '',
-      sourceRow: r + 2
+      sourceRow: bodyStartRow + r
     };
     var s1 = APRM_slot_(row, cS1, cE1, cID1, cSt1, tz, 1);
     var s2 = APRM_slot_(row, cS2, cE2, cID2, cSt2, tz, 2);
@@ -193,14 +254,25 @@ function AvailabilityPeriodReadModel_get(input) {
     rows: rows,
     days: days,
     meta: {
-      sourceRows: values.length,
+      sourceRows: sourceRows,
+      scannedRows: values.length,
       returnedRows: rows.length,
       auditors: Object.keys(days).length,
       columnsRead: maxCol,
+      dateIndexRows: dateValues.length,
+      dateOrderingMonotonic: span.monotonic,
+      boundedRead: bounded,
+      bodyStartRow: bodyStartRow,
       canonicalOwner: 'AvailabilityService / Auditor Availability',
       writes: false
     }
   };
-  if (typeof DPL_end_ === 'function') result.devPerformance = DPL_end_(perf, { returnedRows: rows.length, auditors: Object.keys(days).length });
+  if (typeof DPL_end_ === 'function') result.devPerformance = DPL_end_(perf, {
+    sourceRows: sourceRows,
+    scannedRows: values.length,
+    returnedRows: rows.length,
+    auditors: Object.keys(days).length,
+    boundedRead: bounded
+  });
   return result;
 }

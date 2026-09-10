@@ -1,6 +1,6 @@
 /***********************************************************************
  * PlanningDemandService.js
- * BUILD: 2026-09-09_ROADMAP_2_4_PLANNING_DEMAND_R2_TARGETED_COMPANIES
+ * BUILD: 2026-09-10_AMS01_2_PLANNING_DEMAND_R3_FINE_GRAINED_PERF
  *
  * PURPOSE
  *   First Roadmap 2.4 Planning Demand product slice.
@@ -15,10 +15,11 @@
  *   - Never builds/loads the oversized full Companies name-core index here.
  *   - Scope extraction happens only for period candidates.
  *   - DEV-only lightweight timing via DevPerformanceLog.
+ *   - Fine-grained probes separate Spreadsheet service time from local work.
  *   - No writes, no lifecycle effects, no Availability writes.
  ***********************************************************************/
 
-var PLANNING_DEMAND_BUILD = '2026-09-09_ROADMAP_2_4_PLANNING_DEMAND_R2_TARGETED_COMPANIES';
+var PLANNING_DEMAND_BUILD = '2026-09-10_AMS01_2_PLANNING_DEMAND_R3_FINE_GRAINED_PERF';
 
 function PDS_clean_(v) {
   return String(v == null ? '' : v).trim();
@@ -212,13 +213,21 @@ function PlanningDemandService_get(input) {
   }) : null;
 
   var ss = SpreadsheetApp.getActive();
+  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'resolveSpreadsheet');
+
   var tz = ss.getSpreadsheetTimeZone() || Session.getScriptTimeZone();
   var period = PDS_period_(input, tz);
+  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'resolvePeriod', { timezone: tz });
+
   var sh = ss.getSheetByName('Audit planning');
   if (!sh) throw new Error("PlanningDemandService: missing sheet 'Audit planning'");
+  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'resolveAuditPlanningSheet');
 
-  var values = sh.getDataRange().getValues();
-  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'readAuditPlanning', { rows: Math.max(0, values.length - 1), cols: values.length ? values[0].length : 0 });
+  var dataRange = sh.getDataRange();
+  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'resolveAuditPlanningRange');
+
+  var values = dataRange.getValues();
+  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'readAuditPlanningValues', { rows: Math.max(0, values.length - 1), cols: values.length ? values[0].length : 0 });
 
   if (!values || values.length < 2) {
     var empty = { success: true, build: PLANNING_DEMAND_BUILD, period: period, rows: [], totals: { audits: 0, hoursToPlan: 0, hoursPlanned: 0, hoursDedicated: 0 } };
@@ -238,6 +247,7 @@ function PlanningDemandService_get(input) {
   var cPlanningJson = PDS_findCol_(hdr, ['Planning JSON','Planning','PlanningJSON','Planning_Js']);
   var cAssigned = PDS_findCol_(hdr, ['Assigned to','Assigned auditor','Auditor']);
   var cPreassigned = PDS_findCol_(hdr, ['Preassigned Auditor','Preassigned auditor','Pre-assigned auditor']);
+  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'resolveColumns');
 
   if (cAuditId < 0 || cCompany < 0 || cStatus < 0 || cFrom < 0 || cTo < 0) {
     throw new Error('PlanningDemandService: required Audit planning columns missing');
@@ -278,6 +288,10 @@ function PlanningDemandService_get(input) {
   var out = [];
   var totals = { audits: 0, hoursToPlan: 0, hoursPlanned: 0, hoursDedicated: 0 };
   var limit = Math.max(1, Math.min(2000, Number(input.limit || 500) || 500));
+  var scopeExtractMs = 0;
+  var planningJsonParseMs = 0;
+  var scopeExtractCalls = 0;
+  var planningJsonParseCalls = 0;
 
   for (var i = 0; i < candidates.length && out.length < limit; i++) {
     var c = candidates[i];
@@ -291,7 +305,10 @@ function PlanningDemandService_get(input) {
     if (input.country && PDS_norm_(country) !== PDS_norm_(input.country)) continue;
     if (input.region && PDS_norm_(region) !== PDS_norm_(input.region)) continue;
 
+    var scopeStarted = Date.now();
     var scopes = PDS_scopeNames_(hdr, row2);
+    scopeExtractMs += Date.now() - scopeStarted;
+    scopeExtractCalls++;
     if (input.scope) {
       var needScope = PDS_norm_(input.scope);
       var scopeMatch = scopes.some(function(s) { return PDS_norm_(s) === needScope; });
@@ -300,7 +317,12 @@ function PlanningDemandService_get(input) {
 
     var hoursToPlan = cTotalHours >= 0 ? PDS_num_(row2[cTotalHours]) : 0;
     var hoursPlanned = cHoursPlanned >= 0 ? PDS_num_(row2[cHoursPlanned]) : 0;
-    if (!hoursPlanned && cPlanningJson >= 0) hoursPlanned = PDS_parsePlanningJsonHours_(row2[cPlanningJson]);
+    if (!hoursPlanned && cPlanningJson >= 0) {
+      var jsonStarted = Date.now();
+      hoursPlanned = PDS_parsePlanningJsonHours_(row2[cPlanningJson]);
+      planningJsonParseMs += Date.now() - jsonStarted;
+      planningJsonParseCalls++;
+    }
     var hoursDedicated = Math.min(hoursToPlan || 0, hoursPlanned || 0);
 
     out.push({
@@ -327,7 +349,14 @@ function PlanningDemandService_get(input) {
     totals.hoursPlanned += hoursPlanned;
     totals.hoursDedicated += hoursDedicated;
   }
-  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'enrichAndProject', { returned: out.length, limit: limit });
+  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'enrichAndProject', {
+    returned: out.length,
+    limit: limit,
+    scopeExtractCalls: scopeExtractCalls,
+    scopeExtractMs: scopeExtractMs,
+    planningJsonParseCalls: planningJsonParseCalls,
+    planningJsonParseMs: planningJsonParseMs
+  });
 
   out.sort(function(a, b) {
     if (a.planningWindowTo !== b.planningWindowTo) return String(a.planningWindowTo).localeCompare(String(b.planningWindowTo));
@@ -335,6 +364,7 @@ function PlanningDemandService_get(input) {
     if (a.region !== b.region) return String(a.region).localeCompare(String(b.region));
     return String(a.company).localeCompare(String(b.company));
   });
+  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'sort');
 
   totals.hoursToPlan = Math.round(totals.hoursToPlan * 100) / 100;
   totals.hoursPlanned = Math.round(totals.hoursPlanned * 100) / 100;
@@ -352,10 +382,21 @@ function PlanningDemandService_get(input) {
       returned: out.length,
       truncated: out.length >= limit && candidates.length > out.length,
       readModel: 'Audit planning + targeted Companies projection',
-      writes: false
+      writes: false,
+      perfProbe: {
+        scopeExtractCalls: scopeExtractCalls,
+        scopeExtractMs: scopeExtractMs,
+        planningJsonParseCalls: planningJsonParseCalls,
+        planningJsonParseMs: planningJsonParseMs
+      }
     }
   };
 
-  if (typeof DPL_end_ === 'function') result.devPerformance = DPL_end_(perf, { candidates: candidates.length, returned: out.length });
+  if (typeof DPL_end_ === 'function') result.devPerformance = DPL_end_(perf, {
+    candidates: candidates.length,
+    returned: out.length,
+    scopeExtractMs: scopeExtractMs,
+    planningJsonParseMs: planningJsonParseMs
+  });
   return result;
 }

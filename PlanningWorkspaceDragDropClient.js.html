@@ -1,0 +1,17 @@
+<!-- PlanningWorkspaceDragDropClient.js -->
+<script>
+(function(){
+'use strict';
+var BUILD='2026-09-10_PLANNING_WORKSPACE_DRAG_DROP_CLIENT_R1';
+var draggingIndex='';
+function q(s){return document.querySelector(s);}function qa(s){return Array.prototype.slice.call(document.querySelectorAll(s));}
+function demandRows(){return qa('#pwDemandBody [data-pw-index]');}
+function makeDraggable(){demandRows().forEach(function(n){n.setAttribute('draggable','true');n.classList.add('pw-draggable');n.addEventListener('dragstart',function(ev){draggingIndex=String(n.getAttribute('data-pw-index')||'');try{ev.dataTransfer.effectAllowed='move';ev.dataTransfer.setData('text/plain',draggingIndex);}catch(e){}var p=q('#pwPlanningPane');if(p)p.classList.add('pw-drop-active');});n.addEventListener('dragend',function(){var p=q('#pwPlanningPane');if(p){p.classList.remove('pw-drop-active');p.classList.remove('pw-drop-over');}draggingIndex='';});});}
+function bindDropZone(){var pane=q('#pwPlanningPane');if(!pane||pane.getAttribute('data-pw-dnd-bound')==='1')return;pane.setAttribute('data-pw-dnd-bound','1');pane.addEventListener('dragover',function(ev){if(draggingIndex==='')return;ev.preventDefault();pane.classList.add('pw-drop-over');try{ev.dataTransfer.dropEffect='move';}catch(e){}});pane.addEventListener('dragleave',function(ev){if(!pane.contains(ev.relatedTarget))pane.classList.remove('pw-drop-over');});pane.addEventListener('drop',function(ev){ev.preventDefault();pane.classList.remove('pw-drop-over');pane.classList.remove('pw-drop-active');var idx=draggingIndex;try{idx=ev.dataTransfer.getData('text/plain')||idx;}catch(e){}draggingIndex='';if(idx==='')return;var row=q('#pwDemandBody [data-pw-index="'+String(idx).replace(/"/g,'')+'"]');if(row){row.click();var s=q('#pwStatus');if(s)s.textContent='Audit dropped into Concept Planning · complete planning in editor';}});}
+function injectStyle(){if(q('#pwDndStyle'))return;var st=document.createElement('style');st.id='pwDndStyle';st.textContent='.pw-draggable{cursor:grab}.pw-draggable:active{cursor:grabbing}.pw-drop-active{outline:2px dashed #98a2b3;outline-offset:-4px}.pw-drop-over{outline:2px solid #1f4f8a;outline-offset:-4px;background:#f8fafc}';document.head.appendChild(st);}
+function refresh(){injectStyle();bindDropZone();makeDraggable();}
+var body=q('#pwDemandBody');if(body&&typeof MutationObserver!=='undefined'){new MutationObserver(function(){refresh();}).observe(body,{childList:true,subtree:true});}
+document.addEventListener('DOMContentLoaded',refresh);refresh();
+window.PlanningWorkspaceDragDrop={build:BUILD,refresh:refresh,contract:function(){return{build:BUILD,dragSource:'Planning Demand',dropTarget:'Concept Planning',dropAction:'OPEN_EXISTING_EDITOR',canonicalWrite:false,newSsot:false,existingClickFlowPreserved:true};}};
+})();
+</script>

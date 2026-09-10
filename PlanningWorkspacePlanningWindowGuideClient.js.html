@@ -1,0 +1,18 @@
+<!-- PlanningWorkspacePlanningWindowGuideClient.js -->
+<script>
+(function(){
+'use strict';
+var BUILD='2026-09-10_PLANNING_WORKSPACE_WINDOW_GUIDE_CLIENT_R1';
+var active=null;
+function q(s){return document.querySelector(s);}function qa(s){return Array.prototype.slice.call(document.querySelectorAll(s));}function clean(v){return String(v==null?'':v).trim();}
+function st(){return window.PlanningWorkspaceClient&&typeof window.PlanningWorkspaceClient.state==='function'?window.PlanningWorkspaceClient.state():null;}
+function selected(){var x=st();return x&&x.selected||null;}
+function clear(){active=null;qa('[data-pw-cal-date]').forEach(function(n){n.classList.remove('pw-window-in');n.classList.remove('pw-window-out');n.removeAttribute('data-pw-window-guide');});var label=q('#pwWindowGuideLabel');if(label)label.textContent='No audit selected';}
+function apply(){var r=active||selected();if(!r){clear();return;}var from=clean(r.planningWindowFrom),to=clean(r.planningWindowTo);if(!from||!to){clear();return;}active={auditId:clean(r.auditId),planningWindowFrom:from,planningWindowTo:to};qa('[data-pw-cal-date]').forEach(function(n){var d=clean(n.getAttribute('data-pw-cal-date')).slice(0,10),inside=d>=from&&d<=to;n.classList.toggle('pw-window-in',inside);n.classList.toggle('pw-window-out',!inside);n.setAttribute('data-pw-window-guide',inside?'IN':'OUT');});var label=q('#pwWindowGuideLabel');if(label)label.textContent='Window '+from+' — '+to;}
+function ensureLabel(){var head=q('#pwCalendarPane .pw-pane-head');if(!head||q('#pwWindowGuideLabel'))return;var n=document.createElement('span');n.id='pwWindowGuideLabel';n.className='pw-window-guide-label';n.textContent='No audit selected';head.appendChild(n);}
+function inject(){if(q('#pwWindowGuideStyle'))return;var s=document.createElement('style');s.id='pwWindowGuideStyle';s.textContent='.pw-window-guide-label{font-size:11px;font-weight:400;color:#667085}.pw-window-in{box-shadow:inset 0 0 0 1px #d0d5dd}.pw-window-out{background-color:#f8fafc}.pw-window-out>.pw-cal-date{opacity:.55}';document.head.appendChild(s);}
+function bind(){inject();ensureLabel();document.addEventListener('click',function(ev){var demand=ev.target&&ev.target.closest?ev.target.closest('[data-pw-index]'):null;if(demand){setTimeout(function(){active=selected();apply();},0);return;}if(ev.target&&ev.target.id==='pwEditorClose'){setTimeout(clear,0);}},false);document.addEventListener('planningworkspace:calendar-rendered',function(){ensureLabel();if(active)apply();});}
+window.PlanningWorkspaceWindowGuide={build:BUILD,apply:apply,clear:clear,contract:function(){return{build:BUILD,source:'selected Planning Demand row',planningWindowGuide:true,insideOutsideProjection:true,readOnly:true,canonicalWrite:false,newSsot:false};}};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
+})();
+</script>

@@ -2,31 +2,32 @@
 <script>
 (function(){
 'use strict';
-var BUILD='2026-09-09_PLANNING_WORKSPACE_2_0_ELIGIBILITY_RECOVERY_CLIENT_R1';
-var MAX_PER_SESSION=20,BATCH_SIZE=5,POLL_MS=700,processed={},running=false,sessionCount=0,lastSignature='';
+var BUILD='2026-09-10_PLANNING_WORKSPACE_2_0_ELIGIBILITY_RECOVERY_CLIENT_R2_BOUNDED_WAVES';
+var MAX_PER_WAVE=20,MAX_PER_PAGE=100,BATCH_SIZE=5,POLL_MS=700,processed={},running=false,waveCount=0,totalCount=0,lastSignature='';
 function state(){return window.PlanningWorkspaceClient&&window.PlanningWorkspaceClient.state?window.PlanningWorkspaceClient.state():null;}
 function status(v){var n=document.getElementById('pwStatus');if(n)n.textContent=String(v||'');}
 function refreshIds(s){var p=s&&s.data&&s.data.advisory&&s.data.advisory.refreshPolicy;return p&&Array.isArray(p.refreshAuditIds)?p.refreshAuditIds.filter(function(id){return id&&!processed[id];}):[];}
-function nextBatch(ids){return ids.slice(0,Math.min(BATCH_SIZE,MAX_PER_SESSION-sessionCount));}
+function nextBatch(ids){var waveLeft=Math.max(0,MAX_PER_WAVE-waveCount),pageLeft=Math.max(0,MAX_PER_PAGE-totalCount);return ids.slice(0,Math.min(BATCH_SIZE,waveLeft,pageLeft));}
+function reloadForNextWave(){waveCount=0;lastSignature='';status('Planning ready · eligibility wave complete; updating shortlist…');if(window.PlanningWorkspaceClient&&window.PlanningWorkspaceClient.load)window.PlanningWorkspaceClient.load();}
 function recover(){
- if(running||sessionCount>=MAX_PER_SESSION)return;
+ if(running||totalCount>=MAX_PER_PAGE)return;
  var s=state();if(!s||!s.loaded||s.loading||!s.data||!s.data.advisory)return;
  var ids=refreshIds(s);if(!ids.length)return;
+ if(waveCount>=MAX_PER_WAVE){reloadForNextWave();return;}
  var batch=nextBatch(ids);if(!batch.length)return;
  var signature=batch.join('|');if(signature===lastSignature)return;lastSignature=signature;running=true;
- batch.forEach(function(id){processed[id]=true;});sessionCount+=batch.length;
- status('Planning ready · refreshing eligibility '+sessionCount+'/'+MAX_PER_SESSION+' in background…');
+ batch.forEach(function(id){processed[id]=true;});waveCount+=batch.length;totalCount+=batch.length;
+ status('Planning ready · refreshing eligibility '+waveCount+'/'+MAX_PER_WAVE+' in current wave…');
  google.script.run.withSuccessHandler(function(out){
    running=false;
    if(!out||out.ok!==true||!out.data||out.data.success!==true){status('Planning ready · eligibility background refresh partially failed');return;}
    var remaining=refreshIds(state());
-   if(sessionCount<MAX_PER_SESSION&&remaining.length){lastSignature='';setTimeout(recover,50);return;}
-   status('Planning ready · eligibility refreshed; updating shortlist…');
-   if(window.PlanningWorkspaceClient&&window.PlanningWorkspaceClient.load)window.PlanningWorkspaceClient.load();
+   if(remaining.length&&waveCount<MAX_PER_WAVE&&totalCount<MAX_PER_PAGE){lastSignature='';setTimeout(recover,50);return;}
+   reloadForNextWave();
  }).withFailureHandler(function(){running=false;status('Planning ready · eligibility background refresh failed');}).PlanningWorkspaceRpc_refreshEligibility({auditIds:batch,force:false});
 }
 function poll(){recover();setTimeout(poll,POLL_MS);}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(poll,POLL_MS);});else setTimeout(poll,POLL_MS);
-window.PlanningWorkspaceEligibilityRecovery={BUILD:BUILD,recover:recover};
+window.PlanningWorkspaceEligibilityRecovery={BUILD:BUILD,recover:recover,contract:function(){return{build:BUILD,batchSize:BATCH_SIZE,maxPerWave:MAX_PER_WAVE,maxPerPage:MAX_PER_PAGE,reloadsBetweenWaves:true,processedOncePerPage:true,bounded:true};}};
 })();
 </script>

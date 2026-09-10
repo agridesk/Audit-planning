@@ -1,0 +1,15 @@
+<!-- PlanningWorkspaceCalendarDensityClient.js -->
+<script>
+(function(){
+'use strict';
+var BUILD='2026-09-10_PLANNING_WORKSPACE_CALENDAR_DENSITY_R1';
+function q(s){return document.querySelector(s);}function qa(s){return Array.prototype.slice.call(document.querySelectorAll(s));}
+function addControls(){var pane=q('#pwCalendarPane .pw-pane-head');if(!pane||q('#pwCalendarDensity'))return;var box=document.createElement('span');box.id='pwCalendarDensity';box.className='pw-cal-density-controls';box.innerHTML='<label><input type="checkbox" id="pwCalShowConcept" checked> Concept</label><label><input type="checkbox" id="pwCalShowPlanned" checked> Planned</label><label><input type="checkbox" id="pwCalOnlyWarnings"> Warnings</label>';
+pane.appendChild(box);['pwCalShowConcept','pwCalShowPlanned','pwCalOnlyWarnings'].forEach(function(id){var n=q('#'+id);if(n)n.addEventListener('change',apply);});}
+function apply(){var showC=!q('#pwCalShowConcept')||q('#pwCalShowConcept').checked,showP=!q('#pwCalShowPlanned')||q('#pwCalShowPlanned').checked,warn=q('#pwCalOnlyWarnings')&&q('#pwCalOnlyWarnings').checked;qa('.pw-cal-item').forEach(function(n){var src=String(n.getAttribute('data-pw-cal-source')||''),visible=(src==='CONCEPT'?showC:showP);if(warn&&!n.classList.contains('pw-cal-item-warning'))visible=false;n.style.display=visible?'':'none';});qa('.pw-cal-day').forEach(function(day){var visible=Array.prototype.some.call(day.querySelectorAll('.pw-cal-item'),function(n){return n.style.display!=='none';});day.classList.toggle('pw-cal-day-has-items',visible);var seen={},collision=false;Array.prototype.forEach.call(day.querySelectorAll('.pw-cal-item'),function(n){if(n.style.display==='none')return;var txt=String(n.textContent||'').toLowerCase(),parts=txt.split('·'),aud=parts.length>1?parts[parts.length-1].trim():'';if(aud){if(seen[aud])collision=true;seen[aud]=1;}});day.classList.toggle('pw-cal-day-collision',collision);});}
+function inject(){if(q('#pwCalendarDensityStyle'))return;var s=document.createElement('style');s.id='pwCalendarDensityStyle';s.textContent='.pw-cal-density-controls{display:flex;gap:10px;align-items:center;font-size:11px;font-weight:400;margin-left:auto}.pw-cal-density-controls label{display:flex;gap:3px;align-items:center}.pw-cal-density-controls input{margin:0}.pw-cal-day-collision{box-shadow:inset 0 0 0 2px #667085}.pw-cal-day-collision .pw-cal-date:after{content:" · overlap";font-weight:400;color:#667085}.pw-cal-day-has-items .pw-cal-date{font-weight:700}';document.head.appendChild(s);}
+function bind(){inject();addControls();document.addEventListener('planningworkspace:calendar-rendered',function(){addControls();apply();});apply();}
+window.PlanningWorkspaceCalendarDensity={build:BUILD,apply:apply,contract:function(){return{build:BUILD,conceptFilter:true,plannedFilter:true,warningFilter:true,collisionVisibility:true,canonicalWrite:false,newSsot:false};}};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
+})();
+</script>

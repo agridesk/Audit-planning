@@ -1,0 +1,26 @@
+<!-- PlanningWorkspacePlannerFocusClient.js -->
+<script>
+(function(){
+'use strict';
+var BUILD='2026-09-10_PLANNING_WORKSPACE_PLANNER_FOCUS_CLIENT_R1';
+var selected='';
+function q(s){return document.querySelector(s);}function qa(s){return Array.prototype.slice.call(document.querySelectorAll(s));}function clean(v){return String(v==null?'':v).trim();}function norm(v){return clean(v).toLowerCase();}
+function st(){return window.PlanningWorkspaceClient&&typeof window.PlanningWorkspaceClient.state==='function'?window.PlanningWorkspaceClient.state():null;}
+function isManager(){var a=q('#pwApp');return a&&norm(a.getAttribute('data-role'))==='manager';}
+function rows(){var x=st();return x&&x.data&&x.data.advisory&&Array.isArray(x.data.advisory.rows)?x.data.advisory.rows:[];}
+function rowRelevant(r,email){email=norm(email);if(!email)return true;if(norm(r&&r.assignedTo)===email||norm(r&&r.preassignedAuditor)===email)return true;return (r&&r.candidateAuditors||[]).some(function(a){return norm(a&&a.email)===email;});}
+function syncCalendar(){var sel=q('#pwCalendarAuditor');if(!sel)return;var found=false;Array.prototype.forEach.call(sel.options,function(o){if(norm(o.value)===selected)found=true;});if(selected&&found)sel.value=selected;else if(!selected)sel.value='';try{sel.dispatchEvent(new Event('change',{bubbles:true}));}catch(e){}}
+function applyDemand(){var rs=rows();qa('#pwDemandBody [data-pw-index]').forEach(function(n){var i=Number(n.getAttribute('data-pw-index')),r=rs[i],show=rowRelevant(r,selected);n.style.display=show?'':'none';n.classList.toggle('pw-focus-match',!!selected&&show);});var count=q('#pwDemandCount');if(count){var visible=qa('#pwDemandBody [data-pw-index]').filter(function(n){return n.style.display!=='none';}).length;count.textContent=String(visible);}}
+function applyWorkload(){qa('[data-pw-workload-auditor]').forEach(function(n){var e=norm(n.getAttribute('data-pw-workload-auditor'));n.classList.toggle('pw-focus-selected',!!selected&&e===selected);});}
+function updateLabel(){var n=q('#pwPlannerFocusLabel');if(n)n.textContent=selected?selected:'All auditors';var clear=q('#pwPlannerFocusClear');if(clear)clear.disabled=!selected;}
+function apply(){applyDemand();applyWorkload();syncCalendar();updateLabel();}
+function setFocus(email){if(!isManager())return;email=norm(email);if(email==='unassigned')email='';selected=email;apply();var s=q('#pwStatus');if(s)s.textContent=selected?'Planner focus: '+selected:'Planner focus cleared';}
+function ensureBar(){if(!isManager()||q('#pwPlannerFocusBar'))return;var pane=q('#pwWorkloadPane .pw-pane-head');if(!pane)return;var bar=document.createElement('span');bar.id='pwPlannerFocusBar';bar.className='pw-planner-focus-bar';bar.innerHTML='<span>Focus: <strong id="pwPlannerFocusLabel">All auditors</strong></span><button type="button" id="pwPlannerFocusClear" disabled>Clear</button>';pane.appendChild(bar);q('#pwPlannerFocusClear').addEventListener('click',function(){setFocus('');});}
+function clickHandler(ev){if(!isManager())return;var row=ev.target&&ev.target.closest?ev.target.closest('[data-pw-workload-auditor]'):null;if(!row)return;setFocus(row.getAttribute('data-pw-workload-auditor'));}
+function keyHandler(ev){if(!isManager()||(ev.key!=='Enter'&&ev.key!==' '))return;var row=ev.target&&ev.target.closest?ev.target.closest('[data-pw-workload-auditor]'):null;if(!row)return;ev.preventDefault();setFocus(row.getAttribute('data-pw-workload-auditor'));}
+function inject(){if(q('#pwPlannerFocusStyle'))return;var s=document.createElement('style');s.id='pwPlannerFocusStyle';s.textContent='.pw-planner-focus-bar{display:flex;gap:8px;align-items:center;font-size:11px;font-weight:400;margin-left:auto}.pw-planner-focus-bar button{height:28px;padding:0 8px}[data-pw-workload-auditor]{cursor:pointer}.pw-focus-selected{box-shadow:inset 3px 0 0 #344054;background:#f8fafc}.pw-focus-match{box-shadow:inset 3px 0 0 #98a2b3}';document.head.appendChild(s);}
+function bind(){if(!isManager())return;inject();ensureBar();document.addEventListener('click',clickHandler,false);document.addEventListener('keydown',keyHandler,false);document.addEventListener('planningworkspace:workload-rendered',function(){ensureBar();applyWorkload();});document.addEventListener('planningworkspace:calendar-rendered',function(){if(selected)syncCalendar();});var demand=q('#pwDemandBody');if(demand&&typeof MutationObserver!=='undefined')new MutationObserver(function(){applyDemand();}).observe(demand,{childList:true,subtree:true});}
+window.PlanningWorkspacePlannerFocus={build:BUILD,setFocus:setFocus,selected:function(){return selected;},contract:function(){return{build:BUILD,managerOnly:true,workloadRowSource:true,demandFilterClientSide:true,candidateAuditorAware:true,calendarAvailabilitySync:true,canonicalWrite:false,newSsot:false};}};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
+})();
+</script>

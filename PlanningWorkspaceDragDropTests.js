@@ -1,16 +1,16 @@
 /***********************************************************************
  * PlanningWorkspaceDragDropTests.js
- * BUILD: 2026-09-10_PLANNING_WORKSPACE_DRAG_DROP_TEST_R5_DENSITY_METADATA
+ * BUILD: 2026-09-10_PLANNING_WORKSPACE_DRAG_DROP_TEST_R6_CALENDAR_FORWARD_COMPAT
  * Non-destructive contract regression. No business writes.
  ***********************************************************************/
-var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-10_PLANNING_WORKSPACE_DRAG_DROP_TEST_R5_DENSITY_METADATA';
+var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-10_PLANNING_WORKSPACE_DRAG_DROP_TEST_R6_CALENDAR_FORWARD_COMPAT';
 function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var dnd=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceDragDropClient.js').getContent();
   var cal=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceCalendarClient.js').getContent();
   var shell=HtmlService.createHtmlOutputFromFile('PlanningWorkspace').getContent();
   t('dndBuildR2',dnd.indexOf('DRAG_DROP_CLIENT_R2_CALENDAR_DATE_DROP')>=0);
-  t('calendarBuildR4',cal.indexOf('PLANNING_WORKSPACE_CALENDAR_CLIENT_R4_DENSITY_METADATA')>=0);
+  t('calendarBuildR4OrLater',/PLANNING_WORKSPACE_CALENDAR_CLIENT_R(?:[4-9]|[1-9][0-9])_/.test(cal));
   t('dragSourcePlanningDemand',dnd.indexOf("dragSource:'Planning Demand'")>=0);
   t('legacyConceptDropPreserved',dnd.indexOf('legacyConceptDropPreserved:true')>=0);
   t('calendarDropTarget',dnd.indexOf("'Calendar date'")>=0);
@@ -37,6 +37,6 @@ function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   t('conceptPanePreserved',shell.indexOf('id="pwPlanningPane"')>=0);
   t('workloadPanePreserved',shell.indexOf('id="pwWorkloadPane"')>=0);
   var failed=r.filter(function(x){return !x.ok;}).length;
-  var out={ok:failed===0,build:PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,existingFunctionalityRemoved:false,toolkit2DragDropCalendarSlice:true,calendarDateDrop:true,planningWindowGuard:true,conceptReservationProjection:true,canonicalPlanningProjection:true,interactiveConceptCalendar:true,densityMetadata:true}};
+  var out={ok:failed===0,build:PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,existingFunctionalityRemoved:false,toolkit2DragDropCalendarSlice:true,calendarDateDrop:true,planningWindowGuard:true,conceptReservationProjection:true,canonicalPlanningProjection:true,interactiveConceptCalendar:true,densityMetadata:true,calendarBuildForwardCompatible:true}};
   Logger.log(JSON.stringify(out,null,2));return out;
 }

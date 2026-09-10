@@ -2,11 +2,11 @@
 <script>
 (function(){
 'use strict';
-var BUILD='2026-09-09_PLANNING_WORKSPACE_2_0_CLIENT_R6_CANONICAL_SAVE_MULTI_BLOCK';
+var BUILD='2026-09-10_PLANNING_WORKSPACE_2_0_CLIENT_R7_ROLE_AWARE_ADVISORY';
 var state={loaded:false,loading:false,overlayLoading:false,data:null,lastError:null,selected:null,revision:null,conceptSaving:false,committing:false,preflight:null,ctx:{env:'',role:'',email:''}};
 function el(id){return document.getElementById(id);}function val(id){var n=el(id);return n?String(n.value||'').trim():'';}function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}function status(v){var n=el('pwStatus');if(n)n.textContent=String(v||'');}
 function normStatus(v){return String(v||'').trim().toLowerCase().replace(/[_-]+/g,' ').replace(/\s+/g,' ');}function isPendingPlanning(row){return normStatus(row&&row.status)==='pending planning';}function isManager(){return String(state.ctx.role||'').trim().toLowerCase()==='manager';}function canCanonicalPlan(row){return state.ctx.env==='DEV'&&isManager()&&isPendingPlanning(row);}
-function request(){return{from:val('pwFrom'),to:val('pwTo'),country:val('pwCountry'),scope:val('pwScope')};}
+function request(){return{from:val('pwFrom'),to:val('pwTo'),country:val('pwCountry'),scope:val('pwScope'),actorRole:String(state.ctx.role||'').trim().toUpperCase()};}
 function closeEditor(){var e=el('pwEditor');if(e){e.classList.remove('open');e.setAttribute('aria-hidden','true');}state.selected=null;state.revision=null;state.conceptSaving=false;state.committing=false;state.preflight=null;}
 function isoAddDays(s,n){var p=String(s||'').split('-'),d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2]));d.setDate(d.getDate()+n);return[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');}
 function weekday(s){var p=String(s||'').split('-');return new Date(Number(p[0]),Number(p[1])-1,Number(p[2])).getDay();}

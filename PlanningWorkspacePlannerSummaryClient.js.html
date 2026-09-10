@@ -2,7 +2,7 @@
 <script>
 (function(){
 'use strict';
-var BUILD='2026-09-10_PLANNING_WORKSPACE_PLANNER_SUMMARY_CLIENT_R1';
+var BUILD='2026-09-10_PLANNING_WORKSPACE_PLANNER_SUMMARY_CLIENT_R2_SAFE_OBSERVERS';
 function q(s){return document.querySelector(s);}function num(v){var n=Number(v);return isFinite(n)?n:0;}function norm(v){return String(v==null?'':v).trim().toLowerCase().replace(/[_-]+/g,' ').replace(/\s+/g,' ');}
 function st(){return window.PlanningWorkspaceClient&&typeof window.PlanningWorkspaceClient.state==='function'?window.PlanningWorkspaceClient.state():null;}
 function rows(){var x=st();return x&&x.data&&x.data.advisory&&Array.isArray(x.data.advisory.rows)?x.data.advisory.rows:[];}
@@ -13,8 +13,9 @@ function snapshot(){var rs=rows(),pending=rs.filter(function(r){return norm(r.st
 function card(label,value,sub){return'<div class="pw-summary-card"><small>'+label+'</small><strong>'+value+'</strong><span>'+sub+'</span></div>';}
 function render(){var host=q('#pwPlannerSummary');if(!host)return;var s=snapshot();host.innerHTML=card('To plan',s.pendingAudits,s.pendingHours.toFixed(1)+' h')+card('Ready',s.readyAudits,'canonical advisory')+card('Blocked / refresh',s.blockedAudits,'needs attention')+card('Concept',s.conceptAudits,s.conceptHours.toFixed(1)+' h')+card('Planned',s.plannedAudits,s.plannedHours.toFixed(1)+' h');document.dispatchEvent(new CustomEvent('planningworkspace:planner-summary-rendered',{detail:{build:BUILD,snapshot:s}}));}
 function inject(){if(q('#pwPlannerSummaryStyle'))return;var s=document.createElement('style');s.id='pwPlannerSummaryStyle';s.textContent='.pw-planner-summary{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:8px;margin:12px 12px 0}.pw-summary-card{background:#fff;border:1px solid #dfe3ea;border-radius:8px;padding:9px 12px;display:grid;grid-template-columns:auto 1fr;align-items:baseline;gap:2px 8px}.pw-summary-card small{grid-column:1/-1;color:#667085;font-size:10px;text-transform:uppercase;font-weight:700}.pw-summary-card strong{font-size:20px}.pw-summary-card span{font-size:10px;color:#667085}@media(max-width:900px){.pw-planner-summary{grid-template-columns:repeat(2,minmax(120px,1fr))}}';document.head.appendChild(s);}
-function bind(){inject();render();document.addEventListener('planningworkspace:calendar-rendered',render);document.addEventListener('planningworkspace:workload-rendered',render);var app=q('#pwApp');if(app&&typeof MutationObserver!=='undefined')new MutationObserver(function(){render();}).observe(app,{childList:true,subtree:true});}
-window.PlanningWorkspacePlannerSummary={build:BUILD,render:render,snapshot:snapshot,contract:function(){return{build:BUILD,pendingHours:true,readyCount:true,blockedCount:true,conceptHours:true,plannedHours:true,usesWorkspaceState:true,readOnly:true,canonicalWrite:false,newSsot:false};}};
+function observe(id){var n=q(id);if(n&&typeof MutationObserver!=='undefined')new MutationObserver(render).observe(n,{childList:true,subtree:true});}
+function bind(){inject();render();document.addEventListener('planningworkspace:calendar-rendered',render);document.addEventListener('planningworkspace:workload-rendered',render);observe('#pwDemandBody');observe('#pwPlanningBody');}
+window.PlanningWorkspacePlannerSummary={build:BUILD,render:render,snapshot:snapshot,contract:function(){return{build:BUILD,pendingHours:true,readyCount:true,blockedCount:true,conceptHours:true,plannedHours:true,usesWorkspaceState:true,safeObservers:true,readOnly:true,canonicalWrite:false,newSsot:false};}};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
 })();
 </script>

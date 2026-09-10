@@ -1,6 +1,6 @@
 /***********************************************************************
  * PlanningContextReadModel.js
- * BUILD: 2026-09-09_ROADMAP_2_4_PLANNING_CONTEXT_R2_SINGLE_COMPANIES_READ
+ * BUILD: 2026-09-10_AMS01_2_PLANNING_CONTEXT_R3_SCOPE_EVIDENCE_FIRST
  *
  * PURPOSE
  *   Coarse-grained, read-only planning context for Concept Planning and
@@ -14,7 +14,8 @@
  *
  * SPEED CONTRACT
  *   - One RPC hydrates demand + relevant profiles + availability.
- *   - Scope catalog loaded once and reused as canonical evidence.
+ *   - Canonical scope evidence is loaded first so Planning Demand's execution-
+ *     local scope plan and Planning Profiles reuse the same Config_Scopes read.
  *   - Normal context flow suppresses PlanningDemand Companies enrichment,
  *     then enriches demand rows from canonical Planning Profiles, avoiding a
  *     second Companies sheet read in the same request.
@@ -22,7 +23,7 @@
  *   - DEV-only performance telemetry.
  ***********************************************************************/
 
-var PLANNING_CONTEXT_BUILD = '2026-09-09_ROADMAP_2_4_PLANNING_CONTEXT_R2_SINGLE_COMPANIES_READ';
+var PLANNING_CONTEXT_BUILD = '2026-09-10_AMS01_2_PLANNING_CONTEXT_R3_SCOPE_EVIDENCE_FIRST';
 
 function PCRM_clean_(v) {
   return String(v == null ? '' : v).trim();
@@ -139,15 +140,21 @@ function PlanningContextReadModel_get(input) {
     throw new Error('PlanningContextReadModel: AvailabilityPeriodReadModel_get unavailable');
   }
 
+  /*
+   * AMS-01.2 R3: warm the canonical Config_Scopes execution cache BEFORE
+   * PlanningDemand builds its scope-column plan. This keeps the existing
+   * PDS_scopeNames_ semantics but removes the cold catalog hit from the
+   * per-row enrichment phase. The same names are then passed to Profiles.
+   */
+  var scopeNames = PCRM_activeScopeNames_();
+  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'scopeEvidence', { activeScopes: scopeNames.length });
+
   var demandPlan = PCRM_demandInput_(input);
   var demand = PlanningDemandService_get(demandPlan.input);
   if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'demand', {
     returned: demand && demand.rows ? demand.rows.length : 0,
     companyReadRequired: demandPlan.needsDemandCompanyRead
   });
-
-  var scopeNames = PCRM_activeScopeNames_();
-  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'scopeEvidence', { activeScopes: scopeNames.length });
 
   var selectors = PCRM_companySelectors_(demand.rows || []);
   var profiles = PlanningProfilesService_get({
@@ -205,6 +212,7 @@ function PlanningContextReadModel_get(input) {
         availability: 'AvailabilityService / Auditor Availability'
       },
       scopeEvidenceSource: 'Config_Scopes',
+      scopeEvidencePreloadedBeforeDemand: true,
       companySelectors: {
         uids: selectors.companyUids.length,
         names: selectors.companyNames.length

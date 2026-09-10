@@ -1,9 +1,9 @@
 /***********************************************************************
  * PlanningWorkspaceCanonicalCalendarTests.js
- * BUILD: 2026-09-10_PLANNING_WORKSPACE_CANONICAL_CALENDAR_TEST_R2_AUDIT_SCOPE
+ * BUILD: 2026-09-10_PLANNING_WORKSPACE_CANONICAL_CALENDAR_TEST_R3_READABLE_ITEMS
  * Read-only live + contract regression. No business writes.
  ***********************************************************************/
-var PLANNING_WORKSPACE_CANONICAL_CALENDAR_TEST_BUILD='2026-09-10_PLANNING_WORKSPACE_CANONICAL_CALENDAR_TEST_R2_AUDIT_SCOPE';
+var PLANNING_WORKSPACE_CANONICAL_CALENDAR_TEST_BUILD='2026-09-10_PLANNING_WORKSPACE_CANONICAL_CALENDAR_TEST_R3_READABLE_ITEMS';
 function RUN_PLANNING_WORKSPACE_CANONICAL_CALENDAR_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var c=PlanningWorkspaceCanonicalCalendarReadModel_contract();
@@ -28,12 +28,14 @@ function RUN_PLANNING_WORKSPACE_CANONICAL_CALENDAR_REGRESSION(){
   var plannedClient=HtmlService.createHtmlOutputFromFile('PlanningWorkspacePlannedCalendarClient.js').getContent();
   var shell=HtmlService.createHtmlOutputFromFile('PlanningWorkspace').getContent();
   t('calendarProjectsCanonical',overlaySrc.indexOf('canonicalItemsVisible:true')>=0&&overlaySrc.indexOf("data-pw-cal-source=\"'+x.source+'\"")>=0);
+  t('readableCalendarItems',overlaySrc.indexOf('CALENDAR_CLIENT_R5_READABLE_ITEMS')>=0&&overlaySrc.indexOf('readableItems:true')>=0);
+  t('safeQuoteEscaping',overlaySrc.indexOf("'\\\"':'&quot;'")>=0);
   t('plannedClickUsesReadjust',plannedClient.indexOf("calendarPlannedClick:'OPEN_EXISTING_READJUST'")>=0);
   t('plannedDragPreview',plannedClient.indexOf("calendarPlannedDrag:'SHIFT_READJUST_PREVIEW'")>=0&&plannedClient.indexOf('writeOnDrop:false')>=0);
   t('planningWindowGuard',plannedClient.indexOf('planningWindowGuard:true')>=0);
   t('managerOnlyReAdjust',plannedClient.indexOf('managerOnlyReAdjust:true')>=0);
   t('shellIncludesPlannedClient',shell.indexOf('PlanningWorkspacePlannedCalendarClient.js')>=0);
   var f=r.filter(function(x){return!x.ok;}).length;
-  var out={ok:f===0,build:PLANNING_WORKSPACE_CANONICAL_CALENDAR_TEST_BUILD,total:r.length,passed:r.length-f,failed:f,results:r,meta:{nonDestructive:true,liveReadsPerformed:true,liveWritesPerformed:false,existingFunctionalityRemoved:false,canonicalPlannedCalendar:true,auditScopeCovered:true,plannedReAdjustPreview:true,rowsRead:live&&live.meta?live.meta.rowsRead:0,plannedRows:live&&live.rows?live.rows.length:0}};
+  var out={ok:f===0,build:PLANNING_WORKSPACE_CANONICAL_CALENDAR_TEST_BUILD,total:r.length,passed:r.length-f,failed:f,results:r,meta:{nonDestructive:true,liveReadsPerformed:true,liveWritesPerformed:false,existingFunctionalityRemoved:false,canonicalPlannedCalendar:true,auditScopeCovered:true,readableCalendarItems:true,plannedReAdjustPreview:true,rowsRead:live&&live.meta?live.meta.rowsRead:0,plannedRows:live&&live.rows?live.rows.length:0}};
   Logger.log(JSON.stringify(out,null,2));return out;
 }

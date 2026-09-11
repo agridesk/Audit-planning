@@ -1,32 +1,39 @@
 <!-- PlanningWorkspaceClient.js -->
 <script>
 (function(){
-  'use strict';
-  var PLANNING_WORKSPACE_CLIENT_BUILD='2026-09-11_PLANNING_WORKSPACE_2_0_CLIENT_R3_BROWSER_WALL_PERF';
-  var state={loaded:false,loading:false,data:null,lastError:null,lastPerformance:null};
-  function el(id){return document.getElementById(id);}
-  function value(id){var n=el(id);return n?String(n.value||'').trim():'';}
-  function setStatus(text){var n=el('pwStatus');if(n)n.textContent=String(text||'');}
-  function now(){return window.performance&&typeof window.performance.now==='function'?window.performance.now():Date.now();}
-  function request(){return{from:value('pwFrom'),to:value('pwTo'),country:value('pwCountry'),scope:value('pwScope')};}
-  function publishPerformance(perf){state.lastPerformance=perf;window.__AMS01_PLANNING_WORKSPACE_LAST_PERF=perf;try{console.info('AMS01_BROWSER_PERF',perf);}catch(ignore){}var footer=el('pwFooter');if(footer)footer.textContent='Planning Workspace 2.0 · last load '+perf.wallMs+' ms';}
-  function render(result,startedAt){
-    state.loading=false;
-    if(!result||result.ok!==true){state.loaded=false;state.lastError=result&&result.error||{message:'Load failed'};setStatus(state.lastError.message||'Load failed');if(startedAt!=null)publishPerformance({type:'AMS01_BROWSER_PERF',build:PLANNING_WORKSPACE_CLIENT_BUILD,operation:'PlanningWorkspace_load_to_error',wallMs:Math.round(now()-startedAt),success:false});return;}
-    state.loaded=true;state.lastError=null;state.data=result.data;
-    var advisory=result.data&&result.data.advisory||{},overlays=result.data&&result.data.overlays||{};
-    var demand=el('pwDemandBody'),planning=el('pwPlanningBody'),dc=el('pwDemandCount'),pc=el('pwPlanningCount');
-    if(demand)demand.textContent=JSON.stringify(advisory,null,2);
-    if(planning)planning.textContent=JSON.stringify(overlays,null,2);
-    if(dc)dc.textContent=String(advisory&&advisory.rows?advisory.rows.length:0);
-    if(pc)pc.textContent=String(overlays&&overlays.rows?overlays.rows.length:0);
-    setStatus('Loaded');
-    if(startedAt!=null){var perf={type:'AMS01_BROWSER_PERF',build:PLANNING_WORKSPACE_CLIENT_BUILD,operation:'PlanningWorkspace_load_to_usable',wallMs:Math.round(now()-startedAt),success:true,demandRows:advisory&&advisory.rows?advisory.rows.length:0,planningRows:overlays&&overlays.rows?overlays.rows.length:0};publishPerformance(perf);}
-  }
-  function fail(err,startedAt){render({ok:false,error:{message:String(err&&err.message||err||'Load failed')}},startedAt);}
-  function load(){if(state.loading)return;var startedAt=now();state.loading=true;setStatus('Loading…');google.script.run.withSuccessHandler(function(result){render(result,startedAt);}).withFailureHandler(function(err){fail(err,startedAt);}).PlanningWorkspaceRpc_bootstrap(request());}
-  function bind(){var b=el('pwLoad');if(b)b.addEventListener('click',load);}
-  window.PlanningWorkspaceClient={BUILD:PLANNING_WORKSPACE_CLIENT_BUILD,load:load,state:function(){return state;},lastPerformance:function(){return state.lastPerformance;}};
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
+'use strict';
+var BUILD='2026-09-11_PLANNING_WORKSPACE_CLIENT_R4_OPERATIONAL_RENDER';
+var state={loading:false,data:null,lastPerformance:null,month:null,selected:{}};
+function el(id){return document.getElementById(id)}
+function clean(v){return String(v==null?'':v).trim()}
+function esc(v){return clean(v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function now(){return window.performance&&performance.now?performance.now():Date.now()}
+function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function parseDate(s){var m=clean(s).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?new Date(+m[1],+m[2]-1,+m[3]):null}
+function setText(id,v){var n=el(id);if(n)n.textContent=String(v==null?'':v)}
+function setStatus(v){setText('pwStatus',v)}
+function request(){return{from:clean(el('pwFrom').value),to:clean(el('pwTo').value),country:clean(el('pwCountry').value),scope:clean(el('pwScope').value)}}
+function rows(){return state.data&&state.data.advisory&&Array.isArray(state.data.advisory.rows)?state.data.advisory.rows:[]}
+function overlays(){return state.data&&state.data.overlays||{}}
+function reservations(){var o=overlays();return o.reservations&&Array.isArray(o.reservations.rows)?o.reservations.rows:[]}
+function allAuditors(){var map={};rows().forEach(function(r){(r.candidateAuditors||[]).forEach(function(a){var e=clean(a.email).toLowerCase();if(e&&!map[e])map[e]={email:e,name:clean(a.name)||e,qualified:{},toPlan:0,hours:0,dedicated:0,dedicatedHours:0};var x=map[e];if(!x)return;(r.scopes||[]).forEach(function(s){x.qualified[clean(s)]=1});if(a.isPreassigned){x.dedicated++;x.dedicatedHours+=Number(r.hoursToPlan||0)}})});rows().forEach(function(r){var c=(r.candidateAuditors||[])[0];if(c&&map[clean(c.email).toLowerCase()]){var x=map[clean(c.email).toLowerCase()];x.toPlan++;x.hours+=Number(r.hoursToPlan||0)}});return Object.keys(map).map(function(k){return map[k]})}
+function publish(perf){state.lastPerformance=perf;window.__AMS01_PLANNING_WORKSPACE_LAST_PERF=perf;try{console.info('AMS01_BROWSER_PERF',perf)}catch(e){}setText('pwFooter','Planning Workspace 2.0 · last load '+perf.wallMs+' ms')}
+function renderKpis(){var r=rows(),ready=0,blocked=0,hours=0;r.forEach(function(x){hours+=Number(x.hoursToPlan||0);if(x.advisoryState==='READY')ready++;else blocked++});var cr=reservations(),ch=0;cr.forEach(function(x){ch+=Number(x.hours||x.plannedHours||0)});setText('kToPlan',r.length);setText('kToPlanHours',hours.toFixed(1)+' h');setText('kReady',ready);setText('kBlocked',blocked);setText('kConcept',cr.length);setText('kConceptHours',ch.toFixed(1)+' h');setText('kPlanned','—')}
+function renderAttention(){var r=rows().slice().sort(function(a,b){var ar=a.advisoryState==='READY'?1:0,br=b.advisoryState==='READY'?1:0;if(ar!==br)return ar-br;return clean(a.planningWindowTo).localeCompare(clean(b.planningWindowTo))}).slice(0,8);setText('attentionMeta',r.length+' highest-priority audits');var n=el('attentionBody');if(!n)return;n.innerHTML=r.length?r.map(function(x){var ready=x.advisoryState==='READY';return'<div class="attention-card"><div><span class="badge '+(ready?'ready':'refresh')+'">'+(ready?'READY':'DUE')+'</span><span class="attention-title">'+esc(x.company||x.auditId)+'</span></div><div class="attention-sub">'+esc((x.scopes||[]).join(', '))+' · '+Number(x.hoursToPlan||0).toFixed(1)+' h · '+esc(ready?'Ready to plan':(x.advisoryReason||'Needs attention'))+'</div></div>'}).join(''):'<div class="empty">No audits require attention.</div>'}
+function renderWorkload(){var a=allAuditors();setText('auditorCount',a.length);var n=el('workloadBody');if(!n)return;if(!a.length){n.innerHTML='<div class="empty">No auditor workload in this period.</div>';return}n.innerHTML='<table class="workload"><thead><tr><th>AUDITOR</th><th>AUDITS TO PLAN</th><th>HOURS TO PLAN</th><th>DEDICATED AUDITS</th><th>DEDICATED HOURS</th></tr></thead><tbody>'+a.map(function(x){return'<tr><td><div class="auditor-name">'+esc(x.name)+'</div><div class="auditor-detail">'+esc(Object.keys(x.qualified).join(' · '))+'</div></td><td>'+x.toPlan+'</td><td>'+x.hours.toFixed(1)+'</td><td>'+x.dedicated+'</td><td>'+x.dedicatedHours.toFixed(1)+'</td></tr>'}).join('')+'</tbody></table>'}
+function renderBatch(){var n=el('batchChips'),r=rows();if(!n)return;n.innerHTML=r.map(function(x){var s=!!state.selected[x.auditId];return'<button type="button" class="batch-chip'+(s?' selected':'')+'" data-audit="'+esc(x.auditId)+'">'+esc(x.company||x.auditId)+'</button>'}).join('');n.querySelectorAll('[data-audit]').forEach(function(b){b.addEventListener('click',function(){var id=b.getAttribute('data-audit');if(state.selected[id])delete state.selected[id];else state.selected[id]=1;renderBatchMeta();b.classList.toggle('selected',!!state.selected[id])})});renderBatchMeta()}
+function renderBatchMeta(){setText('batchMeta',Object.keys(state.selected).length+' selected · '+reservations().length+' staged')}
+function fillSelect(id,values,labelFn,valueFn){var n=el(id);if(!n)return;var first=n.options.length?n.options[0].outerHTML:'<option value="">All</option>';n.innerHTML=first+values.map(function(x){return'<option value="'+esc(valueFn(x))+'">'+esc(labelFn(x))+'</option>'}).join('')}
+function renderFilters(){var auditors=allAuditors();fillSelect('calAuditor',auditors,function(x){return x.name},function(x){return x.email});var scopes={},countries={};rows().forEach(function(r){(r.scopes||[]).forEach(function(s){if(clean(s))scopes[clean(s)]=1});if(clean(r.country))countries[clean(r.country)]=1});fillSelect('calScope',Object.keys(scopes),function(x){return x},function(x){return x});fillSelect('calCountry',Object.keys(countries),function(x){return x},function(x){return x})}
+function monthKey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
+function availabilityItems(date){var o=overlays(),idx=o.availability&&o.availability.byAuditorEmail||{},filter=clean(el('calAuditor').value).toLowerCase(),out=[];Object.keys(idx).forEach(function(email){if(filter&&email!==filter)return;(idx[email]||[]).forEach(function(x){if(clean(x.date).slice(0,10)===date&&x.state==='NO')out.push({email:email})})});return out}
+function conceptItems(date){if(!el('showConcept').checked)return[];return reservations().filter(function(x){return clean(x.date||x.startDate||x.plannedDate).slice(0,10)===date})}
+function renderCalendar(){if(!state.month){var d=parseDate(el('pwFrom').value)||new Date();state.month=new Date(d.getFullYear(),d.getMonth(),1)}var y=state.month.getFullYear(),m=state.month.getMonth();setText('monthLabel',state.month.toLocaleString('en-GB',{month:'long',year:'numeric'}));var first=new Date(y,m,1),start=new Date(y,m,1-((first.getDay()+6)%7)),html=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(function(d){return'<div class="dow">'+d+'</div>'}).join('');for(var i=0;i<42;i++){var d=new Date(start.getFullYear(),start.getMonth(),start.getDate()+i),ds=iso(d),out=d.getMonth()!==m,av=availabilityItems(ds),cr=conceptItems(ds);html+='<div class="day'+(out?' out':'')+'"><div class="daynum">'+d.getDate()+'</div>'+av.slice(0,4).map(function(x){return'<div class="cal-item">'+esc(x.email)+' · unavailable</div>'}).join('')+cr.slice(0,3).map(function(x){return'<div class="cal-item concept">'+esc(x.company||x.auditId||'Concept')+' · concept</div>'}).join('')+'</div>'}el('calendar').innerHTML=html}
+function render(result,started){state.loading=false;if(!result||result.ok!==true){setStatus(result&&result.error&&result.error.message||'Load failed');if(started!=null)publish({type:'AMS01_BROWSER_PERF',build:BUILD,operation:'PlanningWorkspace_load_to_error',wallMs:Math.round(now()-started),success:false});return}state.data=result.data;renderKpis();renderAttention();renderWorkload();renderBatch();renderFilters();renderCalendar();setStatus('Loaded');if(started!=null)publish({type:'AMS01_BROWSER_PERF',build:BUILD,operation:'PlanningWorkspace_load_to_usable',wallMs:Math.round(now()-started),success:true,demandRows:rows().length,conceptRows:reservations().length})}
+function load(){if(state.loading)return;var started=now();state.loading=true;setStatus('Loading…');el('pwLoad').disabled=true;google.script.run.withSuccessHandler(function(r){el('pwLoad').disabled=false;render(r,started)}).withFailureHandler(function(e){el('pwLoad').disabled=false;render({ok:false,error:{message:clean(e&&e.message||e)}},started)}).PlanningWorkspaceRpc_bootstrap(request())}
+function defaults(){var d=new Date(),from=new Date(d.getFullYear(),d.getMonth(),1),to=new Date(d.getFullYear(),d.getMonth()+4,0);el('pwFrom').value=iso(from);el('pwTo').value=iso(to);state.month=new Date(from.getFullYear(),from.getMonth(),1)}
+function bind(){defaults();el('pwLoad').addEventListener('click',load);el('prevMonth').addEventListener('click',function(){state.month=new Date(state.month.getFullYear(),state.month.getMonth()-1,1);renderCalendar()});el('nextMonth').addEventListener('click',function(){state.month=new Date(state.month.getFullYear(),state.month.getMonth()+1,1);renderCalendar()});el('calAuditor').addEventListener('change',renderCalendar);el('showConcept').addEventListener('change',renderCalendar);el('selectVisible').addEventListener('click',function(){rows().forEach(function(x){state.selected[x.auditId]=1});renderBatch()});el('clearSelection').addEventListener('click',function(){state.selected={};renderBatch()});load()}
+window.PlanningWorkspaceClient={BUILD:BUILD,load:load,state:function(){return state},lastPerformance:function(){return state.lastPerformance}};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
 })();
 </script>

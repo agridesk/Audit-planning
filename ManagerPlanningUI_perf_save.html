@@ -1,0 +1,73 @@
+<script>
+(function () {
+  'use strict';
+  var BUILD = '2026-09-11_AMS01_TOOLKIT_SAVE_WALL_R1';
+  try { if (typeof V5_isDevRuntime_ === 'function' && !V5_isDevRuntime_()) return; } catch (e0) { return; }
+
+  function now_(){ return Date.now(); }
+  function label_(){
+    var n = document.getElementById('ams01ToolkitPerf');
+    if (n) return n;
+    n = document.createElement('div');
+    n.id = 'ams01ToolkitPerf';
+    n.style.cssText = 'position:fixed;right:8px;bottom:8px;z-index:99999;background:#fff;border:1px solid #bbb;padding:4px 7px;font:11px Arial,sans-serif;color:#333;opacity:.92;';
+    n.textContent = 'Toolkit perf · waiting';
+    document.body.appendChild(n);
+    return n;
+  }
+  function show_(text){ try { label_().textContent = text; } catch(e){} }
+  function emit_(payload){
+    window.__AMS01_TOOLKIT_SAVE_PERF = payload;
+    try { console.info('AMS01_TOOLKIT_SAVE_PERF', payload); } catch(e){}
+    try { if (typeof log === 'function') log('AMS01_TOOLKIT_SAVE_PERF ' + JSON.stringify(payload)); } catch(e2){}
+  }
+  function install_(){
+    if (typeof savePlanning !== 'function' || savePlanning.__ams01SaveWrapped) return false;
+    var canonical = savePlanning;
+    var wrapped = async function(){
+      var started = now_();
+      var rpcEvents = [];
+      var restoreRpc = null;
+      show_('Toolkit perf · Save running…');
+      try {
+        if (typeof mpRpcCall_ === 'function') {
+          var canonicalRpc = mpRpcCall_;
+          restoreRpc = function(){ try { mpRpcCall_ = canonicalRpc; } catch(_e){} };
+          mpRpcCall_ = function(fnName,args,successCb,failCb){
+            var rs = now_();
+            return canonicalRpc.call(this,fnName,args,function(res,ctx){
+              rpcEvents.push({fn:String(fnName||''),wallMs:now_()-rs,ok:true,serverMs:res&&res.meta&&res.meta.serverMs!=null?Number(res.meta.serverMs):null});
+              if (typeof successCb === 'function') return successCb(res,ctx);
+            },function(err,ctx){
+              rpcEvents.push({fn:String(fnName||''),wallMs:now_()-rs,ok:false});
+              if (typeof failCb === 'function') return failCb(err,ctx);
+            });
+          };
+        }
+        var result = await canonical.apply(this, arguments);
+        var wall = now_()-started;
+        var p = {type:'AMS01_BROWSER_PERF',build:BUILD,operation:'PlanningToolkit_save_to_usable',wallMs:wall,success:true,rpcs:rpcEvents};
+        emit_(p);
+        show_('Toolkit perf · Save '+wall+' ms · RPCs '+rpcEvents.map(function(x){return x.fn+' '+x.wallMs+' ms';}).join(' | '));
+        return result;
+      } catch(err) {
+        var wallErr = now_()-started;
+        emit_({type:'AMS01_BROWSER_PERF',build:BUILD,operation:'PlanningToolkit_save_to_usable',wallMs:wallErr,success:false,error:String(err&&err.message||err),rpcs:rpcEvents});
+        show_('Toolkit perf · Save failed '+wallErr+' ms');
+        throw err;
+      } finally {
+        if (restoreRpc) restoreRpc();
+      }
+    };
+    wrapped.__ams01SaveWrapped = true;
+    wrapped.__ams01Canonical = canonical;
+    savePlanning = wrapped;
+    window.__AMS01_TOOLKIT_SAVE_INSTRUMENTED = true;
+    show_('Toolkit perf · Save instrumentation ready');
+    return true;
+  }
+  if (!install_()) {
+    try { setTimeout(install_,0); setTimeout(install_,250); setTimeout(install_,1000); } catch(e3){}
+  }
+})();
+</script>

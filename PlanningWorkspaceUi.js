@@ -1,15 +1,15 @@
 /***********************************************************************
  * PlanningWorkspaceUi.js
- * BUILD: 2026-09-11_AMS01_2_PLANNING_WORKSPACE_UI_R2_SERVER_SEED
+ * BUILD: 2026-09-11_AMS01_2_PLANNING_WORKSPACE_UI_R3_ADVISORY_SEED_ONLY
  *
  * PERFORMANCE
- * - DEV route can seed the default Workspace period in the same doGet
- *   execution that renders the page, avoiding an extra google.script.run
- *   startup before first usable paint.
- * - Seed contains read-only advisory + overlay data only.
+ * - DEV route seeds only the default-period advisory in the doGet render.
+ * - Availability + Concept overlays are deliberately excluded from server
+ *   render so they cannot block first HTML delivery / first usable paint.
+ * - Browser loads overlays separately after the seeded advisory is painted.
  * - No new cache, no writes, no new source of truth.
  ***********************************************************************/
-var PLANNING_WORKSPACE_UI_RENDERER_BUILD='2026-09-11_AMS01_2_PLANNING_WORKSPACE_UI_R2_SERVER_SEED';
+var PLANNING_WORKSPACE_UI_RENDERER_BUILD='2026-09-11_AMS01_2_PLANNING_WORKSPACE_UI_R3_ADVISORY_SEED_ONLY';
 
 function PWUI_isoDate_(d,tz){return Utilities.formatDate(d,tz,'yyyy-MM-dd');}
 function PWUI_defaultPeriod_(){
@@ -38,10 +38,9 @@ function PWUI_seed_(ctx){
   try{
     var advisory=PlanningWorkspaceService_getAdvisory({from:period.from,to:period.to});
     var emails=PWUI_candidateEmails_(advisory);
-    var overlays=PlanningWorkspaceService_getOverlays({from:period.from,to:period.to,auditorEmails:emails});
-    return{ok:true,period:period,data:{advisory:advisory,overlays:overlays},meta:{serverSeed:true,readOnly:true,candidateAuditors:emails.length,serverSeedMs:Date.now()-started,env:String(ctx&&ctx.env||'DEV')}};
+    return{ok:true,period:period,data:{advisory:advisory,overlays:null},meta:{serverSeed:true,advisorySeedOnly:true,overlaysDeferred:true,readOnly:true,candidateAuditors:emails.length,serverSeedMs:Date.now()-started,env:String(ctx&&ctx.env||'DEV')}};
   }catch(e){
-    return{ok:false,period:period,data:null,error:{message:String(e&&e.message||e)},meta:{serverSeed:true,readOnly:true,serverSeedMs:Date.now()-started,env:String(ctx&&ctx.env||'DEV')}};
+    return{ok:false,period:period,data:null,error:{message:String(e&&e.message||e)},meta:{serverSeed:true,advisorySeedOnly:true,overlaysDeferred:true,readOnly:true,serverSeedMs:Date.now()-started,env:String(ctx&&ctx.env||'DEV')}};
   }
 }
 function PlanningWorkspaceUi_render(ctx){
@@ -59,6 +58,8 @@ function PlanningWorkspaceUi_contract(){return{
   clientInclude:'PlanningWorkspaceClient.js',
   evaluatedTemplate:true,
   serverSeed:true,
+  advisorySeedOnly:true,
+  overlaysDeferred:true,
   seedReadOnly:true,
   directSheetReads:false,
   directSheetWrites:false,

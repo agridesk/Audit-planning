@@ -1,6 +1,20 @@
 /***********************************************************************
  * PlanningWorkspaceUiIntegrationTests.js
- * BUILD: 2026-09-09_PLANNING_WORKSPACE_2_0_UI_INTEGRATION_TESTS_R1
+ * BUILD: 2026-09-11_AMS01_2_PLANNING_WORKSPACE_UI_INTEGRATION_TESTS_R2_SERVER_SEED
  ***********************************************************************/
-var PLANNING_WORKSPACE_UI_INTEGRATION_TEST_BUILD='2026-09-09_PLANNING_WORKSPACE_2_0_UI_INTEGRATION_TESTS_R1';
-function RUN_PLANNING_WORKSPACE_UI_INTEGRATION_REGRESSION(){var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}var c=PlanningWorkspaceUi_contract(),html=PlanningWorkspaceUi_render().getContent();t('rendererBuild',c.build===PLANNING_WORKSPACE_UI_RENDERER_BUILD);t('evaluatedTemplate',c.evaluatedTemplate===true);t('shellBuild',html.indexOf('PLANNING_WORKSPACE_2_0_HTML_SHELL_R2_CLIENT_BOUND')>=0);t('clientBuild',html.indexOf('PLANNING_WORKSPACE_2_0_CLIENT_R2_SHELL_IDS')>=0);t('bootstrapBound',html.indexOf('PlanningWorkspaceRpc_bootstrap')>=0);t('loadButton',html.indexOf('id="pwLoad"')>=0);t('fromFilter',html.indexOf('id="pwFrom"')>=0);t('toFilter',html.indexOf('id="pwTo"')>=0);t('countryFilter',html.indexOf('id="pwCountry"')>=0);t('scopeFilter',html.indexOf('id="pwScope"')>=0);t('demandBody',html.indexOf('id="pwDemandBody"')>=0);t('planningBody',html.indexOf('id="pwPlanningBody"')>=0);t('templateDirectiveEvaluated',html.indexOf('<?!=')<0);t('noDirectSheetReads',c.directSheetReads===false&&html.indexOf('SpreadsheetApp')<0);t('noDirectSheetWrites',c.directSheetWrites===false);var failed=r.filter(function(x){return!x.ok;}).length,out={ok:failed===0,build:PLANNING_WORKSPACE_UI_INTEGRATION_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,renderOnly:true,nextStep:'Run read-only live bootstrap through PlanningWorkspaceRpc_bootstrap before exposing Workspace route.'}};console.log(JSON.stringify(out,null,2));return out;}
+var PLANNING_WORKSPACE_UI_INTEGRATION_TEST_BUILD='2026-09-11_AMS01_2_PLANNING_WORKSPACE_UI_INTEGRATION_TESTS_R2_SERVER_SEED';
+function RUN_PLANNING_WORKSPACE_UI_INTEGRATION_REGRESSION(){
+  var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
+  var c=PlanningWorkspaceUi_contract();
+  t('rendererBuild',c.build===PLANNING_WORKSPACE_UI_RENDERER_BUILD,c.build);
+  t('evaluatedTemplate',c.evaluatedTemplate===true);
+  t('serverSeedContract',c.serverSeed===true&&c.seedReadOnly===true);
+  t('noNewSsot',c.newSsot===false);
+  t('noDirectSheetReads',c.directSheetReads===false);
+  t('noDirectSheetWrites',c.directSheetWrites===false);
+  t('rendererPresent',typeof PlanningWorkspaceUi_render==='function');
+  t('seedBuilderPresent',typeof PWUI_seed_==='function');
+  t('periodBuilderPresent',typeof PWUI_defaultPeriod_==='function');
+  t('candidateProjectionPresent',typeof PWUI_candidateEmails_==='function');
+  var failed=r.filter(function(x){return!x.ok;}).length,out={ok:failed===0,build:PLANNING_WORKSPACE_UI_INTEGRATION_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,contractOnly:true,serverSeed:true,nextStep:'Validate DEV route render and factual navigation wall-clock.'}};console.log(JSON.stringify(out,null,2));return out;
+}

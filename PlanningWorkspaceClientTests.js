@@ -1,13 +1,13 @@
 /***********************************************************************
  * PlanningWorkspaceClientTests.js
- * BUILD: 2026-09-11_AMS01_2_PLANNING_WORKSPACE_CLIENT_TESTS_R6_SERVER_SEED
+ * BUILD: 2026-09-11_AMS01_2_PLANNING_WORKSPACE_CLIENT_TESTS_R7_ADVISORY_SEED_DEFERRED_OVERLAY
  ***********************************************************************/
-var PLANNING_WORKSPACE_CLIENT_TEST_BUILD='2026-09-11_AMS01_2_PLANNING_WORKSPACE_CLIENT_TESTS_R6_SERVER_SEED';
+var PLANNING_WORKSPACE_CLIENT_TEST_BUILD='2026-09-11_AMS01_2_PLANNING_WORKSPACE_CLIENT_TESTS_R7_ADVISORY_SEED_DEFERRED_OVERLAY';
 function RUN_PLANNING_WORKSPACE_CLIENT_BINDING_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var src=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceClient.js').getContent();
   t('clientPresent',!!src);
-  t('buildMarker',src.indexOf('PLANNING_WORKSPACE_CLIENT_R7_SERVER_SEED_OPEN_WALL')>=0);
+  t('buildMarker',src.indexOf('PLANNING_WORKSPACE_CLIENT_R8_ADVISORY_SEED_DEFERRED_OVERLAY')>=0);
   t('advisoryRpc',src.indexOf('PlanningWorkspaceRpc_getAdvisory')>=0);
   t('overlayRpc',src.indexOf('PlanningWorkspaceRpc_getOverlays')>=0);
   t('bootstrapNotPrimary',src.indexOf('.PlanningWorkspaceRpc_bootstrap(')<0);
@@ -26,10 +26,12 @@ function RUN_PLANNING_WORKSPACE_CLIENT_BINDING_REGRESSION(){
   t('singlePeriodAvailabilityRead',src.indexOf('auditorEmails:')<0);
   t('serverSeedRead',src.indexOf("el('pwServerSeed')")>=0);
   t('serverSeedApply',src.indexOf('applySeed(readSeed())')>=0);
+  t('advisoryOnlySeedAccepted',src.indexOf('!seed.data.advisory)return false')>=0&&src.indexOf('!seed.data.overlays)return false')<0);
+  t('deferredOverlayAfterSeed',src.indexOf("loadOverlaysParallel({from:clean(el('pwFrom').value),to:clean(el('pwTo').value)},0)")>=0);
   t('openWallPerf',src.indexOf('PlanningWorkspace_open_to_usable')>=0);
   t('navigationClock',src.indexOf('var wall=Math.round(now())')>=0);
   t('noRawJsonRender',src.indexOf('JSON.stringify(advisory')<0&&src.indexOf('JSON.stringify(overlays')<0);
   t('noSheetAccess',src.indexOf('SpreadsheetApp')<0);
   t('noCanonicalBypass',src.indexOf('PlanningCanonicalCommitService_commit')<0);
-  var failed=r.filter(function(x){return!x.ok;}).length,out={ok:failed===0,build:PLANNING_WORKSPACE_CLIENT_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,rpcInvocationPerformed:false,operationalRenderer:true,serverSeed:true,openWallClock:true,parallelReload:true,rawJsonShell:false}};console.log(JSON.stringify(out,null,2));return out;
+  var failed=r.filter(function(x){return!x.ok;}).length,out={ok:failed===0,build:PLANNING_WORKSPACE_CLIENT_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,rpcInvocationPerformed:false,operationalRenderer:true,serverSeed:true,advisorySeedOnly:true,deferredOverlay:true,openWallClock:true,parallelReload:true,rawJsonShell:false}};console.log(JSON.stringify(out,null,2));return out;
 }

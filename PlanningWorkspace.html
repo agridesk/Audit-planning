@@ -10,11 +10,11 @@
   </style>
 </head>
 <body>
-<div class="pw-app" data-build="2026-09-11_PLANNING_WORKSPACE_FULL_LAYOUT_R1">
+<div class="pw-app" data-build="2026-09-11_AMS01_2_PLANNING_WORKSPACE_FULL_LAYOUT_R2_SERVER_SEED">
   <header class="pw-header"><div><h1 class="pw-title">Planning Workspace</h1><div class="pw-subtitle">Demand, workload, calendar planning, drag &amp; drop, concepts, batch planning, canonical planning and Re-adjust</div></div><div id="pwStatus" class="pw-status">Ready</div></header>
   <section class="pw-filters">
-    <div class="pw-filter small"><label for="pwFrom">From</label><input id="pwFrom" type="date"></div>
-    <div class="pw-filter small"><label for="pwTo">To</label><input id="pwTo" type="date"></div>
+    <div class="pw-filter small"><label for="pwFrom">From</label><input id="pwFrom" type="date" value="<?= __seedFrom ?>"></div>
+    <div class="pw-filter small"><label for="pwTo">To</label><input id="pwTo" type="date" value="<?= __seedTo ?>"></div>
     <div class="pw-filter wide"><label for="pwCountry">Country</label><input id="pwCountry" type="text" autocomplete="off"></div>
     <div class="pw-filter wide"><label for="pwScope">Scope</label><input id="pwScope" type="text" autocomplete="off"></div>
     <button id="pwLoad" class="btn primary" type="button">Load</button><span class="pw-hint">Default: current month + 3 months</span>
@@ -36,6 +36,7 @@
   </section>
   <div id="pwFooter" class="perf">Planning Workspace 2.0</div>
 </div>
+<textarea id="pwServerSeed" style="display:none" aria-hidden="true"><?= __seedJson ?></textarea>
 <?!= HtmlService.createHtmlOutputFromFile('PlanningWorkspaceClient.js').getContent(); ?>
 </body>
 </html>

@@ -1,0 +1,19 @@
+<!-- PlanningWorkspaceAvailabilityContext.js -->
+<script>
+(function(){
+'use strict';
+var BUILD='2026-09-12_ROADMAP_2_4_WORKSPACE_AVAILABILITY_CONTEXT_UI_R1';
+function clean(v){return String(v==null?'':v).trim()}
+function minutes(v){var m=clean(v).match(/^(\d{1,2}):(\d{2})$/);if(!m)return NaN;return Number(m[1])*60+Number(m[2])}
+function duration(start,end){var a=minutes(start),b=minutes(end);if(!isFinite(a)||!isFinite(b)||b<=a)return'';var h=(b-a)/60;return (Math.round(h*10)/10).toFixed(1)+' h'}
+function reason(status){var s=clean(status).toUpperCase();if(!s)return'';if(s.indexOf('DEFAULT_WEEKEND')>=0)return'Weekend';if(s.indexOf('SYSTEM_DEFAULT')>=0)return'Default unavailable';if(s==='MANAGER PLANNED'||s==='MANAGER_PLANNED')return'Planned audit';return clean(status).replace(/_/g,' ')}
+function state(){try{return window.PlanningWorkspaceClient&&PlanningWorkspaceClient.state?PlanningWorkspaceClient.state():null}catch(e){return null}}
+function records(email,date){var st=state(),o=st&&st.data&&st.data.overlays||{},idx=o.availability&&o.availability.byAuditorEmail||{},a=idx[clean(email).toLowerCase()]||[],out=[];for(var i=0;i<a.length;i++)if(clean(a[i]&&a[i].date).slice(0,10)===date)out.push(a[i]);return out}
+function slotText(s){var p=[],st=clean(s.start),en=clean(s.end),dur=duration(st,en),company=clean(s.company),scopes=Array.isArray(s.scopes)?s.scopes.filter(function(x){return!!clean(x)}):[];if(st||en)p.push((st||'?')+'–'+(en||'?'));if(dur)p.push(dur);if(company)p.push(company);if(scopes.length)p.push(scopes.join(', '));if(!company){var r=reason(s.status);if(r)p.push(r)}return p.join(' · ')}
+function apply(){document.querySelectorAll('.planning-cell[data-auditor-email][data-date]').forEach(function(cell){var rs=records(cell.getAttribute('data-auditor-email'),cell.getAttribute('data-date')),parts=[];rs.forEach(function(r){(r.slots||[]).forEach(function(s){var t=slotText(s);if(t)parts.push(t)})});if(!parts.length)return;var n=cell.querySelector('.cell-state');if(!n)return;var txt='Unavailable · '+parts.join(' | ');if(n.textContent!==txt)n.textContent=txt;if(cell.getAttribute('title')!==parts.join(' | '))cell.setAttribute('title',parts.join(' | '));})}
+function schedule(){if(window.requestAnimationFrame)requestAnimationFrame(apply);else setTimeout(apply,0)}
+var obs=new MutationObserver(schedule);function bind(){var c=document.getElementById('calendar');if(c){obs.observe(c,{childList:true,subtree:true});schedule()}else setTimeout(bind,50)}
+window.PlanningWorkspaceAvailabilityContext={BUILD:BUILD,apply:apply};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
+})();
+</script>

@@ -1,8 +1,8 @@
 /***********************************************************************
  * PlanningWorkspaceDragDropTests.js
- * BUILD: 2026-09-12_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R11_ASSERTIONS
+ * BUILD: 2026-09-12_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R12_SERVER_CONTEXT
  ***********************************************************************/
-var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-12_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R11_ASSERTIONS';
+var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-12_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R12_SERVER_CONTEXT';
 function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var ui=PlanningWorkspaceUi_contract();
@@ -62,8 +62,9 @@ function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   t('availabilityAuditIdNotUserField',overlaySource.indexOf('auditId:PWOB_clean_(s.auditId)')<0);
   t('availabilitySingleBatchRead',overlaySource.indexOf('availabilityBatchReads:1')>=0&&overlaySource.indexOf('perAuditorReads:0')>=0);
   t('contextUsesExistingClientState',contextEnhancerSource.indexOf('PlanningWorkspaceClient')>=0&&contextEnhancerSource.indexOf("typeof c.state==='function'")>=0);
-  t('contextJoinsAuditRefToAdvisory',contextEnhancerSource.indexOf('map[clean(slot.auditRef)]')>=0&&contextEnhancerSource.indexOf('r.company')>=0&&contextEnhancerSource.indexOf('r.scopes')>=0);
-  t('contextShowsTimeCompanyScopes',contextEnhancerSource.indexOf("clean(slot.start)")>=0&&contextEnhancerSource.indexOf("p.push(clean(r.company))")>=0&&contextEnhancerSource.indexOf("p.push(r.scopes.join(', '))")>=0);
+  t('contextPrefersServerProjectedCompanyScopes',contextEnhancerSource.indexOf('var company=clean(slot.company)')>=0&&contextEnhancerSource.indexOf('Array.isArray(slot.scopes)')>=0);
+  t('contextFallsBackToAdvisoryJoin',contextEnhancerSource.indexOf('map[clean(slot.auditRef)]')>=0&&contextEnhancerSource.indexOf('r.company')>=0&&contextEnhancerSource.indexOf('r.scopes')>=0);
+  t('contextShowsTimeCompanyScopes',contextEnhancerSource.indexOf("clean(slot.start)")>=0&&contextEnhancerSource.indexOf("p.push(company)")>=0&&contextEnhancerSource.indexOf("p.push(scopes.join(', '))")>=0);
   t('contextHumanizesWeekend',contextEnhancerSource.indexOf("return'Weekend'")>=0);
   t('contextFallbackPlannedAudit',contextEnhancerSource.indexOf("return'Planned audit'")>=0);
   t('contextNoUserVisibleAuditId',contextEnhancerSource.indexOf("p.push(clean(slot.auditRef))")<0&&contextEnhancerSource.indexOf("textContent=clean(slot.auditRef)")<0);
@@ -73,6 +74,7 @@ function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   t('attentionUsesExistingClientState',attentionSource.indexOf('PlanningWorkspaceClient')>=0&&attentionSource.indexOf('PlanningWorkspaceClient.state')>=0);
   t('attentionLimit12',attentionSource.indexOf('ATTENTION_LIMIT=12')>=0&&attentionSource.indexOf('.slice(0,ATTENTION_LIMIT)')>=0);
   t('attentionPriorityDeadlineFirst',attentionSource.indexOf("if(ap.wt!==bp.wt)return ap.wt.localeCompare(bp.wt)")>=0);
+  t('attentionCardsRemainDragSources',attentionSource.indexOf('class=\"attention-card\"')>=0&&attentionSource.indexOf('data-audit=\"')>=0&&dragSource.indexOf("document.querySelectorAll('.attention-card')")>=0&&dragSource.indexOf("card.setAttribute('draggable','true')")>=0);
   t('attentionNoExtraRpc',attentionSource.indexOf('google.script.run')<0);
   t('attentionNoSheetRead',attentionSource.indexOf('SpreadsheetApp')<0&&attentionSource.indexOf('getRange(')<0);
 
@@ -87,6 +89,6 @@ function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   t('noNewSsot',rpc.meta.newSsot===false&&ui.newSsot===false);
 
   var failed=r.filter(function(x){return!x.ok;}).length;
-  var out={ok:failed===0,build:PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,contractOnly:true,targetFlow:'Workspace audit -> auditor x date -> canonical preflight -> Concept Reservation -> Individual Toolkit 2.0 -> direct canonical commit',availabilityContext:'existing Availability batch overlay -> internal auditRef -> already-loaded advisory company/scopes; no user-visible Audit ID; no extra RPC or Spreadsheet read',attention:'top 12 by planningWindowTo, planningWindowFrom, blocker state; client-only',conceptSaveUx:'server-confirmed concept applied locally; full Workspace reload only as fallback'}};
+  var out={ok:failed===0,build:PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,contractOnly:true,targetFlow:'Workspace audit -> auditor x date -> canonical preflight -> Concept Reservation -> Individual Toolkit 2.0 -> direct canonical commit',availabilityContext:'server-projected company/scopes first; internal auditRef advisory fallback; no user-visible Audit ID; no extra RPC or Spreadsheet read',attention:'top 12 by planningWindowTo, planningWindowFrom, blocker state; cards remain drag sources',conceptSaveUx:'server-confirmed concept applied locally; full Workspace reload only as fallback'}};
   console.log(JSON.stringify(out,null,2));return out;
 }

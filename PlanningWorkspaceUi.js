@@ -1,16 +1,16 @@
 /***********************************************************************
  * PlanningWorkspaceUi.js
- * BUILD: 2026-09-12_ROADMAP_2_4_PLANNING_WORKSPACE_UI_R5_DRAG_DROP
+ * BUILD: 2026-09-12_ROADMAP_2_4_PLANNING_WORKSPACE_UI_R6_DETAIL_TOOLKIT
  *
  * PERFORMANCE
  * - Route render remains data-independent.
  * - No Planning Demand, Eligibility, Availability or Concept reads before
  *   the HTML shell is returned to the browser.
  * - Browser loads decision data only after first shell paint.
- * - Drag/drop behavior is a client-only include.
+ * - Drag/drop and individual Toolkit 2.0 behavior are client-only includes.
  * - No new cache, no writes, no new source of truth.
  ***********************************************************************/
-var PLANNING_WORKSPACE_UI_RENDERER_BUILD='2026-09-12_ROADMAP_2_4_PLANNING_WORKSPACE_UI_R5_DRAG_DROP';
+var PLANNING_WORKSPACE_UI_RENDERER_BUILD='2026-09-12_ROADMAP_2_4_PLANNING_WORKSPACE_UI_R6_DETAIL_TOOLKIT';
 
 function PlanningWorkspaceUi_render(ctx){
   ctx=ctx||{};
@@ -20,7 +20,8 @@ function PlanningWorkspaceUi_render(ctx){
   t.__seedTo='';
   var html=t.evaluate().getContent();
   var dragDrop=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceDragDrop.js').getContent();
-  html=html.replace('</body>',dragDrop+'\n</body>');
+  var detailToolkit=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceDetailToolkit.js').getContent();
+  html=html.replace('</body>',dragDrop+'\n'+detailToolkit+'\n</body>');
   return HtmlService.createHtmlOutput(html).setTitle('AMS - Planning Workspace');
 }
 function PlanningWorkspaceUi_contract(){return{
@@ -28,11 +29,13 @@ function PlanningWorkspaceUi_contract(){return{
   template:'PlanningWorkspace',
   clientInclude:'PlanningWorkspaceClient.js',
   dragDropInclude:'PlanningWorkspaceDragDrop.js',
+  detailToolkitInclude:'PlanningWorkspaceDetailToolkit.js',
   evaluatedTemplate:true,
   serverSeed:false,
   dataIndependentShell:true,
   decisionDataDeferred:true,
   dragDropClientOnly:true,
+  detailToolkitClientOnly:true,
   directSheetReads:false,
   directSheetWrites:false,
   planningServiceReadsDuringRender:false,

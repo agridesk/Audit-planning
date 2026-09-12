@@ -1,8 +1,8 @@
 /***********************************************************************
  * PlanningWorkspaceDragDropTests.js
- * BUILD: 2026-09-12_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R4_DETAIL_TOOLKIT
+ * BUILD: 2026-09-12_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R5_REFRESH_SAFE
  ***********************************************************************/
-var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-12_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R4_DETAIL_TOOLKIT';
+var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-12_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R5_REFRESH_SAFE';
 function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var ui=PlanningWorkspaceUi_contract();
@@ -33,6 +33,9 @@ function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   t('noSelectedAuditorDependency',dragSource.indexOf('selectedAuditor')<0);
   t('clientConstraintCues',dragSource.indexOf('candidate(row,email)')>=0&&dragSource.indexOf('availabilityNo(email,date)')>=0&&dragSource.indexOf('planningWindowFrom')>=0&&dragSource.indexOf('planningWindowTo')>=0);
   t('rotationWarningCue',dragSource.indexOf('rotationWarning===true')>=0);
+  t('refreshRequiredNotHardBlocked',dragSource.indexOf('requiresCanonicalEligibility(row)')>=0&&dragSource.indexOf("if(!c&&!refresh)return{level:'BLOCK'")>=0);
+  t('refreshRequiredCanonicalCheckCue',dragSource.indexOf("level:'CHECK'")>=0&&dragSource.indexOf('canonical qualification will be checked on drop')>=0);
+  t('refreshRequiredStillUsesCanonicalPreflight',saveSource.indexOf('PWR_conceptPreflight_')>=0&&preflightSource.indexOf('PlanningCommitGateService_evaluate')>=0);
   t('validProposedTimeSlot',dragSource.indexOf('proposedSlot(hours)')>=0&&dragSource.indexOf('start:slot.start,end:slot.end')>=0&&dragSource.indexOf("start:'',end:''")<0);
   t('conceptBlocksRendered',clientSource.indexOf('Array.isArray(x.blocks)')>=0&&clientSource.indexOf('data-concept-audit')>=0);
   t('conceptActionBound',dragSource.indexOf('bindConceptActions')>=0&&dragSource.indexOf("btn.textContent='Plan'")>=0);
@@ -48,6 +51,6 @@ function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   t('noDirectSheetWrites',rpc.meta.directSheetWrites===false&&ui.directSheetWrites===false&&saveSource.indexOf('setValue')<0&&saveSource.indexOf('setValues')<0&&detailSource.indexOf('setValue')<0&&detailSource.indexOf('setValues')<0);
   t('noNewSsot',rpc.meta.newSsot===false&&ui.newSsot===false);
   var failed=r.filter(function(x){return!x.ok;}).length;
-  var out={ok:failed===0,build:PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,contractOnly:true,targetFlow:'Workspace audit -> auditor x date -> canonical preflight -> Concept Reservation -> Individual Toolkit 2.0 -> direct canonical commit'}};
+  var out={ok:failed===0,build:PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,contractOnly:true,targetFlow:'Workspace audit -> auditor x date -> canonical preflight -> Concept Reservation -> Individual Toolkit 2.0 -> direct canonical commit',refreshPolicy:'stale eligibility advisory does not hard-block client drop; canonical preflight decides'}};
   console.log(JSON.stringify(out,null,2));return out;
 }

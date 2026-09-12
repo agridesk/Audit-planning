@@ -1,8 +1,8 @@
 /***********************************************************************
  * zz_PlanningWorkspaceUiContextOverride_20260912.js
- * BUILD: 2026-09-12_PLANNING_WORKSPACE_UI_R7_CONTEXT_ENHANCER
+ * BUILD: 2026-09-12_PLANNING_WORKSPACE_UI_R8_ATTENTION_PRIORITY
  ***********************************************************************/
-var PLANNING_WORKSPACE_UI_RENDERER_BUILD='2026-09-12_PLANNING_WORKSPACE_UI_R7_CONTEXT_ENHANCER';
+var PLANNING_WORKSPACE_UI_RENDERER_BUILD='2026-09-12_PLANNING_WORKSPACE_UI_R8_ATTENTION_PRIORITY';
 
 function PlanningWorkspaceUi_render(ctx){
   ctx=ctx||{};
@@ -14,7 +14,8 @@ function PlanningWorkspaceUi_render(ctx){
   var dragDrop=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceDragDrop.js').getContent();
   var detailToolkit=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceDetailToolkit.js').getContent();
   var contextEnhancer=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceContextEnhancer.js').getContent();
-  html=html.replace('</body>',dragDrop+'\n'+detailToolkit+'\n'+contextEnhancer+'\n</body>');
+  var attentionEnhancer=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceAttentionEnhancer.js').getContent();
+  html=html.replace('</body>',dragDrop+'\n'+detailToolkit+'\n'+contextEnhancer+'\n'+attentionEnhancer+'\n</body>');
   return HtmlService.createHtmlOutput(html).setTitle('AMS - Planning Workspace');
 }
 
@@ -25,6 +26,7 @@ function PlanningWorkspaceUi_contract(){return{
   dragDropInclude:'PlanningWorkspaceDragDrop.js',
   detailToolkitInclude:'PlanningWorkspaceDetailToolkit.js',
   contextEnhancerInclude:'PlanningWorkspaceContextEnhancer.js',
+  attentionEnhancerInclude:'PlanningWorkspaceAttentionEnhancer.js',
   evaluatedTemplate:true,
   serverSeed:false,
   dataIndependentShell:true,
@@ -32,6 +34,8 @@ function PlanningWorkspaceUi_contract(){return{
   dragDropClientOnly:true,
   detailToolkitClientOnly:true,
   contextEnhancerClientOnly:true,
+  attentionEnhancerClientOnly:true,
+  attentionPriority:'planningWindowTo, planningWindowFrom, blocker state',
   directSheetReads:false,
   directSheetWrites:false,
   planningServiceReadsDuringRender:false,

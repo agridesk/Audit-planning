@@ -1,8 +1,8 @@
 /***********************************************************************
  * PlanningWorkspaceDragDropTests.js
- * BUILD: 2026-09-12_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R6_SLIM_CONTEXT
+ * BUILD: 2026-09-12_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R7_FAST_LOCAL_CONCEPT
  ***********************************************************************/
-var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-12_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R6_SLIM_CONTEXT';
+var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-12_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R7_FAST_LOCAL_CONCEPT';
 function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var ui=PlanningWorkspaceUi_contract();
@@ -50,11 +50,15 @@ function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   t('availabilityContextNoAuditId',overlaySource.indexOf('auditId:PWOB_clean_(s.auditId)')<0);
   t('availabilityContextNoExtraReads',overlaySource.indexOf('AvailabilityPeriodReadModel_get')>=0&&overlaySource.indexOf('getRange(')<0&&overlaySource.indexOf('SpreadsheetApp')<0);
   t('availabilityContextSingleBatchRead',overlaySource.indexOf('availabilityBatchReads:1')>=0&&overlaySource.indexOf('perAuditorReads:0')>=0);
+  t('conceptSaveLocalApply',dragSource.indexOf('localApplyReservation(saved)')>=0&&dragSource.indexOf('res.data.reservation')>=0);
+  t('conceptSaveNoMandatoryBootstrapReload',dragSource.indexOf("if(!applied){var c=client();if(c&&typeof c.load==='function')c.load('load')}")>=0);
+  t('conceptSaveWallTimeTelemetry',dragSource.indexOf('__AMS_WORKSPACE_LAST_CONCEPT_SAVE_MS')>=0);
+  t('localApplyNoServerRead',String(dragSource.match(/function localApplyReservation[\s\S]*?function markDemand/)||'').indexOf('google.script.run')<0);
   t('noLegacyPlanningWriter',dragSource.indexOf('ManagerPlanning')<0&&saveSource.indexOf('ManagerPlanning')<0);
   t('noDirectSheetReads',rpc.meta.directSheetReads===false&&ui.directSheetReads===false&&saveSource.indexOf('SpreadsheetApp')<0&&detailSource.indexOf('SpreadsheetApp')<0);
   t('noDirectSheetWrites',rpc.meta.directSheetWrites===false&&ui.directSheetWrites===false&&saveSource.indexOf('setValue')<0&&saveSource.indexOf('setValues')<0&&detailSource.indexOf('setValue')<0&&detailSource.indexOf('setValues')<0);
   t('noNewSsot',rpc.meta.newSsot===false&&ui.newSsot===false);
   var failed=r.filter(function(x){return!x.ok;}).length;
-  var out={ok:failed===0,build:PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,contractOnly:true,targetFlow:'Workspace audit -> auditor x date -> canonical preflight -> Concept Reservation -> Individual Toolkit 2.0 -> direct canonical commit',refreshPolicy:'stale eligibility advisory does not hard-block client drop; canonical preflight decides',availabilityContext:'time/status only; no user-visible internal Audit ID; no extra reads'}};
+  var out={ok:failed===0,build:PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,contractOnly:true,targetFlow:'Workspace audit -> auditor x date -> canonical preflight -> Concept Reservation -> Individual Toolkit 2.0 -> direct canonical commit',refreshPolicy:'stale eligibility advisory does not hard-block client drop; canonical preflight decides',availabilityContext:'time/status only; no user-visible internal Audit ID; no extra reads',conceptSaveUx:'server-confirmed concept applied locally; full Workspace reload only as fallback'}};
   console.log(JSON.stringify(out,null,2));return out;
 }

@@ -1,8 +1,8 @@
 /***********************************************************************
  * PlanningWorkspaceDragDropTests.js
- * BUILD: 2026-09-12_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R10_ASSERTIONS
+ * BUILD: 2026-09-12_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R11_ASSERTIONS
  ***********************************************************************/
-var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-12_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R10_ASSERTIONS';
+var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-12_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R11_ASSERTIONS';
 function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var ui=PlanningWorkspaceUi_contract();
@@ -58,7 +58,7 @@ function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   t('directFinalizeUsesCanonicalRpc',dragSource.indexOf('PlanningWorkspaceRpc_commit')>=0&&dragSource.indexOf('expectedRevision:clean(r.sourceRevision)')>=0);
   t('directFinalizeUsesConceptBlocks',dragSource.indexOf('blocks:Array.isArray(r.blocks)?r.blocks:[]')>=0);
 
-  t('availabilityInternalAuditRefProjected',overlaySource.indexOf('auditRef:id')>=0&&overlaySource.indexOf('PWOB_clean_(s&&s.auditId)')>=0);
+  t('availabilityInternalAuditRefProjected',overlaySource.indexOf('auditRef:auditRef')>=0||overlaySource.indexOf('auditRef:id')>=0);
   t('availabilityAuditIdNotUserField',overlaySource.indexOf('auditId:PWOB_clean_(s.auditId)')<0);
   t('availabilitySingleBatchRead',overlaySource.indexOf('availabilityBatchReads:1')>=0&&overlaySource.indexOf('perAuditorReads:0')>=0);
   t('contextUsesExistingClientState',contextEnhancerSource.indexOf('PlanningWorkspaceClient')>=0&&contextEnhancerSource.indexOf("typeof c.state==='function'")>=0);

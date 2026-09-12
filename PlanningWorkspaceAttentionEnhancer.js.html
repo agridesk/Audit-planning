@@ -1,0 +1,16 @@
+<script>
+(function(){
+'use strict';
+var BUILD='2026-09-12_WORKSPACE_ATTENTION_PRIORITY_R1';
+function clean(v){return String(v==null?'':v).trim()}
+function esc(v){return clean(v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function stateRows(){try{var s=window.PlanningWorkspaceClient&&window.PlanningWorkspaceClient.state?window.PlanningWorkspaceClient.state():null;return s&&s.data&&s.data.advisory&&Array.isArray(s.data.advisory.rows)?s.data.advisory.rows:[]}catch(e){return[]}}
+function priority(x){var wt=clean(x&&x.planningWindowTo)||'9999-12-31';var wf=clean(x&&x.planningWindowFrom)||'9999-12-31';var state=x&&x.advisoryState==='READY'?1:0;return{wt:wt,wf:wf,state:state}}
+function compare(a,b){var ap=priority(a),bp=priority(b);if(ap.wt!==bp.wt)return ap.wt.localeCompare(bp.wt);if(ap.wf!==bp.wf)return ap.wf.localeCompare(bp.wf);if(ap.state!==bp.state)return ap.state-bp.state;return clean(a.company||a.auditId).localeCompare(clean(b.company||b.auditId))}
+function render(){var n=document.getElementById('attentionBody'),m=document.getElementById('attentionMeta');if(!n)return;var rows=stateRows().slice().sort(compare).slice(0,8);if(m)m.textContent=rows.length+' highest-priority audits';var html=rows.length?rows.map(function(x){var ready=x.advisoryState==='READY';var due=clean(x.planningWindowTo);return'<div class="attention-card" data-audit="'+esc(x.auditId)+'"><div><span class="badge '+(ready?'ready':'refresh')+'">'+(ready?'READY':'DUE')+'</span><span class="attention-title">'+esc(x.company||x.auditId)+'</span></div><div class="attention-sub">'+esc((x.scopes||[]).join(', '))+' · '+Number(x.hoursToPlan||0).toFixed(1)+' h'+(due?' · plan by '+esc(due):'')+' · '+esc(ready?'Ready to plan':(x.advisoryReason||'Needs attention'))+'</div></div>'}).join(''):'<div class="empty">No audits require attention.</div>';if(n.innerHTML!==html)n.innerHTML=html}
+var scheduled=false;function schedule(){if(scheduled)return;scheduled=true;setTimeout(function(){scheduled=false;render()},0)}
+function bind(){var n=document.getElementById('attentionBody');if(!n)return;new MutationObserver(schedule).observe(n,{childList:true,subtree:true,characterData:true});schedule()}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
+window.PlanningWorkspaceAttentionEnhancer={BUILD:BUILD,render:render,compare:compare};
+})();
+</script>

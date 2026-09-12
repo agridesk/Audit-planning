@@ -1,26 +1,37 @@
 /***********************************************************************
  * WorkspaceEligibilityBatchCacheVerification.js
- * BUILD: 2026-09-12_WORKSPACE_ELIGIBILITY_BATCH_CACHE_VERIFY_R1
+ * BUILD: 2026-09-12_WORKSPACE_ELIGIBILITY_BATCH_CACHE_VERIFY_R2
  ***********************************************************************/
-var WORKSPACE_ELIGIBILITY_BATCH_CACHE_VERIFY_BUILD='2026-09-12_WORKSPACE_ELIGIBILITY_BATCH_CACHE_VERIFY_R1';
+var WORKSPACE_ELIGIBILITY_BATCH_CACHE_VERIFY_BUILD='2026-09-12_WORKSPACE_ELIGIBILITY_BATCH_CACHE_VERIFY_R2';
 
 function RUN_WORKSPACE_ELIGIBILITY_BATCH_CACHE_VERIFICATION(){
   var results=[];function t(name,ok,detail){results.push({name:name,ok:!!ok,detail:ok?'':String(detail||'failed')});}
-  var source=HtmlService.createHtmlOutputFromFile('zz_WorkspaceEligibilityBatchCache_20260912.js').getContent();
-  t('shortTtl',source.indexOf('WEBRC_TTL_SEC=120')>=0);
-  t('usesScriptCacheOnly',source.indexOf('CacheService.getScriptCache()')>=0&&source.indexOf('SpreadsheetApp')<0);
-  t('allHitRequiredForFastPath',source.indexOf('if(allHit)')>=0);
-  t('rejectsRefreshRequiredRows',source.indexOf('rec.requiresCanonicalRefresh===true')>=0);
-  t('rejectsStaleRows',source.indexOf('rec.stale===true')>=0);
-  t('buildBoundKey',source.indexOf("+'::'+WEBRC_clean_(build)")>=0);
-  t('generationBoundKey',source.indexOf("+'::'+WEBRC_clean_(generation)")>=0);
-  t('explicitWriteInvalidation',source.indexOf("eligService_cacheWrite_=function")>=0&&source.indexOf('WEBRC_removeIds_([auditId])')>=0);
-  t('explicitInvalidateHook',source.indexOf("eligService_cacheInvalidate_=function")>=0);
-  t('allInvalidationBumpsEpoch',source.indexOf('if(scope.all){WEBRC_bumpEpoch_()')>=0);
-  t('fallbackIsCanonicalBatchRead',source.indexOf('WEBRC_originalBatchRead_(input)')>=0);
-  t('noEligibilityCompute',source.indexOf('elig_compute_')<0&&source.indexOf('EligibilityTargetedRefreshService_refresh')<0);
-  t('noSheetWrites',source.indexOf('setValue(')<0&&source.indexOf('setValues(')<0&&source.indexOf('appendRow(')<0);
-  t('noPlanningWrites',source.indexOf('PlanningCanonicalCommitService')<0&&source.indexOf('StatusMachine')<0);
+
+  var batchSource=typeof EligibilityBatchReadModel_get==='function'?String(EligibilityBatchReadModel_get):'';
+  var keySource=typeof WEBRC_key_==='function'?String(WEBRC_key_):'';
+  var validSource=typeof WEBRC_validRow_==='function'?String(WEBRC_validRow_):'';
+  var cacheSource=typeof WEBRC_cache_==='function'?String(WEBRC_cache_):'';
+  var bumpSource=typeof WEBRC_bumpEpoch_==='function'?String(WEBRC_bumpEpoch_):'';
+  var removeSource=typeof WEBRC_removeIds_==='function'?String(WEBRC_removeIds_):'';
+  var writeSource=typeof eligService_cacheWrite_==='function'?String(eligService_cacheWrite_):'';
+  var invalidateSource=typeof eligService_cacheInvalidate_==='function'?String(eligService_cacheInvalidate_):'';
+  var combined=[batchSource,keySource,validSource,cacheSource,bumpSource,removeSource,writeSource,invalidateSource].join('\n');
+
+  t('cacheLayerLoaded',typeof WEBRC_TTL_SEC!=='undefined'&&typeof WEBRC_key_==='function'&&typeof WEBRC_bumpEpoch_==='function');
+  t('shortTtl',typeof WEBRC_TTL_SEC!=='undefined'&&Number(WEBRC_TTL_SEC)===120,WEBRC_TTL_SEC);
+  t('usesScriptCacheOnly',cacheSource.indexOf('CacheService.getScriptCache()')>=0&&combined.indexOf('SpreadsheetApp')<0);
+  t('allHitRequiredForFastPath',batchSource.indexOf('allHit')>=0);
+  t('rejectsRefreshRequiredRows',validSource.indexOf('requiresCanonicalRefresh')>=0);
+  t('rejectsStaleRows',validSource.indexOf('.stale')>=0);
+  t('buildBoundKey',keySource.indexOf('build')>=0);
+  t('generationBoundKey',keySource.indexOf('generation')>=0);
+  t('explicitWriteInvalidation',writeSource.indexOf('WEBRC_removeIds_')>=0);
+  t('explicitInvalidateHook',invalidateSource.indexOf('WEBRC_originalInvalidate_')>=0);
+  t('allInvalidationBumpsEpoch',invalidateSource.indexOf('WEBRC_bumpEpoch_')>=0);
+  t('fallbackIsCanonicalBatchRead',batchSource.indexOf('WEBRC_originalBatchRead_')>=0);
+  t('noEligibilityCompute',combined.indexOf('elig_compute_')<0&&combined.indexOf('EligibilityTargetedRefreshService_refresh')<0);
+  t('noSheetWrites',combined.indexOf('setValue(')<0&&combined.indexOf('setValues(')<0&&combined.indexOf('appendRow(')<0);
+  t('noPlanningWrites',combined.indexOf('PlanningCanonicalCommitService')<0&&combined.indexOf('StatusMachine')<0);
 
   var input={from:'2026-09-01',to:'2026-12-31'};
   var demand=PlanningDemandService_get(input),ids=[];

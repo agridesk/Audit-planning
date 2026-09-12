@@ -1,8 +1,8 @@
 /***********************************************************************
  * WorkspacePlannerContextRegressionTests.js
- * BUILD: 2026-09-12_WORKSPACE_PLANNER_CONTEXT_TESTS_R1
+ * BUILD: 2026-09-12_WORKSPACE_PLANNER_CONTEXT_TESTS_R2
  ***********************************************************************/
-var WORKSPACE_PLANNER_CONTEXT_TEST_BUILD='2026-09-12_WORKSPACE_PLANNER_CONTEXT_TESTS_R1';
+var WORKSPACE_PLANNER_CONTEXT_TEST_BUILD='2026-09-12_WORKSPACE_PLANNER_CONTEXT_TESTS_R2';
 function RUN_WORKSPACE_PLANNER_CONTEXT_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var compat=TRACECERT_QUALIFICATION_COMPAT_contract();
@@ -19,7 +19,7 @@ function RUN_WORKSPACE_PLANNER_CONTEXT_REGRESSION(){
   t('eligibilityBuildBumped',String(compat.eligibilityBuild).indexOf('TRACECERT_HEADER_COMPAT')>=0,compat.eligibilityBuild);
   t('tecVersionBumped',String(compat.tecVersion).indexOf('TRACECERT_HEADER_COMPAT')>=0,compat.tecVersion);
   t('internalAuditRefPreserved',overlaySource.indexOf('auditRef:PWOB_clean_(s.auditId)')>=0);
-  t('auditIdNotRendered',enhancer.indexOf('Audit '+"'"+'+')<0&&enhancer.indexOf('auditRef')>=0);
+  t('auditIdUsedOnlyAsJoin',enhancer.indexOf('map[clean(slot.auditRef)]')>=0&&enhancer.indexOf("p.push('Audit '")<0);
   t('companyContextRendered',enhancer.indexOf('r.company')>=0);
   t('scopeContextRendered',enhancer.indexOf('r.scopes.join')>=0);
   t('managerPlannedHumanized',enhancer.indexOf("return'Planned audit'")>=0);

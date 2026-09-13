@@ -1,9 +1,9 @@
 /***********************************************************************
  * PlanningWorkspacePlanStatusDiagnostic.js
- * BUILD: 2026-09-13_WORKSPACE_PLAN_STATUS_DIAGNOSTIC_R2_ACTIVE_CONCEPTS
+ * BUILD: 2026-09-13_WORKSPACE_PLAN_STATUS_DIAGNOSTIC_R3_ACTIVE_CONCEPTS_PERIOD
  * READ-ONLY diagnostic for STATUS_TRANSITION_BLOCKED in Workspace Plan.
  ***********************************************************************/
-var PLANNING_WORKSPACE_PLAN_STATUS_DIAG_BUILD='2026-09-13_WORKSPACE_PLAN_STATUS_DIAGNOSTIC_R2_ACTIVE_CONCEPTS';
+var PLANNING_WORKSPACE_PLAN_STATUS_DIAG_BUILD='2026-09-13_WORKSPACE_PLAN_STATUS_DIAGNOSTIC_R3_ACTIVE_CONCEPTS_PERIOD';
 
 function PWPSD_clean_(v){return String(v==null?'':v).trim();}
 
@@ -14,7 +14,7 @@ function RUN_PLANNING_WORKSPACE_PLAN_STATUS_DIAGNOSTIC(){
 
   var ctx=loadContext_(sh);
   var reservations=(typeof ConceptReservationReadModel_get==='function')
-    ? ConceptReservationReadModel_get({})
+    ? ConceptReservationReadModel_get({from:'2026-01-01',to:'2027-12-31'})
     : null;
   var rows=reservations&&Array.isArray(reservations.rows)?reservations.rows:[];
   var items=[];
@@ -52,6 +52,7 @@ function RUN_PLANNING_WORKSPACE_PLAN_STATUS_DIAGNOSTIC(){
   var out={
     ok:true,
     build:PLANNING_WORKSPACE_PLAN_STATUS_DIAG_BUILD,
+    reservationPeriod:{from:'2026-01-01',to:'2027-12-31'},
     reservationCount:rows.length,
     items:items,
     summary:{

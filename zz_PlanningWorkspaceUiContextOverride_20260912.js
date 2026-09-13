@@ -1,8 +1,8 @@
 /***********************************************************************
  * zz_PlanningWorkspaceUiContextOverride_20260912.js
- * BUILD: 2026-09-13_PLANNING_WORKSPACE_UI_R12_STATUS_VISUALS
+ * BUILD: 2026-09-13_PLANNING_WORKSPACE_UI_R13_UX_STABILIZER
  ***********************************************************************/
-var PLANNING_WORKSPACE_UI_RENDERER_BUILD='2026-09-13_PLANNING_WORKSPACE_UI_R12_STATUS_VISUALS';
+var PLANNING_WORKSPACE_UI_RENDERER_BUILD='2026-09-13_PLANNING_WORKSPACE_UI_R13_UX_STABILIZER';
 
 function PlanningWorkspaceUi_render(ctx){
   ctx=ctx||{};
@@ -19,7 +19,8 @@ function PlanningWorkspaceUi_render(ctx){
   var plannedActions=HtmlService.createHtmlOutputFromFile('PlanningWorkspacePlannedAuditActions.js').getContent();
   var plannedStatusVisuals=HtmlService.createHtmlOutputFromFile('PlanningWorkspacePlannedStatusVisuals.js').getContent();
   var conceptReview=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceConceptReview.js').getContent();
-  html=html.replace('</body>',dragDrop+'\n'+detailToolkit+'\n'+contextEnhancer+'\n'+attentionEnhancer+'\n'+pointerDragFallback+'\n'+plannedActions+'\n'+plannedStatusVisuals+'\n'+conceptReview+'\n</body>');
+  var uxStabilizer=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceUxStabilizer.js').getContent();
+  html=html.replace('</body>',dragDrop+'\n'+detailToolkit+'\n'+contextEnhancer+'\n'+attentionEnhancer+'\n'+pointerDragFallback+'\n'+plannedActions+'\n'+plannedStatusVisuals+'\n'+conceptReview+'\n'+uxStabilizer+'\n</body>');
   return HtmlService.createHtmlOutput(html).setTitle('AMS - Planning Workspace');
 }
 
@@ -35,8 +36,10 @@ function PlanningWorkspaceUi_contract(){return{
   plannedActionsInclude:'PlanningWorkspacePlannedAuditActions.js',
   plannedStatusVisualsInclude:'PlanningWorkspacePlannedStatusVisuals.js',
   conceptReviewInclude:'PlanningWorkspaceConceptReview.js',
+  uxStabilizerInclude:'PlanningWorkspaceUxStabilizer.js',
   evaluatedTemplate:true,serverSeed:false,dataIndependentShell:true,decisionDataDeferred:true,
-  dragDropClientOnly:true,detailToolkitClientOnly:true,contextEnhancerClientOnly:true,attentionEnhancerClientOnly:true,pointerDragFallbackClientOnly:true,plannedActionsClientOnly:true,plannedStatusVisualsClientOnly:true,conceptReviewClientOnly:true,
+  dragDropClientOnly:true,detailToolkitClientOnly:true,contextEnhancerClientOnly:true,attentionEnhancerClientOnly:true,pointerDragFallbackClientOnly:true,plannedActionsClientOnly:true,plannedStatusVisualsClientOnly:true,conceptReviewClientOnly:true,uxStabilizerClientOnly:true,
   plannedDetailOnDemand:true,conceptReviewUsesLoadedReservationMetadata:true,conceptReviewExtraRpcs:0,conceptReviewThresholdMonths:6,
+  fastWeekNavigationClientOnly:true,fastMonthNavigationClientOnly:true,navigationExtraRpcs:0,modalInteractionGuard:true,
   attentionPriority:'planningWindowTo, planningWindowFrom, blocker state',directSheetReads:false,directSheetWrites:false,planningServiceReadsDuringRender:false,contextExtraReads:0,contextExtraRpcs:0,newSsot:false
 };}

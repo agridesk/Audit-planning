@@ -1,0 +1,16 @@
+<script>
+(function(){
+'use strict';
+var BUILD='2026-09-13_WORKSPACE_PLANNED_STATUS_VISUALS_R1';
+function clean(v){return String(v==null?'':v).trim()}
+function norm(v){return clean(v).toUpperCase().replace(/\s+/g,'_')}
+function state(){var c=window.PlanningWorkspaceClient;return c&&typeof c.state==='function'?c.state():null}
+function slotFor(card){var cell=card.closest('.planning-cell[data-auditor-email][data-date]');if(!cell)return null;var s=state(),o=s&&s.data&&s.data.overlays||{},idx=o.availability&&o.availability.byAuditorEmail||{},email=clean(cell.getAttribute('data-auditor-email')).toLowerCase(),date=clean(cell.getAttribute('data-date')),id=clean(card.getAttribute('data-planned-audit')),rows=idx[email]||[];for(var i=0;i<rows.length;i++){if(clean(rows[i]&&rows[i].date).slice(0,10)!==date)continue;var slots=rows[i].slots||[];for(var j=0;j<slots.length;j++)if(clean(slots[j]&&slots[j].auditRef)===id)return slots[j]}return null}
+function palette(status){if(status==='ACCEPTED')return{label:'ACCEPTED',bg:'#e8f5e9',border:'#57a564',text:'#1f6b2b',card:'#f4fbf5'};if(status==='APPROVED')return{label:'APPROVED',bg:'#e8f1fb',border:'#5b8fc8',text:'#235d99',card:'#f4f8fd'};if(status==='PENDING_APPROVAL')return{label:'PENDING APPROVAL',bg:'#fff3d9',border:'#d09a32',text:'#79550e',card:'#fffaf0'};if(status==='PENDING_PLANNING')return{label:'PENDING PLANNING',bg:'#f1f2f4',border:'#9098a3',text:'#4f5660',card:'#fafafa'};return{label:status||'PLANNED',bg:'#eef1f5',border:'#8d9bab',text:'#4f5d6d',card:'#fafbfd'}}
+function paint(card){var slot=slotFor(card);if(!slot)return;var status=norm(slot.status),p=palette(status),old=card.querySelector('.pw-canonical-status');if(!old){old=document.createElement('span');old.className='pw-canonical-status';old.style.cssText='display:inline-block;margin:0 0 3px 0;padding:1px 5px;border:1px solid;border-radius:8px;font:700 7px Arial;letter-spacing:.25px;line-height:12px';card.insertBefore(old,card.firstChild)}old.textContent=p.label;old.style.background=p.bg;old.style.borderColor=p.border;old.style.color=p.text;card.style.background=p.card;card.style.borderColor=p.border;card.style.borderLeft='3px solid '+p.border;var buttons=card.querySelectorAll('button');if(buttons[0]){buttons[0].style.background='#e8f1fb';buttons[0].style.borderColor='#5b8fc8';buttons[0].style.color='#235d99'}if(buttons[1]){buttons[1].style.background='#fff0f0';buttons[1].style.borderColor='#c86d6d';buttons[1].style.color='#8b3030'}}
+function enhance(){document.querySelectorAll('.cal-item.planned[data-planned-audit]').forEach(paint)}
+function schedule(){if(window.requestAnimationFrame)requestAnimationFrame(function(){requestAnimationFrame(enhance)});else setTimeout(enhance,0)}
+function bind(){schedule();var cal=document.getElementById('calendar');if(cal&&window.MutationObserver)new MutationObserver(schedule).observe(cal,{childList:true,subtree:true})}
+window.PlanningWorkspacePlannedStatusVisuals={BUILD:BUILD,enhance:enhance};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
+})();
+</script>

@@ -1,11 +1,11 @@
 /***********************************************************************
  * PlanningWorkspaceRpc.js
- * BUILD: 2026-09-13_ROADMAP_2_4_WORKSPACE_RPC_R6_MODIFY_CANCEL
+ * BUILD: 2026-09-13_ROADMAP_2_4_WORKSPACE_RPC_R7_PLANNED_DETAIL
  *
  * Browser-facing RPC boundary. Thin orchestration/delegation only.
  * Stage timings are diagnostic only; they never own business truth.
  ***********************************************************************/
-var PLANNING_WORKSPACE_RPC_BUILD='2026-09-13_ROADMAP_2_4_WORKSPACE_RPC_R6_MODIFY_CANCEL';
+var PLANNING_WORKSPACE_RPC_BUILD='2026-09-13_ROADMAP_2_4_WORKSPACE_RPC_R7_PLANNED_DETAIL';
 function PWR_clean_(v){return String(v==null?'':v).trim();}
 function PWR_normEmail_(v){return PWR_clean_(v).toLowerCase();}
 function PWR_envelope_(action,fn){var started=Date.now();try{var data=fn();return{ok:true,build:PLANNING_WORKSPACE_RPC_BUILD,action:action,data:data,error:null,durationMs:Date.now()-started};}catch(e){return{ok:false,build:PLANNING_WORKSPACE_RPC_BUILD,action:action,data:null,error:{message:String(e&&e.message||e)},durationMs:Date.now()-started};}}
@@ -44,6 +44,7 @@ function PlanningWorkspaceRpc_bootstrap(input){
 function PlanningWorkspaceRpc_saveConcept(input){return PWR_envelope_('saveConcept',function(){return PWR_saveConcept_(input||{});});}
 function PlanningWorkspaceRpc_releaseConcept(input){return PWR_envelope_('releaseConcept',function(){return PlanningWorkspaceService_releaseConcept(input||{});});}
 function PlanningWorkspaceRpc_commit(input){return PWR_envelope_('commit',function(){return PlanningWorkspaceService_commit(input||{});});}
+function PlanningWorkspaceRpc_getPlannedAudit(input){return PWR_envelope_('getPlannedAudit',function(){return PlanningWorkspaceService_getPlannedAudit(input||{});});}
 function PlanningWorkspaceRpc_modifyPlanned(input){return PWR_envelope_('modifyPlanned',function(){return PlanningWorkspaceService_modifyPlanned(PWR_commandInput_(input||{}));});}
 function PlanningWorkspaceRpc_cancelPlanned(input){return PWR_envelope_('cancelPlanned',function(){return PlanningWorkspaceService_cancelPlanned(PWR_commandInput_(input||{}));});}
-function PlanningWorkspaceRpc_contract(){return{build:PLANNING_WORKSPACE_RPC_BUILD,endpoints:['PlanningWorkspaceRpc_getAdvisory','PlanningWorkspaceRpc_getOverlays','PlanningWorkspaceRpc_bootstrap','PlanningWorkspaceRpc_saveConcept','PlanningWorkspaceRpc_releaseConcept','PlanningWorkspaceRpc_commit','PlanningWorkspaceRpc_modifyPlanned','PlanningWorkspaceRpc_cancelPlanned'],meta:{browserFacing:true,coarseGrained:true,singleDecisionRpc:true,stageDiagnostics:true,overlayBoundedToCandidates:true,conceptDropRevisionHydration:true,conceptDropCanonicalPreflight:true,conceptDropPreflightOwner:'PlanningCommitGateService_evaluate',conceptDropChecks:['qualification','availability','planningWindow','rotation'],plannedCommandRevisionHydration:true,modifyPlannedCanonicalCommand:true,cancelPlannedCanonicalCommand:true,directSheetReads:false,directSheetWrites:false,canonicalOwnersBypassed:false,newSsot:false}};}
+function PlanningWorkspaceRpc_contract(){return{build:PLANNING_WORKSPACE_RPC_BUILD,endpoints:['PlanningWorkspaceRpc_getAdvisory','PlanningWorkspaceRpc_getOverlays','PlanningWorkspaceRpc_bootstrap','PlanningWorkspaceRpc_saveConcept','PlanningWorkspaceRpc_releaseConcept','PlanningWorkspaceRpc_commit','PlanningWorkspaceRpc_getPlannedAudit','PlanningWorkspaceRpc_modifyPlanned','PlanningWorkspaceRpc_cancelPlanned'],meta:{browserFacing:true,coarseGrained:true,singleDecisionRpc:true,stageDiagnostics:true,overlayBoundedToCandidates:true,conceptDropRevisionHydration:true,conceptDropCanonicalPreflight:true,conceptDropPreflightOwner:'PlanningCommitGateService_evaluate',conceptDropChecks:['qualification','availability','planningWindow','rotation'],plannedDetailOnDemand:true,plannedCommandRevisionHydration:true,modifyPlannedCanonicalCommand:true,cancelPlannedCanonicalCommand:true,directSheetReads:false,directSheetWrites:false,canonicalOwnersBypassed:false,newSsot:false}};}

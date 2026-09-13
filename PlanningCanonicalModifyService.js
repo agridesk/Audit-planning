@@ -1,18 +1,18 @@
 /***********************************************************************
  * PlanningCanonicalModifyService.js
- * BUILD: 2026-09-13_ROADMAP_2_4_CANONICAL_MODIFY_R1_SAME_AUDITOR
+ * BUILD: 2026-09-13_ROADMAP_2_4_CANONICAL_MODIFY_R2_ACCEPTED_REACCEPT
  *
- * Safe first modify scope for already planned audits:
+ * Planned audit reschedule policy:
  *   - date/time blocks may change;
- *   - auditor remains unchanged in R1;
- *   - canonical status is preserved for Pending Approval / Approved;
- *   - Accepted is deliberately blocked until re-acceptance/notification
- *     policy is implemented.
+ *   - auditor remains unchanged;
+ *   - Pending Approval / Approved preserve status;
+ *   - Accepted reschedule invalidates prior acceptance and moves to Approved,
+ *     then queues a fresh auditor notification for re-acceptance.
  *
  * Uses revision guard + canonical preflight. Availability is migrated with
  * explicit restoration of the previous reservation on failure.
  ***********************************************************************/
-var PLANNING_CANONICAL_MODIFY_BUILD='2026-09-13_ROADMAP_2_4_CANONICAL_MODIFY_R1_SAME_AUDITOR';
+var PLANNING_CANONICAL_MODIFY_BUILD='2026-09-13_ROADMAP_2_4_CANONICAL_MODIFY_R2_ACCEPTED_REACCEPT';
 function PCMOD_clean_(v){return String(v==null?'':v).trim();}
 function PCMOD_normEmail_(v){return PCMOD_clean_(v).toLowerCase();}
 function PCMOD_dependencies_(){return{
@@ -28,13 +28,23 @@ function PCMOD_dependencies_(){return{
 };}
 function PCMOD_assert_(){var d=PCMOD_dependencies_();Object.keys(d).forEach(function(k){if(!d[k])throw new Error('PlanningCanonicalModifyService: dependency unavailable: '+k);});}
 function PCMOD_status_(raw){return typeof Status_normalizeStatus_==='function'?Status_normalizeStatus_(raw):PCMOD_clean_(raw).toUpperCase().replace(/\s+/g,'_');}
+function PCMOD_display_(status){return typeof Status_toDisplayStatus_==='function'?Status_toDisplayStatus_(status):PCMOD_clean_(status);}
 function PCMOD_oldPlanning_(rowInfo){
   var ctx=rowInfo&&rowInfo.ctx||{},row=rowInfo&&rowInfo.row||[],raw=ctx.colJson>0?row[ctx.colJson-1]:'';
   var j={};try{j=raw?JSON.parse(String(raw)):{};}catch(e){j={};}
   return{raw:PCMOD_clean_(raw),blocks:Array.isArray(j.blocks)?j.blocks:[],auditorEmail:PCMOD_normEmail_(j.auditorEmail),auditorName:PCMOD_clean_(j.auditorName),assigned:ctx.colAssigned>0?PCMOD_clean_(row[ctx.colAssigned-1]):''};
 }
-function PCMOD_transition_(status){var display=typeof Status_toDisplayStatus_==='function'?Status_toDisplayStatus_(status):PCMOD_clean_(status);return{beforeStatus:PCMOD_status_(status),beforeStatusDisplay:display,afterStatus:PCMOD_status_(status),afterStatusDisplay:display};}
+function PCMOD_transition_(status){var s=PCMOD_status_(status),after=s==='ACCEPTED'?'APPROVED':s;return{beforeStatus:s,beforeStatusDisplay:PCMOD_display_(s),afterStatus:after,afterStatusDisplay:PCMOD_display_(after)};}
 function PCMOD_restore_(auditId,old){if(!old||!old.blocks||!old.blocks.length)return{success:true,skipped:true,reason:'NO_OLD_BLOCKS'};return PlanningCanonicalAvailabilityAdapter_reserve({auditId:auditId,auditorEmail:old.auditorEmail||old.assigned,auditorName:old.auditorName||old.assigned,blocks:old.blocks});}
+function PCMOD_notifyReaccept_(rowInfo,input,writeResult){
+  if(typeof StatusNotificationBridge_Dispatch_!=='function')return{success:true,skipped:true,reason:'NOTIFICATION_BRIDGE_UNAVAILABLE'};
+  try{
+    var ctx={auditId:PCMOD_clean_(input.auditId),status:'Accepted',row:rowInfo&&rowInfo.row||[],hdr:rowInfo&&rowInfo.ctx&&rowInfo.ctx.hdr||[]};
+    var payload={actorEmail:PCMOD_clean_(input.actorEmail),comment:'Planning changed by manager; auditor re-acceptance required.',reschedule:true,reacceptanceRequired:true};
+    var result={success:true,beforeStatus:'Accepted',beforeStatusDisplay:'Accepted',afterStatus:'Approved',afterStatusDisplay:'Approved',newStatus:'Approved',planningJson:writeResult&&writeResult.planningJson||'',plannedDate:writeResult&&writeResult.plannedDate||'',assignedTo:writeResult&&writeResult.assignedTo||''};
+    return StatusNotificationBridge_Dispatch_('RESCHEDULE','MANAGER',ctx,payload,result)||{success:true,skipped:true,reason:'NO_QUEUE_RESULT'};
+  }catch(e){return{success:false,retryable:true,reason:'REACCEPT_NOTIFICATION_FAILED',error:PCMOD_clean_(e&&e.message||e)};}
+}
 function PlanningCanonicalModifyService_modify(input){
   input=input||{};
   var auditId=PCMOD_clean_(input.auditId),expected=PCMOD_clean_(input.expectedRevision),email=PCMOD_normEmail_(input.auditorEmail),name=PCMOD_clean_(input.auditorName),blocks=Array.isArray(input.blocks)?input.blocks:[];
@@ -53,10 +63,9 @@ function PlanningCanonicalModifyService_modify(input){
     var rowInfo=findAudit_(loadContext_(sh),auditId);
     if(!rowInfo)return{success:false,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:false,reason:'AUDIT_NOT_FOUND_AT_WRITE_BOUNDARY'};
     var status=PCMOD_status_(rowInfo.status);
-    if(status==='ACCEPTED')return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:false,reason:'ACCEPTED_MODIFY_REQUIRES_REACCEPTANCE_POLICY',canonicalStatus:rowInfo.status,gate:gate,meta:{writes:false,lockUsed:true,policyDecisionRequired:true}};
-    if(status!=='APPROVED'&&status!=='PENDING_APPROVAL')return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:false,reason:'STATUS_NOT_MODIFIABLE',canonicalStatus:rowInfo.status,gate:gate,meta:{writes:false,lockUsed:true}};
+    if(status!=='APPROVED'&&status!=='PENDING_APPROVAL'&&status!=='ACCEPTED')return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:false,reason:'STATUS_NOT_MODIFIABLE',canonicalStatus:rowInfo.status,gate:gate,meta:{writes:false,lockUsed:true}};
     var old=PCMOD_oldPlanning_(rowInfo),oldOwner=PCMOD_normEmail_(old.auditorEmail||old.assigned),newOwner=PCMOD_normEmail_(email||name);
-    if(oldOwner&&newOwner&&oldOwner!==newOwner)return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:false,reason:'AUDITOR_CHANGE_NOT_SUPPORTED_R1',canonicalStatus:rowInfo.status,meta:{writes:false,lockUsed:true,sameAuditorOnly:true}};
+    if(oldOwner&&newOwner&&oldOwner!==newOwner)return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:false,reason:'AUDITOR_CHANGE_NOT_SUPPORTED_R2',canonicalStatus:rowInfo.status,meta:{writes:false,lockUsed:true,sameAuditorOnly:true}};
     if(!email&&old.auditorEmail)email=old.auditorEmail;if(!name&&old.auditorName)name=old.auditorName;
     var released=PlanningCanonicalAvailabilityAdapter_release({auditId:auditId});
     if(!released||released.success===false)return{success:false,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:false,reason:'OLD_AVAILABILITY_RELEASE_FAILED',availabilityRelease:released||null};
@@ -64,7 +73,8 @@ function PlanningCanonicalModifyService_modify(input){
     if(!reserved||reserved.success===false){var restoreAfterReserveFail=PCMOD_restore_(auditId,old);return{success:false,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:false,reason:'NEW_AVAILABILITY_RESERVE_FAILED',availabilityReserve:reserved||null,restoreResult:restoreAfterReserveFail,repairRequired:!(restoreAfterReserveFail&&restoreAfterReserveFail.success!==false)};}
     var transition=PCMOD_transition_(rowInfo.status),writeResult=PlanningCanonicalRowWriter_execute(rowInfo,transition,{auditId:auditId,blocks:blocks,auditorName:name||old.auditorName,auditorEmail:email||old.auditorEmail,allowWeekend:input.allowWeekendOverride!==false,isReschedule:true});
     if(!writeResult||writeResult.success!==true){var releaseNew=PlanningCanonicalAvailabilityAdapter_release({auditId:auditId}),restoreAfterWriteFail=PCMOD_restore_(auditId,old);return{success:false,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:false,reason:'CANONICAL_ROW_WRITE_FAILED',writeResult:writeResult||null,newAvailabilityRelease:releaseNew||null,restoreResult:restoreAfterWriteFail,repairRequired:!(restoreAfterWriteFail&&restoreAfterWriteFail.success!==false)};}
+    var reaccept=status==='ACCEPTED',notification=reaccept?PCMOD_notifyReaccept_(rowInfo,{auditId:auditId,actorEmail:input.actorEmail},writeResult):null;
     var newRevision=PRT_tokenFromSnapshot_({auditId:auditId,status:writeResult.newStatus||writeResult.afterStatusDisplay,assignedTo:writeResult.assignedTo,datePlanned:writeResult.plannedDate,planningJson:writeResult.planningJson});
-    return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:true,reason:'MODIFIED',gate:gate,availabilityRelease:released,availabilityReserve:reserved,writeResult:writeResult,newRevision:newRevision,meta:{writes:true,lockUsed:true,sameAuditorOnly:true,statusPreserved:true,acceptedBlockedPendingReacceptancePolicy:true,availabilityRestoreOnFailure:true,notificationRequired:status==='APPROVED'||status==='PENDING_APPROVAL',notificationDispatched:false,newSsot:false}};
+    return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:true,reason:reaccept?'MODIFIED_REACCEPTANCE_REQUIRED':'MODIFIED',gate:gate,availabilityRelease:released,availabilityReserve:reserved,writeResult:writeResult,newRevision:newRevision,notification:notification,meta:{writes:true,lockUsed:true,sameAuditorOnly:true,statusPreserved:!reaccept,reacceptanceRequired:reaccept,acceptedMovesToApproved:reaccept,availabilityRestoreOnFailure:true,notificationRequired:reaccept,notificationDispatched:!!(notification&&notification.success===true&&notification.skipped!==true),notificationFailureDoesNotRollbackLifecycle:true,newSsot:false}};
   },wait);
 }

@@ -1,14 +1,12 @@
 /***********************************************************************
  * PlanningWorkspaceAvailabilityContext.js
- * BUILD: 2026-09-13_ROADMAP_2_4_WORKSPACE_AVAILABILITY_CONTEXT_R3_EXEC_CACHE
+ * BUILD: 2026-09-13_ROADMAP_2_4_WORKSPACE_AVAILABILITY_CONTEXT_R4_STATUS
  *
- * Purpose: enrich Availability slot display with planner-facing context
- * (company + scopes) with ONE bounded Audit planning read for all audit refs.
- * Uses the existing execution cache when available so sibling Workspace
- * projections can reuse the same canonical Audit planning snapshot.
- * No per-audit reads. Read-only. Audit planning remains canonical owner.
+ * Enrich Availability slots with planner-facing canonical context:
+ * company + scopes + audit status. One bounded Audit planning read for all
+ * audit refs, reusing execution cache when available. Read-only.
  ***********************************************************************/
-var PLANNING_WORKSPACE_AVAILABILITY_CONTEXT_BUILD='2026-09-13_ROADMAP_2_4_WORKSPACE_AVAILABILITY_CONTEXT_R3_EXEC_CACHE';
+var PLANNING_WORKSPACE_AVAILABILITY_CONTEXT_BUILD='2026-09-13_ROADMAP_2_4_WORKSPACE_AVAILABILITY_CONTEXT_R4_STATUS';
 function PWAC_clean_(v){return String(v==null?'':v).trim();}
 function PWAC_norm_(v){return PWAC_clean_(v).toLowerCase();}
 function PWAC_findCol_(hdr,names){var m={};for(var i=0;i<(hdr||[]).length;i++)m[PWAC_norm_(hdr[i])]=i;for(var j=0;j<(names||[]).length;j++){var k=PWAC_norm_(names[j]);if(Object.prototype.hasOwnProperty.call(m,k))return m[k];}return-1;}
@@ -19,7 +17,7 @@ function PlanningWorkspaceAvailabilityContext_get(availabilityRows){
   if(!ordered.length)return{success:true,build:PLANNING_WORKSPACE_AVAILABILITY_CONTEXT_BUILD,byAuditId:byAuditId,meta:{requested:0,hits:0,misses:0,directSheetReads:0,batchSheetReads:0,executionCacheUsed:false,writes:false,newSsot:false}};
   var ss=SpreadsheetApp.getActive(),pack=(typeof __mp_getSheetDataCached_==='function')?__mp_getSheetDataCached_(ss,'Audit planning'):null,sh=pack&&pack.sh?pack.sh:ss.getSheetByName('Audit planning');if(!sh)throw new Error('PlanningWorkspaceAvailabilityContext: Audit planning sheet missing');
   var values=pack&&Array.isArray(pack.data)?pack.data:null;if(!values){var lastRow=sh.getLastRow(),lastCol=sh.getLastColumn();values=lastRow>0&&lastCol>0?sh.getRange(1,1,lastRow,lastCol).getValues():[];}
-  var hdr=values.length?values[0]:[],cId=PWAC_findCol_(hdr,['Audit ID','Audit_ID','AuditId']),cCompany=PWAC_findCol_(hdr,['Company']);if(cId<0)throw new Error('PlanningWorkspaceAvailabilityContext: Audit ID column missing');
-  var hits=0;for(var r=1;r<values.length;r++){var row=values[r]||[],id=PWAC_clean_(row[cId]);if(!wanted[id]||byAuditId[id])continue;byAuditId[id]={company:cCompany>=0?PWAC_clean_(row[cCompany]):'',scopes:PWAC_scopeNames_(hdr,row)};hits++;}
-  return{success:true,build:PLANNING_WORKSPACE_AVAILABILITY_CONTEXT_BUILD,byAuditId:byAuditId,meta:{requested:ordered.length,hits:hits,misses:Math.max(0,ordered.length-hits),directSheetReads:pack&&Array.isArray(pack.data)?0:1,batchSheetReads:pack&&Array.isArray(pack.data)?0:1,rowsRead:Math.max(0,values.length-1),colsRead:hdr.length,executionCacheUsed:!!(pack&&Array.isArray(pack.data)),perAuditReads:0,writes:false,newSsot:false,canonicalOwner:'Audit planning'}};
+  var hdr=values.length?values[0]:[],cId=PWAC_findCol_(hdr,['Audit ID','Audit_ID','AuditId']),cCompany=PWAC_findCol_(hdr,['Company']),cStatus=PWAC_findCol_(hdr,['Status']);if(cId<0)throw new Error('PlanningWorkspaceAvailabilityContext: Audit ID column missing');
+  var hits=0;for(var r=1;r<values.length;r++){var row=values[r]||[],id=PWAC_clean_(row[cId]);if(!wanted[id]||byAuditId[id])continue;byAuditId[id]={company:cCompany>=0?PWAC_clean_(row[cCompany]):'',scopes:PWAC_scopeNames_(hdr,row),status:cStatus>=0?PWAC_clean_(row[cStatus]):''};hits++;}
+  return{success:true,build:PLANNING_WORKSPACE_AVAILABILITY_CONTEXT_BUILD,byAuditId:byAuditId,meta:{requested:ordered.length,hits:hits,misses:Math.max(0,ordered.length-hits),directSheetReads:pack&&Array.isArray(pack.data)?0:1,batchSheetReads:pack&&Array.isArray(pack.data)?0:1,rowsRead:Math.max(0,values.length-1),colsRead:hdr.length,executionCacheUsed:!!(pack&&Array.isArray(pack.data)),perAuditReads:0,writes:false,newSsot:false,canonicalOwner:'Audit planning',canonicalStatusProjected:true}};
 }

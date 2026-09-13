@@ -1,8 +1,8 @@
 /***********************************************************************
  * PlanningWorkspaceDragDropTests.js
- * BUILD: 2026-09-12_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R12_SERVER_CONTEXT
+ * BUILD: 2026-09-13_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R13_MULTIDAY
  ***********************************************************************/
-var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-12_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R12_SERVER_CONTEXT';
+var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-13_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R13_MULTIDAY';
 function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var ui=PlanningWorkspaceUi_contract();
@@ -46,14 +46,19 @@ function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   t('refreshRequiredNotHardBlocked',dragSource.indexOf('requiresCanonicalEligibility(row)')>=0&&dragSource.indexOf("if(!c&&!refresh)return{level:'BLOCK'")>=0);
   t('refreshRequiredCanonicalCheckCue',dragSource.indexOf("level:'CHECK'")>=0&&dragSource.indexOf('canonical qualification will be checked on drop')>=0);
   t('refreshRequiredStillUsesCanonicalPreflight',saveSource.indexOf('PWR_conceptPreflight_')>=0&&preflightSource.indexOf('PlanningCommitGateService_evaluate')>=0);
-  t('validProposedTimeSlot',dragSource.indexOf('proposedSlot(hours)')>=0&&dragSource.indexOf('start:slot.start,end:slot.end')>=0&&dragSource.indexOf("start:'',end:''")<0);
+  t('validProposedTimeSlot',dragSource.indexOf('proposedSlot(hours)')>=0&&dragSource.indexOf("start:'08:00'")>=0);
+  t('workspaceMultidayProposal',dragSource.indexOf('function proposedBlocks(hours,startDate,row,email)')>=0&&dragSource.indexOf('Math.ceil(total/(8*60))')>=0);
+  t('workspaceMultidaySkipsUnavailableDays',dragSource.indexOf('function nextUsableDate(row,email,afterDate)')>=0&&dragSource.indexOf('!availabilityNo(email,date)')>=0);
+  t('workspaceDropSavesAllProposedBlocks',dragSource.indexOf('blocks:blocks')>=0&&dragSource.indexOf("note:'Planning Workspace drag & drop multiday proposal'")>=0);
+  t('workspaceMultidayExposedForRegression',dragSource.indexOf('proposedBlocks:proposedBlocks')>=0);
 
   t('conceptBlocksRendered',clientSource.indexOf('Array.isArray(x.blocks)')>=0&&clientSource.indexOf('data-concept-audit')>=0);
   t('conceptActionBound',dragSource.indexOf('bindConceptActions')>=0&&dragSource.indexOf("btn.textContent='Plan'")>=0);
   t('detailActionBound',dragSource.indexOf("detail.textContent='Details'")>=0&&dragSource.indexOf('PlanningWorkspaceDetailToolkit.open')>=0);
-  t('detailToolkitConceptOnly',detailSource.indexOf("note:'Planning Workspace Toolkit 2.0'")>=0&&detailSource.indexOf('PlanningWorkspaceRpc_saveConcept')>=0);
+  t('detailToolkitConceptOnly',detailSource.indexOf("note:'Planning Workspace Toolkit 2.0 multiday'")>=0&&detailSource.indexOf('PlanningWorkspaceRpc_saveConcept')>=0);
   t('detailToolkitCanonicalPlan',detailSource.indexOf('PlanningWorkspaceRpc_commit')>=0&&detailSource.indexOf('expectedRevision:clean(res.sourceRevision)')>=0);
-  t('detailToolkitEditableFields',detailSource.indexOf('pwDetailAuditor')>=0&&detailSource.indexOf('pwDetailDate')>=0&&detailSource.indexOf('pwDetailStart')>=0&&detailSource.indexOf('pwDetailEnd')>=0);
+  t('detailToolkitEditableMultidayBlocks',detailSource.indexOf('pwDetailBlocks')>=0&&detailSource.indexOf('pw-block-date')>=0&&detailSource.indexOf('pw-block-start')>=0&&detailSource.indexOf('pw-block-end')>=0&&detailSource.indexOf('pwDetailAddBlock')>=0);
+  t('detailToolkitValidatesRequiredHours',detailSource.indexOf('Planned hours are below required hours')>=0&&detailSource.indexOf('requiredHours()')>=0);
   t('detailToolkitNoCanonicalBypass',detailSource.indexOf('SpreadsheetApp')<0&&detailSource.indexOf('ManagerPlanning')<0);
   t('directFinalizeUsesCanonicalRpc',dragSource.indexOf('PlanningWorkspaceRpc_commit')>=0&&dragSource.indexOf('expectedRevision:clean(r.sourceRevision)')>=0);
   t('directFinalizeUsesConceptBlocks',dragSource.indexOf('blocks:Array.isArray(r.blocks)?r.blocks:[]')>=0);
@@ -89,6 +94,6 @@ function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   t('noNewSsot',rpc.meta.newSsot===false&&ui.newSsot===false);
 
   var failed=r.filter(function(x){return!x.ok;}).length;
-  var out={ok:failed===0,build:PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,contractOnly:true,targetFlow:'Workspace audit -> auditor x date -> canonical preflight -> Concept Reservation -> Individual Toolkit 2.0 -> direct canonical commit',availabilityContext:'server-projected company/scopes first; internal auditRef advisory fallback; no user-visible Audit ID; no extra RPC or Spreadsheet read',attention:'top 12 by planningWindowTo, planningWindowFrom, blocker state; cards remain drag sources',conceptSaveUx:'server-confirmed concept applied locally; full Workspace reload only as fallback'}};
+  var out={ok:failed===0,build:PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,contractOnly:true,targetFlow:'Workspace audit -> auditor x start date -> multiday proposal when needed -> canonical preflight -> Concept Reservation -> optional Individual Toolkit 2.0 -> direct canonical commit',multiday:'Workspace drop balances required hours over <=8h weekdays and skips known unavailable dates; Toolkit 2.0 can refine blocks',availabilityContext:'server-projected company/scopes first; internal auditRef advisory fallback; no user-visible Audit ID; no extra RPC or Spreadsheet read',attention:'top 12 by planningWindowTo, planningWindowFrom, blocker state; cards remain drag sources',conceptSaveUx:'server-confirmed concept applied locally; full Workspace reload only as fallback'}};
   console.log(JSON.stringify(out,null,2));return out;
 }

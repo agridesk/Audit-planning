@@ -1,8 +1,8 @@
 /***********************************************************************
  * PlanningWorkspaceDragDropTests.js
- * BUILD: 2026-09-13_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R13_MULTIDAY
+ * BUILD: 2026-09-13_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R14_TOOLKIT_LOCAL_SAVE
  ***********************************************************************/
-var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-13_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R13_MULTIDAY';
+var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-13_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R14_TOOLKIT_LOCAL_SAVE';
 function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var ui=PlanningWorkspaceUi_contract();
@@ -60,6 +60,9 @@ function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   t('detailToolkitEditableMultidayBlocks',detailSource.indexOf('pwDetailBlocks')>=0&&detailSource.indexOf('pw-block-date')>=0&&detailSource.indexOf('pw-block-start')>=0&&detailSource.indexOf('pw-block-end')>=0&&detailSource.indexOf('pwDetailAddBlock')>=0);
   t('detailToolkitValidatesRequiredHours',detailSource.indexOf('Planned hours are below required hours')>=0&&detailSource.indexOf('requiredHours()')>=0);
   t('detailToolkitNoCanonicalBypass',detailSource.indexOf('SpreadsheetApp')<0&&detailSource.indexOf('ManagerPlanning')<0);
+  t('detailToolkitUsesServerSavedReservation',detailSource.indexOf('res.data.reservation')>=0&&detailSource.indexOf('applySavedReservation(saved)')>=0);
+  t('detailToolkitAppliesSavedReservationLocally',detailSource.indexOf("typeof d.localApplyReservation==='function'")>=0&&detailSource.indexOf('d.localApplyReservation(saved)')>=0);
+  t('detailToolkitReloadOnlyFallback',detailSource.indexOf("if(!applied){var c=client();if(c&&typeof c.load==='function')c.load('load')}")>=0);
   t('directFinalizeUsesCanonicalRpc',dragSource.indexOf('PlanningWorkspaceRpc_commit')>=0&&dragSource.indexOf('expectedRevision:clean(r.sourceRevision)')>=0);
   t('directFinalizeUsesConceptBlocks',dragSource.indexOf('blocks:Array.isArray(r.blocks)?r.blocks:[]')>=0);
 
@@ -94,6 +97,6 @@ function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   t('noNewSsot',rpc.meta.newSsot===false&&ui.newSsot===false);
 
   var failed=r.filter(function(x){return!x.ok;}).length;
-  var out={ok:failed===0,build:PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,contractOnly:true,targetFlow:'Workspace audit -> auditor x start date -> multiday proposal when needed -> canonical preflight -> Concept Reservation -> optional Individual Toolkit 2.0 -> direct canonical commit',multiday:'Workspace drop balances required hours over <=8h weekdays and skips known unavailable dates; Toolkit 2.0 can refine blocks',availabilityContext:'server-projected company/scopes first; internal auditRef advisory fallback; no user-visible Audit ID; no extra RPC or Spreadsheet read',attention:'top 12 by planningWindowTo, planningWindowFrom, blocker state; cards remain drag sources',conceptSaveUx:'server-confirmed concept applied locally; full Workspace reload only as fallback'}};
+  var out={ok:failed===0,build:PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,contractOnly:true,targetFlow:'Workspace audit -> auditor x start date -> multiday proposal when needed -> canonical preflight -> Concept Reservation -> optional Individual Toolkit 2.0 -> direct canonical commit',multiday:'Workspace drop balances required hours over <=8h weekdays and skips known unavailable dates; Toolkit 2.0 can refine blocks',availabilityContext:'server-projected company/scopes first; internal auditRef advisory fallback; no user-visible Audit ID; no extra RPC or Spreadsheet read',attention:'top 12 by planningWindowTo, planningWindowFrom, blocker state; cards remain drag sources',conceptSaveUx:'drag/drop and Toolkit Save both apply the server-confirmed Concept Reservation locally; full Workspace reload only as fallback'}};
   console.log(JSON.stringify(out,null,2));return out;
 }

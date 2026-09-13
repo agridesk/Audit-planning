@@ -1,11 +1,12 @@
 /***********************************************************************
  * PlanningWorkspaceService.js
- * BUILD: 2026-09-09_PLANNING_WORKSPACE_2_0_SERVICE_FACADE_R1
+ * BUILD: 2026-09-13_PLANNING_WORKSPACE_2_0_SERVICE_FACADE_R2_PENDING_ONLY
  *
  * Thin RPC/service facade for Planning Workspace 2.0.
  * Delegates exclusively to existing canonical/read-model owners.
+ * Workspace planning demand is canonical Pending Planning only.
  ***********************************************************************/
-var PLANNING_WORKSPACE_SERVICE_BUILD='2026-09-09_PLANNING_WORKSPACE_2_0_SERVICE_FACADE_R1';
+var PLANNING_WORKSPACE_SERVICE_BUILD='2026-09-13_PLANNING_WORKSPACE_2_0_SERVICE_FACADE_R2_PENDING_ONLY';
 
 function PWS_dependencies_(){return{
   advisory:typeof ConceptPlanningService_get==='function',
@@ -15,7 +16,8 @@ function PWS_dependencies_(){return{
   canonicalCommit:typeof PlanningCanonicalCommitService_commit==='function'
 };}
 function PWS_assert_(name){var d=PWS_dependencies_();if(!d[name])throw new Error('PlanningWorkspaceService: dependency unavailable: '+name);}
-function PlanningWorkspaceService_getAdvisory(input){PWS_assert_('advisory');return ConceptPlanningService_get(input||{});}
+function PWS_pendingPlanningInput_(input){input=input||{};var out={};for(var k in input)if(Object.prototype.hasOwnProperty.call(input,k))out[k]=input[k];out.status='Pending Planning';return out;}
+function PlanningWorkspaceService_getAdvisory(input){PWS_assert_('advisory');return ConceptPlanningService_get(PWS_pendingPlanningInput_(input));}
 function PlanningWorkspaceService_getOverlays(input){PWS_assert_('overlays');return PlanningWorkspaceOverlayBundle_get(input||{});}
 function PlanningWorkspaceService_saveConcept(input){PWS_assert_('conceptUpsert');return ConceptReservationCommandService_upsert(input||{});}
 function PlanningWorkspaceService_releaseConcept(input){PWS_assert_('conceptRelease');return ConceptReservationCommandService_release(input||{});}
@@ -30,5 +32,5 @@ function PlanningWorkspaceService_contract(){return{
     releaseConcept:'ConceptReservationCommandService_release',
     commit:'PlanningCanonicalCommitService_commit'
   },
-  meta:{thinFacade:true,newBusinessRules:false,newSsot:false,directSheetReads:false,directSheetWrites:false,canonicalCommitOnly:true,legacyPlanningWriterCalledDirectly:false}
+  meta:{thinFacade:true,workspaceDemandStatus:'Pending Planning',plannedAuditsExcludedFromAdvisory:true,newSsot:false,directSheetReads:false,directSheetWrites:false,canonicalCommitOnly:true,legacyPlanningWriterCalledDirectly:false}
 };}

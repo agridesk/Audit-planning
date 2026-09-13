@@ -1,8 +1,8 @@
 /***********************************************************************
  * PlanningWorkspacePlannedAuditActionsTests.js
- * BUILD: 2026-09-13_WORKSPACE_PLANNED_AUDIT_ACTIONS_TESTS_R1
+ * BUILD: 2026-09-13_WORKSPACE_PLANNED_AUDIT_ACTIONS_TESTS_R2_AVAILABILITY_CONTEXT
  ***********************************************************************/
-var PLANNING_WORKSPACE_PLANNED_AUDIT_ACTIONS_TEST_BUILD='2026-09-13_WORKSPACE_PLANNED_AUDIT_ACTIONS_TESTS_R1';
+var PLANNING_WORKSPACE_PLANNED_AUDIT_ACTIONS_TEST_BUILD='2026-09-13_WORKSPACE_PLANNED_AUDIT_ACTIONS_TESTS_R2_AVAILABILITY_CONTEXT';
 function RUN_PLANNING_WORKSPACE_PLANNED_AUDIT_ACTIONS_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var ui=PlanningWorkspaceUi_contract(),rpc=PlanningWorkspaceRpc_contract(),svc=PlanningWorkspaceService_contract();
@@ -30,9 +30,15 @@ function RUN_PLANNING_WORKSPACE_PLANNED_AUDIT_ACTIONS_REGRESSION(){
   t('cancelUsesRevision',src.indexOf('expectedRevision:detail.revision')>=0&&src.indexOf('reason:why')>=0);
   t('cancelExplainsPendingPlanning',src.indexOf('returns the audit to Pending Planning')>=0);
   t('refreshAfterModifyCancel',src.indexOf("c.load('load')")>=0);
+  t('modifyUsesLoadedAvailability',src.indexOf('function occupiedSlots(')>=0&&src.indexOf('records(email,date)')>=0);
+  t('knownOverlapDetectedClientSide',src.indexOf('function firstKnownConflict(')>=0&&src.indexOf('function overlaps(')>=0);
+  t('secondAuditNonOverlapExplained',src.indexOf('A second audit is allowed when times do not overlap.')>=0);
+  t('knownOverlapBlocksSaveBeforeRpc',src.indexOf("toast('Blocked: selected time overlaps '")>=0);
+  t('finalCanonicalValidationRetained',src.indexOf('Final canonical validation still runs on Save.')>=0);
+  t('availabilityContextNoExtraRpc',String(src.match(/function renderAvailabilityContext\([\s\S]*?function openModify/)||'').indexOf('google.script.run')<0);
   t('noDirectSheetAccess',src.indexOf('SpreadsheetApp')<0&&readSrc.indexOf('setValue(')<0&&readSrc.indexOf('setValues(')<0);
   t('noNewSsot',readSrc.indexOf('newSsot:false')>=0&&rpc.meta.newSsot===false&&svc.meta.newSsot===false);
   var failed=r.filter(function(x){return!x.ok;}).length;
-  var out={ok:failed===0,build:PLANNING_WORKSPACE_PLANNED_AUDIT_ACTIONS_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,contractOnly:true,liveReadsPerformed:false,liveWritesPerformed:false,ux:'Canonical planned slots render Modify/Cancel controls from existing overlay state. Detail is fetched only on click.',modify:'Same auditor; editable date/time blocks; Pending Approval/Approved only; Accepted disabled pending re-acceptance policy.',cancel:'Reason required; canonical StatusMachine CANCEL; refresh returns audit to Pending workload.'}};
+  var out={ok:failed===0,build:PLANNING_WORKSPACE_PLANNED_AUDIT_ACTIONS_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,contractOnly:true,liveReadsPerformed:false,liveWritesPerformed:false,ux:'Modify uses the already-loaded Workspace Availability overlay to show occupied slots immediately and block known overlaps without another RPC.',modify:'Same auditor; editable date/time blocks; second audit on same day allowed when non-overlapping; final canonical validation remains authoritative.',cancel:'Browser-proven: reason required; canonical StatusMachine CANCEL; audit returns to Pending Planning.'}};
   console.log(JSON.stringify(out,null,2));return out;
 }

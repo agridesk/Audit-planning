@@ -1,9 +1,9 @@
 /***********************************************************************
  * ConceptReservationCommandServiceTests.js
- * BUILD: 2026-09-09_ROADMAP_2_4_CONCEPT_RESERVATION_COMMAND_TESTS_R1
+ * BUILD: 2026-09-13_ROADMAP_2_4_CONCEPT_RESERVATION_COMMAND_TESTS_R2_PREFIX_INVARIANT
  ***********************************************************************/
 
-var CONCEPT_RESERVATION_COMMAND_TEST_BUILD='2026-09-09_ROADMAP_2_4_CONCEPT_RESERVATION_COMMAND_TESTS_R1';
+var CONCEPT_RESERVATION_COMMAND_TEST_BUILD='2026-09-13_ROADMAP_2_4_CONCEPT_RESERVATION_COMMAND_TESTS_R2_PREFIX_INVARIANT';
 
 function CRCT_firstAudit_(){
   var ss=SpreadsheetApp.getActive();
@@ -26,6 +26,18 @@ function RUN_CONCEPT_RESERVATION_COMMAND_REGRESSION(){
   check('revisionGuardPresent',typeof PlanningOptimisticRevisionGuard_evaluate==='function');
   check('contractPresent',typeof ConceptReservationService_build==='function');
   check('headersStable',CONCEPT_RESERVATION_HEADERS.length===15);
+
+  var releaseSrc=String(ConceptReservationCommandService_release);
+  var demoteSrc=String(CRCS_demoteReleased_);
+  var lastActiveSrc=String(CRCS_lastActiveRow_);
+  var partitionSrc=String(CRCS_partition_);
+  check('releaseUsesDemoteReleased',releaseSrc.indexOf('CRCS_demoteReleased_')>=0,'release must demote the RELEASED row after state mutation');
+  check('demoteUsesLastActiveRow',demoteSrc.indexOf('CRCS_lastActiveRow_')>=0,'demotion must use actual last ACTIVE row, not prefix length after release');
+  check('lastActiveScansAllRows',lastActiveSrc.indexOf("==='ACTIVE'")>=0&&lastActiveSrc.indexOf('last=i+2')>=0,'last ACTIVE row must be found over the complete state column');
+  check('prefixRepairPresent',typeof ConceptReservationCommandService_repairActivePrefix==='function');
+  check('prefixRepairDryRunPresent',typeof RUN_CONCEPT_RESERVATION_ACTIVE_PREFIX_REPAIR_DRY_RUN==='function');
+  check('prefixRepairApplyPresent',typeof RUN_CONCEPT_RESERVATION_ACTIVE_PREFIX_REPAIR_APPLY==='function');
+  check('prefixRepairReordersWithoutStateChanges',partitionSrc.indexOf('active.concat(other)')>=0&&partitionSrc.indexOf('setValues(active.concat(other))')>=0,'repair must partition ACTIVE before non-ACTIVE without changing state values');
 
   var live=CRCT_firstAudit_();
   check('liveAuditAvailable',!!live,'No live Audit planning row');
@@ -59,6 +71,6 @@ function RUN_CONCEPT_RESERVATION_COMMAND_REGRESSION(){
   }
 
   var failed=results.filter(function(x){return !x.ok;}).length;
-  var out={ok:failed===0,build:CONCEPT_RESERVATION_COMMAND_TEST_BUILD,total:results.length,passed:results.length-failed,failed:failed,liveAuditId:live&&live.id||'',liveServerMs:serverMs,liveResult:liveResult,results:results,meta:{nonDestructive:true,liveReadsPerformed:!!live,liveWritesPerformed:false,sheetProvisioningPerformed:false,nextStep:'After green regression, merge then wire reservation overlay into Planning Workspace read flow.'}};
+  var out={ok:failed===0,build:CONCEPT_RESERVATION_COMMAND_TEST_BUILD,total:results.length,passed:results.length-failed,failed:failed,liveAuditId:live&&live.id||'',liveServerMs:serverMs,liveResult:liveResult,results:results,meta:{nonDestructive:true,liveReadsPerformed:!!live,liveWritesPerformed:false,sheetProvisioningPerformed:false,prefixInvariant:'all ACTIVE Concept Reservations must form one contiguous prefix directly below the header'}};
   console.log(JSON.stringify(out,null,2));return out;
 }

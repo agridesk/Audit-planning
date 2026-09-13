@@ -1,6 +1,6 @@
 /***********************************************************************
  * PlanningWorkspaceUi.js
- * BUILD: 2026-09-13_ROADMAP_2_4_PLANNING_WORKSPACE_UI_R8_PLANNED_ACTIONS
+ * BUILD: 2026-09-13_ROADMAP_2_4_PLANNING_WORKSPACE_UI_R9_PLANNED_ACTIONS_SYNC
  *
  * PERFORMANCE
  * - Route render remains data-independent.
@@ -10,7 +10,7 @@
  * - Planned audit detail is loaded only when Modify/Cancel is opened.
  * - No new cache, no writes during render, no new source of truth.
  ***********************************************************************/
-var PLANNING_WORKSPACE_UI_RENDERER_BUILD='2026-09-13_ROADMAP_2_4_PLANNING_WORKSPACE_UI_R8_PLANNED_ACTIONS';
+var PLANNING_WORKSPACE_UI_RENDERER_BUILD='2026-09-13_ROADMAP_2_4_PLANNING_WORKSPACE_UI_R9_PLANNED_ACTIONS_SYNC';
 
 function PlanningWorkspaceUi_render(ctx){
   ctx=ctx||{};
@@ -43,6 +43,7 @@ function PlanningWorkspaceUi_contract(){return{
   detailToolkitClientOnly:true,
   plannedActionsClientOnly:true,
   plannedDetailOnDemand:true,
+  plannedActionsRequired:true,
   directSheetReads:false,
   directSheetWrites:false,
   planningServiceReadsDuringRender:false,

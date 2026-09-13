@@ -1,8 +1,8 @@
 /***********************************************************************
  * zz_PlanningWorkspaceUiContextOverride_20260912.js
- * BUILD: 2026-09-13_PLANNING_WORKSPACE_UI_R13_UX_STABILIZER
+ * BUILD: 2026-09-13_PLANNING_WORKSPACE_UI_R14_FAST_NAV_OBSERVERS
  ***********************************************************************/
-var PLANNING_WORKSPACE_UI_RENDERER_BUILD='2026-09-13_PLANNING_WORKSPACE_UI_R13_UX_STABILIZER';
+var PLANNING_WORKSPACE_UI_RENDERER_BUILD='2026-09-13_PLANNING_WORKSPACE_UI_R14_FAST_NAV_OBSERVERS';
 
 function PlanningWorkspaceUi_render(ctx){
   ctx=ctx||{};
@@ -41,5 +41,6 @@ function PlanningWorkspaceUi_contract(){return{
   dragDropClientOnly:true,detailToolkitClientOnly:true,contextEnhancerClientOnly:true,attentionEnhancerClientOnly:true,pointerDragFallbackClientOnly:true,plannedActionsClientOnly:true,plannedStatusVisualsClientOnly:true,conceptReviewClientOnly:true,uxStabilizerClientOnly:true,
   plannedDetailOnDemand:true,conceptReviewUsesLoadedReservationMetadata:true,conceptReviewExtraRpcs:0,conceptReviewThresholdMonths:6,
   fastWeekNavigationClientOnly:true,fastMonthNavigationClientOnly:true,navigationExtraRpcs:0,modalInteractionGuard:true,
+  navigationObserverScope:'calendar root only / body direct children only',navigationMutationStormRemoved:true,plannedStatusObserverDebounced:true,conceptReviewObserverDebounced:true,
   attentionPriority:'planningWindowTo, planningWindowFrom, blocker state',directSheetReads:false,directSheetWrites:false,planningServiceReadsDuringRender:false,contextExtraReads:0,contextExtraRpcs:0,newSsot:false
 };}

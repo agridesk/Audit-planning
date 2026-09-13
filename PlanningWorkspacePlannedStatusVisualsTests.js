@@ -1,15 +1,15 @@
 /***********************************************************************
  * PlanningWorkspacePlannedStatusVisualsTests.js
- * BUILD: 2026-09-13_WORKSPACE_PLANNED_STATUS_VISUALS_TESTS_R2_ROBUST_OVERLAY_ASSERT
+ * BUILD: 2026-09-13_WORKSPACE_PLANNED_STATUS_VISUALS_TESTS_R3_GUARDED_OVERLAY_ASSERT
  ***********************************************************************/
-var PLANNING_WORKSPACE_PLANNED_STATUS_VISUALS_TEST_BUILD='2026-09-13_WORKSPACE_PLANNED_STATUS_VISUALS_TESTS_R2_ROBUST_OVERLAY_ASSERT';
+var PLANNING_WORKSPACE_PLANNED_STATUS_VISUALS_TEST_BUILD='2026-09-13_WORKSPACE_PLANNED_STATUS_VISUALS_TESTS_R3_GUARDED_OVERLAY_ASSERT';
 function RUN_PLANNING_WORKSPACE_PLANNED_STATUS_VISUALS_REGRESSION(){
  var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
  var ui=PlanningWorkspaceUi_contract(),src=HtmlService.createHtmlOutputFromFile('PlanningWorkspacePlannedStatusVisuals.js').getContent(),ctx=String(PlanningWorkspaceAvailabilityContext_get),bundle=String(PWOB_availabilityIndex_);
  t('included',ui.plannedStatusVisualsInclude==='PlanningWorkspacePlannedStatusVisuals.js');
  t('clientOnly',ui.plannedStatusVisualsClientOnly===true);
  t('canonicalStatusProjected',ctx.indexOf("['Status']")>=0&&ctx.indexOf('status:cStatus')>=0);
- t('overlayPrefersCanonicalStatus',/status\s*:\s*PWOB_clean_\(\s*c\.status\s*\|\|\s*s\.status\s*\)/.test(bundle),bundle);
+ t('overlayPrefersCanonicalStatus',bundle.indexOf('status:PWOB_clean_')>=0&&bundle.indexOf('c&&c.status')>=0&&bundle.indexOf('s&&s.status')>=0&&bundle.indexOf('(c&&c.status)||(s&&s.status)')>=0,bundle);
  t('acceptedGreen',src.indexOf("status==='ACCEPTED'")>=0&&src.indexOf("label:'ACCEPTED'")>=0&&src.indexOf("#e8f5e9")>=0);
  t('approvedBlue',src.indexOf("status==='APPROVED'")>=0&&src.indexOf("label:'APPROVED'")>=0&&src.indexOf("#e8f1fb")>=0);
  t('pendingApprovalAmber',src.indexOf("status==='PENDING_APPROVAL'")>=0&&src.indexOf("label:'PENDING APPROVAL'")>=0&&src.indexOf("#fff3d9")>=0);

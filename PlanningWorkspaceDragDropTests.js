@@ -1,8 +1,8 @@
 /***********************************************************************
  * PlanningWorkspaceDragDropTests.js
- * BUILD: 2026-09-13_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R14_TOOLKIT_LOCAL_SAVE
+ * BUILD: 2026-09-13_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R15_CONCEPT_RELEASE
  ***********************************************************************/
-var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-13_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R14_TOOLKIT_LOCAL_SAVE';
+var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-13_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R15_CONCEPT_RELEASE';
 function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var ui=PlanningWorkspaceUi_contract();
@@ -29,6 +29,7 @@ function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   t('shellStillDataIndependent',ui.dataIndependentShell===true&&ui.planningServiceReadsDuringRender===false);
 
   t('saveConceptEndpoint',rpc.endpoints.indexOf('PlanningWorkspaceRpc_saveConcept')>=0);
+  t('releaseConceptEndpoint',rpc.endpoints.indexOf('PlanningWorkspaceRpc_releaseConcept')>=0);
   t('directCommitEndpoint',rpc.endpoints.indexOf('PlanningWorkspaceRpc_commit')>=0);
   t('revisionHydrationDeclared',rpc.meta.conceptDropRevisionHydration===true);
   t('canonicalRevisionOwnerUsed',hydrateSource.indexOf('PlanningRevisionTokenService_get')>=0);
@@ -54,6 +55,9 @@ function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
 
   t('conceptBlocksRendered',clientSource.indexOf('Array.isArray(x.blocks)')>=0&&clientSource.indexOf('data-concept-audit')>=0);
   t('conceptActionBound',dragSource.indexOf('bindConceptActions')>=0&&dragSource.indexOf("btn.textContent='Plan'")>=0);
+  t('conceptReleaseActionBound',dragSource.indexOf("release.textContent='Release'")>=0&&dragSource.indexOf('releaseConcept(id,release)')>=0);
+  t('conceptReleaseUsesCanonicalRpc',dragSource.indexOf('PlanningWorkspaceRpc_releaseConcept')>=0&&dragSource.indexOf("reason:'MANAGER_CONCEPT_UNDO'")>=0);
+  t('conceptReleaseReloadsPendingDemand',dragSource.indexOf('Returning audit to Pending workload')>=0&&dragSource.indexOf("c.load('load')")>=0);
   t('detailActionBound',dragSource.indexOf("detail.textContent='Details'")>=0&&dragSource.indexOf('PlanningWorkspaceDetailToolkit.open')>=0);
   t('detailToolkitConceptOnly',detailSource.indexOf("note:'Planning Workspace Toolkit 2.0 multiday'")>=0&&detailSource.indexOf('PlanningWorkspaceRpc_saveConcept')>=0);
   t('detailToolkitCanonicalPlan',detailSource.indexOf('PlanningWorkspaceRpc_commit')>=0&&detailSource.indexOf('expectedRevision:clean(res.sourceRevision)')>=0);
@@ -97,6 +101,6 @@ function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   t('noNewSsot',rpc.meta.newSsot===false&&ui.newSsot===false);
 
   var failed=r.filter(function(x){return!x.ok;}).length;
-  var out={ok:failed===0,build:PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,contractOnly:true,targetFlow:'Workspace audit -> auditor x start date -> multiday proposal when needed -> canonical preflight -> Concept Reservation -> optional Individual Toolkit 2.0 -> direct canonical commit',multiday:'Workspace drop balances required hours over <=8h weekdays and skips known unavailable dates; Toolkit 2.0 can refine blocks',availabilityContext:'server-projected company/scopes first; internal auditRef advisory fallback; no user-visible Audit ID; no extra RPC or Spreadsheet read',attention:'top 12 by planningWindowTo, planningWindowFrom, blocker state; cards remain drag sources',conceptSaveUx:'drag/drop and Toolkit Save both apply the server-confirmed Concept Reservation locally; full Workspace reload only as fallback'}};
+  var out={ok:failed===0,build:PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,contractOnly:true,targetFlow:'Workspace audit -> auditor x start date -> multiday proposal when needed -> canonical preflight -> Concept Reservation -> optional Individual Toolkit 2.0 -> Release back to Pending workload OR direct canonical commit',multiday:'Workspace drop balances required hours over <=8h weekdays and skips known unavailable dates; Toolkit 2.0 can refine blocks',conceptRelease:'Release uses canonical Concept Reservation command endpoint; canonical audit status remains Pending Planning; Workspace reload restores audit to pending demand',availabilityContext:'server-projected company/scopes first; internal auditRef advisory fallback; no user-visible Audit ID; no extra RPC or Spreadsheet read',attention:'top 12 by planningWindowTo, planningWindowFrom, blocker state; cards remain drag sources',conceptSaveUx:'drag/drop and Toolkit Save both apply the server-confirmed Concept Reservation locally; full Workspace reload only as fallback'}};
   console.log(JSON.stringify(out,null,2));return out;
 }

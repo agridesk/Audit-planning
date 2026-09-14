@@ -1,22 +1,24 @@
 /***********************************************************************
  * PlanningCanonicalModifyService.js
- * BUILD: 2026-09-14_ROADMAP_2_4_CANONICAL_MODIFY_R10_STRICT_WINDOW
+ * BUILD: 2026-09-14_ROADMAP_2_4_CANONICAL_MODIFY_R11_RELEASE_RECONCILE
  *
  * Planned audit reschedule policy:
  *   - date/time blocks may change; auditor remains unchanged;
  *   - Pending Approval / Approved preserve status;
  *   - Accepted -> Approved and auditor must accept the changed planning again.
  *
- * R10:
+ * R11:
  *   - canonical planning window is hard for Modify; no grandfather bypass;
  *   - new/changed blocks may never be in the past; an unchanged historical
  *     block already present in the audit may remain while another block is edited;
  *   - canonical row validation runs BEFORE any Availability mutation;
  *   - planned-hours failures are returned concretely to the UI;
  *   - successful prevalidation is reused by the writer under the same lock;
+ *   - release passes OLD canonical auditor+blocks so legacy anonymous NO rows
+ *     on released planning dates are reconciled safely;
  *   - rollback remains in place for reserve/write failures.
  ***********************************************************************/
-var PLANNING_CANONICAL_MODIFY_BUILD='2026-09-14_ROADMAP_2_4_CANONICAL_MODIFY_R10_STRICT_WINDOW';
+var PLANNING_CANONICAL_MODIFY_BUILD='2026-09-14_ROADMAP_2_4_CANONICAL_MODIFY_R11_RELEASE_RECONCILE';
 
 function PCMOD_clean_(v){return String(v==null?'':v).trim();}
 function PCMOD_normEmail_(v){return PCMOD_clean_(v).toLowerCase();}
@@ -97,7 +99,7 @@ function PlanningCanonicalModifyService_modify(input){
     if(pastDates.length)return PCMOD_failure_(auditId,'PAST_DATE_NOT_ALLOWED','Modify cannot create or alter a planning block before '+today+'.',{pastDates:pastDates,today:today,meta:{writes:false,lockUsed:true,pastDateHardRule:true,unchangedHistoricalBlocksAllowed:true,planningWindowLeading:true}});
 
     var oldOwner=PCMOD_normEmail_(old.auditorEmail||old.assigned),newOwner=PCMOD_normEmail_(email||name);
-    if(oldOwner&&newOwner&&oldOwner!==newOwner)return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:false,reason:'AUDITOR_CHANGE_NOT_SUPPORTED_R10',canonicalStatus:rowInfo.status,meta:{writes:false,lockUsed:true,sameAuditorOnly:true}};
+    if(oldOwner&&newOwner&&oldOwner!==newOwner)return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:false,reason:'AUDITOR_CHANGE_NOT_SUPPORTED_R11',canonicalStatus:rowInfo.status,meta:{writes:false,lockUsed:true,sameAuditorOnly:true}};
     if(!email&&old.auditorEmail)email=old.auditorEmail;
     if(!name&&old.auditorName)name=old.auditorName;
 
@@ -114,7 +116,7 @@ function PlanningCanonicalModifyService_modify(input){
       return PCMOD_failure_(auditId,validation&&validation.code||'CANONICAL_ROW_VALIDATION_FAILED',validation&&validation.message||'Canonical row validation failed.',{validation:validation||null,plannedHours:validation&&validation.plannedHours,requiredHours:validation&&validation.requiredHours,hardConflicts:validation&&validation.hardConflicts||[],gate:gate,meta:{writes:false,lockUsed:true,validatedBeforeAvailability:true,availabilityMutated:false,planningWindowLeading:true}});
     }
 
-    var released=PlanningCanonicalAvailabilityAdapter_release({auditId:auditId});
+    var released=PlanningCanonicalAvailabilityAdapter_release({auditId:auditId,auditorEmail:old.auditorEmail||old.assigned,blocks:old.blocks});
     if(!released||released.success===false)return PCMOD_failure_(auditId,'OLD_AVAILABILITY_RELEASE_FAILED',PCMOD_clean_(released&&released.message)||'Old Availability could not be released.',{availabilityRelease:released||null,validation:validation});
     SpreadsheetApp.flush();
 
@@ -128,7 +130,7 @@ function PlanningCanonicalModifyService_modify(input){
     writerOpts.prevalidated=validation;
     var writeResult=PlanningCanonicalRowWriter_execute(rowInfo,transition,writerOpts);
     if(!writeResult||writeResult.success!==true){
-      var releaseNew=PlanningCanonicalAvailabilityAdapter_release({auditId:auditId}),restoreAfterWriteFail=PCMOD_restore_(auditId,old);SpreadsheetApp.flush();
+      var releaseNew=PlanningCanonicalAvailabilityAdapter_release({auditId:auditId,auditorEmail:email||old.assigned,blocks:blocks}),restoreAfterWriteFail=PCMOD_restore_(auditId,old);SpreadsheetApp.flush();
       return PCMOD_failure_(auditId,writeResult&&writeResult.code||'CANONICAL_ROW_WRITE_FAILED',writeResult&&writeResult.message||'Canonical row write failed.',{writeResult:writeResult||null,newAvailabilityRelease:releaseNew||null,restoreResult:restoreAfterWriteFail,repairRequired:!(restoreAfterWriteFail&&restoreAfterWriteFail.success!==false),validation:validation});
     }
     SpreadsheetApp.flush();
@@ -136,6 +138,6 @@ function PlanningCanonicalModifyService_modify(input){
     var reaccept=status==='ACCEPTED';
     var notification=reaccept?PCMOD_notifyReaccept_({auditId:auditId,auditorEmail:email,auditorName:name,actorEmail:input.actorEmail},writeResult):null;
     var newRevision=PRT_tokenFromSnapshot_({auditId:auditId,status:writeResult.newStatus||writeResult.afterStatusDisplay,assignedTo:writeResult.assignedTo,datePlanned:writeResult.plannedDate,planningJson:writeResult.planningJson});
-    return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:true,reason:reaccept?'MODIFIED_REACCEPTANCE_REQUIRED':'MODIFIED',gate:gate,validation:validation,plannedHours:validation.plannedHours,requiredHours:validation.requiredHours,availabilityRelease:released,availabilityReserve:reserved,writeResult:writeResult,newRevision:newRevision,notification:notification,meta:{writes:true,lockUsed:true,sameAuditorOnly:true,statusPreserved:!reaccept,reacceptanceRequired:reaccept,acceptedMovesToApproved:reaccept,validatedBeforeAvailability:true,availabilityRestoreOnFailure:true,availabilityFlushedBeforeRefresh:true,pastDateHardRule:true,unchangedHistoricalBlocksAllowed:true,planningWindowLeading:true,notificationRequired:reaccept,notificationDispatched:!!(notification&&notification.success===true&&notification.skipped!==true),notificationFailureDoesNotRollbackLifecycle:true,notificationEvent:reaccept?'AUDIT_PLANNED_BY_MANAGER':'',newSsot:false}};
+    return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:true,reason:reaccept?'MODIFIED_REACCEPTANCE_REQUIRED':'MODIFIED',gate:gate,validation:validation,plannedHours:validation.plannedHours,requiredHours:validation.requiredHours,availabilityRelease:released,availabilityReserve:reserved,writeResult:writeResult,newRevision:newRevision,notification:notification,meta:{writes:true,lockUsed:true,sameAuditorOnly:true,statusPreserved:!reaccept,reacceptanceRequired:reaccept,acceptedMovesToApproved:reaccept,validatedBeforeAvailability:true,availabilityRestoreOnFailure:true,availabilityFlushedBeforeRefresh:true,releaseReconcileFromOldCanonicalPlanning:true,pastDateHardRule:true,unchangedHistoricalBlocksAllowed:true,planningWindowLeading:true,notificationRequired:reaccept,notificationDispatched:!!(notification&&notification.success===true&&notification.skipped!==true),notificationFailureDoesNotRollbackLifecycle:true,notificationEvent:reaccept?'AUDIT_PLANNED_BY_MANAGER':'',newSsot:false}};
   },wait);
 }

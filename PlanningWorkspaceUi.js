@@ -1,6 +1,6 @@
 /***********************************************************************
  * PlanningWorkspaceUi.js
- * BUILD: 2026-09-13_ROADMAP_2_4_PLANNING_WORKSPACE_UI_R9_PLANNED_ACTIONS_SYNC
+ * BUILD: 2026-09-14_ROADMAP_2_4_PLANNING_WORKSPACE_UI_R10_MODIFY_WINDOW
  *
  * PERFORMANCE
  * - Route render remains data-independent.
@@ -8,9 +8,10 @@
  *   the HTML shell is returned to the browser.
  * - Browser loads decision data only after first shell paint.
  * - Planned audit detail is loaded only when Modify/Cancel is opened.
+ * - Modify planning-window context is targeted/on-demand only.
  * - No new cache, no writes during render, no new source of truth.
  ***********************************************************************/
-var PLANNING_WORKSPACE_UI_RENDERER_BUILD='2026-09-13_ROADMAP_2_4_PLANNING_WORKSPACE_UI_R9_PLANNED_ACTIONS_SYNC';
+var PLANNING_WORKSPACE_UI_RENDERER_BUILD='2026-09-14_ROADMAP_2_4_PLANNING_WORKSPACE_UI_R10_MODIFY_WINDOW';
 
 function PlanningWorkspaceUi_render(ctx){
   ctx=ctx||{};
@@ -23,7 +24,8 @@ function PlanningWorkspaceUi_render(ctx){
   var availabilityContext=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceAvailabilityContext.js').getContent();
   var detailToolkit=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceDetailToolkit.js').getContent();
   var plannedActions=HtmlService.createHtmlOutputFromFile('PlanningWorkspacePlannedAuditActions.js').getContent();
-  html=html.replace('</body>',dragDrop+'\n'+availabilityContext+'\n'+detailToolkit+'\n'+plannedActions+'\n</body>');
+  var modifyWindowGuard=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceModifyWindowGuard.js').getContent();
+  html=html.replace('</body>',dragDrop+'\n'+availabilityContext+'\n'+detailToolkit+'\n'+plannedActions+'\n'+modifyWindowGuard+'\n</body>');
   return HtmlService.createHtmlOutput(html).setTitle('AMS - Planning Workspace');
 }
 function PlanningWorkspaceUi_contract(){return{
@@ -34,6 +36,7 @@ function PlanningWorkspaceUi_contract(){return{
   availabilityContextInclude:'PlanningWorkspaceAvailabilityContext.js',
   detailToolkitInclude:'PlanningWorkspaceDetailToolkit.js',
   plannedActionsInclude:'PlanningWorkspacePlannedAuditActions.js',
+  modifyWindowGuardInclude:'PlanningWorkspaceModifyWindowGuard.js',
   evaluatedTemplate:true,
   serverSeed:false,
   dataIndependentShell:true,
@@ -42,8 +45,10 @@ function PlanningWorkspaceUi_contract(){return{
   availabilityContextClientOnly:true,
   detailToolkitClientOnly:true,
   plannedActionsClientOnly:true,
+  modifyWindowGuardClientOnly:true,
   plannedDetailOnDemand:true,
   plannedActionsRequired:true,
+  planningWindowVisibleOnModify:true,
   directSheetReads:false,
   directSheetWrites:false,
   planningServiceReadsDuringRender:false,

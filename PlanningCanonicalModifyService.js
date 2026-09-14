@@ -1,24 +1,24 @@
 /***********************************************************************
  * PlanningCanonicalModifyService.js
- * BUILD: 2026-09-14_ROADMAP_2_4_CANONICAL_MODIFY_R5_GRANDFATHER_WINDOW
+ * BUILD: 2026-09-14_ROADMAP_2_4_CANONICAL_MODIFY_R6_EXISTING_OUTSIDE_WINDOW
  *
  * Planned audit reschedule policy:
  *   - date/time blocks may change; auditor remains unchanged;
  *   - Pending Approval / Approved preserve status;
  *   - Accepted -> Approved and auditor must accept the changed planning again.
  *
- * R5:
- *   - fixes legacy/current planned audits that already sit outside the now
- *     resolved canonical planning window;
- *   - a reschedule may remain outside that window ONLY when it does not move
- *     farther outside than the existing canonical planning;
- *   - this exception converts ONLY PLANNING_WINDOW_OUTSIDE to a warning;
- *     qualification, availability, revision and all other hard blocks remain
- *     hard blocks;
+ * R6:
+ *   - already-planned audits whose existing canonical planning is outside the
+ *     resolved planning window may be rescheduled outside that window;
+ *   - this is a Modify-only exception for legacy/current planned audits;
+ *   - ONLY PLANNING_WINDOW_OUTSIDE is downgraded; qualification,
+ *     availability, revision and all other hard blocks remain hard;
+ *   - audits whose existing canonical planning is inside the window do NOT
+ *     receive this exception;
  *   - normal/new planning-window enforcement is unchanged;
  *   - row validation still runs before any Availability mutation.
  ***********************************************************************/
-var PLANNING_CANONICAL_MODIFY_BUILD='2026-09-14_ROADMAP_2_4_CANONICAL_MODIFY_R5_GRANDFATHER_WINDOW';
+var PLANNING_CANONICAL_MODIFY_BUILD='2026-09-14_ROADMAP_2_4_CANONICAL_MODIFY_R6_EXISTING_OUTSIDE_WINDOW';
 
 function PCMOD_clean_(v){return String(v==null?'':v).trim();}
 function PCMOD_normEmail_(v){return PCMOD_clean_(v).toLowerCase();}
@@ -92,9 +92,8 @@ function PCMOD_grandfatherWindow_(gate,rowInfo,newBlocks){
   oldBlocks.forEach(function(b){var x=PCMOD_outsideDistance_(PCMOD_iso_(b&&b.date),from,to);if(x==null)oldValid=false;else if(x>oldMax)oldMax=x;});
   (newBlocks||[]).forEach(function(b){var x=PCMOD_outsideDistance_(PCMOD_iso_(b&&b.date),from,to);if(x==null)newValid=false;else if(x>newMax)newMax=x;});
   if(!oldValid||!newValid)return{allowed:false,reason:'INVALID_DATE'};
-  if(oldMax<=0)return{allowed:false,reason:'EXISTING_PLANNING_NOT_OUTSIDE_WINDOW',oldMaxDays:oldMax,newMaxDays:newMax};
-  if(newMax>oldMax)return{allowed:false,reason:'RESCHEDULE_MOVES_FARTHER_OUTSIDE_WINDOW',oldMaxDays:oldMax,newMaxDays:newMax,from:from,to:to};
-  return{allowed:true,reason:'GRANDFATHERED_RESCHEDULE_NOT_FARTHER_OUTSIDE',oldMaxDays:oldMax,newMaxDays:newMax,from:from,to:to,ruleCode:'PLANNING_WINDOW_OUTSIDE'};
+  if(oldMax<=0)return{allowed:false,reason:'EXISTING_PLANNING_NOT_OUTSIDE_WINDOW',oldMaxDays:oldMax,newMaxDays:newMax,from:from,to:to};
+  return{allowed:true,reason:'GRANDFATHERED_EXISTING_OUTSIDE_WINDOW_MODIFY',oldMaxDays:oldMax,newMaxDays:newMax,from:from,to:to,ruleCode:'PLANNING_WINDOW_OUTSIDE'};
 }
 function PCMOD_acceptGrandfatheredGate_(gate,grandfather){
   gate.canCommit=true;
@@ -145,7 +144,7 @@ function PlanningCanonicalModifyService_modify(input){
     if(status!=='APPROVED'&&status!=='PENDING_APPROVAL'&&status!=='ACCEPTED')return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:false,reason:'STATUS_NOT_MODIFIABLE',canonicalStatus:rowInfo.status,gate:gate,meta:{writes:false,lockUsed:true}};
 
     var old=PCMOD_oldPlanning_(rowInfo),oldOwner=PCMOD_normEmail_(old.auditorEmail||old.assigned),newOwner=PCMOD_normEmail_(email||name);
-    if(oldOwner&&newOwner&&oldOwner!==newOwner)return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:false,reason:'AUDITOR_CHANGE_NOT_SUPPORTED_R5',canonicalStatus:rowInfo.status,meta:{writes:false,lockUsed:true,sameAuditorOnly:true}};
+    if(oldOwner&&newOwner&&oldOwner!==newOwner)return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:false,reason:'AUDITOR_CHANGE_NOT_SUPPORTED_R6',canonicalStatus:rowInfo.status,meta:{writes:false,lockUsed:true,sameAuditorOnly:true}};
     if(!email&&old.auditorEmail)email=old.auditorEmail;
     if(!name&&old.auditorName)name=old.auditorName;
 

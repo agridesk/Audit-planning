@@ -1,11 +1,11 @@
 <script>
 (function(){
 'use strict';
-var BUILD='2026-09-14_WORKSPACE_MODIFY_WINDOW_GUARD_R3_EXISTING_OUTSIDE_EXCEPTION';
+var BUILD='2026-09-14_WORKSPACE_MODIFY_WINDOW_GUARD_R4_PICKER_DATE_PARSE';
 function clean(v){return String(v==null?'':v).trim()}
 function isoToDisplay(v){var m=clean(v).match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?m[3]+'-'+m[2]+'-'+m[1]:clean(v)}
 function localTodayIso(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
-function dateFromPickerLabel(text,from,to,active){var m=clean(text).match(/(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(\d{2})\/(\d{2})/i);if(!m)return'';var day=m[1],month=m[2],fy=Number(String(from||'').slice(0,4)),ty=Number(String(to||'').slice(0,4)),ay=Number(String(active||'').slice(0,4));var year=ay||fy||ty||new Date().getFullYear();if(fy&&ty&&fy!==ty){var fm=Number(String(from).slice(5,7)),mm=Number(month);year=(mm>=fm)?fy:ty;}return year+'-'+month+'-'+day;}
+function dateFromPickerLabel(text,from,to,active){var m=clean(text).match(/(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[,\s]+(\d{2})\/(\d{2})/i);if(!m)return'';var day=m[1],month=m[2],fy=Number(String(from||'').slice(0,4)),ty=Number(String(to||'').slice(0,4)),ay=Number(String(active||'').slice(0,4));var year=ay||fy||ty||new Date().getFullYear();if(fy&&ty&&fy!==ty){var fm=Number(String(from).slice(5,7)),mm=Number(month);year=(mm>=fm)?fy:ty;}return year+'-'+month+'-'+day;}
 function within(date,from,to){date=clean(date);return !!(date&&from&&to&&date>=from&&date<=to)}
 function findSave(modal){var buttons=modal.querySelectorAll('button');for(var i=0;i<buttons.length;i++)if(/^Save/i.test(clean(buttons[i].textContent)))return buttons[i];return null}
 function currentDateSet(detail){var set={};(detail&&detail.blocks||[]).forEach(function(b){var d=clean(b&&b.date).slice(0,10);if(d)set[d]=1});return set}

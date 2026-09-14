@@ -1,6 +1,6 @@
 /***********************************************************************
  * PlanningWorkspaceUi.js
- * BUILD: 2026-09-14_ROADMAP_2_4_PLANNING_WORKSPACE_UI_R10_MODIFY_WINDOW
+ * BUILD: 2026-09-14_ROADMAP_2_4_PLANNING_WORKSPACE_UI_R11_MODIFY_WINDOW_REQUIRED
  *
  * PERFORMANCE
  * - Route render remains data-independent.
@@ -11,7 +11,7 @@
  * - Modify planning-window context is targeted/on-demand only.
  * - No new cache, no writes during render, no new source of truth.
  ***********************************************************************/
-var PLANNING_WORKSPACE_UI_RENDERER_BUILD='2026-09-14_ROADMAP_2_4_PLANNING_WORKSPACE_UI_R10_MODIFY_WINDOW';
+var PLANNING_WORKSPACE_UI_RENDERER_BUILD='2026-09-14_ROADMAP_2_4_PLANNING_WORKSPACE_UI_R11_MODIFY_WINDOW_REQUIRED';
 
 function PlanningWorkspaceUi_render(ctx){
   ctx=ctx||{};
@@ -37,6 +37,7 @@ function PlanningWorkspaceUi_contract(){return{
   detailToolkitInclude:'PlanningWorkspaceDetailToolkit.js',
   plannedActionsInclude:'PlanningWorkspacePlannedAuditActions.js',
   modifyWindowGuardInclude:'PlanningWorkspaceModifyWindowGuard.js',
+  modifyWindowGuardRequired:true,
   evaluatedTemplate:true,
   serverSeed:false,
   dataIndependentShell:true,

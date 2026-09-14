@@ -1,8 +1,8 @@
 /***********************************************************************
  * zz_PlanningWorkspaceUiContextOverride_20260912.js
- * BUILD: 2026-09-13_PLANNING_WORKSPACE_UI_R14_FAST_NAV_OBSERVERS
+ * BUILD: 2026-09-14_PLANNING_WORKSPACE_UI_R15_MODIFY_WINDOW_GUARD
  ***********************************************************************/
-var PLANNING_WORKSPACE_UI_RENDERER_BUILD='2026-09-13_PLANNING_WORKSPACE_UI_R14_FAST_NAV_OBSERVERS';
+var PLANNING_WORKSPACE_UI_RENDERER_BUILD='2026-09-14_PLANNING_WORKSPACE_UI_R15_MODIFY_WINDOW_GUARD';
 
 function PlanningWorkspaceUi_render(ctx){
   ctx=ctx||{};
@@ -20,7 +20,8 @@ function PlanningWorkspaceUi_render(ctx){
   var plannedStatusVisuals=HtmlService.createHtmlOutputFromFile('PlanningWorkspacePlannedStatusVisuals.js').getContent();
   var conceptReview=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceConceptReview.js').getContent();
   var uxStabilizer=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceUxStabilizer.js').getContent();
-  html=html.replace('</body>',dragDrop+'\n'+detailToolkit+'\n'+contextEnhancer+'\n'+attentionEnhancer+'\n'+pointerDragFallback+'\n'+plannedActions+'\n'+plannedStatusVisuals+'\n'+conceptReview+'\n'+uxStabilizer+'\n</body>');
+  var modifyWindowGuard=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceModifyWindowGuard.js').getContent();
+  html=html.replace('</body>',dragDrop+'\n'+detailToolkit+'\n'+contextEnhancer+'\n'+attentionEnhancer+'\n'+pointerDragFallback+'\n'+plannedActions+'\n'+plannedStatusVisuals+'\n'+conceptReview+'\n'+uxStabilizer+'\n'+modifyWindowGuard+'\n</body>');
   return HtmlService.createHtmlOutput(html).setTitle('AMS - Planning Workspace');
 }
 
@@ -37,10 +38,13 @@ function PlanningWorkspaceUi_contract(){return{
   plannedStatusVisualsInclude:'PlanningWorkspacePlannedStatusVisuals.js',
   conceptReviewInclude:'PlanningWorkspaceConceptReview.js',
   uxStabilizerInclude:'PlanningWorkspaceUxStabilizer.js',
+  modifyWindowGuardInclude:'PlanningWorkspaceModifyWindowGuard.js',
+  modifyWindowGuardRequired:true,
   evaluatedTemplate:true,serverSeed:false,dataIndependentShell:true,decisionDataDeferred:true,
-  dragDropClientOnly:true,detailToolkitClientOnly:true,contextEnhancerClientOnly:true,attentionEnhancerClientOnly:true,pointerDragFallbackClientOnly:true,plannedActionsClientOnly:true,plannedStatusVisualsClientOnly:true,conceptReviewClientOnly:true,uxStabilizerClientOnly:true,
+  dragDropClientOnly:true,detailToolkitClientOnly:true,contextEnhancerClientOnly:true,attentionEnhancerClientOnly:true,pointerDragFallbackClientOnly:true,plannedActionsClientOnly:true,plannedStatusVisualsClientOnly:true,conceptReviewClientOnly:true,uxStabilizerClientOnly:true,modifyWindowGuardClientOnly:true,
   plannedDetailOnDemand:true,conceptReviewUsesLoadedReservationMetadata:true,conceptReviewExtraRpcs:0,conceptReviewThresholdMonths:6,
   fastWeekNavigationClientOnly:true,fastMonthNavigationClientOnly:true,navigationExtraRpcs:0,modalInteractionGuard:true,
   navigationObserverScope:'calendar root only / body direct children only',navigationMutationStormRemoved:true,plannedStatusObserverDebounced:true,conceptReviewObserverDebounced:true,
+  planningWindowVisibleOnModify:true,
   attentionPriority:'planningWindowTo, planningWindowFrom, blocker state',directSheetReads:false,directSheetWrites:false,planningServiceReadsDuringRender:false,contextExtraReads:0,contextExtraRpcs:0,newSsot:false
 };}

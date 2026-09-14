@@ -1,54 +1,29 @@
 /***********************************************************************
  * PlanningCanonicalModifyGrandfatherTests.js
- * BUILD: 2026-09-14_CANONICAL_MODIFY_GRANDFATHER_TESTS_R2
+ * BUILD: 2026-09-14_CANONICAL_MODIFY_WINDOW_LEADING_TESTS_R3
  *
- * Non-destructive regression for the Modify-only planning-window exception.
+ * Non-destructive regression. Historical file/runner name retained only for
+ * continuity; policy is now explicitly NO grandfather bypass.
  ***********************************************************************/
-var PLANNING_CANONICAL_MODIFY_GRANDFATHER_TEST_BUILD='2026-09-14_CANONICAL_MODIFY_GRANDFATHER_TESTS_R2';
-
-function PCMOD_TEST_rowInfo_(oldDates){
-  var planning={blocks:(oldDates||[]).map(function(d){return{date:d,start:'08:30',end:'16:30'};}),auditorEmail:'auditor@example.com',auditorName:'Auditor'};
-  return{ctx:{colJson:1,colAssigned:2},row:[JSON.stringify(planning),'auditor@example.com']};
-}
-function PCMOD_TEST_gate_(extraHard){
-  var verdicts=[{kind:'PLANNING_WINDOW',level:'HARD_BLOCK',ruleCode:'PLANNING_WINDOW_OUTSIDE',reason:'outside',evidence:{from:'2026-05-20',to:'2026-08-20'}}];
-  if(extraHard)verdicts.push({kind:'AVAILABILITY',level:'HARD_BLOCK',ruleCode:'AVAILABILITY_CONFLICT',reason:'busy'});
-  return{revisionAccepted:true,canCommit:false,reason:'HARD_BLOCK',preflight:{validatorResult:{verdicts:verdicts}}};
-}
-function PCMOD_TEST_blocks_(dates){return(dates||[]).map(function(d){return{date:d,start:'08:30',end:'16:30'};});}
+var PLANNING_CANONICAL_MODIFY_GRANDFATHER_TEST_BUILD='2026-09-14_CANONICAL_MODIFY_WINDOW_LEADING_TESTS_R3';
 
 function RUN_PLANNING_CANONICAL_MODIFY_GRANDFATHER_REGRESSION(){
   var results=[];
-  function t(name,fn){try{var x=fn();results.push({name:name,ok:x===true,detail:x===true?'':String(x)});}catch(e){results.push({name:name,ok:false,detail:String(e&&e.message||e)});}}
+  function t(name,ok,detail){results.push({name:name,ok:!!ok,detail:ok?'':String(detail||'failed')});}
+  var src=String(PlanningCanonicalModifyService_modify);
+  var deps=String(PCMOD_dependencies_);
 
-  t('salm_17_18_sep_to_10_11_sep_allowed',function(){
-    var x=PCMOD_grandfatherWindow_(PCMOD_TEST_gate_(false),PCMOD_TEST_rowInfo_(['2026-09-17','2026-09-18']),PCMOD_TEST_blocks_(['2026-09-10','2026-09-11']));
-    return x.allowed===true&&x.oldMaxDays===29&&x.newMaxDays===22;
-  });
-  t('salm_17_18_sep_to_1_2_oct_allowed',function(){
-    var x=PCMOD_grandfatherWindow_(PCMOD_TEST_gate_(false),PCMOD_TEST_rowInfo_(['2026-09-17','2026-09-18']),PCMOD_TEST_blocks_(['2026-10-01','2026-10-02']));
-    return x.allowed===true&&x.oldMaxDays===29&&x.newMaxDays===43&&x.reason==='GRANDFATHERED_EXISTING_OUTSIDE_WINDOW_MODIFY';
-  });
-  t('existing_inside_window_gets_no_exception',function(){
-    var x=PCMOD_grandfatherWindow_(PCMOD_TEST_gate_(false),PCMOD_TEST_rowInfo_(['2026-08-10','2026-08-11']),PCMOD_TEST_blocks_(['2026-09-10','2026-09-11']));
-    return x.allowed===false&&x.reason==='EXISTING_PLANNING_NOT_OUTSIDE_WINDOW';
-  });
-  t('availability_hard_block_never_overridden',function(){
-    var x=PCMOD_grandfatherWindow_(PCMOD_TEST_gate_(true),PCMOD_TEST_rowInfo_(['2026-09-17','2026-09-18']),PCMOD_TEST_blocks_(['2026-10-01','2026-10-02']));
-    return x.allowed===false&&x.reason==='OTHER_HARD_BLOCKS';
-  });
-  t('revision_conflict_never_overridden',function(){
-    var g=PCMOD_TEST_gate_(false);g.revisionAccepted=false;
-    var x=PCMOD_grandfatherWindow_(g,PCMOD_TEST_rowInfo_(['2026-09-17','2026-09-18']),PCMOD_TEST_blocks_(['2026-10-01','2026-10-02']));
-    return x.allowed===false&&x.reason==='GATE_NOT_ELIGIBLE';
-  });
-  t('moving_into_window_allowed',function(){
-    var x=PCMOD_grandfatherWindow_(PCMOD_TEST_gate_(false),PCMOD_TEST_rowInfo_(['2026-09-17','2026-09-18']),PCMOD_TEST_blocks_(['2026-08-18','2026-08-19']));
-    return x.allowed===true&&x.newMaxDays===0;
-  });
+  t('planning_window_gate_remains_leading',src.indexOf("if(!gate||gate.canCommit!==true)return")>=0,src);
+  t('no_grandfather_helper_in_modify_path',src.indexOf('PCMOD_grandfatherWindow_')<0,src);
+  t('no_window_hard_block_downgrade',src.indexOf('GATE_ACCEPTED_GRANDFATHERED_RESCHEDULE')<0,src);
+  t('planning_window_leading_meta_present',src.indexOf('planningWindowLeading:true')>=0,src);
+  t('availability_still_after_gate',src.indexOf('PlanningCanonicalAvailabilityOwnerGuard_evaluate')>src.indexOf('gate.canCommit'),src);
+  t('row_validation_before_availability_write',src.indexOf('PlanningCanonicalRowWriter_validate')>=0&&src.indexOf('PlanningCanonicalRowWriter_validate')<src.indexOf('PlanningCanonicalAvailabilityAdapter_release'),src);
+  t('accepted_reacceptance_preserved',src.indexOf("reaccept=status==='ACCEPTED'")>=0&&src.indexOf('acceptedMovesToApproved:reaccept')>=0,src);
+  t('required_dependencies_preserved',deps.indexOf("gate:typeof PlanningCommitGateService_evaluateLocked_")>=0&&deps.indexOf("validator:typeof PlanningCanonicalRowWriter_validate")>=0,deps);
 
   var failed=results.filter(function(x){return!x.ok;}).length;
-  var out={ok:failed===0,build:PLANNING_CANONICAL_MODIFY_GRANDFATHER_TEST_BUILD,total:results.length,passed:results.length-failed,failed:failed,results:results,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,policy:'Modify-only: an audit whose existing canonical planning is already outside the planning window may be rescheduled outside that window. Other hard blocks and revision conflicts remain hard. New/inside-window planning keeps normal planning-window enforcement.'}};
+  var out={ok:failed===0,build:PLANNING_CANONICAL_MODIFY_GRANDFATHER_TEST_BUILD,total:results.length,passed:results.length-failed,failed:failed,results:results,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,policy:'Planning window is leading for Modify. Existing/legacy planning outside the window receives no bypass; any new modified date must pass the canonical planning-window hard rule.'}};
   console.log(JSON.stringify(out,null,2));
   return out;
 }

@@ -1,27 +1,22 @@
 /***********************************************************************
  * PlanningCanonicalModifyService.js
- * BUILD: 2026-09-14_ROADMAP_2_4_CANONICAL_MODIFY_R9_EXISTING_OUTSIDE_WINDOW
+ * BUILD: 2026-09-14_ROADMAP_2_4_CANONICAL_MODIFY_R10_STRICT_WINDOW
  *
  * Planned audit reschedule policy:
  *   - date/time blocks may change; auditor remains unchanged;
  *   - Pending Approval / Approved preserve status;
  *   - Accepted -> Approved and auditor must accept the changed planning again.
  *
- * R9:
- *   - canonical planning window remains hard for normal/new planning;
- *   - Modify-only exception: an audit whose EXISTING canonical planning is
- *     already outside its persisted planning window may be rescheduled outside
- *     that window; ONLY PLANNING_WINDOW_OUTSIDE may be downgraded;
- *   - revision, qualification, Availability and every other hard block remain
- *     hard and are never grandfathered;
- *   - new modified blocks may never be in the past; an unchanged historical
- *     block already present in the audit may remain while another block is
- *     edited;
+ * R10:
+ *   - canonical planning window is hard for Modify; no grandfather bypass;
+ *   - new/changed blocks may never be in the past; an unchanged historical
+ *     block already present in the audit may remain while another block is edited;
  *   - canonical row validation runs BEFORE any Availability mutation;
+ *   - planned-hours failures are returned concretely to the UI;
  *   - successful prevalidation is reused by the writer under the same lock;
  *   - rollback remains in place for reserve/write failures.
  ***********************************************************************/
-var PLANNING_CANONICAL_MODIFY_BUILD='2026-09-14_ROADMAP_2_4_CANONICAL_MODIFY_R9_EXISTING_OUTSIDE_WINDOW';
+var PLANNING_CANONICAL_MODIFY_BUILD='2026-09-14_ROADMAP_2_4_CANONICAL_MODIFY_R10_STRICT_WINDOW';
 
 function PCMOD_clean_(v){return String(v==null?'':v).trim();}
 function PCMOD_normEmail_(v){return PCMOD_clean_(v).toLowerCase();}
@@ -63,37 +58,6 @@ function PCMOD_oldPlanning_(rowInfo){
     assigned:ctx.colAssigned>0?PCMOD_clean_(row[ctx.colAssigned-1]):''
   };
 }
-function PCMOD_iso_(v){
-  if(!v)return'';
-  if(Object.prototype.toString.call(v)==='[object Date]'&&!isNaN(v.getTime())){
-    var ss=SpreadsheetApp.getActive(),tz=ss&&ss.getSpreadsheetTimeZone?ss.getSpreadsheetTimeZone():Session.getScriptTimeZone();
-    return Utilities.formatDate(v,tz||Session.getScriptTimeZone(),'yyyy-MM-dd');
-  }
-  var s=PCMOD_clean_(v);if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;
-  var m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);return m?m[3]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[1]).slice(-2):'';
-}
-function PCMOD_window_(sh,rowInfo){
-  var headers=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0]||[],row=rowInfo&&rowInfo.row||[];
-  function ix(name){var want=PCMOD_clean_(name).toLowerCase();for(var i=0;i<headers.length;i++)if(PCMOD_clean_(headers[i]).toLowerCase()===want)return i;return-1;}
-  var a=ix('Planning window from'),b=ix('Planning window to');
-  return{from:a>=0?PCMOD_iso_(row[a]):'',to:b>=0?PCMOD_iso_(row[b]):''};
-}
-function PCMOD_existingOutsideWindow_(old,win){
-  if(!win||!win.from||!win.to)return false;
-  for(var i=0;i<(old&&old.blocks||[]).length;i++){
-    var d=PCMOD_clean_(old.blocks[i]&&old.blocks[i].date).slice(0,10);
-    if(d&&(d<win.from||d>win.to))return true;
-  }
-  return false;
-}
-function PCMOD_gateOnlyWindowHardBlock_(gate){
-  if(!gate||gate.revisionAccepted!==true||!gate.preflight)return false;
-  var verdicts=gate.preflight&&gate.preflight.validatorResult&&gate.preflight.validatorResult.verdicts||[],hard=[];
-  for(var i=0;i<verdicts.length;i++)if(PCMOD_status_(verdicts[i]&&verdicts[i].level)==='HARD_BLOCK')hard.push(verdicts[i]||{});
-  if(!hard.length)return false;
-  for(var j=0;j<hard.length;j++)if(PCMOD_clean_(hard[j].ruleCode)!=='PLANNING_WINDOW_OUTSIDE')return false;
-  return true;
-}
 function PCMOD_transition_(status){var s=PCMOD_status_(status),after=s==='ACCEPTED'?'APPROVED':s;return{beforeStatus:s,beforeStatusDisplay:PCMOD_display_(s),afterStatus:after,afterStatusDisplay:PCMOD_display_(after)};}
 function PCMOD_restore_(auditId,old){if(!old||!old.blocks||!old.blocks.length)return{success:true,skipped:true,reason:'NO_OLD_BLOCKS'};return PlanningCanonicalAvailabilityAdapter_reserve({auditId:auditId,auditorEmail:old.auditorEmail||old.assigned,auditorName:old.auditorName||old.assigned,blocks:old.blocks});}
 function PCMOD_failure_(auditId,reason,message,extra){
@@ -129,17 +93,16 @@ function PlanningCanonicalModifyService_modify(input){
     var status=PCMOD_status_(rowInfo.status);
     if(status!=='APPROVED'&&status!=='PENDING_APPROVAL'&&status!=='ACCEPTED')return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:false,reason:'STATUS_NOT_MODIFIABLE',canonicalStatus:rowInfo.status,meta:{writes:false,lockUsed:true}};
 
-    var old=PCMOD_oldPlanning_(rowInfo),win=PCMOD_window_(sh,rowInfo),existingOutside=PCMOD_existingOutsideWindow_(old,win),today=PCMOD_todayIso_(),pastDates=PCMOD_pastDates_(blocks,today,old.blocks);
-    if(pastDates.length)return PCMOD_failure_(auditId,'PAST_DATE_NOT_ALLOWED','Modify cannot create or alter a planning block before '+today+'.',{pastDates:pastDates,today:today,meta:{writes:false,lockUsed:true,pastDateHardRule:true,unchangedHistoricalBlocksAllowed:true}});
+    var old=PCMOD_oldPlanning_(rowInfo),today=PCMOD_todayIso_(),pastDates=PCMOD_pastDates_(blocks,today,old.blocks);
+    if(pastDates.length)return PCMOD_failure_(auditId,'PAST_DATE_NOT_ALLOWED','Modify cannot create or alter a planning block before '+today+'.',{pastDates:pastDates,today:today,meta:{writes:false,lockUsed:true,pastDateHardRule:true,unchangedHistoricalBlocksAllowed:true,planningWindowLeading:true}});
 
     var oldOwner=PCMOD_normEmail_(old.auditorEmail||old.assigned),newOwner=PCMOD_normEmail_(email||name);
-    if(oldOwner&&newOwner&&oldOwner!==newOwner)return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:false,reason:'AUDITOR_CHANGE_NOT_SUPPORTED_R9',canonicalStatus:rowInfo.status,meta:{writes:false,lockUsed:true,sameAuditorOnly:true}};
+    if(oldOwner&&newOwner&&oldOwner!==newOwner)return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:false,reason:'AUDITOR_CHANGE_NOT_SUPPORTED_R10',canonicalStatus:rowInfo.status,meta:{writes:false,lockUsed:true,sameAuditorOnly:true}};
     if(!email&&old.auditorEmail)email=old.auditorEmail;
     if(!name&&old.auditorName)name=old.auditorName;
 
     var gate=PlanningCommitGateService_evaluateLocked_({auditId:auditId,expectedRevision:expected,auditorEmail:email,auditorName:name,blocks:blocks,waiverAccepted:input.waiverAccepted===true});
-    var windowException=existingOutside&&PCMOD_gateOnlyWindowHardBlock_(gate);
-    if((!gate||gate.canCommit!==true)&&!windowException)return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:false,reason:gate&&gate.reason||'MODIFY_PREFLIGHT_BLOCKED',gate:gate||null,meta:{writes:false,lockUsed:true,pastDateHardRule:true,existingOutsideWindow:existingOutside,windowExceptionApplied:false}};
+    if(!gate||gate.canCommit!==true)return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:false,reason:gate&&gate.reason||'MODIFY_PREFLIGHT_BLOCKED',gate:gate||null,meta:{writes:false,lockUsed:true,pastDateHardRule:true,planningWindowLeading:true}};
 
     var owner=PlanningCanonicalAvailabilityOwnerGuard_evaluate();
     if(!owner||owner.canProceed!==true)return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:false,reason:'CANONICAL_AVAILABILITY_OWNER_UNAVAILABLE',gate:gate,availabilityOwnerGuard:owner||null,meta:{writes:false,lockUsed:true}};
@@ -148,7 +111,7 @@ function PlanningCanonicalModifyService_modify(input){
     var writerOpts={auditId:auditId,blocks:blocks,auditorName:name||old.auditorName,auditorEmail:email||old.auditorEmail,allowWeekend:input.allowWeekendOverride!==false,isReschedule:true};
     var validation=PlanningCanonicalRowWriter_validate(rowInfo,transition,writerOpts);
     if(!validation||validation.success!==true){
-      return PCMOD_failure_(auditId,validation&&validation.code||'CANONICAL_ROW_VALIDATION_FAILED',validation&&validation.message||'Canonical row validation failed.',{validation:validation||null,plannedHours:validation&&validation.plannedHours,requiredHours:validation&&validation.requiredHours,hardConflicts:validation&&validation.hardConflicts||[],gate:gate,meta:{writes:false,lockUsed:true,validatedBeforeAvailability:true,availabilityMutated:false,windowExceptionApplied:windowException}});
+      return PCMOD_failure_(auditId,validation&&validation.code||'CANONICAL_ROW_VALIDATION_FAILED',validation&&validation.message||'Canonical row validation failed.',{validation:validation||null,plannedHours:validation&&validation.plannedHours,requiredHours:validation&&validation.requiredHours,hardConflicts:validation&&validation.hardConflicts||[],gate:gate,meta:{writes:false,lockUsed:true,validatedBeforeAvailability:true,availabilityMutated:false,planningWindowLeading:true}});
     }
 
     var released=PlanningCanonicalAvailabilityAdapter_release({auditId:auditId});
@@ -173,6 +136,6 @@ function PlanningCanonicalModifyService_modify(input){
     var reaccept=status==='ACCEPTED';
     var notification=reaccept?PCMOD_notifyReaccept_({auditId:auditId,auditorEmail:email,auditorName:name,actorEmail:input.actorEmail},writeResult):null;
     var newRevision=PRT_tokenFromSnapshot_({auditId:auditId,status:writeResult.newStatus||writeResult.afterStatusDisplay,assignedTo:writeResult.assignedTo,datePlanned:writeResult.plannedDate,planningJson:writeResult.planningJson});
-    return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:true,reason:reaccept?'MODIFIED_REACCEPTANCE_REQUIRED':'MODIFIED',gate:gate,planningWindowException:windowException?{applied:true,reason:'EXISTING_OUTSIDE_WINDOW_MODIFY_ONLY',from:win.from,to:win.to}:null,validation:validation,plannedHours:validation.plannedHours,requiredHours:validation.requiredHours,availabilityRelease:released,availabilityReserve:reserved,writeResult:writeResult,newRevision:newRevision,notification:notification,meta:{writes:true,lockUsed:true,sameAuditorOnly:true,statusPreserved:!reaccept,reacceptanceRequired:reaccept,acceptedMovesToApproved:reaccept,validatedBeforeAvailability:true,availabilityRestoreOnFailure:true,availabilityFlushedBeforeRefresh:true,pastDateHardRule:true,unchangedHistoricalBlocksAllowed:true,existingOutsideWindow:existingOutside,windowExceptionApplied:windowException,windowExceptionScope:'PLANNING_WINDOW_OUTSIDE_ONLY',notificationRequired:reaccept,notificationDispatched:!!(notification&&notification.success===true&&notification.skipped!==true),notificationFailureDoesNotRollbackLifecycle:true,notificationEvent:reaccept?'AUDIT_PLANNED_BY_MANAGER':'',newSsot:false}};
+    return{success:true,build:PLANNING_CANONICAL_MODIFY_BUILD,auditId:auditId,modified:true,reason:reaccept?'MODIFIED_REACCEPTANCE_REQUIRED':'MODIFIED',gate:gate,validation:validation,plannedHours:validation.plannedHours,requiredHours:validation.requiredHours,availabilityRelease:released,availabilityReserve:reserved,writeResult:writeResult,newRevision:newRevision,notification:notification,meta:{writes:true,lockUsed:true,sameAuditorOnly:true,statusPreserved:!reaccept,reacceptanceRequired:reaccept,acceptedMovesToApproved:reaccept,validatedBeforeAvailability:true,availabilityRestoreOnFailure:true,availabilityFlushedBeforeRefresh:true,pastDateHardRule:true,unchangedHistoricalBlocksAllowed:true,planningWindowLeading:true,notificationRequired:reaccept,notificationDispatched:!!(notification&&notification.success===true&&notification.skipped!==true),notificationFailureDoesNotRollbackLifecycle:true,notificationEvent:reaccept?'AUDIT_PLANNED_BY_MANAGER':'',newSsot:false}};
   },wait);
 }

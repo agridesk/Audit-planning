@@ -1,8 +1,8 @@
 /***********************************************************************
  * PlanningWorkspaceModifyWindowGuardTests.js
- * BUILD: 2026-09-14_WORKSPACE_MODIFY_WINDOW_GUARD_TESTS_R3_EXISTING_OUTSIDE
+ * BUILD: 2026-09-14_WORKSPACE_MODIFY_WINDOW_GUARD_TESTS_R4_PICKER_PARSE
  ***********************************************************************/
-var PLANNING_WORKSPACE_MODIFY_WINDOW_GUARD_TEST_BUILD='2026-09-14_WORKSPACE_MODIFY_WINDOW_GUARD_TESTS_R3_EXISTING_OUTSIDE';
+var PLANNING_WORKSPACE_MODIFY_WINDOW_GUARD_TEST_BUILD='2026-09-14_WORKSPACE_MODIFY_WINDOW_GUARD_TESTS_R4_PICKER_PARSE';
 function RUN_PLANNING_WORKSPACE_MODIFY_WINDOW_GUARD_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var ui=PlanningWorkspaceUi_contract();
@@ -21,15 +21,16 @@ function RUN_PLANNING_WORKSPACE_MODIFY_WINDOW_GUARD_REGRESSION(){
   t('guardDetectsExistingOutsideWindow',guard.indexOf('function existingOutsideWindow(')>=0&&guard.indexOf('existingOutsideWindow(detail,from,to)')>=0);
   t('normalModifyStillUsesWindow',guard.indexOf('return within(date,from,to)')>=0);
   t('existingOutsideAllowsFutureDates',guard.indexOf('if(exceptionActive)return true')>=0);
-  t('pastNewDatesStillBlocked',guard.indexOf("date<today")>=0&&guard.indexOf('Past date not allowed')>=0);
+  t('pastNewDatesStillBlocked',guard.indexOf('date<today')>=0&&guard.indexOf('Past date not allowed')>=0);
   t('currentAuditDatesNotBlocked',guard.indexOf('var isCurrent=markCurrentAudit')>=0&&guard.indexOf('var out=!isCurrent')>=0);
   t('currentAuditLabelVisible',guard.indexOf("span.textContent='Current audit'")>=0&&guard.indexOf('data-pw-current-audit')>=0);
+  t('pickerLabelParserAcceptsCommaOrSpace',guard.indexOf('[,\\s]+')>=0);
   t('baseUnavailableLabelVisible',guard.indexOf('Unavailable (base availability)')>=0);
   t('exceptionRemovesUpperInputMax',guard.indexOf("inputs[i].removeAttribute('max')")>=0);
   t('normalModeKeepsUpperInputMax',guard.indexOf('inputs[i].max=to')>=0);
   t('guardSchedulesFreshReloadAfterSuccessfulSave',guard.indexOf('scheduleFreshReload')>=0&&guard.indexOf('__pwSaveAttempted')>=0&&guard.indexOf("c.load('load')")>=0);
   t('backendHasExistingOutsideException',modify.indexOf('PCMOD_existingOutsideWindow_')>=0&&modify.indexOf('windowException=existingOutside')>=0);
-  t('backendExceptionWindowOnly',modify.indexOf("PLANNING_WINDOW_OUTSIDE")>=0&&modify.indexOf('PCMOD_gateOnlyWindowHardBlock_')>=0);
+  t('backendExceptionWindowOnly',modify.indexOf('PLANNING_WINDOW_OUTSIDE')>=0&&modify.indexOf('PCMOD_gateOnlyWindowHardBlock_')>=0);
   t('backendRevisionMustRemainAccepted',String(PCMOD_gateOnlyWindowHardBlock_).indexOf('revisionAccepted!==true')>=0);
   t('backendPastDateRuleRetained',modify.indexOf('PAST_DATE_NOT_ALLOWED')>=0&&modify.indexOf('PCMOD_pastDates_')>=0);
   t('pickerMondayStartRetained',actions.indexOf('function mondayStart(')>=0&&actions.indexOf('start=mondayStart(anchor)')>=0);

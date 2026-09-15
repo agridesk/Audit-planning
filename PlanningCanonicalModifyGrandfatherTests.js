@@ -1,9 +1,9 @@
 /***********************************************************************
  * PlanningCanonicalModifyGrandfatherTests.js
- * BUILD: 2026-09-14_CANONICAL_MODIFY_WINDOW_STRICT_TESTS_R6
+ * BUILD: 2026-09-15_CANONICAL_MODIFY_WINDOW_STRICT_TESTS_R7
  * Historical file/runner name retained for continuity.
  ***********************************************************************/
-var PLANNING_CANONICAL_MODIFY_GRANDFATHER_TEST_BUILD='2026-09-14_CANONICAL_MODIFY_WINDOW_STRICT_TESTS_R6';
+var PLANNING_CANONICAL_MODIFY_GRANDFATHER_TEST_BUILD='2026-09-15_CANONICAL_MODIFY_WINDOW_STRICT_TESTS_R7';
 
 function RUN_PLANNING_CANONICAL_MODIFY_GRANDFATHER_REGRESSION(){
   var results=[];
@@ -23,7 +23,7 @@ function RUN_PLANNING_CANONICAL_MODIFY_GRANDFATHER_REGRESSION(){
   t('availability_owner_guard_retained',src.indexOf('PlanningCanonicalAvailabilityOwnerGuard_evaluate')>=0,src);
   t('availability_restore_on_failure_retained',src.indexOf('PCMOD_restore_')>=0&&src.indexOf('availabilityRestoreOnFailure:true')>=0,src);
   t('accepted_reacceptance_preserved',src.indexOf("reaccept=status==='ACCEPTED'")>=0&&src.indexOf('acceptedMovesToApproved:reaccept')>=0,src);
-  t('same_auditor_only_retained',src.indexOf('AUDITOR_CHANGE_NOT_SUPPORTED_R10')>=0,src);
+  t('same_auditor_only_retained',src.indexOf('AUDITOR_CHANGE_NOT_SUPPORTED_R11')>=0&&src.indexOf('sameAuditorOnly:true')>=0,src);
   t('required_dependencies_preserved',deps.indexOf("gate:typeof PlanningCommitGateService_evaluateLocked_")>=0&&deps.indexOf("validator:typeof PlanningCanonicalRowWriter_validate")>=0,deps);
 
   var failed=results.filter(function(x){return!x.ok;}).length;

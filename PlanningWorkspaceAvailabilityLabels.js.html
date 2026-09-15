@@ -1,30 +1,30 @@
 <script>
 (function(){
 'use strict';
-var BUILD='2026-09-15_WORKSPACE_AVAILABILITY_LABELS_R2_SAFE_OBSERVER';
-var TECH=/\b(?:MANUAL_AUDITOR_BLOCKED_SOFT|USER_MANUAL|MANUAL_SOFT|MANUAL_UNAVAILABLE_SOFT|DEFAULT_AUDITOR_BLOCKED_SOFT|DEFAULT_WEEKEND_SOFT|SYSTEM_DEFAULT|CALENDAR|CALENDER)\b/gi;
+var BUILD='2026-09-15_WORKSPACE_AVAILABILITY_LABELS_R3_DEFAULT_SOFT';
+var TECH=/\b(?:MANUAL_AUDITOR_BLOCKED_SOFT|USER_MANUAL|MANUAL_SOFT|MANUAL_UNAVAILABLE_SOFT|DEFAULT_AUDITOR_BLOCKED_SOFT|DEFAULT_WEEKEND_SOFT|SYSTEM_DEFAULT|USER_DEFAULT|DEFAULT)\b/gi;
 function clean(v){return String(v==null?'':v).trim()}
 function tidy(v){return clean(v).replace(TECH,'').replace(/\s*\|\s*/g,' · ').replace(/(?:\s*·\s*){2,}/g,' · ').replace(/^\s*·\s*|\s*·\s*$/g,'').trim()}
 function setTextIfChanged(n,v){v=clean(v);if(n&&clean(n.textContent)!==v)n.textContent=v}
+function isAuditorSoft(raw){return /(?:MANUAL|DEFAULT)_AUDITOR_BLOCKED_SOFT|USER_MANUAL|USER_DEFAULT|MANUAL_UNAVAILABLE_SOFT/i.test(raw)}
 function normalizeWorkspace(){
   var root=document.getElementById('calendar');if(!root)return;
-  root.querySelectorAll('.planning-cell > .cell-state').forEach(function(n){
+  root.querySelectorAll('.planning-cell > .cell-state, .day > .cell-state').forEach(function(n){
     var raw=clean(n.textContent);if(!raw||n.style.display==='none')return;
     var low=raw.toLowerCase(),time=(raw.match(/\b\d{1,2}:\d{2}\s*[–-]\s*\d{1,2}:\d{2}\b/)||[])[0]||'';
-    if(low.indexOf('weekend')>=0){setTextIfChanged(n,'Weekend · soft');return}
-    if(/MANUAL_AUDITOR_BLOCKED_SOFT|USER_MANUAL|MANUAL_SOFT|MANUAL_UNAVAILABLE_SOFT/i.test(raw)){setTextIfChanged(n,'Auditor unavailable'+(time?' · '+time:''));return}
+    if(low.indexOf('weekend')>=0||/DEFAULT_WEEKEND_SOFT/i.test(raw)){setTextIfChanged(n,'Weekend · soft');return}
+    if(isAuditorSoft(raw)){setTextIfChanged(n,'Auditor unavailable'+(time?' · '+time:'')+' · soft');return}
     if(low.indexOf('unavailable')===0){var t=tidy(raw.replace(/^Unavailable\s*[·:-]?\s*/i,''));setTextIfChanged(n,'Auditor unavailable'+(t?' · '+t:''));}
   });
 }
 function normalizeModify(){
   var modal=document.getElementById('pwPlannedModal');if(!modal)return;
-  var picker=modal.querySelector('[data-pw-availability-picker]')||modal;
-  picker.querySelectorAll('button').forEach(function(b){
+  modal.querySelectorAll('button').forEach(function(b){
     if(!b.querySelector('b'))return;
     var spans=b.querySelectorAll('span');if(!spans.length)return;var n=spans[spans.length-1],raw=clean(n.textContent),low=raw.toLowerCase();
     if(!raw)return;
-    if(low==='weekend / soft'||low==='weekend/soft'){setTextIfChanged(n,'Weekend · soft');return}
-    if(/MANUAL_AUDITOR_BLOCKED_SOFT|USER_MANUAL|MANUAL_SOFT|MANUAL_UNAVAILABLE_SOFT/i.test(raw)){var time=(raw.match(/\b\d{1,2}:\d{2}\s*[–-]\s*\d{1,2}:\d{2}\b/)||[])[0]||'';setTextIfChanged(n,'Auditor unavailable'+(time?' · '+time:''));return}
+    if(low==='weekend / soft'||low==='weekend/soft'||/DEFAULT_WEEKEND_SOFT/i.test(raw)){setTextIfChanged(n,'Weekend · soft');return}
+    if(isAuditorSoft(raw)){var time=(raw.match(/\b\d{1,2}:\d{2}\s*[–-]\s*\d{1,2}:\d{2}\b/)||[])[0]||'';setTextIfChanged(n,'Auditor unavailable'+(time?' · '+time:'')+' · soft');return}
     if(low==='unavailable')setTextIfChanged(n,'Auditor unavailable');
   });
 }

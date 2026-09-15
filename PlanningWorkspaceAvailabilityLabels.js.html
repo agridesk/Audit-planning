@@ -1,0 +1,37 @@
+<script>
+(function(){
+'use strict';
+var BUILD='2026-09-15_WORKSPACE_AVAILABILITY_LABELS_R1';
+var TECH=/\b(?:MANUAL_AUDITOR_BLOCKED_SOFT|USER_MANUAL|MANUAL_SOFT|MANUAL_UNAVAILABLE_SOFT|DEFAULT_AUDITOR_BLOCKED_SOFT|DEFAULT_WEEKEND_SOFT|SYSTEM_DEFAULT|CALENDAR|CALENDER)\b/gi;
+function clean(v){return String(v==null?'':v).trim()}
+function tidy(v){return clean(v).replace(TECH,'').replace(/\s*\|\s*/g,' · ').replace(/(?:\s*·\s*){2,}/g,' · ').replace(/^\s*·\s*|\s*·\s*$/g,'').trim()}
+function normalizeWorkspace(){
+  var root=document.getElementById('calendar');if(!root)return;
+  root.querySelectorAll('.planning-cell > .cell-state').forEach(function(n){
+    var raw=clean(n.textContent);if(!raw||n.style.display==='none')return;
+    var low=raw.toLowerCase(),time=(raw.match(/\b\d{1,2}:\d{2}\s*[–-]\s*\d{1,2}:\d{2}\b/)||[])[0]||'';
+    if(low.indexOf('weekend')>=0){n.textContent='Weekend · soft';return}
+    if(/MANUAL_AUDITOR_BLOCKED_SOFT|USER_MANUAL|MANUAL_SOFT|MANUAL_UNAVAILABLE_SOFT/i.test(raw)){
+      n.textContent='Auditor unavailable'+(time?' · '+time:'');return;
+    }
+    if(low.indexOf('unavailable')===0){var t=tidy(raw.replace(/^Unavailable\s*[·:-]?\s*/i,''));n.textContent='Auditor unavailable'+(t?' · '+t:'');}
+  });
+}
+function normalizeModify(){
+  var modal=document.getElementById('pwPlannedModal');if(!modal)return;
+  modal.querySelectorAll('button').forEach(function(b){
+    var spans=b.querySelectorAll('span');if(!spans.length)return;var n=spans[spans.length-1],raw=clean(n.textContent),low=raw.toLowerCase();
+    if(!raw)return;
+    if(low==='weekend / soft'||low==='weekend/soft'){n.textContent='Weekend · soft';return}
+    if(/MANUAL_AUDITOR_BLOCKED_SOFT|USER_MANUAL|MANUAL_SOFT|MANUAL_UNAVAILABLE_SOFT/i.test(raw)){var time=(raw.match(/\b\d{1,2}:\d{2}\s*[–-]\s*\d{1,2}:\d{2}\b/)||[])[0]||'';n.textContent='Auditor unavailable'+(time?' · '+time:'');return}
+    if(low==='unavailable')n.textContent='Auditor unavailable';
+  });
+  var title=Array.prototype.find.call(modal.querySelectorAll('div'),function(n){return clean(n.textContent).indexOf('Green = free')>=0});
+  if(title)title.innerHTML=title.innerHTML.replace('Green = free · amber = weekend/soft · blue = occupied but second audit may fit · red = explicitly unavailable','Green = Free · amber = Weekend · soft · blue = Occupied / Current audit · red = Auditor unavailable');
+}
+var timer=0;function schedule(){if(timer)return;timer=setTimeout(function(){timer=0;normalizeWorkspace();normalizeModify()},0)}
+var observer=new MutationObserver(schedule);function bind(){observer.observe(document.body,{childList:true,subtree:true,characterData:true});schedule()}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
+window.PlanningWorkspaceAvailabilityLabels={BUILD:BUILD,apply:function(){normalizeWorkspace();normalizeModify()}};
+})();
+</script>

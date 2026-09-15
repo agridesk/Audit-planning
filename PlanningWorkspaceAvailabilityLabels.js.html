@@ -1,21 +1,22 @@
 <script>
 (function(){
 'use strict';
-var BUILD='2026-09-15_WORKSPACE_AVAILABILITY_LABELS_R3_DEFAULT_SOFT';
+var BUILD='2026-09-15_WORKSPACE_AVAILABILITY_LABELS_R4_ACTUAL_CELL_DOM';
 var TECH=/\b(?:MANUAL_AUDITOR_BLOCKED_SOFT|USER_MANUAL|MANUAL_SOFT|MANUAL_UNAVAILABLE_SOFT|DEFAULT_AUDITOR_BLOCKED_SOFT|DEFAULT_WEEKEND_SOFT|SYSTEM_DEFAULT|USER_DEFAULT|DEFAULT)\b/gi;
 function clean(v){return String(v==null?'':v).trim()}
 function tidy(v){return clean(v).replace(TECH,'').replace(/\s*\|\s*/g,' · ').replace(/(?:\s*·\s*){2,}/g,' · ').replace(/^\s*·\s*|\s*·\s*$/g,'').trim()}
 function setTextIfChanged(n,v){v=clean(v);if(n&&clean(n.textContent)!==v)n.textContent=v}
 function isAuditorSoft(raw){return /(?:MANUAL|DEFAULT)_AUDITOR_BLOCKED_SOFT|USER_MANUAL|USER_DEFAULT|MANUAL_UNAVAILABLE_SOFT/i.test(raw)}
+function normalizeStateNode(n){
+  var raw=clean(n&&n.textContent);if(!raw||!n||n.style.display==='none')return;
+  var low=raw.toLowerCase(),time=(raw.match(/\b\d{1,2}:\d{2}\s*[–-]\s*\d{1,2}:\d{2}\b/)||[])[0]||'';
+  if(low.indexOf('weekend')>=0||/DEFAULT_WEEKEND_SOFT/i.test(raw)){setTextIfChanged(n,'Weekend · soft');return}
+  if(isAuditorSoft(raw)){setTextIfChanged(n,'Auditor unavailable'+(time?' · '+time:'')+' · soft');return}
+  if(low.indexOf('unavailable')===0){var t=tidy(raw.replace(/^Unavailable\s*[·:-]?\s*/i,''));setTextIfChanged(n,'Auditor unavailable'+(t?' · '+t:''));}
+}
 function normalizeWorkspace(){
   var root=document.getElementById('calendar');if(!root)return;
-  root.querySelectorAll('.planning-cell > .cell-state, .day > .cell-state').forEach(function(n){
-    var raw=clean(n.textContent);if(!raw||n.style.display==='none')return;
-    var low=raw.toLowerCase(),time=(raw.match(/\b\d{1,2}:\d{2}\s*[–-]\s*\d{1,2}:\d{2}\b/)||[])[0]||'';
-    if(low.indexOf('weekend')>=0||/DEFAULT_WEEKEND_SOFT/i.test(raw)){setTextIfChanged(n,'Weekend · soft');return}
-    if(isAuditorSoft(raw)){setTextIfChanged(n,'Auditor unavailable'+(time?' · '+time:'')+' · soft');return}
-    if(low.indexOf('unavailable')===0){var t=tidy(raw.replace(/^Unavailable\s*[·:-]?\s*/i,''));setTextIfChanged(n,'Auditor unavailable'+(t?' · '+t:''));}
-  });
+  root.querySelectorAll('.cell-state').forEach(normalizeStateNode);
 }
 function normalizeModify(){
   var modal=document.getElementById('pwPlannedModal');if(!modal)return;
@@ -28,11 +29,19 @@ function normalizeModify(){
     if(low==='unavailable')setTextIfChanged(n,'Auditor unavailable');
   });
 }
-var timer=0;function schedule(){if(timer)return;timer=setTimeout(function(){timer=0;normalizeWorkspace();normalizeModify()},16)}
+var timer=0;function schedule(){if(timer)return;timer=setTimeout(function(){timer=0;normalizeWorkspace();normalizeModify()},0)}
 var observer=null;function bind(){
   if(observer)observer.disconnect();
-  observer=new MutationObserver(function(muts){for(var i=0;i<muts.length;i++){if(muts[i].type==='childList'){schedule();return}}});
-  observer.observe(document.body,{childList:true,subtree:true});
+  observer=new MutationObserver(function(muts){
+    for(var i=0;i<muts.length;i++){
+      var m=muts[i];
+      if(m.type==='childList'||m.type==='characterData'){schedule();return}
+    }
+  });
+  var calendar=document.getElementById('calendar');
+  if(calendar)observer.observe(calendar,{childList:true,subtree:true,characterData:true});
+  var app=document.querySelector('.pw-app');
+  if(app&&app!==calendar)observer.observe(app,{childList:true,subtree:true});
   schedule();
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();

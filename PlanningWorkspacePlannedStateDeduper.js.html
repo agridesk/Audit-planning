@@ -1,0 +1,30 @@
+<script>
+(function(){
+'use strict';
+var BUILD='2026-09-15_WORKSPACE_PLANNED_STATE_DEDUPER_R1';
+var root=null,observer=null,timer=0;
+function apply(){
+  timer=0;
+  var r=document.getElementById('calendar');
+  if(!r)return;
+  r.querySelectorAll('.planning-cell').forEach(function(cell){
+    var state=cell.querySelector(':scope > .cell-state');
+    if(!state)return;
+    var hasPlanned=!!cell.querySelector('.cal-item.planned[data-planned-audit]');
+    state.style.display=hasPlanned?'none':'';
+    state.setAttribute('aria-hidden',hasPlanned?'true':'false');
+  });
+}
+function schedule(){if(timer)return;timer=setTimeout(apply,0)}
+function bind(){
+  root=document.getElementById('calendar');
+  if(!root)return;
+  if(observer)observer.disconnect();
+  observer=new MutationObserver(schedule);
+  observer.observe(root,{childList:true,subtree:true});
+  apply();
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
+window.PlanningWorkspacePlannedStateDeduper={BUILD:BUILD,apply:apply};
+})();
+</script>

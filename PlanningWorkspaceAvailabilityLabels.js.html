@@ -1,50 +1,54 @@
 <script>
 (function(){
 'use strict';
-var BUILD='2026-09-15_WORKSPACE_AVAILABILITY_LABELS_R4_ACTUAL_CELL_DOM';
-var TECH=/\b(?:MANUAL_AUDITOR_BLOCKED_SOFT|USER_MANUAL|MANUAL_SOFT|MANUAL_UNAVAILABLE_SOFT|DEFAULT_AUDITOR_BLOCKED_SOFT|DEFAULT_WEEKEND_SOFT|SYSTEM_DEFAULT|USER_DEFAULT|DEFAULT)\b/gi;
+var BUILD='2026-09-15_WORKSPACE_AVAILABILITY_LABELS_R5_CALENDAR_TEXT_SOURCE';
 function clean(v){return String(v==null?'':v).trim()}
-function tidy(v){return clean(v).replace(TECH,'').replace(/\s*\|\s*/g,' · ').replace(/(?:\s*·\s*){2,}/g,' · ').replace(/^\s*·\s*|\s*·\s*$/g,'').trim()}
-function setTextIfChanged(n,v){v=clean(v);if(n&&clean(n.textContent)!==v)n.textContent=v}
-function isAuditorSoft(raw){return /(?:MANUAL|DEFAULT)_AUDITOR_BLOCKED_SOFT|USER_MANUAL|USER_DEFAULT|MANUAL_UNAVAILABLE_SOFT/i.test(raw)}
-function normalizeStateNode(n){
-  var raw=clean(n&&n.textContent);if(!raw||!n||n.style.display==='none')return;
-  var low=raw.toLowerCase(),time=(raw.match(/\b\d{1,2}:\d{2}\s*[–-]\s*\d{1,2}:\d{2}\b/)||[])[0]||'';
-  if(low.indexOf('weekend')>=0||/DEFAULT_WEEKEND_SOFT/i.test(raw)){setTextIfChanged(n,'Weekend · soft');return}
-  if(isAuditorSoft(raw)){setTextIfChanged(n,'Auditor unavailable'+(time?' · '+time:'')+' · soft');return}
-  if(low.indexOf('unavailable')===0){var t=tidy(raw.replace(/^Unavailable\s*[·:-]?\s*/i,''));setTextIfChanged(n,'Auditor unavailable'+(t?' · '+t:''));}
+function timeOf(raw){return (clean(raw).match(/\b\d{1,2}:\d{2}\s*[–-]\s*\d{1,2}:\d{2}\b/)||[])[0]||''}
+function replacement(raw){
+  raw=clean(raw);if(!raw)return'';
+  if(/DEFAULT_WEEKEND_SOFT/i.test(raw)||/^Unavailable\s*[·:-]?\s*\d{1,2}:\d{2}\s*[–-]\s*\d{1,2}:\d{2}\s*[·:-]?\s*Weekend\s*$/i.test(raw))return'Weekend · soft';
+  if(/(?:MANUAL|DEFAULT)_AUDITOR_BLOCKED_SOFT|USER_MANUAL|USER_DEFAULT|MANUAL_UNAVAILABLE_SOFT/i.test(raw))return'Auditor unavailable'+(timeOf(raw)?' · '+timeOf(raw):'')+' · soft';
+  return'';
 }
-function normalizeWorkspace(){
+function normalizeCalendar(){
   var root=document.getElementById('calendar');if(!root)return;
-  root.querySelectorAll('.cell-state').forEach(normalizeStateNode);
+  var walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null,false),nodes=[],n;
+  while((n=walker.nextNode()))nodes.push(n);
+  nodes.forEach(function(t){var r=replacement(t.nodeValue);if(r&&clean(t.nodeValue)!==r)t.nodeValue=r});
 }
 function normalizeModify(){
   var modal=document.getElementById('pwPlannedModal');if(!modal)return;
-  modal.querySelectorAll('button').forEach(function(b){
-    if(!b.querySelector('b'))return;
-    var spans=b.querySelectorAll('span');if(!spans.length)return;var n=spans[spans.length-1],raw=clean(n.textContent),low=raw.toLowerCase();
-    if(!raw)return;
-    if(low==='weekend / soft'||low==='weekend/soft'||/DEFAULT_WEEKEND_SOFT/i.test(raw)){setTextIfChanged(n,'Weekend · soft');return}
-    if(isAuditorSoft(raw)){var time=(raw.match(/\b\d{1,2}:\d{2}\s*[–-]\s*\d{1,2}:\d{2}\b/)||[])[0]||'';setTextIfChanged(n,'Auditor unavailable'+(time?' · '+time:'')+' · soft');return}
-    if(low==='unavailable')setTextIfChanged(n,'Auditor unavailable');
-  });
+  var walker=document.createTreeWalker(modal,NodeFilter.SHOW_TEXT,null,false),nodes=[],n;
+  while((n=walker.nextNode()))nodes.push(n);
+  nodes.forEach(function(t){var r=replacement(t.nodeValue);if(r&&clean(t.nodeValue)!==r)t.nodeValue=r});
 }
-var timer=0;function schedule(){if(timer)return;timer=setTimeout(function(){timer=0;normalizeWorkspace();normalizeModify()},0)}
-var observer=null;function bind(){
-  if(observer)observer.disconnect();
-  observer=new MutationObserver(function(muts){
+var timer=0;function schedule(){if(timer)return;timer=setTimeout(function(){timer=0;normalizeCalendar();normalizeModify()},0)}
+var calendarObserver=null,bodyObserver=null;
+function bindCalendar(){
+  var calendar=document.getElementById('calendar');if(!calendar)return false;
+  if(calendarObserver)calendarObserver.disconnect();
+  calendarObserver=new MutationObserver(schedule);
+  calendarObserver.observe(calendar,{childList:true,subtree:true,characterData:true});
+  normalizeCalendar();return true;
+}
+function bind(){
+  bindCalendar();normalizeModify();
+  if(bodyObserver)bodyObserver.disconnect();
+  bodyObserver=new MutationObserver(function(muts){
+    var needCalendar=!document.getElementById('calendar')||!calendarObserver;
     for(var i=0;i<muts.length;i++){
-      var m=muts[i];
-      if(m.type==='childList'||m.type==='characterData'){schedule();return}
+      var added=muts[i].addedNodes||[];
+      for(var j=0;j<added.length;j++){
+        var x=added[j];if(x.nodeType!==1)continue;
+        if(x.id==='calendar'||(x.querySelector&&x.querySelector('#calendar')))needCalendar=true;
+        if(x.id==='pwPlannedModal'||(x.querySelector&&x.querySelector('#pwPlannedModal')))schedule();
+      }
     }
+    if(needCalendar)bindCalendar();
   });
-  var calendar=document.getElementById('calendar');
-  if(calendar)observer.observe(calendar,{childList:true,subtree:true,characterData:true});
-  var app=document.querySelector('.pw-app');
-  if(app&&app!==calendar)observer.observe(app,{childList:true,subtree:true});
-  schedule();
+  bodyObserver.observe(document.body,{childList:true,subtree:true});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
-window.PlanningWorkspaceAvailabilityLabels={BUILD:BUILD,apply:function(){normalizeWorkspace();normalizeModify()}};
+window.PlanningWorkspaceAvailabilityLabels={BUILD:BUILD,apply:function(){normalizeCalendar();normalizeModify()}};
 })();
 </script>

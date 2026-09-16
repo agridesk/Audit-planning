@@ -1,24 +1,23 @@
 /***********************************************************************
  * PlanningDemandService.js
- * BUILD: 2026-09-16_AMS01_2_PLANNING_DEMAND_R4_AUDIT_META_FAST_PATH
+ * BUILD: 2026-09-16_AMS01_2_PLANNING_DEMAND_R5_COMPANY_META_OPT_IN
  *
  * PURPOSE
- *   First Roadmap 2.4 Planning Demand product slice.
- *   Answers: which audits must/can be planned in period X and what workload
- *   does that represent?
+ *   Roadmap 2.4 Planning Demand read model.
+ *   Answers which audits must/can be planned in period X and workload.
  *
- * SPEED CONTRACT
+ * SPEED / GOVERNANCE CONTRACT
  *   - One bulk read of Audit planning per request.
- *   - Filter on persisted planning-window columns BEFORE enrichment.
- *   - Country/Region use Audit planning directly when available.
- *   - Companies projection is fallback only when required metadata is absent.
+ *   - Filter persisted planning-window columns before enrichment.
+ *   - Companies.Locations_JSON remains authoritative company-location truth.
+ *   - Companies projection is opt-in only: explicit Country/Region filter or
+ *     includeCompanyMeta=true. No denormalized second truth is introduced.
  *   - No per-row Spreadsheet reads.
- *   - Scope extraction happens only for period candidates.
- *   - DEV-only lightweight timing via DevPerformanceLog.
- *   - No writes, no lifecycle effects, no Availability writes.
+ *   - Scope extraction only for period candidates.
+ *   - No writes, lifecycle effects or Availability writes.
  ***********************************************************************/
 
-var PLANNING_DEMAND_BUILD = '2026-09-16_AMS01_2_PLANNING_DEMAND_R4_AUDIT_META_FAST_PATH';
+var PLANNING_DEMAND_BUILD = '2026-09-16_AMS01_2_PLANNING_DEMAND_R5_COMPANY_META_OPT_IN';
 
 function PDS_clean_(v) { return String(v == null ? '' : v).trim(); }
 function PDS_norm_(v) { return PDS_clean_(v).toLowerCase(); }
@@ -35,6 +34,7 @@ function PDS_companyCore_(projection,uid,company){if(!projection||!projection.by
 function PDS_parsePlanningJsonHours_(raw){raw=PDS_clean_(raw);if(!raw)return 0;try{var p=JSON.parse(raw),nodes=[];if(Array.isArray(p))nodes=p;else if(p&&Array.isArray(p.blocks))nodes=p.blocks;else if(p&&Array.isArray(p.slots))nodes=p.slots;else if(p&&Array.isArray(p.days))nodes=p.days;var total=0;for(var i=0;i<nodes.length;i++){var n=nodes[i]||{};if(isFinite(Number(n.hours))){total+=Number(n.hours);continue}var sm=PDS_hhmmMinutes_(PDS_clean_(n.start||n.startTime)),em=PDS_hhmmMinutes_(PDS_clean_(n.end||n.endTime));if(isFinite(sm)&&isFinite(em)&&em>sm)total+=(em-sm)/60}return total}catch(e){return 0}}
 function PDS_hhmmMinutes_(v){var m=PDS_clean_(v).match(/^(\d{1,2}):(\d{2})$/);if(!m)return NaN;var hh=Number(m[1]),mm=Number(m[2]);return isFinite(hh)&&isFinite(mm)&&hh>=0&&hh<=23&&mm>=0&&mm<=59?hh*60+mm:NaN}
 function PDS_urgency_(windowTo,period){if(!windowTo)return'UNKNOWN';if(windowTo<period.from)return'OVERDUE';if(windowTo<=period.to)return'DUE_IN_PERIOD';return'OPEN_IN_PERIOD'}
+function PDS_needsCompanyProjection_(input,cCountry,cRegion){input=input||{};return !!((PDS_clean_(input.country)&&cCountry<0)||(PDS_clean_(input.region)&&cRegion<0)||(input.includeCompanyMeta===true&&(cCountry<0||cRegion<0)))}
 
 function PlanningDemandService_get(input){
   input=input||{};
@@ -50,7 +50,7 @@ function PlanningDemandService_get(input){
   if(cAuditId<0||cCompany<0||cStatus<0||cFrom<0||cTo<0)throw new Error('PlanningDemandService: required Audit planning columns missing');
   var candidates=[];for(var r=1;r<values.length;r++){var row=values[r]||[],status=PDS_clean_(row[cStatus]);if(!PDS_statusIncluded_(status))continue;if(input.status&&PDS_norm_(status)!==PDS_norm_(input.status))continue;var wf=PDS_isoDate_(row[cFrom],tz),wt=PDS_isoDate_(row[cTo],tz);if(!PDS_windowOverlaps_(wf,wt,period))continue;var assigned=cAssigned>=0?PDS_clean_(row[cAssigned]):'',preassigned=cPreassigned>=0?PDS_clean_(row[cPreassigned]):'';if(input.auditor){var needAud=PDS_norm_(input.auditor);if(PDS_norm_(assigned)!==needAud&&PDS_norm_(preassigned)!==needAud)continue}candidates.push({row:row,rowNumber:r+1,status:status,windowFrom:wf,windowTo:wt,assigned:assigned,preassigned:preassigned})}
   if(typeof DPL_mark_==='function')DPL_mark_(perf,'periodFilter',{candidates:candidates.length});
-  var companyProjection={byKey:{},rowsRead:0,colsRead:0},wantMeta=input.includeCompanyMeta!==false,needProjection=(input.country&&cCountry<0)||(input.region&&cRegion<0)||(wantMeta&&(cCountry<0||cRegion<0));
+  var companyProjection={byKey:{},rowsRead:0,colsRead:0},needProjection=PDS_needsCompanyProjection_(input,cCountry,cRegion);
   if(needProjection)companyProjection=PDS_companyProjection_(ss,candidates,cCompany,cCompanyUid);
   if(typeof DPL_mark_==='function')DPL_mark_(perf,'companyProjection',{used:!!needProjection,rowsRead:companyProjection.rowsRead||0,colsRead:companyProjection.colsRead||0,matches:Object.keys(companyProjection.byKey||{}).length});
   var out=[],totals={audits:0,hoursToPlan:0,hoursPlanned:0,hoursDedicated:0},limit=Math.max(1,Math.min(2000,Number(input.limit||500)||500)),scopeExtractMs=0,planningJsonParseMs=0,scopeExtractCalls=0,planningJsonParseCalls=0;
@@ -58,5 +58,5 @@ function PlanningDemandService_get(input){
   if(typeof DPL_mark_==='function')DPL_mark_(perf,'enrichAndProject',{returned:out.length,limit:limit,scopeExtractCalls:scopeExtractCalls,scopeExtractMs:scopeExtractMs,planningJsonParseCalls:planningJsonParseCalls,planningJsonParseMs:planningJsonParseMs});
   out.sort(function(a,b){if(a.planningWindowTo!==b.planningWindowTo)return String(a.planningWindowTo).localeCompare(String(b.planningWindowTo));if(a.country!==b.country)return String(a.country).localeCompare(String(b.country));if(a.region!==b.region)return String(a.region).localeCompare(String(b.region));return String(a.company).localeCompare(String(b.company))});if(typeof DPL_mark_==='function')DPL_mark_(perf,'sort');
   totals.hoursToPlan=Math.round(totals.hoursToPlan*100)/100;totals.hoursPlanned=Math.round(totals.hoursPlanned*100)/100;totals.hoursDedicated=Math.round(totals.hoursDedicated*100)/100;
-  var result={success:true,build:PLANNING_DEMAND_BUILD,period:period,rows:out,totals:totals,meta:{sourceRows:Math.max(0,values.length-1),periodCandidates:candidates.length,returned:out.length,truncated:out.length>=limit&&candidates.length>out.length,readModel:needProjection?'Audit planning + targeted Companies projection':'Audit planning direct metadata fast path',writes:false,companyProjectionUsed:!!needProjection,companyMetaColumns:{country:cCountry>=0,region:cRegion>=0},perfProbe:{scopeExtractCalls:scopeExtractCalls,scopeExtractMs:scopeExtractMs,planningJsonParseCalls:planningJsonParseCalls,planningJsonParseMs:planningJsonParseMs}}};if(typeof DPL_end_==='function')result.devPerformance=DPL_end_(perf,{candidates:candidates.length,returned:out.length,scopeExtractMs:scopeExtractMs,planningJsonParseMs:planningJsonParseMs,companyProjectionUsed:!!needProjection});return result;
+  var result={success:true,build:PLANNING_DEMAND_BUILD,period:period,rows:out,totals:totals,meta:{sourceRows:Math.max(0,values.length-1),periodCandidates:candidates.length,returned:out.length,truncated:out.length>=limit&&candidates.length>out.length,readModel:needProjection?'Audit planning + targeted Companies projection':'Audit planning core hot path',writes:false,companyProjectionUsed:!!needProjection,companyMetaRequested:input.includeCompanyMeta===true,companyMetaColumns:{country:cCountry>=0,region:cRegion>=0},perfProbe:{scopeExtractCalls:scopeExtractCalls,scopeExtractMs:scopeExtractMs,planningJsonParseCalls:planningJsonParseCalls,planningJsonParseMs:planningJsonParseMs}}};if(typeof DPL_end_==='function')result.devPerformance=DPL_end_(perf,{candidates:candidates.length,returned:out.length,scopeExtractMs:scopeExtractMs,planningJsonParseMs:planningJsonParseMs,companyProjectionUsed:!!needProjection});return result;
 }

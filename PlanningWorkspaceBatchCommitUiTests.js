@@ -28,5 +28,5 @@ function RUN_PLANNING_WORKSPACE_BATCH_COMMIT_UI_REGRESSION(){
  t('previewTelemetry',js.indexOf('__AMS_WORKSPACE_LAST_BATCH_PREFLIGHT')>=0);
  t('commitTelemetry',js.indexOf('__AMS_WORKSPACE_LAST_BATCH_COMMIT')>=0);
  t('noLiveActionDuringTest',true);
- var failed=r.filter(function(x){return!x.ok;}).length,out={ok:failed===0,build:PLANNING_WORKSPACE_BATCH_COMMIT_TEST_BUILD||PLANNING_WORKSPACE_BATCH_COMMIT_UI_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveCommitsPerformed:false,roadmapLayer:'Batch Planning / Workspace UI preflight-first'}};Logger.log(JSON.stringify(out,null,2));return out;
+ var failed=r.filter(function(x){return!x.ok;}).length,out={ok:failed===0,build:PLANNING_WORKSPACE_BATCH_COMMIT_UI_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveCommitsPerformed:false,roadmapLayer:'Batch Planning / Workspace UI preflight-first'}};Logger.log(JSON.stringify(out,null,2));return out;
 }

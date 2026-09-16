@@ -1,6 +1,6 @@
 /***********************************************************************
  * ConceptPlanningService.js
- * BUILD: 2026-09-09_ROADMAP_2_4_CONCEPT_PLANNING_ADVISORY_R3_REFRESH_POLICY
+ * BUILD: 2026-09-16_ROADMAP_2_4_CONCEPT_PLANNING_ADVISORY_R4_DEMAND_R5_ALIGNMENT
  *
  * PURPOSE
  *   Read-only advisory shortlist for Concept Planning.
@@ -10,6 +10,7 @@
  *   - No writes, holds, commits or lifecycle changes.
  *   - EligibilityService remains canonical qualification/rotation owner.
  *   - Audit planning remains canonical demand/lifecycle source.
+ *   - Companies.Locations_JSON remains canonical company-location truth.
  *   - Stale/missing eligibility is never silently accepted.
  *   - Expensive eligibility refresh is NEVER executed synchronously here.
  *   - Output is advisory only; Commit must revalidate canonically.
@@ -26,7 +27,7 @@
  *   - DEV-only performance telemetry.
  ***********************************************************************/
 
-var CONCEPT_PLANNING_BUILD = '2026-09-09_ROADMAP_2_4_CONCEPT_PLANNING_ADVISORY_R3_REFRESH_POLICY';
+var CONCEPT_PLANNING_BUILD = '2026-09-16_ROADMAP_2_4_CONCEPT_PLANNING_ADVISORY_R4_DEMAND_R5_ALIGNMENT';
 
 function CPS_clean_(v) { return String(v == null ? '' : v).trim(); }
 function CPS_norm_(v) { return CPS_clean_(v).toLowerCase(); }
@@ -73,7 +74,7 @@ function CPS_demandInput_(input) {
   var pass=['from','start','periodFrom','to','end','periodTo','status','auditor','country','region','scope','limit'];
   for(var p=0;p<pass.length;p++){var k=pass[p];if(Object.prototype.hasOwnProperty.call(input,k))out[k]=input[k];}
   var needsCompanyMeta=!!(CPS_clean_(input.country)||CPS_clean_(input.region)||input.includeCompanyMeta===true);
-  out.includeCompanyMeta=needsCompanyMeta;
+  if (needsCompanyMeta) out.includeCompanyMeta=true;
   return {input:out,needsCompanyMeta:needsCompanyMeta};
 }
 
@@ -102,7 +103,7 @@ function ConceptPlanningService_get(input) {
 
   var demandPlan=CPS_demandInput_(input);
   var demand=PlanningDemandService_get(demandPlan.input);
-  if(typeof DPL_mark_==='function')DPL_mark_(perf,'planningDemand',{demandRows:demand&&demand.rows?demand.rows.length:0,companyMetaLoaded:demandPlan.needsCompanyMeta});
+  if(typeof DPL_mark_==='function')DPL_mark_(perf,'planningDemand',{demandRows:demand&&demand.rows?demand.rows.length:0,companyMetaLoaded:demandPlan.needsCompanyMeta,companyProjectionUsed:demand&&demand.meta?demand.meta.companyProjectionUsed:false});
   var demandRows=demand&&Array.isArray(demand.rows)?demand.rows:[];
   var auditIds=CPS_demandAuditIds_(demandRows);
   var eligibility=EligibilityBatchReadModel_get({auditIds:auditIds});
@@ -121,7 +122,7 @@ function ConceptPlanningService_get(input) {
   }
   if(typeof DPL_mark_==='function')DPL_mark_(perf,'projectAdvisory',{returned:rows.length,ready:ready,refreshRequired:refreshRequired,noCandidates:noCandidates});
   var refreshPolicy=CPS_refreshPolicy_(eligibility);
-  var result={success:true,build:CONCEPT_PLANNING_BUILD,period:demand.period,rows:rows,totals:{audits:rows.length,ready:ready,refreshRequired:refreshRequired,noCandidates:noCandidates},refreshPolicy:refreshPolicy,meta:{writes:false,advisoryOnly:true,commitRevalidationRequired:true,noPerAuditReads:true,directDemandFastPath:true,planningContextSkipped:true,companyMetaLoaded:demandPlan.needsCompanyMeta,synchronousEligibilityRefresh:false,canonicalOwners:{demand:'Audit planning / lifecycle',eligibility:'EligibilityService',company:'Companies'}}};
-  if(typeof DPL_end_==='function')result.devPerformance=DPL_end_(perf,{audits:rows.length,ready:ready,refreshRequired:refreshRequired,noCandidates:noCandidates});
+  var result={success:true,build:CONCEPT_PLANNING_BUILD,period:demand.period,rows:rows,totals:{audits:rows.length,ready:ready,refreshRequired:refreshRequired,noCandidates:noCandidates},refreshPolicy:refreshPolicy,meta:{writes:false,advisoryOnly:true,commitRevalidationRequired:true,noPerAuditReads:true,directDemandFastPath:true,planningContextSkipped:true,companyMetaLoaded:demandPlan.needsCompanyMeta,companyProjectionUsed:demand&&demand.meta?demand.meta.companyProjectionUsed:false,synchronousEligibilityRefresh:false,canonicalOwners:{demand:'Audit planning / lifecycle',eligibility:'EligibilityService',company:'Companies'}}};
+  if(typeof DPL_end_==='function')result.devPerformance=DPL_end_(perf,{audits:rows.length,ready:ready,refreshRequired:refreshRequired,noCandidates:noCandidates,companyProjectionUsed:result.meta.companyProjectionUsed});
   return result;
 }

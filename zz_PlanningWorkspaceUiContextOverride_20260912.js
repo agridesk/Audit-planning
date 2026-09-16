@@ -1,8 +1,8 @@
 /***********************************************************************
  * zz_PlanningWorkspaceUiContextOverride_20260912.js
- * BUILD: 2026-09-16_PLANNING_WORKSPACE_UI_R18_FIXED_WEEK_COLUMNS
+ * BUILD: 2026-09-16_PLANNING_WORKSPACE_UI_R19_SELECTED_DAY
  ***********************************************************************/
-var PLANNING_WORKSPACE_UI_RENDERER_BUILD='2026-09-16_PLANNING_WORKSPACE_UI_R18_FIXED_WEEK_COLUMNS';
+var PLANNING_WORKSPACE_UI_RENDERER_BUILD='2026-09-16_PLANNING_WORKSPACE_UI_R19_SELECTED_DAY';
 
 function PlanningWorkspaceUi_render(ctx){
   ctx=ctx||{};
@@ -51,6 +51,6 @@ function PlanningWorkspaceUi_contract(){return{
   plannedDetailOnDemand:true,conceptReviewUsesLoadedReservationMetadata:true,conceptReviewExtraRpcs:0,conceptReviewThresholdMonths:6,
   fastWeekNavigationClientOnly:true,fastMonthNavigationClientOnly:true,navigationExtraRpcs:0,modalInteractionGuard:true,
   navigationObserverScope:'calendar root only / body direct children only',navigationMutationStormRemoved:true,plannedStatusObserverDebounced:true,conceptReviewObserverDebounced:true,
-  planningWindowVisibleOnModify:true,availabilityLabelsUnified:true,technicalAvailabilityStatusesHidden:true,fixedModifyWeekdayColumns:true,modifyPickerWeekColumnsExtraRpcs:0,
+  planningWindowVisibleOnModify:true,availabilityLabelsUnified:true,technicalAvailabilityStatusesHidden:true,fixedModifyWeekdayColumns:true,modifyPickerSelectedDayFeedback:true,modifyPickerSelectionReconcilesClientSide:true,modifyPickerWeekColumnsExtraRpcs:0,
   attentionPriority:'planningWindowTo, planningWindowFrom, blocker state',directSheetReads:false,directSheetWrites:false,planningServiceReadsDuringRender:false,contextExtraReads:0,contextExtraRpcs:0,newSsot:false
 };}

@@ -1,0 +1,14 @@
+<script>
+(function(){
+'use strict';
+var BUILD='2026-09-16_MODIFY_PICKER_WEEK_COLUMNS_R1';
+var observer=null,timer=0;
+function clean(v){return String(v==null?'':v).trim()}
+function weekdayColumn(dateText){var m=clean(dateText).match(/(\d{2})\/(\d{2})$/);if(!m)return 0;var modal=document.getElementById('pwPlannedModal');if(!modal)return 0;var active=modal.querySelector('.pw-planned-block.pw-active-block input[type="date"]')||modal.querySelector('.pw-planned-block input[type="date"]');var y=active&&active.value?Number(active.value.slice(0,4)):new Date().getFullYear();var d=new Date(y,Number(m[2])-1,Number(m[1]),12),js=d.getDay();return js===0?7:js}
+function apply(){timer=0;var modal=document.getElementById('pwPlannedModal');if(!modal)return;modal.querySelectorAll('div').forEach(function(grid){var style=clean(grid.style&&grid.style.gridTemplateColumns);if(style.indexOf('repeat(7')<0)return;var buttons=Array.prototype.slice.call(grid.children).filter(function(n){return n&&n.tagName==='BUTTON'&&n.querySelector('b')});if(!buttons.length)return;grid.style.gridTemplateColumns='repeat(7,minmax(78px,1fr))';buttons.forEach(function(b){b.style.gridColumnStart=''});var first=buttons[0],col=weekdayColumn(first.querySelector('b').textContent);if(col)first.style.gridColumnStart=String(col)})}
+function schedule(){if(timer)return;timer=setTimeout(apply,0)}
+function bind(){if(observer)observer.disconnect();observer=new MutationObserver(schedule);observer.observe(document.body,{childList:true,subtree:true});schedule()}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
+window.PlanningWorkspaceModifyPickerWeekColumns={BUILD:BUILD,apply:apply};
+})();
+</script>

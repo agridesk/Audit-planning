@@ -1,12 +1,12 @@
 /***********************************************************************
  * PlanningWorkspaceService.js
- * BUILD: 2026-09-16_PLANNING_WORKSPACE_2_0_SERVICE_FACADE_R5_PRACTICAL_CLOSEOUT
+ * BUILD: 2026-09-16_PLANNING_WORKSPACE_2_0_SERVICE_FACADE_R6_BATCH_COMMIT
  *
  * Thin RPC/service facade for Planning Workspace 2.0.
  * Delegates exclusively to existing canonical/read-model owners.
  * Workspace planning demand is canonical Pending Planning only.
  ***********************************************************************/
-var PLANNING_WORKSPACE_SERVICE_BUILD='2026-09-16_PLANNING_WORKSPACE_2_0_SERVICE_FACADE_R5_PRACTICAL_CLOSEOUT';
+var PLANNING_WORKSPACE_SERVICE_BUILD='2026-09-16_PLANNING_WORKSPACE_2_0_SERVICE_FACADE_R6_BATCH_COMMIT';
 
 function PWS_dependencies_(){return{
   advisory:typeof ConceptPlanningService_get==='function',
@@ -14,6 +14,7 @@ function PWS_dependencies_(){return{
   conceptUpsert:typeof ConceptReservationCommandService_upsert==='function',
   conceptRelease:typeof ConceptReservationCommandService_release==='function',
   canonicalCommit:typeof PlanningCanonicalCommitService_commit==='function',
+  canonicalBatchCommit:typeof PlanningBatchCommitService_commit==='function',
   canonicalModify:typeof PlanningCanonicalModifyService_modify==='function',
   canonicalCancel:typeof PlanningCanonicalCancelService_cancel==='function',
   plannedDetail:typeof PlanningWorkspacePlannedAuditReadService_get==='function'
@@ -25,6 +26,7 @@ function PlanningWorkspaceService_getOverlays(input){PWS_assert_('overlays');ret
 function PlanningWorkspaceService_saveConcept(input){PWS_assert_('conceptUpsert');return ConceptReservationCommandService_upsert(input||{});}
 function PlanningWorkspaceService_releaseConcept(input){PWS_assert_('conceptRelease');return ConceptReservationCommandService_release(input||{});}
 function PlanningWorkspaceService_commit(input){PWS_assert_('canonicalCommit');return PlanningCanonicalCommitService_commit(input||{});}
+function PlanningWorkspaceService_batchCommit(input){PWS_assert_('canonicalBatchCommit');return PlanningBatchCommitService_commit(input||{});}
 function PlanningWorkspaceService_modifyPlanned(input){PWS_assert_('canonicalModify');return PlanningCanonicalModifyService_modify(input||{});}
 function PlanningWorkspaceService_cancelPlanned(input){PWS_assert_('canonicalCancel');return PlanningCanonicalCancelService_cancel(input||{});}
 function PlanningWorkspaceService_getPlannedAudit(input){PWS_assert_('plannedDetail');return PlanningWorkspacePlannedAuditReadService_get(input||{});}
@@ -37,9 +39,10 @@ function PlanningWorkspaceService_contract(){return{
     saveConcept:'ConceptReservationCommandService_upsert',
     releaseConcept:'ConceptReservationCommandService_release',
     commit:'PlanningCanonicalCommitService_commit',
+    batchCommit:'PlanningBatchCommitService_commit',
     modifyPlanned:'PlanningCanonicalModifyService_modify',
     cancelPlanned:'PlanningCanonicalCancelService_cancel',
     plannedDetail:'PlanningWorkspacePlannedAuditReadService_get'
   },
-  meta:{thinFacade:true,newBusinessRules:false,workspaceDemandStatus:'Pending Planning',plannedAuditsExcludedFromAdvisory:true,newSsot:false,directSheetReads:false,directSheetWrites:false,canonicalCommitOnly:true,canonicalModifyCommand:true,canonicalCancelCommand:true,plannedDetailOnDemand:true,legacyPlanningWriterCalledDirectly:false}
+  meta:{thinFacade:true,newBusinessRules:false,workspaceDemandStatus:'Pending Planning',plannedAuditsExcludedFromAdvisory:true,newSsot:false,directSheetReads:false,directSheetWrites:false,canonicalCommitOnly:true,canonicalBatchCommitOnly:true,batchCommitBounded:true,canonicalModifyCommand:true,canonicalCancelCommand:true,plannedDetailOnDemand:true,legacyPlanningWriterCalledDirectly:false}
 };}

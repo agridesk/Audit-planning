@@ -1,163 +1,19 @@
 /***********************************************************************
  * PlanningRevisionTokenService.js
- * BUILD: 2026-09-09_ROADMAP_2_4_PLANNING_REVISION_TOKEN_R1
- *
- * PURPOSE
- *   Derive a deterministic optimistic-concurrency token from the current
- *   canonical planning state of one Audit planning row.
- *
- * GOVERNANCE
- *   - Audit planning remains the SSoT.
- *   - Revision token is derived metadata only; it owns no planning truth.
- *   - Fingerprint covers the planning/lifecycle fields whose concurrent
- *     change must force a Workspace reload before Commit:
- *       Status, Assigned to, Date - Planned, Planning JSON.
- *   - No writes and no new revision column/property.
- *   - Future Commit must reread this token under Platform_withLock and pass
- *     it to PlanningOptimisticRevisionGuard before canonical preflight/write.
- *
- * SPEED CONTRACT
- *   - One targeted audit-row read when available.
- *   - No full-sheet scan when __mp_getAuditPlanningRow_ or Platform PAL can
- *     resolve the row directly.
- *   - Hashing is in-memory only.
+ * BUILD: 2026-09-16_ROADMAP_2_4_PLANNING_REVISION_TOKEN_R2_BULK
+ * Derived optimistic-concurrency tokens; Audit planning remains SSoT.
  ***********************************************************************/
-
-var PLANNING_REVISION_TOKEN_BUILD = '2026-09-09_ROADMAP_2_4_PLANNING_REVISION_TOKEN_R1';
-
-function PRT_clean_(v) {
-  if (v == null) return '';
-  if (Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v.getTime())) {
-    return Utilities.formatDate(v, 'UTC', 'yyyy-MM-dd');
-  }
-  return String(v).trim();
-}
-
-function PRT_normJson_(v) {
-  var s = PRT_clean_(v);
-  if (!s) return '';
-  try { return JSON.stringify(JSON.parse(s)); }
-  catch (e) { return s; }
-}
-
-function PRT_findCol_(headers, candidates) {
-  headers = headers || [];
-  var normalized = headers.map(function(h) {
-    return PRT_clean_(h).toLowerCase().replace(/[ _\-–—]/g, '');
-  });
-  for (var c = 0; c < candidates.length; c++) {
-    var key = PRT_clean_(candidates[c]).toLowerCase().replace(/[ _\-–—]/g, '');
-    var ix = normalized.indexOf(key);
-    if (ix >= 0) return ix;
-  }
-  return -1;
-}
-
-function PRT_value_(headers, row, candidates) {
-  var ix = PRT_findCol_(headers, candidates);
-  return ix >= 0 ? row[ix] : '';
-}
-
-function PRT_snapshotFromRow_(headers, row) {
-  headers = headers || [];
-  row = row || [];
-  return {
-    auditId: PRT_clean_(PRT_value_(headers, row, ['Audit ID','Audit_ID','AuditId','Audit Id'])),
-    status: PRT_clean_(PRT_value_(headers, row, ['Status'])),
-    assignedTo: PRT_clean_(PRT_value_(headers, row, ['Assigned to','Assigned To','Assigned auditor','Auditor'])),
-    datePlanned: PRT_clean_(PRT_value_(headers, row, ['Date - Planned','Date planned','Date Planned','Planned date'])),
-    planningJson: PRT_normJson_(PRT_value_(headers, row, ['Planning JSON','PlanningJson','Planning_JSON']))
-  };
-}
-
-function PRT_serializeSnapshot_(snapshot) {
-  snapshot = snapshot || {};
-  return [
-    'auditId=' + PRT_clean_(snapshot.auditId),
-    'status=' + PRT_clean_(snapshot.status),
-    'assignedTo=' + PRT_clean_(snapshot.assignedTo).toLowerCase(),
-    'datePlanned=' + PRT_clean_(snapshot.datePlanned),
-    'planningJson=' + PRT_normJson_(snapshot.planningJson)
-  ].join('\n');
-}
-
-function PRT_sha1_(text) {
-  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_1, String(text || ''));
-  var out = '';
-  for (var i = 0; i < bytes.length; i++) {
-    var n = bytes[i] < 0 ? bytes[i] + 256 : bytes[i];
-    var h = n.toString(16);
-    out += h.length === 1 ? '0' + h : h;
-  }
-  return out;
-}
-
-function PRT_tokenFromSnapshot_(snapshot) {
-  return 'PRT1-' + PRT_sha1_(PRT_serializeSnapshot_(snapshot));
-}
-
-function PRT_readCanonicalRow_(auditId, perf) {
-  auditId = PRT_clean_(auditId);
-  if (!auditId) throw new Error('PlanningRevisionTokenService: auditId is required');
-
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-
-  if (typeof __mp_getAuditPlanningRow_ === 'function') {
-    var targeted = __mp_getAuditPlanningRow_(ss, auditId);
-    if (targeted && targeted.row) {
-      if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'targetedRead', { source:'__mp_getAuditPlanningRow_', rowNumber:targeted.rowNumber || 0 });
-      return { headers: targeted.hdr || [], row: targeted.row, rowNumber: targeted.rowNumber || 0, source:'__mp_getAuditPlanningRow_' };
-    }
-  }
-
-  if (typeof Platform_findRowByKey === 'function' && typeof Platform_readRow === 'function') {
-    var rowNum = Platform_findRowByKey('Audit planning', 'Audit ID', auditId);
-    if (rowNum) {
-      var obj = Platform_readRow('Audit planning', rowNum);
-      if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'targetedRead', { source:'Platform PAL', rowNumber:rowNum });
-      return { headers: obj._hdr || [], row: obj._raw || [], rowNumber:rowNum, source:'Platform PAL' };
-    }
-  }
-
-  throw new Error('PlanningRevisionTokenService: audit not found: ' + auditId);
-}
-
-function PlanningRevisionTokenService_get(input) {
-  input = input || {};
-  var auditId = PRT_clean_(input.auditId);
-  if (!auditId) throw new Error('PlanningRevisionTokenService: auditId is required');
-
-  var perf = (typeof DPL_start_ === 'function') ? DPL_start_('PlanningRevisionTokenService_get', { auditId:auditId }) : null;
-  var canonical = PRT_readCanonicalRow_(auditId, perf);
-  var snapshot = PRT_snapshotFromRow_(canonical.headers, canonical.row);
-  if (snapshot.auditId && snapshot.auditId !== auditId) throw new Error('PlanningRevisionTokenService: canonical row Audit ID mismatch');
-  snapshot.auditId = auditId;
-  var revision = PRT_tokenFromSnapshot_(snapshot);
-
-  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'deriveRevision', {
-    source: canonical.source,
-    planningJsonChars: snapshot.planningJson.length
-  });
-
-  var result = {
-    success: true,
-    build: PLANNING_REVISION_TOKEN_BUILD,
-    auditId: auditId,
-    revision: revision,
-    snapshot: snapshot,
-    meta: {
-      writes: false,
-      readOnly: true,
-      derivedOnly: true,
-      revisionIsConcurrencyTokenOnly: true,
-      canonicalOwner: 'Audit planning',
-      fields: ['Status','Assigned to','Date - Planned','Planning JSON'],
-      rowSource: canonical.source,
-      rowNumber: canonical.rowNumber || 0,
-      lockRequiredForCommitReread: true,
-      lockOwner: 'Platform_withLock'
-    }
-  };
-  if (typeof DPL_end_ === 'function') result.devPerformance = DPL_end_(perf, { rowSource:canonical.source, revisionPrefix:revision.substring(0,9) });
-  return result;
-}
+var PLANNING_REVISION_TOKEN_BUILD='2026-09-16_ROADMAP_2_4_PLANNING_REVISION_TOKEN_R2_BULK';
+var PLANNING_REVISION_TOKEN_MAX_BULK=20;
+function PRT_clean_(v){if(v==null)return'';if(Object.prototype.toString.call(v)==='[object Date]'&&!isNaN(v.getTime()))return Utilities.formatDate(v,'UTC','yyyy-MM-dd');return String(v).trim();}
+function PRT_normJson_(v){var s=PRT_clean_(v);if(!s)return'';try{return JSON.stringify(JSON.parse(s));}catch(e){return s;}}
+function PRT_findCol_(headers,candidates){headers=headers||[];var n=headers.map(function(h){return PRT_clean_(h).toLowerCase().replace(/[ _\-–—]/g,'');});for(var c=0;c<candidates.length;c++){var k=PRT_clean_(candidates[c]).toLowerCase().replace(/[ _\-–—]/g,'');var ix=n.indexOf(k);if(ix>=0)return ix;}return-1;}
+function PRT_value_(headers,row,candidates){var ix=PRT_findCol_(headers,candidates);return ix>=0?row[ix]:'';}
+function PRT_snapshotFromRow_(headers,row){return{auditId:PRT_clean_(PRT_value_(headers,row,['Audit ID','Audit_ID','AuditId','Audit Id'])),status:PRT_clean_(PRT_value_(headers,row,['Status'])),assignedTo:PRT_clean_(PRT_value_(headers,row,['Assigned to','Assigned To','Assigned auditor','Auditor'])),datePlanned:PRT_clean_(PRT_value_(headers,row,['Date - Planned','Date planned','Date Planned','Planned date'])),planningJson:PRT_normJson_(PRT_value_(headers,row,['Planning JSON','PlanningJson','Planning_JSON']))};}
+function PRT_serializeSnapshot_(s){s=s||{};return['auditId='+PRT_clean_(s.auditId),'status='+PRT_clean_(s.status),'assignedTo='+PRT_clean_(s.assignedTo).toLowerCase(),'datePlanned='+PRT_clean_(s.datePlanned),'planningJson='+PRT_normJson_(s.planningJson)].join('\n');}
+function PRT_sha1_(text){var b=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_1,String(text||'')),out='';for(var i=0;i<b.length;i++){var n=b[i]<0?b[i]+256:b[i],h=n.toString(16);out+=h.length===1?'0'+h:h;}return out;}
+function PRT_tokenFromSnapshot_(s){return'PRT1-'+PRT_sha1_(PRT_serializeSnapshot_(s));}
+function PRT_readCanonicalRow_(auditId,perf){auditId=PRT_clean_(auditId);if(!auditId)throw new Error('PlanningRevisionTokenService: auditId is required');var ss=SpreadsheetApp.getActiveSpreadsheet();if(typeof __mp_getAuditPlanningRow_==='function'){var t=__mp_getAuditPlanningRow_(ss,auditId);if(t&&t.row){if(typeof DPL_mark_==='function')DPL_mark_(perf,'targetedRead',{source:'__mp_getAuditPlanningRow_',rowNumber:t.rowNumber||0});return{headers:t.hdr||[],row:t.row,rowNumber:t.rowNumber||0,source:'__mp_getAuditPlanningRow_'};}}if(typeof Platform_findRowByKey==='function'&&typeof Platform_readRow==='function'){var rn=Platform_findRowByKey('Audit planning','Audit ID',auditId);if(rn){var o=Platform_readRow('Audit planning',rn);if(typeof DPL_mark_==='function')DPL_mark_(perf,'targetedRead',{source:'Platform PAL',rowNumber:rn});return{headers:o._hdr||[],row:o._raw||[],rowNumber:rn,source:'Platform PAL'};}}throw new Error('PlanningRevisionTokenService: audit not found: '+auditId);}
+function PRT_result_(auditId,headers,row,source,rowNumber){var s=PRT_snapshotFromRow_(headers,row);if(s.auditId&&s.auditId!==auditId)throw new Error('PlanningRevisionTokenService: canonical row Audit ID mismatch');s.auditId=auditId;return{success:true,build:PLANNING_REVISION_TOKEN_BUILD,auditId:auditId,revision:PRT_tokenFromSnapshot_(s),snapshot:s,meta:{writes:false,readOnly:true,derivedOnly:true,revisionIsConcurrencyTokenOnly:true,canonicalOwner:'Audit planning',fields:['Status','Assigned to','Date - Planned','Planning JSON'],rowSource:source,rowNumber:rowNumber||0,lockRequiredForCommitReread:true,lockOwner:'Platform_withLock'}};}
+function PlanningRevisionTokenService_get(input){input=input||{};var id=PRT_clean_(input.auditId);if(!id)throw new Error('PlanningRevisionTokenService: auditId is required');var perf=typeof DPL_start_==='function'?DPL_start_('PlanningRevisionTokenService_get',{auditId:id}):null,c=PRT_readCanonicalRow_(id,perf),r=PRT_result_(id,c.headers,c.row,c.source,c.rowNumber);if(typeof DPL_mark_==='function')DPL_mark_(perf,'deriveRevision',{source:c.source,planningJsonChars:r.snapshot.planningJson.length});if(typeof DPL_end_==='function')r.devPerformance=DPL_end_(perf,{rowSource:c.source,revisionPrefix:r.revision.substring(0,9)});return r;}
+function PlanningRevisionTokenService_getMany(input){input=input||{};var ids=Array.isArray(input.auditIds)?input.auditIds:[],clean=[],seen={};for(var i=0;i<ids.length;i++){var id=PRT_clean_(ids[i]);if(!id)continue;if(!seen[id]){seen[id]=1;clean.push(id);}}if(!clean.length)return{success:true,build:PLANNING_REVISION_TOKEN_BUILD,items:[],byAuditId:{},meta:{readOnly:true,writes:false,derivedOnly:true,bounded:true,maxItems:PLANNING_REVISION_TOKEN_MAX_BULK,bulkRead:true,canonicalOwner:'Audit planning',newSsot:false}};if(clean.length>PLANNING_REVISION_TOKEN_MAX_BULK)throw new Error('PlanningRevisionTokenService: maximum '+PLANNING_REVISION_TOKEN_MAX_BULK+' auditIds per bulk request');var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss&&ss.getSheetByName('Audit planning');if(!sh)throw new Error('PlanningRevisionTokenService: Audit planning sheet unavailable');var lastRow=sh.getLastRow(),lastCol=sh.getLastColumn();if(lastRow<2||lastCol<1)throw new Error('PlanningRevisionTokenService: Audit planning is empty');var headers=sh.getRange(1,1,1,lastCol).getValues()[0]||[],idCol=PRT_findCol_(headers,['Audit ID','Audit_ID','AuditId','Audit Id']);if(idCol<0)throw new Error('PlanningRevisionTokenService: Audit ID column unavailable');var values=sh.getRange(2,1,lastRow-1,lastCol).getValues(),wanted={};clean.forEach(function(x){wanted[x]=1;});var found={};for(var r=0;r<values.length;r++){var rid=PRT_clean_(values[r][idCol]);if(wanted[rid]&&!found[rid])found[rid]={row:values[r],rowNumber:r+2};}var out=[],by={};for(var j=0;j<clean.length;j++){var key=clean[j],f=found[key];if(!f)throw new Error('PlanningRevisionTokenService: audit not found: '+key);var item=PRT_result_(key,headers,f.row,'Audit planning bounded bulk',f.rowNumber);out.push(item);by[key]=item.revision;}return{success:true,build:PLANNING_REVISION_TOKEN_BUILD,items:out,byAuditId:by,meta:{readOnly:true,writes:false,derivedOnly:true,bounded:true,maxItems:PLANNING_REVISION_TOKEN_MAX_BULK,bulkRead:true,bulkReadCount:1,rowsRead:values.length,colsRead:lastCol,canonicalOwner:'Audit planning',newSsot:false}};}

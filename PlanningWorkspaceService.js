@@ -1,12 +1,12 @@
 /***********************************************************************
  * PlanningWorkspaceService.js
- * BUILD: 2026-09-13_PLANNING_WORKSPACE_2_0_SERVICE_FACADE_R4_PLANNED_DETAIL
+ * BUILD: 2026-09-16_PLANNING_WORKSPACE_2_0_SERVICE_FACADE_R5_PRACTICAL_CLOSEOUT
  *
  * Thin RPC/service facade for Planning Workspace 2.0.
  * Delegates exclusively to existing canonical/read-model owners.
  * Workspace planning demand is canonical Pending Planning only.
  ***********************************************************************/
-var PLANNING_WORKSPACE_SERVICE_BUILD='2026-09-13_PLANNING_WORKSPACE_2_0_SERVICE_FACADE_R4_PLANNED_DETAIL';
+var PLANNING_WORKSPACE_SERVICE_BUILD='2026-09-16_PLANNING_WORKSPACE_2_0_SERVICE_FACADE_R5_PRACTICAL_CLOSEOUT';
 
 function PWS_dependencies_(){return{
   advisory:typeof ConceptPlanningService_get==='function',
@@ -41,5 +41,5 @@ function PlanningWorkspaceService_contract(){return{
     cancelPlanned:'PlanningCanonicalCancelService_cancel',
     plannedDetail:'PlanningWorkspacePlannedAuditReadService_get'
   },
-  meta:{thinFacade:true,workspaceDemandStatus:'Pending Planning',plannedAuditsExcludedFromAdvisory:true,newSsot:false,directSheetReads:false,directSheetWrites:false,canonicalCommitOnly:true,canonicalModifyCommand:true,canonicalCancelCommand:true,plannedDetailOnDemand:true,legacyPlanningWriterCalledDirectly:false}
+  meta:{thinFacade:true,newBusinessRules:false,workspaceDemandStatus:'Pending Planning',plannedAuditsExcludedFromAdvisory:true,newSsot:false,directSheetReads:false,directSheetWrites:false,canonicalCommitOnly:true,canonicalModifyCommand:true,canonicalCancelCommand:true,plannedDetailOnDemand:true,legacyPlanningWriterCalledDirectly:false}
 };}

@@ -10,33 +10,18 @@
   </style>
 </head>
 <body>
-<div class="pw-app" data-build="2026-09-12_ROADMAP_2_4_PLANNING_WORKSPACE_AUDITOR_DATE_GRID_R1">
+<div class="pw-app" data-build="2026-09-16_ROADMAP_2_4_PLANNING_WORKSPACE_BATCH_COMMIT_R2">
   <header class="pw-header"><div><h1 class="pw-title">Planning Workspace</h1><div class="pw-subtitle">Demand → auditor × date planning → concept → optional detail → canonical planning</div></div><div id="pwStatus" class="pw-status">Ready</div></header>
-  <section class="pw-filters">
-    <div class="pw-filter small"><label for="pwFrom">From</label><input id="pwFrom" type="date" value="<?= __seedFrom ?>"></div>
-    <div class="pw-filter small"><label for="pwTo">To</label><input id="pwTo" type="date" value="<?= __seedTo ?>"></div>
-    <div class="pw-filter wide"><label for="pwCountry">Country</label><input id="pwCountry" type="text" autocomplete="off"></div>
-    <div class="pw-filter wide"><label for="pwScope">Scope</label><input id="pwScope" type="text" autocomplete="off"></div>
-    <button id="pwLoad" class="btn primary" type="button">Load</button><span class="pw-hint">Default: current month + 3 months</span>
-  </section>
-  <section class="pw-kpis">
-    <div class="kpi"><div class="kpi-label">To plan</div><div class="kpi-value"><span id="kToPlan">0</span> <span class="kpi-unit" id="kToPlanHours">0.0 h</span></div></div>
-    <div class="kpi"><div class="kpi-label">Ready</div><div class="kpi-value"><span id="kReady">0</span> <span class="kpi-unit">canonical advisory</span></div></div>
-    <div class="kpi"><div class="kpi-label">Blocked / refresh</div><div class="kpi-value"><span id="kBlocked">0</span> <span class="kpi-unit">needs attention</span></div></div>
-    <div class="kpi"><div class="kpi-label">Concept</div><div class="kpi-value"><span id="kConcept">0</span> <span class="kpi-unit" id="kConceptHours">0.0 h</span></div></div>
-    <div class="kpi"><div class="kpi-label">Planned</div><div class="kpi-value"><span id="kPlanned">—</span> <span class="kpi-unit">canonical</span></div></div>
-  </section>
+  <section class="pw-filters"><div class="pw-filter small"><label for="pwFrom">From</label><input id="pwFrom" type="date" value="<?= __seedFrom ?>"></div><div class="pw-filter small"><label for="pwTo">To</label><input id="pwTo" type="date" value="<?= __seedTo ?>"></div><div class="pw-filter wide"><label for="pwCountry">Country</label><input id="pwCountry" type="text" autocomplete="off"></div><div class="pw-filter wide"><label for="pwScope">Scope</label><input id="pwScope" type="text" autocomplete="off"></div><button id="pwLoad" class="btn primary" type="button">Load</button><span class="pw-hint">Default: current month + 3 months</span></section>
+  <section class="pw-kpis"><div class="kpi"><div class="kpi-label">To plan</div><div class="kpi-value"><span id="kToPlan">0</span> <span class="kpi-unit" id="kToPlanHours">0.0 h</span></div></div><div class="kpi"><div class="kpi-label">Ready</div><div class="kpi-value"><span id="kReady">0</span> <span class="kpi-unit">canonical advisory</span></div></div><div class="kpi"><div class="kpi-label">Blocked / refresh</div><div class="kpi-value"><span id="kBlocked">0</span> <span class="kpi-unit">needs attention</span></div></div><div class="kpi"><div class="kpi-label">Concept</div><div class="kpi-value"><span id="kConcept">0</span> <span class="kpi-unit" id="kConceptHours">0.0 h</span></div></div><div class="kpi"><div class="kpi-label">Planned</div><div class="kpi-value"><span id="kPlanned">—</span> <span class="kpi-unit">canonical</span></div></div></section>
   <section class="panel"><div class="panel-head"><span>Planner attention</span><span class="panel-meta" id="attentionMeta">0 highest-priority audits</span></div><div id="attentionBody" class="attention"></div></section>
   <section class="panel"><div class="panel-head"><span>Auditor workload <span id="auditorCount" class="panel-meta"></span></span><span class="panel-meta">Focus: <b>All auditors</b></span></div><div id="workloadBody"></div></section>
   <section class="panel"><div class="batch-head"><strong>Batch selection</strong><div class="batch-actions"><span id="batchMeta">0 selected · 0 staged</span><button id="selectVisible" class="btn" type="button">Select visible Pending Planning</button><button id="clearSelection" class="btn" type="button">Clear selection</button><button class="btn primary" type="button" disabled>Configure next selected</button></div></div><div id="batchChips" class="batch-chips"></div></section>
-  <section class="panel">
-    <div class="calendar-tools"><strong>Planning grid</strong><span>Drag an audit to an auditor × date cell</span><label>Auditor focus</label><select id="calAuditor"><option value="">All auditors</option></select><label><input id="showConcept" type="checkbox" checked> Concept</label><label><input id="showWarnings" type="checkbox" checked> Warnings</label><label>Scope</label><select id="calScope"><option value="">All</option></select><label>Country</label><select id="calCountry"><option value="">All</option></select></div>
-    <div class="month-nav"><button id="prevMonth" class="month-btn" type="button">‹</button><div id="monthLabel" class="month-label"></div><button id="nextMonth" class="month-btn" type="button">›</button></div>
-    <div class="calendar-scroll"><div id="calendar" class="cal auditor-date-grid"></div></div>
-  </section>
+  <section class="panel"><div class="calendar-tools"><strong>Planning grid</strong><span>Drag an audit to an auditor × date cell</span><label>Auditor focus</label><select id="calAuditor"><option value="">All auditors</option></select><label><input id="showConcept" type="checkbox" checked> Concept</label><label><input id="showWarnings" type="checkbox" checked> Warnings</label><label>Scope</label><select id="calScope"><option value="">All</option></select><label>Country</label><select id="calCountry"><option value="">All</option></select></div><div class="month-nav"><button id="prevMonth" class="month-btn" type="button">‹</button><div id="monthLabel" class="month-label"></div><button id="nextMonth" class="month-btn" type="button">›</button></div><div class="calendar-scroll"><div id="calendar" class="cal auditor-date-grid"></div></div></section>
   <div id="pwFooter" class="perf">Planning Workspace 2.0</div>
 </div>
 <textarea id="pwServerSeed" style="display:none" aria-hidden="true"><?= __seedJson ?></textarea>
 <?!= HtmlService.createHtmlOutputFromFile('PlanningWorkspaceClient.js').getContent(); ?>
+<?!= HtmlService.createHtmlOutputFromFile('PlanningWorkspaceBatchCommit.js').getContent(); ?>
 </body>
 </html>

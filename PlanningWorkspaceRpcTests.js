@@ -1,6 +1,34 @@
 /***********************************************************************
  * PlanningWorkspaceRpcTests.js
- * BUILD: 2026-09-11_AMS01_2_PLANNING_WORKSPACE_RPC_TESTS_R2_SPLIT_FIRST_PAINT
+ * BUILD: 2026-09-16_AMS01_2_PLANNING_WORKSPACE_RPC_TESTS_R3_PRACTICAL_CLOSEOUT
  ***********************************************************************/
-var PLANNING_WORKSPACE_RPC_TEST_BUILD='2026-09-11_AMS01_2_PLANNING_WORKSPACE_RPC_TESTS_R2_SPLIT_FIRST_PAINT';
-function RUN_PLANNING_WORKSPACE_RPC_REGRESSION(){var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}var c=PlanningWorkspaceRpc_contract();t('rpcBuild',c.build===PLANNING_WORKSPACE_RPC_BUILD,c.build);t('advisoryPresent',typeof PlanningWorkspaceRpc_getAdvisory==='function');t('overlaysPresent',typeof PlanningWorkspaceRpc_getOverlays==='function');t('bootstrapPresent',typeof PlanningWorkspaceRpc_bootstrap==='function');t('saveConceptPresent',typeof PlanningWorkspaceRpc_saveConcept==='function');t('releaseConceptPresent',typeof PlanningWorkspaceRpc_releaseConcept==='function');t('commitPresent',typeof PlanningWorkspaceRpc_commit==='function');t('browserFacing',c.meta.browserFacing===true);t('coarseGrained',c.meta.coarseGrained===true);t('splitFirstPaint',c.meta.splitFirstPaint===true);t('overlayBoundedToCandidates',c.meta.overlayBoundedToCandidates===true);t('noDirectSheetReads',c.meta.directSheetReads===false);t('noDirectSheetWrites',c.meta.directSheetWrites===false);t('canonicalOwnersPreserved',c.meta.canonicalOwnersBypassed===false);t('noNewSsot',c.meta.newSsot===false);var emails=PWR_candidateEmails_({rows:[{candidateAuditors:[{email:'A@Example.com'},{email:'b@example.com'}]},{candidateAuditors:[{email:'a@example.com'}]}]});t('candidateEmailsDeduped',emails.length===2&&emails[0]==='a@example.com'&&emails[1]==='b@example.com',JSON.stringify(emails));var success=PWR_envelope_('test',function(){return{x:1};});t('successEnvelope',success.ok===true&&success.data.x===1&&success.error===null,JSON.stringify(success));var fail=PWR_envelope_('testFail',function(){throw new Error('simulated');});t('failureEnvelope',fail.ok===false&&fail.data===null&&fail.error&&fail.error.message==='simulated',JSON.stringify(fail));t('failureContained',fail.action==='testFail');t('nonDestructive',true);var failed=r.filter(function(x){return!x.ok;}).length,out={ok:failed===0,build:PLANNING_WORKSPACE_RPC_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,rpcInvocationPerformed:false,contractOnly:true,nextStep:'Measure browser wall-clock Workspace usable first paint and Availability visible separately.'}};console.log(JSON.stringify(out,null,2));return out;}
+var PLANNING_WORKSPACE_RPC_TEST_BUILD='2026-09-16_AMS01_2_PLANNING_WORKSPACE_RPC_TESTS_R3_PRACTICAL_CLOSEOUT';
+function RUN_PLANNING_WORKSPACE_RPC_REGRESSION(){var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}var c=PlanningWorkspaceRpc_contract(),m=c.meta||{},eps=c.endpoints||[];
+t('rpcBuild',c.build===PLANNING_WORKSPACE_RPC_BUILD,c.build);
+t('advisoryPresent',typeof PlanningWorkspaceRpc_getAdvisory==='function'&&eps.indexOf('PlanningWorkspaceRpc_getAdvisory')>=0);
+t('overlaysPresent',typeof PlanningWorkspaceRpc_getOverlays==='function'&&eps.indexOf('PlanningWorkspaceRpc_getOverlays')>=0);
+t('bootstrapPresent',typeof PlanningWorkspaceRpc_bootstrap==='function'&&eps.indexOf('PlanningWorkspaceRpc_bootstrap')>=0);
+t('saveConceptPresent',typeof PlanningWorkspaceRpc_saveConcept==='function'&&eps.indexOf('PlanningWorkspaceRpc_saveConcept')>=0);
+t('releaseConceptPresent',typeof PlanningWorkspaceRpc_releaseConcept==='function'&&eps.indexOf('PlanningWorkspaceRpc_releaseConcept')>=0);
+t('commitPresent',typeof PlanningWorkspaceRpc_commit==='function'&&eps.indexOf('PlanningWorkspaceRpc_commit')>=0);
+t('plannedDetailPresent',typeof PlanningWorkspaceRpc_getPlannedAudit==='function'&&eps.indexOf('PlanningWorkspaceRpc_getPlannedAudit')>=0);
+t('modifyPlannedPresent',typeof PlanningWorkspaceRpc_modifyPlanned==='function'&&eps.indexOf('PlanningWorkspaceRpc_modifyPlanned')>=0);
+t('cancelPlannedPresent',typeof PlanningWorkspaceRpc_cancelPlanned==='function'&&eps.indexOf('PlanningWorkspaceRpc_cancelPlanned')>=0);
+t('browserFacing',m.browserFacing===true);
+t('coarseGrained',m.coarseGrained===true);
+t('overlayBoundedToCandidates',m.overlayBoundedToCandidates===true);
+t('conceptRevisionHydration',m.conceptDropRevisionHydration===true);
+t('conceptCanonicalPreflight',m.conceptDropCanonicalPreflight===true&&m.conceptDropPreflightOwner==='PlanningCommitGateService_evaluate');
+t('plannedRevisionHydration',m.plannedCommandRevisionHydration===true);
+t('modifyCanonicalCommand',m.modifyPlannedCanonicalCommand===true);
+t('cancelCanonicalCommand',m.cancelPlannedCanonicalCommand===true);
+t('plannedDetailOnDemand',m.plannedDetailOnDemand===true);
+t('noDirectSheetReads',m.directSheetReads===false);
+t('noDirectSheetWrites',m.directSheetWrites===false);
+t('canonicalOwnersPreserved',m.canonicalOwnersBypassed===false);
+t('noNewSsot',m.newSsot===false);
+var emails=PWR_candidateEmails_({rows:[{candidateAuditors:[{email:'A@Example.com'},{email:'b@example.com'}]},{candidateAuditors:[{email:'a@example.com'}]}]});t('candidateEmailsDeduped',emails.length===2&&emails[0]==='a@example.com'&&emails[1]==='b@example.com',JSON.stringify(emails));
+var success=PWR_envelope_('test',function(){return{x:1};});t('successEnvelope',success.ok===true&&success.data.x===1&&success.error===null,JSON.stringify(success));
+var fail=PWR_envelope_('testFail',function(){throw new Error('simulated');});t('failureEnvelope',fail.ok===false&&fail.data===null&&fail.error&&fail.error.message==='simulated',JSON.stringify(fail));t('failureContained',fail.action==='testFail');
+t('nonDestructive',true);
+var failed=r.filter(function(x){return!x.ok;}).length,out={ok:failed===0,build:PLANNING_WORKSPACE_RPC_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,rpcInvocationPerformed:false,contractOnly:true,roadmapLayer:'Practical Planning / Workspace 2.0'}};console.log(JSON.stringify(out,null,2));return out;}

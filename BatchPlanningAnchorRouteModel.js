@@ -1,0 +1,24 @@
+/**
+ * FILE: BatchPlanningAnchorRouteModel.gs
+ * BUILD: 2026-09-17_BATCH_PLANNING_ANCHOR_ROUTE_MODEL_R1
+ *
+ * Read-only boundary resolver for Batch Planning.
+ * Existing planned audits are discovered through canonical AvailabilityService.
+ * Audit details are resolved by Audit ID from Audit planning for company/location only.
+ * Previous/next planned audits are proposed route boundaries; planner overrides remain leading.
+ */
+var BATCH_PLANNING_ANCHOR_ROUTE_MODEL_BUILD='2026-09-17_BATCH_PLANNING_ANCHOR_ROUTE_MODEL_R1';
+function BatchPlanningAnchorRouteModel_Resolve(input){
+ input=input||{};var email=String(input.auditorEmail||'').trim().toLowerCase(),from=BatchPlanningCandidateEngine_date_(input.periodFrom),to=BatchPlanningCandidateEngine_date_(input.periodTo);if(!email||!from||!to)return{ok:false,error:'VALID_AUDITOR_PERIOD_REQUIRED',writesPerformed:false};
+ var auditor=BatchPlanningReadModel_GetAuditor(email,false);if(!auditor||!auditor.ok)return{ok:false,error:'AUDITOR_NOT_FOUND',writesPerformed:false};
+ var lookback=new Date(from.getTime()),lookahead=new Date(to.getTime());lookback.setDate(lookback.getDate()-31);lookahead.setDate(lookahead.getDate()+31);
+ var raw=AvailabilityService.getAuditorAvailabilityRaw(email,BatchPlanningCandidateEngine_iso_(lookback),BatchPlanningCandidateEngine_iso_(lookahead),{})||{days:{}},anchors=[];
+ Object.keys(raw.days||{}).sort().forEach(function(date){var m=(raw.days[date]||{}).meta||{};BatchPlanningAnchorRouteModel_add_(anchors,date,m.auditId1,m.slot1Start,m.slot1End,m.status1,'S1');BatchPlanningAnchorRouteModel_add_(anchors,date,m.auditId2,m.slot2Start,m.slot2End,m.status2,'S2');});
+ var prev=null,next=null,fromIso=BatchPlanningCandidateEngine_iso_(from),toIso=BatchPlanningCandidateEngine_iso_(to);anchors.forEach(function(a){if(a.date<fromIso)prev=a;else if(a.date>toIso&&!next)next=a;});
+ var ids=[];if(prev)ids.push(prev.auditId);if(next)ids.push(next.auditId);var details=BatchPlanningAnchorRouteModel_details_(ids);if(prev)prev=BatchPlanningAnchorRouteModel_enrich_(prev,details[prev.auditId]);if(next)next=BatchPlanningAnchorRouteModel_enrich_(next,details[next.auditId]);
+ var homeRaw=input.home||input.auditorDeparturePoint||auditor.defaultDepartureFrom||'',inRaw=input.inboundPoint||(prev&&prev.point)||homeRaw,outRaw=input.outboundPoint||(next&&next.point)||homeRaw;
+ return{ok:true,build:BATCH_PLANNING_ANCHOR_ROUTE_MODEL_BUILD,auditor:auditor,previousAudit:prev,nextAudit:next,home:BatchPlanning_normalizePoint_(homeRaw),inbound:BatchPlanning_normalizePoint_(inRaw),outbound:BatchPlanning_normalizePoint_(outRaw),inboundSource:input.inboundPoint?'PLANNER_OVERRIDE':(prev&&prev.point?'PREVIOUS_PLANNED_AUDIT':'HOME'),outboundSource:input.outboundPoint?'PLANNER_OVERRIDE':(next&&next.point?'NEXT_PLANNED_AUDIT':'HOME'),existingAuditsImmutable:true,writesPerformed:false};
+}
+function BatchPlanningAnchorRouteModel_add_(out,date,id,start,end,status,slot){id=String(id||'').trim();if(id)out.push({auditId:id,date:date,startTime:String(start||''),endTime:String(end||''),status:String(status||''),slot:slot,fixed:true});}
+function BatchPlanningAnchorRouteModel_details_(ids){var wanted={};(ids||[]).forEach(function(id){wanted[String(id)]=true;});if(!Object.keys(wanted).length)return{};var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Audit planning');if(!sh)return{};var v=sh.getDataRange().getValues();if(v.length<2)return{};var idx=BatchPlanningCandidateEngine_headerMap_(v[0]),out={};for(var r=1;r<v.length;r++){var row=v[r]||[],id=BatchPlanningCandidateEngine_text_(row,idx,['Audit ID']);if(!wanted[id])continue;out[id]={company:BatchPlanningCandidateEngine_text_(row,idx,['Company']),companyUid:BatchPlanningCandidateEngine_text_(row,idx,['Company_UID','Company UID']),location:BatchPlanningCandidateEngine_text_(row,idx,['Location','Audit location','Execution location'])};}return out;}
+function BatchPlanningAnchorRouteModel_enrich_(a,d){d=d||{};a.company=d.company||'';a.companyUid=d.companyUid||'';a.location=d.location||'';var loc=BatchPlanning_getCompanyLocation_(a.company,a.location);a.point=loc&&loc.ok?loc.point:'';a.locationResolved=!!a.point;return a;}

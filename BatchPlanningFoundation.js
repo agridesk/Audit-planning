@@ -1,51 +1,82 @@
 /**
  * FILE: BatchPlanningFoundation.gs
- * BUILD: 2026-09-17_BATCH_PLANNING_FOUNDATION_R1
+ * BUILD: 2026-09-17_BATCH_PLANNING_FOUNDATION_R2_APPROVED_FUNCTIONAL_CONTRACT
  *
  * PURPOSE
- * - Foundation only for future manager Batch Planning.
- * - Creates a read-only planning candidate model around existing canonical owners.
- * - Geographic input is practical: auditor departure point + audit/company location.
- * - Route distance/time is an adapter contract; no flight/hotel optimisation here.
- *
- * GOVERNANCE
- * - UI/advisory layer only; canonical planning backend remains final authority.
- * - Companies.Locations_JSON remains company-location SSoT.
- * - Auditors remains auditor identity/qualification source.
- * - Availability remains Availability owner; no duplicate availability truth.
- * - Rotation remains existing canonical service/guard.
- * - No planning writes.
+ * - Canonical advisory contract for future manager Batch Planning.
+ * - Captures planner-approved functional rules before candidate scoring/UI work.
+ * - No planning writes and no route API calls in this foundation.
  */
-var BATCH_PLANNING_FOUNDATION_BUILD = '2026-09-17_BATCH_PLANNING_FOUNDATION_R1';
+var BATCH_PLANNING_FOUNDATION_BUILD = '2026-09-17_BATCH_PLANNING_FOUNDATION_R2_APPROVED_FUNCTIONAL_CONTRACT';
 
 var BATCH_PLANNING_POLICY = Object.freeze({
   advisoryOnly: true,
   plannerControlsFinalSelection: true,
+  explicitConfirmBeforeWrite: true,
+  oneIdealConceptPlan: true,
+  manualDragDropAfterGeneration: true,
+  noAutomaticReoptimisationAfterPlannerMove: true,
+
   companyLocationOwner: 'Companies.Locations_JSON',
   auditorOwner: 'Auditors',
+  auditorDefaultDepartureField: 'Auditors.Default departure from',
+  auditorDefaultDepartureColumn: 'Q',
+  hoursOwner: 'Hours to be planned',
   availabilityOwner: 'Availability',
+  rotationLimitOwner: 'Config_Scopes.Max number audits',
+  rotationLimitColumn: 'J',
+
+  planningWindowLeading: true,
+  outsidePlanningWindowAllowed: false,
+  approvedAcceptedAreAnchors: true,
+  existingAnchorsNeverAutoMoved: true,
+
   routeProvider: 'Google Routes API / Compute Route Matrix',
   routeCacheRequired: true,
   routeMetrics: ['distanceMeters', 'durationSeconds'],
-  geographicInputs: ['auditorDeparturePoint', 'auditLocation', 'interAuditRoute'],
+  travelTimeLeading: true,
+  distanceInformational: true,
+  geographicInputs: ['inboundPoint', 'auditLocation', 'interAuditRoute', 'outboundPoint'],
+  inboundOutboundIndependent: true,
+  inboundDefault: 'HOME',
+  outboundDefault: 'HOME',
+  existingPreviousStopMayAnchorInbound: true,
+  existingNextStopMayAnchorOutbound: true,
+  outboundSuggestionFuture: true,
+
+  auditHoursLeading: true,
+  travelPlannedAroundAuditHours: true,
+  hardDailyTravelLimit: false,
+  longTravelAdvisoryOnly: true,
+
+  softConstraintsAdvisory: true,
+  companySoftConstraintsIncluded: true,
+  auditorSoftConstraintsIncluded: true,
+
+  separatePlanningStopField: 'separatePlanningStop',
+  separatePlanningStopDefault: false,
+  separatePlanningStopOwner: 'Companies.Locations_JSON',
+  separateStopHoursAreAllocationOnly: true,
+  separateStopHoursMustSumToHoursToBePlanned: true,
+  separateStopHoursPlannerControlled: true,
+
+  rotationWarningOffset: 1,
+  rotationHardBlockBeyondWarning: true,
+
   flightOptimisation: false,
   hotelOptimisation: false,
   hotelMapLayerFuture: true,
   recommendedHotelsFuture: true
 });
 
-/**
- * Normalized departure-point contract.
- * The actual auditor base field is deliberately not invented here. The caller
- * must supply a resolved canonical departure point once its Auditors column is
- * confirmed/configured.
- */
 function BatchPlanning_normalizePoint_(raw) {
   raw = raw || {};
+  if (typeof raw === 'string') raw = { label: raw };
   var lat = Number(raw.lat != null ? raw.lat : raw.latitude);
   var lng = Number(raw.lng != null ? raw.lng : raw.longitude);
   var gps = String(raw.gps || raw.gpsData || '').trim();
-  var label = String(raw.label || raw.name || '').trim();
+  var label = String(raw.label || raw.name || raw.location || '').trim();
+  var mapsUrl = String(raw.mapsUrl || raw.googleMapsUrl || raw.url || '').trim();
 
   if ((!isFinite(lat) || !isFinite(lng)) && gps) {
     var m = gps.match(/^\s*(-?\d+(?:\.\d+)?)\s*[,;]\s*(-?\d+(?:\.\d+)?)\s*$/);
@@ -57,11 +88,22 @@ function BatchPlanning_normalizePoint_(raw) {
 
   var hasCoords = isFinite(lat) && isFinite(lng);
   return {
-    ok: hasCoords,
+    ok: hasCoords || !!label || !!mapsUrl,
     label: label,
     lat: hasCoords ? lat : null,
     lng: hasCoords ? lng : null,
-    gps: gps || (hasCoords ? (lat + ',' + lng) : '')
+    gps: gps || (hasCoords ? (lat + ',' + lng) : ''),
+    mapsUrl: mapsUrl
+  };
+}
+
+function BatchPlanning_normalizeLocationPlanningMeta_(rawLocation) {
+  rawLocation = rawLocation || {};
+  var separate = rawLocation.separatePlanningStop === true || String(rawLocation.separatePlanningStop || '').toLowerCase() === 'true';
+  var stopHours = Number(rawLocation.planningStopHours != null ? rawLocation.planningStopHours : rawLocation.defaultPlanningHours);
+  return {
+    separatePlanningStop: separate,
+    planningStopHours: isFinite(stopHours) && stopHours >= 0 ? stopHours : null
   };
 }
 
@@ -94,6 +136,7 @@ function BatchPlanning_getCompanyLocation_(companyName, locationCodeOrLabel) {
   }
 
   var point = BatchPlanning_normalizePoint_(selected || { label: company.location, gps: company.gpsData });
+  var planningMeta = BatchPlanning_normalizeLocationPlanningMeta_(selected || {});
   return {
     ok: point.ok,
     reason: point.ok ? '' : 'LOCATION_COORDINATES_MISSING',
@@ -101,18 +144,64 @@ function BatchPlanning_getCompanyLocation_(companyName, locationCodeOrLabel) {
     companyName: String(company.companyName || companyName || ''),
     location: String((selected && (selected.label || selected.name || selected.code)) || company.location || locationCodeOrLabel || ''),
     point: point,
+    separatePlanningStop: planningMeta.separatePlanningStop,
+    planningStopHours: planningMeta.planningStopHours,
     source: 'Companies.Locations_JSON'
   };
 }
 
-/**
- * Candidate shell for Batch Planning. No score is intentionally calculated:
- * scoring/weighting requires planner-approved functional rules.
- */
+function BatchPlanning_evaluateRotation_(completedCount, maxNumberAudits) {
+  var count = Number(completedCount);
+  var max = Number(maxNumberAudits);
+  if (!isFinite(count) || count < 0 || !isFinite(max) || max < 0) {
+    return { status:'UNKNOWN', allowed:false, warning:true };
+  }
+  var nextOrdinal = count + 1;
+  if (nextOrdinal <= max) return { status:'OK', allowed:true, warning:false, nextOrdinal:nextOrdinal, max:max };
+  if (nextOrdinal === max + BATCH_PLANNING_POLICY.rotationWarningOffset) {
+    return { status:'WARNING', allowed:true, warning:true, exceptionRequired:true, nextOrdinal:nextOrdinal, max:max };
+  }
+  return { status:'HARD_BLOCK', allowed:false, warning:true, nextOrdinal:nextOrdinal, max:max };
+}
+
+function BatchPlanning_validateStopHours_(hoursToBePlanned, stops) {
+  var total = Number(hoursToBePlanned);
+  var list = Array.isArray(stops) ? stops : [];
+  if (!isFinite(total) || total < 0) return { ok:false, reason:'INVALID_HOURS_TO_BE_PLANNED' };
+  var sum = 0;
+  for (var i = 0; i < list.length; i++) {
+    var hours = Number(list[i] && list[i].hours);
+    if (!isFinite(hours) || hours < 0) return { ok:false, reason:'INVALID_STOP_HOURS', index:i };
+    sum += hours;
+  }
+  var ok = Math.abs(sum - total) < 0.000001;
+  return { ok:ok, reason:ok ? '' : 'STOP_HOURS_MUST_SUM_TO_HOURS_TO_BE_PLANNED', sumHours:sum, hoursToBePlanned:total };
+}
+
+function BatchPlanning_resolveBoundaryPoints_(input) {
+  input = input || {};
+  var home = BatchPlanning_normalizePoint_(input.home || input.defaultDeparturePoint || {});
+  var inbound = BatchPlanning_normalizePoint_(input.inbound || input.previousPlannedStop || home);
+  var outbound = BatchPlanning_normalizePoint_(input.outbound || input.nextPlannedStop || home);
+  return {
+    home: home,
+    inbound: inbound,
+    outbound: outbound,
+    inboundSource: input.inbound ? 'PLANNER_OVERRIDE' : (input.previousPlannedStop ? 'PREVIOUS_PLANNED_STOP' : 'HOME'),
+    outboundSource: input.outbound ? 'PLANNER_OVERRIDE' : (input.nextPlannedStop ? 'NEXT_PLANNED_STOP' : 'HOME')
+  };
+}
+
 function BatchPlanning_buildCandidate_(input) {
   input = input || {};
   var auditorEmail = String(input.auditorEmail || '').trim().toLowerCase();
-  var departure = BatchPlanning_normalizePoint_(input.auditorDeparturePoint || {});
+  var boundaries = BatchPlanning_resolveBoundaryPoints_({
+    home: input.auditorDeparturePoint || input.home,
+    inbound: input.inboundPoint,
+    outbound: input.outboundPoint,
+    previousPlannedStop: input.previousPlannedStop,
+    nextPlannedStop: input.nextPlannedStop
+  });
   var destination = BatchPlanning_getCompanyLocation_(input.companyName, input.location);
 
   return {
@@ -120,22 +209,24 @@ function BatchPlanning_buildCandidate_(input) {
     advisoryOnly: true,
     auditId: String(input.auditId || '').trim(),
     auditorEmail: auditorEmail,
-    auditorDeparturePoint: departure,
+    boundaries: boundaries,
     destination: destination,
     planningWindow: input.planningWindow || null,
-    auditDurationMinutes: Number(input.auditDurationMinutes || 0) || 0,
+    hoursToBePlanned: Number(input.hoursToBePlanned != null ? input.hoursToBePlanned : (Number(input.auditDurationMinutes || 0) / 60)) || 0,
     eligibility: input.eligibility || null,
     availability: input.availability || null,
     rotation: input.rotation || null,
+    companySoftConstraints: input.companySoftConstraints || null,
+    auditorSoftConstraints: input.auditorSoftConstraints || null,
+    existingAnchor: input.existingAnchor || null,
     route: input.route || null,
     interAuditRoutes: Array.isArray(input.interAuditRoutes) ? input.interAuditRoutes : [],
     decision: null,
     score: null,
-    requiresPlannerRules: true
+    requiresRouteAndCandidateEngine: true
   };
 }
 
-/** Route matrix response normalizer for later Google Routes adapter. */
 function BatchPlanning_normalizeRouteMetric_(raw) {
   raw = raw || {};
   var distanceMeters = Number(raw.distanceMeters);
@@ -156,10 +247,13 @@ function BatchPlanning_GetFoundationContract() {
     ok: true,
     build: BATCH_PLANNING_FOUNDATION_BUILD,
     policy: BATCH_PLANNING_POLICY,
-    nextFunctionalGate: [
-      'Confirm canonical auditor departure-point field/configuration.',
-      'Confirm planner weighting/priorities before any candidate scoring.',
-      'Confirm first Batch Planning interaction/workflow before UI implementation.'
+    functionalDecisionsComplete: true,
+    nextTechnicalGate: [
+      'Expose Auditors column Q Default departure from through the canonical auditor read model.',
+      'Expose Locations_JSON separatePlanningStop and optional default stop-hour allocation.',
+      'Build read-only candidate collection using planning windows, eligibility, Availability, rotation and soft constraints.',
+      'Add cached route-matrix adapter before geographic scoring.',
+      'Generate one advisory concept plan between inbound and outbound anchors.'
     ]
   };
 }

@@ -1,15 +1,12 @@
 /***********************************************************************
  * PlanningWorkspaceDragDropTests.js
- * BUILD: 2026-09-17_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R17_CONTRACT_DRIFT_GUARD
+ * BUILD: 2026-09-17_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R18_CURRENT_CONTRACT
  ***********************************************************************/
-var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-17_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R17_CONTRACT_DRIFT_GUARD';
+var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-17_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R18_CURRENT_CONTRACT';
 function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
-  var ui=PlanningWorkspaceUi_contract();
-  var rpc=PlanningWorkspaceRpc_contract();
-  var saveSource=String(PWR_saveConcept_);
-  var hydrateSource=String(PWR_conceptInput_);
-  var preflightSource=String(PWR_conceptPreflight_);
+  var ui=PlanningWorkspaceUi_contract(),rpc=PlanningWorkspaceRpc_contract();
+  var saveSource=String(PWR_saveConcept_),hydrateSource=String(PWR_conceptInput_),preflightSource=String(PWR_conceptPreflight_);
   var overlaySource=String(PlanningWorkspaceOverlayBundle_get)+'\n'+String(PWOB_availabilityIndex_);
   var dragSource=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceDragDrop.js').getContent();
   var detailSource=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceDetailToolkit.js').getContent();
@@ -17,90 +14,31 @@ function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   var attentionSource=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceAttentionEnhancer.js').getContent();
   var clientSource=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceClient.js').getContent();
   var shellSource=HtmlService.createHtmlOutputFromFile('PlanningWorkspace').getContent();
-
-  t('dragDropInclude',ui.dragDropInclude==='PlanningWorkspaceDragDrop.js',ui.dragDropInclude);
-  t('detailToolkitInclude',ui.detailToolkitInclude==='PlanningWorkspaceDetailToolkit.js',ui.detailToolkitInclude);
-  t('contextEnhancerInclude',ui.contextEnhancerInclude==='PlanningWorkspaceContextEnhancer.js',ui.contextEnhancerInclude);
-  t('attentionEnhancerInclude',ui.attentionEnhancerInclude==='PlanningWorkspaceAttentionEnhancer.js',ui.attentionEnhancerInclude);
-  t('dragDropClientOnly',ui.dragDropClientOnly===true);
-  t('detailToolkitClientOnly',ui.detailToolkitClientOnly===true);
-  t('contextEnhancerClientOnly',ui.contextEnhancerClientOnly===true);
-  t('attentionEnhancerClientOnly',ui.attentionEnhancerClientOnly===true);
+  t('dragDropInclude',ui.dragDropInclude==='PlanningWorkspaceDragDrop.js');
+  t('detailToolkitInclude',ui.detailToolkitInclude==='PlanningWorkspaceDetailToolkit.js');
+  t('contextEnhancerInclude',ui.contextEnhancerInclude==='PlanningWorkspaceContextEnhancer.js');
+  t('attentionEnhancerInclude',ui.attentionEnhancerInclude==='PlanningWorkspaceAttentionEnhancer.js');
+  t('dragDropClientOnly',ui.dragDropClientOnly===true);t('detailToolkitClientOnly',ui.detailToolkitClientOnly===true);t('contextEnhancerClientOnly',ui.contextEnhancerClientOnly===true);t('attentionEnhancerClientOnly',ui.attentionEnhancerClientOnly===true);
   t('shellStillDataIndependent',ui.dataIndependentShell===true&&ui.planningServiceReadsDuringRender===false);
-
-  t('saveConceptEndpoint',rpc.endpoints.indexOf('PlanningWorkspaceRpc_saveConcept')>=0);
-  t('releaseConceptEndpoint',rpc.endpoints.indexOf('PlanningWorkspaceRpc_releaseConcept')>=0);
-  t('directCommitEndpoint',rpc.endpoints.indexOf('PlanningWorkspaceRpc_commit')>=0);
-  t('revisionHydrationDeclared',rpc.meta.conceptDropRevisionHydration===true);
-  t('canonicalRevisionOwnerUsed',hydrateSource.indexOf('PlanningRevisionTokenService_get')>=0);
-  t('canonicalPreflightDeclared',rpc.meta.conceptDropCanonicalPreflight===true);
-  t('canonicalPreflightOwner',rpc.meta.conceptDropPreflightOwner==='PlanningCommitGateService_evaluate');
+  t('saveConceptEndpoint',rpc.endpoints.indexOf('PlanningWorkspaceRpc_saveConcept')>=0);t('releaseConceptEndpoint',rpc.endpoints.indexOf('PlanningWorkspaceRpc_releaseConcept')>=0);t('directCommitEndpoint',rpc.endpoints.indexOf('PlanningWorkspaceRpc_commit')>=0);
+  t('revisionHydrationDeclared',rpc.meta.conceptDropRevisionHydration===true);t('canonicalRevisionOwnerUsed',hydrateSource.indexOf('PlanningRevisionTokenService_get')>=0);t('canonicalPreflightDeclared',rpc.meta.conceptDropCanonicalPreflight===true);t('canonicalPreflightOwner',rpc.meta.conceptDropPreflightOwner==='PlanningCommitGateService_evaluate');
   t('canonicalConstraintSetOwnedByGate',preflightSource.indexOf('PlanningCommitGateService_evaluate')>=0&&preflightSource.indexOf('auditId:')>=0&&preflightSource.indexOf('auditorEmail:')>=0&&preflightSource.indexOf('blocks:')>=0);
   t('preflightUsesCanonicalGate',preflightSource.indexOf('PlanningCommitGateService_evaluate')>=0);
-  t('blockedPreflightCannotSaveConcept',saveSource.indexOf('gate.canCommit!==true')>=0&&saveSource.indexOf('gate.canCommit!==true')<saveSource.indexOf('PlanningWorkspaceService_saveConcept'));
-
-  t('auditorDateGridShell',shellSource.indexOf('auditor-date-grid')>=0&&shellSource.indexOf('auditor × date')>=0);
-  t('dropTargetOwnsAuditorAndDate',dragSource.indexOf('data-auditor-email')>=0&&dragSource.indexOf('data-date')>=0);
-  t('noSelectedAuditorDependency',dragSource.indexOf('selectedAuditor')<0);
-  t('clientConstraintCues',dragSource.indexOf('candidate(row,email)')>=0&&dragSource.indexOf('availabilityNo(email,date)')>=0&&dragSource.indexOf('planningWindowFrom')>=0&&dragSource.indexOf('planningWindowTo')>=0);
-  t('rotationWarningCue',dragSource.indexOf('rotationWarning===true')>=0);
-  t('refreshRequiredNotHardBlocked',dragSource.indexOf('requiresCanonicalEligibility(row)')>=0&&dragSource.indexOf("if(!c&&!refresh)return{level:'BLOCK'")>=0);
-  t('refreshRequiredCanonicalCheckCue',dragSource.indexOf("level:'CHECK'")>=0&&dragSource.indexOf('canonical qualification will be checked on drop')>=0);
-  t('refreshRequiredStillUsesCanonicalPreflight',saveSource.indexOf('PWR_conceptPreflight_')>=0&&preflightSource.indexOf('PlanningCommitGateService_evaluate')>=0);
-  t('validProposedTimeSlot',dragSource.indexOf('proposedSlot(hours)')>=0&&dragSource.indexOf("start:'08:00'")>=0);
-  t('workspaceMultidayProposal',dragSource.indexOf('function proposedBlocks(hours,startDate,row,email)')>=0&&dragSource.indexOf('Math.ceil(total/(8*60))')>=0);
-  t('workspaceMultidaySkipsUnavailableDays',dragSource.indexOf('function nextUsableDate(row,email,afterDate,minsNeeded)')>=0&&dragSource.indexOf('!availabilityNo(email,date)')>=0);
-  t('workspaceDropSavesAllProposedBlocks',dragSource.indexOf('blocks:blocks')>=0&&dragSource.indexOf("note:'Planning Workspace drag & drop multiday proposal'")>=0);
-  t('workspaceMultidayExposedForRegression',dragSource.indexOf('proposedBlocks:proposedBlocks')>=0);
-
-  t('conceptBlocksRendered',clientSource.indexOf('Array.isArray(x.blocks)')>=0&&clientSource.indexOf('data-concept-audit')>=0);
-  t('conceptActionBound',dragSource.indexOf('bindConceptActions')>=0&&dragSource.indexOf("btn.textContent='Plan'")>=0);
-  t('conceptReleaseActionBound',dragSource.indexOf("release.textContent='Release'")>=0&&dragSource.indexOf('releaseConcept(id,release)')>=0);
-  t('conceptReleaseUsesCanonicalRpc',dragSource.indexOf('PlanningWorkspaceRpc_releaseConcept')>=0&&dragSource.indexOf("reason:'MANAGER_CONCEPT_UNDO'")>=0);
-  t('conceptReleaseReloadsPendingDemand',dragSource.indexOf('Returning audit to Pending workload')>=0&&dragSource.indexOf("c.load('load')")>=0);
-  t('detailActionBound',dragSource.indexOf("detail.textContent='Details'")>=0&&dragSource.indexOf('PlanningWorkspaceDetailToolkit.open')>=0);
-  t('detailToolkitConceptOnly',detailSource.indexOf("note:'Planning Workspace Toolkit 2.0 multiday'")>=0&&detailSource.indexOf('PlanningWorkspaceRpc_saveConcept')>=0);
-  t('detailToolkitCanonicalPlan',detailSource.indexOf('PlanningWorkspaceRpc_commit')>=0&&detailSource.indexOf('expectedRevision:clean(res.sourceRevision)')>=0);
-  t('detailToolkitEditableMultidayBlocks',detailSource.indexOf('pwDetailBlocks')>=0&&detailSource.indexOf('pw-block-date')>=0&&detailSource.indexOf('pw-block-start')>=0&&detailSource.indexOf('pw-block-end')>=0&&detailSource.indexOf('pwDetailAddBlock')>=0);
-  t('detailToolkitValidatesRequiredHours',detailSource.indexOf('Planned hours are below required hours')>=0&&detailSource.indexOf('requiredHours()')>=0);
-  t('detailToolkitNoCanonicalBypass',detailSource.indexOf('SpreadsheetApp')<0&&detailSource.indexOf('ManagerPlanning')<0);
-  t('detailToolkitUsesServerSavedReservation',detailSource.indexOf('res.data.reservation')>=0&&detailSource.indexOf('applySavedReservation(saved)')>=0);
-  t('detailToolkitAppliesSavedReservationLocally',detailSource.indexOf("typeof d.localApplyReservation==='function'")>=0&&detailSource.indexOf('d.localApplyReservation(saved)')>=0);
-  t('detailToolkitReloadOnlyFallback',detailSource.indexOf("if(!applied){var c=client();if(c&&typeof c.load==='function')c.load('load')}")>=0);
-  t('directFinalizeUsesCanonicalRpc',dragSource.indexOf('PlanningWorkspaceRpc_commit')>=0&&dragSource.indexOf('expectedRevision:clean(r.sourceRevision)')>=0);
-  t('directFinalizeUsesConceptBlocks',dragSource.indexOf('blocks:Array.isArray(r.blocks)?r.blocks:[]')>=0);
-
-  t('availabilityInternalAuditRefProjected',overlaySource.indexOf('auditRef:auditRef')>=0||overlaySource.indexOf('auditRef:id')>=0);
-  t('availabilityAuditIdNotUserField',overlaySource.indexOf('auditId:PWOB_clean_(s.auditId)')<0);
-  t('availabilitySingleBatchRead',overlaySource.indexOf('availabilityBatchReads:1')>=0&&overlaySource.indexOf('perAuditorReads:0')>=0);
-  t('contextUsesExistingClientState',contextEnhancerSource.indexOf('PlanningWorkspaceClient')>=0&&contextEnhancerSource.indexOf("typeof c.state==='function'")>=0);
-  t('contextPrefersServerProjectedCompanyScopes',contextEnhancerSource.indexOf('var company=clean(slot.company)')>=0&&contextEnhancerSource.indexOf('Array.isArray(slot.scopes)')>=0);
-  t('contextFallsBackToAdvisoryJoin',contextEnhancerSource.indexOf('map[clean(slot.auditRef)]')>=0&&contextEnhancerSource.indexOf('r.company')>=0&&contextEnhancerSource.indexOf('r.scopes')>=0);
-  t('contextShowsTimeCompanyScopes',contextEnhancerSource.indexOf("clean(slot.start)")>=0&&contextEnhancerSource.indexOf("p.push(company)")>=0&&contextEnhancerSource.indexOf("p.push(scopes.join(', '))")>=0);
-  t('contextHumanizesWeekend',contextEnhancerSource.indexOf("return'Weekend'")>=0);
-  t('contextFallbackPlannedAudit',contextEnhancerSource.indexOf("return'Planned audit'")>=0);
-  t('contextNoUserVisibleAuditId',contextEnhancerSource.indexOf("p.push(clean(slot.auditRef))")<0&&contextEnhancerSource.indexOf("textContent=clean(slot.auditRef)")<0);
-  t('contextNoExtraRpc',contextEnhancerSource.indexOf('google.script.run')<0);
-  t('contextNoSheetRead',contextEnhancerSource.indexOf('SpreadsheetApp')<0&&contextEnhancerSource.indexOf('getRange(')<0&&contextEnhancerSource.indexOf('getDataRange(')<0);
-
-  t('attentionUsesExistingClientState',attentionSource.indexOf('PlanningWorkspaceClient')>=0&&attentionSource.indexOf('PlanningWorkspaceClient.state')>=0);
-  t('attentionLimit12',attentionSource.indexOf('ATTENTION_LIMIT=12')>=0&&attentionSource.indexOf('.slice(0,ATTENTION_LIMIT)')>=0);
-  t('attentionPriorityDeadlineFirst',attentionSource.indexOf("if(ap.wt!==bp.wt)return ap.wt.localeCompare(bp.wt)")>=0);
-  t('attentionCardsRemainDragSources',attentionSource.indexOf('class=\"attention-card\"')>=0&&attentionSource.indexOf('data-audit=\"')>=0&&dragSource.indexOf("document.querySelectorAll('.attention-card')")>=0&&dragSource.indexOf("card.setAttribute('draggable','true')")>=0);
-  t('attentionNoExtraRpc',attentionSource.indexOf('google.script.run')<0);
-  t('attentionNoSheetRead',attentionSource.indexOf('SpreadsheetApp')<0&&attentionSource.indexOf('getRange(')<0);
-
-  t('conceptSaveLocalApply',dragSource.indexOf('localApplyReservation(saved)')>=0&&dragSource.indexOf('res.data.reservation')>=0);
-  t('conceptSaveNoMandatoryBootstrapReload',dragSource.indexOf("if(!applied){var c=client();if(c&&typeof c.load==='function')c.load('load')}")>=0);
-  t('conceptSaveWallTimeTelemetry',dragSource.indexOf('__AMS_WORKSPACE_LAST_CONCEPT_SAVE_MS')>=0);
-  t('localApplyNoServerRead',String(dragSource.match(/function localApplyReservation[\s\S]*?function markDemand/)||'').indexOf('google.script.run')<0);
-
-  t('noLegacyPlanningWriter',dragSource.indexOf('ManagerPlanning')<0&&saveSource.indexOf('ManagerPlanning')<0);
-  t('noDirectSheetReads',rpc.meta.directSheetReads===false&&ui.directSheetReads===false&&saveSource.indexOf('SpreadsheetApp')<0&&detailSource.indexOf('SpreadsheetApp')<0);
-  t('noDirectSheetWrites',rpc.meta.directSheetWrites===false&&ui.directSheetWrites===false&&saveSource.indexOf('setValue')<0&&saveSource.indexOf('setValues')<0&&detailSource.indexOf('setValue')<0&&detailSource.indexOf('setValues')<0);
-  t('noNewSsot',rpc.meta.newSsot===false&&ui.newSsot===false);
-
+  t('blockedPreflightCannotSaveConcept',saveSource.indexOf('g.canCommit!==true')>=0&&saveSource.indexOf('g.canCommit!==true')<saveSource.indexOf('PlanningWorkspaceService_saveConcept'));
+  t('auditorDateGridShell',shellSource.indexOf('auditor-date-grid')>=0&&shellSource.indexOf('auditor × date')>=0);t('dropTargetOwnsAuditorAndDate',dragSource.indexOf('data-auditor-email')>=0&&dragSource.indexOf('data-date')>=0);t('noSelectedAuditorDependency',dragSource.indexOf('selectedAuditor')<0);
+  t('clientConstraintCues',dragSource.indexOf('candidate(row,email)')>=0&&dragSource.indexOf('availabilityNo(email,date)')>=0&&dragSource.indexOf('planningWindowFrom')>=0&&dragSource.indexOf('planningWindowTo')>=0);t('rotationWarningCue',dragSource.indexOf('rotationWarning===true')>=0);
+  t('refreshRequiredNotHardBlocked',dragSource.indexOf('requiresCanonicalEligibility(row)')>=0&&dragSource.indexOf("if(!c&&!refresh)return{level:'BLOCK'")>=0);t('refreshRequiredCanonicalCheckCue',dragSource.indexOf("level:'CHECK'")>=0&&dragSource.indexOf('canonical qualification will be checked on drop')>=0);t('refreshRequiredStillUsesCanonicalPreflight',saveSource.indexOf('PWR_conceptPreflight_')>=0&&preflightSource.indexOf('PlanningCommitGateService_evaluate')>=0);
+  t('validProposedTimeSlot',dragSource.indexOf('function proposedSlot(hours)')>=0&&dragSource.indexOf('start=8*60')>=0&&dragSource.indexOf('start:hhmm(start)')>=0);
+  t('workspaceMultidayProposal',dragSource.indexOf('function proposedBlocks(hours,startDate,row,email)')>=0&&dragSource.indexOf('Math.ceil(total/(8*60))')>=0);t('workspaceMultidaySkipsUnavailableDays',dragSource.indexOf('function nextUsableDate(row,email,afterDate,minsNeeded)')>=0&&dragSource.indexOf('!availabilityNo(email,date)')>=0);t('workspaceDropSavesAllProposedBlocks',dragSource.indexOf('blocks:blocks')>=0&&dragSource.indexOf("note:'Planning Workspace drag & drop multiday proposal'")>=0);t('workspaceMultidayExposedForRegression',dragSource.indexOf('proposedBlocks:proposedBlocks')>=0);
+  t('conceptBlocksRendered',clientSource.indexOf('Array.isArray(x.blocks)')>=0&&clientSource.indexOf('data-concept-audit')>=0);t('conceptActionBound',dragSource.indexOf('bindConceptActions')>=0&&dragSource.indexOf("btn.textContent='Plan'")>=0);t('conceptReleaseActionBound',dragSource.indexOf("release.textContent='Release'")>=0&&dragSource.indexOf('releaseConcept(id,release)')>=0);t('conceptReleaseUsesCanonicalRpc',dragSource.indexOf('PlanningWorkspaceRpc_releaseConcept')>=0&&dragSource.indexOf("reason:'MANAGER_CONCEPT_UNDO'")>=0);t('conceptReleaseReloadsPendingDemand',dragSource.indexOf('Returning audit to Pending workload')>=0&&dragSource.indexOf("c.load('load')")>=0);
+  t('detailActionBound',dragSource.indexOf("detail.textContent='Details'")>=0&&dragSource.indexOf('PlanningWorkspaceDetailToolkit.open')>=0);t('detailToolkitConceptOnly',detailSource.indexOf("note:'Planning Workspace Toolkit 2.0 multiday'")>=0&&detailSource.indexOf('PlanningWorkspaceRpc_saveConcept')>=0);t('detailToolkitCanonicalPlan',detailSource.indexOf('PlanningWorkspaceRpc_commit')>=0&&detailSource.indexOf('expectedRevision:clean(res.sourceRevision)')>=0);t('detailToolkitEditableMultidayBlocks',detailSource.indexOf('pwDetailBlocks')>=0&&detailSource.indexOf('pw-block-date')>=0&&detailSource.indexOf('pw-block-start')>=0&&detailSource.indexOf('pw-block-end')>=0&&detailSource.indexOf('pwDetailAddBlock')>=0);t('detailToolkitValidatesRequiredHours',detailSource.indexOf('Planned hours are below required hours')>=0&&detailSource.indexOf('requiredHours()')>=0);t('detailToolkitNoCanonicalBypass',detailSource.indexOf('SpreadsheetApp')<0&&detailSource.indexOf('ManagerPlanning')<0);t('detailToolkitUsesServerSavedReservation',detailSource.indexOf('res.data.reservation')>=0&&detailSource.indexOf('applySavedReservation(saved)')>=0);t('detailToolkitAppliesSavedReservationLocally',detailSource.indexOf("typeof d.localApplyReservation==='function'")>=0&&detailSource.indexOf('d.localApplyReservation(saved)')>=0);t('detailToolkitReloadOnlyFallback',detailSource.indexOf("if(!applied){var c=client();if(c&&typeof c.load==='function')c.load('load')}")>=0);t('directFinalizeUsesCanonicalRpc',dragSource.indexOf('PlanningWorkspaceRpc_commit')>=0&&dragSource.indexOf('expectedRevision:clean(r.sourceRevision)')>=0);t('directFinalizeUsesConceptBlocks',dragSource.indexOf('blocks:Array.isArray(r.blocks)?r.blocks:[]')>=0);
+  t('availabilityInternalAuditRefProjected',overlaySource.indexOf('auditRef:auditRef')>=0||overlaySource.indexOf('auditRef:id')>=0);t('availabilityAuditIdNotUserField',overlaySource.indexOf('auditId:PWOB_clean_(s.auditId)')<0);t('availabilitySingleBatchRead',overlaySource.indexOf('availabilityBatchReads:1')>=0&&overlaySource.indexOf('perAuditorReads:0')>=0);
+  t('contextUsesExistingClientState',contextEnhancerSource.indexOf('PlanningWorkspaceClient')>=0&&contextEnhancerSource.indexOf("typeof c.state==='function'")>=0);t('contextPrefersServerProjectedCompanyScopes',contextEnhancerSource.indexOf('var company=clean(slot.company)')>=0&&contextEnhancerSource.indexOf('Array.isArray(slot.scopes)')>=0);t('contextFallsBackToAdvisoryJoin',contextEnhancerSource.indexOf('map[clean(slot.auditRef)]')>=0&&contextEnhancerSource.indexOf('r.company')>=0&&contextEnhancerSource.indexOf('r.scopes')>=0);t('contextShowsTimeCompanyScopes',contextEnhancerSource.indexOf("clean(slot.start)")>=0&&contextEnhancerSource.indexOf("p.push(company)")>=0&&contextEnhancerSource.indexOf("p.push(scopes.join(', '))")>=0);
+  t('contextHumanizesWeekend',contextEnhancerSource.indexOf("return'Weekend · soft'")>=0);t('contextFallbackFriendlyStatus',contextEnhancerSource.indexOf('friendlyStatus(slot.status)')>=0&&contextEnhancerSource.indexOf('if(status)p.push(status)')>=0);t('contextNoUserVisibleAuditId',contextEnhancerSource.indexOf("p.push(clean(slot.auditRef))")<0&&contextEnhancerSource.indexOf("textContent=clean(slot.auditRef)")<0);t('contextNoExtraRpc',contextEnhancerSource.indexOf('google.script.run')<0);t('contextNoSheetRead',contextEnhancerSource.indexOf('SpreadsheetApp')<0&&contextEnhancerSource.indexOf('getRange(')<0&&contextEnhancerSource.indexOf('getDataRange(')<0);
+  t('attentionUsesExistingClientState',attentionSource.indexOf('PlanningWorkspaceClient')>=0&&attentionSource.indexOf('PlanningWorkspaceClient.state')>=0);t('attentionLimit12',attentionSource.indexOf('ATTENTION_LIMIT=12')>=0&&attentionSource.indexOf('.slice(0,ATTENTION_LIMIT)')>=0);t('attentionPriorityDeadlineFirst',attentionSource.indexOf("if(ap.wt!==bp.wt)return ap.wt.localeCompare(bp.wt)")>=0);t('attentionCardsRemainDragSources',attentionSource.indexOf('class=\"attention-card\"')>=0&&attentionSource.indexOf('data-audit=\"')>=0&&dragSource.indexOf("document.querySelectorAll('.attention-card')")>=0&&dragSource.indexOf("card.setAttribute('draggable','true')")>=0);t('attentionNoExtraRpc',attentionSource.indexOf('google.script.run')<0);t('attentionNoSheetRead',attentionSource.indexOf('SpreadsheetApp')<0&&attentionSource.indexOf('getRange(')<0);
+  t('conceptSaveLocalApply',dragSource.indexOf('localApplyReservation(saved)')>=0&&dragSource.indexOf('res.data.reservation')>=0);t('conceptSaveNoMandatoryBootstrapReload',dragSource.indexOf("if(!applied){var c=client();if(c&&typeof c.load==='function')c.load('load')}")>=0);t('conceptSaveWallTimeTelemetry',dragSource.indexOf('__AMS_WORKSPACE_LAST_CONCEPT_SAVE_MS')>=0);t('localApplyNoServerRead',String(dragSource.match(/function localApplyReservation[\s\S]*?function markDemand/)||'').indexOf('google.script.run')<0);
+  t('noLegacyPlanningWriter',dragSource.indexOf('ManagerPlanning')<0&&saveSource.indexOf('ManagerPlanning')<0);t('noDirectSheetReads',rpc.meta.directSheetReads===false&&ui.directSheetReads===false&&saveSource.indexOf('SpreadsheetApp')<0&&detailSource.indexOf('SpreadsheetApp')<0);t('noDirectSheetWrites',rpc.meta.directSheetWrites===false&&ui.directSheetWrites===false&&saveSource.indexOf('setValue')<0&&saveSource.indexOf('setValues')<0&&detailSource.indexOf('setValue')<0&&detailSource.indexOf('setValues')<0);t('noNewSsot',rpc.meta.newSsot===false&&ui.newSsot===false);
   var failed=r.filter(function(x){return!x.ok;}).length;
-  var out={ok:failed===0,build:PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,contractOnly:true,targetFlow:'Workspace audit -> auditor x start date -> multiday proposal when needed -> canonical preflight -> Concept Reservation -> optional Individual Toolkit 2.0 -> Release back to Pending workload OR direct canonical commit',multiday:'Workspace drop balances required hours over <=8h weekdays and skips known unavailable dates; Toolkit 2.0 can refine blocks',conceptRelease:'Release uses canonical Concept Reservation command endpoint; canonical audit status remains Pending Planning; Workspace reload restores audit to pending demand',availabilityContext:'server-projected company/scopes first; internal auditRef advisory fallback; no user-visible Audit ID; no extra RPC or Spreadsheet read',attention:'top 12 by planningWindowTo, planningWindowFrom, blocker state; cards remain drag sources',conceptSaveUx:'drag/drop and Toolkit Save both apply the server-confirmed Concept Reservation locally; full Workspace reload only as fallback'}};
+  var out={ok:failed===0,build:PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,contractOnly:true,targetFlow:'Workspace audit -> auditor x start date -> multiday proposal when needed -> canonical preflight -> Concept Reservation -> optional Individual Toolkit 2.0 -> Release back to Pending workload OR direct canonical commit'}};
   console.log(JSON.stringify(out,null,2));return out;
 }

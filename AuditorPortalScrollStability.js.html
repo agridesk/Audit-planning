@@ -1,0 +1,15 @@
+<!-- AuditorPortalScrollStability.js -->
+<script>
+(function(){
+'use strict';
+var BUILD='2026-09-17_AUDITOR_PORTAL_SCROLL_STABILITY_R1';
+var key='amsAuditorPortalScrollY';
+var restoring=false,timer=0,lastSaved=0;
+function save(){if(restoring)return;var y=Math.max(0,Math.round(window.scrollY||window.pageYOffset||0));if(Math.abs(y-lastSaved)<4)return;lastSaved=y;try{sessionStorage.setItem(key,String(y))}catch(e){}}
+function restore(){var raw='';try{raw=sessionStorage.getItem(key)||''}catch(e){}var y=Number(raw);if(!isFinite(y)||y<=0)return;restoring=true;requestAnimationFrame(function(){window.scrollTo(0,y);requestAnimationFrame(function(){window.scrollTo(0,y);restoring=false;lastSaved=y})})}
+function scheduleRestore(){clearTimeout(timer);timer=setTimeout(restore,40)}
+function bind(){window.addEventListener('scroll',function(){if(timer)return;timer=setTimeout(function(){timer=0;save()},80)},{passive:true});window.addEventListener('beforeunload',save);var grid=document.getElementById('grid');if(grid)new MutationObserver(scheduleRestore).observe(grid,{childList:true,subtree:true});restore()}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
+window.AuditorPortalScrollStability={BUILD:BUILD,save:save,restore:restore};
+})();
+</script>

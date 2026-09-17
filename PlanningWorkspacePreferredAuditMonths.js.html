@@ -1,0 +1,19 @@
+<!-- PlanningWorkspacePreferredAuditMonths.js -->
+<script>
+(function(){
+'use strict';
+var BUILD='2026-09-17_PREFERRED_AUDIT_MONTHS_UI_R1';
+function clean(v){return String(v==null?'':v).trim()}
+function state(){try{return window.PlanningWorkspaceClient&&window.PlanningWorkspaceClient.state?window.PlanningWorkspaceClient.state():null}catch(e){return null}}
+function rows(){var s=state();return s&&s.data&&s.data.advisory&&Array.isArray(s.data.advisory.rows)?s.data.advisory.rows:[]}
+function rowById(id){id=clean(id);var r=rows();for(var i=0;i<r.length;i++)if(clean(r[i]&&r[i].auditId)===id)return r[i];return null}
+function monthsText(row){var a=row&&Array.isArray(row.preferredAuditMonths)?row.preferredAuditMonths:[];return a.length?a.join(', '):''}
+function auditIdFromDetail(){var el=document.getElementById('pwDetailAudit'),txt=clean(el&&el.textContent),p=txt.lastIndexOf(' · ');return p>=0?clean(txt.slice(p+3)):''}
+function renderDetail(){var select=document.getElementById('pwDetailAuditor');if(!select)return;var host=document.getElementById('pwPreferredAuditMonths');if(!host){host=document.createElement('div');host.id='pwPreferredAuditMonths';host.style.cssText='margin-top:8px;padding:7px 9px;border:1px solid #d8e0ea;border-radius:4px;background:#f8fafc;font:10px Arial;color:#536174';select.parentNode.insertAdjacentElement('afterend',host)}var row=rowById(auditIdFromDetail()),text=monthsText(row);host.textContent=text?'Preferred audit months: '+text:'Preferred audit months: none specified';host.style.display='block'}
+function decorateAttention(){document.querySelectorAll('#attentionBody .attention-card[data-audit]').forEach(function(card){var id=clean(card.getAttribute('data-audit')),row=rowById(id),text=monthsText(row),sub=card.querySelector('.attention-sub');if(!sub)return;var old=sub.querySelector('.pw-preferred-months');if(old)old.remove();if(!text)return;var span=document.createElement('span');span.className='pw-preferred-months';span.textContent=' · preferred '+text;span.style.cssText='font-weight:700;color:#536174';sub.appendChild(span)})}
+var scheduled=false;function schedule(){if(scheduled)return;scheduled=true;setTimeout(function(){scheduled=false;decorateAttention();var root=document.getElementById('pwDetailToolkit');if(root&&root.style.display!=='none')renderDetail()},0)}
+function bind(){var attention=document.getElementById('attentionBody');if(attention)new MutationObserver(schedule).observe(attention,{childList:true,subtree:true});var body=document.body;if(body)new MutationObserver(schedule).observe(body,{childList:true,subtree:false,attributes:false});document.addEventListener('click',function(e){var t=e&&e.target;if(t&&(t.closest&&t.closest('.attention-card')))setTimeout(renderDetail,0)},true);schedule()}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind);else bind();
+window.PlanningWorkspacePreferredAuditMonths={BUILD:BUILD,renderDetail:renderDetail,decorateAttention:decorateAttention,monthsText:monthsText};
+})();
+</script>

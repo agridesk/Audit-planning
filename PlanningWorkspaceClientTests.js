@@ -1,14 +1,18 @@
 /***********************************************************************
  * PlanningWorkspaceClientTests.js
- * BUILD: 2026-09-11_AMS01_2_PLANNING_WORKSPACE_CLIENT_TESTS_R11_STAGE_DIAGNOSTICS
+ * BUILD: 2026-09-17_AMS01_PLANNING_WORKSPACE_CLIENT_TESTS_R12_DIRECT_SHELL_ONE_RPC
  ***********************************************************************/
-var PLANNING_WORKSPACE_CLIENT_TEST_BUILD='2026-09-11_AMS01_2_PLANNING_WORKSPACE_CLIENT_TESTS_R11_STAGE_DIAGNOSTICS';
+var PLANNING_WORKSPACE_CLIENT_TEST_BUILD='2026-09-17_AMS01_PLANNING_WORKSPACE_CLIENT_TESTS_R12_DIRECT_SHELL_ONE_RPC';
 function RUN_PLANNING_WORKSPACE_CLIENT_BINDING_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var src=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceClient.js').getContent();
   t('clientPresent',!!src);
-  t('buildMarker',src.indexOf('PLANNING_WORKSPACE_CLIENT_R12_STAGE_DIAGNOSTICS')>=0);
-  t('bootstrapRpc',src.indexOf('PlanningWorkspaceRpc_bootstrap')>=0);
+  t('buildMarker',src.indexOf('PLANNING_WORKSPACE_CLIENT_R16_DIRECT_SHELL_ONE_RPC')>=0);
+  t('normalBootstrapRpc',src.indexOf('PlanningWorkspaceRpc_bootstrap')>=0);
+  t('initialAuthOwner',src.indexOf('.V5_ENTRY_resolve(entryAuthContext(base))')>=0);
+  t('initialAuthDataMarker',src.indexOf('__PW_AUTH_DATA__')>=0);
+  t('directShellFlag',src.indexOf('__PW_ENTRY_DIRECT_SHELL')>=0);
+  t('entryAuthState',src.indexOf('entryAuthResolved')>=0);
   t('splitAdvisoryRpcRemoved',src.indexOf('PlanningWorkspaceRpc_getAdvisory')<0);
   t('splitOverlayRpcRemoved',src.indexOf('PlanningWorkspaceRpc_getOverlays')<0);
   t('successHandler',src.indexOf('withSuccessHandler')>=0);
@@ -24,14 +28,15 @@ function RUN_PLANNING_WORKSPACE_CLIENT_BINDING_REGRESSION(){
   t('decisionMetricReload',src.indexOf('PlanningWorkspace_load_to_decision_ready')>=0);
   t('availabilityMetric',src.indexOf('PlanningWorkspace_open_availability_visible')>=0&&src.indexOf('PlanningWorkspace_availability_to_visible')>=0);
   t('paintBoundary',src.indexOf('requestAnimationFrame')>=0);
-  t('singleDecisionRpc',src.indexOf('.PlanningWorkspaceRpc_bootstrap(base)')>=0);
+  t('normalSingleDecisionRpc',src.indexOf('.PlanningWorkspaceRpc_bootstrap(base)')>=0);
+  t('initialSingleRpcMarker',src.indexOf('initialAuthAndDataSingleRpc')>=0);
   t('singleRpcMarker',src.indexOf('singleRpc:true')>=0);
   t('serverDurationCaptured',src.indexOf('rpcDurationMs:r.durationMs||null')>=0);
+  t('transportCaptured',src.indexOf('transportMs:transport')>=0&&src.indexOf(' · Transport ')>=0);
   t('stageMetaCaptured',src.indexOf('r.data.meta.stageMs')>=0);
   t('advisoryStage',src.indexOf('stage.advisory')>=0);
   t('overlayStage',src.indexOf('stage.overlays')>=0);
   t('renderStage',src.indexOf('renderStart=now()')>=0&&src.indexOf('render:Math.round(now()-renderStart)')>=0);
-  t('stageFooter',src.indexOf(' · RPC ')>=0&&src.indexOf('[Adv ')>=0&&src.indexOf(' · Ovl ')>=0&&src.indexOf(' · Render ')>=0);
   t('stageWindowExport',src.indexOf('__AMS01_PLANNING_WORKSPACE_STAGE_PERF')>=0);
   t('shellBeforeOpenLoad',src.indexOf("publishShell({type:'AMS01_BROWSER_PERF'")>=0&&src.indexOf("load('open')")>=0);
   t('navigationClock',src.indexOf("kind==='open'?now():now()-started")>=0);
@@ -39,5 +44,5 @@ function RUN_PLANNING_WORKSPACE_CLIENT_BINDING_REGRESSION(){
   t('noRawJsonRender',src.indexOf('JSON.stringify(advisory')<0&&src.indexOf('JSON.stringify(overlays')<0);
   t('noSheetAccess',src.indexOf('SpreadsheetApp')<0);
   t('noCanonicalBypass',src.indexOf('PlanningCanonicalCommitService_commit')<0);
-  var failed=r.filter(function(x){return!x.ok;}).length,out={ok:failed===0,build:PLANNING_WORKSPACE_CLIENT_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,rpcInvocationPerformed:false,operationalRenderer:true,dataIndependentShell:true,shellInteractiveMetric:true,decisionReadyMetric:true,singleDecisionRpc:true,stageDiagnostics:true,rawJsonShell:false}};console.log(JSON.stringify(out,null,2));return out;
+  var failed=r.filter(function(x){return!x.ok;}).length,out={ok:failed===0,build:PLANNING_WORKSPACE_CLIENT_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,rpcInvocationPerformed:false,operationalRenderer:true,dataIndependentShell:true,shellInteractiveMetric:true,decisionReadyMetric:true,initialAuthOwner:'V5_ENTRY_resolve',initialAuthAndDataSingleRpc:true,stageDiagnostics:true,transportDiagnostics:true,rawJsonShell:false}};console.log(JSON.stringify(out,null,2));return out;
 }

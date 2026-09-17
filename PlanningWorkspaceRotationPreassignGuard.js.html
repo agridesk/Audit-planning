@@ -1,0 +1,17 @@
+<!-- PlanningWorkspaceRotationPreassignGuard.js -->
+<script>
+(function(){
+'use strict';
+var BUILD='2026-09-17_ROTATION_PREASSIGN_GUARD_R1';
+function clean(v){return String(v==null?'':v).trim()}
+function state(){try{return window.PlanningWorkspaceClient&&window.PlanningWorkspaceClient.state?window.PlanningWorkspaceClient.state():null}catch(e){return null}}
+function rowById(id){var s=state(),rows=s&&s.data&&s.data.advisory&&Array.isArray(s.data.advisory.rows)?s.data.advisory.rows:[];for(var i=0;i<rows.length;i++)if(clean(rows[i]&&rows[i].auditId)===clean(id))return rows[i];return null}
+function candidate(row,email){var e=clean(email).toLowerCase(),c=row&&Array.isArray(row.candidateAuditors)?row.candidateAuditors:[];for(var i=0;i<c.length;i++)if(clean(c[i]&&c[i].email).toLowerCase()===e)return c[i];return null}
+function ensureWarning(){var sel=document.getElementById('pwDetailAuditor');if(!sel)return null;var n=document.getElementById('pwRotationPreassignWarning');if(n)return n;n=document.createElement('div');n.id='pwRotationPreassignWarning';n.setAttribute('role','alert');n.style.cssText='display:none;margin-top:7px;padding:8px 10px;border:1px solid #d5a23d;border-radius:4px;background:#fff8e8;color:#6d5314;font-size:10px;font-weight:700;line-height:1.35';sel.parentNode.insertAdjacentElement('afterend',n);return n}
+function refresh(){var sel=document.getElementById('pwDetailAuditor'),n=ensureWarning();if(!sel||!n)return false;var root=document.getElementById('pwDetailToolkit'),auditId='';if(root&&root.style.display==='none'){n.style.display='none';return false}var label=document.getElementById('pwDetailAudit'),txt=clean(label&&label.textContent),parts=txt.split(' · ');if(parts.length>1)auditId=clean(parts[parts.length-1]);var row=rowById(auditId),cand=candidate(row,sel.value);if(cand&&cand.rotationWarning===true){n.textContent='Rotation warning: this auditor is at or near the configured rotation limit. Review before saving or planning; canonical validation runs again on Plan.';n.style.display='block';sel.style.borderColor='#d5a23d';return true}n.textContent='';n.style.display='none';sel.style.borderColor='';return false}
+function bind(){var sel=document.getElementById('pwDetailAuditor');if(sel&&!sel.__rotationGuardBound){sel.__rotationGuardBound=true;sel.addEventListener('change',refresh)}refresh()}
+var scheduled=false;function schedule(){if(scheduled)return;scheduled=true;setTimeout(function(){scheduled=false;bind()},0)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['style']});schedule()});else{new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['style']});schedule()}
+window.PlanningWorkspaceRotationPreassignGuard={BUILD:BUILD,refresh:refresh,candidate:candidate};
+})();
+</script>

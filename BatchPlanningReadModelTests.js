@@ -1,9 +1,9 @@
 /**
  * FILE: BatchPlanningReadModelTests.gs
- * BUILD: 2026-09-17_BATCH_PLANNING_READ_MODEL_TESTS_R1
+ * BUILD: 2026-09-17_BATCH_PLANNING_READ_MODEL_TESTS_R2_HOME_FALLBACK
  * RUN: RUN_BATCH_PLANNING_READ_MODEL_REGRESSION
  */
-var BATCH_PLANNING_READ_MODEL_TEST_BUILD = '2026-09-17_BATCH_PLANNING_READ_MODEL_TESTS_R1';
+var BATCH_PLANNING_READ_MODEL_TEST_BUILD = '2026-09-17_BATCH_PLANNING_READ_MODEL_TESTS_R2_HOME_FALLBACK';
 
 function RUN_BATCH_PLANNING_READ_MODEL_REGRESSION() {
   var results = [];
@@ -27,7 +27,7 @@ function RUN_BATCH_PLANNING_READ_MODEL_REGRESSION() {
   test('departureOwnerAuditors', function(){ return first && first.source === 'Auditors'; });
   test('departureHeaderCanonical', function(){ return first && first.sourceField === 'Default departure from'; });
   test('departureColumnQDeclared', function(){ return first && first.sourceColumn === 'Q'; });
-  test('departureValuePresent', function(){ return first && String(first.defaultDepartureFrom || '').trim().length > 0; });
+  test('departureValueSupported', function(){ return first && first.hasOwnProperty('defaultDepartureFrom'); });
   test('homeDefaultsInboundOutbound', function(){ return first && first.defaultInbound === first.defaultDepartureFrom && first.defaultOutbound === first.defaultDepartureFrom; });
   test('auditorSoftConstraintFieldsExposed', function(){ return first && first.hasOwnProperty('blockedWeekdays') && first.hasOwnProperty('timezone'); });
   test('companyLocationDelegatesCanonicalOwner', function(){ return typeof BatchPlanningReadModel_GetCompanyLocation === 'function' && BATCH_PLANNING_POLICY.companyLocationOwner === 'Companies.Locations_JSON'; });
@@ -38,8 +38,10 @@ function RUN_BATCH_PLANNING_READ_MODEL_REGRESSION() {
 
   var diag = RUN_BATCH_PLANNING_READ_MODEL_DIAGNOSTICS();
   test('diagnosticsNonDestructive', function(){ return diag && diag.ok && diag.nonDestructive === true; });
-  test('diagnosticsDepartureValues', function(){
-    return (diag.sample || []).every(function(x){ return String(x.defaultDepartureFrom || '').trim().length > 0; });
+  test('diagnosticsDepartureContract', function(){
+    return (diag.sample || []).every(function(x){
+      return x && x.sourceColumn === 'Q' && x.hasOwnProperty('defaultDepartureFrom');
+    });
   });
 
   var passed = results.filter(function(x){return x.ok;}).length;
@@ -54,7 +56,7 @@ function RUN_BATCH_PLANNING_READ_MODEL_REGRESSION() {
       nonDestructive:true,
       liveReadsPerformed:true,
       liveWritesPerformed:false,
-      contract:'Batch Planning read model exposes Auditors Default departure from (column Q) and canonical location/boundary inputs without planning writes.'
+      contract:'Batch Planning read model exposes Auditors Default departure from (column Q). Blank Q is valid data and remains visible so the planner can supply/maintain the Home departure point without inventing a location.'
     }
   };
   Logger.log(JSON.stringify(out, null, 2));

@@ -1,14 +1,16 @@
 /***********************************************************************
  * FILE: AcceptedNotificationAuditPlanningRecovery.js
- * BUILD: 2026-09-17_ACCEPTED_NOTIFICATION_AP_RECOVERY_R1
+ * BUILD: 2026-09-17_ACCEPTED_NOTIFICATION_AP_RECOVERY_R2_GAP_DIAGNOSTIC
  *
  * PURPOSE
  * Recovery path for ACCEPT notifications when the historical lifecycle
- * trail row is absent. Uses canonical Audit planning status plus durable
- * auditor-decision metadata written by AuditLifecycleService.
+ * trail row is absent. Primary repair evidence uses canonical Audit planning
+ * auditor-decision metadata. A read-only gap diagnostic also enumerates all
+ * currently Accepted audits and their required notification queue state so
+ * legacy accepts can be identified without guessing or writing data.
  * Queue-only repair; never changes lifecycle, planning or availability.
  ***********************************************************************/
-var ANAPR_BUILD='2026-09-17_ACCEPTED_NOTIFICATION_AP_RECOVERY_R1';
+var ANAPR_BUILD='2026-09-17_ACCEPTED_NOTIFICATION_AP_RECOVERY_R2_GAP_DIAGNOSTIC';
 
 function RUN_ACCEPTED_NOTIFICATION_AP_RECOVERY_14D_DRYRUN(){return AcceptedNotificationAuditPlanningRecovery_Run_({lookbackDays:14,dryRun:true,maxRepairs:100});}
 function RUN_ACCEPTED_NOTIFICATION_AP_RECOVERY_14D(){return AcceptedNotificationAuditPlanningRecovery_Run_({lookbackDays:14,dryRun:false,maxRepairs:100});}
@@ -17,6 +19,7 @@ function ANAPR_clean_(v){return String(v==null?'':v).trim();}
 function ANAPR_norm_(v){return ANAPR_clean_(v).replace(/[–—−]/g,'-').replace(/\u00A0/g,' ').replace(/[\u200B-\u200D\uFEFF]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();}
 function ANAPR_header_(hdr,names){var m={};for(var i=0;i<(hdr||[]).length;i++){var k=ANAPR_norm_(hdr[i]);if(k&&m[k]===undefined)m[k]=i;}for(var n=0;n<(names||[]).length;n++){var w=ANAPR_norm_(names[n]);if(Object.prototype.hasOwnProperty.call(m,w))return m[w];}return-1;}
 function ANAPR_date_(v){if(v instanceof Date&&!isNaN(v.getTime()))return v;var s=ANAPR_clean_(v);if(!s)return null;var d=new Date(s);return isNaN(d.getTime())?null:d;}
+function ANAPR_iso_(v){var d=ANAPR_date_(v);return d?d.toISOString():ANAPR_clean_(v);}
 
 function AcceptedNotificationAuditPlanningRecovery_Find_(ss,lookbackDays,auditIdFilter){
   var sh=ss.getSheetByName('Audit planning');if(!sh)throw new Error("Missing sheet 'Audit planning'");
@@ -66,8 +69,30 @@ function AcceptedNotificationAuditPlanningRecovery_Run_(opts){
   if(out.errors.length||out.unresolved)out.ok=false;out.durationMs=Date.now()-started;Logger.log(JSON.stringify(out,null,2));return out;
 }
 
+function RUN_ACCEPTED_NOTIFICATION_AP_GAP_DIAGNOSTIC(){
+  var started=Date.now(),out={ok:true,build:ANAPR_BUILD,acceptedRows:0,complete:0,missingAny:0,missingAuditAccepted:0,missingEcasDigest:0,items:[],errors:[]};
+  try{
+    if(typeof AcceptedNotificationReconciler_LoadQueue_!=='function'||typeof AcceptedNotificationReconciler_GetRequiredEventState_!=='function')throw new Error('NotificationAcceptedReconciler helpers unavailable');
+    var ss=SpreadsheetApp.getActiveSpreadsheet()||SpreadsheetApp.getActive();if(!ss)throw new Error('Active spreadsheet unavailable');
+    var sh=ss.getSheetByName('Audit planning'),qsh=ss.getSheetByName('Notification Queue');if(!sh)throw new Error("Missing sheet 'Audit planning'");if(!qsh)throw new Error("Missing sheet 'Notification Queue'");
+    var lr=sh.getLastRow(),lc=sh.getLastColumn(),vals=lr&&lc?sh.getRange(1,1,lr,lc).getValues():[],hdr=vals[0]||[];
+    var cId=ANAPR_header_(hdr,['Audit ID','Audit_ID','AuditId']),cStatus=ANAPR_header_(hdr,['Status']),cDecision=ANAPR_header_(hdr,['Last auditor decision']),cStamp=ANAPR_header_(hdr,['Last auditor decision timestamp']),cAssigned=ANAPR_header_(hdr,['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned']),cPlanned=ANAPR_header_(hdr,['Date - Planned','Date – Planned','Date planned','Date Planned']),cApproved=ANAPR_header_(hdr,['Date - Approved','Date – Approved','Date approved','Date Approved']);
+    if(cId<0||cStatus<0)throw new Error('Audit ID/Status columns missing');
+    var queue=AcceptedNotificationReconciler_LoadQueue_(qsh);
+    for(var r=1;r<vals.length;r++){
+      var row=vals[r]||[],id=ANAPR_clean_(row[cId]);if(!id||ANAPR_norm_(row[cStatus])!=='accepted')continue;
+      out.acceptedRows++;var state=AcceptedNotificationReconciler_GetRequiredEventState_(queue,id);
+      if(state.complete){out.complete++;continue;}
+      out.missingAny++;if(!state.AUDIT_ACCEPTED)out.missingAuditAccepted++;if(!state.ECAS_AUDIT_APPROVAL_DIGEST)out.missingEcasDigest++;
+      out.items.push({auditId:id,rowNumber:r+1,assigned:cAssigned>=0?ANAPR_clean_(row[cAssigned]):'',planned:cPlanned>=0?ANAPR_iso_(row[cPlanned]):'',approved:cApproved>=0?ANAPR_iso_(row[cApproved]):'',lastAuditorDecision:cDecision>=0?ANAPR_clean_(row[cDecision]):'',lastAuditorDecisionTimestamp:cStamp>=0?ANAPR_iso_(row[cStamp]):'',queueState:state});
+    }
+    out.items.sort(function(a,b){var aa=a.lastAuditorDecisionTimestamp||a.approved||a.planned||'',bb=b.lastAuditorDecisionTimestamp||b.approved||b.planned||'';return bb.localeCompare(aa);});
+  }catch(e){out.ok=false;out.errors.push({message:ANAPR_clean_(e&&e.message||e)});}
+  out.durationMs=Date.now()-started;Logger.log(JSON.stringify(out,null,2));return out;
+}
+
 function RUN_ACCEPTED_NOTIFICATION_AP_RECOVERY_REGRESSION(){
   var hdr=['Audit ID','Status','Last auditor decision','Last auditor decision timestamp'];
-  var out={ok:ANAPR_header_(hdr,['Audit ID'])===0&&ANAPR_header_(hdr,['Status'])===1&&ANAPR_header_(hdr,['Last auditor decision'])===2&&ANAPR_header_(hdr,['Last auditor decision timestamp'])===3,build:ANAPR_BUILD,meta:{queueOnly:true,lifecycleWrites:false,planningWrites:false,availabilityWrites:false,canonicalEvidence:['Audit planning.Status','Audit planning.Last auditor decision','Audit planning.Last auditor decision timestamp']}};
+  var out={ok:ANAPR_header_(hdr,['Audit ID'])===0&&ANAPR_header_(hdr,['Status'])===1&&ANAPR_header_(hdr,['Last auditor decision'])===2&&ANAPR_header_(hdr,['Last auditor decision timestamp'])===3,build:ANAPR_BUILD,meta:{queueOnly:true,lifecycleWrites:false,planningWrites:false,availabilityWrites:false,canonicalEvidence:['Audit planning.Status','Audit planning.Last auditor decision','Audit planning.Last auditor decision timestamp'],legacyGapDiagnostic:'READ_ONLY_ALL_CURRENT_ACCEPTED'}};
   Logger.log(JSON.stringify(out,null,2));return out;
 }

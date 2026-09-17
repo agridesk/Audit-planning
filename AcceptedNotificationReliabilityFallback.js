@@ -1,0 +1,123 @@
+/***********************************************************************
+ * FILE: AcceptedNotificationReliabilityFallback.js
+ * BUILD: 2026-09-17_ACCEPTED_NOTIFICATION_RELIABILITY_FALLBACK_R1
+ *
+ * PURPOSE
+ * Permanent second recovery source for auditor ACCEPT notification events.
+ * The canonical lifecycle trail remains the primary outbox/recovery source.
+ * When that trail row is absent, Audit planning durable auditor-decision
+ * metadata can prove a recent ACCEPT and recover the two required queue
+ * events without changing lifecycle, planning or availability.
+ *
+ * EVIDENCE REQUIRED
+ * - current Status = Accepted
+ * - Last auditor decision = ACCEPT
+ * - Last auditor decision timestamp within lookback window
+ *
+ * REQUIRED QUEUE EVENTS
+ * - AUDIT_ACCEPTED
+ * - ECAS_AUDIT_APPROVAL_DIGEST
+ ***********************************************************************/
+var ANRF_BUILD='2026-09-17_ACCEPTED_NOTIFICATION_RELIABILITY_FALLBACK_R1';
+var ANRF_TRIGGER_HANDLER='AcceptedNotificationReliability_Trigger1M';
+var ANRF_PRIMARY_HANDLER='AcceptedNotificationReconciler_Trigger1M';
+var ANRF_LEGACY_HANDLER='AcceptedNotificationReconciler_Trigger10M';
+
+function ANRF_clean_(v){return String(v==null?'':v).trim();}
+function ANRF_norm_(v){return ANRF_clean_(v).replace(/[–—−]/g,'-').replace(/\u00A0/g,' ').replace(/[\u200B-\u200D\uFEFF]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();}
+function ANRF_header_(h,names){var m={};for(var i=0;i<(h||[]).length;i++){var k=ANRF_norm_(h[i]);if(k&&m[k]===undefined)m[k]=i;}for(var j=0;j<(names||[]).length;j++){var q=ANRF_norm_(names[j]);if(Object.prototype.hasOwnProperty.call(m,q))return m[q];}return-1;}
+function ANRF_date_(v){if(v instanceof Date&&!isNaN(v.getTime()))return v;var s=ANRF_clean_(v);if(!s)return null;var d=new Date(s);return isNaN(d.getTime())?null:d;}
+
+function AcceptedNotificationReliability_LoadEvidence_(ss,lookbackDays,auditIdFilter){
+  var sh=ss.getSheetByName('Audit planning');
+  if(!sh)throw new Error("AcceptedNotificationReliability: missing sheet 'Audit planning'");
+  var lr=sh.getLastRow(),lc=sh.getLastColumn();
+  if(lr<2||lc<1)return[];
+  var v=sh.getRange(1,1,lr,lc).getValues(),h=v[0]||[];
+  var c={
+    id:ANRF_header_(h,['Audit ID','Audit_ID','AuditId']),
+    status:ANRF_header_(h,['Status']),
+    decision:ANRF_header_(h,['Last auditor decision']),
+    stamp:ANRF_header_(h,['Last auditor decision timestamp'])
+  };
+  if(c.id<0||c.status<0||c.decision<0||c.stamp<0)throw new Error('AcceptedNotificationReliability: required durable evidence columns missing');
+  var cutoff=Date.now()-Math.max(1,Number(lookbackDays||2))*86400000,filter=ANRF_clean_(auditIdFilter),out=[];
+  for(var r=1;r<v.length;r++){
+    var row=v[r]||[],id=ANRF_clean_(row[c.id]);
+    if(!id||(filter&&id!==filter))continue;
+    if(ANRF_norm_(row[c.status])!=='accepted')continue;
+    if(ANRF_norm_(row[c.decision])!=='accept')continue;
+    var stamp=ANRF_date_(row[c.stamp]);
+    if(!stamp||stamp.getTime()<cutoff||stamp.getTime()>Date.now()+300000)continue;
+    out.push({auditId:id,rowNumber:r+1,decisionTimestamp:stamp.toISOString()});
+  }
+  return out;
+}
+
+function AcceptedNotificationReliability_FallbackRun_(opts){
+  opts=opts||{};
+  var started=Date.now(),dry=opts.dryRun===true,lookback=Math.max(1,Number(opts.lookbackDays||2)),max=Math.max(1,Math.min(250,Number(opts.maxRepairs||100))),filter=ANRF_clean_(opts.auditId||'');
+  var out={ok:true,build:ANRF_BUILD,dryRun:dry,lookbackDays:lookback,auditIdFilter:filter,evidenceRows:0,candidates:0,repaired:0,skipped:0,unresolved:0,errors:[],items:[]};
+  try{
+    var ss=SpreadsheetApp.getActiveSpreadsheet()||SpreadsheetApp.getActive();
+    var q=ss.getSheetByName('Notification Queue');
+    if(!q)throw new Error("AcceptedNotificationReliability: missing sheet 'Notification Queue'");
+    var evidence=AcceptedNotificationReliability_LoadEvidence_(ss,lookback,filter),queue=AcceptedNotificationReconciler_LoadQueue_(q);
+    out.evidenceRows=evidence.length;
+    for(var i=0;i<evidence.length;i++){
+      var x=evidence[i],before=AcceptedNotificationReconciler_GetRequiredEventState_(queue,x.auditId);
+      if(before.complete){out.skipped++;out.items.push({auditId:x.auditId,action:'SKIP_COMPLETE',decisionTimestamp:x.decisionTimestamp});continue;}
+      if(out.candidates>=max){out.unresolved++;out.items.push({auditId:x.auditId,action:'DEFER_MAX_REPAIRS'});continue;}
+      out.candidates++;
+      if(dry){out.items.push({auditId:x.auditId,action:'DRYRUN_REPAIR_NEEDED',decisionTimestamp:x.decisionTimestamp,state:before});continue;}
+      try{
+        var ctx=AcceptedNotificationReconciler_LoadAuditContext_(x.auditId);
+        if(!ctx||ctx.found!==true)throw new Error('Audit context not found');
+        var payload={actorRole:'AUDITOR',action:'ACCEPT',source:'AcceptedNotificationReliabilityFallback',durableEvidenceTimestamp:x.decisionTimestamp};
+        var result={success:true,auditId:x.auditId,beforeStatus:'APPROVED',beforeStatusDisplay:'Approved',afterStatus:'ACCEPTED',afterStatusDisplay:'Accepted',newStatus:'Accepted'};
+        StatusNotificationBridge_Dispatch_('ACCEPT','AUDITOR',ctx,payload,result);
+        queue=AcceptedNotificationReconciler_LoadQueue_(q);
+        var after=AcceptedNotificationReconciler_GetRequiredEventState_(queue,x.auditId);
+        if(after.complete){out.repaired++;out.items.push({auditId:x.auditId,action:'REPAIRED',decisionTimestamp:x.decisionTimestamp,state:after});}
+        else{out.unresolved++;out.items.push({auditId:x.auditId,action:'UNRESOLVED_AFTER_DISPATCH',decisionTimestamp:x.decisionTimestamp,state:after});}
+      }catch(er){out.unresolved++;out.errors.push({auditId:x.auditId,message:ANRF_clean_(er&&er.message||er)});}
+    }
+  }catch(e){out.ok=false;out.errors.push({message:ANRF_clean_(e&&e.message||e)});}
+  if(out.errors.length||out.unresolved)out.ok=false;
+  out.durationMs=Date.now()-started;
+  Logger.log(JSON.stringify(out,null,2));
+  return out;
+}
+
+function RUN_ACCEPTED_NOTIFICATION_RELIABILITY_FALLBACK_2D_DRYRUN(){return AcceptedNotificationReliability_FallbackRun_({lookbackDays:2,dryRun:true,maxRepairs:250});}
+function RUN_ACCEPTED_NOTIFICATION_RELIABILITY_FALLBACK_7D_DRYRUN(){return AcceptedNotificationReliability_FallbackRun_({lookbackDays:7,dryRun:true,maxRepairs:250});}
+function RUN_ACCEPTED_NOTIFICATION_RELIABILITY_FALLBACK_2D(){return AcceptedNotificationReliability_FallbackRun_({lookbackDays:2,dryRun:false,maxRepairs:100});}
+
+function AcceptedNotificationReliability_Trigger1M(){
+  var primary=null,fallback=null,errors=[];
+  try{primary=AcceptedNotificationReconciler_Run_({lookbackDays:2,dryRun:false,maxRepairs:100});}catch(e1){errors.push({stage:'PRIMARY_LIFECYCLE_RECONCILER',message:ANRF_clean_(e1&&e1.message||e1)});}
+  try{fallback=AcceptedNotificationReliability_FallbackRun_({lookbackDays:2,dryRun:false,maxRepairs:100});}catch(e2){errors.push({stage:'DURABLE_AUDIT_PLANNING_FALLBACK',message:ANRF_clean_(e2&&e2.message||e2)});}
+  return{ok:errors.length===0&&(!primary||primary.ok!==false)&&(!fallback||fallback.ok!==false),build:ANRF_BUILD,primary:primary,fallback:fallback,errors:errors};
+}
+
+function RUN_INSTALL_ACCEPTED_NOTIFICATION_RELIABILITY_1M(){
+  var all=ScriptApp.getProjectTriggers(),removed=[];
+  for(var i=0;i<all.length;i++){
+    var h=ANRF_clean_(all[i].getHandlerFunction());
+    if(h!==ANRF_TRIGGER_HANDLER&&h!==ANRF_PRIMARY_HANDLER&&h!==ANRF_LEGACY_HANDLER)continue;
+    ScriptApp.deleteTrigger(all[i]);removed.push(h);
+  }
+  var tr=ScriptApp.newTrigger(ANRF_TRIGGER_HANDLER).timeBased().everyMinutes(1).create();
+  var health=RUN_ACCEPTED_NOTIFICATION_RELIABILITY_HEALTH_2D();
+  return{ok:health.ok===true,build:ANRF_BUILD,removedHandlers:removed,installedHandler:ANRF_TRIGGER_HANDLER,intervalMinutes:1,triggerId:tr&&tr.getUniqueId?tr.getUniqueId():'',health:health};
+}
+
+function RUN_ACCEPTED_NOTIFICATION_RELIABILITY_HEALTH_2D(){
+  var primary=AcceptedNotificationReconciler_Run_({lookbackDays:2,dryRun:true,maxRepairs:500});
+  var fallback=AcceptedNotificationReliability_FallbackRun_({lookbackDays:2,dryRun:true,maxRepairs:500});
+  var triggers=[];
+  try{var all=ScriptApp.getProjectTriggers();for(var i=0;i<all.length;i++){var h=ANRF_clean_(all[i].getHandlerFunction());if(h===ANRF_TRIGGER_HANDLER||h===ANRF_PRIMARY_HANDLER||h===ANRF_LEGACY_HANDLER)triggers.push({handler:h,id:all[i].getUniqueId?all[i].getUniqueId():''});}}catch(e){}
+  var oneCombined=triggers.length===1&&triggers[0].handler===ANRF_TRIGGER_HANDLER;
+  var out={ok:primary&&primary.ok!==false&&fallback&&fallback.ok!==false&&oneCombined,build:ANRF_BUILD,primary:primary,fallback:fallback,triggers:triggers,combinedTriggerHealthy:oneCombined};
+  Logger.log(JSON.stringify(out,null,2));return out;
+}

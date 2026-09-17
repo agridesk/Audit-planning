@@ -1,8 +1,8 @@
 /***********************************************************************
  * PlanningWorkspaceDragDropTests.js
- * BUILD: 2026-09-13_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R15_CONCEPT_RELEASE
+ * BUILD: 2026-09-17_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R16_SIGNATURE_REFRESH
  ***********************************************************************/
-var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-13_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R15_CONCEPT_RELEASE';
+var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-17_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R16_SIGNATURE_REFRESH';
 function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var ui=PlanningWorkspaceUi_contract();
@@ -49,7 +49,7 @@ function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   t('refreshRequiredStillUsesCanonicalPreflight',saveSource.indexOf('PWR_conceptPreflight_')>=0&&preflightSource.indexOf('PlanningCommitGateService_evaluate')>=0);
   t('validProposedTimeSlot',dragSource.indexOf('proposedSlot(hours)')>=0&&dragSource.indexOf("start:'08:00'")>=0);
   t('workspaceMultidayProposal',dragSource.indexOf('function proposedBlocks(hours,startDate,row,email)')>=0&&dragSource.indexOf('Math.ceil(total/(8*60))')>=0);
-  t('workspaceMultidaySkipsUnavailableDays',dragSource.indexOf('function nextUsableDate(row,email,afterDate)')>=0&&dragSource.indexOf('!availabilityNo(email,date)')>=0);
+  t('workspaceMultidaySkipsUnavailableDays',dragSource.indexOf('function nextUsableDate(row,email,afterDate,minsNeeded)')>=0&&dragSource.indexOf('!availabilityNo(email,date)')>=0);
   t('workspaceDropSavesAllProposedBlocks',dragSource.indexOf('blocks:blocks')>=0&&dragSource.indexOf("note:'Planning Workspace drag & drop multiday proposal'")>=0);
   t('workspaceMultidayExposedForRegression',dragSource.indexOf('proposedBlocks:proposedBlocks')>=0);
 

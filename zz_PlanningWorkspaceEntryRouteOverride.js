@@ -1,18 +1,16 @@
 /***********************************************************************
  * FILE: zz_PlanningWorkspaceEntryRouteOverride.js
- * BUILD: 2026-09-17_AMS01_PLANNING_WORKSPACE_ENTRY_R2_DIRECT_SHELL_ONE_RPC
+ * BUILD: 2026-09-17_AMS01_PLANNING_WORKSPACE_ENTRY_R3_NATIVE_AUTH_DATA
  *
  * DEV-only Planning Workspace entry optimization.
  * - EntryV5 remains authentication owner.
- * - The first HTTP response may expose only the data-independent Workspace
- *   shell; it contains no planning/business data.
- * - The first browser RPC still goes through V5_ENTRY_resolve, so canonical
- *   trusted-token/role validation is unchanged.
- * - After successful auth, the same RPC builds the initial Workspace
- *   advisory + overlay bundle. This removes the old serial chain:
- *     bootstrap HTML -> auth/render RPC -> Workspace bootstrap RPC.
+ * - First HTTP response is a data-independent Workspace shell.
+ * - First browser RPC still goes through V5_ENTRY_resolve.
+ * - After successful auth, the same RPC builds Workspace decision data.
+ * - Authenticated Workspace data is returned as a native Apps Script RPC
+ *   object instead of JSON.stringify -> marker string -> JSON.parse.
  ***********************************************************************/
-var PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD='2026-09-17_AMS01_PLANNING_WORKSPACE_ENTRY_R2_DIRECT_SHELL_ONE_RPC';
+var PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD='2026-09-17_AMS01_PLANNING_WORKSPACE_ENTRY_R3_NATIVE_AUTH_DATA';
 
 var PW_ENTRY_BASE_normAction_=V5_ENTRY_normAction_;
 V5_ENTRY_normAction_=function(raw){
@@ -39,8 +37,11 @@ V5_ENTRY_renderApp=function(action,ctx){
     if(!V5_ENTRY_isDevEnv_())throw new Error('PLANNING_WORKSPACE_DEV_ONLY');
     ctx=ctx||{};
     if(ctx.workspaceDataRequest&&typeof ctx.workspaceDataRequest==='object'){
-      var rpc=PlanningWorkspaceRpc_bootstrap(ctx.workspaceDataRequest);
-      return '__PW_AUTH_DATA__'+JSON.stringify(rpc||{});
+      return{
+        __pwAuthData:true,
+        build:PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD,
+        rpc:PlanningWorkspaceRpc_bootstrap(ctx.workspaceDataRequest)
+      };
     }
     return PlanningWorkspaceDevRoute_render(ctx);
   }
@@ -72,6 +73,9 @@ function PlanningWorkspaceEntryRoute_contract(){
     initialAuthAndDataSingleRpc:true,
     initialSerialRpcCount:1,
     planningDataBeforeAuth:false,
+    authenticatedDataEnvelope:'NATIVE_OBJECT',
+    explicitJsonStringify:false,
+    browserJsonParse:false,
     renderer:'PlanningWorkspaceUi_render',
     newSsot:false
   };
@@ -83,7 +87,7 @@ function RUN_PLANNING_WORKSPACE_ENTRY_ROUTE_REGRESSION(){
   var role=V5_ENTRY_expectedRole_(normalized,'');
   var c=PlanningWorkspaceEntryRoute_contract();
   var result={
-    ok:normalized==='planningworkspace'&&alias==='planningworkspace'&&role==='Manager'&&c.directDataIndependentShell===true&&c.initialAuthAndDataSingleRpc===true&&c.initialSerialRpcCount===1&&c.planningDataBeforeAuth===false,
+    ok:normalized==='planningworkspace'&&alias==='planningworkspace'&&role==='Manager'&&c.directDataIndependentShell===true&&c.initialAuthAndDataSingleRpc===true&&c.initialSerialRpcCount===1&&c.planningDataBeforeAuth===false&&c.authenticatedDataEnvelope==='NATIVE_OBJECT'&&c.explicitJsonStringify===false&&c.browserJsonParse===false,
     build:PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD,
     normalized:normalized,
     alias:alias,

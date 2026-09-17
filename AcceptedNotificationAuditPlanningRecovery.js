@@ -1,98 +1,20 @@
 /***********************************************************************
  * FILE: AcceptedNotificationAuditPlanningRecovery.js
- * BUILD: 2026-09-17_ACCEPTED_NOTIFICATION_AP_RECOVERY_R2_GAP_DIAGNOSTIC
- *
- * PURPOSE
- * Recovery path for ACCEPT notifications when the historical lifecycle
- * trail row is absent. Primary repair evidence uses canonical Audit planning
- * auditor-decision metadata. A read-only gap diagnostic also enumerates all
- * currently Accepted audits and their required notification queue state so
- * legacy accepts can be identified without guessing or writing data.
- * Queue-only repair; never changes lifecycle, planning or availability.
+ * BUILD: 2026-09-17_ACCEPTED_NOTIFICATION_AP_RECOVERY_R3_RECENT_CANDIDATES
+ * Queue-only recovery diagnostics for missing ACCEPT notifications.
  ***********************************************************************/
-var ANAPR_BUILD='2026-09-17_ACCEPTED_NOTIFICATION_AP_RECOVERY_R2_GAP_DIAGNOSTIC';
-
+var ANAPR_BUILD='2026-09-17_ACCEPTED_NOTIFICATION_AP_RECOVERY_R3_RECENT_CANDIDATES';
 function RUN_ACCEPTED_NOTIFICATION_AP_RECOVERY_14D_DRYRUN(){return AcceptedNotificationAuditPlanningRecovery_Run_({lookbackDays:14,dryRun:true,maxRepairs:100});}
 function RUN_ACCEPTED_NOTIFICATION_AP_RECOVERY_14D(){return AcceptedNotificationAuditPlanningRecovery_Run_({lookbackDays:14,dryRun:false,maxRepairs:100});}
-
 function ANAPR_clean_(v){return String(v==null?'':v).trim();}
 function ANAPR_norm_(v){return ANAPR_clean_(v).replace(/[–—−]/g,'-').replace(/\u00A0/g,' ').replace(/[\u200B-\u200D\uFEFF]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();}
-function ANAPR_header_(hdr,names){var m={};for(var i=0;i<(hdr||[]).length;i++){var k=ANAPR_norm_(hdr[i]);if(k&&m[k]===undefined)m[k]=i;}for(var n=0;n<(names||[]).length;n++){var w=ANAPR_norm_(names[n]);if(Object.prototype.hasOwnProperty.call(m,w))return m[w];}return-1;}
+function ANAPR_header_(h,n){var m={};for(var i=0;i<(h||[]).length;i++){var k=ANAPR_norm_(h[i]);if(k&&m[k]===undefined)m[k]=i;}for(var j=0;j<(n||[]).length;j++){var w=ANAPR_norm_(n[j]);if(Object.prototype.hasOwnProperty.call(m,w))return m[w];}return-1;}
 function ANAPR_date_(v){if(v instanceof Date&&!isNaN(v.getTime()))return v;var s=ANAPR_clean_(v);if(!s)return null;var d=new Date(s);return isNaN(d.getTime())?null:d;}
 function ANAPR_iso_(v){var d=ANAPR_date_(v);return d?d.toISOString():ANAPR_clean_(v);}
-
-function AcceptedNotificationAuditPlanningRecovery_Find_(ss,lookbackDays,auditIdFilter){
-  var sh=ss.getSheetByName('Audit planning');if(!sh)throw new Error("Missing sheet 'Audit planning'");
-  var lr=sh.getLastRow(),lc=sh.getLastColumn();if(lr<2||lc<1)return[];
-  var vals=sh.getRange(1,1,lr,lc).getValues(),hdr=vals[0]||[];
-  var cId=ANAPR_header_(hdr,['Audit ID','Audit_ID','AuditId']);
-  var cStatus=ANAPR_header_(hdr,['Status']);
-  var cDecision=ANAPR_header_(hdr,['Last auditor decision']);
-  var cStamp=ANAPR_header_(hdr,['Last auditor decision timestamp']);
-  if(cId<0||cStatus<0||cDecision<0||cStamp<0)throw new Error('Required accepted-recovery columns missing');
-  var cutoff=Date.now()-Math.max(1,Number(lookbackDays||14))*86400000,out=[];
-  for(var r=1;r<vals.length;r++){
-    var row=vals[r]||[],id=ANAPR_clean_(row[cId]);if(!id)continue;
-    if(auditIdFilter&&id!==auditIdFilter)continue;
-    if(ANAPR_norm_(row[cStatus])!=='accepted')continue;
-    if(ANAPR_norm_(row[cDecision])!=='accept')continue;
-    var ts=ANAPR_date_(row[cStamp]);if(!ts||ts.getTime()<cutoff)continue;
-    out.push({auditId:id,rowNumber:r+1,timestamp:ts.toISOString(),source:'AUDIT_PLANNING_AUDITOR_DECISION'});
-  }
-  out.sort(function(a,b){return a.timestamp.localeCompare(b.timestamp);});return out;
-}
-
-function AcceptedNotificationAuditPlanningRecovery_Run_(opts){
-  opts=opts||{};var started=Date.now(),dryRun=opts.dryRun===true,lookbackDays=Math.max(1,Number(opts.lookbackDays||14)),maxRepairs=Math.max(1,Number(opts.maxRepairs||100)),auditIdFilter=ANAPR_clean_(opts.auditId),out={ok:true,build:ANAPR_BUILD,dryRun:dryRun,lookbackDays:lookbackDays,scannedAccepted:0,candidates:0,repaired:0,skipped:0,unresolved:0,errors:[],items:[]};
-  try{
-    if(typeof AcceptedNotificationReconciler_LoadQueue_!=='function'||typeof AcceptedNotificationReconciler_GetRequiredEventState_!=='function'||typeof AcceptedNotificationReconciler_LoadAuditContext_!=='function')throw new Error('NotificationAcceptedReconciler helpers unavailable');
-    if(typeof StatusNotificationBridge_Dispatch_!=='function')throw new Error('StatusNotificationBridge_Dispatch_ unavailable');
-    var ss=SpreadsheetApp.getActiveSpreadsheet()||SpreadsheetApp.getActive();if(!ss)throw new Error('Active spreadsheet unavailable');
-    var qsh=ss.getSheetByName('Notification Queue');if(!qsh)throw new Error("Missing sheet 'Notification Queue'");
-    var queue=AcceptedNotificationReconciler_LoadQueue_(qsh),events=AcceptedNotificationAuditPlanningRecovery_Find_(ss,lookbackDays,auditIdFilter);out.scannedAccepted=events.length;
-    for(var i=0;i<events.length;i++){
-      if(out.repaired>=maxRepairs)break;var ev=events[i],id=ev.auditId,before=AcceptedNotificationReconciler_GetRequiredEventState_(queue,id);
-      if(before.complete){out.skipped++;out.items.push({auditId:id,action:'SKIP',reason:'REQUIRED_QUEUE_EVENTS_PRESENT',source:ev.source,state:before});continue;}
-      out.candidates++;
-      if(dryRun){out.items.push({auditId:id,action:'DRYRUN_REPAIR_NEEDED',source:ev.source,auditPlanningRow:ev.rowNumber,timestamp:ev.timestamp,state:before});continue;}
-      try{
-        var ctx=AcceptedNotificationReconciler_LoadAuditContext_(id);if(!ctx||!ctx.found)throw new Error('Audit planning row not found for auditId='+id);
-        var payload={actorRole:'AUDITOR',action:'ACCEPT',source:'AcceptedNotificationAuditPlanningRecovery',reconciledFromAuditPlanningRow:ev.rowNumber};
-        var result={success:true,auditId:id,beforeStatus:'APPROVED',beforeStatusDisplay:'Approved',afterStatus:'ACCEPTED',afterStatusDisplay:'Accepted',newStatus:'Accepted'};
-        var bridge=StatusNotificationBridge_Dispatch_('ACCEPT','AUDITOR',ctx,payload,result);
-        var fresh=AcceptedNotificationReconciler_LoadQueue_(qsh),after=AcceptedNotificationReconciler_GetRequiredEventState_(fresh,id);queue=fresh;
-        if(after.complete){out.repaired++;out.items.push({auditId:id,action:'REPAIRED',source:ev.source,beforeState:before,afterState:after,bridgeResult:bridge||null});}
-        else{out.unresolved++;out.items.push({auditId:id,action:'UNRESOLVED',source:ev.source,beforeState:before,afterState:after,bridgeResult:bridge||null});}
-      }catch(e){out.unresolved++;out.errors.push({auditId:id,message:ANAPR_clean_(e&&e.message||e)});}
-    }
-  }catch(e0){out.ok=false;out.errors.push({message:ANAPR_clean_(e0&&e0.message||e0)});}
-  if(out.errors.length||out.unresolved)out.ok=false;out.durationMs=Date.now()-started;Logger.log(JSON.stringify(out,null,2));return out;
-}
-
-function RUN_ACCEPTED_NOTIFICATION_AP_GAP_DIAGNOSTIC(){
-  var started=Date.now(),out={ok:true,build:ANAPR_BUILD,acceptedRows:0,complete:0,missingAny:0,missingAuditAccepted:0,missingEcasDigest:0,items:[],errors:[]};
-  try{
-    if(typeof AcceptedNotificationReconciler_LoadQueue_!=='function'||typeof AcceptedNotificationReconciler_GetRequiredEventState_!=='function')throw new Error('NotificationAcceptedReconciler helpers unavailable');
-    var ss=SpreadsheetApp.getActiveSpreadsheet()||SpreadsheetApp.getActive();if(!ss)throw new Error('Active spreadsheet unavailable');
-    var sh=ss.getSheetByName('Audit planning'),qsh=ss.getSheetByName('Notification Queue');if(!sh)throw new Error("Missing sheet 'Audit planning'");if(!qsh)throw new Error("Missing sheet 'Notification Queue'");
-    var lr=sh.getLastRow(),lc=sh.getLastColumn(),vals=lr&&lc?sh.getRange(1,1,lr,lc).getValues():[],hdr=vals[0]||[];
-    var cId=ANAPR_header_(hdr,['Audit ID','Audit_ID','AuditId']),cStatus=ANAPR_header_(hdr,['Status']),cDecision=ANAPR_header_(hdr,['Last auditor decision']),cStamp=ANAPR_header_(hdr,['Last auditor decision timestamp']),cAssigned=ANAPR_header_(hdr,['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned']),cPlanned=ANAPR_header_(hdr,['Date - Planned','Date – Planned','Date planned','Date Planned']),cApproved=ANAPR_header_(hdr,['Date - Approved','Date – Approved','Date approved','Date Approved']);
-    if(cId<0||cStatus<0)throw new Error('Audit ID/Status columns missing');
-    var queue=AcceptedNotificationReconciler_LoadQueue_(qsh);
-    for(var r=1;r<vals.length;r++){
-      var row=vals[r]||[],id=ANAPR_clean_(row[cId]);if(!id||ANAPR_norm_(row[cStatus])!=='accepted')continue;
-      out.acceptedRows++;var state=AcceptedNotificationReconciler_GetRequiredEventState_(queue,id);
-      if(state.complete){out.complete++;continue;}
-      out.missingAny++;if(!state.AUDIT_ACCEPTED)out.missingAuditAccepted++;if(!state.ECAS_AUDIT_APPROVAL_DIGEST)out.missingEcasDigest++;
-      out.items.push({auditId:id,rowNumber:r+1,assigned:cAssigned>=0?ANAPR_clean_(row[cAssigned]):'',planned:cPlanned>=0?ANAPR_iso_(row[cPlanned]):'',approved:cApproved>=0?ANAPR_iso_(row[cApproved]):'',lastAuditorDecision:cDecision>=0?ANAPR_clean_(row[cDecision]):'',lastAuditorDecisionTimestamp:cStamp>=0?ANAPR_iso_(row[cStamp]):'',queueState:state});
-    }
-    out.items.sort(function(a,b){var aa=a.lastAuditorDecisionTimestamp||a.approved||a.planned||'',bb=b.lastAuditorDecisionTimestamp||b.approved||b.planned||'';return bb.localeCompare(aa);});
-  }catch(e){out.ok=false;out.errors.push({message:ANAPR_clean_(e&&e.message||e)});}
-  out.durationMs=Date.now()-started;Logger.log(JSON.stringify(out,null,2));return out;
-}
-
-function RUN_ACCEPTED_NOTIFICATION_AP_RECOVERY_REGRESSION(){
-  var hdr=['Audit ID','Status','Last auditor decision','Last auditor decision timestamp'];
-  var out={ok:ANAPR_header_(hdr,['Audit ID'])===0&&ANAPR_header_(hdr,['Status'])===1&&ANAPR_header_(hdr,['Last auditor decision'])===2&&ANAPR_header_(hdr,['Last auditor decision timestamp'])===3,build:ANAPR_BUILD,meta:{queueOnly:true,lifecycleWrites:false,planningWrites:false,availabilityWrites:false,canonicalEvidence:['Audit planning.Status','Audit planning.Last auditor decision','Audit planning.Last auditor decision timestamp'],legacyGapDiagnostic:'READ_ONLY_ALL_CURRENT_ACCEPTED'}};
-  Logger.log(JSON.stringify(out,null,2));return out;
-}
+function ANAPR_loadAccepted_(ss){var sh=ss.getSheetByName('Audit planning');if(!sh)throw new Error("Missing sheet 'Audit planning'");var lr=sh.getLastRow(),lc=sh.getLastColumn();if(lr<2||lc<1)return[];var v=sh.getRange(1,1,lr,lc).getValues(),h=v[0]||[],c={id:ANAPR_header_(h,['Audit ID','Audit_ID','AuditId']),status:ANAPR_header_(h,['Status']),decision:ANAPR_header_(h,['Last auditor decision']),stamp:ANAPR_header_(h,['Last auditor decision timestamp']),assigned:ANAPR_header_(h,['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned']),planned:ANAPR_header_(h,['Date - Planned','Date – Planned','Date planned','Date Planned']),approved:ANAPR_header_(h,['Date - Approved','Date – Approved','Date approved','Date Approved'])};if(c.id<0||c.status<0)throw new Error('Audit ID/Status columns missing');var out=[];for(var r=1;r<v.length;r++){var row=v[r]||[],id=ANAPR_clean_(row[c.id]);if(!id||ANAPR_norm_(row[c.status])!=='accepted')continue;out.push({auditId:id,rowNumber:r+1,assigned:c.assigned>=0?ANAPR_clean_(row[c.assigned]):'',planned:c.planned>=0?ANAPR_iso_(row[c.planned]):'',approved:c.approved>=0?ANAPR_iso_(row[c.approved]):'',decision:c.decision>=0?ANAPR_clean_(row[c.decision]):'',stamp:c.stamp>=0?ANAPR_iso_(row[c.stamp]):''});}return out;}
+function AcceptedNotificationAuditPlanningRecovery_Find_(ss,days,idFilter){var cutoff=Date.now()-Math.max(1,Number(days||14))*86400000,a=ANAPR_loadAccepted_(ss),out=[];for(var i=0;i<a.length;i++){var x=a[i];if(idFilter&&x.auditId!==idFilter)continue;if(ANAPR_norm_(x.decision)!=='accept')continue;var d=ANAPR_date_(x.stamp);if(!d||d.getTime()<cutoff)continue;out.push({auditId:x.auditId,rowNumber:x.rowNumber,timestamp:d.toISOString(),source:'AUDIT_PLANNING_AUDITOR_DECISION'});}return out;}
+function AcceptedNotificationAuditPlanningRecovery_Run_(o){o=o||{};var st=Date.now(),dry=o.dryRun===true,days=Math.max(1,Number(o.lookbackDays||14)),out={ok:true,build:ANAPR_BUILD,dryRun:dry,lookbackDays:days,scannedAccepted:0,candidates:0,repaired:0,skipped:0,unresolved:0,errors:[],items:[]};try{var ss=SpreadsheetApp.getActiveSpreadsheet()||SpreadsheetApp.getActive(),q=ss.getSheetByName('Notification Queue'),queue=AcceptedNotificationReconciler_LoadQueue_(q),ev=AcceptedNotificationAuditPlanningRecovery_Find_(ss,days,ANAPR_clean_(o.auditId));out.scannedAccepted=ev.length;for(var i=0;i<ev.length;i++){var e=ev[i],before=AcceptedNotificationReconciler_GetRequiredEventState_(queue,e.auditId);if(before.complete){out.skipped++;continue;}out.candidates++;if(dry){out.items.push({auditId:e.auditId,rowNumber:e.rowNumber,timestamp:e.timestamp,state:before});continue;}try{var ctx=AcceptedNotificationReconciler_LoadAuditContext_(e.auditId),payload={actorRole:'AUDITOR',action:'ACCEPT',source:'AcceptedNotificationAuditPlanningRecovery'},result={success:true,auditId:e.auditId,beforeStatus:'APPROVED',beforeStatusDisplay:'Approved',afterStatus:'ACCEPTED',afterStatusDisplay:'Accepted',newStatus:'Accepted'};StatusNotificationBridge_Dispatch_('ACCEPT','AUDITOR',ctx,payload,result);queue=AcceptedNotificationReconciler_LoadQueue_(q);var after=AcceptedNotificationReconciler_GetRequiredEventState_(queue,e.auditId);if(after.complete)out.repaired++;else{out.unresolved++;out.items.push({auditId:e.auditId,state:after});}}catch(er){out.unresolved++;out.errors.push({auditId:e.auditId,message:ANAPR_clean_(er&&er.message||er)});}}}catch(e0){out.ok=false;out.errors.push({message:ANAPR_clean_(e0&&e0.message||e0)});}if(out.errors.length||out.unresolved)out.ok=false;out.durationMs=Date.now()-st;Logger.log(JSON.stringify(out,null,2));return out;}
+function RUN_ACCEPTED_NOTIFICATION_AP_GAP_DIAGNOSTIC(){return ANAPR_gap_(0);}
+function RUN_ACCEPTED_NOTIFICATION_AP_RECENT_ACCEPTS_DIAGNOSTIC(){return ANAPR_gap_(45);}
+function ANAPR_gap_(recentDays){var st=Date.now(),out={ok:true,build:ANAPR_BUILD,recentDays:recentDays||0,acceptedRows:0,acceptEvidenceRows:0,candidates:0,items:[],errors:[]};try{var ss=SpreadsheetApp.getActiveSpreadsheet()||SpreadsheetApp.getActive(),q=ss.getSheetByName('Notification Queue'),queue=AcceptedNotificationReconciler_LoadQueue_(q),a=ANAPR_loadAccepted_(ss),cutoff=recentDays?Date.now()-recentDays*86400000:0;out.acceptedRows=a.length;for(var i=0;i<a.length;i++){var x=a[i],isAccept=ANAPR_norm_(x.decision)==='accept',d=ANAPR_date_(x.stamp);if(isAccept)out.acceptEvidenceRows++;if(recentDays&&(!isAccept||!d||d.getTime()<cutoff))continue;var s=AcceptedNotificationReconciler_GetRequiredEventState_(queue,x.auditId);if(s.complete)continue;out.candidates++;out.items.push({auditId:x.auditId,rowNumber:x.rowNumber,assigned:x.assigned,planned:x.planned,approved:x.approved,lastAuditorDecision:x.decision,lastAuditorDecisionTimestamp:x.stamp,missing:[s.AUDIT_ACCEPTED?'':'AUDIT_ACCEPTED',s.ECAS_AUDIT_APPROVAL_DIGEST?'':'ECAS_AUDIT_APPROVAL_DIGEST'].filter(String)});}out.items.sort(function(a,b){return(b.lastAuditorDecisionTimestamp||'').localeCompare(a.lastAuditorDecisionTimestamp||'');});}catch(e){out.ok=false;out.errors.push({message:ANAPR_clean_(e&&e.message||e)});}out.durationMs=Date.now()-st;Logger.log(JSON.stringify(out,null,2));return out;}
+function RUN_ACCEPTED_NOTIFICATION_AP_RECOVERY_REGRESSION(){var h=['Audit ID','Status','Last auditor decision','Last auditor decision timestamp'],ok=ANAPR_header_(h,['Audit ID'])===0&&ANAPR_header_(h,['Status'])===1&&ANAPR_header_(h,['Last auditor decision'])===2&&ANAPR_header_(h,['Last auditor decision timestamp'])===3,out={ok:ok,build:ANAPR_BUILD,meta:{queueOnly:true,lifecycleWrites:false,planningWrites:false,availabilityWrites:false}};Logger.log(JSON.stringify(out,null,2));return out;}

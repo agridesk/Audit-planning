@@ -1,16 +1,18 @@
 /***********************************************************************
  * PlanningWorkspaceClientTests.js
- * BUILD: 2026-09-17_AMS01_PLANNING_WORKSPACE_CLIENT_TESTS_R12_DIRECT_SHELL_ONE_RPC
+ * BUILD: 2026-09-17_AMS01_PLANNING_WORKSPACE_CLIENT_TESTS_R13_NATIVE_AUTH_DATA
  ***********************************************************************/
-var PLANNING_WORKSPACE_CLIENT_TEST_BUILD='2026-09-17_AMS01_PLANNING_WORKSPACE_CLIENT_TESTS_R12_DIRECT_SHELL_ONE_RPC';
+var PLANNING_WORKSPACE_CLIENT_TEST_BUILD='2026-09-17_AMS01_PLANNING_WORKSPACE_CLIENT_TESTS_R13_NATIVE_AUTH_DATA';
 function RUN_PLANNING_WORKSPACE_CLIENT_BINDING_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var src=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceClient.js').getContent();
   t('clientPresent',!!src);
-  t('buildMarker',src.indexOf('PLANNING_WORKSPACE_CLIENT_R16_DIRECT_SHELL_ONE_RPC')>=0);
+  t('buildMarker',src.indexOf('PLANNING_WORKSPACE_CLIENT_R17_NATIVE_AUTH_DATA')>=0);
   t('normalBootstrapRpc',src.indexOf('PlanningWorkspaceRpc_bootstrap')>=0);
   t('initialAuthOwner',src.indexOf('.V5_ENTRY_resolve(entryAuthContext(base))')>=0);
-  t('initialAuthDataMarker',src.indexOf('__PW_AUTH_DATA__')>=0);
+  t('nativeAuthDataEnvelope',src.indexOf('payload.__pwAuthData===true')>=0&&src.indexOf('finishLoad(payload.rpc')>=0);
+  t('oldStringMarkerRemoved',src.indexOf('__PW_AUTH_DATA__')<0);
+  t('oldJsonParseRemoved',src.indexOf('JSON.parse(s.slice')<0);
   t('directShellFlag',src.indexOf('__PW_ENTRY_DIRECT_SHELL')>=0);
   t('entryAuthState',src.indexOf('entryAuthResolved')>=0);
   t('splitAdvisoryRpcRemoved',src.indexOf('PlanningWorkspaceRpc_getAdvisory')<0);
@@ -44,5 +46,5 @@ function RUN_PLANNING_WORKSPACE_CLIENT_BINDING_REGRESSION(){
   t('noRawJsonRender',src.indexOf('JSON.stringify(advisory')<0&&src.indexOf('JSON.stringify(overlays')<0);
   t('noSheetAccess',src.indexOf('SpreadsheetApp')<0);
   t('noCanonicalBypass',src.indexOf('PlanningCanonicalCommitService_commit')<0);
-  var failed=r.filter(function(x){return!x.ok;}).length,out={ok:failed===0,build:PLANNING_WORKSPACE_CLIENT_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,rpcInvocationPerformed:false,operationalRenderer:true,dataIndependentShell:true,shellInteractiveMetric:true,decisionReadyMetric:true,initialAuthOwner:'V5_ENTRY_resolve',initialAuthAndDataSingleRpc:true,stageDiagnostics:true,transportDiagnostics:true,rawJsonShell:false}};console.log(JSON.stringify(out,null,2));return out;
+  var failed=r.filter(function(x){return!x.ok;}).length,out={ok:failed===0,build:PLANNING_WORKSPACE_CLIENT_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,rpcInvocationPerformed:false,operationalRenderer:true,dataIndependentShell:true,shellInteractiveMetric:true,decisionReadyMetric:true,initialAuthOwner:'V5_ENTRY_resolve',initialAuthAndDataSingleRpc:true,authenticatedDataEnvelope:'NATIVE_OBJECT',stageDiagnostics:true,transportDiagnostics:true,rawJsonShell:false}};console.log(JSON.stringify(out,null,2));return out;
 }

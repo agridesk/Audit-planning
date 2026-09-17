@@ -1,0 +1,11 @@
+/**
+ * FILE: CompaniesIndexBatchPlanningLocationMetadataTests.gs
+ * BUILD: 2026-09-17_COMPANIES_INDEX_BATCH_LOCATION_METADATA_TESTS_R1
+ * RUN: RUN_COMPANIES_INDEX_BATCH_LOCATION_METADATA_REGRESSION
+ */
+function RUN_COMPANIES_INDEX_BATCH_LOCATION_METADATA_REGRESSION(){var results=[];function t(name,fn){try{var ok=!!fn();results.push({name:name,ok:ok,detail:ok?'':'Contract failed'});}catch(e){results.push({name:name,ok:false,detail:String(e&&e.message||e)});}}
+ var raw=JSON.stringify({locations:[{code:'HQ',label:'A',gps:'1,2'},{code:'N',label:'North',gps:'3,4',separatePlanningStop:true,defaultPlanningHours:4}]});var p=CompaniesIndexBatchPlanning_parse_(raw,'Legacy','0,0');
+ t('twoLocations',function(){return p.length===2;});t('defaultFalse',function(){return p[0].separatePlanningStop===false;});t('separateStopPreserved',function(){return p[1].separatePlanningStop===true;});t('defaultHoursPreserved',function(){return p[1].defaultPlanningHours===4;});t('missingHoursNull',function(){return p[0].defaultPlanningHours===null;});
+ var legacy=CompaniesIndexBatchPlanning_parse_('','Legacy','5,6');t('legacyFallback',function(){return legacy.length===1&&legacy[0].code==='HQ';});t('legacyMetadataSafe',function(){return legacy[0].separatePlanningStop===false&&legacy[0].defaultPlanningHours===null;});
+ var src=String(CompaniesIndexBatchPlanning_GetLocations);t('canonicalOwner',function(){return src.indexOf("getSheetByName('Companies')")>=0&&src.indexOf("'Locations_JSON'")>=0;});t('readOnly',function(){return src.indexOf('setValue(')<0&&src.indexOf('setValues(')<0;});t('hotPathUntouched',function(){return typeof CompaniesIndex_buildNameCoreIndexSingleRead_==='function';});
+ var passed=results.filter(function(x){return x.ok;}).length,out={ok:passed===results.length,build:'2026-09-17_COMPANIES_INDEX_BATCH_LOCATION_METADATA_TESTS_R1',total:results.length,passed:passed,failed:results.length-passed,results:results,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,contract:'Batch Planning preserves optional separatePlanningStop/defaultPlanningHours from canonical Companies.Locations_JSON without changing CompaniesIndexService V4 AMS01 hot-path architecture.'}};Logger.log(JSON.stringify(out,null,2));return out;}

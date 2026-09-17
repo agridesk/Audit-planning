@@ -1,112 +1,22 @@
 /**
  * FILE: BatchPlanningCandidateEngine.gs
- * BUILD: 2026-09-17_BATCH_PLANNING_CANDIDATE_ENGINE_R2_AVAILABILITY_ROTATION
- *
- * Read-only Batch Planning candidate collection.
- * Hard/leading: formal planning window, auditor qualification, canonical hard Availability,
- * rotation beyond the approved exception band.
- * Advisory: soft Availability, preferred months, rotation max+1 exception.
- * Hours to be planned remains the canonical duration total.
+ * BUILD: 2026-09-17_BATCH_PLANNING_CANDIDATE_ENGINE_R3_CANONICAL_TOTAL_HOURS
+ * Read-only Batch Planning candidate collection. Total audit time in hours is the canonical duration total.
  */
-var BATCH_PLANNING_CANDIDATE_ENGINE_BUILD = '2026-09-17_BATCH_PLANNING_CANDIDATE_ENGINE_R2_AVAILABILITY_ROTATION';
-
-function BatchPlanningCandidateEngine_Collect(input) {
-  input=input||{};
-  var auditorEmail=String(input.auditorEmail||'').trim().toLowerCase();
-  var periodFrom=BatchPlanningCandidateEngine_date_(input.periodFrom), periodTo=BatchPlanningCandidateEngine_date_(input.periodTo);
-  if(!auditorEmail) return {ok:false,error:'AUDITOR_REQUIRED',candidates:[]};
-  if(!periodFrom||!periodTo||periodTo.getTime()<periodFrom.getTime()) return {ok:false,error:'VALID_PERIOD_REQUIRED',candidates:[]};
-  var auditor=BatchPlanningReadModel_GetAuditor(auditorEmail,false);
-  if(!auditor||!auditor.ok) return {ok:false,error:'AUDITOR_NOT_FOUND',candidates:[]};
-
-  var availability=BatchPlanningCandidateEngine_availability_(auditorEmail,periodFrom,periodTo);
-  var ss=SpreadsheetApp.getActiveSpreadsheet(), sh=ss.getSheetByName('Audit planning');
-  if(!sh) return {ok:false,error:'AUDIT_PLANNING_NOT_FOUND',candidates:[]};
-  var values=sh.getDataRange().getValues();
-  if(!values||values.length<2) return BatchPlanningCandidateEngine_result_(auditor,periodFrom,periodTo,[],[],availability);
-  var headers=values[0]||[], idx=BatchPlanningCandidateEngine_headerMap_(headers), rejected=[], candidates=[];
-
-  for(var r=1;r<values.length;r++){
-    var row=values[r]||[], auditId=BatchPlanningCandidateEngine_text_(row,idx,['Audit ID']);
-    if(!auditId) continue;
-    var status=BatchPlanningCandidateEngine_text_(row,idx,['Status']);
-    if(status!=='Pending Planning') continue;
-
-    var windowFrom=BatchPlanningCandidateEngine_date_(BatchPlanningCandidateEngine_value_(row,idx,['Planning window from']));
-    var windowTo=BatchPlanningCandidateEngine_date_(BatchPlanningCandidateEngine_value_(row,idx,['Planning window to']));
-    if(!windowFrom||!windowTo){rejected.push({auditId:auditId,reason:'PLANNING_WINDOW_MISSING'});continue;}
-    var overlapFrom=periodFrom.getTime()>windowFrom.getTime()?periodFrom:windowFrom;
-    var overlapTo=periodTo.getTime()<windowTo.getTime()?periodTo:windowTo;
-    if(overlapFrom.getTime()>overlapTo.getTime()){rejected.push({auditId:auditId,reason:'OUTSIDE_PLANNING_WINDOW'});continue;}
-
-    var scopes=BatchPlanningCandidateEngine_scopes_(headers,row);
-    var unqualified=scopes.filter(function(scope){return !AuditorsIndex_IsQualified(auditorEmail,scope);});
-    if(unqualified.length){rejected.push({auditId:auditId,reason:'AUDITOR_NOT_QUALIFIED',scopes:unqualified});continue;}
-
-    var company=BatchPlanningCandidateEngine_text_(row,idx,['Company']);
-    var companyUid=BatchPlanningCandidateEngine_text_(row,idx,['Company_UID','Company UID']);
-    var rotation=BatchPlanningCandidateEngine_rotation_(auditorEmail,company,companyUid,scopes);
-    if(rotation.hardBlock){rejected.push({auditId:auditId,reason:'ROTATION_HARD_BLOCK',rotation:rotation});continue;}
-
-    var hours=Number(BatchPlanningCandidateEngine_value_(row,idx,['Hours to be planned','Hours To Be Planned','Required hours','Total hours']));
-    if(!isFinite(hours)||hours<0) hours=0;
-    var location=BatchPlanningCandidateEngine_text_(row,idx,['Location','Audit location','Execution location']);
-    var preferredMonths=BatchPlanningCandidateEngine_companyPreferredMonths_(company,companyUid), soft=[];
-    if(preferredMonths.length&&!BatchPlanningCandidateEngine_periodTouchesPreferredMonth_(overlapFrom,overlapTo,preferredMonths)) soft.push({code:'OUTSIDE_PREFERRED_AUDIT_MONTHS',owner:'Companies',advisory:true});
-    if(rotation.warning) soft.push({code:'ROTATION_EXCEPTION_REQUIRED',owner:'RotationAuditorService',advisory:true,detail:rotation.detail});
-
-    var dayFit=BatchPlanningCandidateEngine_schedulableDays_(overlapFrom,overlapTo,availability);
-    if(!dayFit.hardAvailableDays.length){rejected.push({auditId:auditId,reason:'NO_HARD_AVAILABLE_DAY',availability:dayFit});continue;}
-    if(dayFit.softOnlyDays.length) soft.push({code:'SOFT_AVAILABILITY_DAYS_PRESENT',owner:'AvailabilityService',advisory:true,dates:dayFit.softOnlyDays});
-
-    candidates.push({auditId:auditId,company:company,companyUid:companyUid,location:location,status:status,scopes:scopes,hoursToBePlanned:hours,
-      planningWindowFrom:BatchPlanningCandidateEngine_iso_(windowFrom),planningWindowTo:BatchPlanningCandidateEngine_iso_(windowTo),
-      schedulableFrom:BatchPlanningCandidateEngine_iso_(overlapFrom),schedulableTo:BatchPlanningCandidateEngine_iso_(overlapTo),
-      hardAvailableDays:dayFit.hardAvailableDays,softAvailabilityDays:dayFit.softOnlyDays,
-      rotation:rotation,preferredAuditMonths:preferredMonths,softWarnings:soft,route:null,routePending:true});
-  }
-  candidates.sort(function(a,b){var ato=String(a.planningWindowTo||''),bto=String(b.planningWindowTo||'');if(ato!==bto)return ato<bto?-1:1;return String(a.company||'').localeCompare(String(b.company||''));});
-  return BatchPlanningCandidateEngine_result_(auditor,periodFrom,periodTo,candidates,rejected,availability);
-}
-
-function BatchPlanningCandidateEngine_availability_(auditorEmail,from,to){
-  var fromIso=BatchPlanningCandidateEngine_iso_(from),toIso=BatchPlanningCandidateEngine_iso_(to),hardMap={};
-  if(typeof AvailabilityService!=='undefined'&&AvailabilityService&&typeof AvailabilityService.loadAuditorAvailabilityMap==='function') hardMap=AvailabilityService.loadAuditorAvailabilityMap(auditorEmail,fromIso,toIso)||{};
-  var raw={days:{}};
-  if(typeof AvailabilityService!=='undefined'&&AvailabilityService&&typeof AvailabilityService.getAuditorAvailabilityRaw==='function') raw=AvailabilityService.getAuditorAvailabilityRaw(auditorEmail,fromIso,toIso,{})||raw;
-  return {owner:'AvailabilityService',hardMap:hardMap,rawDays:raw.days||{}};
-}
-function BatchPlanningCandidateEngine_schedulableDays_(from,to,availability){
-  var hardAvailable=[],softOnly=[],d=new Date(from.getTime());
-  while(d.getTime()<=to.getTime()){
-    var iso=BatchPlanningCandidateEngine_iso_(d), hm=availability.hardMap[iso]||{}, hard=hm.hardBlock||{}, raw=(availability.rawDays||{})[iso]||{}, meta=raw.meta||{};
-    var fullyHard=!!(hard.S1&&hard.S2);
-    if(!fullyHard){hardAvailable.push(iso);if(meta.softFullDay===true)softOnly.push(iso);}
-    d.setDate(d.getDate()+1);
-  }
-  return {hardAvailableDays:hardAvailable,softOnlyDays:softOnly};
-}
-function BatchPlanningCandidateEngine_rotation_(auditorEmail,company,companyUid,scopes){
-  var details=[],hard=false,warning=false;
-  for(var i=0;i<(scopes||[]).length;i++){
-    var scope=scopes[i],res=null;
-    if(typeof RotationAuditorService_getAuditorScopeResult==='function') res=RotationAuditorService_getAuditorScopeResult({companyUid:companyUid,companyName:company,auditorEmail:auditorEmail,scope:scope});
-    if(!res||!res.success){details.push({scope:scope,status:'UNKNOWN'});continue;}
-    var count=Number(res.consecutiveYears||0),max=res.maxConsecutive==null?null:Number(res.maxConsecutive),ev=max==null?{status:'OK',allowed:true,warning:false}:BatchPlanning_evaluateRotation_(count,max);
-    details.push({scope:scope,consecutiveYears:count,maxConsecutive:max,status:ev.status,allowed:ev.allowed,exceptionRequired:!!ev.exceptionRequired});
-    if(ev.status==='HARD_BLOCK')hard=true;
-    if(ev.status==='WARNING')warning=true;
-  }
-  return {owner:'RotationAuditorService',hardBlock:hard,warning:warning,details:details,detail:details.map(function(x){return x.scope+': '+x.status;}).join(' | ')};
-}
-function BatchPlanningCandidateEngine_result_(auditor,from,to,candidates,rejected,availability){return {ok:true,build:BATCH_PLANNING_CANDIDATE_ENGINE_BUILD,advisoryOnly:true,auditor:auditor,period:{from:BatchPlanningCandidateEngine_iso_(from),to:BatchPlanningCandidateEngine_iso_(to)},candidates:candidates||[],rejected:rejected||[],candidateCount:(candidates||[]).length,rejectedCount:(rejected||[]).length,availabilityOwner:'AvailabilityService',rotationOwner:'RotationAuditorService',routeMatrixPending:true,writesPerformed:false};}
+var BATCH_PLANNING_CANDIDATE_ENGINE_BUILD='2026-09-17_BATCH_PLANNING_CANDIDATE_ENGINE_R3_CANONICAL_TOTAL_HOURS';
+function BatchPlanningCandidateEngine_Collect(input){input=input||{};var auditorEmail=String(input.auditorEmail||'').trim().toLowerCase(),periodFrom=BatchPlanningCandidateEngine_date_(input.periodFrom),periodTo=BatchPlanningCandidateEngine_date_(input.periodTo);if(!auditorEmail)return{ok:false,error:'AUDITOR_REQUIRED',candidates:[]};if(!periodFrom||!periodTo||periodTo.getTime()<periodFrom.getTime())return{ok:false,error:'VALID_PERIOD_REQUIRED',candidates:[]};var auditor=BatchPlanningReadModel_GetAuditor(auditorEmail,false);if(!auditor||!auditor.ok)return{ok:false,error:'AUDITOR_NOT_FOUND',candidates:[]};var availability=BatchPlanningCandidateEngine_availability_(auditorEmail,periodFrom,periodTo),ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.getSheetByName('Audit planning');if(!sh)return{ok:false,error:'AUDIT_PLANNING_NOT_FOUND',candidates:[]};var values=sh.getDataRange().getValues();if(!values||values.length<2)return BatchPlanningCandidateEngine_result_(auditor,periodFrom,periodTo,[],[],availability);var headers=values[0]||[],idx=BatchPlanningCandidateEngine_headerMap_(headers),rejected=[],candidates=[];for(var r=1;r<values.length;r++){var row=values[r]||[],auditId=BatchPlanningCandidateEngine_text_(row,idx,['Audit ID']);if(!auditId)continue;var status=BatchPlanningCandidateEngine_text_(row,idx,['Status']);if(status!=='Pending Planning')continue;var windowFrom=BatchPlanningCandidateEngine_date_(BatchPlanningCandidateEngine_value_(row,idx,['Planning window from'])),windowTo=BatchPlanningCandidateEngine_date_(BatchPlanningCandidateEngine_value_(row,idx,['Planning window to']));if(!windowFrom||!windowTo){rejected.push({auditId:auditId,reason:'PLANNING_WINDOW_MISSING'});continue;}var overlapFrom=periodFrom.getTime()>windowFrom.getTime()?periodFrom:windowFrom,overlapTo=periodTo.getTime()<windowTo.getTime()?periodTo:windowTo;if(overlapFrom.getTime()>overlapTo.getTime()){rejected.push({auditId:auditId,reason:'OUTSIDE_PLANNING_WINDOW'});continue;}var scopes=BatchPlanningCandidateEngine_scopes_(headers,row),unqualified=scopes.filter(function(scope){return !AuditorsIndex_IsQualified(auditorEmail,scope);});if(unqualified.length){rejected.push({auditId:auditId,reason:'AUDITOR_NOT_QUALIFIED',scopes:unqualified});continue;}var company=BatchPlanningCandidateEngine_text_(row,idx,['Company']),companyUid=BatchPlanningCandidateEngine_text_(row,idx,['Company_UID','Company UID']),rotation=BatchPlanningCandidateEngine_rotation_(auditorEmail,company,companyUid,scopes);if(rotation.hardBlock){rejected.push({auditId:auditId,reason:'ROTATION_HARD_BLOCK',rotation:rotation});continue;}var hours=BatchPlanningCandidateEngine_hours_(row,idx),location=BatchPlanningCandidateEngine_text_(row,idx,['Location','Audit location','Execution location']),preferredMonths=BatchPlanningCandidateEngine_companyPreferredMonths_(company,companyUid),soft=[];if(preferredMonths.length&&!BatchPlanningCandidateEngine_periodTouchesPreferredMonth_(overlapFrom,overlapTo,preferredMonths))soft.push({code:'OUTSIDE_PREFERRED_AUDIT_MONTHS',owner:'Companies',advisory:true});if(rotation.warning)soft.push({code:'ROTATION_EXCEPTION_REQUIRED',owner:'RotationAuditorService',advisory:true,detail:rotation.detail});var dayFit=BatchPlanningCandidateEngine_schedulableDays_(overlapFrom,overlapTo,availability);if(!dayFit.hardAvailableDays.length){rejected.push({auditId:auditId,reason:'NO_HARD_AVAILABLE_DAY',availability:dayFit});continue;}if(dayFit.softOnlyDays.length)soft.push({code:'SOFT_AVAILABILITY_DAYS_PRESENT',owner:'AvailabilityService',advisory:true,dates:dayFit.softOnlyDays});candidates.push({auditId:auditId,company:company,companyUid:companyUid,location:location,status:status,scopes:scopes,hoursToBePlanned:hours,planningWindowFrom:BatchPlanningCandidateEngine_iso_(windowFrom),planningWindowTo:BatchPlanningCandidateEngine_iso_(windowTo),schedulableFrom:BatchPlanningCandidateEngine_iso_(overlapFrom),schedulableTo:BatchPlanningCandidateEngine_iso_(overlapTo),hardAvailableDays:dayFit.hardAvailableDays,softAvailabilityDays:dayFit.softOnlyDays,rotation:rotation,preferredAuditMonths:preferredMonths,softWarnings:soft,route:null,routePending:true});}candidates.sort(function(a,b){var ato=String(a.planningWindowTo||''),bto=String(b.planningWindowTo||'');if(ato!==bto)return ato<bto?-1:1;return String(a.company||'').localeCompare(String(b.company||''));});return BatchPlanningCandidateEngine_result_(auditor,periodFrom,periodTo,candidates,rejected,availability);}
+function BatchPlanningCandidateEngine_hours_(row,idx){var raw=BatchPlanningCandidateEngine_value_(row,idx,['Total audit time in hours','Total audit time (hours)','Total audit time','Total hours','Hours to be planned','Hours To Be Planned','Required hours']),n=Number(raw);return isFinite(n)&&n>=0?n:0;}
+function BatchPlanningCandidateEngine_availability_(auditorEmail,from,to){var fromIso=BatchPlanningCandidateEngine_iso_(from),toIso=BatchPlanningCandidateEngine_iso_(to),hardMap={};if(typeof AvailabilityService!=='undefined'&&AvailabilityService&&typeof AvailabilityService.loadAuditorAvailabilityMap==='function')hardMap=AvailabilityService.loadAuditorAvailabilityMap(auditorEmail,fromIso,toIso)||{};var raw={days:{}};if(typeof AvailabilityService!=='undefined'&&AvailabilityService&&typeof AvailabilityService.getAuditorAvailabilityRaw==='function')raw=AvailabilityService.getAuditorAvailabilityRaw(auditorEmail,fromIso,toIso,{})||raw;return{owner:'AvailabilityService',hardMap:hardMap,rawDays:raw.days||{}};}
+function BatchPlanningCandidateEngine_schedulableDays_(from,to,availability){var hardAvailable=[],softOnly=[],d=new Date(from.getTime());while(d.getTime()<=to.getTime()){var iso=BatchPlanningCandidateEngine_iso_(d),hm=availability.hardMap[iso]||{},hard=hm.hardBlock||{},raw=(availability.rawDays||{})[iso]||{},meta=raw.meta||{},fullyHard=!!(hard.S1&&hard.S2);if(!fullyHard){hardAvailable.push(iso);if(meta.softFullDay===true)softOnly.push(iso);}d.setDate(d.getDate()+1);}return{hardAvailableDays:hardAvailable,softOnlyDays:softOnly};}
+function BatchPlanningCandidateEngine_rotation_(auditorEmail,company,companyUid,scopes){var details=[],hard=false,warning=false;for(var i=0;i<(scopes||[]).length;i++){var scope=scopes[i],res=null;if(typeof RotationAuditorService_getAuditorScopeResult==='function')res=RotationAuditorService_getAuditorScopeResult({companyUid:companyUid,companyName:company,auditorEmail:auditorEmail,scope:scope});if(!res||!res.success){details.push({scope:scope,status:'UNKNOWN'});continue;}var count=Number(res.consecutiveYears||0),max=res.maxConsecutive==null?null:Number(res.maxConsecutive),ev=max==null?{status:'OK',allowed:true,warning:false}:BatchPlanning_evaluateRotation_(count,max);details.push({scope:scope,consecutiveYears:count,maxConsecutive:max,status:ev.status,allowed:ev.allowed,exceptionRequired:!!ev.exceptionRequired});if(ev.status==='HARD_BLOCK')hard=true;if(ev.status==='WARNING')warning=true;}return{owner:'RotationAuditorService',hardBlock:hard,warning:warning,details:details,detail:details.map(function(x){return x.scope+': '+x.status;}).join(' | ')};}
+function BatchPlanningCandidateEngine_result_(auditor,from,to,candidates,rejected,availability){return{ok:true,build:BATCH_PLANNING_CANDIDATE_ENGINE_BUILD,advisoryOnly:true,auditor:auditor,period:{from:BatchPlanningCandidateEngine_iso_(from),to:BatchPlanningCandidateEngine_iso_(to)},candidates:candidates||[],rejected:rejected||[],candidateCount:(candidates||[]).length,rejectedCount:(rejected||[]).length,availabilityOwner:'AvailabilityService',rotationOwner:'RotationAuditorService',hoursOwner:'Audit planning.Total audit time in hours',routeMatrixPending:true,writesPerformed:false};}
 function BatchPlanningCandidateEngine_scopes_(headers,row){try{if(typeof v5_extractScopesForAuditPlanningRow_==='function'){var res=v5_extractScopesForAuditPlanningRow_(headers,row),arr=res&&res.scopes?res.scopes:[];return arr.map(function(s){return String((s&&(s.name||s.code||s.slot))||'').trim();}).filter(Boolean);}}catch(e){}var idx=BatchPlanningCandidateEngine_headerMap_(headers),text=BatchPlanningCandidateEngine_text_(row,idx,['Scopes','Scopes_List']);return text?text.split(/[,;|]+/).map(function(x){return String(x||'').trim();}).filter(Boolean):[];}
-function BatchPlanningCandidateEngine_companyPreferredMonths_(company,companyUid){try{if(typeof CompaniesIndex_GetCompanyCoreByName==='function'&&company){var rec=CompaniesIndex_GetCompanyCoreByName(company);if(rec){var raw=rec.preferredAuditMonths||rec.preferredMonths||'';return BatchPlanningCandidateEngine_months_(raw);}}}catch(e){}return [];}
+function BatchPlanningCandidateEngine_companyPreferredMonths_(company,companyUid){try{if(typeof CompaniesIndex_GetCompanyCoreByName==='function'&&company){var rec=CompaniesIndex_GetCompanyCoreByName(company);if(rec){var raw=rec.preferredAuditMonths||rec.preferredMonths||'';return BatchPlanningCandidateEngine_months_(raw);}}}catch(e){}return[];}
 function BatchPlanningCandidateEngine_months_(raw){if(Array.isArray(raw))return raw.map(Number).filter(function(n){return n>=1&&n<=12;});var s=String(raw||'').trim();if(!s)return[];var names={jan:1,january:1,januari:1,feb:2,february:2,februari:2,mar:3,march:3,maart:3,apr:4,april:4,may:5,mei:5,jun:6,june:6,juni:6,jul:7,july:7,juli:7,aug:8,august:8,sep:9,september:9,oct:10,october:10,oktober:10,nov:11,november:11,dec:12,december:12},out=[],seen={};s.split(/[,;|\s]+/).forEach(function(v){var k=String(v||'').toLowerCase(),n=/^\d+$/.test(k)?Number(k):names[k];if(n>=1&&n<=12&&!seen[n]){seen[n]=true;out.push(n);}});return out.sort(function(a,b){return a-b;});}
 function BatchPlanningCandidateEngine_periodTouchesPreferredMonth_(from,to,months){var d=new Date(from.getFullYear(),from.getMonth(),1),end=new Date(to.getFullYear(),to.getMonth(),1);while(d.getTime()<=end.getTime()){if(months.indexOf(d.getMonth()+1)>=0)return true;d.setMonth(d.getMonth()+1);}return false;}
 function BatchPlanningCandidateEngine_headerMap_(headers){var map={};(headers||[]).forEach(function(h,i){var s=String(h||'').trim();if(!s)return;map[s]=i;map[s.toLowerCase()]=i;map[s.toLowerCase().replace(/[^a-z0-9]+/g,'')]=i;});return map;}
-function BatchPlanningCandidateEngine_value_(row,idx,names){for(var i=0;i<(names||[]).length;i++){var s=String(names[i]||'').trim(),k=s.toLowerCase().replace(/[^a-z0-9]+/g,'');if(idx.hasOwnProperty(s))return row[idx[s]];if(idx.hasOwnProperty(s.toLowerCase()))return row[idx[s.toLowerCase()]];if(idx.hasOwnProperty(k))return row[idx[k]];}return '';}
+function BatchPlanningCandidateEngine_value_(row,idx,names){for(var i=0;i<(names||[]).length;i++){var s=String(names[i]||'').trim(),k=s.toLowerCase().replace(/[^a-z0-9]+/g,'');if(idx.hasOwnProperty(s))return row[idx[s]];if(idx.hasOwnProperty(s.toLowerCase()))return row[idx[s.toLowerCase()]];if(idx.hasOwnProperty(k))return row[idx[k]];}return'';}
 function BatchPlanningCandidateEngine_text_(row,idx,names){return String(BatchPlanningCandidateEngine_value_(row,idx,names)||'').trim();}
 function BatchPlanningCandidateEngine_date_(v){if(!v)return null;if(Object.prototype.toString.call(v)==='[object Date]'&&!isNaN(v.getTime()))return new Date(v.getFullYear(),v.getMonth(),v.getDate());var s=String(v).trim(),m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);if(m)return new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));var d=new Date(s);return isNaN(d.getTime())?null:new Date(d.getFullYear(),d.getMonth(),d.getDate());}
 function BatchPlanningCandidateEngine_iso_(d){return d?Utilities.formatDate(d,Session.getScriptTimeZone()||'Europe/Amsterdam','yyyy-MM-dd'):'';}
-function RUN_BATCH_PLANNING_CANDIDATE_ENGINE_DIAGNOSTICS(){var directory=AuditorsIndex_GetDirectory(false),list=directory&&directory.list?directory.list:[],auditor=list.length?list[0].email:'',today=new Date(),to=new Date(today.getTime());to.setDate(to.getDate()+90);var out=BatchPlanningCandidateEngine_Collect({auditorEmail:auditor,periodFrom:today,periodTo:to});Logger.log(JSON.stringify({ok:out.ok,build:out.build,auditorEmail:auditor,candidateCount:out.candidateCount,rejectedCount:out.rejectedCount,availabilityOwner:out.availabilityOwner,rotationOwner:out.rotationOwner,writesPerformed:false},null,2));return out;}
+function RUN_BATCH_PLANNING_CANDIDATE_ENGINE_DIAGNOSTICS(){var directory=AuditorsIndex_GetDirectory(false),list=directory&&directory.list?directory.list:[],auditor=list.length?list[0].email:'',today=new Date(),to=new Date(today.getTime());to.setDate(to.getDate()+90);var out=BatchPlanningCandidateEngine_Collect({auditorEmail:auditor,periodFrom:today,periodTo:to});Logger.log(JSON.stringify({ok:out.ok,build:out.build,auditorEmail:auditor,candidateCount:out.candidateCount,rejectedCount:out.rejectedCount,hoursOwner:out.hoursOwner,availabilityOwner:out.availabilityOwner,rotationOwner:out.rotationOwner,writesPerformed:false},null,2));return out;}

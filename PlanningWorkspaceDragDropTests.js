@@ -1,8 +1,8 @@
 /***********************************************************************
  * PlanningWorkspaceDragDropTests.js
- * BUILD: 2026-09-17_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R16_SIGNATURE_REFRESH
+ * BUILD: 2026-09-17_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R17_CONTRACT_DRIFT_GUARD
  ***********************************************************************/
-var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-17_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R16_SIGNATURE_REFRESH';
+var PLANNING_WORKSPACE_DRAG_DROP_TEST_BUILD='2026-09-17_ROADMAP_2_4_WORKSPACE_DRAG_DROP_TESTS_R17_CONTRACT_DRIFT_GUARD';
 function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var ui=PlanningWorkspaceUi_contract();
@@ -35,7 +35,7 @@ function RUN_PLANNING_WORKSPACE_DRAG_DROP_REGRESSION(){
   t('canonicalRevisionOwnerUsed',hydrateSource.indexOf('PlanningRevisionTokenService_get')>=0);
   t('canonicalPreflightDeclared',rpc.meta.conceptDropCanonicalPreflight===true);
   t('canonicalPreflightOwner',rpc.meta.conceptDropPreflightOwner==='PlanningCommitGateService_evaluate');
-  t('canonicalConstraintSet',rpc.meta.conceptDropChecks.join('|')==='qualification|availability|planningWindow|rotation',rpc.meta.conceptDropChecks.join('|'));
+  t('canonicalConstraintSetOwnedByGate',preflightSource.indexOf('PlanningCommitGateService_evaluate')>=0&&preflightSource.indexOf('auditId:')>=0&&preflightSource.indexOf('auditorEmail:')>=0&&preflightSource.indexOf('blocks:')>=0);
   t('preflightUsesCanonicalGate',preflightSource.indexOf('PlanningCommitGateService_evaluate')>=0);
   t('blockedPreflightCannotSaveConcept',saveSource.indexOf('gate.canCommit!==true')>=0&&saveSource.indexOf('gate.canCommit!==true')<saveSource.indexOf('PlanningWorkspaceService_saveConcept'));
 

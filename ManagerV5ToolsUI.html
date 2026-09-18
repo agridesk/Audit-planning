@@ -299,7 +299,7 @@
     <label class="m5t-field"><span class="m5t-label">To</span><input id="m5tBatchTo" class="m5t-input" type="date"></label>
     <button id="m5tBatchGenerate" class="m5t-btn m5t-btn-primary" type="button" onclick="m5t_generateBatchPlanning()">Generate concept</button>
   </div>
-  <div id="m5tBatchMsg"></div><div id="m5tBatchConfirmBar" style="display:none;margin-top:10px"><button id="m5tBatchPreviewConfirm" class="m5t-btn" type="button" onclick="m5t_previewBatchConfirmation()">Validate confirmation</button><button id="m5tBatchConfirm" class="m5t-btn m5t-btn-primary" type="button" style="display:none" onclick="m5t_confirmBatchPlanning()">Confirm & plan audits</button></div><div id="m5tBatchSummary" class="m5t-batch-summary"></div><div id="m5tBatchBoundaries" class="m5t-batch-boundaries" style="display:none"></div><div id="m5tBatchDays" class="m5t-batch-days"></div><div id="m5tBatchAttention" class="m5t-batch-attention" style="display:none"></div>
+  <div id="m5tBatchMsg"></div><div id="m5tBatchConfirmBar" style="display:none;margin-top:10px"><button id="m5tBatchPreviewConfirm" class="m5t-btn" type="button" onclick="m5t_previewBatchConfirmation()">Validate confirmation</button><button id="m5tBatchConfirm" disabled title="Batch commit is disabled until atomic commit/rollback is verified" class="m5t-btn m5t-btn-primary" type="button" style="display:none" onclick="m5t_confirmBatchPlanning()">Confirm & plan audits</button></div><div id="m5tBatchSummary" class="m5t-batch-summary"></div><div id="m5tBatchBoundaries" class="m5t-batch-boundaries" style="display:none"></div><div id="m5tBatchDays" class="m5t-batch-days"></div><div id="m5tBatchAttention" class="m5t-batch-attention" style="display:none"></div>
 </div>
 <script>
   window.__m5tPlanningRows = [];

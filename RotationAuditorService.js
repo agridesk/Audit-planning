@@ -62,7 +62,7 @@ function RotationAuditorService_getOverview(forceFresh) {
 function RotationAuditorService_getAuditorScopeResult(input) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   input = input || {};
-  var pack = RotationAuditorService_getPack_(ss, false);
+  var pack = RotationAuditorService_getPack_(ss, input.forceFresh === true);
   var companyUid = RotationAuditorService_clean_(input.companyUid);
   var companyName = RotationAuditorService_clean_(input.companyName || input.company);
   var scope = RotationAuditorService_canonicalScope_(pack, input.scope);

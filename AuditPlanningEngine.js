@@ -624,7 +624,7 @@ function toMin_(t) {
   var p = String(t).split(':');
   if (p.length !== 2) return null;
   var h = parseInt(p[0], 10), m = parseInt(p[1], 10);
-  if (isNaN(h) || isNaN(m)) return null;
+  if (isNaN(h) || isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) return null;
   return h * 60 + m;
 }
 

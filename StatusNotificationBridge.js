@@ -231,6 +231,9 @@ function StatusNotificationBridge_QueueWithLock_(recipientEmail, eventCode, queu
 
 function StatusNotificationBridge_Dispatch_(action, actor, ctx, payload, result) {
   try {
+    if (typeof BatchPlanningNotificationGate_shouldDefer_ === 'function' && BatchPlanningNotificationGate_shouldDefer_(action, actor, ctx, payload, result)) {
+      return BatchPlanningNotificationGate_defer_(action, actor, ctx, payload, result);
+    }
     action = Status_normalizeAction_(action);
     actor = Status_normalizeRole_(actor);
 

@@ -6,7 +6,8 @@ function RUN_WORKSPACE_EXPLICIT_BATCH_CONFIRM_REGRESSION(){
  var h=HtmlService.createHtmlOutputFromFile('PlanningWorkspace').getContent(),b=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceBatchCommit.js').getContent(),r=[];
  function t(n,o){r.push({name:n,ok:!!o});}
  t('configureButtonAddressable',h.indexOf('id="configureNextSelected"')>=0);
- t('configureStartsSafelyDisabled',h.indexOf('id="configureNextSelected" class="btn primary" type="button" disabled')>=0);\n t('configureEnabledByRuntimeWhenStaged',b.indexOf('if(cfg)cfg.disabled=n===0')>=0);
+ t('configureStartsSafelyDisabled',h.indexOf('id="configureNextSelected" class="btn primary" type="button" disabled')>=0);
+ t('configureEnabledByRuntimeWhenStaged',b.indexOf('if(cfg)cfg.disabled=n===0')>=0);
  t('configureHandlerPresent',b.indexOf('function configureNext()')>=0);
  t('configureOpensToolkit',b.indexOf("t.open(clean(rows[0].auditId))")>=0);
  t('previewButtonLabel',b.indexOf("Preview selected")>=0);

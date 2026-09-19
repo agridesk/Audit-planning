@@ -248,6 +248,7 @@ function ConfigScopes_loadCatalogFromSheet_() {
       archived: ConfigScopes_val_(row, idx, ['Archived', 'ARCHIVED']),
       sortOrder: ConfigScopes_num_(ConfigScopes_val_(row, idx, ['SortOrder', 'Sort order', 'Sort']), r),
       defaultHours: ConfigScopes_num_(ConfigScopes_val_(row, idx, ['Default_hours', 'Default hours', 'DefaultHours']), 0),
+      schedulingHours: ConfigScopes_numOrNull_(ConfigScopes_val_(row, idx, ['Scheduling_hours', 'Scheduling hours', 'SchedulingHours'])),
       maxNumberAudits: ConfigScopes_numOrNull_(ConfigScopes_val_(row, idx, ['Max number audits', 'Max number audit', 'Max audits', 'Max audit', 'Maximum audits'])),
       planningFrom: ConfigScopes_numOrNull_(ConfigScopes_val_(row, idx, ['Planning from', 'Planning_from', 'PlanningFrom'])),
       planningTo: ConfigScopes_numOrNull_(ConfigScopes_val_(row, idx, ['Planning to', 'Planning_to', 'PlanningTo'])),
@@ -385,6 +386,7 @@ function RUN_CONFIGSCOPES_DIAGNOSTICS() {
         scopeCode: x.scopeCode,
         displayName: x.displayName,
         defaultHours: x.defaultHours,
+        schedulingHours: x.schedulingHours,
         maxNumberAudits: x.maxNumberAudits
       };
     })

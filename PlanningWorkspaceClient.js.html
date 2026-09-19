@@ -2,7 +2,7 @@
 <script>
 (function(){
 'use strict';
-var BUILD='2026-09-19_AMS01_PLANNING_WORKSPACE_CLIENT_R30_ROUTE_BOUNDARY_DEFAULTS';
+var BUILD='2026-09-19_AMS01_PLANNING_WORKSPACE_CLIENT_R31_ROUTE_BOUNDARY_DEFAULT_RPC';
 var state={loading:false,entryAuthResolved:false,data:{advisory:null,overlays:null},shellPerformance:null,decisionPerformance:null,lastOverlayPerformance:null,stagePerformance:null,gridStart:null,selected:{},selectionOrder:[]};
 function el(id){return document.getElementById(id)}
 function clean(v){return String(v==null?'':v).trim()}
@@ -47,7 +47,7 @@ function renderCalendar(){if(!state.gridStart){var d=parseDate(el('pwFrom').valu
 function renderCore(){renderKpis();renderAttention();renderWorkload();renderBatch();renderFilters();renderCalendar()}
 function conceptPeriod(){return{from:clean(el('batchPlanFrom')&&el('batchPlanFrom').value),to:clean(el('batchPlanTo')&&el('batchPlanTo').value)}}
 function conceptBoundaries(){return{inboundPoint:clean(el('batchStartPoint')&&el('batchStartPoint').value),outboundPoint:clean(el('batchEndPoint')&&el('batchEndPoint').value)}}
-function applyAuditorBoundaryDefaults(){var s=el('batchConceptAuditor'),email=clean(s&&s.value).toLowerCase(),a=allAuditors(),dep='';for(var i=0;i<a.length;i++)if(clean(a[i].email).toLowerCase()===email){dep=clean(a[i].defaultDepartureFrom);break}var from=el('batchStartPoint'),to=el('batchEndPoint');if(from)from.value=dep;if(to)to.value=dep;renderBatchMeta()}
+function applyAuditorBoundaryDefaults(){var s=el('batchConceptAuditor'),email=clean(s&&s.value).toLowerCase(),from=el('batchStartPoint'),to=el('batchEndPoint');if(!email){if(from)from.value='';if(to)to.value='';renderBatchMeta();return}google.script.run.withSuccessHandler(function(r){var dep=clean(r&&r.ok&&r.defaultDepartureFrom);if(from)from.value=dep;if(to)to.value=dep;renderBatchMeta()}).withFailureHandler(function(){renderBatchMeta()}).getBatchPlanningBoundaryDefaultsV5(email)}
 function selectedAuditIds(){var out=[],seen={};(state.selectionOrder||[]).forEach(function(id){id=clean(id);if(id&&state.selected[id]&&!seen[id]){seen[id]=1;out.push(id)}});Object.keys(state.selected||{}).forEach(function(id){if(state.selected[id]&&!seen[id])out.push(id)});return out}
 function applyGeneratedConcept(res){var o=overlays();o.batchGeneratedConcepts=[res];o.generatedConceptReservations=Array.isArray(res&&res.conceptReservations)?res.conceptReservations.slice():[];window.__AMS_WORKSPACE_LAST_BATCH_GENERATED_CONCEPT=res;renderCalendar()}
 function generatedConceptById(id){id=clean(id);var a=generatedConcepts();for(var i=0;i<a.length;i++)if(clean(a[i]&&a[i].auditId)===id)return a[i];return null}

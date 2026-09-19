@@ -1,5 +1,5 @@
 /** FILE: PlanningWorkspaceSelectionIdentityTests.gs
- * BUILD: 2026-09-18_WORKSPACE_SELECTION_IDENTITY_R1
+ * BUILD: 2026-09-19_WORKSPACE_SELECTION_IDENTITY_R2
  * RUN: RUN_WORKSPACE_SELECTION_IDENTITY_REGRESSION
  */
 function RUN_WORKSPACE_SELECTION_IDENTITY_REGRESSION(){
@@ -15,5 +15,5 @@ function RUN_WORKSPACE_SELECTION_IDENTITY_REGRESSION(){
  t('configureOpensResolvedIdentity',b.indexOf('t.open(id)')>=0);
  t('configureNoLongerBlindFirstRow',b.indexOf('t.open(clean(rows[0].auditId))')<0);
  t('previewStillExplicit',b.indexOf('pendingPreview')>=0&&b.indexOf('Confirm plan selected')>=0);
- var passed=r.filter(function(x){return x.ok}).length,out={ok:passed===r.length,build:'2026-09-18_WORKSPACE_SELECTION_IDENTITY_R1',total:r.length,passed:passed,failed:r.length-passed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,externalApiCallsPerformed:false,contract:'Batch selection retains planner click order and Configure opens the most recently selected staged audit identity, never an unrelated first reservation.'}};console.info(JSON.stringify(out,null,2));return out;
+ var passed=r.filter(function(x){return x.ok}).length,out={ok:passed===r.length,build:'2026-09-18_WORKSPACE_SELECTION_IDENTITY_R1',total:r.length,passed:passed,failed:r.length-passed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,externalApiCallsPerformed:false,contract:'Batch selection retains planner click order and Configure opens the most recently selected concept audit identity, never an unrelated first reservation.'}};console.info(JSON.stringify(out,null,2));return out;
 }

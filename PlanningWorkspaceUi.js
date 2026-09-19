@@ -1,6 +1,6 @@
 /***********************************************************************
  * PlanningWorkspaceUi.js
- * BUILD: 2026-09-14_ROADMAP_2_4_PLANNING_WORKSPACE_UI_R11_MODIFY_WINDOW_REQUIRED
+ * BUILD: 2026-09-19_ROADMAP_2_4_PLANNING_WORKSPACE_UI_R12_RENDER_PIPELINE_COMPLETE
  *
  * PERFORMANCE
  * - Route render remains data-independent.
@@ -21,11 +21,13 @@ function PlanningWorkspaceUi_render(ctx){
   t.__seedTo='';
   var html=t.evaluate().getContent();
   var dragDrop=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceDragDrop.js').getContent();
+  var attentionEnhancer=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceAttentionEnhancer.js').getContent();
+  var pointerDragFallback=HtmlService.createHtmlOutputFromFile('PlanningWorkspacePointerDragFallback.js').getContent();
   var availabilityContext=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceAvailabilityContext.js').getContent();
   var detailToolkit=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceDetailToolkit.js').getContent();
   var plannedActions=HtmlService.createHtmlOutputFromFile('PlanningWorkspacePlannedAuditActions.js').getContent();
   var modifyWindowGuard=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceModifyWindowGuard.js').getContent();
-  html=html.replace('</body>',dragDrop+'\n'+availabilityContext+'\n'+detailToolkit+'\n'+plannedActions+'\n'+modifyWindowGuard+'\n</body>');
+  html=html.replace('</body>',dragDrop+'\n'+attentionEnhancer+'\n'+pointerDragFallback+'\n'+availabilityContext+'\n'+detailToolkit+'\n'+plannedActions+'\n'+modifyWindowGuard+'\n</body>');
   return HtmlService.createHtmlOutput(html).setTitle('AMS - Planning Workspace');
 }
 function PlanningWorkspaceUi_contract(){return{
@@ -33,6 +35,8 @@ function PlanningWorkspaceUi_contract(){return{
   template:'PlanningWorkspace',
   clientInclude:'PlanningWorkspaceClient.js',
   dragDropInclude:'PlanningWorkspaceDragDrop.js',
+  attentionEnhancerInclude:'PlanningWorkspaceAttentionEnhancer.js',
+  pointerDragFallbackInclude:'PlanningWorkspacePointerDragFallback.js',
   availabilityContextInclude:'PlanningWorkspaceAvailabilityContext.js',
   detailToolkitInclude:'PlanningWorkspaceDetailToolkit.js',
   plannedActionsInclude:'PlanningWorkspacePlannedAuditActions.js',

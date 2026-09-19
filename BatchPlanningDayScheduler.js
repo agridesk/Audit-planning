@@ -1,6 +1,6 @@
 /**
  * FILE: BatchPlanningDayScheduler.gs
- * BUILD: 2026-09-19_BATCH_PLANNING_DAY_SCHEDULER_R8_ROUTE_ORDER_BACKTRACK
+ * BUILD: 2026-09-19_BATCH_PLANNING_DAY_SCHEDULER_R9_ROUTE_ORDER_FORWARD_DAYS
  * Read-only scheduler. Preserves route order and splits long audits across feasible days.
  */
 var BATCH_PLANNING_DAY_SCHEDULER_BUILD='2026-09-19_BATCH_PLANNING_DAY_SCHEDULER_R7_MULTIDAY_AUDITS';
@@ -12,7 +12,7 @@ function BatchPlanningDayScheduler_Build(input){
  var candidates=Array.isArray(input.candidates)?input.candidates:[],unresolved=[],lastAssigned='';
  candidates.forEach(function(c,routeIndex){
   var total=Number(c.hoursToBePlanned||0);if(!isFinite(total)||total<=0){unresolved.push({auditId:c.auditId,reason:'AUDIT_HOURS_REQUIRED'});return;}
-  var allowed=(c.hardAvailableDays||[]).filter(function(iso){return !!map[iso]&&iso>=String(c.schedulableFrom||'')&&iso<=String(c.schedulableTo||'')&&(!lastAssigned||iso>=lastAssigned);});
+  var allowed=(c.hardAvailableDays||[]).filter(function(iso){return !!map[iso]&&iso>=String(c.schedulableFrom||'')&&iso<=String(c.schedulableTo||'')&&(!lastAssigned||iso>=lastAssigned);});if(lastAssigned&&allowed.length){var after=allowed.filter(function(iso){return iso>lastAssigned;});if(after.length)allowed=after.concat(allowed.filter(function(iso){return iso===lastAssigned;}));}
   if(!allowed.length){unresolved.push({auditId:c.auditId,reason:'NO_ROUTE_ORDERED_SCHEDULABLE_DAY'});return;}
   var remaining=total,segments=[],first=true;
   for(var ai=0;ai<allowed.length&&remaining>0.0001;ai++){

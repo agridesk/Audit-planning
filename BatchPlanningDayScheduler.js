@@ -1,6 +1,6 @@
 /**
  * FILE: BatchPlanningDayScheduler.gs
- * BUILD: 2026-09-19_BATCH_PLANNING_DAY_SCHEDULER_R7_MULTIDAY_AUDITS
+ * BUILD: 2026-09-19_BATCH_PLANNING_DAY_SCHEDULER_R8_ROUTE_ORDER_BACKTRACK
  * Read-only scheduler. Preserves route order and splits long audits across feasible days.
  */
 var BATCH_PLANNING_DAY_SCHEDULER_BUILD='2026-09-19_BATCH_PLANNING_DAY_SCHEDULER_R7_MULTIDAY_AUDITS';
@@ -25,7 +25,7 @@ function BatchPlanningDayScheduler_Build(input){
    var part={auditId:c.auditId,company:c.company,hours:segment,startTime:timing.startTime,endTime:timing.endTime,fixed:false,source:'BATCH_CONCEPT',routeIndex:routeIndex,routeFromPrevious:first?(c.routeFromPrevious||null):null,travelMinutesFromPrevious:travelMinutes,hardAvailableDays:(c.hardAvailableDays||[]).slice(),schedulableFrom:c.schedulableFrom||'',schedulableTo:c.schedulableTo||'',planningWindowFrom:c.planningWindowFrom||'',planningWindowTo:c.planningWindowTo||'',softWarnings:(c.softWarnings||[]).slice(),rotation:c.rotation||null,multiDayAudit:total>9,segmentIndex:segments.length,totalAuditHours:total};
    day.conceptAudits.push(part);day.auditHours+=segment;segments.push({date:allowed[ai],hours:segment});remaining-=segment;lastAssigned=allowed[ai];first=false;
   }
-  if(remaining>0.0001){unresolved.push({auditId:c.auditId,reason:'INSUFFICIENT_SCHEDULABLE_HOURS_IN_PERIOD',hoursRequired:total,hoursAssigned:total-remaining,hoursUnassigned:remaining});BatchPlanningDayScheduler_removeAudit_(days,c.auditId);lastAssigned=BatchPlanningDayScheduler_lastAssigned_(days);}
+  if(remaining>0.0001){var assigned=total-remaining;unresolved.push({auditId:c.auditId,company:c.company,reason:'INSUFFICIENT_SCHEDULABLE_HOURS_IN_PERIOD',hoursRequired:total,hoursAssigned:assigned,hoursUnassigned:remaining,lastRouteOrderedDate:lastAssigned,hardAvailableDays:(c.hardAvailableDays||[]).slice(),schedulableFrom:c.schedulableFrom||'',schedulableTo:c.schedulableTo||''});BatchPlanningDayScheduler_removeAudit_(days,c.auditId);lastAssigned=BatchPlanningDayScheduler_lastAssigned_(days);}
  });
  days.forEach(function(day){if(day.auditHours>9.0001)day.warnings.push({code:'AUDIT_HOURS_ABOVE_TARGET',advisory:true,hours:day.auditHours});if(day.auditHours>0&&day.auditHours<8)day.warnings.push({code:'AUDIT_HOURS_BELOW_TARGET',advisory:true,hours:day.auditHours});});
  return{ok:true,build:BATCH_PLANNING_DAY_SCHEDULER_BUILD,advisoryOnly:true,auditorEmail:auditorEmail,days:days,unresolved:unresolved,fixedAnchorsImmutable:true,fixedAnchorStatuses:['Approved','Accepted'],auditHoursLeading:true,routeOrderPreserved:true,targetAuditHoursPerDay:{min:8,max:9,hardCap:false},travelHardDayCap:false,multiDayAuditsSupported:true,writesPerformed:false};

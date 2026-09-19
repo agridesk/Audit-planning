@@ -1,6 +1,6 @@
 /**
  * FILE: BatchPlanningDayScheduler.gs
- * BUILD: 2026-09-19_BATCH_PLANNING_DAY_SCHEDULER_R9_ROUTE_ORDER_FORWARD_DAYS
+ * BUILD: 2026-09-19_BATCH_PLANNING_DAY_SCHEDULER_R10_TRIP_ARRIVAL_PACKING
  * Read-only scheduler. Preserves route order and splits long audits across feasible days.
  */
 var BATCH_PLANNING_DAY_SCHEDULER_BUILD='2026-09-19_BATCH_PLANNING_DAY_SCHEDULER_R7_MULTIDAY_AUDITS';
@@ -9,17 +9,17 @@ function BatchPlanningDayScheduler_Build(input){
  if(!auditorEmail||!from||!to||to.getTime()<from.getTime())return{ok:false,error:'VALID_AUDITOR_PERIOD_REQUIRED',days:[],writesPerformed:false};
  var raw=AvailabilityService.getAuditorAvailabilityRaw(auditorEmail,BatchPlanningCandidateEngine_iso_(from),BatchPlanningCandidateEngine_iso_(to),{})||{days:{}},days=[],map={},d=new Date(from.getTime());
  while(d.getTime()<=to.getTime()){var iso=BatchPlanningCandidateEngine_iso_(d),r=(raw.days||{})[iso]||{},anchors=BatchPlanningDayScheduler_anchors_(r),day={date:iso,fixedAnchors:anchors,conceptAudits:[],auditHours:BatchPlanningDayScheduler_anchorHours_(anchors),targetAuditHours:{min:8,max:9,hardCap:false},warnings:[]};days.push(day);map[iso]=day;d.setDate(d.getDate()+1);}
- var candidates=Array.isArray(input.candidates)?input.candidates:[],unresolved=[],lastAssigned='';
+ var candidates=Array.isArray(input.candidates)?input.candidates:[],unresolved=[],lastAssigned='',tripArrivalTravelConsumed=false;
  candidates.forEach(function(c,routeIndex){
   var total=Number(c.hoursToBePlanned||0);if(!isFinite(total)||total<=0){unresolved.push({auditId:c.auditId,reason:'AUDIT_HOURS_REQUIRED'});return;}
-  var allowed=(c.hardAvailableDays||[]).filter(function(iso){return !!map[iso]&&iso>=String(c.schedulableFrom||'')&&iso<=String(c.schedulableTo||'')&&(!lastAssigned||iso>=lastAssigned);});if(lastAssigned&&allowed.length){var after=allowed.filter(function(iso){return iso>lastAssigned;});if(after.length)allowed=after.concat(allowed.filter(function(iso){return iso===lastAssigned;}));}
+  var allowed=(c.hardAvailableDays||[]).filter(function(iso){return !!map[iso]&&iso>=String(c.schedulableFrom||'')&&iso<=String(c.schedulableTo||'')&&(!lastAssigned||iso>=lastAssigned);});
   if(!allowed.length){unresolved.push({auditId:c.auditId,reason:'NO_ROUTE_ORDERED_SCHEDULABLE_DAY'});return;}
   var remaining=total,segments=[],first=true;
   for(var ai=0;ai<allowed.length&&remaining>0.0001;ai++){
    var day=map[allowed[ai]],capacity=Math.max(0,9-day.auditHours);if(capacity<=0.0001)continue;
    var segment=Math.min(remaining,capacity);
    if(remaining>segment&&segment<2)continue;
-   var travelMinutes=first?Math.ceil(Number(c.routeFromPrevious&&c.routeFromPrevious.durationSeconds||0)/60):0;
+   var travelMinutes=first?Math.ceil(Number(c.routeFromPrevious&&c.routeFromPrevious.durationSeconds||0)/60):0;if(routeIndex===0&&travelMinutes>240&&!tripArrivalTravelConsumed){travelMinutes=0;tripArrivalTravelConsumed=true;}
    var timing=BatchPlanningDayScheduler_allocateTime_(day,segment,travelMinutes);
    if(!timing.ok)continue;
    var part={auditId:c.auditId,company:c.company,hours:segment,startTime:timing.startTime,endTime:timing.endTime,fixed:false,source:'BATCH_CONCEPT',routeIndex:routeIndex,routeFromPrevious:first?(c.routeFromPrevious||null):null,travelMinutesFromPrevious:travelMinutes,hardAvailableDays:(c.hardAvailableDays||[]).slice(),schedulableFrom:c.schedulableFrom||'',schedulableTo:c.schedulableTo||'',planningWindowFrom:c.planningWindowFrom||'',planningWindowTo:c.planningWindowTo||'',softWarnings:(c.softWarnings||[]).slice(),rotation:c.rotation||null,multiDayAudit:total>9,segmentIndex:segments.length,totalAuditHours:total};
@@ -28,7 +28,7 @@ function BatchPlanningDayScheduler_Build(input){
   if(remaining>0.0001){var assigned=total-remaining;unresolved.push({auditId:c.auditId,company:c.company,reason:'INSUFFICIENT_SCHEDULABLE_HOURS_IN_PERIOD',hoursRequired:total,hoursAssigned:assigned,hoursUnassigned:remaining,lastRouteOrderedDate:lastAssigned,hardAvailableDays:(c.hardAvailableDays||[]).slice(),schedulableFrom:c.schedulableFrom||'',schedulableTo:c.schedulableTo||''});BatchPlanningDayScheduler_removeAudit_(days,c.auditId);lastAssigned=BatchPlanningDayScheduler_lastAssigned_(days);}
  });
  days.forEach(function(day){if(day.auditHours>9.0001)day.warnings.push({code:'AUDIT_HOURS_ABOVE_TARGET',advisory:true,hours:day.auditHours});if(day.auditHours>0&&day.auditHours<8)day.warnings.push({code:'AUDIT_HOURS_BELOW_TARGET',advisory:true,hours:day.auditHours});});
- return{ok:true,build:BATCH_PLANNING_DAY_SCHEDULER_BUILD,advisoryOnly:true,auditorEmail:auditorEmail,days:days,unresolved:unresolved,fixedAnchorsImmutable:true,fixedAnchorStatuses:['Approved','Accepted'],auditHoursLeading:true,routeOrderPreserved:true,targetAuditHoursPerDay:{min:8,max:9,hardCap:false},travelHardDayCap:false,multiDayAuditsSupported:true,writesPerformed:false};
+ return{ok:true,build:BATCH_PLANNING_DAY_SCHEDULER_BUILD,advisoryOnly:true,auditorEmail:auditorEmail,days:days,unresolved:unresolved,fixedAnchorsImmutable:true,fixedAnchorStatuses:['Approved','Accepted'],auditHoursLeading:true,routeOrderPreserved:true,longInboundTravelTreatedAsTripArrival:true,targetAuditHoursPerDay:{min:8,max:9,hardCap:false},travelHardDayCap:false,multiDayAuditsSupported:true,writesPerformed:false};
 }
 function BatchPlanningDayScheduler_removeAudit_(days,auditId){(days||[]).forEach(function(day){for(var i=day.conceptAudits.length-1;i>=0;i--)if(String(day.conceptAudits[i].auditId||'')===String(auditId||'')){day.auditHours-=Number(day.conceptAudits[i].hours||0);day.conceptAudits.splice(i,1);}});}
 function BatchPlanningDayScheduler_lastAssigned_(days){var last='';(days||[]).forEach(function(day){if((day.conceptAudits||[]).length)last=day.date;});return last;}

@@ -6,9 +6,17 @@
  * - Set MPS-GAP formal hours to 8.5 and preserve all other current scope values.
  * - Immediately verify Model C + legacy projection through Phase 2B reconciliation.
  */
-var MODEL_C_PHASE2B_ROUTE_SMOKE_BUILD='2026-09-20_AMS_01_6_MODEL_C_PHASE_2B_ROUTE_SMOKE_R1';
+var MODEL_C_PHASE2B_ROUTE_SMOKE_BUILD='2026-09-20_AMS_01_6_MODEL_C_PHASE_2B_ROUTE_SMOKE_R2_RESTORE';
 
 function RUN_MODEL_C_PHASE2B_SCOPE_MANAGER_ROUTE_SMOKE(){
+  return ModelCPhase2BRouteSmoke_run_(8.5,'SMOKE');
+}
+
+function RUN_MODEL_C_PHASE2B_SCOPE_MANAGER_ROUTE_RESTORE(){
+  return ModelCPhase2BRouteSmoke_run_(8,'RESTORE');
+}
+
+function ModelCPhase2BRouteSmoke_run_(gapHours,mode){
   var ss=SpreadsheetApp.getActive();
   var auditId='AUD_TEST_AcceptedDelta_HQ_1777979469906_101';
   var companyUid='89f8171f-0d7a-4de8-9c4c-14a27bd20bdf';
@@ -28,7 +36,7 @@ function RUN_MODEL_C_PHASE2B_SCOPE_MANAGER_ROUTE_SMOKE(){
 
   var selected=(cfg.scopes||[]).map(function(s){
     var hours=s.customHours!==''&&s.customHours!==null&&s.customHours!==undefined?s.customHours:s.usedHours;
-    if(String(s.scope)==='MPS-GAP')hours='8.5';
+    if(String(s.scope)==='MPS-GAP')hours=String(gapHours);
     return{
       scope:String(s.scope||''),
       enabled:!!s.enabled,
@@ -48,9 +56,9 @@ function RUN_MODEL_C_PHASE2B_SCOPE_MANAGER_ROUTE_SMOKE(){
 
   var saveResult=m5t_upsertScopes(payload);
   if(!saveResult||saveResult.success!==true){
-    var fail={success:false,build:MODEL_C_PHASE2B_ROUTE_SMOKE_BUILD,stage:'SAVE',saveResult:saveResult||null};
+    var fail={success:false,build:MODEL_C_PHASE2B_ROUTE_SMOKE_BUILD,mode:mode,stage:'SAVE',saveResult:saveResult||null};
     Logger.log(JSON.stringify(fail,null,2));
-    throw new Error('Scope Manager route smoke save failed: '+JSON.stringify(saveResult||null));
+    throw new Error('Scope Manager route '+mode.toLowerCase()+' save failed: '+JSON.stringify(saveResult||null));
   }
 
   var source=ModelCMigration_readSource_(ss);
@@ -70,16 +78,18 @@ function RUN_MODEL_C_PHASE2B_SCOPE_MANAGER_ROUTE_SMOKE(){
   });
 
   var out={
-    success:saveResult.success===true&&Number(modelGapHours)===8.5&&reconciliation.success===true,
+    success:saveResult.success===true&&Number(modelGapHours)===Number(gapHours)&&reconciliation.success===true,
     build:MODEL_C_PHASE2B_ROUTE_SMOKE_BUILD,
+    mode:mode,
     writesPerformed:true,
     auditId:auditId,
+    requestedGapHours:Number(gapHours),
     saveOwnerBuild:saveResult.ownerResult&&saveResult.ownerResult.build||'',
     saveResult:{success:saveResult.success,rowIndex1:saveResult.rowIndex1,totalHours:saveResult.totalHours,ownerResult:saveResult.ownerResult||null},
     modelGapHours:modelGapHours,
     reconciliation:ModelCPhase2BRecon_compact_(reconciliation)
   };
   Logger.log(JSON.stringify(out,null,2));
-  if(!out.success)throw new Error('Scope Manager route smoke verification failed');
+  if(!out.success)throw new Error('Scope Manager route '+mode.toLowerCase()+' verification failed');
   return out;
 }

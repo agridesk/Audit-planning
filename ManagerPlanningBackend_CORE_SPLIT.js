@@ -2261,28 +2261,26 @@ function V5_recalculateExtensionAndPlanningWindow_(sh, hdr, rowIndex, rowValues,
   var z = undo ? y : V5_addMonthsIso_(y, months);
   if (!z) return { success:false, message:'Could not calculate extended expiry date' };
 
-  // Write only the extension truth first: AH + Z.
-  // AS/AT must be recalculated by AnnualCycleEngineV5, the central planning-window owner.
+  // Calculate the compatibility projection in memory. Audit_Obligations owns
+  // extension/window truth; Audit planning is written only by the projector.
   rowValues[col.extApplied] = undo ? '' : 'Yes';
   rowValues[col.extendedExpire] = z;
-  sh.getRange(rowIndex, col.extApplied + 1).setValue(rowValues[col.extApplied]);
-  sh.getRange(rowIndex, col.extendedExpire + 1).setValue(z);
-  SpreadsheetApp.flush();
-
   var auditIdVal = (col.auditId >= 0) ? String(rowValues[col.auditId] || '').trim() : '';
-  var pwRes = null;
-  if (typeof AnnualCycleEngineV5_RecalculatePlanningWindowForAuditId === 'function') {
-    pwRes = AnnualCycleEngineV5_RecalculatePlanningWindowForAuditId(auditIdVal);
-    if (!pwRes || pwRes.success === false) {
-      return { success:false, message:'Extension saved, but AS/AT recalculation failed: ' + (pwRes && pwRes.message ? pwRes.message : 'unknown error') };
-    }
-  } else {
-    return { success:false, message:'Missing AnnualCycleEngineV5_RecalculatePlanningWindowForAuditId; AS/AT not recalculated' };
-  }
-
-  var liveRow = sh.getRange(rowIndex, 1, 1, hdr.length).getValues()[0] || rowValues;
-  var fromVal = (col.planningFrom >= 0) ? ManagerV5_fmtDate_(liveRow[col.planningFrom]) : ((pwRes && pwRes.planningWindowFrom) ? String(pwRes.planningWindowFrom) : '');
-  var toVal = (col.planningTo >= 0) ? ManagerV5_fmtDate_(liveRow[col.planningTo]) : ((pwRes && pwRes.planningWindowTo) ? String(pwRes.planningWindowTo) : '');
+  if (typeof AC_applyCentralPlanningWindow_ !== 'function') return { success:false, message:'Missing central planning-window calculator' };
+  AC_applyCentralPlanningWindow_(hdr, rowValues);
+  var fromVal = (col.planningFrom >= 0) ? ManagerV5_fmtDate_(rowValues[col.planningFrom]) : '';
+  var toVal = (col.planningTo >= 0) ? ManagerV5_fmtDate_(rowValues[col.planningTo]) : '';
+  if (!fromVal || !toVal) return { success:false, message:'Planning-window calculation returned no complete window' };
+  if (typeof ModelCExtension_commit !== 'function') return { success:false, message:'Missing Model C extension writer' };
+  var ownerWrite = ModelCExtension_commit({
+    auditId:auditIdVal,
+    extensionApplied:!undo,
+    effectiveExpiry:z,
+    planningWindowFrom:fromVal,
+    planningWindowTo:toVal,
+    metadata:{ months:Number(months || 0), undo:undo === true, source:'ManagerPlanningBackend.v5' }
+  });
+  if (!ownerWrite || ownerWrite.success === false) return ownerWrite || { success:false, message:'Model C extension write failed' };
   V5_clearManagerOpenCache_(auditIdVal);
   V5_invalidateToolkitCachesAfterAuditRowMutation_(auditIdVal, '');
   try { if (typeof EXT_INVALIDATE_TOOLKIT_AFTER_WINDOW_CHANGE === 'function') EXT_INVALIDATE_TOOLKIT_AFTER_WINDOW_CHANGE(auditIdVal, ''); } catch(eInv1) {}
@@ -2298,8 +2296,8 @@ function V5_recalculateExtensionAndPlanningWindow_(sh, hdr, rowIndex, rowValues,
     planningWindowFrom: fromVal,
     planningWindowTo: toVal,
     planningWindowText: (fromVal && toVal) ? (fromVal + ' → ' + toVal) : (fromVal || toVal || ''),
-    planningWindowState: 'CENTRAL_ENGINE',
-    planningWindowRecalc: pwRes || null,
+    planningWindowState: 'MODEL_C_OBLIGATION_OWNER',
+    planningWindowRecalc: ownerWrite,
     warnings: []
   };
 }

@@ -1,5 +1,5 @@
 /** Model C Phase 2B: scope-ownership transition contract. Read-only until routed. */
-var MODEL_C_SCOPE_OWNER_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_2B_SCOPE_OWNER_R4_TEXT_DATES';
+var MODEL_C_SCOPE_OWNER_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_2B_SCOPE_OWNER_R5_UI_HOURS_OWNER';
 
 function RUN_MODEL_C_PHASE2B_SCOPE_OWNER_PREFLIGHT() {
   var ss = SpreadsheetApp.getActive();
@@ -11,7 +11,7 @@ function RUN_MODEL_C_PHASE2B_SCOPE_OWNER_PREFLIGHT() {
   cs.forEach(function(x) { var id=String(x.Company_Scope_ID); if(!id||csById[id])errors.push('Duplicate Company Scope ID: '+id); csById[id]=x; });
   ob.forEach(function(x) { var id=String(x.Obligation_ID); if(!id||obById[id])errors.push('Duplicate Obligation ID: '+id); obById[id]=x; if(!csById[String(x.Company_Scope_ID)])errors.push('Orphan obligation: '+id); });
   lk.forEach(function(x) { if(String(x.Link_State).toUpperCase()!=='ACTIVE')return; activeLinks++; if(!obById[String(x.Obligation_ID)])errors.push('Orphan active link: '+x.Obligation_ID); });
-  var out={success:errors.length===0,readyForScopeOwnerRouting:errors.length===0,build:MODEL_C_SCOPE_OWNER_BUILD,readOnly:true,writesPerformed:false,counts:{companyScopes:cs.length,obligations:ob.length,activeLinks:activeLinks},policy:{deselect:'DEACTIVATE_CANCEL_UNLINK',historyDeleted:false,abcExpiry:false,gapGraspSharedExpiry:true,currentAuditObligationRouting:true,legacyDateProjectionAsText:true},errors:errors.slice(0,25)};
+  var out={success:errors.length===0,readyForScopeOwnerRouting:errors.length===0,build:MODEL_C_SCOPE_OWNER_BUILD,readOnly:true,writesPerformed:false,counts:{companyScopes:cs.length,obligations:ob.length,activeLinks:activeLinks},policy:{deselect:'DEACTIVATE_CANCEL_UNLINK',historyDeleted:false,abcExpiry:false,gapGraspSharedExpiry:true,currentAuditObligationRouting:true,legacyDateProjectionAsText:true,uiHoursReadFromModelC:true},errors:errors.slice(0,25)};
   Logger.log(JSON.stringify(out,null,2)); return out;
 }
 
@@ -77,6 +77,11 @@ function ModelCScopeOwner_enrichUiScopes_(ss, companyUid, auditId, scopes) {
     out.certificateBirthday=match?ModelCFoundation_clean_(match.cs.Certificate_Birthday):'';
     out.baseExpiry=match&&match.ob?ModelCExtension_dateInTz_(match.ob.Base_Expiry_Date,ss.getSpreadsheetTimeZone()):'';
     out.lifecycleType=match?String(match.cs.Lifecycle_Type||''):(ModelCFoundation_isAbc_(row.scope,row.scope)?'EXTERNAL_ANNUAL':'');
+    if(match&&match.ob){
+      var modelHours=ModelCScopeOwner_hours_(match.ob.Formal_Hours);
+      out.customHours=modelHours;
+      out.usedHours=modelHours;
+    }
     return out;
   });
 }
@@ -116,7 +121,7 @@ function ModelCScopeOwner_commit(command) {
       if(obligation){obligation.Obligation_State='CANCELLED';obligation.Closed_At=stamp;obligation.Updated_At=stamp;var link=activeLinkByOb[String(obligation.Obligation_ID)];if(link){link.Link_State='INACTIVE';link.Unlinked_At=stamp;}}
     });
     ModelCScopeOwner_writeObjects_(csSheet,MODEL_C_SCHEMA.Company_Scopes,cs,['Certificate_Birthday']);
-    ModelCScopeOwner_writeObjects_(obSheet,MODEL_C_SCHEMA.Audit_Obligations,ob,['Cycle_Key','Base_Expiry_Date','Effective_Expiry_Date','Planning_Window_From','Planning_Window_To']);
+    ModelCScopeOwner_writeObjects_(obSheet,MODEL_C_SCHEMA.Audit_ObligATIONS,ob,['Cycle_Key','Base_Expiry_Date','Effective_Expiry_Date','Planning_Window_From','Planning_Window_To']);
     ModelCScopeOwner_writeObjects_(lkSheet,MODEL_C_SCHEMA.Audit_Visit_Obligations,lk);
     var projection=ModelCScopeOwner_projectLegacy_(apSheet,command,selected,ob,lk,ss);
     SpreadsheetApp.flush();

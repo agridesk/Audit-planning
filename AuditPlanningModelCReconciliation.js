@@ -4,7 +4,7 @@
  * Read-only comparison of legacy Audit planning and Model C backfill.
  */
 
-var MODEL_C_RECON_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_1_RECONCILIATION_R3_SOURCE_KEY';
+var MODEL_C_RECON_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_1_RECONCILIATION_R4_CYCLE_DIAGNOSTIC';
 
 function RUN_MODEL_C_PHASE1_RECONCILIATION() {
   var ss = SpreadsheetApp.getActive();
@@ -15,6 +15,27 @@ function RUN_MODEL_C_PHASE1_RECONCILIATION() {
   Logger.log(JSON.stringify(ModelCRecon_compact_(result), null, 2));
   if (!result.success) throw new Error('Model C reconciliation failed: ' + (result.errors || []).join('; '));
   return result;
+}
+
+function RUN_MODEL_C_PHASE1_CYCLE_DIAGNOSTIC() {
+  var ss = SpreadsheetApp.getActive();
+  var source = ModelCMigration_readSource_(ss);
+  var target = ModelCRecon_readTargets_(ss);
+  var expected = ModelCRecon_expected_(source, []);
+  var obligations = target.rows[MODEL_C_SHEETS.AUDIT_OBLIGATIONS] || [];
+  var samples = [];
+  for (var i = 0; i < obligations.length && samples.length < 5; i++) {
+    var actual = obligations[i];
+    var sourceKey = ModelCFoundation_clean_(actual.Source_Audit_ID) + '|' + ModelCFoundation_clean_(actual.ScopeCode);
+    var wanted = expected.obligationsBySource[sourceKey];
+    if (!wanted) continue;
+    var normalized = ModelCFoundation_clean_(actual.Cycle_Key);
+    if (normalized === wanted.cycleKey) continue;
+    samples.push({ sourceKey: sourceKey, expected: wanted.cycleKey, normalized: normalized, raw: String(actual.Cycle_Key), valueType: Object.prototype.toString.call(actual.Cycle_Key) });
+  }
+  var out = { success: true, build: MODEL_C_RECON_BUILD, readOnly: true, writesPerformed: false, spreadsheetTimeZone: ss.getSpreadsheetTimeZone(), scriptTimeZone: Session.getScriptTimeZone(), mismatchesFound: samples.length, samples: samples };
+  Logger.log(JSON.stringify(out, null, 2));
+  return out;
 }
 
 function ModelCRecon_readTargets_(ss) {
@@ -81,7 +102,8 @@ function ModelCRecon_compare_(source, target) {
     var cs = csById[actual.Company_Scope_ID];
     if (!cs || cs.Company_UID !== actual.Company_UID || cs.ScopeCode !== actual.ScopeCode) errors.push('Company identity mismatch: ' + actual.Obligation_ID);
     if (!ModelCRecon_sameNumber_(wanted.formalHours, actual.Formal_Hours)) errors.push('Formal hours mismatch: ' + key);
-    if (ModelCFoundation_clean_(actual.Cycle_Key) !== wanted.cycleKey) errors.push('Cycle key mismatch: ' + key);
+    var actualCycleKey = ModelCFoundation_clean_(actual.Cycle_Key);
+    if (actualCycleKey !== wanted.cycleKey) errors.push('Cycle key mismatch: ' + key + ' expected=' + wanted.cycleKey + ' actual=' + actualCycleKey + ' raw=' + String(actual.Cycle_Key));
     if (ModelCFoundation_clean_(actual.Trigger_Source) !== wanted.trigger) errors.push('Trigger mismatch: ' + key);
     var activeLink = activeLinkByObligation[actual.Obligation_ID];
     if (!activeLink || activeLink.Audit_ID !== wanted.auditId) errors.push('Visit link mismatch: ' + key);

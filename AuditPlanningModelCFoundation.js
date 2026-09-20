@@ -445,6 +445,7 @@ function ModelCFoundation_selectedScopes_(headers, row, scopeCatalog) {
       scopeCode: catalogItem ? catalogItem.scopeCode : slot,
       displayName: catalogItem ? catalogItem.displayName : slot,
       formalHours: durationIndex >= 0 ? ModelCFoundation_numberOrBlank_(row[durationIndex]) : '',
+      recurring: catalogItem ? catalogItem.recurring : '',
       known: !!catalogItem
     });
   }

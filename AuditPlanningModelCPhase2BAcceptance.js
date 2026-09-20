@@ -1,18 +1,31 @@
 /**
  * AMS-01.6 Model C Phase 2B consolidated acceptance gate.
- * Read-only: no writes are performed.
+ * Controlled DEV acceptance:
+ * - Canonicalizes the dedicated DEV test audit to MPS-GAP 8.0 through the real Scope Manager route first.
+ * - Then runs regression, preflight and reconciliation against the canonicalized state.
  */
-var MODEL_C_PHASE2B_ACCEPTANCE_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_2B_ACCEPTANCE_R2_STABLE_READ';
+var MODEL_C_PHASE2B_ACCEPTANCE_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_2B_ACCEPTANCE_R3_CANONICALIZE_TEST_AUDIT';
 
 function RUN_MODEL_C_PHASE2B_ACCEPTANCE() {
   var out = {
     success: false,
     build: MODEL_C_PHASE2B_ACCEPTANCE_BUILD,
-    readOnly: true,
+    readOnly: false,
     writesPerformed: false,
     gates: {},
     errors: []
   };
+
+  try {
+    var restore = ModelCPhase2BRouteSmoke_run_(8, 'ACCEPTANCE_RESTORE');
+    out.restore = restore;
+    out.writesPerformed = !!(restore && restore.writesPerformed === true);
+    out.gates.testAuditCanonicalized = !!(restore && restore.success === true && Number(restore.modelGapHours) === 8);
+    if (!out.gates.testAuditCanonicalized) out.errors.push('Dedicated DEV test audit canonicalization failed');
+  } catch (eRestore) {
+    out.gates.testAuditCanonicalized = false;
+    out.errors.push('Dedicated DEV test audit canonicalization exception: ' + String(eRestore && eRestore.message ? eRestore.message : eRestore));
+  }
 
   try {
     var regression = RUN_MODEL_C_PHASE2B_SCOPE_OWNER_REGRESSION();
@@ -35,13 +48,19 @@ function RUN_MODEL_C_PHASE2B_ACCEPTANCE() {
   }
 
   try {
-    var stableRecon = ModelCPhase2BAcceptance_readStableReconciliation_();
-    out.reconciliation = stableRecon.compact;
-    out.reconciliationReadAttempts = stableRecon.attempts;
-    out.reconciliationStabilized = stableRecon.stabilized;
-    out.gates.reconciliation = stableRecon.success === true;
+    SpreadsheetApp.flush();
+    var ss = SpreadsheetApp.getActive();
+    var source = ModelCMigration_readSource_(ss);
+    var target = ModelCRecon_readTargets_(ss);
+    var reconciliation = (source && source.success && target && target.success)
+      ? ModelCPhase2BRecon_compare_(ss, source, target)
+      : { success:false, errors:['Unable to read reconciliation source/target'] };
+    out.reconciliation = (typeof ModelCPhase2BRecon_compact_ === 'function')
+      ? ModelCPhase2BRecon_compact_(reconciliation)
+      : reconciliation;
+    out.gates.reconciliation = reconciliation.success === true;
     if (!out.gates.reconciliation) {
-      (stableRecon.errors || ['Phase 2B reconciliation failed']).slice(0, 10).forEach(function(x) { out.errors.push(String(x)); });
+      (reconciliation.errors || ['Phase 2B reconciliation failed']).slice(0, 10).forEach(function(x) { out.errors.push(String(x)); });
     }
   } catch (eRecon) {
     out.gates.reconciliation = false;
@@ -50,7 +69,6 @@ function RUN_MODEL_C_PHASE2B_ACCEPTANCE() {
 
   try {
     var ss2 = SpreadsheetApp.getActive();
-    SpreadsheetApp.flush();
     var auditId = 'AUD_TEST_AcceptedDelta_HQ_1777979469906_101';
     var target2 = ModelCRecon_readTargets_(ss2);
     var rows = (target2 && target2.rows) || {};
@@ -67,67 +85,13 @@ function RUN_MODEL_C_PHASE2B_ACCEPTANCE() {
     out.testAudit = { auditId:auditId, mpsGapFormalHours:gapHours };
     out.gates.testAuditRestored = gapHours === 8;
     if (!out.gates.testAuditRestored) out.errors.push('Dedicated DEV test audit MPS-GAP hours not restored to 8.0');
-  } catch (eRestore) {
+  } catch (eVerify) {
     out.gates.testAuditRestored = false;
-    out.errors.push('Test audit restore verification exception: ' + String(eRestore && eRestore.message ? eRestore.message : eRestore));
+    out.errors.push('Test audit restore verification exception: ' + String(eVerify && eVerify.message ? eVerify.message : eVerify));
   }
 
   out.success = Object.keys(out.gates).every(function(k) { return out.gates[k] === true; }) && out.errors.length === 0;
   Logger.log(JSON.stringify(out, null, 2));
   if (!out.success) throw new Error('Model C Phase 2B acceptance failed: ' + out.errors.join('; '));
   return out;
-}
-
-function ModelCPhase2BAcceptance_readStableReconciliation_() {
-  var attempts = [];
-  var last = null;
-  var successStreak = 0;
-  var maxAttempts = 3;
-
-  for (var i = 0; i < maxAttempts; i++) {
-    SpreadsheetApp.flush();
-    if (i > 0) Utilities.sleep(350);
-
-    var ss = SpreadsheetApp.getActive();
-    var source = ModelCMigration_readSource_(ss);
-    var target = ModelCRecon_readTargets_(ss);
-    var reconciliation = (source && source.success && target && target.success)
-      ? ModelCPhase2BRecon_compare_(ss, source, target)
-      : { success:false, errors:['Unable to read reconciliation source/target'] };
-
-    var compact = (typeof ModelCPhase2BRecon_compact_ === 'function')
-      ? ModelCPhase2BRecon_compact_(reconciliation)
-      : reconciliation;
-
-    attempts.push({
-      attempt: i + 1,
-      success: reconciliation.success === true,
-      errors: (reconciliation.errors || []).slice(0, 5)
-    });
-
-    last = { reconciliation:reconciliation, compact:compact };
-
-    if (reconciliation.success === true) {
-      successStreak++;
-      if (successStreak >= 2) {
-        return {
-          success:true,
-          compact:compact,
-          attempts:attempts,
-          stabilized:attempts.length > 2 || attempts[0].success !== true,
-          errors:[]
-        };
-      }
-    } else {
-      successStreak = 0;
-    }
-  }
-
-  return {
-    success:false,
-    compact:last ? last.compact : { success:false },
-    attempts:attempts,
-    stabilized:false,
-    errors:last && last.reconciliation ? (last.reconciliation.errors || []) : ['Phase 2B reconciliation did not stabilize']
-  };
 }

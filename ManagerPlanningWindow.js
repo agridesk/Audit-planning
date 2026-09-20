@@ -1,35 +1,140 @@
-// FILE: PlanningWindow.js
-// BUILD: PLANNING_WINDOW_SPLIT_d16_20260503
+// FILE: ManagerPlanningWindow.js
+// BUILD: 2026-09-20_AMS_01_6_MODEL_C_RUNTIME_WINDOW_OWNER_R1
 // PURPOSE:
-//   Extracted from ManagerPlanningBackend_CORE_SPLIT_d15.js (lines 1475-1660) without
-//   functional changes. Owns the planning-window resolver + d14 per-audit cache.
-//
-// Public functions (kept globally, no behavior change):
-//   _mp_resolvePlanningWindow_(ss, hdr, row)
-//   _mp_resolvePlanningWindowCached_(ss, hdr, row, auditId)
-//   _mp_pwGen_(), _mp_pwGenBump_()
-//   _mp_pwCacheKey_(auditId)
-//   _mp_planningWindowCacheGet_(auditId)
-//   _mp_planningWindowCachePut_(auditId, payload)
-//
-// External callers (verified): AuditPlanningRowIndexCache_d14.js, MpCacheWarmer_GATE_Q_2_d14.js.
-// Internal (CORE_SPLIT) callers: 5 sites, all global so unaffected by file boundary.
-//
-// Dependencies (resolved globally via GAS single-namespace):
-//   ManagerV5_buildIndex_, v5_extractScopesForAuditPlanningRow_, v5_getScopesConfig_,
-//   __mp_getCached_, __mp_getSheetDataCached_
+// - Model C Audit_Obligations is canonical for planning windows.
+// - Audit planning expiry/window fields are compatibility fallback only.
+// - Existing cache contract remains intact.
+
+var MODEL_C_RUNTIME_WINDOW_BUILD = '2026-09-20_AMS_01_6_MODEL_C_RUNTIME_WINDOW_OWNER_R1';
+
+function ModelCRuntime_resolvePlanningWindow_(ss, hdr, row) {
+  ss = ss || SpreadsheetApp.getActive();
+  hdr = hdr || [];
+  row = row || [];
+
+  function norm_(v) { return String(v == null ? '' : v).trim(); }
+  function headerIndex_(names) {
+    var wanted = (names || []).map(function(x) {
+      return String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    });
+    for (var i = 0; i < hdr.length; i++) {
+      var h = String(hdr[i] || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      for (var j = 0; j < wanted.length; j++) if (h && h === wanted[j]) return i;
+    }
+    return -1;
+  }
+  function dateText_(v) {
+    if (!v) return '';
+    if (Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v.getTime())) {
+      return Utilities.formatDate(v, ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+    }
+    var s = norm_(v);
+    if (!s) return '';
+    var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? (m[1] + '-' + m[2] + '-' + m[3]) : s;
+  }
+  function objects_(sheet) {
+    if (!sheet || sheet.getLastRow() < 2 || sheet.getLastColumn() < 1) return [];
+    var values = sheet.getDataRange().getValues();
+    var headers = values[0] || [];
+    return values.slice(1).map(function(r) {
+      var o = {};
+      for (var c = 0; c < headers.length; c++) o[String(headers[c] || '')] = r[c];
+      return o;
+    });
+  }
+
+  var auditIdx = headerIndex_(['Audit ID']);
+  var auditId = auditIdx >= 0 ? norm_(row[auditIdx]) : '';
+  if (!auditId) return { success:false, reason:'NO_AUDIT_ID' };
+
+  var obSheet = ss.getSheetByName('Audit_Obligations');
+  var linkSheet = ss.getSheetByName('Audit_Visit_Obligations');
+  if (!obSheet || !linkSheet) return { success:false, reason:'MODEL_C_SHEETS_MISSING', auditId:auditId };
+
+  var obligations = objects_(obSheet);
+  var links = objects_(linkSheet);
+  var obById = {};
+  obligations.forEach(function(ob) {
+    var id = norm_(ob.Obligation_ID);
+    if (id) obById[id] = ob;
+  });
+
+  var active = [];
+  links.forEach(function(link) {
+    if (norm_(link.Audit_ID) !== auditId) return;
+    if (norm_(link.Link_State).toUpperCase() !== 'ACTIVE') return;
+    var ob = obById[norm_(link.Obligation_ID)];
+    if (!ob) return;
+    var state = norm_(ob.Obligation_State).toUpperCase();
+    if (state === 'CANCELLED' || state === 'COMPLETED' || state === 'REJECTED') return;
+    active.push(ob);
+  });
+
+  if (!active.length) return { success:false, reason:'NO_ACTIVE_MODEL_C_OBLIGATIONS', auditId:auditId };
+
+  var scopeWindows = [];
+  var activeScopes = [];
+  active.forEach(function(ob) {
+    var scope = norm_(ob.ScopeCode);
+    if (scope) activeScopes.push(scope);
+    var from = dateText_(ob.Planning_Window_From);
+    var to = dateText_(ob.Planning_Window_To);
+    if (from && to) scopeWindows.push({ scope:scope, start:from, end:to });
+  });
+
+  if (!scopeWindows.length) {
+    return {
+      success:false,
+      reason:'MODEL_C_WINDOWS_MISSING',
+      auditId:auditId,
+      activeScopes:activeScopes
+    };
+  }
+
+  var maxStart = scopeWindows[0].start;
+  var minEnd = scopeWindows[0].end;
+  var minStart = scopeWindows[0].start;
+  var maxEnd = scopeWindows[0].end;
+  for (var i = 1; i < scopeWindows.length; i++) {
+    if (scopeWindows[i].start > maxStart) maxStart = scopeWindows[i].start;
+    if (scopeWindows[i].end < minEnd) minEnd = scopeWindows[i].end;
+    if (scopeWindows[i].start < minStart) minStart = scopeWindows[i].start;
+    if (scopeWindows[i].end > maxEnd) maxEnd = scopeWindows[i].end;
+  }
+
+  var conflict = maxStart > minEnd;
+  return {
+    success:true,
+    auditId:auditId,
+    startDate: conflict ? minStart : maxStart,
+    endDate: conflict ? maxEnd : minEnd,
+    mode: conflict ? 'MODEL_C_UNION_RENDER_HARD_BLOCK' : 'MODEL_C_INTERSECTION',
+    source:'Audit_Obligations',
+    owner:'Audit_Obligations',
+    hardBlock:conflict,
+    activeScopes:activeScopes,
+    scopeWindows:scopeWindows,
+    warnings: conflict ? [{
+      code:'SCOPE_WINDOW_CONFLICT_EMPTY_INTERSECTION',
+      severity:'ERROR',
+      message:'Planning windows have no intersection; planning must be blocked.'
+    }] : []
+  };
+}
 
 /**
- * Phase 2.2 - Planning window resolution (no UI change)
- *
- * - Uses "Extended Expiration Date" (Audit planning col Z per system doc) as decisive expiry anchor.
- * - Active scopes are detected via "x" in per-scope columns in Audit planning.
- * - For each active scope, reads Standards: "Planning from" + "Planning to" (months relative to expiry).
- * - Resolves final window as INTERSECTION of all scope windows.
- * - If intersection is empty, returns UNION for rendering, with a warning flag (soft; planning remains possible).
- * - If expiry date is missing (first-time audits), uses 12-month horizon from today (soft; planning remains possible).
+ * Runtime planning-window resolver.
+ * Model C is canonical. Legacy Audit planning fields are fallback only for
+ * unmigrated/missing Model C records during the compatibility period.
  */
 function _mp_resolvePlanningWindow_(ss, hdr, row) {
+  var canonical = ModelCRuntime_resolvePlanningWindow_(ss, hdr, row);
+  if (canonical && canonical.success === true) return canonical;
+  return ModelCRuntime_resolveLegacyPlanningWindow_(ss, hdr, row, canonical);
+}
+
+function ModelCRuntime_resolveLegacyPlanningWindow_(ss, hdr, row, canonicalFailure) {
   var tz = (ss && ss.getSpreadsheetTimeZone) ? ss.getSpreadsheetTimeZone() : Session.getScriptTimeZone();
 
   function parseDate_(v) {
@@ -46,11 +151,6 @@ function _mp_resolvePlanningWindow_(ss, hdr, row) {
     return isNaN(d2.getTime()) ? null : d2;
   }
   function fmt_(d) { return Utilities.formatDate(d, tz, 'yyyy-MM-dd'); }
-  function addDays_(dateObj, days) {
-    var d = new Date(dateObj.getTime());
-    d.setDate(d.getDate() + Number(days || 0));
-    return d;
-  }
   function addMonths_(dateObj, months) {
     var d = new Date(dateObj.getTime());
     var day = d.getDate();
@@ -64,15 +164,22 @@ function _mp_resolvePlanningWindow_(ss, hdr, row) {
   var expiry = idxExpiry >= 0 ? parseDate_(row[idxExpiry]) : null;
 
   var scopeRes = v5_extractScopesForAuditPlanningRow_(hdr, row);
-  var activeScopes = (scopeRes.scopes || []).map(function(s){ return s && (s.name || s.code || s.slot) ? String(s.name || s.code || s.slot).trim() : ''; }).filter(function(x){ return !!x; });
-  var warnings = [];
+  var activeScopes = (scopeRes.scopes || []).map(function(s){
+    return s && (s.name || s.code || s.slot) ? String(s.name || s.code || s.slot).trim() : '';
+  }).filter(function(x){ return !!x; });
+  var warnings = [{
+    code:'LEGACY_PLANNING_WINDOW_FALLBACK',
+    severity:'WARN',
+    message:'Model C planning window unavailable; compatibility fallback used.',
+    reason: canonicalFailure && canonicalFailure.reason ? canonicalFailure.reason : 'UNKNOWN'
+  }];
   var windows = [];
   var now = new Date();
 
   if (!expiry) {
     var end = addMonths_(now, 12);
     warnings.push({ code:'NO_EXPIRY_DATE_FIRST_TIME_HORIZON', severity:'INFO', message:'No Extended Expiration Date; using 12-month horizon from today.' });
-    return { startDate:fmt_(now), endDate:fmt_(end), mode:'FIRST_TIME_HORIZON', activeScopes:activeScopes, scopeWindows:[], warnings:warnings };
+    return { startDate:fmt_(now), endDate:fmt_(end), mode:'LEGACY_FIRST_TIME_HORIZON', source:'Audit planning compatibility', activeScopes:activeScopes, scopeWindows:[], warnings:warnings };
   }
 
   var cfg = v5_getScopesConfig_(false) || { list:[] };
@@ -80,8 +187,6 @@ function _mp_resolvePlanningWindow_(ss, hdr, row) {
   for (var i = 0; i < (scopeRes.scopes || []).length; i++) {
     var sc = scopeRes.scopes[i] || {};
     var def = bySlot[sc.slot] || {};
-    // Config_Scopes K/L (Planning from/to) are MONTH offsets relative to expiry.
-    // Do not treat these as days; Extension M is also months.
     var fromM = Number(def.planningFrom || sc.planningFrom || 0);
     var toM = Number(def.planningTo || sc.planningTo || 0);
     if (!isFinite(fromM) || !isFinite(toM)) continue;
@@ -89,7 +194,6 @@ function _mp_resolvePlanningWindow_(ss, hdr, row) {
     windows.push({ scope:(sc.name || sc.code || sc.slot || ''), start:addMonths_(expiry, fromM), end:addMonths_(expiry, toM) });
   }
 
-  // Compatibility fallback only when Config_Scopes has no planning window data.
   if (!windows.length) {
     try {
       var stdMap = __mp_getCached_('STANDARDS_MAP', function(){
@@ -119,8 +223,8 @@ function _mp_resolvePlanningWindow_(ss, hdr, row) {
 
   if (!windows.length) {
     var end2 = addMonths_(now, 12);
-    warnings.push({ code:'NO_SCOPE_WINDOWS_FOUND', severity:'WARN', message:'No planning window data found for active scopes; using 12-month horizon from today.' });
-    return { startDate:fmt_(now), endDate:fmt_(end2), mode:'FALLBACK_HORIZON', activeScopes:activeScopes, scopeWindows:[], warnings:warnings };
+    warnings.push({ code:'NO_SCOPE_WINDOWS_FOUND', severity:'WARN', message:'No planning window data found; using 12-month horizon.' });
+    return { startDate:fmt_(now), endDate:fmt_(end2), mode:'LEGACY_FALLBACK_HORIZON', source:'Audit planning compatibility', activeScopes:activeScopes, scopeWindows:[], warnings:warnings };
   }
 
   var maxStart = windows[0].start;
@@ -134,26 +238,22 @@ function _mp_resolvePlanningWindow_(ss, hdr, row) {
     if (windows[w].end > maxEnd) maxEnd = windows[w].end;
   }
   var isEmpty = maxStart > minEnd;
-  if (isEmpty) warnings.push({ code:'SCOPE_WINDOW_CONFLICT_EMPTY_INTERSECTION', severity:'WARN', message:'Planning windows conflict; using union for rendering (planning still allowed).' });
-  var startFinal = isEmpty ? minStart : maxStart;
-  var endFinal = isEmpty ? maxEnd : minEnd;
+  if (isEmpty) warnings.push({ code:'SCOPE_WINDOW_CONFLICT_EMPTY_INTERSECTION', severity:'ERROR', message:'Planning windows conflict; compatibility union is display-only.' });
   return {
-    startDate:fmt_(startFinal),
-    endDate:fmt_(endFinal),
-    mode:isEmpty ? 'UNION_FALLBACK' : 'INTERSECTION',
+    startDate:fmt_(isEmpty ? minStart : maxStart),
+    endDate:fmt_(isEmpty ? maxEnd : minEnd),
+    mode:isEmpty ? 'LEGACY_UNION_RENDER_HARD_BLOCK' : 'LEGACY_INTERSECTION',
+    source:'Audit planning compatibility',
+    hardBlock:isEmpty,
     activeScopes:activeScopes,
     scopeWindows:windows.map(function(x){ return { scope:x.scope, start:fmt_(x.start), end:fmt_(x.end) }; }),
     warnings:warnings
   };
 }
 
-// d14: per-audit planning-window cache.
-// Window depends on (extended expiry, scope config, planning_from/to) which
-// are stable per audit until the row or scopes config changes. Generation-
-// keyed so invalidation is O(1) (bump gen via _mp_pwGenBump_).
-var MP_PW_NS         = 'MP_PW_V1';
-var MP_PW_TTL_SEC    = 1500;
-var MP_PW_GEN_KEY    = 'MP_PW_GEN_V1';
+var MP_PW_NS = 'MP_PW_V2_MODEL_C';
+var MP_PW_TTL_SEC = 1500;
+var MP_PW_GEN_KEY = 'MP_PW_GEN_V2_MODEL_C';
 
 function _mp_pwGen_() {
   try {
@@ -177,8 +277,7 @@ function _mp_pwCacheKey_(auditId) {
 function _mp_planningWindowCacheGet_(auditId) {
   try {
     var raw = CacheService.getScriptCache().get(_mp_pwCacheKey_(auditId));
-    if (!raw) return null;
-    return JSON.parse(raw);
+    return raw ? JSON.parse(raw) : null;
   } catch (e) { return null; }
 }
 function _mp_planningWindowCachePut_(auditId, payload) {
@@ -192,10 +291,6 @@ function _mp_planningWindowCachePut_(auditId, payload) {
   } catch (e) {}
   return false;
 }
-/**
- * d14 cached wrapper. When auditId is provided, short-circuits to cache hit
- * (~10-30ms vs 600ms cold compute). Lazy-fills on miss.
- */
 function _mp_resolvePlanningWindowCached_(ss, hdr, row, auditId) {
   if (auditId) {
     var hit = _mp_planningWindowCacheGet_(auditId);

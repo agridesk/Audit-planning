@@ -1,4 +1,4 @@
-var MODEL_C_EXTENSION_TEST_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_2A_EXTENSION_TESTS_R1';
+var MODEL_C_EXTENSION_TEST_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_2A_EXTENSION_TESTS_R2';
 function RUN_MODEL_C_PHASE2A_EXTENSION_REGRESSION() {
   var tests=[ModelCExtensionTest_certificate_,ModelCExtensionTest_excludesAbc_,ModelCExtensionTest_multiple_,ModelCExtensionTest_noLink_,ModelCExtensionTest_validation_],results=[],passed=0;
   for(var i=0;i<tests.length;i++){try{tests[i]();results.push({name:tests[i].name,ok:true});passed++;}catch(e){results.push({name:tests[i].name,ok:false,error:String(e.message||e)});}}

@@ -1,5 +1,5 @@
 /** Pure, read-only tests for Model C Phase 1 reconciliation. */
-var MODEL_C_RECON_TEST_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_1_RECON_TESTS_R2';
+var MODEL_C_RECON_TEST_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_1_RECON_TESTS_R3';
 
 function RUN_MODEL_C_PHASE1_RECONCILIATION_REGRESSION() {
   var tests = [ModelCReconTest_green_, ModelCReconTest_dateObjectCycle_, ModelCReconTest_hoursMismatch_, ModelCReconTest_linkMismatch_, ModelCReconTest_abcExpiry_, ModelCReconTest_dependency_];
@@ -33,7 +33,7 @@ function ModelCReconTest_target_(code) {
   var abc = code === 'MPS-ABC';
   return { success: true, rows: {
     Company_Scopes: [{ Company_Scope_ID: 'CS1', Company_UID: 'C1', ScopeCode: code, Certificate_Birthday: '' }],
-    Audit_Obligations: [{ Obligation_ID: 'O1', Company_Scope_ID: 'CS1', Company_UID: 'C1', ScopeCode: code, Cycle_Key: abc ? '2026' : '2027-05-31', Trigger_Source: abc ? 'ECAS' : 'CERTIFICATE_LIFECYCLE', Formal_Hours: 8, Base_Expiry_Date: '', Effective_Expiry_Date: '' }],
+    Audit_Obligations: [{ Obligation_ID: 'O1', Company_Scope_ID: 'CS1', Company_UID: 'C1', ScopeCode: code, Cycle_Key: abc ? '2026' : '2027-05-31', Trigger_Source: abc ? 'ECAS' : 'CERTIFICATE_LIFECYCLE', Formal_Hours: 8, Base_Expiry_Date: '', Effective_Expiry_Date: '', Source_Audit_ID: 'A1' }],
     Audit_Visit_Obligations: [{ Audit_ID: 'A1', Obligation_ID: 'O1', Link_State: 'ACTIVE' }],
     Config_Scope_Dependencies: [{ Parent_ScopeCode: 'MPS-GAP', Child_ScopeCode: 'GRASP', Active: 'YES', Must_Audit_Together: 'YES', Share_Expiry: 'YES' }]
   } };

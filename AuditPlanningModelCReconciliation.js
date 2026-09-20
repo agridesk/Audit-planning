@@ -4,7 +4,7 @@
  * Read-only comparison of legacy Audit planning and Model C backfill.
  */
 
-var MODEL_C_RECON_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_1_RECONCILIATION_R2_DATE_NORMALIZATION';
+var MODEL_C_RECON_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_1_RECONCILIATION_R3_SOURCE_KEY';
 
 function RUN_MODEL_C_PHASE1_RECONCILIATION() {
   var ss = SpreadsheetApp.getActive();
@@ -50,9 +50,12 @@ function ModelCRecon_compare_(source, target) {
   var csById = ModelCRecon_uniqueIndex_(csRows, 'Company_Scope_ID', 'Company Scope ID', errors);
   var csByNatural = ModelCRecon_uniqueComputedIndex_(csRows, function(x) { return x.Company_UID + '|' + x.ScopeCode; }, 'Company Scope natural key', errors);
   var obById = ModelCRecon_uniqueIndex_(obRows, 'Obligation_ID', 'Obligation ID', errors);
-  var obByNatural = ModelCRecon_uniqueComputedIndex_(obRows, function(x) {
+  ModelCRecon_uniqueComputedIndex_(obRows, function(x) {
     return ModelCFoundation_clean_(x.Company_UID) + '|' + ModelCFoundation_clean_(x.ScopeCode) + '|' + ModelCFoundation_clean_(x.Cycle_Key) + '|' + ModelCFoundation_clean_(x.Trigger_Source);
   }, 'Obligation natural key', errors);
+  var obBySource = ModelCRecon_uniqueComputedIndex_(obRows, function(x) {
+    return ModelCFoundation_clean_(x.Source_Audit_ID) + '|' + ModelCFoundation_clean_(x.ScopeCode);
+  }, 'Obligation source key', errors);
   var activeLinkByObligation = {};
   var linkedAudits = {};
 
@@ -68,9 +71,9 @@ function ModelCRecon_compare_(source, target) {
   Object.keys(expected.companyScopes).forEach(function(key) {
     if (!csByNatural[key]) errors.push('Missing Company Scope: ' + key);
   });
-  Object.keys(expected.obligations).forEach(function(key) {
-    var wanted = expected.obligations[key];
-    var actual = obByNatural[key];
+  Object.keys(expected.obligationsBySource).forEach(function(key) {
+    var wanted = expected.obligationsBySource[key];
+    var actual = obBySource[key];
     if (!actual) {
       errors.push('Missing obligation: ' + key);
       return;
@@ -78,6 +81,8 @@ function ModelCRecon_compare_(source, target) {
     var cs = csById[actual.Company_Scope_ID];
     if (!cs || cs.Company_UID !== actual.Company_UID || cs.ScopeCode !== actual.ScopeCode) errors.push('Company identity mismatch: ' + actual.Obligation_ID);
     if (!ModelCRecon_sameNumber_(wanted.formalHours, actual.Formal_Hours)) errors.push('Formal hours mismatch: ' + key);
+    if (ModelCFoundation_clean_(actual.Cycle_Key) !== wanted.cycleKey) errors.push('Cycle key mismatch: ' + key);
+    if (ModelCFoundation_clean_(actual.Trigger_Source) !== wanted.trigger) errors.push('Trigger mismatch: ' + key);
     var activeLink = activeLinkByObligation[actual.Obligation_ID];
     if (!activeLink || activeLink.Audit_ID !== wanted.auditId) errors.push('Visit link mismatch: ' + key);
     if (wanted.isAbc && (actual.Base_Expiry_Date || actual.Effective_Expiry_Date || (cs && cs.Certificate_Birthday))) errors.push('ABC certificate lifecycle persisted: ' + key);
@@ -106,7 +111,7 @@ function ModelCRecon_compare_(source, target) {
 function ModelCRecon_expected_(source, errors) {
   var headers = source.planningHeaders;
   var map = ModelCFoundation_headerMap_(headers);
-  var out = { companyScopes: {}, obligations: {}, auditIds: {}, needsGapGraspDependency: false };
+  var out = { companyScopes: {}, obligations: {}, obligationsBySource: {}, auditIds: {}, needsGapGraspDependency: false };
   for (var r = 0; r < source.planningRows.length; r++) {
     var row = source.planningRows[r];
     var companyUid = ModelCFoundation_valueByHeader_(row, map, ['Company_UID']);
@@ -121,9 +126,12 @@ function ModelCRecon_expected_(source, errors) {
       var cycle = ModelCFoundation_cycleKey_(row, map, scope);
       var csKey = companyUid + '|' + scope.scopeCode;
       var obKey = csKey + '|' + cycle + '|' + trigger;
+      var sourceKey = auditId + '|' + scope.scopeCode;
       out.companyScopes[csKey] = true;
       if (out.obligations[obKey]) errors.push('Duplicate expected obligation: ' + obKey);
       out.obligations[obKey] = { auditId: auditId, formalHours: scope.formalHours, isAbc: isAbc };
+      if (out.obligationsBySource[sourceKey]) errors.push('Duplicate expected obligation source key: ' + sourceKey);
+      out.obligationsBySource[sourceKey] = { auditId: auditId, formalHours: scope.formalHours, isAbc: isAbc, cycleKey: cycle, trigger: trigger };
     }
   }
   out.needsGapGraspDependency = !!(source.scopeCatalog.byCode['MPS-GAP'] && source.scopeCatalog.byCode.GRASP);

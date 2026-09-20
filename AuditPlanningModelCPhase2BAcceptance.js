@@ -1,12 +1,13 @@
 /**
  * AMS-01.6 Model C Phase 2B consolidated acceptance gate.
  * Controlled DEV acceptance:
- * - Canonicalizes the dedicated DEV test audit to MPS-GAP 8.0 through the real Scope Manager route first.
+ * - Repairs legacy compatibility projection from canonical Model C first.
+ * - Canonicalizes the dedicated DEV test audit to MPS-GAP 8.0 through the real Scope Manager route.
  * - Verifies Scope Manager UI reads formal hours from Model C.
  * - Verifies annual-cycle successor creation/finalization routes through Model C and rolls back test writes.
  * - Runs regression, preflight and full reconciliation against the restored canonical state.
  */
-var MODEL_C_PHASE2B_ACCEPTANCE_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_2B_ACCEPTANCE_R4_FULL_OWNER_CLOSURE';
+var MODEL_C_PHASE2B_ACCEPTANCE_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_2B_ACCEPTANCE_R5_COMPAT_REPAIR';
 
 function RUN_MODEL_C_PHASE2B_ACCEPTANCE() {
   var out = {
@@ -19,9 +20,20 @@ function RUN_MODEL_C_PHASE2B_ACCEPTANCE() {
   };
 
   try {
+    var repair = RUN_MODEL_C_COMPATIBILITY_PROJECTION_REPAIR();
+    out.compatibilityRepair = repair;
+    out.writesPerformed = !!(repair && repair.writesPerformed === true);
+    out.gates.compatibilityProjectionRepaired = !!(repair && repair.success === true && repair.reconciliation && repair.reconciliation.success === true);
+    if (!out.gates.compatibilityProjectionRepaired) out.errors.push('Compatibility projection repair failed');
+  } catch (eRepair) {
+    out.gates.compatibilityProjectionRepaired = false;
+    out.errors.push('Compatibility projection repair exception: ' + String(eRepair && eRepair.message ? eRepair.message : eRepair));
+  }
+
+  try {
     var restore = ModelCPhase2BRouteSmoke_run_(8, 'ACCEPTANCE_RESTORE');
     out.restore = restore;
-    out.writesPerformed = !!(restore && restore.writesPerformed === true);
+    out.writesPerformed = out.writesPerformed || !!(restore && restore.writesPerformed === true);
     out.gates.testAuditCanonicalized = !!(restore && restore.success === true && Number(restore.modelGapHours) === 8);
     if (!out.gates.testAuditCanonicalized) out.errors.push('Dedicated DEV test audit canonicalization failed');
   } catch (eRestore) {

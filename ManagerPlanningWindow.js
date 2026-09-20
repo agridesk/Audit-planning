@@ -1,11 +1,25 @@
 // FILE: ManagerPlanningWindow.js
-// BUILD: 2026-09-20_AMS_01_6_MODEL_C_RUNTIME_WINDOW_OWNER_R1
+// BUILD: 2026-09-20_AMS_01_6_MODEL_C_RUNTIME_WINDOW_OWNER_R2
 // PURPOSE:
 // - Model C Audit_Obligations is canonical for planning windows.
 // - Audit planning expiry/window fields are compatibility fallback only.
 // - Existing cache contract remains intact.
+// - Canonical window is projected into the in-memory Audit planning row so
+//   legacy wrappers cannot override Model C with stale AS/AT values.
 
-var MODEL_C_RUNTIME_WINDOW_BUILD = '2026-09-20_AMS_01_6_MODEL_C_RUNTIME_WINDOW_OWNER_R1';
+var MODEL_C_RUNTIME_WINDOW_BUILD = '2026-09-20_AMS_01_6_MODEL_C_RUNTIME_WINDOW_OWNER_R2';
+
+function ModelCRuntime_headerIndex_(hdr, names) {
+  hdr = hdr || [];
+  var wanted = (names || []).map(function(x) {
+    return String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  });
+  for (var i = 0; i < hdr.length; i++) {
+    var h = String(hdr[i] || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    for (var j = 0; j < wanted.length; j++) if (h && h === wanted[j]) return i;
+  }
+  return -1;
+}
 
 function ModelCRuntime_resolvePlanningWindow_(ss, hdr, row) {
   ss = ss || SpreadsheetApp.getActive();
@@ -13,16 +27,6 @@ function ModelCRuntime_resolvePlanningWindow_(ss, hdr, row) {
   row = row || [];
 
   function norm_(v) { return String(v == null ? '' : v).trim(); }
-  function headerIndex_(names) {
-    var wanted = (names || []).map(function(x) {
-      return String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-    });
-    for (var i = 0; i < hdr.length; i++) {
-      var h = String(hdr[i] || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-      for (var j = 0; j < wanted.length; j++) if (h && h === wanted[j]) return i;
-    }
-    return -1;
-  }
   function dateText_(v) {
     if (!v) return '';
     if (Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v.getTime())) {
@@ -44,7 +48,7 @@ function ModelCRuntime_resolvePlanningWindow_(ss, hdr, row) {
     });
   }
 
-  var auditIdx = headerIndex_(['Audit ID']);
+  var auditIdx = ModelCRuntime_headerIndex_(hdr, ['Audit ID']);
   var auditId = auditIdx >= 0 ? norm_(row[auditIdx]) : '';
   if (!auditId) return { success:false, reason:'NO_AUDIT_ID' };
 
@@ -84,12 +88,7 @@ function ModelCRuntime_resolvePlanningWindow_(ss, hdr, row) {
   });
 
   if (!scopeWindows.length) {
-    return {
-      success:false,
-      reason:'MODEL_C_WINDOWS_MISSING',
-      auditId:auditId,
-      activeScopes:activeScopes
-    };
+    return { success:false, reason:'MODEL_C_WINDOWS_MISSING', auditId:auditId, activeScopes:activeScopes };
   }
 
   var maxStart = scopeWindows[0].start;
@@ -123,6 +122,14 @@ function ModelCRuntime_resolvePlanningWindow_(ss, hdr, row) {
   };
 }
 
+function ModelCRuntime_projectCanonicalWindowIntoRow_(hdr, row, canonical) {
+  if (!canonical || canonical.success !== true || !row) return;
+  var fromIdx = ModelCRuntime_headerIndex_(hdr, ['Planning window from','Plan van','Planning from']);
+  var toIdx = ModelCRuntime_headerIndex_(hdr, ['Planning window to','Plant tot','Planning to']);
+  if (fromIdx >= 0) row[fromIdx] = canonical.startDate || '';
+  if (toIdx >= 0) row[toIdx] = canonical.endDate || '';
+}
+
 /**
  * Runtime planning-window resolver.
  * Model C is canonical. Legacy Audit planning fields are fallback only for
@@ -130,7 +137,10 @@ function ModelCRuntime_resolvePlanningWindow_(ss, hdr, row) {
  */
 function _mp_resolvePlanningWindow_(ss, hdr, row) {
   var canonical = ModelCRuntime_resolvePlanningWindow_(ss, hdr, row);
-  if (canonical && canonical.success === true) return canonical;
+  if (canonical && canonical.success === true) {
+    ModelCRuntime_projectCanonicalWindowIntoRow_(hdr, row, canonical);
+    return canonical;
+  }
   return ModelCRuntime_resolveLegacyPlanningWindow_(ss, hdr, row, canonical);
 }
 

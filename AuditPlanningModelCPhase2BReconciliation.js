@@ -1,15 +1,15 @@
 /**
  * AuditPlanningModelCPhase2BReconciliation.gs
- * Build: 2026-09-20_AMS_01_6_MODEL_C_PHASE_2B_RECONCILIATION_R1
+ * Build: 2026-09-20_AMS_01_6_MODEL_C_PHASE_2B_RECONCILIATION_R2
  * Read-only reconciliation after Scope Manager ownership cutover.
  *
- * Important difference from Phase 1 reconciliation:
+ * Important differences from Phase 1 reconciliation:
  * - Per-scope expiry/cycle is canonical in Audit_Obligations.
  * - Legacy Audit planning carries only aggregate compatibility dates.
- * - Therefore a legacy global expiry must not be compared as the Cycle_Key
- *   for every certificate scope.
+ * - MPS-ABC has no certificate expiry. Historic fake ABC compatibility dates in
+ *   untouched legacy rows are migration debt and are reported as warnings only.
  */
-var MODEL_C_PHASE2B_RECON_BUILD='2026-09-20_AMS_01_6_MODEL_C_PHASE_2B_RECONCILIATION_R1';
+var MODEL_C_PHASE2B_RECON_BUILD='2026-09-20_AMS_01_6_MODEL_C_PHASE_2B_RECONCILIATION_R2';
 
 function RUN_MODEL_C_PHASE2B_SCOPE_OWNER_RECONCILIATION(){
   var ss=SpreadsheetApp.getActive();
@@ -23,7 +23,7 @@ function RUN_MODEL_C_PHASE2B_SCOPE_OWNER_RECONCILIATION(){
 }
 
 function ModelCPhase2BRecon_compare_(ss,source,target){
-  var errors=[];
+  var scopeErrors=[],formalErrors=[],cycleErrors=[],compatErrors=[],identityErrors=[],assignmentErrors=[],warnings=[];
   var rows=target.rows||{};
   var csRows=rows[MODEL_C_SHEETS.COMPANY_SCOPES]||[];
   var obRows=rows[MODEL_C_SHEETS.AUDIT_OBLIGATIONS]||[];
@@ -34,12 +34,12 @@ function ModelCPhase2BRecon_compare_(ss,source,target){
   linkRows.forEach(function(link){
     if(String(link.Link_State).toUpperCase()!=='ACTIVE')return;
     var auditId=String(link.Audit_ID||''),ob=obById[String(link.Obligation_ID||'')];
-    if(!ob){errors.push('Orphan active link: '+String(link.Obligation_ID||''));return;}
+    if(!ob){scopeErrors.push('Orphan active link: '+String(link.Obligation_ID||''));return;}
     if(!activeByAudit[auditId])activeByAudit[auditId]=[];
     activeByAudit[auditId].push(ob);
   });
 
-  var headers=source.planningHeaders||[],map=ModelCFoundation_headerMap_(headers),checkedAudits=0,checkedScopes=0;
+  var headers=source.planningHeaders||[],map=ModelCFoundation_headerMap_(headers),checkedAudits=0,checkedScopes=0,abcLegacyDebtAudits=0;
   var tz=ss.getSpreadsheetTimeZone()||Session.getScriptTimeZone();
   for(var r=0;r<(source.planningRows||[]).length;r++){
     var row=source.planningRows[r];
@@ -52,25 +52,25 @@ function ModelCPhase2BRecon_compare_(ss,source,target){
     var active=activeByAudit[String(auditId)]||[],modelByCode={};
     active.forEach(function(ob){
       var code=String(ob.ScopeCode||'');
-      if(modelByCode[code])errors.push('Duplicate active scope for audit: '+auditId+'|'+code);
+      if(modelByCode[code])scopeErrors.push('Duplicate active scope for audit: '+auditId+'|'+code);
       modelByCode[code]=ob;
       var cs=csById[String(ob.Company_Scope_ID||'')];
-      if(!cs)errors.push('Missing Company_Scope for audit: '+auditId+'|'+code);
-      else if(String(cs.Company_UID)!==String(companyUid)||String(cs.ScopeCode)!==code)errors.push('Company identity mismatch: '+auditId+'|'+code);
-      if(String(ob.Company_UID)!==String(companyUid))errors.push('Obligation company mismatch: '+auditId+'|'+code);
+      if(!cs)identityErrors.push('Missing Company_Scope for audit: '+auditId+'|'+code);
+      else if(String(cs.Company_UID)!==String(companyUid)||String(cs.ScopeCode)!==code)identityErrors.push('Company identity mismatch: '+auditId+'|'+code);
+      if(String(ob.Company_UID)!==String(companyUid))identityErrors.push('Obligation company mismatch: '+auditId+'|'+code);
     });
 
     Object.keys(legacyByCode).forEach(function(code){
       checkedScopes++;
       var legacy=legacyByCode[code],ob=modelByCode[code];
-      if(!ob){errors.push('Missing active obligation: '+auditId+'|'+code);return;}
-      if(Number(legacy.formalHours)!==Number(ob.Formal_Hours))errors.push('Formal hours mismatch: '+auditId+'|'+code);
+      if(!ob){scopeErrors.push('Missing active obligation: '+auditId+'|'+code);return;}
+      if(Number(legacy.formalHours)!==Number(ob.Formal_Hours))formalErrors.push('Formal hours mismatch: '+auditId+'|'+code+' legacy='+legacy.formalHours+' model='+ob.Formal_Hours);
       if(!ModelCFoundation_isAbc_(code,code)){
         var base=ModelCExtension_dateInTz_(ob.Base_Expiry_Date,tz),cycle=ModelCFoundation_clean_(ob.Cycle_Key);
-        if(base!==cycle)errors.push('Canonical cycle/base-expiry mismatch: '+auditId+'|'+code+' base='+base+' cycle='+cycle);
+        if(base!==cycle)cycleErrors.push('Canonical cycle/base-expiry mismatch: '+auditId+'|'+code+' base='+base+' cycle='+cycle);
       }
     });
-    Object.keys(modelByCode).forEach(function(code){if(!legacyByCode[code])errors.push('Legacy scope projection missing: '+auditId+'|'+code);});
+    Object.keys(modelByCode).forEach(function(code){if(!legacyByCode[code])scopeErrors.push('Legacy scope projection missing: '+auditId+'|'+code);});
 
     var cert=active.filter(function(x){return !ModelCFoundation_isAbc_(x.ScopeCode,x.ScopeCode);});
     var earliest='',effectiveEarliest='',from='',to='';
@@ -85,30 +85,42 @@ function ModelCPhase2BRecon_compare_(ss,source,target){
     var legacyEffective=ModelCFoundation_valueByHeader_(row,map,['Extended Expiration Date']);
     var legacyFrom=ModelCFoundation_valueByHeader_(row,map,['Planning window from']);
     var legacyTo=ModelCFoundation_valueByHeader_(row,map,['Planning window to']);
-    if(legacyExpiry!==earliest)errors.push('Compatibility expiry mismatch: '+auditId+' expected='+earliest+' actual='+legacyExpiry);
-    if(legacyEffective!==(effectiveEarliest||earliest))errors.push('Compatibility effective expiry mismatch: '+auditId);
-    if(legacyFrom!==from)errors.push('Compatibility planning-window-from mismatch: '+auditId+' expected='+from+' actual='+legacyFrom);
-    if(legacyTo!==to)errors.push('Compatibility planning-window-to mismatch: '+auditId+' expected='+to+' actual='+legacyTo);
+
+    if(cert.length){
+      if(legacyExpiry!==earliest)compatErrors.push('Compatibility expiry mismatch: '+auditId+' expected='+earliest+' actual='+legacyExpiry);
+      if(legacyEffective!==(effectiveEarliest||earliest))compatErrors.push('Compatibility effective expiry mismatch: '+auditId+' expected='+(effectiveEarliest||earliest)+' actual='+legacyEffective);
+      if(legacyFrom!==from)compatErrors.push('Compatibility planning-window-from mismatch: '+auditId+' expected='+from+' actual='+legacyFrom);
+      if(legacyTo!==to)compatErrors.push('Compatibility planning-window-to mismatch: '+auditId+' expected='+to+' actual='+legacyTo);
+    }else if(active.length){
+      if(legacyExpiry||legacyEffective||legacyFrom||legacyTo){
+        abcLegacyDebtAudits++;
+        if(warnings.length<25)warnings.push('Legacy ABC compatibility dates retained pending cleanup: '+auditId);
+      }
+    }
 
     var legacyPre=ModelCFoundation_valueByHeader_(row,map,['Preassigned Auditor']).toLowerCase();
     var legacySelf=ModelCFoundation_valueByHeader_(row,map,['Allow self planning']);
     active.forEach(function(ob){
-      if(ModelCFoundation_clean_(ob.Preassigned_Auditor_Email).toLowerCase()!==legacyPre)errors.push('Preassigned auditor mismatch: '+auditId+'|'+String(ob.ScopeCode||''));
-      if(ModelCFoundation_clean_(ob.Allow_Self_Planning)!==legacySelf)errors.push('Allow self planning mismatch: '+auditId+'|'+String(ob.ScopeCode||''));
+      if(ModelCFoundation_clean_(ob.Preassigned_Auditor_Email).toLowerCase()!==legacyPre)assignmentErrors.push('Preassigned auditor mismatch: '+auditId+'|'+String(ob.ScopeCode||''));
+      if(ModelCFoundation_clean_(ob.Allow_Self_Planning)!==legacySelf)assignmentErrors.push('Allow self planning mismatch: '+auditId+'|'+String(ob.ScopeCode||''));
     });
   }
 
+  var errors=formalErrors.concat(cycleErrors,scopeErrors,identityErrors,assignmentErrors,compatErrors);
   return{
     success:errors.length===0,
     build:MODEL_C_PHASE2B_RECON_BUILD,
     readOnly:true,
     writesPerformed:false,
-    counts:{sourceRows:(source.planningRows||[]).length,checkedAudits:checkedAudits,checkedScopes:checkedScopes,companyScopes:csRows.length,obligations:obRows.length,visitLinks:linkRows.length},
-    gates:{scopeProjection:errors.filter(function(x){return /active obligation|Legacy scope projection|Duplicate active scope/.test(x);}).length===0,formalHours:errors.filter(function(x){return /Formal hours/.test(x);}).length===0,perScopeCycle:errors.filter(function(x){return /cycle\/base-expiry/.test(x);}).length===0,compatibilityDates:errors.filter(function(x){return /Compatibility/.test(x);}).length===0,companyIdentity:errors.filter(function(x){return /company|Company identity/.test(x);}).length===0,assignmentProjection:errors.filter(function(x){return /Preassigned auditor|Allow self planning/.test(x);}).length===0},
+    counts:{sourceRows:(source.planningRows||[]).length,checkedAudits:checkedAudits,checkedScopes:checkedScopes,companyScopes:csRows.length,obligations:obRows.length,visitLinks:linkRows.length,abcLegacyDebtAudits:abcLegacyDebtAudits},
+    gates:{scopeProjection:scopeErrors.length===0,formalHours:formalErrors.length===0,perScopeCycle:cycleErrors.length===0,compatibilityDates:compatErrors.length===0,companyIdentity:identityErrors.length===0,assignmentProjection:assignmentErrors.length===0},
+    errorCounts:{formalHours:formalErrors.length,perScopeCycle:cycleErrors.length,scopeProjection:scopeErrors.length,companyIdentity:identityErrors.length,assignmentProjection:assignmentErrors.length,compatibilityDates:compatErrors.length},
+    warningCount:abcLegacyDebtAudits,
+    warnings:warnings,
     errors:errors.slice(0,50)
   };
 }
 
 function ModelCPhase2BRecon_compact_(result){
-  return{success:result.success===true,build:result.build||MODEL_C_PHASE2B_RECON_BUILD,readOnly:true,writesPerformed:false,counts:result.counts||{},gates:result.gates||{},errors:result.errors||[]};
+  return{success:result.success===true,build:result.build||MODEL_C_PHASE2B_RECON_BUILD,readOnly:true,writesPerformed:false,counts:result.counts||{},gates:result.gates||{},errorCounts:result.errorCounts||{},warningCount:result.warningCount||0,warnings:result.warnings||[],errors:result.errors||[]};
 }

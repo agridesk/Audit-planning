@@ -2,7 +2,7 @@
  * AMS-01.6 Model C Phase 2B diagnostics.
  * Read-only. No writes.
  */
-var MODEL_C_PHASE2B_DIAG_BUILD='2026-09-20_AMS_01_6_MODEL_C_PHASE_2B_DIAG_R1';
+var MODEL_C_PHASE2B_DIAG_BUILD='2026-09-20_AMS_01_6_MODEL_C_PHASE_2B_DIAG_R2_ACTIVE_UPSERT';
 
 function RUN_MODEL_C_PHASE2B_TEST_AUDIT_DIAGNOSTIC(){
   var ss=SpreadsheetApp.getActive();
@@ -40,6 +40,23 @@ function RUN_MODEL_C_PHASE2B_TEST_AUDIT_DIAGNOSTIC(){
   var companyAudits=matches.map(function(m){return{rowIndex1:m.rowIndex1,auditId:auditIdCol>=0?String(m.row[auditIdCol]||'').trim():'',status:statusCol>=0?String(m.row[statusCol]||'').trim():''};});
 
   var out={success:true,build:MODEL_C_PHASE2B_DIAG_BUILD,readOnly:true,writesPerformed:false,testAudit:{auditId:auditId,rowIndex1:rowIndex,companyUid:companyUid,status:status,legacyScopes:legacyScopes.map(function(s){return{scope:s.scopeCode,formalHours:s.formalHours};}),modelScopes:modelScopes},scopeManagerSelection:{auditId:scopeManagerAuditId,targetsTestAudit:scopeManagerAuditId===auditId,companyAudits:companyAudits}};
+  Logger.log(JSON.stringify(out,null,2));
+  return out;
+}
+
+function RUN_MODEL_C_PHASE2B_ACTIVE_UPSERT_DIAGNOSTIC(){
+  var src='';
+  try{src=String(m5t_upsertScopes);}catch(e){src='ERROR: '+String(e&&e.message?e.message:e);}
+  var out={
+    success:true,
+    build:MODEL_C_PHASE2B_DIAG_BUILD,
+    readOnly:true,
+    writesPerformed:false,
+    functionType:typeof m5t_upsertScopes,
+    routesThroughModelC:src.indexOf('ModelCScopeOwner_commit')>=0,
+    containsLegacyDirectScopeWrites:src.indexOf('setValues')>=0||src.indexOf('setValue')>=0,
+    sourcePreview:src.substring(0,1200)
+  };
   Logger.log(JSON.stringify(out,null,2));
   return out;
 }

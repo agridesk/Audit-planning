@@ -138,15 +138,15 @@
       <label class="m5t-label">Selected company</label>
       <input id="m5tCompanyName" class="m5t-input" readonly />
     </div>
-    <div class="m5t-field">
+    <div class="m5t-field" style="display:none;">
       <label class="m5t-label">Status</label>
       <div id="m5tStatusPill" class="m5t-pill"></div>
     </div>
-    <div class="m5t-field">
+    <div class="m5t-field" style="display:none;">
       <label class="m5t-label">Date will expire</label>
       <input id="m5tDateWillExpire" type="text" class="m5t-input" placeholder="yyyy-mm-dd" />
     </div>
-    <div class="m5t-field">
+    <div class="m5t-field" style="display:none;">
       <label class="m5t-label">Birthdate</label>
       <input id="m5tBirthdate" type="text" class="m5t-input" placeholder="yyyy-mm-dd" />
     </div>
@@ -174,6 +174,8 @@
         <th onclick="m5t_sortBy('scope')">Scope</th>
         <th style="width:140px;">Default hours</th>
         <th style="width:160px;">Used hours</th>
+        <th style="width:150px;">Certificate birthday</th>
+        <th style="width:150px;">Expiry date</th>
       </tr>
     </thead>
     <tbody id="m5tScopesBody"></tbody>
@@ -751,16 +753,30 @@ function m5t_batchDrop_(ev){ev.preventDefault();ev.currentTarget.classList.remov
       const tdUsed = document.createElement('td');
       const inp = document.createElement('input');
       inp.className = 'm5t-input';
+      inp.classList.add('m5t-hours');
       inp.style.width = '120px';
-      inp.value = (s.customHours !== '' && s.customHours !== null && typeof s.customHours !== 'undefined') ? s.customHours : (s.enabled ? s.usedHours : '');
+      inp.value = (s.customHours !== '' && s.customHours !== null && typeof s.customHours !== 'undefined') ? s.customHours : (s.usedHours || s.defaultHours || '');
       inp.dataset.scope = s.scope;
       inp.oninput = function(){ m5t_recalcTotals(); };
       tdUsed.appendChild(inp);
+
+      const isAbc = String(s.scope || '').toUpperCase().replace(/\s+/g,'-') === 'MPS-ABC';
+      const isGrasp = String(s.scope || '').toUpperCase() === 'GRASP';
+      const tdBirthday = document.createElement('td');
+      const birthday = document.createElement('input');
+      birthday.className = 'm5t-input m5t-birthday'; birthday.style.width = '130px'; birthday.placeholder = 'yyyy-mm-dd'; birthday.value = s.certificateBirthday || ''; birthday.disabled = isAbc || isGrasp; tdBirthday.appendChild(birthday);
+      const tdExpiry = document.createElement('td');
+      const expiry = document.createElement('input');
+      expiry.className = 'm5t-input m5t-expiry'; expiry.style.width = '130px'; expiry.placeholder = isAbc ? 'Not applicable' : 'yyyy-mm-dd'; expiry.value = s.baseExpiry || ''; expiry.disabled = isAbc; expiry.readOnly = isGrasp;
+      if (String(s.scope || '').toUpperCase() === 'MPS-GAP') expiry.oninput = m5t_syncGraspExpiry_;
+      tdExpiry.appendChild(expiry);
 
       tr.appendChild(tdUse);
       tr.appendChild(tdScope);
       tr.appendChild(tdDef);
       tr.appendChild(tdUsed);
+      tr.appendChild(tdBirthday);
+      tr.appendChild(tdExpiry);
       body.appendChild(tr);
 
       if (s.enabled) totalUsed += Number(s.usedHours || s.defaultHours || 0);
@@ -775,15 +791,25 @@ function m5t_batchDrop_(ev){ev.preventDefault();ev.currentTarget.classList.remov
     const rows = body.querySelectorAll('tr');
     rows.forEach(function(tr){
       const cb = tr.querySelector('input[type="checkbox"]');
-      const inp = tr.querySelector('input.m5t-input');
+      const inp = tr.querySelector('input.m5t-hours');
+      const birthday = tr.querySelector('input.m5t-birthday');
+      const expiry = tr.querySelector('input.m5t-expiry');
       if (!cb) return;
       out.push({
         scope: cb.dataset.scope || '',
         enabled: !!cb.checked,
-        customHours: inp ? inp.value : ''
+        customHours: inp ? inp.value : '',
+        certificateBirthday: birthday ? birthday.value : '',
+        baseExpiry: expiry ? expiry.value : ''
       });
     });
     return out;
+  }
+
+  function m5t_syncGraspExpiry_(){
+    let gap='';
+    document.querySelectorAll('#m5tScopesBody tr').forEach(function(tr){const cb=tr.querySelector('input[type="checkbox"]');if(cb&&String(cb.dataset.scope||'').toUpperCase()==='MPS-GAP'){const e=tr.querySelector('input.m5t-expiry');gap=e?e.value:'';}});
+    document.querySelectorAll('#m5tScopesBody tr').forEach(function(tr){const cb=tr.querySelector('input[type="checkbox"]');if(cb&&String(cb.dataset.scope||'').toUpperCase()==='GRASP'){const e=tr.querySelector('input.m5t-expiry');if(e)e.value=gap;}});
   }
 
   function m5t_recalcTotals(){
@@ -792,7 +818,7 @@ function m5t_batchDrop_(ev){ev.preventDefault();ev.currentTarget.classList.remov
     const rows = body.querySelectorAll('tr');
     rows.forEach(function(tr){
       const cb = tr.querySelector('input[type="checkbox"]');
-      const inp = tr.querySelector('input.m5t-input');
+      const inp = tr.querySelector('input.m5t-hours');
       if (!cb || !cb.checked) return;
       let v = inp ? String(inp.value || '').trim() : '';
       if (v === '' || isNaN(Number(v))) {

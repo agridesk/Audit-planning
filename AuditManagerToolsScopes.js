@@ -32,6 +32,7 @@ function m5t_getAuditPlanningConfig(companyUid) {
   var uidCol = m5t_pickHeader_(hdr, ['Company_UID','Company UID','CompanyUID','COMPANY_UID','UID']);
   var companyCol = m5t_pickHeader_(hdr, ['Company','Customer','Bedrijf','COMPANY']);
   var statusCol = m5t_pickHeader_(hdr, ['Status','STATUS']);
+  var auditIdCol = m5t_pickHeader_(hdr, ['Audit ID','Audit_ID','AuditId']);
   var preCol = m5t_pickHeader_(hdr, ['Preassigned Auditor','PreAssigned Auditor','Preassigned','Pre-assigned auditor','Pre assigned auditor']);
   var allowCol = m5t_pickHeader_(hdr, ['Allow self planning','Allow Self Planning','Self planning','AllowSelfPlanning','AC']);
   var birthCol = m5t_pickHeader_(hdr, ['Birthdate certificate','Birthdate','Birth date','Birth Date']);
@@ -91,6 +92,9 @@ function m5t_getAuditPlanningConfig(companyUid) {
       maxConsecutive: s.maxConsecutive
     };
   });
+  if (typeof ModelCScopeOwner_enrichUiScopes_ === 'function') {
+    scopes = ModelCScopeOwner_enrichUiScopes_(ss, companyUid, auditIdCol >= 0 ? String(arow[auditIdCol] || '').trim() : '', scopes);
+  }
 
   return {
     success: true,
@@ -129,9 +133,6 @@ function m5t_upsertScopes(payload) {
     };
   }
 
-  var birthdate = m5t_normDateText_(payload.birthdate);
-  var dateWillExpire = m5t_normDateText_(payload.dateWillExpire);
-
   var ap = m5t_getSheet_(ss, m5t_const_().SHEETS.AUDIT_PLANNING);
   var apData = m5t_readSheet_(ap);
   var hdr = apData.headerMap;
@@ -145,6 +146,7 @@ function m5t_upsertScopes(payload) {
   var expCol = m5t_pickHeader_(hdr, ['Date - Will Expire','Date Will Expire','Will Expire']);
   var hoursToPlanCol = m5t_pickHeader_(hdr, ['Hours to plan','Hours to plann','HoursToPlan','HOURS_TO_PLAN']);
   var totalCol = m5t_pickHeader_(hdr, ['Total audit time in hours','Total audit time (hours)','Total audit time','Total hours','TOTAL_AUDIT_TIME_HOURS']);
+  var auditIdCol = m5t_pickHeader_(hdr, ['Audit ID','Audit_ID','AuditId']);
 
   if (uidCol < 0 || companyCol < 0) {
     return { success: false, error: 'AUDIT_PLANNING_MISSING_REQUIRED_HEADERS' };
@@ -183,55 +185,28 @@ function m5t_upsertScopes(payload) {
   var header = ap.getRange(1, 1, 1, ap.getLastColumn()).getValues()[0];
   var rowRange = ap.getRange(targetRowIndex1, 1, 1, header.length);
   var rowValues = rowRange.getValues()[0];
-  var slotDefs = m5t_scopeSlotDefs_(ss);
-
-  var selectedMap = {};
-  selectedScopes.forEach(function(s) {
-    if (!s) return;
-    var sc = String(s.scope || '').trim();
-    if (!sc) return;
-    selectedMap[sc] = {
-      enabled: (s.enabled === true || String(s.enabled) === 'true'),
-      customHours: m5t_toNumberOrNull_(s.customHours)
-    };
+  var auditId = auditIdCol >= 0 ? String(rowValues[auditIdCol] || '').trim() : '';
+  if (!auditId) return { success:false, error:'AUDIT_ID_REQUIRED_FOR_SCOPE_OWNER' };
+  var ownerResult = ModelCScopeOwner_commit({
+    companyUid: companyUid,
+    auditId: auditId,
+    selectedScopes: selectedScopes,
+    preassignedAuditorEmail: preassignedAuditor,
+    allowSelfPlanning: allowSelfPlanning
   });
-
-  var totalHours = 0;
-  for (var k = 0; k < slotDefs.length; k++) {
-    var def = slotDefs[k];
-    var sel = selectedMap[def.scope] || { enabled: false, customHours: null };
-
-    if (def.flagCol0 != null && def.flagCol0 < rowValues.length) {
-      rowValues[def.flagCol0] = sel.enabled ? 'x' : '';
-    }
-
-    if (def.hourCol0 != null && def.hourCol0 < rowValues.length) {
-      if (sel.enabled) {
-        var used = (sel.customHours != null) ? sel.customHours : def.defaultHours;
-        rowValues[def.hourCol0] = used;
-        totalHours += m5t_toNumberOrZero_(used);
-      } else {
-        rowValues[def.hourCol0] = '';
-      }
-    }
-  }
-
-  if (hoursToPlanCol >= 0) rowValues[hoursToPlanCol] = totalHours;
-  if (totalCol >= 0) rowValues[totalCol] = totalHours;
-  if (preCol >= 0) rowValues[preCol] = preassignedAuditor;
-  if (allowCol >= 0) rowValues[allowCol] = allowSelfPlanning;
-  if (birthCol >= 0) rowValues[birthCol] = birthdate;
-
-  if (expCol >= 0) {
-    if (dateWillExpire) rowValues[expCol] = dateWillExpire;
-    else if (isNew && !String(rowValues[expCol] || '').trim()) rowValues[expCol] = m5t_yearEndText_();
-  }
+  if (!ownerResult || ownerResult.success !== true) return ownerResult || { success:false, error:'SCOPE_OWNER_COMMIT_FAILED' };
+  rowValues = rowRange.getValues()[0];
+  var totalHours = ownerResult.projection ? Number(ownerResult.projection.totalHours || 0) : 0;
 
   var flagged = false;
   if (m5t_isLockedStatus_(status)) {
     flagged = true;
     var headerMap = m5t_makeHeaderMap_(header);
     m5t_setWarning_(headerMap, rowValues, true, 'Scopes/hours changed while audit is in a locked/planned state. Review planning; replanning may be required.');
+    var warningFlagCol = m5t_pickHeader_(headerMap, m5t_const_().WARNING.FLAG_HEADERS);
+    var warningReasonCol = m5t_pickHeader_(headerMap, m5t_const_().WARNING.REASON_HEADERS);
+    if (warningFlagCol >= 0) ap.getRange(targetRowIndex1, warningFlagCol + 1).setValue(rowValues[warningFlagCol]);
+    if (warningReasonCol >= 0) ap.getRange(targetRowIndex1, warningReasonCol + 1).setValue(rowValues[warningReasonCol]);
     m5t_enqueueScopeReplanNotification_(ss, {
       companyUid: companyUid,
       companyName: companyName,
@@ -240,8 +215,6 @@ function m5t_upsertScopes(payload) {
       totalHours: totalHours
     });
   }
-
-  rowRange.setValues([rowValues]);
 
   var activeAuditsUpdate = { ok: true, skipped: true, reason: 'NO_HELPER' };
   try {
@@ -279,7 +252,8 @@ function m5t_upsertScopes(payload) {
     companyUid: companyUid,
     isNew: isNew,
     activeAuditsUpdate: activeAuditsUpdate,
-    availabilitySync: availabilitySync
+    availabilitySync: availabilitySync,
+    ownerResult: ownerResult
   };
 }
 
@@ -302,4 +276,3 @@ function m5t_upsertScopes(payload) {
  * - Reads fresh lists for existing/new companies.
  * - No scope/save/status/planning/availability logic changes.
  ***********************************************************************/
-

@@ -12,7 +12,7 @@
  * - Produces schema/readiness diagnostics only.
  */
 
-var MODEL_C_FOUNDATION_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_0_R1';
+var MODEL_C_FOUNDATION_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_0_R2_READINESS_GATES';
 
 var MODEL_C_SHEETS = Object.freeze({
   AUDIT_PLANNING: 'Audit planning',
@@ -217,9 +217,32 @@ function ModelCFoundation_analyzeMigrationReadiness() {
   out.counts = analysis.counts;
   out.samples = analysis.samples;
   out.warnings = out.warnings.concat(analysis.warnings);
+  ModelCFoundation_applyMigrationGates_(out);
   out.proposedCompanyScopeNaturalKeys = analysis.companyScopeNaturalKeys;
   out.proposedObligationNaturalKeys = analysis.obligationNaturalKeys;
   out.success = out.blockers.length === 0;
+  out.readyForPhase1 = out.success;
+  return out;
+}
+
+function ModelCFoundation_applyMigrationGates_(out) {
+  out = out || {};
+  out.counts = out.counts || {};
+  out.samples = out.samples || {};
+  out.blockers = out.blockers || [];
+
+  if (Number(out.counts.rowsMissingCompanyUid || 0) > 0) {
+    out.blockers.push('Audit planning rows missing Company_UID: ' + out.counts.rowsMissingCompanyUid);
+  }
+  if (Number(out.counts.rowsMissingAuditId || 0) > 0) {
+    out.blockers.push('Audit planning rows missing Audit ID: ' + out.counts.rowsMissingAuditId);
+  }
+  if (Number(out.counts.duplicateAuditIds || 0) > 0) {
+    out.blockers.push('Duplicate Audit IDs: ' + out.counts.duplicateAuditIds);
+  }
+  if ((out.samples.unknownScopeSlot || []).length > 0) {
+    out.blockers.push('Selected scope slots missing from Config_Scopes: ' + out.samples.unknownScopeSlot.length + ' sample(s)');
+  }
   return out;
 }
 
@@ -401,8 +424,8 @@ function ModelCFoundation_analyzeRows_(headers, rows, scopeCatalog) {
     counts: counts,
     samples: samples,
     warnings: warnings,
-    companyScopeNaturalKeys: Object.keys(companyScopeKeys).sort().slice(0, 25),
-    obligationNaturalKeys: Object.keys(obligationKeys).sort().slice(0, 25)
+    companyScopeNaturalKeys: Object.keys(companyScopeKeys).sort().slice(0, 10),
+    obligationNaturalKeys: Object.keys(obligationKeys).sort().slice(0, 10)
   };
 }
 
@@ -489,7 +512,7 @@ function ModelCFoundation_numberOrBlank_(value) {
 }
 
 function ModelCFoundation_addSample_(list, item) {
-  if (list.length < 10) list.push(item);
+  if (list.length < 5) list.push(item);
 }
 
 function ModelCFoundation_clean_(value) {
@@ -511,4 +534,3 @@ function ModelCFoundation_normHeader_(value) {
     .replace(/\s+/g, ' ')
     .trim();
 }
-

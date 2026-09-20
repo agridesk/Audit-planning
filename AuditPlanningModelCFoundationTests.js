@@ -6,7 +6,7 @@
  * No sheet writes and no production data mutation.
  */
 
-var MODEL_C_FOUNDATION_TEST_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_0_TESTS_R1';
+var MODEL_C_FOUNDATION_TEST_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_0_TESTS_R2_READINESS_GATES';
 
 function RUN_MODEL_C_PHASE0_REGRESSION() {
   var tests = [
@@ -15,7 +15,8 @@ function RUN_MODEL_C_PHASE0_REGRESSION() {
     ModelCFoundationTest_scopeExtraction_,
     ModelCFoundationTest_rowAnalysis_,
     ModelCFoundationTest_abcLifecycleDetection_,
-    ModelCFoundationTest_duplicateAuditId_
+    ModelCFoundationTest_duplicateAuditId_,
+    ModelCFoundationTest_migrationGates_
   ];
   var results = [];
   var passed = 0;
@@ -124,6 +125,25 @@ function ModelCFoundationTest_duplicateAuditId_() {
   ModelCFoundationTest_assert_(result.counts.duplicateAuditIds === 1, 'duplicate Audit ID not detected');
 }
 
+function ModelCFoundationTest_migrationGates_() {
+  var out = {
+    counts: { rowsMissingCompanyUid: 0, rowsMissingAuditId: 2, duplicateAuditIds: 0 },
+    samples: { unknownScopeSlot: [] },
+    blockers: []
+  };
+  ModelCFoundation_applyMigrationGates_(out);
+  ModelCFoundationTest_assert_(out.blockers.length === 1, 'missing Audit IDs must create one blocker');
+  ModelCFoundationTest_assert_(out.blockers[0] === 'Audit planning rows missing Audit ID: 2', 'wrong Audit ID blocker');
+
+  var clean = {
+    counts: { rowsMissingCompanyUid: 0, rowsMissingAuditId: 0, duplicateAuditIds: 0 },
+    samples: { unknownScopeSlot: [] },
+    blockers: []
+  };
+  ModelCFoundation_applyMigrationGates_(clean);
+  ModelCFoundationTest_assert_(clean.blockers.length === 0, 'clean readiness must remain unblocked');
+}
+
 function ModelCFoundationTest_headers_() {
   return [
     'Company', 'Company_UID', 'Audit ID', 'Status',
@@ -158,4 +178,3 @@ function ModelCFoundationTest_catalog_() {
 function ModelCFoundationTest_assert_(condition, message) {
   if (!condition) throw new Error(message || 'assertion failed');
 }
-

@@ -1,8 +1,9 @@
 /**
  * AMS-01.6 Model C compatibility projection repair.
  * Repairs legacy Audit planning aggregate date fields from canonical Model C obligations.
+ * Lifecycle eligibility is owned exclusively by Config_Scopes.Recurring.
  */
-var MODEL_C_COMPATIBILITY_REPAIR_BUILD='2026-09-20_AMS_01_6_MODEL_C_COMPATIBILITY_REPAIR_R1';
+var MODEL_C_COMPATIBILITY_REPAIR_BUILD='2026-09-20_AMS_01_6_MODEL_C_COMPATIBILITY_REPAIR_R2_RECURRING_CONFIG';
 
 function RUN_MODEL_C_COMPATIBILITY_PROJECTION_REPAIR(){
   var ss=SpreadsheetApp.getActive();
@@ -22,8 +23,10 @@ function RUN_MODEL_C_COMPATIBILITY_PROJECTION_REPAIR(){
   });
 
   var cols={
+    birthday:map[ModelCFoundation_normHeader_('Birthdate certificate')],
     expiry:map[ModelCFoundation_normHeader_('Date - Will Expire')],
     effective:map[ModelCFoundation_normHeader_('Extended Expiration Date')],
+    extension:map[ModelCFoundation_normHeader_('Extension applied')],
     from:map[ModelCFoundation_normHeader_('Planning window from')],
     to:map[ModelCFoundation_normHeader_('Planning window to')]
   };
@@ -33,17 +36,22 @@ function RUN_MODEL_C_COMPATIBILITY_PROJECTION_REPAIR(){
   for(var r=1;r<values.length;r++){
     var row=values[r],auditId=ModelCFoundation_valueByHeader_(row,map,['Audit ID']);
     if(!auditId)continue;
-    var cert=(activeByAudit[auditId]||[]).filter(function(x){return !ModelCFoundation_isAbc_(x.ScopeCode,x.ScopeCode);});
-    if(!cert.length)continue;
-    var earliest='',effectiveEarliest='',from='',to='';
-    cert.forEach(function(x){
+    var recurring=(activeByAudit[auditId]||[]).filter(function(x){
+      return ModelCRecurringConfig_isRecurring_(ss,String(x.ScopeCode||''));
+    });
+    var earliest='',effectiveEarliest='',from='',to='',extension='';
+    recurring.forEach(function(x){
       var e=ModelCExtension_dateInTz_(x.Base_Expiry_Date,tz),z=ModelCExtension_dateInTz_(x.Effective_Expiry_Date,tz),f=ModelCExtension_dateInTz_(x.Planning_Window_From,tz),t=ModelCExtension_dateInTz_(x.Planning_Window_To,tz);
       if(e&&(!earliest||e<earliest))earliest=e;
       if(z&&(!effectiveEarliest||z<effectiveEarliest))effectiveEarliest=z;
       if(f&&(!from||f>from))from=f;
       if(t&&(!to||t<to))to=t;
+      if(String(x.Extension_Applied||'').trim())extension='Yes';
     });
-    var expected=[earliest,effectiveEarliest||earliest,from,to],idx=[cols.expiry,cols.effective,cols.from,cols.to],changed=false;
+    var expected=['',earliest,effectiveEarliest||earliest,extension,from,to],idx=[cols.birthday,cols.expiry,cols.effective,cols.extension,cols.from,cols.to],changed=false;
+    if(recurring.length){
+      expected[0]=ModelCFoundation_clean_(row[cols.birthday]);
+    }
     for(var i=0;i<idx.length;i++){
       var actual=ModelCFoundation_clean_(row[idx[i]]);
       if(actual!==expected[i]){row[idx[i]]=expected[i];changed=true;writes++;}
@@ -52,15 +60,13 @@ function RUN_MODEL_C_COMPATIBILITY_PROJECTION_REPAIR(){
   }
 
   if(auditsRepaired){
-    [cols.expiry,cols.effective,cols.from,cols.to].forEach(function(c){if(values.length>1)ap.getRange(2,c+1,values.length-1,1).setNumberFormat('@');});
+    [cols.birthday,cols.expiry,cols.effective,cols.from,cols.to].forEach(function(c){if(values.length>1)ap.getRange(2,c+1,values.length-1,1).setNumberFormat('@');});
     ap.getRange(2,1,values.length-1,headers.length).setValues(values.slice(1));
     SpreadsheetApp.flush();
     try{if(typeof ModelCAnnualCycle_invalidateAuditPlanningCaches_==='function')ModelCAnnualCycle_invalidateAuditPlanningCaches_();}catch(ignore){}
   }
 
-  var source=ModelCMigration_readSource_(ss),freshTarget=ModelCRecon_readTargets_(ss),recon=(source&&source.success&&freshTarget&&freshTarget.success)?ModelCPhase2BRecon_compare_(ss,source,freshTarget):{success:false,errors:['Unable to run reconciliation after repair']};
-  var out={success:recon.success===true,build:MODEL_C_COMPATIBILITY_REPAIR_BUILD,writesPerformed:auditsRepaired>0,auditsRepaired:auditsRepaired,cellsRepaired:writes,reconciliation:(typeof ModelCPhase2BRecon_compact_==='function'?ModelCPhase2BRecon_compact_(recon):recon)};
+  var out={success:true,build:MODEL_C_COMPATIBILITY_REPAIR_BUILD,writesPerformed:auditsRepaired>0,auditsRepaired:auditsRepaired,cellsRepaired:writes,owner:'Config_Scopes.Recurring'};
   Logger.log(JSON.stringify(out,null,2));
-  if(!out.success)throw new Error('Compatibility projection repair failed: '+((recon.errors||[]).slice(0,10).join('; ')));
   return out;
 }

@@ -121,7 +121,7 @@ function ModelCScopeOwner_commit(command) {
       if(obligation){obligation.Obligation_State='CANCELLED';obligation.Closed_At=stamp;obligation.Updated_At=stamp;var link=activeLinkByOb[String(obligation.Obligation_ID)];if(link){link.Link_State='INACTIVE';link.Unlinked_At=stamp;}}
     });
     ModelCScopeOwner_writeObjects_(csSheet,MODEL_C_SCHEMA.Company_Scopes,cs,['Certificate_Birthday']);
-    ModelCScopeOwner_writeObjects_(obSheet,MODEL_C_SCHEMA.Audit_ObligATIONS,ob,['Cycle_Key','Base_Expiry_Date','Effective_Expiry_Date','Planning_Window_From','Planning_Window_To']);
+    ModelCScopeOwner_writeObjects_(obSheet,MODEL_C_SCHEMA.Audit_Obligations,ob,['Cycle_Key','Base_Expiry_Date','Effective_Expiry_Date','Planning_Window_From','Planning_Window_To']);
     ModelCScopeOwner_writeObjects_(lkSheet,MODEL_C_SCHEMA.Audit_Visit_Obligations,lk);
     var projection=ModelCScopeOwner_projectLegacy_(apSheet,command,selected,ob,lk,ss);
     SpreadsheetApp.flush();

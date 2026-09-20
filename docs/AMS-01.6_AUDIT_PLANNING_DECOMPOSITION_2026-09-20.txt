@@ -1,0 +1,427 @@
+AMS-01.6 — AUDIT PLANNING DECOMPOSITION AND TARGET DATA MODEL
+
+Date: 2026-09-20
+Status: Architecture draft based on dev commit 99ea6ad
+Scope: Audit planning, lifecycle ownership, reader/writer dependencies, target Model C and migration
+
+1. FIXED ARCHITECTURE
+
+Target chain:
+
+Company -> Company Scope / Certificate Lifecycle -> Audit Obligation -> Audit Visit <-> Auditor Availability
+
+An Audit Visit can cover multiple Audit Obligations. Audit ID remains the canonical operational key for the physical visit. Availability remains linked to Audit ID. Company Scope ID and Obligation ID are new stable keys. No one-Audit-ID-per-scope model is introduced.
+
+2. CURRENT AUDIT PLANNING COLUMN OWNERSHIP
+
+Legend:
+- CS = Company Scope / Certificate Lifecycle
+- OB = Audit Obligation
+- VI = Audit Visit
+- LK = Visit-Obligation link
+- CFG = configuration
+- DER = derived/materialized projection
+- LEGACY = remove after migration
+
+Col | Current header | Current meaning | Target owner | Target field / treatment | Main current writers | Main current readers | Migration risk
+A | Company | Company display name | Company; DER on VI | Company_UID is the relationship; display name is projected | Scope Manager row creation; ECAS missing-row creation; AnnualCycle row copy | Manager/Auditor grids; Batch; notifications; maps; completion/history | MEDIUM: widely read, but not a key
+B | Location | Selected operational audit location, currently also legacy company location text | VI | Visit_Location_ID plus optional execution-location snapshot; project display text | Scope Manager legacy creation; ECAS default HQ; AnnualCycle row copy | Planning UI; Batch routing; notifications; rejected archive | HIGH: must distinguish selected visit stop from Companies.Locations_JSON
+C | SCOPE_01 | Scope membership flag | LK/OB; DER on VI | derived from linked obligations | Scope Manager; ECAS; AnnualCycle successor | eligibility, planning, history, notifications | HIGH: positional scope slot
+D | Duration SCOPE_01 | Formal hours for scope 1 in current row | OB | Formal_hours for this obligation; seeded from CS override or CFG default | Scope Manager; ECAS; AnnualCycle recalculation | totals, history, planning demand | HIGH: currently mixes persistent company override and cycle value
+E | SCOPE_02 | Scope membership flag | LK/OB; DER on VI | derived from linked obligations | same pattern C | same pattern C | HIGH
+F | Duration SCOPE_02 | Formal hours for scope 2 | OB | same pattern D | same pattern D | same pattern D | HIGH
+G | SCOPE_03 | Scope membership flag | LK/OB; DER on VI | derived from linked obligations | same pattern C | same pattern C | HIGH
+H | Duration SCOPE_03 | Formal hours for scope 3 | OB | same pattern D | same pattern D | same pattern D | HIGH
+I | SCOPE_04 | Scope membership flag | LK/OB; DER on VI | derived from linked obligations | same pattern C | same pattern C | HIGH
+J | Duration SCOPE_04 | Formal hours for scope 4 | OB | same pattern D | same pattern D | same pattern D | HIGH
+K | SCOPE_05 | Scope membership flag | LK/OB; DER on VI | derived from linked obligations | same pattern C | same pattern C | HIGH
+L | Duration SCOPE_05 | Formal hours for scope 5 | OB | same pattern D | same pattern D | same pattern D | HIGH
+M | SCOPE_06 | Scope membership flag | LK/OB; DER on VI | derived from linked obligations | same pattern C | same pattern C | HIGH
+N | Duration SCOPE_06 | Formal hours for scope 6 | OB | same pattern D | same pattern D | same pattern D | HIGH
+O | SCOPE_07 | Scope membership flag | LK/OB; DER on VI | derived from linked obligations | same pattern C | same pattern C | HIGH
+P | Duration SCOPE_07 | Formal hours for scope 7 | OB | same pattern D | same pattern D | same pattern D | HIGH
+Q | SCOPE_08 | Scope membership flag | LK/OB; DER on VI | derived from linked obligations | same pattern C | same pattern C | HIGH
+R | Duration SCOPE_08 | Formal hours for scope 8 | OB | same pattern D | same pattern D | same pattern D | HIGH
+S | Total audit time in hours | Total formal hours across active scopes | DER | sum OB.Formal_hours for linked obligations | Scope Manager; ECAS; AnnualCycle repairs/recalculation | Manager/Auditor; Batch candidate duration fallback; planning demand; history | HIGH: name is ambiguous and some planning paths treat it as schedulable duration
+T | Total audit time in days | Legacy conversion of total hours to days | LEGACY/DER | remove from canonical model; calculate only for legacy display if still needed | ECAS missing-row creation; inherited row copies | Auditor backend and legacy views | LOW
+U | Birthdate certificate | Structural certificate anniversary | CS | Certificate_birthday | Scope Manager; ECAS ABC workaround; AnnualCycle row copy | AnnualCycle; Scope Manager | HIGH: current ABC fake birthday must not migrate as real certificate data
+V | Preassigned Auditor | Forecast/self-planning assignment before a visit date | OB | Preassigned_Auditor_Email | Scope Manager; AnnualCycle successor copy | Year Planning; self planning; eligibility/toolkit; notifications | HIGH: one current row may contain multiple future obligations
+W | Assigned to | Operational visit auditor | VI | Assigned_Auditor_Email | CoreStatusMachine / planning save paths; reopen clears | Manager/Auditor; Availability; completion; notifications; rotation/workload | CRITICAL: operational workflow and availability coupling
+X | Number of audits already performed | Cached/legacy rotation count | DER/LEGACY | calculate from realized visit history by auditor/company/scope; do not persist on VI | no authoritative current writer found outside test/support paths | Toolkit eligibility | MEDIUM: stale derived value risk
+Y | Date - Will Expire | Current-cycle base expiry | OB | Base_expiry_date; null for non-certificate obligations | Scope Manager; AnnualCycle successor; lifecycle/repair paths | Planning windows; UI; notifications; completion/history | HIGH
+Z | Extended Expiration Date | Effective expiry after cycle extension | OB | Effective_expiry_date | extension apply/undo; AnnualCycle successor | Planning windows; UI; notifications | HIGH
+AA | Date - Planned | First/primary planned date mirror | DER on VI | derive from Planning_JSON blocks; optionally materialize for query/index only | CoreStatusMachine; planning save; repair; reopen clears | grids; completion; notification; revision tokens | HIGH: Planning JSON remains planning truth
+AB | Date - Approved | Workflow event date | VI | Approved_at, subject to final status model | CoreStatusMachine/status paths; reopen clears | completion/history; notifications; archive | HIGH: status-model debt must stay separate
+AC | Status | Operational visit workflow status | VI | Status | CoreStatusMachine; limited legacy/direct paths; completion/reject removal | almost every operational reader | CRITICAL
+AD | Allow self planning | Permission for auditor self-planning | OB | Allow_self_planning | Scope Manager | Auditor portal; Scope Manager; diagnostics/digest | HIGH: must define aggregation when a visit bundles obligations
+AE | empty | Unused physical gap | LEGACY | delete after migration | none | none | LOW
+AF | Audit days textual | Human-readable planned days | DER on VI | derive from Planning_JSON | CoreStatusMachine/planning save; reopen clears; AnnualCycle clears | UI/notifications | LOW
+AG | Planning JSON | Canonical visit planning blocks | VI | Planning_JSON | CoreStatusMachine; planning save; reopen clears | Availability; grids; completion; notifications; cache/revision logic | CRITICAL
+AH | Extension applied | Current-cycle extension marker | OB | Extension_applied plus extension metadata | extension apply/undo; AnnualCycle clears | lifecycle notification/UI | HIGH
+AI | Audit ID | Canonical physical visit key | VI | Audit_ID | row creation paths; AnnualCycle successor; ECAS currently may leave missing until repair | all operational services and Availability | CRITICAL
+AJ | Last manager decision | Latest manager workflow action summary | VI | Last_manager_decision; longer-term append-only event log plus projection | AuditLifecycleService | diagnostics/UI | MEDIUM
+AK | Last decision timestamp | Timestamp of latest manager decision | VI | Last_manager_decision_at | AuditLifecycleService | diagnostics/UI | MEDIUM
+AL | Status since | Start timestamp of current visit status | VI | Status_since | AuditLifecycleService | aging/cockpit/diagnostics | MEDIUM
+AM | Company_UID | Stable company relationship | Company FK repeated on VI/CS/OB | Company_UID | Scope Manager/ECAS/row creation | nearly all indexed readers | CRITICAL
+AN | Scopes_List | Display/search list of scopes | DER | derive from linked obligations and CFG | Auditor backend/legacy projection path | Batch and weekly digest | MEDIUM: can disagree with slot flags
+AO | Manager comment (last) | Latest manager decision comment | VI | Manager_comment_last; later event-log projection | AuditLifecycleService | UI/diagnostics | MEDIUM
+AP | Last auditor decision | Latest auditor workflow action | VI | Last_auditor_decision; later event-log projection | AuditLifecycleService | notification reliability/diagnostics | MEDIUM
+AQ | Last auditor decision timestamp | Timestamp latest auditor action | VI | Last_auditor_decision_at | AuditLifecycleService | notification reliability/diagnostics | MEDIUM
+AR | Auditor comment (last) | Latest auditor comment | VI | Auditor_comment_last; later event-log projection | AuditLifecycleService | Auditor UI/diagnostics | MEDIUM
+AS | Planning window from | Current row aggregate planning-window start | OB canonical; DER for VI | each OB owns Window_from; VI feasible window is dependency-aware intersection | AnnualCycleEngine; recalculation on extension/scope changes | Batch; Manager/Auditor; planning demand; validation | CRITICAL: current fallback from empty intersection to union is invalid
+AT | Planning window to | Current row aggregate planning-window end | OB canonical; DER for VI | each OB owns Window_to; VI feasible window is dependency-aware intersection | same AS | same AS | CRITICAL
+
+3. CURRENT WRITER DOMAINS
+
+Writer domain | Current files | Columns / behavior | Target
+Scope administration | AuditManagerToolsScopes.js; AuditManagerToolsLegacyCreate.js; AuditManagerToolsShared.js | creates Audit planning row; writes scope flags/hours, totals, birthday, expiry, preassignment, self-planning | write CS and OB; create VI only when actual planning begins; update compatibility projection
+External annual input | ECAS_AnnualValidation.js | creates/mutates ABC rows, scope flags/hours, fake birthday, status, company identity | create/update externally triggered ABC OB; never create fake expiry/birthday; no VI until planning
+Recurring lifecycle | AnnualCycleEngineV5.js | copies entire visit row into next cycle and clears operational fields | close OB and create successor OB per lifecycle policy; never clone VI
+Planning/status | CoreStatusMachine.js; ManagerPlanningBackend_CORE_SPLIT.js; CanonicalPlanningValidatorGateway.js; BatchPlanningConfirmationService.js | writes Planning JSON, dates, assigned auditor, status; reset on cancel/deny | write VI and Availability atomically; link selected OB records
+Lifecycle metadata | AuditLifecycleService.js | writes AJ:AR summaries | remain VI summaries; optionally emit append-only workflow event records later
+Extension | ManagerPlanningBackend_CORE_SPLIT.js; AnnualCycleEngineV5.js | writes AH/Z and recomputes AS/AT | write OB extension/effective expiry/window; refresh projection
+Completion | CompletionService.js; LogRealizedAuditService.js; AnnualCycleEngineV5.js | append history, release availability, spawn successor, delete Audit planning row | atomic Visit completion, realized history, linked OB closure, per-OB successor policy, availability release, then remove active VI
+Rejection | RejectedAuditsV5.js; CoreStatusMachine.js | archive copy and delete active row | reject VI; unlink or return linked OB to plannable/rejected state according to explicit reason; preserve audit trail
+Repair/migration | RepairDatePlannedFromPlanningJson_2026-05-05.js; Companies_Locations_Backfill_Migration.js; test/diagnostic utilities | targeted correction/backfill | retire or retarget after ownership switch
+
+4. TARGET PHYSICAL TABLES
+
+4.1 Company_Scopes
+
+Canonical purpose: durable Company x Scope relationship and certificate lifecycle configuration.
+
+Required fields:
+- Company_Scope_ID
+- Company_UID
+- ScopeCode
+- Active
+- Lifecycle_Type
+- Certificate_Birthday
+- Company_Formal_Hours_Override
+- Certificate_Metadata_JSON
+- Created_At
+- Updated_At
+
+Rules:
+- Unique active relationship on Company_UID + ScopeCode.
+- Certificate_Birthday is null for lifecycle types without certificates.
+- Company_Formal_Hours_Override is optional and persists across cycles.
+- Planning duration is not stored here.
+
+4.2 Audit_Obligations
+
+Canonical purpose: what must be audited for one scope in one cycle or externally triggered period.
+
+Required fields:
+- Obligation_ID
+- Company_Scope_ID
+- Company_UID
+- ScopeCode
+- Cycle_Key
+- Trigger_Source
+- Obligation_State
+- Base_Expiry_Date
+- Extension_Applied
+- Extension_Metadata_JSON
+- Effective_Expiry_Date
+- Planning_Window_From
+- Planning_Window_To
+- Formal_Hours
+- Preassigned_Auditor_Email
+- Allow_Self_Planning
+- Created_At
+- Updated_At
+- Closed_At
+
+Rules:
+- Formal_Hours is the resolved cycle value. It is seeded from Company_Scopes.Company_Formal_Hours_Override, otherwise Config_Scopes.Formal_hours. This preserves the hours used for a specific obligation even if a later default changes.
+- Planning_Duration remains canonical only in Config_Scopes. Planning read models resolve it by ScopeCode; it is not copied into Company_Scopes or Audit_Obligations. Actual reserved time remains in Visit.Planning_JSON. There is no company-level planning-duration override.
+- Certificate lifecycle fields are null for MPS-ABC.
+- MPS-ABC Cycle_Key is the calendar/import year and Trigger_Source is ECAS.
+- Preassignment and self-planning permission exist before a Visit and therefore belong here.
+
+4.3 Audit_Visits
+
+Canonical purpose: physical/operational planning and workflow unit.
+
+Required fields:
+- Audit_ID
+- Company_UID
+- Visit_Location_ID
+- Visit_Location_Snapshot_JSON
+- Assigned_Auditor_Email
+- Status
+- Planning_JSON
+- Date_Planned_Index
+- Date_Approved
+- Status_Since
+- Last_Manager_Decision
+- Last_Manager_Decision_At
+- Manager_Comment_Last
+- Last_Auditor_Decision
+- Last_Auditor_Decision_At
+- Auditor_Comment_Last
+- Created_At
+- Updated_At
+
+Rules:
+- Planning_JSON remains the planning truth.
+- Date_Planned_Index is a derived/materialized index of the first planned block, not a competing truth.
+- Company_UID is retained on VI for integrity and hot-path filtering.
+- Availability writes always use Audit_ID.
+
+4.4 Audit_Visit_Obligations
+
+Canonical purpose: link one physical visit to one or more obligations.
+
+Required fields:
+- Audit_ID
+- Obligation_ID
+- Link_State
+- Linked_At
+- Unlinked_At
+
+Rules:
+- Composite key Audit_ID + Obligation_ID.
+- An open obligation may have at most one active visit link.
+- A visit must link only obligations for the same Company_UID.
+- The link table is canonical; no second canonical Obligation_ID list is stored in Audit_Visits.
+- Cached maps may provide Audit_ID -> obligations and Obligation_ID -> active Audit_ID.
+
+4.5 Config_Scopes additions
+
+Rename/extend semantic ownership:
+- Default_hours -> Formal_hours
+- Scheduling_hours -> Planning_duration
+- Lifecycle_Type
+- Obligation_Trigger_Type
+
+Do not encode multi-scope relationships as repeated columns. Add a separate Config_Scope_Dependencies table:
+- Dependency_ID
+- Parent_ScopeCode
+- Child_ScopeCode
+- Relationship_Type
+- Must_Audit_Together
+- Share_Expiry
+- Active
+
+For GAP/GRASP, GRASP is the dependent/add-on scope. The dependency determines shared expiry and bundling; no generic overlap fallback may override it.
+
+4.6 Exact identifiers
+
+- Company_UID: retain the existing UUID unchanged.
+- Company_Scope_ID: CS_<UUID without hyphens>.
+- Obligation_ID: OBL_<UUID without hyphens>.
+- Audit_ID: retain every existing Audit ID unchanged; new visits continue to use the established AUD_ prefix until a separate ID migration is approved.
+- Dependency_ID: DEP_<UUID without hyphens>.
+
+IDs are opaque. Business meaning, year, company name and row number must not be parsed from them. Backfill is idempotent through unique natural-key checks, not by regenerating identifiers.
+
+Natural uniqueness:
+- Company_Scopes: Company_UID + ScopeCode.
+- Audit_Obligations: Company_Scope_ID + Cycle_Key + Trigger_Source, with an explicit sequence only when the business permits multiple obligations for the same cycle.
+- Audit_Visit_Obligations: Audit_ID + Obligation_ID.
+
+5. SELF-PLANNING AGGREGATION RULE
+
+When multiple obligations are bundled into one visit, self planning is allowed only when:
+- all linked obligations allow self planning;
+- all have the same preassigned auditor;
+- that auditor is qualified for every linked scope;
+- all hard constraints pass.
+
+This is a safe derived Visit capability, not a separately editable Visit field.
+
+6. PLANNING WINDOW AND BUNDLING
+
+- Every obligation owns its own validated planning window.
+- A visit may link multiple obligations only when their dependency rules allow bundling and one visit schedule satisfies every linked obligation window.
+- For ordinary compatible obligations, the feasible visit window is the intersection.
+- Empty intersection means the obligations cannot be bundled in that visit. There is no union fallback.
+- Dependency policies may define shared lifecycle/expiry behavior, but may not silently broaden a hard window.
+
+7. COMPLETION TRANSACTION
+
+Required order under one orchestration lock:
+1. Re-read Visit, active links and obligations.
+2. Validate Visit is Accepted and linked obligations are closable.
+3. Append one realized physical Visit event using the existing Audit ID.
+4. Persist realized scope/obligation linkage for history.
+5. Mark each linked obligation completed.
+6. Apply lifecycle policy separately per obligation.
+7. Create successor obligations only where the policy requires it.
+8. Never auto-create a successor for MPS-ABC.
+9. Release Availability by Audit ID.
+10. Remove/close the active Visit and links.
+11. Commit invalidation generations and post-commit notifications.
+
+Failure before the commit point restores all staged writes. Notification failure after commit never rolls back the transaction.
+
+8. PERFORMANCE READ MODEL
+
+Do not join three full sheets on each planner call.
+
+Build compact generation-keyed catalogs:
+- CompanyScopeCatalog: Company_Scope_ID keyed records and Company_UID -> scope IDs.
+- ObligationPlanningCatalog: only open/plannable obligations with resolved scope, hours, window, preassignment and dependency group.
+- VisitCatalog: active visits keyed by Audit_ID.
+- VisitObligationLinkCatalog: Audit_ID <-> Obligation_ID maps.
+- PlanningCandidateProjection: compact records used by Batch, Workspace and Year Planning.
+
+Rules:
+- Load each source table once per generation, never once per candidate.
+- Use targeted ID lookup for single-audit actions.
+- Invalidate by affected Company_UID, Obligation_ID and Audit_ID where possible.
+- Compatibility fields in Audit planning are projections and never accepted as authoritative input after their ownership switch.
+- Cache is disposable and never owns lifecycle or planning truth.
+
+9. MIGRATION PHASES
+
+Phase 0 — Contract and diagnostics
+- Freeze the column ownership matrix and target schemas.
+- Add schema validators and duplicate/orphan diagnostics.
+- Add tests that prove existing operational behavior before ownership changes.
+
+Phase 1 — New persistence and backfill, no ownership switch
+- Create Company_Scopes, Audit_Obligations, Audit_Visit_Obligations and Config_Scope_Dependencies.
+- Backfill CS and OB from existing Audit planning rows.
+- Create one VI relationship for every current active Audit ID.
+- Exclude fake ABC birthday/expiry from canonical certificate fields.
+- Run read-only comparison reports; legacy Audit planning remains owner during this phase.
+- Persist a migration batch ID and source Audit ID on every backfilled record so a failed batch can be removed without touching pre-existing records.
+
+Phase 2 — Scope/lifecycle owner switch
+- Move Scope Manager writes to CS/OB.
+- Move ECAS creation/mutation to ABC obligations.
+- Move extension and planning-window writes to OB.
+- Replace AnnualCycle Visit cloning with per-obligation successor creation.
+- Generate the legacy C:V, Y:Z, AH and AS:AT fields only through one compatibility projector.
+- Block direct production writes to migrated lifecycle columns.
+- Switch one ownership domain only after its writer inventory is green; do not leave both old and new public writers active.
+
+Phase 3 — Visit-link integration
+- Make new planning create/update VI and active LK records from selected obligations.
+- Keep Audit planning as the physical VI table during this phase.
+- Batch, Workspace and self-planning consume ObligationPlanningCatalog and write through the same atomic Visit planner.
+
+Phase 4 — Completion/history conversion
+- Convert Completion to close linked obligations independently.
+- Add realized obligation/scope linkage while retaining one realized Visit per Audit ID.
+- Retire AnnualCycleEngine row-copy behavior.
+
+Phase 5 — Reader migration and hot-path projection
+- Move planning demand, eligibility, notifications, rotation inputs, Year Planning and Cockpit to compact catalogs.
+- Remove full-sheet runtime joins and legacy slot dependence.
+- Prove cache invalidation and cold-path bounds.
+
+Phase 6 — Legacy column retirement
+- Remove migrated lifecycle/scope columns from Audit planning only after no production writer or reader depends on them.
+- Retain VI operational columns and Audit ID.
+- Preserve historical Audit IDs without re-keying.
+
+10. REQUIRED MIGRATION GATES
+
+- Every current Audit ID maps to exactly one VI.
+- Every active scope flag maps to exactly one obligation.
+- Every active Visit has at least one active obligation link.
+- No open obligation has more than one active Visit link.
+- Company_UID agrees across CS, OB, VI and LK joins.
+- Formal-hours totals reconcile with current S for all migrated rows.
+- Planning-duration totals are resolved from Config_Scopes and reconcile with Visit Planning_JSON where a visit already exists.
+- No ABC obligation has a canonical certificate birthday or expiry.
+- GAP/GRASP dependency tests cover shared expiry and must-audit-together behavior.
+- Existing Availability records still resolve solely by Audit ID.
+- Completion produces one realized Visit record and closes all linked obligations exactly once.
+- Cold planner load uses bounded table reads and no per-row sheet calls.
+
+11. VERIFIED HIGH-RISK CURRENT DEPENDENCIES
+
+- AnnualCycleEngineV5.js copies a full Audit planning row to create a successor and therefore mixes Visit, lifecycle, scopes, hours, preassignment and windows.
+- AuditManagerToolsScopes.js creates or rewrites the current row and stores company-specific scope hours on the Visit row.
+- ECAS_AnnualValidation.js writes scope flags/hours and creates ABC rows directly in Audit planning, including the fake 31-12 birthday workaround.
+- CoreStatusMachine.js and ManagerPlanningBackend_CORE_SPLIT.js own operational planning/status writes and clear visit fields during reopen.
+- CompletionService.js relies on the current Audit planning row, appends realized history, invokes recurring lifecycle behavior, releases Availability and deletes the active row.
+- RejectedAuditsV5.js archives a projection of the active Visit and deletes the active row.
+- BatchPlanningCandidateEngine.js, PlanningDemandService.js, AuditorV5Backend.js, ManagerPlanningBackend_CORE_SPLIT.js and notification renderers consume broad Audit planning projections.
+- AuditPlanningPerfCache.js, AuditPlanningRowIndexCache.js and persisted planning caches assume Audit planning is the hot-path aggregate.
+
+12. IMPLEMENTATION BOUNDARY
+
+No production implementation starts until:
+- this decomposition is accepted;
+- exact sheet headers and ID formats are fixed;
+- migration/backfill rollback behavior is specified;
+- current status-machine debt remains explicitly outside the lifecycle migration.
+
+13. PRODUCTION READER DEPENDENCY INVENTORY
+
+Operational manager and auditor views:
+- ManagerPlanningBackend_CORE_SPLIT.js
+- AuditorV5Backend.js
+- AuditManagerToolsPlanningOverview.js
+- AuditManagerHelpers.js
+- AMS01_AuditorGridCandidate.js
+- PlanningWorkspacePlannedAuditReadService.js
+- PlanningWorkspaceAvailabilityContext.js
+
+Planning, eligibility and demand:
+- AuditPlanningEngine.js
+- BatchPlanningCandidateEngine.js
+- BatchPlanningConfirmationService.js
+- CanonicalPlanningValidatorGateway.js
+- EligibilityService.js
+- EligibilityBatchReadModel.js
+- Toolkit_Eligibility.js
+- Toolkit_AvailabilityMonth.js
+- PlanningDemandService.js
+- PlanningPreferredAuditMonthsReadModel.js
+- PlanningProfilesService.js
+- RotationAuditorService.js
+
+Workflow, lifecycle and history:
+- CoreStatusMachine.js
+- AuditLifecycleService.js
+- CompletionService.js
+- AnnualCycleEngineV5.js
+- LogRealizedAuditService.js
+- RejectedAuditsV5.js
+- AvailabilityService.js
+- PlanningRevisionTokenService.js
+
+Notifications:
+- NotificationBuilder.js
+- StatusNotificationBridge.js
+- StatusNotificationBridge_PerformanceRoute.js
+- NotificationAcceptedReconciler.js
+- AcceptedNotificationReliabilityFallback.js
+- NotificationRenderer_WeeklyDigest.js
+- NotificationRenderer_ManagerToAuditorPlanning.js
+- NotificationRenderer_AuditorToManagerApproval.js
+- NotificationRenderer_ApprovalOperational.js
+- NotificationRenderer_LifecycleDigest.js
+- NotificationRenderer_PlanningToClientDigest.js
+
+Company/location/workload projections:
+- AuditPlanningCompanyLocations.js
+- CompanyMap_AuditorWorkloadLayer.js
+- CompaniesIndexService.js
+- CompaniesIndexBatchPlanningLocationMetadata.js
+- CompanyUpdateProposalsBackend.js
+
+Cache and read-model infrastructure:
+- AuditPlanningPerfCache.js
+- AuditPlanningRowIndexCache.js
+- CacheReferenceAdapters.js
+- OpenCacheWarmer.js
+- ToolkitEligibilityCacheWarmer.js
+- EligibilityCacheMigrationWarmer.js
+
+Diagnostics, repairs and regression coverage also reference current columns. They must be retargeted or retired in the same phase as the production owner they verify; they must not be counted as production ownership.
+
+14. ROLLBACK CONTRACT BY PHASE
+
+- Phase 1 rollback: delete only rows carrying the migration batch ID. No current operational sheet changes.
+- Phase 2 rollback before ownership cutover: discard new-domain writes and rebuild from legacy.
+- Phase 2 rollback after ownership cutover: stop traffic, restore the last pre-cutover export, and replay the bounded new-owner change log through the compatibility projector. Never reverse by accepting edited legacy projection cells as truth.
+- Phase 3 and later: every mutation service must stage before-images for CS, OB, VI, LK and Availability records touched by one command. Restore only those explicit records on pre-commit failure.
+- Post-commit notification failures are retryable queue failures and never trigger data rollback.

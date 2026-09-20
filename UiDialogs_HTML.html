@@ -1,5 +1,5 @@
 <!-- UiDialogs.html -->
-<!-- BUILD: 2026-05-21_UI_ACTION_STATUS_TONE_CONTRACT_R2_SYNCED -->
+<!-- BUILD: 2026-09-20_UI_SCOPE_HOURS_DECIMAL_COMMA_R1 -->
 <style>
   .uiDlgOverlay {
     position: fixed;
@@ -702,4 +702,18 @@
       flashSuccess: flashSuccess
     };
   })();
+
+  /* Scope Manager hours: accept decimal comma without destructive oninput fallback. */
+  document.addEventListener('input', function (ev) {
+    var el = ev && ev.target;
+    if (!el || !el.classList || !el.classList.contains('m5t-hours')) return;
+    var raw = String(el.value == null ? '' : el.value);
+    if (raw.indexOf(',') < 0) return;
+    var start = typeof el.selectionStart === 'number' ? el.selectionStart : null;
+    var end = typeof el.selectionEnd === 'number' ? el.selectionEnd : null;
+    el.value = raw.replace(/,/g, '.');
+    try {
+      if (start !== null && end !== null) el.setSelectionRange(start, end);
+    } catch (ignore) {}
+  }, true);
 </script>

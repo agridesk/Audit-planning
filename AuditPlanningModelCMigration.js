@@ -13,7 +13,7 @@
  * No ownership switch is performed. Audit planning remains canonical.
  */
 
-var MODEL_C_MIGRATION_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_1_R2_DRY_RUN_FIRST';
+var MODEL_C_MIGRATION_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_1_R3_TEXT_CYCLE_KEY';
 var MODEL_C_MIGRATION_PROPERTY_LAST_BATCH = 'MODEL_C_PHASE1_LAST_BATCH_ID';
 
 function RUN_MODEL_C_PHASE1_DRY_RUN() {
@@ -374,6 +374,10 @@ function ModelCMigration_writePrepared_(ss, prepared, createdSheets) {
     var headers = MODEL_C_SCHEMA[spec.name];
     sh.getRange(1, 1, 1, headers.length).setValues([headers]);
     if (spec.rows.length) {
+      if (spec.name === MODEL_C_SHEETS.AUDIT_OBLIGATIONS) {
+        var cycleColumn = headers.indexOf('Cycle_Key') + 1;
+        if (cycleColumn > 0) sh.getRange(2, cycleColumn, spec.rows.length, 1).setNumberFormat('@');
+      }
       var values = spec.rows.map(function(item) {
         return headers.map(function(header) { return item[header] === undefined ? '' : item[header]; });
       });

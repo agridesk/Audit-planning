@@ -4,7 +4,7 @@
  * Read-only comparison of legacy Audit planning and Model C backfill.
  */
 
-var MODEL_C_RECON_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_1_RECONCILIATION_R4_CYCLE_DIAGNOSTIC';
+var MODEL_C_RECON_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_1_RECONCILIATION_R5_CYCLE_REPAIR';
 
 function RUN_MODEL_C_PHASE1_RECONCILIATION() {
   var ss = SpreadsheetApp.getActive();
@@ -36,6 +36,48 @@ function RUN_MODEL_C_PHASE1_CYCLE_DIAGNOSTIC() {
   var out = { success: true, build: MODEL_C_RECON_BUILD, readOnly: true, writesPerformed: false, spreadsheetTimeZone: ss.getSpreadsheetTimeZone(), scriptTimeZone: Session.getScriptTimeZone(), mismatchesFound: samples.length, samples: samples };
   Logger.log(JSON.stringify(out, null, 2));
   return out;
+}
+
+function RUN_MODEL_C_PHASE1_REPAIR_CYCLE_KEYS() {
+  var ss = SpreadsheetApp.getActive();
+  var lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    var source = ModelCMigration_readSource_(ss);
+    var target = ModelCRecon_readTargets_(ss);
+    if (!source.success || !target.success) throw new Error('Source or target unavailable');
+    var expected = ModelCRecon_expected_(source, []);
+    var sheet = ss.getSheetByName(MODEL_C_SHEETS.AUDIT_OBLIGATIONS);
+    var values = sheet.getDataRange().getValues();
+    var headers = values[0] || [];
+    var auditColumn = ModelCFoundation_findHeader_(headers, ['Source_Audit_ID']);
+    var scopeColumn = ModelCFoundation_findHeader_(headers, ['ScopeCode']);
+    var cycleColumn = ModelCFoundation_findHeader_(headers, ['Cycle_Key']);
+    if (auditColumn < 0 || scopeColumn < 0 || cycleColumn < 0) throw new Error('Required Audit_Obligations columns missing');
+    var output = [];
+    var convertedDateObjects = 0;
+    var changedValues = 0;
+    for (var r = 1; r < values.length; r++) {
+      var sourceKey = ModelCFoundation_clean_(values[r][auditColumn]) + '|' + ModelCFoundation_clean_(values[r][scopeColumn]);
+      var wanted = expected.obligationsBySource[sourceKey];
+      if (!wanted) throw new Error('Unknown obligation source key at row ' + (r + 1) + ': ' + sourceKey);
+      if (Object.prototype.toString.call(values[r][cycleColumn]) === '[object Date]') convertedDateObjects++;
+      if (ModelCFoundation_clean_(values[r][cycleColumn]) !== wanted.cycleKey) changedValues++;
+      output.push([wanted.cycleKey]);
+    }
+    var range = sheet.getRange(2, cycleColumn + 1, output.length, 1);
+    range.setNumberFormat('@');
+    range.setValues(output);
+    SpreadsheetApp.flush();
+    var validationTarget = ModelCRecon_readTargets_(ss);
+    var validation = ModelCRecon_compare_(source, validationTarget);
+    if (!validation.success) throw new Error('Post-repair reconciliation failed: ' + validation.errors.join('; '));
+    var out = { success: true, build: MODEL_C_RECON_BUILD, writesPerformed: true, repairedRows: output.length, convertedDateObjects: convertedDateObjects, changedValues: changedValues, validation: ModelCRecon_compact_(validation) };
+    Logger.log(JSON.stringify(out, null, 2));
+    return out;
+  } finally {
+    try { lock.releaseLock(); } catch (ignore) {}
+  }
 }
 
 function ModelCRecon_readTargets_(ss) {

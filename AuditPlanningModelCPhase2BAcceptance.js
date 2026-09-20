@@ -2,12 +2,13 @@
  * AMS-01.6 Model C Phase 2B consolidated acceptance gate.
  * Controlled DEV acceptance:
  * - Repairs legacy compatibility projection from canonical Model C first.
+ * - Clears obsolete legacy ABC certificate/date compatibility fields.
  * - Canonicalizes the dedicated DEV test audit to MPS-GAP 8.0 through the real Scope Manager route.
  * - Verifies Scope Manager UI reads formal hours from Model C.
  * - Verifies annual-cycle successor creation/finalization routes through Model C and rolls back test writes.
  * - Runs regression, preflight and full reconciliation against the restored canonical state.
  */
-var MODEL_C_PHASE2B_ACCEPTANCE_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_2B_ACCEPTANCE_R5_COMPAT_REPAIR';
+var MODEL_C_PHASE2B_ACCEPTANCE_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_2B_ACCEPTANCE_R6_ZERO_ABC_DEBT';
 
 function RUN_MODEL_C_PHASE2B_ACCEPTANCE() {
   var out = {
@@ -28,6 +29,23 @@ function RUN_MODEL_C_PHASE2B_ACCEPTANCE() {
   } catch (eRepair) {
     out.gates.compatibilityProjectionRepaired = false;
     out.errors.push('Compatibility projection repair exception: ' + String(eRepair && eRepair.message ? eRepair.message : eRepair));
+  }
+
+  try {
+    var abcCleanup = RUN_MODEL_C_ABC_LEGACY_CLEANUP();
+    out.abcLegacyCleanup = abcCleanup;
+    out.writesPerformed = out.writesPerformed || !!(abcCleanup && abcCleanup.writesPerformed === true);
+    out.gates.abcLegacyCompatibilityDebtCleared = !!(
+      abcCleanup &&
+      abcCleanup.success === true &&
+      abcCleanup.reconciliation &&
+      abcCleanup.reconciliation.success === true &&
+      Number(abcCleanup.reconciliation.warningCount || 0) === 0
+    );
+    if (!out.gates.abcLegacyCompatibilityDebtCleared) out.errors.push('ABC legacy compatibility cleanup failed');
+  } catch (eAbcCleanup) {
+    out.gates.abcLegacyCompatibilityDebtCleared = false;
+    out.errors.push('ABC legacy compatibility cleanup exception: ' + String(eAbcCleanup && eAbcCleanup.message ? eAbcCleanup.message : eAbcCleanup));
   }
 
   try {
@@ -112,9 +130,10 @@ function RUN_MODEL_C_PHASE2B_ACCEPTANCE() {
     out.reconciliation = (typeof ModelCPhase2BRecon_compact_ === 'function')
       ? ModelCPhase2BRecon_compact_(reconciliation)
       : reconciliation;
-    out.gates.reconciliation = reconciliation.success === true;
+    out.gates.reconciliation = reconciliation.success === true && Number(reconciliation.warningCount || 0) === 0;
     if (!out.gates.reconciliation) {
       (reconciliation.errors || ['Phase 2B reconciliation failed']).slice(0, 10).forEach(function(x) { out.errors.push(String(x)); });
+      if (Number(reconciliation.warningCount || 0) > 0) out.errors.push('Phase 2B reconciliation still contains ABC legacy warnings: ' + reconciliation.warningCount);
     }
   } catch (eRecon) {
     out.gates.reconciliation = false;

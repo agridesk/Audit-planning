@@ -1,8 +1,8 @@
 /** Pure, read-only tests for Model C Phase 1 reconciliation. */
-var MODEL_C_RECON_TEST_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_1_RECON_TESTS_R1';
+var MODEL_C_RECON_TEST_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_1_RECON_TESTS_R2';
 
 function RUN_MODEL_C_PHASE1_RECONCILIATION_REGRESSION() {
-  var tests = [ModelCReconTest_green_, ModelCReconTest_hoursMismatch_, ModelCReconTest_linkMismatch_, ModelCReconTest_abcExpiry_, ModelCReconTest_dependency_];
+  var tests = [ModelCReconTest_green_, ModelCReconTest_dateObjectCycle_, ModelCReconTest_hoursMismatch_, ModelCReconTest_linkMismatch_, ModelCReconTest_abcExpiry_, ModelCReconTest_dependency_];
   var results = [], passed = 0;
   for (var i = 0; i < tests.length; i++) {
     try { tests[i](); results.push({ name: tests[i].name, ok: true }); passed++; }
@@ -15,6 +15,7 @@ function RUN_MODEL_C_PHASE1_RECONCILIATION_REGRESSION() {
 }
 
 function ModelCReconTest_green_() { ModelCReconTest_assert_(ModelCRecon_compare_(ModelCReconTest_source_(), ModelCReconTest_target_()).success, 'green fixture failed'); }
+function ModelCReconTest_dateObjectCycle_() { var t = ModelCReconTest_target_(); t.rows.Audit_Obligations[0].Cycle_Key = new Date(2027, 4, 31); ModelCReconTest_assert_(ModelCRecon_compare_(ModelCReconTest_source_(), t).success, 'date object cycle did not normalize'); }
 function ModelCReconTest_hoursMismatch_() { var t = ModelCReconTest_target_(); t.rows.Audit_Obligations[0].Formal_Hours = 9; ModelCReconTest_assert_(!ModelCRecon_compare_(ModelCReconTest_source_(), t).success, 'hours mismatch accepted'); }
 function ModelCReconTest_linkMismatch_() { var t = ModelCReconTest_target_(); t.rows.Audit_Visit_Obligations[0].Audit_ID = 'WRONG'; ModelCReconTest_assert_(!ModelCRecon_compare_(ModelCReconTest_source_(), t).success, 'link mismatch accepted'); }
 function ModelCReconTest_abcExpiry_() { var s = ModelCReconTest_source_('MPS-ABC'); var t = ModelCReconTest_target_('MPS-ABC'); t.rows.Audit_Obligations[0].Base_Expiry_Date = '2026-12-31'; ModelCReconTest_assert_(!ModelCRecon_compare_(s, t).success, 'ABC expiry accepted'); }

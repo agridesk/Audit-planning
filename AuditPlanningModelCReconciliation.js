@@ -4,7 +4,7 @@
  * Read-only comparison of legacy Audit planning and Model C backfill.
  */
 
-var MODEL_C_RECON_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_1_RECONCILIATION_R1';
+var MODEL_C_RECON_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_1_RECONCILIATION_R2_DATE_NORMALIZATION';
 
 function RUN_MODEL_C_PHASE1_RECONCILIATION() {
   var ss = SpreadsheetApp.getActive();
@@ -50,7 +50,9 @@ function ModelCRecon_compare_(source, target) {
   var csById = ModelCRecon_uniqueIndex_(csRows, 'Company_Scope_ID', 'Company Scope ID', errors);
   var csByNatural = ModelCRecon_uniqueComputedIndex_(csRows, function(x) { return x.Company_UID + '|' + x.ScopeCode; }, 'Company Scope natural key', errors);
   var obById = ModelCRecon_uniqueIndex_(obRows, 'Obligation_ID', 'Obligation ID', errors);
-  var obByNatural = ModelCRecon_uniqueComputedIndex_(obRows, function(x) { return x.Company_UID + '|' + x.ScopeCode + '|' + x.Cycle_Key + '|' + x.Trigger_Source; }, 'Obligation natural key', errors);
+  var obByNatural = ModelCRecon_uniqueComputedIndex_(obRows, function(x) {
+    return ModelCFoundation_clean_(x.Company_UID) + '|' + ModelCFoundation_clean_(x.ScopeCode) + '|' + ModelCFoundation_clean_(x.Cycle_Key) + '|' + ModelCFoundation_clean_(x.Trigger_Source);
+  }, 'Obligation natural key', errors);
   var activeLinkByObligation = {};
   var linkedAudits = {};
 

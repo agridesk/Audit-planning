@@ -1,5 +1,82 @@
 /** Model C Phase 2A: obligation-owned extension and planning-window mutation. */
 var MODEL_C_EXTENSION_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_2A_EXTENSION_R1';
+var MODEL_C_EXTENSION_SMOKE_AUDIT_ID = 'AUD_TEST_AcceptedDelta_HQ_1777979469906_101';
+
+function RUN_MODEL_C_PHASE2A_CONTROLLED_SMOKE() {
+  var auditId = MODEL_C_EXTENSION_SMOKE_AUDIT_ID;
+  var ss = SpreadsheetApp.getActive();
+  var snapshots = [];
+  var applyResult = null;
+  var restored = false;
+  var result = null;
+  try {
+    var beforeInfo = v5_getExpiryInfo(auditId);
+    if (!beforeInfo.success) throw new Error(beforeInfo.message || 'Test audit unavailable');
+    if (!beforeInfo.canExtend) throw new Error('Test audit is not eligible for Extension in its current state');
+    snapshots = ModelCExtension_captureAuditSnapshots_(ss, auditId);
+    applyResult = v5_applyExtension(auditId);
+    if (!applyResult || applyResult.success === false) throw new Error((applyResult && applyResult.message) || 'Extension apply failed');
+    var afterInfo = v5_getExpiryInfo(auditId);
+    if (!afterInfo.success || afterInfo.applied !== true) throw new Error('Legacy projection did not show applied Extension');
+    var ownerCheck = ModelCExtension_checkOwnerProjection_(ss, auditId, applyResult.z, applyResult.planningWindowFrom, applyResult.planningWindowTo);
+    if (!ownerCheck.success) throw new Error(ownerCheck.errors.join('; '));
+    result = { success:true, build:MODEL_C_EXTENSION_BUILD, auditId:auditId, writesPerformed:true, temporaryWrites:true, applyResult:applyResult, ownerCheck:ownerCheck };
+  } catch (e) {
+    result = { success:false, build:MODEL_C_EXTENSION_BUILD, auditId:auditId, writesPerformed:!!applyResult, temporaryWrites:!!applyResult, message:String(e && e.message ? e.message : e), applyResult:applyResult };
+  } finally {
+    for (var i = snapshots.length - 1; i >= 0; i--) try {
+      if (snapshots[i].numberFormats) snapshots[i].range.setNumberFormats(snapshots[i].numberFormats);
+      snapshots[i].range.setValues(snapshots[i].values);
+    } catch (ignoreRestore) {}
+    if (snapshots.length) {
+      SpreadsheetApp.flush();
+      restored = true;
+      try { V5_invalidateToolkitCachesAfterAuditRowMutation_(auditId, ''); } catch (ignoreCache) {}
+    }
+  }
+  result.restored = restored;
+  Logger.log(JSON.stringify(result, null, 2));
+  return result;
+}
+
+function ModelCExtension_captureAuditSnapshots_(ss, auditId) {
+  var out = [];
+  var ap = ss.getSheetByName(MODEL_C_SHEETS.AUDIT_PLANNING);
+  var apValues = ap.getDataRange().getValues();
+  var apMap = ModelCFoundation_headerMap_(apValues[0] || []);
+  var apRow = ModelCExtension_findRow_(apValues, apMap, 'Audit ID', auditId);
+  if (!apRow) throw new Error('Test audit projection row missing');
+  var apRange = ap.getRange(apRow, 1, 1, apValues[0].length);
+  out.push({ range:apRange, values:apRange.getValues(), numberFormats:apRange.getNumberFormats() });
+  var ob = ss.getSheetByName(MODEL_C_SHEETS.AUDIT_OBLIGATIONS);
+  var lk = ss.getSheetByName(MODEL_C_SHEETS.VISIT_OBLIGATIONS);
+  var obValues = ob.getDataRange().getValues();
+  var obMap = ModelCFoundation_headerMap_(obValues[0] || []);
+  var plan = ModelCExtension_planMutation_({ auditId:auditId }, ModelCMigration_rowsToObjects_(obValues), ModelCMigration_rowsToObjects_(lk.getDataRange().getValues()));
+  if (!plan.success) throw new Error(plan.error);
+  plan.obligationIds.forEach(function(id) {
+    var row = ModelCExtension_findRow_(obValues, obMap, 'Obligation_ID', id);
+    var range = ob.getRange(row, 1, 1, obValues[0].length);
+    out.push({ range:range, values:range.getValues(), numberFormats:range.getNumberFormats() });
+  });
+  return out;
+}
+
+function ModelCExtension_checkOwnerProjection_(ss, auditId, expiry, from, to) {
+  var ob = ss.getSheetByName(MODEL_C_SHEETS.AUDIT_OBLIGATIONS);
+  var lk = ss.getSheetByName(MODEL_C_SHEETS.VISIT_OBLIGATIONS);
+  var obligations = ModelCMigration_rowsToObjects_(ob.getDataRange().getValues());
+  var plan = ModelCExtension_planMutation_({ auditId:auditId }, obligations, ModelCMigration_rowsToObjects_(lk.getDataRange().getValues()));
+  var wanted = {}; (plan.obligationIds || []).forEach(function(id) { wanted[id] = true; });
+  var errors = [];
+  obligations.forEach(function(x) {
+    if (!wanted[String(x.Obligation_ID)]) return;
+    if (String(x.Extension_Applied) !== 'Yes') errors.push('Owner flag mismatch: ' + x.Obligation_ID);
+    if (ModelCFoundation_clean_(x.Effective_Expiry_Date) !== expiry) errors.push('Owner expiry mismatch: ' + x.Obligation_ID);
+    if (ModelCFoundation_clean_(x.Planning_Window_From) !== from || ModelCFoundation_clean_(x.Planning_Window_To) !== to) errors.push('Owner window mismatch: ' + x.Obligation_ID);
+  });
+  return { success:errors.length === 0, obligationsChecked:Object.keys(wanted).length, errors:errors };
+}
 
 function RUN_MODEL_C_PHASE2A_EXTENSION_PREFLIGHT() {
   var ss = SpreadsheetApp.getActive();
@@ -47,7 +124,7 @@ function ModelCExtension_commit(command) {
       if (!rowIndex) throw new Error('Obligation disappeared: ' + plan.obligationIds[i]);
       var range = obSheet.getRange(rowIndex, 1, 1, obHeaders.length);
       var oldRow = range.getValues()[0];
-      before.push({ range: range, values: [oldRow] });
+      before.push({ range: range, values: [oldRow], numberFormats:range.getNumberFormats() });
       var next = oldRow.slice();
       ModelCExtension_set_(next, obMap, 'Extension_Applied', command.extensionApplied);
       ModelCExtension_set_(next, obMap, 'Extension_Metadata_JSON', JSON.stringify(command.metadata));
@@ -55,6 +132,10 @@ function ModelCExtension_commit(command) {
       ModelCExtension_set_(next, obMap, 'Planning_Window_From', command.planningWindowFrom);
       ModelCExtension_set_(next, obMap, 'Planning_Window_To', command.planningWindowTo);
       ModelCExtension_set_(next, obMap, 'Updated_At', new Date().toISOString());
+      ['Effective_Expiry_Date', 'Planning_Window_From', 'Planning_Window_To'].forEach(function(header) {
+        var dateCol = obMap[ModelCFoundation_normHeader_(header)];
+        if (dateCol !== undefined) obSheet.getRange(rowIndex, dateCol + 1).setNumberFormat('@');
+      });
       range.setValues([next]);
     }
     before.push(ModelCExtension_snapshotLegacy_(apSheet, command.auditId));
@@ -62,7 +143,10 @@ function ModelCExtension_commit(command) {
     SpreadsheetApp.flush();
     return { success:true, build:MODEL_C_EXTENSION_BUILD, owner:'Audit_Obligations', auditId:command.auditId, obligationsUpdated:plan.obligationIds.length, obligationIds:plan.obligationIds, projectionWritten:true, writesPerformed:true };
   } catch (e) {
-    for (var b = before.length - 1; b >= 0; b--) try { before[b].range.setValues(before[b].values); } catch (ignore) {}
+    for (var b = before.length - 1; b >= 0; b--) try {
+      if (before[b].numberFormats) before[b].range.setNumberFormats(before[b].numberFormats);
+      before[b].range.setValues(before[b].values);
+    } catch (ignore) {}
     return { success:false, build:MODEL_C_EXTENSION_BUILD, auditId:command.auditId, writesPerformed:before.length > 0, rolledBack:before.length > 0, message:String(e && e.message ? e.message : e) };
   } finally {
     try { lock.releaseLock(); } catch (ignoreLock) {}
@@ -122,7 +206,7 @@ function ModelCExtension_snapshotLegacy_(sheet, auditId) {
   var rowIndex = ModelCExtension_findRow_(values, map, 'Audit ID', auditId);
   if (!rowIndex) throw new Error('Legacy projection row missing: ' + auditId);
   var range = sheet.getRange(rowIndex, 1, 1, headers.length);
-  return { range:range, values:range.getValues() };
+  return { range:range, values:range.getValues(), numberFormats:range.getNumberFormats() };
 }
 
 function ModelCExtension_findRow_(values, map, header, wanted) {

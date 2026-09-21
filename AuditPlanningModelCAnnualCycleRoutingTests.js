@@ -1,10 +1,10 @@
 /** AMS-01.6 Model C annual-cycle runtime routing acceptance. */
-var MODEL_C_ANNUAL_CYCLE_ROUTING_TEST_BUILD='2026-09-20_AMS_01_6_MODEL_C_ANNUAL_CYCLE_ROUTING_TEST_R1';
+var MODEL_C_ANNUAL_CYCLE_ROUTING_TEST_BUILD='2026-09-21_AMS_01_6_MODEL_C_ANNUAL_CYCLE_ROUTING_TEST_R2_NON_RECURRING_RUNTIME';
 var MODEL_C_ANNUAL_CYCLE_TEST_AUDIT_ID='AUD_TEST_AcceptedDelta_HQ_1777979469906_101';
 
 function RUN_MODEL_C_ANNUAL_CYCLE_ROUTE_ACCEPTANCE(){
   var ss=SpreadsheetApp.getActive();
-  var out={success:false,build:MODEL_C_ANNUAL_CYCLE_ROUTING_TEST_BUILD,runtimeBuild:(typeof MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD!=='undefined'?MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD:''),writesPerformed:true,rolledBack:false,auditId:MODEL_C_ANNUAL_CYCLE_TEST_AUDIT_ID,gates:{},errors:[],successorSmoke:null,finalizerSmoke:null,postRestore:null};
+  var out={success:false,build:MODEL_C_ANNUAL_CYCLE_ROUTING_TEST_BUILD,runtimeBuild:(typeof MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD!=='undefined'?MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD:''),writesPerformed:true,rolledBack:false,auditId:MODEL_C_ANNUAL_CYCLE_TEST_AUDIT_ID,nonRecurringAuditId:'',gates:{},errors:[],successorSmoke:null,nonRecurringSmoke:null,finalizerSmoke:null,postRestore:null};
   var ap=ss.getSheetByName(MODEL_C_SHEETS.AUDIT_PLANNING),obSheet=ss.getSheetByName(MODEL_C_SHEETS.AUDIT_OBLIGATIONS),lkSheet=ss.getSheetByName(MODEL_C_SHEETS.VISIT_OBLIGATIONS);
   if(!ap||!obSheet||!lkSheet){out.errors.push('Required sheet missing');Logger.log(JSON.stringify(out,null,2));return out;}
 
@@ -43,6 +43,18 @@ function RUN_MODEL_C_ANNUAL_CYCLE_ROUTE_ACCEPTANCE(){
 
     ModelCScopeOwner_restoreSnapshot_(apSnap);ModelCScopeOwner_restoreSnapshot_(obSnap);ModelCScopeOwner_restoreSnapshot_(lkSnap);SpreadsheetApp.flush();ModelCAnnualCycle_invalidateAuditPlanningCaches_();
 
+    var nr=ModelCAnnualCycleRouting_findNonRecurringOnlyAudit_(ss);
+    if(!nr||!nr.auditId)throw new Error('No non-recurring-only Model C audit found for runtime acceptance');
+    out.nonRecurringAuditId=nr.auditId;
+    var nrValues=ap.getDataRange().getValues(),nrHeaders=nrValues[0]||[],nrRowIndex=ModelCAnnualCycle_findAuditRow_(nrValues,nrHeaders,nr.auditId);
+    if(!nrRowIndex)throw new Error('Non-recurring audit row not found: '+nr.auditId);
+    var nrRow=nrValues[nrRowIndex-1]||[],nrObj={};for(var nc=0;nc<nrHeaders.length;nc++)nrObj[String(nrHeaders[nc]||'')]=nrRow[nc];
+    var nrBeforeRows=ap.getLastRow(),nrBeforeOb=obSheet.getLastRow(),nrBeforeLinks=lkSheet.getLastRow();
+    var nrSmoke=AnnualCycleEngineV5_HandleCompletionRow_(nrObj);out.nonRecurringSmoke=nrSmoke;
+    out.gates.nonRecurringRuntimeNoSuccessor=!!nrSmoke&&nrSmoke.success===true&&nrSmoke.recurring===false&&nrSmoke.spawned===false&&nrSmoke.nextCycleEligible===false&&!(nrSmoke.nextAuditIds||[]).length;
+    out.gates.nonRecurringRuntimeNoWrites=ap.getLastRow()===nrBeforeRows&&obSheet.getLastRow()===nrBeforeOb&&lkSheet.getLastRow()===nrBeforeLinks;
+    out.gates.nonRecurringCycleKeyResolved=Number(ModelCToolkitCycle_yearForAudit_(ss,nr.auditId))===Number(nr.cycleYear);
+
     var finalObSnap=ModelCScopeOwner_snapshotSheet_(obSheet),finalLkSnap=ModelCScopeOwner_snapshotSheet_(lkSheet);
     try{
       var fin=ModelCAnnualCycle_finalizeCompletedVisit_(MODEL_C_ANNUAL_CYCLE_TEST_AUDIT_ID);out.finalizerSmoke=fin;
@@ -69,4 +81,23 @@ function RUN_MODEL_C_ANNUAL_CYCLE_ROUTE_ACCEPTANCE(){
     SpreadsheetApp.flush();ModelCAnnualCycle_invalidateAuditPlanningCaches_();out.rolledBack=true;
     Logger.log(JSON.stringify(out,null,2));return out;
   }
+}
+
+function ModelCAnnualCycleRouting_findNonRecurringOnlyAudit_(ss){
+  ss=ss||SpreadsheetApp.getActive();
+  var obSheet=ss.getSheetByName(MODEL_C_SHEETS.AUDIT_OBLIGATIONS),lkSheet=ss.getSheetByName(MODEL_C_SHEETS.VISIT_OBLIGATIONS);
+  if(!obSheet||!lkSheet)return null;
+  var obs=ModelCMigration_rowsToObjects_(obSheet.getDataRange().getValues()),links=ModelCMigration_rowsToObjects_(lkSheet.getDataRange().getValues()),byId={},byAudit={};
+  obs.forEach(function(ob){byId[String(ob.Obligation_ID||'')]=ob;});
+  links.forEach(function(link){if(String(link.Link_State||'').toUpperCase()!=='ACTIVE')return;var aid=String(link.Audit_ID||''),ob=byId[String(link.Obligation_ID||'')];if(!aid||!ob)return;if(!byAudit[aid])byAudit[aid]=[];byAudit[aid].push(ob);});
+  var ids=Object.keys(byAudit).sort();
+  for(var i=0;i<ids.length;i++){
+    var list=byAudit[ids[i]]||[],recurring=false,year='';
+    for(var j=0;j<list.length;j++){
+      if(ModelCRecurringConfig_isRecurring_(ss,String(list[j].ScopeCode||'')))recurring=true;
+      var m=String(list[j].Cycle_Key||'').match(/^(\d{4})/);if(m&&!year)year=m[1];
+    }
+    if(!recurring&&year)return{auditId:ids[i],cycleYear:Number(year),obligations:list.length};
+  }
+  return null;
 }

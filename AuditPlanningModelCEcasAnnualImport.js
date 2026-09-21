@@ -1,21 +1,25 @@
 /**
  * AMS-01.6 Model C — canonical ECAS MPS-ABC annual import.
  *
- * Source staging contract:
- * - Sheet: BronBedrijfUrenScopes
- * - Required headers in row 1: MPS-nummer, Mandated time, Services
- * - Explicit batch year: G1 (for example 2026 / 2027)
- * - Source contains multiple service rows per MPS number. Only rows whose Services contains MPS-ABC belong to this importer.
- * - Other services (GRASP, MPS-GAP, Florimark, etc.) are ignored here, not treated as errors or duplicates.
- * - Name, Start planning date, Audit type, Audit order no., address fields and annotations are ignored.
+ * Supported source contracts on sheet BronBedrijfUrenScopes:
+ * 1) Rich ECAS ABC export: MPS-nummer, Mandated time, Services,
+ *    Audit order no., Start planning date (plus optional descriptive columns).
+ *    The cycle year is derived from Audit order no.; the highest year present
+ *    is the explicit import batch represented by the current source export.
+ * 2) Legacy staging: MPS-nummer, Mandated time, Services and an explicit
+ *    four-digit batch year in G1.
  *
  * Canonical writes:
  * - Company_Scopes
  * - Audit_Obligations
  *
- * Audit planning is NOT written here. Visit/materialization is a separate step.
+ * Audit planning is NOT written here. Visit materialization is separate.
+ * MPS-ABC is non-recurring: source Certificate valid until is never mapped to
+ * certificate expiry/birthday. Existing canonical planning windows are
+ * preserved; the importer does not invent a Planning_Window_To when the ECAS
+ * source only supplies Start planning date.
  */
-var MODEL_C_ECAS_ANNUAL_IMPORT_BUILD='2026-09-21_AMS_01_6_MODEL_C_ECAS_ANNUAL_IMPORT_R2_SERVICE_FILTER';
+var MODEL_C_ECAS_ANNUAL_IMPORT_BUILD='2026-09-21_AMS_01_6_MODEL_C_ECAS_ANNUAL_IMPORT_R3_RICH_SOURCE_RECONCILIATION';
 var MODEL_C_ECAS_SOURCE_SHEET='BronBedrijfUrenScopes';
 var MODEL_C_ECAS_SCOPE_CODE='MPS-ABC';
 var MODEL_C_ECAS_TRIGGER_SOURCE='ECAS';
@@ -53,11 +57,11 @@ function RUN_MODEL_C_ECAS_IMPORT_APPLY(){
 
     var stamp=new Date().toISOString();
     var batchId='ECAS_ABC_'+plan.batchYear+'_'+Utilities.formatDate(new Date(),Session.getScriptTimeZone(),'yyyyMMdd_HHmmss');
-    var createdScopes=0,reactivatedScopes=0,createdObligations=0,updatedHours=0,unchanged=0,skippedCompleted=0;
+    var createdScopes=0,reactivatedScopes=0,createdObligations=0,updatedHours=0,unchanged=0,skippedCompleted=0,preservedWindows=0;
 
     plan.actions.forEach(function(a){
       if(a.action==='SKIP_COMPLETED'){skippedCompleted++;return;}
-      if(a.action==='CONFLICT')return;
+      if(a.action==='CONFLICT'||a.action==='STALE_CANONICAL_NOT_IN_SOURCE')return;
 
       var scope=csByCompany[a.companyUid];
       if(!scope){
@@ -114,8 +118,7 @@ function RUN_MODEL_C_ECAS_IMPORT_APPLY(){
         obligation.Effective_Expiry_Date='';
         obligation.Extension_Applied='';
         obligation.Extension_Metadata_JSON='';
-        obligation.Planning_Window_From='';
-        obligation.Planning_Window_To='';
+        if(String(obligation.Planning_Window_From||'').trim()||String(obligation.Planning_Window_To||'').trim())preservedWindows++;
         obligation.Updated_At=stamp;
       }
     });
@@ -137,15 +140,19 @@ function RUN_MODEL_C_ECAS_IMPORT_APPLY(){
       counts:{
         sourceRows:plan.counts.sourceRows,
         sourcePhysicalRows:plan.counts.sourcePhysicalRows,
+        ignoredOtherYearRows:plan.counts.ignoredOtherYearRows,
         ignoredOtherServiceRows:plan.counts.ignoredOtherServiceRows,
         createdCompanyScopes:createdScopes,
         reactivatedCompanyScopes:reactivatedScopes,
         createdObligations:createdObligations,
         updatedHours:updatedHours,
         unchanged:unchanged,
-        skippedCompleted:skippedCompleted
+        skippedCompleted:skippedCompleted,
+        preservedPlanningWindows:preservedWindows,
+        staleCanonicalNotInSource:verify.counts.staleCanonicalNotInSource||0,
+        incompletePlanningWindows:verify.counts.incompletePlanningWindows||0
       },
-      gates:{canonicalTargetsOnly:true,directAuditPlanningWrite:false,explicitBatchYear:true,postApplyReconciled:true},
+      gates:{canonicalTargetsOnly:true,directAuditPlanningWrite:false,certificateLifecycleLeak:false,planningWindowsNotInvented:true,postApplyReconciled:true},
       postVerify:ModelCEcasAnnualImport_compact_(verify),
       errors:[]
     };
@@ -166,20 +173,13 @@ function ModelCEcasAnnualImport_buildPlan_(ss){
     writesPerformed:false,
     batchYear:'',
     sourceSheet:MODEL_C_ECAS_SOURCE_SHEET,
+    sourceMode:'',
+    detectedYears:{},
     counts:{
-      sourcePhysicalRows:0,
-      sourceRows:0,
-      ignoredOtherServiceRows:0,
-      duplicateAbcRowsCollapsed:0,
-      matchedCompanies:0,
-      completedAlready:0,
-      existingSameCycle:0,
-      createCompanyScopes:0,
-      reactivateCompanyScopes:0,
-      createObligations:0,
-      updateHours:0,
-      unchanged:0,
-      conflicts:0
+      sourcePhysicalRows:0,sourceRows:0,ignoredOtherYearRows:0,ignoredOtherServiceRows:0,duplicateAbcRowsCollapsed:0,
+      matchedCompanies:0,completedAlready:0,existingSameCycle:0,createCompanyScopes:0,reactivateCompanyScopes:0,
+      createObligations:0,updateHours:0,unchanged:0,conflicts:0,staleCanonicalNotInSource:0,
+      zeroFormalHoursCanonical:0,incompletePlanningWindows:0,completePlanningWindows:0
     },
     gates:{},errors:[],warnings:[],actions:[]
   };
@@ -190,12 +190,6 @@ function ModelCEcasAnnualImport_buildPlan_(ss){
   out.gates.requiredSheets=out.errors.length===0;
   if(!out.gates.requiredSheets)return out;
 
-  var yearRaw=source.getRange('G1').getDisplayValue();
-  var year=String(yearRaw||'').trim();
-  if(!/^20\d{2}$/.test(year))out.errors.push('BronBedrijfUrenScopes!G1 must contain explicit four-digit batch year');
-  out.batchYear=year;
-  out.gates.explicitBatchYear=/^20\d{2}$/.test(year);
-
   var cfg=ModelCRecurringConfig_get_(ss,MODEL_C_ECAS_SCOPE_CODE);
   out.gates.abcConfiguredNonRecurring=cfg.recurring===false;
   if(cfg.recurring!==false)out.errors.push('MPS-ABC must be Recurring=NO in Config_Scopes');
@@ -204,11 +198,37 @@ function ModelCEcasAnnualImport_buildPlan_(ss){
   var ixMps=ModelCEcasAnnualImport_header_(hm,['MPS-nummer','MPS nummer','MPS-number','MPS number']);
   var ixHours=ModelCEcasAnnualImport_header_(hm,['Mandated time']);
   var ixServices=ModelCEcasAnnualImport_header_(hm,['Services']);
+  var ixOrder=ModelCEcasAnnualImport_header_(hm,['Audit order no.','Audit order no','Audit order','Order no.','Order no']);
+  var ixStart=ModelCEcasAnnualImport_header_(hm,['Start planning date','Planning start date']);
+  var ixType=ModelCEcasAnnualImport_header_(hm,['Audit type']);
+  var ixAnnotation=ModelCEcasAnnualImport_header_(hm,['Annotation auditor 1','Annotation','Auditor annotation']);
   if(ixMps<0)out.errors.push('Source missing header: MPS-nummer');
   if(ixHours<0)out.errors.push('Source missing header: Mandated time');
   if(ixServices<0)out.errors.push('Source missing header: Services');
   out.gates.requiredSourceHeaders=ixMps>=0&&ixHours>=0&&ixServices>=0;
   if(!out.gates.requiredSourceHeaders)return out;
+
+  var rich=ixOrder>=0;
+  out.sourceMode=rich?'RICH_ABC_EXPORT':'LEGACY_STAGING';
+  var year='';
+  if(rich){
+    var years={};
+    for(var yr=1;yr<sv.length;yr++){
+      var svc=String(sv[yr][ixServices]||'').trim();
+      if(!ModelCEcasAnnualImport_isAbcService_(svc))continue;
+      var parsed=ModelCEcasAnnualImport_yearFromOrder_(sv[yr][ixOrder]);
+      if(parsed)years[parsed]=(years[parsed]||0)+1;
+    }
+    out.detectedYears=years;
+    var keys=Object.keys(years).sort();
+    year=keys.length?keys[keys.length-1]:'';
+    if(!year)out.errors.push('No four-digit cycle year found in Audit order no.');
+  }else{
+    year=String(source.getRange('G1').getDisplayValue()||'').trim();
+    if(!/^20\d{2}$/.test(year))out.errors.push('Legacy staging requires explicit four-digit batch year in BronBedrijfUrenScopes!G1');
+  }
+  out.batchYear=year;
+  out.gates.explicitBatchYear=/^20\d{2}$/.test(year);
 
   var abcSourceByMps={};
   for(var sr=1;sr<sv.length;sr++){
@@ -217,28 +237,32 @@ function ModelCEcasAnnualImport_buildPlan_(ss){
     if(!sourceMps)continue;
     out.counts.sourcePhysicalRows++;
     var sourceService=String(sourceRow[ixServices]||'').trim();
-    if(!ModelCEcasAnnualImport_isAbcService_(sourceService)){
-      out.counts.ignoredOtherServiceRows++;
-      continue;
-    }
+    if(!ModelCEcasAnnualImport_isAbcService_(sourceService)){out.counts.ignoredOtherServiceRows++;continue;}
+    var rowYear=rich?ModelCEcasAnnualImport_yearFromOrder_(sourceRow[ixOrder]):year;
+    if(rich&&rowYear!==year){out.counts.ignoredOtherYearRows++;continue;}
+    if(!rowYear){out.errors.push('Missing cycle year for MPS-ABC '+sourceMps+' at source row '+(sr+1));continue;}
     var sourceHours=Number(String(sourceRow[ixHours]===null||sourceRow[ixHours]===undefined?'':sourceRow[ixHours]).trim().replace(',','.'));
     if(!isFinite(sourceHours)||sourceHours<=0){out.errors.push('Invalid Mandated time for MPS-ABC '+sourceMps+' at source row '+(sr+1));continue;}
+    var item={
+      mpsNumber:sourceMps,mandatedHours:sourceHours,sourceRow:sr+1,cycleYear:rowYear,
+      auditOrderNo:ixOrder>=0?String(sourceRow[ixOrder]||'').trim():'',
+      startPlanningDate:ixStart>=0?ModelCEcasAnnualImport_dateText_(sourceRow[ixStart],ss):'',
+      auditType:ixType>=0?String(sourceRow[ixType]||'').trim():'',
+      annotation:ixAnnotation>=0?String(sourceRow[ixAnnotation]||'').trim():''
+    };
     if(abcSourceByMps[sourceMps]){
-      if(Math.abs(abcSourceByMps[sourceMps].mandatedHours-sourceHours)>0.000001){
-        out.errors.push('Conflicting duplicate MPS-ABC rows for '+sourceMps+': '+abcSourceByMps[sourceMps].mandatedHours+' vs '+sourceHours);
-      }else{
-        out.counts.duplicateAbcRowsCollapsed++;
-      }
+      if(Math.abs(abcSourceByMps[sourceMps].mandatedHours-sourceHours)>0.000001){out.errors.push('Conflicting duplicate MPS-ABC rows for '+sourceMps+': '+abcSourceByMps[sourceMps].mandatedHours+' vs '+sourceHours);}
+      else out.counts.duplicateAbcRowsCollapsed++;
       continue;
     }
-    abcSourceByMps[sourceMps]={mpsNumber:sourceMps,mandatedHours:sourceHours,sourceRow:sr+1};
+    abcSourceByMps[sourceMps]=item;
   }
   out.counts.sourceRows=Object.keys(abcSourceByMps).length;
 
   var companyIndex=ModelCEcasAnnualImport_companyIndex_(companies,out.errors);
   var completed=realized?ModelCEcasAnnualImport_completedIndex_(realized,year):{};
   var csRows=ModelCMigration_rowsToObjects_(csSheet.getDataRange().getValues()),obRows=ModelCMigration_rowsToObjects_(obSheet.getDataRange().getValues());
-  var csByCompany={},obByNatural={};
+  var csByCompany={},obByNatural={},sourceCompanyUids={};
   csRows.forEach(function(x){
     if(String(x.ScopeCode||'')!==MODEL_C_ECAS_SCOPE_CODE)return;
     var uid=String(x.Company_UID||'');
@@ -257,64 +281,85 @@ function ModelCEcasAnnualImport_buildPlan_(ss){
     var company=companyIndex[mps];
     if(!company){out.errors.push('MPS-nummer not found in Companies.Number: '+mps);return;}
     out.counts.matchedCompanies++;
-    var uid=company.companyUid;
+    var uid=company.companyUid;sourceCompanyUids[uid]=sourceItem;
     if(completed[uid]){
       out.counts.completedAlready++;
-      out.actions.push({action:'SKIP_COMPLETED',mpsNumber:mps,companyUid:uid,mandatedHours:hours,sourceRow:sourceItem.sourceRow});
+      out.actions.push(ModelCEcasAnnualImport_action_('SKIP_COMPLETED',sourceItem,company,null,null,['REALIZED_AUDIT_ALREADY_COMPLETED']));
       return;
     }
 
     var scope=csByCompany[uid]||null;
-    var action={action:'UPSERT',mpsNumber:mps,companyUid:uid,mandatedHours:hours,sourceRow:sourceItem.sourceRow,companyScopeId:scope?String(scope.Company_Scope_ID||''):'',reasons:[]};
+    var action=ModelCEcasAnnualImport_action_('UPSERT',sourceItem,company,scope,null,[]);
     if(!scope){out.counts.createCompanyScopes++;action.reasons.push('CREATE_COMPANY_SCOPE');}
     else if(String(scope.Active||'').toUpperCase()!=='YES'){out.counts.reactivateCompanyScopes++;action.reasons.push('REACTIVATE_COMPANY_SCOPE');}
 
     var obligation=scope?obByNatural[String(scope.Company_Scope_ID||'')+'|'+year+'|'+MODEL_C_ECAS_TRIGGER_SOURCE]:null;
-    if(!obligation){out.counts.createObligations++;action.reasons.push('CREATE_OBLIGATION');}
-    else{
+    action.obligationId=obligation?String(obligation.Obligation_ID||''):'';
+    if(!obligation){
+      out.counts.createObligations++;action.reasons.push('CREATE_OBLIGATION');out.counts.incompletePlanningWindows++;
+      action.planningWindow={from:'',to:'',complete:false,sourceStartPlanningDate:sourceItem.startPlanningDate};
+    }else{
       out.counts.existingSameCycle++;
       var state=String(obligation.Obligation_State||'').toUpperCase();
       if(state==='COMPLETED'){
-        out.counts.completedAlready++;
-        action.action='SKIP_COMPLETED';
-        action.reasons=['EXISTING_COMPLETED_OBLIGATION'];
+        out.counts.completedAlready++;action.action='SKIP_COMPLETED';action.reasons=['EXISTING_COMPLETED_OBLIGATION'];
       }else if(state==='CANCELLED'||state==='REJECTED'){
-        out.counts.conflicts++;
-        action.action='CONFLICT';
-        action.reasons=['CLOSED_SAME_CYCLE_'+state];
-        out.errors.push('Closed MPS-ABC obligation already exists for '+mps+' / '+year+' ('+state+')');
+        out.counts.conflicts++;action.action='CONFLICT';action.reasons=['CLOSED_SAME_CYCLE_'+state];out.errors.push('Closed MPS-ABC obligation already exists for '+mps+' / '+year+' ('+state+')');
       }else{
         var existingHours=Number(String(obligation.Formal_Hours||'').replace(',','.'));
+        if(!isFinite(existingHours)||existingHours<=0)out.counts.zeroFormalHoursCanonical++;
         if(!isFinite(existingHours)||Math.abs(existingHours-hours)>0.000001){out.counts.updateHours++;action.reasons.push('UPDATE_FORMAL_HOURS');}
         else{out.counts.unchanged++;if(!action.reasons.length)action.reasons.push('UNCHANGED');}
         if(obligation.Base_Expiry_Date||obligation.Effective_Expiry_Date)out.errors.push('MPS-ABC same-cycle obligation contains certificate expiry for '+mps);
+        var wf=String(obligation.Planning_Window_From||'').trim(),wt=String(obligation.Planning_Window_To||'').trim(),complete=!!(wf&&wt);
+        if(complete)out.counts.completePlanningWindows++;else out.counts.incompletePlanningWindows++;
+        action.planningWindow={from:wf,to:wt,complete:complete,sourceStartPlanningDate:sourceItem.startPlanningDate};
       }
     }
     out.actions.push(action);
   });
 
+  Object.keys(csByCompany).forEach(function(uid){
+    var scope=csByCompany[uid];
+    var ob=obByNatural[String(scope.Company_Scope_ID||'')+'|'+year+'|'+MODEL_C_ECAS_TRIGGER_SOURCE];
+    if(!ob||ModelCEcasAnnualImport_terminalObligation_(ob)||sourceCompanyUids[uid])return;
+    out.counts.staleCanonicalNotInSource++;
+    var c=ModelCEcasAnnualImport_companyByUid_(companyIndex,uid);
+    out.actions.push({action:'STALE_CANONICAL_NOT_IN_SOURCE',companyUid:uid,company:c?c.companyName:'',mpsNumber:c?c.mpsNumber:'',obligationId:String(ob.Obligation_ID||''),cycleYear:year,formalHours:Number(ob.Formal_Hours||0),reasons:['CANONICAL_SAME_CYCLE_NOT_PRESENT_IN_SOURCE'],planningWindow:{from:String(ob.Planning_Window_From||''),to:String(ob.Planning_Window_To||''),complete:!!(ob.Planning_Window_From&&ob.Planning_Window_To)}});
+  });
+
+  if(out.counts.staleCanonicalNotInSource)out.warnings.push(out.counts.staleCanonicalNotInSource+' same-cycle canonical MPS-ABC obligation(s) are not present in the source; no automatic deletion/deactivation will occur.');
+  if(out.counts.incompletePlanningWindows)out.warnings.push(out.counts.incompletePlanningWindows+' source/canonical MPS-ABC obligation(s) do not have a complete canonical planning window; visit materialization must not invent one.');
+
   out.gates.sourceRowsPresent=out.counts.sourceRows>0;
-  out.gates.otherServicesIgnored=out.counts.ignoredOtherServiceRows>=0;
   out.gates.allCompaniesMatched=out.counts.matchedCompanies===out.counts.sourceRows&&!out.errors.some(function(x){return x.indexOf('MPS-nummer not found')===0;});
   out.gates.noConflicts=out.counts.conflicts===0;
   out.gates.noCertificateLifecycleLeak=!out.errors.some(function(x){return x.indexOf('MPS-ABC same-cycle obligation contains certificate expiry')===0;});
+  out.gates.cycleDerivedFromOrderOrExplicitLegacyYear=out.gates.explicitBatchYear;
+  out.gates.planningWindowsPreservedNotInvented=true;
   out.gates.directAuditPlanningWrite=false;
   out.success=out.errors.length===0&&out.gates.explicitBatchYear&&out.gates.abcConfiguredNonRecurring&&out.gates.requiredSourceHeaders&&out.gates.sourceRowsPresent&&out.gates.noConflicts&&out.gates.allCompaniesMatched;
   return out;
 }
 
+function ModelCEcasAnnualImport_action_(kind,sourceItem,company,scope,obligation,reasons){
+  return{action:kind,mpsNumber:sourceItem.mpsNumber,companyUid:company.companyUid,company:company.companyName||'',mandatedHours:sourceItem.mandatedHours,sourceRow:sourceItem.sourceRow,cycleYear:sourceItem.cycleYear,auditOrderNo:sourceItem.auditOrderNo,startPlanningDate:sourceItem.startPlanningDate,auditType:sourceItem.auditType,annotation:sourceItem.annotation,companyScopeId:scope?String(scope.Company_Scope_ID||''):'',obligationId:obligation?String(obligation.Obligation_ID||''):'',reasons:(reasons||[]).slice()};
+}
+
 function ModelCEcasAnnualImport_companyIndex_(sheet,errors){
-  var v=sheet.getDataRange().getValues(),h=v[0]||[],m=ModelCFoundation_headerMap_(h),ixNumber=ModelCEcasAnnualImport_header_(m,['Number','MPS-nummer','MPS nummer']),ixUid=ModelCEcasAnnualImport_header_(m,['Company_UID','Company UID']);
+  var v=sheet.getDataRange().getValues(),h=v[0]||[],m=ModelCFoundation_headerMap_(h),ixNumber=ModelCEcasAnnualImport_header_(m,['Number','MPS-nummer','MPS nummer']),ixUid=ModelCEcasAnnualImport_header_(m,['Company_UID','Company UID']),ixName=ModelCEcasAnnualImport_header_(m,['Company','Company name','Name']);
   if(ixNumber<0||ixUid<0){errors.push('Companies missing Number or Company_UID');return{};}
   var out={};
   for(var r=1;r<v.length;r++){
     var number=String(v[r][ixNumber]||'').trim(),uid=String(v[r][ixUid]||'').trim();
     if(!number)continue;
     if(out[number]&&out[number].companyUid!==uid)errors.push('Duplicate Companies.Number: '+number);
-    out[number]={companyUid:uid,row:r+1};
+    out[number]={mpsNumber:number,companyUid:uid,companyName:ixName>=0?String(v[r][ixName]||'').trim():'',row:r+1};
   }
   return out;
 }
+
+function ModelCEcasAnnualImport_companyByUid_(index,uid){var found=null;Object.keys(index||{}).some(function(k){if(String(index[k].companyUid||'')===String(uid||'')){found=index[k];return true;}return false;});return found;}
 
 function ModelCEcasAnnualImport_completedIndex_(sheet,year){
   var v=sheet.getDataRange().getValues();if(v.length<2)return{};
@@ -332,34 +377,20 @@ function ModelCEcasAnnualImport_completedIndex_(sheet,year){
   return out;
 }
 
-function ModelCEcasAnnualImport_yearFromValue_(v,ss){
-  if(Object.prototype.toString.call(v)==='[object Date]'&&!isNaN(v.getTime()))return Utilities.formatDate(v,ss.getSpreadsheetTimeZone()||Session.getScriptTimeZone(),'yyyy');
-  var s=String(v||'').trim(),m=s.match(/(20\d{2})/);return m?m[1]:'';
-}
-
-function ModelCEcasAnnualImport_header_(map,names){
-  for(var i=0;i<names.length;i++){var k=ModelCFoundation_normHeader_(names[i]);if(map[k]!==undefined)return map[k];}
-  return-1;
-}
-
-function ModelCEcasAnnualImport_isAbcService_(v){
-  var s=String(v||'').trim().toUpperCase();if(s==='MPS-ABC')return true;
-  return s.split(/[;,|]/).map(function(x){return x.trim();}).indexOf('MPS-ABC')>=0;
-}
+function ModelCEcasAnnualImport_terminalObligation_(ob){var s=String((ob&&ob.Obligation_State)||'').toUpperCase();return s==='COMPLETED'||s==='CANCELLED'||s==='REJECTED';}
+function ModelCEcasAnnualImport_yearFromOrder_(v){var s=String(v||'').trim(),m=s.match(/(?:^|[-_\s])(20\d{2})(?:[-_\s]|$)/);return m?m[1]:'';}
+function ModelCEcasAnnualImport_yearFromValue_(v,ss){if(Object.prototype.toString.call(v)==='[object Date]'&&!isNaN(v.getTime()))return Utilities.formatDate(v,ss.getSpreadsheetTimeZone()||Session.getScriptTimeZone(),'yyyy');var s=String(v||'').trim(),m=s.match(/(20\d{2})/);return m?m[1]:'';}
+function ModelCEcasAnnualImport_dateText_(v,ss){if(!v)return'';if(Object.prototype.toString.call(v)==='[object Date]'&&!isNaN(v.getTime()))return Utilities.formatDate(v,ss.getSpreadsheetTimeZone()||Session.getScriptTimeZone(),'yyyy-MM-dd');var s=String(v||'').trim(),m=s.match(/^(20\d{2})[-\/](\d{1,2})[-\/](\d{1,2})$/);return m?m[1]+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[3]).padStart(2,'0'):s;}
+function ModelCEcasAnnualImport_header_(map,names){for(var i=0;i<names.length;i++){var k=ModelCFoundation_normHeader_(names[i]);if(map[k]!==undefined)return map[k];}return-1;}
+function ModelCEcasAnnualImport_isAbcService_(v){var s=String(v||'').trim().toUpperCase();if(s==='MPS-ABC')return true;return s.split(/[;,|]/).map(function(x){return x.trim();}).indexOf('MPS-ABC')>=0;}
 
 function ModelCEcasAnnualImport_compact_(out){
   out=out||{};
-  return{
-    success:out.success===true,
-    build:out.build,
-    batchYear:out.batchYear,
-    readOnly:out.readOnly===true,
-    writesPerformed:out.writesPerformed===true,
-    sourceSheet:out.sourceSheet,
-    counts:out.counts||{},
-    gates:out.gates||{},
-    errors:(out.errors||[]).slice(0,25),
-    warnings:(out.warnings||[]).slice(0,25),
-    samples:(out.actions||[]).slice(0,12)
-  };
+  var noteworthy=(out.actions||[]).filter(function(a){
+    if(a.action!=='UPSERT')return true;
+    if(a.annotation)return true;
+    if(a.planningWindow&&a.planningWindow.complete===false)return true;
+    return (a.reasons||[]).some(function(r){return r!=='UNCHANGED';});
+  });
+  return{success:out.success===true,build:out.build,batchYear:out.batchYear,sourceMode:out.sourceMode,detectedYears:out.detectedYears||{},readOnly:out.readOnly===true,writesPerformed:out.writesPerformed===true,sourceSheet:out.sourceSheet,counts:out.counts||{},gates:out.gates||{},errors:(out.errors||[]).slice(0,25),warnings:(out.warnings||[]).slice(0,25),noteworthyActions:noteworthy.slice(0,30)};
 }

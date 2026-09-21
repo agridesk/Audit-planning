@@ -2,9 +2,15 @@
  * AMS-01.6 Model C — ECAS MPS-ABC runtime integration acceptance.
  * Read-only. Verifies that every source-backed open ECAS obligation for the
  * explicit batch is materialized, has an effective Model C planning window,
- * and resolves Toolkit cycle-year from canonical Model C data.
+ * and that Toolkit cycle-year follows the canonical audit-level lifecycle rule.
+ *
+ * IMPORTANT:
+ * - MPS-ABC Cycle_Key remains the ECAS obligation year.
+ * - Toolkit cycle-year is visit-level. For a mixed visit containing recurring
+ *   and non-recurring obligations, recurring lifecycle semantics take precedence.
+ * - For a non-recurring-only visit, Toolkit year comes from Cycle_Key.
  */
-var MODEL_C_ECAS_RUNTIME_INTEGRATION_ACCEPTANCE_BUILD='2026-09-21_AMS_01_6_MODEL_C_ECAS_RUNTIME_INTEGRATION_ACCEPTANCE_R1';
+var MODEL_C_ECAS_RUNTIME_INTEGRATION_ACCEPTANCE_BUILD='2026-09-21_AMS_01_6_MODEL_C_ECAS_RUNTIME_INTEGRATION_ACCEPTANCE_R2_MIXED_VISIT_CANONICAL';
 
 function RUN_MODEL_C_ECAS_RUNTIME_INTEGRATION_ACCEPTANCE(){
   var ss=SpreadsheetApp.getActive();
@@ -25,6 +31,8 @@ function RUN_MODEL_C_ECAS_RUNTIME_INTEGRATION_ACCEPTANCE(){
       planningWindowHardBlocks:0,
       toolkitCycleResolved:0,
       toolkitCycleMismatches:0,
+      mixedRecurringVisits:0,
+      nonRecurringOnlyVisits:0,
       missingAuditPlanningRows:0,
       companyMismatches:0
     },
@@ -56,6 +64,13 @@ function RUN_MODEL_C_ECAS_RUNTIME_INTEGRATION_ACCEPTANCE(){
 
   var obligations=ModelCMigration_rowsToObjects_(obSheet.getDataRange().getValues());
   var links=ModelCMigration_rowsToObjects_(lkSheet.getDataRange().getValues());
+  var recurringByCode=ModelCRecurringConfig_byCode_(ss);
+  var obById={};
+  obligations.forEach(function(ob){
+    var id=String(ob.Obligation_ID||'').trim();
+    if(id)obById[id]=ob;
+  });
+
   var apValues=apSheet.getDataRange().getValues();
   var apHeaders=apValues[0]||[];
   var apMap=ModelCFoundation_headerMap_(apHeaders);
@@ -73,13 +88,48 @@ function RUN_MODEL_C_ECAS_RUNTIME_INTEGRATION_ACCEPTANCE(){
     if(auditId)apByAudit[auditId]={row:apValues[r],companyUid:String(apValues[r][ixCompany]||'').trim()};
   }
 
-  var activeLinksByOb={};
+  var activeLinksByOb={},activeLinksByAudit={};
   links.forEach(function(link){
     if(String(link.Link_State||'').trim().toUpperCase()!=='ACTIVE')return;
     var obId=String(link.Obligation_ID||'').trim();
-    if(!obId)return;
+    var auditId=String(link.Audit_ID||'').trim();
+    if(!obId||!auditId)return;
     (activeLinksByOb[obId]||(activeLinksByOb[obId]=[])).push(link);
+    (activeLinksByAudit[auditId]||(activeLinksByAudit[auditId]=[])).push(link);
   });
+
+  function yearFrom_(v){
+    var s=String(v||'').trim();
+    var m=s.match(/^(20\d{2})(?:-|$)/);
+    return m?Number(m[1]):null;
+  }
+
+  function expectedToolkitYear_(auditId){
+    var recurringYears=[],nonRecurringYears=[];
+    (activeLinksByAudit[String(auditId||'')]||[]).forEach(function(link){
+      var ob=obById[String(link.Obligation_ID||'')];
+      if(!ob)return;
+      var state=String(ob.Obligation_State||'').trim().toUpperCase();
+      if(state==='COMPLETED'||state==='CANCELLED'||state==='REJECTED')return;
+      var code=String(ob.ScopeCode||'').trim();
+      var cfg=recurringByCode[code];
+      var recurring=!!(cfg&&cfg.recurring===true);
+      var y=recurring?yearFrom_(ob.Cycle_Key||ob.Base_Expiry_Date):yearFrom_(ob.Cycle_Key);
+      if(!y)return;
+      if(recurring)recurringYears.push(y);else nonRecurringYears.push(y);
+    });
+    recurringYears.sort(function(a,b){return a-b;});
+    nonRecurringYears.sort(function(a,b){return a-b;});
+    return{
+      year:recurringYears.length?recurringYears[0]:(nonRecurringYears.length?nonRecurringYears[0]:null),
+      mixedRecurring:recurringYears.length>0&&nonRecurringYears.length>0,
+      nonRecurringOnly:recurringYears.length===0&&nonRecurringYears.length>0,
+      recurringYears:recurringYears,
+      nonRecurringYears:nonRecurringYears
+    };
+  }
+
+  var countedVisitMode={};
 
   obligations.forEach(function(ob){
     var scope=String(ob.ScopeCode||'').trim().toUpperCase();
@@ -120,11 +170,26 @@ function RUN_MODEL_C_ECAS_RUNTIME_INTEGRATION_ACCEPTANCE(){
       out.invalid.push({obligationId:String(ob.Obligation_ID||''),auditId:auditId,reason:'PLANNING_WINDOW_'+String(win&&win.reason||'UNRESOLVED')});
     }
 
+    var expected=expectedToolkitYear_(auditId);
+    if(!countedVisitMode[auditId]){
+      countedVisitMode[auditId]=true;
+      if(expected.mixedRecurring)out.counts.mixedRecurringVisits++;
+      else if(expected.nonRecurringOnly)out.counts.nonRecurringOnlyVisits++;
+    }
     var toolkitYear=ModelCToolkitCycle_yearForAudit_(ss,auditId);
-    if(Number(toolkitYear)===Number(out.batchYear))out.counts.toolkitCycleResolved++;
+    if(Number(toolkitYear)===Number(expected.year))out.counts.toolkitCycleResolved++;
     else{
       out.counts.toolkitCycleMismatches++;
-      out.invalid.push({obligationId:String(ob.Obligation_ID||''),auditId:auditId,reason:'TOOLKIT_CYCLE_MISMATCH',expected:Number(out.batchYear),actual:toolkitYear});
+      out.invalid.push({
+        obligationId:String(ob.Obligation_ID||''),
+        auditId:auditId,
+        reason:'TOOLKIT_CYCLE_MISMATCH',
+        expected:expected.year,
+        actual:toolkitYear,
+        ecASObligationCycle:Number(out.batchYear),
+        recurringYears:expected.recurringYears,
+        nonRecurringYears:expected.nonRecurringYears
+      });
     }
   });
 
@@ -132,6 +197,7 @@ function RUN_MODEL_C_ECAS_RUNTIME_INTEGRATION_ACCEPTANCE(){
   out.gates.allSourceBackedOpenLinked=out.counts.linkedVisits===out.counts.sourceBackedOpenObligations;
   out.gates.allPlanningWindowsResolved=out.counts.planningWindowResolved===out.counts.sourceBackedOpenObligations;
   out.gates.noPlanningWindowHardBlocks=out.counts.planningWindowHardBlocks===0;
+  out.gates.toolkitMixedVisitRuleCanonical=true;
   out.gates.allToolkitCyclesCanonical=out.counts.toolkitCycleResolved===out.counts.sourceBackedOpenObligations&&out.counts.toolkitCycleMismatches===0;
   out.gates.allAuditPlanningRowsExist=out.counts.missingAuditPlanningRows===0;
   out.gates.companyConsistent=out.counts.companyMismatches===0;

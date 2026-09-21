@@ -1,8 +1,9 @@
 /**
- * AMS-01.6 Model C: remove obsolete legacy compatibility dates from ABC-only audits.
+ * AMS-01.6 Model C: remove obsolete legacy certificate dates from ABC-only audits.
  * Canonical rule: MPS-ABC has no certificate expiry/birthday lifecycle.
+ * Planning windows are operational data and MUST be preserved for non-recurring scopes.
  */
-var MODEL_C_ABC_LEGACY_CLEANUP_BUILD='2026-09-20_AMS_01_6_MODEL_C_ABC_LEGACY_CLEANUP_R1';
+var MODEL_C_ABC_LEGACY_CLEANUP_BUILD='2026-09-21_AMS_01_6_MODEL_C_ABC_LEGACY_CLEANUP_R2_PRESERVE_WINDOWS';
 
 function RUN_MODEL_C_ABC_LEGACY_CLEANUP(){
   var ss=SpreadsheetApp.getActive();
@@ -30,7 +31,7 @@ function RUN_MODEL_C_ABC_LEGACY_CLEANUP(){
   });
 
   var auditCol=map[ModelCFoundation_normHeader_('Audit ID')];
-  var clearHeaders=['Birthdate certificate','Date - Will Expire','Extended Expiration Date','Planning window from','Planning window to'];
+  var clearHeaders=['Birthdate certificate','Date - Will Expire','Extended Expiration Date'];
   var clearCols=clearHeaders.map(function(h){return map[ModelCFoundation_normHeader_(h)];});
   var rowsChanged=0,cellsCleared=0,auditIds=[];
 
@@ -66,6 +67,7 @@ function RUN_MODEL_C_ABC_LEGACY_CLEANUP(){
     writesPerformed:rowsChanged>0,
     abcRowsCleaned:rowsChanged,
     cellsCleared:cellsCleared,
+    planningWindowsPreserved:true,
     auditIds:auditIds,
     reconciliation:(typeof ModelCPhase2BRecon_compact_==='function'?ModelCPhase2BRecon_compact_(recon):recon)
   };

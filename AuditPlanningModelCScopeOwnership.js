@@ -1,5 +1,5 @@
-/** Model C Phase 2B: scope-ownership transition contract. Read-only until routed. */
-var MODEL_C_SCOPE_OWNER_BUILD = '2026-09-21_AMS_01_6_MODEL_C_PHASE_2B_SCOPE_OWNER_R6_SAFE_SNAPSHOT';
+/** Model C Phase 2B: scope-ownership transition contract. */
+var MODEL_C_SCOPE_OWNER_BUILD = '2026-09-21_AMS_01_6_MODEL_C_PHASE_2B_SCOPE_OWNER_R7_RECURRING_CONFIG';
 
 function RUN_MODEL_C_PHASE2B_SCOPE_OWNER_PREFLIGHT() {
   var ss = SpreadsheetApp.getActive();
@@ -11,7 +11,7 @@ function RUN_MODEL_C_PHASE2B_SCOPE_OWNER_PREFLIGHT() {
   cs.forEach(function(x) { var id=String(x.Company_Scope_ID); if(!id||csById[id])errors.push('Duplicate Company Scope ID: '+id); csById[id]=x; });
   ob.forEach(function(x) { var id=String(x.Obligation_ID); if(!id||obById[id])errors.push('Duplicate Obligation ID: '+id); obById[id]=x; if(!csById[String(x.Company_Scope_ID)])errors.push('Orphan obligation: '+id); });
   lk.forEach(function(x) { if(String(x.Link_State).toUpperCase()!=='ACTIVE')return; activeLinks++; if(!obById[String(x.Obligation_ID)])errors.push('Orphan active link: '+x.Obligation_ID); });
-  var out={success:errors.length===0,readyForScopeOwnerRouting:errors.length===0,build:MODEL_C_SCOPE_OWNER_BUILD,readOnly:true,writesPerformed:false,counts:{companyScopes:cs.length,obligations:ob.length,activeLinks:activeLinks},policy:{deselect:'DEACTIVATE_CANCEL_UNLINK',historyDeleted:false,abcExpiry:false,gapGraspSharedExpiry:true,currentAuditObligationRouting:true,legacyDateProjectionAsText:true,uiHoursReadFromModelC:true,safeSnapshotIntegrated:true},errors:errors.slice(0,25)};
+  var out={success:errors.length===0,readyForScopeOwnerRouting:errors.length===0,build:MODEL_C_SCOPE_OWNER_BUILD,readOnly:true,writesPerformed:false,counts:{companyScopes:cs.length,obligations:ob.length,activeLinks:activeLinks},policy:{deselect:'DEACTIVATE_CANCEL_UNLINK',historyDeleted:false,lifecycleOwner:'Config_Scopes.Recurring',gapGraspSharedExpiry:true,currentAuditObligationRouting:true,legacyDateProjectionAsText:true,uiHoursReadFromModelC:true,safeSnapshotIntegrated:true},errors:errors.slice(0,25)};
   Logger.log(JSON.stringify(out,null,2)); return out;
 }
 
@@ -54,12 +54,21 @@ function ModelCScopeOwner_planTransition_(command, companyScopes, obligations, l
 }
 
 function ModelCScopeOwner_normalizeSelected_(items) {
-  var out={};
+  var ss=SpreadsheetApp.getActive(),out={};
   (items||[]).forEach(function(raw){
-    raw=raw||{}; if(!(raw.enabled===true||String(raw.enabled).toLowerCase()==='true'))return;
-    var code=String(raw.scopeCode||raw.scope||'').trim(); if(!code)return;
-    var abc=ModelCFoundation_isAbc_(code,code);
-    out[code]={scopeCode:code,formalHours:raw.formalHours===undefined?raw.customHours:raw.formalHours,baseExpiry:abc?'':String(raw.baseExpiry||raw.dateWillExpire||'').trim(),certificateBirthday:abc?'':String(raw.certificateBirthday||raw.birthdate||'').trim(),lifecycleType:abc?'EXTERNAL_ANNUAL':'CERTIFICATE_RECURRING'};
+    raw=raw||{};
+    if(!(raw.enabled===true||String(raw.enabled).toLowerCase()==='true'))return;
+    var code=String(raw.scopeCode||raw.scope||'').trim();
+    if(!code)return;
+    var recurring=ModelCRecurringConfig_isRecurring_(ss,code);
+    out[code]={
+      scopeCode:code,
+      recurring:recurring,
+      formalHours:raw.formalHours===undefined?raw.customHours:raw.formalHours,
+      baseExpiry:recurring?String(raw.baseExpiry||raw.dateWillExpire||'').trim():'',
+      certificateBirthday:recurring?String(raw.certificateBirthday||raw.birthdate||'').trim():'',
+      lifecycleType:recurring?'CERTIFICATE_RECURRING':'NON_RECURRING'
+    };
   });
   if(out.GRASP&&out['MPS-GAP']){out.GRASP.baseExpiry=out['MPS-GAP'].baseExpiry;out.GRASP.certificateBirthday=out['MPS-GAP'].certificateBirthday;}
   return out;
@@ -74,9 +83,11 @@ function ModelCScopeOwner_enrichUiScopes_(ss, companyUid, auditId, scopes) {
   return (scopes||[]).map(function(row){
     var match=null; Object.keys(csById).some(function(id){if(String(csById[id].ScopeCode)===String(row.scope)){match={cs:csById[id],ob:obByCs[id]||null};return true;}return false;});
     var out={}; Object.keys(row).forEach(function(k){out[k]=row[k];});
-    out.certificateBirthday=match?ModelCFoundation_clean_(match.cs.Certificate_Birthday):'';
-    out.baseExpiry=match&&match.ob?ModelCExtension_dateInTz_(match.ob.Base_Expiry_Date,ss.getSpreadsheetTimeZone()):'';
-    out.lifecycleType=match?String(match.cs.Lifecycle_Type||''):(ModelCFoundation_isAbc_(row.scope,row.scope)?'EXTERNAL_ANNUAL':'');
+    var recurring=ModelCRecurringConfig_isRecurring_(ss,row.scope);
+    out.recurring=recurring;
+    out.certificateBirthday=recurring&&match?ModelCFoundation_clean_(match.cs.Certificate_Birthday):'';
+    out.baseExpiry=recurring&&match&&match.ob?ModelCExtension_dateInTz_(match.ob.Base_Expiry_Date,ss.getSpreadsheetTimeZone()):'';
+    out.lifecycleType=recurring?'CERTIFICATE_RECURRING':'NON_RECURRING';
     if(match&&match.ob){
       var modelHours=ModelCScopeOwner_hours_(match.ob.Formal_Hours);
       out.customHours=modelHours;
@@ -134,17 +145,17 @@ function ModelCScopeOwner_commit(command) {
 
 function ModelCScopeOwner_validateSelection_(selected){
   if(selected.GRASP&&!selected['MPS-GAP'])throw new Error('GRASP requires MPS-GAP');
-  Object.keys(selected).forEach(function(code){var x=selected[code];if(ModelCFoundation_isAbc_(code,code))return;if(!/^\d{4}-\d{2}-\d{2}$/.test(x.baseExpiry))throw new Error('Expiry date required for '+code);if(x.certificateBirthday&&!/^\d{4}-\d{2}-\d{2}$/.test(x.certificateBirthday))throw new Error('Invalid certificate birthday for '+code);});
+  Object.keys(selected).forEach(function(code){var x=selected[code]||{};if(x.recurring!==true)return;if(!/^\d{4}-\d{2}-\d{2}$/.test(String(x.baseExpiry||'')))throw new Error('Expiry date required for '+code);if(x.certificateBirthday&&!/^\d{4}-\d{2}-\d{2}$/.test(String(x.certificateBirthday)))throw new Error('Invalid certificate birthday for '+code);});
 }
 
 function ModelCScopeOwner_newCompanyScope_(command,item,stamp){return{Company_Scope_ID:ModelCMigration_newId_('CS_'),Company_UID:String(command.companyUid),ScopeCode:item.scopeCode,Active:'YES',Lifecycle_Type:item.lifecycleType,Certificate_Birthday:item.certificateBirthday,Company_Formal_Hours_Override:ModelCScopeOwner_hours_(item.formalHours),Certificate_Metadata_JSON:'',Migration_Batch_ID:'',Source_Audit_ID:String(command.auditId),Created_At:stamp,Updated_At:stamp};}
 
-function ModelCScopeOwner_newObligation_(command,scope,item,stamp,ss){return{Obligation_ID:ModelCMigration_newId_('OBL_'),Company_Scope_ID:scope.Company_Scope_ID,Company_UID:String(command.companyUid),ScopeCode:item.scopeCode,Cycle_Key:'',Trigger_Source:ModelCFoundation_isAbc_(item.scopeCode,item.scopeCode)?'ECAS':'CERTIFICATE_LIFECYCLE',Obligation_State:'OPEN',Base_Expiry_Date:'',Extension_Applied:'',Extension_Metadata_JSON:'',Effective_Expiry_Date:'',Planning_Window_From:'',Planning_Window_To:'',Formal_Hours:ModelCScopeOwner_hours_(item.formalHours),Preassigned_Auditor_Email:'',Allow_Self_Planning:'',Migration_Batch_ID:'',Source_Audit_ID:String(command.auditId),Created_At:stamp,Updated_At:stamp,Closed_At:''};}
+function ModelCScopeOwner_newObligation_(command,scope,item,stamp,ss){return{Obligation_ID:ModelCMigration_newId_('OBL_'),Company_Scope_ID:scope.Company_Scope_ID,Company_UID:String(command.companyUid),ScopeCode:item.scopeCode,Cycle_Key:'',Trigger_Source:item.recurring===true?'CERTIFICATE_LIFECYCLE':'MANUAL_NON_RECURRING',Obligation_State:'OPEN',Base_Expiry_Date:'',Extension_Applied:'',Extension_Metadata_JSON:'',Effective_Expiry_Date:'',Planning_Window_From:'',Planning_Window_To:'',Formal_Hours:ModelCScopeOwner_hours_(item.formalHours),Preassigned_Auditor_Email:'',Allow_Self_Planning:'',Migration_Batch_ID:'',Source_Audit_ID:String(command.auditId),Created_At:stamp,Updated_At:stamp,Closed_At:''};}
 
 function ModelCScopeOwner_updateObligation_(obligation,command,item,stamp,ss){
-  var abc=ModelCFoundation_isAbc_(item.scopeCode,item.scopeCode),tz=ss.getSpreadsheetTimeZone()||Session.getScriptTimeZone();
+  var tz=ss.getSpreadsheetTimeZone()||Session.getScriptTimeZone();
   obligation.Obligation_State='OPEN'; obligation.Closed_At=''; obligation.Formal_Hours=ModelCScopeOwner_hours_(item.formalHours); obligation.Preassigned_Auditor_Email=String(command.preassignedAuditorEmail||'').toLowerCase(); obligation.Allow_Self_Planning=String(command.allowSelfPlanning||''); obligation.Updated_At=stamp;
-  if(abc){obligation.Base_Expiry_Date='';obligation.Effective_Expiry_Date='';obligation.Extension_Applied='';obligation.Extension_Metadata_JSON='';if(!String(obligation.Cycle_Key||''))obligation.Cycle_Key=String(new Date().getFullYear());return;}
+  if(item.recurring!==true){obligation.Base_Expiry_Date='';obligation.Effective_Expiry_Date='';obligation.Extension_Applied='';obligation.Extension_Metadata_JSON='';if(!String(obligation.Cycle_Key||''))obligation.Cycle_Key=String(new Date().getFullYear());return;}
   var previousBase=ModelCExtension_dateInTz_(obligation.Base_Expiry_Date,tz),baseChanged=previousBase!==item.baseExpiry;
   obligation.Base_Expiry_Date=item.baseExpiry; obligation.Cycle_Key=item.baseExpiry;
   if(baseChanged||!ModelCExtension_dateInTz_(obligation.Effective_Expiry_Date,tz)){obligation.Effective_Expiry_Date=item.baseExpiry;obligation.Extension_Applied='';obligation.Extension_Metadata_JSON='';var window=ModelCScopeOwner_window_(item.scopeCode,item.baseExpiry,tz);obligation.Planning_Window_From=window.from;obligation.Planning_Window_To=window.to;}
@@ -159,9 +170,9 @@ function ModelCScopeOwner_projectLegacy_(sheet,command,selected,obligations,link
   links.forEach(function(x){if(String(x.Audit_ID)===String(command.auditId)&&String(x.Link_State).toUpperCase()==='ACTIVE')linked[String(x.Obligation_ID)]=true;});obligations.forEach(function(x){if(linked[String(x.Obligation_ID)])active.push(x);});
   defs.forEach(function(d){var item=selected[d.scope];if(d.flagCol0!=null)row[d.flagCol0]=item?'x':'';if(d.hourCol0!=null){row[d.hourCol0]=item?ModelCScopeOwner_hours_(item.formalHours):'';if(item)total+=ModelCScopeOwner_hours_(item.formalHours);}});
   ModelCScopeOwner_setLegacy_(row,map,'Total audit time in hours',total); ModelCScopeOwner_setLegacy_(row,map,'Preassigned Auditor',String(command.preassignedAuditorEmail||'').toLowerCase()); ModelCScopeOwner_setLegacy_(row,map,'Allow self planning',String(command.allowSelfPlanning||''));
-  var cert=active.filter(function(x){return !ModelCFoundation_isAbc_(x.ScopeCode,x.ScopeCode);}),from='',to='',earliest='',effectiveEarliest='',birthday='',extension='';
+  var cert=active.filter(function(x){return ModelCRecurringConfig_isRecurring_(ss,String(x.ScopeCode||''));}),from='',to='',earliest='',effectiveEarliest='',birthday='',extension='';
   cert.forEach(function(x){var f=ModelCExtension_dateInTz_(x.Planning_Window_From,ss.getSpreadsheetTimeZone()),t=ModelCExtension_dateInTz_(x.Planning_Window_To,ss.getSpreadsheetTimeZone()),e=ModelCExtension_dateInTz_(x.Base_Expiry_Date,ss.getSpreadsheetTimeZone()),z=ModelCExtension_dateInTz_(x.Effective_Expiry_Date,ss.getSpreadsheetTimeZone());if(f&&(!from||f>from))from=f;if(t&&(!to||t<to))to=t;if(e&&(!earliest||e<earliest))earliest=e;if(z&&(!effectiveEarliest||z<effectiveEarliest))effectiveEarliest=z;if(String(x.Extension_Applied||'').trim())extension='Yes';var it=selected[String(x.ScopeCode)];if(it&&it.certificateBirthday&&!birthday)birthday=it.certificateBirthday;});
-  if(from&&to&&from>to)throw new Error('Selected scopes have no shared planning window');
+  if(from&&to&&from>to)throw new Error('Selected recurring scopes have no shared planning window');
   ModelCScopeOwner_setLegacy_(row,map,'Birthdate certificate',birthday);ModelCScopeOwner_setLegacy_(row,map,'Date - Will Expire',earliest);ModelCScopeOwner_setLegacy_(row,map,'Extended Expiration Date',effectiveEarliest||earliest);ModelCScopeOwner_setLegacy_(row,map,'Extension applied',extension);ModelCScopeOwner_setLegacy_(row,map,'Planning window from',from);ModelCScopeOwner_setLegacy_(row,map,'Planning window to',to);ModelCScopeOwner_setLegacy_(row,map,'Scopes_List',Object.keys(selected).join(', '));
   var textHeaders=['Birthdate certificate','Date - Will Expire','Extended Expiration Date','Planning window from','Planning window to'];
   textHeaders.forEach(function(header){var col=map[ModelCFoundation_normHeader_(header)];if(col!==undefined)sheet.getRange(rowIndex,col+1).setNumberFormat('@');});

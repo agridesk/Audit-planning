@@ -1,0 +1,211 @@
+AMS-01.6 — MODEL C RELEASE CLOSURE
+
+Date: 2026-09-21
+Workstream: AMS-01.6 — Audit Planning Decomposition / Model C
+Status: RELEASE ACCEPTED ON DEV
+Release acceptance build: 2026-09-21_AMS_01_6_MODEL_C_RELEASE_ACCEPTANCE_R1
+
+1. RELEASE VERDICT
+
+AMS-01.6 Model C is accepted on DEV.
+
+Canonical chain:
+Company -> Company Scope -> Audit Obligation -> Audit Visit <-> Auditor Availability
+
+The physical Audit ID remains the operational visit key. Availability remains keyed by Audit ID. Company_Scopes and Audit_Obligations own scope/cycle lifecycle state. Audit_Visit_Obligations is the canonical visit-to-obligation link table. Audit planning remains compatibility projection only.
+
+2. FINAL RELEASE ACCEPTANCE
+
+RUN_MODEL_C_RELEASE_ACCEPTANCE
+Result: SUCCESS
+Read-only: YES
+Writes performed: NO
+
+All release gates passed:
+- scopeOwnerPreflight = true
+- nonRecurringWindowPolicy = true
+- ecasEndToEnd = true
+- legacyEcasRetired = true
+- planningSaveWindowGuard = true
+- toolkitCanonicalCycleOwnerLoaded = true
+- ecas49Canonical = true
+
+No release acceptance errors remained.
+
+3. FINAL MODEL COUNTS
+
+Scope-owner preflight:
+- Company_Scopes: 173
+- Audit_Obligations: 173
+- Active Audit_Visit_Obligations links: 165
+
+Effective planning-window policy population:
+- active/non-terminal obligations checked: 165
+- recurring: 113
+- non-recurring: 52
+- explicit canonical windows: 117
+- non-recurring Cycle_Key full-year fallbacks: 48
+- invalid windows: 0
+- partial explicit windows: 0
+- recurring obligations missing required window: 0
+
+4. NON-RECURRING LIFECYCLE RULE
+
+Lifecycle semantics are owned exclusively by Config_Scopes.Recurring.
+
+For Recurring=NO:
+- no certificate birthday is invented;
+- no certificate expiry is invented;
+- no automatic successor is created;
+- Cycle_Key identifies the annual/explicit operational obligation;
+- a new year means a new obligation, never mutation of the prior Cycle_Key;
+- when both canonical Planning_Window_From and Planning_Window_To are blank and Cycle_Key is a valid four-digit year, the effective operational planning window is YYYY-01-01 through YYYY-12-31;
+- this fallback is operational only and creates no certificate semantics;
+- a partial explicit window is invalid and hard-blocks planning.
+
+For all linked obligations in a visit:
+- the feasible visit window is the intersection;
+- an empty intersection is a hard planning block;
+- there is no union fallback for planning.
+
+5. ECAS / MPS-ABC 2026 CANONICALIZATION
+
+Source owner:
+BronBedrijfUrenScopes with explicit batch year in G1.
+
+Canonical 2026 source population:
+- physical staging rows: 162
+- active MPS-ABC source rows: 49
+- ignored other-service rows: 113
+- source duplicates collapsed: 0
+- matched companies: 49
+
+Final canonical result:
+- 49 source-backed 2026 MPS-ABC obligations
+- 49 same-cycle canonical obligations
+- 49 linked visits
+- 49 runtime planning windows resolved
+- 49 Toolkit cycles resolved canonically
+- 0 Toolkit cycle mismatches
+- 0 company mismatches
+- 0 stale canonical MPS-ABC obligations
+- 0 invalid formal-hour records
+- 0 certificate lifecycle leaks
+
+Of the 49 visits:
+- 41 are non-recurring-only
+- 8 are mixed visits containing recurring obligations
+
+Planning windows:
+- 48 MPS-ABC obligations use the non-recurring Cycle_Key 2026 operational fallback
+- 1 uses an explicit canonical window
+- 0 are hard-blocked
+
+Generic company/year completion matches were intentionally ignored unless MPS-ABC completion was actually proven by scope-aware evidence.
+
+6. STALE CANONICAL CLEANUP
+
+Eight stale 2026 MPS-ABC canonical artefacts were identified and cleaned using history-preserving canonical lifecycle actions.
+
+Cleanup result:
+- stale processed: 8
+- obligations cancelled: 8
+- links inactivated: 8
+- scopes deactivated: 8
+- mixed visits reprojected: 5
+- empty visits terminalized: 3
+- stale remaining: 0
+- canonical rows deleted: 0
+
+History was preserved. No destructive canonical-row deletion was used.
+
+7. LEGACY ECAS RETIREMENT
+
+Legacy ECAS direct-writing behavior is retired.
+
+Verified gates:
+- legacy apply path hard-blocked
+- legacy missing-row creator hard-blocked
+- legacy dry-run routes to Model C
+- Active Audits check routes to Model C
+- no legacy MPS-ABC certificate-birthday writer
+- no legacy direct Audit planning writer
+- no generic company/year completion owner
+
+ECAS Model C import is now the annual source path for MPS-ABC.
+
+8. TOOLKIT CYCLE OWNERSHIP
+
+Canonical Toolkit cycle-year owner:
+Toolkit_ModelCCycleOwner.js
+Build: 2026-09-21_AMS_01_6_MODEL_C_TOOLKIT_CYCLE_OWNER_R4_NON_RECURRING_CYCLE_KEY
+
+Rules:
+- recurring obligations retain recurring/certificate cycle semantics;
+- non-recurring-only visits derive cycle year from Audit_Obligations.Cycle_Key;
+- mixed visits use recurring obligation cycle semantics;
+- non-recurring obligations never derive cycle year from expiry fields.
+
+Release acceptance confirmed the canonical owner is loaded.
+
+9. PLANNING SAVE WINDOW GUARD
+
+Planning save is protected by a Model C canonical planning-window guard before Availability writeback.
+
+Verified:
+- direct guard hard-blocks invalid/out-of-window planning
+- deployed V5 save bridge hard-blocks
+- effective MPS-ABC fallback window is the selected batch year
+- blocked save does not attempt Availability writeback
+- acceptance is read-only
+
+This closes the prior risk that a canonical hard block could be computed but not enforced by the actual save path.
+
+10. SCOPE-OWNER POLICY
+
+Scope-owner preflight is green.
+
+Canonical policies:
+- deselection = deactivate Company_Scope + cancel open obligation + unlink active visit
+- history is never deleted
+- lifecycle owner = Config_Scopes.Recurring
+- planning-window owner = all active obligations
+- GAP/GRASP shared expiry dependency retained
+- current-audit obligation routing enabled
+- legacy date projection written as text yyyy-MM-dd
+- UI formal hours read from Model C
+- safe snapshot/rollback integrated
+- legacy projection writes are targeted
+
+11. ACCEPTED RUNTIME EVIDENCE
+
+Key successful builds:
+- 2026-09-21_AMS_01_6_MODEL_C_PHASE_2B_SCOPE_OWNER_R8_CANONICAL
+- 2026-09-21_AMS_01_6_MODEL_C_PLANNING_WINDOW_POLICY_R1_NONRECURRING_ANNUAL
+- 2026-09-21_AMS_01_6_MODEL_C_ECAS_ANNUAL_IMPORT_R5_SCOPE_AWARE_COMPLETION
+- 2026-09-21_AMS_01_6_MODEL_C_ECAS_VISIT_MATERIALIZATION_R4_SAFE_APPLY
+- 2026-09-21_AMS_01_6_MODEL_C_ECAS_RUNTIME_INTEGRATION_ACCEPTANCE_R2_MIXED_VISIT_CANONICAL
+- 2026-09-21_AMS_01_6_MODEL_C_ECAS_E2E_ACCEPTANCE_R1
+- 2026-09-21_AMS_01_6_ECAS_LEGACY_RETIREMENT_R1_MODEL_C_ONLY
+- 2026-09-21_AMS_01_6_MODEL_C_PLANNING_SAVE_WINDOW_GUARD_R1
+- 2026-09-21_AMS_01_6_MODEL_C_RELEASE_ACCEPTANCE_R1
+
+12. NON-BLOCKING FOLLOW-UP DEBT
+
+The following items are not release blockers for AMS-01.6 but remain suitable later cleanup/hardening work:
+
+- Remove the obsolete duplicate legacy implementation of _mp_getCurrentCycleYearFromAuditRow_ from Toolkit_Eligibility.js so only the explicit Model C cycle owner defines that public global.
+- Continue reducing compatibility dependence on Audit planning AS/AT where consumers can read Model C directly.
+- Review compatibility projection behavior for non-recurring blank stored windows; the canonical runtime fallback is already correct and must remain the owner.
+- Future manual/bulk creation of Recurring=NO annual obligations must require an explicit Cycle_Key and must never infer certificate expiry.
+- 2027 ECAS processing must create new 2027 obligations; 2026 obligations must never be mutated into 2027.
+
+These are follow-up engineering hygiene items, not evidence of a failed Model C migration.
+
+13. CLOSURE
+
+AMS-01.6 has met its release acceptance criteria on DEV.
+
+The migration has moved lifecycle and planning ownership away from the monolithic Audit planning row into the Model C entities while preserving Audit ID as the operational visit identity and preserving existing history.
+
+Any subsequent work should treat this release-accepted Model C contract as the architectural baseline.

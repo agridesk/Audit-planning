@@ -2,11 +2,11 @@
  * AMS-01.6 Model C — ECAS MPS-ABC visit materialization preview.
  *
  * Read-only. Uses the canonical ECAS annual-import source contract to resolve
- * the current batch year, then determines visit linkage/materialization.
- * New visits are never proposed for zero-hour obligations or obligations that
- * lack a complete canonical planning window.
+ * the explicit current batch year, then determines visit linkage/materialization.
+ * New visits require positive canonical Formal_Hours. A planning window is not
+ * mandatory for non-recurring ECAS MPS-ABC and is never invented here.
  */
-var MODEL_C_ECAS_VISIT_MATERIALIZATION_BUILD='2026-09-21_AMS_01_6_MODEL_C_ECAS_VISIT_MATERIALIZATION_PREVIEW_R2_SOURCE_GATED';
+var MODEL_C_ECAS_VISIT_MATERIALIZATION_BUILD='2026-09-21_AMS_01_6_MODEL_C_ECAS_VISIT_MATERIALIZATION_PREVIEW_R3_NO_WINDOW_BLOCK';
 
 function RUN_MODEL_C_ECAS_VISIT_MATERIALIZATION_PREVIEW(){
   var out=ModelCEcasVisitMaterialization_buildPreview_(SpreadsheetApp.getActive());
@@ -17,17 +17,14 @@ function RUN_MODEL_C_ECAS_VISIT_MATERIALIZATION_PREVIEW(){
 
 function ModelCEcasVisitMaterialization_buildPreview_(ss){
   ss=ss||SpreadsheetApp.getActive();
-  var out={success:false,build:MODEL_C_ECAS_VISIT_MATERIALIZATION_BUILD,readOnly:true,writesPerformed:false,batchYear:'',counts:{sourceRows:0,targetObligations:0,sourceBackedTargets:0,staleCanonicalNotInSource:0,alreadyLinked:0,linkExistingVisit:0,createVisit:0,blockedMissingWindow:0,blockedInvalidHours:0,conflicts:0},gates:{},errors:[],warnings:[],actions:[]};
+  var out={success:false,build:MODEL_C_ECAS_VISIT_MATERIALIZATION_BUILD,readOnly:true,writesPerformed:false,batchYear:'',counts:{sourceRows:0,targetObligations:0,sourceBackedTargets:0,staleCanonicalNotInSource:0,alreadyLinked:0,linkExistingVisit:0,createVisit:0,missingWindowInformational:0,blockedInvalidHours:0,conflicts:0},gates:{},errors:[],warnings:[],actions:[]};
 
   var importPlan=ModelCEcasAnnualImport_buildPlan_(ss);
   out.batchYear=String((importPlan&&importPlan.batchYear)||'');
   out.counts.sourceRows=Number(importPlan&&importPlan.counts&&importPlan.counts.sourceRows||0);
   out.counts.staleCanonicalNotInSource=Number(importPlan&&importPlan.counts&&importPlan.counts.staleCanonicalNotInSource||0);
   out.gates.importPreviewClean=!!(importPlan&&importPlan.success===true);
-  if(!out.gates.importPreviewClean){
-    out.errors=(importPlan&&importPlan.errors?importPlan.errors.slice():['Canonical ECAS import preview failed']);
-    return out;
-  }
+  if(!out.gates.importPreviewClean){out.errors=(importPlan&&importPlan.errors?importPlan.errors.slice():['Canonical ECAS import preview failed']);return out;}
   if(importPlan.warnings&&importPlan.warnings.length)out.warnings=out.warnings.concat(importPlan.warnings);
 
   var apSheet=ss.getSheetByName(MODEL_C_SHEETS.AUDIT_PLANNING),obSheet=ss.getSheetByName(MODEL_C_SHEETS.AUDIT_OBLIGATIONS),lkSheet=ss.getSheetByName(MODEL_C_SHEETS.VISIT_OBLIGATIONS),companies=ss.getSheetByName('Companies');
@@ -78,6 +75,7 @@ function ModelCEcasVisitMaterialization_buildPreview_(ss){
     var action={obligationId:obId,companyUid:uid,company:companyNames[uid]||'',cycleKey:String(ob.Cycle_Key||''),formalHours:ModelCEcasVisitMaterialization_number_(ob.Formal_Hours),planningWindowFrom:String(ob.Planning_Window_From||'').trim(),planningWindowTo:String(ob.Planning_Window_To||'').trim(),sourceBacked:!!sourceUid[uid],action:'',auditId:'',candidates:[]};
     if(!action.sourceBacked){action.action='STALE_CANONICAL_NOT_IN_SOURCE';action.reason='NOT_PRESENT_IN_CURRENT_ECAS_SOURCE';out.actions.push(action);return;}
     out.counts.sourceBackedTargets++;
+    if(!(action.planningWindowFrom&&action.planningWindowTo))out.counts.missingWindowInformational++;
 
     var ownLinks=activeLinksByOb[obId]||[];
     if(ownLinks.length===1){
@@ -86,37 +84,37 @@ function ModelCEcasVisitMaterialization_buildPreview_(ss){
       else if(ownAp.companyUid&&ownAp.companyUid!==uid){action.action='CONFLICT';action.auditId=ownAuditId;action.reason='ACTIVE_LINK_COMPANY_MISMATCH';out.counts.conflicts++;out.errors.push('Active ECAS link company mismatch: '+obId+' -> '+ownAuditId);}
       else{action.action='ALREADY_LINKED';action.auditId=ownAuditId;action.visitStatus=ownAp.status;out.counts.alreadyLinked++;}
       if(!(Number(action.formalHours)>0)){action.warning='INVALID_OR_ZERO_FORMAL_HOURS';out.counts.blockedInvalidHours++;}
-      if(!(action.planningWindowFrom&&action.planningWindowTo)){action.warning=(action.warning?action.warning+'; ':'')+'INCOMPLETE_CANONICAL_PLANNING_WINDOW';out.counts.blockedMissingWindow++;}
+      if(!(action.planningWindowFrom&&action.planningWindowTo))action.windowInfo='NO_CANONICAL_WINDOW_NON_RECURRING_ALLOWED';
       out.actions.push(action);return;
     }
     if(ownLinks.length>1){action.action='CONFLICT';action.reason='MULTIPLE_ACTIVE_LINKS';action.candidates=ownLinks.map(function(x){return String(x.Audit_ID||'');});out.counts.conflicts++;out.actions.push(action);return;}
 
     if(!(Number(action.formalHours)>0)){action.action='BLOCKED';action.reason='INVALID_OR_ZERO_FORMAL_HOURS';out.counts.blockedInvalidHours++;out.actions.push(action);return;}
-    if(!(action.planningWindowFrom&&action.planningWindowTo)){action.action='BLOCKED';action.reason='INCOMPLETE_CANONICAL_PLANNING_WINDOW';out.counts.blockedMissingWindow++;out.actions.push(action);return;}
 
     var key=uid+'|'+out.batchYear,candidates=(candidateAuditsByCompanyCycle[key]||[]).filter(function(id,ix,arr){return arr.indexOf(id)===ix;});action.candidates=candidates.slice();
     if(candidates.length===0){action.action='CREATE_VISIT';action.reason='NO_EXISTING_SAME_COMPANY_SAME_CYCLE_VISIT';out.counts.createVisit++;}
     else if(candidates.length===1){action.action='LINK_EXISTING_VISIT';action.auditId=candidates[0];action.visitStatus=apByAudit[candidates[0]]?apByAudit[candidates[0]].status:'';action.reason='EXACTLY_ONE_EXISTING_SAME_COMPANY_SAME_CYCLE_VISIT';out.counts.linkExistingVisit++;}
     else{action.action='CONFLICT';action.reason='MULTIPLE_EXISTING_SAME_COMPANY_SAME_CYCLE_VISITS';out.counts.conflicts++;out.errors.push('Multiple candidate visits for ECAS obligation '+obId+': '+candidates.join(', '));}
+    if(!(action.planningWindowFrom&&action.planningWindowTo))action.windowInfo='NO_CANONICAL_WINDOW_NON_RECURRING_ALLOWED';
     out.actions.push(action);
   });
 
   if(out.counts.blockedInvalidHours)out.warnings.push(out.counts.blockedInvalidHours+' source-backed ECAS obligation(s) have invalid/zero canonical Formal_Hours. Run canonical ECAS import apply before materialization.');
-  if(out.counts.blockedMissingWindow)out.warnings.push(out.counts.blockedMissingWindow+' source-backed ECAS obligation(s) lack a complete canonical planning window. No visit will be created from an invented window.');
+  if(out.counts.missingWindowInformational)out.warnings.push(out.counts.missingWindowInformational+' source-backed ECAS obligation(s) have no complete canonical planning window; for non-recurring MPS-ABC this is informational and no window is invented.');
   out.gates.targetsFound=targets.length>0;
   out.gates.sourceBackedTargetsFound=out.counts.sourceBackedTargets>0;
   out.gates.singleActiveLinkPerObligation=!out.errors.some(function(x){return x.indexOf('Obligation has multiple active visit links:')===0;});
   out.gates.noMaterializationConflicts=out.counts.conflicts===0;
   out.gates.noInvalidHours=out.counts.blockedInvalidHours===0;
-  out.gates.noUnlinkedTargetsMissingWindow=(out.actions||[]).filter(function(a){return a.sourceBacked&&a.action==='BLOCKED'&&a.reason==='INCOMPLETE_CANONICAL_PLANNING_WINDOW';}).length===0;
+  out.gates.missingWindowDoesNotBlockNonRecurring=true;
   out.gates.readOnly=true;
-  out.success=out.errors.length===0&&out.gates.targetsFound&&out.gates.sourceBackedTargetsFound&&out.gates.singleActiveLinkPerObligation&&out.gates.noMaterializationConflicts&&out.gates.noInvalidHours&&out.gates.noUnlinkedTargetsMissingWindow;
+  out.success=out.errors.length===0&&out.gates.targetsFound&&out.gates.sourceBackedTargetsFound&&out.gates.singleActiveLinkPerObligation&&out.gates.noMaterializationConflicts&&out.gates.noInvalidHours;
   return out;
 }
 
 function ModelCEcasVisitMaterialization_companyNames_(sheet,errors){var v=sheet.getDataRange().getValues(),h=v[0]||[],m=ModelCFoundation_headerMap_(h),ixUid=ModelCEcasVisitMaterialization_header_(m,['Company_UID','Company UID']),ixName=ModelCEcasVisitMaterialization_header_(m,['Company','Company name','Name']);if(ixUid<0||ixName<0){errors.push('Companies missing Company_UID or Company');return{};}var out={};for(var r=1;r<v.length;r++){var uid=String(v[r][ixUid]||'').trim();if(uid)out[uid]=String(v[r][ixName]||'').trim();}return out;}
 function ModelCEcasVisitMaterialization_terminalObligation_(ob){var s=String((ob&&ob.Obligation_State)||'').trim().toUpperCase();return s==='COMPLETED'||s==='CANCELLED'||s==='REJECTED';}
 function ModelCEcasVisitMaterialization_terminalVisitStatus_(status){var s=String(status||'').trim().toUpperCase().replace(/_/g,' ');return s==='COMPLETED'||s==='CANCELLED'||s==='REJECTED';}
-function ModelCEcasVisitMaterialization_number_(v){var n=Number(String(v===null||v===undefined?'':v).replace(',','.'));return isFinite(n)?n:'';}
+function ModelCEcasVisitMaterialization_number_(v){var n=Number(String(v===null||v===undefined?'':v).replace(',', '.'));return isFinite(n)?n:'';}
 function ModelCEcasVisitMaterialization_header_(map,names){for(var i=0;i<names.length;i++){var key=ModelCFoundation_normHeader_(names[i]);if(map[key]!==undefined)return map[key];}return-1;}
-function ModelCEcasVisitMaterialization_compact_(out){out=out||{};var noteworthy=(out.actions||[]).filter(function(a){return a.action!=='ALREADY_LINKED'||a.warning;});return{success:out.success===true,build:out.build,batchYear:out.batchYear,readOnly:out.readOnly===true,writesPerformed:out.writesPerformed===true,counts:out.counts||{},gates:out.gates||{},errors:(out.errors||[]).slice(0,25),warnings:(out.warnings||[]).slice(0,25),noteworthyActions:noteworthy.slice(0,30)};}
+function ModelCEcasVisitMaterialization_compact_(out){out=out||{};var noteworthy=(out.actions||[]).filter(function(a){return a.action!=='ALREADY_LINKED'||a.warning||a.windowInfo;});return{success:out.success===true,build:out.build,batchYear:out.batchYear,readOnly:out.readOnly===true,writesPerformed:out.writesPerformed===true,counts:out.counts||{},gates:out.gates||{},errors:(out.errors||[]).slice(0,25),warnings:(out.warnings||[]).slice(0,25),noteworthyActions:noteworthy.slice(0,30)};}

@@ -1,18 +1,120 @@
 /**
- * AMS-01.6 Model C — ECAS MPS-ABC visit materialization preview.
+ * AMS-01.6 Model C — ECAS MPS-ABC visit materialization.
  *
- * Read-only. Uses the canonical ECAS annual-import source contract to resolve
- * the explicit current batch year, then determines visit linkage/materialization.
+ * Uses the canonical ECAS annual-import source contract to resolve the explicit
+ * current batch year, then determines/executes visit linkage/materialization.
  * New visits require positive canonical Formal_Hours. A planning window is not
  * mandatory for non-recurring ECAS MPS-ABC and is never invented here.
  */
-var MODEL_C_ECAS_VISIT_MATERIALIZATION_BUILD='2026-09-21_AMS_01_6_MODEL_C_ECAS_VISIT_MATERIALIZATION_PREVIEW_R3_NO_WINDOW_BLOCK';
+var MODEL_C_ECAS_VISIT_MATERIALIZATION_BUILD='2026-09-21_AMS_01_6_MODEL_C_ECAS_VISIT_MATERIALIZATION_R4_SAFE_APPLY';
 
 function RUN_MODEL_C_ECAS_VISIT_MATERIALIZATION_PREVIEW(){
   var out=ModelCEcasVisitMaterialization_buildPreview_(SpreadsheetApp.getActive());
   Logger.log(JSON.stringify(ModelCEcasVisitMaterialization_compact_(out),null,2));
   if(!out.success)throw new Error('ECAS visit materialization preview failed: '+(out.errors||[]).join('; '));
   return out;
+}
+
+function RUN_MODEL_C_ECAS_VISIT_MATERIALIZATION_APPLY(){
+  var ss=SpreadsheetApp.getActive(),lock=LockService.getScriptLock();
+  lock.waitLock(20000);
+  var snapshots=[];
+  try{
+    var plan=ModelCEcasVisitMaterialization_buildPreview_(ss);
+    if(!plan.success)throw new Error('ECAS visit materialization preflight failed: '+(plan.errors||[]).join('; '));
+    if((plan.counts.conflicts||0)>0||!plan.gates.noInvalidHours)throw new Error('ECAS visit materialization blocked by conflicts/invalid hours');
+
+    var mutations=(plan.actions||[]).filter(function(a){return a.action==='CREATE_VISIT'||a.action==='LINK_EXISTING_VISIT';});
+    if(!mutations.length){
+      var noOp={success:true,build:MODEL_C_ECAS_VISIT_MATERIALIZATION_BUILD,batchYear:plan.batchYear,writesPerformed:false,createdVisits:0,linkedExistingVisits:0,postVerify:ModelCEcasVisitMaterialization_compact_(plan),errors:[]};
+      Logger.log(JSON.stringify(noOp,null,2));return noOp;
+    }
+
+    var apSheet=ss.getSheetByName(MODEL_C_SHEETS.AUDIT_PLANNING),obSheet=ss.getSheetByName(MODEL_C_SHEETS.AUDIT_OBLIGATIONS),lkSheet=ss.getSheetByName(MODEL_C_SHEETS.VISIT_OBLIGATIONS),csSheet=ss.getSheetByName(MODEL_C_SHEETS.COMPANY_SCOPES);
+    if(!apSheet||!obSheet||!lkSheet||!csSheet)throw new Error('Model C materialization sheets missing');
+    snapshots=[ModelCScopeOwner_snapshotSheet_(apSheet),ModelCScopeOwner_snapshotSheet_(obSheet),ModelCScopeOwner_snapshotSheet_(lkSheet)];
+
+    var obligations=ModelCMigration_rowsToObjects_(obSheet.getDataRange().getValues()),links=ModelCMigration_rowsToObjects_(lkSheet.getDataRange().getValues()),companyScopes=ModelCMigration_rowsToObjects_(csSheet.getDataRange().getValues());
+    var obById={},csById={};
+    obligations.forEach(function(ob){obById[String(ob.Obligation_ID||'')]=ob;});
+    companyScopes.forEach(function(cs){csById[String(cs.Company_Scope_ID||'')]=cs;});
+    var stamp=new Date().toISOString(),created=0,linkedExisting=0,createdAuditIds=[];
+
+    mutations.forEach(function(a){
+      var ob=obById[String(a.obligationId||'')];
+      if(!ob)throw new Error('Obligation not found during materialization: '+String(a.obligationId||''));
+      if(ModelCEcasVisitMaterialization_terminalObligation_(ob))throw new Error('Cannot materialize terminal obligation: '+String(ob.Obligation_ID||''));
+      if(String(ob.Company_UID||'')!==String(a.companyUid||''))throw new Error('Materialization company mismatch: '+String(ob.Obligation_ID||''));
+      if(String(ob.Cycle_Key||'')!==String(plan.batchYear||''))throw new Error('Materialization cycle mismatch: '+String(ob.Obligation_ID||''));
+      if(!(Number(ModelCEcasVisitMaterialization_number_(ob.Formal_Hours))>0))throw new Error('Invalid Formal_Hours during materialization: '+String(ob.Obligation_ID||''));
+
+      var auditId='';
+      if(a.action==='CREATE_VISIT'){
+        var made=m5t_createAuditRowFromCompaniesPool_(a.companyUid,a.company||a.companyUid);
+        if(!made||made.success!==true||!String(made.auditId||'').trim())throw new Error('Unable to create Audit planning visit for '+String(a.company||a.companyUid||''));
+        auditId=String(made.auditId).trim();created++;createdAuditIds.push(auditId);
+      }else{
+        auditId=String(a.auditId||'').trim();
+        if(!auditId)throw new Error('Missing existing Audit ID for linkage');
+        linkedExisting++;
+      }
+
+      var duplicate=links.some(function(link){return String(link.Obligation_ID||'')===String(ob.Obligation_ID||'')&&String(link.Link_State||'').toUpperCase()==='ACTIVE';});
+      if(duplicate)throw new Error('Obligation became linked during apply: '+String(ob.Obligation_ID||''));
+      links.push({Audit_ID:auditId,Obligation_ID:String(ob.Obligation_ID||''),Link_State:'ACTIVE',Migration_Batch_ID:String(ob.Migration_Batch_ID||''),Linked_At:stamp,Unlinked_At:''});
+      if(!String(ob.Source_Audit_ID||'').trim())ob.Source_Audit_ID=auditId;
+      else if(String(ob.Source_Audit_ID)!==auditId)throw new Error('Obligation Source_Audit_ID conflicts with materialized visit: '+String(ob.Obligation_ID||''));
+      ob.Updated_At=stamp;
+    });
+
+    ModelCScopeOwner_writeObjects_(obSheet,MODEL_C_SCHEMA.Audit_ObligATIONS||MODEL_C_SCHEMA.Audit_Obligations,obligations,['Cycle_Key','Base_Expiry_Date','Effective_Expiry_Date','Planning_Window_From','Planning_Window_To']);
+    ModelCScopeOwner_writeObjects_(lkSheet,MODEL_C_SCHEMA.Audit_Visit_Obligations,links);
+
+    var affected={};
+    mutations.forEach(function(a){
+      var ob=obById[String(a.obligationId||'')],auditId=String(ob.Source_Audit_ID||a.auditId||'');
+      if(auditId)affected[auditId]=String(ob.Company_UID||'');
+    });
+    Object.keys(affected).forEach(function(auditId){
+      var companyUid=affected[auditId],selected=ModelCEcasVisitMaterialization_selectedForAudit_(ss,auditId,companyUid,obligations,links,csById),legacy=ModelCEcasVisitMaterialization_legacyCommand_(apSheet,auditId,companyUid);
+      ModelCScopeOwner_projectLegacy_(apSheet,legacy,selected,obligations,links,ss);
+    });
+
+    SpreadsheetApp.flush();
+    try{if(typeof ModelCAnnualCycle_invalidateAuditPlanningCaches_==='function')ModelCAnnualCycle_invalidateAuditPlanningCaches_();}catch(ignoreCache){}
+
+    var verify=ModelCEcasVisitMaterialization_buildPreview_(ss);
+    if(!verify.success||(verify.counts.conflicts||0)>0||(verify.counts.createVisit||0)>0||(verify.counts.linkExistingVisit||0)>0)throw new Error('Post-apply ECAS visit materialization verification failed');
+
+    var out={success:true,build:MODEL_C_ECAS_VISIT_MATERIALIZATION_BUILD,batchYear:plan.batchYear,writesPerformed:true,createdVisits:created,linkedExistingVisits:linkedExisting,createdAuditIds:createdAuditIds,postVerify:ModelCEcasVisitMaterialization_compact_(verify),errors:[]};
+    Logger.log(JSON.stringify(out,null,2));return out;
+  }catch(e){
+    for(var i=snapshots.length-1;i>=0;i--)try{ModelCScopeOwner_restoreSnapshot_(snapshots[i]);}catch(ignoreRestore){}
+    SpreadsheetApp.flush();
+    throw e;
+  }finally{try{lock.releaseLock();}catch(ignoreLock){}}
+}
+
+function ModelCEcasVisitMaterialization_selectedForAudit_(ss,auditId,companyUid,obligations,links,csById){
+  var linked={};
+  (links||[]).forEach(function(link){if(String(link.Audit_ID||'')===String(auditId)&&String(link.Link_State||'').toUpperCase()==='ACTIVE')linked[String(link.Obligation_ID||'')]=true;});
+  var selected={};
+  (obligations||[]).forEach(function(ob){
+    if(!linked[String(ob.Obligation_ID||'')]||String(ob.Company_UID||'')!==String(companyUid)||ModelCEcasVisitMaterialization_terminalObligation_(ob))return;
+    var code=String(ob.ScopeCode||'').trim();if(!code)return;
+    var cs=csById[String(ob.Company_Scope_ID||'')]||{},recurring=ModelCRecurringConfig_isRecurring_(ss,code);
+    selected[code]={scopeCode:code,recurring:recurring,formalHours:ModelCEcasVisitMaterialization_number_(ob.Formal_Hours),baseExpiry:recurring?ModelCExtension_dateInTz_(ob.Base_Expiry_Date,ss.getSpreadsheetTimeZone()):'',certificateBirthday:recurring?ModelCExtension_dateInTz_(cs.Certificate_Birthday,ss.getSpreadsheetTimeZone()):'',lifecycleType:recurring?'CERTIFICATE_RECURRING':'NON_RECURRING'};
+  });
+  if(!Object.keys(selected).length)throw new Error('No active obligations found for materialized audit '+auditId);
+  return selected;
+}
+
+function ModelCEcasVisitMaterialization_legacyCommand_(sheet,auditId,companyUid){
+  var values=sheet.getDataRange().getValues(),headers=values[0]||[],map=ModelCFoundation_headerMap_(headers),rowIndex=ModelCExtension_findRow_(values,map,'Audit ID',auditId);
+  if(!rowIndex)throw new Error('Audit planning row missing after materialization: '+auditId);
+  var row=values[rowIndex-1]||[];
+  function value(header){var c=map[ModelCFoundation_normHeader_(header)];return c===undefined?'':row[c];}
+  return{auditId:String(auditId),companyUid:String(companyUid),preassignedAuditorEmail:String(value('Preassigned Auditor')||'').trim().toLowerCase(),allowSelfPlanning:String(value('Allow self planning')||'')};
 }
 
 function ModelCEcasVisitMaterialization_buildPreview_(ss){

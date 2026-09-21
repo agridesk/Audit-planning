@@ -1,0 +1,43 @@
+AMS-01.6 — Continuation snapshot for 2026-09-22
+
+STATUS
+- AMS-01.6 Model C release is accepted on DEV.
+- Audit planning remains in place as operational/compatibility projection. It is NOT to be dismantled.
+- Model C is canonical for scope lifecycle, expiry, obligations, dependencies and cycle semantics.
+
+DEPENDENCIES
+- Production configuration currently intended: MPS-GAP -> GRASP only.
+- Temporary MPS-GAP -> MPS-SQ test row was removed by user.
+- Generic multi-child support has been implemented and previously proven with two children.
+- Latest tests were adjusted so future multi-child testing is synthetic and does not require adding a temporary MPS-SQ configuration row.
+
+LATEST REPO STATE TO DEPLOY TOMORROW
+- Commit c3f486ff41fc7090128640f7e3657620ae8712d6
+- Commit fc934b0aea5d4a6226770c5fb76b1b3620bc0db4
+
+TOMORROW FIRST ACTIONS
+1. git pull origin dev
+2. clasp push
+3. Run: RUN_MODEL_C_SCOPE_DEPENDENCY_GENERIC_OWNER_ACCEPTANCE
+4. Run: RUN_MODEL_C_MULTI_CHILD_DEPENDENCY_ACCEPTANCE
+
+EXPECTED RESULT
+- Both tests success=true.
+- Config should show only the real MPS-GAP -> GRASP dependency.
+- Synthetic acceptance proves a second child can inherit GAP expiry without modifying Config_Scope_Dependencies.
+
+NEXT NON-BLOCKING TECHNICAL DEBT
+1. Remove duplicate _mp_getCurrentCycleYearFromAuditRow_ definition from Toolkit_Eligibility.js.
+   Canonical owner must remain Toolkit_ModelCCycleOwner.js.
+   Keep all callers unchanged.
+   Re-run Toolkit cycle acceptance and release acceptance after this refactor.
+2. Continue reducing direct ownership assumptions in legacy Audit planning readers/writers, while preserving Audit planning as compatibility/operational projection.
+3. Review remaining direct AS/AT compatibility reads where Model C can be used safely.
+4. Clean minor typo in ECAS materializer: Audit_ObligATIONS.
+
+HARD GOVERNANCE
+- Do not remove Audit planning.
+- Do not move canonical scope lifecycle back into Audit planning.
+- Recurring expiry ownership remains per scope obligation.
+- Non-recurring scopes have no certificate expiry; use Cycle_Key.
+- Dependencies must be configuration-driven through Config_Scope_Dependencies.

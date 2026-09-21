@@ -1,5 +1,5 @@
 /** Model C Phase 2B: scope-ownership transition contract. Read-only until routed. */
-var MODEL_C_SCOPE_OWNER_BUILD = '2026-09-20_AMS_01_6_MODEL_C_PHASE_2B_SCOPE_OWNER_R5_UI_HOURS_OWNER';
+var MODEL_C_SCOPE_OWNER_BUILD = '2026-09-21_AMS_01_6_MODEL_C_PHASE_2B_SCOPE_OWNER_R6_SAFE_SNAPSHOT';
 
 function RUN_MODEL_C_PHASE2B_SCOPE_OWNER_PREFLIGHT() {
   var ss = SpreadsheetApp.getActive();
@@ -11,7 +11,7 @@ function RUN_MODEL_C_PHASE2B_SCOPE_OWNER_PREFLIGHT() {
   cs.forEach(function(x) { var id=String(x.Company_Scope_ID); if(!id||csById[id])errors.push('Duplicate Company Scope ID: '+id); csById[id]=x; });
   ob.forEach(function(x) { var id=String(x.Obligation_ID); if(!id||obById[id])errors.push('Duplicate Obligation ID: '+id); obById[id]=x; if(!csById[String(x.Company_Scope_ID)])errors.push('Orphan obligation: '+id); });
   lk.forEach(function(x) { if(String(x.Link_State).toUpperCase()!=='ACTIVE')return; activeLinks++; if(!obById[String(x.Obligation_ID)])errors.push('Orphan active link: '+x.Obligation_ID); });
-  var out={success:errors.length===0,readyForScopeOwnerRouting:errors.length===0,build:MODEL_C_SCOPE_OWNER_BUILD,readOnly:true,writesPerformed:false,counts:{companyScopes:cs.length,obligations:ob.length,activeLinks:activeLinks},policy:{deselect:'DEACTIVATE_CANCEL_UNLINK',historyDeleted:false,abcExpiry:false,gapGraspSharedExpiry:true,currentAuditObligationRouting:true,legacyDateProjectionAsText:true,uiHoursReadFromModelC:true},errors:errors.slice(0,25)};
+  var out={success:errors.length===0,readyForScopeOwnerRouting:errors.length===0,build:MODEL_C_SCOPE_OWNER_BUILD,readOnly:true,writesPerformed:false,counts:{companyScopes:cs.length,obligations:ob.length,activeLinks:activeLinks},policy:{deselect:'DEACTIVATE_CANCEL_UNLINK',historyDeleted:false,abcExpiry:false,gapGraspSharedExpiry:true,currentAuditObligationRouting:true,legacyDateProjectionAsText:true,uiHoursReadFromModelC:true,safeSnapshotIntegrated:true},errors:errors.slice(0,25)};
   Logger.log(JSON.stringify(out,null,2)); return out;
 }
 
@@ -168,6 +168,29 @@ function ModelCScopeOwner_projectLegacy_(sheet,command,selected,obligations,link
   var range=sheet.getRange(rowIndex,1,1,headers.length);range.setValues([row]);return{rowIndex:rowIndex,totalHours:total,planningWindowFrom:from,planningWindowTo:to,compatibilityExpiry:earliest};
 }
 function ModelCScopeOwner_setLegacy_(row,map,header,value){var col=map[ModelCFoundation_normHeader_(header)];if(col!==undefined)row[col]=value;}
-function ModelCScopeOwner_snapshotSheet_(sheet){var range=sheet.getDataRange();return{range:range,values:range.getValues(),numberFormats:range.getNumberFormats(),sheet:sheet};}
-function ModelCScopeOwner_restoreSnapshot_(snap){if(snap.sheet)snap.sheet.clearContents();if(snap.numberFormats)snap.range.setNumberFormats(snap.numberFormats);snap.range.setValues(snap.values);}
+
+function ModelCScopeOwner_snapshotSheet_(sheet){
+  var range=sheet.getDataRange(),values=range.getValues(),numberFormats=range.getNumberFormats(),textDateColumns=[];
+  if(String(sheet.getName())===String(MODEL_C_SHEETS.AUDIT_PLANNING)&&values.length){
+    var headers=values[0]||[],map=ModelCFoundation_headerMap_(headers),tz=sheet.getParent().getSpreadsheetTimeZone()||Session.getScriptTimeZone();
+    ['Birthdate certificate','Date - Will Expire','Extended Expiration Date','Planning window from','Planning window to'].forEach(function(h){
+      var c=map[ModelCFoundation_normHeader_(h)];
+      if(c===undefined)return;
+      textDateColumns.push(c);
+      for(var r=1;r<values.length;r++){
+        var v=values[r][c];
+        if(Object.prototype.toString.call(v)==='[object Date]'&&!isNaN(v.getTime()))values[r][c]=Utilities.formatDate(v,tz,'yyyy-MM-dd');
+        else if(v!==''&&v!==null&&v!==undefined)values[r][c]=ModelCFoundation_clean_(v);
+      }
+    });
+  }
+  return{range:range,values:values,numberFormats:numberFormats,sheet:sheet,textDateColumns:textDateColumns};
+}
+function ModelCScopeOwner_restoreSnapshot_(snap){
+  if(!snap||!snap.sheet||!snap.range)return;
+  snap.sheet.clearContents();
+  if(snap.numberFormats)snap.range.setNumberFormats(snap.numberFormats);
+  (snap.textDateColumns||[]).forEach(function(c){if(snap.values.length>1)snap.sheet.getRange(2,c+1,snap.values.length-1,1).setNumberFormat('@');});
+  snap.range.setValues(snap.values);
+}
 function ModelCScopeOwner_writeObjects_(sheet,headers,objects,textHeaders){sheet.clearContents();sheet.getRange(1,1,1,headers.length).setValues([headers]);if(!objects.length)return;var rows=objects.map(function(x){return headers.map(function(h){return x[h]===undefined?'':x[h];});});(textHeaders||[]).forEach(function(h){var c=headers.indexOf(h)+1;if(c>0)sheet.getRange(2,c,rows.length,1).setNumberFormat('@');});sheet.getRange(2,1,rows.length,headers.length).setValues(rows);}

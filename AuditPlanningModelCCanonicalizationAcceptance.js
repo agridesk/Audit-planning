@@ -1,12 +1,12 @@
 /** AMS-01.6 canonicalization regression acceptance. */
-var MODEL_C_CANONICALIZATION_ACCEPTANCE_BUILD='2026-09-21_AMS_01_6_MODEL_C_CANONICALIZATION_ACCEPTANCE_R1';
+var MODEL_C_CANONICALIZATION_ACCEPTANCE_BUILD='2026-09-21_AMS_01_6_MODEL_C_CANONICALIZATION_ACCEPTANCE_R2';
 
 function RUN_MODEL_C_CANONICALIZATION_ACCEPTANCE(){
   var out={success:false,build:MODEL_C_CANONICALIZATION_ACCEPTANCE_BUILD,writesPerformed:true,gates:{},recurring:null,auditorProjection:null,annualRouting:null,errors:[]};
   try{
-    out.recurring=RUN_MODEL_C_RECURRING_ARCHITECTURE_ACCEPTANCE();
-    out.gates.recurringArchitecture=!!(out.recurring&&out.recurring.success===true);
-  }catch(e1){out.gates.recurringArchitecture=false;out.errors.push('Recurring architecture: '+String(e1&&e1.message?e1.message:e1));}
+    out.recurring=RUN_MODEL_C_RECURRING_CONFIG_ACCEPTANCE();
+    out.gates.recurringLifecycle=!!(out.recurring&&out.recurring.success===true);
+  }catch(e1){out.gates.recurringLifecycle=false;out.errors.push('Recurring lifecycle: '+String(e1&&e1.message?e1.message:e1));}
   try{
     out.auditorProjection=RUN_MODEL_C_AUDITOR_EXPIRY_ACCEPTANCE();
     out.gates.auditorProjection=!!(out.auditorProjection&&out.auditorProjection.success===true);

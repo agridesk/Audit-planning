@@ -1,5 +1,5 @@
 /** AMS-01.6 — Config_Scopes.Recurring lifecycle ownership acceptance. READ-ONLY. */
-var MODEL_C_RECURRING_CONFIG_TEST_BUILD='2026-09-20_AMS_01_6_MODEL_C_RECURRING_CONFIG_ACCEPTANCE_R1';
+var MODEL_C_RECURRING_CONFIG_TEST_BUILD='2026-09-21_AMS_01_6_MODEL_C_RECURRING_CONFIG_ACCEPTANCE_R2_CANONICAL_OWNER';
 
 function RUN_MODEL_C_RECURRING_CONFIG_ACCEPTANCE(){
   var ss=SpreadsheetApp.getActive();
@@ -48,10 +48,12 @@ function RUN_MODEL_C_RECURRING_CONFIG_ACCEPTANCE(){
     });
   });
 
+  var ownerBuild=typeof MODEL_C_RECURRING_CONFIG_BUILD!=='undefined'?MODEL_C_RECURRING_CONFIG_BUILD:'MISSING';
+  if(ownerBuild==='MISSING')errors.push('Canonical ModelCRecurringConfig owner build missing');
   var out={
     success:errors.length===0,
     build:MODEL_C_RECURRING_CONFIG_TEST_BUILD,
-    ownerBuild:typeof MODEL_C_RECURRING_LIFECYCLE_BUILD!=='undefined'?MODEL_C_RECURRING_LIFECYCLE_BUILD:'MISSING',
+    ownerBuild:ownerBuild,
     readOnly:true,
     writesPerformed:false,
     counts:{
@@ -67,6 +69,7 @@ function RUN_MODEL_C_RECURRING_CONFIG_ACCEPTANCE(){
       auditorProjectionMismatches:projectionMismatches
     },
     gates:{
+      canonicalOwnerLoaded:ownerBuild!=='MISSING',
       lifecycleOwnerIsConfigRecurring:true,
       recurringScopesRequireExpiry:recurringMissingExpiry===0,
       nonRecurringScopesHaveNoExpiry:nonRecurringWithExpiry===0,
@@ -77,6 +80,7 @@ function RUN_MODEL_C_RECURRING_CONFIG_ACCEPTANCE(){
     nonRecurringScopeCodes:nonRecurringCodes.sort(),
     errors:errors.slice(0,25)
   };
+  out.success=out.success&&Object.keys(out.gates).every(function(k){return out.gates[k]===true;});
   Logger.log(JSON.stringify(out,null,2));
   if(!out.success)throw new Error('Config_Scopes Recurring lifecycle acceptance failed');
   return out;

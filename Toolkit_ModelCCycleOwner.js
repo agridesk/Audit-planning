@@ -1,8 +1,15 @@
 /**
  * AMS-01.6 Model C Toolkit cycle-year runtime owner.
  * Canonical Toolkit bridge: lifecycle semantics are owned exclusively by Config_Scopes.Recurring.
+ *
+ * Cycle-year policy:
+ * - If an audit contains one or more recurring obligations, preserve the existing
+ *   recurring/certificate-derived cycle-year behaviour.
+ * - If an audit is non-recurring-only, derive the year from the open obligation
+ *   Cycle_Key (for example 2026).
+ * - Non-recurring obligations never derive their cycle year from expiry fields.
  */
-var MODEL_C_TOOLKIT_CYCLE_OWNER_BUILD = '2026-09-21_AMS_01_6_MODEL_C_TOOLKIT_CYCLE_OWNER_R3_CANONICAL_BRIDGE';
+var MODEL_C_TOOLKIT_CYCLE_OWNER_BUILD = '2026-09-21_AMS_01_6_MODEL_C_TOOLKIT_CYCLE_OWNER_R4_NON_RECURRING_CYCLE_KEY';
 
 function _mp_getCurrentCycleYearFromAuditRow_(hdr, row) {
   var nowY = new Date().getFullYear();
@@ -43,7 +50,8 @@ function ModelCToolkitCycle_yearForAudit_(ss, auditId) {
     obById[String(ob.Obligation_ID || '')] = ob;
   });
 
-  var years = [];
+  var recurringYears = [];
+  var nonRecurringYears = [];
   links.forEach(function(link) {
     if (String(link.Audit_ID || '') !== auditId) return;
     if (String(link.Link_State || '').toUpperCase() !== 'ACTIVE') return;
@@ -51,14 +59,26 @@ function ModelCToolkitCycle_yearForAudit_(ss, auditId) {
     if (!ob) return;
     var state = String(ob.Obligation_State || '').toUpperCase();
     if (state === 'CANCELLED' || state === 'REJECTED' || state === 'COMPLETED') return;
+
     var scopeCode = String(ob.ScopeCode || '').trim();
     var cfg = recurringByCode[scopeCode];
-    if (!cfg || cfg.recurring !== true) return;
-    var cycle = String(ob.Cycle_Key || ob.Base_Expiry_Date || '').trim();
-    var m = cycle.match(/^(\d{4})-/);
-    if (m) years.push(Number(m[1]));
+    var isRecurring = !!(cfg && cfg.recurring === true);
+    var cycle = '';
+
+    if (isRecurring) {
+      cycle = String(ob.Cycle_Key || ob.Base_Expiry_Date || '').trim();
+    } else {
+      cycle = String(ob.Cycle_Key || '').trim();
+    }
+
+    var m = cycle.match(/^(20\d{2})(?:-|$)/);
+    if (!m) return;
+    var year = Number(m[1]);
+    if (isRecurring) recurringYears.push(year);
+    else nonRecurringYears.push(year);
   });
 
+  var years = recurringYears.length ? recurringYears : nonRecurringYears;
   if (!years.length) return null;
   years.sort(function(a,b){ return a-b; });
   return years[0];

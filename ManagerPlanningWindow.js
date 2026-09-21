@@ -1,13 +1,13 @@
 // FILE: ManagerPlanningWindow.js
-// BUILD: 2026-09-20_AMS_01_6_MODEL_C_RUNTIME_WINDOW_OWNER_R2
+// BUILD: 2026-09-21_AMS_01_6_MODEL_C_RUNTIME_WINDOW_OWNER_R3_EFFECTIVE_NONRECURRING
 // PURPOSE:
 // - Model C Audit_Obligations is canonical for planning windows.
+// - Generic Model C planning-window policy resolves effective windows.
+// - Recurring=NO annual obligations with no explicit window use Cycle_Key year.
+// - Partial explicit windows and empty intersections hard-block planning.
 // - Audit planning expiry/window fields are compatibility fallback only.
-// - Existing cache contract remains intact.
-// - Canonical window is projected into the in-memory Audit planning row so
-//   legacy wrappers cannot override Model C with stale AS/AT values.
 
-var MODEL_C_RUNTIME_WINDOW_BUILD = '2026-09-20_AMS_01_6_MODEL_C_RUNTIME_WINDOW_OWNER_R2';
+var MODEL_C_RUNTIME_WINDOW_BUILD = '2026-09-21_AMS_01_6_MODEL_C_RUNTIME_WINDOW_OWNER_R3_EFFECTIVE_NONRECURRING';
 
 function ModelCRuntime_headerIndex_(hdr, names) {
   hdr = hdr || [];
@@ -27,16 +27,6 @@ function ModelCRuntime_resolvePlanningWindow_(ss, hdr, row) {
   row = row || [];
 
   function norm_(v) { return String(v == null ? '' : v).trim(); }
-  function dateText_(v) {
-    if (!v) return '';
-    if (Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v.getTime())) {
-      return Utilities.formatDate(v, ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd');
-    }
-    var s = norm_(v);
-    if (!s) return '';
-    var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    return m ? (m[1] + '-' + m[2] + '-' + m[3]) : s;
-  }
   function objects_(sheet) {
     if (!sheet || sheet.getLastRow() < 2 || sheet.getLastColumn() < 1) return [];
     var values = sheet.getDataRange().getValues();
@@ -55,6 +45,9 @@ function ModelCRuntime_resolvePlanningWindow_(ss, hdr, row) {
   var obSheet = ss.getSheetByName('Audit_Obligations');
   var linkSheet = ss.getSheetByName('Audit_Visit_Obligations');
   if (!obSheet || !linkSheet) return { success:false, reason:'MODEL_C_SHEETS_MISSING', auditId:auditId };
+  if (typeof ModelCPlanningWindowPolicy_resolveVisitObligations_ !== 'function') {
+    return { success:false, hardBlock:true, reason:'MODEL_C_PLANNING_WINDOW_POLICY_MISSING', auditId:auditId };
+  }
 
   var obligations = objects_(obSheet);
   var links = objects_(linkSheet);
@@ -77,44 +70,33 @@ function ModelCRuntime_resolvePlanningWindow_(ss, hdr, row) {
 
   if (!active.length) return { success:false, reason:'NO_ACTIVE_MODEL_C_OBLIGATIONS', auditId:auditId };
 
-  var scopeWindows = [];
-  var activeScopes = [];
-  active.forEach(function(ob) {
-    var scope = norm_(ob.ScopeCode);
-    if (scope) activeScopes.push(scope);
-    var from = dateText_(ob.Planning_Window_From);
-    var to = dateText_(ob.Planning_Window_To);
-    if (from && to) scopeWindows.push({ scope:scope, start:from, end:to });
-  });
-
-  if (!scopeWindows.length) {
-    return { success:false, reason:'MODEL_C_WINDOWS_MISSING', auditId:auditId, activeScopes:activeScopes };
+  var resolved = ModelCPlanningWindowPolicy_resolveVisitObligations_(ss, active);
+  var activeScopes = active.map(function(ob){ return norm_(ob.ScopeCode); }).filter(function(x){ return !!x; });
+  if (!resolved || resolved.success !== true) {
+    return {
+      success:false,
+      hardBlock:true,
+      reason:(resolved && resolved.reason) || 'MODEL_C_WINDOW_RESOLUTION_FAILED',
+      auditId:auditId,
+      activeScopes:activeScopes,
+      scopeWindows:(resolved && resolved.scopeWindows) || [],
+      failures:(resolved && resolved.failures) || []
+    };
   }
 
-  var maxStart = scopeWindows[0].start;
-  var minEnd = scopeWindows[0].end;
-  var minStart = scopeWindows[0].start;
-  var maxEnd = scopeWindows[0].end;
-  for (var i = 1; i < scopeWindows.length; i++) {
-    if (scopeWindows[i].start > maxStart) maxStart = scopeWindows[i].start;
-    if (scopeWindows[i].end < minEnd) minEnd = scopeWindows[i].end;
-    if (scopeWindows[i].start < minStart) minStart = scopeWindows[i].start;
-    if (scopeWindows[i].end > maxEnd) maxEnd = scopeWindows[i].end;
-  }
-
-  var conflict = maxStart > minEnd;
+  var conflict = resolved.hardBlock === true;
   return {
     success:true,
     auditId:auditId,
-    startDate: conflict ? minStart : maxStart,
-    endDate: conflict ? maxEnd : minEnd,
-    mode: conflict ? 'MODEL_C_UNION_RENDER_HARD_BLOCK' : 'MODEL_C_INTERSECTION',
+    startDate:resolved.startDate || '',
+    endDate:resolved.endDate || '',
+    mode:conflict ? 'MODEL_C_UNION_RENDER_HARD_BLOCK' : 'MODEL_C_INTERSECTION',
     source:'Audit_Obligations',
     owner:'Audit_Obligations',
     hardBlock:conflict,
     activeScopes:activeScopes,
-    scopeWindows:scopeWindows,
-    warnings: conflict ? [{
+    scopeWindows:resolved.scopeWindows || [],
+    warnings:conflict ? [{
       code:'SCOPE_WINDOW_CONFLICT_EMPTY_INTERSECTION',
       severity:'ERROR',
       message:'Planning windows have no intersection; planning must be blocked.'
@@ -130,15 +112,13 @@ function ModelCRuntime_projectCanonicalWindowIntoRow_(hdr, row, canonical) {
   if (toIdx >= 0) row[toIdx] = canonical.endDate || '';
 }
 
-/**
- * Runtime planning-window resolver.
- * Model C is canonical. Legacy Audit planning fields are fallback only for
- * unmigrated/missing Model C records during the compatibility period.
- */
 function _mp_resolvePlanningWindow_(ss, hdr, row) {
   var canonical = ModelCRuntime_resolvePlanningWindow_(ss, hdr, row);
   if (canonical && canonical.success === true) {
     ModelCRuntime_projectCanonicalWindowIntoRow_(hdr, row, canonical);
+    return canonical;
+  }
+  if (canonical && canonical.hardBlock === true && canonical.reason !== 'NO_ACTIVE_MODEL_C_OBLIGATIONS' && canonical.reason !== 'MODEL_C_SHEETS_MISSING') {
     return canonical;
   }
   return ModelCRuntime_resolveLegacyPlanningWindow_(ss, hdr, row, canonical);
@@ -261,9 +241,9 @@ function ModelCRuntime_resolveLegacyPlanningWindow_(ss, hdr, row, canonicalFailu
   };
 }
 
-var MP_PW_NS = 'MP_PW_V2_MODEL_C';
+var MP_PW_NS = 'MP_PW_V3_MODEL_C_EFFECTIVE';
 var MP_PW_TTL_SEC = 1500;
-var MP_PW_GEN_KEY = 'MP_PW_GEN_V2_MODEL_C';
+var MP_PW_GEN_KEY = 'MP_PW_GEN_V3_MODEL_C_EFFECTIVE';
 
 function _mp_pwGen_() {
   try {

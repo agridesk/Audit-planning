@@ -1,5 +1,5 @@
 /** AMS-01.6 Model C Toolkit cycle-year acceptance. READ-ONLY. */
-var MODEL_C_TOOLKIT_CYCLE_TEST_BUILD = '2026-09-20_AMS_01_6_MODEL_C_TOOLKIT_CYCLE_TEST_R1';
+var MODEL_C_TOOLKIT_CYCLE_TEST_BUILD = '2026-09-21_AMS_01_6_MODEL_C_TOOLKIT_CYCLE_TEST_R2_RECURRING_CONFIG';
 
 function RUN_MODEL_C_TOOLKIT_CYCLE_YEAR_ACCEPTANCE() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -8,9 +8,10 @@ function RUN_MODEL_C_TOOLKIT_CYCLE_YEAR_ACCEPTANCE() {
     success:false,
     build:MODEL_C_TOOLKIT_CYCLE_TEST_BUILD,
     ownerBuild:(typeof MODEL_C_TOOLKIT_CYCLE_OWNER_BUILD !== 'undefined' ? MODEL_C_TOOLKIT_CYCLE_OWNER_BUILD : ''),
+    owner:'Config_Scopes.Recurring + Audit_Obligations',
     readOnly:true,
     writesPerformed:false,
-    counts:{auditRows:0,certificateAudits:0,modelCycleResolved:0,abcOnly:0,fallbackToLegacyExpiry:0,mismatches:0},
+    counts:{auditRows:0,recurringAudits:0,modelCycleResolved:0,nonRecurringOnlyAudits:0,legacyExpiryFallbacks:0,mismatches:0},
     errors:[],
     samples:[]
   };
@@ -38,7 +39,7 @@ function RUN_MODEL_C_TOOLKIT_CYCLE_YEAR_ACCEPTANCE() {
     var modelYear = ModelCToolkitCycle_yearForAudit_(ss,auditId);
     var resolved = _mp_getCurrentCycleYearFromAuditRow_(hdr,row);
     if (modelYear) {
-      out.counts.certificateAudits++;
+      out.counts.recurringAudits++;
       out.counts.modelCycleResolved++;
       if (Number(resolved) !== Number(modelYear)) {
         out.counts.mismatches++;
@@ -46,18 +47,18 @@ function RUN_MODEL_C_TOOLKIT_CYCLE_YEAR_ACCEPTANCE() {
       }
       if (out.samples.length < 8) out.samples.push({auditId:auditId,modelYear:modelYear,resolvedYear:resolved});
     } else {
-      out.counts.abcOnly++;
+      out.counts.nonRecurringOnlyAudits++;
       var ixExp = _mp_findHeaderIdxCI_(hdr,['Date - Will Expire','Will expire date','Expiry date']);
       var legacy = ixExp >= 0 ? String(row[ixExp] || '').trim() : '';
-      if (legacy) out.counts.fallbackToLegacyExpiry++;
+      if (legacy) out.counts.legacyExpiryFallbacks++;
     }
   }
 
   out.gates = {
     ownerLoaded: typeof MODEL_C_TOOLKIT_CYCLE_OWNER_BUILD !== 'undefined',
-    allCertificateAuditsUseModelC: out.counts.certificateAudits === out.counts.modelCycleResolved,
+    allRecurringAuditsUseModelC: out.counts.recurringAudits === out.counts.modelCycleResolved,
     zeroMismatches: out.counts.mismatches === 0,
-    noLegacyExpiryFallbackForAbc: out.counts.fallbackToLegacyExpiry === 0
+    nonRecurringOnlyAuditsDoNotUseLegacyExpiry: out.counts.legacyExpiryFallbacks === 0
   };
   out.success = Object.keys(out.gates).every(function(k){ return out.gates[k] === true; }) && out.errors.length === 0;
   Logger.log(JSON.stringify(out,null,2));

@@ -1,9 +1,11 @@
 AMS-01.6 — MODEL C RELEASE CLOSURE
 
 Date: 2026-09-21
+Post-hardening verification: 2026-09-22
 Workstream: AMS-01.6 — Audit Planning Decomposition / Model C
-Status: RELEASE ACCEPTED ON DEV
+Status: RELEASE ACCEPTED ON DEV + POST-HARDENING ACCEPTED
 Release acceptance build: 2026-09-21_AMS_01_6_MODEL_C_RELEASE_ACCEPTANCE_R1
+Post-hardening build: 2026-09-22_AMS_01_6_MODEL_C_POST_HARDENING_ACCEPTANCE_R1
 
 1. RELEASE VERDICT
 
@@ -31,6 +33,23 @@ All release gates passed:
 - ecas49Canonical = true
 
 No release acceptance errors remained.
+
+2A. POST-HARDENING ACCEPTANCE
+
+RUN_MODEL_C_POST_HARDENING_ACCEPTANCE
+Result: SUCCESS
+Read-only: YES
+Writes performed: NO
+
+All post-hardening gates passed:
+- releaseAcceptance = true
+- genericDependencyOwner = true
+- multiChildDependency = true
+- toolkitCycleOwnerUsesModelC = true
+- toolkitCycleOwnerHasNoLegacyExpiryFallback = true
+- liveDependencyConfigClean = true
+
+Dependency configuration was returned to the real production-like state before acceptance: only MPS-GAP -> GRASP is active. The temporary MPS-GAP -> MPS-SQ row was removed. Multi-child behavior is now tested synthetically without modifying Config_Scope_Dependencies.
 
 3. FINAL MODEL COUNTS
 
@@ -146,7 +165,7 @@ Rules:
 - mixed visits use recurring obligation cycle semantics;
 - non-recurring obligations never derive cycle year from expiry fields.
 
-Release acceptance confirmed the canonical owner is loaded.
+Release acceptance and post-hardening acceptance both confirmed the deployed global owner routes through Model C and contains no legacy expiry fallback.
 
 9. PLANNING SAVE WINDOW GUARD
 
@@ -170,12 +189,32 @@ Canonical policies:
 - history is never deleted
 - lifecycle owner = Config_Scopes.Recurring
 - planning-window owner = all active obligations
-- GAP/GRASP shared expiry dependency retained
+- scope dependencies are owned by Config_Scope_Dependencies
+- shared-expiry and must-audit-together behavior are generic, not GRASP-specific
 - current-audit obligation routing enabled
 - legacy date projection written as text yyyy-MM-dd
 - UI formal hours read from Model C
 - safe snapshot/rollback integrated
 - legacy projection writes are targeted
+
+10A. GENERIC SCOPE DEPENDENCIES
+
+Canonical dependency owner:
+Config_Scope_Dependencies
+
+Verified generic behavior:
+- one parent can have multiple active child scopes;
+- Must_Audit_Together=YES is enforced generically;
+- Share_Expiry=YES propagates parent expiry/birthday to recurring child scopes;
+- behavior is not hardcoded to GRASP;
+- tests use synthetic dependency rows and perform no config writes.
+
+Live configuration at acceptance:
+- MPS-GAP -> GRASP
+- Relationship_Type = ADD_ON
+- Must_Audit_Together = YES
+- Share_Expiry = YES
+- Active = YES
 
 11. ACCEPTED RUNTIME EVIDENCE
 
@@ -189,23 +228,27 @@ Key successful builds:
 - 2026-09-21_AMS_01_6_ECAS_LEGACY_RETIREMENT_R1_MODEL_C_ONLY
 - 2026-09-21_AMS_01_6_MODEL_C_PLANNING_SAVE_WINDOW_GUARD_R1
 - 2026-09-21_AMS_01_6_MODEL_C_RELEASE_ACCEPTANCE_R1
+- 2026-09-21_AMS_01_6_SCOPE_DEPENDENCY_GENERIC_R2_SYNTHETIC_TESTABLE
+- 2026-09-21_AMS_01_6_MODEL_C_MULTI_CHILD_DEP_ACCEPT_R2_SYNTHETIC
+- 2026-09-22_AMS_01_6_MODEL_C_POST_HARDENING_ACCEPTANCE_R1
 
 12. NON-BLOCKING FOLLOW-UP DEBT
 
 The following items are not release blockers for AMS-01.6 but remain suitable later cleanup/hardening work:
 
-- Remove the obsolete duplicate legacy implementation of _mp_getCurrentCycleYearFromAuditRow_ from Toolkit_Eligibility.js so only the explicit Model C cycle owner defines that public global.
-- Continue reducing compatibility dependence on Audit planning AS/AT where consumers can read Model C directly.
+- Remove the obsolete duplicate legacy implementation of _mp_getCurrentCycleYearFromAuditRow_ from Toolkit_Eligibility.js so only the explicit Model C cycle owner defines that public global. Runtime ownership is already proven correct; this is source hygiene/load-order hardening.
+- Continue reducing compatibility dependence on Audit planning AS/AT where consumers can read Model C directly. Audit planning itself remains part of the system as operational/compatibility projection and is not to be dismantled.
 - Review compatibility projection behavior for non-recurring blank stored windows; the canonical runtime fallback is already correct and must remain the owner.
 - Future manual/bulk creation of Recurring=NO annual obligations must require an explicit Cycle_Key and must never infer certificate expiry.
 - 2027 ECAS processing must create new 2027 obligations; 2026 obligations must never be mutated into 2027.
+- Clean the harmless materializer schema-name typo fallback Audit_ObligATIONS when a safe source-only cleanup window is available.
 
 These are follow-up engineering hygiene items, not evidence of a failed Model C migration.
 
 13. CLOSURE
 
-AMS-01.6 has met its release acceptance criteria on DEV.
+AMS-01.6 has met its release acceptance criteria on DEV and subsequently passed post-hardening acceptance.
 
-The migration has moved lifecycle and planning ownership away from the monolithic Audit planning row into the Model C entities while preserving Audit ID as the operational visit identity and preserving existing history.
+The migration has moved lifecycle and planning ownership away from the monolithic Audit planning row into the Model C entities while preserving Audit ID as the operational visit identity and preserving existing history. Audit planning remains deliberately retained as an operational/compatibility projection.
 
 Any subsequent work should treat this release-accepted Model C contract as the architectural baseline.

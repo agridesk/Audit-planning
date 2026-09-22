@@ -1,4 +1,4 @@
-<!-- BUILD: ManagerPlanningV5UI_20260911_AMS01_SAVE_WALL_PROBE -->
+<!-- BUILD: ManagerPlanningV5UI_20260922_AMS03_SAVE_CLOSE_R1 -->
 <!-- d26: DEV/PROD-aware Toolkit logging. Runtime V5 API names preserved. No async JS fetch. -->
 <!DOCTYPE html>
 <html>
@@ -38,6 +38,7 @@
 <pre id="mpDiag" style="display:none; margin:12px; padding:8px; background:#f7f7f7; border:1px solid #ddd; font-size:12px; white-space:pre-wrap; max-height:160px; overflow:auto;"></pre>
 
 <?!= HtmlService.createHtmlOutputFromFile('ManagerPlanningUI_boot').getContent(); ?>
+<?!= HtmlService.createHtmlOutputFromFile('ManagerPlanningUI_save_close').getContent(); ?>
 <?!= HtmlService.createHtmlOutputFromFile('ManagerPlanningUI_perf').getContent(); ?>
 <?!= HtmlService.createHtmlOutputFromFile('ManagerPlanningUI_cache_freshness').getContent(); ?>
 <?!= HtmlService.createHtmlOutputFromFile('ManagerPlanningUI_perf_auditor').getContent(); ?>

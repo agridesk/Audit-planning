@@ -1,6 +1,6 @@
 /**
  * FILE: AnnualAvailabilityCapacityProjection.gs
- * BUILD: 2026-09-22_AMS03_AVAILABILITY_CAPACITY_PROJECTION_R1
+ * BUILD: 2026-09-22_AMS03_AVAILABILITY_CAPACITY_PROJECTION_R2_WEEKDAY_CODES
  * PURPOSE:
  *   Read-only annual capacity projection using Auditor Availability semantics.
  *
@@ -14,7 +14,7 @@
  * - Weekends and configured default blocked weekdays are excluded from standard
  *   capacity, but reported separately as soft/overrideable capacity.
  */
-var ANNUAL_AVAILABILITY_CAPACITY_BUILD='2026-09-22_AMS03_AVAILABILITY_CAPACITY_PROJECTION_R1';
+var ANNUAL_AVAILABILITY_CAPACITY_BUILD='2026-09-22_AMS03_AVAILABILITY_CAPACITY_PROJECTION_R2_WEEKDAY_CODES';
 var ANNUAL_AVAILABILITY_DAY_START_MIN=8*60;
 var ANNUAL_AVAILABILITY_DAY_END_MIN=18*60;
 
@@ -81,7 +81,6 @@ function AnnualAvailabilityCapacity_build_(ss,year){
         a.softUnavailableHours+=softMin/60;
         a.occupiedAuditHours+=occMin/60;
       } else {
-        /* Non-standard days are soft/overrideable by design, not base capacity. */
         var blockedByDefault=600;
         var unavailableNonStd=AnnualAvailabilityCapacity_unionMinutes_((day.hard||[]).concat(day.occupied||[]));
         a.overrideableSoftHours+=Math.max(0,blockedByDefault-unavailableNonStd)/60;
@@ -110,7 +109,15 @@ function AnnualAvailabilityCapacity_hardStatus_(s){s=String(s||'').trim().toUppe
 function AnnualAvailabilityCapacity_round_(n){return Math.round(Number(n||0)*100)/100;}
 function AnnualAvailabilityCapacity_parseBlockedWeekdays_(raw){
   var out={},s=String(raw==null?'':raw).trim().toLowerCase();if(!s)return out;
-  var names={sun:0,sunday:0,zondag:0,dom:0,domingo:0,mon:1,monday:1,maandag:1,lun:1,lunes:1,tue:2,tues:2,tuesday:2,dinsdag:2,mar:2,martes:2,wed:3,wednesday:3,woensdag:3,mie:3,miercoles:3,'miércoles':3,thu:4,thur:4,thurs:4,thursday:4,donderdag:4,jue:4,jueves:4,fri:5,friday:5,vrijdag:5,vie:5,viernes:5,sat:6,saturday:6,zaterdag:6,sab:6,sabado:6,'sábado':6};
+  var names={
+    su:0,sun:0,sunday:0,zondag:0,dom:0,domingo:0,
+    mo:1,mon:1,monday:1,maandag:1,lun:1,lunes:1,
+    tu:2,tue:2,tues:2,tuesday:2,dinsdag:2,mar:2,martes:2,
+    we:3,wed:3,wednesday:3,woensdag:3,mie:3,miercoles:3,'miércoles':3,
+    th:4,thu:4,thur:4,thurs:4,thursday:4,donderdag:4,jue:4,jueves:4,
+    fr:5,fri:5,friday:5,vrijdag:5,vie:5,viernes:5,
+    sa:6,sat:6,saturday:6,zaterdag:6,sab:6,sabado:6,'sábado':6
+  };
   s.split(/[;,|/\s]+/).forEach(function(t){t=t.trim();if(Object.prototype.hasOwnProperty.call(names,t))out[names[t]]=true;else if(/^[0-6]$/.test(t))out[Number(t)]=true;});
   return out;
 }

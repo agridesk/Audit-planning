@@ -1,0 +1,126 @@
+<!-- BUILD: 2026-09-22_AMS03_TOOLKIT_SAVE_CLOSE_R1 -->
+<script>
+(function () {
+  'use strict';
+
+  var BUILD = '2026-09-22_AMS03_TOOLKIT_SAVE_CLOSE_R1';
+  var CLOSE_DELAY_MS = 550;
+  var FALLBACK_DELAY_MS = 1400;
+
+  function auditId_() {
+    try {
+      return String((ctx && ctx.audit && ctx.audit.auditId) || auditId || '').trim();
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function postCloseRequest_() {
+    try {
+      if (typeof v5PostToOpener_ === 'function') {
+        v5PostToOpener_({
+          type: 'PLANNING_TOOLKIT_CLOSE_REQUEST_V5',
+          auditId: auditId_(),
+          build: BUILD,
+          ts: Date.now()
+        });
+      }
+    } catch (e) {}
+  }
+
+  function tryHostClose_() {
+    try {
+      if (typeof google !== 'undefined' && google.script && google.script.host && typeof google.script.host.close === 'function') {
+        google.script.host.close();
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  function tryWindowClose_() {
+    try {
+      if (typeof v5HasUsableOpener_ === 'function' && v5HasUsableOpener_() && window.opener) {
+        try { window.opener.focus(); } catch (ignoreFocus) {}
+      }
+    } catch (e0) {}
+    try {
+      window.close();
+      return true;
+    } catch (e1) {}
+    return false;
+  }
+
+  function ensureFallback_() {
+    if (window.closed) return;
+    try {
+      var statusText = String((ctx && ctx.audit && ctx.audit.status) || '').trim();
+      var message = (typeof isAuditorToolkit_ === 'function' && isAuditorToolkit_())
+        ? 'Planning submitted for approval.'
+        : 'Planning saved successfully.';
+      if (typeof v5ShowPostSaveStayOpenState_ === 'function' && v5ShowPostSaveStayOpenState_.__ams03Original) {
+        v5ShowPostSaveStayOpenState_.__ams03Original(message, statusText);
+      }
+    } catch (e0) {}
+
+    try {
+      var host = (typeof v5EnsurePostSaveInstruction_ === 'function') ? v5EnsurePostSaveInstruction_() : null;
+      if (!host) return;
+      var existing = document.getElementById('ams03CloseToolkitFallback');
+      if (existing) return;
+      var btn = document.createElement('button');
+      btn.id = 'ams03CloseToolkitFallback';
+      btn.type = 'button';
+      btn.textContent = 'Close planning';
+      btn.style.cssText = 'margin-top:12px;padding:9px 14px;border:0;border-radius:6px;background:#1f5f99;color:#fff;font-weight:600;cursor:pointer;';
+      btn.addEventListener('click', function () {
+        postCloseRequest_();
+        tryHostClose_();
+        tryWindowClose_();
+      });
+      host.appendChild(btn);
+    } catch (e1) {}
+  }
+
+  function closeAfterSuccessfulSave_() {
+    postCloseRequest_();
+    try {
+      window.__V5_TOOLKIT_CLOSING__ = true;
+    } catch (e0) {}
+
+    setTimeout(function () {
+      if (window.closed) return;
+      tryHostClose_();
+      tryWindowClose_();
+    }, CLOSE_DELAY_MS);
+
+    setTimeout(function () {
+      ensureFallback_();
+    }, FALLBACK_DELAY_MS);
+  }
+
+  function install_() {
+    if (typeof v5ShowPostSaveStayOpenState_ !== 'function') return false;
+    if (v5ShowPostSaveStayOpenState_.__ams03SaveCloseWrapped) return true;
+
+    var original = v5ShowPostSaveStayOpenState_;
+    var wrapped = function (message, newStatus) {
+      original.apply(this, arguments);
+      closeAfterSuccessfulSave_();
+    };
+    wrapped.__ams03SaveCloseWrapped = true;
+    wrapped.__ams03Original = original;
+    v5ShowPostSaveStayOpenState_ = wrapped;
+    window.__AMS03_TOOLKIT_SAVE_CLOSE_BUILD = BUILD;
+    return true;
+  }
+
+  if (!install_()) {
+    try {
+      setTimeout(install_, 0);
+      setTimeout(install_, 250);
+      setTimeout(install_, 1000);
+    } catch (e) {}
+  }
+})();
+</script>

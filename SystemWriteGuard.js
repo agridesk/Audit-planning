@@ -1,5 +1,5 @@
 // FILE: SystemWriteGuard.gs
-// BUILD: 2026-04-28_SYSTEM_WRITE_GUARD_FAIL_CLOSED
+// BUILD: 2026-09-22_SYSTEM_WRITE_GUARD_ALLOW_ALL_COMPAT
 // PURPOSE:
 //   Central fail-closed DEV/PROD write guard for all business write entrypoints.
 //   Additive file. Does not perform writes itself.
@@ -10,13 +10,15 @@
 //   - DEV can allow writes only when System_Config explicitly permits it.
 //   - Missing System_Config or missing config helpers => FAIL CLOSED.
 //   - TEST_PREFIX_ONLY requires auditId to start with DEV_ALLOWED_AUDIT_PREFIX.
+//   - ALLOW and ALLOW_ALL are explicit DEV full-write modes. ALLOW_ALL is retained
+//     as compatibility with the canonical System_Config value already in use.
 //
 // MANUAL TEST FUNCTIONS:
 //   - SYS_WRITE_GUARD_TEST_BLOCK
 //   - SYS_WRITE_GUARD_TEST_TEST_PREFIX
 //   - SYS_WRITE_GUARD_DIAGNOSTICS
 
-var SYS_WRITE_GUARD_BUILD = '2026-04-28_SYSTEM_WRITE_GUARD_FAIL_CLOSED';
+var SYS_WRITE_GUARD_BUILD = '2026-09-22_SYSTEM_WRITE_GUARD_ALLOW_ALL_COMPAT';
 
 function SYS_ENFORCE_WRITE_ALLOWED(actionName, auditId) {
   var decision = SYS_WRITE_GUARD_DECIDE_(actionName, auditId);
@@ -167,14 +169,14 @@ function SYS_WRITE_GUARD_DECIDE_(actionName, auditId) {
     };
   }
 
-  if (mode === 'ALLOW') {
+  if (mode === 'ALLOW' || mode === 'ALLOW_ALL') {
     return {
       allowed: true,
       env: env,
       action: action,
       auditId: id,
       mode: mode,
-      message: 'DEV write allowed because DEV_WRITE_MODE = ALLOW.'
+      message: 'DEV write allowed because DEV_WRITE_MODE = ' + mode + '.'
     };
   }
 

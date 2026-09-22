@@ -2,19 +2,21 @@ AMS-01.6 — MODEL C RELEASE CLOSURE
 
 Date: 2026-09-21
 Post-hardening verification: 2026-09-22
+Final closure verification: 2026-09-22
 Workstream: AMS-01.6 — Audit Planning Decomposition / Model C
-Status: RELEASE ACCEPTED ON DEV + POST-HARDENING ACCEPTED
+Status: CLOSED ON DEV — RELEASE + POST-HARDENING + FINAL CLOSURE ACCEPTED
 Release acceptance build: 2026-09-21_AMS_01_6_MODEL_C_RELEASE_ACCEPTANCE_R1
 Post-hardening build: 2026-09-22_AMS_01_6_MODEL_C_POST_HARDENING_ACCEPTANCE_R1
+Final closure build: 2026-09-22_AMS_01_6_MODEL_C_FINAL_CLOSURE_ACCEPTANCE_R1
 
 1. RELEASE VERDICT
 
-AMS-01.6 Model C is accepted on DEV.
+AMS-01.6 Model C is closed and accepted on DEV.
 
 Canonical chain:
 Company -> Company Scope -> Audit Obligation -> Audit Visit <-> Auditor Availability
 
-The physical Audit ID remains the operational visit key. Availability remains keyed by Audit ID. Company_Scopes and Audit_Obligations own scope/cycle lifecycle state. Audit_Visit_Obligations is the canonical visit-to-obligation link table. Audit planning remains compatibility projection only.
+The physical Audit ID remains the operational visit key. Availability remains keyed by Audit ID. Company_Scopes and Audit_Obligations own scope/cycle lifecycle state. Audit_Visit_Obligations is the canonical visit-to-obligation link table. Audit planning remains deliberately retained as the operational/compatibility projection.
 
 2. FINAL RELEASE ACCEPTANCE
 
@@ -49,7 +51,52 @@ All post-hardening gates passed:
 - toolkitCycleOwnerHasNoLegacyExpiryFallback = true
 - liveDependencyConfigClean = true
 
-Dependency configuration was returned to the real production-like state before acceptance: only MPS-GAP -> GRASP is active. The temporary MPS-GAP -> MPS-SQ row was removed. Multi-child behavior is now tested synthetically without modifying Config_Scope_Dependencies.
+Dependency configuration was returned to the real production-like state before acceptance: only MPS-GAP -> GRASP is active. The temporary MPS-GAP -> MPS-SQ row was removed. Multi-child behavior is tested synthetically without modifying Config_Scope_Dependencies.
+
+2B. AUDIT PLANNING PROJECTION REPAIR
+
+Read-only drift acceptance initially identified 25 material AS/AT mismatches between Audit planning and canonical Model C planning windows.
+
+Repair policy:
+- Audit planning was retained;
+- only the material Planning window from/to projection cells were repaired;
+- Model C lifecycle data was not mutated;
+- blank non-recurring AS/AT rows remained blank where the canonical runtime full-year Cycle_Key fallback applies;
+- repair was snapshot-protected and followed by read-only post-verification.
+
+Repair result:
+- repaired Audit planning AS/AT projections: 25
+- Model C-backed audits: 115
+- canonical resolved: 115
+- exact stored projection matches: 96
+- acceptable blank non-recurring runtime fallbacks: 19
+- partial stored windows: 0
+- material mismatches: 0
+- canonical hard blocks: 0
+
+Post-repair projection gates:
+- noPartialSheetWindows = true
+- noCanonicalHardBlocks = true
+- noMaterialProjectionMismatches = true
+- readOnly verification = true
+
+2C. FINAL CLOSURE ACCEPTANCE
+
+RUN_MODEL_C_FINAL_CLOSURE_ACCEPTANCE
+Result: SUCCESS
+Read-only: YES
+Writes performed: NO
+
+All final closure gates passed:
+- postHardeningAcceptance = true
+- projectionDriftAcceptance = true
+- projectionNoMismatches = true
+- projectionNoPartialWindows = true
+- projectionNoCanonicalHardBlocks = true
+- modelCBackedAuditsResolved = true
+- auditPlanningProjectionRetained = true
+
+This is the definitive AMS-01.6 closure acceptance on DEV.
 
 3. FINAL MODEL COUNTS
 
@@ -165,7 +212,7 @@ Rules:
 - mixed visits use recurring obligation cycle semantics;
 - non-recurring obligations never derive cycle year from expiry fields.
 
-Release acceptance and post-hardening acceptance both confirmed the deployed global owner routes through Model C and contains no legacy expiry fallback.
+Release acceptance and post-hardening acceptance confirmed the deployed global owner routes through Model C and contains no legacy expiry fallback.
 
 9. PLANNING SAVE WINDOW GUARD
 
@@ -231,24 +278,34 @@ Key successful builds:
 - 2026-09-21_AMS_01_6_SCOPE_DEPENDENCY_GENERIC_R2_SYNTHETIC_TESTABLE
 - 2026-09-21_AMS_01_6_MODEL_C_MULTI_CHILD_DEP_ACCEPT_R2_SYNTHETIC
 - 2026-09-22_AMS_01_6_MODEL_C_POST_HARDENING_ACCEPTANCE_R1
+- 2026-09-22_AMS_01_6_MODEL_C_PROJECTION_DRIFT_R1
+- 2026-09-22_AMS_01_6_MODEL_C_PROJECTION_DRIFT_REPAIR_R1
+- 2026-09-22_AMS_01_6_MODEL_C_FINAL_CLOSURE_ACCEPTANCE_R1
 
 12. NON-BLOCKING FOLLOW-UP DEBT
 
-The following items are not release blockers for AMS-01.6 but remain suitable later cleanup/hardening work:
+The following items are not closure blockers and should be handled only as separate future hardening/cleanup work:
 
 - Remove the obsolete duplicate legacy implementation of _mp_getCurrentCycleYearFromAuditRow_ from Toolkit_Eligibility.js so only the explicit Model C cycle owner defines that public global. Runtime ownership is already proven correct; this is source hygiene/load-order hardening.
 - Continue reducing compatibility dependence on Audit planning AS/AT where consumers can read Model C directly. Audit planning itself remains part of the system as operational/compatibility projection and is not to be dismantled.
-- Review compatibility projection behavior for non-recurring blank stored windows; the canonical runtime fallback is already correct and must remain the owner.
 - Future manual/bulk creation of Recurring=NO annual obligations must require an explicit Cycle_Key and must never infer certificate expiry.
 - 2027 ECAS processing must create new 2027 obligations; 2026 obligations must never be mutated into 2027.
 - Clean the harmless materializer schema-name typo fallback Audit_ObligATIONS when a safe source-only cleanup window is available.
 
-These are follow-up engineering hygiene items, not evidence of a failed Model C migration.
-
 13. CLOSURE
 
-AMS-01.6 has met its release acceptance criteria on DEV and subsequently passed post-hardening acceptance.
+AMS-01.6 is closed on DEV.
 
-The migration has moved lifecycle and planning ownership away from the monolithic Audit planning row into the Model C entities while preserving Audit ID as the operational visit identity and preserving existing history. Audit planning remains deliberately retained as an operational/compatibility projection.
+The migration has moved lifecycle and planning ownership away from the monolithic Audit planning row into the Model C entities while preserving Audit ID as the operational visit identity, preserving existing history, and retaining Audit planning as a controlled operational/compatibility projection.
 
-Any subsequent work should treat this release-accepted Model C contract as the architectural baseline.
+The final closure acceptance confirms:
+- canonical Model C lifecycle/planning ownership is intact;
+- dependency behavior is generic and config-driven;
+- ECAS/MPS-ABC 2026 is canonical and idempotent;
+- the deployed planning save guard is active;
+- Toolkit cycle ownership is canonical at runtime;
+- Audit planning AS/AT projection drift is repaired;
+- all 115 Model C-backed Audit planning rows resolve canonically;
+- no projection mismatches, partial windows, or canonical hard blocks remain.
+
+Any subsequent work must treat this closed Model C contract as the architectural baseline.

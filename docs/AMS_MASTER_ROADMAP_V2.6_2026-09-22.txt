@@ -1,0 +1,712 @@
+AUDIT MANAGEMENT SYSTEM — MASTER ROADMAP V2.6
+Date: 2026-09-22
+Status: CONSOLIDATED VNEXT MASTER ROADMAP
+Supersedes: Roadmap V2.5 as active planning baseline after acceptance
+Operating principle: 3S + Value — Speed, Scalability, Stability + operational value
+
+0. GOVERNANCE
+
+Canonical technical chain:
+Company -> Company Scope -> Audit Obligation -> Audit Visit <-> Availability
+
+Canonical ownership:
+- Model C: scope lifecycle, obligations, cycles, expiry, visit-obligation linkage.
+- Audit planning: operational/compatibility projection; retained.
+- Auditor Availability: operational Availability and derived capacity source.
+- Config_Scopes: scope metadata / recurring lifecycle.
+- Config_Scope_Dependencies: scope dependencies.
+- canonical planning services: validation and writes.
+- Notification Queue: communication delivery.
+- Git repository: code SSoT.
+- DEV GAS: canonical development runtime.
+
+Hard rules:
+- no second planning engine;
+- no second Availability model;
+- no duplicate validator policy;
+- no second capacity truth;
+- no silent dual truth;
+- no direct bulk sheet edits;
+- UI never becomes lifecycle owner;
+- chats/Work are execution environments, not SSoT.
+
+WIP rule:
+- maximum one core technical stream + one product stream at a time.
+
+1. CURRENT BASELINE — CLOSED / PROVEN
+
+1.1 AMS-01 — Performance & Hot Paths
+Status: substantially completed, but Planning 1.0 remains structurally too slow on several user-facing paths.
+Proven foundation:
+- bounded reads on key paths;
+- reusable read models;
+- cache/invalidation patterns;
+- canonical commit instrumentation;
+- hot-path diagnostics.
+
+1.2 AMS-01.6 — Model C
+Status: CLOSED ON DEV.
+Accepted:
+- Company -> Company Scope -> Audit Obligation -> Audit Visit;
+- Recurring lifecycle from Config_Scopes;
+- dependency ownership from Config_Scope_Dependencies;
+- multiple child scopes;
+- Must_Audit_Together / Share_Expiry;
+- non-recurring Cycle_Key;
+- scope-specific expiry;
+- visit planning window = intersection of linked active obligations;
+- invalid intersection hard-block;
+- Audit planning remains operational projection.
+
+1.3 Planning foundation
+Implemented chain:
+Planning Demand -> Concept Planning -> Workspace -> Preflight -> Canonical Commit -> Batch Commit -> Notification Queue.
+
+Existing/proven capabilities:
+- qualification;
+- Availability;
+- planning window;
+- rotation;
+- manager planning;
+- auditor self-planning;
+- two audits/day;
+- multi-block planning;
+- Modify / Cancel;
+- Re-adjust foundation;
+- batch isolation / outcomes;
+- notification integration;
+- optimistic revision / concurrency guard.
+
+2. MASTER PRIORITY ORDER
+
+A. Planning 2.0 — systematic replacement of slow Planning 1.0
+B. Controlled Re-adjust / operational planned-audit modification
+C. Annual workload, capacity and rotation control
+D. Scope & certificate lifecycle evolution
+E. Reporting & operational dashboards
+F. Trip / workweek planning
+G. Batch / bulk planning maturation
+H. Company communication / proposal flows
+I. Profiles, constraints and handover information
+J. Data migration / legacy retirement / technical hardening
+K. Long-term platform evolution
+
+3. AMS-03 — PLANNING 2.0
+
+Planning 2.0 is the umbrella replacement programme for the slow Planning 1.0 interaction model.
+
+3.1 Problem
+Planning 1.0 is too slow across:
+- Manager Portal;
+- Auditor Portal;
+- Planning Toolkit;
+- Availability Calendar;
+- first load;
+- month switch;
+- audit selection;
+- auditor selection;
+- eligibility checks;
+- rotation checks;
+- Availability checks;
+- Save;
+- Modify / Re-adjust;
+- refresh paths;
+- overview reads.
+
+This is not treated as isolated polishing anymore.
+
+3.2 Shared architecture
+Manager and Auditor use the same planning engine/read models/validators.
+Differences are permissions and allowed actions, not duplicated logic.
+
+Target chain:
+Planning Demand
+-> Concept Planning
+-> Planning Workspace
+-> Preflight
+-> Canonical Commit
+-> Batch Commit where relevant
+-> Notification / Audit Trail
+
+3.3 Availability Calendar Performance
+Explicit P0/P1.
+Measure and optimize:
+- first load cold/warm;
+- month switch;
+- auditor switch;
+- refresh after Save;
+- refresh after Modify/Re-adjust.
+
+Rules:
+- month-bounded reads;
+- no normal full-sheet scan;
+- no N+1/day;
+- no N+1/auditor;
+- fast cache-hit path;
+- deterministic invalidation;
+- correctness guard after cache use.
+
+3.4 Planning Toolkit / Workspace — Manager + Auditor
+Measure:
+- open;
+- audit select;
+- auditor select;
+- decision-ready calendar;
+- month switch;
+- validator refresh;
+- Save;
+- Modify/Re-adjust;
+- post-save close/refresh.
+
+Direction:
+- migrate proven Planning 1.0 functions into Planning 2.0 Workspace;
+- avoid indefinite patching of old Toolkit;
+- preserve canonical writers and validators.
+
+3.5 Save & Close
+- exactly one Save;
+- deterministic close where launch context permits;
+- safe fallback if browser close is technically impossible;
+- no stale grid;
+- no duplicate Save.
+
+3.6 Workspace interaction
+- scroll stability;
+- drag/drop stability;
+- modal lifecycle stability;
+- context preservation;
+- predictable refresh.
+
+3.7 Performance targets
+Initial:
+- common cached/read-model interaction: target < 1 s;
+- major decision-ready load: target approx. <= 2 s p95 where technically realistic;
+- no repeated multi-second full-sheet scan on normal user action;
+- performance regression evidence required.
+
+Log:
+- total ms;
+- stage ms;
+- rows read;
+- cache/read-model path;
+- fallback;
+- build/version.
+
+4. CONTROLLED RE-ADJUST / PLANNED-AUDIT MODIFICATION
+
+Do not expose unrestricted generic Edit.
+
+Initial supported changes:
+- date;
+- time;
+- block distribution.
+
+Lifecycle:
+- Pending Approval -> preserve status;
+- Approved -> preserve status;
+- Accepted -> Approved + renewed auditor acceptance;
+- Completed -> blocked;
+- unsupported status -> blocked.
+
+Initial governance:
+- same auditor only;
+- auditor replacement is separate high-impact action;
+- Model C planning-window intersection authoritative;
+- validate before Availability mutation;
+- canonical modify service remains writer;
+- notification and audit trail mandatory.
+
+Later:
+- controlled auditor replacement;
+- execution location change;
+- scope changes only under explicit lifecycle rules;
+- bulk Re-adjust.
+
+5. ANNUAL WORKLOAD, CAPACITY & ROTATION
+
+5.1 Workload read model
+Canonical input:
+- Audit_Obligations;
+- Audit_Visit_Obligations;
+- operational Audit planning projection.
+
+Show:
+- obligations/audits to plan;
+- formal hours to plan;
+- hours planned;
+- unallocated workload;
+- planning window;
+- lifecycle / expiry context;
+- month;
+- region;
+- scope;
+- assigned/preassigned auditor;
+- status;
+- Qualification;
+- Rotation;
+- Availability;
+- constraints.
+
+5.2 Capacity
+Primary operational source:
+Auditor Availability.
+
+Capacity is derived, not separately maintained.
+
+Inputs:
+- standard working days;
+- auditor blocked weekdays;
+- explicit hard unavailability;
+- explicit/default soft unavailability;
+- occupied audit hours;
+- Availability exceptions.
+
+Output:
+- gross standard capacity;
+- hard unavailable hours;
+- soft unavailable hours;
+- occupied audit hours;
+- available hours;
+- overrideable soft hours;
+- assigned workload;
+- remaining headroom.
+
+5.3 Planner annual view
+Combine workload and capacity in one planning decision surface.
+Requirements:
+- distinguish obligations from unique physical visits;
+- no double-count of bundled scopes;
+- actual planned date for month aggregation;
+- reconciliation between workload and capacity;
+- drilldown by auditor/month/region/scope.
+
+5.4 Rotation preassignment warning
+- never silently preassign an auditor with rotation limitation;
+- visible warning before assignment;
+- soft warning/waiver unless governance later hard-blocks;
+- show count/threshold context;
+- canonical rotation service remains owner.
+
+6. SCOPE & CERTIFICATE LIFECYCLE
+
+6.1 Scope-specific expiry
+Core Model C principle:
+- each recurring scope/obligation owns its own expiry;
+- a visit may combine multiple obligations;
+- combined visit does not merge lifecycle truth;
+- visit planning window is intersection;
+- legacy single expiry projection may only be a compatibility view.
+
+6.2 Recurring vs non-recurring
+Recurring=YES:
+- certificate lifecycle;
+- expiry required;
+- successor obligation generated according to lifecycle rules.
+
+Recurring=NO:
+- no invented certificate expiry;
+- Cycle_Key can create annual obligations;
+- planning windows still supported;
+- no automatic certificate-style successor unless explicitly configured.
+
+6.3 Dynamic scope UI
+- remove fixed 8-scope assumptions;
+- Config_Scopes drives active scope metadata;
+- UI renders scopes dynamically;
+- dependencies respected generically.
+
+6.4 Scope changes
+Need explicit rules for:
+- add scope;
+- deactivate scope;
+- dependency-driven child scope;
+- new cycle;
+- existing planned visit linkage;
+- certificate history;
+- no destructive delete of historical truth.
+
+6.5 Expiry/reporting projection
+Reporting and UI must be able to show:
+- expiry per scope;
+- cycle per scope;
+- combined visit;
+- earliest relevant expiry where a compatibility summary is needed;
+- no misleading single-expiry interpretation.
+
+7. REPORTING & DECISION INFORMATION
+
+7.1 Reporting read models
+Read-only, reusable and canonical.
+Feed:
+- dashboards;
+- annual planner;
+- exports;
+- Company Map;
+- operational reports.
+
+7.2 Core reporting
+- workload by region/scope/auditor;
+- planned vs to-plan hours;
+- capacity;
+- scope-specific expiry;
+- planning-window exposure;
+- rotation pressure;
+- approval/acceptance ageing;
+- reschedule frequency;
+- trip efficiency;
+- notification exceptions;
+- completed / overdue / upcoming lifecycle.
+
+7.3 Exports
+Where operationally useful:
+- Excel;
+- PDF;
+- management summaries.
+Exports must consume read models, not create a second calculation layer.
+
+8. MANAGER COCKPIT / ATTENTION CENTER
+
+Show actionable exceptions:
+- planning-window urgency;
+- expiring scopes;
+- missing successor obligations;
+- Pending Approval ageing;
+- Approved not Accepted;
+- notification anomalies;
+- unassigned workload;
+- capacity overload;
+- rotation waivers;
+- conflicts;
+- incomplete company/location data;
+- stale concepts;
+- lifecycle/projection drift.
+
+Cockpit is action/read surface, not lifecycle owner.
+
+9. AUDITOR DASHBOARD
+
+Show:
+- assigned audits;
+- pending acceptance;
+- self-planning opportunities;
+- upcoming work/trips;
+- Availability conflicts;
+- planning requests;
+- handover notes;
+- required actions.
+
+Uses same Planning 2.0 engine/validators.
+
+10. TRIP & WORKWEEK PLANNING
+
+Build on Concept Planning, not separate engine.
+
+Flow:
+1. choose period;
+2. group/select workload by region;
+3. choose feasible auditor;
+4. select audits;
+5. assemble concept trip/workweek;
+6. sequence visits;
+7. validate;
+8. canonical commit.
+
+Inputs:
+- required visit locations;
+- Companies.Locations_JSON;
+- duration;
+- planning windows;
+- Availability;
+- working-day limits;
+- auditor base;
+- company constraints.
+
+Travel modes:
+- car;
+- train where relevant;
+- flight where relevant.
+
+Compare:
+- door-to-door time;
+- feasibility;
+- cost when reliable;
+- schedule impact;
+- sustainability burden.
+
+Flight:
+- explicit environmental penalty/soft score;
+- no automatic hard block.
+
+Hotel:
+- visible in map/trip context;
+- possible day start/end point;
+- advisory/manual;
+- no autonomous booking initially.
+
+11. BATCH / BULK PLANNING
+
+11.1 Concept batch
+- select multiple workload items;
+- create concept batch;
+- assign/edit;
+- per-item validation;
+- whole-batch preflight;
+- explicit Apply.
+
+11.2 Commit governance
+- no silent partial commit;
+- commit-time revalidation;
+- idempotent batch ID;
+- locking/concurrency;
+- rollback/isolation;
+- explicit outcome:
+  committed / blocked / failed / already committed / skipped.
+
+11.3 Later bulk actions
+- bulk Re-adjust;
+- move trip/week;
+- controlled auditor replacement;
+- always retain per-audit validation.
+
+12. COMPANY COMMUNICATION / PROPOSALS
+
+12.1 Company proposal
+Concept may propose:
+- date;
+- time block.
+
+Company may:
+- confirm;
+- decline;
+- provide partial availability;
+- suggest alternatives.
+
+Rules:
+- company never commits final planning;
+- feedback returns to Workspace;
+- validators rerun at commit;
+- no duplicate truth in email/portal.
+
+12.2 Operational communication
+Potential:
+- richer manager/auditor emails;
+- ICS;
+- map/GPS links;
+- contact info;
+- preparation reminders;
+- SMS escalation where justified.
+
+All delivery through Notification Queue.
+
+13. PROFILES, CONSTRAINTS & HANDOVER
+
+13.1 Auditor Planning Profile
+Potential fields/behaviour:
+- active/role;
+- blocked weekdays;
+- region preferences;
+- planning constraints;
+- base/location where needed;
+- qualifications remain canonical elsewhere if already owned.
+
+13.2 Company Planning Profile
+- preferred audit months;
+- location constraints;
+- contact/planning instructions;
+- recurring scheduling constraints.
+
+13.3 Handover Notes
+Two levels:
+- Company Handover;
+- Audit/Visit Handover.
+
+Examples:
+- access;
+- parking;
+- local contact instructions;
+- site-specific operational issue;
+- logistics.
+
+Governance:
+- structured;
+- auditable;
+- permission-aware;
+- not lifecycle truth;
+- not generic CRM.
+
+14. DATA MIGRATION / LEGACY RETIREMENT
+
+14.1 Projection hygiene
+- Audit planning remains supported;
+- gradually remove reads that incorrectly treat projection as canonical;
+- keep compatibility until dependent UI/workflows are migrated.
+
+14.2 Legacy cleanup
+- obsolete diagnostics;
+- duplicate helpers;
+- old scope assumptions;
+- old cache paths;
+- abandoned Toolkit fragments;
+- naming inconsistencies;
+- historical typo fallbacks such as Audit_ObligATIONS where safely removable.
+
+14.3 Migration evidence
+Every retirement requires:
+- replacement proven;
+- regression tests;
+- DEV evidence;
+- rollback path.
+
+15. TECHNICAL HARDENING
+
+- remove duplicate global ownership/load-order risks;
+- preserve deterministic cache invalidation;
+- reduce full-sheet scans;
+- target bounded/windowed reads;
+- avoid N+1 patterns;
+- retain write guards;
+- maintain DEV/PROD discipline;
+- keep canonical SSoT documentation synchronized.
+
+16. PLANNING INTELLIGENCE / ADVISORY
+
+Only after core Planning 2.0 is fast and stable.
+
+Assignment advisory may consider:
+- qualification;
+- region;
+- continuity;
+- travel burden;
+- rotation pressure;
+- Availability fit;
+- workload/capacity.
+
+Output:
+- candidates;
+- reasons;
+- hard blocks;
+- warnings/waivers;
+- policy/config version;
+- generated timestamp.
+
+Manager remains decision owner.
+
+Trip sequencing advisory:
+- time windows;
+- travel;
+- working day;
+- location order;
+- hotel/airport;
+- constraints.
+
+No heavy optimizer until simple advisory proves insufficient.
+
+17. LONG-TERM PLATFORM DIRECTION
+
+Only after demonstrated need:
+- archive partitioning;
+- paged history;
+- async rebuild/workers;
+- dedicated datastore/backend;
+- API-first architecture;
+- mobile-focused UX;
+- migration beyond GAS.
+
+18. EXECUTION ORDER FROM CURRENT STATE
+
+Phase 1 — close current capacity correction
+- rerun corrected Annual Availability capacity acceptance;
+- verify blocked weekdays Mo/Tu;
+- close annual capacity foundation.
+
+Phase 2 — Planning 2.0 performance baseline
+- Availability Calendar;
+- Manager Toolkit;
+- Auditor Toolkit;
+- first load/month switch/select/save/modify;
+- identify full scans/N+1/repeated validators;
+- establish p50/p95.
+
+Phase 3 — Planning 2.0 fast read layer
+- month-bounded Availability;
+- compact Workspace decision model;
+- shared Manager/Auditor payload;
+- deterministic cache/invalidation.
+
+Phase 4 — integrated annual planner
+- workload + capacity;
+- rotation warning;
+- month/region/scope drilldown;
+- concept-planning launch.
+
+Phase 5 — operational actions
+- Re-adjust Workspace integration;
+- Save/Close practical completion;
+- refresh/close behaviour;
+- lifecycle-safe Modify.
+
+Phase 6 — lifecycle/reporting
+- scope-specific expiry surfaces;
+- dynamic scope UI;
+- reporting read models;
+- Manager Cockpit;
+- Auditor Dashboard.
+
+Phase 7 — Batch Planning maturation
+- annual planner multi-select;
+- concept batch;
+- whole-batch preflight;
+- canonical batch commit UX.
+
+Phase 8 — Trip & Workweek Planning
+- multi-location;
+- route/map;
+- travel mode comparison;
+- sustainability penalty;
+- hotel context.
+
+Phase 9 — company communication / profiles
+- proposal/confirmation;
+- richer notifications;
+- structured constraints/handover.
+
+Phase 10 — legacy retirement / platform hardening
+- remove replaced paths;
+- consolidate remaining technical debt;
+- reassess need for architecture beyond GAS.
+
+19. DEFINITION OF DONE PER WORKSTREAM
+
+Every activated workstream requires:
+- explicit operational problem;
+- canonical owner;
+- no new dual truth;
+- performance baseline where relevant;
+- regression tests;
+- rollback/recovery for writes;
+- status effects defined;
+- Availability effects defined;
+- notification effects defined;
+- audit trail for mutation;
+- no hidden policy;
+- DEV closure evidence.
+
+20. MASTER ROADMAP GOVERNANCE
+
+This V2.6 consolidates:
+- Master Project Governance;
+- Project SSoT Structure;
+- Roadmap V2.3;
+- Roadmap V2.4 implementation decisions;
+- Roadmap V2.5 consolidated;
+- AMS-01.6 Model C closure;
+- Planning 2.0 integrated plan;
+- parked planning/toolkit/maps/reporting items;
+- current September 2026 execution state.
+
+After acceptance:
+- V2.6 is the active master roadmap;
+- Planning 2.0 remains a subordinate integrated programme under V2.6;
+- V2.5 becomes historical baseline;
+- implementation remains tracked through AMS workstreams;
+- repository docs remain roadmap SSoT.

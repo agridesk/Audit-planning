@@ -1,13 +1,13 @@
 /***********************************************************************
  * PlanningWorkspaceClientTests.js
- * BUILD: 2026-09-17_AMS01_PLANNING_WORKSPACE_CLIENT_TESTS_R13_NATIVE_AUTH_DATA
+ * BUILD: 2026-09-17_AMS01_PLANNING_WORKSPACE_CLIENT_TESTS_R14_CURRENT_CLIENT_CONTRACT
  ***********************************************************************/
 var PLANNING_WORKSPACE_CLIENT_TEST_BUILD='2026-09-17_AMS01_PLANNING_WORKSPACE_CLIENT_TESTS_R13_NATIVE_AUTH_DATA';
 function RUN_PLANNING_WORKSPACE_CLIENT_BINDING_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var src=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceClient.js').getContent();
   t('clientPresent',!!src);
-  t('buildMarker',src.indexOf('PLANNING_WORKSPACE_CLIENT_R17_NATIVE_AUTH_DATA')>=0);
+  t('buildMarker',src.indexOf('PLANNING_WORKSPACE_CLIENT_R43_NAV_RENDER_PERF')>=0);
   t('normalBootstrapRpc',src.indexOf('PlanningWorkspaceRpc_bootstrap')>=0);
   t('initialAuthOwner',src.indexOf('.V5_ENTRY_resolve(entryAuthContext(base))')>=0);
   t('nativeAuthDataEnvelope',src.indexOf('payload.__pwAuthData===true')>=0&&src.indexOf('finishLoad(payload.rpc')>=0);
@@ -42,6 +42,7 @@ function RUN_PLANNING_WORKSPACE_CLIENT_BINDING_REGRESSION(){
   t('stageWindowExport',src.indexOf('__AMS01_PLANNING_WORKSPACE_STAGE_PERF')>=0);
   t('shellBeforeOpenLoad',src.indexOf("publishShell({type:'AMS01_BROWSER_PERF'")>=0&&src.indexOf("load('open')")>=0);
   t('navigationClock',src.indexOf("kind==='open'?now():now()-started")>=0);
+  t('navigationRenderMetric',src.indexOf('PlanningWorkspace_calendar_navigation')>=0&&src.indexOf('serverRpc:false')>=0);
   t('footerSplit',src.indexOf('Shell ')>=0&&src.indexOf('Decision-ready ')>=0&&src.indexOf('Availability ')>=0);
   t('noRawJsonRender',src.indexOf('JSON.stringify(advisory')<0&&src.indexOf('JSON.stringify(overlays')<0);
   t('noSheetAccess',src.indexOf('SpreadsheetApp')<0);

@@ -507,31 +507,12 @@ function v5_formatPlanningWindowTextFromCtx_(ctx){
 function v5_resolvePlanningContext(auditId, auditorEmailOpt) {
   auditId = String(auditId || '').trim();
   if (!auditId) throw new Error('Missing auditId');
-  // PERF: cache Audit planning sheet read + row lookup for this execution
-  if (!_V5_CACHE_AP) {
-    var ss0 = auditorV5_getSs_();
-    var ap0 = ss0.getSheetByName(V5_AP_SHEET);
-    if (!ap0) throw new Error('Missing sheet: "' + V5_AP_SHEET + '"');
-    var apValues0 = ap0.getDataRange().getValues();
-    if (apValues0.length < 2) throw new Error('"' + V5_AP_SHEET + '" has no data');
-    var apHeaders0 = apValues0[0].map(_v5_trim_);
-    var apIdx0 = _v5_indexMap_(apHeaders0);
-    // Build fast lookup: Audit_ID -> row array
-    var byId0 = {};
-    var idCol0 = apIdx0[V5_H_AUDIT_ID];
-    for (var rr0 = 1; rr0 < apValues0.length; rr0++) {
-      var rid0 = String(apValues0[rr0][idCol0] || '').trim();
-      if (rid0) byId0[rid0] = apValues0[rr0];
-    }
-    _V5_CACHE_AP = { ss: ss0, ap: ap0, values: apValues0, headers: apHeaders0, idx: apIdx0, rowByAuditId: byId0 };
-  }
-  var ss = _V5_CACHE_AP.ss;
-  var ap = _V5_CACHE_AP.ap;
-  var apValues = _V5_CACHE_AP.values;
-  var apHeaders = _V5_CACHE_AP.headers;
-  var apIdx = _V5_CACHE_AP.idx;
-  var row = _V5_CACHE_AP.rowByAuditId[auditId];
-  if (!row) throw new Error("Audit not found for Audit ID: " + auditId);
+  var ss = auditorV5_getSs_();
+  var pack = (typeof __mp_getAuditPlanningRow_ === 'function') ? __mp_getAuditPlanningRow_(ss,auditId) : null;
+  if (!pack || !pack.row || !pack.hdr) throw new Error("Audit not found for Audit ID: " + auditId);
+  var apHeaders = pack.hdr.map(_v5_trim_);
+  var apIdx = _v5_indexMap_(apHeaders);
+  var row = pack.row;
   var expiry = _v5_parseDate_(row[apIdx[V5_H_EXPIRY_FINAL]]);
   var isFirstTime = !expiry;
   var activeScopes = v5_extractApplicableScopes_(apHeaders, row);

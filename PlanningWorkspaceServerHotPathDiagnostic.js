@@ -6,7 +6,7 @@
  * Measures the canonical components separately using the normal Sep-Dec
  * 2026 Workspace period. No writes, refreshes or lifecycle effects.
  ***********************************************************************/
-var PLANNING_WORKSPACE_SERVER_HOTPATH_DIAGNOSTIC_BUILD='2026-09-12_WORKSPACE_SERVER_HOTPATH_DIAGNOSTIC_R1';
+var PLANNING_WORKSPACE_SERVER_HOTPATH_DIAGNOSTIC_BUILD='2026-09-23_WORKSPACE_SERVER_HOTPATH_DIAGNOSTIC_R3_BOOTSTRAP_FAST_PATH';
 
 function PWSHD_ms_(fn){var t=Date.now(),value=fn();return{ms:Date.now()-t,value:value};}
 function PWSHD_clean_(v){return String(v==null?'':v).trim();}
@@ -19,7 +19,7 @@ function RUN_PLANNING_WORKSPACE_BOOTSTRAP_FAST_PATH_ACCEPTANCE(){
   function snap(x){var d=x&&x.data||{},a=d.advisory||{},o=d.overlays||{},m=d.meta||{};return{ok:x&&x.ok===true,durationMs:x&&x.durationMs,stageMs:m.stageMs||null,companyProjectionUsed:a.meta&&a.meta.companyProjectionUsed,preferredAuditMonthsRowsRead:a.meta&&a.meta.preferredAuditMonthsRowsRead,availabilityContextBatchReads:o.meta&&o.meta.availabilityContextBatchReads,conceptLifecycleBatchReads:o.meta&&o.meta.conceptLifecycleBatchReads,sharedDemandContext:o.meta&&o.meta.availabilityContextSharedDemandUsed===true,payload:m.payload||null};}
   var a=snap(first),b=snap(second),checks={firstOk:a.ok,secondOk:b.ok,noCompanyProjection:a.companyProjectionUsed===false,noPreferredMonthsRead:a.preferredAuditMonthsRowsRead===0,noAvailabilityContextRead:a.availabilityContextBatchReads===0,noLifecycleRead:a.conceptLifecycleBatchReads===0,sharedDemandContext:a.sharedDemandContext===true,warmUnderOneSecond:b.durationMs<1000};
   var ok=Object.keys(checks).every(function(k){return checks[k]===true;});
-  var out={ok:ok,build:PLANNING_WORKSPACE_SERVER_HOTPATH_DIAG_BUILD,readOnly:true,writesPerformed:false,input:input,first:a,second:b,checks:checks};
+  var out={ok:ok,build:PLANNING_WORKSPACE_SERVER_HOTPATH_DIAGNOSTIC_BUILD,readOnly:true,writesPerformed:false,input:input,first:a,second:b,checks:checks};
   Logger.log(JSON.stringify(out,null,2));return out;
 }
 

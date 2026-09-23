@@ -13,10 +13,11 @@
  * - No new cache, no writes and no truth/ownership changes.
  ***********************************************************************/
 
-var PLANNING_PROFILES_BUILD = '2026-09-10_AMS01_2_PLANNING_PROFILES_R5_SINGLE_WINDOW_READ';
+var PLANNING_PROFILES_BUILD = '2026-09-23_AMS03_PLANNING_PROFILES_R6_EXEC_CACHE';
 var PPS_COMPANIES_WINDOW_ROWS = 512;
 var PPS_AUDITORS_WINDOW_ROWS = 64;
 var PPS_WINDOW_COLS = 26;
+var PPS_EXEC_CACHE = {};
 
 function PPS_clean_(v) { return String(v == null ? '' : v).trim(); }
 function PPS_norm_(v) { return PPS_clean_(v).toLowerCase(); }
@@ -31,7 +32,7 @@ function PPS_rowHasValue_(row){for(var i=0;i<(row||[]).length;i++)if(PPS_clean_(
 function PPS_lastUsedRow_(values){for(var r=(values||[]).length-1;r>=0;r--)if(PPS_rowHasValue_(values[r]))return r+1;return 0;}
 function PPS_lastUsedCol_(values){var last=0;for(var r=0;r<(values||[]).length;r++){var row=values[r]||[];for(var c=row.length-1;c>=last;c--){if(PPS_clean_(row[c])){last=c+1;break;}}}return last;}
 function PPS_boundaryOccupied_(values){if(!values||!values.length)return false;var lastRow=values[values.length-1]||[];if(PPS_rowHasValue_(lastRow))return true;var lastCol=(lastRow.length||PPS_WINDOW_COLS)-1;for(var r=0;r<values.length;r++)if(PPS_clean_((values[r]||[])[lastCol]))return true;return false;}
-function PPS_readWindow_(sh,windowRows,perf,prefix){var values,mode='FIXED_WINDOW',fallback=false;try{values=sh.getRange(1,1,windowRows,PPS_WINDOW_COLS).getValues();if(PPS_boundaryOccupied_(values)){values=sh.getDataRange().getValues();mode='DATARANGE_FALLBACK';fallback=true;}}catch(e){values=sh.getDataRange().getValues();mode='DATARANGE_FALLBACK';fallback=true;}var usedRows=PPS_lastUsedRow_(values),usedCols=PPS_lastUsedCol_(values);values=usedRows?values.slice(0,usedRows):[];PPS_mark_(perf,prefix+'WindowRead',{mode:mode,windowRows:windowRows,windowCols:PPS_WINDOW_COLS,usedRows:usedRows,usedCols:usedCols,fallback:fallback});return{values:values,usedRows:usedRows,usedCols:usedCols,mode:mode,fallback:fallback};}
+function PPS_readWindow_(sh,windowRows,perf,prefix){var cacheKey=String(sh.getSheetId())+'::'+windowRows+'::'+PPS_WINDOW_COLS,cached=PPS_EXEC_CACHE[cacheKey];if(cached&&cached.values){PPS_mark_(perf,prefix+'WindowRead',{mode:'EXEC_CACHE',windowRows:windowRows,windowCols:PPS_WINDOW_COLS,usedRows:cached.usedRows,usedCols:cached.usedCols,fallback:cached.fallback===true});return{values:cached.values,usedRows:cached.usedRows,usedCols:cached.usedCols,mode:'EXEC_CACHE',fallback:cached.fallback===true};}var values,mode='FIXED_WINDOW',fallback=false;try{values=sh.getRange(1,1,windowRows,PPS_WINDOW_COLS).getValues();if(PPS_boundaryOccupied_(values)){values=sh.getDataRange().getValues();mode='DATARANGE_FALLBACK';fallback=true;}}catch(e){values=sh.getDataRange().getValues();mode='DATARANGE_FALLBACK';fallback=true;}var usedRows=PPS_lastUsedRow_(values),usedCols=PPS_lastUsedCol_(values);values=usedRows?values.slice(0,usedRows):[];PPS_EXEC_CACHE[cacheKey]={values:values,usedRows:usedRows,usedCols:usedCols,fallback:fallback};PPS_mark_(perf,prefix+'WindowRead',{mode:mode,windowRows:windowRows,windowCols:PPS_WINDOW_COLS,usedRows:usedRows,usedCols:usedCols,fallback:fallback});return{values:values,usedRows:usedRows,usedCols:usedCols,mode:mode,fallback:fallback};}
 
 function PPS_scopeNames_(input) {
   var supplied = input && input.precomputedEvidence && input.precomputedEvidence.activeScopeNames;

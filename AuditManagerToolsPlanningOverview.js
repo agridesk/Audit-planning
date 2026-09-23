@@ -190,24 +190,15 @@ function m5t_po_extractScopesStyled_(ss, row, header, flagCols, meta) {
 
 function m5t_po_getCompanyRegionMap_(ss) {
   var out = {};
-  var sh = ss.getSheetByName('Companies');
-  if (!sh) return out;
-
-  var values = sh.getDataRange().getValues();
-  if (!values || values.length < 2) return out;
-
-  var hm = m5t_makeHeaderMap_(values[0]);
-  var nameCol = m5t_pickHeader_(hm, ['Company','Company name','Customer','Bedrijf','Name']);
-  var regionCol = m5t_pickHeader_(hm, ['Region']);
-
-  if (nameCol < 0 || regionCol < 0) return out;
-
-  for (var r = 1; r < values.length; r++) {
-    var name = String(values[r][nameCol] || '').trim();
+  if (typeof PlanningProfilesService_get !== 'function') return out;
+  var profiles = PlanningProfilesService_get({ includeCompanies:true, includeAuditors:false }) || {};
+  var companies = profiles.companies || [];
+  for (var r = 0; r < companies.length; r++) {
+    var item = companies[r] || {};
+    var name = String(item.company || '').trim();
     if (!name) continue;
-    out[m5t_normHeader_(name)] = String(values[r][regionCol] || '').trim();
+    out[m5t_normHeader_(name)] = String(item.region || '').trim();
   }
-
   return out;
 }
 

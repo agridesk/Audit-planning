@@ -4,7 +4,7 @@
  *
  * Read-only DEV integration regression. No write endpoints are invoked.
  ***********************************************************************/
-var PLANNING_WORKSPACE_LIVE_BOOTSTRAP_TEST_BUILD='2026-09-09_PLANNING_WORKSPACE_2_0_LIVE_BOOTSTRAP_TESTS_R1';
+var PLANNING_WORKSPACE_LIVE_BOOTSTRAP_TEST_BUILD='2026-09-23_PLANNING_WORKSPACE_2_0_LIVE_BOOTSTRAP_TESTS_R3_FAST_PATH';
 function RUN_PLANNING_WORKSPACE_LIVE_BOOTSTRAP_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var now=new Date(),from=new Date(now.getFullYear(),now.getMonth(),1),to=new Date(now.getFullYear(),now.getMonth()+3,0);
@@ -25,6 +25,11 @@ function RUN_PLANNING_WORKSPACE_LIVE_BOOTSTRAP_REGRESSION(){
   t('overlayNoPerAuditReads',om.perAuditSheetReads===0,JSON.stringify(om));
   t('durationReported',out&&typeof out.durationMs==='number',out&&out.durationMs);
   t('readOnly',true);
+  var am=out&&out.data&&out.data.advisory&&out.data.advisory.meta||{},st=out&&out.data&&out.data.meta&&out.data.meta.stageMs||{};
+  t('companyProjectionSkipped',am.companyProjectionUsed===false,JSON.stringify(am));
+  t('preferredMonthsHotPathSkipped',am.preferredAuditMonthsRowsRead===0,JSON.stringify(am));
+  t('sharedAvailabilityContext',om.availabilityContextSharedDemandUsed===true,JSON.stringify(om));
+  t('stageDiagnosticsPresent',typeof st.advisory==='number'&&typeof st.overlays==='number'&&typeof st.serverTotal==='number',JSON.stringify(st));
   var failed=r.filter(function(x){return!x.ok;}).length;
   var result={ok:failed===0,build:PLANNING_WORKSPACE_LIVE_BOOTSTRAP_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:true,liveWritesPerformed:false,input:input,wallTimeMs:elapsed,nextStep:'Expose DEV-only Workspace route after live bootstrap is green.'}};
   console.log(JSON.stringify(result,null,2));return result;

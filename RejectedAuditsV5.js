@@ -357,12 +357,13 @@ function ClearPlanningFields(auditId) {
     map.indexOf(cfg.columns.dateApproved),map.indexOf(cfg.columns.planningJson)
   ],protectedSnapshot=null;
   try{if(typeof Lifecycle_snapshotProtectedPlanningFields_==='function')protectedSnapshot=Lifecycle_snapshotProtectedPlanningFields_({auditId:auditId,sheet:sheet,rowIndex:pack.rowNumber,headers:headers,source:'RejectedAuditsV5.ClearPlanningFields:before'});}catch(e1){protectedSnapshot={success:false,message:String(e1&&e1.message?e1.message:e1)};}
-  for(var i=0;i<cols.length;i++)if(cols[i]>=0)row[cols[i]]='';
-  sheet.getRange(pack.rowNumber,1,1,headers.length).setValues([row]);
+  var a1=[];
+  for(var i=0;i<cols.length;i++)if(cols[i]>=0)a1.push(sheet.getRange(pack.rowNumber,cols[i]+1).getA1Notation());
+  if(a1.length)sheet.getRangeList(a1).clearContent();
   try{if(typeof __mp_invalidateAuditPlanningPack_==='function')__mp_invalidateAuditPlanningPack_();}catch(e2){}
   var protectedRestore={success:true,skipped:true};
   try{if(protectedSnapshot&&typeof Lifecycle_restoreProtectedPlanningFields_==='function')protectedRestore=Lifecycle_restoreProtectedPlanningFields_(protectedSnapshot,{source:'RejectedAuditsV5.ClearPlanningFields:after'});}catch(e3){protectedRestore={success:false,message:String(e3&&e3.message?e3.message:e3)};}
-  return{success:true,protectedPlanningFields:protectedRestore,lookupMode:'AUDIT_ID_INDEX',writeMode:'SINGLE_ROW'};
+  return{success:true,protectedPlanningFields:protectedRestore,lookupMode:'AUDIT_ID_INDEX',writeMode:'TARGET_CELLS_ONLY'};
 }
 function V5_ClearPlanningFields(auditId) {
   return ClearPlanningFields(auditId);

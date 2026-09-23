@@ -1,0 +1,25 @@
+AMS-03 — PHASE 4 INTEGRATED ANNUAL PLANNER — CLOSURE
+Date: 2026-09-23
+Status: CLOSED — DEV ACCEPTED
+
+Runtime evidence
+- Integrated annual baseline: 13/13 GREEN.
+- Ownership/static contract: 10/10 GREEN.
+- Drilldown + Workspace launch: 12/12 GREEN.
+- Consolidated Phase 4 batch: 3/3 GREEN.
+- No writes and no new SSoT.
+
+Accepted architecture
+- Workload owner remains Model C / Audit_Obligations.
+- Capacity owner remains Auditor Availability + PlanningProfiles.
+- Annual integrated model is projection only.
+- Region/scope/month drilldown is in-memory over the integrated model.
+- Rotation remains advisory/soft.
+- Drilldown projects audit IDs and a Planning Workspace 2.0 launch request.
+
+Observed DEV performance
+- Integrated baseline totalMs 6537 in this run.
+- PlanningProfilesService scopeCatalog cold 1385 ms, subsequent calls 8/6 ms.
+- Performance remains an optimization concern, not a Phase 4 correctness failure.
+
+Next: Phase 5 operational actions.

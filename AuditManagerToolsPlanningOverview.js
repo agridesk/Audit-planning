@@ -1,4 +1,4 @@
-// BUILD: AuditManagerToolsPlanningOverview_20260425
+// BUILD: 2026-09-23_AMS03_PLANNING_OVERVIEW_BOUNDED_R1
 // Planning overview helpers unchanged.
 
 function m5t_getPlanningOverview(payload) {
@@ -10,8 +10,9 @@ function m5t_getPlanningOverview(payload) {
   var sh = ss.getSheetByName('Audit planning');
   if (!sh) return { success: false, error: 'MISSING_AUDIT_PLANNING' };
 
-  var values = sh.getDataRange().getValues();
-  if (!values || values.length < 2) return { success: true, rows: [] };
+  var pack = m5t_po_readAuditPlanningBounded_(sh);
+  var values = pack.values;
+  if (!values || values.length < 2) return { success: true, rows: [], meta:{readStrategy:pack.mode,readFallback:pack.fallback} };
 
   var header = values[0];
   var hm = m5t_makeHeaderMap_(header);
@@ -102,7 +103,19 @@ function m5t_getPlanningOverview(payload) {
     return String(a.company || '').localeCompare(String(b.company || ''));
   });
 
-  return { success: true, rows: out };
+  return { success: true, rows: out, meta:{readStrategy:pack.mode,readFallback:pack.fallback,windowRows:pack.windowRows,windowCols:pack.windowCols} };
+}
+
+var M5T_PO_AUDIT_WINDOW_ROWS_=256;
+var M5T_PO_AUDIT_WINDOW_COLS_=48;
+function m5t_po_readAuditPlanningBounded_(sh){
+ var rows=M5T_PO_AUDIT_WINDOW_ROWS_,cols=M5T_PO_AUDIT_WINDOW_COLS_,values,mode='FIXED_WINDOW',fallback=false;
+ function hasData(row){for(var i=0;i<(row||[]).length;i++)if(row[i]!==''&&row[i]!=null)return true;return false;}
+ function usedRows(a){var last=0;for(var i=0;i<(a||[]).length;i++)if(hasData(a[i]))last=i+1;return last;}
+ function usedCols(a,ur){var last=0;for(var r=0;r<Math.min(ur||0,(a||[]).length);r++){var row=a[r]||[];for(var q=row.length-1;q>=0;q--)if(row[q]!==''&&row[q]!=null){if(q+1>last)last=q+1;break;}}return last;}
+ try{values=sh.getRange(1,1,rows,cols).getValues();var ur=usedRows(values),uc=usedCols(values,ur);if((ur===rows&&hasData(values[rows-1]))||uc===cols){fallback=true;mode='DATARANGE_FALLBACK';values=sh.getDataRange().getValues();}}
+ catch(e){fallback=true;mode='DATARANGE_FALLBACK';values=sh.getDataRange().getValues();}
+ var n=usedRows(values);return{values:n?values.slice(0,n):[],mode:mode,fallback:fallback,windowRows:rows,windowCols:cols};
 }
 
 function m5t_po_getScopeFlagCols_(header) {

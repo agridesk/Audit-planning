@@ -1711,8 +1711,9 @@ function auditorV5_appendLogRealizedFromPlanningRow_(auditId, planningHeaders, p
 function auditorV5_syncAuditArtifactsSafe_(auditId, fullRebuild) {
   var out = { success:true, auditId:String(auditId || '').trim(), fullRebuild:!!fullRebuild, auditTime:null, planningWindow:null };
   try {
-    if (typeof AuditTimeV5_RebuildTotalHours === 'function') out.auditTime = AuditTimeV5_RebuildTotalHours();
-    else out.auditTime = { success:false, message:'AuditTimeV5_RebuildTotalHours not found' };
+    if (!fullRebuild && out.auditId && typeof AuditTimeV5_RebuildTotalHoursForAuditId === 'function') out.auditTime = AuditTimeV5_RebuildTotalHoursForAuditId(out.auditId);
+    else if (typeof AuditTimeV5_RebuildTotalHours === 'function') out.auditTime = AuditTimeV5_RebuildTotalHours();
+    else out.auditTime = { success:false, message:'AuditTimeV5 rebuild function not found' };
   } catch (e1) {
     out.auditTime = { success:false, message:String(e1 && e1.message ? e1.message : e1) };
   }

@@ -12,6 +12,8 @@ function RUN_AMS01_3_WORKSPACE_DECISION_READ_MODEL_REGRESSION(){
  t('noPersistentCache',contract.persistentCache===false);
  t('noNewSsot',contract.newSsot===false);
  t('noCanonicalRuleReimplementation',contract.canonicalRulesReimplemented===false);
- t('compactProjection',src.indexOf('PWDRM_audit_')>=0&&src.indexOf('candidateAuditorEmails')>=0);\n t('sourceTelemetryPreserved',src.indexOf('sourceMeta=a&&a.meta||{}')>=0);\n t('sharedAuditContextProjected',src.indexOf('auditContextById')>=0);
+ t('compactProjection',src.indexOf('PWDRM_audit_')>=0&&src.indexOf('candidateAuditorEmails')>=0);
+ t('sourceTelemetryPreserved',src.indexOf('sourceMeta=a&&a.meta||{}')>=0);
+ t('sharedAuditContextProjected',src.indexOf('auditContextById')>=0);
  var failed=r.filter(function(x){return!x.ok}).length,out={ok:failed===0,build:PWDRM_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,newSsot:false}};Logger.log(JSON.stringify(out,null,2));return out;
 }

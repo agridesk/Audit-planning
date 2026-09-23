@@ -2,7 +2,7 @@ AMS-03 — PHASE 8–10 DEV MATURATION ACCEPTANCE
 Date: 2026-09-23
 Status: DEV ACCEPTED — MATURATION FOUNDATION + PERFORMANCE HARDENING
 
-Latest runtime evidence — 2026-09-23 21:12
+Latest validated runtime evidence — 2026-09-23 21:19
 - Phase 8–10 maturation batch R16: 19/19 GREEN.
 - Phase 8 trip concept acceptance: 18/18 GREEN.
 - Phase 9 communication/profiles acceptance: 19/19 GREEN.
@@ -18,7 +18,7 @@ Latest live read evidence
 - Structured handover read succeeded.
 - Company profile reuse succeeded.
 - Sample trip GPS readiness = 1.
-- Live read integration total = 1836 ms.
+- Live read integration total = 5841 ms in this cold-path sample.
 
 Performance evidence
 - Planning Demand first bounded read: 523 ms for 71 returned rows.
@@ -29,7 +29,7 @@ Performance evidence
 - Concept Planning repeated read completed in 171 ms for 71 audits.
 - Revision token targeted indexed read completed in 30 ms.
 - Existing warm server hot-path observations remain below the provisional 2000 ms roadmap target.
-- Cold-path variance remains observable and should continue to be measured; acceptance does not hide it.
+- Cold-path variance remains material: this sample produced 5841 ms live integration despite all correctness gates being green. This remains an explicit performance follow-up; acceptance does not hide it.
 
 Additional hardening accepted
 - Company Map uses bounded Audit planning read and cached full dataset with bounded TTL.

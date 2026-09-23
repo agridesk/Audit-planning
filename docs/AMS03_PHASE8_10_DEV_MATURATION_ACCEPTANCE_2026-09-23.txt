@@ -1,0 +1,51 @@
+AMS-03 — PHASE 8–10 DEV MATURATION ACCEPTANCE
+Date: 2026-09-23
+Status: DEV ACCEPTED — MATURATION FOUNDATION
+
+Runtime evidence
+- Planning 2.0 master gate R2: 7/7 GREEN.
+- Phase 8–10 maturation batch R4: 7/7 GREEN.
+- Phase 8 trip concept acceptance: 18/18 GREEN.
+- Phase 9 communication/profiles acceptance: 19/19 GREEN.
+- Phase 8–10 performance hardening: 7/7 GREEN.
+- Phase 8–10 live read integration: 7/7 GREEN.
+- Legacy caller inventory: 7 classified surfaces; automatic retirement = 0.
+
+Live read evidence
+- Decision read returned 71 rows.
+- Trip concept read succeeded for one audit.
+- Company communication read succeeded for one company.
+- Structured handover read succeeded.
+- No trip/company/handover writes or sends.
+- Live read batch total: 3748 ms.
+- Sample trip GPS readiness was 0; this is not treated as a routing capability.
+
+Planning 2.0 performance evidence in same master run
+- Warm server hot-path observations: 771 ms and 933 ms, both below the provisional 2000 ms roadmap target.
+- Shared availability context fully seeded; zero context misses and zero lifecycle/availability batch reads in hot path.
+- Cold/less-warm live decision sample: 3793 ms. This remains observable cold-path variance, not hidden by the acceptance gate.
+
+Accepted boundaries
+Phase 8
+- Operational advisory foundation accepted.
+- Selected-audit trip/workweek context is on-demand and read-only.
+- No claim of a full route provider, travel-time engine, cost engine or booking engine.
+
+Phase 9
+- Company communication/profile context, proposal draft, handover and feedback validation contract accepted.
+- Company feedback persistence and external authentication are not implemented.
+- Company response can never directly commit planning; manager review and Workspace revalidation remain required.
+
+Phase 10
+- Legacy caller inventory/governance accepted.
+- No automatic retirement, history deletion or big-bang migration.
+- Compatibility surfaces remain until caller migration and semantic replacement are proven.
+
+Architecture
+- No new SSoT.
+- No second planning engine.
+- Canonical commit/modify/cancel ownership unchanged.
+- Audit planning remains an operational compatibility projection during migration.
+
+Conclusion
+Phase 8–10 maturation foundation is DEV accepted within the explicit boundaries above. This is not full product closure for route-provider capability, authenticated company feedback workflow, or legacy retirement.

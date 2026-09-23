@@ -1,6 +1,6 @@
 /***********************************************************************
  * FILE: PlanningDemandScopeFastPath.js
- * BUILD: 2026-09-23_AMS01_PLANNING_DEMAND_SCOPE_FASTPATH_R3_CACHED_CANONICAL
+ * BUILD: 2026-09-23_AMS01_PLANNING_DEMAND_SCOPE_FASTPATH_R4_PLAN_LOCAL
  *
  * PURPOSE
  * - Execution-local scope projection for PlanningDemandService.
@@ -26,4 +26,5 @@ function AMS01_PDS_SF_catalog_(){
   return{rows:[]};
 }
 function AMS01_PDS_scopePlan_(headers){headers=headers||[];var key=headers.map(function(x){return AMS01_PDS_SF_clean_(x);}).join('\u001f');if(AMS01_PDS_SCOPE_FASTPATH_CACHE[key])return AMS01_PDS_SCOPE_FASTPATH_CACHE[key];var catalog=AMS01_PDS_SF_catalog_(),rows=catalog&&Array.isArray(catalog.rows)?catalog.rows:[],byKey={};for(var i=0;i<rows.length;i++){var r=rows[i]||{};if(typeof ConfigScopes_yes_==='function'&&(!ConfigScopes_yes_(r.active,true)||ConfigScopes_yes_(r.archived,false)))continue;var name=AMS01_PDS_SF_clean_(r.displayName||r.name||r.scopeCode||r.slotKey);if(!name)continue;[r.displayName,r.name,r.scopeCode,r.slotKey].forEach(function(v){var n=AMS01_PDS_SF_norm_(v);if(n)byKey[n]=name;});}var columns=[];for(var h=0;h<headers.length;h++){var n=AMS01_PDS_SF_norm_(headers[h]),name=byKey[n];if(name)columns.push({col:h,name:name});}var plan={source:'Config_Scopes canonical cached execution evidence',configuredScopes:rows.length,matchedColumns:columns.length,columns:columns,build:AMS01_PDS_SCOPE_FASTPATH_BUILD};AMS01_PDS_SCOPE_FASTPATH_CACHE[key]=plan;return plan;}
-function AMS01_PDS_scopeNamesFast_(headers,row){var plan=AMS01_PDS_scopePlan_(headers),out=[];for(var i=0;i<plan.columns.length;i++){var c=plan.columns[i];if(AMS01_PDS_isMarkedX_(row&&row[c.col]))out.push(c.name);}return out;}
+function AMS01_PDS_scopeNamesFromPlan_(plan,row){var out=[];plan=plan||{columns:[]};for(var i=0;i<plan.columns.length;i++){var c=plan.columns[i];if(AMS01_PDS_isMarkedX_(row&&row[c.col]))out.push(c.name);}return out;}
+function AMS01_PDS_scopeNamesFast_(headers,row){return AMS01_PDS_scopeNamesFromPlan_(AMS01_PDS_scopePlan_(headers),row);}

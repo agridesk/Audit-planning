@@ -429,6 +429,7 @@ function companyUpdate_applyProposalRow(rowNumber, managerEmail, managerComment)
         String(cget(['location']) || '')
       );
     }
+    if (typeof CompanyMap_invalidateDatasetCache_C04_ === 'function') CompanyMap_invalidateDatasetCache_C04_();
   } catch (_e9) {
     try { Logger.log('[δ9][applyProposalRow] invalidate failed: ' + _e9); } catch (_) {}
   }
@@ -670,6 +671,7 @@ function companyUpdate_applyProposalValueRow(rowNumber, appliedValue, managerEma
         String(cget(['location']) || '')
       );
     }
+    if (typeof CompanyMap_invalidateDatasetCache_C04_ === 'function') CompanyMap_invalidateDatasetCache_C04_();
   } catch (_e9) {
     try { Logger.log('[δ9][applyProposalValueRow] invalidate failed: ' + _e9); } catch (_) {}
   }

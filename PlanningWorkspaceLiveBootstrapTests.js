@@ -1,6 +1,6 @@
 /***********************************************************************
  * PlanningWorkspaceLiveBootstrapTests.js
- * BUILD: 2026-09-09_PLANNING_WORKSPACE_2_0_LIVE_BOOTSTRAP_TESTS_R1
+ * BUILD: 2026-09-09_PLANNING_WORKSPACE_2_0_LIVE_BOOTSTRAP_TESTS_R2_SHARED_CONTEXT
  *
  * Read-only DEV integration regression. No write endpoints are invoked.
  ***********************************************************************/
@@ -13,13 +13,16 @@ function RUN_PLANNING_WORKSPACE_LIVE_BOOTSTRAP_REGRESSION(){
   var started=Date.now(),out=PlanningWorkspaceRpc_bootstrap(input),elapsed=Date.now()-started;
   t('rpcReturned',!!out,JSON.stringify(out));
   t('rpcOk',out&&out.ok===true,out&&out.error&&out.error.message);
-  t('rpcBuild',out&&String(out.build||'').indexOf('PLANNING_WORKSPACE_2_0_RPC')>=0,out&&out.build);
+  t('rpcBuild',out&&out.build===PLANNING_WORKSPACE_RPC_BUILD,out&&out.build);
   t('bootstrapAction',out&&out.action==='bootstrap',out&&out.action);
   t('dataPresent',out&&!!out.data);
   t('advisoryPresent',out&&out.data&&!!out.data.advisory);
   t('overlaysPresent',out&&out.data&&!!out.data.overlays);
   t('coarseGrained',out&&out.data&&out.data.meta&&out.data.meta.coarseGrained===true);
   t('serviceFacadeOnly',out&&out.data&&out.data.meta&&out.data.meta.serviceFacadeOnly===true);
+  var om=out&&out.data&&out.data.overlays&&out.data.overlays.meta||{};
+  t('overlayContextProjected',om.availabilityContextProjected===true,JSON.stringify(om));
+  t('overlayNoPerAuditReads',om.perAuditSheetReads===0,JSON.stringify(om));
   t('durationReported',out&&typeof out.durationMs==='number',out&&out.durationMs);
   t('readOnly',true);
   var failed=r.filter(function(x){return!x.ok;}).length;

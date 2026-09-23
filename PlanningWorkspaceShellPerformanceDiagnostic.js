@@ -1,11 +1,11 @@
 /***********************************************************************
  * PlanningWorkspaceShellPerformanceDiagnostic.js
- * BUILD: 2026-09-12_WORKSPACE_SHELL_PERF_DIAGNOSTIC_R1
+ * BUILD: 2026-09-23_WORKSPACE_SHELL_PERF_DIAGNOSTIC_R2_ACTUAL_RENDER_PIPELINE
  *
  * Read-only diagnostic for the server-side HTML shell path.
  * No Spreadsheet reads/writes. No planning/service reads.
  ***********************************************************************/
-var PLANNING_WORKSPACE_SHELL_PERF_DIAGNOSTIC_BUILD='2026-09-12_WORKSPACE_SHELL_PERF_DIAGNOSTIC_R1';
+var PLANNING_WORKSPACE_SHELL_PERF_DIAGNOSTIC_BUILD='2026-09-23_WORKSPACE_SHELL_PERF_DIAGNOSTIC_R2_ACTUAL_RENDER_PIPELINE';
 
 function PWSPD_measure_(label,fn){
   var t=Date.now(),v=fn(),ms=Date.now()-t;
@@ -37,11 +37,15 @@ function PWSPD_renderer_(){
 
 function RUN_PLANNING_WORKSPACE_SHELL_PERFORMANCE_DIAGNOSTIC(){
   var files=[
+    'PlanningWorkspaceClient.js',
+    'PlanningWorkspaceBatchCommit.js',
     'PlanningWorkspaceDragDrop.js',
-    'PlanningWorkspaceDetailToolkit.js',
-    'PlanningWorkspaceContextEnhancer.js',
     'PlanningWorkspaceAttentionEnhancer.js',
-    'PlanningWorkspacePointerDragFallback.js'
+    'PlanningWorkspacePointerDragFallback.js',
+    'PlanningWorkspaceAvailabilityContext.js',
+    'PlanningWorkspaceDetailToolkit.js',
+    'PlanningWorkspacePlannedAuditActions.js',
+    'PlanningWorkspaceModifyWindowGuard.js'
   ];
   var fileReads=[];
   for(var i=0;i<files.length;i++)fileReads.push(PWSPD_file_(files[i]));
@@ -62,7 +66,7 @@ function RUN_PLANNING_WORKSPACE_SHELL_PERFORMANCE_DIAGNOSTIC(){
       rendererAvgMs:avg(rendererRuns,'ms'),
       rendererChars:rendererRuns.length?rendererRuns[rendererRuns.length-1].chars:0
     },
-    meta:{nonDestructive:true,spreadsheetReads:false,spreadsheetWrites:false,planningReads:false,serviceReads:false}
+    meta:{nonDestructive:true,spreadsheetReads:false,spreadsheetWrites:false,planningReads:false,serviceReads:false,measuresActualRendererIncludes:true}
   };
   console.log(JSON.stringify(out,null,2));
   return out;

@@ -57,6 +57,23 @@ function AuditTimeV5_RebuildTotalHours() {
   Logger.log('Rebuild OK');
 }
 
+function AuditTimeV5_RebuildTotalHoursForAuditId(auditId) {
+  auditId=String(auditId||'').trim();if(!auditId)throw new Error('Missing auditId');
+  var ss=SpreadsheetApp.getActive(),sh=ss.getSheetByName(AT_SHEET),cs=ss.getSheetByName(CS_SHEET);
+  if(!sh)throw new Error('Missing sheet: '+AT_SHEET);if(!cs)throw new Error('Missing sheet: '+CS_SHEET);
+  var pack=(typeof __mp_getAuditPlanningRow_==='function')?__mp_getAuditPlanningRow_(ss,auditId):null;
+  if(!pack||!pack.row||!pack.hdr||!pack.rowNumber)throw new Error('Audit not found: '+auditId);
+  var headers=pack.hdr,row=pack.row,lower=headers.map(function(h){return String(h||'').trim().toLowerCase();});
+  var idxTotal=lower.indexOf('total audit time in hours');if(idxTotal<0)throw new Error('Missing column: Total audit time in hours');
+  var csData=cs.getDataRange().getValues(),csHeaders=csData[0]||[],idxSlot=csHeaders.indexOf('SlotKey'),idxDefault=csHeaders.indexOf('Default_hours'),defaultMap={};
+  for(var i=1;i<csData.length;i++)defaultMap[csData[i][idxSlot]]=Number(csData[i][idxDefault])||0;
+  var total=0;
+  for(var q=0;q<headers.length;q++){var h=String(headers[q]||'').trim();if(!/^SCOPE_\d+$/.test(h)||String(row[q]||'').toLowerCase()!=='x')continue;var di=headers.indexOf('Duration '+h),ov=di>=0?Number(row[di]):0;total+=ov||defaultMap[h]||0;}
+  sh.getRange(pack.rowNumber,idxTotal+1).setValue(total);
+  try{if(typeof __mp_invalidateAuditPlanningPack_==='function')__mp_invalidateAuditPlanningPack_();}catch(e){}
+  return{success:true,auditId:auditId,totalHours:total,rowNumber:pack.rowNumber,mode:'AUDIT_ID_SINGLE_ROW'};
+}
+
 function AuditTimeV5_DiagnoseByAuditId(auditId) {
   var ss = SpreadsheetApp.getActive();
   var sh = ss.getSheetByName(AT_SHEET);

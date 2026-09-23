@@ -2,7 +2,7 @@
  * ConceptPlanningService.js
  * BUILD: 2026-09-23_CONCEPT_PLANNING_R9_PREFERRED_MONTHS_OPT_IN
  ***********************************************************************/
-var CONCEPT_PLANNING_BUILD='2026-09-23_CONCEPT_PLANNING_R7_REUSE_DEMAND_COMPANY_META';
+var CONCEPT_PLANNING_BUILD='2026-09-23_CONCEPT_PLANNING_R9_PREFERRED_MONTHS_OPT_IN';
 function CPS_clean_(v){return String(v==null?'':v).trim();}function CPS_norm_(v){return CPS_clean_(v).toLowerCase();}
 function CPS_rankAuditors_(auditors){var out=(auditors||[]).slice();out.sort(function(a,b){var ap=a&&a.isPreassigned===true?0:1,bp=b&&b.isPreassigned===true?0:1;if(ap!==bp)return ap-bp;var ar=a&&a.softBlockRotation===true?1:0,br=b&&b.softBlockRotation===true?1:0;if(ar!==br)return ar-br;var ac=Number(a&&a.performedCount||0)||0,bc=Number(b&&b.performedCount||0)||0;if(ac!==bc)return ac-bc;return CPS_clean_(a&&(a.name||a.email)).localeCompare(CPS_clean_(b&&(b.name||b.email)));});return out;}
 function CPS_advisoryCandidate_(a){return{name:CPS_clean_(a&&a.name),email:CPS_norm_(a&&a.email),isPreassigned:!!(a&&a.isPreassigned===true),rotationWarning:!!(a&&a.softBlockRotation===true),performedCount:Number(a&&a.performedCount||0)||0,maxAllowed:Number(a&&a.maxAllowed||0)||0,blockedWeekdays:Array.isArray(a&&a.blockedWeekdays)?a.blockedWeekdays.slice():[]};}

@@ -454,23 +454,17 @@ function _mp_prefetchToolkitCompanyContextForAudit_(auditId) {
   var ap = ss.getSheetByName('Audit planning');
   if (!ap) return { success:false, message:"Missing sheet 'Audit planning'" };
 
-  var values = ap.getDataRange().getValues();
-  if (!values || values.length < 2) return { success:false, message:'Audit planning is empty' };
-  var hdr = values[0] || [];
-  var colAuditId = _mp_findCol_(hdr, ['Audit ID']);
+  var rowPack = (typeof __mp_getAuditPlanningRow_ === 'function')
+    ? __mp_getAuditPlanningRow_(ss, auditId)
+    : null;
+  if (!rowPack || !rowPack.row || !rowPack.hdr) {
+    return { success:false, message:'Audit not found: ' + auditId };
+  }
+  var hdr = rowPack.hdr || [];
+  var row = rowPack.row || [];
   var colCompany = _mp_findCol_(hdr, ['Company']);
   var colLocation = _mp_findCol_(hdr, ['Location']);
   var colCompanyUid = _mp_findCol_(hdr, ['Company_UID', 'Company UID', 'UID']);
-  if (colAuditId < 0) return { success:false, message:"Missing 'Audit ID' column" };
-
-  var row = null;
-  for (var r = 1; r < values.length; r++) {
-    if (_mp_safeStr_(values[r][colAuditId]) === auditId) {
-      row = values[r];
-      break;
-    }
-  }
-  if (!row) return { success:false, message:'Audit not found: ' + auditId };
 
   var company = colCompany >= 0 ? _mp_safeStr_(row[colCompany]) : '';
   var location = colLocation >= 0 ? _mp_safeStr_(row[colLocation]) : '';

@@ -1,6 +1,6 @@
 // ====================================================
 // RejectedAudits.gs
-// Build: 2026-05-01_LIFECYCLE_SIDE_EFFECTS_001
+// Build: 2026-09-23_AMS03_REJECTED_AUDIT_INDEXED_LOOKUP_R1
 // ====================================================
 //
 // Purpose:
@@ -435,67 +435,21 @@ function V5_ClearPlanningFields(auditId) {
 // INTERNAL: Find audit row in Audit planning
 // ====================================================
 function _raFindAuditRow(ss, auditId) {
-  var cfg = REJECTED_AUDITS_CONFIG.AUDIT_PLANNING;
-  var sheet = ss.getSheetByName(cfg.sheetName);
-  if (!sheet) {
-    return { found: false, message: 'Audit planning sheet not found.' };
-  }
-
-  var lastRow = sheet.getLastRow();
-  if (lastRow <= cfg.headerRow) {
-    return { found: false, message: 'No audit rows in Audit planning.' };
-  }
-
-  var headers = sheet
-    .getRange(cfg.headerRow, 1, 1, sheet.getLastColumn())
-    .getValues()[0];
-  var map = _raHeaderMap(headers);
-
-  var colAuditId = map.indexOf(cfg.columns.auditId);
-  if (colAuditId < 0) {
-    return { found: false, message: 'Audit ID column not found in Audit planning.' };
-  }
-
-  var dataRange = sheet.getRange(cfg.headerRow + 1, 1, lastRow - cfg.headerRow, sheet.getLastColumn());
-  var data = dataRange.getValues();
-  var key = _raNorm(auditId);
-
-  function getCell(row, name) {
-    var c = map.indexOf(name);
-    return c >= 0 ? row[c] : '';
-  }
-
-  for (var i = 0; i < data.length; i++) {
-    if (_raNorm(data[i][colAuditId]) !== key) continue;
-
-    var sheetRowIndex = cfg.headerRow + 1 + i;
-    var row = data[i];
-
-    return {
-      found: true,
-      sheet: sheet,
-      sheetRow: sheetRowIndex,
-      headers: headers,
-      row: row,
-      company: getCell(row, cfg.columns.company),
-      location: getCell(row, cfg.columns.location),
-      preassigned: getCell(row, cfg.columns.preassigned),
-      assignedTo: getCell(row, cfg.columns.assignedTo),
-      datePlanned: getCell(row, cfg.columns.datePlanned),
-      dateApproved: getCell(row, cfg.columns.dateApproved),
-      status: getCell(row, cfg.columns.status),
-      mpsAbc: getCell(row, cfg.columns.mpsAbc),
-      mpsGap: getCell(row, cfg.columns.mpsGap),
-      mpsSq: getCell(row, cfg.columns.mpsSq),
-      grasp: getCell(row, cfg.columns.grasp),
-      florimarkTracecert: getCell(row, cfg.columns.florimarkTracecert),
-      florimarkGtp: getCell(row, cfg.columns.florimarkGtp),
-      scope7: getCell(row, cfg.columns.scope7),
-      scope8: getCell(row, cfg.columns.scope8)
-    };
-  }
-
-  return { found: false, message: "Audit ID '" + auditId + "' not found in Audit planning." };
+  var cfg=REJECTED_AUDITS_CONFIG.AUDIT_PLANNING,sheet=ss.getSheetByName(cfg.sheetName);
+  if(!sheet)return{found:false,message:'Audit planning sheet not found.'};
+  var pack=null;
+  try{if(typeof __mp_getAuditPlanningRow_==='function')pack=__mp_getAuditPlanningRow_(ss,auditId);}catch(e0){}
+  if(!pack||!pack.row||!pack.hdr)return{found:false,message:"Audit ID '"+auditId+"' not found in Audit planning."};
+  var headers=pack.hdr,row=pack.row,map=_raHeaderMap(headers);
+  function getCell(name){var x=map.indexOf(name);return x>=0?row[x]:'';}
+  return{found:true,sheet:sheet,sheetRow:pack.rowNumber,headers:headers,row:row,
+    company:getCell(cfg.columns.company),location:getCell(cfg.columns.location),
+    preassigned:getCell(cfg.columns.preassigned),assignedTo:getCell(cfg.columns.assignedTo),
+    datePlanned:getCell(cfg.columns.datePlanned),dateApproved:getCell(cfg.columns.dateApproved),
+    status:getCell(cfg.columns.status),mpsAbc:getCell(cfg.columns.mpsAbc),mpsGap:getCell(cfg.columns.mpsGap),
+    mpsSq:getCell(cfg.columns.mpsSq),grasp:getCell(cfg.columns.grasp),
+    florimarkTracecert:getCell(cfg.columns.florimarkTracecert),florimarkGtp:getCell(cfg.columns.florimarkGtp),
+    scope7:getCell(cfg.columns.scope7),scope8:getCell(cfg.columns.scope8),lookupMode:'AUDIT_ID_INDEX'};
 }
 
 // ====================================================

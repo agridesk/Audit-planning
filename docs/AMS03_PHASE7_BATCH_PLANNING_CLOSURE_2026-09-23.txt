@@ -1,0 +1,22 @@
+AMS-03 — PHASE 7 BATCH PLANNING MATURATION — CLOSURE
+Date: 2026-09-23
+Status: CLOSED — DEV ACCEPTED
+
+Runtime evidence
+- Batch preflight: 20/20 GREEN.
+- Batch commit: 27/27 GREEN.
+- Manager UI contract: 15/15 GREEN.
+- Batch maturation contract: 18/18 GREEN.
+- Consolidated Phase 7 gate: 4/4 GREEN.
+- No live writes and no new SSoT.
+
+Accepted architecture
+- Batch max 20.
+- Preview is read-only, lock-free and uses one bulk revision reread.
+- Canonical gate remains PlanningCommitGateService.
+- Commit delegates per item to PlanningCanonicalCommitService_commit.
+- Fresh canonical revalidation per item; per-audit locks; no global batch lock.
+- Fail-isolated serial visible work with performance telemetry.
+- Workspace/Manager use canonical batch APIs; concept remains non-canonical.
+
+Next: Phase 8 Trip / Workweek planning.

@@ -139,6 +139,7 @@ function saveCompanyDetail(payload) {
     if (typeof _mp_invalidateCompanyConstraintsCache_ === 'function') {
       _mp_invalidateCompanyConstraintsCache_(clean.uid, clean.company, clean.location);
     }
+    if (typeof CompanyMap_invalidateDatasetCache_C04_ === 'function') CompanyMap_invalidateDatasetCache_C04_();
   } catch (_e9) {
     try { Logger.log('[δ9][CompaniesBackend.saveCompanyDetail] invalidate failed: ' + _e9); } catch (_) {}
   }
@@ -448,6 +449,8 @@ function getCompanyMapDataset_C04() {
 }
 
 function CompanyMap_getDataset_C04() {
+  var cacheKey='COMPANY_MAP_DATASET_C04_V1',cache=null;
+  try{cache=CacheService.getScriptCache();var raw=cache.get(cacheKey);if(raw){var hit=JSON.parse(raw);if(hit&&hit.success){hit.diagnostics=hit.diagnostics||{};hit.diagnostics.cacheHit=true;return hit;}}}catch(e0){}
   var sh = COMP_getCompaniesSheet_();
   var lastRow = sh.getLastRow();
   var lastCol = sh.getLastColumn();
@@ -578,8 +581,12 @@ function CompanyMap_getDataset_C04() {
     return String(a.companyName || '').localeCompare(String(b.companyName || ''), undefined, { sensitivity: 'base' });
   });
 
+  out.diagnostics.cacheHit=false;
+  try{var payload=JSON.stringify(out);if(cache&&payload.length<90000)cache.put(cacheKey,payload,300);}catch(e1){}
   return out;
 }
+
+function CompanyMap_invalidateDatasetCache_C04_(){try{CacheService.getScriptCache().remove('COMPANY_MAP_DATASET_C04_V1');}catch(e){}return true;}
 
 function CompanyMap_toPositiveInt_(v, fallback) {
   var n = Number(v);

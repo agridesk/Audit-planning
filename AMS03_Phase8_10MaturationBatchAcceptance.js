@@ -1,6 +1,6 @@
 /***********************************************************************
  * AMS03_Phase8_10MaturationBatchAcceptance.js
- * BUILD: 2026-09-23_AMS03_PHASE8_10_MATURATION_BATCH_R8_REJECT_INDEXED
+ * BUILD: 2026-09-23_AMS03_PHASE8_10_MATURATION_BATCH_R9_REJECT_SINGLE_ROW
  ***********************************************************************/
 function RUN_AMS03_PHASE8_10_MATURATION_BATCH_ACCEPTANCE(){
  var calls=[
@@ -14,7 +14,8 @@ function RUN_AMS03_PHASE8_10_MATURATION_BATCH_ACCEPTANCE(){
   ['companyMapBoundedRead',function(){return RUN_AMS03_COMPANY_MAP_BOUNDED_READ_ACCEPTANCE();}],
   ['planningOverviewBoundedRead',function(){return RUN_AMS03_PLANNING_OVERVIEW_BOUNDED_READ_ACCEPTANCE();}],
   ['rejectedAuditIndexedLookup',function(){return RUN_AMS03_REJECTED_AUDIT_INDEXED_LOOKUP_ACCEPTANCE();}],
+  ['rejectedAuditSingleRowClear',function(){return RUN_AMS03_REJECTED_AUDIT_SINGLE_ROW_CLEAR_ACCEPTANCE();}],
   ['liveReadIntegration',function(){return RUN_AMS03_PHASE8_10_LIVE_READ_ACCEPTANCE();}]
  ],results=[];for(var i=0;i<calls.length;i++){try{var x=calls[i][1]();results.push({name:calls[i][0],ok:!!(x&&x.ok===true),build:x&&x.build||'',passed:x&&x.passed,total:x&&x.total});}catch(e){results.push({name:calls[i][0],ok:false,error:String(e&&e.message||e)});}}
- var f=results.filter(function(x){return!x.ok}).length,o={ok:f===0,build:'2026-09-23_AMS03_PHASE8_10_MATURATION_BATCH_R8_REJECT_INDEXED',total:results.length,passed:results.length-f,failed:f,results:results,roadmapState:{phase8:'OPERATIONAL_ADVISORY_FOUNDATION_NOT_FULL_ROUTE_PROVIDER',phase9:'CONTEXT_AND_DRAFT_FOUNDATION_NO_COMPANY_FEEDBACK_MUTATION',phase10:'INVENTORY_AND_GOVERNANCE_NO_UNPROVEN_RETIREMENT'},meta:{nonDestructive:true,liveReadsPerformed:true,liveWritesPerformed:false,newSsot:false}};Logger.log(JSON.stringify(o,null,2));return o;
+ var f=results.filter(function(x){return!x.ok}).length,o={ok:f===0,build:'2026-09-23_AMS03_PHASE8_10_MATURATION_BATCH_R9_REJECT_SINGLE_ROW',total:results.length,passed:results.length-f,failed:f,results:results,roadmapState:{phase8:'OPERATIONAL_ADVISORY_FOUNDATION_NOT_FULL_ROUTE_PROVIDER',phase9:'CONTEXT_AND_DRAFT_FOUNDATION_NO_COMPANY_FEEDBACK_MUTATION',phase10:'INVENTORY_AND_GOVERNANCE_NO_UNPROVEN_RETIREMENT'},meta:{nonDestructive:true,liveReadsPerformed:true,liveWritesPerformed:false,newSsot:false}};Logger.log(JSON.stringify(o,null,2));return o;
 }

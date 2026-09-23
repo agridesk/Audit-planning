@@ -1,9 +1,9 @@
 /***********************************************************************
  * AMS01_PlanningWorkspacePhase3BatchAcceptance.js
- * BUILD: 2026-09-23_AMS01_3_WORKSPACE_FAST_READ_BATCH_R1
+ * BUILD: 2026-09-23_AMS01_3_WORKSPACE_FAST_READ_BATCH_R2_SHARED_CONTEXT_TELEMETRY
  * One larger read-only validation batch for Phase 3 fast-read integration.
  ***********************************************************************/
-var AMS01_PW_PHASE3_BATCH_BUILD='2026-09-23_AMS01_3_WORKSPACE_FAST_READ_BATCH_R1';
+var AMS01_PW_PHASE3_BATCH_BUILD='2026-09-23_AMS01_3_WORKSPACE_FAST_READ_BATCH_R2_SHARED_CONTEXT_TELEMETRY';
 function RUN_AMS01_3_WORKSPACE_FAST_READ_BATCH_ACCEPTANCE(){
  var results=[];function run(name,fn){var x=fn();results.push({name:name,ok:!!(x&&x.ok===true),build:x&&x.build||'',failed:x&&x.failed||0,performance:x&&x.performance||null});}
  run('decisionContract',RUN_AMS01_3_WORKSPACE_DECISION_READ_MODEL_REGRESSION);

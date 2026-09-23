@@ -1,6 +1,6 @@
 /***********************************************************************
  * EligibilityBatchReadModelTests.js
- * BUILD: 2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_TESTS_R4_BOUNDED_WINDOW
+ * BUILD: 2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_TESTS_R5_WORKSPACE_BATCH_CACHE
  * Permanent, non-destructive regression.
  ***********************************************************************/
 

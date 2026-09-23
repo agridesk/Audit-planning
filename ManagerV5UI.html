@@ -4294,7 +4294,7 @@ document.addEventListener("DOMContentLoaded", initManagerUI);
 </script>
 
 <!-- SECTION 16 — MANAGER TOOLS INCLUDE -->
-<?!= HtmlService.createHtmlOutputFromFile('ManagerV5ToolsUI').getContent(); ?>
+<?!= HtmlService.createTemplateFromFile('ManagerV5ToolsUI').evaluate().getContent(); ?>
   
 <!-- ============================================================
  SECTION 17 — COMPANY UPDATES REVIEW MODAL

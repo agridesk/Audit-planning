@@ -5,12 +5,12 @@
 function RUN_AMS03_PHASE8_TRIP_CONCEPT_ACCEPTANCE(){
  var s=String(PlanningTripConceptReadModel_get),ct=PlanningWorkspaceTripConceptRpc_contract(),r=[];function q(n,v){r.push({name:n,ok:!!v});}
  q('decisionModelOwner',s.indexOf('PlanningWorkspaceDecisionReadModel_get')>=0);
- q('companyMapOwner',s.indexOf('CompanyMap_getBaseDatasetForAuditorLayer_')>=0);
+ q('boundedCompanyLocationOwner',s.indexOf('PlanningProfilesService_get')>=0&&s.indexOf('PTC_locationsFromProfile_')>=0);
  q('selectedAuditIds',s.indexOf('input.auditIds')>=0);
  q('auditorCandidateFit',s.indexOf('candidateForAuditor')>=0);
  q('rotationWarning',s.indexOf('rotationWarning')>=0);
  q('planningWindowContext',s.indexOf('planningWindowFrom')>=0&&s.indexOf('planningWindowTo')>=0);
- q('gpsAndMapContext',s.indexOf('mapsUrl')>=0&&s.indexOf('gpsValid')>=0);
+ q('gpsAndMapContext',s.indexOf('mapsUrl')>=0&&s.indexOf('gpsValid')>=0&&s.indexOf('locationsJson')>=0);
  q('simpleDistanceAdvisory',s.indexOf('PTC_haversineKm_')>=0);
  q('travelModesVisible',s.indexOf("['car','train','flight']")>=0);
  q('flightPenaltySoft',s.indexOf('SOFT_EXPLICIT_FLIGHT_PENALTY')>=0);

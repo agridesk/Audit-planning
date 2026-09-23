@@ -13,5 +13,5 @@ function RUN_WORKSPACE_GENERATED_NAVIGATION_REGRESSION(){
  t('navigationDoesNotReload',c.indexOf("state.gridStart=addDays(state.gridStart,7);load(")<0);
  t('generatedStoreCanonicalClientOwner',c.indexOf('conceptStore().generated')>=0);
  t('dragEditStillPresent',c.indexOf('function moveGeneratedConcept')>=0);
- var passed=r.filter(function(x){return x.ok}).length,out={ok:passed===r.length,build:'2026-09-19_WORKSPACE_GENERATED_NAVIGATION_R1',total:r.length,passed:passed,failed:r.length-passed,results:r};console.info(JSON.stringify(out,null,2));return out;
+ var passed=r.filter(function(x){return x.ok}).length,out={ok:passed===r.length,build:'2026-09-23_WORKSPACE_GENERATED_NAVIGATION_R2_CONCEPT_STORE',total:r.length,passed:passed,failed:r.length-passed,results:r};console.info(JSON.stringify(out,null,2));return out;
 }

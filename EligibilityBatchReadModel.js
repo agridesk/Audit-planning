@@ -24,9 +24,10 @@
  *   - DEV-only performance telemetry.
  ***********************************************************************/
 
-var ELIGIBILITY_BATCH_READ_BUILD = '2026-09-23_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_R4_BOUNDED_WINDOW';
+var ELIGIBILITY_BATCH_READ_BUILD = '2026-09-23_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_R5_EXEC_CACHE';
 var EBRM_WINDOW_ROWS=256;
 var EBRM_WINDOW_COLS=24;
+var EBRM_EXEC_WINDOW_CACHE={};
 
 function EBRM_clean_(v) {
   return String(v == null ? '' : v).trim();
@@ -162,6 +163,15 @@ function EBRM_cacheValidity_(args) {
   };
 }
 
+function EBRM_readWindow_(sh,lastRow,lastCol){
+  var key=String(sh.getSheetId())+'::'+EBRM_WINDOW_ROWS+'::'+EBRM_WINDOW_COLS+'::'+lastRow+'::'+lastCol,cached=EBRM_EXEC_WINDOW_CACHE[key];
+  if(cached)return{headers:cached.headers,values:cached.values,maxCol:cached.maxCol,readStrategy:'EXEC_CACHE',windowFallback:cached.windowFallback};
+  var windowRows=Math.max(1,Math.min(EBRM_WINDOW_ROWS,Math.max(1,lastRow))),windowCols=Math.max(1,Math.min(EBRM_WINDOW_COLS,Math.max(1,lastCol))),windowValues=sh.getRange(1,1,windowRows,windowCols).getValues(),fallback=lastRow>EBRM_WINDOW_ROWS||lastCol>EBRM_WINDOW_COLS,headers=(fallback?sh.getRange(1,1,1,lastCol).getValues()[0]:windowValues[0])||[];
+  var used=[EBRM_findCol_(headers,['Audit_ID','Audit ID']),EBRM_findCol_(headers,['Company_UID','Company UID']),EBRM_findCol_(headers,['Eligible_Auditors_JSON']),EBRM_findCol_(headers,['Eligible_Auditors_JSON_2']),EBRM_findCol_(headers,['Eligible_Auditors_JSON_3']),EBRM_findCol_(headers,['Eligible_Auditors_JSON_4']),EBRM_findCol_(headers,['Eligibility_Meta_JSON']),EBRM_findCol_(headers,['Computed_At']),EBRM_findCol_(headers,['Computed_Build']),EBRM_findCol_(headers,['Stale']),EBRM_findCol_(headers,['Scopes_Hash']),EBRM_findCol_(headers,['Source_Mtime_Hash']),EBRM_findCol_(headers,['Notes'])].filter(function(x){return x>=0;}),maxCol=used.length?Math.max.apply(null,used)+1:lastCol,values=[];
+  if(lastRow>=2){if(!fallback&&maxCol<=windowCols)values=windowValues.slice(1,lastRow);else values=sh.getRange(2,1,lastRow-1,maxCol).getValues();}
+  var pack={headers:headers,values:values,maxCol:maxCol,readStrategy:readPack.readStrategy,windowFallback:readPack.windowFallback};EBRM_EXEC_WINDOW_CACHE[key]=pack;return pack;
+}
+
 function EligibilityBatchReadModel_get(input) {
   input = input || {};
   var requested = EBRM_requestedSet_(input);
@@ -204,7 +214,7 @@ function EligibilityBatchReadModel_get(input) {
     return empty;
   }
 
-  var windowRows=Math.max(1,Math.min(EBRM_WINDOW_ROWS,Math.max(1,lastRow))),windowCols=Math.max(1,Math.min(EBRM_WINDOW_COLS,Math.max(1,lastCol))),windowValues=sh.getRange(1,1,windowRows,windowCols).getValues(),boundaryRow=lastRow>EBRM_WINDOW_ROWS,boundaryCol=lastCol>EBRM_WINDOW_COLS,fallback=boundaryRow||boundaryCol,headers=(fallback?sh.getRange(1,1,1,lastCol).getValues()[0]:windowValues[0])||[];
+  var readPack=EBRM_readWindow_(sh,lastRow,lastCol),headers=readPack.headers||[];
   var cAuditId = EBRM_findCol_(headers, ['Audit_ID','Audit ID']);
   var cCompanyUid = EBRM_findCol_(headers, ['Company_UID','Company UID']);
   var cA1 = EBRM_findCol_(headers, ['Eligible_Auditors_JSON']);
@@ -221,11 +231,8 @@ function EligibilityBatchReadModel_get(input) {
 
   if (cAuditId < 0) throw new Error("EligibilityBatchReadModel: missing 'Audit_ID' column");
 
-  var used = [cAuditId,cCompanyUid,cA1,cA2,cA3,cA4,cMeta,cComputedAt,cComputedBuild,cStale,cScopesHash,cSourceHash,cNotes]
-    .filter(function(x){ return x >= 0; });
-  var maxCol = used.length ? Math.max.apply(null, used) + 1 : lastCol;
-  var values=[];if(lastRow>=2){if(!fallback&&maxCol<=windowCols)values=windowValues.slice(1,lastRow);else values=sh.getRange(2,1,lastRow-1,maxCol).getValues();}
-  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'bulkRead', { rows: values.length, cols: maxCol,readStrategy:(!fallback&&maxCol<=windowCols)?'FIXED_WINDOW':'BOUNDED_FALLBACK',windowRows:EBRM_WINDOW_ROWS,windowCols:EBRM_WINDOW_COLS });
+  var maxCol=readPack.maxCol,values=readPack.values||[];
+  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'bulkRead', { rows: values.length, cols: maxCol,readStrategy:readPack.readStrategy,windowRows:EBRM_WINDOW_ROWS,windowCols:EBRM_WINDOW_COLS });
 
   var currentBuild = EBRM_currentEligibilityBuild_();
   var currentGeneration = EBRM_currentAuditorScopeGeneration_();

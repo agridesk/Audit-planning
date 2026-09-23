@@ -1,11 +1,11 @@
 /***********************************************************************
  * PlanningDemandService.js
- * BUILD: 2026-09-23_AMS01_2_PLANNING_DEMAND_R8_BOUNDED_AUDIT_WINDOW
+ * BUILD: 2026-09-23_AMS01_2_PLANNING_DEMAND_R9_BOUNDED_AUDIT_WINDOW_48COL
  * Roadmap 2.4 Planning Demand read model.
  ***********************************************************************/
 var PLANNING_DEMAND_BUILD='2026-09-23_AMS01_2_PLANNING_DEMAND_R8_BOUNDED_AUDIT_WINDOW';
 var PDS_AUDIT_WINDOW_ROWS=256;
-var PDS_AUDIT_WINDOW_COLS=64;
+var PDS_AUDIT_WINDOW_COLS=48;
 function PDS_rowHasData_(row){for(var i=0;i<(row||[]).length;i++)if(row[i]!==''&&row[i]!=null)return true;return false;}
 function PDS_usedRows_(values){var last=0;for(var i=0;i<(values||[]).length;i++)if(PDS_rowHasData_(values[i]))last=i+1;return last;}
 function PDS_usedCols_(values,usedRows){var last=0;for(var r=0;r<Math.min(usedRows||0,(values||[]).length);r++){var row=values[r]||[];for(var c=row.length-1;c>=0;c--)if(row[c]!==''&&row[c]!=null){if(c+1>last)last=c+1;break;}}return last;}

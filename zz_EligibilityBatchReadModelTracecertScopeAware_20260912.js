@@ -1,29 +1,29 @@
 /***********************************************************************
  * zz_EligibilityBatchReadModelTracecertScopeAware_20260912.js
- * BUILD: 2026-09-12_ELIGIBILITY_BATCH_SCOPE_AWARE_R1
+ * BUILD: 2026-09-23_ELIGIBILITY_BATCH_SCOPE_AWARE_R2_BOUNDED_WINDOW
  *
  * Narrow override of EligibilityBatchReadModel_get so cache build validity
  * can distinguish Tracecert rows from unrelated scopes. Read-only; same
  * single batch read contract as canonical R3.
  ***********************************************************************/
-var ELIGIBILITY_BATCH_SCOPE_AWARE_BUILD='2026-09-12_ELIGIBILITY_BATCH_SCOPE_AWARE_R1';
+var ELIGIBILITY_BATCH_SCOPE_AWARE_BUILD='2026-09-23_ELIGIBILITY_BATCH_SCOPE_AWARE_R2_BOUNDED_WINDOW';
 
 function EligibilityBatchReadModel_get(input){
   input=input||{};
   var requested=EBRM_requestedSet_(input);
   var perf=(typeof DPL_start_==='function')?DPL_start_('EligibilityBatchReadModel_get',{requestedAuditIds:requested?Object.keys(requested).length:0}):null;
   var ss=SpreadsheetApp.getActive(),sh=ss.getSheetByName('Eligibility_Cache');
-  if(!sh){var missing={success:true,build:ELIGIBILITY_BATCH_SCOPE_AWARE_BUILD,rows:[],byAuditId:{},meta:{sourceRows:0,returned:0,missingSheet:true,writes:false,canonicalOwner:'EligibilityService',cacheRole:'derived acceleration only',scopeAwareBuildCompatibility:true}};if(typeof DPL_end_==='function')missing.devPerformance=DPL_end_(perf,{returned:0,missingSheet:true});return missing;}
+  if(!sh){var missing={success:true,build:ELIGIBILITY_BATCH_SCOPE_AWARE_BUILD,rows:[],byAuditId:{},meta:{sourceRows:0,returned:0,missingSheet:true,writes:false,canonicalOwner:'EligibilityService',cacheRole:'derived acceleration only',scopeAwareBuildCompatibility:true,readStrategy:readStrategy,windowFallback:!!fallback}};if(typeof DPL_end_==='function')missing.devPerformance=DPL_end_(perf,{returned:0,missingSheet:true});return missing;}
   var lastRow=sh.getLastRow(),lastCol=sh.getLastColumn();
   if(lastCol<1){var empty={success:true,build:ELIGIBILITY_BATCH_SCOPE_AWARE_BUILD,rows:[],byAuditId:{},meta:{sourceRows:0,returned:0,writes:false,canonicalOwner:'EligibilityService',cacheRole:'derived acceleration only',scopeAwareBuildCompatibility:true}};if(typeof DPL_end_==='function')empty.devPerformance=DPL_end_(perf,{returned:0});return empty;}
 
-  var headers=sh.getRange(1,1,1,lastCol).getValues()[0]||[];
+  var windowRows=Math.max(1,Math.min(EBRM_WINDOW_ROWS,Math.max(1,lastRow))),windowCols=Math.max(1,Math.min(EBRM_WINDOW_COLS,Math.max(1,lastCol))),windowValues=sh.getRange(1,1,windowRows,windowCols).getValues(),fallback=lastRow>EBRM_WINDOW_ROWS||lastCol>EBRM_WINDOW_COLS,headers=(fallback?sh.getRange(1,1,1,lastCol).getValues()[0]:windowValues[0])||[];
   var cAuditId=EBRM_findCol_(headers,['Audit_ID','Audit ID']),cCompanyUid=EBRM_findCol_(headers,['Company_UID','Company UID']),cA1=EBRM_findCol_(headers,['Eligible_Auditors_JSON']),cA2=EBRM_findCol_(headers,['Eligible_Auditors_JSON_2']),cA3=EBRM_findCol_(headers,['Eligible_Auditors_JSON_3']),cA4=EBRM_findCol_(headers,['Eligible_Auditors_JSON_4']),cMeta=EBRM_findCol_(headers,['Eligibility_Meta_JSON']),cComputedAt=EBRM_findCol_(headers,['Computed_At']),cComputedBuild=EBRM_findCol_(headers,['Computed_Build']),cStale=EBRM_findCol_(headers,['Stale']),cScopesHash=EBRM_findCol_(headers,['Scopes_Hash']),cSourceHash=EBRM_findCol_(headers,['Source_Mtime_Hash']),cNotes=EBRM_findCol_(headers,['Notes']);
   if(cAuditId<0)throw new Error("EligibilityBatchReadModel: missing 'Audit_ID' column");
   var used=[cAuditId,cCompanyUid,cA1,cA2,cA3,cA4,cMeta,cComputedAt,cComputedBuild,cStale,cScopesHash,cSourceHash,cNotes].filter(function(x){return x>=0});
   var maxCol=used.length?Math.max.apply(null,used)+1:lastCol;
-  var values=lastRow>=2?sh.getRange(2,1,lastRow-1,maxCol).getValues():[];
-  if(typeof DPL_mark_==='function')DPL_mark_(perf,'bulkRead',{rows:values.length,cols:maxCol});
+  var values=[];if(lastRow>=2){if(!fallback&&maxCol<=windowCols)values=windowValues.slice(1,lastRow);else values=sh.getRange(2,1,lastRow-1,maxCol).getValues();}
+  var readStrategy=(!fallback&&maxCol<=windowCols)?'FIXED_WINDOW':'BOUNDED_FALLBACK';if(typeof DPL_mark_==='function')DPL_mark_(perf,'bulkRead',{rows:values.length,cols:maxCol,readStrategy:readStrategy,windowRows:EBRM_WINDOW_ROWS,windowCols:EBRM_WINDOW_COLS});
 
   var currentBuild=EBRM_currentEligibilityBuild_(),currentGeneration=EBRM_currentAuditorScopeGeneration_();
   var rows=[],byAuditId={},staleCount=0,parseErrors=0,buildMismatchCount=0,generationMismatchCount=0,refreshRequiredCount=0,legacyEquivalentCount=0;

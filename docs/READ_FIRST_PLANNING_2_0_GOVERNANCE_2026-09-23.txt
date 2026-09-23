@@ -1,0 +1,113 @@
+AUDIT MANAGEMENT SYSTEM — READ FIRST — PLANNING 2.0 GOVERNANCE
+Date: 2026-09-23
+Status: CANONICAL ARCHITECTURE GUARDRAIL
+Applies to: every future chat, Work session, refactor and implementation touching planning
+
+1. CORE DECISION
+
+The Planning Toolkit (PT) is NOT an independent product/workstream and must NEVER be treated as an isolated performance project.
+
+The existing PT is a legacy/current interaction surface whose proven capabilities are progressively migrated into the existing Planning 2.0 architecture.
+
+Canonical Planning 2.0 chain:
+Planning Demand
+-> Concept Planning
+-> Planning Workspace
+-> Preflight
+-> Canonical Commit
+-> Batch Commit where relevant
+-> Notification / Audit Trail
+
+2. EXISTING FOUNDATION MUST BE REUSED
+
+Concept Planning and Planning Workspace are not future ideas. They already form the architectural base for Planning 2.0.
+
+Any work on:
+- Manager Planning Toolkit;
+- Auditor Planning Toolkit;
+- Availability Calendar;
+- eligibility / qualification;
+- rotation;
+- planning windows;
+- Save;
+- Modify / Re-adjust;
+- Batch Planning;
+- Annual Planning;
+- Trip / Workweek Planning;
+
+must be evaluated first as a Planning 2.0 / Workspace capability, not as a local PT enhancement.
+
+3. FORBIDDEN DIRECTION
+
+Do NOT create a "Planning Toolkit 1.5" by repeatedly optimizing or extending the old PT in isolation.
+
+Do NOT:
+- create a second planning engine;
+- create PT-specific validators that diverge from Workspace/canonical validators;
+- create PT-specific Availability truth;
+- create PT-specific eligibility/rotation truth;
+- add major new product capability only inside the old PT;
+- solve a performance problem locally when the same read model belongs in shared Planning 2.0 infrastructure.
+
+4. REQUIRED MIGRATION APPROACH
+
+For every PT issue or feature:
+1. measure the current path if performance matters;
+2. identify the shared Planning 2.0 capability/read model/validator it belongs to;
+3. improve/build that shared layer;
+4. wire Manager and Auditor surfaces to that shared layer;
+5. preserve canonical writers and Model C ownership;
+6. keep the old PT only as temporary compatibility/fallback;
+7. retire the old path after proven replacement.
+
+5. ROLE OF PERFORMANCE WORK
+
+Performance diagnostics on PT, Availability Calendar, Manager Portal or Auditor Portal are evidence for Planning 2.0 design.
+
+They are NOT authorization to start a separate micro-optimization stream.
+
+A local optimization is acceptable only when:
+- it is a blocker during migration;
+- it is low-risk and temporary; or
+- the optimized component is itself a shared Planning 2.0 service/read model.
+
+6. MANAGER + AUDITOR
+
+Manager and Auditor planning must converge on:
+- shared read models;
+- shared validators;
+- shared Concept Planning model;
+- shared Workspace architecture;
+- shared Preflight;
+- canonical commit services.
+
+Only permissions, available actions and UX presentation may differ.
+
+7. BATCH / BULK
+
+Batch Planning is a native Planning 2.0 capability built on Concept Planning and Preflight.
+It is not a separate bulk-writing system.
+
+8. RE-ADJUST
+
+Re-adjust is integrated into the same Workspace -> Preflight -> Canonical Commit chain.
+Do not create a separate modify engine.
+PlanningCanonicalModifyService remains the canonical write foundation where applicable.
+
+9. ANNUAL / TRIP PLANNING
+
+Annual Workload/Capacity, Rotation warnings and Trip/Workweek Planning are decision-support layers feeding Concept Planning / Workspace.
+They do not create separate planning truth or commit paths.
+
+10. SSoT RULE
+
+This document is a mandatory architecture guardrail for Planning 2.0.
+If a future chat/session proposes an approach that conflicts with this document, this document wins unless governance is explicitly changed and recorded in the repository.
+
+Related canonical documents:
+- docs/AMS_MASTER_ROADMAP_V2.6_2026-09-22.txt
+- docs/AMS_PLANNING_2_0_INTEGRATED_PLAN_2026-09-22.txt
+- AMS-01.6 Model C closure documentation
+
+One-line rule:
+PT IS A MIGRATION SURFACE INSIDE PLANNING 2.0 — NEVER AN ISOLATED END-STATE OR OPTIMIZATION PROGRAMME.

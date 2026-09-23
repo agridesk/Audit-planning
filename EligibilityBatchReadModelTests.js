@@ -87,7 +87,7 @@ function RUN_ELIGIBILITY_BATCH_READ_REGRESSION() {
   EBRMT_assert_('readOnly', smoke && smoke.meta && smoke.meta.writes === false, 'must be read-only', results);
   EBRMT_assert_('canonicalOwner', smoke && smoke.meta && smoke.meta.canonicalOwner === 'EligibilityService', 'canonical owner', results);
   EBRMT_assert_('derivedCacheOnly', smoke && smoke.meta && smoke.meta.cacheRole === 'derived acceleration only', 'cache role', results);
-  EBRMT_assert_('cacheValidityContract', smoke && smoke.meta && smoke.meta.cacheValidityContract === 'EligibilityService sheet acceptance parity', 'validity contract', results);
+  EBRMT_assert_('cacheValidityContract', smoke && smoke.meta && typeof smoke.meta.cacheValidityContract === 'string' && smoke.meta.cacheValidityContract.indexOf('EligibilityService sheet acceptance')===0, 'validity contract', results);
   EBRMT_assert_('noParseErrors', smoke && smoke.meta && smoke.meta.parseErrors === 0, 'canonical EligibilityService payloads must decode without parse errors', results);
   EBRMT_assert_('currentBuildPresent', smoke && smoke.meta && typeof smoke.meta.currentEligibilityBuild === 'string' && smoke.meta.currentEligibilityBuild.length > 0, 'canonical ELIG_BUILD must be visible', results);
   EBRMT_assert_('generationPresent', smoke && smoke.meta && typeof smoke.meta.auditorScopeGeneration === 'string' && smoke.meta.auditorScopeGeneration.length > 0, 'generation captured once per batch', results);

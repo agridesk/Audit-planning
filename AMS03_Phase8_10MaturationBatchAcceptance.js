@@ -1,6 +1,6 @@
 /***********************************************************************
  * AMS03_Phase8_10MaturationBatchAcceptance.js
- * BUILD: 2026-09-23_AMS03_PHASE8_10_MATURATION_BATCH_R22_STATUS_GATE_FINAL
+ * BUILD: 2026-09-23_AMS03_PHASE8_10_MATURATION_BATCH_R23_ELIGIBILITY_EXEC_CACHE
  ***********************************************************************/
 function RUN_AMS03_PHASE8_10_MATURATION_BATCH_ACCEPTANCE(){
  var calls=[
@@ -22,6 +22,7 @@ function RUN_AMS03_PHASE8_10_MATURATION_BATCH_ACCEPTANCE(){
   ['auditorActionIndexed',function(){return RUN_AMS03_AUDITOR_ACTION_INDEXED_ACCEPTANCE();}],
   ['planningProfilesExecCache',function(){return RUN_AMS03_PLANNING_PROFILES_EXEC_CACHE_ACCEPTANCE();}],
   ['planningDemandExecCache',function(){return RUN_AMS03_PLANNING_DEMAND_EXEC_CACHE_ACCEPTANCE();}],
+  ['eligibilityBatchExecCache',function(){return RUN_AMS03_ELIGIBILITY_BATCH_EXEC_CACHE_ACCEPTANCE();}],
   ['statusNotificationBriefingIndexed',function(){return RUN_AMS03_STATUS_NOTIFICATION_BRIEFING_INDEXED_ACCEPTANCE();}],
   ['companyMapMutationInvalidation',function(){return RUN_AMS03_COMPANY_MAP_MUTATION_INVALIDATION_ACCEPTANCE();}],
   ['planningOverviewRegionOwner',function(){return RUN_AMS03_PLANNING_OVERVIEW_REGION_OWNER_ACCEPTANCE();}],

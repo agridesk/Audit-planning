@@ -1,5 +1,5 @@
 /** FILE: PlanningWorkspaceRedesignClosureGateTests.gs
- * BUILD: 2026-09-19_WORKSPACE_REDESIGN_CLOSURE_GATE_R1
+ * BUILD: 2026-09-19_WORKSPACE_REDESIGN_CLOSURE_GATE_R2_CONCEPT_STORE
  * RUN: RUN_WORKSPACE_REDESIGN_CLOSURE_GATE
  */
 function RUN_WORKSPACE_REDESIGN_CLOSURE_GATE(){
@@ -12,7 +12,7 @@ function RUN_WORKSPACE_REDESIGN_CLOSURE_GATE(){
  t('canonicalPriorityBands',c.indexOf("return'Nu plannen'")>=0&&c.indexOf("return'Binnenkort plannen'")>=0&&c.indexOf("return'Later / nog geen druk'")>=0);
  t('selectionOrderPreserved',c.indexOf('state.selectionOrder.push(id)')>=0);
  t('generatedConceptReadOnlyFirst',c.indexOf('applyGeneratedConcept(res)')>=0&&c.indexOf('preview only')>=0);
- t('generatedConceptVisibleInGrid',c.indexOf('generatedConceptReservations')>=0&&c.indexOf('visibleConcepts()')>=0);
+ t('generatedConceptVisibleInGrid',c.indexOf('conceptStore:{generated:{},saved:{}}')>=0&&c.indexOf('visibleConcepts()')>=0);
  t('generatedPromotionExplicit',c.indexOf('function promoteGeneratedConcept')>=0&&d.indexOf("save.textContent='Save concept'")>=0);
  t('noGeneratedDirectPlan',d.indexOf("actions.appendChild(save);card.appendChild(actions);return")>=0);
  t('savedConceptBatchPreview',b.indexOf('Preview saved concepts')>=0&&b.indexOf('PlanningWorkspaceRpc_batchPreflight')>=0);

@@ -1,5 +1,5 @@
 // CompanyMap_AuditorWorkloadLayer.gs
-// BUILD: COMPANY_MAP_AUDITOR_WORKLOAD_LAYER_C05_20260524_TIME_IN_AUDIT_CARD
+// BUILD: 2026-09-23_COMPANY_MAP_AUDITOR_LAYER_C06_BOUNDED_AUDIT_WINDOW
 // Purpose: read-only auditor workload overlay for existing Company Map.
 // Depends on existing CompanyMap_getDataset_C04()/getCompanyMapDataset_C04() and CompaniesBackend helpers.
 // Owner: Company Map visualization dataset only. No planning/status/availability writes.
@@ -14,7 +14,7 @@ function getCompanyMapDataset_C05(auditorEmail) {
 
 function CompanyMap_getDataset_AuditorLayer_C01(auditorEmail) {
   var base = CompanyMap_getBaseDatasetForAuditorLayer_();
-  base.build = 'COMPANY_MAP_AUDITOR_WORKLOAD_LAYER_C05_20260524_TIME_IN_AUDIT_CARD';
+  base.build = '2026-09-23_COMPANY_MAP_AUDITOR_LAYER_C06_BOUNDED_AUDIT_WINDOW';
   base.auditLayers = CompanyMap_buildAuditLayers_C02_(base, auditorEmail);
   return base;
 }
@@ -54,11 +54,13 @@ function CompanyMap_buildAuditLayers_C02_(baseDataset, auditorEmail) {
     return out;
   }
 
-  var lastRow = sh.getLastRow();
-  var lastCol = sh.getLastColumn();
-  if (lastRow < 2 || lastCol < 1) return out;
-
-  var values = sh.getRange(1, 1, lastRow, lastCol).getValues();
+  var pack = CompanyMap_readAuditPlanningBounded_C06_(sh);
+  var values = pack.values;
+  out.diagnostics.readStrategy = pack.mode;
+  out.diagnostics.readFallback = pack.fallback;
+  out.diagnostics.windowRows = pack.windowRows;
+  out.diagnostics.windowCols = pack.windowCols;
+  if (!values || values.length < 2) return out;
   var headers = values[0] || [];
   var col = CompanyMap_getAuditPlanningColumns_C01_(headers);
   var locIndex = CompanyMap_buildLocationEntityIndex_C01_(baseDataset);
@@ -162,6 +164,18 @@ function CompanyMap_buildAuditLayers_C02_(baseDataset, auditorEmail) {
   out.myAuditWorkload.sort(CompanyMap_sortAuditEntities_C01_);
   out.otherFutureAudits.sort(CompanyMap_sortAuditEntities_C01_);
   return out;
+}
+
+var COMPANY_MAP_AUDIT_WINDOW_ROWS_C06=256;
+var COMPANY_MAP_AUDIT_WINDOW_COLS_C06=48;
+function CompanyMap_readAuditPlanningBounded_C06_(sh){
+ var rows=COMPANY_MAP_AUDIT_WINDOW_ROWS_C06,cols=COMPANY_MAP_AUDIT_WINDOW_COLS_C06,values,mode='FIXED_WINDOW',fallback=false;
+ function hasData(row){for(var i=0;i<(row||[]).length;i++)if(row[i]!==''&&row[i]!=null)return true;return false;}
+ function usedRows(a){var last=0;for(var i=0;i<(a||[]).length;i++)if(hasData(a[i]))last=i+1;return last;}
+ function usedCols(a,ur){var last=0;for(var r=0;r<Math.min(ur||0,(a||[]).length);r++){var row=a[r]||[];for(var q=row.length-1;q>=0;q--)if(row[q]!==''&&row[q]!=null){if(q+1>last)last=q+1;break;}}return last;}
+ try{values=sh.getRange(1,1,rows,cols).getValues();var ur=usedRows(values),uc=usedCols(values,ur);if((ur===rows&&hasData(values[rows-1]))||uc===cols){fallback=true;mode='DATARANGE_FALLBACK';values=sh.getDataRange().getValues();}}
+ catch(e){fallback=true;mode='DATARANGE_FALLBACK';values=sh.getDataRange().getValues();}
+ var n=usedRows(values);return{values:n?values.slice(0,n):[],mode:mode,fallback:fallback,windowRows:rows,windowCols:cols};
 }
 
 function CompanyMap_getAuditPlanningColumns_C01_(headers) {

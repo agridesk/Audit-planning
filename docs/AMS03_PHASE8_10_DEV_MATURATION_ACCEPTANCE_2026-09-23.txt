@@ -1,29 +1,46 @@
 AMS-03 — PHASE 8–10 DEV MATURATION ACCEPTANCE
 Date: 2026-09-23
-Status: DEV ACCEPTED — MATURATION FOUNDATION
+Status: DEV ACCEPTED — MATURATION FOUNDATION + PERFORMANCE HARDENING
 
-Runtime evidence
-- Planning 2.0 master gate R2: 7/7 GREEN.
-- Phase 8–10 maturation batch R4: 7/7 GREEN.
+Latest runtime evidence — 2026-09-23 21:12
+- Phase 8–10 maturation batch R16: 19/19 GREEN.
 - Phase 8 trip concept acceptance: 18/18 GREEN.
 - Phase 9 communication/profiles acceptance: 19/19 GREEN.
 - Phase 8–10 performance hardening: 7/7 GREEN.
-- Phase 8–10 live read integration: 7/7 GREEN.
+- Phase 8–10 live read integration R2: 8/8 GREEN.
 - Legacy caller inventory: 7 classified surfaces; automatic retirement = 0.
+- No live writes, sends or new SSoT in the maturation batch.
 
-Live read evidence
+Latest live read evidence
 - Decision read returned 71 rows.
 - Trip concept read succeeded for one audit.
 - Company communication read succeeded for one company.
 - Structured handover read succeeded.
-- No trip/company/handover writes or sends.
-- Live read batch total: 3748 ms.
-- Sample trip GPS readiness was 0; this is not treated as a routing capability.
+- Company profile reuse succeeded.
+- Sample trip GPS readiness = 1.
+- Live read integration total = 1836 ms.
 
-Planning 2.0 performance evidence in same master run
-- Warm server hot-path observations: 771 ms and 933 ms, both below the provisional 2000 ms roadmap target.
-- Shared availability context fully seeded; zero context misses and zero lifecycle/availability batch reads in hot path.
-- Cold/less-warm live decision sample: 3793 ms. This remains observable cold-path variance, not hidden by the acceptance gate.
+Performance evidence
+- Planning Demand first bounded read: 523 ms for 71 returned rows.
+- Planning Demand repeated read in same execution: 8 ms via EXEC_CACHE.
+- Planning Profiles first bounded Companies read: 221 ms for 71 companies.
+- Planning Profiles repeated read in same execution: 3 ms via EXEC_CACHE.
+- Eligibility repeated read used workspace ScriptCache fast path.
+- Concept Planning repeated read completed in 171 ms for 71 audits.
+- Revision token targeted indexed read completed in 30 ms.
+- Existing warm server hot-path observations remain below the provisional 2000 ms roadmap target.
+- Cold-path variance remains observable and should continue to be measured; acceptance does not hide it.
+
+Additional hardening accepted
+- Company Map uses bounded Audit planning read and cached full dataset with bounded TTL.
+- Manager Planning Overview uses bounded Audit planning read.
+- Rejected audit lookup uses canonical Audit-ID row index.
+- Rejected audit planning clear writes target planning cells only, preserving protected lifecycle fields.
+- Auditor planning context uses canonical Audit-ID row index.
+- Auditor action lookup uses canonical Audit-ID row index while preserving status/completion owners.
+- AuditTime normal single-audit actions use targeted single-audit rebuild; full rebuild remains admin/fallback.
+- Toolkit company-context prefetch uses canonical Audit-ID row index.
+- Planning Profiles and Planning Demand reuse bounded reads within one Apps Script execution.
 
 Accepted boundaries
 Phase 8
@@ -48,4 +65,4 @@ Architecture
 - Audit planning remains an operational compatibility projection during migration.
 
 Conclusion
-Phase 8–10 maturation foundation is DEV accepted within the explicit boundaries above. This is not full product closure for route-provider capability, authenticated company feedback workflow, or legacy retirement.
+Phase 8–10 maturation foundation and the current performance-hardening batch are DEV accepted within the explicit boundaries above. This is not full product closure for route-provider capability, authenticated company feedback workflow, or legacy retirement.

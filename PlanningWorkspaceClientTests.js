@@ -2,7 +2,7 @@
  * PlanningWorkspaceClientTests.js
  * BUILD: 2026-09-17_AMS01_PLANNING_WORKSPACE_CLIENT_TESTS_R14_CURRENT_CLIENT_CONTRACT
  ***********************************************************************/
-var PLANNING_WORKSPACE_CLIENT_TEST_BUILD='2026-09-17_AMS01_PLANNING_WORKSPACE_CLIENT_TESTS_R13_NATIVE_AUTH_DATA';
+var PLANNING_WORKSPACE_CLIENT_TEST_BUILD='2026-09-23_AMS01_PLANNING_WORKSPACE_CLIENT_TESTS_R14_CURRENT_CLIENT_CONTRACT';
 function RUN_PLANNING_WORKSPACE_CLIENT_BINDING_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var src=HtmlService.createHtmlOutputFromFile('PlanningWorkspaceClient.js').getContent();

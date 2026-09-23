@@ -1,0 +1,32 @@
+AMS-03 — PHASE 8–10 OPERATIONAL MATURATION
+Date: 2026-09-23
+Status: DEV MATURATION — CONTROLLED
+
+Phase 8 — Trip/workweek
+- Workspace on-demand trip/workweek context.
+- Selected-audit trip concept read model uses canonical decision model and bounded Companies/Locations_JSON projection.
+- GPS/simple straight-line distance are advisory only.
+- Car/train/flight are explicit modes; flight has a soft sustainability penalty.
+- No invented door-to-door time/cost and no autonomous routing/booking.
+- Final planning still requires canonical Workspace commit.
+
+Phase 9 — Company communication / profiles / handover
+- Company communication context remains read-only and Companies/PlanningProfiles-owned.
+- Proposal draft supports date/time and company actions CONFIRM/DECLINE/PARTIAL_AVAILABILITY/SUGGEST_ALTERNATIVE.
+- Structured handover combines company constraints with canonical planned-audit detail without becoming lifecycle truth or generic CRM.
+- Company feedback validation exists, but persistence and external authentication are deliberately NOT implemented until a secure response channel is selected.
+- Company feedback can never commit planning directly; manager review + Workspace revalidation remain mandatory.
+
+Phase 10 — Legacy retirement
+- Explicit caller inventory classifies seven legacy/compatibility surfaces.
+- No automatic retirement or history deletion.
+- Scope Manager already routes lifecycle mutation through ModelCScopeOwner_commit; compatibility visit materialization remains.
+- Retirement requires proven caller migration and semantic replacement.
+
+Governance
+- No new SSoT.
+- No second planning engine.
+- No direct browser sheet writes.
+- No automatic route optimizer.
+- No company-triggered canonical commit.
+- Legacy migration is incremental and evidence-based.

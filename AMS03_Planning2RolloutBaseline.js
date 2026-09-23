@@ -1,6 +1,6 @@
 /**
  * FILE: AMS03_Planning2RolloutBaseline.gs
- * BUILD: 2026-09-23_AMS03_PLANNING2_ROLLOUT_BASELINE_R1
+ * BUILD: 2026-09-23_AMS03_PLANNING2_ROLLOUT_BASELINE_R2_WORKSPACE_BOOTSTRAP
  * PURPOSE:
  *   Read-only rollout gate for Master Roadmap V2.6 / Planning 2.0.
  *   Closes the current capacity correction gate and establishes a fresh
@@ -82,9 +82,22 @@ function RUN_AMS03_PLANNING2_ROLLOUT_BASELINE() {
       return getToolkitAuditorsV5(fixture.auditId);
     });
 
+    AMS03_P2_probePair_(out, 'Planning 2.0 Workspace bootstrap', function() {
+      if (typeof PlanningWorkspaceRpc_bootstrap !== 'function') throw new Error('Missing PlanningWorkspaceRpc_bootstrap');
+      return PlanningWorkspaceRpc_bootstrap({
+        from: '2026-09-01',
+        to: '2026-11-30',
+        country: '',
+        scope: '',
+        auditorEmails: [],
+        auditIds: [],
+        includeCompanyMeta: false
+      });
+    });
+
     var capacityOk = !!(out.capacityGate && out.capacityGate.success === true);
     var allProbesOk = out.probes.every(function(p){ return p.ok === true; });
-    var pairedCoverage = ['Availability Calendar / Toolkit month','Manager Planning Toolkit open','Auditor Portal active grid','Manager Portal open grid'].every(function(label){
+    var pairedCoverage = ['Availability Calendar / Toolkit month','Manager Planning Toolkit open','Auditor Portal active grid','Manager Portal open grid','Planning 2.0 Workspace bootstrap'].every(function(label){
       return out.probes.some(function(p){return p.label===label && p.mode==='COLD';}) &&
              out.probes.some(function(p){return p.label===label && p.mode==='WARM';});
     });
@@ -125,6 +138,11 @@ function AMS03_P2_probe_(out, label, mode, fn) {
     cacheHit: null,
     rowsReturned: null,
     payloadBytesEstimate: null,
+    stageMs: null,
+    companyProjectionUsed: null,
+    preferredAuditMonthsRowsRead: null,
+    overlayContextBatchReads: null,
+    lifecycleBatchReads: null,
     error: ''
   };
 
@@ -136,6 +154,12 @@ function AMS03_P2_probe_(out, label, mode, fn) {
     p.cacheHit = AMS03_P2_pickBool_(res, ['__cacheHit','cacheHit']);
     p.rowsReturned = AMS03_P2_rows_(res);
     p.payloadBytesEstimate = AMS03_P2_bytes_(res);
+    var data=res&&res.data||{},ad=data.advisory||{},ov=data.overlays||{};
+    p.stageMs=data.meta&&data.meta.stageMs||null;
+    p.companyProjectionUsed=ad.meta&&typeof ad.meta.companyProjectionUsed==='boolean'?ad.meta.companyProjectionUsed:null;
+    p.preferredAuditMonthsRowsRead=ad.meta&&isFinite(Number(ad.meta.preferredAuditMonthsRowsRead))?Number(ad.meta.preferredAuditMonthsRowsRead):null;
+    p.overlayContextBatchReads=ov.meta&&isFinite(Number(ov.meta.availabilityContextBatchReads))?Number(ov.meta.availabilityContextBatchReads):null;
+    p.lifecycleBatchReads=ov.meta&&isFinite(Number(ov.meta.conceptLifecycleBatchReads))?Number(ov.meta.conceptLifecycleBatchReads):null;
     if (!p.ok) p.error = String((res && (res.message || res.error)) || 'FAILED');
   } catch (e) {
     p.wallMs = Date.now() - t0;

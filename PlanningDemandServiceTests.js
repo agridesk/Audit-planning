@@ -1,10 +1,10 @@
 /***********************************************************************
  * PlanningDemandServiceTests.js
- * BUILD: 2026-09-16_AMS01_2_PLANNING_DEMAND_TESTS_R3_COMPANY_META_OPT_IN
+ * BUILD: 2026-09-23_AMS01_2_PLANNING_DEMAND_TESTS_R4_BOUNDED_READ
  * Non-destructive regression + real-data DEV smoke/performance isolation.
  ***********************************************************************/
 
-var PLANNING_DEMAND_TEST_BUILD = '2026-09-16_AMS01_2_PLANNING_DEMAND_TESTS_R3_COMPANY_META_OPT_IN';
+var PLANNING_DEMAND_TEST_BUILD = '2026-09-23_AMS01_2_PLANNING_DEMAND_TESTS_R4_BOUNDED_READ';
 
 function PDS_TEST_assert_(cond, name, detail, results) { results.push({name:name,ok:!!cond,detail:cond?'':String(detail||'')}); }
 function PDS_TEST_findSmokePeriod_(){var ss=SpreadsheetApp.getActive(),sh=ss.getSheetByName('Audit planning');if(!sh)throw new Error("Missing sheet 'Audit planning'");var values=sh.getDataRange().getValues();if(!values||values.length<2)throw new Error('Audit planning is empty');var hdr=values[0]||[],cStatus=PDS_findCol_(hdr,['Status']),cFrom=PDS_findCol_(hdr,['Planning window from','Plan van','Planning from','Planning start','Plan start']),cTo=PDS_findCol_(hdr,['Planning window to','Plan tot','Planning to','Planning end','Plan end']);if(cStatus<0||cFrom<0||cTo<0)throw new Error('Planning Demand smoke: required window/status columns missing');var tz=ss.getSpreadsheetTimeZone()||Session.getScriptTimeZone();for(var r=1;r<values.length;r++){var st=PDS_clean_(values[r][cStatus]);if(!PDS_statusIncluded_(st))continue;var from=PDS_isoDate_(values[r][cFrom],tz),to=PDS_isoDate_(values[r][cTo],tz);if(from&&to&&to>=from)return{from:from,to:to}}throw new Error('Planning Demand smoke: no active audit with valid planning window found')}
@@ -32,6 +32,8 @@ function RUN_PLANNING_DEMAND_REGRESSION(){
  PDS_TEST_assert_(smoke&&smoke.meta&&smoke.meta.companyProjectionUsed===false,'defaultSmokeSkipsCompanies','default path must not read Companies',results);
  PDS_TEST_assert_(smoke&&smoke.meta&&smoke.meta.companyMetaRequested===false,'defaultMetaNotRequested','',results);
  PDS_TEST_assert_(smoke&&smoke.meta&&smoke.meta.perfProbe&&typeof smoke.meta.perfProbe.scopeExtractMs==='number','perfProbeContract','',results);
+ PDS_TEST_assert_(smoke&&smoke.meta&&smoke.meta.auditPlanningRead&&smoke.meta.auditPlanningRead.strategy==='FIXED_WINDOW','boundedAuditPlanningRead','Expected FIXED_WINDOW on current DEV dataset',results);
+ PDS_TEST_assert_(smoke&&smoke.meta&&smoke.meta.auditPlanningRead&&smoke.meta.auditPlanningRead.fallback===false,'boundedAuditPlanningNoFallback','Current DEV dataset should fit guarded window',results);
  var failed=results.filter(function(x){return!x.ok}),out={ok:failed.length===0,build:PLANNING_DEMAND_TEST_BUILD,total:results.length,passed:results.length-failed.length,failed:failed.length,smokePeriod:smokePeriod,smokeReturned:smoke&&smoke.rows?smoke.rows.length:0,smokeCandidates:smoke&&smoke.meta?smoke.meta.periodCandidates:null,smokeServerMs:wallServerMs,companyProjectionUsed:smoke&&smoke.meta?smoke.meta.companyProjectionUsed:null,devPerformance:smoke?smoke.devPerformance||null:null,perfProbe:smoke&&smoke.meta?smoke.meta.perfProbe||null:null,results:results};Logger.log(JSON.stringify(out,null,2));return out;
 }
 

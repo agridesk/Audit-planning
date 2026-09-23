@@ -1,5 +1,6 @@
 AUDIT MANAGEMENT SYSTEM — MASTER ROADMAP V2.6
 Date: 2026-09-22
+Last updated: 2026-09-23
 Status: CONSOLIDATED VNEXT MASTER ROADMAP
 Supersedes: Roadmap V2.5 as active planning baseline after acceptance
 Operating principle: 3S + Value — Speed, Scalability, Stability + operational value
@@ -32,6 +33,15 @@ Hard rules:
 
 WIP rule:
 - maximum one core technical stream + one product stream at a time.
+
+READ-FIRST GOVERNANCE
+For every new AMS execution chat or Work session that changes planning architecture or implementation:
+1. read the current Master Roadmap;
+2. read the Planning 2.0 Integrated Plan;
+3. read the Planning 2.0 READ-FIRST governance document;
+4. only then continue implementation.
+
+This is mandatory to prevent local optimizations from drifting away from the accepted architecture.
 
 1. CURRENT BASELINE — CLOSED / PROVEN
 
@@ -118,6 +128,25 @@ This is not treated as isolated polishing anymore.
 3.2 Shared architecture
 Manager and Auditor use the same planning engine/read models/validators.
 Differences are permissions and allowed actions, not duplicated logic.
+
+MANDATORY MIGRATION RULE — PLANNING TOOLKIT
+- The current Manager and Auditor Planning Toolkits are migration surfaces inside Planning 2.0, not separate end-state products or optimization programmes.
+- Planning Toolkit performance measurements are diagnostic input for Planning 2.0; they must not trigger an isolated “Toolkit 1.5” architecture.
+- Existing/proven Toolkit functionality is migrated into Concept Planning / Planning Workspace and the shared read-model / validation / preflight / canonical-commit chain.
+- New planning capability must, by default, be implemented in the Planning 2.0 architecture rather than added structurally to the legacy Toolkit.
+- Large Toolkit-specific rewrites are only justified when required as a temporary blocker fix or migration enabler.
+- Manager and Auditor must converge on the same Planning 2.0 core; role differences are permission/action differences only.
+- Availability Calendar, eligibility, qualification, rotation, planning windows, Re-adjust, Annual Planning, Batch Planning and Trip/Workweek Planning must converge on this same core.
+- Legacy Toolkit paths may remain operational during migration, but are retired only after equivalent Planning 2.0 capability is proven.
+
+READ-FIRST RULE FOR NEW AMS EXECUTION CHATS
+Before changing Planning 2.0 architecture or implementation, re-read the current canonical master roadmap and the Planning 2.0 integrated governance documents from the repository.
+At minimum:
+1. docs/AMS_MASTER_ROADMAP_V2.6_2026-09-22.txt
+2. docs/AMS_PLANNING_2_0_INTEGRATED_PLAN_2026-09-22.txt
+3. docs/READ_FIRST_PLANNING_2_0_GOVERNANCE_2026-09-23.txt
+
+If a proposed change conflicts with these documents, the roadmap/governance decision must be updated explicitly first; do not silently diverge.
 
 Target chain:
 Planning Demand

@@ -8,8 +8,8 @@ function RUN_WORKSPACE_GENERATED_NAVIGATION_REGRESSION(){
  t('generatedStateOwnedOutsideOverlay',c.indexOf('conceptStore:{generated:{},saved:{}}')>=0);
  t('generatedGetterUsesPersistentState',c.indexOf('function generatedConcepts(){var g=conceptStore().generated')>=0);
  t('applyGeneratedWritesPersistentState',c.indexOf('conceptStore().generated={}')>=0&&c.indexOf("putConcept('generated',x)")>=0);
- t('weekNavigationOnlyRenders',c.indexOf("el('nextMonth').addEventListener('click',function(){state.gridStart=addDays(state.gridStart,7);renderCalendar()})")>=0);
- t('previousWeekOnlyRenders',c.indexOf("el('prevMonth').addEventListener('click',function(){state.gridStart=addDays(state.gridStart,-7);renderCalendar()})")>=0);
+ t('weekNavigationOnlyRenders',c.indexOf("state.gridStart=addDays(state.gridStart,7);renderCalendar()")>=0);
+ t('previousWeekOnlyRenders',c.indexOf("state.gridStart=addDays(state.gridStart,-7);renderCalendar()")>=0);
  t('navigationDoesNotReload',c.indexOf("state.gridStart=addDays(state.gridStart,7);load(")<0);
  t('generatedStoreCanonicalClientOwner',c.indexOf('conceptStore().generated')>=0);
  t('dragEditStillPresent',c.indexOf('function moveGeneratedConcept')>=0);

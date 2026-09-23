@@ -1,12 +1,12 @@
 /***********************************************************************
  * PlanningWorkspaceHtmlShellTests.js
- * BUILD: 2026-09-11_AMS01_2_PLANNING_WORKSPACE_FULL_LAYOUT_TESTS_R4_SERVER_SEED
+ * BUILD: 2026-09-23_AMS01_2_PLANNING_WORKSPACE_HTML_SHELL_R5_CURRENT_ROUTE
  ***********************************************************************/
 var PLANNING_WORKSPACE_HTML_SHELL_TEST_BUILD='2026-09-11_AMS01_2_PLANNING_WORKSPACE_FULL_LAYOUT_TESTS_R4_SERVER_SEED';
 function RUN_PLANNING_WORKSPACE_HTML_SHELL_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var html=HtmlService.createTemplateFromFile('PlanningWorkspace').getRawContent();
-  t('htmlPresent',!!html);t('buildMarker',html.indexOf('2026-09-11_AMS01_2_PLANNING_WORKSPACE_FULL_LAYOUT_R2_SERVER_SEED')>=0);
+  t('htmlPresent',!!html);t('buildMarker',html.indexOf('2026-09-19_ROADMAP_2_4_PLANNING_WORKSPACE_ROUTE_BOUNDARIES_R10_CRITICAL_ATTENTION')>=0);
   t('filters',html.indexOf('id="pwFrom"')>=0&&html.indexOf('id="pwTo"')>=0&&html.indexOf('id="pwCountry"')>=0&&html.indexOf('id="pwScope"')>=0);
   t('kpis',html.indexOf('id="kToPlan"')>=0&&html.indexOf('id="kReady"')>=0&&html.indexOf('id="kBlocked"')>=0&&html.indexOf('id="kConcept"')>=0&&html.indexOf('id="kPlanned"')>=0);
   t('plannerAttention',html.indexOf('id="attentionBody"')>=0);t('auditorWorkload',html.indexOf('id="workloadBody"')>=0);t('batchSelection',html.indexOf('id="batchChips"')>=0);t('planningCalendar',html.indexOf('id="calendar"')>=0);

@@ -10,7 +10,6 @@ var ELIGIBILITY_BATCH_SCOPE_AWARE_BUILD='2026-09-23_ELIGIBILITY_BATCH_SCOPE_AWAR
 
 function EligibilityBatchReadModel_get(input){
   input=input||{};
-  var cacheKey='',cache=null;if(Array.isArray(input.auditIds)&&input.auditIds.length){var idsKey=input.auditIds.map(EBRM_clean_).filter(Boolean).sort().join('|');cacheKey='P2_EBRM_R2::'+idsKey;try{cache=CacheService.getScriptCache();var cached=cache.get(cacheKey);if(cached){var hit=JSON.parse(cached);if(hit&&hit.success===true){hit.meta=hit.meta||{};hit.meta.workspaceScriptCacheFastPath=true;hit.devPerformance={type:'DEV_PERF',build:'2026-09-09_ROADMAP_2_4_DEV_PERF_LOG_R1',operation:'EligibilityBatchReadModel_get',totalMs:0,stages:[{stage:'workspaceScriptCacheBulkRead',deltaMs:0,cumulativeMs:0,extra:{returned:(hit.rows||[]).length}}],meta:{requestedAuditIds:input.auditIds.length,workspaceCache:true},extra:{returned:(hit.rows||[]).length,workspaceScriptCacheFastPath:true}};return hit;}}}catch(_cacheRead){cache=null;}}
   var requested=EBRM_requestedSet_(input);
   var perf=(typeof DPL_start_==='function')?DPL_start_('EligibilityBatchReadModel_get',{requestedAuditIds:requested?Object.keys(requested).length:0}):null;
   var ss=SpreadsheetApp.getActive(),sh=ss.getSheetByName('Eligibility_Cache');
@@ -46,6 +45,5 @@ function EligibilityBatchReadModel_get(input){
   var requestedIds=requested?Object.keys(requested):[],missingIds=[];for(var i=0;i<requestedIds.length;i++)if(!byAuditId[requestedIds[i]])missingIds.push(requestedIds[i]);
   var result={success:true,build:ELIGIBILITY_BATCH_SCOPE_AWARE_BUILD,rows:rows,byAuditId:byAuditId,missingAuditIds:missingIds,meta:{sourceRows:values.length,returned:rows.length,requested:requestedIds.length,missing:missingIds.length,stale:staleCount,parseErrors:parseErrors,buildMismatch:buildMismatchCount,generationMismatch:generationMismatchCount,refreshRequired:refreshRequiredCount,legacyEquivalent:legacyEquivalentCount,currentEligibilityBuild:currentBuild,auditorScopeGeneration:currentGeneration,columnsRead:maxCol,writes:false,canonicalOwner:'EligibilityService',cacheRole:'derived acceleration only',cacheValidityContract:'EligibilityService sheet acceptance + scope-aware Tracecert compatibility',scopeAwareBuildCompatibility:true}};
   if(typeof DPL_end_==='function')result.devPerformance=DPL_end_(perf,{returned:rows.length,missing:missingIds.length,stale:staleCount,parseErrors:parseErrors,buildMismatch:buildMismatchCount,generationMismatch:generationMismatchCount,refreshRequired:refreshRequiredCount,legacyEquivalent:legacyEquivalentCount});
-  if(cache&&cacheKey){try{var payload=JSON.stringify(result);if(payload.length<90000)cache.put(cacheKey,payload,120);}catch(_cachePut){}}
   return result;
 }

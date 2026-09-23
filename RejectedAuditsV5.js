@@ -347,86 +347,23 @@ function V5_MoveAuditToRejected(auditId, payload) {
 // PUBLIC: Clear planning fields in Audit planning
 // ====================================================
 function ClearPlanningFields(auditId) {
-  auditId = _raNorm(auditId);
-  if (!auditId) {
-    return { success: false, message: 'ClearPlanningFields: missing auditId' };
-  }
-
-  var ss = _raGetSpreadsheet();
-  var cfg = REJECTED_AUDITS_CONFIG.AUDIT_PLANNING;
-  var sheet = ss.getSheetByName(cfg.sheetName);
-  if (!sheet) {
-    return { success: false, message: 'Audit planning sheet not found.' };
-  }
-
-  var lastRow = sheet.getLastRow();
-  if (lastRow <= cfg.headerRow) {
-    return { success: false, message: 'No audit rows.' };
-  }
-
-  var headers = sheet
-    .getRange(cfg.headerRow, 1, 1, sheet.getLastColumn())
-    .getValues()[0];
-  var map = _raHeaderMap(headers);
-
-  var colAuditId = map.indexOf(cfg.columns.auditId);
-  var colAssignedTo = map.indexOf(cfg.columns.assignedTo);
-  var colDatePlanned = map.indexOf(cfg.columns.datePlanned);
-  var colDateApproved = map.indexOf(cfg.columns.dateApproved);
-  var colPlanningJson = map.indexOf(cfg.columns.planningJson);
-
-  if (colAuditId < 0) {
-    return { success: false, message: 'Audit ID column not found in Audit planning.' };
-  }
-
-  var range = sheet.getRange(cfg.headerRow + 1, 1, lastRow - cfg.headerRow, sheet.getLastColumn());
-  var data = range.getValues();
-  var changed = false;
-  var protectedSnapshot = null;
-
-  for (var i = 0; i < data.length; i++) {
-    if (_raNorm(data[i][colAuditId]) === auditId) {
-      try {
-        if (typeof Lifecycle_snapshotProtectedPlanningFields_ === 'function') {
-          protectedSnapshot = Lifecycle_snapshotProtectedPlanningFields_({
-            auditId: auditId,
-            sheet: sheet,
-            rowIndex: cfg.headerRow + 1 + i,
-            headers: headers,
-            source: 'RejectedAuditsV5.ClearPlanningFields:before'
-          });
-        }
-      } catch (eSnap) {
-        protectedSnapshot = { success:false, message:String(eSnap && eSnap.message ? eSnap.message : eSnap) };
-      }
-
-      if (colAssignedTo >= 0) data[i][colAssignedTo] = '';
-      if (colDatePlanned >= 0) data[i][colDatePlanned] = '';
-      if (colDateApproved >= 0) data[i][colDateApproved] = '';
-      if (colPlanningJson >= 0) data[i][colPlanningJson] = '';
-      changed = true;
-      break;
-    }
-  }
-
-  if (!changed) {
-    return { success: false, message: 'Audit ID not found in Audit planning for clearing.' };
-  }
-
-  range.setValues(data);
-
-  var protectedRestore = { success:true, skipped:true };
-  try {
-    if (protectedSnapshot && typeof Lifecycle_restoreProtectedPlanningFields_ === 'function') {
-      protectedRestore = Lifecycle_restoreProtectedPlanningFields_(protectedSnapshot, { source:'RejectedAuditsV5.ClearPlanningFields:after' });
-    }
-  } catch (eRestore) {
-    protectedRestore = { success:false, message:String(eRestore && eRestore.message ? eRestore.message : eRestore) };
-  }
-
-  return { success: true, protectedPlanningFields: protectedRestore };
+  auditId=_raNorm(auditId);if(!auditId)return{success:false,message:'ClearPlanningFields: missing auditId'};
+  var ss=_raGetSpreadsheet(),cfg=REJECTED_AUDITS_CONFIG.AUDIT_PLANNING,sheet=ss.getSheetByName(cfg.sheetName);
+  if(!sheet)return{success:false,message:'Audit planning sheet not found.'};
+  var pack=null;try{if(typeof __mp_getAuditPlanningRow_==='function')pack=__mp_getAuditPlanningRow_(ss,auditId);}catch(e0){}
+  if(!pack||!pack.row||!pack.hdr||!pack.rowNumber)return{success:false,message:'Audit ID not found in Audit planning for clearing.'};
+  var headers=pack.hdr,row=pack.row.slice(),map=_raHeaderMap(headers),cols=[
+    map.indexOf(cfg.columns.assignedTo),map.indexOf(cfg.columns.datePlanned),
+    map.indexOf(cfg.columns.dateApproved),map.indexOf(cfg.columns.planningJson)
+  ],protectedSnapshot=null;
+  try{if(typeof Lifecycle_snapshotProtectedPlanningFields_==='function')protectedSnapshot=Lifecycle_snapshotProtectedPlanningFields_({auditId:auditId,sheet:sheet,rowIndex:pack.rowNumber,headers:headers,source:'RejectedAuditsV5.ClearPlanningFields:before'});}catch(e1){protectedSnapshot={success:false,message:String(e1&&e1.message?e1.message:e1)};}
+  for(var i=0;i<cols.length;i++)if(cols[i]>=0)row[cols[i]]='';
+  sheet.getRange(pack.rowNumber,1,1,headers.length).setValues([row]);
+  try{if(typeof __mp_invalidateAuditPlanningPack_==='function')__mp_invalidateAuditPlanningPack_();}catch(e2){}
+  var protectedRestore={success:true,skipped:true};
+  try{if(protectedSnapshot&&typeof Lifecycle_restoreProtectedPlanningFields_==='function')protectedRestore=Lifecycle_restoreProtectedPlanningFields_(protectedSnapshot,{source:'RejectedAuditsV5.ClearPlanningFields:after'});}catch(e3){protectedRestore={success:false,message:String(e3&&e3.message?e3.message:e3)};}
+  return{success:true,protectedPlanningFields:protectedRestore,lookupMode:'AUDIT_ID_INDEX',writeMode:'SINGLE_ROW'};
 }
-
 function V5_ClearPlanningFields(auditId) {
   return ClearPlanningFields(auditId);
 }

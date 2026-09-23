@@ -634,29 +634,14 @@ function StatusNotificationBridge_LoadEcasAuditBriefing_(auditId) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     if (!ss) ss = SpreadsheetApp.getActive();
-    var sh = ss.getSheetByName('Audit planning');
-    if (!sh) return out;
+    var pack = (typeof __mp_getAuditPlanningRow_ === 'function') ? __mp_getAuditPlanningRow_(ss, auditId) : null;
+    if (!pack || !pack.row || !pack.hdr || !pack.rowNumber) return out;
 
-    var lastRow = sh.getLastRow();
-    var lastCol = sh.getLastColumn();
-    if (lastRow < 2 || lastCol < 1) return out;
-
-    var headerRange = sh.getRange(1, 1, 1, lastCol);
-    var hdr = headerRange.getValues()[0] || [];
-    var hdrDisplay = headerRange.getDisplayValues()[0] || hdr;
+    var hdr = pack.hdr || [];
+    var hdrDisplay = hdr;
     var idx = StatusNotificationBridge_HeaderMapLoose_(hdrDisplay);
-    var cAuditId = StatusNotificationBridge_FindColLoose_(idx, ['Audit ID', 'Audit_ID', 'AuditId', 'Audit UID', 'AuditUID']);
-    if (cAuditId < 0) return out;
-
-    var cell = sh.getRange(2, cAuditId + 1, lastRow - 1, 1)
-      .createTextFinder(auditId)
-      .matchEntireCell(true)
-      .findNext();
-    if (!cell) return out;
-
-    var rowRange = sh.getRange(cell.getRow(), 1, 1, lastCol);
-    var row = rowRange.getValues()[0] || [];
-    var rowDisplay = rowRange.getDisplayValues()[0] || row;
+    var row = pack.row || [];
+    var rowDisplay = row;
 
     out.company = StatusNotificationBridge_CellLoose_(rowDisplay, idx, [
       'Company', 'Company name', 'Client', 'Customer', 'Organisation', 'Organization'
@@ -689,7 +674,7 @@ function StatusNotificationBridge_LoadEcasAuditBriefing_(auditId) {
     if (!out.plannedHours && out.blocks.length) out.plannedHours = StatusNotificationBridge_SumBlockHours_(out.blocks);
 
     StatusNotificationBridge_Diag_('ECAS_BRIEFING_LOADED_R10', auditId, 'ACCEPT', 'AUDITOR', '', '', true, '', {
-      row: cell.getRow(),
+      row: pack.rowNumber,
       company: out.company,
       companyUid: out.companyUid,
       mpsNumber: out.mpsNumber,

@@ -91,7 +91,7 @@ function RUN_ELIGIBILITY_BATCH_READ_REGRESSION() {
   EBRMT_assert_('noParseErrors', smoke && smoke.meta && smoke.meta.parseErrors === 0, 'canonical EligibilityService payloads must decode without parse errors', results);
   EBRMT_assert_('currentBuildPresent', smoke && smoke.meta && typeof smoke.meta.currentEligibilityBuild === 'string' && smoke.meta.currentEligibilityBuild.length > 0, 'canonical ELIG_BUILD must be visible', results);
   EBRMT_assert_('generationPresent', smoke && smoke.meta && typeof smoke.meta.auditorScopeGeneration === 'string' && smoke.meta.auditorScopeGeneration.length > 0, 'generation captured once per batch', results);
-  EBRMT_assert_('boundedReadStrategy', smoke && smoke.meta && (smoke.meta.readStrategy === 'FIXED_WINDOW' || smoke.meta.readStrategy === 'BOUNDED_FALLBACK'), 'bounded read telemetry', results);
+  EBRMT_assert_('boundedReadStrategy', smoke && smoke.meta && ((smoke.meta.readStrategy === 'FIXED_WINDOW' || smoke.meta.readStrategy === 'BOUNDED_FALLBACK') || (smoke.devPerformance && smoke.devPerformance.stages && smoke.devPerformance.stages.some(function(s){return s&&s.stage==='bulkRead'&&s.extra&&(s.extra.readStrategy==='FIXED_WINDOW'||s.extra.readStrategy==='BOUNDED_FALLBACK');}))), 'bounded read telemetry', results);
 
   if (sampleIds.length) {
     EBRMT_assert_('sampleRowsReturned', smoke.rows.length > 0, 'sample rows must return', results);

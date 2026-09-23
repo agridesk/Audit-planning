@@ -368,6 +368,7 @@ function v5_setCompanyLocationsToPlan(companyUid, locationsToPlan){
     sh.getRange(rowIndex+1, colLocCount+1).setValue(n);
     // PERF-PHASE1: invalidate Companies persist cache after write (was missing)
     __mp_invalidatePersistCaches_(['Companies']);
+    if (typeof CompanyMap_invalidateDatasetCache_C04_ === 'function') CompanyMap_invalidateDatasetCache_C04_();
     return {success:true, locationsCount:n};
   }catch(e){
     return {success:false, message:String(e && e.message ? e.message : e), stack:String(e && e.stack ? e.stack : "")};

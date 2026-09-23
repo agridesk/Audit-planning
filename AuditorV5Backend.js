@@ -2057,7 +2057,7 @@ function AuditorV5_Action_U20260410(auditId, action, payload) {
     res.from = currentStatus;
     res.to = String((transitionComplete && transitionComplete.afterStatusDisplay) || "Completed");
     res.uiPatch = auditorV5_buildActionUiPatch_(auditId, action, res.newStatus, true);
-    res.artifactSync = auditorV5_syncAuditArtifactsSafe_(auditId, true);
+    res.artifactSync = auditorV5_syncAuditArtifactsSafe_(auditId, false);
     return res;
   } else {
     throw new Error("Unknown action: " + action);

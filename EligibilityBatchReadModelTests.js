@@ -1,10 +1,10 @@
 /***********************************************************************
  * EligibilityBatchReadModelTests.js
- * BUILD: 2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_TESTS_R3_CACHE_VALIDITY_PARITY
+ * BUILD: 2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_TESTS_R4_BOUNDED_WINDOW
  * Permanent, non-destructive regression.
  ***********************************************************************/
 
-var ELIGIBILITY_BATCH_READ_TEST_BUILD = '2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_TESTS_R3_CACHE_VALIDITY_PARITY';
+var ELIGIBILITY_BATCH_READ_TEST_BUILD = '2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_TESTS_R4_BOUNDED_WINDOW';
 
 function EBRMT_assert_(name, condition, detail, out) {
   var ok = !!condition;
@@ -91,6 +91,7 @@ function RUN_ELIGIBILITY_BATCH_READ_REGRESSION() {
   EBRMT_assert_('noParseErrors', smoke && smoke.meta && smoke.meta.parseErrors === 0, 'canonical EligibilityService payloads must decode without parse errors', results);
   EBRMT_assert_('currentBuildPresent', smoke && smoke.meta && typeof smoke.meta.currentEligibilityBuild === 'string' && smoke.meta.currentEligibilityBuild.length > 0, 'canonical ELIG_BUILD must be visible', results);
   EBRMT_assert_('generationPresent', smoke && smoke.meta && typeof smoke.meta.auditorScopeGeneration === 'string' && smoke.meta.auditorScopeGeneration.length > 0, 'generation captured once per batch', results);
+  EBRMT_assert_('boundedReadStrategy', smoke && smoke.meta && (smoke.meta.readStrategy === 'FIXED_WINDOW' || smoke.meta.readStrategy === 'BOUNDED_FALLBACK'), 'bounded read telemetry', results);
 
   if (sampleIds.length) {
     EBRMT_assert_('sampleRowsReturned', smoke.rows.length > 0, 'sample rows must return', results);

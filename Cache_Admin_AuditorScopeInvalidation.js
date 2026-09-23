@@ -1,6 +1,6 @@
 /***********************************************************************
  * FILE: Cache_Admin_AuditorScopeInvalidation.gs
- * BUILD: 2026-07-02_AUDITOR_SCOPE_CACHE_INVALIDATION_3S_R4
+ * BUILD: 2026-09-23_AUDITOR_SCOPE_CACHE_INVALIDATION_3S_R5_IDEMPOTENT_TRIGGER
  ***********************************************************************/
 
 var AUDITOR_SCOPE_CACHE_GENERATION_PROP =
@@ -43,7 +43,7 @@ function RUN_AUDITOR_SCOPE_CACHE_REFRESH(context) {
 
   var out = {
     ok: true,
-    build: '2026-07-02_AUDITOR_SCOPE_CACHE_INVALIDATION_3S_R4',
+    build: '2026-09-23_AUDITOR_SCOPE_CACHE_INVALIDATION_3S_R5_IDEMPOTENT_TRIGGER',
     startedAt: new Date().toISOString(),
     context: context,
     generationBefore: '',
@@ -189,27 +189,27 @@ function AUDITOR_SCOPE_ON_EDIT(e) {
 }
 
 function INSTALL_AUDITOR_SCOPE_ON_EDIT_TRIGGER() {
-  var triggers = ScriptApp.getProjectTriggers();
-  var removed = 0;
-
+  var triggers = ScriptApp.getProjectTriggers() || [];
+  var matches = [];
   for (var i = 0; i < triggers.length; i++) {
     var t = triggers[i];
-    if (t.getHandlerFunction && t.getHandlerFunction() === 'AUDITOR_SCOPE_ON_EDIT') {
-      ScriptApp.deleteTrigger(t);
-      removed++;
-    }
+    if (t.getHandlerFunction && t.getHandlerFunction() === 'AUDITOR_SCOPE_ON_EDIT') matches.push(t);
   }
-
+  if (matches.length === 1) {
+    var existing = { ok:true, installed:true, created:false, existing:true, removedDuplicates:0 };
+    Logger.log(JSON.stringify(existing));
+    return existing;
+  }
+  var removed = 0;
+  for (var j = 0; j < matches.length; j++) {
+    ScriptApp.deleteTrigger(matches[j]);
+    removed++;
+  }
   ScriptApp.newTrigger('AUDITOR_SCOPE_ON_EDIT')
     .forSpreadsheet(SpreadsheetApp.getActive())
     .onEdit()
     .create();
-
-  Logger.log('AUDITOR_SCOPE_ON_EDIT trigger installed. Previous triggers removed: ' + removed);
-
-  return {
-    ok: true,
-    installed: true,
-    removedPreviousTriggers: removed
-  };
+  var out = { ok:true, installed:true, created:true, existing:false, removedDuplicates:removed };
+  Logger.log(JSON.stringify(out));
+  return out;
 }

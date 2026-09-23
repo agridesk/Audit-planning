@@ -3,7 +3,7 @@
  * BUILD: 2026-09-17_AMS01_PLANNING_WORKSPACE_ENTRY_PERF_REGRESSION_R3_NAV_RENDER_PERF
  * Non-destructive structural/runtime gate for direct shell + one initial RPC.
  ***********************************************************************/
-var AMS01_PW_ENTRY_PERF_TEST_BUILD='2026-09-17_AMS01_PLANNING_WORKSPACE_ENTRY_PERF_REGRESSION_R2_NATIVE_TRANSPORT';
+var AMS01_PW_ENTRY_PERF_TEST_BUILD='2026-09-23_AMS01_PLANNING_WORKSPACE_ENTRY_PERF_REGRESSION_R3_NAV_RENDER_PERF';
 function RUN_AMS01_PLANNING_WORKSPACE_ENTRY_PERF_REGRESSION(){
   var r=[];function t(n,o,d){r.push({name:n,ok:!!o,detail:o?'':String(d||'failed')});}
   var route=RUN_PLANNING_WORKSPACE_ENTRY_ROUTE_REGRESSION();

@@ -1,9 +1,9 @@
 /***********************************************************************
  * PlanningWorkspaceDecisionReadModelLiveAcceptance.js
- * BUILD: 2026-09-23_AMS01_3_WORKSPACE_DECISION_LIVE_ACCEPTANCE_R1
+ * BUILD: 2026-09-23_AMS01_3_WORKSPACE_DECISION_LIVE_ACCEPTANCE_R2_SOURCE_CONTEXT
  * Read-only live integration acceptance for compact decision bootstrap.
  ***********************************************************************/
-var PWDRM_LIVE_ACCEPTANCE_BUILD='2026-09-23_AMS01_3_WORKSPACE_DECISION_LIVE_ACCEPTANCE_R1';
+var PWDRM_LIVE_ACCEPTANCE_BUILD='2026-09-23_AMS01_3_WORKSPACE_DECISION_LIVE_ACCEPTANCE_R2_SOURCE_CONTEXT';
 function RUN_AMS01_3_WORKSPACE_DECISION_LIVE_ACCEPTANCE(){
  var input={from:'2026-09-01',to:'2026-11-30',country:'',scope:'',auditorEmails:[],auditIds:[],includeCompanyMeta:false},t=Date.now(),x=PlanningWorkspaceRpc_bootstrap(input),wall=Date.now()-t,d=x&&x.data||{},a=d.advisory||{},o=d.overlays||{},m=d.meta||{},r=[];function q(n,v,detail){r.push({name:n,ok:!!v,detail:v?'':String(detail||'failed')});}
  q('rpcOk',x&&x.ok===true,x&&x.error&&x.error.message);

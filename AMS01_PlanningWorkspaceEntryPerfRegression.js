@@ -1,6 +1,6 @@
 /***********************************************************************
  * FILE: AMS01_PlanningWorkspaceEntryPerfRegression.js
- * BUILD: 2026-09-17_AMS01_PLANNING_WORKSPACE_ENTRY_PERF_REGRESSION_R2_NATIVE_TRANSPORT
+ * BUILD: 2026-09-17_AMS01_PLANNING_WORKSPACE_ENTRY_PERF_REGRESSION_R3_NAV_RENDER_PERF
  * Non-destructive structural/runtime gate for direct shell + one initial RPC.
  ***********************************************************************/
 var AMS01_PW_ENTRY_PERF_TEST_BUILD='2026-09-17_AMS01_PLANNING_WORKSPACE_ENTRY_PERF_REGRESSION_R2_NATIVE_TRANSPORT';
@@ -24,6 +24,7 @@ function RUN_AMS01_PLANNING_WORKSPACE_ENTRY_PERF_REGRESSION(){
   t('oldOpeningBootstrapBypassed',html.indexOf('Opening audit data...')<0,html.slice(0,500));
   t('noBusinessSeed',html.indexOf('serverSeed\":true')<0&&html.indexOf('serverSeed&quot;:true')<0,'unexpected business seed');
   t('clientHasTransportMetric',html.indexOf('Transport ')>=0,'transport metric missing');
+  t('calendarNavigationClientOnly',html.indexOf("PlanningWorkspace_calendar_navigation")>=0&&html.indexOf("serverRpc:false")>=0,'calendar navigation render telemetry missing');
   t('oldAuthDataMarkerAbsent',html.indexOf('__PW_AUTH_DATA__')<0,'old string marker still present');
   var failed=r.filter(function(x){return!x.ok;}).length;
   var result={ok:failed===0,build:AMS01_PW_ENTRY_PERF_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,businessReadsPerformed:false,businessWritesPerformed:false,notificationWritesPerformed:false,authOwner:'EntryV5',oldInitialSerialRpcCount:2,newInitialSerialRpcCount:1,directDataIndependentShell:true,authenticatedDataEnvelope:'NATIVE_OBJECT'}};

@@ -1,6 +1,6 @@
 AMS-03 — PHASE 5 OPERATIONAL ACTIONS — CLOSURE CANDIDATE
 Date: 2026-09-23
-Status: PENDING CONSOLIDATED DEV GATE
+Status: CLOSED — DEV ACCEPTED
 
 Validated runtime evidence
 - Operational action chain: 16/16 GREEN.
@@ -19,5 +19,9 @@ Accepted architecture
 - Model C remains planning-window/obligation owner.
 - No second SSoT.
 
-Final closure condition
-- Corrected consolidated Phase 5 batch returns GREEN in DEV.
+Final closure evidence
+- Operational action chain: 16/16 GREEN.
+- Model C Re-adjust policy: success=true; all gates GREEN.
+- Consolidated Phase 5 batch R2: 2/2 GREEN.
+- No writes and no new SSoT.
+- Phase 5 CLOSED.

@@ -1,6 +1,6 @@
 /***********************************************************************
  * EligibilityBatchReadModel.js
- * BUILD: 2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_R3_CACHE_VALIDITY_PARITY
+ * BUILD: 2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_R4_BOUNDED_WINDOW
  *
  * PURPOSE
  *   Read-only batch projection of canonical EligibilityService cache data.
@@ -24,7 +24,9 @@
  *   - DEV-only performance telemetry.
  ***********************************************************************/
 
-var ELIGIBILITY_BATCH_READ_BUILD = '2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_R3_CACHE_VALIDITY_PARITY';
+var ELIGIBILITY_BATCH_READ_BUILD = '2026-09-23_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_R4_BOUNDED_WINDOW';
+var EBRM_WINDOW_ROWS=256;
+var EBRM_WINDOW_COLS=24;
 
 function EBRM_clean_(v) {
   return String(v == null ? '' : v).trim();
@@ -202,7 +204,7 @@ function EligibilityBatchReadModel_get(input) {
     return empty;
   }
 
-  var headers = sh.getRange(1, 1, 1, lastCol).getValues()[0] || [];
+  var windowRows=Math.max(1,Math.min(EBRM_WINDOW_ROWS,Math.max(1,lastRow))),windowCols=Math.max(1,Math.min(EBRM_WINDOW_COLS,Math.max(1,lastCol))),windowValues=sh.getRange(1,1,windowRows,windowCols).getValues(),boundaryRow=lastRow>EBRM_WINDOW_ROWS,boundaryCol=lastCol>EBRM_WINDOW_COLS,fallback=boundaryRow||boundaryCol,headers=(fallback?sh.getRange(1,1,1,lastCol).getValues()[0]:windowValues[0])||[];
   var cAuditId = EBRM_findCol_(headers, ['Audit_ID','Audit ID']);
   var cCompanyUid = EBRM_findCol_(headers, ['Company_UID','Company UID']);
   var cA1 = EBRM_findCol_(headers, ['Eligible_Auditors_JSON']);
@@ -222,8 +224,8 @@ function EligibilityBatchReadModel_get(input) {
   var used = [cAuditId,cCompanyUid,cA1,cA2,cA3,cA4,cMeta,cComputedAt,cComputedBuild,cStale,cScopesHash,cSourceHash,cNotes]
     .filter(function(x){ return x >= 0; });
   var maxCol = used.length ? Math.max.apply(null, used) + 1 : lastCol;
-  var values = lastRow >= 2 ? sh.getRange(2, 1, lastRow - 1, maxCol).getValues() : [];
-  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'bulkRead', { rows: values.length, cols: maxCol });
+  var values=[];if(lastRow>=2){if(!fallback&&maxCol<=windowCols)values=windowValues.slice(1,lastRow);else values=sh.getRange(2,1,lastRow-1,maxCol).getValues();}
+  if (typeof DPL_mark_ === 'function') DPL_mark_(perf, 'bulkRead', { rows: values.length, cols: maxCol,readStrategy:(!fallback&&maxCol<=windowCols)?'FIXED_WINDOW':'BOUNDED_FALLBACK',windowRows:EBRM_WINDOW_ROWS,windowCols:EBRM_WINDOW_COLS });
 
   var currentBuild = EBRM_currentEligibilityBuild_();
   var currentGeneration = EBRM_currentAuditorScopeGeneration_();
@@ -335,7 +337,7 @@ function EligibilityBatchReadModel_get(input) {
       writes: false,
       canonicalOwner: 'EligibilityService',
       cacheRole: 'derived acceleration only',
-      cacheValidityContract: 'EligibilityService sheet acceptance parity'
+      cacheValidityContract: 'EligibilityService sheet acceptance parity',readStrategy:(!fallback&&maxCol<=windowCols)?'FIXED_WINDOW':'BOUNDED_FALLBACK',windowFallback:!!fallback
     }
   };
 

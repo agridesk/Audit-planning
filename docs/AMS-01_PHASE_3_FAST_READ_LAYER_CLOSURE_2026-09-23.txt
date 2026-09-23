@@ -1,0 +1,32 @@
+AMS-01 — PHASE 3 FAST READ LAYER — CLOSURE CANDIDATE
+Date: 2026-09-23
+Status: PENDING FINAL DEV GOVERNANCE ACCEPTANCE
+
+Implemented
+- Bounded Planning Demand read: fixed-window normal path, safe fallback.
+- Bounded Eligibility read: fixed-window normal path, canonical EligibilityService validity.
+- Bounded Availability period read.
+- Compact PlanningWorkspaceDecisionReadModel over ConceptPlanningService.
+- Shared candidate-auditor list and auditContextById reused by Workspace overlays.
+- No new planning, availability, eligibility or lifecycle SSoT.
+- No new persistent Workspace cache.
+- Existing EligibilityService remains eligibility/cache owner.
+- Auditor/Config scope freshness uses AUDITOR_SCOPE cache generation.
+- Installable AUDITOR_SCOPE_ON_EDIT trigger deterministically refreshes generation/caches after Auditors or Config_Scopes edits.
+- Trigger installer is idempotent.
+
+Validated before final governance gate
+- Phase 3 runtime batch: 5/5 GREEN.
+- Decision model contract/integration/live acceptance GREEN.
+- Bootstrap fast path GREEN.
+- Shared payload contract 8/8 GREEN.
+- Fully seeded availability context: no misses and no extra per-audit/batch reads.
+- Warm bootstrap observed around the ~2 s decision-ready boundary; latency remains an optimization metric, not a correctness gate.
+
+Final closure condition
+1. DEV has exactly one AUDITOR_SCOPE_ON_EDIT installable trigger.
+2. RUN_AMS01_3_FAST_READ_GOVERNANCE_ACCEPTANCE returns GREEN.
+3. No writes/new SSoT introduced by the acceptance.
+
+Next roadmap phase after closure
+Phase 4 — integrated annual planner: workload + availability capacity + rotation warning + month/region/scope drilldown + concept-planning launch.

@@ -195,7 +195,7 @@ function m5t_po_getCompanyRegionMap_(ss) {
   var companies = profiles.companies || [];
   for (var r = 0; r < companies.length; r++) {
     var item = companies[r] || {};
-    var name = String(item.company || '').trim();
+    var name = String(item.companyName || '').trim();
     if (!name) continue;
     out[m5t_normHeader_(name)] = String(item.region || '').trim();
   }

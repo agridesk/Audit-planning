@@ -6,7 +6,7 @@
  * Audit planning remains canonical lifecycle owner. Only concepts whose
  * canonical status is Pending Planning are active/planable in Workspace.
  ***********************************************************************/
-var PLANNING_WORKSPACE_CONCEPT_LIFECYCLE_BUILD='2026-09-13_WORKSPACE_CONCEPT_LIFECYCLE_R1';
+var PLANNING_WORKSPACE_CONCEPT_LIFECYCLE_BUILD='2026-09-13_WORKSPACE_CONCEPT_LIFECYCLE_R2_SHARED_STATUS_CONTEXT';
 function PWCL_clean_(v){return String(v==null?'':v).trim();}
 function PWCL_norm_(v){return PWCL_clean_(v).toLowerCase();}
 function PWCL_col_(hdr,names){var m={};for(var i=0;i<(hdr||[]).length;i++)m[PWCL_norm_(hdr[i])]=i;for(var j=0;j<(names||[]).length;j++){var k=PWCL_norm_(names[j]);if(Object.prototype.hasOwnProperty.call(m,k))return m[k];}return-1;}

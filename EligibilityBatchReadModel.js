@@ -1,6 +1,6 @@
 /***********************************************************************
  * EligibilityBatchReadModel.js
- * BUILD: 2026-09-09_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_R4_BOUNDED_WINDOW
+ * BUILD: 2026-09-23_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_R5_EXEC_CACHE
  *
  * PURPOSE
  *   Read-only batch projection of canonical EligibilityService cache data.
@@ -169,7 +169,7 @@ function EBRM_readWindow_(sh,lastRow,lastCol){
   var windowRows=Math.max(1,Math.min(EBRM_WINDOW_ROWS,Math.max(1,lastRow))),windowCols=Math.max(1,Math.min(EBRM_WINDOW_COLS,Math.max(1,lastCol))),windowValues=sh.getRange(1,1,windowRows,windowCols).getValues(),fallback=lastRow>EBRM_WINDOW_ROWS||lastCol>EBRM_WINDOW_COLS,headers=(fallback?sh.getRange(1,1,1,lastCol).getValues()[0]:windowValues[0])||[];
   var used=[EBRM_findCol_(headers,['Audit_ID','Audit ID']),EBRM_findCol_(headers,['Company_UID','Company UID']),EBRM_findCol_(headers,['Eligible_Auditors_JSON']),EBRM_findCol_(headers,['Eligible_Auditors_JSON_2']),EBRM_findCol_(headers,['Eligible_Auditors_JSON_3']),EBRM_findCol_(headers,['Eligible_Auditors_JSON_4']),EBRM_findCol_(headers,['Eligibility_Meta_JSON']),EBRM_findCol_(headers,['Computed_At']),EBRM_findCol_(headers,['Computed_Build']),EBRM_findCol_(headers,['Stale']),EBRM_findCol_(headers,['Scopes_Hash']),EBRM_findCol_(headers,['Source_Mtime_Hash']),EBRM_findCol_(headers,['Notes'])].filter(function(x){return x>=0;}),maxCol=used.length?Math.max.apply(null,used)+1:lastCol,values=[];
   if(lastRow>=2){if(!fallback&&maxCol<=windowCols)values=windowValues.slice(1,lastRow);else values=sh.getRange(2,1,lastRow-1,maxCol).getValues();}
-  var pack={headers:headers,values:values,maxCol:maxCol,readStrategy:readPack.readStrategy,windowFallback:readPack.windowFallback};EBRM_EXEC_WINDOW_CACHE[key]=pack;return pack;
+  var pack={headers:headers,values:values,maxCol:maxCol,readStrategy:(!fallback&&maxCol<=windowCols)?'FIXED_WINDOW':'BOUNDED_FALLBACK',windowFallback:!!fallback};EBRM_EXEC_WINDOW_CACHE[key]=pack;return pack;
 }
 
 function EligibilityBatchReadModel_get(input) {

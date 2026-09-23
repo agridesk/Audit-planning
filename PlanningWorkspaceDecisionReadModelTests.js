@@ -1,8 +1,8 @@
 /***********************************************************************
  * PlanningWorkspaceDecisionReadModelTests.js
- * BUILD: 2026-09-23_AMS01_3_WORKSPACE_DECISION_READ_MODEL_TEST_R1
+ * BUILD: 2026-09-23_AMS01_3_WORKSPACE_DECISION_READ_MODEL_TEST_R2_SOURCE_CONTEXT
  ***********************************************************************/
-var PWDRM_TEST_BUILD='2026-09-23_AMS01_3_WORKSPACE_DECISION_READ_MODEL_TEST_R1';
+var PWDRM_TEST_BUILD='2026-09-23_AMS01_3_WORKSPACE_DECISION_READ_MODEL_TEST_R2_SOURCE_CONTEXT';
 function RUN_AMS01_3_WORKSPACE_DECISION_READ_MODEL_REGRESSION(){
  var src=String(PlanningWorkspaceDecisionReadModel_get),contract=PlanningWorkspaceDecisionReadModel_contract(),r=[];function t(n,v){r.push({name:n,ok:!!v});}
  t('readModelPresent',typeof PlanningWorkspaceDecisionReadModel_get==='function');
@@ -12,6 +12,6 @@ function RUN_AMS01_3_WORKSPACE_DECISION_READ_MODEL_REGRESSION(){
  t('noPersistentCache',contract.persistentCache===false);
  t('noNewSsot',contract.newSsot===false);
  t('noCanonicalRuleReimplementation',contract.canonicalRulesReimplemented===false);
- t('compactProjection',src.indexOf('PWDRM_audit_')>=0&&src.indexOf('candidateAuditorEmails')>=0);
+ t('compactProjection',src.indexOf('PWDRM_audit_')>=0&&src.indexOf('candidateAuditorEmails')>=0);\n t('sourceTelemetryPreserved',src.indexOf('sourceMeta=a&&a.meta||{}')>=0);\n t('sharedAuditContextProjected',src.indexOf('auditContextById')>=0);
  var failed=r.filter(function(x){return!x.ok}).length,out={ok:failed===0,build:PWDRM_TEST_BUILD,total:r.length,passed:r.length-failed,failed:failed,results:r,meta:{nonDestructive:true,liveReadsPerformed:false,liveWritesPerformed:false,newSsot:false}};Logger.log(JSON.stringify(out,null,2));return out;
 }

@@ -4,3 +4,5 @@
  ***********************************************************************/
 function PlanningWorkspaceRpc_getHandover(input){return PWR_envelope_('getHandover',function(){return getPlanningHandoverV5(input||{});});}
 function PlanningWorkspaceRpc_buildCompanyProposalDraft(input){return PWR_envelope_('buildCompanyProposalDraft',function(){return PlanningCompanyProposalDraft_build(input||{});});}
+
+function PlanningWorkspaceRpc_validateCompanyFeedback(input){return PWR_envelope_('validateCompanyFeedback',function(){return PlanningCompanyFeedback_validate(input||{});});}

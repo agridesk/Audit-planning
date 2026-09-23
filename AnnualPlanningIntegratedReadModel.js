@@ -1,6 +1,6 @@
 /**
  * FILE: AnnualPlanningIntegratedReadModel.gs
- * BUILD: 2026-09-23_AMS03_ANNUAL_PLANNING_INTEGRATED_R1
+ * BUILD: 2026-09-23_AMS03_ANNUAL_PLANNING_INTEGRATED_R2_DRILLDOWN_LAUNCH
  * PURPOSE:
  *   Read-only annual planning decision model combining the existing canonical
  *   workload projection and Availability-based capacity projection.
@@ -15,7 +15,7 @@
  * - This file only joins/project existing read models for planner UX.
  * - No writes, no status changes, no Availability mutation.
  ***********************************************************************/
-var ANNUAL_PLANNING_INTEGRATED_BUILD='2026-09-23_AMS03_ANNUAL_PLANNING_INTEGRATED_R1';
+var ANNUAL_PLANNING_INTEGRATED_BUILD='2026-09-23_AMS03_ANNUAL_PLANNING_INTEGRATED_R2_DRILLDOWN_LAUNCH';
 
 function getAnnualPlanningIntegratedV5(payload){
   payload=payload||{};
@@ -134,6 +134,12 @@ function AnnualPlanningIntegrated_project_(year,workload,capacity,totalMs){
   out.diagnostics.joinedAuditors=out.auditors.length;
   out.success=true;
   return out;
+}
+
+function AnnualPlanningIntegrated_drilldownV5(payload){
+  payload=payload||{};var base=getAnnualPlanningIntegratedV5({year:payload.year}),region=String(payload.region||'').trim(),scope=String(payload.scope||'').trim(),month=String(payload.month||'').trim(),rows=(base.workload||[]).filter(function(w){if(region&&String(w.region||'').trim()!==region)return false;if(scope&&String(w.scope||'').trim()!==scope)return false;if(month&&AnnualWorkload3S_monthKey_(w)!==month)return false;return true;});
+  var auditIds=[],seen={},hours=0,rotationWarnings=0;rows.forEach(function(w){var id=String(w.auditId||'').trim();if(id&&!seen[id]){seen[id]=1;auditIds.push(id);}hours+=Number(w.formalHours||0);if(w.rotationWarning===true||w.softBlockRotation===true)rotationWarnings++;});
+  return{success:base.success===true,build:ANNUAL_PLANNING_INTEGRATED_BUILD,year:base.year,filters:{region:region,scope:scope,month:month},workload:rows,summary:{obligations:rows.length,formalHours:AnnualPlanningIntegrated_round_(hours),rotationWarnings:rotationWarnings,uniqueAudits:auditIds.length},conceptPlanningLaunch:{enabled:auditIds.length>0,auditIds:auditIds,readOnly:true,target:'Planning Workspace 2.0'},meta:{readOnly:true,writes:false,newSsot:false,baseBuild:base.build||''}};
 }
 
 function AnnualPlanningIntegrated_normEmail_(v){return String(v||'').trim().toLowerCase();}

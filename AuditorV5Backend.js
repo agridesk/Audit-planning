@@ -1795,24 +1795,21 @@ function AuditorV5_Action_U20260410(auditId, action, payload) {
   var ss = auditorV5_getSs_();
   var sh = ss.getSheetByName("Audit planning");
   if (!sh) throw new Error('Missing sheet "Audit planning"');
-  var values = sh.getDataRange().getValues();
-  if (!values || values.length < 2) throw new Error('"Audit planning" is empty');
-  var headers = values[0].map(function(x){ return String(x || "").trim(); });
+  var rowPack = (typeof __mp_getAuditPlanningRow_ === 'function') ? __mp_getAuditPlanningRow_(ss, auditId) : null;
+  if (!rowPack || !rowPack.row || !rowPack.hdr || !rowPack.rowNumber) throw new Error("Audit not found: " + auditId);
+  var headers = rowPack.hdr.map(function(x){ return String(x || "").trim(); });
+  var auditRow = rowPack.row.slice();
   var idxAuditId = headers.indexOf("Audit ID");
   var idxStatus  = headers.indexOf("Status");
   var idxAssignedTo = headers.indexOf("Assigned to");
   if (idxAuditId < 0) throw new Error('Header "Audit ID" not found');
   if (idxStatus  < 0) throw new Error('Header "Status" not found');
-  var rowIndex = -1;
-  for (var r=1; r<values.length; r++) {
-    if (String(values[r][idxAuditId] || "").trim() === auditId) { rowIndex = r; break; }
-  }
-  if (rowIndex < 0) throw new Error("Audit not found: " + auditId);
-  var currentStatus = String(values[rowIndex][idxStatus] || "").trim();
+  var rowIndex = rowPack.rowNumber - 1;
+  var currentStatus = String(auditRow[idxStatus] || "").trim();
   var actorEmail = "";
   try { actorEmail = String(auditorV5_getActiveEmail_() || "").trim().toLowerCase(); } catch (eAct) {}
   if (!actorEmail && idxAssignedTo >= 0) {
-    actorEmail = String(values[rowIndex][idxAssignedTo] || "").trim().toLowerCase();
+    actorEmail = String(auditRow[idxAssignedTo] || "").trim().toLowerCase();
   }
   function setStatus_(newStatus) {
     sh.getRange(rowIndex + 1, idxStatus + 1).setValue(newStatus);
@@ -1959,7 +1956,7 @@ function AuditorV5_Action_U20260410(auditId, action, payload) {
       return acceptResult || { success:false, message:'StatusMachine action failed for ACCEPT' };
     }
 
-    try { auditorV5_invalidateGridCacheForAuditActors_(headers, values[rowIndex], actorEmail); } catch (eInv1) {}
+    try { auditorV5_invalidateGridCacheForAuditActors_(headers, auditRow, actorEmail); } catch (eInv1) {}
 
     var acceptStatusDisplay = String(acceptResult.afterStatusDisplay || acceptResult.newStatus || 'Accepted');
     var acceptStatusNorm = String((typeof Status_normalizeStatus_ === 'function')
@@ -2005,11 +2002,11 @@ function AuditorV5_Action_U20260410(auditId, action, payload) {
         action === 'deny' ? 'AUDIT_DENIED_BY_AUDITOR' : 'AUDIT_CANCELLED_BY_AUDITOR',
         auditId,
         headers,
-        values[rowIndex],
+        auditRow,
         { comment: centralPayload.reason, resultStatus: 'Returned to Pending Planning' }
       );
     } catch (eNotify) {}
-    try { auditorV5_invalidateGridCacheForAuditActors_(headers, values[rowIndex], actorEmail); } catch (eInvReopen) {}
+    try { auditorV5_invalidateGridCacheForAuditActors_(headers, auditRow, actorEmail); } catch (eInvReopen) {}
   } else if (action === "complete") {
     var transitionComplete = auditorV5_requireTransition_(currentStatus, 'COMPLETE', 'AUDITOR');
     var hrs = payload && payload.hoursDedicated;
@@ -2019,7 +2016,7 @@ function AuditorV5_Action_U20260410(auditId, action, payload) {
     var q = Math.round(hrs * 4) / 4;
     if (Math.abs(q - hrs) > 1e-9) throw new Error("Hours dedicated must be in steps of 0.25");
     actorEmail = "";
-    if (idxAssignedTo >= 0) actorEmail = String(values[rowIndex][idxAssignedTo] || "").trim().toLowerCase();
+    if (idxAssignedTo >= 0) actorEmail = String(auditRow[idxAssignedTo] || "").trim().toLowerCase();
     if (!actorEmail) {
       try { actorEmail = String(auditorV5_getActiveEmail_() || "").trim().toLowerCase(); } catch (e) {}
     }
@@ -2047,8 +2044,8 @@ function AuditorV5_Action_U20260410(auditId, action, payload) {
         release: relComplete || null
       };
     }
-    try { auditorV5_notifyManager_("AUDIT_COMPLETED", auditId, headers, values[rowIndex]); } catch (e) {}
-    try { auditorV5_invalidateGridCacheForAuditActors_(headers, values[rowIndex], actorEmail); } catch (eInv4) {}
+    try { auditorV5_notifyManager_("AUDIT_COMPLETED", auditId, headers, auditRow); } catch (e) {}
+    try { auditorV5_invalidateGridCacheForAuditActors_(headers, auditRow, actorEmail); } catch (eInv4) {}
     res.ok = true;
     res.success = (res.success !== false);
     res.auditId = auditId;
@@ -2063,7 +2060,7 @@ function AuditorV5_Action_U20260410(auditId, action, payload) {
     throw new Error("Unknown action: " + action);
   }
   try { CacheService.getScriptCache().remove("AUD_V5_COMPANYINFO_V9"); } catch(e) {}
-  try { auditorV5_invalidateGridCacheForAuditActors_(headers, values[rowIndex], actorEmail); } catch (eInv5) {}
+  try { auditorV5_invalidateGridCacheForAuditActors_(headers, auditRow, actorEmail); } catch (eInv5) {}
   var _finalStatusRaw = String(sh.getRange(rowIndex+1, idxStatus+1).getValue() || "");
   var _finalStatusNorm = String((typeof Status_normalizeStatus_ === 'function') ? Status_normalizeStatus_(_finalStatusRaw) : _finalStatusRaw.toUpperCase().replace(/\s+/g, "_"));
   return {

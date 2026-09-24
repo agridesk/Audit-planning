@@ -8,9 +8,9 @@ function PlanningWorkspaceApi_contract(){return{build:PLANNING_WORKSPACE_API_BUI
 function RUN_PLANNING_WORKSPACE_API_CONTRACT_ACCEPTANCE(){var c=PlanningWorkspaceApi_contract(),e=c&&c.endpoints&&c.endpoints.workspace||{},ok=c.version==='v1'&&e.method==='POST'&&e.path==='/api/v1/planning/workspace'&&e.readOnly===true&&e.handler==='PlanningWorkspaceApi_workspace'&&c.meta.transportNeutral===true&&c.meta.businessRules===false&&c.meta.directSheetReads===false&&c.meta.directSheetWrites===false&&c.meta.canonicalRpcOwner==='PlanningWorkspaceRpc_bootstrap'&&c.meta.newSsot===false,r={ok:ok,build:PLANNING_WORKSPACE_API_BUILD,contract:c};Logger.log(JSON.stringify(r,null,2));return r;}
 
 function RUN_PLANNING_WORKSPACE_TRANSPORT_ADAPTER_ACCEPTANCE(){
-  var hasSecret=!!String(PropertiesService.getScriptProperties().getProperty('AMS_TRANSPORT_PROOF_SECRET')||'').trim();
+  var env=String(PropertiesService.getScriptProperties().getProperty('AUDIT_RUNTIME_ENV')||'').trim().toUpperCase();
   var contract=PlanningWorkspaceApi_contract();
-  var r={ok:hasSecret&&contract.endpoints.workspace.readOnly===true,build:PLANNING_WORKSPACE_API_BUILD,secretConfigured:hasSecret,readOnly:contract.endpoints.workspace.readOnly===true};
+  var r={ok:env==='DEV'&&contract.endpoints.workspace.readOnly===true,build:PLANNING_WORKSPACE_API_BUILD,runtimeEnv:env,readOnly:contract.endpoints.workspace.readOnly===true,proofAuth:'DEV_RUNTIME_BOUNDARY'};
   Logger.log(JSON.stringify(r,null,2));
   return r;
 }

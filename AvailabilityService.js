@@ -228,9 +228,10 @@ var AvailabilityService = (function () {
   }
 
   function _ensureEmailLoadedInPack_(sh, cm, pack, auditorEmail) {
-    // GATE MN (20260502): populate pack.byDateAud entries for ONE auditor
-    // using TextFinder (Java-native) + a single batched date-column read
-    // over the spanning row range. ~150-250ms vs ~1500ms full pack build.
+    // AMS-01: bounded single-auditor load. Avoid TextFinder on the complete
+    // Availability sheet in save/calendar hot paths. Read only the auditor
+    // column once for the bounded used range, then one spanning block for
+    // matching rows. Execution cache keeps validate -> writeBack reuse free.
     var aud = normalizeEmail(auditorEmail);
     if (!aud) return;
     if (!pack.lazyEmails) pack.lazyEmails = {};
@@ -238,24 +239,19 @@ var AvailabilityService = (function () {
     pack.lazyEmails[aud] = true;
     if (cm.iAud < 0 || cm.iDate < 0) return;
     try {
-      var finder = sh.createTextFinder(aud).matchEntireCell(true).matchCase(false);
-      var matches = finder.findAll() || [];
-      if (!matches.length) return;
+      var lastRow = Number(pack.lastRow || sh.getLastRow() || 0);
+      if (lastRow < 2) return;
+      var audVals = sh.getRange(2, cm.iAud + 1, lastRow - 1, 1).getValues();
       var rowNumbers = [];
-      var emailColOneBased = cm.iAud + 1;
-      for (var i = 0; i < matches.length; i++) {
-        if (matches[i].getColumn() !== emailColOneBased) continue;
-        var r = matches[i].getRow();
-        if (r >= 2) rowNumbers.push(r);
+      for (var i = 0; i < audVals.length; i++) {
+        if (normalizeEmail(audVals[i][0]) === aud) rowNumbers.push(i + 2);
       }
       if (!rowNumbers.length) return;
-      rowNumbers.sort(function(a, b){ return a - b; });
       var minR = rowNumbers[0];
       var maxR = rowNumbers[rowNumbers.length - 1];
       var span = maxR - minR + 1;
       var rnSet = {};
       for (var x = 0; x < rowNumbers.length; x++) rnSet[rowNumbers[x]] = true;
-      // Single batched read of the date column for the spanning range.
       var dateVals = sh.getRange(minR, cm.iDate + 1, span, 1).getValues();
       for (var k = 0; k < span; k++) {
         var actualRow = minR + k;
@@ -267,7 +263,7 @@ var AvailabilityService = (function () {
         pack.byDateAud[key].push(actualRow);
       }
     } catch (e) {
-      Logger.log('[V5][GATE MN] _ensureEmailLoadedInPack_ failed for ' + aud + ': ' + e);
+      Logger.log('[AMS01] _ensureEmailLoadedInPack_ failed for ' + aud + ': ' + e);
     }
   }
 

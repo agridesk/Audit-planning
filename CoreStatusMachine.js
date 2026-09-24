@@ -430,22 +430,20 @@ function Status_loadAudit_(auditId) {
   var idxHours = findHeader_(['Hours planned', 'Planned hours', 'Hours Planned']);
   if (idxAI < 0 || idxStatus < 0) return { found:false, error: Status_fail_('Missing Audit ID/Status columns') };
 
-  // 3S hot-path optimization:
-  // Do not load the full Audit planning sheet for every status action.
-  // Audit ID is the canonical key; use a targeted TextFinder on the Audit ID column,
-  // then read only the matched row.
-  var searchRange = sh.getRange(2, idxAI + 1, lastRow - 1, 1);
-  var cell = searchRange
-    .createTextFinder(auditId)
-    .matchEntireCell(true)
-    .findNext();
-
-  if (!cell) {
-    return { found:false, error: Status_fail_('Audit not found: ' + auditId) };
+  // AMS-01: canonical indexed lookup. Avoid a second TextFinder after the
+  // planning save path has already resolved this Audit ID.
+  var __indexed = (typeof __mp_getAuditPlanningRow_ === 'function')
+    ? __mp_getAuditPlanningRow_(ss, auditId)
+    : null;
+  var cell = null;
+  if (!__indexed || !__indexed.rowNumber) {
+    var searchRange = sh.getRange(2, idxAI + 1, lastRow - 1, 1);
+    cell = searchRange.createTextFinder(auditId).matchEntireCell(true).findNext();
+    if (!cell) return { found:false, error: Status_fail_('Audit not found: ' + auditId) };
   }
 
-  var rowIndex = cell.getRow();
-  var row = sh.getRange(rowIndex, 1, 1, lastCol).getValues()[0];
+  var rowIndex = (__indexed && __indexed.rowNumber) ? __indexed.rowNumber : cell.getRow();
+  var row = (__indexed && __indexed.row) ? __indexed.row.slice() : sh.getRange(rowIndex, 1, 1, lastCol).getValues()[0];
 
   // Defensive exact check: TextFinder uses displayed/string matching, so keep the
   // canonical Audit ID comparison explicit before any write-side action continues.

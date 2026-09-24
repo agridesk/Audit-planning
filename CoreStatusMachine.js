@@ -267,37 +267,15 @@ function Status_applyAction(actor, action, auditId, payload) {
         return Status_fail_('Unknown action: ' + action);
     }
 
-    // R7 2026-07-01: notification bridge dispatch + Diagnostics_Log diagnostics.
-    // Reason: Apps Script execution logs are not reliably accessible in PROD.
-    // Therefore bridge presence/result/failure is also written to Diagnostics_Log.
-    // Notification failures still never block lifecycle.
+    // Notification dispatch is best-effort and must not add duplicate synchronous
+    // Diagnostics_Log sheet writes to the user-action hot path. The bridge owns
+    // its own targeted diagnostics for queue failures and exceptional branches.
     if (result && result.success === true) {
-      try {
-        Status_diagLog_('STATUS_NOTIFY_BEFORE_BRIDGE', auditId, {
-          action: action,
-          actor: actor,
-          beforeStatus: result.beforeStatusDisplay || result.beforeStatus || '',
-          afterStatus: result.afterStatusDisplay || result.newStatus || result.afterStatus || '',
-          bridgeAvailable: (typeof StatusNotificationBridge_Dispatch_ === 'function'),
-          actorEmail: String((payload && payload.actorEmail) || '').trim()
-        });
-      } catch (eDiagBefore) {}
-
       try {
         if (typeof StatusNotificationBridge_Dispatch_ === 'function') {
           result.notificationBridge = StatusNotificationBridge_Dispatch_(action, actor, ctx, payload, result) || { success:true, skipped:true, reason:'NO_QUEUE_RESULT' };
-          Status_diagLog_('STATUS_NOTIFY_AFTER_BRIDGE', auditId, {
-            action: action,
-            actor: actor,
-            bridgeResult: result.notificationBridge
-          });
         } else {
           Logger.log('[F4-J][NOTIFY_BRIDGE_MISSING] StatusNotificationBridge_Dispatch_ not deployed');
-          Status_diagLog_('STATUS_NOTIFY_BRIDGE_MISSING', auditId, {
-            action: action,
-            actor: actor,
-            message: 'StatusNotificationBridge_Dispatch_ not deployed in this runtime/version'
-          });
         }
       } catch (eNotify) {
         var notifyMsg = String(eNotify && eNotify.message ? eNotify.message : eNotify);
@@ -305,13 +283,6 @@ function Status_applyAction(actor, action, auditId, payload) {
                    ' actor=' + actor +
                    ' auditId=' + (ctx && ctx.auditId) +
                    ' err=' + notifyMsg);
-        try {
-          Status_diagLog_('STATUS_NOTIFY_BRIDGE_FAIL', auditId, {
-            action: action,
-            actor: actor,
-            message: notifyMsg
-          });
-        } catch (eDiagFail) {}
       }
     }
     return result;

@@ -794,20 +794,11 @@ function saveManagerPlanning(auditId, payload) {
   (function(){
     try {
       var ss0 = SpreadsheetApp.getActive();
-      var __apPack0 = __mp_getSheetDataCached_(ss0, 'Audit planning');
-      var ap = __apPack0.sh;
-      if (!ap) return;
-      var apVals = __apPack0.data || [];
-      if (!apVals || apVals.length < 2) return;
-      var apHdr = __apPack0.hdr || apVals[0] || [];
-      var apMap = V5_headerIndexMap_(apHdr);
-      var iId = (apMap['audit_id'] !== undefined) ? apMap['audit_id'] : ((apMap['audit id'] !== undefined) ? apMap['audit id'] : undefined);
-      if (iId === undefined) return;
-      var row = null;
-      for (var rr = 1; rr < apVals.length; rr++) {
-        if (String(apVals[rr][iId] || '').trim() === String(auditId || '').trim()) { row = apVals[rr]; break; }
-      }
+      var __apRow0 = (typeof __mp_getAuditPlanningRow_ === 'function') ? __mp_getAuditPlanningRow_(ss0, auditId) : null;
+      var apHdr = __apRow0 && __apRow0.hdr ? __apRow0.hdr : [];
+      var row = __apRow0 && __apRow0.row ? __apRow0.row : null;
       if (!row) return;
+      var apMap = V5_headerIndexMap_(apHdr);
       var iComp = (apMap['company'] !== undefined) ? apMap['company'] : -1;
       var iLoc  = (apMap['location'] !== undefined) ? apMap['location'] : -1;
       var iUid  = (apMap['company_uid'] !== undefined) ? apMap['company_uid'] : -1;

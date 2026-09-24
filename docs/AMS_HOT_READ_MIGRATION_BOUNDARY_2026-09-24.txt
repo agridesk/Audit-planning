@@ -1,0 +1,75 @@
+# AMS Hot Read Migration Boundary
+BUILD: 2026-09-24_AMS_HOT_READ_BOUNDARY_R1
+
+DECISION
+- Interactive Planning reads leave Apps Script.
+- Canonical Planning writes remain in Apps Script during transition.
+- Google Sheets remains current data SSoT during this phase.
+- Cloud Run reads Sheets through Google Sheets API using server identity.
+- Browser never receives Google credentials and never reads Sheets directly.
+
+FIRST READ SLICE
+Focused Planning Workspace launch by auditId.
+
+READ SOURCES
+1. Audit planning
+   - locate focused audit
+   - planning window
+   - status/company/company UID/country/region
+   - scopes/hours/planning fields required by decision projection
+2. Auditors
+   - active auditor identity
+   - role
+   - hard scope qualifications
+3. Auditor Availability
+   - candidate auditors
+   - focused planning window only
+4. Concept Reservations
+   - active reservations overlapping focused planning window
+5. Existing eligibility projection only where a hard-qualification field cannot yet be derived safely from canonical Auditors data.
+
+NOT IN FIRST CLOUD RUN READ
+- rotation history calculation
+- writes
+- lifecycle transitions
+- availability mutations
+- notification actions
+- concept reservation writes
+- commit/modify/cancel
+- batch planning
+
+WRITE OWNER
+Existing GAS canonical services remain authoritative:
+PlanningCanonicalCommitService
+PlanningCanonicalModifyService
+PlanningCanonicalCancelService
+PlanningBatchCommitService
+ConceptReservationCommandService
+AvailabilityService / canonical status machine
+
+CONSISTENCY
+Cloud Run read responses are projections, never truth owners.
+Every write continues to revalidate canonically in GAS.
+No Cloud Run read result may authorize a write by itself.
+
+SECURITY
+Cloud Run service identity receives read-only access to DEV SSOT spreadsheet.
+No spreadsheet ID or credentials in browser.
+No PROD spreadsheet access.
+External frontend authentication is a separate boundary; the transport proof may not become PROD auth by accident.
+
+MIGRATION SEAM
+Frontend API remains /api/v1/planning/workspace.
+Implementation changes behind this contract:
+R1 GAS-backed proof (rejected for latency)
+R2 Sheets-API read projection
+Later database-backed projection
+Frontend contract must not change because storage changes.
+
+SUCCESS CRITERIA
+- focused read payload functionally equivalent for decision rendering
+- no direct GAS call on hot read
+- no writes
+- no duplicate business-rule owner
+- browser decision-ready materially below current GAS path
+- telemetry separates Cloud Run, Sheets API, projection, total

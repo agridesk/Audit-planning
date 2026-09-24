@@ -1,6 +1,6 @@
 /***********************************************************************
  * FILE: zz_PlanningWorkspaceEntryRouteOverride.js
- * BUILD: 2026-09-24_AMS03_PLANNING_WORKSPACE_ENTRY_R9_BRIDGE_CLOCK
+ * BUILD: 2026-09-24_AMS03_PLANNING_WORKSPACE_ENTRY_R10_REVERT_BRIDGE_CLOCK
  *
  * DEV-only Planning Workspace entry optimization.
  * - EntryV5 remains authentication owner.
@@ -10,7 +10,7 @@
  * - Authenticated Workspace data is returned as a native Apps Script RPC
  *   object instead of JSON.stringify -> marker string -> JSON.parse.
  ***********************************************************************/
-var PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD='2026-09-24_AMS03_PLANNING_WORKSPACE_ENTRY_R9_BRIDGE_CLOCK';
+var PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD='2026-09-24_AMS03_PLANNING_WORKSPACE_ENTRY_R10_REVERT_BRIDGE_CLOCK';
 
 var PW_ENTRY_BASE_normAction_=V5_ENTRY_normAction_;
 V5_ENTRY_normAction_=function(raw){
@@ -57,7 +57,7 @@ V5_ENTRY_resolve=function(ctx){
   if(expectedRole==='Auditor')q.auditorEmail=email;
   var bootstrapStarted=Date.now(),rpc=PlanningWorkspaceRpc_bootstrap(q),bootstrapMs=Date.now()-bootstrapStarted;
   var entryEnded=Date.now();
-  return{__pwAuthData:true,build:PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD,entryStageMs:{auth:authMs,bootstrap:bootstrapMs,total:entryEnded-entryStarted},entryClock:{serverStartMs:entryStarted,serverEndMs:entryEnded},rpc:rpc};
+  return{__pwAuthData:true,build:PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD,entryStageMs:{auth:authMs,bootstrap:bootstrapMs,total:entryEnded-entryStarted},rpc:rpc};
 };
 
 var PW_ENTRY_BASE_renderApp_=V5_ENTRY_renderApp;

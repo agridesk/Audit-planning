@@ -1,6 +1,6 @@
 /***********************************************************************
  * FILE: zz_PlanningWorkspaceEntryRouteOverride.js
- * BUILD: 2026-09-17_AMS01_PLANNING_WORKSPACE_ENTRY_R3_NATIVE_AUTH_DATA
+ * BUILD: 2026-09-24_AMS03_PLANNING_WORKSPACE_ENTRY_R4_ROLE_SCOPE
  *
  * DEV-only Planning Workspace entry optimization.
  * - EntryV5 remains authentication owner.
@@ -10,7 +10,7 @@
  * - Authenticated Workspace data is returned as a native Apps Script RPC
  *   object instead of JSON.stringify -> marker string -> JSON.parse.
  ***********************************************************************/
-var PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD='2026-09-17_AMS01_PLANNING_WORKSPACE_ENTRY_R3_NATIVE_AUTH_DATA';
+var PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD='2026-09-24_AMS03_PLANNING_WORKSPACE_ENTRY_R4_ROLE_SCOPE';
 
 var PW_ENTRY_BASE_normAction_=V5_ENTRY_normAction_;
 V5_ENTRY_normAction_=function(raw){
@@ -27,7 +27,7 @@ V5_ENTRY_browserTitle_=function(action,roleHint){
 
 var PW_ENTRY_BASE_expectedRole_=V5_ENTRY_expectedRole_;
 V5_ENTRY_expectedRole_=function(action,roleHint){
-  if(String(action||'').trim().toLowerCase()==='planningworkspace')return'Manager';
+  if(String(action||'').trim().toLowerCase()==='planningworkspace'){var rh=String(roleHint||'').trim().toLowerCase();return rh==='auditor'?'Auditor':'Manager';}
   return PW_ENTRY_BASE_expectedRole_(action,roleHint);
 };
 
@@ -40,7 +40,7 @@ V5_ENTRY_renderApp=function(action,ctx){
       return{
         __pwAuthData:true,
         build:PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD,
-        rpc:PlanningWorkspaceRpc_bootstrap(ctx.workspaceDataRequest)
+        rpc:PlanningWorkspaceRpc_bootstrap((function(){var q=ctx.workspaceDataRequest||{};q.role=V5_ENTRY_expectedRole_('planningworkspace',ctx.role);q.actorRole=q.role;q.actorEmail=String(ctx.email||'').trim().toLowerCase();if(q.role==='Auditor')q.auditorEmail=q.actorEmail;return q;})())
       };
     }
     return PlanningWorkspaceDevRoute_render(ctx);
@@ -61,7 +61,7 @@ doGet=function(e){
       email:String(p.email||'').trim().toLowerCase(),
       role:String(p.role||'Manager').trim(),
       token:String(p.trustedToken||p.token||'').trim(),
-      deviceId:String(p.deviceFingerprint||p.deviceId||'').trim()
+      deviceId:String(p.deviceFingerprint||p.deviceId||'').trim(),auditId:String(p.auditId||'').trim()
     };
     var bootJson=JSON.stringify(boot).replace(/</g,'\\u003c');
     html=html.replace('</head>','<script>window.__PW_ENTRY_DIRECT_SHELL=true;window.__PW_ENTRY_AUTH='+bootJson+';</script></head>');

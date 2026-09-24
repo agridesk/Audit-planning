@@ -1,6 +1,6 @@
 /***********************************************************************
  * FILE: zz_PlanningWorkspaceEntryRouteOverride.js
- * BUILD: 2026-09-24_AMS03_PLANNING_WORKSPACE_ENTRY_R6_REVERT_SERVER_BOOTSTRAP
+ * BUILD: 2026-09-24_AMS03_PLANNING_WORKSPACE_ENTRY_R7_AUTH_DATA_FAST_PATH
  *
  * DEV-only Planning Workspace entry optimization.
  * - EntryV5 remains authentication owner.
@@ -10,7 +10,7 @@
  * - Authenticated Workspace data is returned as a native Apps Script RPC
  *   object instead of JSON.stringify -> marker string -> JSON.parse.
  ***********************************************************************/
-var PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD='2026-09-24_AMS03_PLANNING_WORKSPACE_ENTRY_R6_REVERT_SERVER_BOOTSTRAP';
+var PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD='2026-09-24_AMS03_PLANNING_WORKSPACE_ENTRY_R7_AUTH_DATA_FAST_PATH';
 
 var PW_ENTRY_BASE_normAction_=V5_ENTRY_normAction_;
 V5_ENTRY_normAction_=function(raw){
@@ -29,6 +29,31 @@ var PW_ENTRY_BASE_expectedRole_=V5_ENTRY_expectedRole_;
 V5_ENTRY_expectedRole_=function(action,roleHint){
   if(String(action||'').trim().toLowerCase()==='planningworkspace'){var rh=String(roleHint||'').trim().toLowerCase();return rh==='auditor'?'Auditor':'Manager';}
   return PW_ENTRY_BASE_expectedRole_(action,roleHint);
+};
+
+var PW_ENTRY_BASE_resolve_=V5_ENTRY_resolve;
+V5_ENTRY_resolve=function(ctx){
+  ctx=ctx||{};
+  var action=V5_ENTRY_normAction_(ctx.action);
+  if(action!=='planningworkspace'||!ctx.workspaceDataRequest||typeof ctx.workspaceDataRequest!=='object')return PW_ENTRY_BASE_resolve_(ctx);
+  var runtimeEnv=V5_ENTRY_captureEnv_(ctx);
+  if(runtimeEnv!=='DEV')return PW_ENTRY_BASE_resolve_(ctx);
+  var expectedRole=V5_ENTRY_expectedRole_(action,ctx.role);
+  var email=String(ctx.email||'').trim().toLowerCase();
+  var token=String(ctx.trustedToken||ctx.token||'').trim();
+  var device=String(ctx.deviceFingerprint||ctx.deviceId||'').trim();
+  if(!V5_ENTRY_isTestBypass_(email,expectedRole,token,device)){
+    var authRes=null;
+    try{authRes=V5_AUTH.validateTrustedTokenByRole(token,expectedRole,device);}catch(eAuth){authRes=null;}
+    if(!authRes||authRes.ok!==true||!authRes.email)return V5_ENTRY_renderLogin(action,expectedRole);
+    email=String(authRes.email||'').trim().toLowerCase();
+  }
+  var q=ctx.workspaceDataRequest;
+  q.role=expectedRole;
+  q.actorRole=expectedRole;
+  q.actorEmail=email;
+  if(expectedRole==='Auditor')q.auditorEmail=email;
+  return{__pwAuthData:true,build:PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD,rpc:PlanningWorkspaceRpc_bootstrap(q)};
 };
 
 var PW_ENTRY_BASE_renderApp_=V5_ENTRY_renderApp;
@@ -77,6 +102,8 @@ function PlanningWorkspaceEntryRoute_contract(){
     devOnly:true,
     authenticatedEntryOwner:'EntryV5',
     authFunction:'V5_ENTRY_resolve',
+    authenticatedNativeDataFastPath:true,
+    htmlRenderOnAuthenticatedDataPath:false,
     directDataIndependentShell:true,
     initialAuthAndDataSingleRpc:true,serverRenderedInitialBootstrap:false,
     directShellCarriesAuthContext:true,
@@ -96,7 +123,7 @@ function RUN_PLANNING_WORKSPACE_ENTRY_ROUTE_REGRESSION(){
   var role=V5_ENTRY_expectedRole_(normalized,'');
   var c=PlanningWorkspaceEntryRoute_contract();
   var result={
-    ok:normalized==='planningworkspace'&&alias==='planningworkspace'&&role==='Manager'&&c.directDataIndependentShell===true&&c.initialAuthAndDataSingleRpc===true&&c.serverRenderedInitialBootstrap===false&&c.initialSerialRpcCount===1&&c.planningDataBeforeAuth===false&&c.authenticatedDataEnvelope==='NATIVE_OBJECT'&&c.explicitJsonStringify===false&&c.browserJsonParse===false,
+    ok:normalized==='planningworkspace'&&alias==='planningworkspace'&&role==='Manager'&&c.authenticatedNativeDataFastPath===true&&c.htmlRenderOnAuthenticatedDataPath===false&&c.directDataIndependentShell===true&&c.initialAuthAndDataSingleRpc===true&&c.serverRenderedInitialBootstrap===false&&c.initialSerialRpcCount===1&&c.planningDataBeforeAuth===false&&c.authenticatedDataEnvelope==='NATIVE_OBJECT'&&c.explicitJsonStringify===false&&c.browserJsonParse===false,
     build:PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD,
     normalized:normalized,
     alias:alias,

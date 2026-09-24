@@ -1,6 +1,6 @@
 /***********************************************************************
  * EligibilityBatchReadModel.js
- * BUILD: 2026-09-23_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_R5_EXEC_CACHE
+ * BUILD: 2026-09-24_ROADMAP_2_4_ELIGIBILITY_BATCH_READ_R6_TELEMETRY_FIX
  *
  * PURPOSE
  *   Read-only batch projection of canonical EligibilityService cache data.
@@ -344,7 +344,9 @@ function EligibilityBatchReadModel_get(input) {
       writes: false,
       canonicalOwner: 'EligibilityService',
       cacheRole: 'derived acceleration only',
-      cacheValidityContract: 'EligibilityService sheet acceptance parity',readStrategy:(!fallback&&maxCol<=windowCols)?'FIXED_WINDOW':'BOUNDED_FALLBACK',windowFallback:!!fallback
+      cacheValidityContract: 'EligibilityService sheet acceptance parity',
+      readStrategy: readPack.readStrategy,
+      windowFallback: readPack.windowFallback
     }
   };
 

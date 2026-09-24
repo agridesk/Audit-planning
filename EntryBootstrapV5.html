@@ -69,7 +69,8 @@ Change vs d16:
     action: '<?!= __action ?>',
     auditorEmail: AUDITOR_EMAIL_HINT,
     monthKey: MONTHKEY_HINT,
-    auditId: '<?!= (typeof __auditId !== "undefined" ? __auditId : "") ?>'.trim()
+    auditId: '<?!= (typeof __auditId !== "undefined" ? __auditId : "") ?>'.trim(),
+    env: '<?!= (typeof __env !== "undefined" ? __env : "") ?>'.trim()
   };
 
   try {
@@ -100,6 +101,7 @@ Change vs d16:
 
   function resolveLabel_(action) {
     var act = String(action || '').toLowerCase();
+    if (act === 'planningworkspace' || act === 'workspace') return 'Planning Workspace';
     if (act === 'managertoolkit' || act === 'managerplanningtoolkit' || act === 'planningtoolkit') return 'Planning Toolkit';
     if (act === 'auditortoolkit' || act === 'auditorplanningtoolkit') return 'Auditor Planning';
     if (act === 'manager' || act === 'manageroverview') return 'Manager Overview';

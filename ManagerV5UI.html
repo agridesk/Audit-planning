@@ -4047,12 +4047,49 @@ function m5_persistSingleGridSnapshot_(cacheKey, rows) {
 }
 
 function m5_loadManagerOpenEnrichment_(reqSeq) {
+  var __m5ProtectedSaved = {};
+  try {
+    (MANAGER_SINGLE_RAW_ROWS || []).forEach(function(r){
+      var st = m5_normStatus_(r && r.status);
+      if (st === 'Approved' || st === 'Pending Approval' || st === 'Accepted') {
+        __m5ProtectedSaved[String(r.auditId || '')] = {
+          status: r.status,
+          datePlanned: r.datePlanned,
+          plannedDates: Array.isArray(r.plannedDates) ? r.plannedDates.slice() : r.plannedDates,
+          plannedTooltip: r.plannedTooltip,
+          planningSummary: r.planningSummary,
+          plannedHours: r.plannedHours,
+          hoursPlanned: r.hoursPlanned,
+          auditor: r.auditor,
+          assignedTo: r.assignedTo,
+          assignedToEmail: r.assignedToEmail
+        };
+      }
+    });
+  } catch(_eProtect) {}
+
   google.script.run
     .withSuccessHandler(function(res){
       if (reqSeq !== __m5SingleGridReqSeq) return;
       if (m5_isArchivedView_()) return;
       if (!res || res.success === false) return;
       var rows = m5_extractRowsFromOpenResponse_(res, false);
+      rows.forEach(function(r){
+        var p = __m5ProtectedSaved[String((r && r.auditId) || '')];
+        if (!p) return;
+        if (m5_normStatus_(r.status) === 'Pending Planning') {
+          r.status = p.status;
+          r.datePlanned = p.datePlanned;
+          r.plannedDates = p.plannedDates;
+          r.plannedTooltip = p.plannedTooltip;
+          r.planningSummary = p.planningSummary;
+          r.plannedHours = p.plannedHours;
+          r.hoursPlanned = p.hoursPlanned;
+          r.auditor = p.auditor;
+          r.assignedTo = p.assignedTo;
+          r.assignedToEmail = p.assignedToEmail;
+        }
+      });
       m5_persistSingleGridSnapshot_('open', rows);
       m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS);
       try { log('Manager enrichment loaded: ' + rows.length + ' rows'); } catch(e) {}

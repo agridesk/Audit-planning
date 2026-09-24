@@ -29,9 +29,8 @@ Security boundary
 - No direct browser -> Google Sheets API.
 - Service account has Viewer/read-only spreadsheet access.
 - DEV_ALLOWED_ORIGIN can restrict browser CORS.
-- DEV_READ_KEY can gate DEV reads during migration.
 - Public anonymous proof exposure is temporary and must not be used for PROD.
-- Browser integration requires an authenticated application boundary; legacy GAS trusted token/device must not be exposed to Cloud Run as a permanent auth design.
+- Browser integration requires an authenticated application boundary; a static browser API key is not authentication and must not be used. Legacy GAS trusted token/device must not be exposed to Cloud Run as a permanent auth design.
 
 Performance acceptance
 - Validated direct Sheets proof: 516 ms total on focused test audit.

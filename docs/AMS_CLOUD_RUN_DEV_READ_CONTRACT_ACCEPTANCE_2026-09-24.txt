@@ -1,0 +1,49 @@
+AMS CLOUD RUN DEV READ CONTRACT ACCEPTANCE
+BUILD: 2026-09-24_AMS_CLOUD_RUN_READ_CONTRACT_R1
+
+Purpose
+- Lock the validated direct Sheets hot-read seam before browser integration.
+- Preserve current Google Sheets as SSoT.
+- Cloud Run identity remains read-only.
+- PROD untouched.
+
+Endpoint
+GET /api/v1/planning/workspace?auditId=<Audit ID>
+
+Required focused response
+- period.from / period.to from the Audit planning target row.
+- audit identity, status, scopes and sourceRow.
+- candidateAuditors = hard qualification only.
+- advisory candidate list.
+- Availability overlay for candidate auditors and focused period.
+- Concept Reservations overlay for focused period.
+- sourceCounts and timing.
+
+Deferred canonical facts
+- Rotation/consecutive history is NOT owned by Cloud Run read projection.
+- rotationState must be DEFERRED; warning/count/limit must be null until canonical targeted validation/preflight.
+- hoursToPlan is not yet owned by this projection and must be null with hoursToPlanState DEFERRED.
+- Cloud Run read projection must never convert unknown/deferred facts into false or zero.
+
+Security boundary
+- No direct browser -> Google Sheets API.
+- Service account has Viewer/read-only spreadsheet access.
+- DEV_ALLOWED_ORIGIN can restrict browser CORS.
+- DEV_READ_KEY can gate DEV reads during migration.
+- Public anonymous proof exposure is temporary and must not be used for PROD.
+- Browser integration requires an authenticated application boundary; legacy GAS trusted token/device must not be exposed to Cloud Run as a permanent auth design.
+
+Performance acceptance
+- Validated direct Sheets proof: 516 ms total on focused test audit.
+- Later validated R4 sample: 634 ms total.
+- Target remains decision-ready <= 2 s p95; single samples are not a p95 claim.
+
+Migration order
+1. Direct read contract and truth semantics.
+2. Authentication/authorization boundary.
+3. DEV browser read integration.
+4. Functional equivalence + browser performance acceptance.
+5. Keep canonical writes in Apps Script until independently migrated.
+6. PROD only after explicit authorization.
+
+No new SSoT. No duplicate write owner. No PROD changes.

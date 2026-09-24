@@ -140,7 +140,7 @@ async function focused(id){
   };
 }
 
-http.createServer(async(req,res)=>{
+http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return send(res,403,{ok:false,error:'CORS_DISABLED'});res.writeHead(204,{'access-control-allow-origin':ORIGIN,'access-control-allow-methods':'GET,OPTIONS','access-control-allow-headers':'content-type','vary':'Origin'});return res.end();}
   const u=new URL(req.url,'http://localhost');
   if(u.pathname==='/health')return send(res,200,{ok:true,service:'ams-hot-read-proof',mode:'DIRECT_SHEETS_READ_ONLY',ssotConfigured:!!SID});
   if(u.pathname!=='/api/v1/planning/workspace'||req.method!=='GET')return send(res,404,{ok:false,error:'NOT_FOUND'});

@@ -1,10 +1,10 @@
 // FILE: AMS03_Planning2WorkspaceReadPathAcceptance.js
-// BUILD: 2026-09-24_AMS03_PLANNING2_WORKSPACE_READ_PATH_R3
+// BUILD: 2026-09-24_AMS03_PLANNING2_WORKSPACE_READ_PATH_R4
 function RUN_AMS03_PLANNING2_WORKSPACE_READ_PATH_ACCEPTANCE(){
  var r=[];function g(n,o,d){r.push({name:n,ok:!!o,detail:d||''});}
- var e=String(EligibilityBatchReadModel_get),ew=String(EBRM_readWindow_),l=String(PlanningWorkspaceConceptLifecycle_project);
- g('eligibilityTelemetryUsesReadPack',e.indexOf('readPack.readStrategy')>=0&&e.indexOf('readPack.windowFallback')>=0&&ew.indexOf('readStrategy')>=0&&ew.indexOf('windowFallback')>=0,'Eligibility hot-path telemetry uses actual bounded read pack.');
- g('eligibilityNoUndefinedFallbackTelemetry',e.indexOf("readStrategy:(!fallback")<0,'Removed invalid hot-path fallback/windowCols references.');
+ var ec=EligibilityBatchReadModel_get({auditIds:[]}),l=String(PlanningWorkspaceConceptLifecycle_project);
+ g('eligibilityTelemetryUsesReadPack',!!(ec&&ec.meta&&ec.meta.readStrategy)&&typeof(ec&&ec.meta&&ec.meta.windowFallback)==='boolean','Eligibility runtime result exposes actual bounded read strategy and fallback state.');
+ g('eligibilityNoUndefinedFallbackTelemetry',!!(ec&&ec.success===true),'Eligibility runtime read completes without undefined telemetry references.');
  g('lifecycleSharedSeedFastPath',l.indexOf('seedHits===ids.length')>=0,'Normal concept lifecycle path reuses Workspace status context.');
  g('lifecycleIndexedMissRecovery',l.indexOf('__mp_getAuditPlanningRow_')>=0,'Concept lifecycle misses use canonical Audit-ID index before compatibility fallback.');
  g('lifecycleNoWrites',l.indexOf('.setValue(')<0&&l.indexOf('.setValues(')<0&&l.indexOf('.appendRow(')<0,'Lifecycle projection remains read-only.');

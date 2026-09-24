@@ -48,7 +48,7 @@ function candidates(audValues,catalog,required,pre){
     .filter(x=>x.email);
 }
 
-function project(f,catalog,audValues){
+function auditContext(values,catalog){\n  const by={};if(!values.length)return by;\n  const h=values[0],ci=col(h,['Audit ID','Audit_ID','AuditId','Audit Id']),cc=col(h,['Company']),cs=col(h,['Status']);\n  if(ci<0)return by;\n  for(const row of values.slice(1)){const id=val(row,ci);if(id)by[id]={company:val(row,cc),status:val(row,cs),scopes:scopesForAudit({h,row},catalog)};}\n  return by;\n}\n\nfunction project(f,catalog,audValues){
   const g=n=>val(f.row,col(f.h,n)),pre=g(['Preassigned Auditor','Preassigned auditor']),scopes=scopesForAudit(f,catalog);
   return{
     auditId:g(['Audit ID','Audit_ID','AuditId','Audit Id']),
@@ -69,7 +69,7 @@ function project(f,catalog,audValues){
 
 function dateOnly(v){const s=clean(v);const m=s.match(/^(\d{4}-\d{2}-\d{2})/);return m?m[1]:s.slice(0,10);}
 
-function availabilityProjection(values,emails,from,to){
+function availabilityProjection(values,emails,from,to,context){
   const set=new Set(emails.map(x=>clean(x).toLowerCase())),by={};
   if(!values.length)return by;
   const h=values[0],cd=col(h,['Date']),ce=col(h,['Auditor_Email','Auditor Email','Email','E-mail','Auditor_Name','Auditor Name']),ca=col(h,['Available']),s1=col(h,['First_Audit_Start_Time','First Audit Start Time']),e1=col(h,['First_Audit_End_Time','First Audit End Time']),id1=col(h,['Audit_ID_1','Audit ID 1','AuditId1']),st1=col(h,['Status_1','Status 1','Status','Source']),s2=col(h,['Second_Audit_Start_Time','Second Audit Start Time']),e2=col(h,['Second_Audit_End_Time','Second Audit End Time']),id2=col(h,['Audit_ID_2','Audit ID 2','AuditId2']),st2=col(h,['Status_2','Status 2']);
@@ -78,7 +78,7 @@ function availabilityProjection(values,emails,from,to){
     if(!set.has(em)||!d||d<from||d>to)continue;
     const slots=[];
     for(const x of [[s1,e1,id1,st1],[s2,e2,id2,st2]]){
-      const z={start:val(row,x[0]),end:val(row,x[1]),auditRef:val(row,x[2]),status:val(row,x[3])};
+      const auditRef=val(row,x[2]),ctx=auditRef&&context[auditRef]?context[auditRef]:{},z={start:val(row,x[0]),end:val(row,x[1]),auditRef,status:ctx.status||val(row,x[3]),company:ctx.company||'',scopes:Array.isArray(ctx.scopes)?ctx.scopes:[]};
       if(z.start||z.end||z.auditRef||z.status)slots.push(z);
     }
     if(!by[em])by[em]=[];
@@ -115,7 +115,7 @@ async function focused(id){
   });
   const sheetMs=Date.now()-s,vr=r.data.valueRanges||[],ap=vr[0]?.values||[],f=findAudit(ap,id);
   if(!f)return{ok:false,error:'AUDIT_NOT_FOUND',timing:{sheetsApiMs:sheetMs,totalMs:Date.now()-t}};
-  const p=Date.now(),catalog=scopeCatalog(vr[4]?.values||[]),audit=project(f,catalog,vr[1]?.values||[]),emails=audit.candidateAuditors.map(x=>x.email),from=dateOnly(audit.planningWindowFrom),to=dateOnly(audit.planningWindowTo),availability=availabilityProjection(vr[2]?.values||[],emails,from,to),reservations=reservationProjection(vr[3]?.values||[],emails,from,to);
+  const p=Date.now(),catalog=scopeCatalog(vr[4]?.values||[]),context=auditContext(ap,catalog),audit=project(f,catalog,vr[1]?.values||[]),emails=audit.candidateAuditors.map(x=>x.email),from=dateOnly(audit.planningWindowFrom),to=dateOnly(audit.planningWindowTo),availability=availabilityProjection(vr[2]?.values||[],emails,from,to,context),reservations=reservationProjection(vr[3]?.values||[],emails,from,to);
   return{
     ok:true,
     proof:'AMS_CLOUD_RUN_DIRECT_SHEETS_R3',

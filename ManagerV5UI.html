@@ -765,6 +765,7 @@ window.V5.modal = window.V5.modal || {
             <button class="hdr-btn" type="button" onclick="try{ m5t_openScopes(); }catch(e){ showToast('Tools not loaded: Scopes'); }">Scopes</button>
             <button class="hdr-btn" type="button" onclick="try{ m5t_openRotation(); }catch(e){ showToast('Tools not loaded: Rotation'); }">Rotation</button>
             <button class="hdr-btn" type="button" onclick="try{ m5t_openPlanning(); }catch(e){ showToast('Tools not loaded: Planning'); }">Planning</button>
+            <button class="hdr-btn" id="btnPlanningWorkspace2" type="button" style="display:none;" onclick="openPlanningWorkspace2()">Planning 2.0</button>
             <button class="hdr-btn" type="button" onclick="openCompaniesPopup()">Companies</button>
             <button class="hdr-btn" type="button" onclick="openCompanyMapPopup()">Company Map</button>
             <button class="hdr-btn" id="btnManagerDiagnostics" type="button" onclick="openManagerDiagnosticsPanel()">Diagnose</button>
@@ -914,6 +915,7 @@ window.V5.modal = window.V5.modal || {
       // EntryV5 sets: t.webAppUrl, t.version, t.environment, t.currentUser
       var MANAGER_EXEC_BASE_PROD = '<?!= __execUrl ?>';
       var MANAGER_EMAIL_TEMPLATE = '<?!= __email ?>';
+      var MANAGER_RUNTIME_ENV = '<?!= __env ?>';
       var MANAGER_UI_FILE = 'ManagerV5UI.html';
       var MANAGER_UI_BUILD = '2026-05-14 T14 PROD-HIDE-RUNTIME-LOG';
       window.EXPECTED_ROLE = 'Manager';
@@ -1258,6 +1260,29 @@ window.V5.modal = window.V5.modal || {
 
 
 
+
+      function openPlanningWorkspace2() {
+        var base = String(MANAGER_EXEC_BASE_PROD || '').trim();
+        if (!base) { showToast('Missing webapp base URL'); return; }
+        try {
+          var u = new URL(base, window.location.href);
+          u.searchParams.set('action', 'planningworkspace');
+          u.searchParams.set('role', 'Manager');
+          u.searchParams.set('ts', String(Date.now()));
+          window.open(u.toString(), 'AMSPlanningWorkspace2', 'popup=yes,toolbar=no,location=yes,status=no,menubar=no,scrollbars=yes,resizable=yes,width=1540,height=980');
+        } catch(e) {
+          showToast('Planning 2.0 could not be opened');
+        }
+      }
+
+      function m5_initPlanningWorkspace2Entry_() {
+        try {
+          var btn = document.getElementById('btnPlanningWorkspace2');
+          if (btn && String(MANAGER_RUNTIME_ENV || '').toUpperCase() === 'DEV') btn.style.display = '';
+        } catch(e) {}
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', m5_initPlanningWorkspace2Entry_);
+      else m5_initPlanningWorkspace2Entry_();
 
       function log(msg) {
         var area = el("logArea");

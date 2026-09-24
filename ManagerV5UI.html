@@ -1707,11 +1707,17 @@ window.V5.modal = window.V5.modal || {
           try { mgrEmail = String(localStorage.getItem('V5_AUTH_email') || '').trim(); } catch(e) {}
         }
 
-        var url = v5_buildActionUrl_(base, 'planningtoolkit', {
+        var useWorkspace2 = String(MANAGER_RUNTIME_ENV || '').toUpperCase() === 'DEV';
+        var url = v5_buildActionUrl_(base, useWorkspace2 ? 'planningworkspace' : 'planningtoolkit', {
           auditId: auditId,
           role: 'manager',
           email: mgrEmail || '',
-          managerEmail: mgrEmail || ''
+          managerEmail: mgrEmail || '',
+          token: useWorkspace2 ? String(MANAGER_TRUSTED_TOKEN || '') : '',
+          trustedToken: useWorkspace2 ? String(MANAGER_TRUSTED_TOKEN || '') : '',
+          deviceId: useWorkspace2 ? String(MANAGER_DEVICE_ID || '') : '',
+          deviceFingerprint: useWorkspace2 ? String(MANAGER_DEVICE_ID || '') : '',
+          source: useWorkspace2 ? 'managerPendingPlanning' : 'managerPortal'
         });
 
         var w = 1460;
@@ -1724,9 +1730,9 @@ window.V5.modal = window.V5.modal || {
         ].join(',');
 
         var child = null;
-        try { child = window.open(url, 'V5PlanningToolkit', features); } catch(e) {}
+        try { child = window.open(url, useWorkspace2 ? 'AMSPlanningWorkspace2' : 'V5PlanningToolkit', features); } catch(e) {}
         if (!child) {
-          showToast('Planning toolkit popup was blocked. Please allow popups for this site.');
+          showToast((useWorkspace2 ? 'Planning 2.0' : 'Planning toolkit') + ' popup was blocked. Please allow popups for this site.');
           return;
         }
         try { child.focus(); } catch(e) {}

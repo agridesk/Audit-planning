@@ -24,5 +24,5 @@ function RUN_AMS03_PLANNING2_MIGRATION_HARDENING_ACCEPTANCE(){
  r.push(A3MH_test_('singleInitialRpcPreserved',A3MH_has_(boot,'PlanningWorkspaceService_getDecision')&&A3MH_has_(boot,'PlanningWorkspaceService_getOverlays'),'Bootstrap remains one browser RPC containing decision + overlays.'));
  r.push(A3MH_test_('canonicalMutationOwnersPreserved',A3MH_has_(rpc,'canonicalOwnersBypassed:false')&&A3MH_has_(rpc,'directSheetWrites:false'),'No alternate write owner or SSoT introduced.'));
  var passed=r.filter(function(x){return x.ok;}).length;
- return{ok:passed===r.length,build:AMS03_P2_MIGRATION_HARDENING_BUILD,passed:passed,total:r.length,writesPerformed:false,results:r,meta:{priority:'P0_SPEED',roleHardening:true,focusedAuditBounded:true,runtimeBrowserValidationStillRequired:true}};
+ var out={ok:passed===r.length,build:AMS03_P2_MIGRATION_HARDENING_BUILD,passed:passed,total:r.length,writesPerformed:false,results:r,meta:{priority:'P0_SPEED',roleHardening:true,focusedAuditBounded:true,runtimeBrowserValidationStillRequired:true}};Logger.log(JSON.stringify(out,null,2));return out;
 }

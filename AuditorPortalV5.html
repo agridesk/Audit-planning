@@ -2504,7 +2504,7 @@ function loadGrid(opts) {
     var url = '';
     try {
       var u = new URL(base, window.location.href);
-      u.searchParams.set('action', 'planningtoolkit');
+      u.searchParams.set('action', String(__ENV || '').toUpperCase() === 'DEV' ? 'planningworkspace' : 'planningtoolkit');
       u.searchParams.set('auditId', auditId);
       u.searchParams.set('email', auditorEmail);
       u.searchParams.set('auditorEmail', auditorEmail);
@@ -2524,7 +2524,7 @@ function loadGrid(opts) {
     } catch(eUrl) {
       var sep = base.indexOf('?') >= 0 ? '&' : '?';
       url = base
-        + sep + 'action=planningtoolkit'
+        + sep + 'action=' + encodeURIComponent(String(__ENV || '').toUpperCase() === 'DEV' ? 'planningworkspace' : 'planningtoolkit')
         + '&auditId=' + encodeURIComponent(auditId)
         + '&email=' + encodeURIComponent(auditorEmail)
         + '&auditorEmail=' + encodeURIComponent(auditorEmail)
@@ -2543,7 +2543,7 @@ function loadGrid(opts) {
     }
 
     auditorUi_markInteraction_();
-    try { uiLog_('Plan → open planning toolkit: ' + url); } catch(e) {}
+    try { uiLog_('Plan → open planning route: ' + url); } catch(e) {}
     var w = 1460;
     var h = 980;
     var left = Math.max(0, Math.round((window.screenX || window.screenLeft || 0) + (((window.outerWidth || screen.width) - w) / 2)));

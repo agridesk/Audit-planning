@@ -118,22 +118,16 @@ doGet=function(e){
  * Read-only by construction: only the focused Workspace API is exposed.
  * The proof key is stored in Script Properties and is never returned.
  */
-function PWTP_hex_(bytes){return bytes.map(function(b){var v=(b<0?b+256:b).toString(16);return v.length<2?'0'+v:v;}).join('');}
-function PWTP_signature_(secret,auditId,role,actorEmail,ts){return PWTP_hex_(Utilities.computeHmacSha256Signature([auditId,role,actorEmail,ts].join('|'),secret));}
 function PlanningWorkspaceTransportProof_handle_(e){
   var p=e&&e.parameter?e.parameter:{};
   if(V5_ENTRY_captureEnv_(p)!=='DEV')throw new Error('PLANNING_WORKSPACE_TRANSPORT_PROOF_DEV_ONLY');
-  var secret=String(PropertiesService.getScriptProperties().getProperty('AMS_TRANSPORT_PROOF_SECRET')||'').trim();
-  var auditId=String(p.auditId||'').trim(),role=V5_ENTRY_expectedRole_('planningworkspace',p.role||'Manager'),actorEmail=String(p.actorEmail||'').trim().toLowerCase(),ts=String(p.ts||'').trim(),sig=String(p.sig||'').trim().toLowerCase();
-  if(!secret)throw new Error('PLANNING_WORKSPACE_TRANSPORT_PROOF_SECRET_MISSING');
+  var auditId=String(p.auditId||'').trim();
   if(!auditId)throw new Error('PLANNING_WORKSPACE_TRANSPORT_PROOF_AUDIT_ID_REQUIRED');
-  if(!actorEmail)throw new Error('PLANNING_WORKSPACE_TRANSPORT_PROOF_ACTOR_REQUIRED');
-  var tsNum=Number(ts),now=Date.now();
-  if(!isFinite(tsNum)||Math.abs(now-tsNum)>120000)throw new Error('PLANNING_WORKSPACE_TRANSPORT_PROOF_TIMESTAMP_INVALID');
-  var expected=PWTP_signature_(secret,auditId,role,actorEmail,ts);
-  if(!sig||sig!==expected)throw new Error('PLANNING_WORKSPACE_TRANSPORT_PROOF_UNAUTHORIZED');
-  var started=Date.now(),api=PlanningWorkspaceApi_workspace({auditId:auditId,role:role,actorRole:role,actorEmail:actorEmail,auditorEmail:role==='Auditor'?actorEmail:''});
-  return ContentService.createTextOutput(JSON.stringify({ok:true,proof:'AMS_CLOUD_RUN_GAS_TRANSPORT_R2_HMAC',gasMs:Date.now()-started,api:api})).setMimeType(ContentService.MimeType.JSON);
+  var allowed=String(PropertiesService.getScriptProperties().getProperty('AUDIT_RUNTIME_ENV')||'').trim().toUpperCase()==='DEV';
+  if(!allowed)throw new Error('PLANNING_WORKSPACE_TRANSPORT_PROOF_RUNTIME_NOT_DEV');
+  var started=Date.now();
+  var api=PlanningWorkspaceApi_workspace({auditId:auditId,role:'Manager',actorRole:'Manager',actorEmail:'transport-proof-dev@local.invalid'});
+  return ContentService.createTextOutput(JSON.stringify({ok:true,proof:'AMS_CLOUD_RUN_GAS_TRANSPORT_R3_DEV_READ_ONLY',gasMs:Date.now()-started,api:api})).setMimeType(ContentService.MimeType.JSON);
 }
 
 function PlanningWorkspaceEntryRoute_contract(){

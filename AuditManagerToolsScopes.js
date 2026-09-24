@@ -196,6 +196,21 @@ function m5t_upsertScopes(payload) {
   });
   if (!ownerResult || ownerResult.success !== true) return ownerResult || { success:false, error:'SCOPE_OWNER_COMMIT_FAILED' };
   rowValues = rowRange.getValues()[0];
+  var eligibilitySync = { success:true, skipped:true, reason:'ELIGIBILITY_SERVICE_UNAVAILABLE' };
+  try {
+    if (typeof eligService_cacheInvalidate_ === 'function') {
+      var eligibilityInvalidation = eligService_cacheInvalidate_({ auditId:auditId });
+      eligibilitySync = { success:true, invalidation:eligibilityInvalidation, refreshed:false };
+      if (typeof EligibilityTargetedRefreshService_refresh === 'function') {
+        var eligibilityRefresh = EligibilityTargetedRefreshService_refresh({ auditId:auditId, force:true, maxRefresh:1 });
+        eligibilitySync.refresh = eligibilityRefresh;
+        eligibilitySync.refreshed = !!(eligibilityRefresh && eligibilityRefresh.refreshed === 1);
+        eligibilitySync.success = !!(eligibilityRefresh && eligibilityRefresh.success === true);
+      }
+    }
+  } catch (eEligibilitySync) {
+    eligibilitySync = { success:false, skipped:false, error:String(eEligibilitySync && eEligibilitySync.message ? eEligibilitySync.message : eEligibilitySync) };
+  }
   var totalHours = ownerResult.projection ? Number(ownerResult.projection.totalHours || 0) : 0;
 
   var flagged = false;
@@ -253,6 +268,7 @@ function m5t_upsertScopes(payload) {
     isNew: isNew,
     activeAuditsUpdate: activeAuditsUpdate,
     availabilitySync: availabilitySync,
+    eligibilitySync: eligibilitySync,
     ownerResult: ownerResult
   };
 }

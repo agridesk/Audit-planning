@@ -1,13 +1,20 @@
 import http from 'node:http';
 import {URL} from 'node:url';
-import {google} from 'googleapis';
-
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
-const auth=new google.auth.GoogleAuth({scopes:['https://www.googleapis.com/auth/spreadsheets.readonly']});
-const sheets=google.sheets({version:'v4',auth});
-
 function send(res,status,body){res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(body));}
+async function accessToken(){
+  const r=await fetch('http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',{headers:{'Metadata-Flavor':'Google'}});
+  if(!r.ok)throw new Error('METADATA_TOKEN_'+r.status);
+  const j=await r.json();if(!j.access_token)throw new Error('METADATA_TOKEN_MISSING');return j.access_token;
+}
+async function sheetsBatchGet(ranges){
+  const token=await accessToken(),u=new URL('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'/values:batchGet');
+  for(const range of ranges)u.searchParams.append('ranges',range);
+  u.searchParams.set('valueRenderOption','UNFORMATTED_VALUE');u.searchParams.set('dateTimeRenderOption','FORMATTED_STRING');
+  const r=await fetch(u,{headers:{authorization:'Bearer '+token}}),body=await r.json();
+  if(!r.ok)throw new Error('SHEETS_API_'+r.status+': '+JSON.stringify(body));return body.valueRanges||[];
+}
 function clean(v){return String(v==null?'':v).trim();}
 function key(v){return clean(v).toLowerCase().replace(/\s+/g,'_');}
 function col(h,names){const m={};h.forEach((v,i)=>{const k=key(v);if(k&&m[k]===undefined)m[k]=i;});for(const n of names){const k=key(n);if(m[k]!==undefined)return m[k];}return-1;}
@@ -107,13 +114,8 @@ function reservationProjection(values,emails,from,to){
 
 async function focused(id){
   const t=Date.now(),s=Date.now();
-  const r=await sheets.spreadsheets.values.batchGet({
-    spreadsheetId:SID,
-    ranges:['Audit planning!A1:AX768','Auditors!A1:AZ256','Auditor Availability!A1:P768','Concept Reservations!A1:P256','Config_Scopes!A1:Z128'],
-    valueRenderOption:'UNFORMATTED_VALUE',
-    dateTimeRenderOption:'FORMATTED_STRING'
-  });
-  const sheetMs=Date.now()-s,vr=r.data.valueRanges||[],ap=vr[0]?.values||[],f=findAudit(ap,id);
+  const vr=await sheetsBatchGet(['Audit planning!A1:AX768','Auditors!A1:AZ256','Auditor Availability!A1:P768','Concept Reservations!A1:P256','Config_Scopes!A1:Z128']);
+  const sheetMs=Date.now()-s,ap=vr[0]?.values||[],f=findAudit(ap,id);
   if(!f)return{ok:false,error:'AUDIT_NOT_FOUND',timing:{sheetsApiMs:sheetMs,totalMs:Date.now()-t}};
   const p=Date.now(),catalog=scopeCatalog(vr[4]?.values||[]),context=auditContext(ap,catalog),audit=project(f,catalog,vr[1]?.values||[]),emails=audit.candidateAuditors.map(x=>x.email),from=dateOnly(audit.planningWindowFrom),to=dateOnly(audit.planningWindowTo),availability=availabilityProjection(vr[2]?.values||[],emails,from,to,context),reservations=reservationProjection(vr[3]?.values||[],emails,from,to);
   return{

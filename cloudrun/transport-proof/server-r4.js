@@ -51,7 +51,7 @@ function candidates(audValues,catalog,required,pre){
       for(let i=0;i<h.length;i++){if((aliases.get(key(h[i]))||clean(h[i]))===canon)return yes(row[i]);}
       return false;
     }))
-    .map(row=>({email:val(row,e).toLowerCase(),name:val(row,n),blockedWeekdays:val(row,bw),isPreassigned:[val(row,e).toLowerCase(),val(row,n).toLowerCase()].includes(clean(pre).toLowerCase()),rotationWarning:false,performedCount:0,maxAllowed:0}))
+    .map(row=>({email:val(row,e).toLowerCase(),name:val(row,n),blockedWeekdays:val(row,bw),isPreassigned:[val(row,e).toLowerCase(),val(row,n).toLowerCase()].includes(clean(pre).toLowerCase()),rotationState:'DEFERRED',rotationWarning:null,performedCount:null,maxAllowed:null}))
     .filter(x=>x.email);
 }
 
@@ -132,7 +132,7 @@ async function focused(id){
     data:{
       period:{from,to},
       audit,
-      advisory:{period:{from,to},rows:[{...audit,advisoryState:audit.candidateAuditors.length?'READY':'NO_CANDIDATES',advisoryReason:audit.candidateAuditors.length?'':'NO_ELIGIBLE_AUDITORS',requiresCanonicalRefresh:false,hoursToPlan:0}],candidateAuditorEmails:emails},
+      advisory:{period:{from,to},rows:[{...audit,advisoryState:audit.candidateAuditors.length?'READY':'NO_CANDIDATES',advisoryReason:audit.candidateAuditors.length?'':'NO_HARD_QUALIFIED_AUDITORS',requiresCanonicalRefresh:false,hoursToPlan:null,hoursToPlanState:'DEFERRED'}],candidateAuditorEmails:emails},
       overlays:{period:{from,to},availability:{byAuditorEmail:availability},reservations},
       sourceCounts:{auditPlanning:Math.max(0,ap.length-1),auditors:Math.max(0,(vr[1]?.values||[]).length-1),availability:Math.max(0,(vr[2]?.values||[]).length-1),conceptReservations:Math.max(0,(vr[3]?.values||[]).length-1),configScopes:Math.max(0,(vr[4]?.values||[]).length-1)}
     },

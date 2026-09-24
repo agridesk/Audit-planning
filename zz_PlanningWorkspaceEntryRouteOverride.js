@@ -1,6 +1,6 @@
 /***********************************************************************
  * FILE: zz_PlanningWorkspaceEntryRouteOverride.js
- * BUILD: 2026-09-24_AMS03_PLANNING_WORKSPACE_ENTRY_R11_HTTP_FOCUSED_BOOTSTRAP
+ * BUILD: 2026-09-24_AMS03_PLANNING_WORKSPACE_ENTRY_R12_HTTP_FOCUSED_BOOTSTRAP
  *
  * DEV-only Planning Workspace entry optimization.
  * - EntryV5 remains authentication owner.
@@ -10,7 +10,7 @@
  * - Authenticated Workspace data is returned as a native Apps Script RPC
  *   object instead of JSON.stringify -> marker string -> JSON.parse.
  ***********************************************************************/
-var PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD='2026-09-24_AMS03_PLANNING_WORKSPACE_ENTRY_R11_HTTP_FOCUSED_BOOTSTRAP';
+var PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD='2026-09-24_AMS03_PLANNING_WORKSPACE_ENTRY_R12_HTTP_FOCUSED_BOOTSTRAP';
 
 var PW_ENTRY_BASE_normAction_=V5_ENTRY_normAction_;
 V5_ENTRY_normAction_=function(raw){
@@ -123,9 +123,9 @@ function PlanningWorkspaceEntryRoute_contract(){
     directDataIndependentShell:false,
     focusedHttpBootstrap:true,
     generalWorkspaceDeferredBootstrap:true,
-    initialAuthAndDataSingleRpc:true,serverRenderedInitialBootstrap:false,
+    initialAuthAndDataSingleRpc:false,serverRenderedInitialBootstrap:true,
     directShellCarriesAuthContext:true,
-    initialSerialRpcCount:1,
+    initialSerialRpcCount:0,
     planningDataBeforeAuth:false,
     authenticatedDataEnvelope:'NATIVE_OBJECT',
     explicitJsonStringify:false,
@@ -141,7 +141,7 @@ function RUN_PLANNING_WORKSPACE_ENTRY_ROUTE_REGRESSION(){
   var role=V5_ENTRY_expectedRole_(normalized,'');
   var c=PlanningWorkspaceEntryRoute_contract();
   var result={
-    ok:normalized==='planningworkspace'&&alias==='planningworkspace'&&role==='Manager'&&c.authenticatedNativeDataFastPath===true&&c.htmlRenderOnAuthenticatedDataPath===false&&c.directDataIndependentShell===true&&c.initialAuthAndDataSingleRpc===true&&c.serverRenderedInitialBootstrap===false&&c.initialSerialRpcCount===1&&c.planningDataBeforeAuth===false&&c.authenticatedDataEnvelope==='NATIVE_OBJECT'&&c.explicitJsonStringify===false&&c.browserJsonParse===false,
+    ok:normalized==='planningworkspace'&&alias==='planningworkspace'&&role==='Manager'&&c.authenticatedNativeDataFastPath===true&&c.htmlRenderOnAuthenticatedDataPath===false&&c.directDataIndependentShell===false&&c.focusedHttpBootstrap===true&&c.initialAuthAndDataSingleRpc===false&&c.serverRenderedInitialBootstrap===true&&c.initialSerialRpcCount===0&&c.planningDataBeforeAuth===false&&c.authenticatedDataEnvelope==='NATIVE_OBJECT'&&c.explicitJsonStringify===false&&c.browserJsonParse===false,
     build:PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD,
     normalized:normalized,
     alias:alias,

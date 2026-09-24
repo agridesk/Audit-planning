@@ -1,6 +1,6 @@
 // =====================================================
 // V5_AUTH_MVP.gs — Identification & Trusted Mail (MVP)
-// BUILD: V5_AUTH_MVP_R4_FAIL_LOUD_MAIL_DELIVERY_20260527
+// BUILD: V5_AUTH_MVP_R5_THROTTLED_LAST_USED_20260924
 //
 // Fix scope:
 // - OTP no longer uses CacheService as source of truth.
@@ -850,14 +850,23 @@ var V5_AUTH = (function () {
         var canonicalEmail = normEmail_(row[idx.Email]);
         if (!canonicalEmail) return { ok: false, error: "TOKEN_EMAIL_EMPTY" };
 
-        var colMap = TOKENS__getHeaderIndexMap_(sh);
-        var lastUsedCol1 = TOKENS__requireHeader_(colMap, ["Last_Used_At"]) + 1;
-        sh.getRange(r + 1, lastUsedCol1).setValue(now);
+        // Last_Used_At is operational telemetry, not authentication truth.
+        // Avoid a synchronous sheet write on every authenticated navigation.
+        // Refresh at most once per 15 minutes per token row; validation itself
+        // still reads canonical token truth on every call.
+        var lastUsedRaw = row[idx.Last_Used_At];
+        var lastUsed = lastUsedRaw instanceof Date ? lastUsedRaw : new Date(lastUsedRaw);
+        var shouldTouch = isNaN(lastUsed.getTime()) || (now.getTime() - lastUsed.getTime()) >= (15 * 60 * 1000);
+        if (shouldTouch) {
+          var lastUsedCol1 = idx.Last_Used_At + 1;
+          sh.getRange(r + 1, lastUsedCol1).setValue(now);
+        }
 
         return {
           ok: true,
           email: canonicalEmail,
-          role: role
+          role: role,
+          lastUsedTouched: shouldTouch
         };
       }
     }

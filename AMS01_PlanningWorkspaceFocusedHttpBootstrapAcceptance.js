@@ -1,14 +1,14 @@
 /***********************************************************************
  * FILE: AMS01_PlanningWorkspaceFocusedHttpBootstrapAcceptance.js
- * BUILD: 2026-09-24_AMS01_FOCUSED_HTTP_BOOTSTRAP_ACCEPTANCE_R2_RUNTIME_CONTRACT
+ * BUILD: 2026-09-24_AMS01_FOCUSED_HTTP_BOOTSTRAP_ACCEPTANCE_R3_RUNTIME_CONTRACT
  * Static/read-only architecture acceptance for focused Plan launch.
  ***********************************************************************/
-var AMS01_PW_FOCUSED_HTTP_ACCEPTANCE_BUILD='2026-09-24_AMS01_FOCUSED_HTTP_BOOTSTRAP_ACCEPTANCE_R2_RUNTIME_CONTRACT';
+var AMS01_PW_FOCUSED_HTTP_ACCEPTANCE_BUILD='2026-09-24_AMS01_FOCUSED_HTTP_BOOTSTRAP_ACCEPTANCE_R3_RUNTIME_CONTRACT';
 function RUN_AMS01_PLANNING_WORKSPACE_FOCUSED_HTTP_BOOTSTRAP_ACCEPTANCE(){
   var c=PlanningWorkspaceEntryRoute_contract();
   var ui=PlanningWorkspaceUi_contract();
   var checks={
-    routeOwned:c&&c.route==='planningworkspace',
+    routeOwned:c&&c.authenticatedEntryOwner==='EntryV5'&&c.renderer==='PlanningWorkspaceUi_render',
     devOnly:c&&c.devOnly===true,
     focusedHttpBootstrap:c&&c.focusedHttpBootstrap===true,
     generalWorkspaceDeferred:c&&c.generalWorkspaceDeferredBootstrap===true,

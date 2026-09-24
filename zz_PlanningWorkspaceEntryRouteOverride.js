@@ -92,7 +92,7 @@ function RUN_PLANNING_WORKSPACE_ENTRY_ROUTE_REGRESSION(){
   var role=V5_ENTRY_expectedRole_(normalized,'');
   var c=PlanningWorkspaceEntryRoute_contract();
   var result={
-    ok:normalized==='planningworkspace'&&alias==='planningworkspace'&&role==='Manager'&&c.directDataIndependentShell===true&&c.initialAuthAndDataSingleRpc===true&&c.initialSerialRpcCount===1&&c.planningDataBeforeAuth===false&&c.authenticatedDataEnvelope==='NATIVE_OBJECT'&&c.explicitJsonStringify===false&&c.browserJsonParse===false,
+    ok:normalized==='planningworkspace'&&alias==='planningworkspace'&&role==='Manager'&&c.directDataIndependentShell===true&&c.serverRenderedInitialBootstrap===true&&c.initialSerialRpcCount===0&&c.planningDataBeforeAuth===false&&c.authenticatedDataEnvelope==='NATIVE_OBJECT'&&c.explicitJsonStringify===false&&c.browserJsonParse===false,
     build:PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD,
     normalized:normalized,
     alias:alias,

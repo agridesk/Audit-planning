@@ -126,7 +126,7 @@ function PlanningWorkspaceTransportProof_handle_(e){
   var allowed=String(PropertiesService.getScriptProperties().getProperty('AUDIT_RUNTIME_ENV')||'').trim().toUpperCase()==='DEV';
   if(!allowed)throw new Error('PLANNING_WORKSPACE_TRANSPORT_PROOF_RUNTIME_NOT_DEV');
   var started=Date.now();
-  var api=PlanningWorkspaceApi_workspace({auditId:auditId,role:'Manager',actorRole:'Manager',actorEmail:'transport-proof-dev@local.invalid'});
+  var api=PlanningWorkspaceApi_workspace({auditId:auditId,from:'2000-01-01',to:'2100-12-31',role:'Manager',actorRole:'Manager',actorEmail:'transport-proof-dev@local.invalid'});
   return ContentService.createTextOutput(JSON.stringify({ok:true,proof:'AMS_CLOUD_RUN_GAS_TRANSPORT_R3_DEV_READ_ONLY',gasMs:Date.now()-started,api:api})).setMimeType(ContentService.MimeType.JSON);
 }
 

@@ -1,17 +1,17 @@
 /***********************************************************************
  * PlanningWorkspaceDecisionReadModel.js
- * BUILD: 2026-09-24_AMS03_PLANNING2_WORKSPACE_DECISION_R4_FOCUSED_PATH
+ * BUILD: 2026-09-24_AMS03_PLANNING2_WORKSPACE_DECISION_R5_FOCUS_PERIOD
  *
  * Compact, read-only decision projection over existing canonical/read-model
  * owners. No new SSoT, cache or write path.
  ***********************************************************************/
-var PLANNING_WORKSPACE_DECISION_READ_MODEL_BUILD='2026-09-24_AMS03_PLANNING2_WORKSPACE_DECISION_R4_FOCUSED_PATH';
+var PLANNING_WORKSPACE_DECISION_READ_MODEL_BUILD='2026-09-24_AMS03_PLANNING2_WORKSPACE_DECISION_R5_FOCUS_PERIOD';
 function PWDRM_clean_(v){return String(v==null?'':v).trim();}
 function PWDRM_candidate_(x){return{email:PWDRM_clean_(x&&x.email).toLowerCase(),name:PWDRM_clean_(x&&x.name),preassigned:x&&x.isPreassigned===true,rotationWarning:x&&x.rotationWarning===true,performedCount:Number(x&&x.performedCount||0)||0,maxAllowed:Number(x&&x.maxAllowed||0)||0,blockedWeekdays:Array.isArray(x&&x.blockedWeekdays)?x.blockedWeekdays.slice():[]};}
 function PWDRM_audit_(r){return{auditId:PWDRM_clean_(r&&r.auditId),companyUid:PWDRM_clean_(r&&r.companyUid),company:PWDRM_clean_(r&&r.company),country:PWDRM_clean_(r&&r.country),region:PWDRM_clean_(r&&r.region),status:PWDRM_clean_(r&&r.status),planningWindowFrom:PWDRM_clean_(r&&r.planningWindowFrom),planningWindowTo:PWDRM_clean_(r&&r.planningWindowTo),urgency:PWDRM_clean_(r&&r.urgency),scopes:Array.isArray(r&&r.scopes)?r.scopes.slice():[],hoursToPlan:Number(r&&r.hoursToPlan||0)||0,advisoryState:PWDRM_clean_(r&&r.advisoryState),advisoryReason:PWDRM_clean_(r&&r.advisoryReason),requiresCanonicalRefresh:r&&r.requiresCanonicalRefresh===true,candidateAuditors:(r&&r.candidateAuditors||[]).map(PWDRM_candidate_)};}
 function PlanningWorkspaceDecisionReadModel_get(input){
  input=input||{};if(typeof ConceptPlanningService_get!=='function')throw new Error('PlanningWorkspaceDecisionReadModel: ConceptPlanningService_get unavailable');
- var t=Date.now(),a=ConceptPlanningService_get(input),rows=(a&&a.rows||[]).map(PWDRM_audit_),focusId=PWDRM_clean_(input.auditId),role=PWDRM_clean_(input.actorRole||input.role).toUpperCase(),actorEmail=PWDRM_clean_(input.actorEmail||input.auditorEmail).toLowerCase(),emails=[],seen={};
+ var t=Date.now(),focusId=PWDRM_clean_(input.auditId);if(focusId&&typeof PlanningWorkspacePlannedAuditReadService_get==='function'){try{var fd=PlanningWorkspacePlannedAuditReadService_get({auditId:focusId});if(fd&&fd.planningWindowFrom&&fd.planningWindowTo){input.from=fd.planningWindowFrom;input.to=fd.planningWindowTo;}}catch(fde){}}var a=ConceptPlanningService_get(input),rows=(a&&a.rows||[]).map(PWDRM_audit_),role=PWDRM_clean_(input.actorRole||input.role).toUpperCase(),actorEmail=PWDRM_clean_(input.actorEmail||input.auditorEmail).toLowerCase(),emails=[],seen={};
  if(focusId)rows=rows.filter(function(x){return PWDRM_clean_(x.auditId)===focusId;});
  if(role==='AUDITOR'){rows=rows.filter(function(x){var keep=[];for(var ci=0;ci<x.candidateAuditors.length;ci++)if(PWDRM_clean_(x.candidateAuditors[ci].email).toLowerCase()===actorEmail)keep.push(x.candidateAuditors[ci]);x.candidateAuditors=keep;return keep.length>0;});}
  for(var i=0;i<rows.length;i++)for(var j=0;j<rows[i].candidateAuditors.length;j++){var e=rows[i].candidateAuditors[j].email;if(e&&!seen[e]){seen[e]=1;emails.push(e);}}

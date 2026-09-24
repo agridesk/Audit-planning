@@ -1,0 +1,55 @@
+AMS ARCHITECTURE DECISION RECORD — HOT READ PATH
+Date: 2026-09-24
+Status: PROVEN / ADOPT
+
+Decision
+Interactive Planning read paths move out of Apps Script. Cloud Run reads the current DEV Google Sheets SSoT directly through the Google Sheets API using server identity. Canonical writes remain in Apps Script during the migration.
+
+Measured evidence
+Rejected path:
+Cloud Run -> Apps Script web app
+- observed HTTP wait: 6.596 s on first proof
+- later observed: 39.921 s and Google HTML response
+- conclusion: unsuitable for interactive hot reads
+
+Accepted proof:
+Cloud Run -> Google Sheets API
+Focused audit: AUD_TEST_AcceptedDelta_HQ_1777979469906_101
+- Sheets API: 394 ms
+- projection: 2 ms
+- Cloud Run total: 397 ms
+- audit found correctly at source row 90
+- planning window: 2027-04-05 through 2027-07-05
+- source rows read: Audit planning 118; Auditors 5; Auditor Availability 585; Concept Reservations 17
+
+Architecture
+Browser -> external frontend -> Cloud Run API/read projection -> Google Sheets API -> current Sheets SSoT
+
+Writes during transition
+Browser -> authenticated application boundary -> canonical Apps Script write services -> Sheets SSoT
+
+Rules
+- No direct browser access to Sheets.
+- Cloud Run read identity is read-only.
+- Cloud Run projections do not become a new SSoT.
+- Existing canonical write services continue to own validation, revision checks, status transitions, availability mutations and notifications.
+- Frontend API contract remains /api/v1/planning/workspace so storage/backend can migrate later without another UI rewrite.
+- PROD is untouched until DEV functional equivalence, security and performance acceptance are complete.
+
+Next implementation phase
+Build the complete focused Planning Workspace read projection in Cloud Run:
+1. focused Audit planning projection
+2. candidate auditor hard qualification
+3. candidate Availability for focused window
+4. active Concept Reservations for focused window
+5. compact response matching the existing Workspace decision/overlay contract
+6. authentication/authorization boundary before integration into normal DEV UI
+7. DEV UI switches read-only bootstrap to Cloud Run
+8. canonical writes remain GAS and revalidate independently
+
+Acceptance
+- functional equivalence with current focused Workspace
+- no GAS call on hot read
+- no duplicate business-rule owner
+- read-only Cloud Run identity
+- decision-ready target <= 2 s p95; proof baseline currently 397 ms server-side

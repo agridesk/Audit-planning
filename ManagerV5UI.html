@@ -4004,6 +4004,21 @@ function m5_paintSingleGridWarmCache_(cacheKey, label) {
   return true;
 }
 
+function m5_invalidateAuditFromWarmOpenCache_(auditId) {
+  auditId = String(auditId || '').trim();
+  if (!auditId) return;
+  try {
+    var rows = m5_readSingleGridWarmCache_('open');
+    if (!rows.length) return;
+    rows = rows.filter(function(r){ return String((r && r.auditId) || '').trim() !== auditId; });
+    MANAGER_SINGLE_CACHE.open = rows.slice();
+    MANAGER_SINGLE_RAW_ROWS = rows.slice();
+    localStorage.setItem('m5_singleGridCache_open', JSON.stringify({ t: Date.now(), rows: rows }));
+    m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS);
+    log('Warm open cache invalidated after planning save: ' + auditId);
+  } catch(e) {}
+}
+
 function m5_invalidateSingleGridCache_() {
   // Only refreshAll() invalidates memory snapshots.
   // View toggle itself must use same-view memory cache to avoid slow reloads.

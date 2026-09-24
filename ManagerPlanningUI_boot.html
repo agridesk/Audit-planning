@@ -4272,6 +4272,7 @@ async function savePlanning(){
                 plannedDates:__plannedDates,
                 plannedHours:__plannedHours,
                 newStatus:status,
+                actorRole:String(V5_ROLE || '').toUpperCase(),
                 blocks:(payload&&payload.blocks?payload.blocks:[]),
                 ts:Date.now()
               };

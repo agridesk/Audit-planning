@@ -57,7 +57,14 @@ doGet=function(e){
     if(runtimeEnv!=='DEV')return PW_ENTRY_BASE_doGet_(e);
     var output=PlanningWorkspaceUi_render({env:'DEV'});
     var html=output&&typeof output.getContent==='function'?output.getContent():String(output||'');
-    html=html.replace('</head>','<script>window.__PW_ENTRY_DIRECT_SHELL=true;</script></head>');
+    var boot={
+      email:String(p.email||'').trim().toLowerCase(),
+      role:String(p.role||'Manager').trim(),
+      token:String(p.trustedToken||p.token||'').trim(),
+      deviceId:String(p.deviceFingerprint||p.deviceId||'').trim()
+    };
+    var bootJson=JSON.stringify(boot).replace(/</g,'\\u003c');
+    html=html.replace('</head>','<script>window.__PW_ENTRY_DIRECT_SHELL=true;window.__PW_ENTRY_AUTH='+bootJson+';</script></head>');
     return HtmlService.createHtmlOutput(html).setTitle('AMS - Planning Workspace');
   }
   return PW_ENTRY_BASE_doGet_(e);
@@ -71,6 +78,7 @@ function PlanningWorkspaceEntryRoute_contract(){
     authFunction:'V5_ENTRY_resolve',
     directDataIndependentShell:true,
     initialAuthAndDataSingleRpc:true,
+    directShellCarriesAuthContext:true,
     initialSerialRpcCount:1,
     planningDataBeforeAuth:false,
     authenticatedDataEnvelope:'NATIVE_OBJECT',

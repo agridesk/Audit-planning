@@ -918,34 +918,24 @@ function getToolkitAvailabilityMonthDirectV5(auditorEmail, monthKey, opts) {
   var endISO = _mp_formatISODate_(new Date(startD.getFullYear(), startD.getMonth() + 1, 0));
   var rowNumbers = [];
 
-  // R3 PERF: do NOT read full Date + Auditor columns on the cold path.
-  // The R2 diagnostic proved the cold month path spent ~40s in the row-discovery phase.
-  // Default strategy: TextFinder on the selected auditor column, then batched reads only
-  // for those hit rows and month-filter in memory. Cache remains acceleration only.
+  // AMS-01: deterministic bounded column discovery. TextFinder.findAll()
+  // has high and highly variable Apps Script service latency on this hot path.
+  // One two-column read is cheaper and predictable, then month-filter in memory.
   var tFind0 = Date.now();
-  var rowDiscoveryMethod = 'TextFinderAuditorColumn';
+  var rowDiscoveryMethod = 'BoundedDateAuditorColumns';
   try {
-    var rg = sh.getRange(2, cAud + 1, lastRow - 1, 1);
-    var finder = rg.createTextFinder(auditorEmail).matchEntireCell(true).matchCase(false);
-    var hits = finder.findAll() || [];
-    for (var h = 0; h < hits.length; h++) {
-      var rn = hits[h] && hits[h].getRow ? hits[h].getRow() : 0;
-      if (rn >= 2) rowNumbers.push(rn);
+    var dateAudVals = sh.getRange(2, Math.min(cDate, cAud) + 1, lastRow - 1, Math.abs(cAud - cDate) + 1).getValues();
+    var baseCol = Math.min(cDate, cAud);
+    var dateOff = cDate - baseCol;
+    var audOff = cAud - baseCol;
+    for (var i = 0; i < dateAudVals.length; i++) {
+      var isoCheck = _mp_tdm_fmtDate_(dateAudVals[i][dateOff]);
+      if (!isoCheck || isoCheck < startISO || isoCheck > endISO) continue;
+      if (_mp_tdm_normEmail_(dateAudVals[i][audOff]) !== auditorEmail) continue;
+      rowNumbers.push(i + 2);
     }
-  } catch (eFindPrimary) {
-    rowDiscoveryMethod = 'FullColumnFallback';
-    try {
-      var dateColVals = sh.getRange(2, cDate + 1, lastRow - 1, 1).getValues();
-      var audColVals  = sh.getRange(2, cAud  + 1, lastRow - 1, 1).getValues();
-      for (var i = 0; i < dateColVals.length; i++) {
-        var isoCheck = _mp_tdm_fmtDate_(dateColVals[i][0]);
-        if (!isoCheck || isoCheck < startISO || isoCheck > endISO) continue;
-        if (_mp_tdm_normEmail_(audColVals[i][0]) !== auditorEmail) continue;
-        rowNumbers.push(i + 2);
-      }
-    } catch (eFilter) {
-      rowDiscoveryMethod = 'FAILED';
-    }
+  } catch (eFilter) {
+    rowDiscoveryMethod = 'FAILED';
   }
   var findMs = Date.now() - tFind0;
 

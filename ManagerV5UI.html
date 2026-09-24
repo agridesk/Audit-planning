@@ -920,7 +920,7 @@ window.V5.modal = window.V5.modal || {
       var MANAGER_RUNTIME_ENV = '<?!= __env ?>';
       var MANAGER_RESOLVED_RUNTIME_ENV = String(MANAGER_RUNTIME_ENV || '').toUpperCase();
       var MANAGER_UI_FILE = 'ManagerV5UI.html';
-      var MANAGER_UI_BUILD = '2026-09-24 AMS03 WORKSPACE2 DEV ROUTE R1';
+      var MANAGER_UI_BUILD = '2026-09-24 AMS03 WORKSPACE2 DEV ROUTE R2_RUNTIME_URL';
       window.EXPECTED_ROLE = 'Manager';
 
       (function initManagerDynamicBrowserTitle() {
@@ -1700,8 +1700,9 @@ window.V5.modal = window.V5.modal || {
       function openPlanningToolkit(auditId) {
         if (!auditId) { showToast("Missing auditId"); return; }
         var href = window.location.href || "";
-        var base = (href.indexOf("/exec") !== -1 && href.indexOf("script.google.com") !== -1)
-          ? href.split("?")[0].split("#")[0]
+        var runtimeBase = href.split("?")[0].split("#")[0];
+        var base = (runtimeBase.indexOf("script.google.com") !== -1 && (runtimeBase.indexOf("/exec") !== -1 || runtimeBase.indexOf("/dev") !== -1))
+          ? runtimeBase
           : MANAGER_EXEC_BASE_PROD;
 
         var mgrEmail = String(v5_getAuthenticatedManagerEmail_() || MANAGER_EMAIL_FALLBACK || '').trim();
@@ -1709,7 +1710,7 @@ window.V5.modal = window.V5.modal || {
           try { mgrEmail = String(localStorage.getItem('V5_AUTH_email') || '').trim(); } catch(e) {}
         }
 
-        var useWorkspace2 = String(MANAGER_RESOLVED_RUNTIME_ENV || MANAGER_RUNTIME_ENV || '').toUpperCase() === 'DEV';
+        var useWorkspace2 = String(MANAGER_RESOLVED_RUNTIME_ENV || MANAGER_RUNTIME_ENV || '').toUpperCase() === 'DEV' || /\/dev$/i.test(String(base || ''));
         var url = v5_buildActionUrl_(base, useWorkspace2 ? 'planningworkspace' : 'planningtoolkit', {
           auditId: auditId,
           role: 'manager',

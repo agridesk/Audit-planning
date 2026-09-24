@@ -915,6 +915,8 @@ window.V5.modal = window.V5.modal || {
       // EntryV5 sets: t.webAppUrl, t.version, t.environment, t.currentUser
       var MANAGER_EXEC_BASE_PROD = '<?!= __execUrl ?>';
       var MANAGER_EMAIL_TEMPLATE = '<?!= __email ?>';
+      var MANAGER_TRUSTED_TOKEN = '<?!= __trustedToken ?>';
+      var MANAGER_DEVICE_ID = '<?!= __deviceFingerprint ?>';
       var MANAGER_RUNTIME_ENV = '<?!= __env ?>';
       var MANAGER_UI_FILE = 'ManagerV5UI.html';
       var MANAGER_UI_BUILD = '2026-05-14 T14 PROD-HIDE-RUNTIME-LOG';
@@ -1268,6 +1270,12 @@ window.V5.modal = window.V5.modal || {
           var u = new URL(base, window.location.href);
           u.searchParams.set('action', 'planningworkspace');
           u.searchParams.set('role', 'Manager');
+          u.searchParams.set('email', String(MANAGER_EMAIL_TEMPLATE || '').trim().toLowerCase());
+          u.searchParams.set('token', String(MANAGER_TRUSTED_TOKEN || ''));
+          u.searchParams.set('trustedToken', String(MANAGER_TRUSTED_TOKEN || ''));
+          u.searchParams.set('deviceId', String(MANAGER_DEVICE_ID || ''));
+          u.searchParams.set('deviceFingerprint', String(MANAGER_DEVICE_ID || ''));
+          u.searchParams.set('source', 'managerPortal');
           u.searchParams.set('ts', String(Date.now()));
           window.open(u.toString(), 'AMSPlanningWorkspace2', 'popup=yes,toolbar=no,location=yes,status=no,menubar=no,scrollbars=yes,resizable=yes,width=1540,height=980');
         } catch(e) {

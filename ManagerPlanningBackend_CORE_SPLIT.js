@@ -3700,12 +3700,20 @@ function getToolkitOpenLiteV5(auditId) {
     if (!auditId) return { success:false, message:"Missing auditId" };
 
     var ss = SpreadsheetApp.getActive();
-    var __apPack = __mp_getSheetDataCached_(ss, "Audit planning");
-    var sh = __apPack.sh;
-    if (!sh) return { success:false, message:"Missing sheet 'Audit planning'" };
-
-    var data = __apPack.data || [];
-    var hdr  = __apPack.hdr || data[0] || [];
+    var __apRow = (typeof __mp_getAuditPlanningRow_ === 'function') ? __mp_getAuditPlanningRow_(ss, auditId) : null;
+    var sh = __apRow && __apRow.sh ? __apRow.sh : null;
+    var hdr = __apRow && __apRow.hdr ? __apRow.hdr : [];
+    var row = __apRow && __apRow.row ? __apRow.row : null;
+    var rowIndex = __apRow && __apRow.rowNumber ? __apRow.rowNumber : -1;
+    if (!sh || !row) {
+      var __apPack = __mp_getSheetDataCached_(ss, "Audit planning");
+      sh = __apPack.sh;
+      if (!sh) return { success:false, message:"Missing sheet 'Audit planning'" };
+      var data = __apPack.data || [];
+      hdr = __apPack.hdr || data[0] || [];
+      row = null;
+      rowIndex = -1;
+    }
 
     function findIndex(names) {
       for (var i=0;i<hdr.length;i++) {
@@ -3748,12 +3756,13 @@ function getToolkitOpenLiteV5(auditId) {
 
     if (colAI < 0) return { success:false, message:"Missing 'Audit ID' column" };
 
-    var rowIndex = -1, row = null;
-    for (var r=1; r<data.length; r++) {
-      if (String(data[r][colAI]) === auditId) {
-        rowIndex = r+1;
-        row = data[r];
-        break;
+    if (!row) {
+      for (var r=1; r<data.length; r++) {
+        if (String(data[r][colAI]) === auditId) {
+          rowIndex = r+1;
+          row = data[r];
+          break;
+        }
       }
     }
     if (!row) return { success:false, message:"Audit not found: "+auditId };
@@ -3823,6 +3832,7 @@ function getToolkitOpenLiteV5(auditId) {
     return {
       success: true,
       __lite: true,
+      __indexedAuditRow: !!__apRow,
       __serverMs: Date.now() - __t0,
       auditorsLoading: true,
       defaultAuditorEmail: defaultAuditorEmail,

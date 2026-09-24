@@ -2555,6 +2555,17 @@ function mkBtn(text, cls, onClick) {
         return true;
       }
 
+      window.addEventListener('storage', function (event) {
+        try {
+          if (!event || event.key !== 'V5_PLANNING_SAVED_PAYLOAD' || !event.newValue) return;
+          var data = JSON.parse(event.newValue || '{}') || {};
+          if (data.type !== 'PLANNING_SAVED_V5') return;
+          log("Received planning save via storage for auditId=" + (data.auditId || ''));
+          window.__m5SkipFocusRefreshUntil = Date.now() + 4000;
+          if (m5_singleGridMicroRefreshAfterPlanningSave_(data)) showToast("Planning saved");
+        } catch(e) {}
+      });
+
       window.addEventListener('message', function (event) {
         var data = event.data;
         if (!data || typeof data !== 'object') return;

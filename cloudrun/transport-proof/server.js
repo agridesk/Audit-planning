@@ -1,38 +1,16 @@
 import http from 'node:http';
-import { URL } from 'node:url';
-
-const GAS_URL = process.env.GAS_DEV_URL || '';
-const PORT = Number(process.env.PORT || 8080);
-
-function send(res,status,body){
-  res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','access-control-allow-origin':'*','access-control-allow-methods':'GET,OPTIONS'});
-  res.end(JSON.stringify(body));
-}
-
-const server=http.createServer(async(req,res)=>{
-  if(req.method==='OPTIONS') return send(res,204,{});
-  const u=new URL(req.url,'http://localhost');
-  if(u.pathname==='/health') return send(res,200,{ok:true,service:'ams-transport-proof'});
-  if(u.pathname!=='/api/v1/planning/workspace'||req.method!=='GET') return send(res,404,{ok:false,error:'NOT_FOUND'});
-  const auditId=(u.searchParams.get('auditId')||'').trim();
-  if(!auditId) return send(res,400,{ok:false,error:'AUDIT_ID_REQUIRED'});
-  if(!GAS_URL) return send(res,500,{ok:false,error:'GAS_DEV_URL_NOT_CONFIGURED'});
-  const started=Date.now();
-  try{
-    const gas=new URL(GAS_URL);
-    gas.searchParams.set('action','transportproof');
-    gas.searchParams.set('env','DEV');
-    gas.searchParams.set('auditId',auditId);
-    const outbound=Date.now();
-    const response=await fetch(gas,{redirect:'follow',headers:{accept:'application/json'}});
-    const gasWaitMs=Date.now()-outbound;
-    const text=await response.text();
-    let body;
-    try{body=JSON.parse(text);}catch{body={raw:text.slice(0,500)};}
-    return send(res,response.ok?200:502,{ok:response.ok&&body&&body.ok===true,proof:'AMS_CLOUD_RUN_TRANSPORT_R1',timing:{cloudRunTotalMs:Date.now()-started,gasHttpWaitMs:gasWaitMs,gasReportedMs:body&&body.gasMs||null},gas:body});
-  }catch(err){
-    return send(res,502,{ok:false,error:'GAS_TRANSPORT_FAILED',detail:String(err&&err.message||err),timing:{cloudRunTotalMs:Date.now()-started}});
-  }
-});
-
-server.listen(PORT,'0.0.0.0');
+import {URL} from 'node:url';
+import {google} from 'googleapis';
+const PORT=Number(process.env.PORT||8080);
+const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
+const auth=new google.auth.GoogleAuth({scopes:['https://www.googleapis.com/auth/spreadsheets.readonly']});
+const sheets=google.sheets({version:'v4',auth});
+function send(res,status,body){res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(body));}
+function clean(v){return String(v==null?'':v).trim();}
+function key(v){return clean(v).toLowerCase().replace(/\s+/g,'_');}
+function col(h,names){const m={};h.forEach((v,i)=>{const k=key(v);if(k&&m[k]===undefined)m[k]=i;});for(const n of names){const k=key(n);if(m[k]!==undefined)return m[k];}return-1;}
+function val(r,i){return i>=0?clean(r[i]):'';}
+function findAudit(values,id){if(!values.length)return null;const h=values[0],ci=col(h,['Audit ID','Audit_ID','AuditId','Audit Id']);if(ci<0)throw new Error('AUDIT_ID_COLUMN_MISSING');for(let i=1;i<values.length;i++)if(val(values[i],ci)===id)return{h,row:values[i],sourceRow:i+1};return null;}
+function project(f){const g=n=>val(f.row,col(f.h,n));return{auditId:g(['Audit ID','Audit_ID','AuditId','Audit Id']),company:g(['Company']),companyUid:g(['Company_UID','Company UID','CompanyUid']),status:g(['Status']),planningWindowFrom:g(['Planning window from','Plan van','Planning from']),planningWindowTo:g(['Planning window to','Plan tot','Planning to']),country:g(['Country']),region:g(['Region']),assignedTo:g(['Assigned to','Assigned auditor','Auditor']),preassignedAuditor:g(['Preassigned Auditor','Preassigned auditor']),sourceRow:f.sourceRow};}
+async function focused(id){const t=Date.now(),s=Date.now();const r=await sheets.spreadsheets.values.batchGet({spreadsheetId:SID,ranges:['Audit planning!A1:AX768','Auditors!A1:AZ256','Auditor Availability!A1:P768','Concept Reservations!A1:P256'],valueRenderOption:'UNFORMATTED_VALUE',dateTimeRenderOption:'FORMATTED_STRING'});const sheetMs=Date.now()-s,vr=r.data.valueRanges||[],ap=vr[0]?.values||[],f=findAudit(ap,id);if(!f)return{ok:false,error:'AUDIT_NOT_FOUND',timing:{sheetsApiMs:sheetMs,totalMs:Date.now()-t}};const p=Date.now();return{ok:true,proof:'AMS_CLOUD_RUN_DIRECT_SHEETS_R1',data:{audit:project(f),sourceCounts:{auditPlanning:Math.max(0,ap.length-1),auditors:Math.max(0,(vr[1]?.values||[]).length-1),availability:Math.max(0,(vr[2]?.values||[]).length-1),conceptReservations:Math.max(0,(vr[3]?.values||[]).length-1)}},timing:{sheetsApiMs:sheetMs,projectionMs:Date.now()-p,totalMs:Date.now()-t}};}
+http.createServer(async(req,res)=>{const u=new URL(req.url,'http://localhost');if(u.pathname==='/health')return send(res,200,{ok:true,service:'ams-hot-read-proof',mode:'DIRECT_SHEETS_READ_ONLY',ssotConfigured:!!SID});if(u.pathname!=='/api/v1/planning/workspace'||req.method!=='GET')return send(res,404,{ok:false,error:'NOT_FOUND'});const id=clean(u.searchParams.get('auditId'));if(!id)return send(res,400,{ok:false,error:'AUDIT_ID_REQUIRED'});if(!SID)return send(res,500,{ok:false,error:'DEV_SSOT_SPREADSHEET_ID_NOT_CONFIGURED'});try{return send(res,200,await focused(id));}catch(e){return send(res,500,{ok:false,error:'DIRECT_SHEETS_READ_FAILED',detail:clean(e?.message||e)});}}).listen(PORT,'0.0.0.0');

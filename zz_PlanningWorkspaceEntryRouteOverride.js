@@ -1,6 +1,6 @@
 /***********************************************************************
  * FILE: zz_PlanningWorkspaceEntryRouteOverride.js
- * BUILD: 2026-09-24_AMS03_PLANNING_WORKSPACE_ENTRY_R4_ROLE_SCOPE
+ * BUILD: 2026-09-24_AMS03_PLANNING_WORKSPACE_ENTRY_R5_SERVER_BOOTSTRAP
  *
  * DEV-only Planning Workspace entry optimization.
  * - EntryV5 remains authentication owner.
@@ -10,7 +10,7 @@
  * - Authenticated Workspace data is returned as a native Apps Script RPC
  *   object instead of JSON.stringify -> marker string -> JSON.parse.
  ***********************************************************************/
-var PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD='2026-09-24_AMS03_PLANNING_WORKSPACE_ENTRY_R4_ROLE_SCOPE';
+var PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD='2026-09-24_AMS03_PLANNING_WORKSPACE_ENTRY_R5_SERVER_BOOTSTRAP';
 
 var PW_ENTRY_BASE_normAction_=V5_ENTRY_normAction_;
 V5_ENTRY_normAction_=function(raw){
@@ -55,16 +55,13 @@ doGet=function(e){
   if(raw==='planningworkspace'||raw==='workspace'){
     var runtimeEnv=V5_ENTRY_captureEnv_(p);
     if(runtimeEnv!=='DEV')return PW_ENTRY_BASE_doGet_(e);
-    var output=PlanningWorkspaceUi_render({env:'DEV'});
-    var html=output&&typeof output.getContent==='function'?output.getContent():String(output||'');
-    var boot={
-      email:String(p.email||'').trim().toLowerCase(),
-      role:String(p.role||'Manager').trim(),
-      token:String(p.trustedToken||p.token||'').trim(),
-      deviceId:String(p.deviceFingerprint||p.deviceId||'').trim(),auditId:String(p.auditId||'').trim()
-    };
-    var bootJson=JSON.stringify(boot).replace(/</g,'\\u003c');
-    html=html.replace('</head>','<script>window.__PW_ENTRY_DIRECT_SHELL=true;window.__PW_ENTRY_AUTH='+bootJson+';</script></head>');
+    var auth=V5_ENTRY_readAuthParams_(p),expectedRole=V5_ENTRY_expectedRole_('planningworkspace',p.role),email=auth.email,authorized=false;
+    if(V5_ENTRY_isTestBypass_(email,expectedRole,auth.token,auth.deviceId)){authorized=true;}else{try{var ar=V5_AUTH.validateTrustedTokenByRole(auth.token,expectedRole,auth.deviceId);if(ar&&ar.ok===true&&ar.email){email=String(ar.email||'').trim().toLowerCase();authorized=true;}}catch(eAuth){authorized=false;}}
+    if(!authorized)return PW_ENTRY_BASE_doGet_(e);
+    var output=PlanningWorkspaceUi_render({env:'DEV'}),html=output&&typeof output.getContent==='function'?output.getContent():String(output||''),boot={email:email,role:expectedRole,token:auth.token,deviceId:auth.deviceId,auditId:String(p.auditId||'').trim()},serverBootstrap=null;
+    try{serverBootstrap=PlanningWorkspaceRpc_bootstrap({from:String(p.from||''),to:String(p.to||''),auditId:boot.auditId,role:expectedRole,actorRole:expectedRole,actorEmail:email,auditorEmail:expectedRole==='Auditor'?email:''});}catch(eBoot){serverBootstrap=null;}
+    var bootJson=JSON.stringify(boot).replace(/</g,'\\u003c'),dataJson=JSON.stringify(serverBootstrap).replace(/</g,'\\u003c');
+    html=html.replace('</head>','<script>window.__PW_ENTRY_DIRECT_SHELL=true;window.__PW_ENTRY_AUTH='+bootJson+';window.__PW_ENTRY_SERVER_BOOTSTRAP='+dataJson+';</script></head>');
     return HtmlService.createHtmlOutput(html).setTitle('AMS - Planning Workspace');
   }
   return PW_ENTRY_BASE_doGet_(e);
@@ -77,9 +74,9 @@ function PlanningWorkspaceEntryRoute_contract(){
     authenticatedEntryOwner:'EntryV5',
     authFunction:'V5_ENTRY_resolve',
     directDataIndependentShell:true,
-    initialAuthAndDataSingleRpc:true,
+    initialAuthAndDataSingleRpc:false,serverRenderedInitialBootstrap:true,
     directShellCarriesAuthContext:true,
-    initialSerialRpcCount:1,
+    initialSerialRpcCount:0,
     planningDataBeforeAuth:false,
     authenticatedDataEnvelope:'NATIVE_OBJECT',
     explicitJsonStringify:false,

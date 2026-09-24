@@ -1707,7 +1707,7 @@ window.V5.modal = window.V5.modal || {
           try { mgrEmail = String(localStorage.getItem('V5_AUTH_email') || '').trim(); } catch(e) {}
         }
 
-        var useWorkspace2 = String(MANAGER_RUNTIME_ENV || '').toUpperCase() === 'DEV' || /\/dev(?:\?|$)/i.test(String(window.location.href || ''));
+        var useWorkspace2 = String(MANAGER_RUNTIME_ENV || '').toUpperCase() === 'DEV';
         var url = v5_buildActionUrl_(base, useWorkspace2 ? 'planningworkspace' : 'planningtoolkit', {
           auditId: auditId,
           role: 'manager',

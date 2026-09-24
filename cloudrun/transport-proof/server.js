@@ -55,7 +55,15 @@ function candidates(audValues,catalog,required,pre){
     .filter(x=>x.email);
 }
 
-function auditContext(values,catalog){\n  const by={};if(!values.length)return by;\n  const h=values[0],ci=col(h,['Audit ID','Audit_ID','AuditId','Audit Id']),cc=col(h,['Company']),cs=col(h,['Status']);\n  if(ci<0)return by;\n  for(const row of values.slice(1)){const id=val(row,ci);if(id)by[id]={company:val(row,cc),status:val(row,cs),scopes:scopesForAudit({h,row},catalog)};}\n  return by;\n}\n\nfunction project(f,catalog,audValues){
+function auditContext(values,catalog){
+  const by={};if(!values.length)return by;
+  const h=values[0],ci=col(h,['Audit ID','Audit_ID','AuditId','Audit Id']),cc=col(h,['Company']),cs=col(h,['Status']);
+  if(ci<0)return by;
+  for(const row of values.slice(1)){const id=val(row,ci);if(id)by[id]={company:val(row,cc),status:val(row,cs),scopes:scopesForAudit({h,row},catalog)};}
+  return by;
+}
+
+function project(f,catalog,audValues){
   const g=n=>val(f.row,col(f.h,n)),pre=g(['Preassigned Auditor','Preassigned auditor']),scopes=scopesForAudit(f,catalog);
   return{
     auditId:g(['Audit ID','Audit_ID','AuditId','Audit Id']),

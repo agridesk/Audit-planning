@@ -81,6 +81,7 @@ var PW_ENTRY_BASE_doGet_=doGet;
 doGet=function(e){
   var p=(e&&e.parameter)?e.parameter:{};
   var raw=String(p.action||'').trim().toLowerCase();
+  if(raw==='transportproof')return PlanningWorkspaceTransportProof_handle_(e);
   if(raw==='planningworkspace'||raw==='workspace'){
     var runtimeEnv=V5_ENTRY_captureEnv_(p);
     if(runtimeEnv!=='DEV')return PW_ENTRY_BASE_doGet_(e);
@@ -110,6 +111,28 @@ doGet=function(e){
   }
   return PW_ENTRY_BASE_doGet_(e);
 };
+
+
+/**
+ * DEV-only server-to-server transport proof.
+ * Read-only by construction: only the focused Workspace API is exposed.
+ * The proof key is stored in Script Properties and is never returned.
+ */
+function PlanningWorkspaceTransportProof_handle_(e){
+  var p=e&&e.parameter?e.parameter:{};
+  if(V5_ENTRY_captureEnv_(p)!=='DEV')throw new Error('PLANNING_WORKSPACE_TRANSPORT_PROOF_DEV_ONLY');
+  var expected=String(PropertiesService.getScriptProperties().getProperty('AMS_TRANSPORT_PROOF_KEY')||'').trim();
+  var supplied=String(p.proofKey||'').trim();
+  if(!expected||!supplied||supplied!==expected)throw new Error('PLANNING_WORKSPACE_TRANSPORT_PROOF_UNAUTHORIZED');
+  var auditId=String(p.auditId||'').trim();
+  if(!auditId)throw new Error('PLANNING_WORKSPACE_TRANSPORT_PROOF_AUDIT_ID_REQUIRED');
+  var role=V5_ENTRY_expectedRole_('planningworkspace',p.role||'Manager');
+  var actorEmail=String(p.actorEmail||'').trim().toLowerCase();
+  if(!actorEmail)throw new Error('PLANNING_WORKSPACE_TRANSPORT_PROOF_ACTOR_REQUIRED');
+  var started=Date.now();
+  var api=PlanningWorkspaceApi_workspace({auditId:auditId,role:role,actorRole:role,actorEmail:actorEmail,auditorEmail:role==='Auditor'?actorEmail:''});
+  return ContentService.createTextOutput(JSON.stringify({ok:true,proof:'AMS_CLOUD_RUN_GAS_TRANSPORT_R1',gasMs:Date.now()-started,api:api})).setMimeType(ContentService.MimeType.JSON);
+}
 
 function PlanningWorkspaceEntryRoute_contract(){
   return{

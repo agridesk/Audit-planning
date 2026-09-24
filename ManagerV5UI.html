@@ -2548,6 +2548,9 @@ function mkBtn(text, cls, onClick) {
         }
 
         MANAGER_SINGLE_CACHE.open = (MANAGER_SINGLE_RAW_ROWS || []).slice();
+        try {
+          localStorage.setItem('m5_singleGridCache_open', JSON.stringify({ t: Date.now(), rows: MANAGER_SINGLE_CACHE.open }));
+        } catch(_eWarmSave) {}
         m5_renderSingleGrid_(MANAGER_SINGLE_RAW_ROWS || []);
         return true;
       }

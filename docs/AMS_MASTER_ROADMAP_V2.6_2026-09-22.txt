@@ -1211,3 +1211,12 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Pending Planning preassignment may be visualized as prospective workload but remains distinct from committed planned occupancy.
 - Company Map remains read-only/advisory. Planning, preassignment, lifecycle, Availability and Company mutations continue through their canonical owners.
 - Map datasets must use bounded/cached/read-model access consistent with 3S and must not regress to per-marker or per-audit full-sheet scans.
+
+
+21.58 Trip/workweek planning consumes committed location requirements without becoming a second planner
+- Trip/workweek planning uses the Company Scope required-location model from 21.52-21.56 as input. It may sequence required execution locations across days but may not redefine which locations or durations are required.
+- Travel is evaluated as a continuous itinerary between actual Visit blocks/locations, auditor base, hotel and transport nodes; no fictitious automatic return-to-base between audit days.
+- Travel modes include car, train and flight where relevant. Comparison exposes door-to-door time, practical feasibility, schedule impact, reliable cost where available and sustainability burden.
+- Flight carries an explicit environmental penalty/soft score but is not automatically hard-blocked. Travel infeasibility remains a prominent advisory warning under the existing Manager-responsibility rule rather than a lifecycle validator hard block.
+- Hotel options/context are map/advisory inputs and may act as day start/end points; initial scope does not autonomously book hotels or transport.
+- Trip concepts remain non-canonical until the underlying per-audit planning commits through the shared Planning 2.0 validators/writers. Partial bulk commit follows 21.50.

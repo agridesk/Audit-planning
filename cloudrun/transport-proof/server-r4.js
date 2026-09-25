@@ -4,7 +4,7 @@ import {createHmac,timingSafeEqual,randomBytes} from 'node:crypto';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
-const BUILD='2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R8_SESSION_ENFORCED';
+const BUILD='2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R9_EXCHANGE_BOUNDARY';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const SESSION_COOKIE='ams_dev_session';
 const SESSION_TTL_SECONDS=2*60*60;
@@ -36,8 +36,6 @@ function sessionFromRequest(req){return verifySession(cookieMap(req)[SESSION_COO
 function pruneExchanges(){const now=Date.now();for(const [k,v] of pendingExchanges){if(v.expiresAt<=now)pendingExchanges.delete(k);}}
 function newExchangeChallenge(){pruneExchanges();const id=randomBytes(24).toString('base64url'),v={id,expiresAt:Date.now()+EXCHANGE_TTL_SECONDS*1000};pendingExchanges.set(id,v);return {id,expiresAt:v.expiresAt};}
 function verifyExchangeProof(exchangeId,email,role,expiresAt,proof){if(EXCHANGE_SECRET.length<32)return false;const msg=[clean(exchangeId),clean(email).toLowerCase(),clean(role).toLowerCase(),String(expiresAt||'')].join('|');return safeEq(createHmac('sha256',EXCHANGE_SECRET).update(msg).digest('base64url'),proof);}
-function issueSession(identity){const now=Math.floor(Date.now()/1000),payload=b64url(JSON.stringify({v:1,email:clean(identity.email).toLowerCase(),role:clean(identity.role),iat:now,exp:now+SESSION_TTL_SECONDS}));return payload+'.'+sign(payload);}
-function sessionCookie(token){return SESSION_COOKIE+'='+token+'; Max-Age='+SESSION_TTL_SECONDS+'; Path=/; HttpOnly; Secure; SameSite=Lax';}
 function sessionCookie(token){return SESSION_COOKIE+'='+token+'; Max-Age='+SESSION_TTL_SECONDS+'; Path=/; HttpOnly; Secure; SameSite=Lax';}
 function key(v){return clean(v).toLowerCase().replace(/\s+/g,'_');}
 function col(h,names){const m={};h.forEach((v,i)=>{const k=key(v);if(k&&m[k]===undefined)m[k]=i;});for(const n of names){const k=key(n);if(m[k]!==undefined)return m[k];}return-1;}

@@ -627,7 +627,7 @@ function RUN_ENTRY_ENV_ASSERT_PROD() {
 function RUN_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_ACCEPTANCE() {
   var out = {
     ok: true,
-    build: '2026-09-25_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_R4',
+    build: '2026-09-25_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_R5',
     writesPerformed: false,
     checks: []
   };
@@ -679,6 +679,14 @@ function RUN_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_ACCEPTANCE() {
     check_('rejectDeletesActivePlanningRowAfterArchive', rejectSource.indexOf('appendRow') >= 0 && rejectSource.indexOf('deleteRow') >= 0 && rejectSource.indexOf('appendRow') < rejectSource.indexOf('deleteRow'), '');
   } catch (eRejectOwner) {
     check_('rejectOwnerInspectable', false, String(eRejectOwner && eRejectOwner.message ? eRejectOwner.message : eRejectOwner));
+  }
+  try {
+    var guardSource = typeof Status_checkDevWriteGuard_ === 'function' ? String(Status_checkDevWriteGuard_) : '';
+    check_('devWriteGuardSupportsApprove', guardSource.indexOf('ACTION.APPROVE') >= 0, '');
+    check_('devWriteGuardSupportsCancel', guardSource.indexOf('ACTION.CANCEL') >= 0, '');
+    check_('devWriteGuardSupportsReject', guardSource.indexOf('ACTION.REJECT') >= 0, '');
+  } catch (eGuard) {
+    check_('devWriteGuardInspectable', false, String(eGuard && eGuard.message ? eGuard.message : eGuard));
   }
   var props = PropertiesService.getScriptProperties();
   var bridgeKey = String(props.getProperty('AMS_EXTERNAL_WRITE_BRIDGE_KEY') || '').trim();

@@ -1,0 +1,20 @@
+AMS MANAGER PORTAL READ MIGRATION ACCEPTANCE
+DATE 2026-09-25
+ENV DEV
+
+OPEN VIEW
+Runtime accepted after R18:
+- 41 open audits.
+- 893 ms server.
+- Region populated from canonical Companies sheet.
+- Scopes populated from Config_Scopes/Audit planning.
+- Counts: Pending Planning 0, Pending Approval 0, Approved/Pending acceptance 19, Accepted/Pending completion 22.
+
+COMPLETED VIEW IMPLEMENTATION
+R19 added Manager Portal toggle.
+R20 aligned canonical archived membership: all COMPLETED Log realized audits; no manager-email filter.
+R21 aligned archived scope fallback to Scopes list / Scopes / Scope when configured scope slots are absent.
+R22 aligned completed rendering to archived projection.
+
+BOUNDARY
+Read migration only. No write/action owner changed. GAS remains canonical write owner.

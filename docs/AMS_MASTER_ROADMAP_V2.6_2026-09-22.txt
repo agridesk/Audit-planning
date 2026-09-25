@@ -1160,3 +1160,11 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - No item may be silently omitted. The batch result must reconcile requested item count against every per-item outcome.
 - Each committed audit still uses the canonical single-audit planning/write chain, including Planning JSON, Availability ownership, lifecycle action, audit trail and targeted cache invalidation; bulk orchestration must not become a second persistence owner.
 - Batch/command idempotency is mandatory so timeout/retry cannot duplicate successful commits. Already committed items must be recognized deterministically on retry.
+
+
+21.51 Bulk planning reuses per-audit notification semantics
+- Bulk orchestration does not invent a second notification lifecycle. Each successfully committed audit emits the same canonical lifecycle event(s) that the equivalent single-audit action would emit through StatusNotificationBridge / Notification Queue.
+- Blocked, failed or skipped bulk items emit no success lifecycle notification.
+- Existing Notification Queue consolidation/digest rules may combine delivery where configured; bulk planning itself must not suppress, merge or directly send lifecycle mail.
+- Notification idempotency remains payload/event based so batch retry does not create duplicate notifications for already committed items, while a legitimate later cancel/replan/accept cycle for the same Audit ID can still create new events.
+- ECAS/external notifications remain tied to the canonical Accepted transition and existing external digest governance, irrespective of whether the underlying planning originated from single or bulk planning.

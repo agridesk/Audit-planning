@@ -1,0 +1,20 @@
+AMS PLANNING 2.0 MANAGER ACTION UX
+DATE 2026-09-25
+STATUS LOCKED
+
+Manager Portal 2.0 does not copy the legacy Manager 1.0 action surface.
+
+User-facing rule:
+- DENY and REJECT are presented as one Manager action: DECLINE.
+- APPROVE remains distinct.
+- CANCEL remains distinct where applicable.
+- PLAN belongs to Planning 2.0 workspace, not the grid action column.
+
+Migration safety:
+- Existing DENY and REJECT backend transitions remain canonical until the fused transition semantics are implemented and accepted.
+- The new DECLINE control is therefore visible but deliberately not write-enabled yet.
+- No legacy DENY/REJECT buttons are exposed in Manager Portal 2.0.
+- Do not choose silently between DENY and REJECT because they currently have different lifecycle outcomes.
+
+Next gate:
+Implement the canonical fused DECLINE transition once its lifecycle outcome is bound in Planning 2.0, then enable the single UI action.

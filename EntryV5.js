@@ -633,14 +633,15 @@ function doPost(e) {
     }
     var props = PropertiesService.getScriptProperties();
     var expectedKey = String(props.getProperty('AMS_EXTERNAL_WRITE_BRIDGE_KEY') || '').trim();
-    var suppliedKey = String((e && e.parameter && e.parameter.bridgeKey) || '').trim();
-    if (!expectedKey || !suppliedKey || expectedKey !== suppliedKey) {
-      return ContentService.createTextOutput(JSON.stringify({ success:false, error:'BRIDGE_UNAUTHORIZED' })).setMimeType(ContentService.MimeType.JSON);
-    }
     var body = {};
     try { body = JSON.parse(String((e && e.postData && e.postData.contents) || '{}')); } catch (eJson) {
       return ContentService.createTextOutput(JSON.stringify({ success:false, error:'BAD_JSON' })).setMimeType(ContentService.MimeType.JSON);
     }
+    var suppliedKey = String(body.bridgeKey || '').trim();
+    if (!expectedKey || !suppliedKey || expectedKey !== suppliedKey) {
+      return ContentService.createTextOutput(JSON.stringify({ success:false, error:'BRIDGE_UNAUTHORIZED' })).setMimeType(ContentService.MimeType.JSON);
+    }
+    delete body.bridgeKey;
     var actorEmail = String(body.actorEmail || '').trim().toLowerCase();
     var auditId = String(body.auditId || '').trim();
     var managerAction = String(body.managerAction || body.action || '').trim().toLowerCase();

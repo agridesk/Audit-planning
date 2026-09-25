@@ -989,3 +989,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Less-suitable weekdays/hours and Preferred audit months are company planning preferences / soft blocks only. They never become hidden hard constraints.
 - A later accepted company-data proposal that changes these preferences does not invalidate or place a hold on an already Approved/Accepted audit.
 - Planning/Re-adjust surfaces show relevant preference mismatches as advisory context when a planning decision is being made, but committed lifecycle truth is not rewritten solely because preference metadata changed.
+
+
+21.29 Company identity and retirement
+- Company_UID is the stable canonical company identity used for joins between Companies, active audits, proposals, scope/cycle ownership and supporting read models. Company name is display data, not identity.
+- Normal operations retire/deactivate a Company rather than physically deleting its canonical row. Historical audits, completed/rejected records and audit trail must remain resolvable to the original Company_UID.
+- Duplicate-company merge is not treated as an ordinary edit. If introduced, it requires an explicit governed migration with referential-integrity checks across Model C, Audit planning, history, proposals, locations and notifications.
+- Planning 2.0 must not introduce company-name fallback matching where Company_UID is available.

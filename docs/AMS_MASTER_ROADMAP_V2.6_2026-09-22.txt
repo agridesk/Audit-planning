@@ -1250,3 +1250,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Planning JSON `slotComment` remains block-level planning context and is not a substitute for durable Company Handover or Visit Handover records.
 - Handover data is advisory/operational context, permission-aware and audit-trailed where mutated; it does not own lifecycle, Availability, Company identity or planning requirements.
 - Planning Workspace, Auditor Dashboard, Company Map/trip context and notifications may consume the same handover read model without copying the notes into separate truths.
+
+
+21.63 Attention ageing uses canonical lifecycle timestamps
+- Manager Cockpit ageing for Pending Approval, Approved/not Accepted and other active lifecycle states is derived from canonical lifecycle metadata, primarily `Status since`, not from UI load time, notification timestamps or inferred planned dates.
+- Lifecycle transitions must write/update Status since through AuditLifecycleService/status ownership; missing Status since is data-integrity backlog to surface, not a reason to invent an age.
+- Date - Approved / acceptance/decision timestamps remain event-specific provenance and may enrich drilldown, but do not replace the generic current-status age clock.
+- Ageing thresholds are presentation/attention policy and must be configurable rather than encoded as lifecycle transitions or hard planning blocks.

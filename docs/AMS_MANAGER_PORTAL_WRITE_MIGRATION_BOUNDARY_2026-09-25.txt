@@ -1,0 +1,27 @@
+AMS MANAGER PORTAL WRITE MIGRATION BOUNDARY
+DATE 2026-09-25
+STATUS DESIGN LOCK
+
+Current canonical write owner
+- Manager endpoint: managerV5Action(auditId, action, options)
+- Adapter: AuditManagerActions.js
+- Canonical transition owner: Status_applyAction('MANAGER', actionKey, auditId, payload)
+- Supported Manager actions: APPROVE, DENY, CANCEL, REJECT.
+- Planning remains owned by Planning 2.0 canonical commit chain.
+
+External Manager Portal rule
+Cloud Run MUST NOT reimplement status transitions, availability mutations, lifecycle effects, notification behavior or audit-trail effects.
+Cloud Run may expose action availability metadata and authenticated transport only.
+A write cutover is accepted only when the external boundary invokes the existing canonical write owner with authenticated Manager identity and preserves revision/status validation.
+
+Security
+- Cloud Run application session is the browser identity boundary.
+- Legacy raw token/device proof is used only during migration handoff.
+- Do not put legacy credentials in action URLs.
+- Do not grant the Cloud Run read service account Sheets write access as a shortcut.
+
+R23
+Read projection now exposes allowedActions for UI migration without enabling writes.
+
+Next implementation gate
+Create one authenticated server-to-server write bridge to GAS canonical write service, or establish an equivalent callable boundary around Status_applyAction. No direct Sheets writes.

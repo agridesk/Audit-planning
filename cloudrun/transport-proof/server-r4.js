@@ -1,5 +1,6 @@
 import http from 'node:http';
 import {URL} from 'node:url';
+import {createHmac,timingSafeEqual} from 'node:crypto';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
@@ -7,7 +8,7 @@ const BUILD='2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R7_SESSION_PRIMITIVES';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const SESSION_COOKIE='ams_dev_session';
 const SESSION_TTL_SECONDS=2*60*60;
-function send(res,status,body){const h={'content-type':'application/json; charset=utf-8','cache-control':'no-store'};if(ORIGIN){h['access-control-allow-origin']=ORIGIN;h.vary='Origin';}res.writeHead(status,h);res.end(JSON.stringify(body));}
+function send(res,status,body,extra){const h={'content-type':'application/json; charset=utf-8','cache-control':'no-store',...(extra||{})};if(ORIGIN){h['access-control-allow-origin']=ORIGIN;h['access-control-allow-credentials']='true';h.vary='Origin';}res.writeHead(status,h);res.end(JSON.stringify(body));}
 async function accessToken(){
   const r=await fetch('http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',{headers:{'Metadata-Flavor':'Google'}});
   if(!r.ok)throw new Error('METADATA_TOKEN_'+r.status);
@@ -24,6 +25,12 @@ function clean(v){return String(v==null?'':v).trim();}
 function b64url(v){return Buffer.from(v).toString('base64url');}
 function cookieMap(req){const out={};for(const part of clean(req.headers.cookie).split(';')){const p=part.indexOf('=');if(p>0)out[part.slice(0,p).trim()]=part.slice(p+1).trim();}return out;}
 function sessionConfigured(){return SESSION_SECRET.length>=32;}
+function sign(v){return createHmac('sha256',SESSION_SECRET).update(v).digest('base64url');}
+function safeEq(a,b){const x=Buffer.from(clean(a)),y=Buffer.from(clean(b));return x.length===y.length&&timingSafeEqual(x,y);}
+function issueSession(identity){if(!sessionConfigured())throw new Error('SESSION_SECRET_NOT_CONFIGURED');const now=Math.floor(Date.now()/1000),payload=b64url(JSON.stringify({v:1,email:clean(identity.email).toLowerCase(),role:clean(identity.role),iat:now,exp:now+SESSION_TTL_SECONDS}));return payload+'.'+sign(payload);}
+function verifySession(raw){if(!sessionConfigured()||!raw)return null;const parts=clean(raw).split('.');if(parts.length!==2||!safeEq(sign(parts[0]),parts[1]))return null;try{const p=JSON.parse(Buffer.from(parts[0],'base64url').toString('utf8')),now=Math.floor(Date.now()/1000);if(p.v!==1||!p.email||!p.role||!p.exp||p.exp<=now)return null;return p;}catch{return null;}}
+function sessionFromRequest(req){return verifySession(cookieMap(req)[SESSION_COOKIE]);}
+function sessionCookie(token){return SESSION_COOKIE+'='+token+'; Max-Age='+SESSION_TTL_SECONDS+'; Path=/; HttpOnly; Secure; SameSite=Lax';}
 function key(v){return clean(v).toLowerCase().replace(/\s+/g,'_');}
 function col(h,names){const m={};h.forEach((v,i)=>{const k=key(v);if(k&&m[k]===undefined)m[k]=i;});for(const n of names){const k=key(n);if(m[k]!==undefined)return m[k];}return-1;}
 function val(r,i){return i>=0?clean(r[i]):'';}
@@ -149,10 +156,12 @@ async function focused(id){
   };
 }
 
-http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return send(res,403,{ok:false,error:'CORS_DISABLED'});res.writeHead(204,{'access-control-allow-origin':ORIGIN,'access-control-allow-methods':'GET,OPTIONS','access-control-allow-headers':'content-type','vary':'Origin'});return res.end();}
+http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return send(res,403,{ok:false,error:'CORS_DISABLED'});res.writeHead(204,{'access-control-allow-origin':ORIGIN,'access-control-allow-methods':'GET,POST,OPTIONS','access-control-allow-headers':'content-type','access-control-allow-credentials':'true','vary':'Origin'});return res.end();}
   const u=new URL(req.url,'http://localhost');
   if(u.pathname==='/health')return send(res,200,{ok:true,service:'ams-hot-read-proof',build:BUILD,mode:'DIRECT_SHEETS_READ_ONLY',ssotConfigured:!!SID,corsConfigured:!!ORIGIN,sessionSecretConfigured:sessionConfigured(),authState:sessionConfigured()?'SESSION_SECRET_READY':'PENDING_SESSION_SECRET'});
+  if(u.pathname==='/api/v1/session'&&req.method==='GET'){const s=sessionFromRequest(req);return s?send(res,200,{ok:true,identity:{email:s.email,role:s.role},expiresAt:s.exp}):send(res,401,{ok:false,error:'SESSION_REQUIRED'});}
   if(u.pathname!=='/api/v1/planning/workspace'||req.method!=='GET')return send(res,404,{ok:false,error:'NOT_FOUND'});
+  const session=sessionFromRequest(req);if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
   const id=clean(u.searchParams.get('auditId'));
   if(req.headers.origin&&(!ORIGIN||req.headers.origin!==ORIGIN))return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});
   if(!id)return send(res,400,{ok:false,error:'AUDIT_ID_REQUIRED'});

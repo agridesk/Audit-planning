@@ -1178,3 +1178,12 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Location allocation is practical scheduling capacity and does not split or duplicate Formal hours. Formal hours remain governed separately under 21.41.
 - Multi-day and non-consecutive planning may distribute a location's allocated duration across multiple blocks/days, provided the aggregate per location validates.
 - Re-adjust of time/location must rerun both total-duration and per-location-duration validation before commit.
+
+
+21.53 Multi-location duration allocation requires canonical configuration outside Planning JSON
+- The required per-location Planning-duration allocation introduced in 21.52 is planning input/master data, not something inferred from or owned by the committed Planning JSON.
+- Planning JSON stores the actual committed blocks and execution locations; it is validated against the canonical required allocation but does not define that requirement.
+- Planning 2.0 therefore requires an explicit canonical data-model field/structure for required Visit locations and their Planning-duration allocations, keyed by stable Company_UID/location identity and the applicable audit/obligation context.
+- Existing Companies.Locations_JSON remains the authoritative set of Company locations and their identity/contact/GPS metadata; duration allocation must reference those locations rather than duplicate location master data.
+- The new allocation structure must support HQ plus secondary locations, total-duration reconciliation, history/audit trail and Model C projection without introducing positional S1/S2 assumptions as canonical identity.
+- Until this structure exists and is migrated, 1.0 multi-location block data is compatibility input only and must not be mistaken for the new duration-allocation SSoT.

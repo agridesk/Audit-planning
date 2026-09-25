@@ -179,8 +179,9 @@ async function managerArchivedRead(email){const t=Date.now(),vr=await sheetsBatc
 async function canonicalManagerAction(identity,body){
   if(!GAS_WRITE_URL||!WRITE_KEY)throw new Error('WRITE_BRIDGE_NOT_CONFIGURED');
   const auditId=clean(body?.auditId),managerAction=clean(body?.action).toLowerCase();
-  if(!auditId||!['approve','deny','cancel','reject'].includes(managerAction))throw new Error('INVALID_MANAGER_ACTION_REQUEST');
+  if(!auditId||!['approve','cancel','reject'].includes(managerAction))throw new Error('INVALID_MANAGER_ACTION_REQUEST');
   const options=body?.options&&typeof body.options==='object'?body.options:{};
+  if((managerAction==='cancel'||managerAction==='reject')&&!clean(options.reason||options.comment))throw new Error('ACTION_REASON_REQUIRED');
   const r=await fetch(GAS_WRITE_URL,{method:'POST',headers:{'content-type':'application/json'},redirect:'follow',body:JSON.stringify({bridgeKey:WRITE_KEY,auditId,managerAction,actorEmail:clean(identity.email).toLowerCase(),options})});
   const raw=await r.text();let out;try{out=JSON.parse(raw)}catch{throw new Error('WRITE_BRIDGE_NON_JSON_'+r.status)}
   if(!r.ok)throw new Error('WRITE_BRIDGE_HTTP_'+r.status);return out;

@@ -1338,3 +1338,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Splitting one location's work across blocks/days therefore does not create duplicate location requirements and does not change the Visit's canonical total Planning duration.
 - The Visit-level total still follows 21.35 ±15-minute tolerance. Per-location allocation is a coverage requirement: planners may segment the work operationally, but cannot use segmentation to omit a required location or move its allocated work invisibly to another location.
 - Location codes in committed blocks must resolve to active Companies.Locations_JSON entries that are valid for the Visit; free-text location labels are display compatibility only.
+
+
+21.75 Annual capacity must not equate the 08:00-18:00 Availability display window with productive audit hours
+- Planning 1.0 uses 08:00-18:00 as the Availability calendar/default block envelope and treats a day with no Availability block as available. That ten-hour envelope is not by itself a ten-hour daily audit-capacity entitlement.
+- Annual Planner capacity therefore derives from the governed Auditor work profile/standard working-day assumptions plus explicit hard/soft Availability and committed Planning duration; UI calendar rendering bounds are not capacity SSoT.
+- Until richer Auditor profile hours are configured, capacity assumptions must be explicit/configurable and visible in the annual view rather than inferred silently from Availability row width.
+- Long same-day planned workload remains governed by 21.32 as a soft warning, so forecast capacity and concrete feasibility remain distinct concepts.

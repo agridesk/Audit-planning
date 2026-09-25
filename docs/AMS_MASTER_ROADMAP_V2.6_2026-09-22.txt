@@ -904,3 +904,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Manager 2.0 exposes completed and rejected history through bounded/paged reads rather than hydrating archives on first paint.
 - Auditor 2.0 preserves the existing selected-audit export capability, including Excel and PDF, through the existing backend contract or a compatible canonical successor.
 - Export generation is not a first-paint dependency and remains outside portal hot paths.
+
+
+21.18 Completion parity and provenance
+- Completion remains a canonical lifecycle action from Accepted to Completed and uses CompletionService / StatusMachine ownership, never a direct UI archive write.
+- Auditor completion records the actual auditor actor. Manager completion on behalf of the auditor remains supported and must preserve truthful provenance, including manager actor and on-behalf mode/reason where required by the canonical completion contract.
+- Completion must preserve transactional ordering across validation, realized-audit history, recurring-cycle handling, Availability release and active-row retirement; partial completion is not an acceptable success state.
+- Completion UI and history/export surfaces in 2.0 must reuse this owner rather than rebuilding completion logic.

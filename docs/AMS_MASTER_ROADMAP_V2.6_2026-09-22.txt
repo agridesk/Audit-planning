@@ -1063,3 +1063,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Splitting must preserve Company Scope and Audit Obligation identity/history and create explicit Audit_Visit_Obligations links; it is not implemented by duplicating scope text or manually cloning an Audit planning row.
 - Scope dependencies may prohibit a split. Parent/add-on, shared-expiry or must-audit-together rules take precedence; if such a dependency conflicts with the calculated windows, the underlying cycle/configuration requires correction rather than a planning override.
 - Planning 2.0 should surface the likely split resolution to the Manager but must not automatically create extra Visits without an explicit governed action.
+
+
+21.39 Dependent scopes cannot be split into separate Visits
+- Scopes with a canonical must-audit-together/certification dependency, including MPS-GAP + GRASP where that dependency applies, cannot be resolved as separate physical Visits merely to bypass incompatible planning windows.
+- If dependent scopes produce an empty planning-window intersection, planning remains hard blocked and the underlying cycle, expiry, dependency or window data must be corrected first.
+- Administrative linkage between two separate Visits is not a substitute for a must-audit-together dependency.
+- Dependency validation therefore runs before any split-Visit resolution offered under 21.38.

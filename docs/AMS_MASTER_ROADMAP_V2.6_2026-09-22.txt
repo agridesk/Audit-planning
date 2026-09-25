@@ -951,3 +951,11 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Manager approval of Auditor self-planning follows the self-planning lifecycle rule in 21.5. The implementation must be migrated from the older generic Pending Approval -> Approved contract to the canonical direct-accept outcome defined there.
 - If the Manager does not accept the submitted planning, the audit returns to Pending Planning through the canonical return/cancel/deny successor action; planning corrections are made there rather than silently editing an Auditor submission while approval remains pending.
 - Approval/rejection review must show the submitted planning context needed for an informed decision without rebuilding Planning JSON client-side.
+
+
+21.24 Multi-location planning parity
+- Multi-location companies/audits are first-class planning input. One audit may require HQ plus one or more active secondary sites/stops.
+- Companies.Locations_JSON remains the only authoritative location set; legacy Location, GPS-data and Locations_to_plan remain derived mirrors and may not determine visit truth independently.
+- Planning JSON must retain the actual location per planned block/segment where multiple locations are involved; travel/conflict validation must use those actual visit locations rather than assuming HQ.
+- Planning 2.0 must support the existing multi-day/non-consecutive/segmented planning model together with multi-location selection without introducing a second visit model.
+- Future trip/workweek routing consumes these committed visit locations; it does not rewrite them as routing truth.

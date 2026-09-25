@@ -896,3 +896,11 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Manager discretion applies only to explicitly classified soft warnings/preferences. A UI acknowledgement may record the decision but may not convert a hard failure into a valid canonical plan.
 - Weekend handling, travel burden, sustainability preference, company less-suitable days/hours and rotation pressure remain governed by their explicit rule classifications; rotation specifically follows 21.4.
 - Planning 2.0 must render hard versus soft outcomes distinctly and reuse one canonical validator owner for Manager, Auditor, Re-adjust and later batch/bulk planning.
+
+
+21.17 Archive/history and operational export parity
+- Rejected remains terminal lifecycle history. 2.0 does not introduce a normal restore/reopen transition.
+- Completed remains immutable operational history in Log realized audits. Corrections, if ever required, are a separately governed administrative process and not Re-adjust.
+- Manager 2.0 exposes completed and rejected history through bounded/paged reads rather than hydrating archives on first paint.
+- Auditor 2.0 preserves the existing selected-audit export capability, including Excel and PDF, through the existing backend contract or a compatible canonical successor.
+- Export generation is not a first-paint dependency and remains outside portal hot paths.

@@ -1195,3 +1195,12 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Adding an active Company location does not by itself silently add that location to every existing/open Visit. Removing/deactivating a location follows the planned-location hold rule already defined for affected Visits.
 - Required Visit-location membership and its duration allocation are versioned/audit-trailed planning requirements; Company location master-data edits remain separate.
 - Legacy `Slot_Templates` and location-count behavior may be used for migration evidence but may not remain the canonical definition of required Visit locations in 2.0.
+
+
+21.55 Required execution locations are configured per Company Scope
+- Required execution-location membership is canonical Company Scope configuration, not a free per-cycle planning choice.
+- For each active Company Scope, the Manager can define which active Companies.Locations_JSON locations are required for that scope and the corresponding practical Planning-duration allocation.
+- Every new Audit Obligation/cycle for that Company Scope inherits the then-current required-location configuration as its planning requirement.
+- An active Company location that is not selected for a Company Scope remains valid Company master data but is not required for audits of that scope.
+- Changes to Company Scope required locations are lifecycle-governed like other scope configuration changes: future-only changes affect future obligations; a change intended to affect the current planned Visit follows the materiality/Re-adjust and hold rules already defined.
+- For a combined multi-scope Visit, required locations are the union of the participating Company Scopes' required-location sets. Per-location Planning duration must be resolved without double-counting before the Visit can commit.

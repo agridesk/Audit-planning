@@ -1316,3 +1316,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Add concept month as explicit annual-assignment metadata keyed to Audit Obligation/cycle (for example canonical YYYY-MM month key), with legacy projection only if a compatibility consumer demonstrably requires it.
 - Clearing/changing concept month is a forecast mutation only and must be independently audit-trailed/concurrency-guarded without touching committed planning fields.
 - Once a concrete plan is committed, actual Planning JSON/date governs operational calendar reporting; the concept month remains forecast provenance or is marked fulfilled/superseded rather than being mistaken for actual planning truth.
+
+
+21.72 Weekend planning preserves existing soft-warning semantics
+- Planning 2.0 preserves the proven Planning 1.0 `DEFAULT_WEEKEND` behavior: an Auditor normally unavailable on weekends produces a visible soft warning, not an automatic hard block.
+- Explicit hard unavailability entered for the weekend date/interval remains a hard block under 21.46; committed audit occupancy remains protected under 21.47.
+- Annual forecast capacity may treat default weekend time as soft/overrideable capacity, but must not present it as ordinary free capacity without distinction.
+- Manager/Auditor concrete planning must show the weekend warning consistently through the shared Availability validator; no separate UI-only weekend rule.

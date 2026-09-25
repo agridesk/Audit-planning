@@ -4,7 +4,7 @@ import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
-const BUILD='2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R13_ELIGIBILITY_EQUIVALENCE';
+const BUILD='2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R14_SESSION_LANDING';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const SESSION_COOKIE='ams_dev_session';
 const SESSION_TTL_SECONDS=2*60*60;
@@ -31,6 +31,8 @@ function issueSession(identity){if(!sessionConfigured())throw new Error('SESSION
 function verifySession(raw){if(!sessionConfigured()||!raw)return null;const parts=clean(raw).split('.');if(parts.length!==2||!safeEq(sign(parts[0]),parts[1]))return null;try{const p=JSON.parse(Buffer.from(parts[0],'base64url').toString('utf8')),now=Math.floor(Date.now()/1000);if(p.v!==1||!p.email||!p.role||!p.exp||p.exp<=now)return null;return p;}catch{return null;}}
 function sessionFromRequest(req){return verifySession(cookieMap(req)[SESSION_COOKIE]);}
 function sessionCookie(token){return SESSION_COOKIE+'='+token+'; Max-Age='+SESSION_TTL_SECONDS+'; Path=/; HttpOnly; Secure; SameSite=Lax';}
+function html(res,status,body,headers={}){res.writeHead(status,{'content-type':'text/html; charset=utf-8','cache-control':'no-store',...headers});res.end(body);}
+function esc(v){return clean(v).replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));}
 function sha256Hex(v){return createHash('sha256').update(clean(v)).digest('hex');}
 function revoked(v){return v===true||['YES','TRUE'].includes(clean(v).toUpperCase());}
 function sheetSerialMs(v){if(typeof v==='number'&&Number.isFinite(v))return Math.round((v-25569)*86400000);const n=Number(v);if(Number.isFinite(n)&&clean(v)!=='')return Math.round((n-25569)*86400000);const t=Date.parse(clean(v));return Number.isFinite(t)?t:NaN;}
@@ -165,6 +167,7 @@ async function focused(id){
 http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return send(res,403,{ok:false,error:'CORS_DISABLED'});res.writeHead(204,{'access-control-allow-origin':ORIGIN,'access-control-allow-methods':'GET,POST,OPTIONS','access-control-allow-headers':'content-type','access-control-allow-credentials':'true','vary':'Origin'});return res.end();}
   const u=new URL(req.url,'http://localhost');
   if(u.pathname==='/health')return send(res,200,{ok:true,service:'ams-hot-read-proof',build:BUILD,mode:'DIRECT_SHEETS_READ_ONLY',ssotConfigured:!!SID,corsConfigured:!!ORIGIN,sessionSecretConfigured:sessionConfigured(),sessionSecretPresent:SESSION_SECRET.length>0,sessionSecretLength:SESSION_SECRET.length,authState:sessionConfigured()?'SESSION_EXCHANGE_READY':'PENDING_SESSION_SECRET'});
+  if(u.pathname==='/'&&req.method==='GET'){const s=sessionFromRequest(req);if(!s)return html(res,401,'<!doctype html><meta charset="utf-8"><title>AMS DEV</title><h1>AMS DEV</h1><p>Application session required.</p>');return html(res,200,'<!doctype html><meta charset="utf-8"><title>AMS DEV</title><h1>AMS DEV session active</h1><p>Role: '+esc(s.role)+'</p><p>Email: '+esc(s.email)+'</p>');}
   if(u.pathname==='/auth/legacy-handoff'&&req.method==='POST'){let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});const form=new URLSearchParams(raw);try{const identity=await validateLegacyIdentity(form.get('token'),form.get('role'),form.get('deviceId'));if(!identity.ok)return send(res,401,identity);const token=issueSession(identity);res.writeHead(303,{'set-cookie':sessionCookie(token),'location':'/','cache-control':'no-store'});return res.end();}catch(e){return send(res,500,{ok:false,error:'IDENTITY_HANDOFF_FAILED',detail:clean(e?.message||e)});}}
   if(u.pathname==='/api/v1/session/exchange'&&req.method==='POST'){if(req.headers.origin&&(!ORIGIN||req.headers.origin!==ORIGIN))return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}');}catch{return send(res,400,{ok:false,error:'BAD_JSON'});}try{const identity=await validateLegacyIdentity(b.token,b.role,b.deviceId);if(!identity.ok)return send(res,401,identity);const token=issueSession(identity);return send(res,200,{ok:true,identity:{email:identity.email,role:identity.role},expiresIn:SESSION_TTL_SECONDS},{'set-cookie':sessionCookie(token)});}catch(e){return send(res,500,{ok:false,error:'IDENTITY_EXCHANGE_FAILED',detail:clean(e?.message||e)});}}
   if(u.pathname==='/api/v1/session'&&req.method==='GET'){if(req.headers.origin&&(!ORIGIN||req.headers.origin!==ORIGIN))return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});const s=sessionFromRequest(req);return s?send(res,200,{ok:true,identity:{email:s.email,role:s.role},expiresAt:s.exp}):send(res,401,{ok:false,error:'SESSION_REQUIRED'});}

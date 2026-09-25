@@ -1257,3 +1257,11 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Lifecycle transitions must write/update Status since through AuditLifecycleService/status ownership; missing Status since is data-integrity backlog to surface, not a reason to invent an age.
 - Date - Approved / acceptance/decision timestamps remain event-specific provenance and may enrich drilldown, but do not replace the generic current-status age clock.
 - Ageing thresholds are presentation/attention policy and must be configurable rather than encoded as lifecycle transitions or hard planning blocks.
+
+
+21.64 Preferred audit months remain advisory in annual planning
+- Preferred audit months are Company planning preferences, not certificate/planning-window truth and not hard eligibility constraints.
+- Annual Planner and assignment advisory should use them to rank/highlight suitable months inside the canonical obligation planning window; planning outside a preferred month remains possible when all hard validators pass.
+- A preferred month outside the canonical planning window never widens that window. The hard Model C window remains authoritative.
+- Preference changes do not reset or hold existing Approved/Accepted audits and do not rewrite Planning JSON.
+- Auditor-proposed changes to preferred months continue through Company_Update_Proposals rather than direct Company mutation.

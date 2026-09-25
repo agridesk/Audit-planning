@@ -1078,3 +1078,12 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Reactivation may remove the underlying invalid condition, but it is not itself an audit lifecycle/planning action and must not silently resume progression.
 - Manager 2.0 must show that the original inactive condition has been resolved and provide the governed release action; release actor/timestamp and validation outcome are audit-trailed.
 - No pseudo-status is introduced; the audit retains its lifecycle status while the operational hold remains.
+
+
+21.41 Annual workload uses both Formal hours and Planning duration without conflation
+- Annual workload/capacity surfaces preserve the established dual view: Formal hours, Planning duration, and audit count are separate planning dimensions.
+- Formal hours represent normative/audit-accounting workload to be delivered; Planning duration represents practical calendar capacity consumed by the Visit.
+- Auditor capacity, occupied time, remaining headroom, agenda construction and trip/day feasibility use Planning duration / committed Planning JSON.
+- Formal-hours-to-plan and formal-hours reconciliation remain separately visible for contractual/certification workload control.
+- Hours dedicated remains realized history after Completion and is used for variance/reporting, not prospective capacity.
+- Bundled scopes must not be double-counted as multiple physical Visits: formal scope workload may aggregate while physical Visit count and practical Planning duration follow the canonical Visit structure and 21.34.

@@ -911,3 +911,12 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Auditor completion records the actual auditor actor. Manager completion on behalf of the auditor remains supported and must preserve truthful provenance, including manager actor and on-behalf mode/reason where required by the canonical completion contract.
 - Completion must preserve transactional ordering across validation, realized-audit history, recurring-cycle handling, Availability release and active-row retirement; partial completion is not an acceptable success state.
 - Completion UI and history/export surfaces in 2.0 must reuse this owner rather than rebuilding completion logic.
+
+
+21.19 Company deactivation with open audits
+- Changing a Company to Inactive while it still has open Approved/Accepted audits does not silently invalidate, complete, cancel or archive those audits.
+- Those open audits enter a hard operational hold: they cannot progress until a Manager makes an explicit decision for each affected audit or governed group of audits.
+- The hold must be visible in Manager 2.0 and, where relevant, Auditor 2.0, with the Company inactive condition and affected Audit ID(s) clearly identified.
+- Company deactivation also blocks creation of new audits/cycles for that Company while Inactive.
+- Resolution must use an existing canonical lifecycle/planning action where applicable; no hidden status rewrite and no new pseudo-status solely for this hold.
+- Deactivation and resolution decisions require audit trail and targeted cache/read-model invalidation.

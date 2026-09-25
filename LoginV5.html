@@ -1,5 +1,5 @@
 <!--
-  BUILD: 2026-09-25_AMS_EXTERNAL_MANAGER_HANDOFF_R2_TRUSTED_AUTO
+  BUILD: 2026-09-25_AMS_EXTERNAL_MANAGER_HANDOFF_R3_LOGOUT_SAFE
   LoginV5.html (PROD REDIRECT + OTP UX/NORMALIZATION + MAIL_FAIL_VISIBLE FIX R14)
   Timestamp: 20260205_164640
 
@@ -516,7 +516,7 @@
       if (!document.getElementById("email").value) document.getElementById("email").focus();
       try {
         const force = localStorage.getItem(KEY_FORCE) || "";
-        if (hasTrustedCreds_() && String(APP_ENV || '').toUpperCase() === 'DEV' && String(ACTION_AFTER_LOGIN || '').toLowerCase() === 'manager' && String(EXPECTED_ROLE || '').toLowerCase() === 'manager') {
+        if (!force && hasTrustedCreds_() && String(APP_ENV || '').toUpperCase() === 'DEV' && String(ACTION_AFTER_LOGIN || '').toLowerCase() === 'manager' && String(EXPECTED_ROLE || '').toLowerCase() === 'manager') {
           continueTrusted();
           return;
         }

@@ -1112,3 +1112,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Planning/preassignment checks use the historical chain before the candidate audit and apply the 21.4 threshold policy to the resulting next assignment.
 - Multi-scope Visits evaluate rotation independently per required scope; the strictest resulting verdict governs whether that auditor may be assigned to the Visit.
 - Planning 2.0 must not replace this with calendar-year adjacency, company-only counts or visit-row counts.
+
+
+21.45 Rotation maximum +1 requires recorded permission
+- A candidate at Config_Scopes rotation maximum +1 is not a silent warning/ordinary override. Planning or preassignment may proceed only after the Manager explicitly confirms that the required permission has been obtained.
+- The confirmation records the Manager actor, timestamp and a short reason/note in the audit trail, together with the relevant Company, Scope, auditor and rotation count/threshold context.
+- This confirmation does not weaken the maximum +2 hard block; +2 or beyond remains impossible through ordinary Manager/Auditor UI.
+- The permission record is tied to the specific assignment/planning decision and must not become a reusable blanket waiver for later audits.

@@ -4,7 +4,7 @@ import {createHmac,timingSafeEqual} from 'node:crypto';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
-const BUILD='2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R7_SESSION_PRIMITIVES';
+const BUILD='2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R8_SESSION_ENFORCED';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const SESSION_COOKIE='ams_dev_session';
 const SESSION_TTL_SECONDS=2*60*60;
@@ -143,7 +143,7 @@ async function focused(id){
   const p=Date.now(),catalog=scopeCatalog(vr[4]?.values||[]),context=auditContext(ap,catalog),audit=project(f,catalog,vr[1]?.values||[]),emails=audit.candidateAuditors.map(x=>x.email),from=dateOnly(audit.planningWindowFrom),to=dateOnly(audit.planningWindowTo),availability=availabilityProjection(vr[2]?.values||[],emails,from,to,context),reservations=reservationProjection(vr[3]?.values||[],emails,from,to);
   return{
     ok:true,
-    proof:'AMS_CLOUD_RUN_DIRECT_SHEETS_R6_AUTH_BOUNDARY_PENDING',
+    proof:'AMS_CLOUD_RUN_DIRECT_SHEETS_R8_SESSION_ENFORCED',
     build:BUILD,
     data:{
       period:{from,to},

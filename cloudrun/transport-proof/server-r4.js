@@ -146,8 +146,9 @@ async function focused(id){
 http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return send(res,403,{ok:false,error:'CORS_DISABLED'});res.writeHead(204,{'access-control-allow-origin':ORIGIN,'access-control-allow-methods':'GET,OPTIONS','access-control-allow-headers':'content-type','vary':'Origin'});return res.end();}
   const u=new URL(req.url,'http://localhost');
   if(u.pathname==='/health')return send(res,200,{ok:true,service:'ams-hot-read-proof',build:BUILD,mode:'DIRECT_SHEETS_READ_ONLY',ssotConfigured:!!SID,corsConfigured:!!ORIGIN});
-  if(u.pathname!=='/api/v1/planning/workspace'||req.method!=='GET')return send(res,404,{ok:false,error:'NOT_FOUND'});if(ORIGIN&&req.headers.origin&&req.headers.origin!==ORIGIN)return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});
+  if(u.pathname!=='/api/v1/planning/workspace'||req.method!=='GET')return send(res,404,{ok:false,error:'NOT_FOUND'});
   const id=clean(u.searchParams.get('auditId'));
+  if(req.headers.origin&&(!ORIGIN||req.headers.origin!==ORIGIN))return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});
   if(!id)return send(res,400,{ok:false,error:'AUDIT_ID_REQUIRED'});
   if(!SID)return send(res,500,{ok:false,error:'DEV_SSOT_SPREADSHEET_ID_NOT_CONFIGURED'});
   try{return send(res,200,await focused(id));}

@@ -1227,3 +1227,11 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - It remains a later product capability after core Manager/Auditor parity, 3S acceptance and canonical planning migration are proven.
 - Company feedback may confirm/decline/propose availability but never writes final Planning JSON, Availability occupancy or lifecycle status directly; feedback returns to Planning Workspace and all validators rerun before Manager/Auditor canonical commit.
 - Notification Queue remains the delivery owner; email/portal response data is not a second planning truth.
+
+
+21.60 Export parity is role-scoped and read-model based
+- Auditor 2.0 preserves the proven multi-select audit export workflow: selected Audit IDs can be exported to Excel or PDF through a canonical successor of AuditorV5_ExportSelectedAudits.
+- Export authorization remains role/data scoped; an Auditor export may contain only audits the authenticated Auditor is entitled to view. Client-supplied auditor identity is not sufficient authorization in the 2.0 security model.
+- Manager reporting/export capability is delivered from the shared reporting read models in section 7 rather than by reusing Auditor-specific authorization or rebuilding calculations in the browser.
+- Completed/history export consumes immutable realized/history read models, including controlled corrections under 21.49 as current realized truth while retaining correction provenance in audit trail.
+- Export generation stays outside first-paint/hot paths and must not force portal-wide archive hydration.

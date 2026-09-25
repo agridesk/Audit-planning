@@ -1187,3 +1187,11 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Existing Companies.Locations_JSON remains the authoritative set of Company locations and their identity/contact/GPS metadata; duration allocation must reference those locations rather than duplicate location master data.
 - The new allocation structure must support HQ plus secondary locations, total-duration reconciliation, history/audit trail and Model C projection without introducing positional S1/S2 assumptions as canonical identity.
 - Until this structure exists and is migrated, 1.0 multi-location block data is compatibility input only and must not be mistaken for the new duration-allocation SSoT.
+
+
+21.54 Active Company locations and required Visit locations are distinct concepts
+- Companies.Locations_JSON remains the SSoT for the set of active/inactive Company locations. `Locations_to_plan` is a legacy/derived count of active locations and is not sufficient to define which locations a particular Visit must cover.
+- Planning 2.0 must explicitly resolve the required execution-location set for each Visit/obligation context before applying the 21.52 duration allocation.
+- Adding an active Company location does not by itself silently add that location to every existing/open Visit. Removing/deactivating a location follows the planned-location hold rule already defined for affected Visits.
+- Required Visit-location membership and its duration allocation are versioned/audit-trailed planning requirements; Company location master-data edits remain separate.
+- Legacy `Slot_Templates` and location-count behavior may be used for migration evidence but may not remain the canonical definition of required Visit locations in 2.0.

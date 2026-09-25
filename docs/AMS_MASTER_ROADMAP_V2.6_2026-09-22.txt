@@ -298,12 +298,13 @@ Requirements:
 - reconciliation between workload and capacity;
 - drilldown by auditor/month/region/scope.
 
-5.4 Rotation preassignment warning
+5.4 Rotation preassignment governance
 - never silently preassign an auditor with rotation limitation;
-- visible warning before assignment;
-- soft warning/waiver unless governance later hard-blocks;
+- Config_Scopes maximum: allowed through the normal path;
+- maximum +1: explicit warning plus recorded Manager confirmation that required permission was obtained, with reason/note and audit trail under 21.45;
+- maximum +2 or beyond: hard block;
 - show count/threshold context;
-- canonical rotation service remains owner.
+- canonical rotation service remains owner and consecutive-chain semantics follow 21.44.
 
 6. SCOPE & CERTIFICATE LIFECYCLE
 

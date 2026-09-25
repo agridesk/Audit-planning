@@ -1303,3 +1303,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - In Model C they are current Audit Obligation / annual-assignment policy metadata (or a dedicated assignment-policy record keyed to the obligation/cycle), projected to legacy Audit planning only while compatibility is required.
 - Successor obligations may copy the prior policy as an explicit lifecycle default for continuity, but each new obligation owns its resulting values and the Manager can change them without rewriting historical cycles.
 - This keeps annual concept assignment, self-planning access and historical provenance cycle-specific while Company_UID remains stable identity only.
+
+
+21.70 Successor-cycle assignment defaults preserve continuity but are revalidated
+- Existing AnnualCycleEngineV5 already carries Preassigned Auditor into a recurring successor while clearing actual Assigned auditor/planning state. Planning 2.0 preserves that continuity principle at the Model C obligation layer rather than relying on copied legacy rows.
+- Carried preassignment is a default, not proof of current eligibility. On successor creation/first use it must be revalidated against active Auditor, qualification and current rotation governance; an invalid carried value is surfaced for Manager resolution and cannot grant self-planning access.
+- Allow self planning may likewise be carried as an explicit policy default only when represented canonically for the successor obligation; effective self-planning still requires a valid current preassignment under 21.68.
+- Actual assignment, Planning JSON, Availability occupancy, lifecycle decisions and prior-cycle comments/decision metadata are never inherited as committed state into the new cycle.

@@ -1,5 +1,5 @@
 <!--
-  BUILD: 2026-09-25_AMS_EXTERNAL_MANAGER_HANDOFF_R4_NO_PING_NOISE
+  BUILD: 2026-09-25_AMS_EXTERNAL_MANAGER_HANDOFF_R5_TEST_ROUTE
   LoginV5.html (PROD REDIRECT + OTP UX/NORMALIZATION + MAIL_FAIL_VISIBLE FIX R14)
   Timestamp: 20260205_164640
 
@@ -400,6 +400,9 @@
   }
 
   function buildTestTarget(email, role) {
+    if (String(APP_ENV || '').toUpperCase() === 'DEV' && String(ACTION_AFTER_LOGIN || '').toLowerCase() === 'manager' && String(role || '').toLowerCase() === 'manager') {
+      return { externalPost:true, url:EXTERNAL_DEV_URL + '/auth/legacy-handoff', token:TEST_TOKEN, role:String(role || '').trim(), deviceId:TEST_DEVICE_ID };
+    }
     const qs = new URLSearchParams({
       action: resolveActionAfterLogin_(),
       email: normEmail(email),

@@ -1119,3 +1119,11 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - The confirmation records the Manager actor, timestamp and a short reason/note in the audit trail, together with the relevant Company, Scope, auditor and rotation count/threshold context.
 - This confirmation does not weaken the maximum +2 hard block; +2 or beyond remains impossible through ordinary Manager/Auditor UI.
 - The permission record is tied to the specific assignment/planning decision and must not become a reusable blanket waiver for later audits.
+
+
+21.46 Availability semantics preserved in Planning 2.0
+- Auditor Availability remains the canonical capacity layer; Planning 2.0 must preserve the distinction between explicit hard unavailability and recurring/default soft unavailability.
+- Explicit unavailable periods/dates are hard planning blocks. Existing committed audit intervals remain read-only audit-owned reservations and cannot be overwritten from My Availability.
+- Recurring unavailable weekdays are soft unavailability: visible warning/advisory context that may be overridden through the governed planning path; they are not silently converted to hard blocks.
+- Availability UI and planning validators must expose the same resolved semantics; no separate Manager interpretation may be introduced.
+- Annual capacity reports hard unavailable hours, soft unavailable hours, occupied audit hours and overrideable soft hours separately.

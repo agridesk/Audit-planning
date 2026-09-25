@@ -4,7 +4,7 @@ import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
-const BUILD='2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R10_LEGACY_IDENTITY_EXCHANGE';
+const BUILD='2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R11_LIFECYCLE_EQUIVALENCE';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const SESSION_COOKIE='ams_dev_session';
 const SESSION_TTL_SECONDS=2*60*60;
@@ -123,8 +123,8 @@ function availabilityProjection(values,emails,from,to,context){
 
 function blocks(raw){if(Array.isArray(raw))return raw;try{const p=JSON.parse(clean(raw));return Array.isArray(p)?p:(Array.isArray(p?.blocks)?p.blocks:[]);}catch{return[];}}
 
-function reservationProjection(values,emails,from,to){
-  const set=new Set(emails.map(x=>clean(x).toLowerCase())),rows=[];
+function reservationProjection(values,emails,from,to,auditContext){
+  const set=new Set(emails.map(x=>clean(x).toLowerCase())),rows=[],staleRows=[];auditContext=auditContext||{};
   if(!values.length)return{rows,byAuditorEmail:{},byAuditId:{},staleRows:[]};
   const h=values[0],ci=col(h,['Audit ID','Audit_ID']),cr=col(h,['Reservation ID','Reservation_ID']),ce=col(h,['Auditor Email','Auditor_Email']),cn=col(h,['Auditor Name','Auditor_Name']),cb=col(h,['Blocks JSON','Blocks_JSON','Blocks']),cs=col(h,['State']),cv=col(h,['Source Revision','Source_Revision']),cc=col(h,['Created At','Created_At']),cu=col(h,['Updated At','Updated_At']);
   for(const row of values.slice(1)){
@@ -132,11 +132,11 @@ function reservationProjection(values,emails,from,to){
     if(clean(row[cs]).toUpperCase()!=='ACTIVE'||!set.has(em))continue;
     const b=blocks(row[cb]);
     if(!b.some(x=>{const d=dateOnly(x?.date);return d&&d>=from&&d<=to;}))continue;
-    rows.push({auditId:val(row,ci),reservationId:val(row,cr),auditorEmail:em,auditorName:val(row,cn),blocks:b,state:'ACTIVE',sourceRevision:val(row,cv),createdAt:val(row,cc),updatedAt:val(row,cu)});
+    const auditId=val(row,ci),canonical=auditContext[auditId]||{},normalized=clean(canonical.status).toUpperCase().replace(/[\\s-]+/g,'_'),item={auditId,reservationId:val(row,cr),auditorEmail:em,auditorName:val(row,cn),blocks:b,state:'ACTIVE',sourceRevision:val(row,cv),createdAt:val(row,cc),updatedAt:val(row,cu),canonicalStatus:clean(canonical.status),canonicalStatusNormalized:normalized,lifecycleCurrent:normalized==='PENDING_PLANNING'};if(!item.lifecycleCurrent){item.state='STALE';item.lifecycleReason=!auditId||!canonical.status?'CANONICAL_AUDIT_OR_STATUS_MISSING':'CANONICAL_STATUS_'+normalized;staleRows.push(item);continue;}item.lifecycleReason='PENDING_PLANNING';rows.push(item);
   }
   const byAuditorEmail={},byAuditId={};
   for(const x of rows){(byAuditorEmail[x.auditorEmail]??=[]).push(x);if(x.auditId)byAuditId[x.auditId]=x;}
-  return{rows,byAuditorEmail,byAuditId,staleRows:[]};
+  return{rows,byAuditorEmail,byAuditId,staleRows};
 }
 
 async function focused(id){
@@ -144,7 +144,7 @@ async function focused(id){
   const vr=await sheetsBatchGet(['Audit planning!A1:AX768','Auditors!A1:AZ256','Auditor Availability!A1:P768','Concept Reservations!A1:P256','Config_Scopes!A1:Z128']);
   const sheetMs=Date.now()-s,ap=vr[0]?.values||[],f=findAudit(ap,id);
   if(!f)return{ok:false,error:'AUDIT_NOT_FOUND',timing:{sheetsApiMs:sheetMs,totalMs:Date.now()-t}};
-  const p=Date.now(),catalog=scopeCatalog(vr[4]?.values||[]),context=auditContext(ap,catalog),audit=project(f,catalog,vr[1]?.values||[]),emails=audit.candidateAuditors.map(x=>x.email),from=dateOnly(audit.planningWindowFrom),to=dateOnly(audit.planningWindowTo),availability=availabilityProjection(vr[2]?.values||[],emails,from,to,context),reservations=reservationProjection(vr[3]?.values||[],emails,from,to);
+  const p=Date.now(),catalog=scopeCatalog(vr[4]?.values||[]),context=auditContext(ap,catalog),audit=project(f,catalog,vr[1]?.values||[]),emails=audit.candidateAuditors.map(x=>x.email),from=dateOnly(audit.planningWindowFrom),to=dateOnly(audit.planningWindowTo),availability=availabilityProjection(vr[2]?.values||[],emails,from,to,context),reservations=reservationProjection(vr[3]?.values||[],emails,from,to,context);
   return{
     ok:true,
     proof:'AMS_CLOUD_RUN_DIRECT_SHEETS_R8_SESSION_ENFORCED',

@@ -1,0 +1,21 @@
+AMS MANAGER PORTAL COMPLETED VIEW RUNTIME ACCEPTANCE
+DATE 2026-09-25
+ENV DEV
+RESULT GREEN
+
+User runtime confirmation:
+- Manager Portal open view works.
+- Completed view works correctly.
+
+Accepted migration scope:
+- Real Manager auth handoff to Cloud Run session.
+- Manager Portal shell outside Apps Script.
+- Direct open-audit read.
+- Direct completed-audit read.
+- Scopes and region enrichment.
+- Open/completed navigation.
+- Search/filter rendering.
+- PROD untouched.
+
+Next gate:
+Manager action/write migration while preserving GAS canonical write ownership and validation.

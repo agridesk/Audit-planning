@@ -17,7 +17,7 @@ Phase 1 implementation
 
 Runtime acceptance
 After automatic Cloud Build deploy, a real DEV Manager login must land on:
-Manager Portal — External DEV
+Manager Portal
 and load open audit rows plus status counts.
 
 This phase proves application UI + session + direct hot read outside Apps Script.

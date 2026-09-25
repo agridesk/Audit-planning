@@ -1,0 +1,22 @@
+AMS EXTERNAL MANAGER PORTAL PHASE 1 RUNTIME ACCEPTANCE RESULT
+DATE 2026-09-25
+ENV DEV
+RESULT GREEN
+
+Observed
+- Authenticated Manager Portal loaded from Cloud Run.
+- Canonical Manager identity: planning@agriqa.es.
+- Direct open-audit read returned 41 rows.
+- Server read time observed: 999 ms.
+- Status counts observed: Pending Planning 0; Pending Approval 0; Pending Acceptance 19; Pending Completion 22.
+- Audit rows rendered successfully outside Apps Script HtmlService.
+- Direct Cloud Run -> Sheets read therefore passed functional runtime proof.
+
+Accepted scope
+Application session + external Manager Portal shell + direct Manager open-grid read.
+
+Not yet accepted
+Feature-equivalent Manager Portal, actions/writes, tools, archived view, full enrichment, Auditor portal authorization/cutover.
+
+Naming
+Use "Manager Portal" (or Manager Overview where context specifically refers to the overview). Do not label the user-facing product "External DEV".

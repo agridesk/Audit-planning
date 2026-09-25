@@ -976,3 +976,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Config_Scopes deactivation blocks use of the scope for new planning/cycles while inactive, but does not destructively erase historical scope/obligation/visit truth.
 - Resolution must use explicitly governed scope/lifecycle actions and canonical validation; no hidden status rewrite and no pseudo-status solely for the hold.
 - Scope deactivation and resolution require audit trail and targeted invalidation.
+
+
+21.27 Availability ownership after planning
+- A committed planned audit owns its occupied Availability intervals through Planning JSON projection. Those occupied intervals are read-only in My Availability and cannot be overwritten by a later personal Availability edit.
+- Therefore an Auditor cannot create a contradiction by marking the already planned audit interval unavailable; changing the audit itself must use the governed planning/Re-adjust/Cancel flow.
+- Planning 2.0 must preserve this protection and distinguish audit-owned hard occupancy from editable personal Availability.
+- Availability UI rollback/read-only behavior must remain deterministic and must not mutate lifecycle status.

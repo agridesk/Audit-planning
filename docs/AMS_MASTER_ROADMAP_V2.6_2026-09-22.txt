@@ -1048,3 +1048,11 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Completion does not require Hours dedicated to equal planned hours or Formal hours. The value must satisfy the canonical completion input rules (including quarter-hour granularity) and is archived as realized history.
 - Planned-versus-dedicated variance is reporting/analysis input; it does not retroactively rewrite Planning JSON, Config_Scopes Planning duration or Company Scope Formal hours.
 - Planning 2.0 reporting should preserve all three concepts explicitly: Formal hours, planned practical duration, and Hours dedicated.
+
+
+21.37 Multi-scope planning-window intersection is mandatory
+- For a combined Visit containing multiple scopes, the canonical planning window is the intersection of the applicable scope/obligation windows.
+- If that intersection is empty, the combined Visit cannot be planned. The legacy UNION_FALLBACK behavior is not carried into Planning 2.0 as a valid commit path.
+- Empty intersection is a hard planning-validity failure. The planner must first resolve the scope/cycle structure; in the normal case this may mean that the scopes require separate physical Visits/audits rather than one combined audit.
+- The UI must show which scope windows conflict and make the reason for the block explicit. It must not silently widen the allowed period.
+- Model C obligation/visit ownership determines whether scopes can be linked to one Visit; UI grouping cannot override incompatible canonical windows.

@@ -6,6 +6,8 @@ const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
 const BUILD='2026-09-25_AMS_CLOUD_RUN_MANAGER_PORTAL_R24_WRITE_BRIDGE';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
+const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
+const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
 const SESSION_COOKIE='ams_dev_session';
 const SESSION_TTL_SECONDS=2*60*60;
 function send(res,status,body,extra){const h={'content-type':'application/json; charset=utf-8','cache-control':'no-store',...(extra||{})};if(ORIGIN){h['access-control-allow-origin']=ORIGIN;h['access-control-allow-credentials']='true';h.vary='Origin';}res.writeHead(status,h);res.end(JSON.stringify(body));}

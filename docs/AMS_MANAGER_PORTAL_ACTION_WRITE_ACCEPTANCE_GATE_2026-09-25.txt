@@ -1,0 +1,38 @@
+AMS MANAGER PORTAL 2.0 — ACTION WRITE ACCEPTANCE GATE
+Date: 2026-09-25
+Scope: DEV only
+Status: READY FOR RUNTIME WRITE ACCEPTANCE
+
+Canonical user-facing actions
+- Pending Planning: Plan (Workspace owner), Reject
+- Pending Approval: Approve, Cancel, Reject
+- Approved: Cancel, Reject
+- Accepted: Cancel, Reject
+- Deny is not exposed by Manager Portal 2.0. Cancel is the fused Cancel/Deny UX action.
+- Reject remains a separate terminal action.
+
+Write ownership
+Browser -> Cloud Run authenticated Manager session -> /api/v1/manager/action -> GAS DEV externalmanageraction bridge -> managerV5Action -> Status_applyAction.
+Cloud Run does not own lifecycle transitions and has no Sheets write shortcut.
+
+Boundary enforcement
+- Cloud Run accepts only approve/cancel/reject.
+- GAS external bridge independently accepts only approve/cancel/reject.
+- Cancel and Reject require a non-empty reason at both boundaries.
+- Legacy managerV5Action retains deny only for legacy migration compatibility.
+- Reject is included in DEV write-guard ALLOW_ALL compatibility, matching other canonical status actions.
+
+Side effects remain canonical GAS ownership
+- Cancel reopens to Pending Planning and requires successful availability release before reset/status write.
+- Reject is terminal and uses the canonical rejected-audit archive owner when available.
+- Manager Cancel and Reject notification event mappings remain in StatusNotificationBridge.
+- Portal UI blocks duplicate action submission while a write/reload is in flight.
+
+Static verification
+- Cloud Run build: 2026-09-25_AMS_CLOUD_RUN_MANAGER_PORTAL_R35_WRITE_ACCEPTANCE_READY
+- Consolidated GAS acceptance: 2026-09-25_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_R5
+- R4 predecessor was runtime GREEN before the R5 DEV-write-guard coverage addition.
+- No PROD changes.
+
+Remaining gate
+One consolidated no-write R5 acceptance after pull/clasp push, then one controlled end-to-end DEV write through Manager Portal 2.0 is required before declaring external Manager writes runtime accepted.

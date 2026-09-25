@@ -1103,3 +1103,12 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Rotation follows 21.4 at preassignment time: within Config_Scopes maximum is allowed; maximum +1 requires the explicit warning/permission path; maximum +2 or beyond is blocked.
 - Availability is not reserved by preassignment. Date-specific Availability is therefore revalidated at actual planning commit, while known workload/capacity context remains advisory during annual preassignment.
 - Preassignment recommendations/ranking may use region, continuity and workload as advisory factors only; canonical validators remain authoritative.
+
+
+21.44 Rotation consecutive-chain semantics are preserved
+- Rotation is evaluated per Company + Scope against completed history in Log realized audits through the canonical Rotation service.
+- Missing audit years do not break a consecutive chain.
+- The chain resets only when another auditor performs the same Company + Scope audit.
+- Planning/preassignment checks use the historical chain before the candidate audit and apply the 21.4 threshold policy to the resulting next assignment.
+- Multi-scope Visits evaluate rotation independently per required scope; the strictest resulting verdict governs whether that auditor may be assigned to the Visit.
+- Planning 2.0 must not replace this with calendar-year adjacency, company-only counts or visit-row counts.

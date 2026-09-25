@@ -627,7 +627,7 @@ function RUN_ENTRY_ENV_ASSERT_PROD() {
 function RUN_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_ACCEPTANCE() {
   var out = {
     ok: true,
-    build: '2026-09-25_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_R2',
+    build: '2026-09-25_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_R3',
     writesPerformed: false,
     checks: []
   };
@@ -664,6 +664,21 @@ function RUN_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_ACCEPTANCE() {
     check_('cancelAcceptedToPlanning', !!(cancelAccepted && cancelAccepted.ok && cancelAccepted.afterStatus === 'PENDING_PLANNING'), JSON.stringify(cancelAccepted || {}));
     check_('rejectPendingPlanningToRejected', !!(rejectPendingPlanning && rejectPendingPlanning.ok && rejectPendingPlanning.afterStatus === 'REJECTED'), JSON.stringify(rejectPendingPlanning || {}));
     check_('rejectAcceptedToRejected', !!(rejectAccepted && rejectAccepted.ok && rejectAccepted.afterStatus === 'REJECTED'), JSON.stringify(rejectAccepted || {}));
+  }
+  try {
+    var notificationSource = typeof StatusNotificationBridge_EventCode_ === 'function' ? String(StatusNotificationBridge_EventCode_) : '';
+    check_('cancelManagerNotificationMapped', notificationSource.indexOf('AUDIT_CANCELLED_BY_MANAGER') >= 0, '');
+    check_('rejectManagerNotificationMapped', notificationSource.indexOf('AUDIT_REJECTED_BY_MANAGER') >= 0, '');
+  } catch (eNotification) {
+    check_('notificationMappingInspectable', false, String(eNotification && eNotification.message ? eNotification.message : eNotification));
+  }
+  try {
+    var rejectSource = typeof MoveAuditToRejected === 'function' ? String(MoveAuditToRejected) : '';
+    check_('rejectArchiveOwnerAvailable', !!rejectSource, '');
+    check_('rejectRequiresReasonAtOwner', rejectSource.indexOf('Reject reason/comment is required.') >= 0, '');
+    check_('rejectDeletesActivePlanningRowAfterArchive', rejectSource.indexOf('appendRow') >= 0 && rejectSource.indexOf('deleteRow') >= 0 && rejectSource.indexOf('appendRow') < rejectSource.indexOf('deleteRow'), '');
+  } catch (eRejectOwner) {
+    check_('rejectOwnerInspectable', false, String(eRejectOwner && eRejectOwner.message ? eRejectOwner.message : eRejectOwner));
   }
   var props = PropertiesService.getScriptProperties();
   var bridgeKey = String(props.getProperty('AMS_EXTERNAL_WRITE_BRIDGE_KEY') || '').trim();

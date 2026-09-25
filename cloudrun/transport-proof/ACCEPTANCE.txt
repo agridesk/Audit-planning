@@ -7,8 +7,8 @@ Static repository acceptance for the DEV focused Planning Workspace read service
 Required runtime properties
 - package.json starts server-r4.js.
 - superseded server.js and temporary Procfile are absent.
-- proof marker is AMS_CLOUD_RUN_DIRECT_SHEETS_R5_CONTRACT_ALIGNED.
-- runtime build identity is 2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R5_CONTRACT_ALIGNED.
+- proof marker is AMS_CLOUD_RUN_DIRECT_SHEETS_R6_AUTH_BOUNDARY_PENDING.
+- runtime build identity is 2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R6_AUTH_BOUNDARY_PENDING.
 - DEV_SSOT_SPREADSHEET_ID is required.
 - DEV_ALLOWED_ORIGIN is supported.
 - browser Origin requests fail closed when the allowed origin is absent or mismatched.

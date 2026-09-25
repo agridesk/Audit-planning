@@ -1274,3 +1274,11 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Preassignment remains governed by qualification, rotation and preassignment rules, including 21.42-21.45. Changing the preassigned Auditor transfers self-planning visibility immediately as defined there.
 - Annual workload views may allocate forecast workload to the concept month and preassigned Auditor, but must distinguish it visibly from committed planned capacity/occupancy.
 - Concrete Manager planning or Auditor self-planning later revalidates all canonical constraints and writes the actual Planning JSON independently of the concept month.
+
+
+21.66 Concept month participates in forecast capacity, not committed occupancy
+- Annual Planner projects the concept month + preassigned Auditor from 21.65 against that Auditor's monthly derived capacity so the planner can see forecast overload before concrete scheduling.
+- Forecast demand uses canonical practical Planning duration for capacity consumption; Formal hours remain a separate workload measure under 21.41.
+- Concept allocation never writes Availability occupancy. Committed Planning JSON blocks remain the only audit occupancy source.
+- Forecast overload is a planning warning/decision signal, not by itself a lifecycle hard block: exact dates, soft Availability and travel are unresolved until concrete planning.
+- Hard facts already known at concept time, such as inactive Auditor, missing qualification or a concept month wholly outside the canonical planning window, cannot be presented as a valid concept assignment.

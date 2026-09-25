@@ -1310,3 +1310,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Carried preassignment is a default, not proof of current eligibility. On successor creation/first use it must be revalidated against active Auditor, qualification and current rotation governance; an invalid carried value is surfaced for Manager resolution and cannot grant self-planning access.
 - Allow self planning may likewise be carried as an explicit policy default only when represented canonically for the successor obligation; effective self-planning still requires a valid current preassignment under 21.68.
 - Actual assignment, Planning JSON, Availability occupancy, lifecycle decisions and prior-cycle comments/decision metadata are never inherited as committed state into the new cycle.
+
+
+21.71 Concept planning month requires canonical Model C storage
+- Repository review found no existing canonical Audit planning field for a non-committed concept month. Planning 2.0 therefore must not overload Date - Planned, Planning window from/to, Preferred audit months or Planning JSON to store it.
+- Add concept month as explicit annual-assignment metadata keyed to Audit Obligation/cycle (for example canonical YYYY-MM month key), with legacy projection only if a compatibility consumer demonstrably requires it.
+- Clearing/changing concept month is a forecast mutation only and must be independently audit-trailed/concurrency-guarded without touching committed planning fields.
+- Once a concrete plan is committed, actual Planning JSON/date governs operational calendar reporting; the concept month remains forecast provenance or is marked fulfilled/superseded rather than being mistaken for actual planning truth.

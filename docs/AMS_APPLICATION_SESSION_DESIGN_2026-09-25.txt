@@ -1,5 +1,5 @@
 AMS APPLICATION SESSION DESIGN
-BUILD 2026-09-25 R1
+BUILD 2026-09-25 R2
 
 DECISION
 Use the existing OTP and trusted-token login only as the migration-time identity proof. After successful canonical validation, exchange it once for an AMS application session. Hot reads then validate the AMS session at Cloud Run and do not call Apps Script.
@@ -37,5 +37,7 @@ No static browser key.
 No auth credentials in URLs.
 No service-account credentials in browser.
 
-IMPLEMENTATION BLOCKER
-Cloud Run signing/session secret must be provisioned through Google Cloud before session issuance can be safely implemented. Do not invent or commit a secret.
+IMPLEMENTATION STATUS
+- Cloud Secret AMS_SESSION_SIGNING_SECRET has been provisioned and attached to the DEV Cloud Run revision.
+- Cloud Run session verification is implemented on the focused read path.
+- Remaining boundary: one-time trusted identity exchange/session issuance. This must preserve canonical Apps Script validation without exposing the Cloud signing secret to Apps Script or browser code.

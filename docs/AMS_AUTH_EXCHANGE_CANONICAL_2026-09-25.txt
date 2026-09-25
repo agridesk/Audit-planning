@@ -1,0 +1,32 @@
+AMS EXTERNAL AUTH EXCHANGE - CANONICAL DEV DESIGN
+DATE 2026-09-25
+STATUS IMPLEMENTED IN CLOUD RUN, RUNTIME ACCEPTANCE PENDING
+
+Decision
+The migration-time exchange uses the existing canonical legacy token as a one-time identity proof. It is sent only in a POST body to Cloud Run and is never used as the normal hot-read credential.
+
+Validation equivalence
+Cloud Run reads Auditor_Tokens read-only from the existing Sheets SSoT and reproduces AuthService.validateTrustedTokenByRole checks:
+- raw token SHA-256 must match Token_Hash
+- requested role must match
+- token must not be revoked
+- Expires_At must be valid and current
+- deviceId SHA-256 must match Device_Fingerprint when stored
+- canonical email comes from the matching token row
+
+After successful proof
+Cloud Run issues its own 2-hour HMAC-signed Secure HttpOnly application-session cookie. Subsequent focused reads use only that session cookie.
+
+Cutover transport
+/auth/legacy-handoff accepts form POST and returns a 303 redirect after setting the application session. This allows the legacy GAS login to hand off without placing token or deviceId in a URL.
+
+Security boundaries
+- AMS_SESSION_SIGNING_SECRET remains Cloud Run only.
+- No session-signing secret is copied to Apps Script or browser.
+- No static browser API key.
+- Legacy raw token is not accepted by normal read endpoints.
+- GET /api/v1/planning/workspace requires Cloud Run application session.
+- PROD untouched.
+
+Superseded experiment
+AMS_AUTH_EXCHANGE_SECRET is no longer required by runtime or canonical deployment. The separate shared-secret design was rejected because direct canonical token validation at the migration boundary is simpler and avoids introducing a second shared secret owner.

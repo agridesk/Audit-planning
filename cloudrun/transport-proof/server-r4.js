@@ -5,7 +5,7 @@ import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
-const BUILD='2026-09-25_AMS_CLOUD_RUN_MANAGER_PORTAL_R32_STATIC_FRONTEND';
+const BUILD='2026-09-25_AMS_CLOUD_RUN_MANAGER_PORTAL_R33_CANONICAL_UI_ACTIONS';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
@@ -158,7 +158,7 @@ function managerOpen(apValues,email,scopeValues,companyValues){
     const id=val(row,ci);if(!id)continue;const raw=val(row,cs),statusKey=clean(raw).toUpperCase().replace(/[\\s-]+/g,'_');if(!allowed.has(statusKey))continue;
     const rowMgr=val(row,cm).toLowerCase();if(email&&rowMgr&&rowMgr!==email)continue;
     const company=val(row,cc),location=val(row,cl),uid=val(row,cu),region=companyIndex.get(key(uid))||companyIndex.get(key(company+'|'+location))||companyIndex.get(key(company))||'',from=dateOnly(row[cf]),to=dateOnly(row[ct]),pw=from&&to?from+' → '+to:(from||to||''),required=Number(row[ch]),scopes=scopesForAudit({h,row},catalog),expiry=dateOnly(row[cee])||dateOnly(row[ce]),ext=val(row,cex);
-    const actions=statusKey==='PENDING_PLANNING'?['PLAN','REJECT']:statusKey==='PENDING_APPROVAL'?['APPROVE','DENY','REJECT']:statusKey==='APPROVED'?['CANCEL','DENY','REJECT']:statusKey==='ACCEPTED'?['CANCEL','REJECT']:[];rows.push({auditId:id,source:'Audit planning',company,companyLocation:location,location,region,companyRegion:region,scopes,scopesText:scopes.join(', '),status:raw,statusKey,planningWindow:pw,planningWindowText:pw,planningDisplay:statusKey==='PENDING_PLANNING'?pw:dateOnly(row[cd]),plannedHours:val(row,cph),hoursPlanned:val(row,cph),requiredHours:Number.isFinite(required)?required:0,toBePlanned:Number.isFinite(required)?required:0,auditor:val(row,ca),assignedTo:val(row,ca),assignedToEmail:val(row,ca),preassignedAuditor:val(row,cp),allowSelfPlanning:val(row,cself),datePlanned:dateOnly(row[cd]),expirationDate:expiry,extensionApplied:yes(ext),companyUid:uid,managerEmail:rowMgr,allowedActions:actions,readOnly:false,needsEnrichment:false});
+    const actions=statusKey==='PENDING_PLANNING'?['PLAN','REJECT']:statusKey==='PENDING_APPROVAL'?['APPROVE','CANCEL','REJECT']:statusKey==='APPROVED'?['CANCEL','REJECT']:statusKey==='ACCEPTED'?['CANCEL','REJECT']:[];rows.push({auditId:id,source:'Audit planning',company,companyLocation:location,location,region,companyRegion:region,scopes,scopesText:scopes.join(', '),status:raw,statusKey,planningWindow:pw,planningWindowText:pw,planningDisplay:statusKey==='PENDING_PLANNING'?pw:dateOnly(row[cd]),plannedHours:val(row,cph),hoursPlanned:val(row,cph),requiredHours:Number.isFinite(required)?required:0,toBePlanned:Number.isFinite(required)?required:0,auditor:val(row,ca),assignedTo:val(row,ca),assignedToEmail:val(row,ca),preassignedAuditor:val(row,cp),allowSelfPlanning:val(row,cself),datePlanned:dateOnly(row[cd]),expirationDate:expiry,extensionApplied:yes(ext),companyUid:uid,managerEmail:rowMgr,allowedActions:actions,readOnly:false,needsEnrichment:false});
   }
   const order={PENDING_PLANNING:0,PENDING_APPROVAL:1,APPROVED:2,ACCEPTED:3};rows.sort((a,b)=>(order[a.statusKey]-order[b.statusKey])||a.planningWindow.localeCompare(b.planningWindow)||a.company.localeCompare(b.company)||a.auditId.localeCompare(b.auditId));
   const count=k=>rows.filter(x=>x.statusKey===k).length;

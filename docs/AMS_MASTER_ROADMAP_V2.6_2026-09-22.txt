@@ -1220,3 +1220,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Flight carries an explicit environmental penalty/soft score but is not automatically hard-blocked. Travel infeasibility remains a prominent advisory warning under the existing Manager-responsibility rule rather than a lifecycle validator hard block.
 - Hotel options/context are map/advisory inputs and may act as day start/end points; initial scope does not autonomously book hotels or transport.
 - Trip concepts remain non-canonical until the underlying per-audit planning commits through the shared Planning 2.0 validators/writers. Partial bulk commit follows 21.50.
+
+
+21.59 Company planning confirmation remains post-cutover roadmap scope
+- Company proposal/confirmation is not a prerequisite for Planning 2.0 feature-parity cutover because no equivalent canonical Planning 1.0 workflow exists to migrate.
+- It remains a later product capability after core Manager/Auditor parity, 3S acceptance and canonical planning migration are proven.
+- Company feedback may confirm/decline/propose availability but never writes final Planning JSON, Availability occupancy or lifecycle status directly; feedback returns to Planning Workspace and all validators rerun before Manager/Auditor canonical commit.
+- Notification Queue remains the delivery owner; email/portal response data is not a second planning truth.

@@ -967,3 +967,12 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Selecting the replacement location follows the execution-location rule in 21.6: lifecycle status may remain when canonical Availability, travel/conflict and planning-validity checks pass.
 - The hold must be visible to Manager and relevant Auditor views; no pseudo-status is introduced.
 - Location deactivation, hold and resolution require truthful audit trail and targeted invalidation.
+
+
+21.26 System-wide scope deactivation with open audits
+- Deactivating a scope in Config_Scopes does not automatically rewrite lifecycle status for existing Approved/Accepted audits that contain that scope.
+- Every affected open audit enters a hard operational hold and cannot progress until a Manager explicitly decides how that audit is to be handled.
+- The hold must identify the deactivated scope and affected Audit ID(s) in Manager 2.0 and, where operationally relevant, Auditor 2.0.
+- Config_Scopes deactivation blocks use of the scope for new planning/cycles while inactive, but does not destructively erase historical scope/obligation/visit truth.
+- Resolution must use explicitly governed scope/lifecycle actions and canonical validation; no hidden status rewrite and no pseudo-status solely for the hold.
+- Scope deactivation and resolution require audit trail and targeted invalidation.

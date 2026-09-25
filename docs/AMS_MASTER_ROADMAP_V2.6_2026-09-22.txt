@@ -1087,3 +1087,11 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Formal-hours-to-plan and formal-hours reconciliation remain separately visible for contractual/certification workload control.
 - Hours dedicated remains realized history after Completion and is used for variance/reporting, not prospective capacity.
 - Bundled scopes must not be double-counted as multiple physical Visits: formal scope workload may aggregate while physical Visit count and practical Planning duration follow the canonical Visit structure and 21.34.
+
+
+21.42 Pending-Planning preassignment transfer
+- Preassignment is Manager-owned workload guidance while an audit remains Pending Planning; it is not a committed planning assignment and does not reserve Availability.
+- The Manager may change preassignment directly from Auditor A to Auditor B while the audit is Pending Planning.
+- After commit, Auditor A immediately loses self-planning access for that audit and Auditor B becomes the eligible self-planning owner, subject to canonical qualification/rotation and other validators.
+- No confirmation, acceptance or handover action by Auditor A is required because no planning has yet been committed.
+- The preassignment change is audit-trailed and must invalidate only the relevant Auditor/Manager workload projections.

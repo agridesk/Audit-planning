@@ -1282,3 +1282,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Concept allocation never writes Availability occupancy. Committed Planning JSON blocks remain the only audit occupancy source.
 - Forecast overload is a planning warning/decision signal, not by itself a lifecycle hard block: exact dates, soft Availability and travel are unresolved until concrete planning.
 - Hard facts already known at concept time, such as inactive Auditor, missing qualification or a concept month wholly outside the canonical planning window, cannot be presented as a valid concept assignment.
+
+
+21.67 Annual concept assignment is bulk-capable by design
+- The Annual Planner must support selecting multiple Pending Planning obligations/audits and assigning/changing concept month and/or preassigned Auditor as one planner operation; this is the precursor to later bulk concrete planning, not a separate truth model.
+- Bulk concept assignment uses the same per-item qualification, rotation, planning-window and concurrency validation as single-item assignment. It follows the partial-success governance in 21.50: valid items apply, blocked items remain unchanged with explicit reasons.
+- The preview summarizes resulting forecast workload/capacity by Auditor and month before commit, including Formal hours, Planning duration and audit/Visit counts without conflation.
+- No selected item gains Planning JSON, Availability occupancy or lifecycle progression merely through bulk concept assignment.

@@ -788,7 +788,8 @@ No UI may silently weaken this policy. Canonical rotation validation remains the
 21.6 Controlled Re-adjust — materiality rule
 Re-adjust remains an action/mode through Workspace -> Preflight -> canonical writer.
 - Change of audit day/date: material -> return to Pending Planning and restart normal planning flow.
-- Change of scope(s): material -> return to Pending Planning and restart normal planning flow.
+- Change of scope(s) affecting the current planned visit/audit: material -> return to Pending Planning and restart normal planning flow.
+- Scope/certificate lifecycle changes that affect only future certification cycles/obligations and do not change the current planned visit are not a reason to reset the current audit status.
 - Time change within the same audit day (for example 08:00-16:00 to 09:00-17:00): may preserve current lifecycle status, subject to canonical Availability/conflict/planning-window validation.
 - Other non-material changes may preserve status when they do not change the audit day or scope set and pass the relevant canonical validators.
 - Completed remains immutable for operational Re-adjust.

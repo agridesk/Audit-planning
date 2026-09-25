@@ -1242,3 +1242,11 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - There may not be multiple independently actionable Pending proposals for the same canonical field/location target. A new proposal for a target that already has a Pending proposal must surface the existing proposal and require resolution/supersession rather than silently adding a competing write.
 - Multi-field submissions remain one user proposal context but each field retains its own review/concurrency outcome; one stale/conflicting field under 21.48 does not justify overwriting it or silently discarding independent valid fields.
 - Manager review shows proposer, source Audit ID, old/current/proposed value and conflict state. Accept/reject/supersede outcomes are audit-trailed.
+
+
+21.62 Handover information is layered and does not overload Company comments
+- Existing Companies.Comments remains Company master-data commentary and continues to flow through the governed Company proposal/edit path; it is not silently redefined as the complete handover system.
+- Future structured handover uses two explicit levels as already scoped in section 13.3: Company Handover for durable site/company instructions, and Audit/Visit Handover for cycle/visit-specific operational information.
+- Planning JSON `slotComment` remains block-level planning context and is not a substitute for durable Company Handover or Visit Handover records.
+- Handover data is advisory/operational context, permission-aware and audit-trailed where mutated; it does not own lifecycle, Availability, Company identity or planning requirements.
+- Planning Workspace, Auditor Dashboard, Company Map/trip context and notifications may consume the same handover read model without copying the notes into separate truths.

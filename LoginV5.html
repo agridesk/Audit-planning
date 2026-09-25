@@ -320,7 +320,7 @@
   }
 
   function buildPortalTarget_(email, role, token, deviceId) {
-    if (String(APP_ENV || '').toUpperCase() === 'DEV' && String(role || EXPECTED_ROLE || '').toLowerCase() === 'manager' && String(token || '').trim() && String(deviceId || '').trim()) return { externalPost:true, url:EXTERNAL_DEV_URL + '/auth/legacy-handoff', token:String(token || '').trim(), role:String(role || EXPECTED_ROLE || '').trim(), deviceId:String(deviceId || '').trim() };
+    if (String(APP_ENV || '').toUpperCase() === 'DEV' && String(ACTION_AFTER_LOGIN || '').toLowerCase() === 'manager' && String(role || EXPECTED_ROLE || '').toLowerCase() === 'manager' && String(token || '').trim() && String(deviceId || '').trim()) return { externalPost:true, url:EXTERNAL_DEV_URL + '/auth/legacy-handoff', token:String(token || '').trim(), role:String(role || EXPECTED_ROLE || '').trim(), deviceId:String(deviceId || '').trim() };
     const action = resolveActionAfterLogin_();
     const cleanEmail = normEmail(email);
     const cleanRole = String(role || EXPECTED_ROLE || "").trim();
@@ -516,7 +516,7 @@
       if (!document.getElementById("email").value) document.getElementById("email").focus();
       try {
         const force = localStorage.getItem(KEY_FORCE) || "";
-        if (hasTrustedCreds_() && String(APP_ENV || '').toUpperCase() === 'DEV' && String(EXPECTED_ROLE || '').toLowerCase() === 'manager') {
+        if (hasTrustedCreds_() && String(APP_ENV || '').toUpperCase() === 'DEV' && String(ACTION_AFTER_LOGIN || '').toLowerCase() === 'manager' && String(EXPECTED_ROLE || '').toLowerCase() === 'manager') {
           continueTrusted();
           return;
         }

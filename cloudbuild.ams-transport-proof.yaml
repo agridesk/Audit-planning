@@ -24,7 +24,7 @@ steps:
       - --update-env-vars
       - DEV_SSOT_SPREADSHEET_ID=1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs
       - --update-secrets
-      - AMS_SESSION_SIGNING_SECRET=AMS_SESSION_SIGNING_SECRET:latest,AMS_AUTH_EXCHANGE_SECRET=AMS_AUTH_EXCHANGE_SECRET:latest
+      - AMS_SESSION_SIGNING_SECRET=AMS_SESSION_SIGNING_SECRET:latest
 images:
   - europe-west1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/ams-transport-proof:$COMMIT_SHA
 options:

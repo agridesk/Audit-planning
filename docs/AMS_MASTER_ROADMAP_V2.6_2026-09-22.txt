@@ -1026,3 +1026,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Company-specific Formal hours may override the Config_Scopes Formal-hours norm through Company Scope ownership. Planning duration remains per-scope in Config_Scopes; there is no Company Planning-duration override in the current model.
 - Capacity, calendar blocks, same-day sequencing and travel feasibility use Planning duration / committed Planning JSON, not Formal hours as a proxy.
 - Formal-hours reconciliation remains separately visible so a practically shorter/longer calendar construction cannot silently change the formal audit-hour obligation.
+
+
+21.34 Multi-scope Planning duration aggregation
+- For a Visit containing multiple scopes, practical Planning duration is the sum of the applicable Config_Scopes Scheduling_hours values for those scopes.
+- No implicit bundling discount or overlap/compression rule is applied. Example: scope A Scheduling_hours 6 plus scope B Scheduling_hours 2 yields 8 practical planning hours.
+- The summed Planning duration drives agenda capacity, calendar construction and travel/day-feasibility context; Formal hours remain the separate normative/accounting concept defined in 21.33.
+- Any future exception to additive Scheduling_hours must be explicitly represented in canonical configuration/governance rather than inferred by UI or planner logic.

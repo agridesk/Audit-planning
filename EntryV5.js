@@ -627,6 +627,34 @@ function doPost(e) {
   var p = (e && e.parameter) ? e.parameter : {};
   var rawAction = String(p.action || '').trim().toLowerCase();
 
+  if (rawAction === 'externalmanageraction') {
+    if (!V5_ENTRY_isDevEnv_()) {
+      return ContentService.createTextOutput(JSON.stringify({ success:false, error:'DEV_ONLY' })).setMimeType(ContentService.MimeType.JSON);
+    }
+    var props = PropertiesService.getScriptProperties();
+    var expectedKey = String(props.getProperty('AMS_EXTERNAL_WRITE_BRIDGE_KEY') || '').trim();
+    var suppliedKey = String((e && e.parameter && e.parameter.bridgeKey) || '').trim();
+    if (!expectedKey || !suppliedKey || expectedKey !== suppliedKey) {
+      return ContentService.createTextOutput(JSON.stringify({ success:false, error:'BRIDGE_UNAUTHORIZED' })).setMimeType(ContentService.MimeType.JSON);
+    }
+    var body = {};
+    try { body = JSON.parse(String((e && e.postData && e.postData.contents) || '{}')); } catch (eJson) {
+      return ContentService.createTextOutput(JSON.stringify({ success:false, error:'BAD_JSON' })).setMimeType(ContentService.MimeType.JSON);
+    }
+    var actorEmail = String(body.actorEmail || '').trim().toLowerCase();
+    var auditId = String(body.auditId || '').trim();
+    var managerAction = String(body.managerAction || body.action || '').trim().toLowerCase();
+    var options = body.options && typeof body.options === 'object' ? body.options : {};
+    if (!actorEmail || !auditId || !managerAction) {
+      return ContentService.createTextOutput(JSON.stringify({ success:false, error:'MISSING_REQUIRED_FIELDS' })).setMimeType(ContentService.MimeType.JSON);
+    }
+    options.actorEmail = actorEmail;
+    options.managerEmail = actorEmail;
+    options.externalSession = true;
+    var result = managerV5Action(auditId, managerAction, options);
+    return ContentService.createTextOutput(JSON.stringify(result || {success:false,error:'EMPTY_RESULT'})).setMimeType(ContentService.MimeType.JSON);
+  }
+
   if (rawAction === 'manageroverviewcommand' || rawAction === 'overviewcommand') {
     return ContentService.createTextOutput(JSON.stringify({
       success: false,

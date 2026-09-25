@@ -1,6 +1,6 @@
 
 // FILE: AuditManagerActions.js
-// BUILD: 2026-04-25_MINIMAL_STATUS_ACTION_ADAPTER
+// BUILD: 2026-09-25_MANAGER_PORTAL2_FUSED_CANCEL_R1
 // PURPOSE:
 //   Minimal stable Manager grid action endpoint after backend split.
 //   Replaces old restore-chain that depended on many legacy ManagerV5 helpers.
@@ -17,8 +17,9 @@
 //   - old ManagerV5 helper chain
 //   - unguarded legacy dependencies
 //
-// Supported actions:
-//   approve, deny, cancel, reject
+// Manager Portal 2.0 canonical actions:
+//   approve, cancel, reject
+// Legacy deny remains accepted only by the backward-compatible adapter during migration.
 //
 // Required active files:
 //   CoreStatusRules.gs
@@ -39,7 +40,7 @@ function managerV5Action(auditId, action, options) {
     res.action = res.action || action;
     res.perf = res.perf || {};
     res.perf.managerActionAdapterMs = new Date().getTime() - started;
-    res.adapterBuild = '2026-04-25_MINIMAL_STATUS_ACTION_ADAPTER';
+    res.adapterBuild = '2026-09-25_MANAGER_PORTAL2_FUSED_CANCEL_R1';
     try {
       if (typeof ManagerDiagnostics_RecordActionTiming === 'function') {
         ManagerDiagnostics_RecordActionTiming(
@@ -126,7 +127,7 @@ function ManagerV5_Action(a, b, options) {
 function RUN_AUDIT_MANAGER_ACTIONS_ADAPTER_DIAGNOSTICS() {
   var out = {
     ok: true,
-    build: '2026-04-25_MINIMAL_STATUS_ACTION_ADAPTER',
+    build: '2026-09-25_MANAGER_PORTAL2_FUSED_CANCEL_R1',
     functions: {
       managerV5Action: typeof managerV5Action === 'function',
       ManagerV5_Action: typeof ManagerV5_Action === 'function',
@@ -141,7 +142,8 @@ function RUN_AUDIT_MANAGER_ACTIONS_ADAPTER_DIAGNOSTICS() {
     out.probes.approve = Status_applyTransition_({ status:'Pending Approval', action:'APPROVE', role:'MANAGER' });
     out.probes.cancelApproved = Status_applyTransition_({ status:'Approved', action:'CANCEL', role:'MANAGER' });
     out.probes.rejectAccepted = Status_applyTransition_({ status:'Accepted', action:'REJECT', role:'MANAGER' });
-    out.probes.denyPendingApproval = Status_applyTransition_({ status:'Pending Approval', action:'DENY', role:'MANAGER' });
+    out.probes.cancelPendingApproval = Status_applyTransition_({ status:'Pending Approval', action:'CANCEL', role:'MANAGER' });
+    out.probes.legacyDenyPendingApproval = Status_applyTransition_({ status:'Pending Approval', action:'DENY', role:'MANAGER' });
   } catch (e) {
     out.ok = false;
     out.error = String(e && e.message ? e.message : e);

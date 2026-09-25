@@ -372,7 +372,7 @@
     var btnContinue = document.getElementById("btnContinue");
 
     if (continueBox) continueBox.classList.remove("hidden");
-    if (targetDbg) targetDbg.textContent = targetUrl || "";
+    if (targetDbg) targetDbg.textContent = (targetUrl && targetUrl.externalPost) ? targetUrl.url : (targetUrl || "");
     if (btnContinue) {
       btnContinue.disabled = false;
       try { btnContinue.focus(); } catch(eFocus) {}

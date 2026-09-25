@@ -20,7 +20,7 @@ DEV_SSOT_SPREADSHEET_ID = DEV Audit Management spreadsheet ID
 
 Optional browser boundary
 DEV_ALLOWED_ORIGIN = exact external DEV web-app origin.
-When configured, browser CORS is limited to that origin.
+Browser requests fail closed unless DEV_ALLOWED_ORIGIN is configured and matches exactly. Non-browser DEV diagnostics without an Origin header remain available until application-session authentication is implemented.
 
 Endpoints
 GET /health

@@ -21,9 +21,15 @@ function render(rows){
 function runAction(button){
   var auditId=button.getAttribute("data-audit-id");
   var action=button.getAttribute("data-action");
-  if(!window.confirm(action.toUpperCase()+" audit "+auditId+"?"))return;
+  var reason="";
+  if(action==="cancel"||action==="reject"){
+    reason=window.prompt((action==="cancel"?"Cancel":"Reject")+" audit "+auditId+"\nReason:");
+    if(reason===null)return;
+    reason=reason.trim();
+    if(!reason){window.alert("Reason is required.");return}
+  }else if(!window.confirm(action.toUpperCase()+" audit "+auditId+"?"))return;
   document.querySelectorAll(".act").forEach(function(b){b.disabled=true});
-  fetch("/api/v1/manager/action",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({auditId:auditId,action:action,options:{}})})
+  fetch("/api/v1/manager/action",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({auditId:auditId,action:action,options:{reason:reason,comment:reason}})})
     .then(function(r){return r.json().then(function(x){if(!r.ok||x.success===false||x.ok===false)throw new Error(x.message||x.error||"Action failed");return x})})
     .then(loadOpen)
     .catch(function(e){window.alert(e.message);document.querySelectorAll(".act").forEach(function(b){b.disabled=false})});

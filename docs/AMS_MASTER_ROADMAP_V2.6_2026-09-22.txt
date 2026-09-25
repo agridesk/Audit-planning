@@ -1352,3 +1352,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Qualifications remain owned by the existing qualification/eligibility layer; Availability remains the date/interval exception and occupancy layer. The profile must not duplicate either.
 - Annual capacity under 21.41/21.75 derives its gross baseline from this profile (with explicit system defaults only where a profile value is absent), then applies hard/soft Availability and committed occupancy.
 - Profile changes affect future forecast/advisory calculations and trigger targeted read-model invalidation; they do not silently rewrite committed Planning JSON or lifecycle status.
+
+
+21.77 Auditor directory/profile evolution reuses the existing Auditors owner
+- AuditorsIndexService already owns the lightweight active Auditor directory with email, name, role, blocked weekdays and timezone, while qualifications are exposed separately. Planning 2.0 extends this canonical Auditor/profile layer rather than creating a parallel planner-only auditor table.
+- New Planning Profile fields under 21.76 must be exposed through the same indexed/cached directory/profile service with targeted invalidation on change.
+- Existing blocked weekdays and timezone are migrated as profile inputs; qualification columns remain separate qualification truth and must not be folded into editable planning preferences.
+- Profile reads used by annual planning, Availability, Company Map and Trip/Workweek must share one DTO/read model to avoid N+1 Auditor-sheet scans.

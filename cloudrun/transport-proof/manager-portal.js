@@ -21,10 +21,6 @@ function render(rows){
 function runAction(button){
   var auditId=button.getAttribute("data-audit-id");
   var action=button.getAttribute("data-action");
-  if(action==="decline"){
-    window.alert("Decline is not activated yet. Deny and Reject remain separate canonical backend transitions until the fused Planning 2.0 transition is implemented.");
-    return;
-  }
   if(!window.confirm(action.toUpperCase()+" audit "+auditId+"?"))return;
   document.querySelectorAll(".act").forEach(function(b){b.disabled=true});
   fetch("/api/v1/manager/action",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({auditId:auditId,action:action,options:{}})})

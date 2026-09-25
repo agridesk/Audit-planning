@@ -627,7 +627,7 @@ function RUN_ENTRY_ENV_ASSERT_PROD() {
 function RUN_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_ACCEPTANCE() {
   var out = {
     ok: true,
-    build: '2026-09-25_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_R1',
+    build: '2026-09-25_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_R2',
     writesPerformed: false,
     checks: []
   };
@@ -638,6 +638,21 @@ function RUN_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_ACCEPTANCE() {
   check_('devEnvironment', V5_ENTRY_isDevEnv_(), 'Bridge is DEV-only');
   check_('managerAdapterAvailable', typeof managerV5Action === 'function', '');
   check_('statusOwnerAvailable', typeof Status_applyTransition_ === 'function', '');
+  try {
+    var adapterSource = String(managerV5Action);
+    check_('adapterSupportsCancel', adapterSource.indexOf("cancel: 'CANCEL'") >= 0, '');
+    check_('adapterSupportsReject', adapterSource.indexOf("reject: 'REJECT'") >= 0, '');
+  } catch (eSource) {
+    check_('adapterSourceInspectable', false, String(eSource && eSource.message ? eSource.message : eSource));
+  }
+  try {
+    var postSource = String(doPost);
+    check_('externalBridgeRoutePresent', postSource.indexOf('externalmanageraction') >= 0, '');
+    check_('externalBridgeRejectsLegacyDeny', postSource.indexOf("managerAction !== 'approve' && managerAction !== 'cancel' && managerAction !== 'reject'") >= 0, '');
+    check_('externalBridgeRequiresReason', postSource.indexOf("ACTION_REASON_REQUIRED") >= 0, '');
+  } catch (ePostSource) {
+    check_('externalBridgeSourceInspectable', false, String(ePostSource && ePostSource.message ? ePostSource.message : ePostSource));
+  }
   if (typeof Status_applyTransition_ === 'function') {
     var cancelPendingApproval = Status_applyTransition_({ status:'Pending Approval', action:'CANCEL', role:'MANAGER' });
     var cancelApproved = Status_applyTransition_({ status:'Approved', action:'CANCEL', role:'MANAGER' });

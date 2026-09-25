@@ -4,8 +4,13 @@ var all=[];
 function esc(v){var d=document.createElement("div");d.textContent=v==null?"":v;return d.innerHTML}
 function render(rows){
   document.getElementById("rows").innerHTML=rows.map(function(r){
-    var actions=(r.allowedActions||[]).filter(function(a){return a!=="PLAN"}).map(function(a){
-      return "<button class=\"act\" data-audit-id=\""+esc(r.auditId)+"\" data-action=\""+esc(a.toLowerCase())+"\">"+esc(a)+"</button>";
+    var raw=r.allowedActions||[];
+    var ui=[];
+    if(raw.indexOf("APPROVE")>=0)ui.push({key:"approve",label:"Approve"});
+    if(raw.indexOf("DENY")>=0||raw.indexOf("REJECT")>=0)ui.push({key:"decline",label:"Decline"});
+    if(raw.indexOf("CANCEL")>=0)ui.push({key:"cancel",label:"Cancel"});
+    var actions=ui.map(function(a){
+      return "<button class=\"act\" data-audit-id=\""+esc(r.auditId)+"\" data-action=\""+esc(a.key)+"\">"+esc(a.label)+"</button>";
     }).join("");
     return "<tr><td>"+esc(r.company)+"</td><td>"+esc(r.region)+"</td><td>"+esc(r.scopesText)+"</td><td>"+esc(r.status)+"</td><td>"+esc(r.planningWindowText)+"</td><td>"+esc(r.requiredHours)+"</td><td>"+esc(r.hoursPlanned)+"</td><td>"+esc(r.assignedTo)+"</td><td>"+actions+"</td></tr>";
   }).join("");
@@ -16,6 +21,10 @@ function render(rows){
 function runAction(button){
   var auditId=button.getAttribute("data-audit-id");
   var action=button.getAttribute("data-action");
+  if(action==="decline"){
+    window.alert("Decline is not activated yet. Deny and Reject remain separate canonical backend transitions until the fused Planning 2.0 transition is implemented.");
+    return;
+  }
   if(!window.confirm(action.toUpperCase()+" audit "+auditId+"?"))return;
   document.querySelectorAll(".act").forEach(function(b){b.disabled=true});
   fetch("/api/v1/manager/action",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({auditId:auditId,action:action,options:{}})})

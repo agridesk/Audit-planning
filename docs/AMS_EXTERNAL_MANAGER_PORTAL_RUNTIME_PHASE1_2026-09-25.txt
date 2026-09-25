@@ -1,0 +1,23 @@
+AMS EXTERNAL MANAGER PORTAL PHASE 1 RUNTIME CONTRACT
+DATE 2026-09-25
+ENV DEV ONLY
+BUILD 2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R15_MANAGER_OPEN
+
+Accepted prerequisite
+Real Manager OTP login -> credential-safe POST handoff -> Cloud Run HttpOnly session: GREEN.
+
+Phase 1 implementation
+- GET / now serves authenticated external Manager read-only shell.
+- GET /api/v1/manager/open is session protected and Manager-role-only.
+- Read source is existing Audit planning Sheets SSoT through Cloud Run service account.
+- No browser-to-Sheets access.
+- No writes.
+- Existing GAS Manager tools are not migrated by this phase.
+- PROD untouched.
+
+Runtime acceptance
+After automatic Cloud Build deploy, a real DEV Manager login must land on:
+Manager Portal — External DEV
+and load open audit rows plus status counts.
+
+This phase proves application UI + session + direct hot read outside Apps Script.

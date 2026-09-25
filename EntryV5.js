@@ -627,7 +627,7 @@ function RUN_ENTRY_ENV_ASSERT_PROD() {
 function RUN_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_ACCEPTANCE() {
   var out = {
     ok: true,
-    build: '2026-09-25_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_R5',
+    build: '2026-09-25_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_R6',
     writesPerformed: false,
     checks: []
   };
@@ -677,8 +677,17 @@ function RUN_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_ACCEPTANCE() {
     check_('rejectArchiveOwnerAvailable', !!rejectSource, '');
     check_('rejectRequiresReasonAtOwner', rejectSource.indexOf('Reject reason/comment is required.') >= 0, '');
     check_('rejectDeletesActivePlanningRowAfterArchive', rejectSource.indexOf('appendRow') >= 0 && rejectSource.indexOf('deleteRow') >= 0 && rejectSource.indexOf('appendRow') < rejectSource.indexOf('deleteRow'), '');
+    check_('rejectInvalidatesPlanningCachesAfterDelete', rejectSource.indexOf('__mp_invalidateAuditPlanningPack_') >= 0 && rejectSource.indexOf("__mp_invalidatePersistCaches_(['Audit planning'])") >= 0, '');
   } catch (eRejectOwner) {
     check_('rejectOwnerInspectable', false, String(eRejectOwner && eRejectOwner.message ? eRejectOwner.message : eRejectOwner));
+  }
+  try {
+    var rejectActionSource = typeof Status_applyReject_ === 'function' ? String(Status_applyReject_) : '';
+    check_('rejectStatusOwnerFailClosed', rejectActionSource.indexOf('Reject archive owner unavailable') >= 0 && rejectActionSource.indexOf('Reject archive failed') >= 0, '');
+    check_('rejectStatusOwnerNoInPlaceFallback', rejectActionSource.indexOf("setValue(transition.afterStatusDisplay)") < 0, '');
+    check_('rejectStatusOwnerReturnsTransitionMetadata', rejectActionSource.indexOf('moved.afterStatus') >= 0 && rejectActionSource.indexOf('moved.beforeStatus') >= 0, '');
+  } catch (eRejectAction) {
+    check_('rejectStatusOwnerInspectable', false, String(eRejectAction && eRejectAction.message ? eRejectAction.message : eRejectAction));
   }
   try {
     var guardSource = typeof Status_checkDevWriteGuard_ === 'function' ? String(Status_checkDevWriteGuard_) : '';

@@ -1,0 +1,20 @@
+AMS SESSION ENFORCEMENT ACCEPTANCE
+BUILD 2026-09-25 R1
+
+Cloud Run focused read
+- health endpoint remains available for deployment diagnostics;
+- Planning Workspace endpoint requires a signed application-session cookie;
+- invalid, missing or expired session returns SESSION_REQUIRED;
+- session signature uses HMAC SHA-256;
+- session payload contains version, canonical email, canonical role, issued-at and expiry;
+- session TTL is two hours in DEV;
+- cookie contract is HttpOnly, Secure and SameSite=Lax;
+- CORS allows credentials only for the configured DEV origin;
+- browser Origin fails closed when no matching DEV origin is configured;
+- Sheets service identity remains read-only;
+- no write endpoint exists.
+
+Remaining gate
+Session issuance/exchange must be connected to the existing canonical Apps Script token validation without sending browser-claimed email or role as authority.
+
+PROD untouched.

@@ -866,3 +866,17 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Company Scope / certificate changes that only affect future certification cycles or future obligations do not reset the current Visit status.
 - Extension apply/undo is obligation/cycle-specific and does not by itself reset a current Visit status unless it materially changes that Visit's canonical planning validity; any resulting invalidity is handled explicitly by canonical validation, never by an implicit blanket status reset.
 - Historical scope/certificate truth is never destructively deleted.
+
+
+21.13 Company data and preferred-period mutation isolation
+- Companies remains canonical company truth; Locations_JSON remains the sole canonical location owner.
+- Auditor-originated company-data/preferred-period changes remain proposals until manager review/acceptance; they do not directly mutate Companies.
+- Preferred audit months/period are planning guidance for future planning and do not by themselves alter the lifecycle status or committed Planning JSON of an already planned Visit.
+- General company/contact/comment/constraint updates do not reset an active Visit merely because company master data changed. If a changed canonical field materially affects the current Visit (for example its selected execution location or another planning validator input), the current Visit is explicitly revalidated under 21.6 rather than blanket-reset.
+- Accepted proposal application must use targeted cache/read-model invalidation and audit trail; no duplicate company truth and no broad rebuild.
+
+21.14 Re-adjust confirmation and notification semantics
+- A lifecycle-preserving Re-adjust must still create an audit-trail event containing actor, timestamp, changed fields and before/after values or equivalent deterministic change metadata.
+- Material changes that require renewed approval/acceptance use the canonical lifecycle notification for the resulting state; informational changes that preserve status must not manufacture a lifecycle transition.
+- Manager-made same-day time changes on Accepted audits use the informational auditor signal defined in 21.6. Similar informational signals may be used for other lifecycle-preserving changes only where operationally useful; they remain separate from status.
+- Notification delivery failure never rolls back an otherwise valid canonical mutation; Notification Queue remains the delivery SSoT.

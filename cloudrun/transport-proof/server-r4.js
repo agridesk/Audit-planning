@@ -98,7 +98,7 @@ function availabilityProjection(values,emails,from,to,context){
       if(z.start||z.end||z.auditRef||z.status)slots.push(z);
     }
     if(!by[em])by[em]=[];
-    by[em].push({date:d,state:yes(row[ca])?'YES':(clean(row[ca])?'NO':''),slots});
+    by[em].push({date:d,auditorEmail:em,available:val(row,ca),state:yes(row[ca])?'YES':(clean(row[ca])?'NO':''),slots});
   }
   return by;
 }

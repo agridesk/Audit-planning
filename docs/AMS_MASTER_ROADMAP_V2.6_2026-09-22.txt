@@ -1212,3 +1212,12 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - If multiple participating scopes require the same location, the resolver must not blindly duplicate a location row. It produces one Visit-level requirement for that location while preserving traceability to every contributing Company Scope.
 - A configuration that cannot reconcile its per-location allocations to the canonical total is a hard configuration/planning-validity error and cannot be committed.
 - Scope Manager must validate this reconciliation when Company Scope location requirements are changed, before those requirements can govern a new Visit.
+
+
+21.57 Company Map is a shared read model, not a planning owner
+- Planning 2.0 preserves the existing Company Map as a shared visualization surface over Companies.Locations_JSON and audit workload; it must not create a parallel Company/location/planning dataset.
+- Auditor workload overlay preserves separate visibility of own assigned/preassigned workload and other future active audits, using canonical Audit ID, Company_UID, status, auditor assignment and Planning JSON-derived schedule context.
+- With 21.52-21.55, a multi-location Visit must project every committed execution location represented in Planning JSON to the corresponding Company location marker; the map may not collapse the Visit to the legacy single Audit planning Location field.
+- Pending Planning preassignment may be visualized as prospective workload but remains distinct from committed planned occupancy.
+- Company Map remains read-only/advisory. Planning, preassignment, lifecycle, Availability and Company mutations continue through their canonical owners.
+- Map datasets must use bounded/cached/read-model access consistent with 3S and must not regress to per-marker or per-audit full-sheet scans.

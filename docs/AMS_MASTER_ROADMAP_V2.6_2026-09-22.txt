@@ -792,6 +792,7 @@ Re-adjust remains an action/mode through Workspace -> Preflight -> canonical wri
 - Scope/certificate lifecycle changes that affect only future certification cycles/obligations and do not change the current planned visit are not a reason to reset the current audit status.
 - Time change within the same audit day (for example 08:00-16:00 to 09:00-17:00): may preserve current lifecycle status, subject to canonical Availability/conflict/planning-window validation.
 - Other non-material changes may preserve status when they do not change the audit day or scope set and pass the relevant canonical validators.
+- Change of execution location while audit day/date, assigned auditor and scope set remain unchanged may preserve Approved/Accepted status, provided canonical Availability, travel/conflict and planning-validity checks pass. Execution-location change is not by itself a lifecycle reset trigger.
 - Completed remains immutable for operational Re-adjust.
 This rule supersedes older generic wording that every time/hours/block change automatically resets lifecycle status.
 

@@ -1289,3 +1289,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Bulk concept assignment uses the same per-item qualification, rotation, planning-window and concurrency validation as single-item assignment. It follows the partial-success governance in 21.50: valid items apply, blocked items remain unchanged with explicit reasons.
 - The preview summarizes resulting forecast workload/capacity by Auditor and month before commit, including Formal hours, Planning duration and audit/Visit counts without conflation.
 - No selected item gains Planning JSON, Availability occupancy or lifecycle progression merely through bulk concept assignment.
+
+
+21.68 Preassignment and self-planning permission remain separate controls
+- A preassigned Auditor does not automatically gain permission to self-plan. Self-planning requires the canonical Allow self planning setting for that obligation/audit in addition to preassignment and current eligibility.
+- When Allow self planning = YES, the preassigned Auditor may see the Pending Planning item in the self-planning work queue; when NO, the preassignment remains forecast/manager-planning metadata only.
+- Changing Allow self planning does not itself create planning, reserve Availability or change lifecycle status.
+- If self-planning permission is removed while the audit is still Pending Planning and uncommitted, self-planning access is withdrawn. Once a plan has been submitted and lifecycle has progressed, subsequent handling follows the canonical lifecycle/Re-adjust rules rather than silently deleting submitted planning.

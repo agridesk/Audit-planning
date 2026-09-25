@@ -1345,3 +1345,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Annual Planner capacity therefore derives from the governed Auditor work profile/standard working-day assumptions plus explicit hard/soft Availability and committed Planning duration; UI calendar rendering bounds are not capacity SSoT.
 - Until richer Auditor profile hours are configured, capacity assumptions must be explicit/configurable and visible in the annual view rather than inferred silently from Availability row width.
 - Long same-day planned workload remains governed by 21.32 as a soft warning, so forecast capacity and concrete feasibility remain distinct concepts.
+
+
+21.76 Auditor Planning Profile is the owner for forecast-capacity assumptions
+- Section 13.1 is promoted from a vague future profile to the canonical home for Auditor-specific planning assumptions that are not qualification truth: standard working-day capacity, blocked weekdays, planning base/location, region preferences and other planning constraints.
+- Qualifications remain owned by the existing qualification/eligibility layer; Availability remains the date/interval exception and occupancy layer. The profile must not duplicate either.
+- Annual capacity under 21.41/21.75 derives its gross baseline from this profile (with explicit system defaults only where a profile value is absent), then applies hard/soft Availability and committed occupancy.
+- Profile changes affect future forecast/advisory calculations and trigger targeted read-model invalidation; they do not silently rewrite committed Planning JSON or lifecycle status.

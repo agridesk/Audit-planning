@@ -1127,3 +1127,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Recurring unavailable weekdays are soft unavailability: visible warning/advisory context that may be overridden through the governed planning path; they are not silently converted to hard blocks.
 - Availability UI and planning validators must expose the same resolved semantics; no separate Manager interpretation may be introduced.
 - Annual capacity reports hard unavailable hours, soft unavailable hours, occupied audit hours and overrideable soft hours separately.
+
+
+21.47 Availability edits cannot overwrite committed audit occupancy
+- My Availability may create explicit unavailable dates/ranges around existing work, but days/intervals already occupied by committed planned audits are skipped/protected rather than rewritten.
+- An Auditor who becomes unavailable for an already planned audit must use the audit lifecycle/planning route (Cancel/Re-adjust or Manager intervention as applicable); changing personal Availability is not an indirect reschedule mechanism.
+- Availability writes must therefore fail closed or skip protected audit-owned intervals deterministically and report what was not changed.
+- This preserves Planning JSON as planning truth and prevents Availability from becoming a competing lifecycle owner.

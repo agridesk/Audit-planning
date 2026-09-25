@@ -1151,3 +1151,12 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Corrections must pass field-specific validation (including the canonical Hours dedicated input/granularity rules) and use the canonical completed-audit writer/service; direct frontend/sheet mutation is not permitted.
 - A correction changes realized/reporting truth only. It must not rewrite historical Planning JSON, Formal hours, Planning duration, completion provenance or lifecycle timestamps unless that specific field is itself governed as an administratively correctable field.
 - Rotation/history cache invalidation remains targeted and deterministic where the corrected realized field can affect downstream projections.
+
+
+21.50 Bulk planning supports explicit partial commit
+- Bulk planning is not all-or-nothing. After commit-time canonical revalidation, valid items may commit while invalid items remain unchanged.
+- Every item returns an explicit outcome such as committed, blocked, failed, already committed or skipped, with the governing reason where not committed.
+- A hard validator failure for one audit must not prevent independent valid audits in the same batch from committing.
+- No item may be silently omitted. The batch result must reconcile requested item count against every per-item outcome.
+- Each committed audit still uses the canonical single-audit planning/write chain, including Planning JSON, Availability ownership, lifecycle action, audit trail and targeted cache invalidation; bulk orchestration must not become a second persistence owner.
+- Batch/command idempotency is mandatory so timeout/retry cannot duplicate successful commits. Already committed items must be recognized deterministically on retry.

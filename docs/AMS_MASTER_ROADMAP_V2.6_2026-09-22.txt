@@ -1296,3 +1296,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - When Allow self planning = YES, the preassigned Auditor may see the Pending Planning item in the self-planning work queue; when NO, the preassignment remains forecast/manager-planning metadata only.
 - Changing Allow self planning does not itself create planning, reserve Availability or change lifecycle status.
 - If self-planning permission is removed while the audit is still Pending Planning and uncommitted, self-planning access is withdrawn. Once a plan has been submitted and lifecycle has progressed, subsequent handling follows the canonical lifecycle/Re-adjust rules rather than silently deleting submitted planning.
+
+
+21.69 Preassignment/self-planning policy belongs to the current obligation, not immutable Company identity
+- Existing 1.0 storage projects Preassigned Auditor and Allow self planning onto the active Audit planning row and Scope Manager edits them together with the active audit context. Planning 2.0 must not promote either field to permanent Companies master data.
+- In Model C they are current Audit Obligation / annual-assignment policy metadata (or a dedicated assignment-policy record keyed to the obligation/cycle), projected to legacy Audit planning only while compatibility is required.
+- Successor obligations may copy the prior policy as an explicit lifecycle default for continuity, but each new obligation owns its resulting values and the Manager can change them without rewriting historical cycles.
+- This keeps annual concept assignment, self-planning access and historical provenance cycle-specific while Company_UID remains stable identity only.

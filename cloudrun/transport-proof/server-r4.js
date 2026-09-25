@@ -3,7 +3,10 @@ import {URL} from 'node:url';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
-const BUILD='2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R6_AUTH_BOUNDARY_PENDING';
+const BUILD='2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R7_SESSION_PRIMITIVES';
+const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
+const SESSION_COOKIE='ams_dev_session';
+const SESSION_TTL_SECONDS=2*60*60;
 function send(res,status,body){const h={'content-type':'application/json; charset=utf-8','cache-control':'no-store'};if(ORIGIN){h['access-control-allow-origin']=ORIGIN;h.vary='Origin';}res.writeHead(status,h);res.end(JSON.stringify(body));}
 async function accessToken(){
   const r=await fetch('http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',{headers:{'Metadata-Flavor':'Google'}});
@@ -18,6 +21,9 @@ async function sheetsBatchGet(ranges){
   if(!r.ok)throw new Error('SHEETS_API_'+r.status+': '+JSON.stringify(body));return body.valueRanges||[];
 }
 function clean(v){return String(v==null?'':v).trim();}
+function b64url(v){return Buffer.from(v).toString('base64url');}
+function cookieMap(req){const out={};for(const part of clean(req.headers.cookie).split(';')){const p=part.indexOf('=');if(p>0)out[part.slice(0,p).trim()]=part.slice(p+1).trim();}return out;}
+function sessionConfigured(){return SESSION_SECRET.length>=32;}
 function key(v){return clean(v).toLowerCase().replace(/\s+/g,'_');}
 function col(h,names){const m={};h.forEach((v,i)=>{const k=key(v);if(k&&m[k]===undefined)m[k]=i;});for(const n of names){const k=key(n);if(m[k]!==undefined)return m[k];}return-1;}
 function val(r,i){return i>=0?clean(r[i]):'';}
@@ -145,7 +151,7 @@ async function focused(id){
 
 http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return send(res,403,{ok:false,error:'CORS_DISABLED'});res.writeHead(204,{'access-control-allow-origin':ORIGIN,'access-control-allow-methods':'GET,OPTIONS','access-control-allow-headers':'content-type','vary':'Origin'});return res.end();}
   const u=new URL(req.url,'http://localhost');
-  if(u.pathname==='/health')return send(res,200,{ok:true,service:'ams-hot-read-proof',build:BUILD,mode:'DIRECT_SHEETS_READ_ONLY',ssotConfigured:!!SID,corsConfigured:!!ORIGIN,authState:'PENDING_APPLICATION_SESSION'});
+  if(u.pathname==='/health')return send(res,200,{ok:true,service:'ams-hot-read-proof',build:BUILD,mode:'DIRECT_SHEETS_READ_ONLY',ssotConfigured:!!SID,corsConfigured:!!ORIGIN,sessionSecretConfigured:sessionConfigured(),authState:sessionConfigured()?'SESSION_SECRET_READY':'PENDING_SESSION_SECRET'});
   if(u.pathname!=='/api/v1/planning/workspace'||req.method!=='GET')return send(res,404,{ok:false,error:'NOT_FOUND'});
   const id=clean(u.searchParams.get('auditId'));
   if(req.headers.origin&&(!ORIGIN||req.headers.origin!==ORIGIN))return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});

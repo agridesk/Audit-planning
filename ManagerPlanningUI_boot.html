@@ -1667,15 +1667,8 @@ function toISODate_(d){
         // Auditor self-planning keeps the bundle route because it may need the
         // locked auditor context and visible-month bootstrap in one flow.
         if (!isAuditorToolkit_()) {
-          log('[AMS01] manager open: Lite bundle; calendar deferred until explicit load');
-          __openBootStage_('googleRunSubmit', { fn: 'getToolkitOpenBundleV5_d13', route: 'managerLiteBundle', withCalendar: false, role: V5_ROLE || '' });
-          google.script.run
-            .withSuccessHandler(function(fastRes){ __d13_handleOpenSuccess_(fastRes, 'd17_MANAGER_LITE'); })
-            .withFailureHandler(function(err){
-              log('[AMS01] manager Lite bundle failed; direct fast fallback: ' + (err && err.message ? err.message : JSON.stringify(err)));
-              __d13_callFastDirect_();
-            })
-            .getToolkitOpenBundleV5_d13(auditId, currentMonthKey, { withCalendar: false, role: V5_ROLE, lockedAuditorEmail: '' });
+          log('[d24] manager fast open: shell/context only; calendar deferred until explicit load');
+          __d13_callFastDirect_();
         } else {
           __openBootStage_('googleRunSubmit', { fn: 'getToolkitOpenBundleV5_d13', route: 'auditorBundle', withCalendar: __wantCalendar, role: V5_ROLE || '' });
           google.script.run
@@ -4272,7 +4265,6 @@ async function savePlanning(){
                 plannedDates:__plannedDates,
                 plannedHours:__plannedHours,
                 newStatus:status,
-                actorRole:String(V5_ROLE || '').toUpperCase(),
                 blocks:(payload&&payload.blocks?payload.blocks:[]),
                 ts:Date.now()
               };
@@ -4283,7 +4275,7 @@ async function savePlanning(){
               } catch(_e) {}
               v5PostToOpener_(__savedPayload);
             }catch(e){}
-            closeWindow();
+            v5ShowPostSaveStayOpenState_(isAuditorToolkit_() ? 'Planning submitted for approval.' : 'Planning saved successfully.', status);
           }catch(err){
             resetSaveUi_();
             await v5ShowError_("Save failed: "+(err && err.message ? err.message : "unknown"));

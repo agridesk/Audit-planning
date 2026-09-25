@@ -983,3 +983,9 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Therefore an Auditor cannot create a contradiction by marking the already planned audit interval unavailable; changing the audit itself must use the governed planning/Re-adjust/Cancel flow.
 - Planning 2.0 must preserve this protection and distinguish audit-owned hard occupancy from editable personal Availability.
 - Availability UI rollback/read-only behavior must remain deterministic and must not mutate lifecycle status.
+
+
+21.28 Company planning preferences remain advisory
+- Less-suitable weekdays/hours and Preferred audit months are company planning preferences / soft blocks only. They never become hidden hard constraints.
+- A later accepted company-data proposal that changes these preferences does not invalidate or place a hold on an already Approved/Accepted audit.
+- Planning/Re-adjust surfaces show relevant preference mismatches as advisory context when a planning decision is being made, but committed lifecycle truth is not rewritten solely because preference metadata changed.

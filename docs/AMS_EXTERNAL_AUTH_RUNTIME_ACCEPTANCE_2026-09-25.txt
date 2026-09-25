@@ -1,0 +1,37 @@
+AMS EXTERNAL AUTH RUNTIME ACCEPTANCE
+DATE 2026-09-25
+TARGET DEV ONLY
+
+Prerequisite
+/health must report:
+- sessionSecretConfigured true
+- sessionSecretPresent true
+- sessionSecretLength >= 32
+- authState SESSION_EXCHANGE_READY
+
+Verified prerequisite 2026-09-25
+Runtime build R13 reported:
+sessionSecretConfigured=true
+sessionSecretPresent=true
+sessionSecretLength=63
+authState=SESSION_EXCHANGE_READY
+
+Acceptance flow
+1. Existing GAS login remains identity-proof UI.
+2. After OTP or trusted-token validation, browser submits token, role and deviceId by POST to:
+   https://ams-transport-proof-510075419067.europe-west1.run.app/auth/legacy-handoff
+3. Cloud Run validates against Auditor_Tokens canonical SSoT.
+4. On success Cloud Run sets Secure HttpOnly ams_dev_session cookie and redirects with HTTP 303 to /.
+5. GET / shows authenticated session landing without credentials in URL.
+6. GET /api/v1/session returns canonical session identity.
+7. GET /api/v1/planning/workspace?auditId=<id> requires that session.
+
+Negative acceptance
+- GET / without session -> 401.
+- workspace read without session -> 401 SESSION_REQUIRED.
+- invalid/revoked/expired/device-mismatched legacy token -> exchange 401.
+- unsupported role -> focused workspace 403 ROLE_FORBIDDEN.
+- no raw token or deviceId in redirect URL.
+
+Cutover boundary
+Do not replace the legacy portal route until this handoff has passed with a real DEV login. PROD remains untouched.

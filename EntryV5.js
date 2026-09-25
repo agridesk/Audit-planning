@@ -623,6 +623,40 @@ function RUN_ENTRY_ENV_ASSERT_PROD() {
   return result;
 }
 
+
+function RUN_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_ACCEPTANCE() {
+  var out = {
+    ok: true,
+    build: '2026-09-25_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_R1',
+    writesPerformed: false,
+    checks: []
+  };
+  function check_(name, ok, detail) {
+    out.checks.push({ name:name, ok:!!ok, detail:detail || '' });
+    if (!ok) out.ok = false;
+  }
+  check_('devEnvironment', V5_ENTRY_isDevEnv_(), 'Bridge is DEV-only');
+  check_('managerAdapterAvailable', typeof managerV5Action === 'function', '');
+  check_('statusOwnerAvailable', typeof Status_applyTransition_ === 'function', '');
+  if (typeof Status_applyTransition_ === 'function') {
+    var cancelPendingApproval = Status_applyTransition_({ status:'Pending Approval', action:'CANCEL', role:'MANAGER' });
+    var cancelApproved = Status_applyTransition_({ status:'Approved', action:'CANCEL', role:'MANAGER' });
+    var cancelAccepted = Status_applyTransition_({ status:'Accepted', action:'CANCEL', role:'MANAGER' });
+    var rejectPendingPlanning = Status_applyTransition_({ status:'Pending Planning', action:'REJECT', role:'MANAGER' });
+    var rejectAccepted = Status_applyTransition_({ status:'Accepted', action:'REJECT', role:'MANAGER' });
+    check_('cancelPendingApprovalToPlanning', !!(cancelPendingApproval && cancelPendingApproval.ok && cancelPendingApproval.afterStatus === 'PENDING_PLANNING'), JSON.stringify(cancelPendingApproval || {}));
+    check_('cancelApprovedToPlanning', !!(cancelApproved && cancelApproved.ok && cancelApproved.afterStatus === 'PENDING_PLANNING'), JSON.stringify(cancelApproved || {}));
+    check_('cancelAcceptedToPlanning', !!(cancelAccepted && cancelAccepted.ok && cancelAccepted.afterStatus === 'PENDING_PLANNING'), JSON.stringify(cancelAccepted || {}));
+    check_('rejectPendingPlanningToRejected', !!(rejectPendingPlanning && rejectPendingPlanning.ok && rejectPendingPlanning.afterStatus === 'REJECTED'), JSON.stringify(rejectPendingPlanning || {}));
+    check_('rejectAcceptedToRejected', !!(rejectAccepted && rejectAccepted.ok && rejectAccepted.afterStatus === 'REJECTED'), JSON.stringify(rejectAccepted || {}));
+  }
+  var props = PropertiesService.getScriptProperties();
+  var bridgeKey = String(props.getProperty('AMS_EXTERNAL_WRITE_BRIDGE_KEY') || '').trim();
+  check_('bridgeKeyConfigured', bridgeKey.length >= 32, bridgeKey ? 'configured' : 'missing');
+  try { Logger.log(JSON.stringify(out, null, 2)); } catch (eLog) {}
+  return out;
+}
+
 function doPost(e) {
   var p = (e && e.parameter) ? e.parameter : {};
   var rawAction = String(p.action || '').trim().toLowerCase();

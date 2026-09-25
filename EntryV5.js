@@ -649,6 +649,12 @@ function doPost(e) {
     if (!actorEmail || !auditId || !managerAction) {
       return ContentService.createTextOutput(JSON.stringify({ success:false, error:'MISSING_REQUIRED_FIELDS' })).setMimeType(ContentService.MimeType.JSON);
     }
+    if (managerAction !== 'approve' && managerAction !== 'cancel' && managerAction !== 'reject') {
+      return ContentService.createTextOutput(JSON.stringify({ success:false, error:'MANAGER_PORTAL_ACTION_NOT_ALLOWED' })).setMimeType(ContentService.MimeType.JSON);
+    }
+    if ((managerAction === 'cancel' || managerAction === 'reject') && !String(options.reason || options.comment || '').trim()) {
+      return ContentService.createTextOutput(JSON.stringify({ success:false, error:'ACTION_REASON_REQUIRED' })).setMimeType(ContentService.MimeType.JSON);
+    }
     options.actorEmail = actorEmail;
     options.managerEmail = actorEmail;
     options.externalSession = true;

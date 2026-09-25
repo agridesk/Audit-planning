@@ -4,7 +4,7 @@ import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
-const BUILD='2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R12_POST_HANDOFF';
+const BUILD='2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R13_ELIGIBILITY_EQUIVALENCE';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const SESSION_COOKIE='ams_dev_session';
 const SESSION_TTL_SECONDS=2*60*60;
@@ -71,7 +71,9 @@ function candidates(audValues,catalog,required,pre){
       return false;
     }))
     .map(row=>({email:val(row,e).toLowerCase(),name:val(row,n),blockedWeekdays:val(row,bw),isPreassigned:[val(row,e).toLowerCase(),val(row,n).toLowerCase()].includes(clean(pre).toLowerCase()),rotationState:'DEFERRED',rotationWarning:null,performedCount:null,maxAllowed:null}))
-    .filter(x=>x.email);
+    .filter(x=>x.email)
+    .sort((x,y)=>{if(x.isPreassigned!==y.isPreassigned)return x.isPreassigned?-1:1;return clean(x.name||x.email).localeCompare(clean(y.name||y.email));})
+    .slice(0,5);
 }
 
 function auditContext(values,catalog){

@@ -161,7 +161,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
   if(u.pathname==='/health')return send(res,200,{ok:true,service:'ams-hot-read-proof',build:BUILD,mode:'DIRECT_SHEETS_READ_ONLY',ssotConfigured:!!SID,corsConfigured:!!ORIGIN,sessionSecretConfigured:sessionConfigured(),authState:sessionConfigured()?'SESSION_SECRET_READY':'PENDING_SESSION_SECRET'});
   if(u.pathname==='/api/v1/session'&&req.method==='GET'){if(req.headers.origin&&(!ORIGIN||req.headers.origin!==ORIGIN))return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});const s=sessionFromRequest(req);return s?send(res,200,{ok:true,identity:{email:s.email,role:s.role},expiresAt:s.exp}):send(res,401,{ok:false,error:'SESSION_REQUIRED'});}
   if(u.pathname!=='/api/v1/planning/workspace'||req.method!=='GET')return send(res,404,{ok:false,error:'NOT_FOUND'});
-  const session=sessionFromRequest(req);if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+  const session=sessionFromRequest(req);if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(!['manager','auditor'].includes(clean(session.role).toLowerCase()))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});
   const id=clean(u.searchParams.get('auditId'));
   if(req.headers.origin&&(!ORIGIN||req.headers.origin!==ORIGIN))return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});
   if(!id)return send(res,400,{ok:false,error:'AUDIT_ID_REQUIRED'});

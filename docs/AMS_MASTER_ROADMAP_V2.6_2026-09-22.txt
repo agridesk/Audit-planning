@@ -882,3 +882,17 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Material changes that require renewed approval/acceptance use the canonical lifecycle notification for the resulting state; informational changes that preserve status must not manufacture a lifecycle transition.
 - Manager-made same-day time changes on Accepted audits use the informational auditor signal defined in 21.6. Similar informational signals may be used for other lifecycle-preserving changes only where operationally useful; they remain separate from status.
 - Notification delivery failure never rolls back an otherwise valid canonical mutation; Notification Queue remains the delivery SSoT.
+
+
+21.15 Company master-data parity and ownership
+- Manager 2.0 must retain the existing Companies operational surface: list/search, create company, edit company, status, country/time zone, contacts, communication language, region, comments, planning preferences and Locations_JSON-backed locations.
+- Manager company creation/editing writes through the existing canonical Companies backend; 2.0 must not introduce a second company store or duplicate write path.
+- Auditor company adjustments remain proposal-only. Company_Update_Proposals is the staging/review path; manager review accepts/rejects and accepted changes are applied to Companies with audit trail.
+- Preferred audit months and less-suitable weekdays/hours remain planning preferences/soft constraints, not hard planning blocks. Changes do not rewrite existing Planning JSON or lifecycle status by themselves.
+- New companies must become available to Scope Manager / Model C ownership without manual cache repair; targeted invalidation/read-model refresh is part of acceptance.
+
+21.16 Hard planning validity versus manager discretion
+- Canonical hard planning failures remain non-overridable by ordinary Manager/Auditor UI actions: double booking/overlap, auditor unavailable, outside canonical planning window, invalid qualification/dependency, and other validator-defined hard failures.
+- Manager discretion applies only to explicitly classified soft warnings/preferences. A UI acknowledgement may record the decision but may not convert a hard failure into a valid canonical plan.
+- Weekend handling, travel burden, sustainability preference, company less-suitable days/hours and rotation pressure remain governed by their explicit rule classifications; rotation specifically follows 21.4.
+- Planning 2.0 must render hard versus soft outcomes distinctly and reuse one canonical validator owner for Manager, Auditor, Re-adjust and later batch/bulk planning.

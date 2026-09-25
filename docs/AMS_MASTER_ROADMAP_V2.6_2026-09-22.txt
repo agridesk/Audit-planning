@@ -1265,3 +1265,12 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - A preferred month outside the canonical planning window never widens that window. The hard Model C window remains authoritative.
 - Preference changes do not reset or hold existing Approved/Accepted audits and do not rewrite Planning JSON.
 - Auditor-proposed changes to preferred months continue through Company_Update_Proposals rather than direct Company mutation.
+
+
+21.65 Annual Planner supports non-committing month + auditor concept assignment
+- A Pending Planning obligation/audit may carry both a concept planning month and a preassigned Auditor before any concrete audit date/time is committed.
+- This is forecasting/annual-assignment metadata only: it does not create Planning JSON, reserve Availability, change lifecycle status or constitute an auditor assignment for an actual Visit.
+- The concept month must remain compatible with the canonical Model C planning window; preferred audit months under 21.64 may guide selection but do not widen the hard window.
+- Preassignment remains governed by qualification, rotation and preassignment rules, including 21.42-21.45. Changing the preassigned Auditor transfers self-planning visibility immediately as defined there.
+- Annual workload views may allocate forecast workload to the concept month and preassigned Auditor, but must distinguish it visibly from committed planned capacity/occupancy.
+- Concrete Manager planning or Auditor self-planning later revalidates all canonical constraints and writes the actual Planning JSON independently of the concept month.

@@ -335,14 +335,13 @@ Recurring=NO:
 - dependencies respected generically.
 
 6.4 Scope changes
-Need explicit rules for:
-- add scope;
-- deactivate scope;
-- dependency-driven child scope;
-- new cycle;
-- existing planned visit linkage;
-- certificate history;
-- no destructive delete of historical truth.
+The explicit rules are consolidated in section 21 and are authoritative:
+- add/change/deactivate scope through Scope Manager / Model C ownership;
+- dependency-driven child scopes follow canonical dependency rules, including 21.39;
+- new cycles create/own their own Audit Obligations and preserve historical identity;
+- changes affecting the current planned Visit follow 21.12 materiality rules;
+- future-only lifecycle changes do not silently rewrite the current Visit;
+- historical Visit_Obligation and certificate/cycle truth is never destructively deleted.
 
 6.5 Expiry/reporting projection
 Reporting and UI must be able to show:

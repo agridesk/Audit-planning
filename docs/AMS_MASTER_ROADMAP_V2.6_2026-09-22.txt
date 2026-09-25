@@ -1168,3 +1168,13 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Existing Notification Queue consolidation/digest rules may combine delivery where configured; bulk planning itself must not suppress, merge or directly send lifecycle mail.
 - Notification idempotency remains payload/event based so batch retry does not create duplicate notifications for already committed items, while a legitimate later cancel/replan/accept cycle for the same Audit ID can still create new events.
 - ECAS/external notifications remain tied to the canonical Accepted transition and existing external digest governance, irrespective of whether the underlying planning originated from single or bulk planning.
+
+
+21.52 Multi-location Visits require explicit Planning-duration allocation per required location
+- Where one audit/Visit requires multiple execution locations, the practical Planning duration is allocated explicitly across those required locations before planning can commit.
+- The sum of the per-location Planning durations must equal the canonical total Visit Planning duration, subject to the existing ±15 minute total planning tolerance only where that tolerance is applicable to the committed blocks.
+- Every required location must have its own positive configured/planned duration and at least one corresponding Planning JSON block carrying that execution location; a location cannot be satisfied by presence alone without its required time allocation.
+- Planning JSON remains the committed time/location truth: block durations per `execLoc` must reconcile to the required per-location allocation.
+- Location allocation is practical scheduling capacity and does not split or duplicate Formal hours. Formal hours remain governed separately under 21.41.
+- Multi-day and non-consecutive planning may distribute a location's allocated duration across multiple blocks/days, provided the aggregate per location validates.
+- Re-adjust of time/location must rerun both total-duration and per-location-duration validation before commit.

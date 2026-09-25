@@ -1,5 +1,5 @@
 <!--
-  BUILD: 2026-09-25_AMS_EXTERNAL_MANAGER_HANDOFF_R7_REAL_TOKEN_ONLY
+  BUILD: LOGIN_FORM_TOP_SUBMIT_R14_20260527
   LoginV5.html (PROD REDIRECT + OTP UX/NORMALIZATION + MAIL_FAIL_VISIBLE FIX R14)
   Timestamp: 20260205_164640
 
@@ -181,7 +181,6 @@
 <script>
   const EXEC_URL = "<?!= __execUrl ?>";
   const EXPECTED_ROLE = "<?!= __expectedRole ?>";
-  const EXTERNAL_DEV_URL = "https://ams-transport-proof-510075419067.europe-west1.run.app";
   const ACTION_AFTER_LOGIN = "<?!= __actionAfterLogin ?>";
   const APP_ENV = "<?!= typeof __appEnv !== 'undefined' ? __appEnv : '' ?>";
   const TEST_AUTH_ENABLED = <?!= (typeof __testAuthEnabled !== 'undefined' && __testAuthEnabled) ? 'true' : 'false' ?>;
@@ -320,7 +319,6 @@
   }
 
   function buildPortalTarget_(email, role, token, deviceId) {
-    if (String(APP_ENV || '').toUpperCase() === 'DEV' && String(ACTION_AFTER_LOGIN || '').toLowerCase() === 'manager' && String(role || EXPECTED_ROLE || '').toLowerCase() === 'manager' && String(token || '').trim() && String(deviceId || '').trim()) return { externalPost:true, url:EXTERNAL_DEV_URL + '/auth/legacy-handoff', token:String(token || '').trim(), role:String(role || EXPECTED_ROLE || '').trim(), deviceId:String(deviceId || '').trim() };
     const action = resolveActionAfterLogin_();
     const cleanEmail = normEmail(email);
     const cleanRole = String(role || EXPECTED_ROLE || "").trim();
@@ -343,11 +341,6 @@
   function submitTopGet_(targetUrl) {
     if (!targetUrl) return false;
     try {
-      if (targetUrl.externalPost === true) {
-        var postForm=document.createElement('form'); postForm.method='POST'; postForm.action=targetUrl.url; postForm.target='_top'; postForm.style.display='none';
-        [['token',targetUrl.token],['role',targetUrl.role],['deviceId',targetUrl.deviceId]].forEach(function(pair){var input=document.createElement('input');input.type='hidden';input.name=pair[0];input.value=pair[1]||'';postForm.appendChild(input);});
-        document.body.appendChild(postForm); postForm.submit(); return true;
-      }
       var u = new URL(targetUrl);
       var form = document.createElement("form");
       form.method = "GET";
@@ -373,21 +366,30 @@
 
   function showContinueStep(targetUrl) {
     __targetUrl = targetUrl;
-    setMsg("ok", "Authenticated. Opening portal…");
-
-    if (submitTopGet_(targetUrl)) return;
 
     var continueBox = document.getElementById("stepContinue");
     var targetDbg = document.getElementById("targetUrlDbg");
     var btnContinue = document.getElementById("btnContinue");
 
     if (continueBox) continueBox.classList.remove("hidden");
-    if (targetDbg) targetDbg.textContent = (targetUrl && targetUrl.externalPost) ? targetUrl.url : (targetUrl || "");
+    if (targetDbg) targetDbg.textContent = targetUrl || "";
     if (btnContinue) {
       btnContinue.disabled = false;
       try { btnContinue.focus(); } catch(eFocus) {}
     }
-    setMsg("ok", "Authenticated. Click Open portal to continue.");
+
+    document.getElementById("btnVerify").disabled = true;
+    setMsg("ok", "Authenticated. Opening portal…");
+
+    try {
+      setTimeout(function () {
+        if (!submitTopGet_(targetUrl)) {
+          setMsg("ok", "Authenticated. Click Open portal to continue.");
+        }
+      }, 120);
+    } catch(e) {
+      setMsg("ok", "Authenticated. Click Open portal to continue.");
+    }
   }
 
   function buildTestTarget(email, role) {
@@ -507,11 +509,6 @@
       if (!document.getElementById("email").value) document.getElementById("email").focus();
       try {
         const force = localStorage.getItem(KEY_FORCE) || "";
-        const storedToken = localStorage.getItem(KEY_TOKEN) || "";
-        if (!force && hasTrustedCreds_() && storedToken !== TEST_TOKEN && String(APP_ENV || '').toUpperCase() === 'DEV' && String(ACTION_AFTER_LOGIN || '').toLowerCase() === 'manager' && String(EXPECTED_ROLE || '').toLowerCase() === 'manager') {
-          continueTrusted();
-          return;
-        }
         if (force && hasTrustedCreds_()) {
           document.getElementById("stepTrusted").classList.remove("hidden");
         }
@@ -519,6 +516,17 @@
     } catch (e) {}
   })();
 
+  // Connectivity ping (detect wrong /exec / cached HTML)
+  try {
+    google.script.run
+      .withSuccessHandler(function(res) {
+        // console.log('V5_ping ok', res);
+      })
+      .withFailureHandler(function(err) {
+        setMsg('err', 'Cannot reach backend endpoint. Likely wrong /exec URL or cached HTML.');
+      })
+      .V5_ping();
+  } catch(e) {}
 
 
   function sendCode() {

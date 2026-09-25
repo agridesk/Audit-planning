@@ -288,6 +288,11 @@ function MoveAuditToRejected(auditId, payload) {
 
   apInfo.sheet.deleteRow(apInfo.sheetRow);
 
+  // The source row no longer exists. Flush planning read caches immediately so
+  // Manager Portal/Open reads cannot briefly resurrect the rejected audit.
+  try { if (typeof __mp_invalidateAuditPlanningPack_ === 'function') __mp_invalidateAuditPlanningPack_(); } catch (eCache0) {}
+  try { if (typeof __mp_invalidatePersistCaches_ === 'function') __mp_invalidatePersistCaches_(['Audit planning']); } catch (eCache1) {}
+
   try {
     if (typeof AvailabilityV5_ReleaseReservation === 'function') AvailabilityV5_ReleaseReservation(auditId);
   } catch (e0) {}

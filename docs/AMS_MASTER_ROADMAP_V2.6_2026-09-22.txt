@@ -856,3 +856,10 @@ For every surface, migration evidence must state: existing UI entry point, canon
 
 21.11 Existing implementation evidence is reusable
 Existing accepted components/tests are migration assets, including Model C Scope ownership, extension service, canonical planning modify/Re-adjust foundation, Planning Workspace, Availability, company update dialog/proposal flow, Manager Tools, maps and lifecycle services. Planning 2.0 must consume or adapt these owners. A new UI does not reset completed backend work.
+
+21.12 Scope/cycle mutation status isolation
+- Current Visit lifecycle status changes only when the mutation materially changes that current planned Visit.
+- Adding/removing/changing a scope linked to the current planned Visit is material and follows 21.6.
+- Company Scope / certificate changes that only affect future certification cycles or future obligations do not reset the current Visit status.
+- Extension apply/undo is obligation/cycle-specific and does not by itself reset a current Visit status unless it materially changes that Visit's canonical planning validity; any resulting invalidity is handled explicitly by canonical validation, never by an implicit blanket status reset.
+- Historical scope/certificate truth is never destructively deleted.

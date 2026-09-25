@@ -22,7 +22,7 @@ steps:
       - --service-account
       - 510075419067-compute@developer.gserviceaccount.com
       - --update-env-vars
-      - DEV_SSOT_SPREADSHEET_ID=1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs
+      - DEV_SSOT_SPREADSHEET_ID=1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs,GAS_DEV_WRITE_URL=$_GAS_DEV_WRITE_URL
       - --update-secrets
       - AMS_SESSION_SIGNING_SECRET=AMS_SESSION_SIGNING_SECRET:latest,AMS_EXTERNAL_WRITE_BRIDGE_KEY=AMS_EXTERNAL_WRITE_BRIDGE_KEY:latest
 images:

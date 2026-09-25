@@ -627,7 +627,7 @@ function RUN_ENTRY_ENV_ASSERT_PROD() {
 function RUN_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_ACCEPTANCE() {
   var out = {
     ok: true,
-    build: '2026-09-25_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_R3',
+    build: '2026-09-25_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_R4',
     writesPerformed: false,
     checks: []
   };
@@ -666,7 +666,7 @@ function RUN_EXTERNAL_MANAGER_ACTION_BRIDGE_CONTRACT_ACCEPTANCE() {
     check_('rejectAcceptedToRejected', !!(rejectAccepted && rejectAccepted.ok && rejectAccepted.afterStatus === 'REJECTED'), JSON.stringify(rejectAccepted || {}));
   }
   try {
-    var notificationSource = typeof StatusNotificationBridge_EventCode_ === 'function' ? String(StatusNotificationBridge_EventCode_) : '';
+    var notificationSource = typeof StatusNotificationBridge_MapEvent_ === 'function' ? String(StatusNotificationBridge_MapEvent_) : '';
     check_('cancelManagerNotificationMapped', notificationSource.indexOf('AUDIT_CANCELLED_BY_MANAGER') >= 0, '');
     check_('rejectManagerNotificationMapped', notificationSource.indexOf('AUDIT_REJECTED_BY_MANAGER') >= 0, '');
   } catch (eNotification) {

@@ -1142,3 +1142,12 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Manager 2.0 shows Old_Value, current canonical value and Proposed_Value together and requires a fresh review/decision against the current value.
 - A stale proposal may be rejected/superseded and replaced by a new proposal/review decision; it is never silently rebased.
 - This concurrency guard applies per affected field/location value so unrelated Company changes do not invalidate independent proposal fields.
+
+
+21.49 Controlled administrative corrections after Completion
+- Completed remains lifecycle-immutable: a completed audit is not reopened, moved back to an active status, replanned or reassigned through the correction path.
+- Manager 2.0 provides a controlled correction action for realized administrative data in Log realized audits where correction is operationally necessary, including Hours dedicated.
+- Every correction requires an explicit reason and records Manager actor, timestamp, Audit ID, field, previous value and corrected value in the audit trail.
+- Corrections must pass field-specific validation (including the canonical Hours dedicated input/granularity rules) and use the canonical completed-audit writer/service; direct frontend/sheet mutation is not permitted.
+- A correction changes realized/reporting truth only. It must not rewrite historical Planning JSON, Formal hours, Planning duration, completion provenance or lifecycle timestamps unless that specific field is itself governed as an administratively correctable field.
+- Rotation/history cache invalidation remains targeted and deterministic where the corrected realized field can affect downstream projections.

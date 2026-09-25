@@ -1,5 +1,5 @@
 <!--
-  BUILD: 2026-09-25_AMS_EXTERNAL_MANAGER_HANDOFF_R3_LOGOUT_SAFE
+  BUILD: 2026-09-25_AMS_EXTERNAL_MANAGER_HANDOFF_R4_NO_PING_NOISE
   LoginV5.html (PROD REDIRECT + OTP UX/NORMALIZATION + MAIL_FAIL_VISIBLE FIX R14)
   Timestamp: 20260205_164640
 
@@ -527,17 +527,6 @@
     } catch (e) {}
   })();
 
-  // Connectivity ping (detect wrong /exec / cached HTML)
-  try {
-    google.script.run
-      .withSuccessHandler(function(res) {
-        // console.log('V5_ping ok', res);
-      })
-      .withFailureHandler(function(err) {
-        setMsg('err', 'Cannot reach backend endpoint. Likely wrong /exec URL or cached HTML.');
-      })
-      .V5_ping();
-  } catch(e) {}
 
 
   function sendCode() {

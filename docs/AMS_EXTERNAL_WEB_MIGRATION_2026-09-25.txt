@@ -1,0 +1,40 @@
+AMS EXTERNAL WEB MIGRATION
+BUILD 2026-09-25 R1
+
+TARGET
+Browser -> external AMS web application -> authenticated application session -> Cloud Run API.
+Cloud Run -> Google Sheets API for read projections.
+Existing canonical write services remain write owners during transition.
+
+AUTHENTICATION
+The current OTP login experience may remain, but the external application must establish its own server-validated session after login.
+Browser-provided role or email is not authorization truth.
+Manager and Auditor authorization is checked server-side on every protected endpoint.
+Auditor access is self-scoped server-side.
+No Google service-account credential is exposed to the browser.
+No direct browser to Sheets API.
+No authentication credential in query strings.
+A static browser API key is not an authentication design.
+
+READS
+Focused Planning Workspace reads use the direct Sheets projection already validated in Cloud Run.
+Current Sheets remain SSoT.
+Rotation/consecutive history and hours-to-plan remain deferred until their canonical targeted owner is exposed.
+
+WRITES
+Do not duplicate status, planning, availability, notification or revision rules in the external frontend.
+During migration, writes continue through canonical services.
+Move write services later behind stable browser-facing API contracts.
+
+DEV ACCEPTANCE ORDER
+1 authenticated external shell
+2 authenticated focused read
+3 Manager authorization
+4 Auditor self-scope
+5 functional equivalence
+6 browser decision-ready performance
+7 canonical write bridge
+8 write-service migration
+
+PROD
+No PROD change without explicit authorization.

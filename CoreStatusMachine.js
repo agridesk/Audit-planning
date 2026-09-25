@@ -923,7 +923,7 @@ function Status_checkDevWriteGuard_(action, auditId) {
     // for canonical status actions. This local compat path does not broaden
     // PROD behavior; it only converts the known unsupported ALLOW_ALL DEV mode
     // error into success so Accept/Complete/Cancel/Deny/Approve/Plan can be
-    // tested in DEV as configured.
+    // tested in DEV as configured. REJECT is included because it is a canonical\n    // Manager status action and is already constrained by the transition owner.
     if (
       msg.indexOf('unsupported DEV_WRITE_MODE = ALLOW_ALL') >= 0 &&
       (
@@ -931,6 +931,7 @@ function Status_checkDevWriteGuard_(action, auditId) {
         actionKey === ACTION.COMPLETE ||
         actionKey === ACTION.CANCEL ||
         actionKey === ACTION.DENY ||
+        actionKey === ACTION.REJECT ||
         actionKey === ACTION.APPROVE ||
         actionKey === ACTION.PLAN
       )

@@ -1192,7 +1192,7 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Every new Audit Obligation/cycle for that Company Scope inherits the then-current required-location configuration as its planning requirement.
 - An active Company location that is not selected for a Company Scope remains valid Company master data but is not required for audits of that scope.
 - Changes to Company Scope required locations are lifecycle-governed like other scope configuration changes: future-only changes affect future obligations; a change intended to affect the current planned Visit follows the materiality/Re-adjust and hold rules already defined.
-- For a combined multi-scope Visit, required locations are the union of the participating Company Scopes' required-location sets. Per-location Planning duration must be resolved without double-counting before the Visit can commit.
+- For a combined multi-scope Visit, required locations are the union of the participating Company Scopes' required-location sets. Duration contributions remain traceable per contributing scope; where scopes share a location, those contributions aggregate at that one location rather than duplicating the location requirement. The resulting per-location totals must reconcile to the additive combined Planning duration under 21.56.
 
 
 21.56 Per-location duration allocations must reconcile with additive multi-scope Planning duration

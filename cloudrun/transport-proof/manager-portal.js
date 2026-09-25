@@ -6,6 +6,7 @@ function render(rows){
   document.getElementById("rows").innerHTML=rows.map(function(r){
     var raw=r.allowedActions||[];
     var ui=[];
+    if(raw.indexOf("PLAN")>=0)ui.push({key:"plan",label:"Plan"});
     if(raw.indexOf("APPROVE")>=0)ui.push({key:"approve",label:"Approve"});
     if(raw.indexOf("CANCEL")>=0)ui.push({key:"cancel",label:"Cancel"});
     if(raw.indexOf("REJECT")>=0)ui.push({key:"reject",label:"Reject"});
@@ -23,6 +24,10 @@ function runAction(button){
   if(actionBusy)return;
   var auditId=button.getAttribute("data-audit-id");
   var action=button.getAttribute("data-action");
+  if(action==="plan"){
+    window.location.href="/planning?auditId="+encodeURIComponent(auditId);
+    return;
+  }
   var reason="";
   if(action==="cancel"||action==="reject"){
     reason=window.prompt((action==="cancel"?"Cancel":"Reject")+" audit "+auditId+"\nReason:");

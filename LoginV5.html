@@ -373,6 +373,9 @@
 
   function showContinueStep(targetUrl) {
     __targetUrl = targetUrl;
+    setMsg("ok", "Authenticated. Opening portal…");
+
+    if (submitTopGet_(targetUrl)) return;
 
     var continueBox = document.getElementById("stepContinue");
     var targetDbg = document.getElementById("targetUrlDbg");
@@ -384,19 +387,7 @@
       btnContinue.disabled = false;
       try { btnContinue.focus(); } catch(eFocus) {}
     }
-
-    document.getElementById("btnVerify").disabled = true;
-    setMsg("ok", "Authenticated. Opening portal…");
-
-    try {
-      setTimeout(function () {
-        if (!submitTopGet_(targetUrl)) {
-          setMsg("ok", "Authenticated. Click Open portal to continue.");
-        }
-      }, 120);
-    } catch(e) {
-      setMsg("ok", "Authenticated. Click Open portal to continue.");
-    }
+    setMsg("ok", "Authenticated. Click Open portal to continue.");
   }
 
   function buildTestTarget(email, role) {

@@ -1,8 +1,8 @@
 import http from 'node:http';
 import {URL} from 'node:url';
 const PORT=Number(process.env.PORT||8080);
-const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
-function send(res,status,body){res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(body));}
+const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';\nconst ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
+function send(res,status,body){const h={'content-type':'application/json; charset=utf-8','cache-control':'no-store'};if(ORIGIN){h['access-control-allow-origin']=ORIGIN;h.vary='Origin';}res.writeHead(status,h);res.end(JSON.stringify(body));}
 async function accessToken(){
   const r=await fetch('http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',{headers:{'Metadata-Flavor':'Google'}});
   if(!r.ok)throw new Error('METADATA_TOKEN_'+r.status);

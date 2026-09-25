@@ -1323,3 +1323,11 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Explicit hard unavailability entered for the weekend date/interval remains a hard block under 21.46; committed audit occupancy remains protected under 21.47.
 - Annual forecast capacity may treat default weekend time as soft/overrideable capacity, but must not present it as ordinary free capacity without distinction.
 - Manager/Auditor concrete planning must show the weekend warning consistently through the shared Availability validator; no separate UI-only weekend rule.
+
+
+21.73 Planning JSON block model is the multi-location Visit execution truth
+- The existing canonical planning payload already supports block-level `execLoc` and `slotComment` in addition to date/start/end/hours. Planning 2.0 standardizes this block model rather than introducing a separate per-location schedule store.
+- For a multi-location Visit, every committed block carries the actual execution location; blocks may occur on the same or different audit days subject to canonical validators and the Visit's total Planning-duration requirement.
+- Required-location coverage from Company Scope configuration is validated against the set/duration of Planning JSON blocks before commit. A Visit cannot be committed while a required execution location is missing or under-allocated beyond the permitted duration tolerance.
+- Legacy single Location remains compatibility/display projection only and cannot override block-level execution truth.
+- Existing arbitrary `Max 5 planning days` validation is a Planning 1.0 implementation ceiling, not a future business-rule owner. Planning 2.0 must replace it with a configurable/derived limit sufficient for the required-location and segmented Visit model, while retaining bounded payload/performance safeguards.

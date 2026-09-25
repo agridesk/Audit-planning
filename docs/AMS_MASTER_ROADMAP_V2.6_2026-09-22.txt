@@ -818,3 +818,40 @@ Extension apply/undo is a Model C obligation/cycle mutation, not Visit lifecycle
 - After a successful Planning Toolkit Save/Submit, the target Planning 2.0 flow closes the toolkit automatically and restores the originating operational context where browser context permits. No redundant post-save confirmation/Close step is part of the normal flow.
 - After successful authentication, continue directly to the intended Manager/Auditor destination. No intermediate Open portal/Continue click in the normal flow; retain only a technical fallback when automatic navigation is blocked.
 - Both requirements are part of 3S perceived-latency acceptance and must reuse canonical save/authentication outcomes rather than duplicate business or authentication logic.
+
+21.10 1.0 -> 2.0 operational surface inventory and migration contract
+The parity gate in 21.2 is executed as an operational surface migration, not as a rewrite. Proven 1.0 functions identified in the repository must remain available through 2.0 or an explicitly accepted replacement before the old surface is retired.
+
+Manager-facing parity includes at minimum:
+- operational open-audit grid and lifecycle actions;
+- Planning Toolkit / Planning Workspace launch;
+- Companies management, including create/edit and canonical Locations_JSON handling;
+- Scope Manager: company scope add/change/deactivate, formal hours, certificate birthday/expiry and dependency rules;
+- Rotation visibility/validation;
+- Planning Overview / annual workload context;
+- Company Map and auditor/workload context;
+- Company update/proposal review;
+- completed/history and rejected views;
+- operational exports that remain in use.
+
+Auditor-facing parity includes at minimum:
+- assigned/open audit overview and self-planning;
+- Planning Toolkit with auditor lock and Availability context;
+- Accept/Cancel/Deny or their canonical successor actions according to 21.5;
+- company-data adjustment/proposal flow;
+- preferred audit months editing/proposal;
+- own Availability management;
+- completed/history access needed operationally.
+
+Shared parity includes:
+- company/location DTOs;
+- Config_Scopes-driven scope metadata;
+- qualification/eligibility;
+- planning-window and expiry/extension context;
+- notification queue/audit trail;
+- identity/authorization and DEV/PROD separation.
+
+For every surface, migration evidence must state: existing UI entry point, canonical backend/SSoT owner, 2.0 entry point, functional acceptance, 3S/performance acceptance and legacy-retirement status. Missing UI exposure is not permission to duplicate the backend.
+
+21.11 Existing implementation evidence is reusable
+Existing accepted components/tests are migration assets, including Model C Scope ownership, extension service, canonical planning modify/Re-adjust foundation, Planning Workspace, Availability, company update dialog/proposal flow, Manager Tools, maps and lifecycle services. Planning 2.0 must consume or adapt these owners. A new UI does not reset completed backend work.

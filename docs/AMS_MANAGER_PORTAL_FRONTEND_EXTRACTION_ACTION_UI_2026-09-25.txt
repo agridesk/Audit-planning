@@ -1,0 +1,26 @@
+AMS MANAGER PORTAL FRONTEND EXTRACTION AND ACTION UI
+DATE 2026-09-25
+ENV DEV
+STATUS IMPLEMENTED - RUNTIME ACCEPTANCE REQUIRED
+
+Structural change
+- Manager Portal HTML moved out of server-r4.js to manager-portal.html.
+- Manager Portal browser JavaScript moved to manager-portal.js.
+- Cloud Run serves both files only behind the existing application session.
+- Docker image explicitly packages both frontend files.
+- This removes the embedded single-quoted HTML/JS server string that caused repeated syntax/503 regressions.
+
+Manager actions
+- Open read projection exposes allowedActions.
+- Extracted frontend renders canonical Manager action buttons except PLAN.
+- Action request uses POST /api/v1/manager/action.
+- Cloud Run requires authenticated Manager session.
+- Cloud Run forwards server-to-server to DEV GAS write bridge.
+- GAS bridge invokes existing managerV5Action -> Status_applyAction canonical chain.
+- No direct Sheets writes were introduced.
+
+Pending runtime acceptance
+1. Open view.
+2. Completed view.
+3. Action buttons render only on open rows.
+4. One controlled Manager action through canonical write chain.

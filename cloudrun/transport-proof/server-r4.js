@@ -1,26 +1,23 @@
 import http from 'node:http';
 import {URL} from 'node:url';
-import {createHmac,timingSafeEqual,randomBytes} from 'node:crypto';
+import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
-const BUILD='2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R9_EXCHANGE_BOUNDARY';
+const BUILD='2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R10_LEGACY_IDENTITY_EXCHANGE';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const SESSION_COOKIE='ams_dev_session';
 const SESSION_TTL_SECONDS=2*60*60;
-const EXCHANGE_TTL_SECONDS=90;
-const EXCHANGE_SECRET=process.env.AMS_AUTH_EXCHANGE_SECRET||'';
-const pendingExchanges=new Map();
 function send(res,status,body,extra){const h={'content-type':'application/json; charset=utf-8','cache-control':'no-store',...(extra||{})};if(ORIGIN){h['access-control-allow-origin']=ORIGIN;h['access-control-allow-credentials']='true';h.vary='Origin';}res.writeHead(status,h);res.end(JSON.stringify(body));}
 async function accessToken(){
   const r=await fetch('http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',{headers:{'Metadata-Flavor':'Google'}});
   if(!r.ok)throw new Error('METADATA_TOKEN_'+r.status);
   const j=await r.json();if(!j.access_token)throw new Error('METADATA_TOKEN_MISSING');return j.access_token;
 }
-async function sheetsBatchGet(ranges){
+async function sheetsBatchGet(ranges,serialDates=false){
   const token=await accessToken(),u=new URL('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'/values:batchGet');
   for(const range of ranges)u.searchParams.append('ranges',range);
-  u.searchParams.set('valueRenderOption','UNFORMATTED_VALUE');u.searchParams.set('dateTimeRenderOption','FORMATTED_STRING');
+  u.searchParams.set('valueRenderOption','UNFORMATTED_VALUE');u.searchParams.set('dateTimeRenderOption',serialDates?'SERIAL_NUMBER':'FORMATTED_STRING');
   const r=await fetch(u,{headers:{authorization:'Bearer '+token}}),body=await r.json();
   if(!r.ok)throw new Error('SHEETS_API_'+r.status+': '+JSON.stringify(body));return body.valueRanges||[];
 }
@@ -33,10 +30,11 @@ function safeEq(a,b){const x=Buffer.from(clean(a)),y=Buffer.from(clean(b));retur
 function issueSession(identity){if(!sessionConfigured())throw new Error('SESSION_SECRET_NOT_CONFIGURED');const now=Math.floor(Date.now()/1000),payload=b64url(JSON.stringify({v:1,email:clean(identity.email).toLowerCase(),role:clean(identity.role),iat:now,exp:now+SESSION_TTL_SECONDS}));return payload+'.'+sign(payload);}
 function verifySession(raw){if(!sessionConfigured()||!raw)return null;const parts=clean(raw).split('.');if(parts.length!==2||!safeEq(sign(parts[0]),parts[1]))return null;try{const p=JSON.parse(Buffer.from(parts[0],'base64url').toString('utf8')),now=Math.floor(Date.now()/1000);if(p.v!==1||!p.email||!p.role||!p.exp||p.exp<=now)return null;return p;}catch{return null;}}
 function sessionFromRequest(req){return verifySession(cookieMap(req)[SESSION_COOKIE]);}
-function pruneExchanges(){const now=Date.now();for(const [k,v] of pendingExchanges){if(v.expiresAt<=now)pendingExchanges.delete(k);}}
-function newExchangeChallenge(){pruneExchanges();const id=randomBytes(24).toString('base64url'),v={id,expiresAt:Date.now()+EXCHANGE_TTL_SECONDS*1000};pendingExchanges.set(id,v);return {id,expiresAt:v.expiresAt};}
-function verifyExchangeProof(exchangeId,email,role,expiresAt,proof){if(EXCHANGE_SECRET.length<32)return false;const msg=[clean(exchangeId),clean(email).toLowerCase(),clean(role).toLowerCase(),String(expiresAt||'')].join('|');return safeEq(createHmac('sha256',EXCHANGE_SECRET).update(msg).digest('base64url'),proof);}
 function sessionCookie(token){return SESSION_COOKIE+'='+token+'; Max-Age='+SESSION_TTL_SECONDS+'; Path=/; HttpOnly; Secure; SameSite=Lax';}
+function sha256Hex(v){return createHash('sha256').update(clean(v)).digest('hex');}
+function revoked(v){return v===true||['YES','TRUE'].includes(clean(v).toUpperCase());}
+function sheetSerialMs(v){if(typeof v==='number'&&Number.isFinite(v))return Math.round((v-25569)*86400000);const n=Number(v);if(Number.isFinite(n)&&clean(v)!=='')return Math.round((n-25569)*86400000);const t=Date.parse(clean(v));return Number.isFinite(t)?t:NaN;}
+async function validateLegacyIdentity(rawToken,role,deviceId){rawToken=clean(rawToken);role=clean(role);deviceId=clean(deviceId);if(!rawToken)return{ok:false,error:'NO_TOKEN'};if(!deviceId)return{ok:false,error:'MISSING_DEVICE_ID'};if(!role)return{ok:false,error:'MISSING_ROLE'};const tokenHash=sha256Hex(rawToken),deviceHash=sha256Hex(deviceId),vr=await sheetsBatchGet(['Auditor_Tokens!A1:Z1024'],true),rows=vr[0]?.values||[];if(rows.length<2)return{ok:false,error:'TOKEN_NOT_FOUND'};const h=rows[0],ce=col(h,['Email']),cr=col(h,['Role']),ct=col(h,['Token_Hash']),cd=col(h,['Device_Fingerprint','Device_Fingerprin','Device_Fingerprint_Hash']),cx=col(h,['Expires_At']),cv=col(h,['Revoked']);if([ce,cr,ct,cd,cx,cv].some(x=>x<0))throw new Error('AUDITOR_TOKENS_HEADER_MISSING');for(let i=1;i<rows.length;i++){const row=rows[i];if(clean(row[cr]).toLowerCase()!==role.toLowerCase()||clean(row[ct])!==tokenHash)continue;if(revoked(row[cv]))return{ok:false,error:'TOKEN_REVOKED'};const exp=sheetSerialMs(row[cx]);if(!Number.isFinite(exp)||exp<Date.now())return{ok:false,error:'TOKEN_EXPIRED'};const stored=clean(row[cd]);if(stored&&stored!==deviceHash)return{ok:false,error:'DEVICE_MISMATCH'};const email=clean(row[ce]).toLowerCase();if(!email)return{ok:false,error:'TOKEN_EMAIL_EMPTY'};return{ok:true,email,role};}return{ok:false,error:'TOKEN_NOT_FOUND'};}
 function key(v){return clean(v).toLowerCase().replace(/\s+/g,'_');}
 function col(h,names){const m={};h.forEach((v,i)=>{const k=key(v);if(k&&m[k]===undefined)m[k]=i;});for(const n of names){const k=key(n);if(m[k]!==undefined)return m[k];}return-1;}
 function val(r,i){return i>=0?clean(r[i]):'';}
@@ -164,9 +162,8 @@ async function focused(id){
 
 http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return send(res,403,{ok:false,error:'CORS_DISABLED'});res.writeHead(204,{'access-control-allow-origin':ORIGIN,'access-control-allow-methods':'GET,POST,OPTIONS','access-control-allow-headers':'content-type','access-control-allow-credentials':'true','vary':'Origin'});return res.end();}
   const u=new URL(req.url,'http://localhost');
-  if(u.pathname==='/health')return send(res,200,{ok:true,service:'ams-hot-read-proof',build:BUILD,mode:'DIRECT_SHEETS_READ_ONLY',ssotConfigured:!!SID,corsConfigured:!!ORIGIN,sessionSecretConfigured:sessionConfigured(),sessionSecretPresent:SESSION_SECRET.length>0,sessionSecretLength:SESSION_SECRET.length,exchangeSecretConfigured:EXCHANGE_SECRET.length>=32,authState:sessionConfigured()?(EXCHANGE_SECRET.length>=32?'SESSION_EXCHANGE_READY':'SESSION_VERIFICATION_READY_EXCHANGE_PENDING'):'PENDING_SESSION_SECRET'});
-  if(u.pathname==='/api/v1/session/exchange/challenge'&&req.method==='POST'){if(req.headers.origin&&(!ORIGIN||req.headers.origin!==ORIGIN))return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});const x=newExchangeChallenge();return send(res,200,{ok:true,exchangeId:x.id,expiresAt:x.expiresAt});}
-  if(u.pathname==='/api/v1/session/exchange/complete'&&req.method==='POST'){if(req.headers.origin&&(!ORIGIN||req.headers.origin!==ORIGIN))return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;let b={};try{b=JSON.parse(raw||'{}');}catch{return send(res,400,{ok:false,error:'BAD_JSON'});}pruneExchanges();const x=pendingExchanges.get(clean(b.exchangeId));if(!x||x.expiresAt<=Date.now())return send(res,401,{ok:false,error:'EXCHANGE_INVALID'});if(Number(b.expiresAt)!==x.expiresAt||!verifyExchangeProof(b.exchangeId,b.email,b.role,b.expiresAt,b.proof))return send(res,401,{ok:false,error:'EXCHANGE_PROOF_INVALID'});const role=clean(b.role);if(!['manager','auditor'].includes(role.toLowerCase()))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});pendingExchanges.delete(clean(b.exchangeId));const token=issueSession({email:b.email,role});return send(res,200,{ok:true,identity:{email:clean(b.email).toLowerCase(),role},expiresIn:SESSION_TTL_SECONDS},{'set-cookie':sessionCookie(token)});}
+  if(u.pathname==='/health')return send(res,200,{ok:true,service:'ams-hot-read-proof',build:BUILD,mode:'DIRECT_SHEETS_READ_ONLY',ssotConfigured:!!SID,corsConfigured:!!ORIGIN,sessionSecretConfigured:sessionConfigured(),sessionSecretPresent:SESSION_SECRET.length>0,sessionSecretLength:SESSION_SECRET.length,authState:sessionConfigured()?'SESSION_EXCHANGE_READY':'PENDING_SESSION_SECRET'});
+  if(u.pathname==='/api/v1/session/exchange'&&req.method==='POST'){if(req.headers.origin&&(!ORIGIN||req.headers.origin!==ORIGIN))return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}');}catch{return send(res,400,{ok:false,error:'BAD_JSON'});}try{const identity=await validateLegacyIdentity(b.token,b.role,b.deviceId);if(!identity.ok)return send(res,401,identity);const token=issueSession(identity);return send(res,200,{ok:true,identity:{email:identity.email,role:identity.role},expiresIn:SESSION_TTL_SECONDS},{'set-cookie':sessionCookie(token)});}catch(e){return send(res,500,{ok:false,error:'IDENTITY_EXCHANGE_FAILED',detail:clean(e?.message||e)});}}
   if(u.pathname==='/api/v1/session'&&req.method==='GET'){if(req.headers.origin&&(!ORIGIN||req.headers.origin!==ORIGIN))return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});const s=sessionFromRequest(req);return s?send(res,200,{ok:true,identity:{email:s.email,role:s.role},expiresAt:s.exp}):send(res,401,{ok:false,error:'SESSION_REQUIRED'});}
   if(u.pathname!=='/api/v1/planning/workspace'||req.method!=='GET')return send(res,404,{ok:false,error:'NOT_FOUND'});
   const session=sessionFromRequest(req);if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(!['manager','auditor'].includes(clean(session.role).toLowerCase()))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});

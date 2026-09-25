@@ -1134,3 +1134,11 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - An Auditor who becomes unavailable for an already planned audit must use the audit lifecycle/planning route (Cancel/Re-adjust or Manager intervention as applicable); changing personal Availability is not an indirect reschedule mechanism.
 - Availability writes must therefore fail closed or skip protected audit-owned intervals deterministically and report what was not changed.
 - This preserves Planning JSON as planning truth and prevents Availability from becoming a competing lifecycle owner.
+
+
+21.48 Company update proposals require optimistic concurrency protection
+- A Company_Update_Proposal is reviewed against the Company value that existed when the proposal was created (`Old_Value`).
+- At apply time, the canonical Companies value must still equal that recorded Old_Value. If it differs, application is blocked as a stale/conflicting proposal; the proposed value must not overwrite the newer Company value.
+- Manager 2.0 shows Old_Value, current canonical value and Proposed_Value together and requires a fresh review/decision against the current value.
+- A stale proposal may be rejected/superseded and replaced by a new proposal/review decision; it is never silently rebased.
+- This concurrency guard applies per affected field/location value so unrelated Company changes do not invalidate independent proposal fields.

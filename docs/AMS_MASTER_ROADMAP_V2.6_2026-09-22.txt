@@ -813,3 +813,8 @@ Performance acceptance evidence is required per migrated capability; functional 
 21.8 Extension interaction
 Extension apply/undo is a Model C obligation/cycle mutation, not Visit lifecycle truth. It must update effective expiry/planning-window projections through the canonical owner, invalidate only affected read models/caches, and return a refreshed decision result without a broad full-grid rebuild. Extension interaction is explicitly a 3S hot path.
 
+
+21.9 Navigation and completion UX
+- After a successful Planning Toolkit Save/Submit, the target Planning 2.0 flow closes the toolkit automatically and restores the originating operational context where browser context permits. No redundant post-save confirmation/Close step is part of the normal flow.
+- After successful authentication, continue directly to the intended Manager/Auditor destination. No intermediate Open portal/Continue click in the normal flow; retain only a technical fallback when automatic navigation is blocked.
+- Both requirements are part of 3S perceived-latency acceptance and must reuse canonical save/authentication outcomes rather than duplicate business or authentication logic.

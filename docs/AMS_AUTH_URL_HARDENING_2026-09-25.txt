@@ -1,0 +1,17 @@
+AMS AUTH URL HARDENING FINDING
+BUILD 2026-09-25 R1
+
+Finding
+The current LoginV5 portal continuation places trustedToken/token and device identifiers in the navigation query string.
+
+Impact
+This legacy pattern is not acceptable for the external portal/session architecture because URL credentials can be retained in browser history and intermediary logs.
+
+Migration requirement
+The external portal must not carry authentication credentials in URLs.
+The one-time application-session exchange must use a request body or another non-URL credential channel and then establish the Secure HttpOnly Cloud Run session cookie.
+
+Scope
+Do not change the current production login route as an isolated patch. Remove the URL credential pattern as part of the external portal authentication cutover, after the exchange endpoint exists and has acceptance coverage.
+
+PROD untouched.

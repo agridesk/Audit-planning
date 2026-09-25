@@ -1,0 +1,24 @@
+AMS EXTERNAL PORTAL AUTH IMPLEMENTATION GATE
+BUILD 2026-09-25 R1
+
+Current state
+Cloud Run focused reads now enforce a signed application session.
+The signing secret is provisioned only in Google Cloud.
+The current Apps Script login remains the canonical migration-time identity validator.
+
+Do not connect the external browser yet.
+
+Reason
+A secure one-time exchange still needs a server-verifiable handoff from the existing Apps Script identity proof to Cloud Run. Browser-provided email and role cannot be the authority, and the Cloud signing secret must not be copied into Apps Script.
+
+Next implementation unit
+Create the one-time exchange boundary, then move the focused Planning Workspace browser read from google.script.run to fetch with credentials included.
+
+Acceptance before browser cutover
+- identity is canonical;
+- exchange is one-time and short-lived;
+- session cookie is HttpOnly/Secure;
+- focused read succeeds without Apps Script hot-read RPC;
+- missing/invalid session is rejected;
+- Manager/Auditor authorization remains server-owned;
+- PROD untouched.

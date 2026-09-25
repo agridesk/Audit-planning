@@ -1,0 +1,41 @@
+AMS APPLICATION SESSION DESIGN
+BUILD 2026-09-25 R1
+
+DECISION
+Use the existing OTP and trusted-token login only as the migration-time identity proof. After successful canonical validation, exchange it once for an AMS application session. Hot reads then validate the AMS session at Cloud Run and do not call Apps Script.
+
+WHY
+The existing token validator returns canonical email and role and checks revocation, expiry and device fingerprint. Reusing it for every hot read would reintroduce the Apps Script platform latency. A one-time exchange preserves the current login experience while removing Apps Script from the interactive read path.
+
+SESSION REQUIREMENTS
+- server-issued, short-lived;
+- Secure and HttpOnly cookie;
+- SameSite appropriate to final portal origin;
+- signed/verified only server-side;
+- canonical email and role captured from validated identity proof, never browser claims;
+- expiry mandatory;
+- Auditor authorization self-scoped;
+- Manager authorization explicit;
+- logout invalidates browser session;
+- revocation strategy defined before PROD;
+- signing material stored in Google Cloud secret/config infrastructure, never repository or browser.
+
+MIGRATION FLOW
+1 browser completes current OTP login;
+2 canonical existing validator confirms token, device and role and returns canonical email;
+3 one-time exchange establishes AMS application session;
+4 external portal uses session for Cloud Run reads;
+5 existing browser localStorage token is no longer sent on hot-read requests;
+6 canonical writes remain existing services until write API migration.
+
+PERFORMANCE
+The Apps Script validation/exchange occurs at session establishment, not every Planning Workspace read.
+
+SECURITY
+Origin/CORS remains defense-in-depth only. It is not authentication.
+No static browser key.
+No auth credentials in URLs.
+No service-account credentials in browser.
+
+IMPLEMENTATION BLOCKER
+Cloud Run signing/session secret must be provisioned through Google Cloud before session issuance can be safely implemented. Do not invent or commit a secret.

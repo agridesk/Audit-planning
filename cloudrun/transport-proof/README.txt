@@ -18,15 +18,16 @@ Runtime
 Required environment
 DEV_SSOT_SPREADSHEET_ID = DEV Audit Management spreadsheet ID
 
-Optional browser boundary
+Browser boundary
 DEV_ALLOWED_ORIGIN = exact external DEV web-app origin.
-Browser requests fail closed unless DEV_ALLOWED_ORIGIN is configured and matches exactly. Non-browser DEV diagnostics without an Origin header remain available until application-session authentication is implemented.
+Browser requests fail closed unless DEV_ALLOWED_ORIGIN is configured and matches exactly. Focused reads additionally require a valid signed application-session cookie. Origin/CORS is defense-in-depth, not authentication.
 
 Endpoints
 GET /health
+GET /api/v1/session
 GET /api/v1/planning/workspace?auditId=<AUDIT_ID>
 
-Focused read contract (R6 pre-auth boundary)
+Focused read contract (R8 session enforced)
 - target Audit planning row and planning window
 - scopes
 - hard-qualified candidate auditors

@@ -1,0 +1,9 @@
+# Google Apps Script deployment exclusions
+# Cloud Run and repository-only assets must never be pushed into GAS.
+cloudrun/**
+docs/**
+cloudbuild*.yaml
+Dockerfile
+**/Dockerfile
+README*
+**/README*

@@ -1070,3 +1070,11 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - If dependent scopes produce an empty planning-window intersection, planning remains hard blocked and the underlying cycle, expiry, dependency or window data must be corrected first.
 - Administrative linkage between two separate Visits is not a substitute for a must-audit-together dependency.
 - Dependency validation therefore runs before any split-Visit resolution offered under 21.38.
+
+
+21.40 Reactivation does not automatically release operational holds
+- Reactivating a Company, Auditor, Config_Scope or planned execution location does not automatically release an operational hold that was created because that entity became inactive.
+- The hold remains until a Manager explicitly releases/resolves it after the canonical validators have been rerun successfully.
+- Reactivation may remove the underlying invalid condition, but it is not itself an audit lifecycle/planning action and must not silently resume progression.
+- Manager 2.0 must show that the original inactive condition has been resolved and provide the governed release action; release actor/timestamp and validation outcome are audit-trailed.
+- No pseudo-status is introduced; the audit retains its lifecycle status while the operational hold remains.

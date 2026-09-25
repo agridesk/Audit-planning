@@ -3,7 +3,7 @@ import {URL} from 'node:url';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
-const BUILD='2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R5_CONTRACT_ALIGNED';
+const BUILD='2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R6_AUTH_BOUNDARY_PENDING';
 function send(res,status,body){const h={'content-type':'application/json; charset=utf-8','cache-control':'no-store'};if(ORIGIN){h['access-control-allow-origin']=ORIGIN;h.vary='Origin';}res.writeHead(status,h);res.end(JSON.stringify(body));}
 async function accessToken(){
   const r=await fetch('http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',{headers:{'Metadata-Flavor':'Google'}});
@@ -130,7 +130,7 @@ async function focused(id){
   const p=Date.now(),catalog=scopeCatalog(vr[4]?.values||[]),context=auditContext(ap,catalog),audit=project(f,catalog,vr[1]?.values||[]),emails=audit.candidateAuditors.map(x=>x.email),from=dateOnly(audit.planningWindowFrom),to=dateOnly(audit.planningWindowTo),availability=availabilityProjection(vr[2]?.values||[],emails,from,to,context),reservations=reservationProjection(vr[3]?.values||[],emails,from,to);
   return{
     ok:true,
-    proof:'AMS_CLOUD_RUN_DIRECT_SHEETS_R5_CONTRACT_ALIGNED',
+    proof:'AMS_CLOUD_RUN_DIRECT_SHEETS_R6_AUTH_BOUNDARY_PENDING',
     build:BUILD,
     data:{
       period:{from,to},

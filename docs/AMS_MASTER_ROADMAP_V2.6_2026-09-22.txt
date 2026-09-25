@@ -483,12 +483,12 @@ Hotel:
 - explicit Apply.
 
 11.2 Commit governance
-- no silent partial commit;
-- commit-time revalidation;
+- explicit partial commit is permitted and is the canonical bulk behaviour under 21.50;
+- valid items commit independently after commit-time revalidation; blocked/failed items remain unchanged;
 - idempotent batch ID;
 - locking/concurrency;
-- rollback/isolation;
-- explicit outcome:
+- per-item rollback/isolation;
+- no silent omission: every requested item has an explicit outcome:
   committed / blocked / failed / already committed / skipped.
 
 11.3 Later bulk actions

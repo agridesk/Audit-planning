@@ -1,0 +1,28 @@
+AMS EXTERNAL AUTH CUTOVER CHECKLIST
+BUILD 2026-09-25 R1
+
+DONE
+- Cloud Run direct Sheets focused read proven.
+- read-only service identity.
+- signing secret provisioned in Google Cloud.
+- signed session verification implemented.
+- session and focused-read browser origin guards implemented.
+- focused read rejects missing session.
+- focused read restricts session role to Manager/Auditor.
+- deferred rotation/hours represented as unknown, not false/zero.
+- PROD untouched.
+
+OPEN BEFORE CUTOVER
+1 implement one-time identity exchange/session issuance;
+2 configure exact DEV external portal origin;
+3 external portal fetch uses credentials include;
+4 remove credentials from external portal URLs;
+5 enforce Auditor self-scope on every Auditor read/write API;
+6 preserve canonical write validation until write migration;
+7 runtime acceptance: health sees session secret;
+8 runtime acceptance: unauthenticated focused read returns 401;
+9 runtime acceptance: authenticated focused read returns expected audit and overlays;
+10 browser decision-ready measurement against <=2s target;
+11 only then route DEV Manager Plan to external portal.
+
+NO PROD CUTOVER IN THIS PHASE.

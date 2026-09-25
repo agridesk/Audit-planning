@@ -129,7 +129,7 @@ async function focused(id){
   const p=Date.now(),catalog=scopeCatalog(vr[4]?.values||[]),context=auditContext(ap,catalog),audit=project(f,catalog,vr[1]?.values||[]),emails=audit.candidateAuditors.map(x=>x.email),from=dateOnly(audit.planningWindowFrom),to=dateOnly(audit.planningWindowTo),availability=availabilityProjection(vr[2]?.values||[],emails,from,to,context),reservations=reservationProjection(vr[3]?.values||[],emails,from,to);
   return{
     ok:true,
-    proof:'AMS_CLOUD_RUN_DIRECT_SHEETS_R4',
+    proof:'AMS_CLOUD_RUN_DIRECT_SHEETS_R5_CONTRACT_ALIGNED',
     data:{
       period:{from,to},
       audit,

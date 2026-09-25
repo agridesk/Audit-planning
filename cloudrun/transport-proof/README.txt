@@ -1,4 +1,4 @@
-# AMS Cloud Run DEV hot-read service
+# AMS Cloud Run DEV focused-read service
 
 Scope: DEV only. Read-only Planning Workspace focused reads.
 
@@ -26,7 +26,7 @@ Endpoints
 GET /health
 GET /api/v1/planning/workspace?auditId=<AUDIT_ID>
 
-Focused read contract
+Focused read contract (R6 pre-auth boundary)
 - target Audit planning row and planning window
 - scopes
 - hard-qualified candidate auditors

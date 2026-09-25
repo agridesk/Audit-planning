@@ -1,0 +1,37 @@
+AMS EXTERNAL MANAGER PORTAL PHASE 1
+BUILD 2026-09-25 R1
+
+PURPOSE
+Move the user-facing Manager Portal toward a normal browser web application without changing canonical business truth.
+
+PHASE 1 BOUNDARY
+- Browser shell is external to Apps Script.
+- Focused Planning Workspace reads use Cloud Run direct Sheets read projection.
+- Authentication must be established as an application session before protected browser integration.
+- Existing Apps Script write services remain canonical during this phase.
+- PROD is untouched.
+
+DO NOT DO
+- no browser to Sheets API;
+- no static browser API key;
+- no role/email trust from browser fields;
+- no new planning/status/availability SSoT;
+- no duplicate validation engine;
+- no Cloud Run to Apps Script hot-read bridge.
+
+FUNCTIONAL EQUIVALENCE GATE
+Manager focused Plan launch must preserve:
+- exact Audit ID;
+- target planning window;
+- scopes;
+- candidate hard qualification;
+- Availability overlay;
+- Concept Reservation overlay;
+- canonical status context;
+- deferred rotation/hours semantics where not yet projected.
+
+NEXT IMPLEMENTATION GATE
+Application-session authentication. Until this exists, the Cloud Run read endpoint is proof infrastructure, not the normal Manager Portal browser contract.
+
+PERFORMANCE GATE
+Decision-ready target remains <= 2 seconds p95 after browser integration. Existing 516 ms and 634 ms direct-Sheets server measurements are samples only.

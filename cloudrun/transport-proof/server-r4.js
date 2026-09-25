@@ -94,7 +94,7 @@ function availabilityProjection(values,emails,from,to,context){
     if(!set.has(em)||!d||d<from||d>to)continue;
     const slots=[];
     for(const x of [[s1,e1,id1,st1],[s2,e2,id2,st2]]){
-      const auditRef=val(row,x[2]),ctx=auditRef&&context[auditRef]?context[auditRef]:{},z={start:val(row,x[0]),end:val(row,x[1]),auditRef,status:ctx.status||val(row,x[3]),company:ctx.company||'',scopes:Array.isArray(ctx.scopes)?ctx.scopes:[]};
+      const auditRef=val(row,x[2]),ctx=auditRef&&context[auditRef]?context[auditRef]:{},z={start:val(row,x[0]),end:val(row,x[1]),auditId:auditRef,auditRef,status:ctx.status||val(row,x[3]),company:ctx.company||'',scopes:Array.isArray(ctx.scopes)?ctx.scopes:[]};
       if(z.start||z.end||z.auditRef||z.status)slots.push(z);
     }
     if(!by[em])by[em]=[];

@@ -1095,3 +1095,11 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - After commit, Auditor A immediately loses self-planning access for that audit and Auditor B becomes the eligible self-planning owner, subject to canonical qualification/rotation and other validators.
 - No confirmation, acceptance or handover action by Auditor A is required because no planning has yet been committed.
 - The preassignment change is audit-trailed and must invalidate only the relevant Auditor/Manager workload projections.
+
+
+21.43 Preassignment eligibility and rotation governance
+- Preassignment is not a bypass around canonical Auditor eligibility. Candidate selection must expose Qualification and Rotation outcomes before the Manager commits the preassignment.
+- Missing required Qualification is a hard block for preassignment because the auditor cannot become the self-planning owner for an audit they are not qualified to perform.
+- Rotation follows 21.4 at preassignment time: within Config_Scopes maximum is allowed; maximum +1 requires the explicit warning/permission path; maximum +2 or beyond is blocked.
+- Availability is not reserved by preassignment. Date-specific Availability is therefore revalidated at actual planning commit, while known workload/capacity context remains advisory during annual preassignment.
+- Preassignment recommendations/ranking may use region, continuity and workload as advisory factors only; canonical validators remain authoritative.

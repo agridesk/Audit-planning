@@ -1041,3 +1041,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - A maximum absolute deviation of 15 minutes is accepted for practical scheduling. This preserves the existing Planning 1.0 tolerance of ±0.25 h; Planning 2.0 must migrate that established rule rather than redefine it. A deviation greater than 15 minutes is a hard planning-validation failure and blocks commit.
 - The tolerance applies to the total practical Planning duration for the Visit after additive multi-scope aggregation under 21.34; it does not alter Formal hours.
 - Planning 2.0 must reuse this rule consistently for Manager planning, Auditor self-planning, Re-adjust and later batch/bulk planning.
+
+
+21.36 Completion hours are actuals, not planning truth
+- Hours dedicated entered at Completion are realized/actual audit effort and remain distinct from Planning duration and Formal hours.
+- Completion does not require Hours dedicated to equal planned hours or Formal hours. The value must satisfy the canonical completion input rules (including quarter-hour granularity) and is archived as realized history.
+- Planned-versus-dedicated variance is reporting/analysis input; it does not retroactively rewrite Planning JSON, Config_Scopes Planning duration or Company Scope Formal hours.
+- Planning 2.0 reporting should preserve all three concepts explicitly: Formal hours, planned practical duration, and Hours dedicated.

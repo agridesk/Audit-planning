@@ -1,5 +1,5 @@
 <!--
-  BUILD: LOGIN_FORM_TOP_SUBMIT_R14_20260527
+  BUILD: 2026-09-25_AMS_EXTERNAL_MANAGER_HANDOFF_R1
   LoginV5.html (PROD REDIRECT + OTP UX/NORMALIZATION + MAIL_FAIL_VISIBLE FIX R14)
   Timestamp: 20260205_164640
 
@@ -181,6 +181,7 @@
 <script>
   const EXEC_URL = "<?!= __execUrl ?>";
   const EXPECTED_ROLE = "<?!= __expectedRole ?>";
+  const EXTERNAL_DEV_URL = "https://ams-transport-proof-510075419067.europe-west1.run.app";
   const ACTION_AFTER_LOGIN = "<?!= __actionAfterLogin ?>";
   const APP_ENV = "<?!= typeof __appEnv !== 'undefined' ? __appEnv : '' ?>";
   const TEST_AUTH_ENABLED = <?!= (typeof __testAuthEnabled !== 'undefined' && __testAuthEnabled) ? 'true' : 'false' ?>;
@@ -319,6 +320,7 @@
   }
 
   function buildPortalTarget_(email, role, token, deviceId) {
+    if (String(APP_ENV || '').toUpperCase() === 'DEV' && String(role || EXPECTED_ROLE || '').toLowerCase() === 'manager') return { externalPost:true, url:EXTERNAL_DEV_URL + '/auth/legacy-handoff', token:String(token || '').trim(), role:String(role || EXPECTED_ROLE || '').trim(), deviceId:String(deviceId || '').trim() };
     const action = resolveActionAfterLogin_();
     const cleanEmail = normEmail(email);
     const cleanRole = String(role || EXPECTED_ROLE || "").trim();
@@ -341,6 +343,11 @@
   function submitTopGet_(targetUrl) {
     if (!targetUrl) return false;
     try {
+      if (targetUrl.externalPost === true) {
+        var postForm=document.createElement('form'); postForm.method='POST'; postForm.action=targetUrl.url; postForm.target='_top'; postForm.style.display='none';
+        [['token',targetUrl.token],['role',targetUrl.role],['deviceId',targetUrl.deviceId]].forEach(function(pair){var input=document.createElement('input');input.type='hidden';input.name=pair[0];input.value=pair[1]||'';postForm.appendChild(input);});
+        document.body.appendChild(postForm); postForm.submit(); return true;
+      }
       var u = new URL(targetUrl);
       var form = document.createElement("form");
       form.method = "GET";
@@ -372,7 +379,7 @@
     var btnContinue = document.getElementById("btnContinue");
 
     if (continueBox) continueBox.classList.remove("hidden");
-    if (targetDbg) targetDbg.textContent = targetUrl || "";
+    if (targetDbg) targetDbg.textContent = (targetUrl && targetUrl.externalPost) ? targetUrl.url : (targetUrl || "");
     if (btnContinue) {
       btnContinue.disabled = false;
       try { btnContinue.focus(); } catch(eFocus) {}

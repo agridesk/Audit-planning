@@ -4,7 +4,8 @@ Scope: DEV only. Read-only Planning Workspace focused reads.
 
 Cloud project: audit-management-system-dev
 Region: europe-west1
-Service: ams-transport-proof\nService URL: https://ams-transport-proof-510075419067.europe-west1.run.app
+Service: ams-transport-proof
+Service URL: https://ams-transport-proof-510075419067.europe-west1.run.app
 
 Runtime
 - package.json starts server-r4.js; this is the canonical DEV Cloud Run entry point.

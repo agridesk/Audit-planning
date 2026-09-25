@@ -1038,6 +1038,6 @@ Existing accepted components/tests are migration assets, including Model C Scope
 21.35 Planning duration tolerance
 - Preserve the established Planning 1.0 tolerance when validating committed Planning JSON against calculated Planning duration.
 - The normal target is exact equality: if calculated Planning duration is 8:00, the planner should plan 8:00.
-- A maximum absolute deviation of 15 minutes is accepted for practical scheduling. A deviation greater than 15 minutes is a hard planning-validation failure and blocks commit.
+- A maximum absolute deviation of 15 minutes is accepted for practical scheduling. This preserves the existing Planning 1.0 tolerance of ±0.25 h; Planning 2.0 must migrate that established rule rather than redefine it. A deviation greater than 15 minutes is a hard planning-validation failure and blocks commit.
 - The tolerance applies to the total practical Planning duration for the Visit after additive multi-scope aggregation under 21.34; it does not alter Formal hours.
 - Planning 2.0 must reuse this rule consistently for Manager planning, Auditor self-planning, Re-adjust and later batch/bulk planning.

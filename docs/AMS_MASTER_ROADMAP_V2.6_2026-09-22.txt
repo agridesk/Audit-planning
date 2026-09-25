@@ -225,31 +225,20 @@ Log:
 
 Do not expose unrestricted generic Edit.
 
-Initial supported changes:
-- date;
-- time;
-- block distribution.
+The detailed lifecycle/materiality rules in section 21 are authoritative. In summary:
+- date/audit-day changes are material and return the audit to Pending Planning;
+- same-day time/block changes may preserve lifecycle status when canonical validation passes;
+- execution-location-only changes may preserve status when validators pass;
+- auditor replacement is a controlled high-impact action; Accepted returns to Approved for renewed acceptance by the new auditor;
+- scope changes affecting the current Visit are material; future-only Company Scope/cycle changes do not rewrite the current Visit;
+- Completed is lifecycle-immutable; only controlled realized administrative corrections under 21.49 are allowed.
 
-Lifecycle:
-- Pending Approval -> preserve status;
-- Approved -> preserve status;
-- Accepted -> Approved + renewed auditor acceptance;
-- Completed -> blocked;
-- unsupported status -> blocked.
-
-Initial governance:
-- same auditor only;
-- auditor replacement is separate high-impact action;
+Governance:
 - Model C planning-window intersection authoritative;
 - validate before Availability mutation;
-- canonical modify service remains writer;
-- notification and audit trail mandatory.
-
-Later:
-- controlled auditor replacement;
-- execution location change;
-- scope changes only under explicit lifecycle rules;
-- bulk Re-adjust.
+- canonical modify/Re-adjust service remains writer;
+- notification and audit trail mandatory;
+- bulk Re-adjust may be added later but retains per-audit canonical validation.
 
 5. ANNUAL WORKLOAD, CAPACITY & ROTATION
 

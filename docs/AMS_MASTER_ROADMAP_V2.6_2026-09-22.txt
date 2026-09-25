@@ -1011,3 +1011,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Same-company and especially same-location time overlap produces a clear planning warning so the planner can verify that concurrent auditing is operationally intended.
 - This warning is advisory only and does not become a hard block by itself.
 - Planning 2.0, Re-adjust and later batch/bulk planning use the same rule and warning semantics.
+
+
+21.32 Auditor same-day capacity semantics
+- The canonical Availability interval model permits more than one non-overlapping audit block for the same Auditor on one day; it is not a one-audit-per-day model.
+- Overlap with another committed audit remains a hard block.
+- Long working days / high same-day total planned hours remain a soft warning under Availability governance, not an automatic hard block solely because a nominal daily-hours threshold is exceeded.
+- Travel feasibility between same-day visits is validated separately and may produce the applicable travel/conflict outcome; later trip/workweek planning reuses the same canonical inputs.

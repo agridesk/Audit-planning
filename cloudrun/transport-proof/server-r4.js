@@ -4,7 +4,7 @@ import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
-const BUILD='2026-09-25_AMS_CLOUD_RUN_MANAGER_PORTAL_R17_OPEN_ARCHIVED';
+const BUILD='2026-09-25_AMS_CLOUD_RUN_MANAGER_PORTAL_R18_COMPANIES_FIX';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const SESSION_COOKIE='ams_dev_session';
 const SESSION_TTL_SECONDS=2*60*60;
@@ -159,7 +159,7 @@ function managerOpen(apValues,email,scopeValues,companyValues){
   const count=k=>rows.filter(x=>x.statusKey===k).length;
   return{success:true,view:'open',fastFirstPaint:false,enrichmentAvailable:true,managerEmail:email,rows,counts:{total:rows.length,pendingPlanning:count('PENDING_PLANNING'),pendingApproval:count('PENDING_APPROVAL'),approved:count('APPROVED'),accepted:count('ACCEPTED')}};
 }
-async function managerOpenRead(email){const t=Date.now(),vr=await sheetsBatchGet(['Audit planning!A1:AX768','Config_Scopes!A1:Z128','Company!A1:AZ1024']);const out=managerOpen(vr[0]?.values||[],clean(email).toLowerCase(),vr[1]?.values||[],vr[2]?.values||[]);out.build=BUILD;out.serverMs=Date.now()-t;return out;}
+async function managerOpenRead(email){const t=Date.now(),vr=await sheetsBatchGet(['Audit planning!A1:AX768','Config_Scopes!A1:Z128','Companies!A1:AZ1024']);const out=managerOpen(vr[0]?.values||[],clean(email).toLowerCase(),vr[1]?.values||[],vr[2]?.values||[]);out.build=BUILD;out.serverMs=Date.now()-t;return out;}
 
 
 function managerArchived(logValues,email,scopeValues,companyValues){
@@ -169,7 +169,7 @@ function managerArchived(logValues,email,scopeValues,companyValues){
   for(let n=1;n<logValues.length;n++){const r=logValues[n],status=(val(r,cs)||'Completed'),sn=status.toUpperCase().replace(/[\\s-]+/g,'_');if(sn!=='COMPLETED')continue;const mgr=val(r,cm).toLowerCase();if(email&&mgr&&mgr!==email)continue;const company=val(r,cc);if(!company&&!val(r,ci))continue;const location=val(r,cl),uid=val(r,cu),scopes=scopesForAudit({h,row:r},scopeCat);rows.push({auditId:val(r,ci)||('LOGROW_'+(n+1)),source:'Log realized audits',company,location,region:companyIndex.get(key(uid))||companyIndex.get(key(company+'|'+location))||companyIndex.get(key(company))||'',scopes,scopesText:scopes.join(', '),executedOn:dateOnly(r[cd]),auditor:val(r,ca),hoursPlanned:Number(r[chp])||0,hoursDedicated:Number(r[chd])||0,completedDate:dateOnly(r[ccd]),status:'Completed',statusKey:'COMPLETED',managerEmail:mgr,companyUid:uid,readOnly:true});}
   rows.sort((a,b)=>(b.completedDate||b.executedOn||'').localeCompare(a.completedDate||a.executedOn||'')||a.company.localeCompare(b.company)||a.auditId.localeCompare(b.auditId));return{success:true,view:'archived',rows};
 }
-async function managerArchivedRead(email){const t=Date.now(),vr=await sheetsBatchGet(['Log realized audits!A1:AZ2048','Config_Scopes!A1:Z128','Company!A1:AZ1024']);const out=managerArchived(vr[0]?.values||[],clean(email).toLowerCase(),vr[1]?.values||[],vr[2]?.values||[]);out.build=BUILD;out.serverMs=Date.now()-t;return out;}
+async function managerArchivedRead(email){const t=Date.now(),vr=await sheetsBatchGet(['Log realized audits!A1:AZ2048','Config_Scopes!A1:Z128','Companies!A1:AZ1024']);const out=managerArchived(vr[0]?.values||[],clean(email).toLowerCase(),vr[1]?.values||[],vr[2]?.values||[]);out.build=BUILD;out.serverMs=Date.now()-t;return out;}
 
 async function focused(id){
   const t=Date.now(),s=Date.now();

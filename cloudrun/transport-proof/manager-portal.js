@@ -7,8 +7,8 @@ function render(rows){
     var raw=r.allowedActions||[];
     var ui=[];
     if(raw.indexOf("APPROVE")>=0)ui.push({key:"approve",label:"Approve"});
-    if(raw.indexOf("DENY")>=0||raw.indexOf("REJECT")>=0)ui.push({key:"decline",label:"Decline"});
-    if(raw.indexOf("CANCEL")>=0)ui.push({key:"cancel",label:"Cancel"});
+    if(raw.indexOf("DENY")>=0||raw.indexOf("CANCEL")>=0)ui.push({key:"cancel",label:"Cancel"});
+    if(raw.indexOf("REJECT")>=0)ui.push({key:"reject",label:"Reject"});
     var actions=ui.map(function(a){
       return "<button class=\"act\" data-audit-id=\""+esc(r.auditId)+"\" data-action=\""+esc(a.key)+"\">"+esc(a.label)+"</button>";
     }).join("");

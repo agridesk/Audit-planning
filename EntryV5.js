@@ -325,15 +325,16 @@ function V5_ENTRY_resolve(ctx) {
   var action = V5_ENTRY_normAction_(ctx.action);
   var expectedRole = V5_ENTRY_expectedRole_(action, ctx.role);
 
-  // DEV external Manager cutover: trusted sessions must not bypass Cloud Run handoff.
-  // Render the login handoff shell; LoginV5 will POST the existing legacy proof to Cloud Run.
-  if (runtimeEnv === 'DEV' && action === 'manager' && expectedRole === 'Manager') {
-    return V5_ENTRY_renderLogin(action, expectedRole);
-  }
-
   var email  = String(ctx.email || '').trim().toLowerCase();
   var token  = String(ctx.trustedToken || ctx.token || '').trim();
   var device = String(ctx.deviceFingerprint || ctx.deviceId || '').trim();
+
+  // DEV Manager portal cutover. Preserve the synthetic DEV test bypass on GAS,
+  // but route real trusted credentials through LoginV5 -> Cloud Run POST handoff.
+  if (runtimeEnv === 'DEV' && action === 'manager' && expectedRole === 'Manager' &&
+      !V5_ENTRY_isTestBypass_(email, expectedRole, token, device)) {
+    return V5_ENTRY_renderLogin(action, expectedRole);
+  }
 
   if (!action || !expectedRole) {
     return V5_ENTRY_renderLogin(action, expectedRole);

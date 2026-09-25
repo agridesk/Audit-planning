@@ -5,6 +5,7 @@ Cloud Run focused read
 - health endpoint remains available for deployment diagnostics;
 - Planning Workspace endpoint requires a signed application-session cookie;
 - invalid, missing or expired session returns SESSION_REQUIRED;
+- focused read accepts only Manager or Auditor session roles;
 - session signature uses HMAC SHA-256;
 - session payload contains version, canonical email, canonical role, issued-at and expiry;
 - session TTL is two hours in DEV;

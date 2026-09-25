@@ -739,3 +739,77 @@ After acceptance:
 - V2.5 becomes historical baseline;
 - implementation remains tracked through AMS workstreams;
 - repository docs remain roadmap SSoT.
+
+21. CANONICAL CONSOLIDATION — 2026-09-25
+
+21.1 One roadmap SSoT
+- This file is the single current AMS Master Roadmap.
+- Older roadmap versions are historical/superseded inputs only and must not be used as current truth.
+- Planning 2.0 Integrated Plan and READ-FIRST governance remain subordinate execution/architecture documents; they do not form parallel roadmaps.
+- Later accepted decisions are consolidated here before implementation when they change roadmap policy.
+
+21.2 Planning 1.0 -> 2.0 feature-parity cutover gate
+Planning 2.0 must preserve/re-expose proven operational 1.0 capability before the corresponding legacy surface is retired. This includes, where currently operational:
+- Manager and Auditor planning;
+- company creation and company-data maintenance;
+- company scope add/change/deactivate management;
+- preferred audit months / company planning profile data;
+- auditor -> manager company-data proposals/review where applicable;
+- Availability;
+- qualification and auditor/company eligibility;
+- planning windows;
+- lifecycle/status actions;
+- scope/certificate lifecycle and extension handling;
+- completed/rejected/history access;
+- notifications/audit trail;
+- locations / Company Map and operational supporting tools.
+Migration rule per capability: identify existing canonical owner -> reuse backend/SSoT -> expose in 2.0 -> regression/performance acceptance -> only then retire 1.0 path. Do not rebuild working business logic merely because the UI changes.
+
+21.3 Dynamic scope capacity
+- Config_Scopes remains canonical.
+- Initial supported design boundary: 20 active scopes.
+- Scope handling must be dynamic within that boundary; adding/activating a configured scope must not require scope-specific code changes.
+- Remove fixed positional scope assumptions from UI, qualification, notifications, exports, calendar, persistence and tests.
+- Company Scope / Audit Obligation remain lifecycle owners under Model C.
+
+21.4 Rotation — canonical threshold policy
+Config_Scopes owns the applicable rotation maximum per scope.
+- current count <= configured maximum: allowed;
+- configured maximum + 1: warning/exception path; planning is only permitted with explicit permission context and must remain visible/auditable;
+- configured maximum + 2 or more: HARD BLOCK; planning is not possible.
+No UI may silently weaken this policy. Canonical rotation validation remains the owner.
+
+21.5 Self-planning and acceptance
+- Manager-planned audit: Pending Planning -> Plan -> Approved; Auditor Accept -> Accepted.
+- Auditor self-planning: Pending Planning -> Plan -> Pending Approval; Manager Approve -> Accepted directly. The auditor does not perform a redundant second Accept after submitting the self-planning.
+- For a manager-planned Approved audit, Manager may Accept on behalf of the assigned Auditor when the Auditor has confirmed outside the system.
+- Every Accepted transition records the actual actor. Manager-on-behalf acceptance additionally records the auditor on whose behalf acceptance occurred, source and reason/context. Acceptance provenance is auditable.
+
+21.6 Controlled Re-adjust — materiality rule
+Re-adjust remains an action/mode through Workspace -> Preflight -> canonical writer.
+- Change of audit day/date: material -> return to Pending Planning and restart normal planning flow.
+- Change of scope(s): material -> return to Pending Planning and restart normal planning flow.
+- Time change within the same audit day (for example 08:00-16:00 to 09:00-17:00): may preserve current lifecycle status, subject to canonical Availability/conflict/planning-window validation.
+- Other non-material changes may preserve status when they do not change the audit day or scope set and pass the relevant canonical validators.
+- Completed remains immutable for operational Re-adjust.
+This rule supersedes older generic wording that every time/hours/block change automatically resets lifecycle status.
+
+21.7 3S performance — all user-facing mutation paths
+Speed is a release criterion for every migrated/new 2.0 capability, not a later polishing phase.
+Required hot mutations include at minimum:
+- add/change/deactivate company audit scope and resulting hours recalculation;
+- lifecycle/status transition;
+- planning Save / Modify / Re-adjust / Cancel;
+- extension apply/undo and resulting effective expiry/planning-window projection;
+- company/planning-profile updates that affect planner decisions.
+Targets:
+- local UI response immediate where no server decision is required;
+- common cached/read-model interaction < 1 s target;
+- major decision-ready load approx. <= 2 s p95 where technically realistic;
+- no normal mutation may trigger repeated multi-second full-sheet scans or broad rebuilds.
+Required strategy: targeted/indexed reads and writes, compact read models, deterministic targeted invalidation, optimistic UI only where canonical response can safely reconcile, and no synchronous non-critical work that unnecessarily blocks the user response. Correctness/transactional invariants remain mandatory.
+Performance acceptance evidence is required per migrated capability; functional parity alone is not sufficient.
+
+21.8 Extension interaction
+Extension apply/undo is a Model C obligation/cycle mutation, not Visit lifecycle truth. It must update effective expiry/planning-window projections through the canonical owner, invalidate only affected read models/caches, and return a refreshed decision result without a broad full-grid rebuild. Extension interaction is explicitly a 3S hot path.
+

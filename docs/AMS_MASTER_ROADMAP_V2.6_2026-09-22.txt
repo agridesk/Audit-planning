@@ -996,3 +996,11 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Normal operations retire/deactivate a Company rather than physically deleting its canonical row. Historical audits, completed/rejected records and audit trail must remain resolvable to the original Company_UID.
 - Duplicate-company merge is not treated as an ordinary edit. If introduced, it requires an explicit governed migration with referential-integrity checks across Model C, Audit planning, history, proposals, locations and notifications.
 - Planning 2.0 must not introduce company-name fallback matching where Company_UID is available.
+
+
+21.30 Scope Manager versus current Visit boundary
+- Scope Manager owns Company Scope / obligation lifecycle. It must distinguish future-cycle maintenance from a mutation of scopes linked to the current open Visit.
+- Future-only scope/certificate changes follow 21.12 and do not rewrite the current Visit.
+- Adding, removing or materially changing a scope that is linked to the current planned Visit is a planning mutation and follows 21.6: the current committed plan is no longer silently treated as valid.
+- Scope Manager must show the impact before commit when a change touches an open Visit, including affected Audit ID, required hours/window/dependency consequences and resulting lifecycle action.
+- No scope edit may silently unlink historical Visit_Obligation relationships or erase certificate history.

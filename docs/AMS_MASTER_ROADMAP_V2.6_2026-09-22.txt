@@ -1033,3 +1033,11 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - No implicit bundling discount or overlap/compression rule is applied. Example: scope A Scheduling_hours 6 plus scope B Scheduling_hours 2 yields 8 practical planning hours.
 - The summed Planning duration drives agenda capacity, calendar construction and travel/day-feasibility context; Formal hours remain the separate normative/accounting concept defined in 21.33.
 - Any future exception to additive Scheduling_hours must be explicitly represented in canonical configuration/governance rather than inferred by UI or planner logic.
+
+
+21.35 Planning duration tolerance
+- Preserve the established Planning 1.0 tolerance when validating committed Planning JSON against calculated Planning duration.
+- The normal target is exact equality: if calculated Planning duration is 8:00, the planner should plan 8:00.
+- A maximum absolute deviation of 15 minutes is accepted for practical scheduling. A deviation greater than 15 minutes is a hard planning-validation failure and blocks commit.
+- The tolerance applies to the total practical Planning duration for the Visit after additive multi-scope aggregation under 21.34; it does not alter Formal hours.
+- Planning 2.0 must reuse this rule consistently for Manager planning, Auditor self-planning, Re-adjust and later batch/bulk planning.

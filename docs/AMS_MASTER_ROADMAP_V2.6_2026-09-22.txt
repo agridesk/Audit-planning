@@ -793,6 +793,7 @@ Re-adjust remains an action/mode through Workspace -> Preflight -> canonical wri
 - Time change within the same audit day (for example 08:00-16:00 to 09:00-17:00): may preserve current lifecycle status, subject to canonical Availability/conflict/planning-window validation.
 - Other non-material changes may preserve status when they do not change the audit day or scope set and pass the relevant canonical validators.
 - Change of execution location while audit day/date, assigned auditor and scope set remain unchanged may preserve Approved/Accepted status, provided canonical Availability, travel/conflict and planning-validity checks pass. Execution-location change is not by itself a lifecycle reset trigger.
+- Change of assigned auditor while date/day, scopes and planned time structure remain unchanged preserves the planning itself. The new auditor must explicitly accept the assignment before the audit can be Accepted; an already Accepted audit therefore returns to Approved for re-acceptance by the new auditor. Canonical qualification, rotation, Availability and conflict validation must rerun for the replacement auditor.
 - Completed remains immutable for operational Re-adjust.
 This rule supersedes older generic wording that every time/hours/block change automatically resets lifecycle status.
 

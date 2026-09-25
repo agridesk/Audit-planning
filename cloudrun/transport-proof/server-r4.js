@@ -4,7 +4,7 @@ import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
-const BUILD='2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R15_MANAGER_OPEN';
+const BUILD='2026-09-25_AMS_CLOUD_RUN_MANAGER_PORTAL_R16_ENRICHED_READ';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const SESSION_COOKIE='ams_dev_session';
 const SESSION_TTL_SECONDS=2*60*60;
@@ -143,21 +143,23 @@ function reservationProjection(values,emails,from,to,auditContext){
   return{rows,byAuditorEmail,byAuditId,staleRows};
 }
 
-function managerOpen(values,email){
-  if(!values.length)return{success:true,view:'open',rows:[],managerEmail:email,counts:{total:0,pendingPlanning:0,pendingApproval:0,approved:0,accepted:0}};
-  const h=values[0],idx=n=>col(h,n),ci=idx(['Audit ID','Audit_ID','AuditId','Audit Id']),cs=idx(['Status']),cc=idx(['Company']),cl=idx(['Location']),cr=idx(['Region']),ca=idx(['Assigned to','Assigned auditor','Auditor']),cp=idx(['Preassigned Auditor']),ch=idx(['Total audit time in hours']),cph=idx(['Hours planned']),cd=idx(['Date planned']),cm=idx(['Manager email']),cf=idx(['Planning window from']),ct=idx(['Planning window to']),cu=idx(['Company UID']);
+function managerOpen(apValues,email,scopeValues,companyValues){
+  if(!apValues.length)return{success:true,view:'open',rows:[],managerEmail:email,counts:{total:0,pendingPlanning:0,pendingApproval:0,approved:0,accepted:0}};
+  const h=apValues[0],idx=n=>col(h,n),ci=idx(['Audit ID','Audit_ID','AuditId','Audit Id']),cs=idx(['Status']),cc=idx(['Company']),cl=idx(['Location']),ca=idx(['Assigned to','Assigned auditor','Auditor']),cp=idx(['Preassigned Auditor']),cself=idx(['Allow self planning']),ch=idx(['Total audit time in hours']),cph=idx(['Hours planned']),cd=idx(['Date planned']),cm=idx(['Manager email']),cf=idx(['Planning window from']),ct=idx(['Planning window to']),cu=idx(['Company UID']),ce=idx(['Date - Will Expire','Date will expire','Expiration date']),cee=idx(['Extended Expiration Date']),cex=idx(['Extension Applied']);
+  const catalog=scopeCatalog(scopeValues||[]),companyIndex=new Map();
+  if(companyValues?.length){const hh=companyValues[0],uid=col(hh,['Company_UID','Company UID','CompanyUid']),cn=col(hh,['Company']),loc=col(hh,['Location']),reg=col(hh,['Region']);for(const r of companyValues.slice(1)){const region=val(r,reg);if(!region)continue;const keys=[val(r,uid),val(r,cn)+'|'+val(r,loc),val(r,cn)];for(const k of keys)if(k&&!companyIndex.has(key(k)))companyIndex.set(key(k),region);}}
   const allowed=new Set(['PENDING_PLANNING','PENDING_APPROVAL','APPROVED','ACCEPTED']),rows=[];
-  for(const row of values.slice(1)){
+  for(const row of apValues.slice(1)){
     const id=val(row,ci);if(!id)continue;const raw=val(row,cs),statusKey=clean(raw).toUpperCase().replace(/[\\s-]+/g,'_');if(!allowed.has(statusKey))continue;
     const rowMgr=val(row,cm).toLowerCase();if(email&&rowMgr&&rowMgr!==email)continue;
-    const from=dateOnly(row[cf]),to=dateOnly(row[ct]),pw=from&&to?from+' → '+to:(from||to||''),required=Number(row[ch]);
-    rows.push({auditId:id,source:'Audit planning',company:val(row,cc),companyLocation:val(row,cl),location:val(row,cl),region:val(row,cr),companyRegion:val(row,cr),scopes:[],scopesText:'',status:raw,statusKey,planningWindow:pw,planningWindowText:pw,planningDisplay:statusKey==='PENDING_PLANNING'?pw:dateOnly(row[cd]),plannedHours:val(row,cph),hoursPlanned:val(row,cph),requiredHours:Number.isFinite(required)?required:0,toBePlanned:Number.isFinite(required)?required:0,auditor:val(row,ca),assignedTo:val(row,ca),assignedToEmail:val(row,ca),preassignedAuditor:val(row,cp),datePlanned:dateOnly(row[cd]),companyUid:val(row,cu),managerEmail:rowMgr,readOnly:false,needsEnrichment:true});
+    const company=val(row,cc),location=val(row,cl),uid=val(row,cu),region=companyIndex.get(key(uid))||companyIndex.get(key(company+'|'+location))||companyIndex.get(key(company))||'',from=dateOnly(row[cf]),to=dateOnly(row[ct]),pw=from&&to?from+' → '+to:(from||to||''),required=Number(row[ch]),scopes=scopesForAudit({h,row},catalog),expiry=dateOnly(row[cee])||dateOnly(row[ce]),ext=val(row,cex);
+    rows.push({auditId:id,source:'Audit planning',company,companyLocation:location,location,region,companyRegion:region,scopes,scopesText:scopes.join(', '),status:raw,statusKey,planningWindow:pw,planningWindowText:pw,planningDisplay:statusKey==='PENDING_PLANNING'?pw:dateOnly(row[cd]),plannedHours:val(row,cph),hoursPlanned:val(row,cph),requiredHours:Number.isFinite(required)?required:0,toBePlanned:Number.isFinite(required)?required:0,auditor:val(row,ca),assignedTo:val(row,ca),assignedToEmail:val(row,ca),preassignedAuditor:val(row,cp),allowSelfPlanning:val(row,cself),datePlanned:dateOnly(row[cd]),expirationDate:expiry,extensionApplied:yes(ext),companyUid:uid,managerEmail:rowMgr,readOnly:false,needsEnrichment:false});
   }
-  rows.sort((a,b)=>a.statusKey.localeCompare(b.statusKey)||a.planningWindow.localeCompare(b.planningWindow)||a.company.localeCompare(b.company)||a.auditId.localeCompare(b.auditId));
+  const order={PENDING_PLANNING:0,PENDING_APPROVAL:1,APPROVED:2,ACCEPTED:3};rows.sort((a,b)=>(order[a.statusKey]-order[b.statusKey])||a.planningWindow.localeCompare(b.planningWindow)||a.company.localeCompare(b.company)||a.auditId.localeCompare(b.auditId));
   const count=k=>rows.filter(x=>x.statusKey===k).length;
-  return{success:true,view:'open',fastFirstPaint:true,enrichmentAvailable:false,managerEmail:email,rows,counts:{total:rows.length,pendingPlanning:count('PENDING_PLANNING'),pendingApproval:count('PENDING_APPROVAL'),approved:count('APPROVED'),accepted:count('ACCEPTED')}};
+  return{success:true,view:'open',fastFirstPaint:false,enrichmentAvailable:true,managerEmail:email,rows,counts:{total:rows.length,pendingPlanning:count('PENDING_PLANNING'),pendingApproval:count('PENDING_APPROVAL'),approved:count('APPROVED'),accepted:count('ACCEPTED')}};
 }
-async function managerOpenRead(email){const t=Date.now(),vr=await sheetsBatchGet(['Audit planning!A1:AX768']);const out=managerOpen(vr[0]?.values||[],clean(email).toLowerCase());out.build=BUILD;out.serverMs=Date.now()-t;return out;}
+async function managerOpenRead(email){const t=Date.now(),vr=await sheetsBatchGet(['Audit planning!A1:AX768','Config_Scopes!A1:Z128','Company!A1:AZ1024']);const out=managerOpen(vr[0]?.values||[],clean(email).toLowerCase(),vr[1]?.values||[],vr[2]?.values||[]);out.build=BUILD;out.serverMs=Date.now()-t;return out;}
 
 async function focused(id){
   const t=Date.now(),s=Date.now();

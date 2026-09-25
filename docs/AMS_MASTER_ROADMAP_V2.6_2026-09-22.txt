@@ -1331,3 +1331,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Required-location coverage from Company Scope configuration is validated against the set/duration of Planning JSON blocks before commit. A Visit cannot be committed while a required execution location is missing or under-allocated beyond the permitted duration tolerance.
 - Legacy single Location remains compatibility/display projection only and cannot override block-level execution truth.
 - Existing arbitrary `Max 5 planning days` validation is a Planning 1.0 implementation ceiling, not a future business-rule owner. Planning 2.0 must replace it with a configurable/derived limit sufficient for the required-location and segmented Visit model, while retaining bounded payload/performance safeguards.
+
+
+21.74 Required-location duration validation is aggregate by location within the Visit
+- A required Company Scope location may be represented by one or more Planning JSON blocks across one or more audit days. Validation aggregates block hours by canonical location code before comparing them with the resolved required-location allocation.
+- Splitting one location's work across blocks/days therefore does not create duplicate location requirements and does not change the Visit's canonical total Planning duration.
+- The Visit-level total still follows 21.35 ±15-minute tolerance. Per-location allocation is a coverage requirement: planners may segment the work operationally, but cannot use segmentation to omit a required location or move its allocated work invisibly to another location.
+- Location codes in committed blocks must resolve to active Companies.Locations_JSON entries that are valid for the Visit; free-text location labels are display compatibility only.

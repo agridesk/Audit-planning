@@ -7,7 +7,7 @@ Region: europe-west1
 Service: ams-transport-proof
 
 Runtime
-- Procfile starts server-r4.js.
+- package.json starts server-r4.js; this is the canonical DEV Cloud Run entry point.
 - Google Sheets API is read directly by the Cloud Run service identity.
 - DEV Google Sheets remains the SSoT.
 - Cloud Run service account has Viewer access only.

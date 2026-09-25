@@ -929,3 +929,11 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - For an audit that was Accepted before the reassignment, the reassignment itself returns it to Approved for the new auditor's acceptance. The deactivation event alone does not perform that transition.
 - The hold and affected Audit IDs must be visible to the Manager; no pseudo-status is introduced solely for the hold.
 - Auditor deactivation, hold creation and reassignment require truthful audit trail and targeted invalidation.
+
+
+21.21 Loss of auditor qualification after planning
+- If an assigned Auditor is no longer canonically qualified for any required scope of an Approved/Accepted audit before execution, the audit returns to Pending Planning.
+- This is a hard planning-validity failure, not an operational hold and not a soft warning.
+- Existing planning may remain available as historical/replanning context, but it is no longer a valid committed plan and cannot preserve Approved/Accepted lifecycle state.
+- Replanning must rerun qualification, rotation, Availability, overlap/capacity, travel/conflict, planning-window and other canonical validators before the audit can progress again.
+- The qualification-loss transition requires audit trail, appropriate lifecycle notification and targeted invalidation.

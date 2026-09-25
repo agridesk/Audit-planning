@@ -576,20 +576,37 @@ function Status_applyComplete_(ctx, transition, actor, payload) {
 }
 
 function Status_applyReject_(ctx, transition, actor, payload) {
-  Status_releaseAvailability_(ctx.auditId);
-  if (typeof V5_MoveAuditToRejected === 'function') {
-    try {
-      var moved = V5_MoveAuditToRejected(ctx.auditId, payload || {});
-      if (moved && moved.success) return moved;
-    } catch (e) {}
+  var releaseResult = Status_releaseAvailability_(ctx.auditId, {
+    required: true,
+    source: 'CoreStatusMachine.Status_applyReject_',
+    action: ACTION.REJECT
+  });
+
+  // Reject is terminal. The canonical archive owner must complete the
+  // Audit planning -> Rejected audits move. Never degrade to an in-place
+  // REJECTED status write: that creates a second truth and can hide a
+  // partially failed archive operation.
+  if (typeof V5_MoveAuditToRejected !== 'function') {
+    return Status_fail_('Reject archive owner unavailable: V5_MoveAuditToRejected');
   }
-  ctx.sheet.getRange(ctx.rowIndex, ctx.col.status + 1).setValue(transition.afterStatusDisplay);
-  var lifecycle = Status_lifecycleOnStatusChanged_(ctx, transition, actor, ACTION.REJECT, payload, 'CoreStatusMachine.Status_applyReject_.fallback');
-  Status_invalidateAuditPlanningPack_();
-  var res = Status_buildActionResult_(transition, { auditId: ctx.auditId, action: ACTION.REJECT });
-  res.lifecycle = lifecycle;
-  res.metadataWritten = !!(lifecycle && (lifecycle.managerMetadataWritten || lifecycle.statusSinceWritten));
-  return res;
+
+  try {
+    var moved = V5_MoveAuditToRejected(ctx.auditId, payload || {});
+    if (!moved || moved.success !== true) {
+      return Status_fail_('Reject archive failed: ' + String((moved && (moved.message || moved.error)) || 'empty result'));
+    }
+    moved.action = moved.action || ACTION.REJECT;
+    moved.beforeStatus = moved.beforeStatus || transition.beforeStatus;
+    moved.beforeStatusDisplay = moved.beforeStatusDisplay || transition.beforeStatusDisplay;
+    moved.afterStatus = moved.afterStatus || transition.afterStatus;
+    moved.afterStatusDisplay = moved.afterStatusDisplay || transition.afterStatusDisplay;
+    moved.newStatus = moved.newStatus || transition.afterStatusDisplay;
+    moved.availabilityRelease = releaseResult;
+    Status_invalidateAuditPlanningPack_();
+    return moved;
+  } catch (e) {
+    return Status_fail_('Reject archive exception: ' + String(e && e.message ? e.message : e));
+  }
 }
 
 function Status_lifecycleOnStatusChanged_(ctx, transition, actor, action, payload, source) {

@@ -327,7 +327,7 @@ function V5_ENTRY_resolve(ctx) {
 
   // DEV external Manager cutover: trusted sessions must not bypass Cloud Run handoff.
   // Render the login handoff shell; LoginV5 will POST the existing legacy proof to Cloud Run.
-  if (runtimeEnv === 'DEV' && expectedRole === 'Manager') {
+  if (runtimeEnv === 'DEV' && action === 'manager' && expectedRole === 'Manager') {
     return V5_ENTRY_renderLogin(action, expectedRole);
   }
 

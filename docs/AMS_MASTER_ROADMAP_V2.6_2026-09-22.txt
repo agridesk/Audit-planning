@@ -1235,3 +1235,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Manager reporting/export capability is delivered from the shared reporting read models in section 7 rather than by reusing Auditor-specific authorization or rebuilding calculations in the browser.
 - Completed/history export consumes immutable realized/history read models, including controlled corrections under 21.49 as current realized truth while retaining correction provenance in audit trail.
 - Export generation stays outside first-paint/hot paths and must not force portal-wide archive hydration.
+
+
+21.61 Company update proposal queue prevents competing pending edits
+- Planning 2.0 treats Company_Update_Proposals as a field-level review queue keyed by Company_UID + Section + Field_Key + Location_Code where applicable.
+- There may not be multiple independently actionable Pending proposals for the same canonical field/location target. A new proposal for a target that already has a Pending proposal must surface the existing proposal and require resolution/supersession rather than silently adding a competing write.
+- Multi-field submissions remain one user proposal context but each field retains its own review/concurrency outcome; one stale/conflicting field under 21.48 does not justify overwriting it or silently discarding independent valid fields.
+- Manager review shows proposer, source Audit ID, old/current/proposed value and conflict state. Accept/reject/supersede outcomes are audit-trailed.

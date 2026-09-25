@@ -944,3 +944,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Once an audit has progressed to Pending Approval, Approved or Accepted, Apply/Undo Extension is not an available operational action.
 - Therefore extension apply/undo cannot create an Approved/Accepted audit outside a restored planning window; roadmap and acceptance tests must not model that impossible transition.
 - Extension mutation remains a pre-commit planning/cycle action and must be validated before the audit leaves Pending Planning.
+
+
+21.23 Pending Approval is a review boundary
+- Pending Approval represents an Auditor-submitted plan awaiting Manager review; it is not an Extension editing stage.
+- Manager approval of Auditor self-planning follows the self-planning lifecycle rule in 21.5. The implementation must be migrated from the older generic Pending Approval -> Approved contract to the canonical direct-accept outcome defined there.
+- If the Manager does not accept the submitted planning, the audit returns to Pending Planning through the canonical return/cancel/deny successor action; planning corrections are made there rather than silently editing an Auditor submission while approval remains pending.
+- Approval/rejection review must show the submitted planning context needed for an informed decision without rebuilding Planning JSON client-side.

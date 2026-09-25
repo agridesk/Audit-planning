@@ -1,0 +1,32 @@
+AMS EXTERNAL WEB API CONTRACT
+VERSION v1 DEV
+
+GET /api/v1/planning/workspace?auditId=<id>
+Purpose: focused read projection.
+Authorization: protected before normal DEV integration.
+Truth: current Sheets SSoT via server-side read-only identity.
+
+Response data
+period
+audit
+advisory
+overlays.availability
+overlays.reservations
+sourceCounts
+timing
+
+Candidate semantics
+candidateAuditors means hard-qualified candidate membership only.
+rotationState DEFERRED means rotation/consecutive evaluation is not asserted by this endpoint.
+Null rotation warning/count/limit means unknown/deferred, not false/zero.
+
+Planning effort semantics
+hoursToPlan null plus hoursToPlanState DEFERRED means this endpoint does not yet assert canonical effort.
+
+Write contract
+No write endpoint is defined by this read service.
+Browser write actions must continue through canonical write owners until dedicated v1 write endpoints are implemented and accepted.
+
+Compatibility
+Browser UI must tolerate deferred fields.
+Do not convert null/deferred values to business facts in UI labels, totals, filters or decisions.

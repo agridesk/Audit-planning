@@ -25,7 +25,7 @@ function runAction(button){
   var auditId=button.getAttribute("data-audit-id");
   var action=button.getAttribute("data-action");
   if(action==="plan"){
-    window.open("/planning?auditId="+encodeURIComponent(auditId),"_blank","noopener");
+    window.location.href="/planning?auditId="+encodeURIComponent(auditId);
     return;
   }
   var reason="";

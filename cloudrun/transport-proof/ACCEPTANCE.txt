@@ -10,7 +10,8 @@ Required runtime properties
 - proof marker is AMS_CLOUD_RUN_DIRECT_SHEETS_R5_CONTRACT_ALIGNED.
 - runtime build identity is 2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R5_CONTRACT_ALIGNED.
 - DEV_SSOT_SPREADSHEET_ID is required.
-- DEV_ALLOWED_ORIGIN is supported.\n- browser Origin requests fail closed when the allowed origin is absent or mismatched.
+- DEV_ALLOWED_ORIGIN is supported.
+- browser Origin requests fail closed when the allowed origin is absent or mismatched.
 - service listens on PORT at 0.0.0.0.
 - no write endpoint exists.
 

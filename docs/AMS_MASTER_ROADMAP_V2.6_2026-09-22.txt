@@ -1004,3 +1004,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Adding, removing or materially changing a scope that is linked to the current planned Visit is a planning mutation and follows 21.6: the current committed plan is no longer silently treated as valid.
 - Scope Manager must show the impact before commit when a change touches an open Visit, including affected Audit ID, required hours/window/dependency consequences and resulting lifecycle action.
 - No scope edit may silently unlink historical Visit_Obligation relationships or erase certificate history.
+
+
+21.31 Same-company concurrent audits
+- Overlapping audits for the same Company, including the same execution location, are allowed when they are assigned to different canonically available/eligible Auditors and all auditor-specific hard validators pass.
+- Same-company and especially same-location time overlap produces a clear planning warning so the planner can verify that concurrent auditing is operationally intended.
+- This warning is advisory only and does not become a hard block by itself.
+- Planning 2.0, Re-adjust and later batch/bulk planning use the same rule and warning semantics.

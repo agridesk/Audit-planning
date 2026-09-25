@@ -1,0 +1,33 @@
+AMS CLOUD RUN READ CONTRACT ACCEPTANCE
+BUILD 2026-09-25 R1
+
+Scope
+Static repository acceptance for the DEV focused Planning Workspace read service.
+
+Required runtime properties
+- package.json starts server-r4.js.
+- superseded server.js and temporary Procfile are absent.
+- proof marker is AMS_CLOUD_RUN_DIRECT_SHEETS_R5_CONTRACT_ALIGNED.
+- DEV_SSOT_SPREADSHEET_ID is required.
+- DEV_ALLOWED_ORIGIN is supported.
+- service listens on PORT at 0.0.0.0.
+- no write endpoint exists.
+
+Required contract properties
+- focused audit is selected by auditId.
+- period is owned by target Audit planning row.
+- candidate auditors are hard-qualified only.
+- rotation facts are DEFERRED/null.
+- hoursToPlan is DEFERRED/null.
+- availability slots expose canonical auditId and compatibility auditRef.
+- availability rows retain auditorEmail and available plus normalized state.
+- concept reservations expose auditId, reservationId, auditorEmail, blocks, state, sourceRevision, createdAt and updatedAt.
+- response contains sourceCounts and timing.
+
+Security boundary
+This endpoint remains DEV proof infrastructure until authenticated application-session enforcement exists. CORS/origin restriction is not authentication.
+
+Performance
+Previously observed direct Sheets server samples: 516 ms and 634 ms. No p95 claim.
+
+PROD untouched.

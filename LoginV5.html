@@ -1,5 +1,5 @@
 <!--
-  BUILD: 2026-09-25_AMS_EXTERNAL_MANAGER_HANDOFF_R6_TEST_BYPASS_LEGACY
+  BUILD: 2026-09-25_AMS_EXTERNAL_MANAGER_HANDOFF_R7_REAL_TOKEN_ONLY
   LoginV5.html (PROD REDIRECT + OTP UX/NORMALIZATION + MAIL_FAIL_VISIBLE FIX R14)
   Timestamp: 20260205_164640
 
@@ -516,7 +516,8 @@
       if (!document.getElementById("email").value) document.getElementById("email").focus();
       try {
         const force = localStorage.getItem(KEY_FORCE) || "";
-        if (!force && hasTrustedCreds_() && String(APP_ENV || '').toUpperCase() === 'DEV' && String(ACTION_AFTER_LOGIN || '').toLowerCase() === 'manager' && String(EXPECTED_ROLE || '').toLowerCase() === 'manager') {
+        const storedToken = localStorage.getItem(KEY_TOKEN) || "";
+        if (!force && hasTrustedCreds_() && storedToken !== TEST_TOKEN && String(APP_ENV || '').toUpperCase() === 'DEV' && String(ACTION_AFTER_LOGIN || '').toLowerCase() === 'manager' && String(EXPECTED_ROLE || '').toLowerCase() === 'manager') {
           continueTrusted();
           return;
         }

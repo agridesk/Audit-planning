@@ -1018,3 +1018,11 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Overlap with another committed audit remains a hard block.
 - Long working days / high same-day total planned hours remain a soft warning under Availability governance, not an automatic hard block solely because a nominal daily-hours threshold is exceeded.
 - Travel feasibility between same-day visits is validated separately and may produce the applicable travel/conflict outcome; later trip/workweek planning reuses the same canonical inputs.
+
+
+21.33 Travel feasibility and dual audit-duration semantics
+- Travel infeasibility between two otherwise non-overlapping same-day audits is advisory, not a hard planning block. Planning may be committed with a prominent warning; the Manager remains responsible for practical feasibility.
+- Preserve the established distinction between Formal hours and Planning duration. Config_Scopes is the structural owner for both concepts: Formal hours is the normative/audit-accounting duration; Scheduling_hours / Planning duration is the practical duration used to construct the agenda and assess day/travel feasibility.
+- Company-specific Formal hours may override the Config_Scopes Formal-hours norm through Company Scope ownership. Planning duration remains per-scope in Config_Scopes; there is no Company Planning-duration override in the current model.
+- Capacity, calendar blocks, same-day sequencing and travel feasibility use Planning duration / committed Planning JSON, not Formal hours as a proxy.
+- Formal-hours reconciliation remains separately visible so a practically shorter/longer calendar construction cannot silently change the formal audit-hour obligation.

@@ -4283,7 +4283,7 @@ async function savePlanning(){
               } catch(_e) {}
               v5PostToOpener_(__savedPayload);
             }catch(e){}
-            v5ShowPostSaveStayOpenState_(isAuditorToolkit_() ? 'Planning submitted for approval.' : 'Planning saved successfully.', status);
+            closeWindow();
           }catch(err){
             resetSaveUi_();
             await v5ShowError_("Save failed: "+(err && err.message ? err.message : "unknown"));

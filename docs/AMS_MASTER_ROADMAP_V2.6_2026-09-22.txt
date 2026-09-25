@@ -1056,3 +1056,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Empty intersection is a hard planning-validity failure. The planner must first resolve the scope/cycle structure; in the normal case this may mean that the scopes require separate physical Visits/audits rather than one combined audit.
 - The UI must show which scope windows conflict and make the reason for the block explicit. It must not silently widen the allowed period.
 - Model C obligation/visit ownership determines whether scopes can be linked to one Visit; UI grouping cannot override incompatible canonical windows.
+
+
+21.38 Empty-intersection resolution creates separate Visits, not widened truth
+- When 21.37 blocks a combined Visit because scope windows do not intersect, the governed resolution is to review the underlying obligations and, where certification rules permit, split them into separate physical Visits/audits with their own Audit IDs and valid planning windows.
+- Splitting must preserve Company Scope and Audit Obligation identity/history and create explicit Audit_Visit_Obligations links; it is not implemented by duplicating scope text or manually cloning an Audit planning row.
+- Scope dependencies may prohibit a split. Parent/add-on, shared-expiry or must-audit-together rules take precedence; if such a dependency conflicts with the calculated windows, the underlying cycle/configuration requires correction rather than a planning override.
+- Planning 2.0 should surface the likely split resolution to the Manager but must not automatically create extra Visits without an explicit governed action.

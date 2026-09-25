@@ -7,8 +7,8 @@ Static repository acceptance for the DEV focused Planning Workspace read service
 Required runtime properties
 - package.json starts server-r4.js.
 - superseded server.js and temporary Procfile are absent.
-- proof marker is AMS_CLOUD_RUN_DIRECT_SHEETS_R6_AUTH_BOUNDARY_PENDING.
-- runtime build identity is 2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R6_AUTH_BOUNDARY_PENDING.
+- proof marker is AMS_CLOUD_RUN_DIRECT_SHEETS_R8_SESSION_ENFORCED.
+- runtime build identity is 2026-09-25_AMS_CLOUD_RUN_FOCUSED_READ_R8_SESSION_ENFORCED.
 - DEV_SSOT_SPREADSHEET_ID is required.
 - DEV_ALLOWED_ORIGIN is supported.
 - browser Origin requests fail closed when the allowed origin is absent or mismatched.
@@ -27,7 +27,7 @@ Required contract properties
 - response contains sourceCounts and timing.
 
 Security boundary
-This endpoint remains DEV proof infrastructure until authenticated application-session enforcement exists. CORS/origin restriction is not authentication.
+Focused Planning Workspace reads require a valid signed application-session cookie. CORS/origin restriction remains defense-in-depth and is not authentication. Session issuance/exchange remains a separate migration boundary.
 
 Performance
 Previously observed direct Sheets server samples: 516 ms and 634 ms. No p95 claim.

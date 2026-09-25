@@ -937,3 +937,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - Existing planning may remain available as historical/replanning context, but it is no longer a valid committed plan and cannot preserve Approved/Accepted lifecycle state.
 - Replanning must rerun qualification, rotation, Availability, overlap/capacity, travel/conflict, planning-window and other canonical validators before the audit can progress again.
 - The qualification-loss transition requires audit trail, appropriate lifecycle notification and targeted invalidation.
+
+
+21.22 Extension action stage boundary
+- Apply Extension and Undo Extension are available only while the audit is in Pending Planning / planning stage.
+- Once an audit has progressed to Pending Approval, Approved or Accepted, Apply/Undo Extension is not an available operational action.
+- Therefore extension apply/undo cannot create an Approved/Accepted audit outside a restored planning window; roadmap and acceptance tests must not model that impossible transition.
+- Extension mutation remains a pre-commit planning/cycle action and must be validated before the audit leaves Pending Planning.

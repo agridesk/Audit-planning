@@ -1,0 +1,91 @@
+AMS — MANAGER 2.0 COMPLETED VIEW PARITY
+Date: 2026-09-26
+Status: DEV IMPLEMENTED — read-only surface
+Roadmap authority: AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26
+
+PURPOSE
+Bring the external Manager 2.0 Completed view to functional parity with the useful read-only history shown in Manager 1.0, without touching planning, lifecycle writes or the pending Plan/login route.
+
+SOURCE OF TRUTH
+Completed history remains Log realized audits.
+The existing external endpoint /api/v1/manager/archived reads this source read-only.
+No new data owner, projection writer or completion logic was introduced.
+
+1. MANAGER 1.0 COMPLETED HISTORY FIELDS
+Manager 1.0 shows:
+- Company
+- Region
+- Scopes
+- Executed on
+- Auditor
+- Hours planned
+- Hours dedicated
+- Completed date
+- Status
+
+The history is explicitly read-only.
+
+2. PREVIOUS MANAGER 2.0 BEHAVIOUR
+The external Completed tab reused the Open-audits table layout.
+This compressed completed data into open-audit columns and therefore hid the distinction between:
+- execution date;
+- completed date;
+- hours planned;
+- hours dedicated.
+
+3. IMPLEMENTED ON DEV
+Files:
+- cloudrun/transport-proof/manager-portal.html
+- cloudrun/transport-proof/manager-portal.js
+
+Changes:
+- Open and Completed now have separate table headers.
+- Completed now displays the same nine useful historical fields as Manager 1.0.
+- Completed remains read-only and has no Actions column.
+- Search covers completed-specific fields including auditor, execution/completion dates and hours.
+- Open-audit actions, including Plan, Approve, Cancel and Reject, are preserved unchanged.
+- Table shell now handles wider history data with horizontal overflow instead of compressing/hiding columns.
+- Empty-result state added.
+
+4. NOT ADDED
+No write action was added.
+No correction of completed hours was added.
+No export was added because no Manager 1.0 export requirement was evidenced in the reviewed Manager UI.
+No sorting enhancement was added in this step; this can be treated as later UI polish unless operationally required.
+
+5. 3S + VALUE
+Speed:
+- no extra server round trips;
+- same single archived read;
+- filtering remains local in browser.
+
+Scalability:
+- no new scan or endpoint;
+- existing bounded archived read remains in use.
+
+Stability:
+- read-only only;
+- no lifecycle/planning/Availability write touched;
+- Plan/login route files untouched by this work;
+- PROD untouched.
+
+Value:
+- Manager can distinguish planned versus actually dedicated hours;
+- execution and completion dates are visible separately;
+- historical review is materially clearer and matches the useful 1.0 information model.
+
+6. PENDING USER ACTION FROM ACTIVE WORKSTREAM — UNCHANGED
+When user can sync DEV:
+
+cd C:\Users\Gebruiker\Audit-planning
+git pull origin dev
+clasp push
+
+Then run in Apps Script DEV:
+RUN_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CONTRACT_ACCEPTANCE
+
+This remains the next required user action for the active Manager Overview -> Plan -> Planning Workspace workstream.
+The Completed-view work does not change that test.
+
+PROD STATUS
+Untouched.

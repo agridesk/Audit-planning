@@ -1,6 +1,6 @@
 /***********************************************************************
  * FILE: zz_ExternalPlanningWorkspaceHandoff.js
- * BUILD: 2026-09-26_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R1
+ * BUILD: 2026-09-26_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R2_DIRECT_ROUTER
  *
  * DEV-only signed handoff from the external Cloud Run Manager Portal
  * to the existing GAS Planning Workspace 2.0.
@@ -12,8 +12,13 @@
  * - No auth credential is placed in the URL.
  * - GAS validates role, expiry, auditId, actor email and signature.
  * - PROD is blocked.
+ *
+ * Routing note:
+ * - The web-app entrypoint is now the direct global doPost declaration in
+ *   zzzz_WebAppPostRouter.js. Apps Script /dev did not reliably honor the
+ *   previous runtime reassignment/wrapper of doPost.
  ***********************************************************************/
-var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-26_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R1';
+var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-26_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R2_DIRECT_ROUTER';
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_MAX_FUTURE_MS = 90 * 1000;
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CLOCK_SKEW_MS = 10 * 1000;
 
@@ -111,36 +116,6 @@ function ExternalPlanningWorkspaceHandoff_render_(identity) {
   return HtmlService.createHtmlOutput(html).setTitle('AMS - Planning Workspace');
 }
 
-var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BASE_DOPOST_ = doPost;
-doPost = function(e) {
-  var p = (e && e.parameter) ? e.parameter : {};
-  var rawAction = String(p.action || '').trim().toLowerCase();
-  if (rawAction !== 'externalplanningworkspace') {
-    return EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BASE_DOPOST_(e);
-  }
-
-  var verified = ExternalPlanningWorkspaceHandoff_verify_(p);
-  if (!verified.ok) {
-    return HtmlService.createHtmlOutput(
-      '<!doctype html><meta charset="utf-8"><title>AMS - Planning Workspace</title>' +
-      '<h3>Planning Workspace handoff failed</h3><pre>' +
-      String(verified.error || 'HANDOFF_FAILED').replace(/[<>]/g, '') +
-      '</pre>'
-    ).setTitle('AMS - Planning Workspace');
-  }
-
-  try {
-    return ExternalPlanningWorkspaceHandoff_render_(verified);
-  } catch (err) {
-    return HtmlService.createHtmlOutput(
-      '<!doctype html><meta charset="utf-8"><title>AMS - Planning Workspace</title>' +
-      '<h3>Planning Workspace failed to open</h3><pre>' +
-      String(err && err.message ? err.message : err).replace(/[<>]/g, '') +
-      '</pre>'
-    ).setTitle('AMS - Planning Workspace');
-  }
-};
-
 function RUN_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CONTRACT_ACCEPTANCE() {
   var out = {
     ok: true,
@@ -154,9 +129,10 @@ function RUN_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CONTRACT_ACCEPTANCE() {
   }
 
   check_('devEnvironment', V5_ENTRY_isDevEnv_(), '');
-  check_('baseDoPostPreserved', typeof EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BASE_DOPOST_ === 'function', '');
   check_('workspaceRendererAvailable', typeof PlanningWorkspaceUi_render === 'function', '');
   check_('workspaceBootstrapAvailable', typeof PlanningWorkspaceRpc_bootstrap === 'function', '');
+  check_('directPostRouterAvailable', typeof doPost === 'function', '');
+  check_('directPostRouterOwnsPlanningRoute', String(doPost).indexOf("rawAction === 'externalplanningworkspace'") >= 0, '');
   check_('bridgeKeyConfigured', String(PropertiesService.getScriptProperties().getProperty('AMS_EXTERNAL_WRITE_BRIDGE_KEY') || '').trim().length >= 32, '');
 
   var key = String(PropertiesService.getScriptProperties().getProperty('AMS_EXTERNAL_WRITE_BRIDGE_KEY') || '').trim();

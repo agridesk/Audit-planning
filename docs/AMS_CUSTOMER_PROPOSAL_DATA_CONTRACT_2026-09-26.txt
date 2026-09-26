@@ -1,0 +1,181 @@
+AUDIT MANAGEMENT SYSTEM — CUSTOMER PROPOSAL / CONFIRMATION DATA CONTRACT
+Date: 2026-09-26
+Branch: dev
+Status: ANALYSIS ONLY — no runtime behavior change
+Authority: AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26
+
+PURPOSE
+Define the minimum machine-readable contract needed for Customer Proposal / Confirmation so later implementation does not create ambiguous free-text planning truth or a second planning engine.
+
+1. PRINCIPLES
+- No customer portal.
+- Customer receives secure unique link.
+- Proposal is provisional and sent before final planning commit.
+- Auditor identity is not shown before final commit.
+- Customer response never commits planning automatically.
+- Manager remains final commit owner.
+- Customer confirms a Visit, not each scope separately.
+- Planning truth remains in the canonical planning model after final commit.
+
+2. PROPOSAL IDENTITY
+Each proposal needs at minimum:
+- proposalId
+- proposalVersion
+- auditId / Visit identity
+- companyUid
+- company name snapshot for communication only
+- proposed date
+- proposed start time
+- proposed end time
+- execution location code / label
+- scopes shown for the Visit
+- createdAt
+- createdBy
+- state
+- responseDeadline where used
+- secure response token reference / hash, never reusable credentials in URL payload
+
+3. PROPOSAL STATES
+Suggested state model:
+- DRAFT
+- READY_TO_SEND
+- SENT
+- RESPONDED
+- SUPERSEDED
+- CANCELLED
+- COMMITTED
+- EXPIRED_UNANSWERED
+
+Rules:
+- timeout never means approval;
+- a newer proposal version supersedes the earlier active version;
+- response remains linked to exact proposalVersion;
+- final commit marks the accepted planning context as committed, but planning itself remains owned by canonical planning writer.
+
+4. CUSTOMER RESPONSE TYPES
+Machine-readable response type:
+- ACCEPT
+- ACCEPT_WITH_FLEXIBILITY
+- ALTERNATIVE_WITHIN_WINDOW
+- CURRENT_WINDOW_UNAVAILABLE
+
+Optional freeTextComment is explanatory only and never planning truth.
+No mandatory reason for decline/unavailability.
+
+5. FLEXIBILITY CONTRACT
+Flexibility may contain:
+- allowedDateFrom
+- allowedDateTo
+- allowedDates[]
+- earliestStart
+- latestFinish
+- exactAlternativeDate
+- exactAlternativeStart
+- exactAlternativeEnd
+- dayBeforeAllowed boolean
+- dayAfterAllowed boolean
+
+The implementation should normalize flexibility to one machine-readable constraint set before optimizer use.
+
+6. RESPONSE AUDIT TRAIL
+Every response records:
+- proposalId
+- proposalVersion
+- responderType = CUSTOMER_SELF or MANAGER_ON_BEHALF
+- actor identity where available
+- channel = secure_link / phone / direct_email / other controlled value
+- response timestamp
+- response type
+- normalized flexibility
+- optional comment
+
+Manager-on-behalf is not anonymous; actual Manager actor and channel must be logged.
+
+7. MULTIPLE VISITS IN ONE EMAIL
+One Company email may contain multiple Visit proposals.
+Each Visit has:
+- own proposalId/version;
+- own response/flexibility;
+- one customer submit action may submit multiple Visit responses in one request.
+
+Scopes within one physical Visit are display context only for customer response; customer does not accept scopes one-by-one.
+
+8. COMPANY STRUCTURAL DATA FROM RESPONSE
+Temporary planning availability belongs to proposal context only.
+Do not write temporary dates/times into Companies.
+
+If customer changes durable structural planning limitations such as standard days/hours:
+- write through the canonical Companies owner;
+- record source/timestamp/audit trail;
+- do not create a parallel customer-data store.
+
+9. REFLOW RULE
+When optimizer/Manager proposes a new slot:
+- if new slot is fully inside confirmed flexibility, no renewed customer confirmation required;
+- if any part lies outside confirmed flexibility, new proposal/confirmation required for that Visit;
+- unrelated customers are not re-contacted.
+
+10. FINAL COMMIT
+Manager final commit requires:
+- all hard planning checks pass;
+- required customer confirmation satisfied, unless Company/audit override says confirmation not required;
+- final slot still lies within latest valid confirmed constraints;
+- batch/workweek consistency if audit belongs to an active batch.
+
+After final commit:
+- AMS sends definitive confirmation with final date/time/location;
+- Auditor name may be included in this final confirmation;
+- ECAS confirmation, if any, is additional and does not replace AMS confirmation.
+
+11. SECURITY
+Secure-link response must be purpose-bound and time/context-bound.
+At minimum bind token to:
+- proposalId
+- proposalVersion
+- company/Visit context
+- expiry
+
+Store only hashed/derived verification material where practical.
+Do not expose application credentials or broad session tokens in links.
+A response link grants only the narrow action needed for that proposal.
+
+12. CONCURRENCY
+Response submission must reject or clearly handle:
+- superseded proposal version;
+- already-finalized context;
+- duplicate submit retry;
+- proposal cancelled/reopened into incompatible context.
+
+Use idempotency for repeated identical customer submission.
+
+13. 3S + VALUE
+Speed:
+- one lightweight response page;
+- bounded read by proposalId/token;
+- no broad Manager/Planning bootstrap for customer.
+
+Scalability:
+- Visit-level records;
+- multi-Visit submit in one request;
+- normalized flexibility consumable by optimizer.
+
+Stability:
+- versioned proposals;
+- no silent timeout approval;
+- idempotent response;
+- narrow secure token;
+- final commit remains canonical Manager action.
+
+Value:
+- removes free-text interpretation from planning;
+- preserves customer flexibility for efficient reflow;
+- reduces unnecessary re-contact.
+
+14. SAFE STATUS
+This document does not modify:
+- current Manager Overview;
+- current Plan/login route;
+- Planning Workspace runtime;
+- notifications runtime;
+- customer-facing runtime;
+- PROD.

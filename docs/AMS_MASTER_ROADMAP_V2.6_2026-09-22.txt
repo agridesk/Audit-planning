@@ -1366,3 +1366,11 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - A successor obligation derives its candidate month from its own canonical planning window and current Company preferred audit months; the Annual Planner may then assign/confirm a concept month under 21.65.
 - This prevents a prior cycle's operational month choice from becoming false planning truth when expiry/window timing shifts in the next year.
 - Any future automated month suggestion remains advisory until explicitly committed as concept metadata and never creates concrete Planning JSON or Availability occupancy.
+
+
+21.72 Availability parity preserves resolved per-day priority semantics
+- Planning 2.0 reuses the canonical Availability resolver rather than interpreting raw Availability rows independently. Where multiple Availability rows/slots affect one day, the resolved day/interval classification is authoritative.
+- Audit-owned/planned intervals and explicit hard-unavailable intervals take precedence over soft/default unavailability in the resolved planning view; soft metadata cannot downgrade a hard interval.
+- Soft/default unavailability remains editable/overrideable through the governed path, while audit-owned occupancy remains read-only under 21.47.
+- Calendar, preflight, annual-capacity reporting and Auditor My Availability must consume the same resolved hard/soft/available semantics so the same date cannot be presented differently across surfaces.
+- Availability month/read-model caches are invalidated by targeted Auditor/month changes; no portal action should require rebuilding the full Availability dataset.

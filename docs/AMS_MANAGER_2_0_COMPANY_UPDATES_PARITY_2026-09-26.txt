@@ -1,0 +1,125 @@
+AUDIT MANAGEMENT SYSTEM — MANAGER 2.0 COMPANY UPDATES PARITY
+Date: 2026-09-26
+Branch: dev
+Status: ANALYSIS ONLY — no runtime behavior change
+Roadmap authority: AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26
+
+1. PURPOSE
+Define how the existing Company updates workflow from Manager 1.0 should map into Manager 2.0 without preserving obsolete governance or creating a second Company master.
+
+2. CURRENT 1.0 BEHAVIOR
+Manager 1.0 exposes a Company updates review with a pending counter.
+The UI groups pending proposals by Company/proposal and lets the Manager choose per field:
+- Accept;
+- Reject;
+- Adjust.
+
+The backend is CompanyUpdateProposalsBackend.js.
+Current proposal fields include:
+- principal/contactperson;
+- principal/contact_email;
+- principal/contact_phone;
+- principal/comments;
+- planning/days;
+- planning/hours;
+- location fields.
+
+Accepted/adjusted changes are written into Companies. Companies remains the SSoT.
+
+3. ROADMAP V2.8 GOVERNANCE
+Comments are no longer one generic field:
+- legacy Comments -> General comments;
+- Auditor comments is a separate durable field.
+
+Direct Auditor updates with audit trail:
+- contact person/email/phone;
+- Auditor comments;
+- planning limitations days/hours.
+
+Manager-governed/proposal fields include at least:
+- General comments;
+- Region;
+- Locations / structural location data.
+
+Therefore the old rule "all Auditor Company changes become Manager proposals" must NOT be copied as-is into 2.0.
+
+4. PARITY DECISION
+Manager 2.0 still needs a Company updates review, but only for fields that remain Manager-governed under V2.8.
+
+Do not migrate the old proposal list one-to-one.
+Instead:
+- direct-update fields disappear from the Manager approval queue after the 2.0 Auditor Company editor is aligned;
+- Manager-governed fields remain in a proposal/review queue;
+- Companies remains the only permanent Company-data source;
+- no parallel Company profile or Company handover store is introduced.
+
+5. REQUIRED MIGRATION RULES
+A. Contact data
+Current 1.0 proposal workflow: Manager review.
+2.0 target: direct Auditor update with audit trail.
+Action: do not build a new Manager approval path for contactperson/email/phone.
+
+B. Planning limitations days/hours
+Current 1.0 proposal workflow: Manager review.
+2.0 target: direct Auditor update with audit trail.
+Action: do not duplicate approval in Manager 2.0.
+
+C. Comments
+Current backend field principal/comments is legacy and ambiguous.
+2.0 target:
+- existing Comments migrates to General comments;
+- Auditor comments separate;
+- General comments remains Manager-governed;
+- Auditor comments direct Auditor update.
+Action: no new 2.0 logic may keep writing a generic Comments field as if it were the permanent target model.
+
+D. Locations
+Current proposal backend can modify location data.
+2.0 target: locations remain Manager-governed structural Company data.
+Action: retain review requirement, but write only through the canonical Companies/Locations_JSON owner.
+
+E. Region
+Roadmap makes Region Manager-governed.
+Current proposal backend does not appear to expose Region in the reviewed field set.
+Action: Manager 2.0 Company review must support Region when the 2.0 Company editor is migrated.
+
+6. SAFE CUTOVER SEQUENCE
+1. Do not change current 1.0 proposal backend yet.
+2. Keep Manager 1.0 Company updates reachable while the 2.0 Company editor is incomplete.
+3. Build/align the 2.0 Auditor Company editor ownership rules first.
+4. Route direct-update fields directly to Companies with audit trail.
+5. Route only Manager-governed fields to the Manager review queue.
+6. Add Manager 2.0 Company updates entry point + pending count.
+7. Cut over only after no required Company change depends exclusively on Manager 1.0.
+
+7. 3S + VALUE
+Speed
+- pending count must not be on first-paint critical path;
+- load review data only when opened;
+- avoid scanning Companies broadly for every Manager overview refresh.
+
+Scalability
+- one Companies SSoT;
+- proposal queue contains pending governance decisions only, not a shadow Company database;
+- group/batch review by Company/proposal rather than per-cell RPCs.
+
+Stability
+- direct-update and Manager-governed fields must have separate server-side authorization;
+- field ownership must be enforced server-side, not only hidden/shown in UI;
+- audit trail records actor, old value, new value, source and timestamp;
+- no PROD changes during DEV migration.
+
+Value
+- Auditor can correct routine operational data without unnecessary Manager work;
+- Manager attention is reserved for structural/governed changes;
+- Company data stays current with fewer approval bottlenecks.
+
+8. CURRENT BLOCKER / DEPENDENCY
+This work is independent of the currently parked Manager Overview -> Plan -> Planning Workspace login/opening test.
+No files in that Plan route were modified by this parity analysis.
+
+9. IMPLEMENTATION STATUS
+Analysis complete.
+No runtime files changed.
+No PROD changes.
+Next safe follow-up: inventory the current Auditor Company editor and classify every editable field as DIRECT AUDITOR, MANAGER REVIEW, or NOT EDITABLE under V2.8.

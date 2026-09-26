@@ -1,0 +1,150 @@
+AUDIT MANAGEMENT SYSTEM — PLANNING 2.0 NOTIFICATION INTEGRATION CONTRACT
+Date: 2026-09-26
+Branch: dev
+Status: DESIGN ONLY — no runtime behavior change
+Authority: AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26
+
+1. PURPOSE
+Planning 2.0 must reuse the existing canonical notification architecture instead of introducing a second delivery path.
+
+2. CANONICAL OWNERSHIP
+Existing ownership remains:
+- Status/lifecycle logic decides whether a canonical transition occurred.
+- StatusNotificationBridge maps successful canonical transitions to notification events.
+- NotificationBuilder normalizes payloads, writes Notification Queue and dispatches renderers.
+- Notification Queue is the mandatory delivery/audit buffer.
+- NotificationSender performs delivery.
+- Dedicated renderer files own message presentation.
+
+Cloud Run, Manager 2.0, Auditor 2.0, Annual Planner, Batch/Workweek and Customer Proposal must not send lifecycle mail directly and must not duplicate event-mapping logic.
+
+3. CORE INVARIANTS
+- Event != delivery.
+- Canonical business action succeeds or fails independently of email transport.
+- Notification failure may not corrupt or roll back a valid lifecycle transition.
+- Missing/failed queue side effects must remain diagnosable and, where existing reconciliation exists, repairable.
+- Duplicate queue protection remains mandatory for retryable flows.
+- Recipient identity comes from canonical role/config resolution, not Session.getActiveUser or arbitrary browser input.
+
+4. PLANNING 2.0 EVENT SOURCES
+Planning 2.0 surfaces may cause notifications only after canonical domain actions or explicit communication actions.
+Examples:
+- Manager final planning commit -> existing Manager-to-Auditor planning/acceptance flow.
+- Auditor self-plan submission -> existing Auditor-to-Manager approval flow.
+- Manager approval of Auditor self-plan -> existing approval operational flow.
+- Auditor acceptance -> existing accepted lifecycle event plus ECAS/external digest where configured.
+- Completion -> existing completed lifecycle/audit-trail event.
+- Cancel/Reject -> existing lifecycle notification mapping.
+- Customer proposal send/reminder/final confirmation -> explicit customer communication events, queue-first.
+- Auditor week/period pre-approval request/reminder -> explicit operational communication events, queue-first.
+
+No UI should infer notification behavior from button labels alone.
+
+5. MANAGER 2.0 / AUDITOR 2.0
+External portals submit canonical actions only.
+They do not:
+- construct lifecycle email HTML;
+- choose lifecycle recipients independently;
+- write Notification Queue directly from the browser;
+- bypass StatusNotificationBridge for status-driven events.
+
+Where a Cloud Run action calls GAS, the GAS canonical action remains the owner that triggers the existing notification bridge.
+
+6. BATCH / PROVISIONAL PLANNING
+Provisional batch edits must not generate final lifecycle mail on every move.
+During an open batch:
+- internal provisional changes are normally silent;
+- customer proposal communication is explicit and versioned;
+- final planning notifications are deferred until final commit;
+- BatchPlanningNotificationGate or equivalent canonical gate remains the place to suppress premature lifecycle delivery.
+
+A final commit may fan out canonical per-audit events, but batch orchestration must not create a competing bulk mail truth.
+
+7. CUSTOMER PROPOSAL / CONFIRMATION
+Customer communication is distinct from lifecycle notification.
+Required event concepts include at least:
+- proposal sent;
+- proposal reminder;
+- proposal superseded/replaced where communication is required;
+- final customer confirmation after Manager final commit.
+
+Rules:
+- queue-first;
+- secure response link generated server-side;
+- proposal version/context included in payload;
+- auditor identity omitted from provisional customer proposal;
+- final customer confirmation may include Auditor identity;
+- reminders only for unanswered proposals;
+- no silent acceptance on timeout;
+- one Company email may contain multiple Visit proposals while responses remain Visit-specific.
+
+8. AUDITOR WEEK / PERIOD PRE-APPROVAL
+This communication must also use Notification Queue.
+Payload should include:
+- Auditor identity;
+- requested period;
+- secure response link;
+- optional Manager context/message;
+- response deadline if used.
+
+It is not a lifecycle event and must not masquerade as final Auditor Accept.
+
+9. COMPLETION
+Manager completion on behalf of an Auditor must continue to produce the existing COMPLETED_ON_BEHALF audit-trail event rather than a new 2.0 event family unless governance explicitly changes it.
+Normal Auditor completion continues through the existing completion event mapping.
+
+10. EXTERNAL / ECAS
+Existing accepted-audit external digest behavior remains reused.
+Planning 2.0 must not create a parallel direct ECAS email path.
+External operational events remain queue-first and may use digest/consolidation behavior from current notification infrastructure.
+
+11. PAYLOAD QUALITY
+All new Planning 2.0 communication events must carry stable identifiers rather than relying on display text:
+- auditId / Visit identifier as applicable;
+- Company UID where relevant;
+- canonical recipient identity;
+- actor identity and role;
+- event/action code;
+- proposal/batch revision where applicable;
+- date/time/location/scopes needed for the message;
+- source/channel for on-behalf actions.
+
+Display fields may be derived for rendering, but identifiers remain authoritative.
+
+12. RETRY / DUPLICATION / RECOVERY
+- Queue writes must be duplicate-safe.
+- Retry must not produce duplicate customer or Auditor communication for the same event/version.
+- Multi-step communication actions require a durable sent/queued state or equivalent idempotency key.
+- Queue failure must be observable.
+- Lifecycle actions may not be held indefinitely waiting for email transport.
+
+13. 3S + VALUE
+Speed
+- no synchronous mail sending in user action hot paths;
+- queue append only, with rendering/delivery outside critical lifecycle logic where possible.
+
+Scalability
+- batch communication may consolidate where operationally appropriate;
+- no N+1 external delivery loops in browser requests;
+- reuse one queue and renderer framework.
+
+Stability
+- one notification architecture;
+- duplicate protection;
+- queue diagnostics and repairability;
+- recipient resolution server-side;
+- notification failure isolated from canonical lifecycle truth.
+
+Value
+- consistent messages across 1.0 and 2.0 during cutover;
+- no lost operational communication;
+- auditable on-behalf and customer communication;
+- migration without rebuilding mature notification infrastructure.
+
+14. SAFE STATUS
+This document changes no runtime behavior and does not modify:
+- Manager Overview -> Plan handoff;
+- Planning Workspace authentication;
+- lifecycle writes;
+- Notification Queue data;
+- PROD.

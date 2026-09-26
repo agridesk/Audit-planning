@@ -1,0 +1,164 @@
+AUDIT MANAGEMENT SYSTEM — MANAGER PORTAL 2.0 SPECIALIST FUNCTIONS CUTOVER CONTRACT
+Date: 2026-09-26
+Branch: dev
+Status: DESIGN ONLY — no runtime behavior change
+Authority: AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26
+
+1. PURPOSE
+Define which specialist Manager functions must remain operationally reachable when Manager Portal 2.0 replaces the daily 1.0 Manager shell.
+
+The goal is not visual parity with the old header. The goal is functional continuity without stranding Manager-only capabilities in 1.0.
+
+2. CURRENT 1.0 SPECIALIST SURFACES
+ManagerV5UI currently exposes specialist tools including:
+- Scopes;
+- Rotation;
+- Planning tools;
+- Companies;
+- Company updates review;
+- read-only diagnostics;
+- related Company/Company Map functions where available through the Manager toolset.
+
+These functions are operational support surfaces, not justification for keeping the whole 1.0 portal alive.
+
+3. CUTOVER PRINCIPLE
+Before final Manager 2.0 cutover every still-required specialist function must be either:
+A. natively available in Manager 2.0; or
+B. reachable from Manager 2.0 through an internal application panel/window that preserves the existing canonical backend owner.
+
+Do not create:
+- a second Companies editor;
+- a second Rotation engine;
+- a second Scopes policy model;
+- a second planning engine;
+- browser popup/tab flows that depend on the browser close cross.
+
+4. SPECIALIST FUNCTION CLASSIFICATION
+
+4.1 Companies
+Operational status: REQUIRED.
+Purpose:
+- Company master-data maintenance;
+- locations;
+- Company status;
+- Manager-controlled fields such as Preferred_Audit_Months;
+- Auditor_Exclusions once implemented.
+
+Canonical owner remains Companies / CompaniesBackend and related governed services.
+Manager 2.0 may provide a new surface, but not a parallel data model.
+
+4.2 Company updates review
+Operational status: REQUIRED until field ownership migration makes only genuinely Manager-governed proposals remain.
+Purpose:
+- review Auditor proposals for Manager-controlled fields;
+- Accept / Adjust / Reject with audit trail.
+
+Direct Auditor fields must bypass unnecessary Manager review once the new field-ownership contract is implemented.
+
+4.3 Company Map
+Operational status: REQUIRED as planning support where currently used.
+Purpose:
+- geographic Company context;
+- region/location planning support;
+- feed planning/trip intelligence rather than becoming a separate planning writer.
+
+The map is read/decision support only unless an explicit canonical Company update action is invoked.
+
+4.4 Scopes
+Operational status: REQUIRED.
+Purpose:
+- manage scope metadata/policy;
+- Formal_hours;
+- Scheduling_hours / Planning duration;
+- rotation maximum;
+- Rotation_Extension;
+- Min_Interval_Months;
+- other governed scope-policy fields.
+
+Config_Scopes remains canonical owner.
+
+4.5 Rotation
+Operational status: REQUIRED.
+Purpose:
+- inspect/manage governed rotation policy and diagnostics;
+- support Manager exception decisions where Config_Scopes explicitly permits +1.
+
+Rotation eligibility remains a shared planning rule, not UI-local logic.
+
+4.6 Diagnostics
+Operational status: REQUIRED for DEV/support; production visibility may be role/environment constrained.
+Purpose:
+- read-only operational diagnosis;
+- build/status verification;
+- defect analysis.
+
+Diagnostics must not become an alternate mutation path.
+
+4.7 Legacy Planning tool entry
+Operational status: TRANSITIONAL.
+The old Planning tool/header entry is not a reason to retain Planning 1.0 after Planning 2.0 cutover.
+When Planning 2.0 has accepted parity, Manager 2.0 routes all planning entry to the single Planning 2.0 engine.
+
+5. NAVIGATION MODEL
+Manager 2.0 should expose a compact Manager tools/navigation area rather than reproduce the 1.0 header one-for-one.
+
+Suggested grouping:
+- Operations: Overview, Annual Planner, Batch/Workweek, Company Map;
+- Master data: Companies, Scopes, Rotation;
+- Governance: Company updates review;
+- Support: Diagnostics (environment/role controlled).
+
+Specialist surfaces may open in internal application panels/windows as allowed by roadmap V2.8.
+Avoid external popup/tab behavior that cannot close cleanly from the application.
+
+6. AUTHORIZATION
+All specialist surfaces must use the same authenticated Manager application session / server-side identity model as Manager 2.0.
+
+Do not:
+- trust browser-supplied Manager identity;
+- expose bridge keys;
+- reintroduce legacy trusted-token dependence as permanent auth;
+- pass credentials in URLs.
+
+7. CUTOVER GATE
+Manager Portal 1.0 may be retired as a daily Manager surface only when:
+- Plan opens Planning 2.0 correctly;
+- lifecycle actions required by Manager are available;
+- Complete parity is accepted;
+- Completed/history view is accepted;
+- Companies remains reachable;
+- Company updates review remains reachable where still needed;
+- Company Map remains reachable where operationally required;
+- Scopes remains reachable;
+- Rotation remains reachable;
+- Diagnostics/support path exists;
+- no required Manager-only operational capability exists solely in 1.0.
+
+8. 3S + VALUE
+Speed
+- specialist surfaces load only when opened;
+- Overview remains light;
+- avoid booting all specialist datasets with the Manager home screen.
+
+Scalability
+- each specialist function consumes its canonical bounded/read-model services;
+- no giant all-in-one Manager cockpit payload.
+
+Stability
+- one backend owner per domain;
+- no duplicate writers;
+- authorization remains centralized;
+- phased cutover allows one specialist surface at a time.
+
+Value
+- Manager 2.0 becomes the single operational entry point without losing mature specialist functionality;
+- daily work becomes simpler while advanced controls remain available when needed.
+
+9. SAFE STATUS
+This document changes no runtime code and does not alter:
+- Manager Overview -> Plan route;
+- Planning Workspace authentication;
+- lifecycle writes;
+- Companies data;
+- Availability;
+- PROD.

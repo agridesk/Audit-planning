@@ -7,7 +7,7 @@ Authority: AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26
 1. PURPOSE
 Annual Planner is a medium-term planning surface for concept month and Auditor preassignment.
 It must help distribute future workload without prematurely creating concrete planning state.
-It must also answer a practical management question early enough to act: do we have enough qualified audit capacity per month/period for the expected demand, or do we need to move concept work, rebalance auditors or scale capacity up?
+It must also answer a practical management question early enough to act: do we have enough qualified audit capacity per month/period and per required scope for the expected demand, or do we need to move concept work, rebalance auditors or scale capacity up?
 
 2. HARD BOUNDARY
 Annual Planner may store only planning intentions that do NOT yet create:
@@ -22,6 +22,7 @@ Concrete date/time planning remains owned by Planning 2.0 Workspace / Batch flow
 3. CANONICAL INPUTS
 Annual Planner reads:
 - Audit_Obligations / planning demand;
+- required scope(s) per future audit/Visit;
 - planning window / expiry context;
 - Company Region;
 - Preferred_Audit_Months;
@@ -32,7 +33,8 @@ Annual Planner reads:
 - Min_Interval_Months;
 - completed history;
 - committed and provisional workload;
-- available/plannable Auditor capacity by month/period where available from canonical Availability/capacity sources.
+- available/plannable Auditor capacity by month/period where available from canonical Availability/capacity sources;
+- qualification coverage/capacity by scope.
 
 4. CONCEPT FIELDS
 Per Audit Obligation / future planning item:
@@ -50,6 +52,12 @@ Concept month:
 - should use Preferred_Audit_Months as a preference, not blindly as a hard rule;
 - may remain empty;
 - does not reserve capacity.
+
+Default distribution logic should be planning-window-first:
+- audits are initially grouped/suggested into months that fit their planning window;
+- urgency/expiry and hard interval rules are respected first;
+- Preferred_Audit_Months, existing workload, scope-specific capacity and other soft planning intelligence may influence which valid month is suggested;
+- the system should not simply spread audits evenly over the year if that conflicts with planning windows or hard rules.
 
 If concept month later becomes infeasible, the Planner should surface that fact instead of silently moving it.
 
@@ -82,11 +90,22 @@ The Annual Planner must also provide an aggregate month/period view across the p
 - capacity shortfall;
 - concentration risk where demand depends too heavily on one Auditor or a very small qualified pool.
 
+Scope-specific capacity is required, not only total hours. For each relevant month/period the Manager should be able to see, per scope or scope family where useful:
+- number of audits/Visits to be planned;
+- expected planning hours/duration;
+- auditors qualified for that scope;
+- their usable capacity in that period;
+- shortage/headroom for that scope;
+- single-point-of-failure risk where only one Auditor or a very small pool can cover the demand.
+
+Multi-scope Visits must not be double-counted as separate physical Visits in total workload, while the scope coverage requirement must still be visible for qualification/capacity analysis.
+
 The Manager must be able to make the practical medium-term decisions the Annual Planner exists for, for example:
 - place one audit in May, another in August and another in September;
-- see whether this distribution fits expected capacity;
+- see whether this distribution fits expected total capacity;
+- see whether the specific required scopes can actually be covered in those months;
 - rebalance concept months or preassignments before concrete planning starts;
-- identify early that extra Auditor capacity, external support or another operational scaling measure may be needed.
+- identify early that extra Auditor capacity, additional qualification or external support may be needed for a specific scope.
 
 Capacity sufficiency is decision support, not an automatic staffing decision. The system surfaces the expected gap; the Manager decides how to respond.
 
@@ -95,9 +114,17 @@ Default view prioritises upcoming/relevant planning windows.
 Supported filters:
 - month;
 - Auditor;
-- Region.
+- Region;
+- Scope.
 
-A blank Auditor/Region filter must remain valid and support planning-window-first distribution.
+A blank Auditor/Region/Scope filter must remain valid and support planning-window-first distribution.
+
+Useful grouped views should include:
+- by month;
+- by Auditor;
+- by Region;
+- by Scope;
+- month x Scope capacity matrix or equivalent compact view.
 
 9. VALIDATION
 On save of concept month or preassignment:
@@ -126,6 +153,15 @@ Annual Planner consumes the same shared planning intelligence as:
 
 No separate annual-planning scoring engine.
 
+For annual distribution, the shared intelligence should use this order at a high level:
+1. planning window / urgency;
+2. hard feasibility and minimum interval;
+3. scope qualification and scope-specific capacity;
+4. existing committed/provisional workload;
+5. Preferred_Audit_Months and other soft preferences;
+6. preassignment and workload balancing;
+7. travel/region efficiency where it materially helps the yearly distribution.
+
 12. 3S + VALUE
 Speed
 - use bounded planning-demand/read models;
@@ -135,6 +171,7 @@ Speed
 Scalability
 - concept state is lightweight;
 - aggregate workload/capacity read model per Auditor/month;
+- scope/month capacity aggregates;
 - dynamic scope handling;
 - team-level monthly capacity summaries avoid N+1 Auditor calculations.
 
@@ -143,12 +180,15 @@ Stability
 - no accidental occupancy/lifecycle writes;
 - hard preassignment feasibility fails closed;
 - audit trail for concept changes;
-- capacity summaries distinguish measured/known capacity from assumptions or unavailable data.
+- capacity summaries distinguish measured/known capacity from assumptions or unavailable data;
+- scope demand must be derived from canonical Audit Obligation/Visit membership rather than a parallel manual scope list.
 
 Value
 - gives Manager early workload visibility;
 - shows whether planned monthly distribution is likely to fit available capacity;
-- provides early warning when Auditor capacity may need to be increased;
+- shows whether the correct scope-qualified capacity exists, not merely enough generic hours;
+- provides early warning when Auditor capacity or qualification may need to be increased;
+- supports planning-window-driven year distribution;
 - supports future bulk planning;
 - reduces last-minute planning without pretending future intentions are bookings.
 

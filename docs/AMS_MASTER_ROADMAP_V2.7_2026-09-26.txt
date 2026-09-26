@@ -1,0 +1,882 @@
+AUDIT MANAGEMENT SYSTEM — MASTER ROADMAP V2.7
+Date: 2026-09-26
+Status: CANONICAL SINGLE ROADMAP — ROADMAP ALIGNMENT COMPLETE
+Branch: dev
+Operating principle: 3S + Value — Speed, Scalability, Stability + operational value
+
+0. AUTHORITY AND GOVERNANCE
+
+0.1 Single roadmap SSoT
+This file is the only current AMS roadmap authority.
+It supersedes as roadmap authority:
+- docs/AMS_MASTER_ROADMAP_V2.6_2026-09-22.txt
+- docs/AMS_POST_MVP_Roadmap_V2.5_CONSOLIDATED_2026-09-22.txt
+- docs/AMS_PLANNING_2_0_INTEGRATED_PLAN_2026-09-22.txt
+- docs/READ_FIRST_PLANNING_2_0_GOVERNANCE_2026-09-23.txt
+- historical Roadmap V2.3 / V2.4 material and parked roadmap lists.
+
+Those documents remain historical evidence/reference only. They do not form parallel roadmap truth. Where wording conflicts, this V2.7 wins.
+
+0.2 Read-first rule
+For roadmap/policy decisions, read this file first and treat it as sufficient roadmap authority.
+Supporting closure/RCA/architecture documents may be read for implementation evidence, technical detail or historical rationale, but cannot silently override this roadmap.
+
+0.3 Repository/runtime governance
+- Git repository is code/document SSoT.
+- dev is the active development branch.
+- DEV GAS is the canonical Apps Script development runtime for canonical writes still owned by GAS.
+- PROD is production-only and remains untouched without explicit cutover authorization.
+- Cloud Run is an accepted application/read runtime where explicitly migrated and accepted.
+- Chats/Work are execution environments, never SSoT.
+
+0.4 Hard architecture rules
+- no second planning engine;
+- no second Availability model;
+- no duplicate validator policy;
+- no second capacity truth;
+- no silent dual truth;
+- no direct browser-to-Sheets access;
+- no direct bulk Sheet edits;
+- no UI-owned lifecycle logic;
+- no Cloud Run rewrite of canonical write/business rules merely for migration;
+- projections/caches/read models are disposable and never canonical truth.
+
+1. CANONICAL DOMAIN MODEL
+
+Canonical chain:
+Company -> Company Scope -> Audit Obligation -> Audit Visit <-> Auditor Availability
+
+Canonical planning chain:
+Planning Demand -> Concept Planning -> Planning Workspace -> Preflight -> Canonical Commit -> Batch orchestration where relevant -> Notification Queue / Audit Trail
+
+Ownership:
+- Companies: Company master data; Company_UID stable identity; Locations_JSON location master data.
+- Config_Scopes: scope metadata, recurring semantics, Formal_hours, Scheduling_hours / Planning duration, rotation maximum.
+- Config_Scope_Dependencies: dependency relationships including Must_Audit_Together and Share_Expiry.
+- Company_Scopes: durable Company x Scope configuration/lifecycle relationship.
+- Audit_Obligations: scope/cycle obligation, expiry/window/formal-hour and annual-assignment policy truth.
+- Audit_Visit_Obligations: canonical Visit <-> Obligation membership.
+- Audit Visit / Audit ID: physical operational audit identity.
+- Planning JSON: committed Visit schedule/block execution truth.
+- Auditor Availability: capacity/exception/occupancy layer.
+- canonical planning/status/modify/completion services: write owners.
+- Company_Update_Proposals: Auditor-originated company-data proposal queue.
+- Notification Queue: delivery owner.
+- Log realized audits: completed/realized history.
+- Rejected audits: terminal rejected history.
+- Audit planning: retained operational/compatibility projection during migration; not lifecycle owner.
+
+2. CURRENT ACCEPTED BASELINE
+
+2.1 Model C
+AMS-01.6 is CLOSED on DEV.
+Accepted baseline includes:
+- Company_Scopes, Audit_Obligations and Audit_Visit_Obligations ownership;
+- Audit ID retained as physical Visit key;
+- recurring/non-recurring lifecycle governed by Config_Scopes.Recurring;
+- non-recurring Cycle_Key semantics;
+- generic Config_Scope_Dependencies;
+- scope-specific expiry/window ownership;
+- visit window = intersection of linked active obligations;
+- empty intersection = hard block;
+- no UNION_FALLBACK as valid Planning 2.0 commit logic;
+- Audit planning retained only as operational/compatibility projection;
+- legacy ECAS direct-writing path retired in favor of Model C path.
+
+2.2 Planning 2.0 foundation
+Accepted/proven on DEV:
+- Planning Demand / Concept Planning / Workspace / Preflight / canonical commit foundation;
+- bounded fast read layer and shared decision payload foundation;
+- integrated annual planner foundation;
+- lifecycle/reporting projection foundation;
+- batch preflight/commit architecture;
+- trip/workweek advisory foundation;
+- company communication/profile/handover read foundations;
+- caller inventory for safe legacy retirement.
+
+These closures prove architectural components, not automatic feature-parity cutover. Later roadmap decisions in this document supersede older acceptance wording where business semantics changed.
+
+2.3 External application migration
+Accepted DEV direction:
+Browser -> authenticated AMS web application -> Cloud Run.
+Cloud Run -> Google Sheets API for accepted hot read projections.
+Canonical writes remain through existing write owners until explicitly migrated behind equivalent authenticated API boundaries.
+
+Accepted DEV evidence includes:
+- authenticated Manager application session;
+- Manager open view direct read;
+- Manager completed view direct read;
+- external frontend extraction;
+- action transport/bridge contract preserving managerV5Action -> Status_applyAction ownership.
+
+External UI/runtime migration does not change domain/business ownership.
+
+3. 3S — HARD RELEASE CRITERION
+
+3.1 Speed
+- local UI response immediate where no server decision is required;
+- common cached/read-model interactions target < 1 s;
+- major decision-ready loads target approx. <= 2 s p95 where technically realistic;
+- browser wall time matters, not only serverMs;
+- normal actions may not repeatedly rebuild broad Sheet context.
+
+3.2 Scalability
+- bounded/windowed reads;
+- no N+1 per audit/day/auditor/marker;
+- shared read models;
+- dynamic scope handling up to initial supported boundary of 20 active scopes;
+- batch orchestration reuses per-item canonical chain;
+- no fixed 8-scope assumptions in new 2.0 surfaces.
+
+3.3 Stability
+- deterministic targeted invalidation;
+- hard validators fail closed;
+- optimistic concurrency/revision protection;
+- idempotency where retry can occur;
+- truthful audit trail;
+- canonical writers only;
+- DEV/PROD discipline;
+- rollback/recovery for multi-step writes.
+
+3.4 GAS/RPC performance lessons that remain binding
+- visible work always outranks speculative prefetch;
+- speculative prefetch budget is zero while visible Save/Validate/Commit is pending;
+- prefer coarse-grained/range payloads over multiple adjacent-month RPCs;
+- one command context should be reused through equivalent validation phases;
+- do not repeatedly reload audit/company/scope context inside one command;
+- notification rendering/enrichment must not unnecessarily extend commit critical path;
+- measure cold/warm wall time, queueing and transport contention.
+
+4. PLANNING 2.0 PRODUCT BOUNDARY
+
+Planning 2.0 replaces the slow Planning 1.0 interaction model. It is not a second planning engine.
+Manager and Auditor converge on the same read models, validators, Concept model, Workspace, Preflight and canonical writers. Only permissions/actions/presentation differ.
+
+The legacy Planning Toolkit is a migration surface, not an end-state product and not a separate optimization programme. Do not build a Toolkit 1.5.
+
+Legacy surfaces remain only until equivalent 2.0 capability is functionally and 3S accepted.
+
+5. CANONICAL LIFECYCLE
+
+Canonical statuses:
+Pending Planning -> Pending Approval -> Approved -> Accepted -> Completed
+Rejected is terminal.
+
+Manager-planned:
+Pending Planning -> Plan by Manager -> Approved -> Auditor Accept -> Accepted.
+
+Auditor self-planned:
+Pending Planning -> Plan by Auditor -> Pending Approval -> Manager Approve -> Accepted.
+No redundant second Auditor Accept after Manager approval of the Auditor's own submission.
+
+Cancel/return:
+Pending Approval / Approved / Accepted -> Pending Planning through canonical reopen/cancel handling.
+
+Reject:
+active -> Rejected terminal history.
+
+Manager UX:
+- user-facing CANCEL fuses legacy Cancel/Deny where the backend allows the corresponding return action;
+- REJECT remains separate terminal action;
+- APPROVE remains separate;
+- PLAN belongs to Planning Workspace, not generic grid-action logic.
+
+Manager Accept on behalf:
+A Manager may Accept a manager-planned Approved audit for the assigned Auditor only when confirmation occurred outside the system. Record actual Manager actor, represented Auditor, source/channel, reason/context and timestamp. Never falsely log the action as performed by the Auditor.
+
+6. CONTROLLED RE-ADJUST / MATERIALITY
+
+No unrestricted generic Edit.
+Re-adjust remains Workspace -> Preflight -> canonical writer.
+
+Material:
+- audit day/date change -> Pending Planning;
+- scope change affecting current Visit -> Pending Planning.
+
+Lifecycle-preserving when validators pass:
+- same-day time/block change;
+- execution-location-only change with same day/auditor/scope set.
+
+Accepted audit + same-day Manager time change:
+- remains Accepted;
+- no renewed acceptance solely for the time change;
+- Auditor receives a small non-blocking informational seen/acknowledged signal.
+
+Auditor reassignment:
+- planning may remain when day/scopes/time structure remain unchanged;
+- qualification, rotation, Availability, overlap/capacity, travel/conflict and planning validity rerun;
+- already Accepted -> Approved for new Auditor acceptance.
+
+Formal-hours mutation causing under-planning:
+- preserve current lifecycle status;
+- surface hard planning-validity block until planning is corrected;
+- do not silently reset lifecycle.
+
+Completed:
+- lifecycle-immutable;
+- never reopened through Re-adjust.
+
+Every lifecycle-preserving Re-adjust is audit-trailed with actor/timestamp/changed fields/before-after metadata.
+Notification failure never rolls back an otherwise valid canonical mutation.
+
+7. COMPLETION / REALIZED CORRECTIONS
+
+Completion is canonical Accepted -> Completed and uses CompletionService / StatusMachine ownership.
+Completion preserves truthful actor/on-behalf provenance and transactional ordering across validation, realized history, recurring-cycle handling, Availability release and active-row retirement.
+
+Hours dedicated:
+- realized actual effort;
+- quarter-hour granularity under canonical completion rules;
+- distinct from Formal hours and Planning duration;
+- variance is reporting input only.
+
+Post-completion correction:
+- lifecycle remains Completed;
+- Manager may make controlled administrative correction of governed realized fields, including Hours dedicated;
+- reason mandatory;
+- audit trail includes Manager actor, timestamp, Audit ID, field, old value, new value;
+- no rewrite of historical Planning JSON, planning lifecycle or unrelated provenance.
+
+8. SCOPE / CERTIFICATE / EXTENSION GOVERNANCE
+
+Recurring=YES:
+- certificate lifecycle/expiry applies;
+- successor obligation follows lifecycle rules.
+
+Recurring=NO:
+- no invented certificate birthday/expiry;
+- Cycle_Key may define annual/explicit obligation;
+- no automatic certificate-style successor;
+- blank explicit window with valid four-digit Cycle_Key may resolve operationally to that full calendar year where the accepted Model C rule applies;
+- partial explicit window is invalid.
+
+Scope Manager:
+- owns Company Scope / obligation lifecycle mutation through Model C;
+- distinguishes future-cycle maintenance from current-Visit mutation;
+- never destructively deletes history;
+- must show current-Visit impact before a material change.
+
+Extension:
+- Apply/Undo only while Pending Planning/planning stage;
+- unavailable once Pending Approval, Approved or Accepted;
+- obligation/cycle mutation, not lifecycle truth;
+- updates effective expiry/window projection and targeted caches only.
+
+Dynamic scopes:
+- Config_Scopes-driven;
+- initial design boundary 20 active scopes;
+- adding/activating a supported configured scope must not require scope-specific code changes.
+
+9. PLANNING WINDOW / DEPENDENCY RULES
+
+Every obligation owns its canonical planning window.
+Combined Visit window = intersection of participating obligation windows.
+Empty intersection = HARD BLOCK.
+No silent widening or UNION_FALLBACK.
+
+Where certification rules permit, incompatible independent obligations may be resolved into separate Visits/Audit IDs with preserved obligation identity/linkage.
+Must-audit-together/dependent scopes cannot be split merely to bypass incompatible windows. If their intersection is impossible, underlying cycle/expiry/dependency/window data must be corrected.
+
+10. HOURS MODEL
+
+Three distinct concepts are mandatory:
+1. Formal hours — normative/audit-accounting workload; Config_Scopes default with Company Scope override where applicable.
+2. Planning duration — practical agenda/capacity duration; Config_Scopes Scheduling_hours; no Company override in current model.
+3. Hours dedicated — realized effort captured at Completion.
+
+Multi-scope Visit Planning duration:
+- sum Scheduling_hours of participating scopes;
+- no implicit bundling discount/compression.
+
+Committed Planning JSON duration:
+- target exact canonical Planning duration;
+- maximum absolute deviation ±15 minutes accepted;
+- >15 minutes = hard planning-validation failure.
+
+Annual planning must show Formal hours, Planning duration and audit/Visit counts separately and avoid double-counting bundled scopes.
+
+11. AVAILABILITY / DAILY CAPACITY
+
+Auditor Availability is the canonical capacity/exception layer.
+
+Hard:
+- explicit hard-unavailable interval/date;
+- overlap with committed audit occupancy.
+
+Soft/advisory:
+- recurring/default blocked weekday;
+- DEFAULT_WEEKEND behavior;
+- high total same-day hours/long working day.
+
+Committed audit occupancy:
+- audit-owned/read-only in My Availability;
+- personal Availability edit cannot overwrite it;
+- Auditor unable for an already planned audit must use planning/lifecycle route.
+
+Resolved priority semantics:
+- committed occupancy and explicit hard unavailable take precedence over soft/default metadata;
+- Calendar, Preflight, Annual Capacity and My Availability consume the same resolver semantics.
+
+Same Auditor/day:
+- multiple non-overlapping audits allowed;
+- overlap hard-blocked;
+- no automatic one-audit-per-day rule;
+- no hard 17:00 boundary;
+- no generic hard 9-hour audit+travel ceiling.
+
+Same Company:
+- overlapping audits allowed with different eligible/available Auditors;
+- same Company and especially same location overlap gives a clear advisory warning, not a hard block by itself.
+
+12. ROTATION
+
+Config_Scopes owns maximum per scope.
+- count <= maximum: allowed;
+- maximum +1: only with explicit Manager confirmation that required permission was obtained;
+- maximum +2 or beyond: HARD BLOCK.
+
++1 audit trail includes Manager actor, timestamp, reason/note, Company, Scope, Auditor and count/threshold context. Permission is assignment-specific, never blanket.
+
+Consecutive chain:
+- evaluated per Company + Scope against completed history;
+- missing audit year does not break chain;
+- another Auditor performing same Company + Scope resets chain;
+- multi-scope Visit evaluates each scope and strictest verdict governs.
+
+Rotation applies already at preassignment time.
+
+13. PREASSIGNMENT / SELF-PLANNING POLICY
+
+Preassignment while Pending Planning:
+- Manager-owned forecast/workload guidance;
+- does not reserve Availability;
+- does not change lifecycle status;
+- Auditor A -> B transfers directly; A confirmation not required;
+- qualification hard-validates;
+- rotation hard/exception policy applies;
+- date-specific Availability revalidates at concrete commit.
+
+Preassignment and Allow self planning are separate controls.
+A preassigned Auditor gets self-planning access only when Allow self planning = YES and current eligibility passes.
+
+Ownership:
+- current Audit Obligation/cycle metadata, not immutable Company identity.
+
+Successor cycle:
+- preassignment / self-planning policy may carry as continuity defaults only;
+- revalidate active Auditor, qualification and rotation;
+- actual assignment, Planning JSON, Availability occupancy and lifecycle decisions never carry as committed state.
+
+14. ANNUAL PLANNER / CONCEPT ASSIGNMENT
+
+A Pending Planning obligation/audit may carry:
+- concept planning month;
+- preassigned Auditor;
+without a concrete date/time.
+
+Concept assignment:
+- no Planning JSON;
+- no Availability occupancy;
+- no lifecycle change;
+- concept month must fit canonical planning window;
+- Preferred audit months are advisory only;
+- hard known invalidity (inactive Auditor, qualification failure, concept month wholly outside window) cannot be presented as valid.
+
+Canonical storage:
+- concept month is explicit Model C annual-assignment metadata keyed to Audit Obligation/cycle;
+- never overload Date-Planned, Planning JSON, planning-window fields or Preferred months.
+
+Forecast:
+- concept month + Auditor contributes to forecast capacity;
+- Planning duration consumes forecast capacity;
+- Formal hours remain separate workload measure;
+- overload = planning warning, not lifecycle block by itself.
+
+Bulk annual assignment:
+- assign/change concept month and/or preassigned Auditor for multiple Pending Planning items;
+- same per-item qualification/rotation/window/concurrency validation;
+- explicit partial success;
+- no Planning JSON/Availability/status mutation.
+
+Concept month does not roll forward numerically to successor cycle. Successor derives candidate timing from its own planning window/current preferences and receives a newly assigned/confirmed concept month.
+
+15. AUDITOR PLANNING PROFILE / CAPACITY
+
+08:00–18:00 Availability display envelope is not automatically ten productive audit hours.
+
+Auditor Planning Profile owns forecast assumptions not already owned elsewhere:
+- standard working-day capacity;
+- blocked weekdays;
+- planning base/location;
+- region preferences;
+- other planning constraints.
+
+Qualifications remain separate canonical qualification truth.
+Availability remains date/interval exception + occupancy truth.
+
+Extend/reuse the existing Auditors/AuditorsIndexService layer; do not create a planner-only Auditor table.
+Annual planning, Availability, Company Map and Trip/Workweek should share the same Auditor profile DTO/read model.
+
+16. COMPANY MASTER DATA / PROPOSALS
+
+Company_UID is stable identity. Company name is display data.
+Normal retirement = deactivate, not physical delete.
+Duplicate merge, if introduced, is a governed referential migration.
+
+Companies remains master-data truth including Locations_JSON.
+Manager 2.0 must retain create/edit/list/search/status/country/timezone/contact/language/region/comments/planning preferences/locations functionality through the canonical Companies backend.
+
+Auditor-originated company changes remain proposal-only through Company_Update_Proposals.
+Accepted proposal apply is targeted/audit-trailed and may not create a second Companies truth.
+
+Optimistic concurrency:
+- proposal stores Old_Value;
+- apply requires current canonical value still equals Old_Value;
+- otherwise stale/conflict block;
+- Manager sees old/current/proposed;
+- never silently rebase.
+
+Proposal queue uniqueness:
+- at most one independently actionable Pending proposal per Company_UID + Section + Field_Key + Location_Code target;
+- multi-field submission preserves per-field outcomes.
+
+Preferred audit months / less-suitable weekdays/hours:
+- soft planning preferences;
+- never widen hard planning window;
+- do not reset/hold Approved/Accepted audits;
+- Auditor changes remain proposal-based.
+
+17. OPERATIONAL HOLDS / DEACTIVATION
+
+Company inactive with open Approved/Accepted audits:
+- no automatic status rewrite;
+- hard operational hold;
+- no new audits/cycles while inactive;
+- Manager explicitly resolves.
+
+Auditor inactive with assigned open audits:
+- no automatic status rewrite;
+- hard hold until Manager reassigns;
+- reassignment follows canonical replacement-Auditor validation and acceptance rules.
+
+Planned execution location inactive:
+- no automatic status rewrite;
+- hard hold until Manager selects valid active location.
+
+System-wide Config_Scope inactive:
+- no automatic rewrite of existing open Visit;
+- hard hold;
+- no new planning/cycles for inactive scope;
+- history preserved.
+
+Loss of required Auditor qualification after planning:
+- direct hard planning-validity failure;
+- Approved/Accepted -> Pending Planning;
+- this is not merely a hold.
+
+Reactivation:
+- never auto-releases a prior hold;
+- Manager explicitly releases/resolves only after canonical validators pass;
+- actor/timestamp/validation outcome audited;
+- no pseudo-status required.
+
+18. MULTI-LOCATION PLANNING
+
+Companies.Locations_JSON remains location master-data SSoT.
+Active Company location != automatically required audit location.
+
+Required locations:
+- configured per Company Scope;
+- each required location has canonical practical Planning-duration allocation;
+- new obligations inherit then-current Company Scope requirement;
+- combined multi-scope Visit resolves union of required locations;
+- shared location contributions aggregate without duplicate location requirement;
+- resolved per-location durations must reconcile to additive total Visit Planning duration.
+
+Planning JSON:
+- committed block-level execution truth;
+- each block carries canonical execution location via execLoc;
+- block durations aggregate per location;
+- every required location must be covered with required time;
+- multi-day/non-consecutive segmentation supported;
+- legacy single Location is compatibility/display only;
+- free-text label does not replace stable location identity.
+
+Existing arbitrary max-five-planning-days ceiling is a 1.0 implementation ceiling, not future business policy. Replace with bounded/configurable/derived limits compatible with the segmented multi-location model.
+
+19. COMPANY MAP / TRIP / WORKWEEK
+
+Company Map:
+- shared read-only visualization over Companies.Locations_JSON, audit workload and committed Planning JSON locations;
+- no separate planning/location data store;
+- pending preassignment may be shown as prospective workload distinct from committed occupancy;
+- multi-location Visit must show all actual committed execution locations;
+- bounded/cached, no per-marker/full-sheet N+1.
+
+Trip/workweek:
+- decision-support layer feeding Concept Planning/Workspace;
+- never second planner or writer;
+- uses required/committed Visit location requirements;
+- continuous itinerary; no fictitious daily return to base;
+- car/train/flight where relevant;
+- compare door-to-door time, feasibility, schedule impact, reliable cost where available, sustainability burden;
+- flight has explicit environmental penalty/soft score, never automatic hard block;
+- travel infeasibility is prominent advisory warning, not lifecycle hard block;
+- Manager retains practical responsibility;
+- hotel context/options visible and may form day start/end points;
+- no autonomous booking initially.
+
+20. BATCH / BULK
+
+Bulk concrete planning supports explicit partial commit.
+After commit-time revalidation:
+- valid items may commit independently;
+- invalid items remain unchanged;
+- every requested item has explicit outcome: committed / blocked / failed / already committed / skipped;
+- no silent omission;
+- hard failure on one item does not block unrelated valid items;
+- each commit delegates to canonical single-audit writer;
+- batch orchestration never becomes persistence owner;
+- idempotency mandatory.
+
+Notifications:
+- each successful audit emits the same canonical lifecycle event as equivalent single action;
+- blocked/failed/skipped items do not emit success lifecycle notifications;
+- Queue/digest may consolidate delivery;
+- bulk layer never directly sends lifecycle mail.
+
+Later bulk Re-adjust / move-trip / controlled Auditor replacement must retain per-audit canonical validation.
+
+21. REPORTING / DASHBOARDS / EXPORTS
+
+Shared read models feed:
+- Manager Cockpit;
+- Auditor Dashboard;
+- Annual Planner;
+- Company Map;
+- exports;
+- operational reports.
+
+Report dimensions include:
+- workload by region/scope/auditor;
+- Formal hours vs practical planned duration vs actual Hours dedicated;
+- capacity/headroom;
+- scope-specific expiry;
+- planning-window exposure;
+- rotation pressure;
+- approval/acceptance ageing;
+- completed/overdue/upcoming lifecycle;
+- reschedule frequency;
+- trip efficiency;
+- notification exceptions.
+
+Ageing:
+- derive from canonical Status since;
+- missing Status since is data-integrity issue, not invented age;
+- event timestamps enrich drilldown only.
+
+History:
+- Completed lifecycle immutable;
+- Rejected terminal;
+- bounded/paged reads; no full archive hydration on first paint.
+
+Exports:
+- Auditor 2.0 retains selected-audit Excel/PDF workflow through canonical successor of existing export backend;
+- authorization server-side and Auditor self-scoped;
+- Manager exports use shared reporting read models;
+- export generation outside first-paint hot paths.
+
+22. HANDOVER / OPERATIONAL CONTEXT
+
+Companies.Comments remains Company master-data commentary.
+Structured handover has two explicit levels:
+- Company Handover: durable site/company instructions;
+- Audit/Visit Handover: cycle/visit-specific context.
+
+Planning JSON slotComment remains block-level planning context only.
+Handover is advisory/operational, permission-aware and audit-trailed where mutated; it never owns lifecycle, Availability, Company identity or planning requirements.
+
+23. COMPANY PLANNING CONFIRMATION — POST-CUTOVER
+
+Not a feature-parity cutover blocker because Planning 1.0 has no equivalent canonical workflow.
+Later capability may let Company:
+- confirm;
+- decline;
+- provide partial availability;
+- suggest alternatives.
+
+Company never writes final Planning JSON, Availability occupancy or lifecycle status. Feedback returns to Workspace; canonical validators rerun before commit. Notification Queue remains delivery owner.
+
+24. EXTERNAL WEB / CLOUD RUN MIGRATION
+
+Accepted architecture:
+- authenticated application session is browser identity boundary;
+- server-side authorization on every protected endpoint;
+- Auditor self-scope server-side;
+- no credentials in query strings;
+- no browser service-account credentials;
+- no browser direct Sheets access.
+
+Hot reads:
+- migrate suitable interactive reads to Cloud Run -> Google Sheets API projections where proven;
+- Cloud Run read identity remains read-only;
+- deferred/unknown fields may not be converted to false business facts.
+
+Writes:
+- canonical status/planning/Availability/notification/revision owners remain authoritative;
+- Cloud Run may provide authenticated transport/API boundary only unless a canonical writer is explicitly migrated with equivalent acceptance;
+- no direct Cloud Run Sheets-write shortcut.
+
+Current DEV Manager migration evidence:
+- application session accepted;
+- open and completed reads accepted;
+- external frontend extraction implemented;
+- manager action bridge contract exists for Approve/Cancel/Reject and delegates to GAS canonical chain;
+- runtime/performance acceptance remains required per migrated action/surface before legacy retirement;
+- PROD untouched.
+
+25. PLANNING 1.0 -> 2.0 FEATURE-PARITY MIGRATION CONTRACT
+
+For every surface record:
+1. existing 1.0 entry point;
+2. canonical backend/SSoT owner;
+3. existing reusable 2.0/read-model/backend asset;
+4. target 2.0 entry point;
+5. functional acceptance;
+6. 3S acceptance;
+7. legacy retirement state.
+
+Definitive parity matrix:
+
+A. Manager open audit grid / lifecycle actions
+Owner: StatusMachine / AuditLifecycleService + canonical read projection.
+2.0 status: external Manager open read accepted; action bridge contract implemented/acceptance ongoing.
+Retire 1.0 only after all used actions, planning launch and refresh behavior are runtime/3S accepted.
+
+B. Manager Planning Toolkit
+Owner: shared Planning 2.0 Workspace/Preflight/canonical writers.
+2.0 target: Planning Workspace.
+Legacy Toolkit is temporary migration surface only.
+
+C. Auditor planning/self-planning
+Owner: same Planning 2.0 core + Auditor authorization/self-scope.
+2.0 target: Auditor Workspace using shared decision model/validators.
+Must preserve preassignment + Allow self planning rules and direct Manager-Approve -> Accepted self-plan flow.
+
+D. Availability / My Availability
+Owner: Auditor Availability resolver/write service.
+2.0 target: shared calendar/read model and Auditor availability surface.
+Must preserve hard/soft/occupancy priority, weekend semantics and protected audit occupancy.
+
+E. Companies create/edit/list
+Owner: Companies canonical backend; Locations_JSON.
+2.0 target: Manager company surface.
+Must preserve all current operational company fields and targeted invalidation.
+
+F. Scope Manager
+Owner: Model C Company_Scopes/Audit_Obligations + Config dependencies.
+2.0 target: Manager Scope surface.
+Must preserve add/change/deactivate, formal hours, certificate lifecycle, dependencies, extension boundaries and current-Visit impact governance.
+
+G. Annual Planning / Planning Overview
+Owner: Model C workload + Auditor profile/Availability-derived capacity.
+2.0 target: integrated Annual Planner.
+Foundation accepted; must implement canonical concept-month storage, preassignment/self-planning policy, bulk concept assignment and final 3S acceptance.
+
+H. Rotation
+Owner: canonical Rotation service + Config_Scopes thresholds.
+2.0 target: shared validator/advisory in Annual Planner/Workspace.
+Must implement +1 recorded permission and +2 hard block consistently.
+
+I. Company Map
+Owner: Companies locations + shared workload/planning read models.
+2.0 target: shared read-only map.
+Must migrate multi-location actual execLoc semantics.
+
+J. Company update proposals / preferred months
+Owner: Company_Update_Proposals + Companies apply path.
+2.0 target: Auditor proposal + Manager review surfaces.
+Must add/retain optimistic concurrency and one-pending-target queue rule.
+
+K. Completed/history
+Owner: Log realized audits + completion/correction services.
+2.0 target: bounded Manager/Auditor history views.
+Manager completed read migration already accepted; controlled realized correction still governed separately.
+
+L. Rejected history
+Owner: Rejected audits / canonical reject owner.
+2.0 target: bounded Manager history view.
+Rejected remains terminal; no normal restore/reopen.
+
+M. Exports
+Owner: existing export backend/read-model successor.
+2.0 target: Auditor selected-audit Excel/PDF + Manager reporting exports.
+Must remain role/data scoped and outside hot first paint.
+
+N. Notifications / audit trail
+Owner: StatusNotificationBridge / Notification Queue + lifecycle audit trail.
+2.0 target: unchanged canonical side-effect ownership behind new UI/API surfaces.
+No UI/bulk/external app direct-send ownership.
+
+O. Trip/workweek
+Owner: decision-support read models feeding Workspace.
+2.0 target: advisory trip/workweek experience.
+Foundation accepted; full route/travel-time/cost provider remains future maturation, not parity blocker unless required by an existing 1.0 capability.
+
+P. Profiles / handover
+Owner: Auditors/AuditorsIndexService + structured handover model when implemented.
+2.0 target: shared planning profile and handover reads.
+No duplicate qualification/Availability truth.
+
+26. CURRENT CONFLICT CLEANUP — AUTHORITATIVE RESOLUTIONS
+
+The following older roadmap/closure wording is explicitly superseded:
+- generic rule that every Accepted Modify/Re-adjust returns to Approved -> replaced by section 6 materiality matrix;
+- generic rotation-is-soft wording -> replaced by section 12 threshold policy (+1 governed permission, +2 hard block);
+- ambiguous batch wording that can imply all-or-nothing -> replaced by explicit partial commit in section 20;
+- old Pending Approval -> Approved generic self-planning approval -> replaced by Auditor self-plan Manager Approve -> Accepted;
+- old UNION_FALLBACK planning-window behavior -> prohibited;
+- old concept-month absence/overloading options -> explicit Model C annual-assignment metadata;
+- fixed five-day planning ceiling -> treated as 1.0 technical ceiling, not business policy;
+- separate Planning 2.0 Integrated Plan / READ-FIRST roadmap authority -> absorbed here;
+- stale execution phases that describe already accepted foundations as future work -> replaced by section 27.
+
+Historical closure documents remain valid evidence of what was tested at that time, but their business-policy wording does not override this roadmap.
+
+27. EXECUTION ORDER FROM 2026-09-26
+
+Gate 0 — ROADMAP ALIGNMENT
+Status: CLOSED by this V2.7.
+- single roadmap authority established;
+- duplicate V2.6 numbering eliminated by consolidation;
+- historical conflicting rules resolved here;
+- subordinate plans demoted to reference/evidence.
+
+Gate 1 — definitive parity inventory against actual 1.0 code
+- verify each matrix row A–P against live repository entry points/owners;
+- identify UI-only gaps versus missing backend capability;
+- no feature implementation before ownership is clear.
+
+Gate 2 — Planning 2.0 core Manager parity
+- Manager open grid/actions;
+- Planning Workspace launch/handoff;
+- Save/close/refresh behavior;
+- Companies;
+- Scope Manager;
+- Availability context;
+- completed/rejected/history;
+- Company Map;
+- proposal review;
+- operational exports where used.
+
+Gate 3 — Auditor parity
+- assigned/open overview;
+- self-planning Workspace;
+- Accept/Cancel canonical actions;
+- My Availability;
+- company proposals / preferred months;
+- completed/history;
+- selected-audit exports.
+
+Gate 4 — canonical annual planning completion
+- concept-month data-model storage;
+- Auditor Planning Profile capacity assumptions;
+- concept month + preassignment;
+- qualification/rotation thresholds;
+- bulk concept assignment;
+- forecast reconciliation;
+- 3S acceptance.
+
+Gate 5 — multi-location canonical completion
+- Company Scope required-location membership;
+- per-location Planning-duration allocation;
+- combined-scope reconciliation;
+- Planning JSON coverage validation;
+- Map/Workspace/Trip consumption.
+
+Gate 6 — controlled Re-adjust completion
+- materiality matrix in canonical writer/UI;
+- lifecycle-preserving informational signals;
+- Auditor reassignment handling;
+- under-planning validity hold/block;
+- tests and notifications.
+
+Gate 7 — batch/bulk product maturation
+- Annual Planner multi-select;
+- concrete batch concept/preflight/partial commit UX;
+- explicit outcomes/idempotency;
+- later bulk Re-adjust only after single-audit semantics are complete.
+
+Gate 8 — reporting/cockpit/dashboard
+- shared read models;
+- ageing from Status since;
+- workload/capacity/expiry/rotation/exception views;
+- role-scoped exports.
+
+Gate 9 — Trip/Workweek maturation
+- actual required/committed locations;
+- continuous itinerary;
+- travel mode comparison;
+- environmental flight penalty;
+- hotel context;
+- route/travel provider only when practical value justifies it.
+
+Gate 10 — company confirmation / richer communication / structured handover
+- post-cutover product scope;
+- authenticated response channel before feedback persistence;
+- never direct planning commit by Company.
+
+Gate 11 — legacy retirement / hardening
+- retire only proven-replaced callers/surfaces;
+- remove obsolete Toolkit fragments/duplicate helpers/typo fallbacks where safe;
+- update stale ProjectDocs/governance snapshots that still describe pre-Model-C ownership;
+- maintain projection compatibility until dependent callers are gone;
+- no big-bang deletion.
+
+Gate 12 — PROD cutover
+Only after relevant Manager + Auditor parity, business-rule conformance, security, 3S acceptance, migration evidence and rollback readiness. Explicit PROD authorization required.
+
+28. DEFINITION OF DONE / CUTOVER GATE
+
+A migrated capability is not DONE because a UI exists.
+DONE requires:
+- canonical owner identified and reused;
+- functional parity or explicitly accepted replacement;
+- accepted business rules from this roadmap enforced;
+- no second truth/writer;
+- role/authorization correct;
+- status/Availability/notification/audit-trail effects defined;
+- concurrency/idempotency where relevant;
+- 3S evidence on realistic DEV data;
+- regression tests;
+- rollback/recovery for writes;
+- legacy path retired only after replacement is proven.
+
+Planning 2.0 cutover requires demonstrable Manager and Auditor operational parity for all currently used 1.0 functions that are not explicitly classified post-cutover.
+
+29. LONG-TERM PLATFORM DIRECTION
+
+Only after demonstrated need and after core migration stabilizes:
+- archive partitioning;
+- paged long-term history optimization;
+- asynchronous rebuild/workers;
+- dedicated datastore/backend;
+- broader API-first architecture;
+- mobile-focused UX;
+- further migration beyond GAS/Sheets.
+
+No long-term platform change may bypass the same domain ownership and migration discipline.
+
+30. ROADMAP CHANGE CONTROL
+
+New accepted business-rule decisions are written into this file before implementation when they materially affect roadmap policy.
+Do not create a new parallel roadmap for a subprogramme.
+Implementation/closure/RCA documents may remain separate evidence documents, but they must reference this roadmap rather than becoming competing roadmap authority.
+
+If a future decision supersedes a rule here:
+1. update this roadmap;
+2. state the superseded rule explicitly;
+3. update affected acceptance tests/contracts;
+4. then implement.
+
+END — AMS MASTER ROADMAP V2.7 — 2026-09-26

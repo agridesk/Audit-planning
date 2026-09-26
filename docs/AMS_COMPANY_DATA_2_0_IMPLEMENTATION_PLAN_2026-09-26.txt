@@ -1,0 +1,226 @@
+AUDIT MANAGEMENT SYSTEM — COMPANY DATA 2.0 IMPLEMENTATION PLAN
+Date: 2026-09-26
+Branch: dev
+Status: ACCEPTED IMPLEMENTATION PLAN — no runtime behavior changed by this document
+Authority: AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26 + accepted decision 2026-09-26 on Preferred_Audit_Months ownership
+
+1. GOAL
+Migrate Company Data behavior toward Planning/Portal 2.0 without creating a second Company master, without increasing Manager workload for routine corrections, and without losing governance on planning-significant structural fields.
+
+Companies remains the single Company master-data SSoT.
+The Auditor uses the Company tab as the single entry point.
+One save action may contain both direct updates and Manager-reviewed proposals.
+
+2. ACCEPTED FIELD OWNERSHIP
+
+DIRECT AUDITOR UPDATE WITH AUDIT TRAIL
+- Contactperson
+- Contact e-mail
+- Contact phone
+- Auditor comments
+- Planning limitations: days
+- Planning limitations: hours
+
+MANAGER-REVIEWED PROPOSAL
+- General comments
+- Region
+- Locations / Locations_JSON structural changes
+- Preferred_Audit_Months
+
+MANAGER-ONLY
+- Company status
+- Auditor_Exclusions activation/deactivation and other explicitly Manager-only structural governance
+
+Preferred_Audit_Months rule:
+- Auditor may propose changes from the Company tab.
+- Proposal does not alter the canonical Companies value.
+- Manager decides Accept / Adjust / Reject.
+- Planning continues using the currently approved canonical value until Manager decision is committed.
+
+3. CURRENT 1.0 GAP TO FIX DURING MIGRATION
+Current AuditorCompanyUpdateDialogClient.js can collect Preferred audit months as planning/preferredAuditMonths.
+Current CompanyUpdateProposalsBackend.js, as inspected, does not currently provide a complete read/apply contract for that field.
+Therefore existing 1.0 behavior must not be assumed to persist Preferred_Audit_Months correctly.
+
+Migration requirement:
+- proposal snapshot must expose current Preferred_Audit_Months;
+- proposal submission must accept preferredAuditMonths;
+- Manager review must show old/proposed value;
+- Accept/Adjust must write only through the Companies canonical writer/field semantics;
+- Reject must leave Companies untouched;
+- cache invalidation must be targeted.
+
+4. COMMENTS MIGRATION
+Legacy single Companies!Comments is not retained as an ambiguous third truth.
+
+Target:
+- existing Comments -> General comments;
+- Auditor comments = separate durable field;
+- audit-specific temporary notes remain with the Audit Visit and are not promoted automatically.
+
+During migration, old UI labels must not imply that generic Comments remains the target model.
+
+5. ONE-SAVE SERVER ROUTING
+Auditor presses one Save in Company tab.
+Server classifies every changed field by ownership.
+
+For direct fields:
+- validate;
+- compare old/new;
+- write to Companies canonical owner;
+- record actor, timestamp, source and old/new value in audit trail;
+- invalidate only relevant caches.
+
+For governed fields:
+- create/update proposal rows;
+- do not mutate Companies;
+- return status PENDING_MANAGER_REVIEW.
+
+One response returns per-field result, for example:
+- SAVED
+- NO_CHANGE
+- PENDING_MANAGER_REVIEW
+- REJECTED_BY_VALIDATION
+- CONFLICT_RETRY_REQUIRED
+
+The UI should summarize the result once instead of opening per-field dialogs.
+
+6. MANAGER REVIEW 2.0
+Manager Company Updates review must support grouped review per Company/proposal bundle.
+
+For each field show:
+- field name;
+- current canonical value;
+- proposed value;
+- source Auditor;
+- source audit where available;
+- timestamp;
+- decision: Accept / Reject / Adjust.
+
+Manager may decide fields independently within one proposal bundle.
+Saving Manager review:
+- accepted/adjusted fields write through canonical Companies ownership;
+- rejected fields remain unchanged;
+- proposal rows receive final status/actor/timestamp;
+- Manager receives one consolidated success/failure result.
+
+7. PREFERRED_AUDIT_MONTHS SEMANTICS
+Canonical field remains Companies.Preferred_Audit_Months.
+No new preferred-period model is introduced.
+
+Auditor proposal UX:
+- show current approved months;
+- let Auditor propose a replacement set;
+- clearly indicate that this is a proposal requiring Manager approval;
+- no temporary planning behavior may consume the proposed value as if approved.
+
+Manager review:
+- Accept = proposed set becomes canonical;
+- Adjust = Manager-selected set becomes canonical;
+- Reject = canonical value unchanged.
+
+All planning surfaces consume only canonical approved Preferred_Audit_Months.
+
+8. VALIDATION AND CONCURRENCY
+Required before writes:
+- Company UID required and must resolve to one Company;
+- allowed field list enforced server-side;
+- actor role verified;
+- normalized values used for comparison;
+- stale-review protection: Manager review must detect when current canonical value differs materially from the proposal's captured old value;
+- on conflict, do not silently overwrite; return conflict for explicit review.
+
+9. AUDIT TRAIL
+Direct Auditor updates and Manager decisions must be traceable.
+Minimum fields:
+- Company_UID
+- field key
+- old value
+- new value or proposed value
+- actor email
+- actor role
+- source
+- Audit_ID where applicable
+- timestamp
+- decision/status
+
+Proposal storage may remain Company_Update_Proposals during migration if it remains a queue/history mechanism and not a second Company truth.
+
+10. CACHE / READ MODEL INVALIDATION
+Do not broadly clear unrelated caches.
+Potential affected consumers include:
+- Companies UI/read model;
+- Planning Workspace Company constraints;
+- Manager/Auditor Company projections;
+- Company Map for location/GPS changes;
+- planning-intelligence projection for Preferred_Audit_Months and planning limitations.
+
+Direct contact data changes should not invalidate planning-heavy caches unnecessarily.
+
+11. IMPLEMENTATION ORDER
+Phase A — contract hardening, no UX cutover
+1. Add field ownership map server-side.
+2. Add Preferred_Audit_Months proposal read/write contract.
+3. Add General comments / Auditor comments explicit semantics.
+4. Add read-only contract tests.
+
+Phase B — direct Auditor updates
+5. Route contact data, Auditor comments and days/hours to direct canonical write with audit trail.
+6. Keep governed fields in proposal queue.
+7. Return consolidated per-field result.
+
+Phase C — Manager 2.0 review
+8. Surface pending proposal count without affecting first paint.
+9. Add grouped Manager review panel.
+10. Support Accept / Reject / Adjust with conflict guard.
+
+Phase D — cutover
+11. Verify 1.0 parity and no orphaned proposal type.
+12. Practical Auditor test.
+13. Practical Manager review test.
+14. 3S acceptance.
+15. Only then retire equivalent 1.0 Company-update path.
+
+12. ACCEPTANCE CHECKS
+Functional:
+- Auditor direct email change saves without Manager queue.
+- Auditor direct planning-days/hours change saves without Manager queue.
+- Auditor comments save directly.
+- General comments create Manager proposal.
+- Region creates Manager proposal.
+- Location structural change creates Manager proposal.
+- Preferred_Audit_Months creates Manager proposal and canonical value stays unchanged until approval.
+- Manager Accept commits canonical value.
+- Manager Adjust commits adjusted canonical value.
+- Manager Reject leaves canonical value unchanged.
+- mixed direct + governed one-save submission gives correct per-field outcomes.
+
+Stability:
+- stale proposal cannot overwrite newer canonical data silently;
+- invalid field injection is rejected server-side;
+- duplicate retries do not create uncontrolled duplicate writes;
+- proposal queue is not Company truth;
+- audit trail is truthful.
+
+Performance:
+- one Company snapshot read;
+- one bundled Auditor save request;
+- no N+1 per-field RPC loop;
+- pending update count loaded outside Manager first-paint hot path.
+
+13. 3S + VALUE
+Speed:
+Routine Auditor corrections become one-save direct writes where governance is unnecessary.
+
+Scalability:
+Manager queue contains only fields that actually require Manager judgment.
+
+Stability:
+Companies remains the only master; ownership is server-enforced; stale review fails closed.
+
+Value:
+Auditors can keep operational Company data current quickly while Manager retains control over structural data and Preferred_Audit_Months.
+
+14. SAFE BOUNDARY DURING CURRENT WORK
+Do not modify the currently parked Manager Overview -> Plan / Planning Workspace authentication route until its pending DEV acceptance is completed.
+PROD remains untouched.

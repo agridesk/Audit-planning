@@ -1,0 +1,177 @@
+AUDIT MANAGEMENT SYSTEM — SCOPE MANAGER MODEL C MIGRATION CONTRACT
+Date: 2026-09-26
+Branch: dev
+Status: DESIGN ONLY — no runtime behavior change
+Authority: AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26
+
+1. PURPOSE
+Preserve the operational value of Company Scope Manager while removing legacy ownership assumptions that conflict with Model C and Planning 2.0.
+
+2. CURRENT LEGACY EVIDENCE
+Current ManagerV5ToolsUI describes Company Scope Manager as:
+- Existing companies/audits load from Audit planning first;
+- New companies load from Companies;
+- Manager can set Allow self planning;
+- Manager can set Preassigned auditor;
+- Manager can choose scopes and hours.
+
+AuditManagerToolsLegacyCreate still documents legacy creation around Audit planning fixed columns and creating Pending Planning rows.
+
+This behavior is not acceptable as the future canonical ownership model because Roadmap V2.8 defines Audit planning as migration/operational projection only.
+
+3. CANONICAL OWNERS AFTER MIGRATION
+Company master:
+- Companies.
+
+Company x Scope relationship:
+- Company_Scopes.
+
+Annual/cycle obligation and assignment-policy truth:
+- Audit_Obligations.
+
+Visit membership:
+- Audit_Visit_Obligations where a physical Visit exists.
+
+Scope metadata/defaults/policy:
+- Config_Scopes.
+
+Audit planning:
+- projection/compatibility only;
+- never the authoritative source for scope membership, annual assignment policy or lifecycle state.
+
+4. FUNCTIONAL BEHAVIOR TO PRESERVE
+Manager must still be able to:
+- activate/deactivate applicable scopes for a Company;
+- inspect scope defaults and current governed values;
+- set or adjust scope-specific planning/formal-hour data only where that field is canonically Manager-controlled;
+- set Preassigned Auditor where policy allows;
+- set Allow self planning separately from preassignment;
+- see current Auditor eligibility/rotation information before assigning;
+- save one coherent Company scope configuration.
+
+5. WRITE SEMANTICS
+A future Scope Manager save must:
+1. resolve Company by canonical Company_UID;
+2. validate current revision / stale-write protection;
+3. validate requested scope keys against current Config_Scopes;
+4. validate hard dependencies between scopes;
+5. validate preassigned Auditor qualification, Auditor_Exclusions and applicable rotation policy;
+6. write Company_Scopes changes through canonical owner/service;
+7. write Audit_Obligations assignment/self-planning policy through canonical owner/service;
+8. update projections only after canonical writes succeed;
+9. emit one truthful audit trail describing before/after business changes;
+10. invalidate only affected caches/read models.
+
+No browser code may write sheet columns directly.
+
+6. CREATE / ACTIVATE COMPANY AUDITS
+The old Scope Manager pattern of creating an Audit planning row as the primary business action must not survive into 2.0.
+
+For a Company becoming audit-active:
+- Company master state remains in Companies;
+- selected Company_Scopes are canonicalized first;
+- recurring/active scope semantics create or update the required Audit_Obligations through Model C logic;
+- any Audit planning row is produced only as a projection if still needed during coexistence;
+- lifecycle state is derived from the canonical obligation/visit workflow, not from hand-writing a legacy row.
+
+7. DEACTIVATING / REMOVING A SCOPE
+Scope removal is not equivalent to deleting history.
+
+Rules:
+- completed history remains immutable;
+- removing/deactivating a Company_Scope affects future applicability, not historical completed records;
+- open obligations/Visits must be checked before deactivation;
+- if an open Visit contains the scope, the Manager must use controlled re-adjust/cancellation governance where required;
+- no silent orphaning of Audit_Visit_Obligations;
+- dependencies must fail closed.
+
+8. PREASSIGNMENT
+Preassignment remains a strong preferred assignment, not final booking.
+
+On save:
+- hard qualification must pass;
+- active Auditor_Exclusion must hard-block;
+- rotation policy must be evaluated using shared RotationAuditorService/shared planning intelligence;
+- any exceptional +1 rotation remains explicit Manager-controlled and assignment-specific;
+- no Availability occupancy is created;
+- no Planning JSON is created;
+- no lifecycle transition occurs solely because of preassignment.
+
+9. ALLOW SELF PLANNING
+Allow self planning is separate from preassignment.
+
+Rules:
+- stored on the canonical obligation/policy owner;
+- does not imply the Auditor is qualified if qualification later changes;
+- does not bypass Auditor_Exclusions or rotation;
+- self-planning still passes current Planning 2.0 preflight when a concrete plan is made.
+
+10. HOURS
+Formal hours, Scheduling_hours / Planning duration and realized Hours dedicated remain separate concepts.
+
+Scope Manager may expose configured/default planning/formal-hour values, but must not collapse these concepts into one generic 'hours' field.
+Any editable value must map to its canonical owner and meaning.
+
+11. READ MODEL / UI
+The future Manager 2.0 Scope Manager should read a single assembled model containing:
+- Company identity;
+- active Company_Scopes;
+- current scope metadata from Config_Scopes;
+- open relevant Audit_Obligations;
+- preassignment/self-planning policy;
+- eligibility/rotation summary;
+- dependency warnings;
+- revision token.
+
+Do not rebuild the model by scanning Audit planning fixed columns on every interaction.
+
+12. CONCURRENCY / FAILURE
+- optimistic concurrency on save;
+- canonical multi-entity write must have rollback/recovery strategy;
+- hard validation failures make no partial business change;
+- projection failure after canonical commit is diagnosed/reconcilable and does not redefine truth;
+- retry-safe/idempotent behavior where a save can be retried.
+
+13. ACCEPTANCE BEFORE MANAGER 1.0 CUTOVER
+Required DEV acceptance:
+- existing active Company loads correctly from Model C owners;
+- new Company scope activation creates correct Company_Scopes/Audit_Obligations state;
+- preassignment valid case succeeds;
+- unqualified Auditor blocks;
+- Auditor_Exclusion blocks;
+- rotation hard limit blocks unless configured/authorized exception is valid;
+- Allow self planning persists independently;
+- scope removal preserves completed history;
+- dependency violation blocks;
+- Audit planning projection is consistent but not authoritative;
+- no direct browser-to-Sheets write;
+- read-after-write matches canonical state;
+- PROD untouched.
+
+14. 3S + VALUE
+Speed
+- one bounded assembled read model;
+- no broad legacy Audit planning scans per scope interaction.
+
+Scalability
+- dynamic Config_Scopes;
+- Model C rows rather than fixed C:R scope-column assumptions.
+
+Stability
+- canonical writers only;
+- fail-closed dependency/eligibility validation;
+- revision protection;
+- recoverable projection updates.
+
+Value
+- Manager keeps the familiar operational scope-management capability;
+- removes a major legacy ownership dependency before Manager 2.0 cutover;
+- future Annual Planner, Batch and single-audit Planning all consume the same scope/obligation truth.
+
+15. SAFE STATUS
+This document changes no runtime behavior and does not touch:
+- Manager Overview -> Plan route;
+- Planning Workspace authentication;
+- lifecycle writes;
+- Availability;
+- PROD.

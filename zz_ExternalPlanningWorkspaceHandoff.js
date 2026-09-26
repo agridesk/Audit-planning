@@ -1,12 +1,12 @@
 /*****************************************************************************************
  * FILE: zz_ExternalPlanningWorkspaceHandoff.js
- * BUILD: 2026-09-26_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R5_CANONICAL_COMMIT
+ * BUILD: 2026-09-26_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R6_EXACT_BODY_BINDING
  *
  * DEV-only signed bridge for external Manager Planning 2.0.
  * - Legacy/open handoff remains supported for compatibility.
  * - Commit mode delegates to canonical saveManagerPlanning().
  ***********************************************************************/
-var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-26_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R5_CANONICAL_COMMIT';
+var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-26_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R6_EXACT_BODY_BINDING';
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_MAX_FUTURE_MS = 90 * 1000;
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CLOCK_SKEW_MS = 10 * 1000;
 
@@ -89,7 +89,7 @@ function ExternalPlanningWorkspaceHandoff_verify_(p) {
   var planningPayloadJson = '';
   var payload = '';
   if (mode === 'commit') {
-    planningPayloadJson = String(p.planningPayload || '').trim();
+    planningPayloadJson = String(p.planningPayload == null ? '' : p.planningPayload);
     if (!planningPayloadJson) return { ok:false, error:'PLANNING_PAYLOAD_REQUIRED' };
     payload = ExternalPlanningWorkspaceHandoff_commitPayload_(email, 'Manager', auditId, expMs, planningPayloadJson);
   } else {

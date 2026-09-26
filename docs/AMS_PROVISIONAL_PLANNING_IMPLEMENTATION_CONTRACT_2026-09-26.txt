@@ -1,0 +1,155 @@
+AUDIT MANAGEMENT SYSTEM — PROVISIONAL PLANNING IMPLEMENTATION CONTRACT
+Date: 2026-09-26
+Branch: dev
+Status: DESIGN / IMPLEMENTATION CONTRACT ONLY — no runtime behavior change
+Authority: AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26
+
+1. PURPOSE
+Define one consistent provisional-planning contract for Batch/Workweek and related Planning 2.0 surfaces without introducing a second planning owner.
+
+2. CANONICAL PRINCIPLE
+Provisional planning is NOT committed Planning JSON and is NOT lifecycle truth.
+It is a temporary planning state owned by Planning 2.0 orchestration until Manager final commit.
+
+3. REQUIRED DATA PER PROVISIONAL SLOT
+At minimum:
+- provisionalBatchId
+- provisionalItemId
+- auditId / visitId
+- companyUid
+- companyName
+- scopesText
+- assignedAuditor
+- date
+- startTime
+- endTime
+- executionLocationCode / location label
+- source proposal version
+- status = PROVISIONAL
+- createdBy
+- createdAt
+- updatedAt
+- revision
+
+Optional but useful:
+- region
+- country
+- travel cluster/workweek id
+- customer confirmation state
+- customer flexibility reference
+- preassigned auditor flag
+- optimizer score/explanation summary
+
+4. VISIBILITY
+Manager:
+- full provisional batch view;
+- may move, replace, split or remove items before final commit.
+
+Auditor:
+- sees own provisional items read-only in Availability Calendar;
+- minimum visible information: PROVISIONAL, Company, Scope, date/time;
+- may not edit or accept a provisional audit as if final planning already existed.
+
+5. CAPACITY EFFECT
+For Manager planning:
+- provisional slot = soft reserve;
+- Manager may intentionally reflow it.
+
+For Auditor self-planning:
+- provisional slot = hard occupancy;
+- self-planning may not overlap it.
+
+For workload reporting:
+- committed workload and provisional workload remain separate;
+- total exposure may show both;
+- provisional must never be silently counted as committed.
+
+6. OVERLAP RULE
+Any availability/occupancy service used for planning must evaluate:
+- committed blocks;
+- provisional blocks;
+- explicit availability blocks/exceptions.
+
+Self-planning conflict with provisional occupancy = hard block.
+Manager planning conflict with another provisional batch/item = visible conflict requiring explicit resolution, never silent overwrite.
+
+7. REVISION / CONCURRENCY
+Every provisional batch and item carries revision/version.
+A Manager save/reflow uses optimistic concurrency:
+- client sends expected revision;
+- stale update fails cleanly;
+- no last-write-wins silent overwrite.
+
+8. CUSTOMER CONFIRMATION RELATION
+Customer acceptance does NOT turn provisional into committed planning.
+Confirmed customer response becomes a constraint attached to the provisional item/batch.
+Manager may still reflow within confirmed flexibility.
+Final commit alone creates committed Planning JSON/lifecycle effects.
+
+9. FINAL COMMIT
+Final commit must:
+- re-run hard preflight checks;
+- verify no stale revision;
+- verify Availability conflicts;
+- verify eligibility/qualification;
+- verify rotation/exclusions/min interval;
+- verify customer-confirmation policy where required;
+- delegate each resulting audit/visit write to canonical per-audit planning logic;
+- be idempotent/recoverable for multi-item batch commit.
+
+After successful commit:
+- provisional occupancy is removed/released;
+- committed occupancy becomes authoritative;
+- lifecycle transition follows canonical Manager-planned or Auditor self-planned rules;
+- final customer confirmation is queued where required.
+
+10. FAILURE / PARTIAL COMMIT
+No hidden half-committed batch.
+Preferred pattern:
+- preflight all items first;
+- create commit intent/revision;
+- execute canonical item writes;
+- record outcome per item;
+- on failure, stop and expose recovery state;
+- retry must be idempotent.
+
+If atomic transaction across all stores is impossible, explicit recovery state is mandatory.
+
+11. INVALIDATION
+Targeted only:
+- affected auditor Availability windows;
+- affected audit/visit planning read model;
+- affected batch/workweek read model;
+- workload summary for affected auditors;
+- no global cache clear unless unavoidable.
+
+12. 3S + VALUE
+Speed:
+- one bounded period/batch read;
+- calendar merges committed + provisional efficiently;
+- no N+1 per-audit availability reads.
+
+Scalability:
+- period-windowed provisional reads;
+- batch-level DTO;
+- shared occupancy calculation.
+
+Stability:
+- revision protection;
+- fail-closed hard checks at final commit;
+- no silent overwrite;
+- no second planning truth.
+
+Value:
+- Manager can optimise a week/trip safely before commitment;
+- Auditor already sees likely workload;
+- self-planning cannot accidentally plan through Manager provisional work.
+
+13. NON-GOALS
+- Provisional is not Auditor acceptance.
+- Provisional is not customer final confirmation.
+- Provisional is not lifecycle status.
+- Provisional does not create historical committed Planning JSON.
+
+14. SAFE STATUS
+This document changes no runtime source, no GAS deployment, no PROD, and does not touch the parked Manager Overview -> Plan login/opening test.

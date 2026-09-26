@@ -1,0 +1,169 @@
+AMS MANAGER PORTAL 2.0 — COMPLETION PARITY ANALYSIS
+Date: 2026-09-26
+Status: ANALYSIS / IMPLEMENTATION PREP
+Branch: dev
+Roadmap authority: AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26
+Operating principle: 3S + Value
+
+1. PURPOSE
+
+Determine how the existing Manager 1.0 Complete action must be preserved in the external Manager 2.0 without duplicating lifecycle or completion logic.
+
+This document does not modify the currently pending Manager Overview -> Plan -> Planning Workspace runtime path. That path remains parked until its DEV acceptance test is executed.
+
+2. CURRENT 1.0 USER BEHAVIOUR
+
+For an Accepted audit, Manager 1.0 shows Complete.
+The Manager is asked for one required business value:
+- Hours dedicated
+
+The value may use a decimal point or comma in the UI and must be greater than zero.
+The UI then calls ManagerV5_CommitCompletion with:
+- auditId
+- hoursDedicated
+- mode = MANAGER_ON_BEHALF
+- authenticated Manager email
+
+There is no separate completion implementation in the browser.
+
+3. CANONICAL BACKEND OWNER
+
+CompletionService_CommitCompletion is the canonical completion service.
+ManagerV5_CommitCompletion is only a compatibility wrapper around that service.
+
+CoreStatusMachine already owns the lifecycle rule:
+Accepted -> Completed
+for both Auditor and Manager COMPLETE actions.
+
+CoreStatusMachine Status_applyComplete_ delegates COMPLETE to CompletionService_CommitCompletion and passes:
+- auditId
+- actorEmail
+- hoursDedicated
+- MANAGER_ON_BEHALF for Manager
+- reason when supplied
+
+Therefore Manager Portal 2.0 must reuse this path. It must not implement status changes, completed-history writes, availability release or annual-cycle handling in Cloud Run.
+
+4. VALIDATION / FAIL-CLOSED BEHAVIOUR ALREADY PRESENT
+
+Completion is rejected when:
+- auditId is missing;
+- actor email is missing;
+- Hours dedicated is not a finite number > 0;
+- mode is invalid;
+- Manager role is not valid where Manager validation is available;
+- audit is not currently Accepted;
+- required completion/log/availability dependencies are unavailable;
+- Log realized audits preflight fails;
+- recurring annual-cycle handling fails;
+- a recurring audit that requires a successor neither creates nor finds one;
+- Availability cannot be released;
+- completed-history append fails.
+
+The completion service uses a script lock to prevent overlapping completion commits.
+
+5. COMPLETION TRANSACTION / SIDE EFFECTS
+
+A successful Manager completion performs the existing canonical sequence:
+
+1. Load the live Audit planning row.
+2. Confirm current status is Accepted.
+3. Validate Hours dedicated.
+4. Prepare the Log realized audits write and block duplicate Audit IDs.
+5. Run recurring annual-cycle handling before removing the current audit.
+6. Release the audit from Auditor Availability.
+7. Append the completed audit to Log realized audits.
+8. Record lifecycle metadata for COMPLETE.
+9. Delete the active row from Audit planning.
+10. Invalidate relevant caches, including calendar-related state.
+11. Record Manager-on-behalf audit-trail information where available.
+12. Synchronise dependent audit artifacts.
+
+Log realized audits is the completed-history owner.
+A duplicate Audit ID is explicitly blocked.
+
+6. NOTIFICATION BEHAVIOUR
+
+The existing notification mapping already distinguishes:
+- Manager COMPLETE -> COMPLETED_ON_BEHALF
+- Auditor COMPLETE -> AUDIT_COMPLETED
+
+For COMPLETE, the notification recipient resolves to the Manager through the existing notification infrastructure.
+
+Manager Portal 2.0 must not create a new notification path.
+
+7. CURRENT MANAGER 2.0 GAP
+
+The external Manager Overview currently exposes:
+- Plan
+- Approve
+- Cancel
+- Reject
+
+Accepted audits do not yet expose Complete.
+
+This is a genuine parity gap because Roadmap V2.8 keeps Accepted -> Completed as canonical lifecycle and full Manager cutover cannot strand a daily lifecycle action in Manager 1.0.
+
+8. REQUIRED 2.0 IMPLEMENTATION SHAPE
+
+After the pending Plan-route acceptance is green, add Complete to external Manager 2.0 as follows:
+
+UI:
+- Show Complete only for Accepted audits.
+- Ask for Hours dedicated.
+- Require a number > 0.
+- Do not ask the Manager to manipulate status manually.
+
+Cloud Run:
+- Authenticate the existing Manager application session.
+- Forward only the Manager identity, auditId and Hours dedicated to the existing DEV canonical write endpoint.
+- Do not write Sheets directly.
+- Do not duplicate lifecycle or completion rules.
+
+GAS write boundary:
+- Permit the external Manager action COMPLETE.
+- Route it to Status_applyAction('MANAGER', 'COMPLETE', auditId, payload), or equivalently the existing canonical completion owner through the central status action path.
+- Preserve actorEmail and Hours dedicated.
+
+After success:
+- refresh the external open-audit view;
+- the audit disappears from Open because it has moved to completed history;
+- it becomes visible under Completed using the existing read model.
+
+9. DO NOT IMPLEMENT YET
+
+Do not modify the pending Plan/login route before:
+- git pull origin dev
+- clasp push
+- RUN_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CONTRACT_ACCEPTANCE
+has been executed in DEV and returned green.
+
+The completion implementation can then be added as a separate, reviewable change so a failure in Plan authentication is not mixed with a lifecycle-write migration.
+
+10. 3S + VALUE
+
+SPEED
+- Completion uses one existing canonical write operation followed by a focused Manager Overview refresh.
+- No extra broad Apps Script read path is introduced.
+
+SCALABILITY
+- No second completion engine, lifecycle owner, notification owner or completed-history writer.
+- Existing central service remains authoritative.
+
+STABILITY
+- Existing lock, preflight, duplicate protection, Accepted-only rule, annual-cycle protection, availability release and cache invalidation are retained.
+- Cloud Run does not perform partial completion writes.
+
+VALUE
+- Restores an operationally essential Manager lifecycle action in 2.0.
+- Avoids forcing the Manager back into 1.0 solely to close an Accepted audit.
+- Reuses mature completion behaviour instead of rebuilding it.
+
+11. CURRENT BLOCKER / NEXT STEP
+
+Current blocker is not Completion.
+The earlier Manager Overview -> Plan -> Planning Workspace change is waiting for DEV deployment and acceptance by the user.
+
+After that test is green, implement Complete as the next isolated Manager 2.0 parity action.
+
+PROD remains untouched.

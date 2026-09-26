@@ -1,0 +1,188 @@
+AUDIT MANAGEMENT SYSTEM — MANAGER 2.0 SPECIALIST FUNCTION MIGRATION MATRIX
+Date: 2026-09-26
+Branch: dev
+Status: DESIGN / CUTOVER INVENTORY ONLY — no runtime behavior change
+Authority: AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26
+
+1. PURPOSE
+Define what happens to the specialist functions currently reachable from Manager 1.0 when Manager 2.0 becomes the operational Manager surface.
+
+This is not a proposal for a new large Manager cockpit. The rule is: preserve operational capability, keep canonical ownership, remove obsolete duplicate surfaces where Planning 2.0 already replaces them.
+
+2. CURRENT MANAGER 1.0 SPECIALIST SURFACES
+Current Manager 1.0 exposes specialist functions including:
+- Scopes / Company Scope Manager;
+- Rotation Overview;
+- Planning Overview;
+- Companies;
+- Company Map;
+- Diagnostics / read-only diagnostics;
+- Company update review.
+
+3. CUTOVER CLASSIFICATION
+
+3.1 Companies — RETAIN / REHOST
+Role:
+- canonical Company master-data maintenance.
+
+2.0 direction:
+- remain reachable from Manager 2.0 as an internal application panel/surface;
+- reuse Companies as canonical master owner;
+- do not create a Cloud Run-owned second Company master;
+- Company Update review integrates with the same governed Company ownership.
+
+Cutover condition:
+- all daily Company maintenance and review actions remain reachable without returning to Manager 1.0.
+
+3.2 Company Update Review — RETAIN / ALIGN GOVERNANCE
+Role:
+- review Auditor-proposed governed Company changes.
+
+2.0 direction:
+- retain as Manager specialist workflow;
+- apply the accepted field-ownership contract;
+- Preferred_Audit_Months remains Manager-controlled: Auditor proposes from Company tab; Manager Accept/Adjust commits canonical value;
+- direct-Auditor fields bypass unnecessary Manager approval as defined by the Company Data 2.0 contract.
+
+Cutover condition:
+- no pending proposal type requires Manager 1.0.
+
+3.3 Company Map — RETAIN AS SHARED READ SURFACE
+Current implementation evidence:
+- CompanyMap.html provides the existing Company Map UI;
+- CompanyMap_AuditorWorkloadLayer.js adds a read-only Auditor workload overlay;
+- CompaniesBackend provides Company/location data used by the map.
+
+2.0 direction:
+- retain and expose from Manager 2.0 rather than rebuilding it;
+- use current canonical Company/location/read-model owners;
+- map remains decision support, not a planning writer;
+- future Planning 2.0 trip/workweek intelligence may consume the same geographic facts, but Company Map itself does not become a second optimizer.
+
+Cutover condition:
+- Manager 2.0 can open the map internally and return without browser-tab/popup dependency.
+
+3.4 Rotation Overview — RETAIN READ-ONLY, SHARE ROTATION OWNER
+Current UI describes Rotation Overview as read-only and based on Config_Scopes + Log realized audits.
+
+2.0 direction:
+- retain as a specialist diagnostic/oversight view;
+- source rotation calculation from the same canonical/shared rotation intelligence consumed by Planning 2.0;
+- no separate Manager-only rotation algorithm;
+- display must remain scope-aware and reflect configured maximum / permitted +1 policy correctly.
+
+Cutover condition:
+- values agree with Planning 2.0 eligibility/preflight for the same Company + Scope + Auditor facts.
+
+3.5 Scopes / Company Scope Manager — RETAIN CAPABILITY, MIGRATE OWNERSHIP BEFORE FINAL CUTOVER
+Current ManagerV5ToolsUI text indicates mixed legacy behavior: existing audits load from Audit planning first, while new companies load from Companies.
+
+Roadmap V2.8 no longer permits Audit planning to be canonical scope/lifecycle truth. Model C owners are Company_Scopes, Audit_Obligations and related canonical services/projections.
+
+Therefore:
+- do not simply transplant the current Scopes UI unchanged into Manager 2.0;
+- preserve the operational capability;
+- migrate or wrap its write path so canonical Model C owners are authoritative;
+- Audit planning may only remain a projection/migration compatibility surface;
+- preassignment and Allow self planning must resolve to the canonical obligation/policy owner;
+- dynamic Config_Scopes semantics remain leading.
+
+Cutover condition:
+- a Scope Manager save does not make Audit planning the business owner;
+- resulting Company_Scopes / Audit_Obligations state and projection are consistent;
+- read-after-write acceptance is green.
+
+3.6 Planning Overview (legacy 6/12 month view) — SUPERSEDE, DO NOT DUPLICATE
+Current Manager 1.0 Planning Overview is a read-only 6/12 month forward view based on Audit planning; it excludes Pending Planning and provides Auditor/filter/sort plus Excel/PDF export.
+
+Planning 2.0 now has Annual Planner / planning-demand / lifecycle reporting foundations. The old Planning Overview must not become a parallel second future-planning surface.
+
+2.0 direction:
+- operational future-planning visibility moves to Annual Planner;
+- Annual Planner includes planning-window-first distribution, concept month, preassignment, workload/capacity, scope-specific capacity and shortage/headroom signals;
+- committed/provisional planning remains visible through Planning 2.0 reporting/read models;
+- useful export requirements from the legacy Planning Overview may be preserved as export capability from the 2.0 reporting/Annual Planner surface if still operationally required;
+- no separate legacy Audit-planning-based 6/12 month truth after cutover.
+
+Cutover condition:
+- Manager can answer the operational questions previously answered by Planning Overview without returning to 1.0;
+- required export parity is explicitly accepted or intentionally retired.
+
+3.7 Diagnostics — RETAIN AS READ-ONLY SUPPORT SURFACE
+Current Manager 1.0 labels diagnostics as read-only.
+
+2.0 direction:
+- retain useful diagnostics as an internal support panel;
+- no business write ownership;
+- diagnostic reads may inspect projections/caches/runtime state but must label them correctly;
+- never expose secrets/bridge keys/session credentials;
+- DEV/PROD environment identity must remain unambiguous.
+
+Cutover condition:
+- operational troubleshooting does not require keeping the whole Manager 1.0 portal alive.
+
+4. NAVIGATION PRINCIPLE
+Manager 2.0 should have a compact specialist navigation entry, not reproduce the old header mechanically.
+
+Suggested grouping:
+- Company: Companies, Company updates, Company Map;
+- Governance: Scopes, Rotation;
+- Planning: Annual Planner / Planning 2.0 reporting;
+- Support: Diagnostics.
+
+Specialist functions may open in internal panels/windows controlled by the application. Avoid structural browser popup/tab UX that users must close with the browser cross.
+
+5. WHAT MUST NOT BE MIGRATED AS-IS
+Do not carry forward:
+- Audit planning as scope/lifecycle owner;
+- a separate legacy Planning Overview as competing annual/future-planning truth;
+- duplicate rotation logic;
+- browser-owned lifecycle rules;
+- direct browser-to-Sheets writes;
+- static credentials in URLs or UI;
+- legacy Deny semantics where Manager 2.0 uses the accepted Cancel/Reject model.
+
+6. CUTOVER GATE FOR SPECIALIST FUNCTIONS
+Manager 1.0 can cease being operationally required only when:
+- Companies reachable;
+- Company update review reachable;
+- Company Map reachable;
+- Scope maintenance uses canonical Model C ownership;
+- Rotation overview agrees with shared planning intelligence;
+- Annual Planner/reporting replaces legacy Planning Overview operational value;
+- required export capability is covered or explicitly retired;
+- Diagnostics reachable;
+- all surfaces meet 3S acceptance sufficiently;
+- no specialist action silently routes through obsolete ownership.
+
+7. 3S + VALUE
+Speed
+- reuse established read models/caches;
+- specialist panels load only the data they need;
+- no broad all-system bootstrap merely to open one tool.
+
+Scalability
+- dynamic scopes;
+- bounded map/reporting reads;
+- one shared rotation/capacity intelligence layer.
+
+Stability
+- canonical writers only;
+- read-only tools cannot mutate state;
+- Scope Manager migration must be accepted separately before cutover;
+- environment and owner boundaries explicit.
+
+Value
+- Manager retains the tools actually used operationally;
+- obsolete duplicate planning UI is removed instead of perpetuated;
+- 2.0 becomes the single operational entry point without sacrificing specialist capability.
+
+8. SAFE STATUS
+This document changes no runtime behavior.
+It does not modify:
+- Manager Overview -> Plan route;
+- Planning Workspace authentication;
+- lifecycle state;
+- Availability;
+- Companies data;
+- PROD.

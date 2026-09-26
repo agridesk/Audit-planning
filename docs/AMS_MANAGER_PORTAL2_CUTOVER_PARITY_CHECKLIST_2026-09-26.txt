@@ -1,0 +1,151 @@
+AMS MANAGER PORTAL 2.0 — CUTOVER PARITY CHECKLIST
+Date: 2026-09-26
+Status: ACTIVE CUTOVER CHECKLIST
+Branch: dev
+Roadmap authority: AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26
+Operating principle: 3S + Value
+
+PURPOSE
+Keep Manager 2.0 migration focused on operational parity without rebuilding Manager 1.0 literally.
+Manager 1.0 is functional/parity reference only.
+
+A. CORE LIFECYCLE ACTIONS
+
+[IN DEV / WAITING RUNTIME ACCEPTANCE]
+1. Pending Planning -> Plan
+   - External Manager Overview shows Plan.
+   - Selected audit must open Planning Workspace 2.0.
+   - Current change is waiting for DEV clasp push + runtime acceptance.
+   - Do not mix further Plan/login changes until this test is green.
+
+[IMPLEMENTED]
+2. Pending Approval -> Approve
+   - External Manager action exists.
+   - Uses canonical Status_applyAction path through existing Manager adapter.
+
+[IMPLEMENTED]
+3. Planned/approved/accepted -> Cancel
+   - External Manager action exists.
+   - 2.0 uses fused Cancel instead of preserving separate legacy Deny UX.
+
+[IMPLEMENTED]
+4. Open audit -> Reject
+   - External Manager action exists.
+   - Existing canonical reject/archive owner remains responsible.
+
+[NEXT CORE PARITY ITEM AFTER PLAN TEST]
+5. Accepted -> Complete
+   - Missing from external Manager Overview.
+   - Manager 1.0 asks only for Hours dedicated (>0).
+   - Existing CompletionService is canonical owner.
+   - Existing flow handles completed history, availability release, annual-cycle successor protection, lifecycle metadata, caches and audit trail.
+   - Must be added without duplicating completion logic in Cloud Run.
+
+B. READ / OVERVIEW PARITY
+
+[IMPLEMENTED]
+6. Open audits view
+7. Completed audits view
+8. Status counts: Pending Planning / Pending Approval / Approved / Accepted
+9. Company / Region / Scopes / Status / Planning window / required hours / planned hours / Auditor
+10. General search and Reset
+
+[ACCEPTABLE DIFFERENCE]
+11. Manager 1.0 separate Company/Scope/Auditor filters vs 2.0 combined search
+   - Exact visual parity not required.
+   - Keep 2.0 approach if operationally sufficient and fast.
+
+[TO VERIFY BEFORE CUTOVER]
+12. Sorting / operational scanning
+   - 1.0 supports sortable columns and status chips.
+   - 2.0 currently prioritises a simpler table.
+   - Only add more filtering/sorting where it materially improves Manager work.
+
+C. EXPIRATION / EXTENSION
+
+[PARITY ITEM — NOT YET MIGRATED]
+13. Pending Planning extension action
+   - Manager 1.0 may apply a scope-configured extension.
+   - Extension is allowed only in Pending Planning.
+   - Config_Scopes supplies extension months.
+   - With multiple active scopes, the tightest positive extension wins.
+   - Current backend recalculates the central planning window.
+   - Current code documents Audit_Obligations as extension/window truth and Audit planning as projection.
+   - External 2.0 already reads expiration/extension metadata but does not expose the action.
+
+Decision for implementation:
+- preserve only if still operationally required at Manager cutover;
+- if preserved, reuse the current canonical extension/window owner;
+- do not implement extension arithmetic in Cloud Run.
+
+D. SPECIALIST MANAGER FUNCTIONS
+
+[REQUIRED TO REMAIN REACHABLE, NOT NECESSARILY INLINE IN FIRST CUTOVER]
+14. Companies
+15. Company Map
+16. Company updates review
+17. Scopes tooling
+18. Rotation tooling
+19. Diagnostics
+
+Roadmap rule:
+- Manager 2.0 remains the main Manager shell;
+- specialist functions may remain separate surfaces;
+- navigation should become internal application navigation/panels;
+- do not preserve browser-popup/window lifecycle as the target UX.
+
+E. FUNCTIONS THAT SHOULD NOT BE COPIED LITERALLY
+
+20. Legacy Deny button
+   - Current 2.0 governance uses fused Cancel; Reject remains separate.
+
+21. Browser popup dependence
+   - Not target UX under V2.8.
+
+22. Exact 1.0 layout / CSS / filter arrangement
+   - Preserve function, not implementation.
+
+23. 1.0 technical write paths where a canonical central service already exists
+   - Cloud Run must not become a second lifecycle/completion/planning owner.
+
+F. CUTOVER RELEASE GATE
+
+Manager 1.0 may only be retired for the relevant Manager surface when:
+- Plan handoff is runtime accepted;
+- Approve / Cancel / Reject are practically accepted;
+- Complete is available and practically accepted;
+- Open and Completed views are correct;
+- no daily operational action is stranded only in 1.0;
+- specialist functions that are not migrated remain reachable in an explicit supported way;
+- 3S acceptance is sufficient;
+- both 1.0 and 2.0, while coexisting, still use the same canonical business owners;
+- PROD promotion is separately authorised.
+
+G. 3S + VALUE
+
+SPEED
+- Keep external reads out of slow broad Apps Script hot paths.
+- Avoid full reloads where a focused refresh is sufficient.
+
+SCALABILITY
+- No duplicated lifecycle, completion, extension or planning engines.
+- Continue bounded/direct read models for external overview.
+
+STABILITY
+- Every write delegates to existing canonical owner.
+- Preserve locks, fail-closed checks, duplicate protection, cache invalidation and audit trail.
+- Do not combine unrelated runtime changes before acceptance of the current Plan route.
+
+VALUE
+- Prioritise actions needed to move audits through the real lifecycle.
+- Cosmetic 1.0 parity is lower priority than reliable operational continuity.
+
+H. CURRENT EXECUTION ORDER
+
+1. WAIT: user performs pending DEV sync and RUN_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CONTRACT_ACCEPTANCE.
+2. If green: implement external Manager Complete as a separate isolated change.
+3. Run read-only completion contract acceptance and then one controlled DEV completion acceptance.
+4. Reassess extension action as next operational parity item.
+5. Continue specialist navigation/cutover inventory.
+
+PROD remains untouched.

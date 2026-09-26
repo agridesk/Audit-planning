@@ -1,0 +1,96 @@
+AUDIT MANAGEMENT SYSTEM — MANAGER 2.0 PARALLEL SAFE WORK CHECKPOINT
+Date: 2026-09-26
+Branch: dev
+Status: CURRENT EXECUTION CHECKPOINT
+
+1. PARKED PRIMARY TEST — DO NOT FORGET
+Primary active workstream remains:
+Manager Overview -> Plan -> existing Planning Workspace 2.0.
+
+Pending user action when available:
+cd C:\Users\Gebruiker\Audit-planning
+git pull origin dev
+clasp push
+
+Then in Apps Script DEV run:
+RUN_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CONTRACT_ACCEPTANCE
+
+Reason in human language:
+Confirm that Plan from external Manager Overview opens the selected audit in Planning Workspace without falling back to the expired old login confirmation.
+
+Until this acceptance is completed:
+- do not further modify the Plan/login route;
+- do not modify its Apps Script handoff wrapper;
+- do not use PROD.
+
+2. SAFE PARALLEL WORK COMPLETED
+A. Manager 1.0 vs 2.0 parity reviewed.
+Important gap: Complete still required for Accepted audits before full Manager cutover.
+
+B. Completion flow traced.
+Existing canonical CompletionService remains owner; 2.0 must reuse it.
+No duplicate completion lifecycle logic in Cloud Run.
+
+C. Completed/history external view improved.
+Completed has its own read-only fields and search semantics.
+
+D. Company Data ownership clarified.
+Direct Auditor update + audit trail:
+- contactperson
+- contact e-mail
+- contact phone
+- Auditor comments
+- planning limitations days/hours
+
+Manager-reviewed proposal:
+- General comments
+- Region
+- Locations
+- Preferred_Audit_Months
+
+Manager-only:
+- Company status
+- Auditor_Exclusions governance
+
+Accepted Preferred_Audit_Months decision:
+Auditor proposes in Company tab; Manager alone decides; planning uses only approved canonical value.
+
+E. Company Data 2.0 implementation plan documented.
+Includes one-save routing, per-field outcomes, stale-review protection, audit trail and phased cutover.
+
+F. Auditor Exclusions implementation plan documented.
+Company-wide active exclusion is a hard non-overrideable planning block consumed by shared eligibility and rechecked at commit.
+
+3. RECENT SAFE-WORK COMMITS
+- 0906eb14c67e5d16d7c3956f4feeac3539f8e02f — Preferred_Audit_Months ownership decision recorded
+- a1fbd97b7e1cd71b46702132a6ea82d8e774b6da — Company Data 2.0 implementation plan
+- 0b74511a3dad776e8e97d8c9c472ae06f9b8bea9 — Auditor Exclusions implementation plan
+
+Earlier current-session relevant commits include Completed-view/parity documentation and the parked Plan/opening implementation.
+
+4. SAFE NEXT WORK WHILE PRIMARY TEST IS PARKED
+Allowed:
+- read-only analysis;
+- documentation;
+- parity tracing;
+- acceptance design;
+- schema/ownership planning;
+- inspect canonical services without changing runtime.
+
+Avoid until primary acceptance:
+- extra Apps Script runtime changes unrelated to the Plan test, because they would enlarge the same future clasp push and complicate failure attribution;
+- modifications to Cloud Run Manager Plan/opening path;
+- PROD.
+
+5. 3S + VALUE
+Speed:
+Prepare exact contracts now so runtime implementation later is focused and bounded.
+
+Scalability:
+Keep shared eligibility, Companies and canonical lifecycle owners; no per-UI duplicate rules.
+
+Stability:
+Separate documentation/analysis work from the pending Plan runtime acceptance so failures remain attributable.
+
+Value:
+Progress continues without blocking on user access while preserving a clean test boundary for the active Manager 2.0 migration.

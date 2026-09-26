@@ -1,0 +1,158 @@
+AUDIT MANAGEMENT SYSTEM — AUDITOR EXCLUSIONS IMPLEMENTATION PLAN
+Date: 2026-09-26
+Branch: dev
+Status: IMPLEMENTATION DESIGN — no runtime behavior changed by this document
+Authority: AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26 section 17.3
+
+1. PURPOSE
+Implement Company-level Auditor exclusions as a hard planning rule shared by all planning surfaces.
+
+Roadmap rule:
+- field/column: Auditor_Exclusions;
+- Company-wide, not scope-specific;
+- independent of rotation;
+- active exclusion = HARD block;
+- no per-audit override;
+- first change/deactivate the exclusion in Companies.
+
+2. CURRENT GAP
+Current Toolkit eligibility is built around qualification and rotation metadata.
+EligibilityService wraps _mp_getToolkitEligibleAuditorsForRow_.
+The current repository search does not show an implemented Auditor_Exclusions consumer.
+Therefore exclusions must be added to the shared eligibility/planning-intelligence path, not independently in Manager UI, Auditor UI, Batch or Annual Planner.
+
+3. CANONICAL OWNERSHIP
+Companies owns Auditor_Exclusions.
+No separate exclusion table is required initially unless scale/history later justifies it.
+The Companies field is current-state truth; audit trail stores change history.
+
+4. RECOMMENDED STRUCTURED VALUE
+Use machine-readable JSON in Companies.Auditor_Exclusions.
+Recommended current-state shape:
+[
+  {
+    "auditorEmail": "auditor@example.com",
+    "type": "CUSTOMER_REJECTED",
+    "active": true,
+    "comment": "optional operational explanation"
+  }
+]
+
+Rules:
+- auditorEmail is canonical identity key; do not key by display name;
+- type is controlled vocabulary, initially CUSTOMER_REJECTED, INDEPENDENCE, OTHER;
+- active is explicit boolean;
+- comment is explanatory only, not rule logic;
+- duplicate active entries for same auditor must normalize to one effective hard exclusion.
+
+Actor/timestamp history belongs in audit trail rather than being required inside each current-state JSON item.
+
+5. PLANNING BEHAVIOR
+Before an Auditor can appear as selectable/proposed/assignable for a Company:
+1. qualification must pass;
+2. Company exclusion must pass;
+3. rotation and other hard planning rules must pass according to canonical policy;
+4. Availability/capacity checks apply for concrete planning.
+
+An active Company exclusion removes the Auditor from eligible candidates entirely.
+It is not a warning and not an overrideable rotation exception.
+
+This applies equally to:
+- single-audit Manager planning;
+- Auditor self-planning;
+- preassignment validation;
+- replacement candidate search;
+- Annual Planner suggestions;
+- Batch/Workweek optimizer;
+- future bulk planning.
+
+6. PREASSIGNMENT
+If an excluded Auditor is already preassigned:
+- preassignment does not override the exclusion;
+- eligibility result must mark/block it clearly;
+- Manager must change/deactivate the Company exclusion or select another Auditor;
+- planning must not silently retain the excluded preassignment.
+
+7. SHARED IMPLEMENTATION POINT
+Do not add separate exclusion filtering in each UI.
+Preferred integration:
+- Company constraints/read model exposes normalized exclusions;
+- shared eligibility service consumes them;
+- eligibility DTO may include exclusion metadata/reason for diagnostics;
+- canonical assignment/save guard independently rechecks exclusion before commit.
+
+UI filtering alone is insufficient.
+
+8. CACHE INVALIDATION
+A change to Auditor_Exclusions affects all open planning for that Company.
+Required invalidation should be targeted by Company_UID:
+- Company constraints cache;
+- eligibility entries for that Company;
+- planning-intelligence/candidate projections for that Company;
+- relevant Workspace/Annual/Batch read models if cached.
+
+Do not globally invalidate all Companies/auditors unless technically unavoidable.
+
+9. MANAGER DATA UX
+Auditor_Exclusions is Manager-only structural governance.
+Auditor may see a practical indication that a candidate is unavailable because of Company restriction if needed, but may not activate/deactivate exclusions.
+
+Manager Company Data should support:
+- add auditor exclusion;
+- choose type;
+- optional comment;
+- deactivate existing exclusion;
+- preserve audit trail.
+
+Do not physically delete historical exclusion events from audit trail.
+
+10. HARD SAVE GUARD
+Every canonical assignment/plan commit must re-evaluate active exclusion at write time.
+Reason: a candidate list can become stale after another Manager changes Company data.
+
+On violation:
+- fail closed;
+- no partial planning write;
+- return human-readable reason: Auditor is excluded for this Company;
+- include structured error code for UI handling.
+
+Recommended code: AUDITOR_COMPANY_EXCLUDED.
+
+11. ACCEPTANCE CHECKS
+Read/normalization:
+- blank field -> no exclusions;
+- valid JSON -> normalized email/type/active;
+- malformed JSON -> fail safely; do not silently allow planning through corrupted hard-rule data;
+- duplicate email entries produce deterministic effective result.
+
+Eligibility:
+- active excluded qualified Auditor is absent/blocked;
+- inactive exclusion does not block;
+- exclusion applies across all scopes of Company;
+- rotation status cannot override exclusion;
+- preassignment cannot override exclusion.
+
+Write guard:
+- stale UI cannot commit excluded Auditor;
+- no partial Planning JSON / Availability mutation when blocked.
+
+Invalidation:
+- changing exclusions invalidates Company-specific eligibility/candidate caches.
+
+12. 3S + VALUE
+Speed:
+Normalize exclusions once in Company constraints/read model, not through repeated sheet scans per candidate.
+
+Scalability:
+One shared rule for every planning surface; Company_UID-targeted invalidation.
+
+Stability:
+Hard rule is checked both in candidate generation and at canonical commit; fail closed.
+
+Value:
+Prevents proposing/planning auditors who are operationally or independence-wise prohibited for a customer.
+
+13. SAFE BOUNDARY DURING CURRENT WORK
+This document does not change runtime behavior.
+Do not modify the currently parked Manager Overview -> Plan / Planning Workspace authentication path before its pending DEV acceptance.
+PROD remains untouched.

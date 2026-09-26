@@ -1661,26 +1661,23 @@ function toISODate_(d){
             .getToolkitOpenFastV5(auditId, currentMonthKey, { withCalendar: __wantCalendar, role: V5_ROLE, lockedAuditorEmail: V5_LOCKED_AUDITOR_EMAIL });
         }
 
-        // d24: speed-first manager open. Manager Toolkit must not wait for
-        // the open+auditors bundle. It only needs the lightweight open payload;
-        // rotation/auditor hydration remains asynchronous after first paint.
-        // Auditor self-planning keeps the bundle route because it may need the
-        // locked auditor context and visible-month bootstrap in one flow.
-        if (!isAuditorToolkit_()) {
-          log('[d24] manager fast open: shell/context only; calendar deferred until explicit load');
-          __d13_callFastDirect_();
-        } else {
-          __openBootStage_('googleRunSubmit', { fn: 'getToolkitOpenBundleV5_d13', route: 'auditorBundle', withCalendar: __wantCalendar, role: V5_ROLE || '' });
-          google.script.run
-            .withSuccessHandler(function(fastRes){ __d13_handleOpenSuccess_(fastRes, 'd13'); })
-            .withFailureHandler(function(err){
-              var msg = (err && err.message ? err.message : JSON.stringify(err));
-              log("[d13] getToolkitOpenBundleV5_d13 error: " + msg);
-              // Fall back to legacy fast endpoint then lite chain.
-              __d13_callFastDirect_();
-            })
-            .getToolkitOpenBundleV5_d13(auditId, currentMonthKey, { withCalendar: __wantCalendar, role: V5_ROLE, lockedAuditorEmail: V5_LOCKED_AUDITOR_EMAIL });
-        }
+        // 2026-09-26 AMS-01: use the bundled open route for BOTH roles.
+        // For Manager, ToolkitOpenBundle d17 already selects getToolkitOpenLiteV5()
+        // and reuses its HARD-qualified auditor list, avoiding the heavier legacy
+        // getToolkitOpenFastV5() path that caused the external Plan open regression.
+        // Calendar availability remains deferred for Manager until explicit load.
+        var __openRoute = isAuditorToolkit_() ? 'auditorBundle' : 'managerLiteBundle';
+        log('[AMS01] toolkit open via bundle route=' + __openRoute + '; manager calendar deferred until explicit load');
+        __openBootStage_('googleRunSubmit', { fn: 'getToolkitOpenBundleV5_d13', route: __openRoute, withCalendar: __wantCalendar, role: V5_ROLE || '' });
+        google.script.run
+          .withSuccessHandler(function(fastRes){ __d13_handleOpenSuccess_(fastRes, 'd17'); })
+          .withFailureHandler(function(err){
+            var msg = (err && err.message ? err.message : JSON.stringify(err));
+            log("[d17] getToolkitOpenBundleV5_d13 error: " + msg);
+            // Compatibility fallback only; normal Manager open must use Lite via d17.
+            __d13_callFastDirect_();
+          })
+          .getToolkitOpenBundleV5_d13(auditId, currentMonthKey, { withCalendar: __wantCalendar, role: V5_ROLE, lockedAuditorEmail: V5_LOCKED_AUDITOR_EMAIL });
       })();
 
       // PATCH C: Apply an inline-embedded first-month calendar payload coming

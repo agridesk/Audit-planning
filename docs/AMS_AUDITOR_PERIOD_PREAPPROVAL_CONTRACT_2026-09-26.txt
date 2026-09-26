@@ -1,0 +1,125 @@
+AUDIT MANAGEMENT SYSTEM — AUDITOR PERIOD PRE-APPROVAL CONTRACT
+Date: 2026-09-26
+Branch: dev
+Status: DESIGN / IMPLEMENTATION CONTRACT ONLY — no runtime behavior change
+Authority: AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26
+
+1. PURPOSE
+Define the optional lightweight week/period pre-approval used to replace informal WhatsApp/email availability checks without turning it into a universal planning gate.
+
+2. SCOPE
+Pre-approval concerns a period/week, NOT exact audit planning.
+It answers: is the Auditor broadly available for this period, and under which constraints?
+
+It does NOT replace:
+- Availability Calendar detail;
+- Planning preflight;
+- final Auditor Accept for Manager-planned audits.
+
+3. RESPONSE STATES
+Machine-readable values:
+- AVAILABLE
+- AVAILABLE_WITH_CONSTRAINTS
+- NOT_AVAILABLE
+
+Optional free text may explain context but is never the only source for planning constraints.
+
+4. STRUCTURED CONSTRAINTS
+Where practical, support:
+- unavailable dates within period
+- available dates
+- earliest start
+- latest finish
+- max days in period
+- no travel day / return-by constraint
+- location/region limitation if operationally needed
+
+Do not create a second Availability model. Pre-approval constraints feed planning intelligence as an advisory/period layer and must not silently overwrite Auditor Availability.
+
+5. ACTORS / CHANNELS
+Response may be registered by:
+- Auditor via secure no-login link;
+- Manager on behalf of Auditor after phone, WhatsApp or email contact.
+
+Required audit trail:
+- auditor identity
+- actor identity
+- actor mode: SELF / MANAGER_ON_BEHALF
+- source channel: LINK / EMAIL / WHATSAPP / PHONE / OTHER
+- period start/end
+- response state
+- structured constraints
+- timestamp
+- revision/version
+
+6. SECURE LINK
+Auditor response link:
+- no portal login required;
+- opaque random token, not identity data in URL;
+- token scoped to one request/version;
+- expiry configurable;
+- one active version at a time;
+- replay after final response either blocked or treated idempotently;
+- HTTPS only.
+
+7. LIFECYCLE RELATION
+Pre-approval does not change audit lifecycle status.
+It does not create Planning JSON.
+It does not create committed Availability occupancy.
+
+After Manager final planning commit:
+- final Auditor Accept is still required for Manager-planned audits;
+- Auditor refusal after commit is handled by Manager choice: replan that audit or reopen/reflow the batch.
+
+8. PLANNING INTELLIGENCE USE
+Pre-approval is a planning preference/constraint input after hard feasibility.
+Hard constraints from qualification, exclusions, rotation, min interval and actual Availability remain leading.
+
+If pre-approval says NOT_AVAILABLE:
+- optimizer should not propose that Auditor for the period unless Manager explicitly reopens/changes the pre-approval context;
+- do not silently override it.
+
+If AVAILABLE_WITH_CONSTRAINTS:
+- optimizer must honour structured constraints in proposals;
+- contradictions with actual Availability fail closed to the stricter result.
+
+9. REQUEST CREATION
+Manager may create a request for:
+- one Auditor + one period;
+- multiple Auditors for same period, each as separate response object.
+
+Avoid one unbounded global request object.
+
+10. REMINDERS
+Optional reminders only while unanswered.
+No silent AVAILABLE default on timeout.
+Expired unanswered request remains unanswered/expired.
+
+11. CONCURRENCY / VERSIONING
+Changing the requested period or constraint context creates a new request revision.
+Old links become superseded or read-only.
+Late responses to superseded requests must not overwrite newer state.
+
+12. 3S + VALUE
+Speed:
+- lightweight response page;
+- one small request lookup/write;
+- no heavy portal bootstrap.
+
+Scalability:
+- request objects keyed by Auditor + period + revision;
+- bounded reads by active period.
+
+Stability:
+- explicit actor/channel/version;
+- no timeout auto-approval;
+- no second Availability truth;
+- superseded response protection.
+
+Value:
+- removes manual WhatsApp chasing from planning workflow;
+- gives optimizer structured capacity information before exact planning;
+- keeps Auditor interaction minimal.
+
+13. SAFE STATUS
+This document changes no runtime source, no GAS deployment, no PROD, and does not touch the parked Manager Overview -> Plan login/opening test.

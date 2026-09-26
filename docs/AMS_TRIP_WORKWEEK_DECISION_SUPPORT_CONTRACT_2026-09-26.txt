@@ -1,0 +1,158 @@
+AUDIT MANAGEMENT SYSTEM — TRIP / WORKWEEK DECISION SUPPORT CONTRACT
+Date: 2026-09-26
+Branch: dev
+Status: DESIGN ONLY — no runtime behavior change
+Authority: AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26
+
+1. PURPOSE
+Trip/workweek logic is advisory decision support for Planning 2.0.
+It must help the Manager build practical audit weeks/trips without becoming a second planning engine or writer.
+
+2. HARD BOUNDARY
+Trip/workweek logic:
+- reads current planning demand, existing committed/provisional planning and Company location context;
+- may rank and propose itineraries;
+- may never write lifecycle status, Planning JSON, Availability occupancy or final assignments by itself;
+- final planning still goes through normal Planning 2.0 preflight and canonical writer.
+
+3. INPUTS
+Required:
+- planning period / window.
+Optional:
+- Auditor filter;
+- Region filter.
+Context consumed:
+- Company execution locations / GPS;
+- existing planning immediately before/after the period;
+- planning windows and urgency;
+- Auditor qualification;
+- Availability and provisional occupancy;
+- rotation and Auditor_Exclusions;
+- Min_Interval_Months;
+- preassignment;
+- Preferred_Audit_Months;
+- workload/capacity;
+- customer confirmation/flexibility where available.
+
+4. ITINERARY MODEL
+Use continuous itinerary logic.
+Do not assume daily return to home base when an overnight trip is clearly more practical.
+
+For a candidate sequence, consider:
+- starting point from previous commitment / practical origin;
+- ordered audit locations;
+- travel between successive audits;
+- overnight need;
+- end point / next known commitment.
+
+5. TRANSPORT MODES
+Where relevant compare:
+- car;
+- train;
+- flight.
+
+Evaluation must consider more than pure travel duration:
+- door-to-door time;
+- transfer/check-in/security overhead;
+- reliability/feasibility;
+- local onward transport;
+- cost;
+- sustainability.
+
+Flight receives a soft environmental penalty.
+This is not a hard ban: a flight may still be proposed when materially more workable.
+
+6. HOTEL / OVERNIGHT OUTPUT
+System may propose:
+- overnight needed: yes/no;
+- practical overnight city/area;
+- rationale based on itinerary position.
+
+System does NOT select or book a specific hotel autonomously.
+Future map UI may show hotel options, but they remain informational and outside canonical planning truth.
+
+7. SCORING ORDER
+Trip/workweek scoring must stay subordinate to shared planning intelligence order:
+1. planning window / urgency;
+2. hard feasibility;
+3. travel logic;
+4. connection to existing planning;
+5. Preferred_Audit_Months / spacing;
+6. contiguous workweek / minimise impractical gaps;
+7. customer flexibility;
+8. preassignment;
+9. workload;
+10. cost / sustainability.
+
+Travel can optimise among feasible candidates but may not override hard planning rules.
+
+8. OUTPUT CONTRACT
+Each proposed trip/workweek returns at least:
+- candidate Auditor;
+- covered date range;
+- ordered Visits;
+- Company / location per Visit;
+- proposed start/end per Visit if known;
+- travel legs;
+- transport mode per leg;
+- travel time estimate;
+- overnight city/area where relevant;
+- total travel time;
+- total audit hours;
+- provisional workload impact;
+- warnings / hard blockers;
+- reason why this sequence is preferred over close alternatives.
+
+9. MANAGER UX
+Manager sees proposals, not automatic decisions.
+Manager can:
+- accept a proposed grouping into provisional planning;
+- move/remove audits;
+- request reflow;
+- choose alternative transport assumptions;
+- split a workweek/trip.
+
+A change triggers re-evaluation of the affected sequence only, not an unnecessary full-system recomputation.
+
+10. REFLOW
+If an audit drops out:
+- first try to reflow remaining Visits within current constraints and confirmed flexibility;
+- if a meaningful gap remains, search replacement candidates within active period/filter boundaries;
+- replacement remains proposal-only;
+- if needed, split into sub-batches.
+
+11. DATA OWNERSHIP
+No new permanent travel SSoT is introduced.
+Derived itinerary/scoring data is disposable.
+Only accepted provisional/final planning state enters the existing Planning 2.0 model through canonical writers.
+
+12. 3S + VALUE
+Speed
+- compute only bounded period/candidate set;
+- reuse location/read models;
+- avoid N+1 distance calls where possible;
+- cache reusable distance/travel estimates with appropriate freshness.
+
+Scalability
+- cluster candidates before expensive route comparison;
+- compare a bounded shortlist, not every permutation;
+- same engine supports single Auditor and full Manager distribution.
+
+Stability
+- advisory layer cannot commit;
+- hard rules checked again at final preflight;
+- stale travel estimate never bypasses feasibility validation.
+
+Value
+- reduces manual geographic puzzle work;
+- avoids unrealistic daily-return planning;
+- makes travel time/cost/sustainability visible before commitment.
+
+13. SAFE STATUS
+This document does not change:
+- Manager Overview -> Plan route;
+- Planning Workspace authentication/opening;
+- lifecycle writes;
+- Availability;
+- Companies data;
+- PROD.

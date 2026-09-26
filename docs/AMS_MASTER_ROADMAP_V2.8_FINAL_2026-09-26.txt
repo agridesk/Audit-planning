@@ -1,0 +1,520 @@
+AUDIT MANAGEMENT SYSTEM — MASTER ROADMAP V2.8 FINAL
+Date: 2026-09-26
+Status: FINAL CANONICAL ROADMAP
+Branch: dev
+Operating principle: 3S + Value — Speed, Scalability, Stability + operational value
+
+0. AUTHORITY
+
+This file is the single current AMS roadmap authority.
+It supersedes V2.7 and all earlier roadmap/governance variants as roadmap truth.
+Historical closure, RCA and architecture documents remain implementation evidence only and may not silently override this roadmap.
+
+Repository/runtime governance remains:
+- Git repository = code/document SSoT.
+- dev = active development branch.
+- DEV GAS remains canonical Apps Script development runtime for canonical writes still owned by GAS.
+- Cloud Run may host accepted external application/read surfaces.
+- PROD remains untouched without explicit authorization.
+- Chats/Work are execution environments, never SSoT.
+
+Hard architecture rules:
+- one planning engine;
+- one Availability model;
+- one shared planning intelligence layer;
+- one capacity truth;
+- no UI-owned lifecycle logic;
+- no direct browser-to-Sheets planning writes;
+- no parallel Company master-data flow;
+- projections/read models/caches are disposable, never canonical truth.
+
+1. ACCEPTED TECHNICAL BASELINE
+
+AMS-01.6 Model C is accepted on DEV.
+Canonical chain:
+Company -> Company Scope -> Audit Obligation -> Audit Visit <-> Auditor Availability.
+
+Accepted domain ownership includes:
+- Companies = Company master data and Locations_JSON.
+- Config_Scopes = scope metadata, recurring semantics, Formal_hours, Scheduling_hours / Planning duration, rotation maximum and scope-level planning policy.
+- Config_Scope_Dependencies = dependency relationships.
+- Company_Scopes = Company x Scope relationship.
+- Audit_Obligations = scope/cycle obligation and annual-assignment policy truth.
+- Audit_Visit_Obligations = Visit <-> Obligation membership.
+- Planning JSON = committed block-level schedule/execution truth.
+- Auditor Availability = capacity/exception/occupancy layer.
+- Notification Queue = delivery owner.
+- Log realized audits = completed history.
+- Rejected audits = terminal rejected history.
+- Audit planning = migration/operational projection only, not lifecycle owner.
+
+Planning 2.0 already has accepted/proven foundations on DEV, including Planning Demand, Concept Planning, Workspace, Preflight, annual planner foundation, batch foundation, trip/workweek advisory foundation, reporting/read-model foundations and external Manager migration work. These foundations are retained and extended; 1.0 is not to be pimped or rebuilt.
+
+2. PRODUCT / CUTOVER STRATEGY
+
+Planning 2.0 is the target product. Planning 1.0 is only a functional/parity reference.
+
+Cutover is phased per surface/module, not big-bang.
+A 2.0 surface may replace its 1.0 equivalent when:
+- required 1.0 functionality is covered;
+- no relevant data/action exists only in 1.0;
+- functional workflow has been practically accepted;
+- 3S acceptance is sufficient;
+- both UIs, while coexisting, use the same canonical owners/business rules.
+
+Concrete cutover order is dependency/value-driven, not a fixed business sequence.
+Single-audit Planning 2.0 may cut over before Customer Proposal is complete.
+Batch/Workweek Planning may not cut over before Customer Proposal/Confirmation is complete.
+
+Manager 2.0 evolves from the current Manager Portal shell; no completely new cockpit.
+Auditor 2.0 evolves from the current Auditor Portal shell; no separate auditor application.
+Specialist functions may open in internal application panels/windows, but must not rely on browser popups/tabs that require closing via the browser cross.
+
+3. 3S RELEASE CRITERIA
+
+Speed:
+- local UI response immediate where no server decision is needed;
+- common cached/read-model interactions target <1s;
+- major decision-ready loads target about <=2s p95 where technically realistic;
+- browser wall time matters.
+
+Scalability:
+- bounded/windowed reads;
+- no N+1 broad scans;
+- shared read models;
+- dynamic scope handling;
+- batch orchestration delegates to canonical per-audit logic.
+
+Stability:
+- targeted invalidation;
+- hard rules fail closed;
+- optimistic concurrency/revision protection;
+- idempotency where retry can occur;
+- truthful audit trail;
+- canonical writers only;
+- rollback/recovery for multi-step writes.
+
+4. CANONICAL LIFECYCLE
+
+Statuses:
+Pending Planning -> Pending Approval -> Approved -> Accepted -> Completed.
+Rejected is terminal.
+
+Manager-planned:
+Pending Planning -> Manager Plan -> Approved -> Auditor Accept -> Accepted.
+
+Auditor self-planned:
+Pending Planning -> Auditor Plan -> Pending Approval -> Manager Approve -> Accepted.
+No redundant second Auditor Accept after Manager approval of the Auditor's own self-plan.
+
+Manager may Accept on behalf of an Auditor only after external confirmation; actual Manager actor, represented Auditor, source/channel and timestamp must be logged.
+
+5. CONTROLLED RE-ADJUST
+
+No unrestricted generic Edit.
+Re-adjust uses Workspace -> planning checks -> canonical writer.
+
+Roadmap-level principles:
+- material date/day or current-Visit scope change returns the audit to planning;
+- same-day time/block and execution-location-only changes may preserve lifecycle if still valid;
+- Accepted + same-day time change does not require renewed Auditor acceptance solely because of the time change;
+- auditor reassignment requires revalidation and, if already Accepted, returns to Approved for new Auditor acceptance;
+- Completed remains lifecycle-immutable;
+- final committed batches are reopened only explicitly by Manager, never automatically.
+
+Detailed edge-case status handling belongs to functional implementation, not roadmap micro-policy.
+
+6. COMPLETION / REALIZED HISTORY
+
+Completion remains canonical Accepted -> Completed.
+Formal hours, Planning duration and Hours dedicated remain three distinct concepts.
+Completed lifecycle is immutable.
+Manager may make controlled post-completion correction of governed realized fields with audit trail; historical Planning JSON is not rewritten.
+
+7. CONFIG_SCOPES — REQUIRED EXTENSIONS
+
+Config_Scopes remains scope-policy owner and receives two additional canonical fields:
+
+7.1 Rotation extension / exception
+A scope may define e.g. `+1` as allowed exceptional extension.
+Meaning:
+- standard rotation maximum remains leading;
+- +1 is possible only in exceptional circumstances such as temporary auditor-capacity shortage;
+- use of +1 remains an explicit Manager decision for a concrete audit/assignment and is logged;
+- +1 in Config_Scopes is permission capability, not automatic approval;
+- +2 or further remains hard-blocked unless future governance explicitly changes this.
+
+7.2 Minimum audit interval
+Add machine-readable minimum interval between successive relevant audits/cycles, e.g. `Min_Interval_Months`.
+For MPS-GAP: minimum 6 months between the 2026 and 2027 audit.
+This is a hard planning rule and must be consumed by all planning surfaces, not only Batch Planning.
+
+8. ROTATION
+
+Rotation is evaluated per Company + Scope against completed history.
+Missing audit years do not break the chain.
+Another auditor completing the same Company + Scope resets the chain.
+Multi-scope Visit uses the strictest applicable result.
+Rotation applies already at preassignment.
+
+Normal maximum is hard policy; Config_Scopes may permit exceptional +1 as defined above.
+Use of a +1 exception is Manager-controlled and assignment-specific.
+
+9. PREASSIGNMENT / SELF-PLANNING
+
+Preassignment is a strong preferred assignment, more than a loose intention, but not absolute.
+Optimizer starts from the preassigned Auditor and may propose an override when capacity, planning window, travel logic or existing planning makes another auditor materially more workable.
+Manager decides the override; it must be visible/traceable.
+
+Preassignment and Allow self planning remain separate controls.
+
+A self-planning Auditor may also use Batch Planning, but only for audits that are self-plannable for that Auditor.
+The Auditor:
+- may not assign other auditors;
+- may not use Manager-only overrides;
+- may search replacement candidates only within audits self-plannable for that Auditor;
+- submits batch planning through the normal self-planning governance to Pending Approval.
+
+For self-planning Auditor customer communication:
+- Auditor may prepare batch and customer proposals;
+- Manager must release/send customer communication.
+
+10. ANNUAL PLANNER
+
+Annual Planner uses a hybrid workflow:
+- default view prioritizes audits with relevant/upcoming planning windows;
+- filters include month, Auditor and region;
+- concept month and preassigned Auditor may be stored without concrete date/time;
+- workload/capacity by Auditor is visible;
+- concept month does not create Planning JSON, Availability occupancy or lifecycle change.
+
+Preferred_Audit_Months already exists in Companies and remains the canonical Company preference. No new parallel period model is introduced.
+All planning surfaces must consume the same existing Preferred_Audit_Months semantics.
+
+11. SHARED PLANNING INTELLIGENCE
+
+Annual Planner, Batch/Workweek, single-audit planning, replacement search and future planning suggestions consume one shared planning intelligence layer.
+
+Optimizer priority order:
+1. Planning window / urgency.
+2. Hard feasibility, including qualification, Availability, rotation, Auditor_Exclusions, scope rules and Min_Interval_Months.
+3. Travel logic.
+4. Connection to existing planning immediately before/after the planning window, including previous/next day or week.
+5. Company Preferred_Audit_Months plus recency/spacing versus previous audit.
+6. Contiguous workweek / minimise impractical gaps.
+7. Customer confirmation/flexibility.
+8. Preassignment as strong preference.
+9. Auditor workload/capacity balance.
+10. Cost and sustainability.
+
+Recency/spacing fairness is soft unless backed by a hard Config_Scopes minimum interval.
+Example: a company audited recently should be deprioritised if equivalent candidates exist, even if formal rules would allow it.
+
+12. BATCH / WORKWEEK PLANNING
+
+Batch/Workweek Planning starts with:
+- required planning period/window;
+- optional Auditor filter;
+- optional region filter.
+If Auditor/region are blank, planning-window-first is leading.
+
+The optimizer may propose a full auditor distribution based on preassignment, qualification, Availability/capacity, rotation, travel logic, existing planning and workload.
+
+Batch is proposal-first, never auto-commit.
+Manager remains decision owner.
+
+Replacement logic:
+- when an audit drops out, optimizer may first reflow remaining audits within confirmed flexibility;
+- if a gap remains, optimizer may search outside the original batch for replacement candidates within the active run boundaries/filters;
+- candidates are proposals only; Manager chooses.
+
+A batch may split into sub-batches if customer responses make the original grouping impractical.
+
+Until final commit, the batch remains one optimisable provisional unit; do not prematurely freeze a subset if that would prevent necessary reflow of the whole week/trip.
+
+13. TRIP / WORKWEEK LOGIC
+
+Trip/workweek is advisory decision support feeding Planning 2.0; never a second writer.
+It should:
+- cluster geographically logical audits;
+- use continuous itinerary rather than fictitious daily returns to home base;
+- compare car/train/flight where relevant;
+- consider door-to-door time, feasibility, cost and sustainability;
+- apply a soft environmental penalty to flying;
+- account for existing planning before/after the selected window;
+- suggest an overnight city/location (e.g. Barcelona), not a specific hotel;
+- never autonomously book travel/hotels.
+
+14. PROVISIONAL PLANNING
+
+Provisional batch planning is visible to the assigned Auditor before final commit.
+In Auditor Availability Calendar it shows at least:
+- PROVISIONAL status;
+- Company name;
+- Scope;
+- date/time.
+
+Provisional planning is:
+- read-only for Auditor;
+- a soft reserve for Manager;
+- a hard no-go for self-planning Auditor to plan through those provisional times;
+- movable by Manager while batch remains open.
+
+Capacity reporting distinguishes:
+- Committed workload;
+- Provisional workload;
+- total exposure.
+Provisional is not merged invisibly into committed workload.
+
+15. AUDITOR WEEK / PERIOD PRE-APPROVAL
+
+Optional lightweight pre-approval may be used to replace informal WhatsApp-style week availability checks.
+It applies to a week/period, not exact audit layout.
+
+Rules:
+- optional, not a universal planning gate;
+- Manager may register it on behalf of Auditor after phone/WhatsApp/email contact;
+- Auditor must be able to approve via lightweight secure link shared by email or WhatsApp, without portal login;
+- responses may be Available/OK, Available with constraints, Not available;
+- constraints should be machine-readable where practical;
+- actor, channel, period and timestamp are logged.
+
+This pre-approval is capacity alignment only.
+Final Auditor Accept remains required after final commit for Manager-planned audits.
+
+If Auditor refuses after final commit, Manager chooses either:
+- return only that audit to planning; or
+- reopen/reflow the whole batch.
+
+16. CUSTOMER PROPOSAL / CONFIRMATION
+
+This is a core Planning 2.0 workflow for Batch/Workweek and may also be used for single-audit planning where configured.
+There is no customer portal.
+
+16.1 When proposal is sent
+Manager first creates a concrete provisional proposal with date/time/location and internal Auditor assignment.
+Proposal is sent before final planning commit.
+Auditor identity is NOT shown in the proposal; the customer should not influence Auditor selection.
+
+16.2 Response channel
+Customer responds through a secure unique link from the email.
+No account/login and no customer portal are required.
+Manager may register the customer response on behalf of the customer after phone/direct-email contact.
+
+Every acceptance logs:
+- customer self-response or Manager on behalf;
+- actor identity;
+- date/time;
+- source/channel;
+- proposal version/context.
+
+16.3 Machine-readable responses
+Planning-relevant input must be structured, not interpreted from free text.
+Supported response concepts include:
+- Accept;
+- Accept with flexibility;
+- Alternative within current planning window;
+- Entire current planning window unavailable.
+
+Structured fields may include exact alternative date, start/end time, available dates, flexible date range, earliest start and latest finish.
+Free text is optional explanation only, never planning truth.
+
+Customer does not need to give a reason for decline/unavailability.
+
+16.4 Flexibility and delta-confirmation
+Customer may accept the proposal and additionally grant flexibility, e.g. day before/day after or specific alternative days/times.
+This flexibility is retained as a machine-readable constraint set.
+
+During reflow:
+- Manager/optimizer may move an audit without new confirmation if the new slot stays entirely within previously confirmed flexibility;
+- if movement goes outside confirmed flexibility, a new customer confirmation is required;
+- only affected customers are re-contacted; the whole batch is not reconfirmed unnecessarily.
+
+Earlier flexibility remains valid while the relevant proposal/context remains open, including after Manager reopens a final batch, unless explicitly superseded/withdrawn.
+
+16.5 Customer response and batch stability
+Customer acceptance does NOT commit planning automatically.
+Manager remains final commit owner because one customer response may force reflow of the entire week/trip.
+
+If one audit cannot fit:
+- Manager may remove it from the batch;
+- optimizer may reflow remaining audits;
+- optimizer may search replacement candidates;
+- existing accepted customers remain valid constraints within their confirmed flexibility.
+
+A batch may split into sub-batches where practical.
+
+16.6 Proposal sending
+Manager controls sending:
+- per audit;
+- selected audits;
+- `Send all` for all currently valid provisional proposals.
+Blocked items are not silently included.
+
+Reminders are sent only to unanswered proposals.
+A response deadline applies to unanswered proposals, not to already received valid acceptance.
+No silent approval on timeout.
+
+16.7 Multiple audits for same customer
+One email may contain multiple audit/Visit proposals for the same Company, with response per Visit and one submit action.
+Customer confirms one physical Visit, not each scope separately; all scopes of that Visit are shown together.
+
+16.8 Structural Company data captured during response
+Existing Companies data model is leading.
+Customer can directly update structural planning limitations in the same machine-readable form used by Companies, including existing days/hours semantics.
+Those structural updates go directly to Companies with source/timestamp/audit trail.
+Temporary availability for the current batch/window remains proposal data and does not pollute Companies.
+
+16.9 Final commit and final customer confirmation
+Manager performs one explicit final commit when the batch is stable.
+After final commit AMS always sends a definitive customer confirmation with final date/time/location.
+ECAS may also send its own confirmation; AMS confirmation remains required.
+Auditor name may be shown in the final customer confirmation as practical information, although it was not shown in the proposal.
+
+Where `Customer confirmation required = NO`, Manager may final-commit directly once planning checks are satisfied.
+Customer confirmation policy starts as Company default with per-audit Manager override; Scope default is not required initially.
+
+16.10 Customer changes after final commit
+Post-commit customer disruption is handled through Manager Re-adjust/reopen, not through the old proposal response as if planning were still provisional.
+Manager may remove/replan the audit, reflow the trip or insert a replacement candidate.
+Only customers moved outside previous confirmed flexibility require renewed confirmation.
+
+17. COMPANY MASTER DATA
+
+Companies remains the single Company master-data source.
+Do not create a second permanent Company-information stream in Batch, Annual Planner or Customer Proposal.
+
+17.1 Comments
+Replace the single legacy Comments concept with:
+- General comments — durable general Company information;
+- Auditor comments — durable recurring practical information useful to auditors.
+
+Migration:
+- existing Comments -> General comments;
+- Auditor comments starts empty;
+- no third legacy comments truth is retained.
+
+Audit-/Visit-specific temporary notes stay with the audit/Visit and are not automatically promoted into Companies.
+No separate Company Handover layer is required.
+
+17.2 Auditor Company Data UX
+Company Data remains the Auditor's single entry point for Company information.
+Hard UX principle: Company-data changes by an Auditor must be extremely fast; email update is just as important as comment update.
+
+One Company Data screen:
+- multiple fields may be changed;
+- one Save;
+- per-field outcomes may differ behind the scenes;
+- minimal clicks and no unnecessary extra dialogs.
+
+Direct Auditor updates with audit trail:
+- contact data such as email/phone/contact person;
+- Auditor comments;
+- planning limitations days/hours.
+
+Manager-governed/proposal fields include:
+- General comments;
+- Region;
+- Locations and other planning-significant structural changes.
+Company status remains Manager-only.
+Used locations are not physically deleted; deactivate them to preserve history.
+
+17.3 Auditor exclusions
+Add one structured Company-level field/column `Auditor_Exclusions`.
+It is Company-wide, not scope-specific.
+It records auditors who must not be proposed or planned for that Company, independent of rotation.
+Reasons/types may include CUSTOMER_REJECTED, INDEPENDENCE or other operational exclusion.
+
+All active exclusions are HARD blocks.
+They cannot be overridden per audit; first change/deactivate the exclusion in Companies.
+
+Auditor may signal/propose an exclusion; Manager confirms/activates it.
+Store auditor, reason/type, optional note, actor and timestamp.
+
+When a new exclusion is activated:
+- all future proposals/planning are blocked for that auditor/company;
+- existing non-completed audits for that auditor/company are marked as conflict for explicit Manager resolution/reassignment;
+- no silent automatic reassignment.
+
+18. MULTI-LOCATION PLANNING
+
+Locations_JSON remains Company location master-data truth.
+Existing 1.0 capability of execution location per planned slot is retained and carried forward.
+Actual planned hours per location are derived from slot date/start/end + execution location; do not create duplicate manual 'hours per location' input in the planning UI.
+
+Required locations may optionally be configured per Company Scope where business/certification needs require it.
+This is optional, not mandatory for every multi-location Company.
+
+Current max-five-locations behavior is treated as existing UI/technical capacity, not a permanent business rule for Planning 2.0.
+
+19. AVAILABILITY
+
+Committed audit occupancy remains protected/read-only in My Availability.
+Multiple non-overlapping audits on one day are allowed.
+Overlap is hard-blocked.
+Recurring/default blocked weekday and weekend behavior remain soft/advisory unless explicitly hard-unavailable.
+No generic hard one-audit-per-day, 17:00 or 9-hour ceiling.
+
+All planning surfaces consume one shared resolved Availability semantics.
+Provisional occupancy follows section 14.
+
+20. OPERATIONAL HOLDS
+
+No one-size-fits-all hold-resolution workflow.
+Different causes require cause-specific valid Manager actions.
+
+Common principles:
+- always a Manager decision before held audit becomes operational again;
+- no silent automatic lifecycle rewriting unless another canonical rule explicitly requires it;
+- UI shows cause, impact, available Manager actions and current planning-check result;
+- reactivation does not silently auto-release a prior hold.
+
+21. COMPANY MAP / PLANNING UI
+
+Current Manager Portal remains the main shell.
+Planning is the entry into integrated Planning 2.0.
+Within Planning 2.0 the same selection/context can be viewed through List / Week / Map / Batch where useful.
+Specialist surfaces may remain separate but must integrate through internal application navigation/panels, not browser-window lifecycle.
+
+Company Map remains read-only decision support over canonical Company location/workload/planning data; it is not a second planner or location store.
+
+22. NOTIFICATIONS
+
+Reuse the existing 1.0 notification ownership and communication patterns where still applicable.
+Do not create parallel notification logic merely because UI moved to 2.0.
+
+Auditor communication after planning continues through the existing canonical notification family/queue semantics.
+Customer Proposal/Confirmation is a new communication workflow, but delivery still belongs to the canonical notification infrastructure.
+
+23. REPORTING / CAPACITY
+
+Shared read models feed Manager, Auditor, Annual Planner, Batch/Workweek, Company Map and exports.
+At minimum distinguish:
+- Formal hours;
+- practical Planning duration;
+- Hours dedicated;
+- Committed workload;
+- Provisional workload;
+- total exposure;
+- capacity/headroom;
+- rotation pressure;
+- planning-window exposure;
+- completed/upcoming lifecycle.
+
+Auditor selected-audit Excel/PDF export capability from 1.0 must be retained in 2.0; do not build a second auditor reporting application merely to replace it.
+
+24. ROADMAP CHANGE CONTROL
+
+This V2.8 is the canonical roadmap after 2026-09-26 business alignment.
+Implementation detail may evolve, but changes to the following require explicit business alignment before roadmap modification:
+- lifecycle semantics;
+- customer confirmation flow;
+- batch finalisation/reflow rules;
+- auditor self-planning boundaries;
+- Config_Scopes policy fields;
+- Company master-data ownership;
+- hard exclusion/rotation rules;
+- provisional planning semantics;
+- cutover strategy.
+
+Do not reopen settled decisions merely because implementation would be easier another way.

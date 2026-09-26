@@ -1,11 +1,16 @@
 import http from 'node:http';
-import {createHmac} from 'node:crypto';
+import {createHmac,timingSafeEqual} from 'node:crypto';
 
 const PUBLIC_PORT=Number(process.env.PORT||8080);
 const INNER_PORT=PUBLIC_PORT+1;
-const BUILD='2026-09-26_AMS_CLOUD_RUN_MANAGER_PORTAL_R39_SIGNED_PLANNING_HANDOFF';
+const BUILD='2026-09-26_AMS_CLOUD_RUN_MANAGER_PORTAL_R40_SIGNED_MANAGER_SESSION';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
+const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
+const SESSION_COOKIE='ams_dev_session';
+const SESSION_TTL_SECONDS=2*60*60;
+const MANAGER_HANDOFF_MAX_FUTURE_MS=90*1000;
+const MANAGER_HANDOFF_CLOCK_SKEW_MS=10*1000;
 
 process.env.PORT=String(INNER_PORT);
 await import('./server-r4.js');
@@ -14,10 +19,54 @@ process.env.PORT=String(PUBLIC_PORT);
 function clean(v){return String(v==null?'':v).trim();}
 function esc(v){return clean(v).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
 function b64url(buf){return Buffer.from(buf).toString('base64url');}
+function safeEq(a,b){const x=Buffer.from(clean(a)),y=Buffer.from(clean(b));return x.length===y.length&&timingSafeEqual(x,y);}
 function handoffPayload(email,role,auditId,exp){return['v1',clean(email).toLowerCase(),clean(role),clean(auditId),String(exp)].join('\n');}
 function signHandoff(payload){return b64url(createHmac('sha256',WRITE_KEY).update(payload).digest());}
-function sendJson(res,status,body){res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(body));}
-function sendHtml(res,status,body){res.writeHead(status,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'});res.end(body);}
+function managerSessionPayload(email,role,exp){return['v1','MANAGER_SESSION',clean(email).toLowerCase(),clean(role),String(exp)].join('\n');}
+function signManagerSessionHandoff(payload){return b64url(createHmac('sha256',WRITE_KEY).update(payload).digest());}
+function signSession(payload){return createHmac('sha256',SESSION_SECRET).update(payload).digest('base64url');}
+function issueSession(identity){
+  if(SESSION_SECRET.length<32)throw new Error('SESSION_SECRET_NOT_CONFIGURED');
+  const now=Math.floor(Date.now()/1000);
+  const payload=b64url(JSON.stringify({v:1,email:clean(identity.email).toLowerCase(),role:clean(identity.role),iat:now,exp:now+SESSION_TTL_SECONDS}));
+  return payload+'.'+signSession(payload);
+}
+function sessionCookie(token){return SESSION_COOKIE+'='+token+'; Max-Age='+SESSION_TTL_SECONDS+'; Path=/; HttpOnly; Secure; SameSite=Lax';}
+function sendJson(res,status,body,headers={}){res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store',...headers});res.end(JSON.stringify(body));}
+function sendHtml(res,status,body,headers={}){res.writeHead(status,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer',...headers});res.end(body);}
+
+async function readForm(req){
+  let raw='';
+  for await(const chunk of req){raw+=chunk;if(raw.length>16384)throw new Error('REQUEST_TOO_LARGE');}
+  return new URLSearchParams(raw);
+}
+
+function verifyManagerSessionHandoff(form){
+  if(WRITE_KEY.length<32)return{ok:false,error:'WRITE_BRIDGE_NOT_CONFIGURED'};
+  const email=clean(form.get('email')).toLowerCase();
+  const role=clean(form.get('role'));
+  const exp=Number(clean(form.get('exp')));
+  const supplied=clean(form.get('signature'));
+  if(!email||!role||!exp||!supplied)return{ok:false,error:'HANDOFF_REQUIRED_FIELDS_MISSING'};
+  if(role.toLowerCase()!=='manager')return{ok:false,error:'ROLE_FORBIDDEN'};
+  const now=Date.now();
+  if(exp<now-MANAGER_HANDOFF_CLOCK_SKEW_MS)return{ok:false,error:'HANDOFF_EXPIRED'};
+  if(exp>now+MANAGER_HANDOFF_MAX_FUTURE_MS)return{ok:false,error:'HANDOFF_EXPIRY_INVALID'};
+  const expected=signManagerSessionHandoff(managerSessionPayload(email,'Manager',exp));
+  if(!safeEq(supplied,expected))return{ok:false,error:'HANDOFF_SIGNATURE_INVALID'};
+  return{ok:true,email,role:'Manager'};
+}
+
+async function handleManagerSessionHandoff(req,res){
+  let form;
+  try{form=await readForm(req);}catch(err){return sendJson(res,413,{ok:false,error:clean(err&&err.message||err)});}
+  const verified=verifyManagerSessionHandoff(form);
+  if(!verified.ok)return sendJson(res,401,verified);
+  if(SESSION_SECRET.length<32)return sendJson(res,500,{ok:false,error:'SESSION_SECRET_NOT_CONFIGURED'});
+  const token=issueSession(verified);
+  res.writeHead(303,{'set-cookie':sessionCookie(token),'location':'/','cache-control':'no-store','referrer-policy':'no-referrer'});
+  return res.end();
+}
 
 async function sessionIdentity(req){
   const r=await fetch('http://127.0.0.1:'+INNER_PORT+'/api/v1/session',{method:'GET',headers:{cookie:clean(req.headers.cookie)},redirect:'manual'});
@@ -69,6 +118,9 @@ function proxy(req,res){
 
 http.createServer(async(req,res)=>{
   const u=new URL(req.url,'http://localhost');
+  if(u.pathname==='/auth/signed-handoff'&&req.method==='POST'){
+    try{return await handleManagerSessionHandoff(req,res);}catch(err){return sendJson(res,500,{ok:false,error:'MANAGER_SESSION_HANDOFF_FAILED',detail:clean(err&&err.message||err)});}
+  }
   if(u.pathname==='/planning'&&req.method==='GET'){
     try{return await handlePlanning(req,res,u);}catch(err){return sendJson(res,500,{ok:false,error:'PLANNING_HANDOFF_FAILED',detail:clean(err&&err.message||err)});}
   }
@@ -76,7 +128,7 @@ http.createServer(async(req,res)=>{
     try{
       const r=await fetch('http://127.0.0.1:'+INNER_PORT+'/health',{redirect:'manual'});
       const inner=await r.json();
-      return sendJson(res,r.status,{...inner,build:BUILD,innerBuild:inner.build||'',planningHandoff:'SIGNED_POST',handoffKeyConfigured:WRITE_KEY.length>=32});
+      return sendJson(res,r.status,{...inner,build:BUILD,innerBuild:inner.build||'',planningHandoff:'SIGNED_POST',managerSessionHandoff:'SIGNED_POST_GAS_CANONICAL_AUTH',handoffKeyConfigured:WRITE_KEY.length>=32,sessionSecretConfigured:SESSION_SECRET.length>=32});
     }catch(err){return sendJson(res,500,{ok:false,error:'INNER_HEALTH_FAILED',build:BUILD,detail:clean(err&&err.message||err)});}
   }
   return proxy(req,res);

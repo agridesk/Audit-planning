@@ -1,0 +1,140 @@
+AUDIT MANAGEMENT SYSTEM — MANAGER RE-ADJUST DECISION MATRIX
+Date: 2026-09-26
+Branch: dev
+Status: ANALYSIS ONLY — no runtime behavior change
+Authority: AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26
+
+PURPOSE
+Translate roadmap Re-adjust rules into an implementation-ready status/validation matrix without changing runtime code.
+
+1. CORE PRINCIPLE
+There is no unrestricted generic Edit.
+Every change starts from the existing Planning Workspace, runs planning checks, then uses the canonical writer.
+Completed remains lifecycle-immutable.
+
+2. CHANGE TYPES AND EXPECTED LIFECYCLE
+
+A. Same-day time-only change
+Examples:
+- 09:00 -> 10:00
+- block start/end shift on the same date
+
+Expected behavior:
+- Pending Planning: remains Pending Planning until planned normally.
+- Pending Approval: remains Pending Approval if still valid.
+- Approved: may remain Approved if auditor assignment unchanged and all checks pass.
+- Accepted: may remain Accepted; no renewed Auditor acceptance solely because of same-day time change.
+
+Required checks:
+- Availability overlap
+- company hours/limitations
+- slot/location validity
+- capacity
+- hard eligibility constraints still valid
+
+B. Execution-location-only change
+Expected behavior:
+- may preserve current lifecycle if still valid;
+- no automatic status reset solely because execution location changes.
+
+Required checks:
+- selected location exists and is active/allowed;
+- no resulting planning rule conflict;
+- travel implications recomputed where relevant.
+
+C. Material date/day change
+Expected behavior:
+- return audit to planning state;
+- previous commitment/approval must not silently remain authoritative.
+
+Reason:
+A different day materially changes Availability, travel context and customer/auditor confirmation context.
+
+D. Current-Visit scope change
+Expected behavior:
+- return to planning;
+- re-run qualification, rotation, duration, dependency and planning-window checks.
+
+Reason:
+Scope composition changes required qualification and planned duration and may change Visit/Obligation membership.
+
+E. Auditor reassignment
+Expected behavior:
+- always revalidate qualification, rotation, exclusions and Availability;
+- if Accepted, return to Approved for acceptance by the new Auditor;
+- previous Auditor acceptance does not transfer.
+
+F. Accepted audit — same-day time adjustment
+Expected behavior:
+- may stay Accepted if all checks pass;
+- do not require renewed acceptance solely due time movement;
+- audit trail must record old/new time, actor and timestamp.
+
+G. Completed audit
+Expected behavior:
+- no planning Re-adjust;
+- lifecycle remains immutable;
+- only specifically governed realized-field correction is allowed through the completion-history correction path;
+- historical Planning JSON is not rewritten.
+
+3. CUSTOMER CONFIRMATION INTERACTION
+If customer confirmation exists:
+- movement entirely inside previously confirmed flexibility does not require new customer confirmation;
+- movement outside confirmed flexibility requires renewed confirmation for only the affected customer;
+- post-final-commit disruption uses Manager Re-adjust/reopen, not the old proposal response as if planning were still provisional.
+
+4. BATCH / WORKWEEK INTERACTION
+For a final committed batch:
+- never silently reopen a batch;
+- Manager explicitly chooses whether to replan only one audit or reopen/reflow the wider batch;
+- accepted customer flexibility remains usable while its proposal/context is still valid unless superseded or withdrawn.
+
+5. AUDIT TRAIL REQUIREMENTS
+Every accepted change records at minimum:
+- auditId / Visit identity
+- actor
+- timestamp
+- source = Manager Re-adjust
+- old date/time/location/auditor/scopes as applicable
+- new values
+- lifecycle before
+- lifecycle after
+- validation outcome
+- reason when the operation requires an explicit reason
+
+6. CONCURRENCY / STABILITY
+Re-adjust must use revision/version protection:
+- load current revision/context;
+- user edits;
+- canonical writer rejects stale revision if another change happened meanwhile;
+- UI reloads current state rather than overwriting blindly.
+
+Retryable writes must be idempotent where feasible.
+No browser-owned status transitions.
+
+7. 3S + VALUE
+Speed:
+- reuse current Workspace facts and only refresh affected validators;
+- avoid a full broad reload for a same-day time change.
+
+Scalability:
+- one shared Re-adjust path for single audit and batch-origin audits;
+- no separate edit engine per surface.
+
+Stability:
+- canonical writer owns status outcome;
+- hard validators fail closed;
+- explicit revision check;
+- completed data protected.
+
+Value:
+- Manager can make practical corrections without unnecessary full replanning;
+- material changes still trigger the safeguards they actually need.
+
+8. SAFE STATUS
+This document does not modify:
+- Manager Overview -> Plan route;
+- Planning Workspace login/opening;
+- lifecycle runtime;
+- Availability runtime;
+- PROD.

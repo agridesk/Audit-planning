@@ -1,0 +1,137 @@
+AUDIT MANAGEMENT SYSTEM — ANNUAL PLANNER DATA CONTRACT
+Date: 2026-09-26
+Branch: dev
+Status: DESIGN ONLY — no runtime behavior change
+Authority: AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26
+
+1. PURPOSE
+Annual Planner is a medium-term planning surface for concept month and Auditor preassignment.
+It must help distribute future workload without prematurely creating concrete planning state.
+
+2. HARD BOUNDARY
+Annual Planner may store only planning intentions that do NOT yet create:
+- Planning JSON;
+- Availability occupancy;
+- lifecycle status change;
+- customer proposal;
+- final Auditor acceptance.
+
+Concrete date/time planning remains owned by Planning 2.0 Workspace / Batch flows.
+
+3. CANONICAL INPUTS
+Annual Planner reads:
+- Audit_Obligations / planning demand;
+- planning window / expiry context;
+- Company Region;
+- Preferred_Audit_Months;
+- preassignment / Allow self planning policy;
+- qualification;
+- rotation;
+- Auditor_Exclusions;
+- Min_Interval_Months;
+- completed history;
+- committed and provisional workload.
+
+4. CONCEPT FIELDS
+Per Audit Obligation / future planning item:
+- conceptMonth: optional YYYY-MM;
+- preassignedAuditor: optional canonical Auditor identity;
+- planningNote: optional operational note if needed;
+- revision / updatedAt / updatedBy.
+
+No concrete day/start/end belongs in Annual Planner concept state.
+
+5. CONCEPT MONTH RULES
+Concept month:
+- is advisory planning intent;
+- should normally intersect or be compatible with the planning window;
+- should use Preferred_Audit_Months as a preference, not blindly as a hard rule;
+- may remain empty;
+- does not reserve capacity.
+
+If concept month later becomes infeasible, the Planner should surface that fact instead of silently moving it.
+
+6. PREASSIGNMENT RULES
+Preassignment:
+- is a strong preference;
+- already subject to hard feasibility checks such as qualification, Auditor_Exclusions and rotation policy;
+- does not equal final assignment;
+- does not occupy Availability;
+- can later be overridden by Manager when shared planning intelligence shows a materially better feasible alternative.
+
+Override must remain visible/traceable.
+
+7. WORKLOAD VIEW
+Per Auditor show at least:
+- committed workload;
+- provisional workload;
+- concept workload;
+- total exposure.
+
+Concept workload must remain visually distinct from provisional and committed workload.
+Do not represent concept work as booked capacity.
+
+8. FILTERS / DEFAULT VIEW
+Default view prioritises upcoming/relevant planning windows.
+Supported filters:
+- month;
+- Auditor;
+- Region.
+
+A blank Auditor/Region filter must remain valid and support planning-window-first distribution.
+
+9. VALIDATION
+On save of concept month or preassignment:
+- validate current revision;
+- reject stale overwrite;
+- hard-block impossible Auditor preassignment;
+- return soft warnings separately from hard blockers;
+- do not call final planning writer.
+
+10. TRANSITION TO PLANNING 2.0
+When Manager opens a concrete planning flow:
+- concept month and preassignment are input context only;
+- current facts are re-read;
+- current hard feasibility is recalculated;
+- concrete planning can differ from concept after Manager decision;
+- accepted concept is never treated as committed planning.
+
+11. SHARED INTELLIGENCE
+Annual Planner consumes the same shared planning intelligence as:
+- single-audit planning;
+- Batch/Workweek;
+- replacement search;
+- future suggestion surfaces.
+
+No separate annual-planning scoring engine.
+
+12. 3S + VALUE
+Speed
+- use bounded planning-demand/read models;
+- fast filters and workload summaries;
+- no broad per-row live eligibility scans on every interaction.
+
+Scalability
+- concept state is lightweight;
+- aggregate workload read model per Auditor/month;
+- dynamic scope handling.
+
+Stability
+- optimistic concurrency;
+- no accidental occupancy/lifecycle writes;
+- hard preassignment feasibility fails closed;
+- audit trail for concept changes.
+
+Value
+- gives Manager early workload visibility;
+- supports future bulk planning;
+- reduces last-minute planning without pretending future intentions are bookings.
+
+13. SAFE STATUS
+This document does not change:
+- Manager Overview -> Plan route;
+- Planning Workspace authentication/opening;
+- lifecycle writes;
+- Availability;
+- Companies data;
+- PROD.

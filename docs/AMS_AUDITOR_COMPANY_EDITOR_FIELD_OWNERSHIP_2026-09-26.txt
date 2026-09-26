@@ -1,0 +1,133 @@
+AUDIT MANAGEMENT SYSTEM — AUDITOR COMPANY EDITOR FIELD OWNERSHIP
+Date: 2026-09-26
+Branch: dev
+Status: ANALYSIS ONLY — no runtime behavior change
+Authority: AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26
+
+1. CURRENT 1.0 EDITOR
+AuditorCompanyUpdateDialogClient.js currently exposes:
+- Contactperson
+- Contact e-mail
+- Contact phone
+- Comments
+- Planning limitations: Days
+- Preferred audit months
+- Planning limitations: Hours
+- Per location: Name
+- Per location: GPS
+- Per location: Comment
+
+Current client submits a bundled proposal to Company_Update_Proposals.
+
+2. V2.8 TARGET OWNERSHIP
+
+DIRECT AUDITOR UPDATE + AUDIT TRAIL
+- Contactperson
+- Contact e-mail
+- Contact phone
+- Planning limitations: Days
+- Planning limitations: Hours
+- Auditor comments
+
+MANAGER-GOVERNED / REVIEW REQUIRED
+- General comments
+- Region
+- Structural locations, including location name/GPS/location comment and active location structure
+
+CANONICAL COMPANY PREFERENCE — OWNERSHIP STILL NEEDS EXPLICIT IMPLEMENTATION DECISION
+- Preferred_Audit_Months
+
+Roadmap V2.8 states Preferred_Audit_Months is the existing canonical Company preference and all planning surfaces must consume it. It does not explicitly place this field in the direct-Auditor or Manager-governed list. Therefore 2.0 must not silently infer ownership from the legacy proposal implementation.
+
+3. IMPORTANT CURRENT MISMATCHES
+
+A. Generic Comments is obsolete as target semantics
+Current editor exposes one field named Comments and CompanyUpdateProposalsBackend.js maps it to Companies!Comments.
+V2.8 requires:
+- existing Comments -> General comments;
+- new separate Auditor comments.
+Therefore this control must be split before Company editor 2.0 cutover.
+
+B. Contact data currently goes through Manager proposal
+V2.8 says contact data is direct Auditor update with audit trail.
+Do not reproduce the proposal requirement in 2.0.
+
+C. Planning limitations days/hours currently go through Manager proposal
+V2.8 says these are direct Auditor updates with audit trail.
+Do not reproduce the proposal requirement in 2.0.
+
+D. Locations correctly belong to Manager governance direction
+Keep review/approval, but write through Companies/Locations_JSON canonical owner only.
+
+E. Region is absent from current Auditor Company editor proposal surface
+V2.8 makes Region Manager-governed. If Auditor may propose a Region correction in 2.0, it should enter the same governed review queue.
+
+F. Preferred audit months client/backend contract needs attention
+The current AuditorCompanyUpdateDialogClient.js reads/collects Preferred audit months and can emit planning/preferredAuditMonths.
+The inspected CompanyUpdateProposalsBackend.js does not expose Preferred audit months in companyUpdate_getCompanySnapshot and its visible field-application branches only support planning days/hours, principal contact/comments and locations.
+CompaniesBackend.js does support canonical Preferred_Audit_Months directly.
+Conclusion: before relying on this feature for 2.0, verify/fix the proposal/backend contract or replace it with the final 2.0 ownership path. Do not assume the current proposal route persists Preferred audit months correctly.
+
+4. 2.0 EDITOR TARGET UI
+The Company editor should present fields in three clear categories without exposing the governance mechanics more than necessary:
+
+Operational data — save directly
+- Contactperson
+- Contact e-mail
+- Contact phone
+- Planning limitations days
+- Planning limitations hours
+- Auditor comments
+
+Company preference
+- Preferred audit months
+- save/review behavior according to final ownership decision
+
+Structural / governed data — submit for Manager review
+- General comments
+- Region
+- Locations
+
+The user should be able to press one Save/Submit action. Server-side routing decides which fields save directly and which become Manager proposals.
+
+5. SERVER-SIDE REQUIREMENTS
+- Field ownership enforced server-side, never only by UI visibility.
+- One Companies SSoT.
+- Direct changes record old value, new value, actor, timestamp and source.
+- Governed changes create proposal records and do not mutate Companies until Manager decision.
+- Mixed direct + governed changes in one submission may produce different per-field outcomes.
+- Return one consolidated result to the Auditor.
+- Invalidate only relevant Companies/planning/company-map caches.
+
+6. 3S + VALUE
+Speed
+- one snapshot load;
+- one bundled save;
+- no per-field RPC loop.
+
+Scalability
+- direct fields do not create unnecessary proposal-queue volume;
+- proposal queue contains governance work only.
+
+Stability
+- server owns field authorization;
+- no generic Comments ambiguity;
+- canonical Companies writer/invalidation reused;
+- no second Company data store.
+
+Value
+- routine data corrections no longer wait on Manager;
+- Manager focuses on structural changes;
+- planning preferences/limitations remain useful and current.
+
+7. SAFE STATUS
+This analysis does not modify:
+- Manager Overview -> Plan route;
+- Planning Workspace authentication/opening;
+- lifecycle writes;
+- Availability;
+- Companies data;
+- PROD.
+
+Next implementation dependency:
+Final ownership decision for Preferred_Audit_Months, then 2.0 Company editor/backend split between direct writes and Manager-reviewed proposals.

@@ -1359,3 +1359,10 @@ Existing accepted components/tests are migration assets, including Model C Scope
 - New Planning Profile fields under 21.76 must be exposed through the same indexed/cached directory/profile service with targeted invalidation on change.
 - Existing blocked weekdays and timezone are migrated as profile inputs; qualification columns remain separate qualification truth and must not be folded into editable planning preferences.
 - Profile reads used by annual planning, Availability, Company Map and Trip/Workweek must share one DTO/read model to avoid N+1 Auditor-sheet scans.
+
+
+21.71 Annual concept-month defaults do not roll forward blindly
+- Unlike preassigned Auditor/self-planning policy, a concept planning month is cycle-specific forecast metadata and is not copied numerically into a successor cycle by default.
+- A successor obligation derives its candidate month from its own canonical planning window and current Company preferred audit months; the Annual Planner may then assign/confirm a concept month under 21.65.
+- This prevents a prior cycle's operational month choice from becoming false planning truth when expiry/window timing shifts in the next year.
+- Any future automated month suggestion remains advisory until explicitly committed as concept metadata and never creates concrete Planning JSON or Availability occupancy.

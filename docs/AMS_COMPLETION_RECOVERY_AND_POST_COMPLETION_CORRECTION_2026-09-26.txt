@@ -1,0 +1,136 @@
+AUDIT MANAGEMENT SYSTEM — COMPLETION RECOVERY AND POST-COMPLETION CORRECTION
+Date: 2026-09-26
+Branch: dev
+Status: DESIGN / RECOVERY ANALYSIS ONLY — no runtime behavior change
+Authority: AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26
+
+1. PURPOSE
+Define the safe Completion / recovery boundary for Manager 2.0 before external Complete is implemented, and align post-completion correction with V2.8.
+
+2. CURRENT CANONICAL OWNERS
+- CompletionService_CommitCompletion is the centralized completion writer for Auditor and Manager-on-behalf flows.
+- Log realized audits is the completed-history SSoT through LogRealizedAuditService.
+- AnnualCycleEngineV5 participates before final completion removal so recurring successor creation is protected.
+- Availability release is part of the completion sequence.
+- Audit planning remains operational projection and the completed source row is deleted only after completed-history logging succeeds.
+
+3. CURRENT COMPLETION SEQUENCE
+The current service performs, under ScriptLock:
+1. payload / actor / status validation;
+2. Log realized preflight, including duplicate Audit ID guard;
+3. annual-cycle handling / successor protection;
+4. Availability release;
+5. append completed row to Log realized audits;
+6. lifecycle completion metadata / trail;
+7. delete active Audit planning row;
+8. cache invalidation;
+9. Manager-on-behalf audit-trail side effect;
+10. artifact synchronisation.
+
+4. IMPORTANT STABILITY FINDING
+The sequence is guarded and materially safer than a loose multi-step UI flow, but it is NOT a true atomic transaction across all side effects.
+
+Examples of possible partial state:
+- successor created, then Availability release fails;
+- Availability released, then Log realized append fails;
+- Log realized row appended, then Audit planning delete fails;
+- core completion succeeds while audit-trail or artifact-sync side effects fail afterwards.
+
+Therefore Manager 2.0 Complete must not be described as fully rollback-safe until recovery handling exists.
+
+5. REQUIRED RECOVERY PRINCIPLE
+Before external Manager Complete cutover, define a completion recovery diagnostic keyed by Audit ID that can classify at least:
+- active Accepted row only;
+- successor already created;
+- Availability already released;
+- completed Log realized row exists;
+- active Audit planning row still exists after log append;
+- lifecycle trail present/missing;
+- notification/audit-trail side effect present/missing;
+- artifact projection stale.
+
+The recovery path must repair toward one canonical end-state; it must never create a second completed-history row or a second successor.
+
+6. RETRY / IDEMPOTENCY RULES
+A repeated Complete request must fail safely or reconcile safely when:
+- Audit ID already exists in Log realized audits;
+- successor already exists from an earlier partial run;
+- Availability is already clear;
+- Audit planning row has already been removed.
+
+Duplicate prevention in LogRealizedAuditService is already a useful hard guard and must remain.
+Annual-cycle duplicate prevention must also remain part of retry safety.
+
+7. MANAGER 2.0 COMPLETE UX
+Manager Complete remains a narrow action, not generic editing.
+Input initially required:
+- Audit ID from selected Accepted audit;
+- Hours dedicated > 0;
+- actor = authenticated Manager;
+- mode = MANAGER_ON_BEHALF;
+- optional reason when governance requires it.
+
+Cloud Run/browser must not reproduce completion logic. It must invoke the canonical writer chain.
+
+8. POST-COMPLETION CORRECTION
+V2.8 keeps Completed lifecycle immutable.
+A correction is therefore a controlled amendment of governed realized data, NOT reopening or rewriting historical planning.
+
+Current runtime already exposes CompletionService_OverrideCompletedHours backed by LogRealizedAuditService_UpdateCompletedHours.
+This means Hours dedicated has an existing correction path.
+
+9. REQUIRED CORRECTION GOVERNANCE
+For every post-completion correction:
+- Manager authorization required;
+- completed Audit ID must exist in Log realized audits;
+- original value retained in audit trail;
+- new value recorded;
+- reason required for material correction;
+- actor and timestamp recorded;
+- historical Planning JSON remains unchanged;
+- no lifecycle transition out of Completed;
+- affected caches/read models invalidated.
+
+10. FIELD SCOPE
+Existing safe correction support is confirmed for:
+- Hours dedicated.
+
+Any future correction of other realized fields must first receive an explicit canonical writer and audit-trail contract. Do not allow arbitrary row editing in Log realized audits from Manager 2.0.
+
+Potential future governed fields may include actual execution metadata only if the business meaning is clear and downstream effects are reconciled. This document does not authorize such fields yet.
+
+11. CUTOVER GATE FOR EXTERNAL MANAGER COMPLETE
+Before enabling external Complete:
+- Plan handoff acceptance remains green;
+- Completion contract acceptance remains green;
+- controlled DEV end-to-end Complete acceptance is performed;
+- recovery diagnostic / repair approach is defined for partial completion;
+- duplicate/retry behavior is tested;
+- completed-history projection in Manager 2.0 is verified;
+- PROD remains untouched until separately authorized.
+
+12. 3S + VALUE
+Speed
+- one canonical Complete call;
+- no browser-side orchestration;
+- targeted cache invalidation.
+
+Scalability
+- Audit-ID keyed recovery checks;
+- no broad sheet mutation loops;
+- completed-history SSoT stays singular.
+
+Stability
+- lock + preflight + duplicate guards;
+- fail closed before destructive delete;
+- explicit partial-state diagnostics required;
+- no claim of atomic rollback until implemented.
+
+Value
+- Manager can Complete from 2.0 without changing business semantics;
+- completed history remains trustworthy;
+- recoverable partial failures reduce manual spreadsheet repair;
+- post-completion corrections stay controlled and auditable.
+
+13. SAFE STATUS
+This document changes no runtime code, lifecycle state, Availability, Companies data or PROD.

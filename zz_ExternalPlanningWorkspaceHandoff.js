@@ -1,24 +1,11 @@
-/***********************************************************************
+/*****************************************************************************************
  * FILE: zz_ExternalPlanningWorkspaceHandoff.js
- * BUILD: 2026-09-26_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R3_CANONICAL_TOOLKIT
+ * BUILD: 2026-09-26_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R4_PREWARM_TOOLKIT
  *
  * DEV-only signed handoff from the external Cloud Run Manager Portal
  * to the existing canonical GAS Manager Planning Toolkit.
- *
- * Security contract:
- * - Cloud Run application session remains the browser auth owner.
- * - AMS_EXTERNAL_WRITE_BRIDGE_KEY is never sent to the browser.
- * - Cloud Run sends only a short-lived HMAC assertion in POST body.
- * - No auth credential is placed in the URL.
- * - GAS validates role, expiry, auditId, actor email and signature.
- * - PROD is blocked.
- *
- * Functional contract:
- * - Manager Overview -> Plan opens the existing single-audit Planning Toolkit.
- * - This handoff does NOT open Planning Workspace 2.0.
- * - No second planning engine is introduced.
  ***********************************************************************/
-var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-26_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R3_CANONICAL_TOOLKIT';
+var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-26_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R4_PREWARM_TOOLKIT';
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_MAX_FUTURE_MS = 90 * 1000;
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CLOCK_SKEW_MS = 10 * 1000;
 
@@ -88,6 +75,25 @@ function ExternalPlanningWorkspaceHandoff_verify_(p) {
   return { ok:true, email:email, role:'Manager', auditId:auditId, expMs:expMs };
 }
 
+function ExternalPlanningWorkspaceHandoff_prewarm_(auditId) {
+  var started = Date.now();
+  try {
+    var res = getToolkitOpenFastV5(
+      String(auditId || '').trim(),
+      '',
+      { withCalendar:false, role:'MANAGER', lockedAuditorEmail:'' }
+    );
+    return {
+      ok: !!(res && res.success),
+      ms: Date.now() - started,
+      cacheHit: !!(res && res.__cacheHit),
+      serverMs: Number((res && res.__serverMs) || 0)
+    };
+  } catch (e) {
+    return { ok:false, ms:Date.now()-started, error:String(e && e.message ? e.message : e) };
+  }
+}
+
 function ExternalPlanningWorkspaceHandoff_render_(identity) {
   if (!identity || identity.ok !== true) throw new Error('HANDOFF_IDENTITY_REQUIRED');
 
@@ -98,6 +104,9 @@ function ExternalPlanningWorkspaceHandoff_render_(identity) {
 
   var execUrl = '';
   try { execUrl = String(ScriptApp.getService().getUrl() || '').trim(); } catch (e0) { execUrl = ''; }
+
+  var prewarm = ExternalPlanningWorkspaceHandoff_prewarm_(auditId);
+  try { Logger.log('[EXTERNAL_PLAN_PREWARM] ' + JSON.stringify({ auditId:auditId, result:prewarm })); } catch (eLog) {}
 
   var tp = HtmlService.createTemplateFromFile('ManagerPlanningV5UI');
   tp.__execUrl = execUrl;
@@ -130,14 +139,9 @@ function RUN_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CONTRACT_ACCEPTANCE() {
   check_('bridgeKeyConfigured', String(PropertiesService.getScriptProperties().getProperty('AMS_EXTERNAL_WRITE_BRIDGE_KEY') || '').trim().length >= 32, '');
   check_('handoffTargetsCanonicalToolkit', String(ExternalPlanningWorkspaceHandoff_render_).indexOf("createTemplateFromFile('ManagerPlanningV5UI')") >= 0, '');
   check_('handoffDoesNotTargetPlanningWorkspace', String(ExternalPlanningWorkspaceHandoff_render_).indexOf('PlanningWorkspaceUi_render') < 0 && String(ExternalPlanningWorkspaceHandoff_render_).indexOf('PlanningWorkspaceRpc_bootstrap') < 0, '');
-
-  var templateAvailable = false;
-  try {
-    templateAvailable = !!HtmlService.createTemplateFromFile('ManagerPlanningV5UI');
-  } catch (eTemplate) {
-    templateAvailable = false;
-  }
-  check_('canonicalToolkitTemplateAvailable', templateAvailable, '');
+  check_('canonicalToolkitTemplateAvailable', !!HtmlService.createTemplateFromFile('ManagerPlanningV5UI'), '');
+  check_('prewarmOwnerAvailable', typeof getToolkitOpenFastV5 === 'function', '');
+  check_('handoffPrewarmsCanonicalOpen', String(ExternalPlanningWorkspaceHandoff_render_).indexOf('ExternalPlanningWorkspaceHandoff_prewarm_') >= 0, '');
 
   var key = String(PropertiesService.getScriptProperties().getProperty('AMS_EXTERNAL_WRITE_BRIDGE_KEY') || '').trim();
   if (key.length >= 32) {

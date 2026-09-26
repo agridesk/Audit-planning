@@ -1,7 +1,7 @@
 AUDIT MANAGEMENT SYSTEM — AUDITOR COMPANY EDITOR FIELD OWNERSHIP
 Date: 2026-09-26
 Branch: dev
-Status: ANALYSIS ONLY — no runtime behavior change
+Status: DESIGN DECISION RECORDED — no runtime behavior change
 Authority: AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26
 
 1. CURRENT 1.0 EDITOR
@@ -33,11 +33,15 @@ MANAGER-GOVERNED / REVIEW REQUIRED
 - General comments
 - Region
 - Structural locations, including location name/GPS/location comment and active location structure
-
-CANONICAL COMPANY PREFERENCE — OWNERSHIP STILL NEEDS EXPLICIT IMPLEMENTATION DECISION
 - Preferred_Audit_Months
 
-Roadmap V2.8 states Preferred_Audit_Months is the existing canonical Company preference and all planning surfaces must consume it. It does not explicitly place this field in the direct-Auditor or Manager-governed list. Therefore 2.0 must not silently infer ownership from the legacy proposal implementation.
+DECISION — 2026-09-26
+Preferred_Audit_Months is Manager-controlled.
+- Auditor may propose Preferred audit months in the Company tab.
+- Auditor proposal does NOT directly mutate Companies.Preferred_Audit_Months.
+- Manager reviews and decides Accept / Reject / Adjust.
+- Only after Manager acceptance/adjustment is the canonical Companies value changed.
+- All planning surfaces continue to consume the single canonical Companies.Preferred_Audit_Months value.
 
 3. IMPORTANT CURRENT MISMATCHES
 
@@ -60,16 +64,23 @@ D. Locations correctly belong to Manager governance direction
 Keep review/approval, but write through Companies/Locations_JSON canonical owner only.
 
 E. Region is absent from current Auditor Company editor proposal surface
-V2.8 makes Region Manager-governed. If Auditor may propose a Region correction in 2.0, it should enter the same governed review queue.
+V2.8 makes Region Manager-governed. If Auditor proposes a Region correction in 2.0, it enters the same governed review queue.
 
-F. Preferred audit months client/backend contract needs attention
+F. Preferred audit months proposal/backend contract must be completed
 The current AuditorCompanyUpdateDialogClient.js reads/collects Preferred audit months and can emit planning/preferredAuditMonths.
-The inspected CompanyUpdateProposalsBackend.js does not expose Preferred audit months in companyUpdate_getCompanySnapshot and its visible field-application branches only support planning days/hours, principal contact/comments and locations.
+The inspected CompanyUpdateProposalsBackend.js does not currently expose Preferred audit months in companyUpdate_getCompanySnapshot and its visible field-application branches only support planning days/hours, principal contact/comments and locations.
 CompaniesBackend.js does support canonical Preferred_Audit_Months directly.
-Conclusion: before relying on this feature for 2.0, verify/fix the proposal/backend contract or replace it with the final 2.0 ownership path. Do not assume the current proposal route persists Preferred audit months correctly.
+
+Target:
+- Auditor Company tab continues to expose Preferred audit months as a proposed value.
+- Proposal backend must explicitly support planning/preferredAuditMonths.
+- Manager review must support Accept / Reject / Adjust for this field.
+- Accepted/adjusted value writes to canonical Companies.Preferred_Audit_Months through the canonical Company owner/writer pattern.
+- Proposal records retain old value, proposed value, decision, processed-by and timestamp.
+- No direct Auditor write to Preferred_Audit_Months.
 
 4. 2.0 EDITOR TARGET UI
-The Company editor should present fields in three clear categories without exposing the governance mechanics more than necessary:
+The Company editor should present fields in two behavioral categories while allowing one Save/Submit action.
 
 Operational data — save directly
 - Contactperson
@@ -79,49 +90,57 @@ Operational data — save directly
 - Planning limitations hours
 - Auditor comments
 
-Company preference
+Manager-governed — submit as proposal
 - Preferred audit months
-- save/review behavior according to final ownership decision
-
-Structural / governed data — submit for Manager review
 - General comments
 - Region
 - Locations
 
-The user should be able to press one Save/Submit action. Server-side routing decides which fields save directly and which become Manager proposals.
+The Auditor does not need separate save buttons. Server-side routing determines which fields save directly and which create Manager proposals.
+
+Preferred audit months UX:
+- current canonical months are shown;
+- Auditor selects proposed months in the Company tab;
+- submission creates a Manager-reviewed proposal;
+- until Manager decision, planning keeps using the current canonical value;
+- after Manager acceptance/adjustment, all planning surfaces see the new canonical value.
 
 5. SERVER-SIDE REQUIREMENTS
 - Field ownership enforced server-side, never only by UI visibility.
 - One Companies SSoT.
 - Direct changes record old value, new value, actor, timestamp and source.
 - Governed changes create proposal records and do not mutate Companies until Manager decision.
+- Preferred_Audit_Months is explicitly governed and can never be direct-written by Auditor flow.
 - Mixed direct + governed changes in one submission may produce different per-field outcomes.
 - Return one consolidated result to the Auditor.
-- Invalidate only relevant Companies/planning/company-map caches.
+- Invalidate only relevant Companies/planning/company-map caches after an accepted Manager change.
 
 6. 3S + VALUE
 Speed
 - one snapshot load;
 - one bundled save;
-- no per-field RPC loop.
+- no per-field RPC loop;
+- no synchronous Manager review in Auditor flow.
 
 Scalability
 - direct fields do not create unnecessary proposal-queue volume;
-- proposal queue contains governance work only.
+- proposal queue contains governance work only;
+- Preferred audit months creates one governed proposal item, not a second planning preference store.
 
 Stability
 - server owns field authorization;
 - no generic Comments ambiguity;
 - canonical Companies writer/invalidation reused;
-- no second Company data store.
+- no second Company data store;
+- planning never consumes unapproved proposed months.
 
 Value
-- routine data corrections no longer wait on Manager;
-- Manager focuses on structural changes;
-- planning preferences/limitations remain useful and current.
+- Auditor can signal realistic customer month preferences during normal Company maintenance;
+- Manager remains final decision owner;
+- planning intelligence gets only approved canonical preferences.
 
 7. SAFE STATUS
-This analysis does not modify:
+This decision does not modify:
 - Manager Overview -> Plan route;
 - Planning Workspace authentication/opening;
 - lifecycle writes;
@@ -130,4 +149,4 @@ This analysis does not modify:
 - PROD.
 
 Next implementation dependency:
-Final ownership decision for Preferred_Audit_Months, then 2.0 Company editor/backend split between direct writes and Manager-reviewed proposals.
+Add explicit Preferred_Audit_Months support to the Company proposal/review contract, then implement the 2.0 Company editor/backend split between direct Auditor writes and Manager-reviewed proposals.

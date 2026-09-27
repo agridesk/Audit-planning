@@ -1,12 +1,12 @@
 /*****************************************************************************************
  * FILE: zz_ExternalPlanningWorkspaceHandoff.js
- * BUILD: 2026-09-26_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R6_EXACT_BODY_BINDING
+ * BUILD: 2026-09-27_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R7_WORKSPACE2_OPEN
  *
  * DEV-only signed bridge for external Manager Planning 2.0.
  * - Legacy/open handoff remains supported for compatibility.
  * - Commit mode delegates to canonical saveManagerPlanning().
  ***********************************************************************/
-var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-26_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R6_EXACT_BODY_BINDING';
+var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-27_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R7_WORKSPACE2_OPEN';
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_MAX_FUTURE_MS = 90 * 1000;
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CLOCK_SKEW_MS = 10 * 1000;
 
@@ -190,23 +190,24 @@ function ExternalPlanningWorkspaceHandoff_render_(identity) {
   if (!auditId) throw new Error('AUDIT_ID_REQUIRED');
   if (!email) throw new Error('ACTOR_EMAIL_REQUIRED');
 
-  var execUrl = '';
-  try { execUrl = String(ScriptApp.getService().getUrl() || '').trim(); } catch (e0) { execUrl = ''; }
-
-  var prewarm = ExternalPlanningWorkspaceHandoff_prewarm_(auditId);
-  try { Logger.log('[EXTERNAL_PLAN_PREWARM] ' + JSON.stringify({ auditId:auditId, result:prewarm })); } catch (eLog) {}
-
-  var tp = HtmlService.createTemplateFromFile('ManagerPlanningV5UI');
-  tp.__execUrl = execUrl;
-  tp.__email = email;
-  tp.__role = 'Manager';
-  tp.__trustedToken = '';
-  tp.__deviceFingerprint = '';
-  tp.__action = 'planningtoolkit';
-  tp.__env = 'DEV';
-  tp.auditId = auditId;
-
-  return tp.evaluate().setTitle('AMS - Planning');
+  var bootstrap = PlanningWorkspaceRpc_bootstrap({
+    auditId:auditId,
+    role:'Manager',
+    actorRole:'Manager',
+    actorEmail:email,
+    auditorEmail:''
+  });
+  var out = PlanningWorkspaceUi_render({ env:'DEV' });
+  var html = out && typeof out.getContent === 'function' ? out.getContent() : String(out || '');
+  var auth = { email:email, role:'Manager', auditId:auditId, action:'planningworkspace' };
+  var seed = '<script>window.__PW_ENTRY_DIRECT_SHELL=true;window.__PW_ENTRY_AUTH=' +
+    JSON.stringify(auth).replace(/<\//g,'<\\/') +
+    ';window.__PW_HTTP_BOOTSTRAP=' +
+    JSON.stringify(bootstrap).replace(/<\//g,'<\\/') +
+    ';<\\/script>';
+  return HtmlService
+    .createHtmlOutput(html.replace('</body>', seed + '\n</body>'))
+    .setTitle('AMS - Planning Workspace');
 }
 
 function RUN_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CONTRACT_ACCEPTANCE() {
@@ -225,6 +226,8 @@ function RUN_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CONTRACT_ACCEPTANCE() {
   check_('directPostRouterAvailable', typeof doPost === 'function', '');
   check_('directPostRouterOwnsPlanningRoute', String(doPost).indexOf("rawAction === 'externalplanningworkspace'") >= 0, '');
   check_('bridgeKeyConfigured', String(PropertiesService.getScriptProperties().getProperty('AMS_EXTERNAL_WRITE_BRIDGE_KEY') || '').trim().length >= 32, '');
+  check_('openRendersWorkspace2', String(ExternalPlanningWorkspaceHandoff_render_).indexOf('PlanningWorkspaceUi_render') >= 0 && String(ExternalPlanningWorkspaceHandoff_render_).indexOf('PlanningWorkspaceRpc_bootstrap') >= 0 && String(ExternalPlanningWorkspaceHandoff_render_).indexOf('ManagerPlanningV5UI') < 0, '');
+  check_('focusedOpenCarriesHttpBootstrap', String(ExternalPlanningWorkspaceHandoff_render_).indexOf('__PW_HTTP_BOOTSTRAP') >= 0 && String(ExternalPlanningWorkspaceHandoff_render_).indexOf('__PW_ENTRY_AUTH') >= 0, '');
   check_('canonicalPlanningSaveAvailable', typeof saveManagerPlanning === 'function', '');
   check_('commitDelegatesToCanonicalSave', String(ExternalPlanningWorkspaceHandoff_commit_).indexOf('saveManagerPlanning(auditId, payload)') >= 0, '');
   check_('commitForcesManagerRole', String(ExternalPlanningWorkspaceHandoff_commit_).indexOf("actorRole:'MANAGER'") >= 0, '');

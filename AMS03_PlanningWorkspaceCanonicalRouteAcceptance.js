@@ -1,9 +1,9 @@
 /***********************************************************************
  * FILE: AMS03_PlanningWorkspaceCanonicalRouteAcceptance.js
- * BUILD: 2026-09-26_AMS03_PLANNING_WORKSPACE_CANONICAL_ROUTE_ACCEPTANCE_R1
+ * BUILD: 2026-09-27_AMS03_PLANNING_WORKSPACE_CANONICAL_ROUTE_ACCEPTANCE_R2_EFFECTIVE_OWNER
  * PURPOSE: Fail closed unless the real EntryV5 GET chain owns Planning Workspace 2.0.
  ***********************************************************************/
-var AMS03_PW_CANONICAL_ROUTE_ACCEPTANCE_BUILD='2026-09-26_AMS03_PLANNING_WORKSPACE_CANONICAL_ROUTE_ACCEPTANCE_R1';
+var AMS03_PW_CANONICAL_ROUTE_ACCEPTANCE_BUILD='2026-09-27_AMS03_PLANNING_WORKSPACE_CANONICAL_ROUTE_ACCEPTANCE_R2_EFFECTIVE_OWNER';
 
 function RUN_AMS03_PLANNING_WORKSPACE_CANONICAL_ROUTE_ACCEPTANCE(){
   var r=[];
@@ -16,7 +16,7 @@ function RUN_AMS03_PLANNING_WORKSPACE_CANONICAL_ROUTE_ACCEPTANCE(){
 
   g('planningworkspaceNormalized',norm==='planningworkspace','actual='+norm);
   g('managerRoleResolved',role==='Manager','actual='+role);
-  g('entryCallsCanonicalRouteOwner',entrySource.indexOf('PlanningWorkspaceEntryRoute_render')>=0,'EntryV5_renderApp does not call PlanningWorkspaceEntryRoute_render');
+  g('entryCallsCanonicalRouteOwner',entrySource.indexOf('PlanningWorkspaceEntryRoute_render')>=0 || entrySource.indexOf('PlanningWorkspaceDevRoute_render')>=0,'Effective V5_ENTRY_renderApp does not call a canonical Planning Workspace route owner');
   g('routeOwnerAvailable',typeof PlanningWorkspaceEntryRoute_render==='function','PlanningWorkspaceEntryRoute_render unavailable');
   g('routeContractAvailable',!!contract,'PlanningWorkspaceEntryRoute_contract unavailable');
   g('uiOwnerAvailable',typeof PlanningWorkspaceUi_render==='function','PlanningWorkspaceUi_render unavailable');

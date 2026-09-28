@@ -65,7 +65,7 @@ const checks=[
  ['r69 rolling navigation has no redundant month dropdown',!r5.includes('preferredJump')&&!r5.includes('monthMap={Jan')&&r5.includes('id="prevWindow"')&&r5.includes('id="nextWindow"')],
  ['r69 window label is secondary context',r5.includes('id="windowLabel" class="muted"')],
  ['r70 rotation detail is per required scope',r5.includes('rotationByScope||{}')&&r5.includes("limit reached':m.nearLimit?' near limit")],
- ['r71 hard qualification fails closed in focused save',r5.includes("if(c.hardBlockQualification||c.ineligible)return setStatus")&&r5.includes('hardQualified=!(candidate.hardBlockQualification||candidate.ineligible)')],
+ ['r71/r76 hard qualification and rotation fail closed in focused save',r5.includes("if(c.hardBlockQualification||c.ineligible||c.rotationCheckFailed)return setStatus")&&r5.includes('hardQualified=!(candidate.hardBlockQualification||candidate.ineligible||candidate.rotationCheckFailed)')],
  ['r74 selected calendar day class follows date input and direct DOM state',r5.includes("q('#date').value===iso?' selected':''")&&r5.includes("box.querySelectorAll('.day.selected')")&&r5.includes("d.classList.add('selected')")],
  ['r74 selected calendar day has explicit overriding colour',r5.includes('.day.selected,.day.yes.selected,.day.partial.selected,.day.no.selected{background:#bfdbfe!important;border:3px solid #1d4ed8!important')],
  ['r74 manual date change synchronizes calendar selection',r5.includes("q('#date').addEventListener('change',function(){renderAvailability();validate()})")],

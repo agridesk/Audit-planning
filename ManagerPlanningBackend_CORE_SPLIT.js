@@ -1126,7 +1126,8 @@ function saveManagerPlanning(auditId, payload) {
       ok: !!(actionResult && actionResult.success),
       actorRole: __actorRoleForPlan,
       newStatus: actionResult && (actionResult.newStatus || actionResult.afterStatusDisplay || '') || '',
-      notificationBridge: !!(actionResult && actionResult.notificationBridge)
+      notificationBridge: !!(actionResult && actionResult.notificationBridge),
+      statusPerf: actionResult && actionResult.statusPerf ? actionResult.statusPerf : null
     });
 
     if (!actionResult || actionResult.success !== true) {

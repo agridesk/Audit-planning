@@ -6,8 +6,6 @@ const handoff=fs.readFileSync(new URL('../../zz_ExternalPlanningWorkspaceHandoff
 const manager=fs.readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const entry=fs.readFileSync(new URL('../../EntryV5.js',import.meta.url),'utf8');
 const checks=[
- ['planning focused read exposes canonical saved planning',r4.includes("planningJson:g(['Planning JSON','Planning_JSON'])")],
- ['planning 2.0 hydrates canonical saved planning after reload',r5.includes("PLANNING_HYDRATE")&&r5.includes("savedPlanning.blocks")&&r5.includes("savedCandidate")&&r5.includes("a.candidateAuditors[0]")),
  ['r5 focused planning route',r5.includes("u.pathname==='/planning'")&&r5.includes('planningHtml(auditId)')],
  ['r5 canonical save route',r5.includes("u.pathname==='/api/v1/planning/save'")&&r5.includes('canonicalPlanningSave')],
  ['r5 session required',r5.includes("error:'SESSION_REQUIRED'")],

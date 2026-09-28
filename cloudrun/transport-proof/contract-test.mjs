@@ -34,7 +34,7 @@ const checks=[
 ,
  ['r5 quarter-hour time navigation',r5.includes('step="900" list="quarterHours"')&&r5.includes('function snapQuarter(v)')]
  ['r54 implicit availability is green',r5.includes("state:'YES',available:'YES'")&&r5.includes("visualState=fullDayBlocked?'no':hasOccupancy?'partial':'yes'")],
- ['r54 occupied slot is partial not full unavailable',r5.includes("hasOccupancy?'PARTLY OCCUPIED':'YES'")],
+ ['r56 1.0 full-day criterion',r5.includes("blockedOp>=8*60||blockedBar>=8*60")&&r5.includes("auditFullDay")&&r5.includes("'FULLY OCCUPIED'")],
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

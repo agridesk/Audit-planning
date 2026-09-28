@@ -5,6 +5,7 @@ var currentView="open";
 
 function esc(v){var d=document.createElement("div");d.textContent=v==null?"":v;return d.innerHTML}
 function text(v){return v==null||v===""?"-":String(v)}
+function displayStatus(v){var s=String(v==null?"":v).trim().toLowerCase();return s==="approved"?"Pending acceptance":text(v)}
 
 function renderHead(){
   var h=document.getElementById("gridHead");
@@ -25,7 +26,7 @@ function renderOpen(rows){
     if(raw.indexOf("CANCEL")>=0)ui.push({key:"cancel",label:"Cancel"});
     if(raw.indexOf("REJECT")>=0)ui.push({key:"reject",label:"Reject"});
     var actions=ui.map(function(a){return "<button class=\"act\" data-audit-id=\""+esc(r.auditId)+"\" data-action=\""+esc(a.key)+"\">"+esc(a.label)+"</button>"}).join("");
-    return "<tr><td>"+esc(text(r.company))+"</td><td>"+esc(text(r.region))+"</td><td>"+esc(text(r.scopesText))+"</td><td>"+esc(text(r.status))+"</td><td>"+esc(text(r.planningWindowText))+"</td><td>"+esc(text(r.requiredHours))+"</td><td>"+esc(text(r.hoursPlanned))+"</td><td>"+esc(text(r.assignedTo))+"</td><td>"+actions+"</td></tr>";
+    return "<tr><td>"+esc(text(r.company))+"</td><td>"+esc(text(r.region))+"</td><td>"+esc(text(r.scopesText))+"</td><td>"+esc(displayStatus(r.status))+"</td><td>"+esc(text(r.planningWindowText))+"</td><td>"+esc(text(r.requiredHours))+"</td><td>"+esc(text(r.hoursPlanned))+"</td><td>"+esc(text(r.assignedTo))+"</td><td>"+actions+"</td></tr>";
   }).join("");
 }
 

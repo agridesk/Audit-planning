@@ -10,7 +10,7 @@ const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
 const SESSION_COOKIE='ams_dev_session';
-const SESSION_TTL_SECONDS=2*60*60;
+const SESSION_TTL_SECONDS=30*24*60*60;
 const MANAGER_PORTAL_HTML=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
 const MANAGER_PORTAL_JS=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 function send(res,status,body,extra){const h={'content-type':'application/json; charset=utf-8','cache-control':'no-store',...(extra||{})};if(ORIGIN){h['access-control-allow-origin']=ORIGIN;h['access-control-allow-credentials']='true';h.vary='Origin';}res.writeHead(status,h);res.end(JSON.stringify(body));}

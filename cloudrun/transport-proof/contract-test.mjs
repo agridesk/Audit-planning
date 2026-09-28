@@ -48,6 +48,7 @@ const checks=[
  ['r61 company preferred-time remains soft warning',r5.includes('function companyTimeWindow()')&&r5.includes('outside company preferred time window')],
  ['r62 slot edit parity',r5.includes('data-edit="1"')&&r5.includes("q('#date').value=b.date")&&r5.includes("q('#location').value=b.execLoc||'HQ'")],
  ['r63 soft availability is advisory in conflict guard',r5.includes("!s.start||!s.end||s.kind==='soft'")],
+ ['r63 warnings use soft availability semantics',r5.includes("day.visualState==='SOFT_UNAVAILABLE'")&&!r5.includes("day&&day.state==='NO'")],
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

@@ -1023,9 +1023,24 @@ function getToolkitRotationMetaV5(auditId, auditorEmail) {
       strictestMax = (strictestMax == null) ? mx : Math.min(strictestMax, mx);
     });
 
-    var logIndex = _mp_buildLogIndexForCompany_(ss, ctx.companyUid, ctx.company);
     var tLog = Date.now();
-    var performedByScope = _mp_rotationProfileForAuditorFromIndex_(logIndex, email || name, requiredCanonical, ctx.currentYear) || {};
+    var performedByScope = {};
+    if (typeof RotationAuditorService_getAuditorScopeResult === 'function') {
+      requiredCanonical.forEach(function(sc) {
+        var rr = RotationAuditorService_getAuditorScopeResult({
+          companyUid:ctx.companyUid,
+          companyName:ctx.company,
+          auditorEmail:email || name,
+          scope:sc,
+          maxYearExclusive:ctx.currentYear
+        });
+        performedByScope[sc] = rr && rr.success ? (Number(rr.consecutiveYears || 0) || 0) : 0;
+      });
+    } else {
+      var logIndex = _mp_buildLogIndexForCompany_(ss, ctx.companyUid, ctx.company);
+      tLog = Date.now();
+      performedByScope = _mp_rotationProfileForAuditorFromIndex_(logIndex, email || name, requiredCanonical, ctx.currentYear) || {};
+    }
     var tProfile = Date.now();
     var performedCount = 0;
     var softBlockRotation = false;
@@ -1076,7 +1091,7 @@ function getToolkitRotationMetaV5(auditId, auditorEmail) {
       },
       __serverMs: Date.now() - t0,
       __rotationResultCache: 'MISS',
-      __timing:{ contextMs:tCtx-t0, auditorMs:tAud-tCtx, maxConfigMs:tMax-tAud, logIndexMs:tLog-tMax, profileMs:tProfile-tLog, totalMs:Date.now()-t0 }
+      __timing:{ contextMs:tCtx-t0, auditorMs:tAud-tCtx, maxConfigMs:tMax-tAud, preProfileMs:tLog-tMax, profileMs:tProfile-tLog, totalMs:Date.now()-t0 }
     };
     try { Logger.log('[ROTATION_PERF] ' + JSON.stringify({auditId:ctx.auditId,auditorEmail:email,cache:'MISS',timing:result.__timing})); } catch(ePerfLog) {}
     try { CacheService.getScriptCache().put(cacheKey, JSON.stringify(result), 300); } catch (eCacheWrite) {}

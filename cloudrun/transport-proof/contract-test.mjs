@@ -70,6 +70,7 @@ const checks=[
  ['r39 scope aliases compare canonical keys',r4.includes("const canonical=key(s.displayName||s.scopeCode||s.slotKey)")&&r4.includes("aliases.set(key(k),canonical)")&&r4.includes("const headerCanon=aliases.get(key(h[i]))||key(h[i])")],
  ['r76 rotation read failure blocks planning',r5.includes("candidate.rotationState='CHECK_FAILED'")&&r5.includes('candidate.rotationCheckFailed=true')&&r5.includes("candidate.ineligible||candidate.rotationCheckFailed")&&r5.includes("Rotation check unavailable; planning cannot be saved.")],
  ['manager portal presents canonical Approved as Pending acceptance',manager.includes('function displayStatus')&&manager.includes('s==="approved"?"Pending acceptance"')&&manager.includes('displayStatus(r.status)')],
+ ['r77 save bridge exposes timing without changing canonical writer',r5.includes('const bridgeStarted=Date.now()')&&r5.includes('transportTiming={gasBridgeMs:bridgeMs,gasReportedMs:Number(out.totalMs||0)||null}')&&r5.includes("writeUrl.searchParams.set('action','externalplanningworkspace')")],
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

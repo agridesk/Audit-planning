@@ -241,12 +241,12 @@ var AvailabilityService = (function () {
     try {
       var lastRow = Number(pack.lastRow || sh.getLastRow() || 0);
       if (lastRow < 2) return;
-      var audVals = sh.getRange(2, cm.iAud + 1, lastRow - 1, 1).getValues();
+      var finder = sh.getRange(2, cm.iAud + 1, lastRow - 1, 1).createTextFinder(auditorEmail).matchEntireCell(true).matchCase(false);
+      var matches = finder.findAll() || [];
       var rowNumbers = [];
-      for (var i = 0; i < audVals.length; i++) {
-        if (normalizeEmail(audVals[i][0]) === aud) rowNumbers.push(i + 2);
-      }
+      for (var i = 0; i < matches.length; i++) rowNumbers.push(matches[i].getRow());
       if (!rowNumbers.length) return;
+      rowNumbers.sort(function(a,b){ return a-b; });
       var minR = rowNumbers[0];
       var maxR = rowNumbers[rowNumbers.length - 1];
       var span = maxR - minR + 1;

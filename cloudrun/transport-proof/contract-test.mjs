@@ -57,9 +57,10 @@ const checks=[
  ['r66 company context is collapsible',r5.includes('id="companyContextCard"')&&r5.includes('<summary>Company details</summary>')],
  ['r66 no month-paging remnants',!r5.includes('calendarMonth')&&!r5.includes('prevMonth')&&!r5.includes('nextMonth')&&!r5.includes('monthLabel')],
  ['r66 rolling window crosses month boundaries',r5.includes('CALENDAR_WINDOW_DAYS=70')&&r5.includes("let iso=from;while(iso<=to")],
- ['r67 preferred months guide long windows',r5.includes('id="preferredJump"')&&r5.includes("monthMap={Jan:'01'")&&r5.includes("pj.style.display=pj.options.length>1")],
  ['r67 audit id safe script serialization',r5.includes("JSON.stringify(clean(auditId)).replace(/</g")&&r5.includes("replace(/\\u2028/g")],
  ['r68 generated client newline remains escaped',r5.includes("ctxLines.join('\\\\n')")&&!r5.includes("ctxLines.join('\\n')")],
+ ['r69 rolling navigation has no redundant month dropdown',!r5.includes('preferredJump')&&!r5.includes('monthMap={Jan')&&r5.includes('id="prevWindow"')&&r5.includes('id="nextWindow"')],
+ ['r69 window label is secondary context',r5.includes('id="windowLabel" class="muted"')],
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

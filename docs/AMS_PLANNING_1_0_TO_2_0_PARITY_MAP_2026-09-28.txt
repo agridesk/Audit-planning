@@ -33,9 +33,8 @@ Status: IMPLEMENTED IN FOCUSED UI; ACCEPTANCE PENDING
 Required / Planned / Remaining summary is present.
 
 5. Multi-slot planning
-Status: FOUNDATION PRESENT
-Multiple blocks supported; no arbitrary five-slot business ceiling.
-Still required: clearer selected-slot list/editor parity and per-slot removal/editing.
+Status: IMPLEMENTED IN FOCUSED UI; ACCEPTANCE PENDING
+Multiple blocks supported; no arbitrary five-slot business ceiling. Selected-slot list supports edit and removal.
 
 6. Execution locations
 Status: PARTIAL
@@ -46,12 +45,10 @@ Still required:
 
 7. Auditor selection / preassignment
 Status: PARTIAL
-Qualification filter and preassignment preference exist.
+Qualification filter and preassignment preference exist. Selected-auditor canonical rotation metadata is integrated through the existing Toolkit_Eligibility owner.
 Still required:
-- canonical rotation result instead of DEFERRED;
-- Config_Scopes +1 exception handling;
-- Auditor_Exclusions;
-- Min_Interval_Months;
+- verify +1 exception handling against canonical 1.0 owner/config;
+- verify whether Auditor_Exclusions and Min_Interval_Months are actual current 1.0 requirements before implementing; current GitHub 1.0 eligibility owner does not expose these by those names;
 - visible reason when candidate is constrained/excluded.
 
 8. Company planning context
@@ -62,13 +59,12 @@ Still required parity from 1.0:
 Company less-available weekdays and preferred time window remain advisory.
 
 9. Preferred audit months
-Status: PARTIAL
-Canonical value displayed.
-Still required: calendar-level visual advisory while preserving hard planning-window precedence.
+Status: IMPLEMENTED AS CONTEXT; ACCEPTANCE PENDING
+Canonical preferred months are displayed in the audit header. They remain advisory and do not create a second calendar-navigation mechanism.
 
 10. Calendar navigation / usability
 Status: IMPLEMENTED IN FOCUSED UI; ACCEPTANCE PENDING
-Chronological Monday-first rolling 10-week calendar exists, shifts 4 weeks with Earlier/Later, supports Today, crosses month boundaries continuously, and is clamped to the effective planning window.
+Chronological Monday-first rolling 10-week calendar exists, shifts 4 weeks with Earlier/Later, supports Today, crosses month boundaries continuously, and is clamped to the effective planning window. Redundant preferred-month dropdown removed in R69.
 
 11. Re-adjust existing planning
 Status: NOT YET IN FOCUSED 2.0

@@ -6,7 +6,7 @@
  * - Legacy/open handoff remains supported for compatibility.
  * - Commit mode delegates to canonical saveManagerPlanning().
  ***********************************************************************/
-var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-27_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R7_WORKSPACE2_OPEN';
+var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-28_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R8_ROTATION_READ_UNBOUNDED_BLOCKS';
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_MAX_FUTURE_MS = 90 * 1000;
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CLOCK_SKEW_MS = 10 * 1000;
 
@@ -69,6 +69,7 @@ function ExternalPlanningWorkspaceHandoff_verify_(p) {
   var expMs = Number(String(p.exp || p.expiresAt || '').trim());
   var supplied = String(p.signature || p.sig || '').trim();
   var mode = String(p.mode || '').trim().toLowerCase();
+  var auditorEmail = String(p.auditorEmail || '').trim().toLowerCase();
 
   if (!email || !auditId || !role || !expMs || !supplied) {
     return { ok:false, error:'HANDOFF_REQUIRED_FIELDS_MISSING' };
@@ -107,7 +108,8 @@ function ExternalPlanningWorkspaceHandoff_verify_(p) {
     role:'Manager',
     auditId:auditId,
     expMs:expMs,
-    mode:mode === 'commit' ? 'commit' : 'open',
+    mode:mode === 'commit' ? 'commit' : (mode === 'rotation' ? 'rotation' : 'open'),
+    auditorEmail:auditorEmail,
     planningPayloadJson:planningPayloadJson
   };
 }
@@ -149,10 +151,6 @@ function ExternalPlanningWorkspaceHandoff_commit_(identity) {
   if (!auditId || !auditorEmail || !blocks.length) {
     return { success:false, error:'PLANNING_REQUIRED_FIELDS_MISSING', message:'auditId, auditorEmail and blocks are required' };
   }
-  if (blocks.length > 5) {
-    return { success:false, error:'PLANNING_TOO_MANY_BLOCKS', message:'Maximum 5 planning blocks per audit' };
-  }
-
   var payload = {
     auditorEmail:auditorEmail,
     auditorName:auditorName,
@@ -177,6 +175,12 @@ function ExternalPlanningWorkspaceHandoff_commit_(identity) {
 
 function ExternalPlanningWorkspaceHandoff_render_(identity) {
   if (!identity || identity.ok !== true) throw new Error('HANDOFF_IDENTITY_REQUIRED');
+
+  if (String(identity.mode || '').toLowerCase() === 'rotation') {
+    if (typeof getToolkitRotationMetaV5 !== 'function') return ContentService.createTextOutput(JSON.stringify({success:false,error:'ROTATION_OWNER_UNAVAILABLE'})).setMimeType(ContentService.MimeType.JSON);
+    var rotation = getToolkitRotationMetaV5(String(identity.auditId || '').trim(), String(identity.auditorEmail || '').trim().toLowerCase());
+    return ContentService.createTextOutput(JSON.stringify(rotation || {success:false,error:'ROTATION_EMPTY'})).setMimeType(ContentService.MimeType.JSON);
+  }
 
   if (String(identity.mode || '').toLowerCase() === 'commit') {
     var committed = ExternalPlanningWorkspaceHandoff_commit_(identity);
@@ -232,6 +236,8 @@ function RUN_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CONTRACT_ACCEPTANCE() {
   check_('commitDelegatesToCanonicalSave', String(ExternalPlanningWorkspaceHandoff_commit_).indexOf('saveManagerPlanning(auditId, payload)') >= 0, '');
   check_('commitForcesManagerRole', String(ExternalPlanningWorkspaceHandoff_commit_).indexOf("actorRole:'MANAGER'") >= 0, '');
   check_('commitPayloadIsBodyBound', String(ExternalPlanningWorkspaceHandoff_commitPayload_).indexOf('ExternalPlanningWorkspaceHandoff_sha256_(planningPayloadJson)') >= 0, '');
+  check_('rotationDelegatesToCanonicalOwner', String(ExternalPlanningWorkspaceHandoff_render_).indexOf('getToolkitRotationMetaV5') >= 0, '');
+  check_('noArbitraryFiveBlockCeiling', String(ExternalPlanningWorkspaceHandoff_commit_).indexOf('PLANNING_TOO_MANY_BLOCKS') < 0, '');
 
   var key = String(PropertiesService.getScriptProperties().getProperty('AMS_EXTERNAL_WRITE_BRIDGE_KEY') || '').trim();
   if (key.length >= 32) {

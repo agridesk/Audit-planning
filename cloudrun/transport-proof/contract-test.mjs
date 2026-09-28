@@ -67,6 +67,7 @@ const checks=[
  ['r74 selected calendar day has explicit overriding colour',r5.includes('.day.selected,.day.yes.selected,.day.partial.selected,.day.no.selected{background:#bfdbfe!important;border:3px solid #1d4ed8!important')],
  ['r74 manual date change synchronizes calendar selection',r5.includes("q('#date').addEventListener('change',function(){renderAvailability();validate()})")],
  ['r75 DEV sessions persist for 30-day test cycles',r4.includes('SESSION_TTL_SECONDS=30*24*60*60')&&r5.includes('SESSION_TTL_SECONDS=30*24*60*60')],
+ ['r39 scope aliases compare canonical keys',r4.includes("const canonical=key(s.displayName||s.scopeCode||s.slotKey)")&&r4.includes("aliases.set(key(k),canonical)")&&r4.includes("const headerCanon=aliases.get(key(h[i]))||key(h[i])")],
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

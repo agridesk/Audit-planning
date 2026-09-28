@@ -1,0 +1,112 @@
+AMS PLANNING 1.0 -> PLANNING 2.0 PARITY MAP
+Date: 2026-09-28
+Authority: AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26
+Scope: focused single-audit Planning 2.0 on Cloud Run
+Rule: Planning 1.0 is functional/parity reference only; 2.0 is target architecture.
+
+P0 CUTOVER PARITY
+
+1. Canonical lifecycle/write owner
+Status: FOUNDATION PRESENT
+2.0 save delegates to GAS canonical planning writer. Cloud Run must not duplicate lifecycle transitions.
+
+2. Canonical availability semantics
+Status: IN PROGRESS
+Required parity:
+- missing day row = available;
+- explicit available = available;
+- recurring/default blocked weekday/weekend = soft/advisory;
+- manual hard-unavailable = hard block;
+- committed/provisional audit occupancy = hard interval;
+- multiple non-overlapping audits per day allowed;
+- overlap hard-blocked;
+- 09:00-17:00 full coverage OR >=8h occupancy inside 08:00-18:00 = fully occupied;
+- partial audit occupancy leaves remaining hours planable.
+Current R57 implements visual separation of soft warning versus audit occupancy. Validation must use the same resolved semantics.
+
+3. Planning window
+Status: PARTIAL
+Hard date guard exists.
+UI must show effective usable window from max(current date, canonical planning-window start) through canonical planning-window end.
+
+4. Required/planned hours
+Status: PARTIAL
+Required hours and aggregate planned hours exist.
+Still required: persistent selected-slot summary with Required / Planned / Remaining parity.
+
+5. Multi-slot planning
+Status: FOUNDATION PRESENT
+Multiple blocks supported; no arbitrary five-slot business ceiling.
+Still required: clearer selected-slot list/editor parity and per-slot removal/editing.
+
+6. Execution locations
+Status: PARTIAL
+Canonical Companies.Locations_JSON is read.
+Still required:
+- active locations only;
+- preserve code/name/GPS/comment;
+- read-only company location registry/context;
+- derive planned hours by execution location from slots; no duplicate manual hours field.
+
+7. Auditor selection / preassignment
+Status: PARTIAL
+Qualification filter and preassignment preference exist.
+Still required:
+- canonical rotation result instead of DEFERRED;
+- Config_Scopes +1 exception handling;
+- Auditor_Exclusions;
+- Min_Interval_Months;
+- visible reason when candidate is constrained/excluded.
+
+8. Company planning context
+Status: PARTIAL
+Preferred_Audit_Months and location data exist.
+Still required parity from 1.0:
+- company number/group/region/country;
+- contact name/email/telephone;
+- timezone;
+- company less-available weekdays;
+- preferred time window;
+- company comment;
+- location GPS/comment context.
+Soft constraints must remain advisory.
+
+9. Preferred audit months
+Status: PARTIAL
+Canonical value displayed.
+Still required: calendar-level visual advisory while preserving hard planning-window precedence.
+
+10. Calendar navigation / usability
+Status: PARTIAL
+Chronological Monday-first calendar exists.
+Still required: bounded month navigation/jump/today behavior or equivalent scalable windowed navigation; avoid rendering an unbounded annual grid.
+
+11. Re-adjust existing planning
+Status: NOT YET IN FOCUSED 2.0
+Must use Workspace -> planning checks -> canonical writer.
+Same-day time/location-only changes may preserve lifecycle where valid.
+Auditor reassignment requires revalidation and may require renewed acceptance.
+Completed immutable.
+
+12. Notifications
+Status: NOT YET ACCEPTED FOR CUTOVER
+Must reuse canonical 1.0 notification queue/families after planning; no Cloud Run parallel notification logic.
+
+13. 3S / performance
+Status: ACTIVE
+Browser wall time and decision-ready load remain acceptance metrics.
+Reads must remain bounded/windowed and avoid N+1 scans.
+Correctness takes precedence over premature narrowing.
+
+CUTOVER BLOCKERS FOR SINGLE-AUDIT PLANNING 2.0
+- resolved Availability parity accepted;
+- rotation/exclusion/min-interval hard feasibility integrated;
+- company soft constraints visible;
+- multi-location parity complete;
+- selected-slot/hours editing complete;
+- canonical save + notification side effects accepted end-to-end;
+- controlled re-adjust path defined/implemented for already planned audits;
+- regression gates green and browser workflow accepted.
+
+NON-BLOCKERS FOR SINGLE-AUDIT CUTOVER
+Per roadmap V2.8, Customer Proposal/Confirmation and full Batch/Workweek completion do not block single-audit Planning 2.0 cutover.

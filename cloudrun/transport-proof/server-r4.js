@@ -127,10 +127,10 @@ function dateOnly(v){const s=clean(v);const m=s.match(/^(\d{4}-\d{2}-\d{2})/);re
 function availabilityProjection(values,candidates,from,to,context){
   const identities=(candidates||[]).map(x=>({email:clean(x.email).toLowerCase(),name:key(x.name)})),set=new Set(identities.map(x=>x.email)),by={};
   if(!values.length)return by;
-  const h=values[0],cd=col(h,['Date']),ce=col(h,['Auditor_Email','Auditor Email','Email','E-mail']),cn=col(h,['Auditor_Name','Auditor Name','Auditor']),ca=col(h,['Available']),s1=col(h,['First_Audit_Start_Time','First Audit Start Time']),e1=col(h,['First_Audit_End_Time','First Audit End Time']),id1=col(h,['Audit_ID_1','Audit ID 1','AuditId1']),st1=col(h,['Status_1','Status 1','Status','Source']),s2=col(h,['Second_Audit_Start_Time','Second Audit Start Time']),e2=col(h,['Second_Audit_End_Time','Second Audit End Time']),id2=col(h,['Audit_ID_2','Audit ID 2','AuditId2']),st2=col(h,['Status_2','Status 2']);
+  const h=values[0],cd=col(h,['Date']),ci=col(h,['Auditor_Email','Auditor Email','Email','E-mail','Auditor_Name','Auditor Name','Auditor']),ca=col(h,['Available']),s1=col(h,['First_Audit_Start_Time','First Audit Start Time']),e1=col(h,['First_Audit_End_Time','First Audit End Time']),id1=col(h,['Audit_ID_1','Audit ID 1','AuditId1']),st1=col(h,['Status_1','Status 1','Status','Source']),s2=col(h,['Second_Audit_Start_Time','Second Audit Start Time']),e2=col(h,['Second_Audit_End_Time','Second Audit End Time']),id2=col(h,['Audit_ID_2','Audit ID 2','AuditId2']),st2=col(h,['Status_2','Status 2']);
   for(const row of values.slice(1)){
-    let em=ce>=0?val(row,ce).toLowerCase():'';
-    if(!set.has(em)&&cn>=0){const nm=key(row[cn]),hit=identities.find(x=>x.name===nm);if(hit)em=hit.email;}
+    const rawIdentity=ci>=0?val(row,ci):'';let em=clean(rawIdentity).toLowerCase();
+    if(!set.has(em)){const nm=key(rawIdentity),hit=identities.find(x=>x.name===nm);if(hit)em=hit.email;}
     const d=dateOnly(row[cd]);if(!set.has(em)||!d||d<from||d>to)continue;
     const slots=[];
     for(const x of [[s1,e1,id1,st1],[s2,e2,id2,st2]]){const auditRef=val(row,x[2]),ctx=auditRef&&context[auditRef]?context[auditRef]:{},z={start:val(row,x[0]),end:val(row,x[1]),auditId:auditRef,auditRef,status:ctx.status||val(row,x[3]),company:ctx.company||'',scopes:Array.isArray(ctx.scopes)?ctx.scopes:[]};if(z.auditRef||z.start||z.end)slots.push(z);}

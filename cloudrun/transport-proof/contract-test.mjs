@@ -55,7 +55,7 @@ const checks=[
  ['r64 provisional reservations visible',r5.includes('provisionalByDate')&&r5.includes('PROVISIONAL · ')],
  ['r64 Manager provisional overlap is soft warning',r5.includes('function provisionalConflicts(b)')&&r5.includes('Manager soft reserve')],
  ['r64 provisional context enriched canonically',r4.includes("company:clean(canonical.company)")&&r4.includes("scopes:Array.isArray(canonical.scopes)?canonical.scopes:[]")],
- ['r65 canonical rotation endpoint',r5.includes("/api/v1/planning/rotation")&&r5.includes('canonicalRotationRead')&&r5.includes("mode:'rotation'")],
+ ['r81 canonical rotation endpoint direct read',r5.includes('/api/v1/planning/rotation')&&r5.includes('canonicalRotationRead')&&r5.includes('/api/v1/planning/rotation-direct')],
  ['r65 selected auditor only rotation hydration',r5.includes('async function loadRotation()')&&r5.includes("/api/v1/planning/rotation?auditId=")&&r5.includes("auditorEmail='+encodeURIComponent(email)")],
  ['r66 company context is collapsible',r5.includes('id="companyContextCard"')&&r5.includes('<summary>Company details</summary>')],
  ['r66 no month-paging remnants',!r5.includes('calendarMonth')&&!r5.includes('prevMonth')&&!r5.includes('nextMonth')&&!r5.includes('monthLabel')],

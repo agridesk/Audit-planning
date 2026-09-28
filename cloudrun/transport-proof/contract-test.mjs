@@ -4,6 +4,7 @@ const r5=fs.readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
 const backend=fs.readFileSync(new URL('../../ManagerPlanningBackend_CORE_SPLIT.js',import.meta.url),'utf8');
 const handoff=fs.readFileSync(new URL('../../zz_ExternalPlanningWorkspaceHandoff.js',import.meta.url),'utf8');
 const manager=fs.readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+const entry=fs.readFileSync(new URL('../../EntryV5.js',import.meta.url),'utf8');
 const checks=[
  ['r5 focused planning route',r5.includes("u.pathname==='/planning'")&&r5.includes('planningHtml(auditId)')],
  ['r5 canonical save route',r5.includes("u.pathname==='/api/v1/planning/save'")&&r5.includes('canonicalPlanningSave')],
@@ -84,6 +85,7 @@ const checks=[
  ['r77 save bridge exposes timing without changing canonical writer',r5.includes('const bridgeStarted=Date.now()')&&r5.includes('transportTiming={gasBridgeMs:bridgeMs,gasReportedMs:Number(out.totalMs||0)||null}')&&r5.includes("writeUrl.searchParams.set('action','externalplanningworkspace')")],
  ['save hot path does not reset fresh request execution cache',!backend.includes('try { AS_resetExecCache_(); } catch(_e) {}')],
  ['external commit response is compact and timed',handoff.includes('notificationQueued:!!')&&handoff.includes('bridgeMs:bridgeMs')&&handoff.includes('totalMs:Number(saved.totalMs || bridgeMs)')],
+ ['planning commit failures remain JSON across GAS bridge',entry.includes("verified.mode === 'commit' || verified.mode === 'rotation'")&&entry.includes("ContentService.createTextOutput(JSON.stringify({success:false,error:'PLANNING_WORKSPACE_'")&&handoff.includes("error:'CANONICAL_PLANNING_SAVE_THROW'")],
  ['legacy GAS rotation bridge contract remains available',handoff.includes('ExternalPlanningWorkspaceHandoff_payload_')&&handoff.includes("mode === 'commit'")&&handoff.includes("mode === 'rotation' ? 'rotation' : 'open'")],
 ];
 const failed=checks.filter(([,ok])=>!ok);

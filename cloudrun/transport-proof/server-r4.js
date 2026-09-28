@@ -122,6 +122,7 @@ function project(f,catalog,audValues){
     region:g(['Region']),
     assignedTo:g(['Assigned to','Assigned auditor','Auditor']),
     preassignedAuditor:pre,
+    planningJson:g(['Planning JSON','Planning_JSON']),
     requiredHours:Number(String(g(['Total audit time in hours','Total time in hours','Required hours','Total hours'])||'').replace(',','.'))||0,
     scopes,
     candidateAuditors:candidates(audValues,catalog,scopes,pre),

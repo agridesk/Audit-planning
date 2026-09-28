@@ -492,7 +492,12 @@ function doPost(e) {
 
     try { return ExternalPlanningWorkspaceHandoff_render_(verified); }
 
-    catch (errPlanning) { return HtmlService.createHtmlOutput('<!doctype html><meta charset="utf-8"><title>AMS - Planning Workspace</title><h3>Planning Workspace failed to open</h3><pre>'+String(errPlanning&&errPlanning.message?errPlanning.message:errPlanning).replace(/[<>]/g,'')+'</pre>').setTitle('AMS - Planning Workspace'); }
+    catch (errPlanning) {
+      if (verified && (verified.mode === 'commit' || verified.mode === 'rotation')) {
+        return ContentService.createTextOutput(JSON.stringify({success:false,error:'PLANNING_WORKSPACE_'+String(verified.mode||'REQUEST').toUpperCase()+'_FAILED',message:String(errPlanning&&errPlanning.message?errPlanning.message:errPlanning)})).setMimeType(ContentService.MimeType.JSON);
+      }
+      return HtmlService.createHtmlOutput('<!doctype html><meta charset="utf-8"><title>AMS - Planning Workspace</title><h3>Planning Workspace failed to open</h3><pre>'+String(errPlanning&&errPlanning.message?errPlanning.message:errPlanning).replace(/[<>]/g,'')+'</pre>').setTitle('AMS - Planning Workspace');
+    }
 
   }
 

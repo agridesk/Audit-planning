@@ -14,6 +14,8 @@ const checks=[
  ['r5 multi-slot UI',r5.includes('id="addSlot"')&&r5.includes('id="slotList"')&&r5.includes('draftBlocks=[]')],
  ['r5 multi-slot canonical payload',r5.includes('blocks:draftBlocks.slice()')],
  ['r5 duplicate-slot guard',r5.includes('This slot is already added.')],
+ ['r5 draft-overlap guard',r5.includes('This slot overlaps another slot in the draft.')&&r5.includes('function overlaps(')],
+ ['r5 external-conflict guard',r5.includes('existing availability/planning item(s)')&&r5.includes('function externalConflicts(')],
  ['r5 aggregate planned-hours guard',r5.includes("draftBlocks.reduce((n,b)=>n+blockHours(b),0)")],
  ['r5 embedded regex escapes preserved',r5.includes("match(/^(\\\\d{2}):(\\\\d{2})$/)")],
  ['r5 embedded warning newlines escaped',r5.includes("warnings.join('\\\\n')+'\\\\n\\\\nThese are soft warnings. Continue?'")],

@@ -192,7 +192,7 @@ function managerArchived(logValues,email,scopeValues,companyValues){
 }
 async function managerArchivedRead(email){const t=Date.now(),vr=await sheetsBatchGet(['Log realized audits!A1:AZ2048','Config_Scopes!A1:Z128','Companies!A1:AZ1024']);const out=managerArchived(vr[0]?.values||[],clean(email).toLowerCase(),vr[1]?.values||[],vr[2]?.values||[]);out.build=BUILD;out.serverMs=Date.now()-t;return out;}
 
-function rotationLooseKey(v){return clean(v).toLowerCase().replace(/\s+/g,' ').replace(/[^a-z0-9_\- ]/g,'').replace(/\s+/g,'').replace(/tracecert/g,'tracecert').replace(/tracert/g,'tracecert')}
+function rotationLooseKey(v){return key(v).replace(/\s+/g,'').replace(/tracecert/g,'tracecert').replace(/tracecert/g,'tracecert').replace(/tracert/g,'tracecert')}
 function rotationAliasMeta(scopeValues){
   const meta={byAny:new Map(),byLoose:new Map(),maxByScope:new Map()};if(!scopeValues?.length)return meta;
   const h=scopeValues[0],slot=col(h,['SlotKey','Slot key','Slot']),code=col(h,['ScopeCode','Scope code','Code']),name=col(h,['DisplayName','Display name','Name','ScopeName','Scope']),max=col(h,['Max number audits','Max number audit','Max audits','Max audit','Maximum audits','Max consecutive','MaxConsecutive']);

@@ -5,7 +5,7 @@ import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
-const BUILD='2026-09-25_AMS_CLOUD_RUN_MANAGER_PORTAL_R38_PLAN_WORKSPACE_HANDOFF';
+const BUILD='2026-09-28_AMS_CLOUD_RUN_MANAGER_PORTAL_R39_SCOPE_ALIAS_CANONICAL';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
@@ -69,12 +69,18 @@ function candidates(audValues,catalog,required,pre){
   if(!audValues.length)return[];
   const h=audValues[0],n=col(h,['Name','Auditor','Auditor name']),e=col(h,['E-mail','Email','E-mail address','Mail']),a=col(h,['Active','Is active']),r=col(h,['Role','Function']),bw=col(h,['Blocked weekdays','Blocked days','Default unavailable','Default unavailable weekdays']);
   const aliases=new Map();
-  for(const s of catalog)for(const k of [s.displayName,s.slotKey,s.scopeCode])if(k)aliases.set(key(k),s.displayName);
+  for(const s of catalog){
+    const canonical=key(s.displayName||s.scopeCode||s.slotKey);
+    for(const k of [s.displayName,s.slotKey,s.scopeCode])if(k)aliases.set(key(k),canonical);
+  }
   return audValues.slice(1)
     .filter(row=>yes(row[a])&&clean(row[r]).toLowerCase()==='auditor')
     .filter(row=>required.every(sc=>{
-      const canon=aliases.get(key(sc))||sc;
-      for(let i=0;i<h.length;i++){if((aliases.get(key(h[i]))||clean(h[i]))===canon)return yes(row[i]);}
+      const canon=aliases.get(key(sc))||key(sc);
+      for(let i=0;i<h.length;i++){
+        const headerCanon=aliases.get(key(h[i]))||key(h[i]);
+        if(headerCanon===canon)return yes(row[i]);
+      }
       return false;
     }))
     .map(row=>({email:val(row,e).toLowerCase(),name:val(row,n),blockedWeekdays:val(row,bw),isPreassigned:[val(row,e).toLowerCase(),val(row,n).toLowerCase()].includes(clean(pre).toLowerCase()),rotationState:'DEFERRED',rotationWarning:null,performedCount:null,maxAllowed:null}))

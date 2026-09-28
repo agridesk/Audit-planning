@@ -81,6 +81,7 @@ const checks=[
  ['r81 rotation diagnostics identify direct read owner',r5.includes("readOwner:x.__rotationReadOwner")&&r5.includes("readServerMs:x.__serverMs")&&!r5.includes("gasServerMs:x.__serverMs")],
  ['r82 rotation warning UI does not expose internal state token',!r5.includes("out.push('Rotation: '+c.rotationState)")&&r5.includes("if(c.rotationWarning)out.push(c.rotationWarning)")],
  ['planning save exposes end-to-end latency diagnostics',r5.includes("[SAVE_PERF]")&&r5.includes("savePerf")&&r5.includes("transportTiming:x.transportTiming")&&r5.includes("debugTiming:x.debugTiming")&&r5.includes("saveRouteTiming:x.__saveRouteTiming")&&r5.includes("detail:x.detail")],
+ ['DEV planning save remains open for acceptance diagnostics',r5.includes("q('#save').textContent='Saved'")&&!r5.includes("setTimeout(()=>{location.href='/'},700)")],
  ['manager portal presents canonical Approved as Pending acceptance',manager.includes('function displayStatus')&&manager.includes('s==="approved"?"Pending acceptance"')&&manager.includes('displayStatus(r.status)')],
  ['r77 save bridge exposes timing without changing canonical writer',r5.includes('const bridgeStarted=Date.now()')&&r5.includes('transportTiming={gasBridgeMs:bridgeMs,gasReportedMs:Number(out.totalMs||0)||null}')&&r5.includes("writeUrl.searchParams.set('action','externalplanningworkspace')")],
  ['save hot path does not reset fresh request execution cache',!backend.includes('try { AS_resetExecCache_(); } catch(_e) {}')],

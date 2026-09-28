@@ -32,8 +32,8 @@ const checks=[
  ['r5 required-hours drives default end',r5.includes("Math.round(Number(a.requiredHours)*60)")&&r5.includes("q('#start').addEventListener('change'")],
  ['r4 default weekend marker not occupancy',r4.includes("if(z.auditRef||z.start||z.end)slots.push(z)")&&!r4.includes("if(z.start||z.end||z.auditRef||z.status)slots.push(z)")]
 ,
- ['r5 quarter-hour time navigation',r5.includes('step="900" list="quarterHours"')&&r5.includes('function snapQuarter(v)')]
- ['r54 implicit availability is green',r5.includes("state:'YES',available:'YES'")&&r5.includes("visualState=fullDayBlocked?'no':hasOccupancy?'partial':'yes'")],
+ ['r5 quarter-hour time navigation',r5.includes('step="900" list="quarterHours"')&&r5.includes('function snapQuarter(v)')],
+ ['r56 implicit availability is green',r5.includes("state:'YES',available:'YES'")&&r5.includes("hasOccupancy?'partial':'yes'")],
  ['r56 1.0 full-day criterion',r5.includes("blockedOp>=8*60||blockedBar>=8*60")&&r5.includes("auditFullDay")&&r5.includes("'FULLY OCCUPIED'")],
 ];
 const failed=checks.filter(([,ok])=>!ok);

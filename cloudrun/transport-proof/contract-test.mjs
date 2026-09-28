@@ -63,10 +63,10 @@ const checks=[
  ['r69 window label is secondary context',r5.includes('id="windowLabel" class="muted"')],
  ['r70 rotation detail is per required scope',r5.includes('rotationByScope||{}')&&r5.includes("limit reached':m.nearLimit?' near limit")],
  ['r71 hard qualification fails closed in focused save',r5.includes("if(c.hardBlockQualification||c.ineligible)return setStatus")&&r5.includes('hardQualified=!(candidate.hardBlockQualification||candidate.ineligible)')],
+ ['r73 selected calendar day class follows date input',r5.includes("q('#date').value===iso?' selected':''")&&r5.includes("q('#date').value=r.date;renderAvailability();validate()")],
+ ['r73 selected calendar day has explicit overriding colour',r5.includes('.day.selected,.day.yes.selected,.day.partial.selected,.day.no.selected{background:#dbeafe;border:2px solid #2563eb')],
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);
 if(failed.length){console.error('Contract failures: '+failed.map(([n])=>n).join(', '));process.exit(1);}
 console.log('Focused Planning 2.0 contract GREEN: '+checks.length+'/'+checks.length);
-
-check('r72 selected calendar day has immediate visual feedback', /day '\+visualState\+\(q\('#date'\)\.value===iso\?' selected':' '\)/.test(r5) || (r5.includes("q('#date').value===iso?' selected':''") && r5.includes("renderAvailability();validate()") && r5.includes('.day.selected')));

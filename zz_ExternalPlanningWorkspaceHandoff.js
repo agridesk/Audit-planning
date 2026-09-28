@@ -6,7 +6,7 @@
  * - Legacy/open handoff remains supported for compatibility.
  * - Commit mode delegates to canonical saveManagerPlanning().
  ***********************************************************************/
-var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-28_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R10_ROTATION_SIGNATURE';
+var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-28_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R11_JSON_ERRORS';
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_MAX_FUTURE_MS = 90 * 1000;
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CLOCK_SKEW_MS = 10 * 1000;
 

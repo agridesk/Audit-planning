@@ -6,8 +6,10 @@ const handoff=fs.readFileSync(new URL('../../zz_ExternalPlanningWorkspaceHandoff
 const manager=fs.readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const entry=fs.readFileSync(new URL('../../EntryV5.js',import.meta.url),'utf8');
 const availability=fs.readFileSync(new URL('../../AvailabilityService.js',import.meta.url),'utf8');
+const statusMachine=fs.readFileSync(new URL('../../CoreStatusMachine.js',import.meta.url),'utf8');
 const availabilityLoader=availability.slice(availability.indexOf('function _ensureEmailLoadedInPack_'),availability.indexOf('function getPackRow_'));
 const checks=[
+ ['PLAN status phase diagnostics exposed',statusMachine.includes("__statusStamp_('loadAuditMs')")&&statusMachine.includes("__statusStamp_('applyActionMs')")&&statusMachine.includes("__statusStamp_('notificationMs')")&&backend.includes('statusPerf: actionResult && actionResult.statusPerf')],
  ['save diagnostics attached after final timing stamp',backend.indexOf("__stamp('tail_returnReady')")<backend.indexOf('res.debugTiming = __dbg')],
  ['availability save lookup avoids full auditor-column materialization',availabilityLoader.includes('createTextFinder(auditorEmail)')],
  ['r5 focused planning route',r5.includes("u.pathname==='/planning'")&&r5.includes('planningHtml(auditId)')],

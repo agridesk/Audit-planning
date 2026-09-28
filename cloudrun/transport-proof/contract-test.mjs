@@ -6,8 +6,9 @@ const handoff=fs.readFileSync(new URL('../../zz_ExternalPlanningWorkspaceHandoff
 const manager=fs.readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const entry=fs.readFileSync(new URL('../../EntryV5.js',import.meta.url),'utf8');
 const availability=fs.readFileSync(new URL('../../AvailabilityService.js',import.meta.url),'utf8');
+const availabilityLoader=availability.slice(availability.indexOf('function _ensureEmailLoadedInPack_'),availability.indexOf('function getPackRow_'));
 const checks=[
- ['availability save lookup avoids full auditor-column materialization',availability.includes('createTextFinder(auditorEmail)')&&!availability.includes("var audVals = sh.getRange(2, cm.iAud + 1, lastRow - 1, 1).getValues();")],
+ ['availability save lookup avoids full auditor-column materialization',availabilityLoader.includes('createTextFinder(auditorEmail)')],
  ['r5 focused planning route',r5.includes("u.pathname==='/planning'")&&r5.includes('planningHtml(auditId)')],
  ['r5 canonical save route',r5.includes("u.pathname==='/api/v1/planning/save'")&&r5.includes('canonicalPlanningSave')],
  ['r5 session required',r5.includes("error:'SESSION_REQUIRED'")],

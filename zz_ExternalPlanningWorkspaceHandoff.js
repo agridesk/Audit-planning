@@ -6,7 +6,7 @@
  * - Legacy/open handoff remains supported for compatibility.
  * - Commit mode delegates to canonical saveManagerPlanning().
  ***********************************************************************/
-var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-28_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R11_JSON_ERRORS';
+var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-28_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R12_COMMIT_TIMING';
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_MAX_FUTURE_MS = 90 * 1000;
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CLOCK_SKEW_MS = 10 * 1000;
 
@@ -173,7 +173,12 @@ function ExternalPlanningWorkspaceHandoff_commit_(identity) {
   };
 
   var started = Date.now();
-  var saved = saveManagerPlanning(auditId, payload);
+  var saved;
+  try {
+    saved = saveManagerPlanning(auditId, payload);
+  } catch (eSave) {
+    return { success:false, error:'CANONICAL_PLANNING_SAVE_THROW', message:String(eSave && eSave.message ? eSave.message : eSave), totalMs:Date.now()-started };
+  }
   var bridgeMs = Date.now() - started;
   if (!saved || saved.success !== true) return saved || { success:false, error:'EMPTY_SAVE_RESULT', totalMs:bridgeMs };
   return {

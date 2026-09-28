@@ -68,7 +68,7 @@ Still required: calendar-level visual advisory while preserving hard planning-wi
 
 10. Calendar navigation / usability
 Status: IMPLEMENTED IN FOCUSED UI; ACCEPTANCE PENDING
-Chronological Monday-first bounded month calendar with previous/next/Today navigation exists and is clamped to the effective planning window.
+Chronological Monday-first rolling 10-week calendar exists, shifts 4 weeks with Earlier/Later, supports Today, crosses month boundaries continuously, and is clamped to the effective planning window.
 
 11. Re-adjust existing planning
 Status: NOT YET IN FOCUSED 2.0
@@ -92,7 +92,7 @@ CUTOVER BLOCKERS FOR SINGLE-AUDIT PLANNING 2.0
 - rotation/exclusion/min-interval hard feasibility integrated;
 - company soft constraints visible;
 - multi-location parity complete;
-- selected-slot/hours editing complete;
+- selected-slot/hours editing complete; [implemented R62; acceptance pending]
 - canonical save + notification side effects accepted end-to-end;
 - controlled re-adjust path defined/implemented for already planned audits;
 - regression gates green and browser workflow accepted.

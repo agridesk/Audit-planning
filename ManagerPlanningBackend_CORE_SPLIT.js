@@ -986,6 +986,29 @@ function saveManagerPlanning(auditId, payload) {
   lock.waitLock(25000);
   __stamp('lockAcquired');
 
+  // Fail fast before Availability validation/writeback. Status_applyAction remains
+  // the canonical transition owner; this read-only guard prevents several seconds
+  // of Availability I/O when a stale/replayed Planning 2.0 save is no longer PLAN-able.
+  try {
+    var __preStatusPack = (typeof __mp_getAuditPlanningRow_ === 'function') ? __mp_getAuditPlanningRow_(SpreadsheetApp.getActive(), auditId) : null;
+    var __preStatusHdr = (__preStatusPack && __preStatusPack.hdr) ? __preStatusPack.hdr : [];
+    var __preStatusRow = (__preStatusPack && __preStatusPack.row) ? __preStatusPack.row : null;
+    var __preStatusCol = __preStatusHdr.length ? _mp_findCol_(__preStatusHdr, ['Status']) : -1;
+    var __preStatus = (__preStatusRow && __preStatusCol >= 0) ? String(__preStatusRow[__preStatusCol] || '').trim() : '';
+    var __preActorRole = (__treatAsAuditor ? 'AUDITOR' : 'MANAGER');
+    if (typeof Status_canTransition_ === 'function') {
+      var __preCanPlan = Status_canTransition_({ status:__preStatus, action:'PLAN', role:__preActorRole });
+      __stamp('prePlanTransitionGuard', { ok:!!(__preCanPlan && __preCanPlan.ok), status:__preStatus, actorRole:__preActorRole });
+      if (!__preCanPlan || !__preCanPlan.ok) {
+        try { lock.releaseLock(); } catch (_prePlanUnlock) {}
+        return { success:false, message:(__preCanPlan && __preCanPlan.code ? __preCanPlan.code + ': ' : '') + 'Invalid transition', debugTiming:__dbg, totalMs:(Date.now()-__t0) };
+      }
+    }
+  } catch (__prePlanErr) {
+    try { lock.releaseLock(); } catch (_prePlanErrUnlock) {}
+    return { success:false, message:'Pre-PLAN transition guard failed: ' + (__prePlanErr && __prePlanErr.message ? __prePlanErr.message : __prePlanErr), debugTiming:__dbg, totalMs:(Date.now()-__t0) };
+  }
+
   function __safeNumMinutes_(hhmm) {
     var n = V5_timeToMinutes_(hhmm);
     return isFinite(n) ? n : NaN;

@@ -6,7 +6,7 @@
  * - Legacy/open handoff remains supported for compatibility.
  * - Commit mode delegates to canonical saveManagerPlanning().
  ***********************************************************************/
-var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-28_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R9_FAST_COMMIT_RESPONSE';
+var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-28_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R10_ROTATION_SIGNATURE';
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_MAX_FUTURE_MS = 90 * 1000;
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CLOCK_SKEW_MS = 10 * 1000;
 
@@ -94,6 +94,8 @@ function ExternalPlanningWorkspaceHandoff_verify_(p) {
     if (!planningPayloadJson) return { ok:false, error:'PLANNING_PAYLOAD_REQUIRED' };
     payload = ExternalPlanningWorkspaceHandoff_commitPayload_(email, 'Manager', auditId, expMs, planningPayloadJson);
   } else {
+    // Rotation is a read-only submode of the signed planning-open contract.
+    // Its auditorEmail is request data, not part of the v1 signature.
     payload = ExternalPlanningWorkspaceHandoff_payload_(email, 'Manager', auditId, expMs);
   }
 

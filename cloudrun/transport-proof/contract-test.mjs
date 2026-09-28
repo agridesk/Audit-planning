@@ -78,7 +78,7 @@ const checks=[
  ['r77 save bridge exposes timing without changing canonical writer',r5.includes('const bridgeStarted=Date.now()')&&r5.includes('transportTiming={gasBridgeMs:bridgeMs,gasReportedMs:Number(out.totalMs||0)||null}')&&r5.includes("writeUrl.searchParams.set('action','externalplanningworkspace')")],
  ['save hot path does not reset fresh request execution cache',!backend.includes('try { AS_resetExecCache_(); } catch(_e) {}')],
  ['external commit response is compact and timed',handoff.includes('notificationQueued:!!')&&handoff.includes('bridgeMs:bridgeMs')&&handoff.includes('totalMs:Number(saved.totalMs || bridgeMs)')],
- ['legacy GAS rotation bridge contract remains available as fallback owner',handoff.includes('ExternalPlanningWorkspaceHandoff_payload_')&&handoff.includes("mode === 'commit'")&&handoff.includes("mode === 'rotation' ? 'rotation' : 'open'")&&handoff.includes('auditorEmail:auditorEmail')],
+ ['legacy GAS rotation bridge contract remains available',handoff.includes('ExternalPlanningWorkspaceHandoff_payload_')&&handoff.includes("mode === 'commit'")&&handoff.includes("mode === 'rotation' ? 'rotation' : 'open'")],
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

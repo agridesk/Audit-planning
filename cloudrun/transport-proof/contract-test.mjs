@@ -63,8 +63,9 @@ const checks=[
  ['r69 window label is secondary context',r5.includes('id="windowLabel" class="muted"')],
  ['r70 rotation detail is per required scope',r5.includes('rotationByScope||{}')&&r5.includes("limit reached':m.nearLimit?' near limit")],
  ['r71 hard qualification fails closed in focused save',r5.includes("if(c.hardBlockQualification||c.ineligible)return setStatus")&&r5.includes('hardQualified=!(candidate.hardBlockQualification||candidate.ineligible)')],
- ['r73 selected calendar day class follows date input',r5.includes("q('#date').value===iso?' selected':''")&&r5.includes("q('#date').value=r.date;renderAvailability();validate()")],
- ['r73 selected calendar day has explicit overriding colour',r5.includes('.day.selected,.day.yes.selected,.day.partial.selected,.day.no.selected{background:#dbeafe;border:2px solid #2563eb')],
+ ['r74 selected calendar day class follows date input and direct DOM state',r5.includes("q('#date').value===iso?' selected':''")&&r5.includes("box.querySelectorAll('.day.selected')")&&r5.includes("d.classList.add('selected')")],
+ ['r74 selected calendar day has explicit overriding colour',r5.includes('.day.selected,.day.yes.selected,.day.partial.selected,.day.no.selected{background:#bfdbfe!important;border:3px solid #1d4ed8!important')],
+ ['r74 manual date change synchronizes calendar selection',r5.includes("q('#date').addEventListener('change',function(){renderAvailability();validate()})")],
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

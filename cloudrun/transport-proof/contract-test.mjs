@@ -49,6 +49,9 @@ const checks=[
  ['r62 slot edit parity',r5.includes('data-edit="1"')&&r5.includes("q('#date').value=b.date")&&r5.includes("q('#location').value=b.execLoc||'HQ'")],
  ['r63 soft availability is advisory in conflict guard',r5.includes("!s.start||!s.end||s.kind==='soft'")],
  ['r63 warnings use soft availability semantics',r5.includes("day.visualState==='SOFT_UNAVAILABLE'")&&!r5.includes("day&&day.state==='NO'")],
+ ['r64 provisional reservations visible',r5.includes('provisionalByDate')&&r5.includes('PROVISIONAL · ')],
+ ['r64 Manager provisional overlap is soft warning',r5.includes('function provisionalConflicts(b)')&&r5.includes('Manager soft reserve')],
+ ['r64 provisional context enriched canonically',r4.includes("company:clean(canonical.company)")&&r4.includes("scopes:Array.isArray(canonical.scopes)?canonical.scopes:[]")],
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

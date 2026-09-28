@@ -74,7 +74,7 @@ function ExternalManagerSessionHandoff_renderPost_(email) {
     '<!doctype html><html><head><meta charset="utf-8">',
     '<meta name="referrer" content="no-referrer">',
     '<title>AMS - Opening Manager Portal</title></head><body>',
-    '<form id="handoff" method="post" action="', ExternalManagerSessionHandoff_escape_(EXTERNAL_MANAGER_SESSION_HANDOFF_URL), '">',
+    '<form id="handoff" method="post" target="_top" action="', ExternalManagerSessionHandoff_escape_(EXTERNAL_MANAGER_SESSION_HANDOFF_URL), '">',
     '<input type="hidden" name="email" value="', ExternalManagerSessionHandoff_escape_(a.email), '">',
     '<input type="hidden" name="role" value="Manager">',
     '<input type="hidden" name="exp" value="', ExternalManagerSessionHandoff_escape_(a.exp), '">',

@@ -79,8 +79,7 @@ function candidates(audValues,catalog,required,pre){
     }))
     .map(row=>({email:val(row,e).toLowerCase(),name:val(row,n),blockedWeekdays:val(row,bw),isPreassigned:[val(row,e).toLowerCase(),val(row,n).toLowerCase()].includes(clean(pre).toLowerCase()),rotationState:'DEFERRED',rotationWarning:null,performedCount:null,maxAllowed:null}))
     .filter(x=>x.email)
-    .sort((x,y)=>{if(x.isPreassigned!==y.isPreassigned)return x.isPreassigned?-1:1;return clean(x.name||x.email).localeCompare(clean(y.name||y.email));})
-    .slice(0,5);
+    .sort((x,y)=>{if(x.isPreassigned!==y.isPreassigned)return x.isPreassigned?-1:1;return clean(x.name||x.email).localeCompare(clean(y.name||y.email));});
 }
 
 function auditContext(values,catalog){
@@ -104,6 +103,7 @@ function project(f,catalog,audValues){
     region:g(['Region']),
     assignedTo:g(['Assigned to','Assigned auditor','Auditor']),
     preassignedAuditor:pre,
+    requiredHours:Number(String(g(['Total audit time in hours','Total time in hours','Required hours','Total hours'])||'').replace(',','.'))||0,
     scopes,
     candidateAuditors:candidates(audValues,catalog,scopes,pre),
     sourceRow:f.sourceRow

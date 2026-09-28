@@ -1,6 +1,6 @@
 /***********************************************************************
  * FILE: zz_ManagerGridExportEntryHook.js
- * BUILD: 2026-09-17_MANAGER_GRID_EXPORT_ENTRY_HOOK_R1
+ * BUILD: 2026-09-28_MANAGER_GRID_EXPORT_ENTRY_HOOK_R2_EXTERNAL_MANAGER_CUTOVER
  * PURPOSE: manager-only HTML composition hook; no backend/grid read changes.
  ***********************************************************************/
 function V5_ENTRY_resolve(ctx) {
@@ -13,12 +13,19 @@ function V5_ENTRY_resolve(ctx) {
   var token = String(ctx.trustedToken || ctx.token || '').trim();
   var device = String(ctx.deviceFingerprint || ctx.deviceId || '').trim();
   if (!action || !expectedRole) return V5_ENTRY_renderLogin(action, expectedRole);
+  var externalManagerCutover = runtimeEnv === 'DEV' && action === 'manager' && expectedRole === 'Manager' && typeof ExternalManagerSessionHandoff_renderPost_ === 'function';
+  if (externalManagerCutover && V5_ENTRY_isTestBypass_(email, expectedRole, token, device)) {
+    return ExternalManagerSessionHandoff_renderPost_(email);
+  }
   if (!V5_ENTRY_isTestBypass_(email, expectedRole, token, device)) {
     var authRes = null;
     try { authRes = V5_AUTH.validateTrustedTokenByRole(token, expectedRole, device); } catch (errAuth) { return V5_ENTRY_renderLogin(action, expectedRole); }
     if (!authRes || authRes.ok !== true) return V5_ENTRY_renderLogin(action, expectedRole);
     email = String(authRes.email || '').trim().toLowerCase();
     if (!email) return V5_ENTRY_renderLogin(action, expectedRole);
+  }
+  if (externalManagerCutover) {
+    return ExternalManagerSessionHandoff_renderPost_(email);
   }
   try {
     ctx.email=email;ctx.token=token;ctx.deviceId=device;ctx.trustedToken=token;ctx.deviceFingerprint=device;

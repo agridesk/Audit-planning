@@ -68,3 +68,5 @@ const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);
 if(failed.length){console.error('Contract failures: '+failed.map(([n])=>n).join(', '));process.exit(1);}
 console.log('Focused Planning 2.0 contract GREEN: '+checks.length+'/'+checks.length);
+
+check('r72 selected calendar day has immediate visual feedback', /day '\+visualState\+\(q\('#date'\)\.value===iso\?' selected':' '\)/.test(r5) || (r5.includes("q('#date').value===iso?' selected':''") && r5.includes("renderAvailability();validate()") && r5.includes('.day.selected')));

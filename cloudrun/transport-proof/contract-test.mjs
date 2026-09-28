@@ -66,6 +66,7 @@ const checks=[
  ['r74 selected calendar day class follows date input and direct DOM state',r5.includes("q('#date').value===iso?' selected':''")&&r5.includes("box.querySelectorAll('.day.selected')")&&r5.includes("d.classList.add('selected')")],
  ['r74 selected calendar day has explicit overriding colour',r5.includes('.day.selected,.day.yes.selected,.day.partial.selected,.day.no.selected{background:#bfdbfe!important;border:3px solid #1d4ed8!important')],
  ['r74 manual date change synchronizes calendar selection',r5.includes("q('#date').addEventListener('change',function(){renderAvailability();validate()})")],
+ ['r75 DEV sessions persist for 30-day test cycles',r4.includes('SESSION_TTL_SECONDS=30*24*60*60')&&r5.includes('SESSION_TTL_SECONDS=30*24*60*60')],
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

@@ -11,7 +11,7 @@ Status: FOUNDATION PRESENT
 2.0 save delegates to GAS canonical planning writer. Cloud Run must not duplicate lifecycle transitions.
 
 2. Canonical availability semantics
-Status: IN PROGRESS
+Status: IMPLEMENTED IN FOCUSED UI; ACCEPTANCE PENDING
 Required parity:
 - missing day row = available;
 - explicit available = available;
@@ -25,14 +25,12 @@ Required parity:
 Current R57 implements visual separation of soft warning versus audit occupancy. Validation must use the same resolved semantics.
 
 3. Planning window
-Status: PARTIAL
-Hard date guard exists.
-UI must show effective usable window from max(current date, canonical planning-window start) through canonical planning-window end.
+Status: IMPLEMENTED IN FOCUSED UI; ACCEPTANCE PENDING
+Hard date guard exists and UI uses effective usable window from max(current date, canonical planning-window start) through canonical planning-window end.
 
 4. Required/planned hours
-Status: PARTIAL
-Required hours and aggregate planned hours exist.
-Still required: persistent selected-slot summary with Required / Planned / Remaining parity.
+Status: IMPLEMENTED IN FOCUSED UI; ACCEPTANCE PENDING
+Required / Planned / Remaining summary is present.
 
 5. Multi-slot planning
 Status: FOUNDATION PRESENT
@@ -41,12 +39,10 @@ Still required: clearer selected-slot list/editor parity and per-slot removal/ed
 
 6. Execution locations
 Status: PARTIAL
-Canonical Companies.Locations_JSON is read.
+Canonical Companies.Locations_JSON is read; inactive locations are excluded and code/name/GPS/comment are projected into focused context.
 Still required:
-- active locations only;
-- preserve code/name/GPS/comment;
-- read-only company location registry/context;
-- derive planned hours by execution location from slots; no duplicate manual hours field.
+- stronger read-only location registry/map presentation where useful;
+- derive/report planned hours by execution location from slots; no duplicate manual hours field.
 
 7. Auditor selection / preassignment
 Status: PARTIAL
@@ -59,17 +55,11 @@ Still required:
 - visible reason when candidate is constrained/excluded.
 
 8. Company planning context
-Status: PARTIAL
-Preferred_Audit_Months and location data exist.
+Status: SUBSTANTIALLY PRESENT; ACCEPTANCE PENDING
+Preferred_Audit_Months, company/contact/location context and soft company constraints are projected.
 Still required parity from 1.0:
-- company number/group/region/country;
-- contact name/email/telephone;
-- timezone;
-- company less-available weekdays;
-- preferred time window;
-- company comment;
-- location GPS/comment context.
-Soft constraints must remain advisory.
+- improve presentation/legibility without changing semantics.
+Company less-available weekdays and preferred time window remain advisory.
 
 9. Preferred audit months
 Status: PARTIAL
@@ -77,9 +67,8 @@ Canonical value displayed.
 Still required: calendar-level visual advisory while preserving hard planning-window precedence.
 
 10. Calendar navigation / usability
-Status: PARTIAL
-Chronological Monday-first calendar exists.
-Still required: bounded month navigation/jump/today behavior or equivalent scalable windowed navigation; avoid rendering an unbounded annual grid.
+Status: IMPLEMENTED IN FOCUSED UI; ACCEPTANCE PENDING
+Chronological Monday-first bounded month calendar with previous/next/Today navigation exists and is clamped to the effective planning window.
 
 11. Re-adjust existing planning
 Status: NOT YET IN FOCUSED 2.0

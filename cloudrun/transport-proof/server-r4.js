@@ -90,6 +90,18 @@ function auditContext(values,catalog){
   return by;
 }
 
+function companyPlanningContext(values,companyUid,companyName){
+  const out={preferredAuditMonths:'',locations:[]};if(!values.length)return out;
+  const h=values[0],cu=col(h,['Company_UID','Company UID','UID']),cn=col(h,['Company']),cl=col(h,['Location']),cg=col(h,['GPS-data','GPS data','GPS','gps_data']),cj=col(h,['Locations_JSON','Locations JSON','locations_json']),cp=col(h,['Preferred audit months','Preferred audit period','Preferred audit_months','preferred_audit_months','Preferred audit period/months','Preferred audit periode','Preferred months']);
+  const uid=key(companyUid),name=key(companyName);let best=null,score=-1;
+  for(const row of values.slice(1)){const ru=cu>=0?key(row[cu]):'',rn=cn>=0?key(row[cn]):'';let s=-1;if(uid&&ru===uid)s=1000;else if(name&&rn===name)s=600;if(s<0)continue;if(cj>=0&&clean(row[cj]))s+=5;if(cp>=0&&clean(row[cp]))s+=5;if(s>score){score=s;best=row;}}
+  if(!best)return out;out.preferredAuditMonths=cp>=0?val(best,cp):'';
+  const fallback=cl>=0?val(best,cl):'HQ',gps=cg>=0?val(best,cg):'',raw=cj>=0?val(best,cj):'';
+  function add(o,i){o=o||{};const code=clean(o.code||o.Code||o.locationCode||o.location_code||o.type||o.Type||(i===0?'HQ':String(i+1))),nm=clean(o.location||o.Location||o.name||o.Name||o.label||o.Label||o.address||o.Address||fallback||code),g=clean(o.gps||o.GPS||o.gpsData||o['GPS-data']||o.gps_data||o.coordinates||o.Coordinates||o.latLng||o.latlng||gps);out.locations.push({code:code||'HQ',name:nm||code||'HQ',gps:g});}
+  try{const p=JSON.parse(raw);const arr=Array.isArray(p)?p:(Array.isArray(p?.locations)?p.locations:Array.isArray(p?.Locations)?p.Locations:Array.isArray(p?.items)?p.items:Array.isArray(p?.sites)?p.sites:Array.isArray(p?.points)?p.points:(p&&typeof p==='object'?[p]:[]));arr.forEach(add);}catch{}
+  if(!out.locations.length)add({code:'HQ',name:fallback||'HQ',gps},0);return out;
+}
+
 function project(f,catalog,audValues){
   const g=n=>val(f.row,col(f.h,n)),pre=g(['Preassigned Auditor','Preassigned auditor']),scopes=scopesForAudit(f,catalog);
   return{
@@ -189,10 +201,10 @@ async function canonicalManagerAction(identity,body){
 }
 async function focused(id){
   const t=Date.now(),s=Date.now();
-  const vr=await sheetsBatchGet(['Audit planning!A1:AX768','Auditors!A1:AZ256','Auditor Availability!A1:P768','Concept Reservations!A1:P256','Config_Scopes!A1:Z128']);
+  const vr=await sheetsBatchGet(['Audit planning!A1:AX768','Auditors!A1:AZ256','Auditor Availability!A1:P768','Concept Reservations!A1:P256','Config_Scopes!A1:Z128','Companies!A1:AZ768']);
   const sheetMs=Date.now()-s,ap=vr[0]?.values||[],f=findAudit(ap,id);
   if(!f)return{ok:false,error:'AUDIT_NOT_FOUND',timing:{sheetsApiMs:sheetMs,totalMs:Date.now()-t}};
-  const p=Date.now(),catalog=scopeCatalog(vr[4]?.values||[]),context=auditContext(ap,catalog),audit=project(f,catalog,vr[1]?.values||[]),emails=audit.candidateAuditors.map(x=>x.email),from=dateOnly(audit.planningWindowFrom),to=dateOnly(audit.planningWindowTo),availability=availabilityProjection(vr[2]?.values||[],emails,from,to,context),reservations=reservationProjection(vr[3]?.values||[],emails,from,to,context);
+  const p=Date.now(),catalog=scopeCatalog(vr[4]?.values||[]),context=auditContext(ap,catalog),audit=project(f,catalog,vr[1]?.values||[]),companyCtx=companyPlanningContext(vr[5]?.values||[],audit.companyUid,audit.company);audit.preferredAuditMonths=companyCtx.preferredAuditMonths;audit.locations=companyCtx.locations;const emails=audit.candidateAuditors.map(x=>x.email),from=dateOnly(audit.planningWindowFrom),to=dateOnly(audit.planningWindowTo),availability=availabilityProjection(vr[2]?.values||[],emails,from,to,context),reservations=reservationProjection(vr[3]?.values||[],emails,from,to,context);
   return{
     ok:true,
     proof:'AMS_CLOUD_RUN_DIRECT_SHEETS_R8_SESSION_ENFORCED',
@@ -202,7 +214,7 @@ async function focused(id){
       audit,
       advisory:{period:{from,to},rows:[{...audit,advisoryState:audit.candidateAuditors.length?'READY':'NO_CANDIDATES',advisoryReason:audit.candidateAuditors.length?'':'NO_HARD_QUALIFIED_AUDITORS',requiresCanonicalRefresh:false,hoursToPlan:null,hoursToPlanState:'DEFERRED'}],candidateAuditorEmails:emails},
       overlays:{period:{from,to},availability:{byAuditorEmail:availability},reservations},
-      sourceCounts:{auditPlanning:Math.max(0,ap.length-1),auditors:Math.max(0,(vr[1]?.values||[]).length-1),availability:Math.max(0,(vr[2]?.values||[]).length-1),conceptReservations:Math.max(0,(vr[3]?.values||[]).length-1),configScopes:Math.max(0,(vr[4]?.values||[]).length-1)}
+      sourceCounts:{auditPlanning:Math.max(0,ap.length-1),auditors:Math.max(0,(vr[1]?.values||[]).length-1),availability:Math.max(0,(vr[2]?.values||[]).length-1),conceptReservations:Math.max(0,(vr[3]?.values||[]).length-1),configScopes:Math.max(0,(vr[4]?.values||[]).length-1),companies:Math.max(0,(vr[5]?.values||[]).length-1)}
     },
     timing:{sheetsApiMs:sheetMs,projectionMs:Date.now()-p,totalMs:Date.now()-t}
   };

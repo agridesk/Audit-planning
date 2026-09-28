@@ -953,7 +953,7 @@ function getToolkitEligibilityLightV5(auditId) {
 
 function getToolkitRotationMetaV5(auditId, auditorEmail) {
   var t0 = Date.now();
-  var cacheKey = 'TK_ROT_V5::' + String(auditId || '').trim() + '::' + String(auditorEmail || '').trim().toLowerCase();
+  var cacheKey = 'TK_ROT_V5_R1::' + String(auditId || '').trim() + '::' + String(auditorEmail || '').trim().toLowerCase();
   try {
     try {
       var cachedRaw = CacheService.getScriptCache().get(cacheKey);

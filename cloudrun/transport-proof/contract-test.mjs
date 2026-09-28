@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 const r4=fs.readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const r5=fs.readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
+const backend=fs.readFileSync(new URL('../../ManagerPlanningBackend_CORE_SPLIT.js',import.meta.url),'utf8');
+const handoff=fs.readFileSync(new URL('../../zz_ExternalPlanningWorkspaceHandoff.js',import.meta.url),'utf8');
 const checks=[
  ['r5 focused planning route',r5.includes("u.pathname==='/planning'")&&r5.includes('planningHtml(auditId)')],
  ['r5 canonical save route',r5.includes("u.pathname==='/api/v1/planning/save'")&&r5.includes('canonicalPlanningSave')],
@@ -71,6 +73,8 @@ const checks=[
  ['r76 rotation read failure blocks planning',r5.includes("candidate.rotationState='CHECK_FAILED'")&&r5.includes('candidate.rotationCheckFailed=true')&&r5.includes("candidate.ineligible||candidate.rotationCheckFailed")&&r5.includes("Rotation check unavailable; planning cannot be saved.")],
  ['manager portal presents canonical Approved as Pending acceptance',manager.includes('function displayStatus')&&manager.includes('s==="approved"?"Pending acceptance"')&&manager.includes('displayStatus(r.status)')],
  ['r77 save bridge exposes timing without changing canonical writer',r5.includes('const bridgeStarted=Date.now()')&&r5.includes('transportTiming={gasBridgeMs:bridgeMs,gasReportedMs:Number(out.totalMs||0)||null}')&&r5.includes("writeUrl.searchParams.set('action','externalplanningworkspace')")],
+ ['save hot path does not reset fresh request execution cache',!backend.includes('try { AS_resetExecCache_(); } catch(_e) {}')],
+ ['external commit response is compact and timed',handoff.includes('EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R9_FAST_COMMIT_RESPONSE')&&handoff.includes('notificationQueued:!!')&&handoff.includes('bridgeMs:bridgeMs')],
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

@@ -38,6 +38,9 @@ const checks=[
  ['r57 canonical availability visual states',r4.includes("visualState=hasAudit?'OCCUPIED':state==='NO'?(hasSoft?'SOFT_UNAVAILABLE':'HARD_BLOCKED'):'AVAILABLE'")],
  ['r57 soft warning not audit occupancy',r5.includes("auditSlots=slotsArr.filter(s=>s.kind==='audit'||s.auditRef)")&&r5.includes("softDay?'SOFT WARNING':'YES'")],
  ['r57 auditor default blocked weekday is soft',r5.includes("blockedDays.includes(wd)")&&r5.includes("defaultSoft")],
+ ['r58 company context parity',r4.includes("contactName:''")&&r4.includes("preferredTimeWindow:''")&&r4.includes('audit.companyContext=companyCtx')&&r5.includes('id="companyContext"')],
+ ['r58 effective planning window starts no earlier than today',r5.includes('effectiveFrom=a.planningWindowFrom&&a.planningWindowFrom>today?a.planningWindowFrom:today')&&r5.includes("txt('#window',[effectiveFrom,a.planningWindowTo]")],
+ ['r58 inactive locations excluded',r4.includes("o.active===false||String(o.active).toLowerCase()==='false'")],
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

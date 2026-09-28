@@ -58,6 +58,7 @@ const checks=[
  ['r66 no month-paging remnants',!r5.includes('calendarMonth')&&!r5.includes('prevMonth')&&!r5.includes('nextMonth')&&!r5.includes('monthLabel')],
  ['r66 rolling window crosses month boundaries',r5.includes('CALENDAR_WINDOW_DAYS=70')&&r5.includes("let iso=from;while(iso<=to")],
  ['r67 preferred months guide long windows',r5.includes('id="preferredJump"')&&r5.includes("monthMap={Jan:'01'")&&r5.includes("pj.style.display=pj.options.length>1")],
+ ['r67 audit id safe script serialization',r5.includes("JSON.stringify(clean(auditId)).replace(/</g")&&r5.includes("replace(/\\u2028/g")],
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

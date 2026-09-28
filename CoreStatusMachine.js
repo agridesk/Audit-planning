@@ -219,6 +219,9 @@ function Status_buildActionResult_(transition, extra) {
 }
 
 function Status_applyAction(actor, action, auditId, payload) {
+  var __statusT0 = Date.now();
+  var __statusPerf = {};
+  function __statusStamp_(name){ __statusPerf[name] = Date.now() - __statusT0; }
   actor = Status_normalizeRole_(actor);
   action = Status_normalizeAction_(action);
   auditId = String(auditId || '').trim();
@@ -231,6 +234,7 @@ function Status_applyAction(actor, action, auditId, payload) {
     if (!writeGuard.ok) return writeGuard;
 
     var ctx = Status_loadAudit_(auditId);
+    __statusStamp_('loadAuditMs');
     if (!ctx.found) return ctx.error;
 
 
@@ -267,6 +271,7 @@ function Status_applyAction(actor, action, auditId, payload) {
         return Status_fail_('Unknown action: ' + action);
     }
 
+    __statusStamp_('applyActionMs');
     // Notification dispatch is best-effort and must not add duplicate synchronous
     // Diagnostics_Log sheet writes to the user-action hot path. The bridge owns
     // its own targeted diagnostics for queue failures and exceptional branches.
@@ -285,6 +290,9 @@ function Status_applyAction(actor, action, auditId, payload) {
                    ' err=' + notifyMsg);
       }
     }
+    __statusStamp_('notificationMs');
+    __statusPerf.totalMs = Date.now() - __statusT0;
+    if (result && typeof result === 'object') result.statusPerf = __statusPerf;
     return result;
   } catch (e) {
     return Status_fail_('Exception: ' + (e && e.message ? e.message : e));

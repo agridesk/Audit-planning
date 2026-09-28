@@ -85,11 +85,11 @@ Correctness takes precedence over premature narrowing.
 
 CUTOVER BLOCKERS FOR SINGLE-AUDIT PLANNING 2.0
 - resolved Availability parity accepted;
-- rotation/exclusion/min-interval hard feasibility integrated;
+- canonical qualification/rotation feasibility accepted; any additional exclusion/min-interval rule must first be proven as current canonical 1.0 behavior;
 - company soft constraints visible;
 - multi-location parity complete;
 - selected-slot/hours editing complete; [implemented R62; acceptance pending]
-- canonical save + notification side effects accepted end-to-end;
+- canonical save + notification side effects accepted end-to-end (writer delegates PLAN to Status_applyAction and returns notificationBridge; controlled DEV write acceptance still required);
 - controlled re-adjust path defined/implemented for already planned audits;
 - regression gates green and browser workflow accepted.
 

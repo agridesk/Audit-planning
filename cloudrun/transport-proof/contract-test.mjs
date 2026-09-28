@@ -30,10 +30,10 @@ const checks=[
  ['r5 canonical locations UI',r5.includes('for(const x of a.locations||[])')&&r5.includes('id="location"')],
  ['r5 preferred months UI',r5.includes("a.preferredAuditMonths?'Preferred: '")],
  ['r5 required-hours drives default end',r5.includes("Math.round(Number(a.requiredHours)*60)")&&r5.includes("q('#start').addEventListener('change'")],
- ['r4 default weekend marker not occupancy',r4.includes("if(z.auditRef||z.start||z.end)slots.push(z)")&&!r4.includes("if(z.start||z.end||z.auditRef||z.status)slots.push(z)")]
+ ['r4 soft marker classified separately from audit occupancy',r4.includes("kind:auditRef?'audit':soft?'soft':'hard'")&&r4.includes("visualState=hasAudit?'OCCUPIED'")]
 ,
  ['r5 quarter-hour time navigation',r5.includes('step="900" list="quarterHours"')&&r5.includes('function snapQuarter(v)')],
- ['r56 implicit availability is green',r5.includes("state:'YES',available:'YES'")&&r5.includes("hasOccupancy?'partial':'yes'")],
+ ['r56 implicit availability is green',r5.includes("state:'YES',available:'YES'")&&r5.includes("(hasOccupancy||softDay)?'partial':'yes'")],
  ['r56 1.0 full-day criterion',r5.includes("blockedOp>=8*60||blockedBar>=8*60")&&r5.includes("auditFullDay")&&r5.includes("'FULLY OCCUPIED'")],
  ['r57 canonical availability visual states',r4.includes("visualState=hasAudit?'OCCUPIED':state==='NO'?(hasSoft?'SOFT_UNAVAILABLE':'HARD_BLOCKED'):'AVAILABLE'")],
  ['r57 soft warning not audit occupancy',r5.includes("auditSlots=slotsArr.filter(s=>s.kind==='audit'||s.auditRef)")&&r5.includes("softDay?'SOFT WARNING':'YES'")],

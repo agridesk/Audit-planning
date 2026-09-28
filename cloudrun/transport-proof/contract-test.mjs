@@ -43,6 +43,8 @@ const checks=[
  ['r58 inactive locations excluded',r4.includes("o.active===false||String(o.active).toLowerCase()==='false'")],
  ['r59 company blocked weekday remains soft',r5.includes("companyContext?.blockedWeekdays")&&r5.includes("blockedDays.includes(wd)||companyBlocked.includes(wd)")],
  ['r59 required planned remaining parity',r5.includes('id="hoursSummary"')&&r5.includes("'Required '+required.toFixed(2)+' h · Planned '")],
+ ['r60 bounded month calendar',r5.includes('calendarMonth=')&&r5.includes('id="prevMonth"')&&r5.includes('id="nextMonth"')&&r5.includes('id="todayMonth"')],
+ ['r60 calendar bounded by effective planning window',r5.includes("allowedFrom=a.planningWindowFrom&&a.planningWindowFrom>today?a.planningWindowFrom:today")&&r5.includes("maxMonth=allowedTo.slice(0,7)")],
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

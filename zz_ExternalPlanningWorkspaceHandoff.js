@@ -191,6 +191,7 @@ function ExternalPlanningWorkspaceHandoff_commit_(identity) {
     softWarnings:Array.isArray(saved.softWarnings) ? saved.softWarnings : [],
     totalMs:Number(saved.totalMs || bridgeMs),
     bridgeMs:bridgeMs,
+    debugTiming:saved.debugTiming || null,
     notificationQueued:!!(saved.notificationBridge && saved.notificationBridge.success)
   };
 }

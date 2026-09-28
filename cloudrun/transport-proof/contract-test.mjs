@@ -3,6 +3,7 @@ const r4=fs.readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const r5=fs.readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
 const backend=fs.readFileSync(new URL('../../ManagerPlanningBackend_CORE_SPLIT.js',import.meta.url),'utf8');
 const handoff=fs.readFileSync(new URL('../../zz_ExternalPlanningWorkspaceHandoff.js',import.meta.url),'utf8');
+const manager=fs.readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const checks=[
  ['r5 focused planning route',r5.includes("u.pathname==='/planning'")&&r5.includes('planningHtml(auditId)')],
  ['r5 canonical save route',r5.includes("u.pathname==='/api/v1/planning/save'")&&r5.includes('canonicalPlanningSave')],

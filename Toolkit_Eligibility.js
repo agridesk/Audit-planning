@@ -953,7 +953,19 @@ function getToolkitEligibilityLightV5(auditId) {
 
 function getToolkitRotationMetaV5(auditId, auditorEmail) {
   var t0 = Date.now();
+  var cacheKey = 'TK_ROT_V5::' + String(auditId || '').trim() + '::' + String(auditorEmail || '').trim().toLowerCase();
   try {
+    try {
+      var cachedRaw = CacheService.getScriptCache().get(cacheKey);
+      if (cachedRaw) {
+        var cached = JSON.parse(cachedRaw);
+        if (cached && cached.success === true) {
+          cached.__serverMs = Date.now() - t0;
+          cached.__rotationResultCache = 'HIT';
+          return cached;
+        }
+      }
+    } catch (eCacheRead) {}
     var ctx = TK3S_readAuditContext_R24_(auditId);
     var ss = ctx.ss;
     var target = String(auditorEmail || '').trim().toLowerCase();
@@ -1039,7 +1051,7 @@ function getToolkitRotationMetaV5(auditId, auditorEmail) {
       eligibilityOwner: 'Toolkit_Eligibility_R24_SelectedRotationMeta'
     };
 
-    return {
+    var result = {
       success: true,
       build: 'TOOLKIT_3S_ENDPOINTS_R24_20260516',
       endpoint: 'getToolkitRotationMetaV5',
@@ -1055,8 +1067,11 @@ function getToolkitRotationMetaV5(auditId, auditorEmail) {
         membershipMode: 'SELECTED_AUDITOR_HARD_QUALIFICATION_CHECK',
         rotationMode: 'SELECTED_AUDITOR_SOFT_METADATA_ONLY'
       },
-      __serverMs: Date.now() - t0
+      __serverMs: Date.now() - t0,
+      __rotationResultCache: 'MISS'
     };
+    try { CacheService.getScriptCache().put(cacheKey, JSON.stringify(result), 300); } catch (eCacheWrite) {}
+    return result;
   } catch(e) {
     return {
       success: false,

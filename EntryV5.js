@@ -476,6 +476,16 @@ function doPost(e) {
 
   if (rawAction === 'externalplanningworkspace') {
 
+    var planningMode = String(p.mode || '').trim().toLowerCase();
+    if (planningMode === 'commit') {
+      if(!V5_ENTRY_isDevEnv_())return ContentService.createTextOutput(JSON.stringify({success:false,error:'DEV_ONLY'})).setMimeType(ContentService.MimeType.JSON);
+      if (typeof ExternalPlanningWorkspaceHandoff_verify_ !== 'function' || typeof ExternalPlanningWorkspaceHandoff_render_ !== 'function') return ContentService.createTextOutput(JSON.stringify({success:false,error:'HANDOFF_OWNER_UNAVAILABLE'})).setMimeType(ContentService.MimeType.JSON);
+      var commitVerified = ExternalPlanningWorkspaceHandoff_verify_(p);
+      if (!commitVerified || commitVerified.ok !== true) return ContentService.createTextOutput(JSON.stringify({success:false,error:String((commitVerified&&commitVerified.error)||'HANDOFF_FAILED')})).setMimeType(ContentService.MimeType.JSON);
+      try { return ExternalPlanningWorkspaceHandoff_render_(commitVerified); }
+      catch (errCommit) { return ContentService.createTextOutput(JSON.stringify({success:false,error:'PLANNING_WORKSPACE_COMMIT_FAILED',message:String(errCommit&&errCommit.message?errCommit.message:errCommit)})).setMimeType(ContentService.MimeType.JSON); }
+    }
+
     if (typeof ExternalPlanningWorkspaceHandoff_verify_ !== 'function' || typeof ExternalPlanningWorkspaceHandoff_render_ !== 'function') {
 
       return HtmlService.createHtmlOutput('<!doctype html><meta charset="utf-8"><title>AMS - Planning Workspace</title><h3>Planning Workspace handoff failed</h3><pre>HANDOFF_OWNER_UNAVAILABLE</pre>').setTitle('AMS - Planning Workspace');

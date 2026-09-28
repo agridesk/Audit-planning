@@ -25,7 +25,7 @@ const checks=[
  ['r4 qualification remains scope-based',r4.includes('required.every(sc=>')],
  ['r4 focused read bounded batch',r4.includes("sheetsBatchGet(['Audit planning!A1:AX768','Auditors!A1:AZ256','Auditor Availability!A:P','Concept Reservations!A1:P256','Config_Scopes!A1:Z128','Companies!A1:AZ768'])")],
  ['r4 availability read not row-truncated',r4.includes("'Auditor Availability!A:P'")&&!r4.includes("'Auditor Availability!A1:P768'")],
- ['r4 availability identity fallback',r4.includes('function availabilityProjection(values,candidates')&&r4.includes("cn=col(h,['Auditor_Name','Auditor Name','Auditor'])")],
+ ['r4 canonical availability identity aliases',r4.includes('function availabilityProjection(values,candidates')&&r4.includes("ci=col(h,['Auditor_Email','Auditor Email','Email','E-mail','Auditor_Name','Auditor Name','Auditor'])")&&r4.includes('const rawIdentity=ci>=0?val(row,ci)')],
  ['r4 company planning context',r4.includes('function companyPlanningContext(')&&r4.includes('audit.preferredAuditMonths=companyCtx.preferredAuditMonths')&&r4.includes('audit.locations=companyCtx.locations')],
  ['r5 canonical locations UI',r5.includes('for(const x of a.locations||[])')&&r5.includes('id="location"')],
  ['r5 preferred months UI',r5.includes("a.preferredAuditMonths?'Preferred: '")],

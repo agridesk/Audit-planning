@@ -62,6 +62,7 @@ const checks=[
  ['r69 rolling navigation has no redundant month dropdown',!r5.includes('preferredJump')&&!r5.includes('monthMap={Jan')&&r5.includes('id="prevWindow"')&&r5.includes('id="nextWindow"')],
  ['r69 window label is secondary context',r5.includes('id="windowLabel" class="muted"')],
  ['r70 rotation detail is per required scope',r5.includes('rotationByScope||{}')&&r5.includes("limit reached':m.nearLimit?' near limit")],
+ ['r71 hard qualification fails closed in focused save',r5.includes("if(c.hardBlockQualification||c.ineligible)return setStatus")&&r5.includes('hardQualified=!(candidate.hardBlockQualification||candidate.ineligible)')],
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

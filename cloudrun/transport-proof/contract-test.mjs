@@ -43,8 +43,8 @@ const checks=[
  ['r58 inactive locations excluded',r4.includes("o.active===false||String(o.active).toLowerCase()==='false'")],
  ['r59 company blocked weekday remains soft',r5.includes("companyContext?.blockedWeekdays")&&r5.includes("blockedDays.includes(wd)||companyBlocked.includes(wd)")],
  ['r59 required planned remaining parity',r5.includes('id="hoursSummary"')&&r5.includes("'Required '+required.toFixed(2)+' h · Planned '")],
- ['r60 bounded month calendar',r5.includes('calendarMonth=')&&r5.includes('id="prevMonth"')&&r5.includes('id="nextMonth"')&&r5.includes('id="todayMonth"')],
- ['r60 calendar bounded by effective planning window',r5.includes("allowedFrom=a.planningWindowFrom&&a.planningWindowFrom>today?a.planningWindowFrom:today")&&r5.includes("maxMonth=allowedTo.slice(0,7)")],
+ ['r66 rolling calendar window',r5.includes('CALENDAR_WINDOW_DAYS=70')&&r5.includes('CALENDAR_SHIFT_DAYS=28')&&r5.includes('id="prevWindow"')&&r5.includes('id="nextWindow"')&&r5.includes('id="todayWindow"')],
+ ['r66 rolling calendar bounded by effective planning window',r5.includes("allowedFrom=a.planningWindowFrom&&a.planningWindowFrom>today?a.planningWindowFrom:today")&&r5.includes("to0=addDaysIso(from,CALENDAR_WINDOW_DAYS-1)")],
  ['r61 company preferred-time remains soft warning',r5.includes('function companyTimeWindow()')&&r5.includes('outside company preferred time window')],
  ['r62 slot edit parity',r5.includes('data-edit="1"')&&r5.includes("q('#date').value=b.date")&&r5.includes("q('#location').value=b.execLoc||'HQ'")],
  ['r63 soft availability is advisory in conflict guard',r5.includes("!s.start||!s.end||s.kind==='soft'")],
@@ -54,6 +54,7 @@ const checks=[
  ['r64 provisional context enriched canonically',r4.includes("company:clean(canonical.company)")&&r4.includes("scopes:Array.isArray(canonical.scopes)?canonical.scopes:[]")],
  ['r65 canonical rotation endpoint',r5.includes("/api/v1/planning/rotation")&&r5.includes('canonicalRotationRead')&&r5.includes("mode:'rotation'")],
  ['r65 selected auditor only rotation hydration',r5.includes('async function loadRotation()')&&r5.includes("auditorEmail='+encodeURIComponent(email)")],
+ ['r66 company context is collapsible',r5.includes('id="companyContextCard"')&&r5.includes('<summary>Company details</summary>')],
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

@@ -55,6 +55,8 @@ const checks=[
  ['r65 canonical rotation endpoint',r5.includes("/api/v1/planning/rotation")&&r5.includes('canonicalRotationRead')&&r5.includes("mode:'rotation'")],
  ['r65 selected auditor only rotation hydration',r5.includes('async function loadRotation()')&&r5.includes("auditorEmail='+encodeURIComponent(email)")],
  ['r66 company context is collapsible',r5.includes('id="companyContextCard"')&&r5.includes('<summary>Company details</summary>')],
+ ['r66 no month-paging remnants',!r5.includes('calendarMonth')&&!r5.includes('prevMonth')&&!r5.includes('nextMonth')&&!r5.includes('monthLabel')],
+ ['r66 rolling window crosses month boundaries',r5.includes('CALENDAR_WINDOW_DAYS=70')&&r5.includes("let iso=from;while(iso<=to")],
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

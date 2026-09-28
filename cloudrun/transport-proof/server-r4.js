@@ -133,8 +133,8 @@ function availabilityProjection(values,candidates,from,to,context){
     if(!set.has(em)){const nm=key(rawIdentity),hit=identities.find(x=>x.name===nm);if(hit)em=hit.email;}
     const d=dateOnly(row[cd]);if(!set.has(em)||!d||d<from||d>to)continue;
     const slots=[];
-    for(const x of [[s1,e1,id1,st1],[s2,e2,id2,st2]]){const auditRef=val(row,x[2]),ctx=auditRef&&context[auditRef]?context[auditRef]:{},z={start:val(row,x[0]),end:val(row,x[1]),auditId:auditRef,auditRef,status:ctx.status||val(row,x[3]),company:ctx.company||'',scopes:Array.isArray(ctx.scopes)?ctx.scopes:[]};if(z.auditRef||z.start||z.end)slots.push(z);}
-    if(!by[em])by[em]=[];by[em].push({date:d,auditorEmail:em,available:val(row,ca),state:yes(row[ca])?'YES':(clean(row[ca])?'NO':''),slots});
+    for(const x of [[s1,e1,id1,st1],[s2,e2,id2,st2]]){const auditRef=val(row,x[2]),rawStatus=val(row,x[3]),ctx=auditRef&&context[auditRef]?context[auditRef]:{},status=ctx.status||rawStatus,statusKey=clean(status).toUpperCase(),soft=!auditRef&&(statusKey==='SYSTEM_DEFAULT'||statusKey==='USER_MANUAL'||statusKey==='CALENDAR'||statusKey==='CALENDER'||statusKey.startsWith('DEFAULT_')||statusKey.startsWith('MANUAL_')),z={start:val(row,x[0]),end:val(row,x[1]),auditId:auditRef,auditRef,status,kind:auditRef?'audit':soft?'soft':'hard',company:ctx.company||'',scopes:Array.isArray(ctx.scopes)?ctx.scopes:[]};if(z.auditRef||z.start||z.end||z.status)slots.push(z);}
+    const state=yes(row[ca])?'YES':(clean(row[ca])?'NO':''),hasAudit=slots.some(z=>z.kind==='audit'),hasSoft=slots.some(z=>z.kind==='soft'),visualState=hasAudit?'OCCUPIED':state==='NO'?(hasSoft?'SOFT_UNAVAILABLE':'HARD_BLOCKED'):'AVAILABLE';if(!by[em])by[em]=[];by[em].push({date:d,auditorEmail:em,available:val(row,ca),state,visualState,slots});
   }
   return by;
 }

@@ -47,6 +47,7 @@ const checks=[
  ['r60 calendar bounded by effective planning window',r5.includes("allowedFrom=a.planningWindowFrom&&a.planningWindowFrom>today?a.planningWindowFrom:today")&&r5.includes("maxMonth=allowedTo.slice(0,7)")],
  ['r61 company preferred-time remains soft warning',r5.includes('function companyTimeWindow()')&&r5.includes('outside company preferred time window')],
  ['r62 slot edit parity',r5.includes('data-edit="1"')&&r5.includes("q('#date').value=b.date")&&r5.includes("q('#location').value=b.execLoc||'HQ'")],
+ ['r63 soft availability is advisory in conflict guard',r5.includes("!s.start||!s.end||s.kind==='soft'")],
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

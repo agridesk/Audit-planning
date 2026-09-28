@@ -87,6 +87,7 @@ const checks=[
  ['save hot path does not reset fresh request execution cache',!backend.includes('try { AS_resetExecCache_(); } catch(_e) {}')],
  ['external commit response is compact and timed',handoff.includes('notificationQueued:!!')&&handoff.includes('bridgeMs:bridgeMs')&&handoff.includes('totalMs:Number(saved.totalMs || bridgeMs)')],
  ['planning commit failures remain JSON across GAS bridge',entry.includes("verified.mode === 'commit' || verified.mode === 'rotation'")&&entry.includes("ContentService.createTextOutput(JSON.stringify({success:false,error:'PLANNING_WORKSPACE_'")&&handoff.includes("error:'CANONICAL_PLANNING_SAVE_THROW'")],
+ ['planning commit is routed through JSON path before HTML handoff',entry.indexOf("if (planningMode === 'commit')")>=0&&entry.indexOf("if (planningMode === 'commit')")<entry.indexOf("HANDOFF_OWNER_UNAVAILABLE</pre>")&&entry.includes("error:'PLANNING_WORKSPACE_COMMIT_FAILED'")],
  ['legacy GAS rotation bridge contract remains available',handoff.includes('ExternalPlanningWorkspaceHandoff_payload_')&&handoff.includes("mode === 'commit'")&&handoff.includes("mode === 'rotation' ? 'rotation' : 'open'")],
 ];
 const failed=checks.filter(([,ok])=>!ok);

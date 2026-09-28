@@ -1198,10 +1198,10 @@ function saveManagerPlanning(auditId, payload) {
     try { _mp_calInvalidateForAuditLite_(auditId, auditorEmail, payload && payload.blocks); } catch(_e) {}
     __stamp('tail_calInvalidated');
 
-    res.debugTiming = __dbg;
     res.totalMs = Date.now() - __t0;
     __dbg.total = { ms: res.totalMs };
     __stamp('tail_returnReady');
+    res.debugTiming = __dbg;
     return res;
 
   } catch (e) {

@@ -127,7 +127,7 @@ function dateOnly(v){const s=clean(v);const m=s.match(/^(\d{4}-\d{2}-\d{2})/);re
 function availabilityProjection(values,candidates,from,to,context){
   const identities=(candidates||[]).map(x=>({email:clean(x.email).toLowerCase(),name:key(x.name)})),set=new Set(identities.map(x=>x.email)),by={};
   if(!values.length)return by;
-  const h=values[0],cd=col(h,['Date']),ci=col(h,['Auditor_Email','Auditor Email','Email','E-mail','Auditor_Name','Auditor Name','Auditor']),ca=col(h,['Available']),s1=col(h,['First_Audit_Start_Time','First Audit Start Time']),e1=col(h,['First_Audit_End_Time','First Audit End Time']),id1=col(h,['Audit_ID_1','Audit ID 1','AuditId1']),st1=col(h,['Status_1','Status 1','Status','Source']),s2=col(h,['Second_Audit_Start_Time','Second Audit Start Time']),e2=col(h,['Second_Audit_End_Time','Second Audit End Time']),id2=col(h,['Audit_ID_2','Audit ID 2','AuditId2']),st2=col(h,['Status_2','Status 2']);
+  const h=values[0],cd=col(h,['Date']),ci=col(h,['Auditor_Email','Auditor Email','Email','E-mail','Auditor_Name','Auditor Name','Auditor']),ca=col(h,['Available']),s1=col(h,['First_Audit_Start_Time','First Audit Start Time']),e1=col(h,['First_Audit_End_Time','First Audit End Time']),id1=col(h,['Audit_ID_1','Audit ID 1','AuditId1']),s2=col(h,['Second_Audit_Start_Time','Second Audit Start Time']),e2=col(h,['Second_Audit_End_Time','Second Audit End Time']),id2=col(h,['Audit_ID_2','Audit ID 2','AuditId2']),st1=col(h,['Status_1','Status 1','Status','Source']),st2=col(h,['Status_2','Status 2']);
   for(const row of values.slice(1)){
     const rawIdentity=ci>=0?val(row,ci):'';let em=clean(rawIdentity).toLowerCase();
     if(!set.has(em)){const nm=key(rawIdentity),hit=identities.find(x=>x.name===nm);if(hit)em=hit.email;}

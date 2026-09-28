@@ -761,7 +761,8 @@ function saveManagerPlanning(auditId, payload) {
   if (!payload || typeof payload !== 'object') payload = {};
   if (!auditId) return { success:false, message:'Missing auditId' };
 
-  try { AS_resetExecCache_(); } catch(_e) {}
+  // AMS-01 external save: request-scoped execution cache starts clean already;
+  // do not reset it again before the canonical save path.
 
   // GATE J (20260502): the 4 pre-save cache invalidations were removed.
   // They are duplicated at end-of-function (lines ~900-909) which already

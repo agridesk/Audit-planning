@@ -33,6 +33,8 @@ const checks=[
  ['r4 default weekend marker not occupancy',r4.includes("if(z.auditRef||z.start||z.end)slots.push(z)")&&!r4.includes("if(z.start||z.end||z.auditRef||z.status)slots.push(z)")]
 ,
  ['r5 quarter-hour time navigation',r5.includes('step="900" list="quarterHours"')&&r5.includes('function snapQuarter(v)')]
+ ['r54 implicit availability is green',r5.includes("state:'YES',available:'YES'")&&r5.includes("visualState=fullDayBlocked?'no':hasOccupancy?'partial':'yes'")],
+ ['r54 occupied slot is partial not full unavailable',r5.includes("hasOccupancy?'PARTLY OCCUPIED':'YES'")],
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

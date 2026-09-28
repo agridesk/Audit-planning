@@ -31,6 +31,8 @@ const checks=[
  ['r5 preferred months UI',r5.includes("a.preferredAuditMonths?'Preferred: '")],
  ['r5 required-hours drives default end',r5.includes("Math.round(Number(a.requiredHours)*60)")&&r5.includes("q('#start').addEventListener('change'")],
  ['r4 default weekend marker not occupancy',r4.includes("if(z.auditRef||z.start||z.end)slots.push(z)")&&!r4.includes("if(z.start||z.end||z.auditRef||z.status)slots.push(z)")]
+,
+ ['r5 quarter-hour time navigation',r5.includes('step="900" list="quarterHours"')&&r5.includes('function snapQuarter(v)')]
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

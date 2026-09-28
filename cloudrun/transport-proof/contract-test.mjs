@@ -28,7 +28,9 @@ const checks=[
  ['r4 availability identity fallback',r4.includes('function availabilityProjection(values,candidates')&&r4.includes("cn=col(h,['Auditor_Name','Auditor Name','Auditor'])")],
  ['r4 company planning context',r4.includes('function companyPlanningContext(')&&r4.includes('audit.preferredAuditMonths=companyCtx.preferredAuditMonths')&&r4.includes('audit.locations=companyCtx.locations')],
  ['r5 canonical locations UI',r5.includes('for(const x of a.locations||[])')&&r5.includes('id="location"')],
- ['r5 preferred months UI',r5.includes("a.preferredAuditMonths?'Preferred: '")]
+ ['r5 preferred months UI',r5.includes("a.preferredAuditMonths?'Preferred: '")],
+ ['r5 required-hours drives default end',r5.includes("Math.round(Number(a.requiredHours)*60)")&&r5.includes("q('#start').addEventListener('change'")],
+ ['r4 default weekend marker not occupancy',r4.includes("if(z.auditRef||z.start||z.end)slots.push(z)")&&!r4.includes("if(z.start||z.end||z.auditRef||z.status)slots.push(z)")]
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

@@ -6,7 +6,7 @@
  * - Legacy/open handoff remains supported for compatibility.
  * - Commit mode delegates to canonical saveManagerPlanning().
  ***********************************************************************/
-var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-28_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R8_ROTATION_READ_UNBOUNDED_BLOCKS';
+var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-28_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R9_FAST_COMMIT_RESPONSE';
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_MAX_FUTURE_MS = 90 * 1000;
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CLOCK_SKEW_MS = 10 * 1000;
 
@@ -170,7 +170,22 @@ function ExternalPlanningWorkspaceHandoff_commit_(identity) {
     externalSession:true
   };
 
-  return saveManagerPlanning(auditId, payload);
+  var started = Date.now();
+  var saved = saveManagerPlanning(auditId, payload);
+  var bridgeMs = Date.now() - started;
+  if (!saved || saved.success !== true) return saved || { success:false, error:'EMPTY_SAVE_RESULT', totalMs:bridgeMs };
+  return {
+    success:true,
+    auditId:auditId,
+    newStatus:String(saved.newStatus || (saved.statusTransition && saved.statusTransition.afterStatus) || ''),
+    assignedTo:String(saved.assignedTo || auditorEmail),
+    plannedDates:Array.isArray(saved.plannedDates) ? saved.plannedDates : [],
+    plannedHours:saved.plannedHours,
+    softWarnings:Array.isArray(saved.softWarnings) ? saved.softWarnings : [],
+    totalMs:Number(saved.totalMs || bridgeMs),
+    bridgeMs:bridgeMs,
+    notificationQueued:!!(saved.notificationBridge && saved.notificationBridge.success)
+  };
 }
 
 function ExternalPlanningWorkspaceHandoff_render_(identity) {

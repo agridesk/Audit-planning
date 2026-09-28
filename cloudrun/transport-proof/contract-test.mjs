@@ -1,0 +1,19 @@
+import fs from 'node:fs';
+const r4=fs.readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+const r5=fs.readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
+const checks=[
+ ['r5 focused planning route',r5.includes("u.pathname==='/planning'")&&r5.includes('planningHtml(auditId)')],
+ ['r5 canonical save route',r5.includes("u.pathname==='/api/v1/planning/save'")&&r5.includes('canonicalPlanningSave')],
+ ['r5 session required',r5.includes("error:'SESSION_REQUIRED'")],
+ ['r5 canonical GAS writer',r5.includes("searchParams.set('action','externalplanningworkspace')")],
+ ['r5 required-hours UI',r5.includes('id="requiredHours"')&&r5.includes('a.requiredHours')],
+ ['r5 preassigned UI',r5.includes('id="preassigned"')&&r5.includes('a.preassignedAuditor')],
+ ['r4 required-hours projection',r4.includes("requiredHours:Number(String(g(['Total audit time in hours'")],
+ ['r4 no five-candidate truncation',!r4.includes('.slice(0,5);')],
+ ['r4 qualification remains scope-based',r4.includes('required.every(sc=>')],
+ ['r4 focused read bounded batch',r4.includes("sheetsBatchGet(['Audit planning!A1:AX768','Auditors!A1:AZ256','Auditor Availability!A1:P768','Concept Reservations!A1:P256','Config_Scopes!A1:Z128'])")]
+];
+const failed=checks.filter(([,ok])=>!ok);
+for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);
+if(failed.length){console.error('Contract failures: '+failed.map(([n])=>n).join(', '));process.exit(1);}
+console.log('Focused Planning 2.0 contract GREEN: '+checks.length+'/'+checks.length);

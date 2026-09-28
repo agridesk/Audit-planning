@@ -682,6 +682,7 @@ function _mp_getEligibleAuditorsList_(ss, requiredScopes, preassignedName, audit
       hardBlockQualification: false,
       ineligibleReason: '',
       performedByScope: performedByScope,
+      rotationByScope: rotationByScope,
       performedCount: performedCount,
       maxAllowed: strictestMax,
       qualifiedCanonical: true,
@@ -995,6 +996,7 @@ function getToolkitRotationMetaV5(auditId, auditorEmail) {
     var email = String(audRow[idxEmail] || '').trim();
     var maxByScope = _mp_rotationMaxByScopeFromConfig_(ss) || {};
     var strictestMax = null;
+    var rotationByScope = {};
     var requiredCanonical = ctx.requiredScopes.map(function(sc) {
       try { return _mp_scopeCanonicalForRotation_(ss, sc) || sc; } catch(e) { return sc; }
     });
@@ -1008,11 +1010,16 @@ function getToolkitRotationMetaV5(auditId, auditorEmail) {
     var performedByScope = _mp_rotationProfileForAuditorFromIndex_(logIndex, email || name, requiredCanonical, ctx.currentYear) || {};
     var performedCount = 0;
     var softBlockRotation = false;
+    var nearRotationLimit = false;
     requiredCanonical.forEach(function(sc) {
       var pc = performedByScope.hasOwnProperty(sc) ? Number(performedByScope[sc] || 0) : 0;
       if (pc > performedCount) performedCount = pc;
       var mx = maxByScope.hasOwnProperty(sc) ? Number(maxByScope[sc]) : null;
-      if (mx != null && isFinite(mx) && mx > 0 && pc >= mx) softBlockRotation = true;
+      var atLimit = mx != null && isFinite(mx) && mx > 0 && pc >= mx;
+      var nearLimit = mx != null && isFinite(mx) && mx > 0 && pc === (mx - 1);
+      if (atLimit) softBlockRotation = true;
+      if (nearLimit) nearRotationLimit = true;
+      rotationByScope[sc] = { performedCount:pc, maxAllowed:(mx != null && isFinite(mx)) ? mx : null, atLimit:atLimit, nearLimit:nearLimit };
     });
 
     var auditor = {
@@ -1021,7 +1028,7 @@ function getToolkitRotationMetaV5(auditId, auditorEmail) {
       blockedWeekdays: idxBW >= 0 ? String(audRow[idxBW] || '').trim() : '',
       isPreassigned: String(ctx.preassigned || '').trim().toLowerCase() === String(email || name).trim().toLowerCase(),
       softBlockRotation: softBlockRotation,
-      nearRotationLimit: !!(strictestMax && performedCount >= Math.max(0, Number(strictestMax) - 1)),
+      nearRotationLimit: nearRotationLimit,
       ineligible: !qualified,
       hardBlockQualification: !qualified,
       ineligibleReason: qualified ? '' : 'Auditor is not active, not role=auditor, or not qualified for required scopes.',

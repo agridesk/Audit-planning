@@ -922,6 +922,7 @@ function getToolkitEligibilityLightV5(auditId) {
   var t0 = Date.now();
   try {
     var ctx = TK3S_readAuditContext_R24_(auditId);
+    var tCtx = Date.now();
     if (typeof _mp_getQualifiedAuditorsFastList_ !== 'function') {
       throw new Error('Missing _mp_getQualifiedAuditorsFastList_');
     }
@@ -962,6 +963,8 @@ function getToolkitRotationMetaV5(auditId, auditorEmail) {
         if (cached && cached.success === true) {
           cached.__serverMs = Date.now() - t0;
           cached.__rotationResultCache = 'HIT';
+          cached.__timing = { cacheHitMs:Date.now()-t0, totalMs:Date.now()-t0 };
+          try { Logger.log('[ROTATION_PERF] ' + JSON.stringify({auditId:String(auditId||'').trim(),auditorEmail:String(auditorEmail||'').trim().toLowerCase(),cache:'HIT',timing:cached.__timing})); } catch(ePerfHit) {}
           return cached;
         }
       }
@@ -998,6 +1001,7 @@ function getToolkitRotationMetaV5(auditId, auditorEmail) {
       }
     }
     if (!audRow) throw new Error('Auditor not found: ' + auditorEmail);
+    var tAud = Date.now();
 
     var active = _mp_isYes_(audRow[idxActive]);
     var role = String(audRow[idxRole] || '').trim().toLowerCase();
@@ -1007,6 +1011,7 @@ function getToolkitRotationMetaV5(auditId, auditorEmail) {
     var name = String(audRow[idxName] || '').trim();
     var email = String(audRow[idxEmail] || '').trim();
     var maxByScope = _mp_rotationMaxByScopeFromConfig_(ss) || {};
+    var tMax = Date.now();
     var strictestMax = null;
     var rotationByScope = {};
     var requiredCanonical = ctx.requiredScopes.map(function(sc) {
@@ -1019,7 +1024,9 @@ function getToolkitRotationMetaV5(auditId, auditorEmail) {
     });
 
     var logIndex = _mp_buildLogIndexForCompany_(ss, ctx.companyUid, ctx.company);
+    var tLog = Date.now();
     var performedByScope = _mp_rotationProfileForAuditorFromIndex_(logIndex, email || name, requiredCanonical, ctx.currentYear) || {};
+    var tProfile = Date.now();
     var performedCount = 0;
     var softBlockRotation = false;
     var nearRotationLimit = false;
@@ -1068,8 +1075,10 @@ function getToolkitRotationMetaV5(auditId, auditorEmail) {
         rotationMode: 'SELECTED_AUDITOR_SOFT_METADATA_ONLY'
       },
       __serverMs: Date.now() - t0,
-      __rotationResultCache: 'MISS'
+      __rotationResultCache: 'MISS',
+      __timing:{ contextMs:tCtx-t0, auditorMs:tAud-tCtx, maxConfigMs:tMax-tAud, logIndexMs:tLog-tMax, profileMs:tProfile-tLog, totalMs:Date.now()-t0 }
     };
+    try { Logger.log('[ROTATION_PERF] ' + JSON.stringify({auditId:ctx.auditId,auditorEmail:email,cache:'MISS',timing:result.__timing})); } catch(ePerfLog) {}
     try { CacheService.getScriptCache().put(cacheKey, JSON.stringify(result), 300); } catch (eCacheWrite) {}
     return result;
   } catch(e) {

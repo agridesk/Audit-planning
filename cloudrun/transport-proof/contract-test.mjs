@@ -76,6 +76,7 @@ const checks=[
  ['r81 direct rotation endpoint is wired through Cloud Run',r4.includes("/api/v1/planning/rotation-direct")&&r4.includes('directRotationRead(auditId,auditorEmail)')&&r4.includes("__rotationReadOwner:'CLOUD_RUN_DIRECT_SHEETS'")&&r5.includes("/api/v1/planning/rotation-direct")],
  ['r81 direct rotation preserves canonical alias normalization and selected-scope dedupe',r4.includes("function rotationLooseKey(v){return key(v).replace(/\\s+/g,'')")&&r4.includes("required=[...new Set(scopesForAudit")],
  ['r81 direct rotation preserves canonical company UID to name fallback',r4.includes("if(uid){if(ru!==uid&&key(rn)!==key(company))continue}else if(key(rn)!==key(company))continue")],
+ ['r81 direct rotation preserves canonical auditor identity fields',r4.includes("targetAud=audMap.byEmail.get(target)")&&r4.includes("name:targetAud.name||target,email:targetAud.email||target")],
  ['manager portal presents canonical Approved as Pending acceptance',manager.includes('function displayStatus')&&manager.includes('s==="approved"?"Pending acceptance"')&&manager.includes('displayStatus(r.status)')],
  ['r77 save bridge exposes timing without changing canonical writer',r5.includes('const bridgeStarted=Date.now()')&&r5.includes('transportTiming={gasBridgeMs:bridgeMs,gasReportedMs:Number(out.totalMs||0)||null}')&&r5.includes("writeUrl.searchParams.set('action','externalplanningworkspace')")],
  ['save hot path does not reset fresh request execution cache',!backend.includes('try { AS_resetExecCache_(); } catch(_e) {}')],

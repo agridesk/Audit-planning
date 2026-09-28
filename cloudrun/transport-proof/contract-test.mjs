@@ -23,7 +23,10 @@ const checks=[
  ['r4 required-hours projection',r4.includes("requiredHours:Number(String(g(['Total audit time in hours'")],
  ['r4 no five-candidate truncation',!r4.includes('.slice(0,5);')],
  ['r4 qualification remains scope-based',r4.includes('required.every(sc=>')],
- ['r4 focused read bounded batch',r4.includes("sheetsBatchGet(['Audit planning!A1:AX768','Auditors!A1:AZ256','Auditor Availability!A1:P768','Concept Reservations!A1:P256','Config_Scopes!A1:Z128'])")]
+ ['r4 focused read bounded batch',r4.includes("sheetsBatchGet(['Audit planning!A1:AX768','Auditors!A1:AZ256','Auditor Availability!A1:P768','Concept Reservations!A1:P256','Config_Scopes!A1:Z128','Companies!A1:AZ768'])")],
+ ['r4 company planning context',r4.includes('function companyPlanningContext(')&&r4.includes('audit.preferredAuditMonths=companyCtx.preferredAuditMonths')&&r4.includes('audit.locations=companyCtx.locations')],
+ ['r5 canonical locations UI',r5.includes('for(const x of a.locations||[])')&&r5.includes('id="location"')],
+ ['r5 preferred months UI',r5.includes("a.preferredAuditMonths?'Preferred: '")]
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

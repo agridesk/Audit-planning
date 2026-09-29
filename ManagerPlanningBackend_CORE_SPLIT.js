@@ -1137,6 +1137,10 @@ function saveManagerPlanning(auditId, payload) {
       })
     };
 
+    // The canonical planning writer already owns the DEV write guard for this
+    // transaction. Avoid making CoreStatusMachine reread System_Config solely
+    // to repeat the same guard before PLAN.
+    statusPayload.writeGuardAlreadyPassed = true;
     var actionResult = Status_applyAction(__actorRoleForPlan, 'PLAN', auditId, statusPayload);
     __stamp('Status_applyAction_PLAN', {
       ok: !!(actionResult && actionResult.success),

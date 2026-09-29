@@ -278,7 +278,13 @@ function Status_applyAction(actor, action, auditId, payload) {
     // its own targeted diagnostics for queue failures and exceptional branches.
     if (result && result.success === true) {
       try {
-        if (typeof StatusNotificationBridge_Dispatch_ === 'function') {
+        // Manager PLAN is already durably represented by the canonical row,
+        // lifecycle metadata and audit-trail queue row. The operational
+        // notification can be repaired/reconciled asynchronously; it must not
+        // extend the interactive planning save with another queue transaction.
+        if (action === ACTION.PLAN && actor === ROLE.MANAGER) {
+          result.notificationBridge = { success:true, skipped:true, deferred:true, reason:'MANAGER_PLAN_RECONCILER' };
+        } else if (typeof StatusNotificationBridge_Dispatch_ === 'function') {
           result.notificationBridge = StatusNotificationBridge_Dispatch_(action, actor, ctx, payload, result) || { success:true, skipped:true, reason:'NO_QUEUE_RESULT' };
         } else {
           Logger.log('[F4-J][NOTIFY_BRIDGE_MISSING] StatusNotificationBridge_Dispatch_ not deployed');

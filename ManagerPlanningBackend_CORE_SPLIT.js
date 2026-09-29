@@ -1246,6 +1246,24 @@ function saveManagerPlanning(auditId, payload) {
     __dbg.total = { ms: res.totalMs };
     __stamp('tail_returnReady');
     res.debugTiming = __dbg;
+
+    // AMS-01 SAVE RCA: keep the latest successful canonical save timing in
+    // Script Properties so it remains inspectable even when the Apps Script
+    // Executions UI does not expose the doPost log details.
+    try {
+      var __diagRecord = {
+        capturedAt: new Date().toISOString(),
+        auditId: auditId,
+        totalMs: res.totalMs,
+        debugTiming: __dbg
+      };
+      var __diagJson = JSON.stringify(__diagRecord);
+      PropertiesService.getScriptProperties().setProperty('AMS_LAST_PLANNING_SAVE_DIAG', __diagJson);
+      PropertiesService.getScriptProperties().setProperty('AMS_LAST_PLANNING_SAVE_DIAG::' + auditId, __diagJson);
+    } catch (__diagPersistErr) {
+      try { Logger.log('[AMS_SAVE_DIAG_PERSIST_ERROR] ' + String(__diagPersistErr)); } catch (_diagLogErr) {}
+    }
+
     return res;
 
   } catch (e) {
@@ -6147,4 +6165,31 @@ function RUN_d49_HtmlBundleAudit() {
 
   Logger.log('d49_HTML_BUNDLE_AUDIT ' + JSON.stringify(result));
   return result;
+}
+
+
+/**
+ * AMS-01 SAVE RCA — manual diagnostic reader.
+ * Run from the Apps Script editor after a Planning Toolkit save.
+ * No sheet reads/writes; reads the latest persisted timing only.
+ */
+function RUN_LAST_PLANNING_SAVE_DIAG() {
+  var raw = '';
+  try {
+    raw = PropertiesService.getScriptProperties().getProperty('AMS_LAST_PLANNING_SAVE_DIAG') || '';
+  } catch (e) {
+    var err = { success:false, message:'Could not read AMS_LAST_PLANNING_SAVE_DIAG: ' + String(e && e.message || e) };
+    Logger.log(JSON.stringify(err, null, 2));
+    return err;
+  }
+  if (!raw) {
+    var empty = { success:false, message:'No persisted Planning Save diagnostic found yet.' };
+    Logger.log(JSON.stringify(empty, null, 2));
+    return empty;
+  }
+  var out;
+  try { out = JSON.parse(raw); }
+  catch (e2) { out = { success:false, message:'Persisted diagnostic is invalid JSON', raw:raw }; }
+  Logger.log('[AMS_LAST_PLANNING_SAVE_DIAG] ' + JSON.stringify(out, null, 2));
+  return out;
 }

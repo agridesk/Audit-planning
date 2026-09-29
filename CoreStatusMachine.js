@@ -230,7 +230,9 @@ function Status_applyAction(actor, action, auditId, payload) {
   try {
     if (!auditId) return Status_fail_('Missing auditId');
 
-    var writeGuard = Status_checkDevWriteGuard_(action, auditId);
+    var writeGuard = (action === ACTION.PLAN && payload.writeGuardAlreadyPassed === true)
+      ? { success:true, ok:true, code:'CANONICAL_PLANNING_WRITER_GUARD' }
+      : Status_checkDevWriteGuard_(action, auditId);
     if (!writeGuard.ok) return writeGuard;
 
     var ctx = Status_loadAudit_(auditId);

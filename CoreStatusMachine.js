@@ -495,8 +495,6 @@ function Status_applyPlan_(ctx, transition, payload, actorFromDispatcher, action
   if (ctx.col.planned >= 0 && res.json.blocks[0] && res.json.blocks[0].date) {
     row[ctx.col.planned] = String(res.json.blocks[0].date);
   }
-  ctx.sheet.getRange(ctx.rowIndex, 1, 1, row.length).setValues([row]);
-
   var effectiveTransition = {
     beforeStatus: transition.beforeStatus,
     beforeStatusDisplay: transition.beforeStatusDisplay,
@@ -504,7 +502,12 @@ function Status_applyPlan_(ctx, transition, payload, actorFromDispatcher, action
     afterStatusDisplay: effectiveAfterStatusDisplay
   };
 
+  // Let lifecycle fold PLAN metadata into this same row, then perform one
+  // canonical Audit planning write for planning + status + lifecycle metadata.
+  ctx.row = row;
   var lifecycle = Status_lifecycleOnStatusChanged_(ctx, effectiveTransition, actorFromDispatcher || actor, ACTION.PLAN, payload, 'CoreStatusMachine.Status_applyPlan_');
+  row = (ctx.row || row).slice();
+  ctx.sheet.getRange(ctx.rowIndex, 1, 1, row.length).setValues([row]);
 
   // PLAN is invoked by the canonical planning writer, which owns cache
   // invalidation after the full save transaction. Invalidating here destroys

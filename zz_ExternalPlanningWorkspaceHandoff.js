@@ -6,7 +6,7 @@
  * - Legacy/open handoff remains supported for compatibility.
  * - Commit mode delegates to canonical saveManagerPlanning().
  ***********************************************************************/
-var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-29_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R16_IFRAME_RESULT';
+var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-29_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R17_IFRAME_RESULT_ALLOWALL';
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_MAX_FUTURE_MS = 90 * 1000;
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CLOCK_SKEW_MS = 10 * 1000;
 
@@ -215,7 +215,8 @@ function ExternalPlanningWorkspaceHandoff_render_(identity) {
       .replace(/>/g, '\\u003e')
       .replace(/&/g, '\\u0026');
     return HtmlService
-      .createHtmlOutput('<!doctype html><meta charset="utf-8"><title>AMS Planning Commit</title><script>try{parent.postMessage('+commitMessage+',"*")}catch(e){}<\\/script>')
+      .createHtmlOutput('<!doctype html><meta charset="utf-8"><title>AMS Planning Commit</title><script>try{var m='+commitMessage+';parent.postMessage(m,"*");top.postMessage(m,"*")}catch(e){}<\\/script>')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
       .setTitle('AMS Planning Commit');
   }
 

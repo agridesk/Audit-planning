@@ -13,7 +13,7 @@ const availabilityLoader=availability.slice(availability.indexOf('function _ensu
 const checks=[
  ['planning commit bridge is browser mediated',r5.includes('/api/v1/planning/commit-handoff')&&r5.includes('form.submit()')],
  ['planning commit does not server-fetch GAS',!r5.includes('PLANNING_WRITE_BRIDGE_TIMEOUT_45000')&&!r5.includes('canonicalPlanningSave(identity,body)')],
- ['notification duplicate lookup avoids wide queue-row reads',notificationBuilder.includes('hashRange.createTextFinder(hash)')&&notificationBuilder.includes("getRange(rowNoFast, 2).getDisplayValue()")],
+ ['notification duplicate lookup avoids wide queue-row reads',notificationBuilder.includes('hashRange.createTextFinder(hash)')&&notificationBuilder.includes('statusValues')&&!notificationBuilder.includes("getRange(rowNoFast, 2).getDisplayValue()")],
  ['manager PLAN notification diagnostics stay off save hot path',statusBridge.includes("Status_normalizeAction_(action) === ACTION.PLAN")&&statusBridge.includes("Status_normalizeRole_(actor) === ROLE.MANAGER")],
  ['PLAN status phase diagnostics exposed',statusMachine.includes("__statusStamp_('loadAuditMs')")&&statusMachine.includes("__statusStamp_('applyActionMs')")&&statusMachine.includes("__statusStamp_('notificationMs')")&&backend.includes('statusPerf: actionResult && actionResult.statusPerf')],
  ['save diagnostics attached after final timing stamp',backend.indexOf("__stamp('tail_returnReady')")<backend.indexOf('res.debugTiming = __dbg')],

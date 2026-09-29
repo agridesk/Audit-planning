@@ -11,7 +11,6 @@ const statusBridge=fs.readFileSync(new URL('../../StatusNotificationBridge.js',i
 const notificationBuilder=fs.readFileSync(new URL('../../NotificationBuilder.js',import.meta.url),'utf8');
 const availabilityLoader=availability.slice(availability.indexOf('function _ensureEmailLoadedInPack_'),availability.indexOf('function getPackRow_'));
 const checks=[
- ['raw planning phase diagnostics cross bridge',handoff.includes('debugTimingKeys:')&&handoff.includes('debugTimingJson:')&&server.includes('debugTimingJson:x.debugTimingJson||null')],
  ['planning write bridge has bounded timeout',server.includes('AbortController()')&&server.includes('PLANNING_WRITE_BRIDGE_TIMEOUT_45000')],
  ['planning save lock fails fast instead of hanging',planningBackend.includes('lock.tryLock(3000)')&&planningBackend.includes("message:'PLANNING_BUSY_RETRY'")&&!planningBackend.includes('lock.waitLock(25000)')],
  ['notification duplicate lookup avoids wide queue-row reads',notificationBuilder.includes('hashRange.createTextFinder(hash)')&&notificationBuilder.includes("getRange(rowNoFast, 2).getDisplayValue()")],

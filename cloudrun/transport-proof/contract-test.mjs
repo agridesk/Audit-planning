@@ -104,6 +104,7 @@ const checks=[
  ['stale planning saves fail before Availability I/O',backend.includes('prePlanTransitionGuard')&&backend.indexOf('prePlanTransitionGuard')<backend.indexOf('var pre = V5_availabilityValidate_')&&backend.includes("Status_canTransition_({ status:__preStatus, action:'PLAN'")],
  ['canonical save reuses cached Audit planning row after qualification',backend.includes('auditPlanningRowReuse')&&backend.includes('__saveRowPack')],
  ['status PLAN reuses cached Audit planning header',statusMachine.includes('use the canonical Audit planning execution cache first')&&statusMachine.includes('__indexed.hdr')],
+ ['canonical Planning writer owns write guard once',backend.includes("SYS_ENFORCE_WRITE_ALLOWED('STATUS_PLAN', auditId)")&&backend.includes('writeGuardAlreadyPassed = true')&&statusMachine.includes("payload.writeGuardAlreadyPassed === true")],
  ['status PLAN writes planned date once',!statusMachine.includes("setNumberFormat('@').setValue(res.json.blocks[0].date)")],
  ['status PLAN leaves Audit planning invalidation to canonical writer',!statusMachine.slice(statusMachine.indexOf('function Status_applyPlan_'),statusMachine.indexOf('function Status_applySimpleStatusWrite_')).includes('Status_invalidateAuditPlanningPack_()')&&backend.includes('tail_auditPlanningInvalidated')],
  ['notification duplicate check batches candidate status read',notificationBuilder.includes('candidateRows')&&notificationBuilder.includes('statusValues')],

@@ -84,6 +84,23 @@ async function handlePlanningCommitHandoff(req,res){
   const handoff=planningCommitForm(identity,body);if(!handoff.ok)return sendJson(res,400,{ok:false,error:handoff.error});
   return sendJson(res,200,{ok:true,action:handoff.action,fields:handoff.fields});
 }
+const ROTATION_CACHE_TTL_MS=5*60*1000;
+const rotationReadCache=new Map(),rotationReadInflight=new Map();
+function rotationCacheKey(auditId,auditorEmail){return clean(auditId)+'|'+clean(auditorEmail).toLowerCase()}
+async function canonicalRotationReadUncached(identity,auditId,auditorEmail){const started=Date.now(),u=new URL('http://127.0.0.1:'+INNER_PORT+'/api/v1/planning/rotation-direct');u.searchParams.set('auditId',clean(auditId));u.searchParams.set('auditorEmail',clean(auditorEmail).toLowerCase());const r=await fetch(u,{method:'GET',headers:{cookie:SESSION_COOKIE+'='+issueSession(identity)},redirect:'manual'}),raw=await r.text();let out;try{out=JSON.parse(raw)}catch{throw new Error('ROTATION_DIRECT_NON_JSON_'+r.status)}if(!r.ok||out.success===false)throw new Error(out.detail||out.message||out.error||('ROTATION_DIRECT_HTTP_'+r.status));out.__bridgeTiming={fetchMs:Date.now()-started,bodyMs:0,totalMs:Date.now()-started};return out;}
+async function canonicalRotationRead(identity,auditId,auditorEmail){
+  const key=rotationCacheKey(auditId,auditorEmail),now=Date.now(),hit=rotationReadCache.get(key);
+  if(hit&&hit.expiresAt>now)return {...hit.value,__rotationCache:'HIT'};
+  if(hit)rotationReadCache.delete(key);
+  if(rotationReadInflight.has(key))return rotationReadInflight.get(key);
+  const pending=canonicalRotationReadUncached(identity,auditId,auditorEmail).then(out=>{
+    if(out&&out.success!==false)rotationReadCache.set(key,{value:out,expiresAt:Date.now()+ROTATION_CACHE_TTL_MS});
+    return {...out,__rotationCache:'MISS'};
+  }).finally(()=>rotationReadInflight.delete(key));
+  rotationReadInflight.set(key,pending);
+  return pending;
+}
+async function handlePlanningRotation(req,res,u){const identity=await sessionIdentity(req);if(!identity)return sendJson(res,401,{ok:false,error:'SESSION_REQUIRED'});if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{ok:false,error:'ROLE_FORBIDDEN'});const auditId=clean(u.searchParams.get('auditId')),auditorEmail=clean(u.searchParams.get('auditorEmail')).toLowerCase();if(!auditId||!auditorEmail)return sendJson(res,400,{ok:false,error:'ROTATION_REQUIRED_FIELDS_MISSING'});try{const out=await canonicalRotationRead(identity,auditId,auditorEmail);return sendJson(res,out&&out.success===false?409:200,out);}catch(err){return sendJson(res,500,{ok:false,error:'ROTATION_READ_BRIDGE_FAILED',detail:clean(err&&err.message||err)});}}
 function planningHtml(auditId){
   const id=JSON.stringify(clean(auditId)).replace(/</g,'\\u003c').replace(/>/g,'\\u003e').replace(/&/g,'\\u0026').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AMS - Planning 2.0</title><style>

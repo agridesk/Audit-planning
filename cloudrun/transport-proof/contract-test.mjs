@@ -11,6 +11,8 @@ const statusBridge=fs.readFileSync(new URL('../../StatusNotificationBridge.js',i
 const notificationBuilder=fs.readFileSync(new URL('../../NotificationBuilder.js',import.meta.url),'utf8');
 const lifecycle=fs.readFileSync(new URL('../../AuditLifecycleService.js',import.meta.url),'utf8');
 const systemConfig=fs.readFileSync(new URL('../../SystemConfig.js',import.meta.url),'utf8');
+const auditPlanningPerfCache=fs.readFileSync(new URL('../../AuditPlanningPerfCache.js',import.meta.url),'utf8');
+const auditPlanningIndex=fs.readFileSync(new URL('../../AuditPlanningRowIndexCache.js',import.meta.url),'utf8');
 const availabilityLoader=availability.slice(availability.indexOf('function _ensureEmailLoadedInPack_'),availability.indexOf('function getPackRow_'));
 const checks=[
  ['planning commit bridge is browser mediated',r5.includes('/api/v1/planning/commit-handoff')&&r5.includes('form.submit()')],
@@ -121,7 +123,8 @@ const checks=[
  ['external commit response is compact and timed',handoff.includes('notificationQueued:!!')&&handoff.includes('bridgeMs:bridgeMs')&&handoff.includes('totalMs:Number(saved.totalMs || bridgeMs)')],
  ['planning save timing is durably persisted for RCA',backend.includes("setProperty('AMS_LAST_PLANNING_SAVE_DIAG'")&&backend.includes('function RUN_LAST_PLANNING_SAVE_DIAG()')],
  ['availability summary invalidation is generation based',availability.includes('AS_bumpAvailabilitySummaryGeneration_')&&availability.includes("mode: 'GENERATION_BUMP'")&&!availability.slice(availability.indexOf('function AS_clearAvailabilitySummaryMapCache_'),availability.indexOf('function AS_plannedSummaryFromAvailabilityMap_')).includes('AUDIT_CACHE.remove')],
- ['Audit planning persist invalidation is generation based',backend.includes('__mp_invalidatePersistCaches_')],
+ ['Audit planning persist invalidation is generation based',auditPlanningPerfCache.includes('MP_AP_PERSIST_GEN_KEY_')&&auditPlanningPerfCache.includes('__mp_bumpAuditPlanningPersistGen_')&&auditPlanningPerfCache.includes("name.toLowerCase() === 'audit planning'")],
+ ['Audit planning row update retains structural index',auditPlanningIndex.includes('function __mp_invalidateAuditPlanningContent_')&&backend.includes('__mp_invalidateAuditPlanningContent_')],
  ['iframe commit result is returned to Cloud Run parent',handoff.includes('AMS_PLANNING_COMMIT_RESULT')&&handoff.includes('parent.postMessage')&&handoff.includes('XFrameOptionsMode.ALLOWALL')&&r5.includes('[SAVE_RESULT]')&&r5.includes("addEventListener('message',onCommitMessage)")],
  ['external commit exposes canonical phase timings',handoff.includes('debugTiming:saved.debugTiming || null')],
  ['planning commit failures remain JSON across GAS bridge',entry.includes("verified.mode === 'commit' || verified.mode === 'rotation'")&&entry.includes("ContentService.createTextOutput(JSON.stringify({success:false,error:'PLANNING_WORKSPACE_'")&&handoff.includes("error:'CANONICAL_PLANNING_SAVE_THROW'")],

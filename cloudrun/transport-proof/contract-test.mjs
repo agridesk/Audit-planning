@@ -121,7 +121,7 @@ const checks=[
  ['manager PLAN lifecycle skips queue append',lifecycle.includes('MANAGER_PLAN_CANONICAL_METADATA')],
  ['PLAN lifecycle avoids duplicate audit cache invalidation',lifecycle.includes('PLAN owned by planning writer')],
  ['external commit response is compact and timed',handoff.includes('notificationQueued:!!')&&handoff.includes('bridgeMs:bridgeMs')&&handoff.includes('totalMs:Number(saved.totalMs || bridgeMs)')],
- ['planning save timing is durably persisted for RCA',backend.includes("setProperty('AMS_LAST_PLANNING_SAVE_DIAG'")&&backend.includes('function RUN_LAST_PLANNING_SAVE_DIAG()')],
+ ['planning save diagnostics stay off synchronous persistence hot path',!backend.includes("setProperty('AMS_LAST_PLANNING_SAVE_DIAG'")&&backend.includes('res.debugTiming = __dbg')],
  ['availability summary invalidation is generation based',availability.includes('AS_bumpAvailabilitySummaryGeneration_')&&availability.includes("mode: 'GENERATION_BUMP'")&&!availability.slice(availability.indexOf('function AS_clearAvailabilitySummaryMapCache_'),availability.indexOf('function AS_plannedSummaryFromAvailabilityMap_')).includes('AUDIT_CACHE.remove')],
  ['Audit planning persist invalidation is generation based',auditPlanningPerfCache.includes('MP_AP_PERSIST_GEN_KEY_')&&auditPlanningPerfCache.includes('__mp_bumpAuditPlanningPersistGen_')&&auditPlanningPerfCache.includes("name.toLowerCase() === 'audit planning'")],
  ['Audit planning row update retains structural index',auditPlanningIndex.includes('function __mp_invalidateAuditPlanningContent_')&&backend.includes('__mp_invalidateAuditPlanningContent_')],

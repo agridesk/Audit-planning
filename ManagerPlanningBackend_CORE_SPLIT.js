@@ -1032,15 +1032,22 @@ function saveManagerPlanning(auditId, payload) {
     var sh = ss.getSheetByName('Audit planning');
     if (!sh) return { success:false, message:"Missing sheet 'Audit planning'", debugTiming: __dbg, totalMs: (Date.now() - __t0) };
 
-    var lastRow = sh.getLastRow();
-    var lastCol = sh.getLastColumn();
-    if (lastRow < 2) return { success:false, message:'Audit planning is empty', debugTiming: __dbg, totalMs: (Date.now() - __t0) };
-
-    var hdr = sh.getRange(1, 1, 1, lastCol).getValues()[0] || [];
-    var rowNumber = V5_findAuditPlanningRowById_(sh, auditId, _mp_findCol_(hdr, ['Audit ID']) + 1);
+    // AMS-01: reuse the Audit planning row/header already loaded for the
+    // qualification and transition guards. Avoid re-reading header + row and
+    // re-running a sheet TextFinder in the same save execution.
+    var __saveRowPack = (__qRowPack && __qRowPack.row)
+      ? __qRowPack
+      : ((typeof __mp_getAuditPlanningRow_ === 'function') ? __mp_getAuditPlanningRow_(ss, auditId) : null);
+    var hdr = (__saveRowPack && __saveRowPack.hdr) ? __saveRowPack.hdr : [];
+    var rowValues = (__saveRowPack && __saveRowPack.row) ? __saveRowPack.row.slice() : [];
+    var rowNumber = Number((__saveRowPack && (__saveRowPack.rowNumber || __saveRowPack.rowIndex)) || 0);
+    if (!hdr.length || !rowValues.length) return { success:false, message:'Audit not found in Audit planning: ' + auditId, debugTiming: __dbg, totalMs: (Date.now() - __t0) };
+    if (!rowNumber) {
+      var __saveAuditIdCol = _mp_findCol_(hdr, ['Audit ID']) + 1;
+      rowNumber = V5_findAuditPlanningRowById_(sh, auditId, __saveAuditIdCol);
+    }
     if (!rowNumber) return { success:false, message:'Audit not found in Audit planning: ' + auditId, debugTiming: __dbg, totalMs: (Date.now() - __t0) };
-
-    var rowValues = sh.getRange(rowNumber, 1, 1, lastCol).getValues()[0] || [];
+    __stamp('auditPlanningRowReuse', { reused:!!(__qRowPack && __qRowPack.row) });
 
     function _idx(names) { return _mp_findCol_(hdr, names || []); }
     var colStatus = _idx(['Status']);

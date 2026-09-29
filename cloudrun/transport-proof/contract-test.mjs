@@ -97,7 +97,7 @@ const checks=[
  ['r81 rotation diagnostics identify direct read owner',r5.includes("readOwner:x.__rotationReadOwner")&&r5.includes("readServerMs:x.__serverMs")&&!r5.includes("gasServerMs:x.__serverMs")],
  ['r82 rotation warning UI does not expose internal state token',!r5.includes("out.push('Rotation: '+c.rotationState)")&&r5.includes("if(c.rotationWarning)out.push(c.rotationWarning)")],
  ['planning commit handoff exposes client transition diagnostics',r5.includes("[SAVE_HANDOFF]")&&r5.includes("GAS_CANONICAL_BROWSER_POST_IFRAME")],
- ['planning save verifies canonical state without fixed 20s delay',r5.includes('verifyCanonical')&&r5.includes('setTimeout(verifyCanonical,1000)')&&!r5.includes('},20000);')],
+ ['planning save verifies canonical state without fixed 20s delay',r5.includes('verifyCanonical')&&r5.includes('setTimeout(verifyCanonical,6000)')&&!r5.includes('},20000);')],
  ['planning save verifier matches payload not status alone',r5.includes('const canonicalMatch=')&&r5.includes("String(va.status||'')==='Approved'")&&r5.includes("String(va.assignedTo||'').trim().toLowerCase()")&&r5.includes('sameBlocks')],
  ['System_Config is execution-cached on hot path',systemConfig.includes('SYS_CONFIG_EXEC_CACHE_')&&systemConfig.includes('if (SYS_CONFIG_EXEC_CACHE_[env]) return SYS_CONFIG_EXEC_CACHE_[env]')],
  ['availability writeback exposes sub-timings',availability.includes('__wbPerf.rowLookupMs')&&availability.includes('__wbPerf.rowWriteMs')&&availability.includes('summaryInvalidationMs')],

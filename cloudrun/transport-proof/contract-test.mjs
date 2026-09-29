@@ -11,6 +11,7 @@ const statusBridge=fs.readFileSync(new URL('../../StatusNotificationBridge.js',i
 const notificationBuilder=fs.readFileSync(new URL('../../NotificationBuilder.js',import.meta.url),'utf8');
 const availabilityLoader=availability.slice(availability.indexOf('function _ensureEmailLoadedInPack_'),availability.indexOf('function getPackRow_'));
 const checks=[
+ ['planning save lock fails fast instead of hanging',planningBackend.includes('lock.tryLock(3000)')&&planningBackend.includes("message:'PLANNING_BUSY_RETRY'")&&!planningBackend.includes('lock.waitLock(25000)')],
  ['notification duplicate lookup avoids wide queue-row reads',notificationBuilder.includes('hashRange.createTextFinder(hash)')&&notificationBuilder.includes("getRange(rowNoFast, 2).getDisplayValue()")],
  ['manager PLAN notification diagnostics stay off save hot path',statusBridge.includes("Status_normalizeAction_(action) === ACTION.PLAN")&&statusBridge.includes("Status_normalizeRole_(actor) === ROLE.MANAGER")],
  ['PLAN status phase diagnostics exposed',statusMachine.includes("__statusStamp_('loadAuditMs')")&&statusMachine.includes("__statusStamp_('applyActionMs')")&&statusMachine.includes("__statusStamp_('notificationMs')")&&backend.includes('statusPerf: actionResult && actionResult.statusPerf')],

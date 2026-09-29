@@ -10,7 +10,7 @@
  **************************************/
 
 var AvailabilityService = (function () {
-  var SERVICE_VERSION = '2026-05-15_AVAILABILITY_CACHE_CANONICAL_R6';
+  var SERVICE_VERSION = '2026-09-29_AVAILABILITY_SAVE_PERF_RCA_R7';
 
   var __AS_EXEC_CACHE = {};
 
@@ -228,6 +228,7 @@ var AvailabilityService = (function () {
   }
 
   function _ensureEmailLoadedInPack_(sh, cm, pack, auditorEmail) {
+    var __t0 = Date.now();
     // AMS-01: bounded single-auditor load. Avoid TextFinder on the complete
     // Availability sheet in save/calendar hot paths. Read only the auditor
     // column once for the bounded used range, then one spanning block for
@@ -235,7 +236,7 @@ var AvailabilityService = (function () {
     var aud = normalizeEmail(auditorEmail);
     if (!aud) return;
     if (!pack.lazyEmails) pack.lazyEmails = {};
-    if (pack.lazyEmails[aud]) return;
+    if (pack.lazyEmails[aud]) { pack.lastEnsurePerf = {cacheHit:true,totalMs:Date.now()-__t0}; return; }
     pack.lazyEmails[aud] = true;
     if (cm.iAud < 0 || cm.iDate < 0) return;
     try {
@@ -243,6 +244,7 @@ var AvailabilityService = (function () {
       if (lastRow < 2) return;
       var finder = sh.getRange(2, cm.iAud + 1, lastRow - 1, 1).createTextFinder(auditorEmail).matchEntireCell(true).matchCase(false);
       var matches = finder.findAll() || [];
+      var __finderMs = Date.now() - __t0;
       var rowNumbers = [];
       for (var i = 0; i < matches.length; i++) rowNumbers.push(matches[i].getRow());
       if (!rowNumbers.length) return;
@@ -252,7 +254,9 @@ var AvailabilityService = (function () {
       var span = maxR - minR + 1;
       var rnSet = {};
       for (var x = 0; x < rowNumbers.length; x++) rnSet[rowNumbers[x]] = true;
+      var __dateReadT0 = Date.now();
       var dateVals = sh.getRange(minR, cm.iDate + 1, span, 1).getValues();
+      var __dateReadMs = Date.now() - __dateReadT0;
       for (var k = 0; k < span; k++) {
         var actualRow = minR + k;
         if (!rnSet[actualRow]) continue;
@@ -262,6 +266,7 @@ var AvailabilityService = (function () {
         if (!pack.byDateAud[key]) pack.byDateAud[key] = [];
         pack.byDateAud[key].push(actualRow);
       }
+      pack.lastEnsurePerf = {cacheHit:false,lastRow:lastRow,matches:rowNumbers.length,span:span,finderMs:__finderMs,dateReadMs:__dateReadMs,totalMs:Date.now()-__t0};
     } catch (e) {
       Logger.log('[AMS01] _ensureEmailLoadedInPack_ failed for ' + aud + ': ' + e);
     }
@@ -357,6 +362,7 @@ var AvailabilityService = (function () {
 
   function findDuplicateAvailabilityRows_() {
     var sh = getSheet_();
+    var __vSheetMs = Date.now()-__vT0;
     var meta = readHeaders_(sh);
     var cm = colMap_(meta.headers);
     validateRequiredCols_(cm);
@@ -694,6 +700,7 @@ var AvailabilityService = (function () {
   }
 
   function validate(auditId, auditorEmail, auditorName, blocks) {
+    var __vT0 = Date.now();
     auditId = cleanText(auditId);
     auditorEmail = normalizeEmail(auditorEmail);
     blocks = blocks || [];
@@ -728,7 +735,9 @@ var AvailabilityService = (function () {
         return { success: false, message: 'Save failed: invalid time range' };
       }
 
+      var __lookupT0 = Date.now();
       var rowNumbers = findRowsByDateAuditor_(sh, cm, dISO, auditorEmail);
+      var __lookupMs = Date.now()-__lookupT0;
       for (var r = 0; r < rowNumbers.length; r++) {
         var info = readRowObject_(sh, rowNumbers[r], cm);
 
@@ -753,7 +762,8 @@ var AvailabilityService = (function () {
       }
     }
 
-    return { success: true, message: 'OK' };
+    var __packPerf = getSheetPack_(sh, meta, cm).lastEnsurePerf || null;
+    return { success: true, message: 'OK', perf:{sheetMs:__vSheetMs, lookupMs:__lookupMs || 0, ensureEmail:__packPerf, totalMs:Date.now()-__vT0} };
   }
 
 

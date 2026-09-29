@@ -104,21 +104,7 @@ function Lifecycle_onStatusChanged_(ctx) {
       lifecycle_addCellUpdate_(updates, target, ['Auditor comment (last)'], auditorComment);
     }
 
-    // PLAN already performs a full canonical Audit planning row write. Fold
-    // lifecycle metadata into that same row whenever the caller supplied the
-    // row snapshot; this removes a second synchronous Sheets write.
-    var metaRes = null;
-    if (action === 'PLAN' && ctx.row && ctx.sheet && Number(ctx.rowIndex || 0) === Number(target.rowIndex || 0)) {
-      var folded = (ctx.row || []).slice();
-      for (var fu = 0; fu < updates.length; fu++) {
-        var fcol = Number(updates[fu] && updates[fu].col || 0);
-        if (fcol > 0) folded[fcol - 1] = updates[fu].value;
-      }
-      ctx.row = folded;
-      metaRes = { success:true, written:true, folded:true, count:updates.length, batches:0 };
-    } else {
-      metaRes = lifecycle_writeUpdates_(target.sheet, target.rowIndex, updates, 'lifecycle status metadata');
-    }
+    var metaRes = lifecycle_writeUpdates_(target.sheet, target.rowIndex, updates, 'lifecycle status metadata');
     __lp('metadataWrittenMs');
     result.statusSinceWritten = !!(metaRes && metaRes.written);
     if (actorRole === 'MANAGER') result.managerMetadataWritten = !!(metaRes && metaRes.written);

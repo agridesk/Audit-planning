@@ -1110,7 +1110,7 @@ function saveManagerPlanning(auditId, payload) {
     var planningJson = JSON.stringify(planningObj);
 
     var wb = V5_availabilityWriteBack_(auditId, auditorEmail, auditorName, payload.blocks, 'Manager Planned');
-    __stamp('V5_availabilityWriteBack_', { ok: !!(wb && wb.success) });
+    __stamp('V5_availabilityWriteBack_', { ok: !!(wb && wb.success), perf: wb && wb.perf ? wb.perf : null });
     if (!wb || wb.success === false) {
       return {
         success: false,
@@ -1160,6 +1160,7 @@ function saveManagerPlanning(auditId, payload) {
       newStatus: actionResult && (actionResult.newStatus || actionResult.afterStatusDisplay || '') || '',
       notificationBridge: !!(actionResult && actionResult.notificationBridge),
       statusPerf: actionResult && actionResult.statusPerf ? actionResult.statusPerf : null,
+      planPerf: actionResult && actionResult.planPerf ? actionResult.planPerf : null,
       notificationPerf: actionResult && actionResult.notificationBridge && actionResult.notificationBridge.__perf ? actionResult.notificationBridge.__perf : null,
       queuePerf: actionResult && actionResult.notificationBridge && actionResult.notificationBridge.queueResult && actionResult.notificationBridge.queueResult.__perf ? actionResult.notificationBridge.queueResult.__perf : null
     });

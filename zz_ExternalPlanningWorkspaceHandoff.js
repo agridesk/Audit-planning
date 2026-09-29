@@ -170,7 +170,9 @@ function ExternalPlanningWorkspaceHandoff_commit_(identity) {
     comment:comment,
     actorEmail:String(identity.email || '').trim().toLowerCase(),
     actorRole:'MANAGER',
-    externalSession:true
+    externalSession:true,
+    qualifiedAuditors:Array.isArray(body.qualifiedAuditors) ? body.qualifiedAuditors : [],
+    qualifiedAuditorScopes:Array.isArray(body.qualifiedAuditorScopes) ? body.qualifiedAuditorScopes : []
   };
 
   var started = Date.now();

@@ -466,6 +466,8 @@ function Status_loadAudit_(auditId) {
 }
 
 function Status_applyPlan_(ctx, transition, payload, actorFromDispatcher, actionFromDispatcher) {
+  var __planT0 = Date.now();
+  var __planPerf = {};
   payload = payload || {};
   var actor = Status_normalizeRole_(payload.actorRole || payload.role || '');
   var res = Status_validateAndBuildPlanning_(payload);
@@ -505,9 +507,13 @@ function Status_applyPlan_(ctx, transition, payload, actorFromDispatcher, action
   // Let lifecycle fold PLAN metadata into this same row, then perform one
   // canonical Audit planning write for planning + status + lifecycle metadata.
   ctx.row = row;
+  var __planLifecycleT0 = Date.now();
   var lifecycle = Status_lifecycleOnStatusChanged_(ctx, effectiveTransition, actorFromDispatcher || actor, ACTION.PLAN, payload, 'CoreStatusMachine.Status_applyPlan_');
+  __planPerf.lifecycleMs = Date.now() - __planLifecycleT0;
   row = (ctx.row || row).slice();
+  var __planWriteT0 = Date.now();
   ctx.sheet.getRange(ctx.rowIndex, 1, 1, row.length).setValues([row]);
+  __planPerf.auditPlanningRowWriteMs = Date.now() - __planWriteT0;
 
   // PLAN is invoked by the canonical planning writer, which owns cache
   // invalidation after the full save transaction. Invalidating here destroys
@@ -523,6 +529,8 @@ function Status_applyPlan_(ctx, transition, payload, actorFromDispatcher, action
     assignedTo: payload.auditorEmail || payload.auditorName || '',
     hoursPlanned: res.json.totalPlannedHours
   });
+  __planPerf.totalMs = Date.now() - __planT0;
+  actionResult.planPerf = __planPerf;
   actionResult.lifecycle = lifecycle;
   actionResult.metadataWritten = !!(lifecycle && (lifecycle.managerMetadataWritten || lifecycle.statusSinceWritten));
   return actionResult;

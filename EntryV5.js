@@ -471,6 +471,7 @@ function doPost(e) {
   var p=(e&&e.parameter)?e.parameter:{};
 
   var rawAction=String(p.action||'').trim().toLowerCase();
+  if(rawAction==='versioncheck')return ContentService.createTextOutput(JSON.stringify({ok:true,build:'2026-09-29_ENTRYV5_VERSIONCHECK_R1',runtimeEnv:V5_ENTRY_readProjectEnv_()})).setMimeType(ContentService.MimeType.JSON);
 
 
 

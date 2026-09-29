@@ -17,7 +17,7 @@ const checks=[
  ['manager PLAN notification diagnostics stay off save hot path',statusBridge.includes("Status_normalizeAction_(action) === ACTION.PLAN")&&statusBridge.includes("Status_normalizeRole_(actor) === ROLE.MANAGER")],
  ['PLAN status phase diagnostics exposed',statusMachine.includes("__statusStamp_('loadAuditMs')")&&statusMachine.includes("__statusStamp_('applyActionMs')")&&statusMachine.includes("__statusStamp_('notificationMs')")&&backend.includes('statusPerf: actionResult && actionResult.statusPerf')],
  ['save diagnostics attached after final timing stamp',backend.indexOf("__stamp('tail_returnReady')")<backend.indexOf('res.debugTiming = __dbg')],
- ['availability save lookup avoids full auditor-column materialization',availabilityLoader.includes('createTextFinder(auditorEmail)')],
+ ['availability save lookup uses one bounded Date+Auditor index read',availabilityLoader.includes('boundedReadMs')&&!availabilityLoader.includes('createTextFinder')&&availabilityLoader.includes('getValues()')],
  ['r5 focused planning route',r5.includes("u.pathname==='/planning'")&&r5.includes('planningHtml(auditId)')],
  ['r5 canonical commit handoff route',r5.includes("u.pathname==='/api/v1/planning/commit-handoff'")&&r5.includes('handlePlanningCommitHandoff')],
  ['r5 session required',r5.includes("error:'SESSION_REQUIRED'")],

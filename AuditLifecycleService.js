@@ -354,13 +354,18 @@ function lifecycle_writeUpdates_(sheet, rowIndex, updates, label) {
     }
     if (run.length) runs.push(run);
 
-    for (var r = 0; r < runs.length; r++) {
-      var cur = runs[r];
-      var vals = [];
-      for (var j = 0; j < cur.length; j++) vals.push(cur[j].value);
-      sheet.getRange(rowIndex, cur[0].col, 1, cur.length).setValues([vals]);
+    // Lifecycle metadata for one status change lives on one Audit planning
+    // row. Use one bounded read/write spanning the first..last metadata column
+    // instead of one Sheets write per contiguous run.
+    var firstCol = normalized[0].col;
+    var lastCol = normalized[normalized.length - 1].col;
+    var span = lastCol - firstCol + 1;
+    var vals = sheet.getRange(rowIndex, firstCol, 1, span).getValues()[0];
+    for (var j = 0; j < normalized.length; j++) {
+      vals[normalized[j].col - firstCol] = normalized[j].value;
     }
-    return { success:true, written:true, count:normalized.length, batches:runs.length };
+    sheet.getRange(rowIndex, firstCol, 1, span).setValues([vals]);
+    return { success:true, written:true, count:normalized.length, batches:1 };
   } catch (e) {
     return { success:false, written:false, warning:'Write failed for ' + label + ': ' + lifecycle_err_(e) };
   }

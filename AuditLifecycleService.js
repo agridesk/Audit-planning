@@ -43,6 +43,9 @@ var AUDIT_LIFECYCLE_SERVICE_BUILD = '2026-09-08_LIFECYCLE_SIDE_EFFECTS_004_AMS01
 
 function Lifecycle_onStatusChanged_(ctx) {
   ctx = ctx || {};
+  var __perfT0 = Date.now();
+  var __perf = {};
+  function __lp(name){ __perf[name] = Date.now() - __perfT0; }
 
   var auditId = lifecycle_clean_(ctx.auditId);
   var action = lifecycle_normAction_(ctx.action);
@@ -102,6 +105,7 @@ function Lifecycle_onStatusChanged_(ctx) {
     }
 
     var metaRes = lifecycle_writeUpdates_(target.sheet, target.rowIndex, updates, 'lifecycle status metadata');
+    __lp('metadataWrittenMs');
     result.statusSinceWritten = !!(metaRes && metaRes.written);
     if (actorRole === 'MANAGER') result.managerMetadataWritten = !!(metaRes && metaRes.written);
     if (actorRole === 'AUDITOR') result.auditorMetadataWritten = !!(metaRes && metaRes.written);
@@ -112,7 +116,11 @@ function Lifecycle_onStatusChanged_(ctx) {
   }
 
   result.invalidation = Lifecycle_invalidateAfterLifecycleChange_(ctx);
+  __lp('invalidationMs');
   result.auditTrail = Lifecycle_emitAuditTrail_(ctx, stamp);
+  __lp('auditTrailMs');
+  __lp('totalMs');
+  result.__perf = __perf;
 
   return result;
 }

@@ -1250,22 +1250,8 @@ function saveManagerPlanning(auditId, payload) {
     __stamp('tail_returnReady');
     res.debugTiming = __dbg;
 
-    // AMS-01 SAVE RCA: keep the latest successful canonical save timing in
-    // Script Properties so it remains inspectable even when the Apps Script
-    // Executions UI does not expose the doPost log details.
-    try {
-      var __diagRecord = {
-        capturedAt: new Date().toISOString(),
-        auditId: auditId,
-        totalMs: res.totalMs,
-        debugTiming: __dbg
-      };
-      var __diagJson = JSON.stringify(__diagRecord);
-      PropertiesService.getScriptProperties().setProperty('AMS_LAST_PLANNING_SAVE_DIAG', __diagJson);
-      PropertiesService.getScriptProperties().setProperty('AMS_LAST_PLANNING_SAVE_DIAG::' + auditId, __diagJson);
-    } catch (__diagPersistErr) {
-      try { Logger.log('[AMS_SAVE_DIAG_PERSIST_ERROR] ' + String(__diagPersistErr)); } catch (_diagLogErr) {}
-    }
+    // AMS-01: diagnostics travel in the canonical response only.
+    // Do not persist Script Properties on the save hot path.
 
     return res;
 

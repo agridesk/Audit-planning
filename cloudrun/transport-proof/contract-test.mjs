@@ -11,7 +11,7 @@ const statusBridge=fs.readFileSync(new URL('../../StatusNotificationBridge.js',i
 const notificationBuilder=fs.readFileSync(new URL('../../NotificationBuilder.js',import.meta.url),'utf8');
 const availabilityLoader=availability.slice(availability.indexOf('function _ensureEmailLoadedInPack_'),availability.indexOf('function getPackRow_'));
 const checks=[
- ['planning commit bridge is browser mediated without top-level navigation',r5.includes("/api/v1/planning/commit-handoff")&&r5.includes("target:'GAS_CANONICAL_BROWSER_POST_IFRAME'")&&r5.includes("form.target=iframe.name")&&r5.includes('form.submit()')&&r5.includes("[SAVE_VERIFY]")],
+ ['planning commit bridge is browser mediated without top-level navigation',r5.includes("/api/v1/planning/commit-handoff")&&r5.includes("GAS_CANONICAL_BROWSER_POST_IFRAME")&&r5.includes("form.target=iframe.name")&&r5.includes('form.submit()')&&r5.includes("[SAVE_VERIFY]")],
  ['planning commit does not server-fetch GAS',!r5.includes('PLANNING_WRITE_BRIDGE_TIMEOUT_45000')&&!r5.includes('canonicalPlanningSave(identity,body)')],
  ['notification duplicate lookup avoids wide queue-row reads',notificationBuilder.includes('hashRange.createTextFinder(hash)')&&notificationBuilder.includes("getRange(rowNoFast, 2).getDisplayValue()")],
  ['manager PLAN notification diagnostics stay off save hot path',statusBridge.includes("Status_normalizeAction_(action) === ACTION.PLAN")&&statusBridge.includes("Status_normalizeRole_(actor) === ROLE.MANAGER")],

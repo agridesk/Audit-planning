@@ -102,6 +102,7 @@ const checks=[
  ['canonical save reuses cached Audit planning row after qualification',backend.includes('auditPlanningRowReuse')&&backend.includes('__saveRowPack')],
  ['status PLAN reuses cached Audit planning header',statusMachine.includes('use the canonical Audit planning execution cache first')&&statusMachine.includes('__indexed.hdr')],
  ['status PLAN writes planned date once',!statusMachine.includes("setNumberFormat('@').setValue(res.json.blocks[0].date)")],
+ ['status PLAN leaves Audit planning invalidation to canonical writer',!statusMachine.slice(statusMachine.indexOf('function Status_applyPlan_'),statusMachine.indexOf('function Status_applySimpleStatusWrite_')).includes('Status_invalidateAuditPlanningPack_()')&&backend.includes('tail_auditPlanningInvalidated')],
  ['notification duplicate check batches candidate status read',notificationBuilder.includes('candidateRows')&&notificationBuilder.includes('statusValues')],
  ['manager PLAN defers operational notification off save hot path',statusMachine.includes('MANAGER_PLAN_RECONCILER')&&statusMachine.includes("action === ACTION.PLAN && actor === ROLE.MANAGER")],
  ['lifecycle metadata uses one bounded row write',lifecycle.includes('batches:1')&&lifecycle.includes('var span = lastCol - firstCol + 1')],

@@ -369,11 +369,20 @@ function Status_loadAudit_(auditId) {
   var sh = ss.getSheetByName('Audit planning');
   if (!sh) return { found:false, error: Status_fail_("Missing sheet 'Audit planning'") };
 
+  // AMS-01: use the canonical Audit planning execution cache first. The
+  // planning writer already loaded this exact row earlier in the same save.
+  var __indexed = (typeof __mp_getAuditPlanningRow_ === 'function')
+    ? __mp_getAuditPlanningRow_(ss, auditId)
+    : null;
   var lastRow = sh.getLastRow();
-  var lastCol = sh.getLastColumn();
+  var lastCol = (__indexed && __indexed.hdr && __indexed.hdr.length)
+    ? __indexed.hdr.length
+    : sh.getLastColumn();
   if (lastRow < 2 || lastCol < 1) return { found:false, error: Status_fail_('No data in Audit planning') };
 
-  var hdr = sh.getRange(1, 1, 1, lastCol).getValues()[0];
+  var hdr = (__indexed && __indexed.hdr && __indexed.hdr.length)
+    ? __indexed.hdr
+    : sh.getRange(1, 1, 1, lastCol).getValues()[0];
 
   function normHeader_(v) {
     return String(v || '')
@@ -412,9 +421,6 @@ function Status_loadAudit_(auditId) {
 
   // AMS-01: canonical indexed lookup. Avoid a second TextFinder after the
   // planning save path has already resolved this Audit ID.
-  var __indexed = (typeof __mp_getAuditPlanningRow_ === 'function')
-    ? __mp_getAuditPlanningRow_(ss, auditId)
-    : null;
   var cell = null;
   if (!__indexed || !__indexed.rowNumber) {
     var searchRange = sh.getRange(2, idxAI + 1, lastRow - 1, 1);

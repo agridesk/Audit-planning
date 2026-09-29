@@ -277,13 +277,7 @@ function Status_applyAction(actor, action, auditId, payload) {
     // its own targeted diagnostics for queue failures and exceptional branches.
     if (result && result.success === true) {
       try {
-        // Manager PLAN must acknowledge the canonical save immediately. The
-        // AUDIT_PLANNED_BY_MANAGER notification is operational follow-up, not
-        // part of the atomic planning write. Keeping it synchronous made Save
-        // wait on queue rendering, duplicate scans and queue locks.
-        if (action === ACTION.PLAN && actor === ROLE.MANAGER) {
-          result.notificationBridge = { success:true, skipped:true, deferred:true, reason:'MANAGER_PLAN_NOTIFICATION_DEFERRED' };
-        } else if (typeof StatusNotificationBridge_Dispatch_ === 'function') {
+        if (typeof StatusNotificationBridge_Dispatch_ === 'function') {
           result.notificationBridge = StatusNotificationBridge_Dispatch_(action, actor, ctx, payload, result) || { success:true, skipped:true, reason:'NO_QUEUE_RESULT' };
         } else {
           Logger.log('[F4-J][NOTIFY_BRIDGE_MISSING] StatusNotificationBridge_Dispatch_ not deployed');

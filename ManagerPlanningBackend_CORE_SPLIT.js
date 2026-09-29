@@ -983,7 +983,16 @@ function saveManagerPlanning(auditId, payload) {
   }
 
   var lock = LockService.getScriptLock();
-  lock.waitLock(25000);
+  if (!lock.tryLock(3000)) {
+    __stamp('lockTimeout', { ok:false, waitMs:3000 });
+    return {
+      success:false,
+      message:'PLANNING_BUSY_RETRY',
+      retryable:true,
+      debugTiming:__dbg,
+      totalMs:(Date.now()-__t0)
+    };
+  }
   __stamp('lockAcquired');
 
   // Fail fast before Availability validation/writeback. Status_applyAction remains

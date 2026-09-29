@@ -3,7 +3,7 @@ import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 
 const PUBLIC_PORT=Number(process.env.PORT||8080);
 const INNER_PORT=PUBLIC_PORT+1;
-const BUILD='2026-09-29_AMS_PLANNING_BRIDGE_REDIRECT_RCA_R86';
+const BUILD='2026-09-29_AMS_PLANNING_WRITE_RCA_BASELINE_R87';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
@@ -84,9 +84,9 @@ async function canonicalPlanningSave(identity,body){
   const form=new URLSearchParams({mode:'commit',email,role,auditId:chk.auditId,exp:String(exp),planningPayload:planningPayloadJson,signature});
   const bridgeStarted=Date.now();
   const bridgeUrlMeta={host:writeUrl.host,pathSuffix:writeUrl.pathname.slice(-5),deploymentIdPrefix:(writeUrl.pathname.match(/\/s\/([^/]+)/)||[])[1]?.slice(0,8)||''};
-  const bridgeAbort=new AbortController();const bridgeTimer=setTimeout(()=>bridgeAbort.abort(),45000);let r;try{r=await fetch(writeUrl,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded;charset=UTF-8'},redirect:'manual',body:form.toString(),signal:bridgeAbort.signal});}catch(err){if(err&&err.name==='AbortError')throw new Error('PLANNING_WRITE_BRIDGE_TIMEOUT_45000');throw err;}finally{clearTimeout(bridgeTimer);}
+  const bridgeAbort=new AbortController();const bridgeTimer=setTimeout(()=>bridgeAbort.abort(),45000);let r;try{r=await fetch(writeUrl,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded;charset=UTF-8'},redirect:'follow',body:form.toString(),signal:bridgeAbort.signal});}catch(err){if(err&&err.name==='AbortError')throw new Error('PLANNING_WRITE_BRIDGE_TIMEOUT_45000');throw err;}finally{clearTimeout(bridgeTimer);}
   const bridgeMs=Date.now()-bridgeStarted;
-  const raw=await r.text();const redirectLocation=clean(r.headers.get('location'));if(r.status>=300&&r.status<400){let locHost='',locPath='';try{const lu=new URL(redirectLocation,writeUrl);locHost=lu.host;locPath=lu.pathname}catch{}throw new Error('PLANNING_WRITE_BRIDGE_REDIRECT_'+r.status+'|from='+writeUrl.host+writeUrl.pathname.slice(-5)+'|to='+locHost+locPath.slice(0,120));}let out;try{out=JSON.parse(raw)}catch{const ct=clean(r.headers.get('content-type'));const finalHost=(()=>{try{return new URL(r.url).host}catch{return''}})();const prefix=raw.slice(0,160).replace(/\s+/g,' ').replace(/[<>]/g,'').trim();throw new Error('PLANNING_WRITE_BRIDGE_NON_JSON_'+r.status+'|ct='+ct+'|host='+finalHost+'|cfg='+bridgeUrlMeta.host+bridgeUrlMeta.pathSuffix+'|id='+bridgeUrlMeta.deploymentIdPrefix+'|body='+prefix)}
+  const raw=await r.text();let out;try{out=JSON.parse(raw)}catch{const ct=clean(r.headers.get('content-type'));const finalHost=(()=>{try{return new URL(r.url).host}catch{return''}})();const prefix=raw.slice(0,160).replace(/\s+/g,' ').replace(/[<>]/g,'').trim();throw new Error('PLANNING_WRITE_BRIDGE_NON_JSON_'+r.status+'|ct='+ct+'|host='+finalHost+'|cfg='+bridgeUrlMeta.host+bridgeUrlMeta.pathSuffix+'|id='+bridgeUrlMeta.deploymentIdPrefix+'|body='+prefix)}
   if(out&&typeof out==='object')out.transportTiming={gasBridgeMs:bridgeMs,gasReportedMs:Number(out.totalMs||0)||null};
   if(!r.ok)throw new Error('PLANNING_WRITE_BRIDGE_HTTP_'+r.status);
   return out;

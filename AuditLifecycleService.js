@@ -104,7 +104,32 @@ function Lifecycle_onStatusChanged_(ctx) {
       lifecycle_addCellUpdate_(updates, target, ['Auditor comment (last)'], auditorComment);
     }
 
-    var metaRes = lifecycle_writeUpdates_(target.sheet, target.rowIndex, updates, 'lifecycle status metadata');
+    var metaRes;
+    if (action === 'PLAN' && actorRole === 'MANAGER' && ctx.row && target.headers && ctx.row.length === target.headers.length) {
+      // The canonical PLAN row was written immediately before lifecycle.
+      // Update only lifecycle cells with RangeList so disjoint metadata columns
+      // are sent in one Sheets operation without re-reading the intervening row.
+      var ranges = [];
+      var values = [];
+      var seenCols = {};
+      for (var mu = 0; mu < updates.length; mu++) {
+        var mcol = Number(updates[mu] && updates[mu].col || 0);
+        if (!mcol) continue;
+        seenCols[mcol] = updates[mu].value;
+      }
+      Object.keys(seenCols).sort(function(a,b){return Number(a)-Number(b);}).forEach(function(k){
+        ranges.push(target.sheet.getRange(target.rowIndex, Number(k)).getA1Notation());
+        values.push(seenCols[k]);
+      });
+      if (ranges.length) {
+        var rl = target.sheet.getRangeList(ranges);
+        var rr = rl.getRanges();
+        for (var ri = 0; ri < rr.length; ri++) rr[ri].setValue(values[ri]);
+      }
+      metaRes = { success:true, written:!!ranges.length, count:ranges.length, batches:ranges.length ? 1 : 0 };
+    } else {
+      metaRes = lifecycle_writeUpdates_(target.sheet, target.rowIndex, updates, 'lifecycle status metadata');
+    }
     __lp('metadataWrittenMs');
     result.statusSinceWritten = !!(metaRes && metaRes.written);
     if (actorRole === 'MANAGER') result.managerMetadataWritten = !!(metaRes && metaRes.written);

@@ -98,6 +98,7 @@ const checks=[
  ['r88 save handoff preserves canonical GAS owner',r5.includes('planningCommitForm(identity,body)')&&r5.includes("action:'externalplanningworkspace'")&&r5.includes("mode:'commit'")],
  ['save hot path does not reset fresh request execution cache',!backend.includes('try { AS_resetExecCache_(); } catch(_e) {}')],
  ['stale planning saves fail before Availability I/O',backend.includes('prePlanTransitionGuard')&&backend.indexOf('prePlanTransitionGuard')<backend.indexOf('var pre = V5_availabilityValidate_')&&backend.includes("Status_canTransition_({ status:__preStatus, action:'PLAN'")],
+ ['canonical save reuses cached Audit planning row after qualification',backend.includes('auditPlanningRowReuse')&&backend.includes('__saveRowPack')],
  ['external commit response is compact and timed',handoff.includes('notificationQueued:!!')&&handoff.includes('bridgeMs:bridgeMs')&&handoff.includes('totalMs:Number(saved.totalMs || bridgeMs)')],
  ['iframe commit result is returned to Cloud Run parent',handoff.includes('AMS_PLANNING_COMMIT_RESULT')&&handoff.includes('parent.postMessage')&&handoff.includes('XFrameOptionsMode.ALLOWALL')&&r5.includes('[SAVE_RESULT]')&&r5.includes("addEventListener('message',onCommitMessage)")],
  ['external commit exposes canonical phase timings',handoff.includes('debugTiming:saved.debugTiming || null')],

@@ -6,7 +6,7 @@
  * - Legacy/open handoff remains supported for compatibility.
  * - Commit mode delegates to canonical saveManagerPlanning().
  ***********************************************************************/
-var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-29_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R14_UTF8_HMAC';
+var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-29_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R15_ACCEPTANCE_UTF8';
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_MAX_FUTURE_MS = 90 * 1000;
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CLOCK_SKEW_MS = 10 * 1000;
 
@@ -269,7 +269,7 @@ function RUN_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CONTRACT_ACCEPTANCE() {
   if (key.length >= 32) {
     var exp = Date.now() + 30000;
     var email = 'planning@agriqa.es';
-    var auditId = 'CONTRACT_ONLY_NO_WRITE';
+    var auditId = 'CONTRACT_ONLY_NO_WRITE_José';
 
     var openPayload = ExternalPlanningWorkspaceHandoff_payload_(email, 'Manager', auditId, exp);
     var openSig = ExternalPlanningWorkspaceHandoff_sign_(openPayload, key);
@@ -282,6 +282,7 @@ function RUN_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CONTRACT_ACCEPTANCE() {
     var commitGood = ExternalPlanningWorkspaceHandoff_verify_({ mode:'commit', email:email, role:'Manager', auditId:auditId, exp:String(exp), planningPayload:planningJson, signature:commitSig });
     var tampered = ExternalPlanningWorkspaceHandoff_verify_({ mode:'commit', email:email, role:'Manager', auditId:auditId, exp:String(exp), planningPayload:planningJson + ' ', signature:commitSig });
     check_('signedCommitAcceptedWithoutWrite', commitGood.ok === true && commitGood.mode === 'commit', JSON.stringify({ok:commitGood.ok,mode:commitGood.mode,auditId:commitGood.auditId}));
+    check_('utf8AccentedAuditIdSignatureAccepted', commitGood.ok === true && commitGood.auditId === auditId, JSON.stringify({ok:commitGood.ok,auditId:commitGood.auditId}));
     check_('tamperedCommitRejected', tampered.ok === false && tampered.error === 'HANDOFF_SIGNATURE_INVALID', JSON.stringify(tampered));
   }
 

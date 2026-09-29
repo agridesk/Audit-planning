@@ -3,7 +3,7 @@ import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 
 const PUBLIC_PORT=Number(process.env.PORT||8080);
 const INNER_PORT=PUBLIC_PORT+1;
-const BUILD='2026-09-28_AMS_CLOUD_RUN_MANAGER_PORTAL_R84_PLANNING_RELOAD_HYDRATION';
+const BUILD='2026-09-29_AMS_PLANNING_WRITE_EXEC_ENDPOINT_ACCEPTANCE_R85';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';

@@ -6,7 +6,7 @@
  * - Legacy/open handoff remains supported for compatibility.
  * - Commit mode delegates to canonical saveManagerPlanning().
  ***********************************************************************/
-var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-28_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R12_COMMIT_TIMING';
+var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-29_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R13_KEY_RCA';
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_MAX_FUTURE_MS = 90 * 1000;
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CLOCK_SKEW_MS = 10 * 1000;
 
@@ -101,7 +101,8 @@ function ExternalPlanningWorkspaceHandoff_verify_(p) {
 
   var expected = ExternalPlanningWorkspaceHandoff_sign_(payload, key);
   if (!ExternalPlanningWorkspaceHandoff_safeEq_(supplied, expected)) {
-    return { ok:false, error:'HANDOFF_SIGNATURE_INVALID' };
+    var fp = ExternalPlanningWorkspaceHandoff_b64url_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, key, Utilities.Charset.UTF_8)).slice(0, 10);
+    return { ok:false, error:'HANDOFF_SIGNATURE_INVALID', keyFingerprint:fp, mode:mode || 'open' };
   }
 
   return {

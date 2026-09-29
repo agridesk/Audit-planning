@@ -192,6 +192,8 @@ function ExternalPlanningWorkspaceHandoff_commit_(identity) {
     totalMs:Number(saved.totalMs || bridgeMs),
     bridgeMs:bridgeMs,
     debugTiming:saved.debugTiming || null,
+    debugTimingKeys:saved.debugTiming ? Object.keys(saved.debugTiming) : [],
+    debugTimingJson:saved.debugTiming ? JSON.stringify(saved.debugTiming) : '',
     notificationQueued:!!(saved.notificationBridge && saved.notificationBridge.success)
   };
 }

@@ -84,13 +84,6 @@ async function handlePlanningCommitHandoff(req,res){
   const handoff=planningCommitForm(identity,body);if(!handoff.ok)return sendJson(res,400,{ok:false,error:handoff.error});
   return sendJson(res,200,{ok:true,action:handoff.action,fields:handoff.fields});
 }
-async function handlePlanningSave(req,res){
-  const identity=await sessionIdentity(req);if(!identity)return sendJson(res,401,{ok:false,error:'SESSION_REQUIRED'});if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{ok:false,error:'ROLE_FORBIDDEN'});
-  let raw='';try{raw=await readRaw(req,32768);}catch(err){return sendJson(res,413,{ok:false,error:clean(err&&err.message||err)});}
-  let body={};try{body=JSON.parse(raw||'{}');}catch{return sendJson(res,400,{ok:false,error:'BAD_JSON'});}
-  const saveStarted=Date.now();
-  try{const out=await canonicalPlanningSave(identity,body);if(out&&typeof out==='object')out.__saveRouteTiming={cloudRunMs:Date.now()-saveStarted};return sendJson(res,out&&out.success===false?409:200,out);}catch(err){return sendJson(res,500,{ok:false,error:'PLANNING_SAVE_BRIDGE_FAILED',detail:clean(err&&err.message||err),__saveRouteTiming:{cloudRunMs:Date.now()-saveStarted}});}
-}
 function planningHtml(auditId){
   const id=JSON.stringify(clean(auditId)).replace(/</g,'\\u003c').replace(/>/g,'\\u003e').replace(/&/g,'\\u0026').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AMS - Planning 2.0</title><style>

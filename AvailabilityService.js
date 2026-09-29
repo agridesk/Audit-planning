@@ -2477,9 +2477,36 @@ function AS_getAuditorAvailabilityRaw_(auditorEmail, rangeStartISO, rangeEndISO,
 function AS_getAuditorAvailabilityRawFast_(auditorEmail, rangeStartISO, rangeEndISO, opts) {
   return AvailabilityService.getAuditorAvailabilityRaw(auditorEmail, rangeStartISO, rangeEndISO, opts);
 }
+var AS_AVAIL_SUMMARY_GEN_KEY_ = 'AS_AVAIL_SUMMARY_GEN_V1';
+
+function AS_availabilitySummaryGeneration_() {
+  try {
+    var cache = CacheService.getScriptCache();
+    var v = cache.get(AS_AVAIL_SUMMARY_GEN_KEY_);
+    if (v) return String(v);
+    cache.put(AS_AVAIL_SUMMARY_GEN_KEY_, '1', 21600);
+    return '1';
+  } catch (e) {
+    return '0';
+  }
+}
+
+function AS_bumpAvailabilitySummaryGeneration_() {
+  try {
+    var cache = CacheService.getScriptCache();
+    var cur = parseInt(cache.get(AS_AVAIL_SUMMARY_GEN_KEY_) || '1', 10);
+    var next = String(isFinite(cur) ? cur + 1 : 1);
+    cache.put(AS_AVAIL_SUMMARY_GEN_KEY_, next, 21600);
+    return next;
+  } catch (e) {
+    return null;
+  }
+}
+
 function AS_availabilitySummaryMapCacheKey_(opts) {
   opts = opts || {};
-  return String(opts.cacheKey || 'availability_summary_map_v1').trim() || 'availability_summary_map_v1';
+  var base = String(opts.cacheKey || 'availability_summary_map_v1').trim() || 'availability_summary_map_v1';
+  return base + '::G' + AS_availabilitySummaryGeneration_();
 }
 
 function AS_buildAvailabilitySummaryMap_(opts) {
@@ -2531,19 +2558,11 @@ function AS_buildAvailabilitySummaryMap_(opts) {
 }
 
 function AS_clearAvailabilitySummaryMapCache_(opts) {
-  opts = opts || {};
-  var cacheKey = AS_availabilitySummaryMapCacheKey_(opts);
-  try {
-    if (typeof AUDIT_CACHE !== 'undefined' && AUDIT_CACHE && typeof AUDIT_CACHE.remove === 'function') {
-      AUDIT_CACHE.remove(
-        (AUDIT_CACHE.NS && AUDIT_CACHE.NS.AVAILABILITY) ? AUDIT_CACHE.NS.AVAILABILITY : 'availability',
-        cacheKey
-      );
-    }
-  } catch (eCentralRemove) {}
-  try { CacheService.getScriptCache().remove('AS_SUMMARY|' + cacheKey); } catch (eNativeRemove) {}
-  try { CacheService.getScriptCache().remove('AS_SUMMARY|_AUDITOR_V5_AVAIL_SUMMARY_CACHE_'); } catch (eCompatRemove) {}
-  return { success: true, cacheKey: cacheKey };
+  // AMS-01: O(1) generation invalidation. Readers include the generation in
+  // both central and native cache keys, so old entries become unreachable
+  // immediately and expire naturally. Avoids multi-second AUDIT_CACHE.remove.
+  var generation = AS_bumpAvailabilitySummaryGeneration_();
+  return { success: true, generation: generation, mode: 'GENERATION_BUMP' };
 }
 
 function AS_plannedSummaryFromAvailabilityMap_(availabilityMap, auditId) {

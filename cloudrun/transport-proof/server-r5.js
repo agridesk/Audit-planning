@@ -80,7 +80,7 @@ async function canonicalPlanningSave(identity,body){
   });
   const email=clean(identity.email).toLowerCase(),role='Manager',exp=Date.now()+60000;
   const signature=signPlanningCommit(planningCommitPayload(email,role,chk.auditId,exp,planningPayloadJson));
-  const writeUrl=new URL(GAS_WRITE_URL);writeUrl.searchParams.set('action','externalplanningworkspace');
+  const writeUrl=new URL(GAS_WRITE_URL);if(writeUrl.hostname==='script.google.com'&&!writeUrl.pathname.endsWith('/exec'))throw new Error('PLANNING_WRITE_URL_NOT_EXEC');writeUrl.searchParams.set('action','externalplanningworkspace');
   const form=new URLSearchParams({mode:'commit',email,role,auditId:chk.auditId,exp:String(exp),planningPayload:planningPayloadJson,signature});
   const bridgeStarted=Date.now();
   const bridgeAbort=new AbortController();const bridgeTimer=setTimeout(()=>bridgeAbort.abort(),45000);let r;try{r=await fetch(writeUrl,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded;charset=UTF-8'},redirect:'follow',body:form.toString(),signal:bridgeAbort.signal});}catch(err){if(err&&err.name==='AbortError')throw new Error('PLANNING_WRITE_BRIDGE_TIMEOUT_45000');throw err;}finally{clearTimeout(bridgeTimer);}

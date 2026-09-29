@@ -119,6 +119,7 @@ const checks=[
  ['manager PLAN lifecycle skips queue append',lifecycle.includes('MANAGER_PLAN_CANONICAL_METADATA')],
  ['PLAN lifecycle avoids duplicate audit cache invalidation',lifecycle.includes('PLAN owned by planning writer')],
  ['external commit response is compact and timed',handoff.includes('notificationQueued:!!')&&handoff.includes('bridgeMs:bridgeMs')&&handoff.includes('totalMs:Number(saved.totalMs || bridgeMs)')],
+ ['planning save timing is durably persisted for RCA',backend.includes("setProperty('AMS_LAST_PLANNING_SAVE_DIAG'")&&backend.includes('function RUN_LAST_PLANNING_SAVE_DIAG()')],
  ['iframe commit result is returned to Cloud Run parent',handoff.includes('AMS_PLANNING_COMMIT_RESULT')&&handoff.includes('parent.postMessage')&&handoff.includes('XFrameOptionsMode.ALLOWALL')&&r5.includes('[SAVE_RESULT]')&&r5.includes("addEventListener('message',onCommitMessage)")],
  ['external commit exposes canonical phase timings',handoff.includes('debugTiming:saved.debugTiming || null')],
  ['planning commit failures remain JSON across GAS bridge',entry.includes("verified.mode === 'commit' || verified.mode === 'rotation'")&&entry.includes("ContentService.createTextOutput(JSON.stringify({success:false,error:'PLANNING_WORKSPACE_'")&&handoff.includes("error:'CANONICAL_PLANNING_SAVE_THROW'")],

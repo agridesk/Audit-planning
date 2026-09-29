@@ -102,6 +102,7 @@ function StatusNotificationBridge_Diag_(eventType, auditId, action, actor, befor
  * The lock is held only around NB_queueNotification_, not around briefing loads.
  */
 function StatusNotificationBridge_QueueWithLock_(recipientEmail, eventCode, queuePayload, auditId) {
+  var __perfT0 = Date.now();
   var lock = LockService.getScriptLock();
   var acquired = false;
   var txStarted = new Date().getTime();
@@ -193,6 +194,7 @@ function StatusNotificationBridge_QueueWithLock_(recipientEmail, eventCode, queu
         result: result || null
       });
 
+    if (result && typeof result === 'object') result.__perf = { waitMs:waitMs, queueMs:queueMs, totalMs:Date.now()-__perfT0 };
     return result;
 
   } catch (e) {
@@ -234,6 +236,9 @@ function StatusNotificationBridge_QueueWithLock_(recipientEmail, eventCode, queu
 }
 
 function StatusNotificationBridge_Dispatch_(action, actor, ctx, payload, result) {
+  var __dispatchT0 = Date.now();
+  var __dispatchPerf = {};
+  function __dp(name){ __dispatchPerf[name] = Date.now() - __dispatchT0; }
   try {
     if (typeof BatchPlanningNotificationGate_shouldDefer_ === 'function' && BatchPlanningNotificationGate_shouldDefer_(action, actor, ctx, payload, result)) {
       return BatchPlanningNotificationGate_defer_(action, actor, ctx, payload, result);
@@ -257,6 +262,7 @@ function StatusNotificationBridge_Dispatch_(action, actor, ctx, payload, result)
     var afterStatus = Status_normalizeStatus_(result.afterStatus || result.newStatus || result.afterStatusDisplay || '');
 
     var eventCode = StatusNotificationBridge_MapEvent_(action, actor, beforeStatus, afterStatus);
+    __dp('eventMappedMs');
     if (!eventCode) {
       Logger.log('[STATUS_NOTIFY][SKIP] No mapped event for action=' + action + ' actor=' + actor);
       return {
@@ -267,6 +273,7 @@ function StatusNotificationBridge_Dispatch_(action, actor, ctx, payload, result)
     }
 
     var recipient = StatusNotificationBridge_ResolveRecipient_(action, actor, ctx, payload);
+    __dp('recipientResolvedMs');
     if (!recipient || !recipient.email) {
       Logger.log('[STATUS_NOTIFY][SKIP] No recipient resolved');
       return {
@@ -336,6 +343,7 @@ function StatusNotificationBridge_Dispatch_(action, actor, ctx, payload, result)
     }
 
     var queueResult = null;
+    __dp('payloadReadyMs');
     try {
       queueResult = StatusNotificationBridge_QueueWithLock_(
         recipient.email,
@@ -343,6 +351,7 @@ function StatusNotificationBridge_Dispatch_(action, actor, ctx, payload, result)
         queuePayload,
         auditId
       );
+      __dp('queueReturnedMs');
     } catch (eQueue) {
       var qMsg = String(eQueue && eQueue.message ? eQueue.message : eQueue);
       Logger.log('[STATUS_NOTIFY][QUEUE_ERROR] ' + qMsg);
@@ -401,10 +410,12 @@ function StatusNotificationBridge_Dispatch_(action, actor, ctx, payload, result)
       externalQueueResult: externalQueueResult
     }));
 
+    __dp('totalMs');
     return {
       success: true,
       queueResult: queueResult || null,
-      externalQueueResult: externalQueueResult || null
+      externalQueueResult: externalQueueResult || null,
+      __perf: __dispatchPerf
     };
 
   } catch (e) {

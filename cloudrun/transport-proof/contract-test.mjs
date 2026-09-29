@@ -11,6 +11,7 @@ const statusBridge=fs.readFileSync(new URL('../../StatusNotificationBridge.js',i
 const notificationBuilder=fs.readFileSync(new URL('../../NotificationBuilder.js',import.meta.url),'utf8');
 const availabilityLoader=availability.slice(availability.indexOf('function _ensureEmailLoadedInPack_'),availability.indexOf('function getPackRow_'));
 const checks=[
+ ['non-json planning bridge reports bounded response metadata',r5.includes("|ct='+ct+'|host='+finalHost+'|body='+prefix")&&r5.includes('raw.slice(0,160)')],
  ['planning write bridge has bounded timeout',r5.includes('AbortController()')&&r5.includes('PLANNING_WRITE_BRIDGE_TIMEOUT_45000')],
  ['notification duplicate lookup avoids wide queue-row reads',notificationBuilder.includes('hashRange.createTextFinder(hash)')&&notificationBuilder.includes("getRange(rowNoFast, 2).getDisplayValue()")],
  ['manager PLAN notification diagnostics stay off save hot path',statusBridge.includes("Status_normalizeAction_(action) === ACTION.PLAN")&&statusBridge.includes("Status_normalizeRole_(actor) === ROLE.MANAGER")],

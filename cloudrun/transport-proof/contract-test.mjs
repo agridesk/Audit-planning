@@ -10,6 +10,7 @@ const statusMachine=fs.readFileSync(new URL('../../CoreStatusMachine.js',import.
 const statusBridge=fs.readFileSync(new URL('../../StatusNotificationBridge.js',import.meta.url),'utf8');
 const availabilityLoader=availability.slice(availability.indexOf('function _ensureEmailLoadedInPack_'),availability.indexOf('function getPackRow_'));
 const checks=[
+ ['manager PLAN save does not synchronously dispatch notification queue',statusMachine.includes("reason:'MANAGER_PLAN_NOTIFICATION_DEFERRED'")&&statusMachine.includes('action === ACTION.PLAN && actor === ROLE.MANAGER')],
  ['manager PLAN notification diagnostics stay off save hot path',statusBridge.includes("Status_normalizeAction_(action) === ACTION.PLAN")&&statusBridge.includes("Status_normalizeRole_(actor) === ROLE.MANAGER")],
  ['PLAN status phase diagnostics exposed',statusMachine.includes("__statusStamp_('loadAuditMs')")&&statusMachine.includes("__statusStamp_('applyActionMs')")&&statusMachine.includes("__statusStamp_('notificationMs')")&&backend.includes('statusPerf: actionResult && actionResult.statusPerf')],
  ['save diagnostics attached after final timing stamp',backend.indexOf("__stamp('tail_returnReady')")<backend.indexOf('res.debugTiming = __dbg')],

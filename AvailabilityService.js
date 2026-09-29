@@ -720,6 +720,7 @@ var AvailabilityService = (function () {
     }
 
     var sh = getSheet_();
+    var __vSheetMs = Date.now() - __vT0;
     var meta = readHeaders_(sh);
     var cm = colMap_(meta.headers);
     validateRequiredCols_(cm);

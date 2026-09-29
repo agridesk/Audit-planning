@@ -95,6 +95,7 @@ const checks=[
  ['r82 rotation warning UI does not expose internal state token',!r5.includes("out.push('Rotation: '+c.rotationState)")&&r5.includes("if(c.rotationWarning)out.push(c.rotationWarning)")],
  ['planning commit handoff exposes client transition diagnostics',r5.includes("[SAVE_HANDOFF]")&&r5.includes("GAS_CANONICAL_BROWSER_POST_IFRAME")],
  ['planning save verifies canonical state without fixed 20s delay',r5.includes('verifyCanonical')&&r5.includes('setTimeout(verifyCanonical,1000)')&&!r5.includes('},20000);')],
+ ['planning save cleans hidden commit transport after canonical verification',r5.includes("setTimeout(()=>{try{form.remove();iframe.remove()}catch{}},1000);return")],
  ['DEV planning commit leaves Cloud Run only through explicit GAS form submit',r5.includes('form.submit()')&&!r5.includes("setTimeout(()=>{location.href='/'},700)")],
  ['manager portal presents canonical Approved as Pending acceptance',manager.includes('function displayStatus')&&manager.includes('s==="approved"?"Pending acceptance"')&&manager.includes('displayStatus(r.status)')],
  ['r88 save handoff preserves canonical GAS owner',r5.includes('planningCommitForm(identity,body)')&&r5.includes("action:'externalplanningworkspace'")&&r5.includes("mode:'commit'")],

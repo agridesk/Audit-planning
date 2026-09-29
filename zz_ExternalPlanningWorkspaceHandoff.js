@@ -6,7 +6,7 @@
  * - Legacy/open handoff remains supported for compatibility.
  * - Commit mode delegates to canonical saveManagerPlanning().
  ***********************************************************************/
-var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-29_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R15_ACCEPTANCE_UTF8';
+var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-29_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R16_IFRAME_RESULT';
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_MAX_FUTURE_MS = 90 * 1000;
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CLOCK_SKEW_MS = 10 * 1000;
 
@@ -209,10 +209,14 @@ function ExternalPlanningWorkspaceHandoff_render_(identity) {
   }
 
   if (String(identity.mode || '').toLowerCase() === 'commit') {
-    var committed = ExternalPlanningWorkspaceHandoff_commit_(identity);
-    return ContentService
-      .createTextOutput(JSON.stringify(committed || { success:false, error:'EMPTY_RESULT' }))
-      .setMimeType(ContentService.MimeType.JSON);
+    var committed = ExternalPlanningWorkspaceHandoff_commit_(identity) || { success:false, error:'EMPTY_RESULT' };
+    var commitMessage = JSON.stringify({ type:'AMS_PLANNING_COMMIT_RESULT', result:committed })
+      .replace(/</g, '\\u003c')
+      .replace(/>/g, '\\u003e')
+      .replace(/&/g, '\\u0026');
+    return HtmlService
+      .createHtmlOutput('<!doctype html><meta charset="utf-8"><title>AMS Planning Commit</title><script>try{parent.postMessage('+commitMessage+',"*")}catch(e){}<\\/script>')
+      .setTitle('AMS Planning Commit');
   }
 
   var auditId = String(identity.auditId || '').trim();

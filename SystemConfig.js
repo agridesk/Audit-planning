@@ -22,6 +22,10 @@
 var SYS_CONFIG_BUILD = '2026-05-11_SYSTEM_CONFIG_DEPLOYMENT_ENV_TRIGGERS';
 var SYS_CONFIG_SHEET_NAME = 'System_Config';
 var SYS_REQUEST_ENV_CACHE_ = '';
+// Request-execution caches: avoid repeated PropertiesService / System_Config I/O
+// inside one hot-path execution. Apps Script globals are execution-scoped.
+var SYS_DEPLOYMENT_ENV_CACHE_ = null;
+var SYS_CONFIG_EXEC_CACHE_ = {};
 
 function SYS_setRequestEnv_(env) {
   env = SYS_normalizeEnv_(env);
@@ -40,6 +44,7 @@ function SYS_getRequestEnv_() {
 }
 
 function SYS_getDeploymentEnv_() {
+  if (SYS_DEPLOYMENT_ENV_CACHE_ !== null) return SYS_DEPLOYMENT_ENV_CACHE_;
   var candidates = [];
 
   try {
@@ -52,9 +57,13 @@ function SYS_getDeploymentEnv_() {
 
   for (var i = 0; i < candidates.length; i++) {
     var env = SYS_normalizeEnv_(candidates[i]);
-    if (env) return env;
+    if (env) {
+      SYS_DEPLOYMENT_ENV_CACHE_ = env;
+      return env;
+    }
   }
 
+  SYS_DEPLOYMENT_ENV_CACHE_ = '';
   return '';
 }
 
@@ -63,6 +72,8 @@ function SYS_setDeploymentEnv_(env) {
   if (!env) throw new Error('SYS_setDeploymentEnv_: env must be DEV or PROD');
   PropertiesService.getScriptProperties().setProperty('ACTIVE_ENV', env);
   PropertiesService.getScriptProperties().setProperty('AUDIT_ACTIVE_ENV', env);
+  SYS_DEPLOYMENT_ENV_CACHE_ = env;
+  SYS_CONFIG_EXEC_CACHE_ = {};
   return env;
 }
 
@@ -126,12 +137,15 @@ function SYS_getConfig_() {
 
 function SYS_getConfigForEnv_(env) {
   env = SYS_normalizeEnv_(env) || 'DEV';
+  if (SYS_CONFIG_EXEC_CACHE_[env]) return SYS_CONFIG_EXEC_CACHE_[env];
 
   var sh = SYS_getConfigSheet_();
   var values = sh.getDataRange().getValues();
 
   if (!values || values.length < 1) {
-    return SYS_defaultConfigObject_(env);
+    var defaultCfg = SYS_defaultConfigObject_(env);
+    SYS_CONFIG_EXEC_CACHE_[env] = defaultCfg;
+    return defaultCfg;
   }
 
   var headers = (values[0] || []).map(function(h) {
@@ -163,7 +177,9 @@ function SYS_getConfigForEnv_(env) {
   cfg.__CONFIG_LAYOUT = (devCol >= 0 && prodCol >= 0) ? 'KEY_DEV_PROD' : 'KEY_VALUE';
   cfg.__BUILD = SYS_CONFIG_BUILD;
 
-  return SYS_applyConfigDefaults_(cfg, env);
+  cfg = SYS_applyConfigDefaults_(cfg, env);
+  SYS_CONFIG_EXEC_CACHE_[env] = cfg;
+  return cfg;
 }
 
 function SYS_getUiEnvironmentPayload_() {

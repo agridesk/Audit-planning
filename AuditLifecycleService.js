@@ -221,13 +221,18 @@ function Lifecycle_invalidateAfterLifecycleChange_(ctx) {
     out.skipped.push('__mp_invalidatePersistCaches_:Audit planning:owned by CoreStatusMachine.Status_invalidateAuditPlanningPack_');
   }
 
-  if (auditId) {
+  if (auditId && action !== 'PLAN') {
     run_('_mp_open_cacheInvalidate_:lite', function(){
       if (typeof _mp_open_cacheInvalidate_ === 'function') _mp_open_cacheInvalidate_(auditId, { lite:true });
     });
     run_('_mp_aud_cacheInvalidate_', function(){
       if (typeof _mp_aud_cacheInvalidate_ === 'function') _mp_aud_cacheInvalidate_(auditId);
     });
+  } else if (auditId && action === 'PLAN') {
+    // Canonical planning writer owns PLAN cache invalidation after the status
+    // transaction. Avoid duplicate CacheService operations inside lifecycle.
+    out.skipped.push('_mp_open_cacheInvalidate_:PLAN owned by planning writer');
+    out.skipped.push('_mp_aud_cacheInvalidate_:PLAN deferred/covered by canonical refresh');
   }
 
   if (action === 'PLAN') {

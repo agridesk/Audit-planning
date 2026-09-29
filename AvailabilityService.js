@@ -808,6 +808,8 @@ var AvailabilityService = (function () {
   }
 
   function writeBack(auditId, auditorEmail, auditorName, blocks, mode) {
+    var __wbT0 = Date.now();
+    var __wbPerf = { rowLookupMs:0, rowReadMs:0, rowWriteMs:0, summaryInvalidationMs:0, blocks:0 };
     auditId = cleanText(auditId);
     auditorEmail = normalizeEmail(auditorEmail);
     auditorName = cleanText(auditorName);
@@ -832,15 +834,20 @@ var AvailabilityService = (function () {
       var reqE = minutesToHHMM(timeToMinutes(blk.end));
       if (!reqS || !reqE) throw new Error('Writeback failed: invalid time range');
 
+      var __wbLookupT0 = Date.now();
       var target = resolveTargetRowForDateAuditor_(sh, meta, cm, dISO, auditorEmail, nowStamp);
+      __wbPerf.rowLookupMs += Date.now() - __wbLookupT0;
       var rn = target.rowNumber;
       dedupeDeletedTotal += Number(target.dedupeDeleted || 0);
 
       // GATE MN (20260502): use cached getPackRow_ — validate's
       // readRowObject_ already populated pack.rows[rn-2] for existing rows
       // (saves ~80-120ms per block of sheet I/O + auto-flush).
+      var __wbReadT0 = Date.now();
       var packWB = getSheetPack_(sh, meta, cm);
       var rowVals = getPackRow_(sh, meta, packWB, rn).slice();
+      __wbPerf.rowReadMs += Date.now() - __wbReadT0;
+      __wbPerf.blocks++;
 
       if (mode === 'CANCEL') {
         var changed = false;
@@ -896,7 +903,9 @@ var AvailabilityService = (function () {
 
       rowVals[cm.iAvail] = 'NO';
       if (cm.iUpd >= 0) rowVals[cm.iUpd] = nowStamp;
+      var __wbWriteT0 = Date.now();
       sh.getRange(rn, 1, 1, meta.lastCol).setValues([rowVals]);
+      __wbPerf.rowWriteMs += Date.now() - __wbWriteT0;
       // GATE MN (20260502): keep pack consistent (pack.rows[rn-2] now
       // matches sheet) so we can skip the execCache reset below.
       updatePackRow_(sh, meta, cm, rn, rowVals);
@@ -907,12 +916,16 @@ var AvailabilityService = (function () {
     // exec cache lets any subsequent in-execution caller (e.g. follow-up
     // availability read) skip the ~150-250ms TextFinder repopulation.
     // try { resetExecCache_(); } catch(e) {}
+    var __wbInvT0 = Date.now();
     try { AS_clearAvailabilitySummaryMapCache_(); } catch(eSummaryCache) {}
+    __wbPerf.summaryInvalidationMs = Date.now() - __wbInvT0;
+    __wbPerf.totalMs = Date.now() - __wbT0;
 
     return {
       success: true,
       message: 'OK',
-      data: { auditId: auditId, auditorEmail: auditorEmail, blocks: blocks, dedupeDeleted: dedupeDeletedTotal }
+      data: { auditId: auditId, auditorEmail: auditorEmail, blocks: blocks, dedupeDeleted: dedupeDeletedTotal },
+      perf: __wbPerf
     };
   }
 

@@ -1211,6 +1211,9 @@ function saveManagerPlanning(auditId, payload) {
     try { _mp_open_cacheInvalidate_(auditId, { lite: true }); } catch(_e) {}
     __stamp('tail_openInvalidated');
 
+    try { _mp_aud_cacheInvalidate_(auditId); } catch(_e) {}
+    __stamp('tail_audInvalidated');
+
     // GATE L: elig sheet-write invalidation dropped from save hot path.
     __stamp('tail_eligInvalidated');
 

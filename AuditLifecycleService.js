@@ -117,7 +117,14 @@ function Lifecycle_onStatusChanged_(ctx) {
 
   result.invalidation = Lifecycle_invalidateAfterLifecycleChange_(ctx);
   __lp('invalidationMs');
-  result.auditTrail = Lifecycle_emitAuditTrail_(ctx, stamp);
+  // Manager PLAN already has durable canonical status + decision metadata.
+  // Its audit-trail queue append is non-critical for the interactive commit
+  // and is intentionally omitted from this hot path.
+  if (action === 'PLAN' && actorRole === 'MANAGER') {
+    result.auditTrail = { success:true, skipped:true, deferred:true, reason:'MANAGER_PLAN_CANONICAL_METADATA' };
+  } else {
+    result.auditTrail = Lifecycle_emitAuditTrail_(ctx, stamp);
+  }
   __lp('auditTrailMs');
   __lp('totalMs');
   result.__perf = __perf;

@@ -272,6 +272,7 @@ function Status_applyAction(actor, action, auditId, payload) {
     }
 
     __statusStamp_('applyActionMs');
+    if (result && result.lifecycle && result.lifecycle.__perf) __statusPerf.lifecycle = result.lifecycle.__perf;
     // Notification dispatch is best-effort and must not add duplicate synchronous
     // Diagnostics_Log sheet writes to the user-action hot path. The bridge owns
     // its own targeted diagnostics for queue failures and exceptional branches.

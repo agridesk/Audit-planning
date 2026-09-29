@@ -110,6 +110,7 @@ const checks=[
  ['notification duplicate check batches candidate status read',notificationBuilder.includes('candidateRows')&&notificationBuilder.includes('statusValues')],
  ['manager PLAN defers operational notification off save hot path',statusMachine.includes('MANAGER_PLAN_RECONCILER')&&statusMachine.includes("action === ACTION.PLAN && actor === ROLE.MANAGER")],
  ['lifecycle metadata uses one bounded row write',lifecycle.includes('batches:1')&&lifecycle.includes('var span = lastCol - firstCol + 1')],
+ ['manager PLAN folds lifecycle metadata into canonical status row write',lifecycle.includes('foldedIntoCanonicalRow:true')&&statusMachine.includes('ctx.row = row')&&statusMachine.includes('row = (ctx.row || row).slice()')],
  ['manager PLAN lifecycle skips queue append',lifecycle.includes('MANAGER_PLAN_CANONICAL_METADATA')],
  ['PLAN lifecycle avoids duplicate audit cache invalidation',lifecycle.includes('PLAN owned by planning writer')],
  ['external commit response is compact and timed',handoff.includes('notificationQueued:!!')&&handoff.includes('bridgeMs:bridgeMs')&&handoff.includes('totalMs:Number(saved.totalMs || bridgeMs)')],

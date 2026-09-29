@@ -763,6 +763,18 @@ function saveManagerPlanning(auditId, payload) {
 
   // AMS-01 external save: request-scoped execution cache starts clean already;
   // do not reset it again before the canonical save path.
+  // Canonical write authorization is checked once here and reused by the
+  // nested PLAN status action. This avoids a second System_Config sheet read.
+  try {
+    if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') {
+      return { success:false, message:'SYSTEM_WRITE_GUARD_MISSING', debugTiming:__dbg, totalMs:(Date.now()-__t0) };
+    }
+    SYS_ENFORCE_WRITE_ALLOWED('STATUS_PLAN', auditId);
+    __stamp('writeGuard');
+  } catch (__wgErr) {
+    return { success:false, message:String(__wgErr && __wgErr.message ? __wgErr.message : __wgErr), debugTiming:__dbg, totalMs:(Date.now()-__t0) };
+  }
+
 
   // GATE J (20260502): the 4 pre-save cache invalidations were removed.
   // They are duplicated at end-of-function (lines ~900-909) which already

@@ -30,6 +30,7 @@ var SYS_CONFIG_EXEC_CACHE_ = {};
 function SYS_setRequestEnv_(env) {
   env = SYS_normalizeEnv_(env);
   SYS_REQUEST_ENV_CACHE_ = env;
+  SYS_CONFIG_EXEC_CACHE_ = {};
   try {
     PropertiesService.getUserProperties().setProperty('AUDIT_RUNTIME_ENV', env);
   } catch (e) {}

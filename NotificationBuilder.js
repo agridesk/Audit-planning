@@ -425,9 +425,19 @@ function NB_recentQueueDuplicate_(sh, hash, eventCode, recipientEmail, auditId) 
       var firstRowFast = Math.max(2, lastRowFast - 199);
       var hashRange = sh.getRange(firstRowFast, 11, lastRowFast - firstRowFast + 1, 1);
       var matches = hashRange.createTextFinder(hash).matchEntireCell(true).findAll() || [];
-      for (var mf = matches.length - 1; mf >= 0; mf--) {
-        var rowNoFast = matches[mf].getRow();
-        var statusFast = NB_clean_(sh.getRange(rowNoFast, 2).getDisplayValue()).toUpperCase();
+      if (!matches.length) return out;
+
+      // Read candidate statuses in one bounded call. Avoid one Spreadsheet RPC
+      // per matching hash row on the synchronous planning-save path.
+      var candidateRows = [];
+      for (var mf = 0; mf < matches.length; mf++) candidateRows.push(matches[mf].getRow());
+      candidateRows.sort(function(a,b){ return a-b; });
+      var firstCandidate = candidateRows[0];
+      var lastCandidate = candidateRows[candidateRows.length - 1];
+      var statusValues = sh.getRange(firstCandidate, 2, lastCandidate - firstCandidate + 1, 1).getDisplayValues();
+      for (var mi = candidateRows.length - 1; mi >= 0; mi--) {
+        var rowNoFast = candidateRows[mi];
+        var statusFast = NB_clean_(statusValues[rowNoFast - firstCandidate][0]).toUpperCase();
         if (statusFast === 'PENDING' || statusFast === 'RESERVED' || statusFast === 'SENT' || statusFast === 'SENT_DEV_REDIRECT') {
           return { found:true, row:rowNoFast, status:statusFast, match:'HASH' };
         }

@@ -85,7 +85,7 @@ async function canonicalPlanningSave(identity,body){
   const bridgeStarted=Date.now();
   const bridgeAbort=new AbortController();const bridgeTimer=setTimeout(()=>bridgeAbort.abort(),45000);let r;try{r=await fetch(writeUrl,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded;charset=UTF-8'},redirect:'follow',body:form.toString(),signal:bridgeAbort.signal});}catch(err){if(err&&err.name==='AbortError')throw new Error('PLANNING_WRITE_BRIDGE_TIMEOUT_45000');throw err;}finally{clearTimeout(bridgeTimer);}
   const bridgeMs=Date.now()-bridgeStarted;
-  const raw=await r.text();let out;try{out=JSON.parse(raw)}catch{throw new Error('PLANNING_WRITE_BRIDGE_NON_JSON_'+r.status)}
+  const raw=await r.text();let out;try{out=JSON.parse(raw)}catch{const ct=clean(r.headers.get('content-type'));const finalHost=(()=>{try{return new URL(r.url).host}catch{return''}})();const prefix=raw.slice(0,160).replace(/\s+/g,' ').replace(/[<>]/g,'').trim();throw new Error('PLANNING_WRITE_BRIDGE_NON_JSON_'+r.status+'|ct='+ct+'|host='+finalHost+'|body='+prefix)}
   if(out&&typeof out==='object')out.transportTiming={gasBridgeMs:bridgeMs,gasReportedMs:Number(out.totalMs||0)||null};
   if(!r.ok)throw new Error('PLANNING_WRITE_BRIDGE_HTTP_'+r.status);
   return out;

@@ -503,7 +503,12 @@ function Status_applyPlan_(ctx, transition, payload, actorFromDispatcher, action
   };
 
   var lifecycle = Status_lifecycleOnStatusChanged_(ctx, effectiveTransition, actorFromDispatcher || actor, ACTION.PLAN, payload, 'CoreStatusMachine.Status_applyPlan_');
-  Status_invalidateAuditPlanningPack_();
+
+  // PLAN is invoked by the canonical planning writer, which owns cache
+  // invalidation after the full save transaction. Invalidating here destroys
+  // the warm Audit planning execution cache before the writer has returned.
+  // Other status actions retain their existing immediate invalidation.
+
 
   var actionResult = Status_buildActionResult_(effectiveTransition, {
     action: ACTION.PLAN,

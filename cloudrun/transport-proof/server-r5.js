@@ -80,7 +80,7 @@ async function canonicalPlanningSave(identity,body){
   });
   const email=clean(identity.email).toLowerCase(),role='Manager',exp=Date.now()+60000;
   const signature=signPlanningCommit(planningCommitPayload(email,role,chk.auditId,exp,planningPayloadJson));
-  const writeUrl=new URL(GAS_WRITE_URL);if(writeUrl.hostname==='script.google.com'&&!writeUrl.pathname.endsWith('/exec'))throw new Error('PLANNING_WRITE_URL_NOT_EXEC');writeUrl.searchParams.set('action','externalplanningworkspace');
+  const writeUrl=new URL(GAS_WRITE_URL);writeUrl.searchParams.set('action','externalplanningworkspace');
   const form=new URLSearchParams({mode:'commit',email,role,auditId:chk.auditId,exp:String(exp),planningPayload:planningPayloadJson,signature});
   const bridgeStarted=Date.now();
   const bridgeUrlMeta={host:writeUrl.host,pathSuffix:writeUrl.pathname.slice(-5),deploymentIdPrefix:(writeUrl.pathname.match(/\/s\/([^/]+)/)||[])[1]?.slice(0,8)||''};

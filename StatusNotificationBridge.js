@@ -47,6 +47,10 @@
 
 // Diagnostics_Log writer used for notification RCA. Safe: best-effort only.
 function StatusNotificationBridge_Diag_(eventType, auditId, action, actor, beforeStatus, afterStatus, ok, message, details) {
+  // Diagnostics must never add synchronous sheet I/O to the manager PLAN hot path.
+  // PLAN already has canonical lifecycle/status evidence; verbose bridge diagnostics
+  // remain available for other lifecycle actions where they are operationally needed.
+  if (Status_normalizeAction_(action) === ACTION.PLAN && Status_normalizeRole_(actor) === ROLE.MANAGER) return null;
   try {
     if (typeof Diagnostics_Log_ === 'function') {
       return Diagnostics_Log_(

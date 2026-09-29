@@ -83,7 +83,7 @@ async function canonicalPlanningSave(identity,body){
   const writeUrl=new URL(GAS_WRITE_URL);writeUrl.searchParams.set('action','externalplanningworkspace');
   const form=new URLSearchParams({mode:'commit',email,role,auditId:chk.auditId,exp:String(exp),planningPayload:planningPayloadJson,signature});
   const bridgeStarted=Date.now();
-  const r=await fetch(writeUrl,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded;charset=UTF-8'},redirect:'follow',body:form.toString()});
+  const bridgeAbort=new AbortController();const bridgeTimer=setTimeout(()=>bridgeAbort.abort(),45000);let r;try{r=await fetch(writeUrl,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded;charset=UTF-8'},redirect:'follow',body:form.toString(),signal:bridgeAbort.signal});}catch(err){if(err&&err.name==='AbortError')throw new Error('PLANNING_WRITE_BRIDGE_TIMEOUT_45000');throw err;}finally{clearTimeout(bridgeTimer);}
   const bridgeMs=Date.now()-bridgeStarted;
   const raw=await r.text();let out;try{out=JSON.parse(raw)}catch{throw new Error('PLANNING_WRITE_BRIDGE_NON_JSON_'+r.status)}
   if(out&&typeof out==='object')out.transportTiming={gasBridgeMs:bridgeMs,gasReportedMs:Number(out.totalMs||0)||null};

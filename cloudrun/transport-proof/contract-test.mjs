@@ -9,6 +9,7 @@ const availability=fs.readFileSync(new URL('../../AvailabilityService.js',import
 const statusMachine=fs.readFileSync(new URL('../../CoreStatusMachine.js',import.meta.url),'utf8');
 const statusBridge=fs.readFileSync(new URL('../../StatusNotificationBridge.js',import.meta.url),'utf8');
 const notificationBuilder=fs.readFileSync(new URL('../../NotificationBuilder.js',import.meta.url),'utf8');
+const lifecycle=fs.readFileSync(new URL('../../AuditLifecycleService.js',import.meta.url),'utf8');
 const availabilityLoader=availability.slice(availability.indexOf('function _ensureEmailLoadedInPack_'),availability.indexOf('function getPackRow_'));
 const checks=[
  ['planning commit bridge is browser mediated',r5.includes('/api/v1/planning/commit-handoff')&&r5.includes('form.submit()')],

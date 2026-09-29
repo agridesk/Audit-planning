@@ -104,7 +104,22 @@ function Lifecycle_onStatusChanged_(ctx) {
       lifecycle_addCellUpdate_(updates, target, ['Auditor comment (last)'], auditorComment);
     }
 
-    var metaRes = lifecycle_writeUpdates_(target.sheet, target.rowIndex, updates, 'lifecycle status metadata');
+    // PLAN can fold lifecycle metadata into the canonical row already being
+    // written by CoreStatusMachine. Avoid a second synchronous Sheets write.
+    var metaRes;
+    if (action === 'PLAN' && ctx.row && target.rowIndex === Number(ctx.rowIndex || 0)) {
+      var folded = 0;
+      for (var fu = 0; fu < updates.length; fu++) {
+        var fcol = Number(updates[fu] && updates[fu].col || 0);
+        if (!fcol) continue;
+        while (ctx.row.length < fcol) ctx.row.push('');
+        ctx.row[fcol - 1] = updates[fu].value;
+        folded++;
+      }
+      metaRes = { success:true, written:folded > 0, count:folded, batches:0, foldedIntoCanonicalRow:true };
+    } else {
+      metaRes = lifecycle_writeUpdates_(target.sheet, target.rowIndex, updates, 'lifecycle status metadata');
+    }
     __lp('metadataWrittenMs');
     result.statusSinceWritten = !!(metaRes && metaRes.written);
     if (actorRole === 'MANAGER') result.managerMetadataWritten = !!(metaRes && metaRes.written);

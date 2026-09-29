@@ -101,6 +101,7 @@ const checks=[
  ['canonical save reuses cached Audit planning row after qualification',backend.includes('auditPlanningRowReuse')&&backend.includes('__saveRowPack')],
  ['status PLAN reuses cached Audit planning header',statusMachine.includes('use the canonical Audit planning execution cache first')&&statusMachine.includes('__indexed.hdr')],
  ['status PLAN writes planned date once',!statusMachine.includes("setNumberFormat('@').setValue(res.json.blocks[0].date)")],
+ ['notification duplicate check batches candidate status read',notificationBuilder.includes('candidateRows')&&notificationBuilder.includes('statusValues')],
  ['external commit response is compact and timed',handoff.includes('notificationQueued:!!')&&handoff.includes('bridgeMs:bridgeMs')&&handoff.includes('totalMs:Number(saved.totalMs || bridgeMs)')],
  ['iframe commit result is returned to Cloud Run parent',handoff.includes('AMS_PLANNING_COMMIT_RESULT')&&handoff.includes('parent.postMessage')&&handoff.includes('XFrameOptionsMode.ALLOWALL')&&r5.includes('[SAVE_RESULT]')&&r5.includes("addEventListener('message',onCommitMessage)")],
  ['external commit exposes canonical phase timings',handoff.includes('debugTiming:saved.debugTiming || null')],

@@ -482,10 +482,12 @@ function Status_applyPlan_(ctx, transition, payload, actorFromDispatcher, action
       : '';
   }
 
-  ctx.sheet.getRange(ctx.rowIndex, 1, 1, row.length).setValues([row]);
+  // Date - Planned is already present in the full canonical row write below.
+  // Keep it as text in the row payload; avoid a second synchronous setValue.
   if (ctx.col.planned >= 0 && res.json.blocks[0] && res.json.blocks[0].date) {
-    ctx.sheet.getRange(ctx.rowIndex, ctx.col.planned + 1).setNumberFormat('@').setValue(res.json.blocks[0].date);
+    row[ctx.col.planned] = String(res.json.blocks[0].date);
   }
+  ctx.sheet.getRange(ctx.rowIndex, 1, 1, row.length).setValues([row]);
 
   var effectiveTransition = {
     beforeStatus: transition.beforeStatus,

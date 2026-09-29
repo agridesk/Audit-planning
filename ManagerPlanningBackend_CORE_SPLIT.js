@@ -1226,7 +1226,10 @@ function saveManagerPlanning(auditId, payload) {
     __stamp('tail_beforeInvalidations');
 
     // Canonical PLAN transaction owns final Audit planning invalidation.
-    try { if (typeof __mp_invalidateAuditPlanningPack_ === 'function') __mp_invalidateAuditPlanningPack_(); } catch(_e) {}
+    try {
+      if (typeof __mp_invalidateAuditPlanningContent_ === 'function') __mp_invalidateAuditPlanningContent_();
+      else if (typeof __mp_invalidateAuditPlanningPack_ === 'function') __mp_invalidateAuditPlanningPack_();
+    } catch(_e) {}
     try { if (typeof __mp_invalidatePersistCaches_ === 'function') __mp_invalidatePersistCaches_(['Audit planning']); } catch(_e) {}
     __stamp('tail_auditPlanningInvalidated');
 

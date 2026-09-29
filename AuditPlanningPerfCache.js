@@ -44,8 +44,30 @@ function __mp_cacheNamespaceForSheet_(sheetName) {
   if (n === 'log realized audits') return 'mp_readonly_log_realized_audits_sheet';
   return 'mp_readonly_sheet';
 }
+var MP_AP_PERSIST_GEN_KEY_ = 'MP_AP_PERSIST_GEN_V1';
+function __mp_auditPlanningPersistGen_() {
+  try {
+    var cache = CacheService.getScriptCache();
+    var v = cache.get(MP_AP_PERSIST_GEN_KEY_);
+    if (v) return String(v);
+    cache.put(MP_AP_PERSIST_GEN_KEY_, '1', 21600);
+    return '1';
+  } catch (e) { return '0'; }
+}
+function __mp_bumpAuditPlanningPersistGen_() {
+  try {
+    var cache = CacheService.getScriptCache();
+    var cur = parseInt(cache.get(MP_AP_PERSIST_GEN_KEY_) || '1', 10);
+    var next = String(isFinite(cur) ? cur + 1 : 1);
+    cache.put(MP_AP_PERSIST_GEN_KEY_, next, 21600);
+    return next;
+  } catch (e) { return null; }
+}
 function __mp_cacheKeyForSheet_(sheetName) {
-  return 'sheet::' + String(sheetName || '').trim();
+  var name = String(sheetName || '').trim();
+  var key = 'sheet::' + name;
+  if (name.toLowerCase() === 'audit planning') key += '::G' + __mp_auditPlanningPersistGen_();
+  return key;
 }
 function __mp_auditCacheGet_(namespace, key) {
   try {
@@ -150,7 +172,15 @@ function __mp_getSheetDataPersistCached_(ss, sheetName, ttlSec) {
 }
 function __mp_invalidatePersistCaches_(sheetNames) {
   var names = (sheetNames && sheetNames.length) ? sheetNames : ['Standards','Auditors','Companies','Config_Scopes'];
-  for (var i = 0; i < names.length; i++) __mp_auditCacheRemoveSheet_(names[i]);
+  for (var i = 0; i < names.length; i++) {
+    if (String(names[i] || '').trim().toLowerCase() === 'audit planning') {
+      // AMS-01: invalidate the legacy persist fallback by generation instead
+      // of deleting central-cache records synchronously on the Save hot path.
+      __mp_bumpAuditPlanningPersistGen_();
+      continue;
+    }
+    __mp_auditCacheRemoveSheet_(names[i]);
+  }
 }
 function __mp_getCached_(k, computeFn) {
   var key = 'OBJ:' + k;

@@ -10,7 +10,7 @@
  **************************************/
 
 var AvailabilityService = (function () {
-  var SERVICE_VERSION = '2026-09-29_AVAILABILITY_SAVE_PERF_RCA_R7';
+  var SERVICE_VERSION = '2026-09-29_AVAILABILITY_SAVE_PERF_R8_BOUNDED_INDEX';
 
   var __AS_EXEC_CACHE = {};
 
@@ -229,10 +229,6 @@ var AvailabilityService = (function () {
 
   function _ensureEmailLoadedInPack_(sh, cm, pack, auditorEmail) {
     var __t0 = Date.now();
-    // AMS-01: bounded single-auditor load. Avoid TextFinder on the complete
-    // Availability sheet in save/calendar hot paths. Read only the auditor
-    // column once for the bounded used range, then one spanning block for
-    // matching rows. Execution cache keeps validate -> writeBack reuse free.
     var aud = normalizeEmail(auditorEmail);
     if (!aud) return;
     if (!pack.lazyEmails) pack.lazyEmails = {};
@@ -242,31 +238,28 @@ var AvailabilityService = (function () {
     try {
       var lastRow = Number(pack.lastRow || sh.getLastRow() || 0);
       if (lastRow < 2) return;
-      var finder = sh.getRange(2, cm.iAud + 1, lastRow - 1, 1).createTextFinder(auditorEmail).matchEntireCell(true).matchCase(false);
-      var matches = finder.findAll() || [];
-      var __finderMs = Date.now() - __t0;
-      var rowNumbers = [];
-      for (var i = 0; i < matches.length; i++) rowNumbers.push(matches[i].getRow());
-      if (!rowNumbers.length) return;
-      rowNumbers.sort(function(a,b){ return a-b; });
-      var minR = rowNumbers[0];
-      var maxR = rowNumbers[rowNumbers.length - 1];
-      var span = maxR - minR + 1;
-      var rnSet = {};
-      for (var x = 0; x < rowNumbers.length; x++) rnSet[rowNumbers[x]] = true;
-      var __dateReadT0 = Date.now();
-      var dateVals = sh.getRange(minR, cm.iDate + 1, span, 1).getValues();
-      var __dateReadMs = Date.now() - __dateReadT0;
-      for (var k = 0; k < span; k++) {
-        var actualRow = minR + k;
-        if (!rnSet[actualRow]) continue;
-        var d = normDateISO(dateVals[k][0]);
+
+      // AMS-01: the live Availability sheet is small (hundreds of rows).
+      // One bounded Date+Auditor read is cheaper and more deterministic than
+      // TextFinder.findAll() followed by a second spanning Date read.
+      var firstCol = Math.min(cm.iDate, cm.iAud) + 1;
+      var width = Math.abs(cm.iDate - cm.iAud) + 1;
+      var __readT0 = Date.now();
+      var vals = sh.getRange(2, firstCol, lastRow - 1, width).getValues();
+      var __readMs = Date.now() - __readT0;
+      var dateOffset = (cm.iDate + 1) - firstCol;
+      var audOffset = (cm.iAud + 1) - firstCol;
+      var matches = 0;
+      for (var i = 0; i < vals.length; i++) {
+        if (normalizeEmail(vals[i][audOffset]) !== aud) continue;
+        var d = normDateISO(vals[i][dateOffset]);
         if (!d) continue;
         var key = aud + '|' + d;
         if (!pack.byDateAud[key]) pack.byDateAud[key] = [];
-        pack.byDateAud[key].push(actualRow);
+        pack.byDateAud[key].push(i + 2);
+        matches++;
       }
-      pack.lastEnsurePerf = {cacheHit:false,lastRow:lastRow,matches:rowNumbers.length,span:span,finderMs:__finderMs,dateReadMs:__dateReadMs,totalMs:Date.now()-__t0};
+      pack.lastEnsurePerf = {cacheHit:false,lastRow:lastRow,matches:matches,span:lastRow-1,boundedReadMs:__readMs,totalMs:Date.now()-__t0};
     } catch (e) {
       Logger.log('[AMS01] _ensureEmailLoadedInPack_ failed for ' + aud + ': ' + e);
     }

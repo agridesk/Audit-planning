@@ -1025,7 +1025,7 @@ function saveManagerPlanning(auditId, payload) {
 
   try {
     var pre = V5_availabilityValidate_(auditId, auditorEmail, auditorName, payload.blocks);
-    __stamp('V5_availabilityValidate_', { ok: !!(pre && pre.success) });
+    __stamp('V5_availabilityValidate_', { ok: !!(pre && pre.success), perf: pre && pre.perf ? pre.perf : null });
     if (!pre || pre.success === false) return pre;
 
     var ss = SpreadsheetApp.getActive();

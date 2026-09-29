@@ -416,6 +416,28 @@ function NB_recentQueueDuplicate_(sh, hash, eventCode, recipientEmail, auditId) 
   var out = { found:false };
   if (!sh || !hash) return out;
 
+  // Hot-path fast lookup: PayloadHash is the canonical duplicate key. TextFinder
+  // avoids materializing up to 200 complete queue rows (including large Body and
+  // Reserved JSON cells) on every manager planning save.
+  try {
+    var lastRowFast = sh.getLastRow();
+    if (lastRowFast >= 2 && sh.getLastColumn() >= 11) {
+      var firstRowFast = Math.max(2, lastRowFast - 199);
+      var hashRange = sh.getRange(firstRowFast, 11, lastRowFast - firstRowFast + 1, 1);
+      var matches = hashRange.createTextFinder(hash).matchEntireCell(true).findAll() || [];
+      for (var mf = matches.length - 1; mf >= 0; mf--) {
+        var rowNoFast = matches[mf].getRow();
+        var statusFast = NB_clean_(sh.getRange(rowNoFast, 2).getDisplayValue()).toUpperCase();
+        if (statusFast === 'PENDING' || statusFast === 'RESERVED' || statusFast === 'SENT' || statusFast === 'SENT_DEV_REDIRECT') {
+          return { found:true, row:rowNoFast, status:statusFast, match:'HASH' };
+        }
+      }
+      return out;
+    }
+  } catch (eFast) {
+    // Preserve the proven bounded fallback below.
+  }
+
   // R8: duplicate detection is hash-only.
   // Do NOT suppress a new queue row merely because event + recipient + auditId
   // was seen recently. Cancel -> replan -> accept intentionally reuses the same

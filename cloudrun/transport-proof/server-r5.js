@@ -3,7 +3,7 @@ import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 
 const PUBLIC_PORT=Number(process.env.PORT||8080);
 const INNER_PORT=PUBLIC_PORT+1;
-const BUILD='2026-09-30_AMS_PLANNING_SERVER_SIDE_COMMIT_R99_SINGLE_VERIFY';
+const BUILD='2026-09-30_AMS_PLANNING_COMMIT_R100_EXPOSE_GAS_FAILURE';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
@@ -89,6 +89,17 @@ async function handlePlanningCommitHandoff(req,res){
     const m=raw.match(/var m=(\{[\s\S]*?\});try\{window\.parent\.postMessage/);
     let result=m?((JSON.parse(m[1])||{}).result):null;
     if(!result){
+      try{
+        const direct=JSON.parse(raw);
+        if(direct&&typeof direct==='object'&&(direct.success===false||direct.error)){
+          return sendJson(res,409,{ok:false,result:direct,bridgeRoundTripMs:Date.now()-started,configMarker:configMarker(),gasResponseMode:'JSON_ERROR'});
+        }
+      }catch(_){}
+      const pre=raw.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
+      if(pre){
+        const detail=clean(pre[1].replace(/<[^>]+>/g,' ').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'));
+        if(detail)return sendJson(res,409,{ok:false,result:{success:false,error:'GAS_HANDOFF_HTML_ERROR',message:detail},bridgeRoundTripMs:Date.now()-started,configMarker:configMarker(),gasResponseMode:'HTML_ERROR'});
+      }
       const u=new URL('http://127.0.0.1:'+INNER_PORT+'/api/v1/planning/workspace');u.searchParams.set('auditId',clean(body.auditId));
       const vr=await fetch(u,{headers:{cookie:SESSION_COOKIE+'='+issueSession(identity)}}),vx=await vr.json(),va=vx&&vx.data&&vx.data.audit;
       const wanted=(Array.isArray(body.blocks)?body.blocks:[]).map(b=>[clean(b.date),clean(b.start),clean(b.end),clean(b.execLoc||b.location||'HQ')].join('|')).sort();

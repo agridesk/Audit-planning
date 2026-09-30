@@ -119,7 +119,7 @@ const checks=[
  ['System_Config is execution-cached on hot path',systemConfig.includes('SYS_CONFIG_EXEC_CACHE_')&&systemConfig.includes('if (SYS_CONFIG_EXEC_CACHE_[env]) return SYS_CONFIG_EXEC_CACHE_[env]')],
  ['availability writeback exposes sub-timings',availability.includes('__wbPerf.rowLookupMs')&&availability.includes('__wbPerf.rowWriteMs')&&availability.includes('summaryInvalidationMs')],
  ['status PLAN exposes lifecycle and row-write timings',statusMachine.includes('__planPerf.lifecycleMs')&&statusMachine.includes('__planPerf.auditPlanningRowWriteMs')&&backend.includes('planPerf: actionResult && actionResult.planPerf')],
- ['planning save success remains terminal in focused UI',r5.includes("saveCompleted=true;q('#save').disabled=true;q('#save').textContent='Saved'")&&r5.includes("draftBlocks.length>0&&hoursComplete&&!saveCompleted")],
+ ['planning save success remains terminal in focused UI',r5.includes("saveCompleted=true;q('#save').disabled=true;q('#save').textContent='Saved'")&&r5.includes("draftBlocks.length>0&&hoursComplete&&executionApproved&&!saveCompleted")],
  ['manager portal presents canonical Approved as Pending acceptance',manager.includes('function displayStatus')&&manager.includes('s==="approved"?"Pending acceptance"')&&manager.includes('displayStatus(r.status)')],
  ['r104 save handoff uses direct Cloud Run PLAN owner',r5.includes("'/api/v1/planning/direct-commit'")&&r5.includes("writeOwner:'CLOUD_RUN_DIRECT_SHEETS_MANAGER_PLAN'")],
  ['save hot path does not reset fresh request execution cache',!backend.includes('try { AS_resetExecCache_(); } catch(_e) {}')],

@@ -163,6 +163,9 @@ const checks=[
 ['overdue execution-cycle PLAN requires explicit ECAS approval',r4.includes("EXECUTION_DEADLINE_APPROVAL_REQUIRED")&&r5.includes("executionExceptionApproved")&&r5.includes("ECAS approval confirmed for planning after the execution deadline")]
 ,
 ['single-company planning panel replaces audit switching',r5.includes("Company planning")&&!r5.includes("data-related-audit")&&!r5.includes("dataset.relatedAudit")]
+,
+ ['single-company visit composition is explicit',r5.includes('data-visit-audit')&&r5.includes('Combined physical visit:')&&r5.includes('visitAuditIds:[...visitAuditIds]')],
+ ['combined visit commit fails closed before Model C relink owner exists',r4.includes('VISIT_COMBINED_COMMIT_NOT_YET_CANONICAL')&&r4.includes('VISIT_RELATED_EXECUTION_DEADLINE_APPROVAL_REQUIRED')]
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

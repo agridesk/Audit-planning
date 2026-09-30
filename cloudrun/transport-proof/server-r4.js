@@ -31,6 +31,17 @@ async function sheetsValuesBatchUpdate(data){
   const r=await fetch(u,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({valueInputOption:'USER_ENTERED',data})}),body=await r.json();
   if(!r.ok)throw new Error('SHEETS_BATCH_UPDATE_'+r.status+': '+JSON.stringify(body));return body;
 }
+async function sheetsEnsureRows(sheetTitle,requiredRows){
+  const token=await accessToken(),metaUrl='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'?fields=sheets.properties';
+  const mr=await fetch(metaUrl,{headers:{authorization:'Bearer '+token}}),meta=await mr.json();
+  if(!mr.ok)throw new Error('SHEETS_META_'+mr.status+': '+JSON.stringify(meta));
+  const sh=(meta.sheets||[]).find(x=>x.properties?.title===sheetTitle);if(!sh)throw new Error('SHEET_NOT_FOUND_'+sheetTitle);
+  const current=Number(sh.properties.gridProperties?.rowCount||0);if(requiredRows<=current)return;
+  const u='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+':batchUpdate';
+  const body={requests:[{appendDimension:{sheetId:sh.properties.sheetId,dimension:'ROWS',length:Math.max(requiredRows-current,100)}}]};
+  const r=await fetch(u,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify(body)}),out=await r.json();
+  if(!r.ok)throw new Error('SHEETS_GRID_EXPAND_'+r.status+': '+JSON.stringify(out));
+}
 function a1col(n){let s='';for(let x=n;x>0;x=Math.floor((x-1)/26))s=String.fromCharCode(65+((x-1)%26))+s;return s;}
 function isoLocalStamp(){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Amsterdam',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date()).replace('T',' ');}
 function clean(v){return String(v==null?'':v).trim();}
@@ -280,6 +291,7 @@ async function directPlanningCommit(identity,body){
     const h=ap[0]||[],row=found.row.slice(),set=(names,value)=>{const i=col(h,names);if(i>=0)row[i]=value;};
     const now=isoLocalStamp(),planningJson=JSON.stringify({blocks:requested,totalPlannedHours:Math.round(total*100)/100,auditorEmail,auditorName});
     set(['Assigned to'],auditorEmail);set(['Date - Planned'],requested[0].date);set(['Date - Approved'],now.slice(0,10));set(['Status'],'Approved');set(['Planning JSON'],planningJson);set(['Last manager decision'],'PLAN');set(['Last decision timestamp'],now);set(['Status since'],now);
+    const maxTouchedAvailabilityRow=Math.max(0,...[...touched.values()].map(x=>x.sheetRow));if(maxTouchedAvailabilityRow)await sheetsEnsureRows('Auditor Availability',maxTouchedAvailabilityRow);
     const writes=[{range:'Audit planning!A'+found.sourceRow+':'+a1col(h.length)+found.sourceRow,values:[row]}];
     for(const x of touched.values())writes.push({range:'Auditor Availability!A'+x.sheetRow+':'+a1col(ah.length)+x.sheetRow,values:[x.row]});
     const cr=vr[3]?.values||[],ch=cr[0]||[],ci=col(ch,['Audit ID']),cs=col(ch,['State']),cu=col(ch,['Updated At']),cby=col(ch,['Released By']),cat=col(ch,['Released At']),creason=col(ch,['Release Reason']);

@@ -318,6 +318,10 @@ function ModelCFoundation_buildScopeCatalog_(configValues) {
       formalHoursDefault: ModelCFoundation_numberOrBlank_(ModelCFoundation_valueByHeaderRaw_(row, map, ['Formal_hours', 'Default_hours'])),
       planningDuration: ModelCFoundation_numberOrBlank_(ModelCFoundation_valueByHeaderRaw_(row, map, ['Planning_duration', 'Scheduling_hours'])),
       recurring: ModelCFoundation_valueByHeader_(row, map, ['Recurring']),
+      obligationCycle: ModelCFoundation_valueByHeader_(row,map,['Obligation cycle']),
+      completeBy: ModelCFoundation_valueByHeader_(row,map,['Complete by']),
+      provisioningSource: ModelCFoundation_valueByHeader_(row,map,['Provisioning source']),
+      triggerSource: ModelCFoundation_valueByHeader_(row,map,['Trigger source']),
       obligationCycle: ModelCFoundation_valueByHeader_(row, map, ['Obligation cycle']),
       provisioningSource: ModelCFoundation_valueByHeader_(row, map, ['Provisioning source']),
       triggerSource: ModelCFoundation_valueByHeader_(row, map, ['Trigger source'])
@@ -353,7 +357,7 @@ function ModelCFoundation_analyzeRows_(headers, rows, scopeCatalog) {
     rowsMissingCompanyUid: 0,
     rowsMissingAuditId: 0,
     duplicateAuditIds: 0,
-    abcOnlyRows: 0,
+    externalAnnualOnlyRows: 0,
     abcRowsWithFakeCertificateLifecycle: 0
   };
   var seenAuditIds = {};
@@ -387,9 +391,9 @@ function ModelCFoundation_analyzeRows_(headers, rows, scopeCatalog) {
     counts.rowsWithScopes++;
     counts.selectedScopeInstances += selected.length;
 
-    var abcOnly = selected.length === 1 && !!String(selected[0].provisioningSource||'').trim() && String(selected[0].obligationCycle||'').trim().toUpperCase()==='ANNUAL';
-    if (abcOnly) {
-      counts.abcOnlyRows++;
+    var externalAnnualOnly = selected.length === 1 && !!String(selected[0].provisioningSource||'').trim() && String(selected[0].obligationCycle||'').trim().toUpperCase()==='ANNUAL';
+    if (externalAnnualOnly) {
+      counts.externalAnnualOnlyRows++;
       var birthday = ModelCFoundation_valueByHeader_(row, map, ['Birthdate certificate']);
       var expiry = ModelCFoundation_valueByHeader_(row, map, ['Date - Will Expire']);
       var effectiveExpiry = ModelCFoundation_valueByHeader_(row, map, ['Extended Expiration Date']);
@@ -450,6 +454,7 @@ function ModelCFoundation_selectedScopes_(headers, row, scopeCatalog) {
       formalHours: durationIndex >= 0 ? ModelCFoundation_numberOrBlank_(row[durationIndex]) : '',
       recurring: catalogItem ? catalogItem.recurring : '',
       obligationCycle: catalogItem ? catalogItem.obligationCycle : '',
+      obligationCycle: catalogItem ? catalogItem.obligationCycle : '',
       provisioningSource: catalogItem ? catalogItem.provisioningSource : '',
       triggerSource: catalogItem ? catalogItem.triggerSource : '',
       known: !!catalogItem
@@ -471,10 +476,7 @@ function ModelCFoundation_cycleKey_(row, map, scope) {
   return baseExpiry || 'UNRESOLVED_CYCLE';
 }
 
-function ModelCFoundation_isAbc_(scopeCode, displayName) {
-  var joined = (ModelCFoundation_clean_(scopeCode) + ' ' + ModelCFoundation_clean_(displayName)).toUpperCase();
-  return joined.indexOf('MPS-ABC') >= 0 || joined.indexOf('MPS ABC') >= 0;
-}
+function ModelCFoundation_isExternalAnnual_(cfg){return !!cfg&&String(cfg.obligationCycle||'').trim().toUpperCase()==='ANNUAL'&&!!String(cfg.provisioningSource||'').trim();}
 
 function ModelCFoundation_isSelected_(value) {
   if (value === true || value === 1) return true;

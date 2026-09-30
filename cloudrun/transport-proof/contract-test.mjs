@@ -123,6 +123,7 @@ const checks=[
  ['availability summary invalidation is generation based',availability.includes('AS_bumpAvailabilitySummaryGeneration_')&&availability.includes("mode: 'GENERATION_BUMP'")&&availability.includes("return { success: true, generation: generation, mode: 'GENERATION_BUMP' };")],
  ['Audit planning persist invalidation is generation based',auditPlanningPerfCache.includes('MP_AP_PERSIST_GEN_KEY_')&&auditPlanningPerfCache.includes('__mp_bumpAuditPlanningPersistGen_')&&auditPlanningPerfCache.includes("name.toLowerCase() === 'audit planning'")],
  ['Audit planning row update retains structural index',auditPlanningIndex.includes('function __mp_invalidateAuditPlanningContent_')&&backend.includes('__mp_invalidateAuditPlanningContent_')],
+ ['focused PLAN carries optimistic source revision and rejects stale workspace commits',r4.includes("sourceRevision:createHash('sha256')")&&r4.includes("PLANNING_SOURCE_REVISION_CONFLICT")&&r5.includes("sourceRevision:a.sourceRevision||''")],
  ['direct PLAN exact retry is idempotent and does not duplicate writes or notifications',r4.includes("currentStatus==='APPROVED'")&&r4.includes("IDEMPOTENT_REPLAY")&&r4.includes('idempotent:true')],
  ['focused Save surfaces non-fatal direct PLAN queue side-effect health',r5.includes("sideEffectQueue:result.sideEffectQueue||null")&&r5.includes("[SAVE_SIDE_EFFECT_WARNING]")],
  ['direct PLAN preserves canonical max-five planning days guard',r4.includes("requested.length>5")&&r4.includes("PLANNING_MAX_5_DAYS")],

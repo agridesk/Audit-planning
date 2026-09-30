@@ -175,11 +175,11 @@ function ModelCEcasAnnualImport_buildPlan_(ss){
     else{
       out.counts.existingSameCycle++;var state=String(obligation.Obligation_State||'').toUpperCase();
       if(state==='COMPLETED'){out.counts.completedAlready++;action.action='SKIP_COMPLETED';action.reasons=['EXISTING_COMPLETED_OBLIGATION'];}
-      else if(state==='CANCELLED'||state==='REJECTED'){out.counts.conflicts++;action.action='CONFLICT';action.reasons=['CLOSED_SAME_CYCLE_'+state];out.errors.push('Closed MPS-ABC obligation already exists for '+mps+' / '+year+' ('+state+')');}
+      else if(state==='CANCELLED'||state==='REJECTED'){out.counts.conflicts++;action.action='CONFLICT';action.reasons=['CLOSED_SAME_CYCLE_'+state];out.errors.push('Closed ECAS-provisioned obligation already exists for '+mps+' / '+year+' ('+state+')');}
       else{
         var existingHours=Number(String(obligation.Formal_Hours||'').replace(',','.'));if(!isFinite(existingHours)||existingHours<=0)out.counts.zeroFormalHoursCanonical++;
         if(!isFinite(existingHours)||Math.abs(existingHours-hours)>0.000001){out.counts.updateHours++;action.reasons.push('UPDATE_FORMAL_HOURS');}else{out.counts.unchanged++;if(!action.reasons.length)action.reasons.push('UNCHANGED');}
-        if(obligation.Base_Expiry_Date||obligation.Effective_Expiry_Date)out.errors.push('MPS-ABC same-cycle obligation contains certificate expiry for '+mps);
+        if(obligation.Base_Expiry_Date||obligation.Effective_Expiry_Date)out.errors.push('ECAS-provisioned same-cycle obligation contains certificate expiry for '+mps);
         var wf=String(obligation.Planning_Window_From||'').trim(),wt=String(obligation.Planning_Window_To||'').trim();if(wf&&wt)out.counts.completePlanningWindows++;else out.counts.incompletePlanningWindows++;
       }
     }
@@ -188,11 +188,11 @@ function ModelCEcasAnnualImport_buildPlan_(ss){
 
   Object.keys(csByCompany).forEach(function(uid){var scope=csByCompany[uid],ob=obByNatural[String(scope.Company_Scope_ID||'')+'|'+year+'|'+triggerSource];if(!ob||ModelCEcasAnnualImport_terminalObligation_(ob)||sourceCompanyUids[uid])return;out.counts.staleCanonicalNotInSource++;var c=ModelCEcasAnnualImport_companyByUid_(companyIndex,uid);out.actions.push({action:'STALE_CANONICAL_NOT_IN_SOURCE',companyUid:uid,company:c?c.companyName:'',mpsNumber:c?c.mpsNumber:'',obligationId:String(ob.Obligation_ID||''),cycleYear:year,formalHours:Number(ob.Formal_Hours||0),reasons:['CANONICAL_SAME_CYCLE_NOT_PRESENT_IN_SOURCE']});});
 
-  if(out.counts.staleCanonicalNotInSource)out.warnings.push(out.counts.staleCanonicalNotInSource+' same-cycle canonical MPS-ABC obligation(s) are not present in the source; no automatic deletion/deactivation will occur.');
-  if(out.counts.incompletePlanningWindows)out.warnings.push(out.counts.incompletePlanningWindows+' source/canonical MPS-ABC obligation(s) have no stored planning window; non-recurring annual Cycle_Key runtime supplies the operational year window.');
-  if(out.counts.genericCompletedIgnored)out.warnings.push(out.counts.genericCompletedIgnored+' company/year completed log match(es) were intentionally ignored because MPS-ABC completion was not proven.');
+  if(out.counts.staleCanonicalNotInSource)out.warnings.push(out.counts.staleCanonicalNotInSource+' same-cycle canonical ECAS-provisioned obligation(s) are not present in the source; no automatic deletion/deactivation will occur.');
+  if(out.counts.incompletePlanningWindows)out.warnings.push(out.counts.incompletePlanningWindows+' source/canonical ECAS-provisioned obligation(s) have no stored planning window; non-recurring annual Cycle_Key runtime supplies the operational year window.');
+  if(out.counts.genericCompletedIgnored)out.warnings.push(out.counts.genericCompletedIgnored+' company/year completed log match(es) were intentionally ignored because ECAS-provisioned scope completion was not proven.');
 
-  out.gates.sourceRowsPresent=out.counts.sourceRows>0;out.gates.allCompaniesMatched=out.counts.matchedCompanies===out.counts.sourceRows&&!out.errors.some(function(x){return x.indexOf('MPS-nummer not found')===0;});out.gates.noConflicts=out.counts.conflicts===0;out.gates.noCertificateLifecycleLeak=!out.errors.some(function(x){return x.indexOf('MPS-ABC same-cycle obligation contains certificate expiry')===0;});out.gates.explicitBatchYearOwner=out.gates.explicitBatchYear;out.gates.sourceMetadataIgnored=true;out.gates.scopeAwareCompletionSuppression=true;out.gates.nonRecurringCycleWindowRuntime=true;out.gates.directAuditPlanningWrite=false;
+  out.gates.sourceRowsPresent=out.counts.sourceRows>0;out.gates.allCompaniesMatched=out.counts.matchedCompanies===out.counts.sourceRows&&!out.errors.some(function(x){return x.indexOf('MPS-nummer not found')===0;});out.gates.noConflicts=out.counts.conflicts===0;out.gates.noCertificateLifecycleLeak=!out.errors.some(function(x){return x.indexOf('ECAS-provisioned same-cycle obligation contains certificate expiry')===0;});out.gates.explicitBatchYearOwner=out.gates.explicitBatchYear;out.gates.sourceMetadataIgnored=true;out.gates.scopeAwareCompletionSuppression=true;out.gates.nonRecurringCycleWindowRuntime=true;out.gates.directAuditPlanningWrite=false;
   out.success=out.errors.length===0&&out.gates.explicitBatchYear&&out.gates.abcConfiguredNonRecurring&&out.gates.requiredSourceHeaders&&out.gates.sourceRowsPresent&&out.gates.noConflicts&&out.gates.allCompaniesMatched;
   return out;
 }
@@ -204,7 +204,7 @@ function ModelCEcasAnnualImport_scopeResolution_(rows,scopeCode){
   return{byCompany:byCompany,errors:errors};
 }
 
-function ModelCEcasAnnualImport_completedIndexScopeAware_(ss,sheet,year,obligations,links,scopeCode,sourceService,scopeCode,sourceService){
+function ModelCEcasAnnualImport_completedIndexScopeAware_(ss,sheet,year,obligations,links,scopeCode,sourceService){
   var abcObById={},abcAuditIds={};
   (obligations||[]).forEach(function(ob){if(String(ob.ScopeCode||'')===scopeCode&&String(ob.Cycle_Key||'')===String(year))abcObById[String(ob.Obligation_ID||'')]=true;});
   (links||[]).forEach(function(link){if(abcObById[String(link.Obligation_ID||'')])abcAuditIds[String(link.Audit_ID||'')]=true;});

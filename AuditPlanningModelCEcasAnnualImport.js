@@ -114,7 +114,9 @@ function ModelCEcasAnnualImport_buildPlan_(ss){
 
   var cfg=ModelCRecurringConfig_get_(ss,MODEL_C_ECAS_SCOPE_CODE);
   out.gates.abcConfiguredNonRecurring=cfg.recurring===false;
+  out.gates.abcAnnualExecutionDeadlineConfigured=cfg.obligationCycle==='ANNUAL'&&/^\\d{2}-\\d{2}$/.test(String(cfg.completeBy||''));
   if(cfg.recurring!==false)out.errors.push('MPS-ABC must be Recurring=NO in Config_Scopes');
+  if(!out.gates.abcAnnualExecutionDeadlineConfigured)out.errors.push('MPS-ABC annual execution deadline must be configured in Config_Scopes');
 
   var year=String(source.getRange('G1').getDisplayValue()||'').trim();out.batchYear=year;
   out.gates.explicitBatchYear=/^20\d{2}$/.test(year);

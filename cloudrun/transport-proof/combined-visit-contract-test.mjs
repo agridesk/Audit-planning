@@ -17,7 +17,7 @@ has(pkg.scripts.test,'node --check server-r8.js','r8 syntax check');
 has(pkg.scripts.test,'combined-visit-contract-test.mjs','combined Visit contract test');
 has(docker,'COPY server-r6.js ./','Docker image must contain combined Visit writer');
 has(docker,'COPY server-r7.js ./','Docker image must contain combined Visit UI layer');
-has(docker,'COPY server-r8.js ./','Docker image must contain revision-enrichment layer');
+has(docker,'COPY server-r8.js ./','Docker image must contain revision-enrichment/routing layer');
 
 has(r8,"await import('./server-r7.js')",'r8 must wrap accepted r7 path');
 has(r8,"u.pathname==='/api/v1/planning/workspace'",'r8 must intercept focused workspace read');
@@ -25,9 +25,15 @@ has(r8,"auditPlanningRows()",'r8 must use one bounded Audit planning revision re
 has(r8,"item.sourceRevision=shaRevision",'missing related Visit revision must be enriched canonically');
 has(r8,"u.pathname==='/api/v1/build'",'r8 runtime build identity endpoint');
 has(r8,"x-ams-build",'r8 response build identity header');
+has(r8,"u.pathname==='/api/v1/planning/commit-handoff'",'r8 must intercept combined Visit commit handoff');
+has(r8,"COMBINED_WRITER_PORT=PUBLIC_PORT+2",'r8 must know canonical r6 combined-writer port');
+has(r8,"'/api/v1/planning/direct-commit'",'r8 combined handoff must call canonical direct-commit endpoint');
+has(r8,"compositionIds(body)",'r8 combined handoff must derive Visit composition from payload');
+has(r8,"ids.length<2",'r8 must leave single-Visit handoff on accepted legacy path');
+has(r8,"writeOwner:'CLOUD_RUN_DIRECT_SHEETS_COMBINED_VISIT'",'r8 must expose combined writer ownership');
 has(r7,"await import('./server-r6.js')",'r7 must wrap accepted combined Visit path');
 has(r7,"required=requiredVisitHours()",'combined Visit validation must use selected scheduling hours');
-has(r6,"await import('./server-r5.js')",'r6 must wrap the accepted r5/r4 path');
+has(r6,"await import('./server-r5.js')",'r6 must wrap accepted r5/r4 path');
 has(r6,"u.pathname==='/api/v1/planning/direct-commit'",'direct commit interception');
 has(r6,"ids.length>1",'combined Visit routing gate');
 has(r6,"withCombinedLock(()=>proxy(req,res,raw))",'single-Visit commits must share outer capacity lock');
@@ -75,13 +81,15 @@ has(r5,"visitMembers:[...visitAuditIds]",'browser per-member revisions');
 
 console.log(JSON.stringify({
   success:true,
-  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R4_REVISION_ENRICH',
-  checks:49,
+  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R5_COMMIT_ROUTING',
+  checks:55,
   writesPerformed:false,
   assertions:{
     genericScopes:true,
     optimisticConcurrencyAllMembers:true,
     relatedRevisionEnrichment:true,
+    combinedCommitRoutesToCanonicalR6Writer:true,
+    singleCommitPathPreserved:true,
     formalVsSchedulingSeparated:true,
     dynamicCombinedSchedulingHoursUi:true,
     runtimeBuildIdentity:true,

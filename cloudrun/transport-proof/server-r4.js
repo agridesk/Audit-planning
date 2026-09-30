@@ -26,7 +26,7 @@ async function sheetsBatchGet(ranges,serialDates=false){
   const r=await fetch(u,{headers:{authorization:'Bearer '+token}}),body=await r.json();
   if(!r.ok)throw new Error('SHEETS_API_'+r.status+': '+JSON.stringify(body));return body.valueRanges||[];
 }
-async function sheetsBatchUpdate(data){
+async function sheetsValuesBatchUpdate(data){
   const token=await accessToken(),u='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'/values:batchUpdate';
   const r=await fetch(u,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({valueInputOption:'USER_ENTERED',data})}),body=await r.json();
   if(!r.ok)throw new Error('SHEETS_BATCH_UPDATE_'+r.status+': '+JSON.stringify(body));return body;
@@ -284,7 +284,7 @@ async function directPlanningCommit(identity,body){
     for(const x of touched.values())writes.push({range:'Auditor Availability!A'+x.sheetRow+':'+a1col(ah.length)+x.sheetRow,values:[x.row]});
     const cr=vr[3]?.values||[],ch=cr[0]||[],ci=col(ch,['Audit ID']),cs=col(ch,['State']),cu=col(ch,['Updated At']),cby=col(ch,['Released By']),cat=col(ch,['Released At']),creason=col(ch,['Release Reason']);
     for(let i=1;i<cr.length;i++){const rr=cr[i].slice();if(clean(rr[ci])!==auditId||clean(rr[cs]).toUpperCase()!=='ACTIVE')continue;rr[cs]='RELEASED';if(cu>=0)rr[cu]=now;if(cby>=0)rr[cby]=clean(identity?.email);if(cat>=0)rr[cat]=now;if(creason>=0)rr[creason]='CANONICAL_COMMIT';writes.push({range:'Concept Reservations!A'+(i+1)+':'+a1col(ch.length)+(i+1),values:[rr]});}
-    const writeStarted=Date.now();await sheetsBatchUpdate(writes);const writeMs=Date.now()-writeStarted;
+    const writeStarted=Date.now();await sheetsValuesBatchUpdate(writes);const writeMs=Date.now()-writeStarted;
     return{success:true,auditId,newStatus:'Approved',assignedTo:auditorEmail,planningJson,totalMs:Date.now()-started,directCommit:true,readMs,writeMs,writeCount:writes.length,owner:'CLOUD_RUN_DIRECT_SHEETS_MANAGER_PLAN'};
   });
 }

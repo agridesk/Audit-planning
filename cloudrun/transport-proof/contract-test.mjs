@@ -166,6 +166,9 @@ const checks=[
 ,
  ['single-company visit composition is explicit',r5.includes('data-visit-audit')&&r5.includes('Combined physical visit:')&&r5.includes('visitAuditIds:[...visitAuditIds]')],
  ['combined visit commit fails closed before Model C relink owner exists',r4.includes('VISIT_COMBINED_COMMIT_NOT_YET_CANONICAL')&&r4.includes('VISIT_RELATED_EXECUTION_DEADLINE_APPROVAL_REQUIRED')]
+,
+ ['scope catalog carries config-driven formal and scheduling hours',r4.includes("['Scheduling_hours','Scheduling hours','Scheduling Hours','Planning duration','Planning_duration']")&&r4.includes("schedulingSource:def.schedulingHours>0?'CONFIG_SCOPES_SCHEDULING_HOURS':'FORMAL_HOURS_FALLBACK'")],
+ ['company visit planner keeps formal and scheduling hours distinct',r5.includes("'Formal '+Number(r.formalHours")&&r5.includes("' h · Scheduling '+Number(r.schedulingHours")]
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

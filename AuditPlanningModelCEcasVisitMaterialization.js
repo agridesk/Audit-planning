@@ -1,10 +1,10 @@
 /**
- * AMS-01.6 Model C — ECAS MPS-ABC visit materialization.
+ * AMS-01.6 Model C — ECAS-provisioned visit materialization.
  *
  * Uses the canonical ECAS annual-import source contract to resolve the explicit
  * current batch year, then determines/executes visit linkage/materialization.
  * New visits require positive canonical Formal_Hours. A planning window is not
- * mandatory for non-recurring ECAS MPS-ABC and is never invented here.
+ * mandatory for non-recurring ECAS-provisioned and is never invented here.
  */
 var MODEL_C_ECAS_VISIT_MATERIALIZATION_BUILD='2026-09-21_AMS_01_6_MODEL_C_ECAS_VISIT_MATERIALIZATION_R4_SAFE_APPLY';
 
@@ -134,9 +134,9 @@ function ModelCEcasVisitMaterialization_buildPreview_(ss){
   Object.keys(required).forEach(function(name){if(!required[name])out.errors.push('Missing sheet: '+name);});
   out.gates.requiredSheets=out.errors.length===0;if(!out.gates.requiredSheets)return out;
 
-  var cfg=ModelCRecurringConfig_get_(ss,'MPS-ABC');
+  var cfgMeta=ModelCEcasAnnualImport_config_(ss),scopeCode=cfgMeta.scopeCode,triggerSource=cfgMeta.triggerSource,cfg=ModelCRecurringConfig_get_(ss,scopeCode);
   out.gates.abcConfiguredNonRecurring=cfg.recurring===false;
-  if(!out.gates.abcConfiguredNonRecurring)out.errors.push('MPS-ABC must be Recurring=NO in Config_Scopes');
+  if(!out.gates.abcConfiguredNonRecurring)out.errors.push('ECAS-provisioned scope must be Recurring=NO in Config_Scopes');
   out.gates.explicitBatchYear=/^20\d{2}$/.test(out.batchYear);
   if(!out.gates.explicitBatchYear)out.errors.push('No valid ECAS batch year resolved');
   if(out.errors.length)return out;
@@ -169,7 +169,7 @@ function ModelCEcasVisitMaterialization_buildPreview_(ss){
     (activeLinksByAudit[auditId]||[]).forEach(function(link){var ob=obById[String(link.Obligation_ID||'')];if(!ob||ModelCEcasVisitMaterialization_terminalObligation_(ob))return;var uid=String(ob.Company_UID||'').trim(),cycle=String(ob.Cycle_Key||'').trim();if(!uid||!cycle)return;if(ap.companyUid&&ap.companyUid!==uid){out.errors.push('Audit/company mismatch: '+auditId+' / '+uid);return;}var key=uid+'|'+cycle;if(seen[key])return;seen[key]=true;(candidateAuditsByCompanyCycle[key]||(candidateAuditsByCompanyCycle[key]=[])).push(auditId);});
   });
 
-  var targets=obligations.filter(function(ob){return String(ob.ScopeCode||'').trim().toUpperCase()==='MPS-ABC'&&String(ob.Trigger_Source||'').trim().toUpperCase()==='ECAS'&&String(ob.Cycle_Key||'').trim()===out.batchYear&&!ModelCEcasVisitMaterialization_terminalObligation_(ob);});
+  var targets=obligations.filter(function(ob){return String(ob.ScopeCode||'').trim()===scopeCode&&String(ob.Trigger_Source||'').trim().toUpperCase()===String(triggerSource).toUpperCase()&&String(ob.Cycle_Key||'').trim()===out.batchYear&&!ModelCEcasVisitMaterialization_terminalObligation_(ob);});
   out.counts.targetObligations=targets.length;
 
   targets.forEach(function(ob){
@@ -202,7 +202,7 @@ function ModelCEcasVisitMaterialization_buildPreview_(ss){
   });
 
   if(out.counts.blockedInvalidHours)out.warnings.push(out.counts.blockedInvalidHours+' source-backed ECAS obligation(s) have invalid/zero canonical Formal_Hours. Run canonical ECAS import apply before materialization.');
-  if(out.counts.missingWindowInformational)out.warnings.push(out.counts.missingWindowInformational+' source-backed ECAS obligation(s) have no complete canonical planning window; for non-recurring MPS-ABC this is informational and no window is invented.');
+  if(out.counts.missingWindowInformational)out.warnings.push(out.counts.missingWindowInformational+' source-backed ECAS obligation(s) have no complete canonical planning window; for non-recurring ECAS-provisioned scope this is informational and no window is invented.');
   out.gates.targetsFound=targets.length>0;
   out.gates.sourceBackedTargetsFound=out.counts.sourceBackedTargets>0;
   out.gates.singleActiveLinkPerObligation=!out.errors.some(function(x){return x.indexOf('Obligation has multiple active visit links:')===0;});

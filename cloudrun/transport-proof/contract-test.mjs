@@ -15,6 +15,8 @@ const auditPlanningPerfCache=fs.readFileSync(new URL('../../AuditPlanningPerfCac
 const auditPlanningIndex=fs.readFileSync(new URL('../../AuditPlanningRowIndexCache.js',import.meta.url),'utf8');
 const availabilityLoader=availability.slice(availability.indexOf('function _ensureEmailLoadedInPack_'),availability.indexOf('function getPackRow_'));
 const checks=[
+ ['overdue execution-cycle audits retain a forward planning horizon',r4.includes("overdue=!!(deadline&&deadline<from)")&&r4.includes("!overdue&&deadline?deadline")&&r4.includes("audit.executionDeadlineOverdue=overdue")],
+ ['Planning 2.0 surfaces overdue execution-cycle audits',r5.includes("a.executionDeadlineOverdue")&&r5.includes("has passed — audit is overdue and remains plannable")],
  ['non-recurring annual execution deadline is config-driven',r4.includes("['Obligation cycle','Obligation_cycle','Cycle']")&&r4.includes("['Complete by','Complete_by','Must be completed by']")&&r4.includes("CONFIG_SCOPES_NON_RECURRING_CYCLE")],
  ['Planning 2.0 exposes execution deadline without making it a hard planning window',r5.includes("Must be completed by '+a.mustCompleteBy")&&r5.includes("audit remains plannable but is overdue")&&r5.includes("q('#date').max=a.planningWindowTo||''")],
  ['same-visit candidate never proposes already-planned related audits',r4.includes('linkCandidate:pending')&&r4.includes('sameVisitCandidate:pending&&(sameWindow||missingWindow)')],

@@ -160,9 +160,11 @@ function ConfigScopes_GetAliasMeta(forceRefresh) {
     addAlias_(canonical, scopeCode);
 
     if (canonical === 'Florimark Tracecert') {
-      addKey_('Florimark Tracecert', canonical);
+      // Historical Auditors header typo is still present in operational data.
+      // Keep it as an explicit alias; Config_Scopes remains canonical truth.
+      addKey_('Florimark Tracecet', canonical);
       addKey_('FLORIMARK_TF', canonical);
-      addAlias_(canonical, 'Florimark Tracecert');
+      addAlias_(canonical, 'Florimark Tracecet');
       addAlias_(canonical, 'FLORIMARK_TF');
     }
 

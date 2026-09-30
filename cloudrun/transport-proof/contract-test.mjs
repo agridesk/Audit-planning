@@ -156,7 +156,8 @@ const checks=[
  ['legacy GAS rotation bridge contract remains available',handoff.includes('ExternalPlanningWorkspaceHandoff_payload_')&&handoff.includes("mode === 'commit'")&&handoff.includes("mode === 'rotation' ? 'rotation' : 'open'")],
 ['direct calendar draft rerender updates slots and selected-day state',r5.includes("function renderDraft(){renderSlots();renderAvailability();validate()}")],
 ['related audit Open uses canonical focused planning route',r5.includes("location.href=\'/planning?auditId=\'+encodeURIComponent(b.dataset.relatedAudit)")&&!r5.includes("location.href=\'/planning-2?auditId=\'")],
-['direct calendar prevents overplanning beyond required hours',r5.includes("Required audit time is already fully planned.")&&r5.includes("Math.abs(hours-required)<=0.001")]
+['direct calendar prevents overplanning beyond required hours',r5.includes("Required audit time is already fully planned.")&&r5.includes("Math.abs(hours-required)<=0.001")],
+['non-recurring calendar uses operational execution horizon',r5.includes("allowedTo=a.planningWindowTo||model?.data?.period?.to||allowedFrom")]
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

@@ -5,6 +5,7 @@ const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const r5=readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
 const r6=readFileSync(new URL('./server-r6.js',import.meta.url),'utf8');
 const r7=readFileSync(new URL('./server-r7.js',import.meta.url),'utf8');
+const docker=readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
 const pkg=JSON.parse(readFileSync(new URL('./package.json',import.meta.url),'utf8'));
 
 function has(text,needle,label){assert.ok(text.includes(needle),label+' missing');}
@@ -13,9 +14,14 @@ function not(text,needle,label){assert.ok(!text.includes(needle),label+' unexpec
 assert.equal(pkg.scripts.start,'node server-r7.js','server-r7 must own the public DEV transport');
 has(pkg.scripts.test,'node --check server-r7.js','r7 syntax check');
 has(pkg.scripts.test,'combined-visit-contract-test.mjs','combined Visit contract test');
+has(docker,'COPY server-r6.js ./','Docker image must contain combined Visit writer');
+has(docker,'COPY server-r7.js ./','Docker image must contain public combined Visit UI layer');
 
 has(r7,"await import('./server-r6.js')",'r7 must wrap accepted combined Visit path');
 has(r7,"required=requiredVisitHours()",'combined Visit validation must use selected scheduling hours');
+has(r7,"u.pathname==='/api/v1/build'",'runtime build identity endpoint');
+has(r7,"x-ams-build",'planning response build identity header');
+has(r7,"AMS_COMBINED_VISIT_UI_HOURS_R3_RUNTIME_VERIFIABLE",'runtime-verifiable combined Visit build marker');
 has(r6,"await import('./server-r5.js')",'r6 must wrap the accepted r5/r4 path');
 has(r6,"u.pathname==='/api/v1/planning/direct-commit'",'direct commit interception');
 has(r6,"ids.length>1",'combined Visit routing gate');
@@ -65,14 +71,16 @@ has(r5,"visitMembers:[...visitAuditIds]",'browser per-member revisions');
 
 console.log(JSON.stringify({
   success:true,
-  build:'2026-09-30_COMBINED_VISIT_CONTRACT_R2',
-  checks:38,
+  build:'2026-09-30_COMBINED_VISIT_CONTRACT_R3_RUNTIME_PACKAGING',
+  checks:43,
   writesPerformed:false,
   assertions:{
     genericScopes:true,
     optimisticConcurrencyAllMembers:true,
     formalVsSchedulingSeparated:true,
     dynamicCombinedSchedulingHoursUi:true,
+    runtimeBuildIdentity:true,
+    dockerIncludesCombinedLayers:true,
     sourceVisitProjectionRetiredWithoutInventedStatus:true,
     linkHistoryRetained:true,
     onePhysicalAvailabilityOccupancy:true,

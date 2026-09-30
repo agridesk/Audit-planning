@@ -123,6 +123,7 @@ const checks=[
  ['availability summary invalidation is generation based',availability.includes('AS_bumpAvailabilitySummaryGeneration_')&&availability.includes("mode: 'GENERATION_BUMP'")&&availability.includes("return { success: true, generation: generation, mode: 'GENERATION_BUMP' };")],
  ['Audit planning persist invalidation is generation based',auditPlanningPerfCache.includes('MP_AP_PERSIST_GEN_KEY_')&&auditPlanningPerfCache.includes('__mp_bumpAuditPlanningPersistGen_')&&auditPlanningPerfCache.includes("name.toLowerCase() === 'audit planning'")],
  ['Audit planning row update retains structural index',auditPlanningIndex.includes('function __mp_invalidateAuditPlanningContent_')&&backend.includes('__mp_invalidateAuditPlanningContent_')],
+ ['direct PLAN preserves canonical max-five planning days guard',r4.includes("requested.length>5")&&r4.includes("PLANNING_MAX_5_DAYS")],
  ['direct PLAN preserves lifecycle trail and auditor notification in same Sheets commit',r4.includes("'AUDIT_TRAIL','LIFECYCLE_STATUS_CHANGED'")&&r4.includes("'PENDING','AUDIT_PLANNED_BY_MANAGER'")&&r4.includes("sheetsValuesAppend('Notification Queue!A:M',[trailRow,plannedRow])")],
  ['direct PLAN serializes shared Availability commits globally',r4.includes("const key='__GLOBAL_MANAGER_PLAN__'")&&r4.includes('withDirectPlanLock(auditId')],
  ['Planning 2.0 save completion is direct canonical-result driven',r5.includes("[SAVE_RESULT]")&&r5.includes("bridgeRoundTripMs")&&r5.includes("result.success!==true")],

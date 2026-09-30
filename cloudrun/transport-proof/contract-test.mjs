@@ -15,6 +15,7 @@ const auditPlanningPerfCache=fs.readFileSync(new URL('../../AuditPlanningPerfCac
 const auditPlanningIndex=fs.readFileSync(new URL('../../AuditPlanningRowIndexCache.js',import.meta.url),'utf8');
 const availabilityLoader=availability.slice(availability.indexOf('function _ensureEmailLoadedInPack_'),availability.indexOf('function getPackRow_'));
 const checks=[
+ ['related audit attention state distinguishes unplanned linked work',r4.includes('UNPLANNED_RELATED')&&r4.includes('attentionRequired:pending')&&r5.includes('Related audit still needs planning')&&r5.includes('Needs planning')],
  ['same-company audits are classified for linked same-visit planning',r4.includes('sameVisitCandidate')&&r4.includes('missingPlanningWindow')&&r5.includes('consider planning in the same visit')],
 
  ['Planning 2.0 same-company alert UX present',r5.includes('relatedAudits')&&r5.includes('data-related-audit')&&r5.includes('Related open audit — consider planning in the same visit')],

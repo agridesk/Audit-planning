@@ -255,7 +255,9 @@ function ConfigScopes_loadCatalogFromSheet_() {
       planningFrom: ConfigScopes_numOrNull_(ConfigScopes_val_(row, idx, ['Planning from', 'Planning_from', 'PlanningFrom'])),
       planningTo: ConfigScopes_numOrNull_(ConfigScopes_val_(row, idx, ['Planning to', 'Planning_to', 'PlanningTo'])),
       extension: ConfigScopes_numOrNull_(ConfigScopes_val_(row, idx, ['Extension'])),
-      recurring: ConfigScopes_clean_(ConfigScopes_val_(row, idx, ['Recurring', 'RECURRENCE', 'Recurring audit']))
+      recurring: ConfigScopes_clean_(ConfigScopes_val_(row, idx, ['Recurring', 'RECURRENCE', 'Recurring audit'])),
+      obligationCycle: ConfigScopes_clean_(ConfigScopes_val_(row, idx, ['Obligation cycle', 'Obligation_cycle', 'Cycle'])).toUpperCase(),
+      completeBy: ConfigScopes_clean_(ConfigScopes_val_(row, idx, ['Complete by', 'Complete_by', 'Must be completed by']))
     });
   }
 

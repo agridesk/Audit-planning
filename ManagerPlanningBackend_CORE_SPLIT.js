@@ -955,20 +955,7 @@ function saveManagerPlanning(auditId, payload) {
       if (typeof _mp_getQualifiedAuditorsFastList_ !== 'function') {
         throw new Error('Missing _mp_getQualifiedAuditorsFastList_ for save qualification guard');
       }
-      // Save may run in a fresh GAS execution, so ScriptCache is not guaranteed warm.
-      // Reuse the canonical qualified auditors already delivered by Planning 2.0 when present,
-      // but only after matching the exact required scope set. The canonical save still performs
-      // authoritative availability/collision/status checks below.
-      var __qPayloadAuditors = Array.isArray(payload.qualifiedAuditors) ? payload.qualifiedAuditors : null;
-      var __qPayloadScopes = Array.isArray(payload.qualifiedAuditorScopes) ? payload.qualifiedAuditorScopes.map(function(s){ return String(s || '').trim().toLowerCase(); }).filter(Boolean).sort() : [];
-      var __qScopeNorm = (__qRequiredScopes || []).map(function(s){ return String(s || '').trim().toLowerCase(); }).filter(Boolean).sort();
-      var __qPayloadScopeMatch = __qPayloadScopes.length === __qScopeNorm.length && __qPayloadScopes.join('|') === __qScopeNorm.join('|');
-      if (__qPayloadAuditors && __qPayloadScopeMatch) {
-        __qAuditors = __qPayloadAuditors;
-        __qCacheHit = true;
-      } else {
-        __qAuditors = _mp_getQualifiedAuditorsFastList_(__qSs, __qRequiredScopes, __qPreassigned, { auditId: auditId });
-      }
+      __qAuditors = _mp_getQualifiedAuditorsFastList_(__qSs, __qRequiredScopes, __qPreassigned, { auditId: auditId });
       if (typeof _mp_fastOpenQualifiedCachePut_ === 'function') {
         _mp_fastOpenQualifiedCachePut_(__qRequiredScopes, __qPreassigned, __qAuditors);
       }

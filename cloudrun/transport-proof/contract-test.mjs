@@ -15,6 +15,8 @@ const auditPlanningPerfCache=fs.readFileSync(new URL('../../AuditPlanningPerfCac
 const auditPlanningIndex=fs.readFileSync(new URL('../../AuditPlanningRowIndexCache.js',import.meta.url),'utf8');
 const availabilityLoader=availability.slice(availability.indexOf('function _ensureEmailLoadedInPack_'),availability.indexOf('function getPackRow_'));
 const checks=[
+ ['Planning 2.0 same-company alert UX present',r5.includes('relatedAudits')&&r5.includes('data-related-audit')&&r5.includes('Another open audit for this company')],
+
  ['focused planning exposes same-company open audits for linked planning UX',r4.includes('relatedOpenAudits=')&&r4.includes('audit.hasRelatedOpenAudits=relatedOpenAudits.length>0')],
 
  ['notification duplicate lookup avoids wide queue-row reads',notificationBuilder.includes('hashRange.createTextFinder(hash)')&&notificationBuilder.includes('statusValues')&&!notificationBuilder.includes("getRange(rowNoFast, 2).getDisplayValue()")],

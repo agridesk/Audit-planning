@@ -15,6 +15,9 @@ const auditPlanningPerfCache=fs.readFileSync(new URL('../../AuditPlanningPerfCac
 const auditPlanningIndex=fs.readFileSync(new URL('../../AuditPlanningRowIndexCache.js',import.meta.url),'utf8');
 const availabilityLoader=availability.slice(availability.indexOf('function _ensureEmailLoadedInPack_'),availability.indexOf('function getPackRow_'));
 const checks=[
+ ['calendar click directly adds or removes local draft day',r5.includes("function toggleCalendarDay(date,visualState)")&&r5.includes("draftBlocks.findIndex(b=>b.date===date)")&&r5.includes("draftBlocks.push(b)")&&r5.includes("draftBlocks.splice(existing,1)")],
+ ['calendar draft selection enforces max five days',r5.includes("if(draftBlocks.length>=5)")&&r5.includes("Maximum 5 planning days.")],
+ ['slot detail edit preserves draft membership',r5.includes("function syncActiveSlotDetails()")&&r5.includes("draftBlocks[i]=b")],
  ['overdue execution-cycle audits retain a forward planning horizon',r4.includes("overdue=!!(deadline&&deadline<from)")&&r4.includes("!overdue&&deadline?deadline")&&r4.includes("audit.executionDeadlineOverdue=overdue")],
  ['Planning 2.0 surfaces overdue execution-cycle audits',r5.includes("a.executionDeadlineOverdue")&&r5.includes("has passed — audit is overdue and remains plannable")],
  ['non-recurring annual execution deadline is config-driven',r4.includes("['Obligation cycle','Obligation_cycle','Cycle']")&&r4.includes("['Complete by','Complete_by','Must be completed by']")&&r4.includes("CONFIG_SCOPES_NON_RECURRING_CYCLE")],

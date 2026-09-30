@@ -146,6 +146,7 @@ function project(f,catalog,audValues){
     assignedTo:g(['Assigned to','Assigned auditor','Auditor']),
     preassignedAuditor:pre,
     planningJson:g(['Planning JSON','Planning_JSON']),
+    sourceRevision:createHash('sha256').update([g(['Audit ID','Audit_ID','AuditId','Audit Id']),g(['Status']),g(['Assigned to','Assigned auditor','Auditor']),g(['Planning JSON','Planning_JSON']),g(['Last decision timestamp']),g(['Status since'])].join('|')).digest('hex').slice(0,24),
     requiredHours:Number(String(g(['Total audit time in hours','Total time in hours','Required hours','Total hours'])||'').replace(',','.'))||0,
     scopes,
     candidateAuditors:candidates(audValues,catalog,scopes,pre),
@@ -268,13 +269,14 @@ function directPlanNormBlocks(raw){
 }
 function overlaps(a,b){return clean(a.start)<clean(b.end)&&clean(b.start)<clean(a.end);}
 async function directPlanningCommit(identity,body){
-  const started=Date.now(),auditId=clean(body?.auditId),auditorEmail=clean(body?.auditorEmail).toLowerCase(),auditorName=clean(body?.auditorName);
+  const started=Date.now(),auditId=clean(body?.auditId),auditorEmail=clean(body?.auditorEmail).toLowerCase(),auditorName=clean(body?.auditorName),sourceRevision=clean(body?.sourceRevision);
   if(!auditId||!auditorEmail)throw new Error('PLANNING_REQUIRED_FIELDS_MISSING');
   const requested=directPlanNormBlocks(body?.blocks);if(!requested.length)throw new Error('PLANNING_REQUIRED_FIELDS_MISSING');if(requested.length>5)throw new Error('PLANNING_MAX_5_DAYS');
   return withDirectPlanLock(auditId,async()=>{
     const readStarted=Date.now(),vr=await sheetsBatchGet(['Audit planning!A1:AX768','Auditors!A1:AZ256','Auditor Availability!A1:P','Concept Reservations!A1:P256','Config_Scopes!A1:Z128','Companies!A1:AZ768']),readMs=Date.now()-readStarted;
     const ap=vr[0]?.values||[],found=findAudit(ap,auditId);if(!found)throw new Error('AUDIT_NOT_FOUND');
     const catalog=scopeCatalog(vr[4]?.values||[]),audit=project(found,catalog,vr[1]?.values||[]);
+    if(sourceRevision&&sourceRevision!==clean(audit.sourceRevision))throw new Error('PLANNING_SOURCE_REVISION_CONFLICT');
     const currentStatus=clean(audit.status).toUpperCase().replace(/[\s-]+/g,'_'),currentPlanning=blocks(found.row[col(found.h,['Planning JSON','PlanningJSON','Planning'])]),sameBlocks=currentPlanning.length===requested.length&&currentPlanning.every((b,i)=>dateOnly(b?.date)===requested[i].date&&clean(b?.start)===requested[i].start&&clean(b?.end)===requested[i].end&&clean(b?.execLoc||b?.executionLocation||b?.location||'HQ')===clean(requested[i].execLoc||'HQ')),currentAssigned=clean(found.row[col(found.h,['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned'])]).toLowerCase();
     if(currentStatus==='APPROVED'&&currentAssigned===auditorEmail&&sameBlocks)return{success:true,idempotent:true,auditId,newStatus:'Approved',assignedTo:auditorEmail,planningJson:clean(found.row[col(found.h,['Planning JSON','PlanningJSON','Planning'])]),totalMs:Date.now()-started,readMs,writeMs:0,sideEffectMs:0,sideEffectQueue:{success:true,skipped:true,reason:'IDEMPOTENT_REPLAY'},owner:'CLOUD_RUN_DIRECT_SHEETS_MANAGER_PLAN'};
     if(currentStatus!=='PENDING_PLANNING')throw new Error('STATUS_TRANSITION_BLOCKED');

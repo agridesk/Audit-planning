@@ -3,7 +3,7 @@ import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 
 const PUBLIC_PORT=Number(process.env.PORT||8080);
 const INNER_PORT=PUBLIC_PORT+1;
-const BUILD='2026-09-30_AMS_PLANNING_SERVER_SIDE_CANONICAL_COMMIT_R98';
+const BUILD='2026-09-30_AMS_PLANNING_SERVER_SIDE_COMMIT_R99_SINGLE_VERIFY';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
@@ -86,8 +86,18 @@ async function handlePlanningCommitHandoff(req,res){
   const started=Date.now();
   try{
     const form=new URLSearchParams(handoff.fields),r=await fetch(handoff.action,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded;charset=UTF-8'},body:form.toString(),redirect:'follow'}),raw=await r.text();
-    const m=raw.match(/var m=(\{[\s\S]*?\});try\{window\.parent\.postMessage/);if(!m)throw new Error('GAS_COMMIT_RESULT_NOT_FOUND');
-    const envelope=JSON.parse(m[1]),result=envelope&&envelope.result;if(!result)throw new Error('GAS_COMMIT_RESULT_EMPTY');
+    const m=raw.match(/var m=(\{[\s\S]*?\});try\{window\.parent\.postMessage/);
+    let result=m?((JSON.parse(m[1])||{}).result):null;
+    if(!result){
+      const u=new URL('http://127.0.0.1:'+INNER_PORT+'/api/v1/planning/workspace');u.searchParams.set('auditId',clean(body.auditId));
+      const vr=await fetch(u,{headers:{cookie:SESSION_COOKIE+'='+issueSession(identity)}}),vx=await vr.json(),va=vx&&vx.data&&vx.data.audit;
+      const wanted=(Array.isArray(body.blocks)?body.blocks:[]).map(b=>[clean(b.date),clean(b.start),clean(b.end),clean(b.execLoc||b.location||'HQ')].join('|')).sort();
+      const got=(va&&Array.isArray(va.planningBlocks)?va.planningBlocks:[]).map(b=>[clean(b.date),clean(b.start),clean(b.end),clean(b.execLoc||b.location||'HQ')].join('|')).sort();
+      const sameBlocks=wanted.length===got.length&&wanted.every((v,i)=>v===got[i]);
+      const canonicalMatch=vr.ok&&va&&clean(va.status).toLowerCase()==='approved'&&clean(va.assignedTo).toLowerCase()===clean(body.auditorEmail).toLowerCase()&&sameBlocks;
+      if(!canonicalMatch)throw new Error('GAS_COMMIT_RESULT_NOT_FOUND_AND_CANONICAL_MISMATCH');
+      result={success:true,auditId:clean(body.auditId),newStatus:clean(va.status),assignedTo:clean(va.assignedTo),bridgeMs:Date.now()-started,verifiedBy:'SINGLE_CANONICAL_READ'};
+    }
     return sendJson(res,result.success===true?200:409,{ok:result.success===true,result,bridgeRoundTripMs:Date.now()-started,configMarker:configMarker()});
   }catch(err){return sendJson(res,502,{ok:false,error:'PLANNING_CANONICAL_COMMIT_FAILED',detail:clean(err&&err.message||err),bridgeRoundTripMs:Date.now()-started});}
 }

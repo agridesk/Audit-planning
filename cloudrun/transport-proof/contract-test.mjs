@@ -22,7 +22,7 @@ const checks=[
  ['Planning 2.0 surfaces overdue execution-cycle audits',r5.includes("a.executionDeadlineOverdue")&&r5.includes("has passed — audit is overdue and remains plannable")],
  ['non-recurring annual execution deadline is config-driven',r4.includes("['Obligation cycle','Obligation_cycle','Cycle']")&&r4.includes("['Complete by','Complete_by','Must be completed by']")&&r4.includes("CONFIG_SCOPES_NON_RECURRING_CYCLE")],
  ['Planning 2.0 exposes execution deadline without making it a hard planning window',r5.includes("Must be completed by '+a.mustCompleteBy")&&r5.includes("audit remains plannable but is overdue")&&r5.includes("q('#date').max=a.planningWindowTo||''")],
- ['same-visit candidate never proposes already-planned related audits',r4.includes('linkCandidate:pending')&&r4.includes('sameVisitCandidate:pending&&(sameWindow||missingWindow)')],
+ ['same-visit candidate never proposes already-planned related audits',r4.includes('linkCandidate:pending')&&r4.includes('sameVisitCandidate:pending&&sameWindow')],
  ['Planning 2.0 stale revision conflict reloads current canonical workspace',r5.includes("detail.includes('PLANNING_SOURCE_REVISION_CONFLICT')")&&r5.includes("setTimeout(()=>location.reload(),700)")],
  ['direct PLAN idempotency is exact across slot and manager comments',r4.includes("clean(b?.slotComment||b?.comment)===clean(requested[i].slotComment)")&&r4.includes('sameBlocks&&sameComment')],
  ['related audit attention state distinguishes unplanned linked work',r4.includes('UNPLANNED_RELATED')&&r4.includes('attentionRequired:pending')&&r5.includes('Related audit still needs planning')&&r5.includes('Needs planning')],
@@ -157,7 +157,8 @@ const checks=[
 ['direct calendar draft rerender updates slots and selected-day state',r5.includes("function renderDraft(){renderSlots();renderAvailability();validate()}")],
 ['related audit Open uses canonical focused planning route',r5.includes("location.href=\'/planning?auditId=\'+encodeURIComponent(b.dataset.relatedAudit)")&&!r5.includes("location.href=\'/planning-2?auditId=\'")],
 ['direct calendar prevents overplanning beyond required hours',r5.includes("Required audit time is already fully planned.")&&r5.includes("Math.abs(hours-required)<=0.001")],
-['non-recurring calendar uses operational execution horizon',r5.includes("allowedTo=a.planningWindowTo||model?.data?.period?.to||allowedFrom")]
+['non-recurring calendar uses operational execution horizon',r5.includes("allowedTo=a.planningWindowTo||model?.data?.period?.to||allowedFrom")],
+['same-visit planning fails closed without shared canonical window',r4.includes("sameVisitCandidate:pending&&sameWindow")&&r4.includes("NO_SHARED_CANONICAL_WINDOW")&&r5.includes("combined visit needs ECAS approval")]
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

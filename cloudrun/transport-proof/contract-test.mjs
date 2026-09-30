@@ -17,7 +17,7 @@ const availabilityLoader=availability.slice(availability.indexOf('function _ensu
 const checks=[
  ['same-company audits are classified for linked same-visit planning',r4.includes('sameVisitCandidate')&&r4.includes('missingPlanningWindow')&&r5.includes('consider planning in the same visit')],
 
- ['Planning 2.0 same-company alert UX present',r5.includes('relatedAudits')&&r5.includes('data-related-audit')&&r5.includes('Another open audit for this company')],
+ ['Planning 2.0 same-company alert UX present',r5.includes('relatedAudits')&&r5.includes('data-related-audit')&&r5.includes('Related open audit — consider planning in the same visit')],
 
  ['focused planning exposes same-company open audits for linked planning UX',r4.includes('relatedOpenAudits=')&&r4.includes('audit.hasRelatedOpenAudits=relatedOpenAudits.length>0')],
 

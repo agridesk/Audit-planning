@@ -268,7 +268,7 @@ async function directPlanningCommit(identity,body){
     const touched=new Map();
     for(const x of avRows){if(x.email!==auditorEmail)continue;let changed=false;if(clean(x.row[id1])===auditId){x.row[s1]='';x.row[e1]='';x.row[id1]='';x.row[st1]='';changed=true;}if(clean(x.row[id2])===auditId){x.row[s2]='';x.row[e2]='';x.row[id2]='';x.row[st2]='';changed=true;}if(changed)touched.set(x.sheetRow,x);}
     for(const b of requested){
-      const x=avRows.find(r=>r.email===auditorEmail&&r.date===b.date);if(!x)throw new Error('AVAILABILITY_ROW_MISSING_'+b.date);
+      let x=avRows.find(r=>r.email===auditorEmail&&r.date===b.date);if(!x){const width=ah.length,row=new Array(width).fill('');row[cd]=b.date;row[ce]=auditorEmail;row[ca]='YES';if(lu>=0)row[lu]=isoLocalStamp();x={row,sheetRow:av.length+1,date:b.date,email:auditorEmail,isNew:true};avRows.push(x);av.push(row);}
       const slots=[{s:s1,e:e1,id:id1,st:st1},{s:s2,e:e2,id:id2,st:st2}];
       for(const z of slots){const other=clean(x.row[z.id]);if(other&&other!==auditId&&overlaps(b,{start:clean(x.row[z.s]),end:clean(x.row[z.e])}))throw new Error('AVAILABILITY_COLLISION_'+b.date);}
       const hardNo=!yes(x.row[ca])&&slots.some(z=>!clean(x.row[z.id])&&clean(x.row[z.st])&&!/^(DEFAULT_|MANUAL_|SYSTEM_DEFAULT|USER_MANUAL|CALENDAR|CALENDER)/i.test(clean(x.row[z.st])));

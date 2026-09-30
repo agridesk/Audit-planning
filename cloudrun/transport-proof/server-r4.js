@@ -247,7 +247,10 @@ async function canonicalManagerAction(identity,body){
 }
 const DIRECT_PLAN_LOCKS=new Map();
 async function withDirectPlanLock(auditId,fn){
-  const key=clean(auditId),prev=DIRECT_PLAN_LOCKS.get(key)||Promise.resolve();let release;
+  // PLAN mutates shared auditor/date capacity. Serialize all PLAN commits inside
+  // the single-instance DEV service so two different audits cannot both claim
+  // the same free Availability slot after concurrent reads.
+  const key='__GLOBAL_MANAGER_PLAN__',prev=DIRECT_PLAN_LOCKS.get(key)||Promise.resolve();let release;
   const gate=new Promise(r=>release=r),chain=prev.then(()=>gate);DIRECT_PLAN_LOCKS.set(key,chain);await prev;
   try{return await fn();}finally{release();if(DIRECT_PLAN_LOCKS.get(key)===chain)DIRECT_PLAN_LOCKS.delete(key);}
 }

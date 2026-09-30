@@ -293,6 +293,7 @@ async function directPlanningCommit(identity,body){
     if(currentStatus!=='PENDING_PLANNING')throw new Error('STATUS_TRANSITION_BLOCKED');
     if(!audit.candidateAuditors.some(a=>clean(a.email).toLowerCase()===auditorEmail))throw new Error('AUDITOR_NOT_HARD_QUALIFIED');
     const execution=executionConstraint(auditId,catalog,vr[6]?.values||[],vr[7]?.values||[]),from=dateOnly(audit.planningWindowFrom),to=dateOnly(audit.planningWindowTo);
+    if(execution.mustCompleteBy&&requested.some(b=>b.date>execution.mustCompleteBy)&&body?.executionExceptionApproved!==true)throw new Error('EXECUTION_DEADLINE_APPROVAL_REQUIRED');
     if(requested.some(b=>(from&&b.date<from)||(to&&b.date>to)))throw new Error('PLANNING_WINDOW_BLOCKED');
     const total=requested.reduce((s,b)=>s+b.hours,0);if(total+1e-9<Number(audit.requiredHours||0))throw new Error('PLANNED_HOURS_BELOW_REQUIRED');
 

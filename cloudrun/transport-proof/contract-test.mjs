@@ -158,6 +158,7 @@ const checks=[
 ['related audit Open uses canonical focused planning route',r5.includes("location.href=\'/planning?auditId=\'+encodeURIComponent(b.dataset.relatedAudit)")&&!r5.includes("location.href=\'/planning-2?auditId=\'")],
 ['direct calendar prevents overplanning beyond required hours',r5.includes("Required audit time is already fully planned.")&&r5.includes("Math.abs(hours-required)<=0.001")],
 ['non-recurring calendar uses operational execution horizon',r5.includes("allowedTo=a.planningWindowTo||model?.data?.period?.to||allowedFrom")],
+['non-recurring calendar navigation uses operational execution horizon',r5.includes("max=a.planningWindowTo||model?.data?.period?.to||calendarAnchor")&&r5.includes("max=a.planningWindowTo||model?.data?.period?.to||min")],
 ['same-visit planning fails closed without shared canonical window',r4.includes("sameVisitCandidate:pending&&sameWindow")&&r4.includes("NO_SHARED_CANONICAL_WINDOW")&&r5.includes("combined visit needs ECAS approval")],
 ['overdue execution-cycle PLAN requires explicit ECAS approval',r4.includes("EXECUTION_DEADLINE_APPROVAL_REQUIRED")&&r5.includes("executionExceptionApproved")&&r5.includes("ECAS approval confirmed for planning after the execution deadline")]
 ];

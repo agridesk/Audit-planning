@@ -317,7 +317,10 @@ function ModelCFoundation_buildScopeCatalog_(configValues) {
       displayName: display || code,
       formalHoursDefault: ModelCFoundation_numberOrBlank_(ModelCFoundation_valueByHeaderRaw_(row, map, ['Formal_hours', 'Default_hours'])),
       planningDuration: ModelCFoundation_numberOrBlank_(ModelCFoundation_valueByHeaderRaw_(row, map, ['Planning_duration', 'Scheduling_hours'])),
-      recurring: ModelCFoundation_valueByHeader_(row, map, ['Recurring'])
+      recurring: ModelCFoundation_valueByHeader_(row, map, ['Recurring']),
+      obligationCycle: ModelCFoundation_valueByHeader_(row, map, ['Obligation cycle']),
+      provisioningSource: ModelCFoundation_valueByHeader_(row, map, ['Provisioning source']),
+      triggerSource: ModelCFoundation_valueByHeader_(row, map, ['Trigger source'])
     };
     if (bySlot[slot]) warnings.push('Duplicate Config_Scopes SlotKey: ' + slot);
     if (byCode[code]) warnings.push('Duplicate Config_Scopes ScopeCode: ' + code);
@@ -412,7 +415,7 @@ function ModelCFoundation_analyzeRows_(headers, rows, scopeCatalog) {
       var csKey = companyUid + '|' + scope.scopeCode;
       companyScopeKeys[csKey] = true;
       var cycleKey = ModelCFoundation_cycleKey_(row, map, scope);
-      var trigger = ModelCFoundation_isAbc_(scope.scopeCode, scope.displayName) ? 'ECAS' : 'CERTIFICATE_LIFECYCLE';
+      var trigger = scope.triggerSource || (String(scope.recurring||'').trim().toUpperCase()==='YES' ? 'CERTIFICATE_LIFECYCLE' : 'MANUAL');
       obligationKeys[csKey + '|' + cycleKey + '|' + trigger] = true;
       if (auditId) counts.proposedVisitLinks++;
     }
@@ -446,6 +449,9 @@ function ModelCFoundation_selectedScopes_(headers, row, scopeCatalog) {
       displayName: catalogItem ? catalogItem.displayName : slot,
       formalHours: durationIndex >= 0 ? ModelCFoundation_numberOrBlank_(row[durationIndex]) : '',
       recurring: catalogItem ? catalogItem.recurring : '',
+      obligationCycle: catalogItem ? catalogItem.obligationCycle : '',
+      provisioningSource: catalogItem ? catalogItem.provisioningSource : '',
+      triggerSource: catalogItem ? catalogItem.triggerSource : '',
       known: !!catalogItem
     });
   }
@@ -453,7 +459,7 @@ function ModelCFoundation_selectedScopes_(headers, row, scopeCatalog) {
 }
 
 function ModelCFoundation_cycleKey_(row, map, scope) {
-  if (ModelCFoundation_isAbc_(scope.scopeCode, scope.displayName)) {
+  if (String(scope.obligationCycle || '').trim().toUpperCase() === 'ANNUAL') {
     var windowFrom = ModelCFoundation_valueByHeader_(row, map, ['Planning window from']);
     var yearMatch = /^(\d{4})/.exec(windowFrom);
     if (yearMatch) return yearMatch[1];

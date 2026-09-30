@@ -104,10 +104,10 @@ function ModelCScopeOwner_commit(command){
     lk.forEach(function(x){if(String(x.Link_State).toUpperCase()!=='ACTIVE')return;activeAuditByOb[String(x.Obligation_ID)]=String(x.Audit_ID);if(String(x.Audit_ID)===String(command.auditId))activeLinkByOb[String(x.Obligation_ID)]=x;});
     codes.forEach(function(code){
       var item=selected[code],scope=csByCode[code];
-      if(!scope){if(ModelCFoundation_isAbc_(code,code))throw new Error('MPS-ABC must be created by the ECAS import');scope=ModelCScopeOwner_newCompanyScope_(command,item,stamp);cs.push(scope);csByCode[code]=scope;}
+      if(!scope){var scopeCfg=ModelCRecurringConfig_get_(ss,code);if(String(scopeCfg.provisioningSource||'').trim())throw new Error('Externally provisioned scope must be created by its configured import');scope=ModelCScopeOwner_newCompanyScope_(command,item,stamp);cs.push(scope);csByCode[code]=scope;}
       scope.Active='YES';scope.Lifecycle_Type=item.lifecycleType;scope.Certificate_Birthday=item.certificateBirthday;scope.Company_Formal_Hours_Override=ModelCScopeOwner_hours_(item.formalHours);scope.Updated_At=stamp;
       var obligation=obByCs[String(scope.Company_Scope_ID)];
-      if(!obligation){if(ModelCFoundation_isAbc_(code,code))throw new Error('MPS-ABC obligation must be created by the ECAS import');obligation=ModelCScopeOwner_newObligation_(command,scope,item,stamp,ss);ob.push(obligation);obByCs[String(scope.Company_Scope_ID)]=obligation;}
+      if(!obligation){var obligationCfg=ModelCRecurringConfig_get_(ss,code);if(String(obligationCfg.provisioningSource||'').trim())throw new Error('Externally provisioned obligation must be created by its configured import');obligation=ModelCScopeOwner_newObligation_(command,scope,item,stamp,ss);ob.push(obligation);obByCs[String(scope.Company_Scope_ID)]=obligation;}
       if(activeAuditByOb[String(obligation.Obligation_ID)]&&activeAuditByOb[String(obligation.Obligation_ID)]!==String(command.auditId))throw new Error('Scope is linked to another active audit: '+code);
       ModelCScopeOwner_updateObligation_(obligation,command,item,stamp,ss);
       var link=activeLinkByOb[String(obligation.Obligation_ID)];if(!link){link={Audit_ID:String(command.auditId),Obligation_ID:String(obligation.Obligation_ID),Link_State:'ACTIVE',Migration_Batch_ID:'',Linked_At:stamp,Unlinked_At:''};lk.push(link);activeLinkByOb[String(obligation.Obligation_ID)]=link;}

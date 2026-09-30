@@ -125,6 +125,7 @@ const checks=[
  ['Audit planning row update retains structural index',auditPlanningIndex.includes('function __mp_invalidateAuditPlanningContent_')&&backend.includes('__mp_invalidateAuditPlanningContent_')],
  ['direct PLAN preserves manager decision comment metadata',r4.includes("set(['Manager comment (last)'],clean(body?.comment))")],
  ['focused PLAN carries optimistic source revision and rejects stale workspace commits',r4.includes("sourceRevision:createHash('sha256')")&&r4.includes("PLANNING_SOURCE_REVISION_CONFLICT")&&r5.includes("sourceRevision:a.sourceRevision||''")],
+ ['direct PLAN idempotent replay precedes revision conflict',r4.indexOf('IDEMPOTENT_REPLAY')>=0&&r4.indexOf('IDEMPOTENT_REPLAY')<r4.indexOf('PLANNING_SOURCE_REVISION_CONFLICT')],
  ['direct PLAN exact retry is idempotent and does not duplicate writes or notifications',r4.includes("currentStatus==='APPROVED'")&&r4.includes("IDEMPOTENT_REPLAY")&&r4.includes('idempotent:true')],
  ['focused Save surfaces non-fatal direct PLAN queue side-effect health',r5.includes("sideEffectQueue:result.sideEffectQueue||null")&&r5.includes("[SAVE_SIDE_EFFECT_WARNING]")],
  ['direct PLAN preserves canonical max-five planning days guard',r4.includes("requested.length>5")&&r4.includes("PLANNING_MAX_5_DAYS")],

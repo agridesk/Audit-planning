@@ -26,6 +26,13 @@ async function sheetsBatchGet(ranges,serialDates=false){
   const r=await fetch(u,{headers:{authorization:'Bearer '+token}}),body=await r.json();
   if(!r.ok)throw new Error('SHEETS_API_'+r.status+': '+JSON.stringify(body));return body.valueRanges||[];
 }
+async function sheetsBatchUpdate(data){
+  const token=await accessToken(),u='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'/values:batchUpdate';
+  const r=await fetch(u,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({valueInputOption:'USER_ENTERED',data})}),body=await r.json();
+  if(!r.ok)throw new Error('SHEETS_BATCH_UPDATE_'+r.status+': '+JSON.stringify(body));return body;
+}
+function a1col(n){let s='';for(let x=n;x>0;x=Math.floor((x-1)/26))s=String.fromCharCode(65+((x-1)%26))+s;return s;}
+function isoLocalStamp(){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Amsterdam',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date()).replace('T',' ');}
 function clean(v){return String(v==null?'':v).trim();}
 function b64url(v){return Buffer.from(v).toString('base64url');}
 function cookieMap(req){const out={};for(const part of clean(req.headers.cookie).split(';')){const p=part.indexOf('=');if(p>0)out[part.slice(0,p).trim()]=part.slice(p+1).trim();}return out;}
@@ -227,6 +234,61 @@ async function canonicalManagerAction(identity,body){
   const raw=await r.text();let out;try{out=JSON.parse(raw)}catch{throw new Error('WRITE_BRIDGE_NON_JSON_'+r.status)}
   if(!r.ok)throw new Error('WRITE_BRIDGE_HTTP_'+r.status);return out;
 }
+const DIRECT_PLAN_LOCKS=new Map();
+async function withDirectPlanLock(auditId,fn){
+  const key=clean(auditId),prev=DIRECT_PLAN_LOCKS.get(key)||Promise.resolve();let release;
+  const gate=new Promise(r=>release=r);DIRECT_PLAN_LOCKS.set(key,prev.then(()=>gate));await prev;
+  try{return await fn();}finally{release();if(DIRECT_PLAN_LOCKS.get(key)===gate)DIRECT_PLAN_LOCKS.delete(key);}
+}
+function directPlanNormBlocks(raw){
+  const out=[];for(const x of Array.isArray(raw)?raw:[]){const date=dateOnly(x?.date),start=clean(x?.start),end=clean(x?.end),execLoc=clean(x?.execLoc||x?.location||'HQ')||'HQ',slotComment=clean(x?.slotComment||x?.comment);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^\d{2}:\d{2}$/.test(start)||!/^\d{2}:\d{2}$/.test(end)||end<=start)throw new Error('PLANNING_BLOCK_INVALID');
+    const [sh,sm]=start.split(':').map(Number),[eh,em]=end.split(':').map(Number),hours=((eh*60+em)-(sh*60+sm))/60;if(!(hours>0))throw new Error('PLANNING_BLOCK_INVALID');
+    out.push({date,start,end,hours,execLoc,slotComment});
+  }out.sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start)||a.end.localeCompare(b.end));return out;
+}
+function overlaps(a,b){return clean(a.start)<clean(b.end)&&clean(b.start)<clean(a.end);}
+async function directPlanningCommit(identity,body){
+  const started=Date.now(),auditId=clean(body?.auditId),auditorEmail=clean(body?.auditorEmail).toLowerCase(),auditorName=clean(body?.auditorName);
+  if(!auditId||!auditorEmail)throw new Error('PLANNING_REQUIRED_FIELDS_MISSING');
+  const requested=directPlanNormBlocks(body?.blocks);if(!requested.length)throw new Error('PLANNING_REQUIRED_FIELDS_MISSING');
+  return withDirectPlanLock(auditId,async()=>{
+    const readStarted=Date.now(),vr=await sheetsBatchGet(['Audit planning!A1:AX768','Auditors!A1:AZ256','Auditor Availability!A1:P','Concept Reservations!A1:P256','Config_Scopes!A1:Z128','Companies!A1:AZ768']),readMs=Date.now()-readStarted;
+    const ap=vr[0]?.values||[],found=findAudit(ap,auditId);if(!found)throw new Error('AUDIT_NOT_FOUND');
+    const catalog=scopeCatalog(vr[4]?.values||[]),audit=project(found,catalog,vr[1]?.values||[]);
+    if(clean(audit.status).toUpperCase().replace(/[\s-]+/g,'_')!=='PENDING_PLANNING')throw new Error('STATUS_TRANSITION_BLOCKED');
+    if(!audit.candidateAuditors.some(a=>clean(a.email).toLowerCase()===auditorEmail))throw new Error('AUDITOR_NOT_HARD_QUALIFIED');
+    const from=dateOnly(audit.planningWindowFrom),to=dateOnly(audit.planningWindowTo);
+    if(requested.some(b=>(from&&b.date<from)||(to&&b.date>to)))throw new Error('PLANNING_WINDOW_BLOCKED');
+    const total=requested.reduce((s,b)=>s+b.hours,0);if(total+1e-9<Number(audit.requiredHours||0))throw new Error('PLANNED_HOURS_BELOW_REQUIRED');
+
+    const av=vr[2]?.values||[],ah=av[0]||[],cd=col(ah,['Date']),ce=col(ah,['Auditor_Email','Auditor Email','Email','E-mail']),ca=col(ah,['Available']),s1=col(ah,['First_Audit_Start_Time']),e1=col(ah,['First_Audit_End_Time']),id1=col(ah,['Audit_ID_1']),s2=col(ah,['Second_Audit_Start_Time']),e2=col(ah,['Second_Audit_End_Time']),id2=col(ah,['Audit_ID_2']),st1=col(ah,['Status_1']),st2=col(ah,['Status_2']),lu=col(ah,['Last_Updated']);
+    if([cd,ce,ca,s1,e1,id1,s2,e2,id2,st1,st2].some(x=>x<0))throw new Error('AVAILABILITY_SCHEMA_INVALID');
+    const avRows=av.slice(1).map((row,i)=>({row:row.slice(),sheetRow:i+2,date:dateOnly(row[cd]),email:clean(row[ce]).toLowerCase()}));
+    const touched=new Map();
+    for(const x of avRows){if(x.email!==auditorEmail)continue;let changed=false;if(clean(x.row[id1])===auditId){x.row[s1]='';x.row[e1]='';x.row[id1]='';x.row[st1]='';changed=true;}if(clean(x.row[id2])===auditId){x.row[s2]='';x.row[e2]='';x.row[id2]='';x.row[st2]='';changed=true;}if(changed)touched.set(x.sheetRow,x);}
+    for(const b of requested){
+      const x=avRows.find(r=>r.email===auditorEmail&&r.date===b.date);if(!x)throw new Error('AVAILABILITY_ROW_MISSING_'+b.date);
+      const slots=[{s:s1,e:e1,id:id1,st:st1},{s:s2,e:e2,id:id2,st:st2}];
+      for(const z of slots){const other=clean(x.row[z.id]);if(other&&other!==auditId&&overlaps(b,{start:clean(x.row[z.s]),end:clean(x.row[z.e])}))throw new Error('AVAILABILITY_COLLISION_'+b.date);}
+      const hardNo=!yes(x.row[ca])&&slots.some(z=>!clean(x.row[z.id])&&clean(x.row[z.st])&&!/^(DEFAULT_|MANUAL_|SYSTEM_DEFAULT|USER_MANUAL|CALENDAR|CALENDER)/i.test(clean(x.row[z.st])));
+      if(hardNo)throw new Error('AVAILABILITY_HARD_BLOCK_'+b.date);
+      let z=slots.find(q=>!clean(x.row[q.id]));if(!z)throw new Error('AVAILABILITY_CAPACITY_'+b.date);
+      x.row[z.s]=b.start;x.row[z.e]=b.end;x.row[z.id]=auditId;x.row[z.st]='Manager Planned';x.row[ca]='NO';if(lu>=0)x.row[lu]=isoLocalStamp();touched.set(x.sheetRow,x);
+    }
+
+    const h=ap[0]||[],row=found.row.slice(),set=(names,value)=>{const i=col(h,names);if(i>=0)row[i]=value;};
+    const now=isoLocalStamp(),planningJson=JSON.stringify({blocks:requested,totalPlannedHours:Math.round(total*100)/100,auditorEmail,auditorName});
+    set(['Assigned to'],auditorEmail);set(['Date - Planned'],requested[0].date);set(['Date - Approved'],now.slice(0,10));set(['Status'],'Approved');set(['Planning JSON'],planningJson);set(['Last manager decision'],'PLAN');set(['Last decision timestamp'],now);set(['Status since'],now);
+    const writes=[{range:'Audit planning!A'+found.sourceRow+':'+a1col(h.length)+found.sourceRow,values:[row]}];
+    for(const x of touched.values())writes.push({range:'Auditor Availability!A'+x.sheetRow+':'+a1col(ah.length)+x.sheetRow,values:[x.row]});
+    const cr=vr[3]?.values||[],ch=cr[0]||[],ci=col(ch,['Audit ID']),cs=col(ch,['State']),cu=col(ch,['Updated At']),cby=col(ch,['Released By']),cat=col(ch,['Released At']),creason=col(ch,['Release Reason']);
+    for(let i=1;i<cr.length;i++){const rr=cr[i].slice();if(clean(rr[ci])!==auditId||clean(rr[cs]).toUpperCase()!=='ACTIVE')continue;rr[cs]='RELEASED';if(cu>=0)rr[cu]=now;if(cby>=0)rr[cby]=clean(identity?.email);if(cat>=0)rr[cat]=now;if(creason>=0)rr[creason]='CANONICAL_COMMIT';writes.push({range:'Concept Reservations!A'+(i+1)+':'+a1col(ch.length)+(i+1),values:[rr]});}
+    const writeStarted=Date.now();await sheetsBatchUpdate(writes);const writeMs=Date.now()-writeStarted;
+    return{success:true,auditId,newStatus:'Approved',assignedTo:auditorEmail,planningJson,totalMs:Date.now()-started,directCommit:true,readMs,writeMs,writeCount:writes.length,owner:'CLOUD_RUN_DIRECT_SHEETS_MANAGER_PLAN'};
+  });
+}
+
 async function focused(id){
   const t=Date.now(),s=Date.now();
   const vr=await sheetsBatchGet(['Audit planning!A1:AX768','Auditors!A1:AZ256','Auditor Availability!A:P','Concept Reservations!A1:P256','Config_Scopes!A1:Z128','Companies!A1:AZ768']);
@@ -257,6 +319,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
   if(u.pathname==='/auth/legacy-handoff'&&req.method==='POST'){let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});const form=new URLSearchParams(raw);try{const identity=await validateLegacyIdentity(form.get('token'),form.get('role'),form.get('deviceId'));if(!identity.ok)return send(res,401,identity);const token=issueSession(identity);res.writeHead(303,{'set-cookie':sessionCookie(token),'location':'/','cache-control':'no-store'});return res.end();}catch(e){return send(res,500,{ok:false,error:'IDENTITY_HANDOFF_FAILED',detail:clean(e?.message||e)});}}
   if(u.pathname==='/api/v1/session/exchange'&&req.method==='POST'){if(req.headers.origin&&(!ORIGIN||req.headers.origin!==ORIGIN))return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}');}catch{return send(res,400,{ok:false,error:'BAD_JSON'});}try{const identity=await validateLegacyIdentity(b.token,b.role,b.deviceId);if(!identity.ok)return send(res,401,identity);const token=issueSession(identity);return send(res,200,{ok:true,identity:{email:identity.email,role:identity.role},expiresIn:SESSION_TTL_SECONDS},{'set-cookie':sessionCookie(token)});}catch(e){return send(res,500,{ok:false,error:'IDENTITY_EXCHANGE_FAILED',detail:clean(e?.message||e)});}}
   if(u.pathname==='/api/v1/planning/rotation-direct'&&req.method==='GET'){const sess=sessionFromRequest(req);if(!sess)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(clean(sess.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});const auditId=clean(u.searchParams.get('auditId')),auditorEmail=clean(u.searchParams.get('auditorEmail')).toLowerCase();if(!auditId||!auditorEmail)return send(res,400,{ok:false,error:'ROTATION_REQUIRED_FIELDS_MISSING'});try{return send(res,200,await directRotationRead(auditId,auditorEmail));}catch(e){return send(res,500,{ok:false,error:'DIRECT_ROTATION_READ_FAILED',detail:clean(e?.message||e)});}}
+  if(u.pathname==='/api/v1/planning/direct-commit'&&req.method==='POST'){const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(clean(s.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>65536)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}try{return send(res,200,await directPlanningCommit(s,b));}catch(e){return send(res,409,{ok:false,error:'DIRECT_PLANNING_COMMIT_BLOCKED',detail:clean(e?.message||e)});}}
   if(u.pathname==='/api/v1/manager/action'&&req.method==='POST'){const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(clean(s.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}try{const out=await canonicalManagerAction(s,b);return send(res,out&&out.success===false?409:200,out)}catch(e){return send(res,500,{ok:false,error:'MANAGER_ACTION_BRIDGE_FAILED',detail:clean(e?.message||e)})}}
   if(u.pathname==='/api/v1/manager/archived'&&req.method==='GET'){const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(clean(s.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});try{return send(res,200,await managerArchivedRead(clean(s.email).toLowerCase()));}catch(e){return send(res,500,{ok:false,error:'MANAGER_ARCHIVED_READ_FAILED',detail:clean(e?.message||e)});}}
   if(u.pathname==='/api/v1/manager/open'&&req.method==='GET'){const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(clean(s.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});try{return send(res,200,await managerOpenRead(clean(s.email).toLowerCase()));}catch(e){return send(res,500,{ok:false,error:'MANAGER_OPEN_READ_FAILED',detail:clean(e?.message||e)});}}

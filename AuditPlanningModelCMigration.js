@@ -255,15 +255,15 @@ function ModelCMigration_prepareDependencies_(scopeCatalog, generateIds) {
 }
 
 function ModelCMigration_buildCompanyScope_(row, map, scope, companyUid, auditId, batchId, stamp, generateIds) {
-  var isAbc = ModelCFoundation_isAbc_(scope.scopeCode, scope.displayName);
+  var external=!!String((scope&&scope.provisioningSource)||'').trim(),annual=String((scope&&scope.obligationCycle)||'').trim().toUpperCase()==='ANNUAL';
   var recurring = String((scope && scope.recurring) || '').trim().toUpperCase();
   return {
     Company_Scope_ID: generateIds ? ModelCMigration_newId_('CS_') : 'PREVIEW_CS_' + ModelCMigration_safeKey_(companyUid + '_' + scope.scopeCode),
     Company_UID: companyUid,
     ScopeCode: scope.scopeCode,
     Active: 'YES',
-    Lifecycle_Type: isAbc ? 'EXTERNAL_ANNUAL' : (recurring === 'YES' || recurring === 'TRUE' || recurring === '1' ? 'CERTIFICATE_RECURRING' : 'CERTIFICATE_NON_RECURRING'),
-    Certificate_Birthday: isAbc ? '' : ModelCFoundation_valueByHeader_(row, map, ['Birthdate certificate']),
+    Lifecycle_Type: external&&annual ? 'EXTERNAL_ANNUAL' : (recurring === 'YES' || recurring === 'TRUE' || recurring === '1' ? 'CERTIFICATE_RECURRING' : 'CERTIFICATE_NON_RECURRING'),
+    Certificate_Birthday: external ? '' : ModelCFoundation_valueByHeader_(row, map, ['Birthdate certificate']),
     Company_Formal_Hours_Override: scope.formalHours,
     Certificate_Metadata_JSON: '',
     Migration_Batch_ID: batchId,
@@ -274,7 +274,7 @@ function ModelCMigration_buildCompanyScope_(row, map, scope, companyUid, auditId
 }
 
 function ModelCMigration_buildObligation_(row, map, scope, companyScope, companyUid, auditId, batchId, stamp, generateIds) {
-  var isAbc = ModelCFoundation_isAbc_(scope.scopeCode, scope.displayName);
+  var external=!!String((scope&&scope.provisioningSource)||'').trim();
   var status = ModelCFoundation_valueByHeader_(row, map, ['Status']) || 'Pending Planning';
   return {
     Obligation_ID: generateIds ? ModelCMigration_newId_('OBL_') : 'PREVIEW_OBL_' + ModelCMigration_safeKey_(auditId + '_' + scope.scopeCode),
@@ -282,12 +282,12 @@ function ModelCMigration_buildObligation_(row, map, scope, companyScope, company
     Company_UID: companyUid,
     ScopeCode: scope.scopeCode,
     Cycle_Key: ModelCFoundation_cycleKey_(row, map, scope),
-    Trigger_Source: isAbc ? 'ECAS' : 'CERTIFICATE_LIFECYCLE',
+    Trigger_Source: scope.triggerSource || (external ? scope.provisioningSource : 'CERTIFICATE_LIFECYCLE'),
     Obligation_State: ModelCMigration_obligationStateFromVisitStatus_(status),
-    Base_Expiry_Date: isAbc ? '' : ModelCFoundation_valueByHeader_(row, map, ['Date - Will Expire']),
-    Extension_Applied: isAbc ? '' : ModelCFoundation_valueByHeader_(row, map, ['Extension applied']),
+    Base_Expiry_Date: external ? '' : ModelCFoundation_valueByHeader_(row, map, ['Date - Will Expire']),
+    Extension_Applied: external ? '' : ModelCFoundation_valueByHeader_(row, map, ['Extension applied']),
     Extension_Metadata_JSON: '',
-    Effective_Expiry_Date: isAbc ? '' : ModelCFoundation_valueByHeader_(row, map, ['Extended Expiration Date', 'Date - Will Expire']),
+    Effective_Expiry_Date: external ? '' : ModelCFoundation_valueByHeader_(row, map, ['Extended Expiration Date', 'Date - Will Expire']),
     Planning_Window_From: ModelCFoundation_valueByHeader_(row, map, ['Planning window from']),
     Planning_Window_To: ModelCFoundation_valueByHeader_(row, map, ['Planning window to']),
     Formal_Hours: scope.formalHours,

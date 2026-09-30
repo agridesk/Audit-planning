@@ -4,15 +4,18 @@ import {readFileSync} from 'node:fs';
 const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const r5=readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
 const r6=readFileSync(new URL('./server-r6.js',import.meta.url),'utf8');
+const r7=readFileSync(new URL('./server-r7.js',import.meta.url),'utf8');
 const pkg=JSON.parse(readFileSync(new URL('./package.json',import.meta.url),'utf8'));
 
 function has(text,needle,label){assert.ok(text.includes(needle),label+' missing');}
 function not(text,needle,label){assert.ok(!text.includes(needle),label+' unexpectedly present');}
 
-assert.equal(pkg.scripts.start,'node server-r6.js','server-r6 must own the public DEV transport');
-has(pkg.scripts.test,'node --check server-r6.js','r6 syntax check');
+assert.equal(pkg.scripts.start,'node server-r7.js','server-r7 must own the public DEV transport');
+has(pkg.scripts.test,'node --check server-r7.js','r7 syntax check');
 has(pkg.scripts.test,'combined-visit-contract-test.mjs','combined Visit contract test');
 
+has(r7,"await import('./server-r6.js')",'r7 must wrap accepted combined Visit path');
+has(r7,"required=requiredVisitHours()",'combined Visit validation must use selected scheduling hours');
 has(r6,"await import('./server-r5.js')",'r6 must wrap the accepted r5/r4 path');
 has(r6,"u.pathname==='/api/v1/planning/direct-commit'",'direct commit interception');
 has(r6,"ids.length>1",'combined Visit routing gate');
@@ -62,13 +65,14 @@ has(r5,"visitMembers:[...visitAuditIds]",'browser per-member revisions');
 
 console.log(JSON.stringify({
   success:true,
-  build:'2026-09-30_COMBINED_VISIT_CONTRACT_R1',
-  checks:36,
+  build:'2026-09-30_COMBINED_VISIT_CONTRACT_R2',
+  checks:38,
   writesPerformed:false,
   assertions:{
     genericScopes:true,
     optimisticConcurrencyAllMembers:true,
     formalVsSchedulingSeparated:true,
+    dynamicCombinedSchedulingHoursUi:true,
     sourceVisitProjectionRetiredWithoutInventedStatus:true,
     linkHistoryRetained:true,
     onePhysicalAvailabilityOccupancy:true,

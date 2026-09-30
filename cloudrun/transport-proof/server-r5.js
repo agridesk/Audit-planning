@@ -3,7 +3,7 @@ import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 
 const PUBLIC_PORT=Number(process.env.PORT||8080);
 const INNER_PORT=PUBLIC_PORT+1;
-const BUILD='2026-09-30_AMS_PLANNING_COMMIT_R103_ACCEPT_CANONICAL_JSON';
+const BUILD='2026-09-30_AMS_PLANNING_COMMIT_R104_DIRECT_SHEETS_PLAN';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
@@ -82,44 +82,13 @@ async function handlePlanningCommitHandoff(req,res){
   const identity=await sessionIdentity(req);if(!identity)return sendJson(res,401,{ok:false,error:'SESSION_REQUIRED'});
   if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{ok:false,error:'ROLE_FORBIDDEN'});
   let body={};try{body=JSON.parse(await readRaw(req,65536)||'{}');}catch{return sendJson(res,400,{ok:false,error:'BAD_JSON'});}
-  const handoff=planningCommitForm(identity,body);if(!handoff.ok)return sendJson(res,400,{ok:false,error:handoff.error});
+  const chk=validPlanningBody(body);if(!chk.ok)return sendJson(res,400,{ok:false,error:chk.error});
   const started=Date.now();
   try{
-    const gasStarted=Date.now(),form=new URLSearchParams(handoff.fields),r=await fetch(handoff.action,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded;charset=UTF-8'},body:form.toString(),redirect:'follow'}),raw=await r.text(),gasRoundTripMs=Date.now()-gasStarted;
-    const m=raw.match(/var m=(\{[\s\S]*?\});try\{window\.parent\.postMessage/);
-    let result=m?((JSON.parse(m[1])||{}).result):null;
-    if(!result){
-      try{
-        const direct=JSON.parse(raw);
-        if(direct&&typeof direct==='object'){
-          if(direct.success===true){
-            result=direct;
-          }else if(direct.success===false||direct.error){
-            return sendJson(res,409,{ok:false,result:direct,gasRoundTripMs,bridgeRoundTripMs:Date.now()-started,configMarker:configMarker(),gasResponseMode:'JSON_ERROR'});
-          }
-        }
-      }catch(_){}
-      if(result){
-        return sendJson(res,200,{ok:true,result,gasRoundTripMs,bridgeRoundTripMs:Date.now()-started,configMarker:configMarker(),gasResponseMode:'JSON_SUCCESS'});
-      }
-      const pre=raw.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
-      if(pre){
-        const detail=clean(pre[1].replace(/<[^>]+>/g,' ').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'));
-        if(detail)return sendJson(res,409,{ok:false,result:{success:false,error:'GAS_HANDOFF_HTML_ERROR',message:detail},bridgeRoundTripMs:Date.now()-started,configMarker:configMarker(),gasResponseMode:'HTML_ERROR'});
-      }
-      const verifyStarted=Date.now(),u=new URL('http://127.0.0.1:'+INNER_PORT+'/api/v1/planning/workspace');u.searchParams.set('auditId',clean(body.auditId));
-      const vr=await fetch(u,{headers:{cookie:SESSION_COOKIE+'='+issueSession(identity)}}),vx=await vr.json(),va=vx&&vx.data&&vx.data.audit,verifyMs=Date.now()-verifyStarted;
-      const planning=va&&typeof va.planningJson==='string'?(()=>{try{return JSON.parse(va.planningJson||'{}')}catch{return{}}})():(va&&va.planningJson||{});
-      const canonicalBlocks=Array.isArray(planning)?planning:(Array.isArray(planning.blocks)?planning.blocks:[]);
-      const wanted=(Array.isArray(body.blocks)?body.blocks:[]).map(b=>[clean(b.date).slice(0,10),clean(b.start),clean(b.end),clean(b.execLoc||b.location||'HQ')].join('|')).sort();
-      const got=canonicalBlocks.map(b=>[clean(b.date).slice(0,10),clean(b.start),clean(b.end),clean(b.execLoc||b.location||'HQ')].join('|')).sort();
-      const sameBlocks=wanted.length===got.length&&wanted.every((v,i)=>v===got[i]);
-      const canonicalMatch=vr.ok&&va&&clean(va.status).toLowerCase()==='approved'&&clean(va.assignedTo).toLowerCase()===clean(body.auditorEmail).toLowerCase()&&sameBlocks;
-      if(!canonicalMatch)throw new Error('GAS_COMMIT_RESULT_NOT_FOUND_AND_CANONICAL_MISMATCH');
-      result={success:true,auditId:clean(body.auditId),newStatus:clean(va.status),assignedTo:clean(va.assignedTo),bridgeMs:Date.now()-started,verifiedBy:'SINGLE_CANONICAL_READ',verifyMs};
-    }
-    return sendJson(res,result.success===true?200:409,{ok:result.success===true,result,gasRoundTripMs,bridgeRoundTripMs:Date.now()-started,configMarker:configMarker()});
-  }catch(err){return sendJson(res,502,{ok:false,error:'PLANNING_CANONICAL_COMMIT_FAILED',detail:clean(err&&err.message||err),bridgeRoundTripMs:Date.now()-started});}
+    const r=await fetch('http://127.0.0.1:'+INNER_PORT+'/api/v1/planning/direct-commit',{method:'POST',headers:{'content-type':'application/json',cookie:SESSION_COOKIE+'='+issueSession(identity)},body:JSON.stringify(body)}),out=await r.json();
+    if(!r.ok||!out||out.success!==true)return sendJson(res,r.status||409,{ok:false,result:out||{success:false,error:'DIRECT_COMMIT_EMPTY'},bridgeRoundTripMs:Date.now()-started,configMarker:configMarker(),writeOwner:'CLOUD_RUN_DIRECT_SHEETS_MANAGER_PLAN'});
+    return sendJson(res,200,{ok:true,result:out,gasRoundTripMs:0,verifyMs:0,bridgeRoundTripMs:Date.now()-started,configMarker:configMarker(),writeOwner:'CLOUD_RUN_DIRECT_SHEETS_MANAGER_PLAN'});
+  }catch(err){return sendJson(res,502,{ok:false,error:'PLANNING_DIRECT_COMMIT_FAILED',detail:clean(err&&err.message||err),bridgeRoundTripMs:Date.now()-started});}
 }
 const ROTATION_CACHE_TTL_MS=5*60*1000;
 const rotationReadCache=new Map(),rotationReadInflight=new Map();
@@ -167,6 +136,6 @@ http.createServer(async(req,res)=>{
   if(u.pathname==='/planning'&&req.method==='GET'){try{return await handlePlanning(req,res,u);}catch(err){return sendJson(res,500,{ok:false,error:'PLANNING_2_0_OPEN_FAILED',detail:clean(err&&err.message||err)});}}
   if(u.pathname==='/api/v1/planning/rotation'&&req.method==='GET'){return handlePlanningRotation(req,res,u);}
   if(u.pathname==='/api/v1/planning/commit-handoff'&&req.method==='POST'){return handlePlanningCommitHandoff(req,res);}
-  if(u.pathname==='/health'&&req.method==='GET'){try{const r=await fetch('http://127.0.0.1:'+INNER_PORT+'/health',{redirect:'manual'});const inner=await r.json();return sendJson(res,r.status,{...inner,build:BUILD,innerBuild:inner.build||'',planningSurface:'EXTERNAL_FOCUSED_2_0',planningReadOwner:'CLOUD_RUN_FOCUSED_READ',planningWriteOwner:'GAS_CANONICAL_saveManagerPlanning',managerSessionHandoff:'SIGNED_POST_GAS_CANONICAL_AUTH',handoffKeyConfigured:WRITE_KEY.length>=32,gasWriteUrlConfigured:!!GAS_WRITE_URL,sessionSecretConfigured:SESSION_SECRET.length>=32});}catch(err){return sendJson(res,500,{ok:false,error:'INNER_HEALTH_FAILED',build:BUILD,detail:clean(err&&err.message||err)});}}
+  if(u.pathname==='/health'&&req.method==='GET'){try{const r=await fetch('http://127.0.0.1:'+INNER_PORT+'/health',{redirect:'manual'});const inner=await r.json();return sendJson(res,r.status,{...inner,build:BUILD,innerBuild:inner.build||'',planningSurface:'EXTERNAL_FOCUSED_2_0',planningReadOwner:'CLOUD_RUN_FOCUSED_READ',planningWriteOwner:'CLOUD_RUN_DIRECT_SHEETS_MANAGER_PLAN',managerSessionHandoff:'SIGNED_POST_GAS_CANONICAL_AUTH',handoffKeyConfigured:WRITE_KEY.length>=32,gasWriteUrlConfigured:!!GAS_WRITE_URL,sessionSecretConfigured:SESSION_SECRET.length>=32});}catch(err){return sendJson(res,500,{ok:false,error:'INNER_HEALTH_FAILED',build:BUILD,detail:clean(err&&err.message||err)});}}
   return proxy(req,res);
 }).listen(PUBLIC_PORT,'0.0.0.0');

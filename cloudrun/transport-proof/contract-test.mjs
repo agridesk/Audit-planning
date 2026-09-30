@@ -13,6 +13,8 @@ const lifecycle=fs.readFileSync(new URL('../../AuditLifecycleService.js',import.
 const systemConfig=fs.readFileSync(new URL('../../SystemConfig.js',import.meta.url),'utf8');
 const auditPlanningPerfCache=fs.readFileSync(new URL('../../AuditPlanningPerfCache.js',import.meta.url),'utf8');
 const auditPlanningIndex=fs.readFileSync(new URL('../../AuditPlanningRowIndexCache.js',import.meta.url),'utf8');
+const ecasImport=fs.readFileSync(new URL('../../AuditPlanningModelCEcasAnnualImport.js',import.meta.url),'utf8');
+const ecasVisit=fs.readFileSync(new URL('../../AuditPlanningModelCEcasVisitMaterialization.js',import.meta.url),'utf8');
 const availabilityLoader=availability.slice(availability.indexOf('function _ensureEmailLoadedInPack_'),availability.indexOf('function getPackRow_'));
 const checks=[
  ['calendar click directly adds or removes local draft day',r5.includes("function toggleCalendarDay(date,visualState)")&&r5.includes("draftBlocks.findIndex(b=>b.date===date)")&&r5.includes("draftBlocks.push(b)")&&r5.includes("draftBlocks.splice(existing,1)")],

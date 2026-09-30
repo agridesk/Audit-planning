@@ -237,8 +237,8 @@ async function canonicalManagerAction(identity,body){
 const DIRECT_PLAN_LOCKS=new Map();
 async function withDirectPlanLock(auditId,fn){
   const key=clean(auditId),prev=DIRECT_PLAN_LOCKS.get(key)||Promise.resolve();let release;
-  const gate=new Promise(r=>release=r);DIRECT_PLAN_LOCKS.set(key,prev.then(()=>gate));await prev;
-  try{return await fn();}finally{release();if(DIRECT_PLAN_LOCKS.get(key)===gate)DIRECT_PLAN_LOCKS.delete(key);}
+  const gate=new Promise(r=>release=r),chain=prev.then(()=>gate);DIRECT_PLAN_LOCKS.set(key,chain);await prev;
+  try{return await fn();}finally{release();if(DIRECT_PLAN_LOCKS.get(key)===chain)DIRECT_PLAN_LOCKS.delete(key);}
 }
 function directPlanNormBlocks(raw){
   const out=[];for(const x of Array.isArray(raw)?raw:[]){const date=dateOnly(x?.date),start=clean(x?.start),end=clean(x?.end),execLoc=clean(x?.execLoc||x?.location||'HQ')||'HQ',slotComment=clean(x?.slotComment||x?.comment);

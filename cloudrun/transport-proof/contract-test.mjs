@@ -40,7 +40,7 @@ const checks=[
  ['r5 embedded warning newlines escaped',r5.includes("warnings.join('\\\\n')+'\\\\n\\\\nThese are soft warnings. Continue?'")],
  ['r4 direct PLAN endpoint',r4.includes("u.pathname==='/api/v1/planning/direct-commit'")&&r4.includes('directPlanningCommit(s,b)')],
  ['r4 direct PLAN validates hard qualification',r4.includes("throw new Error('AUDITOR_NOT_HARD_QUALIFIED')")],
- ['r4 direct PLAN writes audit and availability together',r4.includes('sheetsBatchUpdate(writes)')&&r4.includes("'Audit planning!A'")&&r4.includes("'Auditor Availability!A'")],
+ ['r4 direct PLAN writes audit and availability together',r4.includes('sheetsValuesBatchUpdate(writes)')&&r4.includes("'Audit planning!A'")&&r4.includes("'Auditor Availability!A'")],
  ['r4 required-hours projection',r4.includes("requiredHours:Number(String(g(['Total audit time in hours'")],
  ['r4 no five-candidate truncation',!r4.includes('.slice(0,5);')],
  ['r4 qualification remains scope-based',r4.includes('required.every(sc=>')],

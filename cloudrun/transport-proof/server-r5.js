@@ -86,7 +86,7 @@ async function handlePlanningCommitHandoff(req,res){
   const started=Date.now();
   try{
     const r=await fetch('http://127.0.0.1:'+INNER_PORT+'/api/v1/planning/direct-commit',{method:'POST',headers:{'content-type':'application/json',cookie:SESSION_COOKIE+'='+issueSession(identity)},body:JSON.stringify(body)}),out=await r.json();
-    if(!r.ok||!out||out.success!==true)return sendJson(res,r.status||409,{ok:false,result:out||{success:false,error:'DIRECT_COMMIT_EMPTY'},bridgeRoundTripMs:Date.now()-started,configMarker:configMarker(),writeOwner:'CLOUD_RUN_DIRECT_SHEETS_MANAGER_PLAN'});
+    if(!r.ok||!out||out.success!==true)return sendJson(res,r.status||409,{ok:false,error:out?.error||'DIRECT_COMMIT_BLOCKED',detail:out?.detail||out?.message||out?.error||'DIRECT_COMMIT_EMPTY',result:out||{success:false,error:'DIRECT_COMMIT_EMPTY'},bridgeRoundTripMs:Date.now()-started,configMarker:configMarker(),writeOwner:'CLOUD_RUN_DIRECT_SHEETS_MANAGER_PLAN'});
     return sendJson(res,200,{ok:true,result:out,gasRoundTripMs:0,verifyMs:0,bridgeRoundTripMs:Date.now()-started,configMarker:configMarker(),writeOwner:'CLOUD_RUN_DIRECT_SHEETS_MANAGER_PLAN'});
   }catch(err){return sendJson(res,502,{ok:false,error:'PLANNING_DIRECT_COMMIT_FAILED',detail:clean(err&&err.message||err),bridgeRoundTripMs:Date.now()-started});}
 }

@@ -26,6 +26,8 @@ steps:
       - europe-west1
       - --service-account
       - 510075419067-compute@developer.gserviceaccount.com
+      - --max-instances
+      - '1'
       - --update-env-vars
       - DEV_SSOT_SPREADSHEET_ID=1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs,GAS_DEV_WRITE_URL=$_GAS_DEV_WRITE_URL
       - --update-secrets

@@ -36,7 +36,10 @@ function __mp_normalizeScopesConfigPack_(raw) {
       sortOrder: Number(it.sortOrder || it.SortOrder || 0) || 0,
       planningFrom: Number(it.planningFrom || it.PlanningFrom || it.planning_from || it['Planning from'] || 0) || 0,
       planningTo: Number(it.planningTo || it.PlanningTo || it.planning_to || it['Planning to'] || 0) || 0,
-      extension: Number(it.extension || it.Extension || it.extMonths || it.extensionMonths || 0) || 0
+      extension: Number(it.extension || it.Extension || it.extMonths || it.extensionMonths || 0) || 0,
+      recurring: String(it.recurring || it.Recurring || '').trim(),
+      obligationCycle: String(it.obligationCycle || it['Obligation cycle'] || '').trim().toUpperCase(),
+      completeBy: String(it.completeBy || it['Complete by'] || '').trim()
     });
   }
   outList.sort(function(a,b){ return (a.sortOrder || 0) - (b.sortOrder || 0); });
@@ -111,6 +114,9 @@ function v5_getScopesConfig_(forceRefresh) {
   var cPlanFrom = col_("Planning from");
   var cPlanTo = col_("Planning to");
   var cExtension = col_("Extension");
+  var cRecurring = col_("Recurring");
+  var cObligationCycle = col_("Obligation cycle");
+  var cCompleteBy = col_("Complete by");
 
   var list = [];
   for (var r = 1; r < values.length; r++) {
@@ -129,7 +135,10 @@ function v5_getScopesConfig_(forceRefresh) {
       sortOrder: cSort >= 0 ? Number(row[cSort]) || 0 : 0,
       planningFrom: cPlanFrom >= 0 ? Number(row[cPlanFrom]) || 0 : 0,
       planningTo: cPlanTo >= 0 ? Number(row[cPlanTo]) || 0 : 0,
-      extension: cExtension >= 0 ? Number(row[cExtension]) || 0 : 0
+      extension: cExtension >= 0 ? Number(row[cExtension]) || 0 : 0,
+      recurring: cRecurring >= 0 ? String(row[cRecurring] || '').trim() : '',
+      obligationCycle: cObligationCycle >= 0 ? String(row[cObligationCycle] || '').trim().toUpperCase() : '',
+      completeBy: cCompleteBy >= 0 ? String(row[cCompleteBy] || '').trim() : ''
     };
     list.push(def);
   }

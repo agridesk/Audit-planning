@@ -71,6 +71,7 @@ function ModelCAnnualCycle_planForAudit_(ss,auditId) {
     recurring:false,
     recurringScopes:[],
     nonRecurringScopes:[],
+    nonRecurringExecutionDeadlines:[],
     externalScopes:[],
     nonRecurringOnly:false,
     externalAbcOnly:false,
@@ -110,7 +111,7 @@ function ModelCAnnualCycle_planForAudit_(ss,auditId) {
     if(!code){result.errors.push('Obligation missing ScopeCode');return;}
     var def=cfg[code];
     if(!def){result.errors.push('Config_Scopes missing scope: '+code);return;}
-    if(def.recurring!==true){result.nonRecurringScopes.push(code);result.externalScopes.push(code);return;}
+    if(def.recurring!==true){result.nonRecurringScopes.push(code);result.externalScopes.push(code);var deadline=ModelCRecurringConfig_executionDeadline_(ss,code,String(ob.Cycle_Key||''));if(deadline)result.nonRecurringExecutionDeadlines.push({scopeCode:code,cycleKey:String(ob.Cycle_Key||''),mustCompleteBy:deadline});return;}
 
     result.recurringScopes.push(code);
     var base=ModelCAnnualCycle_iso_(ob.Base_Expiry_Date,ss);

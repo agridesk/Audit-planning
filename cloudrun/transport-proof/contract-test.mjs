@@ -175,6 +175,9 @@ const checks=[
 ,
  ['generic visit relink preflight preserves provenance and active-link invariant',r4.includes('function visitCompositionPlan(')&&r4.includes('VISIT_OBLIGATION_MULTIPLE_ACTIVE_LINKS')&&r4.includes('VISIT_COMPOSITION_SOURCE_VISIT_NOT_EMPTY')&&!r4.includes('ob.Source_Audit_ID=targetAuditId')],
  ['generic visit relink preflight contains no scope-code branch',!r4.includes("scopeCode==='MPS-ABC'")&&!r4.includes("scopeCode==='MPS-GAP'")]
+,
+ ['ECAS import resolves scope identity from Config_Scopes provisioning metadata',ecasImport.includes("ModelCEcasAnnualImport_config_")&&ecasImport.includes("['Provisioning source']")&&ecasImport.includes("['Source service']")&&!ecasImport.includes("var MODEL_C_ECAS_SCOPE_CODE='MPS-ABC'")],
+ ['ECAS visit materialization uses configured scope identity',ecasVisit.includes('ModelCEcasAnnualImport_config_(ss)')&&!ecasVisit.includes("ScopeCode||'').trim().toUpperCase()==='MPS-ABC'")]
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

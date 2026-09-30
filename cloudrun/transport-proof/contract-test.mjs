@@ -172,6 +172,9 @@ const checks=[
 ,
  ['visit composition protects every selected member with source revision',r4.includes('VISIT_RELATED_SOURCE_REVISION_REQUIRED')&&r4.includes('VISIT_RELATED_SOURCE_REVISION_CONFLICT')&&r5.includes('visitMembers:[...visitAuditIds].map')],
  ['combined visit remains scope-generic',!r4.includes("relatedExecution.scopeCodes.includes('MPS-ABC')")&&!r5.includes("scope==='MPS-ABC'")]
+,
+ ['generic visit relink preflight preserves provenance and active-link invariant',r4.includes('function visitCompositionPlan(')&&r4.includes('VISIT_OBLIGATION_MULTIPLE_ACTIVE_LINKS')&&r4.includes('VISIT_COMPOSITION_SOURCE_VISIT_NOT_EMPTY')&&!r4.includes('ob.Source_Audit_ID=targetAuditId')],
+ ['generic visit relink preflight contains no scope-code branch',!r4.includes("scopeCode==='MPS-ABC'")&&!r4.includes("scopeCode==='MPS-GAP'")]
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

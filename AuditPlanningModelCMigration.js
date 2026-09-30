@@ -241,17 +241,7 @@ function ModelCMigration_prepare_(source, batchId, generateIds) {
 }
 
 function ModelCMigration_prepareDependencies_(scopeCatalog, generateIds) {
-  var byCode = (scopeCatalog && scopeCatalog.byCode) || {};
-  if (!byCode['MPS-GAP'] || !byCode['GRASP']) return [];
-  return [{
-    Dependency_ID: generateIds ? ModelCMigration_newId_('DEP_') : 'PREVIEW_DEP_MPS_GAP_GRASP',
-    Parent_ScopeCode: 'MPS-GAP',
-    Child_ScopeCode: 'GRASP',
-    Relationship_Type: 'ADD_ON',
-    Must_Audit_Together: 'YES',
-    Share_Expiry: 'YES',
-    Active: 'YES'
-  }];
+  var ss=SpreadsheetApp.getActive(),sh=ss.getSheetByName(MODEL_C_SHEETS.SCOPE_DEPENDENCIES);if(!sh)return[];var rows=ModelCMigration_rowsToObjects_(sh.getDataRange().getValues()),byCode=(scopeCatalog&&scopeCatalog.byCode)||{};return rows.filter(function(x){return String(x.Active||'').trim().toUpperCase()==='YES'&&byCode[String(x.Parent_ScopeCode||'')]&&byCode[String(x.Child_ScopeCode||'')];}).map(function(x){return{Dependency_ID:generateIds?(String(x.Dependency_ID||'').trim()||ModelCMigration_newId_('DEP_')):(String(x.Dependency_ID||'').trim()||'PREVIEW_DEP'),Parent_ScopeCode:String(x.Parent_ScopeCode||'').trim(),Child_ScopeCode:String(x.Child_ScopeCode||'').trim(),Relationship_Type:String(x.Relationship_Type||'').trim(),Must_Audit_Together:String(x.Must_Audit_Together||'').trim(),Share_Expiry:String(x.Share_Expiry||'').trim(),Active:'YES'};});
 }
 
 function ModelCMigration_buildCompanyScope_(row, map, scope, companyUid, auditId, batchId, stamp, generateIds) {

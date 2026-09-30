@@ -154,6 +154,7 @@ const checks=[
  ['planning commit failures remain JSON across GAS bridge',entry.includes("verified.mode === 'commit' || verified.mode === 'rotation'")&&entry.includes("ContentService.createTextOutput(JSON.stringify({success:false,error:'PLANNING_WORKSPACE_'")&&handoff.includes("error:'CANONICAL_PLANNING_SAVE_THROW'")],
  ['planning commit is routed through JSON path before HTML handoff',entry.indexOf("if (planningMode === 'commit')")>=0&&entry.indexOf("if (planningMode === 'commit')")<entry.indexOf("HANDOFF_OWNER_UNAVAILABLE</pre>")&&entry.includes("error:'PLANNING_WORKSPACE_COMMIT_FAILED'")],
  ['legacy GAS rotation bridge contract remains available',handoff.includes('ExternalPlanningWorkspaceHandoff_payload_')&&handoff.includes("mode === 'commit'")&&handoff.includes("mode === 'rotation' ? 'rotation' : 'open'")],
+,['direct calendar draft rerender updates slots and selected-day state',r5.includes("function renderDraft(){renderSlots();renderAvailability();validate()}")]
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

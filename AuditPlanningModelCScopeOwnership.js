@@ -65,7 +65,8 @@ function ModelCScopeOwner_normalizeSelected_(items){
     var recurring=ModelCRecurringConfig_isRecurring_(ss,code);
     out[code]={scopeCode:code,recurring:recurring,formalHours:raw.formalHours===undefined?raw.customHours:raw.formalHours,baseExpiry:recurring?String(raw.baseExpiry||raw.dateWillExpire||'').trim():'',certificateBirthday:recurring?String(raw.certificateBirthday||raw.birthdate||'').trim():'',lifecycleType:recurring?'CERTIFICATE_RECURRING':'NON_RECURRING'};
   });
-  if(out.GRASP&&out['MPS-GAP']){out.GRASP.baseExpiry=out['MPS-GAP'].baseExpiry;out.GRASP.certificateBirthday=out['MPS-GAP'].certificateBirthday;}
+  var depSheet=ss.getSheetByName(MODEL_C_SHEETS.SCOPE_DEPENDENCIES),deps=depSheet?ModelCMigration_rowsToObjects_(depSheet.getDataRange().getValues()):[];
+  deps.forEach(function(d){if(String(d.Active||'').toUpperCase()!=='YES')return;var parent=String(d.Parent_ScopeCode||''),child=String(d.Child_ScopeCode||'');if(!parent||!child||!out[child])return;if(String(d.Must_Audit_Together||'').toUpperCase()==='YES'&&!out[parent])throw new Error(child+' requires '+parent);if(out[parent]&&String(d.Share_Expiry||'').toUpperCase()==='YES'){out[child].baseExpiry=out[parent].baseExpiry;out[child].certificateBirthday=out[parent].certificateBirthday;}});
   return out;
 }
 

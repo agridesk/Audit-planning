@@ -260,7 +260,7 @@ async function directPlanningCommit(identity,body){
     if(!audit.candidateAuditors.some(a=>clean(a.email).toLowerCase()===auditorEmail))throw new Error('AUDITOR_NOT_HARD_QUALIFIED');
     const from=dateOnly(audit.planningWindowFrom),to=dateOnly(audit.planningWindowTo);
     if(requested.some(b=>(from&&b.date<from)||(to&&b.date>to)))throw new Error('PLANNING_WINDOW_BLOCKED');
-    const total=requested.reduce((s,b)=>s+b.hours,0);if(total+1e-9<Number(audit.requiredHours||0))throw new Error('PLANNED_HOURS_BELOW_REQUIRED');
+    const total=requested.reduce((s,b)=>s+b.hours,0); // Required hours are advisory in Planning 2.0; UI confirms underplanning before commit.
 
     const av=vr[2]?.values||[],ah=av[0]||[],cd=col(ah,['Date']),ce=col(ah,['Auditor_Email','Auditor Email','Email','E-mail']),ca=col(ah,['Available']),s1=col(ah,['First_Audit_Start_Time']),e1=col(ah,['First_Audit_End_Time']),id1=col(ah,['Audit_ID_1']),s2=col(ah,['Second_Audit_Start_Time']),e2=col(ah,['Second_Audit_End_Time']),id2=col(ah,['Audit_ID_2']),st1=col(ah,['Status_1']),st2=col(ah,['Status_2']),lu=col(ah,['Last_Updated']);
     if([cd,ce,ca,s1,e1,id1,s2,e2,id2,st1,st2].some(x=>x<0))throw new Error('AVAILABILITY_SCHEMA_INVALID');

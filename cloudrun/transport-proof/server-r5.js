@@ -3,7 +3,7 @@ import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 
 const PUBLIC_PORT=Number(process.env.PORT||8080);
 const INNER_PORT=PUBLIC_PORT+1;
-const BUILD='2026-09-30_AMS_PLANNING_COMMIT_R102_PHASE_TIMING';
+const BUILD='2026-09-30_AMS_PLANNING_COMMIT_R103_ACCEPT_CANONICAL_JSON';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
@@ -91,10 +91,17 @@ async function handlePlanningCommitHandoff(req,res){
     if(!result){
       try{
         const direct=JSON.parse(raw);
-        if(direct&&typeof direct==='object'&&(direct.success===false||direct.error)){
-          return sendJson(res,409,{ok:false,result:direct,bridgeRoundTripMs:Date.now()-started,configMarker:configMarker(),gasResponseMode:'JSON_ERROR'});
+        if(direct&&typeof direct==='object'){
+          if(direct.success===true){
+            result=direct;
+          }else if(direct.success===false||direct.error){
+            return sendJson(res,409,{ok:false,result:direct,gasRoundTripMs,bridgeRoundTripMs:Date.now()-started,configMarker:configMarker(),gasResponseMode:'JSON_ERROR'});
+          }
         }
       }catch(_){}
+      if(result){
+        return sendJson(res,200,{ok:true,result,gasRoundTripMs,bridgeRoundTripMs:Date.now()-started,configMarker:configMarker(),gasResponseMode:'JSON_SUCCESS'});
+      }
       const pre=raw.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
       if(pre){
         const detail=clean(pre[1].replace(/<[^>]+>/g,' ').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>'));

@@ -38,6 +38,7 @@ const checks=[
  ['r5 aggregate planned-hours guard',r5.includes("draftBlocks.reduce((n,b)=>n+blockHours(b),0)")],
  ['r5 embedded regex escapes preserved',r5.includes("match(/^(\\\\d{2}):(\\\\d{2})$/)")],
  ['r5 embedded warning newlines escaped',r5.includes("warnings.join('\\\\n')+'\\\\n\\\\nThese are soft warnings. Continue?'")],
+ ['r104 direct PLAN keeps required hours advisory',!r4.includes("throw new Error('PLANNED_HOURS_BELOW_REQUIRED')")],
  ['r4 direct PLAN endpoint',r4.includes("u.pathname==='/api/v1/planning/direct-commit'")&&r4.includes('directPlanningCommit(s,b)')],
  ['r4 direct PLAN validates hard qualification',r4.includes("throw new Error('AUDITOR_NOT_HARD_QUALIFIED')")],
  ['r4 direct PLAN preserves implicit availability semantics',r4.includes('if(!x){const width=ah.length')&&r4.includes("row[ca]='YES'")],

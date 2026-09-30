@@ -73,8 +73,8 @@ function yes(v){const s=clean(v).toLowerCase();return s==='x'||s==='yes'||s==='t
 
 function scopeCatalog(values){
   if(!values.length)return[];
-  const h=values[0],cs=col(h,['SlotKey','Slot key','Slot']),cc=col(h,['ScopeCode','Scope code','Code']),cn=col(h,['DisplayName','Display name','Name','ScopeName','Scope']),ca=col(h,['Active']),car=col(h,['Archived']);
-  return values.slice(1).map(r=>({slotKey:val(r,cs),scopeCode:val(r,cc),displayName:val(r,cn),active:ca<0||yes(r[ca]),archived:car>=0&&yes(r[car])})).filter(x=>x.displayName&&x.active&&!x.archived);
+  const h=values[0],cs=col(h,['SlotKey','Slot key','Slot']),cc=col(h,['ScopeCode','Scope code','Code']),cn=col(h,['DisplayName','Display name','Name','ScopeName','Scope']),ca=col(h,['Active']),car=col(h,['Archived']),cr=col(h,['Recurring']),coc=col(h,['Obligation cycle','Obligation_cycle','Cycle']),ccb=col(h,['Complete by','Complete_by','Must be completed by']);
+  return values.slice(1).map(r=>({slotKey:val(r,cs),scopeCode:val(r,cc),displayName:val(r,cn),active:ca<0||yes(r[ca]),archived:car>=0&&yes(r[car]),recurring:cr<0?null:yes(r[cr]),obligationCycle:val(r,coc).toUpperCase(),completeBy:val(r,ccb)})).filter(x=>x.displayName&&x.active&&!x.archived);
 }
 
 function scopesForAudit(f,catalog){
@@ -86,6 +86,17 @@ function scopesForAudit(f,catalog){
     }
   }
   return [...new Set(out)];
+}
+
+
+function executionConstraint(auditId,catalog,obValues,linkValues){
+  const out={cycleKey:'',mustCompleteBy:'',source:'',scopeCodes:[]};if(!obValues?.length||!linkValues?.length)return out;
+  const cfg=new Map();for(const s of catalog||[])cfg.set(clean(s.scopeCode),s);
+  const oh=obValues[0],oi=col(oh,['Obligation_ID','Obligation ID']),oc=col(oh,['ScopeCode','Scope Code']),ock=col(oh,['Cycle_Key','Cycle Key']),os=col(oh,['Obligation_State','Obligation State']),obById=new Map();
+  for(const r of obValues.slice(1)){const id=val(r,oi);if(id)obById.set(id,r);}
+  const lh=linkValues[0],la=col(lh,['Audit_ID','Audit ID']),lo=col(lh,['Obligation_ID','Obligation ID']),ls=col(lh,['Link_State','Link State']),deadlines=[];
+  for(const lr of linkValues.slice(1)){if(val(lr,la)!==auditId||val(lr,ls).toUpperCase()!=='ACTIVE')continue;const ob=obById.get(val(lr,lo));if(!ob||['COMPLETED','CANCELLED','REJECTED'].includes(val(ob,os).toUpperCase()))continue;const code=val(ob,oc),def=cfg.get(code),cycle=val(ob,ock);if(!def||def.recurring!==false||def.obligationCycle!=='ANNUAL'||!/^[0-9]{4}$/.test(cycle)||!/^([0-9]{2})-([0-9]{2})$/.test(def.completeBy))continue;const deadline=cycle+'-'+def.completeBy;if(!/^20[0-9]{2}-(0[1-9]|1[0-2])-([0-2][0-9]|3[01])$/.test(deadline))continue;deadlines.push({deadline,cycle,code});}
+  if(!deadlines.length)return out;deadlines.sort((a,b)=>a.deadline.localeCompare(b.deadline));out.cycleKey=deadlines[0].cycle;out.mustCompleteBy=deadlines[0].deadline;out.source='CONFIG_SCOPES_NON_RECURRING_CYCLE';out.scopeCodes=[...new Set(deadlines.map(x=>x.code))];return out;
 }
 
 function candidates(audValues,catalog,required,pre){
@@ -273,7 +284,7 @@ async function directPlanningCommit(identity,body){
   if(!auditId||!auditorEmail)throw new Error('PLANNING_REQUIRED_FIELDS_MISSING');
   const requested=directPlanNormBlocks(body?.blocks);if(!requested.length)throw new Error('PLANNING_REQUIRED_FIELDS_MISSING');if(requested.length>5)throw new Error('PLANNING_MAX_5_DAYS');
   return withDirectPlanLock(auditId,async()=>{
-    const readStarted=Date.now(),vr=await sheetsBatchGet(['Audit planning!A1:AX768','Auditors!A1:AZ256','Auditor Availability!A1:P','Concept Reservations!A1:P256','Config_Scopes!A1:Z128','Companies!A1:AZ768']),readMs=Date.now()-readStarted;
+    const readStarted=Date.now(),vr=await sheetsBatchGet(['Audit planning!A1:AX768','Auditors!A1:AZ256','Auditor Availability!A:P','Concept Reservations!A1:P256','Config_Scopes!A1:Z128','Companies!A1:AZ768','Audit_Obligations!A1:Z1024','Audit_Visit_Obligations!A1:H1024']),readMs=Date.now()-readStarted;
     const ap=vr[0]?.values||[],found=findAudit(ap,auditId);if(!found)throw new Error('AUDIT_NOT_FOUND');
     const catalog=scopeCatalog(vr[4]?.values||[]),audit=project(found,catalog,vr[1]?.values||[]);
     const currentStatus=clean(audit.status).toUpperCase().replace(/[\s-]+/g,'_'),currentPlanning=blocks(found.row[col(found.h,['Planning JSON','PlanningJSON','Planning'])]),sameBlocks=currentPlanning.length===requested.length&&currentPlanning.every((b,i)=>dateOnly(b?.date)===requested[i].date&&clean(b?.start)===requested[i].start&&clean(b?.end)===requested[i].end&&clean(b?.execLoc||b?.executionLocation||b?.location||'HQ')===clean(requested[i].execLoc||'HQ')&&clean(b?.slotComment||b?.comment)===clean(requested[i].slotComment)),currentAssigned=clean(found.row[col(found.h,['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned'])]).toLowerCase();
@@ -281,8 +292,8 @@ async function directPlanningCommit(identity,body){
     if(sourceRevision&&sourceRevision!==clean(audit.sourceRevision))throw new Error('PLANNING_SOURCE_REVISION_CONFLICT');
     if(currentStatus!=='PENDING_PLANNING')throw new Error('STATUS_TRANSITION_BLOCKED');
     if(!audit.candidateAuditors.some(a=>clean(a.email).toLowerCase()===auditorEmail))throw new Error('AUDITOR_NOT_HARD_QUALIFIED');
-    const from=dateOnly(audit.planningWindowFrom),to=dateOnly(audit.planningWindowTo);
-    if(requested.some(b=>(from&&b.date<from)||(to&&b.date>to)))throw new Error('PLANNING_WINDOW_BLOCKED');
+    const execution=executionConstraint(auditId,catalog,vr[6]?.values||[],vr[7]?.values||[]),from=dateOnly(audit.planningWindowFrom),to=dateOnly(audit.planningWindowTo)||execution.mustCompleteBy;
+    if(requested.some(b=>(from&&b.date<from)||(to&&b.date>to)))throw new Error(execution.mustCompleteBy&&!audit.planningWindowTo?'EXECUTION_DEADLINE_BLOCKED':'PLANNING_WINDOW_BLOCKED');
     const total=requested.reduce((s,b)=>s+b.hours,0);if(total+1e-9<Number(audit.requiredHours||0))throw new Error('PLANNED_HOURS_BELOW_REQUIRED');
 
     const av=vr[2]?.values||[],ah=av[0]||[],cd=col(ah,['Date']),ce=col(ah,['Auditor_Email','Auditor Email','Email','E-mail']),ca=col(ah,['Available']),s1=col(ah,['First_Audit_Start_Time']),e1=col(ah,['First_Audit_End_Time']),id1=col(ah,['Audit_ID_1']),s2=col(ah,['Second_Audit_Start_Time']),e2=col(ah,['Second_Audit_End_Time']),id2=col(ah,['Audit_ID_2']),st1=col(ah,['Status_1']),st2=col(ah,['Status_2']),lu=col(ah,['Last_Updated']);
@@ -324,10 +335,10 @@ async function directPlanningCommit(identity,body){
 
 async function focused(id){
   const t=Date.now(),s=Date.now();
-  const vr=await sheetsBatchGet(['Audit planning!A1:AX768','Auditors!A1:AZ256','Auditor Availability!A:P','Concept Reservations!A1:P256','Config_Scopes!A1:Z128','Companies!A1:AZ768']);
+  const vr=await sheetsBatchGet(['Audit planning!A1:AX768','Auditors!A1:AZ256','Auditor Availability!A:P','Concept Reservations!A1:P256','Config_Scopes!A1:Z128','Companies!A1:AZ768','Audit_Obligations!A1:Z1024','Audit_Visit_Obligations!A1:H1024']);
   const sheetMs=Date.now()-s,ap=vr[0]?.values||[],f=findAudit(ap,id);
   if(!f)return{ok:false,error:'AUDIT_NOT_FOUND',timing:{sheetsApiMs:sheetMs,totalMs:Date.now()-t}};
-  const p=Date.now(),catalog=scopeCatalog(vr[4]?.values||[]),context=auditContext(ap,catalog),audit=project(f,catalog,vr[1]?.values||[]),relatedOpenAudits=ap.slice(1).map((row,i)=>({h:ap[0],row,sourceRow:i+2})).filter(x=>val(x.row,col(x.h,['Audit ID']))!==id&&val(x.row,col(x.h,['Company_UID','Company UID','CompanyUid']))&&val(x.row,col(x.h,['Company_UID','Company UID','CompanyUid']))===audit.companyUid&&['PENDING_PLANNING','PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(val(x.row,col(x.h,['Status'])).toUpperCase().replace(/[\s-]+/g,'_'))).map(x=>{const z=project(x,catalog,vr[1]?.values||[]);const sameWindow=!!(dateOnly(audit.planningWindowFrom)&&dateOnly(audit.planningWindowTo)&&dateOnly(z.planningWindowFrom)&&dateOnly(z.planningWindowTo)&&dateOnly(audit.planningWindowFrom)<=dateOnly(z.planningWindowTo)&&dateOnly(z.planningWindowFrom)<=dateOnly(audit.planningWindowTo));const missingWindow=!dateOnly(z.planningWindowFrom)||!dateOnly(z.planningWindowTo),pending=z.status==='Pending Planning',alreadyPlanned=!!(z.assignedTo||z.planningJson);return{auditId:z.auditId,status:z.status,scopes:z.scopes,requiredHours:z.requiredHours,planningWindowFrom:dateOnly(z.planningWindowFrom),planningWindowTo:dateOnly(z.planningWindowTo),assignedTo:z.assignedTo,linkCandidate:pending,sameVisitCandidate:pending&&(sameWindow||missingWindow),missingPlanningWindow:missingWindow,planningRelation:pending?'UNPLANNED_RELATED':alreadyPlanned?'ALREADY_PLANNED_RELATED':'RELATED',attentionRequired:pending};}),companyCtx=companyPlanningContext(vr[5]?.values||[],audit.companyUid,audit.company);audit.preferredAuditMonths=companyCtx.preferredAuditMonths;audit.locations=companyCtx.locations;audit.companyContext=companyCtx;audit.relatedOpenAudits=relatedOpenAudits;audit.hasRelatedOpenAudits=relatedOpenAudits.length>0;const emails=audit.candidateAuditors.map(x=>x.email),from=dateOnly(audit.planningWindowFrom),to=dateOnly(audit.planningWindowTo),availability=availabilityProjection(vr[2]?.values||[],audit.candidateAuditors,from,to,context),reservations=reservationProjection(vr[3]?.values||[],emails,from,to,context);
+  const p=Date.now(),catalog=scopeCatalog(vr[4]?.values||[]),context=auditContext(ap,catalog),audit=project(f,catalog,vr[1]?.values||[]),relatedOpenAudits=ap.slice(1).map((row,i)=>({h:ap[0],row,sourceRow:i+2})).filter(x=>val(x.row,col(x.h,['Audit ID']))!==id&&val(x.row,col(x.h,['Company_UID','Company UID','CompanyUid']))&&val(x.row,col(x.h,['Company_UID','Company UID','CompanyUid']))===audit.companyUid&&['PENDING_PLANNING','PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(val(x.row,col(x.h,['Status'])).toUpperCase().replace(/[\s-]+/g,'_'))).map(x=>{const z=project(x,catalog,vr[1]?.values||[]);const sameWindow=!!(dateOnly(audit.planningWindowFrom)&&dateOnly(audit.planningWindowTo)&&dateOnly(z.planningWindowFrom)&&dateOnly(z.planningWindowTo)&&dateOnly(audit.planningWindowFrom)<=dateOnly(z.planningWindowTo)&&dateOnly(z.planningWindowFrom)<=dateOnly(audit.planningWindowTo));const missingWindow=!dateOnly(z.planningWindowFrom)||!dateOnly(z.planningWindowTo),pending=z.status==='Pending Planning',alreadyPlanned=!!(z.assignedTo||z.planningJson);return{auditId:z.auditId,status:z.status,scopes:z.scopes,requiredHours:z.requiredHours,planningWindowFrom:dateOnly(z.planningWindowFrom),planningWindowTo:dateOnly(z.planningWindowTo),assignedTo:z.assignedTo,linkCandidate:pending,sameVisitCandidate:pending&&(sameWindow||missingWindow),missingPlanningWindow:missingWindow,planningRelation:pending?'UNPLANNED_RELATED':alreadyPlanned?'ALREADY_PLANNED_RELATED':'RELATED',attentionRequired:pending};}),companyCtx=companyPlanningContext(vr[5]?.values||[],audit.companyUid,audit.company);audit.preferredAuditMonths=companyCtx.preferredAuditMonths;audit.locations=companyCtx.locations;audit.companyContext=companyCtx;audit.relatedOpenAudits=relatedOpenAudits;audit.hasRelatedOpenAudits=relatedOpenAudits.length>0;const execution=executionConstraint(id,catalog,vr[6]?.values||[],vr[7]?.values||[]);audit.cycleKey=execution.cycleKey;audit.mustCompleteBy=execution.mustCompleteBy;audit.executionConstraintSource=execution.source;const emails=audit.candidateAuditors.map(x=>x.email),from=dateOnly(audit.planningWindowFrom)||dateOnly(new Date().toISOString()),to=dateOnly(audit.planningWindowTo)||execution.mustCompleteBy,availability=availabilityProjection(vr[2]?.values||[],audit.candidateAuditors,from,to,context),reservations=reservationProjection(vr[3]?.values||[],emails,from,to,context);
   return{
     ok:true,
     proof:'AMS_CLOUD_RUN_DIRECT_SHEETS_R8_SESSION_ENFORCED',

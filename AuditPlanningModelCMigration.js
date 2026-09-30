@@ -320,7 +320,7 @@ function ModelCMigration_validatePrepared_(sourceRows, companyScopes, obligation
   for (var c = 0; c < companyScopes.length; c++) {
     var cs = companyScopes[c];
     if (!cs.Company_Scope_ID || csIds[cs.Company_Scope_ID]) errors.push('Missing/duplicate Company_Scope_ID');
-    csIds[cs.Company_Scope_ID] = true;
+    csIds[cs.Company_Scope_ID] = cs;
     var csKey = cs.Company_UID + '|' + cs.ScopeCode;
     if (csNaturalKeys[csKey]) errors.push('Duplicate Company Scope natural key: ' + csKey);
     csNaturalKeys[csKey] = true;
@@ -330,8 +330,9 @@ function ModelCMigration_validatePrepared_(sourceRows, companyScopes, obligation
     if (!obligation.Obligation_ID || obligationIds[obligation.Obligation_ID]) errors.push('Missing/duplicate Obligation_ID');
     obligationIds[obligation.Obligation_ID] = true;
     if (!csIds[obligation.Company_Scope_ID]) errors.push('Orphan obligation: ' + obligation.Obligation_ID);
-    if (ModelCFoundation_isAbc_(obligation.ScopeCode, '') && (obligation.Base_Expiry_Date || obligation.Effective_Expiry_Date)) {
-      errors.push('ABC obligation contains certificate expiry: ' + obligation.Obligation_ID);
+    var ownerScope=csIds[obligation.Company_Scope_ID];
+    if (ownerScope && String(ownerScope.Lifecycle_Type||'').toUpperCase()==='EXTERNAL_ANNUAL' && (obligation.Base_Expiry_Date || obligation.Effective_Expiry_Date)) {
+      errors.push('External annual obligation contains certificate expiry: ' + obligation.Obligation_ID);
     }
     var obligationKey = obligation.Company_Scope_ID + '|' + obligation.Cycle_Key + '|' + obligation.Trigger_Source;
     if (obligationNaturalKeys[obligationKey]) errors.push('Duplicate obligation natural key: ' + obligationKey);

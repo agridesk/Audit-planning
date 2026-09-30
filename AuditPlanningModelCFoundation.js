@@ -387,7 +387,7 @@ function ModelCFoundation_analyzeRows_(headers, rows, scopeCatalog) {
     counts.rowsWithScopes++;
     counts.selectedScopeInstances += selected.length;
 
-    var abcOnly = selected.length === 1 && ModelCFoundation_isAbc_(selected[0].scopeCode, selected[0].displayName);
+    var abcOnly = selected.length === 1 && !!String(selected[0].provisioningSource||'').trim() && String(selected[0].obligationCycle||'').trim().toUpperCase()==='ANNUAL';
     if (abcOnly) {
       counts.abcOnlyRows++;
       var birthday = ModelCFoundation_valueByHeader_(row, map, ['Birthdate certificate']);

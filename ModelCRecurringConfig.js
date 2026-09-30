@@ -26,7 +26,9 @@ function ModelCRecurringConfig_byCode_(ss){
       recurring:ModelCRecurringConfig_truthy_(recurringRaw),
       recurringRaw:String(recurringRaw==null?'':recurringRaw).trim(),
       planningFrom:Number(ModelCFoundation_valueByHeaderRaw_(row,m,['Planning from'])||0),
-      planningTo:Number(ModelCFoundation_valueByHeaderRaw_(row,m,['Planning to'])||0)
+      planningTo:Number(ModelCFoundation_valueByHeaderRaw_(row,m,['Planning to'])||0),
+      obligationCycle:String(ModelCFoundation_valueByHeader_(row,m,['Obligation cycle'])||'').trim().toUpperCase(),
+      completeBy:String(ModelCFoundation_valueByHeader_(row,m,['Complete by'])||'').trim()
     };
   }
   return out;
@@ -46,4 +48,10 @@ function ModelCRecurringConfig_isRecurring_(ss,scopeCode){
 
 function ModelCRecurringConfig_lifecycleType_(ss,scopeCode){
   return ModelCRecurringConfig_isRecurring_(ss,scopeCode)?'CERTIFICATE_RECURRING':'NON_RECURRING';
+}
+
+function ModelCRecurringConfig_executionDeadline_(ss,scopeCode,cycleKey){
+  var cfg=ModelCRecurringConfig_get_(ss,scopeCode),cycle=String(cycleKey||'').trim();
+  if(cfg.recurring===true||cfg.obligationCycle!=='ANNUAL'||!/^20\d{2}$/.test(cycle)||!/^\d{2}-\d{2}$/.test(cfg.completeBy))return'';
+  return cycle+'-'+cfg.completeBy;
 }

@@ -96,7 +96,7 @@ function ModelCScopeOwner_commit(command){
     var cs=ModelCMigration_rowsToObjects_(csSheet.getDataRange().getValues()),ob=ModelCMigration_rowsToObjects_(obSheet.getDataRange().getValues()),lk=ModelCMigration_rowsToObjects_(lkSheet.getDataRange().getValues());
     var selected=ModelCScopeOwner_normalizeSelected_(command.selectedScopes||[]),codes=Object.keys(selected);
     if(!String(command.companyUid||'').trim())throw new Error('Missing companyUid');if(!String(command.auditId||'').trim())throw new Error('Missing auditId');if(!codes.length)throw new Error('At least one scope is required');
-    ModelCScopeOwner_validateSelection_(selected);
+    ModelCScopeOwner_validateSelection_(ss,selected);
     snapshots=[ModelCScopeOwner_snapshotSheet_(csSheet),ModelCScopeOwner_snapshotSheet_(obSheet),ModelCScopeOwner_snapshotSheet_(lkSheet),ModelCExtension_snapshotLegacy_(apSheet,command.auditId)];
     var stamp=new Date().toISOString(),csByCode={},activeLinkByOb={},activeAuditByOb={};
     cs.forEach(function(x){if(String(x.Company_UID)===String(command.companyUid))csByCode[String(x.ScopeCode)]=x;});
@@ -121,8 +121,8 @@ function ModelCScopeOwner_commit(command){
   }catch(e){for(var i=snapshots.length-1;i>=0;i--)try{ModelCScopeOwner_restoreSnapshot_(snapshots[i]);}catch(ignore){}return{success:false,build:MODEL_C_SCOPE_OWNER_BUILD,writesPerformed:snapshots.length>0,rolledBack:snapshots.length>0,error:String(e&&e.message?e.message:e)};}finally{try{lock.releaseLock();}catch(ignoreLock){}}
 }
 
-function ModelCScopeOwner_validateSelection_(selected){
-  if(selected.GRASP&&!selected['MPS-GAP'])throw new Error('GRASP requires MPS-GAP');
+function ModelCScopeOwner_validateSelection_(ss,selected){
+  var depSheet=ss.getSheetByName(MODEL_C_SHEETS.SCOPE_DEPENDENCIES),deps=depSheet?ModelCMigration_rowsToObjects_(depSheet.getDataRange().getValues()):[];deps.forEach(function(d){if(String(d.Active||'').toUpperCase()!=='YES'||String(d.Must_Audit_Together||'').toUpperCase()!=='YES')return;var parent=String(d.Parent_ScopeCode||''),child=String(d.Child_ScopeCode||'');if(child&&selected[child]&&!selected[parent])throw new Error(child+' requires '+parent);});
   Object.keys(selected||{}).forEach(function(code){var x=selected[code]||{};if(x.recurring!==true)return;if(!/^\d{4}-\d{2}-\d{2}$/.test(String(x.baseExpiry||'')))throw new Error('Expiry date required for '+code);if(x.certificateBirthday&&!/^\d{4}-\d{2}-\d{2}$/.test(String(x.certificateBirthday)))throw new Error('Invalid certificate birthday for '+code);});
 }
 

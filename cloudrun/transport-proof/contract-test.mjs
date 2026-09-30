@@ -180,6 +180,8 @@ const checks=[
 ,
  ['ECAS import resolves scope identity from Config_Scopes provisioning metadata',ecasImport.includes("ModelCEcasAnnualImport_config_")&&ecasImport.includes("['Provisioning source']")&&ecasImport.includes("['Source service']")&&!ecasImport.includes("var MODEL_C_ECAS_SCOPE_CODE='MPS-ABC'")],
  ['ECAS visit materialization uses configured scope identity',ecasVisit.includes('ModelCEcasAnnualImport_config_(ss)')&&!ecasVisit.includes("ScopeCode||'').trim().toUpperCase()==='MPS-ABC'")]
+,
+ ['generic planning transport contains no functional scope literals',!r4.includes("'MPS-ABC'")&&!r4.includes("'MPS-GAP'")&&!r4.includes("'GRASP'")&&!r5.includes("'MPS-ABC'")&&!r5.includes("'MPS-GAP'")&&!r5.includes("'GRASP'")]
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

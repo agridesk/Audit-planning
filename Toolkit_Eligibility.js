@@ -790,19 +790,56 @@ function _mp_findAuditorInList_(auditors, rawKey) {
 }
 
 function _mp_assertAuditorQualifiedForPlanning_(ss, hdr, row, auditorEmail, auditorName) {
-  var key = V5_normalizeEmail_(auditorEmail || '') || String(auditorName || '').trim().toLowerCase();
-  if (!key) return { success:false, message:'Missing auditor for qualification check' };
-  var eligPack = _mp_getToolkitEligibleAuditorsForRow_(ss, hdr || [], row || [], '');
-  var found = _mp_findAuditorInList_(eligPack.auditors || [], key);
-  if (!found) {
+  ss = ss || SpreadsheetApp.getActiveSpreadsheet();
+  var key = V5_normalizeEmail_(auditorEmail || '');
+  var keyName = String(auditorName || '').trim().toLowerCase();
+  if (!key && !keyName) return { success:false, message:'Missing auditor for qualification check' };
+
+  var scopesRes = v5_extractScopesForAuditPlanningRow_(hdr || [], row || []);
+  var requiredScopes = (scopesRes && scopesRes.scopes ? scopesRes.scopes : []).map(function(s){
+    return String((s && (s.name || s.code || s.slot)) || '').trim();
+  }).filter(function(x){ return !!x; });
+
+  // Save-time qualification needs only HARD membership. Rotation is SOFT
+  // metadata and must not be rebuilt here. Read the canonical Auditors sheet
+  // once and validate the selected auditor directly.
+  var pack = (typeof __mp_getSheetDataPersistCached_ === 'function')
+    ? __mp_getSheetDataPersistCached_(ss, 'Auditors', 300)
+    : null;
+  var data = pack && pack.data ? pack.data : [];
+  var ah = pack && pack.hdr ? pack.hdr : (data[0] || []);
+  if (!data.length) {
+    var shAud = ss.getSheetByName('Auditors');
+    if (!shAud) return { success:false, message:"Missing sheet 'Auditors'", requiredScopes:requiredScopes };
+    data = shAud.getDataRange().getValues();
+    ah = data[0] || [];
+  }
+
+  var idxName = _mp_findHeaderIdxCI_(ah, ['Name','Auditor','Auditor name']);
+  var idxEmail = _mp_findHeaderIdxCI_(ah, ['E-mail','Email','E-mail address','Mail']);
+  var idxActive = _mp_findHeaderIdxCI_(ah, ['Active','Is active']);
+  var idxRole = _mp_findHeaderIdxCI_(ah, ['Role','Function']);
+  var audRow = null;
+  for (var r=1; r<data.length; r++) {
+    var rv = data[r] || [];
+    var em = idxEmail >= 0 ? V5_normalizeEmail_(rv[idxEmail] || '') : '';
+    var nm = idxName >= 0 ? String(rv[idxName] || '').trim().toLowerCase() : '';
+    if ((key && em === key) || (keyName && nm === keyName)) { audRow = rv; break; }
+  }
+
+  var qualified = !!audRow &&
+    idxActive >= 0 && _mp_isYes_(audRow[idxActive]) &&
+    idxRole >= 0 && String(audRow[idxRole] || '').trim().toLowerCase() === 'auditor' &&
+    TK3S_isAuditorQualified_R24_(ss, audRow, ah, requiredScopes);
+
+  if (!qualified) {
     return {
       success:false,
-      message:'Selected auditor is not qualified for the required scope(s): ' + ((eligPack.requiredScopes || []).join(', ') || 'unknown'),
-      requiredScopes: eligPack.requiredScopes || [],
-      eligibleAuditors: (eligPack.auditors || []).map(function(a){ return a.email || a.name || ''; }).filter(function(x){ return !!x; })
+      message:'Selected auditor is not qualified for the required scope(s): ' + (requiredScopes.join(', ') || 'unknown'),
+      requiredScopes:requiredScopes
     };
   }
-  return { success:true, auditor:found, requiredScopes:eligPack.requiredScopes || [] };
+  return { success:true, auditor:{email:key || auditorEmail, name:auditorName || ''}, requiredScopes:requiredScopes, membershipMode:'DIRECT_HARD_QUALIFICATION' };
 }
 
 

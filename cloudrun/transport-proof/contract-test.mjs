@@ -169,6 +169,9 @@ const checks=[
 ,
  ['scope catalog carries config-driven formal and scheduling hours',r4.includes("['Scheduling_hours','Scheduling hours','Scheduling Hours','Planning duration','Planning_duration']")&&r4.includes("schedulingSource:def.schedulingHours>0?'CONFIG_SCOPES_SCHEDULING_HOURS':'FORMAL_HOURS_FALLBACK'")],
  ['company visit planner keeps formal and scheduling hours distinct',r5.includes("'Formal '+Number(r.formalHours")&&r5.includes("' h · Scheduling '+Number(r.schedulingHours")]
+,
+ ['visit composition protects every selected member with source revision',r4.includes('VISIT_RELATED_SOURCE_REVISION_REQUIRED')&&r4.includes('VISIT_RELATED_SOURCE_REVISION_CONFLICT')&&r5.includes('visitMembers:[...visitAuditIds].map')],
+ ['combined visit remains scope-generic',!r4.includes("relatedExecution.scopeCodes.includes('MPS-ABC')")&&!r5.includes("scope==='MPS-ABC'")]
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks) console.log((ok?'PASS ':'FAIL ')+name);

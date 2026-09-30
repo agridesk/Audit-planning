@@ -1,6 +1,6 @@
-# AMS Cloud Run DEV focused-read service
+# AMS Cloud Run DEV Planning service
 
-Scope: DEV only. Read-only Planning Workspace focused reads.
+Scope: DEV only. Canonical focused Planning 2.0 read + Manager PLAN write hot path.
 
 Cloud project: audit-management-system-dev
 Region: europe-west1
@@ -8,38 +8,46 @@ Service: ams-transport-proof
 Service URL: https://ams-transport-proof-510075419067.europe-west1.run.app
 
 Runtime
-- package.json starts server-r4.js; this is the canonical DEV Cloud Run entry point.
-- Google Sheets API is read directly by the Cloud Run service identity.
-- DEV Google Sheets remains the SSoT.
-- Cloud Run service account has Viewer access only.
-- No writes are implemented.
-- PROD is not configured.
+- package.json starts server-r4.js; canonical DEV Cloud Run entry point.
+- server-r5.js owns the focused Planning 2.0 browser surface and commit handoff.
+- DEV Google Sheets remains the data SSoT.
+- Cloud Run service identity has DEV spreadsheet Editor access for controlled server-side writes.
+- PROD is not configured and must not be touched.
 
 Required environment
 DEV_SSOT_SPREADSHEET_ID = DEV Audit Management spreadsheet ID
+DEV_ALLOWED_ORIGIN = exact external DEV web-app origin.
 
 Browser boundary
-DEV_ALLOWED_ORIGIN = exact external DEV web-app origin.
-Browser requests fail closed unless DEV_ALLOWED_ORIGIN is configured and matches exactly. Focused reads additionally require a valid signed application-session cookie. Origin/CORS is defense-in-depth, not authentication.
+- Focused reads/writes require a valid signed application-session cookie.
+- Origin/CORS is defense-in-depth, not authentication.
+- Browser never writes directly to Sheets.
 
-Endpoints
-GET /health
-GET /api/v1/session
+Canonical focused read
 GET /api/v1/planning/workspace?auditId=<AUDIT_ID>
+Returns audit/window/scopes, hard-qualified candidates, Availability and Concept Reservation overlays, sourceRevision and timing.
 
-Focused read contract (R8 session enforced)
-- target Audit planning row and planning window
-- scopes
-- hard-qualified candidate auditors
-- Availability overlays
-- Concept Reservations overlays
-- source counts and timing
+Canonical Manager PLAN write
+POST /api/v1/planning/direct-commit
+- Server-side Cloud Run -> Sheets; no synchronous GAS web-app roundtrip.
+- Hard guards: Pending Planning lifecycle, hard qualification, planning window, required hours, max 5 days, Availability collision/capacity.
+- Optimistic sourceRevision rejects stale workspace commits.
+- Exact retry after a successful identical PLAN is idempotent and does not duplicate writes/notifications.
+- Canonical write updates Audit planning, Availability and releases active Concept Reservations.
+- Lifecycle metadata includes Status since, Last manager decision/timestamp and Manager comment.
+- Notification Queue side effects: lifecycle audit trail + AUDIT_PLANNED_BY_MANAGER.
+- Queue failure is non-fatal to an already committed canonical PLAN and is surfaced in sideEffectQueue.
+- Availability grid expands automatically when needed.
+- Shared auditor/date capacity commits are serialized in the single-instance DEV service.
 
-Deferred facts
-Rotation/consecutive history and hours-to-plan are not owned by this read projection. They are returned as deferred/unknown rather than false or zero.
+Performance acceptance
+Real browser saves after migration measured approximately 2.4-3.9 s, versus the former external GAS roundtrip path at roughly 15-50 s. These are observed samples, not a p95 claim.
 
-Validated performance
-Direct Sheets proof samples were 516 ms and 634 ms total server-side. These are samples, not a p95 claim. Target remains decision-ready <= 2 s p95.
+Architecture rule
+Do not reconnect Manager PLAN Save to synchronous Apps Script HTTP for cache invalidation or other tail work. The transport boundary was the dominant latency source. Any remaining legacy GAS cache reconciliation must be asynchronous/best-effort or eliminated as the relevant surface migrates to Cloud Run.
 
-Migration rule
-Do not reconnect the interactive hot-read path through Apps Script HTTP. Existing canonical write services remain the write owner until separately migrated.
+Acceptance rule
+Green source/contracts alone are insufficient. Runtime permissions, physical Sheet grid limits and at least one real browser write are part of acceptance.
+
+PROD
+Untouched.

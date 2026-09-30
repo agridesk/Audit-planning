@@ -25,10 +25,10 @@ const checks=[
  ['same-visit candidate never proposes already-planned related audits',r4.includes('linkCandidate:pending')&&r4.includes('sameVisitCandidate:pending&&sameWindow')],
  ['Planning 2.0 stale revision conflict reloads current canonical workspace',r5.includes("detail.includes('PLANNING_SOURCE_REVISION_CONFLICT')")&&r5.includes("setTimeout(()=>location.reload(),700)")],
  ['direct PLAN idempotency is exact across slot and manager comments',r4.includes("clean(b?.slotComment||b?.comment)===clean(requested[i].slotComment)")&&r4.includes('sameBlocks&&sameComment')],
- ['related audit attention state distinguishes unplanned linked work',r4.includes('UNPLANNED_RELATED')&&r4.includes('attentionRequired:pending')&&r5.includes('Related audit still needs planning')&&r5.includes('Needs planning')],
+ ['related audit attention state distinguishes unplanned linked work',r4.includes('UNPLANNED_RELATED')&&r4.includes('attentionRequired:pending')&&r5.includes('companyPlanningSet')],
  ['same-company audits are classified for linked same-visit planning',r4.includes('sameVisitCandidate')&&r4.includes('missingPlanningWindow')&&r4.includes('planningRelation')],
 
- ['Planning 2.0 same-company alert UX present',r5.includes('relatedAudits')&&r5.includes('data-related-audit')&&r5.includes('Related audit still needs planning')],
+ ['Planning 2.0 same-company alert UX present',r5.includes('companyPlanningSet')&&r5.includes('Company planning')&&!r5.includes('data-related-audit')],
 
  ['focused planning exposes same-company open audits for linked planning UX',r4.includes('relatedOpenAudits=')&&r4.includes('audit.hasRelatedOpenAudits=relatedOpenAudits.length>0')],
 
@@ -155,11 +155,11 @@ const checks=[
  ['planning commit is routed through JSON path before HTML handoff',entry.indexOf("if (planningMode === 'commit')")>=0&&entry.indexOf("if (planningMode === 'commit')")<entry.indexOf("HANDOFF_OWNER_UNAVAILABLE</pre>")&&entry.includes("error:'PLANNING_WORKSPACE_COMMIT_FAILED'")],
  ['legacy GAS rotation bridge contract remains available',handoff.includes('ExternalPlanningWorkspaceHandoff_payload_')&&handoff.includes("mode === 'commit'")&&handoff.includes("mode === 'rotation' ? 'rotation' : 'open'")],
 ['direct calendar draft rerender updates slots and selected-day state',r5.includes("function renderDraft(){renderSlots();renderAvailability();validate()}")],
-['related audit Open uses canonical focused planning route',r5.includes("location.href=\'/planning?auditId=\'+encodeURIComponent(b.dataset.relatedAudit)")&&!r5.includes("location.href=\'/planning-2?auditId=\'")],
+['related audit Open uses canonical focused planning route',!r5.includes('data-related-audit')&&!r5.includes('dataset.relatedAudit')],
 ['direct calendar prevents overplanning beyond required hours',r5.includes("Required audit time is already fully planned.")&&r5.includes("Math.abs(hours-required)<=0.001")],
 ['non-recurring calendar uses operational execution horizon',r5.includes("allowedTo=a.planningWindowTo||model?.data?.period?.to||allowedFrom")],
 ['non-recurring calendar navigation uses operational execution horizon',r5.includes("max=a.planningWindowTo||model?.data?.period?.to||calendarAnchor")&&r5.includes("max=a.planningWindowTo||model?.data?.period?.to||min")],
-['same-visit planning fails closed without shared canonical window',r4.includes("sameVisitCandidate:pending&&sameWindow")&&r4.includes("NO_SHARED_CANONICAL_WINDOW")&&r5.includes("combined visit needs ECAS approval")],
+['same-visit planning fails closed without shared canonical window',r4.includes("sameVisitCandidate:pending&&sameWindow")&&r4.includes("NO_SHARED_CANONICAL_WINDOW")&&r5.includes("companyPlanningSet")],
 ['overdue execution-cycle PLAN requires explicit ECAS approval',r4.includes("EXECUTION_DEADLINE_APPROVAL_REQUIRED")&&r5.includes("executionExceptionApproved")&&r5.includes("ECAS approval confirmed for planning after the execution deadline")]
 ,
 ['single-company planning panel replaces audit switching',r5.includes("Company planning")&&!r5.includes("data-related-audit")&&!r5.includes("dataset.relatedAudit")]

@@ -123,6 +123,7 @@ const checks=[
  ['availability summary invalidation is generation based',availability.includes('AS_bumpAvailabilitySummaryGeneration_')&&availability.includes("mode: 'GENERATION_BUMP'")&&availability.includes("return { success: true, generation: generation, mode: 'GENERATION_BUMP' };")],
  ['Audit planning persist invalidation is generation based',auditPlanningPerfCache.includes('MP_AP_PERSIST_GEN_KEY_')&&auditPlanningPerfCache.includes('__mp_bumpAuditPlanningPersistGen_')&&auditPlanningPerfCache.includes("name.toLowerCase() === 'audit planning'")],
  ['Audit planning row update retains structural index',auditPlanningIndex.includes('function __mp_invalidateAuditPlanningContent_')&&backend.includes('__mp_invalidateAuditPlanningContent_')],
+ ['direct PLAN serializes shared Availability commits globally',r4.includes("const key='__GLOBAL_MANAGER_PLAN__'")&&r4.includes('withDirectPlanLock(auditId')],
  ['Planning 2.0 save completion is direct canonical-result driven',r5.includes("[SAVE_RESULT]")&&r5.includes("bridgeRoundTripMs")&&r5.includes("result.success!==true")],
  ['Planning 2.0 commit has no GAS or iframe verifier fallback',r5.includes("writeOwner:'CLOUD_RUN_DIRECT_SHEETS_MANAGER_PLAN'")&&r5.includes("gasRoundTripMs:0")&&!r5.includes("amsPlanningCommitSink")&&!r5.includes("SAVE_VERIFY_PENDING")],
    ['external commit exposes canonical phase timings',handoff.includes('debugTiming:saved.debugTiming || null')],

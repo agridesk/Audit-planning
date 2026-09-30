@@ -5,23 +5,28 @@ const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const r5=readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
 const r6=readFileSync(new URL('./server-r6.js',import.meta.url),'utf8');
 const r7=readFileSync(new URL('./server-r7.js',import.meta.url),'utf8');
+const r8=readFileSync(new URL('./server-r8.js',import.meta.url),'utf8');
 const docker=readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
 const pkg=JSON.parse(readFileSync(new URL('./package.json',import.meta.url),'utf8'));
 
 function has(text,needle,label){assert.ok(text.includes(needle),label+' missing');}
 function not(text,needle,label){assert.ok(!text.includes(needle),label+' unexpectedly present');}
 
-assert.equal(pkg.scripts.start,'node server-r7.js','server-r7 must own the public DEV transport');
-has(pkg.scripts.test,'node --check server-r7.js','r7 syntax check');
+assert.equal(pkg.scripts.start,'node server-r8.js','server-r8 must own the public DEV transport');
+has(pkg.scripts.test,'node --check server-r8.js','r8 syntax check');
 has(pkg.scripts.test,'combined-visit-contract-test.mjs','combined Visit contract test');
 has(docker,'COPY server-r6.js ./','Docker image must contain combined Visit writer');
-has(docker,'COPY server-r7.js ./','Docker image must contain public combined Visit UI layer');
+has(docker,'COPY server-r7.js ./','Docker image must contain combined Visit UI layer');
+has(docker,'COPY server-r8.js ./','Docker image must contain revision-enrichment layer');
 
+has(r8,"await import('./server-r7.js')",'r8 must wrap accepted r7 path');
+has(r8,"u.pathname==='/api/v1/planning/workspace'",'r8 must intercept focused workspace read');
+has(r8,"auditPlanningRows()",'r8 must use one bounded Audit planning revision read');
+has(r8,"item.sourceRevision=shaRevision",'missing related Visit revision must be enriched canonically');
+has(r8,"u.pathname==='/api/v1/build'",'r8 runtime build identity endpoint');
+has(r8,"x-ams-build",'r8 response build identity header');
 has(r7,"await import('./server-r6.js')",'r7 must wrap accepted combined Visit path');
 has(r7,"required=requiredVisitHours()",'combined Visit validation must use selected scheduling hours');
-has(r7,"u.pathname==='/api/v1/build'",'runtime build identity endpoint');
-has(r7,"x-ams-build",'planning response build identity header');
-has(r7,"AMS_COMBINED_VISIT_UI_HOURS_R3_RUNTIME_VERIFIABLE",'runtime-verifiable combined Visit build marker');
 has(r6,"await import('./server-r5.js')",'r6 must wrap the accepted r5/r4 path');
 has(r6,"u.pathname==='/api/v1/planning/direct-commit'",'direct commit interception');
 has(r6,"ids.length>1",'combined Visit routing gate');
@@ -65,18 +70,18 @@ has(r6,"obligationIds:selectedObligations.map",'combined obligations in planning
 for(const forbidden of ['MPS-ABC','MPS-GAP','GRASP'])not(r6,forbidden,'hardcoded functional scope '+forbidden);
 not(r6,'VISIT_COMBINED_COMMIT_NOT_YET_CANONICAL','r6 combined writer guard');
 
-// The browser body contract must still carry composition intent from r5.
 has(r5,"visitAuditIds:[...visitAuditIds]",'browser Visit audit IDs');
 has(r5,"visitMembers:[...visitAuditIds]",'browser per-member revisions');
 
 console.log(JSON.stringify({
   success:true,
-  build:'2026-09-30_COMBINED_VISIT_CONTRACT_R3_RUNTIME_PACKAGING',
-  checks:43,
+  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R4_REVISION_ENRICH',
+  checks:49,
   writesPerformed:false,
   assertions:{
     genericScopes:true,
     optimisticConcurrencyAllMembers:true,
+    relatedRevisionEnrichment:true,
     formalVsSchedulingSeparated:true,
     dynamicCombinedSchedulingHoursUi:true,
     runtimeBuildIdentity:true,

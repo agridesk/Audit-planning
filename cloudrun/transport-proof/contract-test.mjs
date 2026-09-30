@@ -45,7 +45,7 @@ const checks=[
  ['r5 preassigned UI',r5.includes('id="preassigned"')&&r5.includes('a.preassignedAuditor')],
  ['r5 warning surface',r5.includes('id="warnings"')&&r5.includes('warningMessages()')],
  ['r5 planning-window hard date guard',r5.includes("d>=a.planningWindowFrom")&&r5.includes("d<=a.planningWindowTo")],
- ['r5 required-hours hard save guard',r5.includes('hoursComplete=required<=0||hours+0.001>=required')],
+ ['r5 required-hours hard save guard',r5.includes('hoursComplete=required<=0||Math.abs(hours-required)<=0.001')],
  ['r5 multi-slot UI',!r5.includes('id="addSlot"')&&r5.includes('id="slotList"')&&r5.includes('draftBlocks=[]')&&r5.includes('function toggleCalendarDay(date,visualState)')],
  ['r5 multi-slot canonical payload',r5.includes('blocks:draftBlocks.slice()')],
  ['r5 duplicate-slot guard',r5.includes('This slot is already added.')],

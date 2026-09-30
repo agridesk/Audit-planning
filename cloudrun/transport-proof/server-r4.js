@@ -31,6 +31,11 @@ async function sheetsValuesBatchUpdate(data){
   const r=await fetch(u,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({valueInputOption:'USER_ENTERED',data})}),body=await r.json();
   if(!r.ok)throw new Error('SHEETS_BATCH_UPDATE_'+r.status+': '+JSON.stringify(body));return body;
 }
+async function sheetsValuesAppend(range,values){
+  const token=await accessToken(),u='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'/values/'+encodeURIComponent(range)+':append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS';
+  const r=await fetch(u,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({values})}),body=await r.json();
+  if(!r.ok)throw new Error('SHEETS_APPEND_'+r.status+': '+JSON.stringify(body));return body;
+}
 async function sheetsEnsureRows(sheetTitle,requiredRows){
   const token=await accessToken(),metaUrl='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'?fields=sheets.properties';
   const mr=await fetch(metaUrl,{headers:{authorization:'Bearer '+token}}),meta=await mr.json();
@@ -300,7 +305,6 @@ async function directPlanningCommit(identity,body){
     const cr=vr[3]?.values||[],ch=cr[0]||[],ci=col(ch,['Audit ID']),cs=col(ch,['State']),cu=col(ch,['Updated At']),cby=col(ch,['Released By']),cat=col(ch,['Released At']),creason=col(ch,['Release Reason']);
     for(let i=1;i<cr.length;i++){const rr=cr[i].slice();if(clean(rr[ci])!==auditId||clean(rr[cs]).toUpperCase()!=='ACTIVE')continue;rr[cs]='RELEASED';if(cu>=0)rr[cu]=now;if(cby>=0)rr[cby]=clean(identity?.email);if(cat>=0)rr[cat]=now;if(creason>=0)rr[creason]='CANONICAL_COMMIT';writes.push({range:'Concept Reservations!A'+(i+1)+':'+a1col(ch.length)+(i+1),values:[rr]});}
     const nq=vr[6]?.values||[],nh=nq[0]||[],nextNqRow=Math.max(2,nq.length+1),nqCols=Math.max(13,nh.length||0);
-    await sheetsEnsureRows('Notification Queue',nextNqRow+1);
     const minuteStamp=now.slice(0,16),beforeStatus='Pending Planning',afterStatus='Approved',actorEmail=clean(identity?.email).toLowerCase();
     const trailPayload={type:'LIFECYCLE_STATUS_CHANGED',auditId,auditNumber:'',company:clean(audit.company),actorEmail,actorRole:'MANAGER',beforeStatus,afterStatus,reason:'',hours:null,source:'CLOUD_RUN_DIRECT_SHEETS_MANAGER_PLAN',timestamp:now,action:'PLAN'};
     const trailBody=JSON.stringify(trailPayload),trailHash=createHash('md5').update('LIFECYCLE_STATUS_CHANGED|'+auditId+'|'+now+'|'+afterStatus).digest('hex');
@@ -308,9 +312,10 @@ async function directPlanningCommit(identity,body){
     const plannedPayload={eventType:'AUDIT_PLANNED_BY_MANAGER',eventFamily:'RICH_OPERATIONAL',rendererProfile:'RICH_OPERATIONAL',deliveryProfile:'IMMEDIATE_RICH',company:clean(audit.company),companyUid:clean(audit.companyUid),auditId,actor:actorEmail,actorRole:'MANAGER',recipientRole:'AUDITOR',recipientGroup:'AUDITOR',resultStatus:'Approved',displayStatus:'Pending acceptance',plannedDates:[...new Set(requested.map(x=>x.date))],plannedHours:Math.round(total*100)/100,blocks:requested,scopes:Array.isArray(audit.scopes)?audit.scopes:[],auditorEmail,auditorName,planningJson,config:{active:true,sendEmail:true,logOnly:false,consolidate:false,bufferMinutes:0,digestGroup:'AUDITOR_OPERATIONAL',templateFamily:'RICH_OPERATIONAL',templateKeyDefault:'AUDIT_PLANNED_BY_MANAGER',fromEmail:'planning@agriqa.es',fromName:'Agri Quality Assurance – Audit Planning',replyTo:'',includeComment:true,requireReason:false}};
     const plannedSubject='Audit planned by manager – '+clean(audit.company)+' – '+auditId,plannedBody=['Audit planned by manager','Company: '+clean(audit.company),'Audit ID: '+auditId,'Auditor: '+auditorName+' <'+auditorEmail+'>','Planning: '+requested.map(x=>x.date+' '+x.start+'-'+x.end).join('; '),'Total hours: '+plannedPayload.plannedHours].join('\\n');
     const plannedHash=createHash('md5').update(auditorEmail+'|AUDIT_PLANNED_BY_MANAGER|'+auditId+'|'+planningJson).digest('hex'),plannedRow=[minuteStamp,'PENDING','AUDIT_PLANNED_BY_MANAGER',auditorEmail,auditId,clean(audit.company),plannedSubject,plannedBody,0,'',plannedHash,'',JSON.stringify({payload:plannedPayload})];
-    writes.push({range:'Notification Queue!A'+nextNqRow+':M'+(nextNqRow+1),values:[trailRow,plannedRow]});
     const writeStarted=Date.now();await sheetsValuesBatchUpdate(writes);const writeMs=Date.now()-writeStarted;
-    return{success:true,auditId,newStatus:'Approved',assignedTo:auditorEmail,planningJson,totalMs:Date.now()-started,directCommit:true,readMs,writeMs,writeCount:writes.length,owner:'CLOUD_RUN_DIRECT_SHEETS_MANAGER_PLAN'};
+    let sideEffectQueue={success:true};const sideEffectStarted=Date.now();try{await sheetsValuesAppend('Notification Queue!A:M',[trailRow,plannedRow]);}catch(e){sideEffectQueue={success:false,error:clean(e?.message||e)};}
+    const sideEffectMs=Date.now()-sideEffectStarted;
+    return{success:true,auditId,newStatus:'Approved',assignedTo:auditorEmail,planningJson,totalMs:Date.now()-started,directCommit:true,readMs,writeMs,writeCount:writes.length,sideEffectMs,sideEffectQueue,owner:'CLOUD_RUN_DIRECT_SHEETS_MANAGER_PLAN'};
   });
 }
 

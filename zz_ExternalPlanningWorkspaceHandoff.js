@@ -211,14 +211,9 @@ function ExternalPlanningWorkspaceHandoff_render_(identity) {
 
   if (String(identity.mode || '').toLowerCase() === 'commit') {
     var committed = ExternalPlanningWorkspaceHandoff_commit_(identity) || { success:false, error:'EMPTY_RESULT' };
-    var commitMessage = JSON.stringify({ type:'AMS_PLANNING_COMMIT_RESULT', result:committed })
-      .replace(/</g, '\\u003c')
-      .replace(/>/g, '\\u003e')
-      .replace(/&/g, '\\u0026');
-    return HtmlService
-      .createHtmlOutput('<!doctype html><html><head><base target="_top"><meta charset="utf-8"><title>AMS Planning Commit</title></head><body><script>(function(){var m='+commitMessage+';try{window.parent.postMessage(m,"*")}catch(e){}try{if(window.top!==window.parent)window.top.postMessage(m,"*")}catch(e){}})();<\\/script></body></html>')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-      .setTitle('AMS Planning Commit');
+    return ContentService
+      .createTextOutput(JSON.stringify(committed))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 
   var auditId = String(identity.auditId || '').trim();

@@ -251,13 +251,11 @@ function Lifecycle_invalidateAfterLifecycleChange_(ctx) {
   }
 
   if (action === 'PLAN') {
-    out.skipped.push('V5_clearManagerOpenCache_:duplicate');
-    out.skipped.push('AUDIT_CACHE.removeNamespace(manager):PLAN uses audit-scoped open invalidation');
-    if (auditorEmail && typeof AUDIT_CACHE !== 'undefined' && AUDIT_CACHE && typeof AUDIT_CACHE.removeAuditorGrid === 'function') {
-      run_('AUDIT_CACHE.removeAuditorGrid(targeted)', function(){ AUDIT_CACHE.removeAuditorGrid(auditorEmail); });
-    } else {
-      out.skipped.push('AUDIT_CACHE.removeNamespace(auditor_grid):PLAN targeted key unavailable/unsupported');
-    }
+    // The canonical planning writer invalidates the affected auditor/open/calendar
+    // caches once, after the transaction. Do not duplicate remote cache work here.
+    out.skipped.push('V5_clearManagerOpenCache_:PLAN owned by planning writer');
+    out.skipped.push('AUDIT_CACHE.removeNamespace(manager):PLAN owned by planning writer');
+    out.skipped.push('AUDIT_CACHE.removeAuditorGrid:PLAN owned by planning writer');
   } else {
     run_('V5_clearManagerOpenCache_', function(){
       if (typeof V5_clearManagerOpenCache_ === 'function') V5_clearManagerOpenCache_();

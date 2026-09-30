@@ -270,7 +270,7 @@ function overlaps(a,b){return clean(a.start)<clean(b.end)&&clean(b.start)<clean(
 async function directPlanningCommit(identity,body){
   const started=Date.now(),auditId=clean(body?.auditId),auditorEmail=clean(body?.auditorEmail).toLowerCase(),auditorName=clean(body?.auditorName);
   if(!auditId||!auditorEmail)throw new Error('PLANNING_REQUIRED_FIELDS_MISSING');
-  const requested=directPlanNormBlocks(body?.blocks);if(!requested.length)throw new Error('PLANNING_REQUIRED_FIELDS_MISSING');
+  const requested=directPlanNormBlocks(body?.blocks);if(!requested.length)throw new Error('PLANNING_REQUIRED_FIELDS_MISSING');if(requested.length>5)throw new Error('PLANNING_MAX_5_DAYS');
   return withDirectPlanLock(auditId,async()=>{
     const readStarted=Date.now(),vr=await sheetsBatchGet(['Audit planning!A1:AX768','Auditors!A1:AZ256','Auditor Availability!A1:P','Concept Reservations!A1:P256','Config_Scopes!A1:Z128','Companies!A1:AZ768']),readMs=Date.now()-readStarted;
     const ap=vr[0]?.values||[],found=findAudit(ap,auditId);if(!found)throw new Error('AUDIT_NOT_FOUND');

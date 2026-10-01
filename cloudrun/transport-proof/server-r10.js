@@ -6,7 +6,7 @@ const INNER_PORT=PUBLIC_PORT+1;
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
-const BUILD='2026-10-01_AMS_R10_DIRECT_GAS_MANAGER_ACTION_R4';
+const BUILD='2026-10-01_AMS_R10_OPEN_AUDITS_GRID2_R1';
 
 process.env.PORT=String(INNER_PORT);
 await import('./server-r9.js');
@@ -33,9 +33,21 @@ async function auditPlanningRows(){return sheetValues('Audit planning!A1:AX483')
 async function innerSession(req){const r=await fetch('http://127.0.0.1:'+INNER_PORT+'/api/v1/session',{headers:{cookie:clean(req.headers.cookie)},redirect:'manual'});let j={};try{j=await r.json();}catch{}return r.ok&&j?.ok===true?j.identity:null;}
 async function enrichManagerOpen(obj){const rows=obj?.rows;if(!Array.isArray(rows)||!rows.length)return obj;const values=await auditPlanningRows();if(values.length<2)return obj;const h=values[0],ci=col(h,['Audit ID','Audit_ID','AuditId','Audit Id']),cp=col(h,['Planning JSON','Planning_JSON']),byId=new Map();for(let i=1;i<values.length;i++){const id=val(values[i],ci);if(id)byId.set(id,{row:values[i],sourceRow:i+1});}let hoursEnriched=0,commentsEnriched=0;for(const r of rows){if(!r)continue;const source=byId.get(clean(r.auditId));if(!source)continue;Object.assign(r,commentsFrom(h,source.row),{sourceRow:source.sourceRow});commentsEnriched++;if(r.statusKey==='PENDING_PLANNING'){r.hoursPlanned='';r.plannedHours='';r.scheduledHours='';continue;}const j=parseJson(val(source.row,cp));if(!j)continue;const scheduled=scheduledHours(j),formal=formalHours(j,r.requiredHours);if(formal!=null){r.hoursPlanned=Math.round(formal*100)/100;r.plannedHours=r.hoursPlanned;}if(scheduled!=null)r.scheduledHours=Math.round(scheduled*100)/100;if(formal!=null&&scheduled!=null)r.hoursVariance=Math.round((scheduled-formal)*100)/100;hoursEnriched++;}obj.hoursSemantics={build:BUILD,enriched:hoursEnriched,formalField:'hoursPlanned',scheduledField:'scheduledHours'};obj.actionCommunication={build:BUILD,enriched:commentsEnriched,canonicalFields:['Manager comment (last)','Auditor comment (last)']};return obj;}
 async function readAuditPatch(auditId,sourceRow){const started=Date.now(),header=(await sheetValues('Audit planning!A1:AX1'))[0]||[];let row=[],rowNo=Number(sourceRow)||0;const ci=col(header,['Audit ID','Audit_ID','AuditId','Audit Id']);if(rowNo>1){row=(await sheetValues('Audit planning!A'+rowNo+':AX'+rowNo))[0]||[];if(val(row,ci)!==auditId){row=[];rowNo=0;}}if(!row.length){const rows=await sheetValues('Audit planning!A2:AX483');for(let i=0;i<rows.length;i++){if(val(rows[i],ci)===auditId){row=rows[i];rowNo=i+2;break;}}}if(!row.length)return{success:false,error:'AUDIT_NOT_FOUND',auditId,serverMs:Date.now()-started,build:BUILD};const g=names=>val(row,col(header,names)),rawStatus=g(['Status']),k=normalizeStatus(rawStatus),required=Number(String(g(['Total audit time in hours','Total time in hours','Required hours','Total hours'])||'').replace(',','.'));let planningJson=g(['Planning JSON','Planning_JSON']),j=parseJson(planningJson),scheduled=scheduledHours(j),formal=formalHours(j,required),assigned=g(['Assigned to','Assigned auditor','Auditor']);if(k==='PENDING_PLANNING'){planningJson='';scheduled=null;formal=null;assigned='';}return{success:true,auditId,sourceRow:rowNo,status:rawStatus,statusKey:k,allowedActions:allowedActions(k),assignedTo:assigned,auditor:assigned,assignedToEmail:assigned,datePlanned:k==='PENDING_PLANNING'?'':dateOnly(g(['Date planned','Date - Planned'])),hoursPlanned:formal==null?'':Math.round(formal*100)/100,plannedHours:formal==null?'':Math.round(formal*100)/100,requiredHours:Number.isFinite(required)?required:0,toBePlanned:Number.isFinite(required)?required:0,scheduledHours:scheduled==null?'':Math.round(scheduled*100)/100,scheduledHoursTarget:k==='PENDING_PLANNING'?'':undefined,planningJson,...commentsFrom(header,row),serverMs:Date.now()-started,build:BUILD};}
-async function callCanonicalManagerAction(identity,body){
+async function callGasBridge(identity,route,payload){
   const started=Date.now();
   if(!GAS_WRITE_URL||!WRITE_KEY)throw new Error('MANAGER_ACTION_BRIDGE_NOT_CONFIGURED');
+  const actorEmail=clean(identity?.email).toLowerCase();
+  if(!actorEmail)throw new Error('MANAGER_IDENTITY_EMAIL_REQUIRED');
+  const u=new URL(GAS_WRITE_URL);u.searchParams.set('action',route);
+  const gasStarted=Date.now();
+  const r=await fetch(u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(Object.assign({bridgeKey:WRITE_KEY,actorEmail},payload||{}))});
+  const text=await r.text(),gasHttpMs=Date.now()-gasStarted;
+  let result=null;try{result=JSON.parse(text);}catch{const e=new Error('MANAGER_BRIDGE_BAD_GAS_RESPONSE_'+r.status);e.gasHttpMs=gasHttpMs;throw e;}
+  if(!r.ok||!result||result.success===false||result.ok===false){const e=new Error(clean(result?.error||result?.message)||('MANAGER_BRIDGE_GAS_HTTP_'+r.status));e.gasResult=result;e.gasHttpMs=gasHttpMs;throw e;}
+  return{result,gasHttpMs,totalMs:Date.now()-started};
+}
+async function callCanonicalManagerAction(identity,body){
+  const started=Date.now();
   const actorEmail=clean(identity?.email).toLowerCase();
   const auditId=clean(body?.auditId);
   const managerAction=clean(body?.action||body?.managerAction).toLowerCase();
@@ -43,14 +55,8 @@ async function callCanonicalManagerAction(identity,body){
   if(!actorEmail||!auditId||!managerAction)throw new Error('MISSING_REQUIRED_FIELDS');
   if(!['approve','cancel','reject'].includes(managerAction))throw new Error('MANAGER_PORTAL_ACTION_NOT_ALLOWED');
   if((managerAction==='cancel'||managerAction==='reject')&&!clean(options.reason||options.comment))throw new Error('ACTION_REASON_REQUIRED');
-  const u=new URL(GAS_WRITE_URL);u.searchParams.set('action','externalmanageraction');
-  const gasStarted=Date.now();
-  const r=await fetch(u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({bridgeKey:WRITE_KEY,actorEmail,auditId,managerAction,options})});
-  const text=await r.text();
-  const gasHttpMs=Date.now()-gasStarted;
-  let result=null;try{result=JSON.parse(text);}catch{throw new Error('MANAGER_ACTION_BAD_GAS_RESPONSE_'+r.status);}
-  if(!r.ok||!result||result.success===false||result.ok===false){const e=new Error(clean(result?.error||result?.message)||('MANAGER_ACTION_GAS_HTTP_'+r.status));e.gasResult=result;e.gasHttpMs=gasHttpMs;throw e;}
-  return{result,gasHttpMs,totalMs:Date.now()-started};
+  const write=await callGasBridge(identity,'externalmanageraction',{auditId,managerAction,options});
+  return{result:write.result,gasHttpMs:write.gasHttpMs,totalMs:Date.now()-started};
 }
 async function normalizeCombinedProjection(auditId,formal,scheduled,planningJson){const values=await auditPlanningRows();if(values.length<2)throw new Error('AUDIT_PLANNING_EMPTY');const h=values[0],ci=col(h,['Audit ID','Audit_ID','AuditId','Audit Id']),cp=col(h,['Planning JSON','Planning_JSON']);if(ci<0||cp<0)throw new Error('PLANNING_JSON_SCHEMA_MISSING');let rowNo=0;for(let i=1;i<values.length;i++)if(val(values[i],ci)===clean(auditId)){rowNo=i+1;break;}if(!rowNo)throw new Error('AUDIT_NOT_FOUND');const j=parseJson(planningJson)||{};j.scheduledHours=Math.round(Number(scheduled)*100)/100;j.formalHours=Math.round(Number(formal)*100)/100;j.totalPlannedHours=j.formalHours;const normalized=JSON.stringify(j),token=await accessToken(),range='Audit planning!'+a1col(cp+1)+rowNo,u='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'/values/'+encodeURIComponent(range)+'?valueInputOption=USER_ENTERED',r=await fetch(u,{method:'PUT',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({values:[[normalized]]})}),out=await r.json();if(!r.ok)throw new Error('PLANNING_JSON_NORMALIZE_'+r.status+': '+JSON.stringify(out));return{success:true,auditId:clean(auditId),formalHours:j.formalHours,scheduledHours:j.scheduledHours,row:rowNo,planningJson:normalized};}
 async function proxy(req,res,raw){const target='http://127.0.0.1:'+INNER_PORT+(req.url||'/'),headers={};for(const [k,v] of Object.entries(req.headers)){if(v!=null&&!['host','content-length','connection'].includes(k.toLowerCase()))headers[k]=v;}const init={method:req.method,headers,redirect:'manual'};if(req.method!=='GET'&&req.method!=='HEAD')init.body=raw||'';const r=await fetch(target,init),buf=Buffer.from(await r.arrayBuffer()),outHeaders={};r.headers.forEach((v,k)=>{if(!['content-length','transfer-encoding','connection'].includes(k.toLowerCase()))outHeaders[k]=v;});outHeaders['x-ams-build']=BUILD;let body=buf;const u=new URL(req.url||'/','http://localhost'),ct=clean(r.headers.get('content-type'));
@@ -61,11 +67,17 @@ async function proxy(req,res,raw){const target='http://127.0.0.1:'+INNER_PORT+(r
 
 http.createServer(async(req,res)=>{
   const u=new URL(req.url||'/','http://localhost');
-  if(req.method==='GET'&&u.pathname==='/api/v1/build')return sendJson(res,200,{ok:true,build:BUILD,inner:'server-r9.js',hoursSemantics:{formalPlanned:'hoursPlanned',scheduledDuration:'scheduledHours'},ecasHoursSource:'Planning JSON totalPlannedHours=formalHours',managerActionMicroRefresh:true,canonicalCommentFields:true,managerActionTransport:'direct-gas-http',pendingPlanningClearsCommittedHours:true});
+  if(req.method==='GET'&&u.pathname==='/api/v1/build')return sendJson(res,200,{ok:true,build:BUILD,inner:'server-r9.js',hoursSemantics:{formalPlanned:'hoursPlanned',scheduledDuration:'scheduledHours'},ecasHoursSource:'Planning JSON totalPlannedHours=formalHours',managerActionMicroRefresh:true,canonicalCommentFields:true,managerActionTransport:'direct-gas-http',pendingPlanningClearsCommittedHours:true,openAuditsGrid2:{bulkEnrichment:true,canonicalExtension:true,noNPlusOne:true,conceptCommitted:false,provisionalCommitted:false}});
   if(req.method==='GET'&&u.pathname==='/api/v1/manager/audit'){
     const identity=await innerSession(req);if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED',build:BUILD});if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN',build:BUILD});const auditId=clean(u.searchParams.get('auditId')),sourceRow=clean(u.searchParams.get('sourceRow'));if(!auditId)return sendJson(res,400,{success:false,error:'AUDIT_ID_REQUIRED',build:BUILD});try{const out=await readAuditPatch(auditId,sourceRow);return sendJson(res,out.success?200:404,out);}catch(e){return sendJson(res,500,{success:false,error:'MANAGER_AUDIT_REREAD_FAILED',detail:clean(e?.message||e),build:BUILD});}
   }
   let raw='';try{if(req.method!=='GET'&&req.method!=='HEAD')raw=await readRaw(req);}catch(e){return sendJson(res,413,{success:false,error:clean(e?.message||e),build:BUILD});}
+  if(req.method==='POST'&&u.pathname==='/api/v1/manager/open-enrichment'){
+    const started=Date.now(),identity=await innerSession(req);if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED',build:BUILD});if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN',build:BUILD});let body={};try{body=JSON.parse(raw||'{}');}catch{return sendJson(res,400,{success:false,error:'BAD_JSON',build:BUILD});}const auditIds=Array.isArray(body.auditIds)?body.auditIds.map(clean).filter(Boolean):[];if(!auditIds.length)return sendJson(res,200,{success:true,rows:[],perf:{totalMs:Date.now()-started},build:BUILD});if(auditIds.length>500)return sendJson(res,400,{success:false,error:'TOO_MANY_AUDIT_IDS',build:BUILD});try{const x=await callGasBridge(identity,'externalmanageropenenriched',{auditIds});return sendJson(res,200,Object.assign({},x.result,{perf:Object.assign({},x.result?.perf||{},{gasHttpMs:x.gasHttpMs,totalMs:Date.now()-started}),build:BUILD}));}catch(e){return sendJson(res,502,{success:false,error:clean(e?.message||e),gasResult:e?.gasResult||null,perf:{gasHttpMs:e?.gasHttpMs||null,totalMs:Date.now()-started},build:BUILD});}
+  }
+  if(req.method==='POST'&&u.pathname==='/api/v1/manager/extension'){
+    const started=Date.now(),identity=await innerSession(req);if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED',build:BUILD});if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN',build:BUILD});let body={};try{body=JSON.parse(raw||'{}');}catch{return sendJson(res,400,{success:false,error:'BAD_JSON',build:BUILD});}const auditId=clean(body.auditId),command=clean(body.command).toLowerCase();if(!auditId)return sendJson(res,400,{success:false,error:'AUDIT_ID_REQUIRED',build:BUILD});if(!['apply','undo'].includes(command))return sendJson(res,400,{success:false,error:'EXTENSION_COMMAND_NOT_ALLOWED',build:BUILD});try{const x=await callGasBridge(identity,'externalmanagerextension',{auditId,command});return sendJson(res,200,Object.assign({},x.result,{perf:Object.assign({},x.result?.perf||{},{gasHttpMs:x.gasHttpMs,totalMs:Date.now()-started}),build:BUILD}));}catch(e){return sendJson(res,502,{success:false,error:clean(e?.message||e),gasResult:e?.gasResult||null,perf:{gasHttpMs:e?.gasHttpMs||null,totalMs:Date.now()-started},build:BUILD});}
+  }
   if(req.method==='POST'&&u.pathname==='/api/v1/manager/action'){
     const totalStarted=Date.now();
     const identity=await innerSession(req);if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED',build:BUILD});if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN',build:BUILD});

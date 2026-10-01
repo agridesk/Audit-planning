@@ -18,11 +18,11 @@ const pkg=JSON.parse(readFileSync(new URL('./package.json',import.meta.url),'utf
 function has(text,needle,label){assert.ok(text.includes(needle),label+' missing');}
 function not(text,needle,label){assert.ok(!text.includes(needle),label+' unexpectedly present');}
 
-assert.equal(pkg.scripts.start,'node server-r12.js','R12 must own public DEV runtime');
-has(r12,"u.pathname==='/api/v1/manager/action-relay-url'",'signed Manager relay URL');
-has(r12,"u.pathname==='/api/v1/manager/audit'",'targeted Manager reread');
-has(r12,'batchValues','targeted reread batch API');
-has(r12,"if(k==='PENDING_PLANNING'){hp='';scheduledHours='';planningJson='';assigned='';}",'Pending Planning clears committed hours in projection');
+assert.equal(pkg.scripts.start,'node server-r10.js','R10 must own public DEV runtime during proxy-chain recovery');
+has(r10,"u.pathname==='/api/v1/manager/action-relay-url'",'signed Manager relay URL');
+has(r10,"u.pathname==='/api/v1/manager/audit'",'targeted Manager reread');
+has(r10,'batchSheetValues','targeted reread batch API');
+has(r10,"if(k==='PENDING_PLANNING'){planningJson='';scheduled=null;formal=null;assigned='';}",'Pending Planning clears committed hours in projection');
 has(portal,'runActionViaRelay','Manager 2.0 direct relay path');
 has(portal,'direct-1.0-path','timing identifies 1.0-equivalent action transport');
 not(portal,'runActionViaBridge','slow HTTP bridge fallback forbidden');
@@ -55,23 +55,23 @@ has(r5,'visitMembers:[...visitAuditIds]','browser sends related revisions');
 has(r7,"await import('./server-r6.js')",'R7 chain');
 has(r8,"await import('./server-r7.js')",'R8 chain');
 has(r9,"await import('./server-r8.js')",'R9 chain');
-has(r10,"await import('./server-r9.js')",'R10 chain');
-has(r11,"await import('./server-r10.js')",'R11 chain');
-has(r12,"await import('./server-r11.js')",'R12 chain');
+has(r10,"await import('./server-r9.js')",'R10 public chain ends at R9');
+has(r11,"await import('./server-r10.js')",'R11 retained as non-public candidate');
+has(r12,"await import('./server-r11.js')",'R12 retained as non-public candidate');
 has(r4,'VISIT_COMBINED_COMMIT_NOT_YET_CANONICAL','lower-layer fail-closed combined guard retained');
 
 console.log(JSON.stringify({
   success:true,
-  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R12_MANAGER_RELAY_R2',
+  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R10_RECOVERY_MANAGER_RELAY_R3',
   writesPerformed:false,
   assertions:{
-    publicRuntimeR12:true,
+    publicRuntimeR10:true,
     managerActionUsesDirectGasRelay:true,
     slowBridgeFallbackForbidden:true,
     cancelClearsFormalCommittedHours:true,
     pendingPlanningClearsScheduledHours:true,
     targetedManagerReread:true,
-    schedulingDeltaSemanticsRetained:true,
+    schedulingDeltaSemanticsRetainedNonPublic:true,
     combinedVisitGuardsRetained:true
   }
 },null,2));

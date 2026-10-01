@@ -11,7 +11,6 @@ const r10=readFileSync(new URL('./server-r10.js',import.meta.url),'utf8');
 const r11=readFileSync(new URL('./server-r11.js',import.meta.url),'utf8');
 const r12=readFileSync(new URL('./server-r12.js',import.meta.url),'utf8');
 const portal=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
-const relayServer=readFileSync(new URL('../../zz_ExternalManagerActionRelay.js',import.meta.url),'utf8');
 const resetHours=readFileSync(new URL('../../zzzz_StatusResetPlanningHours.js',import.meta.url),'utf8');
 const pkg=JSON.parse(readFileSync(new URL('./package.json',import.meta.url),'utf8'));
 
@@ -19,20 +18,19 @@ function has(text,needle,label){assert.ok(text.includes(needle),label+' missing'
 function not(text,needle,label){assert.ok(!text.includes(needle),label+' unexpectedly present');}
 
 assert.equal(pkg.scripts.start,'node server-r10.js','R10 must own public DEV runtime during proxy-chain recovery');
-has(r10,"u.pathname==='/api/v1/manager/action-relay-url'",'signed Manager relay URL');
+has(r10,"u.pathname==='/api/v1/manager/action'",'direct Manager action endpoint');
 has(r10,"u.pathname==='/api/v1/manager/audit'",'targeted Manager reread');
+has(r10,"u.searchParams.set('action','externalmanageraction')",'Cloud Run calls canonical GAS bridge');
+has(r10,'bridgeKey:WRITE_KEY','Cloud Run owns bridge credential');
 has(r10,"sheetValues('Audit planning!A1:AX1')",'targeted reread header read');
 has(r10,"sheetValues('Audit planning!A'+rowNo+':AX'+rowNo)",'targeted reread exact-row read');
 has(r10,"if(k==='PENDING_PLANNING'){planningJson='';scheduled=null;formal=null;assigned='';}",'Pending Planning clears committed hours in projection');
-has(portal,'runActionViaRelay','Manager 2.0 relay path');
-has(portal,'signed-iframe-poll','timing identifies signed iframe polling transport');
-has(portal,'ACTION_RELAY_NO_CANONICAL_CHANGE','relay completion is verified against canonical reread');
-not(portal,'ACTION_RELAY_READY_TIMEOUT','fragile relay READY handshake removed');
-not(portal,'runActionViaBridge','slow HTTP bridge fallback forbidden');
-not(portal,'bridge-fallback','silent slow fallback forbidden');
-has(relayServer,'ExternalManagerActionRelay_verify_','signed relay verification retained');
-has(relayServer,'managerV5Action(auditId,managerAction','relay calls canonical Manager adapter');
-not(relayServer,'AMS_MANAGER_ACTION_RELAY_READY','legacy inbound READY handshake removed');
+has(portal,"fetch('/api/v1/manager/action'",'Manager 2.0 direct action path');
+has(portal,'direct-gas-action','timing identifies direct GAS action transport');
+has(portal,'patchRowInPlace(auditId,x.patch,perf)','action response patches same row');
+not(portal,'action-relay-url','iframe relay removed from Manager UI');
+not(portal,'ACTION_RELAY_READY_TIMEOUT','relay READY handshake removed');
+not(portal,'postMessage','cross-origin relay messaging removed');
 has(resetHours,"['Hours planned', 'Planned hours', 'Hours Planned']",'Cancel reopen clears Hours planned canonically');
 has(resetHours,'Total audit time in hours','formal required hours explicitly preserved');
 
@@ -66,14 +64,13 @@ has(r4,'VISIT_COMBINED_COMMIT_NOT_YET_CANONICAL','lower-layer fail-closed combin
 
 console.log(JSON.stringify({
   success:true,
-  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R10_SIGNED_IFRAME_POLL_R6',
+  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R10_DIRECT_GAS_ACTION_R7',
   writesPerformed:false,
   assertions:{
     publicRuntimeR10:true,
-    managerActionUsesSignedGasRelay:true,
-    relayCompletionCanonicalPoll:true,
-    relayReadyHandshakeRemoved:true,
-    slowBridgeFallbackForbidden:true,
+    managerActionUsesDirectGasHttp:true,
+    iframeRelayRemoved:true,
+    actionResponseIncludesCanonicalPatch:true,
     cancelClearsFormalCommittedHours:true,
     pendingPlanningClearsScheduledHours:true,
     targetedManagerReread:true,

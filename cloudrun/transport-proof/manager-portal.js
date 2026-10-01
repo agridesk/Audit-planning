@@ -6,6 +6,7 @@ var currentView="open";
 function esc(v){var d=document.createElement("div");d.textContent=v==null?"":v;return d.innerHTML}
 function text(v){return v==null||v===""?"-":String(v)}
 function displayStatus(v){var s=String(v==null?"":v).trim().toLowerCase();return s==="approved"?"Pending acceptance":text(v)}
+function hoursClass(formal,scheduled){var f=Number(formal),s=Number(scheduled);if(!isFinite(f)||!isFinite(s))return "";if(Math.abs(s-f)<0.001)return "hours-match";return s<f?"hours-under":"hours-over"}
 
 function renderHead(){
   var h=document.getElementById("gridHead");
@@ -13,7 +14,7 @@ function renderHead(){
   if(currentView==="completed"){
     h.innerHTML="<tr><th>Company</th><th>Region</th><th>Scopes</th><th>Executed on</th><th>Auditor</th><th>Hours planned</th><th>Hours dedicated</th><th>Completed date</th><th>Status</th></tr>";
   }else{
-    h.innerHTML="<tr><th>Company</th><th>Region</th><th>Scopes</th><th>Status</th><th>Planning window</th><th>To be planned</th><th>Hours planned</th><th>Auditor</th><th>Actions</th></tr>";
+    h.innerHTML="<tr><th>Company</th><th>Region</th><th>Scopes</th><th>Status</th><th>Planning window</th><th>To be planned</th><th>Hours planned</th><th>Scheduled hours</th><th>Auditor</th><th>Actions</th></tr>";
   }
 }
 
@@ -26,7 +27,9 @@ function renderOpen(rows){
     if(raw.indexOf("CANCEL")>=0)ui.push({key:"cancel",label:"Cancel"});
     if(raw.indexOf("REJECT")>=0)ui.push({key:"reject",label:"Reject"});
     var actions=ui.map(function(a){return "<button class=\"act\" data-audit-id=\""+esc(r.auditId)+"\" data-action=\""+esc(a.key)+"\">"+esc(a.label)+"</button>"}).join("");
-    return "<tr><td>"+esc(text(r.company))+"</td><td>"+esc(text(r.region))+"</td><td>"+esc(text(r.scopesText))+"</td><td>"+esc(displayStatus(r.status))+"</td><td>"+esc(text(r.planningWindowText))+"</td><td>"+esc(text(r.requiredHours))+"</td><td>"+esc(text(r.hoursPlanned))+"</td><td>"+esc(text(r.assignedTo))+"</td><td>"+actions+"</td></tr>";
+    var hc=hoursClass(r.hoursPlanned,r.scheduledHours);
+    var scheduledTitle=hc?" title=\"Scheduled duration differs from formal planned hours\"":"";
+    return "<tr><td>"+esc(text(r.company))+"</td><td>"+esc(text(r.region))+"</td><td>"+esc(text(r.scopesText))+"</td><td>"+esc(displayStatus(r.status))+"</td><td>"+esc(text(r.planningWindowText))+"</td><td>"+esc(text(r.requiredHours))+"</td><td class=\"hours-match\">"+esc(text(r.hoursPlanned))+"</td><td class=\""+hc+"\""+scheduledTitle+">"+esc(text(r.scheduledHours))+"</td><td>"+esc(text(r.assignedTo))+"</td><td>"+actions+"</td></tr>";
   }).join("");
 }
 
@@ -39,7 +42,7 @@ function renderCompleted(rows){
 function render(rows){
   renderHead();
   var body=document.getElementById("rows");
-  if(!rows.length){body.innerHTML="<tr><td class=\"empty\" colspan=\"9\">No audits found</td></tr>";return}
+  if(!rows.length){body.innerHTML="<tr><td class=\"empty\" colspan=\""+(currentView==="completed"?"9":"10")+"\">No audits found</td></tr>";return}
   body.innerHTML=currentView==="completed"?renderCompleted(rows):renderOpen(rows);
   if(currentView!=="open")return;
   document.querySelectorAll(".act").forEach(function(button){button.addEventListener("click",function(){runAction(button)})});
@@ -72,7 +75,7 @@ function runAction(button){
 
 function searchable(r){
   if(currentView==="completed")return [r.auditId,r.company,r.region,r.scopesText,r.status,r.auditor,r.executedOn,r.completedDate,r.hoursPlanned,r.hoursDedicated].join(" ").toLowerCase();
-  return [r.auditId,r.company,r.region,r.scopesText,r.status,r.assignedTo,r.planningWindowText,r.requiredHours,r.hoursPlanned].join(" ").toLowerCase();
+  return [r.auditId,r.company,r.region,r.scopesText,r.status,r.assignedTo,r.planningWindowText,r.requiredHours,r.hoursPlanned,r.scheduledHours].join(" ").toLowerCase();
 }
 function filter(){var z=document.getElementById("q").value.toLowerCase().trim();render(!z?all:all.filter(function(r){return searchable(r).indexOf(z)>=0}))}
 function setTabs(){document.getElementById("completedView").style.background=currentView==="completed"?"#dbeafe":"white";document.getElementById("openView").style.background=currentView==="open"?"#dbeafe":"white"}

@@ -20,7 +20,7 @@ function not(text,needle,label){assert.ok(!text.includes(needle),label+' unexpec
 assert.equal(pkg.scripts.start,'node server-r10.js','R10 must own public DEV runtime during proxy-chain recovery');
 has(r10,"u.pathname==='/api/v1/manager/action'",'direct Manager action endpoint');
 has(r10,"u.pathname==='/api/v1/manager/audit'",'targeted Manager reread');
-has(r10,"u.searchParams.set('action','externalmanageraction')",'Cloud Run calls canonical GAS bridge');
+has(r10,"callGasBridge(identity,'externalmanageraction'",'Cloud Run calls canonical GAS bridge');
 has(r10,'bridgeKey:WRITE_KEY','Cloud Run owns bridge credential');
 has(r10,"sheetValues('Audit planning!A1:AX1')",'targeted reread header read');
 has(r10,"sheetValues('Audit planning!A'+rowNo+':AX'+rowNo)",'targeted reread exact-row read');
@@ -64,7 +64,7 @@ has(r4,'VISIT_COMBINED_COMMIT_NOT_YET_CANONICAL','lower-layer fail-closed combin
 
 console.log(JSON.stringify({
   success:true,
-  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R10_DIRECT_GAS_ACTION_R7',
+  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R10_GRID2_R8',
   writesPerformed:false,
   assertions:{
     publicRuntimeR10:true,

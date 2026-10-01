@@ -6,6 +6,7 @@ COPY server-r5.js ./
 COPY server-r6.js ./
 COPY server-r7.js ./
 COPY server-r8.js ./
+COPY server-r9.js ./
 COPY manager-portal.html ./
 COPY manager-portal.js ./
 ENV NODE_ENV=production

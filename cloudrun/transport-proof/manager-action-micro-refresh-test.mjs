@@ -9,6 +9,8 @@ const checks=[
 ['comment sent',manager.includes('options={reason:reason,comment:reason}')],
 ['no iframe relay',!manager.includes('action-relay-url')&&!manager.includes('iframe')&&!manager.includes('postMessage')],
 ['timing exposes GAS HTTP',manager.includes('GAS HTTP')&&manager.includes('direct-gas-action')],
+['ambiguous GAS response is verified canonically',manager.includes('function recoverCanonicalAction')&&manager.includes("patch.statusKey!==expectedStatus(action)")&&manager.includes('canonicalRecovery=true')],
+['recovery never repeats write',manager.includes('return recoverCanonicalAction')&&!manager.includes('retryCanonicalAction')],
 ['server direct endpoint',r10.includes("u.pathname==='/api/v1/manager/action'")],
 ['server calls external manager action',r10.includes("u.searchParams.set('action','externalmanageraction')")],
 ['server injects bridge key',r10.includes('bridgeKey:WRITE_KEY')],

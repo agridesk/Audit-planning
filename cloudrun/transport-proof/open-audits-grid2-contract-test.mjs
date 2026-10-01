@@ -2,6 +2,10 @@ import fs from 'node:fs';
 const manager=fs.readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const html=fs.readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
 const r10=fs.readFileSync(new URL('./server-r10.js',import.meta.url),'utf8');
+const recoverExtensionStart=manager.indexOf('function recoverExtension');
+const runExtensionStart=manager.indexOf('function runExtension');
+const recoverExtensionBody=(recoverExtensionStart>=0&&runExtensionStart>recoverExtensionStart)?manager.slice(recoverExtensionStart,runExtensionStart):'';
+const runExtensionBody=runExtensionStart>=0?manager.slice(runExtensionStart):'';
 const checks=[
 ['1.0 parity columns', ['Company','Locations','Region','GPS / Map','Scopes','Status','Expiration date','Planning window','Self planning','Date planned','To be planned','Hours planned','Auditor','Actions'].every(x=>manager.includes(x))],
 ['planning 2.0 context visible',manager.includes('Planning 2.0')&&manager.includes('conceptMonth')&&manager.includes('provisionalReservationCount')],
@@ -15,10 +19,10 @@ const checks=[
 ['enrichment preserves scroll',manager.includes('var ids=all.map')&&manager.includes('window.scrollTo(sx,sy)')],
 ['extension apply undo controls',manager.includes('Undo extension')&&manager.includes('Apply canonical planning-window extension')],
 ['undo remains available after canonical apply',manager.includes('if(applied)return')&&manager.includes('data-extension=\\"undo\\"')],
-['extension uses canonical endpoint',manager.includes("fetch('/api/v1/manager/extension'")],
+['extension uses canonical endpoint',runExtensionBody.includes("fetch('/api/v1/manager/extension'")],
 ['extension same row patch',manager.includes('mergeRowInPlace(auditId,x.patch)')],
 ['extension ambiguous response recovery',manager.includes('recoverExtension')&&manager.includes('rereadEnrichedAudit(auditId)')&&manager.includes('CANONICAL_EXTENSION_NOT_COMMITTED')],
-['extension recovery never repeats write',manager.indexOf('function recoverExtension')>manager.indexOf("fetch('/api/v1/manager/extension'")&&manager.slice(manager.indexOf('function recoverExtension'),manager.indexOf('function runExtension')).indexOf("/api/v1/manager/extension")<0],
+['extension recovery never repeats write',recoverExtensionBody.length>0&&!recoverExtensionBody.includes('/api/v1/manager/extension')],
 ['extension no full reload',!manager.includes('location.reload(')],
 ['server bulk enrichment endpoint',r10.includes("u.pathname==='/api/v1/manager/open-enrichment'")],
 ['server extension endpoint',r10.includes("u.pathname==='/api/v1/manager/extension'")],

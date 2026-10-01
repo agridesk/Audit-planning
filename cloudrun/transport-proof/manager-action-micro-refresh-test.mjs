@@ -2,18 +2,19 @@ import fs from 'node:fs';
 const manager=fs.readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const r10=fs.readFileSync(new URL('./server-r10.js',import.meta.url),'utf8');
 const checks=[
-['targeted reread',manager.includes('rereadAudit(auditId,sourceRow)')],
+['direct manager action endpoint used',manager.includes("fetch('/api/v1/manager/action'")],
 ['micro patch',manager.includes('patchRowInPlace(auditId,x.patch,perf)')],
 ['scroll preserved',manager.includes('window.scrollTo(scrollX,scrollY)')],
 ['per audit lock',manager.includes('var busyAudits=new Set()')],
-['signed relay endpoint',manager.includes('/api/v1/manager/action-relay-url')],
-['no ready handshake',!manager.includes('ACTION_RELAY_READY_TIMEOUT')],
-['canonical poll timeout',manager.includes('ACTION_RELAY_NO_CANONICAL_CHANGE')],
-['cancel target',manager.includes('PENDING_PLANNING')],
-['reject target',manager.includes('REJECTED')],
-['no slow fallback',!manager.includes('runActionViaBridge')],
-['r10 relay url',r10.includes("u.pathname==='/api/v1/manager/action-relay-url'")],
-['r10 audit reread',r10.includes("u.pathname==='/api/v1/manager/audit'")],
+['comment sent',manager.includes('options={reason:reason,comment:reason}')],
+['no iframe relay',!manager.includes('action-relay-url')&&!manager.includes('iframe')&&!manager.includes('postMessage')],
+['timing exposes GAS HTTP',manager.includes('GAS HTTP')&&manager.includes('direct-gas-action')],
+['server direct endpoint',r10.includes("u.pathname==='/api/v1/manager/action'")],
+['server calls external manager action',r10.includes("u.searchParams.set('action','externalmanageraction')")],
+['server injects bridge key',r10.includes('bridgeKey:WRITE_KEY')],
+['server canonical reread after write',r10.includes('const patch=await readAuditPatch(clean(body.auditId),body.sourceRow)')],
+['server returns timing',r10.includes('gasHttpMs')&&r10.includes('rereadMs')],
+['r10 audit reread retained',r10.includes("u.pathname==='/api/v1/manager/audit'")],
 ['r10 stable chain',r10.includes("await import('./server-r9.js')")]
 ];
 const failed=checks.filter(([,ok])=>!ok);

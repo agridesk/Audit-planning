@@ -34,11 +34,14 @@ has(r12,'x-ams-build','r12 response build identity');
 has(r11,"await import('./server-r10.js')",'r11 wraps accepted r10 path');
 has(r11,"Scheduling_hours_delta",'r11 uses renamed Config_Scopes field');
 has(r11,'FORMAL_HOURS_PLUS_CONFIG_DELTA','workspace scheduling source must be formal plus delta');
-has(r11,'Math.max(0,formal+delta)','workspace scheduled target derives from concrete formal hours');
-has(r11,'Math.max(0,x.formalHours+delta)','combined writer derives scheduling from obligation formal hours');
+has(r11,'scheduling=formal+delta','workspace scheduled target derives from concrete formal hours');
+has(r11,'sched=x.formalHours+delta','combined writer derives scheduling from obligation formal hours');
 has(r11,'scheduledHoursTarget','Manager read exposes scheduled target');
 has(r11,"base:'company-specific formal hours'",'runtime semantics document company-specific base');
 has(r11,'DELTA_PATCH_MARKER_MISSING','runtime patch must fail closed when source markers drift');
+has(r11,'SCHEDULING_HOURS_DELTA_INVALID_','invalid delta fails closed');
+has(r11,'SCHEDULING_HOURS_TARGET_NEGATIVE_','negative scheduling target fails closed');
+has(r11,"invalidDeltaPolicy:'FAIL_CLOSED'",'runtime identity exposes fail-closed delta policy');
 
 has(r10,"await import('./server-r9.js')",'r10 remains in chain');
 has(r10,'j.totalPlannedHours=j.formalHours','ECAS planned-hours field must carry formal hours');
@@ -108,11 +111,12 @@ has(r5,'visitMembers:[...visitAuditIds]','browser per-member revisions');
 
 console.log(JSON.stringify({
   success:true,
-  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R9_MANAGER_MICRO_REFRESH',
+  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R10_HARDENED_DELTA_MANAGER_MICRO_REFRESH',
   writesPerformed:false,
   assertions:{
     companySpecificFormalHoursRemainBase:true,
     configSchedulingDeltaApplied:true,
+    schedulingDeltaFailsClosed:true,
     formalHoursForEcas:true,
     scheduledDurationSeparate:true,
     managerPortalColourTargetsCorrect:true,

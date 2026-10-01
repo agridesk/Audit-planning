@@ -22,157 +22,108 @@
     --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
   }
-
-body {
-  margin: 0;
-  font-family: var(--sans);
-  background: var(--bg-main);
-  color: var(--text-main);
-}
+body { margin: 0; font-family: var(--sans); background: var(--bg-main); color: var(--text-main); }
   .v5-page { padding: 18px 18px 28px; max-width: 1400px; margin: 0 auto; }
-  .v5-topbar { display:flex; align-items:center; justify-content:space-between; gap: 12px; padding: 14px 16px; border-radius: 12px; background: var(--bg-header); color: white; }
-  .v5-title { font-size: 16px; font-weight: 700; letter-spacing: 0.2px; }
-  .v5-subtitle { font-size: 12px; opacity: 0.85; margin-top: 2px; }
-  .v5-card { margin-top: 14px; background: var(--bg-card); border: 1px solid var(--border-soft); border-radius: 12px; overflow: hidden; }
-  .v5-card-header { display:flex; align-items:center; justify-content:space-between; gap: 12px; padding: 12px 14px; background: #fafafa; border-bottom: 1px solid var(--border-soft); }
-  .v5-card-header .left { display:flex; align-items: baseline; gap: 10px; }
-  .v5-card-header h2 { font-size: 14px; margin: 0; }
-  .v5-pill { display:inline-flex; align-items:center; padding: 2px 8px; font-size: 12px; border-radius: 999px; background: var(--bg-badge); border: 1px solid var(--border-soft); color: var(--text-main); }
-  .v5-btn { appearance: none; border: 1px solid var(--border-strong); background: white; color: var(--text-main); border-radius: 10px; padding: 7px 10px; font-size: 12px; cursor: pointer; line-height: 1; }
-  .v5-btn:hover { background: #f9fafb; }
-  .v5-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
-  .v5-btn.primary:hover { filter: brightness(0.95); }
-  .v5-btn.danger { background: var(--danger); color: white; border-color: var(--danger); }
-  .v5-btn.danger:hover { filter: brightness(0.95); }
-  .v5-btn.success { background: var(--success); color: white; border-color: var(--success); }
-  .v5-btn.success:hover { filter: brightness(0.95); }
-  .v5-btn.warning { background: var(--warn); color: white; border-color: var(--warn); }
-  .v5-btn.warning:hover { filter: brightness(0.95); }
-  .v5-btn.neutral,
-  .v5-btn.v5-btn-secondary { background: #f9fafb; color: var(--text-main); border-color: var(--border-strong); }
-  .v5-btn.busy,
-  .v5-btn:disabled { opacity: 0.68; cursor: not-allowed; }
-  .v5-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-  .v5-grid { width: 100%; border-collapse: collapse; }
-  .v5-grid thead th { position: sticky; top: 0; z-index: 1; background: #f9fafb; border-bottom: 1px solid var(--border-strong); font-size: 12px; text-align: left; padding: 10px 10px; white-space: nowrap; }
-  .v5-grid tbody td { border-bottom: 1px solid var(--border-soft); padding: 9px 10px; font-size: 12px; vertical-align: middle; }
-  .v5-grid tbody tr:hover { background: #fbfdff; }
-  .col-action,
-  .col-action * { white-space: nowrap; }
-  .col-action { text-align: right; }
+  .v5-topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; border-radius:12px; background:var(--bg-header); color:white; }
+  .v5-title { font-size:16px; font-weight:700; letter-spacing:.2px; }
+  .v5-subtitle { font-size:12px; opacity:.85; margin-top:2px; }
+  .v5-card { margin-top:14px; background:var(--bg-card); border:1px solid var(--border-soft); border-radius:12px; overflow:hidden; }
+  .v5-card-header { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; background:#fafafa; border-bottom:1px solid var(--border-soft); }
+  .v5-card-header .left { display:flex; align-items:baseline; gap:10px; }
+  .v5-card-header h2 { font-size:14px; margin:0; }
+  .v5-pill { display:inline-flex; align-items:center; padding:2px 8px; font-size:12px; border-radius:999px; background:var(--bg-badge); border:1px solid var(--border-soft); color:var(--text-main); }
+  .v5-btn { appearance:none; border:1px solid var(--border-strong); background:white; color:var(--text-main); border-radius:10px; padding:7px 10px; font-size:12px; cursor:pointer; line-height:1; }
+  .v5-btn:hover { background:#f9fafb; }
+  .v5-btn.primary { background:var(--accent); color:white; border-color:var(--accent); }
+  .v5-btn.primary:hover { filter:brightness(.95); }
+  .v5-btn.danger { background:var(--danger); color:white; border-color:var(--danger); }
+  .v5-btn.danger:hover { filter:brightness(.95); }
+  .v5-btn.success { background:var(--success); color:white; border-color:var(--success); }
+  .v5-btn.success:hover { filter:brightness(.95); }
+  .v5-btn.warning { background:var(--warn); color:white; border-color:var(--warn); }
+  .v5-btn.warning:hover { filter:brightness(.95); }
+  .v5-btn.neutral,.v5-btn.v5-btn-secondary { background:#f9fafb; color:var(--text-main); border-color:var(--border-strong); }
+  .v5-btn.busy,.v5-btn:disabled { opacity:.68; cursor:not-allowed; }
+  .v5-btn:disabled { opacity:.55; cursor:not-allowed; }
+  .v5-grid { width:100%; border-collapse:collapse; }
+  .v5-grid thead th { position:sticky; top:0; z-index:1; background:#f9fafb; border-bottom:1px solid var(--border-strong); font-size:12px; text-align:left; padding:10px; white-space:nowrap; }
+  .v5-grid tbody td { border-bottom:1px solid var(--border-soft); padding:9px 10px; font-size:12px; vertical-align:middle; }
+  .v5-grid tbody tr:hover { background:#fbfdff; }
+  .col-action,.col-action * { white-space:nowrap; }
+  .col-action { text-align:right; }
   .align-center { text-align:center; }
   .align-right { text-align:right; }
-  .muted { color: var(--text-muted); }
-  .badge { display:inline-flex; align-items:center; gap: 6px; padding: 3px 8px; border-radius: 999px; font-size: 12px; border: 1px solid var(--border-soft); background: var(--bg-badge); white-space: nowrap; }
-  .badge.ok { border-color: rgba(22,163,74,0.25); background: rgba(22,163,74,0.10); }
-  .badge.warn { border-color: rgba(217,119,6,0.25); background: rgba(217,119,6,0.10); }
-  .badge.danger { border-color: rgba(220,38,38,0.25); background: rgba(220,38,38,0.10); }
-  .badge.info { border-color: rgba(37,99,235,0.25); background: rgba(37,99,235,0.10); }
-  .v5-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display:none; align-items:center; justify-content:center; padding: 18px; z-index: 99990; }
+  .muted { color:var(--text-muted); }
+  .badge { display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border-radius:999px; font-size:12px; border:1px solid var(--border-soft); background:var(--bg-badge); white-space:nowrap; }
+  .badge.ok { border-color:rgba(22,163,74,.25); background:rgba(22,163,74,.10); }
+  .badge.warn { border-color:rgba(217,119,6,.25); background:rgba(217,119,6,.10); }
+  .badge.danger { border-color:rgba(220,38,38,.25); background:rgba(220,38,38,.10); }
+  .badge.info { border-color:rgba(37,99,235,.25); background:rgba(37,99,235,.10); }
+  .v5-modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; padding:18px; z-index:99990; }
   .v5-modal-backdrop.open { display:flex; }
-  .v5-modal { width: min(520px, 96vw); background: white; border-radius: 12px; border: 1px solid var(--border-soft); box-shadow: 0 8px 30px rgba(0,0,0,0.18); overflow:hidden; }
-  .v5-modal header { padding: 12px 14px; border-bottom: 1px solid var(--border-soft); background: #fafafa; font-weight: 700; font-size: 13px; }
-  .v5-modal .body { padding: 12px 14px; font-size: 12px; }
-  .v5-modal .body label { display:block; margin: 10px 0 6px; font-weight: 600; }
-  .v5-modal .body input,
-  .v5-modal .body textarea,
-  .v5-modal .body select { width: 100%; box-sizing: border-box; border: 1px solid var(--border-strong); border-radius: 10px; padding: 9px 10px; font-size: 12px; font-family: var(--sans); }
-  .v5-modal .body textarea { min-height: 90px; resize: vertical; }
-  .v5-modal footer { padding: 12px 14px; border-top: 1px solid var(--border-soft); display:flex; gap: 10px; justify-content:flex-end; }
-  .v5-toast { position: fixed; right: 16px; bottom: 16px; background: #111827; color: white; padding: 10px 12px; border-radius: 10px; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); display:none; max-width: 380px; z-index: 99999; }
+  .v5-modal { width:min(520px,96vw); background:white; border-radius:12px; border:1px solid var(--border-soft); box-shadow:0 8px 30px rgba(0,0,0,.18); overflow:hidden; }
+  .v5-modal header { padding:12px 14px; border-bottom:1px solid var(--border-soft); background:#fafafa; font-weight:700; font-size:13px; }
+  .v5-modal .body { padding:12px 14px; font-size:12px; }
+  .v5-modal .body label { display:block; margin:10px 0 6px; font-weight:600; }
+  .v5-modal .body input,.v5-modal .body textarea,.v5-modal .body select { width:100%; box-sizing:border-box; border:1px solid var(--border-strong); border-radius:10px; padding:9px 10px; font-size:12px; font-family:var(--sans); }
+  .v5-modal .body textarea { min-height:90px; resize:vertical; }
+  .v5-modal footer { padding:12px 14px; border-top:1px solid var(--border-soft); display:flex; gap:10px; justify-content:flex-end; }
+  .v5-toast { position:fixed; right:16px; bottom:16px; background:#111827; color:white; padding:10px 12px; border-radius:10px; font-size:12px; box-shadow:0 8px 24px rgba(0,0,0,.18); display:none; max-width:380px; z-index:99999; }
 </style>
 
 <div id="v5Toast" class="v5-toast"></div>
 
 <script>
 (function(){
-  window.V5 = window.V5 || {};
-  window.V5.toast = function(msg) {
-    var el = document.getElementById('v5Toast');
-    if (!el) return;
-    el.textContent = String(msg || '');
-    el.style.display = 'block';
-    if (el._t) clearTimeout(el._t);
-    el._t = setTimeout(function(){ el.style.display = 'none'; }, 3600);
-  };
-  window.V5.escape = function(value) {
-    return String(value == null ? '' : value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  };
-  window.V5.selection = window.V5.selection || (function(){
-    var selected = {};
-    return {
-      has: function(id){ return !!selected[String(id)]; },
-      add: function(id){ selected[String(id)] = true; },
-      remove: function(id){ delete selected[String(id)]; },
-      clear: function(){ selected = {}; },
-      list: function(){ return Object.keys(selected); }
-    };
-  })();
-  window.V5.modal = window.V5.modal || {
-    open: function(id) { var el = document.getElementById(id); if (!el) return; if (el.classList) el.classList.add('open'); el.style.display = 'flex'; },
-    close: function(id) { var el = document.getElementById(id); if (!el) return; if (el.classList) el.classList.remove('open'); el.style.display = 'none'; }
-  };
+  window.V5=window.V5||{};
+  window.V5.toast=function(msg){var el=document.getElementById('v5Toast');if(!el)return;el.textContent=String(msg||'');el.style.display='block';if(el._t)clearTimeout(el._t);el._t=setTimeout(function(){el.style.display='none';},3600);};
+  window.V5.escape=function(value){return String(value==null?'':value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');};
+  window.V5.selection=window.V5.selection||(function(){var selected={};return{has:function(id){return!!selected[String(id)];},add:function(id){selected[String(id)]=true;},remove:function(id){delete selected[String(id)];},clear:function(){selected={};},list:function(){return Object.keys(selected);}};})();
+  window.V5.modal=window.V5.modal||{open:function(id){var el=document.getElementById(id);if(!el)return;if(el.classList)el.classList.add('open');el.style.display='flex';},close:function(id){var el=document.getElementById(id);if(!el)return;if(el.classList)el.classList.remove('open');el.style.display='none';}};
 })();
 </script>
 
 <script>
-// BUILD: 2026-10-01_AUDITOR_CANONICAL_ACTION_MICRO_REFRESH_CLIENT_R1
-// AuditorPortalV5 already owns stable in-place row patching. This late override
-// changes Cancel/Deny only: after the server write succeeds, reread one canonical
-// audit row before applying the definitive status. No lifecycle logic is copied here.
-window.addEventListener('load', function(){
-  try {
-    if (typeof window.auditorUi_applyActionMicroRefresh_ !== 'function') return;
-    if (typeof window.v5ResolveCanonicalAuditorEmail_ !== 'function') return;
-    if (!window.google || !google.script || !google.script.run) return;
-    var original = window.auditorUi_applyActionMicroRefresh_;
-    window.__AMS_AUD_ACTION_T0 = window.__AMS_AUD_ACTION_T0 || {};
-    if (typeof window.auditorUi_applyPendingRowState_ === 'function') {
-      var originalPending = window.auditorUi_applyPendingRowState_;
-      window.auditorUi_applyPendingRowState_ = function(auditId, action){
-        try { window.__AMS_AUD_ACTION_T0[String(auditId)] = performance.now(); } catch(e) {}
-        return originalPending.apply(this, arguments);
-      };
+// BUILD: 2026-10-01_AUDITOR_CANONICAL_ACTION_MICRO_REFRESH_CLIENT_R2
+window.addEventListener('load',function(){
+  try{
+    if(typeof auditorUi_applyActionMicroRefresh_!=='function'||typeof v5ResolveCanonicalAuditorEmail_!=='function')return;
+    if(!window.google||!google.script||!google.script.run)return;
+    var original=auditorUi_applyActionMicroRefresh_;
+    window.__AMS_AUD_ACTION_T0=window.__AMS_AUD_ACTION_T0||{};
+    if(typeof auditorUi_applyPendingRowState_==='function'){
+      var originalPending=auditorUi_applyPendingRowState_;
+      window.auditorUi_applyPendingRowState_=auditorUi_applyPendingRowState_=function(auditId,action){try{window.__AMS_AUD_ACTION_T0[String(auditId)]=performance.now();}catch(e){}return originalPending.apply(this,arguments);};
     }
-    window.auditorUi_applyActionMicroRefresh_ = function(auditId, action, payload, resp){
+    window.auditorUi_applyActionMicroRefresh_=auditorUi_applyActionMicroRefresh_=function(auditId,action,payload,resp){
       var verb=String(action||'').trim().toLowerCase();
-      if (verb!=='cancel' && verb!=='deny') return original.apply(this, arguments);
+      if(verb!=='cancel'&&verb!=='deny')return original.apply(this,arguments);
       auditId=String(auditId||'').trim();
-      var idx=(typeof window.findRowIndexByAuditId==='function')?window.findRowIndexByAuditId(auditId):-1;
-      if(idx<0)return false;
+      var idx=findRowIndexByAuditId(auditId);if(idx<0)return false;
       var started=window.__AMS_AUD_ACTION_T0[auditId]||performance.now(),writeConfirmedAt=performance.now();
-      window.v5ResolveCanonicalAuditorEmail_(function(email){
+      v5ResolveCanonicalAuditorEmail_(function(email){
         var readStart=performance.now();
         google.script.run
           .withSuccessHandler(function(out){
-            if(!out||out.success===false||!out.row){
-              try{if(typeof window.loadGrid==='function')window.loadGrid({force:true});}catch(e){}
-              return;
-            }
-            var patchStart=performance.now(),x=(typeof window.findRowIndexByAuditId==='function')?window.findRowIndexByAuditId(auditId):-1;
-            if(x<0)return;
+            if(!out||out.success===false||!out.row){try{loadGrid({force:true});}catch(e){}return;}
+            var patchStart=performance.now(),x=findRowIndexByAuditId(auditId);if(x<0)return;
             var sx=window.scrollX,sy=window.scrollY;
-            window.CURRENT_ROWS[x]=Object.assign({},window.CURRENT_ROWS[x]||{},out.row||{});
-            try{delete window.CURRENT_ROWS[x].__pending;delete window.CURRENT_ROWS[x].__pendingAction;delete window.CURRENT_ROWS[x].__pendingLabel;delete window.CURRENT_ROWS[x].__pendingStatus;delete window.CURRENT_ROWS[x].__pendingPlannedDates;delete window.CURRENT_ROWS[x].__pendingPlannedHours;}catch(e){}
-            var patched=false;try{patched=!!window.patchRowInDom(auditId);}catch(e){}
-            if(!patched){try{window.renderGrid(window.CURRENT_ROWS||[]);}catch(e){}}
+            CURRENT_ROWS[x]=Object.assign({},CURRENT_ROWS[x]||{},out.row||{});
+            try{delete CURRENT_ROWS[x].__pending;delete CURRENT_ROWS[x].__pendingAction;delete CURRENT_ROWS[x].__pendingLabel;delete CURRENT_ROWS[x].__pendingStatus;delete CURRENT_ROWS[x].__pendingPlannedDates;delete CURRENT_ROWS[x].__pendingPlannedHours;}catch(e){}
+            var patched=false;try{patched=!!patchRowInDom(auditId);}catch(e){}
+            if(!patched){try{renderGrid(CURRENT_ROWS||[]);}catch(e){}}
             try{window.scrollTo(sx,sy);}catch(e){}
-            try{window.__AUDITOR_GRID_SIGNATURE=window.auditorUi_buildGridSignature_(window.CURRENT_ROWS||[]);}catch(e){}
+            try{__AUDITOR_GRID_SIGNATURE=auditorUi_buildGridSignature_(CURRENT_ROWS||[]);}catch(e){}
             var patchMs=Math.round(performance.now()-patchStart),rereadMs=Math.round(performance.now()-readStart),writeMs=Math.round(writeConfirmedAt-started),totalMs=Math.round(performance.now()-started);
             try{console.info('[AUDITOR_ACTION_TIMING]',{auditId:auditId,action:verb,writeMs:writeMs,rereadMs:rereadMs,patchMs:patchMs,totalMs:totalMs,serverRereadMs:out.serverMs||0});}catch(e){}
-            try{if(typeof window.setPerf==='function')window.setPerf('Action '+totalMs+'ms · write '+writeMs+' · reread '+rereadMs+' · patch '+patchMs);}catch(e){}
+            try{setPerf('Action '+totalMs+'ms · write '+writeMs+' · reread '+rereadMs+' · patch '+patchMs);}catch(e){}
             try{delete window.__AMS_AUD_ACTION_T0[auditId];}catch(e){}
           })
-          .withFailureHandler(function(){try{if(typeof window.loadGrid==='function')window.loadGrid({force:true});}catch(e){}})
+          .withFailureHandler(function(){try{loadGrid({force:true});}catch(e){}})
           .AuditorV5B_GetAuditPatch_U20261001({auditId:auditId,auditorEmail:String(email||'').trim().toLowerCase()});
       });
       return true;
     };
-  } catch(e) { try{console.warn('[AUDITOR_CANONICAL_MICRO_REFRESH_OVERRIDE_FAILED]',e);}catch(_e){} }
+  }catch(e){try{console.warn('[AUDITOR_CANONICAL_MICRO_REFRESH_OVERRIDE_FAILED]',e);}catch(_e){}}
 });
 </script>

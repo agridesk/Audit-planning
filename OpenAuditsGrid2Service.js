@@ -1,11 +1,11 @@
 /***********************************************************************
  * OpenAuditsGrid2Service.js
- * BUILD: 2026-10-01_OPEN_AUDITS_GRID2_SERVICE_R1
+ * BUILD: 2026-10-01_OPEN_AUDITS_GRID2_SERVICE_R2
  * PURPOSE:
  *   Canonical Manager Portal 2.0 enrichment + extension façade.
  *   Reuses existing Manager V5 / Model C owners; no planning truth duplicated.
  ***********************************************************************/
-var OPEN_AUDITS_GRID2_SERVICE_BUILD='2026-10-01_OPEN_AUDITS_GRID2_SERVICE_R1';
+var OPEN_AUDITS_GRID2_SERVICE_BUILD='2026-10-01_OPEN_AUDITS_GRID2_SERVICE_R2';
 
 function OAG2_clean_(v){return String(v==null?'':v).trim();}
 function OAG2_date_(v){
@@ -25,32 +25,36 @@ function OAG2_rows_(payload){
 }
 function OAG2_reservationContext_(rows,ids){
   var by={},idSet={};ids.forEach(function(id){idSet[id]=true;by[id]=[];});
-  if(typeof READ_ACTIVE_RESERVATIONS!=='function')return{byAuditId:by,available:false,reason:'READ_ACTIVE_RESERVATIONS_UNAVAILABLE'};
+  if(typeof ConceptReservationReadModel_get!=='function')return{byAuditId:by,available:false,reason:'CONCEPT_RESERVATION_READ_MODEL_UNAVAILABLE'};
   var min='',max='';
   rows.forEach(function(r){var f=OAG2_date_(r&&r.planningWindowFrom),t=OAG2_date_(r&&r.planningWindowTo);if(f&&(!min||f<min))min=f;if(t&&(!max||t>max))max=t;});
   if(!min||!max)return{byAuditId:by,available:true,reason:'NO_BOUNDED_WINDOW'};
   try{
-    var res=READ_ACTIVE_RESERVATIONS(min,max),list=Array.isArray(res)?res:(res&&Array.isArray(res.rows)?res.rows:[]);
-    list.forEach(function(x){var id=OAG2_clean_(x&&x.auditId);if(idSet[id])by[id].push({reservationId:OAG2_clean_(x.reservationId),auditorEmail:OAG2_clean_(x.auditorEmail),date:OAG2_date_(x.date),startTime:OAG2_clean_(x.startTime),endTime:OAG2_clean_(x.endTime),durationMin:Number(x.durationMin||0)||0,source:OAG2_clean_(x.source),status:OAG2_clean_(x.status)});});
-    return{byAuditId:by,available:true,periodFrom:min,periodTo:max};
+    var res=ConceptReservationReadModel_get({from:min,to:max}),list=res&&Array.isArray(res.rows)?res.rows:[];
+    list.forEach(function(x){
+      var id=OAG2_clean_(x&&x.auditId);if(!idSet[id])return;
+      var blocks=Array.isArray(x.blocks)?x.blocks:[];
+      by[id].push({reservationId:OAG2_clean_(x.reservationId),auditorEmail:OAG2_clean_(x.auditorEmail),auditorName:OAG2_clean_(x.auditorName),blocks:blocks,state:OAG2_clean_(x.state)||'ACTIVE',sourceRevision:OAG2_clean_(x.sourceRevision),createdAt:OAG2_clean_(x.createdAt),updatedAt:OAG2_clean_(x.updatedAt),provisional:true,committed:false});
+    });
+    return{byAuditId:by,available:true,periodFrom:min,periodTo:max,sourceBuild:OAG2_clean_(res&&res.build)};
   }catch(e){return{byAuditId:by,available:false,reason:String(e&&e.message?e.message:e)};}
 }
 function OAG2_decorate_(payload,ids){
   var rows=OAG2_rows_(payload),reservation=OAG2_reservationContext_(rows,ids);
   rows.forEach(function(r){
-    var id=OAG2_clean_(r&&r.auditId),rr=reservation.byAuditId[id]||[],provisional=0,confirmed=0;
-    rr.forEach(function(x){var s=OAG2_clean_(x.status).toLowerCase();if(s==='provisional')provisional++;else if(s==='confirmed')confirmed++;});
-    r.provisionalReservationCount=provisional;
-    r.confirmedReservationCount=confirmed;
-    r.hasProvisionalPlanning=provisional>0;
-    r.hasConfirmedReservation=confirmed>0;
+    var id=OAG2_clean_(r&&r.auditId),rr=reservation.byAuditId[id]||[];
+    r.provisionalReservationCount=rr.length;
+    r.confirmedReservationCount=0;
+    r.hasProvisionalPlanning=rr.length>0;
+    r.hasConfirmedReservation=false;
     r.reservations=rr;
     /* No persisted concept-month owner exists in the current codebase. Do not
        synthesize one from preferred months or reservations. */
     if(typeof r.conceptMonth==='undefined')r.conceptMonth='';
     r.conceptCommitted=false;
+    r.provisionalCommitted=false;
   });
-  return{success:!(payload&&payload.success===false),build:OPEN_AUDITS_GRID2_SERVICE_BUILD,rows:rows,source:payload,meta:{canonicalEnrichmentOwner:'getManagerV5OpenEnriched',planningWindowOwner:'Audit planning / Model C',reservationOwner:'ConceptReservationReadModel',conceptMonthOwner:'NOT_AVAILABLE_CURRENT_MODEL',conceptIsCommitted:false,provisionalIsCommitted:false,reservationRead:reservation.available,reservationReason:reservation.reason||'',reservationPeriodFrom:reservation.periodFrom||'',reservationPeriodTo:reservation.periodTo||''}};
+  return{success:!(payload&&payload.success===false),build:OPEN_AUDITS_GRID2_SERVICE_BUILD,rows:rows,source:payload,meta:{canonicalEnrichmentOwner:'getManagerV5OpenEnriched',planningWindowOwner:'Audit planning / Model C',reservationOwner:'ConceptReservationReadModel_get',conceptMonthOwner:'NOT_AVAILABLE_CURRENT_MODEL',conceptIsCommitted:false,provisionalIsCommitted:false,reservationRead:reservation.available,reservationReason:reservation.reason||'',reservationPeriodFrom:reservation.periodFrom||'',reservationPeriodTo:reservation.periodTo||'',reservationSourceBuild:reservation.sourceBuild||''}};
 }
 function OpenAuditsGrid2_getEnriched(auditIds){
   var ids=OAG2_ids_(auditIds);
@@ -68,6 +72,7 @@ function OpenAuditsGrid2_applyExtension(auditId,command){
   if(!fn)return{success:false,error:'CANONICAL_EXTENSION_OWNER_UNAVAILABLE',build:OPEN_AUDITS_GRID2_SERVICE_BUILD};
   var result=fn(auditId);
   if(!result||result.success===false)return{success:false,error:(result&&(result.error||result.message))||'EXTENSION_WRITE_FAILED',result:result||null,build:OPEN_AUDITS_GRID2_SERVICE_BUILD};
+  if(typeof _mp_open_cacheInvalidate_==='function')try{_mp_open_cacheInvalidate_(auditId);}catch(_eInvalidate){}
   var enriched=OpenAuditsGrid2_getEnriched([auditId]);
   if(!enriched.success)return{success:false,error:'EXTENSION_WRITE_SUCCEEDED_REREAD_FAILED',result:result,enrichment:enriched,build:OPEN_AUDITS_GRID2_SERVICE_BUILD};
   return{success:true,build:OPEN_AUDITS_GRID2_SERVICE_BUILD,auditId:auditId,command:command,result:result,patch:enriched.rows[0]||null,meta:enriched.meta};
@@ -79,7 +84,8 @@ function RUN_OPEN_AUDITS_GRID2_SERVICE_CONTRACT(){
   c('applyExtensionOwner',typeof v5_applyExtension==='function');
   c('undoExtensionOwner',typeof v5_undoExtension==='function');
   c('modelCExtensionOwner',typeof ModelCExtension_commit==='function');
-  c('reservationReadOwner',typeof READ_ACTIVE_RESERVATIONS==='function');
+  c('reservationReadOwner',typeof ConceptReservationReadModel_get==='function');
+  c('openCacheInvalidationOwner',typeof _mp_open_cacheInvalidate_==='function');
   try{Logger.log(JSON.stringify(out,null,2));}catch(e){}
   return out;
 }

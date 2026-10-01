@@ -1,6 +1,6 @@
 {
   "name": "ams-transport-proof",
-  "version": "2.5.13",
+  "version": "2.5.14",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,6 +8,6 @@
   },
   "scripts": {
     "start": "node server-r10.js",
-    "test": "node --check server-r4.js && node --check server-r5.js && node --check server-r6.js && node --check server-r7.js && node --check server-r8.js && node --check server-r9.js && node --check server-r10.js && node --check server-r11.js && node --check server-r12.js && node runtime-entrypoint-test.mjs && node manager-action-micro-refresh-test.mjs && node scheduling-delta-test.mjs && node contract-test.mjs && node combined-visit-contract-test.mjs && node open-audits-grid2-contract-test.mjs"
+    "test": "node --check server-r4.js && node --check server-r5.js && node --check server-r6.js && node --check server-r7.js && node --check server-r8.js && node --check server-r9.js && node --check server-r10.js && node --check server-r11.js && node --check server-r12.js && node --check ../../EntryV5.js && node --check ../../OpenAuditsGrid2Service.js && node runtime-entrypoint-test.mjs && node manager-action-micro-refresh-test.mjs && node scheduling-delta-test.mjs && node contract-test.mjs && node combined-visit-contract-test.mjs && node open-audits-grid2-contract-test.mjs && node open-audits-grid2-gas-contract-test.mjs"
   }
 }

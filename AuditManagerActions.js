@@ -1,6 +1,6 @@
 
 // FILE: AuditManagerActions.js
-// BUILD: 2026-09-25_MANAGER_PORTAL2_FUSED_CANCEL_R1
+// BUILD: 2026-10-01_MANAGER_PORTAL2_CANCEL_REJECT_HOTPATH_R2
 // PURPOSE:
 //   Minimal stable Manager grid action endpoint after backend split.
 //   Replaces old restore-chain that depended on many legacy ManagerV5 helpers.
@@ -25,6 +25,7 @@
 //   CoreStatusRules.gs
 //   CoreStatusActions.gs
 //   CoreStatusMachine_CORE_SPLIT.gs
+//   StatusNotificationHotPath.js (optional hot-path preparation)
 
 function managerV5Action(auditId, action, options) {
   var started = new Date().getTime();
@@ -40,7 +41,7 @@ function managerV5Action(auditId, action, options) {
     res.action = res.action || action;
     res.perf = res.perf || {};
     res.perf.managerActionAdapterMs = new Date().getTime() - started;
-    res.adapterBuild = '2026-09-25_MANAGER_PORTAL2_FUSED_CANCEL_R1';
+    res.adapterBuild = '2026-10-01_MANAGER_PORTAL2_CANCEL_REJECT_HOTPATH_R2';
     try {
       if (typeof ManagerDiagnostics_RecordActionTiming === 'function') {
         ManagerDiagnostics_RecordActionTiming(
@@ -77,6 +78,14 @@ function managerV5Action(auditId, action, options) {
 
     if (typeof Status_applyAction !== 'function') {
       return done_({ success:false, message:'Status_applyAction not available. Check CoreStatusActions.gs is deployed.' });
+    }
+
+    // AMS-01: prepare Cancel/Reject/Deny hot path before entering StatusMachine.
+    // StatusMachine remains the lifecycle owner; this only removes synchronous
+    // diagnostic sheet I/O and corrects Manager -> Auditor notification routing.
+    if ((actionKey === 'CANCEL' || actionKey === 'REJECT' || actionKey === 'DENY') &&
+        typeof AMS01_prepareLifecycleHotPath_ === 'function') {
+      try { AMS01_prepareLifecycleHotPath_(); } catch (eHotPath) {}
     }
 
     var payload = {};
@@ -127,13 +136,14 @@ function ManagerV5_Action(a, b, options) {
 function RUN_AUDIT_MANAGER_ACTIONS_ADAPTER_DIAGNOSTICS() {
   var out = {
     ok: true,
-    build: '2026-09-25_MANAGER_PORTAL2_FUSED_CANCEL_R1',
+    build: '2026-10-01_MANAGER_PORTAL2_CANCEL_REJECT_HOTPATH_R2',
     functions: {
       managerV5Action: typeof managerV5Action === 'function',
       ManagerV5_Action: typeof ManagerV5_Action === 'function',
       Status_applyAction: typeof Status_applyAction === 'function',
       Status_applyTransition_: typeof Status_applyTransition_ === 'function',
-      Status_requireTransition_: typeof Status_requireTransition_ === 'function'
+      Status_requireTransition_: typeof Status_requireTransition_ === 'function',
+      AMS01_prepareLifecycleHotPath_: typeof AMS01_prepareLifecycleHotPath_ === 'function'
     },
     probes: {}
   };

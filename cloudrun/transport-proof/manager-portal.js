@@ -27,9 +27,10 @@ function renderOpen(rows){
     if(raw.indexOf("CANCEL")>=0)ui.push({key:"cancel",label:"Cancel"});
     if(raw.indexOf("REJECT")>=0)ui.push({key:"reject",label:"Reject"});
     var actions=ui.map(function(a){return "<button class=\"act\" data-audit-id=\""+esc(r.auditId)+"\" data-action=\""+esc(a.key)+"\">"+esc(a.label)+"</button>"}).join("");
-    var hc=hoursClass(r.expectedScheduledHours,r.scheduledHours);
-    var scheduledTitle=hc?" title=\"Scheduled duration compared with Config_Scopes scheduling hours\"":"";
-    return "<tr><td>"+esc(text(r.company))+"</td><td>"+esc(text(r.region))+"</td><td>"+esc(text(r.scopesText))+"</td><td>"+esc(displayStatus(r.status))+"</td><td>"+esc(text(r.planningWindowText))+"</td><td>"+esc(text(r.requiredHours))+"</td><td class=\"hours-match\">"+esc(text(r.hoursPlanned))+"</td><td class=\""+hc+"\""+scheduledTitle+">"+esc(text(r.scheduledHours))+"</td><td>"+esc(text(r.assignedTo))+"</td><td>"+actions+"</td></tr>";
+    var formalClass=hoursClass(r.requiredHours,r.hoursPlanned);
+    var scheduledClass=hoursClass(r.scheduledHoursTarget,r.scheduledHours);
+    var scheduledTitle=r.scheduledHoursTarget!=null?" title=\"Scheduled target: "+esc(text(r.scheduledHoursTarget))+" h; based on company formal hours plus Config_Scopes scheduling delta\"":"";
+    return "<tr><td>"+esc(text(r.company))+"</td><td>"+esc(text(r.region))+"</td><td>"+esc(text(r.scopesText))+"</td><td>"+esc(displayStatus(r.status))+"</td><td>"+esc(text(r.planningWindowText))+"</td><td>"+esc(text(r.requiredHours))+"</td><td class=\""+formalClass+"\">"+esc(text(r.hoursPlanned))+"</td><td class=\""+scheduledClass+"\""+scheduledTitle+">"+esc(text(r.scheduledHours))+"</td><td>"+esc(text(r.assignedTo))+"</td><td>"+actions+"</td></tr>";
   }).join("");
 }
 
@@ -75,7 +76,7 @@ function runAction(button){
 
 function searchable(r){
   if(currentView==="completed")return [r.auditId,r.company,r.region,r.scopesText,r.status,r.auditor,r.executedOn,r.completedDate,r.hoursPlanned,r.hoursDedicated].join(" ").toLowerCase();
-  return [r.auditId,r.company,r.region,r.scopesText,r.status,r.assignedTo,r.planningWindowText,r.requiredHours,r.hoursPlanned,r.scheduledHours,r.expectedScheduledHours].join(" ").toLowerCase();
+  return [r.auditId,r.company,r.region,r.scopesText,r.status,r.assignedTo,r.planningWindowText,r.requiredHours,r.hoursPlanned,r.scheduledHours,r.scheduledHoursTarget].join(" ").toLowerCase();
 }
 function filter(){var z=document.getElementById("q").value.toLowerCase().trim();render(!z?all:all.filter(function(r){return searchable(r).indexOf(z)>=0}))}
 function setTabs(){document.getElementById("completedView").style.background=currentView==="completed"?"#dbeafe":"white";document.getElementById("openView").style.background=currentView==="open"?"#dbeafe":"white"}

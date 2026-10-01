@@ -8,6 +8,7 @@ const r7=readFileSync(new URL('./server-r7.js',import.meta.url),'utf8');
 const r8=readFileSync(new URL('./server-r8.js',import.meta.url),'utf8');
 const r9=readFileSync(new URL('./server-r9.js',import.meta.url),'utf8');
 const r10=readFileSync(new URL('./server-r10.js',import.meta.url),'utf8');
+const r11=readFileSync(new URL('./server-r11.js',import.meta.url),'utf8');
 const portal=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const portalHtml=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
 const docker=readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
@@ -16,26 +17,31 @@ const pkg=JSON.parse(readFileSync(new URL('./package.json',import.meta.url),'utf
 function has(text,needle,label){assert.ok(text.includes(needle),label+' missing');}
 function not(text,needle,label){assert.ok(!text.includes(needle),label+' unexpectedly present');}
 
-assert.equal(pkg.scripts.start,'node server-r10.js','server-r10 must own the public DEV transport');
-has(pkg.scripts.test,'node --check server-r10.js','r10 syntax check');
-has(docker,'COPY server-r10.js ./','Docker image must contain formal/scheduled hours layer');
+assert.equal(pkg.scripts.start,'node server-r11.js','server-r11 must own the public DEV transport');
+has(pkg.scripts.test,'node --check server-r11.js','r11 syntax check');
+has(docker,'COPY server-r11.js ./','Docker image must contain scheduling delta layer');
 
-has(r10,"await import('./server-r9.js')",'r10 wraps accepted r9 path');
-has(r10,"u.pathname==='/api/v1/manager/open'",'r10 enriches Manager open hours semantics');
-has(r10,'scheduledField','r10 exposes scheduled-hours field');
-has(r10,'formalField','r10 exposes formal-hours field');
-has(r10,'j.totalPlannedHours=j.formalHours','ECAS legacy planned-hours field must carry formal hours');
+has(r11,"await import('./server-r10.js')",'r11 wraps accepted r10 path');
+has(r11,"Scheduling_hours_delta",'r11 uses renamed Config_Scopes field');
+has(r11,'FORMAL_HOURS_PLUS_CONFIG_DELTA','workspace scheduling source must be formal plus delta');
+has(r11,'Math.max(0,formal+delta)','workspace scheduled target derives from concrete formal hours');
+has(r11,'Math.max(0,x.formalHours+delta)','combined writer derives scheduling from obligation formal hours');
+has(r11,'scheduledHoursTarget','Manager read exposes scheduled target');
+has(r11,"base:'company-specific formal hours'",'runtime semantics document company-specific base');
+has(r11,'DELTA_PATCH_MARKER_MISSING','runtime patch must fail closed when source markers drift');
+
+has(r10,"await import('./server-r9.js')",'r10 remains in chain');
+has(r10,'j.totalPlannedHours=j.formalHours','ECAS planned-hours field must carry formal hours');
 has(r10,'j.scheduledHours','Planning JSON keeps scheduled duration separately');
 has(r10,'j.formalHours','Planning JSON keeps formal hours separately');
-has(r10,'normalizeCombinedProjection','successful combined save normalizes canonical Planning JSON');
-has(r10,"ecasHoursSource:'Planning JSON totalPlannedHours=formalHours'",'runtime identity documents ECAS formal-hours source');
-has(r10,'x-ams-build','r10 response build identity header');
+has(r10,'normalizeCombinedProjection','successful combined save normalizes Planning JSON');
 
-has(portal,'<th>Hours planned</th><th>Scheduled hours</th>','Manager Portal shows separate formal and scheduled columns');
-has(portal,'hoursClass(r.hoursPlanned,r.scheduledHours)','Manager Portal compares scheduled against formal hours');
-has(portalHtml,'.hours-match{color:#166534','1.0 match colour retained');
-has(portalHtml,'.hours-under{color:#dc2626','1.0 under colour retained');
-has(portalHtml,'.hours-over{color:#f97316','1.0 over colour retained');
+has(portal,'<th>Hours planned</th><th>Scheduled hours</th>','Manager Portal shows formal and scheduled columns');
+has(portal,'hoursClass(r.requiredHours,r.hoursPlanned)','formal hours colour compares against company required hours');
+has(portal,'hoursClass(r.scheduledHoursTarget,r.scheduledHours)','scheduled colour compares against calculated scheduled target');
+has(portalHtml,'.hours-match{color:#166534','match colour retained');
+has(portalHtml,'.hours-under{color:#dc2626','under colour retained');
+has(portalHtml,'.hours-over{color:#f97316','over colour retained');
 
 has(r9,"await import('./server-r8.js')",'r9 remains in chain');
 has(r8,"await import('./server-r7.js')",'r8 remains in chain');
@@ -55,12 +61,10 @@ has(r6,'AUDITOR_NOT_HARD_QUALIFIED','union qualification guard');
 has(r6,'PLANNING_WINDOW_BLOCKED','primary planning-window guard');
 has(r6,'VISIT_RELATED_PLANNING_WINDOW_BLOCKED','member planning-window guard');
 has(r6,'VISIT_RELATED_EXECUTION_DEADLINE_APPROVAL_REQUIRED','member deadline guard');
-
-has(r6,'cfg.schedulingHours','Scheduling hours source');
 has(r6,'formalRequired+=x.formalHours','Formal hours stay separately accountable');
-has(r6,'Math.abs(total-schedulingRequired)>0.001','exact scheduling duration guard');
+has(r6,'Math.abs(total-schedulingRequired)>0.001','exact scheduling duration guard retained');
 has(r6,'PLANNED_HOURS_ABOVE_REQUIRED','overplanning backend guard');
-has(r6,'requiredVisitHours()','UI selected-Visit scheduling total');
+has(r6,'requiredVisitHours()','Planning UI uses selected Visit scheduling total');
 has(r6,'h scheduling','Planning UI distinguishes scheduling duration');
 
 has(r6,"old[ls]='INACTIVE'",'old Visit link deactivation');
@@ -82,13 +86,14 @@ has(r5,'visitMembers:[...visitAuditIds]','browser per-member revisions');
 
 console.log(JSON.stringify({
   success:true,
-  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R7_FORMAL_SCHEDULED_HOURS',
-  checks:55,
+  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R8_SCHEDULING_DELTA',
   writesPerformed:false,
   assertions:{
+    companySpecificFormalHoursRemainBase:true,
+    configSchedulingDeltaApplied:true,
     formalHoursForEcas:true,
     scheduledDurationSeparate:true,
-    managerPortalDifferenceColoursMatchV1:true,
+    managerPortalColourTargetsCorrect:true,
     genericScopes:true,
     optimisticConcurrencyAllMembers:true,
     combinedCommitRoutesToCanonicalWriter:true,

@@ -49,7 +49,12 @@ has(r10,'j.formalHours','Planning JSON keeps formal hours separately');
 has(r10,'normalizeCombinedProjection','successful combined save normalizes Planning JSON');
 
 has(portal,'<th>Hours planned</th><th>Scheduled hours</th>','Manager Portal shows formal and scheduled columns');
-has(portal,'<th>Last comment</th>','Manager Portal exposes operational comment');
+has(portal,'>Alert</th>','Manager Portal uses compact alert column');
+not(portal,'>Last comment</th>','Manager Portal no longer uses wide comment text column');
+has(portal,'function alertCell','Manager Portal renders operational comment as compact alert icon');
+has(portal,'latestCommentTimestamp','alert tooltip includes timestamp');
+has(portal,'latestCommentActor','alert tooltip includes actor');
+has(portal,'latestCommentAction','alert tooltip includes action');
 has(portal,'hoursClass(r.requiredHours,r.hoursPlanned)','formal hours colour compares against company required hours');
 has(portal,'hoursClass(r.scheduledHoursTarget,r.scheduledHours)','scheduled colour compares against calculated scheduled target');
 has(portal,'function patchRowInPlace','Manager Portal patches one row in place');
@@ -64,6 +69,8 @@ has(portal,'if(action==="cancel"||action==="reject")return rereadAndPatch','Canc
 has(portalHtml,'.hours-match{color:#166534','match colour retained');
 has(portalHtml,'.hours-under{color:#dc2626','under colour retained');
 has(portalHtml,'.hours-over{color:#f97316','over colour retained');
+has(portalHtml,'.alert-info{','informational alert style present');
+has(portalHtml,'.alert-critical{','critical alert style present');
 
 has(r9,"await import('./server-r8.js')",'r9 remains in chain');
 has(r8,"await import('./server-r7.js')",'r8 remains in chain');
@@ -110,7 +117,7 @@ has(r5,'visitMembers:[...visitAuditIds]','browser per-member revisions');
 
 console.log(JSON.stringify({
   success:true,
-  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R11_R10_RECOVERY',
+  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R11_R10_MANAGER_ALERT',
   writesPerformed:false,
   assertions:{
     publicTransportRecoveryR10:true,
@@ -119,6 +126,8 @@ console.log(JSON.stringify({
     formalHoursForEcas:true,
     scheduledDurationSeparate:true,
     managerPortalColourTargetsCorrect:true,
+    managerAlertCompact:true,
+    managerAlertTooltip:true,
     cancelRejectCanonicalWritePath:true,
     cancelRejectCommentCanonicalFields:true,
     managerMicroRefresh:true,

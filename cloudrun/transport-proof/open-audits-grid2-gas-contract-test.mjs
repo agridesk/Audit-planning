@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 const entry=fs.readFileSync(new URL('../../EntryV5.js',import.meta.url),'utf8');
 const svc=fs.readFileSync(new URL('../../OpenAuditsGrid2Service.js',import.meta.url),'utf8');
+const core=fs.readFileSync(new URL('../../ManagerPlanningBackend_CORE_SPLIT.js',import.meta.url),'utf8');
 const checks=[
 ['secure enrichment bridge',entry.includes("rawAction==='externalmanageropenenriched'")&&entry.includes('V5_ENTRY_externalBridgeBody_')],
 ['secure extension bridge',entry.includes("rawAction==='externalmanagerextension'")&&entry.includes('V5_ENTRY_externalBridgeBody_')],
@@ -15,7 +16,10 @@ const checks=[
 ['concept month not synthesized',svc.includes('No persisted concept-month owner exists')&&svc.includes("conceptMonthOwner:'NOT_AVAILABLE_CURRENT_MODEL'")],
 ['concept explicitly non committed',svc.includes('r.conceptCommitted=false')],
 ['provisional explicitly separate',svc.includes('hasProvisionalPlanning')&&svc.includes('provisionalIsCommitted:false')],
-['extension invalidates manager open cache',svc.includes("typeof _mp_open_cacheInvalidate_==='function'")&&svc.includes('_mp_open_cacheInvalidate_(auditId)')],
+['extension uses full canonical Manager projection invalidation',svc.includes("typeof V5_clearManagerOpenCache_==='function'")&&svc.includes('V5_clearManagerOpenCache_(auditId)')],
+['canonical invalidator clears audit planning pack',core.includes('function V5_clearManagerOpenCache_(auditId)')&&core.includes('__mp_invalidateAuditPlanningPack_()')],
+['canonical invalidator clears manager namespace',core.includes("AUDIT_CACHE.removeNamespace('manager')")],
+['canonical invalidator clears manager persisted grid',core.includes("MP_PERSIST::manager::single_grid_open_v1")],
 ['extension rereads canonical enriched row',svc.includes('var enriched=OpenAuditsGrid2_getEnriched([auditId])')]
 ];
 const failed=checks.filter(([,ok])=>!ok);

@@ -1,13 +1,13 @@
 {
   "name": "ams-transport-proof",
-  "version": "2.5.4",
+  "version": "2.5.5",
   "private": true,
   "type": "module",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "start": "node server-r10.js",
-    "test": "node --check server-r4.js && node --check server-r5.js && node --check server-r6.js && node --check server-r7.js && node --check server-r8.js && node --check server-r9.js && node --check server-r10.js && node contract-test.mjs && node combined-visit-contract-test.mjs"
+    "start": "node server-r11.js",
+    "test": "node --check server-r4.js && node --check server-r5.js && node --check server-r6.js && node --check server-r7.js && node --check server-r8.js && node --check server-r9.js && node --check server-r10.js && node --check server-r11.js && node contract-test.mjs && node combined-visit-contract-test.mjs"
   }
 }

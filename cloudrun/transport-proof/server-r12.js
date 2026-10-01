@@ -1,10 +1,14 @@
 import http from 'node:http';
 import {URL} from 'node:url';
+import {createHmac} from 'node:crypto';
 
 const PUBLIC_PORT=Number(process.env.PORT||8080);
 const INNER_PORT=PUBLIC_PORT+1;
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
-const BUILD='2026-10-01_AMS_MANAGER_ACTION_MICRO_REFRESH_R1';
+const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
+const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
+const BUILD='2026-10-01_AMS_MANAGER_ACTION_RELAY_R1';
+const MANAGER_ORIGIN='https://ams-transport-proof-510075419067.europe-west1.run.app';
 
 process.env.PORT=String(INNER_PORT);
 await import('./server-r11.js');
@@ -17,6 +21,9 @@ function val(r,i){return i>=0?clean((r||[])[i]):'';}
 function dateOnly(v){const s=clean(v),m=s.match(/^(\d{4}-\d{2}-\d{2})/);return m?m[1]:s.slice(0,10);}
 function statusKey(v){return clean(v).toUpperCase().replace(/[\s-]+/g,'_');}
 function allowedActions(k){return k==='PENDING_PLANNING'?['PLAN','REJECT']:k==='PENDING_APPROVAL'?['APPROVE','CANCEL','REJECT']:k==='APPROVED'||k==='ACCEPTED'?['CANCEL','REJECT']:[];}
+function b64url(buf){return Buffer.from(buf).toString('base64url');}
+function relayPayload(email,role,exp,origin){return['v1','MANAGER_ACTION_RELAY',clean(email).toLowerCase(),clean(role),String(exp),clean(origin)].join('\n');}
+function relaySignature(email,role,exp,origin){return b64url(createHmac('sha256',WRITE_KEY).update(relayPayload(email,role,exp,origin)).digest());}
 async function readRaw(req,max=131072){let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>max)throw new Error('REQUEST_TOO_LARGE');}return raw;}
 function sendJson(res,status,body){res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-ams-build':BUILD});res.end(JSON.stringify(body));}
 async function accessToken(){const r=await fetch('http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',{headers:{'Metadata-Flavor':'Google'}});if(!r.ok)throw new Error('METADATA_TOKEN_'+r.status);const j=await r.json();if(!j.access_token)throw new Error('METADATA_TOKEN_MISSING');return j.access_token;}
@@ -30,7 +37,24 @@ async function readAuditPatch(auditId,sourceRow){const t=Date.now(),header=(awai
   const g=names=>val(row,col(header,names)),rawStatus=g(['Status']),k=statusKey(rawStatus),required=Number(String(g(['Total audit time in hours','Total time in hours','Required hours','Total hours'])||'').replace(',','.')),hp=g(['Hours planned']),assigned=g(['Assigned to','Assigned auditor','Auditor']),planningJson=g(['Planning JSON','Planning_JSON']);let scheduledHours='';try{const j=JSON.parse(planningJson||'{}');const n=Number(j.scheduledHours);if(Number.isFinite(n))scheduledHours=n;else if(Array.isArray(j.blocks)){const s=j.blocks.reduce((a,b)=>a+(Number(b?.hours)||0),0);if(Number.isFinite(s))scheduledHours=Math.round(s*100)/100;}}catch{}
   return{success:true,auditId,sourceRow:rowNo,status:rawStatus,statusKey:k,allowedActions:allowedActions(k),assignedTo:assigned,auditor:assigned,assignedToEmail:assigned,datePlanned:dateOnly(g(['Date planned','Date - Planned'])),hoursPlanned:hp,plannedHours:hp,requiredHours:Number.isFinite(required)?required:0,toBePlanned:Number.isFinite(required)?required:0,scheduledHours,planningJson,...commentsFrom(header,row),serverMs:Date.now()-t,build:BUILD};
 }
+function actionRelayUrl(identity){
+  if(!GAS_WRITE_URL||!WRITE_KEY)throw new Error('ACTION_RELAY_NOT_CONFIGURED');
+  const email=clean(identity?.email).toLowerCase(),role='Manager',exp=Date.now()+10*60*1000,origin=MANAGER_ORIGIN;
+  if(!email)throw new Error('ACTION_RELAY_EMAIL_REQUIRED');
+  const u=new URL(GAS_WRITE_URL);u.searchParams.set('action','externalmanageractionrelay');u.searchParams.set('email',email);u.searchParams.set('role',role);u.searchParams.set('exp',String(exp));u.searchParams.set('origin',origin);u.searchParams.set('signature',relaySignature(email,role,exp,origin));return u.toString();
+}
 async function proxy(req,res,raw){const target='http://127.0.0.1:'+INNER_PORT+(req.url||'/'),headers={};for(const [k,v] of Object.entries(req.headers)){if(v!=null&&!['host','content-length','connection'].includes(k.toLowerCase()))headers[k]=v;}const init={method:req.method,headers,redirect:'manual'};if(req.method!=='GET'&&req.method!=='HEAD')init.body=raw||'';const r=await fetch(target,init),buf=Buffer.from(await r.arrayBuffer()),outHeaders={};r.headers.forEach((v,k)=>{if(!['content-length','transfer-encoding','connection'].includes(k.toLowerCase()))outHeaders[k]=v;});outHeaders['x-ams-build']=BUILD;let body=buf;const u=new URL(req.url||'/','http://localhost'),ct=clean(r.headers.get('content-type'));if(r.ok&&req.method==='GET'&&u.pathname==='/api/v1/manager/open'&&ct.includes('application/json')){let j;try{j=JSON.parse(buf.toString('utf8'));}catch{j=null;}if(j){j=await enrichOpen(j);body=Buffer.from(JSON.stringify(j),'utf8');outHeaders['content-length']=String(body.length);}}res.writeHead(r.status,outHeaders);res.end(body);}
 
-http.createServer(async(req,res)=>{const u=new URL(req.url||'/','http://localhost');if(req.method==='GET'&&u.pathname==='/api/v1/build')return sendJson(res,200,{ok:true,build:BUILD,inner:'server-r11.js',managerActionMicroRefresh:true,canonicalCommentFields:true});if(req.method==='GET'&&u.pathname==='/api/v1/manager/audit'){const identity=await innerSession(req);if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED'});if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN'});const auditId=clean(u.searchParams.get('auditId')),sourceRow=clean(u.searchParams.get('sourceRow'));if(!auditId)return sendJson(res,400,{success:false,error:'AUDIT_ID_REQUIRED'});try{const out=await readAuditPatch(auditId,sourceRow);return sendJson(res,out.success?200:404,out);}catch(e){return sendJson(res,500,{success:false,error:'MANAGER_AUDIT_REREAD_FAILED',detail:clean(e?.message||e),build:BUILD});}}
-  let raw='';try{if(req.method!=='GET'&&req.method!=='HEAD')raw=await readRaw(req);}catch(e){return sendJson(res,413,{ok:false,error:clean(e?.message||e),build:BUILD});}try{return await proxy(req,res,raw);}catch(e){return sendJson(res,502,{ok:false,error:'R12_PROXY_FAILED',detail:clean(e?.message||e),build:BUILD});}}).listen(PUBLIC_PORT,'0.0.0.0');
+http.createServer(async(req,res)=>{
+  const u=new URL(req.url||'/','http://localhost');
+  if(req.method==='GET'&&u.pathname==='/api/v1/build')return sendJson(res,200,{ok:true,build:BUILD,inner:'server-r11.js',managerActionMicroRefresh:true,canonicalCommentFields:true,managerActionRelay:true});
+  if(req.method==='GET'&&u.pathname==='/api/v1/manager/action-relay-url'){
+    const identity=await innerSession(req);if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED'});if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN'});
+    try{return sendJson(res,200,{success:true,url:actionRelayUrl(identity),build:BUILD});}catch(e){return sendJson(res,500,{success:false,error:'ACTION_RELAY_URL_FAILED',detail:clean(e?.message||e),build:BUILD});}
+  }
+  if(req.method==='GET'&&u.pathname==='/api/v1/manager/audit'){
+    const identity=await innerSession(req);if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED'});if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN'});const auditId=clean(u.searchParams.get('auditId')),sourceRow=clean(u.searchParams.get('sourceRow'));if(!auditId)return sendJson(res,400,{success:false,error:'AUDIT_ID_REQUIRED'});try{const out=await readAuditPatch(auditId,sourceRow);return sendJson(res,out.success?200:404,out);}catch(e){return sendJson(res,500,{success:false,error:'MANAGER_AUDIT_REREAD_FAILED',detail:clean(e?.message||e),build:BUILD});}
+  }
+  let raw='';try{if(req.method!=='GET'&&req.method!=='HEAD')raw=await readRaw(req);}catch(e){return sendJson(res,413,{ok:false,error:clean(e?.message||e),build:BUILD});}
+  try{return await proxy(req,res,raw);}catch(e){return sendJson(res,502,{ok:false,error:'R12_PROXY_FAILED',detail:clean(e?.message||e),build:BUILD});}
+}).listen(PUBLIC_PORT,'0.0.0.0');

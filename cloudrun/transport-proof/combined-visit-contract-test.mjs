@@ -18,30 +18,29 @@ const pkg=JSON.parse(readFileSync(new URL('./package.json',import.meta.url),'utf
 function has(text,needle,label){assert.ok(text.includes(needle),label+' missing');}
 function not(text,needle,label){assert.ok(!text.includes(needle),label+' unexpectedly present');}
 
-assert.equal(pkg.scripts.start,'node server-r12.js','server-r12 must own the public DEV transport');
-has(pkg.scripts.test,'node --check server-r12.js','r12 syntax check');
-has(docker,'COPY server-r12.js ./','Docker image must contain manager micro-refresh layer');
+assert.equal(pkg.scripts.start,'node server-r10.js','server-r10 must own the public DEV transport during proxy-chain recovery');
+has(pkg.scripts.test,'node --check server-r10.js','r10 syntax check');
+has(docker,'COPY server-r10.js ./','Docker image must contain recovery transport layer');
 
-has(r12,"await import('./server-r11.js')",'r12 wraps accepted r11 path');
-has(r12,"u.pathname==='/api/v1/manager/audit'",'targeted manager audit reread endpoint');
-has(r12,"Manager comment (last)",'canonical manager comment field reused');
-has(r12,"Auditor comment (last)",'canonical auditor comment field reused');
-has(r12,'sourceRow','manager open rows expose source row for exact reread');
-has(r12,'allowedActions(k)','targeted reread returns controls from canonical state');
-has(r12,'innerSession(req)','targeted reread remains session protected');
-has(r12,'x-ams-build','r12 response build identity');
+has(r10,"u.pathname==='/api/v1/manager/audit'",'targeted manager audit reread endpoint');
+has(r10,"Manager comment (last)",'canonical manager comment field reused');
+has(r10,"Auditor comment (last)",'canonical auditor comment field reused');
+has(r10,'sourceRow','manager open rows expose source row for exact reread');
+has(r10,'allowedActions(k)','targeted reread returns controls from canonical state');
+has(r10,'innerSession(req)','targeted reread remains session protected');
+has(r10,'x-ams-build','r10 response build identity');
 
-has(r11,"await import('./server-r10.js')",'r11 wraps accepted r10 path');
-has(r11,"Scheduling_hours_delta",'r11 uses renamed Config_Scopes field');
-has(r11,'FORMAL_HOURS_PLUS_CONFIG_DELTA','workspace scheduling source must be formal plus delta');
-has(r11,'scheduling=formal+delta','workspace scheduled target derives from concrete formal hours');
-has(r11,'sched=x.formalHours+delta','combined writer derives scheduling from obligation formal hours');
-has(r11,'scheduledHoursTarget','Manager read exposes scheduled target');
-has(r11,"base:'company-specific formal hours'",'runtime semantics document company-specific base');
-has(r11,'DELTA_PATCH_MARKER_MISSING','runtime patch must fail closed when source markers drift');
-has(r11,'SCHEDULING_HOURS_DELTA_INVALID_','invalid delta fails closed');
-has(r11,'SCHEDULING_HOURS_TARGET_NEGATIVE_','negative scheduling target fails closed');
-has(r11,"invalidDeltaPolicy:'FAIL_CLOSED'",'runtime identity exposes fail-closed delta policy');
+has(r11,"await import('./server-r10.js')",'r11 retained as non-public hardening layer candidate');
+has(r11,"Scheduling_hours_delta",'r11 retains renamed Config_Scopes field logic');
+has(r11,'FORMAL_HOURS_PLUS_CONFIG_DELTA','r11 retains formal plus delta semantics');
+has(r11,'scheduling=formal+delta','r11 scheduling target derives from concrete formal hours');
+has(r11,'sched=x.formalHours+delta','r11 combined writer derives scheduling from obligation formal hours');
+has(r11,'scheduledHoursTarget','r11 read enrichment exposes scheduled target');
+has(r11,"base:'company-specific formal hours'",'r11 semantics document company-specific base');
+has(r11,'DELTA_PATCH_MARKER_MISSING','r11 runtime patch fails closed when source markers drift');
+has(r11,'SCHEDULING_HOURS_DELTA_INVALID_','r11 invalid delta fails closed');
+has(r11,'SCHEDULING_HOURS_TARGET_NEGATIVE_','r11 negative scheduling target fails closed');
+has(r11,"invalidDeltaPolicy:'FAIL_CLOSED'",'r11 identity exposes fail-closed delta policy');
 
 has(r10,"await import('./server-r9.js')",'r10 remains in chain');
 has(r10,'j.totalPlannedHours=j.formalHours','ECAS planned-hours field must carry formal hours');
@@ -111,12 +110,12 @@ has(r5,'visitMembers:[...visitAuditIds]','browser per-member revisions');
 
 console.log(JSON.stringify({
   success:true,
-  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R10_HARDENED_DELTA_MANAGER_MICRO_REFRESH',
+  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R11_R10_RECOVERY',
   writesPerformed:false,
   assertions:{
+    publicTransportRecoveryR10:true,
     companySpecificFormalHoursRemainBase:true,
-    configSchedulingDeltaApplied:true,
-    schedulingDeltaFailsClosed:true,
+    configSchedulingDeltaLogicRetainedForReintegration:true,
     formalHoursForEcas:true,
     scheduledDurationSeparate:true,
     managerPortalColourTargetsCorrect:true,

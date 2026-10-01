@@ -8,14 +8,23 @@
 <script>
 (function(){
   'use strict';
-  var parentOrigin = <?= JSON.stringify(__parentOrigin) ?>;
-  var actorEmail = <?= JSON.stringify(__actorEmail) ?>;
-  var build = <?= JSON.stringify(__build) ?>;
+  var parentOrigin = <?!= JSON.stringify(__parentOrigin) ?>;
+  var actorEmail = <?!= JSON.stringify(__actorEmail) ?>;
+  var build = <?!= JSON.stringify(__build) ?>;
 
   function reply(msg){
     msg = msg || {};
     msg.build = build;
     parent.postMessage(msg, parentOrigin);
+  }
+
+  function failReady(code){
+    reply({type:'AMS_MANAGER_ACTION_RELAY_READY',success:false,error:code});
+  }
+
+  if (!window.google || !google.script || !google.script.run) {
+    failReady('GOOGLE_SCRIPT_RUN_UNAVAILABLE');
+    return;
   }
 
   window.addEventListener('message', function(ev){

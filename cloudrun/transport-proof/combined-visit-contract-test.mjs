@@ -21,7 +21,8 @@ function not(text,needle,label){assert.ok(!text.includes(needle),label+' unexpec
 assert.equal(pkg.scripts.start,'node server-r10.js','R10 must own public DEV runtime during proxy-chain recovery');
 has(r10,"u.pathname==='/api/v1/manager/action-relay-url'",'signed Manager relay URL');
 has(r10,"u.pathname==='/api/v1/manager/audit'",'targeted Manager reread');
-has(r10,'batchSheetValues','targeted reread batch API');
+has(r10,"sheetValues('Audit planning!A1:AX1')",'targeted reread header read');
+has(r10,"sheetValues('Audit planning!A'+rowNo+':AX'+rowNo)",'targeted reread exact-row read');
 has(r10,"if(k==='PENDING_PLANNING'){planningJson='';scheduled=null;formal=null;assigned='';}",'Pending Planning clears committed hours in projection');
 has(portal,'runActionViaRelay','Manager 2.0 direct relay path');
 has(portal,'direct-1.0-path','timing identifies 1.0-equivalent action transport');
@@ -62,7 +63,7 @@ has(r4,'VISIT_COMBINED_COMMIT_NOT_YET_CANONICAL','lower-layer fail-closed combin
 
 console.log(JSON.stringify({
   success:true,
-  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R10_RECOVERY_MANAGER_RELAY_R3',
+  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R10_RECOVERY_MANAGER_RELAY_R4',
   writesPerformed:false,
   assertions:{
     publicRuntimeR10:true,

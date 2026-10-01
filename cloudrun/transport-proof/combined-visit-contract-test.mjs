@@ -9,6 +9,7 @@ const r8=readFileSync(new URL('./server-r8.js',import.meta.url),'utf8');
 const r9=readFileSync(new URL('./server-r9.js',import.meta.url),'utf8');
 const r10=readFileSync(new URL('./server-r10.js',import.meta.url),'utf8');
 const r11=readFileSync(new URL('./server-r11.js',import.meta.url),'utf8');
+const r12=readFileSync(new URL('./server-r12.js',import.meta.url),'utf8');
 const portal=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const portalHtml=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
 const docker=readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
@@ -17,9 +18,18 @@ const pkg=JSON.parse(readFileSync(new URL('./package.json',import.meta.url),'utf
 function has(text,needle,label){assert.ok(text.includes(needle),label+' missing');}
 function not(text,needle,label){assert.ok(!text.includes(needle),label+' unexpectedly present');}
 
-assert.equal(pkg.scripts.start,'node server-r11.js','server-r11 must own the public DEV transport');
-has(pkg.scripts.test,'node --check server-r11.js','r11 syntax check');
-has(docker,'COPY server-r11.js ./','Docker image must contain scheduling delta layer');
+assert.equal(pkg.scripts.start,'node server-r12.js','server-r12 must own the public DEV transport');
+has(pkg.scripts.test,'node --check server-r12.js','r12 syntax check');
+has(docker,'COPY server-r12.js ./','Docker image must contain manager micro-refresh layer');
+
+has(r12,"await import('./server-r11.js')",'r12 wraps accepted r11 path');
+has(r12,"u.pathname==='/api/v1/manager/audit'",'targeted manager audit reread endpoint');
+has(r12,"Manager comment (last)",'canonical manager comment field reused');
+has(r12,"Auditor comment (last)",'canonical auditor comment field reused');
+has(r12,'sourceRow','manager open rows expose source row for exact reread');
+has(r12,'allowedActions(k)','targeted reread returns controls from canonical state');
+has(r12,'innerSession(req)','targeted reread remains session protected');
+has(r12,'x-ams-build','r12 response build identity');
 
 has(r11,"await import('./server-r10.js')",'r11 wraps accepted r10 path');
 has(r11,"Scheduling_hours_delta",'r11 uses renamed Config_Scopes field');
@@ -37,8 +47,18 @@ has(r10,'j.formalHours','Planning JSON keeps formal hours separately');
 has(r10,'normalizeCombinedProjection','successful combined save normalizes Planning JSON');
 
 has(portal,'<th>Hours planned</th><th>Scheduled hours</th>','Manager Portal shows formal and scheduled columns');
+has(portal,'<th>Last comment</th>','Manager Portal exposes operational comment');
 has(portal,'hoursClass(r.requiredHours,r.hoursPlanned)','formal hours colour compares against company required hours');
 has(portal,'hoursClass(r.scheduledHoursTarget,r.scheduledHours)','scheduled colour compares against calculated scheduled target');
+has(portal,'function patchRowInPlace','Manager Portal patches one row in place');
+has(portal,'function rereadAndPatch','Cancel Reject use targeted canonical reread');
+has(portal,'sourceRow','targeted reread uses stable source row when available');
+has(portal,'window.scrollTo(scrollX,scrollY)','scroll position preserved');
+has(portal,'adjustCounters(beforeKey,after.statusKey)','local counters updated without full reload');
+has(portal,'[MANAGER_ACTION_TIMING]','action timing instrumentation');
+has(portal,'Comment is required.','Cancel Reject comment mandatory in UI');
+has(portal,'options:{reason:reason,comment:reason}','comment forwarded through existing action payload');
+has(portal,'if(action==="cancel"||action==="reject")return rereadAndPatch','Cancel Reject do not trigger full dataset reread');
 has(portalHtml,'.hours-match{color:#166534','match colour retained');
 has(portalHtml,'.hours-under{color:#dc2626','under colour retained');
 has(portalHtml,'.hours-over{color:#f97316','over colour retained');
@@ -50,6 +70,8 @@ has(r6,"await import('./server-r5.js')",'r6 remains in chain');
 has(r6,"u.pathname==='/api/v1/planning/direct-commit'",'combined direct commit interception');
 has(r6,'ids.length>1','combined Visit routing gate');
 has(r4,'VISIT_COMBINED_COMMIT_NOT_YET_CANONICAL','r4 fail-closed fallback remains intact');
+has(r4,"writeUrl.searchParams.set('action','externalmanageraction')",'Manager actions remain canonical GAS status-machine writes');
+has(r4,'ACTION_REASON_REQUIRED','backend also requires Cancel Reject reason');
 
 has(r6,'sourceRevision','primary optimistic concurrency');
 has(r6,'VISIT_RELATED_SOURCE_REVISION_REQUIRED','member revision required');
@@ -86,7 +108,7 @@ has(r5,'visitMembers:[...visitAuditIds]','browser per-member revisions');
 
 console.log(JSON.stringify({
   success:true,
-  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R8_SCHEDULING_DELTA',
+  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R9_MANAGER_MICRO_REFRESH',
   writesPerformed:false,
   assertions:{
     companySpecificFormalHoursRemainBase:true,
@@ -94,6 +116,12 @@ console.log(JSON.stringify({
     formalHoursForEcas:true,
     scheduledDurationSeparate:true,
     managerPortalColourTargetsCorrect:true,
+    cancelRejectCanonicalWritePath:true,
+    cancelRejectCommentCanonicalFields:true,
+    managerMicroRefresh:true,
+    managerRowPositionPreserved:true,
+    managerScrollPreserved:true,
+    managerActionTimingMeasured:true,
     genericScopes:true,
     optimisticConcurrencyAllMembers:true,
     combinedCommitRoutesToCanonicalWriter:true,

@@ -10,10 +10,12 @@ const checks=[
 ['canonical apply extension reused',svc.includes("typeof v5_applyExtension==='function'")&&svc.includes("command==='apply'")],
 ['canonical undo extension reused',svc.includes("typeof v5_undoExtension==='function'")],
 ['Model C owner asserted',svc.includes("typeof ModelCExtension_commit==='function'")],
-['reservation owner reused',svc.includes("typeof READ_ACTIVE_RESERVATIONS!=='function'")&&svc.includes('READ_ACTIVE_RESERVATIONS(min,max)')],
+['canonical reservation read model reused',svc.includes("typeof ConceptReservationReadModel_get!=='function'")&&svc.includes('ConceptReservationReadModel_get({from:min,to:max})')],
+['active concept reservations projected provisional only',svc.includes('r.provisionalReservationCount=rr.length')&&svc.includes('r.confirmedReservationCount=0')&&svc.includes('r.provisionalCommitted=false')],
 ['concept month not synthesized',svc.includes('No persisted concept-month owner exists')&&svc.includes("conceptMonthOwner:'NOT_AVAILABLE_CURRENT_MODEL'")],
 ['concept explicitly non committed',svc.includes('r.conceptCommitted=false')],
 ['provisional explicitly separate',svc.includes('hasProvisionalPlanning')&&svc.includes('provisionalIsCommitted:false')],
+['extension invalidates manager open cache',svc.includes("typeof _mp_open_cacheInvalidate_==='function'")&&svc.includes('_mp_open_cacheInvalidate_(auditId)')],
 ['extension rereads canonical enriched row',svc.includes('var enriched=OpenAuditsGrid2_getEnriched([auditId])')]
 ];
 const failed=checks.filter(([,ok])=>!ok);

@@ -1,13 +1,13 @@
 /***********************************************************************
  * FILE: zz_ExternalManagerActionRelay.js
- * BUILD: 2026-10-01_MANAGER_ACTION_RELAY_R1
+ * BUILD: 2026-10-01_MANAGER_ACTION_RELAY_R2_OBSERVABLE
  * PURPOSE:
  *   Keep Manager Portal 2.0 lifecycle writes on the same Apps Script
  *   google.script.run path used by the fast 1.0 Manager Portal.
  *   Cloud Run only issues a short-lived signed iframe URL; lifecycle
  *   ownership remains managerV5Action -> Status_applyAction.
  ***********************************************************************/
-var EXTERNAL_MANAGER_ACTION_RELAY_BUILD = '2026-10-01_MANAGER_ACTION_RELAY_R1';
+var EXTERNAL_MANAGER_ACTION_RELAY_BUILD = '2026-10-01_MANAGER_ACTION_RELAY_R2_OBSERVABLE';
 var EXTERNAL_MANAGER_ACTION_RELAY_PARENT_ORIGIN = 'https://ams-transport-proof-510075419067.europe-west1.run.app';
 var EXTERNAL_MANAGER_ACTION_RELAY_MAX_FUTURE_MS = 15 * 60 * 1000;
 
@@ -77,6 +77,21 @@ function ExternalManagerActionRelay_render_(verified) {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+function ExternalManagerActionRelay_errorHtml_(errorCode, origin) {
+  var code = String(errorCode || 'RELAY_FAILED').replace(/[<>]/g, '');
+  var parentOrigin = String(origin || EXTERNAL_MANAGER_ACTION_RELAY_PARENT_ORIGIN);
+  if (parentOrigin !== EXTERNAL_MANAGER_ACTION_RELAY_PARENT_ORIGIN) parentOrigin = EXTERNAL_MANAGER_ACTION_RELAY_PARENT_ORIGIN;
+  var payload = JSON.stringify({
+    type:'AMS_MANAGER_ACTION_RELAY_READY',
+    success:false,
+    error:code,
+    build:EXTERNAL_MANAGER_ACTION_RELAY_BUILD
+  });
+  return '<!doctype html><html><head><meta charset="utf-8"><title>AMS relay error</title></head><body><pre>' + code + '</pre><script>' +
+    'try{parent.postMessage(' + payload + ',' + JSON.stringify(parentOrigin) + ');}catch(e){}' +
+    '<\/script></body></html>';
+}
+
 var EXTERNAL_MANAGER_ACTION_RELAY_BASE_DOGET_ = doGet;
 doGet = function(e) {
   var p = (e && e.parameter) ? e.parameter : {};
@@ -86,8 +101,7 @@ doGet = function(e) {
   var verified = ExternalManagerActionRelay_verify_(p);
   if (!verified.ok) {
     return HtmlService.createHtmlOutput(
-      '<!doctype html><meta charset="utf-8"><title>AMS relay error</title><pre>' +
-      String(verified.error || 'RELAY_FAILED').replace(/[<>]/g, '') + '</pre>'
+      ExternalManagerActionRelay_errorHtml_(verified.error, p.origin)
     ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
   return ExternalManagerActionRelay_render_(verified);
@@ -101,6 +115,7 @@ function RUN_EXTERNAL_MANAGER_ACTION_RELAY_CONTRACT_ACCEPTANCE() {
   check_('baseDoGetPreserved', typeof EXTERNAL_MANAGER_ACTION_RELAY_BASE_DOGET_ === 'function', '');
   check_('bridgeKeyConfigured', String(PropertiesService.getScriptProperties().getProperty('AMS_EXTERNAL_WRITE_BRIDGE_KEY')||'').trim().length >= 32, '');
   check_('parentOriginPinned', EXTERNAL_MANAGER_ACTION_RELAY_PARENT_ORIGIN === 'https://ams-transport-proof-510075419067.europe-west1.run.app', EXTERNAL_MANAGER_ACTION_RELAY_PARENT_ORIGIN);
+  check_('errorPagePostsFailure', ExternalManagerActionRelay_errorHtml_('TEST', EXTERNAL_MANAGER_ACTION_RELAY_PARENT_ORIGIN).indexOf('AMS_MANAGER_ACTION_RELAY_READY') >= 0, '');
   try { Logger.log(JSON.stringify(out, null, 2)); } catch (e) {}
   return out;
 }

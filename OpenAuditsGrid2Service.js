@@ -1,11 +1,11 @@
 /***********************************************************************
  * OpenAuditsGrid2Service.js
- * BUILD: 2026-10-01_OPEN_AUDITS_GRID2_SERVICE_R2
+ * BUILD: 2026-10-01_OPEN_AUDITS_GRID2_SERVICE_R3
  * PURPOSE:
  *   Canonical Manager Portal 2.0 enrichment + extension façade.
  *   Reuses existing Manager V5 / Model C owners; no planning truth duplicated.
  ***********************************************************************/
-var OPEN_AUDITS_GRID2_SERVICE_BUILD='2026-10-01_OPEN_AUDITS_GRID2_SERVICE_R2';
+var OPEN_AUDITS_GRID2_SERVICE_BUILD='2026-10-01_OPEN_AUDITS_GRID2_SERVICE_R3';
 
 function OAG2_clean_(v){return String(v==null?'':v).trim();}
 function OAG2_date_(v){
@@ -72,7 +72,14 @@ function OpenAuditsGrid2_applyExtension(auditId,command){
   if(!fn)return{success:false,error:'CANONICAL_EXTENSION_OWNER_UNAVAILABLE',build:OPEN_AUDITS_GRID2_SERVICE_BUILD};
   var result=fn(auditId);
   if(!result||result.success===false)return{success:false,error:(result&&(result.error||result.message))||'EXTENSION_WRITE_FAILED',result:result||null,build:OPEN_AUDITS_GRID2_SERVICE_BUILD};
-  if(typeof _mp_open_cacheInvalidate_==='function')try{_mp_open_cacheInvalidate_(auditId);}catch(_eInvalidate){}
+  /* The canonical extension owner already persists the window. Clear the full
+     Manager/open projection family before the targeted reread so Grid 2,
+     Single Planning and any consumers of the Audit planning pack cannot see
+     a stale pre-extension window. */
+  try{
+    if(typeof V5_clearManagerOpenCache_==='function')V5_clearManagerOpenCache_(auditId);
+    else if(typeof _mp_open_cacheInvalidate_==='function')_mp_open_cacheInvalidate_(auditId);
+  }catch(_eInvalidate){}
   var enriched=OpenAuditsGrid2_getEnriched([auditId]);
   if(!enriched.success)return{success:false,error:'EXTENSION_WRITE_SUCCEEDED_REREAD_FAILED',result:result,enrichment:enriched,build:OPEN_AUDITS_GRID2_SERVICE_BUILD};
   return{success:true,build:OPEN_AUDITS_GRID2_SERVICE_BUILD,auditId:auditId,command:command,result:result,patch:enriched.rows[0]||null,meta:enriched.meta};
@@ -85,7 +92,7 @@ function RUN_OPEN_AUDITS_GRID2_SERVICE_CONTRACT(){
   c('undoExtensionOwner',typeof v5_undoExtension==='function');
   c('modelCExtensionOwner',typeof ModelCExtension_commit==='function');
   c('reservationReadOwner',typeof ConceptReservationReadModel_get==='function');
-  c('openCacheInvalidationOwner',typeof _mp_open_cacheInvalidate_==='function');
+  c('managerProjectionInvalidationOwner',typeof V5_clearManagerOpenCache_==='function');
   try{Logger.log(JSON.stringify(out,null,2));}catch(e){}
   return out;
 }

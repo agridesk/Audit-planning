@@ -3,6 +3,7 @@
 var all=[];
 var currentView="open";
 var openCounts={total:0,pendingPlanning:0,pendingApproval:0,approved:0,accepted:0};
+var busyAudits=new Set();
 
 function esc(v){var d=document.createElement("div");d.textContent=v==null?"":v;return d.innerHTML}
 function text(v){return v==null||v===""?"-":String(v)}
@@ -69,27 +70,28 @@ function patchRowInPlace(auditId,patch,perf){
   adjustCounters(beforeKey,after.statusKey);
   window.scrollTo(scrollX,scrollY);
   perf.patchMs=Math.round(performance.now()-t);perf.totalMs=Math.round(performance.now()-perf.startedAt);
-  document.getElementById("status").textContent=Number(openCounts.total||all.length)+" open audits · action "+perf.totalMs+" ms (write "+perf.writeMs+" · reread "+perf.rereadMs+" · patch "+perf.patchMs+")";
-  console.info("[MANAGER_ACTION_TIMING]",{auditId:auditId,action:perf.action,writeMs:perf.writeMs,rereadMs:perf.rereadMs,patchMs:perf.patchMs,totalMs:perf.totalMs});
+  var timing="write "+perf.writeMs+" · reread "+perf.rereadMs+" · patch "+perf.patchMs;
+  if(perf.gasMs!=null)timing+=" · GAS "+perf.gasMs+" · bridge "+perf.bridgeMs;
+  document.getElementById("status").textContent=Number(openCounts.total||all.length)+" open audits · action "+perf.totalMs+" ms ("+timing+")";
+  console.info("[MANAGER_ACTION_TIMING]",{auditId:auditId,action:perf.action,writeMs:perf.writeMs,gasDoPostMs:perf.gasMs,bridgeMs:perf.bridgeMs,rereadMs:perf.rereadMs,patchMs:perf.patchMs,totalMs:perf.totalMs});
 }
 function rereadAndPatch(auditId,sourceRow,perf){var t=performance.now(),url="/api/v1/manager/audit?auditId="+encodeURIComponent(auditId)+(sourceRow?"&sourceRow="+encodeURIComponent(sourceRow):"");return fetch(url,{credentials:"same-origin"}).then(function(r){return r.json().then(function(x){if(!r.ok||x.success===false)throw new Error(x.message||x.error||"Canonical reread failed");return x})}).then(function(x){perf.rereadMs=Math.round(performance.now()-t);patchRowInPlace(auditId,x,perf);return x})}
 
-var actionBusy=false;
 function runAction(button){
-  if(actionBusy)return;
   var auditId=button.getAttribute("data-audit-id"),action=button.getAttribute("data-action"),row=all.find(function(r){return r.auditId===auditId});
+  if(busyAudits.has(auditId))return;
   if(action==="plan"){window.location.href="/planning?auditId="+encodeURIComponent(auditId);return}
   var reason="";
   if(action==="cancel"||action==="reject"){reason=window.prompt((action==="cancel"?"Cancel":"Reject")+" audit "+auditId+"\nComment:");if(reason===null)return;reason=reason.trim();if(!reason){window.alert("Comment is required.");return}}
   else if(!window.confirm(action.toUpperCase()+" audit "+auditId+"?"))return;
-  actionBusy=true;
+  busyAudits.add(auditId);
   var tr=button.closest("tr");if(tr)tr.querySelectorAll(".act").forEach(function(b){b.disabled=true});
-  var perf={action:action,startedAt:performance.now(),writeMs:0,rereadMs:0,patchMs:0},wt=performance.now();
+  var perf={action:action,startedAt:performance.now(),writeMs:0,rereadMs:0,patchMs:0,gasMs:null,bridgeMs:null},wt=performance.now();
   fetch("/api/v1/manager/action",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({auditId:auditId,action:action,options:{reason:reason,comment:reason}})})
     .then(function(r){return r.json().then(function(x){if(!r.ok||x.success===false||x.ok===false)throw new Error(x.message||x.error||"Action failed");return x})})
-    .then(function(){perf.writeMs=Math.round(performance.now()-wt);if(action==="cancel"||action==="reject")return rereadAndPatch(auditId,row&&row.sourceRow,perf);return loadOpen()})
+    .then(function(writeResult){perf.writeMs=Math.round(performance.now()-wt);var gas=Number(writeResult&&writeResult.externalManagerTiming&&writeResult.externalManagerTiming.gasDoPostMs);if(isFinite(gas)){perf.gasMs=Math.round(gas);perf.bridgeMs=Math.max(0,perf.writeMs-perf.gasMs)}if(action==="cancel"||action==="reject")return rereadAndPatch(auditId,row&&row.sourceRow,perf);return loadOpen()})
     .catch(function(e){window.alert(e.message);if(tr)tr.querySelectorAll(".act").forEach(function(b){b.disabled=false})})
-    .finally(function(){actionBusy=false});
+    .finally(function(){busyAudits.delete(auditId)});
 }
 
 function searchable(r){

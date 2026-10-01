@@ -11,69 +11,78 @@
   var parentOrigin = <?!= JSON.stringify(__parentOrigin) ?>;
   var actorEmail = <?!= JSON.stringify(__actorEmail) ?>;
   var build = <?!= JSON.stringify(__build) ?>;
+  var installed = false;
+  var attempts = 0;
 
   function reply(msg){
     msg = msg || {};
     msg.build = build;
-    parent.postMessage(msg, parentOrigin);
+    window.parent.postMessage(msg, parentOrigin);
   }
 
-  function failReady(code){
-    reply({type:'AMS_MANAGER_ACTION_RELAY_READY',success:false,error:code});
-  }
-
-  if (!window.google || !google.script || !google.script.run) {
-    failReady('GOOGLE_SCRIPT_RUN_UNAVAILABLE');
-    return;
-  }
-
-  window.addEventListener('message', function(ev){
-    if (ev.origin !== parentOrigin) return;
-    var m = ev.data || {};
-    if (m.type !== 'AMS_MANAGER_ACTION') return;
-
-    var requestId = String(m.requestId || '');
-    var auditId = String(m.auditId || '').trim();
-    var action = String(m.action || '').trim().toLowerCase();
-    var options = (m.options && typeof m.options === 'object') ? m.options : {};
-
-    if (!requestId || !auditId || !/^(approve|cancel|reject)$/.test(action)) {
-      reply({type:'AMS_MANAGER_ACTION_RESULT',requestId:requestId,success:false,error:'INVALID_ACTION_REQUEST'});
-      return;
-    }
-    if ((action === 'cancel' || action === 'reject') && !String(options.reason || options.comment || '').trim()) {
-      reply({type:'AMS_MANAGER_ACTION_RESULT',requestId:requestId,success:false,error:'ACTION_REASON_REQUIRED'});
+  function install(){
+    if (installed) return;
+    attempts++;
+    if (!window.google || !google.script || !google.script.run) {
+      if (attempts < 50) {
+        setTimeout(install, 100);
+        return;
+      }
+      reply({type:'AMS_MANAGER_ACTION_RELAY_READY',success:false,error:'GOOGLE_SCRIPT_RUN_UNAVAILABLE'});
       return;
     }
 
-    options.actorEmail = actorEmail;
-    options.managerEmail = actorEmail;
-    options.externalSession = true;
+    installed = true;
+    window.addEventListener('message', function(ev){
+      if (ev.origin !== parentOrigin) return;
+      var m = ev.data || {};
+      if (m.type !== 'AMS_MANAGER_ACTION') return;
 
-    var started = Date.now();
-    google.script.run
-      .withSuccessHandler(function(res){
-        reply({
-          type:'AMS_MANAGER_ACTION_RESULT',
-          requestId:requestId,
-          success:!(res && (res.success === false || res.ok === false)),
-          result:res || {},
-          relayElapsedMs:Date.now()-started
-        });
-      })
-      .withFailureHandler(function(err){
-        reply({
-          type:'AMS_MANAGER_ACTION_RESULT',
-          requestId:requestId,
-          success:false,
-          error:String(err && err.message ? err.message : err),
-          relayElapsedMs:Date.now()-started
-        });
-      })
-      .managerV5Action(auditId, action, options);
-  });
+      var requestId = String(m.requestId || '');
+      var auditId = String(m.auditId || '').trim();
+      var action = String(m.action || '').trim().toLowerCase();
+      var options = (m.options && typeof m.options === 'object') ? m.options : {};
 
-  reply({type:'AMS_MANAGER_ACTION_RELAY_READY',success:true});
+      if (!requestId || !auditId || !/^(approve|cancel|reject)$/.test(action)) {
+        reply({type:'AMS_MANAGER_ACTION_RESULT',requestId:requestId,success:false,error:'INVALID_ACTION_REQUEST'});
+        return;
+      }
+      if ((action === 'cancel' || action === 'reject') && !String(options.reason || options.comment || '').trim()) {
+        reply({type:'AMS_MANAGER_ACTION_RESULT',requestId:requestId,success:false,error:'ACTION_REASON_REQUIRED'});
+        return;
+      }
+
+      options.actorEmail = actorEmail;
+      options.managerEmail = actorEmail;
+      options.externalSession = true;
+
+      var started = Date.now();
+      google.script.run
+        .withSuccessHandler(function(res){
+          reply({
+            type:'AMS_MANAGER_ACTION_RESULT',
+            requestId:requestId,
+            success:!(res && (res.success === false || res.ok === false)),
+            result:res || {},
+            relayElapsedMs:Date.now()-started
+          });
+        })
+        .withFailureHandler(function(err){
+          reply({
+            type:'AMS_MANAGER_ACTION_RESULT',
+            requestId:requestId,
+            success:false,
+            error:String(err && err.message ? err.message : err),
+            relayElapsedMs:Date.now()-started
+          });
+        })
+        .managerV5Action(auditId, action, options);
+    });
+
+    reply({type:'AMS_MANAGER_ACTION_RELAY_READY',success:true});
+  }
+
+  install();
 })();
 </script>
 </body>

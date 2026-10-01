@@ -9,7 +9,14 @@ function text(v){return v==null||v===""?"-":String(v)}
 function displayStatus(v){var s=String(v==null?"":v).trim().toLowerCase();return s==="approved"?"Pending acceptance":text(v)}
 function hoursClass(expected,actual){var e=Number(expected),a=Number(actual);if(!isFinite(e)||!isFinite(a))return "";if(Math.abs(a-e)<0.001)return "hours-match";return a<e?"hours-under":"hours-over"}
 function bucketKey(statusKey){return statusKey==="PENDING_PLANNING"?"pendingPlanning":statusKey==="PENDING_APPROVAL"?"pendingApproval":statusKey==="APPROVED"?"approved":statusKey==="ACCEPTED"?"accepted":""}
-function latestCommentText(r){if(!r.latestComment)return "-";var actor=r.latestCommentActor||"";var action=r.latestCommentAction||"";return (actor?actor+(action?" · "+action:"")+": ":"")+r.latestComment}
+function latestCommentText(r){if(!r.latestComment)return "";var actor=r.latestCommentActor||"";var action=r.latestCommentAction||"";return (actor?actor+(action?" · "+action:"")+": ":"")+r.latestComment}
+function alertCell(r){
+  if(!r.latestComment)return "<td class=\"alert-cell\"></td>";
+  var action=String(r.latestCommentAction||"").toUpperCase();
+  var cls=action==="REJECT"?"alert-icon alert-critical":"alert-icon alert-info";
+  var title=(r.latestCommentTimestamp?String(r.latestCommentTimestamp)+" · ":"")+latestCommentText(r);
+  return "<td class=\"alert-cell\"><span class=\""+cls+"\" title=\""+esc(title)+"\" aria-label=\""+esc(title)+"\" tabindex=\"0\">!</span></td>";
+}
 function renderCards(){var c=openCounts||{};document.getElementById("cards").innerHTML=[["Pending planning",c.pendingPlanning],["Pending approval",c.pendingApproval],["Pending acceptance",c.approved],["Pending completion",c.accepted]].map(function(z){return "<div class=card><div>"+z[0]+"</div><div class=n>"+(z[1]||0)+"</div></div>"}).join("")}
 function adjustCounters(beforeKey,afterKey){if(beforeKey===afterKey)return;var b=bucketKey(beforeKey),a=bucketKey(afterKey);if(b)openCounts[b]=Math.max(0,Number(openCounts[b]||0)-1);if(a)openCounts[a]=Number(openCounts[a]||0)+1;if(b&&!a)openCounts.total=Math.max(0,Number(openCounts.total||0)-1);if(!b&&a)openCounts.total=Number(openCounts.total||0)+1;renderCards()}
 
@@ -19,7 +26,7 @@ function renderHead(){
   if(currentView==="completed"){
     h.innerHTML="<tr><th>Company</th><th>Region</th><th>Scopes</th><th>Executed on</th><th>Auditor</th><th>Hours planned</th><th>Hours dedicated</th><th>Completed date</th><th>Status</th></tr>";
   }else{
-    h.innerHTML="<tr><th>Company</th><th>Region</th><th>Scopes</th><th>Status</th><th>Planning window</th><th>To be planned</th><th>Hours planned</th><th>Scheduled hours</th><th>Auditor</th><th>Last comment</th><th>Actions</th></tr>";
+    h.innerHTML="<tr><th>Company</th><th>Region</th><th>Scopes</th><th>Status</th><th>Planning window</th><th>To be planned</th><th>Hours planned</th><th>Scheduled hours</th><th>Auditor</th><th class=\"alert-head\">Alert</th><th>Actions</th></tr>";
   }
 }
 
@@ -34,8 +41,7 @@ function renderOpenRow(r){
   var formalClass=hoursClass(r.requiredHours,r.hoursPlanned);
   var scheduledClass=hoursClass(r.scheduledHoursTarget,r.scheduledHours);
   var scheduledTitle=r.scheduledHoursTarget!=null?" title=\"Scheduled target: "+esc(text(r.scheduledHoursTarget))+" h; based on company formal hours plus Config_Scopes scheduling delta\"":"";
-  var comm=latestCommentText(r),commTitle=(r.latestCommentTimestamp?String(r.latestCommentTimestamp)+" · ":"")+comm;
-  return "<tr data-audit-id=\""+esc(r.auditId)+"\"><td>"+esc(text(r.company))+"</td><td>"+esc(text(r.region))+"</td><td>"+esc(text(r.scopesText))+"</td><td>"+esc(displayStatus(r.status))+"</td><td>"+esc(text(r.planningWindowText))+"</td><td>"+esc(text(r.requiredHours))+"</td><td class=\""+formalClass+"\">"+esc(text(r.hoursPlanned))+"</td><td class=\""+scheduledClass+"\""+scheduledTitle+">"+esc(text(r.scheduledHours))+"</td><td>"+esc(text(r.assignedTo))+"</td><td title=\""+esc(commTitle)+"\">"+esc(comm)+"</td><td>"+actions+"</td></tr>";
+  return "<tr data-audit-id=\""+esc(r.auditId)+"\"><td>"+esc(text(r.company))+"</td><td>"+esc(text(r.region))+"</td><td>"+esc(text(r.scopesText))+"</td><td>"+esc(displayStatus(r.status))+"</td><td>"+esc(text(r.planningWindowText))+"</td><td>"+esc(text(r.requiredHours))+"</td><td class=\""+formalClass+"\">"+esc(text(r.hoursPlanned))+"</td><td class=\""+scheduledClass+"\""+scheduledTitle+">"+esc(text(r.scheduledHours))+"</td><td>"+esc(text(r.assignedTo))+"</td>"+alertCell(r)+"<td>"+actions+"</td></tr>";
 }
 function renderOpen(rows){return rows.map(renderOpenRow).join("")}
 

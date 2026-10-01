@@ -12,6 +12,7 @@ const r11=readFileSync(new URL('./server-r11.js',import.meta.url),'utf8');
 const r12=readFileSync(new URL('./server-r12.js',import.meta.url),'utf8');
 const portal=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const relay=readFileSync(new URL('../../ManagerActionRelay.html',import.meta.url),'utf8');
+const relayServer=readFileSync(new URL('../../zz_ExternalManagerActionRelay.js',import.meta.url),'utf8');
 const resetHours=readFileSync(new URL('../../zzzz_StatusResetPlanningHours.js',import.meta.url),'utf8');
 const pkg=JSON.parse(readFileSync(new URL('./package.json',import.meta.url),'utf8'));
 
@@ -28,8 +29,13 @@ has(portal,'runActionViaRelay','Manager 2.0 direct relay path');
 has(portal,'direct-1.0-path','timing identifies 1.0-equivalent action transport');
 not(portal,'runActionViaBridge','slow HTTP bridge fallback forbidden');
 not(portal,'bridge-fallback','silent slow fallback forbidden');
+has(portal,'},20000)','relay bootstrap tolerates Apps Script cold start');
+has(portal,'relay.initPromise=null;throw e','failed relay bootstrap can be retried');
 has(relay,'<?!= JSON.stringify(__parentOrigin) ?>','relay parent origin injected as raw JS literal');
 has(relay,'.managerV5Action(auditId, action, options)','relay calls canonical 1.0 action adapter');
+has(relay,'attempts < 50','relay waits briefly for google.script.run bootstrap');
+has(relayServer,'ExternalManagerActionRelay_errorHtml_','signed relay failures render observable error page');
+has(relayServer,"type:'AMS_MANAGER_ACTION_RELAY_READY'",'relay verification failure posts explicit READY failure');
 has(resetHours,"['Hours planned', 'Planned hours', 'Hours Planned']",'Cancel reopen clears Hours planned canonically');
 has(resetHours,'Total audit time in hours','formal required hours explicitly preserved');
 
@@ -63,11 +69,13 @@ has(r4,'VISIT_COMBINED_COMMIT_NOT_YET_CANONICAL','lower-layer fail-closed combin
 
 console.log(JSON.stringify({
   success:true,
-  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R10_RECOVERY_MANAGER_RELAY_R4',
+  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R10_MANAGER_RELAY_R5_OBSERVABLE',
   writesPerformed:false,
   assertions:{
     publicRuntimeR10:true,
     managerActionUsesDirectGasRelay:true,
+    relayColdStartRecovery:true,
+    relayFailureObservable:true,
     slowBridgeFallbackForbidden:true,
     cancelClearsFormalCommittedHours:true,
     pendingPlanningClearsScheduledHours:true,

@@ -1,20 +1,17 @@
-// BUILD: AUDIT_MANAGER_AVAILABILITY_BRIDGE_SPLIT_20260425
+// BUILD: 2026-10-01_AUDIT_MANAGER_AVAILABILITY_RELEASE_R2_TARGETED
 /**
  * AuditManagerAvailabilityBridge.gs
- * Extracted from ManagerV5.js without behavior changes.
+ * Targeted Manager cancel/deny availability release.
  * Keeps managerV5_releaseAvailability_ name for compatibility.
+ *
+ * Hot-path rule: never full-scan, full-rewrite, sort, or flush the complete
+ * Auditor Availability sheet merely to release one audit.
  */
 function managerV5_releaseAvailability_(auditId, opts) {
+  var t0 = Date.now();
   opts = opts || {};
   auditId = v5_normAuditId_(auditId);
   if (!auditId) return { success:false, message:'Missing auditId' };
-
-  try {
-    if (!opts.pastOnly && typeof V5_availabilityClearAuditId_ === 'function') {
-      var fast = V5_availabilityClearAuditId_(auditId);
-      if (fast && fast.success !== false) return fast;
-    }
-  } catch (e0) {}
 
   try {
     var ss = SpreadsheetApp.getActive();
@@ -23,11 +20,13 @@ function managerV5_releaseAvailability_(auditId, opts) {
 
     var lastRow = shAv.getLastRow();
     var lastCol = shAv.getLastColumn();
-    if (lastRow < 2 || lastCol < 1) return { success:true, changed:0, rows:0, message:'No rows' };
+    if (lastRow < 2 || lastCol < 1) {
+      return { success:true, changed:0, rows:0, deletedRows:0, message:'No rows', perf:{totalMs:Date.now()-t0} };
+    }
 
     var hdr = shAv.getRange(1, 1, 1, lastCol).getValues()[0].map(function(v){ return String(v || '').trim(); });
+    var lc = hdr.map(function(v){ return String(v || '').trim().toLowerCase().replace(/[_\s]+/g, ' '); });
     function hidx_(names) {
-      var lc = hdr.map(function(v){ return String(v || '').trim().toLowerCase().replace(/[_\s]+/g, ' '); });
       for (var i = 0; i < names.length; i++) {
         var key = String(names[i] || '').trim().toLowerCase().replace(/[_\s]+/g, ' ');
         var idx = lc.indexOf(key);
@@ -47,90 +46,98 @@ function managerV5_releaseAvailability_(auditId, opts) {
     var iSt1 = hidx_(['Status_1','Status 1','Status']);
     var iSt2 = hidx_(['Status_2','Status 2']);
     var iUpd = hidx_(['Last_Updated','Last Updated','Timestamp']);
-    var iEmail = hidx_(['Auditor_Email','Auditor Email','Email','E-mail','Auditor_Name','Auditor Name']);
 
-    var tz = (function(){
-      try {
-        var ss2 = SpreadsheetApp.getActive();
-        return (ss2 && ss2.getSpreadsheetTimeZone) ? ss2.getSpreadsheetTimeZone() : Session.getScriptTimeZone();
-      } catch(e){ return Session.getScriptTimeZone(); }
-    })();
-
-    var todayIso = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
-    var vals = shAv.getRange(2, 1, lastRow - 1, lastCol).getValues();
-    var changed = 0, rowsTouched = 0;
-    var deleteRowIdxs_ = [];
-
+    if (iId1 < 0 && iId2 < 0) return { success:false, message:'Availability audit ID columns missing' };
     if (typeof AS_isDefaultOrManualBlock_ !== 'function') {
       throw new Error('AuditManagerAvailabilityBridge requires AS_isDefaultOrManualBlock_ from AvailabilityService.js');
     }
 
-    for (var rr = 0; rr < vals.length; rr++) {
-      var row = vals[rr];
-      var rowChanged = false;
-      var rowDate = '';
-      if (iDate >= 0) {
-        try { rowDate = v5_managerCellToYmd_(row[iDate]); } catch(e1) { rowDate = ''; }
-      }
-      if (opts.pastOnly && rowDate && !(rowDate < todayIso)) continue;
+    var findT0 = Date.now();
+    var rowMap = {};
+    function collect_(colIdx) {
+      if (colIdx < 0) return;
+      var rg = shAv.getRange(2, colIdx + 1, lastRow - 1, 1);
+      var hits = rg.createTextFinder(auditId).matchEntireCell(true).findAll() || [];
+      for (var h = 0; h < hits.length; h++) rowMap[hits[h].getRow()] = true;
+    }
+    collect_(iId1);
+    collect_(iId2);
+    var rowNos = Object.keys(rowMap).map(Number).sort(function(a,b){ return a-b; });
+    var findMs = Date.now() - findT0;
 
+    if (!rowNos.length) {
+      return { success:true, changed:0, rows:0, deletedRows:0, message:'No matching availability rows', perf:{findMs:findMs,totalMs:Date.now()-t0} };
+    }
+
+    var tz = ss.getSpreadsheetTimeZone ? ss.getSpreadsheetTimeZone() : Session.getScriptTimeZone();
+    var todayIso = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
+    var nowStamp = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd HH:mm');
+    var changed = 0, rowsTouched = 0, deletedRows = 0;
+    var deleteRows = [], writeRows = [];
+    var readWriteT0 = Date.now();
+
+    for (var r = 0; r < rowNos.length; r++) {
+      var rn = rowNos[r];
+      var row = shAv.getRange(rn, 1, 1, lastCol).getValues()[0] || [];
+      if (opts.pastOnly && iDate >= 0) {
+        var rowDate = '';
+        try { rowDate = v5_managerCellToYmd_(row[iDate]); } catch(eDate) {}
+        if (rowDate && !(rowDate < todayIso)) continue;
+      }
+
+      var rowChanged = false;
       if (iId1 >= 0 && String(row[iId1] || '').trim() === auditId) {
         if (iS1 >= 0) row[iS1] = '';
         if (iE1 >= 0) row[iE1] = '';
         row[iId1] = '';
         if (iSt1 >= 0) row[iSt1] = '';
-        changed++;
-        rowChanged = true;
+        changed++; rowChanged = true;
       }
       if (iId2 >= 0 && String(row[iId2] || '').trim() === auditId) {
         if (iS2 >= 0) row[iS2] = '';
         if (iE2 >= 0) row[iE2] = '';
         row[iId2] = '';
         if (iSt2 >= 0) row[iSt2] = '';
-        changed++;
-        rowChanged = true;
+        changed++; rowChanged = true;
       }
-
       if (!rowChanged) continue;
       rowsTouched++;
 
-      var hasAudit1 = (iId1 >= 0) && String(row[iId1] || '').trim();
-      var hasAudit2 = (iId2 >= 0) && String(row[iId2] || '').trim();
+      var hasAudit1 = iId1 >= 0 && String(row[iId1] || '').trim();
+      var hasAudit2 = iId2 >= 0 && String(row[iId2] || '').trim();
       var keepBlocked = AS_isDefaultOrManualBlock_(iSt1 >= 0 ? row[iSt1] : '') || AS_isDefaultOrManualBlock_(iSt2 >= 0 ? row[iSt2] : '');
 
-      if (!hasAudit1 && !hasAudit2) {
-        if (keepBlocked) {
-          if (iAvail >= 0) row[iAvail] = 'NO';
-          if (iUpd >= 0) row[iUpd] = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd HH:mm');
-        } else {
-          deleteRowIdxs_.push(rr + 2);
-        }
+      if (!hasAudit1 && !hasAudit2 && !keepBlocked) {
+        deleteRows.push(rn);
       } else {
         if (iAvail >= 0) row[iAvail] = 'NO';
-        if (iUpd >= 0) row[iUpd] = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd HH:mm');
+        if (iUpd >= 0) row[iUpd] = nowStamp;
+        writeRows.push({ rowNumber:rn, values:row });
       }
     }
 
-    if (changed) {
-      shAv.getRange(2, 1, lastRow - 1, lastCol).setValues(vals);
-      if (deleteRowIdxs_.length) {
-        deleteRowIdxs_.sort(function(a, b){ return b - a; });
-        for (var dd = 0; dd < deleteRowIdxs_.length; dd++) shAv.deleteRow(deleteRowIdxs_[dd]);
-      }
-      try {
-        var sortDateCol = (iDate >= 0) ? (iDate + 1) : 1;
-        var lrNow = shAv.getLastRow();
-        if (lrNow >= 3) {
-          if (iEmail >= 0) shAv.getRange(2, 1, lrNow - 1, lastCol).sort([{column:sortDateCol, ascending:true},{column:iEmail + 1, ascending:true}]);
-          else shAv.getRange(2, 1, lrNow - 1, lastCol).sort([{column:sortDateCol, ascending:true}]);
-        }
-      } catch (eSort) {}
-      SpreadsheetApp.flush();
+    for (var w = 0; w < writeRows.length; w++) {
+      shAv.getRange(writeRows[w].rowNumber, 1, 1, lastCol).setValues([writeRows[w].values]);
+    }
+    deleteRows.sort(function(a,b){ return b-a; });
+    for (var d = 0; d < deleteRows.length; d++) {
+      shAv.deleteRow(deleteRows[d]);
+      deletedRows++;
     }
 
-    return { success:true, changed:changed, rows:rowsTouched, message:'Availability release done' };
+    try { if (typeof AS_clearAvailabilitySummaryMapCache_ === 'function') AS_clearAvailabilitySummaryMapCache_(); } catch(eCache) {}
+
+    return {
+      success:true,
+      changed:changed,
+      rows:rowsTouched,
+      deletedRows:deletedRows,
+      message:'Targeted availability release done',
+      perf:{findMs:findMs,readWriteMs:Date.now()-readWriteT0,totalMs:Date.now()-t0},
+      build:'2026-10-01_AUDIT_MANAGER_AVAILABILITY_RELEASE_R2_TARGETED'
+    };
   } catch (e2) {
-    return { success:false, message:String(e2 && e2.message ? e2.message : e2) };
+    return { success:false, message:String(e2 && e2.message ? e2.message : e2), perf:{totalMs:Date.now()-t0} };
   }
 }
 

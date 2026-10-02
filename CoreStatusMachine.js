@@ -235,7 +235,7 @@ function Status_applyAction(actor, action, auditId, payload) {
       : Status_checkDevWriteGuard_(action, auditId);
     if (!writeGuard.ok) return writeGuard;
 
-    var ctx = Status_loadAudit_(auditId);
+    var ctx = Status_loadAudit_(auditId, payload && payload.rowIndex);
     __statusStamp_('loadAuditMs');
     if (!ctx.found) return ctx.error;
 
@@ -369,7 +369,7 @@ function Status_diagLog_(diagType, auditId, details) {
   }
 }
 
-function Status_loadAudit_(auditId) {
+function Status_loadAudit_(auditId, rowIndexHint) {
   auditId = String(auditId || '').trim();
   if (!auditId) return { found:false, error: Status_fail_('Missing auditId') };
 
@@ -377,11 +377,33 @@ function Status_loadAudit_(auditId) {
   var sh = ss.getSheetByName('Audit planning');
   if (!sh) return { found:false, error: Status_fail_("Missing sheet 'Audit planning'") };
 
-  // AMS-01: use the canonical Audit planning execution cache first. The
-  // planning writer already loaded this exact row earlier in the same save.
-  var __indexed = (typeof __mp_getAuditPlanningRow_ === 'function')
-    ? __mp_getAuditPlanningRow_(ss, auditId)
-    : null;
+  // AMS-01: Manager 2.0 already knows the canonical source row from its
+  // readmodel. Use that exact-row hint first and verify Audit ID before trusting
+  // it. This mirrors the effective warm-row behavior of Manager 1.0 without
+  // rebuilding/scanning the Audit ID index for every external action.
+  var __indexed = null;
+  var __hint = Number(rowIndexHint || 0);
+  if (__hint > 1) {
+    try {
+      var __hintLastCol = sh.getLastColumn();
+      var __hintHdr = sh.getRange(1, 1, 1, __hintLastCol).getValues()[0];
+      var __hintAi = -1;
+      for (var __hh = 0; __hh < __hintHdr.length; __hh++) {
+        var __hk = String(__hintHdr[__hh] || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+        if (__hk === 'auditid') { __hintAi = __hh; break; }
+      }
+      if (__hintAi >= 0) {
+        var __hintRow = sh.getRange(__hint, 1, 1, __hintLastCol).getValues()[0];
+        if (String(__hintRow[__hintAi] || '').trim() === auditId) {
+          __indexed = { hdr:__hintHdr, row:__hintRow, rowNumber:__hint, lastCol:__hintLastCol, hinted:true };
+          try { if (typeof __mp_apExecRowPut_ === 'function') __mp_apExecRowPut_(auditId, __hintHdr, __hintRow, __hint, __hintLastCol); } catch(eHintCache) {}
+        }
+      }
+    } catch (eHint) {}
+  }
+  if (!__indexed && typeof __mp_getAuditPlanningRow_ === 'function') {
+    __indexed = __mp_getAuditPlanningRow_(ss, auditId);
+  }
   var lastRow = sh.getLastRow();
   var lastCol = (__indexed && __indexed.hdr && __indexed.hdr.length)
     ? __indexed.hdr.length

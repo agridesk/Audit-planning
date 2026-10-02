@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 const manager=fs.readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const r10=fs.readFileSync(new URL('./server-r10.js',import.meta.url),'utf8');
+const r4=fs.readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const entry=fs.readFileSync(new URL('../../EntryV5.js',import.meta.url),'utf8');
 const relayOwner=fs.readFileSync(new URL('../../zz_ExternalManagerActionRelay.js',import.meta.url),'utf8');
 const relayHtml=fs.readFileSync(new URL('../../ManagerActionRelay.html',import.meta.url),'utf8');
@@ -18,13 +19,15 @@ const checks=[
 ['actions sent back to captured worker',manager.includes('relay.source.postMessage')&&manager.includes('relay.origin')],
 ['nonce checked both directions',manager.includes("String(msg.nonce||'')!==String(relay.nonce||'')")&&relayHtml.includes("String(m.nonce||'') !== nonce")],
 ['worker uses google.script.run',relayHtml.includes('google.script.run')&&relayHtml.includes('.managerV5Action(auditId,action,options)')],
-['no direct sheets cancel/reject',!manager.includes("fetch('/api/v1/manager/action-direct'")&&!r10.includes("u.pathname==='/api/v1/manager/action-direct'")],
+['Cancel uses direct Cloud Run canonical writer',manager.includes("action==='cancel'?runActionViaCloudRun")&&r4.includes("if(managerAction==='cancel')return directManagerCancel(identity,body)")&&r4.includes("owner:'CLOUD_RUN_DIRECT_MANAGER_CANCEL'")],
+['Reject remains on canonical GAS owner during staged cutover',r4.includes("if(!GAS_WRITE_URL||!WRITE_KEY)throw new Error('WRITE_BRIDGE_NOT_CONFIGURED')")&&r4.includes("writeUrl.searchParams.set('action','externalmanageraction')")],
+['no obsolete action-direct endpoint',!manager.includes("fetch('/api/v1/manager/action-direct'")&&!r10.includes("u.pathname==='/api/v1/manager/action-direct'")],
 ['no action canonical polling',!manager.includes('pollActionCanonical')],
 ['v1 local cancel patch',manager.includes("after.status='Pending Planning'")&&manager.includes("after.hoursPlanned=''")&&manager.includes("after.assignedTo=''")],
 ['reject local row removal',manager.includes("if(action==='reject'){removeRejectedRowInPlace")],
 ['scroll preserved',manager.includes('window.scrollTo(scrollX,scrollY)')],
 ['per audit lock',manager.includes('var busyAudits=new Set()')],
-['comment and source row sent',manager.includes('options={reason:reason,comment:reason,rowIndex:row&&row.sourceRow}')],
+['comment source row and revision sent',manager.includes('options={reason:reason,comment:reason,rowIndex:row&&row.sourceRow,expectedRevision:row&&row.sourceRevision}')],
 ['source row consumed by StatusMachine',statusMachine.includes('Status_loadAudit_(auditId, payload && payload.rowIndex)')],
 ['source row is audit-id verified',statusMachine.includes("String(__hintRow[__hintAi] || '').trim() === auditId")],
 ['cold index is fallback only',statusMachine.includes("if (!__indexed && typeof __mp_getAuditPlanningRow_ === 'function')")],

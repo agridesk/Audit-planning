@@ -5,7 +5,7 @@ var currentView="open";
 var openCounts={total:0,pendingPlanning:0,pendingApproval:0,approved:0,accepted:0};
 var busyAudits=new Set();
 var enrichmentSeq=0;
-var relay={frame:null,ready:false,error:'',pending:new Map(),seq:0,initPromise:null,readyResolver:null};
+var relay={seq:0};
 
 function esc(v){var d=document.createElement("div");d.textContent=v==null?"":v;return d.innerHTML}
 function text(v){return v==null||v===""?"-":String(v)}
@@ -35,68 +35,51 @@ function mergeRowInPlace(auditId,patch){var idx=all.findIndex(function(r){return
 function patchRowInPlace(auditId,patch,perf){var idx=all.findIndex(function(r){return r.auditId===auditId});if(idx<0)throw new Error("Audit row not found locally");var before=all[idx],after=Object.assign({},before,patch),beforeKey=before.statusKey,scrollX=window.scrollX,scrollY=window.scrollY,t=performance.now();all[idx]=after;replaceVisibleRow(auditId,after);adjustCounters(beforeKey,after.statusKey);window.scrollTo(scrollX,scrollY);perf.patchMs=Math.round(performance.now()-t);perf.totalMs=Math.round(performance.now()-perf.startedAt);var timing="request "+perf.writeMs+" · GAS HTTP "+perf.gasHttpMs;if(perf.statusTotalMs!=null)timing+=" · status "+perf.statusTotalMs+" [load "+perf.statusLoadMs+" / core "+perf.statusCoreMs+" / notify "+perf.statusNotifyMs+"]";timing+=" · reread "+perf.rereadMs+" · patch "+perf.patchMs+(perf.canonicalRecovery?" · canonical recovery":"")+" · direct-gas-action";document.getElementById("status").textContent=Number(openCounts.total||all.length)+" open audits · action "+perf.totalMs+" ms ("+timing+")";console.info("[MANAGER_ACTION_TIMING]",perf)}
 function rereadAudit(auditId,sourceRow){var url="/api/v1/manager/audit?auditId="+encodeURIComponent(auditId)+(sourceRow?"&sourceRow="+encodeURIComponent(sourceRow):"");return fetch(url,{credentials:'same-origin'}).then(function(r){return r.json().then(function(x){if(!r.ok||x.success===false)throw new Error(x.error||x.message||'Canonical reread failed');return x})})}
 function rereadEnrichedAudit(auditId){return fetch('/api/v1/manager/open-enrichment',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({auditIds:[auditId]})}).then(function(r){return r.json().then(function(x){if(!r.ok||x.success===false)throw new Error(x.error||x.message||'Canonical enriched reread failed');var row=x&&Array.isArray(x.rows)?x.rows[0]:null;if(!row)throw new Error('CANONICAL_ENRICHED_ROW_MISSING');return row})})}
-function resetRelayFrame(){if(relay.frame&&relay.frame.parentNode)relay.frame.parentNode.removeChild(relay.frame);relay.frame=null;relay.ready=false;relay.readyResolver=null}
-function initRelay(){
-  if(relay.ready&&relay.frame)return Promise.resolve(true);
-  if(relay.initPromise)return relay.initPromise;
-  relay.error='';
-  if(relay.frame)resetRelayFrame();
-  relay.initPromise=fetch('/api/v1/manager/action-relay-url',{credentials:'same-origin'})
-    .then(function(r){return r.json().then(function(x){if(!r.ok||x.success===false)throw new Error(x.error||x.detail||'Relay URL failed');return x})})
-    .then(function(x){return new Promise(function(resolve,reject){
-      var f=document.createElement('iframe'),settled=false,timer=setTimeout(function(){
-        if(settled)return;settled=true;relay.error='ACTION_RELAY_READY_TIMEOUT';reject(new Error(relay.error))
-      },30000);
-      relay.frame=f;
-      f.src=x.url;
-      f.style.cssText='position:absolute;width:1px;height:1px;border:0;left:-9999px;top:-9999px';
-      f.setAttribute('aria-hidden','true');
-      relay.readyResolver=function(ok,error){
-        if(settled)return;
-        settled=true;clearTimeout(timer);
-        if(ok)resolve(true);else reject(new Error(error||'ACTION_RELAY_INIT_FAILED'))
-      };
-      document.body.appendChild(f);
-    })})
-    .catch(function(e){
-      relay.error=String(e&&e.message?e.message:e);
-      console.error('[MANAGER_ACTION_RELAY_INIT_FAIL]',relay.error);
-      relay.initPromise=null;
-      throw e
-    });
-  return relay.initPromise
+function startActionRelay(auditId,action,options){
+  return fetch('/api/v1/manager/action-relay-url',{
+    method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},
+    body:JSON.stringify({auditId:auditId,action:action,options:options||{}})
+  }).then(function(r){return r.json().then(function(x){
+    if(!r.ok||x.success===false)throw new Error(x.error||x.detail||'Relay URL failed');
+    var f=document.createElement('iframe');
+    f.src=x.url;
+    f.style.cssText='position:absolute;width:1px;height:1px;border:0;left:-9999px;top:-9999px';
+    f.setAttribute('aria-hidden','true');
+    document.body.appendChild(f);
+    setTimeout(function(){try{if(f.parentNode)f.parentNode.removeChild(f)}catch(_e){}},45000);
+    return {started:true}
+  })})
 }
-window.addEventListener('message',function(ev){
-  if(!relay.frame||ev.source!==relay.frame.contentWindow)return;
-  var m=ev.data||{};
-  if(m.type==='AMS_MANAGER_ACTION_RELAY_READY'){
-    relay.ready=m.success!==false;
-    relay.error=relay.ready?'':String(m.error||'ACTION_RELAY_INIT_FAILED');
-    console.info('[MANAGER_ACTION_RELAY_READY]',{ready:relay.ready,build:m.build||'',error:relay.error});
-    if(relay.readyResolver){var fn=relay.readyResolver;relay.readyResolver=null;fn(relay.ready,relay.error)}
-    if(relay.ready)relay.initPromise=Promise.resolve(true);
-    return
-  }
-  if(m.type!=='AMS_MANAGER_ACTION_RESULT')return;
-  var p=relay.pending.get(String(m.requestId||''));
-  if(!p)return;
-  relay.pending.delete(String(m.requestId||''));
-  clearTimeout(p.timer);
-  if(m.success===false)p.reject(new Error(m.error||m.result&&m.result.message||'Action failed'));
-  else p.resolve({result:m.result||{},relayElapsedMs:Number(m.relayElapsedMs)||0})
-});
-function runActionViaRelay(auditId,action,options){
-  var ready=(relay.ready&&relay.frame)?Promise.resolve(true):initRelay();
-  return ready.then(function(){
-    if(!relay.ready||!relay.frame)throw new Error('ACTION_RELAY_NOT_READY'+(relay.error?': '+relay.error:''));
-    return new Promise(function(resolve,reject){
-      var id='r'+Date.now()+'_'+(++relay.seq),timer=setTimeout(function(){
-        relay.pending.delete(id);reject(new Error('ACTION_RELAY_TIMEOUT'))
-      },20000);
-      relay.pending.set(id,{resolve:resolve,reject:reject,timer:timer});
-      relay.frame.contentWindow.postMessage({type:'AMS_MANAGER_ACTION',requestId:id,auditId:auditId,action:action,options:options||{}},'*')
-    })
+function expectedStatusForAction(action){return action==='cancel'?'PENDING_PLANNING':action==='approve'?'APPROVED':action==='reject'?'REJECTED':''}
+function pollActionCanonical(auditId,sourceRow,action,deadlineMs){
+  var expected=expectedStatusForAction(action),started=performance.now(),delay=250;
+  return new Promise(function(resolve,reject){
+    function once(){
+      var url="/api/v1/manager/audit?auditId="+encodeURIComponent(auditId)+(sourceRow?"&sourceRow="+encodeURIComponent(sourceRow):"");
+      fetch(url,{credentials:'same-origin'}).then(function(r){
+        return r.json().catch(function(){return{}}).then(function(x){
+          if(action==='reject'&&r.status===404&&x&&x.error==='AUDIT_NOT_FOUND')return resolve({rejected:true,auditId:auditId});
+          if(r.ok&&x&&x.success!==false&&x.statusKey===expected)return resolve(x);
+          if(performance.now()-started>=deadlineMs)return reject(new Error('ACTION_CANONICAL_CONFIRM_TIMEOUT'));
+          setTimeout(once,delay);
+        })
+      }).catch(function(e){
+        if(performance.now()-started>=deadlineMs)return reject(e);
+        setTimeout(once,delay)
+      })
+    }
+    once()
   })
+}
+function removeRejectedRowInPlace(auditId,perf){
+  var idx=all.findIndex(function(r){return r.auditId===auditId});if(idx<0)return;
+  var before=all[idx],beforeKey=before.statusKey,scrollX=window.scrollX,scrollY=window.scrollY,t=performance.now();
+  all.splice(idx,1);
+  var tr=document.querySelector('tr[data-audit-id="'+CSS.escape(auditId)+'"]');if(tr)tr.remove();
+  adjustCounters(beforeKey,'REJECTED');
+  window.scrollTo(scrollX,scrollY);
+  perf.patchMs=Math.round(performance.now()-t);
+  perf.totalMs=Math.round(performance.now()-perf.startedAt)
 }
 function runAction(button){
   var auditId=button.getAttribute("data-audit-id"),action=button.getAttribute("data-action"),row=all.find(function(r){return r.auditId===auditId});
@@ -112,18 +95,15 @@ function runAction(button){
   busyAudits.add(auditId);
   var tr=button.closest("tr");
   if(tr)tr.querySelectorAll(".act,.ext-act").forEach(function(b){b.disabled=true});
-  var perf={auditId:auditId,action:action,startedAt:performance.now(),writeMs:0,rereadMs:0,patchMs:0,relayMs:null,gasMs:null},wt=performance.now(),options={reason:reason,comment:reason};
-  runActionViaRelay(auditId,action,options)
-    .then(function(x){
+  var perf={auditId:auditId,action:action,startedAt:performance.now(),writeMs:0,rereadMs:0,patchMs:0},wt=performance.now(),options={reason:reason,comment:reason};
+  startActionRelay(auditId,action,options)
+    .then(function(){
       perf.writeMs=Math.round(performance.now()-wt);
-      perf.relayMs=Math.round(Number(x.relayElapsedMs)||0);
-      var wr=x.result||{},gas=Number(wr&&wr.perf&&wr.perf.managerActionAdapterMs);
-      if(isFinite(gas))perf.gasMs=Math.round(gas);
       var t=performance.now();
-      return rereadAudit(auditId,row&&row.sourceRow).then(function(patch){
+      return pollActionCanonical(auditId,row&&row.sourceRow,action,20000).then(function(patch){
         perf.rereadMs=Math.round(performance.now()-t);
-        patchRowInPlace(auditId,patch,perf);
-        document.getElementById("status").textContent=Number(openCounts.total||all.length)+" open audits · action "+perf.totalMs+" ms (relay "+perf.relayMs+" · GAS "+(perf.gasMs==null?"-":perf.gasMs)+" · reread "+perf.rereadMs+" · patch "+perf.patchMs+" · warm-google-script-run)";
+        if(patch&&patch.rejected)removeRejectedRowInPlace(auditId,perf);else patchRowInPlace(auditId,patch,perf);
+        document.getElementById("status").textContent=Number(openCounts.total||all.length)+" open audits · action "+perf.totalMs+" ms (start "+perf.writeMs+" · confirm "+perf.rereadMs+" · patch "+perf.patchMs+" · signed-gas-fire-and-confirm)";
         return patch
       })
     })
@@ -145,6 +125,5 @@ function loadCompleted(){currentView="completed";++enrichmentSeq;return fetch("/
 function fail(e){var z=document.getElementById("status");z.className="err";z.textContent=e.message}
 fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(s){if(s.ok&&s.identity)document.getElementById("identity").textContent=s.identity.email}).catch(function(){});
 document.getElementById("q").addEventListener("input",filter);document.getElementById("reset").onclick=function(){document.getElementById("q").value="";render(all)};document.getElementById("openView").onclick=loadOpen;document.getElementById("completedView").onclick=loadCompleted;var workspace=document.getElementById("planningWorkspace");if(workspace){workspace.disabled=true;workspace.title="Open Single Planning from an audit row; no canonical Planning Workspace overview route is available yet"}
-initRelay().catch(function(){});
 loadOpen();
 })();

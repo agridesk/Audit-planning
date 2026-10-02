@@ -1,0 +1,212 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Audit Management System — Manager Portal 2.0</title>
+<style>
+body{font-family:system-ui;margin:0;background:#f4f5f7;color:#111827}header{background:#111827;color:white;padding:14px 22px}main{padding:18px}.meta{font-size:12px;color:#cbd5e1}.cards{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.card{background:white;border:1px solid #e5e7eb;border-radius:9px;padding:10px 14px;min-width:122px}.n{font-size:22px;font-weight:700}.table-wrap{overflow:auto;border:1px solid #d1d5db;border-radius:8px;background:white;max-height:calc(100vh - 215px)}table{width:100%;border-collapse:collapse;background:white;font-size:12px;min-width:1900px}th,td{padding:6px 7px;border-bottom:1px solid #e5e7eb;text-align:left;white-space:nowrap;vertical-align:top}th{background:#f9fafb;position:sticky;top:0;z-index:3;font-size:11px;letter-spacing:.01em}tbody tr:hover{background:#f8fafc}.company-cell{font-weight:650;max-width:240px}.locations-cell{max-width:210px;overflow:hidden;text-overflow:ellipsis}.scopes-cell{max-width:170px;overflow:hidden;text-overflow:ellipsis}.window-cell{min-width:190px}.actions-cell{min-width:190px}.planning2-cell{min-width:150px}.map-cell{width:62px}.map-link,.workspace-link{font-weight:650;text-decoration:none;color:#1d4ed8}.workspace-link{display:inline-block;margin-right:5px}.muted{color:#9ca3af}.cell-sub{font-size:10px;color:#6b7280;font-weight:400;margin-top:1px}.err{color:#b91c1c}.act,.ext-act,.workspace-btn{padding:4px 7px;margin:1px;border:1px solid #d1d5db;border-radius:5px;background:white;cursor:pointer;font-size:11px}.ext-act{border-color:#93c5fd;background:#eff6ff;color:#1d4ed8}.workspace-btn{padding:7px 11px;border-color:#7c3aed;color:#5b21b6;background:#f5f3ff;border-radius:999px;font-weight:650}.act:disabled,.ext-act:disabled{opacity:.45;cursor:wait}.empty{color:#6b7280;text-align:center;padding:22px}.hours-match{color:#166534;font-weight:700}.hours-under{color:#dc2626;font-weight:700}.hours-over{color:#f97316;font-weight:700}.alert-head,.alert-cell{width:38px;min-width:38px;text-align:center;padding-left:3px;padding-right:3px}.alert-icon{display:inline-flex;width:18px;height:18px;align-items:center;justify-content:center;border-radius:50%;font-weight:800;font-size:11px;cursor:help;outline:none}.alert-info{background:#fef3c7;color:#92400e;border:1px solid #f59e0b}.alert-critical{background:#fee2e2;color:#991b1b;border:1px solid #ef4444}.alert-icon:focus{box-shadow:0 0 0 2px #bfdbfe}.planning-chip{display:inline-block;padding:2px 5px;border-radius:999px;font-size:10px;font-weight:650;margin:0 2px 2px 0}.planning-chip.concept{background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd}.planning-chip.provisional{background:#fff7ed;color:#9a3412;border:1px solid #fdba74}.planning-chip.reservation{background:#ecfeff;color:#155e75;border:1px solid #67e8f9}
+</style>
+</head>
+<body>
+<header><strong>Manager Portal 2.0</strong><div class="meta" id="identity"></div></header>
+<main>
+<div id="status">Loading audit data…</div><div class="cards" id="cards"></div>
+<div style="display:flex;gap:8px;margin:10px 0;flex-wrap:wrap">
+<button id="openView" style="padding:7px 11px;border:1px solid #2563eb;border-radius:999px;background:#dbeafe">Open audits</button>
+<button id="completedView" style="padding:7px 11px;border:1px solid #d1d5db;border-radius:999px;background:white">Completed</button>
+<button id="planningWorkspace" class="workspace-btn">Planning Workspace</button>
+<input id="q" placeholder="Company, location, scope, auditor, planning…" style="padding:7px 11px;border:1px solid #d1d5db;border-radius:999px;min-width:340px">
+<button id="reset" style="padding:7px 11px;border:1px solid #d1d5db;border-radius:999px;background:white">Reset</button>
+</div>
+<div class="table-wrap"><table><thead id="gridHead"></thead><tbody id="rows"></tbody></table></div>
+</main>
+<script>
+var MANAGER2_CTX={
+  execUrl:<?!= JSON.stringify(__execUrl) ?>,
+  email:<?!= JSON.stringify(__email) ?>,
+  role:<?!= JSON.stringify(__role) ?>,
+  trustedToken:<?!= JSON.stringify(__trustedToken) ?>,
+  deviceFingerprint:<?!= JSON.stringify(__deviceFingerprint) ?>,
+  env:<?!= JSON.stringify(__env) ?>
+};
+function gasCall(fn,args){
+  return new Promise(function(resolve,reject){
+    try{
+      var runner=google.script.run
+        .withSuccessHandler(function(res){resolve(res)})
+        .withFailureHandler(function(err){reject(new Error(err&&err.message?err.message:String(err)))});
+      runner[fn].apply(runner,args||[]);
+    }catch(e){reject(e)}
+  })
+}
+function gasUrl(action,extra){
+  var q={action:action,role:MANAGER2_CTX.role,email:MANAGER2_CTX.email,trustedToken:MANAGER2_CTX.trustedToken,deviceFingerprint:MANAGER2_CTX.deviceFingerprint};
+  Object.keys(extra||{}).forEach(function(k){q[k]=extra[k]});
+  return MANAGER2_CTX.execUrl+'?'+Object.keys(q).map(function(k){return encodeURIComponent(k)+'='+encodeURIComponent(q[k]||'')}).join('&')
+}
+
+(function(){
+"use strict";
+var all=[];
+var currentView="open";
+var openCounts={total:0,pendingPlanning:0,pendingApproval:0,approved:0,accepted:0};
+var busyAudits=new Set();
+var enrichmentSeq=0;
+
+function esc(v){var d=document.createElement("div");d.textContent=v==null?"":v;return d.innerHTML}
+function text(v){return v==null||v===""?"-":String(v)}
+function displayStatus(v){var s=String(v==null?"":v).trim().toLowerCase();return s==="approved"?"Pending acceptance":text(v)}
+function hoursClass(expected,actual){var e=Number(expected),a=Number(actual);if(!isFinite(e)||!isFinite(a))return "";if(Math.abs(a-e)<0.001)return "hours-match";return a<e?"hours-under":"hours-over"}
+function bucketKey(statusKey){return statusKey==="PENDING_PLANNING"?"pendingPlanning":statusKey==="PENDING_APPROVAL"?"pendingApproval":statusKey==="APPROVED"?"approved":statusKey==="ACCEPTED"?"accepted":""}
+function expectedStatus(action){return action==="cancel"?"PENDING_PLANNING":action==="reject"?"REJECTED":action==="approve"?"ACCEPTED":""}
+function latestCommentText(r){if(!r.latestComment)return "";var actor=r.latestCommentActor||"",action=r.latestCommentAction||"";return (actor?actor+(action?" · "+action:"")+": ":"")+r.latestComment}
+function compactDate(v){var s=String(v==null?"":v).trim(),m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+"-"+m[2]+"-"+m[1]:s}
+function effectiveExpiry(r){return r.effectiveExpiry||r.expiryEffective||(r.extensionApplied||r.extApplied?r.expiryZ:r.expiryY)||r.expirationDate||r.expiry||""}
+function locationText(r){var x=r.locationsToPlan||r.locs||r.locations||r.locationCount||r.location||r.companyLocation||"";if(Array.isArray(x))return x.map(function(z){return typeof z==="string"?z:(z&&z.label)||""}).filter(Boolean).join(", ");if(typeof x==="object"&&x){if(Array.isArray(x.locations))return x.locations.map(function(z){return z.label||z.location||z.name||""}).filter(Boolean).join(", ");return x.label||x.location||x.name||""}return String(x||"")}
+function gpsValue(r){var lat=r.lat!=null?r.lat:r.latitude,lon=r.lon!=null?r.lon:(r.lng!=null?r.lng:r.longitude);if(lat!==undefined&&lat!==null&&String(lat).trim()!==""&&lon!==undefined&&lon!==null&&String(lon).trim()!=="")return String(lat)+","+String(lon);var g=r.gps||r.gpsData||r.coordinates||"";if(typeof g==="object"&&g){if(g.lat!=null&&g.lng!=null)return String(g.lat)+","+String(g.lng);if(g.lat!=null&&g.lon!=null)return String(g.lat)+","+String(g.lon);if(g.latitude!=null&&g.longitude!=null)return String(g.latitude)+","+String(g.longitude);if(g.url)return String(g.url)}return String(g||"").trim()}
+function mapCell(r){var g=gpsValue(r);if(!g)return "<td class=\"map-cell muted\">-</td>";var href=/^https?:\/\//i.test(g)?g:"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(g);return "<td class=\"map-cell\"><a class=\"map-link\" href=\""+esc(href)+"\" target=\"_blank\" rel=\"noopener\" title=\""+esc(g)+"\">Map</a></td>"}
+function planning2Cell(r){var bits=["<a class=\"workspace-link\" href=\""+esc(gasUrl('planningworkspace',{auditId:r.auditId||''}))+"\" title=\"Open this audit in Single Planning 2.0\">Open</a>"];if(r.conceptMonth)bits.push("<span class=\"planning-chip concept\" title=\"Concept only — not committed\">Concept "+esc(r.conceptMonth)+"</span>");var p=Number(r.provisionalReservationCount||0),c=Number(r.confirmedReservationCount||0);if(p>0)bits.push("<span class=\"planning-chip provisional\" title=\"Provisional workload — not committed planning\">Provisional"+(p>1?" ×"+p:"")+"</span>");if(c>0)bits.push("<span class=\"planning-chip reservation\" title=\"Reservation context — separate from committed planning\">Reserved"+(c>1?" ×"+c:"")+"</span>");return bits.join(" ")}
+function alertCell(r){if(!r.latestComment)return "<td class=\"alert-cell\"></td>";var action=String(r.latestCommentAction||"").toUpperCase(),cls=action==="REJECT"?"alert-icon alert-critical":"alert-icon alert-info",title=(r.latestCommentTimestamp?String(r.latestCommentTimestamp)+" · ":"")+latestCommentText(r);return "<td class=\"alert-cell\"><span class=\""+cls+"\" title=\""+esc(title)+"\" aria-label=\""+esc(title)+"\" tabindex=\"0\">!</span></td>"}
+function renderCards(){var c=openCounts||{};document.getElementById("cards").innerHTML=[["Pending planning",c.pendingPlanning],["Pending approval",c.pendingApproval],["Pending acceptance",c.approved],["Pending completion",c.accepted]].map(function(z){return "<div class=card><div>"+z[0]+"</div><div class=n>"+(z[1]||0)+"</div></div>"}).join("")}
+function adjustCounters(beforeKey,afterKey){if(beforeKey===afterKey)return;var b=bucketKey(beforeKey),a=bucketKey(afterKey);if(b)openCounts[b]=Math.max(0,Number(openCounts[b]||0)-1);if(a)openCounts[a]=Number(openCounts[a]||0)+1;if(b&&!a)openCounts.total=Math.max(0,Number(openCounts.total||0)-1);if(!b&&a)openCounts.total=Number(openCounts.total||0)+1;renderCards()}
+function renderHead(){var h=document.getElementById("gridHead");if(!h)return;if(currentView==="completed")h.innerHTML="<tr><th>Company</th><th>Region</th><th>Scopes</th><th>Executed on</th><th>Auditor</th><th>Hours planned</th><th>Hours dedicated</th><th>Completed date</th><th>Status</th></tr>";else h.innerHTML="<tr><th>Company</th><th>Locations</th><th>Region</th><th>GPS / Map</th><th>Scopes</th><th>Status</th><th>Expiration date</th><th>Planning window</th><th>Self planning</th><th>Date planned</th><th>To be planned</th><th>Hours planned</th><th>Auditor</th><th>Planning 2.0</th><th class=\"alert-head\">Alert</th><th>Actions</th></tr>"}
+function extensionControls(r){var months=Number(r.extensionMonths||r.extMonths||0),applied=!!(r.extensionApplied||r.extApplied),pending=r.statusKey==="PENDING_PLANNING",can=!!r.canExtend||months>0;if(!pending)return "";if(applied)return " <button class=\"ext-act\" data-audit-id=\""+esc(r.auditId)+"\" data-extension=\"undo\" title=\"Restore canonical planning window\">Undo extension</button>";if(!can||months<=0)return "";return " <button class=\"ext-act\" data-audit-id=\""+esc(r.auditId)+"\" data-extension=\"apply\" title=\"Apply canonical planning-window extension\">+"+esc(months)+" mo</button>"}
+function renderOpenRow(r){var raw=r.allowedActions||[],ui=[];if(raw.indexOf("PLAN")>=0)ui.push({key:"plan",label:"Plan"});if(raw.indexOf("APPROVE")>=0)ui.push({key:"approve",label:"Approve"});if(raw.indexOf("CANCEL")>=0)ui.push({key:"cancel",label:"Cancel"});if(raw.indexOf("REJECT")>=0)ui.push({key:"reject",label:"Reject"});var actions=ui.map(function(a){return "<button class=\"act\" data-audit-id=\""+esc(r.auditId)+"\" data-action=\""+esc(a.key)+"\">"+esc(a.label)+"</button>"}).join(""),formalClass=hoursClass(r.requiredHours,r.hoursPlanned),scheduled=Number(r.scheduledHours),scheduledNote=isFinite(scheduled)&&r.scheduledHours!==""?"<div class=\"cell-sub\">scheduled "+esc(text(r.scheduledHours))+" h</div>":"",loc=locationText(r),self=r.allowSelfPlanning===true||String(r.allowSelfPlanning).toLowerCase()==="true"?"Yes":"No",windowText=r.planningWindowText||([r.planningWindowFrom,r.planningWindowTo].filter(Boolean).join(" → "));return "<tr data-audit-id=\""+esc(r.auditId)+"\"><td class=\"company-cell\">"+esc(text(r.company))+"</td><td class=\"locations-cell\" title=\""+esc(loc)+"\">"+esc(text(loc))+"</td><td>"+esc(text(r.region))+"</td>"+mapCell(r)+"<td class=\"scopes-cell\">"+esc(text(r.scopesText))+"</td><td>"+esc(displayStatus(r.status))+"</td><td>"+esc(text(compactDate(effectiveExpiry(r))))+"</td><td class=\"window-cell\"><span>"+esc(text(windowText))+"</span>"+extensionControls(r)+"</td><td>"+self+"</td><td>"+esc(text(compactDate(r.datePlanned)))+"</td><td>"+esc(text(r.requiredHours))+"</td><td class=\""+formalClass+"\">"+esc(text(r.hoursPlanned))+scheduledNote+"</td><td>"+esc(text(r.assignedTo||r.auditor))+"</td><td class=\"planning2-cell\">"+planning2Cell(r)+"</td>"+alertCell(r)+"<td class=\"actions-cell\">"+actions+"</td></tr>"}
+function renderOpen(rows){return rows.map(renderOpenRow).join("")}
+function renderCompleted(rows){return rows.map(function(r){return "<tr><td>"+esc(text(r.company))+"</td><td>"+esc(text(r.region))+"</td><td>"+esc(text(r.scopesText))+"</td><td>"+esc(text(r.executedOn))+"</td><td>"+esc(text(r.auditor))+"</td><td>"+esc(text(r.hoursPlanned))+"</td><td>"+esc(text(r.hoursDedicated))+"</td><td>"+esc(text(r.completedDate))+"</td><td>"+esc(text(r.status||"Completed"))+"</td></tr>"}).join("")}
+function bindActionButtons(root){(root||document).querySelectorAll(".act").forEach(function(button){button.addEventListener("click",function(){runAction(button)})});(root||document).querySelectorAll(".ext-act").forEach(function(button){button.addEventListener("click",function(){runExtension(button)})})}
+function render(rows){renderHead();var body=document.getElementById("rows");if(!rows.length){body.innerHTML="<tr><td class=\"empty\" colspan=\""+(currentView==="completed"?"9":"16")+"\">No audits found</td></tr>";return}body.innerHTML=currentView==="completed"?renderCompleted(rows):renderOpen(rows);if(currentView==="open")bindActionButtons(body)}
+function replaceVisibleRow(auditId,row){var tr=document.querySelector('tr[data-audit-id="'+CSS.escape(auditId)+'"]');if(!tr)return;tr.outerHTML=renderOpenRow(row);var fresh=document.querySelector('tr[data-audit-id="'+CSS.escape(auditId)+'"]');if(fresh)bindActionButtons(fresh)}
+function mergeRowInPlace(auditId,patch){var idx=all.findIndex(function(r){return r.auditId===auditId});if(idx<0)return null;all[idx]=Object.assign({},all[idx],patch);replaceVisibleRow(auditId,all[idx]);return all[idx]}
+function patchRowInPlace(auditId,patch,perf){var idx=all.findIndex(function(r){return r.auditId===auditId});if(idx<0)throw new Error("Audit row not found locally");var before=all[idx],after=Object.assign({},before,patch),beforeKey=before.statusKey,scrollX=window.scrollX,scrollY=window.scrollY,t=performance.now();all[idx]=after;replaceVisibleRow(auditId,after);adjustCounters(beforeKey,after.statusKey);window.scrollTo(scrollX,scrollY);perf.patchMs=Math.round(performance.now()-t);perf.totalMs=Math.round(performance.now()-perf.startedAt);var timing="request "+perf.writeMs+" · GAS HTTP "+perf.gasHttpMs;if(perf.statusTotalMs!=null)timing+=" · status "+perf.statusTotalMs+" [load "+perf.statusLoadMs+" / core "+perf.statusCoreMs+" / notify "+perf.statusNotifyMs+"]";timing+=" · reread "+perf.rereadMs+" · patch "+perf.patchMs+(perf.canonicalRecovery?" · canonical recovery":"")+" · direct-gas-action";document.getElementById("status").textContent=Number(openCounts.total||all.length)+" open audits · action "+perf.totalMs+" ms ("+timing+")";console.info("[MANAGER_ACTION_TIMING]",perf)}
+function rereadAudit(auditId,sourceRow){var url="/api/v1/manager/audit?auditId="+encodeURIComponent(auditId)+(sourceRow?"&sourceRow="+encodeURIComponent(sourceRow):"");return fetch(url,{credentials:'same-origin'}).then(function(r){return r.json().then(function(x){if(!r.ok||x.success===false)throw new Error(x.error||x.message||'Canonical reread failed');return x})})}
+function rereadEnrichedAudit(auditId){return fetch('/api/v1/manager/open-enrichment',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({auditIds:[auditId]})}).then(function(r){return r.json().then(function(x){if(!r.ok||x.success===false)throw new Error(x.error||x.message||'Canonical enriched reread failed');var row=x&&Array.isArray(x.rows)?x.rows[0]:null;if(!row)throw new Error('CANONICAL_ENRICHED_ROW_MISSING');return row})})}
+function runActionDirectGas(auditId,action,options){
+  var started=performance.now();
+  return gasCall('managerV5Action',[auditId,action,options||{}]).then(function(res){
+    if(!res||res.success===false||res.ok===false)throw new Error(res&&res.message?res.message:'Action failed');
+    return {result:res,wallMs:Math.round(performance.now()-started)}
+  })
+}
+function removeRejectedRowInPlace(auditId,perf){
+  var idx=all.findIndex(function(r){return r.auditId===auditId});if(idx<0)return;
+  var before=all[idx],beforeKey=before.statusKey,scrollX=window.scrollX,scrollY=window.scrollY,t=performance.now();
+  all.splice(idx,1);
+  var tr=document.querySelector('tr[data-audit-id="'+CSS.escape(auditId)+'"]');if(tr)tr.remove();
+  adjustCounters(beforeKey,'REJECTED');window.scrollTo(scrollX,scrollY);
+  perf.patchMs=Math.round(performance.now()-t);perf.totalMs=Math.round(performance.now()-perf.startedAt)
+}
+function patchActionLikeV1(auditId,action,reason,result,perf){
+  if(action==='reject'){removeRejectedRowInPlace(auditId,perf);return}
+  var idx=all.findIndex(function(r){return r.auditId===auditId});if(idx<0)throw new Error('Audit row not found locally');
+  var before=all[idx],after=Object.assign({},before),beforeKey=before.statusKey,scrollX=window.scrollX,scrollY=window.scrollY,t=performance.now();
+  if(action==='approve'){
+    after.status='Approved';after.statusKey='APPROVED';after.allowedActions=['CANCEL','REJECT']
+  }else if(action==='cancel'){
+    after.status='Pending Planning';after.statusKey='PENDING_PLANNING';after.allowedActions=['PLAN','REJECT'];
+    after.auditor='';after.assigned='';after.assignedTo='';after.assignedToEmail='';after.datePlanned='';
+    after.hoursPlanned='';after.plannedHours='';after.scheduledHours='';after.planningJson='';after.planningSummary=null;after.plannedDates=[];after.plannedTooltip='';
+    after.managerComment=reason;after.managerDecision='CANCEL';after.latestComment=reason;after.latestCommentActor='Manager';after.latestCommentAction='CANCEL'
+  }
+  all[idx]=after;replaceVisibleRow(auditId,after);adjustCounters(beforeKey,after.statusKey);window.scrollTo(scrollX,scrollY);
+  perf.patchMs=Math.round(performance.now()-t);perf.totalMs=Math.round(performance.now()-perf.startedAt)
+}
+function runAction(button){
+  var auditId=button.getAttribute("data-audit-id"),action=button.getAttribute("data-action"),row=all.find(function(r){return r.auditId===auditId});
+  if(busyAudits.has(auditId))return;
+  if(action==="plan"){window.location.href=gasUrl('planningworkspace',{auditId:auditId});return}
+  var reason="";
+  if(action==="cancel"||action==="reject"){
+    reason=window.prompt((action==="cancel"?"Cancel":"Reject")+" audit "+auditId+"\nComment:");
+    if(reason===null)return;reason=reason.trim();if(!reason){window.alert("Comment is required.");return}
+  }else if(!window.confirm(action.toUpperCase()+" audit "+auditId+"?"))return;
+  busyAudits.add(auditId);
+  var tr=button.closest("tr");if(tr)tr.querySelectorAll(".act,.ext-act").forEach(function(b){b.disabled=true});
+  var perf={auditId:auditId,action:action,startedAt:performance.now(),rpcMs:0,gasMs:null,patchMs:0},options={reason:reason,comment:reason,rowIndex:row&&row.sourceRow};
+  runActionDirectGas(auditId,action,options)
+    .then(function(x){
+      perf.rpcMs=Number(x.wallMs||0);
+      var wr=x.result||{},gas=Number(wr&&wr.perf&&wr.perf.managerActionAdapterMs);
+      if(isFinite(gas))perf.gasMs=Math.round(gas);
+      patchActionLikeV1(auditId,action,reason,wr,perf);
+      document.getElementById("status").textContent=Number(openCounts.total||all.length)+" open audits · action "+perf.totalMs+" ms (RPC "+perf.rpcMs+" · GAS "+(perf.gasMs==null?"-":perf.gasMs)+" · patch "+perf.patchMs+" · top-level-google-script-run)";
+      console.info("[MANAGER_ACTION_TIMING]",perf)
+    })
+    .catch(function(e){
+      window.alert('Canonical action failed: '+e.message);
+      if(tr)tr.querySelectorAll(".act,.ext-act").forEach(function(b){b.disabled=false});
+    })
+    .finally(function(){busyAudits.delete(auditId)})
+}
+function extensionAppliedState(r){return !!(r&&(r.extensionApplied||r.extApplied))}
+function runExtension(button){
+  var auditId=button.getAttribute("data-audit-id"),command=button.getAttribute("data-extension");
+  if(busyAudits.has(auditId))return;
+  var row=all.find(function(r){return r.auditId===auditId});if(!row)return;
+  if(!window.confirm((command==="undo"?"Undo":"Apply")+" planning-window extension for "+row.company+"?"))return;
+  busyAudits.add(auditId);var tr=button.closest("tr"),sx=window.scrollX,sy=window.scrollY,started=performance.now();
+  if(tr)tr.querySelectorAll(".act,.ext-act").forEach(function(b){b.disabled=true});
+  gasCall(command==='undo'?'v5_undoExtension':'v5_applyExtension',[auditId])
+    .then(function(res){
+      if(!res||res.success===false)throw new Error(res&&res.message?res.message:'Extension failed');
+      return gasCall('getManagerV5OpenEnriched',[])
+    })
+    .then(function(x){
+      var patch=(x&&x.rows||[]).find(function(r){return r&&r.auditId===auditId});
+      if(patch)mergeRowInPlace(auditId,patch);
+      window.scrollTo(sx,sy);
+      document.getElementById("status").textContent=Number(openCounts.total||all.length)+" open audits · extension "+command+" "+Math.round(performance.now()-started)+" ms"
+    })
+    .catch(function(e){
+      window.alert('Extension failed: '+e.message);
+      if(tr)tr.querySelectorAll(".act,.ext-act").forEach(function(b){b.disabled=false})
+    })
+    .finally(function(){busyAudits.delete(auditId)})
+}
+function searchable(r){if(currentView==="completed")return[r.auditId,r.company,r.region,r.scopesText,r.status,r.auditor,r.executedOn,r.completedDate,r.hoursPlanned,r.hoursDedicated].join(" ").toLowerCase();return[r.auditId,r.company,locationText(r),r.region,r.scopesText,r.status,r.assignedTo,r.planningWindowText,r.requiredHours,r.hoursPlanned,r.scheduledHours,r.datePlanned,effectiveExpiry(r),r.conceptMonth,r.hasProvisionalPlanning?"provisional":"",r.latestComment].join(" ").toLowerCase()}
+function filter(){var z=document.getElementById("q").value.toLowerCase().trim();render(!z?all:all.filter(function(r){return searchable(r).indexOf(z)>=0}))}
+function setTabs(){document.getElementById("completedView").style.background=currentView==="completed"?"#dbeafe":"white";document.getElementById("openView").style.background=currentView==="open"?"#dbeafe":"white"}
+function loadOpenEnrichment(seq){
+  var sx=window.scrollX,sy=window.scrollY,started=performance.now();
+  return gasCall('getManagerV5OpenEnriched',[]).then(function(x){
+    if(seq!==enrichmentSeq||currentView!=="open")return;
+    if(!x||x.success===false)throw new Error(x&&x.message?x.message:'Open audit enrichment failed');
+    var by={};(x.rows||[]).forEach(function(r){if(r&&r.auditId)by[r.auditId]=r});
+    all.forEach(function(r,i){if(by[r.auditId])all[i]=Object.assign({},r,by[r.auditId])});
+    filter();window.scrollTo(sx,sy);
+    document.getElementById("status").textContent=all.length+" open audits · decision-ready "+Math.round(performance.now()-started)+" ms enrichment"
+  }).catch(function(e){
+    if(seq!==enrichmentSeq)return;
+    console.warn('[OPEN_AUDITS_ENRICHMENT]',e);
+    document.getElementById("status").textContent=all.length+" open audits · base loaded; enrichment unavailable"
+  })
+}
+function loadOpen(){
+  currentView="open";var seq=++enrichmentSeq,started=performance.now();
+  return gasCall('getManagerV5Open',[]).then(function(x){
+    if(!x||x.success===false)throw new Error(x&&x.message?x.message:"Read failed");
+    all=(x.rows||[]).slice();
+    openCounts=Object.assign({total:all.length,pendingPlanning:0,pendingApproval:0,approved:0,accepted:0},x.counts||{});
+    document.getElementById("status").className="";
+    document.getElementById("status").textContent=all.length+" open audits · "+Math.round(performance.now()-started)+" ms base";
+    renderCards();setTabs();filter();return loadOpenEnrichment(seq)
+  }).catch(fail)
+}
+function loadCompleted(){
+  currentView="completed";++enrichmentSeq;var started=performance.now();
+  return gasCall('getManagerV5Archived',[]).then(function(a){
+    if(!a||a.success===false)throw new Error(a&&a.message?a.message:"Read failed");
+    all=(a.rows||[]).slice();
+    document.getElementById("status").className="";
+    document.getElementById("status").textContent=all.length+" completed audits · "+Math.round(performance.now()-started)+" ms";
+    document.getElementById("cards").innerHTML="";setTabs();filter()
+  }).catch(fail)
+}
+function fail(e){var z=document.getElementById("status");z.className="err";z.textContent=e.message}
+document.getElementById("identity").textContent=MANAGER2_CTX.email+" · "+MANAGER2_CTX.env;
+document.getElementById("q").addEventListener("input",filter);document.getElementById("reset").onclick=function(){document.getElementById("q").value="";render(all)};document.getElementById("openView").onclick=loadOpen;document.getElementById("completedView").onclick=loadCompleted;var workspace=document.getElementById("planningWorkspace");if(workspace){workspace.disabled=true;workspace.title="Open Single Planning from an audit row; no canonical Planning Workspace overview route is available yet"}
+loadOpen();
+})();
+</script>
+</body></html>

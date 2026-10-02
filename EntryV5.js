@@ -136,6 +136,29 @@ function V5_ENTRY_authJson_(p, expectedRole, onOk) {
 function doGet(e) {
   var p = (e && e.parameter) ? e.parameter : {};
   var runtimeEnv = V5_ENTRY_captureEnv_(p); p.env = runtimeEnv;
+  var rawAction = String(p.action || '').trim().toLowerCase();
+
+  // Canonical Manager 2.0 warm relay route.
+  // Own this route explicitly here; do not depend on cross-file doGet overrides.
+  if (rawAction === 'externalmanageractionrelay') {
+    if (typeof ExternalManagerActionRelay_verify_ !== 'function' ||
+        typeof ExternalManagerActionRelay_render_ !== 'function' ||
+        typeof ExternalManagerActionRelay_errorHtml_ !== 'function') {
+      return HtmlService.createHtmlOutput('<pre>MANAGER_ACTION_RELAY_OWNER_UNAVAILABLE</pre>')
+        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    }
+    var relayVerified = ExternalManagerActionRelay_verify_(p);
+    if (!relayVerified || relayVerified.ok !== true) {
+      return HtmlService.createHtmlOutput(
+        ExternalManagerActionRelay_errorHtml_(
+          relayVerified && relayVerified.error ? relayVerified.error : 'RELAY_FAILED',
+          p.origin
+        )
+      ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    }
+    return ExternalManagerActionRelay_render_(relayVerified);
+  }
+
   var action = V5_ENTRY_normAction_(p.action);
   if (action === 'auditoravailability' && String(p.format || '').toLowerCase() === 'json') {
     return V5_ENTRY_authJson_(p, 'Auditor', function() {
@@ -156,8 +179,8 @@ function doGet(e) {
     });
   }
   if (String(p.action || '').trim()) {
-    var rawAction = String(p.action || '').trim().toLowerCase();
-    if (rawAction === 'manageroverview' || rawAction === 'overview' || rawAction === 'manageroverviewui' || rawAction === 'overviewui' || rawAction === 'manageroverviewcommand' || rawAction === 'overviewcommand') {
+    var rawAction2 = String(p.action || '').trim().toLowerCase();
+    if (rawAction2 === 'manageroverview' || rawAction2 === 'overview' || rawAction2 === 'manageroverviewui' || rawAction2 === 'overviewui' || rawAction2 === 'manageroverviewcommand' || rawAction2 === 'overviewcommand') {
       return HtmlService.createHtmlOutput('<script>location.replace(' + JSON.stringify((function(){ try { return ScriptApp.getService().getUrl(); } catch(e0){ return ''; } })() + '?action=manager&ts=' + Date.now()) + ');</script>').setTitle(V5_ENTRY_browserTitle_('manager','Manager'));
     }
   }

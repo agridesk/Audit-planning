@@ -914,6 +914,60 @@ function V5_ping() {
   };
 }
 
+function RUN_V5_AUTH_LOGIN_DELIVERY_DIAG(email) {
+  email = normEmail_(email || 'planning@agriqa.es');
+  var ss = V5_AUTH_getSs_();
+  var sh = ss.getSheetByName('Auth_Login_Codes');
+  if (!sh || sh.getLastRow() < 2) return { ok:true, email:email, rows:[], message:'No login-code rows' };
+
+  var values = sh.getDataRange().getValues();
+  var headers = values[0] || [];
+  var idx = {};
+  for (var i=0;i<headers.length;i++) idx[String(headers[i]||'').trim()] = i;
+
+  function pick_(row,names){
+    for(var n=0;n<names.length;n++){
+      if(Object.prototype.hasOwnProperty.call(idx,names[n])) return row[idx[names[n]]];
+    }
+    return '';
+  }
+
+  var rows = [];
+  for (var r=values.length-1; r>=1 && rows.length<10; r--) {
+    var row = values[r] || [];
+    var rowEmail = normEmail_(pick_(row,['Email','email']));
+    if (rowEmail !== email) continue;
+    rows.push({
+      rowNumber:r+1,
+      createdAt:String(pick_(row,['Created_At','Created At','Timestamp','Created']) || ''),
+      expiresAt:String(pick_(row,['Expires_At','Expires At','Expiry']) || ''),
+      used:String(pick_(row,['Used','Used_At','Used At']) || ''),
+      revoked:String(pick_(row,['Revoked','Revoked_At','Revoked At']) || ''),
+      mailStatus:String(pick_(row,['Mail_Status','Mail Status','Status']) || ''),
+      mailProviderId:String(pick_(row,['Mail_Provider_ID','Mail Provider ID','Provider_ID','Provider ID']) || ''),
+      mailError:String(pick_(row,['Mail_Error','Mail Error','Error']) || '')
+    });
+  }
+
+  var gateway = {};
+  try { if (typeof RUN_NOTIFICATIONMAILGATEWAY_DIAGNOSTICS === 'function') gateway = RUN_NOTIFICATIONMAILGATEWAY_DIAGNOSTICS() || {}; } catch(eGateway) { gateway={ok:false,error:String(eGateway&&eGateway.message?eGateway.message:eGateway)}; }
+
+  return {
+    ok:true,
+    build:'2026-10-02_AUTH_LOGIN_DELIVERY_DIAG_R1',
+    email:email,
+    rows:rows,
+    gateway:{
+      ok:gateway.ok,
+      provider:gateway.provider,
+      identity:gateway.identity,
+      resendApiKeyPresent:!!(gateway.scriptProperties && gateway.scriptProperties.resendApiKeyPresent),
+      activeEnv:gateway.activeEnv,
+      notificationMode:gateway.notificationMode
+    }
+  };
+}
+
 function RUN_V5_AUTH_OTP_STORE_DIAG() {
   var ss = (function () {
     var id = "";

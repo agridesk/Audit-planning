@@ -132,13 +132,13 @@ function runAction(button){
   busyAudits.add(auditId);
   var tr=button.closest("tr");if(tr)tr.querySelectorAll(".act,.ext-act").forEach(function(b){b.disabled=true});
   var perf={auditId:auditId,action:action,startedAt:performance.now(),workerMs:0,gasMs:null,patchMs:0},wt=performance.now(),options={reason:reason,comment:reason,rowIndex:row&&row.sourceRow,expectedRevision:row&&row.sourceRevision};
-  var actionPromise=action==='cancel'?runActionViaCloudRun(auditId,action,options):runActionViaWarmWorker(auditId,action,options);
+  var actionPromise=(action==='cancel'||action==='reject')?runActionViaCloudRun(auditId,action,options):runActionViaWarmWorker(auditId,action,options);
   actionPromise
     .then(function(x){
       perf.workerMs=Math.round(performance.now()-wt);
       var wr=x.result||{},gas=Number(wr&&wr.perf&&wr.perf.managerActionAdapterMs),trace=x.trace||{},nowEpoch=Date.now();
       if(isFinite(gas))perf.gasMs=Math.round(gas);
-      if(wr&&wr.owner==='CLOUD_RUN_DIRECT_MANAGER_CANCEL')perf.cloudRunMs=Number(wr.totalMs)||null;
+      if(wr&&(wr.owner==='CLOUD_RUN_DIRECT_MANAGER_CANCEL'||wr.owner==='CLOUD_RUN_DIRECT_MANAGER_REJECT'))perf.cloudRunMs=Number(wr.totalMs)||null;
       perf.traceId=String(trace.requestId||wr&&wr.perf&&wr.perf.requestId||'');
       perf.browserToWorkerMs=(trace.workerReceivedAt&&trace.clientSentAt)?Math.max(0,Number(trace.workerReceivedAt)-Number(trace.clientSentAt)):null;
       perf.workerPreRpcMs=(trace.rpcStartedAt&&trace.workerReceivedAt)?Math.max(0,Number(trace.rpcStartedAt)-Number(trace.workerReceivedAt)):null;
@@ -148,8 +148,8 @@ function runAction(button){
       var st=wr&&wr.statusPerf||{},core=wr&&wr.actionPerf||{};
       perf.statusPerf=st;perf.actionPerf=core;
       var coreDetail="avail "+(core.availabilityMs==null?"-":core.availabilityMs)+" / reset "+(core.resetPlanningMs==null?"-":core.resetPlanningMs)+" / statuswrite "+(core.statusWriteMs==null?"-":core.statusWriteMs)+" / lifecycle "+(core.lifecycleMs==null?"-":core.lifecycleMs)+" / cache "+(core.cacheInvalidationMs==null?"-":core.cacheInvalidationMs)+(core.archiveMs==null?"":" / archive "+core.archiveMs);
-      document.getElementById("status").textContent=wr&&wr.owner==='CLOUD_RUN_DIRECT_MANAGER_CANCEL'
-        ? Number(openCounts.total||all.length)+" open audits · CANCEL "+perf.totalMs+" ms (Cloud Run "+(perf.cloudRunMs==null?"-":perf.cloudRunMs)+" · read "+(wr.readMs==null?"-":wr.readMs)+" · write "+(wr.writeMs==null?"-":wr.writeMs)+" · queue "+(wr.sideEffectMs==null?"-":wr.sideEffectMs)+" · availability rows "+(wr.availabilityRows==null?"-":wr.availabilityRows)+" · patch "+perf.patchMs+")"
+      document.getElementById("status").textContent=wr&&(wr.owner==='CLOUD_RUN_DIRECT_MANAGER_CANCEL'||wr.owner==='CLOUD_RUN_DIRECT_MANAGER_REJECT')
+        ? Number(openCounts.total||all.length)+" open audits · "+String(action||"").toUpperCase()+" "+perf.totalMs+" ms (Cloud Run "+(perf.cloudRunMs==null?"-":perf.cloudRunMs)+" · read "+(wr.readMs==null?"-":wr.readMs)+" · archive "+(wr.archiveMs==null?"-":wr.archiveMs)+" · write "+(wr.writeMs==null?"-":wr.writeMs)+" · delete "+(wr.deleteMs==null?"-":wr.deleteMs)+" · queue "+(wr.sideEffectMs==null?"-":wr.sideEffectMs)+" · availability rows "+(wr.availabilityRows==null?"-":wr.availabilityRows)+" · patch "+perf.patchMs+")"
         : Number(openCounts.total||all.length)+" open audits · action "+perf.totalMs+" ms (worker "+perf.workerMs+" · GAS "+(perf.gasMs==null?"-":perf.gasMs)+" · b→w "+(perf.browserToWorkerMs==null?"-":perf.browserToWorkerMs)+" · preRPC "+(perf.workerPreRpcMs==null?"-":perf.workerPreRpcMs)+" · RPC "+(perf.workerRpcWallMs==null?"-":perf.workerRpcWallMs)+" · w→b "+(perf.workerToBrowserMs==null?"-":perf.workerToBrowserMs)+" · status "+(st.totalMs==null?"-":st.totalMs)+" [guard "+(st.writeGuardMs==null?"-":st.writeGuardMs)+" / load "+(st.loadAuditMs==null?"-":st.loadAuditMs)+" / core "+(st.coreMs==null?"-":st.coreMs)+" / notify "+(st.notificationOnlyMs==null?"-":st.notificationOnlyMs)+"] · "+coreDetail+" · patch "+perf.patchMs+" · trace "+(perf.traceId||"-")+")";
       console.info("[MANAGER_ACTION_TIMING]",perf)
     })

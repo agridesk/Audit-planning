@@ -96,16 +96,29 @@ function runAction(button){
   var tr=button.closest("tr");
   if(tr)tr.querySelectorAll(".act,.ext-act").forEach(function(b){b.disabled=true});
   var perf={auditId:auditId,action:action,startedAt:performance.now(),writeMs:0,rereadMs:0,patchMs:0},wt=performance.now(),options={reason:reason,comment:reason};
-  startActionRelay(auditId,action,options)
-    .then(function(){
+  var direct=(action==="cancel"||action==="reject");
+  var request=direct
+    ? fetch('/api/v1/manager/action-direct',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({auditId:auditId,action:action,sourceRow:row&&row.sourceRow,options:options})})
+        .then(function(r){return r.json().then(function(x){if(!r.ok||x.success===false)throw new Error(x.error||x.message||'Direct canonical action failed');return x})})
+    : startActionRelay(auditId,action,options).then(function(){
+        return pollActionCanonical(auditId,row&&row.sourceRow,action,20000).then(function(patch){return{success:true,patch:patch,perf:{}}})
+      });
+  request
+    .then(function(x){
       perf.writeMs=Math.round(performance.now()-wt);
-      var t=performance.now();
-      return pollActionCanonical(auditId,row&&row.sourceRow,action,20000).then(function(patch){
-        perf.rereadMs=Math.round(performance.now()-t);
-        if(patch&&patch.rejected)removeRejectedRowInPlace(auditId,perf);else patchRowInPlace(auditId,patch,perf);
-        document.getElementById("status").textContent=Number(openCounts.total||all.length)+" open audits · action "+perf.totalMs+" ms (start "+perf.writeMs+" · confirm "+perf.rereadMs+" · patch "+perf.patchMs+" · signed-gas-fire-and-confirm)";
-        return patch
-      })
+      var p=x&&x.perf||{};
+      perf.rereadMs=Math.round(Number(p.rereadMs)||0);
+      if(action==="reject"&&(x.rejected||x.patch&&x.patch.rejected))removeRejectedRowInPlace(auditId,perf);
+      else{
+        var patch=x.patch||x;
+        patchRowInPlace(auditId,patch,perf)
+      }
+      perf.totalMs=Math.round(performance.now()-perf.startedAt);
+      if(direct){
+        document.getElementById("status").textContent=Number(openCounts.total||all.length)+" open audits · action "+perf.totalMs+" ms (server "+Math.round(Number(p.requestTotalMs||p.totalMs)||perf.writeMs)+" · availability "+Math.round(Number(p.availabilityMs)||0)+" · reread "+perf.rereadMs+" · patch "+perf.patchMs+" · direct-sheets-api)"
+      }else{
+        document.getElementById("status").textContent=Number(openCounts.total||all.length)+" open audits · action "+perf.totalMs+" ms (approve relay)"
+      }
     })
     .catch(function(e){
       window.alert('Canonical action failed: '+e.message);

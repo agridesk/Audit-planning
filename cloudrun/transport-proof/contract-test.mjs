@@ -36,7 +36,7 @@ const checks=[
 
  ['notification duplicate lookup avoids wide queue-row reads',notificationBuilder.includes('hashRange.createTextFinder(hash)')&&notificationBuilder.includes('statusValues')&&!notificationBuilder.includes("getRange(rowNoFast, 2).getDisplayValue()")],
  ['manager PLAN notification diagnostics stay off save hot path',statusBridge.includes("Status_normalizeAction_(action) === ACTION.PLAN")&&statusBridge.includes("Status_normalizeRole_(actor) === ROLE.MANAGER")],
- ['PLAN status phase diagnostics exposed',statusMachine.includes("__statusStamp_('loadAuditMs')")&&statusMachine.includes("__statusStamp_('applyActionMs')")&&statusMachine.includes("__statusStamp_('notificationMs')")&&backend.includes('statusPerf: actionResult && actionResult.statusPerf')],
+ ['PLAN status phase diagnostics exposed',statusMachine.includes('__statusPerf.loadAuditMs')&&statusMachine.includes('__statusPerf.applyActionMs')&&statusMachine.includes('__statusPerf.notificationMs')&&backend.includes('statusPerf: actionResult && actionResult.statusPerf')],
  ['save diagnostics attached after final timing stamp',backend.indexOf("__stamp('tail_returnReady')")<backend.indexOf('res.debugTiming = __dbg')],
  ['availability save lookup uses one bounded Date+Auditor index read',availabilityLoader.includes('boundedReadMs')&&!availabilityLoader.includes('createTextFinder')&&availabilityLoader.includes('getValues()')],
  ['r5 focused planning route',r5.includes("u.pathname==='/planning'")&&r5.includes('planningHtml(auditId)')],

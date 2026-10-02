@@ -256,16 +256,108 @@ async function directRotationRead(auditId,auditorEmail){
 }
 
 async function canonicalManagerAction(identity,body){
-  if(!GAS_WRITE_URL||!WRITE_KEY)throw new Error('WRITE_BRIDGE_NOT_CONFIGURED');
   const auditId=clean(body?.auditId),managerAction=clean(body?.action).toLowerCase();
   if(!auditId||!['approve','cancel','reject'].includes(managerAction))throw new Error('INVALID_MANAGER_ACTION_REQUEST');
   const options=body?.options&&typeof body.options==='object'?body.options:{};
   if((managerAction==='cancel'||managerAction==='reject')&&!clean(options.reason||options.comment))throw new Error('ACTION_REASON_REQUIRED');
+  if(managerAction==='cancel')return directManagerCancel(identity,body);
+  if(!GAS_WRITE_URL||!WRITE_KEY)throw new Error('WRITE_BRIDGE_NOT_CONFIGURED');
   const writeUrl=new URL(GAS_WRITE_URL);writeUrl.searchParams.set('action','externalmanageraction');
   const r=await fetch(writeUrl,{method:'POST',headers:{'content-type':'application/json'},redirect:'follow',body:JSON.stringify({bridgeKey:WRITE_KEY,auditId,managerAction,actorEmail:clean(identity.email).toLowerCase(),options})});
   const raw=await r.text();let out;try{out=JSON.parse(raw)}catch{throw new Error('WRITE_BRIDGE_NON_JSON_'+r.status)}
   if(!r.ok)throw new Error('WRITE_BRIDGE_HTTP_'+r.status);return out;
 }
+
+const DIRECT_MANAGER_ACTION_LOCKS=new Map();
+async function withDirectManagerActionLock(auditId,fn){
+  const key='MANAGER_ACTION|'+clean(auditId),prev=DIRECT_MANAGER_ACTION_LOCKS.get(key)||Promise.resolve();let release;
+  const gate=new Promise(r=>release=r),chain=prev.then(()=>gate);DIRECT_MANAGER_ACTION_LOCKS.set(key,chain);await prev;
+  try{return await fn();}finally{release();if(DIRECT_MANAGER_ACTION_LOCKS.get(key)===chain)DIRECT_MANAGER_ACTION_LOCKS.delete(key);}
+}
+function directStatusKey(v){return clean(v).toUpperCase().replace(/[\s-]+/g,'_');}
+function directRowRevision(h,row){
+  const g=n=>val(row,col(h,n));
+  return createHash('sha256').update([
+    g(['Audit ID','Audit_ID','AuditId','Audit Id']),
+    g(['Status']),
+    g(['Assigned to','Assigned auditor','Auditor']),
+    g(['Planning JSON','Planning_JSON']),
+    g(['Last decision timestamp']),
+    g(['Status since'])
+  ].join('|')).digest('hex').slice(0,24);
+}
+function directResolveAuditorEmail(audValues,assigned){
+  const a=clean(assigned).toLowerCase();if(!a)return'';
+  if(a.includes('@'))return a;
+  if(!audValues?.length)return'';
+  const h=audValues[0],ce=col(h,['Email','E-mail','Auditor Email','Auditor email']),cn=col(h,['Name','Auditor','Auditor Name','Display name']);
+  if(ce<0)return'';
+  for(const r of audValues.slice(1)){
+    const email=val(r,ce).toLowerCase(),name=cn>=0?val(r,cn).toLowerCase():'';
+    if(email===a||name===a)return email;
+  }
+  return'';
+}
+function directSoftAvailabilityStatus(v){
+  const s=clean(v).toUpperCase();
+  return s==='SYSTEM_DEFAULT'||s==='USER_MANUAL'||s==='CALENDAR'||s==='CALENDER'||s.startsWith('DEFAULT_')||s.startsWith('MANUAL_');
+}
+async function directManagerCancel(identity,body){
+  const started=Date.now(),auditId=clean(body?.auditId),options=body?.options&&typeof body.options==='object'?body.options:{},reason=clean(options.reason||options.comment),expectedRevision=clean(options.expectedRevision||body?.expectedRevision);
+  if(!auditId)throw new Error('AUDIT_ID_REQUIRED');
+  if(!reason)throw new Error('ACTION_REASON_REQUIRED');
+  return withDirectManagerActionLock(auditId,async()=>{
+    const readStarted=Date.now(),vr=await sheetsBatchGet(['Audit planning!A1:AX483','Auditor Availability!A:P','Auditors!A1:Z256']),readMs=Date.now()-readStarted;
+    const ap=vr[0]?.values||[],found=findAudit(ap,auditId);if(!found)throw new Error('AUDIT_NOT_FOUND');
+    const h=found.h,row=found.row.slice(),statusCol=col(h,['Status']),beforeStatus=statusCol>=0?clean(row[statusCol]):'',beforeKey=directStatusKey(beforeStatus);
+    if(!['PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(beforeKey))throw new Error('STATUS_TRANSITION_BLOCKED');
+    const revision=directRowRevision(h,row);if(expectedRevision&&revision!==expectedRevision)throw new Error('MANAGER_ACTION_SOURCE_REVISION_CONFLICT');
+    const assignedCol=col(h,['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned']),assignedBefore=assignedCol>=0?clean(row[assignedCol]):'',recipientEmail=directResolveAuditorEmail(vr[2]?.values||[],assignedBefore);
+    const company=val(row,col(h,['Company'])),now=isoLocalStamp(),set=(names,value)=>{const i=col(h,names);if(i>=0)row[i]=value;};
+    for(const names of [
+      ['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned'],
+      ['Date - Planned','Date – Planned','Date planned','Date Planned'],
+      ['Date - Approved','Date – Approved','Date approved','Date Approved'],
+      ['Audit days textual'],
+      ['Planning JSON','PlanningJSON','Planning'],
+      ['Hours planned','Planned hours','Hours Planned']
+    ])set(names,'');
+    set(['Status'],'Pending Planning');
+    set(['Status since'],now);
+    set(['Last manager decision'],'CANCEL');
+    set(['Last decision timestamp'],now);
+    set(['Manager comment (last)'],reason);
+
+    const av=vr[1]?.values||[],ah=av[0]||[],ca=col(ah,['Available']),s1=col(ah,['First_Audit_Start_Time']),e1=col(ah,['First_Audit_End_Time']),id1=col(ah,['Audit_ID_1']),s2=col(ah,['Second_Audit_Start_Time']),e2=col(ah,['Second_Audit_End_Time']),id2=col(ah,['Audit_ID_2']),st1=col(ah,['Status_1']),st2=col(ah,['Status_2']),lu=col(ah,['Last_Updated']);
+    if(id1<0&&id2<0)throw new Error('AVAILABILITY_SCHEMA_INVALID');
+    const writes=[{range:'Audit planning!A'+found.sourceRow+':'+a1col(h.length)+found.sourceRow,values:[row]}];
+    let availabilityRows=0;
+    for(let i=1;i<av.length;i++){
+      const r=(av[i]||[]).slice();while(r.length<ah.length)r.push('');let changed=false;
+      if(id1>=0&&clean(r[id1])===auditId){if(s1>=0)r[s1]='';if(e1>=0)r[e1]='';r[id1]='';if(st1>=0)r[st1]='';changed=true;}
+      if(id2>=0&&clean(r[id2])===auditId){if(s2>=0)r[s2]='';if(e2>=0)r[e2]='';r[id2]='';if(st2>=0)r[st2]='';changed=true;}
+      if(!changed)continue;
+      const has1=id1>=0&&clean(r[id1]),has2=id2>=0&&clean(r[id2]),soft=directSoftAvailabilityStatus(st1>=0?r[st1]:'')||directSoftAvailabilityStatus(st2>=0?r[st2]:'');
+      if(ca>=0)r[ca]=(has1||has2||soft)?'NO':'YES';if(lu>=0)r[lu]=now.slice(0,16);
+      writes.push({range:'Auditor Availability!A'+(i+1)+':'+a1col(ah.length)+(i+1),values:[r]});availabilityRows++;
+    }
+
+    const writeStarted=Date.now();await sheetsValuesBatchUpdate(writes);const writeMs=Date.now()-writeStarted;
+    const actorEmail=clean(identity?.email).toLowerCase(),minuteStamp=now.slice(0,16),afterStatus='Pending Planning';
+    const trailPayload={type:'LIFECYCLE_STATUS_CHANGED',auditId,company,actorEmail,actorRole:'MANAGER',beforeStatus,afterStatus,reason,source:'CLOUD_RUN_DIRECT_MANAGER_CANCEL',timestamp:now,action:'CANCEL'};
+    const trailBody=JSON.stringify(trailPayload),trailHash=createHash('md5').update('LIFECYCLE_STATUS_CHANGED|'+auditId+'|'+now+'|'+afterStatus).digest('hex');
+    const queueRows=[[minuteStamp,'AUDIT_TRAIL','LIFECYCLE_STATUS_CHANGED','',auditId,company,'[TRAIL] LIFECYCLE_STATUS_CHANGED :: '+auditId,trailBody,0,'',trailHash,'',JSON.stringify({payload:trailPayload})]];
+    if(recipientEmail){
+      const cancelPayload={eventType:'AUDIT_CANCELLED_BY_MANAGER',eventFamily:'RICH_OPERATIONAL',rendererProfile:'RICH_OPERATIONAL',deliveryProfile:'IMMEDIATE_RICH',company,auditId,actor:actorEmail,actorRole:'MANAGER',recipientRole:'AUDITOR',recipientGroup:'AUDITOR',recipientEmail,resultStatus:afterStatus,displayStatus:afterStatus,comment:reason,assignedAuditor:assignedBefore,config:{active:true,sendEmail:true,logOnly:false,consolidate:false,bufferMinutes:0,digestGroup:'AUDITOR_OPERATIONAL',templateFamily:'RICH_OPERATIONAL',templateKeyDefault:'AUDIT_CANCELLED_BY_MANAGER',fromEmail:'planning@agriqa.es',fromName:'Agri Quality Assurance – Audit Planning',replyTo:'',includeComment:true,requireReason:true}};
+      const bodyText=['Audit cancelled by manager','Company: '+company,'Audit ID: '+auditId,'Comment: '+reason].join('\\n'),hash=createHash('md5').update(recipientEmail+'|AUDIT_CANCELLED_BY_MANAGER|'+auditId+'|'+now).digest('hex');
+      queueRows.push([minuteStamp,'PENDING','AUDIT_CANCELLED_BY_MANAGER',recipientEmail,auditId,company,'Audit cancelled by manager – '+company+' – '+auditId,bodyText,0,'',hash,'',JSON.stringify({payload:cancelPayload})]);
+    }
+    let sideEffectQueue={success:true};const sideStarted=Date.now();try{await sheetsValuesAppend('Notification Queue!A:M',queueRows);}catch(e){sideEffectQueue={success:false,error:clean(e?.message||e)}}
+    const sideEffectMs=Date.now()-sideStarted;
+    return{success:true,auditId,action:'CANCEL',beforeStatus,newStatus:'Pending Planning',afterStatus:'PENDING_PLANNING',afterStatusDisplay:'Pending Planning',assignedTo:'',planningJson:'',hoursPlanned:0,directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_CANCEL',readMs,writeMs,writeCount:writes.length,availabilityRows,sideEffectMs,sideEffectQueue,totalMs:Date.now()-started};
+  });
+}
+
 const DIRECT_PLAN_LOCKS=new Map();
 async function withDirectPlanLock(auditId,fn){
   // PLAN mutates shared auditor/date capacity. Serialize all PLAN commits inside

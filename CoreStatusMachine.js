@@ -230,23 +230,29 @@ function Status_applyAction(actor, action, auditId, payload) {
   try {
     if (!auditId) return Status_fail_('Missing auditId');
 
+    var __guardT0 = Date.now();
     var writeGuard = (action === ACTION.PLAN && payload.writeGuardAlreadyPassed === true)
       ? { success:true, ok:true, code:'CANONICAL_PLANNING_WRITER_GUARD' }
       : Status_checkDevWriteGuard_(action, auditId);
+    __statusPerf.writeGuardMs = Date.now() - __guardT0;
     if (!writeGuard.ok) return writeGuard;
 
+    var __loadT0 = Date.now();
     var ctx = Status_loadAudit_(auditId, payload && payload.rowIndex);
-    __statusStamp_('loadAuditMs');
+    __statusPerf.loadAuditMs = Date.now() - __loadT0;
     if (!ctx.found) return ctx.error;
 
 
+    var __transitionT0 = Date.now();
     var transition = Status_requireTransition_({
       status: ctx.status,
       action: action,
       role: actor
     });
+    __statusPerf.transitionMs = Date.now() - __transitionT0;
 
     var result;
+    var __coreT0 = Date.now();
     switch (action) {
       case ACTION.PLAN:
         result = Status_applyPlan_(ctx, transition, payload, actor, action);
@@ -273,11 +279,13 @@ function Status_applyAction(actor, action, auditId, payload) {
         return Status_fail_('Unknown action: ' + action);
     }
 
-    __statusStamp_('applyActionMs');
+    __statusPerf.coreMs = Date.now() - __coreT0;
+    __statusPerf.applyActionMs = Date.now() - __statusT0;
     if (result && result.lifecycle && result.lifecycle.__perf) __statusPerf.lifecycle = result.lifecycle.__perf;
     // Notification dispatch is best-effort and must not add duplicate synchronous
     // Diagnostics_Log sheet writes to the user-action hot path. The bridge owns
     // its own targeted diagnostics for queue failures and exceptional branches.
+    var __notifyT0 = Date.now();
     if (result && result.success === true) {
       try {
         // Manager PLAN is already durably represented by the canonical row,
@@ -299,7 +307,8 @@ function Status_applyAction(actor, action, auditId, payload) {
                    ' err=' + notifyMsg);
       }
     }
-    __statusStamp_('notificationMs');
+    __statusPerf.notificationOnlyMs = Date.now() - __notifyT0;
+    __statusPerf.notificationMs = Date.now() - __statusT0;
     __statusPerf.totalMs = Date.now() - __statusT0;
     if (result && typeof result === 'object') result.statusPerf = __statusPerf;
     return result;
@@ -571,6 +580,7 @@ function Status_applySimpleStatusWrite_(ctx, transition, actor, action, payload)
 
 function Status_applyReopen_(ctx, transition, opts) {
   opts = opts || {};
+  var __t0 = Date.now(), __perf = {};
 
   // MVP-3S hard contract:
   // Cancel/Deny may only reopen after availability release has completed.
@@ -578,27 +588,45 @@ function Status_applyReopen_(ctx, transition, opts) {
   // Auditor availability still contains hard blocks for the audit.
   var releaseResult = null;
   if (opts.releaseAvailability) {
+    var __x = Date.now();
     releaseResult = Status_releaseAvailability_(ctx.auditId, {
       required: true,
       source: 'CoreStatusMachine.Status_applyReopen_',
       action: opts.action
     });
+    __perf.availabilityMs = Date.now() - __x;
   }
 
+  var __snapshotT0 = Date.now();
   var protectedSnapshot = Status_snapshotProtectedPlanningFields_(ctx, 'CoreStatusMachine.Status_applyReopen_:before');
+  __perf.protectedSnapshotMs = Date.now() - __snapshotT0;
 
+  var __resetT0 = Date.now();
   Status_resetPlanning_(ctx);
+  __perf.resetPlanningMs = Date.now() - __resetT0;
+
+  var __statusWriteT0 = Date.now();
   ctx.sheet.getRange(ctx.rowIndex, ctx.col.status + 1).setValue(transition.afterStatusDisplay);
+  __perf.statusWriteMs = Date.now() - __statusWriteT0;
 
+  var __restoreT0 = Date.now();
   var protectedRestore = Status_restoreProtectedPlanningFields_(protectedSnapshot, 'CoreStatusMachine.Status_applyReopen_:after');
+  __perf.protectedRestoreMs = Date.now() - __restoreT0;
 
+  var __lifecycleT0 = Date.now();
   var lifecycle = Status_lifecycleOnStatusChanged_(ctx, transition, opts.actor, opts.action, opts.payload, 'CoreStatusMachine.Status_applyReopen_');
+  __perf.lifecycleMs = Date.now() - __lifecycleT0;
+
+  var __invalidateT0 = Date.now();
   Status_invalidateAuditPlanningPack_();
+  __perf.cacheInvalidationMs = Date.now() - __invalidateT0;
   var res = Status_buildActionResult_(transition, { auditId: ctx.auditId, action: opts.action });
   res.lifecycle = lifecycle;
   res.availabilityRelease = releaseResult;
   res.protectedPlanningFields = protectedRestore;
   res.metadataWritten = !!(lifecycle && (lifecycle.managerMetadataWritten || lifecycle.statusSinceWritten));
+  __perf.totalMs = Date.now() - __t0;
+  res.actionPerf = __perf;
   return res;
 }
 
@@ -640,11 +668,13 @@ function Status_applyComplete_(ctx, transition, actor, payload) {
 }
 
 function Status_applyReject_(ctx, transition, actor, payload) {
+  var __t0 = Date.now(), __perf = {}, __x = Date.now();
   var releaseResult = Status_releaseAvailability_(ctx.auditId, {
     required: true,
     source: 'CoreStatusMachine.Status_applyReject_',
     action: ACTION.REJECT
   });
+  __perf.availabilityMs = Date.now() - __x;
 
   // Reject is terminal. The canonical archive owner must complete the
   // Audit planning -> Rejected audits move. Never degrade to an in-place
@@ -655,7 +685,9 @@ function Status_applyReject_(ctx, transition, actor, payload) {
   }
 
   try {
+    var __archiveT0 = Date.now();
     var moved = V5_MoveAuditToRejected(ctx.auditId, payload || {});
+    __perf.archiveMs = Date.now() - __archiveT0;
     if (!moved || moved.success !== true) {
       return Status_fail_('Reject archive failed: ' + String((moved && (moved.message || moved.error)) || 'empty result'));
     }
@@ -666,7 +698,11 @@ function Status_applyReject_(ctx, transition, actor, payload) {
     moved.afterStatusDisplay = moved.afterStatusDisplay || transition.afterStatusDisplay;
     moved.newStatus = moved.newStatus || transition.afterStatusDisplay;
     moved.availabilityRelease = releaseResult;
+    var __invalidateT0 = Date.now();
     Status_invalidateAuditPlanningPack_();
+    __perf.cacheInvalidationMs = Date.now() - __invalidateT0;
+    __perf.totalMs = Date.now() - __t0;
+    moved.actionPerf = __perf;
     return moved;
   } catch (e) {
     return Status_fail_('Reject archive exception: ' + String(e && e.message ? e.message : e));

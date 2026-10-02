@@ -8,7 +8,7 @@ const recoverExtensionBody=(recoverExtensionStart>=0&&runExtensionStart>recoverE
 const runExtensionBody=runExtensionStart>=0?manager.slice(runExtensionStart):'';
 const checks=[
 ['1.0 parity columns', ['Company','Locations','Region','GPS / Map','Scopes','Status','Expiration date','Planning window','Self planning','Date planned','To be planned','Hours planned','Auditor','Actions'].every(x=>manager.includes(x))],
-['planning 2.0 context visible',manager.includes('Planning 2.0')&&manager.includes('conceptMonth')&&manager.includes('provisionalReservationCount')],
+['single planning entry only',!manager.includes('<th>Planning 2.0</th>')&&!manager.includes('class=\"planning2-cell\"')&&manager.includes('data-action=\"+esc(a.key)+\"')&&manager.includes('/planning?auditId=')],
 ['focused single planning link',manager.includes('/planning?auditId=')&&manager.includes('Single Planning 2.0')],
 ['broken overview route not exposed',html.includes('id="planningWorkspace"')&&manager.includes('workspace.disabled=true')&&!manager.includes('window.location.href="/planning"')],
 ['concept explicitly non committed',manager.includes('Concept only — not committed')],
@@ -17,7 +17,9 @@ const checks=[
 ['bulk enrichment single endpoint',manager.includes("fetch('/api/v1/manager/open-enrichment'")&&manager.includes('auditIds:ids')],
 ['no per audit enrichment loop fetch',!manager.includes('/api/v1/manager/open-enrichment?auditId=')],
 ['enrichment preserves scroll',manager.includes('var ids=all.map')&&manager.includes('window.scrollTo(sx,sy)')],
-['extension apply undo controls',manager.includes('Undo extension')&&manager.includes('Apply canonical planning-window extension')],
+['scheduled hours use Config_Scopes delta',r10.includes('Scheduling_hours_delta')&&r10.includes("scheduledOwner:'CONFIG_SCOPES_SCHEDULING_HOURS_DELTA'")&&r10.includes('formal+deltaInfo.delta')],
+['auditor UI uses display-name projection',manager.includes('assignedToDisplayName||r.auditorDisplayName')&&r10.includes('managerAuditorDisplayMap')],
+['extension apply undo controls',manager.includes('Undo applied extension')&&manager.includes('Apply extension (+')],
 ['undo remains available after canonical apply',manager.includes('if(applied)return')&&manager.includes('data-extension=\\"undo\\"')],
 ['extension uses canonical endpoint',runExtensionBody.includes("fetch('/api/v1/manager/extension'")],
 ['extension same row patch',manager.includes('mergeRowInPlace(auditId,x.patch)')],

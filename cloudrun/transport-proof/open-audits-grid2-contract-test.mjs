@@ -30,7 +30,7 @@ const checks=[
 ['server extension bridge',r10.includes("'externalmanagerextension'")],
 ['bridge key never in browser',!manager.includes('bridgeKey')&&!html.includes('bridgeKey')],
 ['stable runtime chain',r10.includes("await import('./server-r9.js')")&&!r10.includes("await import('./server-r11.js')")],
-['dense grid styling',html.includes('min-width:1900px')&&html.includes('.planning-chip'))
+['dense grid styling',html.includes('min-width:1900px')&&html.includes('.planning-chip')]
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks)console.log(`${ok?'PASS':'FAIL'} ${name}`);

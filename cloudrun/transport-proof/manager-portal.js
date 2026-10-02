@@ -126,20 +126,14 @@ function runAction(button){
   var auditId=button.getAttribute("data-audit-id"),action=button.getAttribute("data-action"),row=all.find(function(r){return r.auditId===auditId});
   if(busyAudits.has(auditId))return;
   if(action==="plan"){window.location.href="/planning?auditId="+encodeURIComponent(auditId);return}
-  var reason="",confirmationChannel="";
+  var reason="";
   if(action==="cancel"||action==="reject"){
     reason=window.prompt((action==="cancel"?"Cancel":"Reject")+" audit "+auditId+"\nComment:");
     if(reason===null)return;reason=reason.trim();if(!reason){window.alert("Comment is required.");return}
-  }else if(action==="accept"){
-    confirmationChannel=window.prompt("Accept on behalf of the assigned auditor.\nConfirmation channel: WhatsApp, Phone, Email or Other","WhatsApp");
-    if(confirmationChannel===null)return;confirmationChannel=confirmationChannel.trim();
-    if(!/^(whatsapp|phone|email|other)$/i.test(confirmationChannel)){window.alert("Use WhatsApp, Phone, Email or Other.");return}
-    reason=window.prompt("Optional note about the auditor confirmation:","")||"";
-    if(!window.confirm("Confirm ACCEPT on behalf of "+String((row&&row.assignedTo)||"assigned auditor")+"?"))return
-  }else if(!window.confirm(action.toUpperCase()+" audit "+auditId+"?"))return;
+  }else if(action!=="accept"&&!window.confirm(action.toUpperCase()+" audit "+auditId+"?"))return;
   busyAudits.add(auditId);
   var tr=button.closest("tr");if(tr)tr.querySelectorAll(".act,.ext-act").forEach(function(b){b.disabled=true});
-  var perf={auditId:auditId,action:action,startedAt:performance.now(),workerMs:0,gasMs:null,patchMs:0},wt=performance.now(),options={reason:reason,comment:reason,confirmationChannel:confirmationChannel,confirmationNote:reason,rowIndex:row&&row.sourceRow,expectedRevision:row&&row.sourceRevision};
+  var perf={auditId:auditId,action:action,startedAt:performance.now(),workerMs:0,gasMs:null,patchMs:0},wt=performance.now(),options={reason:reason,comment:reason,rowIndex:row&&row.sourceRow,expectedRevision:row&&row.sourceRevision};
   var actionPromise=(action==='approve'||action==='accept'||action==='cancel'||action==='reject')?runActionViaCloudRun(auditId,action,options):runActionViaWarmWorker(auditId,action,options);
   actionPromise
     .then(function(x){

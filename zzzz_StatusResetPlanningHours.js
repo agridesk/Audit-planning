@@ -1,13 +1,13 @@
 /***********************************************************************
  * FILE: zzzz_StatusResetPlanningHours.js
- * BUILD: 2026-10-01_CANCEL_REOPEN_CLEAR_HOURS_PLANNED_R1
+ * BUILD: 2026-10-02_CANCEL_REOPEN_BATCH_CLEAR_R2
  * PURPOSE:
  *   Canonical Cancel/Deny reopen reset must clear formal committed
  *   "Hours planned" together with the physical planning assignment.
  *   This replaces Status_resetPlanning_ only; StatusMachine remains the
  *   lifecycle owner.
  ***********************************************************************/
-var STATUS_RESET_PLANNING_HOURS_BUILD = '2026-10-01_CANCEL_REOPEN_CLEAR_HOURS_PLANNED_R1';
+var STATUS_RESET_PLANNING_HOURS_BUILD = '2026-10-02_CANCEL_REOPEN_BATCH_CLEAR_R2';
 
 Status_resetPlanning_ = function(ctx) {
   ctx = ctx || {};
@@ -63,13 +63,17 @@ Status_resetPlanning_ = function(ctx) {
 
   var cleared = [];
   var seenCols = {};
+  var a1 = [];
   for (var i = 0; i < clearFields.length; i++) {
     var col = findHeader_(clearFields[i]);
     if (col < 0 || seenCols[col]) continue;
-    ctx.sheet.getRange(ctx.rowIndex, col + 1).setValue('');
     seenCols[col] = true;
     cleared.push(headers[col]);
+    a1.push(ctx.sheet.getRange(ctx.rowIndex, col + 1).getA1Notation());
   }
+
+  // One batched Sheets mutation instead of six sequential setValue RPCs.
+  if (a1.length) ctx.sheet.getRangeList(a1).clearContent();
 
   // Keep in-memory context aligned for downstream lifecycle/result builders,
   // without writing untouched columns back to the sheet.
@@ -92,7 +96,8 @@ function RUN_STATUS_RESET_PLANNING_HOURS_CONTRACT_ACCEPTANCE() {
     checks: {
       clearsHoursPlanned: src.indexOf("['Hours planned', 'Planned hours', 'Hours Planned']") >= 0,
       preservesTotalAuditTime: src.indexOf('Total audit time in hours') >= 0,
-      whitelistOnly: src.indexOf('clearFields') >= 0 && src.indexOf("setValue('')") >= 0
+      whitelistOnly: src.indexOf('clearFields') >= 0 && src.indexOf('getRangeList(a1).clearContent()') >= 0,
+      batchedClear: src.indexOf('getRangeList(a1).clearContent()') >= 0 && src.indexOf("setValue('')") < 0
     }
   };
   try { Logger.log(JSON.stringify(out, null, 2)); } catch (e) {}

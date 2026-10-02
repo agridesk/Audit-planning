@@ -12,7 +12,6 @@
 
 function V5_ENTRY_normAction_(raw) {
   var a = String(raw || '').trim().toLowerCase();
-  if (a === 'manager2' || a === 'managerportal2') return 'manager2';
   if (a === 'manager' || a === 'managerportal') return 'manager';
   if (a === 'auditorportal' || a === 'auditor') return 'auditorportal';
   if (a === 'auditoravailability' || a === 'availability') return 'auditoravailability';
@@ -77,7 +76,6 @@ function V5_ENTRY_browserTitle_(action, roleHint) {
   action = V5_ENTRY_normAction_(action);
   var role = String(roleHint || '').trim().toLowerCase();
   if (action === 'manager') return 'AMS - Manager';
-  if (action === 'manager2') return 'AMS - Manager 2.0';
   if (action === 'auditorportal') return 'AMS - Auditor';
   if (action === 'auditoravailability') return 'AMS - Availability';
   if (action === 'planningworkspace') return 'AMS - Planning Workspace';
@@ -90,7 +88,6 @@ function V5_ENTRY_browserTitle_(action, roleHint) {
 
 function V5_ENTRY_expectedRole_(action, roleHint) {
   if (action === 'manager') return 'Manager';
-  if (action === 'manager2') return 'Manager';
   if (action === 'auditorportal') return 'Auditor';
   if (action === 'auditoravailability') return 'Auditor';
   if (action === 'planningworkspace') return String(roleHint || '').trim().toLowerCase() === 'auditor' ? 'Auditor' : 'Manager';
@@ -200,7 +197,7 @@ function V5_ENTRY_resolve(ctx) {
   var runtimeEnv = V5_ENTRY_captureEnv_(ctx); ctx.env=runtimeEnv;
   var action = V5_ENTRY_normAction_(ctx.action); var expectedRole = V5_ENTRY_expectedRole_(action, ctx.role);
   var email=String(ctx.email || '').trim().toLowerCase(); var token=String(ctx.trustedToken || ctx.token || '').trim(); var device=String(ctx.deviceFingerprint || ctx.deviceId || '').trim();
-  if (runtimeEnv === 'DEV' && (action === 'manager' || action === 'manager2') && expectedRole === 'Manager' && !V5_ENTRY_isTestBypass_(email, expectedRole, token, device)) return V5_ENTRY_renderLogin(action, expectedRole);
+  if (runtimeEnv === 'DEV' && action === 'manager' && expectedRole === 'Manager' && !V5_ENTRY_isTestBypass_(email, expectedRole, token, device)) return V5_ENTRY_renderLogin(action, expectedRole);
   if (!action || !expectedRole) return V5_ENTRY_renderLogin(action, expectedRole);
   if (!V5_ENTRY_isTestBypass_(email, expectedRole, token, device)) {
     var authRes=null; try { authRes=V5_AUTH.validateTrustedTokenByRole(token, expectedRole, device); } catch(errAuth) { return V5_ENTRY_renderLogin(action, expectedRole); }
@@ -222,7 +219,6 @@ function V5_ENTRY_renderApp(action, ctx) {
   var runtimeEnv=V5_ENTRY_captureEnv_(ctx); var execUrl=V5_ENTRY_appendEnvToUrl_((function(){try{return ScriptApp.getService().getUrl();}catch(e0){return '';}})(),runtimeEnv);
   var email=String(ctx.email||'').trim().toLowerCase(); var role=V5_ENTRY_expectedRole_(action,ctx.role); var token=String(ctx.trustedToken||ctx.token||'').trim(); var device=String(ctx.deviceFingerprint||ctx.deviceId||'').trim();
   if (action==='manager') { var tm=HtmlService.createTemplateFromFile('ManagerV5UI'); tm.__execUrl=execUrl;tm.__email=email;tm.__role=role;tm.__trustedToken=token;tm.__deviceFingerprint=device;tm.__action=action;tm.__env=runtimeEnv;return tm.evaluate().getContent(); }
-  if (action==='manager2') { var tm2=HtmlService.createTemplateFromFile('ManagerPortal2'); tm2.__execUrl=execUrl;tm2.__email=email;tm2.__role=role;tm2.__trustedToken=token;tm2.__deviceFingerprint=device;tm2.__action=action;tm2.__env=runtimeEnv;return tm2.evaluate().getContent(); }
   if (action==='planningworkspace') { return PlanningWorkspaceEntryRoute_render(ctx).getContent(); }
   if (action==='planningtoolkit') { var tp=HtmlService.createTemplateFromFile('ManagerPlanningV5UI'); tp.__execUrl=execUrl;tp.__email=email;tp.__role=role;tp.__trustedToken=token;tp.__deviceFingerprint=device;tp.__action=action;tp.__env=runtimeEnv;tp.auditId=String(ctx.auditId||'').trim();return tp.evaluate().getContent(); }
   if (action==='companies') { var tc=HtmlService.createTemplateFromFile('CompaniesUI'); tc.__execUrl=execUrl;tc.__email=email;tc.__role=role;tc.__trustedToken=token;tc.__deviceFingerprint=device;tc.__action=action;tc.__env=runtimeEnv;return tc.evaluate().getContent(); }

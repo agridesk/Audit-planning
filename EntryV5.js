@@ -152,7 +152,8 @@ function doGet(e) {
       return HtmlService.createHtmlOutput(
         ExternalManagerActionRelay_errorHtml_(
           relayVerified && relayVerified.error ? relayVerified.error : 'RELAY_FAILED',
-          p.origin
+          p.origin,
+          p.nonce
         )
       ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
     }

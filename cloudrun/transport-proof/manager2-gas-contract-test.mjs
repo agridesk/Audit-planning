@@ -8,6 +8,7 @@ const actions=readFileSync(new URL('../../AuditManagerActions.js',import.meta.ur
 function has(text,needle,label){assert.ok(text.includes(needle),label+' missing');}
 function not(text,needle,label){assert.ok(!text.includes(needle),label+' unexpectedly present');}
 
+has(entry,"if (a === 'manager2' || a === 'managerportal2') return 'manager2';",'manager2 normalization');
 has(entry,"if (action === 'manager2') return 'Manager';",'manager2 role');
 has(entry,"if (action === 'manager2') return 'AMS - Manager 2.0';",'manager2 title');
 has(entry,"HtmlService.createTemplateFromFile('ManagerPortal2')",'manager2 GAS template route');
@@ -32,6 +33,6 @@ has(actions,'actionTimingRecordedSynchronously = false','hot-path diagnostics ma
 console.log(JSON.stringify({
   success:true,
   build:'2026-10-02_MANAGER2_TOP_LEVEL_GAS_R1',
-  assertions:18,
+  assertions:19,
   writesPerformed:false
 },null,2));

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 const entry=fs.readFileSync(new URL('../../EntryV5.js',import.meta.url),'utf8');
 const svc=fs.readFileSync(new URL('../../OpenAuditsGrid2Service.js',import.meta.url),'utf8');
 const core=fs.readFileSync(new URL('../../ManagerPlanningBackend_CORE_SPLIT.js',import.meta.url),'utf8');
+const ext=fs.readFileSync(new URL('../../AuditPlanningModelCExtensionService.js',import.meta.url),'utf8');
 const checks=[
 ['secure enrichment bridge',entry.includes("rawAction==='externalmanageropenenriched'")&&entry.includes('V5_ENTRY_externalBridgeBody_')],
 ['secure extension bridge',entry.includes("rawAction==='externalmanagerextension'")&&entry.includes('V5_ENTRY_externalBridgeBody_')],
@@ -11,6 +12,7 @@ const checks=[
 ['canonical apply extension reused',svc.includes("typeof v5_applyExtension==='function'")&&svc.includes("command==='apply'")],
 ['canonical undo extension reused',svc.includes("typeof v5_undoExtension==='function'")],
 ['Model C owner asserted',svc.includes("typeof ModelCExtension_commit==='function'")],
+['extension external-annual detection has no undefined legacy helper',ext.includes('ModelCExtension_isExternalAnnualObligation_')&&!ext.includes('ModelCFoundation_isAbc_')],
 ['canonical reservation read model reused',svc.includes("typeof ConceptReservationReadModel_get!=='function'")&&svc.includes('ConceptReservationReadModel_get({from:min,to:max})')],
 ['active concept reservations projected provisional only',svc.includes('r.provisionalReservationCount=rr.length')&&svc.includes('r.confirmedReservationCount=0')&&svc.includes('r.provisionalCommitted=false')],
 ['concept month not synthesized',svc.includes('No persisted concept-month owner exists')&&svc.includes("conceptMonthOwner:'NOT_AVAILABLE_CURRENT_MODEL'")],

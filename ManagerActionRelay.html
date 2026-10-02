@@ -27,6 +27,21 @@
       return;
     }
     installed = true;
+    google.script.run
+      .withSuccessHandler(function(warm){
+        if(!warm || warm.success===false){
+          reply({type:'AMS_MANAGER_ACTION_RELAY_READY',success:false,error:(warm&&warm.error)||'SERVER_WARMUP_FAILED',warm:warm||null});
+          return;
+        }
+        bindAndReady(warm);
+      })
+      .withFailureHandler(function(err){
+        reply({type:'AMS_MANAGER_ACTION_RELAY_READY',success:false,error:String(err&&err.message?err.message:err||'SERVER_WARMUP_FAILED')});
+      })
+      .ManagerActionWorker_warm();
+  }
+
+  function bindAndReady(warm){
     window.addEventListener('message',function(ev){
       if(ev.origin !== parentOrigin) return;
       var m = ev.data || {};
@@ -50,7 +65,7 @@
         })
         .managerV5Action(auditId,action,options);
     });
-    reply({type:'AMS_MANAGER_ACTION_RELAY_READY',success:true});
+    reply({type:'AMS_MANAGER_ACTION_RELAY_READY',success:true,warm:warm||null});
   }
   install();
 })();

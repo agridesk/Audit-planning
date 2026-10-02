@@ -51,7 +51,7 @@ function initRelay(){
       return new Promise(function(resolve,reject){
         var f=document.createElement('iframe'),settled=false,timer=setTimeout(function(){
           if(settled)return;settled=true;relay.error='ACTION_RELAY_READY_TIMEOUT';reject(new Error(relay.error))
-        },15000);
+        },45000);
         relay.frame=f;
         relay.readyResolver=function(ok,error){
           if(settled)return;
@@ -85,7 +85,7 @@ function runActionViaWarmWorker(auditId,action,options){
   return initRelay().then(function(){
     if(!relay.ready||!relay.source||!relay.origin)throw new Error('ACTION_RELAY_NOT_READY');
     return new Promise(function(resolve,reject){
-      var id='r'+Date.now()+'_'+(++relay.seq),timer=setTimeout(function(){relay.pending.delete(id);reject(new Error('ACTION_RELAY_TIMEOUT'))},15000);
+      var id='r'+Date.now()+'_'+(++relay.seq),timer=setTimeout(function(){relay.pending.delete(id);reject(new Error('ACTION_RELAY_TIMEOUT'))},30000);
       relay.pending.set(id,{resolve:resolve,reject:reject,timer:timer});
       relay.source.postMessage({type:'AMS_MANAGER_ACTION',nonce:relay.nonce,requestId:id,auditId:auditId,action:action,options:options||{}},relay.origin)
     })

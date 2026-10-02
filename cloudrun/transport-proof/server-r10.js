@@ -1,17 +1,34 @@
 import http from 'node:http';
 import {URL} from 'node:url';
+import crypto from 'node:crypto';
 
 const PUBLIC_PORT=Number(process.env.PORT||8080);
 const INNER_PORT=PUBLIC_PORT+1;
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
-const BUILD='2026-10-01_AMS_R10_OPEN_AUDITS_GRID2_R1';
+const RELAY_PARENT_ORIGIN='https://ams-transport-proof-510075419067.europe-west1.run.app';
+const BUILD='2026-10-02_AMS_R10_MANAGER_ACTION_SIGNED_RELAY_R1';
 
 process.env.PORT=String(INNER_PORT);
 await import('./server-r9.js');
 process.env.PORT=String(PUBLIC_PORT);
 
+function relayPayload(email,role,exp,origin){return ['v1','MANAGER_ACTION_RELAY',clean(email).toLowerCase(),clean(role),String(exp),clean(origin)].join('\n');}
+function relaySignature(payload){return crypto.createHmac('sha256',WRITE_KEY).update(payload).digest('base64url');}
+function buildManagerRelayUrl(identity){
+  if(!GAS_WRITE_URL||!WRITE_KEY)throw new Error('MANAGER_ACTION_RELAY_NOT_CONFIGURED');
+  const email=clean(identity?.email).toLowerCase(),role='Manager',exp=Date.now()+5*60*1000,origin=RELAY_PARENT_ORIGIN;
+  if(!email)throw new Error('MANAGER_IDENTITY_EMAIL_REQUIRED');
+  const u=new URL(GAS_WRITE_URL);
+  u.searchParams.set('action','externalmanageractionrelay');
+  u.searchParams.set('email',email);
+  u.searchParams.set('role',role);
+  u.searchParams.set('exp',String(exp));
+  u.searchParams.set('origin',origin);
+  u.searchParams.set('signature',relaySignature(relayPayload(email,role,exp,origin)));
+  return u.toString();
+}
 function clean(v){return String(v==null?'':v).trim();}
 function key(v){return clean(v).toLowerCase().replace(/\s+/g,'_');}
 function col(h,names){const m={};(h||[]).forEach((v,i)=>{const k=key(v);if(k&&m[k]===undefined)m[k]=i;});for(const n of names){const k=key(n);if(m[k]!==undefined)return m[k];}return-1;}
@@ -67,7 +84,14 @@ async function proxy(req,res,raw){const target='http://127.0.0.1:'+INNER_PORT+(r
 
 http.createServer(async(req,res)=>{
   const u=new URL(req.url||'/','http://localhost');
-  if(req.method==='GET'&&u.pathname==='/api/v1/build')return sendJson(res,200,{ok:true,build:BUILD,inner:'server-r9.js',hoursSemantics:{formalPlanned:'hoursPlanned',scheduledDuration:'scheduledHours'},ecasHoursSource:'Planning JSON totalPlannedHours=formalHours',managerActionMicroRefresh:true,canonicalCommentFields:true,managerActionTransport:'direct-gas-http',pendingPlanningClearsCommittedHours:true,openAuditsGrid2:{bulkEnrichment:true,canonicalExtension:true,noNPlusOne:true,conceptCommitted:false,provisionalCommitted:false}});
+  if(req.method==='GET'&&u.pathname==='/api/v1/build')return sendJson(res,200,{ok:true,build:BUILD,inner:'server-r9.js',hoursSemantics:{formalPlanned:'hoursPlanned',scheduledDuration:'scheduledHours'},ecasHoursSource:'Planning JSON totalPlannedHours=formalHours',managerActionMicroRefresh:true,canonicalCommentFields:true,managerActionTransport:'signed-browser-gas-relay',pendingPlanningClearsCommittedHours:true,openAuditsGrid2:{bulkEnrichment:true,canonicalExtension:true,noNPlusOne:true,conceptCommitted:false,provisionalCommitted:false}});
+  if(req.method==='GET'&&u.pathname==='/api/v1/manager/action-relay-url'){
+    const identity=await innerSession(req);
+    if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED',build:BUILD});
+    if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN',build:BUILD});
+    try{return sendJson(res,200,{success:true,url:buildManagerRelayUrl(identity),expiresInMs:300000,build:BUILD});}
+    catch(e){return sendJson(res,500,{success:false,error:clean(e?.message||e),build:BUILD});}
+  }
   if(req.method==='GET'&&u.pathname==='/api/v1/manager/audit'){
     const identity=await innerSession(req);if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED',build:BUILD});if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN',build:BUILD});const auditId=clean(u.searchParams.get('auditId')),sourceRow=clean(u.searchParams.get('sourceRow'));if(!auditId)return sendJson(res,400,{success:false,error:'AUDIT_ID_REQUIRED',build:BUILD});try{const out=await readAuditPatch(auditId,sourceRow);return sendJson(res,out.success?200:404,out);}catch(e){return sendJson(res,500,{success:false,error:'MANAGER_AUDIT_REREAD_FAILED',detail:clean(e?.message||e),build:BUILD});}
   }

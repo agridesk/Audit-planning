@@ -225,7 +225,7 @@ function managerOpen(apValues,email,scopeValues,companyValues){
     const id=val(row,ci);if(!id)continue;const raw=val(row,cs),statusKey=clean(raw).toUpperCase().replace(/[\s-]+/g,'_');if(!allowed.has(statusKey))continue;
     const rowMgr=val(row,cm).toLowerCase();if(email&&rowMgr&&rowMgr!==email)continue;
     const company=val(row,cc),location=val(row,cl),uid=val(row,cu),region=companyIndex.get(key(uid))||companyIndex.get(key(company+'|'+location))||companyIndex.get(key(company))||'',from=dateOnly(row[cf]),to=dateOnly(row[ct]),pw=from&&to?from+' → '+to:(from||to||''),required=Number(row[ch]),scopes=scopesForAudit({h,row},catalog),expiry=dateOnly(row[cee])||dateOnly(row[ce]),ext=val(row,cex);
-    const actions=statusKey==='PENDING_PLANNING'?['PLAN','REJECT']:statusKey==='PENDING_APPROVAL'?['APPROVE','CANCEL','REJECT']:statusKey==='APPROVED'?['CANCEL','REJECT']:statusKey==='ACCEPTED'?['CANCEL','REJECT']:[];rows.push({auditId:id,source:'Audit planning',company,companyLocation:location,location,region,companyRegion:region,scopes,scopesText:scopes.join(', '),status:raw,statusKey,planningWindow:pw,planningWindowText:pw,planningDisplay:statusKey==='PENDING_PLANNING'?pw:dateOnly(row[cd]),plannedHours:val(row,cph),hoursPlanned:val(row,cph),requiredHours:Number.isFinite(required)?required:0,toBePlanned:Number.isFinite(required)?required:0,auditor:val(row,ca),assignedTo:val(row,ca),assignedToEmail:val(row,ca),preassignedAuditor:val(row,cp),allowSelfPlanning:val(row,cself),datePlanned:dateOnly(row[cd]),expirationDate:expiry,extensionApplied:yes(ext),companyUid:uid,managerEmail:rowMgr,sourceRevision:createHash('sha256').update([id,raw,val(row,ca),val(row,cpj),val(row,cldt),val(row,css)].join('|')).digest('hex').slice(0,24),sourceRow:apValues.indexOf(row)+1,allowedActions:actions,readOnly:false,needsEnrichment:false});
+    const actions=statusKey==='PENDING_PLANNING'?['PLAN','REJECT']:statusKey==='PENDING_APPROVAL'?['APPROVE','CANCEL','REJECT']:statusKey==='APPROVED'?['ACCEPT','CANCEL','REJECT']:statusKey==='ACCEPTED'?['CANCEL','REJECT']:[];rows.push({auditId:id,source:'Audit planning',company,companyLocation:location,location,region,companyRegion:region,scopes,scopesText:scopes.join(', '),status:raw,statusKey,planningWindow:pw,planningWindowText:pw,planningDisplay:statusKey==='PENDING_PLANNING'?pw:dateOnly(row[cd]),plannedHours:val(row,cph),hoursPlanned:val(row,cph),requiredHours:Number.isFinite(required)?required:0,toBePlanned:Number.isFinite(required)?required:0,auditor:val(row,ca),assignedTo:val(row,ca),assignedToEmail:val(row,ca),preassignedAuditor:val(row,cp),allowSelfPlanning:val(row,cself),datePlanned:dateOnly(row[cd]),expirationDate:expiry,extensionApplied:yes(ext),companyUid:uid,managerEmail:rowMgr,sourceRevision:createHash('sha256').update([id,raw,val(row,ca),val(row,cpj),val(row,cldt),val(row,css)].join('|')).digest('hex').slice(0,24),sourceRow:apValues.indexOf(row)+1,allowedActions:actions,readOnly:false,needsEnrichment:false});
   }
   const order={PENDING_PLANNING:0,PENDING_APPROVAL:1,APPROVED:2,ACCEPTED:3};rows.sort((a,b)=>(order[a.statusKey]-order[b.statusKey])||a.planningWindow.localeCompare(b.planningWindow)||a.company.localeCompare(b.company)||a.auditId.localeCompare(b.auditId));
   const count=k=>rows.filter(x=>x.statusKey===k).length;
@@ -272,6 +272,7 @@ async function canonicalManagerAction(identity,body){
   const options=body?.options&&typeof body.options==='object'?body.options:{};
   if((managerAction==='cancel'||managerAction==='reject')&&!clean(options.reason||options.comment))throw new Error('ACTION_REASON_REQUIRED');
   if(managerAction==='approve')return directManagerApprove(identity,body);
+  if(managerAction==='accept')return directManagerAcceptOnBehalf(identity,body);
   if(managerAction==='cancel')return directManagerCancel(identity,body);
   if(managerAction==='reject')return directManagerReject(identity,body);
   if(!GAS_WRITE_URL||!WRITE_KEY)throw new Error('WRITE_BRIDGE_NOT_CONFIGURED');
@@ -322,7 +323,7 @@ async function directManagerApprove(identity,body){
     const readStarted=Date.now(),vr=await sheetsBatchGet(['Audit planning!A1:AX483','Auditors!A1:Z256']),readMs=Date.now()-readStarted;
     const ap=vr[0]?.values||[],found=findAudit(ap,auditId);if(!found)throw new Error('AUDIT_NOT_FOUND');
     const h=found.h,row=found.row.slice(),beforeStatus=val(row,col(h,['Status'])),beforeKey=directStatusKey(beforeStatus);
-    if(beforeKey==='APPROVED')return{success:true,idempotent:true,auditId,action:'APPROVE',beforeStatus:'Approved',newStatus:'Approved',afterStatus:'APPROVED',afterStatusDisplay:'Approved',directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_APPROVE',readMs,writeMs:0,sideEffectMs:0,totalMs:Date.now()-started};
+    if(beforeKey==='ACCEPTED')return{success:true,idempotent:true,auditId,action:'APPROVE',beforeStatus:'Accepted',newStatus:'Accepted',afterStatus:'ACCEPTED',afterStatusDisplay:'Accepted',directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_APPROVE',readMs,writeMs:0,sideEffectMs:0,totalMs:Date.now()-started};
     if(beforeKey!=='PENDING_APPROVAL')throw new Error('STATUS_TRANSITION_BLOCKED');
     const revision=directRowRevision(h,row);if(expectedRevision&&revision!==expectedRevision)throw new Error('MANAGER_ACTION_SOURCE_REVISION_CONFLICT');
 
@@ -330,24 +331,65 @@ async function directManagerApprove(identity,body){
     if(!recipientEmail)throw new Error('APPROVE_AUDITOR_RECIPIENT_REQUIRED');
     const company=val(row,col(h,['Company'])),companyUid=val(row,col(h,['Company_UID','Company UID','CompanyUid'])),now=isoLocalStamp(),minuteStamp=now.slice(0,16),actorEmail=clean(identity?.email).toLowerCase();
     const set=(names,value)=>{const i=col(h,names);if(i>=0)row[i]=value;};
-    set(['Status'],'Approved');
+    set(['Status'],'Accepted');
     set(['Status since'],now);
     set(['Last manager decision'],'APPROVE');
+    set(['Date - Approved','Date approved','Date Approved'],now.slice(0,10));
     set(['Last decision timestamp'],now);
     set(['Manager comment (last)'],clean(options.reason||options.comment));
 
     const writeStarted=Date.now();await sheetsValuesBatchUpdate([{range:'Audit planning!A'+found.sourceRow+':'+a1col(h.length)+found.sourceRow,values:[row]}]);const writeMs=Date.now()-writeStarted;
 
-    const trailPayload={type:'LIFECYCLE_STATUS_CHANGED',auditId,company,companyUid,actorEmail,actorRole:'MANAGER',beforeStatus,afterStatus:'Approved',reason:clean(options.reason||options.comment),source:'CLOUD_RUN_DIRECT_MANAGER_APPROVE',timestamp:now,action:'APPROVE'};
-    const trailBody=JSON.stringify(trailPayload),trailHash=createHash('md5').update('LIFECYCLE_STATUS_CHANGED|'+auditId+'|'+now+'|Approved').digest('hex');
-    const approvePayload={eventType:'AUDIT_APPROVED',eventFamily:'COMPACT_LIFECYCLE',rendererProfile:'COMPACT_LIFECYCLE',deliveryProfile:'BUFFERED_COMPACT',company,companyUid,auditId,actor:actorEmail,actorRole:'MANAGER',recipientRole:'AUDITOR',recipientGroup:'AUDITOR',recipientEmail,resultStatus:'Approved',displayStatus:'Approved',comment:'',assignedAuditor:assigned,config:{active:true,sendEmail:true,logOnly:false,consolidate:true,bufferMinutes:10,digestGroup:'LIFECYCLE_AUDITOR',templateFamily:'COMPACT_LIFECYCLE',templateKeyDefault:'AUDIT_APPROVED',fromEmail:'planning@agriqa.es',fromName:'Agri Quality Assurance – Audit Planning',replyTo:'',includeComment:false,requireReason:false}};
+    const trailPayload={type:'LIFECYCLE_STATUS_CHANGED',auditId,company,companyUid,actorEmail,actorRole:'MANAGER',beforeStatus,afterStatus:'Accepted',reason:clean(options.reason||options.comment),source:'CLOUD_RUN_DIRECT_MANAGER_APPROVE',timestamp:now,action:'APPROVE',roadmapRule:'AUDITOR_SELF_PLAN_MANAGER_APPROVE_DIRECT_ACCEPTED'};
+    const trailBody=JSON.stringify(trailPayload),trailHash=createHash('md5').update('LIFECYCLE_STATUS_CHANGED|'+auditId+'|'+now+'|Accepted').digest('hex');
+    const approvePayload={eventType:'AUDIT_APPROVED',eventFamily:'COMPACT_LIFECYCLE',rendererProfile:'COMPACT_LIFECYCLE',deliveryProfile:'BUFFERED_COMPACT',company,companyUid,auditId,actor:actorEmail,actorRole:'MANAGER',recipientRole:'AUDITOR',recipientGroup:'AUDITOR',recipientEmail,resultStatus:'Accepted',displayStatus:'Accepted',comment:'',assignedAuditor:assigned,config:{active:true,sendEmail:true,logOnly:false,consolidate:true,bufferMinutes:10,digestGroup:'LIFECYCLE_AUDITOR',templateFamily:'COMPACT_LIFECYCLE',templateKeyDefault:'AUDIT_APPROVED',fromEmail:'planning@agriqa.es',fromName:'Agri Quality Assurance – Audit Planning',replyTo:'',includeComment:false,requireReason:false}};
     const bodyText=['Audit approved','Company: '+company,'Audit ID: '+auditId,'Auditor: '+assigned].join('\\n'),notifyHash=createHash('md5').update(recipientEmail+'|AUDIT_APPROVED|'+auditId+'|'+now).digest('hex');
     const queueRows=[
       [minuteStamp,'AUDIT_TRAIL','LIFECYCLE_STATUS_CHANGED','',auditId,company,'[TRAIL] LIFECYCLE_STATUS_CHANGED :: '+auditId,trailBody,0,'',trailHash,'',JSON.stringify({payload:trailPayload})],
       [minuteStamp,'PENDING','AUDIT_APPROVED',recipientEmail,auditId,company,'Audit approved – '+company+' – '+auditId,bodyText,0,'',notifyHash,'',JSON.stringify({payload:approvePayload})]
     ];
     let sideEffectQueue={success:true};const sideStarted=Date.now();try{await sheetsValuesAppend('Notification Queue!A:M',queueRows);}catch(e){sideEffectQueue={success:false,error:clean(e?.message||e)}}const sideEffectMs=Date.now()-sideStarted;
-    return{success:true,auditId,action:'APPROVE',beforeStatus,newStatus:'Approved',afterStatus:'APPROVED',afterStatusDisplay:'Approved',assignedTo:assigned,directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_APPROVE',readMs,writeMs,sideEffectMs,sideEffectQueue,totalMs:Date.now()-started};
+    return{success:true,auditId,action:'APPROVE',beforeStatus,newStatus:'Accepted',afterStatus:'ACCEPTED',afterStatusDisplay:'Accepted',assignedTo:assigned,directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_APPROVE',readMs,writeMs,sideEffectMs,sideEffectQueue,totalMs:Date.now()-started};
+  });
+}
+
+async function directManagerAcceptOnBehalf(identity,body){
+  const started=Date.now(),auditId=clean(body?.auditId),options=body?.options&&typeof body.options==='object'?body.options:{},expectedRevision=clean(options.expectedRevision||body?.expectedRevision);
+  const channel=clean(options.confirmationChannel||options.channel).toUpperCase(),note=clean(options.confirmationNote||options.reason||options.comment);
+  if(!auditId)throw new Error('AUDIT_ID_REQUIRED');
+  if(!channel)throw new Error('ACCEPT_ON_BEHALF_CONFIRMATION_CHANNEL_REQUIRED');
+  if(!['WHATSAPP','PHONE','EMAIL','OTHER'].includes(channel))throw new Error('ACCEPT_ON_BEHALF_INVALID_CONFIRMATION_CHANNEL');
+  return withDirectManagerActionLock(auditId,async()=>{
+    const readStarted=Date.now(),vr=await sheetsBatchGet(['Audit planning!A1:AX483','Auditors!A1:Z256','Companies!A1:AJ686','Config_Scopes!A1:Z128']),readMs=Date.now()-readStarted;
+    const ap=vr[0]?.values||[],found=findAudit(ap,auditId);if(!found)throw new Error('AUDIT_NOT_FOUND');
+    const h=found.h,row=found.row.slice(),beforeStatus=val(row,col(h,['Status'])),beforeKey=directStatusKey(beforeStatus);
+    if(beforeKey==='ACCEPTED')return{success:true,idempotent:true,auditId,action:'ACCEPT',beforeStatus:'Accepted',newStatus:'Accepted',afterStatus:'ACCEPTED',afterStatusDisplay:'Accepted',directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_ACCEPT_ON_BEHALF',readMs,writeMs:0,sideEffectMs:0,totalMs:Date.now()-started};
+    if(beforeKey!=='APPROVED')throw new Error('STATUS_TRANSITION_BLOCKED');
+    const revision=directRowRevision(h,row);if(expectedRevision&&revision!==expectedRevision)throw new Error('MANAGER_ACTION_SOURCE_REVISION_CONFLICT');
+    const representedAuditor=val(row,col(h,['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned']));
+    if(!representedAuditor)throw new Error('ACCEPT_ON_BEHALF_REPRESENTED_AUDITOR_REQUIRED');
+    const managerActor=clean(identity?.email).toLowerCase();if(!managerActor)throw new Error('MANAGER_ACTOR_REQUIRED');
+    const company=val(row,col(h,['Company'])),companyUid=val(row,col(h,['Company_UID','Company UID','CompanyUid'])),now=isoLocalStamp(),minuteStamp=now.slice(0,16);
+    const set=(names,value)=>{const i=col(h,names);if(i>=0)row[i]=value;};
+    set(['Status'],'Accepted');
+    set(['Status since'],now);
+    set(['Last manager decision'],'ACCEPT_ON_BEHALF');
+    set(['Last decision timestamp'],now);
+    set(['Manager comment (last)'],note||('External auditor confirmation via '+channel));
+    set(['Date accepted','Date - Accepted','Date Accepted'],now.slice(0,10));
+    const writeStarted=Date.now();await sheetsValuesBatchUpdate([{range:'Audit planning!A'+found.sourceRow+':'+a1col(h.length)+found.sourceRow,values:[row]}]);const writeMs=Date.now()-writeStarted;
+
+    const cfg=scopeCatalog(vr[3]?.values||[]),scopes=scopesForAudit(found,cfg);
+    const trailPayload={type:'LIFECYCLE_STATUS_CHANGED',auditId,company,companyUid,actorEmail:managerActor,actorRole:'MANAGER',representedAuditor,confirmationChannel:channel,confirmationSource:'EXTERNAL_CONFIRMATION',confirmationNote:note,confirmedAt:now,beforeStatus,afterStatus:'Accepted',reason:note,source:'CLOUD_RUN_DIRECT_MANAGER_ACCEPT_ON_BEHALF',timestamp:now,action:'ACCEPT',onBehalf:true,scopes};
+    const trailBody=JSON.stringify(trailPayload),trailHash=createHash('md5').update('LIFECYCLE_STATUS_CHANGED|'+auditId+'|'+now+'|Accepted|MANAGER_ON_BEHALF').digest('hex');
+    const notifyPayload={eventType:'AUDIT_ACCEPTED',eventFamily:'COMPACT_LIFECYCLE',rendererProfile:'COMPACT_LIFECYCLE',deliveryProfile:'BUFFERED_COMPACT',company,companyUid,auditId,actor:managerActor,actorRole:'MANAGER',representedAuditor,onBehalf:true,confirmationChannel:channel,confirmationSource:'EXTERNAL_CONFIRMATION',recipientRole:'MANAGER',recipientGroup:'MANAGER',recipientEmail:managerActor,resultStatus:'Accepted',displayStatus:'Accepted',comment:note,scopes,config:{active:true,sendEmail:true,logOnly:false,consolidate:true,bufferMinutes:10,digestGroup:'LIFECYCLE_MANAGER',templateFamily:'COMPACT_LIFECYCLE',templateKeyDefault:'AUDIT_ACCEPTED',fromEmail:'planning@agriqa.es',fromName:'Agri Quality Assurance – Audit Planning',replyTo:'',includeComment:false,requireReason:false}};
+    const bodyText=['Audit accepted on behalf of auditor','Company: '+company,'Audit ID: '+auditId,'Represented auditor: '+representedAuditor,'Confirmed via: '+channel].join('\\n'),notifyHash=createHash('md5').update(managerActor+'|AUDIT_ACCEPTED|'+auditId+'|'+now+'|MANAGER_ON_BEHALF').digest('hex');
+    const queueRows=[
+      [minuteStamp,'AUDIT_TRAIL','LIFECYCLE_STATUS_CHANGED','',auditId,company,'[TRAIL] LIFECYCLE_STATUS_CHANGED :: '+auditId,trailBody,0,'',trailHash,'',JSON.stringify({payload:trailPayload})],
+      [minuteStamp,'PENDING','AUDIT_ACCEPTED',managerActor,auditId,company,'Audit accepted on behalf – '+company+' – '+auditId,bodyText,0,'',notifyHash,'',JSON.stringify({payload:notifyPayload})]
+    ];
+    let sideEffectQueue={success:true};const sideStarted=Date.now();try{await sheetsValuesAppend('Notification Queue!A:M',queueRows);}catch(e){sideEffectQueue={success:false,error:clean(e?.message||e)}}const sideEffectMs=Date.now()-sideStarted;
+    return{success:true,auditId,action:'ACCEPT',beforeStatus,newStatus:'Accepted',afterStatus:'ACCEPTED',afterStatusDisplay:'Accepted',representedAuditor,managerActor,confirmationChannel:channel,confirmationSource:'EXTERNAL_CONFIRMATION',confirmedAt:now,directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_ACCEPT_ON_BEHALF',readMs,writeMs,sideEffectMs,sideEffectQueue,totalMs:Date.now()-started};
   });
 }
 
@@ -639,6 +681,14 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
   if(u.pathname==='/auth/legacy-handoff'&&req.method==='POST'){let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});const form=new URLSearchParams(raw);try{const identity=await validateLegacyIdentity(form.get('token'),form.get('role'),form.get('deviceId'));if(!identity.ok)return send(res,401,identity);const token=issueSession(identity);res.writeHead(303,{'set-cookie':sessionCookie(token),'location':'/','cache-control':'no-store'});return res.end();}catch(e){return send(res,500,{ok:false,error:'IDENTITY_HANDOFF_FAILED',detail:clean(e?.message||e)});}}
   if(u.pathname==='/api/v1/session/exchange'&&req.method==='POST'){if(req.headers.origin&&(!ORIGIN||req.headers.origin!==ORIGIN))return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}');}catch{return send(res,400,{ok:false,error:'BAD_JSON'});}try{const identity=await validateLegacyIdentity(b.token,b.role,b.deviceId);if(!identity.ok)return send(res,401,identity);const token=issueSession(identity);return send(res,200,{ok:true,identity:{email:identity.email,role:identity.role},expiresIn:SESSION_TTL_SECONDS},{'set-cookie':sessionCookie(token)});}catch(e){return send(res,500,{ok:false,error:'IDENTITY_EXCHANGE_FAILED',detail:clean(e?.message||e)});}}
   if(u.pathname==='/api/v1/planning/rotation-direct'&&req.method==='GET'){const sess=sessionFromRequest(req);if(!sess)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(clean(sess.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});const auditId=clean(u.searchParams.get('auditId')),auditorEmail=clean(u.searchParams.get('auditorEmail')).toLowerCase();if(!auditId||!auditorEmail)return send(res,400,{ok:false,error:'ROTATION_REQUIRED_FIELDS_MISSING'});try{return send(res,200,await directRotationRead(auditId,auditorEmail));}catch(e){return send(res,500,{ok:false,error:'DIRECT_ROTATION_READ_FAILED',detail:clean(e?.message||e)});}}
+  if(u.pathname==='/api/v1/manager/accept-direct'&&req.method==='POST'){
+    const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(s.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});
+    let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});
+    let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+    try{b.action='accept';const out=await directManagerAcceptOnBehalf(s,b);return send(res,out&&out.success===false?409:200,out);}
+    catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'DIRECT_MANAGER_ACCEPT_BLOCKED',detail:clean(e?.message||e)});}
+  }
   if(u.pathname==='/api/v1/manager/approve-direct'&&req.method==='POST'){
     const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(s.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});

@@ -108,7 +108,20 @@ http.createServer(async(req,res)=>{
     const identity=await innerSession(req);if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED',build:BUILD});if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN',build:BUILD});
     let body={};try{body=JSON.parse(raw||'{}');}catch{return sendJson(res,400,{success:false,error:'BAD_JSON',build:BUILD});}
     const managerAction=clean(body?.action||body?.managerAction).toLowerCase();
-    if(managerAction==='cancel')return await proxy(req,res,raw);
+    if(managerAction==='cancel'){
+      const innerStarted=Date.now();
+      try{
+        const target='http://127.0.0.1:'+INNER_PORT+'/api/v1/manager/cancel-direct';
+        const headers={'content-type':'application/json'};
+        if(req.headers.cookie)headers.cookie=clean(req.headers.cookie);
+        const rr=await fetch(target,{method:'POST',headers,body:raw||'{}',redirect:'manual'});
+        const text=await rr.text();let out=null;try{out=JSON.parse(text);}catch{out={success:false,error:'DIRECT_CANCEL_NON_JSON',raw:text.slice(0,500)}}
+        if(out&&typeof out==='object')out.r10InnerMs=Date.now()-innerStarted;
+        return sendJson(res,rr.status,out||{success:false,error:'DIRECT_CANCEL_EMPTY',r10InnerMs:Date.now()-innerStarted});
+      }catch(e){
+        return sendJson(res,502,{success:false,error:'DIRECT_CANCEL_PROXY_FAILED',detail:clean(e?.message||e),r10InnerMs:Date.now()-innerStarted,build:BUILD});
+      }
+    }
     try{
       const write=await callCanonicalManagerAction(identity,body);
       const rereadStarted=Date.now();

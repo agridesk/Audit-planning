@@ -46,8 +46,10 @@
       if(ev.origin !== parentOrigin) return;
       var m = ev.data || {};
       if(m.type !== 'AMS_MANAGER_ACTION' || String(m.nonce||'') !== nonce) return;
+      var workerReceivedAt=Date.now();
       var requestId=String(m.requestId||''),auditId=String(m.auditId||'').trim(),action=String(m.action||'').trim().toLowerCase();
       var options=(m.options&&typeof m.options==='object')?m.options:{};
+      options.requestId=requestId;
       if(!requestId||!auditId||!/^(approve|cancel|reject)$/.test(action)){
         reply({type:'AMS_MANAGER_ACTION_RESULT',requestId:requestId,success:false,error:'INVALID_ACTION_REQUEST'});return;
       }
@@ -55,13 +57,15 @@
         reply({type:'AMS_MANAGER_ACTION_RESULT',requestId:requestId,success:false,error:'ACTION_REASON_REQUIRED'});return;
       }
       options.actorEmail=actorEmail;options.managerEmail=actorEmail;options.externalSession=true;
-      var started=Date.now();
+      var started=Date.now(),clientSentAt=Number(m.clientSentAt||0)||0;
       google.script.run
         .withSuccessHandler(function(res){
-          reply({type:'AMS_MANAGER_ACTION_RESULT',requestId:requestId,success:!(res&&(res.success===false||res.ok===false)),result:res||{},relayElapsedMs:Date.now()-started});
+          var rpcEndedAt=Date.now(),replyAt=Date.now();
+          reply({type:'AMS_MANAGER_ACTION_RESULT',requestId:requestId,success:!(res&&(res.success===false||res.ok===false)),result:res||{},relayElapsedMs:rpcEndedAt-started,trace:{requestId:requestId,clientSentAt:clientSentAt,workerReceivedAt:workerReceivedAt,rpcStartedAt:started,rpcEndedAt:rpcEndedAt,replyAt:replyAt}});
         })
         .withFailureHandler(function(err){
-          reply({type:'AMS_MANAGER_ACTION_RESULT',requestId:requestId,success:false,error:String(err&&err.message?err.message:err),relayElapsedMs:Date.now()-started});
+          var rpcEndedAt=Date.now(),replyAt=Date.now();
+          reply({type:'AMS_MANAGER_ACTION_RESULT',requestId:requestId,success:false,error:String(err&&err.message?err.message:err),relayElapsedMs:rpcEndedAt-started,trace:{requestId:requestId,clientSentAt:clientSentAt,workerReceivedAt:workerReceivedAt,rpcStartedAt:started,rpcEndedAt:rpcEndedAt,replyAt:replyAt}});
         })
         .managerV5Action(auditId,action,options);
     });

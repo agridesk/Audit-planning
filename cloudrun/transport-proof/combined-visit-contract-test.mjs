@@ -24,7 +24,7 @@ has(r10,"sheetValues('Audit planning!A1:AX1')",'targeted reread header read');
 has(r10,"sheetValues('Audit planning!A'+rowNo+':AX'+rowNo)",'targeted reread exact-row read');
 has(r10,"if(k==='PENDING_PLANNING'){planningJson='';scheduled=null;formal=null;assigned='';}",'Pending Planning clears committed hours in projection');
 has(portal,"fetch('/api/v1/manager/action-relay-url'",'Manager 2.0 warm GAS worker bootstrap');
-has(portal,'v1-warm-google-script-run','timing identifies Manager 1.0-style warm GAS transport');
+has(portal,' · trace ','timing identifies instrumented warm GAS transport');
 has(portal,'patchActionLikeV1(auditId,action,reason,wr,perf)','Manager 1.0-style local action patch');
 not(portal,'pollActionCanonical','no synchronous canonical reread/poll after action');
 not(r10,"u.pathname==='/api/v1/manager/action-direct'",'direct Sheets action path removed');

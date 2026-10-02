@@ -15,7 +15,7 @@ function RUN_MODEL_C_PHASE2A_EXTENSION_PREFLIGHT() {
     if (!obligationById[id]) { errors.push('Orphan active link: ' + id); return; }
     if (activeByObligation[id]) errors.push('Duplicate active link: ' + id);
     activeByObligation[id] = true;
-    if (String(obligationById[id].Trigger_Source).toUpperCase() === 'ECAS' || ModelCFoundation_isAbc_(obligationById[id].ScopeCode, '')) abcLinks++;
+    if (ModelCExtension_isExternalAnnualObligation_(obligationById[id])) abcLinks++;
     else certificateLinks++;
   });
   if (typeof AC_applyCentralPlanningWindow_ !== 'function') errors.push('Central planning-window calculator unavailable');
@@ -36,7 +36,7 @@ function RUN_MODEL_C_PHASE2A_EXTENSION_DRIFT_CHECK() {
   links.forEach(function(x) {
     if (String(x.Link_State).toUpperCase() !== 'ACTIVE') return;
     var ob = byId[String(x.Obligation_ID)];
-    if (!ob || String(ob.Trigger_Source).toUpperCase() === 'ECAS' || ModelCFoundation_isAbc_(ob.ScopeCode, '')) return;
+    if (!ob || ModelCExtension_isExternalAnnualObligation_(ob)) return;
     var auditId = String(x.Audit_ID);
     if (!byAudit[auditId]) byAudit[auditId] = [];
     byAudit[auditId].push(ob);
@@ -69,6 +69,11 @@ function RUN_MODEL_C_PHASE2A_EXTENSION_DRIFT_CHECK() {
   var out = { success:errors.length === 0, build:MODEL_C_EXTENSION_BUILD, readOnly:true, writesPerformed:false, auditsChecked:Object.keys(byAudit).length, certificateObligationsChecked:Object.keys(byAudit).reduce(function(n,k){return n+byAudit[k].length;},0), errors:errors.slice(0,25) };
   Logger.log(JSON.stringify(out, null, 2));
   return out;
+}
+
+function ModelCExtension_isExternalAnnualObligation_(obligation) {
+  obligation = obligation || {};
+  return String(obligation.Trigger_Source || '').trim().toUpperCase() === 'ECAS';
 }
 
 function ModelCExtension_dateInTz_(value, tz) {
@@ -149,7 +154,7 @@ function ModelCExtension_planMutation_(command, obligations, links) {
   var ids = [];
   (obligations || []).forEach(function(x) {
     if (!linked[String(x.Obligation_ID)]) return;
-    if (String(x.Trigger_Source).toUpperCase() === 'ECAS' || ModelCFoundation_isAbc_(x.ScopeCode, '')) return;
+    if (ModelCExtension_isExternalAnnualObligation_(x)) return;
     ids.push(String(x.Obligation_ID));
   });
   return ids.length ? { success:true, obligationIds:ids } : { success:false, obligationIds:[], error:'No active certificate obligation linked to Audit ID' };

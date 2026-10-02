@@ -26,11 +26,11 @@ has(r10,"sheetValues('Audit planning!A1:AX1')",'targeted reread header read');
 has(r10,"sheetValues('Audit planning!A'+rowNo+':AX'+rowNo)",'targeted reread exact-row read');
 has(r10,"if(k==='PENDING_PLANNING'){planningJson='';scheduled=null;formal=null;assigned='';}",'Pending Planning clears committed hours in projection');
 has(portal,"fetch('/api/v1/manager/action-relay-url'",'Manager 2.0 signed relay path');
-has(portal,'warm-google-script-run','timing identifies warm google.script.run transport');
+has(portal,'signed-gas-fire-and-confirm','timing identifies signed GAS fire-and-confirm transport');
 has(portal,'patchRowInPlace(auditId,patch,perf)','targeted canonical reread patches same row');
 has(portal,'action-relay-url','signed relay retained in Manager UI');
-has(portal,'ACTION_RELAY_READY_TIMEOUT','warm relay bootstrap is observable');
-has(portal,'postMessage','warm relay uses signed cross-origin message channel');
+not(portal,'ACTION_RELAY_READY_TIMEOUT','READY bootstrap dependency removed');
+not(portal,'postMessage','cross-frame message channel removed');
 has(resetHours,"['Hours planned', 'Planned hours', 'Hours Planned']",'Cancel reopen clears Hours planned canonically');
 has(resetHours,'Total audit time in hours','formal required hours explicitly preserved');
 has(resetHours,'getRangeList(a1).clearContent()','Cancel reset uses one batched clear');
@@ -65,12 +65,12 @@ has(r4,'VISIT_COMBINED_COMMIT_NOT_YET_CANONICAL','lower-layer fail-closed combin
 
 console.log(JSON.stringify({
   success:true,
-  build:'2026-10-02_COMBINED_VISIT_CONTRACT_R10_WARM_RELAY_R10',
+  build:'2026-10-02_COMBINED_VISIT_CONTRACT_R10_FIRE_CONFIRM_R11',
   writesPerformed:false,
   assertions:{
     publicRuntimeR10:true,
-    managerActionUsesWarmGoogleScriptRelay:true,
-    relayBootstrapObservable:true,
+    managerActionUsesSignedGasFireConfirm:true,
+    relayBootstrapRemoved:true,
     targetedCanonicalReread:true,
     cancelClearsFormalCommittedHours:true,
     pendingPlanningClearsScheduledHours:true,

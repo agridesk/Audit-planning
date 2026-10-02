@@ -1,13 +1,13 @@
 /***********************************************************************
  * FILE: zz_ExternalManagerActionRelay.js
- * BUILD: 2026-10-02_MANAGER_ACTION_FIRE_CONFIRM_R5
+ * BUILD: 2026-10-02_MANAGER_ACTION_WARM_WORKER_R6
  * PURPOSE:
  *   Keep Manager Portal 2.0 lifecycle writes on the same Apps Script
  *   google.script.run path used by the fast 1.0 Manager Portal.
  *   Cloud Run only issues a short-lived signed iframe URL; lifecycle
  *   ownership remains managerV5Action -> Status_applyAction.
  ***********************************************************************/
-var EXTERNAL_MANAGER_ACTION_RELAY_BUILD = '2026-10-02_MANAGER_ACTION_FIRE_CONFIRM_R5';
+var EXTERNAL_MANAGER_ACTION_RELAY_BUILD = '2026-10-02_MANAGER_ACTION_WARM_WORKER_R6';
 var EXTERNAL_MANAGER_ACTION_RELAY_PARENT_ORIGIN = 'https://ams-transport-proof-510075419067.europe-west1.run.app';
 var EXTERNAL_MANAGER_ACTION_RELAY_MAX_FUTURE_MS = 15 * 60 * 1000;
 
@@ -15,17 +15,15 @@ function ExternalManagerActionRelay_b64url_(bytes) {
   return Utilities.base64EncodeWebSafe(bytes).replace(/=+$/g, '');
 }
 
-function ExternalManagerActionRelay_payload_(email, role, expMs, origin, auditId, managerAction, reason) {
+function ExternalManagerActionRelay_payload_(email, role, expMs, origin, nonce) {
   return [
-    'v2',
-    'MANAGER_ACTION_RELAY_EXECUTE',
+    'v3',
+    'MANAGER_ACTION_WARM_WORKER',
     String(email || '').trim().toLowerCase(),
     String(role || '').trim(),
     String(expMs || '').trim(),
     String(origin || '').trim(),
-    String(auditId || '').trim(),
-    String(managerAction || '').trim().toLowerCase(),
-    String(reason || '').trim()
+    String(nonce || '').trim()
   ].join('\n');
 }
 
@@ -53,14 +51,10 @@ function ExternalManagerActionRelay_verify_(p) {
   var exp = Number(String(p.exp || '').trim());
   var origin = String(p.origin || '').trim();
   var supplied = String(p.signature || '').trim();
-  var auditId = String(p.auditId || '').trim();
-  var managerAction = String(p.managerAction || '').trim().toLowerCase();
-  var reason = String(p.reason || p.comment || '').trim();
+  var nonce = String(p.nonce || '').trim();
   var now = Date.now();
 
-  if (!email || role !== 'Manager' || !exp || !origin || !supplied || !auditId || !managerAction) return { ok:false, error:'MISSING_FIELDS' };
-  if (['approve','cancel','reject'].indexOf(managerAction) < 0) return { ok:false, error:'MANAGER_ACTION_NOT_ALLOWED' };
-  if ((managerAction === 'cancel' || managerAction === 'reject') && !reason) return { ok:false, error:'ACTION_REASON_REQUIRED' };
+  if (!email || role !== 'Manager' || !exp || !origin || !supplied || !nonce) return { ok:false, error:'MISSING_FIELDS' };
   if (origin !== EXTERNAL_MANAGER_ACTION_RELAY_PARENT_ORIGIN) return { ok:false, error:'ORIGIN_FORBIDDEN' };
   if (exp < now) return { ok:false, error:'ASSERTION_EXPIRED' };
   if (exp - now > EXTERNAL_MANAGER_ACTION_RELAY_MAX_FUTURE_MS) return { ok:false, error:'ASSERTION_TOO_FAR' };
@@ -68,20 +62,18 @@ function ExternalManagerActionRelay_verify_(p) {
   var key = String(PropertiesService.getScriptProperties().getProperty('AMS_EXTERNAL_WRITE_BRIDGE_KEY') || '').trim();
   if (key.length < 32) return { ok:false, error:'BRIDGE_KEY_NOT_CONFIGURED' };
 
-  var payload = ExternalManagerActionRelay_payload_(email, role, exp, origin, auditId, managerAction, reason);
+  var payload = ExternalManagerActionRelay_payload_(email, role, exp, origin, nonce);
   var expected = ExternalManagerActionRelay_sign_(payload, key);
   if (!ExternalManagerActionRelay_safeEq_(supplied, expected)) return { ok:false, error:'BAD_SIGNATURE' };
 
-  return { ok:true, email:email, role:role, exp:exp, origin:origin, auditId:auditId, managerAction:managerAction, reason:reason };
+  return { ok:true, email:email, role:role, exp:exp, origin:origin, nonce:nonce };
 }
 
 function ExternalManagerActionRelay_render_(verified) {
   var t = HtmlService.createTemplateFromFile('ManagerActionRelay');
   t.__parentOrigin = verified.origin;
   t.__actorEmail = verified.email;
-  t.__auditId = verified.auditId;
-  t.__managerAction = verified.managerAction;
-  t.__reason = verified.reason;
+  t.__nonce = verified.nonce;
   t.__build = EXTERNAL_MANAGER_ACTION_RELAY_BUILD;
   return t.evaluate()
     .setTitle('AMS Manager Action Relay')
@@ -99,7 +91,7 @@ function ExternalManagerActionRelay_errorHtml_(errorCode, origin) {
     build:EXTERNAL_MANAGER_ACTION_RELAY_BUILD
   });
   return '<!doctype html><html><head><meta charset="utf-8"><title>AMS relay error</title></head><body><pre>' + code + '</pre><script>' +
-    'try{parent.postMessage(' + payload + ',' + JSON.stringify(parentOrigin) + ');}catch(e){}' +
+    'try{top.postMessage(' + payload + ',' + JSON.stringify(parentOrigin) + ');}catch(e){}' +
     '<\/script></body></html>';
 }
 

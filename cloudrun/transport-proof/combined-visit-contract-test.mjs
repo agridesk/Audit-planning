@@ -18,16 +18,16 @@ function has(text,needle,label){assert.ok(text.includes(needle),label+' missing'
 function not(text,needle,label){assert.ok(!text.includes(needle),label+' unexpectedly present');}
 
 assert.equal(pkg.scripts.start,'node server-r10.js','R10 must own public DEV runtime during proxy-chain recovery');
-has(r10,"u.pathname==='/api/v1/manager/action-direct'",'direct Manager cancel/reject endpoint');
+has(r10,"u.pathname==='/api/v1/manager/action-relay-url'",'warm Manager GAS worker bootstrap endpoint');
 has(r10,"u.pathname==='/api/v1/manager/audit'",'targeted Manager reread');
 has(r10,"sheetValues('Audit planning!A1:AX1')",'targeted reread header read');
 has(r10,"sheetValues('Audit planning!A'+rowNo+':AX'+rowNo)",'targeted reread exact-row read');
 has(r10,"if(k==='PENDING_PLANNING'){planningJson='';scheduled=null;formal=null;assigned='';}",'Pending Planning clears committed hours in projection');
-has(portal,"fetch('/api/v1/manager/action-direct'",'Manager 2.0 direct cancel/reject path');
-has(portal,'direct-sheets-api','timing identifies direct Sheets transport');
-has(portal,'patchRowInPlace(auditId,patch,perf)','targeted canonical reread patches same row');
-has(r10,'directCancel(identity,auditId,reason)','direct cancel owner retained');
-has(r10,'directReject(identity,auditId,reason)','direct reject owner retained');
+has(portal,"fetch('/api/v1/manager/action-relay-url'",'Manager 2.0 warm GAS worker bootstrap');
+has(portal,'v1-warm-google-script-run','timing identifies Manager 1.0-style warm GAS transport');
+has(portal,'patchActionLikeV1(auditId,action,reason,wr,perf)','Manager 1.0-style local action patch');
+not(portal,'pollActionCanonical','no synchronous canonical reread/poll after action');
+not(r10,"u.pathname==='/api/v1/manager/action-direct'",'direct Sheets action path removed');
 has(resetHours,"['Hours planned', 'Planned hours', 'Hours Planned']",'Cancel reopen clears Hours planned canonically');
 has(resetHours,'Total audit time in hours','formal required hours explicitly preserved');
 has(resetHours,'getRangeList(a1).clearContent()','Cancel reset uses one batched clear');
@@ -62,13 +62,13 @@ has(r4,'VISIT_COMBINED_COMMIT_NOT_YET_CANONICAL','lower-layer fail-closed combin
 
 console.log(JSON.stringify({
   success:true,
-  build:'2026-10-02_COMBINED_VISIT_CONTRACT_R10_DIRECT_ACTION_R12',
+  build:'2026-10-02_COMBINED_VISIT_CONTRACT_R10_WARM_GAS_R13',
   writesPerformed:false,
   assertions:{
     publicRuntimeR10:true,
-    managerCancelRejectUsesDirectSheets:true,
-    appsScriptRemovedFromCancelRejectHotPath:true,
-    targetedCanonicalReread:true,
+    managerActionsUseWarmGasWorker:true,
+    managerActionMirrorsV1:true,
+    synchronousActionRereadRemoved:true,
     cancelClearsFormalCommittedHours:true,
     pendingPlanningClearsScheduledHours:true,
     targetedManagerReread:true,

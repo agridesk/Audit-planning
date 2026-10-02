@@ -477,7 +477,12 @@ function Lifecycle_snapshotProtectedPlanningFields_(ctx) {
   if (!target.success) return target;
 
   var protectedDefs = lifecycle_protectedPlanningFieldDefs_();
-  var rowValues = target.sheet.getRange(target.rowIndex, 1, 1, target.headers.length).getValues()[0] || [];
+  // Reuse the row already loaded by StatusMachine when available. Re-reading
+  // the complete Audit planning row here added a full Sheets RPC to every
+  // Cancel/Deny while protecting values that are already present in ctx.row.
+  var rowValues = (ctx.row && ctx.row.length)
+    ? ctx.row.slice()
+    : (target.sheet.getRange(target.rowIndex, 1, 1, target.headers.length).getValues()[0] || []);
   var fields = [];
 
   for (var i = 0; i < protectedDefs.length; i++) {
@@ -505,12 +510,26 @@ function Lifecycle_restoreProtectedPlanningFields_(snapshot, opts) {
 
   var restored = [];
   var checked = 0;
+  var validFields = (snapshot.fields || []).filter(function(f){ return !!(f && f.col); });
+  var currentByCol = {};
 
-  for (var i = 0; i < snapshot.fields.length; i++) {
-    var f = snapshot.fields[i] || {};
-    if (!f.col) continue;
+  // Verify all protected values with one bounded row read instead of one
+  // getValue() RPC per protected field. Writes remain fail-safe and occur only
+  // if a protected value actually changed.
+  if (validFields.length) {
+    var cols = validFields.map(function(f){ return Number(f.col); });
+    var minCol = Math.min.apply(null, cols);
+    var maxCol = Math.max.apply(null, cols);
+    var spanValues = snapshot.sheet.getRange(snapshot.rowIndex, minCol, 1, maxCol - minCol + 1).getValues()[0] || [];
+    for (var vi = 0; vi < validFields.length; vi++) {
+      currentByCol[validFields[vi].col] = spanValues[Number(validFields[vi].col) - minCol];
+    }
+  }
+
+  for (var i = 0; i < validFields.length; i++) {
+    var f = validFields[i] || {};
     checked++;
-    var current = snapshot.sheet.getRange(snapshot.rowIndex, f.col).getValue();
+    var current = currentByCol[f.col];
     if (!lifecycle_valuesEqual_(current, f.value)) {
       snapshot.sheet.getRange(snapshot.rowIndex, f.col).setValue(f.value);
       restored.push({ key:f.key, label:f.label, col:f.col });

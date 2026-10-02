@@ -122,6 +122,20 @@ http.createServer(async(req,res)=>{
         return sendJson(res,502,{success:false,error:'DIRECT_CANCEL_PROXY_FAILED',detail:clean(e?.message||e),r10InnerMs:Date.now()-innerStarted,build:BUILD});
       }
     }
+    if(managerAction==='reject'){
+      const innerStarted=Date.now();
+      try{
+        const target='http://127.0.0.1:'+INNER_PORT+'/api/v1/manager/reject-direct';
+        const headers={'content-type':'application/json'};
+        if(req.headers.cookie)headers.cookie=clean(req.headers.cookie);
+        const rr=await fetch(target,{method:'POST',headers,body:raw||'{}',redirect:'manual'});
+        const txt=await rr.text();let out=null;try{out=JSON.parse(txt);}catch{out={success:false,error:'DIRECT_REJECT_NON_JSON'}}
+        if(out&&typeof out==='object')out.r10InnerMs=Date.now()-innerStarted;
+        return sendJson(res,rr.status,out||{success:false,error:'DIRECT_REJECT_EMPTY'});
+      }catch(e){
+        return sendJson(res,502,{success:false,error:'DIRECT_REJECT_PROXY_FAILED',detail:clean(e?.message||e),build:BUILD});
+      }
+    }
     try{
       const write=await callCanonicalManagerAction(identity,body);
       const rereadStarted=Date.now();

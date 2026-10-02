@@ -1,13 +1,13 @@
 /***********************************************************************
  * FILE: zz_ExternalManagerActionRelay.js
- * BUILD: 2026-10-02_MANAGER_ACTION_WARM_WORKER_R6
+ * BUILD: 2026-10-02_MANAGER_ACTION_SERVER_WARM_R7
  * PURPOSE:
  *   Keep Manager Portal 2.0 lifecycle writes on the same Apps Script
  *   google.script.run path used by the fast 1.0 Manager Portal.
  *   Cloud Run only issues a short-lived signed iframe URL; lifecycle
  *   ownership remains managerV5Action -> Status_applyAction.
  ***********************************************************************/
-var EXTERNAL_MANAGER_ACTION_RELAY_BUILD = '2026-10-02_MANAGER_ACTION_WARM_WORKER_R6';
+var EXTERNAL_MANAGER_ACTION_RELAY_BUILD = '2026-10-02_MANAGER_ACTION_SERVER_WARM_R7';
 var EXTERNAL_MANAGER_ACTION_RELAY_PARENT_ORIGIN = 'https://ams-transport-proof-510075419067.europe-west1.run.app';
 var EXTERNAL_MANAGER_ACTION_RELAY_MAX_FUTURE_MS = 15 * 60 * 1000;
 
@@ -96,11 +96,52 @@ function ExternalManagerActionRelay_errorHtml_(errorCode, origin, nonce) {
     '<\/script></body></html>';
 }
 
+function ManagerActionWorker_warm() {
+  var t0 = Date.now();
+  if (!V5_ENTRY_isDevEnv_()) return { success:false, error:'DEV_ONLY', ms:Date.now()-t0 };
+
+  var out = {
+    success:true,
+    build:EXTERNAL_MANAGER_ACTION_RELAY_BUILD,
+    auditPlanningPack:false,
+    availabilityReady:false,
+    statusOwner:false,
+    ms:0
+  };
+
+  try {
+    if (typeof __mp_getAuditPlanningPack_ === 'function') {
+      var pack = __mp_getAuditPlanningPack_();
+      out.auditPlanningPack = !!(pack && pack.rows);
+      out.auditPlanningRows = pack && pack.rows ? pack.rows.length : 0;
+    }
+  } catch (ePack) {
+    out.auditPlanningPackError = String(ePack && ePack.message ? ePack.message : ePack);
+  }
+
+  try {
+    if (typeof AvailabilityService !== 'undefined' && AvailabilityService && typeof AvailabilityService.healthcheck === 'function') {
+      var av = AvailabilityService.healthcheck();
+      out.availabilityReady = !!(av && av.success !== false);
+    } else {
+      out.availabilityReady = typeof V5_availabilityClearAuditId_ === 'function';
+    }
+  } catch (eAv) {
+    out.availabilityError = String(eAv && eAv.message ? eAv.message : eAv);
+  }
+
+  out.statusOwner = typeof managerV5Action === 'function' && typeof Status_applyAction === 'function';
+  out.success = out.statusOwner;
+  out.ms = Date.now() - t0;
+  return out;
+}
+
 function RUN_EXTERNAL_MANAGER_ACTION_RELAY_CONTRACT_ACCEPTANCE() {
   var out = { ok:true, build:EXTERNAL_MANAGER_ACTION_RELAY_BUILD, writesPerformed:false, checks:[] };
   function check_(name, ok, detail) { out.checks.push({name:name,ok:!!ok,detail:detail||''}); if (!ok) out.ok=false; }
   check_('devOnly', V5_ENTRY_isDevEnv_(), '');
   check_('managerAdapterAvailable', typeof managerV5Action === 'function', '');
+  check_('serverWarmupAvailable', typeof ManagerActionWorker_warm === 'function', '');
   check_('bridgeKeyConfigured', String(PropertiesService.getScriptProperties().getProperty('AMS_EXTERNAL_WRITE_BRIDGE_KEY')||'').trim().length >= 32, '');
   check_('parentOriginPinned', EXTERNAL_MANAGER_ACTION_RELAY_PARENT_ORIGIN === 'https://ams-transport-proof-510075419067.europe-west1.run.app', EXTERNAL_MANAGER_ACTION_RELAY_PARENT_ORIGIN);
   check_('errorPagePostsFailure', ExternalManagerActionRelay_errorHtml_('TEST', EXTERNAL_MANAGER_ACTION_RELAY_PARENT_ORIGIN).indexOf('AMS_MANAGER_ACTION_RELAY_READY') >= 0, '');

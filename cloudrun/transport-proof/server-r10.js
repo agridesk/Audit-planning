@@ -107,6 +107,8 @@ http.createServer(async(req,res)=>{
     const totalStarted=Date.now();
     const identity=await innerSession(req);if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED',build:BUILD});if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN',build:BUILD});
     let body={};try{body=JSON.parse(raw||'{}');}catch{return sendJson(res,400,{success:false,error:'BAD_JSON',build:BUILD});}
+    const managerAction=clean(body?.action||body?.managerAction).toLowerCase();
+    if(managerAction==='cancel')return await proxy(req,res,raw);
     try{
       const write=await callCanonicalManagerAction(identity,body);
       const rereadStarted=Date.now();

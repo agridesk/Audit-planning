@@ -92,6 +92,11 @@ function runActionViaWarmWorker(auditId,action,options){
     })
   })
 }
+function runActionViaCloudRun(auditId,action,options){
+  var started=performance.now();
+  return fetch('/api/v1/manager/action',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({auditId:auditId,action:action,options:options||{}})})
+    .then(function(r){return r.json().then(function(x){if(!r.ok||x.success===false)throw new Error(x.error||x.detail||x.message||'Action failed');return{result:x,relayElapsedMs:Math.round(performance.now()-started),trace:{requestId:'cr'+Date.now()}}})})
+}
 function removeRejectedRowInPlace(auditId,perf){
   var idx=all.findIndex(function(r){return r.auditId===auditId});if(idx<0)return;
   var before=all[idx],beforeKey=before.statusKey,scrollX=window.scrollX,scrollY=window.scrollY,t=performance.now();
@@ -126,12 +131,14 @@ function runAction(button){
   }else if(!window.confirm(action.toUpperCase()+" audit "+auditId+"?"))return;
   busyAudits.add(auditId);
   var tr=button.closest("tr");if(tr)tr.querySelectorAll(".act,.ext-act").forEach(function(b){b.disabled=true});
-  var perf={auditId:auditId,action:action,startedAt:performance.now(),workerMs:0,gasMs:null,patchMs:0},wt=performance.now(),options={reason:reason,comment:reason,rowIndex:row&&row.sourceRow};
-  runActionViaWarmWorker(auditId,action,options)
+  var perf={auditId:auditId,action:action,startedAt:performance.now(),workerMs:0,gasMs:null,patchMs:0},wt=performance.now(),options={reason:reason,comment:reason,rowIndex:row&&row.sourceRow,expectedRevision:row&&row.sourceRevision};
+  var actionPromise=action==='cancel'?runActionViaCloudRun(auditId,action,options):runActionViaWarmWorker(auditId,action,options);
+  actionPromise
     .then(function(x){
       perf.workerMs=Math.round(performance.now()-wt);
       var wr=x.result||{},gas=Number(wr&&wr.perf&&wr.perf.managerActionAdapterMs),trace=x.trace||{},nowEpoch=Date.now();
       if(isFinite(gas))perf.gasMs=Math.round(gas);
+      if(wr&&wr.owner==='CLOUD_RUN_DIRECT_MANAGER_CANCEL')perf.cloudRunMs=Number(wr.totalMs)||null;
       perf.traceId=String(trace.requestId||wr&&wr.perf&&wr.perf.requestId||'');
       perf.browserToWorkerMs=(trace.workerReceivedAt&&trace.clientSentAt)?Math.max(0,Number(trace.workerReceivedAt)-Number(trace.clientSentAt)):null;
       perf.workerPreRpcMs=(trace.rpcStartedAt&&trace.workerReceivedAt)?Math.max(0,Number(trace.rpcStartedAt)-Number(trace.workerReceivedAt)):null;
@@ -141,7 +148,9 @@ function runAction(button){
       var st=wr&&wr.statusPerf||{},core=wr&&wr.actionPerf||{};
       perf.statusPerf=st;perf.actionPerf=core;
       var coreDetail="avail "+(core.availabilityMs==null?"-":core.availabilityMs)+" / reset "+(core.resetPlanningMs==null?"-":core.resetPlanningMs)+" / statuswrite "+(core.statusWriteMs==null?"-":core.statusWriteMs)+" / lifecycle "+(core.lifecycleMs==null?"-":core.lifecycleMs)+" / cache "+(core.cacheInvalidationMs==null?"-":core.cacheInvalidationMs)+(core.archiveMs==null?"":" / archive "+core.archiveMs);
-      document.getElementById("status").textContent=Number(openCounts.total||all.length)+" open audits · action "+perf.totalMs+" ms (worker "+perf.workerMs+" · GAS "+(perf.gasMs==null?"-":perf.gasMs)+" · b→w "+(perf.browserToWorkerMs==null?"-":perf.browserToWorkerMs)+" · preRPC "+(perf.workerPreRpcMs==null?"-":perf.workerPreRpcMs)+" · RPC "+(perf.workerRpcWallMs==null?"-":perf.workerRpcWallMs)+" · w→b "+(perf.workerToBrowserMs==null?"-":perf.workerToBrowserMs)+" · status "+(st.totalMs==null?"-":st.totalMs)+" [guard "+(st.writeGuardMs==null?"-":st.writeGuardMs)+" / load "+(st.loadAuditMs==null?"-":st.loadAuditMs)+" / core "+(st.coreMs==null?"-":st.coreMs)+" / notify "+(st.notificationOnlyMs==null?"-":st.notificationOnlyMs)+"] · "+coreDetail+" · patch "+perf.patchMs+" · trace "+(perf.traceId||"-")+")";
+      document.getElementById("status").textContent=wr&&wr.owner==='CLOUD_RUN_DIRECT_MANAGER_CANCEL'
+        ? Number(openCounts.total||all.length)+" open audits · CANCEL "+perf.totalMs+" ms (Cloud Run "+(perf.cloudRunMs==null?"-":perf.cloudRunMs)+" · read "+(wr.readMs==null?"-":wr.readMs)+" · write "+(wr.writeMs==null?"-":wr.writeMs)+" · queue "+(wr.sideEffectMs==null?"-":wr.sideEffectMs)+" · availability rows "+(wr.availabilityRows==null?"-":wr.availabilityRows)+" · patch "+perf.patchMs+")"
+        : Number(openCounts.total||all.length)+" open audits · action "+perf.totalMs+" ms (worker "+perf.workerMs+" · GAS "+(perf.gasMs==null?"-":perf.gasMs)+" · b→w "+(perf.browserToWorkerMs==null?"-":perf.browserToWorkerMs)+" · preRPC "+(perf.workerPreRpcMs==null?"-":perf.workerPreRpcMs)+" · RPC "+(perf.workerRpcWallMs==null?"-":perf.workerRpcWallMs)+" · w→b "+(perf.workerToBrowserMs==null?"-":perf.workerToBrowserMs)+" · status "+(st.totalMs==null?"-":st.totalMs)+" [guard "+(st.writeGuardMs==null?"-":st.writeGuardMs)+" / load "+(st.loadAuditMs==null?"-":st.loadAuditMs)+" / core "+(st.coreMs==null?"-":st.coreMs)+" / notify "+(st.notificationOnlyMs==null?"-":st.notificationOnlyMs)+"] · "+coreDetail+" · patch "+perf.patchMs+" · trace "+(perf.traceId||"-")+")";
       console.info("[MANAGER_ACTION_TIMING]",perf)
     })
     .catch(function(e){

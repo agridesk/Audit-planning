@@ -7,7 +7,7 @@
  *   Cloud Run only issues a short-lived signed iframe URL; lifecycle
  *   ownership remains managerV5Action -> Status_applyAction.
  ***********************************************************************/
-var EXTERNAL_MANAGER_ACTION_RELAY_BUILD = '2026-10-02_MANAGER_ACTION_WARM_RELAY_R3';
+var EXTERNAL_MANAGER_ACTION_RELAY_BUILD = '2026-10-02_MANAGER_ACTION_WARM_RELAY_R4_ENTRY_OWNED';
 var EXTERNAL_MANAGER_ACTION_RELAY_PARENT_ORIGIN = 'https://ams-transport-proof-510075419067.europe-west1.run.app';
 var EXTERNAL_MANAGER_ACTION_RELAY_MAX_FUTURE_MS = 15 * 60 * 1000;
 

@@ -18,21 +18,22 @@ function has(text,needle,label){assert.ok(text.includes(needle),label+' missing'
 function not(text,needle,label){assert.ok(!text.includes(needle),label+' unexpectedly present');}
 
 assert.equal(pkg.scripts.start,'node server-r10.js','R10 must own public DEV runtime during proxy-chain recovery');
-has(r10,"u.pathname==='/api/v1/manager/action'",'direct Manager action endpoint');
+has(r10,"u.pathname==='/api/v1/manager/action-relay-url'",'signed Manager action relay endpoint');
 has(r10,"u.pathname==='/api/v1/manager/audit'",'targeted Manager reread');
-has(r10,"callGasBridge(identity,'externalmanageraction'",'Cloud Run calls canonical GAS bridge');
-has(r10,'bridgeKey:WRITE_KEY','Cloud Run owns bridge credential');
+has(r10,"createHmac('sha256'",'Cloud Run signs Manager relay assertion');
+has(r10,'WRITE_KEY','Cloud Run owns bridge credential');
 has(r10,"sheetValues('Audit planning!A1:AX1')",'targeted reread header read');
 has(r10,"sheetValues('Audit planning!A'+rowNo+':AX'+rowNo)",'targeted reread exact-row read');
 has(r10,"if(k==='PENDING_PLANNING'){planningJson='';scheduled=null;formal=null;assigned='';}",'Pending Planning clears committed hours in projection');
-has(portal,"fetch('/api/v1/manager/action'",'Manager 2.0 direct action path');
-has(portal,'direct-gas-action','timing identifies direct GAS action transport');
-has(portal,'patchRowInPlace(auditId,x.patch,perf)','action response patches same row');
-not(portal,'action-relay-url','iframe relay removed from Manager UI');
+has(portal,"fetch('/api/v1/manager/action-relay-url'",'Manager 2.0 signed relay path');
+has(portal,'signed-browser-relay','timing identifies signed browser relay transport');
+has(portal,'replaceVisibleRow(auditId,all[idx])','canonical poll patches same row');
+has(portal,'action-relay-url','signed relay retained in Manager UI');
 not(portal,'ACTION_RELAY_READY_TIMEOUT','relay READY handshake removed');
-not(portal,'postMessage','cross-origin relay messaging removed');
+not(portal,'postMessage','cross-origin relay messaging remains unnecessary');
 has(resetHours,"['Hours planned', 'Planned hours', 'Hours Planned']",'Cancel reopen clears Hours planned canonically');
 has(resetHours,'Total audit time in hours','formal required hours explicitly preserved');
+has(resetHours,'getRangeList(a1).clearContent()','Cancel reset uses one batched clear');
 
 has(r11,"Scheduling_hours_delta",'scheduling delta hardening retained');
 has(r11,'FORMAL_HOURS_PLUS_CONFIG_DELTA','formal plus delta semantics retained');
@@ -64,13 +65,13 @@ has(r4,'VISIT_COMBINED_COMMIT_NOT_YET_CANONICAL','lower-layer fail-closed combin
 
 console.log(JSON.stringify({
   success:true,
-  build:'2026-10-01_COMBINED_VISIT_CONTRACT_R10_GRID2_R8',
+  build:'2026-10-02_COMBINED_VISIT_CONTRACT_R10_SIGNED_RELAY_R9',
   writesPerformed:false,
   assertions:{
     publicRuntimeR10:true,
-    managerActionUsesDirectGasHttp:true,
-    iframeRelayRemoved:true,
-    actionResponseIncludesCanonicalPatch:true,
+    managerActionUsesSignedBrowserRelay:true,
+    relayReadyHandshakeRemoved:true,
+    canonicalPollPatchesSameRow:true,
     cancelClearsFormalCommittedHours:true,
     pendingPlanningClearsScheduledHours:true,
     targetedManagerReread:true,

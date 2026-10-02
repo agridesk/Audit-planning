@@ -80,7 +80,7 @@ function ExternalManagerActionRelay_render_(verified) {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-function ExternalManagerActionRelay_errorHtml_(errorCode, origin) {
+function ExternalManagerActionRelay_errorHtml_(errorCode, origin, nonce) {
   var code = String(errorCode || 'RELAY_FAILED').replace(/[<>]/g, '');
   var parentOrigin = String(origin || EXTERNAL_MANAGER_ACTION_RELAY_PARENT_ORIGIN);
   if (parentOrigin !== EXTERNAL_MANAGER_ACTION_RELAY_PARENT_ORIGIN) parentOrigin = EXTERNAL_MANAGER_ACTION_RELAY_PARENT_ORIGIN;
@@ -88,7 +88,8 @@ function ExternalManagerActionRelay_errorHtml_(errorCode, origin) {
     type:'AMS_MANAGER_ACTION_RELAY_READY',
     success:false,
     error:code,
-    build:EXTERNAL_MANAGER_ACTION_RELAY_BUILD
+    build:EXTERNAL_MANAGER_ACTION_RELAY_BUILD,
+    nonce:String(nonce || '')
   });
   return '<!doctype html><html><head><meta charset="utf-8"><title>AMS relay error</title></head><body><pre>' + code + '</pre><script>' +
     'try{top.postMessage(' + payload + ',' + JSON.stringify(parentOrigin) + ');}catch(e){}' +

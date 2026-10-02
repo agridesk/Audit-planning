@@ -1,6 +1,6 @@
 /***********************************************************************
  * FILE: zz_ExternalManagerActionRelay.js
- * BUILD: 2026-10-02_MANAGER_ACTION_WARM_RELAY_R3
+ * BUILD: 2026-10-02_MANAGER_ACTION_WARM_RELAY_R4_ENTRY_OWNED
  * PURPOSE:
  *   Keep Manager Portal 2.0 lifecycle writes on the same Apps Script
  *   google.script.run path used by the fast 1.0 Manager Portal.
@@ -92,27 +92,11 @@ function ExternalManagerActionRelay_errorHtml_(errorCode, origin) {
     '<\/script></body></html>';
 }
 
-var EXTERNAL_MANAGER_ACTION_RELAY_BASE_DOGET_ = doGet;
-doGet = function(e) {
-  var p = (e && e.parameter) ? e.parameter : {};
-  var raw = String(p.action || '').trim().toLowerCase();
-  if (raw !== 'externalmanageractionrelay') return EXTERNAL_MANAGER_ACTION_RELAY_BASE_DOGET_(e);
-
-  var verified = ExternalManagerActionRelay_verify_(p);
-  if (!verified.ok) {
-    return HtmlService.createHtmlOutput(
-      ExternalManagerActionRelay_errorHtml_(verified.error, p.origin)
-    ).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-  }
-  return ExternalManagerActionRelay_render_(verified);
-};
-
 function RUN_EXTERNAL_MANAGER_ACTION_RELAY_CONTRACT_ACCEPTANCE() {
   var out = { ok:true, build:EXTERNAL_MANAGER_ACTION_RELAY_BUILD, writesPerformed:false, checks:[] };
   function check_(name, ok, detail) { out.checks.push({name:name,ok:!!ok,detail:detail||''}); if (!ok) out.ok=false; }
   check_('devOnly', V5_ENTRY_isDevEnv_(), '');
   check_('managerAdapterAvailable', typeof managerV5Action === 'function', '');
-  check_('baseDoGetPreserved', typeof EXTERNAL_MANAGER_ACTION_RELAY_BASE_DOGET_ === 'function', '');
   check_('bridgeKeyConfigured', String(PropertiesService.getScriptProperties().getProperty('AMS_EXTERNAL_WRITE_BRIDGE_KEY')||'').trim().length >= 32, '');
   check_('parentOriginPinned', EXTERNAL_MANAGER_ACTION_RELAY_PARENT_ORIGIN === 'https://ams-transport-proof-510075419067.europe-west1.run.app', EXTERNAL_MANAGER_ACTION_RELAY_PARENT_ORIGIN);
   check_('errorPagePostsFailure', ExternalManagerActionRelay_errorHtml_('TEST', EXTERNAL_MANAGER_ACTION_RELAY_PARENT_ORIGIN).indexOf('AMS_MANAGER_ACTION_RELAY_READY') >= 0, '');

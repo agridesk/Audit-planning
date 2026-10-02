@@ -12,6 +12,7 @@
 
 function V5_ENTRY_normAction_(raw) {
   var a = String(raw || '').trim().toLowerCase();
+  if (a === 'manager2' || a === 'managerportal2') return 'manager2';
   if (a === 'manager' || a === 'managerportal') return 'manager';
   if (a === 'auditorportal' || a === 'auditor') return 'auditorportal';
   if (a === 'auditoravailability' || a === 'availability') return 'auditoravailability';

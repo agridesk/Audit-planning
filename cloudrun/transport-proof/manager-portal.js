@@ -5,7 +5,7 @@ var currentView="open";
 var openCounts={total:0,pendingPlanning:0,pendingApproval:0,approved:0,accepted:0};
 var busyAudits=new Set();
 var enrichmentSeq=0;
-var relay={seq:0};
+var relay={frame:null,nonce:'',source:null,origin:'',ready:false,error:'',initPromise:null,readyResolver:null,pending:new Map(),seq:0};
 
 function esc(v){var d=document.createElement("div");d.textContent=v==null?"":v;return d.innerHTML}
 function text(v){return v==null||v===""?"-":String(v)}
@@ -35,40 +35,60 @@ function mergeRowInPlace(auditId,patch){var idx=all.findIndex(function(r){return
 function patchRowInPlace(auditId,patch,perf){var idx=all.findIndex(function(r){return r.auditId===auditId});if(idx<0)throw new Error("Audit row not found locally");var before=all[idx],after=Object.assign({},before,patch),beforeKey=before.statusKey,scrollX=window.scrollX,scrollY=window.scrollY,t=performance.now();all[idx]=after;replaceVisibleRow(auditId,after);adjustCounters(beforeKey,after.statusKey);window.scrollTo(scrollX,scrollY);perf.patchMs=Math.round(performance.now()-t);perf.totalMs=Math.round(performance.now()-perf.startedAt);var timing="request "+perf.writeMs+" · GAS HTTP "+perf.gasHttpMs;if(perf.statusTotalMs!=null)timing+=" · status "+perf.statusTotalMs+" [load "+perf.statusLoadMs+" / core "+perf.statusCoreMs+" / notify "+perf.statusNotifyMs+"]";timing+=" · reread "+perf.rereadMs+" · patch "+perf.patchMs+(perf.canonicalRecovery?" · canonical recovery":"")+" · direct-gas-action";document.getElementById("status").textContent=Number(openCounts.total||all.length)+" open audits · action "+perf.totalMs+" ms ("+timing+")";console.info("[MANAGER_ACTION_TIMING]",perf)}
 function rereadAudit(auditId,sourceRow){var url="/api/v1/manager/audit?auditId="+encodeURIComponent(auditId)+(sourceRow?"&sourceRow="+encodeURIComponent(sourceRow):"");return fetch(url,{credentials:'same-origin'}).then(function(r){return r.json().then(function(x){if(!r.ok||x.success===false)throw new Error(x.error||x.message||'Canonical reread failed');return x})})}
 function rereadEnrichedAudit(auditId){return fetch('/api/v1/manager/open-enrichment',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({auditIds:[auditId]})}).then(function(r){return r.json().then(function(x){if(!r.ok||x.success===false)throw new Error(x.error||x.message||'Canonical enriched reread failed');var row=x&&Array.isArray(x.rows)?x.rows[0]:null;if(!row)throw new Error('CANONICAL_ENRICHED_ROW_MISSING');return row})})}
-function startActionRelay(auditId,action,options){
-  return fetch('/api/v1/manager/action-relay-url',{
-    method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},
-    body:JSON.stringify({auditId:auditId,action:action,options:options||{}})
-  }).then(function(r){return r.json().then(function(x){
-    if(!r.ok||x.success===false)throw new Error(x.error||x.detail||'Relay URL failed');
-    var f=document.createElement('iframe');
-    f.src=x.url;
-    f.style.cssText='position:absolute;width:1px;height:1px;border:0;left:-9999px;top:-9999px';
-    f.setAttribute('aria-hidden','true');
-    document.body.appendChild(f);
-    setTimeout(function(){try{if(f.parentNode)f.parentNode.removeChild(f)}catch(_e){}},45000);
-    return {started:true}
-  })})
+function resetRelayWorker(){
+  if(relay.frame&&relay.frame.parentNode)relay.frame.parentNode.removeChild(relay.frame);
+  relay.frame=null;relay.nonce='';relay.source=null;relay.origin='';relay.ready=false;relay.error='';relay.initPromise=null;relay.readyResolver=null;
 }
-function expectedStatusForAction(action){return action==='cancel'?'PENDING_PLANNING':action==='approve'?'APPROVED':action==='reject'?'REJECTED':''}
-function pollActionCanonical(auditId,sourceRow,action,deadlineMs){
-  var expected=expectedStatusForAction(action),started=performance.now(),delay=250;
-  return new Promise(function(resolve,reject){
-    function once(){
-      var url="/api/v1/manager/audit?auditId="+encodeURIComponent(auditId)+(sourceRow?"&sourceRow="+encodeURIComponent(sourceRow):"");
-      fetch(url,{credentials:'same-origin'}).then(function(r){
-        return r.json().catch(function(){return{}}).then(function(x){
-          if(action==='reject'&&r.status===404&&x&&x.error==='AUDIT_NOT_FOUND')return resolve({rejected:true,auditId:auditId});
-          if(r.ok&&x&&x.success!==false&&x.statusKey===expected)return resolve(x);
-          if(performance.now()-started>=deadlineMs)return reject(new Error('ACTION_CANONICAL_CONFIRM_TIMEOUT'));
-          setTimeout(once,delay);
-        })
-      }).catch(function(e){
-        if(performance.now()-started>=deadlineMs)return reject(e);
-        setTimeout(once,delay)
+function initRelay(){
+  if(relay.ready&&relay.source&&relay.nonce)return Promise.resolve(true);
+  if(relay.initPromise)return relay.initPromise;
+  relay.error='';
+  relay.initPromise=fetch('/api/v1/manager/action-relay-url',{credentials:'same-origin'})
+    .then(function(r){return r.json().then(function(x){if(!r.ok||x.success===false)throw new Error(x.error||x.detail||'Relay URL failed');return x})})
+    .then(function(x){
+      relay.nonce=String(x.nonce||'');
+      if(!relay.nonce)throw new Error('ACTION_RELAY_NONCE_MISSING');
+      return new Promise(function(resolve,reject){
+        var f=document.createElement('iframe'),settled=false,timer=setTimeout(function(){
+          if(settled)return;settled=true;relay.error='ACTION_RELAY_READY_TIMEOUT';reject(new Error(relay.error))
+        },15000);
+        relay.frame=f;
+        relay.readyResolver=function(ok,error){
+          if(settled)return;
+          settled=true;clearTimeout(timer);
+          if(ok)resolve(true);else reject(new Error(error||'ACTION_RELAY_INIT_FAILED'))
+        };
+        f.src=x.url;f.style.cssText='position:absolute;width:1px;height:1px;border:0;left:-9999px;top:-9999px';f.setAttribute('aria-hidden','true');
+        document.body.appendChild(f)
       })
-    }
-    once()
+    })
+    .catch(function(e){relay.error=String(e&&e.message?e.message:e);relay.initPromise=null;throw e});
+  return relay.initPromise
+}
+window.addEventListener('message',function(ev){
+  var msg=ev.data||{};
+  if(String(msg.nonce||'')!==String(relay.nonce||''))return;
+  if(msg.type==='AMS_MANAGER_ACTION_RELAY_READY'){
+    relay.ready=msg.success!==false;relay.error=relay.ready?'':String(msg.error||'ACTION_RELAY_INIT_FAILED');
+    if(relay.ready){relay.source=ev.source;relay.origin=ev.origin;relay.initPromise=Promise.resolve(true)}
+    if(relay.readyResolver){var fn=relay.readyResolver;relay.readyResolver=null;fn(relay.ready,relay.error)}
+    return
+  }
+  if(msg.type!=='AMS_MANAGER_ACTION_RESULT')return;
+  if(!relay.source||ev.source!==relay.source)return;
+  var p=relay.pending.get(String(msg.requestId||''));if(!p)return;
+  relay.pending.delete(String(msg.requestId||''));clearTimeout(p.timer);
+  if(msg.success===false)p.reject(new Error(msg.error||msg.result&&msg.result.message||'Action failed'));
+  else p.resolve({result:msg.result||{},relayElapsedMs:Number(msg.relayElapsedMs)||0})
+});
+function runActionViaWarmWorker(auditId,action,options){
+  return initRelay().then(function(){
+    if(!relay.ready||!relay.source||!relay.origin)throw new Error('ACTION_RELAY_NOT_READY');
+    return new Promise(function(resolve,reject){
+      var id='r'+Date.now()+'_'+(++relay.seq),timer=setTimeout(function(){relay.pending.delete(id);reject(new Error('ACTION_RELAY_TIMEOUT'))},15000);
+      relay.pending.set(id,{resolve:resolve,reject:reject,timer:timer});
+      relay.source.postMessage({type:'AMS_MANAGER_ACTION',nonce:relay.nonce,requestId:id,auditId:auditId,action:action,options:options||{}},relay.origin)
+    })
   })
 }
 function removeRejectedRowInPlace(auditId,perf){
@@ -76,10 +96,23 @@ function removeRejectedRowInPlace(auditId,perf){
   var before=all[idx],beforeKey=before.statusKey,scrollX=window.scrollX,scrollY=window.scrollY,t=performance.now();
   all.splice(idx,1);
   var tr=document.querySelector('tr[data-audit-id="'+CSS.escape(auditId)+'"]');if(tr)tr.remove();
-  adjustCounters(beforeKey,'REJECTED');
-  window.scrollTo(scrollX,scrollY);
-  perf.patchMs=Math.round(performance.now()-t);
-  perf.totalMs=Math.round(performance.now()-perf.startedAt)
+  adjustCounters(beforeKey,'REJECTED');window.scrollTo(scrollX,scrollY);
+  perf.patchMs=Math.round(performance.now()-t);perf.totalMs=Math.round(performance.now()-perf.startedAt)
+}
+function patchActionLikeV1(auditId,action,reason,result,perf){
+  if(action==='reject'){removeRejectedRowInPlace(auditId,perf);return}
+  var idx=all.findIndex(function(r){return r.auditId===auditId});if(idx<0)throw new Error('Audit row not found locally');
+  var before=all[idx],after=Object.assign({},before),beforeKey=before.statusKey,scrollX=window.scrollX,scrollY=window.scrollY,t=performance.now();
+  if(action==='approve'){
+    after.status='Approved';after.statusKey='APPROVED';after.allowedActions=['CANCEL','REJECT']
+  }else if(action==='cancel'){
+    after.status='Pending Planning';after.statusKey='PENDING_PLANNING';after.allowedActions=['PLAN','REJECT'];
+    after.auditor='';after.assigned='';after.assignedTo='';after.assignedToEmail='';after.datePlanned='';
+    after.hoursPlanned='';after.plannedHours='';after.scheduledHours='';after.planningJson='';after.planningSummary=null;after.plannedDates=[];after.plannedTooltip='';
+    after.managerComment=reason;after.managerDecision='CANCEL';after.latestComment=reason;after.latestCommentActor='Manager';after.latestCommentAction='CANCEL'
+  }
+  all[idx]=after;replaceVisibleRow(auditId,after);adjustCounters(beforeKey,after.statusKey);window.scrollTo(scrollX,scrollY);
+  perf.patchMs=Math.round(performance.now()-t);perf.totalMs=Math.round(performance.now()-perf.startedAt)
 }
 function runAction(button){
   var auditId=button.getAttribute("data-audit-id"),action=button.getAttribute("data-action"),row=all.find(function(r){return r.auditId===auditId});
@@ -88,41 +121,24 @@ function runAction(button){
   var reason="";
   if(action==="cancel"||action==="reject"){
     reason=window.prompt((action==="cancel"?"Cancel":"Reject")+" audit "+auditId+"\nComment:");
-    if(reason===null)return;
-    reason=reason.trim();
-    if(!reason){window.alert("Comment is required.");return}
+    if(reason===null)return;reason=reason.trim();if(!reason){window.alert("Comment is required.");return}
   }else if(!window.confirm(action.toUpperCase()+" audit "+auditId+"?"))return;
   busyAudits.add(auditId);
-  var tr=button.closest("tr");
-  if(tr)tr.querySelectorAll(".act,.ext-act").forEach(function(b){b.disabled=true});
-  var perf={auditId:auditId,action:action,startedAt:performance.now(),writeMs:0,rereadMs:0,patchMs:0},wt=performance.now(),options={reason:reason,comment:reason};
-  var direct=(action==="cancel"||action==="reject");
-  var request=direct
-    ? fetch('/api/v1/manager/action-direct',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({auditId:auditId,action:action,sourceRow:row&&row.sourceRow,options:options})})
-        .then(function(r){return r.json().then(function(x){if(!r.ok||x.success===false)throw new Error(x.error||x.message||'Direct canonical action failed');return x})})
-    : startActionRelay(auditId,action,options).then(function(){
-        return pollActionCanonical(auditId,row&&row.sourceRow,action,20000).then(function(patch){return{success:true,patch:patch,perf:{}}})
-      });
-  request
+  var tr=button.closest("tr");if(tr)tr.querySelectorAll(".act,.ext-act").forEach(function(b){b.disabled=true});
+  var perf={auditId:auditId,action:action,startedAt:performance.now(),workerMs:0,gasMs:null,patchMs:0},wt=performance.now(),options={reason:reason,comment:reason,rowIndex:row&&row.sourceRow};
+  runActionViaWarmWorker(auditId,action,options)
     .then(function(x){
-      perf.writeMs=Math.round(performance.now()-wt);
-      var p=x&&x.perf||{};
-      perf.rereadMs=Math.round(Number(p.rereadMs)||0);
-      if(action==="reject"&&(x.rejected||x.patch&&x.patch.rejected))removeRejectedRowInPlace(auditId,perf);
-      else{
-        var patch=x.patch||x;
-        patchRowInPlace(auditId,patch,perf)
-      }
-      perf.totalMs=Math.round(performance.now()-perf.startedAt);
-      if(direct){
-        document.getElementById("status").textContent=Number(openCounts.total||all.length)+" open audits · action "+perf.totalMs+" ms (server "+Math.round(Number(p.requestTotalMs||p.totalMs)||perf.writeMs)+" · availability "+Math.round(Number(p.availabilityMs)||0)+" · reread "+perf.rereadMs+" · patch "+perf.patchMs+" · direct-sheets-api)"
-      }else{
-        document.getElementById("status").textContent=Number(openCounts.total||all.length)+" open audits · action "+perf.totalMs+" ms (approve relay)"
-      }
+      perf.workerMs=Math.round(performance.now()-wt);
+      var wr=x.result||{},gas=Number(wr&&wr.perf&&wr.perf.managerActionAdapterMs);
+      if(isFinite(gas))perf.gasMs=Math.round(gas);
+      patchActionLikeV1(auditId,action,reason,wr,perf);
+      document.getElementById("status").textContent=Number(openCounts.total||all.length)+" open audits · action "+perf.totalMs+" ms (worker "+perf.workerMs+" · GAS "+(perf.gasMs==null?"-":perf.gasMs)+" · patch "+perf.patchMs+" · v1-warm-google-script-run)";
+      console.info("[MANAGER_ACTION_TIMING]",perf)
     })
     .catch(function(e){
       window.alert('Canonical action failed: '+e.message);
-      if(tr)tr.querySelectorAll(".act,.ext-act").forEach(function(b){b.disabled=false})
+      if(tr)tr.querySelectorAll(".act,.ext-act").forEach(function(b){b.disabled=false});
+      if(String(e&&e.message||'').indexOf('ACTION_RELAY')>=0)resetRelayWorker()
     })
     .finally(function(){busyAudits.delete(auditId)})
 }
@@ -138,5 +154,6 @@ function loadCompleted(){currentView="completed";++enrichmentSeq;return fetch("/
 function fail(e){var z=document.getElementById("status");z.className="err";z.textContent=e.message}
 fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(s){if(s.ok&&s.identity)document.getElementById("identity").textContent=s.identity.email}).catch(function(){});
 document.getElementById("q").addEventListener("input",filter);document.getElementById("reset").onclick=function(){document.getElementById("q").value="";render(all)};document.getElementById("openView").onclick=loadOpen;document.getElementById("completedView").onclick=loadCompleted;var workspace=document.getElementById("planningWorkspace");if(workspace){workspace.disabled=true;workspace.title="Open Single Planning from an audit row; no canonical Planning Workspace overview route is available yet"}
+initRelay().catch(function(e){console.warn('[WARM_GAS_WORKER_INIT]',e)});
 loadOpen();
 })();

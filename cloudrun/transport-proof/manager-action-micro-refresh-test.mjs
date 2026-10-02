@@ -35,7 +35,7 @@ const checks=[
 ['reject local row removal',manager.includes("if(action==='reject'){removeRejectedRowInPlace")],
 ['scroll preserved',manager.includes('window.scrollTo(scrollX,scrollY)')],
 ['per audit lock',manager.includes('var busyAudits=new Set()')],
-['comment source row and revision sent',manager.includes('options={reason:reason,comment:reason,rowIndex:row&&row.sourceRow,expectedRevision:row&&row.sourceRevision}')],
+['comment source row revision and on-behalf evidence sent',manager.includes('options={reason:reason,comment:reason,confirmationChannel:confirmationChannel,confirmationNote:reason,rowIndex:row&&row.sourceRow,expectedRevision:row&&row.sourceRevision}')],
 ['source row consumed by StatusMachine',statusMachine.includes('Status_loadAudit_(auditId, payload && payload.rowIndex)')],
 ['source row is audit-id verified',statusMachine.includes("String(__hintRow[__hintAi] || '').trim() === auditId")],
 ['cold index is fallback only',statusMachine.includes("if (!__indexed && typeof __mp_getAuditPlanningRow_ === 'function')")],

@@ -1,6 +1,9 @@
 import fs from 'node:fs';
 const manager=fs.readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const r10=fs.readFileSync(new URL('./server-r10.js',import.meta.url),'utf8');
+const entry=fs.readFileSync(new URL('../../EntryV5.js',import.meta.url),'utf8');
+const relayOwner=fs.readFileSync(new URL('../../zz_ExternalManagerActionRelay.js',import.meta.url),'utf8');
+const relayHtml=fs.readFileSync(new URL('../../ManagerActionRelay.html',import.meta.url),'utf8');
 const checks=[
 ['signed relay endpoint used',manager.includes("fetch('/api/v1/manager/action-relay-url'")],
 ['warm iframe preloaded',manager.includes('function initRelay()')&&manager.includes("document.createElement('iframe')")&&manager.includes('initRelay().catch(function(){})')],
@@ -11,6 +14,9 @@ const checks=[
 ['scroll preserved',manager.includes('window.scrollTo(scrollX,scrollY)')],
 ['per audit lock',manager.includes('var busyAudits=new Set()')],
 ['comment sent',manager.includes('options={reason:reason,comment:reason}')],
+['canonical EntryV5 owns relay route',entry.includes("rawAction === 'externalmanageractionrelay'")&&entry.includes('ExternalManagerActionRelay_render_(relayVerified)')],
+['relay helper does not override doGet',!relayOwner.includes('doGet = function')&&!relayOwner.includes('doGet=function')],
+['relay html uses google.script.run',relayHtml.includes('google.script.run')&&relayHtml.includes('.managerV5Action(auditId, action, options)')],
 ['server signed relay endpoint',r10.includes("u.pathname==='/api/v1/manager/action-relay-url'")],
 ['server signs relay assertion',r10.includes("createHmac('sha256'")&&r10.includes('MANAGER_ACTION_RELAY')],
 ['bridge secret remains server side',r10.includes('WRITE_KEY')&&!manager.includes('WRITE_KEY')],

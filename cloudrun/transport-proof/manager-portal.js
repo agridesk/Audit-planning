@@ -79,15 +79,16 @@ window.addEventListener('message',function(ev){
   var p=relay.pending.get(String(msg.requestId||''));if(!p)return;
   relay.pending.delete(String(msg.requestId||''));clearTimeout(p.timer);
   if(msg.success===false)p.reject(new Error(msg.error||msg.result&&msg.result.message||'Action failed'));
-  else p.resolve({result:msg.result||{},relayElapsedMs:Number(msg.relayElapsedMs)||0})
+  else p.resolve({result:msg.result||{},relayElapsedMs:Number(msg.relayElapsedMs)||0,trace:msg.trace||{}})
 });
 function runActionViaWarmWorker(auditId,action,options){
   return initRelay().then(function(){
     if(!relay.ready||!relay.source||!relay.origin)throw new Error('ACTION_RELAY_NOT_READY');
     return new Promise(function(resolve,reject){
       var id='r'+Date.now()+'_'+(++relay.seq),timer=setTimeout(function(){relay.pending.delete(id);reject(new Error('ACTION_RELAY_TIMEOUT'))},30000);
-      relay.pending.set(id,{resolve:resolve,reject:reject,timer:timer});
-      relay.source.postMessage({type:'AMS_MANAGER_ACTION',nonce:relay.nonce,requestId:id,auditId:auditId,action:action,options:options||{}},relay.origin)
+      var clientSentAt=Date.now();
+      relay.pending.set(id,{resolve:resolve,reject:reject,timer:timer,clientSentAt:clientSentAt});
+      relay.source.postMessage({type:'AMS_MANAGER_ACTION',nonce:relay.nonce,requestId:id,auditId:auditId,action:action,options:options||{},clientSentAt:clientSentAt},relay.origin)
     })
   })
 }
@@ -129,10 +130,16 @@ function runAction(button){
   runActionViaWarmWorker(auditId,action,options)
     .then(function(x){
       perf.workerMs=Math.round(performance.now()-wt);
-      var wr=x.result||{},gas=Number(wr&&wr.perf&&wr.perf.managerActionAdapterMs);
+      var wr=x.result||{},gas=Number(wr&&wr.perf&&wr.perf.managerActionAdapterMs),trace=x.trace||{},nowEpoch=Date.now();
       if(isFinite(gas))perf.gasMs=Math.round(gas);
+      perf.traceId=String(trace.requestId||wr&&wr.perf&&wr.perf.requestId||'');
+      perf.browserToWorkerMs=(trace.workerReceivedAt&&trace.clientSentAt)?Math.max(0,Number(trace.workerReceivedAt)-Number(trace.clientSentAt)):null;
+      perf.workerPreRpcMs=(trace.rpcStartedAt&&trace.workerReceivedAt)?Math.max(0,Number(trace.rpcStartedAt)-Number(trace.workerReceivedAt)):null;
+      perf.workerRpcWallMs=(trace.rpcEndedAt&&trace.rpcStartedAt)?Math.max(0,Number(trace.rpcEndedAt)-Number(trace.rpcStartedAt)):Number(x.relayElapsedMs)||null;
+      perf.workerToBrowserMs=trace.replyAt?Math.max(0,nowEpoch-Number(trace.replyAt)):null;
       patchActionLikeV1(auditId,action,reason,wr,perf);
-      document.getElementById("status").textContent=Number(openCounts.total||all.length)+" open audits · action "+perf.totalMs+" ms (worker "+perf.workerMs+" · GAS "+(perf.gasMs==null?"-":perf.gasMs)+" · patch "+perf.patchMs+" · v1-warm-google-script-run)";
+      var st=wr&&wr.statusPerf||{},core=wr&&wr.actionPerf||{};
+      document.getElementById("status").textContent=Number(openCounts.total||all.length)+" open audits · action "+perf.totalMs+" ms (worker "+perf.workerMs+" · GAS "+(perf.gasMs==null?"-":perf.gasMs)+" · b→w "+(perf.browserToWorkerMs==null?"-":perf.browserToWorkerMs)+" · preRPC "+(perf.workerPreRpcMs==null?"-":perf.workerPreRpcMs)+" · RPC "+(perf.workerRpcWallMs==null?"-":perf.workerRpcWallMs)+" · w→b "+(perf.workerToBrowserMs==null?"-":perf.workerToBrowserMs)+" · status "+(st.totalMs==null?"-":st.totalMs)+" [guard "+(st.writeGuardMs==null?"-":st.writeGuardMs)+" / load "+(st.loadAuditMs==null?"-":st.loadAuditMs)+" / core "+(st.coreMs==null?"-":st.coreMs)+" / notify "+(st.notificationOnlyMs==null?"-":st.notificationOnlyMs)+"] · patch "+perf.patchMs+" · trace "+(perf.traceId||"-")+")";
       console.info("[MANAGER_ACTION_TIMING]",perf)
     })
     .catch(function(e){

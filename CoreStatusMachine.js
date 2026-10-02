@@ -377,7 +377,8 @@ function Status_loadAudit_(auditId, rowIndexHint) {
   var sh = ss.getSheetByName('Audit planning');
   if (!sh) return { found:false, error: Status_fail_("Missing sheet 'Audit planning'") };
 
-  // AMS-01: Manager 2.0 already knows the canonical source row from its
+  // AMS-01: use the canonical Audit planning execution cache first.
+  // Manager 2.0 already knows the canonical source row from its
   // readmodel. Use that exact-row hint first and verify Audit ID before trusting
   // it. This mirrors the effective warm-row behavior of Manager 1.0 without
   // rebuilding/scanning the Audit ID index for every external action.

@@ -4,8 +4,8 @@ const pkg=JSON.parse(fs.readFileSync(new URL('./package.json',import.meta.url),'
 const docker=fs.readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
 
 const checks=[
-  ['package starts stable R10 runtime',pkg?.scripts?.start==='node server-r10.js'],
-  ['Docker image contains R10',docker.includes('COPY server-r10.js ./')],
+  ['package starts current R12 runtime',pkg?.scripts?.start==='node server-r12.js'],
+  ['Docker image contains R12',docker.includes('COPY server-r12.js ./')],
   ['Docker starts npm start',docker.includes('CMD ["npm","start"]')]
 ];
 

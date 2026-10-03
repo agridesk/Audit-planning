@@ -1,5 +1,5 @@
 // FILE: ManagerPlanningWindow.js
-// BUILD: 2026-09-21_AMS_01_6_MODEL_C_RUNTIME_WINDOW_OWNER_R3_EFFECTIVE_NONRECURRING
+// BUILD: 2026-10-03_AMS_01_6_MODEL_C_RUNTIME_WINDOW_OWNER_R4_CONFIG_ANNUAL
 // PURPOSE:
 // - Model C Audit_Obligations is canonical for planning windows.
 // - Generic Model C planning-window policy resolves effective windows.
@@ -7,7 +7,7 @@
 // - Partial explicit windows and empty intersections hard-block planning.
 // - Audit planning expiry/window fields are compatibility fallback only.
 
-var MODEL_C_RUNTIME_WINDOW_BUILD = '2026-09-21_AMS_01_6_MODEL_C_RUNTIME_WINDOW_OWNER_R3_EFFECTIVE_NONRECURRING';
+var MODEL_C_RUNTIME_WINDOW_BUILD = '2026-10-03_AMS_01_6_MODEL_C_RUNTIME_WINDOW_OWNER_R4_CONFIG_ANNUAL';
 
 function ModelCRuntime_headerIndex_(hdr, names) {
   hdr = hdr || [];
@@ -241,9 +241,9 @@ function ModelCRuntime_resolveLegacyPlanningWindow_(ss, hdr, row, canonicalFailu
   };
 }
 
-var MP_PW_NS = 'MP_PW_V3_MODEL_C_EFFECTIVE';
+var MP_PW_NS = 'MP_PW_V4_MODEL_C_CONFIG_ANNUAL';
 var MP_PW_TTL_SEC = 1500;
-var MP_PW_GEN_KEY = 'MP_PW_GEN_V3_MODEL_C_EFFECTIVE';
+var MP_PW_GEN_KEY = 'MP_PW_GEN_V4_MODEL_C_CONFIG_ANNUAL';
 
 function _mp_pwGen_() {
   try {

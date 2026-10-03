@@ -53,12 +53,14 @@ function LogRealizedAuditService_GetCompletedAudit(auditId) {
   var cHours = LogRealizedAuditService_findHeaderIndex_(headers, ['Hours dedicated']);
   var cStatus = LogRealizedAuditService_findHeaderIndex_(headers, ['Status']);
   var cCompleted = LogRealizedAuditService_findHeaderIndex_(headers, ['Date completed','Completed date','Date - Completed']);
+  var cAuditor = LogRealizedAuditService_findHeaderIndex_(headers, ['Auditor','Assigned to','Assigned auditor']);
   return {
     success:true,
     found:true,
     auditId:auditId,
     rowIndex:rowIdx,
     hoursDedicated:cHours >= 0 ? Number(values[cHours]) : null,
+    auditorEmail:cAuditor >= 0 ? LogRealizedAuditService_clean_(values[cAuditor]).toLowerCase() : '',
     status:cStatus >= 0 ? LogRealizedAuditService_clean_(values[cStatus]) : '',
     completedDate:cCompleted >= 0 ? LogRealizedAuditService_clean_(values[cCompleted]) : '',
     build:LOG_REALIZED_AUDIT_SERVICE_BUILD

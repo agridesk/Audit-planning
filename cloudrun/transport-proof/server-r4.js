@@ -5,7 +5,7 @@ import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
-const BUILD='2026-10-03_COMPLETE_V29_DIRECT_R49_DEDUP_ACTIVE_LINKS';
+const BUILD='2026-10-03_COMPLETE_V29_DIRECT_R50_AP_SCOPE_HOURS_OWNER';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
@@ -488,6 +488,14 @@ function directSuccessorGroups(items){
   }
   return groups;
 }
+function directAuditPlanningScopeHours(headers,row,def,scopeCode){
+  const ix=col(headers,['Duration '+clean(def?.slotKey),'Duration '+clean(scopeCode)]);
+  if(ix<0)return null;
+  const raw=clean(row[ix]);
+  if(raw==='')return null;
+  const n=Number(String(raw).replace(',','.'));
+  return Number.isFinite(n)&&n>=0?n:null;
+}
 function directCompletedLogRow(logHeaders,found,hoursDedicated,actorEmail,now,fallbackPlannedHours){
   const out=new Array(logHeaders.length).fill(''),h=found.h,row=found.row,g=names=>val(row,col(h,names)),set=(names,v)=>directSetByHeader(logHeaders,out,names,v);
   let planned=Number(g(['Hours planned','Planned hours','Hours Planned']))||0;
@@ -593,7 +601,9 @@ async function directComplete(identity,body,actorRole){
         const base=directIsoDate(val(rr,obe));if(!base)throw new Error('RECURRING_BASE_EXPIRY_MISSING_'+code);
         const next=directDateAddYears(base,1),from=directDateAddMonths(next,Number(def.planningFrom||0)),to=directDateAddMonths(next,Number(def.planningTo||0));
         if(!next||!from||!to)throw new Error('SUCCESSOR_WINDOW_INVALID_'+code);
-        successorItems.push({scopeCode:code,companyScopeId:val(rr,ocs),cycleKey:next,baseExpiry:next,from,to,formalHours:Number(val(rr,ofh))>0?Number(val(rr,ofh)):Number(def.formalHours||0),preassigned:val(rr,opa),allowSelfPlanning:val(rr,oas)});
+        const apScopeHours=directAuditPlanningScopeHours(h,row,def,code);
+        const successorFormalHours=apScopeHours!==null?apScopeHours:(Number(val(rr,ofh))>=0&&clean(val(rr,ofh))!==''?Number(val(rr,ofh)):Number(def.formalHours||0));
+        successorItems.push({scopeCode:code,companyScopeId:val(rr,ocs),cycleKey:next,baseExpiry:next,from,to,formalHours:successorFormalHours,preassigned:val(rr,opa),allowSelfPlanning:val(rr,oas)});
       }
       rr[ost]='COMPLETED';if(oup>=0)rr[oup]=stamp;if(ocl>=0)rr[ocl]=stamp;
       obligationWrites.push({range:'Audit_Obligations!A'+pack.row+':'+a1col(oh.length)+pack.row,values:[rr]});

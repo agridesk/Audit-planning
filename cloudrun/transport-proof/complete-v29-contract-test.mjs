@@ -39,6 +39,10 @@ assert.match(baseServer,/allWrites\.push\(\{range:'Log realized audits!A'/,'Dire
 assert.match(baseServer,/Audit_Obligations!A/,'Direct Complete must update Model C obligations');
 assert.match(baseServer,/Audit_Visit_Obligations!A/,'Direct Complete must update Model C visit links');
 assert.match(baseServer,/successorRows/,'Direct Complete response must carry successor rows for micro-refresh');
+assert.match(baseServer,/directExistingSuccessorRows/,'Idempotent Complete retry must recover existing successor rows for UI patch');
+assert.match(baseServer,/activeLinkExists/,'Successor recovery must avoid duplicate active visit links');
+assert.match(baseServer,/existingOb/,'Successor recovery must reuse existing recurring obligations');
+assert.doesNotMatch(baseServer,/if\(existingAp\)\{successorIds\.push\(newId\);continue;\}/,'Existing successor projection must not skip Model C repair');
 assert.match(baseServer,/fallbackPlannedHours/,'Direct Complete realized log must fall back to canonical Model C formal hours');
 assert.match(baseServer,/allWrites\.push\(\{range:'Audit planning!A'/,'Direct Complete successor must use explicit Audit planning row writes');
 assert.doesNotMatch(baseServer,/sheetsValuesAppend\('Audit planning!A:'/,'Direct Complete must not use append table inference for Audit planning successors');

@@ -3376,9 +3376,9 @@ function confirmReason() {
     var plannedHoursHtml = isPending && r.__pendingPlannedHours
       ? '<span class="v5-cell-pending">…</span>'
       : V5.escape(r.plannedHours || '');
-    var schedulingTarget = (r.schedulingHoursTarget !== null && r.schedulingHoursTarget !== undefined && r.schedulingHoursTarget !== '') ? r.schedulingHoursTarget : r.scheduledHours;
-    if (schedulingTarget !== null && schedulingTarget !== undefined && schedulingTarget !== '' && isFinite(Number(schedulingTarget))) {
-      plannedHoursHtml += '<div class="muted" style="font-size:10px;line-height:1.15;white-space:nowrap;margin-top:1px">scheduled ' + V5.escape(String(Number(schedulingTarget))) + ' h</div>';
+    var committedScheduledHours = r.scheduledHours;
+    if (committedScheduledHours !== null && committedScheduledHours !== undefined && committedScheduledHours !== '' && isFinite(Number(committedScheduledHours))) {
+      plannedHoursHtml += '<div class="muted" style="font-size:10px;line-height:1.15;white-space:nowrap;margin-top:1px">scheduled ' + V5.escape(String(Number(committedScheduledHours))) + ' h</div>';
     }
     return [
       '<tr data-auditid="' + V5.escape(r.auditId) + '"' + trClass + '>',

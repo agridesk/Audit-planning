@@ -85,14 +85,23 @@ async function combinedCommit(identity,body){
 }
 
 function patchPlanningHtml(html){
-  const marker="function plannedHours(){return draftBlocks.reduce((n,b)=>n+blockHours(b),0)}";
-  if(!html.includes(marker))throw new Error('PLANNING_HTML_PATCH_MARKER_MISSING');
-  html=html.replace(marker,marker+"function requiredVisitHours(){const set=model?.data?.audit?.companyPlanningSet||[],chosen=set.filter(r=>visitAuditIds.has(r.auditId)),sum=chosen.reduce((n,r)=>n+Number(r.schedulingHours||r.requiredHours||0),0);return sum||Number(model?.data?.audit?.requiredHours||0)}");
-  html=html.replaceAll("const required=Number(model?.data?.audit?.requiredHours||0)","const required=requiredVisitHours()");
-  html=html.replace("if(a.requiredHours&&hours>Number(a.requiredHours)+0.001)out.push('Planned total is '+hours.toFixed(2)+' h; required audit time is '+Number(a.requiredHours).toFixed(2)+' h.');","const visitRequired=requiredVisitHours();if(visitRequired&&hours>visitRequired+0.001)out.push('Planned total is '+hours.toFixed(2)+' h; required scheduling time is '+visitRequired.toFixed(2)+' h.');");
-  html=html.replace("function renderVisitComposition(){const set=", "function renderVisitComposition(){txt('#requiredHours',requiredVisitHours().toFixed(2)+' h scheduling');const set=");
-  html=html.replace("txt('#requiredHours',a.requiredHours?Number(a.requiredHours).toFixed(2)+' h':'—');if(a.requiredHours){const s=hhmm(q('#start').value)||540,d=Math.min(Number(a.requiredHours),8),t=s+Math.round(d*60);", "const initialRequired=requiredVisitHours();txt('#requiredHours',initialRequired?initialRequired.toFixed(2)+' h scheduling':'—');if(initialRequired){const s=hhmm(q('#start').value)||540,d=Math.min(initialRequired,8),t=s+Math.round(d*60);");
-  return html;
+  let out=String(html||'');
+  const plannedMarker="function plannedHours(){return draftBlocks.reduce((n,b)=>n+blockHours(b),0)}";
+  const planningTargetMarker="function planningTarget(){const a=model?.data?.audit||{},n=Number(a.schedulingHoursTarget);return Number.isFinite(n)&&n>=0?n:Number(a.requiredHours||0)}";
+  const helper="function requiredVisitHours(){const set=model?.data?.audit?.companyPlanningSet||[],chosen=set.filter(r=>visitAuditIds.has(r.auditId)),sum=chosen.reduce((n,r)=>n+Number(r.schedulingHours||r.schedulingHoursTarget||r.requiredHours||0),0);const primary=Number(model?.data?.audit?.schedulingHoursTarget||model?.data?.audit?.requiredHours||0);return sum||primary}";
+  if(!out.includes('function requiredVisitHours(){')){
+    if(!out.includes(plannedMarker))throw new Error('PLANNING_HTML_PATCH_MARKER_MISSING');
+    out=out.replace(plannedMarker,plannedMarker+helper);
+  }
+  if(out.includes(planningTargetMarker)){
+    out=out.replace(planningTargetMarker,"function planningTarget(){return requiredVisitHours()}");
+  }
+  if(!out.includes("function planningTarget(){return requiredVisitHours()}"))throw new Error('PLANNING_COMBINED_TARGET_PATCH_NOT_APPLIED');
+  if(out.includes("function renderVisitComposition(){const set=")){
+    out=out.replace("function renderVisitComposition(){const set=","function renderVisitComposition(){txt('#requiredHours',requiredVisitHours().toFixed(2)+' h');const set=");
+  }
+  if(!out.includes("txt('#requiredHours',requiredVisitHours().toFixed(2)+' h')"))throw new Error('PLANNING_COMBINED_DISPLAY_PATCH_NOT_APPLIED');
+  return out;
 }
 
 async function proxy(req,res,raw){

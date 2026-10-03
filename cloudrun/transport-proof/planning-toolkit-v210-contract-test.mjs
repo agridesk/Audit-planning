@@ -23,7 +23,8 @@ const checks=[
   ['Actual Availability block writes remain requested start/end',r4.includes('x.row[z.s]=b.start;x.row[z.e]=b.end;x.row[z.id]=auditId')],
   ['Combined visit uses scheduling delta fallback',r6.includes('schedulingHoursDelta')&&r6.includes('x.formalHours+delta')],
   ['Combined visit Planning JSON keeps formal target and actual scheduled',r6.includes('formalHours:Math.round(formalRequired*100)/100')&&r6.includes('scheduledHours:Math.round(total*100)/100')],
-  ['R7 patches V2.10 planning target instead of legacy required variable',r7.includes('function planningTarget(){return requiredVisitHours()}')&&!r7.includes('PLANNING_COMBINED_VALIDATE_PATCH_NOT_APPLIED')]
+  ['R6 is sole combined Toolkit HTML owner',r6.includes("function planningTarget(){return requiredVisitHours()}")&&r6.includes('PLANNING_COMBINED_TARGET_PATCH_NOT_APPLIED')],
+  ['R7 is transparent and contains no Planning HTML monkey patch',!r7.includes('patchPlanningHtml')&&!r7.includes('PLANNING_COMBINED_REQUIRED_DISPLAY_PATCH_NOT_APPLIED')]
 ];
 
 const failed=checks.filter(([,ok])=>!ok);

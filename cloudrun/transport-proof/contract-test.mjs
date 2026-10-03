@@ -170,6 +170,8 @@ const checks=[
  ['combined visit commit fails closed before Model C relink owner exists',r4.includes('VISIT_COMBINED_COMMIT_NOT_YET_CANONICAL')&&r4.includes('VISIT_RELATED_EXECUTION_DEADLINE_APPROVAL_REQUIRED')]
 ,
  ['Grid backend uses Max_Offsite_Hours policy and no scheduling target fields',r4.includes("['Max_Offsite_Hours','Max Offsite Hours','Max offsite hours','Maximum offsite hours']")&&!r4.includes('Scheduling_hours')&&!r4.includes('schedulingHoursTarget:')],
+ ['Planning Toolkit block model distinguishes execution type from location',r5.includes('id="executionType"')&&r5.includes("executionType=q('#executionType').value==='OFFSITE'?'OFFSITE':'ONSITE'")&&r4.includes("executionType=clean(x?.executionType||x?.workType||'ONSITE')")],
+ ['Off-site allowance is policy ceiling, not planning target',r4.includes('maxOffsiteHours')&&r4.includes('OFFSITE_HOURS_ABOVE_SCOPE_MAX')&&r5.includes('maxOffsiteHours()')&&!r5.includes('Scheduling target')],
  ['company visit planner shows one Required hours value',r5.includes("hours='Required '+Number(r.formalHours||r.requiredHours||0).toFixed(2)+' h'")&&!r5.includes("' h · Scheduling '+Number(r.schedulingHours")],
 ,
  ['visit composition protects every selected member with source revision',r4.includes('VISIT_RELATED_SOURCE_REVISION_REQUIRED')&&r4.includes('VISIT_RELATED_SOURCE_REVISION_CONFLICT')&&r5.includes('visitMembers:[...visitAuditIds].map')],

@@ -10,7 +10,7 @@
  * - Authenticated Workspace data is returned as a native Apps Script RPC
  *   object instead of JSON.stringify -> marker string -> JSON.parse.
  ***********************************************************************/
-var PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD='2026-09-24_AMS03_PLANNING_WORKSPACE_ENTRY_R12_HTTP_FOCUSED_BOOTSTRAP';
+var PLANNING_WORKSPACE_ENTRY_ROUTE_OVERRIDE_BUILD='2026-10-03_GRID2_SELECTION_ENTRY_R13';
 
 var PW_ENTRY_BASE_normAction_=V5_ENTRY_normAction_;
 V5_ENTRY_normAction_=function(raw){
@@ -85,21 +85,34 @@ doGet=function(e){
   if(raw==='planningworkspace'||raw==='workspace'){
     var runtimeEnv=V5_ENTRY_captureEnv_(p);
     if(runtimeEnv!=='DEV')return PW_ENTRY_BASE_doGet_(e);
+    var selectedAuditIds=[];
+    try{selectedAuditIds=JSON.parse(String(p.selectedAuditIds||'[]'));}catch(eSel){selectedAuditIds=[];}
+    if(!Array.isArray(selectedAuditIds))selectedAuditIds=[];
+    selectedAuditIds=selectedAuditIds.map(function(v){return String(v||'').trim();}).filter(Boolean);
     var boot={
       email:String(p.email||'').trim().toLowerCase(),
       role:String(p.role||'Manager').trim(),
       token:String(p.trustedToken||p.token||'').trim(),
       deviceId:String(p.deviceFingerprint||p.deviceId||'').trim(),
-      auditId:String(p.auditId||'').trim()
+      auditId:String(p.auditId||'').trim(),
+      selectedAuditIds:selectedAuditIds,
+      selectionMode:String(p.selectionMode||'').trim().toLowerCase()
     };
     var seed=null;
-    if(boot.auditId&&boot.token&&boot.deviceId){
+    if((boot.auditId||boot.selectedAuditIds.length)&&boot.token&&boot.deviceId){
       var expectedRole=V5_ENTRY_expectedRole_('planningworkspace',boot.role),auth=null;
       try{auth=V5_AUTH.validateTrustedTokenByRole(boot.token,expectedRole,boot.deviceId);}catch(eAuth){auth=null;}
       if(auth&&auth.ok===true&&auth.email){
-        var q={auditId:boot.auditId,role:expectedRole,actorRole:expectedRole,actorEmail:String(auth.email||'').trim().toLowerCase()};
+        var actorEmail=String(auth.email||'').trim().toLowerCase(),selectionValidation=null,validSelected=boot.selectedAuditIds.slice();
+        if(validSelected.length){
+          selectionValidation=Grid2Selection_validate({auditIds:validSelected,actorRole:expectedRole,actorEmail:actorEmail,action:boot.selectionMode||'batch'});
+          validSelected=selectionValidation.validAuditIds||[];
+          boot.selectionValidation=selectionValidation;
+          boot.selectedAuditIds=validSelected.slice();
+        }
+        var q={auditId:boot.auditId,auditIds:validSelected,from:selectionValidation&&selectionValidation.periodFrom||'',to:selectionValidation&&selectionValidation.periodTo||'',role:expectedRole,actorRole:expectedRole,actorEmail:actorEmail};
         if(expectedRole==='Auditor')q.auditorEmail=q.actorEmail;
-        seed=PlanningWorkspaceRpc_bootstrap(q);
+        if(boot.auditId||validSelected.length)seed=PlanningWorkspaceRpc_bootstrap(q);
       }
     }
     var output=PlanningWorkspaceUi_render({env:'DEV'});

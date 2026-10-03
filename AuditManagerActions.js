@@ -18,7 +18,7 @@
 //   - unguarded legacy dependencies
 //
 // Manager Portal 2.0 canonical actions:
-//   approve, cancel, reject
+//   approve, cancel, reject, complete, edit_realized_hours
 // Legacy deny remains accepted only by the backward-compatible adapter during migration.
 //
 // Required active files:
@@ -63,11 +63,25 @@ function managerV5Action(auditId, action, options) {
     if (!auditId) return done_({ success:false, message:'No auditId' });
     if (!action) return done_({ success:false, message:'No action' });
 
+    if (action === 'edit_realized_hours') {
+      if (typeof CompletionService_OverrideCompletedHours !== 'function') {
+        return done_({ success:false, message:'CompletionService_OverrideCompletedHours not available' });
+      }
+      var correction = CompletionService_OverrideCompletedHours({
+        auditId:auditId,
+        hoursDedicated:options.hoursDedicated,
+        actorEmail:String(options.actorEmail || options.managerEmail || '').trim().toLowerCase(),
+        reason:String(options.reason || '').trim()
+      });
+      return done_(correction || { success:false, message:'Realized-hours correction returned empty result' });
+    }
+
     var actionMap = {
       approve: 'APPROVE',
       deny: 'DENY',
       cancel: 'CANCEL',
-      reject: 'REJECT'
+      reject: 'REJECT',
+      complete: 'COMPLETE'
     };
 
     var actionKey = actionMap[action];
@@ -124,7 +138,7 @@ function managerV5Action(auditId, action, options) {
 function ManagerV5_Action(a, b, options) {
   var s1 = String(a || '').toLowerCase().trim();
   var s2 = String(b || '').toLowerCase().trim();
-  var known = { approve:1, deny:1, cancel:1, reject:1 };
+  var known = { approve:1, deny:1, cancel:1, reject:1, complete:1, edit_realized_hours:1 };
 
   if (known[s1]) return managerV5Action(b, a, options);
   if (known[s2]) return managerV5Action(a, b, options);

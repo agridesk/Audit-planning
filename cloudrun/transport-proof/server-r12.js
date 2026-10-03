@@ -7,7 +7,7 @@ const INNER_PORT=PUBLIC_PORT+1;
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
-const BUILD='2026-10-03_AMS_MANAGER_ACTION_RELAY_R3_FORMAL_HOURS';
+const BUILD='2026-10-03_GRID2_R12_MAX_OFFSITE_POLICY';
 const MANAGER_ORIGIN='https://ams-transport-proof-510075419067.europe-west1.run.app';
 let tokenCache={token:'',expiresAt:0};
 
@@ -33,16 +33,36 @@ async function batchValues(ranges){if(!SID)throw new Error('DEV_SSOT_SPREADSHEET
 async function innerSession(req){const r=await fetch('http://127.0.0.1:'+INNER_PORT+'/api/v1/session',{headers:{cookie:clean(req.headers.cookie)},redirect:'manual'});let j={};try{j=await r.json();}catch{}return r.ok&&j?.ok===true?j.identity:null;}
 function commentsFrom(h,row){const mc=val(row,col(h,['Manager comment (last)'])),md=val(row,col(h,['Last manager decision'])),mt=val(row,col(h,['Last decision timestamp'])),ac=val(row,col(h,['Auditor comment (last)'])),ad=val(row,col(h,['Last auditor decision'])),at=val(row,col(h,['Last auditor decision timestamp'])),ss=val(row,col(h,['Status since']));let latestComment='',latestActor='',latestAction='',latestTimestamp='';if(mc||mt){latestComment=mc;latestActor='Manager';latestAction=md;latestTimestamp=mt;}if((ac||at)&&(!latestTimestamp||at>latestTimestamp)){latestComment=ac;latestActor='Auditor';latestAction=ad;latestTimestamp=at;}return{managerComment:mc,managerDecision:md,managerDecisionTimestamp:mt,auditorComment:ac,auditorDecision:ad,auditorDecisionTimestamp:at,statusSince:ss,latestComment,latestCommentActor:latestActor,latestCommentAction:latestAction,latestCommentTimestamp:latestTimestamp};}
 async function enrichOpen(obj){if(!Array.isArray(obj?.rows)||!obj.rows.length)return obj;const ap=await values('Audit planning!A1:AX483');if(ap.length<2)return obj;const h=ap[0],ci=col(h,['Audit ID','Audit_ID','AuditId','Audit Id']),byId=new Map();for(let i=1;i<ap.length;i++){const id=val(ap[i],ci);if(id)byId.set(id,{row:ap[i],sourceRow:i+1});}let enriched=0;for(const r of obj.rows){const x=byId.get(clean(r.auditId));if(!x)continue;Object.assign(r,commentsFrom(h,x.row),{sourceRow:x.sourceRow});if(statusKey(r.status)==='PENDING_PLANNING'){r.hoursPlanned='';r.plannedHours='';}enriched++;}obj.actionCommunication={build:BUILD,enriched,canonicalFields:['Manager comment (last)','Auditor comment (last)']};return obj;}
+function maxOffsiteHoursForAuditRow(header,row,scopeValues){
+  if(!scopeValues?.length)return 0;
+  const sh=scopeValues[0],slot=col(sh,['SlotKey','Slot key','Slot']),code=col(sh,['ScopeCode','Scope code','Code']),name=col(sh,['DisplayName','Display name','Name','ScopeName','Scope']),active=col(sh,['Active']),archived=col(sh,['Archived']),moh=col(sh,['Max_Offsite_Hours','Max Offsite Hours','Max offsite hours','Maximum offsite hours']);
+  const truthy=v=>['x','yes','true','1','active'].includes(clean(v).toLowerCase());
+  let total=0;
+  for(const sr of scopeValues.slice(1)){
+    if(active>=0&&!truthy(sr[active]))continue;
+    if(archived>=0&&truthy(sr[archived]))continue;
+    let applies=false;
+    for(const alias of [val(sr,slot),val(sr,code),val(sr,name)]){
+      if(!alias)continue;
+      const ix=col(header,[alias]);
+      if(ix>=0&&truthy(row[ix])){applies=true;break;}
+    }
+    if(!applies)continue;
+    total+=Math.max(0,Number(String(val(sr,moh)||'0').replace(',','.'))||0);
+  }
+  return Math.round(total*100)/100;
+}
 async function readAuditPatch(auditId,sourceRow){
-  const t=Date.now();let row=[],rowNo=Number(sourceRow)||0,header=[];
-  if(rowNo>1){const vr=await batchValues(['Audit planning!A1:AX1','Audit planning!A'+rowNo+':AX'+rowNo]);header=vr[0]?.[0]||[];row=vr[1]?.[0]||[];const ci=col(header,['Audit ID','Audit_ID','AuditId','Audit Id']);if(val(row,ci)!==auditId){row=[];rowNo=0;}}
+  const t=Date.now();let row=[],rowNo=Number(sourceRow)||0,header=[],scopeValues=[];
+  if(rowNo>1){const vr=await batchValues(['Audit planning!A1:AX1','Audit planning!A'+rowNo+':AX'+rowNo,'Config_Scopes!A1:Z128']);header=vr[0]?.[0]||[];row=vr[1]?.[0]||[];scopeValues=vr[2]||[];const ci=col(header,['Audit ID','Audit_ID','AuditId','Audit Id']);if(val(row,ci)!==auditId){row=[];rowNo=0;}}
   if(!header.length)header=(await values('Audit planning!A1:AX1'))[0]||[];
   if(!row.length){const ap=await values('Audit planning!A2:AX483'),ci=col(header,['Audit ID','Audit_ID','AuditId','Audit Id']);for(let i=0;i<ap.length;i++)if(val(ap[i],ci)===auditId){row=ap[i];rowNo=i+2;break;}}
   if(!row.length)return{success:false,error:'AUDIT_NOT_FOUND',auditId,serverMs:Date.now()-t};
-  const g=names=>val(row,col(header,names)),rawStatus=g(['Status']),k=statusKey(rawStatus),required=Number(String(g(['Total audit time in hours','Total time in hours','Required hours','Total hours'])||'').replace(',','.'));let hp=g(['Hours planned']),assigned=g(['Assigned to','Assigned auditor','Auditor']),planningJson=g(['Planning JSON','Planning_JSON']);
+  if(!scopeValues.length)scopeValues=await values('Config_Scopes!A1:Z128');
+  const g=names=>val(row,col(header,names)),rawStatus=g(['Status']),k=statusKey(rawStatus),required=Number(String(g(['Total audit time in hours','Total time in hours','Required hours','Total hours'])||'').replace(',','.')),maxOffsiteHours=maxOffsiteHoursForAuditRow(header,row,scopeValues);let hp=g(['Hours planned']),assigned=g(['Assigned to','Assigned auditor','Auditor']),planningJson=g(['Planning JSON','Planning_JSON']);
   // Semantic invariant: Pending Planning has no committed plan.
   if(k==='PENDING_PLANNING'){hp='';planningJson='';assigned='';}
-  return{success:true,auditId,sourceRow:rowNo,status:rawStatus,statusKey:k,allowedActions:allowedActions(k),assignedTo:assigned,auditor:assigned,assignedToEmail:assigned,datePlanned:k==='PENDING_PLANNING'?'':dateOnly(g(['Date planned','Date - Planned'])),hoursPlanned:hp,plannedHours:hp,requiredHours:Number.isFinite(required)?required:0,toBePlanned:Number.isFinite(required)?required:0,planningJson,...commentsFrom(header,row),serverMs:Date.now()-t,build:BUILD};
+  return{success:true,auditId,sourceRow:rowNo,status:rawStatus,statusKey:k,allowedActions:allowedActions(k),assignedTo:assigned,auditor:assigned,assignedToEmail:assigned,datePlanned:k==='PENDING_PLANNING'?'':dateOnly(g(['Date planned','Date - Planned'])),hoursPlanned:hp,plannedHours:hp,requiredHours:Number.isFinite(required)?required:0,formalHours:Number.isFinite(required)?required:0,maxOffsiteHours,toBePlanned:Number.isFinite(required)?required:0,planningJson,...commentsFrom(header,row),serverMs:Date.now()-t,build:BUILD};
 }
 function actionRelayUrl(identity){
   if(!GAS_WRITE_URL||!WRITE_KEY)throw new Error('ACTION_RELAY_NOT_CONFIGURED');

@@ -27,7 +27,7 @@ assert.match(server,/managerAction==='complete'/,'R10 must route Complete direct
 assert.match(server,/\/api\/v1\/manager\/complete-direct/,'R10 must proxy Complete to direct owner');
 assert.match(baseServer,/async function directManagerComplete/,'Direct Complete owner must exist in base runtime');
 assert.match(baseServer,/owner:'CLOUD_RUN_DIRECT_MANAGER_COMPLETE'/,'Direct Complete owner marker must be returned');
-assert.match(baseServer,/Log realized audits!A:/,'Direct Complete must append realized history');
+assert.match(baseServer,/allWrites\.push\(\{range:'Log realized audits!A'/,'Direct Complete must persist realized history with explicit row write');
 assert.match(baseServer,/Audit_Obligations!A/,'Direct Complete must update Model C obligations');
 assert.match(baseServer,/Audit_Visit_Obligations!A/,'Direct Complete must update Model C visit links');
 assert.match(baseServer,/successorRows/,'Direct Complete response must carry successor rows for micro-refresh');

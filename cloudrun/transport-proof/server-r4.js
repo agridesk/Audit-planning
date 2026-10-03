@@ -5,7 +5,7 @@ import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
-const BUILD='2026-10-03_GRID2_R52_SCHEDULING_TARGET';
+const BUILD='2026-10-03_GRID2_R53_FORMAL_HOURS_UNIFIED';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
@@ -100,7 +100,7 @@ function scopesForAudit(f,catalog){
 }
 
 function obligationPlanningForAudit(auditId,catalog,obValues,linkValues){
-  const out=[];if(!obValues?.length||!linkValues?.length)return out;const cfg=new Map();for(const s of catalog||[])cfg.set(clean(s.scopeCode),s);const oh=obValues[0],oi=col(oh,['Obligation_ID','Obligation ID']),oc=col(oh,['ScopeCode','Scope Code']),of=col(oh,['Formal_Hours','Formal Hours']),os=col(oh,['Obligation_State','Obligation State']),obById=new Map();for(const r of obValues.slice(1)){const id=val(r,oi);if(id)obById.set(id,r);}const lh=linkValues[0],la=col(lh,['Audit_ID','Audit ID']),lo=col(lh,['Obligation_ID','Obligation ID']),ls=col(lh,['Link_State','Link State']);for(const lr of linkValues.slice(1)){if(val(lr,la)!==auditId||val(lr,ls).toUpperCase()!=='ACTIVE')continue;const ob=obById.get(val(lr,lo));if(!ob||['COMPLETED','CANCELLED','REJECTED'].includes(val(ob,os).toUpperCase()))continue;const code=val(ob,oc),def=cfg.get(code)||{},formal=Number(String(val(ob,of)||def.formalHours||'').replace(',','.'))||0,explicitScheduling=Number(def.schedulingHours||0),delta=Number(def.schedulingHoursDelta||0),scheduling=explicitScheduling>0?explicitScheduling:Math.max(0,formal+delta);out.push({obligationId:val(lr,lo),scopeCode:code,formalHours:formal,schedulingHours:scheduling,schedulingDelta:delta,schedulingSource:explicitScheduling>0?'CONFIG_SCOPES_SCHEDULING_HOURS':delta!==0?'CONFIG_SCOPES_SCHEDULING_HOURS_DELTA':'FORMAL_HOURS_FALLBACK'});}return out;
+  const out=[];if(!obValues?.length||!linkValues?.length)return out;const cfg=new Map();for(const s of catalog||[])cfg.set(clean(s.scopeCode),s);const oh=obValues[0],oi=col(oh,['Obligation_ID','Obligation ID']),oc=col(oh,['ScopeCode','Scope Code']),of=col(oh,['Formal_Hours','Formal Hours']),os=col(oh,['Obligation_State','Obligation State']),obById=new Map();for(const r of obValues.slice(1)){const id=val(r,oi);if(id)obById.set(id,r);}const lh=linkValues[0],la=col(lh,['Audit_ID','Audit ID']),lo=col(lh,['Obligation_ID','Obligation ID']),ls=col(lh,['Link_State','Link State']);for(const lr of linkValues.slice(1)){if(val(lr,la)!==auditId||val(lr,ls).toUpperCase()!=='ACTIVE')continue;const ob=obById.get(val(lr,lo));if(!ob||['COMPLETED','CANCELLED','REJECTED'].includes(val(ob,os).toUpperCase()))continue;const code=val(ob,oc),def=cfg.get(code)||{},formal=Number(String(val(ob,of)||def.formalHours||'').replace(',','.'))||0;out.push({obligationId:val(lr,lo),scopeCode:code,formalHours:formal});}return out;
 }
 
 function executionConstraint(auditId,catalog,obValues,linkValues){

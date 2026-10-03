@@ -271,6 +271,15 @@ function extScopes(found,catalog){return(catalog||[]).filter(s=>[s.slotKey,s.sco
 function extWindow(expiry,scopes){let from='',to='';for(const s of scopes){let x=extAddMonths(expiry,s.planningFrom),y=extAddMonths(expiry,s.planningTo);if(!x||!y)continue;if(x>y)[x,y]=[y,x];if(!from||x>from)from=x;if(!to||y<to)to=y;}if(!from||!to||from>to)throw new Error('EXTENSION_PLANNING_WINDOW_INVALID');return{from,to};}
 async function sheetsValuesBatchUpdateRaw(data){const token=await accessToken(),u='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'/values:batchUpdate',r=await fetch(u,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({valueInputOption:'RAW',data})}),body=await r.json();if(!r.ok)throw new Error('SHEETS_BATCH_UPDATE_RAW_'+r.status);return body;}
 
+async function directManagerExtension(identity,body){
+  const t0=Date.now(),auditId=clean(body?.auditId),command=clean(body?.command).toLowerCase();
+  if(!auditId)throw new Error('AUDIT_ID_REQUIRED');
+  if(!['apply','undo'].includes(command))throw new Error('EXTENSION_COMMAND_NOT_ALLOWED');
+  return withDirectManagerActionLock(auditId,async()=>{
+    /* DIRECT_EXTENSION_BODY */
+  });
+}
+
 async function canonicalManagerAction(identity,body){
   const auditId=clean(body?.auditId),managerAction=clean(body?.action).toLowerCase();
   if(!auditId||!['approve','cancel','reject'].includes(managerAction))throw new Error('INVALID_MANAGER_ACTION_REQUEST');

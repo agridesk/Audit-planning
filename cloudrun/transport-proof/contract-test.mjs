@@ -73,7 +73,7 @@ const checks=[
  ['r5 canonical locations UI',r5.includes('for(const x of a.locations||[])')&&r5.includes('id="location"')],
  ['r5 preferred months UI',r5.includes("a.preferredAuditMonths?'Preferred: '")],
  ['r5 first audit day defaults to max 8h of remaining formal target',r5.includes('d=Math.min(target,8)')&&r5.includes('const duration=target>0?Math.min(remaining,8):8')&&r5.includes("q('#start').addEventListener('change'")],
- ['r4 soft marker classified separately from audit occupancy',r4.includes("kind:auditRef?'audit':soft?'soft':'hard'")&&r4.includes("visualState=hasAudit?'OCCUPIED'")]
+ ['r4 soft marker classified separately from audit occupancy',r4.includes("kind:auditRef?'audit':soft?'soft':'hard'")&&r4.includes("visualState=hasAudit?'OCCUPIED'")],
  ['r5 quarter-hour time navigation',r5.includes('step="900" list="quarterHours"')&&r5.includes('function snapQuarter(v)')],
  ['r56 implicit availability is green',r5.includes("state:'YES',available:'YES'")&&r5.includes("(hasOccupancy||softDay||hasProvisional)?'partial':'yes'")],
  ['r56 1.0 full-day criterion',r5.includes("blockedOp>=8*60||blockedBar>=8*60")&&r5.includes("auditFullDay")&&r5.includes("'FULLY OCCUPIED'")],
@@ -162,21 +162,21 @@ const checks=[
 ['non-recurring calendar uses operational execution horizon',r5.includes("allowedTo=a.planningWindowTo||model?.data?.period?.to||allowedFrom")],
 ['non-recurring calendar navigation uses operational execution horizon',r5.includes("max=a.planningWindowTo||model?.data?.period?.to||calendarAnchor")&&r5.includes("max=a.planningWindowTo||model?.data?.period?.to||min")],
 ['same-visit planning fails closed without shared canonical window',r4.includes("sameVisitCandidate:pending&&sameWindow")&&r4.includes("NO_SHARED_CANONICAL_WINDOW")&&r5.includes("companyPlanningSet")],
-['overdue execution-cycle PLAN requires explicit ECAS approval',r4.includes("EXECUTION_DEADLINE_APPROVAL_REQUIRED")&&r5.includes("executionExceptionApproved")&&r5.includes("ECAS approval confirmed for planning after the execution deadline")]
-['single-company planning panel replaces audit switching',r5.includes("Company planning")&&!r5.includes("data-related-audit")&&!r5.includes("dataset.relatedAudit")]
+['overdue execution-cycle PLAN requires explicit ECAS approval',r4.includes("EXECUTION_DEADLINE_APPROVAL_REQUIRED")&&r5.includes("executionExceptionApproved")&&r5.includes("ECAS approval confirmed for planning after the execution deadline")],
+['single-company planning panel replaces audit switching',r5.includes("Company planning")&&!r5.includes("data-related-audit")&&!r5.includes("dataset.relatedAudit")],
  ['single-company visit composition is explicit',r5.includes('data-visit-audit')&&r5.includes('Combined physical visit:')&&r5.includes('visitAuditIds:[...visitAuditIds]')],
- ['combined visit commit fails closed before Model C relink owner exists',r4.includes('VISIT_COMBINED_COMMIT_NOT_YET_CANONICAL')&&r4.includes('VISIT_RELATED_EXECUTION_DEADLINE_APPROVAL_REQUIRED')]
+ ['combined visit commit fails closed before Model C relink owner exists',r4.includes('VISIT_COMBINED_COMMIT_NOT_YET_CANONICAL')&&r4.includes('VISIT_RELATED_EXECUTION_DEADLINE_APPROVAL_REQUIRED')],
  ['Grid backend uses Max_Offsite_Hours policy and no scheduling target fields',r4.includes("['Max_Offsite_Hours','Max Offsite Hours','Max offsite hours','Maximum offsite hours']")&&!r4.includes('Scheduling_hours')&&!r4.includes('schedulingHoursTarget:')],
  ['Planning Toolkit block model distinguishes execution type from location',r5.includes('id="executionType"')&&r5.includes("executionType=q('#executionType').value==='OFFSITE'?'OFFSITE':'ONSITE'")&&r4.includes("executionType=clean(x?.executionType||x?.workType||'ONSITE')")],
  ['Off-site allowance is policy ceiling, not planning target',r4.includes('maxOffsiteHours')&&r4.includes('OFFSITE_HOURS_ABOVE_SCOPE_MAX')&&r5.includes('maxOffsiteHours()')&&!r5.includes('Scheduling target')],
  ['Manager micro-refresh preserves multi-scope offsite fail-closed policy',r12.includes('requiresScopeAllocation')&&r12.includes('byScope.length===1?byScope[0].maxOffsiteHours:0')],
  ['company visit planner shows one Required hours value',r5.includes("hours='Required '+Number(r.formalHours||r.requiredHours||0).toFixed(2)+' h'")&&!r5.includes("' h · Scheduling '+Number(r.schedulingHours")],
  ['visit composition protects every selected member with source revision',r4.includes('VISIT_RELATED_SOURCE_REVISION_REQUIRED')&&r4.includes('VISIT_RELATED_SOURCE_REVISION_CONFLICT')&&r5.includes('visitMembers:[...visitAuditIds].map')],
- ['combined visit remains scope-generic',!r4.includes("relatedExecution.scopeCodes.includes('MPS-ABC')")&&!r5.includes("scope==='MPS-ABC'")]
+ ['combined visit remains scope-generic',!r4.includes("relatedExecution.scopeCodes.includes('MPS-ABC')")&&!r5.includes("scope==='MPS-ABC'")],
  ['generic visit relink preflight preserves provenance and active-link invariant',r4.includes('function visitCompositionPlan(')&&r4.includes('VISIT_OBLIGATION_MULTIPLE_ACTIVE_LINKS')&&r4.includes('VISIT_COMPOSITION_SOURCE_VISIT_NOT_EMPTY')&&!r4.includes('ob.Source_Audit_ID=targetAuditId')],
- ['generic visit relink preflight contains no scope-code branch',!r4.includes("scopeCode==='MPS-ABC'")&&!r4.includes("scopeCode==='MPS-GAP'")]
+ ['generic visit relink preflight contains no scope-code branch',!r4.includes("scopeCode==='MPS-ABC'")&&!r4.includes("scopeCode==='MPS-GAP'")],
  ['ECAS import resolves scope identity from Config_Scopes provisioning metadata',ecasImport.includes("ModelCEcasAnnualImport_config_")&&ecasImport.includes("['Provisioning source']")&&ecasImport.includes("['Source service']")&&!ecasImport.includes("var MODEL_C_ECAS_SCOPE_CODE='MPS-ABC'")],
- ['ECAS visit materialization uses configured scope identity',ecasVisit.includes('ModelCEcasAnnualImport_config_(ss)')&&!ecasVisit.includes("ScopeCode||'').trim().toUpperCase()==='MPS-ABC'")]
+ ['ECAS visit materialization uses configured scope identity',ecasVisit.includes('ModelCEcasAnnualImport_config_(ss)')&&!ecasVisit.includes("ScopeCode||'').trim().toUpperCase()==='MPS-ABC'")],
  ['generic planning transport contains no functional scope literals',!r4.includes("'MPS-ABC'")&&!r4.includes("'MPS-GAP'")&&!r4.includes("'GRASP'")&&!r5.includes("'MPS-ABC'")&&!r5.includes("'MPS-GAP'")&&!r5.includes("'GRASP'")]
 ];
 const failed=checks.filter(([,ok])=>!ok);

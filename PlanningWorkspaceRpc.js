@@ -38,6 +38,9 @@ function PWR_generateBatchConcept_(input){
   if(!ids.length)throw new Error('PlanningWorkspaceRpc: selected auditIds required');
   if(role==='AUDITOR'){
     var v=PWR_validateSelectedAuditorIds_(input,'batch');actor=PWR_normEmail_(v.actorEmail||v.email||actor);input.auditorEmail=actor;input.actorEmail=actor;input.actorRole='AUDITOR';
+  } else {
+    var mv=Grid2Selection_validate({auditIds:ids,actorRole:'Manager',actorEmail:actor,action:'batch'});
+    if(!mv||mv.ok!==true||!Array.isArray(mv.validAuditIds)||mv.validAuditIds.length!==ids.length)throw new Error('PlanningWorkspaceRpc: Manager selection is stale or invalid');
   }
   var req={auditorEmail:PWR_normEmail_(input.auditorEmail),periodFrom:PWR_clean_(input.periodFrom),periodTo:PWR_clean_(input.periodTo),auditIds:ids,noApiCall:input.noApiCall===true,forceFreshRoutes:input.forceFreshRoutes===true};
   if(input.inboundPoint!=null)req.inboundPoint=input.inboundPoint;if(input.outboundPoint!=null)req.outboundPoint=input.outboundPoint;

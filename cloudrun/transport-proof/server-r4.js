@@ -458,6 +458,12 @@ async function directManagerAcceptOnBehalf(identity,body){
 }
 
 
+function directIsoDate(v){
+  const s=clean(v);if(!s)return'';
+  let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[1]+'-'+m[2]+'-'+m[3];
+  m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);if(m)return m[3]+'-'+String(Number(m[2])).padStart(2,'0')+'-'+String(Number(m[1])).padStart(2,'0');
+  return'';
+}
 function directDateAddYears(iso,years){
   const m=clean(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return'';
   const y=Number(m[1])+Number(years||0),mo=Number(m[2]),d=Math.min(Number(m[3]),new Date(Date.UTC(y,mo,0)).getUTCDate());
@@ -521,7 +527,10 @@ async function directManagerComplete(identity,body){
     const h=found.h,row=found.row,beforeStatus=val(row,col(h,['Status'])),beforeKey=directStatusKey(beforeStatus);
     if(beforeKey!=='ACCEPTED')throw new Error('STATUS_TRANSITION_BLOCKED');
     const revision=directRowRevision(h,row);if(expectedRevision&&revision!==expectedRevision)throw new Error('MANAGER_ACTION_SOURCE_REVISION_CONFLICT');
-    if(existingLogRow)throw new Error('COMPLETION_LOG_DUPLICATE_ACTIVE_ROW');
+    let existingLogCorrectionMs=0;
+    if(existingLogRow&&logHoursIx>=0&&Number(log[existingLogRow-1][logHoursIx])!==hoursDedicated){
+      const t=Date.now();await sheetsValuesBatchUpdate([{range:'Log realized audits!'+a1col(logHoursIx+1)+existingLogRow,values:[[hoursDedicated]]}]);existingLogCorrectionMs=Date.now()-t;
+    }
 
     const company=val(row,col(h,['Company'])),location=val(row,col(h,['Location'])),companyUid=val(row,col(h,['Company_UID','Company UID','CompanyUid'])),actorEmail=clean(identity?.email).toLowerCase(),now=isoLocalStamp(),stamp=new Date().toISOString();
     if(!companyUid)throw new Error('COMPANY_UID_REQUIRED');
@@ -531,7 +540,11 @@ async function directManagerComplete(identity,body){
     const lh=links[0]||[],la=col(lh,['Audit_ID','Audit ID']),lo=col(lh,['Obligation_ID','Obligation ID']),ls=col(lh,['Link_State','Link State']),llu=col(lh,['Unlinked_At','Unlinked At']);
     if([oi,ocs,ocu,osc,ost,la,lo,ls].some(x=>x<0))throw new Error('MODEL_C_COMPLETE_SCHEMA_INVALID');
     const activeLinks=[];for(let i=1;i<links.length;i++)if(val(links[i],la)===auditId&&val(links[i],ls).toUpperCase()==='ACTIVE')activeLinks.push({row:i+1,obId:val(links[i],lo),values:links[i].slice()});
-    if(!activeLinks.length)throw new Error('MODEL_C_NO_ACTIVE_OBLIGATIONS_FOR_COMPLETE');
+    if(!activeLinks.length){
+      if(!existingLogRow)throw new Error('MODEL_C_NO_ACTIVE_OBLIGATIONS_FOR_COMPLETE');
+      const deleteStarted=Date.now();await sheetsDeleteRow('Audit planning',found.sourceRow);const deleteMs=Date.now()-deleteStarted;
+      return{success:true,idempotent:true,recovered:true,auditId,action:'COMPLETE',hoursDedicated,directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_COMPLETE',successorRows:[],readMs,writeMs:existingLogCorrectionMs,deleteMs,totalMs:Date.now()-started};
+    }
     const obById=new Map();for(let i=1;i<obs.length;i++)obById.set(val(obs[i],oi),{row:i+1,values:obs[i].slice()});
 
     const successorItems=[],obligationWrites=[],linkWrites=[];
@@ -542,7 +555,7 @@ async function directManagerComplete(identity,body){
       if(!def)throw new Error('CONFIG_SCOPES_MISSING_'+code);
       if(val(rr,ocu)!==companyUid)throw new Error('MODEL_C_COMPANY_UID_MISMATCH');
       if(def.recurring===true){
-        const base=dateOnly(val(rr,obe));if(!base)throw new Error('RECURRING_BASE_EXPIRY_MISSING_'+code);
+        const base=directIsoDate(val(rr,obe));if(!base)throw new Error('RECURRING_BASE_EXPIRY_MISSING_'+code);
         const next=directDateAddYears(base,1),from=directDateAddMonths(next,Number(def.planningFrom||0)),to=directDateAddMonths(next,Number(def.planningTo||0));
         if(!next||!from||!to)throw new Error('SUCCESSOR_WINDOW_INVALID_'+code);
         successorItems.push({scopeCode:code,companyScopeId:val(rr,ocs),cycleKey:next,baseExpiry:next,from,to,formalHours:Number(val(rr,ofh))>0?Number(val(rr,ofh)):Number(def.formalHours||0),preassigned:val(rr,opa),allowSelfPlanning:val(rr,oas)});
@@ -555,7 +568,7 @@ async function directManagerComplete(identity,body){
 
     const groups=directSuccessorGroups(successorItems),newPlanningRows=[],newObRows=[],newLinkRows=[],successorIds=[];
     const csH=companyScopes[0]||[],csId=col(csH,['Company_Scope_ID','Company Scope ID']),csBirthday=col(csH,['Certificate_Birthday','Certificate Birthday']),birthdayById=new Map();
-    for(let i=1;i<companyScopes.length;i++)birthdayById.set(val(companyScopes[i],csId),dateOnly(val(companyScopes[i],csBirthday)));
+    for(let i=1;i<companyScopes.length;i++)birthdayById.set(val(companyScopes[i],csId),directIsoDate(val(companyScopes[i],csBirthday)));
     const apH=ap[0]||[],source=row.slice(),auditIdIx=col(apH,['Audit ID','Audit_ID','AuditId','Audit Id']);
     for(let g=0;g<groups.length;g++){
       const group=groups[g],newId=auditId+'_NEXT_'+String(g+1)+'_'+createHash('md5').update(auditId+'|'+group.items.map(x=>x.scopeCode+'|'+x.cycleKey).join('|')).digest('hex').slice(0,10);
@@ -578,7 +591,7 @@ async function directManagerComplete(identity,body){
       directSetByHeader(apH,nr,['Scopes_List'],group.items.map(x=>x.scopeCode).join(', '));directSetByHeader(apH,nr,['Extension applied'],'');
       newPlanningRows.push(nr);successorIds.push(newId);
       for(const item of group.items){
-        const naturalExists=obs.slice(1).some(r=>val(r,ocs)===item.companyScopeId&&dateOnly(val(r,ock))===item.cycleKey&&val(r,ots)==='CERTIFICATE_LIFECYCLE');
+        const naturalExists=obs.slice(1).some(r=>val(r,ocs)===item.companyScopeId&&directIsoDate(val(r,ock))===item.cycleKey&&val(r,ots)==='CERTIFICATE_LIFECYCLE');
         if(naturalExists)continue;
         const obId='OBL_'+createHash('sha256').update(newId+'|'+item.companyScopeId+'|'+item.cycleKey).digest('hex').slice(0,32),obj={};
         for(const hh of oh)obj[hh]='';
@@ -594,12 +607,12 @@ async function directManagerComplete(identity,body){
     if(!logH.length)throw new Error('LOG_REALIZED_SCHEMA_MISSING');
     const logRow=directCompletedLogRow(logH,found,hoursDedicated,actorEmail,now);
     const writeStarted=Date.now();
+    if(!existingLogRow)await sheetsValuesAppend('Log realized audits!A:'+a1col(logH.length),[logRow]);
     if(obligationWrites.length||linkWrites.length||availabilityWrites.length)await sheetsValuesBatchUpdate([...obligationWrites,...linkWrites,...availabilityWrites]);
     if(newPlanningRows.length)await sheetsValuesAppend('Audit planning!A:'+a1col(apH.length),newPlanningRows);
     if(newObRows.length)await sheetsValuesAppend('Audit_Obligations!A:'+a1col(oh.length),newObRows);
     if(newLinkRows.length)await sheetsValuesAppend('Audit_Visit_Obligations!A:'+a1col(lh.length),newLinkRows);
-    await sheetsValuesAppend('Log realized audits!A:'+a1col(logH.length),[logRow]);
-    const writeMs=Date.now()-writeStarted;
+    const writeMs=Date.now()-writeStarted+existingLogCorrectionMs;
 
     const deleteStarted=Date.now();await sheetsDeleteRow('Audit planning',found.sourceRow);const deleteMs=Date.now()-deleteStarted;
 
@@ -608,7 +621,7 @@ async function directManagerComplete(identity,body){
     const queueRows=[[minuteStamp,'AUDIT_TRAIL','LIFECYCLE_STATUS_CHANGED','',auditId,company,'[TRAIL] LIFECYCLE_STATUS_CHANGED :: '+auditId,trailBody,0,'',trailHash,'',JSON.stringify({payload:trailPayload})]];
     let sideEffectQueue={success:true};const sideStarted=Date.now();try{await sheetsValuesAppend('Notification Queue!A:M',queueRows);}catch(e){sideEffectQueue={success:false,error:clean(e?.message||e)}}const sideEffectMs=Date.now()-sideStarted;
 
-    const successorRows=newPlanningRows.map((nr,i)=>managerOpen([apH,nr],actorEmail,cfgValues,companies).rows[0]).filter(Boolean);
+    const successorRows=newPlanningRows.map((nr,i)=>{const mapped=managerOpen([apH,nr],actorEmail,cfgValues,companies).rows[0];if(mapped)mapped.sourceRow=ap.length+i;return mapped;}).filter(Boolean);
     return{success:true,auditId,action:'COMPLETE',beforeStatus,newStatus:'Completed',afterStatus:'COMPLETED',afterStatusDisplay:'Completed',hoursDedicated,directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_COMPLETE',successorAuditIds:successorIds,successorRows,readMs,writeMs,deleteMs,availabilityRows:availabilityWrites.length,sideEffectMs,sideEffectQueue,totalMs:Date.now()-started};
   });
 }

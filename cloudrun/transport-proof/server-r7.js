@@ -15,28 +15,20 @@ function sendJson(res,status,body){res.writeHead(status,{'content-type':'applica
 
 function patchPlanningHtml(html){
   let out=String(html||'');
-  const helper="function requiredVisitHours(){const set=model?.data?.audit?.companyPlanningSet||[],chosen=set.filter(r=>visitAuditIds.has(r.auditId)),sum=chosen.reduce((n,r)=>n+Number(r.schedulingHours||r.requiredHours||0),0);return sum||Number(model?.data?.audit?.requiredHours||0)}";
-  const plannedMarker="function plannedHours(){return draftBlocks.reduce((n,b)=>n+blockHours(b),0)}";
-  if(!out.includes('function requiredVisitHours(){')){
-    if(!out.includes(plannedMarker))throw new Error('PLANNING_REQUIRED_VISIT_HOURS_HELPER_MARKER_MISSING');
-    out=out.replace(plannedMarker,plannedMarker+helper);
+  const currentPlanningTarget="function planningTarget(){const a=model?.data?.audit||{},n=Number(a.schedulingHoursTarget);return Number.isFinite(n)&&n>=0?n:Number(a.requiredHours||0)}";
+  const helper="function requiredVisitHours(){const set=model?.data?.audit?.companyPlanningSet||[],chosen=set.filter(r=>visitAuditIds.has(r.auditId)),sum=chosen.reduce((n,r)=>n+Number(r.schedulingHours||r.schedulingHoursTarget||r.requiredHours||0),0);const primary=Number(model?.data?.audit?.schedulingHoursTarget||model?.data?.audit?.requiredHours||0);return sum||primary}";
+  if(out.includes(currentPlanningTarget)){
+    out=out.replace(currentPlanningTarget,helper+"function planningTarget(){return requiredVisitHours()}");
+  }else if(!out.includes('function requiredVisitHours(){')){
+    throw new Error('PLANNING_SCHEDULING_TARGET_PATCH_MARKER_MISSING');
   }
-
-  out=out.replaceAll("required=Number(model?.data?.audit?.requiredHours||0)","required=requiredVisitHours()");
-  out=out.replaceAll("const required=Number(model?.data?.audit?.requiredHours||0)","const required=requiredVisitHours()");
 
   if(out.includes("function renderVisitComposition(){const set=")){
-    out=out.replace("function renderVisitComposition(){const set=","function renderVisitComposition(){txt('#requiredHours',requiredVisitHours().toFixed(2)+' h scheduling');const set=");
-  }
-  if(out.includes("function renderVisitComposition(){txt('#requiredHours',requiredVisitHours().toFixed(2)+' h scheduling');const set=")){
-    // already patched by r6; keep exactly one visible update.
+    out=out.replace("function renderVisitComposition(){const set=","function renderVisitComposition(){txt('#requiredHours',requiredVisitHours().toFixed(2)+' h');validate();const set=");
   }
 
-  out=out.replace("txt('#requiredHours',a.requiredHours?Number(a.requiredHours).toFixed(2)+' h':'—');if(a.requiredHours){const s=hhmm(q('#start').value)||540,d=Math.min(Number(a.requiredHours),8),t=s+Math.round(d*60);",
-    "const initialRequired=requiredVisitHours();txt('#requiredHours',initialRequired?initialRequired.toFixed(2)+' h scheduling':'—');if(initialRequired){const s=hhmm(q('#start').value)||540,d=Math.min(initialRequired,8),t=s+Math.round(d*60);");
-
-  if(!out.includes("required=requiredVisitHours()"))throw new Error('PLANNING_COMBINED_VALIDATE_PATCH_NOT_APPLIED');
-  if(!out.includes("txt('#requiredHours',requiredVisitHours().toFixed(2)+' h scheduling')")&&!out.includes("initialRequired=requiredVisitHours()"))throw new Error('PLANNING_COMBINED_REQUIRED_DISPLAY_PATCH_NOT_APPLIED');
+  if(!out.includes("function planningTarget(){return requiredVisitHours()}"))throw new Error('PLANNING_COMBINED_SCHEDULING_TARGET_PATCH_NOT_APPLIED');
+  if(!out.includes("txt('#requiredHours',requiredVisitHours().toFixed(2)+' h')"))throw new Error('PLANNING_COMBINED_REQUIRED_DISPLAY_PATCH_NOT_APPLIED');
 
   out=out.replace('<span class="muted" style="color:#cbd5e1">single audit</span>','<span class="muted" style="color:#cbd5e1">single audit · '+BUILD+'</span>');
   return out;

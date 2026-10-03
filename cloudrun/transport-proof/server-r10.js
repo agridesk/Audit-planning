@@ -38,7 +38,7 @@ function a1col(n){let s='';for(let x=n;x>0;x=Math.floor((x-1)/26))s=String.fromC
 function parseJson(raw){try{return typeof raw==='string'?JSON.parse(raw):raw}catch{return null}}
 function dateOnly(v){const s=clean(v),m=s.match(/^(\d{4}-\d{2}-\d{2})/);return m?m[1]:s.slice(0,10);}
 function normalizeStatus(v){return clean(v).toUpperCase().replace(/[\s-]+/g,'_');}
-function allowedActions(k){return k==='PENDING_PLANNING'?['PLAN','REJECT']:k==='PENDING_APPROVAL'?['APPROVE','CANCEL','REJECT']:k==='APPROVED'?['CANCEL','REJECT']:k==='ACCEPTED'?['COMPLETE','CANCEL','REJECT']:[];}
+function allowedActions(k){return k==='PENDING_PLANNING'?['PLAN','REJECT']:k==='PENDING_APPROVAL'?['APPROVE','CANCEL','REJECT']:k==='APPROVED'?['ACCEPT','CANCEL','REJECT']:k==='ACCEPTED'?['COMPLETE','CANCEL','REJECT']:[];}
 function blockHours(blocks){let total=0,seen=false;for(const b of Array.isArray(blocks)?blocks:[]){const n=Number(b?.hours);if(Number.isFinite(n)){total+=n;seen=true;continue;}const s=clean(b?.start),e=clean(b?.end);if(/^\d{2}:\d{2}$/.test(s)&&/^\d{2}:\d{2}$/.test(e)){const [sh,sm]=s.split(':').map(Number),[eh,em]=e.split(':').map(Number),mins=(eh*60+em)-(sh*60+sm);if(mins>0){total+=mins/60;seen=true;}}}return seen?Math.round(total*100)/100:null;}
 function scheduledHours(j){if(!j||typeof j!=='object')return null;const explicit=Number(j.scheduledHours);if(Number.isFinite(explicit))return explicit;const blocks=blockHours(j.blocks);if(blocks!=null)return blocks;const legacy=Number(j.totalPlannedHours);return Number.isFinite(legacy)?legacy:null;}
 function formalHours(j,fallback){if(j&&typeof j==='object'){const explicit=Number(j.formalHours);if(Number.isFinite(explicit))return explicit;}const n=Number(fallback);return Number.isFinite(n)?n:null;}

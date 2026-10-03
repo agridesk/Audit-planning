@@ -51,6 +51,8 @@ assert.match(baseServer,/seenActiveObIds/,'Complete must deduplicate malformed d
 assert.match(baseServer,/existingOb/,'Successor recovery must reuse existing recurring obligations');
 assert.doesNotMatch(baseServer,/if\(existingAp\)\{successorIds\.push\(newId\);continue;\}/,'Existing successor projection must not skip Model C repair');
 assert.match(baseServer,/fallbackPlannedHours/,'Direct Complete realized log must fall back to canonical Model C formal hours');
+assert.match(baseServer,/directAuditPlanningScopeHours/,'Next-cycle scope hours must read Audit planning duration columns');
+assert.match(baseServer,/const successorFormalHours=apScopeHours!==null\?apScopeHours:/,'Audit planning scope duration must be primary successor-hours owner');
 assert.match(baseServer,/allWrites\.push\(\{range:'Audit planning!A'/,'Direct Complete successor must use explicit Audit planning row writes');
 assert.doesNotMatch(baseServer,/sheetsValuesAppend\('Audit planning!A:'/,'Direct Complete must not use append table inference for Audit planning successors');
 assert.match(portal,/successorRows/,'Manager micro-refresh must consume successor rows');

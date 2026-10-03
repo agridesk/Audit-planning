@@ -473,6 +473,29 @@ function completionService_overrideCompletedHours_(payload) {
 function completionService_getAuditPlanningRowPack_(sheet, auditId) {
   var lastRow = sheet.getLastRow();
   var lastCol = sheet.getLastColumn();
+
+  // Hot path: reuse the persisted Audit-ID row index. Warm execution reads
+  // only the target row; the legacy column scan remains a fail-safe fallback.
+  try {
+    if (typeof __mp_getAuditPlanningRow_ === 'function') {
+      var fastPack = __mp_getAuditPlanningRow_(sheet.getParent(), auditId);
+      if (fastPack && fastPack.row && fastPack.hdr && fastPack.rowNumber) {
+        var fastHeaders = fastPack.hdr.slice();
+        var fastValues = fastPack.row.slice();
+        var fastDisplay = sheet.getRange(fastPack.rowNumber, 1, 1, fastHeaders.length).getDisplayValues()[0] || [];
+        return {
+          success:true,
+          rowIndex:Number(fastPack.rowNumber),
+          headers:fastHeaders,
+          values:fastValues,
+          displayValues:fastDisplay,
+          rowObj:completionService_buildRowObject_(fastHeaders, fastValues, fastDisplay, Number(fastPack.rowNumber)),
+          indexed:true
+        };
+      }
+    }
+  } catch (eFastRow) {}
+
   if (lastRow < 2 || lastCol < 1) return { success:false, message:'Audit planning is empty' };
 
   var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0] || [];

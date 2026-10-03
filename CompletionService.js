@@ -459,7 +459,7 @@ function completionService_overrideCompletedHours_(payload) {
       reason:reason || 'Manager realized-hours correction',
       source:'CompletionService.OverrideCompletedHours'
     });
-    completionService_invalidateRealizedReadModels_(auditId);
+    completionService_invalidateRealizedReadModels_(auditId, res.auditorEmail);
 
     return {
       success:true,
@@ -526,7 +526,7 @@ function completionService_getAuditPlanningRowPack_(sheet, auditId) {
   return { success:true, rowIndex:rowIndex, headers:headers, values:values, displayValues:displayValues, rowObj:rowObj };
 }
 
-function completionService_invalidateRealizedReadModels_(auditId) {
+function completionService_invalidateRealizedReadModels_(auditId, auditorEmail) {
   try {
     if (typeof AUDIT_CACHE !== 'undefined' && AUDIT_CACHE) {
       if (typeof AUDIT_CACHE.remove === 'function') {
@@ -537,7 +537,10 @@ function completionService_invalidateRealizedReadModels_(auditId) {
       }
     }
   } catch (e3) {}
-  try { CacheService.getScriptCache().remove('AUD_V5_ARCHIVED_GRID_' + String(auditId || '')); } catch (e4) {}
+  auditorEmail = completionService_normEmail_(auditorEmail);
+  if (auditorEmail) {
+    try { CacheService.getScriptCache().remove('AUD_V5_ARCHIVED|' + auditorEmail); } catch (e4) {}
+  }
 }
 
 function completionService_appendHoursAuditTrail_(ss, payload) {

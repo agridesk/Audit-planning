@@ -8,8 +8,8 @@ const r10=fs.readFileSync(new URL('./server-r10.js',import.meta.url),'utf8');
 const r11=fs.readFileSync(new URL('./server-r11.js',import.meta.url),'utf8');
 const r12=fs.readFileSync(new URL('./server-r12.js',import.meta.url),'utf8');
 
-assert.ok(r4.includes('Scheduling_hours_delta'),'Config_Scopes delta field remains readable pending impact analysis');
-assert.ok(r6.includes('Scheduling_hours_delta'),'Combined scope catalog still tolerates existing Config_Scopes schema');
+assert.ok(!r4.includes('Scheduling_hours_delta'),'Grid backend must no longer read scheduling delta');
+assert.ok(r6.includes('Scheduling_hours_delta'),'Combined Toolkit backend still tolerates existing Config_Scopes schema until Toolkit phase');
 assert.ok(!r4.includes('schedulingHoursTarget'),'R4 must not expose schedulingHoursTarget');
 assert.ok(!r5.includes('schedulingHoursTarget'),'Toolkit must not consume schedulingHoursTarget');
 assert.ok(!r6.includes('schedulingHoursTarget'),'Combined visit must not consume schedulingHoursTarget');
@@ -21,7 +21,7 @@ assert.ok(r5.includes('Number(a.formalHours??a.requiredHours??0)'),'Toolkit targ
 
 console.log(JSON.stringify({
   success:true,
-  build:'2026-10-03_SCHEDULING_DELTA_DEPRECATED_AS_PLANNING_TARGET_R2',
+  build:'2026-10-03_GRID_BACKEND_MAX_OFFSITE_POLICY_R3',
   passed:10,
   writesPerformed:false
 },null,2));

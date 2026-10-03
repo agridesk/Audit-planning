@@ -2059,6 +2059,12 @@ function AuditorV5_Action_U20260410(auditId, action, payload) {
     } catch (e) {
       throw new Error("Completion commit failed: " + (e && e.message ? e.message : e));
     }
+    if (res && res.success === false && res.completionCommitted === true && typeof CompletionService_CommitCompletion === 'function') {
+      try {
+        var recoveredComplete = CompletionService_CommitCompletion({ auditId:auditId, hoursDedicated:q, actorEmail:actorEmail, mode:'AUDITOR' });
+        if (recoveredComplete && recoveredComplete.success === true) res = recoveredComplete;
+      } catch (eRecoverComplete) {}
+    }
     if (!res || res.success === false) return res || { success:false, message:'Completion failed' };
 
     // CompletionService owns Availability release. Do not execute a second

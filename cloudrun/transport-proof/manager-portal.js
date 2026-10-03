@@ -56,7 +56,7 @@ function submitSelectionHandoff(mode){
 function text(v){return v==null||v===""?"-":String(v)}
 function displayStatus(v){var s=String(v==null?"":v).trim().toLowerCase();return s==="approved"?"Pending acceptance":text(v)}
 function hoursClass(expected,actual){var e=Number(expected),a=Number(actual);if(!isFinite(e)||!isFinite(a))return "";if(Math.abs(a-e)<0.001)return "hours-match";return a<e?"hours-under":"hours-over"}
-function hoursPlannedCell(r){var formal=text(r.hoursPlanned),scheduled=r.schedulingHoursTarget!=null&&r.schedulingHoursTarget!==""?r.schedulingHoursTarget:r.scheduledHours,sub=(scheduled!=null&&scheduled!==""&&isFinite(Number(scheduled)))?"<div class=\"scheduled-hours\">scheduled "+esc(Number(scheduled))+" h</div>":"";return esc(formal)+sub}
+function hoursPlannedCell(r){var formal=text(r.hoursPlanned),scheduled=r.scheduledHours,sub=(scheduled!=null&&scheduled!==""&&isFinite(Number(scheduled)))?"<div class=\"scheduled-hours\">scheduled "+esc(Number(scheduled))+" h</div>":"";return esc(formal)+sub}
 function bucketKey(statusKey){return statusKey==="PENDING_PLANNING"?"pendingPlanning":statusKey==="PENDING_APPROVAL"?"pendingApproval":statusKey==="APPROVED"?"approved":statusKey==="ACCEPTED"?"accepted":""}
 function expectedStatus(action){return action==="cancel"?"PENDING_PLANNING":action==="reject"?"REJECTED":action==="approve"?"ACCEPTED":""}
 function latestCommentText(r){if(!r.latestComment)return "";var actor=r.latestCommentActor||"",action=r.latestCommentAction||"";return (actor?actor+(action?" · "+action:"")+": ":"")+r.latestComment}

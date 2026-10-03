@@ -1390,6 +1390,10 @@ function auditorUi_applyFilters_() {
     if (lab) lab.textContent = __AUDITOR_SELECTED_IDS.size + ' selected';
     var bar = document.getElementById('audSelectionBar');
     if (bar) bar.style.display = __AUDITOR_SELECTED_IDS.size ? 'flex' : 'none';
+    var archived = !!(document.getElementById('chkArchived') && document.getElementById('chkArchived').checked);
+    var batchBtn = document.getElementById('btnSelectionBatch'), conceptBtn = document.getElementById('btnSelectionConcept');
+    if (batchBtn) batchBtn.style.display = archived ? 'none' : '';
+    if (conceptBtn) conceptBtn.style.display = archived ? 'none' : '';
     var visible = auditorUi_getVisibleAuditIds_(), selectedVisible = visible.filter(function(id){ return __AUDITOR_SELECTED_IDS.has(id); }).length;
     var head = document.getElementById('audSelectAllVisible');
     if (head) { head.checked = visible.length > 0 && selectedVisible === visible.length; head.indeterminate = selectedVisible > 0 && selectedVisible < visible.length; }

@@ -459,6 +459,7 @@ function completionService_overrideCompletedHours_(payload) {
       reason:reason || 'Manager realized-hours correction',
       source:'CompletionService.OverrideCompletedHours'
     });
+    completionService_invalidateRealizedReadModels_(auditId);
 
     return {
       success:true,
@@ -523,6 +524,20 @@ function completionService_getAuditPlanningRowPack_(sheet, auditId) {
   var displayValues = sheet.getRange(rowIndex, 1, 1, lastCol).getDisplayValues()[0] || [];
   var rowObj = completionService_buildRowObject_(headers, values, displayValues, rowIndex);
   return { success:true, rowIndex:rowIndex, headers:headers, values:values, displayValues:displayValues, rowObj:rowObj };
+}
+
+function completionService_invalidateRealizedReadModels_(auditId) {
+  try {
+    if (typeof AUDIT_CACHE !== 'undefined' && AUDIT_CACHE) {
+      if (typeof AUDIT_CACHE.remove === 'function') {
+        try { AUDIT_CACHE.remove('manager', 'single_grid_archived_completed_v1'); } catch (e1) {}
+      }
+      if (typeof AUDIT_CACHE.removeNamespace === 'function') {
+        try { AUDIT_CACHE.removeNamespace('rotation'); } catch (e2) {}
+      }
+    }
+  } catch (e3) {}
+  try { CacheService.getScriptCache().remove('AUD_V5_ARCHIVED_GRID_' + String(auditId || '')); } catch (e4) {}
 }
 
 function completionService_appendHoursAuditTrail_(ss, payload) {

@@ -2557,6 +2557,15 @@ function auditorV5_exportMatrix_(rows) {
   return matrix;
 }
 
+function AuditorV5_ValidateGridSelection(req) {
+  req=req||{};
+  var token=String(req.trustedToken||req.token||'').trim(),deviceId=String(req.deviceFingerprint||req.deviceId||'').trim(),claimed=String(req.auditorEmail||req.email||'').trim().toLowerCase(),auth=null;
+  if(typeof V5_ENTRY_isTestBypass_==='function'&&V5_ENTRY_isTestBypass_(claimed,'Auditor',token,deviceId))auth={ok:true,email:claimed};
+  if(!auth||auth.ok!==true){try{auth=V5_AUTH.validateTrustedTokenByRole(token,'Auditor',deviceId);}catch(eAuth){auth=null;}}
+  if(!auth||auth.ok!==true||!auth.email)return{ok:false,error:'AUDITOR_AUTH_REQUIRED',validAuditIds:[],rejected:[],writesPerformed:false};
+  return Grid2Selection_validate({auditIds:Array.isArray(req.auditIds)?req.auditIds:[],actorRole:'Auditor',actorEmail:String(auth.email||'').trim().toLowerCase(),action:String(req.action||req.mode||'batch').trim().toLowerCase()});
+}
+
 function AuditorV5_ExportSelectedAudits(req) {
   req = req || {};
   var auditIds = Array.isArray(req.auditIds) ? req.auditIds : [];

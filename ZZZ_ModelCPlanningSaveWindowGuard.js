@@ -13,7 +13,7 @@
  * in the current GAS project file order; runtime acceptance below proves the
  * effective owner before this change is considered accepted.
  */
-var MODEL_C_PLANNING_SAVE_WINDOW_GUARD_BUILD='2026-09-21_AMS_01_6_MODEL_C_PLANNING_SAVE_WINDOW_GUARD_R1';
+var MODEL_C_PLANNING_SAVE_WINDOW_GUARD_BUILD='2026-10-03_AMS_01_6_MODEL_C_PLANNING_SAVE_WINDOW_GUARD_R2_CONFIG_ANNUAL';
 
 function ModelCPlanningSaveWindowGuard_text_(v){
   return String(v===null||v===undefined?'':v).trim();
@@ -132,7 +132,12 @@ function RUN_MODEL_C_PLANNING_SAVE_WINDOW_GUARD_ACCEPTANCE(){
   var bridge=V5_availabilityValidate_(out.auditId,'nobody@example.invalid','nobody',[{date:'2027-01-01',start:'09:00',end:'10:00'}]);
   out.gates.directGuardHardBlocks=!!(guard&&guard.success===false&&guard.hardBlock===true&&guard.reason==='BLOCK_OUTSIDE_CANONICAL_PLANNING_WINDOW');
   out.gates.deployedV5BridgeHardBlocks=!!(bridge&&bridge.success===false&&bridge.hardBlock===true&&bridge.reason==='BLOCK_OUTSIDE_CANONICAL_PLANNING_WINDOW');
-  out.gates.effectiveWindowIsBatchYear=!!(guard&&guard.startDate===String(importPlan.batchYear)+'-01-01'&&guard.endDate===String(importPlan.batchYear)+'-12-31');
+  var canonicalExpected=null;
+  try{
+    var ap=ss.getSheetByName('Audit planning'),apv=ap?ap.getDataRange().getValues():[],aph=apv[0]||[],ai=ModelCRuntime_headerIndex_(aph,['Audit ID']);
+    for(var rr=1;rr<apv.length;rr++)if(ai>=0&&String(apv[rr][ai]||'').trim()===out.auditId){canonicalExpected=ModelCRuntime_resolvePlanningWindow_(ss,aph,apv[rr]);break;}
+  }catch(ignoreExpected){}
+  out.gates.effectiveWindowMatchesCanonicalConfig=!!(guard&&canonicalExpected&&canonicalExpected.success===true&&guard.startDate===canonicalExpected.startDate&&guard.endDate===canonicalExpected.endDate);
   out.gates.noAvailabilityWriteAttempted=out.gates.deployedV5BridgeHardBlocks;
   out.gates.readOnly=true;
   out.success=out.errors.length===0&&Object.keys(out.gates).every(function(k){return out.gates[k]===true;});

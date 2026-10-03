@@ -117,6 +117,8 @@ function LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, m
   var headers = LogRealizedAuditService_getHeaders_(shLog);
   var colHours = LogRealizedAuditService_findHeaderIndex_(headers, ['Hours dedicated']);
   if (colHours < 0) return { success:false, message:'Log realized audits missing Hours dedicated column' };
+  var colAuditor = LogRealizedAuditService_findHeaderIndex_(headers, ['Auditor','Assigned to','Assigned auditor']);
+  var auditorEmail = colAuditor >= 0 ? LogRealizedAuditService_clean_(shLog.getRange(rowIdx, colAuditor + 1).getValue()).toLowerCase() : '';
 
   var oldHoursDedicated = Number(shLog.getRange(rowIdx, colHours + 1).getValue());
   shLog.getRange(rowIdx, colHours + 1).setValue(n);
@@ -147,6 +149,7 @@ function LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, m
     newHoursDedicated:n,
     changed:!isFinite(oldHoursDedicated) || Math.abs(oldHoursDedicated - n) > 1e-9,
     changedAt:new Date().toISOString(),
+    auditorEmail:auditorEmail,
     message:'Completed hours updated'
   };
 }

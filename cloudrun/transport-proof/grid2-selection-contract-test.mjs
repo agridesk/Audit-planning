@@ -14,6 +14,8 @@ const workspaceClient=read('../../PlanningWorkspaceClient.js.html');
 const decision=read('../../PlanningWorkspaceDecisionReadModel.js');
 const batch=read('../../BatchPlanningManagerApi.js');
 const rpc=read('../../PlanningWorkspaceRpc.js');
+const batchUi=read('../../PlanningWorkspaceBatchCommit.js.html');
+const dragDrop=read('../../PlanningWorkspaceDragDrop.js.html');
 
 function has(src,needle,msg){assert.ok(src.includes(needle),msg+'\nMissing: '+needle);}
 
@@ -76,5 +78,14 @@ has(rpc,"PWR_validateSelectedAuditorIds_(authInput,'concept')",'Auditor batch co
 has(workspaceClient,'.PlanningWorkspaceRpc_generateBatchConcept(payload)','Workspace client must not call unrestricted Batch generator directly');
 assert.ok(!workspaceClient.includes('.getBatchPlanningConceptV5('),'Workspace browser must not call unrestricted Batch generator directly');
 has(workspaceClient,'trustedToken:rq.trustedToken','Auditor concept batch save must carry authenticated context');
+has(rpc,'function PWR_scopeBatchCommand_','Auditor batch preview/commit must use a role-scoped backend boundary');
+has(rpc,"Grid2Selection_validate({auditIds:ids,actorRole:'Auditor',actorEmail:actor,action:'batch'})",'Auditor batch commit must revalidate self-plannable selected IDs at action time');
+has(rpc,"PWR_authenticateAuditor_(input)",'Auditor concept/commit commands must authenticate the Auditor actor');
+has(batchUi,'function commandPayload(rows)','Batch commit UI must forward role/auth context');
+has(batchUi,"aud?'Submit for approval':'Confirm plan selected'",'Auditor batch commit must visibly submit through Pending Approval governance');
+has(batchUi,'.PlanningWorkspaceRpc_batchCommit(commandPayload(rows))','Batch commit must not hardcode Manager role');
+assert.ok(!batchUi.includes("PlanningWorkspaceRpc_batchCommit({actorRole:'MANAGER'"),'Batch commit must not force Manager role');
+has(dragDrop,'function auth()','Drag-drop concept actions must use current authenticated Workspace role');
+has(dragDrop,'trustedToken:a.trustedToken','Drag-drop Auditor mutations must forward trusted token');
 
 console.log('Grid 2.0 shared multi-selection contract test passed');

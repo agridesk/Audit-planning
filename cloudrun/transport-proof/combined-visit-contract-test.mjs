@@ -47,6 +47,9 @@ has(r6,'VISIT_COMPOSITION_COMPANY_MISMATCH','company consistency guard');
 has(r6,'AUDITOR_NOT_HARD_QUALIFIED','qualification guard');
 has(r6,'VISIT_RELATED_PLANNING_WINDOW_BLOCKED','related planning window guard');
 has(r6,'formalRequired+=Number(a?.formalHours||0)','combined target sums formal hours');
+not(r6,'Scheduling_hours_delta','combined visit no longer reads scheduling delta');
+has(r6,'Max_Offsite_Hours','combined visit reads max off-site policy schema');
+has(r6,'OFFSITE_MULTI_SCOPE_ALLOCATION_REQUIRED','combined visit fails closed for off-site until obligation allocation is explicit');
 has(r6,"setTarget(['Hours planned','Planned hours','Hours Planned'],Math.round(formalRequired*100)/100)",'combined visit persists Hours planned from formal hours');
 has(r6,'x.row[z.id]=targetAuditId','one physical Availability occupancy');
 has(r6,'AUDIT_PLANNED_BY_MANAGER','one planned-auditor notification path retained');
@@ -63,7 +66,7 @@ has(r4,'VISIT_COMBINED_COMMIT_NOT_YET_CANONICAL','lower-layer fail-closed combin
 
 console.log(JSON.stringify({
   success:true,
-  build:'2026-10-02_COMBINED_VISIT_CONTRACT_R10_WARM_GAS_R13',
+  build:'2026-10-03_COMBINED_VISIT_CONTRACT_R11_OFFSITE_POLICY',
   writesPerformed:false,
   assertions:{
     publicRuntimeR10:true,

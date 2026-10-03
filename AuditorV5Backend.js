@@ -969,6 +969,7 @@ function auditorV5_buildActiveGrid_U20409(activeEmail, diag) {
       plannedHours: formalPlannedHours,
       formalHours: toBePlanned,
       maxOffsiteHours: auditorV5_sumScopeMaxOffsite_(scopes),
+      offsitePolicy: auditorV5_offsitePolicy_(scopes),
       status: String(statusRaw || "").toUpperCase(),
       readOnly: (String(auditIdS).indexOf("ROW_") === 0)
     });
@@ -1309,16 +1310,27 @@ function auditorV5_extractScopesForRow_(hdr, row) {
   }
   return { scopes: scopes, scopesText: names.join(", ") };
 }
-function auditorV5_sumScopeMaxOffsite_(scopes) {
-  var total = 0;
+function auditorV5_offsitePolicy_(scopes) {
+  var byScope = [];
   var seen = {};
   (scopes || []).forEach(function(s) {
     var k = String((s && (s.code || s.name)) || '').trim().toLowerCase();
     if (!k || seen[k]) return;
     seen[k] = true;
-    total += Math.max(0, Number(s && s.maxOffsiteHours || 0) || 0);
+    byScope.push({
+      scopeCode: String((s && (s.code || s.name)) || '').trim(),
+      maxOffsiteHours: Math.max(0, Number(s && s.maxOffsiteHours || 0) || 0)
+    });
   });
-  return Math.round(total * 100) / 100;
+  var positive = byScope.filter(function(x){ return x.maxOffsiteHours > 0; });
+  return {
+    byScope: byScope,
+    maxOffsiteHours: byScope.length === 1 ? byScope[0].maxOffsiteHours : 0,
+    requiresScopeAllocation: byScope.length > 1 && positive.length > 0
+  };
+}
+function auditorV5_sumScopeMaxOffsite_(scopes) {
+  return auditorV5_offsitePolicy_(scopes).maxOffsiteHours;
 }
 function auditorV5_buildScopesString_(headers, row) {
   var cfg = auditorV5_loadConfigScopes_();

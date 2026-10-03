@@ -2,6 +2,7 @@ import fs from 'node:fs';
 const manager=fs.readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const html=fs.readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
 const r10=fs.readFileSync(new URL('./server-r10.js',import.meta.url),'utf8');
+const r4=fs.readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const recoverExtensionStart=manager.indexOf('function recoverExtension');
 const runExtensionStart=manager.indexOf('function runExtension');
 const recoverExtensionBody=(recoverExtensionStart>=0&&runExtensionStart>recoverExtensionStart)?manager.slice(recoverExtensionStart,runExtensionStart):'';
@@ -31,6 +32,7 @@ const checks=[
 ['server extension endpoint',r10.includes("u.pathname==='/api/v1/manager/extension'")],
 ['server enrichment bridge',r10.includes("'externalmanageropenenriched'")],
 ['server extension direct writer',r10.includes("/api/v1/manager/extension-direct")&&r10.includes('DIRECT_EXTENSION_PROXY_FAILED')],
+['direct extension owns Model C obligation plus projection write',r4.includes('CLOUD_RUN_DIRECT_MODEL_C_EXTENSION')&&r4.includes("put('Audit_Obligations'")&&r4.includes("put('Audit planning'")&&r4.includes("u.pathname==='/api/v1/manager/extension-direct'")],
 ['bridge key never in browser',!manager.includes('bridgeKey')&&!html.includes('bridgeKey')],
 ['stable runtime chain',r10.includes("await import('./server-r9.js')")&&!r10.includes("await import('./server-r11.js')")],
 ['dense grid styling',html.includes('min-width:1900px')&&html.includes('.planning-chip')]

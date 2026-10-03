@@ -8,7 +8,7 @@ const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
 const RELAY_PARENT_ORIGIN='https://ams-transport-proof-510075419067.europe-west1.run.app';
-const BUILD='2026-10-02_AMS_R10_WARM_GAS_WORKER_R3';
+const BUILD='2026-10-03_COMPLETE_V29_MANAGER_R4';
 
 process.env.PORT=String(INNER_PORT);
 await import('./server-r9.js');

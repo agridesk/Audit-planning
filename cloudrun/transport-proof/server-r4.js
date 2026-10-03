@@ -5,7 +5,7 @@ import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
-const BUILD='2026-10-03_COMPLETE_V29_DIRECT_R45_FAST_NO_GAS_CLAIM';
+const BUILD='2026-10-03_COMPLETE_V29_DIRECT_R46_SUCCESSOR_RECOVERY';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
@@ -582,31 +582,43 @@ async function directManagerComplete(identity,body){
     for(let g=0;g<groups.length;g++){
       const group=groups[g],newId=auditId+'_NEXT_'+String(g+1)+'_'+createHash('md5').update(auditId+'|'+group.items.map(x=>x.scopeCode+'|'+x.cycleKey).join('|')).digest('hex').slice(0,10);
       const existingAp=ap.slice(1).some(r=>val(r,auditIdIx)===newId);
-      if(existingAp){successorIds.push(newId);continue;}
-      const nr=source.slice();for(let i=0;i<nr.length;i++)nr[i]=nr[i]??'';
-      for(const s of cfg){const ix=col(apH,[s.slotKey,s.scopeCode,s.displayName]);if(ix>=0)nr[ix]='';const durationIx=col(apH,['Duration '+s.slotKey,'Duration '+s.scopeCode]);if(durationIx>=0)nr[durationIx]='';}
-      let total=0,expiry='',birthday='';
-      for(const item of group.items){
-        const def=cfgByCode.get(item.scopeCode)||{},six=col(apH,[def.slotKey,item.scopeCode,def.displayName]);if(six>=0)nr[six]='x';
-        const dix=col(apH,['Duration '+def.slotKey,'Duration '+item.scopeCode]);if(dix>=0)nr[dix]=item.formalHours;
-        total+=Number(item.formalHours||0);if(!expiry||item.baseExpiry<expiry)expiry=item.baseExpiry;if(!birthday)birthday=birthdayById.get(item.companyScopeId)||'';
+      if(!existingAp){
+        const nr=source.slice();for(let i=0;i<nr.length;i++)nr[i]=nr[i]??'';
+        for(const s of cfg){const ix=col(apH,[s.slotKey,s.scopeCode,s.displayName]);if(ix>=0)nr[ix]='';const durationIx=col(apH,['Duration '+s.slotKey,'Duration '+s.scopeCode]);if(durationIx>=0)nr[durationIx]='';}
+        let total=0,expiry='',birthday='';
+        for(const item of group.items){
+          const def=cfgByCode.get(item.scopeCode)||{},six=col(apH,[def.slotKey,item.scopeCode,def.displayName]);if(six>=0)nr[six]='x';
+          const dix=col(apH,['Duration '+def.slotKey,'Duration '+item.scopeCode]);if(dix>=0)nr[dix]=item.formalHours;
+          total+=Number(item.formalHours||0);if(!expiry||item.baseExpiry<expiry)expiry=item.baseExpiry;if(!birthday)birthday=birthdayById.get(item.companyScopeId)||'';
+        }
+        directSetByHeader(apH,nr,['Audit ID'],newId);directSetByHeader(apH,nr,['Status'],'Pending Planning');directSetByHeader(apH,nr,['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned'],'');
+        directSetByHeader(apH,nr,['Date - Planned','Date planned'],'');directSetByHeader(apH,nr,['Date - Approved','Date approved'],'');directSetByHeader(apH,nr,['Date accepted','Date - Accepted'],'');
+        directSetByHeader(apH,nr,['Planning JSON','PlanningJSON','Planning'],'');directSetByHeader(apH,nr,['Audit days textual'],'');directSetByHeader(apH,nr,['Hours planned','Planned hours'],'');
+        directSetByHeader(apH,nr,['Last manager decision'],'');directSetByHeader(apH,nr,['Last decision timestamp'],'');directSetByHeader(apH,nr,['Status since'],'');directSetByHeader(apH,nr,['Manager comment (last)'],'');directSetByHeader(apH,nr,['Last auditor decision'],'');directSetByHeader(apH,nr,['Last auditor decision timestamp'],'');directSetByHeader(apH,nr,['Auditor comment (last)'],'');
+        directSetByHeader(apH,nr,['Total audit time in hours'],total);directSetByHeader(apH,nr,['Date - Will Expire'],expiry);directSetByHeader(apH,nr,['Extended Expiration Date'],expiry);
+        directSetByHeader(apH,nr,['Birthdate certificate'],birthday);directSetByHeader(apH,nr,['Planning window from'],group.from);directSetByHeader(apH,nr,['Planning window to'],group.to);
+        directSetByHeader(apH,nr,['Scopes_List'],group.items.map(x=>x.scopeCode).join(', '));directSetByHeader(apH,nr,['Extension applied'],'');
+        newPlanningRows.push(nr);
       }
-      directSetByHeader(apH,nr,['Audit ID'],newId);directSetByHeader(apH,nr,['Status'],'Pending Planning');directSetByHeader(apH,nr,['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned'],'');
-      directSetByHeader(apH,nr,['Date - Planned','Date planned'],'');directSetByHeader(apH,nr,['Date - Approved','Date approved'],'');directSetByHeader(apH,nr,['Date accepted','Date - Accepted'],'');
-      directSetByHeader(apH,nr,['Planning JSON','PlanningJSON','Planning'],'');directSetByHeader(apH,nr,['Audit days textual'],'');directSetByHeader(apH,nr,['Hours planned','Planned hours'],'');
-      directSetByHeader(apH,nr,['Last manager decision'],'');directSetByHeader(apH,nr,['Last decision timestamp'],'');directSetByHeader(apH,nr,['Status since'],'');directSetByHeader(apH,nr,['Manager comment (last)'],'');directSetByHeader(apH,nr,['Last auditor decision'],'');directSetByHeader(apH,nr,['Last auditor decision timestamp'],'');directSetByHeader(apH,nr,['Auditor comment (last)'],'');
-      directSetByHeader(apH,nr,['Total audit time in hours'],total);directSetByHeader(apH,nr,['Date - Will Expire'],expiry);directSetByHeader(apH,nr,['Extended Expiration Date'],expiry);
-      directSetByHeader(apH,nr,['Birthdate certificate'],birthday);directSetByHeader(apH,nr,['Planning window from'],group.from);directSetByHeader(apH,nr,['Planning window to'],group.to);
-      directSetByHeader(apH,nr,['Scopes_List'],group.items.map(x=>x.scopeCode).join(', '));directSetByHeader(apH,nr,['Extension applied'],'');
-      newPlanningRows.push(nr);successorIds.push(newId);
+      successorIds.push(newId);
       for(const item of group.items){
-        const naturalExists=obs.slice(1).some(r=>val(r,ocs)===item.companyScopeId&&directIsoDate(val(r,ock))===item.cycleKey&&val(r,ots)==='CERTIFICATE_LIFECYCLE');
-        if(naturalExists)continue;
-        const obId='OBL_'+createHash('sha256').update(newId+'|'+item.companyScopeId+'|'+item.cycleKey).digest('hex').slice(0,32),obj={};
-        for(const hh of oh)obj[hh]='';
-        Object.assign(obj,{Obligation_ID:obId,Company_Scope_ID:item.companyScopeId,Company_UID:companyUid,ScopeCode:item.scopeCode,Cycle_Key:item.cycleKey,Trigger_Source:'CERTIFICATE_LIFECYCLE',Obligation_State:'OPEN',Base_Expiry_Date:item.baseExpiry,Effective_Expiry_Date:item.baseExpiry,Planning_Window_From:item.from,Planning_Window_To:item.to,Formal_Hours:item.formalHours,Preassigned_Auditor_Email:item.preassigned,Allow_Self_Planning:item.allowSelfPlanning,Source_Audit_ID:newId,Created_At:stamp,Updated_At:stamp,Closed_At:''});
-        newObRows.push(directAppendObjectRow(oh,obj));
-        const linkObj={};for(const hh of lh)linkObj[hh]='';Object.assign(linkObj,{Audit_ID:newId,Obligation_ID:obId,Link_State:'ACTIVE',Linked_At:stamp,Unlinked_At:''});newLinkRows.push(directAppendObjectRow(lh,linkObj));
+        let existingOb=null;
+        for(let oi2=1;oi2<obs.length;oi2++){
+          const rr0=obs[oi2];
+          if(val(rr0,ocs)===item.companyScopeId&&directIsoDate(val(rr0,ock))===item.cycleKey&&val(rr0,ots)==='CERTIFICATE_LIFECYCLE'){
+            existingOb={id:val(rr0,oi),row:oi2+1,values:rr0};break;
+          }
+        }
+        const obId=existingOb?.id||('OBL_'+createHash('sha256').update(newId+'|'+item.companyScopeId+'|'+item.cycleKey).digest('hex').slice(0,32));
+        if(!existingOb){
+          const obj={};for(const hh of oh)obj[hh]='';
+          Object.assign(obj,{Obligation_ID:obId,Company_Scope_ID:item.companyScopeId,Company_UID:companyUid,ScopeCode:item.scopeCode,Cycle_Key:item.cycleKey,Trigger_Source:'CERTIFICATE_LIFECYCLE',Obligation_State:'OPEN',Base_Expiry_Date:item.baseExpiry,Effective_Expiry_Date:item.baseExpiry,Planning_Window_From:item.from,Planning_Window_To:item.to,Formal_Hours:item.formalHours,Preassigned_Auditor_Email:item.preassigned,Allow_Self_Planning:item.allowSelfPlanning,Source_Audit_ID:newId,Created_At:stamp,Updated_At:stamp,Closed_At:''});
+          newObRows.push(directAppendObjectRow(oh,obj));
+        }
+        const activeLinkExists=links.slice(1).some(r=>val(r,la)===newId&&val(r,lo)===obId&&val(r,ls).toUpperCase()==='ACTIVE');
+        if(!activeLinkExists){
+          const linkObj={};for(const hh of lh)linkObj[hh]='';Object.assign(linkObj,{Audit_ID:newId,Obligation_ID:obId,Link_State:'ACTIVE',Linked_At:stamp,Unlinked_At:''});newLinkRows.push(directAppendObjectRow(lh,linkObj));
+        }
       }
     }
 

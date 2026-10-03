@@ -266,6 +266,11 @@ async function directRotationRead(auditId,auditorEmail){
   return{success:true,auditId,auditor:{name:targetAud.name||target,email:targetAud.email||target,softBlockRotation:soft,nearRotationLimit:near,hardBlockQualification:false,ineligible:false,performedByScope,rotationByScope,performedCount,maxAllowed:strictestMax,eligibilityOwner:'CloudRun_DirectRotationRead_R40'},auditorEligibilityMeta:{requiredScopes:required,currentYear,rotationMode:'SELECTED_AUDITOR_SOFT_METADATA_ONLY'},__serverMs:Date.now()-t,__rotationReadOwner:'CLOUD_RUN_DIRECT_SHEETS'};
 }
 
+function extAddMonths(iso,n){const m=clean(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return'';let t=Number(m[1])*12+Number(m[2])-1+Number(n||0),y=Math.floor(t/12),mo=t-y*12+1,d=Math.min(Number(m[3]),new Date(Date.UTC(y,mo,0)).getUTCDate());return String(y).padStart(4,'0')+'-'+String(mo).padStart(2,'0')+'-'+String(d).padStart(2,'0');}
+function extScopes(found,catalog){return(catalog||[]).filter(s=>[s.slotKey,s.scopeCode,s.displayName].some(a=>{const i=col(found.h,[a]);return i>=0&&yes(found.row[i]);}));}
+function extWindow(expiry,scopes){let from='',to='';for(const s of scopes){let x=extAddMonths(expiry,s.planningFrom),y=extAddMonths(expiry,s.planningTo);if(!x||!y)continue;if(x>y)[x,y]=[y,x];if(!from||x>from)from=x;if(!to||y<to)to=y;}if(!from||!to||from>to)throw new Error('EXTENSION_PLANNING_WINDOW_INVALID');return{from,to};}
+async function sheetsValuesBatchUpdateRaw(data){const token=await accessToken(),u='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'/values:batchUpdate',r=await fetch(u,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({valueInputOption:'RAW',data})}),body=await r.json();if(!r.ok)throw new Error('SHEETS_BATCH_UPDATE_RAW_'+r.status);return body;}
+
 async function canonicalManagerAction(identity,body){
   const auditId=clean(body?.auditId),managerAction=clean(body?.action).toLowerCase();
   if(!auditId||!['approve','cancel','reject'].includes(managerAction))throw new Error('INVALID_MANAGER_ACTION_REQUEST');

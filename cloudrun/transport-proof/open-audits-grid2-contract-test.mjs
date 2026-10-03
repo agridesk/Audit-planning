@@ -20,6 +20,7 @@ const checks=[
 ['enrichment preserves scroll',manager.includes('var ids=all.map')&&manager.includes('window.scrollTo(sx,sy)')],
 ['scheduled hours use Config_Scopes delta',r10.includes('Scheduling_hours_delta')&&r10.includes("scheduledOwner:'CONFIG_SCOPES_SCHEDULING_HOURS_DELTA'")&&r10.includes('formal+deltaInfo.delta')],
 ['extension controls do not depend on slow GAS enrichment',r10.includes('function managerExtensionCatalog')&&r10.includes('managerExtensionMonthsForAudit')&&r10.includes("r.canExtend=r.statusKey==='PENDING_PLANNING'&&extMonths>0")],
+['non-recurring annual planning window comes from Model C plus Config_Scopes',r10.includes('function managerAnnualWindowCatalog')&&r10.includes('managerResolvedVisitWindow')&&r10.includes("sheetValues('Audit_Obligations!A1:Z1024')")&&r10.includes("sheetValues('Audit_Visit_Obligations!A1:Z1024')")&&r10.includes("cfg.obligationCycle!=='ANNUAL'")],
 ['auditor UI uses display-name projection',manager.includes('assignedToDisplayName||r.auditorDisplayName')&&r10.includes('managerAuditorDisplayMap')],
 ['extension apply undo controls',manager.includes('Undo applied extension')&&manager.includes('Apply extension (+')],
 ['undo remains available after canonical apply',manager.includes('if(applied)return')&&manager.includes('data-extension=\\"undo\\"')],

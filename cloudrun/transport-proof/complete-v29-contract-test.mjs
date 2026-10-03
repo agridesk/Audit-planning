@@ -40,7 +40,7 @@ assert.match(auditor,/auditorV5_completeViaCloudRun_/,'DEV Auditor Complete must
 assert.doesNotMatch(completion,/CompletionService_AcquireExternalManagerClaim/,'Obsolete Apps Script Complete claim layer must be removed');
 assert.match(baseServer,/REALIZED_HOURS_CORRECTED/,'Direct Manager precedence correction must be audit-trailed');
 assert.doesNotMatch(baseServer,/Date accepted','Date - Accepted'\],dateOnly\(g\(\['Date accepted','Date - Accepted','Date Accepted'\]\)\)\|\|dateOnly\(g\(\['Status since'\]\)\)/,'Legacy Date accepted must not be synthesized from Status since');
-assert.match(baseServer,/owner:'CLOUD_RUN_DIRECT_MANAGER_COMPLETE'/,'Direct Complete owner marker must be returned');
+assert.match(baseServer,/const owner=actorRole==='MANAGER'\?'CLOUD_RUN_DIRECT_MANAGER_COMPLETE':'CLOUD_RUN_DIRECT_AUDITOR_COMPLETE'/,'Shared Complete owner markers must be role-aware');
 assert.match(baseServer,/allWrites\.push\(\{range:'Log realized audits!A'/,'Direct Complete must persist realized history with explicit row write');
 assert.match(baseServer,/Audit_Obligations!A/,'Direct Complete must update Model C obligations');
 assert.match(baseServer,/Audit_Visit_Obligations!A/,'Direct Complete must update Model C visit links');

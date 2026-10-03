@@ -295,6 +295,20 @@ async function directManagerExtension(identity,body){
     const targets=[];
     for(let i=1;i<ob.length;i++)if(linked.has(val(ob[i],oid))&&val(ob[i],ots).toUpperCase()!=='ECAS')targets.push(i+1);
     if(!targets.length)throw new Error('NO_ACTIVE_CERTIFICATE_OBLIGATION_LINKED');
+    const data=[],put=(sheet,h,row,names,v)=>{const i=col(h,names);if(i<0)throw new Error('EXTENSION_COLUMN_MISSING_'+names[0]);data.push({range:sheet+'!'+a1col(i+1)+row,values:[[v]]});};
+    const meta=JSON.stringify({months,undo:command==='undo',source:'CLOUD_RUN_DIRECT_MANAGER_EXTENSION',actorEmail:clean(identity?.email).toLowerCase(),timestamp:now});
+    for(const rowNo of targets){
+      put('Audit_Obligations',oh,rowNo,['Extension_Applied'],applied?'Yes':'');
+      put('Audit_Obligations',oh,rowNo,['Extension_Metadata_JSON'],meta);
+      put('Audit_Obligations',oh,rowNo,['Effective_Expiry_Date'],expiryZ);
+      put('Audit_Obligations',oh,rowNo,['Planning_Window_From'],w.from);
+      put('Audit_Obligations',oh,rowNo,['Planning_Window_To'],w.to);
+      put('Audit_Obligations',oh,rowNo,['Updated_At'],now);
+    }
+    put('Audit planning',found.h,found.sourceRow,['Extension applied'],applied?'Yes':'');
+    put('Audit planning',found.h,found.sourceRow,['Extended Expiration Date'],expiryZ);
+    put('Audit planning',found.h,found.sourceRow,['Planning window from'],w.from);
+    put('Audit planning',found.h,found.sourceRow,['Planning window to'],w.to);
     /* DIRECT_EXTENSION_BODY */
   });
 }

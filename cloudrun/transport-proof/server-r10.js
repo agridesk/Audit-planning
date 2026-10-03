@@ -8,7 +8,7 @@ const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
 const RELAY_PARENT_ORIGIN='https://ams-transport-proof-510075419067.europe-west1.run.app';
-const BUILD='2026-10-03_COMPLETE_V29_MANAGER_R4';
+const BUILD='2026-10-03_COMPLETE_V29_DIRECT_R5';
 
 process.env.PORT=String(INNER_PORT);
 await import('./server-r9.js');
@@ -153,6 +153,20 @@ http.createServer(async(req,res)=>{
     const identity=await innerSession(req);if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED',build:BUILD});if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN',build:BUILD});
     let body={};try{body=JSON.parse(raw||'{}');}catch{return sendJson(res,400,{success:false,error:'BAD_JSON',build:BUILD});}
     const managerAction=clean(body?.action||body?.managerAction).toLowerCase();
+    if(managerAction==='complete'){
+      const innerStarted=Date.now();
+      try{
+        const target='http://127.0.0.1:'+INNER_PORT+'/api/v1/manager/complete-direct';
+        const headers={'content-type':'application/json'};
+        if(req.headers.cookie)headers.cookie=clean(req.headers.cookie);
+        const rr=await fetch(target,{method:'POST',headers,body:raw||'{}',redirect:'manual'});
+        const txt=await rr.text();let out=null;try{out=JSON.parse(txt);}catch{out={success:false,error:'DIRECT_COMPLETE_NON_JSON'}}
+        if(out&&typeof out==='object')out.r10InnerMs=Date.now()-innerStarted;
+        return sendJson(res,rr.status,out||{success:false,error:'DIRECT_COMPLETE_EMPTY'});
+      }catch(e){
+        return sendJson(res,502,{success:false,error:'DIRECT_COMPLETE_PROXY_FAILED',detail:clean(e?.message||e),build:BUILD});
+      }
+    }
     if(managerAction==='cancel'){
       const innerStarted=Date.now();
       try{

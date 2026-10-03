@@ -13,7 +13,7 @@
  *
  * No writes. No status changes. No Availability writes. No new planning truth.
  */
-var ANNUAL_WORKLOAD_CAPACITY_BUILD = '2026-09-22_AMS03_ANNUAL_WORKLOAD_CAPACITY_R1';
+var ANNUAL_WORKLOAD_CAPACITY_BUILD = '2026-10-03_AMS03_ANNUAL_WORKLOAD_CAPACITY_R2_CONFIG_WINDOWS';
 
 function getAnnualWorkloadCapacityV5(payload) {
   payload = payload || {};
@@ -92,6 +92,7 @@ function AnnualWorkloadCapacity_build_(ss, year) {
   });
 
   var workload = [];
+  var planningWindowConfigMap = (typeof ModelCPlanningWindowPolicy_configMap_==='function') ? ModelCPlanningWindowPolicy_configMap_(ss) : {};
   obligations.forEach(function(ob) {
     var cycle = String(ob.Cycle_Key || '').trim();
     if (String(year) !== cycle) return;
@@ -108,6 +109,7 @@ function AnnualWorkloadCapacity_build_(ss, year) {
     var auditor = String(apRow.assigned || apRow.preassigned || ob.Preassigned_Auditor_Email || '').trim().toLowerCase();
     var planned = AnnualWorkloadCapacity_statusIsPlanned_(status) || !!AnnualWorkloadCapacity_hasPlanning_(apRow);
 
+    var effectiveWindow = (typeof ModelCPlanningWindowPolicy_resolveObligation_==='function') ? ModelCPlanningWindowPolicy_resolveObligation_(ss,ob,planningWindowConfigMap) : null;
     workload.push({
       obligationId: obId,
       auditId: auditId,
@@ -118,8 +120,8 @@ function AnnualWorkloadCapacity_build_(ss, year) {
       scope: String(ob.ScopeCode || '').trim(),
       cycleKey: cycle,
       formalHours: formalHours,
-      planningWindowFrom: AnnualWorkloadCapacity_dateKey_(ob.Planning_Window_From),
-      planningWindowTo: AnnualWorkloadCapacity_dateKey_(ob.Planning_Window_To),
+      planningWindowFrom: effectiveWindow&&effectiveWindow.success===true ? String(effectiveWindow.startDate||'') : AnnualWorkloadCapacity_dateKey_(ob.Planning_Window_From),
+      planningWindowTo: effectiveWindow&&effectiveWindow.success===true ? String(effectiveWindow.endDate||'') : AnnualWorkloadCapacity_dateKey_(ob.Planning_Window_To),
       status: status,
       auditorEmail: auditor,
       planned: planned,

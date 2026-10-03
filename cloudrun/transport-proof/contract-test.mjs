@@ -169,7 +169,7 @@ const checks=[
  ['single-company visit composition is explicit',r5.includes('data-visit-audit')&&r5.includes('Combined physical visit:')&&r5.includes('visitAuditIds:[...visitAuditIds]')],
  ['combined visit commit fails closed before Model C relink owner exists',r4.includes('VISIT_COMBINED_COMMIT_NOT_YET_CANONICAL')&&r4.includes('VISIT_RELATED_EXECUTION_DEADLINE_APPROVAL_REQUIRED')]
 ,
- ['Config_Scopes scheduling fields remain readable for impact analysis but are not Toolkit target truth',r4.includes("['Scheduling_hours','Scheduling hours','Scheduling Hours','Planning duration','Planning_duration']")&&r4.includes("['Scheduling_hours_delta','Scheduling hours delta','Scheduling_hours delta','Scheduling delta']")&&!r4.includes('schedulingHoursTarget:')],
+ ['Grid backend uses Max_Offsite_Hours policy and no scheduling target fields',r4.includes("['Max_Offsite_Hours','Max Offsite Hours','Max offsite hours','Maximum offsite hours']")&&!r4.includes('Scheduling_hours')&&!r4.includes('schedulingHoursTarget:')],
  ['company visit planner shows one Required hours value',r5.includes("hours='Required '+Number(r.formalHours||r.requiredHours||0).toFixed(2)+' h'")&&!r5.includes("' h · Scheduling '+Number(r.schedulingHours")],
 ,
  ['visit composition protects every selected member with source revision',r4.includes('VISIT_RELATED_SOURCE_REVISION_REQUIRED')&&r4.includes('VISIT_RELATED_SOURCE_REVISION_CONFLICT')&&r5.includes('visitMembers:[...visitAuditIds].map')],

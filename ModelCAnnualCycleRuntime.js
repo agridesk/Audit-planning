@@ -5,7 +5,7 @@
  * intentionally kept here until the legacy AnnualCycleEngineV5 and
  * CompletionService shells are fully retired.
  */
-var MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD = '2026-10-03_COMPLETE_V29_MODEL_C_FINALIZATION_R3';
+var MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD = '2026-10-03_COMPLETE_V29_MODEL_C_HOTPATH_R4';
 
 function AnnualCycleEngineV5_HandleCompletionRow_(planningRowObj) {
   return ModelCAnnualCycle_HandleCompletionRow_(planningRowObj);
@@ -16,23 +16,20 @@ function ModelCAnnualCycle_HandleCompletionRow_(planningRowObj) {
   var auditId = ModelCAnnualCycle_rowValue_(planningRowObj, ['Audit ID']);
   if (!auditId) return {success:false,message:'Missing Audit ID for Model C annual cycle',build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD};
 
+  var t0=Date.now(),perf={};
+  var planT=Date.now();
   var plan = ModelCAnnualCycle_planForAudit_(ss,auditId);
+  perf.planMs=Date.now()-planT;
   if (!plan || plan.success === false) {
-    return {success:false,message:'Model C successor plan failed: '+((plan&&plan.errors)||['unknown']).join('; '),build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD,plan:plan||null};
+    return {success:false,message:'Model C successor plan failed: '+((plan&&plan.errors)||['unknown']).join('; '),build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD,plan:plan||null,perf:perf};
   }
 
   if (!plan.recurring || !plan.successorGroups || !plan.successorGroups.length) {
+    perf.totalMs=Date.now()-t0;
     return {
-      success:true,
-      recurring:false,
-      spawned:false,
-      nextCycleEligible:false,
-      duplicatePrevented:false,
-      nextAuditId:'',
-      nextAuditIds:[],
-      build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD,
-      modelCOwner:true,
-      externalScopes:plan.externalScopes||[]
+      success:true,recurring:false,spawned:false,nextCycleEligible:false,duplicatePrevented:false,
+      nextAuditId:'',nextAuditIds:[],build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD,modelCOwner:true,
+      externalScopes:plan.externalScopes||[],perf:perf
     };
   }
 
@@ -42,22 +39,24 @@ function ModelCAnnualCycle_HandleCompletionRow_(planningRowObj) {
   var csSheet = ss.getSheetByName(MODEL_C_SHEETS.COMPANY_SCOPES);
   if (!ap || !obSheet || !lkSheet || !csSheet) return {success:false,message:'Model C annual-cycle sheet missing',build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD};
 
-  var snapshots = [
-    ModelCScopeOwner_snapshotSheet_(ap),
-    ModelCScopeOwner_snapshotSheet_(obSheet),
-    ModelCScopeOwner_snapshotSheet_(lkSheet)
-  ];
-
+  var originalLast={ap:ap.getLastRow(),ob:obSheet.getLastRow(),lk:lkSheet.getLastRow()};
+  var appended={ap:0,ob:0,lk:0};
   try {
+    var readT=Date.now();
     var apValues = ap.getDataRange().getValues();
     var headers = apValues[0] || [];
     var sourceRowIndex = ModelCAnnualCycle_findAuditRow_(apValues,headers,auditId);
     if (!sourceRowIndex) throw new Error('Audit planning source row not found: '+auditId);
     var sourceRow = apValues[sourceRowIndex-1].slice();
 
-    var obligations = ModelCMigration_rowsToObjects_(obSheet.getDataRange().getValues());
-    var links = ModelCMigration_rowsToObjects_(lkSheet.getDataRange().getValues());
-    var companyScopes = ModelCMigration_rowsToObjects_(csSheet.getDataRange().getValues());
+    var obValues=obSheet.getDataRange().getValues();
+    var lkValues=lkSheet.getDataRange().getValues();
+    var csValues=csSheet.getDataRange().getValues();
+    var obligations = ModelCMigration_rowsToObjects_(obValues);
+    var links = ModelCMigration_rowsToObjects_(lkValues);
+    var companyScopes = ModelCMigration_rowsToObjects_(csValues);
+    perf.readMs=Date.now()-readT;
+
     var existingByNatural = {};
     obligations.forEach(function(ob){
       existingByNatural[ModelCAnnualCycle_naturalKey_(ob.Company_Scope_ID,ob.Cycle_Key,ob.Trigger_Source)] = ob;
@@ -68,14 +67,11 @@ function ModelCAnnualCycle_HandleCompletionRow_(planningRowObj) {
     });
 
     var stamp = new Date().toISOString();
-    var createdAuditIds = [];
-    var duplicateAuditIds = [];
-    var createdObligations = 0;
+    var createdAuditIds = [], duplicateAuditIds = [];
+    var newObligations=[],newLinks=[],newPlanningRows=[];
 
     for (var g=0; g<plan.successorGroups.length; g++) {
-      var group = plan.successorGroups[g];
-      var existing = [];
-      var missing = [];
+      var group = plan.successorGroups[g],existing=[],missing=[];
       (group.obligations||[]).forEach(function(item){
         var key = ModelCAnnualCycle_naturalKey_(item.companyScopeId,item.cycleKey,'CERTIFICATE_LIFECYCLE');
         var ob = existingByNatural[key];
@@ -84,7 +80,6 @@ function ModelCAnnualCycle_HandleCompletionRow_(planningRowObj) {
       });
 
       if (existing.length && missing.length) throw new Error('Partial successor state for '+auditId+' group '+(g+1));
-
       if (existing.length) {
         var linkedAudit='';
         existing.forEach(function(x){
@@ -98,11 +93,10 @@ function ModelCAnnualCycle_HandleCompletionRow_(planningRowObj) {
         continue;
       }
 
-      var newAuditId = ModelCAnnualCycle_newAuditId_(planningRowObj,ap,g);
+      var newAuditId = ModelCAnnualCycle_newAuditIdFast_(planningRowObj,apValues,g);
       var newRow = sourceRow.slice();
       ModelCAnnualCycle_prepareLegacySuccessorRow_(ss,headers,newRow,group,companyScopes,newAuditId);
-      ap.appendRow(newRow);
-      ModelCAnnualCycle_forceLegacyDatesText_(ap,headers,ap.getLastRow(),newRow);
+      newPlanningRows.push(newRow);
 
       (group.obligations||[]).forEach(function(item){
         var newOb = {
@@ -128,79 +122,119 @@ function ModelCAnnualCycle_HandleCompletionRow_(planningRowObj) {
           Updated_At:stamp,
           Closed_At:''
         };
-        obligations.push(newOb);
-        links.push({Audit_ID:newAuditId,Obligation_ID:newOb.Obligation_ID,Link_State:'ACTIVE',Migration_Batch_ID:'',Linked_At:stamp,Unlinked_At:''});
+        newObligations.push(newOb);
+        newLinks.push({Audit_ID:newAuditId,Obligation_ID:newOb.Obligation_ID,Link_State:'ACTIVE',Migration_Batch_ID:'',Linked_At:stamp,Unlinked_At:''});
         existingByNatural[ModelCAnnualCycle_naturalKey_(newOb.Company_Scope_ID,newOb.Cycle_Key,newOb.Trigger_Source)] = newOb;
-        createdObligations++;
       });
       createdAuditIds.push(newAuditId);
     }
 
-    ModelCScopeOwner_writeObjects_(obSheet,MODEL_C_SCHEMA.Audit_Obligations,obligations,['Cycle_Key','Base_Expiry_Date','Effective_Expiry_Date','Planning_Window_From','Planning_Window_To']);
-    ModelCScopeOwner_writeObjects_(lkSheet,MODEL_C_SCHEMA.Audit_Visit_Obligations,links);
-    SpreadsheetApp.flush();
-    ModelCAnnualCycle_invalidateAuditPlanningCaches_();
+    var writeT=Date.now();
+    if(newPlanningRows.length){
+      var apStart=ap.getLastRow()+1;
+      ap.getRange(apStart,1,newPlanningRows.length,headers.length).setValues(newPlanningRows);
+      appended.ap=newPlanningRows.length;
+      for(var pr=0;pr<newPlanningRows.length;pr++) ModelCAnnualCycle_forceLegacyDatesText_(ap,headers,apStart+pr,newPlanningRows[pr]);
+    }
+    if(newObligations.length){
+      ModelCAnnualCycle_appendObjects_(obSheet,MODEL_C_SCHEMA.Audit_Obligations,newObligations,['Cycle_Key','Base_Expiry_Date','Effective_Expiry_Date','Planning_Window_From','Planning_Window_To']);
+      appended.ob=newObligations.length;
+    }
+    if(newLinks.length){
+      ModelCAnnualCycle_appendObjects_(lkSheet,MODEL_C_SCHEMA.Audit_Visit_Obligations,newLinks,[]);
+      appended.lk=newLinks.length;
+    }
+    perf.writeMs=Date.now()-writeT;
 
+    ModelCAnnualCycle_invalidateAuditPlanningCaches_();
     var allAuditIds = createdAuditIds.concat(duplicateAuditIds);
+    perf.totalMs=Date.now()-t0;
     return {
-      success:true,
-      recurring:true,
-      spawned:createdAuditIds.length>0,
-      nextCycleEligible:true,
+      success:true,recurring:true,spawned:createdAuditIds.length>0,nextCycleEligible:true,
       duplicatePrevented:createdAuditIds.length===0 && duplicateAuditIds.length>0,
-      nextAuditId:allAuditIds[0]||'',
-      nextAuditIds:allAuditIds,
+      nextAuditId:allAuditIds[0]||'',nextAuditIds:allAuditIds,
       nextExpiry:ModelCAnnualCycle_earliestNextExpiry_(plan),
-      successorObligations:plan.successorObligations||0,
-      createdObligations:createdObligations,
-      visitGroups:plan.successorGroups.length,
-      requiresVisitSplit:!!plan.requiresVisitSplit,
-      build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD,
-      modelCOwner:true
+      successorObligations:plan.successorObligations||0,createdObligations:newObligations.length,
+      visitGroups:plan.successorGroups.length,requiresVisitSplit:!!plan.requiresVisitSplit,
+      build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD,modelCOwner:true,perf:perf
     };
   } catch(e) {
-    for (var i=snapshots.length-1;i>=0;i--) {
-      try { ModelCScopeOwner_restoreSnapshot_(snapshots[i]); } catch(ignore) {}
-    }
-    SpreadsheetApp.flush();
+    try{if(appended.lk)lkSheet.deleteRows(originalLast.lk+1,appended.lk);}catch(ignore1){}
+    try{if(appended.ob)obSheet.deleteRows(originalLast.ob+1,appended.ob);}catch(ignore2){}
+    try{if(appended.ap)ap.deleteRows(originalLast.ap+1,appended.ap);}catch(ignore3){}
     ModelCAnnualCycle_invalidateAuditPlanningCaches_();
-    return {success:false,message:String(e&&e.message?e.message:e),rolledBack:true,build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD,modelCOwner:true};
+    perf.totalMs=Date.now()-t0;
+    return {success:false,message:String(e&&e.message?e.message:e),rolledBack:!!(appended.ap||appended.ob||appended.lk),build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD,modelCOwner:true,perf:perf};
   }
 }
 
 function ModelCAnnualCycle_finalizeCompletedVisit_(auditId) {
   auditId=String(auditId||'').trim();
   if (!auditId) return {success:false,message:'Missing auditId',build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD};
-  var ss=SpreadsheetApp.getActive();
+  var ss=SpreadsheetApp.getActive(),t0=Date.now(),perf={};
   var obSheet=ss.getSheetByName(MODEL_C_SHEETS.AUDIT_OBLIGATIONS);
   var lkSheet=ss.getSheetByName(MODEL_C_SHEETS.VISIT_OBLIGATIONS);
   if(!obSheet||!lkSheet)return{success:false,message:'Model C finalization sheets missing',build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD};
-  var obSnap=ModelCScopeOwner_snapshotSheet_(obSheet),lkSnap=ModelCScopeOwner_snapshotSheet_(lkSheet);
+
+  var obOriginal={},lkOriginal={};
   try{
-    var obligations=ModelCMigration_rowsToObjects_(obSheet.getDataRange().getValues());
-    var links=ModelCMigration_rowsToObjects_(lkSheet.getDataRange().getValues());
-    var byId={}; obligations.forEach(function(ob){byId[String(ob.Obligation_ID||'')]=ob;});
-    var stamp=new Date().toISOString(),count=0;
-    links.forEach(function(link){
-      if(String(link.Audit_ID||'')!==auditId||String(link.Link_State||'').toUpperCase()!=='ACTIVE')return;
-      var ob=byId[String(link.Obligation_ID||'')];
-      if(!ob)throw new Error('Orphan active visit link during completion: '+String(link.Obligation_ID||''));
-      ob.Obligation_State='COMPLETED';ob.Closed_At=stamp;ob.Updated_At=stamp;
-      link.Link_State='INACTIVE';link.Unlinked_At=stamp;count++;
-    });
-    if(!count){
-      var already=links.filter(function(link){return String(link.Audit_ID||'')===auditId&&String(link.Link_State||'').toUpperCase()==='INACTIVE';}).length;
-      return{success:true,finalized:0,idempotent:already>0,build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD};
+    var readT=Date.now();
+    var obValues=obSheet.getDataRange().getValues(),lkValues=lkSheet.getDataRange().getValues();
+    var obHeaders=obValues[0]||[],lkHeaders=lkValues[0]||[];
+    var obMap=ModelCFoundation_headerMap_(obHeaders),lkMap=ModelCFoundation_headerMap_(lkHeaders);
+    var obIdIx=obMap[ModelCFoundation_normHeader_('Obligation_ID')];
+    var lkAuditIx=lkMap[ModelCFoundation_normHeader_('Audit_ID')];
+    var lkObIx=lkMap[ModelCFoundation_normHeader_('Obligation_ID')];
+    var lkStateIx=lkMap[ModelCFoundation_normHeader_('Link_State')];
+    if(obIdIx===undefined||lkAuditIx===undefined||lkObIx===undefined||lkStateIx===undefined)throw new Error('Model C finalization headers missing');
+
+    var obRowById={};
+    for(var r=1;r<obValues.length;r++)obRowById[String(obValues[r][obIdIx]||'')]={row:r+1,values:obValues[r].slice()};
+    var matched=[];
+    for(var l=1;l<lkValues.length;l++){
+      if(String(lkValues[l][lkAuditIx]||'')!==auditId)continue;
+      if(String(lkValues[l][lkStateIx]||'').toUpperCase()!=='ACTIVE')continue;
+      matched.push({row:l+1,values:lkValues[l].slice(),obligationId:String(lkValues[l][lkObIx]||'')});
     }
-    ModelCScopeOwner_writeObjects_(obSheet,MODEL_C_SCHEMA.Audit_Obligations,obligations,['Cycle_Key','Base_Expiry_Date','Effective_Expiry_Date','Planning_Window_From','Planning_Window_To']);
-    ModelCScopeOwner_writeObjects_(lkSheet,MODEL_C_SCHEMA.Audit_Visit_Obligations,links);
-    SpreadsheetApp.flush();
-    return{success:true,finalized:count,idempotent:false,build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD};
+    perf.readMs=Date.now()-readT;
+    if(!matched.length){
+      var already=0;
+      for(var a=1;a<lkValues.length;a++)if(String(lkValues[a][lkAuditIx]||'')===auditId&&String(lkValues[a][lkStateIx]||'').toUpperCase()==='INACTIVE')already++;
+      perf.totalMs=Date.now()-t0;
+      return{success:true,finalized:0,idempotent:already>0,build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD,perf:perf};
+    }
+
+    var stamp=new Date().toISOString();
+    var obStateIx=obMap[ModelCFoundation_normHeader_('Obligation_State')];
+    var obClosedIx=obMap[ModelCFoundation_normHeader_('Closed_At')];
+    var obUpdatedIx=obMap[ModelCFoundation_normHeader_('Updated_At')];
+    var lkUnlinkedIx=lkMap[ModelCFoundation_normHeader_('Unlinked_At')];
+    if(obStateIx===undefined||obClosedIx===undefined||obUpdatedIx===undefined||lkUnlinkedIx===undefined)throw new Error('Model C finalization write headers missing');
+
+    var writeT=Date.now(),updatedOb={};
+    matched.forEach(function(item){
+      var obPack=obRowById[item.obligationId];
+      if(!obPack)throw new Error('Orphan active visit link during completion: '+item.obligationId);
+      if(!updatedOb[item.obligationId]){
+        obOriginal[obPack.row]=obPack.values.slice();
+        var obRow=obPack.values.slice();
+        obRow[obStateIx]='COMPLETED';obRow[obClosedIx]=stamp;obRow[obUpdatedIx]=stamp;
+        obSheet.getRange(obPack.row,1,1,obHeaders.length).setValues([obRow]);
+        updatedOb[item.obligationId]=true;
+      }
+      lkOriginal[item.row]=item.values.slice();
+      var lkRow=item.values.slice();
+      lkRow[lkStateIx]='INACTIVE';lkRow[lkUnlinkedIx]=stamp;
+      lkSheet.getRange(item.row,1,1,lkHeaders.length).setValues([lkRow]);
+    });
+    perf.writeMs=Date.now()-writeT;
+    perf.totalMs=Date.now()-t0;
+    return{success:true,finalized:matched.length,idempotent:false,build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD,perf:perf};
   }catch(e){
-    try{ModelCScopeOwner_restoreSnapshot_(obSnap);}catch(ignore1){}
-    try{ModelCScopeOwner_restoreSnapshot_(lkSnap);}catch(ignore2){}
-    SpreadsheetApp.flush();
-    return{success:false,message:String(e&&e.message?e.message:e),rolledBack:true,build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD};
+    Object.keys(obOriginal).forEach(function(row){try{obSheet.getRange(Number(row),1,1,obOriginal[row].length).setValues([obOriginal[row]]);}catch(ignore1){}});
+    Object.keys(lkOriginal).forEach(function(row){try{lkSheet.getRange(Number(row),1,1,lkOriginal[row].length).setValues([lkOriginal[row]]);}catch(ignore2){}});
+    perf.totalMs=Date.now()-t0;
+    return{success:false,message:String(e&&e.message?e.message:e),rolledBack:Object.keys(obOriginal).length>0||Object.keys(lkOriginal).length>0,build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD,perf:perf};
   }
 }
 
@@ -226,6 +260,30 @@ function CompletionService_CommitCompletion(payload) {
     result.message='Completion committed, but Model C finalization failed: '+String((finalization&&finalization.message)||'unknown');
   }
   return result;
+}
+
+function ModelCAnnualCycle_appendObjects_(sheet,headers,objects,textHeaders){
+  if(!objects||!objects.length)return;
+  var start=sheet.getLastRow()+1;
+  var rows=objects.map(function(x){return headers.map(function(h){return x[h]===undefined?'':x[h];});});
+  (textHeaders||[]).forEach(function(h){var col=headers.indexOf(h)+1;if(col>0)sheet.getRange(start,col,rows.length,1).setNumberFormat('@');});
+  sheet.getRange(start,1,rows.length,headers.length).setValues(rows);
+}
+
+function ModelCAnnualCycle_newAuditIdFast_(rowObj,apValues,groupIndex){
+  var existing={};
+  var headers=(apValues&&apValues[0])||[],map=ModelCFoundation_headerMap_(headers),ix=map[ModelCFoundation_normHeader_('Audit ID')];
+  if(ix!==undefined)for(var r=1;r<(apValues||[]).length;r++)existing[String(apValues[r][ix]||'')]=true;
+  var id='';
+  try{
+    var company=String(ModelCAnnualCycle_rowValue_(rowObj,['Company_UID','Company UID'])||'').replace(/[^A-Za-z0-9]+/g,'_');
+    var base=String(ModelCAnnualCycle_rowValue_(rowObj,['Audit ID'])||'AUD');
+    id=base+'_NEXT_'+String(Number(groupIndex||0)+1);
+    if(company)id+='_'+company.slice(-12);
+  }catch(ignore){}
+  if(!id||existing[id])id='AUD_MODELC_'+new Date().getTime()+'_'+String(groupIndex||0)+'_'+Utilities.getUuid().slice(0,8);
+  while(existing[id])id=id+'_'+Utilities.getUuid().slice(0,4);
+  return id;
 }
 
 function ModelCAnnualCycle_prepareLegacySuccessorRow_(ss,headers,row,group,companyScopes,newAuditId){

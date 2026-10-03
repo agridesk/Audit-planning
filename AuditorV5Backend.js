@@ -967,6 +967,8 @@ function auditorV5_buildActiveGrid_U20409(activeEmail, diag) {
       expirationDate: expirationDate,
       plannedDates: planned.plannedDates,
       plannedHours: formalPlannedHours,
+      formalHours: toBePlanned,
+      maxOffsiteHours: auditorV5_sumScopeMaxOffsite_(scopes),
       status: String(statusRaw || "").toUpperCase(),
       readOnly: (String(auditIdS).indexOf("ROW_") === 0)
     });
@@ -1239,8 +1241,7 @@ function auditorV5_loadConfigScopes_() {
       displayName: String(get_(row, "DisplayName") || "").trim(),
       sortOrder: toNum_(get_(row, "SortOrder")),
       formalHours: toNum_(get_(row, "Formal_hours") || get_(row, "Default_hours")),
-      schedulingHours: toNum_(get_(row, "Scheduling_hours")),
-      schedulingHoursDelta: toNum_(get_(row, "Scheduling_hours_delta"))
+      maxOffsiteHours: Math.max(0, toNum_(get_(row, "Max_Offsite_Hours") || get_(row, "Max Offsite Hours")))
     });
   }
   ordered.sort(function(a,b){ return (a.sortOrder||0) - (b.sortOrder||0); });
@@ -1302,11 +1303,22 @@ function auditorV5_extractScopesForRow_(hdr, row) {
           if (!textColor) textColor = fb.textColor;
         }
       }
-      scopes.push({ code: code, name: name, color: color, textColor: textColor });
+      scopes.push({ code: code, name: name, color: color, textColor: textColor, formalHours: Number(def.formalHours || 0) || 0, maxOffsiteHours: Math.max(0, Number(def.maxOffsiteHours || 0) || 0) });
       names.push(name);
     }
   }
   return { scopes: scopes, scopesText: names.join(", ") };
+}
+function auditorV5_sumScopeMaxOffsite_(scopes) {
+  var total = 0;
+  var seen = {};
+  (scopes || []).forEach(function(s) {
+    var k = String((s && (s.code || s.name)) || '').trim().toLowerCase();
+    if (!k || seen[k]) return;
+    seen[k] = true;
+    total += Math.max(0, Number(s && s.maxOffsiteHours || 0) || 0);
+  });
+  return Math.round(total * 100) / 100;
 }
 function auditorV5_buildScopesString_(headers, row) {
   var cfg = auditorV5_loadConfigScopes_();
@@ -2856,6 +2868,8 @@ function auditorV5_loadConfigScopes_() {
             color: String(x.color || '').trim(),
             textColor: String(x.textColor || '').trim(),
             sortOrder: Number(x.sortOrder || i + 1),
+            formalHours: Number(x.formalHours || x.defaultHours || 0) || 0,
+            maxOffsiteHours: Math.max(0, Number(x.maxOffsiteHours || 0) || 0),
             archived: !!x.archived
           };
 
@@ -2877,6 +2891,8 @@ function auditorV5_loadConfigScopes_() {
             sortOrder: x.sortOrder,
             color: x.color,
             textColor: x.textColor,
+            formalHours: x.formalHours,
+            maxOffsiteHours: x.maxOffsiteHours,
             archived: x.archived
           };
         });
@@ -2946,6 +2962,8 @@ function auditorV5_loadConfigScopes_() {
       color: String(get_(row, ["Color","Colour","BackgroundColor","Background color"]) || "").trim(),
       textColor: String(get_(row, ["TextColor","Text color","FontColor","Font color"]) || "").trim(),
       sortOrder: Number(get_(row, ["SortOrder","Sort order","Sort"]) || r),
+      formalHours: Number(get_(row, ["Formal_hours","Formal hours","Formal Hours","Default_hours","Default hours"]) || 0) || 0,
+      maxOffsiteHours: Math.max(0, Number(get_(row, ["Max_Offsite_Hours","Max Offsite Hours","Max offsite hours","Maximum offsite hours"]) || 0) || 0),
       archived: yes_(get_(row, ["Archived","ARCHIVED"]), false)
     };
     list2.push(rec2);
@@ -3412,6 +3430,8 @@ function AuditorV5_GetAuditorGrid_FAST(req) {
         expirationDate: expirationDate,
         plannedDates: planned.plannedDates || '',
         plannedHours: formalPlannedHours,
+        formalHours: toBePlanned,
+        maxOffsiteHours: '',
         status: String(statusRaw || '').toUpperCase(),
         readOnly: String(auditId).indexOf('ROW_') === 0,
         needsEnrichment: true

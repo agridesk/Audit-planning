@@ -30,7 +30,7 @@ const checks=[
 ['server bulk enrichment endpoint',r10.includes("u.pathname==='/api/v1/manager/open-enrichment'")],
 ['server extension endpoint',r10.includes("u.pathname==='/api/v1/manager/extension'")],
 ['server enrichment bridge',r10.includes("'externalmanageropenenriched'")],
-['server extension bridge',r10.includes("'externalmanagerextension'")],
+['server extension direct writer',r10.includes("/api/v1/manager/extension-direct")&&r10.includes('DIRECT_EXTENSION_PROXY_FAILED')],
 ['bridge key never in browser',!manager.includes('bridgeKey')&&!html.includes('bridgeKey')],
 ['stable runtime chain',r10.includes("await import('./server-r9.js')")&&!r10.includes("await import('./server-r11.js')")],
 ['dense grid styling',html.includes('min-width:1900px')&&html.includes('.planning-chip')]

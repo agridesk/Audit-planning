@@ -65,6 +65,7 @@ assert.match(batch,/auditIds:Array.isArray(input.auditIds)/,'Batch optimizer mus
 assert.match(batch,/writesPerformed:false/,'Batch proposal generation must remain read-only');
 assert.match(rpc,/function PlanningWorkspaceRpc_generateBatchConcept/,'Selected Batch generation must use browser-facing Workspace RPC');
 assert.match(rpc,/PWR_validateSelectedAuditorIds_\(input,'batch'\)/,'Auditor Batch generation must revalidate self-planning selection server-side');
+assert.match(rpc,/Grid2Selection_validate\(\{auditIds:ids,actorRole:'Manager',actorEmail:actor,action:'batch'\}\)/,'Manager Batch generation must revalidate selected IDs at action time');
 assert.match(rpc,/V5_AUTH\.validateTrustedTokenByRole\(token,'Auditor',deviceId\)/,'Auditor Workspace batch actions must authenticate trusted token');
 assert.match(rpc,/function PWR_scopeConceptBatch_/,'Auditor batch concept persistence must be role-scoped');
 assert.match(rpc,/PWR_validateSelectedAuditorIds_\(authInput,'concept'\)/,'Auditor batch concept persistence must revalidate selected audits');

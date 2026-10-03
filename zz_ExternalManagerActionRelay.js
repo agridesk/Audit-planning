@@ -1,13 +1,13 @@
 /***********************************************************************
  * FILE: zz_ExternalManagerActionRelay.js
- * BUILD: 2026-10-02_MANAGER_ACTION_SERVER_WARM_R7
+ * BUILD: 2026-10-03_COMPLETE_V29_MANAGER_ACTION_SERVER_WARM_R8
  * PURPOSE:
  *   Keep Manager Portal 2.0 lifecycle writes on the same Apps Script
  *   google.script.run path used by the fast 1.0 Manager Portal.
  *   Cloud Run only issues a short-lived signed iframe URL; lifecycle
  *   ownership remains managerV5Action -> Status_applyAction.
  ***********************************************************************/
-var EXTERNAL_MANAGER_ACTION_RELAY_BUILD = '2026-10-02_MANAGER_ACTION_SERVER_WARM_R7';
+var EXTERNAL_MANAGER_ACTION_RELAY_BUILD = '2026-10-03_COMPLETE_V29_MANAGER_ACTION_SERVER_WARM_R8';
 var EXTERNAL_MANAGER_ACTION_RELAY_PARENT_ORIGIN = 'https://ams-transport-proof-510075419067.europe-west1.run.app';
 var EXTERNAL_MANAGER_ACTION_RELAY_MAX_FUTURE_MS = 15 * 60 * 1000;
 

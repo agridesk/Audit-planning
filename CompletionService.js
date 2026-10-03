@@ -29,7 +29,7 @@
  * =========================================================
  */
 
-var COMPLETION_SERVICE_BUILD = '2026-07-03_COMPLETION_CALENDAR_CACHE_INVALIDATION_3S_R1';
+var COMPLETION_SERVICE_BUILD = '2026-10-03_COMPLETE_V29_CANONICAL_R1';
 var COMPLETION_SHEET_AUDIT_PLANNING = 'Audit planning';
 var COMPLETION_LOCK_WAIT_MS = 10000;
 var COMPLETION_LOCK_RETRY_SLEEP_MS = 250;
@@ -112,6 +112,7 @@ function completionService_commitCompletion_(payload) {
     if (!auditId) return { success:false, message:'Missing auditId' };
     if (!actorEmail) return { success:false, message:'Missing actorEmail' };
     if (!isFinite(hoursDedicated) || hoursDedicated <= 0) return { success:false, message:'Hours dedicated must be > 0' };
+    if (Math.abs((Math.round(hoursDedicated * 4) / 4) - hoursDedicated) > 1e-9) return { success:false, message:'Hours dedicated must be in steps of 0.25' };
     if (mode !== 'AUDITOR' && mode !== 'MANAGER_ON_BEHALF') return { success:false, message:'Invalid mode' };
 
     if (mode === 'MANAGER_ON_BEHALF') {
@@ -129,7 +130,76 @@ function completionService_commitCompletion_(payload) {
     if (!shPlan) return { success:false, message:'Missing sheet: ' + COMPLETION_SHEET_AUDIT_PLANNING };
 
     var rowPack = completionService_getAuditPlanningRowPack_(shPlan, auditId);
-    if (!rowPack.success) return rowPack;
+    if (!rowPack.success) {
+      if (rowPack.code === 'AUDIT_NOT_FOUND' && typeof LogRealizedAuditService_GetCompletedAudit === 'function') {
+        var completedExisting = LogRealizedAuditService_GetCompletedAudit(auditId);
+        if (completedExisting && completedExisting.success === true && completedExisting.found === true) {
+          var managerPrecedence = null;
+          if (mode === 'MANAGER_ON_BEHALF' &&
+              isFinite(Number(completedExisting.hoursDedicated)) &&
+              Math.abs(Number(completedExisting.hoursDedicated) - hoursDedicated) > 1e-9) {
+            managerPrecedence = LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, { status:completionService_getCompletedDisplayStatus_() });
+            if (!managerPrecedence || managerPrecedence.success === false) return managerPrecedence || { success:false, message:'Manager concurrency override failed' };
+            completionService_appendHoursAuditTrail_(ss, {
+              type:'COMPLETION_MANAGER_CONCURRENCY_OVERRIDE',
+              auditId:auditId,
+              actorEmail:actorEmail,
+              oldHoursDedicated:managerPrecedence.oldHoursDedicated,
+              newHoursDedicated:managerPrecedence.newHoursDedicated,
+              reason:'Concurrent/retried Complete: Manager Hours dedicated is authoritative',
+              source:'CompletionService.reconcileAlreadyCompleted'
+            });
+          }
+
+          var recoveredFinalization = { success:true, skipped:true };
+          if (typeof ModelCAnnualCycle_finalizeCompletedVisit_ === 'function') {
+            recoveredFinalization = ModelCAnnualCycle_finalizeCompletedVisit_(auditId);
+            if (!recoveredFinalization || recoveredFinalization.success === false) {
+              return {
+                success:false,
+                code:'MODEL_C_FINALIZATION_RECOVERY_FAILED',
+                completionCommitted:true,
+                idempotent:true,
+                auditId:auditId,
+                message:'Completed history exists, but Model C finalization recovery failed: ' + String((recoveredFinalization && recoveredFinalization.message) || 'unknown'),
+                modelCFinalization:recoveredFinalization || null
+              };
+            }
+          }
+
+          var recoveredAvailability = { success:true, skipped:true };
+          try {
+            if (typeof V5_availabilityClearAuditId_ === 'function') recoveredAvailability = V5_availabilityClearAuditId_(auditId);
+            else if (typeof AS_availabilityClearAuditId_ === 'function') recoveredAvailability = AS_availabilityClearAuditId_(auditId);
+          } catch (eRecoverAvail) {
+            return {
+              success:false,
+              code:'AVAILABILITY_RECOVERY_FAILED',
+              completionCommitted:true,
+              idempotent:true,
+              auditId:auditId,
+              message:'Completed history exists, but Availability recovery failed: ' + completionService_errMsg_(eRecoverAvail)
+            };
+          }
+
+          completionService_clearCaches_(auditId, {});
+          return {
+            success:true,
+            ok:true,
+            idempotent:true,
+            alreadyCompleted:true,
+            auditId:auditId,
+            hoursDedicated:mode === 'MANAGER_ON_BEHALF' ? hoursDedicated : completedExisting.hoursDedicated,
+            managerPrecedence:managerPrecedence,
+            modelCFinalization:recoveredFinalization,
+            availabilityRelease:recoveredAvailability,
+            build:COMPLETION_SERVICE_BUILD,
+            message:'Completion already committed; canonical end-state reconciled'
+          };
+        }
+      }
+      return rowPack;
+    }
 
     var rowObj = rowPack.rowObj;
     var currentStatus = completionService_getCell_(rowObj, ['Status']);
@@ -289,9 +359,10 @@ function completionService_commitCompletion_(payload) {
       auditTrail = { success:false, message:completionService_errMsg_(eTrail) };
     }
 
-    var artifactSync = (typeof v5_syncAuditArtifactsSafe_ === 'function')
-      ? v5_syncAuditArtifactsSafe_({ fullRebuild:true })
-      : { success:false, message:'artifact sync helper missing' };
+    // V2.9 hot-path rule: no broad artifact rebuild after Complete.
+    // Canonical owners were updated above; downstream read models are invalidated
+    // through targeted cache invalidation and can rebuild lazily.
+    var artifactSync = { success:true, skipped:true, reason:'V2.9 targeted invalidation; no synchronous full rebuild' };
 
     return {
       success:true,
@@ -364,29 +435,34 @@ function completionService_overrideCompletedHours_(payload) {
     if (!auditId) return { success:false, message:'Missing auditId' };
     if (!actorEmail) return { success:false, message:'Missing actorEmail' };
     if (!isFinite(hoursDedicated) || hoursDedicated <= 0) return { success:false, message:'Hours dedicated must be > 0' };
-    if (!reason) return { success:false, message:'Reason required' };
+    if (Math.abs((Math.round(hoursDedicated * 4) / 4) - hoursDedicated) > 1e-9) return { success:false, message:'Hours dedicated must be in steps of 0.25' };
     if (typeof managerV5_isManagerActor_ === 'function' && !managerV5_isManagerActor_(actorEmail)) return { success:false, message:'Manager role required' };
     if (typeof LogRealizedAuditService_UpdateCompletedHours !== 'function') return { success:false, message:'Missing dependency: LogRealizedAuditService_UpdateCompletedHours. Add LogRealizedAuditService.gs.' };
 
     var res = LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, { status:completionService_getCompletedDisplayStatus_() });
     if (!res || res.success === false) return res;
 
-    try {
-      var ss = SpreadsheetApp.getActiveSpreadsheet();
-      var shNotif = ss.getSheetByName(typeof SHEET_NOTIFICATION_QUEUE !== 'undefined' ? SHEET_NOTIFICATION_QUEUE : 'Notification Queue');
-      if (shNotif && typeof managerV5_appendAuditTrailToNotificationQueue_ === 'function') {
-        managerV5_appendAuditTrailToNotificationQueue_(shNotif, {
-          type:'COMPLETED_HOURS_OVERRIDE',
-          auditId:auditId,
-          managerEmail:actorEmail,
-          hours:hoursDedicated,
-          reason:reason,
-          company:''
-        });
-      }
-    } catch (eTrail) {}
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    completionService_appendHoursAuditTrail_(ss, {
+      type:'COMPLETED_HOURS_OVERRIDE',
+      auditId:auditId,
+      actorEmail:actorEmail,
+      oldHoursDedicated:res.oldHoursDedicated,
+      newHoursDedicated:res.newHoursDedicated,
+      reason:reason || 'Manager realized-hours correction',
+      source:'CompletionService.OverrideCompletedHours'
+    });
 
-    return { success:true, auditId:auditId, hoursDedicated:hoursDedicated, message:'Completed hours overridden' };
+    return {
+      success:true,
+      auditId:auditId,
+      oldHoursDedicated:res.oldHoursDedicated,
+      hoursDedicated:hoursDedicated,
+      newHoursDedicated:res.newHoursDedicated,
+      changed:res.changed,
+      changedAt:res.changedAt,
+      message:'Completed hours overridden'
+    };
   } catch (e) {
     return { success:false, message:'Exception: ' + completionService_errMsg_(e) };
   } finally {
@@ -411,12 +487,36 @@ function completionService_getAuditPlanningRowPack_(sheet, auditId) {
       break;
     }
   }
-  if (!rowIndex) return { success:false, message:'Audit not found in Audit planning: ' + auditId };
+  if (!rowIndex) return { success:false, code:'AUDIT_NOT_FOUND', message:'Audit not found in Audit planning: ' + auditId };
 
   var values = sheet.getRange(rowIndex, 1, 1, lastCol).getValues()[0] || [];
   var displayValues = sheet.getRange(rowIndex, 1, 1, lastCol).getDisplayValues()[0] || [];
   var rowObj = completionService_buildRowObject_(headers, values, displayValues, rowIndex);
   return { success:true, rowIndex:rowIndex, headers:headers, values:values, displayValues:displayValues, rowObj:rowObj };
+}
+
+function completionService_appendHoursAuditTrail_(ss, payload) {
+  payload = payload || {};
+  try {
+    var shNotif = ss && ss.getSheetByName(typeof SHEET_NOTIFICATION_QUEUE !== 'undefined' ? SHEET_NOTIFICATION_QUEUE : 'Notification Queue');
+    if (!shNotif || typeof managerV5_appendAuditTrailToNotificationQueue_ !== 'function') {
+      return { success:true, skipped:true, reason:'AUDIT_TRAIL_HOOK_UNAVAILABLE' };
+    }
+    return managerV5_appendAuditTrailToNotificationQueue_(shNotif, {
+      type:String(payload.type || 'COMPLETED_HOURS_OVERRIDE'),
+      auditId:String(payload.auditId || ''),
+      actorEmail:String(payload.actorEmail || ''),
+      actorRole:'MANAGER',
+      oldHoursDedicated:payload.oldHoursDedicated,
+      newHoursDedicated:payload.newHoursDedicated,
+      hours:payload.newHoursDedicated,
+      reason:String(payload.reason || ''),
+      source:String(payload.source || 'CompletionService'),
+      timestamp:new Date().toISOString()
+    });
+  } catch (e) {
+    return { success:false, message:completionService_errMsg_(e) };
+  }
 }
 
 function completionService_buildRowObject_(headers, values, displayValues, rowIndex) {

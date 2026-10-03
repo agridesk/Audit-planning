@@ -30,11 +30,39 @@
  * =========================================================
  */
 
-var LOG_REALIZED_AUDIT_SERVICE_BUILD = '2026-04-30_STRUCTURAL_COMPLETION_OWNER_REVIEWED';
+var LOG_REALIZED_AUDIT_SERVICE_BUILD = '2026-10-03_COMPLETE_V29_REALIZED_HISTORY_R1';
 var LOG_REALIZED_AUDIT_SERVICE_SHEET = 'Log realized audits';
 
 function LogRealizedAuditService_PreflightAppendFromAuditPlanning(rowObj, meta) {
   return LogRealizedAuditService_prepareAppend_(rowObj, meta || {}, true);
+}
+
+function LogRealizedAuditService_GetCompletedAudit(auditId) {
+  auditId = LogRealizedAuditService_clean_(auditId);
+  if (!auditId) return { success:false, found:false, message:'Missing auditId' };
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var shLog = ss.getSheetByName(LOG_REALIZED_AUDIT_SERVICE_SHEET);
+  if (!shLog) return { success:false, found:false, message:'Missing sheet: ' + LOG_REALIZED_AUDIT_SERVICE_SHEET };
+
+  var rowIdx = LogRealizedAuditService_findRowByAuditId_(shLog, auditId);
+  if (!rowIdx) return { success:true, found:false, auditId:auditId };
+
+  var headers = LogRealizedAuditService_getHeaders_(shLog);
+  var values = shLog.getRange(rowIdx, 1, 1, headers.length).getValues()[0] || [];
+  var cHours = LogRealizedAuditService_findHeaderIndex_(headers, ['Hours dedicated']);
+  var cStatus = LogRealizedAuditService_findHeaderIndex_(headers, ['Status']);
+  var cCompleted = LogRealizedAuditService_findHeaderIndex_(headers, ['Date completed','Completed date','Date - Completed']);
+  return {
+    success:true,
+    found:true,
+    auditId:auditId,
+    rowIndex:rowIdx,
+    hoursDedicated:cHours >= 0 ? Number(values[cHours]) : null,
+    status:cStatus >= 0 ? LogRealizedAuditService_clean_(values[cStatus]) : '',
+    completedDate:cCompleted >= 0 ? LogRealizedAuditService_clean_(values[cCompleted]) : '',
+    build:LOG_REALIZED_AUDIT_SERVICE_BUILD
+  };
 }
 
 function LogRealizedAuditService_AppendFromAuditPlanning(rowObj, meta) {
@@ -75,6 +103,7 @@ function LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, m
   var n = Number(hoursDedicated);
   if (!auditId) return { success:false, message:'Missing auditId' };
   if (!isFinite(n) || n <= 0) return { success:false, message:'Hours dedicated must be > 0' };
+  if (Math.abs((Math.round(n * 4) / 4) - n) > 1e-9) return { success:false, message:'Hours dedicated must be in steps of 0.25' };
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var shLog = ss.getSheetByName(LOG_REALIZED_AUDIT_SERVICE_SHEET);
@@ -87,6 +116,7 @@ function LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, m
   var colHours = LogRealizedAuditService_findHeaderIndex_(headers, ['Hours dedicated']);
   if (colHours < 0) return { success:false, message:'Log realized audits missing Hours dedicated column' };
 
+  var oldHoursDedicated = Number(shLog.getRange(rowIdx, colHours + 1).getValue());
   shLog.getRange(rowIdx, colHours + 1).setValue(n);
 
   var colStatus = LogRealizedAuditService_findHeaderIndex_(headers, ['Status']);
@@ -106,7 +136,17 @@ function LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, m
     }
   } catch(eRas) { Logger.log('[LogRealizedAuditService] RAS clear failed (update): ' + eRas); }
 
-  return { success:true, auditId:auditId, rowIndex:rowIdx, hoursDedicated:n, message:'Completed hours updated' };
+  return {
+    success:true,
+    auditId:auditId,
+    rowIndex:rowIdx,
+    oldHoursDedicated:isFinite(oldHoursDedicated) ? oldHoursDedicated : null,
+    hoursDedicated:n,
+    newHoursDedicated:n,
+    changed:!isFinite(oldHoursDedicated) || Math.abs(oldHoursDedicated - n) > 1e-9,
+    changedAt:new Date().toISOString(),
+    message:'Completed hours updated'
+  };
 }
 
 function LogRealizedAuditService_Diagnose() {

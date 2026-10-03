@@ -652,19 +652,22 @@ input[type="checkbox"]{
             <span>Scope</span>
             <input id="txtScopeFilter" type="text" placeholder="Scope contains…" oninput="auditorUi_applyFilters_()">
           </label>
-          <button class="v5-btn v5-btn-secondary" type="button" id="btnSelectAll">Select all</button>
-          <button class="v5-btn v5-btn-secondary" type="button" id="btnUnselectAll">Unselect all</button>
-          <button class="v5-btn v5-btn-secondary" type="button" id="btnExportExcel" disabled>Export Excel</button>
-          <button class="v5-btn v5-btn-secondary" type="button" id="btnExportPdf" disabled>Export PDF</button>
-          <span class="muted-mini" id="selCountLabel">0 selected</span>
         </div>
+      </div>
+      <div id="audSelectionBar" style="display:none;align-items:center;gap:7px;margin:0 14px 10px;padding:7px 9px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:7px;font-size:12px">
+        <span class="muted-mini" id="selCountLabel" style="font-weight:700">0 selected</span>
+        <button class="v5-btn v5-btn-secondary" type="button" id="btnSelectionBatch">Batch plan</button>
+        <button class="v5-btn v5-btn-secondary" type="button" id="btnSelectionConcept">Concept planning</button>
+        <select id="selSelectionExportFormat" aria-label="Export format"><option value="excel">Excel</option><option value="pdf">PDF</option></select>
+        <button class="v5-btn v5-btn-secondary" type="button" id="btnSelectionExport">Export</button>
+        <button class="v5-btn v5-btn-secondary" type="button" id="btnSelectionClear">Clear</button>
       </div>
 
       <div class="aud-grid-wrap">
         <table class="v5-grid" id="grid">
           <thead>
             <tr>
-              <th class="col-select">Sel</th>
+              <th class="col-select"><input id="audSelectAllVisible" type="checkbox" aria-label="Select all visible"></th>
               <th class="sortable" data-key="company">Company</th>
               <th class="col-company-adjust align-center" title="Suggest company update">✎</th>
               <th class="align-center sortable" data-key="locs">Locs</th>
@@ -1385,6 +1388,11 @@ function auditorUi_applyFilters_() {
     });
     var lab = document.getElementById('selCountLabel');
     if (lab) lab.textContent = __AUDITOR_SELECTED_IDS.size + ' selected';
+    var bar = document.getElementById('audSelectionBar');
+    if (bar) bar.style.display = __AUDITOR_SELECTED_IDS.size ? 'flex' : 'none';
+    var visible = auditorUi_getVisibleAuditIds_(), selectedVisible = visible.filter(function(id){ return __AUDITOR_SELECTED_IDS.has(id); }).length;
+    var head = document.getElementById('audSelectAllVisible');
+    if (head) { head.checked = visible.length > 0 && selectedVisible === visible.length; head.indeterminate = selectedVisible > 0 && selectedVisible < visible.length; }
     auditorUi_updateExportButtons_();
   }
 
@@ -1412,6 +1420,40 @@ function auditorUi_applyFilters_() {
   function auditorUi_unselectAllVisible_() {
     auditorUi_getVisibleAuditIds_().forEach(function(id){ __AUDITOR_SELECTED_IDS.delete(id); });
     auditorUi_updateSelectionUi_();
+  }
+
+  function auditorUi_clearSelection_() {
+    __AUDITOR_SELECTED_IDS.clear();
+    auditorUi_updateSelectionUi_();
+  }
+
+  function auditorUi_openSelectionPlanning_(mode) {
+    var ids = Array.from(__AUDITOR_SELECTED_IDS);
+    if (!ids.length) return;
+    var req = { auditIds:ids, action:mode, auditorEmail:__AUDITOR_EMAIL, trustedToken:__AUDITOR_TOKEN, deviceFingerprint:__DEVICE_ID };
+    google.script.run
+      .withSuccessHandler(function(res){
+        if (!res || res.ok !== true || !Array.isArray(res.validAuditIds) || res.validAuditIds.length !== ids.length) {
+          var rejected = res && Array.isArray(res.rejected) ? res.rejected : [];
+          var detail = rejected.map(function(x){ return String(x.auditId||'') + ': ' + String(x.reason||'NOT_ELIGIBLE'); }).join('\n');
+          try { V5.toast('Selection contains audits that are not self-plannable.'); } catch(e) {}
+          if (detail) window.alert('Selection blocked by current Auditor rules:\n' + detail);
+          return;
+        }
+        var p = new URLSearchParams();
+        p.set('action','planningworkspace');
+        p.set('role','Auditor');
+        p.set('email',__AUDITOR_EMAIL);
+        p.set('trustedToken',__AUDITOR_TOKEN);
+        p.set('deviceFingerprint',__DEVICE_ID);
+        p.set('selectedAuditIds',JSON.stringify(res.validAuditIds));
+        p.set('selectionMode',mode);
+        var url = __EXEC_URL + (__EXEC_URL.indexOf('?') >= 0 ? '&' : '?') + p.toString();
+        var child = window.open(url,'_blank');
+        if (!child) try { V5.toast('Planning Workspace popup was blocked.'); } catch(e) {}
+      })
+      .withFailureHandler(function(err){ window.alert('Selection validation failed: ' + String(err && err.message || err || 'unknown error')); })
+      .AuditorV5_ValidateGridSelection(req);
   }
 
   function auditorUi_downloadBlob_(filename, mimeType, b64) {
@@ -2824,10 +2866,11 @@ function confirmReason() {
   // init
   document.addEventListener('DOMContentLoaded', function(){
     try { auditorUi_restoreFilterState_(); } catch(e) {}
-    var b1 = document.getElementById('btnSelectAll'); if (b1) b1.addEventListener('click', auditorUi_selectAllVisible_);
-    var b2 = document.getElementById('btnUnselectAll'); if (b2) b2.addEventListener('click', auditorUi_unselectAllVisible_);
-    var b3 = document.getElementById('btnExportExcel'); if (b3) b3.addEventListener('click', auditorUi_exportExcel_);
-    var b4 = document.getElementById('btnExportPdf'); if (b4) b4.addEventListener('click', auditorUi_exportPdf_);
+    var b1 = document.getElementById('audSelectAllVisible'); if (b1) b1.addEventListener('change', function(){ if (b1.checked) auditorUi_selectAllVisible_(); else auditorUi_unselectAllVisible_(); });
+    var b2 = document.getElementById('btnSelectionClear'); if (b2) b2.addEventListener('click', auditorUi_clearSelection_);
+    var b3 = document.getElementById('btnSelectionBatch'); if (b3) b3.addEventListener('click', function(){ auditorUi_openSelectionPlanning_('batch'); });
+    var b4 = document.getElementById('btnSelectionConcept'); if (b4) b4.addEventListener('click', function(){ auditorUi_openSelectionPlanning_('concept'); });
+    var b5 = document.getElementById('btnSelectionExport'); if (b5) b5.addEventListener('click', function(){ var f=document.getElementById('selSelectionExportFormat'); (f&&f.value==='pdf'?auditorUi_exportPdf_:auditorUi_exportExcel_)(); });
     var body = document.getElementById('gridBody');
     if (body) body.addEventListener('change', function(ev){
       var cb = ev.target && ev.target.closest ? ev.target.closest('.aud-select-row') : null;

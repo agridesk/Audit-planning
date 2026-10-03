@@ -10,7 +10,7 @@
  *   certificate birthday, extension data or an automatic successor.
  * - Recurring scopes never receive a Cycle_Key full-year fallback here.
  */
-var MODEL_C_PLANNING_WINDOW_POLICY_BUILD='2026-09-21_AMS_01_6_MODEL_C_PLANNING_WINDOW_POLICY_R1_NONRECURRING_ANNUAL';
+var MODEL_C_PLANNING_WINDOW_POLICY_BUILD='2026-10-03_AMS_01_6_MODEL_C_PLANNING_WINDOW_POLICY_R2_CONFIG_ANNUAL';
 
 function ModelCPlanningWindowPolicy_text_(v){
   return String(v===null||v===undefined?'':v).trim();
@@ -25,6 +25,36 @@ function ModelCPlanningWindowPolicy_dateText_(ss,v){
   if(!s)return'';
   var m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m?(m[1]+'-'+m[2]+'-'+m[3]):'';
+}
+
+function ModelCPlanningWindowPolicy_addMonthsIso_(iso,months){
+  var m=String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m)return'';
+  var y=Number(m[1]),mo=Number(m[2]),d=Number(m[3]),total=y*12+(mo-1)+Number(months||0),ny=Math.floor(total/12),nm=total-ny*12+1,last=new Date(ny,nm,0).getDate();
+  return String(ny)+'-'+('0'+nm).slice(-2)+'-'+('0'+Math.min(d,last)).slice(-2);
+}
+
+function ModelCPlanningWindowPolicy_scopeConfig_(ss,scope){
+  var sh=ss.getSheetByName('Config_Scopes');
+  if(!sh||sh.getLastRow()<2)return null;
+  var values=sh.getDataRange().getValues(),h=values[0]||[];
+  function ix_(names){for(var i=0;i<h.length;i++){var key=String(h[i]||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();for(var j=0;j<names.length;j++)if(key===names[j])return i;}return-1;}
+  var cCode=ix_(['scopecode','scope code','code']),cDisplay=ix_(['displayname','display name','name','scope']),cActive=ix_(['active']),cArchived=ix_(['archived']),cCycle=ix_(['obligation cycle','obligation_cycle','cycle']),cComplete=ix_(['complete by','complete_by','must be completed by']),cFrom=ix_(['planning from','planning_from','planningfrom']),cTo=ix_(['planning to','planning_to','planningto']);
+  var want=String(scope||'').trim().toLowerCase();
+  for(var r=1;r<values.length;r++){
+    var code=cCode>=0?String(values[r][cCode]||'').trim():'',display=cDisplay>=0?String(values[r][cDisplay]||'').trim():'';
+    if(String(code||display).toLowerCase()!==want&&String(display).toLowerCase()!==want)continue;
+    var active=cActive<0||['','yes','true','1','x','ja'].indexOf(String(values[r][cActive]||'').trim().toLowerCase())>=0;
+    var archived=cArchived>=0&&['yes','true','1','x','ja'].indexOf(String(values[r][cArchived]||'').trim().toLowerCase())>=0;
+    if(!active||archived)return null;
+    return{
+      obligationCycle:cCycle>=0?String(values[r][cCycle]||'').trim().toUpperCase():'',
+      completeBy:cComplete>=0?String(values[r][cComplete]||'').trim():'',
+      planningFromRaw:cFrom>=0?String(values[r][cFrom]===null||values[r][cFrom]===undefined?'':values[r][cFrom]).trim():'',
+      planningToRaw:cTo>=0?String(values[r][cTo]===null||values[r][cTo]===undefined?'':values[r][cTo]).trim():''
+    };
+  }
+  return null;
 }
 
 function ModelCPlanningWindowPolicy_resolveObligation_(ss,ob){
@@ -44,6 +74,29 @@ function ModelCPlanningWindowPolicy_resolveObligation_(ss,ob){
 
   var recurring=ModelCRecurringConfig_isRecurring_(ss,scope);
   if(recurring===false&&/^20\d{2}$/.test(cycle)){
+    var cfg=ModelCPlanningWindowPolicy_scopeConfig_(ss,scope);
+    if(cfg&&cfg.obligationCycle==='ANNUAL'&&/^(0[1-9]|1[0-2])-([0-2][0-9]|3[01])$/.test(cfg.completeBy)){
+      var deadline=cycle+'-'+cfg.completeBy,cycleStart=cycle+'-01-01';
+      var hasFrom=cfg.planningFromRaw!=='',hasTo=cfg.planningToRaw!=='';
+      if(hasFrom!==hasTo){
+        return{success:false,hardBlock:true,reason:'PARTIAL_CONFIG_ANNUAL_WINDOW',scopeCode:scope,cycleKey:cycle,startDate:'',endDate:'',source:'Config_Scopes'};
+      }
+      var start=cycleStart,end=deadline;
+      if(hasFrom&&hasTo){
+        var fromM=Number(String(cfg.planningFromRaw).replace(',','.')),toM=Number(String(cfg.planningToRaw).replace(',','.'));
+        if(!isFinite(fromM)||!isFinite(toM)){
+          return{success:false,hardBlock:true,reason:'INVALID_CONFIG_ANNUAL_WINDOW_OFFSETS',scopeCode:scope,cycleKey:cycle,startDate:'',endDate:'',source:'Config_Scopes'};
+        }
+        start=ModelCPlanningWindowPolicy_addMonthsIso_(deadline,fromM);
+        end=ModelCPlanningWindowPolicy_addMonthsIso_(deadline,toM);
+        if(start<cycleStart)start=cycleStart;
+        if(end>deadline)end=deadline;
+      }
+      if(!start||!end||start>end){
+        return{success:false,hardBlock:true,reason:'CONFIG_ANNUAL_WINDOW_INVALID',scopeCode:scope,cycleKey:cycle,startDate:start||'',endDate:end||'',source:'Config_Scopes'};
+      }
+      return{success:true,hardBlock:false,reason:'NON_RECURRING_CONFIG_ANNUAL_WINDOW',scopeCode:scope,cycleKey:cycle,startDate:start,endDate:end,completeBy:deadline,source:'Config_Scopes',fallback:true};
+    }
     return{success:true,hardBlock:false,reason:'NON_RECURRING_CYCLE_YEAR_FALLBACK',scopeCode:scope,cycleKey:cycle,startDate:cycle+'-01-01',endDate:cycle+'-12-31',source:'Cycle_Key operational fallback',fallback:true};
   }
 

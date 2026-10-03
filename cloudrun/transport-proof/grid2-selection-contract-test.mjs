@@ -67,7 +67,7 @@ has(workspaceEntry,'Grid2Selection_validate({auditIds:validSelected,actorRole:ex
 has(decision,'else if(selectedIds.length)rows=rows.filter','Planning Workspace read model must restrict demand rows to explicit selected set');
 has(workspaceClient,'function applyEntrySelection()','Planning Workspace must seed its existing batch selector from Grid selection');
 has(workspaceClient,'state.selected={};state.selectionOrder=[]','Grid handoff must feed the existing Workspace selection mechanism');
-has(batch,'auditIds:Array.isArray(input.auditIds)','Batch optimizer must accept explicit Audit ID start set');
+has(batch,'if(Array.isArray(input.auditIds)&&input.auditIds.length)request.auditIds=input.auditIds','Batch optimizer must accept explicit Audit ID start set');
 has(batch,'writesPerformed:false','Batch proposal generation must remain read-only');
 has(rpc,'function PlanningWorkspaceRpc_generateBatchConcept','Selected Batch generation must use browser-facing Workspace RPC');
 has(rpc,"PWR_validateSelectedAuditorIds_(input,'batch')",'Auditor Batch generation must revalidate self-planning selection server-side');

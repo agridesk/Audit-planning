@@ -50,7 +50,7 @@
       var requestId=String(m.requestId||''),auditId=String(m.auditId||'').trim(),action=String(m.action||'').trim().toLowerCase();
       var options=(m.options&&typeof m.options==='object')?m.options:{};
       options.requestId=requestId;
-      if(!requestId||!auditId||!/^(approve|cancel|reject)$/.test(action)){
+      if(!requestId||!auditId||!/^(approve|cancel|reject|complete|edit_realized_hours)$/.test(action)){
         reply({type:'AMS_MANAGER_ACTION_RESULT',requestId:requestId,success:false,error:'INVALID_ACTION_REQUEST'});return;
       }
       if((action==='cancel'||action==='reject')&&!String(options.reason||options.comment||'').trim()){

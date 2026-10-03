@@ -47,6 +47,7 @@ has(r6,'VISIT_COMPOSITION_COMPANY_MISMATCH','company consistency guard');
 has(r6,'AUDITOR_NOT_HARD_QUALIFIED','qualification guard');
 has(r6,'VISIT_RELATED_PLANNING_WINDOW_BLOCKED','related planning window guard');
 has(r6,'formalRequired+=Number(a?.formalHours||0)','combined target sums formal hours');
+has(r6,"setTarget(['Hours planned','Planned hours','Hours Planned'],Math.round(formalRequired*100)/100)",'combined visit persists Hours planned from formal hours');
 has(r6,'x.row[z.id]=targetAuditId','one physical Availability occupancy');
 has(r6,'AUDIT_PLANNED_BY_MANAGER','one planned-auditor notification path retained');
 

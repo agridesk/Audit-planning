@@ -27,6 +27,7 @@ function ModelCRecurringConfig_byCode_(ss){
       recurringRaw:String(recurringRaw==null?'':recurringRaw).trim(),
       planningFrom:Number(ModelCFoundation_valueByHeaderRaw_(row,m,['Planning from'])||0),
       planningTo:Number(ModelCFoundation_valueByHeaderRaw_(row,m,['Planning to'])||0),
+      defaultHours:Number(ModelCFoundation_valueByHeaderRaw_(row,m,['Default_hours'])||0),
       obligationCycle:String(ModelCFoundation_valueByHeader_(row,m,['Obligation cycle'])||'').trim().toUpperCase(),
       completeBy:String(ModelCFoundation_valueByHeader_(row,m,['Complete by'])||'').trim()
     };

@@ -287,6 +287,14 @@ async function directManagerExtension(identity,body){
     const expiryY=val(found.row,col(found.h,['Date - Will Expire','Date – Will Expire','Will Expire']));
     if(!extAddMonths(expiryY,0))throw new Error('MISSING_OR_INVALID_ORIGINAL_EXPIRY');
     const applied=command==='apply',expiryZ=applied?extAddMonths(expiryY,months):expiryY,w=extWindow(expiryZ,scopes),now=isoLocalStamp();
+    const ob=vr[2]?.values||[],links=vr[3]?.values||[],oh=ob[0]||[],lh=links[0]||[];
+    const oid=col(oh,['Obligation_ID','Obligation ID']),ots=col(oh,['Trigger_Source','Trigger Source']),la=col(lh,['Audit_ID','Audit ID']),lo=col(lh,['Obligation_ID','Obligation ID']),ls=col(lh,['Link_State','Link State']);
+    if([oid,ots,la,lo,ls].some(i=>i<0))throw new Error('MODEL_C_EXTENSION_SCHEMA_MISSING');
+    const linked=new Set();
+    for(const r of links.slice(1))if(val(r,la)===auditId&&val(r,ls).toUpperCase()==='ACTIVE')linked.add(val(r,lo));
+    const targets=[];
+    for(let i=1;i<ob.length;i++)if(linked.has(val(ob[i],oid))&&val(ob[i],ots).toUpperCase()!=='ECAS')targets.push(i+1);
+    if(!targets.length)throw new Error('NO_ACTIVE_CERTIFICATE_OBLIGATION_LINKED');
     /* DIRECT_EXTENSION_BODY */
   });
 }

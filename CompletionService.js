@@ -134,6 +134,13 @@ function completionService_commitCompletion_(payload) {
       if (rowPack.code === 'AUDIT_NOT_FOUND' && typeof LogRealizedAuditService_GetCompletedAudit === 'function') {
         var completedExisting = LogRealizedAuditService_GetCompletedAudit(auditId);
         if (completedExisting && completedExisting.success === true && completedExisting.found === true) {
+          if (mode === 'AUDITOR') {
+            var realizedAuditor = completionService_normEmail_(completedExisting.auditorEmail || '');
+            if (!realizedAuditor || realizedAuditor !== actorEmail) {
+              return { success:false, message:'Auditor is not owner of completed audit' };
+            }
+          }
+
           var managerPrecedence = null;
           if (mode === 'MANAGER_ON_BEHALF' &&
               isFinite(Number(completedExisting.hoursDedicated)) &&

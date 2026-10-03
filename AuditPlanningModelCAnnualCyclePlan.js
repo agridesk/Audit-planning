@@ -129,7 +129,7 @@ function ModelCAnnualCycle_planForAudit_(ss,auditId) {
       effectiveExpiry:nextBase,
       planningWindowFrom:from,
       planningWindowTo:to,
-      formalHours:Number(ob.Formal_Hours||0),
+      formalHours:(Number(ob.Formal_Hours)>0?Number(ob.Formal_Hours):Number(def.defaultHours||0)),
       triggerSource:'CERTIFICATE_LIFECYCLE'
     });
   });

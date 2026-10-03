@@ -31,7 +31,7 @@ const checks=[
 ['Reject archives before deleting projection row',(()=>{const s=r4.indexOf("async function directManagerReject");const e=r4.indexOf("async function ",s+1);const x=r4.slice(s,e>0?e:undefined);return x.indexOf("await sheetsValuesAppend('Rejected audits!A:'")>=0&&x.indexOf("await sheetsValuesAppend('Rejected audits!A:'")<x.indexOf("await sheetsDeleteRow('Audit planning',found.sourceRow)")})()],
 ['Reject route explicit through r10',r10.includes("managerAction==='reject'")&&r10.includes("/api/v1/manager/reject-direct")],
 ['Complete route explicit through r10',r10.includes("managerAction==='complete'")&&r10.includes("/api/v1/manager/complete-direct")],
-['Complete direct owner writes realized history',r4.includes("async function directManagerComplete")&&r4.includes("Log realized audits!A:")&&r4.includes("owner:'CLOUD_RUN_DIRECT_MANAGER_COMPLETE'")],
+['Complete direct owner writes realized history',r4.includes("async function directManagerComplete")&&r4.includes("allWrites.push({range:'Log realized audits!A'")&&r4.includes("owner:'CLOUD_RUN_DIRECT_MANAGER_COMPLETE'")],
 ['Complete returns successor rows for local micro refresh',r4.includes("successorRows")&&manager.includes("result&&Array.isArray(result.successorRows)")],
 
 ['no obsolete action-direct endpoint',!manager.includes("fetch('/api/v1/manager/action-direct'")&&!r10.includes("u.pathname==='/api/v1/manager/action-direct'")],

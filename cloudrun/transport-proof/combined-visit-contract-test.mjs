@@ -22,7 +22,7 @@ has(r10,"u.pathname==='/api/v1/manager/action-relay-url'",'warm Manager GAS work
 has(r10,"u.pathname==='/api/v1/manager/audit'",'targeted Manager reread');
 has(r10,"sheetValues('Audit planning!A1:AX1')",'targeted reread header read');
 has(r10,"sheetValues('Audit planning!A'+rowNo+':AX'+rowNo)",'targeted reread exact-row read');
-has(r10,"if(k==='PENDING_PLANNING'){planningJson='';scheduled=null;formal=null;assigned='';display='';}",'Pending Planning clears committed hours in projection');
+has(r10,"if(k==='PENDING_PLANNING'){planningJson='';formal=null;assigned='';display='';}",'Pending Planning clears committed formal hours in projection');
 has(portal,"fetch('/api/v1/manager/action-relay-url'",'Manager 2.0 warm GAS worker bootstrap');
 has(portal,' · trace ','timing identifies instrumented warm GAS transport');
 has(portal,'patchActionLikeV1(auditId,action,reason,wr,perf)','Manager 1.0-style local action patch');
@@ -32,10 +32,10 @@ has(resetHours,"['Hours planned', 'Planned hours', 'Hours Planned']",'Cancel reo
 has(resetHours,'Total audit time in hours','formal required hours explicitly preserved');
 has(resetHours,'getRangeList(a1).clearContent()','Cancel reset uses one batched clear');
 
-has(r11,"Scheduling_hours_delta",'scheduling delta hardening retained');
-has(r11,'FORMAL_HOURS_PLUS_CONFIG_DELTA','formal plus delta semantics retained');
-has(r10,'j.totalPlannedHours=j.formalHours','formal Hours planned projection retained');
-has(r10,'j.scheduledHours','physical scheduled duration retained separately');
+not(r11,'Scheduling_hours_delta','R11 does not reinterpret scheduling delta');
+not(r11,'FORMAL_HOURS_PLUS_CONFIG_DELTA','R11 contains no delta-based planning semantics');
+not(r10,'j.totalPlannedHours=j.formalHours','R10 no longer rewrites combined Planning JSON hours');
+not(r10,'j.scheduledHours','R10 does not reintroduce scheduledHours');
 
 has(r6,"u.pathname==='/api/v1/planning/direct-commit'",'combined Visit direct commit interception');
 has(r6,'ids.length>1','combined Visit routing gate');
@@ -46,7 +46,7 @@ has(r6,'VISIT_RELATED_AUDIT_NOT_PENDING_PLANNING','related lifecycle guard');
 has(r6,'VISIT_COMPOSITION_COMPANY_MISMATCH','company consistency guard');
 has(r6,'AUDITOR_NOT_HARD_QUALIFIED','qualification guard');
 has(r6,'VISIT_RELATED_PLANNING_WINDOW_BLOCKED','related planning window guard');
-has(r6,'formalRequired+=x.formalHours','formal hours remain separately accountable');
+has(r6,'formalRequired+=Number(a?.formalHours||0)','combined target sums formal hours');
 has(r6,'x.row[z.id]=targetAuditId','one physical Availability occupancy');
 has(r6,'AUDIT_PLANNED_BY_MANAGER','one planned-auditor notification path retained');
 
@@ -70,9 +70,9 @@ console.log(JSON.stringify({
     managerActionMirrorsV1:true,
     synchronousActionRereadRemoved:true,
     cancelClearsFormalCommittedHours:true,
-    pendingPlanningClearsScheduledHours:true,
+pendingPlanningClearsCommittedHours:true
     targetedManagerReread:true,
-    schedulingDeltaSemanticsRetainedNonPublic:true,
+schedulingDeltaPlanningSemanticsRemoved:true
     combinedVisitGuardsRetained:true
   }
 },null,2));

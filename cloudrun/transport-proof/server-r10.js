@@ -8,7 +8,7 @@ const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
 const RELAY_PARENT_ORIGIN='https://ams-transport-proof-510075419067.europe-west1.run.app';
-const BUILD='2026-10-03_COMPLETE_V29_DIRECT_R5';
+const BUILD='2026-10-03_COMPLETE_V29_DIRECT_R6_SHARED_AUDITOR_OWNER';
 
 process.env.PORT=String(INNER_PORT);
 await import('./server-r9.js');
@@ -31,6 +31,7 @@ function buildManagerRelayUrl(identity){
   return {url:u.toString(),nonce};
 }
 function clean(v){return String(v==null?'':v).trim();}
+function bridgeSafeEq(a,b){const x=Buffer.from(clean(a)),y=Buffer.from(clean(b));return x.length===y.length&&x.length>0&&crypto.timingSafeEqual(x,y);}
 function key(v){return clean(v).toLowerCase().replace(/\s+/g,'_');}
 function col(h,names){const m={};(h||[]).forEach((v,i)=>{const k=key(v);if(k&&m[k]===undefined)m[k]=i;});for(const n of names){const k=key(n);if(m[k]!==undefined)return m[k];}return-1;}
 function val(r,i){return i>=0?clean((r||[])[i]):'';}
@@ -147,6 +148,21 @@ http.createServer(async(req,res)=>{
   if(req.method==='POST'&&u.pathname==='/api/v1/manager/extension'){
     const started=Date.now(),identity=await innerSession(req);if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED',build:BUILD});if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN',build:BUILD});
     try{const target='http://127.0.0.1:'+INNER_PORT+'/api/v1/manager/extension-direct',headers={'content-type':'application/json'};if(req.headers.cookie)headers.cookie=clean(req.headers.cookie);const rr=await fetch(target,{method:'POST',headers,body:raw||'{}',redirect:'manual'}),txt=await rr.text();let out=null;try{out=JSON.parse(txt);}catch{out={success:false,error:'DIRECT_EXTENSION_NON_JSON'}}if(out&&typeof out==='object'){out.r10InnerMs=Date.now()-started;out.perf={totalMs:Date.now()-started,innerMs:out.r10InnerMs,readMs:out.readMs||null,writeMs:out.writeMs||null};}return sendJson(res,rr.status,out||{success:false,error:'DIRECT_EXTENSION_EMPTY'});}catch(e){return sendJson(res,502,{success:false,error:'DIRECT_EXTENSION_PROXY_FAILED',detail:clean(e?.message||e),build:BUILD});}
+  }
+  if(req.method==='POST'&&u.pathname==='/api/v1/internal/auditor/complete-direct'){
+    if(!WRITE_KEY)return sendJson(res,503,{success:false,error:'WRITE_BRIDGE_NOT_CONFIGURED',build:BUILD});
+    const supplied=clean(req.headers['x-ams-bridge-key']);
+    if(!bridgeSafeEq(supplied,WRITE_KEY))return sendJson(res,403,{success:false,error:'BRIDGE_FORBIDDEN',build:BUILD});
+    const started=Date.now();
+    try{
+      const target='http://127.0.0.1:'+INNER_PORT+'/api/v1/internal/auditor/complete-direct';
+      const rr=await fetch(target,{method:'POST',headers:{'content-type':'application/json','x-ams-bridge-key':WRITE_KEY},body:raw||'{}',redirect:'manual'});
+      const txt=await rr.text();let out=null;try{out=JSON.parse(txt);}catch{out={success:false,error:'DIRECT_AUDITOR_COMPLETE_NON_JSON'}}
+      if(out&&typeof out==='object')out.r10InnerMs=Date.now()-started;
+      return sendJson(res,rr.status,out||{success:false,error:'DIRECT_AUDITOR_COMPLETE_EMPTY'});
+    }catch(e){
+      return sendJson(res,502,{success:false,error:'DIRECT_AUDITOR_COMPLETE_PROXY_FAILED',detail:clean(e?.message||e),build:BUILD});
+    }
   }
   if(req.method==='POST'&&u.pathname==='/api/v1/manager/action'){
     const totalStarted=Date.now();

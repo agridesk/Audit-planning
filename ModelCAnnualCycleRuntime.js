@@ -5,10 +5,37 @@
  * intentionally kept here until the legacy AnnualCycleEngineV5 and
  * CompletionService shells are fully retired.
  */
-var MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD = '2026-10-03_COMPLETE_V29_MODEL_C_HOTPATH_R4';
+var MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD = '2026-10-03_COMPLETE_V29_MODEL_C_HOTPATH_R5_AP_SCOPE_HOURS';
 
 function AnnualCycleEngineV5_HandleCompletionRow_(planningRowObj) {
   return ModelCAnnualCycle_HandleCompletionRow_(planningRowObj);
+}
+
+function ModelCAnnualCycle_applyAuditPlanningHoursToPlan_(ss,headers,sourceRow,plan){
+  if(!plan||!Array.isArray(plan.successorGroups)||!plan.successorGroups.length)return plan;
+  var cfg=(typeof v5_getScopesConfig_==='function')?v5_getScopesConfig_(false):{list:[]};
+  var byCode={};
+  (cfg.list||[]).forEach(function(d){
+    var code=String(d.code||'').trim();
+    if(code)byCode[code]=d;
+  });
+  var hm={};
+  (headers||[]).forEach(function(h,i){hm[String(h||'').trim()]=i;});
+  plan.successorGroups.forEach(function(g){
+    (g.obligations||[]).forEach(function(item){
+      var def=byCode[String(item.scopeCode||'').trim()]||null;
+      if(!def)return;
+      var slot=String(def.slot||'').trim();
+      if(!slot)return;
+      var ix=hm['Duration '+slot];
+      if(ix===undefined)return;
+      var raw=sourceRow[ix];
+      if(raw===null||raw===undefined||String(raw).trim()==='')return;
+      var n=Number(String(raw).replace(',','.'));
+      if(isFinite(n)&&n>=0)item.formalHours=n;
+    });
+  });
+  return plan;
 }
 
 function ModelCAnnualCycle_HandleCompletionRow_(planningRowObj) {
@@ -48,6 +75,7 @@ function ModelCAnnualCycle_HandleCompletionRow_(planningRowObj) {
     var sourceRowIndex = ModelCAnnualCycle_findAuditRow_(apValues,headers,auditId);
     if (!sourceRowIndex) throw new Error('Audit planning source row not found: '+auditId);
     var sourceRow = apValues[sourceRowIndex-1].slice();
+    ModelCAnnualCycle_applyAuditPlanningHoursToPlan_(ss,headers,sourceRow,plan);
 
     var obValues=obSheet.getDataRange().getValues();
     var lkValues=lkSheet.getDataRange().getValues();

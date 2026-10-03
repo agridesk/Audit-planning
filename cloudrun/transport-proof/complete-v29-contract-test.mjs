@@ -28,10 +28,12 @@ assert.match(server,/\/api\/v1\/manager\/complete-direct/,'R10 must proxy Comple
 assert.match(baseServer,/async function directManagerComplete/,'Direct Complete owner must exist in base runtime');
 assert.doesNotMatch(baseServer,/directAcquireCompleteClaim/,'Manager Complete hot path must not block on synchronous GAS claim');
 assert.doesNotMatch(baseServer,/externalcompleteclaim/,'Manager Complete hot path must not call GAS claim bridge');
-assert.match(completion,/CompletionService_AcquireExternalManagerClaim/,'Canonical CompletionService must retain shared claim owner for cross-runtime hardening');
-assert.match(completion,/COMPLETE_IN_PROGRESS_BY_MANAGER/,'Auditor Complete must fail closed while an external Manager claim is active');
-assert.match(read('../../EntryV5.js'),/externalcompleteclaim/,'DEV bridge may expose shared Complete claim endpoint');
-assert.match(read('../../EntryV5.js'),/externalcompleterelease/,'DEV bridge may expose shared Complete claim release endpoint');
+assert.match(baseServer,/async function directAuditorComplete/,'Auditor and Manager must share the same direct Complete owner');
+assert.match(baseServer,/async function directComplete\(identity,body,actorRole\)/,'Shared role-aware Complete transaction owner must exist');
+assert.match(baseServer,/AUDITOR_NOT_ASSIGNED/,'Direct Auditor Complete must enforce assigned auditor identity');
+assert.match(server,/\/api\/v1\/internal\/auditor\/complete-direct/,'R10 must proxy Auditor Complete into shared owner');
+assert.match(auditor,/auditorV5_completeViaCloudRun_/,'DEV Auditor Complete must route through Cloud Run shared owner');
+assert.doesNotMatch(completion,/CompletionService_AcquireExternalManagerClaim/,'Obsolete Apps Script Complete claim layer must be removed');
 assert.match(baseServer,/REALIZED_HOURS_CORRECTED/,'Direct Manager precedence correction must be audit-trailed');
 assert.doesNotMatch(baseServer,/Date accepted','Date - Accepted'\],dateOnly\(g\(\['Date accepted','Date - Accepted','Date Accepted'\]\)\)\|\|dateOnly\(g\(\['Status since'\]\)\)/,'Legacy Date accepted must not be synthesized from Status since');
 assert.match(baseServer,/owner:'CLOUD_RUN_DIRECT_MANAGER_COMPLETE'/,'Direct Complete owner marker must be returned');

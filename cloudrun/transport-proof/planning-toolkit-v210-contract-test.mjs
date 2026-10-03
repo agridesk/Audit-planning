@@ -9,8 +9,11 @@ const checks=[
   ['Toolkit projects formal hours as required hours',r4.includes('formalHours:Number(String(g([')&&r4.includes('requiredHours:Number(String(g([')],
   ['Toolkit does not expose schedulingHoursTarget',!r4.includes('schedulingHoursTarget:')],
   ['Save validation uses formal hours',r4.includes("PLANNED_HOURS_BELOW_FORMAL_HOURS")&&r4.includes('formalTarget=Math.round(Number(audit.formalHours||audit.requiredHours||0)*100)/100')],
-  ['Planning JSON keeps one hours truth plus concrete blocks',r4.includes('JSON.stringify({blocks:requested,formalHours,totalPlannedHours:formalHours,auditorEmail,auditorName})')&&!r4.includes('scheduledHours')],
+  ['Planning JSON keeps one formal-hours truth plus concrete on/off-site blocks',r4.includes('JSON.stringify({blocks:requested,formalHours,totalPlannedHours:formalHours,offsiteHours,maxOffsiteHours:Number(offsitePolicy.maxOffsiteHours||0),auditorEmail,auditorName})')&&!r4.includes('scheduledHours')],
   ['Direct PLAN persists Hours planned from formalHours',r4.includes("set(['Hours planned','Planned hours','Hours Planned'],formalHours)")],
+  ['Direct PLAN enforces Max_Offsite_Hours',r4.includes("OFFSITE_HOURS_ABOVE_SCOPE_MAX")&&r4.includes("OFFSITE_MULTI_SCOPE_ALLOCATION_REQUIRED")&&r4.includes("executionType==='OFFSITE'")],
+  ['Toolkit exposes explicit on-site/off-site block type',r5.includes('id="executionType"')&&r5.includes('plannedOffsiteHours()')&&r5.includes('id="offsiteSummary"')],
+  ['Toolkit hard-disables save when off-site policy is exceeded',r5.includes('offsiteValid=offsite<=maxOff+0.001')&&r5.includes('policy.requiresScopeAllocation')],
   ['Calendar direct click toggle retained',r5.includes('function toggleCalendarDay(date,visualState)')&&r5.includes('Day removed from planning.')&&r5.includes('Day added to planning.')],
   ['No Add slot control exposed',!r5.includes('>Add slot<')&&!r5.includes('id="addSlot"')],
   ['Maximum five selected days retained',r5.includes('Maximum 5 planning days.')],
@@ -24,7 +27,7 @@ const checks=[
   ['Committed overlap remains hard',r4.includes("throw new Error('AVAILABILITY_COLLISION_'+b.date)")],
   ['Actual Availability block writes remain requested start/end',r4.includes('x.row[z.s]=b.start;x.row[z.e]=b.end;x.row[z.id]=auditId')],
   ['Combined visit validates against summed formal hours',r6.includes('formalRequired+=Number(a?.formalHours||0)')&&r6.includes('Math.abs(total-formalRequired)>0.001')],
-  ['Combined visit Planning JSON keeps one hours truth',r6.includes('formalHours:Math.round(formalRequired*100)/100')&&!r6.includes('scheduledHours:Math.round(total*100)/100')],
+  ['Combined visit Planning JSON keeps one hours truth and off-site is fail-closed pending scope allocation',r6.includes('formalHours:Math.round(formalRequired*100)/100')&&r6.includes("OFFSITE_MULTI_SCOPE_ALLOCATION_REQUIRED")&&!r6.includes('scheduledHours:Math.round(total*100)/100')],
   ['R6 combined Toolkit target sums formal hours',r6.includes('Number(r.formalHours||r.requiredHours||0)')&&r6.includes("function planningTarget(){return requiredVisitHours()}")],
   ['R7 is transparent and contains no Planning HTML monkey patch',!r7.includes('patchPlanningHtml')&&!r7.includes('PLANNING_COMBINED_REQUIRED_DISPLAY_PATCH_NOT_APPLIED')]
 ];

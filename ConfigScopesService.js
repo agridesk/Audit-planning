@@ -10,9 +10,9 @@
  * CACHE
  * - Namespace: config_scopes
  * - Keys:
- *   - catalog:v1
- *   - by_display:v1
- *   - alias_meta:v1
+ *   - catalog:v2
+ *   - by_display:v2
+ *   - alias_meta:v2
  *
  * PUBLIC RUNNERS
  * - RUN_CONFIGSCOPES_DIAGNOSTICS
@@ -48,7 +48,7 @@ function ConfigScopes_ClearCache() {
 function ConfigScopes_GetCatalog(forceRefresh) {
   if (!forceRefresh && CONFIGSCOPES_EXEC_CACHE.catalog) return CONFIGSCOPES_EXEC_CACHE.catalog;
 
-  var key = 'catalog:v1';
+  var key = 'catalog:v2';
 
   if (!forceRefresh) {
     var cached = ConfigScopes_cacheGet_(key);
@@ -67,7 +67,7 @@ function ConfigScopes_GetCatalog(forceRefresh) {
 function ConfigScopes_GetByDisplayName(forceRefresh) {
   if (!forceRefresh && CONFIGSCOPES_EXEC_CACHE.byDisplay) return CONFIGSCOPES_EXEC_CACHE.byDisplay;
 
-  var key = 'by_display:v1';
+  var key = 'by_display:v2';
 
   if (!forceRefresh) {
     var cached = ConfigScopes_cacheGet_(key);
@@ -103,7 +103,7 @@ function ConfigScopes_GetByDisplayName(forceRefresh) {
 function ConfigScopes_GetAliasMeta(forceRefresh) {
   if (!forceRefresh && CONFIGSCOPES_EXEC_CACHE.aliasMeta) return CONFIGSCOPES_EXEC_CACHE.aliasMeta;
 
-  var key = 'alias_meta:v1';
+  var key = 'alias_meta:v2';
 
   if (!forceRefresh) {
     var cached = ConfigScopes_cacheGet_(key);
@@ -250,7 +250,8 @@ function ConfigScopes_loadCatalogFromSheet_() {
       archived: ConfigScopes_val_(row, idx, ['Archived', 'ARCHIVED']),
       sortOrder: ConfigScopes_num_(ConfigScopes_val_(row, idx, ['SortOrder', 'Sort order', 'Sort']), r),
       defaultHours: ConfigScopes_num_(ConfigScopes_val_(row, idx, ['Default_hours', 'Default hours', 'DefaultHours']), 0),
-      schedulingHours: ConfigScopes_numOrNull_(ConfigScopes_val_(row, idx, ['Scheduling_hours', 'Scheduling hours', 'SchedulingHours'])),
+      formalHours: ConfigScopes_num_(ConfigScopes_val_(row, idx, ['Formal_hours', 'Formal hours', 'Formal Hours', 'Default_hours', 'Default hours', 'DefaultHours']), 0),
+      maxOffsiteHours: ConfigScopes_numOrNull_(ConfigScopes_val_(row, idx, ['Max_Offsite_Hours', 'Max Offsite Hours', 'Max offsite hours', 'Maximum offsite hours'])),
       maxNumberAudits: ConfigScopes_numOrNull_(ConfigScopes_val_(row, idx, ['Max number audits', 'Max number audit', 'Max audits', 'Max audit', 'Maximum audits'])),
       planningFrom: ConfigScopes_numOrNull_(ConfigScopes_val_(row, idx, ['Planning from', 'Planning_from', 'PlanningFrom'])),
       planningTo: ConfigScopes_numOrNull_(ConfigScopes_val_(row, idx, ['Planning to', 'Planning_to', 'PlanningTo'])),
@@ -390,7 +391,8 @@ function RUN_CONFIGSCOPES_DIAGNOSTICS() {
         scopeCode: x.scopeCode,
         displayName: x.displayName,
         defaultHours: x.defaultHours,
-        schedulingHours: x.schedulingHours,
+        formalHours: x.formalHours,
+        maxOffsiteHours: x.maxOffsiteHours,
         maxNumberAudits: x.maxNumberAudits
       };
     })

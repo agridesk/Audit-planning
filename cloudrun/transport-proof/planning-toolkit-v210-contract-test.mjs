@@ -1,0 +1,27 @@
+import fs from 'node:fs';
+
+const r4=fs.readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+const r5=fs.readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
+
+const checks=[
+  ['Toolkit exposes canonical scheduling target',r4.includes('schedulingHoursTarget:schedulingTargetForAudit(')],
+  ['Toolkit keeps formal hours separate',r4.includes('formalHours:Number(String(g([')],
+  ['Save validation uses scheduling target',r4.includes("PLANNED_HOURS_BELOW_SCHEDULING_TARGET")&&r4.includes('schedulingTarget=Number(audit.schedulingHoursTarget||audit.requiredHours||0)')],
+  ['Planning JSON keeps formal target and actual scheduled semantics',r4.includes('formalHours,schedulingHours,scheduledHours,totalPlannedHours:formalHours')],
+  ['Calendar direct click toggle retained',r5.includes('function toggleCalendarDay(date,visualState)')&&r5.includes('Day removed from planning.')&&r5.includes('Day added to planning.')],
+  ['No Add slot control exposed',!r5.includes('>Add slot<')&&!r5.includes('id="addSlot"')],
+  ['Maximum five selected days retained',r5.includes('Maximum 5 planning days.')],
+  ['Toolkit totals use scheduling target',r5.includes('function planningTarget()')&&r5.includes("Scheduling target '+target.toFixed(2)+' h · Planned ")],
+  ['Default slot is remaining-driven with eight-hour default cap',r5.includes('const duration=target>0?Math.min(remaining,8):8')],
+  ['Same-day non-overlap default can move after committed occupancy',r5.includes('startMin=next')&&r5.includes('No non-overlapping default slot could be found on this day.')],
+  ['Formal duration remains visible in Toolkit',r5.includes("txt('#formalHours',a.requiredHours?'Formal ")],
+  ['Initial slot duration uses scheduling target',r5.includes('const target=Number(a.schedulingHoursTarget||a.requiredHours||0)')&&r5.includes('d=Math.min(target,8)')],
+  ['Save enablement compares planned hours with scheduling target',r5.includes('hoursComplete=target<=0||Math.abs(hours-target)<=0.001')],
+  ['Committed overlap remains hard',r4.includes("throw new Error('AVAILABILITY_COLLISION_'+b.date)")],
+  ['Actual Availability block writes remain requested start/end',r4.includes('x.row[z.s]=b.start;x.row[z.e]=b.end;x.row[z.id]=auditId')]
+];
+
+const failed=checks.filter(([,ok])=>!ok);
+for(const [name,ok] of checks)console.log(`${ok?'PASS':'FAIL'} ${name}`);
+if(failed.length)process.exit(1);
+console.log('planning-toolkit-v210-contract-test passed');

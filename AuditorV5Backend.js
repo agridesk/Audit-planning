@@ -937,6 +937,7 @@ function auditorV5_buildActiveGrid_U20409(activeEmail, diag) {
     var scopesPack = auditorV5_extractScopesForRow_(hdr, row);
     var scopes = scopesPack.scopes;
     var scopesText = scopesPack.scopesText;
+    var schedulingTarget = auditorV5_schedulingTargetForRow_(hdr, row);
 
     var canPlan = (!assignedMatch) && preassignedMatch && (statusNorm === "PENDING_PLANNING") && (allowSelfPlanning === "YES");
     var expectedOnly = preassignedMatch && !assignedMatch;
@@ -966,6 +967,8 @@ function auditorV5_buildActiveGrid_U20409(activeEmail, diag) {
       expirationDate: expirationDate,
       plannedDates: planned.plannedDates,
       plannedHours: planned.plannedHours,
+      scheduledHours: schedulingTarget,
+      schedulingHoursTarget: schedulingTarget,
       status: String(statusRaw || "").toUpperCase(),
       readOnly: (String(auditIdS).indexOf("ROW_") === 0)
     });
@@ -1236,7 +1239,10 @@ function auditorV5_loadConfigScopes_() {
       slotKey: slotKey,
       scopeCode: String(get_(row, "ScopeCode") || "").trim(),
       displayName: String(get_(row, "DisplayName") || "").trim(),
-      sortOrder: toNum_(get_(row, "SortOrder"))
+      sortOrder: toNum_(get_(row, "SortOrder")),
+      formalHours: toNum_(get_(row, "Formal_hours") || get_(row, "Default_hours")),
+      schedulingHours: toNum_(get_(row, "Scheduling_hours")),
+      schedulingHoursDelta: toNum_(get_(row, "Scheduling_hours_delta"))
     });
   }
   ordered.sort(function(a,b){ return (a.sortOrder||0) - (b.sortOrder||0); });
@@ -1304,6 +1310,39 @@ function auditorV5_extractScopesForRow_(hdr, row) {
   }
   return { scopes: scopes, scopesText: names.join(", ") };
 }
+function auditorV5_schedulingTargetForRow_(hdr, row) {
+  var cfg = auditorV5_loadConfigScopes_();
+  var defs = (cfg && cfg.ordered) ? cfg.ordered : [];
+  var H = auditorV5_headerIndex_(hdr || []);
+  var total = 0, matched = 0;
+  for (var i = 0; i < defs.length; i++) {
+    var d = defs[i] || {};
+    var scopeCol = H([d.slotKey, d.scopeCode, d.displayName].filter(function(x){ return !!x; }));
+    if (scopeCol < 0 || !auditorV5_truthyScopeCell_(row[scopeCol])) continue;
+    matched++;
+    var durationCol = H([
+      'Duration ' + String(d.slotKey || ''),
+      'Duration ' + String(d.scopeCode || ''),
+      'Duration ' + String(d.displayName || '')
+    ]);
+    var formal = 0;
+    if (durationCol >= 0) {
+      var raw = Number(String(row[durationCol] == null ? '' : row[durationCol]).replace(',', '.'));
+      if (isFinite(raw) && raw > 0) formal = raw;
+    }
+    if (!(formal > 0)) formal = Number(d.formalHours || 0);
+    var explicit = Number(d.schedulingHours || 0);
+    var delta = Number(d.schedulingHoursDelta || 0);
+    total += explicit > 0 ? explicit : Math.max(0, formal + delta);
+  }
+  if (!matched) {
+    var totalCol = H(['Total audit time in hours','To be planned','Hours to be planned']);
+    var fallback = totalCol >= 0 ? Number(String(row[totalCol] == null ? '' : row[totalCol]).replace(',', '.')) : 0;
+    return isFinite(fallback) ? Math.round(fallback * 100) / 100 : 0;
+  }
+  return Math.round(total * 100) / 100;
+}
+
 function auditorV5_buildScopesString_(headers, row) {
   var cfg = auditorV5_loadConfigScopes_();
   var ordered = (cfg && cfg.ordered) ? cfg.ordered : [];
@@ -3381,6 +3420,7 @@ function AuditorV5_GetAuditorGrid_FAST(req) {
       if (idxToBePlanned >= 0 && row[idxToBePlanned] !== null && row[idxToBePlanned] !== undefined && row[idxToBePlanned] !== '') {
         toBePlanned = String(row[idxToBePlanned]).trim();
       }
+      var schedulingTarget = auditorV5_schedulingTargetForRow_(hdr, row);
 
       rows.push({
         auditId: auditId,
@@ -3407,6 +3447,8 @@ function AuditorV5_GetAuditorGrid_FAST(req) {
         expirationDate: expirationDate,
         plannedDates: planned.plannedDates || '',
         plannedHours: planned.plannedHours || '',
+        scheduledHours: schedulingTarget,
+        schedulingHoursTarget: schedulingTarget,
         status: String(statusRaw || '').toUpperCase(),
         readOnly: String(auditId).indexOf('ROW_') === 0,
         needsEnrichment: true

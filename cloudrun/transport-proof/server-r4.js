@@ -5,7 +5,7 @@ import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
-const BUILD='2026-10-03_COMPLETE_V29_DIRECT_R41';
+const BUILD='2026-10-03_COMPLETE_V29_DIRECT_R42_EXPLICIT_ROWS';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
@@ -488,10 +488,10 @@ function directSuccessorGroups(items){
   }
   return groups;
 }
-function directCompletedLogRow(logHeaders,found,hoursDedicated,actorEmail,now){
+function directCompletedLogRow(logHeaders,found,hoursDedicated,actorEmail,now,fallbackPlannedHours){
   const out=new Array(logHeaders.length).fill(''),h=found.h,row=found.row,g=names=>val(row,col(h,names)),set=(names,v)=>directSetByHeader(logHeaders,out,names,v);
   let planned=Number(g(['Hours planned','Planned hours','Hours Planned']))||0;
-  if(!(planned>0)){try{const j=JSON.parse(g(['Planning JSON','PlanningJSON','Planning'])||'{}');planned=Number(j.totalPlannedHours||j.formalHours||j.totalHours||0)||0;}catch{}}
+  if(!(planned>0)){try{const j=JSON.parse(g(['Planning JSON','PlanningJSON','Planning'])||'{}');planned=Number(j.totalPlannedHours||j.formalHours||j.totalHours||0)||0;}catch{}}if(!(planned>0)&&Number(fallbackPlannedHours)>0)planned=Number(fallbackPlannedHours);
   const datePlanned=dateOnly(g(['Date - Planned','Date planned','Date Planned'])),expiry=dateOnly(g(['Date - Will Expire','Will Expire']));
   set(['Company'],g(['Company']));set(['Auditor'],g(['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned']));
   set(['Status'],'Completed');set(['Date planned','Date - Planned'],datePlanned);set(['Date approved','Date - Approved'],dateOnly(g(['Date - Approved','Date approved','Date Approved'])));
@@ -547,11 +547,11 @@ async function directManagerComplete(identity,body){
     }
     const obById=new Map();for(let i=1;i<obs.length;i++)obById.set(val(obs[i],oi),{row:i+1,values:obs[i].slice()});
 
-    const successorItems=[],obligationWrites=[],linkWrites=[];
+    const successorItems=[],obligationWrites=[],linkWrites=[];let completedFormalHours=0;
     for(const link of activeLinks){
       const pack=obById.get(link.obId);if(!pack)throw new Error('MODEL_C_ORPHAN_ACTIVE_LINK');
       const rr=pack.values.slice();while(rr.length<oh.length)rr.push('');
-      const code=val(rr,osc),def=cfgByCode.get(code)||null;
+      const code=val(rr,osc),def=cfgByCode.get(code)||null;completedFormalHours+=Number(val(rr,ofh))>0?Number(val(rr,ofh)):Number((cfgByCode.get(code)||{}).formalHours||0);
       if(!def)throw new Error('CONFIG_SCOPES_MISSING_'+code);
       if(val(rr,ocu)!==companyUid)throw new Error('MODEL_C_COMPANY_UID_MISMATCH');
       if(def.recurring===true){
@@ -605,13 +605,13 @@ async function directManagerComplete(identity,body){
     for(let i=1;i<av.length;i++){const rr=(av[i]||[]).slice();while(rr.length<ah.length)rr.push('');let changed=false;if(aid1>=0&&clean(rr[aid1])===auditId){rr[aid1]='';if(s1>=0)rr[s1]='';if(e1>=0)rr[e1]='';if(st1>=0)rr[st1]='';changed=true;}if(aid2>=0&&clean(rr[aid2])===auditId){rr[aid2]='';if(s2>=0)rr[s2]='';if(e2>=0)rr[e2]='';if(st2>=0)rr[st2]='';changed=true;}if(changed){const has1=aid1>=0&&clean(rr[aid1]),has2=aid2>=0&&clean(rr[aid2]),soft=directSoftAvailabilityStatus(st1>=0?rr[st1]:'')||directSoftAvailabilityStatus(st2>=0?rr[st2]:'');if(available>=0)rr[available]=(has1||has2||soft)?'NO':'YES';if(lu>=0)rr[lu]=now.slice(0,16);availabilityWrites.push({range:'Auditor Availability!A'+(i+1)+':'+a1col(ah.length)+(i+1),values:[rr]});}}
 
     if(!logH.length)throw new Error('LOG_REALIZED_SCHEMA_MISSING');
-    const logRow=directCompletedLogRow(logH,found,hoursDedicated,actorEmail,now);
-    const writeStarted=Date.now();
-    if(!existingLogRow)await sheetsValuesAppend('Log realized audits!A:'+a1col(logH.length),[logRow]);
-    if(obligationWrites.length||linkWrites.length||availabilityWrites.length)await sheetsValuesBatchUpdate([...obligationWrites,...linkWrites,...availabilityWrites]);
-    if(newPlanningRows.length)await sheetsValuesAppend('Audit planning!A:'+a1col(apH.length),newPlanningRows);
-    if(newObRows.length)await sheetsValuesAppend('Audit_Obligations!A:'+a1col(oh.length),newObRows);
-    if(newLinkRows.length)await sheetsValuesAppend('Audit_Visit_Obligations!A:'+a1col(lh.length),newLinkRows);
+    const logRow=directCompletedLogRow(logH,found,hoursDedicated,actorEmail,now,completedFormalHours);
+    const writeStarted=Date.now(),allWrites=[...obligationWrites,...linkWrites,...availabilityWrites];
+    if(!existingLogRow)allWrites.push({range:'Log realized audits!A'+(log.length+1)+':'+a1col(logH.length)+(log.length+1),values:[logRow]});
+    for(let i=0;i<newPlanningRows.length;i++)allWrites.push({range:'Audit planning!A'+(ap.length+i+1)+':'+a1col(apH.length)+(ap.length+i+1),values:[newPlanningRows[i]]});
+    for(let i=0;i<newObRows.length;i++)allWrites.push({range:'Audit_Obligations!A'+(obs.length+i+1)+':'+a1col(oh.length)+(obs.length+i+1),values:[newObRows[i]]});
+    for(let i=0;i<newLinkRows.length;i++)allWrites.push({range:'Audit_Visit_Obligations!A'+(links.length+i+1)+':'+a1col(lh.length)+(links.length+i+1),values:[newLinkRows[i]]});
+    if(allWrites.length)await sheetsValuesBatchUpdate(allWrites);
     const writeMs=Date.now()-writeStarted+existingLogCorrectionMs;
 
     const deleteStarted=Date.now();await sheetsDeleteRow('Audit planning',found.sourceRow);const deleteMs=Date.now()-deleteStarted;
@@ -621,7 +621,7 @@ async function directManagerComplete(identity,body){
     const queueRows=[[minuteStamp,'AUDIT_TRAIL','LIFECYCLE_STATUS_CHANGED','',auditId,company,'[TRAIL] LIFECYCLE_STATUS_CHANGED :: '+auditId,trailBody,0,'',trailHash,'',JSON.stringify({payload:trailPayload})]];
     let sideEffectQueue={success:true};const sideStarted=Date.now();try{await sheetsValuesAppend('Notification Queue!A:M',queueRows);}catch(e){sideEffectQueue={success:false,error:clean(e?.message||e)}}const sideEffectMs=Date.now()-sideStarted;
 
-    const successorRows=newPlanningRows.map((nr,i)=>{const mapped=managerOpen([apH,nr],actorEmail,cfgValues,companies).rows[0];if(mapped)mapped.sourceRow=ap.length+i;return mapped;}).filter(Boolean);
+    const successorRows=newPlanningRows.map((nr,i)=>{const mapped=managerOpen([apH,nr],actorEmail,cfgValues,companies).rows[0];if(mapped)mapped.sourceRow=ap.length+i+1;return mapped;}).filter(Boolean);
     return{success:true,auditId,action:'COMPLETE',beforeStatus,newStatus:'Completed',afterStatus:'COMPLETED',afterStatusDisplay:'Completed',hoursDedicated,directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_COMPLETE',successorAuditIds:successorIds,successorRows,readMs,writeMs,deleteMs,availabilityRows:availabilityWrites.length,sideEffectMs,sideEffectQueue,totalMs:Date.now()-started};
   });
 }

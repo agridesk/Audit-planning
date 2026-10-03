@@ -6,7 +6,7 @@
  * - Legacy/open handoff remains supported for compatibility.
  * - Commit mode delegates to canonical saveManagerPlanning().
  ***********************************************************************/
-var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-09-29_EXTERNAL_PLANNING_WORKSPACE_HANDOFF_R18_IFRAME_RESULT_DOCUMENT';
+var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-10-03_GRID2_SELECTION_HANDOFF_R19';
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_MAX_FUTURE_MS = 90 * 1000;
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CLOCK_SKEW_MS = 10 * 1000;
 
@@ -47,6 +47,18 @@ function ExternalPlanningWorkspaceHandoff_payload_(email, role, auditId, expMs) 
   ].join('\n');
 }
 
+function ExternalPlanningWorkspaceHandoff_selectionPayload_(email, role, selectionMode, expMs, selectedAuditIdsJson) {
+  return [
+    'v3',
+    'PLANNING_SELECTION_OPEN',
+    String(email || '').trim().toLowerCase(),
+    String(role || '').trim(),
+    String(selectionMode || '').trim().toLowerCase(),
+    String(expMs || '').trim(),
+    ExternalPlanningWorkspaceHandoff_sha256_(selectedAuditIdsJson)
+  ].join('\n');
+}
+
 function ExternalPlanningWorkspaceHandoff_commitPayload_(email, role, auditId, expMs, planningPayloadJson) {
   return [
     'v2',
@@ -70,8 +82,22 @@ function ExternalPlanningWorkspaceHandoff_verify_(p) {
   var supplied = String(p.signature || p.sig || '').trim();
   var mode = String(p.mode || '').trim().toLowerCase();
   var auditorEmail = String(p.auditorEmail || '').trim().toLowerCase();
+  var selectedAuditIdsJson = String(p.selectedAuditIds || '').trim();
+  var selectionMode = String(p.selectionMode || '').trim().toLowerCase();
+  var selectedAuditIds = [];
+  if (selectedAuditIdsJson) {
+    try { selectedAuditIds = JSON.parse(selectedAuditIdsJson); } catch (eSelJson) { return { ok:false, error:'SELECTION_BAD_JSON' }; }
+    if (!Array.isArray(selectedAuditIds)) return { ok:false, error:'SELECTION_BAD_JSON' };
+    var selSeen = {}, selClean = [];
+    selectedAuditIds.forEach(function(v){ var id=String(v||'').trim(); if(id&&!selSeen[id]){selSeen[id]=1;selClean.push(id);} });
+    selectedAuditIds = selClean;
+    selectedAuditIdsJson = JSON.stringify(selectedAuditIds);
+    if (!selectedAuditIds.length) return { ok:false, error:'SELECTION_EMPTY' };
+    if (selectedAuditIds.length > 500) return { ok:false, error:'SELECTION_TOO_LARGE' };
+    if (selectionMode !== 'batch' && selectionMode !== 'concept') return { ok:false, error:'SELECTION_MODE_INVALID' };
+  }
 
-  if (!email || !auditId || !role || !expMs || !supplied) {
+  if (!email || (!auditId && !selectedAuditIds.length) || !role || !expMs || !supplied) {
     return { ok:false, error:'HANDOFF_REQUIRED_FIELDS_MISSING' };
   }
   if (role.toLowerCase() !== 'manager') return { ok:false, error:'ROLE_FORBIDDEN' };
@@ -93,6 +119,8 @@ function ExternalPlanningWorkspaceHandoff_verify_(p) {
     planningPayloadJson = String(p.planningPayload == null ? '' : p.planningPayload);
     if (!planningPayloadJson) return { ok:false, error:'PLANNING_PAYLOAD_REQUIRED' };
     payload = ExternalPlanningWorkspaceHandoff_commitPayload_(email, 'Manager', auditId, expMs, planningPayloadJson);
+  } else if (selectedAuditIds.length) {
+    payload = ExternalPlanningWorkspaceHandoff_selectionPayload_(email, 'Manager', selectionMode, expMs, selectedAuditIdsJson);
   } else {
     // Rotation is a read-only submode of the signed planning-open contract.
     // Its auditorEmail is request data, not part of the v1 signature.
@@ -113,7 +141,9 @@ function ExternalPlanningWorkspaceHandoff_verify_(p) {
     expMs:expMs,
     mode:mode === 'commit' ? 'commit' : (mode === 'rotation' ? 'rotation' : 'open'),
     auditorEmail:auditorEmail,
-    planningPayloadJson:planningPayloadJson
+    planningPayloadJson:planningPayloadJson,
+    selectedAuditIds:selectedAuditIds,
+    selectionMode:selectionMode
   };
 }
 
@@ -218,11 +248,20 @@ function ExternalPlanningWorkspaceHandoff_render_(identity) {
 
   var auditId = String(identity.auditId || '').trim();
   var email = String(identity.email || '').trim().toLowerCase();
-  if (!auditId) throw new Error('AUDIT_ID_REQUIRED');
+  var selectedAuditIds = Array.isArray(identity.selectedAuditIds) ? identity.selectedAuditIds.slice() : [];
+  var selectionMode = String(identity.selectionMode || '').trim().toLowerCase();
+  if (!auditId && !selectedAuditIds.length) throw new Error('AUDIT_OR_SELECTION_REQUIRED');
   if (!email) throw new Error('ACTOR_EMAIL_REQUIRED');
 
+  var selectionValidation = null;
+  if (selectedAuditIds.length) {
+    selectionValidation = Grid2Selection_validate({auditIds:selectedAuditIds,actorRole:'Manager',actorEmail:email,action:selectionMode});
+    selectedAuditIds = selectionValidation.validAuditIds || [];
+    if (!selectedAuditIds.length) throw new Error('GRID2_SELECTION_NO_CURRENT_AUDITS');
+  }
   var bootstrap = PlanningWorkspaceRpc_bootstrap({
     auditId:auditId,
+    auditIds:selectedAuditIds,
     role:'Manager',
     actorRole:'Manager',
     actorEmail:email,
@@ -230,7 +269,7 @@ function ExternalPlanningWorkspaceHandoff_render_(identity) {
   });
   var out = PlanningWorkspaceUi_render({ env:'DEV' });
   var html = out && typeof out.getContent === 'function' ? out.getContent() : String(out || '');
-  var auth = { email:email, role:'Manager', auditId:auditId, action:'planningworkspace' };
+  var auth = { email:email, role:'Manager', auditId:auditId, selectedAuditIds:selectedAuditIds, selectionMode:selectionMode, selectionValidation:selectionValidation, action:'planningworkspace' };
   var seed = '<script>window.__PW_ENTRY_DIRECT_SHELL=true;window.__PW_ENTRY_AUTH=' +
     JSON.stringify(auth).replace(/<\//g,'<\\/') +
     ';window.__PW_HTTP_BOOTSTRAP=' +

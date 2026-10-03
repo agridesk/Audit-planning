@@ -937,8 +937,6 @@ function auditorV5_buildActiveGrid_U20409(activeEmail, diag) {
     var scopesPack = auditorV5_extractScopesForRow_(hdr, row);
     var scopes = scopesPack.scopes;
     var scopesText = scopesPack.scopesText;
-    var schedulingTarget = auditorV5_schedulingTargetForRow_(hdr, row);
-    var committedScheduledHours = planned.plannedHours || '';
     var formalPlannedHours = planned.plannedDates ? toBePlanned : '';
 
     var canPlan = (!assignedMatch) && preassignedMatch && (statusNorm === "PENDING_PLANNING") && (allowSelfPlanning === "YES");
@@ -969,8 +967,6 @@ function auditorV5_buildActiveGrid_U20409(activeEmail, diag) {
       expirationDate: expirationDate,
       plannedDates: planned.plannedDates,
       plannedHours: formalPlannedHours,
-      scheduledHours: committedScheduledHours,
-      schedulingHoursTarget: schedulingTarget,
       status: String(statusRaw || "").toUpperCase(),
       readOnly: (String(auditIdS).indexOf("ROW_") === 0)
     });
@@ -3422,8 +3418,6 @@ function AuditorV5_GetAuditorGrid_FAST(req) {
       if (idxToBePlanned >= 0 && row[idxToBePlanned] !== null && row[idxToBePlanned] !== undefined && row[idxToBePlanned] !== '') {
         toBePlanned = String(row[idxToBePlanned]).trim();
       }
-      var schedulingTarget = auditorV5_schedulingTargetForRow_(hdr, row);
-      var committedScheduledHours = planned.plannedHours || '';
       var formalPlannedHours = planned.plannedDates ? toBePlanned : '';
 
       rows.push({
@@ -3451,8 +3445,6 @@ function AuditorV5_GetAuditorGrid_FAST(req) {
         expirationDate: expirationDate,
         plannedDates: planned.plannedDates || '',
         plannedHours: formalPlannedHours,
-        scheduledHours: committedScheduledHours,
-        schedulingHoursTarget: schedulingTarget,
         status: String(statusRaw || '').toUpperCase(),
         readOnly: String(auditId).indexOf('ROW_') === 0,
         needsEnrichment: true

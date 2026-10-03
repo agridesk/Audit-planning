@@ -31,6 +31,9 @@ assert.doesNotMatch(baseServer,/externalcompleteclaim/,'Manager Complete hot pat
 assert.match(baseServer,/async function directAuditorComplete/,'Auditor and Manager must share the same direct Complete owner');
 assert.match(baseServer,/async function directComplete\(identity,body,actorRole\)/,'Shared role-aware Complete transaction owner must exist');
 assert.match(baseServer,/AUDITOR_NOT_ASSIGNED/,'Direct Auditor Complete must enforce assigned auditor identity');
+assert.match(baseServer,/actorRole==='MANAGER'&&logHoursIx>=0&&existingHours!==hoursDedicated/,'Manager retry must own realized-hours precedence');
+assert.match(baseServer,/actorRole==='AUDITOR'&&existingHours>0\?existingHours:hoursDedicated/,'Auditor retry must preserve already committed Manager hours');
+assert.match(baseServer,/withDirectManagerActionLock\(auditId/,'Manager and Auditor Complete must serialize on the same audit lock');
 assert.match(server,/\/api\/v1\/internal\/auditor\/complete-direct/,'R10 must proxy Auditor Complete into shared owner');
 assert.match(read('../../cloudbuild.ams-transport-proof.yaml'),/--max-instances\s*\n\s*- '1'/,'Shared process Complete lock requires Cloud Run max-instances=1');
 assert.match(auditor,/auditorV5_completeViaCloudRun_/,'DEV Auditor Complete must route through Cloud Run shared owner');

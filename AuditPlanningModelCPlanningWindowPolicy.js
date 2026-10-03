@@ -34,30 +34,37 @@ function ModelCPlanningWindowPolicy_addMonthsIso_(iso,months){
   return String(ny)+'-'+('0'+nm).slice(-2)+'-'+('0'+Math.min(d,last)).slice(-2);
 }
 
-function ModelCPlanningWindowPolicy_scopeConfig_(ss,scope){
-  var sh=ss.getSheetByName('Config_Scopes');
-  if(!sh||sh.getLastRow()<2)return null;
+function ModelCPlanningWindowPolicy_configMap_(ss){
+  var sh=ss.getSheetByName('Config_Scopes'),out={};
+  if(!sh||sh.getLastRow()<2)return out;
   var values=sh.getDataRange().getValues(),h=values[0]||[];
   function ix_(names){for(var i=0;i<h.length;i++){var key=String(h[i]||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();for(var j=0;j<names.length;j++)if(key===names[j])return i;}return-1;}
   var cCode=ix_(['scopecode','scope code','code']),cDisplay=ix_(['displayname','display name','name','scope']),cActive=ix_(['active']),cArchived=ix_(['archived']),cCycle=ix_(['obligation cycle','obligation_cycle','cycle']),cComplete=ix_(['complete by','complete_by','must be completed by']),cFrom=ix_(['planning from','planning_from','planningfrom']),cTo=ix_(['planning to','planning_to','planningto']);
-  var want=String(scope||'').trim().toLowerCase();
   for(var r=1;r<values.length;r++){
     var code=cCode>=0?String(values[r][cCode]||'').trim():'',display=cDisplay>=0?String(values[r][cDisplay]||'').trim():'';
-    if(String(code||display).toLowerCase()!==want&&String(display).toLowerCase()!==want)continue;
     var active=cActive<0||['','yes','true','1','x','ja'].indexOf(String(values[r][cActive]||'').trim().toLowerCase())>=0;
     var archived=cArchived>=0&&['yes','true','1','x','ja'].indexOf(String(values[r][cArchived]||'').trim().toLowerCase())>=0;
-    if(!active||archived)return null;
-    return{
+    if(!active||archived)continue;
+    var cfg={
+      scopeCode:code,
+      displayName:display,
       obligationCycle:cCycle>=0?String(values[r][cCycle]||'').trim().toUpperCase():'',
       completeBy:cComplete>=0?String(values[r][cComplete]||'').trim():'',
       planningFromRaw:cFrom>=0?String(values[r][cFrom]===null||values[r][cFrom]===undefined?'':values[r][cFrom]).trim():'',
       planningToRaw:cTo>=0?String(values[r][cTo]===null||values[r][cTo]===undefined?'':values[r][cTo]).trim():''
     };
+    if(code)out[code.toUpperCase()]=cfg;
+    if(display)out[display.toUpperCase()]=cfg;
   }
-  return null;
+  return out;
 }
 
-function ModelCPlanningWindowPolicy_resolveObligation_(ss,ob){
+function ModelCPlanningWindowPolicy_scopeConfig_(ss,scope,configMap){
+  configMap=configMap||ModelCPlanningWindowPolicy_configMap_(ss);
+  return configMap[String(scope||'').trim().toUpperCase()]||null;
+}
+
+function ModelCPlanningWindowPolicy_resolveObligation_(ss,ob,configMap){
   ss=ss||SpreadsheetApp.getActive();ob=ob||{};
   var scope=ModelCPlanningWindowPolicy_text_(ob.ScopeCode);
   var cycle=ModelCPlanningWindowPolicy_text_(ob.Cycle_Key);
@@ -74,7 +81,7 @@ function ModelCPlanningWindowPolicy_resolveObligation_(ss,ob){
 
   var recurring=ModelCRecurringConfig_isRecurring_(ss,scope);
   if(recurring===false&&/^20\d{2}$/.test(cycle)){
-    var cfg=ModelCPlanningWindowPolicy_scopeConfig_(ss,scope);
+    var cfg=ModelCPlanningWindowPolicy_scopeConfig_(ss,scope,configMap);
     if(cfg&&cfg.obligationCycle==='ANNUAL'&&/^(0[1-9]|1[0-2])-([0-2][0-9]|3[01])$/.test(cfg.completeBy)){
       var deadline=cycle+'-'+cfg.completeBy,cycleStart=cycle+'-01-01';
       var hasFrom=cfg.planningFromRaw!=='',hasTo=cfg.planningToRaw!=='';
@@ -106,9 +113,9 @@ function ModelCPlanningWindowPolicy_resolveObligation_(ss,ob){
 function ModelCPlanningWindowPolicy_resolveVisitObligations_(ss,obligations){
   ss=ss||SpreadsheetApp.getActive();obligations=obligations||[];
   if(!obligations.length)return{success:false,hardBlock:true,reason:'NO_OBLIGATIONS',scopeWindows:[]};
-  var windows=[],failures=[];
+  var configMap=ModelCPlanningWindowPolicy_configMap_(ss),windows=[],failures=[];
   obligations.forEach(function(ob){
-    var r=ModelCPlanningWindowPolicy_resolveObligation_(ss,ob);
+    var r=ModelCPlanningWindowPolicy_resolveObligation_(ss,ob,configMap);
     if(!r.success){failures.push(r);return;}
     windows.push({scope:r.scopeCode,start:r.startDate,end:r.endDate,mode:r.reason,fallback:r.fallback===true});
   });

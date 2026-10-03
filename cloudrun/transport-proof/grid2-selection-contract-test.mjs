@@ -24,6 +24,8 @@ has(managerHtml,'id="selectionBatch"','Manager selection bar must expose Batch p
 has(managerHtml,'id="selectionConcept"','Manager selection bar must expose Concept planning');
 has(managerHtml,'id="selectionExport"','Manager selection bar must expose Export');
 has(managerHtml,'id="selectionClear"','Manager selection bar must expose Clear');
+has(managerHtml,'Batch / Workweek planning','Manager Batch action must explain its workweek/optimizer meaning');
+has(managerHtml,'Concept / Annual planning','Manager Concept action must explain its annual-planning meaning');
 has(manager,'var gridSelected=new Set();','Manager selection must be one shared local Set');
 has(manager,'id=\\\"gridSelectAll\\\"','Manager header must expose Select all visible checkbox');
 has(manager,'function selectionSelectVisible(on)','Manager Select all visible handler must exist');
@@ -59,6 +61,8 @@ has(selection,'NOT_PREASSIGNED_TO_AUDITOR','Auditor selection must revalidate pr
 has(selection,'STATUS_NOT_PENDING_PLANNING','Auditor Batch Concept must revalidate Pending Planning');
 has(selection,'ALREADY_ASSIGNED','Auditor Batch Concept must reject already assigned rows');
 has(selection,'periodFrom','Selection validator must derive selected planning period without writes');
+has(selection,"__mp_getAuditPlanningRows_(ss,ids)",'Selection action validation must prefer indexed bulk Audit planning reads');
+has(selection,"strategy:'STALE_SELECTION_FALLBACK_SCAN'",'Full Audit planning scan may exist only as explicit stale-selection fallback');
 
 has(handoff,'ExternalPlanningWorkspaceHandoff_selectionPayload_','External Manager selection must use signed selection handoff');
 has(handoff,"Grid2Selection_validate({auditIds:selectedAuditIds,actorRole:'Manager'",'Manager selection must be backend-revalidated before Workspace');
@@ -66,6 +70,8 @@ has(handoff,'selectedAuditIds:selectedAuditIds','Workspace handoff must carry se
 has(workspaceEntry,'Grid2Selection_validate({auditIds:validSelected,actorRole:expectedRole','Workspace entry must revalidate selected IDs again');
 has(decision,'else if(selectedIds.length)rows=rows.filter','Planning Workspace read model must restrict demand rows to explicit selected set');
 has(workspaceClient,'function applyEntrySelection()','Planning Workspace must seed its existing batch selector from Grid selection');
+has(workspaceClient,"m==='batch'?'Batch / Workweek planning':m==='concept'?'Concept / Annual planning':''",'Workspace must preserve a visible distinction between Batch and Concept entry modes');
+assert.ok(!read('../../PlanningWorkspace.html').includes('Generate concept for selected'),'Concrete date/route proposal UI must not overload Annual Concept terminology');
 has(workspaceClient,'state.selected={};state.selectionOrder=[]','Grid handoff must feed the existing Workspace selection mechanism');
 has(batch,'if(Array.isArray(input.auditIds)&&input.auditIds.length)request.auditIds=input.auditIds','Batch optimizer must accept explicit Audit ID start set');
 has(batch,'writesPerformed:false','Batch proposal generation must remain read-only');

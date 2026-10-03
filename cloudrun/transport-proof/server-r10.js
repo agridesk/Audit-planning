@@ -8,13 +8,27 @@ const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
 const RELAY_PARENT_ORIGIN='https://ams-transport-proof-510075419067.europe-west1.run.app';
-const BUILD='2026-10-03_COMPLETE_V29_DIRECT_R6_SHARED_AUDITOR_OWNER';
+const BUILD='2026-10-03_GRID2_SELECTION_R7';
 
 process.env.PORT=String(INNER_PORT);
 await import('./server-r9.js');
 process.env.PORT=String(PUBLIC_PORT);
 
 function relayPayload(email,role,exp,origin,nonce){return ['v3','MANAGER_ACTION_WARM_WORKER',clean(email).toLowerCase(),clean(role),String(exp),clean(origin),clean(nonce)].join('\n');}
+function planningSelectionPayload(email,role,mode,exp,idsJson){
+  return ['v3','PLANNING_SELECTION_OPEN',clean(email).toLowerCase(),clean(role),clean(mode).toLowerCase(),String(exp),crypto.createHash('sha256').update(idsJson).digest('base64url')].join('\n');
+}
+function buildPlanningSelectionHandoff(identity,auditIds,mode){
+  if(!GAS_WRITE_URL||!WRITE_KEY)throw new Error('PLANNING_SELECTION_HANDOFF_NOT_CONFIGURED');
+  const email=clean(identity?.email).toLowerCase(),role='Manager',selectionMode=clean(mode).toLowerCase();
+  if(!email)throw new Error('MANAGER_IDENTITY_EMAIL_REQUIRED');
+  if(!['batch','concept'].includes(selectionMode))throw new Error('SELECTION_MODE_INVALID');
+  const seen=new Set(),ids=(Array.isArray(auditIds)?auditIds:[]).map(clean).filter(id=>id&&!seen.has(id)&&seen.add(id));
+  if(!ids.length)throw new Error('SELECTION_EMPTY');if(ids.length>500)throw new Error('SELECTION_TOO_LARGE');
+  const idsJson=JSON.stringify(ids),exp=Date.now()+60*1000,payload=planningSelectionPayload(email,role,selectionMode,exp,idsJson),signature=crypto.createHmac('sha256',WRITE_KEY).update(payload).digest('base64url');
+  return{url:GAS_WRITE_URL,fields:{action:'externalplanningworkspace',email,role,exp:String(exp),signature,selectedAuditIds:idsJson,selectionMode}};
+}
+
 function relaySignature(payload){return crypto.createHmac('sha256',WRITE_KEY).update(payload).digest('base64url');}
 function buildManagerRelayUrl(identity){
   if(!GAS_WRITE_URL||!WRITE_KEY)throw new Error('MANAGER_ACTION_RELAY_NOT_CONFIGURED');
@@ -141,6 +155,14 @@ http.createServer(async(req,res)=>{
     if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN',build:BUILD});
     try{const relay=buildManagerRelayUrl(identity);return sendJson(res,200,{success:true,url:relay.url,nonce:relay.nonce,expiresInMs:900000,build:BUILD});}
     catch(e){return sendJson(res,500,{success:false,error:clean(e?.message||e),build:BUILD});}
+  }
+  if(req.method==='POST'&&u.pathname==='/api/v1/manager/selection-handoff'){
+    const identity=await innerSession(req);
+    if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED',build:BUILD});
+    if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN',build:BUILD});
+    let body={};try{body=JSON.parse(raw||'{}');}catch{return sendJson(res,400,{success:false,error:'BAD_JSON',build:BUILD});}
+    try{return sendJson(res,200,{success:true,...buildPlanningSelectionHandoff(identity,body.auditIds,body.mode),build:BUILD});}
+    catch(e){return sendJson(res,400,{success:false,error:clean(e?.message||e),build:BUILD});}
   }
   if(req.method==='POST'&&u.pathname==='/api/v1/manager/open-enrichment'){
     const started=Date.now(),identity=await innerSession(req);if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED',build:BUILD});if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN',build:BUILD});let body={};try{body=JSON.parse(raw||'{}');}catch{return sendJson(res,400,{success:false,error:'BAD_JSON',build:BUILD});}const auditIds=Array.isArray(body.auditIds)?body.auditIds.map(clean).filter(Boolean):[];if(!auditIds.length)return sendJson(res,200,{success:true,rows:[],perf:{totalMs:Date.now()-started},build:BUILD});if(auditIds.length>500)return sendJson(res,400,{success:false,error:'TOO_MANY_AUDIT_IDS',build:BUILD});try{const x=await callGasBridge(identity,'externalmanageropenenriched',{auditIds}),normalized=await enrichManagerOpen(Object.assign({},x.result));return sendJson(res,200,Object.assign({},normalized,{perf:Object.assign({},normalized?.perf||{},{gasHttpMs:x.gasHttpMs,totalMs:Date.now()-started}),build:BUILD}));}catch(e){return sendJson(res,502,{success:false,error:clean(e?.message||e),gasResult:e?.gasResult||null,perf:{gasHttpMs:e?.gasHttpMs||null,totalMs:Date.now()-started},build:BUILD});}

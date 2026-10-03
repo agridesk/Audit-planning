@@ -544,6 +544,8 @@ function managerV5_appendAuditTrailToNotificationQueue_(shNotif, payload) {
     afterStatus:NB_clean_(payload.afterStatus),
     reason:NB_clean_(payload.reason),
     hours:payload.hours != null ? Number(payload.hours) : null,
+    oldHoursDedicated:payload.oldHoursDedicated != null ? Number(payload.oldHoursDedicated) : null,
+    newHoursDedicated:payload.newHoursDedicated != null ? Number(payload.newHoursDedicated) : null,
     source:NB_clean_(payload.source),
     timestamp:payload.timestamp || Utilities.formatDate(now, tz, 'yyyy-MM-dd HH:mm:ss'),
     action:NB_clean_(payload.action)

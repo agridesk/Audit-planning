@@ -99,34 +99,6 @@ function scopesForAudit(f,catalog){
   return [...new Set(out)];
 }
 
-function schedulingTargetForAudit(f,catalog,requiredFallback){
-  let total=0,matched=0;
-  for(const s of catalog||[]){
-    let on=false;
-    for(const k of [s.slotKey,s.scopeCode,s.displayName]){
-      const i=col(f.h,[k]);
-      if(i>=0&&yes(f.row[i])){on=true;break;}
-    }
-    if(!on)continue;
-    matched++;
-    let formal=0;
-    const durationCol=col(f.h,['Duration '+s.slotKey,'Duration '+s.scopeCode,'Duration '+s.displayName]);
-    if(durationCol>=0){
-      const n=Number(String(f.row[durationCol]??'').replace(',','.'));
-      if(Number.isFinite(n)&&n>0)formal=n;
-    }
-    if(!(formal>0))formal=Number(s.formalHours)||0;
-    const explicit=Number(s.schedulingHours)||0,delta=Number(s.schedulingHoursDelta)||0;
-    total+=explicit>0?explicit:Math.max(0,formal+delta);
-  }
-  if(!matched){
-    const fallback=Number(requiredFallback);
-    return Number.isFinite(fallback)&&fallback>=0?Math.round(fallback*100)/100:0;
-  }
-  return Math.round(total*100)/100;
-}
-
-
 function obligationPlanningForAudit(auditId,catalog,obValues,linkValues){
   const out=[];if(!obValues?.length||!linkValues?.length)return out;const cfg=new Map();for(const s of catalog||[])cfg.set(clean(s.scopeCode),s);const oh=obValues[0],oi=col(oh,['Obligation_ID','Obligation ID']),oc=col(oh,['ScopeCode','Scope Code']),of=col(oh,['Formal_Hours','Formal Hours']),os=col(oh,['Obligation_State','Obligation State']),obById=new Map();for(const r of obValues.slice(1)){const id=val(r,oi);if(id)obById.set(id,r);}const lh=linkValues[0],la=col(lh,['Audit_ID','Audit ID']),lo=col(lh,['Obligation_ID','Obligation ID']),ls=col(lh,['Link_State','Link State']);for(const lr of linkValues.slice(1)){if(val(lr,la)!==auditId||val(lr,ls).toUpperCase()!=='ACTIVE')continue;const ob=obById.get(val(lr,lo));if(!ob||['COMPLETED','CANCELLED','REJECTED'].includes(val(ob,os).toUpperCase()))continue;const code=val(ob,oc),def=cfg.get(code)||{},formal=Number(String(val(ob,of)||def.formalHours||'').replace(',','.'))||0,explicitScheduling=Number(def.schedulingHours||0),delta=Number(def.schedulingHoursDelta||0),scheduling=explicitScheduling>0?explicitScheduling:Math.max(0,formal+delta);out.push({obligationId:val(lr,lo),scopeCode:code,formalHours:formal,schedulingHours:scheduling,schedulingDelta:delta,schedulingSource:explicitScheduling>0?'CONFIG_SCOPES_SCHEDULING_HOURS':delta!==0?'CONFIG_SCOPES_SCHEDULING_HOURS_DELTA':'FORMAL_HOURS_FALLBACK'});}return out;
 }

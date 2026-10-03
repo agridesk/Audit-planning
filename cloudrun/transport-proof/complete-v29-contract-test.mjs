@@ -26,6 +26,14 @@ assert.match(portal,/action==='complete'\)\?runActionViaCloudRun|action==='compl
 assert.match(server,/managerAction==='complete'/,'R10 must route Complete directly');
 assert.match(server,/\/api\/v1\/manager\/complete-direct/,'R10 must proxy Complete to direct owner');
 assert.match(baseServer,/async function directManagerComplete/,'Direct Complete owner must exist in base runtime');
+assert.match(baseServer,/directAcquireCompleteClaim/,'Direct Manager Complete must acquire distributed GAS claim before commit');
+assert.match(baseServer,/directReleaseCompleteClaim/,'Direct Manager Complete must release distributed GAS claim after success');
+assert.match(completion,/CompletionService_AcquireExternalManagerClaim/,'Canonical CompletionService must expose distributed Manager claim owner');
+assert.match(completion,/COMPLETE_IN_PROGRESS_BY_MANAGER/,'Auditor Complete must fail closed while Manager claim is active');
+assert.match(read('../../EntryV5.js'),/externalcompleteclaim/,'DEV write bridge must expose Complete claim endpoint');
+assert.match(read('../../EntryV5.js'),/externalcompleterelease/,'DEV write bridge must expose Complete claim release endpoint');
+assert.match(baseServer,/REALIZED_HOURS_CORRECTED/,'Direct Manager precedence correction must be audit-trailed');
+assert.doesNotMatch(baseServer,/Date accepted','Date - Accepted'\],dateOnly\(g\(\['Date accepted','Date - Accepted','Date Accepted'\]\)\)\|\|dateOnly\(g\(\['Status since'\]\)\)/,'Legacy Date accepted must not be synthesized from Status since');
 assert.match(baseServer,/owner:'CLOUD_RUN_DIRECT_MANAGER_COMPLETE'/,'Direct Complete owner marker must be returned');
 assert.match(baseServer,/allWrites\.push\(\{range:'Log realized audits!A'/,'Direct Complete must persist realized history with explicit row write');
 assert.match(baseServer,/Audit_Obligations!A/,'Direct Complete must update Model C obligations');

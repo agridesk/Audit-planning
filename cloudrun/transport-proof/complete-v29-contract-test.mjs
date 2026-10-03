@@ -31,6 +31,11 @@ assert.match(completion,/COMPLETION_MANAGER_CONCURRENCY_OVERRIDE/,'Manager concu
 assert.match(completion,/alreadyCompleted:true/,'Canonical CompletionService must reconcile idempotent retry after completion');
 assert.doesNotMatch(completion,/v5_syncAuditArtifactsSafe_\(\{ fullRebuild:true \}\)/,'Complete hot path must not synchronously full-rebuild artifacts');
 assert.match(modelC,/MODEL_C_FINALIZATION_FAILED/,'Model C completion finalization must fail closed instead of warning-only');
+assert.doesNotMatch(modelC,/ModelCScopeOwner_snapshotSheet_\(ap\)/,'Complete successor hot path must not snapshot full Audit planning');
+assert.doesNotMatch(modelC,/ModelCScopeOwner_writeObjects_\(obSheet/,'Complete successor hot path must not rewrite all obligations');
+assert.doesNotMatch(modelC,/ModelCScopeOwner_writeObjects_\(lkSheet/,'Complete successor hot path must not rewrite all visit links');
+assert.match(modelC,/ModelCAnnualCycle_appendObjects_/,'Complete successor hot path must batch-append only new Model C rows');
+assert.match(modelC,/perf\.totalMs/,'Complete Model C hot path must expose timings');
 assert.match(log,/oldHoursDedicated/,'Realized-hours correction must retain old value for audit trail');
 assert.match(log,/newHoursDedicated/,'Realized-hours correction must retain new value for audit trail');
 assert.match(auditor,/Missing authenticated auditor email/,'Auditor Complete actor must come from authenticated identity');

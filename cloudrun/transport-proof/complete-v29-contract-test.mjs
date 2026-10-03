@@ -28,6 +28,7 @@ assert.match(server,/\/api\/v1\/manager\/complete-direct/,'R10 must proxy Comple
 assert.match(baseServer,/async function directManagerComplete/,'Direct Complete owner must exist in base runtime');
 assert.match(baseServer,/directAcquireCompleteClaim/,'Direct Manager Complete must acquire distributed GAS claim before commit');
 assert.match(baseServer,/directReleaseCompleteClaim/,'Direct Manager Complete must release distributed GAS claim after success');
+assert.match(baseServer,/finally\{[\s\S]*directReleaseCompleteClaim/,'Distributed Complete claim must release on error paths as well');
 assert.match(completion,/CompletionService_AcquireExternalManagerClaim/,'Canonical CompletionService must expose distributed Manager claim owner');
 assert.match(completion,/COMPLETE_IN_PROGRESS_BY_MANAGER/,'Auditor Complete must fail closed while Manager claim is active');
 assert.match(read('../../EntryV5.js'),/externalcompleteclaim/,'DEV write bridge must expose Complete claim endpoint');

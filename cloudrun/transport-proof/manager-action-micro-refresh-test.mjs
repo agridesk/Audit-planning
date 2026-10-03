@@ -33,6 +33,9 @@ const checks=[
 ['Complete route explicit through r10',r10.includes("managerAction==='complete'")&&r10.includes("/api/v1/manager/complete-direct")],
 ['Complete direct owner writes realized history',r4.includes("async function directManagerComplete")&&r4.includes("allWrites.push({range:'Log realized audits!A'")&&r4.includes("owner:'CLOUD_RUN_DIRECT_MANAGER_COMPLETE'")],
 ['Complete returns successor rows for local micro refresh',r4.includes("successorRows")&&manager.includes("result&&Array.isArray(result.successorRows)")],
+['Complete uses distributed cross-runtime claim',r4.includes("directAcquireCompleteClaim")&&r4.includes("externalcompleteclaim")&&entry.includes("CompletionService_AcquireExternalManagerClaim")],
+['Complete releases distributed claim after success',r4.includes("directReleaseCompleteClaim")&&r4.includes("externalcompleterelease")],
+
 
 ['no obsolete action-direct endpoint',!manager.includes("fetch('/api/v1/manager/action-direct'")&&!r10.includes("u.pathname==='/api/v1/manager/action-direct'")],
 ['no action canonical polling',!manager.includes('pollActionCanonical')],

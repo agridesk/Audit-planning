@@ -116,12 +116,34 @@ function managerV5Action(auditId, action, options) {
     }
 
     if (result.success === false || result.ok === false) {
+      if (actionKey === 'COMPLETE' && typeof CompletionService_CommitCompletion === 'function') {
+        var recoveredComplete = CompletionService_CommitCompletion({
+          auditId:auditId,
+          actorEmail:String(payload.actorEmail || payload.managerEmail || '').trim().toLowerCase(),
+          hoursDedicated:payload.hoursDedicated,
+          mode:'MANAGER_ON_BEHALF',
+          reason:String(payload.reason || '').trim()
+        });
+        if (recoveredComplete && recoveredComplete.success === true) return done_(recoveredComplete);
+      }
       return done_(result);
     }
 
     return done_(result);
 
   } catch (e) {
+    if (action === 'complete' && typeof CompletionService_CommitCompletion === 'function') {
+      try {
+        var recoveredAfterException = CompletionService_CommitCompletion({
+          auditId:auditId,
+          actorEmail:String(options.actorEmail || options.managerEmail || '').trim().toLowerCase(),
+          hoursDedicated:options.hoursDedicated,
+          mode:'MANAGER_ON_BEHALF',
+          reason:String(options.reason || '').trim()
+        });
+        if (recoveredAfterException && recoveredAfterException.success === true) return done_(recoveredAfterException);
+      } catch (eRecovery) {}
+    }
     return done_({
       success:false,
       ok:false,

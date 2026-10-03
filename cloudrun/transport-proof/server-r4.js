@@ -198,8 +198,6 @@ function availabilityProjection(values,candidates,from,to,context){
 }
 
 function blocks(raw){if(Array.isArray(raw))return raw;try{const p=JSON.parse(clean(raw));return Array.isArray(p)?p:(Array.isArray(p?.blocks)?p.blocks:[]);}catch{return[];}}
-function planningBlockHours(raw){let total=0,seen=false;for(const b of blocks(raw)){const explicit=Number(b?.hours);if(Number.isFinite(explicit)&&explicit>0){total+=explicit;seen=true;continue;}const s=clean(b?.start),e=clean(b?.end);if(/^\d{2}:\d{2}$/.test(s)&&/^\d{2}:\d{2}$/.test(e)){const [sh,sm]=s.split(':').map(Number),[eh,em]=e.split(':').map(Number),mins=(eh*60+em)-(sh*60+sm);if(mins>0){total+=mins/60;seen=true;}}}return seen?Math.round(total*100)/100:null;}
-
 function reservationProjection(values,emails,from,to,auditContext){
   const set=new Set(emails.map(x=>clean(x).toLowerCase())),rows=[],staleRows=[];auditContext=auditContext||{};
   if(!values.length)return{rows,byAuditorEmail:{},byAuditId:{},staleRows:[]};

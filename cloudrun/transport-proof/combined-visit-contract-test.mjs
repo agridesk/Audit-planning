@@ -74,9 +74,9 @@ console.log(JSON.stringify({
     managerActionMirrorsV1:true,
     synchronousActionRereadRemoved:true,
     cancelClearsFormalCommittedHours:true,
-pendingPlanningClearsCommittedHours:true
+pendingPlanningClearsCommittedHours:true,
     targetedManagerReread:true,
-schedulingDeltaPlanningSemanticsRemoved:true
+schedulingDeltaPlanningSemanticsRemoved:true,
     combinedVisitGuardsRetained:true
   }
 },null,2));

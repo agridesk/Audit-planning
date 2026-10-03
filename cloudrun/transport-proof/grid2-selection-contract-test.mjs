@@ -13,6 +13,7 @@ const workspaceEntry=read('../../zz_PlanningWorkspaceEntryRouteOverride.js');
 const workspaceClient=read('../../PlanningWorkspaceClient.js.html');
 const decision=read('../../PlanningWorkspaceDecisionReadModel.js');
 const batch=read('../../BatchPlanningManagerApi.js');
+const rpc=read('../../PlanningWorkspaceRpc.js');
 
 assert.match(managerHtml,/id="selectionBar"/,'Manager must have contextual selection bar');
 assert.match(managerHtml,/id="selectionBatch"[sS]*Batch plan/,'Manager selection bar must expose Batch plan');
@@ -62,5 +63,14 @@ assert.match(workspaceClient,/function applyEntrySelection()/,'Planning Workspac
 assert.match(workspaceClient,/state.selected={};state.selectionOrder=[]/,'Grid handoff must feed the existing Workspace selection mechanism');
 assert.match(batch,/auditIds:Array.isArray(input.auditIds)/,'Batch optimizer must accept explicit Audit ID start set');
 assert.match(batch,/writesPerformed:false/,'Batch proposal generation must remain read-only');
+assert.match(rpc,/function PlanningWorkspaceRpc_generateBatchConcept/,'Selected Batch generation must use browser-facing Workspace RPC');
+assert.match(rpc,/PWR_validateSelectedAuditorIds_\(input,'batch'\)/,'Auditor Batch generation must revalidate self-planning selection server-side');
+assert.match(rpc,/V5_AUTH\.validateTrustedTokenByRole\(token,'Auditor',deviceId\)/,'Auditor Workspace batch actions must authenticate trusted token');
+assert.match(rpc,/function PWR_scopeConceptBatch_/,'Auditor batch concept persistence must be role-scoped');
+assert.match(rpc,/PWR_validateSelectedAuditorIds_\(authInput,'concept'\)/,'Auditor batch concept persistence must revalidate selected audits');
+assert.match(workspaceClient,/PlanningWorkspaceRpc_generateBatchConcept\(payload\)/,'Workspace client must not call unrestricted Batch generator directly');
+assert.doesNotMatch(workspaceClient,/\.getBatchPlanningConceptV5\(/,'Workspace browser must not call unrestricted Batch generator directly');
+assert.match(workspaceClient,/trustedToken:rq\.trustedToken/,'Auditor concept batch save must carry authenticated context');
+
 
 console.log('Grid 2.0 shared multi-selection contract test passed');

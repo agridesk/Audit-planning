@@ -32,6 +32,7 @@ assert.match(baseServer,/async function directAuditorComplete/,'Auditor and Mana
 assert.match(baseServer,/async function directComplete\(identity,body,actorRole\)/,'Shared role-aware Complete transaction owner must exist');
 assert.match(baseServer,/AUDITOR_NOT_ASSIGNED/,'Direct Auditor Complete must enforce assigned auditor identity');
 assert.match(server,/\/api\/v1\/internal\/auditor\/complete-direct/,'R10 must proxy Auditor Complete into shared owner');
+assert.match(read('../../cloudbuild.ams-transport-proof.yaml'),/--max-instances\s*\n\s*- '1'/,'Shared process Complete lock requires Cloud Run max-instances=1');
 assert.match(auditor,/auditorV5_completeViaCloudRun_/,'DEV Auditor Complete must route through Cloud Run shared owner');
 assert.doesNotMatch(completion,/CompletionService_AcquireExternalManagerClaim/,'Obsolete Apps Script Complete claim layer must be removed');
 assert.match(baseServer,/REALIZED_HOURS_CORRECTED/,'Direct Manager precedence correction must be audit-trailed');

@@ -959,7 +959,7 @@ function directPlanningCommit(identity,body){
 
     const h=ap[0]||[],row=found.row.slice(),set=(names,value)=>{const i=col(h,names);if(i>=0)row[i]=value;};
     const now=isoLocalStamp(),formalHours=Math.round(Number(audit.formalHours||audit.requiredHours||0)*100)/100,planningJson=JSON.stringify({blocks:requested,formalHours,totalPlannedHours:formalHours,auditorEmail,auditorName});
-    set(['Assigned to'],auditorEmail);set(['Date - Planned'],requested[0].date);set(['Date - Approved'],now.slice(0,10));set(['Status'],'Approved');set(['Planning JSON'],planningJson);set(['Last manager decision'],'PLAN');set(['Last decision timestamp'],now);set(['Manager comment (last)'],clean(body?.comment));set(['Status since'],now);
+    set(['Assigned to'],auditorEmail);set(['Date - Planned'],requested[0].date);set(['Date - Approved'],now.slice(0,10));set(['Status'],'Approved');set(['Hours planned','Planned hours','Hours Planned'],formalHours);set(['Planning JSON'],planningJson);set(['Last manager decision'],'PLAN');set(['Last decision timestamp'],now);set(['Manager comment (last)'],clean(body?.comment));set(['Status since'],now);
     const maxTouchedAvailabilityRow=Math.max(0,...[...touched.values()].map(x=>x.sheetRow));if(maxTouchedAvailabilityRow)await sheetsEnsureRows('Auditor Availability',maxTouchedAvailabilityRow);
     const writes=[{range:'Audit planning!A'+found.sourceRow+':'+a1col(h.length)+found.sourceRow,values:[row]}];
     for(const x of touched.values())writes.push({range:'Auditor Availability!A'+x.sheetRow+':'+a1col(ah.length)+x.sheetRow,values:[x.row]});

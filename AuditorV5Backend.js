@@ -2569,7 +2569,11 @@ function AuditorV5_ValidateGridSelection(req) {
 function AuditorV5_ExportSelectedAudits(req) {
   req = req || {};
   var auditIds = Array.isArray(req.auditIds) ? req.auditIds : [];
-  var auditorEmail = String(req.auditorEmail || '').trim().toLowerCase();
+  var token=String(req.trustedToken||req.token||'').trim(),deviceId=String(req.deviceFingerprint||req.deviceId||'').trim(),claimed=String(req.auditorEmail||req.email||'').trim().toLowerCase(),auth=null;
+  if(typeof V5_ENTRY_isTestBypass_==='function'&&V5_ENTRY_isTestBypass_(claimed,'Auditor',token,deviceId))auth={ok:true,email:claimed};
+  if(!auth||auth.ok!==true){try{auth=V5_AUTH.validateTrustedTokenByRole(token,'Auditor',deviceId);}catch(eAuth){auth=null;}}
+  if(!auth||auth.ok!==true||!auth.email)return { success:false, message:'Auditor authentication required' };
+  var auditorEmail = String(auth.email || '').trim().toLowerCase();
   var rows = auditorV5_buildExportRows_(auditIds, auditorEmail);
   if (!rows.length) return { success:false, message:'No exportable rows found' };
   var stamp = Utilities.formatDate(new Date(), auditorV5_getTz_(), 'yyyyMMdd_HHmm');

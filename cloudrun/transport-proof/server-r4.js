@@ -5,7 +5,7 @@ import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
-const BUILD='2026-10-03_COMPLETE_V29_DIRECT_R50_AP_SCOPE_HOURS_OWNER';
+const BUILD='2026-10-03_GRID2_R51_STABLE_LOCATION_MAP_FIRST_PAINT';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
@@ -215,17 +215,55 @@ function reservationProjection(values,emails,from,to,auditContext){
   return{rows,byAuditorEmail,byAuditId,staleRows};
 }
 
+function managerCompanyGridMeta(companyValues){
+  const out=new Map();
+  if(!companyValues?.length)return out;
+  const h=companyValues[0];
+  const uid=col(h,['Company_UID','Company UID','CompanyUid']);
+  const cn=col(h,['Company']);
+  const loc=col(h,['Location']);
+  const reg=col(h,['Region']);
+  const gps=col(h,['GPS-data','GPS data','GPS','GPS HQ','HQ GPS']);
+  const json=col(h,['Locations_JSON','Locations JSON','locations_json']);
+  const locs=col(h,['Locations_to_plan','Locations to plan','Locs']);
+  for(const row of companyValues.slice(1)){
+    const company=val(row,cn),companyUid=val(row,uid),companyLocation=val(row,loc),region=val(row,reg);
+    let activeLocations=0,hqGps='';
+    const rawJson=val(row,json);
+    if(rawJson){
+      try{
+        const parsed=JSON.parse(rawJson);
+        const arr=Array.isArray(parsed)?parsed:(Array.isArray(parsed?.locations)?parsed.locations:[]);
+        for(const x of arr){
+          if(!x||x.active===false||String(x.active).toLowerCase()==='false')continue;
+          activeLocations++;
+          const code=clean(x.code||x.Code||x.locationCode||x.location_code).toUpperCase();
+          const g=clean(x.gps||x.GPS||x.gpsData||x['GPS-data']||x.gps_data||x.coordinates||x.latLng||x.latlng);
+          if(!hqGps&&code==='HQ')hqGps=g;
+        }
+      }catch{}
+    }
+    if(!(activeLocations>0)){
+      const n=Number(val(row,locs));
+      activeLocations=Number.isFinite(n)&&n>0?Math.round(n):1;
+    }
+    if(!hqGps)hqGps=val(row,gps);
+    const meta={region,activeLocations,hqGps};
+    for(const k of [companyUid,company+'|'+companyLocation,company])if(k&&!out.has(key(k)))out.set(key(k),meta);
+  }
+  return out;
+}
+
 function managerOpen(apValues,email,scopeValues,companyValues){
   if(!apValues.length)return{success:true,view:'open',rows:[],managerEmail:email,counts:{total:0,pendingPlanning:0,pendingApproval:0,approved:0,accepted:0}};
   const h=apValues[0],idx=n=>col(h,n),ci=idx(['Audit ID','Audit_ID','AuditId','Audit Id']),cs=idx(['Status']),cc=idx(['Company']),cl=idx(['Location']),ca=idx(['Assigned to','Assigned auditor','Auditor']),cp=idx(['Preassigned Auditor']),cself=idx(['Allow self planning']),ch=idx(['Total audit time in hours']),cph=idx(['Hours planned']),cd=idx(['Date planned','Date - Planned']),cm=idx(['Manager email']),cf=idx(['Planning window from']),ct=idx(['Planning window to']),cu=idx(['Company UID']),ce=idx(['Date - Will Expire','Date will expire','Expiration date']),cee=idx(['Extended Expiration Date']),cex=idx(['Extension Applied']),cpj=idx(['Planning JSON','Planning_JSON']),cldt=idx(['Last decision timestamp']),css=idx(['Status since']);
-  const catalog=scopeCatalog(scopeValues||[]),companyIndex=new Map();
-  if(companyValues?.length){const hh=companyValues[0],uid=col(hh,['Company_UID','Company UID','CompanyUid']),cn=col(hh,['Company']),loc=col(hh,['Location']),reg=col(hh,['Region']);for(const r of companyValues.slice(1)){const region=val(r,reg);if(!region)continue;const keys=[val(r,uid),val(r,cn)+'|'+val(r,loc),val(r,cn)];for(const k of keys)if(k&&!companyIndex.has(key(k)))companyIndex.set(key(k),region);}}
+  const catalog=scopeCatalog(scopeValues||[]),companyIndex=managerCompanyGridMeta(companyValues||[]);
   const allowed=new Set(['PENDING_PLANNING','PENDING_APPROVAL','APPROVED','ACCEPTED']),rows=[];
   for(const row of apValues.slice(1)){
     const id=val(row,ci);if(!id)continue;const raw=val(row,cs),statusKey=clean(raw).toUpperCase().replace(/[\s-]+/g,'_');if(!allowed.has(statusKey))continue;
     const rowMgr=val(row,cm).toLowerCase();if(email&&rowMgr&&rowMgr!==email)continue;
-    const company=val(row,cc),location=val(row,cl),uid=val(row,cu),region=companyIndex.get(key(uid))||companyIndex.get(key(company+'|'+location))||companyIndex.get(key(company))||'',from=dateOnly(row[cf]),to=dateOnly(row[ct]),pw=from&&to?from+' → '+to:(from||to||''),required=Number(row[ch]),scopes=scopesForAudit({h,row},catalog),expiry=dateOnly(row[cee])||dateOnly(row[ce]),ext=val(row,cex);
-    const actions=statusKey==='PENDING_PLANNING'?['PLAN','REJECT']:statusKey==='PENDING_APPROVAL'?['APPROVE','CANCEL','REJECT']:statusKey==='APPROVED'?['ACCEPT','CANCEL','REJECT']:statusKey==='ACCEPTED'?['COMPLETE','CANCEL','REJECT']:[];rows.push({auditId:id,source:'Audit planning',company,companyLocation:location,location,region,companyRegion:region,scopes,scopesText:scopes.join(', '),status:raw,statusKey,planningWindow:pw,planningWindowText:pw,planningDisplay:statusKey==='PENDING_PLANNING'?pw:dateOnly(row[cd]),plannedHours:val(row,cph),hoursPlanned:val(row,cph),requiredHours:Number.isFinite(required)?required:0,toBePlanned:Number.isFinite(required)?required:0,auditor:val(row,ca),assignedTo:val(row,ca),assignedToEmail:val(row,ca),preassignedAuditor:val(row,cp),allowSelfPlanning:val(row,cself),datePlanned:dateOnly(row[cd]),expirationDate:expiry,extensionApplied:yes(ext),companyUid:uid,managerEmail:rowMgr,sourceRevision:createHash('sha256').update([id,raw,val(row,ca),val(row,cpj),val(row,cldt),val(row,css)].join('|')).digest('hex').slice(0,24),sourceRow:apValues.indexOf(row)+1,allowedActions:actions,readOnly:false,needsEnrichment:false});
+    const company=val(row,cc),location=val(row,cl),uid=val(row,cu),companyMeta=companyIndex.get(key(uid))||companyIndex.get(key(company+'|'+location))||companyIndex.get(key(company))||{},region=companyMeta.region||'',from=dateOnly(row[cf]),to=dateOnly(row[ct]),pw=from&&to?from+' → '+to:(from||to||''),required=Number(row[ch]),scopes=scopesForAudit({h,row},catalog),expiry=dateOnly(row[cee])||dateOnly(row[ce]),ext=val(row,cex),activeLocations=Number(companyMeta.activeLocations||1),hqGps=clean(companyMeta.hqGps);
+    const actions=statusKey==='PENDING_PLANNING'?['PLAN','REJECT']:statusKey==='PENDING_APPROVAL'?['APPROVE','CANCEL','REJECT']:statusKey==='APPROVED'?['ACCEPT','CANCEL','REJECT']:statusKey==='ACCEPTED'?['COMPLETE','CANCEL','REJECT']:[];rows.push({auditId:id,source:'Audit planning',company,companyLocation:location,location,locs:activeLocations,locationsToPlan:activeLocations,locationCount:activeLocations,gps:hqGps,gpsData:hqGps,region,companyRegion:region,scopes,scopesText:scopes.join(', '),status:raw,statusKey,planningWindow:pw,planningWindowText:pw,planningDisplay:statusKey==='PENDING_PLANNING'?pw:dateOnly(row[cd]),plannedHours:val(row,cph),hoursPlanned:val(row,cph),requiredHours:Number.isFinite(required)?required:0,toBePlanned:Number.isFinite(required)?required:0,auditor:val(row,ca),assignedTo:val(row,ca),assignedToEmail:val(row,ca),preassignedAuditor:val(row,cp),allowSelfPlanning:val(row,cself),datePlanned:dateOnly(row[cd]),expirationDate:expiry,extensionApplied:yes(ext),companyUid:uid,managerEmail:rowMgr,sourceRevision:createHash('sha256').update([id,raw,val(row,ca),val(row,cpj),val(row,cldt),val(row,css)].join('|')).digest('hex').slice(0,24),sourceRow:apValues.indexOf(row)+1,allowedActions:actions,readOnly:false,needsEnrichment:false});
   }
   const order={PENDING_PLANNING:0,PENDING_APPROVAL:1,APPROVED:2,ACCEPTED:3};rows.sort((a,b)=>(order[a.statusKey]-order[b.statusKey])||a.planningWindow.localeCompare(b.planningWindow)||a.company.localeCompare(b.company)||a.auditId.localeCompare(b.auditId));
   const count=k=>rows.filter(x=>x.statusKey===k).length;

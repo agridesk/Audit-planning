@@ -22,6 +22,17 @@ assert.match(portal,/raw\.indexOf\("COMPLETE"\)>=0/,'Manager UI must render Comp
 assert.match(portal,/Number\(row\.hoursPlanned\)/,'Complete default must use primary Hours planned');
 assert.doesNotMatch(portal,/scheduled "\+esc\(text\(r\.scheduledHours\)\)/,'Manager Grid must not render secondary scheduled x h line');
 assert.match(portal,/quarterHourValue/,'Manager Complete must validate quarter-hour increments');
+assert.match(portal,/action==='complete'\)\?runActionViaCloudRun|action==='complete'\)\?runActionViaCloudRun|action==='complete'\|\|/,'Manager Complete must use direct Cloud Run transport');
+assert.match(server,/managerAction==='complete'/,'R10 must route Complete directly');
+assert.match(server,/\/api\/v1\/manager\/complete-direct/,'R10 must proxy Complete to direct owner');
+assert.match(baseServer,/async function directManagerComplete/,'Direct Complete owner must exist in base runtime');
+assert.match(baseServer,/owner:'CLOUD_RUN_DIRECT_MANAGER_COMPLETE'/,'Direct Complete owner marker must be returned');
+assert.match(baseServer,/Log realized audits!A:/,'Direct Complete must append realized history');
+assert.match(baseServer,/Audit_Obligations!A/,'Direct Complete must update Model C obligations');
+assert.match(baseServer,/Audit_Visit_Obligations!A/,'Direct Complete must update Model C visit links');
+assert.match(baseServer,/successorRows/,'Direct Complete response must carry successor rows for micro-refresh');
+assert.match(portal,/successorRows/,'Manager micro-refresh must consume successor rows');
+
 assert.match(portal,/runActionViaWarmWorker\(id,"edit_realized_hours"/,'Realized-hours correction must use canonical warm worker');
 assert.match(relay,/approve\|cancel\|reject\|complete\|edit_realized_hours/,'Warm relay must allow Complete and realized-hours correction');
 assert.match(manager,/complete:\s*'COMPLETE'/,'Manager adapter must delegate Complete to StatusMachine');

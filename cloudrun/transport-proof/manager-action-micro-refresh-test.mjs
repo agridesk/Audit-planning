@@ -34,7 +34,7 @@ const checks=[
 ['Complete direct owner writes realized history',r4.includes("async function directManagerComplete")&&r4.includes("allWrites.push({range:'Log realized audits!A'")&&r4.includes("owner:'CLOUD_RUN_DIRECT_MANAGER_COMPLETE'")],
 ['Complete returns successor rows for local micro refresh',r4.includes("successorRows")&&manager.includes("result&&Array.isArray(result.successorRows)")],
 ['Complete hot path avoids synchronous GAS claim',!r4.includes("directAcquireCompleteClaim")&&!r4.includes("externalcompleteclaim")],
-['Shared claim owner remains available for cross-runtime hardening',entry.includes("CompletionService_AcquireExternalManagerClaim")&&entry.includes("externalcompleteclaim")],
+['Manager and Auditor share one Complete transaction owner',r4.includes("async function directAuditorComplete")&&r4.includes("async function directComplete(identity,body,actorRole)")&&r10.includes("/api/v1/internal/auditor/complete-direct")],
 
 
 ['no obsolete action-direct endpoint',!manager.includes("fetch('/api/v1/manager/action-direct'")&&!r10.includes("u.pathname==='/api/v1/manager/action-direct'")],

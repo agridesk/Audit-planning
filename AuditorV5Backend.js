@@ -2033,7 +2033,31 @@ function AuditorV5_Action_U20260410(auditId, action, payload) {
       );
     } catch (eNotify) {}
     try { auditorV5_invalidateGridCacheForAuditActors_(headers, auditRow, actorEmail); } catch (eInvReopen) {}
-  } else if (action === "complete") {
+  function auditorV5_completeViaCloudRun_(auditId, hoursDedicated, actorEmail) {
+  var props = PropertiesService.getScriptProperties();
+  var key = String(props.getProperty('AMS_EXTERNAL_WRITE_BRIDGE_KEY') || '').trim();
+  if (key.length < 32) throw new Error('AMS_EXTERNAL_WRITE_BRIDGE_KEY not configured for direct Auditor Complete');
+  var url = String(props.getProperty('AMS_CLOUD_RUN_COMPLETE_URL') || '').trim();
+  if (!url) url = 'https://ams-transport-proof-510075419067.europe-west1.run.app/api/v1/internal/auditor/complete-direct';
+  var resp = UrlFetchApp.fetch(url, {
+    method:'post',
+    contentType:'application/json',
+    headers:{'x-ams-bridge-key':key},
+    payload:JSON.stringify({auditId:auditId,actorEmail:actorEmail,options:{hoursDedicated:hoursDedicated}}),
+    muteHttpExceptions:true,
+    followRedirects:false
+  });
+  var code = Number(resp.getResponseCode() || 0);
+  var raw = String(resp.getContentText() || '');
+  var out = null;
+  try { out = JSON.parse(raw); } catch (eJson) { throw new Error('Direct Auditor Complete returned non-JSON (' + code + ')'); }
+  if (code < 200 || code >= 300 || !out || out.success === false) {
+    throw new Error(String((out && (out.error || out.message || out.detail)) || ('Direct Auditor Complete HTTP ' + code)));
+  }
+  return out;
+}
+
+} else if (action === "complete") {
     var transitionComplete = auditorV5_requireTransition_(currentStatus, 'COMPLETE', 'AUDITOR');
     var hrs = payload && payload.hoursDedicated;
     hrs = (typeof hrs === 'string') ? hrs.trim() : hrs;
@@ -2049,7 +2073,9 @@ function AuditorV5_Action_U20260410(auditId, action, payload) {
     if (!actorEmail) throw new Error("Missing authenticated auditor email (cannot commit completion)");
     var res = null;
     try {
-      if (typeof CompletionService_CommitCompletion === 'function') {
+      if (typeof V5_ENTRY_isDevEnv_ === 'function' && V5_ENTRY_isDevEnv_()) {
+        res = auditorV5_completeViaCloudRun_(auditId, q, actorEmail);
+      } else if (typeof CompletionService_CommitCompletion === 'function') {
         res = CompletionService_CommitCompletion({ auditId: auditId, hoursDedicated: q, actorEmail: actorEmail, mode: 'AUDITOR' });
       } else if (typeof ManagerV5_CommitCompletion === 'function') {
         res = ManagerV5_CommitCompletion({ auditId: auditId, hoursDedicated: q, actorEmail: actorEmail, mode: 'AUDITOR' });

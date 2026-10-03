@@ -2,6 +2,8 @@ import fs from 'node:fs';
 
 const r4=fs.readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const r5=fs.readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
+const r6=fs.readFileSync(new URL('./server-r6.js',import.meta.url),'utf8');
+const r7=fs.readFileSync(new URL('./server-r7.js',import.meta.url),'utf8');
 
 const checks=[
   ['Toolkit exposes canonical scheduling target',r4.includes('schedulingHoursTarget:schedulingTargetForAudit(')],
@@ -18,7 +20,10 @@ const checks=[
   ['Initial slot duration uses scheduling target',r5.includes('const target=Number(a.schedulingHoursTarget||a.requiredHours||0)')&&r5.includes('d=Math.min(target,8)')],
   ['Save enablement compares planned hours with scheduling target',r5.includes('hoursComplete=target<=0||Math.abs(hours-target)<=0.001')],
   ['Committed overlap remains hard',r4.includes("throw new Error('AVAILABILITY_COLLISION_'+b.date)")],
-  ['Actual Availability block writes remain requested start/end',r4.includes('x.row[z.s]=b.start;x.row[z.e]=b.end;x.row[z.id]=auditId')]
+  ['Actual Availability block writes remain requested start/end',r4.includes('x.row[z.s]=b.start;x.row[z.e]=b.end;x.row[z.id]=auditId')],
+  ['Combined visit uses scheduling delta fallback',r6.includes('schedulingHoursDelta')&&r6.includes('x.formalHours+delta')],
+  ['Combined visit Planning JSON keeps formal target and actual scheduled',r6.includes('formalHours:Math.round(formalRequired*100)/100')&&r6.includes('scheduledHours:Math.round(total*100)/100')],
+  ['R7 patches V2.10 planning target instead of legacy required variable',r7.includes('function planningTarget(){return requiredVisitHours()}')&&!r7.includes('PLANNING_COMBINED_VALIDATE_PATCH_NOT_APPLIED')]
 ];
 
 const failed=checks.filter(([,ok])=>!ok);

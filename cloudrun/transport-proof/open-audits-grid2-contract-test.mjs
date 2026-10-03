@@ -18,7 +18,7 @@ const checks=[
 ['first paint locations from Companies canonical data',r4.includes('function managerCompanyGridMeta(companyValues)')&&r4.includes("Locations_JSON")&&r4.includes('activeLocations')&&r4.includes('locationsToPlan:activeLocations')],
 ['first paint HQ GPS from Companies canonical data',r4.includes('hqGps')&&r4.includes('gps:hqGps')&&r4.includes('gpsData:hqGps')],
 ['late enrichment cannot mutate locations or HQ map',manager.includes('delete p.locationsToPlan')&&manager.includes('delete p.locs')&&manager.includes('delete p.locationCount')&&manager.includes('delete p.gps')&&manager.includes('delete p.gpsData')],
-['HQ map is compact accessible pin',html.includes(".map-link:before{content:'📍'")&&manager.includes('aria-label=\"Open headquarters in Google Maps\"')],
+['HQ map is compact accessible pin',html.includes(".map-link:before{content:'📍'")&&manager.includes('aria-label=\\\"Open headquarters in Google Maps\\\"')],
 ['bulk enrichment single endpoint',manager.includes("fetch('/api/v1/manager/open-enrichment'")&&manager.includes('auditIds:ids')],
 ['no per audit enrichment loop fetch',!manager.includes('/api/v1/manager/open-enrichment?auditId=')],
 ['enrichment preserves scroll',manager.includes('var ids=all.map')&&manager.includes('window.scrollTo(sx,sy)')],

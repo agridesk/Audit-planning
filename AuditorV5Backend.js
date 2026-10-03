@@ -1308,39 +1308,6 @@ function auditorV5_extractScopesForRow_(hdr, row) {
   }
   return { scopes: scopes, scopesText: names.join(", ") };
 }
-function auditorV5_schedulingTargetForRow_(hdr, row) {
-  var cfg = auditorV5_loadConfigScopes_();
-  var defs = (cfg && cfg.ordered) ? cfg.ordered : [];
-  var H = auditorV5_headerIndex_(hdr || []);
-  var total = 0, matched = 0;
-  for (var i = 0; i < defs.length; i++) {
-    var d = defs[i] || {};
-    var scopeCol = H([d.slotKey, d.scopeCode, d.displayName].filter(function(x){ return !!x; }));
-    if (scopeCol < 0 || !auditorV5_truthyScopeCell_(row[scopeCol])) continue;
-    matched++;
-    var durationCol = H([
-      'Duration ' + String(d.slotKey || ''),
-      'Duration ' + String(d.scopeCode || ''),
-      'Duration ' + String(d.displayName || '')
-    ]);
-    var formal = 0;
-    if (durationCol >= 0) {
-      var raw = Number(String(row[durationCol] == null ? '' : row[durationCol]).replace(',', '.'));
-      if (isFinite(raw) && raw > 0) formal = raw;
-    }
-    if (!(formal > 0)) formal = Number(d.formalHours || 0);
-    var explicit = Number(d.schedulingHours || 0);
-    var delta = Number(d.schedulingHoursDelta || 0);
-    total += explicit > 0 ? explicit : Math.max(0, formal + delta);
-  }
-  if (!matched) {
-    var totalCol = H(['Total audit time in hours','To be planned','Hours to be planned']);
-    var fallback = totalCol >= 0 ? Number(String(row[totalCol] == null ? '' : row[totalCol]).replace(',', '.')) : 0;
-    return isFinite(fallback) ? Math.round(fallback * 100) / 100 : 0;
-  }
-  return Math.round(total * 100) / 100;
-}
-
 function auditorV5_buildScopesString_(headers, row) {
   var cfg = auditorV5_loadConfigScopes_();
   var ordered = (cfg && cfg.ordered) ? cfg.ordered : [];

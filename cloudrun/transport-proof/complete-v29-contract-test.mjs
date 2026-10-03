@@ -6,6 +6,7 @@ const here=fileURLToPath(new URL('.',import.meta.url));
 const read=(p)=>readFileSync(new URL(p,import.meta.url),'utf8');
 
 const server=read('./server-r10.js');
+const baseServer=read('./server-r4.js');
 const portal=read('./manager-portal.js');
 const relay=read('../../ManagerActionRelay.html');
 const manager=read('../../AuditManagerActions.js');
@@ -13,8 +14,10 @@ const completion=read('../../CompletionService.js');
 const modelC=read('../../ModelCAnnualCycleRuntime.js');
 const log=read('../../LogRealizedAuditService.js');
 const auditor=read('../../AuditorV5Backend.js');
+const auditorPortal=read('../../AuditorPortalV5.html');
 
-assert.match(server,/k==='ACCEPTED'\?\['COMPLETE','CANCEL','REJECT'\]/,'Accepted Manager rows must expose Complete');
+assert.match(server,/k==='ACCEPTED'\?\['COMPLETE','CANCEL','REJECT'\]/,'Accepted Manager enrichment rows must expose Complete');
+assert.match(baseServer,/statusKey==='ACCEPTED'\?\['COMPLETE','CANCEL','REJECT'\]/,'Accepted Manager base rows must expose Complete');
 assert.match(portal,/raw\.indexOf\("COMPLETE"\)>=0/,'Manager UI must render Complete from canonical allowedActions');
 assert.match(portal,/Number\(row\.hoursPlanned\)/,'Complete default must use primary Hours planned');
 assert.doesNotMatch(portal,/scheduled "\+esc\(text\(r\.scheduledHours\)\)/,'Manager Grid must not render secondary scheduled x h line');
@@ -32,5 +35,8 @@ assert.match(log,/oldHoursDedicated/,'Realized-hours correction must retain old 
 assert.match(log,/newHoursDedicated/,'Realized-hours correction must retain new value for audit trail');
 assert.match(auditor,/Missing authenticated auditor email/,'Auditor Complete actor must come from authenticated identity');
 assert.doesNotMatch(auditor,/var relComplete = releaseAvailability_\(\{ pastOnly:true \}\)/,'Auditor Complete must not release Availability twice');
+assert.match(auditorPortal,/ph\.toFixed\(2\)/,'Auditor Complete dialog must format primary planned hours to two decimals');
+assert.match(auditorPortal,/tr\.remove\(\)/,'Auditor Complete micro-refresh must remove only the completed row');
+assert.doesNotMatch(auditorPortal,/CURRENT_ROWS\.splice\(idx, 1\);\s*renderGrid\(CURRENT_ROWS/,'Auditor Complete must not rerender the full active grid');
 
 console.log('Complete V2.9 contract test passed');

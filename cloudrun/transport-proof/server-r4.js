@@ -309,7 +309,9 @@ async function directManagerExtension(identity,body){
     put('Audit planning',found.h,found.sourceRow,['Extended Expiration Date'],expiryZ);
     put('Audit planning',found.h,found.sourceRow,['Planning window from'],w.from);
     put('Audit planning',found.h,found.sourceRow,['Planning window to'],w.to);
-    /* DIRECT_EXTENSION_BODY */
+    const tw=Date.now();await sheetsValuesBatchUpdateRaw(data);const writeMs=Date.now()-tw;
+    const patch={auditId,expiryY,expiryZ,extensionApplied:applied,extApplied:applied,extensionMonths:months,extMonths:months,canExtend:true,planningWindowFrom:w.from,planningWindowTo:w.to,planningWindow:w.from+' → '+w.to,planningWindowText:w.from+' → '+w.to,planningWindowState:'MODEL_C_OBLIGATION_OWNER_DIRECT'};
+    return{success:true,auditId,command,owner:'CLOUD_RUN_DIRECT_MODEL_C_EXTENSION',directCommit:true,obligationsUpdated:targets.length,patch,readMs,writeMs,totalMs:Date.now()-t0};
   });
 }
 

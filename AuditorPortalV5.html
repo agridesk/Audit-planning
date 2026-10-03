@@ -715,7 +715,7 @@ input[type="checkbox"]{
         <div class="body">
           <div class="muted" id="modalCompleteMsg"></div>
           <label for="numHoursDedicated">Hours dedicated (required)</label>
-          <input id="numHoursDedicated" type="number" min="0" step="0.25" />
+          <input id="numHoursDedicated" type="number" min="0.25" step="0.25" />
           <div class="muted" style="margin-top:6px;">
             Validation: &gt; 0 and steps of 0.25. Suggested value = planned hours.
           </div>
@@ -1998,11 +1998,17 @@ function renderRowHtml(r) {
     var idx = findRowIndexByAuditId(auditId);
     if (idx < 0) return false;
     CURRENT_ROWS.splice(idx, 1);
-    renderGrid(CURRENT_ROWS || []);
+    try {
+      var tr = document.querySelector('tr[data-auditid="' + CSS.escape(auditId) + '"]');
+      if (tr) tr.remove();
+      else return false;
+    } catch(eDom) { return false; }
     try {
       var pill = document.getElementById('pillCount');
       if (pill) pill.textContent = (CURRENT_ROWS ? CURRENT_ROWS.length : 0) + ' rows';
     } catch(e) {}
+    try { __AUDITOR_GRID_SIGNATURE = auditorUi_buildGridSignature_(CURRENT_ROWS); } catch(eSig) {}
+    try { auditorUi_updateSelectionUi_(); } catch(eSel) {}
     try { setPerf('Completed via micro refresh'); } catch(e) {}
     return true;
   }
@@ -2764,7 +2770,7 @@ function confirmReason() {
 
     // default prefill = planned hours
     const ph = Number(row.plannedHours || 0);
-    document.getElementById('numHoursDedicated').value = (isFinite(ph) && ph>0) ? ph : '';
+    document.getElementById('numHoursDedicated').value = (isFinite(ph) && ph>0) ? ph.toFixed(2) : '';
 
     V5.modal.open('modalComplete');
   }

@@ -6,7 +6,7 @@
  * - Legacy/open handoff remains supported for compatibility.
  * - Commit mode delegates to canonical saveManagerPlanning().
  ***********************************************************************/
-var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-10-03_GRID2_SELECTION_HANDOFF_R19';
+var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_BUILD = '2026-10-03_GRID2_SELECTION_HANDOFF_R20_PERIOD';
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_MAX_FUTURE_MS = 90 * 1000;
 var EXTERNAL_PLANNING_WORKSPACE_HANDOFF_CLOCK_SKEW_MS = 10 * 1000;
 
@@ -262,6 +262,8 @@ function ExternalPlanningWorkspaceHandoff_render_(identity) {
   var bootstrap = PlanningWorkspaceRpc_bootstrap({
     auditId:auditId,
     auditIds:selectedAuditIds,
+    from:selectionValidation&&selectionValidation.periodFrom||'',
+    to:selectionValidation&&selectionValidation.periodTo||'',
     role:'Manager',
     actorRole:'Manager',
     actorEmail:email,

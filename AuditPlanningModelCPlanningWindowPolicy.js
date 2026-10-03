@@ -4,9 +4,11 @@
  * Canonical rules:
  * - Explicit Planning_Window_From + Planning_Window_To always win.
  * - A partial explicit window is invalid and must hard-block.
- * - For Config_Scopes Recurring=NO with a four-digit Cycle_Key and no explicit
- *   window, the effective operational planning window is the full cycle year.
- * - This fallback is operational only. It does not create certificate expiry,
+ * - For Config_Scopes Recurring=NO + Obligation cycle=ANNUAL, a four-digit
+ *   Cycle_Key derives its effective window from Config_Scopes Complete by and
+ *   Planning from/to. The result is clamped to the obligation cycle.
+ * - If that annual policy is unavailable, the legacy full-cycle fallback remains.
+ * - Derived annual windows are operational only. They do not create certificate expiry,
  *   certificate birthday, extension data or an automatic successor.
  * - Recurring scopes never receive a Cycle_Key full-year fallback here.
  */
@@ -138,7 +140,7 @@ function RUN_MODEL_C_NONRECURRING_WINDOW_POLICY_ACCEPTANCE(){
   if(!sh)throw new Error('Missing sheet: '+MODEL_C_SHEETS.AUDIT_OBLIGATIONS);
   var rows=ModelCMigration_rowsToObjects_(sh.getDataRange().getValues());
   var counts={obligations:0,recurring:0,nonRecurring:0,explicitWindows:0,cycleFallbacks:0,invalid:0,partialExplicit:0,missingRecurring:0};
-  var invalid=[];
+  var invalid=[],configMap=ModelCPlanningWindowPolicy_configMap_(ss);
   rows.forEach(function(ob){
     var state=ModelCPlanningWindowPolicy_text_(ob.Obligation_State).toUpperCase();
     if(state==='CANCELLED'||state==='REJECTED')return;
@@ -146,7 +148,7 @@ function RUN_MODEL_C_NONRECURRING_WINDOW_POLICY_ACCEPTANCE(){
     counts.obligations++;
     var recurring=ModelCRecurringConfig_isRecurring_(ss,scope);
     if(recurring)counts.recurring++;else counts.nonRecurring++;
-    var r=ModelCPlanningWindowPolicy_resolveObligation_(ss,ob);
+    var r=ModelCPlanningWindowPolicy_resolveObligation_(ss,ob,configMap);
     if(r.success){if(r.fallback)counts.cycleFallbacks++;else counts.explicitWindows++;return;}
     counts.invalid++;
     if(r.reason==='PARTIAL_EXPLICIT_WINDOW')counts.partialExplicit++;

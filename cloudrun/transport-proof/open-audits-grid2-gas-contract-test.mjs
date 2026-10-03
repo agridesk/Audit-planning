@@ -3,6 +3,8 @@ const entry=fs.readFileSync(new URL('../../EntryV5.js',import.meta.url),'utf8');
 const svc=fs.readFileSync(new URL('../../OpenAuditsGrid2Service.js',import.meta.url),'utf8');
 const core=fs.readFileSync(new URL('../../ManagerPlanningBackend_CORE_SPLIT.js',import.meta.url),'utf8');
 const ext=fs.readFileSync(new URL('../../AuditPlanningModelCExtensionService.js',import.meta.url),'utf8');
+const auditorBackend=fs.readFileSync(new URL('../../AuditorV5Backend.js',import.meta.url),'utf8');
+const auditorPortal=fs.readFileSync(new URL('../../AuditorPortalV5.html',import.meta.url),'utf8');
 const checks=[
 ['secure enrichment bridge',entry.includes("rawAction==='externalmanageropenenriched'")&&entry.includes('V5_ENTRY_externalBridgeBody_')],
 ['secure extension bridge',entry.includes("rawAction==='externalmanagerextension'")&&entry.includes('V5_ENTRY_externalBridgeBody_')],
@@ -22,7 +24,9 @@ const checks=[
 ['canonical invalidator clears audit planning pack',core.includes('function V5_clearManagerOpenCache_(auditId)')&&core.includes('__mp_invalidateAuditPlanningPack_()')],
 ['canonical invalidator clears manager namespace',core.includes("AUDIT_CACHE.removeNamespace('manager')")],
 ['canonical invalidator clears manager persisted grid',core.includes("MP_PERSIST::manager::single_grid_open_v1")],
-['extension rereads canonical enriched row',svc.includes('var enriched=OpenAuditsGrid2_getEnriched([auditId])')]
+['extension rereads canonical enriched row',svc.includes('var enriched=OpenAuditsGrid2_getEnriched([auditId])')],
+['Auditor Grid backend exposes scheduling target',auditorBackend.includes('function auditorV5_schedulingTargetForRow_(')&&auditorBackend.includes('scheduledHours: schedulingTarget')&&auditorBackend.includes('schedulingHoursTarget: schedulingTarget')],
+['Auditor Grid shows scheduled hours secondary line',auditorPortal.includes("scheduled ' + V5.escape(String(Number(schedulingTarget))) + ' h")&&auditorPortal.includes('r.schedulingHoursTarget')]
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks)console.log(`${ok?'PASS':'FAIL'} ${name}`);

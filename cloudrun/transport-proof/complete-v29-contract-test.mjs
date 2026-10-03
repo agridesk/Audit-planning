@@ -44,6 +44,7 @@ assert.match(baseServer,/Audit_Visit_Obligations!A/,'Direct Complete must update
 assert.match(baseServer,/successorRows/,'Direct Complete response must carry successor rows for micro-refresh');
 assert.match(baseServer,/directExistingSuccessorRows/,'Idempotent Complete retry must recover existing successor rows for UI patch');
 assert.match(baseServer,/activeLinkExists/,'Successor recovery must avoid duplicate active visit links');
+assert.match(baseServer,/seenActiveObIds/,'Complete must deduplicate malformed duplicate active links before finalization');
 assert.match(baseServer,/existingOb/,'Successor recovery must reuse existing recurring obligations');
 assert.doesNotMatch(baseServer,/if\(existingAp\)\{successorIds\.push\(newId\);continue;\}/,'Existing successor projection must not skip Model C repair');
 assert.match(baseServer,/fallbackPlannedHours/,'Direct Complete realized log must fall back to canonical Model C formal hours');

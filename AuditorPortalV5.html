@@ -635,7 +635,7 @@ input[type="checkbox"]{
         </div>
         <div class="export-controls">
           <label style="display:flex; gap:8px; align-items:center; font-size:12px;">
-            <input type="checkbox" id="chkArchived" onchange="auditorUi_saveFilterState_(); loadGrid()">
+            <input type="checkbox" id="chkArchived" onchange="auditorUi_clearSelection_(); auditorUi_saveFilterState_(); loadGrid()">
             Show archived (read-only)
           </label>
           <label style="display:flex; gap:6px; align-items:center; font-size:12px;">
@@ -1368,7 +1368,7 @@ function auditorUi_applyFilters_() {
       if (pill) pill.textContent = visibleCount + ' rows';
     } catch(e) {}
     auditorUi_saveFilterState_();
-    auditorUi_updateExportButtons_();
+    auditorUi_updateSelectionUi_();
   }
 
   function auditorUi_getVisibleAuditIds_() {
@@ -1398,10 +1398,8 @@ function auditorUi_applyFilters_() {
 
   function auditorUi_updateExportButtons_() {
     var has = __AUDITOR_SELECTED_IDS.size > 0;
-    var b1 = document.getElementById('btnExportExcel');
-    var b2 = document.getElementById('btnExportPdf');
-    if (b1) b1.disabled = !has;
-    if (b2) b2.disabled = !has;
+    var b = document.getElementById('btnSelectionExport');
+    if (b) b.disabled = !has;
   }
 
   function auditorUi_toggleSelection_(auditId, checked) {
@@ -1681,7 +1679,7 @@ function auditorUi_applyFilters_() {
           auditorUi_exportExcelClient_(res);
         })
         .withFailureHandler(function(err){ try { V5.toast(err && err.message ? err.message : 'Export failed'); } catch(e) {} })
-        .AuditorV5_ExportSelectedAudits({ auditIds: ids, auditorEmail: resolvedEmail, format: 'excel' });
+        .AuditorV5_ExportSelectedAudits({ auditIds: ids, auditorEmail: resolvedEmail, trustedToken:__AUDITOR_TOKEN, deviceFingerprint:__DEVICE_ID, format: 'excel' });
     });
   }
 
@@ -1695,7 +1693,7 @@ function auditorUi_applyFilters_() {
           auditorUi_exportPdfClient_(res);
         })
         .withFailureHandler(function(err){ try { V5.toast(err && err.message ? err.message : 'Export failed'); } catch(e) {} })
-        .AuditorV5_ExportSelectedAudits({ auditIds: ids, auditorEmail: resolvedEmail, format: 'pdf' });
+        .AuditorV5_ExportSelectedAudits({ auditIds: ids, auditorEmail: resolvedEmail, trustedToken:__AUDITOR_TOKEN, deviceFingerprint:__DEVICE_ID, format: 'pdf' });
     });
   }
 

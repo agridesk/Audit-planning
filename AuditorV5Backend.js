@@ -2015,12 +2015,12 @@ function AuditorV5_Action_U20260410(auditId, action, payload) {
     if (!(hrs > 0)) throw new Error("Hours dedicated must be > 0");
     var q = Math.round(hrs * 4) / 4;
     if (Math.abs(q - hrs) > 1e-9) throw new Error("Hours dedicated must be in steps of 0.25");
+    // V2.9 identity rule: actor is the authenticated Auditor, never copied
+    // from the audit's Assigned-to field. CompletionService independently
+    // verifies that this actor is the assigned Auditor.
     actorEmail = "";
-    if (idxAssignedTo >= 0) actorEmail = String(auditRow[idxAssignedTo] || "").trim().toLowerCase();
-    if (!actorEmail) {
-      try { actorEmail = String(auditorV5_getActiveEmail_() || "").trim().toLowerCase(); } catch (e) {}
-    }
-    if (!actorEmail) throw new Error("Missing actor email (cannot commit completion)");
+    try { actorEmail = String(auditorV5_getActiveEmail_() || "").trim().toLowerCase(); } catch (eActorComplete) {}
+    if (!actorEmail) throw new Error("Missing authenticated auditor email (cannot commit completion)");
     var res = null;
     try {
       if (typeof CompletionService_CommitCompletion === 'function') {
@@ -2034,16 +2034,9 @@ function AuditorV5_Action_U20260410(auditId, action, payload) {
       throw new Error("Completion commit failed: " + (e && e.message ? e.message : e));
     }
     if (!res || res.success === false) return res || { success:false, message:'Completion failed' };
-    var relComplete = releaseAvailability_({ pastOnly:true });
-    if (!relComplete || relComplete.success === false) {
-      return {
-        success:false,
-        message:'Completion committed, but availability cleanup failed. Manual repair required.',
-        completionCommitted:true,
-        auditId:auditId,
-        release: relComplete || null
-      };
-    }
+
+    // CompletionService owns Availability release. Do not execute a second
+    // cleanup after the canonical commit.
     try { auditorV5_notifyManager_("AUDIT_COMPLETED", auditId, headers, auditRow); } catch (e) {}
     try { auditorV5_invalidateGridCacheForAuditActors_(headers, auditRow, actorEmail); } catch (eInv4) {}
     res.ok = true;
@@ -2054,7 +2047,7 @@ function AuditorV5_Action_U20260410(auditId, action, payload) {
     res.from = currentStatus;
     res.to = String((transitionComplete && transitionComplete.afterStatusDisplay) || "Completed");
     res.uiPatch = auditorV5_buildActionUiPatch_(auditId, action, res.newStatus, true);
-    res.artifactSync = auditorV5_syncAuditArtifactsSafe_(auditId, false);
+    res.artifactSync = res.artifactSync || { success:true, skipped:true, reason:'CompletionService targeted invalidation' };
     return res;
   } else {
     throw new Error("Unknown action: " + action);

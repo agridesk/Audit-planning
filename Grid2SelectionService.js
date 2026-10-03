@@ -7,7 +7,7 @@
  * - Manager: verifies selected IDs still exist in current Audit planning.
  * - Auditor Batch/Concept: additionally enforces current self-planning eligibility.
  ***********************************************************************/
-var GRID2_SELECTION_SERVICE_BUILD='2026-10-03_GRID2_SHARED_SELECTION_R1';
+var GRID2_SELECTION_SERVICE_BUILD='2026-10-03_GRID2_SHARED_SELECTION_R2_PERIOD';
 
 function Grid2Selection_clean_(v){return String(v==null?'':v).trim();}
 function Grid2Selection_normEmail_(v){return Grid2Selection_clean_(v).toLowerCase();}
@@ -51,11 +51,11 @@ function Grid2Selection_validate(input){
   if(!ss)throw new Error('GRID2_SELECTION_SSOT_UNAVAILABLE');
   var sh=ss.getSheetByName('Audit planning');if(!sh)throw new Error('GRID2_SELECTION_AUDIT_PLANNING_MISSING');
   var values=sh.getDataRange().getValues();if(values.length<2)return{ok:false,build:GRID2_SELECTION_SERVICE_BUILD,error:'GRID2_SELECTION_AUDIT_PLANNING_EMPTY',validAuditIds:[],rejected:ids.map(function(id){return{auditId:id,reason:'NOT_FOUND'};}),writesPerformed:false};
-  var h=values[0],iId=Grid2Selection_header_(h,['Audit ID','Audit_ID','AuditId','Audit Id']),iStatus=Grid2Selection_header_(h,['Status']),iSelf=Grid2Selection_header_(h,['Allow self planning','Allow Self Planning']),iPre=Grid2Selection_header_(h,['Preassigned Auditor','Preassigned auditor']),iAssigned=Grid2Selection_header_(h,['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned']);
+  var h=values[0],iId=Grid2Selection_header_(h,['Audit ID','Audit_ID','AuditId','Audit Id']),iStatus=Grid2Selection_header_(h,['Status']),iSelf=Grid2Selection_header_(h,['Allow self planning','Allow Self Planning']),iPre=Grid2Selection_header_(h,['Preassigned Auditor','Preassigned auditor']),iAssigned=Grid2Selection_header_(h,['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned']),iFrom=Grid2Selection_header_(h,['Planning window from','Planning_Window_From','Plan from']),iTo=Grid2Selection_header_(h,['Planning window to','Planning_Window_To','Plan to']);
   if(iId<0||iStatus<0)throw new Error('GRID2_SELECTION_SCHEMA_INVALID');
   var wanted={};ids.forEach(function(id){wanted[id]=true;});
   var byId={};for(var r=1;r<values.length;r++){var id=Grid2Selection_clean_(values[r][iId]);if(id&&wanted[id])byId[id]=values[r];}
-  var maps=role==='AUDITOR'?Grid2Selection_auditorMaps_(ss):null,valid=[],rejected=[];
+  var maps=role==='AUDITOR'?Grid2Selection_auditorMaps_(ss):null,valid=[],rejected=[],periodFrom='',periodTo='';
   ids.forEach(function(id){
     var row=byId[id];if(!row){rejected.push({auditId:id,reason:'NOT_FOUND'});return;}
     var status=Grid2Selection_status_(row[iStatus]);
@@ -69,8 +69,11 @@ function Grid2Selection_validate(input){
       if(assigned){rejected.push({auditId:id,reason:'ALREADY_ASSIGNED'});return;}
     }
     valid.push(id);
+    var pf=iFrom>=0?Grid2Selection_clean_(row[iFrom]).slice(0,10):'',pt=iTo>=0?Grid2Selection_clean_(row[iTo]).slice(0,10):'';
+    if(/^20\d{2}-\d{2}-\d{2}$/.test(pf)&&(!periodFrom||pf<periodFrom))periodFrom=pf;
+    if(/^20\d{2}-\d{2}-\d{2}$/.test(pt)&&(!periodTo||pt>periodTo))periodTo=pt;
   });
-  return{ok:rejected.length===0,build:GRID2_SELECTION_SERVICE_BUILD,role:role,actorEmail:actor,action:action,requestedAuditIds:ids,validAuditIds:valid,rejected:rejected,writesPerformed:false};
+  return{ok:rejected.length===0,build:GRID2_SELECTION_SERVICE_BUILD,role:role,actorEmail:actor,action:action,requestedAuditIds:ids,validAuditIds:valid,rejected:rejected,periodFrom:periodFrom,periodTo:periodTo,writesPerformed:false};
 }
 function Grid2Selection_contract(){
   return{build:GRID2_SELECTION_SERVICE_BUILD,temporaryUiState:true,writesPerformed:false,maxSelection:500,managerRevalidatesExistence:true,auditorBatchConceptRequiresSelfPlanning:true,auditorBatchConceptRequiresPreassignment:true,selectionNeverCommitsPlanning:true};

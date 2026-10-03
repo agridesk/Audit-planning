@@ -5,7 +5,7 @@
  * intentionally kept here until the legacy AnnualCycleEngineV5 and
  * CompletionService shells are fully retired.
  */
-var MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD = '2026-09-21_AMS_01_6_MODEL_C_ANNUAL_CYCLE_RUNTIME_R2_CANONICAL_MODULE';
+var MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD = '2026-10-03_COMPLETE_V29_MODEL_C_FINALIZATION_R3';
 
 function AnnualCycleEngineV5_HandleCompletionRow_(planningRowObj) {
   return ModelCAnnualCycle_HandleCompletionRow_(planningRowObj);
@@ -208,11 +208,22 @@ function CompletionService_CommitCompletion(payload) {
   var result=completionService_commitCompletion_(payload);
   if(!result||result.success!==true)return result;
   var auditId=String((result&&result.auditId)||(payload&&payload.auditId)||'').trim();
-  var finalization=ModelCAnnualCycle_finalizeCompletedVisit_(auditId);
+
+  // Idempotent recovery may already have finalized Model C inside the core
+  // completion service. Do not repeat work unless required.
+  var finalization=result.modelCFinalization||ModelCAnnualCycle_finalizeCompletedVisit_(auditId);
   result.modelCFinalization=finalization;
   result.modelCAnnualCycleBuild=MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD;
-  if(!finalization.success){
-    result.modelCFinalizationWarning=finalization.message||'Model C finalization failed';
+
+  // V2.9: Model C finalization is not a warning-only side effect.
+  // If it fails, completion history may already be committed, so report that
+  // truth explicitly and require the idempotent retry/recovery path.
+  if(!finalization||finalization.success!==true){
+    result.success=false;
+    result.ok=false;
+    result.code='MODEL_C_FINALIZATION_FAILED';
+    result.completionCommitted=true;
+    result.message='Completion committed, but Model C finalization failed: '+String((finalization&&finalization.message)||'unknown');
   }
   return result;
 }

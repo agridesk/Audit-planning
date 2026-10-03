@@ -30,6 +30,8 @@
  */
 
 var COMPLETION_SERVICE_BUILD = '2026-10-03_COMPLETE_V29_CANONICAL_R1';
+var COMPLETION_EXTERNAL_CLAIM_PREFIX = 'AMS_COMPLETE_CLAIM_';
+var COMPLETION_EXTERNAL_CLAIM_TTL_MS = 2 * 60 * 1000;
 var COMPLETION_SHEET_AUDIT_PLANNING = 'Audit planning';
 var COMPLETION_LOCK_WAIT_MS = 10000;
 var COMPLETION_LOCK_RETRY_SLEEP_MS = 250;
@@ -95,6 +97,92 @@ function CompletionService_RuntimeSmokeTest() {
   return out;
 }
 
+
+function completionService_externalClaimKey_(auditId) {
+  var digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, completionService_normAuditId_(auditId), Utilities.Charset.UTF_8);
+  return COMPLETION_EXTERNAL_CLAIM_PREFIX + Utilities.base64EncodeWebSafe(digest).replace(/=+$/g, '').slice(0, 32);
+}
+
+function completionService_getExternalManagerClaimUnlocked_(auditId) {
+  var key = completionService_externalClaimKey_(auditId);
+  var props = PropertiesService.getScriptProperties();
+  var raw = String(props.getProperty(key) || '').trim();
+  if (!raw) return { active:false, key:key };
+  var data = null;
+  try { data = JSON.parse(raw); } catch (e) { props.deleteProperty(key); return { active:false, key:key, stale:true, malformed:true }; }
+  var createdAtMs = Number(data.createdAtMs || 0);
+  var ageMs = createdAtMs ? Math.max(0, Date.now() - createdAtMs) : COMPLETION_EXTERNAL_CLAIM_TTL_MS + 1;
+  if (!createdAtMs || ageMs > COMPLETION_EXTERNAL_CLAIM_TTL_MS) {
+    props.deleteProperty(key);
+    return { active:false, key:key, stale:true, ageMs:ageMs };
+  }
+  return {
+    active:true,
+    key:key,
+    token:String(data.token || ''),
+    actorEmail:completionService_normEmail_(data.actorEmail || ''),
+    hoursDedicated:Number(data.hoursDedicated || 0),
+    createdAtMs:createdAtMs,
+    ageMs:ageMs
+  };
+}
+
+function CompletionService_AcquireExternalManagerClaim(auditId, actorEmail, hoursDedicated) {
+  auditId = completionService_normAuditId_(auditId);
+  actorEmail = completionService_normEmail_(actorEmail);
+  hoursDedicated = Number(hoursDedicated);
+  if (!auditId || !actorEmail) return { success:false, code:'CLAIM_INVALID_INPUT' };
+  if (!isFinite(hoursDedicated) || hoursDedicated <= 0 || Math.abs((Math.round(hoursDedicated * 4) / 4) - hoursDedicated) > 1e-9) return { success:false, code:'CLAIM_INVALID_HOURS' };
+
+  var lock = LockService.getScriptLock();
+  if (!completionService_acquireLock_(lock, COMPLETION_LOCK_WAIT_MS, COMPLETION_LOCK_RETRY_SLEEP_MS)) return { success:false, code:'CLAIM_LOCK_TIMEOUT' };
+  try {
+    var existing = completionService_getExternalManagerClaimUnlocked_(auditId);
+    if (existing.active === true) return { success:false, code:'COMPLETE_IN_PROGRESS', ageMs:existing.ageMs };
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var shPlan = ss.getSheetByName(typeof SHEET_AUDIT_PLANNING !== 'undefined' ? SHEET_AUDIT_PLANNING : COMPLETION_SHEET_AUDIT_PLANNING);
+    if (!shPlan) return { success:false, code:'AUDIT_PLANNING_MISSING' };
+    var rowPack = completionService_getAuditPlanningRowPack_(shPlan, auditId);
+    if (!rowPack.success) {
+      if (rowPack.code === 'AUDIT_NOT_FOUND' && typeof LogRealizedAuditService_GetCompletedAudit === 'function') {
+        var completed = LogRealizedAuditService_GetCompletedAudit(auditId);
+        if (completed && completed.success === true && completed.found === true) return { success:true, alreadyCompleted:true, auditId:auditId, token:'' };
+      }
+      return { success:false, code:rowPack.code || 'AUDIT_NOT_FOUND', message:rowPack.message || '' };
+    }
+    var status = completionService_getCell_(rowPack.rowObj, ['Status']);
+    if (!completionService_statusEquals_(status, 'ACCEPTED')) return { success:false, code:'STATUS_TRANSITION_BLOCKED', status:status };
+
+    var token = Utilities.getUuid();
+    var payload = { token:token, auditId:auditId, actorEmail:actorEmail, hoursDedicated:hoursDedicated, createdAtMs:Date.now() };
+    PropertiesService.getScriptProperties().setProperty(completionService_externalClaimKey_(auditId), JSON.stringify(payload));
+    return { success:true, claimed:true, auditId:auditId, token:token, ttlMs:COMPLETION_EXTERNAL_CLAIM_TTL_MS };
+  } finally {
+    try { lock.releaseLock(); } catch (eRelease) {}
+  }
+}
+
+function CompletionService_ReleaseExternalManagerClaim(auditId, token) {
+  auditId = completionService_normAuditId_(auditId);
+  token = String(token || '').trim();
+  if (!auditId || !token) return { success:true, released:false, skipped:true };
+  var lock = LockService.getScriptLock();
+  if (!completionService_acquireLock_(lock, COMPLETION_LOCK_WAIT_MS, COMPLETION_LOCK_RETRY_SLEEP_MS)) return { success:false, code:'CLAIM_RELEASE_LOCK_TIMEOUT' };
+  try {
+    var key = completionService_externalClaimKey_(auditId);
+    var props = PropertiesService.getScriptProperties();
+    var raw = String(props.getProperty(key) || '').trim();
+    if (!raw) return { success:true, released:false, missing:true };
+    var data = null; try { data = JSON.parse(raw); } catch (e) { props.deleteProperty(key); return { success:true, released:true, malformed:true }; }
+    if (String(data.token || '') !== token) return { success:false, code:'CLAIM_TOKEN_MISMATCH' };
+    props.deleteProperty(key);
+    return { success:true, released:true, auditId:auditId };
+  } finally {
+    try { lock.releaseLock(); } catch (eRelease) {}
+  }
+}
+
 function completionService_commitCompletion_(payload) {
   var lock = LockService.getScriptLock();
   if (!completionService_acquireLock_(lock, COMPLETION_LOCK_WAIT_MS, COMPLETION_LOCK_RETRY_SLEEP_MS)) {
@@ -114,6 +202,11 @@ function completionService_commitCompletion_(payload) {
     if (!isFinite(hoursDedicated) || hoursDedicated <= 0) return { success:false, message:'Hours dedicated must be > 0' };
     if (Math.abs((Math.round(hoursDedicated * 4) / 4) - hoursDedicated) > 1e-9) return { success:false, message:'Hours dedicated must be in steps of 0.25' };
     if (mode !== 'AUDITOR' && mode !== 'MANAGER_ON_BEHALF') return { success:false, message:'Invalid mode' };
+
+    var activeExternalClaim = completionService_getExternalManagerClaimUnlocked_(auditId);
+    if (activeExternalClaim && activeExternalClaim.active === true) {
+      return { success:false, code:'COMPLETE_IN_PROGRESS_BY_MANAGER', message:'Completion is already being committed by the manager', claimAgeMs:activeExternalClaim.ageMs };
+    }
 
     if (mode === 'MANAGER_ON_BEHALF') {
       if (typeof managerV5_isManagerActor_ === 'function' && !managerV5_isManagerActor_(actorEmail)) {

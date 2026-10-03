@@ -22,7 +22,7 @@ const checks=[
 ['bulk enrichment single endpoint',manager.includes("fetch('/api/v1/manager/open-enrichment'")&&manager.includes('auditIds:ids')],
 ['no per audit enrichment loop fetch',!manager.includes('/api/v1/manager/open-enrichment?auditId=')],
 ['enrichment preserves scroll',manager.includes('var ids=all.map')&&manager.includes('window.scrollTo(sx,sy)')],
-['scheduled hours use Config_Scopes delta',r10.includes('Scheduling_hours_delta')&&r10.includes("scheduledOwner:'CONFIG_SCOPES_SCHEDULING_HOURS_DELTA'")&&r10.includes('formal+deltaInfo.delta')],
+['scheduled hours use Config_Scopes delta',r10.includes('Scheduling_hours_delta')&&r10.includes("scheduledOwner:'CONFIG_SCOPES_SCHEDULING_HOURS_DELTA'")&&r10.includes('Number(r.requiredHours||0)+deltaInfo.delta')],
 ['Manager Grid shows scheduled hours secondary line',manager.includes('function hoursPlannedCell(r)')&&manager.includes('scheduled '+esc(Number(scheduled))+' h')&&html.includes('.scheduled-hours{')],
 ['Manager first paint exposes scheduling target',r4.includes('function schedulingTargetForAudit(')&&r4.includes('scheduledHours:schedulingTarget')&&r4.includes('schedulingHoursTarget:schedulingTarget')],
 ['Manager Pending Planning keeps scheduling target through enrichment',r10.includes("r.statusKey==='PENDING_PLANNING'")&&r10.includes('r.scheduledHours=target')&&r10.includes('r.schedulingHoursTarget=target')],

@@ -31,6 +31,9 @@ assert.match(baseServer,/Log realized audits!A:/,'Direct Complete must append re
 assert.match(baseServer,/Audit_Obligations!A/,'Direct Complete must update Model C obligations');
 assert.match(baseServer,/Audit_Visit_Obligations!A/,'Direct Complete must update Model C visit links');
 assert.match(baseServer,/successorRows/,'Direct Complete response must carry successor rows for micro-refresh');
+assert.match(baseServer,/fallbackPlannedHours/,'Direct Complete realized log must fall back to canonical Model C formal hours');
+assert.match(baseServer,/allWrites\.push\(\{range:'Audit planning!A'/,'Direct Complete successor must use explicit Audit planning row writes');
+assert.doesNotMatch(baseServer,/sheetsValuesAppend\('Audit planning!A:'/,'Direct Complete must not use append table inference for Audit planning successors');
 assert.match(portal,/successorRows/,'Manager micro-refresh must consume successor rows');
 
 assert.match(portal,/runActionViaWarmWorker\(id,"edit_realized_hours"/,'Realized-hours correction must use canonical warm worker');

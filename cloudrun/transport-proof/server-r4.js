@@ -276,6 +276,17 @@ async function directManagerExtension(identity,body){
   if(!auditId)throw new Error('AUDIT_ID_REQUIRED');
   if(!['apply','undo'].includes(command))throw new Error('EXTENSION_COMMAND_NOT_ALLOWED');
   return withDirectManagerActionLock(auditId,async()=>{
+    const tr=Date.now();
+    const vr=await sheetsBatchGet(['Audit planning!A1:AX483','Config_Scopes!A1:Z128','Audit_Obligations!A1:Z1024','Audit_Visit_Obligations!A1:Z1024']);
+    const readMs=Date.now()-tr,found=findAudit(vr[0]?.values||[],auditId);
+    if(!found)throw new Error('AUDIT_NOT_FOUND');
+    if(directStatusKey(val(found.row,col(found.h,['Status'])))!=='PENDING_PLANNING')throw new Error('EXTENSION_ALLOWED_ONLY_PENDING_PLANNING');
+    const scopes=extScopes(found,scopeCatalog(vr[1]?.values||[]));
+    const exts=scopes.map(s=>Number(s.extensionMonths||0)).filter(n=>n>0),months=exts.length?Math.min(...exts):0;
+    if(!months)throw new Error('NO_EXTENSION_CONFIGURED_FOR_ACTIVE_SCOPES');
+    const expiryY=val(found.row,col(found.h,['Date - Will Expire','Date – Will Expire','Will Expire']));
+    if(!extAddMonths(expiryY,0))throw new Error('MISSING_OR_INVALID_ORIGINAL_EXPIRY');
+    const applied=command==='apply',expiryZ=applied?extAddMonths(expiryY,months):expiryY,w=extWindow(expiryZ,scopes),now=isoLocalStamp();
     /* DIRECT_EXTENSION_BODY */
   });
 }

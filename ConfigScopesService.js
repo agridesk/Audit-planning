@@ -360,6 +360,141 @@ function ConfigScopes_cachePut_(keyPart, value) {
   } catch (e) {}
 }
 
+
+/***********************************************************************
+ * MAX OFF-SITE HOURS MIGRATION
+ *
+ * Canonical policy:
+ * - Formal_hours remains the single audit-hours truth.
+ * - Max_Offsite_Hours is a scope-level ceiling only.
+ * - Actual off-site hours belong to a concrete Audit/Visit plan.
+ * - Scheduling_hours / Scheduling_hours_delta are legacy migration input
+ *   only and must not drive current Grid/Toolkit planning semantics.
+ ***********************************************************************/
+
+function ConfigScopes_PreviewMaxOffsiteMigration() {
+  return ConfigScopes_migrateMaxOffsite_(true);
+}
+
+function ConfigScopes_ApplyMaxOffsiteMigration() {
+  return ConfigScopes_migrateMaxOffsite_(false);
+}
+
+function ConfigScopes_migrateMaxOffsite_(dryRun) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(CONFIGSCOPES_SHEET_NAME);
+  if (!sh) throw new Error('Missing sheet: ' + CONFIGSCOPES_SHEET_NAME);
+
+  var values = sh.getDataRange().getValues();
+  if (!values || !values.length) throw new Error('Config_Scopes is empty');
+
+  var headers = (values[0] || []).map(function(x){ return String(x || '').trim(); });
+  var idx = ConfigScopes_headerMap_(headers);
+
+  function findCol_(names) {
+    for (var i = 0; i < names.length; i++) {
+      var raw = String(names[i] || '').trim();
+      if (!raw) continue;
+      if (idx.hasOwnProperty(raw)) return idx[raw];
+      if (idx.hasOwnProperty(raw.toLowerCase())) return idx[raw.toLowerCase()];
+      if (idx.hasOwnProperty(raw.toUpperCase())) return idx[raw.toUpperCase()];
+      var norm = ConfigScopes_normKey_(raw);
+      if (idx.hasOwnProperty(norm)) return idx[norm];
+    }
+    return -1;
+  }
+
+  var slotCol = findCol_(['SlotKey','Slot key','Slot']);
+  var codeCol = findCol_(['ScopeCode','Scope code','Code']);
+  var nameCol = findCol_(['DisplayName','Display name','Name','ScopeName','Scope']);
+  var formalCol = findCol_(['Formal_hours','Formal hours','Formal Hours','Default_hours','Default hours','DefaultHours']);
+  var schedulingCol = findCol_(['Scheduling_hours','Scheduling hours','SchedulingHours','Planning duration','Planning_duration']);
+  var deltaCol = findCol_(['Scheduling_hours_delta','Scheduling hours delta','Scheduling_hours delta','Scheduling delta']);
+  var maxOffsiteCol = findCol_(['Max_Offsite_Hours','Max Offsite Hours','Max offsite hours','Maximum offsite hours']);
+
+  var appendColumn = maxOffsiteCol < 0;
+  if (appendColumn) maxOffsiteCol = headers.length;
+
+  var changes = [];
+  for (var r = 1; r < values.length; r++) {
+    var row = values[r] || [];
+    var identity = String(
+      (nameCol >= 0 ? row[nameCol] : '') ||
+      (codeCol >= 0 ? row[codeCol] : '') ||
+      (slotCol >= 0 ? row[slotCol] : '') ||
+      ('ROW_' + (r + 1))
+    ).trim();
+
+    var existingRaw = appendColumn ? '' : row[maxOffsiteCol];
+    var existing = ConfigScopes_numOrNull_(existingRaw);
+    if (existing !== null) continue;
+
+    var delta = deltaCol >= 0 ? ConfigScopes_numOrNull_(row[deltaCol]) : null;
+    var formal = formalCol >= 0 ? ConfigScopes_numOrNull_(row[formalCol]) : null;
+    var scheduling = schedulingCol >= 0 ? ConfigScopes_numOrNull_(row[schedulingCol]) : null;
+
+    var candidate = null;
+    var source = '';
+
+    if (delta !== null && delta < 0) {
+      candidate = Math.abs(delta);
+      source = 'Scheduling_hours_delta';
+    } else if (formal !== null && scheduling !== null && formal > scheduling) {
+      candidate = formal - scheduling;
+      source = 'Formal_hours_minus_Scheduling_hours';
+    }
+
+    if (candidate === null || !(candidate > 0)) continue;
+    candidate = Math.round(candidate * 100) / 100;
+
+    changes.push({
+      row: r + 1,
+      scope: identity,
+      oldValue: existingRaw === undefined ? '' : existingRaw,
+      newValue: candidate,
+      source: source
+    });
+  }
+
+  if (!dryRun) {
+    if (appendColumn) {
+      sh.getRange(1, maxOffsiteCol + 1).setValue('Max_Offsite_Hours');
+    }
+    for (var i = 0; i < changes.length; i++) {
+      var ch = changes[i];
+      sh.getRange(ch.row, maxOffsiteCol + 1).setValue(ch.newValue);
+    }
+    ConfigScopes_ClearCache();
+  }
+
+  return {
+    ok: true,
+    dryRun: !!dryRun,
+    sheet: CONFIGSCOPES_SHEET_NAME,
+    maxOffsiteColumn: maxOffsiteCol + 1,
+    maxOffsiteHeaderAdded: appendColumn,
+    rowsScanned: Math.max(0, values.length - 1),
+    changesCount: changes.length,
+    changes: changes,
+    legacyColumns: {
+      schedulingHoursPresent: schedulingCol >= 0,
+      schedulingHoursDeltaPresent: deltaCol >= 0
+    }
+  };
+}
+
+function RUN_CONFIGSCOPES_MAX_OFFSITE_MIGRATION_PREVIEW() {
+  var out = ConfigScopes_PreviewMaxOffsiteMigration();
+  Logger.log(JSON.stringify(out, null, 2));
+  return out;
+}
+
+function RUN_CONFIGSCOPES_MAX_OFFSITE_MIGRATION_APPLY() {
+  var out = ConfigScopes_ApplyMaxOffsiteMigration();
+  Logger.log(JSON.stringify(out, null, 2));
+  return out;
+}
+
 /***********************************************************************
  * RUNNERS
  ***********************************************************************/

@@ -17,6 +17,7 @@ function selectionClear(){gridSelected.clear();updateSelectionUi()}
 function selectionToggle(id,on){id=String(id||"").trim();if(!id)return;if(on)gridSelected.add(id);else gridSelected.delete(id);updateSelectionUi()}
 function selectionSelectVisible(on){gridVisibleIds.forEach(function(id){if(on)gridSelected.add(id);else gridSelected.delete(id)});updateSelectionUi()}
 function updateSelectionUi(){
+  gridVisibleIds=Array.from(document.querySelectorAll('#rows tr[data-audit-id]')).map(function(tr){return String(tr.getAttribute('data-audit-id')||'')}).filter(Boolean);
   document.querySelectorAll(".grid-select-row").forEach(function(cb){cb.checked=gridSelected.has(String(cb.getAttribute("data-audit-id")||""))});
   var head=document.getElementById("gridSelectAll"),visible=gridVisibleIds.filter(function(id){return gridSelected.has(id)}).length;
   if(head){head.checked=gridVisibleIds.length>0&&visible===gridVisibleIds.length;head.indeterminate=visible>0&&visible<gridVisibleIds.length}
@@ -153,7 +154,7 @@ function removeRejectedRowInPlace(auditId,perf){
   var before=all[idx],beforeKey=before.statusKey,scrollX=window.scrollX,scrollY=window.scrollY,t=performance.now();
   all.splice(idx,1);gridSelected.delete(auditId);
   var tr=document.querySelector('tr[data-audit-id="'+CSS.escape(auditId)+'"]');if(tr)tr.remove();
-  adjustCounters(beforeKey,'REJECTED');window.scrollTo(scrollX,scrollY);
+  adjustCounters(beforeKey,'REJECTED');updateSelectionUi();window.scrollTo(scrollX,scrollY);
   perf.patchMs=Math.round(performance.now()-t);perf.totalMs=Math.round(performance.now()-perf.startedAt)
 }
 function patchActionLikeV1(auditId,action,reason,result,perf){
@@ -174,7 +175,7 @@ function patchActionLikeV1(auditId,action,reason,result,perf){
       successors.forEach(function(row){
         if(!row||!row.auditId)return;
         var wrap=document.createElement('tbody');wrap.innerHTML=renderOpenRow(row);var fresh=wrap.firstElementChild;
-        if(fresh){body.appendChild(fresh);bindActionButtons(fresh)}
+        if(fresh){body.appendChild(fresh);bindActionButtons(fresh);bindSelectionControls(fresh)}
       })
     }
     updateSelectionUi();window.scrollTo(scrollX,scrollY);

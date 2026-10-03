@@ -28,7 +28,7 @@ const checks=[
 ['Manager Approved rows expose Accept',r4.includes("statusKey==='APPROVED'?['ACCEPT','CANCEL','REJECT']")&&manager.includes('raw.indexOf("ACCEPT")>=0')],
 ['Manager Accept on behalf queues accepted plus ECAS',r4.includes("'AUDIT_ACCEPTED'")&&r4.includes("'ECAS_AUDIT_APPROVAL_DIGEST'")&&r4.includes("CLOUD_RUN_DIRECT_MANAGER_ACCEPT_ON_BEHALF")],
 ['Reject updates Model C scope ownership',r4.includes("rr[ost]='REJECTED'")&&r4.includes("rr[csactive]='NO'")&&r4.includes("MODEL_C_NO_ACTIVE_OBLIGATIONS_FOR_REJECT")],
-['Reject archives before deleting projection row',r4.indexOf("await sheetsValuesAppend('Rejected audits!A:'")<r4.indexOf("await sheetsDeleteRow('Audit planning',found.sourceRow)")],
+['Reject archives before deleting projection row',(()=>{const s=r4.indexOf("async function directManagerReject");const e=r4.indexOf("async function ",s+1);const x=r4.slice(s,e>0?e:undefined);return x.indexOf("await sheetsValuesAppend('Rejected audits!A:'")>=0&&x.indexOf("await sheetsValuesAppend('Rejected audits!A:'")<x.indexOf("await sheetsDeleteRow('Audit planning',found.sourceRow)")})()],
 ['Reject route explicit through r10',r10.includes("managerAction==='reject'")&&r10.includes("/api/v1/manager/reject-direct")],
 ['Complete route explicit through r10',r10.includes("managerAction==='complete'")&&r10.includes("/api/v1/manager/complete-direct")],
 ['Complete direct owner writes realized history',r4.includes("async function directManagerComplete")&&r4.includes("Log realized audits!A:")&&r4.includes("owner:'CLOUD_RUN_DIRECT_MANAGER_COMPLETE'")],

@@ -299,6 +299,22 @@ function doPost(e) {
     var extResult=OpenAuditsGrid2_applyExtension(extAuditId,command);return ContentService.createTextOutput(JSON.stringify(extResult||{success:false,error:'EMPTY_RESULT'})).setMimeType(ContentService.MimeType.JSON);
   }
 
+  if (rawAction==='externalcompleteclaim'||rawAction==='externalcompleterelease') {
+    if(!V5_ENTRY_isDevEnv_())return ContentService.createTextOutput(JSON.stringify({success:false,error:'DEV_ONLY'})).setMimeType(ContentService.MimeType.JSON);
+    var completeBridge=V5_ENTRY_externalBridgeBody_(e);if(!completeBridge.ok)return completeBridge.response;var completeBody=completeBridge.body||{};
+    var completeActor=String(completeBody.actorEmail||'').trim().toLowerCase(),completeAuditId=String(completeBody.auditId||'').trim();
+    if(!completeActor||!completeAuditId)return ContentService.createTextOutput(JSON.stringify({success:false,error:'MISSING_REQUIRED_FIELDS'})).setMimeType(ContentService.MimeType.JSON);
+    var completeResult;
+    if(rawAction==='externalcompleteclaim'){
+      if(typeof CompletionService_AcquireExternalManagerClaim!=='function')return ContentService.createTextOutput(JSON.stringify({success:false,error:'COMPLETE_CLAIM_OWNER_UNAVAILABLE'})).setMimeType(ContentService.MimeType.JSON);
+      completeResult=CompletionService_AcquireExternalManagerClaim(completeAuditId,completeActor,Number(completeBody.hoursDedicated));
+    }else{
+      if(typeof CompletionService_ReleaseExternalManagerClaim!=='function')return ContentService.createTextOutput(JSON.stringify({success:false,error:'COMPLETE_CLAIM_OWNER_UNAVAILABLE'})).setMimeType(ContentService.MimeType.JSON);
+      completeResult=CompletionService_ReleaseExternalManagerClaim(completeAuditId,String(completeBody.token||'').trim());
+    }
+    return ContentService.createTextOutput(JSON.stringify(completeResult||{success:false,error:'EMPTY_RESULT'})).setMimeType(ContentService.MimeType.JSON);
+  }
+
   if (rawAction==='externalmanageraction') {
     if(!V5_ENTRY_isDevEnv_())return ContentService.createTextOutput(JSON.stringify({success:false,error:'DEV_ONLY'})).setMimeType(ContentService.MimeType.JSON);
     var actionBridge=V5_ENTRY_externalBridgeBody_(e);if(!actionBridge.ok)return actionBridge.response;var body=actionBridge.body||{};

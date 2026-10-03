@@ -1796,7 +1796,33 @@ function AuditorV5_Action_U20260410(auditId, action, payload) {
   var sh = ss.getSheetByName("Audit planning");
   if (!sh) throw new Error('Missing sheet "Audit planning"');
   var rowPack = (typeof __mp_getAuditPlanningRow_ === 'function') ? __mp_getAuditPlanningRow_(ss, auditId) : null;
-  if (!rowPack || !rowPack.row || !rowPack.hdr || !rowPack.rowNumber) throw new Error("Audit not found: " + auditId);
+  if (!rowPack || !rowPack.row || !rowPack.hdr || !rowPack.rowNumber) {
+    // A previous Complete attempt may already have moved the audit to
+    // realized history while a later Model C side effect still needed repair.
+    // Allow only the authenticated Auditor to invoke the idempotent recovery.
+    if (action === 'complete' && typeof CompletionService_CommitCompletion === 'function') {
+      var recoveryActor = '';
+      try { recoveryActor = String(auditorV5_getActiveEmail_() || '').trim().toLowerCase(); } catch (eRecoveryActor) {}
+      var recoveryHours = Number(payload && payload.hoursDedicated);
+      if (recoveryActor && isFinite(recoveryHours) && recoveryHours > 0 &&
+          Math.abs((Math.round(recoveryHours * 4) / 4) - recoveryHours) <= 1e-9) {
+        var recovered = CompletionService_CommitCompletion({
+          auditId:auditId,
+          hoursDedicated:recoveryHours,
+          actorEmail:recoveryActor,
+          mode:'AUDITOR'
+        });
+        if (recovered && recovered.success === true) {
+          recovered.ok = true;
+          recovered.action = 'complete';
+          recovered.newStatus = 'COMPLETED';
+          recovered.uiPatch = auditorV5_buildActionUiPatch_(auditId, 'complete', 'COMPLETED', true);
+          return recovered;
+        }
+      }
+    }
+    throw new Error("Audit not found: " + auditId);
+  }
   var headers = rowPack.hdr.map(function(x){ return String(x || "").trim(); });
   var auditRow = rowPack.row.slice();
   var idxAuditId = headers.indexOf("Audit ID");

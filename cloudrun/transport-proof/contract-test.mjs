@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 const r4=fs.readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const r5=fs.readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
+const r12=fs.readFileSync(new URL('./server-r12.js',import.meta.url),'utf8');
 const backend=fs.readFileSync(new URL('../../ManagerPlanningBackend_CORE_SPLIT.js',import.meta.url),'utf8');
 const handoff=fs.readFileSync(new URL('../../zz_ExternalPlanningWorkspaceHandoff.js',import.meta.url),'utf8');
 const manager=fs.readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');

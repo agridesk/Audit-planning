@@ -938,6 +938,8 @@ function auditorV5_buildActiveGrid_U20409(activeEmail, diag) {
     var scopes = scopesPack.scopes;
     var scopesText = scopesPack.scopesText;
     var schedulingTarget = auditorV5_schedulingTargetForRow_(hdr, row);
+    var committedScheduledHours = planned.plannedHours || '';
+    var formalPlannedHours = planned.plannedDates ? toBePlanned : '';
 
     var canPlan = (!assignedMatch) && preassignedMatch && (statusNorm === "PENDING_PLANNING") && (allowSelfPlanning === "YES");
     var expectedOnly = preassignedMatch && !assignedMatch;
@@ -966,8 +968,8 @@ function auditorV5_buildActiveGrid_U20409(activeEmail, diag) {
       scopesText: scopesText,
       expirationDate: expirationDate,
       plannedDates: planned.plannedDates,
-      plannedHours: planned.plannedHours,
-      scheduledHours: schedulingTarget,
+      plannedHours: formalPlannedHours,
+      scheduledHours: committedScheduledHours,
       schedulingHoursTarget: schedulingTarget,
       status: String(statusRaw || "").toUpperCase(),
       readOnly: (String(auditIdS).indexOf("ROW_") === 0)
@@ -3421,6 +3423,8 @@ function AuditorV5_GetAuditorGrid_FAST(req) {
         toBePlanned = String(row[idxToBePlanned]).trim();
       }
       var schedulingTarget = auditorV5_schedulingTargetForRow_(hdr, row);
+      var committedScheduledHours = planned.plannedHours || '';
+      var formalPlannedHours = planned.plannedDates ? toBePlanned : '';
 
       rows.push({
         auditId: auditId,
@@ -3446,8 +3450,8 @@ function AuditorV5_GetAuditorGrid_FAST(req) {
         plannedTooltip: planned.plannedTooltip || '',
         expirationDate: expirationDate,
         plannedDates: planned.plannedDates || '',
-        plannedHours: planned.plannedHours || '',
-        scheduledHours: schedulingTarget,
+        plannedHours: formalPlannedHours,
+        scheduledHours: committedScheduledHours,
         schedulingHoursTarget: schedulingTarget,
         status: String(statusRaw || '').toUpperCase(),
         readOnly: String(auditId).indexOf('ROW_') === 0,

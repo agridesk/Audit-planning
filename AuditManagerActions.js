@@ -1,6 +1,6 @@
 
 // FILE: AuditManagerActions.js
-// BUILD: 2026-10-02_MANAGER_ACTION_TRACE_R4
+// BUILD: 2026-10-03_COMPLETE_V29_MANAGER_ACTION_R5
 // PURPOSE:
 //   Minimal stable Manager grid action endpoint after backend split.
 //   Replaces old restore-chain that depended on many legacy ManagerV5 helpers.
@@ -42,7 +42,7 @@ function managerV5Action(auditId, action, options) {
     res.perf = res.perf || {};
     res.perf.managerActionAdapterMs = new Date().getTime() - started;
     res.perf.requestId = String(options.requestId || '');
-    res.adapterBuild = '2026-10-02_MANAGER_ACTION_TRACE_R4';
+    res.adapterBuild = '2026-10-03_COMPLETE_V29_MANAGER_ACTION_R5';
     // Hot-path rule: never append Diagnostics_Action_Timings synchronously.
     // The duration is already returned in res.perf and can be logged by the
     // caller without adding another Spreadsheet write to Cancel/Reject/Approve.
@@ -171,7 +171,7 @@ function ManagerV5_Action(a, b, options) {
 function RUN_AUDIT_MANAGER_ACTIONS_ADAPTER_DIAGNOSTICS() {
   var out = {
     ok: true,
-    build: '2026-10-02_MANAGER_ACTION_TRACE_R4',
+    build: '2026-10-03_COMPLETE_V29_MANAGER_ACTION_R5',
     functions: {
       managerV5Action: typeof managerV5Action === 'function',
       ManagerV5_Action: typeof ManagerV5_Action === 'function',

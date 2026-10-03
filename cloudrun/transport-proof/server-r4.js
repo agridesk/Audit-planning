@@ -5,7 +5,7 @@ import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
-const BUILD='2026-10-03_COMPLETE_V29_DIRECT_R47_IDEMPOTENT_UI_RECOVERY';
+const BUILD='2026-10-03_COMPLETE_V29_DIRECT_R48_SHARED_COMPLETE_OWNER';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
@@ -522,10 +522,15 @@ function directExistingSuccessorRows(ap,auditId,actorEmail,cfgValues,companies){
   }
   return out;
 }
-async function directManagerComplete(identity,body){
+async function directManagerComplete(identity,body){return directComplete(identity,body,'MANAGER');}
+async function directAuditorComplete(identity,body){return directComplete(identity,body,'AUDITOR');}
+async function directComplete(identity,body,actorRole){
+  actorRole=clean(actorRole).toUpperCase();
+  if(actorRole!=='MANAGER'&&actorRole!=='AUDITOR')throw new Error('COMPLETE_ACTOR_ROLE_INVALID');
   const started=Date.now(),auditId=clean(body?.auditId),options=body?.options&&typeof body.options==='object'?body.options:{},hoursDedicated=Number(options.hoursDedicated),expectedRevision=clean(options.expectedRevision||body?.expectedRevision);
   if(!auditId)throw new Error('AUDIT_ID_REQUIRED');
   if(!Number.isFinite(hoursDedicated)||hoursDedicated<=0||Math.abs(Math.round(hoursDedicated*4)/4-hoursDedicated)>1e-9)throw new Error('HOURS_DEDICATED_INVALID');
+  const owner=actorRole==='MANAGER'?'CLOUD_RUN_DIRECT_MANAGER_COMPLETE':'CLOUD_RUN_DIRECT_AUDITOR_COMPLETE';
   return withDirectManagerActionLock(auditId,async()=>{
     const readStarted=Date.now(),vr=await sheetsBatchGet([
       'Audit planning!A1:AX600','Log realized audits!A1:AZ2500','Auditor Availability!A:P',
@@ -539,23 +544,28 @@ async function directManagerComplete(identity,body){
     if(!found){
       if(!existingLogRow)throw new Error('AUDIT_NOT_FOUND');
       let correctionMs=0,managerOverride=false,managerCorrection=null;
-      if(logHoursIx>=0&&Number(log[existingLogRow-1][logHoursIx])!==hoursDedicated){
-        const oldHours=Number(log[existingLogRow-1][logHoursIx]),t=Date.now();await sheetsValuesBatchUpdate([{range:'Log realized audits!'+a1col(logHoursIx+1)+existingLogRow,values:[[hoursDedicated]]}]);correctionMs=Date.now()-t;managerOverride=true;
+      const existingHours=logHoursIx>=0?Number(log[existingLogRow-1][logHoursIx]):0;
+      if(actorRole==='MANAGER'&&logHoursIx>=0&&existingHours!==hoursDedicated){
+        const oldHours=existingHours,t=Date.now();await sheetsValuesBatchUpdate([{range:'Log realized audits!'+a1col(logHoursIx+1)+existingLogRow,values:[[hoursDedicated]]}]);correctionMs=Date.now()-t;managerOverride=true;
         const companyIx=col(logH,['Company']),uidIx=col(logH,['Company_UID','Company UID','CompanyUid']);try{managerCorrection=await directQueueRealizedHoursCorrection(auditId,val(log[existingLogRow-1],companyIx),val(log[existingLogRow-1],uidIx),clean(identity?.email).toLowerCase(),oldHours,hoursDedicated);}catch{}
       }
+      const effectiveHours=actorRole==='AUDITOR'&&existingHours>0?existingHours:hoursDedicated;
       const retrySuccessorRows=directExistingSuccessorRows(ap,auditId,clean(identity?.email).toLowerCase(),cfgValues,companies);
-      return{success:true,idempotent:true,alreadyCompleted:true,managerOverride,managerCorrection,auditId,action:'COMPLETE',hoursDedicated,directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_COMPLETE',readMs,writeMs:correctionMs,successorRows:retrySuccessorRows,successorAuditIds:retrySuccessorRows.map(r=>r.auditId),totalMs:Date.now()-started};
+      return{success:true,idempotent:true,alreadyCompleted:true,managerOverride,managerCorrection,auditId,action:'COMPLETE',hoursDedicated:effectiveHours,directCommit:true,owner,readMs,writeMs:correctionMs,successorRows:retrySuccessorRows,successorAuditIds:retrySuccessorRows.map(r=>r.auditId),totalMs:Date.now()-started};
     }
     const h=found.h,row=found.row,beforeStatus=val(row,col(h,['Status'])),beforeKey=directStatusKey(beforeStatus);
     if(beforeKey!=='ACCEPTED')throw new Error('STATUS_TRANSITION_BLOCKED');
     const revision=directRowRevision(h,row);if(expectedRevision&&revision!==expectedRevision)throw new Error('MANAGER_ACTION_SOURCE_REVISION_CONFLICT');
     let existingLogCorrectionMs=0,managerCorrection=null;
-    if(existingLogRow&&logHoursIx>=0&&Number(log[existingLogRow-1][logHoursIx])!==hoursDedicated){
-      const oldHours=Number(log[existingLogRow-1][logHoursIx]),t=Date.now();await sheetsValuesBatchUpdate([{range:'Log realized audits!'+a1col(logHoursIx+1)+existingLogRow,values:[[hoursDedicated]]}]);existingLogCorrectionMs=Date.now()-t;
+    const existingCommittedHours=existingLogRow&&logHoursIx>=0?Number(log[existingLogRow-1][logHoursIx]):0;
+    if(actorRole==='MANAGER'&&existingLogRow&&logHoursIx>=0&&existingCommittedHours!==hoursDedicated){
+      const oldHours=existingCommittedHours,t=Date.now();await sheetsValuesBatchUpdate([{range:'Log realized audits!'+a1col(logHoursIx+1)+existingLogRow,values:[[hoursDedicated]]}]);existingLogCorrectionMs=Date.now()-t;
       const companyIx=col(logH,['Company']),uidIx=col(logH,['Company_UID','Company UID','CompanyUid']);try{managerCorrection=await directQueueRealizedHoursCorrection(auditId,val(log[existingLogRow-1],companyIx),val(log[existingLogRow-1],uidIx),clean(identity?.email).toLowerCase(),oldHours,hoursDedicated);}catch{}
     }
 
     const company=val(row,col(h,['Company'])),location=val(row,col(h,['Location'])),companyUid=val(row,col(h,['Company_UID','Company UID','CompanyUid'])),actorEmail=clean(identity?.email).toLowerCase(),now=isoLocalStamp(),stamp=new Date().toISOString();
+    const assignedTo=val(row,col(h,['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned'])).toLowerCase();
+    if(actorRole==='AUDITOR'&&(!assignedTo||assignedTo!==actorEmail))throw new Error('AUDITOR_NOT_ASSIGNED');
     if(!companyUid)throw new Error('COMPANY_UID_REQUIRED');
 
     const cfg=scopeCatalog(cfgValues),cfgByCode=new Map(cfg.map(x=>[clean(x.scopeCode),x]));
@@ -567,7 +577,8 @@ async function directManagerComplete(identity,body){
       if(!existingLogRow)throw new Error('MODEL_C_NO_ACTIVE_OBLIGATIONS_FOR_COMPLETE');
       const deleteStarted=Date.now();await sheetsDeleteRow('Audit planning',found.sourceRow);const deleteMs=Date.now()-deleteStarted;
       const recoveredSuccessorRows=directExistingSuccessorRows(ap,auditId,clean(identity?.email).toLowerCase(),cfgValues,companies);
-      return{success:true,idempotent:true,recovered:true,auditId,action:'COMPLETE',hoursDedicated,directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_COMPLETE',successorRows:recoveredSuccessorRows,successorAuditIds:recoveredSuccessorRows.map(r=>r.auditId),readMs,writeMs:existingLogCorrectionMs,deleteMs,totalMs:Date.now()-started};
+      const recoveredHours=actorRole==='AUDITOR'&&existingCommittedHours>0?existingCommittedHours:hoursDedicated;
+      return{success:true,idempotent:true,recovered:true,auditId,action:'COMPLETE',hoursDedicated:recoveredHours,directCommit:true,owner,successorRows:recoveredSuccessorRows,successorAuditIds:recoveredSuccessorRows.map(r=>r.auditId),readMs,writeMs:existingLogCorrectionMs,deleteMs,totalMs:Date.now()-started};
     }
     const obById=new Map();for(let i=1;i<obs.length;i++)obById.set(val(obs[i],oi),{row:i+1,values:obs[i].slice()});
 
@@ -641,7 +652,8 @@ async function directManagerComplete(identity,body){
     for(let i=1;i<av.length;i++){const rr=(av[i]||[]).slice();while(rr.length<ah.length)rr.push('');let changed=false;if(aid1>=0&&clean(rr[aid1])===auditId){rr[aid1]='';if(s1>=0)rr[s1]='';if(e1>=0)rr[e1]='';if(st1>=0)rr[st1]='';changed=true;}if(aid2>=0&&clean(rr[aid2])===auditId){rr[aid2]='';if(s2>=0)rr[s2]='';if(e2>=0)rr[e2]='';if(st2>=0)rr[st2]='';changed=true;}if(changed){const has1=aid1>=0&&clean(rr[aid1]),has2=aid2>=0&&clean(rr[aid2]),soft=directSoftAvailabilityStatus(st1>=0?rr[st1]:'')||directSoftAvailabilityStatus(st2>=0?rr[st2]:'');if(available>=0)rr[available]=(has1||has2||soft)?'NO':'YES';if(lu>=0)rr[lu]=now.slice(0,16);availabilityWrites.push({range:'Auditor Availability!A'+(i+1)+':'+a1col(ah.length)+(i+1),values:[rr]});}}
 
     if(!logH.length)throw new Error('LOG_REALIZED_SCHEMA_MISSING');
-    const logRow=directCompletedLogRow(logH,found,hoursDedicated,actorEmail,now,completedFormalHours);
+    const managerEmailForLog=actorRole==='MANAGER'?actorEmail:'planning@agriqa.es';
+    const logRow=directCompletedLogRow(logH,found,hoursDedicated,managerEmailForLog,now,completedFormalHours);
     const writeStarted=Date.now(),allWrites=[...obligationWrites,...linkWrites,...availabilityWrites];
     if(!existingLogRow)allWrites.push({range:'Log realized audits!A'+(log.length+1)+':'+a1col(logH.length)+(log.length+1),values:[logRow]});
     for(let i=0;i<newPlanningRows.length;i++)allWrites.push({range:'Audit planning!A'+(ap.length+i+1)+':'+a1col(apH.length)+(ap.length+i+1),values:[newPlanningRows[i]]});
@@ -652,13 +664,13 @@ async function directManagerComplete(identity,body){
 
     const deleteStarted=Date.now();await sheetsDeleteRow('Audit planning',found.sourceRow);const deleteMs=Date.now()-deleteStarted;
 
-    const minuteStamp=now.slice(0,16),trailPayload={type:'LIFECYCLE_STATUS_CHANGED',auditId,company,companyUid,actorEmail,actorRole:'MANAGER',beforeStatus,afterStatus:'Completed',source:'CLOUD_RUN_DIRECT_MANAGER_COMPLETE',timestamp:now,action:'COMPLETE',hoursDedicated,successorAuditIds:successorIds};
+    const minuteStamp=now.slice(0,16),trailPayload={type:'LIFECYCLE_STATUS_CHANGED',auditId,company,companyUid,actorEmail,actorRole,beforeStatus,afterStatus:'Completed',source:owner,timestamp:now,action:'COMPLETE',hoursDedicated,successorAuditIds:successorIds};
     const trailBody=JSON.stringify(trailPayload),trailHash=createHash('md5').update('LIFECYCLE_STATUS_CHANGED|'+auditId+'|'+now+'|Completed').digest('hex');
     const queueRows=[[minuteStamp,'AUDIT_TRAIL','LIFECYCLE_STATUS_CHANGED','',auditId,company,'[TRAIL] LIFECYCLE_STATUS_CHANGED :: '+auditId,trailBody,0,'',trailHash,'',JSON.stringify({payload:trailPayload})]];
     let sideEffectQueue={success:true};const sideStarted=Date.now();try{await sheetsValuesAppend('Notification Queue!A:M',queueRows);}catch(e){sideEffectQueue={success:false,error:clean(e?.message||e)}}const sideEffectMs=Date.now()-sideStarted;
 
     const successorRows=newPlanningRows.map((nr,i)=>{const mapped=managerOpen([apH,nr],actorEmail,cfgValues,companies).rows[0];if(mapped)mapped.sourceRow=ap.length+i+1;return mapped;}).filter(Boolean);
-    return{success:true,auditId,action:'COMPLETE',beforeStatus,newStatus:'Completed',afterStatus:'COMPLETED',afterStatusDisplay:'Completed',hoursDedicated,directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_COMPLETE',successorAuditIds:successorIds,successorRows,managerCorrection,readMs,writeMs,deleteMs,availabilityRows:availabilityWrites.length,sideEffectMs,sideEffectQueue,totalMs:Date.now()-started};
+    return{success:true,auditId,action:'COMPLETE',beforeStatus,newStatus:'Completed',afterStatus:'COMPLETED',afterStatusDisplay:'Completed',hoursDedicated,directCommit:true,owner,successorAuditIds:successorIds,successorRows,managerCorrection,readMs,writeMs,deleteMs,availabilityRows:availabilityWrites.length,sideEffectMs,sideEffectQueue,totalMs:Date.now()-started};
   });
 }
 
@@ -981,6 +993,16 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
     try{b.action='reject';const out=await directManagerReject(s,b);return send(res,out&&out.success===false?409:200,out);}
     catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'DIRECT_MANAGER_REJECT_BLOCKED',detail:clean(e?.message||e)});}
+  }
+  if(u.pathname==='/api/v1/internal/auditor/complete-direct'&&req.method==='POST'){
+    if(!WRITE_KEY)return send(res,503,{ok:false,error:'WRITE_BRIDGE_NOT_CONFIGURED'});
+    const supplied=clean(req.headers['x-ams-bridge-key']);
+    if(!supplied||!safeEq(supplied,WRITE_KEY))return send(res,403,{ok:false,error:'BRIDGE_FORBIDDEN'});
+    let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});
+    let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+    const actorEmail=clean(b.actorEmail).toLowerCase();if(!actorEmail)return send(res,400,{ok:false,error:'AUDITOR_EMAIL_REQUIRED'});
+    try{b.action='complete';const out=await directAuditorComplete({email:actorEmail,role:'Auditor'},b);return send(res,out&&out.success===false?409:200,out);}
+    catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'DIRECT_AUDITOR_COMPLETE_BLOCKED',detail:clean(e?.message||e)});}
   }
   if(u.pathname==='/api/v1/manager/complete-direct'&&req.method==='POST'){
     const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});

@@ -10,6 +10,7 @@ const checks=[
   ['Toolkit does not expose schedulingHoursTarget',!r4.includes('schedulingHoursTarget:')],
   ['Save validation uses formal hours',r4.includes("PLANNED_HOURS_BELOW_FORMAL_HOURS")&&r4.includes('formalTarget=Math.round(Number(audit.formalHours||audit.requiredHours||0)*100)/100')],
   ['Planning JSON keeps one hours truth plus concrete blocks',r4.includes('JSON.stringify({blocks:requested,formalHours,totalPlannedHours:formalHours,auditorEmail,auditorName})')&&!r4.includes('scheduledHours')],
+  ['Direct PLAN persists Hours planned from formalHours',r4.includes("set(['Hours planned','Planned hours','Hours Planned'],formalHours)")],
   ['Calendar direct click toggle retained',r5.includes('function toggleCalendarDay(date,visualState)')&&r5.includes('Day removed from planning.')&&r5.includes('Day added to planning.')],
   ['No Add slot control exposed',!r5.includes('>Add slot<')&&!r5.includes('id="addSlot"')],
   ['Maximum five selected days retained',r5.includes('Maximum 5 planning days.')],

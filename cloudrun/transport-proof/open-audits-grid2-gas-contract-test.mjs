@@ -25,8 +25,8 @@ const checks=[
 ['canonical invalidator clears manager namespace',core.includes("AUDIT_CACHE.removeNamespace('manager')")],
 ['canonical invalidator clears manager persisted grid',core.includes("MP_PERSIST::manager::single_grid_open_v1")],
 ['extension rereads canonical enriched row',svc.includes('var enriched=OpenAuditsGrid2_getEnriched([auditId])')],
-['Auditor Grid backend exposes scheduling target',auditorBackend.includes('function auditorV5_schedulingTargetForRow_(')&&auditorBackend.includes('scheduledHours: schedulingTarget')&&auditorBackend.includes('schedulingHoursTarget: schedulingTarget')],
-['Auditor Grid shows scheduled hours secondary line',auditorPortal.includes("scheduled ' + V5.escape(String(Number(schedulingTarget))) + ' h")&&auditorPortal.includes('r.schedulingHoursTarget')]
+['Auditor Grid backend separates formal, target and committed scheduled hours',auditorBackend.includes('function auditorV5_schedulingTargetForRow_(')&&auditorBackend.includes('plannedHours: formalPlannedHours')&&auditorBackend.includes('scheduledHours: committedScheduledHours')&&auditorBackend.includes('schedulingHoursTarget: schedulingTarget')],
+['Auditor Grid shows scheduled hours only from committed planning',auditorPortal.includes("scheduled ' + V5.escape(String(Number(committedScheduledHours))) + ' h")&&auditorPortal.includes('r.scheduledHours')]
 ];
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks)console.log(`${ok?'PASS':'FAIL'} ${name}`);

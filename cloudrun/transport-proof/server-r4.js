@@ -536,7 +536,7 @@ async function directManagerApprove(identity,body){
       [minuteStamp,'PENDING','ECAS_AUDIT_APPROVAL_DIGEST',actorEmail,auditId,company,'ECAS audit approval – '+company+' – '+auditId,bodyText,0,'',ecasHash,'',JSON.stringify({payload:ecasPayload})]
     ];
     let sideEffectQueue={success:true};const sideStarted=Date.now();try{await sheetsValuesAppend('Notification Queue!A:M',queueRows);}catch(e){sideEffectQueue={success:false,error:clean(e?.message||e)}}const sideEffectMs=Date.now()-sideStarted;
-    return{success:true,auditId,action:'APPROVE',beforeStatus,newStatus:'Accepted',afterStatus:'ACCEPTED',afterStatusDisplay:'Accepted',assignedTo:assigned,directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_APPROVE',readMs,writeMs,sideEffectMs,sideEffectQueue,totalMs:Date.now()-started};
+    return{success:true,auditId,action:'APPROVE',beforeStatus,newStatus:'Accepted',afterStatus:'ACCEPTED',afterStatusDisplay:'Accepted',assignedTo:assigned,sourceRevision:directRowRevision(h,row),directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_APPROVE',readMs,writeMs,sideEffectMs,sideEffectQueue,totalMs:Date.now()-started};
   });
 }
 
@@ -583,7 +583,7 @@ async function directManagerAcceptOnBehalf(identity,body){
       [minuteStamp,'PENDING','ECAS_AUDIT_APPROVAL_DIGEST',managerRecipient,auditId,company,'ECAS audit approval – '+company+' – '+auditId,bodyText,0,'',ecasHash,'',JSON.stringify({payload:ecasPayload})]
     ];
     let sideEffectQueue={success:true};const sideStarted=Date.now();try{await sheetsValuesAppend('Notification Queue!A:M',queueRows);}catch(e){sideEffectQueue={success:false,error:clean(e?.message||e)}}const sideEffectMs=Date.now()-sideStarted;
-    return{success:true,auditId,action:'ACCEPT',beforeStatus,newStatus:'Accepted',afterStatus:'ACCEPTED',afterStatusDisplay:'Accepted',representedAuditor,managerActor,confirmationSource:acceptSource,confirmedAt:now,directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_ACCEPT_ON_BEHALF',readMs,writeMs,sideEffectMs,sideEffectQueue,totalMs:Date.now()-started};
+    return{success:true,auditId,action:'ACCEPT',beforeStatus,newStatus:'Accepted',afterStatus:'ACCEPTED',afterStatusDisplay:'Accepted',representedAuditor,managerActor,confirmationSource:acceptSource,confirmedAt:now,sourceRevision:directRowRevision(h,row),directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_ACCEPT_ON_BEHALF',readMs,writeMs,sideEffectMs,sideEffectQueue,totalMs:Date.now()-started};
   });
 }
 
@@ -866,7 +866,7 @@ async function directManagerCancel(identity,body){
     }
     let sideEffectQueue={success:true};const sideStarted=Date.now();try{await sheetsValuesAppend('Notification Queue!A:M',queueRows);}catch(e){sideEffectQueue={success:false,error:clean(e?.message||e)}}
     const sideEffectMs=Date.now()-sideStarted;
-    return{success:true,auditId,action:'CANCEL',beforeStatus,newStatus:'Pending Planning',afterStatus:'PENDING_PLANNING',afterStatusDisplay:'Pending Planning',assignedTo:'',planningJson:'',hoursPlanned:0,directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_CANCEL',readMs,writeMs,writeCount:writes.length,availabilityRows,sideEffectMs,sideEffectQueue,totalMs:Date.now()-started};
+    return{success:true,auditId,action:'CANCEL',beforeStatus,newStatus:'Pending Planning',afterStatus:'PENDING_PLANNING',afterStatusDisplay:'Pending Planning',assignedTo:'',planningJson:'',hoursPlanned:0,sourceRevision:directRowRevision(h,row),directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_CANCEL',readMs,writeMs,writeCount:writes.length,availabilityRows,sideEffectMs,sideEffectQueue,totalMs:Date.now()-started};
   });
 }
 

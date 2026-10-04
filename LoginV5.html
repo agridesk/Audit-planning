@@ -1,6 +1,6 @@
 <!--
-  BUILD: LOGIN_FORM_TOP_SUBMIT_R14_20260527
-  LoginV5.html (PROD REDIRECT + OTP UX/NORMALIZATION + MAIL_FAIL_VISIBLE FIX R14)
+  BUILD: LOGIN_AUTH_2_0_P0_R1_20261004
+  LoginV5.html (LOGIN & AUTHENTICATION 2.0 P0)
   Timestamp: 20260205_164640
 
   Manager first: email identification + 6-digit code + token.
@@ -9,7 +9,8 @@
   - After OTP verify, ALWAYS receives a token:
       remember checked  -> TRUSTED_14D
       remember unchecked-> SESSION_2H
-  - Uses explicit "Continue to portal" button (user gesture) to escape iframe restrictions.
+  - Successful authentication automatically navigates to the allowlisted destination.
+  - Open portal is fallback-only when top navigation does not complete.
 
   Template variables injected by EntryV5:
     __execUrl
@@ -104,18 +105,17 @@
       <? if (typeof __testAuthEnabled !== 'undefined' && __testAuthEnabled) { ?>
       <div class="testbox">
         <div class="small" style="margin-bottom:8px;">
-          TEST fast login
+          DEV shortcut login
           <? if (typeof __appEnv !== 'undefined' && __appEnv) { ?>
             · <span class="mono"><?!= __appEnv ?></span>
           <? } ?>
         </div>
         <div class="row" style="margin:0;">
-          <button class="btn" type="button" onclick="window.loginAsTestAuditor()">Test Auditor</button>
-          <button class="btn" type="button" onclick="window.loginAsTestManager()" style="margin-left:8px;">Test Manager</button>
+          <button class="btn" type="button" onclick="window.loginAsTestAuditor()">Login as Auditor</button>
+          <button class="btn" type="button" onclick="window.loginAsTestManager()" style="margin-left:8px;">Login as Manager</button>
         </div>
         <div class="hint" style="margin-top:8px;">
-          Uses only the configured test users, test token and test deviceId injected by the backend.
-          In PROD this must be enabled explicitly by backend configuration.
+          DEV only. One click opens the correct Portal 2.0 role without OTP. This bypass is rejected outside canonical DEV.
         </div>
       </div>
       <? } ?>
@@ -137,7 +137,7 @@
       <div class="split">
         <div>
           <label for="code">6-digit code</label>
-          <input id="code" type="text" inputmode="numeric" maxlength="24" placeholder="000000" autocomplete="one-time-code" />
+          <input id="code" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" />
           <div class="hint">Enter the code from your email.</div>
         </div>
 
@@ -224,6 +224,8 @@
   const KEY_FORCE = LS_PREFIX + "FORCE_LOGIN";
 
   let __targetUrl = "";
+  let __verifyInFlight = false;
+  let __fallbackTimer = null;
 
   function setMsg(kind, text) {
     const el = document.getElementById("msg");
@@ -295,9 +297,25 @@
     return !a || a === "login" || a === "showlogin" || a === "loginv5" || a.indexOf("login") >= 0;
   }
 
+  function normalizeDestinationAction_(raw) {
+    const a = String(raw || "").trim().toLowerCase();
+    const aliases = {
+      manager:"manager", managerportal:"manager",
+      auditor:"auditorportal", auditorportal:"auditorportal",
+      auditorgrid:"auditorgrid2", auditorgrid2:"auditorgrid2",
+      availability:"auditoravailability", auditoravailability:"auditoravailability",
+      workspace:"planningworkspace", planningworkspace:"planningworkspace",
+      planning:"planningtoolkit", planner:"planningtoolkit", plan:"planningtoolkit", planningtoolkit:"planningtoolkit",
+      companies:"companies", company:"companies", companyui:"companies",
+      companymap:"companymap", map:"companymap", geomap:"companymap",
+      diag:"diag", diagnostics:"diag"
+    };
+    return aliases[a] || "";
+  }
+
   function resolveActionAfterLogin_() {
-    const injected = String(ACTION_AFTER_LOGIN || "").trim();
-    if (injected && !isLoginAction_(injected)) return injected;
+    const injected = normalizeDestinationAction_(ACTION_AFTER_LOGIN);
+    if (injected) return injected;
 
     try {
       const params = new URLSearchParams(window.location.search || "");
@@ -310,16 +328,23 @@
       ];
 
       for (var i = 0; i < candidates.length; i++) {
-        const value = String(candidates[i] || "").trim();
-        if (value && !isLoginAction_(value)) return value;
+        const value = normalizeDestinationAction_(candidates[i]);
+        if (value) return value;
       }
     } catch(e) {}
 
-    return injected || "";
+    return "";
+  }
+
+  function destinationForRole_(role) {
+    const r = String(role || EXPECTED_ROLE || "").trim();
+    if (String(APP_ENV || "").toUpperCase() === "DEV") return r === "Auditor" ? "auditorgrid2" : "manager";
+    const deep = resolveActionAfterLogin_();
+    return deep || (r === "Auditor" ? "auditorportal" : "manager");
   }
 
   function buildPortalTarget_(email, role, token, deviceId) {
-    const action = (String(APP_ENV||'').toUpperCase()==='DEV' && String(role||EXPECTED_ROLE||'').trim()==='Auditor') ? 'auditorgrid2' : resolveActionAfterLogin_();
+    const action = destinationForRole_(role);
     const cleanEmail = normEmail(email);
     const cleanRole = String(role || EXPECTED_ROLE || "").trim();
     const cleanToken = String(token || "").trim();
@@ -364,37 +389,42 @@
     }
   }
 
-  function showContinueStep(targetUrl) {
-    __targetUrl = targetUrl;
-
+  function revealNavigationFallback_() {
     var continueBox = document.getElementById("stepContinue");
-    var targetDbg = document.getElementById("targetUrlDbg");
     var btnContinue = document.getElementById("btnContinue");
-
     if (continueBox) continueBox.classList.remove("hidden");
-    if (targetDbg) targetDbg.textContent = (targetUrl && targetUrl.externalPost) ? targetUrl.url : (targetUrl || "");
     if (btnContinue) {
       btnContinue.disabled = false;
       try { btnContinue.focus(); } catch(eFocus) {}
     }
+    setMsg("ok", "Authenticated. Automatic navigation did not complete. Click Open portal.");
+  }
 
-    document.getElementById("btnVerify").disabled = true;
+  function showContinueStep(targetUrl) {
+    __targetUrl = targetUrl;
+    var continueBox = document.getElementById("stepContinue");
+    var targetDbg = document.getElementById("targetUrlDbg");
+    if (continueBox) continueBox.classList.add("hidden");
+    if (targetDbg) targetDbg.textContent = targetUrl || "";
+    try { if (__fallbackTimer) clearTimeout(__fallbackTimer); } catch(eTimer) {}
+    var verifyButton = document.getElementById("btnVerify");
+    if (verifyButton) verifyButton.disabled = true;
     setMsg("ok", "Authenticated. Opening portal…");
 
-    try {
-      setTimeout(function () {
-        if (!submitTopGet_(targetUrl)) {
-          setMsg("ok", "Authenticated. Click Open portal to continue.");
-        }
-      }, 120);
-    } catch(e) {
-      setMsg("ok", "Authenticated. Click Open portal to continue.");
+    var submitted = false;
+    try { submitted = submitTopGet_(targetUrl); } catch(eSubmit) { submitted = false; }
+    if (!submitted) {
+      revealNavigationFallback_();
+      return;
     }
+    __fallbackTimer = setTimeout(function(){
+      revealNavigationFallback_();
+    }, 1800);
   }
 
   function buildTestTarget(email, role) {
     const qs = new URLSearchParams({
-      action: (String(APP_ENV||'').toUpperCase()==='DEV' && String(role||'').trim()==='Auditor') ? 'auditorgrid2' : resolveActionAfterLogin_(),
+      action: destinationForRole_(role),
       email: normEmail(email),
       role: String(role || '').trim(),
       trustedToken: TEST_TOKEN,
@@ -503,6 +533,17 @@
 
   (function init() {
     try {
+      var codeInput = document.getElementById("code");
+      if (codeInput) {
+        codeInput.addEventListener("input", function(){
+          var normalized = normLoginCode(codeInput.value).slice(0, 6);
+          if (codeInput.value !== normalized) codeInput.value = normalized;
+          if (normalized.length === 6 && !__verifyInFlight) verifyCode();
+        });
+        codeInput.addEventListener("keydown", function(ev){
+          if (ev.key === "Enter") { ev.preventDefault(); verifyCode(); }
+        });
+      }
       const storedEmail = localStorage.getItem(KEY_EMAIL);
       if (storedEmail) document.getElementById("email").value = storedEmail;
       getOrCreateDeviceId();
@@ -578,6 +619,7 @@ google.script.run
   }
 
   function verifyCode() {
+    if (__verifyInFlight) return;
     clearMsg();
 
     const email = normEmail(document.getElementById("email").value);
@@ -593,10 +635,12 @@ google.script.run
     const deviceInfo = getDeviceInfo();
     const role = EXPECTED_ROLE;
 
+    __verifyInFlight = true;
     setBusy(true, "verify");
 
     google.script.run
       .withSuccessHandler(function(res) {
+        __verifyInFlight = false;
         setBusy(false, "verify");
         if (!res || !res.ok) return setMsg("err", "Login failed: " + (res && res.error ? res.error : "UNKNOWN"));
 
@@ -613,6 +657,7 @@ google.script.run
         showContinueStep(buildPortalTarget_(email, role, token, deviceId));
       })
       .withFailureHandler(function(err) {
+        __verifyInFlight = false;
         setBusy(false, "verify");
         setMsg("err", "Server error while verifying code: " + formatServerError(err));
       })

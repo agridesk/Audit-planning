@@ -22,8 +22,10 @@ const checks=[
   [portal,"d.type !== 'PLANNING_SAVED_V5'"],
   [portal,"window.doPlan = doPlan"],
   [portal,"window.open('about:blank', 'V5PlanningToolkit'"],
-  [portal,"child.location.replace(url)"]
+  [portal,"child.location.replace(url)"],
+  [portal,"__AUDITOR_PLAN_DELEGATE_BOUND__"],
+  [portal,"button[data-ui-action=\"plan\"]"]
 ];
 for(const [text,needle] of checks)assert.ok(text.includes(needle),needle+' missing');
 assert.ok(!handoff.includes('saveManagerPlanning('),'handoff must not write planning');
-console.log(JSON.stringify({ok:true,build:'2026-10-04_AUDITOR_SHARED_PLANNING_MODE_CONTRACT_R1',tests:17,writesPerformed:false}));
+console.log(JSON.stringify({ok:true,build:'2026-10-04_AUDITOR_SHARED_PLANNING_MODE_CONTRACT_R1',tests:19,writesPerformed:false}));

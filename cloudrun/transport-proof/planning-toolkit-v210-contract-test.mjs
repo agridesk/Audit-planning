@@ -40,6 +40,7 @@ const checks=[
 
   ['R4 save message carries canonical planning row patch data',r5.includes("planningJson:savedPlanning")&&r5.includes("datePlanned:draftBlocks[0]?.date")&&r5.includes("hoursPlanned:planningTarget()")],  ['R4 company context includes general and auditor comments',r4.includes("auditorComments:''")&&r5.includes("General comments: ")&&r5.includes("Auditor comments: ")],
 
+  ['R4 keeps Company comments separate from audit-visit notes',r4.includes("managerCommentLast:g(['Manager comment (last)'")&&r4.includes("auditorCommentLast:g(['Auditor comment (last)'")&&r5.includes("Company auditor comments: ")&&r5.includes("Audit/visit manager note: ")&&r5.includes("Audit/visit auditor note: ")],
   ['R4 keeps Company and Auditor constraints visibly available',r5.includes('id="planningConstraints"')&&r5.includes('function renderPlanningConstraints()')&&r5.includes("Auditor less available: ")&&r5.includes("Company less available: ")&&r5.includes("renderPlanningConstraints();renderAvailability();validate();loadRotation()")],
   ['R4 left slot column avoids horizontal overflow',r5.includes('overflow-y:auto;overflow-x:hidden')&&r5.includes('.slotTop>*{min-width:0}')&&r5.includes('class="slotWork"')&&r5.includes('class="slotLocation"')],  ['R4 slot comments remain persisted in canonical Planning JSON blocks',r4.includes('slotComment=clean(x?.slotComment||x?.comment)')&&r4.includes('planningJson=JSON.stringify({blocks:requested')],
 

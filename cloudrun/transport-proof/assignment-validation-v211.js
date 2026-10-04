@@ -90,6 +90,15 @@ export function v211MinimumIntervalConstraint({logValues,catalog,scopeCodes,comp
   return out;
 }
 
+export function v211RotationHardCheck(rotationResult){
+  if(!rotationResult||rotationResult.success===false)return{ok:false,reasons:['PLANNING_ROTATION_CHECK_FAILED']};
+  const a=rotationResult.auditor||{};
+  const reasons=[];
+  if(a.hardBlockQualification||a.ineligible)reasons.push('AUDITOR_NOT_HARD_QUALIFIED');
+  if(a.softBlockRotation)reasons.push('PLANNING_ROTATION_LIMIT_HARD_BLOCK');
+  return{ok:reasons.length===0,reasons};
+}
+
 export function v211AssignmentHardCheck({
   auditorEmail,
   auditorValues,

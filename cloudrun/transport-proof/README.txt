@@ -1,6 +1,6 @@
 # AMS Cloud Run DEV Planning service
 
-Scope: DEV only. Canonical focused Planning 2.0 read + Manager PLAN write hot path.
+Scope: DEV only. Canonical focused Planning 2.0 read + shared Manager/Auditor PLAN write hot path.
 
 Cloud project: audit-management-system-dev
 Region: europe-west1
@@ -28,7 +28,7 @@ Canonical focused read
 GET /api/v1/planning/workspace?auditId=<AUDIT_ID>
 Returns audit/window/scopes, hard-qualified candidates, Availability and Concept Reservation overlays, sourceRevision and timing.
 
-Canonical Manager PLAN write
+Canonical shared PLAN write
 POST /api/v1/planning/direct-commit
 - Server-side Cloud Run -> Sheets; no synchronous GAS web-app roundtrip.
 - Hard guards: Pending Planning lifecycle, hard qualification, planning window, required hours, max 5 days, Availability collision/capacity.
@@ -36,7 +36,8 @@ POST /api/v1/planning/direct-commit
 - Exact retry after a successful identical PLAN is idempotent and does not duplicate writes/notifications.
 - Canonical write updates Audit planning, Availability and releases active Concept Reservations.
 - Lifecycle metadata includes Status since, Last manager decision/timestamp and Manager comment.
-- Notification Queue side effects: lifecycle audit trail + AUDIT_PLANNED_BY_MANAGER.
+- Manager PLAN: Pending Planning -> Approved; queue event AUDIT_PLANNED_BY_MANAGER.
+- Auditor self-PLAN: Pending Planning -> Pending Approval; actor is fixed to the authenticated Auditor; queue event AUDIT_PLANNED_BY_AUDITOR to the active Manager recipient.
 - Queue failure is non-fatal to an already committed canonical PLAN and is surfaced in sideEffectQueue.
 - Availability grid expands automatically when needed.
 - Shared auditor/date capacity commits are serialized in the single-instance DEV service.

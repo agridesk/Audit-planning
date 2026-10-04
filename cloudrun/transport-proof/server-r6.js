@@ -7,7 +7,7 @@ const PUBLIC_PORT=Number(process.env.PORT||8080);
 const INNER_PORT=PUBLIC_PORT+1;
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const SESSION_COOKIE='ams_dev_session';
-const BUILD='2026-10-04_AMS_COMBINED_VISIT_R3_V211_PARITY';
+const BUILD='2026-10-04_AMS_COMBINED_VISIT_R4_SHARED_ASSIGNMENT_VALIDATION';
 
 process.env.PORT=String(INNER_PORT);
 await import('./server-r5.js');

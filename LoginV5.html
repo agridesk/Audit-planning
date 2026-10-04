@@ -319,7 +319,7 @@
   }
 
   function buildPortalTarget_(email, role, token, deviceId) {
-    const action = resolveActionAfterLogin_();
+    const action = (String(APP_ENV||'').toUpperCase()==='DEV' && String(role||EXPECTED_ROLE||'').trim()==='Auditor') ? 'auditorgrid2' : resolveActionAfterLogin_();
     const cleanEmail = normEmail(email);
     const cleanRole = String(role || EXPECTED_ROLE || "").trim();
     const cleanToken = String(token || "").trim();
@@ -394,7 +394,7 @@
 
   function buildTestTarget(email, role) {
     const qs = new URLSearchParams({
-      action: resolveActionAfterLogin_(),
+      action: (String(APP_ENV||'').toUpperCase()==='DEV' && String(role||'').trim()==='Auditor') ? 'auditorgrid2' : resolveActionAfterLogin_(),
       email: normEmail(email),
       role: String(role || '').trim(),
       trustedToken: TEST_TOKEN,

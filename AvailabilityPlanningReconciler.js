@@ -7,7 +7,8 @@
  *
  * SAFETY:
  *   - Preview performs no writes.
- *   - Apply only clears stale Manager Planned audit reservations.
+ *   - Apply only clears future/current operational stale Manager Planned reservations.
+ *   - Historical rows, TEST_* rows, missing-audit rows and rows without canonical active planning remain untouched.
  *   - Canonical Planning JSON is never changed.
  *   - User availability / HARD / SOFT rows are not rewritten.
  */
@@ -88,6 +89,8 @@ function AvailabilityPlanningReconciler_run_(apply) {
   }
 
   var changes = [];
+  var actionable = [];
+  var today = Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone() || 'Europe/Amsterdam', 'yyyy-MM-dd');
   var now = Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone() || 'Europe/Amsterdam', 'yyyy-MM-dd HH:mm');
 
   for (var i = 1; i < avValues.length; i++) {
@@ -116,7 +119,12 @@ function AvailabilityPlanningReconciler_run_(apply) {
       var valid = !!(c && c.hasCanonicalPlanning && c.assignedEmail === email && c.blocks[exactKey]);
       if (valid) return;
 
-      changes.push({
+      var reason = !c ? 'AUDIT_NOT_FOUND' :
+                   !c.hasCanonicalPlanning ? 'NO_CANONICAL_ACTIVE_PLANNING' :
+                   c.assignedEmail !== email ? 'WRONG_AUDITOR' :
+                   'BLOCK_NOT_IN_CANONICAL_PLANNING';
+
+      var item = {
         sheetRow: i + 1,
         slot: z.slot,
         auditId: auditId,
@@ -124,13 +132,18 @@ function AvailabilityPlanningReconciler_run_(apply) {
         auditorEmail: email,
         start: start,
         end: end,
-        reason: !c ? 'AUDIT_NOT_FOUND' :
-                !c.hasCanonicalPlanning ? 'NO_CANONICAL_ACTIVE_PLANNING' :
-                c.assignedEmail !== email ? 'WRONG_AUDITOR' :
-                'BLOCK_NOT_IN_CANONICAL_PLANNING'
-      });
+        reason: reason,
+        actionable: false
+      };
 
-      if (apply) {
+      var isOperationalAudit = /^AUD_/i.test(auditId) && !/^AUD_TEST/i.test(auditId);
+      var isCurrentOrFuture = !!date && date >= today;
+      var canonicalMismatch = reason === 'WRONG_AUDITOR' || reason === 'BLOCK_NOT_IN_CANONICAL_PLANNING';
+      item.actionable = !!(isOperationalAudit && isCurrentOrFuture && c && c.hasCanonicalPlanning && canonicalMismatch);
+      changes.push(item);
+      if (item.actionable) actionable.push(item);
+
+      if (apply && item.actionable) {
         row2[z.s] = '';
         row2[z.e] = '';
         row2[z.id] = '';
@@ -158,8 +171,10 @@ function AvailabilityPlanningReconciler_run_(apply) {
     build: '2026-10-04_V211_PLANNING_AVAILABILITY_RECONCILER_R1',
     apply: !!apply,
     staleReservations: changes.length,
+    actionableReservations: actionable.length,
+    actionableChanges: actionable,
     changes: changes,
-    writesPerformed: !!apply && changes.length > 0
+    writesPerformed: !!apply && actionable.length > 0
   };
 
   Logger.log(JSON.stringify(out, null, 2));

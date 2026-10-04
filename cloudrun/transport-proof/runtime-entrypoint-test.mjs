@@ -7,6 +7,7 @@ const checks=[
   ['package starts current R12 runtime',pkg?.scripts?.start==='node server-r12.js'],
   ['Docker image contains R12',docker.includes('COPY server-r12.js ./')],
   ['Docker image contains shared assignment validator',docker.includes('COPY assignment-validation-v211.js ./')],
+  ['Docker image contains shared actor capabilities',docker.includes('COPY actor-capabilities-v211.js ./')],
   ['Docker starts npm start',docker.includes('CMD ["npm","start"]')]
 ];
 

@@ -981,8 +981,10 @@ function directPlanningCommit(identity,body){
       let x=avRows.find(r=>r.email===auditorEmail&&r.date===b.date);if(!x){const width=ah.length,row=new Array(width).fill('');row[cd]=b.date;row[ce]=auditorEmail;row[ca]='YES';if(lu>=0)row[lu]=isoLocalStamp();x={row,sheetRow:av.length+1,date:b.date,email:auditorEmail,isNew:true};avRows.push(x);av.push(row);}
       const slots=[{s:s1,e:e1,id:id1,st:st1},{s:s2,e:e2,id:id2,st:st2}];
       for(const z of slots){const other=clean(x.row[z.id]);if(other&&other!==auditId&&overlaps(b,{start:clean(x.row[z.s]),end:clean(x.row[z.e])}))throw new Error('AVAILABILITY_COLLISION_'+b.date);}
-      const hardNo=!yes(x.row[ca])&&slots.some(z=>!clean(x.row[z.id])&&clean(x.row[z.st])&&!/^(DEFAULT_|MANUAL_|SYSTEM_DEFAULT|USER_MANUAL|CALENDAR|CALENDER)/i.test(clean(x.row[z.st])));
-      if(hardNo)throw new Error('AVAILABILITY_HARD_BLOCK_'+b.date);
+      const hardSlots=slots.filter(z=>!clean(x.row[z.id])&&clean(x.row[z.st])&&!/^(DEFAULT_|MANUAL_|SYSTEM_DEFAULT|USER_MANUAL|CALENDAR|CALENDER)/i.test(clean(x.row[z.st])));
+      const wholeDayHard=!yes(x.row[ca])&&hardSlots.some(z=>!clean(x.row[z.s])&&!clean(x.row[z.e]));
+      const timedHard=hardSlots.some(z=>clean(x.row[z.s])&&clean(x.row[z.e])&&overlaps(b,{start:clean(x.row[z.s]),end:clean(x.row[z.e])}));
+      if(wholeDayHard||timedHard)throw new Error('AVAILABILITY_HARD_BLOCK_'+b.date);
       let z=slots.find(q=>!clean(x.row[q.id]));if(!z)throw new Error('AVAILABILITY_CAPACITY_'+b.date);
       x.row[z.s]=b.start;x.row[z.e]=b.end;x.row[z.id]=auditId;x.row[z.st]='Manager Planned';x.row[ca]='NO';if(lu>=0)x.row[lu]=isoLocalStamp();touched.set(x.sheetRow,x);
     }

@@ -3,7 +3,8 @@ import {
   v211AuditorQualified,
   v211CompanyAuditorExclusions,
   v211MinimumIntervalConstraint,
-  v211AssignmentHardCheck
+  v211AssignmentHardCheck,
+  v211RotationHardCheck
 } from './assignment-validation-v211.js';
 
 const catalog=[
@@ -73,4 +74,9 @@ const excludedHard=v211AssignmentHardCheck({
 });
 assert.equal(excludedHard.reasons.includes('AUDITOR_EXCLUDED_FOR_COMPANY'),true);
 
-console.log(JSON.stringify({ok:true,build:'2026-10-04_ASSIGNMENT_VALIDATION_V211_TEST_R1',tests:9}));
+assert.deepEqual(v211RotationHardCheck(null).reasons,['PLANNING_ROTATION_CHECK_FAILED']);
+assert.deepEqual(v211RotationHardCheck({success:true,auditor:{hardBlockQualification:true}}).reasons,['AUDITOR_NOT_HARD_QUALIFIED']);
+assert.deepEqual(v211RotationHardCheck({success:true,auditor:{softBlockRotation:true}}).reasons,['PLANNING_ROTATION_LIMIT_HARD_BLOCK']);
+assert.equal(v211RotationHardCheck({success:true,auditor:{}}).ok,true);
+
+console.log(JSON.stringify({ok:true,build:'2026-10-04_ASSIGNMENT_VALIDATION_V211_TEST_R2',tests:13}));

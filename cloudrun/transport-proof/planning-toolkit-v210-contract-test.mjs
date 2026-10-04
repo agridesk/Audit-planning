@@ -6,6 +6,8 @@ const r6=fs.readFileSync(new URL('./server-r6.js',import.meta.url),'utf8');
 const r7=fs.readFileSync(new URL('./server-r7.js',import.meta.url),'utf8');
 const minIntervalMigration=fs.readFileSync(new URL('../../ConfigScopesMinIntervalMigration.js',import.meta.url),'utf8');
 const configScopesService=fs.readFileSync(new URL('../../ConfigScopesService.js',import.meta.url),'utf8');
+const exclusionsMigration=fs.readFileSync(new URL('../../CompaniesAuditorExclusionsMigration.js',import.meta.url),'utf8');
+const v211SchemaMigration=fs.readFileSync(new URL('../../V211PlanningSchemaMigration.js',import.meta.url),'utf8');
 
 const checks=[
   ['Toolkit projects formal hours as required hours',r4.includes('formalHours:Number(String(g([')&&r4.includes('requiredHours:Number(String(g([')],
@@ -76,6 +78,8 @@ const checks=[
   ['V2.11 Config_Scopes Min_Interval_Months is a hard single and combined Planning constraint when configured',r4.includes("Min_Interval_Months")&&r4.includes('function minimumIntervalConstraint')&&r4.includes("MIN_INTERVAL_HARD_BLOCK_")&&r6.includes('function combinedMinPlanningDate')&&r6.includes("MIN_INTERVAL_HARD_BLOCK_")&&r5.includes('minIntervalValid')&&r5.includes('Minimum audit interval: not before ')],
   ['V2.11 minimum interval schema migration is explicit, previewable and seeds MPS-GAP at six months',minIntervalMigration.includes('ConfigScopesMinIntervalMigration_Preview')&&minIntervalMigration.includes('ConfigScopesMinIntervalMigration_Apply')&&minIntervalMigration.includes('MPS_GAP_MONTHS: 6')&&minIntervalMigration.includes("HEADER: 'Min_Interval_Months'")],
   ['Central ConfigScopesService exposes Min_Interval_Months to other AMS consumers',configScopesService.includes('minIntervalMonths: ConfigScopes_numOrNull_')&&configScopesService.includes("'Min_Interval_Months'")],
+  ['V2.11 Company Auditor_Exclusions schema migration is explicit and non-destructive',exclusionsMigration.includes('CompaniesAuditorExclusionsMigration_Preview')&&exclusionsMigration.includes('CompaniesAuditorExclusionsMigration_Apply')&&exclusionsMigration.includes("HEADER: 'Auditor_Exclusions'")&&exclusionsMigration.includes('Existing data is never changed')],
+  ['V2.11 Planning schema changes have one bundled preview/apply runner',v211SchemaMigration.includes('V211PlanningSchemaMigration_Preview')&&v211SchemaMigration.includes('V211PlanningSchemaMigration_Apply')&&v211SchemaMigration.includes('ConfigScopesMinIntervalMigration_Apply()')&&v211SchemaMigration.includes('CompaniesAuditorExclusionsMigration_Apply()')],
   ['R6 combined writer does not overwrite Manager comment with planning payload',!r6.includes("setTarget(['Manager comment (last)'],clean(body?.comment))")]
 ];
 

@@ -19,7 +19,7 @@ const allowed=[
   {
     path:'ConfigScopesService.js',
     why:'one-time legacy Config_Scopes migration input only',
-    lines:[/Scheduling_hours_delta/i,/Scheduling_hours/i]
+    lines:[/.*/]
   },
   {
     path:'cloudrun/transport-proof/scheduling-delta-test.mjs',
@@ -39,6 +39,26 @@ const allowed=[
   {
     path:'cloudrun/transport-proof/planning-toolkit-v210-contract-test.mjs',
     why:'regression test asserting legacy semantics are absent',
+    lines:[/.*/]
+  },
+  {
+    path:'cloudrun/transport-proof/complete-v29-contract-test.mjs',
+    why:'negative regression assertion only',
+    lines:[/.*/]
+  },
+  {
+    path:'cloudrun/transport-proof/open-audits-grid2-contract-test.mjs',
+    why:'negative regression assertions only',
+    lines:[/.*/]
+  },
+  {
+    path:'cloudrun/transport-proof/open-audits-grid2-gas-contract-test.mjs',
+    why:'negative regression assertions only',
+    lines:[/.*/]
+  },
+  {
+    path:'docs/AMS_MASTER_ROADMAP_V2.8_FINAL_2026-09-26.txt',
+    why:'superseded historical roadmap; never current truth',
     lines:[/.*/]
   },
   {

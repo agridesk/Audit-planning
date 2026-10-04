@@ -51,7 +51,8 @@ const checks=[
   ['R4 slot time inputs use real scrollable quarter-hour selects',r5.includes('function quarterTimeOptions(selected)')&&r5.includes('for(const m of [0,15,30,45])')&&r5.includes('<select data-start>')&&r5.includes('<select data-end>')&&!r5.includes('data-start type="time"')&&!r5.includes('data-end type="time"')],
   ['R4 backend enforces valid quarter-hour planning times',r4.includes('PLANNING_BLOCK_QUARTER_HOUR_REQUIRED')&&r4.includes('![0,15,30,45].includes(sm)')&&r4.includes('![0,15,30,45].includes(em)')],
   ['R4 backend rejects overlapping draft blocks',r4.includes("throw new Error('PLANNING_BLOCKS_OVERLAP')")&&r4.includes('requested[i].date===requested[j].date')],
-  ['R4 backend validates onsite execution location against Company locations',r4.includes("throw new Error('PLANNING_EXECUTION_LOCATION_INVALID')")&&r4.includes('companyPlanningContext(vr[5]?.values||[]')&&r4.includes('allowedExecLocs')]
+  ['R4 backend validates onsite execution location against Company locations',r4.includes("throw new Error('PLANNING_EXECUTION_LOCATION_INVALID')")&&r4.includes('companyPlanningContext(vr[5]?.values||[]')&&r4.includes('allowedExecLocs')],
+  ['R4 client disables Save when any draft block is outside planning window',r5.includes('windowValid=draftBlocks.every')&&r5.includes('&&windowValid&&hoursComplete')]
 ];
 
 const failed=checks.filter(([,ok])=>!ok);

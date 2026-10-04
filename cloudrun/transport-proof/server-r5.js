@@ -80,7 +80,7 @@ function planningCommitForm(identity,body){
 }
 async function handlePlanningCommitHandoff(req,res){
   const identity=await sessionIdentity(req);if(!identity)return sendJson(res,401,{ok:false,error:'SESSION_REQUIRED'});
-  if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{ok:false,error:'ROLE_FORBIDDEN'});
+  if(!['manager','auditor'].includes(clean(identity.role).toLowerCase()))return sendJson(res,403,{ok:false,error:'ROLE_FORBIDDEN'});
   let body={};try{body=JSON.parse(await readRaw(req,65536)||'{}');}catch{return sendJson(res,400,{ok:false,error:'BAD_JSON'});}
   const chk=validPlanningBody(body);if(!chk.ok)return sendJson(res,400,{ok:false,error:chk.error});
   const started=Date.now();

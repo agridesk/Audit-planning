@@ -596,3 +596,94 @@ function RUN_CONFIGSCOPES_CACHE_HIT_TEST() {
 function RUN_CONFIGSCOPES_CLEARCACHE() {
   return ConfigScopes_ClearCache();
 }
+
+
+/**
+ * V2.10 R2 final cleanup: remove the migrated legacy delta column only after
+ * Max_Offsite_Hours has been verified row-by-row. Preview performs no writes.
+ */
+function ConfigScopes_PreviewLegacyHoursCleanup() {
+  return ConfigScopes_legacyHoursCleanup_(true);
+}
+
+function ConfigScopes_ApplyLegacyHoursCleanup() {
+  return ConfigScopes_legacyHoursCleanup_(false);
+}
+
+function ConfigScopes_legacyHoursCleanup_(dryRun) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('Config_Scopes');
+  if (!sh) throw new Error('Config_Scopes not found');
+  var values = sh.getDataRange().getValues();
+  if (!values || !values.length) throw new Error('Config_Scopes is empty');
+  var headers = values[0] || [];
+  var norm = function(v){ return String(v == null ? '' : v).trim().toLowerCase().replace(/[^a-z0-9]+/g,''); };
+  var find = function(names){
+    var wanted = {};
+    (names || []).forEach(function(n){ wanted[norm(n)] = true; });
+    for (var i=0;i<headers.length;i++) if (wanted[norm(headers[i])]) return i;
+    return -1;
+  };
+  var deltaCol = find(['Scheduling_hours_delta','Scheduling hours delta','Scheduling delta']);
+  var legacyHoursCol = find(['Scheduling_hours','Scheduling hours']);
+  var maxCol = find(['Max_Offsite_Hours','Max Offsite Hours','Max offsite hours','Maximum offsite hours']);
+  var scopeCol = find(['ScopeCode','Scope code','DisplayName','Display name']);
+  var blockers = [];
+  var verified = [];
+
+  if (maxCol < 0) blockers.push('Max_Offsite_Hours column missing');
+  if (legacyHoursCol >= 0) blockers.push('Legacy Scheduling_hours column still exists; cleanup is intentionally limited to the migrated delta column');
+
+  if (deltaCol >= 0 && maxCol >= 0) {
+    for (var r=1;r<values.length;r++) {
+      var rawDelta = values[r][deltaCol];
+      if (rawDelta === '' || rawDelta === null || rawDelta === undefined) continue;
+      var delta = Number(String(rawDelta).replace(',','.'));
+      if (!isFinite(delta)) {
+        blockers.push('Row '+(r+1)+' has non-numeric legacy delta');
+        continue;
+      }
+      var expected = delta < 0 ? Math.abs(delta) : 0;
+      var rawMax = values[r][maxCol];
+      var actual = rawMax === '' || rawMax === null || rawMax === undefined ? 0 : Number(String(rawMax).replace(',','.'));
+      if (!isFinite(actual) || Math.abs(actual-expected) > 0.0001) {
+        blockers.push('Row '+(r+1)+' migration mismatch: expected Max_Offsite_Hours '+expected+' from legacy delta '+delta+', found '+String(rawMax));
+        continue;
+      }
+      verified.push({row:r+1,scope:scopeCol>=0?String(values[r][scopeCol]||'').trim():'',legacyDelta:delta,maxOffsiteHours:actual});
+    }
+  }
+
+  var out = {
+    ok: blockers.length === 0,
+    dryRun: dryRun === true,
+    sheet: 'Config_Scopes',
+    legacyDeltaColumn: deltaCol >= 0 ? deltaCol + 1 : null,
+    legacyHoursColumn: legacyHoursCol >= 0 ? legacyHoursCol + 1 : null,
+    maxOffsiteColumn: maxCol >= 0 ? maxCol + 1 : null,
+    verifiedRows: verified,
+    blockers: blockers,
+    wouldDeleteLegacyDeltaColumn: deltaCol >= 0 && blockers.length === 0
+  };
+
+  if (!dryRun && blockers.length === 0 && deltaCol >= 0) {
+    sh.deleteColumn(deltaCol + 1);
+    try { ConfigScopes_ClearCache(); } catch (e) {}
+    out.deletedLegacyDeltaColumn = true;
+  } else {
+    out.deletedLegacyDeltaColumn = false;
+  }
+  return out;
+}
+
+function RUN_CONFIGSCOPES_LEGACY_HOURS_CLEANUP_PREVIEW() {
+  var out = ConfigScopes_PreviewLegacyHoursCleanup();
+  console.info(JSON.stringify(out, null, 2));
+  return out;
+}
+
+function RUN_CONFIGSCOPES_LEGACY_HOURS_CLEANUP_APPLY() {
+  var out = ConfigScopes_ApplyLegacyHoursCleanup();
+  console.info(JSON.stringify(out, null, 2));
+  return out;
+}

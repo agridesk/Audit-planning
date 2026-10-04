@@ -20,6 +20,7 @@ function clean(v){return String(v==null?'':v).trim();}
 function b64url(buf){return Buffer.from(buf).toString('base64url');}
 function safeEq(a,b){const x=Buffer.from(clean(a)),y=Buffer.from(clean(b));return x.length===y.length&&timingSafeEqual(x,y);}
 function managerSessionPayload(email,role,exp){return['v1','MANAGER_SESSION',clean(email).toLowerCase(),clean(role),String(exp)].join('\n');}
+function auditorPlanningSessionPayload(email,role,auditId,exp){return['v1','AUDITOR_PLANNING_SESSION',clean(email).toLowerCase(),clean(role),clean(auditId),String(exp)].join('\n');}
 function signManagerSessionHandoff(payload){return b64url(createHmac('sha256',WRITE_KEY).update(payload).digest());}
 function signSession(payload){return createHmac('sha256',SESSION_SECRET).update(payload).digest('base64url');}
 function sha256b64url(v){return createHash('sha256').update(String(v||''),'utf8').digest('base64url');}

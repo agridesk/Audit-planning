@@ -24,8 +24,9 @@ function updateSelectionUi(){
   if(head){head.checked=gridVisibleIds.length>0&&visible===gridVisibleIds.length;head.indeterminate=visible>0&&visible<gridVisibleIds.length}
   var n=gridSelected.size,bar=document.getElementById("selectionBar"),lab=document.getElementById("selectionCount"),batch=document.getElementById("selectionBatch"),concept=document.getElementById("selectionConcept");
   if(lab)lab.textContent=n+" selected";if(bar)bar.classList.toggle("visible",n>0);
-  if(batch)batch.style.display=currentView==="open"?"":"none";
-  if(concept)concept.style.display=currentView==="open"?"":"none";
+  var auditorMode=String(actorRole).toLowerCase()==="auditor";
+  if(batch)batch.style.display=currentView==="open"&&!auditorMode?"":"none";
+  if(concept)concept.style.display=currentView==="open"&&!auditorMode?"":"none";
 }
 function bindSelectionControls(root){
   (root||document).querySelectorAll(".grid-select-row").forEach(function(cb){cb.addEventListener("change",function(){selectionToggle(cb.getAttribute("data-audit-id"),!!cb.checked)})});

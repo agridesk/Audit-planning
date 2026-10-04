@@ -1023,7 +1023,7 @@ function directPlanningCommit(identity,body){
     for(const x of touched.values())writes.push({range:'Auditor Availability!A'+x.sheetRow+':'+a1col(ah.length)+x.sheetRow,values:[x.row]});
     const cr=vr[3]?.values||[],ch=cr[0]||[],ci=col(ch,['Audit ID']),cs=col(ch,['State']),cu=col(ch,['Updated At']),cby=col(ch,['Released By']),cat=col(ch,['Released At']),creason=col(ch,['Release Reason']);
     for(let i=1;i<cr.length;i++){const rr=cr[i].slice();if(clean(rr[ci])!==auditId||clean(rr[cs]).toUpperCase()!=='ACTIVE')continue;rr[cs]='RELEASED';if(cu>=0)rr[cu]=now;if(cby>=0)rr[cby]=clean(identity?.email);if(cat>=0)rr[cat]=now;if(creason>=0)rr[creason]='CANONICAL_COMMIT';writes.push({range:'Concept Reservations!A'+(i+1)+':'+a1col(ch.length)+(i+1),values:[rr]});}
-    const minuteStamp=now.slice(0,16),beforeStatus='Pending Planning',afterStatus='Approved',actorEmail=clean(identity?.email).toLowerCase();
+    const minuteStamp=now.slice(0,16),beforeStatus='Pending Planning';
     const trailPayload={type:'LIFECYCLE_STATUS_CHANGED',auditId,auditNumber:'',company:clean(audit.company),actorEmail,actorRole:'MANAGER',beforeStatus,afterStatus,reason:'',hours:null,source:'CLOUD_RUN_DIRECT_SHEETS_MANAGER_PLAN',timestamp:now,action:'PLAN'};
     const trailBody=JSON.stringify(trailPayload),trailHash=createHash('md5').update('LIFECYCLE_STATUS_CHANGED|'+auditId+'|'+now+'|'+afterStatus).digest('hex');
     const trailRow=[minuteStamp,'AUDIT_TRAIL','LIFECYCLE_STATUS_CHANGED','',auditId,clean(audit.company),'[TRAIL] LIFECYCLE_STATUS_CHANGED :: '+auditId,trailBody,0,'',trailHash,'',JSON.stringify({payload:trailPayload})];

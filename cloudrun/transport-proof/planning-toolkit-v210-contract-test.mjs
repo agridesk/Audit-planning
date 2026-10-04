@@ -4,6 +4,7 @@ const r4=fs.readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const r5=fs.readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
 const r6=fs.readFileSync(new URL('./server-r6.js',import.meta.url),'utf8');
 const r7=fs.readFileSync(new URL('./server-r7.js',import.meta.url),'utf8');
+const minIntervalMigration=fs.readFileSync(new URL('../../ConfigScopesMinIntervalMigration.js',import.meta.url),'utf8');
 
 const checks=[
   ['Toolkit projects formal hours as required hours',r4.includes('formalHours:Number(String(g([')&&r4.includes('requiredHours:Number(String(g([')],
@@ -72,6 +73,7 @@ const checks=[
   ['R6 combined writer validates onsite execution locations against canonical Company Locations_JSON',r6.includes('function companyLocationCodes')&&r6.includes("'Companies!A1:AJ686'")&&r6.includes("PLANNING_EXECUTION_LOCATION_INVALID")],
   ['V2.11 Company Auditor_Exclusions are hard in single and combined Planning when configured',r4.includes('function companyAuditorExclusions')&&r4.includes("AUDITOR_EXCLUDED_FOR_COMPANY")&&r6.includes('function companyAuditorExcluded')&&r6.includes("AUDITOR_EXCLUDED_FOR_COMPANY")],
   ['V2.11 Config_Scopes Min_Interval_Months is a hard single and combined Planning constraint when configured',r4.includes("Min_Interval_Months")&&r4.includes('function minimumIntervalConstraint')&&r4.includes("MIN_INTERVAL_HARD_BLOCK_")&&r6.includes('function combinedMinPlanningDate')&&r6.includes("MIN_INTERVAL_HARD_BLOCK_")&&r5.includes('minIntervalValid')&&r5.includes('Minimum audit interval: not before ')],
+  ['V2.11 minimum interval schema migration is explicit, previewable and seeds MPS-GAP at six months',minIntervalMigration.includes('ConfigScopesMinIntervalMigration_Preview')&&minIntervalMigration.includes('ConfigScopesMinIntervalMigration_Apply')&&minIntervalMigration.includes('MPS_GAP_MONTHS: 6')&&minIntervalMigration.includes("HEADER: 'Min_Interval_Months'")],
   ['R6 combined writer does not overwrite Manager comment with planning payload',!r6.includes("setTarget(['Manager comment (last)'],clean(body?.comment))")]
 ];
 

@@ -107,7 +107,7 @@ Rules:
 - self-planning still passes current Planning 2.0 preflight when a concrete plan is made.
 
 10. HOURS
-Formal hours, Scheduling_hours / Planning duration and realized Hours dedicated remain separate concepts.
+Formal hours and realized Hours dedicated remain separate concepts. Max_Offsite_Hours is a policy ceiling, not a second duration truth.
 
 Scope Manager may expose configured/default planning/formal-hour values, but must not collapse these concepts into one generic 'hours' field.
 Any editable value must map to its canonical owner and meaning.

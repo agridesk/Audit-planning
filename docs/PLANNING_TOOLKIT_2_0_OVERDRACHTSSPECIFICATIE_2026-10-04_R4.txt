@@ -1,0 +1,23 @@
+PLANNING TOOLKIT 2.0 — FUNCTIONELE OVERDRACHTSSPECIFICATIE
+Datum: 2026-10-04
+Revisie: R4
+Status: CANONICAL TOOLKIT UX/PARITY HANDOFF
+
+Canonical source for the complete specification is the user-approved R4 document supplied on 2026-10-04.
+
+Implementation anchors:
+- one hours truth: formalHours ↔ concrete blocks ↔ Hours planned;
+- large fast Planning 2.0 Availability Calendar remains;
+- two-column layout: planning context left, calendar right;
+- planned slots use direct slot-focused editing;
+- per-slot Location picker from canonical Company locations;
+- per-slot GPS/map link for selected location;
+- structural location Short comment is read-only and separate from slot comment;
+- Off-site is a work type, not a second hours type;
+- Max_Offsite_Hours remains a hard policy ceiling and is checked live;
+- successful Save closes Planning popup and triggers targeted Manager row refresh;
+- no full browser refresh / row shuffle;
+- Batch Planning remains outside this Toolkit UI workstream.
+
+Do not use AMS roadmaps V2.7 or earlier as current truth.
+AMS Master Roadmap V2.10 plus this R4 Toolkit handoff are authoritative for this workstream.

@@ -39,7 +39,9 @@ const checks=[
   ['R4 successful save notifies parent and closes popup',r5.includes("type:'AMS_PLANNING_SAVED'")&&r5.includes('window.close()')],
 
   ['R4 save message carries canonical planning row patch data',r5.includes("planningJson:savedPlanning")&&r5.includes("datePlanned:draftBlocks[0]?.date")&&r5.includes("hoursPlanned:planningTarget()")],  ['R4 company context includes general and auditor comments',r4.includes("auditorComments:''")&&r5.includes("General comments: ")&&r5.includes("Auditor comments: ")],
-  ['R4 slot comments remain persisted in canonical Planning JSON blocks',r4.includes('slotComment=clean(x?.slotComment||x?.comment)')&&r4.includes('planningJson=JSON.stringify({blocks:requested')],
+
+  ['R4 keeps Company and Auditor constraints visibly available',r5.includes('id="planningConstraints"')&&r5.includes('function renderPlanningConstraints()')&&r5.includes("Auditor less available: ")&&r5.includes("Company less available: ")],
+  ['R4 left slot column avoids horizontal overflow',r5.includes('overflow-y:auto;overflow-x:hidden')&&r5.includes('.slotTop>*{min-width:0}')&&r5.includes('class="slotWork"')&&r5.includes('class="slotLocation"')],  ['R4 slot comments remain persisted in canonical Planning JSON blocks',r4.includes('slotComment=clean(x?.slotComment||x?.comment)')&&r4.includes('planningJson=JSON.stringify({blocks:requested')],
   ['R4 save synchronizes visible slot editors before payload',r5.includes('function syncVisibleSlotEditors()')&&r5.includes('async function save(){syncVisibleSlotEditors();if(!validate())return;')]
 ];
 

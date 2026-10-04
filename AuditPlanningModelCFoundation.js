@@ -131,7 +131,6 @@ function ModelCFoundation_getContract() {
       companyScopeNaturalKey: 'Company_UID + ScopeCode',
       obligationNaturalKey: 'Company_Scope_ID + Cycle_Key + Trigger_Source',
       visitObligationNaturalKey: 'Audit_ID + Obligation_ID',
-      planningDurationOwner: 'Config_Scopes',
       companyPlanningDurationOverride: false,
       abcCertificateLifecycle: false,
       abcSuccessorOnCompletion: false
@@ -316,7 +315,6 @@ function ModelCFoundation_buildScopeCatalog_(configValues) {
       scopeCode: code,
       displayName: display || code,
       formalHoursDefault: ModelCFoundation_numberOrBlank_(ModelCFoundation_valueByHeaderRaw_(row, map, ['Formal_hours', 'Default_hours'])),
-      planningDuration: ModelCFoundation_numberOrBlank_(ModelCFoundation_valueByHeaderRaw_(row, map, ['Planning_duration', 'Scheduling_hours'])),
       recurring: ModelCFoundation_valueByHeader_(row, map, ['Recurring']),
       obligationCycle: ModelCFoundation_valueByHeader_(row,map,['Obligation cycle']),
       completeBy: ModelCFoundation_valueByHeader_(row,map,['Complete by']),

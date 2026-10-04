@@ -76,6 +76,7 @@ function saveCompanyDetail(payload) {
     hours: COMP_normalizeHours_(payload.hours),
     comments: COMP_cleanText_(payload.comments),
     preferredAuditMonths: COMP_normalizePreferredAuditMonths_(payload.preferredAuditMonths),
+    auditorExclusions: Object.prototype.hasOwnProperty.call(payload, 'auditorExclusions') ? COMP_normalizeAuditorExclusions_(payload.auditorExclusions) : null,
     location: COMP_cleanText_(hq.name),
     gps: COMP_cleanText_(hq.gps),
     locationsToPlan: String(locationsToPlan),
@@ -119,6 +120,7 @@ function saveCompanyDetail(payload) {
   COMP_writeIfHeaderExists_(sh, headerMap, rowNumber, ['time zone', 'timezone'], clean.timeZone);
   COMP_writeIfHeaderExists_(sh, headerMap, rowNumber, ['comments'], clean.comments);
   COMP_writeIfHeaderExists_(sh, headerMap, rowNumber, ['preferred_audit_months', 'preferred audit months'], clean.preferredAuditMonths);
+  if (clean.auditorExclusions !== null) COMP_writeIfHeaderExists_(sh, headerMap, rowNumber, ['auditor_exclusions', 'auditor exclusions'], clean.auditorExclusions);
   COMP_writeIfHeaderExists_(sh, headerMap, rowNumber, ['audit planning limitations days', 'audit planning limitations - days', 'blocked weekdays', 'days', 'less suitable days'], clean.days);
   COMP_writeIfHeaderExists_(sh, headerMap, rowNumber, ['audit planning limitations hours', 'audit planning limitations - hours', 'time window', 'hours', 'typical working hours'], clean.hours);
   COMP_writeIfHeaderExists_(sh, headerMap, rowNumber, ['language communication'], clean.language);
@@ -241,6 +243,7 @@ function COMP_buildDetailFromRow_(headers, row, rowNumber) {
     hours: COMP_cleanText_(COMP_getByAliases_(map, row, ['audit planning limitations hours', 'audit planning limitations - hours', 'time window', 'hours', 'typical working hours'])),
     comments: COMP_cleanText_(COMP_getByAliases_(map, row, ['comments'])),
     preferredAuditMonths: COMP_cleanText_(COMP_getByAliases_(map, row, ['preferred_audit_months', 'preferred audit months'])),
+    auditorExclusions: COMP_cleanText_(COMP_getByAliases_(map, row, ['auditor_exclusions', 'auditor exclusions'])),
     locationsToPlan: COMP_cleanText_(COMP_getByAliases_(map, row, ['locations_to_plan', 'locations to plan'])) || String(COMP_countActiveLocations_(locations)),
     locations: locations
   };
@@ -392,6 +395,44 @@ function COMP_normalizePreferredAuditMonths_(value) {
   });
 
   return out.join(',');
+}
+
+function COMP_normalizeAuditorExclusions_(value) {
+  if (value === '' || value === null || typeof value === 'undefined') return '';
+  var parsed = value;
+  if (typeof value === 'string') {
+    var raw = value.trim();
+    if (!raw) return '';
+    try { parsed = JSON.parse(raw); }
+    catch (e) {
+      parsed = raw.split(/[;,|\n]/).map(function(x){ return String(x || '').trim(); }).filter(Boolean);
+    }
+  }
+
+  var arr = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.exclusions) ? parsed.exclusions : []);
+  var out = [];
+  var seen = {};
+
+  arr.forEach(function(item) {
+    var email = '';
+    var active = true;
+    var reason = '';
+
+    if (typeof item === 'string') {
+      email = item;
+    } else if (item && typeof item === 'object') {
+      email = item.auditorEmail || item.email || item.auditor || item.userEmail || '';
+      active = item.active !== false && String(item.active).toLowerCase() !== 'false';
+      reason = COMP_cleanText_(item.reason);
+    }
+
+    email = COMP_cleanText_(email).toLowerCase();
+    if (!email || email.indexOf('@') < 1 || seen[email]) return;
+    seen[email] = true;
+    out.push({ auditorEmail: email, active: !!active, reason: reason });
+  });
+
+  return JSON.stringify(out);
 }
 
 function COMP_cleanText_(v) {

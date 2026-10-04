@@ -185,6 +185,8 @@ function project(f,catalog,audValues){
     region:g(['Region']),
     assignedTo:g(['Assigned to','Assigned auditor','Auditor']),
     preassignedAuditor:pre,
+    managerCommentLast:g(['Manager comment (last)','Manager comment','Last manager comment']),
+    auditorCommentLast:g(['Auditor comment (last)','Auditor comment','Last auditor comment']),
     planningJson:g(['Planning JSON','Planning_JSON']),
     sourceRevision:createHash('sha256').update([g(['Audit ID','Audit_ID','AuditId','Audit Id']),g(['Status']),g(['Assigned to','Assigned auditor','Auditor']),g(['Planning JSON','Planning_JSON']),g(['Last decision timestamp']),g(['Status since'])].join('|')).digest('hex').slice(0,24),
     requiredHours:Number(String(g(['Total audit time in hours','Total time in hours','Required hours','Total hours'])||'').replace(',','.'))||0,

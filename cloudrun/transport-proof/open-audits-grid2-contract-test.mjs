@@ -9,7 +9,7 @@ const recoverExtensionBody=(recoverExtensionStart>=0&&runExtensionStart>recoverE
 const runExtensionBody=runExtensionStart>=0?manager.slice(runExtensionStart):'';
 const checks=[
 ['1.0 parity columns', ['Company','Locations','Region','GPS / Map','Scopes','Status','Expiration date','Planning window','Self planning','Date planned','To be planned','Hours planned','Auditor','Actions'].every(x=>manager.includes(x))],
-['single planning entry only',!manager.includes('<th>Planning 2.0</th>')&&!manager.includes('class=\"planning2-cell\"')&&manager.includes('ui.push({key:"plan",label:"Plan"})')&&manager.includes('if(action==="plan"){window.location.href="/planning?auditId="')],
+['single planning entry only',!manager.includes('<th>Planning 2.0</th>')&&!manager.includes('class=\"planning2-cell\"')&&manager.includes('ui.push({key:"plan",label:"Plan"})')&&manager.includes('if(action==="plan"){var w=window.open("/planning?auditId="')],
 ['focused single planning link',manager.includes('/planning?auditId=')&&manager.includes('Single Planning 2.0')],
 ['broken overview route not exposed',html.includes('id="planningWorkspace"')&&manager.includes('workspace.disabled=true')&&!manager.includes('window.location.href="/planning"')],
 ['concept explicitly non committed',manager.includes('Concept only — not committed')],

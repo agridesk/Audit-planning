@@ -48,7 +48,8 @@ const checks=[
   ['R4 slot comments do not overwrite Manager comment last',!r4.includes("set(['Manager comment (last)'],clean(body?.comment))")&&!r5.includes("draftBlocks.map(b=>b.slotComment).filter(Boolean).join(' | ')" )],
   ['R4 off-site blocks display no Company execution location',r5.includes("off?'<option value=\"\" selected>—</option>':locationOptionMarkup")&&r5.includes("b.execLoc=b.executionType==='OFFSITE'?'':")],
   ['R4 save synchronizes visible slot editors before payload',r5.includes('function syncVisibleSlotEditors()')&&r5.includes('async function save(){syncVisibleSlotEditors();if(!validate())return;')],
-  ['R4 slot time inputs use real scrollable quarter-hour selects',r5.includes('function quarterTimeOptions(selected)')&&r5.includes('for(const m of [0,15,30,45])')&&r5.includes('<select data-start>')&&r5.includes('<select data-end>')&&!r5.includes('data-start type="time"')&&!r5.includes('data-end type="time"')]
+  ['R4 slot time inputs use real scrollable quarter-hour selects',r5.includes('function quarterTimeOptions(selected)')&&r5.includes('for(const m of [0,15,30,45])')&&r5.includes('<select data-start>')&&r5.includes('<select data-end>')&&!r5.includes('data-start type="time"')&&!r5.includes('data-end type="time"')],
+  ['R4 backend enforces valid quarter-hour planning times',r4.includes('PLANNING_BLOCK_QUARTER_HOUR_REQUIRED')&&r4.includes('![0,15,30,45].includes(sm)')&&r4.includes('![0,15,30,45].includes(em)')]
 ];
 
 const failed=checks.filter(([,ok])=>!ok);

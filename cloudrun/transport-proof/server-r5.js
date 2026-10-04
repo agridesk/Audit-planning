@@ -41,21 +41,22 @@ async function readRaw(req,max=32768){let raw='';for await(const chunk of req){r
 async function readForm(req){return new URLSearchParams(await readRaw(req,16384));}
 function verifyManagerSessionHandoff(form){
   if(WRITE_KEY.length<32)return{ok:false,error:'WRITE_BRIDGE_NOT_CONFIGURED'};
-  const email=clean(form.get('email')).toLowerCase(),role=clean(form.get('role')),exp=Number(clean(form.get('exp'))),supplied=clean(form.get('signature'));
+  const email=clean(form.get('email')).toLowerCase(),role=clean(form.get('role')),auditId=clean(form.get('auditId')),exp=Number(clean(form.get('exp'))),supplied=clean(form.get('signature'));
   if(!email||!role||!exp||!supplied)return{ok:false,error:'HANDOFF_REQUIRED_FIELDS_MISSING'};
-  if(role.toLowerCase()!=='manager')return{ok:false,error:'ROLE_FORBIDDEN'};
+  const roleKey=role.toLowerCase();if(roleKey!=='manager'&&roleKey!=='auditor')return{ok:false,error:'ROLE_FORBIDDEN'};
+  if(roleKey==='auditor'&&!auditId)return{ok:false,error:'AUDIT_ID_REQUIRED'};
   const now=Date.now();
   if(exp<now-MANAGER_HANDOFF_CLOCK_SKEW_MS)return{ok:false,error:'HANDOFF_EXPIRED'};
   if(exp>now+MANAGER_HANDOFF_MAX_FUTURE_MS)return{ok:false,error:'HANDOFF_EXPIRY_INVALID'};
-  const expected=signManagerSessionHandoff(managerSessionPayload(email,'Manager',exp));
+  const expected=signManagerSessionHandoff(roleKey==='manager'?managerSessionPayload(email,'Manager',exp):auditorPlanningSessionPayload(email,'Auditor',auditId,exp));
   if(!safeEq(supplied,expected))return{ok:false,error:'HANDOFF_SIGNATURE_INVALID'};
-  return{ok:true,email,role:'Manager'};
+  return roleKey==='manager'?{ok:true,email,role:'Manager',location:'/'}:{ok:true,email,role:'Auditor',auditId,location:'/planning?auditId='+encodeURIComponent(auditId)};
 }
 async function handleManagerSessionHandoff(req,res){
   let form;try{form=await readForm(req);}catch(err){return sendJson(res,413,{ok:false,error:clean(err&&err.message||err)});}
   const verified=verifyManagerSessionHandoff(form);if(!verified.ok)return sendJson(res,401,verified);
   if(SESSION_SECRET.length<32)return sendJson(res,500,{ok:false,error:'SESSION_SECRET_NOT_CONFIGURED'});
-  const token=issueSession(verified);res.writeHead(303,{'set-cookie':sessionCookie(token),'location':'/','cache-control':'no-store','referrer-policy':'no-referrer'});return res.end();
+  const token=issueSession(verified);res.writeHead(303,{'set-cookie':sessionCookie(token),'location':verified.location||'/','cache-control':'no-store','referrer-policy':'no-referrer'});return res.end();
 }
 async function sessionIdentity(req){
   const r=await fetch('http://127.0.0.1:'+INNER_PORT+'/api/v1/session',{method:'GET',headers:{cookie:clean(req.headers.cookie)},redirect:'manual'});

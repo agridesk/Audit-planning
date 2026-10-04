@@ -270,6 +270,18 @@ function loadOpen(){if(currentView!=="open")selectionClear();currentView="open";
 function loadCompleted(){if(currentView!=="completed")selectionClear();currentView="completed";++enrichmentSeq;return fetch("/api/v1/manager/archived",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(a){if(a.success===false)throw new Error(a.error||a.message||"Read failed");all=(a.rows||[]).slice();document.getElementById("status").className="";document.getElementById("status").textContent=all.length+" completed audits · "+a.serverMs+" ms server";document.getElementById("cards").innerHTML="";setTabs();filter()}).catch(fail)}
 function fail(e){var z=document.getElementById("status");z.className="err";z.textContent=e.message}
 function applyActorUi(){var isAud=String(actorRole).toLowerCase()==="auditor",title=document.getElementById("portalTitle"),batch=document.getElementById("selectionBatch"),concept=document.getElementById("selectionConcept"),workspace=document.getElementById("planningWorkspace");if(title)title.textContent=isAud?"Auditor · Audit Grid 2.0":"Manager · Audit Grid 2.0";if(batch)batch.style.display=isAud?"none":batch.style.display;if(concept)concept.style.display=isAud?"none":concept.style.display;if(workspace)workspace.style.display=isAud?"none":"";}
+var passiveRefreshBusy=false,lastPassiveRefreshAt=0;
+function passiveRefreshOpen(){
+  if(currentView!=="open"||passiveRefreshBusy||document.visibilityState==="hidden")return Promise.resolve();
+  var now=Date.now();if(now-lastPassiveRefreshAt<1500)return Promise.resolve();
+  passiveRefreshBusy=true;lastPassiveRefreshAt=now;
+  var sx=window.scrollX,sy=window.scrollY,q=document.getElementById("q").value;
+  return loadOpen().then(function(){
+    document.getElementById("q").value=q;filter();window.scrollTo(sx,sy);
+  }).finally(function(){passiveRefreshBusy=false});
+}
+window.addEventListener("focus",function(){passiveRefreshOpen()});
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")passiveRefreshOpen()});
 document.getElementById("q").addEventListener("input",filter);document.getElementById("reset").onclick=function(){document.getElementById("q").value="";render(all)};document.getElementById("openView").onclick=loadOpen;document.getElementById("completedView").onclick=loadCompleted;
 document.getElementById("selectionClear").onclick=selectionClear;
 document.getElementById("selectionBatch").onclick=function(){submitSelectionHandoff("batch")};

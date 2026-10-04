@@ -39,7 +39,7 @@ function RUN_AMS03_AVAILABILITY_CAPACITY_DIAGNOSTIC(){
     var s2=mins(cS2>=0?row[cS2]:''),e2=mins(cE2>=0?row[cE2]:'');if(cID2>=0&&String(row[cID2]||'').trim())a.secondAuditRows++;if(s2!=null&&e2!=null&&e2>s2)a.scheduledMinutes+=e2-s2;
     [cSt1,cSt2].forEach(function(ci){if(ci<0)return;var s=String(row[ci]||'').trim();if(s)a.statuses[s]=(a.statuses[s]||0)+1;});
   }
-  out.auditors=Object.keys(byAud).sort().map(function(k){var a=byAud[k];a.scheduledHours=Math.round(a.scheduledMinutes/6)/10;delete a.scheduledMinutes;a.statuses=Object.keys(a.statuses).sort().map(function(s){return{status:s,count:a.statuses[s]};});return a;});
+  out.auditors=Object.keys(byAud).sort().map(function(k){var a=byAud[k];a.occupiedHours=Math.round(a.scheduledMinutes/6)/10;delete a.scheduledMinutes;a.statuses=Object.keys(a.statuses).sort().map(function(s){return{status:s,count:a.statuses[s]};});return a;});
   out.counts.auditors=out.auditors.length;
   out.gates={requiredHeadersPresent:cDate>=0&&cAud>=0&&cAvail>=0,yearRowsPresent:out.counts.rowsInYear>0,auditorsPresent:out.counts.auditors>0,coverageDatesPresent:out.auditors.every(function(a){return!!a.minDate&&!!a.maxDate;}),readOnly:true,noWrites:true};
   out.success=out.errors.length===0;out.serverMs=Date.now()-t0;Logger.log(JSON.stringify(out,null,2));return out;

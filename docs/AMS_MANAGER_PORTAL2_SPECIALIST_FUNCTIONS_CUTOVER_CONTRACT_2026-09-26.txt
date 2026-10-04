@@ -69,7 +69,7 @@ Operational status: REQUIRED.
 Purpose:
 - manage scope metadata/policy;
 - Formal_hours;
-- Scheduling_hours / Planning duration;
+- Formal_hours as the sole canonical audit duration; Max_Offsite_Hours as policy ceiling;
 - rotation maximum;
 - Rotation_Extension;
 - Min_Interval_Months;

@@ -19,6 +19,11 @@ Required environment
 DEV_SSOT_SPREADSHEET_ID = DEV Audit Management spreadsheet ID
 DEV_ALLOWED_ORIGIN = exact external DEV web-app origin.
 
+Central actor capability model
+- actor-capabilities-v211.js is the shared V2.11 role/lifecycle capability source for migrated Cloud Run surfaces.
+- Auditor visibility is own assigned/preassigned work plus eligible self-planning pool only; Manager retains authorized full operational visibility.
+- UI consumes capabilities; backend still revalidates hard constraints and lifecycle on write.
+
 Browser boundary
 - Focused reads/writes require a valid signed application-session cookie.
 - Origin/CORS is defense-in-depth, not authentication.

@@ -19,8 +19,11 @@ const checks=[
   [handoff,"validateTrustedTokenByRole(token,'Auditor',device)"],
   [handoff,"AUDITOR_PLANNING_SESSION"],
   [portal,"action', String(__ENV || '').toUpperCase() === 'DEV' ? 'planningworkspace' : 'planningtoolkit'"],
-  [portal,"d.type !== 'PLANNING_SAVED_V5'"]
+  [portal,"d.type !== 'PLANNING_SAVED_V5'"],
+  [portal,"window.doPlan = doPlan"],
+  [portal,"window.open('about:blank', 'V5PlanningToolkit'"],
+  [portal,"child.location.replace(url)"]
 ];
 for(const [text,needle] of checks)assert.ok(text.includes(needle),needle+' missing');
 assert.ok(!handoff.includes('saveManagerPlanning('),'handoff must not write planning');
-console.log(JSON.stringify({ok:true,build:'2026-10-04_AUDITOR_SHARED_PLANNING_MODE_CONTRACT_R1',tests:14,writesPerformed:false}));
+console.log(JSON.stringify({ok:true,build:'2026-10-04_AUDITOR_SHARED_PLANNING_MODE_CONTRACT_R1',tests:17,writesPerformed:false}));

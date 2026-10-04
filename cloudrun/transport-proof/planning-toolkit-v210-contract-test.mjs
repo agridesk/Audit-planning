@@ -58,6 +58,7 @@ const checks=[
   ['R4 calendar deselect removes all blocks for the selected day',r5.includes('const existing=draftBlocks.some(b=>b.date===date)')&&r5.includes('draftBlocks=draftBlocks.filter(b=>b.date!==date)')],
   ['R4 slot edit action supports select-based time picker',r5.includes("typeof startEl.showPicker==='function'")&&!r5.includes('startEl.select()')],
   ['R4 default slot never generates an invalid next-day time',r5.includes("endMin>23*60+45")&&r5.includes('No valid same-day quarter-hour slot fits the remaining hours on this day.')],
+  ['R4 client structurally validates all draft blocks before Save',r5.includes('function draftBlocksStructurallyValid()')&&r5.includes('blocksValid=draftBlocksStructurallyValid()')&&r5.includes('&&blocksValid&&windowValid')],
   ['R6 combined writer enforces quarter-hour and five-day rules',r6.includes('PLANNING_BLOCK_QUARTER_HOUR_REQUIRED')&&r6.includes('new Set(requested.map(b=>b.date)).size>5')&&r6.includes("throw new Error('PLANNING_BLOCKS_OVERLAP')")],
   ['R6 combined writer does not overwrite Manager comment with planning payload',!r6.includes("setTarget(['Manager comment (last)'],clean(body?.comment))")]
 ];

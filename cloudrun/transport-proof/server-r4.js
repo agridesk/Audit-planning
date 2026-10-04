@@ -956,6 +956,7 @@ function directPlanningCommit(identity,body){
     if(sourceRevision&&sourceRevision!==clean(audit.sourceRevision))throw new Error('PLANNING_SOURCE_REVISION_CONFLICT');
     if(currentStatus!=='PENDING_PLANNING')throw new Error('STATUS_TRANSITION_BLOCKED');
     if(!audit.candidateAuditors.some(a=>clean(a.email).toLowerCase()===auditorEmail))throw new Error('AUDITOR_NOT_HARD_QUALIFIED');
+    const rotationCheck=await directRotationRead(auditId,auditorEmail);if(!rotationCheck||rotationCheck.success===false)throw new Error('PLANNING_ROTATION_CHECK_FAILED');if(rotationCheck.auditor?.hardBlockQualification||rotationCheck.auditor?.ineligible)throw new Error('AUDITOR_NOT_HARD_QUALIFIED');if(rotationCheck.auditor?.softBlockRotation)throw new Error('PLANNING_ROTATION_LIMIT_HARD_BLOCK');
     const execution=executionConstraint(auditId,catalog,vr[6]?.values||[],vr[7]?.values||[]),from=dateOnly(audit.planningWindowFrom),to=dateOnly(audit.planningWindowTo);
     if(execution.mustCompleteBy&&requested.some(b=>b.date>execution.mustCompleteBy)&&body?.executionExceptionApproved!==true)throw new Error('EXECUTION_DEADLINE_APPROVAL_REQUIRED');
     if(requested.some(b=>(from&&b.date<from)||(to&&b.date>to)))throw new Error('PLANNING_WINDOW_BLOCKED');

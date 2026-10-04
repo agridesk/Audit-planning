@@ -88,7 +88,7 @@ const checks=[
  ['r66 rolling calendar window',r5.includes('CALENDAR_WINDOW_DAYS=70')&&r5.includes('CALENDAR_SHIFT_DAYS=28')&&r5.includes('id="prevWindow"')&&r5.includes('id="nextWindow"')&&r5.includes('id="todayWindow"')],
  ['r66 rolling calendar bounded by effective planning window',r5.includes("allowedFrom=a.planningWindowFrom&&a.planningWindowFrom>today?a.planningWindowFrom:today")&&r5.includes("to0=addDaysIso(from,CALENDAR_WINDOW_DAYS-1)")],
  ['r61 company preferred-time remains soft warning',r5.includes('function companyTimeWindow()')&&r5.includes('outside company preferred time window')],
- ['r62 slot edit parity',r5.includes('data-edit="1"')&&r5.includes("q('#date').value=b.date")&&r5.includes("q('#executionType').value=String(b.executionType||'ONSITE')")&&r5.includes("q('#location').value=b.execLoc")],
+ ['r62 slot edit parity',r5.includes('data-edit aria-label="Edit slot"')&&r5.includes('function slotUpdate(i,patch)')&&r5.includes('data-location')&&r5.includes('data-comment')],
  ['r63 soft availability is advisory in conflict guard',r5.includes("!s.start||!s.end||s.kind==='soft'")],
  ['r63 warnings use soft availability semantics',r5.includes("day.visualState==='SOFT_UNAVAILABLE'")&&!r5.includes("day&&day.state==='NO'")],
  ['r64 provisional reservations visible',r5.includes('provisionalByDate')&&r5.includes('PROVISIONAL · ')],

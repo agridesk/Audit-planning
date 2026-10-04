@@ -10,14 +10,13 @@
  *   - Preview performs no writes.
  *   - Apply only adds/fills the single canonical column.
  *   - Existing positive values are preserved.
- *   - V2.11 mandatory seed: MPS-GAP = 6 months.
+ *   - Business interval values are never hardcoded here; Config_Scopes owns them.
  */
 
 var CONFIG_SCOPES_MIN_INTERVAL_MIGRATION = Object.freeze({
   VERSION: '2026-10-04_V211_MIN_INTERVAL_SCHEMA_R1',
   SHEET: 'Config_Scopes',
-  HEADER: 'Min_Interval_Months',
-  MPS_GAP_MONTHS: 6
+  HEADER: 'Min_Interval_Months'
 });
 
 function ConfigScopesMinIntervalMigration_Preview() {
@@ -49,39 +48,14 @@ function ConfigScopesMinIntervalMigration_run_(apply) {
   var targetExists = targetCol !== undefined;
   if (!targetExists) targetCol = headers.length;
 
-  var scopeCol = ConfigScopesMinIntervalMigration_pick_(map, [
-    'ScopeCode','Scope code','Code','DisplayName','Display name','Name','ScopeName','Scope','SlotKey','Slot key','Slot'
-  ]);
-  if (scopeCol < 0) throw new Error('CONFIG_SCOPES_SCOPE_COLUMN_NOT_FOUND');
-
   var changes = [];
-  for (var r = 1; r < values.length; r++) {
-    var scope = String(values[r][scopeCol] == null ? '' : values[r][scopeCol]).trim();
-    if (!scope) continue;
 
-    var raw = targetExists ? values[r][targetCol] : '';
-    var num = Number(String(raw == null ? '' : raw).replace(',','.'));
-    var hasPositive = isFinite(num) && num > 0;
-    var desired = hasPositive ? num : (ConfigScopesMinIntervalMigration_isMpsGap_(scope) ? CONFIG_SCOPES_MIN_INTERVAL_MIGRATION.MPS_GAP_MONTHS : 0);
-
-    if (!targetExists || String(raw == null ? '' : raw).trim() === '' || (!hasPositive && desired > 0)) {
-      changes.push({
-        row: r + 1,
-        scope: scope,
-        before: raw,
-        after: desired
-      });
-    }
-  }
+  // Schema-only migration: no business interval values are written here.
+  // Min_Interval_Months values must come from canonical Config_Scopes data.
 
   if (apply) {
     if (!targetExists) {
       sh.getRange(1, targetCol + 1).setValue(CONFIG_SCOPES_MIN_INTERVAL_MIGRATION.HEADER);
-    }
-    if (changes.length) {
-      for (var i = 0; i < changes.length; i++) {
-        sh.getRange(changes[i].row, targetCol + 1).setValue(changes[i].after);
-      }
     }
     try {
       if (typeof RotationAuditorService_clearCache === 'function') RotationAuditorService_clearCache();
@@ -100,21 +74,8 @@ function ConfigScopesMinIntervalMigration_run_(apply) {
     targetColumn: targetCol + 1,
     targetExists: targetExists,
     changes: changes,
-    writesPerformed: !!apply && (!targetExists || changes.length > 0),
-    mpsGapMonths: CONFIG_SCOPES_MIN_INTERVAL_MIGRATION.MPS_GAP_MONTHS
+    writesPerformed: !!apply && (!targetExists || changes.length > 0)
   };
-}
-
-function ConfigScopesMinIntervalMigration_isMpsGap_(value) {
-  return ConfigScopesMinIntervalMigration_key_(value).replace(/[^a-z0-9]/g,'') === 'mpsgap';
-}
-
-function ConfigScopesMinIntervalMigration_pick_(map, names) {
-  for (var i = 0; i < names.length; i++) {
-    var k = ConfigScopesMinIntervalMigration_key_(names[i]);
-    if (map[k] !== undefined) return map[k];
-  }
-  return -1;
 }
 
 function ConfigScopesMinIntervalMigration_key_(value) {

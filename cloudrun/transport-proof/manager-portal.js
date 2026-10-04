@@ -202,7 +202,7 @@ function patchActionLikeV1(auditId,action,reason,result,perf){
     after.hoursPlanned='';after.plannedHours='';after.planningJson='';after.planningSummary=null;after.plannedDates=[];after.plannedTooltip='';
     after.managerComment=reason;after.managerDecision='CANCEL';after.latestComment=reason;after.latestCommentActor='Manager';after.latestCommentAction='CANCEL'
   }
-  if(wr&&wr.sourceRevision)after.sourceRevision=wr.sourceRevision;
+  if(result&&result.sourceRevision)after.sourceRevision=result.sourceRevision;
   all[idx]=after;replaceVisibleRow(auditId,after);adjustCounters(beforeKey,after.statusKey);window.scrollTo(scrollX,scrollY);
   perf.patchMs=Math.round(performance.now()-t);perf.totalMs=Math.round(performance.now()-perf.startedAt)
 }

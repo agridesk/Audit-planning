@@ -61,6 +61,7 @@ const checks=[
   ['R4 client structurally validates all draft blocks before Save',r5.includes('function draftBlocksStructurallyValid()')&&r5.includes('blocksValid=draftBlocksStructurallyValid()')&&r5.includes('&&blocksValid&&windowValid')],
   ['V2.11 rotation maximum is hard in Toolkit and canonical commit',r5.includes("rotationState==='ROTATION_LIMIT'")&&r5.includes('rotationValid')&&r4.includes("PLANNING_ROTATION_LIMIT_HARD_BLOCK")&&r4.includes('await directRotationRead(auditId,auditorEmail)')],
   ['Rotation check failure fails closed in Toolkit and commit',r5.includes('candidate.rotationCheckFailed')&&r4.includes("PLANNING_ROTATION_CHECK_FAILED")],
+  ['Toolkit Save stays blocked while hard rotation validation is pending',r5.includes("candidate.rotationState='LOADING'")&&r5.includes("'DEFERRED','LOADING','CHECK_FAILED','ROTATION_LIMIT'")],
   ['R6 combined writer enforces quarter-hour and five-day rules',r6.includes('PLANNING_BLOCK_QUARTER_HOUR_REQUIRED')&&r6.includes('new Set(requested.map(b=>b.date)).size>5')&&r6.includes("throw new Error('PLANNING_BLOCKS_OVERLAP')")],
   ['R6 combined writer does not overwrite Manager comment with planning payload',!r6.includes("setTarget(['Manager comment (last)'],clean(body?.comment))")]
 ];

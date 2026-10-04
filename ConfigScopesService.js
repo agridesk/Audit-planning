@@ -252,6 +252,7 @@ function ConfigScopes_loadCatalogFromSheet_() {
       defaultHours: ConfigScopes_num_(ConfigScopes_val_(row, idx, ['Default_hours', 'Default hours', 'DefaultHours']), 0),
       formalHours: ConfigScopes_num_(ConfigScopes_val_(row, idx, ['Formal_hours', 'Formal hours', 'Formal Hours', 'Default_hours', 'Default hours', 'DefaultHours']), 0),
       maxOffsiteHours: ConfigScopes_numOrNull_(ConfigScopes_val_(row, idx, ['Max_Offsite_Hours', 'Max Offsite Hours', 'Max offsite hours', 'Maximum offsite hours'])),
+      minIntervalMonths: ConfigScopes_numOrNull_(ConfigScopes_val_(row, idx, ['Min_Interval_Months', 'Min Interval Months', 'Minimum interval months'])),
       maxNumberAudits: ConfigScopes_numOrNull_(ConfigScopes_val_(row, idx, ['Max number audits', 'Max number audit', 'Max audits', 'Max audit', 'Maximum audits'])),
       planningFrom: ConfigScopes_numOrNull_(ConfigScopes_val_(row, idx, ['Planning from', 'Planning_from', 'PlanningFrom'])),
       planningTo: ConfigScopes_numOrNull_(ConfigScopes_val_(row, idx, ['Planning to', 'Planning_to', 'PlanningTo'])),
@@ -528,6 +529,7 @@ function RUN_CONFIGSCOPES_DIAGNOSTICS() {
         defaultHours: x.defaultHours,
         formalHours: x.formalHours,
         maxOffsiteHours: x.maxOffsiteHours,
+        minIntervalMonths: x.minIntervalMonths,
         maxNumberAudits: x.maxNumberAudits
       };
     })

@@ -32,7 +32,8 @@ const checks=[
 ['slot comments are included in Date planned hover',manager.includes('if(b.slotComment)line+=" · "+b.slotComment')],
 
 ['multi-day Date planned shows compact icon',manager.includes('class="multi-day-icon"')&&manager.includes('>▦</span>')&&manager.includes('bs.length>1')],['first-paint Manager rows expose Planning JSON for hover',r4.includes('planningJson:val(row,cpj)')],['extension controls do not depend on slow GAS enrichment',r10.includes('function managerExtensionCatalog')&&r10.includes('managerExtensionMonthsForAudit')&&r10.includes("r.canExtend=r.statusKey==='PENDING_PLANNING'&&extMonths>0")],
-['non-recurring annual planning window comes from Model C plus Config_Scopes',r10.includes('function managerAnnualWindowCatalog')&&r10.includes('managerResolvedVisitWindow')&&r10.includes("sheetValues('Audit_Obligations!A1:Z1024')")&&r10.includes("sheetValues('Audit_Visit_Obligations!A1:Z1024')")&&r10.includes("cfg.obligationCycle!=='ANNUAL'")],
+
+['multi-day icon shares full planning tooltip',manager.includes("class=\"multi-day-icon\"'+(tip?' title=\"'+esc(tip)+'\"':'')")],['non-recurring annual planning window comes from Model C plus Config_Scopes',r10.includes('function managerAnnualWindowCatalog')&&r10.includes('managerResolvedVisitWindow')&&r10.includes("sheetValues('Audit_Obligations!A1:Z1024')")&&r10.includes("sheetValues('Audit_Visit_Obligations!A1:Z1024')")&&r10.includes("cfg.obligationCycle!=='ANNUAL'")],
 ['auditor UI uses display-name projection',manager.includes('assignedToDisplayName||r.auditorDisplayName')&&r10.includes('managerAuditorDisplayMap')],
 ['extension apply undo controls',manager.includes('Undo applied extension')&&manager.includes('Apply extension (+')],
 ['undo remains available after canonical apply',manager.includes('if(applied)return')&&manager.includes('data-extension=\\"undo\\"')],

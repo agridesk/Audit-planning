@@ -27,7 +27,10 @@ const checks=[
 ['Manager first paint has no scheduled-hours display contract',!r4.includes('scheduledHours:committedScheduledHours')&&!r4.includes('schedulingHoursTarget:schedulingTarget')],
 ['Manager Pending Planning clears Hours planned only',r10.includes("r.statusKey==='PENDING_PLANNING'")&&r10.includes("r.hoursPlanned='';r.plannedHours=''")&&!r10.includes("r.scheduledHours=''")],
 ['Manager committed Hours planned resolves from formal hours',r10.includes("formalField:'hoursPlanned'")&&r10.includes("planningTarget:'formalHours'")&&!r10.includes("scheduledOwner:'PLANNING_JSON_BLOCKS'")],
-['extension controls do not depend on slow GAS enrichment',r10.includes('function managerExtensionCatalog')&&r10.includes('managerExtensionMonthsForAudit')&&r10.includes("r.canExtend=r.statusKey==='PENDING_PLANNING'&&extMonths>0")],
+
+['multi-day Date planned hover uses Planning JSON blocks',manager.includes('function planningBlocks(r)')&&manager.includes('function plannedDateCell(r)')&&manager.includes('b.date+" "+b.start+"–"+b.end')],
+['slot comments are included in Date planned hover',manager.includes('if(b.slotComment)line+=" · "+b.slotComment')],
+['first-paint Manager rows expose Planning JSON for hover',r4.includes('planningJson:val(row,cpj)')],['extension controls do not depend on slow GAS enrichment',r10.includes('function managerExtensionCatalog')&&r10.includes('managerExtensionMonthsForAudit')&&r10.includes("r.canExtend=r.statusKey==='PENDING_PLANNING'&&extMonths>0")],
 ['non-recurring annual planning window comes from Model C plus Config_Scopes',r10.includes('function managerAnnualWindowCatalog')&&r10.includes('managerResolvedVisitWindow')&&r10.includes("sheetValues('Audit_Obligations!A1:Z1024')")&&r10.includes("sheetValues('Audit_Visit_Obligations!A1:Z1024')")&&r10.includes("cfg.obligationCycle!=='ANNUAL'")],
 ['auditor UI uses display-name projection',manager.includes('assignedToDisplayName||r.auditorDisplayName')&&r10.includes('managerAuditorDisplayMap')],
 ['extension apply undo controls',manager.includes('Undo applied extension')&&manager.includes('Apply extension (+')],

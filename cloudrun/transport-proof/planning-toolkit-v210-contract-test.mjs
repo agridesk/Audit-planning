@@ -71,6 +71,7 @@ const checks=[
   ['R6 combined writer enforces V2.11 hard rotation for every Visit member',r6.includes('async function innerRotationCheck')&&r6.includes('for(const memberId of memberIds)')&&r6.includes("PLANNING_ROTATION_LIMIT_HARD_BLOCK")&&r6.includes("PLANNING_ROTATION_CHECK_FAILED")],
   ['R6 combined writer validates onsite execution locations against canonical Company Locations_JSON',r6.includes('function companyLocationCodes')&&r6.includes("'Companies!A1:AJ686'")&&r6.includes("PLANNING_EXECUTION_LOCATION_INVALID")],
   ['V2.11 Company Auditor_Exclusions are hard in single and combined Planning when configured',r4.includes('function companyAuditorExclusions')&&r4.includes("AUDITOR_EXCLUDED_FOR_COMPANY")&&r6.includes('function companyAuditorExcluded')&&r6.includes("AUDITOR_EXCLUDED_FOR_COMPANY")],
+  ['V2.11 Config_Scopes Min_Interval_Months is a hard single and combined Planning constraint when configured',r4.includes("Min_Interval_Months")&&r4.includes('function minimumIntervalConstraint')&&r4.includes("MIN_INTERVAL_HARD_BLOCK_")&&r6.includes('function combinedMinPlanningDate')&&r6.includes("MIN_INTERVAL_HARD_BLOCK_")&&r5.includes('minIntervalValid')&&r5.includes('Minimum audit interval: not before ')],
   ['R6 combined writer does not overwrite Manager comment with planning payload',!r6.includes("setTarget(['Manager comment (last)'],clean(body?.comment))")]
 ];
 

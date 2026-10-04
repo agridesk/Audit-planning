@@ -39,7 +39,8 @@ const checks=[
   ['R4 successful save notifies parent and closes popup',r5.includes("type:'AMS_PLANNING_SAVED'")&&r5.includes('window.close()')],
   ['R4 company context includes general and auditor comments',r4.includes("auditorComments:''")&&r5.includes("General comments: ")&&r5.includes("Auditor comments: ")],
   ['R4 slot comments remain persisted in canonical Planning JSON blocks',r4.includes('slotComment=clean(x?.slotComment||x?.comment)')&&r4.includes('planningJson=JSON.stringify({blocks:requested')]
-];
+
+  ['R4 save synchronizes visible slot editors before payload',r5.includes('function syncVisibleSlotEditors()')&&r5.includes('async function save(){syncVisibleSlotEditors();if(!validate())return;')],];
 
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks)console.log(`${ok?'PASS':'FAIL'} ${name}`);

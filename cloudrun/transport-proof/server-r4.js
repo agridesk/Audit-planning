@@ -161,7 +161,7 @@ function companyAuditorExclusions(values,companyUid,companyName){
   return out;
 }
 function activeRoleEmails(values,role){if(!values.length)return[];const h=values[0],e=col(h,['E-mail','Email','E-mail address','Mail']),r=col(h,['Role','Function']),a=col(h,['Active','Is active']);const wanted=clean(role).toLowerCase(),out=[];for(const row of values.slice(1)){if(clean(row[r]).toLowerCase()!==wanted)continue;if(a>=0&&!yes(row[a]))continue;const email=val(row,e).toLowerCase();if(email&&!out.includes(email))out.push(email);}return out;}
-function canonicalManagerRecipient(values){const emails=activeRoleEmails(values,'Manager');if(emails.length===1)return emails[0];if(!emails.length)throw new Error('MANAGER_APPROVAL_RECIPIENT_MISSING');throw new Error('MANAGER_APPROVAL_RECIPIENT_MULTIPLE');}
+function canonicalManagerRecipient(values){const emails=activeRoleEmails(values,'Manager');if(emails.length)return emails[0];throw new Error('MANAGER_APPROVAL_RECIPIENT_MISSING');}
 function candidates(audValues,catalog,required,pre){
   if(!audValues.length)return[];
   const h=audValues[0],n=col(h,['Name','Auditor','Auditor name']),e=col(h,['E-mail','Email','E-mail address','Mail']),a=col(h,['Active','Is active']),r=col(h,['Role','Function']),bw=col(h,['Blocked weekdays','Blocked days','Default unavailable','Default unavailable weekdays']);

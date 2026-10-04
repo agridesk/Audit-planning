@@ -18,7 +18,7 @@ const checks=[
   [login,'normalized.length === 6'],
   [login,'ev.key === "Enter"'],
   [login,'continueBox.classList.add("hidden")'],
-  [login,'setTimeout(function(){\n      revealNavigationFallback_();\n    }, 1800)'],
+  [login,'__fallbackTimer = setTimeout(function(){\n      revealNavigationFallback_();\n    }, 1800)'],
   [entry,"if (!V5_ENTRY_isDevEnv_()) return false;"],
   [entry,"t.__testAuthEnabled=!!(runtimeEnv==='DEV'"],
   [managerHandoff,"runtimeEnv!=='DEV'"],

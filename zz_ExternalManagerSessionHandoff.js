@@ -1,8 +1,8 @@
 /***********************************************************************
  * FILE: zz_ExternalManagerSessionHandoff.js
- * BUILD: 2026-09-28_EXTERNAL_MANAGER_SESSION_HANDOFF_R4_TOP_LEVEL_POST
+ * BUILD: 2026-10-04_EXTERNAL_MANAGER_GRID2_SESSION_HANDOFF_R5
  ***********************************************************************/
-var EXTERNAL_MANAGER_SESSION_HANDOFF_BUILD='2026-09-28_EXTERNAL_MANAGER_SESSION_HANDOFF_R4_TOP_LEVEL_POST';
+var EXTERNAL_MANAGER_SESSION_HANDOFF_BUILD='2026-10-04_EXTERNAL_MANAGER_GRID2_SESSION_HANDOFF_R5';
 var EXTERNAL_MANAGER_SESSION_HANDOFF_URL='https://ams-transport-proof-510075419067.europe-west1.run.app/auth/signed-handoff';
 var EXTERNAL_MANAGER_SESSION_HANDOFF_MAX_FUTURE_MS=90*1000;
 var EXTERNAL_MANAGER_SESSION_HANDOFF_TTL_MS=60*1000;
@@ -25,7 +25,7 @@ function ExternalManagerSessionHandoff_buildAssertion_(email){
 
 function ExternalManagerSessionHandoff_renderPost_(email){
   var a=ExternalManagerSessionHandoff_buildAssertion_(email);
-  var html=['<!doctype html><html><head><meta charset="utf-8">','<meta name="referrer" content="no-referrer">','<title>AMS - Opening Manager Portal</title></head><body>','<form id="handoff" method="post" target="_top" action="',ExternalManagerSessionHandoff_escape_(EXTERNAL_MANAGER_SESSION_HANDOFF_URL),'">','<input type="hidden" name="email" value="',ExternalManagerSessionHandoff_escape_(a.email),'">','<input type="hidden" name="role" value="Manager">','<input type="hidden" name="exp" value="',ExternalManagerSessionHandoff_escape_(a.exp),'">','<input type="hidden" name="signature" value="',ExternalManagerSessionHandoff_escape_(a.signature),'">','</form>','<script>document.getElementById("handoff").submit();</script>','<noscript><button type="submit" form="handoff">Open Manager Portal</button></noscript>','</body></html>'].join('');
+  var html=['<!doctype html><html><head><meta charset="utf-8">','<meta name="referrer" content="no-referrer">','<title>AMS - Opening Audit Grid 2.0</title></head><body>','<form id="handoff" method="post" target="_top" action="',ExternalManagerSessionHandoff_escape_(EXTERNAL_MANAGER_SESSION_HANDOFF_URL),'">','<input type="hidden" name="email" value="',ExternalManagerSessionHandoff_escape_(a.email),'">','<input type="hidden" name="role" value="Manager">','<input type="hidden" name="exp" value="',ExternalManagerSessionHandoff_escape_(a.exp),'">','<input type="hidden" name="signature" value="',ExternalManagerSessionHandoff_escape_(a.signature),'">','</form>','<script>document.getElementById("handoff").submit();</script>','<noscript><button type="submit" form="handoff">Open Audit Grid 2.0</button></noscript>','</body></html>'].join('');
   return html;
 }
 

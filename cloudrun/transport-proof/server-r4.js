@@ -2,7 +2,7 @@ import http from 'node:http';
 import {URL} from 'node:url';
 import {readFileSync} from 'node:fs';
 import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
-import {v211AuditorQualified,v211CompanyAuditorExclusions,v211MinimumIntervalConstraint} from './assignment-validation-v211.js';
+import {v211AuditorQualified,v211CompanyAuditorExclusions,v211MinimumIntervalConstraint,v211RotationHardCheck} from './assignment-validation-v211.js';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
@@ -988,7 +988,7 @@ function directPlanningCommit(identity,body){
     if(sourceRevision&&sourceRevision!==clean(audit.sourceRevision))throw new Error('PLANNING_SOURCE_REVISION_CONFLICT');
     if(currentStatus!=='PENDING_PLANNING')throw new Error('STATUS_TRANSITION_BLOCKED');
     if(!v211AuditorQualified(vr[1]?.values||[],catalog,audit.scopes||[],auditorEmail))throw new Error('AUDITOR_NOT_HARD_QUALIFIED');if(auditorExclusions.has(auditorEmail))throw new Error('AUDITOR_EXCLUDED_FOR_COMPANY');
-    const rotationCheck=await directRotationRead(auditId,auditorEmail);if(!rotationCheck||rotationCheck.success===false)throw new Error('PLANNING_ROTATION_CHECK_FAILED');if(rotationCheck.auditor?.hardBlockQualification||rotationCheck.auditor?.ineligible)throw new Error('AUDITOR_NOT_HARD_QUALIFIED');if(rotationCheck.auditor?.softBlockRotation)throw new Error('PLANNING_ROTATION_LIMIT_HARD_BLOCK');
+    const rotationCheck=await directRotationRead(auditId,auditorEmail),rotationHard=v211RotationHardCheck(rotationCheck);if(!rotationHard.ok)throw new Error(rotationHard.reasons[0]);
     const execution=executionConstraint(auditId,catalog,vr[6]?.values||[],vr[7]?.values||[]),minInterval=v211MinimumIntervalConstraint({logValues:vr[8]?.values||[],catalog,scopeCodes:audit.scopes||[],companyUid:audit.companyUid,companyName:audit.company}),from=dateOnly(audit.planningWindowFrom),to=dateOnly(audit.planningWindowTo);
     if(execution.mustCompleteBy&&requested.some(b=>b.date>execution.mustCompleteBy)&&body?.executionExceptionApproved!==true)throw new Error('EXECUTION_DEADLINE_APPROVAL_REQUIRED');
     if(minInterval.minPlanningDate&&requested.some(b=>b.date<minInterval.minPlanningDate))throw new Error('MIN_INTERVAL_HARD_BLOCK_'+minInterval.minPlanningDate);if(requested.some(b=>(from&&b.date<from)||(to&&b.date>to)))throw new Error('PLANNING_WINDOW_BLOCKED');

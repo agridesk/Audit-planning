@@ -56,6 +56,8 @@ const checks=[
   ['R4 backend limits five distinct audit days rather than five blocks',r4.includes('new Set(requested.map(b=>b.date)).size>5')&&!r4.includes('requested.length>5')],
   ['R4 client limits five distinct audit days rather than five blocks',r5.includes('new Set(draftBlocks.map(b=>b.date)).size>=5')&&!r5.includes('draftBlocks.length>=5')],
   ['R4 calendar deselect removes all blocks for the selected day',r5.includes('const existing=draftBlocks.some(b=>b.date===date)')&&r5.includes('draftBlocks=draftBlocks.filter(b=>b.date!==date)')],
+  ['V2.11 calendar has no generic 8h or 09:00-17:00 full-day occupancy ceiling',!r5.includes('blockedOp>=8*60')&&!r5.includes('Math.min(x[1],17*60)')&&r5.includes("visualState=fullDayUnavailable?'no'")],
+  ['Toolkit has no separate Add slot path; calendar click owns slot creation',!r5.includes('function addSlot(){')&&!r5.includes('Add slot')],
   ['R4 slot edit action supports select-based time picker',r5.includes("typeof startEl.showPicker==='function'")&&!r5.includes('startEl.select()')],
   ['R4 default slot never generates an invalid next-day time',r5.includes("endMin>23*60+45")&&r5.includes('No valid same-day quarter-hour slot fits the remaining hours on this day.')],
   ['R4 client structurally validates all draft blocks before Save',r5.includes('function draftBlocksStructurallyValid()')&&r5.includes('blocksValid=draftBlocksStructurallyValid()')&&r5.includes('&&blocksValid&&windowValid')],

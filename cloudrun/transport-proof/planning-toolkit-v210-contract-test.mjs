@@ -59,6 +59,7 @@ const checks=[
   ['V2.11 calendar has no generic 8h or 09:00-17:00 full-day occupancy ceiling',!r5.includes('blockedOp>=8*60')&&!r5.includes('Math.min(x[1],17*60)')&&r5.includes("visualState=fullDayUnavailable?'no'")],
   ['V2.11 HARD Availability remains absolute for new planning even with committed occupancy',r5.includes('fullDayUnavailable=hardUnavailable')&&!r5.includes('fullDayUnavailable=hardUnavailable&&!hasOccupancy')&&r5.includes('This day is hard unavailable and cannot be selected.')],
   ['Toolkit has no separate Add slot path; calendar click owns slot creation',!r5.includes('function addSlot(){')&&!r5.includes('Add slot')],
+  ['V2.11 Toolkit can add multiple non-overlapping blocks on one selected day without restoring the old global Add slot step',r5.includes('function addBlockSameDay(i)')&&r5.includes('data-addblock')&&r5.includes("row.querySelector('[data-addblock]').onclick=()=>addBlockSameDay(i)")],
   ['R4 slot edit action supports select-based time picker',r5.includes("typeof startEl.showPicker==='function'")&&!r5.includes('startEl.select()')],
   ['R4 default slot never generates an invalid next-day time',r5.includes("endMin>23*60+45")&&r5.includes('No valid same-day quarter-hour slot fits the remaining hours on this day.')],
   ['R4 client structurally validates all draft blocks before Save',r5.includes('function draftBlocksStructurallyValid()')&&r5.includes('blocksValid=draftBlocksStructurallyValid()')&&r5.includes('&&blocksValid&&windowValid')],

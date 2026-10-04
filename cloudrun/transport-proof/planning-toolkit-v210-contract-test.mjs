@@ -64,6 +64,7 @@ const checks=[
   ['Toolkit Save stays blocked while hard rotation validation is pending',r5.includes("candidate.rotationState='LOADING'")&&r5.includes("'DEFERRED','LOADING','CHECK_FAILED','ROTATION_LIMIT'")],
   ['Planning JSON keeps formal target separate from actual committed block duration',r4.includes('formalHours,totalPlannedHours:Math.round(total*100)/100')&&r6.includes('formalHours:Math.round(formalRequired*100)/100,totalPlannedHours:Math.round(total*100)/100')&&r5.includes("totalPlannedHours:Math.round(plannedHours()*100)/100")],
   ['R6 combined writer enforces quarter-hour and five-day rules',r6.includes('PLANNING_BLOCK_QUARTER_HOUR_REQUIRED')&&r6.includes('new Set(requested.map(b=>b.date)).size>5')&&r6.includes("throw new Error('PLANNING_BLOCKS_OVERLAP')")],
+  ['R6 combined writer enforces V2.11 hard rotation for every Visit member',r6.includes('async function innerRotationCheck')&&r6.includes('for(const memberId of memberIds)')&&r6.includes("PLANNING_ROTATION_LIMIT_HARD_BLOCK")&&r6.includes("PLANNING_ROTATION_CHECK_FAILED")],
   ['R6 combined writer does not overwrite Manager comment with planning payload',!r6.includes("setTarget(['Manager comment (last)'],clean(body?.comment))")]
 ];
 

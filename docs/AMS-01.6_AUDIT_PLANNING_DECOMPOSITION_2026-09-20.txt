@@ -192,7 +192,7 @@ Rules:
 
 Rename/extend semantic ownership:
 - Default_hours -> Formal_hours
-- Scheduling_hours -> Planning_duration
+- SUPERSEDED 2026-10-04: Formal_hours is the sole canonical audit duration; Max_Offsite_Hours is only an off-site policy ceiling.
 - Lifecycle_Type
 - Obligation_Trigger_Type
 

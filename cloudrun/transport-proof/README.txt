@@ -8,8 +8,9 @@ Service: ams-transport-proof
 Service URL: https://ams-transport-proof-510075419067.europe-west1.run.app
 
 Runtime
-- package.json starts server-r4.js; canonical DEV Cloud Run entry point.
-- server-r5.js owns the focused Planning 2.0 browser surface and commit handoff.
+- package.json starts server-r12.js; canonical DEV Cloud Run entry point.
+- server-r12.js is the public DEV runtime and proxies through R11→R10→R9→R8→R7→R6→R5→R4.
+- server-r5.js owns the focused Planning 2.0 browser surface; lower layers retain canonical planning transport and guards.
 - DEV Google Sheets remains the data SSoT.
 - Cloud Run service identity has DEV spreadsheet Editor access for controlled server-side writes.
 - PROD is not configured and must not be touched.

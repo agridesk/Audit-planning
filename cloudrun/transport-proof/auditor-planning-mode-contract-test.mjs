@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const r5=readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
 const handoff=readFileSync(new URL('../../zzz_ExternalAuditorPlanningSessionHandoff.js',import.meta.url),'utf8');
+const portal=readFileSync(new URL('../../AuditorPortalV5.html',import.meta.url),'utf8');
 
 const checks=[
   [r4,"AUDITOR_AUDIT_ACCESS_FORBIDDEN"],
@@ -16,8 +17,10 @@ const checks=[
   [r5,"sel.disabled=true"],
   [r5,"PLANNING_SAVED_V5"],
   [handoff,"validateTrustedTokenByRole(token,'Auditor',device)"],
-  [handoff,"AUDITOR_PLANNING_SESSION"]
+  [handoff,"AUDITOR_PLANNING_SESSION"],
+  [portal,"action', String(__ENV || '').toUpperCase() === 'DEV' ? 'planningworkspace' : 'planningtoolkit'"],
+  [portal,"d.type !== 'PLANNING_SAVED_V5'"]
 ];
 for(const [text,needle] of checks)assert.ok(text.includes(needle),needle+' missing');
 assert.ok(!handoff.includes('saveManagerPlanning('),'handoff must not write planning');
-console.log(JSON.stringify({ok:true,build:'2026-10-04_AUDITOR_SHARED_PLANNING_MODE_CONTRACT_R1',tests:12,writesPerformed:false}));
+console.log(JSON.stringify({ok:true,build:'2026-10-04_AUDITOR_SHARED_PLANNING_MODE_CONTRACT_R1',tests:14,writesPerformed:false}));

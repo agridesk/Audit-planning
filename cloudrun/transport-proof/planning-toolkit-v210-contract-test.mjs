@@ -31,6 +31,7 @@ const checks=[
   ['Save enablement compares planned hours with formal target using 15-minute tolerance',r5.includes('Math.abs(Math.round(hours*60)-Math.round(target*60))<=15')],
   ['Committed overlap remains hard',r4.includes("throw new Error('AVAILABILITY_COLLISION_'+b.date)")],
   ['Actual Availability block writes remain requested start/end',r4.includes('x.row[z.s]=b.start;x.row[z.e]=b.end;x.row[z.id]=auditId')],
+  ['Replanning clears stale Availability reservations across previous auditors and restores Available state',r4.includes('for(const x of avRows){let changed=false;')&&r4.includes("x.row[ca]=(has1||has2||soft)?'NO':'YES'")&&r6.includes("x.row[ca]=(has1||has2||soft)?'NO':'YES'")],
   ['Combined visit validates against summed formal hours with 15-minute tolerance',r6.includes('formalRequired+=Number(a?.formalHours||0)')&&r6.includes('formalRequiredMinutes=Math.round(formalRequired*60)')&&r6.includes('Math.abs(planningDeltaMinutes)>15')],
   ['Combined visit Planning JSON keeps one hours truth and off-site is fail-closed pending scope allocation',r6.includes('formalHours:Math.round(formalRequired*100)/100')&&r6.includes("OFFSITE_MULTI_SCOPE_ALLOCATION_REQUIRED")&&!r6.includes('scheduledHours:Math.round(total*100)/100')],
   ['R6 combined Toolkit target sums formal hours',r6.includes('Number(r.formalHours||r.requiredHours||0)')&&r6.includes("function planningTarget(){return requiredVisitHours()}")],

@@ -6,7 +6,7 @@ import {v211AuditorQualified,v211CompanyAuditorExclusions,v211MinimumIntervalCon
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
-const BUILD='2026-10-04_PLANNING_R59_V211_HARD_CONSTRAINTS';
+const BUILD='2026-10-04_PLANNING_R60_V211_SHARED_ASSIGNMENT_VALIDATION';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';

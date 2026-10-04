@@ -933,8 +933,8 @@ async function withDirectPlanLock(auditId,fn){
 }
 function directPlanNormBlocks(raw){
   const out=[];for(const x of Array.isArray(raw)?raw:[]){const date=dateOnly(x?.date),start=clean(x?.start),end=clean(x?.end),executionType=clean(x?.executionType||x?.workType||'ONSITE').toUpperCase()==='OFFSITE'?'OFFSITE':'ONSITE',execLoc=executionType==='OFFSITE'?'':(clean(x?.execLoc||x?.executionLocation||x?.location||'HQ')||'HQ'),slotComment=clean(x?.slotComment||x?.comment);
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^\d{2}:\d{2}$/.test(start)||!/^\d{2}:\d{2}$/.test(end)||end<=start)throw new Error('PLANNING_BLOCK_INVALID');
-    const [sh,sm]=start.split(':').map(Number),[eh,em]=end.split(':').map(Number),hours=((eh*60+em)-(sh*60+sm))/60;if(!(hours>0))throw new Error('PLANNING_BLOCK_INVALID');
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^\d{2}:\d{2}$/.test(start)||!/^\d{2}:\d{2}$/.test(end))throw new Error('PLANNING_BLOCK_INVALID');
+    const [sh,sm]=start.split(':').map(Number),[eh,em]=end.split(':').map(Number);if(sh<0||sh>23||eh<0||eh>23||![0,15,30,45].includes(sm)||![0,15,30,45].includes(em))throw new Error('PLANNING_BLOCK_QUARTER_HOUR_REQUIRED');const startMin=sh*60+sm,endMin=eh*60+em,hours=(endMin-startMin)/60;if(!(hours>0))throw new Error('PLANNING_BLOCK_INVALID');
     out.push({date,start,end,hours,executionType,execLoc,slotComment});
   }out.sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start)||a.end.localeCompare(b.end));return out;
 }

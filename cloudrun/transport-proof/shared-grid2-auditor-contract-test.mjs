@@ -13,7 +13,7 @@ const checks=[
   [entry,"auditorgrid2"],
   [handoff,"action==='auditorgrid2'"],
   [handoff,"AUDITOR_PORTAL_SESSION"],
-  [login,"'auditorgrid2'"],
+  [login,'"auditorgrid2"'],
   [r5,"AUDITOR_PORTAL_SESSION"],
   [r5,"location:'/'"],
   [r4,"async function auditorOpenRead"],

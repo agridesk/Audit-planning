@@ -10,7 +10,7 @@ const checks=[
   ['Toolkit projects formal hours as required hours',r4.includes('formalHours:Number(String(g([')&&r4.includes('requiredHours:Number(String(g([')],
   ['Toolkit does not expose schedulingHoursTarget',!r4.includes('schedulingHoursTarget:')],
   ['Save validation uses formal hours with minute-safe 15-minute tolerance',r4.includes("PLANNED_HOURS_BELOW_FORMAL_HOURS")&&r4.includes('formalTargetMinutes=Math.round(formalTarget*60)')&&r4.includes('planningDeltaMinutes < -15')&&r4.includes('planningDeltaMinutes > 15')],
-  ['Planning JSON keeps one formal-hours truth plus concrete on/off-site blocks',r4.includes('JSON.stringify({blocks:requested,formalHours,totalPlannedHours:formalHours,offsiteHours,maxOffsiteHours:Number(offsitePolicy.maxOffsiteHours||0),auditorEmail,auditorName})')&&!r4.includes('scheduledHours')],
+  ['Planning JSON keeps formal target separate from actual concrete block duration',r4.includes('JSON.stringify({blocks:requested,formalHours,totalPlannedHours:Math.round(total*100)/100')&&!r4.includes('scheduledHours')],
   ['Direct PLAN persists Hours planned from formalHours',r4.includes("set(['Hours planned','Planned hours','Hours Planned'],formalHours)")],
   ['Direct PLAN enforces Max_Offsite_Hours',r4.includes("OFFSITE_HOURS_ABOVE_SCOPE_MAX")&&r4.includes("OFFSITE_MULTI_SCOPE_ALLOCATION_REQUIRED")&&r4.includes("executionType==='OFFSITE'")],
   ['Toolkit exposes explicit on-site/off-site block type',r5.includes('id="executionType"')&&r5.includes('plannedOffsiteHours()')&&r5.includes('id="offsiteSummary"')],

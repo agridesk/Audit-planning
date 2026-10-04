@@ -57,7 +57,7 @@ const checks=[
 ['trace visible in UI',manager.includes('coreDetail=')&&manager.includes(' · trace ')],
 ['trace timing marker',manager.includes(' · trace ')&&manager.includes('b→w ')&&manager.includes('preRPC ')&&manager.includes('w→b ')],
 ['Planning opens as popup when available',manager.includes('window.open("/planning?auditId="')&&manager.includes('"amsPlanning_"+auditId')],
-['Planning save message triggers targeted enriched reread',manager.includes("msg.type==='AMS_PLANNING_SAVED'")&&manager.includes('rereadEnrichedAudit(auditId)')&&manager.includes('mergeRowInPlace(auditId,row)')],
+['Planning save message patches row immediately and background-rereads direct audit',manager.includes("msg.type==='AMS_PLANNING_SAVED'")&&manager.includes('mergeRowInPlace(auditId,patch)')&&manager.includes('rereadAudit(auditId,before.sourceRow)')],
 ['r10 stable chain',r10.includes("await import('./server-r9.js')")]
 ];
 const failed=checks.filter(([,ok])=>!ok);

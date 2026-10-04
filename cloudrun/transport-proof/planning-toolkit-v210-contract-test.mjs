@@ -29,7 +29,15 @@ const checks=[
   ['Combined visit validates against summed formal hours',r6.includes('formalRequired+=Number(a?.formalHours||0)')&&r6.includes('Math.abs(total-formalRequired)>0.001')],
   ['Combined visit Planning JSON keeps one hours truth and off-site is fail-closed pending scope allocation',r6.includes('formalHours:Math.round(formalRequired*100)/100')&&r6.includes("OFFSITE_MULTI_SCOPE_ALLOCATION_REQUIRED")&&!r6.includes('scheduledHours:Math.round(total*100)/100')],
   ['R6 combined Toolkit target sums formal hours',r6.includes('Number(r.formalHours||r.requiredHours||0)')&&r6.includes("function planningTarget(){return requiredVisitHours()}")],
-  ['R7 is transparent and contains no Planning HTML monkey patch',!r7.includes('patchPlanningHtml')&&!r7.includes('PLANNING_COMBINED_REQUIRED_DISPLAY_PATCH_NOT_APPLIED')]
+  ['R7 is transparent and contains no Planning HTML monkey patch',!r7.includes('patchPlanningHtml')&&!r7.includes('PLANNING_COMBINED_REQUIRED_DISPLAY_PATCH_NOT_APPLIED')],
+  ['R4 layout keeps information left and large calendar right',r5.includes('class="panel leftPanel"')&&r5.includes('class="panel calendarPanel"')&&r5.includes('.calendarToolbar{position:sticky')],
+  ['R4 planned slots are directly editable',r5.includes('function slotUpdate(i,patch)')&&r5.includes('data-start')&&r5.includes('data-end')&&r5.includes('data-location')&&r5.includes('data-comment')],
+  ['R4 slot location metadata includes GPS and read-only short comment',r5.includes('function gpsHref(gps)')&&r5.includes('slotGps')&&r5.includes('slotShort')&&r5.includes("loc&&loc.comment||'-'")],
+  ['R4 keeps slot comment separate from location short comment',r5.includes('slotCommentInput')&&r5.includes('Slot comment — audit/block specific')],
+  ['R4 location picker uses canonical audit locations',r5.includes('function locationOptionMarkup(selected)')&&r5.includes('model?.data?.audit')&&r5.includes('a.locations||[]')],
+  ['R4 off-site hard maximum remains live in inline editing',r5.includes('maxOffsiteHours()')&&r5.includes("offsiteValid=offsite<=maxOff+0.001")&&r5.includes("OFFSITE")],
+  ['R4 successful save notifies parent and closes popup',r5.includes("type:'AMS_PLANNING_SAVED'")&&r5.includes('window.close()')],
+  ['R4 company context includes general and auditor comments',r4.includes("auditorComments:''")&&r5.includes("General comments: ")&&r5.includes("Auditor comments: ")]
 ];
 
 const failed=checks.filter(([,ok])=>!ok);

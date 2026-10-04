@@ -1012,7 +1012,7 @@ function directPlanningCommit(identity,body){
       const timedHard=hardSlots.some(z=>clean(x.row[z.s])&&clean(x.row[z.e])&&overlaps(b,{start:clean(x.row[z.s]),end:clean(x.row[z.e])}));
       if(wholeDayHard||timedHard)throw new Error('AVAILABILITY_HARD_BLOCK_'+b.date);
       let z=slots.find(q=>!clean(x.row[q.id]));if(!z)throw new Error('AVAILABILITY_CAPACITY_'+b.date);
-      x.row[z.s]=b.start;x.row[z.e]=b.end;x.row[z.id]=auditId;x.row[z.st]='Manager Planned';x.row[ca]='NO';if(lu>=0)x.row[lu]=isoLocalStamp();touched.set(x.sheetRow,x);
+      x.row[z.s]=b.start;x.row[z.e]=b.end;x.row[z.id]=auditId;x.row[z.st]=actorRole==='MANAGER'?'Manager Planned':'Auditor Planned';x.row[ca]='NO';if(lu>=0)x.row[lu]=isoLocalStamp();touched.set(x.sheetRow,x);
     }
 
     const h=ap[0]||[],row=found.row.slice(),set=(names,value)=>{const i=col(h,names);if(i>=0)row[i]=value;};

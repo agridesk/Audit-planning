@@ -69,6 +69,7 @@ const checks=[
   ['R6 combined writer enforces quarter-hour and five-day rules',r6.includes('PLANNING_BLOCK_QUARTER_HOUR_REQUIRED')&&r6.includes('new Set(requested.map(b=>b.date)).size>5')&&r6.includes("throw new Error('PLANNING_BLOCKS_OVERLAP')")],
   ['R6 combined writer enforces V2.11 hard rotation for every Visit member',r6.includes('async function innerRotationCheck')&&r6.includes('for(const memberId of memberIds)')&&r6.includes("PLANNING_ROTATION_LIMIT_HARD_BLOCK")&&r6.includes("PLANNING_ROTATION_CHECK_FAILED")],
   ['R6 combined writer validates onsite execution locations against canonical Company Locations_JSON',r6.includes('function companyLocationCodes')&&r6.includes("'Companies!A1:AJ686'")&&r6.includes("PLANNING_EXECUTION_LOCATION_INVALID")],
+  ['V2.11 Company Auditor_Exclusions are hard in single and combined Planning when configured',r4.includes('function companyAuditorExclusions')&&r4.includes("AUDITOR_EXCLUDED_FOR_COMPANY")&&r6.includes('function companyAuditorExcluded')&&r6.includes("AUDITOR_EXCLUDED_FOR_COMPANY")],
   ['R6 combined writer does not overwrite Manager comment with planning payload',!r6.includes("setTarget(['Manager comment (last)'],clean(body?.comment))")]
 ];
 

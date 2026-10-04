@@ -997,7 +997,7 @@ function directPlanningCommit(identity,body){
     if([cd,ce,ca,s1,e1,id1,s2,e2,id2,st1,st2].some(x=>x<0))throw new Error('AVAILABILITY_SCHEMA_INVALID');
     const avRows=av.slice(1).map((row,i)=>({row:row.slice(),sheetRow:i+2,date:dateOnly(row[cd]),email:clean(row[ce]).toLowerCase()}));
     const touched=new Map();
-    for(const x of avRows){if(x.email!==auditorEmail)continue;let changed=false;if(clean(x.row[id1])===auditId){x.row[s1]='';x.row[e1]='';x.row[id1]='';x.row[st1]='';changed=true;}if(clean(x.row[id2])===auditId){x.row[s2]='';x.row[e2]='';x.row[id2]='';x.row[st2]='';changed=true;}if(changed)touched.set(x.sheetRow,x);}
+    for(const x of avRows){let changed=false;if(clean(x.row[id1])===auditId){x.row[s1]='';x.row[e1]='';x.row[id1]='';x.row[st1]='';changed=true;}if(clean(x.row[id2])===auditId){x.row[s2]='';x.row[e2]='';x.row[id2]='';x.row[st2]='';changed=true;}if(changed)touched.set(x.sheetRow,x);}
     for(const b of requested){
       let x=avRows.find(r=>r.email===auditorEmail&&r.date===b.date);if(!x){const width=ah.length,row=new Array(width).fill('');row[cd]=b.date;row[ce]=auditorEmail;row[ca]='YES';if(lu>=0)row[lu]=isoLocalStamp();x={row,sheetRow:av.length+1,date:b.date,email:auditorEmail,isNew:true};avRows.push(x);av.push(row);}
       const slots=[{s:s1,e:e1,id:id1,st:st1},{s:s2,e:e2,id:id2,st:st2}];

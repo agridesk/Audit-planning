@@ -1035,7 +1035,7 @@ function directPlanningCommit(identity,body){
     const writeStarted=Date.now();await sheetsValuesBatchUpdate(writes);const writeMs=Date.now()-writeStarted;
     let sideEffectQueue={success:true};const sideEffectStarted=Date.now();try{await sheetsValuesAppend('Notification Queue!A:M',[trailRow,plannedRow]);}catch(e){sideEffectQueue={success:false,error:clean(e?.message||e)};}
     const sideEffectMs=Date.now()-sideEffectStarted;
-    return{success:true,auditId,newStatus:'Approved',assignedTo:auditorEmail,planningJson,totalMs:Date.now()-started,directCommit:true,readMs,writeMs,writeCount:writes.length,sideEffectMs,sideEffectQueue,owner:'CLOUD_RUN_DIRECT_SHEETS_MANAGER_PLAN'};
+    return{success:true,auditId,newStatus:afterStatus,assignedTo:auditorEmail,planningJson,totalMs:Date.now()-started,directCommit:true,readMs,writeMs,writeCount:writes.length,sideEffectMs,sideEffectQueue,owner:actorRole==='MANAGER'?'CLOUD_RUN_DIRECT_SHEETS_MANAGER_PLAN':'CLOUD_RUN_DIRECT_SHEETS_AUDITOR_SELF_PLAN'};
   });
 }
 

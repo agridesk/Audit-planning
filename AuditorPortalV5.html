@@ -2609,6 +2609,26 @@ function loadGrid(opts) {
     try { child.focus(); } catch(e) {}
   }
   window.doPlan = doPlan;
+  if (!window.__AUDITOR_PLAN_DELEGATE_BOUND__) {
+    window.__AUDITOR_PLAN_DELEGATE_BOUND__ = true;
+    document.addEventListener('click', function(ev){
+      var btn = ev && ev.target && ev.target.closest ? ev.target.closest('button[data-ui-action="plan"]') : null;
+      if (!btn) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      var tr = btn.closest('tr[data-auditid]');
+      var auditId = tr ? String(tr.getAttribute('data-auditid') || '').trim() : '';
+      if (!auditId) {
+        try { uiLog_('Plan click missing row auditId'); } catch(e) {}
+        try { V5.toast('Cannot open planning: audit id missing.'); } catch(e) {}
+        return;
+      }
+      try { window.doPlan(auditId); } catch(err) {
+        try { uiLog_('Plan click failed: ' + String(err && err.message || err)); } catch(e) {}
+        try { V5.toast('Cannot open planning: ' + String(err && err.message || err)); } catch(e) {}
+      }
+    }, true);
+  }
 
   function v5ApplyCancelDenyMicroRefresh_(auditId, verb, payload, resp){
     auditId = String(auditId || '').trim();

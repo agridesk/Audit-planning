@@ -55,6 +55,7 @@ const checks=[
   ['R4 client disables Save when any draft block is outside planning window',r5.includes('windowValid=draftBlocks.every')&&r5.includes('&&windowValid&&hoursComplete')],
   ['R4 backend limits five distinct audit days rather than five blocks',r4.includes('new Set(requested.map(b=>b.date)).size>5')&&!r4.includes('requested.length>5')],
   ['R4 client limits five distinct audit days rather than five blocks',r5.includes('new Set(draftBlocks.map(b=>b.date)).size>=5')&&!r5.includes('draftBlocks.length>=5')],
+  ['R4 calendar deselect removes all blocks for the selected day',r5.includes('const existing=draftBlocks.some(b=>b.date===date)')&&r5.includes('draftBlocks=draftBlocks.filter(b=>b.date!==date)')],
   ['R6 combined writer enforces quarter-hour and five-day rules',r6.includes('PLANNING_BLOCK_QUARTER_HOUR_REQUIRED')&&r6.includes('new Set(requested.map(b=>b.date)).size>5')&&r6.includes("throw new Error('PLANNING_BLOCKS_OVERLAP')")],
   ['R6 combined writer does not overwrite Manager comment with planning payload',!r6.includes("setTarget(['Manager comment (last)'],clean(body?.comment))")]
 ];

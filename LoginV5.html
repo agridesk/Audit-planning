@@ -338,9 +338,13 @@
 
   function destinationForRole_(role) {
     const r = String(role || EXPECTED_ROLE || "").trim();
-    if (String(APP_ENV || "").toUpperCase() === "DEV") return r === "Auditor" ? "auditorgrid2" : "manager";
     const deep = resolveActionAfterLogin_();
-    return deep || (r === "Auditor" ? "auditorportal" : "manager");
+    const allowedByRole = r === "Auditor"
+      ? ["auditorportal","auditorgrid2","auditoravailability","planningworkspace","planningtoolkit","companymap"]
+      : ["manager","planningworkspace","planningtoolkit","companies","companymap","diag"];
+    if (deep && allowedByRole.indexOf(deep) >= 0) return deep;
+    if (String(APP_ENV || "").toUpperCase() === "DEV") return r === "Auditor" ? "auditorgrid2" : "manager";
+    return r === "Auditor" ? "auditorportal" : "manager";
   }
 
   function buildPortalTarget_(email, role, token, deviceId) {

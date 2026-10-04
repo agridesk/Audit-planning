@@ -44,7 +44,7 @@ has(r6,'VISIT_RELATED_SOURCE_REVISION_REQUIRED','related member revision require
 has(r6,'VISIT_RELATED_SOURCE_REVISION_CONFLICT','related member revision conflict');
 has(r6,'VISIT_RELATED_AUDIT_NOT_PENDING_PLANNING','related lifecycle guard');
 has(r6,'VISIT_COMPOSITION_COMPANY_MISMATCH','company consistency guard');
-has(r6,'AUDITOR_NOT_HARD_QUALIFIED','qualification guard');
+has(r6,'v211AssignmentHardCheck','central assignment/qualification guard');
 has(r6,'VISIT_RELATED_PLANNING_WINDOW_BLOCKED','related planning window guard');
 has(r6,'formalRequired+=Number(a?.formalHours||0)','combined target sums formal hours');
 not(r6,'Scheduling_hours_delta','combined visit no longer reads scheduling delta');

@@ -14,6 +14,7 @@ function V5_ENTRY_normAction_(raw) {
   var a = String(raw || '').trim().toLowerCase();
   if (a === 'manager' || a === 'managerportal') return 'manager';
   if (a === 'auditorportal' || a === 'auditor') return 'auditorportal';
+  if (a === 'auditorgrid2' || a === 'auditorgrid') return 'auditorgrid2';
   if (a === 'auditoravailability' || a === 'availability') return 'auditoravailability';
   if (a === 'planningworkspace' || a === 'workspace') return 'planningworkspace';
   if (a === 'planningtoolkit' || a === 'planning' || a === 'planner' || a === 'plan') return 'planningtoolkit';
@@ -77,6 +78,7 @@ function V5_ENTRY_browserTitle_(action, roleHint) {
   var role = String(roleHint || '').trim().toLowerCase();
   if (action === 'manager') return 'AMS - Manager';
   if (action === 'auditorportal') return 'AMS - Auditor';
+  if (action === 'auditorgrid2') return 'AMS - Auditor Grid 2.0';
   if (action === 'auditoravailability') return 'AMS - Availability';
   if (action === 'planningworkspace') return 'AMS - Planning Workspace';
   if (action === 'planningtoolkit') return role === 'auditor' ? 'AMS - Auditor Plan' : 'AMS - Planning';
@@ -89,6 +91,7 @@ function V5_ENTRY_browserTitle_(action, roleHint) {
 function V5_ENTRY_expectedRole_(action, roleHint) {
   if (action === 'manager') return 'Manager';
   if (action === 'auditorportal') return 'Auditor';
+  if (action === 'auditorgrid2') return 'Auditor';
   if (action === 'auditoravailability') return 'Auditor';
   if (action === 'planningworkspace') return String(roleHint || '').trim().toLowerCase() === 'auditor' ? 'Auditor' : 'Manager';
   if (action === 'planningtoolkit') return String(roleHint || '').trim().toLowerCase() === 'auditor' ? 'Auditor' : 'Manager';

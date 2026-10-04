@@ -6,12 +6,14 @@ const r5=readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
 const ui=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const html=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
 const entry=readFileSync(new URL('../../EntryV5.js',import.meta.url),'utf8');
+const login=readFileSync(new URL('../../LoginV5.html',import.meta.url),'utf8');
 const handoff=readFileSync(new URL('../../zzz_ExternalAuditorPlanningSessionHandoff.js',import.meta.url),'utf8');
 
 const checks=[
   [entry,"auditorgrid2"],
   [handoff,"action==='auditorgrid2'"],
   [handoff,"AUDITOR_PORTAL_SESSION"],
+  [login,"'auditorgrid2'"],
   [r5,"AUDITOR_PORTAL_SESSION"],
   [r5,"location:'/'"],
   [r4,"async function auditorOpenRead"],

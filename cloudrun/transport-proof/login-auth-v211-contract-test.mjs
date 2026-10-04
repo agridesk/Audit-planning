@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
-const login=readFileSync(new URL('../../LoginV5.html',import.meta.url),'utf8');
-const entry=readFileSync(new URL('../../EntryV5.js',import.meta.url),'utf8');
-const managerHandoff=readFileSync(new URL('../../zz_ExternalManagerSessionHandoff.js',import.meta.url),'utf8');
-const auditorHandoff=readFileSync(new URL('../../zzz_ExternalAuditorPlanningSessionHandoff.js',import.meta.url),'utf8');
-const r5=readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
+const normalize=s=>s.replace(/\r\n/g,'\n');
+const login=normalize(readFileSync(new URL('../../LoginV5.html',import.meta.url),'utf8'));
+const entry=normalize(readFileSync(new URL('../../EntryV5.js',import.meta.url),'utf8'));
+const managerHandoff=normalize(readFileSync(new URL('../../zz_ExternalManagerSessionHandoff.js',import.meta.url),'utf8'));
+const auditorHandoff=normalize(readFileSync(new URL('../../zzz_ExternalAuditorPlanningSessionHandoff.js',import.meta.url),'utf8'));
+const r5=normalize(readFileSync(new URL('./server-r5.js',import.meta.url),'utf8'));
 
 const checks=[
   [login,'BUILD: LOGIN_AUTH_2_0_P0_R1_20261004'],

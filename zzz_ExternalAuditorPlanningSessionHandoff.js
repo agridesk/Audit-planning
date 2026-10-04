@@ -58,7 +58,7 @@ V5_ENTRY_resolve=function(ctx){
   var runtimeEnv=V5_ENTRY_captureEnv_(ctx);
   var action=V5_ENTRY_normAction_(ctx.action);
   var expectedRole=V5_ENTRY_expectedRole_(action,ctx.role);
-  var auditorSharedEntry=(action==='planningworkspace'||action==='auditorportal');
+  var auditorSharedEntry=(action==='planningworkspace'||action==='auditorgrid2');
   if(runtimeEnv!=='DEV'||!auditorSharedEntry||expectedRole!=='Auditor'){
     return EXTERNAL_AUDITOR_PLANNING_HANDOFF_BASE_RESOLVE_(ctx);
   }

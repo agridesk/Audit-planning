@@ -156,7 +156,7 @@ const checks=[
  ['planning commit failures remain JSON across GAS bridge',entry.includes("verified.mode === 'commit' || verified.mode === 'rotation'")&&entry.includes("ContentService.createTextOutput(JSON.stringify({success:false,error:'PLANNING_WORKSPACE_'")&&handoff.includes("error:'CANONICAL_PLANNING_SAVE_THROW'")],
  ['planning commit is routed through JSON path before HTML handoff',entry.indexOf("if (planningMode === 'commit')")>=0&&entry.indexOf("if (planningMode === 'commit')")<entry.indexOf("HANDOFF_OWNER_UNAVAILABLE</pre>")&&entry.includes("error:'PLANNING_WORKSPACE_COMMIT_FAILED'")],
  ['legacy GAS rotation bridge contract remains available',handoff.includes('ExternalPlanningWorkspaceHandoff_payload_')&&handoff.includes("mode === 'commit'")&&handoff.includes("mode === 'rotation' ? 'rotation' : 'open'")],
-['direct calendar draft rerender updates slots and selected-day state',r5.includes("function renderDraft(){renderSlots();renderAvailability();validate()}")],
+['direct calendar draft rerender updates slots and selected-day state',r5.includes("function renderDraft(){renderSlots();renderAvailability();renderPlanningConstraints();validate()}")],
 ['related audit Open uses canonical focused planning route',!r5.includes('data-related-audit')&&!r5.includes('dataset.relatedAudit')],
 ['direct calendar prevents adding days after formal target is filled',r5.includes("Required hours are already fully planned.")&&r5.includes("Math.abs(hours-target)<=0.001")],
 ['non-recurring calendar uses operational execution horizon',r5.includes("allowedTo=a.planningWindowTo||model?.data?.period?.to||allowedFrom")],

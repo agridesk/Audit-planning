@@ -977,7 +977,9 @@ async function visitCompositionPlan(targetAuditId,memberAuditIds,obValues,linkVa
 }
 
 function directPlanningCommit(identity,body){
-  const started=Date.now(),auditId=clean(body?.auditId),auditorEmail=clean(body?.auditorEmail).toLowerCase(),auditorName=clean(body?.auditorName),sourceRevision=clean(body?.sourceRevision);
+  const actorRole=clean(identity?.role).toUpperCase(),actorEmail=clean(identity?.email).toLowerCase(),started=Date.now(),auditId=clean(body?.auditId),auditorEmail=clean(body?.auditorEmail).toLowerCase(),auditorName=clean(body?.auditorName),sourceRevision=clean(body?.sourceRevision);
+  if(actorRole!=='MANAGER'&&actorRole!=='AUDITOR')throw new Error('PLANNING_ACTOR_ROLE_INVALID');
+  if(actorRole==='AUDITOR'&&auditorEmail!==actorEmail)throw new Error('AUDITOR_CANNOT_PLAN_FOR_OTHER_AUDITOR');
   if(!auditId||!auditorEmail)throw new Error('PLANNING_REQUIRED_FIELDS_MISSING');
   const requested=directPlanNormBlocks(body?.blocks);if(!requested.length)throw new Error('PLANNING_REQUIRED_FIELDS_MISSING');if(new Set(requested.map(b=>b.date)).size>5)throw new Error('PLANNING_MAX_5_DAYS');for(let i=0;i<requested.length;i++)for(let j=i+1;j<requested.length;j++)if(requested[i].date===requested[j].date&&overlaps(requested[i],requested[j]))throw new Error('PLANNING_BLOCKS_OVERLAP');
   return withDirectPlanLock(auditId,async()=>{

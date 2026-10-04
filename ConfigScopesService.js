@@ -10,9 +10,9 @@
  * CACHE
  * - Namespace: config_scopes
  * - Keys:
- *   - catalog:v2
- *   - by_display:v2
- *   - alias_meta:v2
+ *   - catalog:v3
+ *   - by_display:v3
+ *   - alias_meta:v3
  *
  * PUBLIC RUNNERS
  * - RUN_CONFIGSCOPES_DIAGNOSTICS
@@ -48,7 +48,7 @@ function ConfigScopes_ClearCache() {
 function ConfigScopes_GetCatalog(forceRefresh) {
   if (!forceRefresh && CONFIGSCOPES_EXEC_CACHE.catalog) return CONFIGSCOPES_EXEC_CACHE.catalog;
 
-  var key = 'catalog:v2';
+  var key = 'catalog:v3';
 
   if (!forceRefresh) {
     var cached = ConfigScopes_cacheGet_(key);
@@ -67,7 +67,7 @@ function ConfigScopes_GetCatalog(forceRefresh) {
 function ConfigScopes_GetByDisplayName(forceRefresh) {
   if (!forceRefresh && CONFIGSCOPES_EXEC_CACHE.byDisplay) return CONFIGSCOPES_EXEC_CACHE.byDisplay;
 
-  var key = 'by_display:v2';
+  var key = 'by_display:v3';
 
   if (!forceRefresh) {
     var cached = ConfigScopes_cacheGet_(key);
@@ -103,7 +103,7 @@ function ConfigScopes_GetByDisplayName(forceRefresh) {
 function ConfigScopes_GetAliasMeta(forceRefresh) {
   if (!forceRefresh && CONFIGSCOPES_EXEC_CACHE.aliasMeta) return CONFIGSCOPES_EXEC_CACHE.aliasMeta;
 
-  var key = 'alias_meta:v2';
+  var key = 'alias_meta:v3';
 
   if (!forceRefresh) {
     var cached = ConfigScopes_cacheGet_(key);

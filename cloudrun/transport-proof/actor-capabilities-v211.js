@@ -34,7 +34,7 @@ export function v211ActorCapabilities(input={}){
     c.canChangeSelfPlanning=status==='PENDING_PLANNING';
     c.canExport=true;
   }else if(role==='AUDITOR'){
-    c.canPlan=status==='PENDING_PLANNING'&&(isOwnPreassigned||selfPool);
+    c.canPlan=status==='PENDING_PLANNING'&&((isOwnPreassigned&&hardEligible)||selfPool);
     c.canAccept=status==='APPROVED'&&isOwnAssigned;
     c.canCancel=status==='PENDING_APPROVAL'&&isOwnAssigned;
     c.canComplete=status==='ACCEPTED'&&isOwnAssigned;
@@ -43,7 +43,7 @@ export function v211ActorCapabilities(input={}){
 
   return{
     role,status,actorEmail,assignedToEmail:assigned,preassignedToEmail:preassigned,
-    isOwnAssigned,isOwnPreassigned,selfPlanningPool:selfPool,visible:role==='MANAGER'?true:role==='AUDITOR'?auditorVisible:false,
+    isOwnAssigned,isOwnPreassigned,selfPlanningPool:selfPool,preassignmentConflict:role==='AUDITOR'&&status==='PENDING_PLANNING'&&isOwnPreassigned&&!hardEligible,visible:role==='MANAGER'?true:role==='AUDITOR'?auditorVisible:false,
     capabilities:c
   };
 }

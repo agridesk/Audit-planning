@@ -1,6 +1,7 @@
 FROM node:22-alpine
 WORKDIR /app
 COPY package.json ./
+COPY assignment-validation-v211.js ./
 COPY server-r4.js ./
 COPY server-r5.js ./
 COPY server-r6.js ./

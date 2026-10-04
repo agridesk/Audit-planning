@@ -8,6 +8,7 @@ const minIntervalMigration=fs.readFileSync(new URL('../../ConfigScopesMinInterva
 const configScopesService=fs.readFileSync(new URL('../../ConfigScopesService.js',import.meta.url),'utf8');
 const exclusionsMigration=fs.readFileSync(new URL('../../CompaniesAuditorExclusionsMigration.js',import.meta.url),'utf8');
 const v211SchemaMigration=fs.readFileSync(new URL('../../V211PlanningSchemaMigration.js',import.meta.url),'utf8');
+const companiesBackend=fs.readFileSync(new URL('../../CompaniesBackend.js',import.meta.url),'utf8');
 
 const checks=[
   ['Toolkit projects formal hours as required hours',r4.includes('formalHours:Number(String(g([')&&r4.includes('requiredHours:Number(String(g([')],
@@ -80,6 +81,7 @@ const checks=[
   ['Central ConfigScopesService exposes Min_Interval_Months to other AMS consumers',configScopesService.includes('minIntervalMonths: ConfigScopes_numOrNull_')&&configScopesService.includes("'Min_Interval_Months'")],
   ['V2.11 Company Auditor_Exclusions schema migration is explicit and non-destructive',exclusionsMigration.includes('CompaniesAuditorExclusionsMigration_Preview')&&exclusionsMigration.includes('CompaniesAuditorExclusionsMigration_Apply')&&exclusionsMigration.includes("HEADER: 'Auditor_Exclusions'")&&exclusionsMigration.includes('Existing data is never changed')],
   ['V2.11 Planning schema changes have one bundled preview/apply runner',v211SchemaMigration.includes('V211PlanningSchemaMigration_Preview')&&v211SchemaMigration.includes('V211PlanningSchemaMigration_Apply')&&v211SchemaMigration.includes('ConfigScopesMinIntervalMigration_Apply()')&&v211SchemaMigration.includes('CompaniesAuditorExclusionsMigration_Apply()')],
+  ['Ordinary Company saves preserve Auditor_Exclusions because CompaniesBackend writes only named fields',companiesBackend.includes('function COMP_writeIfHeaderExists_')&&companiesBackend.includes("COMP_writeIfHeaderExists_(sh, headerMap, rowNumber, ['company']")&&!companiesBackend.includes("['auditor_exclusions'" )],
   ['R6 combined writer does not overwrite Manager comment with planning payload',!r6.includes("setTarget(['Manager comment (last)'],clean(body?.comment))")]
 ];
 

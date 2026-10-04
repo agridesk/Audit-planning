@@ -17,7 +17,7 @@ const pkg=JSON.parse(readFileSync(new URL('./package.json',import.meta.url),'utf
 function has(text,needle,label){assert.ok(text.includes(needle),label+' missing');}
 function not(text,needle,label){assert.ok(!text.includes(needle),label+' unexpectedly present');}
 
-assert.equal(pkg.scripts.start,'node server-r10.js','R10 must own public DEV runtime during proxy-chain recovery');
+assert.equal(pkg.scripts.start,'node server-r12.js','R12 must own public DEV runtime');
 has(r10,"u.pathname==='/api/v1/manager/action-relay-url'",'warm Manager GAS worker bootstrap endpoint');
 has(r10,"u.pathname==='/api/v1/manager/audit'",'targeted Manager reread');
 has(r10,"sheetValues('Audit planning!A1:AX1')",'targeted reread header read');
@@ -59,9 +59,9 @@ has(r5,'visitMembers:[...visitAuditIds]','browser sends related revisions');
 has(r7,"await import('./server-r6.js')",'R7 chain');
 has(r8,"await import('./server-r7.js')",'R8 chain');
 has(r9,"await import('./server-r8.js')",'R9 chain');
-has(r10,"await import('./server-r9.js')",'R10 public chain ends at R9');
-has(r11,"await import('./server-r10.js')",'R11 retained as non-public candidate');
-has(r12,"await import('./server-r11.js')",'R12 retained as non-public candidate');
+has(r10,"await import('./server-r9.js')",'R10 chain retains R9');
+has(r11,"await import('./server-r10.js')",'R11 chain retains R10');
+has(r12,"await import('./server-r11.js')",'R12 public chain retains R11');
 has(r4,'VISIT_COMBINED_COMMIT_NOT_YET_CANONICAL','lower-layer fail-closed combined guard retained');
 
 console.log(JSON.stringify({

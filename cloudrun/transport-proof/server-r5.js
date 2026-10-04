@@ -20,6 +20,7 @@ function clean(v){return String(v==null?'':v).trim();}
 function b64url(buf){return Buffer.from(buf).toString('base64url');}
 function safeEq(a,b){const x=Buffer.from(clean(a)),y=Buffer.from(clean(b));return x.length===y.length&&timingSafeEqual(x,y);}
 function managerSessionPayload(email,role,exp){return['v1','MANAGER_SESSION',clean(email).toLowerCase(),clean(role),String(exp)].join('\n');}
+function auditorPortalSessionPayload(email,role,exp){return['v1','AUDITOR_PORTAL_SESSION',clean(email).toLowerCase(),clean(role),String(exp)].join('\n');}
 function auditorPlanningSessionPayload(email,role,auditId,exp){return['v1','AUDITOR_PLANNING_SESSION',clean(email).toLowerCase(),clean(role),clean(auditId),String(exp)].join('\n');}
 function signManagerSessionHandoff(payload){return b64url(createHmac('sha256',WRITE_KEY).update(payload).digest());}
 function signSession(payload){return createHmac('sha256',SESSION_SECRET).update(payload).digest('base64url');}
@@ -44,13 +45,16 @@ function verifyManagerSessionHandoff(form){
   const email=clean(form.get('email')).toLowerCase(),role=clean(form.get('role')),auditId=clean(form.get('auditId')),exp=Number(clean(form.get('exp'))),supplied=clean(form.get('signature'));
   if(!email||!role||!exp||!supplied)return{ok:false,error:'HANDOFF_REQUIRED_FIELDS_MISSING'};
   const roleKey=role.toLowerCase();if(roleKey!=='manager'&&roleKey!=='auditor')return{ok:false,error:'ROLE_FORBIDDEN'};
-  if(roleKey==='auditor'&&!auditId)return{ok:false,error:'AUDIT_ID_REQUIRED'};
   const now=Date.now();
   if(exp<now-MANAGER_HANDOFF_CLOCK_SKEW_MS)return{ok:false,error:'HANDOFF_EXPIRED'};
   if(exp>now+MANAGER_HANDOFF_MAX_FUTURE_MS)return{ok:false,error:'HANDOFF_EXPIRY_INVALID'};
-  const expected=signManagerSessionHandoff(roleKey==='manager'?managerSessionPayload(email,'Manager',exp):auditorPlanningSessionPayload(email,'Auditor',auditId,exp));
+  const payload=roleKey==='manager'
+    ? managerSessionPayload(email,'Manager',exp)
+    : (auditId?auditorPlanningSessionPayload(email,'Auditor',auditId,exp):auditorPortalSessionPayload(email,'Auditor',exp));
+  const expected=signManagerSessionHandoff(payload);
   if(!safeEq(supplied,expected))return{ok:false,error:'HANDOFF_SIGNATURE_INVALID'};
-  return roleKey==='manager'?{ok:true,email,role:'Manager',location:'/'}:{ok:true,email,role:'Auditor',auditId,location:'/planning?auditId='+encodeURIComponent(auditId)};
+  if(roleKey==='manager')return{ok:true,email,role:'Manager',location:'/'};
+  return auditId?{ok:true,email,role:'Auditor',auditId,location:'/planning?auditId='+encodeURIComponent(auditId)}:{ok:true,email,role:'Auditor',location:'/'};
 }
 async function handleManagerSessionHandoff(req,res){
   let form;try{form=await readForm(req);}catch(err){return sendJson(res,413,{ok:false,error:clean(err&&err.message||err)});}

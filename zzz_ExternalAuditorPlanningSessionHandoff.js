@@ -1,9 +1,9 @@
 /***********************************************************************
  * FILE: zzz_ExternalAuditorPlanningSessionHandoff.js
- * BUILD: 2026-10-04_EXTERNAL_AUDITOR_PLANNING_SESSION_HANDOFF_R1
+ * BUILD: 2026-10-04_EXTERNAL_AUDITOR_SHARED_GRID_HANDOFF_R2
  * PURPOSE:
- * - DEV-only signed handoff from authenticated Auditor Portal to the shared
- *   Cloud Run Planning Toolkit 2.0.
+ * - DEV-only signed handoff from Login/legacy auth into the shared Cloud Run
+ *   Audit Grid 2.0 and Planning Toolkit 2.0.
  * - Reuses canonical trusted-device validation in GAS.
  * - Creates no planning truth and performs no planning write.
  ***********************************************************************/

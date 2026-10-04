@@ -3,11 +3,14 @@ import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 
 const PUBLIC_PORT=Number(process.env.PORT||8080);
 const INNER_PORT=PUBLIC_PORT+1;
-const BUILD='2026-10-04_PLANNING_TOOLKIT_R59_AUDITOR_SHARED_MODE';
+const BUILD='2026-10-04_PORTAL2_DIRECT_LOGIN_R60';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const SESSION_COOKIE='ams_dev_session';
+const RUNTIME_ENV=clean(process.env.AMS_RUNTIME_ENV||process.env.AUDIT_RUNTIME_ENV||'').toUpperCase();
+const DEV_MANAGER_EMAIL=clean(process.env.AMS_DEV_MANAGER_EMAIL||'').toLowerCase();
+const DEV_AUDITOR_EMAIL=clean(process.env.AMS_DEV_AUDITOR_EMAIL||'').toLowerCase();
 const SESSION_TTL_SECONDS=30*24*60*60;
 const MANAGER_HANDOFF_MAX_FUTURE_MS=90*1000;
 const MANAGER_HANDOFF_CLOCK_SKEW_MS=10*1000;
@@ -36,10 +39,35 @@ function issueSession(identity){
   return payload+'.'+signSession(payload);
 }
 function sessionCookie(token){return SESSION_COOKIE+'='+token+'; Max-Age='+SESSION_TTL_SECONDS+'; Path=/; HttpOnly; Secure; SameSite=Lax';}
+
+function clearSessionCookie(){return SESSION_COOKIE+'=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax';}
+function portalLoginHtml(){
+  const dev=RUNTIME_ENV==='DEV',managerReady=!!DEV_MANAGER_EMAIL,auditorReady=!!DEV_AUDITOR_EMAIL;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AMS - Login</title><style>
+  *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:linear-gradient(135deg,#0f172a,#1f2937 55%,#334155);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#111827;padding:24px}.card{width:min(520px,100%);background:white;border-radius:18px;padding:28px;box-shadow:0 24px 80px rgba(15,23,42,.35)}h1{margin:0 0 6px;font-size:24px}.sub{color:#64748b;font-size:13px;margin-bottom:22px}.env{display:inline-block;font-size:11px;font-weight:800;padding:3px 7px;border-radius:999px;background:#dbeafe;color:#1d4ed8;margin-bottom:18px}.actions{display:grid;gap:10px}.login{width:100%;padding:12px 14px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;font-weight:750;font-size:15px;cursor:pointer}.login.primary{background:#2563eb;border-color:#2563eb;color:white}.login:disabled{opacity:.45;cursor:not-allowed}.note{margin-top:18px;color:#64748b;font-size:12px;line-height:1.45}.err{margin-top:14px;padding:10px;border-radius:8px;background:#fee2e2;color:#991b1b;font-size:12px}</style></head><body><main class="card"><div class="env">${dev?'DEV':'SECURE'}</div><h1>Audit Management System</h1><div class="sub">Agri Quality Assurance · Portal 2.0</div>${dev?`<div class="actions"><form method="post" action="/auth/dev-login"><input type="hidden" name="role" value="Manager"><button class="login primary" type="submit" ${managerReady?'':'disabled'}>Login as Manager</button></form><form method="post" action="/auth/dev-login"><input type="hidden" name="role" value="Auditor"><button class="login" type="submit" ${auditorReady?'':'disabled'}>Login as Auditor</button></form></div>${(!managerReady||!auditorReady)?'<div class="err">DEV login identities are not configured on this Cloud Run service.</div>':''}<div class="note">DEV shortcut login creates a short-lived Portal 2.0 session directly in Cloud Run. No Apps Script page is used.</div>`:`<div class="err">Production OTP login is not exposed on this DEV service.</div>`}</main></body></html>`;
+}
+
 function sendJson(res,status,body,headers={}){res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store',...headers});res.end(JSON.stringify(body));}
 function sendHtml(res,status,body,headers={}){res.writeHead(status,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer',...headers});res.end(body);}
 async function readRaw(req,max=32768){let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>max)throw new Error('REQUEST_TOO_LARGE');}return raw;}
 async function readForm(req){return new URLSearchParams(await readRaw(req,16384));}
+function devIdentityForRole(role){
+  const r=clean(role).toLowerCase();
+  if(RUNTIME_ENV!=='DEV')return null;
+  if(r==='manager'&&DEV_MANAGER_EMAIL)return{email:DEV_MANAGER_EMAIL,role:'Manager'};
+  if(r==='auditor'&&DEV_AUDITOR_EMAIL)return{email:DEV_AUDITOR_EMAIL,role:'Auditor'};
+  return null;
+}
+async function handleDevLogin(req,res){
+  if(RUNTIME_ENV!=='DEV')return sendJson(res,404,{ok:false,error:'NOT_FOUND'});
+  const form=await readForm(req),identity=devIdentityForRole(form.get('role'));
+  if(!identity)return sendJson(res,403,{ok:false,error:'DEV_LOGIN_ROLE_NOT_CONFIGURED'});
+  if(SESSION_SECRET.length<32)return sendJson(res,500,{ok:false,error:'SESSION_SECRET_NOT_CONFIGURED'});
+  const token=issueSession(identity);
+  res.writeHead(303,{'set-cookie':sessionCookie(token),'location':'/','cache-control':'no-store','referrer-policy':'no-referrer'});
+  return res.end();
+}
+
 function verifyManagerSessionHandoff(form){
   if(WRITE_KEY.length<32)return{ok:false,error:'WRITE_BRIDGE_NOT_CONFIGURED'};
   const email=clean(form.get('email')).toLowerCase(),role=clean(form.get('role')),auditId=clean(form.get('auditId')),exp=Number(clean(form.get('exp'))),supplied=clean(form.get('signature'));
@@ -166,10 +194,18 @@ function proxy(req,res){
 }
 http.createServer(async(req,res)=>{
   const u=new URL(req.url,'http://localhost');
+  if(u.pathname==='/'&&req.method==='GET'){
+    const identity=await sessionIdentity(req);
+    if(!identity)return sendHtml(res,200,portalLoginHtml());
+    return proxy(req,res);
+  }
+  if(u.pathname==='/auth/dev-login'&&req.method==='POST'){try{return await handleDevLogin(req,res);}catch(err){return sendJson(res,500,{ok:false,error:'DEV_LOGIN_FAILED',detail:clean(err&&err.message||err)});}}
+  if(u.pathname==='/auth/logout'&&req.method==='POST'){res.writeHead(303,{'set-cookie':clearSessionCookie(),'location':'/','cache-control':'no-store'});return res.end();}
+
   if(u.pathname==='/auth/signed-handoff'&&req.method==='POST'){try{return await handleManagerSessionHandoff(req,res);}catch(err){return sendJson(res,500,{ok:false,error:'MANAGER_SESSION_HANDOFF_FAILED',detail:clean(err&&err.message||err)});}}
   if(u.pathname==='/planning'&&req.method==='GET'){try{return await handlePlanning(req,res,u);}catch(err){return sendJson(res,500,{ok:false,error:'PLANNING_2_0_OPEN_FAILED',detail:clean(err&&err.message||err)});}}
   if(u.pathname==='/api/v1/planning/rotation'&&req.method==='GET'){return handlePlanningRotation(req,res,u);}
   if(u.pathname==='/api/v1/planning/commit-handoff'&&req.method==='POST'){return handlePlanningCommitHandoff(req,res);}
-  if(u.pathname==='/health'&&req.method==='GET'){try{const r=await fetch('http://127.0.0.1:'+INNER_PORT+'/health',{redirect:'manual'});const inner=await r.json();return sendJson(res,r.status,{...inner,build:BUILD,innerBuild:inner.build||'',planningSurface:'EXTERNAL_FOCUSED_2_0',planningReadOwner:'CLOUD_RUN_FOCUSED_READ',planningWriteOwner:'CLOUD_RUN_DIRECT_SHEETS_MANAGER_PLAN',managerSessionHandoff:'SIGNED_POST_GAS_CANONICAL_AUTH',handoffKeyConfigured:WRITE_KEY.length>=32,gasWriteUrlConfigured:!!GAS_WRITE_URL,sessionSecretConfigured:SESSION_SECRET.length>=32});}catch(err){return sendJson(res,500,{ok:false,error:'INNER_HEALTH_FAILED',build:BUILD,detail:clean(err&&err.message||err)});}}
+  if(u.pathname==='/health'&&req.method==='GET'){try{const r=await fetch('http://127.0.0.1:'+INNER_PORT+'/health',{redirect:'manual'});const inner=await r.json();return sendJson(res,r.status,{...inner,build:BUILD,innerBuild:inner.build||'',planningSurface:'EXTERNAL_FOCUSED_2_0',planningReadOwner:'CLOUD_RUN_FOCUSED_READ',planningWriteOwner:'CLOUD_RUN_DIRECT_SHEETS_MANAGER_PLAN',managerSessionHandoff:'SIGNED_POST_GAS_CANONICAL_AUTH',portalLoginOwner:'CLOUD_RUN_DIRECT',runtimeEnv:RUNTIME_ENV,devDirectLogin:RUNTIME_ENV==='DEV',handoffKeyConfigured:WRITE_KEY.length>=32,gasWriteUrlConfigured:!!GAS_WRITE_URL,sessionSecretConfigured:SESSION_SECRET.length>=32});}catch(err){return sendJson(res,500,{ok:false,error:'INNER_HEALTH_FAILED',build:BUILD,detail:clean(err&&err.message||err)});}}
   return proxy(req,res);
 }).listen(PUBLIC_PORT,'0.0.0.0');

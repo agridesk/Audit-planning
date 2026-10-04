@@ -2600,13 +2600,15 @@ function loadGrid(opts) {
     var top = Math.max(0, Math.round((window.screenY || window.screenTop || 0) + (((window.outerHeight || screen.height) - h) / 2)));
     var features = ['popup=yes','toolbar=no','location=yes','status=no','menubar=no','scrollbars=yes','resizable=yes','width=' + w,'height=' + h,'left=' + left,'top=' + top].join(',');
     var child = null;
-    try { child = window.open(url, 'V5PlanningToolkit', features); } catch(e) {}
+    try { child = window.open('about:blank', 'V5PlanningToolkit', features); } catch(e) {}
     if (!child) {
       V5.toast('Planning toolkit popup was blocked. Please allow popups for this site.');
       return;
     }
+    try { child.location.replace(url); } catch(eNav) { try { child.location.href = url; } catch(eNav2) { try { uiLog_('Planning popup navigation failed: ' + String(eNav2 && eNav2.message || eNav2)); } catch(eLog) {} } }
     try { child.focus(); } catch(e) {}
   }
+  window.doPlan = doPlan;
 
   function v5ApplyCancelDenyMicroRefresh_(auditId, verb, payload, resp){
     auditId = String(auditId || '').trim();

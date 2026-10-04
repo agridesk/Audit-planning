@@ -43,9 +43,10 @@ const checks=[
   ['R4 keeps Company and Auditor constraints visibly available',r5.includes('id="planningConstraints"')&&r5.includes('function renderPlanningConstraints()')&&r5.includes("Auditor less available: ")&&r5.includes("Company less available: ")&&r5.includes("renderPlanningConstraints();renderAvailability();validate();loadRotation()")],
   ['R4 left slot column avoids horizontal overflow',r5.includes('overflow-y:auto;overflow-x:hidden')&&r5.includes('.slotTop>*{min-width:0}')&&r5.includes('class="slotWork"')&&r5.includes('class="slotLocation"')],  ['R4 slot comments remain persisted in canonical Planning JSON blocks',r4.includes('slotComment=clean(x?.slotComment||x?.comment)')&&r4.includes('planningJson=JSON.stringify({blocks:requested')],
 
-  ['R4 off-site blocks display no Company execution location',r5.includes("off?'<option value=\"\" selected>—</option>':locationOptionMarkup")&&r5.includes("b.execLoc=b.executionType==='OFFSITE'?'':")],  ['R4 save synchronizes visible slot editors before payload',r5.includes('function syncVisibleSlotEditors()')&&r5.includes('async function save(){syncVisibleSlotEditors();if(!validate())return;')]
-
-  ['R4 slot time inputs use HH:mm text format with quarter-hour-only validation',r5.includes('type="text" inputmode="numeric" maxlength="5" list="quarterHours" placeholder="HH:mm"')&&r5.includes('function normalizeQuarterTime(v)')&&r5.includes('[0,15,30,45].includes(min)')&&!r5.includes('data-start type="time"')&&!r5.includes('data-end type="time"')],];
+  ['R4 off-site blocks display no Company execution location',r5.includes("off?'<option value=\"\" selected>—</option>':locationOptionMarkup")&&r5.includes("b.execLoc=b.executionType==='OFFSITE'?'':")],
+  ['R4 save synchronizes visible slot editors before payload',r5.includes('function syncVisibleSlotEditors()')&&r5.includes('async function save(){syncVisibleSlotEditors();if(!validate())return;')],
+  ['R4 slot time inputs use HH:mm text format with quarter-hour-only validation',r5.includes('type="text" inputmode="numeric" maxlength="5" list="quarterHours" placeholder="HH:mm"')&&r5.includes('function normalizeQuarterTime(v)')&&r5.includes('[0,15,30,45].includes(min)')&&!r5.includes('data-start type="time"')&&!r5.includes('data-end type="time"')]
+];
 
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks)console.log(`${ok?'PASS':'FAIL'} ${name}`);

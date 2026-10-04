@@ -45,7 +45,7 @@ const checks=[
 
   ['R4 off-site blocks display no Company execution location',r5.includes("off?'<option value=\"\" selected>—</option>':locationOptionMarkup")&&r5.includes("b.execLoc=b.executionType==='OFFSITE'?'':")],
   ['R4 save synchronizes visible slot editors before payload',r5.includes('function syncVisibleSlotEditors()')&&r5.includes('async function save(){syncVisibleSlotEditors();if(!validate())return;')],
-  ['R4 slot time inputs use HH:mm text format with quarter-hour-only validation',r5.includes('type="text" inputmode="numeric" maxlength="5" list="quarterHours" placeholder="HH:mm"')&&r5.includes('function normalizeQuarterTime(v)')&&r5.includes('[0,15,30,45].includes(min)')&&!r5.includes('data-start type="time"')&&!r5.includes('data-end type="time"')]
+  ['R4 slot time inputs use real scrollable quarter-hour selects',r5.includes('function quarterTimeOptions(selected)')&&r5.includes('for(const m of [0,15,30,45])')&&r5.includes('<select data-start>')&&r5.includes('<select data-end>')&&!r5.includes('data-start type="time"')&&!r5.includes('data-end type="time"')]
 ];
 
 const failed=checks.filter(([,ok])=>!ok);

@@ -121,6 +121,8 @@ Rationale:
 Time + company is stable and compact; free-text slot comments are not suitable as the primary identifier.
 
 UX-005 — User-facing minimum interval warning
+Status: IMPLEMENTED IN DEV — NOT YET DEPLOYED
+Commits: 9cb8968d, de819f9e, 6c6d0525
 Priority: MEDIUM
 Area: Grid / Planning Toolkit warnings
 Canonical rule:

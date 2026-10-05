@@ -310,6 +310,20 @@ function managerCompanyGridMeta(companyValues){
   return out;
 }
 
+function extensionLinkedAuditIds(obValues,linkValues){
+  const out=new Set();if(!obValues?.length||!linkValues?.length)return out;
+  const oh=obValues[0],oi=col(oh,['Obligation_ID','Obligation ID']),os=col(oh,['Obligation_State','Obligation State']),activeOb=new Set();
+  for(const r of obValues.slice(1)){const id=val(r,oi),state=val(r,os).toUpperCase();if(id&&!['COMPLETED','CANCELLED','REJECTED'].includes(state))activeOb.add(id);}
+  const lh=linkValues[0],la=col(lh,['Audit_ID','Audit ID']),lo=col(lh,['Obligation_ID','Obligation ID']),ls=col(lh,['Link_State','Link State']);
+  for(const r of linkValues.slice(1)){const auditId=val(r,la),obId=val(r,lo);if(auditId&&val(r,ls).toUpperCase()==='ACTIVE'&&activeOb.has(obId))out.add(auditId);}
+  return out;
+}
+function extensionMonthsForScopes(catalog,scopes){
+  const wanted=new Set((scopes||[]).map(key)),values=[];
+  for(const def of catalog||[])if([def.displayName,def.scopeCode,def.slotKey].some(x=>wanted.has(key(x)))&&Number(def.extensionMonths||0)>0)values.push(Number(def.extensionMonths));
+  return values.length?Math.min(...values):0;
+}
+
 function managerOpen(apValues,email,scopeValues,companyValues,audValues){
   if(!apValues.length)return{success:true,view:'open',rows:[],managerEmail:email,counts:{total:0,pendingPlanning:0,pendingApproval:0,approved:0,accepted:0}};
   const h=apValues[0],idx=n=>col(h,n),ci=idx(['Audit ID','Audit_ID','AuditId','Audit Id']),cs=idx(['Status']),cc=idx(['Company']),cl=idx(['Location']),ca=idx(['Assigned to','Assigned auditor','Auditor']),cp=idx(['Preassigned Auditor']),cself=idx(['Allow self planning']),ch=idx(['Total audit time in hours']),cph=idx(['Hours planned']),cd=idx(['Date planned','Date - Planned']),cm=idx(['Manager email']),cf=idx(['Planning window from']),ct=idx(['Planning window to']),cu=idx(['Company UID']),ce=idx(['Date - Will Expire','Date will expire','Expiration date']),cee=idx(['Extended Expiration Date']),cex=idx(['Extension Applied']),cpj=idx(['Planning JSON','Planning_JSON']),cldt=idx(['Last decision timestamp']),css=idx(['Status since']);
@@ -325,7 +339,7 @@ function managerOpen(apValues,email,scopeValues,companyValues,audValues){
   const count=k=>rows.filter(x=>x.statusKey===k).length;
   return{success:true,view:'open',fastFirstPaint:false,enrichmentAvailable:true,managerEmail:email,rows,counts:{total:rows.length,pendingPlanning:count('PENDING_PLANNING'),pendingApproval:count('PENDING_APPROVAL'),approved:count('APPROVED'),accepted:count('ACCEPTED')}};
 }
-async function managerOpenRead(email){const t=Date.now(),actorEmail=clean(email).toLowerCase(),vr=await sheetsBatchGet(['Audit planning!A1:AX483','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256']),aud=vr[3]?.values||[];const out=managerOpen(vr[0]?.values||[],actorEmail,vr[1]?.values||[],vr[2]?.values||[],aud);out.actorDisplayName=directAuditorDisplayName(aud,actorEmail);out.build=BUILD;out.serverMs=Date.now()-t;return out;}
+async function managerOpenRead(email){const t=Date.now(),actorEmail=clean(email).toLowerCase(),vr=await sheetsBatchGet(['Audit planning!A1:AX483','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256','Audit_Obligations!A1:Z1000','Audit_Visit_Obligations!A1:H1000']),aud=vr[3]?.values||[],catalog=scopeCatalog(vr[1]?.values||[]),extensionLinked=extensionLinkedAuditIds(vr[4]?.values||[],vr[5]?.values||[]);const out=managerOpen(vr[0]?.values||[],actorEmail,vr[1]?.values||[],vr[2]?.values||[],aud);for(const row of out.rows||[]){const months=extensionMonthsForScopes(catalog,row.scopes||[]);row.extensionMonths=months;row.extMonths=months;row.canExtend=row.statusKey==='PENDING_PLANNING'&&months>0&&extensionLinked.has(row.auditId);}out.actorDisplayName=directAuditorDisplayName(aud,actorEmail);out.build=BUILD;out.serverMs=Date.now()-t;return out;}
 
 function actorAllowedActions(c){
   const out=[];if(c?.canPlan)out.push('PLAN');if(c?.canApprove)out.push('APPROVE');if(c?.canAccept||c?.canAcceptOnBehalf)out.push('ACCEPT');if(c?.canComplete)out.push('COMPLETE');if(c?.canCancel)out.push('CANCEL');return out;

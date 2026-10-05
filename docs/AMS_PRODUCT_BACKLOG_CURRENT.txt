@@ -7,6 +7,7 @@ Rule: V2.7 and earlier are NOT current authority.
 
 Purpose
 This file is the durable project register for bugs, hardening items, UX improvements and future modules that must not be lost in chat history.
+Discovery pointer: repository root AMS_CURRENT_PROJECT_MEMORY.txt.
 Items remain here until implemented, rejected, superseded, or explicitly migrated into a newer canonical roadmap/spec.
 
 ============================================================
@@ -14,6 +15,8 @@ A. ACTIVE BUGS / CORRECTNESS
 ============================================================
 
 BUG-001 — Auditor Plan must require Self planning = Yes
+Status: IMPLEMENTED IN DEV — NOT YET DEPLOYED
+Commits: 6686f575, 697c341d, 3f1ab4f3, 28aca2d5, ea2e2477
 Priority: HIGH
 Area: Shared Audit Grid 2.0 / actor capabilities
 Finding:
@@ -25,6 +28,8 @@ Required behavior:
 - Manager planning remains unaffected.
 
 BUG-002 — Auditor visibility after assignment must follow Assigned to
+Status: IMPLEMENTED IN DEV — NOT YET DEPLOYED
+Commits: 6686f575, 697c341d, 28aca2d5, ea2e2477
 Priority: HIGH
 Area: Shared Audit Grid 2.0 / actor scope
 Example: TEST_Completed Eta visible to Paco Pelota while Assigned to Isália.
@@ -48,6 +53,8 @@ B. DATA / LEGACY HARDENING
 ============================================================
 
 HARD-001 — Hide Extension control when canonical extension is impossible
+Status: IMPLEMENTED IN DEV — NOT YET DEPLOYED
+Commits: e41d79e8, 580f04f2
 Priority: LOW
 Area: Manager Grid / Model C
 Observed:
@@ -61,6 +68,8 @@ C. UX / PRESENTATION
 ============================================================
 
 UX-001 — Display logged-in person's name instead of email
+Status: IMPLEMENTED IN DEV — NOT YET DEPLOYED
+Commits: 697c341d, 56c6e71a
 Priority: MEDIUM
 Area: Manager Portal / Auditor Portal
 Required behavior:
@@ -79,6 +88,8 @@ Required behavior:
 - Preserve full desktop view on large screens.
 
 UX-003 — Planning Toolkit calendar labels
+Status: IMPLEMENTED IN DEV — NOT YET DEPLOYED
+Commit: cfffea75
 Priority: MEDIUM
 Area: Planning Toolkit 2.0 calendar
 Required behavior:
@@ -94,6 +105,8 @@ Required behavior:
 - Avoid all-caps for normal calendar labels.
 
 UX-004 — Multiple audits on one calendar day
+Status: IMPLEMENTED IN DEV — NOT YET DEPLOYED
+Commit: cfffea75
 Priority: MEDIUM
 Area: Planning Toolkit 2.0 calendar
 Required display per committed audit block:

@@ -1,0 +1,23 @@
+AMS — SESSION FINDINGS
+Date: 2026-10-05
+Topic: Auditor/Manager portal review + Planning Toolkit UX
+Status: CAPTURED
+Canonical hierarchy: subordinate to AMS_MASTER_ROADMAP_V2.11_FINAL.
+
+This dated record preserves the findings discussed in the 2026-10-05 review. The live status of each item is maintained in docs/AMS_PRODUCT_BACKLOG_CURRENT.txt.
+
+Captured findings
+1. Auditor Plan must require Allow self planning = Yes. Preassignment alone does not authorize Auditor self-planning.
+2. Auditor portal must not show an audit assigned to another Auditor merely because an old Preassigned Auditor value still points to the logged-in Auditor.
+3. Assignment/preassignment of a non-qualified Auditor must be prevented on every mutation route. If qualification is lost after a valid assignment, retain the assignment but surface a current execution-risk alert.
+4. Extension Apply/Undo works on normal current Model-C audits. TEST/legacy records without active obligation linkage should not expose a misleading Extension control.
+5. Portal identity header should show personal display name rather than email; email remains canonical internally.
+6. Audit Grid 2.0 should become responsive to smaller laptop widths and minimize horizontal scrolling.
+7. Min_Interval_Months applies to planned execution date: earliest execution date = last completed audit + configured minimum interval.
+8. Expired planning windows should be communicated directly; internal diagnostic wording is not sufficient user-facing UX.
+9. Consider displaying canonical ACCEPTED as "Ready for execution" in the UI while keeping ACCEPTED internally.
+10. Planning Toolkit calendar should remove redundant "YES" and generic occupancy labels where color/blocks already convey meaning.
+11. Soft calendar warnings should show a concise concrete reason, not the generic label "SOFT WARNING".
+12. Multiple audits on one day should show each committed block as "HH:MM–HH:MM · Company"; scope and slot comment belong in secondary details/tooltip.
+13. Future Manager module: Auditor Management, including qualification maintenance and impact checks.
+14. Future Manager module: Scope Management, replacing direct Config_Scopes maintenance with governed UI.

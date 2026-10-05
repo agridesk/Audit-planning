@@ -49,12 +49,14 @@ for(const needle of [
 
 assert.ok(ui.includes('var months=Number(r.extensionMonths||r.extMonths||0),applied=!!(r.extensionApplied||r.extApplied),pending=r.statusKey==="PENDING_PLANNING",can=!!r.canExtend'), 'Extension UI must trust canonical capability only');tests++;
 assert.ok(ui.includes('displayName+" · "+actorRole'), 'Portal identity must prefer display name');tests++;
+assert.ok(ui.includes('Planning window expired · ended '),'Expired planning window must be user-facing');tests++;
+assert.ok(ui.includes('No valid execution date in this planning window · minimum interval'),'Minimum interval conflict must be user-facing');tests++;
 
 for(const forbidden of ["'FULLY UNAVAILABLE'","'PARTLY OCCUPIED'","'SOFT WARNING'","'YES')+'</div>'"]){
   assert.equal(r5.includes(forbidden),false,'Legacy calendar label remains: '+forbidden);tests++;
 }
-for(const required of ["'Unavailable'","'Partly unavailable'","'Auditor less available'","'Company less available'","'Auditor + company less available'","s.start+'–'+s.end"]){
+for(const required of ["'Unavailable'","'Partly unavailable'","'Auditor less available'","'Company less available'","'Auditor + company less available'","s.start+'–'+s.end","'Earliest execution date: '+a.minPlanningDate+' (minimum interval)'","'Planning window expired: '+a.planningWindowTo"]){
   assert.ok(r5.includes(required),'Missing calendar UX token: '+required);tests++;
 }
 
-console.log(JSON.stringify({ok:true,build:'2026-10-05_PORTAL_REVIEW_HARDENING_CONTRACT_R1',tests,writesPerformed:false}));
+console.log(JSON.stringify({ok:true,build:'2026-10-05_PORTAL_REVIEW_HARDENING_CONTRACT_R2',tests,writesPerformed:false}));

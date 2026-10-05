@@ -1,0 +1,44 @@
+AMS — CURRENT PROJECT MEMORY POINTER
+Updated: 2026-10-05
+Status: ACTIVE
+Purpose: durable pointer to the current AMS project authorities and open work so that important findings do not depend on chat history.
+
+READ FIRST / CURRENT AUTHORITY
+1. AMS_MASTER_ROADMAP_V2.11_FINAL_2026-10-04
+2. Final 2026-10-04 functional handoff specifications for:
+   - Master Audit Grid 2.0
+   - My Availability 2.0
+   - Rotation Overview 2.0
+   - Company Management 2.0
+   - Planning 2.0 Functional Blueprint
+   - Login & Authentication 2.0 where applicable
+3. docs/AMS_PRODUCT_BACKLOG_CURRENT.txt
+   - durable living register for active bugs, UX improvements, hardening, open product decisions and future modules.
+4. docs/AMS_SESSION_FINDINGS_2026-10-05.txt
+   - dated review snapshot that created the current backlog items.
+
+IMPORTANT GOVERNANCE
+- Roadmaps V2.7 and earlier are NOT current truth.
+- The backlog is subordinate to V2.11 and current final functional specifications.
+- When a backlog item becomes a final architectural or lifecycle decision, promote it into the next canonical roadmap/specification.
+- Implemented backlog items must be marked DONE with date + commit(s), rather than silently disappearing.
+- PROD must not be changed without explicit authorization.
+
+CURRENT DEPLOYMENT STATE
+As of 2026-10-05, additional fixes exist on dev that are NOT YET DEPLOYED because the user temporarily has no GCloud-capable workstation available.
+Before next deployment:
+1. git pull
+2. run cloudrun/transport-proof npm test
+3. only if green, deploy DEV
+4. perform targeted acceptance tests
+5. do not touch PROD
+
+CURRENT REVIEW IMPLEMENTATION BATCH — NOT YET DEPLOYED
+- Auditor Plan now requires Self planning = Yes.
+- Historical Preassigned Auditor no longer grants visibility after actual assignment/lifecycle progression.
+- Logged-in actor display name support added.
+- Planning Toolkit calendar labels made concise; committed blocks use time range + company.
+- Extension UI hardened to depend on canonical Model-C linkage.
+- Regression/stress contracts added.
+
+This file exists specifically so future project sessions can discover the backlog and current state without relying on chat memory.

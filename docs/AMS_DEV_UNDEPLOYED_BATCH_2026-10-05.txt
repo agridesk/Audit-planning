@@ -1,0 +1,86 @@
+AMS — DEV UNDEPLOYED BATCH HANDOFF
+Date: 2026-10-05
+Status: READY FOR LOCAL TEST — NOT DEPLOYED
+Branch: dev
+PROD: untouched
+
+Purpose
+Preserve the exact implementation batch created while the user temporarily cannot deploy from a GCloud-capable workstation.
+
+Implemented in this batch
+1. Auditor self-planning permission
+   - Plan requires Allow self planning = Yes.
+   - Preassignment alone no longer grants Plan.
+   - Direct commit cannot bypass this.
+   Commits: 6686f575, 697c341d, 3f1ab4f3, 28aca2d5, ea2e2477.
+
+2. Auditor visibility separation
+   - Pending Planning may still be visible to own preassigned Auditor.
+   - After lifecycle progresses beyond Pending Planning, stale preassignment no longer grants visibility.
+   - Assigned to is authoritative for assigned/planned lifecycle states.
+   Commits: 6686f575, 697c341d, 28aca2d5, ea2e2477.
+
+3. Logged-in actor display name
+   - Shared portal resolves display name from Auditors directory.
+   - UI prefers person name while email remains canonical identity.
+   Commits: 697c341d, 56c6e71a.
+
+4. Extension control hardening
+   - Manager Grid calculates extension capability only when there is active canonical Model-C obligation linkage and configured extension months.
+   - UI no longer shows Apply merely because scope extension months exist.
+   Commits: e41d79e8, 580f04f2.
+
+5. Planning Toolkit calendar UX
+   - Removed redundant YES / PARTLY OCCUPIED / SOFT WARNING labels.
+   - Concrete concise soft-warning labels.
+   - Unavailable / Partly unavailable wording.
+   - Committed audit blocks show HH:MM–HH:MM · Company.
+   - Scope is available as tooltip detail where present.
+   - Provisional remains explicitly labelled.
+   Commit: cfffea75.
+
+6. Minimum interval / expired window UX
+   - User-facing alerts prioritize expired planning window.
+   - Minimum interval is described as an execution-date constraint.
+   - Toolkit shows Earliest execution date rather than implying a planning-action date.
+   Commits: 9cb8968d, de819f9e, 6c6d0525.
+
+7. Regression coverage
+   - Portal separation stress matrix strengthened.
+   - 2026-10-05 portal review regression contract added.
+   - package version currently 2.5.23.
+   Commits: df2f380d, 6f603687, 6c6d0525.
+
+Durable project references
+- /AMS_CURRENT_PROJECT_MEMORY.txt
+- /docs/AMS_PRODUCT_BACKLOG_CURRENT.txt
+- /docs/AMS_SESSION_FINDINGS_2026-10-05.txt
+
+Still open / not implemented in this batch
+- BUG-003 full audit of every legacy/preassignment mutation route. Current Cloud Run planning assignment path already executes v211AssignmentHardCheck before writing Assigned to. Existing historical invalid assignments remain visible via alerts.
+- Responsive Audit Grid 2.0.
+- Qualification-change impact check.
+- Manager Auditor Management module.
+- Manager Scope Management module.
+- Decision whether ACCEPTED should display as Ready for execution.
+
+Next user action when back at GCloud workstation
+1. cd /d C:\Users\Gebruiker\Audit-planning
+2. git pull
+3. cd cloudrun\transport-proof
+4. npm test
+5. STOP if any test fails and provide the failure output.
+6. If green, deploy DEV only using the standard source deploy command. Do not replace environment variables.
+
+Post-deploy acceptance
+- Auditor: preassigned + Self planning No => visible if appropriate, but NO Plan button.
+- Auditor: Self planning Yes + eligible => Plan available.
+- Auditor Paco must not see an Accepted/assigned audit owned by Isália merely because Paco remains preassigned.
+- Identity header shows person name, not email.
+- Normal Model-C audit: Extension Apply/Undo still works.
+- Legacy/TEST audit without active obligation link: no misleading Extension control.
+- Calendar: available day has no YES text.
+- Two audits on one day: each shows time range + company.
+- Soft warning shows concise reason.
+- Expired planning window uses clear user-facing wording.
+- Minimum interval refers to earliest execution date.

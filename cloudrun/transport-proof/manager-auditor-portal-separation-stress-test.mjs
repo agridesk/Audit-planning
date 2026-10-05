@@ -32,19 +32,21 @@ for(const status of statuses){
   expectFalseAll(c,['canPlan','canApprove','canAccept','canAcceptOnBehalf','canCancel','canReAdjust','canComplete','canChangePreassignment','canChangeSelfPlanning','canExport']); cases+=10;
 }
 
-// Own preassignment: visible always, but Plan only when Pending Planning + hard eligible.
-for(const hardEligible of [false,true]){
-  for(const status of statuses){
-    const c=cap({actorRole:'Auditor',actorEmail:A,status,preassignedToEmail:A,hardEligible});
-    assert.equal(c.visible,true); cases++;
-    assert.equal(c.capabilities.canPlan,status==='Pending Planning'&&hardEligible); cases++;
-    assert.equal(c.preassignmentConflict,status==='Pending Planning'&&!hardEligible); cases++;
+// Own preassignment: visible only while Pending Planning. Plan additionally requires Self planning = Yes + hard eligibility.
+for(const allowSelfPlanning of [false,true]){
+  for(const hardEligible of [false,true]){
+    for(const status of statuses){
+      const c=cap({actorRole:'Auditor',actorEmail:A,status,preassignedToEmail:A,allowSelfPlanning,hardEligible});
+      assert.equal(c.visible,status==='Pending Planning'); cases++;
+      assert.equal(c.capabilities.canPlan,status==='Pending Planning'&&allowSelfPlanning&&hardEligible); cases++;
+      assert.equal(c.preassignmentConflict,status==='Pending Planning'&&allowSelfPlanning&&!hardEligible); cases++;
+    }
   }
 }
 
 // Own assigned lifecycle.
 for(const status of statuses){
-  const c=cap({actorRole:'Auditor',actorEmail:A,status,assignedToEmail:A});
+  const c=cap({actorRole:'Auditor',actorEmail:A,status,assignedToEmail:A,allowSelfPlanning:true,hardEligible:true});
   assert.equal(c.visible,true); cases++;
   assert.equal(c.capabilities.canAccept,status==='Approved'); cases++;
   assert.equal(c.capabilities.canCancel,status==='Pending Approval'); cases++;
@@ -89,4 +91,4 @@ const uiChecks=[
 ];
 for(const needle of uiChecks){assert.ok(ui.includes(needle),needle);cases++;}
 
-console.log(JSON.stringify({ok:true,build:'2026-10-04_MANAGER_AUDITOR_PORTAL_SEPARATION_STRESS_R1',tests:cases,writesPerformed:false}));
+console.log(JSON.stringify({ok:true,build:'2026-10-04_MANAGER_AUDITOR_PORTAL_SEPARATION_STRESS_R2',tests:cases,writesPerformed:false}));

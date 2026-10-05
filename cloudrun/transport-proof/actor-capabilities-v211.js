@@ -13,9 +13,9 @@ export function v211ActorCapabilities(input={}){
   const isOwnAssigned=!!actorEmail&&assigned===actorEmail;
   const isOwnPreassigned=!!actorEmail&&preassigned===actorEmail;
   const noAssignment=!assigned&&!preassigned;
-  const selfPool=status==='PENDING_PLANNING'&&allowSelfPlanning&&noAssignment&&hardEligible;
-  const auditorOwn=isOwnAssigned||isOwnPreassigned;
-  const auditorVisible=auditorOwn||selfPool;
+  const pending=status==='PENDING_PLANNING';
+  const selfPool=pending&&allowSelfPlanning&&noAssignment&&hardEligible;
+  const auditorVisible=pending?(isOwnAssigned||isOwnPreassigned||selfPool):isOwnAssigned;
 
   const c={
     canPlan:false,canApprove:false,canAccept:false,canAcceptOnBehalf:false,
@@ -34,7 +34,7 @@ export function v211ActorCapabilities(input={}){
     c.canChangeSelfPlanning=status==='PENDING_PLANNING';
     c.canExport=true;
   }else if(role==='AUDITOR'){
-    c.canPlan=status==='PENDING_PLANNING'&&((isOwnPreassigned&&hardEligible)||selfPool);
+    c.canPlan=pending&&allowSelfPlanning&&hardEligible&&(isOwnAssigned||isOwnPreassigned||noAssignment);
     c.canAccept=status==='APPROVED'&&isOwnAssigned;
     c.canCancel=status==='PENDING_APPROVAL'&&isOwnAssigned;
     c.canComplete=status==='ACCEPTED'&&isOwnAssigned;
@@ -43,7 +43,7 @@ export function v211ActorCapabilities(input={}){
 
   return{
     role,status,actorEmail,assignedToEmail:assigned,preassignedToEmail:preassigned,
-    isOwnAssigned,isOwnPreassigned,selfPlanningPool:selfPool,preassignmentConflict:role==='AUDITOR'&&status==='PENDING_PLANNING'&&isOwnPreassigned&&!hardEligible,visible:role==='MANAGER'?true:role==='AUDITOR'?auditorVisible:false,
+    isOwnAssigned,isOwnPreassigned,selfPlanningPool:selfPool,preassignmentConflict:role==='AUDITOR'&&pending&&allowSelfPlanning&&isOwnPreassigned&&!hardEligible,visible:role==='MANAGER'?true:role==='AUDITOR'?auditorVisible:false,
     capabilities:c
   };
 }

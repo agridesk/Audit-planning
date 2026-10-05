@@ -1,0 +1,196 @@
+AMS — PRODUCT BACKLOG / OPEN FINDINGS
+CURRENT WORK REGISTER
+Updated: 2026-10-05
+Status: ACTIVE
+Authority: subordinate to AMS_MASTER_ROADMAP_V2.11_FINAL and final functional specifications.
+Rule: V2.7 and earlier are NOT current authority.
+
+Purpose
+This file is the durable project register for bugs, hardening items, UX improvements and future modules that must not be lost in chat history.
+Items remain here until implemented, rejected, superseded, or explicitly migrated into a newer canonical roadmap/spec.
+
+============================================================
+A. ACTIVE BUGS / CORRECTNESS
+============================================================
+
+BUG-001 — Auditor Plan must require Self planning = Yes
+Priority: HIGH
+Area: Shared Audit Grid 2.0 / actor capabilities
+Finding:
+An Auditor can currently receive a Plan action for a Pending Planning audit because the audit is preassigned to that Auditor, even when Allow self planning = No.
+Required behavior:
+- Auditor Plan is available only when Allow self planning = Yes.
+- Preassignment alone does not grant self-planning permission.
+- Hard eligibility remains required.
+- Manager planning remains unaffected.
+
+BUG-002 — Auditor visibility after assignment must follow Assigned to
+Priority: HIGH
+Area: Shared Audit Grid 2.0 / actor scope
+Example: TEST_Completed Eta visible to Paco Pelota while Assigned to Isália.
+Likely cause:
+Preassigned Auditor is still used as an ownership/visibility signal after the audit has moved beyond initial Pending Planning.
+Required behavior:
+- Preassignment is relevant only before actual assignment/planning.
+- Once an audit is assigned/planned, Auditor visibility follows current Assigned to.
+- Historical Preassigned Auditor must not leak another Auditor's audit into their portal.
+
+BUG-003 — New assignment/preassignment must prevent non-qualified Auditor
+Priority: HIGH
+Area: assignment validation
+Required behavior:
+- Every mutation path that assigns or preassigns an Auditor must use the central hard qualification validator.
+- Existing historical assignments may remain when qualification is lost later; these require an alert, not retroactive rewriting.
+- Existing red alert for current qualification conflict remains defense-in-depth.
+
+============================================================
+B. DATA / LEGACY HARDENING
+============================================================
+
+HARD-001 — Hide Extension control when canonical extension is impossible
+Priority: LOW
+Area: Manager Grid / Model C
+Observed:
+Apply/Undo Extension works correctly on normal current Model-C audits.
+Some TEST/legacy audits can show the Extension control but fail with NO_ACTIVE_CERTIFICATE_OBLIGATION_LINKED.
+Required behavior:
+Only expose Apply/Undo when the audit has the canonical active Model-C obligation linkage required by the extension service.
+
+============================================================
+C. UX / PRESENTATION
+============================================================
+
+UX-001 — Display logged-in person's name instead of email
+Priority: MEDIUM
+Area: Manager Portal / Auditor Portal
+Required behavior:
+- Show e.g. "Paco Pelota · Auditor" rather than romboutsrwj@gmail.com · Auditor.
+- Same for Manager.
+- Email remains canonical identity internally.
+
+UX-002 — Responsive Audit Grid 2.0
+Priority: MEDIUM
+Area: Manager/Auditor Grid
+Required behavior:
+- Adapt to available viewport width.
+- Minimize horizontal scrolling on smaller laptops.
+- Compact or hide lower-priority columns responsively.
+- Keep critical lifecycle/action information directly accessible.
+- Preserve full desktop view on large screens.
+
+UX-003 — Planning Toolkit calendar labels
+Priority: MEDIUM
+Area: Planning Toolkit 2.0 calendar
+Required behavior:
+- Remove "YES" for fully available days; green state is sufficient.
+- Remove generic "PARTLY OCCUPIED" when actual booked blocks explain occupancy.
+- Replace generic "SOFT WARNING" with concise reason, e.g.:
+  * Auditor less available
+  * Company less available
+  * Outside preferred hours
+  * Provisional planning
+- "FULLY UNAVAILABLE" should become concise "Unavailable" unless a concrete short reason is available.
+- Keep "Provisional" where it conveys distinct planning semantics.
+- Avoid all-caps for normal calendar labels.
+
+UX-004 — Multiple audits on one calendar day
+Priority: MEDIUM
+Area: Planning Toolkit 2.0 calendar
+Required display per committed audit block:
+- HH:MM–HH:MM · Company
+Example:
+09:00–12:00 · Company A
+13:00–17:00 · Company B
+Secondary detail:
+- Scope(s) in tooltip/details where useful.
+- Slot comment in tooltip/details, not as primary block label.
+Rationale:
+Time + company is stable and compact; free-text slot comments are not suitable as the primary identifier.
+
+UX-005 — User-facing minimum interval warning
+Priority: MEDIUM
+Area: Grid / Planning Toolkit warnings
+Canonical rule:
+Earliest allowed execution date = last completed audit date + Min_Interval_Months.
+Min interval constrains the planned EXECUTION DATE, not the date on which planning is performed.
+Required messaging:
+- Planned execution before earliest date = hard block.
+- If no valid execution date exists inside the planning window, communicate this in user language.
+- If planning window has expired, show "Planning window expired" as the primary condition.
+- Avoid exposing internal diagnostic text such as MINIMUM_INTERVAL_OUTSIDE_PLANNING_WINDOW as the main user-facing message.
+
+============================================================
+D. PRODUCT / LIFECYCLE DECISIONS TO CONSIDER
+============================================================
+
+DEC-001 — User-facing name for canonical ACCEPTED
+Status: OPEN DECISION
+Current canonical state: ACCEPTED
+Observation:
+At this stage the audit is fully organized and ready to be executed; "Accepted" describes only one historical step.
+Candidate UI label:
+Ready for execution
+Recommendation:
+Keep canonical/internal status ACCEPTED initially and change only the UI label if adopted, avoiding a data/lifecycle migration.
+
+============================================================
+E. FUTURE MANAGER MODULES / BACKLOG
+============================================================
+
+BL-001 — Qualification change impact check
+Priority: MEDIUM
+Trigger:
+Auditor qualification is removed or changed.
+Required behavior:
+- Immediately identify future/open audits assigned to that Auditor that require the lost qualification.
+- Do not mark the original assignment historically invalid if it was valid at assignment time.
+- Raise a current compliance/execution-risk alert.
+- Accepted / Ready-for-execution audits should receive prominent attention.
+- Qualification should also be revalidated before execution-critical lifecycle actions where appropriate.
+
+BL-002 — Manager > Auditor Management
+Priority: FUTURE
+Goal:
+Replace direct operational maintenance of the Auditors sheet with a governed Manager UI.
+Scope may include:
+- active/inactive
+- identity/display name
+- qualifications
+- availability defaults
+- planning-related auditor configuration
+- validation
+- audit trail
+- downstream impact check when qualification changes
+
+BL-003 — Manager > Scope Management
+Priority: FUTURE
+Goal:
+Replace direct operational maintenance of Config_Scopes with a governed Manager UI.
+Scope may include:
+- scope activation
+- formal hours
+- planning window rules
+- extension settings
+- rotation policy
+- minimum interval
+- other canonical scope policy
+- validation and audit trail
+
+============================================================
+F. CONFIRMED / NOT A BUG
+============================================================
+
+CONF-001 — Extension Apply/Undo
+Confirmed:
+Works on normal non-TEST current Model-C audits.
+The observed failure on TEST data is treated as legacy/test-data hardening, not as a generic extension failure.
+
+============================================================
+PROCESS
+============================================================
+
+For future sessions:
+1. New bugs/findings discovered in chat are added here immediately.
+2. Implemented items are marked DONE with commit(s) and date, then may later move to an implementation closure document.
+3. Architectural/lifecycle decisions that become final must be promoted into the current canonical roadmap/specification; this backlog does not override V2.11.
+4. Never use AMS roadmaps V2.7 or earlier as current truth.

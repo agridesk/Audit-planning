@@ -16,6 +16,8 @@ READ FIRST / CURRENT AUTHORITY
    - durable living register for active bugs, UX improvements, hardening, open product decisions and future modules.
 4. docs/AMS_SESSION_FINDINGS_2026-10-05.txt
    - dated review snapshot that created the current backlog items.
+5. docs/AMS_DEV_UNDEPLOYED_BATCH_2026-10-05.txt
+   - exact undeployed DEV implementation batch, remaining open work and next acceptance sequence.
 
 IMPORTANT GOVERNANCE
 - Roadmaps V2.7 and earlier are NOT current truth.

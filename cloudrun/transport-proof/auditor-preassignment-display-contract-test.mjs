@@ -11,6 +11,7 @@ const blocked=v211ActorCapabilities({
   actorEmail:'auditor@example.com',
   status:'Pending Planning',
   preassignedAuditor:'auditor@example.com',
+  allowSelfPlanning:true,
   hardEligible:false
 });
 assert.equal(blocked.visible,true);
@@ -22,9 +23,16 @@ const allowed=v211ActorCapabilities({
   actorEmail:'auditor@example.com',
   status:'Pending Planning',
   preassignedAuditor:'auditor@example.com',
+  allowSelfPlanning:true,
   hardEligible:true
 });
 assert.equal(allowed.capabilities.canPlan,true);
+
+const noSelf=v211ActorCapabilities({actorRole:'Auditor',actorEmail:'auditor@example.com',status:'Pending Planning',preassignedAuditor:'auditor@example.com',allowSelfPlanning:false,hardEligible:true});
+assert.equal(noSelf.visible,true);
+assert.equal(noSelf.capabilities.canPlan,false);
+const stalePreassignment=v211ActorCapabilities({actorRole:'Auditor',actorEmail:'auditor@example.com',status:'Accepted',assignedToEmail:'other@example.com',preassignedAuditor:'auditor@example.com',allowSelfPlanning:true,hardEligible:true});
+assert.equal(stalePreassignment.visible,false);
 
 for(const needle of [
   "assignedToDisplayName:directAuditorDisplayName",
@@ -37,4 +45,4 @@ assert.ok(r5.includes("a.preassignedAuditorDisplayName||a.preassignedAuditor"),'
 assert.ok(ui.includes("r.preassignmentConflict"),'Grid must surface preassignment conflict');
 assert.ok(ui.includes("r.assignedToDisplayName||r.auditorDisplayName"),'Grid must prefer auditor display name');
 
-console.log(JSON.stringify({ok:true,build:'2026-10-04_AUDITOR_PREASSIGNMENT_DISPLAY_CONTRACT_R1',tests:12,writesPerformed:false}));
+console.log(JSON.stringify({ok:true,build:'2026-10-04_AUDITOR_PREASSIGNMENT_DISPLAY_CONTRACT_R2',tests:15,writesPerformed:false}));

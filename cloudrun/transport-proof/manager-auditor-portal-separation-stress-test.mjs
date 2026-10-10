@@ -82,7 +82,7 @@ for(const needle of routeChecks){assert.ok(r4.includes(needle),needle);cases++;}
 
 // Shared UI must hide Manager-only controls for Auditor and refresh cross-actor changes.
 const uiChecks=[
-  'if(String(actorRole).toLowerCase()==="auditor")raw=raw.filter(function(x){return x==="PLAN"})',
+  'if(String(actorRole).toLowerCase()==="auditor")raw=raw.filter(function(x){return x==="PLAN"||x==="COMPLETE"})',
   'if(batch)batch.style.display=isAud?"none":batch.style.display',
   'if(concept)concept.style.display=isAud?"none":concept.style.display',
   'if(workspace)workspace.style.display=isAud?"none":""',
@@ -91,4 +91,6 @@ const uiChecks=[
 ];
 for(const needle of uiChecks){assert.ok(ui.includes(needle),needle);cases++;}
 
-console.log(JSON.stringify({ok:true,build:'2026-10-04_MANAGER_AUDITOR_PORTAL_SEPARATION_STRESS_R2',tests:cases,writesPerformed:false}));
+assert.ok(ui.includes("'/api/v1/auditor/action'"),'Auditor Complete must use authenticated Auditor action endpoint');cases++;
+
+console.log(JSON.stringify({ok:true,build:'2026-10-10_MANAGER_AUDITOR_PORTAL_SEPARATION_STRESS_R3',tests:cases,writesPerformed:false}));

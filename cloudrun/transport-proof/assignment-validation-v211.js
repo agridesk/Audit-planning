@@ -4,7 +4,7 @@
 
 function clean(v){return String(v==null?'':v).trim();}
 function key(v){return clean(v).toLowerCase().replace(/\s+/g,'_');}
-function yes(v){const s=clean(v).toLowerCase();return s==='x'||s==='yes'||s==='true'||s==='1';}
+function yes(v){const s=clean(v).toLowerCase();return s==='x'||s==='yes'||s==='true'||s==='1'||s==='ja';}
 function col(h,names){
   const m={};(h||[]).forEach((v,i)=>{const k=key(v);if(k&&m[k]===undefined)m[k]=i;});
   for(const n of names){const k=key(n);if(m[k]!==undefined)return m[k];}

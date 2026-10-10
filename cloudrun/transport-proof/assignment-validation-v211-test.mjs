@@ -12,6 +12,8 @@ assert.doesNotMatch(directGuard, /__mp_getSheetDataPersistCached_\s*\(/, 'Canoni
 assert.match(directGuard, /key\s*\?\s*\(em\s*===\s*key\)\s*:\s*\(keyName\s*&&\s*nm\s*===\s*keyName\)/, 'BUG-003: supplied email must take precedence; same-name different-email must not authorize');
 assert.doesNotMatch(directGuard, /\(key\s*&&\s*em\s*===\s*key\)\s*\|\|\s*\(keyName\s*&&\s*nm\s*===\s*keyName\)/, 'BUG-003: OR name fallback is forbidden when email is supplied');
 assert.match(gasAnnualCycle, /carryIsEmail\s*\?\s*carryPreassigned\s*:\s*''\s*,\s*carryIsEmail\s*\?\s*''\s*:\s*carryPreassigned/, 'BUG-003: successor must pass display-name preassignments as names, not email identifiers');
+assert.match(directGuard, /if\s*\(!key\s*&&\s*audRow\)\s*return\s*\{\s*success:false/, 'BUG-003: duplicate name-only identity must fail closed');
+assert.match(gasAnnualCycle, /AC_recalculateHoursForRecurringScopes_\(headers, newRow, recurringScopeSlots\);[\s\S]*?var carryPreassigned/, 'BUG-003: successor scope recalculation must precede preassignment validation');
 
 import assert from 'node:assert/strict';
 import {

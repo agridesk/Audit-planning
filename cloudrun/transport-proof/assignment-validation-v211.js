@@ -42,6 +42,18 @@ export function v211CompanyAuditorExclusions(values,companyUid,companyName){
   return out;
 }
 
+export function v211ResolveAuditorEmail(audValues,identity){
+  const requested=clean(identity).toLowerCase();
+  if(!requested||!Array.isArray(audValues)||!audValues.length)return '';
+  const h=audValues[0],e=col(h,['E-mail','Email','E-mail address','Mail']);
+  if(e<0)return '';
+  if(requested.includes('@'))return requested;
+  const n=col(h,['Name','Auditor','Auditor name']);
+  if(n<0)return '';
+  const matches=audValues.slice(1).filter(row=>val(row,n).toLowerCase()===requested);
+  return matches.length===1?val(matches[0],e).toLowerCase():'';
+}
+
 export function v211AuditorQualified(audValues,catalog,scopeCodes,auditorEmail){
   if(!Array.isArray(audValues)||!audValues.length)return false;
   const h=audValues[0],e=col(h,['E-mail','Email','E-mail address','Mail']),a=col(h,['Active','Is active']),r=col(h,['Role','Function']);

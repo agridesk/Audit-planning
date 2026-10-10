@@ -58,16 +58,16 @@ assert.ok(ui.includes('region-head')&&ui.includes('region-cell'),'Open grid must
 assert.ok(ui.includes('expiry-head')&&ui.includes('expiry-cell'),'Open grid must expose responsive Expiry column hooks');tests++;
 assert.ok(ui.includes('required-head')&&ui.includes('required-cell'),'Open grid must expose responsive required-hours hooks');tests++;
 assert.ok(html.includes('@media (max-width:1500px)')&&html.includes('@media (max-width:1200px)'),'Audit Grid must define laptop responsive breakpoints');tests++;
-assert.ok(html.includes('.region-head,.region-cell,.self-head,.self-cell{display:none}'),'Medium laptop view must compact lower-priority columns while retaining Map');tests++;
-assert.ok(html.includes('.locations-head,.locations-cell,.expiry-head,.expiry-cell,.required-head,.required-cell{display:none}'),'Small laptop view must further compact lower-priority columns');tests++;
+assert.ok(html.includes('.region-head,.region-cell,.locations-head,.locations-cell,.self-head,.self-cell{display:none}'),'Laptop view must compact lower-priority columns while retaining Map');tests++;
+assert.ok(html.includes('.expiry-head,.expiry-cell,.required-head,.required-cell{display:none}'),'Small laptop view must further compact lower-priority columns');tests++;
 assert.ok(ui.includes('document.body.classList.toggle("actor-auditor",isAud)'),'Shared grid must expose actor-specific responsive mode');tests++;
 assert.ok(ui.includes('auditor-head')&&ui.includes('auditor-cell'),'Auditor column must have role-specific hooks');tests++;
 assert.ok(html.includes('body.actor-auditor .auditor-head,body.actor-auditor .auditor-cell{display:none}'),'Auditor Grid must hide redundant Auditor column');tests++;
 assert.ok(!html.includes('.region-head,.region-cell,.map-head,.map-cell,.self-head,.self-cell{display:none}'),'Auditor Grid must retain the Map column at laptop breakpoint');tests++;
 assert.ok(!html.includes('.region-head,.region-cell,.map-head,.map-cell,.self-head,.self-cell{display:none}'),'Laptop breakpoint must not hide Google Maps pin');tests++;
-assert.ok(html.includes('body.actor-auditor .locations-head,body.actor-auditor .locations-cell')&&html.includes('body.actor-auditor .required-head,body.actor-auditor .required-cell{display:none}'),'Auditor Grid must hide secondary columns earlier on laptop');tests++;
-assert.ok(html.includes('body.actor-auditor table{min-width:0;width:100%;table-layout:fixed}')&&html.includes('body.actor-auditor .table-wrap{overflow-x:hidden}'),'Auditor Grid must fit the laptop viewport without horizontal scrolling');tests++;
-assert.ok(html.includes('body.actor-auditor main{min-width:0;overflow-x:hidden}')&&html.includes('body.actor-auditor .table-wrap{overflow-x:hidden;max-width:100%}')&&html.includes('body.actor-auditor table{max-width:100%}'),'Auditor Grid must not create page-level horizontal overflow');tests++;
+assert.ok(html.includes('body.actor-auditor .expiry-head,body.actor-auditor .expiry-cell')&&html.includes('body.actor-auditor .required-head,body.actor-auditor .required-cell{display:none}'),'Auditor Grid must hide secondary columns earlier on laptop');tests++;
+assert.ok(html.includes('table{min-width:0;width:100%;max-width:100%;table-layout:fixed')&&html.includes('.table-wrap{overflow-x:hidden;max-width:100%}'),'Laptop Grid must fit the viewport without horizontal scrolling');tests++;
+assert.ok(html.includes('body{overflow-x:hidden}')&&html.includes('main{padding:12px;min-width:0;overflow-x:hidden}'),'Laptop Grid must not create page-level horizontal overflow');tests++;
 assert.ok(html.includes('body.actor-auditor .actions-cell{white-space:normal;overflow:hidden}')&&html.includes('font-size:10px'),'Auditor action controls must stay inside their fixed-width cell');tests++;
 assert.ok(html.includes('.table-wrap{overflow-x:auto;overflow-y:visible')&&html.includes('max-height:none'),'Grid must use page vertical scrolling instead of a nested vertical table scrollbar');tests++;
 
@@ -78,4 +78,4 @@ for(const required of ["'Unavailable'","'Partly unavailable'","'Auditor less ava
   assert.ok(r5.includes(required),'Missing calendar UX token: '+required);tests++;
 }
 
-console.log(JSON.stringify({ok:true,build:'2026-10-10_PORTAL_REVIEW_HARDENING_CONTRACT_R6',tests,writesPerformed:false}));
+console.log(JSON.stringify({ok:true,build:'2026-10-10_PORTAL_REVIEW_HARDENING_CONTRACT_R7',tests,writesPerformed:false}));

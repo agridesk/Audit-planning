@@ -2,7 +2,7 @@ import http from 'node:http';
 import {URL} from 'node:url';
 import {readFileSync} from 'node:fs';
 import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
-import {v211AssignmentHardCheck,v211RotationHardCheck} from './assignment-validation-v211.js';
+import {v211AssignmentHardCheck,v211RotationHardCheck,v211AuditorQualified} from './assignment-validation-v211.js';
 import {v211ActorCapabilities} from './actor-capabilities-v211.js';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
@@ -767,9 +767,9 @@ async function directComplete(identity,body,actorRole){
     const readStarted=Date.now(),vr=await sheetsBatchGet([
       'Audit planning!A1:AX600','Log realized audits!A1:AZ2500','Auditor Availability!A:P',
       'Config_Scopes!A1:Z128','Audit_Obligations!A1:Z2500','Audit_Visit_Obligations!A1:H2500',
-      'Company_Scopes!A1:Z1500','Companies!A1:AZ1200'
+      'Company_Scopes!A1:Z1500','Companies!A1:AZ1200','Auditors!A1:Z256'
     ]),readMs=Date.now()-readStarted;
-    const ap=vr[0]?.values||[],log=vr[1]?.values||[],av=vr[2]?.values||[],cfgValues=vr[3]?.values||[],obs=vr[4]?.values||[],links=vr[5]?.values||[],companyScopes=vr[6]?.values||[],companies=vr[7]?.values||[];
+    const ap=vr[0]?.values||[],log=vr[1]?.values||[],av=vr[2]?.values||[],cfgValues=vr[3]?.values||[],obs=vr[4]?.values||[],links=vr[5]?.values||[],companyScopes=vr[6]?.values||[],companies=vr[7]?.values||[],auditors=vr[8]?.values||[];
     const found=findAudit(ap,auditId),logH=log[0]||[],logAuditIx=col(logH,['Audit ID','Audit_ID','AuditId']),logHoursIx=col(logH,['Hours dedicated']);
     let existingLogRow=0;
     if(logAuditIx>=0)for(let i=1;i<log.length;i++)if(val(log[i],logAuditIx)===auditId){existingLogRow=i+1;break;}
@@ -843,6 +843,12 @@ async function directComplete(identity,body,actorRole){
     const apH=ap[0]||[],source=row.slice(),auditIdIx=col(apH,['Audit ID','Audit_ID','AuditId','Audit Id']);
     for(let g=0;g<groups.length;g++){
       const group=groups[g],newId=auditId+'_NEXT_'+String(g+1)+'_'+createHash('md5').update(auditId+'|'+group.items.map(x=>x.scopeCode+'|'+x.cycleKey).join('|')).digest('hex').slice(0,10);
+      const requestedPreassigned=clean(group.items.map(x=>clean(x.preassigned).toLowerCase()).find(Boolean)||clean(val(source,col(apH,['Preassigned Auditor','Preassigned auditor']))).toLowerCase());
+      const successorScopeCodes=group.items.map(x=>x.scopeCode).filter(Boolean);
+      const carryPreassigned=!!requestedPreassigned&&v211AuditorQualified(auditors,cfg,successorScopeCodes,requestedPreassigned);
+      const successorPreassigned=carryPreassigned?requestedPreassigned:'';
+      const preassignmentRemoved=!!requestedPreassigned&&!carryPreassigned;
+      for(const item of group.items){item.preassigned=successorPreassigned;if(preassignmentRemoved)item.allowSelfPlanning='NO';}
       const existingAp=ap.slice(1).some(r=>val(r,auditIdIx)===newId);
       if(!existingAp){
         const nr=source.slice();for(let i=0;i<nr.length;i++)nr[i]=nr[i]??'';
@@ -860,6 +866,13 @@ async function directComplete(identity,body,actorRole){
         directSetByHeader(apH,nr,['Total audit time in hours'],total);directSetByHeader(apH,nr,['Date - Will Expire'],expiry);directSetByHeader(apH,nr,['Extended Expiration Date'],expiry);
         directSetByHeader(apH,nr,['Birthdate certificate'],birthday);directSetByHeader(apH,nr,['Planning window from'],group.from);directSetByHeader(apH,nr,['Planning window to'],group.to);
         directSetByHeader(apH,nr,['Scopes_List'],group.items.map(x=>x.scopeCode).join(', '));directSetByHeader(apH,nr,['Extension applied'],'');
+        directSetByHeader(apH,nr,['Preassigned Auditor','Preassigned auditor'],successorPreassigned);
+        if(preassignmentRemoved){
+          directSetByHeader(apH,nr,['Allow self planning','Allow Self Planning','Self planning'],'NO');
+          directSetByHeader(apH,nr,['REQUIRES_REPLAN','Requires Replan','Replan Required','Warning Replan','Warning'],'YES');
+          directSetByHeader(apH,nr,['REQUIRES_REPLAN_REASON','Requires Replan Reason','Warning Reason','Reason'],'Preassignment removed for successor: auditor is no longer qualified for required scope(s).');
+          directSetByHeader(apH,nr,['Manager comment (last)'],'System attention: previous preassignment was not carried to this successor because the auditor is no longer qualified for the required scope(s).');
+        }
         newPlanningRows.push(nr);
       }
       successorIds.push(newId);

@@ -45,6 +45,9 @@ assert.equal(v211ResolveAuditorEmail([['Name','Active'],['David','YES']],'David'
 assert.equal(v211AuditorQualified(auditors,catalog,['MPS-ABC','MPS-GAP'],v211ResolveAuditorEmail(auditors,'David')),true);
 assert.equal(v211AuditorQualified(auditors,catalog,['MPS-ABC','MPS-GAP'],'david@example.com'),true);
 assert.equal(v211AuditorQualified(auditors,catalog,['MPS-ABC','MPS-GAP'],'other@example.com'),false);
+assert.equal(v211AuditorQualified(auditors,catalog,['MPS-ABC'],' '),false);
+assert.equal(v211AuditorQualified([...auditors,['Duplicate','david@example.com','YES','Auditor','x','x','x']],catalog,['MPS-ABC'],'david@example.com'),false);
+assert.equal(v211AuditorQualified(auditors,catalog,['MPS-ABC'],'unknown@example.com'),false);
 
 const companies=[
   ['Company_UID','Company','Auditor_Exclusions'],

@@ -904,10 +904,9 @@ function saveManagerPlanning(auditId, payload) {
     var __qHdr = [];
     var __qRow = null;
 
-    // d22 SAVE qualification guard:
-    // Use the same fast-qualified cache contract as toolkit open.
-    // This avoids the heavy live eligibility/rotation path during SAVE.
-    // Cache accelerates only; Auditors + Config_Scopes remain truth.
+    // BUG-003 SAVE qualification guard:
+    // Mutation authorization must re-evaluate canonical auditor qualifications.
+    // Never authorize from the read-only toolkit dropdown cache.
     var __qRowPack = (typeof __mp_getAuditPlanningRow_ === 'function')
       ? __mp_getAuditPlanningRow_(__qSs, auditId)
       : null;

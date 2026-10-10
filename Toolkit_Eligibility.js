@@ -803,17 +803,13 @@ function _mp_assertAuditorQualifiedForPlanning_(ss, hdr, row, auditorEmail, audi
   // Save-time qualification needs only HARD membership. Rotation is SOFT
   // metadata and must not be rebuilt here. Read the canonical Auditors sheet
   // once and validate the selected auditor directly.
-  var pack = (typeof __mp_getSheetDataPersistCached_ === 'function')
-    ? __mp_getSheetDataPersistCached_(ss, 'Auditors', 300)
-    : null;
-  var data = pack && pack.data ? pack.data : [];
-  var ah = pack && pack.hdr ? pack.hdr : (data[0] || []);
-  if (!data.length) {
-    var shAud = ss.getSheetByName('Auditors');
-    if (!shAud) return { success:false, message:"Missing sheet 'Auditors'", requiredScopes:requiredScopes };
-    data = shAud.getDataRange().getValues();
-    ah = data[0] || [];
-  }
+  // BUG-003: a mutation must not authorize from a 300-second persisted cache.
+  // Read the authoritative Auditor rows at save time.
+  var shAud = ss.getSheetByName('Auditors');
+  if (!shAud) return { success:false, message:"Missing sheet 'Auditors'", requiredScopes:requiredScopes };
+  var data = shAud.getDataRange().getValues();
+  var ah = data[0] || [];
+  if (!data.length) return { success:false, message:'Auditors sheet is empty', requiredScopes:requiredScopes };
 
   var idxName = _mp_findHeaderIdxCI_(ah, ['Name','Auditor','Auditor name']);
   var idxEmail = _mp_findHeaderIdxCI_(ah, ['E-mail','Email','E-mail address','Mail']);

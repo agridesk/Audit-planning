@@ -36,7 +36,7 @@ const checks=[
 ['multi-day icon shares full planning tooltip',manager.includes("class=\"multi-day-icon\"'+(tip?' title=\"'+esc(tip)+'\"':'')")],['non-recurring annual planning window comes from Model C plus Config_Scopes',r10.includes('function managerAnnualWindowCatalog')&&r10.includes('managerResolvedVisitWindow')&&r10.includes("sheetValues('Audit_Obligations!A1:Z1024')")&&r10.includes("sheetValues('Audit_Visit_Obligations!A1:Z1024')")&&r10.includes("cfg.obligationCycle!=='ANNUAL'")],
 ['auditor UI uses display-name projection',manager.includes('assignedToDisplayName||r.auditorDisplayName')&&r10.includes('managerAuditorDisplayMap')],
 ['extension apply undo controls',manager.includes('Undo applied extension')&&manager.includes('Apply extension (+')],
-['undo remains available after canonical apply',manager.includes('if(applied)return')&&manager.includes('data-extension=\\"undo\\"')],
+['undo remains available after canonical apply',manager.includes('if(applied&&can)return')&&manager.includes('data-extension=\\"undo\\"')],
 ['extension uses canonical endpoint',runExtensionBody.includes("fetch('/api/v1/manager/extension'")],
 ['extension same row patch',manager.includes('mergeRowInPlace(auditId,x.patch)')],
 ['extension ambiguous response recovery',manager.includes('recoverExtension')&&manager.includes('rereadEnrichedAudit(auditId)')&&manager.includes('CANONICAL_EXTENSION_NOT_COMMITTED')],

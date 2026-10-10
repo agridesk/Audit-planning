@@ -59,6 +59,7 @@ const companies=[
 const excluded=v211CompanyAuditorExclusions(companies,'C1','Grower A');
 assert.equal(excluded.has('blocked@example.com'),true);
 assert.equal(excluded.has('inactive@example.com'),false);
+assert.equal(v211CompanyAuditorExclusions(companies,'C2','Grower A').size,0);
 
 const log=[
   ['Company_UID','Company','Status','Date completed','MPS-ABC','MPS-GAP','GRASP'],

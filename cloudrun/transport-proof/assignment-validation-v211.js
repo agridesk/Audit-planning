@@ -62,7 +62,12 @@ export function v211AuditorQualified(audValues,catalog,scopeCodes,auditorEmail){
     const canonical=key(s.scopeCode||s.displayName||s.slotKey);
     for(const x of [s.scopeCode,s.displayName,s.slotKey])if(x)aliases.set(key(x),canonical);
   }
-  const target=(audValues.slice(1)).find(row=>val(row,e).toLowerCase()===clean(auditorEmail).toLowerCase()&&(a<0||yes(row[a]))&&(r<0||val(row,r).toLowerCase()==='auditor'));
+  const email=clean(auditorEmail).toLowerCase();
+  if(!email||!email.includes('@')||e<0)return false;
+  const matches=audValues.slice(1).filter(row=>val(row,e).toLowerCase()===email);
+  if(matches.length!==1)return false;
+  const target=matches[0];
+  if((a>=0&&!yes(target[a]))||(r>=0&&val(target,r).toLowerCase()!=='auditor'))return false;
   if(!target)return false;
   return (scopeCodes||[]).every(sc=>{
     const canon=aliases.get(key(sc))||key(sc);

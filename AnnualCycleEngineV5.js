@@ -136,6 +136,26 @@ function AnnualCycleEngineV5_HandleCompletionRow_(planningRowObj) {
     AC_setHeaderValue_(headers, newRow, 'Assigned auditor', '');
 
     var carryPreassigned = AC_trim_(planningRowObj['Preassigned Auditor'] || planningRowObj['Preassigned auditor'] || planningRowObj['Preassigned'] || planningRowObj['Assigned to'] || planningRowObj['Assigned Auditor'] || planningRowObj['Assigned auditor'] || '');
+    var carryQualificationOk = false;
+    if (carryPreassigned && typeof _mp_assertAuditorQualifiedForPlanning_ === 'function') {
+      try {
+        var carryCheck = _mp_assertAuditorQualifiedForPlanning_(ss, headers, newRow, carryPreassigned, '');
+        carryQualificationOk = !!(carryCheck && carryCheck.success === true);
+      } catch (carryErr) {
+        carryQualificationOk = false;
+      }
+    }
+    if (!carryPreassigned) carryQualificationOk = true;
+    if (!carryQualificationOk) {
+      carryPreassigned = '';
+      AC_setHeaderValue_(headers, newRow, 'Allow self planning', 'NO');
+      AC_setHeaderValue_(headers, newRow, 'Allow Self Planning', 'NO');
+      AC_setHeaderValue_(headers, newRow, 'REQUIRES_REPLAN', 'YES');
+      AC_setHeaderValue_(headers, newRow, 'Requires Replan', 'YES');
+      AC_setHeaderValue_(headers, newRow, 'REQUIRES_REPLAN_REASON', 'Preassignment removed for successor: auditor is no longer qualified for required scope(s).');
+      AC_setHeaderValue_(headers, newRow, 'Requires Replan Reason', 'Preassignment removed for successor: auditor is no longer qualified for required scope(s).');
+      AC_setHeaderValue_(headers, newRow, 'Manager comment (last)', 'System attention: previous preassignment was not carried to this successor because the auditor is no longer qualified for the required scope(s).');
+    }
     AC_setHeaderValue_(headers, newRow, 'Preassigned Auditor', carryPreassigned);
     AC_setHeaderValue_(headers, newRow, 'Preassigned auditor', carryPreassigned);
     AC_setHeaderValue_(headers, newRow, 'Preassigned', carryPreassigned);

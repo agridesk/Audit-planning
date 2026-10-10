@@ -72,3 +72,8 @@ CHAT HANDOFF — 2026-10-10 — RESPONSIVE GRID / NEXT CHAT
 - Work method: continue autonomously; short replies; no progress-only chatter; full files only when artifact/code-file delivery is requested; DEV only; PROD never without explicit authorization.
 - Deployment workflow change requested by user: do NOT make the user perform routine DEV deployments. Next session should deploy through an assistant-controlled route (connected CI/Cloud Build/GitHub trigger, or Work/Computer Use against Google Cloud when available). If no assistant-controlled deploy capability exists in that chat, batch source changes and stop only at the unavoidable deployment gate instead of repeatedly sending user gcloud commands.
 - Cloud Run DEV service: ams-transport-proof, project audit-management-system-dev, region europe-west1, URL https://ams-transport-proof-510075419067.europe-west1.run.app/ . PROD untouched.
+
+2026-10-10 — latest chat handoff
+- Current continuation snapshot: docs/AMS_CHAT_HANDOFF_2026-10-10_RESPONSIVE_GRID_PERF.txt
+- Latest responsive no-horizontal-scroll source batch: 4b697376 + a1c1504b; test/deploy/visual acceptance still pending.
+- Manager Grid first paint accepted at 851 ms for 112 open audits.

@@ -47,6 +47,12 @@ Required behavior:
 - Every mutation path that assigns or preassigns an Auditor must use the central hard qualification validator.
 - Existing historical assignments may remain when qualification is lost later; these require an alert, not retroactive rewriting.
 - Existing red alert for current qualification conflict remains defense-in-depth.
+Implementation update 2026-10-10:
+- Planning commit routes already use central V2.11 hard qualification validation.
+- Scope Manager preassignment mutation now fails closed through `_mp_assertAuditorQualifiedForPlanning_` before Model C scope-owner commit.
+- Selected scopes are projected into the qualification check before mutation so qualification is checked against the requested new scope set, not stale row state.
+- Regression contract added. DEV deployment pending green npm test.
+
 
 ============================================================
 B. DATA / LEGACY HARDENING

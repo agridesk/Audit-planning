@@ -91,8 +91,9 @@ export function v211MinimumIntervalConstraint({logValues,catalog,scopeCodes,comp
   if(!wanted.length)return out;
   const h=logValues[0],cu=col(h,['Company_UID','Company UID','CompanyUid']),cc=col(h,['Company']),cs=col(h,['Status']),cd=col(h,['Date completed','Completed date','Date planned','Date - Planned','Audit date','Execution date','Date']),csl=col(h,['Scopes list','Scopes','Scope']);
   const uid=clean(companyUid),company=key(companyName);
-  const legacyRows=logValues.slice(1).filter(row=>!val(row,cu)&&company&&key(val(row,cc))===company);
-  const competingUids=new Set(logValues.slice(1).filter(row=>company&&key(val(row,cc))===company&&val(row,cu)).map(row=>key(val(row,cu))));
+  const completedHistory=logValues.slice(1).filter(row=>['COMPLETED','REALIZED'].includes(val(row,cs).toUpperCase().replace(/[\s-]+/g,'_')));
+  const legacyRows=completedHistory.filter(row=>!val(row,cu)&&company&&key(val(row,cc))===company);
+  const competingUids=new Set(completedHistory.filter(row=>company&&key(val(row,cc))===company&&val(row,cu)).map(row=>key(val(row,cu))));
   if(legacyRows.length&&((uid&&[...competingUids].some(x=>x!==key(uid)))||(!uid&&competingUids.size>1)))out.ambiguousLegacyCompany=true;
   for(const def of wanted){
     const aliases=new Set([def.displayName,def.scopeCode,def.slotKey].map(key).filter(Boolean));let latest='';

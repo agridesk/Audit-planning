@@ -60,6 +60,11 @@ assert.ok(ui.includes('required-head')&&ui.includes('required-cell'),'Open grid 
 assert.ok(html.includes('@media (max-width:1500px)')&&html.includes('@media (max-width:1200px)'),'Audit Grid must define laptop responsive breakpoints');tests++;
 assert.ok(html.includes('.region-head,.region-cell,.map-head,.map-cell,.self-head,.self-cell{display:none}'),'Medium laptop view must compact lower-priority columns');tests++;
 assert.ok(html.includes('.locations-head,.locations-cell,.expiry-head,.expiry-cell,.required-head,.required-cell{display:none}'),'Small laptop view must further compact lower-priority columns');tests++;
+assert.ok(ui.includes('document.body.classList.toggle("actor-auditor",isAud)'),'Shared grid must expose actor-specific responsive mode');tests++;
+assert.ok(ui.includes('auditor-head')&&ui.includes('auditor-cell'),'Auditor column must have role-specific hooks');tests++;
+assert.ok(html.includes('body.actor-auditor .auditor-head,body.actor-auditor .auditor-cell{display:none}'),'Auditor Grid must hide redundant Auditor column');tests++;
+assert.ok(!html.includes('.region-head,.region-cell,.map-head,.map-cell,.self-head,.self-cell{display:none}'),'Laptop breakpoint must not hide Google Maps pin');tests++;
+assert.ok(html.includes('body.actor-auditor table{min-width:1020px}')&&html.includes('body.actor-auditor table{min-width:820px}'),'Auditor Grid must use tighter laptop widths');tests++;
 
 for(const forbidden of ["'FULLY UNAVAILABLE'","'PARTLY OCCUPIED'","'SOFT WARNING'","'YES')+'</div>'"]){
   assert.equal(r5.includes(forbidden),false,'Legacy calendar label remains: '+forbidden);tests++;
@@ -68,4 +73,4 @@ for(const required of ["'Unavailable'","'Partly unavailable'","'Auditor less ava
   assert.ok(r5.includes(required),'Missing calendar UX token: '+required);tests++;
 }
 
-console.log(JSON.stringify({ok:true,build:'2026-10-10_PORTAL_REVIEW_HARDENING_CONTRACT_R3',tests,writesPerformed:false}));
+console.log(JSON.stringify({ok:true,build:'2026-10-10_PORTAL_REVIEW_HARDENING_CONTRACT_R4',tests,writesPerformed:false}));

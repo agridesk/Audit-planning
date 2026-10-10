@@ -84,6 +84,7 @@ Required behavior:
 - Email remains canonical identity internally.
 
 UX-002 — Responsive Audit Grid 2.0
+Status: IMPLEMENTED IN DEV SOURCE 2026-10-10 — TEST/DEPLOY PENDING
 Priority: MEDIUM
 Area: Manager/Auditor Grid
 Required behavior:
@@ -255,3 +256,9 @@ Successor preassignment rule — confirmed 2026-10-10:
 - Inherited self-planning is disabled when that preassignment is removed, preventing an unintended open self-planning pool.
 - The successor receives Manager attention explaining why the previous preassignment was dropped.
 - Both canonical Cloud Run Complete successor creation and the legacy AnnualCycle path now revalidate before carrying preassignment.
+
+2026-10-10 actor-scope / responsive-grid hardening
+- R10 enrichment now preserves actor-scoped Auditor allowedActions instead of replacing them with generic Manager lifecycle actions.
+- Audit Grid 2.0 now uses responsive breakpoints: lower-priority Region/Map/Self-planning columns hide first, then Locations/Expiration/To-be-planned on narrower laptop viewports; critical Company/Scopes/Status/Planning/Hours/Auditor/Alert/Actions remain accessible.
+- Full desktop layout remains unchanged above the responsive breakpoint.
+- Local npm test pending user run.

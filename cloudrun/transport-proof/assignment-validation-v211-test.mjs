@@ -103,6 +103,10 @@ const legacyCollisionLog=[
   ['', 'Grower A','Completed','2026-08-01','x','',''],
   ['C2','Grower A','Completed','2026-09-01','x','','']
 ];
+assert.equal(v211MinimumIntervalConstraint({
+  logValues:[...log,['','Grower A','Completed','2026-08-01','x','',''],['C2','Grower A','Pending planning','2026-09-01','x','','']],
+  catalog,scopeCodes:['MPS-ABC'],companyUid:'C1',companyName:'Grower A'
+}).ambiguousLegacyCompany,undefined);
 const legacyCollision=v211AssignmentHardCheck({
   auditorEmail:'david@example.com',auditorValues:auditors,catalog,scopeCodes:['MPS-ABC'],
   companyValues:companies,companyUid:'C1',companyName:'Grower A',

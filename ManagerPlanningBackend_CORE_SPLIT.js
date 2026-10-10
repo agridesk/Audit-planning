@@ -946,16 +946,8 @@ function saveManagerPlanning(auditId, payload) {
     var __qAuditors = null;
     var __qCacheHit = false;
 
-    if (typeof _mp_fastOpenQualifiedCacheGet_ === 'function') {
-      __qAuditors = _mp_fastOpenQualifiedCacheGet_(__qRequiredScopes, __qPreassigned);
-      __qCacheHit = Array.isArray(__qAuditors);
-    }
-
-    // BUG-003: write-time qualification must never trust a cached dropdown.
-    // Recompute against canonical Auditors/Config_Scopes for every SAVE.
-    // Keep the fast cache for read-only toolkit hydration only.
-    __qAuditors = null;
-    __qCacheHit = false;
+    // BUG-003: mutation path bypasses read-only qualification dropdown cache.
+    // Recompute canonical qualification on each planning SAVE.
     if (!Array.isArray(__qAuditors)) {
       if (typeof _mp_getQualifiedAuditorsFastList_ !== 'function') {
         throw new Error('Missing _mp_getQualifiedAuditorsFastList_ for save qualification guard');

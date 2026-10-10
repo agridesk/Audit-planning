@@ -118,6 +118,20 @@ const excludedHard=v211AssignmentHardCheck({
 });
 assert.equal(excludedHard.reasons.includes('AUDITOR_EXCLUDED_FOR_COMPANY'),true);
 
+const ambiguousCompanyHard=v211AssignmentHardCheck({
+  auditorEmail:'david@example.com',auditorValues:auditors,catalog,scopeCodes:['MPS-ABC'],
+  companyValues:companies.concat(companies.slice(1)),companyUid:'C1',companyName:'Grower A',
+  logValues:[],requestedDates:['2026-10-14']
+});
+assert.equal(ambiguousCompanyHard.ok,false);
+assert.equal(ambiguousCompanyHard.reasons.includes('COMPANY_IDENTITY_AMBIGUOUS'),true);
+const missingCompanyHard=v211AssignmentHardCheck({
+  auditorEmail:'david@example.com',auditorValues:auditors,catalog,scopeCodes:['MPS-ABC'],
+  companyValues:companies,companyUid:'UNKNOWN',companyName:'Grower A',
+  logValues:[],requestedDates:['2026-10-14']
+});
+assert.equal(missingCompanyHard.reasons.includes('COMPANY_IDENTITY_AMBIGUOUS'),true);
+
 assert.deepEqual(v211RotationHardCheck(null).reasons,['PLANNING_ROTATION_CHECK_FAILED']);
 assert.deepEqual(v211RotationHardCheck({success:true,auditor:{hardBlockQualification:true}}).reasons,['AUDITOR_NOT_HARD_QUALIFIED']);
 assert.deepEqual(v211RotationHardCheck({success:true,auditor:{softBlockRotation:true}}).reasons,['PLANNING_ROTATION_LIMIT_HARD_BLOCK']);

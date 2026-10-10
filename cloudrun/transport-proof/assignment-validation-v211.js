@@ -30,6 +30,10 @@ export function v211CompanyAuditorExclusions(values,companyUid,companyName){
   }
   if(!row)return out;
   if(uid&&cu>=0&&values.slice(1).filter(r=>key(val(r,cu))===uid).length!==1)return out;
+  if((!uid||cu<0)&&name&&cn>=0){
+    const nameMatches=values.slice(1).filter(r=>key(val(r,cn))===name);
+    if(nameMatches.length!==1)return out;
+  }
   const raw=clean(row[cx]);if(!raw)return out;
   const add=v=>{const s=clean(v).toLowerCase();if(s&&s.includes('@'))out.add(s);};
   try{

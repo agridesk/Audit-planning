@@ -119,6 +119,29 @@ assert.equal(v211MinimumIntervalConstraint({
   catalog,scopeCodes:['MPS-ABC'],companyUid:'C1',companyName:'Grower A'
 }).ambiguousLegacyCompany,undefined);
 
+// Complete -> historical minimum interval: only realized history affects successor planning.
+const completedSuccessorLog=[
+  ['Company_UID','Company','Status','Date completed','MPS-ABC','MPS-GAP','GRASP'],
+  ['C1','Grower A','Completed','2026-10-10','x','',''],
+  ['C1','Grower A','Pending planning','2026-12-01','x','',''],
+  ['C2','Grower A','Completed','2026-12-01','x','','']
+];
+assert.equal(v211MinimumIntervalConstraint({
+  logValues:completedSuccessorLog,catalog,scopeCodes:['MPS-ABC'],companyUid:'C1',companyName:'Grower A'
+}).minPlanningDate,'2027-04-10');
+const successorTooEarly=v211AssignmentHardCheck({
+  auditorEmail:'david@example.com',auditorValues:auditors,catalog,scopeCodes:['MPS-ABC'],
+  companyValues:companies,companyUid:'C1',companyName:'Grower A',
+  logValues:completedSuccessorLog,requestedDates:['2027-04-09']
+});
+assert.equal(successorTooEarly.reasons.includes('MIN_INTERVAL_HARD_BLOCK_2027-04-10'),true);
+const successorOnBoundary=v211AssignmentHardCheck({
+  auditorEmail:'david@example.com',auditorValues:auditors,catalog,scopeCodes:['MPS-ABC'],
+  companyValues:companies,companyUid:'C1',companyName:'Grower A',
+  logValues:completedSuccessorLog,requestedDates:['2027-04-10']
+});
+assert.equal(successorOnBoundary.ok,true);
+
 const hard=v211AssignmentHardCheck({
   auditorEmail:'david@example.com',
   auditorValues:auditors,

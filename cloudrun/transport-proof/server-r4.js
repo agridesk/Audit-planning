@@ -845,7 +845,12 @@ async function directComplete(identity,body,actorRole){
       const group=groups[g],newId=auditId+'_NEXT_'+String(g+1)+'_'+createHash('md5').update(auditId+'|'+group.items.map(x=>x.scopeCode+'|'+x.cycleKey).join('|')).digest('hex').slice(0,10);
       const requestedPreassigned=clean(group.items.map(x=>clean(x.preassigned).toLowerCase()).find(Boolean)||clean(val(source,col(apH,['Preassigned Auditor','Preassigned auditor']))).toLowerCase());
       const successorScopeCodes=group.items.map(x=>x.scopeCode).filter(Boolean);
-      const carryPreassigned=!!requestedPreassigned&&v211AuditorQualified(auditors,cfg,successorScopeCodes,requestedPreassigned);
+      const auditorHeaders=auditors[0]||[];
+      const auditorNameIx=col(auditorHeaders,['Name','Auditor','Auditor name']);
+      const auditorEmailIx=col(auditorHeaders,['E-mail','Email','E-mail address','Mail']);
+      const matchedByName=requestedPreassigned&&!requestedPreassigned.includes('@')?auditors.slice(1).filter(r=>val(r,auditorNameIx).toLowerCase()===requestedPreassigned):[];
+      const qualifiedEmail=requestedPreassigned.includes('@')?requestedPreassigned:(matchedByName.length===1?val(matchedByName[0],auditorEmailIx).toLowerCase():'');
+      const carryPreassigned=!!qualifiedEmail&&v211AuditorQualified(auditors,cfg,successorScopeCodes,qualifiedEmail);
       const successorPreassigned=carryPreassigned?requestedPreassigned:'';
       const preassignmentRemoved=!!requestedPreassigned&&!carryPreassigned;
       for(const item of group.items){item.preassigned=successorPreassigned;if(preassignmentRemoved)item.allowSelfPlanning='NO';}

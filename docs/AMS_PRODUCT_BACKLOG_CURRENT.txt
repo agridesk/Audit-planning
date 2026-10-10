@@ -262,3 +262,8 @@ Successor preassignment rule — confirmed 2026-10-10:
 - Audit Grid 2.0 now uses responsive breakpoints: lower-priority Region/Map/Self-planning columns hide first, then Locations/Expiration/To-be-planned on narrower laptop viewports; critical Company/Scopes/Status/Planning/Hours/Auditor/Alert/Actions remain accessible.
 - Full desktop layout remains unchanged above the responsive breakpoint.
 - Local npm test pending user run.
+
+2026-10-10 performance acceptance — Manager Grid first paint
+- Manager Grid base first load after removing synchronous R12 enrichment and Model-C extension-link reads from first paint: 112 open audits · 851 ms base.
+- Previous observed first load: 5688 ms base.
+- Result accepted as within PERF-001 target; async enrichment remains separate from first paint.

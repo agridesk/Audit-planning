@@ -61,6 +61,7 @@ assert.equal(excluded.has('blocked@example.com'),true);
 assert.equal(excluded.has('inactive@example.com'),false);
 assert.equal(v211CompanyAuditorExclusions(companies.concat(companies.slice(1)),'C1','Grower A').size,0);
 assert.equal(v211CompanyAuditorExclusions(companies,'C2','Grower A').size,0);
+assert.equal(v211CompanyAuditorExclusions(companies.concat([['C2','Grower A','other@example.com']]),'','Grower A').size,0);
 
 const log=[
   ['Company_UID','Company','Status','Date completed','MPS-ABC','MPS-GAP','GRASP'],

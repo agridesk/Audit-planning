@@ -76,6 +76,13 @@ const min=v211MinimumIntervalConstraint({
 assert.equal(min.byScope.find(x=>x.scopeCode==='MPS-ABC').minPlanningDate,'2026-07-31');
 assert.equal(min.byScope.find(x=>x.scopeCode==='MPS-GAP').minPlanningDate,'2026-10-15');
 assert.equal(min.minPlanningDate,'2026-10-15');
+const caseInsensitiveUidLog=[
+  log[0],[' c1 ','Grower A','Completed','2026-08-01','x','','']
+];
+assert.equal(v211MinimumIntervalConstraint({
+  logValues:caseInsensitiveUidLog,catalog,scopeCodes:['MPS-ABC'],companyUid:'C1',companyName:'Grower A'
+}).minPlanningDate,'2027-02-01');
+
 const sameNameDifferentUid=[
   ...log,
   ['C2','Grower A','Completed','2026-09-01','x','','']

@@ -287,3 +287,11 @@ UX-002 laptop final fit attempt 2026-10-10
 - The Grid wrapper no longer uses an internal max-height; vertical scrolling is page-level instead of a nested table scrollbar.
 - Commits: d49dbe34, 751e0a50, 33ee2fbd, f68ee97b.
 - Status: DEV SOURCE ONLY — npm test + DEV deployment/visual acceptance still pending.
+
+UX-002 final laptop overflow guard — 2026-10-10
+- User still reported scrolling on laptop after prior Auditor Grid compaction.
+- Final DEV-source attempt hard-bounds the Auditor surface to the viewport: actor-specific main overflow guard, table wrapper max-width 100%, table max-width 100%, fixed-layout remains, and action controls are compacted so they cannot force page-width overflow.
+- Redundant Auditor column remains hidden for Auditor role; Google Maps pin remains visible.
+- Commits: ffe55f7f, 02864cbc.
+- Current status: DEV SOURCE ONLY — full npm test and DEV deployment/visual acceptance still required.
+- Important interpretation: if the remaining scrollbar is genuinely vertical (up/down), page-level vertical scrolling is expected with ~112 rows; the defect targeted here is horizontal/laptop-width overflow. Do not reintroduce nested table vertical scrolling merely to hide normal page length.

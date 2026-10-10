@@ -27,15 +27,11 @@ IMPORTANT GOVERNANCE
 - PROD must not be changed without explicit authorization.
 
 CURRENT DEPLOYMENT STATE
-As of 2026-10-05, additional fixes exist on dev that are NOT YET DEPLOYED because the user temporarily has no GCloud-capable workstation available.
-Before next deployment:
-1. git pull
-2. run cloudrun/transport-proof npm test
-3. only if green, deploy DEV
-4. perform targeted acceptance tests
-5. do not touch PROD
+As of 2026-10-10, the previously undeployed DEV batch has been deployed successfully to Cloud Run DEV revision ams-transport-proof-00997-2h9 after a fully green local npm test run.
+Next step: targeted DEV acceptance tests.
+PROD remains untouched.
 
-CURRENT REVIEW IMPLEMENTATION BATCH — NOT YET DEPLOYED
+CURRENT REVIEW IMPLEMENTATION BATCH — DEPLOYED TO DEV 2026-10-10; ACCEPTANCE PENDING
 - Auditor Plan now requires Self planning = Yes.
 - Historical Preassigned Auditor no longer grants visibility after actual assignment/lifecycle progression.
 - Logged-in actor display name support added.

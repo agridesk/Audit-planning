@@ -694,6 +694,51 @@ function directExistingSuccessorRows(ap,auditId,actorEmail,cfgValues,companies){
 }
 async function directManagerComplete(identity,body){return directComplete(identity,body,'MANAGER');}
 async function directAuditorComplete(identity,body){return directComplete(identity,body,'AUDITOR');}
+function directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companyScopes,companyUid,stamp){
+  const h=found.h,row=found.row,oh=obs[0]||[],lh=links[0]||[],csH=companyScopes[0]||[];
+  const oi=col(oh,['Obligation_ID','Obligation ID']),ocs=col(oh,['Company_Scope_ID','Company Scope ID']),ocu=col(oh,['Company_UID','Company UID']),osc=col(oh,['ScopeCode','Scope Code']),ock=col(oh,['Cycle_Key','Cycle Key']),ots=col(oh,['Trigger_Source','Trigger Source']),ost=col(oh,['Obligation_State','Obligation State']),obe=col(oh,['Base_Expiry_Date','Base Expiry Date']),oee=col(oh,['Effective_Expiry_Date','Effective Expiry Date']),opf=col(oh,['Planning_Window_From','Planning Window From']),opt=col(oh,['Planning_Window_To','Planning Window To']),ofh=col(oh,['Formal_Hours','Formal Hours']),opa=col(oh,['Preassigned_Auditor_Email']),oas=col(oh,['Allow_Self_Planning']),oup=col(oh,['Updated_At','Updated At']),osrc=col(oh,['Source_Audit_ID']);
+  const la=col(lh,['Audit_ID','Audit ID']),lo=col(lh,['Obligation_ID','Obligation ID']),ls=col(lh,['Link_State','Link State']),lli=col(lh,['Linked_At','Linked At']);
+  const csId=col(csH,['Company_Scope_ID','Company Scope ID']),csUid=col(csH,['Company_UID','Company UID']),csCode=col(csH,['ScopeCode','Scope Code']),csActive=col(csH,['Active']);
+  if([oi,ocs,ocu,osc,ost,la,lo,ls,csId,csUid,csCode].some(x=>x<0))throw new Error('MODEL_C_LEGACY_COMPLETE_REPAIR_SCHEMA_INVALID');
+  const activeDefs=(cfg||[]).filter(def=>[def.slotKey,def.scopeCode,def.displayName].some(k=>{const ix=col(h,[k]);return ix>=0&&yes(row[ix]);}));
+  if(!activeDefs.length)throw new Error('MODEL_C_LEGACY_COMPLETE_REPAIR_NO_SCOPES');
+  const baseExpiry=directIsoDate(val(row,col(h,['Date - Will Expire','Date – Will Expire','Will Expire']))),effectiveExpiry=directIsoDate(val(row,col(h,['Extended Expiration Date'])))||baseExpiry,windowFrom=directIsoDate(val(row,col(h,['Planning window from','Planning Window From']))),windowTo=directIsoDate(val(row,col(h,['Planning window to','Planning Window To']))),plannedDate=directIsoDate(val(row,col(h,['Date - Planned','Date planned','Date Planned']))),preassigned=val(row,col(h,['Preassigned Auditor','Preassigned auditor'])),allowSelfPlanning=val(row,col(h,['Allow self planning','Allow Self Planning','Self planning','Self Planning']));
+  const out=[],used=new Set();
+  for(const def of activeDefs){
+    const code=clean(def.scopeCode||def.displayName||def.slotKey),aliases=new Set([def.scopeCode,def.displayName,def.slotKey].map(key).filter(Boolean));
+    let csRow=null;
+    for(let i=1;i<companyScopes.length;i++){
+      const rr=companyScopes[i],active=csActive<0||yes(rr[csActive]);
+      if(active&&val(rr,csUid)===companyUid&&aliases.has(key(val(rr,csCode)))){csRow=rr;break;}
+    }
+    if(!csRow)throw new Error('MODEL_C_COMPANY_SCOPE_NOT_FOUND_'+code);
+    const companyScopeId=val(csRow,csId);
+    let existing=null;
+    for(let i=1;i<obs.length;i++){
+      const rr=obs[i],obId=val(rr,oi);
+      if(!obId||used.has(obId))continue;
+      const sameSource=osrc>=0&&val(rr,osrc)===auditId;
+      const sameNatural=val(rr,ocs)===companyScopeId&&aliases.has(key(val(rr,osc)))&&val(rr,ost).toUpperCase()==='OPEN';
+      if(sameSource||sameNatural){existing={row:i+1,values:rr.slice(),obId};break;}
+    }
+    let obId,obRow,obValues;
+    if(existing){obId=existing.obId;obRow=existing.row;obValues=existing.values;}
+    else{
+      obId='OBL_'+createHash('sha256').update('LEGACY_COMPLETE|'+auditId+'|'+companyScopeId+'|'+code).digest('hex').slice(0,32);
+      obRow=obs.length+out.filter(x=>x.syntheticOb).length+1;obValues=new Array(oh.length).fill('');
+      obValues[oi]=obId;obValues[ocs]=companyScopeId;obValues[ocu]=companyUid;obValues[osc]=code;if(ock>=0)obValues[ock]=baseExpiry||plannedDate.slice(0,4);if(ots>=0)obValues[ots]=def.recurring===true?'CERTIFICATE_LIFECYCLE':'LEGACY_COMPLETION_REPAIR';obValues[ost]='OPEN';if(obe>=0)obValues[obe]=baseExpiry;if(oee>=0)obValues[oee]=effectiveExpiry;if(opf>=0)obValues[opf]=windowFrom;if(opt>=0)obValues[opt]=windowTo;if(ofh>=0){const scopeHours=directAuditPlanningScopeHours(h,row,def,code);obValues[ofh]=scopeHours!==null?scopeHours:Number(def.formalHours||0);}if(opa>=0)obValues[opa]=preassigned;if(oas>=0)obValues[oas]=allowSelfPlanning;if(oup>=0)obValues[oup]=stamp;if(osrc>=0)obValues[osrc]=auditId;
+    }
+    used.add(obId);
+    let linkPack=null;
+    for(let i=1;i<links.length;i++)if(val(links[i],la)===auditId&&val(links[i],lo)===obId){linkPack={row:i+1,values:links[i].slice()};break;}
+    let linkRow,linkValues;
+    if(linkPack){linkRow=linkPack.row;linkValues=linkPack.values;}
+    else{linkRow=links.length+out.filter(x=>x.syntheticLink).length+1;linkValues=new Array(lh.length).fill('');linkValues[la]=auditId;linkValues[lo]=obId;linkValues[ls]='ACTIVE';if(lli>=0)linkValues[lli]=stamp;}
+    out.push({row:linkRow,obId,values:linkValues,obRow,obValues,syntheticOb:!existing,syntheticLink:!linkPack});
+  }
+  return out;
+}
+
 async function directComplete(identity,body,actorRole){
   actorRole=clean(actorRole).toUpperCase();
   if(actorRole!=='MANAGER'&&actorRole!=='AUDITOR')throw new Error('COMPLETE_ACTOR_ROLE_INVALID');
@@ -742,15 +787,17 @@ async function directComplete(identity,body,actorRole){
     const oh=obs[0]||[],oi=col(oh,['Obligation_ID','Obligation ID']),ocs=col(oh,['Company_Scope_ID','Company Scope ID']),ocu=col(oh,['Company_UID','Company UID']),osc=col(oh,['ScopeCode','Scope Code']),ock=col(oh,['Cycle_Key','Cycle Key']),ots=col(oh,['Trigger_Source','Trigger Source']),ost=col(oh,['Obligation_State','Obligation State']),obe=col(oh,['Base_Expiry_Date','Base Expiry Date']),oee=col(oh,['Effective_Expiry_Date','Effective Expiry Date']),opf=col(oh,['Planning_Window_From','Planning Window From']),opt=col(oh,['Planning_Window_To','Planning Window To']),ofh=col(oh,['Formal_Hours','Formal Hours']),opa=col(oh,['Preassigned_Auditor_Email']),oas=col(oh,['Allow_Self_Planning']),oup=col(oh,['Updated_At','Updated At']),ocl=col(oh,['Closed_At','Closed At']),osrc=col(oh,['Source_Audit_ID']);
     const lh=links[0]||[],la=col(lh,['Audit_ID','Audit ID']),lo=col(lh,['Obligation_ID','Obligation ID']),ls=col(lh,['Link_State','Link State']),llu=col(lh,['Unlinked_At','Unlinked At']);
     if([oi,ocs,ocu,osc,ost,la,lo,ls].some(x=>x<0))throw new Error('MODEL_C_COMPLETE_SCHEMA_INVALID');
-    const activeLinks=[],seenActiveObIds=new Set();for(let i=1;i<links.length;i++)if(val(links[i],la)===auditId&&val(links[i],ls).toUpperCase()==='ACTIVE'){const obId=val(links[i],lo);if(!obId||seenActiveObIds.has(obId))continue;seenActiveObIds.add(obId);activeLinks.push({row:i+1,obId,values:links[i].slice()});}
+    let activeLinks=[],seenActiveObIds=new Set();for(let i=1;i<links.length;i++)if(val(links[i],la)===auditId&&val(links[i],ls).toUpperCase()==='ACTIVE'){const obId=val(links[i],lo);if(!obId||seenActiveObIds.has(obId))continue;seenActiveObIds.add(obId);activeLinks.push({row:i+1,obId,values:links[i].slice()});}
     if(!activeLinks.length){
-      if(!existingLogRow)throw new Error('MODEL_C_NO_ACTIVE_OBLIGATIONS_FOR_COMPLETE');
-      const deleteStarted=Date.now();await sheetsDeleteRow('Audit planning',found.sourceRow);const deleteMs=Date.now()-deleteStarted;
-      const recoveredSuccessorRows=directExistingSuccessorRows(ap,auditId,clean(identity?.email).toLowerCase(),cfgValues,companies);
-      const recoveredHours=actorRole==='AUDITOR'&&existingCommittedHours>0?existingCommittedHours:hoursDedicated;
-      return{success:true,idempotent:true,recovered:true,auditId,action:'COMPLETE',hoursDedicated:recoveredHours,directCommit:true,owner,successorRows:recoveredSuccessorRows,successorAuditIds:recoveredSuccessorRows.map(r=>r.auditId),readMs,writeMs:existingLogCorrectionMs,deleteMs,totalMs:Date.now()-started};
+      if(existingLogRow){
+        const deleteStarted=Date.now();await sheetsDeleteRow('Audit planning',found.sourceRow);const deleteMs=Date.now()-deleteStarted;
+        const recoveredSuccessorRows=directExistingSuccessorRows(ap,auditId,clean(identity?.email).toLowerCase(),cfgValues,companies);
+        const recoveredHours=actorRole==='AUDITOR'&&existingCommittedHours>0?existingCommittedHours:hoursDedicated;
+        return{success:true,idempotent:true,recovered:true,auditId,action:'COMPLETE',hoursDedicated:recoveredHours,directCommit:true,owner,successorRows:recoveredSuccessorRows,successorAuditIds:recoveredSuccessorRows.map(r=>r.auditId),readMs,writeMs:existingLogCorrectionMs,deleteMs,totalMs:Date.now()-started};
+      }
+      activeLinks=directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companyScopes,companyUid,stamp);
     }
-    const obById=new Map();for(let i=1;i<obs.length;i++)obById.set(val(obs[i],oi),{row:i+1,values:obs[i].slice()});
+    const obById=new Map();for(let i=1;i<obs.length;i++)obById.set(val(obs[i],oi),{row:i+1,values:obs[i].slice()});for(const link of activeLinks)if(link.obValues)obById.set(link.obId,{row:link.obRow,values:link.obValues});
 
     const successorItems=[],obligationWrites=[],linkWrites=[];let completedFormalHours=0;
     for(const link of activeLinks){

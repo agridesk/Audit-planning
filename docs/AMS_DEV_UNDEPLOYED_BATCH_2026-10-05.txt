@@ -1,6 +1,6 @@
 AMS — DEV UNDEPLOYED BATCH HANDOFF
 Date: 2026-10-05
-Status: READY FOR LOCAL TEST — NOT DEPLOYED
+Status: DEPLOYED TO DEV 2026-10-10 — ACCEPTANCE PENDING
 Branch: dev
 PROD: untouched
 
@@ -84,3 +84,13 @@ Post-deploy acceptance
 - Soft warning shows concise reason.
 - Expired planning window uses clear user-facing wording.
 - Minimum interval refers to earliest execution date.
+
+
+Deployment update — 2026-10-10
+- Local npm test: GREEN.
+- Cloud Run DEV deploy succeeded.
+- Revision: ams-transport-proof-00997-2h9
+- Traffic: 100% DEV traffic on this revision.
+- Service: ams-transport-proof, europe-west1.
+- PROD untouched.
+- Remaining step: targeted acceptance from the DEV portal.

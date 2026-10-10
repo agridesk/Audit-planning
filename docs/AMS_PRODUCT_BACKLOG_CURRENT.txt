@@ -273,3 +273,10 @@ Auditor Grid laptop refinement 2026-10-10
 - Google Maps pin remains visible at laptop breakpoints.
 - Auditor Grid uses tighter responsive min-widths than Manager Grid.
 - User-configurable column visibility remains a possible later enhancement, but is not treated as the primary fix for laptop fit.
+
+Auditor Grid responsive refinement 2026-10-10
+- Auditor column is hidden for Auditor role because it is redundant with the logged-in actor.
+- Google Maps pin remains visible at laptop breakpoint.
+- Auditor Grid uses tighter responsive minimum widths than Manager Grid.
+- Generic user-configurable column visibility is not required to solve the current laptop-width issue and remains optional future UX, not a blocker.
+- Local npm suite reported all green by user after this refinement.

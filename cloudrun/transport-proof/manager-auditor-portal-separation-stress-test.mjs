@@ -3,6 +3,7 @@ import {readFileSync} from 'node:fs';
 import {v211ActorCapabilities} from './actor-capabilities-v211.js';
 
 const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+const r10=readFileSync(new URL('./server-r10.js',import.meta.url),'utf8');
 const ui=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 
 const A='a@example.com',B='b@example.com';
@@ -92,5 +93,7 @@ const uiChecks=[
 for(const needle of uiChecks){assert.ok(ui.includes(needle),needle);cases++;}
 
 assert.ok(ui.includes("'/api/v1/auditor/action'"),'Auditor Complete must use authenticated Auditor action endpoint');cases++;
+assert.ok(r10.includes("const auditorMode=clean(obj?.actorRole).toLowerCase()==='auditor'"),'R10 enrichment must detect Auditor actor scope');cases++;
+assert.ok(r10.includes("if(!auditorMode)r.allowedActions=allowedActions"),'R10 enrichment must never replace Auditor actor-scoped actions');cases++;
 
-console.log(JSON.stringify({ok:true,build:'2026-10-10_MANAGER_AUDITOR_PORTAL_SEPARATION_STRESS_R3',tests:cases,writesPerformed:false}));
+console.log(JSON.stringify({ok:true,build:'2026-10-10_MANAGER_AUDITOR_PORTAL_SEPARATION_STRESS_R4',tests:cases,writesPerformed:false}));

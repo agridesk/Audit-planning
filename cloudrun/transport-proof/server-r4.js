@@ -887,7 +887,7 @@ async function directComplete(identity,body,actorRole){
     if(!logH.length)throw new Error('LOG_REALIZED_SCHEMA_MISSING');
     const managerEmailForLog=actorRole==='MANAGER'?actorEmail:'planning@agriqa.es';
     const logRow=directCompletedLogRow(logH,found,hoursDedicated,managerEmailForLog,now,completedFormalHours);
-    const writeStarted=Date.now(),allWrites=[...obligationWrites,...linkWrites,...availabilityWrites];
+    const writeStarted=Date.now(),allWrites=[...(typeof legacyCompanyScopeWrites==='undefined'?[]:legacyCompanyScopeWrites),...obligationWrites,...linkWrites,...availabilityWrites];
     if(!existingLogRow)allWrites.push({range:'Log realized audits!A'+(log.length+1)+':'+a1col(logH.length)+(log.length+1),values:[logRow]});
     for(let i=0;i<newPlanningRows.length;i++)allWrites.push({range:'Audit planning!A'+(ap.length+i+1)+':'+a1col(apH.length)+(ap.length+i+1),values:[newPlanningRows[i]]});
     for(let i=0;i<newObRows.length;i++)allWrites.push({range:'Audit_Obligations!A'+(obs.length+i+1)+':'+a1col(oh.length)+(obs.length+i+1),values:[newObRows[i]]});

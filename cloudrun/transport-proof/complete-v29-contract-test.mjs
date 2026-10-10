@@ -15,6 +15,7 @@ const modelC=read('../../ModelCAnnualCycleRuntime.js');
 const log=read('../../LogRealizedAuditService.js');
 const auditor=read('../../AuditorV5Backend.js');
 const auditorPortal=read('../../AuditorPortalV5.html');
+const annualCycle=read('../../AnnualCycleEngineV5.js');
 
 assert.match(server,/k==='ACCEPTED'\?\['COMPLETE','CANCEL','REJECT'\]/,'Accepted Manager enrichment rows must expose Complete');
 assert.match(baseServer,/statusKey==='ACCEPTED'\?\['COMPLETE','CANCEL','REJECT'\]/,'Accepted Manager base rows must expose Complete');
@@ -48,6 +49,11 @@ assert.match(baseServer,/allWrites\.push\(\{range:'Log realized audits!A'/,'Dire
 assert.match(baseServer,/Audit_Obligations!A/,'Direct Complete must update Model C obligations');
 assert.match(baseServer,/Audit_Visit_Obligations!A/,'Direct Complete must update Model C visit links');
 assert.match(baseServer,/successorRows/,'Direct Complete response must carry successor rows for micro-refresh');
+assert.match(baseServer,/v211AuditorQualified\(auditors,cfg,successorScopeCodes,requestedPreassigned\)/,'Canonical successor carry-over must revalidate preassigned Auditor qualification');
+assert.match(baseServer,/Preassignment removed for successor: auditor is no longer qualified/,'Invalid successor preassignment must become Manager attention instead of blocking Complete');
+assert.match(baseServer,/if\(preassignmentRemoved\)item\.allowSelfPlanning='NO'/,'Invalid successor preassignment must disable inherited self-planning');
+assert.match(annualCycle,/_mp_assertAuditorQualifiedForPlanning_\(ss, headers, newRow, carryPreassigned/,'Legacy annual successor path must revalidate carried preassignment');
+assert.match(annualCycle,/carryPreassigned = ''/,'Legacy annual successor must clear invalid carried preassignment');
 assert.match(baseServer,/directExistingSuccessorRows/,'Idempotent Complete retry must recover existing successor rows for UI patch');
 assert.match(baseServer,/function directRepairMissingCompleteLinks/,'Accepted legacy rows without active Model C links must have a controlled completion repair path');
 assert.match(baseServer,/const repair=directRepairMissingCompleteLinks[\s\S]*activeLinks=repair\.activeLinks\|\|\[\]/,'Direct Complete must invoke controlled Model C repair before failing missing-link legacy rows');

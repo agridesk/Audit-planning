@@ -51,6 +51,9 @@ assert.match(baseServer,/successorRows/,'Direct Complete response must carry suc
 assert.match(baseServer,/directExistingSuccessorRows/,'Idempotent Complete retry must recover existing successor rows for UI patch');
 assert.match(baseServer,/function directRepairMissingCompleteLinks/,'Accepted legacy rows without active Model C links must have a controlled completion repair path');
 assert.match(baseServer,/activeLinks=directRepairMissingCompleteLinks/,'Direct Complete must invoke controlled Model C repair before failing missing-link legacy rows');
+assert.match(baseServer,/def\.recurring===true\)throw new Error\('MODEL_C_COMPANY_SCOPE_NOT_FOUND_'/,'Recurring legacy Complete must still fail closed when Company Scope is missing');
+assert.match(baseServer,/Lifecycle_Type','Lifecycle Type'\],'NON_RECURRING'/,'Non-recurring legacy Complete may reconstruct the missing Company Scope');
+assert.match(baseServer,/legacyCompanyScopeWrites/,'Reconstructed non-recurring Company Scope must join the Complete transaction');
 assert.doesNotMatch(baseServer,/if\(!existingLogRow\)throw new Error\('MODEL_C_NO_ACTIVE_OBLIGATIONS_FOR_COMPLETE'\)/,'Missing-link Accepted rows must no longer hard-fail before repair');
 assert.match(baseServer,/activeLinkExists/,'Successor recovery must avoid duplicate active visit links');
 assert.match(baseServer,/seenActiveObIds/,'Complete must deduplicate malformed duplicate active links before finalization');

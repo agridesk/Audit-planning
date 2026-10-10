@@ -58,14 +58,14 @@ assert.ok(ui.includes('region-head')&&ui.includes('region-cell'),'Open grid must
 assert.ok(ui.includes('expiry-head')&&ui.includes('expiry-cell'),'Open grid must expose responsive Expiry column hooks');tests++;
 assert.ok(ui.includes('required-head')&&ui.includes('required-cell'),'Open grid must expose responsive required-hours hooks');tests++;
 assert.ok(html.includes('@media (max-width:1500px)')&&html.includes('@media (max-width:1200px)'),'Audit Grid must define laptop responsive breakpoints');tests++;
-assert.ok(html.includes('.region-head,.region-cell,.locations-head,.locations-cell,.self-head,.self-cell{display:none}'),'Laptop view must compact lower-priority columns while retaining Map');tests++;
-assert.ok(html.includes('.expiry-head,.expiry-cell,.required-head,.required-cell{display:none}'),'Small laptop view must further compact lower-priority columns');tests++;
+assert.ok(!html.includes('.region-head,.region-cell,.locations-head,.locations-cell,.self-head,.self-cell{display:none}'),'Laptop view must retain Region, Locations and Self');tests++;
+assert.ok(!html.includes('.expiry-head,.expiry-cell,.required-head,.required-cell{display:none}'),'Small laptop view must retain Required hours');tests++;
 assert.ok(ui.includes('document.body.classList.toggle("actor-auditor",isAud)'),'Shared grid must expose actor-specific responsive mode');tests++;
 assert.ok(ui.includes('auditor-head')&&ui.includes('auditor-cell'),'Auditor column must have role-specific hooks');tests++;
 assert.ok(html.includes('body.actor-auditor .auditor-head,body.actor-auditor .auditor-cell{display:none}'),'Auditor Grid must hide redundant Auditor column');tests++;
 assert.ok(!html.includes('.region-head,.region-cell,.map-head,.map-cell,.self-head,.self-cell{display:none}'),'Auditor Grid must retain the Map column at laptop breakpoint');tests++;
 assert.ok(!html.includes('.region-head,.region-cell,.map-head,.map-cell,.self-head,.self-cell{display:none}'),'Laptop breakpoint must not hide Google Maps pin');tests++;
-assert.ok(html.includes('body.actor-auditor .expiry-head,body.actor-auditor .expiry-cell')&&html.includes('body.actor-auditor .required-head,body.actor-auditor .required-cell{display:none}'),'Auditor Grid must hide secondary columns earlier on laptop');tests++;
+assert.ok(html.includes('body.actor-auditor .expiry-head,body.actor-auditor .expiry-cell{display:none}')&&!html.includes('body.actor-auditor .required-head,body.actor-auditor .required-cell{display:none}'),'Auditor Grid must retain Required hours on laptop');tests++;
 assert.ok(html.includes('body.actor-auditor .table-wrap{overflow-x:clip;overflow-y:visible;width:100%;max-width:100%}')&&html.includes('body.actor-auditor table{min-width:0;width:100%;max-width:100%;table-layout:fixed}'),'Auditor Grid must not create a nested horizontal scroll container');tests++;
 assert.ok(html.includes('body.actor-auditor{overflow-x:clip}')&&html.includes('body.actor-auditor main{min-width:0;max-width:100%;overflow-x:clip}')&&html.includes('body.actor-auditor main>*{min-width:0;max-width:100%}'),'Auditor Grid must not create page-level horizontal overflow');tests++;
 assert.ok(html.includes('.selection-bar{display:none;align-items:center;gap:7px;flex-wrap:wrap;min-width:0;max-width:100%;')&&html.includes('class="grid-toolbar"'),'Auditor Grid controls must wrap inside the viewport');tests++;

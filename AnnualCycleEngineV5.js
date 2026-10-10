@@ -135,6 +135,10 @@ function AnnualCycleEngineV5_HandleCompletionRow_(planningRowObj) {
     AC_setHeaderValue_(headers, newRow, 'Assigned Auditor', '');
     AC_setHeaderValue_(headers, newRow, 'Assigned auditor', '');
 
+    // Recalculate successor scope hours before qualification checks, so the guard
+    // evaluates the final recurring-scope configuration rather than stale source hours.
+    AC_recalculateHoursForRecurringScopes_(headers, newRow, recurringScopeSlots);
+
     var carryPreassigned = AC_trim_(planningRowObj['Preassigned Auditor'] || planningRowObj['Preassigned auditor'] || planningRowObj['Preassigned'] || planningRowObj['Assigned to'] || planningRowObj['Assigned Auditor'] || planningRowObj['Assigned auditor'] || '');
     var carryQualificationOk = false;
     if (carryPreassigned && typeof _mp_assertAuditorQualifiedForPlanning_ === 'function') {
@@ -164,7 +168,6 @@ function AnnualCycleEngineV5_HandleCompletionRow_(planningRowObj) {
     AC_setHeaderValue_(headers, newRow, 'Preassigned auditor', carryPreassigned);
     AC_setHeaderValue_(headers, newRow, 'Preassigned', carryPreassigned);
 
-    AC_recalculateHoursForRecurringScopes_(headers, newRow, recurringScopeSlots);
     AC_applyCentralPlanningWindow_(headers, newRow);
 
     var newAuditId = AC_buildNewAuditId_(planningRowObj, shPlan.getLastRow() + 1);

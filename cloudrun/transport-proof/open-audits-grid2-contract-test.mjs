@@ -47,6 +47,7 @@ const checks=[
 ['server enrichment bridge',r10.includes("'externalmanageropenenriched'")],
 ['direct action layer caches Google access token',r4.includes("let accessTokenCache={token:'',expiresAt:0}")&&r4.includes("now<accessTokenCache.expiresAt-60000")&&r4.includes("Number(j.expires_in)||300")],
 ['manager enrichment layer caches Google access token',r10.includes("let accessTokenCache={token:'',expiresAt:0}")&&r10.includes("now<accessTokenCache.expiresAt-60000")&&r10.includes("Number(j.expires_in)||300")],
+['base open grid is not synchronously enriched by r10',!r10.includes("u.pathname==='/api/v1/manager/open'&&ct.includes('application/json')")&&manager.includes('return loadOpenEnrichment(seq)')],
 ['server extension direct writer',r10.includes("/api/v1/manager/extension-direct")&&r10.includes('DIRECT_EXTENSION_PROXY_FAILED')],
 ['direct extension owns Model C obligation plus projection write',r4.includes('CLOUD_RUN_DIRECT_MODEL_C_EXTENSION')&&r4.includes("put('Audit_Obligations'")&&r4.includes("put('Audit planning'")&&r4.includes("u.pathname==='/api/v1/manager/extension-direct'")],
 ['bridge key never in browser',!manager.includes('bridgeKey')&&!html.includes('bridgeKey')],

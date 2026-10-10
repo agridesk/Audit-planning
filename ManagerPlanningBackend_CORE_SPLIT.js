@@ -951,14 +951,17 @@ function saveManagerPlanning(auditId, payload) {
       __qCacheHit = Array.isArray(__qAuditors);
     }
 
+    // BUG-003: write-time qualification must never trust a cached dropdown.
+    // Recompute against canonical Auditors/Config_Scopes for every SAVE.
+    // Keep the fast cache for read-only toolkit hydration only.
+    __qAuditors = null;
+    __qCacheHit = false;
     if (!Array.isArray(__qAuditors)) {
       if (typeof _mp_getQualifiedAuditorsFastList_ !== 'function') {
         throw new Error('Missing _mp_getQualifiedAuditorsFastList_ for save qualification guard');
       }
       __qAuditors = _mp_getQualifiedAuditorsFastList_(__qSs, __qRequiredScopes, __qPreassigned, { auditId: auditId });
-      if (typeof _mp_fastOpenQualifiedCachePut_ === 'function') {
-        _mp_fastOpenQualifiedCachePut_(__qRequiredScopes, __qPreassigned, __qAuditors);
-      }
+      // No cache write from a mutation path.
     }
 
     var __qNeedEmail = V5_normalizeEmail_(auditorEmail);

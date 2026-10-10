@@ -46,3 +46,10 @@ ACTION SPEED / 3S
 - User explicitly reconfirmed on 2026-10-10 that action speed remains a key acceptance criterion.
 - Lifecycle actions such as Complete, Cancel, Reject, Approve and Accept should use direct canonical writes plus targeted micro-refresh; avoid full reloads and unnecessary synchronous side work.
 - Functional correctness is not sufficient if common actions feel slow.
+
+2026-10-10 — BUG-003 successor/preassignment hardening
+- Scope Manager source now hard-blocks new unqualified preassignment before Model C commit.
+- Canonical Cloud Run Complete successor creation revalidates inherited preassignment; invalid carry-over is dropped, self-planning disabled, Manager attention set, completion continues.
+- Legacy AnnualCycle source applies the same rule.
+- Local npm suite reported all green by user after commits ebba39e1 / ad789501 / a8ac133f / 3b21b153.
+- Cloud Run DEV redeploy still required for server-r4 successor change; GAS source changes are not made live by Cloud Run deployment.

@@ -16,6 +16,7 @@ const auditPlanningPerfCache=fs.readFileSync(new URL('../../AuditPlanningPerfCac
 const auditPlanningIndex=fs.readFileSync(new URL('../../AuditPlanningRowIndexCache.js',import.meta.url),'utf8');
 const ecasImport=fs.readFileSync(new URL('../../AuditPlanningModelCEcasAnnualImport.js',import.meta.url),'utf8');
 const ecasVisit=fs.readFileSync(new URL('../../AuditPlanningModelCEcasVisitMaterialization.js',import.meta.url),'utf8');
+const scopeManager=fs.readFileSync(new URL('../../AuditManagerToolsScopes.js',import.meta.url),'utf8');
 const availabilityLoader=availability.slice(availability.indexOf('function _ensureEmailLoadedInPack_'),availability.indexOf('function getPackRow_'));
 const checks=[
  ['calendar click directly adds or removes local draft day',r5.includes("function toggleCalendarDay(date,visualState)")&&r5.includes("draftBlocks.some(b=>b.date===date)")&&r5.includes("draftBlocks.push(b)")&&r5.includes("draftBlocks=draftBlocks.filter(b=>b.date!==date)")],
@@ -61,6 +62,7 @@ const checks=[
  ['r104 direct PLAN hard-blocks formal-hours underplanning',r4.includes("throw new Error('PLANNED_HOURS_BELOW_FORMAL_HOURS')")&&r4.includes('formalTarget=Math.round(Number(audit.formalHours||audit.requiredHours||0)*100)/100')],
  ['r4 direct PLAN endpoint',r4.includes("u.pathname==='/api/v1/planning/direct-commit'")&&r4.includes('directPlanningCommit(s,b)')],
  ['r4 direct PLAN validates hard qualification',r4.includes('v211AssignmentHardCheck({auditorEmail')&&r4.includes('if(!assignmentHard.ok)throw new Error(assignmentHard.reasons[0])')],
+ ['Scope Manager preassignment hard-blocks unqualified Auditor',scopeManager.includes("PREASSIGNMENT_QUALIFICATION_VALIDATOR_UNAVAILABLE")&&scopeManager.includes("_mp_assertAuditorQualifiedForPlanning_")&&scopeManager.includes("error:'AUDITOR_NOT_HARD_QUALIFIED'")],
  ['r4 direct PLAN preserves implicit availability semantics',r4.includes('if(!x){const width=ah.length')&&r4.includes("row[ca]='YES'")],
  ['r4 direct PLAN writes audit and availability together',r4.includes('sheetsValuesBatchUpdate(writes)')&&r4.includes("'Audit planning!A'")&&r4.includes("'Auditor Availability!A'")],
  ['r4 required-hours projection',r4.includes("requiredHours:Number(String(g(['Total audit time in hours'")],

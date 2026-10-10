@@ -4,6 +4,7 @@ import {v211ActorCapabilities} from './actor-capabilities-v211.js';
 
 const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const r5=readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
+const r10=readFileSync(new URL('./server-r10.js',import.meta.url),'utf8');
 const ui=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const html=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
 
@@ -45,8 +46,9 @@ for(const needle of [
   "!audit.allowSelfPlanning||(!owned&&!freeSelfPlan)",
   "actorDisplayName:directAuditorDisplayName(aud,actorEmail)",
   "extensionLinkedAuditIds",
-  "row.canExtend=row.statusKey==='PENDING_PLANNING'&&months>0&&extensionLinked.has(row.auditId)"
+  "out.fastFirstPaint=true"
 ]){assert.ok(r4.includes(needle),needle);tests++;}
+assert.ok(r10.includes("r.canExtend=r.statusKey==='PENDING_PLANNING'&&extMonths>0&&extensionLinked.has(clean(r.auditId))"),'Extension capability must be resolved in async enrichment');tests++;
 
 assert.ok(ui.includes('var months=Number(r.extensionMonths||r.extMonths||0),applied=!!(r.extensionApplied||r.extApplied),pending=r.statusKey==="PENDING_PLANNING",can=!!r.canExtend'), 'Extension UI must trust canonical capability only');tests++;
 assert.ok(ui.includes('displayName+" · "+actorRole'), 'Portal identity must prefer display name');tests++;

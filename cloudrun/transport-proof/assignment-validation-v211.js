@@ -92,7 +92,7 @@ export function v211MinimumIntervalConstraint({logValues,catalog,scopeCodes,comp
       const st=val(row,cs).toUpperCase().replace(/[\s-]+/g,'_');
       if(st&&st!=='COMPLETED'&&st!=='REALIZED')continue;
       const rowUid=val(row,cu),rowCompany=key(val(row,cc));
-      if(uid){if(rowUid!==uid&&rowCompany!==company)continue;}else if(rowCompany!==company)continue;
+      if(uid){if(rowUid){if(rowUid!==uid)continue;}else if(!company||rowCompany!==company)continue;}else if(!company||rowCompany!==company)continue;
       let match=false;
       for(let i=0;i<h.length&&!match;i++)if(aliases.has(key(h[i]))&&yes(row[i]))match=true;
       if(!match&&csl>=0)match=val(row,csl).split(/[,;|]/).some(x=>aliases.has(key(x)));

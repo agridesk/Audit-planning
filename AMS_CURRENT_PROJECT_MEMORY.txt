@@ -53,3 +53,13 @@ ACTION SPEED / 3S
 - Legacy AnnualCycle source applies the same rule.
 - Local npm suite reported all green by user after commits ebba39e1 / ad789501 / a8ac133f / 3b21b153.
 - Cloud Run DEV redeploy still required for server-r4 successor change; GAS source changes are not made live by Cloud Run deployment.
+
+WORK METHOD / USER HANDOFF RULES — 2026-10-10
+- Continue autonomously until actual user intervention/decision is required. No progress-only messages.
+- Keep chat replies short. Explanations only when critical.
+- No snippets / inline scripting for deliverables; when a file is requested, provide a complete downloadable TXT.
+- Work on branch dev. Run/require the full cloudrun/transport-proof npm test suite before deployment. Green means continue automatically; on failure request only the failure output.
+- DEV only unless explicitly authorized otherwise. PROD must never be touched without explicit authorization.
+- Do not make the user perform repetitive/manual DEV deployments as the normal workflow. Prefer an assistant-controlled/CI deployment route. If the available chat tools cannot deploy Cloud Run, batch work and request user action only at the unavoidable final deployment gate. A future session should prioritize establishing a durable automated DEV deploy route (Cloud Build/GitHub trigger or equivalent), while keeping PROD behind an explicit manual authorization gate.
+- Portal entry point is Cloud Run directly; do not send the user through script.google.com for normal portal use.
+- Performance is acceptance-critical: first paint and lifecycle actions should target <=3s and use micro-refresh/direct writes.

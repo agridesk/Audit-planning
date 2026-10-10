@@ -1,0 +1,157 @@
+AMS — CHAT HANDOFF / NEXT CHAT SNAPSHOT
+Date: 2026-10-10
+Branch: dev
+Status: ACTIVE DEVELOPMENT
+PROD: UNTOUCHED
+
+PURPOSE
+Continue AMS development in a new chat without reconstructing this session. Read the current project authorities first and continue autonomously until user intervention is actually required.
+
+CURRENT AUTHORITY — READ FIRST
+1. AMS_MASTER_ROADMAP_V2.11_FINAL_2026-10-04 — canonical roadmap. V2.7 and earlier are NOT current truth.
+2. AMS — MASTER AUDIT GRID 2.0 — SHARED MANAGER / AUDITOR FUNCTIONAL SPECIFICATION — 2026-10-04.
+3. AMS — MY AVAILABILITY 2.0 FINAL FUNCTIONAL HANDOFF SPEC — 2026-10-04.
+4. AMS — ROTATION OVERVIEW 2.0 FINAL FUNCTIONAL HANDOFF SPEC — 2026-10-04.
+5. AMS — COMPANY MANAGEMENT 2.0 FINAL FUNCTIONAL HANDOFF SPEC — 2026-10-04.
+6. AMS — AUDITOR MANAGEMENT 2.0 FINAL FUNCTIONAL HANDOFF SPEC — 2026-10-09.
+7. AMS — SCOPE MANAGEMENT 2.0 FINAL FUNCTIONAL HANDOFF SPEC — 2026-10-09.
+8. AMS — SCOPE CATALOG CAPACITY 20 INTEGRATED DESIGN — 2026-10-09.
+9. Repository: AMS_CURRENT_PROJECT_MEMORY.txt.
+10. Repository: docs/AMS_PRODUCT_BACKLOG_CURRENT.txt.
+11. Repository: docs/AMS_SESSION_FINDINGS_2026-10-05.txt.
+
+USER WORK METHOD — IMPORTANT
+- SHORT answers. Explanations only when critical.
+- Continue automatically until a real user decision/action is required. Do not send progress-only messages.
+- No snippets / inline scripting as deliverables. If a file is requested, provide the COMPLETE file as downloadable TXT.
+- Work on branch dev.
+- After changes, full cloudrun/transport-proof npm test suite must be green before deployment.
+- Green tests => continue. Failure => ask only for the failing output.
+- DEV only unless explicitly authorized. PROD must never be touched without explicit authorization.
+- Portal entry point is Cloud Run directly. Do not route normal portal use through script.google.com.
+- Do not make the user manually deploy every iteration. Prefer assistant-controlled/CI DEV deployment. If no deployment tool is available in the chat, batch work and ask for user action only at the unavoidable final deployment gate.
+- Priority for a future session: establish a durable automatic DEV deployment route (Cloud Build/GitHub trigger or equivalent) if tooling allows. PROD remains behind explicit authorization.
+- If Apps Script execution is ever required manually, always state exact File + Function.
+
+PERFORMANCE RULE
+PERF-001 is active.
+- Common actions and first paint target <=3s.
+- Prefer direct canonical writes + targeted micro-refresh.
+- Avoid full-browser reloads, unnecessary GAS roundtrips, N+1 reads and synchronous non-critical work.
+Latest accepted Manager Grid first paint:
+- Before fix: 112 open audits · 5688 ms base.
+- After fix: 112 open audits · 851 ms base.
+Cause fixed: synchronous R12 enrichment + Model-C extension/link reads were still on first-paint path.
+
+IMPORTANT IMPLEMENTED WORK FROM THIS SESSION
+1. Auditor Complete
+- Available only for Accepted.
+- Assigned Auditor + Manager.
+- Hours dedicated quarter-hour.
+- Recurring successor creation repaired for legacy Model-C cases.
+- MPS-ABC non-recurring completes without successor.
+- User confirmed Complete works.
+- Successor preassignment governance:
+  * Completion/year-cycle must NOT fail solely because inherited preassigned Auditor lost qualification.
+  * Successor still created.
+  * Invalid inherited preassignment removed.
+  * Inherited self-planning disabled.
+  * Manager attention/reason added.
+- Relevant commits include ebba39e1, ad789501, a8ac133f, 3b21b153.
+
+2. BUG-003 assignment/preassignment qualification
+- Scope Manager source now fails closed on new unqualified preassignment through central validation.
+- Existing historical assignments remain; conflict/attention rather than retroactive rewrite.
+- Annual successor + Complete successor revalidate carried preassignment.
+- Root GAS source changes are not made live by Cloud Run deployment; keep that distinction in mind.
+
+3. Auditor/Manager action scoping
+- R10 enrichment must preserve actor-scoped Auditor allowedActions.
+- It must not overwrite Auditor actions with generic Manager lifecycle actions.
+- Commit ddd5f5f6 + regression d149e0c7.
+
+4. Responsive Audit Grid / UX-002
+User feedback:
+- Laptop still required scrolling.
+- Auditor column is redundant in Auditor Grid and should be hidden.
+- Google Maps pin must remain visible.
+- User-configurable columns may be useful later, but are NOT considered the primary solution.
+
+Already implemented before final attempt:
+- Auditor column hidden for Auditor role, open + completed views.
+- Google Maps pin retained.
+- Auditor-specific responsive mode via body.actor-auditor.
+- First responsive reduction passed full npm suite and was deployed/tested by user.
+
+FINAL RESPONSIVE ATTEMPT — SOURCE ONLY, NOT YET TESTED/DEPLOYED
+Commits:
+- d49dbe34 — Force Auditor Grid to fit laptop viewport.
+- 751e0a50 — Contract coverage.
+- 33ee2fbd — Remove nested vertical Grid scrollbar.
+- f68ee97b — Contract coverage.
+Details:
+- Auditor table uses width:100%, min-width:0, table-layout:fixed.
+- Auditor wrapper hides horizontal overflow.
+- Auditor cells can wrap; critical fixed-width controls stay compact.
+- At laptop breakpoint, Auditor Grid hides lower-priority Locations / Expiration / To-be-planned earlier.
+- Region and Self planning already hide at the medium breakpoint.
+- Google Maps pin stays visible.
+- Redundant Auditor column stays hidden.
+- Grid wrapper no longer uses max-height:calc(...); vertical scrolling is page-level instead of an inner/nested table scrollbar.
+NEXT ACTION:
+1. Pull latest dev.
+2. Run full npm test.
+3. If green, deploy DEV once.
+4. Test Auditor Grid on actual laptop.
+5. If no sideways/nested Grid scroll remains and map pin is visible => close UX-002.
+6. If still overflowing, do NOT add generic column customization first. Inspect actual viewport width and specific remaining width consumers; preserve map pin and critical lifecycle/action columns.
+
+LATEST TEST STATE
+- User reported full npm suite green immediately BEFORE the final responsive attempt above.
+- Therefore commits d49dbe34 / 751e0a50 / 33ee2fbd / f68ee97b still require a fresh full npm test.
+- Do not claim they are green until tested.
+
+DEPLOYMENT
+Known DEV service:
+- Project: audit-management-system-dev
+- Region: europe-west1
+- Cloud Run service: ams-transport-proof
+- Portal: https://ams-transport-proof-510075419067.europe-west1.run.app/
+Known manual fallback command, ONLY if unavoidable:
+  cd /d C:\Users\Gebruiker\Audit-planning\cloudrun\transport-proof
+  gcloud run deploy ams-transport-proof --source . --project audit-management-system-dev --region europe-west1 --quiet
+Do not use partial --set-env-vars; that previously risked environment wipe.
+Do not touch PROD.
+
+CURRENT OPEN / ACCEPTANCE ITEMS
+- UX-002 Responsive Audit Grid: final source attempt pending test/deploy/laptop acceptance.
+- BUG-001 Auditor Plan requires Self planning=Yes: deployed earlier, acceptance bookkeeping pending.
+- BUG-002 Auditor visibility follows Assigned to after planning: deployed earlier, acceptance bookkeeping pending.
+- HARD-001 Extension control only when canonical Model-C linkage exists: deployed earlier, acceptance bookkeeping pending.
+- UX-001 logged-in display name: visually observed working, closure bookkeeping pending.
+- UX-003 calendar labels: implementation deployed, acceptance pending.
+- UX-004 multiple audits/day labels: implementation deployed, acceptance pending.
+- UX-005 minimum interval/expired-window wording: implementation deployed, acceptance pending.
+- DEC-001 UI label for canonical ACCEPTED remains open.
+- BL-001 qualification-change impact check open.
+- BL-002 Auditor Management 2.0 implementation not yet done.
+- BL-003 Scope Management 2.0 implementation not yet done.
+- Scope Catalog Capacity 20 design baseline exists; implementation not yet done.
+
+CANONICAL LIFECYCLE REMINDER
+Pending Planning -> Pending Approval -> Approved -> Accepted -> Completed.
+Manager plan: Pending Planning -> Approved -> Auditor Accept -> Accepted.
+Auditor self-plan: Pending Planning -> Pending Approval -> Manager Approve -> Accepted; no redundant Auditor Accept.
+Cancel returns to Pending Planning under allowed actor/status rules.
+Complete only from Accepted.
+Rejected is terminal.
+Re-adjust is an action/mode, not a status.
+
+DO NOT LOSE
+- Speed matters as much as functional correctness.
+- Micro-refresh, no row shuffling after actions.
+- Cancel/Reject comments must be communicated cross-actor.
+- Completed lifecycle immutable except governed realized-hours editing where specified.
+- New assignment/preassignment to unqualified Auditor hard-blocks every mutation route; no Manager override.
+- Existing assignments that later become unqualified remain with conflict alert.
+- Old roadmaps V2.7 and earlier are not current authority.

@@ -52,9 +52,9 @@ assert.ok(ui.includes('var months=Number(r.extensionMonths||r.extMonths||0),appl
 assert.ok(ui.includes('displayName+" · "+actorRole'), 'Portal identity must prefer display name');tests++;
 assert.ok(ui.includes('Planning window expired · ended '),'Expired planning window must be user-facing');tests++;
 assert.ok(ui.includes('No valid execution date in this planning window · minimum interval'),'Minimum interval conflict must be user-facing');tests++;
-assert.ok(ui.includes('class=\"region-head\"')&&ui.includes('class=\"region-cell\"'),'Open grid must expose responsive Region column hooks');tests++;
-assert.ok(ui.includes('class=\"expiry-head\"')&&ui.includes('class=\"expiry-cell\"'),'Open grid must expose responsive Expiry column hooks');tests++;
-assert.ok(ui.includes('class=\"required-head\"')&&ui.includes('class=\"required-cell\"'),'Open grid must expose responsive required-hours hooks');tests++;
+assert.ok(ui.includes('region-head')&&ui.includes('region-cell'),'Open grid must expose responsive Region column hooks');tests++;
+assert.ok(ui.includes('expiry-head')&&ui.includes('expiry-cell'),'Open grid must expose responsive Expiry column hooks');tests++;
+assert.ok(ui.includes('required-head')&&ui.includes('required-cell'),'Open grid must expose responsive required-hours hooks');tests++;
 assert.ok(html.includes('@media (max-width:1500px)')&&html.includes('@media (max-width:1200px)'),'Audit Grid must define laptop responsive breakpoints');tests++;
 assert.ok(html.includes('.region-head,.region-cell,.map-head,.map-cell,.self-head,.self-cell{display:none}'),'Medium laptop view must compact lower-priority columns');tests++;
 assert.ok(html.includes('.locations-head,.locations-cell,.expiry-head,.expiry-cell,.required-head,.required-cell{display:none}'),'Small laptop view must further compact lower-priority columns');tests++;

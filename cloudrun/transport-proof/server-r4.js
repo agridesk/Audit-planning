@@ -706,13 +706,27 @@ function directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companySco
   const out=[],used=new Set(),companyScopeWrites=[];
   for(const def of activeDefs){
     const code=clean(def.scopeCode||def.displayName||def.slotKey),aliases=new Set([def.scopeCode,def.displayName,def.slotKey].map(key).filter(Boolean));
-    let csRow=null;
+    let csRow=null,companyScopeId='';
     for(let i=1;i<companyScopes.length;i++){
       const rr=companyScopes[i],active=csActive<0||yes(rr[csActive]);
       if(active&&val(rr,csUid)===companyUid&&aliases.has(key(val(rr,csCode)))){csRow=rr;break;}
     }
-    if(!csRow)throw new Error('MODEL_C_COMPANY_SCOPE_NOT_FOUND_'+code);
-    const companyScopeId=val(csRow,csId);
+    if(csRow)companyScopeId=val(csRow,csId);
+    else if(def.recurring===true)throw new Error('MODEL_C_COMPANY_SCOPE_NOT_FOUND_'+code);
+    else{
+      companyScopeId='CS_'+createHash('sha256').update('LEGACY_COMPLETE|'+companyUid+'|'+code).digest('hex').slice(0,32);
+      const nr=new Array(csH.length).fill('');
+      directSetByHeader(csH,nr,['Company_Scope_ID','Company Scope ID'],companyScopeId);
+      directSetByHeader(csH,nr,['Company_UID','Company UID'],companyUid);
+      directSetByHeader(csH,nr,['ScopeCode','Scope Code'],code);
+      directSetByHeader(csH,nr,['Active'],'YES');
+      directSetByHeader(csH,nr,['Lifecycle_Type','Lifecycle Type'],'NON_RECURRING');
+      directSetByHeader(csH,nr,['Source_Audit_ID'],auditId);
+      directSetByHeader(csH,nr,['Created_At','Created At'],stamp);
+      directSetByHeader(csH,nr,['Updated_At','Updated At'],stamp);
+      const rowNo=companyScopes.length+companyScopeWrites.length+1;
+      companyScopeWrites.push({range:'Company_Scopes!A'+rowNo+':'+a1col(csH.length)+rowNo,values:[nr]});
+    }
     let existing=null;
     for(let i=1;i<obs.length;i++){
       const rr=obs[i],obId=val(rr,oi);

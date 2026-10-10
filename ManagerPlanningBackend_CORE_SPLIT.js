@@ -942,38 +942,23 @@ function saveManagerPlanning(auditId, payload) {
     })();
     var __qPreassigned = (__qColPreAssign >= 0) ? String(__qRow[__qColPreAssign] || '').trim() : '';
 
-    var __qAuditors = null;
+    // BUG-003: canonical direct qualification check, not dropdown membership.
+    // This is a mutation path: reject if the authoritative guard is unavailable.
+    if (typeof _mp_assertAuditorQualifiedForPlanning_ !== 'function') {
+      throw new Error('Missing canonical direct qualification guard');
+    }
+    var __qDirect = _mp_assertAuditorQualifiedForPlanning_(
+      __qSs, __qHdr, __qRow, auditorEmail, auditorName
+    );
+    var __qOk = !!(__qDirect && __qDirect.success === true);
     var __qCacheHit = false;
-
-    // BUG-003: mutation path bypasses read-only qualification dropdown cache.
-    // Recompute canonical qualification on each planning SAVE.
-    if (!Array.isArray(__qAuditors)) {
-      if (typeof _mp_getQualifiedAuditorsFastList_ !== 'function') {
-        throw new Error('Missing _mp_getQualifiedAuditorsFastList_ for save qualification guard');
-      }
-      __qAuditors = _mp_getQualifiedAuditorsFastList_(__qSs, __qRequiredScopes, __qPreassigned, { auditId: auditId });
-      // No cache write from a mutation path.
-    }
-
-    var __qNeedEmail = V5_normalizeEmail_(auditorEmail);
-    var __qNeedName = String(auditorName || '').trim().toLowerCase();
-    var __qOk = false;
-
-    for (var __qa = 0; __qa < (__qAuditors || []).length; __qa++) {
-      var __a = __qAuditors[__qa] || {};
-      var __em = V5_normalizeEmail_(__a.email || '');
-      var __nm = String(__a.name || '').trim().toLowerCase();
-      if ((__qNeedEmail && __em === __qNeedEmail) || (__qNeedName && __nm === __qNeedName)) {
-        __qOk = true;
-        break;
-      }
-    }
-
+    var __qAuditors = [];
+    
     __stamp('qualificationGuard', {
       ok: __qOk,
       requiredScopes: __qRequiredScopes,
       fastQualifiedCacheHit: __qCacheHit,
-      candidates: Array.isArray(__qAuditors) ? __qAuditors.length : 0
+      check: 'DIRECT_HARD_QUALIFICATION'
     });
 
     if (!__qOk) {

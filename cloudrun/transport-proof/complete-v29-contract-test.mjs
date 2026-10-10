@@ -50,7 +50,7 @@ assert.match(baseServer,/Audit_Obligations!A/,'Direct Complete must update Model
 assert.match(baseServer,/Audit_Visit_Obligations!A/,'Direct Complete must update Model C visit links');
 assert.match(baseServer,/successorRows/,'Direct Complete response must carry successor rows for micro-refresh');
 assert.match(baseServer,/v211AuditorQualified\(auditors,cfg,successorScopeCodes,qualifiedEmail\)/,'Canonical successor carry-over must revalidate resolved auditor email qualification');
-assert.match(baseServer,/matchedByName\.length===1/,'Legacy name-only successor identity must resolve uniquely or fail closed');
+assert.match(baseServer,/v211ResolveAuditorEmail\(auditors,requestedPreassigned\)/,'Legacy successor identity must use the canonical fail-closed resolver');
 assert.match(baseServer,/Preassignment removed for successor: auditor is no longer qualified/,'Invalid successor preassignment must become Manager attention instead of blocking Complete');
 assert.match(baseServer,/if\(preassignmentRemoved\)item\.allowSelfPlanning='NO'/,'Invalid successor preassignment must disable inherited self-planning');
 assert.match(annualCycle,/carryCheck = _mp_assertAuditorQualifiedForPlanning_\(ss, headers, newRow,\s*carryIsEmail/, 'Legacy annual successor must revalidate carried preassignment using the correct identity type');

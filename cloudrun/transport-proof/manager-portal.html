@@ -9,6 +9,19 @@ body{font-family:system-ui;margin:0;background:#f4f5f7;color:#111827}header{back
 .select-cell,.select-head{width:34px;min-width:34px;text-align:center;padding-left:4px;padding-right:4px}
 .selection-bar{display:none;align-items:center;gap:7px;margin:8px 0;padding:7px 9px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:7px;font-size:12px}
 .selection-bar.visible{display:flex}.selection-bar .count{font-weight:700;margin-right:4px}.selection-bar button,.selection-bar select{padding:5px 8px;border:1px solid #c7d2fe;border-radius:5px;background:white;font-size:11px;cursor:pointer}.selection-bar button.primary{background:#2563eb;border-color:#2563eb;color:white}
+@media (max-width:1500px){
+  table{min-width:1250px}
+  .region-head,.region-cell,.map-head,.map-cell,.self-head,.self-cell{display:none}
+  .company-cell{max-width:210px}.scopes-cell{max-width:150px}.window-cell{min-width:170px}.actions-cell{min-width:150px}
+}
+@media (max-width:1200px){
+  main{padding:12px}.cards{gap:6px}.card{padding:8px 10px;min-width:105px}
+  #q{min-width:220px!important;flex:1 1 220px}
+  table{min-width:930px;font-size:11px}
+  th,td{padding:5px}
+  .locations-head,.locations-cell,.expiry-head,.expiry-cell,.required-head,.required-cell{display:none}
+  .company-cell{max-width:180px}.scopes-cell{max-width:135px}.window-cell{min-width:155px}.actions-cell{min-width:135px}
+}
 </style>
 </head>
 <body>

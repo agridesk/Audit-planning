@@ -811,7 +811,7 @@ async function directComplete(identity,body,actorRole){
       }
       const repair=directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companyScopes,companyUid,stamp);activeLinks=repair.activeLinks||[];var legacyCompanyScopeWrites=repair.companyScopeWrites||[];
     }
-    const obById=new Map();for(let i=1;i<obs.length;i++)obById.set(val(obs[i],oi),{row:i+1,values:obs[i].slice()});for(const link of activeLinks)if(link.obValues)obById.set(link.obId,{row:link.obRow,values:link.obValues});
+    const obById=new Map();for(let i=1;i<obs.length;i++)obById.set(val(obs[i],oi),{row:i+1,values:obs[i].slice()});for(const link of activeLinks)if(link.obValues)obById.set(link.obId,{row:link.obRow,values:link.obValues.slice()});for(const link of activeLinks)if(link.obValues)obById.set(link.obId,{row:link.obRow,values:link.obValues});
 
     const successorItems=[],obligationWrites=[],linkWrites=[];let completedFormalHours=0;
     for(const link of activeLinks){

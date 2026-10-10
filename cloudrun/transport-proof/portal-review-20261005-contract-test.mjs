@@ -67,6 +67,7 @@ assert.ok(!html.includes('.region-head,.region-cell,.map-head,.map-cell,.self-he
 assert.ok(!html.includes('.region-head,.region-cell,.map-head,.map-cell,.self-head,.self-cell{display:none}'),'Laptop breakpoint must not hide Google Maps pin');tests++;
 assert.ok(html.includes('body.actor-auditor .locations-head,body.actor-auditor .locations-cell')&&html.includes('body.actor-auditor .required-head,body.actor-auditor .required-cell{display:none}'),'Auditor Grid must hide secondary columns earlier on laptop');tests++;
 assert.ok(html.includes('body.actor-auditor table{min-width:0;width:100%;table-layout:fixed}')&&html.includes('body.actor-auditor .table-wrap{overflow-x:hidden}'),'Auditor Grid must fit the laptop viewport without horizontal scrolling');tests++;
+assert.ok(html.includes('.table-wrap{overflow-x:auto;overflow-y:visible')&&html.includes('max-height:none'),'Grid must use page vertical scrolling instead of a nested vertical table scrollbar');tests++;
 
 for(const forbidden of ["'FULLY UNAVAILABLE'","'PARTLY OCCUPIED'","'SOFT WARNING'","'YES')+'</div>'"]){
   assert.equal(r5.includes(forbidden),false,'Legacy calendar label remains: '+forbidden);tests++;

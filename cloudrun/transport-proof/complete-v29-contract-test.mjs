@@ -101,3 +101,5 @@ assert.doesNotMatch(auditorPortal,/CURRENT_ROWS\.splice\(idx, 1\);\s*renderGrid\
 console.log('Complete V2.9 contract test passed');
 
 assert.match(baseServer,/s==='yes'\|\|s==='true'\|\|s==='1'\|\|s==='ja'/,'Grid self-planning parser must recognize Yes and Ja sheet values');
+
+assert.match(baseServer,/preassignedAuditorDisplayName:directAuditorDisplayName\(audValues,val\(row,cp\)\),allowSelfPlanning:yes\(val\(row,cself\)\)/,'Manager Grid open rows must project self-planning as a boolean, not the sheet string');

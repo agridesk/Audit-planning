@@ -31,7 +31,7 @@ body.actor-auditor .actions-cell .act{max-width:100%;white-space:normal;padding:
   .table-wrap{overflow-x:clip;overflow-y:visible;max-width:100%}
   table{min-width:0;width:100%;max-width:100%;table-layout:fixed;font-size:11px}
   th,td{padding:5px;white-space:normal;overflow-wrap:anywhere}
-  .region-head,.region-cell,.locations-head,.locations-cell,.self-head,.self-cell{display:none}
+  /* Region, Locations and Self remain visible for both actors on laptops. */
   .select-head,.select-cell{width:30px;min-width:30px}
   .map-head,.map-cell{display:table-cell;width:30px;min-width:30px}
   .alert-head,.alert-cell{width:32px;min-width:32px}
@@ -44,8 +44,7 @@ body.actor-auditor .actions-cell .act{max-width:100%;white-space:normal;padding:
   .actions-cell{width:15%;min-width:0;white-space:normal}
   .actions-cell .act{white-space:nowrap;padding:3px 5px;font-size:10px}
   body.actor-auditor .auditor-head,body.actor-auditor .auditor-cell{display:none}
-  body.actor-auditor .expiry-head,body.actor-auditor .expiry-cell,
-  body.actor-auditor .required-head,body.actor-auditor .required-cell{display:none}
+  body.actor-auditor .expiry-head,body.actor-auditor .expiry-cell{display:none}
   body.actor-auditor .company-cell{width:22%}
   body.actor-auditor .scopes-cell{width:13%}
   body.actor-auditor .window-cell{width:22%}
@@ -56,12 +55,13 @@ body.actor-auditor .actions-cell .act{max-width:100%;white-space:normal;padding:
   #q{min-width:180px!important;flex:1 1 180px}
   table{font-size:10px}
   th,td{padding:4px}
-  .expiry-head,.expiry-cell,.required-head,.required-cell{display:none}
+  .expiry-head,.expiry-cell{display:none}
   .company-cell{width:20%}
   .scopes-cell{width:12%}
   .window-cell{width:20%}
   .auditor-head,.auditor-cell{width:12%}
   .actions-cell{width:17%}
+  body.actor-auditor .required-head,body.actor-auditor .required-cell{display:table-cell}
 }
 </style>
 </head>

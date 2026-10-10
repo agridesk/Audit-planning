@@ -40,3 +40,9 @@ CURRENT REVIEW IMPLEMENTATION BATCH — DEPLOYED TO DEV 2026-10-10; ACCEPTANCE P
 - Regression/stress contracts added.
 
 This file exists specifically so future project sessions can discover the backlog and current state without relying on chat memory.
+
+
+ACTION SPEED / 3S
+- User explicitly reconfirmed on 2026-10-10 that action speed remains a key acceptance criterion.
+- Lifecycle actions such as Complete, Cancel, Reject, Approve and Accept should use direct canonical writes plus targeted micro-refresh; avoid full reloads and unnecessary synchronous side work.
+- Functional correctness is not sufficient if common actions feel slow.

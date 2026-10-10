@@ -49,6 +49,9 @@ assert.match(baseServer,/Audit_Obligations!A/,'Direct Complete must update Model
 assert.match(baseServer,/Audit_Visit_Obligations!A/,'Direct Complete must update Model C visit links');
 assert.match(baseServer,/successorRows/,'Direct Complete response must carry successor rows for micro-refresh');
 assert.match(baseServer,/directExistingSuccessorRows/,'Idempotent Complete retry must recover existing successor rows for UI patch');
+assert.match(baseServer,/function directRepairMissingCompleteLinks/,'Accepted legacy rows without active Model C links must have a controlled completion repair path');
+assert.match(baseServer,/activeLinks=directRepairMissingCompleteLinks/,'Direct Complete must invoke controlled Model C repair before failing missing-link legacy rows');
+assert.doesNotMatch(baseServer,/if\(!existingLogRow\)throw new Error\('MODEL_C_NO_ACTIVE_OBLIGATIONS_FOR_COMPLETE'\)/,'Missing-link Accepted rows must no longer hard-fail before repair');
 assert.match(baseServer,/activeLinkExists/,'Successor recovery must avoid duplicate active visit links');
 assert.match(baseServer,/seenActiveObIds/,'Complete must deduplicate malformed duplicate active links before finalization');
 assert.match(baseServer,/existingOb/,'Successor recovery must reuse existing recurring obligations');

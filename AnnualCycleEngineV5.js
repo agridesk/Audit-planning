@@ -139,7 +139,11 @@ function AnnualCycleEngineV5_HandleCompletionRow_(planningRowObj) {
     var carryQualificationOk = false;
     if (carryPreassigned && typeof _mp_assertAuditorQualifiedForPlanning_ === 'function') {
       try {
-        var carryCheck = _mp_assertAuditorQualifiedForPlanning_(ss, headers, newRow, carryPreassigned, '');
+        // Historical preassignments may contain a display name instead of an email.
+        // Preserve the identity type when invoking the canonical qualification owner.
+        var carryIsEmail = carryPreassigned.indexOf('@') >= 0;
+        var carryCheck = _mp_assertAuditorQualifiedForPlanning_(ss, headers, newRow,
+          carryIsEmail ? carryPreassigned : '', carryIsEmail ? '' : carryPreassigned);
         carryQualificationOk = !!(carryCheck && carryCheck.success === true);
       } catch (carryErr) {
         carryQualificationOk = false;

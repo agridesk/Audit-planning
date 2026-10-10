@@ -65,7 +65,8 @@ assert.ok(ui.includes('auditor-head')&&ui.includes('auditor-cell'),'Auditor colu
 assert.ok(html.includes('body.actor-auditor .auditor-head,body.actor-auditor .auditor-cell{display:none}'),'Auditor Grid must hide redundant Auditor column');tests++;
 assert.ok(!html.includes('.region-head,.region-cell,.map-head,.map-cell,.self-head,.self-cell{display:none}'),'Auditor Grid must retain the Map column at laptop breakpoint');tests++;
 assert.ok(!html.includes('.region-head,.region-cell,.map-head,.map-cell,.self-head,.self-cell{display:none}'),'Laptop breakpoint must not hide Google Maps pin');tests++;
-assert.ok(html.includes('body.actor-auditor table{min-width:1020px}')&&html.includes('body.actor-auditor table{min-width:820px}'),'Auditor Grid must use tighter laptop widths');tests++;
+assert.ok(html.includes('body.actor-auditor .locations-head,body.actor-auditor .locations-cell')&&html.includes('body.actor-auditor .required-head,body.actor-auditor .required-cell{display:none}'),'Auditor Grid must hide secondary columns earlier on laptop');tests++;
+assert.ok(html.includes('body.actor-auditor table{min-width:0;width:100%;table-layout:fixed}')&&html.includes('body.actor-auditor .table-wrap{overflow-x:hidden}'),'Auditor Grid must fit the laptop viewport without horizontal scrolling');tests++;
 
 for(const forbidden of ["'FULLY UNAVAILABLE'","'PARTLY OCCUPIED'","'SOFT WARNING'","'YES')+'</div>'"]){
   assert.equal(r5.includes(forbidden),false,'Legacy calendar label remains: '+forbidden);tests++;
@@ -74,4 +75,4 @@ for(const required of ["'Unavailable'","'Partly unavailable'","'Auditor less ava
   assert.ok(r5.includes(required),'Missing calendar UX token: '+required);tests++;
 }
 
-console.log(JSON.stringify({ok:true,build:'2026-10-10_PORTAL_REVIEW_HARDENING_CONTRACT_R4',tests,writesPerformed:false}));
+console.log(JSON.stringify({ok:true,build:'2026-10-10_PORTAL_REVIEW_HARDENING_CONTRACT_R5',tests,writesPerformed:false}));

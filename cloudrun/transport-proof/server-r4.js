@@ -750,7 +750,7 @@ function directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companySco
     else{linkRow=links.length+out.filter(x=>x.syntheticLink).length+1;linkValues=new Array(lh.length).fill('');linkValues[la]=auditId;linkValues[lo]=obId;linkValues[ls]='ACTIVE';if(lli>=0)linkValues[lli]=stamp;}
     out.push({row:linkRow,obId,values:linkValues,obRow,obValues,syntheticOb:!existing,syntheticLink:!linkPack});
   }
-  return out;
+  return{activeLinks:out,companyScopeWrites};
 }
 
 async function directComplete(identity,body,actorRole){

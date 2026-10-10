@@ -73,6 +73,20 @@ const min=v211MinimumIntervalConstraint({
 assert.equal(min.byScope.find(x=>x.scopeCode==='MPS-ABC').minPlanningDate,'2026-07-31');
 assert.equal(min.byScope.find(x=>x.scopeCode==='MPS-GAP').minPlanningDate,'2026-10-15');
 assert.equal(min.minPlanningDate,'2026-10-15');
+const sameNameDifferentUid=[
+  ...log,
+  ['C2','Grower A','Completed','2026-09-01','x','','']
+];
+assert.equal(v211MinimumIntervalConstraint({
+  logValues:sameNameDifferentUid,catalog,scopeCodes:['MPS-ABC'],companyUid:'C1',companyName:'Grower A'
+}).minPlanningDate,'2026-07-31');
+assert.equal(v211MinimumIntervalConstraint({
+  logValues:sameNameDifferentUid,catalog,scopeCodes:['MPS-ABC'],companyUid:'C2',companyName:'Grower A'
+}).minPlanningDate,'2027-03-01');
+assert.equal(v211MinimumIntervalConstraint({
+  logValues:log,catalog,scopeCodes:['MPS-ABC'],companyUid:'UNKNOWN',companyName:''
+}).minPlanningDate,'');
+
 
 const hard=v211AssignmentHardCheck({
   auditorEmail:'david@example.com',

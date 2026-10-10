@@ -121,6 +121,15 @@ export function v211RotationHardCheck(rotationResult){
   return{ok:reasons.length===0,reasons};
 }
 
+function v211CompanyIdentityAmbiguous(values,companyUid,companyName){
+  if(!Array.isArray(values)||!values.length)return false;
+  const h=values[0],cu=col(h,['Company_UID','Company UID','UID']),cn=col(h,['Company']);
+  const uid=key(companyUid),name=key(companyName);
+  if(uid&&cu>=0)return values.slice(1).filter(r=>key(val(r,cu))===uid).length!==1;
+  if(name&&cn>=0)return values.slice(1).filter(r=>key(val(r,cn))===name).length!==1;
+  return true;
+}
+
 export function v211AssignmentHardCheck({
   auditorEmail,
   auditorValues,
@@ -133,6 +142,7 @@ export function v211AssignmentHardCheck({
   requestedDates
 }={}){
   const reasons=[];
+  if(v211CompanyIdentityAmbiguous(companyValues||[],companyUid,companyName))reasons.push('COMPANY_IDENTITY_AMBIGUOUS');
   if(!v211AuditorQualified(auditorValues||[],catalog||[],scopeCodes||[],auditorEmail))reasons.push('AUDITOR_NOT_HARD_QUALIFIED');
   if(v211CompanyAuditorExclusions(companyValues||[],companyUid,companyName).has(clean(auditorEmail).toLowerCase()))reasons.push('AUDITOR_EXCLUDED_FOR_COMPANY');
   const minInterval=v211MinimumIntervalConstraint({logValues:logValues||[],catalog:catalog||[],scopeCodes:scopeCodes||[],companyUid,companyName});

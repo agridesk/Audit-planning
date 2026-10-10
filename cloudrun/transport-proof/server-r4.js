@@ -703,7 +703,7 @@ function directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companySco
   const activeDefs=(cfg||[]).filter(def=>[def.slotKey,def.scopeCode,def.displayName].some(k=>{const ix=col(h,[k]);return ix>=0&&yes(row[ix]);}));
   if(!activeDefs.length)throw new Error('MODEL_C_LEGACY_COMPLETE_REPAIR_NO_SCOPES');
   const baseExpiry=directIsoDate(val(row,col(h,['Date - Will Expire','Date – Will Expire','Will Expire']))),effectiveExpiry=directIsoDate(val(row,col(h,['Extended Expiration Date'])))||baseExpiry,windowFrom=directIsoDate(val(row,col(h,['Planning window from','Planning Window From']))),windowTo=directIsoDate(val(row,col(h,['Planning window to','Planning Window To']))),plannedDate=directIsoDate(val(row,col(h,['Date - Planned','Date planned','Date Planned']))),preassigned=val(row,col(h,['Preassigned Auditor','Preassigned auditor'])),allowSelfPlanning=val(row,col(h,['Allow self planning','Allow Self Planning','Self planning','Self Planning']));
-  const out=[],used=new Set();
+  const out=[],used=new Set(),companyScopeWrites=[];
   for(const def of activeDefs){
     const code=clean(def.scopeCode||def.displayName||def.slotKey),aliases=new Set([def.scopeCode,def.displayName,def.slotKey].map(key).filter(Boolean));
     let csRow=null;

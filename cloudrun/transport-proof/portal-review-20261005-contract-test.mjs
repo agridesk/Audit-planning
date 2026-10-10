@@ -66,9 +66,10 @@ assert.ok(html.includes('body.actor-auditor .auditor-head,body.actor-auditor .au
 assert.ok(!html.includes('.region-head,.region-cell,.map-head,.map-cell,.self-head,.self-cell{display:none}'),'Auditor Grid must retain the Map column at laptop breakpoint');tests++;
 assert.ok(!html.includes('.region-head,.region-cell,.map-head,.map-cell,.self-head,.self-cell{display:none}'),'Laptop breakpoint must not hide Google Maps pin');tests++;
 assert.ok(html.includes('body.actor-auditor .expiry-head,body.actor-auditor .expiry-cell')&&html.includes('body.actor-auditor .required-head,body.actor-auditor .required-cell{display:none}'),'Auditor Grid must hide secondary columns earlier on laptop');tests++;
-assert.ok(html.includes('table{min-width:0;width:100%;max-width:100%;table-layout:fixed')&&html.includes('.table-wrap{overflow-x:hidden;max-width:100%}'),'Laptop Grid must fit the viewport without horizontal scrolling');tests++;
-assert.ok(html.includes('body{overflow-x:hidden}')&&html.includes('main{padding:12px;min-width:0;overflow-x:hidden}'),'Laptop Grid must not create page-level horizontal overflow');tests++;
-assert.ok(html.includes('body.actor-auditor .actions-cell{white-space:normal;overflow:hidden}')&&html.includes('font-size:10px'),'Auditor action controls must stay inside their fixed-width cell');tests++;
+assert.ok(html.includes('body.actor-auditor .table-wrap{overflow-x:clip;overflow-y:visible;width:100%;max-width:100%}')&&html.includes('body.actor-auditor table{min-width:0;width:100%;max-width:100%;table-layout:fixed}'),'Auditor Grid must not create a nested horizontal scroll container');tests++;
+assert.ok(html.includes('body.actor-auditor{overflow-x:clip}')&&html.includes('body.actor-auditor main{min-width:0;max-width:100%;overflow-x:clip}')&&html.includes('body.actor-auditor main>*{min-width:0;max-width:100%}'),'Auditor Grid must not create page-level horizontal overflow');tests++;
+assert.ok(html.includes('.selection-bar{display:none;align-items:center;gap:7px;flex-wrap:wrap;min-width:0;max-width:100%}')&&html.includes('class="grid-toolbar"'),'Auditor Grid controls must wrap inside the viewport');tests++;
+assert.ok(html.includes('body.actor-auditor .actions-cell{width:15%;min-width:0;white-space:normal;overflow:visible}')&&html.includes('body.actor-auditor .actions-cell .act{max-width:100%;white-space:normal'),'Auditor action controls must wrap instead of forcing or clipping overflow');tests++;
 assert.ok(html.includes('.table-wrap{overflow-x:auto;overflow-y:visible')&&html.includes('max-height:none'),'Grid must use page vertical scrolling instead of a nested vertical table scrollbar');tests++;
 
 for(const forbidden of ["'FULLY UNAVAILABLE'","'PARTLY OCCUPIED'","'SOFT WARNING'","'YES')+'</div>'"]){
@@ -78,4 +79,4 @@ for(const required of ["'Unavailable'","'Partly unavailable'","'Auditor less ava
   assert.ok(r5.includes(required),'Missing calendar UX token: '+required);tests++;
 }
 
-console.log(JSON.stringify({ok:true,build:'2026-10-10_PORTAL_REVIEW_HARDENING_CONTRACT_R7',tests,writesPerformed:false}));
+console.log(JSON.stringify({ok:true,build:'2026-10-10_PORTAL_REVIEW_HARDENING_CONTRACT_R8',tests,writesPerformed:false}));

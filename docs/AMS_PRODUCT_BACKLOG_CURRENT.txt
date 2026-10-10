@@ -233,3 +233,11 @@ PERF ACCEPTANCE MEASUREMENTS — 2026-10-10
 - Extension Apply: 4551 ms — exceeds 3S target and is a performance defect.
 - Extension Undo: 1181 ms — acceptable.
 - Priority: investigate Extension Apply hot path first; then ACCEPT read latency and COMPLETE write/delete latency.
+
+PERF ACCEPTANCE RECHECK — 2026-10-10
+- User accepted current DEV responsiveness as sufficient for now.
+- ACCEPT: 854 ms total (Cloud Run 762; read 317; write 200; queue 237; patch 2).
+- COMPLETE: 1878 ms total (Cloud Run 1747; read 787; write 234; delete 472; queue 208; availability rows 2; patch 2).
+- Extension Apply: 3522 ms.
+- Extension Undo: 844 ms.
+- Current status: accepted for continued development; retain PERF-001 as regression guard. Do not allow these action times to drift upward unnoticed.

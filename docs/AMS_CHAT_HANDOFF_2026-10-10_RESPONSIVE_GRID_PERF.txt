@@ -188,3 +188,12 @@ Complete:
 - Google Maps pin remains available in Auditor Grid.
 - Auditor column remains absent in Auditor Grid.
 - PROD untouched.
+
+
+10. FINAL STATE AT CHAT HANDOFF
+- User requested one final laptop-width attempt before switching chats.
+- Latest source batch remains 4b697376 + a1c1504b.
+- This batch is intentionally the last blind CSS attempt. If laptop overflow remains after deployment, the next chat must inspect the actual DOM/viewport overflow source instead of continuing speculative CSS changes.
+- The user explicitly does not want to keep performing routine DEV deployments. Next chat should first look for an assistant-controlled deployment route (existing Cloud Build trigger / GitHub integration / Work browser access). Only ask the user to deploy when no connected route is available and deployment is the final unavoidable action.
+- Do not ask the user to re-explain the work method; use this snapshot + AMS_CURRENT_PROJECT_MEMORY.txt + docs/AMS_PRODUCT_BACKLOG_CURRENT.txt.
+- Next operational sequence: pull latest dev -> full npm test -> DEV deploy -> laptop visual check. PROD untouched.

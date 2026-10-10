@@ -2,6 +2,7 @@ import fs from 'node:fs';
 const manager=fs.readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const html=fs.readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
 const r10=fs.readFileSync(new URL('./server-r10.js',import.meta.url),'utf8');
+const r12=fs.readFileSync(new URL('./server-r12.js',import.meta.url),'utf8');
 const r4=fs.readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const recoverExtensionStart=manager.indexOf('function recoverExtension');
 const runExtensionStart=manager.indexOf('function runExtension');

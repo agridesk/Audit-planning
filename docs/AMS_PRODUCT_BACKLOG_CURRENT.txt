@@ -226,3 +226,10 @@ Status: ACTIVE ACCEPTANCE CRITERION
 - Complete, Cancel, Reject, Approve, Accept and similar grid actions should remain direct, bounded and micro-refresh based.
 - Avoid full-browser refreshes, unnecessary GAS roundtrips, N+1 reads and synchronous non-critical side effects on the hot path.
 - Treat noticeable latency regressions as defects even when the action is functionally correct.
+
+PERF ACCEPTANCE MEASUREMENTS — 2026-10-10
+- ACCEPT: 2863 ms total (Cloud Run 2782; read 1757; write 259; queue 684).
+- COMPLETE: 2506 ms total (Cloud Run 2409; read 588; write 1126; delete 442; queue 237; availability rows 2; patch 2).
+- Extension Apply: 4551 ms — exceeds 3S target and is a performance defect.
+- Extension Undo: 1181 ms — acceptable.
+- Priority: investigate Extension Apply hot path first; then ACCEPT read latency and COMPLETE write/delete latency.

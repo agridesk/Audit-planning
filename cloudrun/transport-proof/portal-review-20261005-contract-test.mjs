@@ -5,6 +5,7 @@ import {v211ActorCapabilities} from './actor-capabilities-v211.js';
 const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const r5=readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
 const ui=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+const html=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
 
 let tests=0;
 
@@ -51,6 +52,12 @@ assert.ok(ui.includes('var months=Number(r.extensionMonths||r.extMonths||0),appl
 assert.ok(ui.includes('displayName+" · "+actorRole'), 'Portal identity must prefer display name');tests++;
 assert.ok(ui.includes('Planning window expired · ended '),'Expired planning window must be user-facing');tests++;
 assert.ok(ui.includes('No valid execution date in this planning window · minimum interval'),'Minimum interval conflict must be user-facing');tests++;
+assert.ok(ui.includes('class=\"region-head\"')&&ui.includes('class=\"region-cell\"'),'Open grid must expose responsive Region column hooks');tests++;
+assert.ok(ui.includes('class=\"expiry-head\"')&&ui.includes('class=\"expiry-cell\"'),'Open grid must expose responsive Expiry column hooks');tests++;
+assert.ok(ui.includes('class=\"required-head\"')&&ui.includes('class=\"required-cell\"'),'Open grid must expose responsive required-hours hooks');tests++;
+assert.ok(html.includes('@media (max-width:1500px)')&&html.includes('@media (max-width:1200px)'),'Audit Grid must define laptop responsive breakpoints');tests++;
+assert.ok(html.includes('.region-head,.region-cell,.map-head,.map-cell,.self-head,.self-cell{display:none}'),'Medium laptop view must compact lower-priority columns');tests++;
+assert.ok(html.includes('.locations-head,.locations-cell,.expiry-head,.expiry-cell,.required-head,.required-cell{display:none}'),'Small laptop view must further compact lower-priority columns');tests++;
 
 for(const forbidden of ["'FULLY UNAVAILABLE'","'PARTLY OCCUPIED'","'SOFT WARNING'","'YES')+'</div>'"]){
   assert.equal(r5.includes(forbidden),false,'Legacy calendar label remains: '+forbidden);tests++;
@@ -59,4 +66,4 @@ for(const required of ["'Unavailable'","'Partly unavailable'","'Auditor less ava
   assert.ok(r5.includes(required),'Missing calendar UX token: '+required);tests++;
 }
 
-console.log(JSON.stringify({ok:true,build:'2026-10-05_PORTAL_REVIEW_HARDENING_CONTRACT_R2',tests,writesPerformed:false}));
+console.log(JSON.stringify({ok:true,build:'2026-10-10_PORTAL_REVIEW_HARDENING_CONTRACT_R3',tests,writesPerformed:false}));

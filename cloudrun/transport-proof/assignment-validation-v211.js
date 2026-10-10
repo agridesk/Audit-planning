@@ -26,7 +26,7 @@ export function v211CompanyAuditorExclusions(values,companyUid,companyName){
   const uid=key(companyUid),name=key(companyName);let row=null;
   for(const r of values.slice(1)){
     if(uid&&cu>=0&&key(r[cu])===uid){row=r;break;}
-    if(!row&&name&&cn>=0&&key(r[cn])===name)row=r;
+    if(!row&&(!uid||cu<0)&&name&&cn>=0&&key(r[cn])===name)row=r;
   }
   if(!row)return out;
   const raw=clean(row[cx]);if(!raw)return out;

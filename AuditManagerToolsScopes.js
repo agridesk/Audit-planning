@@ -187,6 +187,32 @@ function m5t_upsertScopes(payload) {
   var rowValues = rowRange.getValues()[0];
   var auditId = auditIdCol >= 0 ? String(rowValues[auditIdCol] || '').trim() : '';
   if (!auditId) return { success:false, error:'AUDIT_ID_REQUIRED_FOR_SCOPE_OWNER' };
+
+  if (preassignedAuditor) {
+    if (typeof _mp_assertAuditorQualifiedForPlanning_ !== 'function') {
+      return { success:false, error:'PREASSIGNMENT_QUALIFICATION_VALIDATOR_UNAVAILABLE' };
+    }
+    var qualificationRow = rowValues.slice();
+    var selectedByScope = {};
+    selectedScopes.forEach(function(s){
+      if (!s) return;
+      var scopeKey = String(s.scope || s.scopeCode || s.code || '').trim().toLowerCase();
+      if (scopeKey) selectedByScope[scopeKey] = (s.enabled === true || String(s.enabled).toLowerCase() === 'true');
+    });
+    (m5t_scopeSlotDefs_(ss) || []).forEach(function(d){
+      var scopeKey = String(d.scope || '').trim().toLowerCase();
+      if (d.flagCol0 != null) qualificationRow[d.flagCol0] = selectedByScope[scopeKey] ? 'x' : '';
+    });
+    var qualificationCheck = _mp_assertAuditorQualifiedForPlanning_(ss, header, qualificationRow, preassignedAuditor, '');
+    if (!qualificationCheck || qualificationCheck.success !== true) {
+      return {
+        success:false,
+        error:'AUDITOR_NOT_HARD_QUALIFIED',
+        message:(qualificationCheck && qualificationCheck.message) || 'Preassigned auditor is not qualified for the selected scope(s).'
+      };
+    }
+  }
+
   var ownerResult = ModelCScopeOwner_commit({
     companyUid: companyUid,
     auditId: auditId,

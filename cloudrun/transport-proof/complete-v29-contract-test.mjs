@@ -99,3 +99,5 @@ assert.match(auditorPortal,/tr\.remove\(\)/,'Auditor Complete micro-refresh must
 assert.doesNotMatch(auditorPortal,/CURRENT_ROWS\.splice\(idx, 1\);\s*renderGrid\(CURRENT_ROWS/,'Auditor Complete must not rerender the full active grid');
 
 console.log('Complete V2.9 contract test passed');
+
+assert.match(baseServer,/s==='yes'\|\|s==='true'\|\|s==='1'\|\|s==='ja'/,'Grid self-planning parser must recognize Yes and Ja sheet values');

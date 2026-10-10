@@ -247,3 +247,11 @@ PERF ACCEPTANCE RECHECK — 2026-10-10
 - Extension Apply: 3522 ms.
 - Extension Undo: 844 ms.
 - Current status: accepted for continued development; retain PERF-001 as regression guard. Do not allow these action times to drift upward unnoticed.
+
+Successor preassignment rule — confirmed 2026-10-10:
+- Completion/year-cycle creation must never be blocked solely because an inherited preassigned Auditor is no longer qualified.
+- The successor is still created.
+- The invalid preassignment is not carried forward.
+- Inherited self-planning is disabled when that preassignment is removed, preventing an unintended open self-planning pool.
+- The successor receives Manager attention explaining why the previous preassignment was dropped.
+- Both canonical Cloud Run Complete successor creation and the legacy AnnualCycle path now revalidate before carrying preassignment.

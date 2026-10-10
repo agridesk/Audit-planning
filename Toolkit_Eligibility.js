@@ -821,7 +821,11 @@ function _mp_assertAuditorQualifiedForPlanning_(ss, hdr, row, auditorEmail, audi
     var em = idxEmail >= 0 ? V5_normalizeEmail_(rv[idxEmail] || '') : '';
     var nm = idxName >= 0 ? String(rv[idxName] || '').trim().toLowerCase() : '';
     // Identity must be bound to the supplied email. A matching display name may never override a different email.
-    if (key ? (em === key) : (keyName && nm === keyName)) { audRow = rv; break; }
+    if (key ? (em === key) : (keyName && nm === keyName)) {
+      if (!key && audRow) return { success:false, message:'Ambiguous auditor name; use email for qualification', requiredScopes:requiredScopes };
+      audRow = rv;
+      if (key) break;
+    }
   }
 
   var qualified = !!audRow &&

@@ -67,6 +67,8 @@ assert.ok(!html.includes('.region-head,.region-cell,.map-head,.map-cell,.self-he
 assert.ok(!html.includes('.region-head,.region-cell,.map-head,.map-cell,.self-head,.self-cell{display:none}'),'Laptop breakpoint must not hide Google Maps pin');tests++;
 assert.ok(html.includes('body.actor-auditor .locations-head,body.actor-auditor .locations-cell')&&html.includes('body.actor-auditor .required-head,body.actor-auditor .required-cell{display:none}'),'Auditor Grid must hide secondary columns earlier on laptop');tests++;
 assert.ok(html.includes('body.actor-auditor table{min-width:0;width:100%;table-layout:fixed}')&&html.includes('body.actor-auditor .table-wrap{overflow-x:hidden}'),'Auditor Grid must fit the laptop viewport without horizontal scrolling');tests++;
+assert.ok(html.includes('body.actor-auditor main{min-width:0;overflow-x:hidden}')&&html.includes('body.actor-auditor .table-wrap{overflow-x:hidden;max-width:100%}')&&html.includes('body.actor-auditor table{max-width:100%}'),'Auditor Grid must not create page-level horizontal overflow');tests++;
+assert.ok(html.includes('body.actor-auditor .actions-cell{white-space:normal;overflow:hidden}')&&html.includes('font-size:10px'),'Auditor action controls must stay inside their fixed-width cell');tests++;
 assert.ok(html.includes('.table-wrap{overflow-x:auto;overflow-y:visible')&&html.includes('max-height:none'),'Grid must use page vertical scrolling instead of a nested vertical table scrollbar');tests++;
 
 for(const forbidden of ["'FULLY UNAVAILABLE'","'PARTLY OCCUPIED'","'SOFT WARNING'","'YES')+'</div>'"]){
@@ -76,4 +78,4 @@ for(const required of ["'Unavailable'","'Partly unavailable'","'Auditor less ava
   assert.ok(r5.includes(required),'Missing calendar UX token: '+required);tests++;
 }
 
-console.log(JSON.stringify({ok:true,build:'2026-10-10_PORTAL_REVIEW_HARDENING_CONTRACT_R5',tests,writesPerformed:false}));
+console.log(JSON.stringify({ok:true,build:'2026-10-10_PORTAL_REVIEW_HARDENING_CONTRACT_R6',tests,writesPerformed:false}));

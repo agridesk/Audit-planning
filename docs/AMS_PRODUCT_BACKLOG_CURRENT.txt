@@ -15,7 +15,7 @@ A. ACTIVE BUGS / CORRECTNESS
 ============================================================
 
 BUG-001 — Auditor Plan must require Self planning = Yes
-Status: IMPLEMENTED IN DEV — NOT YET DEPLOYED
+Status: DEPLOYED TO DEV 2026-10-10 — ACCEPTANCE PENDING
 Commits: 6686f575, 697c341d, 3f1ab4f3, 28aca2d5, ea2e2477
 Priority: HIGH
 Area: Shared Audit Grid 2.0 / actor capabilities
@@ -28,7 +28,7 @@ Required behavior:
 - Manager planning remains unaffected.
 
 BUG-002 — Auditor visibility after assignment must follow Assigned to
-Status: IMPLEMENTED IN DEV — NOT YET DEPLOYED
+Status: DEPLOYED TO DEV 2026-10-10 — ACCEPTANCE PENDING
 Commits: 6686f575, 697c341d, 28aca2d5, ea2e2477
 Priority: HIGH
 Area: Shared Audit Grid 2.0 / actor scope
@@ -53,7 +53,7 @@ B. DATA / LEGACY HARDENING
 ============================================================
 
 HARD-001 — Hide Extension control when canonical extension is impossible
-Status: IMPLEMENTED IN DEV — NOT YET DEPLOYED
+Status: DEPLOYED TO DEV 2026-10-10 — ACCEPTANCE PENDING
 Commits: e41d79e8, 580f04f2
 Priority: LOW
 Area: Manager Grid / Model C
@@ -68,7 +68,7 @@ C. UX / PRESENTATION
 ============================================================
 
 UX-001 — Display logged-in person's name instead of email
-Status: IMPLEMENTED IN DEV — NOT YET DEPLOYED
+Status: DEPLOYED TO DEV 2026-10-10 — ACCEPTANCE PENDING
 Commits: 697c341d, 56c6e71a
 Priority: MEDIUM
 Area: Manager Portal / Auditor Portal
@@ -88,7 +88,7 @@ Required behavior:
 - Preserve full desktop view on large screens.
 
 UX-003 — Planning Toolkit calendar labels
-Status: IMPLEMENTED IN DEV — NOT YET DEPLOYED
+Status: DEPLOYED TO DEV 2026-10-10 — ACCEPTANCE PENDING
 Commit: cfffea75
 Priority: MEDIUM
 Area: Planning Toolkit 2.0 calendar
@@ -105,7 +105,7 @@ Required behavior:
 - Avoid all-caps for normal calendar labels.
 
 UX-004 — Multiple audits on one calendar day
-Status: IMPLEMENTED IN DEV — NOT YET DEPLOYED
+Status: DEPLOYED TO DEV 2026-10-10 — ACCEPTANCE PENDING
 Commit: cfffea75
 Priority: MEDIUM
 Area: Planning Toolkit 2.0 calendar
@@ -121,7 +121,7 @@ Rationale:
 Time + company is stable and compact; free-text slot comments are not suitable as the primary identifier.
 
 UX-005 — User-facing minimum interval warning
-Status: IMPLEMENTED IN DEV — NOT YET DEPLOYED
+Status: DEPLOYED TO DEV 2026-10-10 — ACCEPTANCE PENDING
 Commits: 9cb8968d, de819f9e, 6c6d0525
 Priority: MEDIUM
 Area: Grid / Planning Toolkit warnings
@@ -209,3 +209,12 @@ For future sessions:
 2. Implemented items are marked DONE with commit(s) and date, then may later move to an implementation closure document.
 3. Architectural/lifecycle decisions that become final must be promoted into the current canonical roadmap/specification; this backlog does not override V2.11.
 4. Never use AMS roadmaps V2.7 or earlier as current truth.
+
+
+============================================================
+DEPLOYMENT NOTE — 2026-10-10
+============================================================
+The implementation batch for BUG-001, BUG-002, HARD-001, UX-001, UX-003, UX-004 and UX-005 was deployed to DEV after a green npm test run.
+Cloud Run revision: ams-transport-proof-00997-2h9.
+Acceptance is still pending; do not mark these items CLOSED until targeted DEV verification is complete.
+PROD remains untouched.

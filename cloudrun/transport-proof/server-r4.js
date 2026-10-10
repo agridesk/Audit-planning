@@ -16,10 +16,13 @@ const SESSION_TTL_SECONDS=30*24*60*60;
 const MANAGER_PORTAL_HTML=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
 const MANAGER_PORTAL_JS=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 function send(res,status,body,extra){const h={'content-type':'application/json; charset=utf-8','cache-control':'no-store',...(extra||{})};if(ORIGIN){h['access-control-allow-origin']=ORIGIN;h['access-control-allow-credentials']='true';h.vary='Origin';}res.writeHead(status,h);res.end(JSON.stringify(body));}
+let accessTokenCache={token:'',expiresAt:0};
 async function accessToken(){
+  const now=Date.now();if(accessTokenCache.token&&now<accessTokenCache.expiresAt-60000)return accessTokenCache.token;
   const r=await fetch('http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',{headers:{'Metadata-Flavor':'Google'}});
   if(!r.ok)throw new Error('METADATA_TOKEN_'+r.status);
-  const j=await r.json();if(!j.access_token)throw new Error('METADATA_TOKEN_MISSING');return j.access_token;
+  const j=await r.json();if(!j.access_token)throw new Error('METADATA_TOKEN_MISSING');
+  accessTokenCache={token:j.access_token,expiresAt:now+(Number(j.expires_in)||300)*1000};return accessTokenCache.token;
 }
 async function sheetsBatchGet(ranges,serialDates=false){
   const token=await accessToken(),u=new URL('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'/values:batchGet');

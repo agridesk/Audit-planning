@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 
 const gasSave = readFileSync(new URL('../../ManagerPlanningBackend_CORE_SPLIT.js', import.meta.url), 'utf8');
 const gasEligibility = readFileSync(new URL('../../Toolkit_Eligibility.js', import.meta.url), 'utf8');
+const gasAnnualCycle = readFileSync(new URL('../../AnnualCycleEngineV5.js', import.meta.url), 'utf8');
 const saveGuard = gasSave.slice(gasSave.indexOf('function saveManagerPlanning('), gasSave.indexOf('function __mp_getAuditPlanningPack_('));
 const directGuard = gasEligibility.slice(gasEligibility.indexOf('function _mp_assertAuditorQualifiedForPlanning_('), gasEligibility.indexOf('/* =====================================================================', gasEligibility.indexOf('function _mp_assertAuditorQualifiedForPlanning_(')));
 assert.match(saveGuard, /_mp_assertAuditorQualifiedForPlanning_\s*\(/, 'Planning save must invoke canonical direct qualification');
@@ -10,6 +11,7 @@ assert.match(directGuard, /shAud\.getDataRange\(\)\.getValues\(\)/, 'Canonical s
 assert.doesNotMatch(directGuard, /__mp_getSheetDataPersistCached_\s*\(/, 'Canonical save-time guard must not use persisted Auditors cache');
 assert.match(directGuard, /key\s*\?\s*\(em\s*===\s*key\)\s*:\s*\(keyName\s*&&\s*nm\s*===\s*keyName\)/, 'BUG-003: supplied email must take precedence; same-name different-email must not authorize');
 assert.doesNotMatch(directGuard, /\(key\s*&&\s*em\s*===\s*key\)\s*\|\|\s*\(keyName\s*&&\s*nm\s*===\s*keyName\)/, 'BUG-003: OR name fallback is forbidden when email is supplied');
+assert.match(gasAnnualCycle, /carryIsEmail\s*\?\s*carryPreassigned\s*:\s*''\s*,\s*carryIsEmail\s*\?\s*''\s*:\s*carryPreassigned/, 'BUG-003: successor must pass display-name preassignments as names, not email identifiers');
 
 import assert from 'node:assert/strict';
 import {

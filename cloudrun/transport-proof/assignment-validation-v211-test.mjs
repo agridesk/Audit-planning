@@ -18,6 +18,7 @@ assert.match(gasAnnualCycle, /AC_recalculateHoursForRecurringScopes_\(headers, n
 import assert from 'node:assert/strict';
 import {
   v211AuditorQualified,
+  v211ResolveAuditorEmail,
   v211CompanyAuditorExclusions,
   v211MinimumIntervalConstraint,
   v211AssignmentHardCheck,
@@ -36,6 +37,12 @@ const auditors=[
   ['Other','other@example.com','YES','Auditor','x','','x']
 ];
 
+assert.equal(v211ResolveAuditorEmail(auditors,'David'),'david@example.com');
+assert.equal(v211ResolveAuditorEmail(auditors,'DAVID@EXAMPLE.COM'),'david@example.com');
+assert.equal(v211ResolveAuditorEmail(auditors,'Unknown'),'');
+assert.equal(v211ResolveAuditorEmail([...auditors,['David','duplicate@example.com','YES','Auditor','x','x','x']],'David'),'');
+assert.equal(v211ResolveAuditorEmail([['Name','Active'],['David','YES']],'David'),'');
+assert.equal(v211AuditorQualified(auditors,catalog,['MPS-ABC','MPS-GAP'],v211ResolveAuditorEmail(auditors,'David')),true);
 assert.equal(v211AuditorQualified(auditors,catalog,['MPS-ABC','MPS-GAP'],'david@example.com'),true);
 assert.equal(v211AuditorQualified(auditors,catalog,['MPS-ABC','MPS-GAP'],'other@example.com'),false);
 

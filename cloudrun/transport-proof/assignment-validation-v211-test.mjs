@@ -1,3 +1,14 @@
+import { readFileSync } from 'node:fs';
+
+const gasSave = readFileSync(new URL('../../ManagerPlanningBackend_CORE_SPLIT.js', import.meta.url), 'utf8');
+const gasEligibility = readFileSync(new URL('../../Toolkit_Eligibility.js', import.meta.url), 'utf8');
+const saveGuard = gasSave.slice(gasSave.indexOf('function saveManagerPlanning('), gasSave.indexOf('function __mp_getAuditPlanningPack_('));
+const directGuard = gasEligibility.slice(gasEligibility.indexOf('function _mp_assertAuditorQualifiedForPlanning_('), gasEligibility.indexOf('/* =====================================================================', gasEligibility.indexOf('function _mp_assertAuditorQualifiedForPlanning_(')));
+assert.match(saveGuard, /_mp_assertAuditorQualifiedForPlanning_\s*\(/, 'Planning save must invoke canonical direct qualification');
+assert.doesNotMatch(saveGuard, /_mp_fastOpenQualifiedCacheGet_\s*\(/, 'Planning save must not authorize via dropdown cache');
+assert.match(directGuard, /shAud\.getDataRange\(\)\.getValues\(\)/, 'Canonical save-time guard must read live Auditor rows');
+assert.doesNotMatch(directGuard, /__mp_getSheetDataPersistCached_\s*\(/, 'Canonical save-time guard must not use persisted Auditors cache');
+
 import assert from 'node:assert/strict';
 import {
   v211AuditorQualified,

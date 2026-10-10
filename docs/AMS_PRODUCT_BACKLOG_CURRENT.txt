@@ -218,3 +218,11 @@ The implementation batch for BUG-001, BUG-002, HARD-001, UX-001, UX-003, UX-004 
 Cloud Run revision: ams-transport-proof-00997-2h9.
 Acceptance is still pending; do not mark these items CLOSED until targeted DEV verification is complete.
 PROD remains untouched.
+
+
+PERF-001 — ACTION SPEED / 3S
+Status: ACTIVE ACCEPTANCE CRITERION
+- User reconfirmed 2026-10-10 that action speed is important.
+- Complete, Cancel, Reject, Approve, Accept and similar grid actions should remain direct, bounded and micro-refresh based.
+- Avoid full-browser refreshes, unnecessary GAS roundtrips, N+1 reads and synchronous non-critical side effects on the hot path.
+- Treat noticeable latency regressions as defects even when the action is functionally correct.

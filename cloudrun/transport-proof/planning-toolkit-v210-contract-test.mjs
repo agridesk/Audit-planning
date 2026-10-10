@@ -23,6 +23,7 @@ const checks=[
   ['Calendar direct click toggle retained',r5.includes('function toggleCalendarDay(date,visualState)')&&r5.includes('Day removed from planning.')&&r5.includes('Day added to planning.')],
   ['Missing availability rows render weekend as soft unavailable while retaining explicit rows',r5.includes("const fallbackWeekend=[0,6].includes(new Date(iso+'T12:00:00').getDay())")&&r5.includes("r=byDate[iso]||{date:iso,state:fallbackWeekend?'NO':'YES'")&&r5.includes("visualState:fallbackWeekend?'SOFT_UNAVAILABLE':'AVAILABLE'")],
   ['Toolkit save warns on unmaterialized weekend and auditor recurring soft preference',r5.includes('fallbackWeekend=!day&&(wdIndex===0||wdIndex===6)')&&r5.includes("auditorBlocked=String(c.blockedWeekdays||'')")&&r5.includes("if((day&&day.visualState==='SOFT_UNAVAILABLE')||fallbackWeekend||auditorBlocked)")],
+  ['Provisional overlap blocks Auditor self-planning but stays a Manager soft warning',r5.includes("actorRole.toLowerCase()==='auditor'&&provisionalConflicts(b).length")&&r5.includes("actorRole.toLowerCase()!=='auditor')out.push('Selected time overlaps provisional planning")],
   ['No Add slot control exposed',!r5.includes('>Add slot<')&&!r5.includes('id="addSlot"')],
   ['Maximum five selected days retained',r5.includes('Maximum 5 planning days.')],
   ['Toolkit totals use Required Planned Remaining',r5.includes('function planningTarget()')&&r5.includes("Required '+target.toFixed(2)+' h · Planned ")],

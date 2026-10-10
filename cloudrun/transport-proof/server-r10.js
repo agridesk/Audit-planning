@@ -180,6 +180,20 @@ http.createServer(async(req,res)=>{
       return sendJson(res,502,{success:false,error:'DIRECT_AUDITOR_COMPLETE_PROXY_FAILED',detail:clean(e?.message||e),build:BUILD});
     }
   }
+  if(req.method==='POST'&&u.pathname==='/api/v1/auditor/action'){
+    const totalStarted=Date.now();
+    const identity=await innerSession(req);if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED',build:BUILD});if(clean(identity.role).toLowerCase()!=='auditor')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN',build:BUILD});
+    let body={};try{body=JSON.parse(raw||'{}');}catch{return sendJson(res,400,{success:false,error:'BAD_JSON',build:BUILD});}
+    const auditorAction=clean(body?.action).toLowerCase();if(auditorAction!=='complete')return sendJson(res,403,{success:false,error:'AUDITOR_ACTION_FORBIDDEN',build:BUILD});
+    const payload=Object.assign({},body,{actorEmail:clean(identity.email).toLowerCase(),action:'complete'});
+    try{
+      const target='http://127.0.0.1:'+INNER_PORT+'/api/v1/internal/auditor/complete-direct';
+      const rr=await fetch(target,{method:'POST',headers:{'content-type':'application/json','x-ams-bridge-key':WRITE_KEY},body:JSON.stringify(payload),redirect:'manual'});
+      const txt=await rr.text();let out=null;try{out=JSON.parse(txt);}catch{out={success:false,error:'DIRECT_AUDITOR_COMPLETE_NON_JSON'}}
+      if(out&&typeof out==='object')out.r10InnerMs=Date.now()-totalStarted;
+      return sendJson(res,rr.status,out||{success:false,error:'DIRECT_AUDITOR_COMPLETE_EMPTY'});
+    }catch(e){return sendJson(res,502,{success:false,error:'DIRECT_AUDITOR_COMPLETE_PROXY_FAILED',detail:clean(e?.message||e),build:BUILD});}
+  }
   if(req.method==='POST'&&u.pathname==='/api/v1/manager/action'){
     const totalStarted=Date.now();
     const identity=await innerSession(req);if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED',build:BUILD});if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN',build:BUILD});

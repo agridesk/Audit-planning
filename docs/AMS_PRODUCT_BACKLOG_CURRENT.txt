@@ -267,3 +267,9 @@ Successor preassignment rule — confirmed 2026-10-10:
 - Manager Grid base first load after removing synchronous R12 enrichment and Model-C extension-link reads from first paint: 112 open audits · 851 ms base.
 - Previous observed first load: 5688 ms base.
 - Result accepted as within PERF-001 target; async enrichment remains separate from first paint.
+
+Auditor Grid laptop refinement 2026-10-10
+- Auditor column is redundant in Auditor role and is now hidden in both open/completed Auditor Grid views.
+- Google Maps pin remains visible at laptop breakpoints.
+- Auditor Grid uses tighter responsive min-widths than Manager Grid.
+- User-configurable column visibility remains a possible later enhancement, but is not treated as the primary fix for laptop fit.

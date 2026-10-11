@@ -38,9 +38,9 @@ function selectionExportHeaders(){return currentView==="completed"?["Company","R
 function selectionExportRows(){
   return selectionRows().map(function(r){return currentView==="completed"?[r.company,r.region,r.scopesText,r.executedOn,r.auditorDisplayName||r.auditorName||r.auditor,r.hoursPlanned,r.hoursDedicated,r.completedDate,r.status||"Completed"]:[r.company,locationText(r),r.region,r.scopesText,displayStatus(r.status),compactDate(effectiveExpiry(r)),r.planningWindowText||([r.planningWindowFrom,r.planningWindowTo].filter(Boolean).join(" → ")),r.allowSelfPlanning===true||String(r.allowSelfPlanning).toLowerCase()==="true"?"Yes":"No",compactDate(r.datePlanned),r.requiredHours,r.hoursPlanned,r.assignedToDisplayName||r.auditorDisplayName||r.assignedTo||r.auditor]})
 }
-function selectionExcel(){
+function selectionExcelSafeCell(v){var s=String(v==null?"":v);return /^[\\s\\u0000-\\u001f]*[=+@]/.test(s)||/^[\\s\\u0000-\\u001f]*-[^0-9.]/.test(s)?"\u0027"+s:s}\nfunction selectionExcel(){
   var headers=selectionExportHeaders(),rows=selectionExportRows();if(!rows.length)return;
-  var table="<table><thead><tr>"+headers.map(function(h){return"<th>"+esc(h)+"</th>"}).join("")+"</tr></thead><tbody>"+rows.map(function(r){return"<tr>"+r.map(function(v){return"<td>"+esc(v==null?"":v)+"</td>"}).join("")+"</tr>"}).join("")+"</tbody></table>";
+  var table="<table><thead><tr>"+headers.map(function(h){return"<th>"+esc(h)+"</th>"}).join("")+"</tr></thead><tbody>"+rows.map(function(r){return"<tr>"+r.map(function(v){return"<td>"+esc(selectionExcelSafeCell(v))+"</td>"}).join("")+"</tr>"}).join("")+"</tbody></table>";
   var blob=new Blob(["\ufeff<html><meta charset=utf-8><style>table{border-collapse:collapse;font-family:Arial;font-size:11pt}th,td{border:1px solid #ccc;padding:5px}</style>"+table+"</html>"],{type:"application/vnd.ms-excel;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="Manager_selected_audits.xls";a.click();setTimeout(function(){URL.revokeObjectURL(url)},1000)
 }
 function selectionPdf(){

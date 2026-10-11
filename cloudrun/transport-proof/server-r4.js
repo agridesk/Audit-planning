@@ -6,6 +6,7 @@ import {v211AssignmentHardCheck,v211RotationHardCheck,v211AuditorQualified,v211R
 import {v211ActorCapabilities} from './actor-capabilities-v211.js';
 import {activateScopeHoursVersion20} from './scope-hours-version-20.js';
 import {updateScopePolicy20} from './scope-policy-20.js';
+import {scopeSchemeVersion20} from './scope-scheme-version-20.js';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';

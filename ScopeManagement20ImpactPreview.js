@@ -7,6 +7,9 @@ function ScopeImpact20_preview_(ss,scopeCode,proposedHours){
   var obligations=ss.getSheetByName('Audit_Obligations'),links=ss.getSheetByName('Audit_Visit_Obligations'),planning=ss.getSheetByName('Audit planning');
   if(!obligations||!links||!planning)return {success:false,readOnly:true,errors:['Required Model C or planning sheet missing']};
   function read(sh){var values=sh.getDataRange().getValues(),headers=(values.shift()||[]).map(function(x){return String(x||'').trim();});return values.map(function(r){var o={};headers.forEach(function(h,i){o[h]=r[i];});return o;});}
+  var required=[{sheet:obligations,columns:['Obligation_ID','ScopeCode','Company_UID','Formal_Hours']},{sheet:links,columns:['Obligation_ID','Audit_ID','Link_State']},{sheet:planning,columns:['Audit ID','Status']}];
+  var missing=[];required.forEach(function(x){var headers=(x.sheet.getDataRange().getValues()[0]||[]).map(function(h){return String(h||'').trim();});x.columns.forEach(function(h){if(headers.indexOf(h)<0)missing.push(x.sheet.getName?x.sheet.getName()+'.'+h:h);});});
+  if(missing.length)return {success:false,readOnly:true,writesPerformed:false,errors:['Missing impact schema: '+missing.join(', ')]};
   var obs=read(obligations),lnks=read(links),audits=read(planning),byAudit={},byOb={};
   audits.forEach(function(a){var id=String(a['Audit ID']||'').trim();if(id)byAudit[id]=a;});
   obs.forEach(function(o){byOb[String(o.Obligation_ID||'')]=o;});

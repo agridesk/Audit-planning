@@ -87,7 +87,7 @@ function diagnoseGridOverflow(){
   if(!wrap||!table)return;
   var viewport=document.documentElement.clientWidth;
   var nodes=[document.body,document.querySelector('main'),wrap,table].filter(Boolean);
-  var offenders=nodes.filter(function(el){return el.getBoundingClientRect().right>viewport+2||el.scrollWidth>el.clientWidth+2}).map(function(el){return {element:el.tagName.toLowerCase()+(el.className&&typeof el.className==='string'?'.'+el.className.trim().replace(/\\s+/g,'.'):''),clientWidth:el.clientWidth,scrollWidth:el.scrollWidth,right:Math.round(el.getBoundingClientRect().right)}});
+  var offenders=nodes.filter(function(el){return el.getBoundingClientRect().right>viewport+2||el.scrollWidth>el.clientWidth+2}).map(function(el){return {element:el.tagName.toLowerCase()+(el.className&&typeof el.className==='string'?'.'+el.className.trim().replace(/\s+/g,'.'):''),clientWidth:el.clientWidth,scrollWidth:el.scrollWidth,right:Math.round(el.getBoundingClientRect().right)}});
   if(offenders.length)console.warn('[GRID_2_RESPONSIVE_OVERFLOW]',{viewport:viewport,actor:actorRole,offenders:offenders});
 }
 function render(rows){renderHead();gridVisibleIds=(rows||[]).map(function(r){return String(r.auditId||"")}).filter(Boolean);var body=document.getElementById("rows");if(!rows.length){body.innerHTML="<tr><td class=\"empty\" colspan=\""+(currentView==="completed"?"11":"16")+"\">No audits found</td></tr>";bindSelectionControls(body);return}body.innerHTML=currentView==="completed"?renderCompleted(rows):renderOpen(rows);if(currentView==="open")bindActionButtons(body);else bindCompletedButtons(body);bindSelectionControls(body);requestAnimationFrame(diagnoseGridOverflow)}

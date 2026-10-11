@@ -1344,7 +1344,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     let raw='';for await(const part of req)raw+=part;
     if(raw.length>4096)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});
     let body={};try{body=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
-    try{return send(res,200,await saveScopeCosmetic20(body));}
+    try{const saved=await saveScopeCosmetic20(body);if(saved.ok&&!saved.unchanged)console.info(JSON.stringify({event:'SCOPE_MANAGEMENT_20_COSMETIC_CHANGE',actor:clean(actor.email).toLowerCase(),scopeCode:saved.scopeCode,field:saved.field,before:saved.previous,after:saved.value,timestamp:new Date().toISOString()}));return send(res,200,saved);}
     catch(e){return send(res,409,{ok:false,error:clean(e.message||e)});}
   }
   if(u.pathname==='/api/v1/manager/scopes'&&req.method==='GET'){

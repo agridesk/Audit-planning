@@ -24,6 +24,13 @@ function RUN_SCOPE_MANAGEMENT_2_0_SCHEMA_PREFLIGHT() {
     names[name]=true;
   }
   if(Object.keys(seen).length>20)errors.push('More than 20 configured scopes');
+  var defaultCol=headers.indexOf('Default_hours');
+  if(defaultCol>=0)for(var h=1;h<rows.length;h++){
+    var value=rows[h][defaultCol];
+    if(String(value===null?'':value).trim()==='')continue;
+    var number=Number(String(value).replace(',','.'));
+    if(!isFinite(number)||number<0)errors.push('Invalid default hours at row '+(h+1));
+  }
   var activeCount=0,archivedCount=0;
   for(var k=1;k<rows.length;k++){
     var active=String(rows[k][headers.indexOf('Active')]||'').trim().toUpperCase();

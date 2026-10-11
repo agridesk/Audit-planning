@@ -26,7 +26,7 @@ function m5t_scopeSlotDefs_(ss) {
   var hourCols = [3,5,7,9,11,13,15,17];
   return rows.map(function(item, i) {
     var slotKey = String(item.slotKey || '').trim();
-    var slotNumber = /^SCOPE_(\\d{2})$/.test(slotKey) ? Number(slotKey.slice(6)) : 0;
+    var slotNumber = /^SCOPE_(\d{2})$/.test(slotKey) ? Number(slotKey.slice(6)) : 0;
     if (!slotNumber || slotNumber > 20) throw new Error('CONFIG_SCOPES_INVALID_SLOT_' + slotKey);
     var flag = byHeader[slotKey.toLowerCase()];
     var hours = byHeader[('Duration ' + slotKey).toLowerCase()];

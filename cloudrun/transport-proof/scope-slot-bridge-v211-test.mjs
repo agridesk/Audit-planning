@@ -44,4 +44,7 @@ assert.match(schemaPreflight,/Duplicate display name:/);
 assert.match(schemaPreflight,/Invalid slot:/);
 assert.match(schemaPreflight,/Archived scope marked active/);
 assert.match(schemaPreflight,/Invalid default hours/);
-console.log('scope-slot-bridge-v211: 15 tests passed');
+assert.match(schemaPreflight,/if\(errors\.length\)\{var blocked=/);
+assert.match(schemaPreflight,/Scope identity missing at row/);
+assert.match(schemaPreflight,/Missing display name at row/);
+console.log('scope-slot-bridge-v211: 18 tests passed');

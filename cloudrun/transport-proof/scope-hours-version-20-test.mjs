@@ -14,4 +14,8 @@ await assert.rejects(activateScopeHoursVersion20({...deps,body:{scopeCode:'GRASP
 await assert.rejects(activateScopeHoursVersion20({...deps,body:{scopeCode:'GRASP',expectedVersion:'V2',hours:'5',reason:'bad',impactConfirmed:true}}),/STALE_SCOPE_VERSION/);
 const unchanged=await activateScopeHoursVersion20({...deps,body:{scopeCode:'GRASP',expectedVersion:'V1',hours:'4',reason:'same',impactConfirmed:true}});
 assert.equal(unchanged.unchanged,true);
-console.log('scope-hours-version-20: 9 checks passed');
+const emptyCatalog=[['ScopeCode','Default_hours'],['SCOPE_08','']],noCurrent=[versions[0]];
+requests=null;
+const initialized=await activateScopeHoursVersion20({...deps,sheetsBatchGet:async()=>[{values:emptyCatalog},{values:noCurrent}],body:{scopeCode:'SCOPE_08',expectedVersion:'UNINITIALIZED',hours:'6',reason:'Configure new scope',impactConfirmed:true}});
+assert.equal(initialized.versionId,'V1');assert.equal(requests.length,2);assert.equal(requests[1].updateCells.rows[0].values[1].userEnteredValue.stringValue,'V1');
+console.log('scope-hours-version-20: 12 checks passed');

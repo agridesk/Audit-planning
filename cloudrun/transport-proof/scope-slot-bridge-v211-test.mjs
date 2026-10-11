@@ -34,4 +34,6 @@ rows=catalog(20);
 assert.throws(()=>context.m5t_scopeSlotDefs_(partialSs),/SCOPE_COLUMNS_MISSING_SCOPE_20/);
 const scopeManager=readFileSync(new URL('../../AuditManagerToolsScopes.js',import.meta.url),'utf8');
 assert.match(scopeManager,/if \(missingQualificationScope\) return \{success:false,error:'SCOPE_QUALIFICATION_COLUMN_UNAVAILABLE'/);
-console.log('scope-slot-bridge-v211: 5 tests passed');
+const configSource=readFileSync(new URL('../../ConfigScopesService.js',import.meta.url),'utf8');
+for(const field of ['provisioningSource','triggerSource','sourceService']) assert.match(configSource,new RegExp(field+': ConfigScopes_clean_'));
+console.log('scope-slot-bridge-v211: 8 tests passed');

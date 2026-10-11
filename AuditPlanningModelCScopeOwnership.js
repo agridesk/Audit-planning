@@ -66,11 +66,12 @@ function ModelCScopeOwner_normalizeSelected_(items){
     var code=String(raw.scopeCode||raw.scope||'').trim();if(!code)return;
     var recurring=ModelCRecurringConfig_isRecurring_(ss,code);
     var hoursInput=raw.formalHours===undefined?raw.customHours:raw.formalHours;
+    var hasPersonalizedHours=hoursInput!==null&&hoursInput!==undefined&&String(hoursInput).trim()!=='';
     if(hoursInput===null||hoursInput===undefined||String(hoursInput).trim()===''){
       var configured=ModelCRecurringConfig_get_(ss,code);
       hoursInput=configured.defaultHours;
     }
-    out[code]={scopeCode:code,recurring:recurring,formalHours:hoursInput,baseExpiry:recurring?String(raw.baseExpiry||raw.dateWillExpire||'').trim():'',certificateBirthday:recurring?String(raw.certificateBirthday||raw.birthdate||'').trim():'',lifecycleType:recurring?'CERTIFICATE_RECURRING':'NON_RECURRING'};
+    out[code]={scopeCode:code,recurring:recurring,formalHours:hoursInput,hasPersonalizedHours:hasPersonalizedHours,baseExpiry:recurring?String(raw.baseExpiry||raw.dateWillExpire||'').trim():'',certificateBirthday:recurring?String(raw.certificateBirthday||raw.birthdate||'').trim():'',lifecycleType:recurring?'CERTIFICATE_RECURRING':'NON_RECURRING'};
   });
   var depSheet=ss.getSheetByName(MODEL_C_SHEETS.SCOPE_DEPENDENCIES),deps=depSheet?ModelCMigration_rowsToObjects_(depSheet.getDataRange().getValues()):[];
   deps.forEach(function(d){if(String(d.Active||'').toUpperCase()!=='YES')return;var parent=String(d.Parent_ScopeCode||''),child=String(d.Child_ScopeCode||'');if(!parent||!child||!out[child])return;if(String(d.Must_Audit_Together||'').toUpperCase()==='YES'&&!out[parent])throw new Error(child+' requires '+parent);if(out[parent]&&String(d.Share_Expiry||'').toUpperCase()==='YES'){out[child].baseExpiry=out[parent].baseExpiry;out[child].certificateBirthday=out[parent].certificateBirthday;}});
@@ -126,7 +127,7 @@ function ModelCScopeOwner_commit(command){
     codes.forEach(function(code){
       var item=selected[code],scope=csByCode[code];
       if(!scope){var scopeProvisioning=ModelCScopeOwner_externalProvisioning_(ss,code);if(scopeProvisioning)throw new Error('Externally provisioned scope must be created by its configured import');scope=ModelCScopeOwner_newCompanyScope_(command,item,stamp);cs.push(scope);csByCode[code]=scope;}
-      scope.Active='YES';scope.Lifecycle_Type=item.lifecycleType;scope.Certificate_Birthday=item.certificateBirthday;scope.Company_Formal_Hours_Override=ModelCScopeOwner_hours_(item.formalHours);scope.Updated_At=stamp;
+      scope.Active='YES';scope.Lifecycle_Type=item.lifecycleType;scope.Certificate_Birthday=item.certificateBirthday;scope.Company_Formal_Hours_Override=item.hasPersonalizedHours?ModelCScopeOwner_hours_(item.formalHours):'';scope.Updated_At=stamp;
       var obligation=obByCs[String(scope.Company_Scope_ID)];
       if(!obligation){var obligationProvisioning=ModelCScopeOwner_externalProvisioning_(ss,code);if(obligationProvisioning)throw new Error('Externally provisioned obligation must be created by its configured import');obligation=ModelCScopeOwner_newObligation_(command,scope,item,stamp,ss);ob.push(obligation);obByCs[String(scope.Company_Scope_ID)]=obligation;}
       if(activeAuditByOb[String(obligation.Obligation_ID)]&&activeAuditByOb[String(obligation.Obligation_ID)]!==String(command.auditId))throw new Error('Scope is linked to another active audit: '+code);
@@ -147,7 +148,7 @@ function ModelCScopeOwner_validateSelection_(ss,selected){
   Object.keys(selected||{}).forEach(function(code){var x=selected[code]||{};if(x.recurring!==true)return;if(!/^\d{4}-\d{2}-\d{2}$/.test(String(x.baseExpiry||'')))throw new Error('Expiry date required for '+code);if(x.certificateBirthday&&!/^\d{4}-\d{2}-\d{2}$/.test(String(x.certificateBirthday)))throw new Error('Invalid certificate birthday for '+code);});
 }
 
-function ModelCScopeOwner_newCompanyScope_(command,item,stamp){return{Company_Scope_ID:ModelCMigration_newId_('CS_'),Company_UID:String(command.companyUid),ScopeCode:item.scopeCode,Active:'YES',Lifecycle_Type:item.lifecycleType,Certificate_Birthday:item.certificateBirthday,Company_Formal_Hours_Override:ModelCScopeOwner_hours_(item.formalHours),Certificate_Metadata_JSON:'',Migration_Batch_ID:'',Source_Audit_ID:String(command.auditId),Created_At:stamp,Updated_At:stamp};}
+function ModelCScopeOwner_newCompanyScope_(command,item,stamp){return{Company_Scope_ID:ModelCMigration_newId_('CS_'),Company_UID:String(command.companyUid),ScopeCode:item.scopeCode,Active:'YES',Lifecycle_Type:item.lifecycleType,Certificate_Birthday:item.certificateBirthday,Company_Formal_Hours_Override:item.hasPersonalizedHours?ModelCScopeOwner_hours_(item.formalHours):'',Certificate_Metadata_JSON:'',Migration_Batch_ID:'',Source_Audit_ID:String(command.auditId),Created_At:stamp,Updated_At:stamp};}
 
 function ModelCScopeOwner_triggerSource_(command,item){var explicit=String((command&&command.triggerSource)||'').trim();if(explicit)return explicit;return item&&item.recurring===true?'CERTIFICATE_LIFECYCLE':'MANUAL';}
 

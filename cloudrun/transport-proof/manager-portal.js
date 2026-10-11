@@ -329,7 +329,7 @@ var reason=prompt('Reason for V1 initialization:','Initial AMS 2.0 version regis
 bootstrap.disabled=true;try{
 var response=await fetch('/api/v1/manager/scopes/bootstrap-v1',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmation:'INITIALIZE_CURRENT_V1',reason:reason})});
 var result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'INITIALIZATION_FAILED');
-status.textContent='Initialized '+result.count+' current V1 versions; existing audits unchanged';bootstrap.hidden=true;showDetails();
+status.textContent='Initialized '+result.count+' current V1 versions; existing audits unchanged'+(result.skipped?.length?' · Not initialized (hours missing): '+result.skipped.map(function(x){return x.scopeCode}).join(', '):'');bootstrap.hidden=true;showDetails();
 }catch(e){versionInfo.textContent='Initialization failed: '+e.message;status.textContent='V1 initialization blocked: '+e.message}finally{bootstrap.disabled=false}
 };
 details.appendChild(el('dt','Current versions'));var bootstrapCell=el('dd','');bootstrapCell.appendChild(bootstrap);details.appendChild(bootstrapCell);

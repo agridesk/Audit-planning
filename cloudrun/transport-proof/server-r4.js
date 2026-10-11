@@ -5,6 +5,7 @@ import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 import {v211AssignmentHardCheck,v211RotationHardCheck,v211AuditorQualified,v211ResolveAuditorEmail} from './assignment-validation-v211.js';
 import {v211ActorCapabilities} from './actor-capabilities-v211.js';
 import {activateScopeHoursVersion20} from './scope-hours-version-20.js';
+import {updateScopePolicy20} from './scope-policy-20.js';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
@@ -1346,6 +1347,15 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(raw.length>4096)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});
     let body={};try{body=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
     try{const saved=await saveScopeCosmetic20(body);if(saved.ok&&!saved.unchanged)console.info(JSON.stringify({event:'SCOPE_MANAGEMENT_20_COSMETIC_CHANGE',actor:clean(actor.email).toLowerCase(),scopeCode:saved.scopeCode,field:saved.field,before:saved.previous,after:saved.value,timestamp:new Date().toISOString()}));return send(res,200,saved);}
+    catch(e){return send(res,409,{ok:false,error:clean(e.message||e)});}
+  }
+  if(u.pathname==='/api/v1/manager/scopes/policy'&&req.method==='POST'){
+    const actor=sessionFromRequest(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});}
+    let body;try{body=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+    try{return send(res,200,await updateScopePolicy20({body,actor,SID,sheetsBatchGet,accessToken,clean}));}
     catch(e){return send(res,409,{ok:false,error:clean(e.message||e)});}
   }
   if(u.pathname==='/api/v1/manager/scopes/impact'&&req.method==='GET'){

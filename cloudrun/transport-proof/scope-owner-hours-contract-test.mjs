@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+const src=readFileSync(new URL('../../AuditPlanningModelCScopeOwnership.js',import.meta.url),'utf8');
+const cs=[{Company_Scope_ID:'CS1',Company_UID:'C1',ScopeCode:'S1',Active:'YES',Company_Formal_Hours_Override:7}];
+const ob=[{Obligation_ID:'O1',Company_Scope_ID:'CS1',Company_UID:'C1',ScopeCode:'S1',Formal_Hours:4}];
+const links=[{Audit_ID:'A1',Obligation_ID:'O1',Link_State:'ACTIVE'}];
+const sheets={Company_Scopes:cs,Audit_Obligations:ob,Audit_Visit_Obligations:links};
+const ss={getSheetByName:(name)=>sheets[name]?{getDataRange:()=>({getValues:()=>sheets[name]})}:null};
+const ctx={SpreadsheetApp:{getActive:()=>ss},MODEL_C_SHEETS:{COMPANY_SCOPES:'Company_Scopes',AUDIT_OBLIGATIONS:'Audit_Obligations',VISIT_OBLIGATIONS:'Audit_Visit_Obligations'},ModelCMigration_rowsToObjects_:(x)=>x,ModelCRecurringConfig_isRecurring_:()=>false,ModelCFoundation_clean_:(x)=>x};
+runInNewContext(src,ctx);
+function read(){return ctx.ModelCScopeOwner_enrichUiScopes_(ss,'C1','A1',[{scope:'S1',enabled:false,customHours:'',usedHours:2}])[0];}
+assert.equal(read().usedHours,7);
+assert.equal(read().enabled,true);
+cs[0].Company_Formal_Hours_Override=0;
+assert.equal(read().usedHours,0);
+cs[0].Company_Formal_Hours_Override='';
+assert.equal(read().usedHours,4);
+assert.throws(()=>ctx.ModelCScopeOwner_hours_(''),/required/);
+assert.equal(ctx.ModelCScopeOwner_hours_(0),0);
+assert.match(src,/COMPLETED_AUDIT_IMMUTABLE/);
+console.log('scope-owner-hours: 7 checks passed');

@@ -332,6 +332,12 @@ function completionService_commitCompletion_(payload) {
       return { success:false, message:'Availability release failed before completion commit: ' + (availabilityRelease.message || availabilityRelease.error || 'unknown error'), availabilityRelease:availabilityRelease, logPreflight:preflight, cycleResult:cycleResult };
     }
 
+    // A stale cached row must never cause the deletion of a different audit.
+    var verifiedAuditId = completionService_normAuditId_(shPlan.getRange(rowPack.rowIndex, completionService_findHeaderIndex_(rowPack.headers, ['Audit ID']) + 1).getValue());
+    if (verifiedAuditId !== auditId) {
+      return { success:false, code:'AUDIT_ROW_CHANGED', message:'Audit planning row changed during completion; refusing commit', auditId:auditId };
+    }
+
     var logResult = LogRealizedAuditService_AppendFromAuditPlanning(rowObj, logMeta);
     if (!logResult || logResult.success === false) {
       return {

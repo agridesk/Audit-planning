@@ -1149,6 +1149,27 @@ function directPlanningCommit(identity,body){
     if(requested.some(b=>(from&&b.date<from)||(to&&b.date>to)))throw new Error('PLANNING_WINDOW_BLOCKED');
     const total=requested.reduce((s,b)=>s+b.hours,0),formalTarget=Math.round(Number(audit.formalHours||audit.requiredHours||0)*100)/100,totalMinutes=requested.reduce((s,b)=>s+Math.round(Number(b.hours||0)*60),0),formalTargetMinutes=Math.round(formalTarget*60),planningDeltaMinutes=totalMinutes-formalTargetMinutes,offsiteHours=Math.round(requested.filter(b=>b.executionType==='OFFSITE').reduce((s,b)=>s+b.hours,0)*100)/100,offsitePolicy=audit.offsitePolicy||offsitePolicyForScopes(catalog,audit.scopes||[]);if(planningDeltaMinutes < -15)throw new Error('PLANNED_HOURS_BELOW_FORMAL_HOURS');if(planningDeltaMinutes > 15)throw new Error('PLANNED_HOURS_ABOVE_FORMAL_HOURS');if(offsiteHours>0&&offsitePolicy.requiresScopeAllocation)throw new Error('OFFSITE_MULTI_SCOPE_ALLOCATION_REQUIRED');if(offsiteHours-Number(offsitePolicy.maxOffsiteHours||0)>1e-9)throw new Error('OFFSITE_HOURS_ABOVE_SCOPE_MAX');const requestedVisitMembers=Array.isArray(body?.visitMembers)?body.visitMembers:[],requestedVisitAuditIds=[...new Set([auditId,...(Array.isArray(body?.visitAuditIds)?body.visitAuditIds:[]),...requestedVisitMembers.map(x=>x?.auditId)].map(clean).filter(Boolean))];if(requestedVisitAuditIds.some(x=>x!==auditId)){const companySet=ap.slice(1).map((row,i)=>({h:ap[0],row,sourceRow:i+2})).map(x=>project(x,catalog,vr[1]?.values||[])).filter(x=>x.companyUid===audit.companyUid),byId=new Map(companySet.map(x=>[x.auditId,x])),memberById=new Map(requestedVisitMembers.map(x=>[clean(x?.auditId),x]));for(const relatedId of requestedVisitAuditIds){if(relatedId===auditId)continue;const related=byId.get(relatedId);if(!related)throw new Error('VISIT_RELATED_AUDIT_NOT_FOUND');const member=memberById.get(relatedId);if(!member||!clean(member.sourceRevision))throw new Error('VISIT_RELATED_SOURCE_REVISION_REQUIRED');if(clean(member.sourceRevision)!==clean(related.sourceRevision))throw new Error('VISIT_RELATED_SOURCE_REVISION_CONFLICT');if(clean(related.status).toUpperCase().replace(/[\s-]+/g,'_')!=='PENDING_PLANNING')throw new Error('VISIT_RELATED_AUDIT_NOT_PENDING_PLANNING');const relatedExecution=executionConstraint(relatedId,catalog,vr[6]?.values||[],vr[7]?.values||[]),relatedFrom=dateOnly(related.planningWindowFrom),relatedTo=dateOnly(related.planningWindowTo);if(requested.some(b=>(relatedFrom&&b.date<relatedFrom)||(relatedTo&&b.date>relatedTo)))throw new Error('VISIT_RELATED_PLANNING_WINDOW_BLOCKED');if(relatedExecution.mustCompleteBy&&requested.some(b=>b.date>relatedExecution.mustCompleteBy)&&body?.executionExceptionApproved!==true)throw new Error('VISIT_RELATED_EXECUTION_DEADLINE_APPROVAL_REQUIRED');}if(requestedVisitAuditIds.length>1){const composition=visitCompositionPlan(auditId,requestedVisitAuditIds,vr[6]?.values||[],vr[7]?.values||[]);throw new Error('VISIT_COMBINED_COMMIT_NOT_YET_CANONICAL');}}
 
+    // Auditor self-planning must not consume another audit's active provisional reservation.
+    // Recheck inside the canonical planning lock, using the fresh reservation snapshot.
+    if(actorRole==='AUDITOR'){
+      const reservationValues=vr[3]?.values||[],reservationHeaders=reservationValues[0]||[];
+      const reservationAuditCol=col(reservationHeaders,['Audit ID','Audit_ID']);
+      const reservationEmailCol=col(reservationHeaders,['Auditor Email','Auditor_Email']);
+      const reservationBlocksCol=col(reservationHeaders,['Blocks JSON','Blocks_JSON','Blocks']);
+      const reservationStateCol=col(reservationHeaders,['State']);
+      if([reservationAuditCol,reservationEmailCol,reservationBlocksCol,reservationStateCol].some(i=>i<0))throw new Error('PROVISIONAL_RESERVATION_SCHEMA_INVALID');
+      const auditStatusCol=col(ap[0]||[],['Status']);
+      const auditIdCol=col(ap[0]||[],['Audit ID','Audit_ID','AuditId']);
+      for(const reservationRow of reservationValues.slice(1)){
+        if(clean(reservationRow[reservationStateCol]).toUpperCase()!=='ACTIVE')continue;
+        if(clean(reservationRow[reservationEmailCol]).toLowerCase()!==auditorEmail)continue;
+        const reservedAuditId=clean(reservationRow[reservationAuditCol]);
+        if(!reservedAuditId||reservedAuditId===auditId)continue;
+        const reservedAuditRow=ap.slice(1).find(row=>clean(row[auditIdCol])===reservedAuditId);
+        if(!reservedAuditRow||clean(reservedAuditRow[auditStatusCol]).toUpperCase().replace(/[\\s-]+/g,'_')!=='PENDING_PLANNING')continue;
+        if(blocks(reservationRow[reservationBlocksCol]).some(reserved=>requested.some(b=>dateOnly(reserved.date)===b.date&&overlaps(b,{start:clean(reserved.start),end:clean(reserved.end)}))))throw new Error('PROVISIONAL_RESERVATION_AUDITOR_COLLISION');
+      }
+    }
     const av=vr[2]?.values||[],ah=av[0]||[],cd=col(ah,['Date']),ce=col(ah,['Auditor_Email','Auditor Email','Email','E-mail']),ca=col(ah,['Available']),s1=col(ah,['First_Audit_Start_Time']),e1=col(ah,['First_Audit_End_Time']),id1=col(ah,['Audit_ID_1']),s2=col(ah,['Second_Audit_Start_Time']),e2=col(ah,['Second_Audit_End_Time']),id2=col(ah,['Audit_ID_2']),st1=col(ah,['Status_1']),st2=col(ah,['Status_2']),lu=col(ah,['Last_Updated']);
     if([cd,ce,ca,s1,e1,id1,s2,e2,id2,st1,st2].some(x=>x<0))throw new Error('AVAILABILITY_SCHEMA_INVALID');
     const avRows=av.slice(1).map((row,i)=>({row:row.slice(),sheetRow:i+2,date:dateOnly(row[cd]),email:clean(row[ce]).toLowerCase()}));

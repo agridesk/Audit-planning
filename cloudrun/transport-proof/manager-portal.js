@@ -315,7 +315,18 @@ if(tab==='general')fields=[['Scope name',selected.displayName],['Scope code',sel
 if(tab==='versions')fields=[['Current version','Not initialized'],['Hours to be planned',selected.hoursToPlan],['Version history','Pending controlled migration']];
 if(tab==='rules')fields=[['Rotation limit',selected.rotationLimit],['Minimum interval',selected.minimumIntervalMonths],['Planning from',selected.planningFrom],['Planning to',selected.planningTo],['Recurring',p.Recurring],['Cycle',p['Obligation cycle']],['Complete by',p['Complete by']]];
 if(tab==='sources')fields=[['Extension',p.Extension],['Provisioning source',p['Provisioning source']],['Trigger source',p['Trigger source']],['Source service',p['Source service']]];
-details.replaceChildren();fields.forEach(function(f){
+details.replaceChildren();
+if(tab==='versions'||tab==='rules'||tab==='sources'){
+var impact=el('button','Preview impact on open audits');impact.type='button';impact.style.marginBottom='10px';
+impact.onclick=async function(){impact.disabled=true;try{
+var field=tab==='versions'?'Default_hours':tab==='rules'?'Min_Interval_Months':'Extension';
+var response=await fetch('/api/v1/manager/scopes/impact?scopeCode='+encodeURIComponent(selected.scopeCode)+'&field='+encodeURIComponent(field),{credentials:'same-origin'});
+var result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'IMPACT_UNAVAILABLE');
+status.textContent='Impact '+selected.scopeCode+': '+result.openAudits+' open audits, '+result.accepted+' accepted · preview only; no changes made';
+}catch(e){status.textContent='Impact preview blocked: '+e.message}finally{impact.disabled=false}};
+details.appendChild(el('dt','Change impact'));var wrapper=el('dd','');wrapper.appendChild(impact);details.appendChild(wrapper);
+}
+fields.forEach(function(f){
 details.appendChild(el('dt',f[0]));var dd=el('dd',''),map={'Scope name':'DisplayName','Color':'Color','Text color':'TextColor','Sort order':'SortOrder'},field=map[f[0]];
 if(field){var input=document.createElement('input');input.value=f[1]==null?'':String(f[1]);input.setAttribute('aria-label',f[0]);input.style.maxWidth='200px';var save=el('button','Save');save.type='button';save.style.marginLeft='8px';save.onclick=async function(){save.disabled=true;try{var response=await fetch('/api/v1/manager/scopes/cosmetic',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({scopeCode:selected.scopeCode,field:field,expected:String(selected.policy[field]??''),value:input.value})}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'SAVE_FAILED');status.textContent='Saved '+field+' for '+selected.scopeCode;await load();selected=records.find(function(r){return r.scopeCode===result.scopeCode})||selected;showDetails()}catch(e){status.textContent='Save blocked: '+e.message}finally{save.disabled=false}};dd.appendChild(input);dd.appendChild(save)}else dd.textContent=f[1]==null?'':String(f[1]);details.appendChild(dd)})}
 async function saveInline(r,field,value,control){

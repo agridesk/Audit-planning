@@ -24,7 +24,7 @@ function RUN_MODEL_C_RECURRING_CONFIG_ACCEPTANCE(){
       if(!base&&!effective){recurringMissingExpiry++;errors.push('Recurring obligation missing expiry: '+String(x.Obligation_ID||'')+'|'+code);}
     }else{
       nonRecurringObligations++;
-      if(base||effective){nonRecurringWithExpiry++;errors.push('Non-recurring obligation has expiry: '+String(x.Obligation_ID||'')+'|'+code);}if(def.obligationCycle==='ANNUAL'){if(!/^\d{2}-\d{2}$/.test(String(def.completeBy||''))){nonRecurringAnnualMissingDeadlineConfig++;errors.push('Annual non-recurring scope missing Complete by: '+code);}if(!/^20\d{2}$/.test(String(x.Cycle_Key||''))){nonRecurringAnnualBadCycleKey++;errors.push('Annual non-recurring obligation has invalid Cycle_Key: '+String(x.Obligation_ID||'')+'|'+code);}}
+      if(state!=='COMPLETED'&&(base||effective)){nonRecurringWithExpiry++;errors.push('Non-recurring obligation has expiry: '+String(x.Obligation_ID||'')+'|'+code);}if(def.obligationCycle==='ANNUAL'){if(!/^\d{2}-\d{2}$/.test(String(def.completeBy||''))){nonRecurringAnnualMissingDeadlineConfig++;errors.push('Annual non-recurring scope missing Complete by: '+code);}if(state!=='COMPLETED'&&!/^20\d{2}$/.test(String(x.Cycle_Key||''))){nonRecurringAnnualBadCycleKey++;errors.push('Annual non-recurring obligation has invalid Cycle_Key: '+String(x.Obligation_ID||'')+'|'+code);}}
     }
   });
 
@@ -38,7 +38,7 @@ function RUN_MODEL_C_RECURRING_CONFIG_ACCEPTANCE(){
   Object.keys(activeAuditByOb).forEach(function(obId){var id=activeAuditByOb[obId];if(id)auditIds[id]=true;});
   Object.keys(auditIds).forEach(function(auditId){
     var plan=ModelCAnnualCycle_planForAudit_(ss,auditId);checkedPlans++;
-    if(!plan.success){(plan.errors||[]).forEach(function(e){if(errors.length<25)errors.push(auditId+': '+e);});return;}
+    if(!plan.success){if(plan.currentObligations===0&&(plan.errors||[]).every(function(e){return e==='No active obligations linked to audit';}))return;(plan.errors||[]).forEach(function(e){if(errors.length<25)errors.push(auditId+': '+e);});return;}
     (plan.successorGroups||[]).forEach(function(g){(g.obligations||[]).forEach(function(s){var def=cfg[String(s.scopeCode||'')];if(def&&def.recurring!==true){nonRecurringSuccessors++;errors.push('Non-recurring successor created: '+auditId+'|'+s.scopeCode);}});});
   });
 

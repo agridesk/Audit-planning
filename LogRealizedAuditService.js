@@ -121,6 +121,14 @@ function LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, m
   var auditorEmail = colAuditor >= 0 ? LogRealizedAuditService_clean_(shLog.getRange(rowIdx, colAuditor + 1).getValue()).toLowerCase() : '';
 
   var oldHoursDedicated = Number(shLog.getRange(rowIdx, colHours + 1).getValue());
+  if (isFinite(oldHoursDedicated) && Math.abs(oldHoursDedicated - n) <= 1e-9) {
+    return {
+      success:true, auditId:auditId, rowIndex:rowIdx,
+      oldHoursDedicated:oldHoursDedicated, hoursDedicated:n, newHoursDedicated:n,
+      changed:false, changedAt:null, auditorEmail:auditorEmail,
+      message:'Completed hours unchanged'
+    };
+  }
   shLog.getRange(rowIdx, colHours + 1).setValue(n);
 
   var colStatus = LogRealizedAuditService_findHeaderIndex_(headers, ['Status']);

@@ -349,7 +349,7 @@ if(current){
  if(!impactResponse.ok||!impact.ok){versionInfo.textContent+='\nImpact validation failed; hours not changed';return}
  if(!confirm('Activate new scope hours version? '+impact.openAudits+' open audits linked ('+impact.accepted+' accepted). Existing audit hours remain unchanged.'))return;
  saveHours.disabled=true;
- try{var response=await fetch('/api/v1/manager/scopes/hours-version',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({scopeCode:code,expectedVersion:current.VersionId,hours:hoursInput.value,reason:reason})}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'HOURS_VERSION_SAVE_FAILED');
+ try{var response=await fetch('/api/v1/manager/scopes/hours-version',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({scopeCode:code,expectedVersion:current.VersionId,hours:hoursInput.value,reason:reason,impactConfirmed:true})}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'HOURS_VERSION_SAVE_FAILED');
  status.textContent=result.unchanged?'Hours unchanged':'Activated '+result.versionId+' for '+code;
  await load();selected=records.find(function(r){return r.scopeCode===code})||selected;showDetails();
  }catch(e){versionInfo.textContent+='\nSave failed: '+e.message}finally{saveHours.disabled=false}

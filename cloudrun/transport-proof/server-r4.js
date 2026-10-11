@@ -424,6 +424,24 @@ function extScopes(found,catalog){return(catalog||[]).filter(s=>[s.slotKey,s.sco
 function extWindow(expiry,scopes){let from='',to='';for(const s of scopes){let x=extAddMonths(expiry,s.planningFrom),y=extAddMonths(expiry,s.planningTo);if(!x||!y)continue;if(x>y)[x,y]=[y,x];if(!from||x>from)from=x;if(!to||y<to)to=y;}if(!from||!to||from>to)throw new Error('EXTENSION_PLANNING_WINDOW_INVALID');return{from,to};}
 async function sheetsValuesBatchUpdateRaw(data){const token=await accessToken(),u='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'/values:batchUpdate',r=await fetch(u,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({valueInputOption:'RAW',data})}),body=await r.json();if(!r.ok)throw new Error('SHEETS_BATCH_UPDATE_RAW_'+r.status);return body;}
 
+async function saveScopeCosmetic20(body){
+  const field=clean(body?.field),code=clean(body?.scopeCode),value=clean(body?.value);
+  if(!['DisplayName','Color','TextColor','SortOrder'].includes(field)||!code)throw Error('FIELD_NOT_ALLOWED');
+  if(field==='DisplayName'&&(!value||value.length>100))throw Error('INVALID_NAME');
+  if(['Color','TextColor'].includes(field)&&!/^#[0-9a-fA-F]{6}$/.test(value))throw Error('INVALID_COLOR');
+  if(field==='SortOrder'&&(!/^[0-9]{1,4}$/.test(value)||Number(value)>9999))throw Error('INVALID_SORT_ORDER');
+  const vr=await sheetsBatchGet(['Config_Scopes!A1:U128']),rows=vr[0]?.values||[],head=(rows[0]||[]).map(clean),ci=head.indexOf('ScopeCode'),fi=head.indexOf(field);
+  if(ci<0||fi<0)throw Error('SCOPE_SCHEMA_MISSING');
+  const matches=rows.map((r,i)=>({r,i})).filter(x=>x.i>0&&clean(x.r[ci])===code);
+  if(matches.length!==1)throw Error('SCOPE_IDENTITY_AMBIGUOUS');
+  const item=matches[0],old=String(item.r[fi]??'');
+  if(old!==String(body.expected??''))throw Error('STALE_SCOPE_VALUE');
+  if(field==='DisplayName'&&rows.some((r,i)=>i>0&&i!==item.i&&clean(r[fi]).toLowerCase()===value.toLowerCase()))throw Error('DUPLICATE_SCOPE_NAME');
+  if(old===value)return{ok:true,unchanged:true};
+  const letter=String.fromCharCode(65+fi);
+  await sheetsValuesBatchUpdateRaw([{range:'Config_Scopes!'+letter+(item.i+1),values:[[field==='SortOrder'?Number(value):value]]}]);
+  return{ok:true,scopeCode:code,field,value,previous:old};
+}
 async function directManagerExtension(identity,body){
   const t0=Date.now(),auditId=clean(body?.auditId),command=clean(body?.command).toLowerCase();
   if(!auditId)throw new Error('AUDIT_ID_REQUIRED');

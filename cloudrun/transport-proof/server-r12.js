@@ -104,6 +104,29 @@ http.createServer(async(req,res)=>{
     if(!Number.isFinite(oldHoursDedicated))return sendJson(res,409,{success:false,error:'INVALID_OLD_HOURS'});
     const lookupMs=Date.now()-t0;
     if(oldHoursDedicated===hoursDedicated)return sendJson(res,200,{success:true,auditId,oldHoursDedicated,newHoursDedicated:hoursDedicated,changed:false,perf:{lookupMs,totalMs:Date.now()-t0},transport:'DIRECT_SHEETS'});
+    try{
+      const token=await accessToken(),root='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID);
+      const metadataResponse=await fetch(root+'?fields=sheets(properties(sheetId,title))',{headers:{authorization:'Bearer '+token}});
+      if(!metadataResponse.ok)throw new Error('SHEETS_METADATA_'+metadataResponse.status);
+      const metadata=await metadataResponse.json(),sheets=metadata.sheets||[];
+      const logSheet=sheets.find(x=>x.properties?.title==='Log realized audits'),trailSheet=sheets.find(x=>x.properties?.title==='Notification Queue');
+      if(!logSheet||!trailSheet)throw new Error('CANONICAL_SHEETS_MISSING');
+      const now=new Date(),timestamp=now.toISOString(),type='COMPLETED_HOURS_OVERRIDE';
+      const payload={type,auditId,auditNumber:'',company:'',actorEmail:actor,actorRole:'MANAGER',beforeStatus:'',afterStatus:'',reason:clean(body.reason)||'Manager realized-hours correction',hours:hoursDedicated,oldHoursDedicated,newHoursDedicated:hoursDedicated,source:'CloudRun.RealizedHoursDirect',timestamp,action:''};
+      const subject='[TRAIL] '+type+' :: '+auditId,bodyText=JSON.stringify(payload);
+      const hash=b64url(createHmac('sha256',WRITE_KEY||'AMS_DEV').update(type+'|'+auditId+'|'+timestamp+'|').digest());
+      const queueRow=[timestamp.slice(0,16).replace('T',' '),'AUDIT_TRAIL',type,'',auditId,'',subject,bodyText,0,'',hash,'',JSON.stringify({payload})];
+      const cell=v=>({userEnteredValue:typeof v==='number'?{numberValue:v}:{stringValue:String(v)}});
+      const startedWrite=Date.now();
+      const batch={requests:[
+        {updateCells:{start:{sheetId:logSheet.properties.sheetId,rowIndex,columnIndex:hoursCol},rows:[{values:[cell(hoursDedicated)]}],fields:'userEnteredValue'}},
+        {appendCells:{sheetId:trailSheet.properties.sheetId,rows:[{values:queueRow.map(cell)}],fields:'userEnteredValue'}}
+      ]};
+      const response=await fetch(root+':batchUpdate',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify(batch)});
+      if(!response.ok)throw new Error('SHEETS_ATOMIC_WRITE_'+response.status+':'+(await response.text()).slice(0,200));
+      const writeMs=Date.now()-startedWrite;
+      return sendJson(res,200,{success:true,auditId,oldHoursDedicated,newHoursDedicated:hoursDedicated,hoursDedicated,changed:true,changedAt:timestamp,auditTrail:{success:true,type,status:'AUDIT_TRAIL'},perf:{lookupMs,logWriteMs:writeMs,cellWriteMs:writeMs,auditTrailMs:0,totalMs:Date.now()-t0},transport:'DIRECT_SHEETS_ATOMIC'});
+    }catch(e){return sendJson(res,502,{success:false,error:'DIRECT_SHEETS_COMMIT_FAILED',detail:clean(e.message)});}
     if(!GAS_WRITE_URL||!WRITE_KEY)return sendJson(res,503,{success:false,error:'BRIDGE_UNAVAILABLE'});
     const target=new URL(GAS_WRITE_URL);
     target.searchParams.set('action','externalmanageraction');

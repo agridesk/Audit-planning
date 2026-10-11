@@ -507,6 +507,7 @@ function completionService_overrideCompletedHours_(payload) {
       changed:res.changed,
       changedAt:res.changedAt,
       auditTrail:hoursAuditTrail,
+      auditTrailWarning:hoursAuditTrail && (hoursAuditTrail.success === false || hoursAuditTrail.skipped === true) && res.changed !== false ? 'Hours updated but audit trail was not recorded' : '',
       message:'Completed hours overridden'
     };
   } catch (e) {

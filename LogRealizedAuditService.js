@@ -137,6 +137,7 @@ function LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, m
   var colStatus = LogRealizedAuditService_findHeaderIndex_(headers, ['Status']);
   if (colStatus >= 0) shLog.getRange(rowIdx, colStatus + 1).setValue(LogRealizedAuditService_clean_(meta.status || 'Completed'));
 
+  var cacheStarted = Date.now();
   // δ1.5 (2026-05-03): invalidate persist cache so eligibility/rotation reads see updated hours/status.
   try {
     if (typeof __mp_invalidatePersistCaches_ === 'function') {
@@ -151,6 +152,8 @@ function LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, m
     }
   } catch(eRas) { Logger.log('[LogRealizedAuditService] RAS clear failed (update): ' + eRas); }
 
+  var cacheInvalidationMs = Date.now() - cacheStarted;
+
   return {
     success:true,
     auditId:auditId,
@@ -163,6 +166,7 @@ function LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, m
     auditorEmail:auditorEmail,
     lookupMs:lookupMs,
     cellWriteMs:cellWriteMs,
+    cacheInvalidationMs:cacheInvalidationMs,
     message:'Completed hours updated'
   };
 }

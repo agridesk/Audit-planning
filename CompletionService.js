@@ -461,12 +461,15 @@ function completionService_lifecycleOnStatusChanged_(rowPack, event) {
 }
 
 function completionService_overrideCompletedHours_(payload) {
+  var perfStarted = Date.now();
+  var perf = {};
   var lock = LockService.getScriptLock();
   if (!completionService_acquireLock_(lock, COMPLETION_LOCK_WAIT_MS, COMPLETION_LOCK_RETRY_SLEEP_MS)) {
     return { success:false, message:'Override failed: could not acquire completion lock in time' };
   }
 
   try {
+    perf.lockMs = Date.now() - perfStarted;
     if (!payload || typeof payload !== 'object') return { success:false, message:'Invalid payload' };
     var auditId = completionService_normAuditId_(payload.auditId);
     var actorEmail = completionService_normEmail_(payload.actorEmail || payload.email || payload.userEmail || '');
@@ -484,10 +487,13 @@ function completionService_overrideCompletedHours_(payload) {
     if (typeof managerV5_isManagerActor_ !== 'function' || !managerV5_isManagerActor_(actorEmail)) return { success:false, message:'Manager role required' };
     if (typeof LogRealizedAuditService_UpdateCompletedHours !== 'function') return { success:false, message:'Missing dependency: LogRealizedAuditService_UpdateCompletedHours. Add LogRealizedAuditService.gs.' };
 
+    var writeStarted = Date.now();
     var res = LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, { status:completionService_getCompletedDisplayStatus_() });
+    perf.logWriteMs = Date.now() - writeStarted;
     if (!res || res.success === false) return res;
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var auditStarted = Date.now();
     var hoursAuditTrail = { success:true, skipped:true, reason:'UNCHANGED_HOURS' };
     if (res.changed !== false) hoursAuditTrail = completionService_appendHoursAuditTrail_(ss, {
       type:'COMPLETED_HOURS_OVERRIDE',
@@ -498,7 +504,11 @@ function completionService_overrideCompletedHours_(payload) {
       reason:reason || 'Manager realized-hours correction',
       source:'CompletionService.OverrideCompletedHours'
     });
+    perf.auditTrailMs = Date.now() - auditStarted;
+    var invalidateStarted = Date.now();
     completionService_invalidateRealizedReadModels_(auditId, res.auditorEmail);
+    perf.invalidateMs = Date.now() - invalidateStarted;
+    perf.totalMs = Date.now() - perfStarted;
 
     return {
       success:true,
@@ -509,6 +519,7 @@ function completionService_overrideCompletedHours_(payload) {
       changed:res.changed,
       changedAt:res.changedAt,
       auditTrail:hoursAuditTrail,
+      perf:perf,
       auditTrailWarning:hoursAuditTrail && (hoursAuditTrail.success === false || hoursAuditTrail.skipped === true) && res.changed !== false ? 'Hours updated but audit trail was not recorded' : '',
       message:'Completed hours overridden'
     };

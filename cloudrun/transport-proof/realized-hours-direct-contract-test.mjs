@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const server=fs.readFileSync(new URL('./server-r12.js',import.meta.url),'utf8');
+const client=fs.readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+const route=server.split("u.pathname==='/api/v1/manager/realized-hours-direct'")[1]?.split("u.pathname==='/api/v1/manager/audit'")[0]||'';
+assert.ok(route,'direct realized hours route missing');
+for(const marker of ['innerSession(req)','ROLE_FORBIDDEN','MANAGER_ROLE_REQUIRED','AUDIT_NOT_COMPLETED','DUPLICATE_AUDIT_ID','updateCells','appendCells','batchUpdate','CANONICAL_SHEETS_MISSING'])assert.ok(route.includes(marker),marker);
+assert.ok(!route.includes("target.searchParams.set('action','externalmanageraction')"),'GAS HTTP bridge must not be on hot path');
+assert.ok(client.includes('runRealizedHoursDirect(id,q)'),'client must use direct route');
+assert.ok(client.includes('renderCompleted([all[idx]])'),'must patch one completed row');
+console.log('PASS: realized-hours direct route contracts');

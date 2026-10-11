@@ -1,0 +1,180 @@
+AMS — CHAT HANDOFF / SNAPSHOT — 2026-10-11
+Project: Audit planning system
+Branch: dev
+PROD: untouched
+
+1. CANONICAL AUTHORITY / READ FIRST
+- AMS_MASTER_ROADMAP_V2.11_FINAL_2026-10-04 is the current roadmap authority.
+- Roadmaps V2.7 and earlier are historical only and may NOT be used as current truth.
+- Read alongside:
+  - docs/AMS_PRODUCT_BACKLOG_CURRENT.txt
+  - AMS_CURRENT_PROJECT_MEMORY.txt
+  - AMS_MASTER_AUDIT_GRID_2_0_SHARED_MANAGER_AUDITOR_FUNCTIONAL_SPEC_2026-10-04
+  - AMS_PLANNING_2_0_FUNCTIONAL_BLUEPRINT_2026-10-04_R1
+  - AMS_MY_AVAILABILITY_2_0_HANDOFF_SPEC_2026-10-04_FINAL
+  - AMS_ROTATION_OVERVIEW_2_0_FINAL_FUNCTIONAL_HANDOFF_SPEC_2026-10-04
+  - AMS_AUDITOR_MANAGEMENT_2_0_FINAL_FUNCTIONAL_HANDOFF_SPEC_2026-10-09
+  - AMS_SCOPE_MANAGEMENT_2_0_FINAL_FUNCTIONAL_HANDOFF_SPEC_2026-10-09
+  - AMS_SCOPE_CAPACITY_20_INTEGRATED_DESIGN_2026-10-09
+  - STATUS_MACHINE_CANONICAL_2026.docx
+  - Master Project Governance Ssot 2026.docx
+  - Audit Management System Project Ssot Structure 2026 05 14.docx
+
+2. WORK METHOD — DO NOT ASK USER TO REPEAT
+- Short answers.
+- Continue autonomously until an actual user action/decision is required.
+- No progress-only chatter.
+- Tests green => continue automatically.
+- Test failure => ask only for failing output.
+- No code snippets / inline scripting as deliverables. If a file is requested, provide a complete downloadable TXT.
+- DEV only unless explicitly authorized otherwise.
+- PROD must never be touched without explicit authorization.
+- If Apps Script action is unavoidable, always state exact File + Function.
+- Do NOT make the user perform routine DEV deployments as the normal workflow.
+- Prefer assistant-controlled deployment via connected CI / Cloud Build / GitHub / Work when available.
+- If no assistant-controlled deploy route exists, batch source changes and stop only at the final unavoidable deployment gate.
+- Portal entry point is Cloud Run directly, not script.google.com.
+- Performance is a functional criterion: hot actions and first paint target <=3s; use bounded reads and micro-refresh.
+
+Local repo:
+C:\Users\Gebruiker\Audit-planning
+
+DEV Cloud Run:
+project: audit-management-system-dev
+region: europe-west1
+service: ams-transport-proof
+URL: https://ams-transport-proof-510075419067.europe-west1.run.app/
+
+Never use partial --set-env-vars on deploy; this previously wiped required environment.
+
+3. PERFORMANCE — ACCEPTED
+Manager Grid first paint:
+- Before: 112 open audits · 5688 ms base
+- After: 112 open audits · 851 ms base
+
+Root causes removed:
+- synchronous R12 enrichment on /api/v1/manager/open
+- Model-C extension-link reads from first paint
+
+Keep async enrichment separate from first paint.
+Relevant commits include:
+- 827941cf
+- 2083a738
+- d05d9986
+- fc66de6b
+- 5f3377af
+- b342c746
+
+4. AUDITOR / MANAGER GRID ACTOR-SCOPE
+- Auditor actions must remain actor-scoped.
+- R10 must never overwrite Auditor actions with generic Manager actions.
+- Auditor Grid must not show another Auditor's assigned audit after Pending Planning.
+- Redundant Auditor column is hidden for Auditor role.
+- Google Maps pin must remain visible in Auditor Grid.
+Relevant commits:
+- ddd5f5f6
+- d149e0c7
+
+5. RESPONSIVE GRID / LAPTOP — CURRENT STATE
+User reported laptop overflow remained after earlier responsive attempts.
+
+Latest source state in manager-portal.html:
+- nested table vertical scrollbar removed:
+  .table-wrap uses overflow-y:visible and max-height:none
+- Auditor actor surface is hard-bounded to viewport width
+- Auditor table uses width:100%, max-width:100%, table-layout:fixed
+- Auditor column hidden for Auditor role
+- Google Maps pin explicitly remains visible
+- action controls compacted to avoid forcing width
+- laptop media rules compact typography and widths
+
+Latest backlog notes identify final laptop overflow guard commits:
+- ffe55f7f
+- 02864cbc
+
+Important interpretation:
+- If the user means literal vertical PAGE scrolling (up/down), that is expected with ~112 rows and should not be 'fixed' by reintroducing a nested grid scrollbar.
+- If the user means side-to-side/horizontal scrolling, that is the actual UX-002 defect; the current source guard is intended to eliminate it.
+- Do not make another blind CSS tweak. If side-to-side overflow remains after the latest deployed source, inspect the actual overflowing DOM element/viewport dimensions before changing CSS again.
+
+6. PERFORMANCE / HOT PATH
+PERF-001 remains active.
+Accepted recheck:
+- ACCEPT 854 ms
+- COMPLETE 1878 ms
+- Extension Undo 844 ms
+- Extension Apply 3522 ms remains above 3s but accepted for continued development for now
+Do not regress common lifecycle action speed.
+
+7. SUCCESSOR / QUALIFICATION GOVERNANCE
+Confirmed:
+- completion/year-cycle successor creation must never be blocked only because inherited preassigned Auditor is no longer qualified
+- successor still created
+- invalid inherited preassignment dropped
+- inherited self-planning disabled
+- Manager attention raised
+Relevant commits:
+- ebba39e1
+- ad789501
+- a8ac133f
+- 3b21b153
+Scope Manager hard-block commits:
+- 7d4f82ef
+- da78e73d
+- 3f49b728
+
+Cloud Run deployment does NOT publish root GAS source changes. GAS publication must be handled separately.
+
+8. CURRENT OPEN / ACCEPTANCE ITEMS
+- BUG-001 Auditor Plan requires Self planning = Yes — DEV, acceptance pending
+- BUG-002 Auditor visibility follows Assigned to — DEV, acceptance pending
+- BUG-003 every new assignment/preassignment hard-blocks unqualified Auditor — hardening across mutation routes
+- HARD-001 Extension hidden when canonical extension impossible — acceptance pending
+- UX-001 actor display name — visually verified
+- UX-002 responsive Audit Grid — active laptop acceptance issue
+- UX-003 calendar labels — implementation done, acceptance pending
+- UX-004 multiple audits/day calendar — implementation done, acceptance pending
+- UX-005 minimum interval/expired window wording — implementation done, acceptance pending
+- DEC-001 UI label for canonical Accepted — no decision without user
+- BL-001 qualification-change impact check — open
+- BL-002 Auditor Management 2.0 — spec done, implementation not done
+- BL-003 Scope Management 2.0 — spec done, implementation not done
+
+9. COMPLETE / LIFECYCLE
+Lifecycle:
+Pending Planning -> Pending Approval -> Approved -> Accepted -> Completed
+Rejected terminal.
+
+Manager-planned:
+Pending Planning -> Manager Plan -> Approved -> Auditor Accept -> Accepted
+
+Auditor self-planned:
+Pending Planning -> Auditor Plan -> Pending Approval -> Manager Approve -> Accepted
+No redundant second Auditor Accept.
+
+Complete:
+- only Accepted
+- assigned Auditor + Manager
+- Hours dedicated in 0.25h steps
+- realized log write
+- recurring scopes create next cycle
+- non-recurring MPS-ABC does not create successor
+- immutable completion
+- direct write + targeted micro-refresh
+
+10. NEXT CHAT — START HERE
+- First inspect current dev branch and docs/AMS_PRODUCT_BACKLOG_CURRENT.txt.
+- Confirm whether latest responsive-grid source is already deployed to DEV before asking user to do anything.
+- Do not ask user to deploy routinely; find/use assistant-controlled deployment path if available.
+- For UX-002:
+  - if remaining issue is horizontal/sideways overflow, inspect actual DOM overflow source, not another speculative CSS change.
+  - if remaining issue is literal vertical page scrolling, accept that as normal for ~112 rows unless user explicitly requests pagination/virtualization.
+- Preserve Maps pin and hidden Auditor column in Auditor role.
+- Preserve 851 ms Manager first-paint performance.
+- PROD untouched.
+
+11. USER WORKING PREFERENCE
+- Keep going until user intervention is genuinely needed.
+- Do not interrupt with 'I am continuing' messages.
+- Keep explanations minimal.
+- User explicitly wants next chat to inherit the work method and deployment preference without re-explaining it.

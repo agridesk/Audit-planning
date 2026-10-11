@@ -364,6 +364,10 @@ function completionService_commitCompletion_(payload) {
     });
 
     try {
+      var deleteIdCol = completionService_findHeaderIndex_(rowPack.headers, ['Audit ID']);
+      if (deleteIdCol < 0 || completionService_normAuditId_(shPlan.getRange(rowPack.rowIndex, deleteIdCol + 1).getValue()) !== auditId) {
+        return { success:false, code:'AUDIT_ROW_CHANGED_AFTER_LOG', completionCommitted:true, auditId:auditId, message:'History written, but planning row identity changed; deletion refused' };
+      }
       shPlan.deleteRow(rowPack.rowIndex);
     } catch (eDel) {
       return { success:false, message:'Logged, but could not remove from Audit planning: ' + completionService_errMsg_(eDel), logResult:logResult, availabilityRelease:availabilityRelease, cycleResult:cycleResult };

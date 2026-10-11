@@ -11,7 +11,7 @@ assert.equal(result.ok,true);assert.equal(writes.requests[0].updateCells.start.c
 await assert.rejects(updateScopePolicy20({...deps,body:{...body,expected:'11'}}),/STALE_SCOPE_POLICY/);
 await assert.rejects(updateScopePolicy20({...deps,body:{...body,impactConfirmed:false}}),/INVALID_POLICY_CHANGE/);
 await assert.rejects(updateScopePolicy20({...deps,body:{...body,value:'1.5'}}),/INVALID_POLICY_VALUE/);
-await assert.rejects(updateScopePolicy20({...deps,body:{...body,field:'Source service'}}),/INVALID_POLICY_CHANGE/);
+await assert.rejects(updateScopePolicy20({...deps,body:{...body,field:'Unapproved setting'}}),/INVALID_POLICY_CHANGE/);
 const extension=await updateScopePolicy20({...deps,body:{scopeCode:'MPS-GAP',field:'Extension',expected:'4',value:'6',reason:'Extend policy window',impactConfirmed:true}});
 assert.equal(extension.ok,true);assert.equal(writes.requests[0].updateCells.start.columnIndex,8);
 assert.equal(writes.requests[0].updateCells.rows[0].values[0].userEnteredValue.numberValue,6);

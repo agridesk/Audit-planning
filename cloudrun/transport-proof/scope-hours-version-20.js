@@ -1,5 +1,6 @@
 export async function activateScopeHoursVersion20({body,actor,SID,sheetsBatchGet,accessToken,clean}){
  const scopeCode=clean(body?.scopeCode),reason=clean(body?.reason),expected=clean(body?.expectedVersion),raw=String(body?.hours??'').trim();
+ if(body?.impactConfirmed!==true)throw Error('IMPACT_CONFIRMATION_REQUIRED');
  if(!scopeCode||!reason||reason.length>500||!/^V[1-9][0-9]*$/.test(expected)||!/^\d+(?:[.,]\d{1,2})?$/.test(raw))throw Error('INVALID_VERSION_CHANGE');
  const hours=Number(raw.replace(',','.'));if(hours>1000)throw Error('INVALID_HOURS');
  const vr=await sheetsBatchGet(['Config_Scopes!A1:U128','ScopeVersions!A1:I1000']),catalog=vr[0]?.values||[],versions=vr[1]?.values||[];

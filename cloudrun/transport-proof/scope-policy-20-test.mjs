@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {updateScopePolicy20} from './scope-policy-20.js';
-const headers=['ScopeCode','Max number audits','Min_Interval_Months','Max_Offsite_Hours','Planning from','Planning to','Active','Archived','Extension'];
-const values=[headers,['MPS-GAP','4','12','2','-6','3','TRUE','FALSE','4']];
+const headers=['ScopeCode','Max number audits','Min_Interval_Months','Max_Offsite_Hours','Planning from','Planning to','Active','Archived','Extension','Recurring'];
+const values=[headers,['MPS-GAP','4','12','2','-6','3','TRUE','FALSE','4','YES']];
 let writes=null;
 globalThis.fetch=async(url,opts)=>{if(url.includes('?fields='))return{ok:true,json:async()=>({sheets:[{properties:{title:'Config_Scopes',sheetId:42}}]})};writes=JSON.parse(opts.body);return{ok:true,status:200};};
 const deps={SID:'dev',actor:{email:'manager@example.com'},sheetsBatchGet:async()=>[{values}],accessToken:async()=> 'token',clean:x=>String(x??'').trim()};
@@ -16,4 +16,7 @@ const extension=await updateScopePolicy20({...deps,body:{scopeCode:'MPS-GAP',fie
 assert.equal(extension.ok,true);assert.equal(writes.requests[0].updateCells.start.columnIndex,8);
 assert.equal(writes.requests[0].updateCells.rows[0].values[0].userEnteredValue.numberValue,6);
 await assert.rejects(updateScopePolicy20({...deps,body:{scopeCode:'MPS-GAP',field:'Extension',expected:'4',value:'6.5',reason:'Invalid fractional months',impactConfirmed:true}}),/INVALID_POLICY_VALUE/);
-console.log('scope-policy-20: 8 checks passed');
+const recurring=await updateScopePolicy20({...deps,body:{scopeCode:'MPS-GAP',field:'Recurring',expected:'YES',value:'NO',reason:'Rule updated',impactConfirmed:true}});
+assert.equal(recurring.ok,true);
+await assert.rejects(updateScopePolicy20({...deps,body:{scopeCode:'MPS-GAP',field:'Recurring',expected:'YES',value:'MAYBE',reason:'Invalid',impactConfirmed:true}}),/INVALID_RECURRING_VALUE/);
+console.log('scope-policy-20: 10 checks passed');

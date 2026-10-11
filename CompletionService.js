@@ -528,7 +528,7 @@ function completionService_getAuditPlanningRowPack_(sheet, auditId) {
           completionService_findHeaderIndex_(fastPack.hdr, ['Audit ID']) >= 0 &&
           completionService_normAuditId_(fastPack.row[completionService_findHeaderIndex_(fastPack.hdr, ['Audit ID'])]) === auditId &&
           completionService_normAuditId_(sheet.getRange(Number(fastPack.rowNumber), completionService_findHeaderIndex_(fastPack.hdr, ['Audit ID']) + 1).getValue()) === auditId) {
-        var fastHeaders = fastPack.hdr.slice();
+        var fastHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0] || [];
         var fastValues = sheet.getRange(Number(fastPack.rowNumber), 1, 1, fastHeaders.length).getValues()[0] || [];
         var fastDisplay = sheet.getRange(fastPack.rowNumber, 1, 1, fastHeaders.length).getDisplayValues()[0] || [];
         return {

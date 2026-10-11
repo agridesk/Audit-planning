@@ -86,4 +86,14 @@ assert.equal(readCtx.ScopeManagement20_colorContrast_('#000000','#FFFFFF').reada
 assert.equal(readCtx.ScopeManagement20_colorContrast_('#FFFFFF','#FFFFFF').readable,false);
 readCtx.ScopeVersion20_read_=()=>({success:true,initialized:true,rows:[{ScopeCode:'S1',VersionId:'V6',Hours_to_plan:6,Status:'CURRENT'}]});
 assert.equal(readCtx.ScopeManagement20_read_(scopeSS,{}).success,false);
-console.log('scope-slot-bridge-v211: 34 tests passed');
+const bootstrapSource=readFileSync(new URL('../../ScopeVersion20BootstrapPlan.js',import.meta.url),'utf8');
+const bootstrapCtx={ScopeVersion20_read_:()=>({success:true,initialized:false,rows:[]}),ScopeManagement20_readRows_:readCtx.ScopeManagement20_readRows_,ScopeVersion20_validateRows_:versionContext.ScopeVersion20_validateRows_};
+runInNewContext(bootstrapSource,bootstrapCtx);
+assert.equal(bootstrapCtx.ScopeVersion20_bootstrapPlan_(scopeSS,{}).success,false);
+const bootstrap=bootstrapCtx.ScopeVersion20_bootstrapPlan_(scopeSS,{S1:'LEGACY_2026'});
+assert.equal(bootstrap.success,true);
+assert.equal(bootstrap.writesPerformed,false);
+assert.equal(bootstrap.proposedRows[0].Hours_to_plan,5);
+bootstrapCtx.ScopeVersion20_read_=()=>({success:true,initialized:true,rows:[{}]});
+assert.equal(bootstrapCtx.ScopeVersion20_bootstrapPlan_(scopeSS,{S1:'LEGACY_2026'}).success,false);
+console.log('scope-slot-bridge-v211: 39 tests passed');

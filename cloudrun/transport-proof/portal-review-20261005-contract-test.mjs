@@ -82,4 +82,5 @@ for(const required of ["'Unavailable'","'Partly unavailable'","'Auditor less ava
 assert.ok(portal.includes('selectionExcelSafeCell(v)'),'Excel export must sanitize spreadsheet cell values');tests++;
 assert.ok(portal.includes('"GPS / Map","Scopes","Status","Expiration date"'),'Export must include full Grid 2.0 columns including auditor-hidden expiration date');tests++;
 assert.ok(portal.includes('"Hours planned","Auditor","Alert"'),'Export must include hours, auditor and alert columns');tests++;
-assert.ok(!portal.slice(portal.indexOf('function selectionExportHeaders()'),portal.indexOf('function selectionExcelSafeCell(')).includes('"Audit ID"'),'Export must exclude internal Audit ID');tests++;\nconsole.log(JSON.stringify({ok:true,build:'2026-10-10_PORTAL_REVIEW_HARDENING_CONTRACT_R8',tests,writesPerformed:false}));
+assert.ok(!portal.slice(portal.indexOf('function selectionExportHeaders()'),portal.indexOf('function selectionExcelSafeCell(')).includes('"Audit ID"'),'Export must exclude internal Audit ID');tests++;
+console.log(JSON.stringify({ok:true,build:'2026-10-10_PORTAL_REVIEW_HARDENING_CONTRACT_R8',tests,writesPerformed:false}));

@@ -29,7 +29,8 @@ function m5t_scopeSlotDefs_(ss) {
     var slotNumber = /^SCOPE_(\\d{2})$/.test(slotKey) ? Number(slotKey.slice(6)) : 0;
     if (!slotNumber || slotNumber > 20) throw new Error('CONFIG_SCOPES_INVALID_SLOT_' + slotKey);
     var flag = byHeader[slotKey.toLowerCase()];
-    var hours = byHeader[(slotKey + '_hours').toLowerCase()];
+    var hours = byHeader[('Duration ' + slotKey).toLowerCase()];
+    if (hours === undefined) hours = byHeader[(slotKey + '_hours').toLowerCase()];
     // Legacy hours column is positional only for original eight scope slots.
     if (slotNumber <= 8 && flag === undefined) flag = flagCols[slotNumber - 1];
     if (slotNumber <= 8 && hours === undefined) hours = hourCols[slotNumber - 1];

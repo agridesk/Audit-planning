@@ -1371,6 +1371,42 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       return send(res,200,{ok:true,readOnly:true,scopeCode:code,field,current:String(matches[0][fi]??''),linkedAudits:impacted.length,openAudits:open.length,accepted:open.filter(r=>r.status.toLowerCase()==='accepted').length,impacted:open.slice(0,100),truncated:open.length>100});
     }catch(e){return send(res,409,{ok:false,error:'IMPACT_PREVIEW_UNAVAILABLE',detail:clean(e.message||e)});}
   }
+  if(u.pathname==='/api/v1/manager/scopes/bootstrap-v1'&&req.method==='POST'){
+    const actor=sessionFromRequest(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});}
+    let body;try{body=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+    if(body?.confirmation!=='INITIALIZE_CURRENT_V1'||!clean(body?.reason))return send(res,400,{ok:false,error:'EXPLICIT_CONFIRMATION_AND_REASON_REQUIRED'});
+    try{
+      const catalog=(await sheetsBatchGet(['Config_Scopes!A1:U128']))[0]?.values||[],head=(catalog[0]||[]).map(clean),codeIndex=head.indexOf('ScopeCode'),hoursIndex=head.indexOf('Default_hours');
+      if(codeIndex<0||hoursIndex<0)return send(res,409,{ok:false,error:'CATALOG_SCHEMA_MISSING'});
+      const records=catalog.slice(1).filter(r=>clean(r[codeIndex]));
+      if(!records.length||records.length>20)return send(res,409,{ok:false,error:'CATALOG_SIZE_INVALID'});
+      const codes=new Set(),versions=[];
+      for(const r of records){
+        const code=clean(r[codeIndex]),rawHours=r[hoursIndex],hours=Number(String(rawHours??'').replace(',','.'));
+        if(codes.has(code)||rawHours===''||rawHours===null||rawHours===undefined||!Number.isFinite(hours)||hours<0)return send(res,409,{ok:false,error:'CATALOG_VERSION_PREFLIGHT_FAILED'});
+        codes.add(code);
+        versions.push([code,'V1',hours,'CURRENT','','',new Date().toISOString(),clean(actor.email||actor.sub||'Manager'),clean(body.reason)]);
+      }
+      const token=await accessToken(),base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID);
+      const metadataResponse=await fetch(base+'?fields=sheets.properties(title,sheetId)',{headers:{authorization:'Bearer '+token}});
+      if(!metadataResponse.ok)throw Error('SHEETS_METADATA_UNAVAILABLE');
+      const metadata=await metadataResponse.json(),sheets=metadata.sheets||[];
+      if(sheets.some(x=>x.properties?.title==='ScopeVersions'))return send(res,409,{ok:false,error:'VERSION_STORAGE_ALREADY_EXISTS'});
+      const sheetId=20261011;
+      if(sheets.some(x=>x.properties?.sheetId===sheetId))return send(res,409,{ok:false,error:'VERSION_SHEET_ID_COLLISION'});
+      const headers=['ScopeCode','VersionId','Hours_to_plan','Status','Effective_From','Effective_To','Created_At','Created_By','Change_Reason'];
+      const cell=v=>({userEnteredValue:typeof v==='number'?{numberValue:v}:{stringValue:String(v)}});
+      const rows=[headers,...versions].map(values=>({values:values.map(cell)}));
+      const requests=[{addSheet:{properties:{sheetId,title:'ScopeVersions',gridProperties:{rowCount:1000,columnCount:9,frozenRowCount:1}}}},{updateCells:{start:{sheetId,rowIndex:0,columnIndex:0},rows,fields:'userEnteredValue'}}];
+      const write=await fetch(base+':batchUpdate',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({requests})});
+      if(!write.ok)throw Error('ATOMIC_VERSION_BOOTSTRAP_FAILED_'+write.status);
+      console.info(JSON.stringify({event:'SCOPE_V1_INITIALIZED',actor:clean(actor.email||actor.sub||'Manager'),scopeCount:versions.length,timestamp:new Date().toISOString()}));
+      return send(res,200,{ok:true,initialized:true,versionId:'V1',count:versions.length});
+    }catch(e){return send(res,409,{ok:false,error:clean(e.message||e)});}
+  }
   if(u.pathname==='/api/v1/manager/scopes/versions'&&req.method==='GET'){
     const actor=sessionFromRequest(req);
     if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});

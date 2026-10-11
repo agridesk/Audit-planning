@@ -116,7 +116,7 @@ function ModelCScopeOwner_commit(command){
     if(apAuditIdCol===undefined||apStatusCol===undefined)throw new Error('Audit planning identity/status columns missing');
     var apMatches=apValues.slice(1).filter(function(row){return String(row[apAuditIdCol]||'').trim()===String(command.auditId||'').trim();});
     if(apMatches.length!==1)throw new Error('Audit ID must resolve to exactly one planning row');
-    if(String(apMatches[0][apStatusCol]||'').trim().toUpperCase()==='COMPLETED')throw new Error('COMPLETED_AUDIT_IMMUTABLE');
+    if(['COMPLETED','CANCELLED','REJECTED'].indexOf(String(apMatches[0][apStatusCol]||'').trim().toUpperCase())>=0)throw new Error('TERMINAL_AUDIT_SCOPE_IMMUTABLE');
     var selected=ModelCScopeOwner_normalizeSelected_(command.selectedScopes||[]),codes=Object.keys(selected);
     if(!String(command.companyUid||'').trim())throw new Error('Missing companyUid');if(!String(command.auditId||'').trim())throw new Error('Missing auditId');if(!codes.length)throw new Error('At least one scope is required');
     ModelCScopeOwner_validateSelection_(ss,selected);

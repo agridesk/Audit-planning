@@ -2,11 +2,13 @@ export async function updateScopePolicy20({body,actor,SID,sheetsBatchGet,accessT
  const field=clean(body?.field),scopeCode=clean(body?.scopeCode),expected=String(body?.expected??''),value=String(body?.value??'').trim(),reason=clean(body?.reason);
  const numeric={'Max number audits':{min:0,max:10000,integer:true},'Min_Interval_Months':{min:0,max:1200,integer:true},'Max_Offsite_Hours':{min:0,max:1000},'Extension':{min:0,max:120,integer:true}};
  const windowFields=['Planning from','Planning to'];
- const allowed=[...Object.keys(numeric),...windowFields,'Active','Archived','Recurring'];
+ const textFields=['Obligation cycle','Complete by','Provisioning source','Trigger source','Source service'];
+ const allowed=[...Object.keys(numeric),...windowFields,'Active','Archived','Recurring',...textFields];
  if(!allowed.includes(field)||!scopeCode||!reason||reason.length>500||body?.impactConfirmed!==true)throw Error('INVALID_POLICY_CHANGE');
  if(numeric[field]){const rule=numeric[field];if(!/^\d+(?:\.\d{1,2})?$/.test(value)||Number(value)<rule.min||Number(value)>rule.max||(rule.integer&&!Number.isInteger(Number(value))))throw Error('INVALID_POLICY_VALUE');}
  if(['Active','Archived'].includes(field)&&!['TRUE','FALSE'].includes(value.toUpperCase()))throw Error('INVALID_BOOLEAN_POLICY');
  if(windowFields.includes(field)&&value&&!/^-?\d{1,3}$/.test(value))throw Error('INVALID_PLANNING_OFFSET');
+ if(textFields.includes(field)&&(value.length>120||/[<>\\r\\n]/.test(value)))throw Error('INVALID_POLICY_TEXT');
  if(field==='Recurring'&&!['YES','NO'].includes(value.toUpperCase()))throw Error('INVALID_RECURRING_VALUE');
  const data=await sheetsBatchGet(['Config_Scopes!A1:U128']),rows=data[0]?.values||[],headers=(rows[0]||[]).map(clean),ci=headers.indexOf('ScopeCode'),fi=headers.indexOf(field);
  if(ci<0||fi<0)throw Error('POLICY_SCHEMA_MISSING');

@@ -170,9 +170,9 @@ function addBlockSameDay(i){
     const endMin=startMin+Math.round(duration*60);
     if(endMin>23*60+45)return setStatus('No valid same-day quarter-hour block fits the remaining hours on this day.','err');
     const b={date:base.date,start:String(Math.floor(startMin/60)).padStart(2,'0')+':'+String(startMin%60).padStart(2,'0'),end:String(Math.floor(endMin/60)).padStart(2,'0')+':'+String(endMin%60).padStart(2,'0'),executionType:String(base.executionType||'ONSITE').toUpperCase()==='OFFSITE'?'OFFSITE':'ONSITE',execLoc:String(base.executionType||'ONSITE').toUpperCase()==='OFFSITE'?'':(base.execLoc||'HQ'),slotComment:''};
-    const local=draftBlocks.filter((x,j)=>j!==i&&overlaps(x,b)),external=externalConflicts(b);
-    if(!local.length&&!external.length){draftBlocks.push(b);draftBlocks.sort((x,y)=>x.date.localeCompare(y.date)||x.start.localeCompare(y.start));q('#date').value=b.date;q('#start').value=b.start;q('#end').value=b.end;q('#comment').value='';renderDraft();setStatus('Additional block added on '+b.date+'.','ok');validate();return}
-    const ends=[...local,...external].map(x=>hhmm(x.end)).filter(Number.isFinite),next=ends.length?Math.max(...ends):0;
+    const local=draftBlocks.filter((x,j)=>j!==i&&overlaps(x,b)),external=externalConflicts(b),provisional=actorRole.toLowerCase()==='auditor'?provisionalConflicts(b).flatMap(p=>(p.blocks||[]).filter(x=>x.date===b.date&&hhmm(b.start)<hhmm(x.end)&&hhmm(x.start)<hhmm(b.end))):[];
+    if(!local.length&&!external.length&&!provisional.length){draftBlocks.push(b);draftBlocks.sort((x,y)=>x.date.localeCompare(y.date)||x.start.localeCompare(y.start));q('#date').value=b.date;q('#start').value=b.start;q('#end').value=b.end;q('#comment').value='';renderDraft();setStatus('Additional block added on '+b.date+'.','ok');validate();return}
+    const ends=[...local,...external,...provisional].map(x=>hhmm(x.end)).filter(Number.isFinite),next=ends.length?Math.max(...ends):0;
     if(!(next>startMin))break;startMin=next;
   }
   setStatus('No non-overlapping same-day block could be found.','err');

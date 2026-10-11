@@ -506,6 +506,7 @@ function completionService_overrideCompletedHours_(payload) {
       newHoursDedicated:res.newHoursDedicated,
       changed:res.changed,
       changedAt:res.changedAt,
+      auditTrail:hoursAuditTrail,
       message:'Completed hours overridden'
     };
   } catch (e) {

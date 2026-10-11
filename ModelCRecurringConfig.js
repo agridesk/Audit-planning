@@ -9,13 +9,6 @@ function ModelCRecurringConfig_truthy_(v){
   return s==='YES'||s==='TRUE'||s==='1'||s==='X';
 }
 
-function ModelCRecurringConfig_hoursToPlan_(raw,scopeCode){
-  if(raw===null||raw===undefined||String(raw).trim()==='')throw new Error('Config_Scopes Hours_to_plan missing: '+scopeCode);
-  var hours=Number(String(raw).trim().replace(',','.'));
-  if(!isFinite(hours)||hours<0)throw new Error('Config_Scopes Hours_to_plan invalid: '+scopeCode);
-  return hours;
-}
-
 function ModelCRecurringConfig_byCode_(ss){
   ss=ss||SpreadsheetApp.getActive();
   var sh=ss.getSheetByName(MODEL_C_SHEETS.CONFIG_SCOPES);
@@ -34,7 +27,7 @@ function ModelCRecurringConfig_byCode_(ss){
       recurringRaw:String(recurringRaw==null?'':recurringRaw).trim(),
       planningFrom:Number(ModelCFoundation_valueByHeaderRaw_(row,m,['Planning from'])||0),
       planningTo:Number(ModelCFoundation_valueByHeaderRaw_(row,m,['Planning to'])||0),
-      defaultHours:ModelCRecurringConfig_hoursToPlan_(ModelCFoundation_valueByHeaderRaw_(row,m,['Default_hours']),code),
+      defaultHours:Number(ModelCFoundation_valueByHeaderRaw_(row,m,['Default_hours'])||0),
       obligationCycle:String(ModelCFoundation_valueByHeader_(row,m,['Obligation cycle'])||'').trim().toUpperCase(),
       completeBy:String(ModelCFoundation_valueByHeader_(row,m,['Complete by'])||'').trim()
     };

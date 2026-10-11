@@ -105,4 +105,10 @@ assert.equal(authCtx.ScopeManagement20_authorizeManager_('other@example.org'),fa
 authCtx.V5_getUserRoleFromAuditors_=()=>({found:true,role:'Auditor'});
 assert.equal(authCtx.ScopeManagement20_authorizeManager_('manager@example.org'),false);
 assert.equal(authCtx.ScopeManagement20_ManagerRead({}).success,false);
-console.log('scope-slot-bridge-v211: 43 tests passed');
+const scopeUi=readFileSync(new URL('../../ScopeManagement20ManagerUI.html',import.meta.url),'utf8');
+assert.match(scopeUi,/Scope Management 2\.0/);
+assert.match(scopeUi,/ScopeManagement20_ManagerRead/);
+assert.match(scopeUi,/Versions &amp; Hours/);
+assert.match(scopeUi,/Extensions &amp; Sources/);
+assert.doesNotMatch(scopeUi,/\.innerHTML\s*=/);
+console.log('scope-slot-bridge-v211: 48 tests passed');

@@ -100,8 +100,8 @@ assert.doesNotMatch(modelC,/ModelCScopeOwner_writeObjects_\(obSheet/,'Complete s
 assert.doesNotMatch(modelC,/ModelCScopeOwner_writeObjects_\(lkSheet/,'Complete successor hot path must not rewrite all visit links');
 assert.match(modelC,/ModelCAnnualCycle_appendObjects_/,'Complete successor hot path must batch-append only new Model C rows');
 assert.match(modelC,/perf\.totalMs/,'Complete Model C hot path must expose timings');
-assert.match(modelC,/ModelCAnnualCycle_applyAuditPlanningHoursToPlan_/,'Canonical Model C runtime must override successor formal hours from Audit planning scope durations');
-assert.match(modelC,/\['Duration '\+slot\]/,'Canonical Model C runtime must use Duration SCOPE_xx columns as primary next-cycle hours');
+assert.match(modelC,/ModelCAnnualCycle_applyAuditPlanningHoursToPlan_/,'Canonical Model C compatibility entry point must remain available');
+assert.match(modelC,/function ModelCAnnualCycle_applyAuditPlanningHoursToPlan_\(ss,headers,sourceRow,plan\)\{\s*return plan;/,'Canonical Model C completion must preserve successor hours resolved by the annual-cycle planner');
 assert.match(read('../../AuditPlanningModelCAnnualCyclePlan.js'),/def\.defaultHours/,'Recurring successor formal hours must fall back to Config_Scopes default hours');
 assert.match(log,/oldHoursDedicated/,'Realized-hours correction must retain old value for audit trail');
 assert.match(log,/newHoursDedicated/,'Realized-hours correction must retain new value for audit trail');

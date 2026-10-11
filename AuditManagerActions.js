@@ -73,7 +73,10 @@ function managerV5Action(auditId, action, options) {
         actorEmail:String(options.actorEmail || options.managerEmail || '').trim().toLowerCase(),
         reason:String(options.reason || '').trim()
       });
-      return done_(correction || { success:false, message:'Realized-hours correction returned empty result' });
+      var corrected = done_(correction || { success:false, message:'Realized-hours correction returned empty result' });
+      corrected.perf.completionInstrumentationPresent = !!(correction && correction.perf && typeof correction.perf.logWriteMs === 'number');
+      corrected.perf.completionBuild = typeof COMPLETION_SERVICE_BUILD !== 'undefined' ? String(COMPLETION_SERVICE_BUILD) : 'UNAVAILABLE';
+      return corrected;
     }
 
     var actionMap = {

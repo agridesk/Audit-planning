@@ -486,7 +486,8 @@ function completionService_overrideCompletedHours_(payload) {
     if (!res || res.success === false) return res;
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    if (res.changed !== false) completionService_appendHoursAuditTrail_(ss, {
+    var hoursAuditTrail = { success:true, skipped:true, reason:'UNCHANGED_HOURS' };
+    if (res.changed !== false) hoursAuditTrail = completionService_appendHoursAuditTrail_(ss, {
       type:'COMPLETED_HOURS_OVERRIDE',
       auditId:auditId,
       actorEmail:actorEmail,

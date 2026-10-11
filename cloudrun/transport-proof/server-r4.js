@@ -1371,6 +1371,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       return send(res,200,{ok:true,readOnly:true,scopeCode:code,field,current:String(matches[0][fi]??''),linkedAudits:impacted.length,openAudits:open.length,accepted:open.filter(r=>r.status.toLowerCase()==='accepted').length,impacted:open.slice(0,100),truncated:open.length>100});
     }catch(e){return send(res,409,{ok:false,error:'IMPACT_PREVIEW_UNAVAILABLE',detail:clean(e.message||e)});}
   }
+  if(u.pathname==='/api/v1/manager/scopes/hours-version'&&req.method==='POST')return send(res,501,{ok:false,error:'VERSION_ACTIVATION_NOT_ENABLED'});
   if(u.pathname==='/api/v1/manager/scopes/bootstrap-v1'&&req.method==='POST'){
     const actor=sessionFromRequest(req);
     if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});

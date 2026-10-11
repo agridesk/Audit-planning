@@ -305,10 +305,11 @@ function managerV5_findRowByAuditIdInSheet_(sheet, headers, auditId, candidates)
   if (col < 0) return 0;
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return 0;
-  var vals = sheet.getRange(2, col + 1, lastRow - 1, 1).getValues();
-  for (var i = 0; i < vals.length; i++) {
-    if (LogRealizedAuditService_clean_(vals[i][0]) === auditId) return i + 2;
-  }
+  // Native Sheets text search avoids materializing the entire Audit ID column on each correction.
+  // Exact match is mandatory; verify the located cell before returning a row.
+  var range = sheet.getRange(2, col + 1, lastRow - 1, 1);
+  var cell = range.createTextFinder(auditId).matchEntireCell(true).matchCase(true).findNext();
+  if (cell && LogRealizedAuditService_clean_(cell.getValue()) === auditId) return cell.getRow();
   return 0;
 }
 

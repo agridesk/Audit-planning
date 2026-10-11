@@ -17,6 +17,9 @@ const log=read('../../LogRealizedAuditService.js');
 const auditor=read('../../AuditorV5Backend.js');
 const auditorPortal=read('../../AuditorPortalV5.html');
 const annualCycle=read('../../AnnualCycleEngineV5.js');
+assert.match(modelC,/Terminal obligation cannot be completed again:/);
+assert.match(modelC,/success:already>0,finalized:0,idempotent:already>0/);
+
 
 assert.match(portal,/Working · correcting realized hours/,'Realized-hours correction must show a pending state');
 assert.match(portal,/REALIZED_HOURS_COMMIT_NOT_CONFIRMED/,'Realized-hours success must require canonical backend confirmation');

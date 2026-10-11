@@ -503,7 +503,10 @@ function completionService_getAuditPlanningRowPack_(sheet, auditId) {
   try {
     if (typeof __mp_getAuditPlanningRow_ === 'function') {
       var fastPack = __mp_getAuditPlanningRow_(sheet.getParent(), auditId);
-      if (fastPack && fastPack.row && fastPack.hdr && fastPack.rowNumber) {
+      if (fastPack && fastPack.row && fastPack.hdr && fastPack.rowNumber &&
+          Number(fastPack.rowNumber) >= 2 && Number(fastPack.rowNumber) <= lastRow &&
+          completionService_findHeaderIndex_(fastPack.hdr, ['Audit ID']) >= 0 &&
+          completionService_normAuditId_(fastPack.row[completionService_findHeaderIndex_(fastPack.hdr, ['Audit ID'])]) === auditId) {
         var fastHeaders = fastPack.hdr.slice();
         var fastValues = fastPack.row.slice();
         var fastDisplay = sheet.getRange(fastPack.rowNumber, 1, 1, fastHeaders.length).getDisplayValues()[0] || [];

@@ -19,4 +19,11 @@ await assert.rejects(updateScopePolicy20({...deps,body:{scopeCode:'MPS-GAP',fiel
 const recurring=await updateScopePolicy20({...deps,body:{scopeCode:'MPS-GAP',field:'Recurring',expected:'YES',value:'NO',reason:'Rule updated',impactConfirmed:true}});
 assert.equal(recurring.ok,true);
 await assert.rejects(updateScopePolicy20({...deps,body:{scopeCode:'MPS-GAP',field:'Recurring',expected:'YES',value:'MAYBE',reason:'Invalid',impactConfirmed:true}}),/INVALID_RECURRING_VALUE/);
-console.log('scope-policy-20: 10 checks passed');
+const fullHeaders=[...headers,'Obligation cycle','Complete by','Provisioning source','Trigger source','Source service'];
+const fullRow=[...values[1],'','','','',''];
+const fullDeps={...deps,sheetsBatchGet:async()=>[{values:[fullHeaders,fullRow]}]};
+for(const field of ['Obligation cycle','Complete by','Provisioning source','Trigger source','Source service']){
+ const result=await updateScopePolicy20({...fullDeps,body:{scopeCode:'MPS-GAP',field,expected:'',value:'Configured',reason:'Policy configuration',impactConfirmed:true}});
+ assert.equal(result.ok,true);
+}
+console.log('scope-policy-20: 15 checks passed');

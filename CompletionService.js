@@ -513,6 +513,7 @@ function completionService_overrideCompletedHours_(payload) {
     perf.logWriteMs = Date.now() - writeStarted;
     perf.lookupMs = res && res.lookupMs;
     perf.cellWriteMs = res && res.cellWriteMs;
+    perf.cacheInvalidationMs = res && res.cacheInvalidationMs;
     if (!res || res.success === false) return res;
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();

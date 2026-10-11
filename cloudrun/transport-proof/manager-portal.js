@@ -313,7 +313,7 @@ function el(tag,value){var x=document.createElement(tag);x.textContent=value==nu
 function showDetails(){if(!selected)return;dossier.hidden=false;document.getElementById('scopeManagement20Name').textContent=selected.displayName+' ('+selected.scopeCode+')';var p=selected.policy||{},fields=[];
 if(tab==='general')fields=[['Scope name',selected.displayName],['Scope code',selected.scopeCode],['Slot',selected.slotKey],['Active',selected.active],['Archived',selected.archived],['Color',p.Color],['Text color',p.TextColor],['Sort order',p.SortOrder]];
 if(tab==='versions')fields=[['Hours to be planned',selected.hoursToPlan]];
-if(tab==='rules')fields=[['Rotation limit',selected.rotationLimit],['Minimum interval',selected.minimumIntervalMonths],['Planning from',selected.planningFrom],['Planning to',selected.planningTo],['Recurring',p.Recurring],['Cycle',p['Obligation cycle']],['Complete by',p['Complete by']]];
+if(tab==='rules')fields=[['Rotation limit',selected.rotationLimit],['Minimum interval',selected.minimumIntervalMonths],['Max off-site hours',p.Max_Offsite_Hours],['Planning from',selected.planningFrom],['Planning to',selected.planningTo],['Recurring',p.Recurring],['Cycle',p['Obligation cycle']],['Complete by',p['Complete by']]];
 if(tab==='sources')fields=[['Extension',p.Extension],['Provisioning source',p['Provisioning source']],['Trigger source',p['Trigger source']],['Source service',p['Source service']]];
 details.replaceChildren();
 if(tab==='versions'){
@@ -360,7 +360,25 @@ if(current||!versions.length){
 }
 fields.forEach(function(f){
 details.appendChild(el('dt',f[0]));var dd=el('dd',''),map={'Scope name':'DisplayName','Color':'Color','Text color':'TextColor','Sort order':'SortOrder'},field=map[f[0]];
-if(field){var input=document.createElement('input');input.value=f[1]==null?'':String(f[1]);input.setAttribute('aria-label',f[0]);input.style.maxWidth='200px';var save=el('button','Save');save.type='button';save.style.marginLeft='8px';save.onclick=async function(){save.disabled=true;try{var response=await fetch('/api/v1/manager/scopes/cosmetic',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({scopeCode:selected.scopeCode,field:field,expected:String(selected.policy[field]??''),value:input.value})}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'SAVE_FAILED');status.textContent='Saved '+field+' for '+selected.scopeCode;await load();selected=records.find(function(r){return r.scopeCode===result.scopeCode})||selected;showDetails()}catch(e){status.textContent='Save blocked: '+e.message}finally{save.disabled=false}};dd.appendChild(input);dd.appendChild(save)}else {var val=f[1]==null?'':String(f[1]);dd.textContent=val||'Not configured';if(!val)dd.style.opacity='0.65'}details.appendChild(dd)})}
+var policyMap={'Rotation limit':'Max number audits','Minimum interval':'Min_Interval_Months','Max off-site hours':'Max_Offsite_Hours','Planning from':'Planning from','Planning to':'Planning to','Active':'Active','Archived':'Archived'};
+var policyField=policyMap[f[0]];
+if(tab==='rules'&&policyField||tab==='general'&&['Active','Archived'].includes(f[0])){
+ var edit=document.createElement('input');edit.value=f[1]==null?'':String(f[1]);edit.style.maxWidth='130px';edit.setAttribute('aria-label',f[0]);
+ var commit=el('button','Save');commit.type='button';commit.style.marginLeft='8px';
+ commit.onclick=async function(){
+  var reason=prompt('Reason for policy change:');if(!reason||!reason.trim())return;
+  commit.disabled=true;
+  try{
+   var fieldName=policyField,pre=await fetch('/api/v1/manager/scopes/impact?scopeCode='+encodeURIComponent(selected.scopeCode)+'&field='+encodeURIComponent(fieldName),{credentials:'same-origin'}),impact=await pre.json();
+   if(!pre.ok||!impact.ok)throw Error(impact.error||'IMPACT_PREVIEW_UNAVAILABLE');
+   if(!confirm('Change '+fieldName+'? '+impact.openAudits+' open audits, '+impact.accepted+' Accepted. Existing audit records are not rescheduled.'))return;
+   var resultResponse=await fetch('/api/v1/manager/scopes/policy',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({scopeCode:selected.scopeCode,field:fieldName,expected:String(impact.current),value:edit.value,reason:reason,impactConfirmed:true})}),result=await resultResponse.json();
+   if(!resultResponse.ok||!result.ok)throw Error(result.error||'POLICY_SAVE_FAILED');
+   status.textContent='Saved '+fieldName+' for '+selected.scopeCode;var code=selected.scopeCode;await load();selected=records.find(function(r){return r.scopeCode===code})||selected;showDetails();
+  }catch(e){status.textContent='Policy change blocked: '+e.message}finally{commit.disabled=false}
+ };
+ dd.appendChild(edit);dd.appendChild(commit);
+}else if(field){var input=document.createElement('input');input.value=f[1]==null?'':String(f[1]);input.setAttribute('aria-label',f[0]);input.style.maxWidth='200px';var save=el('button','Save');save.type='button';save.style.marginLeft='8px';save.onclick=async function(){save.disabled=true;try{var response=await fetch('/api/v1/manager/scopes/cosmetic',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({scopeCode:selected.scopeCode,field:field,expected:String(selected.policy[field]??''),value:input.value})}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'SAVE_FAILED');status.textContent='Saved '+field+' for '+selected.scopeCode;await load();selected=records.find(function(r){return r.scopeCode===result.scopeCode})||selected;showDetails()}catch(e){status.textContent='Save blocked: '+e.message}finally{save.disabled=false}};dd.appendChild(input);dd.appendChild(save)}else {var val=f[1]==null?'':String(f[1]);dd.textContent=val||'Not configured';if(!val)dd.style.opacity='0.65'}details.appendChild(dd)})}
 async function saveInline(r,field,value,control){
 control.disabled=true;
 try{

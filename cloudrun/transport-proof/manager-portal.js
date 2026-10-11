@@ -341,23 +341,6 @@ var versions=result.versions.filter(function(v){return v.ScopeCode===code});
 versionInfo.textContent=versions.length?versions.map(function(v){return v.VersionId+' · '+v.Status+' · '+v.Hours_to_plan+' hours'}).join('\n'):'No versions registered for '+code;
 }).catch(function(e){versionInfo.textContent='Version management not initialized: '+e.message+'\nHours editing remains disabled until V1 registration is verified.'});
 }
-if(tab==='versions'||tab==='rules'||tab==='sources'){
-var impact=el('button','Preview impact on open audits');impact.type='button';impact.style.marginBottom='10px';
-var previewResult=el('div','Click to calculate impact.');previewResult.setAttribute('role','status');previewResult.setAttribute('aria-live','polite');previewResult.style.whiteSpace='pre-wrap';previewResult.style.padding='8px';previewResult.style.border='1px solid #cbd5e1';previewResult.style.borderRadius='6px';previewResult.style.maxWidth='720px';
-impact.onclick=async function(){
-impact.disabled=true;previewResult.textContent='Calculating impact…';
-try{
-var field=tab==='versions'?'Default_hours':tab==='rules'?'Min_Interval_Months':'Extension';
-var response=await fetch('/api/v1/manager/scopes/impact?scopeCode='+encodeURIComponent(selected.scopeCode)+'&field='+encodeURIComponent(field),{credentials:'same-origin'});
-var result=await response.json();if(!response.ok||!result.ok)throw Error((result.error||'IMPACT_UNAVAILABLE')+(result.detail?' — '+result.detail:''));
-var lines=['Scope: '+selected.scopeCode,'Field: '+field,'Linked audits: '+result.linkedAudits,'Open audits: '+result.openAudits,'Accepted audits: '+result.accepted,'Read-only preview — no changes made'];
-(result.impacted||[]).slice(0,25).forEach(function(item){lines.push(item.auditId+' — '+item.status)});
-if(result.truncated||result.openAudits>25)lines.push('Additional audits not shown');
-previewResult.textContent=lines.join('\n');status.textContent='Impact preview calculated for '+selected.scopeCode;
-}catch(e){previewResult.textContent='Impact preview unavailable: '+e.message;status.textContent='Impact preview blocked for '+selected.scopeCode}
-finally{impact.disabled=false}};
-details.appendChild(el('dt','Change impact'));var wrapper=el('dd','');wrapper.appendChild(impact);wrapper.appendChild(previewResult);details.appendChild(wrapper);
-}
 fields.forEach(function(f){
 details.appendChild(el('dt',f[0]));var dd=el('dd',''),map={'Scope name':'DisplayName','Color':'Color','Text color':'TextColor','Sort order':'SortOrder'},field=map[f[0]];
 if(field){var input=document.createElement('input');input.value=f[1]==null?'':String(f[1]);input.setAttribute('aria-label',f[0]);input.style.maxWidth='200px';var save=el('button','Save');save.type='button';save.style.marginLeft='8px';save.onclick=async function(){save.disabled=true;try{var response=await fetch('/api/v1/manager/scopes/cosmetic',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({scopeCode:selected.scopeCode,field:field,expected:String(selected.policy[field]??''),value:input.value})}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'SAVE_FAILED');status.textContent='Saved '+field+' for '+selected.scopeCode;await load();selected=records.find(function(r){return r.scopeCode===result.scopeCode})||selected;showDetails()}catch(e){status.textContent='Save blocked: '+e.message}finally{save.disabled=false}};dd.appendChild(input);dd.appendChild(save)}else dd.textContent=f[1]==null?'':String(f[1]);details.appendChild(dd)})}

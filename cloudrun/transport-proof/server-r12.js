@@ -88,6 +88,7 @@ http.createServer(async(req,res)=>{
     const auditId=clean(body.auditId),hoursDedicated=Number(body.hoursDedicated);
     if(!auditId||!Number.isFinite(hoursDedicated)||hoursDedicated<=0||Math.abs(Math.round(hoursDedicated*4)/4-hoursDedicated)>1e-9)return sendJson(res,400,{success:false,error:'INVALID_HOURS'});
     const t0=Date.now();
+    if(!SID)return sendJson(res,503,{success:false,error:'DEV_SSOT_NOT_CONFIGURED'});
     const rows=await batchValues(["'Log realized audits'!A1:AZ10000","'Auditors'!A1:Z500"]);
     const log=rows[0]||[],auditors=rows[1]||[];
     const ah=auditors[0]||[],emailCol=col(ah,['Email','E-mail']),roleCol=col(ah,['Role']),activeCol=col(ah,['Active']);
@@ -127,19 +128,7 @@ http.createServer(async(req,res)=>{
       const writeMs=Date.now()-startedWrite;
       return sendJson(res,200,{success:true,auditId,oldHoursDedicated,newHoursDedicated:hoursDedicated,hoursDedicated,changed:true,changedAt:timestamp,auditTrail:{success:true,type,status:'AUDIT_TRAIL'},perf:{lookupMs,logWriteMs:writeMs,cellWriteMs:writeMs,auditTrailMs:0,totalMs:Date.now()-t0},transport:'DIRECT_SHEETS_ATOMIC'});
     }catch(e){return sendJson(res,502,{success:false,error:'DIRECT_SHEETS_COMMIT_FAILED',detail:clean(e.message)});}
-    if(!GAS_WRITE_URL||!WRITE_KEY)return sendJson(res,503,{success:false,error:'BRIDGE_UNAVAILABLE'});
-    const target=new URL(GAS_WRITE_URL);
-    target.searchParams.set('action','externalmanageraction');
-    const started=Date.now();
-    try{
-      const response=await fetch(target,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({bridgeKey:WRITE_KEY,actorEmail:clean(identity.email).toLowerCase(),auditId,managerAction:'edit_realized_hours',options:{hoursDedicated,reason:clean(body.reason)||'Manager realized-hours correction'}})});
-      const raw=await response.text();
-      let result;
-      try{result=JSON.parse(raw);}catch{return sendJson(res,502,{success:false,error:'GAS_NON_JSON_RESPONSE'});}
-      if(!response.ok||result.success===false||result.ok===false)return sendJson(res,502,{success:false,error:clean(result.error||result.message)||'GAS_ACTION_FAILED'});
-      if(clean(result.auditId)!==auditId||Number(result.newHoursDedicated)!==hoursDedicated)return sendJson(res,502,{success:false,error:'CANONICAL_COMMIT_NOT_CONFIRMED'});
-      return sendJson(res,200,{...result,perf:{...(result.perf||{}),gasHttpMs:Date.now()-started},transport:'CLOUD_RUN_DIRECT'});
-    }catch(e){return sendJson(res,502,{success:false,error:'GAS_BRIDGE_FAILED',detail:clean(e.message)});}
+
   }
   if(req.method==='GET'&&u.pathname==='/api/v1/manager/audit'){
     const identity=await innerSession(req);if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED'});if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN'});const auditId=clean(u.searchParams.get('auditId')),sourceRow=clean(u.searchParams.get('sourceRow'));if(!auditId)return sendJson(res,400,{success:false,error:'AUDIT_ID_REQUIRED'});try{const out=await readAuditPatch(auditId,sourceRow);return sendJson(res,out.success?200:404,out);}catch(e){return sendJson(res,500,{success:false,error:'MANAGER_AUDIT_REREAD_FAILED',detail:clean(e?.message||e),build:BUILD});}

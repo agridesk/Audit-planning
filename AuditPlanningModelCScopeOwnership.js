@@ -65,7 +65,12 @@ function ModelCScopeOwner_normalizeSelected_(items){
     raw=raw||{};if(!(raw.enabled===true||String(raw.enabled).toLowerCase()==='true'))return;
     var code=String(raw.scopeCode||raw.scope||'').trim();if(!code)return;
     var recurring=ModelCRecurringConfig_isRecurring_(ss,code);
-    out[code]={scopeCode:code,recurring:recurring,formalHours:raw.formalHours===undefined?raw.customHours:raw.formalHours,baseExpiry:recurring?String(raw.baseExpiry||raw.dateWillExpire||'').trim():'',certificateBirthday:recurring?String(raw.certificateBirthday||raw.birthdate||'').trim():'',lifecycleType:recurring?'CERTIFICATE_RECURRING':'NON_RECURRING'};
+    var hoursInput=raw.formalHours===undefined?raw.customHours:raw.formalHours;
+    if(hoursInput===null||hoursInput===undefined||String(hoursInput).trim()===''){
+      var configured=ModelCRecurringConfig_get_(ss,code);
+      hoursInput=configured.defaultHours;
+    }
+    out[code]={scopeCode:code,recurring:recurring,formalHours:hoursInput,baseExpiry:recurring?String(raw.baseExpiry||raw.dateWillExpire||'').trim():'',certificateBirthday:recurring?String(raw.certificateBirthday||raw.birthdate||'').trim():'',lifecycleType:recurring?'CERTIFICATE_RECURRING':'NON_RECURRING'};
   });
   var depSheet=ss.getSheetByName(MODEL_C_SHEETS.SCOPE_DEPENDENCIES),deps=depSheet?ModelCMigration_rowsToObjects_(depSheet.getDataRange().getValues()):[];
   deps.forEach(function(d){if(String(d.Active||'').toUpperCase()!=='YES')return;var parent=String(d.Parent_ScopeCode||''),child=String(d.Child_ScopeCode||'');if(!parent||!child||!out[child])return;if(String(d.Must_Audit_Together||'').toUpperCase()==='YES'&&!out[parent])throw new Error(child+' requires '+parent);if(out[parent]&&String(d.Share_Expiry||'').toUpperCase()==='YES'){out[child].baseExpiry=out[parent].baseExpiry;out[child].certificateBirthday=out[parent].certificateBirthday;}});

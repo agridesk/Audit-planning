@@ -64,6 +64,7 @@ function ModelCScopeOwner_normalizeSelected_(items){
   (items||[]).forEach(function(raw){
     raw=raw||{};if(!(raw.enabled===true||String(raw.enabled).toLowerCase()==='true'))return;
     var code=String(raw.scopeCode||raw.scope||'').trim();if(!code)return;
+    if(out[code])throw new Error('Duplicate selected scope: '+code);
     var recurring=ModelCRecurringConfig_isRecurring_(ss,code);
     var hoursInput=raw.formalHours===undefined?raw.customHours:raw.formalHours;
     var hasPersonalizedHours=hoursInput!==null&&hoursInput!==undefined&&String(hoursInput).trim()!=='';

@@ -259,7 +259,10 @@ function ConfigScopes_loadCatalogFromSheet_() {
       extension: ConfigScopes_numOrNull_(ConfigScopes_val_(row, idx, ['Extension'])),
       recurring: ConfigScopes_clean_(ConfigScopes_val_(row, idx, ['Recurring', 'RECURRENCE', 'Recurring audit'])),
       obligationCycle: ConfigScopes_clean_(ConfigScopes_val_(row, idx, ['Obligation cycle', 'Obligation_cycle', 'Cycle'])).toUpperCase(),
-      completeBy: ConfigScopes_clean_(ConfigScopes_val_(row, idx, ['Complete by', 'Complete_by', 'Must be completed by']))
+      completeBy: ConfigScopes_clean_(ConfigScopes_val_(row, idx, ['Complete by', 'Complete_by', 'Must be completed by'])),
+      provisioningSource: ConfigScopes_clean_(ConfigScopes_val_(row, idx, ['Provisioning source'])),
+      triggerSource: ConfigScopes_clean_(ConfigScopes_val_(row, idx, ['Trigger source'])),
+      sourceService: ConfigScopes_clean_(ConfigScopes_val_(row, idx, ['Source service']))
     });
   }
 

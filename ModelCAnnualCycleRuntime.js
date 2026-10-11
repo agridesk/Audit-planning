@@ -5,7 +5,7 @@
  * intentionally kept here until the legacy AnnualCycleEngineV5 and
  * CompletionService shells are fully retired.
  */
-var MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD = '2026-10-03_COMPLETE_V29_MODEL_C_HOTPATH_R5_AP_SCOPE_HOURS';
+var MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD = '2026-10-11_COMPLETE_MODEL_C_RUNTIME_R6_TERMINAL_GUARD';
 
 function AnnualCycleEngineV5_HandleCompletionRow_(planningRowObj) {
   return ModelCAnnualCycle_HandleCompletionRow_(planningRowObj);
@@ -219,6 +219,15 @@ function ModelCAnnualCycle_finalizeCompletedVisit_(auditId) {
     var lkUnlinkedIx=lkMap[ModelCFoundation_normHeader_('Unlinked_At')];
     if(obStateIx===undefined||obClosedIx===undefined||obUpdatedIx===undefined||lkUnlinkedIx===undefined)throw new Error('Model C finalization write headers missing');
 
+    // Fail closed: completion must never rewrite a terminal obligation or
+    // silently convert a rejected/cancelled link into completed history.
+    matched.forEach(function(item){
+      var pack=obRowById[item.obligationId];
+      if(!pack)throw new Error('Orphan active visit link during completion: '+item.obligationId);
+      var currentState=String(pack.values[obStateIx]||'').trim().toUpperCase();
+      if(currentState==='REJECTED'||currentState==='CANCELLED'||currentState==='COMPLETED')
+        throw new Error('Terminal obligation cannot be completed again: '+item.obligationId+' ('+currentState+')');
+    });
     var writeT=Date.now(),updatedOb={};
     matched.forEach(function(item){
       var obPack=obRowById[item.obligationId];

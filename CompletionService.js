@@ -218,7 +218,7 @@ function completionService_commitCompletion_(payload) {
 
     var assignedTo = completionService_normEmail_(completionService_getCell_(rowObj, ['Assigned to', 'Assigned auditor', 'Auditor']));
     if (mode === 'AUDITOR') {
-      if (assignedTo && assignedTo !== actorEmail) return { success:false, message:'Only the assigned auditor may complete this audit' };
+      if (!assignedTo || assignedTo !== actorEmail) return { success:false, message:'Only the assigned auditor may complete this audit' };
     }
 
     var companyUid = completionService_clean_(completionService_getCell_(rowObj, ['Company_UID', 'Company UID', 'CompanyUid']));

@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {activateScopeHoursVersion20} from './scope-hours-version-20.js';
+const catalog=[['ScopeCode','Default_hours'],['GRASP',4]],versions=[['ScopeCode','VersionId','Hours_to_plan','Status','Effective_From','Effective_To','Created_At','Created_By','Change_Reason'],['GRASP','V1',4,'CURRENT','','','','','']];
+let requests=null;
+globalThis.fetch=async(url,opts)=>{if(url.includes('?fields='))return{ok:true,json:async()=>({sheets:[{properties:{title:'Config_Scopes',sheetId:12}},{properties:{title:'ScopeVersions',sheetId:20261011}}]})};requests=JSON.parse(opts.body).requests;return{ok:true}};
+const deps={SID:'dev-sheet',actor:{role:'Manager',email:'manager@example.com'},sheetsBatchGet:async()=>[{values:catalog},{values:versions}],accessToken:async()=> 'test',clean:x=>String(x??'').trim()};
+const saved=await activateScopeHoursVersion20({...deps,body:{scopeCode:'GRASP',expectedVersion:'V1',hours:'5.25',reason:'Scope duration update'}});
+assert.equal(saved.versionId,'V2');assert.equal(saved.hours,5.25);assert.equal(requests.length,4);
+assert.equal(requests[0].updateCells.start.sheetId,12);
+assert.equal(requests[1].updateCells.start.columnIndex,3);
+assert.equal(requests[3].updateCells.rows[0].values[1].userEnteredValue.stringValue,'V2');
+assert.equal(catalog[1][1],4);
+await assert.rejects(activateScopeHoursVersion20({...deps,body:{scopeCode:'GRASP',expectedVersion:'V0',hours:'5',reason:'bad'}}),/INVALID_VERSION_CHANGE/);
+await assert.rejects(activateScopeHoursVersion20({...deps,body:{scopeCode:'GRASP',expectedVersion:'V2',hours:'5',reason:'bad'}}),/STALE_SCOPE_VERSION/);
+const unchanged=await activateScopeHoursVersion20({...deps,body:{scopeCode:'GRASP',expectedVersion:'V1',hours:'4',reason:'same'}});
+assert.equal(unchanged.unchanged,true);
+console.log('scope-hours-version-20: 9 checks passed');

@@ -1166,7 +1166,7 @@ function directPlanningCommit(identity,body){
         const reservedAuditId=clean(reservationRow[reservationAuditCol]);
         if(!reservedAuditId||reservedAuditId===auditId)continue;
         const reservedAuditRow=ap.slice(1).find(row=>clean(row[auditIdCol])===reservedAuditId);
-        if(!reservedAuditRow||clean(reservedAuditRow[auditStatusCol]).toUpperCase().replace(/[\\s-]+/g,'_')!=='PENDING_PLANNING')continue;
+        if(!reservedAuditRow||clean(reservedAuditRow[auditStatusCol]).toUpperCase().replace(/[\s-]+/g,'_')!=='PENDING_PLANNING')continue;
         if(blocks(reservationRow[reservationBlocksCol]).some(reserved=>requested.some(b=>dateOnly(reserved.date)===b.date&&overlaps(b,{start:clean(reserved.start),end:clean(reserved.end)}))))throw new Error('PROVISIONAL_RESERVATION_AUDITOR_COLLISION');
       }
     }

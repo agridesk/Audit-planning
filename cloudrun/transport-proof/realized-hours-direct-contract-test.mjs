@@ -8,4 +8,9 @@ for(const marker of ['innerSession(req)','ROLE_FORBIDDEN','MANAGER_ROLE_REQUIRED
 assert.ok(!route.includes("target.searchParams.set('action','externalmanageraction')"),'GAS HTTP bridge must not be on hot path');
 assert.ok(client.includes('runRealizedHoursDirect(id,q)'),'client must use direct route');
 assert.ok(client.includes('renderCompleted([all[idx]])'),'must patch one completed row');
+assert.ok(route.includes('expectedHoursDedicated'),'must enforce optimistic concurrency');
+assert.ok(route.includes('realizedHoursInFlight.delete(auditId)'),'must release per-audit write guard');
+assert.ok(route.includes("statusKey(val(record,statusCol))!=='COMPLETED'"),'must enforce completed-only corrections');
+assert.ok(!route.includes('Audit planning!'),'correction must never rewrite active planning projection');
+assert.ok(!route.includes('AnnualCycle'),'correction must never create next cycle');
 console.log('PASS: realized-hours direct route contracts');

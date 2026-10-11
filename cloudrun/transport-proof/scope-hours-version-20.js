@@ -1,7 +1,7 @@
 export async function activateScopeHoursVersion20({body,actor,SID,sheetsBatchGet,accessToken,clean}){
  const scopeCode=clean(body?.scopeCode),reason=clean(body?.reason),expected=clean(body?.expectedVersion),raw=String(body?.hours??'').trim();
  if(body?.impactConfirmed!==true)throw Error('IMPACT_CONFIRMATION_REQUIRED');
- if(!scopeCode||!reason||reason.length>500||!/^V[1-9][0-9]*$/.test(expected)||!/^\d+(?:[.,]\d{1,2})?$/.test(raw))throw Error('INVALID_VERSION_CHANGE');
+ if(!scopeCode||!reason||reason.length>500||!(/^(?:V[1-9][0-9]*|UNINITIALIZED)$/.test(expected))||!/^\d+(?:[.,]\d{1,2})?$/.test(raw))throw Error('INVALID_VERSION_CHANGE');
  const hours=Number(raw.replace(',','.'));if(hours>1000)throw Error('INVALID_HOURS');
  const vr=await sheetsBatchGet(['Config_Scopes!A1:U128','ScopeVersions!A1:I1000']),catalog=vr[0]?.values||[],versions=vr[1]?.values||[];
  const ch=(catalog[0]||[]).map(clean),vh=(versions[0]||[]).map(clean),ci=ch.indexOf('ScopeCode'),hi=ch.indexOf('Default_hours');
@@ -9,7 +9,24 @@ export async function activateScopeHoursVersion20({body,actor,SID,sheetsBatchGet
  if(ci<0||hi<0||required.some(h=>!vh.includes(h)))throw Error('VERSION_SCHEMA_INVALID');
  const match=catalog.map((r,i)=>({r,i})).filter(x=>x.i>0&&clean(x.r[ci])===scopeCode);
  const current=versions.map((r,i)=>({r,i})).filter(x=>x.i>0&&clean(x.r[vh.indexOf('ScopeCode')])===scopeCode&&clean(x.r[vh.indexOf('Status')]).toUpperCase()==='CURRENT');
- if(match.length!==1||current.length!==1)throw Error('SCOPE_OR_CURRENT_VERSION_AMBIGUOUS');
+ if(match.length!==1||current.length>1)throw Error('SCOPE_OR_CURRENT_VERSION_AMBIGUOUS');
+ if(expected==='UNINITIALIZED'){
+  if(current.length||versions.slice(1).some(r=>clean(r[vh.indexOf('ScopeCode')])===scopeCode)||String(match[0].r[hi]??'').trim())throw Error('SCOPE_ALREADY_CONFIGURED');
+  const token=await accessToken(),base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID);
+  const meta=await fetch(base+'?fields=sheets.properties(title,sheetId)',{headers:{authorization:'Bearer '+token}});
+  if(!meta.ok)throw Error('SHEET_METADATA_UNAVAILABLE');
+  const props=(await meta.json()).sheets?.map(s=>s.properties)||[],sheet=props.find(p=>p.title==='Config_Scopes'),versionSheet=props.find(p=>p.title==='ScopeVersions');
+  if(!sheet||!versionSheet||versionSheet.sheetId!==20261011)throw Error('VERSION_SHEET_ID_MISMATCH');
+  const cell=v=>({userEnteredValue:typeof v==='number'?{numberValue:v}:{stringValue:String(v)}}),now=new Date().toISOString(),by=clean(actor.email||actor.sub||'Manager');
+  const requests=[
+   {updateCells:{start:{sheetId:sheet.sheetId,rowIndex:match[0].i,columnIndex:hi},rows:[{values:[cell(hours)]}],fields:'userEnteredValue'}},
+   {updateCells:{start:{sheetId:versionSheet.sheetId,rowIndex:versions.length,columnIndex:0},rows:[{values:[scopeCode,'V1',hours,'CURRENT',now,'',now,by,reason].map(cell)}],fields:'userEnteredValue'}}
+  ];
+  const response=await fetch(base+':batchUpdate',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({requests})});
+  if(!response.ok)throw Error('ATOMIC_VERSION_WRITE_FAILED_'+response.status);
+  return{ok:true,scopeCode,versionId:'V1',hours,initialized:true};
+ }
+ if(current.length!==1)throw Error('SCOPE_CURRENT_VERSION_MISSING');
  const old=current[0],oldId=clean(old.r[vh.indexOf('VersionId')]),oldHours=Number(String(old.r[vh.indexOf('Hours_to_plan')]??'').replace(',','.'));
  if(oldId!==expected)throw Error('STALE_SCOPE_VERSION');
  if(!Number.isFinite(oldHours)||Number(String(match[0].r[hi]??'').replace(',','.'))!==oldHours)throw Error('HOURS_CATALOG_OUT_OF_SYNC');

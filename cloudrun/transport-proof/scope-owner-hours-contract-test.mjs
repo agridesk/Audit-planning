@@ -10,10 +10,12 @@ const ss={getSheetByName:(name)=>sheets[name]?{getDataRange:()=>({getValues:()=>
 const ctx={SpreadsheetApp:{getActive:()=>ss},MODEL_C_SHEETS:{COMPANY_SCOPES:'Company_Scopes',AUDIT_OBLIGATIONS:'Audit_Obligations',VISIT_OBLIGATIONS:'Audit_Visit_Obligations'},ModelCMigration_rowsToObjects_:(x)=>x,ModelCRecurringConfig_isRecurring_:()=>false,ModelCFoundation_clean_:(x)=>x};
 runInNewContext(src,ctx);
 function read(){return ctx.ModelCScopeOwner_enrichUiScopes_(ss,'C1','A1',[{scope:'S1',enabled:false,customHours:'',usedHours:2}])[0];}
-assert.equal(read().usedHours,7);
+assert.equal(read().customHours,7);
+assert.equal(read().usedHours,4);
 assert.equal(read().enabled,true);
 cs[0].Company_Formal_Hours_Override=0;
-assert.equal(read().usedHours,0);
+assert.equal(read().customHours,0);
+assert.equal(read().usedHours,4);
 cs[0].Company_Formal_Hours_Override='';
 assert.equal(read().usedHours,4);
 assert.equal(read().customHours,'');
@@ -22,4 +24,4 @@ assert.equal(ctx.ModelCScopeOwner_hours_(0),0);
 assert.match(src,/COMPLETED_AUDIT_IMMUTABLE/);
 assert.match(src,/Company_Formal_Hours_Override:item\.hasPersonalizedHours/);
 assert.match(src,/scope\.Company_Formal_Hours_Override=item\.hasPersonalizedHours/);
-console.log('scope-owner-hours: 10 checks passed');
+console.log('scope-owner-hours: 12 checks passed');

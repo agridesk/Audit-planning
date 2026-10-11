@@ -4,7 +4,7 @@ const catalog=[['ScopeCode','Default_hours'],['GRASP',4]],versions=[['ScopeCode'
 let requests=null;
 globalThis.fetch=async(url,opts)=>{if(url.includes('?fields='))return{ok:true,json:async()=>({sheets:[{properties:{title:'Config_Scopes',sheetId:12}},{properties:{title:'ScopeVersions',sheetId:20261011}}]})};requests=JSON.parse(opts.body).requests;return{ok:true}};
 const deps={SID:'dev-sheet',actor:{role:'Manager',email:'manager@example.com'},sheetsBatchGet:async()=>[{values:catalog},{values:versions}],accessToken:async()=> 'test',clean:x=>String(x??'').trim()};
-const saved=await activateScopeHoursVersion20({...deps,body:{scopeCode:'GRASP',expectedVersion:'V1',hours:'5.25',reason:'Scope duration update',impactConfirmed:true}});
+const saved=await activateScopeHoursVersion20({...deps,body:{scopeCode:'GRASP',expectedVersion:'V1',hours:'5.25',newVersionId:'V2',reason:'Scope duration update',impactConfirmed:true}});
 assert.equal(saved.versionId,'V2');assert.equal(saved.hours,5.25);assert.equal(requests.length,4);
 assert.equal(requests[0].updateCells.start.sheetId,12);
 assert.equal(requests[1].updateCells.start.columnIndex,3);

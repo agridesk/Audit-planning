@@ -155,4 +155,7 @@ assert.ok(cloudClient.includes('Preview impact on open audits'));
 assert.ok(cloudClient.includes("previewResult.setAttribute('role','status')"));
 assert.ok(cloudClient.includes('Impact preview unavailable: '));
 assert.ok(cloudClient.includes('Linked audits: '));
-console.log('scope-slot-bridge-v211: 83 tests passed');
+assert.ok(cloudServer.includes('/api/v1/manager/scopes/versions'));
+assert.ok(cloudServer.includes('MULTIPLE_CURRENT_VERSIONS'));
+assert.ok(cloudClient.includes('Version management not initialized:'));
+console.log('scope-slot-bridge-v211: 86 tests passed');

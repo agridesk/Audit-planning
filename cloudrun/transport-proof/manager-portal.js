@@ -362,10 +362,10 @@ if(current||!versions.length){
 }
 fields.forEach(function(f){
 details.appendChild(el('dt',f[0]));var dd=el('dd',''),map={'Scope name':'DisplayName','Color':'Color','Text color':'TextColor','Sort order':'SortOrder'},field=map[f[0]];
-var policyMap={'Rotation limit':'Max number audits','Minimum interval':'Min_Interval_Months','Max off-site hours':'Max_Offsite_Hours','Planning from':'Planning from','Planning to':'Planning to','Active':'Active','Archived':'Archived','Extension':'Extension'};
+var policyMap={'Rotation limit':'Max number audits','Minimum interval':'Min_Interval_Months','Max off-site hours':'Max_Offsite_Hours','Planning from':'Planning from','Planning to':'Planning to','Active':'Active','Archived':'Archived','Extension':'Extension','Recurring':'Recurring'};
 var policyField=policyMap[f[0]];
 if(tab==='rules'&&policyField||tab==='general'&&['Active','Archived'].includes(f[0])||tab==='sources'&&f[0]==='Extension'){
- var edit=document.createElement('input');edit.value=f[1]==null?'':String(f[1]);edit.style.maxWidth='130px';edit.setAttribute('aria-label',f[0]);
+ var edit=document.createElement(policyField==='Recurring'?'select':'input');if(policyField==='Recurring'){['YES','NO'].forEach(function(v){var opt=document.createElement('option');opt.value=v;opt.textContent=v;edit.appendChild(opt)});edit.value=String(f[1]||'YES').toUpperCase()}else{edit.value=f[1]==null?'':String(f[1])}edit.style.maxWidth='130px';edit.setAttribute('aria-label',f[0]);
  var commit=el('button','Save');commit.type='button';commit.style.marginLeft='8px';
  commit.onclick=async function(){
   var reason=prompt('Reason for policy change:');if(!reason||!reason.trim())return;

@@ -15,6 +15,7 @@ const context={
  m5t_toIntOrNull_:(v)=>v==null?null:Number(v)
 };
 runInNewContext(source,context);
+assert.match(source,/\^SCOPE_\(\\d\{2\}\)\$/,'Scope slot recognition must use digit regex, not a literal backslash');
 let defs=context.m5t_scopeSlotDefs_(ss);
 assert.equal(defs.length,20);
 assert.equal(defs[0].flagCol0,1);

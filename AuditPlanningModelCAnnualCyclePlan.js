@@ -6,7 +6,7 @@
  * Config_Scopes.Recurring owns automatic successor eligibility.
  * Scope names/codes do not decide recurrence.
  */
-var MODEL_C_ANNUAL_CYCLE_PLAN_BUILD = '2026-10-11_AMS_01_6_MODEL_C_ANNUAL_CYCLE_PREFLIGHT_R4_COMPACT_LOG';
+var MODEL_C_ANNUAL_CYCLE_PLAN_BUILD = '2026-10-11_AMS_01_6_MODEL_C_ANNUAL_CYCLE_PREFLIGHT_R5_ROW_ACCOUNTING';
 
 function RUN_MODEL_C_ANNUAL_CYCLE_PREFLIGHT() {
   var ss=SpreadsheetApp.getActive();
@@ -30,10 +30,10 @@ function RUN_MODEL_C_ANNUAL_CYCLE_PREFLIGHT() {
   var values=ap.getDataRange().getValues(),headers=values[0]||[],map=ModelCFoundation_headerMap_(headers),auditIdIx=map[ModelCFoundation_normHeader_('Audit ID')];
   if(auditIdIx===undefined){out.errors.push('Audit planning missing Audit ID');out.gates.auditIdsPresent=false;Logger.log(JSON.stringify(out,null,2));return out;}
   out.counts.auditPlanningRows=Math.max(0,values.length-1);
-  var modelRows=0,planErrors=0,skippedHistoricalRows=0;
+  var modelRows=0,planErrors=0,skippedHistoricalRows=0,unaccountedRows=0;
   for(var r=1;r<values.length;r++){
     var auditId=String(values[r][auditIdIx]||'').trim();
-    if(!auditId)continue;
+    if(!auditId){unaccountedRows++;continue;}
     var plan=ModelCAnnualCycle_planForAudit_(ss,auditId);
     if(plan.currentObligations>0)modelRows++;
     if(!plan.success){
@@ -52,8 +52,9 @@ function RUN_MODEL_C_ANNUAL_CYCLE_PREFLIGHT() {
   }
   out.counts.auditsWithModelCObligations=modelRows;
   out.counts.historicalOrTerminalAuditRows=skippedHistoricalRows;
+  out.counts.rowsWithoutAuditId=unaccountedRows;
   out.gates.auditIdsPresent=true;
-  out.gates.allAuditRowsBackedByModelC=modelRows+skippedHistoricalRows<=out.counts.auditPlanningRows;
+  out.gates.allAuditRowsBackedByModelC=modelRows+skippedHistoricalRows+unaccountedRows===out.counts.auditPlanningRows;
   out.gates.activeAuditRowsBackedByModelC=planErrors===0;
   out.gates.allSuccessorPlansValid=planErrors===0;
   out.gates.nonRecurringHasNoAutomaticSuccessor=true;

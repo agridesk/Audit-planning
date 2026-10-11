@@ -1,7 +1,7 @@
 export async function createScope20({body,actor,SID,sheetsBatchGet,accessToken,clean}){
  const code=clean(body?.scopeCode).toUpperCase(),name=clean(body?.displayName),reason=clean(body?.reason);
  if(!/^[A-Z][A-Z0-9_-]{1,39}$/.test(code)||!name||name.length>100||!reason||reason.length>500||body?.confirmation!=='CREATE_INACTIVE_SCOPE')throw Error('INVALID_SCOPE_CREATE');
- const vr=await sheetsBatchGet(['Config_Scopes!A1:V128','Audit planning!A1:AZ1']),rows=vr[0]?.values||[],headers=(rows[0]||[]).map(clean),audit=(vr[1]?.values||[])[0]||[];
+ const vr=await sheetsBatchGet(['Config_Scopes!A1:U128','Audit planning!A1:AO1']),rows=vr[0]?.values||[],headers=(rows[0]||[]).map(clean),audit=(vr[1]?.values||[])[0]||[];
  const required=['SlotKey','ScopeCode','DisplayName','Color','TextColor','Active','Archived','SortOrder','Default_hours','Max number audits','Planning from','Planning to','Extension','Recurring','Obligation cycle','Complete by','Provisioning source','Trigger source','Source service','Max_Offsite_Hours','Min_Interval_Months'];
  if(required.some(h=>!headers.includes(h)))throw Error('SCOPE_SCHEMA_INCOMPLETE');
  if(rows.slice(1).some(r=>clean(r[headers.indexOf('ScopeCode')]).toUpperCase()===code||clean(r[headers.indexOf('DisplayName')]).toLowerCase()===name.toLowerCase()))throw Error('DUPLICATE_SCOPE_IDENTITY');

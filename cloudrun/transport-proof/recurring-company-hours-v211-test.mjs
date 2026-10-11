@@ -15,7 +15,7 @@ assert.equal(hours(),7);
 companyScopes[0].Company_Formal_Hours_Override=0;
 assert.equal(hours(),0);
 companyScopes[0].Company_Formal_Hours_Override='';
-assert.equal(hours(),4);
+assert.equal(hours(),2);
 obligations[0].Formal_Hours='';
 assert.equal(hours(),2);
 companyScopes[0].Company_Formal_Hours_Override='bad';

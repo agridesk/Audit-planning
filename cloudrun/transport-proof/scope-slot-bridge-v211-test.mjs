@@ -36,4 +36,5 @@ const scopeManager=readFileSync(new URL('../../AuditManagerToolsScopes.js',impor
 assert.match(scopeManager,/if \(missingQualificationScope\) return \{success:false,error:'SCOPE_QUALIFICATION_COLUMN_UNAVAILABLE'/);
 const configSource=readFileSync(new URL('../../ConfigScopesService.js',import.meta.url),'utf8');
 for(const field of ['provisioningSource','triggerSource','sourceService']) assert.match(configSource,new RegExp(field+': ConfigScopes_clean_'));
-console.log('scope-slot-bridge-v211: 8 tests passed');
+assert.match(configSource,/function ConfigScopes_ClearCache\(/);
+console.log('scope-slot-bridge-v211: 9 tests passed');

@@ -134,8 +134,9 @@ function LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, m
   shLog.getRange(rowIdx, colHours + 1).setValue(n);
   var cellWriteMs = Date.now() - cellWriteStarted;
 
-  var colStatus = LogRealizedAuditService_findHeaderIndex_(headers, ['Status']);
-  if (colStatus >= 0) shLog.getRange(rowIdx, colStatus + 1).setValue(LogRealizedAuditService_clean_(meta.status || 'Completed'));
+  // The audit is already completed: correcting realized hours must not rewrite its lifecycle status.
+  // Avoid a second Spreadsheet write (and its remote-service round trip).
+  var statusWriteMs = 0;
 
   var cacheStarted = Date.now();
   // δ1.5 (2026-05-03): invalidate persist cache so eligibility/rotation reads see updated hours/status.
@@ -166,6 +167,7 @@ function LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, m
     auditorEmail:auditorEmail,
     lookupMs:lookupMs,
     cellWriteMs:cellWriteMs,
+    statusWriteMs:statusWriteMs,
     cacheInvalidationMs:cacheInvalidationMs,
     message:'Completed hours updated'
   };

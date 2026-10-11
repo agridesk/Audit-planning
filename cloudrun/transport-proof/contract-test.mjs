@@ -77,7 +77,7 @@ const checks=[
  ['r5 first audit day defaults to max 8h of remaining formal target',r5.includes('d=Math.min(target,8)')&&r5.includes('const duration=target>0?Math.min(remaining,8):8')&&r5.includes("q('#start').addEventListener('change'")],
  ['r4 soft marker classified separately from audit occupancy',r4.includes("kind:auditRef?'audit':soft?'soft':'hard'")&&r4.includes("visualState=hasAudit?'OCCUPIED'")],
  ['r5 quarter-hour time navigation',r5.includes('step="900" list="quarterHours"')&&r5.includes('function snapQuarter(v)')],
- ['r56 implicit availability is green',r5.includes("state:'YES',available:'YES',visualState:'AVAILABLE'")&&r5.includes("(hasOccupancy||softDay||hasProvisional||hardTimedSlots.length)?'partial':'yes'")],
+ ['r56 implicit availability treats weekends as soft and weekdays as free',r5.includes("state:fallbackWeekend?'NO':'YES',available:fallbackWeekend?'NO':'YES',visualState:fallbackWeekend?'SOFT_UNAVAILABLE':'AVAILABLE'")&&r5.includes("(hasOccupancy||softDay||hasProvisional||hardTimedSlots.length)?'partial':'yes'")],
  ['V2.11 no legacy 1.0 full-day occupancy criterion',!r5.includes("blockedOp>=8*60||blockedBar>=8*60")&&!r5.includes("auditFullDay")&&!r5.includes("'FULLY OCCUPIED'")],
  ['r57 canonical availability visual states',r4.includes("visualState=hasAudit?'OCCUPIED':state==='NO'?(hasSoft?'SOFT_UNAVAILABLE':'HARD_BLOCKED'):'AVAILABLE'")],
  ['r57 soft warning not audit occupancy',r5.includes("auditSlots=slotsArr.filter(s=>s.kind==='audit'||s.auditRef)")&&r5.includes("softDay?(auditorSoft&&companySoft?'Auditor + company less available':companySoft?'Company less available':'Auditor less available')")],

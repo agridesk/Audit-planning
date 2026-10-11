@@ -5,8 +5,9 @@ export async function updateScopePolicy20({body,actor,SID,sheetsBatchGet,accessT
  const allowed=[...Object.keys(numeric),...windowFields,'Active','Archived','Recurring'];
  if(!allowed.includes(field)||!scopeCode||!reason||reason.length>500||body?.impactConfirmed!==true)throw Error('INVALID_POLICY_CHANGE');
  if(numeric[field]){const rule=numeric[field];if(!/^\d+(?:\.\d{1,2})?$/.test(value)||Number(value)<rule.min||Number(value)>rule.max||(rule.integer&&!Number.isInteger(Number(value))))throw Error('INVALID_POLICY_VALUE');}
- if(['Active','Archived','Recurring'].includes(field)&&!['TRUE','FALSE'].includes(value.toUpperCase()))throw Error('INVALID_BOOLEAN_POLICY');
+ if(['Active','Archived'].includes(field)&&!['TRUE','FALSE'].includes(value.toUpperCase()))throw Error('INVALID_BOOLEAN_POLICY');
  if(windowFields.includes(field)&&value&&!/^-?\d{1,3}$/.test(value))throw Error('INVALID_PLANNING_OFFSET');
+ if(field==='Recurring'&&!['YES','NO'].includes(value.toUpperCase()))throw Error('INVALID_RECURRING_VALUE');
  const data=await sheetsBatchGet(['Config_Scopes!A1:U128']),rows=data[0]?.values||[],headers=(rows[0]||[]).map(clean),ci=headers.indexOf('ScopeCode'),fi=headers.indexOf(field);
  if(ci<0||fi<0)throw Error('POLICY_SCHEMA_MISSING');
  const matches=rows.map((r,i)=>({r,i})).filter(x=>x.i>0&&clean(x.r[ci])===scopeCode);

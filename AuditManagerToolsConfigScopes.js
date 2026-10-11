@@ -1,93 +1,48 @@
 // BUILD: AuditManagerToolsConfigScopes_20260425
 // Config_Scopes bridge + diagnostics. Active final definitions only.
 
+// V2.11: expose all configured scope identities; legacy 8 slots retain their
+// physical Audit planning positions. Later slots are header-resolved only.
 function m5t_scopeSlotDefs_(ss) {
   ss = ss || SpreadsheetApp.getActiveSpreadsheet();
-
-  try {
-    if (typeof ConfigScopes_GetCatalog === 'function') {
-      var catalog = ConfigScopes_GetCatalog(false);
-      if (catalog && catalog.ok && Array.isArray(catalog.rows) && catalog.rows.length) {
-        var rows = catalog.rows.slice();
-
-        var flagCols = [2,4,6,8,10,12,14,16];
-        var hourCols = [3,5,7,9,11,13,15,17];
-
-        var out = [];
-        for (var i = 0; i < rows.length && i < 8; i++) {
-          var item = rows[i] || {};
-          out.push({
-            slotKey: String(item.slotKey || '').trim(),
-            scope: String(item.displayName || '').trim(),
-            defaultHours: m5t_toNumberOrZero_(item.defaultHours),
-            sortOrder: m5t_toNumberOrZero_(item.sortOrder),
-            maxConsecutive: m5t_toIntOrNull_(item.maxNumberAudits),
-            flagCol0: flagCols[i],
-            hourCol0: hourCols[i]
-          });
-        }
-
-        return out;
-      }
-    }
-  } catch (eBridge) {}
-
-  var cfg = ss.getSheetByName('Config_Scopes');
-  var outFallback = [];
-  var maxByScope = {};
-
-  try {
-    m5t_listStandardsScopes_(ss).forEach(function(s){
-      maxByScope[String(s.scope || '').trim()] = s.maxConsecutive;
-    });
-  } catch (e0) {}
-
-  if (cfg) {
-    var values = cfg.getDataRange().getValues();
-    if (values.length >= 2) {
-      var headers = values[0];
-      var hm = m5t_makeHeaderMap_(headers);
-      var slotCol = m5t_pickHeader_(hm, ['SlotKey','Slot key','Slot']);
-      var nameCol = m5t_pickHeader_(hm, ['DisplayName','Display name','Name','ScopeName','Scope']);
-      var defCol  = m5t_pickHeader_(hm, ['Default_hours','Default hours','DefaultHours']);
-      var sortCol = m5t_pickHeader_(hm, ['SortOrder','Sort order','Sort']);
-      for (var r = 1; r < values.length; r++) {
-        var row = values[r];
-        var scopeName = nameCol >= 0 ? String(row[nameCol] || '').trim() : '';
-        if (!scopeName) continue;
-        outFallback.push({
-          slotKey: slotCol >= 0 ? String(row[slotCol] || '').trim() : '',
-          scope: scopeName,
-          defaultHours: defCol >= 0 ? m5t_toNumberOrZero_(row[defCol]) : 0,
-          sortOrder: sortCol >= 0 ? m5t_toNumberOrZero_(row[sortCol]) : (r * 10),
-          maxConsecutive: maxByScope[scopeName]
-        });
-      }
-      outFallback.sort(function(a,b){ return a.sortOrder - b.sortOrder; });
-    }
+  var rows = [];
+  if (typeof ConfigScopes_GetCatalog === 'function') {
+    var catalog = ConfigScopes_GetCatalog(false);
+    if (!catalog || !catalog.ok || !Array.isArray(catalog.rows)) throw new Error('CONFIG_SCOPES_CATALOG_UNAVAILABLE');
+    rows = catalog.rows.slice();
+  } else {
+    throw new Error('CONFIG_SCOPES_SERVICE_REQUIRED');
   }
-
-  if (!outFallback.length) {
-    var standards = m5t_listStandardsScopes_(ss);
-    for (var j = 0; j < standards.length; j++) {
-      outFallback.push({
-        slotKey: '',
-        scope: standards[j].scope,
-        defaultHours: m5t_toNumberOrZero_(standards[j].defaultHours),
-        sortOrder: j + 1,
-        maxConsecutive: standards[j].maxConsecutive
-      });
-    }
+  if (rows.length > 20) throw new Error('CONFIG_SCOPES_MAX_20_EXCEEDED');
+  var ap = ss.getSheetByName('Audit planning');
+  if (!ap) throw new Error('AUDIT_PLANNING_SHEET_MISSING');
+  var headers = ap.getRange(1, 1, 1, ap.getLastColumn()).getValues()[0] || [];
+  var byHeader = {};
+  for (var h = 0; h < headers.length; h++) {
+    var normalized = String(headers[h] || '').trim().toLowerCase();
+    if (normalized) byHeader[normalized] = h;
   }
-
-  var flagColsFallback = [2,4,6,8,10,12,14,16];
-  var hourColsFallback = [3,5,7,9,11,13,15,17];
-  for (var k = 0; k < outFallback.length && k < 8; k++) {
-    outFallback[k].flagCol0 = flagColsFallback[k];
-    outFallback[k].hourCol0 = hourColsFallback[k];
-  }
-
-  return outFallback.slice(0, 8);
+  var flagCols = [2,4,6,8,10,12,14,16];
+  var hourCols = [3,5,7,9,11,13,15,17];
+  return rows.map(function(item, i) {
+    var slotKey = String(item.slotKey || '').trim();
+    var slotNumber = /^SCOPE_(\\d{2})$/.test(slotKey) ? Number(slotKey.slice(6)) : 0;
+    if (!slotNumber || slotNumber > 20) throw new Error('CONFIG_SCOPES_INVALID_SLOT_' + slotKey);
+    var flag = byHeader[slotKey.toLowerCase()];
+    var hours = byHeader[(slotKey + '_hours').toLowerCase()];
+    // Legacy hours column is positional only for original eight scope slots.
+    if (slotNumber <= 8 && flag === undefined) flag = flagCols[slotNumber - 1];
+    if (slotNumber <= 8 && hours === undefined) hours = hourCols[slotNumber - 1];
+    return {
+      slotKey: slotKey,
+      scope: String(item.displayName || '').trim(),
+      defaultHours: m5t_toNumberOrZero_(item.defaultHours),
+      sortOrder: m5t_toNumberOrZero_(item.sortOrder),
+      maxConsecutive: m5t_toIntOrNull_(item.maxNumberAudits),
+      flagCol0: flag === undefined ? null : flag,
+      hourCol0: hours === undefined ? null : hours
+    };
+  });
 }
 
 function m5t_scopeAliasMeta_(ss) {

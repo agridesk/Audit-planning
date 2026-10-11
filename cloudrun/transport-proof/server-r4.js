@@ -429,6 +429,18 @@ async function saveScopeCosmetic20(body){
   if(!['DisplayName','Color','TextColor','SortOrder'].includes(field)||!code)throw Error('FIELD_NOT_ALLOWED');
   if(field==='DisplayName'&&(!value||value.length>100))throw Error('INVALID_NAME');
   if(['Color','TextColor'].includes(field)&&!/^#[0-9a-fA-F]{6}$/.test(value))throw Error('INVALID_COLOR');
+  if(field==='Color'||field==='TextColor'){
+    const rgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)/255).map(v=>v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4));
+    const lum=h=>{const c=rgb(h);return c[0]*0.2126+c[1]*0.7152+c[2]*0.0722};
+    const values=await sheetsBatchGet(['Config_Scopes!A1:U128']),rows=values[0]?.values||[],head=(rows[0]||[]).map(clean),ci=head.indexOf('ScopeCode'),colorI=head.indexOf('Color'),textI=head.indexOf('TextColor');
+    const matches=rows.slice(1).filter(r=>clean(r[ci])===code);
+    if(matches.length!==1||colorI<0||textI<0)throw Error('COLOR_SCHEMA_INVALID');
+    const row=matches[0],background=field==='Color'?value:clean(row[colorI]),foreground=field==='TextColor'?value:clean(row[textI]);
+    if(/^#[0-9a-fA-F]{6}$/.test(background)&&/^#[0-9a-fA-F]{6}$/.test(foreground)){
+      const l1=lum(background),l2=lum(foreground),ratio=(Math.max(l1,l2)+0.05)/(Math.min(l1,l2)+0.05);
+      if(ratio<4.5)throw Error('COLOR_CONTRAST_TOO_LOW');
+    }
+  }
   if(field==='SortOrder'&&(!/^[0-9]{1,4}$/.test(value)||Number(value)>9999))throw Error('INVALID_SORT_ORDER');
   const vr=await sheetsBatchGet(['Config_Scopes!A1:U128']),rows=vr[0]?.values||[],head=(rows[0]||[]).map(clean),ci=head.indexOf('ScopeCode'),fi=head.indexOf(field);
   if(ci<0||fi<0)throw Error('SCOPE_SCHEMA_MISSING');

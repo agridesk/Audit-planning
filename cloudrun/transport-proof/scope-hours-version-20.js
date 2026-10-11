@@ -30,10 +30,8 @@ export async function activateScopeHoursVersion20({body,actor,SID,sheetsBatchGet
  const old=current[0],oldId=clean(old.r[vh.indexOf('VersionId')]),oldHours=Number(String(old.r[vh.indexOf('Hours_to_plan')]??'').replace(',','.'));
  if(oldId!==expected)throw Error('STALE_SCOPE_VERSION');
  if(!Number.isFinite(oldHours)||Number(String(match[0].r[hi]??'').replace(',','.'))!==oldHours)throw Error('HOURS_CATALOG_OUT_OF_SYNC');
- if(hours===oldHours&&!clean(body?.newVersionId))return{ok:true,unchanged:true,scopeCode,versionId:oldId,hours};
- const proposed=clean(body?.newVersionId);if(!proposed||!/^V[1-9][0-9]*$/.test(proposed))throw Error('EXPLICIT_SCHEME_VERSION_REQUIRED');
- const next=proposed;
- if(next===oldId)throw Error('VERSION_ID_MUST_CHANGE');
+ if(hours===oldHours)return{ok:true,unchanged:true,scopeCode,versionId:oldId,hours};
+ const next='V'+(Math.max(0,...versions.slice(1).filter(r=>clean(r[vh.indexOf('ScopeCode')])===scopeCode).map(r=>Number(String(r[vh.indexOf('VersionId')]||'').replace(/^V/,''))).filter(Number.isFinite))+1);
  if(versions.slice(1).some(r=>clean(r[vh.indexOf('ScopeCode')])===scopeCode&&clean(r[vh.indexOf('VersionId')])===next))throw Error('VERSION_ALREADY_EXISTS');
  if(versions.length>=1000)throw Error('VERSION_STORAGE_FULL');
  const token=await accessToken(),url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+':batchUpdate';

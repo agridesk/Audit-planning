@@ -4,7 +4,7 @@ const rows=[[...Array(21).fill(''), 'Official_Scheme_Version'],[...Array(21).fil
 const result=await scopeSchemeVersion20({method:'GET',body:{scopeCode:'MPS-GAP'},clean:x=>String(x??'').trim(),sheetsBatchGet:async()=>[{values:rows}]});
 assert.equal(result.version,'');
 let captured;
-globalThis.fetch=async(url,opts)=>{if(url.includes('?fields='))return{ok:true,json:async()=>({sheets:[{properties:{title:'Config_Scopes',sheetId:77}}]})};captured=JSON.parse(opts.body);return{ok:true,status:200}};
+globalThis.fetch=async(url,opts)=>{if(url.includes('?fields='))return{ok:true,json:async()=>({sheets:[{properties:{title:'Config_Scopes',sheetId:77,gridProperties:{columnCount:22}}}]})};captured=JSON.parse(opts.body);return{ok:true,status:200}};
 const deps={clean:x=>String(x??'').trim(),sheetsBatchGet:async()=>[{values:rows}],SID:'test',actor:{email:'manager@example.com'},accessToken:async()=> 'token'};
 const saved=await scopeSchemeVersion20({...deps,method:'POST',body:{scopeCode:'MPS-GAP',version:'V12',expected:'',reason:'Set current version',impactConfirmed:true}});
 assert.equal(saved.version,'V12');

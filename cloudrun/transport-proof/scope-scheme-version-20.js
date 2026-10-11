@@ -1,5 +1,5 @@
 export async function scopeSchemeVersion20({method,body,actor,SID,sheetsBatchGet,accessToken,clean}){
- const code=clean(body?.scopeCode),rows=(await sheetsBatchGet(['Config_Scopes!A1:V128']))[0]?.values||[],headers=(rows[0]||[]).map(clean);
+ const code=clean(body?.scopeCode);let rows;try{rows=(await sheetsBatchGet(['Config_Scopes!A1:V128']))[0]?.values||[]}catch(e){const fallback=(await sheetsBatchGet(['Config_Scopes!A1:U128']))[0]?.values||[];rows=fallback.map(r=>[...r,''])}const headers=(rows[0]||[]).map(clean);
  const ci=headers.indexOf('ScopeCode'),vi=21,header=headers[vi]||'';
  if(ci<0||!['','Official_Scheme_Version'].includes(header))throw Error('SCHEME_VERSION_SCHEMA_CONFLICT');
  const matches=rows.map((r,i)=>({r,i})).filter(x=>x.i>0&&clean(x.r[ci])===code);

@@ -34,6 +34,9 @@ function m5t_scopeSlotDefs_(ss) {
     // Legacy hours column is positional only for original eight scope slots.
     if (slotNumber <= 8 && flag === undefined) flag = flagCols[slotNumber - 1];
     if (slotNumber <= 8 && hours === undefined) hours = hourCols[slotNumber - 1];
+    if (slotNumber > 8 && (flag === undefined || hours === undefined)) {
+      throw new Error('AUDIT_PLANNING_SCOPE_COLUMNS_MISSING_' + slotKey);
+    }
     return {
       slotKey: slotKey,
       scope: String(item.displayName || '').trim(),

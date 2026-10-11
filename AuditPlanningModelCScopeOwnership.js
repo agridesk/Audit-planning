@@ -94,7 +94,7 @@ function ModelCScopeOwner_enrichUiScopes_(ss,companyUid,auditId,scopes){
     if(match){
       var personalized=match.cs.Company_Formal_Hours_Override;
       var hasPersonalized=personalized!==null&&personalized!==undefined&&String(personalized).trim()!=='';
-      if(hasPersonalized){out.customHours=ModelCScopeOwner_hours_(personalized);out.usedHours=out.customHours;}
+      if(hasPersonalized){out.customHours=ModelCScopeOwner_hours_(personalized);out.usedHours=match.ob?ModelCScopeOwner_hours_(match.ob.Formal_Hours):out.customHours;}
       else if(match.ob){out.customHours='';out.usedHours=ModelCScopeOwner_hours_(match.ob.Formal_Hours);}
       out.enabled=String(match.cs.Active||'').toUpperCase()==='YES'&&!!match.ob;
     }

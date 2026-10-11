@@ -1,0 +1,27 @@
+// Scope Management 2.0 — read-only material change impact inventory.
+// Existing obligation hours are snapshots; this function never reprices them.
+function ScopeImpact20_preview_(ss,scopeCode,proposedHours){
+  ss=ss||SpreadsheetApp.getActiveSpreadsheet();
+  var code=String(scopeCode||'').trim(),hours=Number(String(proposedHours).replace(',','.'));
+  if(!code||!isFinite(hours)||hours<0)return {success:false,readOnly:true,errors:['Valid ScopeCode and Hours_to_plan required']};
+  var obligations=ss.getSheetByName('Audit_Obligations'),links=ss.getSheetByName('Audit_Visit_Obligations'),planning=ss.getSheetByName('Audit planning');
+  if(!obligations||!links||!planning)return {success:false,readOnly:true,errors:['Required Model C or planning sheet missing']};
+  function read(sh){var values=sh.getDataRange().getValues(),headers=(values.shift()||[]).map(function(x){return String(x||'').trim();});return values.map(function(r){var o={};headers.forEach(function(h,i){o[h]=r[i];});return o;});}
+  var obs=read(obligations),lnks=read(links),audits=read(planning),byAudit={},byOb={};
+  audits.forEach(function(a){var id=String(a['Audit ID']||'').trim();if(id)byAudit[id]=a;});
+  obs.forEach(function(o){byOb[String(o.Obligation_ID||'')]=o;});
+  var impacted=[],seen={};
+  lnks.forEach(function(link){
+    if(String(link.Link_State||'').toUpperCase()!=='ACTIVE')return;
+    var ob=byOb[String(link.Obligation_ID||'')],auditId=String(link.Audit_ID||''),audit=byAudit[auditId];
+    if(!ob||String(ob.ScopeCode||'')!==code||!audit)return;
+    var status=String(audit.Status||'').trim().toUpperCase();
+    if(['COMPLETED','CANCELLED','REJECTED'].indexOf(status)>=0)return;
+    var oldHours=Number(ob.Formal_Hours),changed=isFinite(oldHours)&&oldHours!==hours;
+    if(!changed||seen[auditId+'|'+ob.Obligation_ID])return;
+    seen[auditId+'|'+ob.Obligation_ID]=true;
+    impacted.push({auditId:auditId,companyUid:String(ob.Company_UID||''),status:status,accepted:status==='ACCEPTED',obligationId:String(ob.Obligation_ID||''),currentHoursToPlan:oldHours,proposedHoursToPlan:hours,deltaHours:hours-oldHours});
+  });
+  impacted.sort(function(a,b){return Number(b.accepted)-Number(a.accepted)||a.auditId.localeCompare(b.auditId);});
+  return {success:true,readOnly:true,writesPerformed:false,scopeCode:code,proposedHoursToPlan:hours,impactedCount:impacted.length,acceptedCount:impacted.filter(function(x){return x.accepted;}).length,impacted:impacted};
+}

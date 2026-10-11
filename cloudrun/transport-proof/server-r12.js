@@ -10,6 +10,7 @@ const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
 const BUILD='2026-10-03_GRID2_R12_MAX_OFFSITE_POLICY';
 const MANAGER_ORIGIN='https://ams-transport-proof-510075419067.europe-west1.run.app';
 let tokenCache={token:'',expiresAt:0};
+const realizedHoursInFlight=new Set();
 
 process.env.PORT=String(INNER_PORT);
 await import('./server-r11.js');
@@ -87,6 +88,9 @@ http.createServer(async(req,res)=>{
     try{body=JSON.parse(await readRaw(req,16384));}catch{return sendJson(res,400,{success:false,error:'INVALID_JSON'});}
     const auditId=clean(body.auditId),hoursDedicated=Number(body.hoursDedicated);
     if(!auditId||!Number.isFinite(hoursDedicated)||hoursDedicated<=0||Math.abs(Math.round(hoursDedicated*4)/4-hoursDedicated)>1e-9)return sendJson(res,400,{success:false,error:'INVALID_HOURS'});
+    if(realizedHoursInFlight.has(auditId))return sendJson(res,409,{success:false,error:'REALIZED_HOURS_WRITE_IN_PROGRESS'});
+    realizedHoursInFlight.add(auditId);
+    try{
     const t0=Date.now();
     if(!SID)return sendJson(res,503,{success:false,error:'DEV_SSOT_NOT_CONFIGURED'});
     const rows=await batchValues(["'Log realized audits'!A1:AZ10000","'Auditors'!A1:Z500"]);
@@ -129,7 +133,7 @@ http.createServer(async(req,res)=>{
       const writeMs=Date.now()-startedWrite;
       return sendJson(res,200,{success:true,auditId,oldHoursDedicated,newHoursDedicated:hoursDedicated,hoursDedicated,changed:true,changedAt:timestamp,auditTrail:{success:true,type,status:'AUDIT_TRAIL'},perf:{lookupMs,logWriteMs:writeMs,cellWriteMs:writeMs,auditTrailMs:0,totalMs:Date.now()-t0},transport:'DIRECT_SHEETS_ATOMIC'});
     }catch(e){return sendJson(res,502,{success:false,error:'DIRECT_SHEETS_COMMIT_FAILED',detail:clean(e.message)});}
-
+    }finally{realizedHoursInFlight.delete(auditId);}
   }
   if(req.method==='GET'&&u.pathname==='/api/v1/manager/audit'){
     const identity=await innerSession(req);if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED'});if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN'});const auditId=clean(u.searchParams.get('auditId')),sourceRow=clean(u.searchParams.get('sourceRow'));if(!auditId)return sendJson(res,400,{success:false,error:'AUDIT_ID_REQUIRED'});try{const out=await readAuditPatch(auditId,sourceRow);return sendJson(res,out.success?200:404,out);}catch(e){return sendJson(res,500,{success:false,error:'MANAGER_AUDIT_REREAD_FAILED',detail:clean(e?.message||e),build:BUILD});}

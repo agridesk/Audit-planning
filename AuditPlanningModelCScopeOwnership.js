@@ -96,6 +96,14 @@ function ModelCScopeOwner_commit(command){
     var csSheet=ss.getSheetByName(MODEL_C_SHEETS.COMPANY_SCOPES),obSheet=ss.getSheetByName(MODEL_C_SHEETS.AUDIT_OBLIGATIONS),lkSheet=ss.getSheetByName(MODEL_C_SHEETS.VISIT_OBLIGATIONS),apSheet=ss.getSheetByName(MODEL_C_SHEETS.AUDIT_PLANNING);
     if(!csSheet||!obSheet||!lkSheet||!apSheet)throw new Error('Model C scope-owner sheets missing');
     var cs=ModelCMigration_rowsToObjects_(csSheet.getDataRange().getValues()),ob=ModelCMigration_rowsToObjects_(obSheet.getDataRange().getValues()),lk=ModelCMigration_rowsToObjects_(lkSheet.getDataRange().getValues());
+    var apValues=apSheet.getDataRange().getValues(),apHeaders=apValues[0]||[];
+    var apMap=ModelCFoundation_headerMap_(apHeaders);
+    var apAuditIdCol=apMap[ModelCFoundation_normHeader_('Audit ID')];
+    var apStatusCol=apMap[ModelCFoundation_normHeader_('Status')];
+    if(apAuditIdCol===undefined||apStatusCol===undefined)throw new Error('Audit planning identity/status columns missing');
+    var apMatches=apValues.slice(1).filter(function(row){return String(row[apAuditIdCol]||'').trim()===String(command.auditId||'').trim();});
+    if(apMatches.length!==1)throw new Error('Audit ID must resolve to exactly one planning row');
+    if(String(apMatches[0][apStatusCol]||'').trim().toUpperCase()==='COMPLETED')throw new Error('COMPLETED_AUDIT_IMMUTABLE');
     var selected=ModelCScopeOwner_normalizeSelected_(command.selectedScopes||[]),codes=Object.keys(selected);
     if(!String(command.companyUid||'').trim())throw new Error('Missing companyUid');if(!String(command.auditId||'').trim())throw new Error('Missing auditId');if(!codes.length)throw new Error('At least one scope is required');
     ModelCScopeOwner_validateSelection_(ss,selected);

@@ -345,7 +345,9 @@ if(current){
  var saveHours=el('button','Save new hours version');saveHours.type='button';saveHours.style.marginLeft='8px';
  saveHours.onclick=async function(){
  var reason=prompt('Reason for changing hours to be planned:');if(!reason||!reason.trim())return;
- if(!confirm('Activate new scope hours version? Existing audit hours remain unchanged.'))return;
+ var impactResponse=await fetch('/api/v1/manager/scopes/impact?scopeCode='+encodeURIComponent(code)+'&field=Default_hours',{credentials:'same-origin'}),impact=await impactResponse.json();
+ if(!impactResponse.ok||!impact.ok){versionInfo.textContent+='\nImpact validation failed; hours not changed';return}
+ if(!confirm('Activate new scope hours version? '+impact.openAudits+' open audits linked ('+impact.accepted+' accepted). Existing audit hours remain unchanged.'))return;
  saveHours.disabled=true;
  try{var response=await fetch('/api/v1/manager/scopes/hours-version',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({scopeCode:code,expectedVersion:current.VersionId,hours:hoursInput.value,reason:reason})}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'HOURS_VERSION_SAVE_FAILED');
  status.textContent=result.unchanged?'Hours unchanged':'Activated '+result.versionId+' for '+code;

@@ -155,7 +155,8 @@ function completionService_commitCompletion_(payload) {
               Math.abs(Number(completedExisting.hoursDedicated) - hoursDedicated) > 1e-9) {
             managerPrecedence = LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, { status:completionService_getCompletedDisplayStatus_() });
             if (!managerPrecedence || managerPrecedence.success === false) return managerPrecedence || { success:false, message:'Manager concurrency override failed' };
-            if (managerPrecedence.changed !== false) completionService_appendHoursAuditTrail_(ss, {
+            var managerPrecedenceAuditTrail = { success:true, skipped:true };
+            if (managerPrecedence.changed !== false) managerPrecedenceAuditTrail = completionService_appendHoursAuditTrail_(ss, {
               type:'COMPLETION_MANAGER_CONCURRENCY_OVERRIDE',
               auditId:auditId,
               actorEmail:actorEmail,

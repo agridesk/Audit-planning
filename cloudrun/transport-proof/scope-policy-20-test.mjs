@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {updateScopePolicy20} from './scope-policy-20.js';
-const headers=['ScopeCode','Max number audits','Min_Interval_Months','Max_Offsite_Hours','Planning from','Planning to','Active','Archived'];
-const values=[headers,['MPS-GAP','4','12','2','-6','3','TRUE','FALSE']];
+const headers=['ScopeCode','Max number audits','Min_Interval_Months','Max_Offsite_Hours','Planning from','Planning to','Active','Archived','Extension'];
+const values=[headers,['MPS-GAP','4','12','2','-6','3','TRUE','FALSE','4']];
 let writes=null;
 globalThis.fetch=async(url,opts)=>{if(url.includes('?fields='))return{ok:true,json:async()=>({sheets:[{properties:{title:'Config_Scopes',sheetId:42}}]})};writes=JSON.parse(opts.body);return{ok:true,status:200};};
 const deps={SID:'dev',actor:{email:'manager@example.com'},sheetsBatchGet:async()=>[{values}],accessToken:async()=> 'token',clean:x=>String(x??'').trim()};
@@ -12,4 +12,8 @@ await assert.rejects(updateScopePolicy20({...deps,body:{...body,expected:'11'}})
 await assert.rejects(updateScopePolicy20({...deps,body:{...body,impactConfirmed:false}}),/INVALID_POLICY_CHANGE/);
 await assert.rejects(updateScopePolicy20({...deps,body:{...body,value:'1.5'}}),/INVALID_POLICY_VALUE/);
 await assert.rejects(updateScopePolicy20({...deps,body:{...body,field:'Source service'}}),/INVALID_POLICY_CHANGE/);
-console.log('scope-policy-20: 5 checks passed');
+const extension=await updateScopePolicy20({...deps,body:{scopeCode:'MPS-GAP',field:'Extension',expected:'4',value:'6',reason:'Extend policy window',impactConfirmed:true}});
+assert.equal(extension.ok,true);assert.equal(writes.requests[0].updateCells.start.columnIndex,8);
+assert.equal(writes.requests[0].updateCells.rows[0].values[0].userEnteredValue.numberValue,6);
+await assert.rejects(updateScopePolicy20({...deps,body:{scopeCode:'MPS-GAP',field:'Extension',expected:'4',value:'6.5',reason:'Invalid fractional months',impactConfirmed:true}}),/INVALID_POLICY_VALUE/);
+console.log('scope-policy-20: 8 checks passed');

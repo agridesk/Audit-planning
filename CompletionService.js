@@ -193,6 +193,18 @@ function completionService_commitCompletion_(payload) {
             };
           }
 
+          if (recoveredAvailability && recoveredAvailability.success === false) {
+            return {
+              success:false,
+              code:'AVAILABILITY_RECOVERY_FAILED',
+              completionCommitted:true,
+              idempotent:true,
+              auditId:auditId,
+              message:'Completed history exists, but Availability recovery returned failure',
+              availabilityRelease:recoveredAvailability
+            };
+          }
+
           completionService_clearCaches_(auditId, {});
           return {
             success:true,

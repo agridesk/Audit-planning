@@ -90,4 +90,5 @@ assert.ok(ui.includes('AgriQA - Audit Management System'),'Export must contain A
 const pdfExport=ui.slice(ui.indexOf('function selectionPdf(){'),ui.indexOf('function ',ui.indexOf('function selectionPdf(){')+1));
 assert.ok(pdfExport.includes('"GPS / Map"'),'Auditor PDF must include GPS / Map column');tests++;
 assert.ok(ui.includes('var g=gpsValue(r)'),'Export must resolve GPS from canonical grid source');tests++;
+assert.ok(pdfExport.includes('headers[i]==="GPS / Map"&&v')&&pdfExport.includes('>Open map</a>'),'PDF GPS values must render as clickable map links');tests++;
 console.log(JSON.stringify({ok:true,build:'2026-10-10_PORTAL_REVIEW_HARDENING_CONTRACT_R8',tests,writesPerformed:false}));

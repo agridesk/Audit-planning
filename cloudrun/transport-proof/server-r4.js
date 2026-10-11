@@ -1347,6 +1347,30 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     try{const saved=await saveScopeCosmetic20(body);if(saved.ok&&!saved.unchanged)console.info(JSON.stringify({event:'SCOPE_MANAGEMENT_20_COSMETIC_CHANGE',actor:clean(actor.email).toLowerCase(),scopeCode:saved.scopeCode,field:saved.field,before:saved.previous,after:saved.value,timestamp:new Date().toISOString()}));return send(res,200,saved);}
     catch(e){return send(res,409,{ok:false,error:clean(e.message||e)});}
   }
+  if(u.pathname==='/api/v1/manager/scopes/impact'&&req.method==='GET'){
+    const actor=sessionFromRequest(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    const code=clean(u.searchParams.get('scopeCode')),field=clean(u.searchParams.get('field'));
+    if(!code||!['Default_hours','Active','Archived','Max number audits','Min_Interval_Months','Planning from','Planning to','Extension','Recurring','Obligation cycle','Complete by','Provisioning source','Trigger source','Source service','Max_Offsite_Hours'].includes(field))return send(res,400,{ok:false,error:'IMPACT_FIELD_NOT_ALLOWED'});
+    try{
+      const vr=await sheetsBatchGet(['Config_Scopes!A1:U128','Audit planning!A1:AX2500','Audit_Obligations!A1:Z2500','Audit_Visit_Obligations!A1:Z2500']);
+      const catalog=vr[0]?.values||[],head=(catalog[0]||[]).map(clean),ci=head.indexOf('ScopeCode'),fi=head.indexOf(field);
+      if(ci<0||fi<0)return send(res,409,{ok:false,error:'SCOPE_SCHEMA_MISSING'});
+      const matches=catalog.slice(1).filter(r=>clean(r[ci])===code);
+      if(matches.length!==1)return send(res,409,{ok:false,error:'SCOPE_IDENTITY_AMBIGUOUS'});
+      const audits=vr[1]?.values||[],ah=(audits[0]||[]).map(clean),auditIdCol=col(ah,['Audit ID','Audit_ID']),statusCol=col(ah,['Status']);
+      if(auditIdCol<0||statusCol<0)return send(res,409,{ok:false,error:'AUDIT_SCHEMA_INCOMPLETE'});
+      const obligations=vr[2]?.values||[],oh=(obligations[0]||[]).map(clean),oc=col(oh,['ScopeCode','Scope_Code','Scope']),oid=col(oh,['Obligation_ID','Obligation ID']);
+      const links=vr[3]?.values||[],lh=(links[0]||[]).map(clean),linkOb=col(lh,['Obligation_ID','Obligation ID']),linkAudit=col(lh,['Audit_ID','Audit ID']);
+      if(oc<0||oid<0||linkOb<0||linkAudit<0)return send(res,409,{ok:false,error:'IMPACT_LINK_SCHEMA_INCOMPLETE'});
+      const obligationIds=new Set(obligations.slice(1).filter(r=>clean(r[oc])===code).map(r=>clean(r[oid])));
+      const affectedIds=new Set(links.slice(1).filter(r=>obligationIds.has(clean(r[linkOb]))).map(r=>clean(r[linkAudit])));
+      const impacted=audits.slice(1).filter(r=>affectedIds.has(clean(r[auditIdCol]))).map(r=>({auditId:clean(r[auditIdCol]),status:clean(r[statusCol])}));
+      const open=impacted.filter(r=>!['completed','cancelled','canceled','rejected'].includes(r.status.toLowerCase()));
+      return send(res,200,{ok:true,readOnly:true,scopeCode:code,field,current:String(matches[0][fi]??''),linkedAudits:impacted.length,openAudits:open.length,accepted:open.filter(r=>r.status.toLowerCase()==='accepted').length,impacted:open.slice(0,100),truncated:open.length>100});
+    }catch(e){return send(res,409,{ok:false,error:'IMPACT_PREVIEW_UNAVAILABLE',detail:clean(e.message||e)});}
+  }
   if(u.pathname==='/api/v1/manager/scopes'&&req.method==='GET'){
     const session=sessionFromRequest(req);
     if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});

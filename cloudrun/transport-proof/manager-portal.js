@@ -317,6 +317,11 @@ if(tab==='rules')fields=[['Rotation limit',selected.rotationLimit],['Minimum int
 if(tab==='sources')fields=[['Extension',p.Extension],['Provisioning source',p['Provisioning source']],['Trigger source',p['Trigger source']],['Source service',p['Source service']]];
 details.replaceChildren();
 if(tab==='versions'){
+var checkStorage=el('button','Check V1 storage');checkStorage.type='button';checkStorage.onclick=async function(){
+versionInfo.textContent='Checking version storage…';
+try{var response=await fetch('/api/v1/manager/scopes/version-status',{credentials:'same-origin'}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'STATUS_UNAVAILABLE');versionInfo.textContent='ScopeVersions storage: '+result.storage;if(result.initialized)showDetails()}catch(e){versionInfo.textContent='Storage check failed: '+e.message}
+};
+details.appendChild(el('dt','Storage check'));var checkCell=el('dd','');checkCell.appendChild(checkStorage);details.appendChild(checkCell);
 var bootstrap=el('button','Initialize current versions (V1)');bootstrap.type='button';bootstrap.style.marginBottom='10px';
 bootstrap.onclick=async function(){
 if(!confirm('Register the current configuration of all scopes as CURRENT V1? Existing audit hours will not change.'))return;

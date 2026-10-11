@@ -10,7 +10,7 @@ function RUN_SCOPE_MANAGEMENT_2_0_SCHEMA_PREFLIGHT() {
   if(errors.length){var blocked={success:false,readOnly:true,writesPerformed:false,scopeCount:0,columnsPresent:headers.length,errors:errors,warnings:warnings};Logger.log(JSON.stringify(blocked));return blocked;}
   for(var i=1;i<rows.length;i++){
     var row=rows[i],code=String(row[headers.indexOf('ScopeCode')]||'').trim(),slot=String(row[headers.indexOf('SlotKey')]||'').trim();
-    if(!code&&!slot)continue;
+    if(!code&&!slot){if(row.some(function(cell){return String(cell===null?'':cell).trim()!=='';}))errors.push('Scope identity missing at row '+(i+1));continue;}
     if(!code||!slot)errors.push('Incomplete scope identity at row '+(i+1));
     if(codes[code])errors.push('Duplicate ScopeCode: '+code);
     if(slots[slot])errors.push('Duplicate SlotKey: '+slot);

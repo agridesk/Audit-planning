@@ -11,12 +11,13 @@ export async function scopeSchemeVersion20({method,body,actor,SID,sheetsBatchGet
  if(clean(body?.expected)!==previous)throw Error('STALE_SCHEME_VERSION');
  if(version===previous)return{ok:true,unchanged:true,scopeCode:code,version};
  const token=await accessToken(),base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID);
- const meta=await fetch(base+'?fields=sheets.properties(title,sheetId)',{headers:{authorization:'Bearer '+token}});
+ const meta=await fetch(base+'?fields=sheets.properties(title,sheetId,gridProperties.columnCount)',{headers:{authorization:'Bearer '+token}});
  if(!meta.ok)throw Error('SHEET_METADATA_UNAVAILABLE');
  const sheet=(await meta.json()).sheets?.map(s=>s.properties).find(p=>p.title==='Config_Scopes');
  if(!sheet)throw Error('SCOPE_SHEET_MISSING');
  const cell=v=>({userEnteredValue:{stringValue:v}});
  const requests=[];
+ if(Number(sheet.gridProperties?.columnCount||0)<=vi)requests.push({appendDimension:{sheetId:sheet.sheetId,dimension:'COLUMNS',length:vi+1-Number(sheet.gridProperties?.columnCount||0)}});
  if(!header)requests.push({updateCells:{start:{sheetId:sheet.sheetId,rowIndex:0,columnIndex:vi},rows:[{values:[cell('Official_Scheme_Version')]}],fields:'userEnteredValue'}});
  requests.push({updateCells:{start:{sheetId:sheet.sheetId,rowIndex:matches[0].i,columnIndex:vi},rows:[{values:[cell(version)]}],fields:'userEnteredValue'}});
  const response=await fetch(base+':batchUpdate',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({requests})});

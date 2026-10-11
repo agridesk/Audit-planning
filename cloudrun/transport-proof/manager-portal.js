@@ -345,7 +345,7 @@ if(current){
  var saveHours=el('button','Save new hours version');saveHours.type='button';saveHours.style.marginLeft='8px';
  saveHours.onclick=async function(){
  var reason=prompt('Reason for changing hours to be planned:');if(!reason||!reason.trim())return;
- var impactResponse=await fetch('/api/v1/manager/scopes/impact?scopeCode='+encodeURIComponent(code)+'&field=Default_hours',{credentials:'same-origin'}),impact=await impactResponse.json();
+ var impact;try{var impactResponse=await fetch('/api/v1/manager/scopes/impact?scopeCode='+encodeURIComponent(code)+'&field=Default_hours',{credentials:'same-origin'});impact=await impactResponse.json()}catch(e){versionInfo.textContent+='\nImpact validation unavailable: '+e.message;return}
  if(!impactResponse.ok||!impact.ok){versionInfo.textContent+='\nImpact validation failed; hours not changed';return}
  if(!confirm('Activate new scope hours version? '+impact.openAudits+' open audits linked ('+impact.accepted+' accepted). Existing audit hours remain unchanged.'))return;
  saveHours.disabled=true;

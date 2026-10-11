@@ -54,7 +54,7 @@ const checks=[
  ['r5 multi-slot canonical payload',r5.includes('blocks:draftBlocks.slice()')],
  ['r5 duplicate-slot guard',r5.includes('draftBlocks.some((x,j)=>j!==i&&overlaps(x,next))')&&r5.includes('This slot overlaps another slot in the draft.')],
  ['r5 draft-overlap guard',r5.includes('This slot overlaps another slot in the draft.')&&r5.includes('function overlaps(')],
- ['r5 external-conflict hard guard',r5.includes('This slot overlaps committed occupancy and cannot be used.')&&r5.includes('function externalConflicts(')],
+ ['r5 external-conflict hard guard',r5.includes('This slot overlaps committed occupancy or a provisional reservation and cannot be used.')&&r5.includes('function externalConflicts(')],
  ['r5 no arbitrary five-block ceiling',!r5.includes('PLANNING_TOO_MANY_BLOCKS')],
  ['r5 aggregate planned-hours guard',r5.includes("draftBlocks.reduce((n,b)=>n+blockHours(b),0)")],
  ['r5 embedded regex escapes preserved',r5.includes("match(/^(\\\\d{2}):(\\\\d{2})$/)")],

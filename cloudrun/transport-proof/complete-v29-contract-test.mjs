@@ -18,6 +18,8 @@ const auditor=read('../../AuditorV5Backend.js');
 const auditorPortal=read('../../AuditorPortalV5.html');
 const annualCycle=read('../../AnnualCycleEngineV5.js');
 
+assert.match(portal,/Working · correcting realized hours/,'Realized-hours correction must show a pending state');
+assert.match(portal,/REALIZED_HOURS_COMMIT_NOT_CONFIRMED/,'Realized-hours success must require canonical backend confirmation');
 assert.match(portal,/\[REALIZED_HOURS_PERF\]/,'Realized-hours corrections must report measured client, relay and backend timings');
 assert.match(completion,/perf\.logWriteMs = Date\.now\(\) - writeStarted/,'Completed-hours override must measure history write duration');
 assert.match(completion,/perf\.auditTrailMs = Date\.now\(\) - auditStarted/,'Completed-hours override must measure audit trail duration');

@@ -98,6 +98,27 @@ function CompletionService_RuntimeSmokeTest() {
 }
 
 
+function managerV5_isManagerActor_(actorEmail) {
+  var email = completionService_normEmail_(actorEmail);
+  if (!email) return false;
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Auditors');
+  if (!sh || sh.getLastRow() < 2) return false;
+  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  var emailCol = completionService_findHeaderIndex_(headers, ['Email', 'E-mail']);
+  var roleCol = completionService_findHeaderIndex_(headers, ['Role']);
+  var activeCol = completionService_findHeaderIndex_(headers, ['Active']);
+  if (emailCol < 0 || roleCol < 0) return false;
+  var matches = sh.getRange(2, emailCol + 1, sh.getLastRow() - 1, 1)
+    .createTextFinder(email).matchEntireCell(true).matchCase(false).findAll();
+  for (var i = 0; i < matches.length; i++) {
+    var row = matches[i].getRow();
+    var role = String(sh.getRange(row, roleCol + 1).getValue() || '').trim().toLowerCase();
+    var active = activeCol < 0 ? 'YES' : String(sh.getRange(row, activeCol + 1).getValue() || '').trim().toUpperCase();
+    if (role === 'manager' && active === 'YES') return true;
+  }
+  return false;
+}
+
 function completionService_commitCompletion_(payload) {
   var lock = LockService.getScriptLock();
   if (!completionService_acquireLock_(lock, COMPLETION_LOCK_WAIT_MS, COMPLETION_LOCK_RETRY_SLEEP_MS)) {

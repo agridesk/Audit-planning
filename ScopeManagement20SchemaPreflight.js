@@ -15,6 +15,14 @@ function RUN_SCOPE_MANAGEMENT_2_0_SCHEMA_PREFLIGHT() {
     if(slots[slot])errors.push('Duplicate SlotKey: '+slot);
     codes[code]=true;slots[slot]=true;seen[code]=true;
   }
+  Object.keys(slots).forEach(function(slot){if(!/^SCOPE_(0[1-9]|1[0-9]|20)$/.test(slot))errors.push('Invalid slot: '+slot);});
+  var names={};
+  for(var j=1;j<rows.length;j++){
+    var name=String(rows[j][headers.indexOf('DisplayName')]||'').trim().toLowerCase();
+    if(!name)continue;
+    if(names[name])errors.push('Duplicate display name: '+name);
+    names[name]=true;
+  }
   if(Object.keys(seen).length>20)errors.push('More than 20 configured scopes');
   var out={success:errors.length===0,readOnly:true,writesPerformed:false,scopeCount:Object.keys(seen).length,columnsPresent:headers.length,errors:errors,warnings:warnings};
   Logger.log(JSON.stringify(out));return out;

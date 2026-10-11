@@ -88,7 +88,9 @@ function CompletionService_RuntimeSmokeTest() {
 
   if (!out.dependencies.LogRealizedAuditService_AppendFromAuditPlanning || !out.dependencies.LogRealizedAuditService_PreflightAppendFromAuditPlanning || !out.dependencies.LogRealizedAuditService_UpdateCompletedHours) out.success = false;
   if (!out.dependencies.V5_availabilityClearAuditId_ && !out.dependencies.AS_availabilityClearAuditId_) out.success = false;
+  if (!out.dependencies.AnnualCycleEngineV5_HandleCompletionRow_) out.success = false;
   if (!out.sheets.auditPlanning || !out.sheets.logRealized) out.success = false;
+  if (Object.keys(out.auditPlanningHeaders).some(function(key) { return out.auditPlanningHeaders[key] !== true; })) out.success = false;
   if (out.logService && out.logService.success === false) out.success = false;
 
   Logger.log(JSON.stringify(out, null, 2));

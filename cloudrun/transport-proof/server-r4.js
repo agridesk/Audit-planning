@@ -1350,6 +1350,15 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     try{const saved=await saveScopeCosmetic20(body);if(saved.ok&&!saved.unchanged)console.info(JSON.stringify({event:'SCOPE_MANAGEMENT_20_COSMETIC_CHANGE',actor:clean(actor.email).toLowerCase(),scopeCode:saved.scopeCode,field:saved.field,before:saved.previous,after:saved.value,timestamp:new Date().toISOString()}));return send(res,200,saved);}
     catch(e){return send(res,409,{ok:false,error:clean(e.message||e)});}
   }
+  if(u.pathname==='/api/v1/manager/scopes/scheme-version'&&(req.method==='GET'||req.method==='POST')){
+    const actor=sessionFromRequest(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    let body={scopeCode:u.searchParams.get('scopeCode')};
+    if(req.method==='POST'){let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});}try{body=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}}
+    try{return send(res,200,await scopeSchemeVersion20({method:req.method,body,actor,SID,sheetsBatchGet,accessToken,clean}));}
+    catch(e){return send(res,409,{ok:false,error:clean(e.message||e)});}
+  }
   if(u.pathname==='/api/v1/manager/scopes/policy'&&req.method==='POST'){
     const actor=sessionFromRequest(req);
     if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});

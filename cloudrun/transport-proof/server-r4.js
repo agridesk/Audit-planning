@@ -1371,6 +1371,19 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       return send(res,200,{ok:true,readOnly:true,scopeCode:code,field,current:String(matches[0][fi]??''),linkedAudits:impacted.length,openAudits:open.length,accepted:open.filter(r=>r.status.toLowerCase()==='accepted').length,impacted:open.slice(0,100),truncated:open.length>100});
     }catch(e){return send(res,409,{ok:false,error:'IMPACT_PREVIEW_UNAVAILABLE',detail:clean(e.message||e)});}
   }
+  if(u.pathname==='/api/v1/manager/scopes/versions'&&req.method==='GET'){
+    const actor=sessionFromRequest(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    try{
+      const vr=await sheetsBatchGet(['ScopeVersions!A1:I1000']);
+      const rows=vr[0]?.values||[],required=['ScopeCode','VersionId','Hours_to_plan','Status','Effective_From','Effective_To','Created_At','Created_By','Change_Reason'],head=(rows[0]||[]).map(clean);
+      if(required.some(h=>!head.includes(h)))return send(res,409,{ok:false,error:'VERSION_SCHEMA_INVALID'});
+      const versions=rows.slice(1).filter(r=>clean(r[head.indexOf('ScopeCode')])).map(r=>Object.fromEntries(required.map(h=>[h,r[head.indexOf(h)]??''])));
+      const currents={};for(const v of versions){if(clean(v.Status).toUpperCase()==='CURRENT'){if(currents[v.ScopeCode])return send(res,409,{ok:false,error:'MULTIPLE_CURRENT_VERSIONS'});currents[v.ScopeCode]=v.VersionId;}}
+      return send(res,200,{ok:true,initialized:true,versions});
+    }catch(e){return send(res,409,{ok:false,initialized:false,error:'VERSION_STORAGE_NOT_READY',detail:clean(e.message||e)});}
+  }
   if(u.pathname==='/api/v1/manager/scopes'&&req.method==='GET'){
     const session=sessionFromRequest(req);
     if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});

@@ -56,4 +56,19 @@ assert.equal(versionContext.ScopeVersion20_validateRows_(validVersions.concat(va
 assert.equal(versionContext.ScopeVersion20_validateRows_(validVersions.concat({...validVersions[1],VersionId:'V7'})).success,false);
 assert.equal(versionContext.ScopeVersion20_validateRows_([{...validVersions[1],Hours_to_plan:''}]).success,false);
 assert.equal(versionContext.ScopeVersion20_validateRows_([{...validVersions[1],Hours_to_plan:0}]).success,true);
-console.log('scope-slot-bridge-v211: 23 tests passed');
+const impactSource=readFileSync(new URL('../../ScopeManagement20ImpactPreview.js',import.meta.url),'utf8');
+const mockData={
+'Audit_Obligations':[['Obligation_ID','ScopeCode','Company_UID','Formal_Hours'],['O1','MPS-GAP','C1',4],['O2','MPS-GAP','C2',5]],
+'Audit_Visit_Obligations':[['Obligation_ID','Audit_ID','Link_State'],['O1','A1','ACTIVE'],['O2','A2','ACTIVE']],
+'Audit planning':[['Audit ID','Status'],['A1','Accepted'],['A2','Completed']]
+};
+const impactSS={getSheetByName:(n)=>mockData[n]?{getDataRange:()=>({getValues:()=>mockData[n].map(r=>r.slice())})}:null};
+const impactContext={SpreadsheetApp:{getActiveSpreadsheet:()=>impactSS}};
+runInNewContext(impactSource,impactContext);
+const impact=impactContext.ScopeImpact20_preview_(impactSS,'MPS-GAP',5);
+assert.equal(impact.success,true);
+assert.equal(impact.impactedCount,1);
+assert.equal(impact.acceptedCount,1);
+assert.equal(impact.impacted[0].auditId,'A1');
+assert.equal(impactContext.ScopeImpact20_preview_(impactSS,'MPS-GAP',-1).success,false);
+console.log('scope-slot-bridge-v211: 27 tests passed');

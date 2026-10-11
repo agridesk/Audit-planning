@@ -321,7 +321,7 @@ var checkStorage=el('button','Check storage');checkStorage.type='button';checkSt
 versionInfo.textContent='Checking version storage…';
 try{var response=await fetch('/api/v1/manager/scopes/version-status',{credentials:'same-origin'}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'STATUS_UNAVAILABLE');versionInfo.textContent='ScopeVersions storage: '+result.storage;if(result.initialized)showDetails()}catch(e){versionInfo.textContent='Storage check failed: '+e.message}
 };
-details.appendChild(el('dt','Hours history storage'));var checkCell=el('dd','');checkCell.appendChild(checkStorage);details.appendChild(checkCell);
+var checkCell=el('dd','');checkCell.appendChild(checkStorage);
 var bootstrap=el('button','Initialize hours history');bootstrap.type='button';bootstrap.style.marginBottom='10px';
 bootstrap.onclick=async function(){
 if(!confirm('Register the current configuration of all scopes as CURRENT V1? Existing audit hours will not change.'))return;
@@ -332,15 +332,14 @@ var result=await response.json();if(!response.ok||!result.ok)throw Error(result.
 status.textContent='Initialized '+result.count+' current V1 versions; existing audits unchanged'+(result.skipped?.length?' · Not initialized (hours missing): '+result.skipped.map(function(x){return x.scopeCode}).join(', '):'');bootstrap.hidden=true;showDetails();
 }catch(e){versionInfo.textContent='Initialization failed: '+e.message;status.textContent='V1 initialization blocked: '+e.message}finally{bootstrap.disabled=false}
 };
-details.appendChild(el('dt','Hours revision history'));var bootstrapCell=el('dd','');bootstrapCell.appendChild(bootstrap);details.appendChild(bootstrapCell);
+var bootstrapCell=el('dd','');bootstrapCell.appendChild(bootstrap);
 var versionInfo=el('dd','Loading version history…');versionInfo.style.whiteSpace='pre-wrap';versionInfo.style.gridColumn='1 / -1';details.appendChild(versionInfo);
 var code=selected.scopeCode;
 fetch('/api/v1/manager/scopes/versions',{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(result){
-if(!result.ok)throw Error((result.error||'VERSION_STORAGE_NOT_READY')+(result.detail?' — '+result.detail:''));bootstrap.hidden=true;
+if(!result.ok)throw Error((result.error||'VERSION_STORAGE_NOT_READY')+(result.detail?' — '+result.detail:''));bootstrap.hidden=true;checkStorage.hidden=true;
 var versions=result.versions.filter(function(v){return v.ScopeCode===code});
-versionInfo.textContent=versions.length?versions.map(function(v){return v.VersionId+' · '+v.Status+' · '+v.Hours_to_plan+' hours'}).join('\n'):'No versions registered for '+code;
-versionInfo.textContent+='\nHours revisions are independent of the official scheme version.';
-var schemeRow=el('div','');schemeRow.style.margin='10px 0';var schemeLabel=el('label','Official scheme version (independent of hours): '),schemeInput=document.createElement('input');schemeInput.type='text';schemeInput.placeholder='e.g. V12 / V16';schemeInput.style.width='100px';schemeInput.setAttribute('aria-label','Official scheme version');schemeRow.appendChild(schemeLabel);schemeRow.appendChild(schemeInput);
+versionInfo.replaceChildren();
+var schemeRow=el('div','');schemeRow.style.margin='0 0 16px';var schemeLabel=el('label','Official scheme version: '),schemeInput=document.createElement('input');schemeInput.type='text';schemeInput.placeholder='e.g. V12 / V16';schemeInput.style.width='100px';schemeInput.setAttribute('aria-label','Official scheme version');schemeRow.appendChild(schemeLabel);schemeRow.appendChild(schemeInput);
 var saveScheme=el('button','Save scheme version');saveScheme.type='button';saveScheme.style.marginLeft='8px';schemeRow.appendChild(saveScheme);versionInfo.appendChild(schemeRow);
 var schemeExpected='';
 fetch('/api/v1/manager/scopes/scheme-version?scopeCode='+encodeURIComponent(code),{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(data){if(!data.ok)throw Error(data.error||'SCHEME_VERSION_UNAVAILABLE');schemeExpected=data.version||'';schemeInput.value=schemeExpected}).catch(function(e){saveScheme.disabled=true;status.textContent='Scheme version unavailable: '+e.message});
@@ -359,7 +358,7 @@ saveScheme.onclick=async function(){
 };
 var current=versions.find(function(v){return v.Status==='CURRENT'});
 if(current||!versions.length){
- var edit=el('div',''),hoursInput=document.createElement('input');hoursInput.type='number';hoursInput.min='0';hoursInput.max='1000';hoursInput.step='0.25';hoursInput.value=current?String(current.Hours_to_plan):'';hoursInput.style.width='90px';hoursInput.setAttribute('aria-label','New hours to be planned');
+ var edit=el('div','');edit.style.margin='0 0 14px';var hoursLabel=el('label','Hours to be planned: ');edit.appendChild(hoursLabel);var hoursInput=document.createElement('input');hoursInput.type='number';hoursInput.min='0';hoursInput.max='1000';hoursInput.step='0.25';hoursInput.value=current?String(current.Hours_to_plan):'';hoursInput.style.width='90px';hoursInput.setAttribute('aria-label','New hours to be planned');
  var saveHours=el('button',current?'Save hours revision':'Initialize hours history');saveHours.type='button';saveHours.style.marginLeft='8px';
  saveHours.onclick=async function(){
  
@@ -375,6 +374,7 @@ if(current||!versions.length){
  };
  edit.appendChild(hoursInput);edit.appendChild(saveHours);versionInfo.appendChild(edit);
 }
+var history=document.createElement('details');history.style.marginTop='8px';var summary=document.createElement('summary');summary.textContent='Hours revision history ('+versions.length+')';history.appendChild(summary);var historyText=el('div',versions.length?versions.map(function(v){return v.VersionId+' · '+v.Status+' · '+v.Hours_to_plan+' hours'}).join('\n'):'No hours revisions registered');historyText.style.whiteSpace='pre-wrap';historyText.style.padding='8px 0 0 14px';history.appendChild(historyText);versionInfo.appendChild(history);
 }).catch(function(e){versionInfo.textContent='Version management not initialized: '+e.message+'\nHours editing remains disabled until V1 registration is verified.'});
 }
 fields.forEach(function(f){

@@ -117,4 +117,11 @@ assert.equal(impactContext.ScopeImpact20_preview_(brokenSS,'MPS-GAP',5).success,
 const badSchema={...mockData,'Audit planning':[['Audit ID'],['A1']]};
 const badSchemaSS={getSheetByName:n=>badSchema[n]?{getDataRange:()=>({getValues:()=>badSchema[n].map(r=>r.slice())})}:null};
 assert.equal(impactContext.ScopeImpact20_preview_(badSchemaSS,'MPS-GAP',5).success,false);
-console.log('scope-slot-bridge-v211: 50 tests passed');
+const bootstrapWriteSource=readFileSync(new URL('../../ScopeVersion20DevBootstrap.js',import.meta.url),'utf8');
+assert.match(bootstrapWriteSource,/DEV_ONLY/);
+assert.match(bootstrapWriteSource,/MANAGER_ACCESS_DENIED/);
+assert.match(bootstrapWriteSource,/EXPLICIT_CONFIRMATION_REQUIRED/);
+assert.match(bootstrapWriteSource,/SCOPE_VERSIONS_ALREADY_EXISTS/);
+assert.match(bootstrapWriteSource,/LockService\.getScriptLock/);
+assert.match(bootstrapWriteSource,/BOOTSTRAP_POST_WRITE_VALIDATION_FAILED/);
+console.log('scope-slot-bridge-v211: 56 tests passed');

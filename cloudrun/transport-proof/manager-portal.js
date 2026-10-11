@@ -318,8 +318,34 @@ if(tab==='sources')fields=[['Extension',p.Extension],['Provisioning source',p['P
 details.replaceChildren();fields.forEach(function(f){
 details.appendChild(el('dt',f[0]));var dd=el('dd',''),map={'Scope name':'DisplayName','Color':'Color','Text color':'TextColor','Sort order':'SortOrder'},field=map[f[0]];
 if(field){var input=document.createElement('input');input.value=f[1]==null?'':String(f[1]);input.setAttribute('aria-label',f[0]);input.style.maxWidth='200px';var save=el('button','Save');save.type='button';save.style.marginLeft='8px';save.onclick=async function(){save.disabled=true;try{var response=await fetch('/api/v1/manager/scopes/cosmetic',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({scopeCode:selected.scopeCode,field:field,expected:String(selected.policy[field]??''),value:input.value})}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'SAVE_FAILED');status.textContent='Saved '+field+' for '+selected.scopeCode;await load();selected=records.find(function(r){return r.scopeCode===result.scopeCode})||selected;showDetails()}catch(e){status.textContent='Save blocked: '+e.message}finally{save.disabled=false}};dd.appendChild(input);dd.appendChild(save)}else dd.textContent=f[1]==null?'':String(f[1]);details.appendChild(dd)})}
-function render(){body.replaceChildren();var q=search.value.trim().toLowerCase(),f=filter.value;records.filter(function(r){return (r.scopeCode+' '+r.displayName).toLowerCase().includes(q)&&(f==='all'||f==='active'&&r.active&&!r.archived||f==='archived'&&r.archived)}).forEach(function(r){var tr=el('tr',''),td=el('td',''),b=el('button',r.displayName);b.type='button';b.onclick=function(){selected=r;tab='general';showDetails()};td.appendChild(b);tr.appendChild(td);[r.active?'Yes':'No','—',r.hoursToPlan,r.rotationLimit,r.minimumIntervalMonths,(r.planningFrom||'—')+' / '+(r.planningTo||'—')].forEach(function(v){tr.appendChild(el('td',v))});body.appendChild(tr)})}
-async function load(){status.textContent='Loading scopes…';try{var response=await fetch('/api/v1/manager/scopes',{credentials:'same-origin'}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'SCOPE_READ_FAILED');records=result.rows||[];status.textContent=records.length+' scopes · read-only · version migration pending';render()}catch(e){status.textContent='Scope catalog unavailable: '+e.message}}
+async function saveInline(r,field,value,control){
+control.disabled=true;
+try{
+var response=await fetch('/api/v1/manager/scopes/cosmetic',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({scopeCode:r.scopeCode,field:field,expected:String(r.policy[field]??''),value:value})});
+var result=await response.json();
+if(!response.ok||!result.ok)throw Error(result.error||'SAVE_FAILED');
+status.textContent='Saved '+field+' for '+r.scopeCode;
+await load();
+if(selected&&selected.scopeCode===r.scopeCode){selected=records.find(function(x){return x.scopeCode===r.scopeCode})||selected;showDetails()}
+}catch(e){status.textContent='Save blocked: '+e.message;control.value=String(r.policy[field]??'')}
+finally{control.disabled=false}
+}
+function editableCell(tr,r,field,value,type){
+var td=el('td',''),input=document.createElement('input');
+input.type=type||'text';input.value=value==null?'':String(value);input.style.width=field==='DisplayName'?'155px':'65px';input.style.boxSizing='border-box';input.setAttribute('aria-label',field+' for '+r.scopeCode);
+input.title='Press Enter or leave the field to save';
+var original=input.value;
+async function commit(){if(input.disabled||input.value===original)return;await saveInline(r,field,input.value,input)}
+input.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();input.blur()}if(e.key==='Escape'){input.value=original;input.blur()}});
+input.addEventListener('change',commit);td.appendChild(input);tr.appendChild(td);
+}
+function render(){body.replaceChildren();var q=search.value.trim().toLowerCase(),f=filter.value;
+records.filter(function(r){return (r.scopeCode+' '+r.displayName).toLowerCase().includes(q)&&(f==='all'||f==='active'&&r.active&&!r.archived||f==='archived'&&r.archived)}).forEach(function(r){
+var tr=el('tr',''),td=el('td',''),b=el('button','Details');b.type='button';b.onclick=function(){selected=r;tab='general';showDetails()};td.appendChild(b);tr.appendChild(td);
+editableCell(tr,r,'DisplayName',r.displayName,'text');
+[r.active?'Yes':'No','—',r.hoursToPlan,r.rotationLimit,r.minimumIntervalMonths,(r.planningFrom||'—')+' / '+(r.planningTo||'—')].forEach(function(v){tr.appendChild(el('td',v))});
+body.appendChild(tr)})}
+async function load(){status.textContent='Loading scopes…';try{var response=await fetch('/api/v1/manager/scopes',{credentials:'same-origin'}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'SCOPE_READ_FAILED');records=result.rows||[];status.textContent=records.length+' scopes · inline name editing enabled · material changes protected';render()}catch(e){status.textContent='Scope catalog unavailable: '+e.message}}
 button.onclick=function(){panel.hidden=false;load()};close.onclick=function(){panel.hidden=true};search.oninput=render;filter.onchange=render;document.querySelectorAll('[data-scope-tab]').forEach(function(b){b.onclick=function(){tab=b.dataset.scopeTab;showDetails()}});
 })();
 fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();if(String(actorRole).toLowerCase()==="manager")initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)});return loadOpen()}).catch(fail);

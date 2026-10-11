@@ -307,7 +307,7 @@ function doPost(e) {
     var actionBridge=V5_ENTRY_externalBridgeBody_(e);if(!actionBridge.ok)return actionBridge.response;var body=actionBridge.body||{};
     var actorEmail=String(body.actorEmail||'').trim().toLowerCase();var auditId=String(body.auditId||'').trim();var managerAction=String(body.managerAction||body.action||'').trim().toLowerCase();var options=body.options&&typeof body.options==='object'?body.options:{};
     if(!actorEmail||!auditId||!managerAction)return ContentService.createTextOutput(JSON.stringify({success:false,error:'MISSING_REQUIRED_FIELDS'})).setMimeType(ContentService.MimeType.JSON);
-    if(managerAction!=='approve'&&managerAction!=='cancel'&&managerAction!=='reject')return ContentService.createTextOutput(JSON.stringify({success:false,error:'MANAGER_PORTAL_ACTION_NOT_ALLOWED'})).setMimeType(ContentService.MimeType.JSON);
+    if(managerAction!=='approve'&&managerAction!=='cancel'&&managerAction!=='reject'&&managerAction!=='edit_realized_hours')return ContentService.createTextOutput(JSON.stringify({success:false,error:'MANAGER_PORTAL_ACTION_NOT_ALLOWED'})).setMimeType(ContentService.MimeType.JSON);
     if((managerAction==='cancel'||managerAction==='reject')&&!String(options.reason||options.comment||'').trim())return ContentService.createTextOutput(JSON.stringify({success:false,error:'ACTION_REASON_REQUIRED'})).setMimeType(ContentService.MimeType.JSON);
     options.actorEmail=actorEmail;options.managerEmail=actorEmail;options.externalSession=true;var result=managerV5Action(auditId,managerAction,options);return ContentService.createTextOutput(JSON.stringify(result||{success:false,error:'EMPTY_RESULT'})).setMimeType(ContentService.MimeType.JSON);
   }

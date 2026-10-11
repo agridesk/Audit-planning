@@ -199,12 +199,14 @@ function m5t_upsertScopes(payload) {
       var scopeKey = String(s.scope || s.scopeCode || s.code || '').trim().toLowerCase();
       if (scopeKey) selectedByScope[scopeKey] = (s.enabled === true || String(s.enabled).toLowerCase() === 'true');
     });
+    var missingQualificationScope = '';
     (m5t_scopeSlotDefs_(ss) || []).forEach(function(d){
       var scopeKey = String(d.scope || '').trim().toLowerCase();
       var isSelected = selectedByScope[scopeKey] === true;
-      if (isSelected && d.flagCol0 == null) throw new Error('SCOPE_QUALIFICATION_COLUMN_UNAVAILABLE_' + d.slotKey);
+      if (isSelected && d.flagCol0 == null) missingQualificationScope = String(d.slotKey || '');
       if (d.flagCol0 != null) qualificationRow[d.flagCol0] = isSelected ? 'x' : '';
     });
+    if (missingQualificationScope) return {success:false,error:'SCOPE_QUALIFICATION_COLUMN_UNAVAILABLE',scope:missingQualificationScope};
     var qualificationCheck = _mp_assertAuditorQualifiedForPlanning_(ss, header, qualificationRow, preassignedAuditor, '');
     if (!qualificationCheck || qualificationCheck.success !== true) {
       return {

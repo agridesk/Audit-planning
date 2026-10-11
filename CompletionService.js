@@ -151,7 +151,7 @@ function completionService_commitCompletion_(payload) {
               Math.abs(Number(completedExisting.hoursDedicated) - hoursDedicated) > 1e-9) {
             managerPrecedence = LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, { status:completionService_getCompletedDisplayStatus_() });
             if (!managerPrecedence || managerPrecedence.success === false) return managerPrecedence || { success:false, message:'Manager concurrency override failed' };
-            completionService_appendHoursAuditTrail_(ss, {
+            if (managerPrecedence.changed !== false) completionService_appendHoursAuditTrail_(ss, {
               type:'COMPLETION_MANAGER_CONCURRENCY_OVERRIDE',
               auditId:auditId,
               actorEmail:actorEmail,
@@ -454,7 +454,7 @@ function completionService_overrideCompletedHours_(payload) {
     if (!res || res.success === false) return res;
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    completionService_appendHoursAuditTrail_(ss, {
+    if (res.changed !== false) completionService_appendHoursAuditTrail_(ss, {
       type:'COMPLETED_HOURS_OVERRIDE',
       auditId:auditId,
       actorEmail:actorEmail,

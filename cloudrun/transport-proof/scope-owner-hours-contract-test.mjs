@@ -19,4 +19,6 @@ assert.equal(read().usedHours,4);
 assert.throws(()=>ctx.ModelCScopeOwner_hours_(''),/required/);
 assert.equal(ctx.ModelCScopeOwner_hours_(0),0);
 assert.match(src,/COMPLETED_AUDIT_IMMUTABLE/);
-console.log('scope-owner-hours: 7 checks passed');
+assert.match(src,/Company_Formal_Hours_Override:item\.hasPersonalizedHours/);
+assert.match(src,/scope\.Company_Formal_Hours_Override=item\.hasPersonalizedHours/);
+console.log('scope-owner-hours: 9 checks passed');

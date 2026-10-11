@@ -31,6 +31,9 @@ function RUN_MODEL_C_RECURRING_CONFIG_ACCEPTANCE(){
   var anomalies=ob.filter(function(x){return ['OBL_3b89835463ba4636b75b1e8a7549ed8d','OBL_ff9daeceaa29392bf37bcbab25c7a82c'].indexOf(String(x.Obligation_ID||''))>=0;}).map(function(x){return {obligationId:x.Obligation_ID,scopeCode:x.ScopeCode,cycleKey:x.Cycle_Key,baseExpiry:String(x.Base_Expiry_Date||''),effectiveExpiry:String(x.Effective_Expiry_Date||''),state:x.Obligation_State,companyUid:x.Company_UID,sourceAuditId:x.Source_Audit_ID};});
   var orphanAudit='AUD_MANUELHERRERACAB_1777552051804_O8FM';
   var orphanLinks=lk.filter(function(x){return String(x.Audit_ID||'')===orphanAudit;}).map(function(x){return {auditId:x.Audit_ID,obligationId:x.Obligation_ID,linkState:x.Link_State,obligationExists:!!obById[String(x.Obligation_ID||'')]};});
+  var orphanObligation=obById['OBL_7618533b4baa4d95b734f8e4afbc7840'];
+  var orphanObligationDetail=orphanObligation?{obligationId:orphanObligation.Obligation_ID,state:orphanObligation.Obligation_State,scopeCode:orphanObligation.ScopeCode,sourceAuditId:orphanObligation.Source_Audit_ID,companyUid:orphanObligation.Company_UID,cycleKey:String(orphanObligation.Cycle_Key||'')}:null;
+  var anomalousLinks=lk.filter(function(x){return ['OBL_3b89835463ba4636b75b1e8a7549ed8d','OBL_ff9daeceaa29392bf37bcbab25c7a82c'].indexOf(String(x.Obligation_ID||''))>=0;}).map(function(x){return {auditId:x.Audit_ID,obligationId:x.Obligation_ID,linkState:x.Link_State};});
   var auditIds={};
   Object.keys(activeAuditByOb).forEach(function(obId){var id=activeAuditByOb[obId];if(id)auditIds[id]=true;});
   Object.keys(auditIds).forEach(function(auditId){
@@ -87,6 +90,8 @@ function RUN_MODEL_C_RECURRING_CONFIG_ACCEPTANCE(){
     nonRecurringScopeCodes:nonRecurringCodes.sort(),
     anomalies:anomalies,
     orphanAuditLinks:orphanLinks,
+    orphanObligationDetail:orphanObligationDetail,
+    anomalousLinks:anomalousLinks,
     errors:errors.slice(0,25)
   };
   out.success=out.success&&Object.keys(out.gates).every(function(k){return out.gates[k]===true;});

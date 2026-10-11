@@ -24,7 +24,7 @@ function RUN_MODEL_C_RECURRING_CONFIG_ACCEPTANCE(){
       if(!base&&!effective){recurringMissingExpiry++;errors.push('Recurring obligation missing expiry: '+String(x.Obligation_ID||'')+'|'+code);}
     }else{
       nonRecurringObligations++;
-      if(base||effective){nonRecurringWithExpiry++;errors.push('Non-recurring obligation has expiry: '+String(x.Obligation_ID||'')+'|'+code);}if(def.obligationCycle==='ANNUAL'){if(!/^\\d{2}-\\d{2}$/.test(String(def.completeBy||''))){nonRecurringAnnualMissingDeadlineConfig++;errors.push('Annual non-recurring scope missing Complete by: '+code);}if(!/^20\\d{2}$/.test(String(x.Cycle_Key||''))){nonRecurringAnnualBadCycleKey++;errors.push('Annual non-recurring obligation has invalid Cycle_Key: '+String(x.Obligation_ID||'')+'|'+code);}}
+      if(base||effective){nonRecurringWithExpiry++;errors.push('Non-recurring obligation has expiry: '+String(x.Obligation_ID||'')+'|'+code);}if(def.obligationCycle==='ANNUAL'){if(!/^\d{2}-\d{2}$/.test(String(def.completeBy||''))){nonRecurringAnnualMissingDeadlineConfig++;errors.push('Annual non-recurring scope missing Complete by: '+code);}if(!/^20\d{2}$/.test(String(x.Cycle_Key||''))){nonRecurringAnnualBadCycleKey++;errors.push('Annual non-recurring obligation has invalid Cycle_Key: '+String(x.Obligation_ID||'')+'|'+code);}}
     }
   });
 

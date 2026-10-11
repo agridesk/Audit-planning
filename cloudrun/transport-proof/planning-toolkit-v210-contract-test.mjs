@@ -27,6 +27,7 @@ const checks=[
   ['Full-day HARD exception blocks Save even with timed slots',r5.includes("(day?.slots||[]).some(s=>s.kind==='hard'&&(!s.start||!s.end))")],
   ['Timed HARD interval is reported as hard unavailability',r5.includes('committed occupancy or a hard unavailability interval')],
   ['Full-day HARD renders blocked even when timed HARD slots coexist',r5.includes("fullDayUnavailable=hardUnavailable&&(!hardTimedSlots.length||slotsArr.some(s=>s.kind==='hard'&&(!s.start||!s.end)))")],
+  ['Auditor same-day auto placement skips provisional reservations',r5.includes("provisional=actorRole.toLowerCase()==='auditor'?provisionalConflicts(b)")&&r5.includes('!external.length&&!provisional.length')&&r5.includes('[...local,...external,...provisional]')],
   ['No Add slot control exposed',!r5.includes('>Add slot<')&&!r5.includes('id="addSlot"')],
   ['Maximum five selected days retained',r5.includes('Maximum 5 planning days.')],
   ['Toolkit totals use Required Planned Remaining',r5.includes('function planningTarget()')&&r5.includes("Required '+target.toFixed(2)+' h · Planned ")],

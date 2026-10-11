@@ -333,7 +333,9 @@ function completionService_commitCompletion_(payload) {
     }
 
     // A stale cached row must never cause the deletion of a different audit.
-    var verifiedAuditId = completionService_normAuditId_(shPlan.getRange(rowPack.rowIndex, completionService_findHeaderIndex_(rowPack.headers, ['Audit ID']) + 1).getValue());
+    var verifiedIdCol = completionService_findHeaderIndex_(rowPack.headers, ['Audit ID']);
+    if (verifiedIdCol < 0) return { success:false, code:'AUDIT_ID_HEADER_MISSING', message:'Cannot verify audit row identity' };
+    var verifiedAuditId = completionService_normAuditId_(shPlan.getRange(rowPack.rowIndex, verifiedIdCol + 1).getValue());
     if (verifiedAuditId !== auditId) {
       return { success:false, code:'AUDIT_ROW_CHANGED', message:'Audit planning row changed during completion; refusing commit', auditId:auditId };
     }

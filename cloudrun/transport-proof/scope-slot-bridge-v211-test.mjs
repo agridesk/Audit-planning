@@ -128,4 +128,12 @@ const managerUi=readFileSync(new URL('../../ManagerV5UI.html',import.meta.url),'
 assert.match(managerUi,/Scope Management 2\.0<\/button>/);
 assert.match(managerUi,/ScopeManagement20ManagerUI/);
 assert.match(managerUi,/id="sm20PortalPanel" hidden/);
-console.log('scope-slot-bridge-v211: 59 tests passed');
+const cloudPortal=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
+const cloudClient=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+const cloudServer=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+assert.match(cloudPortal,/id="scopeManagement20"/);
+assert.match(cloudPortal,/id="scopeManagement20Panel"/);
+assert.match(cloudClient,/\/api\/v1\/manager\/scopes/);
+assert.match(cloudServer,/MANAGER_REQUIRED/);
+assert.match(cloudServer,/SCOPE_SCHEMA_MISSING/);
+console.log('scope-slot-bridge-v211: 64 tests passed');

@@ -152,4 +152,7 @@ assert.ok(cloudServer.includes('/api/v1/manager/scopes/impact'));
 assert.ok(cloudServer.includes('IMPACT_LINK_SCHEMA_INCOMPLETE'));
 assert.ok(cloudServer.includes('IMPACT_PREVIEW_UNAVAILABLE'));
 assert.ok(cloudClient.includes('Preview impact on open audits'));
-console.log('scope-slot-bridge-v211: 80 tests passed');
+assert.ok(cloudClient.includes("previewResult.setAttribute('role','status')"));
+assert.ok(cloudClient.includes('Impact preview unavailable: '));
+assert.ok(cloudClient.includes('Linked audits: '));
+console.log('scope-slot-bridge-v211: 83 tests passed');

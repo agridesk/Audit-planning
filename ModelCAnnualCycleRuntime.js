@@ -209,7 +209,7 @@ function ModelCAnnualCycle_finalizeCompletedVisit_(auditId) {
       var already=0;
       for(var a=1;a<lkValues.length;a++)if(String(lkValues[a][lkAuditIx]||'')===auditId&&String(lkValues[a][lkStateIx]||'').toUpperCase()==='INACTIVE')already++;
       perf.totalMs=Date.now()-t0;
-      return{success:true,finalized:0,idempotent:already>0,build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD,perf:perf};
+      return{success:already>0,finalized:0,idempotent:already>0,message:already>0?'Already finalized':'No active Model C visit links to finalize',build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD,perf:perf};
     }
 
     var stamp=new Date().toISOString();

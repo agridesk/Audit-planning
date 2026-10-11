@@ -9,6 +9,7 @@ const checks=[
   ['Docker image contains shared assignment validator',docker.includes('COPY assignment-validation-v211.js ./')],
   ['Docker image contains shared actor capabilities',docker.includes('COPY actor-capabilities-v211.js ./')],
   ['Docker image contains scope hours version service',docker.includes('COPY scope-hours-version-20.js ./')],
+  ['Docker image contains scope policy service',docker.includes('COPY scope-policy-20.js ./')],
   ['Docker starts npm start',docker.includes('CMD ["npm","start"]')]
 ];
 

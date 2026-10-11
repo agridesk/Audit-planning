@@ -763,6 +763,7 @@ window.V5.modal = window.V5.modal || {
           <div class="hdr-tools">
             <button class="hdr-btn" id="btnLogout" type="button" onclick="window.openLogout()" style="border-color: rgba(220,38,38,0.55); color:#fecaca;">Log out</button>
             <button class="hdr-btn" type="button" onclick="try{ m5t_openScopes(); }catch(e){ showToast('Tools not loaded: Scopes'); }">Scopes</button>
+            <button class="hdr-btn" type="button" onclick="document.getElementById('sm20PortalPanel').hidden=false">Scope Management 2.0</button>
             <button class="hdr-btn" type="button" onclick="try{ m5t_openRotation(); }catch(e){ showToast('Tools not loaded: Rotation'); }">Rotation</button>
             <button class="hdr-btn" type="button" onclick="try{ m5t_openPlanning(); }catch(e){ showToast('Tools not loaded: Planning'); }">Planning</button>
             <button class="hdr-btn" id="btnPlanningWorkspace2" type="button" style="display:none;" onclick="openPlanningWorkspace2()">Planning 2.0</button>
@@ -4388,6 +4389,7 @@ document.addEventListener("DOMContentLoaded", initManagerUI);
 
 <!-- SECTION 16 — MANAGER TOOLS INCLUDE -->
 <?!= HtmlService.createTemplateFromFile('ManagerV5ToolsUI').evaluate().getContent(); ?>
+<section id="sm20PortalPanel" hidden style="position:fixed;inset:3vh 2vw;z-index:10030;overflow:auto;background:#fff;border:2px solid #64748b;border-radius:12px;box-shadow:0 20px 80px #0005;padding:12px"><button type="button" onclick="document.getElementById('sm20PortalPanel').hidden=true" style="float:right;padding:8px 16px">Close</button><?!= HtmlService.createTemplateFromFile('ScopeManagement20ManagerUI').evaluate().getContent(); ?></section>
   
 <!-- ============================================================
  SECTION 17 — COMPANY UPDATES REVIEW MODAL

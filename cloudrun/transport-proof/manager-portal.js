@@ -340,7 +340,23 @@ if(!result.ok)throw Error((result.error||'VERSION_STORAGE_NOT_READY')+(result.de
 var versions=result.versions.filter(function(v){return v.ScopeCode===code});
 versionInfo.textContent=versions.length?versions.map(function(v){return v.VersionId+' · '+v.Status+' · '+v.Hours_to_plan+' hours'}).join('\n'):'No versions registered for '+code;
 if(versions.some(function(v){return v.VersionId==='V1'||v.VersionId==='V2'}))versionInfo.textContent+='\nNote: existing V1/V2 records were created as AMS hours revisions; verify official scheme version before the next activation.';
-var schemeRow=el('div','');schemeRow.style.margin='10px 0';var schemeLabel=el('label','Official scheme version: '),schemeInput=document.createElement('input');schemeInput.type='text';schemeInput.placeholder='e.g. V12 / V16';schemeInput.style.width='100px';schemeInput.setAttribute('aria-label','Official scheme version');schemeRow.appendChild(schemeLabel);schemeRow.appendChild(schemeInput);versionInfo.appendChild(schemeRow);
+var schemeRow=el('div','');schemeRow.style.margin='10px 0';var schemeLabel=el('label','Official scheme version: '),schemeInput=document.createElement('input');schemeInput.type='text';schemeInput.placeholder='e.g. V12 / V16';schemeInput.style.width='100px';schemeInput.setAttribute('aria-label','Official scheme version');schemeRow.appendChild(schemeLabel);schemeRow.appendChild(schemeInput);
+var saveScheme=el('button','Save scheme version');saveScheme.type='button';saveScheme.style.marginLeft='8px';schemeRow.appendChild(saveScheme);versionInfo.appendChild(schemeRow);
+var schemeExpected='';
+fetch('/api/v1/manager/scopes/scheme-version?scopeCode='+encodeURIComponent(code),{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(data){if(!data.ok)throw Error(data.error||'SCHEME_VERSION_UNAVAILABLE');schemeExpected=data.version||'';schemeInput.value=schemeExpected}).catch(function(e){saveScheme.disabled=true;status.textContent='Scheme version unavailable: '+e.message});
+saveScheme.onclick=async function(){
+ var value=schemeInput.value.trim().toUpperCase();if(!/^V[1-9][0-9]*$/.test(value)){status.textContent='Enter version as V12 or V16';return}
+ var reason=prompt('Reason for setting official scheme version:');if(!reason||!reason.trim())return;
+ saveScheme.disabled=true;
+ try{
+ var pre=await fetch('/api/v1/manager/scopes/impact?scopeCode='+encodeURIComponent(code)+'&field=Default_hours',{credentials:'same-origin'}),impact=await pre.json();
+ if(!pre.ok||!impact.ok)throw Error(impact.error||'IMPACT_UNAVAILABLE');
+ if(!confirm('Set official scheme version '+value+'? '+impact.openAudits+' open audits, '+impact.accepted+' Accepted. Existing audit records remain unchanged.'))return;
+ var response=await fetch('/api/v1/manager/scopes/scheme-version',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({scopeCode:code,version:value,expected:schemeExpected,reason:reason,impactConfirmed:true})}),result=await response.json();
+ if(!response.ok||!result.ok)throw Error(result.error||'SCHEME_VERSION_SAVE_FAILED');
+ schemeExpected=result.version;status.textContent='Official scheme version '+result.version+' saved for '+code;
+ }catch(e){status.textContent='Scheme version save blocked: '+e.message}finally{saveScheme.disabled=false}
+};
 var current=versions.find(function(v){return v.Status==='CURRENT'});
 if(current||!versions.length){
  var edit=el('div',''),hoursInput=document.createElement('input');hoursInput.type='number';hoursInput.min='0';hoursInput.max='1000';hoursInput.step='0.25';hoursInput.value=current?String(current.Hours_to_plan):'';hoursInput.style.width='90px';hoursInput.setAttribute('aria-label','New hours to be planned');

@@ -13,11 +13,13 @@ function ScopeImpact20_preview_(ss,scopeCode,proposedHours){
   var obs=read(obligations),lnks=read(links),audits=read(planning),byAudit={},byOb={};
   audits.forEach(function(a){var id=String(a['Audit ID']||'').trim();if(id)byAudit[id]=a;});
   obs.forEach(function(o){byOb[String(o.Obligation_ID||'')]=o;});
-  var impacted=[],seen={};
+  var impacted=[],seen={},unresolved=[];
   lnks.forEach(function(link){
     if(String(link.Link_State||'').toUpperCase()!=='ACTIVE')return;
     var ob=byOb[String(link.Obligation_ID||'')],auditId=String(link.Audit_ID||''),audit=byAudit[auditId];
-    if(!ob||String(ob.ScopeCode||'')!==code||!audit)return;
+    if(!ob){unresolved.push('Missing obligation for link '+String(link.Obligation_ID||''));return;}
+    if(String(ob.ScopeCode||'')!==code)return;
+    if(!audit){unresolved.push('Missing audit '+auditId+' for scope '+code);return;}
     var status=String(audit.Status||'').trim().toUpperCase();
     if(['COMPLETED','CANCELLED','REJECTED'].indexOf(status)>=0)return;
     var oldHours=Number(ob.Formal_Hours),changed=isFinite(oldHours)&&oldHours!==hours;
@@ -25,6 +27,7 @@ function ScopeImpact20_preview_(ss,scopeCode,proposedHours){
     seen[auditId+'|'+ob.Obligation_ID]=true;
     impacted.push({auditId:auditId,companyUid:String(ob.Company_UID||''),status:status,accepted:status==='ACCEPTED',obligationId:String(ob.Obligation_ID||''),currentHoursToPlan:oldHours,proposedHoursToPlan:hours,deltaHours:hours-oldHours});
   });
+  if(unresolved.length)return {success:false,readOnly:true,writesPerformed:false,errors:unresolved};
   impacted.sort(function(a,b){return Number(b.accepted)-Number(a.accepted)||a.auditId.localeCompare(b.auditId);});
   return {success:true,readOnly:true,writesPerformed:false,scopeCode:code,proposedHoursToPlan:hours,impactedCount:impacted.length,acceptedCount:impacted.filter(function(x){return x.accepted;}).length,impacted:impacted};
 }

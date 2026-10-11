@@ -7,6 +7,7 @@ function RUN_SCOPE_MANAGEMENT_2_0_SCHEMA_PREFLIGHT() {
   else headers=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0].map(function(x){return String(x||'').trim();});
   required.forEach(function(h){if(headers.indexOf(h)<0)errors.push('Missing column: '+h);});
   var seen={},codes={},slots={},rows=sh?sh.getDataRange().getValues():[];
+  if(errors.length){var blocked={success:false,readOnly:true,writesPerformed:false,scopeCount:0,columnsPresent:headers.length,errors:errors,warnings:warnings};Logger.log(JSON.stringify(blocked));return blocked;}
   for(var i=1;i<rows.length;i++){
     var row=rows[i],code=String(row[headers.indexOf('ScopeCode')]||'').trim(),slot=String(row[headers.indexOf('SlotKey')]||'').trim();
     if(!code&&!slot)continue;

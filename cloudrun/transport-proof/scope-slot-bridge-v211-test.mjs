@@ -31,4 +31,6 @@ const partialSheet={getLastColumn:()=>partialHeaders.length,getRange:()=>({getVa
 const partialSs={getSheetByName:(name)=>name==='Audit planning'?partialSheet:null};
 rows=catalog(20);
 assert.throws(()=>context.m5t_scopeSlotDefs_(partialSs),/SCOPE_COLUMNS_MISSING_SCOPE_20/);
-console.log('scope-slot-bridge-v211: 4 tests passed');
+const scopeManager=readFileSync(new URL('../../AuditManagerToolsScopes.js',import.meta.url),'utf8');
+assert.match(scopeManager,/if \(missingQualificationScope\) return \{success:false,error:'SCOPE_QUALIFICATION_COLUMN_UNAVAILABLE'/);
+console.log('scope-slot-bridge-v211: 5 tests passed');

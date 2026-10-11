@@ -118,7 +118,7 @@ function completionService_commitCompletion_(payload) {
 
 
     if (mode === 'MANAGER_ON_BEHALF') {
-      if (typeof managerV5_isManagerActor_ === 'function' && !managerV5_isManagerActor_(actorEmail)) {
+      if (typeof managerV5_isManagerActor_ !== 'function' || !managerV5_isManagerActor_(actorEmail)) {
         return { success:false, message:'Manager role required' };
       }
     }

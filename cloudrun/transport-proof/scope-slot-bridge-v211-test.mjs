@@ -98,7 +98,7 @@ bootstrapCtx.ScopeVersion20_read_=()=>({success:true,initialized:true,rows:[{}]}
 assert.equal(bootstrapCtx.ScopeVersion20_bootstrapPlan_(scopeSS,{S1:'LEGACY_2026'}).success,false);
 const authSource=readFileSync(new URL('../../ScopeManagement20ManagerAuth.js',import.meta.url),'utf8');
 const entrySource=readFileSync(new URL('../../ScopeManagement20ManagerEntry.js',import.meta.url),'utf8');
-const authCtx={V5_getCallerEmail_:()=> 'manager@example.org',V5_getUserRoleFromAuditors_:()=>({found:true,role:'Manager'}),SpreadsheetApp:{getActiveSpreadsheet:()=>({})}};
+const authCtx={V5_getCallerEmail_:()=> 'manager@example.org',V5_getUserRoleFromAuditors_:()=>({found:true,role:'Manager'}),SpreadsheetApp:{getActiveSpreadsheet:()=>({})},Session:{getActiveUser:()=>({getEmail:()=> 'manager@example.org'})}};
 runInNewContext(authSource+'\n'+entrySource,authCtx);
 assert.equal(authCtx.ScopeManagement20_authorizeManager_('manager@example.org'),true);
 assert.equal(authCtx.ScopeManagement20_authorizeManager_('other@example.org'),false);

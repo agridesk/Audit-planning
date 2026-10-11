@@ -544,7 +544,7 @@ function completionService_getAuditPlanningRowPack_(sheet, auditId) {
     }
   } catch (eFastRow) {}
 
-  if (lastRow < 2 || lastCol < 1) return { success:false, message:'Audit planning is empty' };
+  if (lastRow < 2 || lastCol < 1) return { success:false, code:'AUDIT_NOT_FOUND', message:'Audit planning is empty' };
 
   var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0] || [];
   var auditIdCol = completionService_findHeaderIndex_(headers, ['Audit ID']);

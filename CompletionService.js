@@ -514,6 +514,7 @@ function completionService_overrideCompletedHours_(payload) {
     perf.lookupMs = res && res.lookupMs;
     perf.cellWriteMs = res && res.cellWriteMs;
     perf.cacheInvalidationMs = res && res.cacheInvalidationMs;
+    perf.statusWriteMs = res && res.statusWriteMs;
     if (!res || res.success === false) return res;
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();

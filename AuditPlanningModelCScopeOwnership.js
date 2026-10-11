@@ -144,7 +144,7 @@ function ModelCScopeOwner_updateObligation_(obligation,command,item,stamp,ss){
 }
 
 function ModelCScopeOwner_window_(scopeCode,expiry,tz){var cfg=ModelCRecurringConfig_get_(SpreadsheetApp.getActive(),scopeCode),parts=String(expiry||'').split('-'),date=new Date(Number(parts[0]),Number(parts[1])-1,Number(parts[2]));if(isNaN(date.getTime()))throw new Error('Invalid expiry date for '+scopeCode);var from=Utilities.formatDate(AC_addMonthsPreserveDay_(date,Number(cfg.planningFrom||0)),tz,'yyyy-MM-dd'),to=Utilities.formatDate(AC_addMonthsPreserveDay_(date,Number(cfg.planningTo||0)),tz,'yyyy-MM-dd');if(from>to){var swap=from;from=to;to=swap;}return{from:from,to:to};}
-function ModelCScopeOwner_hours_(value){var raw=String(value===null||value===undefined?'':value).trim().replace(',','.');var n=Number(raw);if(!isFinite(n)||n<0)throw new Error('Invalid formal hours');return n;}
+function ModelCScopeOwner_hours_(value){var raw=String(value===null||value===undefined?'':value).trim().replace(',','.');if(!raw)throw new Error('Hours_to_plan is required');var n=Number(raw);if(!isFinite(n)||n<0)throw new Error('Invalid Hours_to_plan');return n;}
 
 function ModelCScopeOwner_projectLegacy_(sheet,command,selected,obligations,links,ss){
   var values=sheet.getDataRange().getValues(),headers=values[0]||[],map=ModelCFoundation_headerMap_(headers),rowIndex=ModelCExtension_findRow_(values,map,'Audit ID',command.auditId);if(!rowIndex)throw new Error('Legacy projection row missing');

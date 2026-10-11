@@ -38,7 +38,17 @@ function ModelCRecurringConfig_byCode_(ss){
 function ModelCRecurringConfig_get_(ss,scopeCode){
   var code=String(scopeCode||'').trim();
   if(!code)throw new Error('Missing ScopeCode');
-  var cfg=ModelCRecurringConfig_byCode_(ss)[code];
+  var catalog=ModelCRecurringConfig_byCode_(ss),cfg=catalog[code];
+  if(!cfg&&typeof ConfigScopes_GetCatalog==='function'){
+    var service=ConfigScopes_GetCatalog(false);
+    (service&&service.rows||[]).some(function(item){
+      if(String(item.displayName||'').trim().toLowerCase()===code.toLowerCase()){
+        cfg=catalog[String(item.scopeCode||'').trim()]||null;
+        return !!cfg;
+      }
+      return false;
+    });
+  }
   if(!cfg)throw new Error('Config_Scopes missing scope: '+code);
   return cfg;
 }

@@ -79,4 +79,7 @@ for(const required of ["'Unavailable'","'Partly unavailable'","'Auditor less ava
   assert.ok(r5.includes(required),'Missing calendar UX token: '+required);tests++;
 }
 
-assert.ok(portal.includes('selectionExcelSafeCell(v)'),'Excel export must sanitize spreadsheet cell values');tests++;\nconsole.log(JSON.stringify({ok:true,build:'2026-10-10_PORTAL_REVIEW_HARDENING_CONTRACT_R8',tests,writesPerformed:false}));
+assert.ok(portal.includes('selectionExcelSafeCell(v)'),'Excel export must sanitize spreadsheet cell values');tests++;
+assert.ok(portal.includes('"GPS / Map","Scopes","Status","Expiration date"'),'Export must include full Grid 2.0 columns including auditor-hidden expiration date');tests++;
+assert.ok(portal.includes('"Hours planned","Auditor","Alert"'),'Export must include hours, auditor and alert columns');tests++;
+assert.ok(portal.includes('"Audit ID","Company"'),'Export must include stable audit identity');tests++;\nconsole.log(JSON.stringify({ok:true,build:'2026-10-10_PORTAL_REVIEW_HARDENING_CONTRACT_R8',tests,writesPerformed:false}));

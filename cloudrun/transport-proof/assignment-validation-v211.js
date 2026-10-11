@@ -68,6 +68,7 @@ export function v211AuditorQualified(audValues,catalog,scopeCodes,auditorEmail){
     for(const x of [s.scopeCode,s.displayName,s.slotKey])if(x)aliases.set(key(x),canonical);
   }
   const email=clean(auditorEmail).toLowerCase();
+  if(!Array.isArray(scopeCodes)||scopeCodes.length===0)return false;
   if(!email||!email.includes('@')||e<0)return false;
   const matches=audValues.slice(1).filter(row=>val(row,e).toLowerCase()===email);
   if(matches.length!==1)return false;

@@ -111,10 +111,11 @@ function LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, m
   var shLog = ss.getSheetByName(LOG_REALIZED_AUDIT_SERVICE_SHEET);
   if (!shLog) return { success:false, message:'Missing sheet: ' + LOG_REALIZED_AUDIT_SERVICE_SHEET };
 
-  var rowIdx = LogRealizedAuditService_findRowByAuditId_(shLog, auditId);
-  if (!rowIdx) return { success:false, message:'Completed audit not found in Log realized audits: ' + auditId };
-
+  var lookupStarted = Date.now();
   var headers = LogRealizedAuditService_getHeaders_(shLog);
+  var rowIdx = managerV5_findRowByAuditIdInSheet_(shLog, headers, auditId, ['Audit ID']);
+  var lookupMs = Date.now() - lookupStarted;
+  if (!rowIdx) return { success:false, message:'Completed audit not found in Log realized audits: ' + auditId };
   var colHours = LogRealizedAuditService_findHeaderIndex_(headers, ['Hours dedicated']);
   if (colHours < 0) return { success:false, message:'Log realized audits missing Hours dedicated column' };
   var colAuditor = LogRealizedAuditService_findHeaderIndex_(headers, ['Auditor','Assigned to','Assigned auditor']);
@@ -125,11 +126,13 @@ function LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, m
     return {
       success:true, auditId:auditId, rowIndex:rowIdx,
       oldHoursDedicated:oldHoursDedicated, hoursDedicated:n, newHoursDedicated:n,
-      changed:false, changedAt:null, auditorEmail:auditorEmail,
+      changed:false, changedAt:null, auditorEmail:auditorEmail, lookupMs:lookupMs,
       message:'Completed hours unchanged'
     };
   }
+  var cellWriteStarted = Date.now();
   shLog.getRange(rowIdx, colHours + 1).setValue(n);
+  var cellWriteMs = Date.now() - cellWriteStarted;
 
   var colStatus = LogRealizedAuditService_findHeaderIndex_(headers, ['Status']);
   if (colStatus >= 0) shLog.getRange(rowIdx, colStatus + 1).setValue(LogRealizedAuditService_clean_(meta.status || 'Completed'));
@@ -158,6 +161,8 @@ function LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, m
     changed:!isFinite(oldHoursDedicated) || Math.abs(oldHoursDedicated - n) > 1e-9,
     changedAt:new Date().toISOString(),
     auditorEmail:auditorEmail,
+    lookupMs:lookupMs,
+    cellWriteMs:cellWriteMs,
     message:'Completed hours updated'
   };
 }

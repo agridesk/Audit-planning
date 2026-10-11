@@ -1383,13 +1383,16 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       if(codeIndex<0||hoursIndex<0)return send(res,409,{ok:false,error:'CATALOG_SCHEMA_MISSING'});
       const records=catalog.slice(1).filter(r=>clean(r[codeIndex]));
       if(!records.length||records.length>20)return send(res,409,{ok:false,error:'CATALOG_SIZE_INVALID'});
-      const codes=new Set(),versions=[];
+      const codes=new Set(),versions=[],skipped=[];
       for(const r of records){
         const code=clean(r[codeIndex]),rawHours=r[hoursIndex],hours=Number(String(rawHours??'').replace(',','.'));
-        if(codes.has(code)||rawHours===''||rawHours===null||rawHours===undefined||!Number.isFinite(hours)||hours<0)return send(res,409,{ok:false,error:'CATALOG_VERSION_PREFLIGHT_FAILED'});
+        if(codes.has(code))return send(res,409,{ok:false,error:'DUPLICATE_SCOPE_CODE',scopeCode:code});
         codes.add(code);
+        if(rawHours===''||rawHours===null||rawHours===undefined){skipped.push({scopeCode:code,reason:'HOURS_NOT_CONFIGURED'});continue;}
+        if(!Number.isFinite(hours)||hours<0)return send(res,409,{ok:false,error:'INVALID_SCOPE_HOURS',scopeCode:code,value:String(rawHours)});
         versions.push([code,'V1',hours,'CURRENT','','',new Date().toISOString(),clean(actor.email||actor.sub||'Manager'),clean(body.reason)]);
       }
+      if(!versions.length)return send(res,409,{ok:false,error:'NO_CONFIGURED_SCOPE_HOURS',skipped});
       const token=await accessToken(),base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID);
       const metadataResponse=await fetch(base+'?fields=sheets.properties(title,sheetId)',{headers:{authorization:'Bearer '+token}});
       if(!metadataResponse.ok)throw Error('SHEETS_METADATA_UNAVAILABLE');
@@ -1404,7 +1407,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       const write=await fetch(base+':batchUpdate',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({requests})});
       if(!write.ok)throw Error('ATOMIC_VERSION_BOOTSTRAP_FAILED_'+write.status);
       console.info(JSON.stringify({event:'SCOPE_V1_INITIALIZED',actor:clean(actor.email||actor.sub||'Manager'),scopeCount:versions.length,timestamp:new Date().toISOString()}));
-      return send(res,200,{ok:true,initialized:true,versionId:'V1',count:versions.length});
+      return send(res,200,{ok:true,initialized:true,versionId:'V1',count:versions.length,skipped});
     }catch(e){return send(res,409,{ok:false,error:clean(e.message||e)});}
   }
   if(u.pathname==='/api/v1/manager/scopes/version-status'&&req.method==='GET'){

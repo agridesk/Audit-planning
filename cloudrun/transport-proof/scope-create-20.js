@@ -1,0 +1,30 @@
+export async function createScope20({body,actor,SID,sheetsBatchGet,accessToken,clean}){
+ const code=clean(body?.scopeCode).toUpperCase(),name=clean(body?.displayName),reason=clean(body?.reason);
+ if(!/^[A-Z][A-Z0-9_-]{1,39}$/.test(code)||!name||name.length>100||!reason||reason.length>500||body?.confirmation!=='CREATE_INACTIVE_SCOPE')throw Error('INVALID_SCOPE_CREATE');
+ const vr=await sheetsBatchGet(['Config_Scopes!A1:V128','Audit planning!A1:AZ1']),rows=vr[0]?.values||[],headers=(rows[0]||[]).map(clean),audit=(vr[1]?.values||[])[0]||[];
+ const required=['SlotKey','ScopeCode','DisplayName','Color','TextColor','Active','Archived','SortOrder','Default_hours','Max number audits','Planning from','Planning to','Extension','Recurring','Obligation cycle','Complete by','Provisioning source','Trigger source','Source service','Max_Offsite_Hours','Min_Interval_Months'];
+ if(required.some(h=>!headers.includes(h)))throw Error('SCOPE_SCHEMA_INCOMPLETE');
+ if(rows.slice(1).some(r=>clean(r[headers.indexOf('ScopeCode')]).toUpperCase()===code||clean(r[headers.indexOf('DisplayName')]).toLowerCase()===name.toLowerCase()))throw Error('DUPLICATE_SCOPE_IDENTITY');
+ const slots=rows.slice(1).map(r=>clean(r[headers.indexOf('SlotKey')])).filter(Boolean);
+ if(slots.some(s=>!/^SCOPE_(?:0[1-9]|1[0-9]|20)$/.test(s)))throw Error('INVALID_EXISTING_SLOT');
+ const free=Array.from({length:20},(_,i)=>'SCOPE_'+String(i+1).padStart(2,'0')).find(s=>!slots.includes(s));
+ if(!free)throw Error('SCOPE_CAPACITY_20_REACHED');
+ if(!audit.includes(free)||!audit.includes('Duration '+free))throw Error('AUDIT_PLANNING_SLOT_COLUMNS_MISSING_'+free);
+ const occupied=rows.slice(1).filter(r=>clean(r[headers.indexOf('SlotKey')])===free);
+ if(occupied.length)throw Error('SCOPE_SLOT_OCCUPIED');
+ const newRow=Array(Math.max(headers.length,21)).fill('');
+ const set=(h,v)=>{newRow[headers.indexOf(h)]=v};
+ set('SlotKey',free);set('ScopeCode',code);set('DisplayName',name);set('Color','#64748B');set('TextColor','#FFFFFF');
+ set('Active','No');set('Archived','No');set('SortOrder',String(Math.max(0,...rows.slice(1).map(r=>Number(r[headers.indexOf('SortOrder')])||0))+1));
+ set('Recurring','NO');
+ const token=await accessToken(),base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID);
+ const meta=await fetch(base+'?fields=sheets.properties(title,sheetId)',{headers:{authorization:'Bearer '+token}});
+ if(!meta.ok)throw Error('SCOPE_METADATA_UNAVAILABLE');
+ const sheet=(await meta.json()).sheets?.map(x=>x.properties).find(x=>x.title==='Config_Scopes');
+ if(!sheet)throw Error('SCOPE_SHEET_MISSING');
+ const values=newRow.map(v=>({userEnteredValue:{stringValue:String(v)}}));
+ const response=await fetch(base+':batchUpdate',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({requests:[{appendCells:{sheetId:sheet.sheetId,rows:[{values}],fields:'userEnteredValue'}}]})});
+ if(!response.ok)throw Error('SCOPE_CREATE_WRITE_FAILED_'+response.status);
+ console.info(JSON.stringify({event:'SCOPE_CREATED_INACTIVE',scopeCode:code,slotKey:free,reason,actor:clean(actor.email||actor.sub),timestamp:new Date().toISOString()}));
+ return{ok:true,scopeCode:code,slotKey:free,active:false,requiresConfiguration:true};
+}

@@ -147,7 +147,7 @@ function runActionViaWarmWorker(auditId,action,options){
 }
 function runRealizedHoursDirect(auditId,hoursDedicated){
   var started=performance.now();
-  return fetch('/api/v1/manager/realized-hours-direct',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({auditId:auditId,hoursDedicated:hoursDedicated})})
+  return fetch('/api/v1/manager/realized-hours-direct',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({auditId:auditId,hoursDedicated:hoursDedicated,expectedHoursDedicated:(all.find(function(r){return r.auditId===auditId})||{}).hoursDedicated})})
     .then(function(response){return response.json().then(function(result){if(!response.ok||result.success===false)throw new Error(result.error||'REALIZED_HOURS_DIRECT_FAILED');return {result:result,relayElapsedMs:Math.round(performance.now()-started),trace:{transport:'CLOUD_RUN_DIRECT'}};})});
 }
 function runActionViaCloudRun(auditId,action,options){

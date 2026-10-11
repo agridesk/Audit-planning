@@ -34,12 +34,12 @@ function RUN_MODEL_C_SCOPE_MANAGER_READ_ACCEPTANCE(){
     var expected=expectedByScope[code];
     var personalized=expected.override!==null&&expected.override!==undefined&&String(expected.override).trim()!=='';
     var expectedCustom=personalized?ModelCScopeOwner_hours_(expected.override):'';
-    var expectedUsed=personalized?expectedCustom:expected.snapshot;
+    var expectedUsed=expected.snapshot;
     var custom=scopeRow.customHours===''?'':ModelCScopeOwner_hours_(scopeRow.customHours);
     var used=ModelCScopeOwner_hours_(scopeRow.usedHours);
     var ok=custom===expectedCustom&&used===expectedUsed;
     if(!ok)errors.push(code+': expected '+expectedUsed+', customHours '+custom+', usedHours '+used);
-    samples.push({scope:code,expectedFormalHours:expected,uiCustomHours:custom,uiUsedHours:used,ok:ok});
+    samples.push({scope:code,expectedHoursToPlan:expectedUsed,uiCustomHours:custom,uiUsedHours:used,ok:ok});
   });
 
   var expectedCount=Object.keys(expectedByScope).length;

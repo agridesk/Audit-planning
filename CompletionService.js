@@ -374,7 +374,7 @@ function completionService_commitCompletion_(payload) {
       }
       shPlan.deleteRow(rowPack.rowIndex);
     } catch (eDel) {
-      return { success:false, message:'Logged, but could not remove from Audit planning: ' + completionService_errMsg_(eDel), logResult:logResult, availabilityRelease:availabilityRelease, cycleResult:cycleResult };
+      return { success:false, code:'PLANNING_DELETE_FAILED_AFTER_LOG', completionCommitted:true, auditId:auditId, message:'Logged, but could not remove from Audit planning: ' + completionService_errMsg_(eDel), logResult:logResult, availabilityRelease:availabilityRelease, cycleResult:cycleResult };
     }
 
     var calendarCacheInvalidationContext = completionService_calendarInvalidationContextFromRowObj_(rowObj, assignedTo || actorEmail, datePlanned);

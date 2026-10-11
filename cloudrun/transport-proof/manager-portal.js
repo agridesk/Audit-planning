@@ -340,12 +340,13 @@ if(!result.ok)throw Error((result.error||'VERSION_STORAGE_NOT_READY')+(result.de
 var versions=result.versions.filter(function(v){return v.ScopeCode===code});
 versionInfo.textContent=versions.length?versions.map(function(v){return v.VersionId+' · '+v.Status+' · '+v.Hours_to_plan+' hours'}).join('\n'):'No versions registered for '+code;
 if(versions.some(function(v){return v.VersionId==='V1'||v.VersionId==='V2'}))versionInfo.textContent+='\nNote: existing V1/V2 records were created as AMS hours revisions; verify official scheme version before the next activation.';
+var schemeRow=el('div','');schemeRow.style.margin='10px 0';var schemeLabel=el('label','Official scheme version: '),schemeInput=document.createElement('input');schemeInput.type='text';schemeInput.placeholder='e.g. V12 / V16';schemeInput.style.width='100px';schemeInput.setAttribute('aria-label','Official scheme version');schemeRow.appendChild(schemeLabel);schemeRow.appendChild(schemeInput);versionInfo.appendChild(schemeRow);
 var current=versions.find(function(v){return v.Status==='CURRENT'});
 if(current||!versions.length){
  var edit=el('div',''),hoursInput=document.createElement('input');hoursInput.type='number';hoursInput.min='0';hoursInput.max='1000';hoursInput.step='0.25';hoursInput.value=current?String(current.Hours_to_plan):'';hoursInput.style.width='90px';hoursInput.setAttribute('aria-label','New hours to be planned');
  var saveHours=el('button',current?'Save new hours version':'Initialize V1 hours');saveHours.type='button';saveHours.style.marginLeft='8px';
  saveHours.onclick=async function(){
- var newVersionId=current?prompt('Official new scheme version (e.g. V12, V16). This is NOT an automatic hours revision:',''):null;if(current&&(!newVersionId||!/^V[1-9][0-9]*$/.test(newVersionId.trim())))return;
+ var newVersionId=schemeInput.value.trim();if(current&&!/^V[1-9][0-9]*$/.test(newVersionId)){status.textContent='Enter official scheme version (e.g. V12)';return;}
  var reason=prompt('Reason for changing hours to be planned:');if(!reason||!reason.trim())return;
  var impact;try{var impactResponse=await fetch('/api/v1/manager/scopes/impact?scopeCode='+encodeURIComponent(code)+'&field=Default_hours',{credentials:'same-origin'});impact=await impactResponse.json()}catch(e){versionInfo.textContent+='\nImpact validation unavailable: '+e.message;return}
  if(!impactResponse.ok||!impact.ok){versionInfo.textContent+='\nImpact validation failed; hours not changed';return}

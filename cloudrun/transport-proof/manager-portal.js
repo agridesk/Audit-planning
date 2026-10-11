@@ -430,7 +430,19 @@ editableCell(tr,r,'DisplayName',r.displayName,'text');
 [r.active?'Yes':'No','—',r.hoursToPlan,r.rotationLimit,r.minimumIntervalMonths,(r.planningFrom||'—')+' / '+(r.planningTo||'—')].forEach(function(v){tr.appendChild(el('td',v))});
 editableCell(tr,r,'Color',r.policy.Color,'text');editableCell(tr,r,'TextColor',r.policy.TextColor,'text');
 var preview=el('td',''),swatch=el('span',r.scopeCode);swatch.dataset.scopePreview='1';swatch.style.backgroundColor=String(r.policy.Color||'#ffffff');swatch.style.color=String(r.policy.TextColor||'#000000');swatch.style.padding='4px 7px';swatch.style.borderRadius='5px';swatch.style.fontWeight='600';preview.appendChild(swatch);tr.appendChild(preview);editableCell(tr,r,'SortOrder',r.policy.SortOrder,'number');body.appendChild(tr)})}
-async function load(){status.textContent='Loading scopes…';try{var response=await fetch('/api/v1/manager/scopes',{credentials:'same-origin'}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'SCOPE_READ_FAILED');records=result.rows||[];status.textContent=records.length+' scopes · inline name editing enabled · material changes protected';render()}catch(e){status.textContent='Scope catalog unavailable: '+e.message}}
+async var addScope=el('button','+ Add scope');addScope.type='button';addScope.style.marginLeft='10px';addScope.onclick=async function(){
+ var scopeCode=prompt('New ScopeCode (stable identity, e.g. MPS-NEW):');if(!scopeCode)return;
+ var displayName=prompt('Display name for '+scopeCode+':');if(!displayName)return;
+ var reason=prompt('Reason for adding this scope:');if(!reason||!reason.trim())return;
+ if(!confirm('Create '+scopeCode+' as INACTIVE? Configure hours, scheme version, rules and qualifications before activation. Existing audits remain unchanged.'))return;
+ addScope.disabled=true;
+ try{var response=await fetch('/api/v1/manager/scopes/create',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({scopeCode:scopeCode,displayName:displayName,reason:reason,confirmation:'CREATE_INACTIVE_SCOPE'})}),result=await response.json();
+ if(!response.ok||!result.ok)throw Error(result.error||'SCOPE_CREATE_FAILED');
+ await load();selected=records.find(function(r){return r.scopeCode===result.scopeCode})||null;tab='general';showDetails();status.textContent='Created '+result.scopeCode+' in '+result.slotKey+' (INACTIVE). Configure before activation.';
+ }catch(e){status.textContent='Add scope blocked: '+e.message}finally{addScope.disabled=false}
+};
+status.parentNode.insertBefore(addScope,status.nextSibling);
+function load(){status.textContent='Loading scopes…';try{var response=await fetch('/api/v1/manager/scopes',{credentials:'same-origin'}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'SCOPE_READ_FAILED');records=result.rows||[];status.textContent=records.length+' scopes · inline name editing enabled · material changes protected';render()}catch(e){status.textContent='Scope catalog unavailable: '+e.message}}
 button.hidden=true;button.onclick=function(){if(String(actorRole).toLowerCase()!=='manager')return;panel.hidden=false;load()};close.onclick=function(){panel.hidden=true};search.oninput=render;filter.onchange=render;document.querySelectorAll('[data-scope-tab]').forEach(function(b){b.onclick=function(){tab=b.dataset.scopeTab;showDetails()}});
 })();
 fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("scopeManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();if(String(actorRole).toLowerCase()==="manager")initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)});return loadOpen()}).catch(fail);

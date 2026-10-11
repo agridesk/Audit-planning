@@ -312,7 +312,7 @@ var button=document.getElementById('scopeManagement20'),panel=document.getElemen
 function el(tag,value){var x=document.createElement(tag);x.textContent=value==null?'':String(value);return x}
 function showDetails(){if(!selected)return;dossier.hidden=false;document.getElementById('scopeManagement20Name').textContent=selected.displayName+' ('+selected.scopeCode+')';var p=selected.policy||{},fields=[];
 if(tab==='general')fields=[['Scope name',selected.displayName],['Scope code',selected.scopeCode],['Slot',selected.slotKey],['Active',selected.active],['Archived',selected.archived],['Color',p.Color],['Text color',p.TextColor],['Sort order',p.SortOrder]];
-if(tab==='versions')fields=[['Hours to be planned',selected.hoursToPlan]];
+if(tab==='versions')fields=[];
 if(tab==='rules')fields=[['Rotation limit',selected.rotationLimit],['Minimum interval',selected.minimumIntervalMonths],['Max off-site hours',p.Max_Offsite_Hours],['Planning from',selected.planningFrom],['Planning to',selected.planningTo],['Recurring',p.Recurring],['Cycle',p['Obligation cycle']],['Complete by',p['Complete by']]];
 if(tab==='sources')fields=[['Extension',p.Extension],['Provisioning source',p['Provisioning source']],['Trigger source',p['Trigger source']],['Source service',p['Source service']]];
 details.replaceChildren();

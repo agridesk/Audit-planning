@@ -106,6 +106,27 @@ function ModelCAnnualCycle_planForAudit_(ss,auditId) {
   if(!active.length){result.errors.push('No active obligations linked to audit');return result;}
 
   var cfg=ModelCRecurringConfig_byCode_(ss),successors=[];
+  var companyScopeSheet=ss.getSheetByName(MODEL_C_SHEETS.COMPANY_SCOPES);
+  if(!companyScopeSheet){result.errors.push('Missing Company_Scopes for successor hours');return result;}
+  var companyScopeById={};
+  ModelCMigration_rowsToObjects_(companyScopeSheet.getDataRange().getValues()).forEach(function(cs){
+    var id=String(cs.Company_Scope_ID||'').trim();
+    if(id){if(companyScopeById[id])result.errors.push('Duplicate Company_Scope_ID: '+id);companyScopeById[id]=cs;}
+  });
+  function successorHours_(ob,def){
+    var id=String(ob.Company_Scope_ID||'').trim(),cs=companyScopeById[id];
+    if(!cs)throw new Error('Missing company scope for successor hours: '+id);
+    if(String(cs.Company_UID||'')!==String(ob.Company_UID||'')||String(cs.ScopeCode||'')!==String(ob.ScopeCode||''))
+      throw new Error('Company scope identity mismatch: '+id);
+    var personalized=cs.Company_Formal_Hours_Override;
+    var stored=ob.Formal_Hours;
+    var raw=(personalized!==null&&personalized!==undefined&&String(personalized).trim()!=='')?personalized:
+      ((stored!==null&&stored!==undefined&&String(stored).trim()!=='')?stored:def.defaultHours);
+    if(raw===null||raw===undefined||String(raw).trim()==='')throw new Error('Successor hours missing: '+ob.ScopeCode);
+    var hours=Number(String(raw).trim().replace(',','.'));
+    if(!isFinite(hours)||hours<0)throw new Error('Invalid successor hours: '+ob.ScopeCode);
+    return hours;
+  }
   active.forEach(function(ob){
     var code=String(ob.ScopeCode||'').trim();
     if(!code){result.errors.push('Obligation missing ScopeCode');return;}
@@ -120,6 +141,8 @@ function ModelCAnnualCycle_planForAudit_(ss,auditId) {
     var from=ModelCAnnualCycle_addMonthsIso_(nextBase,def.planningFrom);
     var to=ModelCAnnualCycle_addMonthsIso_(nextBase,def.planningTo);
     if(!from||!to){result.errors.push('Unable to calculate successor planning window: '+code);return;}
+    var hoursToPlan;
+    try{hoursToPlan=successorHours_(ob,def);}catch(e){result.errors.push(String(e.message||e));return;}
     successors.push({
       scopeCode:code,
       companyScopeId:String(ob.Company_Scope_ID||''),
@@ -129,7 +152,7 @@ function ModelCAnnualCycle_planForAudit_(ss,auditId) {
       effectiveExpiry:nextBase,
       planningWindowFrom:from,
       planningWindowTo:to,
-      formalHours:(Number(ob.Formal_Hours)>0?Number(ob.Formal_Hours):Number(def.defaultHours||0)),
+      formalHours:hoursToPlan,
       triggerSource:'CERTIFICATE_LIFECYCLE'
     });
   });

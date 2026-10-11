@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+const planner=readFileSync(new URL('../../AuditPlanningModelCAnnualCyclePlan.js',import.meta.url),'utf8');
+const runtime=readFileSync(new URL('../../ModelCAnnualCycleRuntime.js',import.meta.url),'utf8');
+const companyScopes=[{Company_Scope_ID:'CS1',Company_UID:'C1',ScopeCode:'S1',Company_Formal_Hours_Override:7}];
+const obligations=[{Obligation_ID:'O1',Company_Scope_ID:'CS1',Company_UID:'C1',ScopeCode:'S1',Obligation_State:'OPEN',Base_Expiry_Date:'2026-12-31',Formal_Hours:4}];
+const links=[{Audit_ID:'A1',Obligation_ID:'O1',Link_State:'ACTIVE'}];
+const sheets={Company_Scopes:companyScopes,Audit_Obligations:obligations,Audit_Visit_Obligations:links};
+const ss={getSheetByName:(name)=>sheets[name]?{getDataRange:()=>({getValues:()=>sheets[name]})}:null};
+const ctx={SpreadsheetApp:{getActive:()=>ss},MODEL_C_SHEETS:{COMPANY_SCOPES:'Company_Scopes',AUDIT_OBLIGATIONS:'Audit_Obligations',VISIT_OBLIGATIONS:'Audit_Visit_Obligations'},ModelCMigration_rowsToObjects_:(v)=>v,ModelCRecurringConfig_byCode_:()=>({S1:{recurring:true,planningFrom:-3,planningTo:0,defaultHours:2}}),ModelCAnnualCycle_iso_:(v)=>v,ModelCAnnualCycle_addYearsIso_:(v)=>String(Number(v.slice(0,4))+1)+v.slice(4),ModelCAnnualCycle_addMonthsIso_:(v)=>v,ModelCRecurringConfig_executionDeadline_:()=>'',ModelCAnnualCycle_groupByWindowIntersection_:(x)=>({success:true,groups:[{obligations:x}],errors:[]})};
+runInNewContext(planner,ctx);
+function hours(){const r=ctx.ModelCAnnualCycle_planForAudit_(ss,'A1');assert.equal(r.success,true,JSON.stringify(r.errors));return r.successorGroups[0].obligations[0].formalHours;}
+assert.equal(hours(),7);
+companyScopes[0].Company_Formal_Hours_Override=0;
+assert.equal(hours(),0);
+companyScopes[0].Company_Formal_Hours_Override='';
+assert.equal(hours(),4);
+obligations[0].Formal_Hours='';
+assert.equal(hours(),2);
+companyScopes[0].Company_Formal_Hours_Override='bad';
+assert.equal(ctx.ModelCAnnualCycle_planForAudit_(ss,'A1').success,false);
+assert.match(runtime,/if\(personalizedById\[String\(item\.companyScopeId/);
+console.log('recurring-company-hours-v211: 6 checks passed');

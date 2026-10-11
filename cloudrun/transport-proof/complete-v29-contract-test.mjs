@@ -18,6 +18,10 @@ const auditor=read('../../AuditorV5Backend.js');
 const auditorPortal=read('../../AuditorPortalV5.html');
 const annualCycle=read('../../AnnualCycleEngineV5.js');
 
+assert.match(portal,/\[REALIZED_HOURS_PERF\]/,'Realized-hours corrections must report measured client, relay and backend timings');
+assert.match(completion,/perf\.logWriteMs = Date\.now\(\) - writeStarted/,'Completed-hours override must measure history write duration');
+assert.match(completion,/perf\.auditTrailMs = Date\.now\(\) - auditStarted/,'Completed-hours override must measure audit trail duration');
+assert.match(log,/createTextFinder\(auditId\)\.matchEntireCell\(true\)\.matchCase\(true\)/,'Completed history lookup must be exact and avoid full column transfer');
 assert.match(liveServer,/\['v3','MANAGER_ACTION_WARM_WORKER'/,'Active R12 relay signature must match GAS v3 warm-worker protocol');
 assert.match(liveServer,/nonce=randomBytes\(24\)/,'Active R12 relay must generate unpredictable nonce');
 assert.match(liveServer,/searchParams\.set\('nonce',nonce\)/,'Active R12 relay must send nonce to GAS iframe');

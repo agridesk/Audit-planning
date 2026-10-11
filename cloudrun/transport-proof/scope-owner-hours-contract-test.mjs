@@ -22,6 +22,7 @@ assert.equal(read().customHours,'');
 assert.throws(()=>ctx.ModelCScopeOwner_hours_(''),/required/);
 assert.equal(ctx.ModelCScopeOwner_hours_(0),0);
 assert.match(src,/TERMINAL_AUDIT_SCOPE_IMMUTABLE/);
+assert.match(src,/TERMINAL_OBLIGATION_IMMUTABLE/);
 assert.match(src,/\['COMPLETED','CANCELLED','REJECTED'\]/);
 assert.match(src,/Duplicate selected scope:/);
 assert.match(src,/Company_Formal_Hours_Override:item\.hasPersonalizedHours/);

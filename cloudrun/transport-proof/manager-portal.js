@@ -317,12 +317,12 @@ if(tab==='rules')fields=[['Rotation limit',selected.rotationLimit],['Minimum int
 if(tab==='sources')fields=[['Extension',p.Extension],['Provisioning source',p['Provisioning source']],['Trigger source',p['Trigger source']],['Source service',p['Source service']]];
 details.replaceChildren();
 if(tab==='versions'){
-var checkStorage=el('button','Check V1 storage');checkStorage.type='button';checkStorage.onclick=async function(){
+var checkStorage=el('button','Check storage');checkStorage.type='button';checkStorage.onclick=async function(){
 versionInfo.textContent='Checking version storage…';
 try{var response=await fetch('/api/v1/manager/scopes/version-status',{credentials:'same-origin'}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'STATUS_UNAVAILABLE');versionInfo.textContent='ScopeVersions storage: '+result.storage;if(result.initialized)showDetails()}catch(e){versionInfo.textContent='Storage check failed: '+e.message}
 };
-details.appendChild(el('dt','Storage check'));var checkCell=el('dd','');checkCell.appendChild(checkStorage);details.appendChild(checkCell);
-var bootstrap=el('button','Initialize current versions (V1)');bootstrap.type='button';bootstrap.style.marginBottom='10px';
+details.appendChild(el('dt','Hours history storage'));var checkCell=el('dd','');checkCell.appendChild(checkStorage);details.appendChild(checkCell);
+var bootstrap=el('button','Initialize hours history');bootstrap.type='button';bootstrap.style.marginBottom='10px';
 bootstrap.onclick=async function(){
 if(!confirm('Register the current configuration of all scopes as CURRENT V1? Existing audit hours will not change.'))return;
 var reason=prompt('Reason for V1 initialization:','Initial AMS 2.0 version registration');if(!reason||!reason.trim())return;
@@ -332,7 +332,7 @@ var result=await response.json();if(!response.ok||!result.ok)throw Error(result.
 status.textContent='Initialized '+result.count+' current V1 versions; existing audits unchanged'+(result.skipped?.length?' · Not initialized (hours missing): '+result.skipped.map(function(x){return x.scopeCode}).join(', '):'');bootstrap.hidden=true;showDetails();
 }catch(e){versionInfo.textContent='Initialization failed: '+e.message;status.textContent='V1 initialization blocked: '+e.message}finally{bootstrap.disabled=false}
 };
-details.appendChild(el('dt','Current versions'));var bootstrapCell=el('dd','');bootstrapCell.appendChild(bootstrap);details.appendChild(bootstrapCell);
+details.appendChild(el('dt','Hours revision history'));var bootstrapCell=el('dd','');bootstrapCell.appendChild(bootstrap);details.appendChild(bootstrapCell);
 var versionInfo=el('dd','Loading version history…');versionInfo.style.whiteSpace='pre-wrap';versionInfo.style.gridColumn='1 / -1';details.appendChild(versionInfo);
 var code=selected.scopeCode;
 fetch('/api/v1/manager/scopes/versions',{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(result){
@@ -340,7 +340,7 @@ if(!result.ok)throw Error((result.error||'VERSION_STORAGE_NOT_READY')+(result.de
 var versions=result.versions.filter(function(v){return v.ScopeCode===code});
 versionInfo.textContent=versions.length?versions.map(function(v){return v.VersionId+' · '+v.Status+' · '+v.Hours_to_plan+' hours'}).join('\n'):'No versions registered for '+code;
 versionInfo.textContent+='\nHours revisions are independent of the official scheme version.';
-var schemeRow=el('div','');schemeRow.style.margin='10px 0';var schemeLabel=el('label','Official scheme version: '),schemeInput=document.createElement('input');schemeInput.type='text';schemeInput.placeholder='e.g. V12 / V16';schemeInput.style.width='100px';schemeInput.setAttribute('aria-label','Official scheme version');schemeRow.appendChild(schemeLabel);schemeRow.appendChild(schemeInput);
+var schemeRow=el('div','');schemeRow.style.margin='10px 0';var schemeLabel=el('label','Official scheme version (independent of hours): '),schemeInput=document.createElement('input');schemeInput.type='text';schemeInput.placeholder='e.g. V12 / V16';schemeInput.style.width='100px';schemeInput.setAttribute('aria-label','Official scheme version');schemeRow.appendChild(schemeLabel);schemeRow.appendChild(schemeInput);
 var saveScheme=el('button','Save scheme version');saveScheme.type='button';saveScheme.style.marginLeft='8px';schemeRow.appendChild(saveScheme);versionInfo.appendChild(schemeRow);
 var schemeExpected='';
 fetch('/api/v1/manager/scopes/scheme-version?scopeCode='+encodeURIComponent(code),{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(data){if(!data.ok)throw Error(data.error||'SCHEME_VERSION_UNAVAILABLE');schemeExpected=data.version||'';schemeInput.value=schemeExpected}).catch(function(e){saveScheme.disabled=true;status.textContent='Scheme version unavailable: '+e.message});

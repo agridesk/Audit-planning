@@ -24,6 +24,14 @@ function RUN_SCOPE_MANAGEMENT_2_0_SCHEMA_PREFLIGHT() {
     names[name]=true;
   }
   if(Object.keys(seen).length>20)errors.push('More than 20 configured scopes');
-  var out={success:errors.length===0,readOnly:true,writesPerformed:false,scopeCount:Object.keys(seen).length,columnsPresent:headers.length,errors:errors,warnings:warnings};
+  var activeCount=0,archivedCount=0;
+  for(var k=1;k<rows.length;k++){
+    var active=String(rows[k][headers.indexOf('Active')]||'').trim().toUpperCase();
+    var archived=String(rows[k][headers.indexOf('Archived')]||'').trim().toUpperCase();
+    if(active==='YES'||active==='TRUE')activeCount++;
+    if(archived==='YES'||archived==='TRUE')archivedCount++;
+    if((active==='YES'||active==='TRUE')&&(archived==='YES'||archived==='TRUE'))errors.push('Archived scope marked active at row '+(k+1));
+  }
+  var out={success:errors.length===0,readOnly:true,writesPerformed:false,scopeCount:Object.keys(seen).length,activeScopes:activeCount,archivedScopes:archivedCount,columnsPresent:headers.length,errors:errors,warnings:warnings};
   Logger.log(JSON.stringify(out));return out;
 }

@@ -312,10 +312,19 @@ var button=document.getElementById('scopeManagement20'),panel=document.getElemen
 function el(tag,value){var x=document.createElement(tag);x.textContent=value==null?'':String(value);return x}
 function showDetails(){if(!selected)return;dossier.hidden=false;document.getElementById('scopeManagement20Name').textContent=selected.displayName+' ('+selected.scopeCode+')';var p=selected.policy||{},fields=[];
 if(tab==='general')fields=[['Scope name',selected.displayName],['Scope code',selected.scopeCode],['Slot',selected.slotKey],['Active',selected.active],['Archived',selected.archived],['Color',p.Color],['Text color',p.TextColor],['Sort order',p.SortOrder]];
-if(tab==='versions')fields=[['Current version','Not initialized'],['Hours to be planned',selected.hoursToPlan],['Version history','Pending controlled migration']];
+if(tab==='versions')fields=[['Current version','Checking version storage…'],['Hours to be planned',selected.hoursToPlan],['Version history','Checking…']];
 if(tab==='rules')fields=[['Rotation limit',selected.rotationLimit],['Minimum interval',selected.minimumIntervalMonths],['Planning from',selected.planningFrom],['Planning to',selected.planningTo],['Recurring',p.Recurring],['Cycle',p['Obligation cycle']],['Complete by',p['Complete by']]];
 if(tab==='sources')fields=[['Extension',p.Extension],['Provisioning source',p['Provisioning source']],['Trigger source',p['Trigger source']],['Source service',p['Source service']]];
 details.replaceChildren();
+if(tab==='versions'){
+var versionInfo=el('dd','Loading version history…');versionInfo.style.whiteSpace='pre-wrap';versionInfo.style.gridColumn='1 / -1';details.appendChild(versionInfo);
+var code=selected.scopeCode;
+fetch('/api/v1/manager/scopes/versions',{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(result){
+if(!result.ok)throw Error(result.error||'VERSION_STORAGE_NOT_READY');
+var versions=result.versions.filter(function(v){return v.ScopeCode===code});
+versionInfo.textContent=versions.length?versions.map(function(v){return v.VersionId+' · '+v.Status+' · '+v.Hours_to_plan+' hours'}).join('\n'):'No versions registered for '+code;
+}).catch(function(e){versionInfo.textContent='Version management not initialized: '+e.message+'\nHours editing remains disabled until controlled legacy version initialization.'});
+}
 if(tab==='versions'||tab==='rules'||tab==='sources'){
 var impact=el('button','Preview impact on open audits');impact.type='button';impact.style.marginBottom='10px';
 var previewResult=el('div','Click to calculate impact.');previewResult.setAttribute('role','status');previewResult.setAttribute('aria-live','polite');previewResult.style.whiteSpace='pre-wrap';previewResult.style.padding='8px';previewResult.style.border='1px solid #cbd5e1';previewResult.style.borderRadius='6px';previewResult.style.maxWidth='720px';

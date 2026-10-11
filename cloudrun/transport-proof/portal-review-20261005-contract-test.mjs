@@ -87,4 +87,7 @@ assert.ok(ui.includes('gpsValue(r)'),'Export GPS links must use canonical grid G
 assert.ok(ui.includes('r.preassignmentConflict?eligibilityConflictText(r)'),'Export alerts must reflect grid conflicts');tests++;
 assert.ok(ui.includes('var wanted=currentView==="completed"'),'PDF must use dedicated auditor-oriented columns');tests++;
 assert.ok(ui.includes('AgriQA - Audit Management System'),'Export must contain AgriQA footer');tests++;
+const pdfExport=ui.slice(ui.indexOf('function selectionPdf(){'),ui.indexOf('function ',ui.indexOf('function selectionPdf(){')+1));
+assert.ok(pdfExport.includes('"GPS / Map"'),'Auditor PDF must include GPS / Map column');tests++;
+assert.ok(ui.includes('var g=gpsValue(r)'),'Export must resolve GPS from canonical grid source');tests++;
 console.log(JSON.stringify({ok:true,build:'2026-10-10_PORTAL_REVIEW_HARDENING_CONTRACT_R8',tests,writesPerformed:false}));

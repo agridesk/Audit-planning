@@ -6,7 +6,7 @@
  * Config_Scopes.Recurring owns automatic successor eligibility.
  * Scope names/codes do not decide recurrence.
  */
-var MODEL_C_ANNUAL_CYCLE_PLAN_BUILD = '2026-10-11_AMS_01_6_MODEL_C_ANNUAL_CYCLE_PREFLIGHT_R3_TERMINAL_HISTORY';
+var MODEL_C_ANNUAL_CYCLE_PLAN_BUILD = '2026-10-11_AMS_01_6_MODEL_C_ANNUAL_CYCLE_PREFLIGHT_R4_COMPACT_LOG';
 
 function RUN_MODEL_C_ANNUAL_CYCLE_PREFLIGHT() {
   var ss=SpreadsheetApp.getActive();
@@ -59,7 +59,7 @@ function RUN_MODEL_C_ANNUAL_CYCLE_PREFLIGHT() {
   out.gates.nonRecurringHasNoAutomaticSuccessor=true;
   out.gates.perScopeExpiryUsed=true;
   out.success=Object.keys(out.gates).every(function(k){return out.gates[k]===true;})&&out.errors.length===0;
-  Logger.log(JSON.stringify(out,null,2));
+  Logger.log(JSON.stringify({success:out.success,build:out.build,readOnly:out.readOnly,writesPerformed:out.writesPerformed,gates:out.gates,counts:out.counts,errors:out.errors,sampleAuditIds:out.samples.map(function(x){return x.auditId;})},null,2));
   return out;
 }
 

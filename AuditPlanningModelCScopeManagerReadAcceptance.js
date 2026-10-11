@@ -23,7 +23,7 @@ function RUN_MODEL_C_SCOPE_MANAGER_READ_ACCEPTANCE(){
     if(!obligation)return;
     var scope=csById[String(obligation.Company_Scope_ID||'')];
     if(!scope)return;
-    expectedByScope[String(scope.ScopeCode||'')]=ModelCScopeOwner_hours_(obligation.Formal_Hours);
+    expectedByScope[String(scope.ScopeCode||'')]={snapshot:ModelCScopeOwner_hours_(obligation.Formal_Hours),override:scope.Company_Formal_Hours_Override};
   });
 
   var checked=0,samples=[];
@@ -32,10 +32,13 @@ function RUN_MODEL_C_SCOPE_MANAGER_READ_ACCEPTANCE(){
     if(!Object.prototype.hasOwnProperty.call(expectedByScope,code))return;
     checked++;
     var expected=expectedByScope[code];
-    var custom=ModelCScopeOwner_hours_(scopeRow.customHours);
+    var personalized=expected.override!==null&&expected.override!==undefined&&String(expected.override).trim()!=='';
+    var expectedCustom=personalized?ModelCScopeOwner_hours_(expected.override):'';
+    var expectedUsed=personalized?expectedCustom:expected.snapshot;
+    var custom=scopeRow.customHours===''?'':ModelCScopeOwner_hours_(scopeRow.customHours);
     var used=ModelCScopeOwner_hours_(scopeRow.usedHours);
-    var ok=custom===expected&&used===expected;
-    if(!ok)errors.push(code+': expected '+expected+', customHours '+custom+', usedHours '+used);
+    var ok=custom===expectedCustom&&used===expectedUsed;
+    if(!ok)errors.push(code+': expected '+expectedUsed+', customHours '+custom+', usedHours '+used);
     samples.push({scope:code,expectedFormalHours:expected,uiCustomHours:custom,uiUsedHours:used,ok:ok});
   });
 

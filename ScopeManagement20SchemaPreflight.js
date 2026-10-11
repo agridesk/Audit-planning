@@ -20,7 +20,7 @@ function RUN_SCOPE_MANAGEMENT_2_0_SCHEMA_PREFLIGHT() {
   var names={};
   for(var j=1;j<rows.length;j++){
     var name=String(rows[j][headers.indexOf('DisplayName')]||'').trim().toLowerCase();
-    if(!name)continue;
+    if(!name){if(String(rows[j][headers.indexOf('ScopeCode')]||'').trim())errors.push('Missing display name at row '+(j+1));continue;}
     if(names[name])errors.push('Duplicate display name: '+name);
     names[name]=true;
   }

@@ -1307,6 +1307,28 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
   if(u.pathname==='/api/v1/planning/direct-commit'&&req.method==='POST'){const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(!['manager','auditor'].includes(clean(s.role).toLowerCase()))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>65536)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}try{return send(res,200,await directPlanningCommit(s,b));}catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'DIRECT_PLANNING_COMMIT_BLOCKED',detail:clean(e?.message||e)});}}
   if(u.pathname==='/api/v1/manager/action'&&req.method==='POST'){const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(clean(s.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}try{const out=await canonicalManagerAction(s,b);return send(res,out&&out.success===false?409:200,out)}catch(e){return send(res,500,{ok:false,error:'MANAGER_ACTION_BRIDGE_FAILED',detail:clean(e?.message||e)})}}
   if(u.pathname==='/api/v1/manager/archived'&&req.method==='GET'){const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});const role=clean(s.role).toLowerCase();if(!['manager','auditor'].includes(role))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});try{return send(res,200,role==='auditor'?await auditorArchivedRead(clean(s.email).toLowerCase()):await managerArchivedRead(clean(s.email).toLowerCase()));}catch(e){return send(res,500,{ok:false,error:'ARCHIVED_READ_FAILED',detail:clean(e?.message||e)});}}
+  if(u.pathname==='/api/v1/manager/scopes'&&req.method==='GET'){
+    const session=sessionFromRequest(req);
+    if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(session.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    try{
+      const vr=await sheetsBatchGet(['Config_Scopes!A1:U128']);
+      const values=vr[0]?.values||[],headers=(values[0]||[]).map(v=>clean(v));
+      const required=['SlotKey','ScopeCode','DisplayName','Active','Archived','Default_hours','Max number audits','Min_Interval_Months','Planning from','Planning to'];
+      const missing=required.filter(h=>!headers.includes(h));
+      if(missing.length)return send(res,409,{ok:false,error:'SCOPE_SCHEMA_MISSING',missing});
+      const get=(r,h)=>r[headers.indexOf(h)]??'';
+      const rows=values.slice(1).filter(r=>clean(get(r,'ScopeCode'))).map(r=>({
+        slotKey:get(r,'SlotKey'),scopeCode:get(r,'ScopeCode'),displayName:get(r,'DisplayName'),
+        active:['yes','true','1'].includes(clean(get(r,'Active')).toLowerCase()),
+        archived:['yes','true','1'].includes(clean(get(r,'Archived')).toLowerCase()),
+        hoursToPlan:get(r,'Default_hours'),rotationLimit:get(r,'Max number audits'),
+        minimumIntervalMonths:get(r,'Min_Interval_Months'),planningFrom:get(r,'Planning from'),planningTo:get(r,'Planning to'),
+        policy:Object.fromEntries(headers.map((h,i)=>[h,r[i]??'']))
+      }));
+      return send(res,200,{ok:true,readOnly:true,rows,versionStorageInitialized:false});
+    }catch(e){return send(res,500,{ok:false,error:'SCOPE_READ_FAILED',detail:clean(e?.message||e)});}
+  }
   if(u.pathname==='/api/v1/manager/open'&&req.method==='GET'){const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});const role=clean(s.role).toLowerCase();if(!['manager','auditor'].includes(role))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});try{return send(res,200,role==='auditor'?await auditorOpenRead(clean(s.email).toLowerCase()):await managerOpenRead(clean(s.email).toLowerCase()));}catch(e){return send(res,500,{ok:false,error:'OPEN_GRID_READ_FAILED',detail:clean(e?.message||e)});}}
   if(u.pathname==='/api/v1/session'&&req.method==='GET'){if(req.headers.origin&&(!ORIGIN||req.headers.origin!==ORIGIN))return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});const s=sessionFromRequest(req);return s?send(res,200,{ok:true,identity:{email:s.email,role:s.role},expiresAt:s.exp}):send(res,401,{ok:false,error:'SESSION_REQUIRED'});}
   if(u.pathname!=='/api/v1/planning/workspace'||req.method!=='GET')return send(res,404,{ok:false,error:'NOT_FOUND'});

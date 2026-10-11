@@ -201,7 +201,9 @@ function m5t_upsertScopes(payload) {
     });
     (m5t_scopeSlotDefs_(ss) || []).forEach(function(d){
       var scopeKey = String(d.scope || '').trim().toLowerCase();
-      if (d.flagCol0 != null) qualificationRow[d.flagCol0] = selectedByScope[scopeKey] ? 'x' : '';
+      var isSelected = selectedByScope[scopeKey] === true;
+      if (isSelected && d.flagCol0 == null) throw new Error('SCOPE_QUALIFICATION_COLUMN_UNAVAILABLE_' + d.slotKey);
+      if (d.flagCol0 != null) qualificationRow[d.flagCol0] = isSelected ? 'x' : '';
     });
     var qualificationCheck = _mp_assertAuditorQualifiedForPlanning_(ss, header, qualificationRow, preassignedAuditor, '');
     if (!qualificationCheck || qualificationCheck.success !== true) {

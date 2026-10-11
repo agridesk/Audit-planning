@@ -79,12 +79,12 @@ for(const required of ["'Unavailable'","'Partly unavailable'","'Auditor less ava
   assert.ok(r5.includes(required),'Missing calendar UX token: '+required);tests++;
 }
 
-assert.ok(portal.includes('selectionExcelSafeCell(v)'),'Excel export must sanitize spreadsheet cell values');tests++;
-assert.ok(portal.includes('"GPS / Map","Scopes","Status","Expiration date"'),'Export must include full Grid 2.0 columns including auditor-hidden expiration date');tests++;
-assert.ok(portal.includes('"Hours planned","Auditor","Alert"'),'Export must include hours, auditor and alert columns');tests++;
-assert.ok(!portal.slice(portal.indexOf('function selectionExportHeaders()'),portal.indexOf('function selectionExcelSafeCell(')).includes('"Audit ID"'),'Export must exclude internal Audit ID');tests++;
-assert.ok(portal.includes('gpsValue(r)'),'Export GPS links must use canonical grid GPS source');tests++;
-assert.ok(portal.includes('r.preassignmentConflict?eligibilityConflictText(r)'),'Export alerts must reflect grid conflicts');tests++;
-assert.ok(portal.includes('var wanted=currentView==="completed"'),'PDF must use dedicated auditor-oriented columns');tests++;
-assert.ok(portal.includes('AgriQA - Audit Management System'),'Export must contain AgriQA footer');tests++;
+assert.ok(ui.includes('selectionExcelSafeCell(v)'),'Excel export must sanitize spreadsheet cell values');tests++;
+assert.ok(ui.includes('"GPS / Map","Scopes","Status","Expiration date"'),'Export must include full Grid 2.0 columns including auditor-hidden expiration date');tests++;
+assert.ok(ui.includes('"Hours planned","Auditor","Alert"'),'Export must include hours, auditor and alert columns');tests++;
+assert.ok(!ui.slice(ui.indexOf('function selectionExportHeaders()'),ui.indexOf('function selectionExcelSafeCell(')).includes('"Audit ID"'),'Export must exclude internal Audit ID');tests++;
+assert.ok(ui.includes('gpsValue(r)'),'Export GPS links must use canonical grid GPS source');tests++;
+assert.ok(ui.includes('r.preassignmentConflict?eligibilityConflictText(r)'),'Export alerts must reflect grid conflicts');tests++;
+assert.ok(ui.includes('var wanted=currentView==="completed"'),'PDF must use dedicated auditor-oriented columns');tests++;
+assert.ok(ui.includes('AgriQA - Audit Management System'),'Export must contain AgriQA footer');tests++;
 console.log(JSON.stringify({ok:true,build:'2026-10-10_PORTAL_REVIEW_HARDENING_CONTRACT_R8',tests,writesPerformed:false}));

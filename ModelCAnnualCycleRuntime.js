@@ -19,10 +19,18 @@ function ModelCAnnualCycle_applyAuditPlanningHoursToPlan_(ss,headers,sourceRow,p
     var code=String(d.code||'').trim();
     if(code)byCode[code]=d;
   });
+  var personalizedById={};
+  var csSheet=ss.getSheetByName(MODEL_C_SHEETS.COMPANY_SCOPES);
+  if(!csSheet)throw new Error('Company_Scopes missing for successor hours');
+  ModelCMigration_rowsToObjects_(csSheet.getDataRange().getValues()).forEach(function(cs){
+    var id=String(cs.Company_Scope_ID||'').trim(),raw=cs.Company_Formal_Hours_Override;
+    if(id&&raw!==null&&raw!==undefined&&String(raw).trim()!=='')personalizedById[id]=true;
+  });
   var hm={};
   (headers||[]).forEach(function(h,i){hm[String(h||'').trim()]=i;});
   plan.successorGroups.forEach(function(g){
     (g.obligations||[]).forEach(function(item){
+      if(personalizedById[String(item.companyScopeId||'').trim()])return;
       var def=byCode[String(item.scopeCode||'').trim()]||null;
       if(!def)return;
       var slot=String(def.slot||'').trim();

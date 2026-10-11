@@ -339,6 +339,21 @@ fetch('/api/v1/manager/scopes/versions',{credentials:'same-origin'}).then(functi
 if(!result.ok)throw Error((result.error||'VERSION_STORAGE_NOT_READY')+(result.detail?' — '+result.detail:''));bootstrap.hidden=true;
 var versions=result.versions.filter(function(v){return v.ScopeCode===code});
 versionInfo.textContent=versions.length?versions.map(function(v){return v.VersionId+' · '+v.Status+' · '+v.Hours_to_plan+' hours'}).join('\n'):'No versions registered for '+code;
+var current=versions.find(function(v){return v.Status==='CURRENT'});
+if(current){
+ var edit=el('div',''),hoursInput=document.createElement('input');hoursInput.type='number';hoursInput.min='0';hoursInput.max='1000';hoursInput.step='0.25';hoursInput.value=String(current.Hours_to_plan);hoursInput.style.width='90px';hoursInput.setAttribute('aria-label','New hours to be planned');
+ var saveHours=el('button','Save new hours version');saveHours.type='button';saveHours.style.marginLeft='8px';
+ saveHours.onclick=async function(){
+ var reason=prompt('Reason for changing hours to be planned:');if(!reason||!reason.trim())return;
+ if(!confirm('Activate new scope hours version? Existing audit hours remain unchanged.'))return;
+ saveHours.disabled=true;
+ try{var response=await fetch('/api/v1/manager/scopes/hours-version',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({scopeCode:code,expectedVersion:current.VersionId,hours:hoursInput.value,reason:reason})}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'HOURS_VERSION_SAVE_FAILED');
+ status.textContent=result.unchanged?'Hours unchanged':'Activated '+result.versionId+' for '+code;
+ await load();selected=records.find(function(r){return r.scopeCode===code})||selected;showDetails();
+ }catch(e){versionInfo.textContent+='\nSave failed: '+e.message}finally{saveHours.disabled=false}
+ };
+ edit.appendChild(hoursInput);edit.appendChild(saveHours);versionInfo.appendChild(edit);
+}
 }).catch(function(e){versionInfo.textContent='Version management not initialized: '+e.message+'\nHours editing remains disabled until V1 registration is verified.'});
 }
 fields.forEach(function(f){

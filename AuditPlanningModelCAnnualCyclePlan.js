@@ -119,9 +119,8 @@ function ModelCAnnualCycle_planForAudit_(ss,auditId) {
     if(String(cs.Company_UID||'')!==String(ob.Company_UID||'')||String(cs.ScopeCode||'')!==String(ob.ScopeCode||''))
       throw new Error('Company scope identity mismatch: '+id);
     var personalized=cs.Company_Formal_Hours_Override;
-    var stored=ob.Formal_Hours;
-    var raw=(personalized!==null&&personalized!==undefined&&String(personalized).trim()!=='')?personalized:
-      ((stored!==null&&stored!==undefined&&String(stored).trim()!=='')?stored:def.defaultHours);
+    // The previous cycle snapshot must never determine the next cycle's default.
+    var raw=(personalized!==null&&personalized!==undefined&&String(personalized).trim()!=='')?personalized:def.defaultHours;
     if(raw===null||raw===undefined||String(raw).trim()==='')throw new Error('Successor hours missing: '+ob.ScopeCode);
     var hours=Number(String(raw).trim().replace(',','.'));
     if(!isFinite(hours)||hours<0)throw new Error('Invalid successor hours: '+ob.ScopeCode);

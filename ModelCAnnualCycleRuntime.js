@@ -11,38 +11,10 @@ function AnnualCycleEngineV5_HandleCompletionRow_(planningRowObj) {
   return ModelCAnnualCycle_HandleCompletionRow_(planningRowObj);
 }
 
+// Canonical hours are resolved in ModelCAnnualCycle_planForAudit_ from
+// Company_Scopes, then the prior obligation snapshot, then Config_Scopes.
+// Never rehydrate hours from mutable Audit planning columns at completion.
 function ModelCAnnualCycle_applyAuditPlanningHoursToPlan_(ss,headers,sourceRow,plan){
-  if(!plan||!Array.isArray(plan.successorGroups)||!plan.successorGroups.length)return plan;
-  var cfg=(typeof v5_getScopesConfig_==='function')?v5_getScopesConfig_(false):{list:[]};
-  var byCode={};
-  (cfg.list||[]).forEach(function(d){
-    var code=String(d.code||'').trim();
-    if(code)byCode[code]=d;
-  });
-  var personalizedById={};
-  var csSheet=ss.getSheetByName(MODEL_C_SHEETS.COMPANY_SCOPES);
-  if(!csSheet)throw new Error('Company_Scopes missing for successor hours');
-  ModelCMigration_rowsToObjects_(csSheet.getDataRange().getValues()).forEach(function(cs){
-    var id=String(cs.Company_Scope_ID||'').trim(),raw=cs.Company_Formal_Hours_Override;
-    if(id&&raw!==null&&raw!==undefined&&String(raw).trim()!=='')personalizedById[id]=true;
-  });
-  var hm={};
-  (headers||[]).forEach(function(h,i){hm[String(h||'').trim()]=i;});
-  plan.successorGroups.forEach(function(g){
-    (g.obligations||[]).forEach(function(item){
-      if(personalizedById[String(item.companyScopeId||'').trim()])return;
-      var def=byCode[String(item.scopeCode||'').trim()]||null;
-      if(!def)return;
-      var slot=String(def.slot||'').trim();
-      if(!slot)return;
-      var ix=hm['Duration '+slot];
-      if(ix===undefined)return;
-      var raw=sourceRow[ix];
-      if(raw===null||raw===undefined||String(raw).trim()==='')return;
-      var n=Number(String(raw).replace(',','.'));
-      if(isFinite(n)&&n>=0)item.formalHours=n;
-    });
-  });
   return plan;
 }
 

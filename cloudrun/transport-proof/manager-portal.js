@@ -344,7 +344,7 @@ records.filter(function(r){return (r.scopeCode+' '+r.displayName).toLowerCase().
 var tr=el('tr',''),td=el('td',''),b=el('button','Details');b.type='button';b.onclick=function(){selected=r;tab='general';showDetails()};td.appendChild(b);tr.appendChild(td);
 editableCell(tr,r,'DisplayName',r.displayName,'text');
 [r.active?'Yes':'No','—',r.hoursToPlan,r.rotationLimit,r.minimumIntervalMonths,(r.planningFrom||'—')+' / '+(r.planningTo||'—')].forEach(function(v){tr.appendChild(el('td',v))});
-body.appendChild(tr)})}
+editableCell(tr,r,'Color',r.policy.Color,'text');editableCell(tr,r,'TextColor',r.policy.TextColor,'text');editableCell(tr,r,'SortOrder',r.policy.SortOrder,'number');body.appendChild(tr)})}
 async function load(){status.textContent='Loading scopes…';try{var response=await fetch('/api/v1/manager/scopes',{credentials:'same-origin'}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'SCOPE_READ_FAILED');records=result.rows||[];status.textContent=records.length+' scopes · inline name editing enabled · material changes protected';render()}catch(e){status.textContent='Scope catalog unavailable: '+e.message}}
 button.onclick=function(){panel.hidden=false;load()};close.onclick=function(){panel.hidden=true};search.oninput=render;filter.onchange=render;document.querySelectorAll('[data-scope-tab]').forEach(function(b){b.onclick=function(){tab=b.dataset.scopeTab;showDetails()}});
 })();

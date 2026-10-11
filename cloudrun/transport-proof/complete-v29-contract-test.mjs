@@ -6,6 +6,7 @@ const here=fileURLToPath(new URL('.',import.meta.url));
 const read=(p)=>readFileSync(new URL(p,import.meta.url),'utf8');
 
 const server=read('./server-r10.js');
+const liveServer=read('./server-r12.js');
 const baseServer=read('./server-r4.js');
 const portal=read('./manager-portal.js');
 const relay=read('../../ManagerActionRelay.html');
@@ -17,6 +18,10 @@ const auditor=read('../../AuditorV5Backend.js');
 const auditorPortal=read('../../AuditorPortalV5.html');
 const annualCycle=read('../../AnnualCycleEngineV5.js');
 
+assert.match(liveServer,/\['v3','MANAGER_ACTION_WARM_WORKER'/,'Active R12 relay signature must match GAS v3 warm-worker protocol');
+assert.match(liveServer,/nonce=randomBytes\(24\)/,'Active R12 relay must generate unpredictable nonce');
+assert.match(liveServer,/searchParams\.set\('nonce',nonce\)/,'Active R12 relay must send nonce to GAS iframe');
+assert.match(liveServer,/nonce:relay\.nonce/,'Active R12 relay endpoint must return nonce to portal');
 assert.match(server,/k==='ACCEPTED'\?\['COMPLETE','CANCEL','REJECT'\]/,'Accepted Manager enrichment rows must expose Complete');
 assert.match(baseServer,/statusKey==='ACCEPTED'\?\['COMPLETE','CANCEL','REJECT'\]/,'Accepted Manager base rows must expose Complete');
 assert.match(portal,/raw\.indexOf\("COMPLETE"\)>=0/,'Manager UI must render Complete from canonical allowedActions');

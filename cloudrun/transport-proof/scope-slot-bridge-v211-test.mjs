@@ -37,4 +37,7 @@ assert.match(scopeManager,/if \(missingQualificationScope\) return \{success:fal
 const configSource=readFileSync(new URL('../../ConfigScopesService.js',import.meta.url),'utf8');
 for(const field of ['provisioningSource','triggerSource','sourceService']) assert.match(configSource,new RegExp(field+': ConfigScopes_clean_'));
 assert.match(configSource,/function ConfigScopes_ClearCache\(/);
-console.log('scope-slot-bridge-v211: 9 tests passed');
+const schemaPreflight=readFileSync(new URL('../../ScopeManagement20SchemaPreflight.js',import.meta.url),'utf8');
+assert.match(schemaPreflight,/function RUN_SCOPE_MANAGEMENT_2_0_SCHEMA_PREFLIGHT\(/);
+assert.match(schemaPreflight,/readOnly:true,writesPerformed:false/);
+console.log('scope-slot-bridge-v211: 11 tests passed');

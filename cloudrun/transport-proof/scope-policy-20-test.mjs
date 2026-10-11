@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {updateScopePolicy20} from './scope-policy-20.js';
+const headers=['ScopeCode','Max number audits','Min_Interval_Months','Max_Offsite_Hours','Planning from','Planning to','Active','Archived'];
+const values=[headers,['MPS-GAP','4','12','2','-6','3','TRUE','FALSE']];
+let writes=null;
+globalThis.fetch=async(url,opts)=>url.includes('?fields=')?{ok:true,json:async()=>({sheets:[{properties:{title:'Config_Scopes',sheetId:42}}]})}:{ok:true,json:async()=>({}),get status(){return 200},...(writes=JSON.parse(opts.body),{})};
+const deps={SID:'dev',actor:{email:'manager@example.com'},sheetsBatchGet:async()=>[{values}],accessToken:async()=> 'token',clean:x=>String(x??'').trim()};
+const body={scopeCode:'MPS-GAP',field:'Min_Interval_Months',expected:'12',value:'13',reason:'New planning requirement',impactConfirmed:true};
+const result=await updateScopePolicy20({...deps,body});
+assert.equal(result.ok,true);assert.equal(writes.requests[0].updateCells.start.columnIndex,2);
+await assert.rejects(updateScopePolicy20({...deps,body:{...body,expected:'11'}}),/STALE_SCOPE_POLICY/);
+await assert.rejects(updateScopePolicy20({...deps,body:{...body,impactConfirmed:false}}),/INVALID_POLICY_CHANGE/);
+await assert.rejects(updateScopePolicy20({...deps,body:{...body,value:'1.5'}}),/INVALID_POLICY_VALUE/);
+await assert.rejects(updateScopePolicy20({...deps,body:{...body,field:'Source service'}}),/INVALID_POLICY_CHANGE/);
+console.log('scope-policy-20: 5 checks passed');

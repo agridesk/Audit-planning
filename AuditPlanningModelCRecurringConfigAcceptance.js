@@ -12,7 +12,7 @@ function RUN_MODEL_C_RECURRING_CONFIG_ACCEPTANCE(){
   ob.forEach(function(x){obById[String(x.Obligation_ID||'')]=x;});
   lk.forEach(function(x){if(String(x.Link_State||'').toUpperCase()==='ACTIVE')activeAuditByOb[String(x.Obligation_ID||'')]=String(x.Audit_ID||'');});
 
-  var recurringObligations=0,nonRecurringObligations=0,nonRecurringWithExpiry=0,recurringMissingExpiry=0,nonRecurringAnnualMissingDeadlineConfig=0,nonRecurringAnnualBadCycleKey=0,checkedPlans=0,nonRecurringSuccessors=0;
+  var recurringObligations=0,nonRecurringObligations=0,nonRecurringWithExpiry=0,recurringMissingExpiry=0,nonRecurringAnnualMissingDeadlineConfig=0,nonRecurringAnnualBadCycleKey=0,legacyAnnualCycleKeys=0,checkedPlans=0,nonRecurringSuccessors=0;
   ob.forEach(function(x){
     var code=String(x.ScopeCode||'').trim(),def=cfg[code];
     if(!def){errors.push('Config_Scopes missing scope: '+code);return;}
@@ -24,7 +24,7 @@ function RUN_MODEL_C_RECURRING_CONFIG_ACCEPTANCE(){
       if(!base&&!effective){recurringMissingExpiry++;errors.push('Recurring obligation missing expiry: '+String(x.Obligation_ID||'')+'|'+code);}
     }else{
       nonRecurringObligations++;
-      if(state!=='COMPLETED'&&(base||effective)){nonRecurringWithExpiry++;errors.push('Non-recurring obligation has expiry: '+String(x.Obligation_ID||'')+'|'+code);}if(def.obligationCycle==='ANNUAL'){if(!/^\d{2}-\d{2}$/.test(String(def.completeBy||''))){nonRecurringAnnualMissingDeadlineConfig++;errors.push('Annual non-recurring scope missing Complete by: '+code);}if(state!=='COMPLETED'&&!/^20\d{2}$/.test(String(x.Cycle_Key||''))){nonRecurringAnnualBadCycleKey++;errors.push('Annual non-recurring obligation has invalid Cycle_Key: '+String(x.Obligation_ID||'')+'|'+code);}}
+      if(state!=='COMPLETED'&&(base||effective)){nonRecurringWithExpiry++;errors.push('Non-recurring obligation has expiry: '+String(x.Obligation_ID||'')+'|'+code);}if(def.obligationCycle==='ANNUAL'){if(!/^\d{2}-\d{2}$/.test(String(def.completeBy||''))){nonRecurringAnnualMissingDeadlineConfig++;errors.push('Annual non-recurring scope missing Complete by: '+code);}if(state!=='COMPLETED'&&!/^20\d{2}$/.test(String(x.Cycle_Key||''))){var key=String(x.Cycle_Key||'');if(/^20\d{2}-12-31$/.test(key)&&!base&&!effective){legacyAnnualCycleKeys++;}else{nonRecurringAnnualBadCycleKey++;errors.push('Annual non-recurring obligation has invalid Cycle_Key: '+String(x.Obligation_ID||'')+'|'+code);}}}
     }
   });
 
@@ -72,6 +72,7 @@ function RUN_MODEL_C_RECURRING_CONFIG_ACCEPTANCE(){
       nonRecurringWithExpiry:nonRecurringWithExpiry,
       nonRecurringAnnualMissingDeadlineConfig:nonRecurringAnnualMissingDeadlineConfig,
       nonRecurringAnnualBadCycleKey:nonRecurringAnnualBadCycleKey,
+      legacyAnnualCycleKeys:legacyAnnualCycleKeys,
       checkedAnnualPlans:checkedPlans,
       nonRecurringSuccessors:nonRecurringSuccessors,
       auditorProjectionMismatches:projectionMismatches
@@ -89,6 +90,7 @@ function RUN_MODEL_C_RECURRING_CONFIG_ACCEPTANCE(){
     recurringScopeCodes:recurringCodes.sort(),
     nonRecurringScopeCodes:nonRecurringCodes.sort(),
     anomalies:anomalies,
+    warnings:legacyAnnualCycleKeys?['Legacy annual Cycle_Key date format detected; data unchanged']:[],
     orphanAuditLinks:orphanLinks,
     orphanObligationDetail:orphanObligationDetail,
     anomalousLinks:anomalousLinks,

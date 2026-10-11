@@ -1407,6 +1407,18 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       return send(res,200,{ok:true,initialized:true,versionId:'V1',count:versions.length});
     }catch(e){return send(res,409,{ok:false,error:clean(e.message||e)});}
   }
+  if(u.pathname==='/api/v1/manager/scopes/version-status'&&req.method==='GET'){
+    const actor=sessionFromRequest(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    try{
+      const token=await accessToken(),url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'?fields=sheets.properties(title,sheetId)';
+      const response=await fetch(url,{headers:{authorization:'Bearer '+token}});
+      if(!response.ok)throw Error('SHEET_METADATA_HTTP_'+response.status);
+      const metadata=await response.json(),present=(metadata.sheets||[]).some(x=>x.properties?.title==='ScopeVersions');
+      return send(res,200,{ok:true,initialized:present,storage:present?'PRESENT':'ABSENT'});
+    }catch(e){return send(res,409,{ok:false,error:'VERSION_STATUS_UNAVAILABLE',detail:clean(e.message||e)});}
+  }
   if(u.pathname==='/api/v1/manager/scopes/versions'&&req.method==='GET'){
     const actor=sessionFromRequest(req);
     if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});

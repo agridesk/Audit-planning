@@ -26,6 +26,7 @@ const checks=[
   ['Provisional overlap blocks Auditor self-planning but stays a Manager soft warning',r5.includes("actorRole.toLowerCase()==='auditor'&&provisionalConflicts(b).length")&&r5.includes("actorRole.toLowerCase()!=='auditor')out.push('Selected time overlaps provisional planning")],
   ['Full-day HARD exception blocks Save even with timed slots',r5.includes("(day?.slots||[]).some(s=>s.kind==='hard'&&(!s.start||!s.end))")],
   ['Timed HARD interval is reported as hard unavailability',r5.includes('committed occupancy or a hard unavailability interval')],
+  ['Full-day HARD renders blocked even when timed HARD slots coexist',r5.includes("fullDayUnavailable=hardUnavailable&&(!hardTimedSlots.length||slotsArr.some(s=>s.kind==='hard'&&(!s.start||!s.end)))")],
   ['No Add slot control exposed',!r5.includes('>Add slot<')&&!r5.includes('id="addSlot"')],
   ['Maximum five selected days retained',r5.includes('Maximum 5 planning days.')],
   ['Toolkit totals use Required Planned Remaining',r5.includes('function planningTarget()')&&r5.includes("Required '+target.toFixed(2)+' h · Planned ")],

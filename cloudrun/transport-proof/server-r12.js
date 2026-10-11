@@ -79,6 +79,16 @@ http.createServer(async(req,res)=>{
     const identity=await innerSession(req);if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED'});if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN'});
     try{const relay=actionRelayUrl(identity);return sendJson(res,200,{success:true,url:relay.url,nonce:relay.nonce,expiresInMs:600000,build:BUILD});}catch(e){return sendJson(res,500,{success:false,error:'ACTION_RELAY_URL_FAILED',detail:clean(e?.message||e),build:BUILD});}
   }
+  if(req.method==='POST'&&u.pathname==='/api/v1/manager/realized-hours-direct'){
+    const identity=await innerSession(req);
+    if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED'});
+    if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN'});
+    let body={};
+    try{body=JSON.parse(await readRaw(req,16384));}catch{return sendJson(res,400,{success:false,error:'INVALID_JSON'});}
+    const auditId=clean(body.auditId),hoursDedicated=Number(body.hoursDedicated);
+    if(!auditId||!Number.isFinite(hoursDedicated)||hoursDedicated<=0||Math.abs(Math.round(hoursDedicated*4)/4-hoursDedicated)>1e-9)return sendJson(res,400,{success:false,error:'INVALID_HOURS'});
+    return sendJson(res,501,{success:false,error:'CANONICAL_WRITE_ADAPTER_PENDING'});
+  }
   if(req.method==='GET'&&u.pathname==='/api/v1/manager/audit'){
     const identity=await innerSession(req);if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED'});if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN'});const auditId=clean(u.searchParams.get('auditId')),sourceRow=clean(u.searchParams.get('sourceRow'));if(!auditId)return sendJson(res,400,{success:false,error:'AUDIT_ID_REQUIRED'});try{const out=await readAuditPatch(auditId,sourceRow);return sendJson(res,out.success?200:404,out);}catch(e){return sendJson(res,500,{success:false,error:'MANAGER_AUDIT_REREAD_FAILED',detail:clean(e?.message||e),build:BUILD});}
   }

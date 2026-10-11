@@ -219,6 +219,7 @@ function completionService_commitCompletion_(payload) {
             auditId:auditId,
             hoursDedicated:mode === 'MANAGER_ON_BEHALF' ? hoursDedicated : completedExisting.hoursDedicated,
             managerPrecedence:managerPrecedence,
+            managerPrecedenceAuditTrail:managerPrecedenceAuditTrail || null,
             modelCFinalization:recoveredFinalization,
             availabilityRelease:recoveredAvailability,
             build:COMPLETION_SERVICE_BUILD,

@@ -84,7 +84,9 @@ assert.match(baseServer,/allWrites\.push\(\{range:'Audit planning!A'/,'Direct Co
 assert.doesNotMatch(baseServer,/sheetsValuesAppend\('Audit planning!A:'/,'Direct Complete must not use append table inference for Audit planning successors');
 assert.match(portal,/successorRows/,'Manager micro-refresh must consume successor rows');
 
-assert.match(portal,/runActionViaWarmWorker\(id,"edit_realized_hours"/,'Realized-hours correction must use canonical warm worker');
+assert.match(portal,/runRealizedHoursDirect\(id,q\)/,'Realized-hours correction must use authenticated direct Cloud Run route');
+assert.match(liveServer,/\/api\/v1\/manager\/realized-hours-direct/,'R12 must expose direct realized-hours correction');
+assert.match(liveServer,/appendCells/,'Direct realized-hours correction must atomically append audit trail');
 assert.match(relay,/approve\|cancel\|reject\|complete\|edit_realized_hours/,'Warm relay must allow Complete and realized-hours correction');
 assert.match(manager,/complete:\s*'COMPLETE'/,'Manager adapter must delegate Complete to StatusMachine');
 assert.match(manager,/CompletionService_OverrideCompletedHours/,'Manager correction must delegate to controlled realized-hours writer');

@@ -85,7 +85,13 @@ function ModelCScopeOwner_enrichUiScopes_(ss,companyUid,auditId,scopes){
     var out={};Object.keys(row).forEach(function(k){out[k]=row[k];});
     var recurring=ModelCRecurringConfig_isRecurring_(ss,row.scope);
     out.recurring=recurring;out.certificateBirthday=recurring&&match?ModelCFoundation_clean_(match.cs.Certificate_Birthday):'';out.baseExpiry=recurring&&match&&match.ob?ModelCExtension_dateInTz_(match.ob.Base_Expiry_Date,ss.getSpreadsheetTimeZone()):'';out.lifecycleType=recurring?'CERTIFICATE_RECURRING':'NON_RECURRING';
-    if(match&&match.ob){var modelHours=ModelCScopeOwner_hours_(match.ob.Formal_Hours);out.customHours=modelHours;out.usedHours=modelHours;}
+    if(match){
+      var personalized=match.cs.Company_Formal_Hours_Override;
+      var hasPersonalized=personalized!==null&&personalized!==undefined&&String(personalized).trim()!=='';
+      if(hasPersonalized){out.customHours=ModelCScopeOwner_hours_(personalized);out.usedHours=out.customHours;}
+      else if(match.ob){out.customHours=ModelCScopeOwner_hours_(match.ob.Formal_Hours);out.usedHours=out.customHours;}
+      out.enabled=String(match.cs.Active||'').toUpperCase()==='YES'&&!!match.ob;
+    }
     return out;
   });
 }

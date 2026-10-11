@@ -490,6 +490,8 @@ function completionService_overrideCompletedHours_(payload) {
     var writeStarted = Date.now();
     var res = LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, { status:completionService_getCompletedDisplayStatus_() });
     perf.logWriteMs = Date.now() - writeStarted;
+    perf.lookupMs = res && res.lookupMs;
+    perf.cellWriteMs = res && res.cellWriteMs;
     if (!res || res.success === false) return res;
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();

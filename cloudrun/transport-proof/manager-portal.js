@@ -334,6 +334,10 @@ function editableCell(tr,r,field,value,type){
 var td=el('td',''),input=document.createElement('input');
 input.type=type||'text';input.value=value==null?'':String(value);input.style.width=field==='DisplayName'?'155px':'65px';input.style.boxSizing='border-box';input.setAttribute('aria-label',field+' for '+r.scopeCode);
 input.title='Press Enter or leave the field to save';
+if(field==='Color'||field==='TextColor'){
+var picker=document.createElement('input');picker.type='color';picker.value=/^#[0-9a-f]{6}$/i.test(input.value)?input.value:'#ffffff';picker.style.width='28px';picker.style.height='24px';picker.style.verticalAlign='middle';picker.title='Choose '+field;picker.addEventListener('input',function(){input.value=picker.value;var badge=tr.querySelector('[data-scope-preview]');if(badge)badge.style[field==='Color'?'backgroundColor':'color']=picker.value});td.appendChild(picker);
+input.addEventListener('input',function(){if(/^#[0-9a-f]{6}$/i.test(input.value)){picker.value=input.value;var badge=tr.querySelector('[data-scope-preview]');if(badge)badge.style[field==='Color'?'backgroundColor':'color']=input.value}});
+}
 var original=input.value;
 async function commit(){if(input.disabled||input.value===original)return;await saveInline(r,field,input.value,input)}
 input.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();input.blur()}if(e.key==='Escape'){input.value=original;input.blur()}});
@@ -345,7 +349,7 @@ var tr=el('tr',''),td=el('td',''),b=el('button','Details');b.type='button';b.onc
 editableCell(tr,r,'DisplayName',r.displayName,'text');
 [r.active?'Yes':'No','—',r.hoursToPlan,r.rotationLimit,r.minimumIntervalMonths,(r.planningFrom||'—')+' / '+(r.planningTo||'—')].forEach(function(v){tr.appendChild(el('td',v))});
 editableCell(tr,r,'Color',r.policy.Color,'text');editableCell(tr,r,'TextColor',r.policy.TextColor,'text');
-var preview=el('td',''),swatch=el('span',r.scopeCode);swatch.style.backgroundColor=String(r.policy.Color||'#ffffff');swatch.style.color=String(r.policy.TextColor||'#000000');swatch.style.padding='4px 7px';swatch.style.borderRadius='5px';swatch.style.fontWeight='600';preview.appendChild(swatch);tr.appendChild(preview);editableCell(tr,r,'SortOrder',r.policy.SortOrder,'number');body.appendChild(tr)})}
+var preview=el('td',''),swatch=el('span',r.scopeCode);swatch.dataset.scopePreview='1';swatch.style.backgroundColor=String(r.policy.Color||'#ffffff');swatch.style.color=String(r.policy.TextColor||'#000000');swatch.style.padding='4px 7px';swatch.style.borderRadius='5px';swatch.style.fontWeight='600';preview.appendChild(swatch);tr.appendChild(preview);editableCell(tr,r,'SortOrder',r.policy.SortOrder,'number');body.appendChild(tr)})}
 async function load(){status.textContent='Loading scopes…';try{var response=await fetch('/api/v1/manager/scopes',{credentials:'same-origin'}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'SCOPE_READ_FAILED');records=result.rows||[];status.textContent=records.length+' scopes · inline name editing enabled · material changes protected';render()}catch(e){status.textContent='Scope catalog unavailable: '+e.message}}
 button.hidden=true;button.onclick=function(){if(String(actorRole).toLowerCase()!=='manager')return;panel.hidden=false;load()};close.onclick=function(){panel.hidden=true};search.oninput=render;filter.onchange=render;document.querySelectorAll('[data-scope-tab]').forEach(function(b){b.onclick=function(){tab=b.dataset.scopeTab;showDetails()}});
 })();

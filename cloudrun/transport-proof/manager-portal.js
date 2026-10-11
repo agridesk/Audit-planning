@@ -317,6 +317,17 @@ if(tab==='rules')fields=[['Rotation limit',selected.rotationLimit],['Minimum int
 if(tab==='sources')fields=[['Extension',p.Extension],['Provisioning source',p['Provisioning source']],['Trigger source',p['Trigger source']],['Source service',p['Source service']]];
 details.replaceChildren();
 if(tab==='versions'){
+var bootstrap=el('button','Initialize current versions (V1)');bootstrap.type='button';bootstrap.style.marginBottom='10px';
+bootstrap.onclick=async function(){
+if(!confirm('Register the current configuration of all scopes as CURRENT V1? Existing audit hours will not change.'))return;
+var reason=prompt('Reason for V1 initialization:','Initial AMS 2.0 version registration');if(!reason||!reason.trim())return;
+bootstrap.disabled=true;try{
+var response=await fetch('/api/v1/manager/scopes/bootstrap-v1',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirmation:'INITIALIZE_CURRENT_V1',reason:reason})});
+var result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'INITIALIZATION_FAILED');
+status.textContent='Initialized '+result.count+' current V1 versions; existing audits unchanged';showDetails();
+}catch(e){status.textContent='V1 initialization blocked: '+e.message}finally{bootstrap.disabled=false}
+};
+details.appendChild(el('dt','Current versions'));var bootstrapCell=el('dd','');bootstrapCell.appendChild(bootstrap);details.appendChild(bootstrapCell);
 var versionInfo=el('dd','Loading version history…');versionInfo.style.whiteSpace='pre-wrap';versionInfo.style.gridColumn='1 / -1';details.appendChild(versionInfo);
 var code=selected.scopeCode;
 fetch('/api/v1/manager/scopes/versions',{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(result){

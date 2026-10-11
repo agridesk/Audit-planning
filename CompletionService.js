@@ -117,6 +117,7 @@ function completionService_commitCompletion_(payload) {
     var sessionEmail = '';
     try { sessionEmail = completionService_normEmail_(Session.getActiveUser().getEmail()); } catch (eSession) {}
     if (sessionEmail && actorEmail !== sessionEmail) return { success:false, message:'Actor email does not match authenticated session' };
+    if (payload.hoursDedicated === '' || payload.hoursDedicated == null) return { success:false, message:'Hours dedicated is required' };
     if (!isFinite(hoursDedicated) || hoursDedicated <= 0) return { success:false, message:'Hours dedicated must be > 0' };
     if (Math.abs((Math.round(hoursDedicated * 4) / 4) - hoursDedicated) > 1e-9) return { success:false, message:'Hours dedicated must be in steps of 0.25' };
     if (mode !== 'AUDITOR' && mode !== 'MANAGER_ON_BEHALF') return { success:false, message:'Invalid mode' };
@@ -475,6 +476,7 @@ function completionService_overrideCompletedHours_(payload) {
     var sessionEmail = '';
     try { sessionEmail = completionService_normEmail_(Session.getActiveUser().getEmail()); } catch (eSession) {}
     if (sessionEmail && actorEmail !== sessionEmail) return { success:false, message:'Actor email does not match authenticated session' };
+    if (payload.hoursDedicated === '' || payload.hoursDedicated == null) return { success:false, message:'Hours dedicated is required' };
     if (!isFinite(hoursDedicated) || hoursDedicated <= 0) return { success:false, message:'Hours dedicated must be > 0' };
     if (Math.abs((Math.round(hoursDedicated * 4) / 4) - hoursDedicated) > 1e-9) return { success:false, message:'Hours dedicated must be in steps of 0.25' };
     if (typeof managerV5_isManagerActor_ !== 'function' || !managerV5_isManagerActor_(actorEmail)) return { success:false, message:'Manager role required' };

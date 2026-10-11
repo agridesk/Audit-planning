@@ -87,6 +87,23 @@ http.createServer(async(req,res)=>{
     try{body=JSON.parse(await readRaw(req,16384));}catch{return sendJson(res,400,{success:false,error:'INVALID_JSON'});}
     const auditId=clean(body.auditId),hoursDedicated=Number(body.hoursDedicated);
     if(!auditId||!Number.isFinite(hoursDedicated)||hoursDedicated<=0||Math.abs(Math.round(hoursDedicated*4)/4-hoursDedicated)>1e-9)return sendJson(res,400,{success:false,error:'INVALID_HOURS'});
+    const t0=Date.now();
+    const rows=await batchValues(["'Log realized audits'!A1:AZ10000","'Auditors'!A1:Z500"]);
+    const log=rows[0]||[],auditors=rows[1]||[];
+    const ah=auditors[0]||[],emailCol=col(ah,['Email','E-mail']),roleCol=col(ah,['Role']),activeCol=col(ah,['Active']);
+    if(emailCol<0||roleCol<0)return sendJson(res,503,{success:false,error:'MANAGER_ROSTER_INVALID'});
+    const actor=clean(identity.email).toLowerCase();
+    if(!auditors.slice(1).some(row=>val(row,emailCol).toLowerCase()===actor&&val(row,roleCol).toLowerCase()==='manager'&&(activeCol<0||val(row,activeCol).toUpperCase()==='YES')))return sendJson(res,403,{success:false,error:'MANAGER_ROLE_REQUIRED'});
+    const h=log[0]||[],idCol=col(h,['Audit ID']),hoursCol=col(h,['Hours dedicated']),statusCol=col(h,['Status']);
+    if(idCol<0||hoursCol<0||statusCol<0)return sendJson(res,503,{success:false,error:'LOG_HEADERS_INVALID'});
+    const hits=[];for(let i=1;i<log.length;i++)if(val(log[i],idCol)===auditId)hits.push(i);
+    if(hits.length!==1)return sendJson(res,409,{success:false,error:hits.length?'DUPLICATE_AUDIT_ID':'AUDIT_NOT_FOUND'});
+    const rowIndex=hits[0],record=log[rowIndex];
+    if(statusKey(val(record,statusCol))!=='COMPLETED')return sendJson(res,409,{success:false,error:'AUDIT_NOT_COMPLETED'});
+    const oldHoursDedicated=Number(record[hoursCol]);
+    if(!Number.isFinite(oldHoursDedicated))return sendJson(res,409,{success:false,error:'INVALID_OLD_HOURS'});
+    const lookupMs=Date.now()-t0;
+    if(oldHoursDedicated===hoursDedicated)return sendJson(res,200,{success:true,auditId,oldHoursDedicated,newHoursDedicated:hoursDedicated,changed:false,perf:{lookupMs,totalMs:Date.now()-t0},transport:'DIRECT_SHEETS'});
     if(!GAS_WRITE_URL||!WRITE_KEY)return sendJson(res,503,{success:false,error:'BRIDGE_UNAVAILABLE'});
     const target=new URL(GAS_WRITE_URL);
     target.searchParams.set('action','externalmanageraction');

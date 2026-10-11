@@ -132,6 +132,7 @@ function ModelCScopeOwner_commit(command){
       var obligation=obByCs[String(scope.Company_Scope_ID)];
       if(!obligation){var obligationProvisioning=ModelCScopeOwner_externalProvisioning_(ss,code);if(obligationProvisioning)throw new Error('Externally provisioned obligation must be created by its configured import');obligation=ModelCScopeOwner_newObligation_(command,scope,item,stamp,ss);ob.push(obligation);obByCs[String(scope.Company_Scope_ID)]=obligation;}
       if(activeAuditByOb[String(obligation.Obligation_ID)]&&activeAuditByOb[String(obligation.Obligation_ID)]!==String(command.auditId))throw new Error('Scope is linked to another active audit: '+code);
+      if(['COMPLETED','CANCELLED','REJECTED'].indexOf(String(obligation.Obligation_State||'').toUpperCase())>=0)throw new Error('TERMINAL_OBLIGATION_IMMUTABLE: '+code);
       ModelCScopeOwner_updateObligation_(obligation,command,item,stamp,ss);
       var link=activeLinkByOb[String(obligation.Obligation_ID)];if(!link){link={Audit_ID:String(command.auditId),Obligation_ID:String(obligation.Obligation_ID),Link_State:'ACTIVE',Migration_Batch_ID:'',Linked_At:stamp,Unlinked_At:''};lk.push(link);activeLinkByOb[String(obligation.Obligation_ID)]=link;}
     });

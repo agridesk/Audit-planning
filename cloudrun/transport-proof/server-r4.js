@@ -1346,6 +1346,29 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
   if(u.pathname==='/api/v1/planning/direct-commit'&&req.method==='POST'){const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(!['manager','auditor'].includes(clean(s.role).toLowerCase()))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>65536)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}try{return send(res,200,await directPlanningCommit(s,b));}catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'DIRECT_PLANNING_COMMIT_BLOCKED',detail:clean(e?.message||e)});}}
   if(u.pathname==='/api/v1/manager/action'&&req.method==='POST'){const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(clean(s.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}try{const out=await canonicalManagerAction(s,b);return send(res,out&&out.success===false?409:200,out)}catch(e){return send(res,500,{ok:false,error:'MANAGER_ACTION_BRIDGE_FAILED',detail:clean(e?.message||e)})}}
   if(u.pathname==='/api/v1/manager/archived'&&req.method==='GET'){const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});const role=clean(s.role).toLowerCase();if(!['manager','auditor'].includes(role))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});try{return send(res,200,role==='auditor'?await auditorArchivedRead(clean(s.email).toLowerCase()):await managerArchivedRead(clean(s.email).toLowerCase()));}catch(e){return send(res,500,{ok:false,error:'ARCHIVED_READ_FAILED',detail:clean(e?.message||e)});}}
+  if(u.pathname==='/api/v1/manager/company-management/scopes/save'&&req.method==='POST'){
+    const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
+    let b;try{b=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+    if(!clean(b?.companyUid)||!Array.isArray(b.changes)||!b.changes.length||b.changes.length>20)return send(res,400,{ok:false,error:'INVALID_SCOPE_CHANGES'});
+    try{
+      const v=await sheetsBatchGet(['Company_Scopes!A1:L3000','Config_Scopes!A1:U128','Companies!A1:X2500']);const cs=v[0]?.values||[],cfg=v[1]?.values||[],companies=v[2]?.values||[];
+      const h=cs[0]||[],ch=cfg[0]||[],companyH=companies[0]||[];const idx=k=>h.indexOf(k),ci=k=>ch.indexOf(k);
+      if(['Company_UID','ScopeCode','Active'].some(k=>idx(k)<0)||['ScopeCode','Active','Archived'].some(k=>ci(k)<0))throw Error('SCOPE_SCHEMA_MISSING');
+      if(!companies.slice(1).some(r=>clean(r[companyH.indexOf('Company_UID')])===clean(b.companyUid)))return send(res,404,{ok:false,error:'COMPANY_NOT_FOUND'});
+      const changes=[],seen=new Set();for(const item of b.changes){const code=clean(item?.scopeCode),value=clean(item?.active).toUpperCase(),expected=clean(item?.expected).toUpperCase();
+        if(!code||seen.has(code)||!['YES','NO'].includes(value)||!['YES','NO'].includes(expected))return send(res,400,{ok:false,error:'INVALID_SCOPE_CHANGE'});seen.add(code);
+        const scope=cfg.slice(1).find(r=>clean(r[ci('ScopeCode')])===code);if(!scope||!['YES','TRUE'].includes(clean(scope[ci('Active')]).toUpperCase())||['YES','TRUE'].includes(clean(scope[ci('Archived')]).toUpperCase()))return send(res,409,{ok:false,error:'SCOPE_NOT_AVAILABLE',scopeCode:code});
+        const rows=cs.slice(1).map((r,i)=>({r,n:i+2})).filter(x=>clean(x.r[idx('Company_UID')])===clean(b.companyUid)&&clean(x.r[idx('ScopeCode')])===code);
+        if(rows.length!==1)return send(res,409,{ok:false,error:'SCOPE_RELATION_REQUIRES_GOVERNED_CREATION',scopeCode:code});
+        const current=['YES','TRUE','1'].includes(clean(rows[0].r[idx('Active')]).toUpperCase())?'YES':'NO';if(current!==expected)return send(res,409,{ok:false,error:'STALE_COMPANY_SCOPE',scopeCode:code,current});
+        if(current!==value)changes.push({n:rows[0].n,value});
+      }
+      if(changes.length){const n=idx('Active')+1;let col='',k=n;while(k){k--;col=String.fromCharCode(65+k%26)+col;k=Math.floor(k/26)}await sheetsValuesBatchUpdate(changes.map(x=>({range:'Company_Scopes!'+col+x.n,values:[[x.value]]})))}
+      return send(res,200,{ok:true,updated:changes.length});
+    }catch(e){return send(res,409,{ok:false,error:'COMPANY_SCOPE_SAVE_FAILED',detail:clean(e.message||e)})}
+  }
   if(u.pathname==='/api/v1/manager/company-management/save'&&req.method==='POST'){
     const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});

@@ -1351,7 +1351,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
     let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
     let b;try{b=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
-    const uid=clean(b?.companyUid),code=clean(b?.scopeCode),value=clean(b?.hours),expected=clean(b?.expected);if(!uid||!code||!Object.hasOwn(b,'expected')||value&&!(/^\\d+(?:\\.\\d{1,2})?$/.test(value)&&Number(value)>0&&Number(value)<=200))return send(res,400,{ok:false,error:'INVALID_COMPANY_HOURS'});
+    const uid=clean(b?.companyUid),code=clean(b?.scopeCode),value=clean(b?.hours),expected=clean(b?.expected);if(!uid||!code||!Object.hasOwn(b,'expected')||value&&!(/^\d+(?:\.\d{1,2})?$/.test(value)&&Number(value)>0&&Number(value)<=200))return send(res,400,{ok:false,error:'INVALID_COMPANY_HOURS'});
     try{const v=await sheetsBatchGet(['Company_Scopes!A1:L3000','Company_Scope_Hours!A1:M3000','Config_Scopes!A1:U128','ScopeVersions!A1:I1000']);const [cs,hs,cfg,versions]=v.map(x=>x?.values||[]),ch=cs[0]||[],hh=hs[0]||[],sh=cfg[0]||[],vh=versions[0]||[];
       if(!['Company_UID','ScopeCode','Active','Company_Formal_Hours_Override'].every(x=>ch.includes(x))||!['OverrideId','Company_UID','ScopeCode','Hours','Status','Revision','EffectiveTo','EffectiveFrom'].every(x=>hh.includes(x)))throw Error('SCHEMA_MISSING');
       const relation=cs.slice(1).filter(r=>clean(r[ch.indexOf('Company_UID')])===uid&&clean(r[ch.indexOf('ScopeCode')])===code);if(relation.length!==1)return send(res,409,{ok:false,error:'SCOPE_RELATION_REQUIRED'});

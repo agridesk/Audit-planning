@@ -621,7 +621,10 @@ function showAuditor(a){
    const weekdays=['Mo','Tu','We','Th','Fr'],orig=a.blockedWeekdays||'',chosen=new Set(orig.split(',').map(x=>x.trim()).filter(Boolean));
    const line=el('div');line.appendChild(el('strong','Preferred unavailable weekdays (soft)'));weekdays.forEach(day=>{const label=el('label');label.style.cssText='margin:9px 14px 8px 0;display:inline-block';const cb=el('input');cb.type='checkbox';cb.checked=chosen.has(day);cb.onchange=()=>{if(cb.checked)chosen.add(day);else chosen.delete(day);stage('Blocked weekdays',orig,weekdays.filter(x=>chosen.has(x)).join(', '))};label.append(cb,document.createTextNode(' '+day));line.appendChild(label)});content.appendChild(line);
    row('Default working hours','No canonical working-hours column yet');row('Time zone',a.timezone);row('Departure from',a.homeBase);
-  }else{content.appendChild(el('p','Profile changes are recorded with actor, timestamp and before/after values. Impact history follows in the qualification-change phase.'))}
+  }else{const indicator=el('p','Loading change history…');content.appendChild(indicator);
+   fetch('/api/v1/manager/auditor-management/history?email='+encodeURIComponent(a.email),{credentials:'same-origin'}).then(async response=>{const data=await response.json();if(!response.ok||!data.ok)throw Error(data.error||'HISTORY_UNAVAILABLE');if(currentPage!=='History')return;content.replaceChildren();if(!data.rows.length){content.appendChild(el('p','No governed profile changes recorded yet'));return}
+    data.rows.forEach(event=>{const card=el('div');card.style.cssText='padding:8px 0;border-bottom:1px solid #e2e8f0';card.appendChild(el('strong',event.timestamp+' · '+event.actor));(event.changes||[]).forEach(change=>card.appendChild(el('div',change.field+': '+(change.old||'—')+' → '+(change.newValue||'—'))));content.appendChild(card)})
+   }).catch(e=>{if(currentPage==='History')indicator.textContent='History unavailable: '+e.message})}
  }
  pages.forEach(page=>{const button=el('button',page);button.type='button';button.onclick=()=>{if(Object.keys(pending).length){feedback.textContent='Save or discard changes before switching tab';return}draw(page)};tabs.appendChild(button)});
  discard.onclick=()=>{pending={};draw(currentPage);refresh()};

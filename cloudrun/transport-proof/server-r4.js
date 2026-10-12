@@ -1576,7 +1576,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       if(av.slice(1).some(row=>row!==target.row&&(clean(row[ec]).toLowerCase()===newEmail||clean(row[nc]).toLowerCase()===newName.toLowerCase())))return send(res,409,{ok:false,error:'IDENTITY_ALREADY_USED'});
       const affected=[];
       for(let j=1;j<=2;j++){const values=v[j]?.values||[],headers=values[0]||[];for(let i=1;i<values.length;i++){const row=values[i],hit=headers.some((h,k)=>/auditor|assigned|preassign/i.test(String(h||''))&&[email,name.toLowerCase()].includes(clean(row[k]).toLowerCase()));if(hit){const idcol=col(headers,['Audit ID']);affected.push({source:j===1?'Audit planning':'Log realized audits',auditId:val(row,idcol)||'row '+(i+1)})}}}
-      if(affected.length)return send(res,409,{ok:false,error:'AUDITOR_IDENTITY_REKEY_REQUIRES_REFERENCE_MIGRATION',affected:affected.slice(0,100),totalAffected:affected.length});
+      if(affected.length&&newEmail!==email)return send(res,409,{ok:false,error:'AUDITOR_EMAIL_REKEY_REQUIRES_REFERENCE_MIGRATION',affected:affected.slice(0,100),totalAffected:affected.length});
       const updates=[];if(newName!==name)updates.push({range:'Auditors!A'+target.line,values:[[newName]]});if(newEmail!==email)updates.push({range:'Auditors!C'+target.line,values:[[newEmail]]});
       const detail=JSON.stringify({oldName:name,newName,oldEmail:email,newEmail,actor:clean(actor.email)}),stamp=new Date().toISOString();
       await sheetsValuesAppend('Diagnostics_Log!A:K',[[stamp,'AUDITOR_MANAGEMENT_2_0','IDENTITY_CHANGE',email,'CHANGE_INTENT',clean(actor.email),'','',false,'No planning or realized references',detail]]);

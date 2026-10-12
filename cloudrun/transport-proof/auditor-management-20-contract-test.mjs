@@ -31,4 +31,5 @@ assert.ok(ui.includes("data.impactedCount+' open assigned/preassigned audits aff
 assert.ok(server.includes("'/api/v1/manager/auditor-management/history'"),'Manager history endpoint');
 assert.ok(server.includes("Diagnostics_Log!A1:K5000"),'History based on audit trail');
 assert.ok(ui.includes("'/api/v1/manager/auditor-management/history?email='"),'History tab uses governed source');
+assert.ok(ui.includes("out.classList.contains('auditor-impact-result')"),'Repeated Impact clicks reuse one result');
 console.log('Auditor Management 2.0 profile edit contract PASS');

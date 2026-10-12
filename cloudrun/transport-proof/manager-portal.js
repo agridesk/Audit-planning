@@ -601,7 +601,7 @@ open.onclick=function(){if(!['manager','auditor'].includes(String(actorRole).toL
 const trigger=document.getElementById('auditorManagement20'),panel=document.getElementById('auditorManagement20Panel'),close=document.getElementById('auditorManagement20Close'),search=document.getElementById('auditorManagement20Search'),filter=document.getElementById('auditorManagement20Filter'),rows=document.getElementById('auditorManagement20Rows'),status=document.getElementById('auditorManagement20Status'),dossier=document.getElementById('auditorManagement20Dossier');
 let auditors=[],scopeCatalog=[];
 function el(tag,content){const node=document.createElement(tag);if(content!==undefined)node.textContent=String(content);return node}
-function showAuditor(a){
+function showAuditor(a,initialPage='Profile'){
  dossier.hidden=false;dossier.replaceChildren();dossier.appendChild(el('h3',a.name));
  let pending={},currentPage='Profile',saving=false;
  const actions=el('div'),save=el('button','Save all'),discard=el('button','Discard changes'),feedback=el('span','All changes saved');
@@ -660,9 +660,9 @@ function showAuditor(a){
    if(!response.ok||!result.ok)throw Error([result.error,result.field,result.detail].filter(Boolean).join(' · '));
    const updatedEmail=a.email;const read=await fetch('/api/v1/manager/auditor-management',{credentials:'same-origin'}),data=await read.json();if(!read.ok||!data.ok)throw Error('SAVE_DONE_REFRESH_FAILED');
    auditors=data.rows||[];scopeCatalog=data.scopeCatalog||[];const updated=auditors.find(x=>x.email===updatedEmail);if(!updated)throw Error('AUDITOR_NOT_FOUND_AFTER_SAVE');
-   pending={};saving=false;render();showAuditor(updated);const st=document.querySelector('#auditorManagement20Dossier [role=status]');if(st)st.textContent='Saved '+result.updated+' changes';
+   const returnPage=currentPage;pending={};saving=false;render();showAuditor(updated,returnPage);const st=document.querySelector('#auditorManagement20Dossier [role=status]');if(st)st.textContent='Saved '+result.updated+' changes';
   }catch(e){saving=false;refresh();feedback.textContent='Save blocked or unconfirmed: '+e.message}
- };draw('Profile');refresh()
+ };draw(pages.includes(initialPage)?initialPage:'Profile');refresh()
 }
 function render(){
  const q=search.value.trim().toLowerCase(),mode=filter.value;rows.replaceChildren();

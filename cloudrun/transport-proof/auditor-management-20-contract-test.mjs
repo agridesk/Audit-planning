@@ -14,4 +14,12 @@ assert.ok(ui.includes("'Profile','Qualifications','Availability Defaults','Histo
 assert.ok(ui.includes("check.disabled=true"),'Qualification changes fail closed until impact guard');
 assert.ok(ui.includes("trigger.onclick=function(){if(String(actorRole).toLowerCase()!=='manager')return"),'Manager-only UI');
 assert.ok(ui.includes("auditorManagement20").valueOf(),'Auditor Management visible to Manager');
-console.log('Auditor Management 2.0 read-only contract PASS');
+assert.ok(server.includes("'/api/v1/manager/auditor-management/profile/save'"),'Manager profile mutation endpoint');
+assert.ok(server.includes("const allowed=new Set(['Name','Area','Default time zone','Blocked weekdays','Default departure from','Mobile telephone'])"),'Profile mutation explicit allowlist');
+assert.ok(server.includes("error:'STALE_AUDITOR_FIELD'"),'Optimistic concurrency');
+assert.ok(server.includes("sheetsValuesBatchUpdateRaw(updates)"),'Canonical RAW write for phone values');
+assert.ok(server.includes("'CHANGE_INTENT'")&&server.includes("'CHANGE_APPLIED'"),'Auditor profile trail before and after write');
+assert.ok(ui.includes("Discard changes"),'Discard unsaved profile edits');
+assert.ok(ui.includes("'/api/v1/manager/auditor-management/profile/save'"),'Profile editor canonical API');
+assert.ok(ui.includes("['Mo','Tu','We','Th','Fr']"),'Only weekdays available for soft defaults');
+console.log('Auditor Management 2.0 profile edit contract PASS');

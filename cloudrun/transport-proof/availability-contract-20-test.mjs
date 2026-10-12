@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {av20ValidateHardException,av20ValidateRecurringWeek,av20ValidateAvailableOverride,av20DayInRange,av20MinutesToClock} from './availability-contract-20.js';
+const days=['MO','TU','WE','TH','FR','SA','SU'].map(day=>({day,mode:'AVAILABLE'}));
+days[0]={day:'MO',mode:'SOFT',start:'08:00',end:'12:00'};
+assert.equal(av20ValidateRecurringWeek(days)[0].end,720);
+assert.equal(av20ValidateRecurringWeek(days)[6].mode,'AVAILABLE');
+assert.throws(()=>av20ValidateRecurringWeek([...days,days[0]]),/SEVEN_DAYS/);
+assert.deepEqual(av20ValidateHardException({kind:'HARD',from:'2026-10-12',until:'2026-10-23',wholeDay:true}),{kind:'HARD',from:'2026-10-12',until:'2026-10-23',wholeDay:true,start:0,end:1440});
+assert.throws(()=>av20ValidateHardException({kind:'HARD',from:'2026-02-30',wholeDay:true}),/INVALID_DATE/);
+assert.throws(()=>av20ValidateHardException({kind:'HARD',from:'2026-10-23',until:'2026-10-12',wholeDay:true}),/REVERSED_RANGE/);
+assert.equal(av20DayInRange('2026-10-23','2026-10-12','2026-10-23'),true);
+assert.equal(av20DayInRange('2026-10-24','2026-10-12','2026-10-23'),false);
+assert.equal(av20ValidateAvailableOverride({kind:'AVAILABLE_OVERRIDE',date:'2026-10-12',start:'08:00',end:'12:00'}).end,720);
+assert.equal(av20MinutesToClock(1440),'24:00');
+console.log('AV20 range and preference contracts: PASS');

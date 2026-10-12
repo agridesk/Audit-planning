@@ -26,8 +26,8 @@ assert.ok(ui.includes("padding:5px 7px;font-size:13px"),'Compact location inputs
 assert.ok(ui.includes("hoursInput.disabled=selector.value!=='Yes'"),'Newly activated scopes allow same-save custom hours');
 assert.ok(ui.includes("if(value==='No')delete pending['hours:'+x.scopeCode]"),'Deactivation clears pending custom hours');
 assert.ok(ui.includes("Activate a scope and enter optional custom hours in one Save all"),'Scope activation instruction');
-assert.ok(ui.includes("h<=18"),'Time selector stops at 18:00');
-assert.ok(ui.includes("for(var h=8;"),'Time selector begins at 08:00');
+assert.ok(ui.includes('minute<=1080'),'Time selector stops at 18:00');
+assert.ok(ui.includes('minute=480'),'Time selector begins at 08:00');
 assert.ok(!ui.includes("var dayHint=el("),'Guidance moved off dedicated rows');
 assert.ok(!ui.includes("var hoursHint=el("),'Time hint moved off dedicated rows');
 assert.ok(ui.includes("overviewMarkers=L.layerGroup()"),'Shared location marker layer exists');
@@ -47,4 +47,7 @@ assert.ok(server.includes("INVALID_AUDITOR_EXCLUSIONS"),'Auditor exclusion valid
 assert.ok(server.includes("exclusions.some(v=>"),'Exclusion emails validated');
 assert.ok(ui.includes("overviewMap.fitBounds("),'Map frames all active coordinates');
 assert.ok(ui.includes("scrollWheelZoom:false"),'Wheel scrolling does not trap the page');
+assert.ok(ui.includes('function endOptions()'),'Dependent end-time options');
+assert.ok(ui.includes('v>minimum'),'End time must follow start time');
+assert.ok(ui.includes('rowDays.querySelector(\'label\').title'),'Hover description on label');
 console.log('Company Management 2.0 contract checks passed');

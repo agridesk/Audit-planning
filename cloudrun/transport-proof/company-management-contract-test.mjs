@@ -60,4 +60,10 @@ assert.ok(html.includes('id="companyManagement20Table"'),'Compact company naviga
 assert.ok(html.includes('<th>Company</th><th>Scopes</th><th>Region</th><th>Locations</th><th>Status</th>'),'Five navigation columns');
 assert.ok(!html.includes('<th>Attention</th>'),'No redundant Attention column');
 assert.ok(ui.includes("if(i===1)td.style.cssText='white-space:normal"),'Long active scope lists wrap');
+assert.ok(server.includes("'/api/v1/auditor/company-management'"),'Auditor read endpoint exists');
+assert.ok(server.includes("result.companies=result.companies.filter(c=>uids.has(c.companyUid)"),'Auditor company data server-scoped');
+assert.ok(server.includes("result.readOnly=true;result.actorRole='AUDITOR'"),'Auditor response explicitly read only');
+assert.ok(ui.includes("'/api/v1/auditor/company-management':'/api/v1/manager/company-management'"),'Shared dossier reads based on role');
+assert.ok(ui.includes("save.hidden=String(actorRole).toLowerCase()==='auditor'"),'Auditor save UI not active before audit trail');
+assert.ok(ui.includes("if(String(actorRole).toLowerCase()==='auditor'||!selected"),'Auditor write blocked at client');
 console.log('Company Management 2.0 contract checks passed');

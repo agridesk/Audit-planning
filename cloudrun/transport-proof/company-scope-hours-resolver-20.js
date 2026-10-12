@@ -9,10 +9,10 @@ export function resolveCompanyScopeHours20({companyId,scopeCode,effectiveDate,co
  const company=str(companyId),scope=str(scopeCode),day=date(effectiveDate);
  if(!company||!scope)throw Error('COMPANY_SCOPE_IDENTITY_REQUIRED');
  if(!Array.isArray(companyScopes)||!Array.isArray(overrides)||!Array.isArray(scopeVersions))throw Error('HOURS_SOURCE_NOT_READY');
- const relation=one(companyScopes.filter(r=>str(r.CompanyID)===company&&str(r.ScopeCode)===scope),'COMPANY_SCOPE_RELATION_MISSING','COMPANY_SCOPE_RELATION_DUPLICATE');
- if(!['ACTIVE','TRUE','YES','1'].includes(str(relation.Status??relation.Active).toUpperCase()))throw Error('COMPANY_SCOPE_INACTIVE');
+ const relation=one(companyScopes.filter(r=>str(r.Company_UID)===company&&str(r.ScopeCode)===scope),'COMPANY_SCOPE_RELATION_MISSING','COMPANY_SCOPE_RELATION_DUPLICATE');
+ if(!['ACTIVE','TRUE','YES','1'].includes(str(relation.Active??relation.Status).toUpperCase()))throw Error('COMPANY_SCOPE_INACTIVE');
  const applicable=r=>(!str(r.EffectiveFrom)||date(r.EffectiveFrom)<=day)&&(!str(r.EffectiveTo)||date(r.EffectiveTo)>=day);
- const candidates=overrides.filter(r=>str(r.CompanyID)===company&&str(r.ScopeCode)===scope);
+ const candidates=overrides.filter(r=>str(r.Company_UID)===company&&str(r.ScopeCode)===scope);
  // Validate all records for this relationship before deciding that baseline applies.
  for(const r of candidates){if(!str(r.OverrideId)||!str(r.Status)||!str(r.Revision))throw Error('OVERRIDE_RECORD_INCOMPLETE');if(str(r.EffectiveFrom))date(r.EffectiveFrom);if(str(r.EffectiveTo))date(r.EffectiveTo);if(str(r.EffectiveFrom)&&str(r.EffectiveTo)&&r.EffectiveFrom>r.EffectiveTo)throw Error('OVERRIDE_DATE_RANGE_INVALID');}
  const active=candidates.filter(r=>str(r.Status).toUpperCase()==='ACTIVE'&&applicable(r));

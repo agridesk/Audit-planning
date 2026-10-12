@@ -1460,7 +1460,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       const matches=companies.slice(1).map((row,i)=>({row,index:i+2})).filter(x=>id>=0&&clean(x.row[id])===uid);
       if(matches.length!==1)return send(res,409,{ok:false,error:'COMPANY_NOT_UNIQUE_OR_MISSING'});
       const company=matches[0],name=clean(company.row[nameCol]),email=clean(actor.email).toLowerCase(),aud=v[3]?.values||[];
-      const owns=(values,companyIdentifiers,auditorIdentifiers)=>{const hh=values[0]||[],uidCol=col(hh,companyIdentifiers[0]),nameIdx=col(hh,companyIdentifiers[1]),audIdx=auditorIdentifiers.map(c=>col(hh,c));return values.slice(1).some(row=>((uidCol>=0&&clean(row[uidCol])===uid)||(nameIdx>=0&&clean(row[nameIdx]).toLowerCase()===name.toLowerCase()))&&audIdx.some(i=>i>=0&&directResolveAuditorEmail(aud,val(row,i))===email))};
+      const owns=(values,companyIdentifiers,auditorIdentifiers)=>{const hh=values[0]||[],uidCol=col(hh,companyIdentifiers[0]),nameIdx=col(hh,companyIdentifiers[1]),audIdx=auditorIdentifiers.map(c=>col(hh,c));return values.slice(1).some(row=>((uidCol>=0&&clean(row[uidCol])===uid)||(uidCol<0||!clean(row[uidCol]))&&nameIdx>=0&&clean(row[nameIdx]).toLowerCase()===name.toLowerCase())&&audIdx.some(i=>i>=0&&directResolveAuditorEmail(aud,val(row,i))===email))};
       const refs=[['Company_UID','Company UID'],['Company']];
       const authorized=owns(v[1]?.values||[],refs,[['Assigned to','Assigned auditor','Auditor'],['Preassigned Auditor']])||owns(v[2]?.values||[],refs,[['Auditor','Auditor Email','Email']]);
       if(!authorized)return send(res,403,{ok:false,error:'AUDITOR_COMPANY_NOT_AUTHORIZED'});
@@ -1491,7 +1491,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       const log=values[6]?.values||[],lh=log[0]||[],lci=col(lh,['Company_UID','Company UID']),lcn=col(lh,['Company']),la=col(lh,['Auditor','Auditor Email','Email']);
       for(const row of log.slice(1)){if(directResolveAuditorEmail(aud,val(row,la))!==email)continue;if(lci>=0&&clean(row[lci]))uids.add(clean(row[lci]));if(lcn>=0&&clean(row[lcn]))names.add(clean(row[lcn]).toLowerCase())}
       const result=buildCompanyManagementReadModel20({companies:values[0]?.values||[],companyScopes:values[1]?.values||[],configScopes:values[2]?.values||[],scopeVersions:values[3]?.values||[],companyHours:values[4]?.values||[]});
-      result.companies=result.companies.filter(c=>uids.has(c.companyUid)||names.has(clean(c.name).toLowerCase()));
+      result.companies=result.companies.filter(c=>uids.has(c.companyUid)||(names.has(clean(c.name).toLowerCase())&&result.companies.filter(y=>clean(y.name).toLowerCase()===clean(c.name).toLowerCase()).length===1));
       result.readOnly=true;result.actorRole='AUDITOR';result.activeAuditors=[];return send(res,200,result);
     }catch(e){return send(res,409,{ok:false,error:'AUDITOR_COMPANY_READ_FAILED',detail:clean(e?.message||e)})}
   }

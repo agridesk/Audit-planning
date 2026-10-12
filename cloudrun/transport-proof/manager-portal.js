@@ -599,9 +599,9 @@ function showAuditor(a){
  dossier.hidden=false;dossier.replaceChildren();dossier.appendChild(el('h3',a.name));
  let pending={},currentPage='Profile',saving=false;
  const actions=el('div'),save=el('button','Save all'),discard=el('button','Discard changes'),feedback=el('span','All changes saved');
- actions.style.cssText='display:flex;align-items:center;gap:10px;margin:10px 0';feedback.setAttribute('role','status');save.type='button';discard.type='button';actions.append(save,discard,feedback);dossier.appendChild(actions);
+ actions.style.cssText='display:flex;align-items:center;gap:10px;margin:10px 0';feedback.setAttribute('role','status');save.type='button';discard.type='button';actions.append(save,discard,feedback);
  const tabs=el('div');tabs.style.cssText='display:flex;gap:8px;margin:12px 0';
- const content=el('div');dossier.append(tabs,content);
+ const content=el('div');dossier.append(tabs,actions,content);
  function refresh(){save.disabled=saving||!Object.keys(pending).length;discard.disabled=saving||!Object.keys(pending).length;if(!saving)feedback.textContent=Object.keys(pending).length?Object.keys(pending).length+' unsaved changes':'All changes saved'}
  function stage(key,original,value){if(value===String(original??''))delete pending[key];else pending[key]={expected:String(original??''),value};refresh()}
  function row(label,value){const line=el('div');line.style.cssText='display:grid;grid-template-columns:minmax(140px,220px) minmax(240px,1fr);gap:12px;padding:7px 0;border-bottom:1px solid #edf0f4';line.append(el('strong',label),el('span',value||'—'));content.appendChild(line)}

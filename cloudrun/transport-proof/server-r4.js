@@ -1560,6 +1560,32 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       return send(res,200,{ok:true,readOnly:true,email,scopeCode:code,impacted,impactedCount:impacted.length,acceptedCount:impacted.filter(x=>x.statusKey==='ACCEPTED').length,withdrawalWriteEnabled:process.env.AMS_QUALIFICATION_WITHDRAWAL_WRITE_ENABLED==='true'});
     }catch(e){return send(res,503,{ok:false,error:'AUDITOR_QUALIFICATION_IMPACT_FAILED',detail:clean(e?.message||e)})}
   }
+  if(u.pathname==='/api/v1/manager/auditor-management/role/save'&&req.method==='POST'){
+    const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    let raw='';for await(const c of req){raw+=c;if(raw.length>4096)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
+    let data;try{data=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+    const email=clean(data?.email).toLowerCase(),next=clean(data?.role),expected=clean(data?.expected);
+    if(!email||!['Auditor','Manager'].includes(next)||!['Auditor','Manager'].includes(expected))return send(res,400,{ok:false,error:'INVALID_ROLE_CHANGE'});
+    if(email===clean(actor.email).toLowerCase())return send(res,403,{ok:false,error:'SELF_ROLE_CHANGE_FORBIDDEN'});
+    try{
+      const result=await sheetsBatchGet(['Auditors!A1:AZ1000','Audit planning!A1:AX2500']);
+      const av=result[0]?.values||[],h=av[0]||[],ec=col(h,['E-mail','Email']),rc=col(h,['Role']);
+      const matches=av.slice(1).map((row,i)=>({row,index:i+2})).filter(x=>ec>=0&&clean(x.row[ec]).toLowerCase()===email);
+      if(matches.length!==1||rc<0)return send(res,409,{ok:false,error:'AUDITOR_IDENTITY_NOT_UNIQUE'});
+      const target=matches[0],old=clean(target.row[rc]);if(old!==expected)return send(res,409,{ok:false,error:'STALE_AUDITOR_ROLE'});
+      if(old===next)return send(res,200,{ok:true,updated:0});
+      const ap=result[1]?.values||[],ah=ap[0]||[],ac=col(ah,['Assigned to','Assigned auditor','Auditor']),pc=col(ah,['Preassigned Auditor']),st=col(ah,['Status']),id=col(ah,['Audit ID']);
+      const impacted=ap.slice(1).filter(row=>['PENDING_PLANNING','PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(clean(val(row,st)).toUpperCase().replace(/[\\s-]+/g,'_'))&&(directResolveAuditorEmail(av,val(row,ac))===email||directResolveAuditorEmail(av,val(row,pc))===email)).map(row=>val(row,id));
+      if(impacted.length)return send(res,409,{ok:false,error:'ROLE_CHANGE_REQUIRES_ASSIGNMENT_REVIEW',impactedAuditIds:impacted});
+      if(next==='Manager')return send(res,403,{ok:false,error:'MANAGER_ROLE_GRANT_REQUIRES_SEPARATE_AUTHORIZATION'});
+      const detail=JSON.stringify({email,old,newValue:next,actor:clean(actor.email)}),now=new Date().toISOString();
+      await sheetsValuesAppend('Diagnostics_Log!A:K',[[now,'AUDITOR_MANAGEMENT_2_0','ROLE_EDIT',email,'CHANGE_INTENT',clean(actor.email),'','',false,'Role change validation',detail]]);
+      await sheetsValuesBatchUpdateRaw([{range:'Auditors!E'+target.index,values:[[next]]}]);
+      await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'AUDITOR_MANAGEMENT_2_0','ROLE_EDIT',email,'CHANGE_APPLIED',clean(actor.email),'','',false,'Role changed',detail]]);
+      return send(res,200,{ok:true,updated:1,role:next});
+    }catch(e){return send(res,503,{ok:false,error:'ROLE_CHANGE_UNCONFIRMED',detail:clean(e?.message||e)})}
+  }
   if(u.pathname==='/api/v1/manager/auditor-management/identity/save'&&req.method==='POST'){
     const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});

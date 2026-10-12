@@ -26,4 +26,11 @@ assert.ok(ui.includes("padding:5px 7px;font-size:13px"),'Compact location inputs
 assert.ok(ui.includes("hoursInput.disabled=selector.value!=='Yes'"),'Newly activated scopes allow same-save custom hours');
 assert.ok(ui.includes("if(value==='No')delete pending['hours:'+x.scopeCode]"),'Deactivation clears pending custom hours');
 assert.ok(ui.includes("Activate a scope and enter optional custom hours in one Save all"),'Scope activation instruction');
+assert.ok(ui.includes("h<=18"),'Time selector stops at 18:00');
+assert.ok(ui.includes("for(var h=8;"),'Time selector begins at 08:00');
+assert.ok(!ui.includes("var dayHint=el("),'Guidance moved off dedicated rows');
+assert.ok(!ui.includes("var hoursHint=el("),'Time hint moved off dedicated rows');
+assert.ok(ui.includes("var locationMap=el('iframe')"),'Locations tab contains selected-location map');
+assert.ok(ui.includes("function updateLocationMap()"),'Map tracks selected location changes');
+assert.ok(ui.includes("max-width:650px"),'Location editor remains compact');
 console.log('Company Management 2.0 contract checks passed');

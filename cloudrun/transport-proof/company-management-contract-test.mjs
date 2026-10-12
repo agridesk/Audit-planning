@@ -17,8 +17,8 @@ assert.ok(server.includes("old!==value&&old!==expected"),'Idempotent company hou
 assert.ok(server.includes("current!==value&&current!==expected"),'Idempotent scope toggle retries');
 assert.ok(ui.includes("name.textContent=selected.name;"),'Hide technical Company UID in title');
 assert.ok(!ui.includes("plain('Company UID',selected.companyUid)"),'Hide technical Company UID in dossier');
-assert.ok(ui.includes("line('Unavailable weekdays',dayBox)"),'Negative weekday semantics are explicit');
-assert.ok(ui.includes("line('Available audit hours',hoursWrap)"),'Positive hours semantics are explicit');
+assert.ok(ui.includes("line('Unavailable weekdays ⓘ',dayBox)"),'Negative weekday semantics are explicit');
+assert.ok(ui.includes("line('Available audit hours ⓘ',hoursWrap)"),'Positive hours semantics are explicit');
 assert.ok(ui.includes("m+=15"),'Quarter-hour increments in Company Planning');
 assert.ok(ui.includes("v+' (existing)'"),'Existing non-quarter times preserved');
 assert.ok(ui.includes("min-height:260px"),'Compact maps frame');

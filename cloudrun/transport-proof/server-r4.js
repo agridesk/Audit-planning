@@ -1441,7 +1441,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
   }
   if(u.pathname==='/api/v1/manager/maps-config'&&req.method==='GET'){
     const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
-    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    if(!['manager','auditor'].includes(clean(actor.role).toLowerCase()))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});
     const apiKey=clean(process.env.GOOGLE_MAPS_BROWSER_API_KEY);
     return send(res,200,{ok:true,configured:!!apiKey,apiKey});
   }

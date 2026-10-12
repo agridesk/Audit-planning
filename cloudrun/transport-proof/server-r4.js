@@ -1346,6 +1346,30 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
   if(u.pathname==='/api/v1/planning/direct-commit'&&req.method==='POST'){const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(!['manager','auditor'].includes(clean(s.role).toLowerCase()))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>65536)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}try{return send(res,200,await directPlanningCommit(s,b));}catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'DIRECT_PLANNING_COMMIT_BLOCKED',detail:clean(e?.message||e)});}}
   if(u.pathname==='/api/v1/manager/action'&&req.method==='POST'){const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(clean(s.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}try{const out=await canonicalManagerAction(s,b);return send(res,out&&out.success===false?409:200,out)}catch(e){return send(res,500,{ok:false,error:'MANAGER_ACTION_BRIDGE_FAILED',detail:clean(e?.message||e)})}}
   if(u.pathname==='/api/v1/manager/archived'&&req.method==='GET'){const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});const role=clean(s.role).toLowerCase();if(!['manager','auditor'].includes(role))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});try{return send(res,200,role==='auditor'?await auditorArchivedRead(clean(s.email).toLowerCase()):await managerArchivedRead(clean(s.email).toLowerCase()));}catch(e){return send(res,500,{ok:false,error:'ARCHIVED_READ_FAILED',detail:clean(e?.message||e)});}}
+  if(u.pathname==='/api/v1/manager/company-management/save'&&req.method==='POST'){
+    const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>65536)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});}
+    let b;try{b=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+    const allowed=new Set(['Contactperson ','Contactperson e-mail','Contactperson phone','Number','Group','Region','Country','Time zone',' Language communication','Manager_Email','Comments','Audit planning limitations - days','Audit planning limitations - hours','Preferred_Audit_Months','Locations_JSON']);
+    const changes=b?.changes;if(!clean(b?.companyUid)||!changes||typeof changes!=='object'||Array.isArray(changes)||!Object.keys(changes).length||Object.keys(changes).some(k=>!allowed.has(k)))return send(res,400,{ok:false,error:'INVALID_COMPANY_CHANGES'});
+    try{
+      const v=await sheetsBatchGet(['Companies!A1:X2500']);const values=v[0]?.values||[],headers=(values[0]||[]).map(String);const uidIndex=headers.indexOf('Company_UID');if(uidIndex<0)return send(res,409,{ok:false,error:'COMPANY_SCHEMA_MISSING'});
+      const hits=values.slice(1).map((row,i)=>({row,i:i+2})).filter(x=>clean(x.row[uidIndex])===clean(b.companyUid));if(hits.length!==1)return send(res,409,{ok:false,error:'COMPANY_NOT_UNIQUE_OR_MISSING'});
+      const target=hits[0],updates=[];for(const [key,item] of Object.entries(changes)){
+        if(!item||typeof item!=='object'||typeof item.value!=='string'||typeof item.expected!=='string'||item.value.length>12000)return send(res,400,{ok:false,error:'INVALID_CHANGE_VALUE',field:key});
+        const col=headers.indexOf(key);if(col<0)return send(res,409,{ok:false,error:'COMPANY_FIELD_MISSING',field:key});const old=String(target.row[col]??'');if(old!==item.expected)return send(res,409,{ok:false,error:'STALE_COMPANY_FIELD',field:key,current:old});
+        if(key==='Contactperson e-mail'&&item.value&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(item.value))return send(res,400,{ok:false,error:'INVALID_EMAIL'});
+        if(key==='Locations_JSON'){let loc;try{loc=JSON.parse(item.value)}catch{return send(res,400,{ok:false,error:'INVALID_LOCATIONS_JSON'})}if(!Array.isArray(loc)||loc.length>100)return send(res,400,{ok:false,error:'INVALID_LOCATIONS_JSON'});
+          const codes=new Set(),active=loc.filter(x=>x&&x.active===true);for(const x of loc){if(!x||typeof x.code!=='string'||!x.code.trim()||codes.has(x.code)||typeof x.name!=='string'||typeof x.active!=='boolean'||Object.values(x).some(y=>typeof y==='string'&&y.length>4000))return send(res,400,{ok:false,error:'INVALID_LOCATION_ENTRY'});codes.add(x.code)}
+          if(clean(target.row[headers.indexOf('Status')]).toLowerCase()==='active'&&(active.filter(x=>x.code.toUpperCase()==='HQ'||x.hq===true||x.isHQ===true).length!==1))return send(res,409,{ok:false,error:'EXACTLY_ONE_ACTIVE_HQ_REQUIRED'});
+        }
+        if(old!==item.value){let n=col+1,letter='';while(n){n--;letter=String.fromCharCode(65+n%26)+letter;n=Math.floor(n/26)}updates.push({range:'Companies!'+letter+target.i,values:[[item.value]]})}
+      }
+      if(updates.length)await sheetsValuesBatchUpdate(updates);
+      return send(res,200,{ok:true,updated:updates.length,companyUid:clean(b.companyUid)});
+    }catch(e){return send(res,409,{ok:false,error:'COMPANY_SAVE_FAILED',detail:clean(e?.message||e)})}
+  }
   if(u.pathname==='/api/v1/manager/company-management'&&req.method==='GET'){
     const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});

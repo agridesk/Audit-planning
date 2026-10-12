@@ -78,4 +78,9 @@ assert.ok(ui.includes("function languageField(label,key,value)"),'Controlled lan
 assert.ok(ui.includes("['SP','SP · Español']"),'Spanish language code preserved');
 assert.ok(ui.includes("Retry Google Maps"),'Map error fallback and retry');
 assert.ok(server.includes("!['manager','auditor'].includes(clean(actor.role).toLowerCase())"),'Authenticated auditor maps config');
+assert.ok(ui.includes("discard.id='companyManagement20Discard'"),'Discard unsaved changes is explicitly addressable');
+assert.ok(ui.includes("discard.onclick=function(){pending={};saveError='';renderDossier()"),'Discard resets pending edits without browser reload');
+assert.ok(ui.includes("if(String(actorRole).toLowerCase()==='auditor'){var auditorAllowed=new Set("),'Client preflights auditor field permissions');
+assert.ok(ui.includes("control===start||control===end"),'Auditor can adjust available hours');
+assert.ok(ui.includes("if(String(actorRole).toLowerCase()==='auditor')return;var value=JSON.stringify(loc)"),'Auditor cannot stage location mutations');
 console.log('Company Management 2.0 contract checks passed');

@@ -7,8 +7,7 @@ export function previewCompanyHoursMigration20({companyScopes,configScopes,targe
  const si=hdr(companyScopes,['Company_Scope_ID','Company_UID','ScopeCode','Active','Company_Formal_Hours_Override']);
  const ci=hdr(configScopes,['ScopeCode']);
  const known=new Set(configScopes.slice(1).map(r=>trim(r[ci('ScopeCode')])).filter(Boolean));
- const ti=targetRows.length?hdr(targetRows,['OverrideId','Company_UID','ScopeCode','Hours','Status','Revision']):null;
- const existing=new Set((ti?targetRows.slice(1):[]).map(r=>trim(r[ti('SupersedesOverrideId')>=0?'SupersedesOverrideId':'OverrideId')])); // handled below
+ const ti=targetRows.length?hdr(targetRows,['OverrideId','Company_UID','ScopeCode','Hours','Status','Revision','SupersedesOverrideId']):null;
  const seen=new Set(),errors=[],items=[];
  for(let i=1;i<companyScopes.length;i++){
   const r=companyScopes[i],value=trim(r[si('Company_Formal_Hours_Override')]);

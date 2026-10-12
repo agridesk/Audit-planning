@@ -631,7 +631,7 @@ function render(){
  const q=search.value.trim().toLowerCase(),mode=filter.value;rows.replaceChildren();
  const list=auditors.filter(a=>(mode==='all'||(mode==='active')===a.active)&&(!q||[a.name,a.email,a.area,...a.qualifications].join(' ').toLowerCase().includes(q)));
  list.forEach(a=>{const tr=el('tr'),values=[a.name,a.area,a.active?'Yes':'No',a.qualifications.join(', '),a.futureAudits,''];values.forEach((value,i)=>{const td=el('td');if(i===0){const button=el('button',value);button.type='button';button.onclick=()=>showAuditor(a);td.appendChild(button)}else td.textContent=String(value);td.style.overflowWrap='anywhere';tr.appendChild(td)});rows.appendChild(tr)});
- status.textContent=list.length+' / '+auditors.length+' auditors · canonical Auditors sheet · read-only stage';
+ status.textContent=list.length+' / '+auditors.length+' auditors · Profile/weekday defaults editable · qualifications require impact controls';
 }
 async function load(){status.textContent='Loading auditor directory…';const response=await fetch('/api/v1/manager/auditor-management',{credentials:'same-origin'}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'AUDITOR_MANAGEMENT_READ_FAILED');auditors=result.rows||[];scopeCatalog=result.scopeCatalog||[];render()}
 trigger.onclick=function(){if(String(actorRole).toLowerCase()!=='manager')return;document.getElementById('scopeManagement20Panel').hidden=true;document.getElementById('companyManagement20Panel').hidden=true;panel.hidden=false;load().catch(e=>status.textContent='Auditor directory unavailable: '+e.message)};

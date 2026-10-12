@@ -1411,10 +1411,10 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
     let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>65536)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});}
     let b;try{b=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
-    const allowed=new Set(['Contactperson ','Contactperson e-mail','Contactperson phone','Number','Group','Region','Country','Time zone',' Language communication','Manager_Email','Comments','Audit planning limitations - days','Audit planning limitations - hours','Preferred_Audit_Months','Locations_JSON','Auditor_Exclusions']);
+    const allowed=new Set(['Contactperson ','Contactperson e-mail','Contactperson phone','Number','Group','Region','Country','Time zone',' Language communication','Manager_Email','Comments','Audit planning limitations - days','Audit planning limitations - hours','Preferred_Audit_Months','Locations_JSON','Auditor_Exclusions','Auditor comments']);
     const changes=b?.changes;if(!clean(b?.companyUid)||!changes||typeof changes!=='object'||Array.isArray(changes)||!Object.keys(changes).length||Object.keys(changes).some(k=>!allowed.has(k)))return send(res,400,{ok:false,error:'INVALID_COMPANY_CHANGES'});
     try{
-      const v=await sheetsBatchGet(['Companies!A1:X2500']);const values=v[0]?.values||[],headers=(values[0]||[]).map(String);const uidIndex=headers.indexOf('Company_UID');if(uidIndex<0)return send(res,409,{ok:false,error:'COMPANY_SCHEMA_MISSING'});
+      const v=await sheetsBatchGet(['Companies!A1:Y2500']);const values=v[0]?.values||[],headers=(values[0]||[]).map(String);const uidIndex=headers.indexOf('Company_UID');if(uidIndex<0)return send(res,409,{ok:false,error:'COMPANY_SCHEMA_MISSING'});
       const hits=values.slice(1).map((row,i)=>({row,i:i+2})).filter(x=>clean(x.row[uidIndex])===clean(b.companyUid));if(hits.length!==1)return send(res,409,{ok:false,error:'COMPANY_NOT_UNIQUE_OR_MISSING'});
       const target=hits[0],updates=[];for(const [key,item] of Object.entries(changes)){
         if(!item||typeof item!=='object'||typeof item.value!=='string'||typeof item.expected!=='string'||item.value.length>12000)return send(res,400,{ok:false,error:'INVALID_CHANGE_VALUE',field:key});
@@ -1455,7 +1455,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(!uid)return send(res,400,{ok:false,error:'COMPANY_UID_REQUIRED'});
     try{validateAuditorCompanyChanges(changes)}catch(e){return send(res,400,{ok:false,error:clean(e.message)})}
     try{
-      const v=await sheetsBatchGet(['Companies!A1:X2500','Audit planning!A1:AX2500','Log realized audits!A1:AZ2500','Auditors!A1:R256']);
+      const v=await sheetsBatchGet(['Companies!A1:Y2500','Audit planning!A1:AX2500','Log realized audits!A1:AZ2500','Auditors!A1:R256']);
       const companies=v[0]?.values||[],h=companies[0]||[],id=h.indexOf('Company_UID'),nameCol=h.indexOf('Company');
       const matches=companies.slice(1).map((row,i)=>({row,index:i+2})).filter(x=>id>=0&&clean(x.row[id])===uid);
       if(matches.length!==1)return send(res,409,{ok:false,error:'COMPANY_NOT_UNIQUE_OR_MISSING'});
@@ -1482,7 +1482,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='auditor')return send(res,403,{ok:false,error:'AUDITOR_REQUIRED'});
     try{
-      const values=await sheetsBatchGet(['Companies!A1:X2500','Company_Scopes!A1:L3000','Config_Scopes!A1:U128','ScopeVersions!A1:I1000','Company_Scope_Hours!A1:M3000','Audit planning!A1:AX2500','Log realized audits!A1:AZ2500','Auditors!A1:R256']);
+      const values=await sheetsBatchGet(['Companies!A1:Y2500','Company_Scopes!A1:L3000','Config_Scopes!A1:U128','ScopeVersions!A1:I1000','Company_Scope_Hours!A1:M3000','Audit planning!A1:AX2500','Log realized audits!A1:AZ2500','Auditors!A1:R256']);
       const ap=values[5]?.values||[],ah=ap[0]||[],ci=col(ah,['Company_UID','Company UID']),cn=col(ah,['Company']),ca=col(ah,['Assigned to','Assigned auditor','Auditor']),cp=col(ah,['Preassigned Auditor']),aud=values[7]?.values||[],email=clean(actor.email).toLowerCase(),uids=new Set(),names=new Set();
       for(const row of ap.slice(1)){
         if(directResolveAuditorEmail(aud,val(row,ca))!==email&&directResolveAuditorEmail(aud,val(row,cp))!==email)continue;
@@ -1498,7 +1498,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
   if(u.pathname==='/api/v1/manager/company-management'&&req.method==='GET'){
     const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
-    try{const v=await sheetsBatchGet(['Companies!A1:X2500','Company_Scopes!A1:L3000','Config_Scopes!A1:U128','ScopeVersions!A1:I1000','Company_Scope_Hours!A1:M3000','Auditors!A1:R256']);
+    try{const v=await sheetsBatchGet(['Companies!A1:Y2500','Company_Scopes!A1:L3000','Config_Scopes!A1:U128','ScopeVersions!A1:I1000','Company_Scope_Hours!A1:M3000','Auditors!A1:R256']);
       const out=buildCompanyManagementReadModel20({companies:v[0]?.values||[],companyScopes:v[1]?.values||[],configScopes:v[2]?.values||[],scopeVersions:v[3]?.values||[],companyHours:v[4]?.values||[]});const aud=v[5]?.values||[],ah=aud[0]||[],ei=ah.indexOf('E-mail'),ni=ah.indexOf('Name'),ai=ah.indexOf('Active'),ri=ah.indexOf('Role');out.activeAuditors=aud.slice(1).filter(r=>ei>=0&&ni>=0&&clean(r[ei])&&(!~ai||['YES','TRUE','1'].includes(clean(r[ai]).toUpperCase()))&&(!~ri||clean(r[ri]).toLowerCase()==='auditor')).map(r=>({email:clean(r[ei]).toLowerCase(),name:clean(r[ni])}));return send(res,200,out);
     }catch(e){return send(res,409,{ok:false,error:'COMPANY_MANAGEMENT_READ_FAILED',detail:clean(e?.message||e)});}
   }

@@ -1540,14 +1540,18 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(session.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
     try{
-      const vr=await sheetsBatchGet(['Config_Scopes!A1:U128']);
+      const vr=await sheetsBatchGet(['Config_Scopes!A1:U128','ScopeVersions!A1:I1000']);
       const values=vr[0]?.values||[],headers=(values[0]||[]).map(v=>clean(v));
+      const versionRows=vr[1]?.values||[],vh=(versionRows[0]||[]).map(v=>clean(v));
+      const vCode=vh.indexOf('ScopeCode'),vId=vh.indexOf('VersionId'),vStatus=vh.indexOf('Status');
+      if(vCode<0||vId<0||vStatus<0)return send(res,409,{ok:false,error:'SCOPE_VERSION_SCHEMA_MISSING'});
+      const currentVersions=new Map();for(const row of versionRows.slice(1)){if(clean(row[vStatus]).toUpperCase()!=='CURRENT')continue;const code=clean(row[vCode]);if(currentVersions.has(code))return send(res,409,{ok:false,error:'MULTIPLE_CURRENT_VERSIONS',scopeCode:code});currentVersions.set(code,clean(row[vId]));}
       const required=['SlotKey','ScopeCode','DisplayName','Active','Archived','Default_hours','Max number audits','Min_Interval_Months','Planning from','Planning to'];
       const missing=required.filter(h=>!headers.includes(h));
       if(missing.length)return send(res,409,{ok:false,error:'SCOPE_SCHEMA_MISSING',missing});
       const get=(r,h)=>r[headers.indexOf(h)]??'';
       const rows=values.slice(1).filter(r=>clean(get(r,'ScopeCode'))).map(r=>({
-        slotKey:get(r,'SlotKey'),scopeCode:get(r,'ScopeCode'),displayName:get(r,'DisplayName'),
+        slotKey:get(r,'SlotKey'),scopeCode:get(r,'ScopeCode'),displayName:get(r,'DisplayName'),currentVersion:currentVersions.get(clean(get(r,'ScopeCode')))||'',
         active:['yes','true','1'].includes(clean(get(r,'Active')).toLowerCase()),
         archived:['yes','true','1'].includes(clean(get(r,'Archived')).toLowerCase()),
         hoursToPlan:get(r,'Default_hours'),rotationLimit:get(r,'Max number audits'),

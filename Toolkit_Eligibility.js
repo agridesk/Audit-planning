@@ -833,6 +833,36 @@ function _mp_assertAuditorQualifiedForPlanning_(ss, hdr, row, auditorEmail, audi
     idxRole >= 0 && String(audRow[idxRole] || '').trim().toLowerCase() === 'auditor' &&
     TK3S_isAuditorQualified_R24_(ss, audRow, ah, requiredScopes);
 
+  // Effective-dated qualification withdrawal is a HARD guard, including legacy GAS saves.
+  if (qualified) {
+    var withdrawalIndex = _mp_findHeaderIdxCI_(ah, ['Qualification_Withdrawals_JSON']);
+    if (withdrawalIndex >= 0) {
+      var withdrawalEntries = [];
+      try { withdrawalEntries = JSON.parse(String(audRow[withdrawalIndex] || '[]')); }
+      catch (ignore) { return {success:false,message:'Invalid Auditor qualification withdrawal data'}; }
+      if (!Array.isArray(withdrawalEntries)) return {success:false,message:'Invalid Auditor qualification withdrawal data'};
+      var scopeAliases = {};
+      var shScopes = ss.getSheetByName('Config_Scopes');
+      if (shScopes) {
+        var sd = shScopes.getDataRange().getValues(), sh = sd[0] || [];
+        var ixCode = _mp_findHeaderIdxCI_(sh,['ScopeCode']), ixDisplay = _mp_findHeaderIdxCI_(sh,['DisplayName']), ixSlot = _mp_findHeaderIdxCI_(sh,['SlotKey']);
+        for (var z=1;z<sd.length;z++) {
+          var sr=sd[z],code=String(sr[ixCode]||'').trim().toLowerCase();
+          if (!code) continue;
+          [ixCode,ixDisplay,ixSlot].forEach(function(ix){if(ix>=0&&sr[ix])scopeAliases[String(sr[ix]).trim().toLowerCase()]=code;});
+        }
+      }
+      var canon = function(v){var normalized=String(v||'').trim().toLowerCase();return scopeAliases[normalized]||normalized;};
+      var now = Utilities.formatDate(new Date(),'Etc/UTC','yyyy-MM-dd');
+      for (var wi=0;wi<withdrawalEntries.length;wi++) {
+        var entry=withdrawalEntries[wi];
+        if (!entry||!entry.scopeCode||!/^\d{4}-\d{2}-\d{2}$/.test(String(entry.effectiveDate||'')))return{success:false,message:'Invalid Auditor qualification withdrawal policy'};
+        if (requiredScopes.some(function(x){return canon(x)===canon(entry.scopeCode);}) && now>=entry.effectiveDate)
+          return {success:false,message:'Qualification withdrawn from '+entry.effectiveDate+' for '+entry.scopeCode};
+      }
+    }
+  }
+
   if (!qualified) {
     return {
       success:false,

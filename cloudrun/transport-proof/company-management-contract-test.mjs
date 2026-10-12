@@ -19,8 +19,8 @@ assert.ok(ui.includes("name.textContent=selected.name;"),'Hide technical Company
 assert.ok(!ui.includes("plain('Company UID',selected.companyUid)"),'Hide technical Company UID in dossier');
 assert.ok(ui.includes("line('Unavailable weekdays ⓘ',dayBox)"),'Negative weekday semantics are explicit');
 assert.ok(ui.includes("line('Available audit hours ⓘ',hoursWrap)"),'Positive hours semantics are explicit');
-assert.ok(ui.includes("m+=15"),'Quarter-hour increments in Company Planning');
-assert.ok(ui.includes("v+' (existing)'"),'Existing non-quarter times preserved');
+assert.ok(ui.includes('minute+=15'),'Quarter-hour increments in Company Planning');
+assert.ok(ui.includes("existing+' (existing)'"),'Existing non-quarter times preserved');
 assert.ok(ui.includes("min-height:260px"),'Compact maps frame');
 assert.ok(ui.includes("padding:5px 7px;font-size:13px"),'Compact location inputs');
 assert.ok(ui.includes("hoursInput.disabled=selector.value!=='Yes'"),'Newly activated scopes allow same-save custom hours');

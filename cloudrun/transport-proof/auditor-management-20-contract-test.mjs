@@ -35,4 +35,9 @@ assert.ok(ui.includes("out.classList.contains('auditor-impact-result')"),'Repeat
 assert.ok(server.includes("'/api/v1/manager/auditor-management/qualification/save'"),'Qualification update endpoint exists');
 assert.ok(server.includes("QUALIFICATION_IMPACT_APPROVAL_REQUIRED"),'Referenced qualification changes fail closed');
 assert.ok(ui.includes("out.classList.contains('auditor-impact-result')"),'Impact click results are not duplicated');
+assert.ok(server.includes("'/api/v1/manager/auditor-management/qualification/withdraw'"),'Future dated withdrawal save route');
+assert.ok(server.includes("IMPACT_CHANGED_REVIEW_AGAIN"),'Grandfathered audit IDs must match current assignments');
+assert.ok(server.includes("Qualification_Withdrawals_JSON"),'Canonical per-auditor withdrawal source');
+assert.ok(ui.includes("Preserve listed audits & schedule withdrawal"),'Manager must explicitly approve exceptions');
+assert.ok(ui.includes("grandfatheredAuditIds:(impact.impacted||[]).map(x=>x.auditId)"),'Only reviewed audit IDs may be exempted');
 console.log('Auditor Management 2.0 profile edit contract PASS');

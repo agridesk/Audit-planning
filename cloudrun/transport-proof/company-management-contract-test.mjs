@@ -21,7 +21,7 @@ assert.ok(ui.includes("line('Unavailable weekdays ⓘ',dayBox)"),'Negative weekd
 assert.ok(ui.includes("line('Available audit hours ⓘ',hoursWrap)"),'Positive hours semantics are explicit');
 assert.ok(ui.includes('minute+=15'),'Quarter-hour increments in Company Planning');
 assert.ok(ui.includes("existing+' (existing)'"),'Existing non-quarter times preserved');
-assert.ok(ui.includes("min-height:260px"),'Compact maps frame');
+assert.ok(ui.includes("height:310px;width:100%"),'Compact company Google map frame');
 assert.ok(ui.includes("padding:5px 7px;font-size:13px"),'Compact location inputs');
 assert.ok(ui.includes("hoursInput.disabled=selector.value!=='Yes'"),'Newly activated scopes allow same-save custom hours');
 assert.ok(ui.includes("if(value==='No')delete pending['hours:'+x.scopeCode]"),'Deactivation clears pending custom hours');

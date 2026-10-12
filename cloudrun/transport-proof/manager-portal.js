@@ -345,12 +345,12 @@ var schemeExpected='';
 fetch('/api/v1/manager/scopes/scheme-version?scopeCode='+encodeURIComponent(code),{credentials:'same-origin'}).then(function(r){return r.json()}).then(function(data){if(!data.ok)throw Error(data.error||'SCHEME_VERSION_UNAVAILABLE');schemeExpected=data.version||'';schemeInput.value=schemeExpected}).catch(function(e){saveScheme.disabled=true;status.textContent='Scheme version unavailable: '+e.message});
 saveScheme.onclick=async function(){
  var value=schemeInput.value.trim().toUpperCase();if(!/^V[1-9][0-9]*$/.test(value)){status.textContent='Enter version as V12 or V16';return}
- var reason=prompt('Reason for setting official scheme version:');if(!reason||!reason.trim())return;
+ var reason='Manager updated official scheme version';
  saveScheme.disabled=true;
  try{
  var pre=await fetch('/api/v1/manager/scopes/impact?scopeCode='+encodeURIComponent(code)+'&field=Default_hours',{credentials:'same-origin'}),impact=await pre.json();
  if(!pre.ok||!impact.ok)throw Error(impact.error||'IMPACT_UNAVAILABLE');
- if(!confirm('Set official scheme version '+value+'? '+impact.openAudits+' open audits, '+impact.accepted+' Accepted. Existing audit records remain unchanged.'))return;
+ 
  var response=await fetch('/api/v1/manager/scopes/scheme-version',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({scopeCode:code,version:value,expected:schemeExpected,reason:reason,impactConfirmed:true})}),result=await response.json();
  if(!response.ok||!result.ok)throw Error(result.error||'SCHEME_VERSION_SAVE_FAILED');
  schemeExpected=result.version;status.textContent='Official scheme version '+result.version+' saved for '+code;

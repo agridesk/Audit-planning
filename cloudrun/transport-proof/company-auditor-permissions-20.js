@@ -4,6 +4,7 @@ export const AUDITOR_COMPANY_DIRECT_FIELDS = Object.freeze([
  'Contactperson ',
  'Contactperson e-mail',
  'Contactperson phone',
+ 'Auditor comments',
  'Audit planning limitations - days',
  'Audit planning limitations - hours'
 ]);

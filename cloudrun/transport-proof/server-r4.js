@@ -1458,6 +1458,46 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       return send(res,200,{ok:true,email,rows});
     }catch(e){return send(res,503,{ok:false,error:'AUDITOR_HISTORY_READ_FAILED',detail:clean(e?.message||e)})}
   }
+  if(u.pathname==='/api/v1/manager/auditor-management/qualification/withdraw'&&req.method==='POST'){
+    const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    let raw='';for await(const part of req){raw+=part;if(raw.length>20000)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
+    let payload;try{payload=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+    const email=clean(payload?.email).toLowerCase(),scopeCode=clean(payload?.scopeCode),date=clean(payload?.effectiveDate),exceptions=payload?.grandfatheredAuditIds;
+    if(!email||!scopeCode||!/^\d{4}-\d{2}-\d{2}$/.test(date)||new Date(date+'T00:00:00Z').toISOString().slice(0,10)!==date||!Array.isArray(exceptions)||exceptions.length>500||exceptions.some(x=>typeof x!=='string'||!x.trim())||new Set(exceptions).size!==exceptions.length)return send(res,400,{ok:false,error:'INVALID_WITHDRAWAL_REQUEST'});
+    try{
+      const vv=await sheetsBatchGet(['Auditors!A1:AZ1000','Audit planning!A1:AX2500','Config_Scopes!A1:Z200']);
+      const av=vv[0]?.values||[],ap=vv[1]?.values||[],sc=vv[2]?.values||[],h=av[0]||[],eidx=col(h,['E-mail','Email']),pidx=h.indexOf('Qualification_Withdrawals_JSON');
+      if(pidx<0)return send(res,409,{ok:false,error:'WITHDRAWAL_SCHEMA_MISSING'});
+      const matches=av.slice(1).map((row,i)=>({row,line:i+2})).filter(x=>eidx>=0&&clean(x.row[eidx]).toLowerCase()===email);
+      if(matches.length!==1)return send(res,409,{ok:false,error:'AUDITOR_NOT_UNIQUE'});
+      const scope=scopeCatalog(sc).find(x=>clean(x.scopeCode)===scopeCode);
+      if(!scope)return send(res,409,{ok:false,error:'SCOPE_NOT_ACTIVE'});
+      const record=matches[0],qualifiedCol=col(h,[scopeCode,scope.displayName,scope.slotKey].filter(Boolean));
+      if(qualifiedCol<0||!yes(record.row[qualifiedCol]))return send(res,409,{ok:false,error:'QUALIFICATION_NOT_CURRENT'});
+      const ph=ap[0]||[],ai=col(ph,['Assigned to','Assigned auditor','Auditor']),pi=col(ph,['Preassigned Auditor']),idc=col(ph,['Audit ID']),statusCol=col(ph,['Status']),aliases=[scopeCode,scope.displayName,scope.slotKey];
+      const scopeCols=aliases.map(x=>col(ph,[x])).filter(x=>x>=0);
+      if(!scopeCols.length)return send(res,409,{ok:false,error:'WITHDRAWAL_IMPACT_UNRESOLVED'});
+      const impacted=ap.slice(1).filter(row=>{
+        const status=clean(val(row,statusCol)).toUpperCase().replace(/[\s-]+/g,'_');
+        return ['PENDING_PLANNING','PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(status)&&scopeCols.some(i=>yes(row[i]))&&(directResolveAuditorEmail(av,val(row,ai))===email||directResolveAuditorEmail(av,val(row,pi))===email);
+      });
+      const currentIds=impacted.map(row=>val(row,idc));
+      if(currentIds.some(x=>!x)||currentIds.length!==new Set(currentIds).size)return send(res,409,{ok:false,error:'AMBIGUOUS_IMPACT_AUDITS'});
+      if(currentIds.length!==exceptions.length||currentIds.some(id=>!exceptions.includes(id)))return send(res,409,{ok:false,error:'IMPACT_CHANGED_REVIEW_AGAIN',impactAuditIds:currentIds});
+      const rawPolicy=String(record.row[pidx]||'');let policies;try{policies=rawPolicy?JSON.parse(rawPolicy):[]}catch{return send(res,409,{ok:false,error:'WITHDRAWAL_POLICY_CORRUPT'})}
+      if(!Array.isArray(policies)||policies.some(x=>!x||!x.scopeCode||!x.effectiveDate))return send(res,409,{ok:false,error:'WITHDRAWAL_POLICY_CORRUPT'});
+      if(policies.some(x=>clean(x.scopeCode)===scopeCode))return send(res,409,{ok:false,error:'WITHDRAWAL_ALREADY_DEFINED'});
+      const now=new Date().toISOString(),trailId=createHash('sha256').update(email+scopeCode+date+now).digest('hex').slice(0,24);
+      policies.push({scopeCode,effectiveDate:date,grandfatheredAuditIds:currentIds,approvedBy:clean(actor.email).toLowerCase(),approvedAt:now,trailId});
+      const next=JSON.stringify(policies),auditDetail=JSON.stringify({trailId,email,scopeCode,effectiveDate:date,grandfatheredAuditIds:currentIds,actor:clean(actor.email),oldValue:rawPolicy,newValue:next});
+      let n=pidx+1,letter='';while(n){n--;letter=String.fromCharCode(65+n%26)+letter;n=Math.floor(n/26)}
+      await sheetsValuesAppend('Diagnostics_Log!A:K',[[now,'AUDITOR_MANAGEMENT_2_0','QUALIFICATION_WITHDRAWAL',email,'CHANGE_INTENT',clean(actor.email),'','',false,'Withdrawal scheduled; impact verified',auditDetail]]);
+      await sheetsValuesBatchUpdateRaw([{range:'Auditors!'+letter+record.line,values:[[next]]}]);
+      await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'AUDITOR_MANAGEMENT_2_0','QUALIFICATION_WITHDRAWAL',email,'CHANGE_APPLIED',clean(actor.email),'','',false,'Withdrawal policy saved',auditDetail]]);
+      return send(res,200,{ok:true,scopeCode,effectiveDate:date,grandfatheredAuditIds:currentIds,trailId});
+    }catch(e){return send(res,503,{ok:false,error:'WITHDRAWAL_SAVE_UNCONFIRMED',detail:clean(e?.message||e)})}
+  }
   if(u.pathname==='/api/v1/manager/auditor-management/qualification/save'&&req.method==='POST'){
     const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});

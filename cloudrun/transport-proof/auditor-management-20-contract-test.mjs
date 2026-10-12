@@ -11,7 +11,7 @@ assert.ok(server.includes("Audit planning!A1:AX2500"),'Future audits drawn from 
 assert.ok(html.includes('id="auditorManagement20Panel"'),'Auditor internal panel');
 assert.ok(html.includes('id="auditorManagement20Rows"'),'Auditor list');
 assert.ok(ui.includes("'Profile','Qualifications','Availability Defaults','History'"),'Handoff dossier tabs');
-assert.ok(ui.includes("check.disabled=true"),'Qualification changes fail closed until impact guard');
+assert.ok(ui.includes("'/api/v1/manager/auditor-management/qualification/save'"),'Qualification changes use protected manager endpoint');
 assert.ok(ui.includes("trigger.onclick=function(){if(String(actorRole).toLowerCase()!=='manager')return"),'Manager-only UI');
 assert.ok(ui.includes("auditorManagement20").valueOf(),'Auditor Management visible to Manager');
 assert.ok(server.includes("'/api/v1/manager/auditor-management/profile/save'"),'Manager profile mutation endpoint');
@@ -32,4 +32,7 @@ assert.ok(server.includes("'/api/v1/manager/auditor-management/history'"),'Manag
 assert.ok(server.includes("Diagnostics_Log!A1:K5000"),'History based on audit trail');
 assert.ok(ui.includes("'/api/v1/manager/auditor-management/history?email='"),'History tab uses governed source');
 assert.ok(ui.includes("out.classList.contains('auditor-impact-result')"),'Repeated Impact clicks reuse one result');
+assert.ok(server.includes("'/api/v1/manager/auditor-management/qualification/save'"),'Qualification update endpoint exists');
+assert.ok(server.includes("QUALIFICATION_IMPACT_APPROVAL_REQUIRED"),'Referenced qualification changes fail closed');
+assert.ok(ui.includes("out.classList.contains('auditor-impact-result')"),'Impact click results are not duplicated');
 console.log('Auditor Management 2.0 profile edit contract PASS');

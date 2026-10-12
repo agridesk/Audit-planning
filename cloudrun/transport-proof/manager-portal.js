@@ -407,13 +407,13 @@ if(tab!=='versions'){
    for(var j=0;j<changes.length;j++){var e=changes[j];if(e.kind!=='policy')continue;
     var pre=await fetch('/api/v1/manager/scopes/impact?scopeCode='+encodeURIComponent(scopeCode)+'&field='+encodeURIComponent(e.field),{credentials:'same-origin'}),impact=await pre.json();
     if(!pre.ok||!impact.ok)throw Error(impact.error||'IMPACT_UNAVAILABLE');
-    if(String(impact.current).trim().toUpperCase()!==String(e.initial).trim().toUpperCase())throw Error('STALE_SCOPE_POLICY: '+e.field);
+    if((['YES','TRUE'].includes(String(impact.current).trim().toUpperCase())?'TRUE':['NO','FALSE'].includes(String(impact.current).trim().toUpperCase())?'FALSE':String(impact.current).trim().toUpperCase())!==String(e.initial).trim().toUpperCase())throw Error('STALE_SCOPE_POLICY: '+e.field);
     impacts.push({field:e.field,impact:impact});
    }
    
    saveAll.disabled=true;saved.textContent='Saving…';
    for(var k=0;k<changes.length;k++){
-    var item=changes[k],isPolicy=item.kind==='policy',payload=isPolicy?{scopeCode:scopeCode,field:item.field,expected:impacts.find(function(x){return x.field===item.field}).impact.current,value:item.input.value.trim(),reason:reason,impactConfirmed:true}:{scopeCode:scopeCode,field:item.field,expected:item.initial,value:item.input.value.trim()};
+    var item=changes[k],isPolicy=item.kind==='policy',payload=isPolicy?{scopeCode:scopeCode,field:item.field,expected:impacts.find(function(x){return x.field===item.field}).impact.current,value:['Active','Archived'].includes(item.field)?(item.input.value==='TRUE'?'Yes':'No'):item.input.value.trim(),reason:reason,impactConfirmed:true}:{scopeCode:scopeCode,field:item.field,expected:item.initial,value:item.input.value.trim()};
     var endpoint=isPolicy?'/api/v1/manager/scopes/policy':'/api/v1/manager/scopes/cosmetic';
     var response=await fetch(endpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),result=await response.json();
     if(!response.ok||!result.ok)throw Error(item.field+': '+(result.error||'SAVE_FAILED'));

@@ -18,6 +18,7 @@ assert.match(gasAnnualCycle, /AC_recalculateHoursForRecurringScopes_\(headers, n
 import assert from 'node:assert/strict';
 import {
   v211AuditorQualified,
+  v211QualificationWithdrawalConstraint,
   v211ResolveAuditorEmail,
   v211CompanyAuditorExclusions,
   v211MinimumIntervalConstraint,
@@ -189,5 +190,15 @@ assert.deepEqual(v211RotationHardCheck(null).reasons,['PLANNING_ROTATION_CHECK_F
 assert.deepEqual(v211RotationHardCheck({success:true,auditor:{hardBlockQualification:true}}).reasons,['AUDITOR_NOT_HARD_QUALIFIED']);
 assert.deepEqual(v211RotationHardCheck({success:true,auditor:{softBlockRotation:true}}).reasons,['PLANNING_ROTATION_LIMIT_HARD_BLOCK']);
 assert.equal(v211RotationHardCheck({success:true,auditor:{}}).ok,true);
+
+const withdrawalCatalog=[{slotKey:'SCOPE_01',scopeCode:'MPS-ABC',displayName:'MPS-ABC'}];
+const withdrawalAuditors=[['Name','E-mail','Active','Role','MPS-ABC','Qualification_Withdrawals_JSON'],['Leen','leen@agriqa.es','Yes','Auditor','x',JSON.stringify([{scopeCode:'MPS-ABC',effectiveDate:'2026-10-15',grandfatheredAuditIds:['A-1','A-2']}])]];
+const effectiveGuard=(requestedDates,nowDate)=>v211QualificationWithdrawalConstraint({auditorValues:withdrawalAuditors,catalog:withdrawalCatalog,scopeCodes:['SCOPE_01'],auditorEmail:'leen@agriqa.es',requestedDates,nowDate});
+assert.equal(effectiveGuard(['2026-10-14'],'2026-10-12').ok,true);
+assert.equal(effectiveGuard(['2026-10-16'],'2026-10-12').ok,false);
+assert.equal(effectiveGuard([],'2026-10-15').ok,false);
+assert.equal(v211QualificationWithdrawalConstraint({auditorValues:withdrawalAuditors,catalog:withdrawalCatalog,scopeCodes:['MPS-GAP'],auditorEmail:'leen@agriqa.es',nowDate:'2026-10-16'}).ok,true);
+const badWithdrawalAuditors=withdrawalAuditors.map(x=>[...x]);badWithdrawalAuditors[1][5]='not-json';
+assert.equal(v211QualificationWithdrawalConstraint({auditorValues:badWithdrawalAuditors,catalog:withdrawalCatalog,scopeCodes:['MPS-ABC'],auditorEmail:'leen@agriqa.es',nowDate:'2026-10-16'}).ok,false);
 
 console.log(JSON.stringify({ok:true,build:'2026-10-04_ASSIGNMENT_VALIDATION_V211_TEST_R2',tests:13}));

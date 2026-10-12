@@ -1357,7 +1357,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       const relation=cs.slice(1).filter(r=>clean(r[ch.indexOf('Company_UID')])===uid&&clean(r[ch.indexOf('ScopeCode')])===code);if(relation.length!==1)return send(res,409,{ok:false,error:'SCOPE_RELATION_REQUIRED'});
       if(!['YES','TRUE','1'].includes(clean(relation[0][ch.indexOf('Active')]).toUpperCase()))return send(res,409,{ok:false,error:'COMPANY_SCOPE_INACTIVE'});
       const active=hs.slice(1).map((r,i)=>({r,n:i+2})).filter(x=>clean(x.r[hh.indexOf('Company_UID')])===uid&&clean(x.r[hh.indexOf('ScopeCode')])===code&&clean(x.r[hh.indexOf('Status')]).toUpperCase()==='ACTIVE');if(active.length>1)return send(res,409,{ok:false,error:'MULTIPLE_ACTIVE_HOURS_OVERRIDES'});
-      const old=active.length?clean(active[0].r[hh.indexOf('Hours')]):clean(relation[0][ch.indexOf('Company_Formal_Hours_Override')]);if(old!==expected&&!(old!==''&&expected!==''&&Number(old)===Number(expected)))return send(res,409,{ok:false,error:'STALE_COMPANY_HOURS',current:old});
+      const old=active.length?clean(active[0].r[hh.indexOf('Hours')]):clean(relation[0][ch.indexOf('Company_Formal_Hours_Override')]);if(old!==value&&old!==expected&&!(old!==''&&expected!==''&&Number(old)===Number(expected)))return send(res,409,{ok:false,error:'STALE_COMPANY_HOURS',current:old});
       const legacy=clean(relation[0][ch.indexOf('Company_Formal_Hours_Override')]);if(value===''&&legacy)return send(res,409,{ok:false,error:'LEGACY_OVERRIDE_CUTOVER_REQUIRED'});
       if(value===old)return send(res,200,{ok:true,updated:0});
       const now=new Date().toISOString(),updates=[];if(active.length){const statusCol=hh.indexOf('Status')+1,endCol=hh.indexOf('EffectiveTo')+1;const letter=n=>{let t='';while(n){n--;t=String.fromCharCode(65+n%26)+t;n=Math.floor(n/26)}return t};updates.push({range:'Company_Scope_Hours!'+letter(statusCol)+active[0].n,values:[['ENDED']]},{range:'Company_Scope_Hours!'+letter(endCol)+active[0].n,values:[[now]]});}
@@ -1398,7 +1398,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
         const scope=cfg.slice(1).find(r=>clean(r[ci('ScopeCode')])===code);if(!scope||!['YES','TRUE'].includes(clean(scope[ci('Active')]).toUpperCase())||['YES','TRUE'].includes(clean(scope[ci('Archived')]).toUpperCase()))return send(res,409,{ok:false,error:'SCOPE_NOT_AVAILABLE',scopeCode:code});
         const rows=cs.slice(1).map((r,i)=>({r,n:i+2})).filter(x=>clean(x.r[idx('Company_UID')])===clean(b.companyUid)&&clean(x.r[idx('ScopeCode')])===code);
         if(rows.length!==1)return send(res,409,{ok:false,error:'SCOPE_RELATION_REQUIRES_GOVERNED_CREATION',scopeCode:code});
-        const current=['YES','TRUE','1'].includes(clean(rows[0].r[idx('Active')]).toUpperCase())?'YES':'NO';if(current!==expected)return send(res,409,{ok:false,error:'STALE_COMPANY_SCOPE',scopeCode:code,current});
+        const current=['YES','TRUE','1'].includes(clean(rows[0].r[idx('Active')]).toUpperCase())?'YES':'NO';if(current!==value&&current!==expected)return send(res,409,{ok:false,error:'STALE_COMPANY_SCOPE',scopeCode:code,current});
         if(current!==value)changes.push({n:rows[0].n,value});
       }
       if(changes.length){const n=idx('Active')+1;let col='',k=n;while(k){k--;col=String.fromCharCode(65+k%26)+col;k=Math.floor(k/26)}await sheetsValuesBatchUpdate(changes.map(x=>({range:'Company_Scopes!'+col+x.n,values:[[x.value]]})))}

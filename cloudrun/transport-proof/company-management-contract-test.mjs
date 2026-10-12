@@ -8,4 +8,8 @@ for(const feature of ['STALE_COMPANY_FIELD','STALE_COMPANY_SCOPE','STALE_COMPANY
 for(const feature of ['Show inactive / available scopes','Default hours','Custom hours','Effective hours','companyManagement20Save','google.com/maps/search','Preferred audit months','type=\'checkbox\''])assert.ok(ui.includes(feature),feature);
 assert.ok(html.includes('max-height:195px'),'Compact company selector');
 assert.ok(ui.includes("'assign:'")&&ui.includes("'hours:'"),'Scope staged changes');
+assert.ok(server.includes('Number.isInteger(Number(value)*4)'),'Quarter-hour custom hours validation');
+assert.ok(server.includes('const m=/^([01]\\d|2[0-3]):[0-5]\\d-'),'Planning time validator uses numeric digit class');
+assert.ok(ui.includes('companyCatalog.filter('),'Inactive/available scope selection');
+assert.ok(ui.includes("dossier.scrollIntoView({block:'nearest'"),'Dossier navigation without forced top alignment');
 console.log('Company Management 2.0 contract checks passed');

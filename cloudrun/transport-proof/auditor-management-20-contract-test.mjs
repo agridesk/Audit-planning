@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const server=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+const ui=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+const html=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
+assert.ok(server.includes("'/api/v1/manager/auditor-management'"),'Manager-only Auditor read route');
+assert.ok(server.includes("error:'MANAGER_REQUIRED'"),'Server Manager role guard');
+assert.ok(server.includes("Auditors!A1:AZ1000"),'Auditors canonical read');
+assert.ok(server.includes("Config_Scopes!A1:Z200"),'Live canonical qualifications');
+assert.ok(server.includes("Audit planning!A1:AX2500"),'Future audits drawn from canonical planning');
+assert.ok(html.includes('id="auditorManagement20Panel"'),'Auditor internal panel');
+assert.ok(html.includes('id="auditorManagement20Rows"'),'Auditor list');
+assert.ok(ui.includes("'Profile','Qualifications','Availability Defaults','History'"),'Handoff dossier tabs');
+assert.ok(ui.includes("check.disabled=true"),'Qualification changes fail closed until impact guard');
+assert.ok(ui.includes("trigger.onclick=function(){if(String(actorRole).toLowerCase()!=='manager')return"),'Manager-only UI');
+assert.ok(ui.includes("auditorManagement20").valueOf(),'Auditor Management visible to Manager');
+console.log('Auditor Management 2.0 read-only contract PASS');

@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import {resolveCompanyScopeHours20 as resolve} from './company-scope-hours-resolver-20.js';
-const base={companyId:'C1',scopeCode:'GAP',effectiveDate:'2027-01-01',companyScopes:[{CompanyID:'C1',ScopeCode:'GAP',Status:'ACTIVE'}],scopeVersions:[{ScopeCode:'GAP',VersionId:'V1',Hours_to_plan:'5',Status:'CURRENT'}],overrides:[]};
+const base={companyId:'C1',scopeCode:'GAP',effectiveDate:'2027-01-01',companyScopes:[{Company_UID:'C1',ScopeCode:'GAP',Status:'ACTIVE'}],scopeVersions:[{ScopeCode:'GAP',VersionId:'V1',Hours_to_plan:'5',Status:'CURRENT'}],overrides:[]};
 const run=patch=>resolve({...base,...patch});
 assert.equal(run({}).formalHours,5);
-const ov={OverrideId:'O1',CompanyID:'C1',ScopeCode:'GAP',Hours:'7',Status:'ACTIVE',Revision:'1'};
+const ov={OverrideId:'O1',Company_UID:'C1',ScopeCode:'GAP',Hours:'7',Status:'ACTIVE',Revision:'1'};
 assert.equal(run({overrides:[ov]}).formalHours,7);
 assert.equal(run({overrides:[ov]}).source,'COMPANY_OVERRIDE');
 assert.equal(run({overrides:[ov],scopeVersions:[{...base.scopeVersions[0],VersionId:'V2',Hours_to_plan:'6'}]}).formalHours,7);

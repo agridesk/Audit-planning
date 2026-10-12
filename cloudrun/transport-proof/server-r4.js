@@ -1445,6 +1445,27 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     const apiKey=clean(process.env.GOOGLE_MAPS_BROWSER_API_KEY);
     return send(res,200,{ok:true,configured:!!apiKey,apiKey});
   }
+  if(u.pathname==='/api/v1/manager/auditor-management'&&req.method==='GET'){
+    const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    try{
+      const batches=await sheetsBatchGet(['Auditors!A1:AZ1000','Config_Scopes!A1:Z200','Audit planning!A1:AX2500']);
+      const av=batches[0]?.values||[],h=av[0]||[],sc=batches[1]?.values||[],sh=sc[0]||[],planning=batches[2]?.values||[],ph=planning[0]||[];
+      const field=(row,names)=>{const i=col(h,names);return i<0?'':String(row[i]??'')};
+      const scopeIndex=col(sh,['ScopeCode','Scope Code']),displayIndex=col(sh,['DisplayName','Display Name']);
+      const scopeActive=col(sh,['Active']),scopeArchived=col(sh,['Archived']);
+      const scopes=sc.slice(1).filter(row=>scopeIndex>=0&&clean(row[scopeIndex])&&(!((scopeActive>=0)&&/^(no|false|0)$/i.test(clean(row[scopeActive]))))&&!(scopeArchived>=0&&yes(row[scopeArchived]))).map(row=>({code:clean(row[scopeIndex]),name:clean(row[displayIndex])||clean(row[scopeIndex])}));
+      const audits=planning.slice(1).filter(row=>{const i=col(ph,['Status']);return !/^(completed|cancelled|canceled|rejected)$/i.test(clean(row[i]))});
+      const assigned=col(ph,['Assigned to','Assigned auditor','Auditor']),preassigned=col(ph,['Preassigned Auditor']);
+      const rows=av.slice(1).filter(row=>field(row,['E-mail','Email'])).map(row=>{
+        const email=clean(field(row,['E-mail','Email'])).toLowerCase();
+        const qualified=scopes.filter(scope=>{const i=col(h,[scope.code,scope.name]);return i>=0&&/^(x|yes|true|1)$/i.test(clean(row[i]))}).map(scope=>scope.code);
+        const futureAudits=audits.filter(a=>directResolveAuditorEmail(av,val(a,assigned))===email||directResolveAuditorEmail(av,val(a,preassigned))===email).length;
+        return {name:field(row,['Name']),email,active:yes(field(row,['Active'])),role:field(row,['Role']),area:field(row,['Area']),timezone:field(row,['Default time zone']),blockedWeekdays:field(row,['Blocked weekdays']),homeBase:field(row,['Default departure from']),phone:field(row,['Mobile telephone']),qualifications:qualified,futureAudits};
+      });
+      return send(res,200,{ok:true,readOnly:true,source:'Auditors',scopeCatalog:scopes,rows,count:rows.length});
+    }catch(e){return send(res,503,{ok:false,error:'AUDITOR_MANAGEMENT_READ_FAILED',detail:clean(e?.message||e)})}
+  }
   if(u.pathname==='/api/v1/auditor/company-management/save'&&req.method==='POST'){
     const actor=sessionFromRequest(req);
     if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});

@@ -1560,6 +1560,28 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       return send(res,200,{ok:true,readOnly:true,email,scopeCode:code,impacted,impactedCount:impacted.length,acceptedCount:impacted.filter(x=>x.statusKey==='ACCEPTED').length,withdrawalWriteEnabled:process.env.AMS_QUALIFICATION_WITHDRAWAL_WRITE_ENABLED==='true'});
     }catch(e){return send(res,503,{ok:false,error:'AUDITOR_QUALIFICATION_IMPACT_FAILED',detail:clean(e?.message||e)})}
   }
+  if(u.pathname==='/api/v1/manager/auditor-management/active/save'&&req.method==='POST'){
+    const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    let raw='';for await(const part of req){raw+=part;if(raw.length>4096)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
+    let data;try{data=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+    const email=clean(data?.email).toLowerCase();if(!email||typeof data?.active!=='boolean'||typeof data?.expected!=='boolean')return send(res,400,{ok:false,error:'BAD_ACTIVE_CHANGE'});
+    try{
+      const v=await sheetsBatchGet(['Auditors!A1:AZ1000','Audit planning!A1:AX2500']),aud=v[0]?.values||[],h=aud[0]||[],ec=col(h,['E-mail','Email']),ac=col(h,['Active']);
+      const matched=aud.slice(1).map((row,i)=>({row,line:i+2})).filter(x=>ec>=0&&clean(x.row[ec]).toLowerCase()===email);
+      if(matched.length!==1||ac<0)return send(res,409,{ok:false,error:'AUDITOR_IDENTITY_NOT_UNIQUE'});
+      const target=matched[0],old=yes(target.row[ac]);if(old!==data.expected)return send(res,409,{ok:false,error:'STALE_AUDITOR_ACTIVE'});
+      if(old===data.active)return send(res,200,{ok:true,updated:0});
+      const ap=v[1]?.values||[],ah=ap[0]||[],assigned=col(ah,['Assigned to','Assigned auditor','Auditor']),pre=col(ah,['Preassigned Auditor']),st=col(ah,['Status']),id=col(ah,['Audit ID']);
+      const impacted=ap.slice(1).filter(row=>['PENDING_PLANNING','PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(clean(val(row,st)).toUpperCase().replace(/[\s-]+/g,'_'))&&(directResolveAuditorEmail(aud,val(row,assigned))===email||directResolveAuditorEmail(aud,val(row,pre))===email)).map(row=>({auditId:val(row,id),status:val(row,st)}));
+      if(!data.active&&impacted.length)return send(res,409,{ok:false,error:'AUDITOR_INACTIVATION_REQUIRES_REASSIGNMENT',impacted});
+      const trail=JSON.stringify({email,actor:clean(actor.email),old,newValue:data.active,impacted:impacted.length}),when=new Date().toISOString();
+      await sheetsValuesAppend('Diagnostics_Log!A:K',[[when,'AUDITOR_MANAGEMENT_2_0','ACTIVE_CHANGE',email,'CHANGE_INTENT',clean(actor.email),'','',false,'Revalidated auditor assignments',trail]]);
+      await sheetsValuesBatchUpdateRaw([{range:'Auditors!D'+target.line,values:[[data.active?'Yes':'No']]}]);
+      await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'AUDITOR_MANAGEMENT_2_0','ACTIVE_CHANGE',email,'CHANGE_APPLIED',clean(actor.email),'','',false,'Auditor status changed',trail]]);
+      return send(res,200,{ok:true,updated:1,active:data.active});
+    }catch(e){return send(res,503,{ok:false,error:'AUDITOR_ACTIVE_SAVE_UNCONFIRMED',detail:clean(e?.message||e)})}
+  }
   if(u.pathname==='/api/v1/manager/auditor-management/create'&&req.method==='POST'){
     const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});

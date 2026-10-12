@@ -344,3 +344,9 @@ AUDITOR MANAGEMENT 2.0 — QUALIFICATION SAFE EDIT & UX CORRECTIONS — 2026-10-
 
 AUDITOR QUALIFICATION EFFECTIVE WITHDRAWAL — P0 OPEN 2026-10-12
 Manager requested YYYY-MM-DD effective withdrawal date with explicit grandfathered audit IDs. Existing audits must be listed by ID/company/status/date. Future new assignments must be hard-blocked after cutoff using the canonical shared assignment guard. Implement governed per-scope dates, exceptions, trail and tests before enabling date-based withdrawal. No current implementation of expiry; present toggle remains blocked when existing audits linked.
+
+AUDITOR QUALIFICATION DATE-BASED WITHDRAWAL — DEV SOURCE 2026-10-12
+- DEV Auditors column S1 Qualification_Withdrawals_JSON created without shifting existing columns. Each policy records scopeCode, effectiveDate, grandfatheredAuditIds, approvedBy, approvedAt and trailId.
+- Manager can select withdrawal effective date only after preview of exact current assignments; backend rechecks identity, qualification, canonical scope, lifecycle assignments, date and exact reviewed audit IDs. Stale impact prevents save. Audit intent/applied records appended to Diagnostics_Log. Qualification remains physically checked (no immediate revocation), with scheduled date shown beside scope.
+- Shared Cloud Run v211 assignment qualification guard checks cutoff and future requested dates; legacy GAS save-time guard checks cutoff plus existing planned date. Exceptions are preserved historical audit IDs for execution of already-assigned work, NOT an authorization for new assignments or reassignments; no silent credential removal. Thorough DEV integration validation across every mutator and post-cutoff lifecycle behavior remains mandatory before PROD promotion.
+- Deployment of Cloud Run and legacy GAS are distinct; the legacy GAS fix MUST be deployed to DEV GAS before end-to-end dates are considered protected. DEV only; PROD untouched.

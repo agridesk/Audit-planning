@@ -590,5 +590,35 @@ function render(){var q=search.value.trim().toLowerCase(),mode=filter.value;rows
 async function load(uid){var response=await fetch(String(actorRole).toLowerCase()==='auditor'?'/api/v1/auditor/company-management':'/api/v1/manager/company-management',{credentials:'same-origin'}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.detail||result.error||'COMPANY_READ_FAILED');companies=result.companies||[];companyCatalog=result.scopeCatalog||[];activeAuditors=result.activeAuditors||[];if(uid){selected=companies.find(function(x){return x.companyUid===uid})||null;if(selected)renderDossier()}render()}
 open.onclick=function(){if(!['manager','auditor'].includes(String(actorRole).toLowerCase()))return;document.getElementById('scopeManagement20Panel').hidden=true;panel.hidden=false;load().catch(function(e){status.textContent=e.message})};close.onclick=function(){if(Object.keys(pending).length){status.textContent='Save changes before closing';return}panel.hidden=true};search.oninput=render;filter.onchange=render;document.querySelectorAll('[data-company-tab]').forEach(function(b){b.onclick=function(){if(String(actorRole).toLowerCase()==='auditor'&&b.dataset.companyTab==='governance')return;if(Object.keys(pending).length){status.textContent='Save changes before switching tab';return}tab=b.dataset.companyTab;renderDossier()}});
 })();
-fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("scopeManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("companyManagement20").hidden=!['manager','auditor'].includes(String(actorRole).toLowerCase());document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();if(String(actorRole).toLowerCase()==="manager")initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)});return loadOpen()}).catch(fail);
+
+(function(){
+const trigger=document.getElementById('auditorManagement20'),panel=document.getElementById('auditorManagement20Panel'),close=document.getElementById('auditorManagement20Close'),search=document.getElementById('auditorManagement20Search'),filter=document.getElementById('auditorManagement20Filter'),rows=document.getElementById('auditorManagement20Rows'),status=document.getElementById('auditorManagement20Status'),dossier=document.getElementById('auditorManagement20Dossier');
+let auditors=[],scopeCatalog=[];
+function el(tag,content){const node=document.createElement(tag);if(content!==undefined)node.textContent=String(content);return node}
+function showAuditor(a){
+ dossier.hidden=false;dossier.replaceChildren();dossier.appendChild(el('h3',a.name));
+ const tabs=el('div');tabs.style.cssText='display:flex;gap:8px;margin:12px 0';
+ const content=el('div');dossier.append(tabs,content);
+ function row(label,value){const line=el('div');line.style.cssText='display:grid;grid-template-columns:minmax(140px,220px) minmax(240px,1fr);gap:12px;padding:7px 0;border-bottom:1px solid #edf0f4';line.append(el('strong',label),el('span',value||'—'));content.appendChild(line)}
+ const pages=['Profile','Qualifications','Availability Defaults','History'];
+ function draw(page){content.replaceChildren();Array.from(tabs.children).forEach(x=>x.setAttribute('aria-pressed',String(x.textContent===page)));
+  if(page==='Profile'){row('Auditor',a.name);row('E-mail',a.email);row('Active',a.active?'Yes':'No');row('Role',a.role);row('Area',a.area);row('Time zone',a.timezone);row('Home base (existing)',a.homeBase);row('Telephone',a.phone);row('Future audits',a.futureAudits)}
+  else if(page==='Qualifications'){const info=el('p','Current canonical qualifications. Qualification changes require impact preview and Manager confirmation; editing is not yet enabled.');content.appendChild(info);scopeCatalog.forEach(sc=>{const label=el('label');label.style.cssText='display:block;padding:5px 0';const check=el('input');check.type='checkbox';check.disabled=true;check.checked=a.qualifications.includes(sc.code);label.append(check,document.createTextNode(' '+(sc.name||sc.code)));content.appendChild(label)})}
+  else if(page==='Availability Defaults'){row('Default blocked weekdays',a.blockedWeekdays);row('Default working hours','Not yet present in canonical Auditors schema');row('Time zone',a.timezone);row('Default departure from',a.homeBase)}
+  else {content.appendChild(el('p','Governed change history and assignment-impact history will appear after the mutation/audit-trail phase.'))}
+ }
+ pages.forEach(page=>{const button=el('button',page);button.type='button';button.onclick=()=>draw(page);tabs.appendChild(button)});draw('Profile')
+}
+function render(){
+ const q=search.value.trim().toLowerCase(),mode=filter.value;rows.replaceChildren();
+ const list=auditors.filter(a=>(mode==='all'||(mode==='active')===a.active)&&(!q||[a.name,a.email,a.area,...a.qualifications].join(' ').toLowerCase().includes(q)));
+ list.forEach(a=>{const tr=el('tr'),values=[a.name,a.area,a.active?'Yes':'No',a.qualifications.join(', '),a.futureAudits,''];values.forEach((value,i)=>{const td=el('td');if(i===0){const button=el('button',value);button.type='button';button.onclick=()=>showAuditor(a);td.appendChild(button)}else td.textContent=String(value);td.style.overflowWrap='anywhere';tr.appendChild(td)});rows.appendChild(tr)});
+ status.textContent=list.length+' / '+auditors.length+' auditors · canonical Auditors sheet · read-only stage';
+}
+async function load(){status.textContent='Loading auditor directory…';const response=await fetch('/api/v1/manager/auditor-management',{credentials:'same-origin'}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'AUDITOR_MANAGEMENT_READ_FAILED');auditors=result.rows||[];scopeCatalog=result.scopeCatalog||[];render()}
+trigger.onclick=function(){if(String(actorRole).toLowerCase()!=='manager')return;document.getElementById('scopeManagement20Panel').hidden=true;document.getElementById('companyManagement20Panel').hidden=true;panel.hidden=false;load().catch(e=>status.textContent='Auditor directory unavailable: '+e.message)};
+close.onclick=function(){panel.hidden=true};search.oninput=render;filter.onchange=render;
+})();
+
+fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("scopeManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("auditorManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("companyManagement20").hidden=!['manager','auditor'].includes(String(actorRole).toLowerCase());document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();if(String(actorRole).toLowerCase()==="manager")initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)});return loadOpen()}).catch(fail);
 })();

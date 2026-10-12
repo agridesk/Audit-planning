@@ -1445,6 +1445,39 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     const apiKey=clean(process.env.GOOGLE_MAPS_BROWSER_API_KEY);
     return send(res,200,{ok:true,configured:!!apiKey,apiKey});
   }
+  if(u.pathname==='/api/v1/auditor/company-management/save'&&req.method==='POST'){
+    const actor=sessionFromRequest(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='auditor')return send(res,403,{ok:false,error:'AUDITOR_REQUIRED'});
+    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>16000)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
+    let request;try{request=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+    const uid=clean(request?.companyUid),changes=request?.changes;
+    if(!uid)return send(res,400,{ok:false,error:'COMPANY_UID_REQUIRED'});
+    try{validateAuditorCompanyChanges(changes)}catch(e){return send(res,400,{ok:false,error:clean(e.message)})}
+    try{
+      const v=await sheetsBatchGet(['Companies!A1:X2500','Audit planning!A1:AX2500','Log realized audits!A1:AZ2500','Auditors!A1:R256']);
+      const companies=v[0]?.values||[],h=companies[0]||[],id=h.indexOf('Company_UID'),nameCol=h.indexOf('Company');
+      const matches=companies.slice(1).map((row,i)=>({row,index:i+2})).filter(x=>id>=0&&clean(x.row[id])===uid);
+      if(matches.length!==1)return send(res,409,{ok:false,error:'COMPANY_NOT_UNIQUE_OR_MISSING'});
+      const company=matches[0],name=clean(company.row[nameCol]),email=clean(actor.email).toLowerCase(),aud=v[3]?.values||[];
+      const owns=(values,companyIdentifiers,auditorIdentifiers)=>{const hh=values[0]||[],uidCol=col(hh,companyIdentifiers[0]),nameIdx=col(hh,companyIdentifiers[1]),audIdx=auditorIdentifiers.map(c=>col(hh,c));return values.slice(1).some(row=>((uidCol>=0&&clean(row[uidCol])===uid)||(nameIdx>=0&&clean(row[nameIdx]).toLowerCase()===name.toLowerCase()))&&audIdx.some(i=>i>=0&&directResolveAuditorEmail(aud,val(row,i))===email))};
+      const refs=[['Company_UID','Company UID'],['Company']];
+      const authorized=owns(v[1]?.values||[],refs,[['Assigned to','Assigned auditor','Auditor'],['Preassigned Auditor']])||owns(v[2]?.values||[],refs,[['Auditor','Auditor Email','Email']]);
+      if(!authorized)return send(res,403,{ok:false,error:'AUDITOR_COMPANY_NOT_AUTHORIZED'});
+      const updates=[],diffs=[];
+      for(const [field,change] of Object.entries(changes)){const colIndex=h.indexOf(field);if(colIndex<0)return send(res,409,{ok:false,error:'COMPANY_FIELD_MISSING',field});const old=String(company.row[colIndex]??'');
+        if(old!==change.value&&old!==change.expected&&old.trim()!==change.expected.trim())return send(res,409,{ok:false,error:'STALE_COMPANY_FIELD',field});
+        if(old===change.value)continue;
+        diffs.push({field,old,newValue:change.value});let n=colIndex+1,letter='';while(n){n--;letter=String.fromCharCode(65+n%26)+letter;n=Math.floor(n/26)}updates.push({range:'Companies!'+letter+company.index,values:[[change.value]]});
+      }
+      if(!updates.length)return send(res,200,{ok:true,updated:0,companyUid:uid});
+      const stamp=new Date().toISOString(),auditId=createHash('sha256').update(stamp+'|'+email+'|'+uid+'|'+JSON.stringify(diffs)).digest('hex').slice(0,24),detail=JSON.stringify({auditId,actor:email,companyUid:uid,changes:diffs});
+      await sheetsValuesAppend('Diagnostics_Log!A:K',[[stamp,'COMPANY_2_0','AUDITOR_FIELD_EDIT',uid,'CHANGE_INTENT',email,'','',false,'Validated; canonical write pending',detail]]);
+      await sheetsValuesBatchUpdate(updates);
+      await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'COMPANY_2_0','AUDITOR_FIELD_EDIT',uid,'CHANGE_APPLIED',email,'','',false,'Canonical write completed',detail]]);
+      return send(res,200,{ok:true,updated:updates.length,companyUid:uid,auditId});
+    }catch(e){return send(res,503,{ok:false,error:'AUDITOR_COMPANY_SAVE_UNCONFIRMED',detail:clean(e?.message||e)})}
+  }
   if(u.pathname==='/api/v1/auditor/company-management'&&req.method==='GET'){
     const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='auditor')return send(res,403,{ok:false,error:'AUDITOR_REQUIRED'});

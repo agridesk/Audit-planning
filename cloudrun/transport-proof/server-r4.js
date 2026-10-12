@@ -1464,7 +1464,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     let raw='';for await(const part of req){raw+=part;if(raw.length>20000)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
     let payload;try{payload=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
     const email=clean(payload?.email).toLowerCase(),scopeCode=clean(payload?.scopeCode),date=clean(payload?.effectiveDate),exceptions=payload?.grandfatheredAuditIds;
-    if(!email||!scopeCode||!/^\d{4}-\d{2}-\d{2}$/.test(date)||new Date(date+'T00:00:00Z').toISOString().slice(0,10)!==date||!Array.isArray(exceptions)||exceptions.length>500||exceptions.some(x=>typeof x!=='string'||!x.trim())||new Set(exceptions).size!==exceptions.length)return send(res,400,{ok:false,error:'INVALID_WITHDRAWAL_REQUEST'});
+    if(!email||!scopeCode||!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date+'T00:00:00Z'))||new Date(date+'T00:00:00Z').toISOString().slice(0,10)!==date||date<new Date().toISOString().slice(0,10)||!Array.isArray(exceptions)||exceptions.length>500||exceptions.some(x=>typeof x!=='string'||!x.trim())||new Set(exceptions).size!==exceptions.length)return send(res,400,{ok:false,error:'INVALID_WITHDRAWAL_REQUEST'});
     try{
       const vv=await sheetsBatchGet(['Auditors!A1:AZ1000','Audit planning!A1:AX2500','Config_Scopes!A1:Z200']);
       const av=vv[0]?.values||[],ap=vv[1]?.values||[],sc=vv[2]?.values||[],h=av[0]||[],eidx=col(h,['E-mail','Email']),pidx=h.indexOf('Qualification_Withdrawals_JSON');

@@ -1,7 +1,7 @@
 import http from 'node:http';
 import {URL} from 'node:url';
 import {readFileSync} from 'node:fs';
-import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
+import {createHmac,createHash,timingSafeEqual,randomUUID} from 'node:crypto';
 import {v211AssignmentHardCheck,v211RotationHardCheck,v211AuditorQualified,v211ResolveAuditorEmail} from './assignment-validation-v211.js';
 import {v211ActorCapabilities} from './actor-capabilities-v211.js';
 import {activateScopeHoursVersion20} from './scope-hours-version-20.js';
@@ -1357,7 +1357,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       if(companies.slice(1).filter(r=>clean(r[ch.indexOf('Company_UID')])===uid).length!==1)return send(res,409,{ok:false,error:'COMPANY_NOT_UNIQUE'});
       const match=scopes.slice(1).filter(r=>clean(r[sh.indexOf('ScopeCode')])===code);if(match.length!==1||!['YES','TRUE','1'].includes(clean(match[0][sh.indexOf('Active')]).toUpperCase())||['YES','TRUE','1'].includes(clean(match[0][sh.indexOf('Archived')]).toUpperCase()))return send(res,409,{ok:false,error:'SCOPE_NOT_AVAILABLE'});
       if(relations.slice(1).some(r=>clean(r[rh.indexOf('Company_UID')])===uid&&clean(r[rh.indexOf('ScopeCode')])===code))return send(res,409,{ok:false,error:'COMPANY_SCOPE_ALREADY_EXISTS'});
-      const record=Object.fromEntries(rh.map(h=>[h,'']));record.Company_Scope_ID='CS_'+crypto.randomUUID().replace(/-/g,'');record.Company_UID=uid;record.ScopeCode=code;record.Active='YES';record.Lifecycle_Type='CERTIFICATE_RECURRING';record.Created_At=new Date().toISOString();record.Updated_At=record.Created_At;
+      const record=Object.fromEntries(rh.map(h=>[h,'']));record.Company_Scope_ID='CS_'+randomUUID().replace(/-/g,'');record.Company_UID=uid;record.ScopeCode=code;record.Active='YES';record.Lifecycle_Type='CERTIFICATE_RECURRING';record.Created_At=new Date().toISOString();record.Updated_At=record.Created_At;
       await sheetsValuesAppend('Company_Scopes!A:L',[rh.map(h=>record[h]??'')]);return send(res,200,{ok:true,scopeCode:code,companyUid:uid,created:true});
     }catch(e){return send(res,409,{ok:false,error:'COMPANY_SCOPE_ASSIGN_FAILED',detail:clean(e.message||e)})}
   }

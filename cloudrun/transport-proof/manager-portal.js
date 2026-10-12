@@ -430,7 +430,7 @@ editableCell(tr,r,'DisplayName',r.displayName,'text');
 [r.active?'Yes':'No','—',r.hoursToPlan,r.rotationLimit,r.minimumIntervalMonths,(r.planningFrom||'—')+' / '+(r.planningTo||'—')].forEach(function(v){tr.appendChild(el('td',v))});
 editableCell(tr,r,'Color',r.policy.Color,'text');editableCell(tr,r,'TextColor',r.policy.TextColor,'text');
 var preview=el('td',''),swatch=el('span',r.scopeCode);swatch.dataset.scopePreview='1';swatch.style.backgroundColor=String(r.policy.Color||'#ffffff');swatch.style.color=String(r.policy.TextColor||'#000000');swatch.style.padding='4px 7px';swatch.style.borderRadius='5px';swatch.style.fontWeight='600';preview.appendChild(swatch);tr.appendChild(preview);editableCell(tr,r,'SortOrder',r.policy.SortOrder,'number');body.appendChild(tr)})}
-async var addScope=el('button','+ Add scope');addScope.type='button';addScope.style.marginLeft='10px';addScope.onclick=async function(){
+var addScope=el('button','+ Add scope');addScope.type='button';addScope.style.marginLeft='10px';addScope.onclick=async function(){
  var scopeCode=prompt('New ScopeCode (stable identity, e.g. MPS-NEW):');if(!scopeCode)return;
  var displayName=prompt('Display name for '+scopeCode+':');if(!displayName)return;
  var reason=prompt('Reason for adding this scope:');if(!reason||!reason.trim())return;

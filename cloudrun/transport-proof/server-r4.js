@@ -1455,11 +1455,12 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       const av=v[0]?.values||[],ap=v[1]?.values||[],catalog=scopeCatalog(v[2]?.values||[]),companies=v[3]?.values||[],h=av[0]||[],emailCol=col(h,['E-mail','Email']);
       const matches=av.slice(1).filter(row=>emailCol>=0&&clean(row[emailCol]).toLowerCase()===email);
       if(matches.length!==1)return send(res,409,{ok:false,error:'AUDITOR_IDENTITY_NOT_UNIQUE'});
-      const scope=catalog.find(x=>clean(x.code)===code||clean(x.scopeCode)===code);
+      const scope=catalog.find(x=>clean(x.scopeCode)===code||clean(x.displayName)===code);
       if(!scope)return send(res,404,{ok:false,error:'SCOPE_NOT_FOUND'});
       const projected=managerOpen(ap,'',v[2]?.values||[],companies,av).rows||[];
       const impacted=projected.filter(row=>{
-        if(!Array.isArray(row.scopes)||!row.scopes.some(x=>clean(x).toLowerCase()===code.toLowerCase()))return false;
+        if(!['PENDING_PLANNING','PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(row.statusKey))return false;
+        if(!Array.isArray(row.scopes)||!row.scopes.some(x=>[scope.scopeCode,scope.displayName,scope.slotKey].some(y=>clean(x).toLowerCase()===clean(y).toLowerCase())))return false;
         return directResolveAuditorEmail(av,row.assignedTo)===email||directResolveAuditorEmail(av,row.preassignedAuditor)===email;
       }).map(row=>({auditId:row.auditId,company:row.company,scopeCode:code,status:row.status,statusKey:row.statusKey,datePlanned:row.datePlanned||'',assigned:directResolveAuditorEmail(av,row.assignedTo)===email,preassigned:directResolveAuditorEmail(av,row.preassignedAuditor)===email}));
       return send(res,200,{ok:true,readOnly:true,email,scopeCode:code,impacted,impactedCount:impacted.length,acceptedCount:impacted.filter(x=>x.statusKey==='ACCEPTED').length});

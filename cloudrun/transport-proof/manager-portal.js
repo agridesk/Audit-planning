@@ -386,7 +386,7 @@ fields.forEach(function(f){
   var input=document.createElement(policyField==='Recurring'?'select':'input');
   if(policyField==='Recurring'){['YES','NO'].forEach(function(v){var option=document.createElement('option');option.value=v;option.textContent=v;input.appendChild(option)})}
   var initial=canPolicy?String(selected.policy[policyField]??''):String(selected.policy[field]??'');
-  if(canPolicy&&['Active','Archived'].includes(policyField)){initial=initial.toUpperCase()==='TRUE'?'TRUE':'FALSE';input=document.createElement('select');['TRUE','FALSE'].forEach(function(v){var option=document.createElement('option');option.value=v;option.textContent=v==='TRUE'?'Yes':'No';input.appendChild(option)})}
+  if(canPolicy&&['Active','Archived'].includes(policyField)){initial=['TRUE','YES','1'].includes(initial.trim().toUpperCase())?'TRUE':'FALSE';input=document.createElement('select');['TRUE','FALSE'].forEach(function(v){var option=document.createElement('option');option.value=v;option.textContent=v==='TRUE'?'Yes':'No';input.appendChild(option)})}
   input.value=initial;input.style.maxWidth='200px';input.setAttribute('aria-label',f[0]);dd.appendChild(input);
   pendingEdits.push({field:canPolicy?policyField:field,kind:canPolicy?'policy':'cosmetic',input:input,initial:initial});
  }else{var val=f[1]==null?'':String(f[1]);dd.textContent=field==='Color'||field==='TextColor'?'Edit in scope overview':val||'Not configured';if(!val)dd.style.opacity='0.65'}

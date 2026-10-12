@@ -398,7 +398,7 @@ if(tab!=='versions'){
  var saved=el('span','');saved.setAttribute('role','status');saved.style.marginLeft='12px';
  actions.appendChild(saveAll);actions.appendChild(saved);details.appendChild(actions);
  saveAll.onclick=async function(){
-  var changes=pendingEdits.filter(function(e){return e.input.value.trim()!==e.initial});
+  var changes=pendingEdits.filter(function(e){return e.input.value.trim()!==e.initial});var completed=0;
   if(!changes.length){saved.textContent='No changes';return}
   var scopeCode=selected.scopeCode;
   var reason='Manager Scope Management tab update';
@@ -407,14 +407,13 @@ if(tab!=='versions'){
    for(var j=0;j<changes.length;j++){var e=changes[j];if(e.kind!=='policy')continue;
     var pre=await fetch('/api/v1/manager/scopes/impact?scopeCode='+encodeURIComponent(scopeCode)+'&field='+encodeURIComponent(e.field),{credentials:'same-origin'}),impact=await pre.json();
     if(!pre.ok||!impact.ok)throw Error(impact.error||'IMPACT_UNAVAILABLE');
-    if(String(impact.current)!==e.initial)throw Error('STALE_SCOPE_POLICY: '+e.field);
+    if(String(impact.current).trim().toUpperCase()!==String(e.initial).trim().toUpperCase())throw Error('STALE_SCOPE_POLICY: '+e.field);
     impacts.push({field:e.field,impact:impact});
    }
    
    saveAll.disabled=true;saved.textContent='Saving…';
-   var completed=0;
    for(var k=0;k<changes.length;k++){
-    var item=changes[k],isPolicy=item.kind==='policy',payload=isPolicy?{scopeCode:scopeCode,field:item.field,expected:item.initial,value:item.input.value.trim(),reason:reason,impactConfirmed:true}:{scopeCode:scopeCode,field:item.field,expected:item.initial,value:item.input.value.trim()};
+    var item=changes[k],isPolicy=item.kind==='policy',payload=isPolicy?{scopeCode:scopeCode,field:item.field,expected:impacts.find(function(x){return x.field===item.field}).impact.current,value:item.input.value.trim(),reason:reason,impactConfirmed:true}:{scopeCode:scopeCode,field:item.field,expected:item.initial,value:item.input.value.trim()};
     var endpoint=isPolicy?'/api/v1/manager/scopes/policy':'/api/v1/manager/scopes/cosmetic';
     var response=await fetch(endpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),result=await response.json();
     if(!response.ok||!result.ok)throw Error(item.field+': '+(result.error||'SAVE_FAILED'));

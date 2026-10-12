@@ -3,7 +3,7 @@ import {backfillCompanyHours20 as backfill} from './company-scope-hours-backfill
 import {COMPANY_SCOPE_HOURS_HEADERS as headers} from './company-scope-hours-storage-20.js';
 const source=[['Company_Scope_ID','Company_UID','ScopeCode','Active','Company_Formal_Hours_Override'],['CS1','C1','GAP','YES','7'],['CS2','C2','GAP','NO','4']];
 const config=[['ScopeCode'],['GAP']];let target=[headers],writes=[];
-globalThis.fetch=async(url,opts={})=>url.includes('?fields=')?{ok:true,json:async()=>({sheets:[{properties:{title:'Company_Scope_Hours',sheetId:15}}]})}:{ok:true,status:200,json:async()=>{writes=JSON.parse(opts.body).requests;return{}}};
+globalThis.fetch=async(url,opts={})=>{if(url.includes('?fields='))return{ok:true,json:async()=>({sheets:[{properties:{title:'Company_Scope_Hours',sheetId:15}}]})};writes=JSON.parse(opts.body).requests;return{ok:true,status:200,json:async()=>({})}};
 const deps={body:{confirmation:'BACKFILL_COMPANY_HOURS_DEV',impactConfirmed:true,reason:'Legacy parity'},actor:{email:'manager@example.com'},SID:'dev',sheetsBatchGet:async()=>[{values:source},{values:config},{values:target}],accessToken:async()=> 'token'};
 const r=await backfill(deps);assert.equal(r.migrated,2);assert.equal(r.cutover,false);
 assert.equal(writes.length,1);assert.equal(writes[0].updateCells.rows.length,2);

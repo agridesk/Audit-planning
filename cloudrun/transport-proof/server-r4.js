@@ -1576,7 +1576,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       const target=matches[0],old=clean(target.row[rc]);if(old!==expected)return send(res,409,{ok:false,error:'STALE_AUDITOR_ROLE'});
       if(old===next)return send(res,200,{ok:true,updated:0});
       const ap=result[1]?.values||[],ah=ap[0]||[],ac=col(ah,['Assigned to','Assigned auditor','Auditor']),pc=col(ah,['Preassigned Auditor']),st=col(ah,['Status']),id=col(ah,['Audit ID']);
-      const impacted=ap.slice(1).filter(row=>['PENDING_PLANNING','PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(clean(val(row,st)).toUpperCase().replace(/[\\s-]+/g,'_'))&&(directResolveAuditorEmail(av,val(row,ac))===email||directResolveAuditorEmail(av,val(row,pc))===email)).map(row=>val(row,id));
+      const impacted=ap.slice(1).filter(row=>['PENDING_PLANNING','PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(clean(val(row,st)).toUpperCase().replace(/[\s-]+/g,'_'))&&(directResolveAuditorEmail(av,val(row,ac))===email||directResolveAuditorEmail(av,val(row,pc))===email)).map(row=>val(row,id));
       if(impacted.length)return send(res,409,{ok:false,error:'ROLE_CHANGE_REQUIRES_ASSIGNMENT_REVIEW',impactedAuditIds:impacted});
       if(next==='Manager')return send(res,403,{ok:false,error:'MANAGER_ROLE_GRANT_REQUIRES_SEPARATE_AUTHORIZATION'});
       const detail=JSON.stringify({email,old,newValue:next,actor:clean(actor.email)}),now=new Date().toISOString();

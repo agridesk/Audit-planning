@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const server=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+const ui=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+const html=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
+for(const route of ['/api/v1/manager/company-management/save','/api/v1/manager/company-management/scopes/save','/api/v1/manager/company-management/scopes/assign','/api/v1/manager/company-management/scopes/hours'])assert.ok(server.includes(route),route);
+for(const feature of ['STALE_COMPANY_FIELD','STALE_COMPANY_SCOPE','STALE_COMPANY_HOURS','EXACTLY_ONE_ACTIVE_HQ_REQUIRED','Company_Scope_Hours!A:M'])assert.ok(server.includes(feature),feature);
+for(const feature of ['Show inactive / available scopes','Default hours','Custom hours','Effective hours','companyManagement20Save','google.com/maps/search','Preferred audit months','type=\'checkbox\''])assert.ok(ui.includes(feature),feature);
+assert.ok(html.includes('max-height:195px'),'Compact company selector');
+assert.ok(ui.includes("'assign:'")&&ui.includes("'hours:'"),'Scope staged changes');
+console.log('Company Management 2.0 contract checks passed');

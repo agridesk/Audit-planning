@@ -23,4 +23,7 @@ assert.ok(ui.includes("m+=15"),'Quarter-hour increments in Company Planning');
 assert.ok(ui.includes("v+' (existing)'"),'Existing non-quarter times preserved');
 assert.ok(ui.includes("min-height:260px"),'Compact maps frame');
 assert.ok(ui.includes("padding:5px 7px;font-size:13px"),'Compact location inputs');
+assert.ok(ui.includes("hoursInput.disabled=selector.value!=='Yes'"),'Newly activated scopes allow same-save custom hours');
+assert.ok(ui.includes("if(value==='No')delete pending['hours:'+x.scopeCode]"),'Deactivation clears pending custom hours');
+assert.ok(ui.includes("Activate a scope and enter optional custom hours in one Save all"),'Scope activation instruction');
 console.log('Company Management 2.0 contract checks passed');

@@ -1560,6 +1560,27 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       return send(res,200,{ok:true,readOnly:true,email,scopeCode:code,impacted,impactedCount:impacted.length,acceptedCount:impacted.filter(x=>x.statusKey==='ACCEPTED').length,withdrawalWriteEnabled:process.env.AMS_QUALIFICATION_WITHDRAWAL_WRITE_ENABLED==='true'});
     }catch(e){return send(res,503,{ok:false,error:'AUDITOR_QUALIFICATION_IMPACT_FAILED',detail:clean(e?.message||e)})}
   }
+  if(u.pathname==='/api/v1/manager/auditor-management/create'&&req.method==='POST'){
+    const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8000)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
+    let data;try{data=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+    const name=clean(data?.name),email=clean(data?.email).toLowerCase(),area=clean(data?.area),role=clean(data?.role||'Auditor');
+    if(!name||name.length>160||!email||email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||role!=='Auditor')return send(res,400,{ok:false,error:'INVALID_AUDITOR_IDENTITY'});
+    try{
+      const read=(await sheetsBatchGet(['Auditors!A1:AZ1000']))[0]?.values||[],headers=read[0]||[],ec=col(headers,['E-mail','Email']),nc=col(headers,['Name']);
+      if(ec<0||nc<0)return send(res,409,{ok:false,error:'AUDITORS_SCHEMA_MISSING'});
+      if(read.slice(1).some(row=>clean(row[ec]).toLowerCase()===email))return send(res,409,{ok:false,error:'AUDITOR_EMAIL_EXISTS'});
+      if(read.slice(1).some(row=>clean(row[nc]).toLowerCase()===name.toLowerCase()))return send(res,409,{ok:false,error:'AUDITOR_NAME_EXISTS'});
+      const row=headers.map(()=>''),put=(field,value)=>{const i=headers.indexOf(field);if(i>=0)row[i]=value};
+      put('Name',name);row[ec]=email;put('Active','No');put('Role',role);put('Area',area);put('Default time zone',clean(data?.timezone)||'Europe/Madrid');put('Qualification_Withdrawals_JSON','[]');
+      const auditId=randomUUID(),detail=JSON.stringify({auditId,name,email,actor:clean(actor.email),active:'No'});
+      await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'AUDITOR_MANAGEMENT_2_0','AUDITOR_CREATE',email,'CHANGE_INTENT',clean(actor.email),'','',false,'Create inactive auditor',detail]]);
+      await sheetsValuesAppend('Auditors!A:S',[row.slice(0,19)]);
+      await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'AUDITOR_MANAGEMENT_2_0','AUDITOR_CREATE',email,'CHANGE_APPLIED',clean(actor.email),'','',false,'Inactive auditor created',detail]]);
+      return send(res,200,{ok:true,email,active:false});
+    }catch(e){return send(res,503,{ok:false,error:'AUDITOR_CREATE_UNCONFIRMED',detail:clean(e?.message||e)})}
+  }
   if(u.pathname==='/api/v1/manager/auditor-management/profile/save'&&req.method==='POST'){
     const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});

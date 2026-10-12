@@ -15,4 +15,6 @@ assert.throws(()=>run({scopeVersions:[]}),/SCOPE_VERSION_MISSING/);
 assert.throws(()=>run({companyScopes:[]}),/COMPANY_SCOPE_RELATION_MISSING/);
 assert.throws(()=>run({overrides:null}),/HOURS_SOURCE_NOT_READY/);
 assert.equal(run({overrides:[{...ov,EffectiveFrom:'2028-01-01'}]}).formalHours,5);
-console.log('company-scope-hours-resolver-20: 12 checks passed');
+assert.throws(()=>run({scopeVersions:[{...base.scopeVersions[0],Effective_From:'2028-01-01'}]}),/SCOPE_VERSION_MISSING/);
+assert.equal(run({scopeVersions:[{...base.scopeVersions[0],Effective_From:'2026-01-01',Effective_To:'2027-12-31'}]}).formalHours,5);
+console.log('company-scope-hours-resolver-20: 14 checks passed');

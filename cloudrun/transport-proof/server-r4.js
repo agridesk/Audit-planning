@@ -8,6 +8,7 @@ import {activateScopeHoursVersion20} from './scope-hours-version-20.js';
 import {updateScopePolicy20} from './scope-policy-20.js';
 import {scopeSchemeVersion20} from './scope-scheme-version-20.js';
 import {createScope20} from './scope-create-20.js';
+import {companyHoursStorage20} from './company-scope-hours-storage-20.js';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
@@ -1341,6 +1342,15 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
   if(u.pathname==='/api/v1/planning/direct-commit'&&req.method==='POST'){const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(!['manager','auditor'].includes(clean(s.role).toLowerCase()))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>65536)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}try{return send(res,200,await directPlanningCommit(s,b));}catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'DIRECT_PLANNING_COMMIT_BLOCKED',detail:clean(e?.message||e)});}}
   if(u.pathname==='/api/v1/manager/action'&&req.method==='POST'){const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(clean(s.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}try{const out=await canonicalManagerAction(s,b);return send(res,out&&out.success===false?409:200,out)}catch(e){return send(res,500,{ok:false,error:'MANAGER_ACTION_BRIDGE_FAILED',detail:clean(e?.message||e)})}}
   if(u.pathname==='/api/v1/manager/archived'&&req.method==='GET'){const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});const role=clean(s.role).toLowerCase();if(!['manager','auditor'].includes(role))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});try{return send(res,200,role==='auditor'?await auditorArchivedRead(clean(s.email).toLowerCase()):await managerArchivedRead(clean(s.email).toLowerCase()));}catch(e){return send(res,500,{ok:false,error:'ARCHIVED_READ_FAILED',detail:clean(e?.message||e)});}}
+  if(u.pathname==='/api/v1/manager/company-scope-hours/storage'&&['GET','POST'].includes(req.method)){
+    const actor=sessionFromRequest(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    let body={};
+    if(req.method==='POST'){let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>1024)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});}try{body=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}}
+    try{const result=await companyHoursStorage20({method:req.method,body,SID,accessToken,sheetsBatchGet});if(result.created)console.info(JSON.stringify({event:'COMPANY_HOURS_STORAGE_CREATED',actor:clean(actor.email),timestamp:new Date().toISOString()}));return send(res,200,result);}
+    catch(e){return send(res,409,{ok:false,error:clean(e.message||e)});}
+  }
   if(u.pathname==='/api/v1/manager/scopes/create'&&req.method==='POST'){
     const actor=sessionFromRequest(req);
     if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});

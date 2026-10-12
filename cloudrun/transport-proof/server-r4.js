@@ -1557,7 +1557,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
         if(!Array.isArray(row.scopes)||!row.scopes.some(x=>[scope.scopeCode,scope.displayName,scope.slotKey].some(y=>clean(x).toLowerCase()===clean(y).toLowerCase())))return false;
         return directResolveAuditorEmail(av,row.assignedTo)===email||directResolveAuditorEmail(av,row.preassignedAuditor)===email;
       }).map(row=>({auditId:row.auditId,company:row.company,scopeCode:code,status:row.status,statusKey:row.statusKey,datePlanned:row.datePlanned||'',assigned:directResolveAuditorEmail(av,row.assignedTo)===email,preassigned:directResolveAuditorEmail(av,row.preassignedAuditor)===email}));
-      return send(res,200,{ok:true,readOnly:true,email,scopeCode:code,impacted,impactedCount:impacted.length,acceptedCount:impacted.filter(x=>x.statusKey==='ACCEPTED').length});
+      return send(res,200,{ok:true,readOnly:true,email,scopeCode:code,impacted,impactedCount:impacted.length,acceptedCount:impacted.filter(x=>x.statusKey==='ACCEPTED').length,withdrawalWriteEnabled:process.env.AMS_QUALIFICATION_WITHDRAWAL_WRITE_ENABLED==='true'});
     }catch(e){return send(res,503,{ok:false,error:'AUDITOR_QUALIFICATION_IMPACT_FAILED',detail:clean(e?.message||e)})}
   }
   if(u.pathname==='/api/v1/manager/auditor-management/profile/save'&&req.method==='POST'){

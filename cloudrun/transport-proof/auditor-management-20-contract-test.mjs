@@ -40,4 +40,5 @@ assert.ok(server.includes("IMPACT_CHANGED_REVIEW_AGAIN"),'Grandfathered audit ID
 assert.ok(server.includes("Qualification_Withdrawals_JSON"),'Canonical per-auditor withdrawal source');
 assert.ok(ui.includes("Preserve listed audits & schedule withdrawal"),'Manager must explicitly approve exceptions');
 assert.ok(ui.includes("grandfatheredAuditIds:(impact.impacted||[]).map(x=>x.auditId)"),'Only reviewed audit IDs may be exempted');
+assert.ok(ui.includes("withdrawal '+scheduled.effectiveDate"),'Display qualification withdrawal effective date');
 console.log('Auditor Management 2.0 profile edit contract PASS');

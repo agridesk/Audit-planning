@@ -580,7 +580,7 @@ saveBar();if(String(actorRole).toLowerCase()==='auditor'){
  const writable=new Set(['Contactperson ','Contactperson e-mail','Contactperson phone']);
  details.querySelectorAll('input,textarea,select').forEach(function(control){
    var field=control.dataset.companyField;
-   control.disabled=tab==='company'?!writable.has(field):tab==='planning'?!((control.type==='checkbox'&&['Mo','Tu','We','Th','Fr','Sa','Su'].some(function(day){return (control.parentElement?.textContent||'').trim()===day}))||(control.tagName==='SELECT'&&control.parentElement?.title?.includes('Audits may take place'))):true;
+   control.disabled=tab==='company'?!writable.has(field):tab==='planning'?!((control.type==='checkbox'&&['Mo','Tu','We','Th','Fr','Sa','Su'].some(function(day){return (control.parentElement?.textContent||'').trim()===day}))||(control.tagName==='SELECT'&&control.parentElement?.parentElement?.title?.includes('Audits may take place'))):true;
  });
  details.querySelectorAll('button').forEach(function(control){if(control.textContent==='Set as HQ'||control.textContent==='HQ ✓'||control.textContent==='Show inactive company scopes'||control.textContent==='Hide inactive company scopes'||control.textContent==='Add scope')control.disabled=true});
  var st=document.getElementById('companyManagement20SaveStatus');if(st)st.textContent='Contact details and planning limitations may be saved directly';

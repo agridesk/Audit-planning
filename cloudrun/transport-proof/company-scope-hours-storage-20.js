@@ -13,13 +13,21 @@ export async function companyHoursStorage20({method,body={},SID,accessToken,shee
  if(!found){
   if(method!=='POST')return{ok:true,ready:false,tab:COMPANY_SCOPE_HOURS_TAB,headers:COMPANY_SCOPE_HOURS_HEADERS};
   if(body.confirmation!=='CREATE_COMPANY_SCOPE_HOURS_TAB')throw Error('STORAGE_CREATION_CONFIRMATION_REQUIRED');
-  const req={requests:[{addSheet:{properties:{title:COMPANY_SCOPE_HOURS_TAB,gridProperties:{rowCount:2000,columnCount:COMPANY_SCOPE_HOURS_HEADERS.length}}}}]};
+  const cell=v=>({userEnteredValue:{stringValue:v}});
+  const req={requests:[
+   {addSheet:{properties:{title:COMPANY_SCOPE_HOURS_TAB,gridProperties:{rowCount:2000,columnCount:COMPANY_SCOPE_HOURS_HEADERS.length}}}},
+   {updateCells:{start:{sheetId:0,rowIndex:0,columnIndex:0},rows:[{values:COMPANY_SCOPE_HOURS_HEADERS.map(cell)}],fields:'userEnteredValue'}}
+  ]};
+  // Sheets cannot reference a newly allocated sheet ID in the same batch.
+  // Supply an explicit unique sheetId so sheet creation and header creation are atomic.
+  const existing=new Set(sheets.map(s=>s.properties?.sheetId));
+  let id=20261012;while(existing.has(id))id++;
+  req.requests[0].addSheet.properties.sheetId=id;
+  req.requests[1].updateCells.start.sheetId=id;
   const created=await fetch(base+':batchUpdate',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify(req)});
   if(!created.ok)throw Error('COMPANY_HOURS_CREATE_FAILED_'+created.status);
-  const data=await created.json(),id=data.replies?.[0]?.addSheet?.properties?.sheetId;
-  if(!Number.isInteger(id))throw Error('COMPANY_HOURS_CREATE_UNVERIFIED');
-  const hdr=await fetch(base+'/values/'+encodeURIComponent("'"+COMPANY_SCOPE_HOURS_TAB+"'!A1:M1")+'?valueInputOption=RAW',{method:'PUT',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({values:[COMPANY_SCOPE_HOURS_HEADERS]})});
-  if(!hdr.ok)throw Error('COMPANY_HOURS_HEADER_WRITE_FAILED_'+hdr.status);
+  const data=await created.json();
+  if(data.replies?.[0]?.addSheet?.properties?.sheetId!==id)throw Error('COMPANY_HOURS_CREATE_UNVERIFIED');
   return{ok:true,ready:true,created:true,tab:COMPANY_SCOPE_HOURS_TAB};
  }
  const vr=await sheetsBatchGet([COMPANY_SCOPE_HOURS_TAB+'!A1:M2000']);

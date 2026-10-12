@@ -20,7 +20,7 @@ assert.ok(server.includes("error:'STALE_AUDITOR_FIELD'"),'Optimistic concurrency
 assert.ok(server.includes("sheetsValuesBatchUpdateRaw(updates)"),'Canonical RAW write for phone values');
 assert.ok(server.includes("'CHANGE_INTENT'")&&server.includes("'CHANGE_APPLIED'"),'Auditor profile trail before and after write');
 assert.ok(ui.includes("Discard changes"),'Discard unsaved profile edits');
-assert.ok(ui.includes("row('Auditor · identity protected',a.name)"),'Identity changes are not silent profile changes');
+assert.ok(ui.includes("el('button','Save identity')"),'Manager-governed identity editor present');
 assert.ok(ui.includes("'/api/v1/manager/auditor-management/profile/save'"),'Profile editor canonical API');
 assert.ok(ui.includes("['Mo','Tu','We','Th','Fr']"),'Only weekdays available for soft defaults');
 assert.ok(server.includes("'/api/v1/manager/auditor-management/qualification-impact'"),'Manager-only qualification preview');

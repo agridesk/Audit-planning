@@ -309,3 +309,8 @@ COMPANY-2.0 DIRECT AUDITOR UPDATE EXECUTION — 2026-10-12
 - Auditor Company panel enables contact person/email/phone and Company planning limitation weekdays/time only, with single Save and manager-owned structural fields disabled. No PROD/deployment claimed. DEV end-to-end confirmation pending.
 - Auditor comments remain a P0 open gap: Companies sheet lacks a dedicated Auditor comments column. Do NOT store them in existing General comments. Controlled header migration + canonical writer + tests still needed before marking Phase B complete.
 - Existing Company_Update_Proposals remains reference/SSoT for future Manager-governed proposals (Phase C); NOT DONE.
+
+COMPANY-2.0 AUDITOR COMMENTS — DEV SCHEMA CHANGE 2026-10-12
+- DEV Companies Y1 = Auditor comments added after verifying cell was empty (Sheet ID 1122839151). No existing columns displaced and no existing data rewritten.
+- New Auditor comments stored separately from General comments; role-scoped direct edit + trail available in DEV code only pending validation/deployment. History remains unchanged.
+- Manager-governed structural proposal flow still P1 OPEN: existing Company_Update_Proposals infrastructure must be reused and reconciled with 2.0.

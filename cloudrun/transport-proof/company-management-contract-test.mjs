@@ -69,7 +69,7 @@ assert.ok(server.includes("validateAuditorCompanyChanges(changes)"),'Auditor wri
 assert.ok(server.includes("'AUDITOR_FIELD_EDIT'"),'Auditor changes must record actor and before-after');
 assert.ok(server.includes("'CHANGE_INTENT'"),'Audit intent precedes Auditor canonical write');
 assert.ok(server.includes("'CHANGE_APPLIED'"),'Post-save audit record');
-assert.ok(ui.includes("const writable=new Set(['Contactperson ','Contactperson e-mail','Contactperson phone'])"),'Auditor UI writable contact fields bounded');
+assert.ok(ui.includes("const writable=new Set(['Contactperson ','Contactperson e-mail','Contactperson phone','Auditor comments'])"),'Auditor UI writable contact fields bounded');
 assert.ok(ui.includes("field('Auditor comments','Auditor comments'"),'Dedicated Auditor comments UI');
 assert.ok(ui.includes("'Contactperson phone','Auditor comments'"),'Auditor comments are writable by Auditor');
 assert.ok(server.includes("'Auditor comments'"),'Auditor comments present in manager schema allowlist');

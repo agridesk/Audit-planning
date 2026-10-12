@@ -74,4 +74,8 @@ assert.ok(ui.includes("field('Auditor comments','Auditor comments'"),'Dedicated 
 assert.ok(ui.includes("'Contactperson phone','Auditor comments'"),'Auditor comments are writable by Auditor');
 assert.ok(server.includes("'Auditor comments'"),'Auditor comments present in manager schema allowlist');
 assert.ok(server.includes("Companies!A1:Y2500"),'Auditor comments read through Y column');
+assert.ok(ui.includes("function languageField(label,key,value)"),'Controlled language code dropdown');
+assert.ok(ui.includes("['SP','SP · Español']"),'Spanish language code preserved');
+assert.ok(ui.includes("Retry Google Maps"),'Map error fallback and retry');
+assert.ok(server.includes("!['manager','auditor'].includes(clean(actor.role).toLowerCase())"),'Authenticated auditor maps config');
 console.log('Company Management 2.0 contract checks passed');

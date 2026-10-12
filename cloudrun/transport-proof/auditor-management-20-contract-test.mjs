@@ -47,11 +47,13 @@ assert.ok(server.includes("'/api/v1/manager/auditor-management/create'"),'New au
 assert.ok(server.includes("AUDITOR_EMAIL_EXISTS"),'Duplicate auditor email denied');
 assert.ok(server.includes("put('Active','No')"),'New auditors inactive by default');
 assert.ok(server.includes("'/api/v1/manager/auditor-management/identity/save'"),'Identity editor route');
-assert.ok(server.includes("AUDITOR_IDENTITY_REKEY_REQUIRES_REFERENCE_MIGRATION"),'Linked identity rekey blocked without reference migration');
+assert.ok(server.includes("AUDITOR_EMAIL_REKEY_REQUIRES_REFERENCE_MIGRATION"),'Linked identity rekey blocked without reference migration');
 assert.ok(server.includes("'/api/v1/manager/auditor-management/active/save'"),'Active management route');
-assert.ok(server.includes("AUDITOR_INACTIVATION_REQUIRES_REASSIGNMENT"),'Linked inactivation must be blocked');
+assert.ok(server.includes("AUDITOR_INACTIVATION_REQUIRES_CONFIRMATION"),'Linked inactivation must be blocked');
 assert.ok(html.includes('id="auditorManagement20Add"'),'Add Auditor toolbar');
 assert.ok(html.includes('<option value="active">Active auditors</option>')&&html.includes('<option value="inactive">Inactive auditors</option>'),'Active and inactive list filter');
 assert.ok(ui.includes("el('button','Create inactive auditor')"),'Create dialog');
 assert.ok(ui.includes("el('button','Save identity')"),'Identity editor shown');
+assert.ok(server.includes("AUDITOR_NAME_REKEY_REQUIRES_REFERENCE_MIGRATION"),'Legacy name-based assignment protection');
+assert.ok(ui.includes("confirmedAuditIds"),'Manager reviews and confirms inactivation impact');
 console.log('Auditor Management 2.0 profile edit contract PASS');

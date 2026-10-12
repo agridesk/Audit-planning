@@ -59,6 +59,25 @@ export function v211ResolveAuditorEmail(audValues,identity){
   return matches.length===1?val(matches[0],e).toLowerCase():'';
 }
 
+export function v211QualificationWithdrawalConstraint({auditorValues,catalog,scopeCodes,auditorEmail,requestedDates,nowDate}={}){
+ const h=Array.isArray(auditorValues)&&auditorValues[0]||[],index=col(h,['Qualification_Withdrawals_JSON']),emailCol=col(h,['E-mail','Email']);
+ if(index<0)return{ok:true,reasons:[]};
+ const rows=(auditorValues||[]).slice(1).filter(r=>emailCol>=0&&val(r,emailCol).toLowerCase()===clean(auditorEmail).toLowerCase());
+ if(rows.length!==1)return{ok:false,reasons:['QUALIFICATION_WITHDRAWAL_AUDITOR_NOT_UNIQUE']};
+ let data;try{data=rows[0][index]?JSON.parse(String(rows[0][index])):[]}catch{return{ok:false,reasons:['QUALIFICATION_WITHDRAWAL_SCHEMA_INVALID']}};
+ if(!Array.isArray(data))return{ok:false,reasons:['QUALIFICATION_WITHDRAWAL_SCHEMA_INVALID']};
+ const aliases=new Map();for(const sc of catalog||[]){const code=key(sc.scopeCode||sc.displayName||sc.slotKey);for(const k of [sc.scopeCode,sc.displayName,sc.slotKey])if(k)aliases.set(key(k),code)}
+ const today=nowDate||new Date().toISOString().slice(0,10),dates=[today,...(requestedDates||[]).map(dateOnly)].filter(Boolean);
+ const reasons=[];
+ for(const entry of data){
+  if(!entry||!/^\d{4}-\d{2}-\d{2}$/.test(String(entry.effectiveDate||''))||!entry.scopeCode){reasons.push('QUALIFICATION_WITHDRAWAL_SCHEMA_INVALID');continue}
+  const entryScope=aliases.get(key(entry.scopeCode))||key(entry.scopeCode);
+  if(!(scopeCodes||[]).some(sc=>(aliases.get(key(sc))||key(sc))===entryScope))continue;
+  if(dates.some(d=>d>=entry.effectiveDate))reasons.push('QUALIFICATION_WITHDRAWN_FROM_'+entry.effectiveDate+'_'+entry.scopeCode);
+ }
+ return{ok:reasons.length===0,reasons};
+}
+
 export function v211AuditorQualified(audValues,catalog,scopeCodes,auditorEmail){
   if(!Array.isArray(audValues)||!audValues.length)return false;
   const h=audValues[0],e=col(h,['E-mail','Email','E-mail address','Mail']),a=col(h,['Active','Is active']),r=col(h,['Role','Function']);
@@ -150,6 +169,7 @@ export function v211AssignmentHardCheck({
   if(v211CompanyIdentityAmbiguous(companyValues||[],companyUid,companyName))reasons.push('COMPANY_IDENTITY_AMBIGUOUS');
   if(!v211AuditorQualified(auditorValues||[],catalog||[],scopeCodes||[],auditorEmail))reasons.push('AUDITOR_NOT_HARD_QUALIFIED');
   if(v211CompanyAuditorExclusions(companyValues||[],companyUid,companyName).has(clean(auditorEmail).toLowerCase()))reasons.push('AUDITOR_EXCLUDED_FOR_COMPANY');
+  const withdrawal=v211QualificationWithdrawalConstraint({auditorValues:auditorValues||[],catalog:catalog||[],scopeCodes:scopeCodes||[],auditorEmail,requestedDates:requestedDates||[]});reasons.push(...withdrawal.reasons);
   const minInterval=v211MinimumIntervalConstraint({logValues:logValues||[],catalog:catalog||[],scopeCodes:scopeCodes||[],companyUid,companyName});
   if(minInterval.ambiguousLegacyCompany)reasons.push('MIN_INTERVAL_LEGACY_COMPANY_AMBIGUOUS');
   if(minInterval.minPlanningDate&&(requestedDates||[]).some(d=>dateOnly(d)<minInterval.minPlanningDate))reasons.push('MIN_INTERVAL_HARD_BLOCK_'+minInterval.minPlanningDate);

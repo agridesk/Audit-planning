@@ -1451,10 +1451,9 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>12288)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
     let request;try{request=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
     const email=clean(request?.email).toLowerCase(),changes=request?.changes,keys=changes&&!Array.isArray(changes)&&typeof changes==='object'?Object.keys(changes):[];
-    const allowed=new Set(['Name','Area','Default time zone','Blocked weekdays','Default departure from','Mobile telephone']);
+    const allowed=new Set(['Area','Default time zone','Blocked weekdays','Default departure from','Mobile telephone']);
     if(!email||!keys.length||keys.length>allowed.size||keys.some(k=>!allowed.has(k)))return send(res,400,{ok:false,error:'INVALID_AUDITOR_PROFILE_CHANGES'});
     for(const field of keys){const c=changes[field];if(!c||typeof c.expected!=='string'||typeof c.value!=='string'||c.value.length>500)return send(res,400,{ok:false,error:'INVALID_AUDITOR_PROFILE_VALUE',field});
-      if(field==='Name'&&!clean(c.value))return send(res,400,{ok:false,error:'AUDITOR_NAME_REQUIRED'});
       if(field==='Blocked weekdays'&&c.value&&!/^(Mo|Tu|We|Th|Fr)(, ?(Mo|Tu|We|Th|Fr))*$/.test(c.value))return send(res,400,{ok:false,error:'INVALID_AUDITOR_BLOCKED_WEEKDAYS'});
       if(field==='Default time zone'&&c.value&&!/^[A-Za-z_]+\/[A-Za-z_]+(?:\/[A-Za-z_]+)?$/.test(c.value))return send(res,400,{ok:false,error:'INVALID_AUDITOR_TIMEZONE'});
     }

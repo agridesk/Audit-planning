@@ -33,4 +33,10 @@ assert.ok(!ui.includes("var hoursHint=el("),'Time hint moved off dedicated rows'
 assert.ok(ui.includes("var locationMap=el('iframe')"),'Locations tab contains selected-location map');
 assert.ok(ui.includes("function updateLocationMap()"),'Map tracks selected location changes');
 assert.ok(ui.includes("max-width:650px"),'Location editor remains compact');
+assert.ok(ui.includes("updateLocationMap()}};row.append(caption,input)"),'Locations syntax regression');
+assert.ok(server.includes("'Auditor_Exclusions'"),'Exclusions in permitted Company writes');
+assert.ok(server.includes("out.activeAuditors="),'Active auditor list readmodel');
+assert.ok(server.includes("AUDITOR_EXCLUSION_UNKNOWN"),'Auditor exclusions verified server side');
+assert.ok(ui.includes("line('Auditor exclusions ⓘ',holder)"),'Exclusions editable in Governance');
+assert.ok(ui.includes("activeAuditors=result.activeAuditors||[]"),'Frontend reads active auditors');
 console.log('Company Management 2.0 contract checks passed');

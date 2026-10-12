@@ -56,4 +56,8 @@ assert.ok(!html.includes('leaflet'),'No incompatible second map provider');
 assert.ok(ui.includes("mapColumn.style.cssText='min-width:0;display:flex;align-self:stretch'"),'Map column stretches with Company fields');
 assert.ok(ui.includes("holder.appendChild(mapArea);(document.getElementById('companyManagement20MapColumn')||details).appendChild(holder);requestAnimationFrame"),'Map mounted before initialization');
 assert.ok(ui.includes("min-height:380px;height:100%"),'Map viewport fills available height');
+assert.ok(html.includes('id="companyManagement20Table"'),'Compact company navigator table');
+assert.ok(html.includes('<th>Company</th><th>Scopes</th><th>Region</th><th>Locations</th><th>Status</th>'),'Five navigation columns');
+assert.ok(!html.includes('<th>Attention</th>'),'No redundant Attention column');
+assert.ok(ui.includes("if(i===1)td.style.cssText='white-space:normal"),'Long active scope lists wrap');
 console.log('Company Management 2.0 contract checks passed');

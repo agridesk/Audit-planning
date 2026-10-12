@@ -6,7 +6,7 @@ export async function updateScopePolicy20({body,actor,SID,sheetsBatchGet,accessT
  const allowed=[...Object.keys(numeric),...windowFields,'Active','Archived','Recurring',...textFields];
  if(!allowed.includes(field)||!scopeCode||!reason||reason.length>500||body?.impactConfirmed!==true)throw Error('INVALID_POLICY_CHANGE');
  if(numeric[field]){const rule=numeric[field];if(!/^\d+(?:\.\d{1,2})?$/.test(value)||Number(value)<rule.min||Number(value)>rule.max||(rule.integer&&!Number.isInteger(Number(value))))throw Error('INVALID_POLICY_VALUE');}
- if(['Active','Archived'].includes(field)&&!['TRUE','FALSE'].includes(value.toUpperCase()))throw Error('INVALID_BOOLEAN_POLICY');
+ if(['Active','Archived'].includes(field)&&!['TRUE','FALSE','YES','NO'].includes(value.toUpperCase()))throw Error('INVALID_BOOLEAN_POLICY');
  if(windowFields.includes(field)&&value&&!/^-?\d{1,3}$/.test(value))throw Error('INVALID_PLANNING_OFFSET');
  if(textFields.includes(field)&&(value.length>120||/[<>\r\n]/.test(value)))throw Error('INVALID_POLICY_TEXT');
  if(field==='Recurring'&&!['YES','NO'].includes(value.toUpperCase()))throw Error('INVALID_RECURRING_VALUE');

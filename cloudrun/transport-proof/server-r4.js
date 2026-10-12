@@ -1459,6 +1459,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     }catch(e){return send(res,503,{ok:false,error:'AUDITOR_HISTORY_READ_FAILED',detail:clean(e?.message||e)})}
   }
   if(u.pathname==='/api/v1/manager/auditor-management/qualification/withdraw'&&req.method==='POST'){
+    if(process.env.AMS_QUALIFICATION_WITHDRAWAL_WRITE_ENABLED!=='true')return send(res,409,{ok:false,error:'WITHDRAWAL_WRITE_DISABLED_PENDING_DUAL_RUNTIME_GUARDS'});
     const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
     let raw='';for await(const part of req){raw+=part;if(raw.length>20000)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}

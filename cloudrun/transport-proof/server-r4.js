@@ -1445,6 +1445,19 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     const apiKey=clean(process.env.GOOGLE_MAPS_BROWSER_API_KEY);
     return send(res,200,{ok:true,configured:!!apiKey,apiKey});
   }
+  if(u.pathname==='/api/v1/manager/auditor-management/history'&&req.method==='GET'){
+    const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    const email=clean(u.searchParams.get('email')).toLowerCase();if(!email)return send(res,400,{ok:false,error:'AUDITOR_EMAIL_REQUIRED'});
+    try{
+      const values=(await sheetsBatchGet(['Diagnostics_Log!A1:K5000']))[0]?.values||[];
+      const rows=values.slice(1).filter(row=>clean(row[1])==='AUDITOR_MANAGEMENT_2_0'&&clean(row[3]).toLowerCase()===email&&clean(row[4])==='CHANGE_APPLIED').slice(-150).reverse().map(row=>{
+        let change=null;try{change=JSON.parse(String(row[10]||'{}'))}catch{}
+        return {timestamp:String(row[0]||''),action:String(row[2]||''),actor:String(row[5]||''),changes:Array.isArray(change?.changes)?change.changes:[],trailId:clean(change?.id)};
+      });
+      return send(res,200,{ok:true,email,rows});
+    }catch(e){return send(res,503,{ok:false,error:'AUDITOR_HISTORY_READ_FAILED',detail:clean(e?.message||e)})}
+  }
   if(u.pathname==='/api/v1/manager/auditor-management/qualification-impact'&&req.method==='GET'){
     const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});

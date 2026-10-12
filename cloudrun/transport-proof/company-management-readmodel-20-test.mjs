@@ -7,4 +7,8 @@ r=buildCompanyManagementReadModel20({...base,companyHours:[base.companyHours[0]]
 assert.throws(()=>buildCompanyManagementReadModel20({...base,companies:[base.companies[0],base.companies[1],base.companies[1]]}),/DUPLICATE_COMPANY_UID/);
 assert.throws(()=>buildCompanyManagementReadModel20({...base,companyHours:[...base.companyHours,base.companyHours[1]]}),/DUPLICATE_ACTIVE_COMPANY_HOURS/);
 assert.throws(()=>buildCompanyManagementReadModel20({...base,companies:[base.companies[0],['Demo','Active','UID-1','bad JSON']]}),/INVALID_LOCATIONS_JSON/);
-console.log('company-management-readmodel-20: 12 checks passed');
+const contactBase={...base,companies:[[...base.companies[0],'Contactperson ',' Language communication'],[...base.companies[1],'Pepi','SP']]};
+r=buildCompanyManagementReadModel20(contactBase);
+assert.equal(r.companies[0].contactPerson,'Pepi','Contactperson header with trailing whitespace survives a save/reload');
+assert.equal(r.companies[0].communicationLanguage,'SP','Communication language header with leading whitespace survives reload');
+console.log('company-management-readmodel-20: contact and language reload checks passed');

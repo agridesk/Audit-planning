@@ -1410,7 +1410,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
     let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>65536)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});}
     let b;try{b=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
-    const allowed=new Set(['Contactperson ','Contactperson e-mail','Contactperson phone','Number','Group','Region','Country','Time zone',' Language communication','Manager_Email','Comments','Audit planning limitations - days','Audit planning limitations - hours','Preferred_Audit_Months','Locations_JSON']);
+    const allowed=new Set(['Contactperson ','Contactperson e-mail','Contactperson phone','Number','Group','Region','Country','Time zone',' Language communication','Manager_Email','Comments','Audit planning limitations - days','Audit planning limitations - hours','Preferred_Audit_Months','Locations_JSON','Auditor_Exclusions']);
     const changes=b?.changes;if(!clean(b?.companyUid)||!changes||typeof changes!=='object'||Array.isArray(changes)||!Object.keys(changes).length||Object.keys(changes).some(k=>!allowed.has(k)))return send(res,400,{ok:false,error:'INVALID_COMPANY_CHANGES'});
     try{
       const v=await sheetsBatchGet(['Companies!A1:X2500']);const values=v[0]?.values||[],headers=(values[0]||[]).map(String);const uidIndex=headers.indexOf('Company_UID');if(uidIndex<0)return send(res,409,{ok:false,error:'COMPANY_SCHEMA_MISSING'});
@@ -1418,6 +1418,12 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       const target=hits[0],updates=[];for(const [key,item] of Object.entries(changes)){
         if(!item||typeof item!=='object'||typeof item.value!=='string'||typeof item.expected!=='string'||item.value.length>12000)return send(res,400,{ok:false,error:'INVALID_CHANGE_VALUE',field:key});
         const col=headers.indexOf(key);if(col<0)return send(res,409,{ok:false,error:'COMPANY_FIELD_MISSING',field:key});const old=String(target.row[col]??'');if(old!==item.value&&old!==item.expected&&!(old.trim()===item.expected.trim())&&!(old!==''&&item.expected!==''&&Number.isFinite(Number(old))&&Number.isFinite(Number(item.expected))&&Number(old)===Number(item.expected)))return send(res,409,{ok:false,error:'STALE_COMPANY_FIELD',field:key,current:old});
+        if(key==='Auditor_Exclusions'){
+          let exclusions;try{exclusions=JSON.parse(item.value||'[]')}catch{return send(res,400,{ok:false,error:'INVALID_AUDITOR_EXCLUSIONS'})}
+          if(!Array.isArray(exclusions)||exclusions.length>100||exclusions.some(v=>typeof v!=='string'||! /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(v))||new Set(exclusions.map(v=>v.toLowerCase())).size!==exclusions.length)return send(res,400,{ok:false,error:'INVALID_AUDITOR_EXCLUSIONS'});
+          const auditors=(await sheetsBatchGet(['Auditors!A1:R256']))[0]?.values||[],ah=auditors[0]||[],ei=ah.indexOf('E-mail');
+          if(ei<0||exclusions.some(v=>!auditors.slice(1).some(r=>clean(r[ei]).toLowerCase()===v.toLowerCase())))return send(res,409,{ok:false,error:'AUDITOR_EXCLUSION_UNKNOWN'});
+        }
         if(key==='Contactperson e-mail'&&item.value&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item.value))return send(res,400,{ok:false,error:'INVALID_EMAIL'});
         if(key==='Audit planning limitations - days'&&item.value&&!/^(Mo|Tu|We|Th|Fr|Sa|Su)(, ?(Mo|Tu|We|Th|Fr|Sa|Su))*$/.test(item.value))return send(res,400,{ok:false,error:'INVALID_PLANNING_DAYS'});
         if(key==='Audit planning limitations - hours'&&item.value){const m=/^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$/.exec(item.value);if(!m||m[0].slice(0,5)>=m[0].slice(6))return send(res,400,{ok:false,error:'INVALID_PLANNING_HOURS'});}
@@ -1435,8 +1441,8 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
   if(u.pathname==='/api/v1/manager/company-management'&&req.method==='GET'){
     const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
-    try{const v=await sheetsBatchGet(['Companies!A1:X2500','Company_Scopes!A1:L3000','Config_Scopes!A1:U128','ScopeVersions!A1:I1000','Company_Scope_Hours!A1:M3000']);
-      return send(res,200,buildCompanyManagementReadModel20({companies:v[0]?.values||[],companyScopes:v[1]?.values||[],configScopes:v[2]?.values||[],scopeVersions:v[3]?.values||[],companyHours:v[4]?.values||[]}));
+    try{const v=await sheetsBatchGet(['Companies!A1:X2500','Company_Scopes!A1:L3000','Config_Scopes!A1:U128','ScopeVersions!A1:I1000','Company_Scope_Hours!A1:M3000','Auditors!A1:R256']);
+      const out=buildCompanyManagementReadModel20({companies:v[0]?.values||[],companyScopes:v[1]?.values||[],configScopes:v[2]?.values||[],scopeVersions:v[3]?.values||[],companyHours:v[4]?.values||[]});const aud=v[5]?.values||[],ah=aud[0]||[],ei=ah.indexOf('E-mail'),ni=ah.indexOf('Name'),ai=ah.indexOf('Active'),ri=ah.indexOf('Role');out.activeAuditors=aud.slice(1).filter(r=>ei>=0&&ni>=0&&clean(r[ei])&&(!~ai||['YES','TRUE','1'].includes(clean(r[ai]).toUpperCase()))&&(!~ri||clean(r[ri]).toLowerCase()==='auditor')).map(r=>({email:clean(r[ei]).toLowerCase(),name:clean(r[ni])}));return send(res,200,out);
     }catch(e){return send(res,409,{ok:false,error:'COMPANY_MANAGEMENT_READ_FAILED',detail:clean(e?.message||e)});}
   }
   if(u.pathname==='/api/v1/manager/company-scope-hours'&&req.method==='GET'){

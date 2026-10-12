@@ -1362,7 +1362,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
         if(key==='Contactperson e-mail'&&item.value&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item.value))return send(res,400,{ok:false,error:'INVALID_EMAIL'});
         if(key==='Locations_JSON'){let loc;try{loc=JSON.parse(item.value)}catch{return send(res,400,{ok:false,error:'INVALID_LOCATIONS_JSON'})}if(!Array.isArray(loc)||loc.length>100)return send(res,400,{ok:false,error:'INVALID_LOCATIONS_JSON'});
           const codes=new Set(),active=loc.filter(x=>x&&x.active===true);for(const x of loc){if(!x||typeof x.code!=='string'||!x.code.trim()||codes.has(x.code)||typeof x.name!=='string'||typeof x.active!=='boolean'||Object.values(x).some(y=>typeof y==='string'&&y.length>4000))return send(res,400,{ok:false,error:'INVALID_LOCATION_ENTRY'});codes.add(x.code)}
-          if(clean(target.row[headers.indexOf('Status')]).toLowerCase()==='active'&&(active.filter(x=>x.code.toUpperCase()==='HQ'||x.hq===true||x.isHQ===true).length!==1))return send(res,409,{ok:false,error:'EXACTLY_ONE_ACTIVE_HQ_REQUIRED'});
+          if(clean(target.row[headers.indexOf('Status')]).toLowerCase()==='active'&&(active.filter(x=>x.hq===true||x.isHQ===true||(x.code.toUpperCase()==='HQ'&&!loc.some(y=>y.hq===true||y.isHQ===true))).length!==1))return send(res,409,{ok:false,error:'EXACTLY_ONE_ACTIVE_HQ_REQUIRED'});
         }
         if(old!==item.value){let n=col+1,letter='';while(n){n--;letter=String.fromCharCode(65+n%26)+letter;n=Math.floor(n/26)}updates.push({range:'Companies!'+letter+target.i,values:[[item.value]]})}
       }

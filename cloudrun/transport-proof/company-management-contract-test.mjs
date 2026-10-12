@@ -83,4 +83,7 @@ assert.ok(ui.includes("discard.onclick=function(){pending={};saveError='';render
 assert.ok(ui.includes("if(String(actorRole).toLowerCase()==='auditor'){var auditorAllowed=new Set("),'Client preflights auditor field permissions');
 assert.ok(ui.includes("control===start||control===end"),'Auditor can adjust available hours');
 assert.ok(ui.includes("if(String(actorRole).toLowerCase()==='auditor')return;var value=JSON.stringify(loc)"),'Auditor cannot stage location mutations');
+assert.ok(ui.includes("input.disabled=String(actorRole).toLowerCase()==='auditor';input.style.cssText="),'Location fields stay disabled after selecting another location');
+assert.ok(ui.includes("active.disabled=String(actorRole).toLowerCase()==='auditor'"),'Auditor cannot change location active status');
+assert.ok(ui.includes("hq.disabled=String(actorRole).toLowerCase()==='auditor'"),'Auditor cannot set a new HQ');
 console.log('Company Management 2.0 contract checks passed');

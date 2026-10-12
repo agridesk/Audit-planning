@@ -1,7 +1,7 @@
 // Canonical normalized company-specific scope hours storage (DEV only).
 // Tab creation is explicit and idempotent; never modify Audit planning.
 export const COMPANY_SCOPE_HOURS_TAB='Company_Scope_Hours';
-export const COMPANY_SCOPE_HOURS_HEADERS=['OverrideId','CompanyID','ScopeCode','Hours','EffectiveFrom','EffectiveTo','Status','Revision','CreatedAt','CreatedBy','ChangeReason','SupersedesOverrideId','ScopeVersionPolicy'];
+export const COMPANY_SCOPE_HOURS_HEADERS=['OverrideId','Company_UID','ScopeCode','Hours','EffectiveFrom','EffectiveTo','Status','Revision','CreatedAt','CreatedBy','ChangeReason','SupersedesOverrideId','ScopeVersionPolicy'];
 const c=x=>String(x??'').trim();
 const endpoint=sid=>'https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(sid);
 export async function companyHoursStorage20({method,body={},SID,accessToken,sheetsBatchGet}){

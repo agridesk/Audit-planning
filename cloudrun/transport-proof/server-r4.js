@@ -1473,7 +1473,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       if(!updates.length)return send(res,200,{ok:true,updated:0,companyUid:uid});
       const stamp=new Date().toISOString(),auditId=createHash('sha256').update(stamp+'|'+email+'|'+uid+'|'+JSON.stringify(diffs)).digest('hex').slice(0,24),detail=JSON.stringify({auditId,actor:email,companyUid:uid,changes:diffs});
       await sheetsValuesAppend('Diagnostics_Log!A:K',[[stamp,'COMPANY_2_0','AUDITOR_FIELD_EDIT',uid,'CHANGE_INTENT',email,'','',false,'Validated; canonical write pending',detail]]);
-      await sheetsValuesBatchUpdate(updates);
+      await sheetsValuesBatchUpdateRaw(updates);
       await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'COMPANY_2_0','AUDITOR_FIELD_EDIT',uid,'CHANGE_APPLIED',email,'','',false,'Canonical write completed',detail]]);
       return send(res,200,{ok:true,updated:updates.length,companyUid:uid,auditId});
     }catch(e){return send(res,503,{ok:false,error:'AUDITOR_COMPANY_SAVE_UNCONFIRMED',detail:clean(e?.message||e)})}

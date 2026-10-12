@@ -358,7 +358,7 @@ saveScheme.onclick=async function(){
 };
 var current=versions.find(function(v){return v.Status==='CURRENT'});
 if(current||!versions.length){
- var edit=el('div','');edit.style.margin='0 0 14px';var hoursLabel=el('label','Hours to be planned: ');edit.appendChild(hoursLabel);var hoursInput=document.createElement('input');hoursInput.type='number';hoursInput.min='0';hoursInput.max='1000';hoursInput.step='0.25';hoursInput.value=current?String(current.Hours_to_plan):'';hoursInput.style.width='90px';hoursInput.setAttribute('aria-label','New hours to be planned');
+ var edit=el('div','');edit.style.margin='0 0 14px';var hoursLabel=el('label','Hours to be planned: ');edit.appendChild(hoursLabel);var hoursInput=document.createElement('input');hoursInput.type='number';hoursInput.min='0';hoursInput.max='1000';hoursInput.step='0.01';hoursInput.value=current?String(current.Hours_to_plan):'';hoursInput.style.width='90px';hoursInput.setAttribute('aria-label','New hours to be planned');
  var saveHours=el('button',current?'Save hours revision':'Initialize hours history');saveHours.type='button';saveHours.style.marginLeft='8px';
  saveHours.onclick=async function(){
  

@@ -475,7 +475,7 @@ button.hidden=true;button.onclick=function(){if(String(actorRole).toLowerCase()!
 })();
 (function(){
 var open=document.getElementById('companyManagement20'),panel=document.getElementById('companyManagement20Panel'),close=document.getElementById('companyManagement20Close'),search=document.getElementById('companyManagement20Search'),filter=document.getElementById('companyManagement20Filter'),status=document.getElementById('companyManagement20Status'),rows=document.getElementById('companyManagement20Rows'),dossier=document.getElementById('companyManagement20Dossier'),name=document.getElementById('companyManagement20Name'),details=document.getElementById('companyManagement20Details');
-var companies=[],selected=null,tab='company',pending={},busy=false,companyCatalog=[];
+var companies=[],selected=null,tab='company',pending={},busy=false,companyCatalog=[],saveError='';
 function el(tag,value){var n=document.createElement(tag);if(value!==undefined)n.textContent=String(value??'');return n}
 function line(label,control){var wrap=el('div');wrap.style.cssText='display:grid;grid-template-columns:minmax(160px,230px) minmax(250px,1fr);gap:10px;align-items:center;padding:5px 0;border-bottom:1px solid #f1f5f9';var title=el('label',label);wrap.append(title,control);details.appendChild(wrap);return wrap}
 function plain(label,value){line(label,el('span',value||'—'))}
@@ -483,8 +483,8 @@ function field(label,key,value,kind){var input=el(kind==='multiline'?'textarea':
 function selectField(label,key,value){var input=el('select');['Yes','No'].forEach(function(v){var o=el('option',v);o.value=v;input.appendChild(o)});input.value=/^(yes|true|1)$/i.test(String(value))?'Yes':'No';var initial=input.value;input.onchange=function(){if(input.value===initial)delete pending[key];else pending[key]={expected:String(value??''),value:input.value};refreshSave()};line(label,input)}
 function gpsLink(gps){var raw=String(gps||'').trim(),link=el('a','Open in Google Maps ↗');link.href=/^https:\/\/(www\.)?(google\.[^/]+\/maps|maps\.google\.[^/]+\/)/i.test(raw)?raw:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(raw);link.target='_blank';link.rel='noopener noreferrer';return raw?link:el('span','No GPS')}
 function saveBar(){var bar=el('div');bar.style.cssText='display:flex;align-items:center;gap:12px;margin:14px 0';var save=el('button','Save all');save.type='button';save.style.cssText='background:#2563eb;color:white;border:0;border-radius:6px;padding:9px 17px';save.onclick=saveAll;save.id='companyManagement20Save';var msg=el('span','All changes saved');msg.id='companyManagement20SaveStatus';bar.append(save,msg);details.prepend(bar);refreshSave()}
-function refreshSave(){var btn=document.getElementById('companyManagement20Save'),msg=document.getElementById('companyManagement20SaveStatus');if(btn)btn.disabled=busy||!Object.keys(pending).length;if(msg){msg.style.color='';msg.textContent=busy?'Saving…':Object.keys(pending).length?Object.keys(pending).length+' unsaved changes':'All changes saved'}}
-async function saveAll(){if(!selected||busy||!Object.keys(pending).length)return;busy=true;refreshSave();var total=0;
+function refreshSave(){var btn=document.getElementById('companyManagement20Save'),msg=document.getElementById('companyManagement20SaveStatus');if(btn)btn.disabled=busy||!Object.keys(pending).length;if(msg){msg.style.color=saveError?'#b91c1c':'';msg.textContent=busy?'Saving…':saveError|| (Object.keys(pending).length?Object.keys(pending).length+' unsaved changes':'All changes saved')}}
+async function saveAll(){if(!selected||busy||!Object.keys(pending).length)return;saveError='';busy=true;refreshSave();var total=0;
 async function post(path,data){var response=await fetch(path,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}),result=await response.json();if(!response.ok||!result.ok)throw Error((result.error||'SAVE_FAILED')+(result.field?' · '+result.field:'')+(result.scopeCode?' · '+result.scopeCode:'')+(result.detail?' · '+result.detail:''));return result}
 try{
  var uid=selected.companyUid;
@@ -494,10 +494,10 @@ try{
  for(var key of Object.keys(pending).filter(function(k){return k.startsWith('hours:')})){var item=pending[key],hd=await post('/api/v1/manager/company-management/scopes/hours',{companyUid:uid,scopeCode:item.scopeCode,hours:item.hours,expected:item.expected});total+=hd.updated;delete pending[key]}
  var companyChanges=Object.fromEntries(Object.entries(pending).filter(function(pair){return !pair[0].includes(':')}));
  if(Object.keys(companyChanges).length){var cd=await post('/api/v1/manager/company-management/save',{companyUid:uid,changes:companyChanges});total+=cd.updated;Object.keys(companyChanges).forEach(function(k){delete pending[k]})}
- await load(uid);status.textContent='Saved '+total+' changes';
-}catch(e){status.textContent='Save blocked: '+e.message;var msg=document.getElementById('companyManagement20SaveStatus');if(msg){msg.textContent='Save blocked: '+e.message;msg.style.color='#b91c1c'}}finally{busy=false;refreshSave()}
+ await load(uid);saveError='';status.textContent='Saved '+total+' changes';
+}catch(e){saveError='Save blocked: '+e.message;status.textContent=saveError}finally{busy=false;refreshSave()}
 }
-function renderDossier(){if(!selected)return;dossier.hidden=false;name.textContent=selected.name+' · '+selected.companyUid;details.replaceChildren();pending={};
+function renderDossier(){if(!selected)return;if(Object.keys(pending).length){status.textContent='Save changes before navigating';return}dossier.hidden=false;name.textContent=selected.name+' · '+selected.companyUid;details.replaceChildren();pending={};
 if(tab==='company'){plain('Company',selected.name);plain('Status',selected.status);plain('Company UID',selected.companyUid);field('Company number','Number',selected.companyNumber);field('Group','Group',selected.companyGroup);field('Region','Region',selected.region);field('Country','Country',selected.country);field('Contact person','Contactperson ',selected.contactPerson);field('Contact email','Contactperson e-mail',selected.contactEmail,'email');field('Contact phone','Contactperson phone',selected.contactPhone);field('Communication language',' Language communication',selected.communicationLanguage);field('Time zone','Time zone',selected.timeZone);field('Manager email','Manager_Email',selected.managerEmail,'email');field('General comments','Comments',selected.generalComments,'multiline')}
 if(tab==='scopes'){
  var assigned=selected.scopes.filter(function(x){return x.active}),inactive=selected.scopes.filter(function(x){return !x.active});

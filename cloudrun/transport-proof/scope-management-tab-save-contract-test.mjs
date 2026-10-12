@@ -5,7 +5,7 @@ assert.match(ui,/var saveAll=el\('button','Save all'\)/);
 assert.match(ui,/pendingEdits\.filter\(function\(e\)/);
 assert.match(ui,/All changes saved/);
 assert.match(ui,/if\(!changes\.length\)/);
-assert.match(ui,/reason\|\|'Manager tab update'/);
+assert.match(ui,/reason:'Manager Scope Management tab update'|var reason='Manager Scope Management tab update'/);
 assert.match(ui,/scopeManagement20Panel"\)\.hidden/);
 assert.match(ui,/search\.oninput=render/);
 assert.doesNotMatch(ui,/prompt\('Reason for policy change:'\)/);

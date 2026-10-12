@@ -1445,6 +1445,38 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     const apiKey=clean(process.env.GOOGLE_MAPS_BROWSER_API_KEY);
     return send(res,200,{ok:true,configured:!!apiKey,apiKey});
   }
+  if(u.pathname==='/api/v1/manager/auditor-management/profile/save'&&req.method==='POST'){
+    const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>12288)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
+    let request;try{request=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+    const email=clean(request?.email).toLowerCase(),changes=request?.changes,keys=changes&&!Array.isArray(changes)&&typeof changes==='object'?Object.keys(changes):[];
+    const allowed=new Set(['Name','Area','Default time zone','Blocked weekdays','Default departure from','Mobile telephone']);
+    if(!email||!keys.length||keys.length>allowed.size||keys.some(k=>!allowed.has(k)))return send(res,400,{ok:false,error:'INVALID_AUDITOR_PROFILE_CHANGES'});
+    for(const field of keys){const c=changes[field];if(!c||typeof c.expected!=='string'||typeof c.value!=='string'||c.value.length>500)return send(res,400,{ok:false,error:'INVALID_AUDITOR_PROFILE_VALUE',field});
+      if(field==='Name'&&!clean(c.value))return send(res,400,{ok:false,error:'AUDITOR_NAME_REQUIRED'});
+      if(field==='Blocked weekdays'&&c.value&&!/^(Mo|Tu|We|Th|Fr)(, ?(Mo|Tu|We|Th|Fr))*$/.test(c.value))return send(res,400,{ok:false,error:'INVALID_AUDITOR_BLOCKED_WEEKDAYS'});
+      if(field==='Default time zone'&&c.value&&!/^[A-Za-z_]+\/[A-Za-z_]+(?:\/[A-Za-z_]+)?$/.test(c.value))return send(res,400,{ok:false,error:'INVALID_AUDITOR_TIMEZONE'});
+    }
+    try{
+      const v=await sheetsBatchGet(['Auditors!A1:AZ1000']),values=v[0]?.values||[],h=values[0]||[],emailCol=col(h,['E-mail','Email']);
+      const hits=values.slice(1).map((row,i)=>({row,index:i+2})).filter(x=>emailCol>=0&&clean(x.row[emailCol]).toLowerCase()===email);
+      if(hits.length!==1)return send(res,409,{ok:false,error:'AUDITOR_IDENTITY_NOT_UNIQUE'});
+      const target=hits[0],updates=[],diffs=[];
+      for(const field of keys){const c=changes[field],j=h.indexOf(field);if(j<0)return send(res,409,{ok:false,error:'AUDITOR_FIELD_NOT_IN_SCHEMA',field});
+        const old=String(target.row[j]??'');if(old!==c.expected&&old.trim()!==c.expected.trim()&&old!==c.value)return send(res,409,{ok:false,error:'STALE_AUDITOR_FIELD',field});
+        if(old===c.value)continue;diffs.push({field,old,newValue:c.value});
+        let n=j+1,letter='';while(n){n--;letter=String.fromCharCode(65+n%26)+letter;n=Math.floor(n/26)}
+        updates.push({range:'Auditors!'+letter+target.index,values:[[c.value]]});
+      }
+      if(!updates.length)return send(res,200,{ok:true,updated:0});
+      const now=new Date().toISOString(),id=createHash('sha256').update(email+now+JSON.stringify(diffs)).digest('hex').slice(0,24),details=JSON.stringify({id,auditorEmail:email,actor:clean(actor.email).toLowerCase(),changes:diffs});
+      await sheetsValuesAppend('Diagnostics_Log!A:K',[[now,'AUDITOR_MANAGEMENT_2_0','PROFILE_EDIT',email,'CHANGE_INTENT',clean(actor.email),'','',false,'Manager profile change validated',details]]);
+      await sheetsValuesBatchUpdateRaw(updates);
+      await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'AUDITOR_MANAGEMENT_2_0','PROFILE_EDIT',email,'CHANGE_APPLIED',clean(actor.email),'','',false,'Canonical Auditors row updated',details]]);
+      return send(res,200,{ok:true,updated:updates.length,trailId:id});
+    }catch(e){return send(res,503,{ok:false,error:'AUDITOR_PROFILE_SAVE_UNCONFIRMED',detail:clean(e?.message||e)})}
+  }
   if(u.pathname==='/api/v1/manager/auditor-management'&&req.method==='GET'){
     const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});

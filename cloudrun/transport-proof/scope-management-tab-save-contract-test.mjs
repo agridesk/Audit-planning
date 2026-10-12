@@ -9,4 +9,7 @@ assert.match(ui,/reason:'Manager Scope Management tab update'|var reason='Manage
 assert.match(ui,/scopeManagement20Panel"\)\.hidden/);
 assert.match(ui,/search\.oninput=render/);
 assert.doesNotMatch(ui,/prompt\('Reason for policy change:'\)/);
-console.log('scope-management-tab-save-contract: 8 checks passed');
+assert.doesNotMatch(ui,/prompt\('Reason for setting official scheme version:'\)/);
+assert.doesNotMatch(ui,/confirm\('Set official scheme version /);
+assert.match(ui,/reason='Manager updated official scheme version'/);
+console.log('scope-management-tab-save-contract: 11 checks passed');

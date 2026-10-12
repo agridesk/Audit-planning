@@ -295,3 +295,11 @@ UX-002 final laptop overflow guard — 2026-10-10
 - Commits: ffe55f7f, 02864cbc.
 - Current status: DEV SOURCE ONLY — full npm test and DEV deployment/visual acceptance still required.
 - Important interpretation: if the remaining scrollbar is genuinely vertical (up/down), page-level vertical scrolling is expected with ~112 rows; the defect targeted here is horizontal/laptop-width overflow. Do not reintroduce nested table vertical scrolling merely to hide normal page length.
+
+
+COMPANY-2.0 AUDITOR SHARED ACCESS / GOVERNED CHANGES — 2026-10-12 — OPEN, DO NOT CLOSE AT MANAGER CUTOVER
+Canonical authority: AMS Roadmap V2.11 §17.1–17.3, §23.1; Company Management 2.0 handoff.
+- Phase A, DEV SOURCE only: role-aware Auditor read endpoint /api/v1/auditor/company-management; company visibility restricted to an auditor's assigned/preassigned/historical audits, backed by server filtering. Reuses Company Management panel in read-only Auditor mode. Never expose Manager edit endpoints to Auditor.
+- Phase B, P0 BEFORE COMPANY 2.0 CUTOVER — NOT IMPLEMENTED: Direct Auditor changes to contact person, contact email, contact phone, separate Auditor comments, and Company planning limitations weekdays/hours using ONE Save, field-level authorization server side, real actor/timestamp/old/new audit trail, canonical Companies writer, fast refresh. DEV Companies currently has no 'Auditor comments' column. Confirm schema and approved migration before writes; Manager General comments remain separate. Add both authorization and audit trail regression tests.
+- Phase C, P1 FOLLOW-UP — NOT IMPLEMENTED: Auditor-proposed updates for General comments, Region, Locations, structural planning fields and Auditor_Exclusions. Durable proposals with attribution and timestamps, Manager approve/reject inbox, notifications and correct canonical apply; exclusions Manager activation only. Prevent duplicate Company master flow, silent location deletion or unapproved governance changes.
+- Acceptance: Auditor only sees operationally relevant companies; Manager continues full Company access; no direct Auditor edits before audit trail and strict field permission exist; no PROD writes without explicit approval. Phase C is explicitly parked and MUST be revisited after Auditor Management/My Availability foundations, rather than silently marked complete with Phase A/B.

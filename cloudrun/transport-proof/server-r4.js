@@ -1566,7 +1566,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
     let data;try{data=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
     const email=clean(data?.email).toLowerCase(),name=clean(data?.name),newEmail=clean(data?.newEmail).toLowerCase(),newName=clean(data?.newName);
-    if(!email||!name||!newEmail||!newName||newName.length>160||newEmail.length>254||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(newEmail))return send(res,400,{ok:false,error:'INVALID_IDENTITY_CHANGE'});
+    if(!email||!name||!newEmail||!newName||newName.length>160||newEmail.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail))return send(res,400,{ok:false,error:'INVALID_IDENTITY_CHANGE'});
     try{
       const v=await sheetsBatchGet(['Auditors!A1:AZ1000','Audit planning!A1:AX2500','Log realized audits!A1:AZ2500']),av=v[0]?.values||[],ah=av[0]||[],ec=col(ah,['E-mail','Email']),nc=col(ah,['Name']);
       const matched=av.slice(1).map((row,i)=>({row,line:i+2})).filter(x=>ec>=0&&clean(x.row[ec]).toLowerCase()===email);

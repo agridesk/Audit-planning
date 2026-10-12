@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {previewCompanyHoursMigration20 as preview} from './company-scope-hours-migration-20.js';
+const companyScopes=[['Company_Scope_ID','Company_UID','ScopeCode','Active','Company_Formal_Hours_Override'],['CS1','C1','GAP','YES',7],['CS2','C2','GAP','NO','4'],['CS3','C3','GAP','YES','']];
+const configScopes=[['ScopeCode'],['GAP']];
+const targetRows=[['OverrideId','Company_UID','ScopeCode','Hours','Status','Revision','SupersedesOverrideId']];
+const r=preview({companyScopes,configScopes,targetRows});
+assert.equal(r.ok,true);assert.equal(r.sourceOverrides,2);assert.equal(r.activeOverrides,1);assert.equal(r.inactiveOverrides,1);
+assert.equal(preview({companyScopes,configScopes,targetRows:[...targetRows,['OV1','C1','GAP',7,'ACTIVE',1,'CS1']]}).alreadyMigrated,1);
+assert.equal(preview({companyScopes:[...companyScopes,['CS4','C4','UNKNOWN','YES','3']],configScopes,targetRows}).ok,false);
+assert.equal(preview({companyScopes:[...companyScopes,['CS1','C5','GAP','YES','3']],configScopes,targetRows}).ok,false);
+assert.throws(()=>preview({companyScopes:[],configScopes,targetRows}),/HEADER_MISSING/);
+console.log('company-scope-hours-migration-20: 8 checks passed');

@@ -57,6 +57,6 @@ assert.ok(ui.includes("el('button','Save identity')"),'Identity editor shown');
 assert.ok(server.includes("AUDITOR_NAME_REKEY_REQUIRES_REFERENCE_MIGRATION"),'Legacy name-based assignment protection');
 assert.ok(ui.includes("confirmedAuditIds"),'Manager reviews and confirms inactivation impact');
 
-assert.ok(ui.includes("if(desired){if(!window.confirm('Add qualification '"),'Adding qualifications bypasses withdrawal impact preview');
-assert.ok(server.includes("if(!qualified&&impacts.length)"),'Only qualification removals blocked by linked audits');
+assert.ok(ui.includes("'/api/v1/manager/auditor-management/qualification-impact?email='"),'Qualification impact preview available');
+assert.ok(server.includes("QUALIFICATION_IMPACT_APPROVAL_REQUIRED"),'Linked assignment changes fail closed');
 console.log('Auditor Management 2.0 profile edit contract PASS');

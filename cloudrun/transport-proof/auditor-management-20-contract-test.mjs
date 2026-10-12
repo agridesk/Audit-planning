@@ -41,4 +41,6 @@ assert.ok(server.includes("Qualification_Withdrawals_JSON"),'Canonical per-audit
 assert.ok(ui.includes("Preserve listed audits & schedule withdrawal"),'Manager must explicitly approve exceptions');
 assert.ok(ui.includes("grandfatheredAuditIds:(impact.impacted||[]).map(x=>x.auditId)"),'Only reviewed audit IDs may be exempted');
 assert.ok(ui.includes("withdrawal '+scheduled.effectiveDate"),'Display qualification withdrawal effective date');
+assert.ok(server.includes('WITHDRAWAL_WRITE_DISABLED_PENDING_DUAL_RUNTIME_GUARDS'),'Withdrawal fail-closed until both runtimes guarded');
+assert.ok(ui.includes('proceed.disabled=!impact.withdrawalWriteEnabled'),'Withdrawal controls unavailable until activated');
 console.log('Auditor Management 2.0 profile edit contract PASS');

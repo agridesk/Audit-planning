@@ -1458,6 +1458,46 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       return send(res,200,{ok:true,email,rows});
     }catch(e){return send(res,503,{ok:false,error:'AUDITOR_HISTORY_READ_FAILED',detail:clean(e?.message||e)})}
   }
+  if(u.pathname==='/api/v1/manager/auditor-management/qualification/save'&&req.method==='POST'){
+    const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    let raw='';for await(const c of req){raw+=c;if(raw.length>8192)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
+    let input;try{input=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+    const email=clean(input?.email).toLowerCase(),scopeCode=clean(input?.scopeCode),expected=input?.expected,qualified=input?.qualified;
+    if(!email||!scopeCode||typeof expected!=='boolean'||typeof qualified!=='boolean')return send(res,400,{ok:false,error:'INVALID_QUALIFICATION_CHANGE'});
+    try{
+      const v=await sheetsBatchGet(['Auditors!A1:AZ1000','Config_Scopes!A1:Z200','Audit planning!A1:AX2500']);
+      const av=v[0]?.values||[],ah=av[0]||[],sc=v[1]?.values||[],sh=sc[0]||[],ap=v[2]?.values||[],ph=ap[0]||[];
+      const ec=col(ah,['E-mail','Email']),matches=av.slice(1).map((row,i)=>({row,line:i+2})).filter(x=>ec>=0&&clean(x.row[ec]).toLowerCase()===email);
+      if(matches.length!==1)return send(res,409,{ok:false,error:'AUDITOR_IDENTITY_NOT_UNIQUE'});
+      const sci=col(sh,['ScopeCode','Scope Code']),sdi=col(sh,['DisplayName','Display Name']),slot=col(sh,['SlotKey','Slot key','Slot']),activeCol=col(sh,['Active']),archivedCol=col(sh,['Archived']);
+      const catalog=sc.slice(1).filter(row=>sci>=0&&clean(row[sci])===scopeCode&&(!((activeCol>=0)&&/^(No|false|0)$/i.test(clean(row[activeCol]))))&&!(archivedCol>=0&&yes(row[archivedCol])));
+      if(catalog.length!==1)return send(res,409,{ok:false,error:'SCOPE_NOT_UNIQUELY_ACTIVE'});
+      const sr=catalog[0],fieldIndex=col(ah,[scopeCode,clean(sr[sdi]),clean(sr[slot])].filter(Boolean));
+      if(fieldIndex<0)return send(res,409,{ok:false,error:'AUDITOR_QUALIFICATION_COLUMN_MISSING'});
+      const record=matches[0],old=String(record.row[fieldIndex]??''),oldQualified=/^(x|yes|true|1)$/i.test(clean(old));
+      if(oldQualified!==expected)return send(res,409,{ok:false,error:'STALE_AUDITOR_QUALIFICATION'});
+      if(oldQualified===qualified)return send(res,200,{ok:true,updated:0});
+      const ai=col(ph,['Assigned to','Assigned auditor','Auditor']),pi=col(ph,['Preassigned Auditor']),statusCol=col(ph,['Status']);
+      const aliases=[scopeCode,clean(sr[sdi]),clean(sr[slot])].filter(Boolean),scopeColumns=aliases.map(x=>col(ph,[x])).filter(i=>i>=0);
+      // Changes to qualifications with any linked unfinished audit are governed later by an assignment-impact migration.
+      // The fail-closed guard also applies to additions: an uncertain existing assignment never becomes silently valid.
+      if(scopeColumns.length===0)return send(res,409,{ok:false,error:'QUALIFICATION_IMPACT_SCHEMA_UNRESOLVED'});
+      const impacts=ap.slice(1).filter(row=>{
+        const status=clean(row[statusCol]).toUpperCase().replace(/[\s-]+/g,'_');
+        if(!['PENDING_PLANNING','PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(status))return false;
+        if(!scopeColumns.some(i=>yes(row[i])))return false;
+        return directResolveAuditorEmail(av,val(row,ai))===email||directResolveAuditorEmail(av,val(row,pi))===email;
+      });
+      if(impacts.length)return send(res,409,{ok:false,error:'QUALIFICATION_IMPACT_APPROVAL_REQUIRED',affected:impacts.length});
+      let n=fieldIndex+1,letter='';while(n){n--;letter=String.fromCharCode(65+n%26)+letter;n=Math.floor(n/26)}
+      const now=new Date().toISOString(),trailId=createHash('sha256').update(now+email+scopeCode).digest('hex').slice(0,24),payload=JSON.stringify({trailId,auditorEmail:email,actor:clean(actor.email),scopeCode,old,newValue:qualified?'x':''});
+      await sheetsValuesAppend('Diagnostics_Log!A:K',[[now,'AUDITOR_MANAGEMENT_2_0','QUALIFICATION_EDIT',email,'CHANGE_INTENT',clean(actor.email),'','',false,'No linked open audits; verified before write',payload]]);
+      await sheetsValuesBatchUpdateRaw([{range:'Auditors!'+letter+record.line,values:[[qualified?'x':'']]}]);
+      await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'AUDITOR_MANAGEMENT_2_0','QUALIFICATION_EDIT',email,'CHANGE_APPLIED',clean(actor.email),'','',false,'Qualification updated',payload]]);
+      return send(res,200,{ok:true,updated:1,trailId});
+    }catch(e){return send(res,503,{ok:false,error:'QUALIFICATION_SAVE_UNCONFIRMED',detail:clean(e?.message||e)})}
+  }
   if(u.pathname==='/api/v1/manager/auditor-management/qualification-impact'&&req.method==='GET'){
     const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});

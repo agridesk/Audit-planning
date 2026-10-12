@@ -1444,6 +1444,23 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     const apiKey=clean(process.env.GOOGLE_MAPS_BROWSER_API_KEY);
     return send(res,200,{ok:true,configured:!!apiKey,apiKey});
   }
+  if(u.pathname==='/api/v1/auditor/company-management'&&req.method==='GET'){
+    const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='auditor')return send(res,403,{ok:false,error:'AUDITOR_REQUIRED'});
+    try{
+      const values=await sheetsBatchGet(['Companies!A1:X2500','Company_Scopes!A1:L3000','Config_Scopes!A1:U128','ScopeVersions!A1:I1000','Company_Scope_Hours!A1:M3000','Audit planning!A1:AX2500','Log realized audits!A1:AZ2500','Auditors!A1:R256']);
+      const ap=values[5]?.values||[],ah=ap[0]||[],ci=col(ah,['Company_UID','Company UID']),cn=col(ah,['Company']),ca=col(ah,['Assigned to','Assigned auditor','Auditor']),cp=col(ah,['Preassigned Auditor']),aud=values[7]?.values||[],email=clean(actor.email).toLowerCase(),uids=new Set(),names=new Set();
+      for(const row of ap.slice(1)){
+        if(directResolveAuditorEmail(aud,val(row,ca))!==email&&directResolveAuditorEmail(aud,val(row,cp))!==email)continue;
+        if(ci>=0&&clean(row[ci]))uids.add(clean(row[ci]));if(cn>=0&&clean(row[cn]))names.add(clean(row[cn]).toLowerCase());
+      }
+      const log=values[6]?.values||[],lh=log[0]||[],lci=col(lh,['Company_UID','Company UID']),lcn=col(lh,['Company']),la=col(lh,['Auditor','Auditor Email','Email']);
+      for(const row of log.slice(1)){if(directResolveAuditorEmail(aud,val(row,la))!==email)continue;if(lci>=0&&clean(row[lci]))uids.add(clean(row[lci]));if(lcn>=0&&clean(row[lcn]))names.add(clean(row[lcn]).toLowerCase())}
+      const result=buildCompanyManagementReadModel20({companies:values[0]?.values||[],companyScopes:values[1]?.values||[],configScopes:values[2]?.values||[],scopeVersions:values[3]?.values||[],companyHours:values[4]?.values||[]});
+      result.companies=result.companies.filter(c=>uids.has(c.companyUid)||names.has(clean(c.name).toLowerCase()));
+      result.readOnly=true;result.actorRole='AUDITOR';result.activeAuditors=[];return send(res,200,result);
+    }catch(e){return send(res,409,{ok:false,error:'AUDITOR_COMPANY_READ_FAILED',detail:clean(e?.message||e)})}
+  }
   if(u.pathname==='/api/v1/manager/company-management'&&req.method==='GET'){
     const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});

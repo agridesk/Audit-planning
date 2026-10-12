@@ -597,17 +597,35 @@ let auditors=[],scopeCatalog=[];
 function el(tag,content){const node=document.createElement(tag);if(content!==undefined)node.textContent=String(content);return node}
 function showAuditor(a){
  dossier.hidden=false;dossier.replaceChildren();dossier.appendChild(el('h3',a.name));
+ let pending={},currentPage='Profile',saving=false;
+ const actions=el('div'),save=el('button','Save all'),discard=el('button','Discard changes'),feedback=el('span','All changes saved');
+ actions.style.cssText='display:flex;align-items:center;gap:10px;margin:10px 0';feedback.setAttribute('role','status');save.type='button';discard.type='button';actions.append(save,discard,feedback);dossier.appendChild(actions);
  const tabs=el('div');tabs.style.cssText='display:flex;gap:8px;margin:12px 0';
  const content=el('div');dossier.append(tabs,content);
+ function refresh(){save.disabled=saving||!Object.keys(pending).length;discard.disabled=saving||!Object.keys(pending).length;if(!saving)feedback.textContent=Object.keys(pending).length?Object.keys(pending).length+' unsaved changes':'All changes saved'}
+ function stage(key,original,value){if(value===String(original??''))delete pending[key];else pending[key]={expected:String(original??''),value};refresh()}
  function row(label,value){const line=el('div');line.style.cssText='display:grid;grid-template-columns:minmax(140px,220px) minmax(240px,1fr);gap:12px;padding:7px 0;border-bottom:1px solid #edf0f4';line.append(el('strong',label),el('span',value||'—'));content.appendChild(line)}
+ function editable(label,key,value){const line=el('div'),input=el('input');line.style.cssText='display:grid;grid-template-columns:minmax(140px,220px) minmax(240px,1fr);gap:12px;padding:7px 0;border-bottom:1px solid #edf0f4';input.value=String(value??'');input.style.cssText='padding:6px;max-width:620px;width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:5px';input.oninput=()=>stage(key,value,input.value);line.append(el('strong',label),input);content.appendChild(line)}
  const pages=['Profile','Qualifications','Availability Defaults','History'];
- function draw(page){content.replaceChildren();Array.from(tabs.children).forEach(x=>x.setAttribute('aria-pressed',String(x.textContent===page)));
-  if(page==='Profile'){row('Auditor',a.name);row('E-mail',a.email);row('Active',a.active?'Yes':'No');row('Role',a.role);row('Area',a.area);row('Time zone',a.timezone);row('Home base (existing)',a.homeBase);row('Telephone',a.phone);row('Future audits',a.futureAudits)}
-  else if(page==='Qualifications'){const info=el('p','Current canonical qualifications. Qualification changes require impact preview and Manager confirmation; editing is not yet enabled.');content.appendChild(info);scopeCatalog.forEach(sc=>{const label=el('label');label.style.cssText='display:block;padding:5px 0';const check=el('input');check.type='checkbox';check.disabled=true;check.checked=a.qualifications.includes(sc.code);label.append(check,document.createTextNode(' '+(sc.name||sc.code)));content.appendChild(label)})}
-  else if(page==='Availability Defaults'){row('Default blocked weekdays',a.blockedWeekdays);row('Default working hours','Not yet present in canonical Auditors schema');row('Time zone',a.timezone);row('Default departure from',a.homeBase)}
-  else {content.appendChild(el('p','Governed change history and assignment-impact history will appear after the mutation/audit-trail phase.'))}
+ function draw(page){currentPage=page;content.replaceChildren();Array.from(tabs.children).forEach(x=>x.setAttribute('aria-pressed',String(x.textContent===page)));
+  if(page==='Profile'){editable('Auditor','Name',a.name);row('E-mail · identity protected',a.email);row('Active · impact guard pending',a.active?'Yes':'No');row('Role · governed',a.role);editable('Area','Area',a.area);editable('Time zone','Default time zone',a.timezone);editable('Home base','Default departure from',a.homeBase);editable('Telephone','Mobile telephone',a.phone);row('Future audits',a.futureAudits)}
+  else if(page==='Qualifications'){content.appendChild(el('p','Qualification changes require an assignment-impact preview and explicit Manager confirmation; currently read-only.'));scopeCatalog.forEach(sc=>{const label=el('label');label.style.cssText='display:block;padding:5px 0';const check=el('input');check.type='checkbox';check.disabled=true;check.checked=a.qualifications.includes(sc.code);label.append(check,document.createTextNode(' '+(sc.name||sc.code)));content.appendChild(label)})}
+  else if(page==='Availability Defaults'){
+   const weekdays=['Mo','Tu','We','Th','Fr'],orig=a.blockedWeekdays||'',chosen=new Set(orig.split(',').map(x=>x.trim()).filter(Boolean));
+   const line=el('div');line.appendChild(el('strong','Preferred unavailable weekdays (soft)'));weekdays.forEach(day=>{const label=el('label');label.style.cssText='margin:9px 14px 8px 0;display:inline-block';const cb=el('input');cb.type='checkbox';cb.checked=chosen.has(day);cb.onchange=()=>{if(cb.checked)chosen.add(day);else chosen.delete(day);stage('Blocked weekdays',orig,weekdays.filter(x=>chosen.has(x)).join(', '))};label.append(cb,document.createTextNode(' '+day));line.appendChild(label)});content.appendChild(line);
+   row('Default working hours','No canonical working-hours column yet');row('Time zone',a.timezone);row('Departure from',a.homeBase);
+  }else{content.appendChild(el('p','Profile changes are recorded with actor, timestamp and before/after values. Impact history follows in the qualification-change phase.'))}
  }
- pages.forEach(page=>{const button=el('button',page);button.type='button';button.onclick=()=>draw(page);tabs.appendChild(button)});draw('Profile')
+ pages.forEach(page=>{const button=el('button',page);button.type='button';button.onclick=()=>{if(Object.keys(pending).length){feedback.textContent='Save or discard changes before switching tab';return}draw(page)};tabs.appendChild(button)});
+ discard.onclick=()=>{pending={};draw(currentPage);refresh()};
+ save.onclick=async()=>{if(saving||!Object.keys(pending).length)return;saving=true;refresh();feedback.textContent='Saving…';
+  try{const response=await fetch('/api/v1/manager/auditor-management/profile/save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:a.email,changes:pending})}),result=await response.json();
+   if(!response.ok||!result.ok)throw Error([result.error,result.field,result.detail].filter(Boolean).join(' · '));
+   const updatedEmail=a.email;const read=await fetch('/api/v1/manager/auditor-management',{credentials:'same-origin'}),data=await read.json();if(!read.ok||!data.ok)throw Error('SAVE_DONE_REFRESH_FAILED');
+   auditors=data.rows||[];scopeCatalog=data.scopeCatalog||[];const updated=auditors.find(x=>x.email===updatedEmail);if(!updated)throw Error('AUDITOR_NOT_FOUND_AFTER_SAVE');
+   pending={};saving=false;render();showAuditor(updated);const st=document.querySelector('#auditorManagement20Dossier [role=status]');if(st)st.textContent='Saved '+result.updated+' changes';
+  }catch(e){saving=false;refresh();feedback.textContent='Save blocked or unconfirmed: '+e.message}
+ };draw('Profile');refresh()
 }
 function render(){
  const q=search.value.trim().toLowerCase(),mode=filter.value;rows.replaceChildren();

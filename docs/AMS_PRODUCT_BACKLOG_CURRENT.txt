@@ -331,3 +331,6 @@ AUDITOR MANAGEMENT 2.0 — PROFILE EDIT PHASE B1 — 2026-10-12 — DEV SOURCE I
 AUDITOR MANAGEMENT 2.0 — QUALIFICATION IMPACT PREVIEW START — 2026-10-12 — DEV SOURCE ONLY
 - Read-only Manager endpoint and per-scope Impact button implemented: shows relevant open assigned/preassigned audits and Accepted count using canonical scope code/display name/slot alias. NO qualification mutation enabled yet. Qualification deactivation and Active/inactive impact recheck/atomic write remain hard implementation gates.
 - Runtime validation of scope alias coverage and actual audit impact against DEV data still required; do not claim A3–A7 acceptance yet. No PROD changes.
+
+AUDITOR MANAGEMENT 2.0 — HISTORY PHASE B1 — 2026-10-12 — DEV SOURCE ONLY
+- Manager-only History endpoint now reads applied Manager profile edits from Diagnostics_Log. History tab renders actor, timestamp and field old/new. Qualification/inactivation impact mutations and extended canonical profile schema remain unfinished. Source tests passed; full npm suite and Cloud Run runtime acceptance must be completed before calling the build deployed.

@@ -11,4 +11,6 @@ const contactBase={...base,companies:[[...base.companies[0],'Contactperson ',' L
 r=buildCompanyManagementReadModel20(contactBase);
 assert.equal(r.companies[0].contactPerson,'Pepi','Contactperson header with trailing whitespace survives a save/reload');
 assert.equal(r.companies[0].communicationLanguage,'SP','Communication language header with leading whitespace survives reload');
+const withAuditorComments={...base,companies:[[...base.companies[0],'Auditor comments'],[...base.companies[1],'Gate access: call before arriving']]};
+r=buildCompanyManagementReadModel20(withAuditorComments);assert.equal(r.companies[0].auditorComments,'Gate access: call before arriving');
 console.log('company-management-readmodel-20: contact and language reload checks passed');

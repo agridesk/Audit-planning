@@ -28,4 +28,7 @@ assert.ok(server.includes("scope.displayName,scope.slotKey"),'Canonical qualific
 assert.ok(server.includes("acceptedCount:impacted.filter"),'Accepted risk surfaced');
 assert.ok(ui.includes("const preview=el('button','Impact')"),'Impact preview available without write');
 assert.ok(ui.includes("data.impactedCount+' open assigned/preassigned audits affected"),'Impacted audit count rendered');
+assert.ok(server.includes("'/api/v1/manager/auditor-management/history'"),'Manager history endpoint');
+assert.ok(server.includes("Diagnostics_Log!A1:K5000"),'History based on audit trail');
+assert.ok(ui.includes("'/api/v1/manager/auditor-management/history?email='"),'History tab uses governed source');
 console.log('Auditor Management 2.0 profile edit contract PASS');

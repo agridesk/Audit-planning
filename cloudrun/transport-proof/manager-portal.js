@@ -382,7 +382,7 @@ fields.forEach(function(f){
  var dd=el('dd',''),cosmeticMap={'Scope name':'DisplayName','Color':'Color','Text color':'TextColor','Sort order':'SortOrder'},field=cosmeticMap[f[0]];
  var policyMap={'Rotation limit':'Max number audits','Minimum interval':'Min_Interval_Months','Max off-site hours':'Max_Offsite_Hours','Planning from':'Planning from','Planning to':'Planning to','Active':'Active','Archived':'Archived','Extension':'Extension','Recurring':'Recurring','Cycle':'Obligation cycle','Complete by':'Complete by','Provisioning source':'Provisioning source','Trigger source':'Trigger source','Source service':'Source service'};
  var policyField=policyMap[f[0]],canPolicy=(tab==='rules'||tab==='sources')&&!!policyField||tab==='general'&&['Active','Archived'].includes(f[0]);
- if(canPolicy||field){
+ if(canPolicy||field&&field!=='Color'&&field!=='TextColor'){
   var input=document.createElement(policyField==='Recurring'?'select':'input');
   if(policyField==='Recurring'){['YES','NO'].forEach(function(v){var option=document.createElement('option');option.value=v;option.textContent=v;input.appendChild(option)})}
   var initial=canPolicy?String(selected.policy[policyField]??''):String(selected.policy[field]??'');
@@ -401,9 +401,7 @@ if(tab!=='versions'){
   var changes=pendingEdits.filter(function(e){return e.input.value.trim()!==e.initial});
   if(!changes.length){saved.textContent='No changes';return}
   var scopeCode=selected.scopeCode;
-  var material=changes.filter(function(e){return e.kind==='policy'&&['Active','Archived','Min_Interval_Months','Max number audits','Planning from','Planning to','Recurring','Obligation cycle','Complete by','Extension'].includes(e.field)});
-  var reason='';
-  if(material.length){reason=prompt('Reason for material changes ('+material.map(function(e){return e.field}).join(', ')+'):');if(!reason||!reason.trim())return}
+  var reason='Manager Scope Management tab update';
   var impacts=[];
   try{
    for(var j=0;j<changes.length;j++){var e=changes[j];if(e.kind!=='policy')continue;
@@ -412,11 +410,11 @@ if(tab!=='versions'){
     if(String(impact.current)!==e.initial)throw Error('STALE_SCOPE_POLICY: '+e.field);
     impacts.push({field:e.field,impact:impact});
    }
-   if(material.length){var counts=impacts.length?impacts[0].impact:{};if(!confirm('Save '+changes.length+' changes? '+(counts.openAudits||0)+' open audits, '+(counts.accepted||0)+' Accepted. Existing audit snapshots remain unchanged.'))return}
+   
    saveAll.disabled=true;saved.textContent='Saving…';
    var completed=0;
    for(var k=0;k<changes.length;k++){
-    var item=changes[k],isPolicy=item.kind==='policy',payload=isPolicy?{scopeCode:scopeCode,field:item.field,expected:item.initial,value:item.input.value.trim(),reason:reason||'Manager tab update',impactConfirmed:true}:{scopeCode:scopeCode,field:item.field,expected:item.initial,value:item.input.value.trim()};
+    var item=changes[k],isPolicy=item.kind==='policy',payload=isPolicy?{scopeCode:scopeCode,field:item.field,expected:item.initial,value:item.input.value.trim(),reason:reason,impactConfirmed:true}:{scopeCode:scopeCode,field:item.field,expected:item.initial,value:item.input.value.trim()};
     var endpoint=isPolicy?'/api/v1/manager/scopes/policy':'/api/v1/manager/scopes/cosmetic';
     var response=await fetch(endpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),result=await response.json();
     if(!response.ok||!result.ok)throw Error(item.field+': '+(result.error||'SAVE_FAILED'));
@@ -444,9 +442,9 @@ finally{control.disabled=false}
 function editableCell(tr,r,field,value,type){
 var td=el('td',''),input=document.createElement('input');
 input.type=type||'text';input.value=value==null?'':String(value);input.style.width=field==='DisplayName'?'155px':'65px';input.style.boxSizing='border-box';input.setAttribute('aria-label',field+' for '+r.scopeCode);
-input.title='Press Enter or leave the field to save';
+input.title='Edit and leave the field to save';
 if(field==='Color'||field==='TextColor'){
-var picker=document.createElement('input');picker.type='color';picker.value=/^#[0-9a-f]{6}$/i.test(input.value)?input.value:'#ffffff';picker.style.width='28px';picker.style.height='24px';picker.style.verticalAlign='middle';picker.title='Choose '+field;picker.addEventListener('input',function(){input.value=picker.value;var badge=tr.querySelector('[data-scope-preview]');if(badge)badge.style[field==='Color'?'backgroundColor':'color']=picker.value});td.appendChild(picker);
+var picker=document.createElement('input');picker.type='color';picker.value=/^#[0-9a-f]{6}$/i.test(input.value)?input.value:'#ffffff';picker.style.width='28px';picker.style.height='24px';picker.style.verticalAlign='middle';picker.title='Choose '+field;picker.addEventListener('input',function(){input.value=picker.value;var badge=tr.querySelector('[data-scope-preview]');if(badge)badge.style[field==='Color'?'backgroundColor':'color']=picker.value});picker.addEventListener('change',function(){input.dispatchEvent(new Event('change',{bubbles:true}))});td.appendChild(picker);
 input.addEventListener('input',function(){if(/^#[0-9a-f]{6}$/i.test(input.value)){picker.value=input.value;var badge=tr.querySelector('[data-scope-preview]');if(badge)badge.style[field==='Color'?'backgroundColor':'color']=input.value}});
 }
 var original=input.value;

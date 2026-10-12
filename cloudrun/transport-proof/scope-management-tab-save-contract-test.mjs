@@ -12,4 +12,5 @@ assert.doesNotMatch(ui,/prompt\('Reason for policy change:'\)/);
 assert.doesNotMatch(ui,/prompt\('Reason for setting official scheme version:'\)/);
 assert.doesNotMatch(ui,/confirm\('Set official scheme version /);
 assert.match(ui,/reason='Manager updated official scheme version'/);
-console.log('scope-management-tab-save-contract: 11 checks passed');
+assert.match(ui,/\['TRUE','YES','1'\]\.includes\(initial\.trim\(\)\.toUpperCase\(\)\)/);
+console.log('scope-management-tab-save-contract: 12 checks passed');

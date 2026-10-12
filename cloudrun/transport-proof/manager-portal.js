@@ -573,7 +573,7 @@ if(tab==='governance'){
  var unknown=Array.from(chosen).filter(function(email){return !known.has(email)});if(unknown.length){var note=el('span','Existing exclusions not in active list: '+unknown.join(', '));note.style.color='#b45309';holder.appendChild(note)}
  if(!activeAuditors.length)holder.appendChild(el('span','No active auditors available'));
  holder.title='Selected auditors cannot be assigned to new audits at this company. Existing historical assignments are unchanged.';
- line('Auditor exclusions ⓘ',holder);
+ var exclusionRow=line('Auditor exclusions ⓘ',holder);var exclusionLabel=exclusionRow.querySelector('label');exclusionLabel.title=holder.title;exclusionLabel.style.cursor='help';var exclusionIcon=el('span','ⓘ');exclusionIcon.title=holder.title;exclusionIcon.setAttribute('aria-label',holder.title);exclusionIcon.style.cssText='cursor:help;margin-left:4px';exclusionLabel.textContent='Auditor exclusions';exclusionLabel.appendChild(exclusionIcon);
  plain('Pending changes','Governed auditor proposals are not yet connected');
 }
 saveBar()}

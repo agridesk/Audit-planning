@@ -1445,6 +1445,26 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     const apiKey=clean(process.env.GOOGLE_MAPS_BROWSER_API_KEY);
     return send(res,200,{ok:true,configured:!!apiKey,apiKey});
   }
+  if(u.pathname==='/api/v1/manager/auditor-management/qualification-impact'&&req.method==='GET'){
+    const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    const email=clean(u.searchParams.get('email')).toLowerCase(),code=clean(u.searchParams.get('scopeCode'));
+    if(!email||!code)return send(res,400,{ok:false,error:'IMPACT_INPUT_REQUIRED'});
+    try{
+      const v=await sheetsBatchGet(['Auditors!A1:AZ1000','Audit planning!A1:AX2500','Config_Scopes!A1:Z200','Companies!A1:Y2500']);
+      const av=v[0]?.values||[],ap=v[1]?.values||[],catalog=scopeCatalog(v[2]?.values||[]),companies=v[3]?.values||[],h=av[0]||[],emailCol=col(h,['E-mail','Email']);
+      const matches=av.slice(1).filter(row=>emailCol>=0&&clean(row[emailCol]).toLowerCase()===email);
+      if(matches.length!==1)return send(res,409,{ok:false,error:'AUDITOR_IDENTITY_NOT_UNIQUE'});
+      const scope=catalog.find(x=>clean(x.code)===code||clean(x.scopeCode)===code);
+      if(!scope)return send(res,404,{ok:false,error:'SCOPE_NOT_FOUND'});
+      const projected=managerOpen(ap,'',v[2]?.values||[],companies,av).rows||[];
+      const impacted=projected.filter(row=>{
+        if(!Array.isArray(row.scopes)||!row.scopes.some(x=>clean(x).toLowerCase()===code.toLowerCase()))return false;
+        return directResolveAuditorEmail(av,row.assignedTo)===email||directResolveAuditorEmail(av,row.preassignedAuditor)===email;
+      }).map(row=>({auditId:row.auditId,company:row.company,scopeCode:code,status:row.status,statusKey:row.statusKey,datePlanned:row.datePlanned||'',assigned:directResolveAuditorEmail(av,row.assignedTo)===email,preassigned:directResolveAuditorEmail(av,row.preassignedAuditor)===email}));
+      return send(res,200,{ok:true,readOnly:true,email,scopeCode:code,impacted,impactedCount:impacted.length,acceptedCount:impacted.filter(x=>x.statusKey==='ACCEPTED').length});
+    }catch(e){return send(res,503,{ok:false,error:'AUDITOR_QUALIFICATION_IMPACT_FAILED',detail:clean(e?.message||e)})}
+  }
   if(u.pathname==='/api/v1/manager/auditor-management/profile/save'&&req.method==='POST'){
     const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});

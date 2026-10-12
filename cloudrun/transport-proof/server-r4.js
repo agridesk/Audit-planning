@@ -1560,6 +1560,31 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       return send(res,200,{ok:true,readOnly:true,email,scopeCode:code,impacted,impactedCount:impacted.length,acceptedCount:impacted.filter(x=>x.statusKey==='ACCEPTED').length,withdrawalWriteEnabled:process.env.AMS_QUALIFICATION_WITHDRAWAL_WRITE_ENABLED==='true'});
     }catch(e){return send(res,503,{ok:false,error:'AUDITOR_QUALIFICATION_IMPACT_FAILED',detail:clean(e?.message||e)})}
   }
+  if(u.pathname==='/api/v1/manager/auditor-management/identity/save'&&req.method==='POST'){
+    const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
+    let data;try{data=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+    const email=clean(data?.email).toLowerCase(),name=clean(data?.name),newEmail=clean(data?.newEmail).toLowerCase(),newName=clean(data?.newName);
+    if(!email||!name||!newEmail||!newName||newName.length>160||newEmail.length>254||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(newEmail))return send(res,400,{ok:false,error:'INVALID_IDENTITY_CHANGE'});
+    try{
+      const v=await sheetsBatchGet(['Auditors!A1:AZ1000','Audit planning!A1:AX2500','Log realized audits!A1:AZ2500']),av=v[0]?.values||[],ah=av[0]||[],ec=col(ah,['E-mail','Email']),nc=col(ah,['Name']);
+      const matched=av.slice(1).map((row,i)=>({row,line:i+2})).filter(x=>ec>=0&&clean(x.row[ec]).toLowerCase()===email);
+      if(matched.length!==1||nc<0)return send(res,409,{ok:false,error:'AUDITOR_NOT_UNIQUE'});
+      const target=matched[0];if(clean(target.row[nc])!==name)return send(res,409,{ok:false,error:'STALE_AUDITOR_NAME'});
+      if(newEmail===email&&newName===name)return send(res,200,{ok:true,updated:0});
+      if(av.slice(1).some(row=>row!==target.row&&(clean(row[ec]).toLowerCase()===newEmail||clean(row[nc]).toLowerCase()===newName.toLowerCase())))return send(res,409,{ok:false,error:'IDENTITY_ALREADY_USED'});
+      const affected=[];
+      for(let j=1;j<=2;j++){const values=v[j]?.values||[],headers=values[0]||[];for(let i=1;i<values.length;i++){const row=values[i],hit=headers.some((h,k)=>/auditor|assigned|preassign/i.test(String(h||''))&&[email,name.toLowerCase()].includes(clean(row[k]).toLowerCase()));if(hit){const idcol=col(headers,['Audit ID']);affected.push({source:j===1?'Audit planning':'Log realized audits',auditId:val(row,idcol)||'row '+(i+1)})}}}
+      if(affected.length)return send(res,409,{ok:false,error:'AUDITOR_IDENTITY_REKEY_REQUIRES_REFERENCE_MIGRATION',affected:affected.slice(0,100),totalAffected:affected.length});
+      const updates=[];if(newName!==name)updates.push({range:'Auditors!A'+target.line,values:[[newName]]});if(newEmail!==email)updates.push({range:'Auditors!C'+target.line,values:[[newEmail]]});
+      const detail=JSON.stringify({oldName:name,newName,oldEmail:email,newEmail,actor:clean(actor.email)}),stamp=new Date().toISOString();
+      await sheetsValuesAppend('Diagnostics_Log!A:K',[[stamp,'AUDITOR_MANAGEMENT_2_0','IDENTITY_CHANGE',email,'CHANGE_INTENT',clean(actor.email),'','',false,'No planning or realized references',detail]]);
+      await sheetsValuesBatchUpdateRaw(updates);
+      await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'AUDITOR_MANAGEMENT_2_0','IDENTITY_CHANGE',newEmail,'CHANGE_APPLIED',clean(actor.email),'','',false,'Auditor identity changed',detail]]);
+      return send(res,200,{ok:true,updated:updates.length,newEmail,newName});
+    }catch(e){return send(res,503,{ok:false,error:'IDENTITY_SAVE_UNCONFIRMED',detail:clean(e?.message||e)})}
+  }
   if(u.pathname==='/api/v1/manager/auditor-management/active/save'&&req.method==='POST'){
     const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});

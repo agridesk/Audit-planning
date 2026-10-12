@@ -94,6 +94,7 @@ export function v211AuditorQualified(audValues,catalog,scopeCodes,auditorEmail){
   const target=matches[0];
   if((a>=0&&!yes(target[a]))||(r>=0&&val(target,r).toLowerCase()!=='auditor'))return false;
   if(!target)return false;
+  if(!v211QualificationWithdrawalConstraint({auditorValues:audValues,catalog,scopeCodes,auditorEmail}).ok)return false;
   return (scopeCodes||[]).every(sc=>{
     const canon=aliases.get(key(sc))||key(sc);
     for(let i=0;i<h.length;i++){

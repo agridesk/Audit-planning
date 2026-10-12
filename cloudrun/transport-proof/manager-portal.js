@@ -291,7 +291,7 @@ function fail(e){var z=document.getElementById("status");z.className="err";z.tex
 function applyActorUi(){var isAud=String(actorRole).toLowerCase()==="auditor",title=document.getElementById("portalTitle"),batch=document.getElementById("selectionBatch"),concept=document.getElementById("selectionConcept"),workspace=document.getElementById("planningWorkspace");document.body.classList.toggle("actor-auditor",isAud);document.body.classList.toggle("actor-manager",!isAud);if(title)title.textContent=isAud?"Auditor · Audit Grid 2.0":"Manager · Audit Grid 2.0";if(batch)batch.style.display=isAud?"none":batch.style.display;if(concept)concept.style.display=isAud?"none":concept.style.display;if(workspace)workspace.style.display=isAud?"none":"";}
 var passiveRefreshBusy=false,lastPassiveRefreshAt=0;
 function passiveRefreshOpen(){
-  if(currentView!=="open"||passiveRefreshBusy||document.visibilityState==="hidden")return Promise.resolve();
+  if(currentView!=="open"||passiveRefreshBusy||document.visibilityState==="hidden"||!document.getElementById("scopeManagement20Panel").hidden)return Promise.resolve();
   var now=Date.now();if(now-lastPassiveRefreshAt<1500)return Promise.resolve();
   passiveRefreshBusy=true;lastPassiveRefreshAt=now;
   var sx=window.scrollX,sy=window.scrollY,q=document.getElementById("q").value;

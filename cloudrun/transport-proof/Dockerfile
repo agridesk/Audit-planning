@@ -8,6 +8,7 @@ COPY scope-policy-20.js ./
 COPY scope-scheme-version-20.js ./
 COPY scope-create-20.js ./
 COPY company-scope-hours-storage-20.js ./
+COPY company-scope-hours-migration-20.js ./
 COPY server-r4.js ./
 COPY server-r5.js ./
 COPY server-r6.js ./

@@ -1420,7 +1420,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
         const col=headers.indexOf(key);if(col<0)return send(res,409,{ok:false,error:'COMPANY_FIELD_MISSING',field:key});const old=String(target.row[col]??'');if(old!==item.value&&old!==item.expected&&!(old.trim()===item.expected.trim())&&!(old!==''&&item.expected!==''&&Number.isFinite(Number(old))&&Number.isFinite(Number(item.expected))&&Number(old)===Number(item.expected)))return send(res,409,{ok:false,error:'STALE_COMPANY_FIELD',field:key,current:old});
         if(key==='Auditor_Exclusions'){
           let exclusions;try{exclusions=JSON.parse(item.value||'[]')}catch{return send(res,400,{ok:false,error:'INVALID_AUDITOR_EXCLUSIONS'})}
-          if(!Array.isArray(exclusions)||exclusions.length>100||exclusions.some(v=>typeof v!=='string'||! /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(v))||new Set(exclusions.map(v=>v.toLowerCase())).size!==exclusions.length)return send(res,400,{ok:false,error:'INVALID_AUDITOR_EXCLUSIONS'});
+          if(!Array.isArray(exclusions)||exclusions.length>100||exclusions.some(v=>typeof v!=='string'||! /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v))||new Set(exclusions.map(v=>v.toLowerCase())).size!==exclusions.length)return send(res,400,{ok:false,error:'INVALID_AUDITOR_EXCLUSIONS'});
           const auditors=(await sheetsBatchGet(['Auditors!A1:R256']))[0]?.values||[],ah=auditors[0]||[],ei=ah.indexOf('E-mail');
           if(ei<0||exclusions.some(v=>!auditors.slice(1).some(r=>clean(r[ei]).toLowerCase()===v.toLowerCase())))return send(res,409,{ok:false,error:'AUDITOR_EXCLUSION_UNKNOWN'});
         }

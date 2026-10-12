@@ -1345,6 +1345,19 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
   if(u.pathname==='/api/v1/planning/direct-commit'&&req.method==='POST'){const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(!['manager','auditor'].includes(clean(s.role).toLowerCase()))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>65536)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}try{return send(res,200,await directPlanningCommit(s,b));}catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'DIRECT_PLANNING_COMMIT_BLOCKED',detail:clean(e?.message||e)});}}
   if(u.pathname==='/api/v1/manager/action'&&req.method==='POST'){const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(clean(s.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}try{const out=await canonicalManagerAction(s,b);return send(res,out&&out.success===false?409:200,out)}catch(e){return send(res,500,{ok:false,error:'MANAGER_ACTION_BRIDGE_FAILED',detail:clean(e?.message||e)})}}
   if(u.pathname==='/api/v1/manager/archived'&&req.method==='GET'){const s=sessionFromRequest(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});const role=clean(s.role).toLowerCase();if(!['manager','auditor'].includes(role))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});try{return send(res,200,role==='auditor'?await auditorArchivedRead(clean(s.email).toLowerCase()):await managerArchivedRead(clean(s.email).toLowerCase()));}catch(e){return send(res,500,{ok:false,error:'ARCHIVED_READ_FAILED',detail:clean(e?.message||e)});}}
+  if(u.pathname==='/api/v1/manager/company-scope-hours'&&req.method==='GET'){
+    const actor=sessionFromRequest(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    try{
+      const vr=await sheetsBatchGet(['Company_Scope_Hours!A1:M2000']);
+      const values=vr[0]?.values||[],head=(values[0]||[]).map(clean);
+      const required=['OverrideId','Company_UID','ScopeCode','Hours','Status','Revision','SupersedesOverrideId'];
+      if(required.some(h=>!head.includes(h)))return send(res,409,{ok:false,error:'COMPANY_HOURS_SCHEMA_MISMATCH'});
+      const rows=values.slice(1).filter(r=>r.some(v=>clean(v))).map(r=>Object.fromEntries(head.map((h,i)=>[h,r[i]??''])));
+      return send(res,200,{ok:true,rows,readOnly:true,cutover:false});
+    }catch(e){return send(res,409,{ok:false,error:clean(e.message||e)});}
+  }
   if(u.pathname==='/api/v1/manager/company-scope-hours/resolve'&&req.method==='GET'){
     const actor=sessionFromRequest(req);
     if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});

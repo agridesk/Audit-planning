@@ -1,0 +1,21 @@
+const txt=v=>String(v??'').trim();
+const yes=v=>['YES','TRUE','1','ACTIVE'].includes(txt(v).toUpperCase());
+const mapRows=values=>{if(!Array.isArray(values)||!values.length)throw Error('COMPANY_SCHEMA_MISSING');const h=values[0].map(txt);return values.slice(1).map((r,i)=>({row:i+2,data:Object.fromEntries(h.map((k,j)=>[k,r[j]??'']))}));};
+const parseLocations=value=>{if(!txt(value))return[];let data;try{data=JSON.parse(value)}catch{throw Error('INVALID_LOCATIONS_JSON')};if(!Array.isArray(data))throw Error('INVALID_LOCATIONS_JSON');return data.map((x,i)=>({code:txt(x.code),name:txt(x.name||x.label||x.code),address:txt(x.address),postalCode:txt(x.postalCode||x.postal_code),city:txt(x.city),country:txt(x.country),gps:txt(x.gps),comment:txt(x.comment),active:x.active!==false&&x.active!=='false',hq:x.hq===true||x.isHQ===true||txt(x.code).toUpperCase()==='HQ',index:i}));};
+export function buildCompanyManagementReadModel20({companies,companyScopes,configScopes,scopeVersions,companyHours}){
+ const c=mapRows(companies),cs=mapRows(companyScopes),cfg=mapRows(configScopes),sv=mapRows(scopeVersions),hours=mapRows(companyHours);
+ for(const k of ['Company_UID','Company','Status','Locations_JSON'])if(!companies[0].includes(k))throw Error('COMPANY_SCHEMA_MISSING_'+k);
+ for(const k of ['Company_UID','ScopeCode','Active'])if(!companyScopes[0].includes(k))throw Error('COMPANY_SCOPE_SCHEMA_MISSING_'+k);
+ for(const k of ['ScopeCode','Default_hours'])if(!configScopes[0].includes(k))throw Error('SCOPE_CONFIG_SCHEMA_MISSING_'+k);
+ const catalog=new Map(cfg.map(x=>[txt(x.data.ScopeCode),x.data]));const versions=new Map();
+ for(const x of sv){const d=x.data;if(txt(d.Status).toUpperCase()!=='CURRENT')continue;const code=txt(d.ScopeCode);if(versions.has(code))throw Error('MULTIPLE_CURRENT_VERSIONS_'+code);versions.set(code,d)}
+ const overrides=new Map();for(const x of hours){const d=x.data;if(txt(d.Status).toUpperCase()!=='ACTIVE')continue;const key=txt(d.Company_UID)+'|'+txt(d.ScopeCode);if(overrides.has(key))throw Error('DUPLICATE_ACTIVE_COMPANY_HOURS_'+key);overrides.set(key,d)}
+ const identities=new Set();const result=[];
+ for(const x of c){const d=x.data,uid=txt(d.Company_UID);if(!uid)continue;if(identities.has(uid))throw Error('DUPLICATE_COMPANY_UID');identities.add(uid);
+  const loc=parseLocations(d.Locations_JSON),activeLoc=loc.filter(l=>l.active),hq=activeLoc.filter(l=>l.hq);const warnings=[];
+  if(yes(d.Status)&&hq.length!==1)warnings.push('HQ_REVIEW_REQUIRED');if(activeLoc.some(l=>!l.gps))warnings.push('GPS_INCOMPLETE');
+  const scopes=cs.filter(y=>txt(y.data.Company_UID)===uid).map(y=>{const z=y.data,code=txt(z.ScopeCode),cfg=catalog.get(code),v=versions.get(code),override=overrides.get(uid+'|'+code);const legacy=txt(z.Company_Formal_Hours_Override);return {scopeCode:code,active:yes(z.Active),companyScopeId:txt(z.Company_Scope_ID),currentVersion:txt(v?.VersionId),defaultHours:txt(v?.Hours_to_plan||cfg?.Default_hours),companyHours:override?txt(override.Hours):legacy,hoursSource:override?'COMPANY_SCOPE_HOURS':legacy?'LEGACY_COMPANY_SCOPES':'SCOPE_DEFAULT',hoursOverrideRegistered:!!override};});
+  result.push({companyUid:uid,name:txt(d.Company),status:txt(d.Status),region:txt(d.Region),country:txt(d.Country),contactPerson:txt(d['Contactperson ']),contactEmail:txt(d['Contactperson e-mail']),contactPhone:txt(d['Contactperson phone']),preferredAuditMonths:txt(d.Preferred_Audit_Months),generalComments:txt(d.Comments),planningLimitationsDays:txt(d['Audit planning limitations - days']),planningLimitationsHours:txt(d['Audit planning limitations - hours']),locations:loc,activeLocationCount:activeLoc.length,hqCode:hq.length===1?hq[0].code:'',scopes,warnings});
+ }
+ return {ok:true,readOnly:true,companies:result,scopeCatalog:[...catalog.entries()].map(([code,d])=>({scopeCode:code,displayName:txt(d.DisplayName),active:yes(d.Active),archived:yes(d.Archived),defaultHours:txt(versions.get(code)?.Hours_to_plan||d.Default_hours)})),count:result.length};
+}

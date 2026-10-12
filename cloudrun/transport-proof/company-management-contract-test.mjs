@@ -54,4 +54,6 @@ assert.ok(server.includes("'/api/v1/manager/maps-config'"),'Google Maps configur
 assert.ok(ui.includes('google.maps.Marker'),'Google Maps location markers');
 assert.ok(!html.includes('leaflet'),'No incompatible second map provider');
 assert.ok(ui.includes("mapColumn.style.cssText='min-width:0;display:flex;align-self:stretch'"),'Map column stretches with Company fields');
+assert.ok(ui.includes("holder.appendChild(mapArea);(document.getElementById('companyManagement20MapColumn')||details).appendChild(holder);requestAnimationFrame"),'Map mounted before initialization');
+assert.ok(ui.includes("min-height:380px;height:100%"),'Map viewport fills available height');
 console.log('Company Management 2.0 contract checks passed');

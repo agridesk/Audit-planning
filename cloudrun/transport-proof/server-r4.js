@@ -1599,8 +1599,8 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       if(old===data.active)return send(res,200,{ok:true,updated:0});
       const ap=v[1]?.values||[],ah=ap[0]||[],assigned=col(ah,['Assigned to','Assigned auditor','Auditor']),pre=col(ah,['Preassigned Auditor']),st=col(ah,['Status']),id=col(ah,['Audit ID']);
       const impacted=ap.slice(1).filter(row=>['PENDING_PLANNING','PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(clean(val(row,st)).toUpperCase().replace(/[\s-]+/g,'_'))&&(directResolveAuditorEmail(aud,val(row,assigned))===email||directResolveAuditorEmail(aud,val(row,pre))===email)).map(row=>({auditId:val(row,id),status:val(row,st)}));
-      if(!data.active&&impacted.length)return send(res,409,{ok:false,error:'AUDITOR_INACTIVATION_REQUIRES_REASSIGNMENT',impacted});
-      const trail=JSON.stringify({email,actor:clean(actor.email),old,newValue:data.active,impacted:impacted.length}),when=new Date().toISOString();
+      if(!data.active&&impacted.length){const reviewed=data.confirmedAuditIds;if(!Array.isArray(reviewed)||reviewed.length!==impacted.length||new Set(reviewed).size!==reviewed.length||impacted.some(x=>!x.auditId||!reviewed.includes(x.auditId)))return send(res,409,{ok:false,error:'AUDITOR_INACTIVATION_REQUIRES_CONFIRMATION',impacted});}
+      const trail=JSON.stringify({email,actor:clean(actor.email),old,newValue:data.active,impactedAuditIds:impacted.map(x=>x.auditId)}),when=new Date().toISOString();
       await sheetsValuesAppend('Diagnostics_Log!A:K',[[when,'AUDITOR_MANAGEMENT_2_0','ACTIVE_CHANGE',email,'CHANGE_INTENT',clean(actor.email),'','',false,'Revalidated auditor assignments',trail]]);
       await sheetsValuesBatchUpdateRaw([{range:'Auditors!D'+target.line,values:[[data.active?'Yes':'No']]}]);
       await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'AUDITOR_MANAGEMENT_2_0','ACTIVE_CHANGE',email,'CHANGE_APPLIED',clean(actor.email),'','',false,'Auditor status changed',trail]]);

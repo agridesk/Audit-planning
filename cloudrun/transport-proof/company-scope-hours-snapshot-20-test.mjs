@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {buildObligationHoursSnapshot20 as snapshot,validateObligationHoursSchema20 as validate} from './company-scope-hours-snapshot-20.js';
+const base={formalHours:5,source:'SCOPE_DEFAULT',scopeVersionId:'V1',overrideId:null,overrideRevision:null};
+const a=snapshot({resolution:base,now:'2026-10-12T00:00:00Z'});assert.equal(a.Formal_Hours,5);assert.equal(a.Formal_Hours_Source,'SCOPE_DEFAULT');assert.equal(a.Company_Hours_Override_ID,'');
+const b=snapshot({resolution:{...base,formalHours:7,source:'COMPANY_OVERRIDE',overrideId:'O1',overrideRevision:'2'}});assert.equal(b.Formal_Hours,7);assert.equal(b.Company_Hours_Override_Revision,'2');
+assert.throws(()=>snapshot({resolution:{...base,source:'COMPANY_OVERRIDE'}}),/OVERRIDE_PROVENANCE_REQUIRED/);
+assert.throws(()=>snapshot({resolution:{...base,overrideId:'O1'}}),/BASELINE_PROVENANCE_CONFLICT/);
+assert.throws(()=>snapshot({resolution:{...base,formalHours:0}}),/INVALID_RESOLVED_HOURS/);
+assert.equal(validate(['Formal_Hours','Formal_Hours_Source','Scope_Version_ID','Company_Hours_Override_ID','Company_Hours_Override_Revision','Hours_Resolved_At']),true);
+assert.throws(()=>validate(['Formal_Hours']),/OBLIGATION_HOURS_SCHEMA_MISSING/);
+console.log('company-scope-hours-snapshot-20: 10 checks passed');

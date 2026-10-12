@@ -64,6 +64,10 @@ assert.ok(server.includes("'/api/v1/auditor/company-management'"),'Auditor read 
 assert.ok(server.includes("result.companies=result.companies.filter(c=>uids.has(c.companyUid)"),'Auditor company data server-scoped');
 assert.ok(server.includes("result.readOnly=true;result.actorRole='AUDITOR'"),'Auditor response explicitly read only');
 assert.ok(ui.includes("'/api/v1/auditor/company-management':'/api/v1/manager/company-management'"),'Shared dossier reads based on role');
-assert.ok(ui.includes("save.hidden=String(actorRole).toLowerCase()==='auditor'"),'Auditor save UI not active before audit trail');
-assert.ok(ui.includes("if(String(actorRole).toLowerCase()==='auditor'||!selected"),'Auditor write blocked at client');
+assert.ok(ui.includes("'/api/v1/auditor/company-management/save'"),'Auditor uses canonical role-scoped save endpoint');
+assert.ok(server.includes("validateAuditorCompanyChanges(changes)"),'Auditor writes validated by field allowlist');
+assert.ok(server.includes("'AUDITOR_FIELD_EDIT'"),'Auditor changes must record actor and before-after');
+assert.ok(server.includes("'CHANGE_INTENT'"),'Audit intent precedes Auditor canonical write');
+assert.ok(server.includes("'CHANGE_APPLIED'"),'Post-save audit record');
+assert.ok(ui.includes("const writable=new Set(['Contactperson ','Contactperson e-mail','Contactperson phone'])"),'Auditor UI writable contact fields bounded');
 console.log('Company Management 2.0 contract checks passed');

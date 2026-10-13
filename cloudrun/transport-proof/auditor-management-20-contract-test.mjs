@@ -101,4 +101,5 @@ assert.ok(ui.includes('timezonePicker.value=timezoneCurrent'),'Timezone picker p
 assert.ok(ui.includes("stage('Default time zone',timezoneCurrent,timezonePicker.value)"),'Timezone picker saves canonical IANA identifier');
 assert.ok(ui.includes("editable('Departure from','Default departure from',a.homeBase)"),'Manager can edit default departure');
 assert.ok(ui.includes("card.textContent=date+' · '+action+' · '+description"),'History renders one compact line per event');
+assert.ok(server.includes("sheetsValuesAppend('Auditors!A:AZ',[row])"),'Add auditor writes full canonical Auditors schema');
 console.log('Auditor Management 2.0 profile edit contract PASS');

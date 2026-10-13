@@ -472,7 +472,7 @@ var addScope=el('button','+ Add scope');addScope.type='button';addScope.style.ma
 status.parentNode.insertBefore(addScope,status.nextSibling);
 async function load(){status.textContent='Loading scopes…';try{var response=await fetch('/api/v1/manager/scopes',{credentials:'same-origin'}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'SCOPE_READ_FAILED');records=result.rows||[];status.textContent=records.length+' scopes · inline name editing enabled · material changes protected';render()}catch(e){status.textContent='Scope catalog unavailable: '+e.message}}
 button.hidden=true;button.onclick=function(){if(String(actorRole).toLowerCase()!=='manager')return;panel.hidden=false;load()};
-close.onclick=function(){panel.hidden=true};search.oninput=render;filter.onchange=render;document.querySelectorAll('[data-scope-tab]').forEach(function(b){b.onclick=function(){tab=b.dataset.scopeTab;showDetails()}});
+close.onclick=function(){if(hasUnsavedAuditorChanges()&&!window.confirm('Discard unsaved auditor profile changes?'))return;hasUnsavedAuditorChanges=()=>false;panel.hidden=true};search.oninput=render;filter.onchange=render;document.querySelectorAll('[data-scope-tab]').forEach(function(b){b.onclick=function(){tab=b.dataset.scopeTab;showDetails()}});
 })();
 (function(){
 var open=document.getElementById('companyManagement20'),panel=document.getElementById('companyManagement20Panel'),close=document.getElementById('companyManagement20Close'),search=document.getElementById('companyManagement20Search'),filter=document.getElementById('companyManagement20Filter'),status=document.getElementById('companyManagement20Status'),rows=document.getElementById('companyManagement20Rows'),dossier=document.getElementById('companyManagement20Dossier'),name=document.getElementById('companyManagement20Name'),details=document.getElementById('companyManagement20Details');
@@ -594,11 +594,12 @@ open.onclick=function(){if(!['manager','auditor'].includes(String(actorRole).toL
 
 (function(){
 const trigger=document.getElementById('auditorManagement20'),panel=document.getElementById('auditorManagement20Panel'),close=document.getElementById('auditorManagement20Close'),search=document.getElementById('auditorManagement20Search'),filter=document.getElementById('auditorManagement20Filter'),rows=document.getElementById('auditorManagement20Rows'),status=document.getElementById('auditorManagement20Status'),dossier=document.getElementById('auditorManagement20Dossier');
-let auditors=[],scopeCatalog=[];
+let auditors=[],scopeCatalog=[],hasUnsavedAuditorChanges=()=>false;
 async function auditorJson(response){const raw=await response.text();let data;try{data=JSON.parse(raw)}catch{throw Error(response.status===429||/rate exceeded/i.test(raw)?'SERVICE_RATE_LIMITED_RETRY':'SERVICE_NON_JSON_RESPONSE_'+response.status)}return data}
 function el(tag,content){const node=document.createElement(tag);if(content!==undefined)node.textContent=String(content);return node}
 function showAuditor(a,initialPage='Profile'){
- dossier.hidden=false;dossier.replaceChildren();dossier.appendChild(el('h3',a.name)); let pending={},currentPage='Profile',saving=false;
+ if(hasUnsavedAuditorChanges()&&!window.confirm('Discard unsaved auditor profile changes?'))return;
+ dossier.hidden=false;dossier.replaceChildren();dossier.appendChild(el('h3',a.name)); let pending={},currentPage='Profile',saving=false;hasUnsavedAuditorChanges=()=>Object.keys(pending).length>0||saving;
  const actions=el('div'),save=el('button','Save all'),discard=el('button','Discard changes'),feedback=el('span','All changes saved');
  actions.style.cssText='display:flex;align-items:center;gap:10px;margin:10px 0';feedback.setAttribute('role','status');save.type='button';discard.type='button';actions.append(save,discard,feedback);
  const tabs=el('div');tabs.style.cssText='display:flex;gap:8px;margin:12px 0';
@@ -673,6 +674,8 @@ function render(){
 }
 async function load(){status.textContent='Loading auditor directory…';const response=await fetch('/api/v1/manager/auditor-management',{credentials:'same-origin'}),result=await auditorJson(response);if(!response.ok||!result.ok)throw Error(result.error||'AUDITOR_MANAGEMENT_READ_FAILED');auditors=result.rows||[];scopeCatalog=result.scopeCatalog||[];render()}
 document.getElementById('auditorManagement20Add').onclick=function(){
+ if(hasUnsavedAuditorChanges()&&!window.confirm('Discard unsaved auditor profile changes and open Add auditor?'))return;
+ hasUnsavedAuditorChanges=()=>false;
  dossier.hidden=false;dossier.replaceChildren();dossier.appendChild(el('h3','Add auditor'));dossier.appendChild(el('p','New auditors start Inactive and without qualifications. Activate and assign qualifications after review.'));
  const fields=[['Name','name'],['E-mail','email'],['Area','area'],['Time zone','timezone']];const inputs={};fields.forEach(([label,key])=>{const line=el('div');line.style.cssText='display:grid;grid-template-columns:140px minmax(200px,1fr);gap:10px;align-items:center;margin:8px 0';const input=el('input');input.placeholder=label;input.style.cssText='min-width:0;width:100%;max-width:480px;box-sizing:border-box;padding:7px;border:1px solid #cbd5e1;border-radius:5px';input.autocomplete='off';if(key==='email')input.type='email';if(key==='name'||key==='email')input.required=true;const title=el('label',label);title.appendChild(document.createTextNode(key==='name'||key==='email'?' *':''));line.append(title,input);inputs[key]=input;dossier.appendChild(line)});inputs.timezone.value='Europe/Madrid';
  const save=el('button','Create inactive auditor'),cancel=el('button','Cancel'),message=el('span','');message.style.marginLeft='10px';dossier.append(save,cancel,message);cancel.onclick=()=>{dossier.hidden=true};

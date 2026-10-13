@@ -604,6 +604,21 @@ identityCheckResult.setAttribute('role','status');
 identityCheckResult.style.cssText='white-space:pre-wrap;font-size:12px;padding:6px 0';
 status.parentNode.insertBefore(identityCheckButton,status.nextSibling);
 status.parentNode.insertBefore(identityCheckResult,identityCheckButton.nextSibling);
+const writeProbeButton=document.createElement('button');
+writeProbeButton.type='button';
+writeProbeButton.textContent='Verify Firestore write/delete';
+writeProbeButton.style.margin='8px 10px 8px 0';
+identityCheckResult.parentNode.insertBefore(writeProbeButton,identityCheckResult);
+writeProbeButton.onclick=async()=>{
+  writeProbeButton.disabled=true;
+  identityCheckResult.textContent='Testing isolated DEV Firestore write and cleanup…';
+  try{
+    const response=await fetch('/api/v1/manager/auditor-identity/firestore-write-probe',{method:'POST',credentials:'same-origin'});
+    const result=await response.json();
+    identityCheckResult.textContent=(response.ok&&result.ok?'PASS: ':'BLOCKED: ')+String(result.reason||result.error||response.status)+(result.documentId?' · document '+result.documentId:'')+'\nNo audit records were changed. Email writes remain controlled by their separate flag.';
+  }catch(e){identityCheckResult.textContent='Probe failed: '+String(e.message||e)}
+  finally{writeProbeButton.disabled=false}
+};
 identityCheckButton.onclick=async()=>{
   identityCheckButton.disabled=true;
   identityCheckResult.textContent='Checking DEV identity and Firestore access…';

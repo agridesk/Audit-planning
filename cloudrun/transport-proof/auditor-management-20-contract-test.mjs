@@ -63,4 +63,6 @@ assert.ok(server.includes("if(!qualified&&impacts.length)return send(res,409,{ok
 assert.ok(server.includes("if(!qualified&&scopeColumns.length===0)"),'Addition does not depend on impact projection scope columns');
 assert.ok(ui.includes("if(desired&&!original){if(!window.confirm('Add qualification '"),'Addition uses direct confirmation without impact preview');
 assert.ok(ui.includes("feedback.textContent='Qualification added'"),'Addition save success feedback');
+assert.ok(server.includes('const reviewed=input?.confirmedAuditIds'),'Qualification impact concurrency guard');
+assert.ok(ui.includes('confirmedAuditIds:impactedIds'),'Reviewed audit IDs submitted');
 console.log('Auditor Management 2.0 profile edit contract PASS');

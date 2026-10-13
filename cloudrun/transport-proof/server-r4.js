@@ -82,12 +82,16 @@ async function withAuditorIdentityFirestoreLock(work){
   const probe=await fetch(base+'/'+document,{headers:{authorization:'Bearer '+token}});
   if(probe.ok)throw Error('AUDITOR_EMAIL_LOCK_ALREADY_PRESENT_RECONCILIATION_REQUIRED');
   if(probe.status!==404)throw Error('AUDITOR_EMAIL_LOCK_PROBE_FAILED_'+probe.status);
-  const create=await fetch(url,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({fields:{holder:{stringValue:randomUUID()},createdAt:{timestampValue:new Date().toISOString()}}})});
+  let create;
+  try{create=await fetch(url,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({fields:{holder:{stringValue:randomUUID()},createdAt:{timestampValue:new Date().toISOString()}}})});}
+  catch(e){throw Error('AUDITOR_EMAIL_LOCK_ACQUIRE_UNCERTAIN_RECONCILIATION_REQUIRED')}
   if(create.status===409)throw Error('AUDITOR_EMAIL_LOCK_BUSY');
   if(!create.ok)throw Error('AUDITOR_EMAIL_LOCK_ACQUIRE_FAILED_'+create.status);
-  const acquired=await create.json(),updateTime=clean(acquired.updateTime);
-  if(!updateTime)throw Error('AUDITOR_EMAIL_LOCK_VERSION_MISSING');
-  if(!clean(acquired.name).endsWith('/documents/'+collection+'/'+document))throw Error('AUDITOR_EMAIL_LOCK_DOCUMENT_MISMATCH');
+  let acquired;
+  try{acquired=await create.json()}catch(e){throw Error('AUDITOR_EMAIL_LOCK_ACQUIRE_RESPONSE_UNCERTAIN_RECONCILIATION_REQUIRED')}
+  const updateTime=clean(acquired.updateTime);
+  if(!updateTime)throw Error('AUDITOR_EMAIL_LOCK_VERSION_MISSING_RECONCILIATION_REQUIRED');
+  if(!clean(acquired.name).endsWith('/documents/'+collection+'/'+document))throw Error('AUDITOR_EMAIL_LOCK_DOCUMENT_MISMATCH_RECONCILIATION_REQUIRED');
   let result,error;
   try{result=await work()}catch(e){error=e}
   // An uncertain write must retain the lock until an operator reconciles Sheets.

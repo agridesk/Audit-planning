@@ -109,7 +109,7 @@ async function auditorIdentityReadinessRead(){
 }
 async function validateVersionedAuditorLogin(email){
   if(process.env.AMS_AUDITOR_UID_LOGIN_ENABLED!=='true')return{ok:true};
-  const vr=await sheetsBatchGet(['Auditors!A1:AZ1000','Auditor_Identity_Versions!A1:P2000'],true);
+  const vr=await sheetsBatchGet(['Auditors!A1:AZ1000','Auditor_Identity_Versions!A1:P2000','Log realized audits!A1:AZ5000','Audit planning!A1:AZ2500'],true);
   const av=vr[0]?.values||[],h=av[0]||[],uidCol=col(h,['Auditor_UID','Auditor UID']),emailCol=col(h,['Email','E-mail']);
   if(uidCol<0||emailCol<0)throw Error('AUDITOR_UID_LOGIN_SCHEMA_MISSING');
   const auditors=av.slice(1).filter(x=>val(x,emailCol)).map(x=>({uid:val(x,uidCol),email:val(x,emailCol)}));

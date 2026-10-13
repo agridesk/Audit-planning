@@ -120,4 +120,6 @@ assert.ok(server.includes('async function validateVersionedAuditorLogin(email)')
 assert.ok(server.includes("process.env.AMS_AUDITOR_UID_LOGIN_ENABLED!=='true'"),'UID login feature defaults off');
 assert.ok(server.includes('async function sessionFromRequestValidated(req)'),'Auditor session checked per request');
 assert.ok(server.includes('const actor=await sessionFromRequestValidated(req)'),'API actor checks enforce session cutover');
+assert.ok(server.includes('const actorUid=identityMap?rotationResolveAuditor(identityMap,actorEmail):null'),'Archived auditor history uses UID');
+assert.ok(server.includes('rotationResolveAuditor(identityMap,r.auditor)===actorUid'),'Archived auditor filters historical email aliases');
 console.log('Auditor Management 2.0 profile edit contract PASS');

@@ -126,4 +126,7 @@ assert.ok(server.includes('AUDITOR_ASSIGNMENT_IDENTITY_UNRESOLVED'),'Open assign
 assert.ok(server.includes('rotationReadFromLoaded(row.auditId,actorEmail,ap,aud,scv,log,versions)'),'Auditor open rotation uses identity versions');
 assert.ok(server.includes("'/api/v1/manager/auditor-identity/readiness'"),'Read-only manager UID readiness endpoint exists');
 assert.ok(server.includes('async function auditorIdentityReadinessRead()'),'UID readiness endpoint has canonical read implementation');
+assert.ok(server.includes("import {previewSheet} from './auditor-uid-backfill-preview.js'"),'UID backfill preflight uses shared read-only preview');
+assert.ok(server.includes('AUDITOR_UID_BACKFILL_REQUIRED'),'Readiness reports incomplete UID migration');
+assert.ok(server.includes('ROTATION_HISTORICAL_AUDITOR_IDENTITY_MISSING'),'Versioned rotation rejects ownerless historical audits');
 console.log('Auditor Management 2.0 profile edit contract PASS');

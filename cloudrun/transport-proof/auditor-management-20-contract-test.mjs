@@ -113,4 +113,7 @@ assert.ok(server.includes("ROTATION_AUDITOR_UID_EMAIL_CONFLICT"),'Historical rot
 assert.ok(server.includes("process.env.AMS_AUDITOR_UID_ROTATION_READ_ENABLED==='true'"),'Versioned UID rotation defaults off');
 assert.ok(server.includes("Auditor_Identity_Versions!A1:E2000"),'Rotation identity history has explicit source');
 assert.ok(server.includes("ROTATION_UNRESOLVED_HISTORICAL_EMAIL"),'Unknown historical email fails closed when enabled');
+assert.ok(server.includes("import {buildAuditorIdentityIndex,resolveAuditorUid} from './auditor-identity-versions.js'"),'Rotation uses shared versioned identity resolver');
+assert.ok(server.includes('rotationIdentityVersions(vr[4]?.values||[])'),'Rotation loads identity version rows only when feature is enabled');
+assert.ok(server.includes('ROTATION_AUDITOR_UID_EMAIL_CONFLICT'),'Rotation prevents UID and historical email mismatch');
 console.log('Auditor Management 2.0 profile edit contract PASS');

@@ -115,6 +115,27 @@ async function withAuditorIdentityFirestoreLock(work){
   if(error)throw error;
   return result;
 }
+async function auditorEmailLockWriteProbe(){
+  if(process.env.AMS_RUNTIME_ENV!=='DEV'||SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')return{ok:false,reason:'DEV_ONLY'};
+  const project=await verifiedAuditorLockDevProject();
+  if(project!=='audit-management-system-dev')return{ok:false,reason:'PROJECT_NOT_VERIFIED'};
+  const token=await accessToken();
+  const id='probe_'+randomUUID().replace(/-/g,'');
+  const base='https://firestore.googleapis.com/v1/projects/'+project+'/databases/(default)/documents/ams_identity_cutover_probes';
+  let created;
+  try{
+    const response=await fetch(base+'?documentId='+id,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({fields:{purpose:{stringValue:'DEV_READINESS_PROBE'}}})});
+    if(!response.ok)return{ok:false,reason:'WRITE_HTTP_'+response.status};
+    created=await response.json();
+  }catch(e){return{ok:false,reason:'WRITE_UNCERTAIN_MANUAL_RECONCILIATION_REQUIRED',documentId:id}}
+  const updateTime=clean(created?.updateTime);
+  if(!updateTime||!clean(created?.name).endsWith('/ams_identity_cutover_probes/'+id))return{ok:false,reason:'WRITE_RESPONSE_UNVERIFIED_MANUAL_RECONCILIATION_REQUIRED',documentId:id};
+  try{
+    const response=await fetch(base+'/'+id+'?currentDocument.updateTime='+encodeURIComponent(updateTime),{method:'DELETE',headers:{authorization:'Bearer '+token}});
+    if(!response.ok)return{ok:false,reason:'DELETE_HTTP_'+response.status+'_MANUAL_RECONCILIATION_REQUIRED',documentId:id};
+    return{ok:true,reason:'FIRESTORE_WRITE_AND_DELETE_VERIFIED'};
+  }catch(e){return{ok:false,reason:'DELETE_UNCERTAIN_MANUAL_RECONCILIATION_REQUIRED',documentId:id}}
+}
 async function auditorEmailLockReadiness(){
   if(process.env.AMS_RUNTIME_ENV!=='DEV')return{ready:false,reason:'DEV_ONLY'};
   if(SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')return{ready:false,reason:'DEV_SPREADSHEET_MISMATCH'};
@@ -1515,6 +1536,13 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
     try{return send(res,200,await auditorUidBackfillPreviewRead());}
     catch(e){return send(res,409,{ok:false,error:'UID_BACKFILL_PREVIEW_FAILED',detail:clean(e.message)});}
+  }
+  if(u.pathname==='/api/v1/manager/auditor-identity/firestore-write-probe'&&req.method==='POST'){
+    const actor=await sessionFromRequestValidated(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    try{const result=await auditorEmailLockWriteProbe();return send(res,result.ok?200:409,result);}
+    catch(e){return send(res,503,{ok:false,reason:'FIRESTORE_WRITE_PROBE_UNCONFIRMED',detail:clean(e.message)});}
   }
   if(u.pathname==='/api/v1/manager/auditor-identity/lock-readiness'&&req.method==='GET'){
     const actor=await sessionFromRequestValidated(req);

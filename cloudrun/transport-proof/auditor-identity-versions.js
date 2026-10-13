@@ -15,6 +15,7 @@ export function buildAuditorIdentityIndex(auditors,versions=[]){
     if(byUid.has(uid))throw Error('IDENTITY_DUPLICATE_UID');
     byUid.set(uid,{...a,uid,email});
   }
+  const reservedEmails=new Map();
   for(const v of versions){
     const uid=String(v.uid??'').trim(),email=norm(v.email),state=String(v.state??'').trim().toUpperCase();
     if(!byUid.has(uid)||!email)throw Error('IDENTITY_ORPHAN_VERSION');
@@ -24,6 +25,7 @@ export function buildAuditorIdentityIndex(auditors,versions=[]){
     if(state==='ACTIVE'&&to)throw Error('IDENTITY_ACTIVE_VERSION_CLOSED');
     if(state==='EXPIRED'&&!to)throw Error('IDENTITY_EXPIRED_VERSION_OPEN');
     if(state==='ACTIVE'){if(activeByUid.has(uid))throw Error('IDENTITY_MULTIPLE_ACTIVE_VERSIONS');activeByUid.set(uid,email)}
+    if(state!=='CANCELLED'){const owner=reservedEmails.get(email);if(owner&&owner!==uid)throw Error('IDENTITY_ALIAS_RESERVED_BY_ANOTHER_AUDITOR');reservedEmails.set(email,uid)}
     if(state==='CANCELLED'||state==='PENDING')continue;
     const prev=byEmail.get(email);
     if(prev&&prev.uid!==uid)throw Error('IDENTITY_ALIAS_REUSED_BY_ANOTHER_AUDITOR');

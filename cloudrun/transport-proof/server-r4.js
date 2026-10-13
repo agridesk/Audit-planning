@@ -65,15 +65,35 @@ async function sheetsAtomicAuditorCreate(auditorRow,versionRow){
   if(!response.ok)throw Error('AUDITOR_CREATE_ATOMIC_APPEND_FAILED_'+response.status);
   return response.json();
 }
+async function withAuditorIdentityFirestoreLock(work){
+  if(process.env.AMS_AUDITOR_IDENTITY_DISTRIBUTED_LOCK_ENABLED!=='true')throw Error('AUDITOR_EMAIL_DISTRIBUTED_LOCK_DISABLED');
+  const project=clean(process.env.GOOGLE_CLOUD_PROJECT||process.env.GCLOUD_PROJECT||'');
+  if(!/^[a-z][a-z0-9-]{4,62}$/.test(project))throw Error('AUDITOR_EMAIL_LOCK_PROJECT_MISSING');
+  const database=clean(process.env.AMS_AUDITOR_IDENTITY_LOCK_DATABASE||'(default)');
+  if(!/^(\\(default\\)|[A-Za-z0-9_-]+)$/.test(database))throw Error('AUDITOR_EMAIL_LOCK_DATABASE_INVALID');
+  const token=await accessToken();
+  const collection='ams_identity_cutover_locks',document='global_auditor_email';
+  const base='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(project)+'/databases/'+encodeURIComponent(database)+'/documents/'+collection;
+  const url=base+'?documentId='+document;
+  const create=await fetch(url,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({fields:{holder:{stringValue:randomUUID()},createdAt:{timestampValue:new Date().toISOString()}}})});
+  if(create.status===409)throw Error('AUDITOR_EMAIL_LOCK_BUSY');
+  if(!create.ok)throw Error('AUDITOR_EMAIL_LOCK_ACQUIRE_FAILED_'+create.status);
+  const acquired=await create.json(),updateTime=clean(acquired.updateTime);
+  if(!updateTime)throw Error('AUDITOR_EMAIL_LOCK_VERSION_MISSING');
+  let result,error;
+  try{result=await work()}catch(e){error=e}
+  const releaseUrl=base+'/'+document+'?currentDocument.updateTime='+encodeURIComponent(updateTime);
+  try{const release=await fetch(releaseUrl,{method:'DELETE',headers:{authorization:'Bearer '+token}});
+    if(!release.ok)throw Error('AUDITOR_EMAIL_LOCK_RELEASE_FAILED_'+release.status);
+  }catch(e){throw Error('AUDITOR_EMAIL_LOCK_RELEASE_UNCERTAIN: '+clean(e.message)+(error?'; operation: '+clean(error.message):''))}
+  if(error)throw error;
+  return result;
+}
 async function sheetsAtomicAuditorEmailTransition({auditorRow,auditorEmailCol,oldEmail,newEmail,uid,versionRow,versionHeaders,versionCells,at,actor,reason,planningRows=[]}){
   // Keep the write gated until DEV integration verifies multi-instance serialization.
   if(process.env.AMS_AUDITOR_EMAIL_CHANGE_WRITE_ENABLED!=='true')throw Error('AUDITOR_EMAIL_WRITE_DISABLED');
   if(process.env.AMS_AUDITOR_UID_LOGIN_ENABLED!=='true')throw Error('AUDITOR_EMAIL_CHANGE_REQUIRES_UID_LOGIN');
-  // Google Sheets has no conditional batchUpdate precondition; preflight alone
-  // cannot serialize competing Cloud Run instances. Require an external lock.
-  // A configuration flag is not a lock. Fail closed until a transactional
-  // cross-instance lock is actually acquired and held through the write.
-  throw Error('AUDITOR_EMAIL_DISTRIBUTED_LOCK_NOT_IMPLEMENTED');
+  return withAuditorIdentityFirestoreLock(async()=>{
   const token=await accessToken(),base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID);
   const mr=await fetch(base+'?fields=sheets.properties',{headers:{authorization:'Bearer '+token}});
   if(!mr.ok)throw Error('AUDITOR_EMAIL_SHEET_METADATA_FAILED');
@@ -106,6 +126,7 @@ async function sheetsAtomicAuditorEmailTransition({auditorRow,auditorEmailCol,ol
   const response=await fetch(base+':batchUpdate',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({requests})});
   if(!response.ok)throw Error('AUDITOR_EMAIL_ATOMIC_UPDATE_FAILED_'+response.status);
   return{ok:true,revokedTokens:tv.slice(1).filter(x=>val(x,te).toLowerCase()===oldEmail&&val(x,tro).toLowerCase()==='auditor').length,updatedAssignments:planningRows.length};
+  });
 }
 async function sheetsDeleteRow(sheetTitle,rowNumber){
   const token=await accessToken(),metaUrl='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'?fields=sheets.properties';

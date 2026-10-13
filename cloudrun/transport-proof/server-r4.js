@@ -98,8 +98,10 @@ async function auditorIdentityReadinessRead(){
   const vr=await sheetsBatchGet(['Auditors!A1:AZ1000','Auditor_Identity_Versions!A1:P2000'],true);
   const av=vr[0]?.values||[],h=av[0]||[],u=col(h,['Auditor_UID','Auditor UID']),e=col(h,['Email','E-mail']);
   if(u<0||e<0)throw Error('IDENTITY_READINESS_SCHEMA_MISSING');
+  const backfill=previewSheet(av);
+  if(backfill.pending.length)return{ok:true,ready:false,code:'AUDITOR_UID_BACKFILL_REQUIRED',backfill:{total:backfill.total,existing:backfill.existing,missing:backfill.pending.length}};
   const auditors=av.slice(1).filter(r=>val(r,e)).map(r=>({uid:val(r,u),email:val(r,e)}));
-  return{ok:true,...auditAuditorIdentityReadiness(auditors,rotationIdentityVersions(vr[1]?.values||[]))};
+  return{ok:true,backfill:{total:backfill.total,existing:backfill.existing,missing:0},...auditAuditorIdentityReadiness(auditors,rotationIdentityVersions(vr[1]?.values||[]))};
 }
 async function validateVersionedAuditorLogin(email){
   if(process.env.AMS_AUDITOR_UID_LOGIN_ENABLED!=='true')return{ok:true};

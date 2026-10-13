@@ -195,3 +195,8 @@ assert.ok(server.includes('AUDITOR_EMAIL_READ_RANGE_LIMIT_REACHED'),'Truncated S
 assert.ok(server.includes('AUDITOR_EMAIL_PLANNING_PROJECTION_CONFLICT'),'Mismatched UID planning projection blocks cutover');
 assert.ok(server.includes('AUDITOR_EMAIL_ACTIVE_VERSION_NOT_UNIQUE'),'Ambiguous active versions block cutover');
 assert.ok(server.includes('AUDITOR_EMAIL_ALREADY_ASSIGNED'),'Existing auditor aliases block cutover');
+
+assert.ok(server.includes('AUDITOR_EMAIL_DEV_SPREADSHEET_MISMATCH'),'Email changes are pinned to DEV SSOT');
+assert.ok(server.includes('AUDITOR_EMAIL_LOCK_PROJECT_NOT_DEV'),'Firestore locks are pinned to DEV GCP project');
+assert.ok(server.includes('DEV_SPREADSHEET_MISMATCH'),'Lock diagnostic rejects non-DEV spreadsheet');
+assert.ok(server.includes('LOCK_PROJECT_NOT_DEV'),'Lock diagnostic rejects non-DEV project');

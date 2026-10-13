@@ -70,7 +70,7 @@ export function v211QualificationWithdrawalConstraint({auditorValues,catalog,sco
  const today=nowDate||new Date().toISOString().slice(0,10),dates=[today,...(requestedDates||[]).map(dateOnly)].filter(Boolean);
  const reasons=[];
  for(const entry of data){
-  if(!entry||!/^\d{4}-\d{2}-\d{2}$/.test(String(entry.effectiveDate||''))||!entry.scopeCode){reasons.push('QUALIFICATION_WITHDRAWAL_SCHEMA_INVALID');continue}
+  if(!entry||!/^(\d{4})-(\d{2})-(\d{2})$/.test(String(entry.effectiveDate||''))||!entry.scopeCode||!Array.isArray(entry.grandfatheredAuditIds)||entry.grandfatheredAuditIds.some(id=>typeof id!=='string'||!id.trim())||new Set(entry.grandfatheredAuditIds).size!==entry.grandfatheredAuditIds.length||!Number.isFinite(Date.parse(String(entry.effectiveDate)+'T00:00:00Z'))||new Date(String(entry.effectiveDate)+'T00:00:00Z').toISOString().slice(0,10)!==entry.effectiveDate){reasons.push('QUALIFICATION_WITHDRAWAL_SCHEMA_INVALID');continue}
   const entryScope=aliases.get(key(entry.scopeCode))||key(entry.scopeCode);
   if(!(scopeCodes||[]).some(sc=>(aliases.get(key(sc))||key(sc))===entryScope))continue;
   if(dates.some(d=>d>=entry.effectiveDate))reasons.push('QUALIFICATION_WITHDRAWN_FROM_'+entry.effectiveDate+'_'+entry.scopeCode);

@@ -1570,7 +1570,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     const auditId=clean(body?.auditId),fromEmail=clean(body?.fromEmail).toLowerCase(),toEmail=clean(body?.toEmail).toLowerCase(),expectedStatus=clean(body?.expectedStatus).toUpperCase().replace(/[\s-]+/g,'_');
     if(!auditId||!fromEmail||!toEmail||fromEmail===toEmail||!['PENDING_PLANNING','PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(expectedStatus))return send(res,400,{ok:false,error:'INVALID_TRANSFER'});
     try{
-      const values=await sheetsBatchGet(['Audit planning!A1:AX2500','Auditors!A1:AZ1000','Config_Scopes!A1:Z200']);
+      const values=await sheetsBatchGet(['Audit planning!A1:AX2500','Auditors!A1:AZ1000','Config_Scopes!A1:Z200','Companies!A1:AJ2500','Log realized audits!A1:AZ2500']);
       const ap=values[0]?.values||[],av=values[1]?.values||[],sc=values[2]?.values||[],audit=findAudit(ap,auditId);
       if(!audit)return send(res,404,{ok:false,error:'AUDIT_NOT_FOUND'});
       const h=audit.h,row=audit.row,ci=col(h,['Status']),ai=col(h,['Assigned to','Assigned auditor','Auditor']),pi=col(h,['Preassigned Auditor']),si=col(h,['Status since']),li=col(h,['Last decision timestamp']);
@@ -1586,6 +1586,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       if(!required.length)return send(res,409,{ok:false,error:'TRANSFER_SCOPE_UNRESOLVED'});
       const missing=required.filter(x=>{const i=col(ah,[x.scopeCode,x.displayName,x.slotKey]);return i<0||!yes(targets[0][i])}).map(x=>x.scopeCode);
       if(missing.length)return send(res,409,{ok:false,error:'TRANSFER_TARGET_NOT_QUALIFIED',missing});
+      const requiredScopes=scopesForAudit(audit,scopeCatalog(sc)),companyName=val(row,col(h,['Company'])),companyUid=val(row,col(h,['Company_UID','Company UID'])),plannedDate=dateOnly(val(row,col(h,['Date planned','Date - Planned'])));const eligibility=v211AssignmentHardCheck({auditorEmail:toEmail,auditorValues:av,catalog:scopeCatalog(sc),scopeCodes:requiredScopes,companyValues:values[3]?.values||[],companyUid,companyName,logValues:values[4]?.values||[],requestedDates:plannedDate?[plannedDate]:[]});if(!eligibility.ok)return send(res,409,{ok:false,error:'TRANSFER_ELIGIBILITY_BLOCKED',reasons:eligibility.reasons});const rotation=v211RotationHardCheck(rotationReadFromLoaded(auditId,toEmail,ap,av,sc,values[4]?.values||[]));if(!rotation.ok)return send(res,409,{ok:false,error:'TRANSFER_ROTATION_BLOCKED',reasons:rotation.reasons});
       const stamp=new Date().toISOString(),trail=JSON.stringify({auditId,actor:clean(actor.email),fromEmail,toEmail,oldStatus:current,newStatus:'Pending Approval',previousAssigned:val(row,ai),previousPreassigned:val(row,pi),plannedDate:val(row,col(h,['Date planned','Date - Planned'])),availability:'NOT_VERIFIED_SOFT_WARNING',reason:clean(body?.reason).slice(0,500)});
       await sheetsValuesAppend('Diagnostics_Log!A:K',[[stamp,'AUDITOR_MANAGEMENT_2_0','AUDIT_TRANSFER',auditId,'CHANGE_INTENT',clean(actor.email),'','',false,'Transfer to Pending Approval',trail]]);
       const letter=n=>{let x=n+1,out='';while(x){x--;out=String.fromCharCode(65+x%26)+out;x=Math.floor(x/26)}return out};

@@ -36,7 +36,7 @@ assert.ok(server.includes("Diagnostics_Log!A1:K5000"),'History based on audit tr
 assert.ok(ui.includes("'/api/v1/manager/auditor-management/history?email='"),'History tab uses governed source');
 assert.ok(ui.includes("out.classList.contains('auditor-impact-result')"),'Repeated Impact clicks reuse one result');
 assert.ok(server.includes("'/api/v1/manager/auditor-management/qualification/save'"),'Qualification update endpoint exists');
-assert.ok(server.includes("QUALIFICATION_IMPACT_APPROVAL_REQUIRED"),'Referenced qualification changes fail closed');
+assert.ok(server.includes("QUALIFICATION_WITH_OPEN_AUDITS_REQUIRES_SCHEDULED_WITHDRAWAL"),'Referenced qualification changes fail closed');
 assert.ok(ui.includes("out.classList.contains('auditor-impact-result')"),'Impact click results are not duplicated');
 assert.ok(server.includes("'/api/v1/manager/auditor-management/qualification/withdraw'"),'Future dated withdrawal save route');
 assert.ok(server.includes("IMPACT_CHANGED_REVIEW_AGAIN"),'Grandfathered audit IDs must match current assignments');
@@ -73,12 +73,12 @@ assert.ok(server.includes("AUDITOR_NAME_REKEY_REQUIRES_REFERENCE_MIGRATION"),'Le
 assert.ok(ui.includes("confirmedAuditIds"),'Manager reviews and confirms inactivation impact');
 
 assert.ok(ui.includes("'/api/v1/manager/auditor-management/qualification-impact?email='"),'Qualification impact preview available');
-assert.ok(server.includes("QUALIFICATION_IMPACT_APPROVAL_REQUIRED"),'Linked assignment changes fail closed');
+assert.ok(server.includes("QUALIFICATION_WITH_OPEN_AUDITS_REQUIRES_SCHEDULED_WITHDRAWAL"),'Linked assignment changes fail closed');
 assert.ok(server.includes('if(!qualified&&impacts.length){const ids=impacts.map('),'Only qualification removal invokes linked audit approval');
 assert.ok(server.includes("if(!qualified&&scopeColumns.length===0)"),'Addition does not depend on impact projection scope columns');
 assert.ok(ui.includes("if(desired&&!original){if(!window.confirm('Add qualification '"),'Addition uses direct confirmation without impact preview');
 assert.ok(ui.includes("feedback.textContent='Qualification added'"),'Addition save success feedback');
-assert.ok(server.includes('const reviewed=input?.confirmedAuditIds'),'Qualification impact concurrency guard');
+assert.ok(server.includes('if(!qualified&&impacts.length)return send(res,409'),'Immediate removal cannot override scheduled withdrawal');
 assert.ok(ui.includes('confirmedAuditIds:impactedIds'),'Reviewed audit IDs submitted');
 assert.ok(server.includes('qualificationConflicts=linkedAudits.filter'),'Linked audit qualification conflicts calculated');
 assert.ok(server.includes('def?.slotKey'),'Qualification conflict matching includes canonical slot key');

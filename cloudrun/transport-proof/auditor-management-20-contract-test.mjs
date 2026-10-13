@@ -218,3 +218,8 @@ assert.ok(server.includes('async function verifiedAuditorLockDevProject()'),'Clo
 assert.ok(server.includes('metadata.google.internal/computeMetadata/v1/project/project-id'),'Cloud Run project resolved from metadata');
 assert.ok(server.includes("actual==='audit-management-system-dev'?actual:''"),'Metadata project pinned to DEV');
 assert.equal((server.match(/await verifiedAuditorLockDevProject\(\)/g)||[]).length,2,'Both lock readiness and lock acquisition verify runtime project');
+
+assert.ok(server.includes("'/api/v1/manager/auditor-identity/firestore-write-probe'"),'DEV manager write probe route');
+assert.ok(server.includes('ams_identity_cutover_probes'),'Write probe isolated from audit records and real locks');
+assert.ok(server.includes('currentDocument.updateTime'),'Write probe uses version-preconditioned cleanup');
+assert.ok(ui.includes('Verify Firestore write/delete'),'Manager can trigger write probe');

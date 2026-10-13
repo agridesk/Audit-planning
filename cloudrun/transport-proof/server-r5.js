@@ -35,7 +35,7 @@ function signPlanningCommit(payload){return b64url(createHmac('sha256',WRITE_KEY
 function issueSession(identity,ttlSeconds=SESSION_TTL_SECONDS){
   if(SESSION_SECRET.length<32)throw new Error('SESSION_SECRET_NOT_CONFIGURED');
   const ttl=Math.max(300,Math.floor(Number(ttlSeconds)||SESSION_TTL_SECONDS)),now=Math.floor(Date.now()/1000);
-  const payload=b64url(JSON.stringify({v:1,email:clean(identity.email).toLowerCase(),role:clean(identity.role),iat:now,exp:now+ttl}));
+  const payload=b64url(JSON.stringify({v:1,email:clean(identity.email).toLowerCase(),role:clean(identity.role),auditorUid:clean(identity.auditorUid),iat:now,exp:now+ttl}));
   return payload+'.'+signSession(payload);
 }
 function sessionCookie(token,maxAge=SESSION_TTL_SECONDS){return SESSION_COOKIE+'='+token+'; Max-Age='+Math.max(300,Math.floor(Number(maxAge)||SESSION_TTL_SECONDS))+'; Path=/; HttpOnly; Secure; SameSite=Lax';}
@@ -63,6 +63,12 @@ async function handleDevLogin(req,res){
   const form=await readForm(req),identity=devIdentityForRole(form.get('role'));
   if(!identity)return sendJson(res,403,{ok:false,error:'DEV_LOGIN_ROLE_NOT_CONFIGURED'});
   if(SESSION_SECRET.length<32)return sendJson(res,500,{ok:false,error:'SESSION_SECRET_NOT_CONFIGURED'});
+  if(clean(identity.role).toLowerCase()==='auditor'&&process.env.AMS_AUDITOR_UID_LOGIN_ENABLED==='true'){
+    const check=await fetch('http://127.0.0.1:'+INNER_PORT+'/api/v1/internal/dev-auditor-uid',{method:'POST',headers:{'content-type':'application/json','x-ams-internal-secret':SESSION_SECRET},body:JSON.stringify({email:identity.email})});
+    let result={};try{result=await check.json();}catch{}
+    if(!check.ok||!result.ok||!result.auditorUid)return sendJson(res,409,{ok:false,error:'DEV_AUDITOR_IDENTITY_NOT_CURRENT',reason:result.error||'UID_NOT_FOUND',configuredEmail:identity.email});
+    identity.auditorUid=result.auditorUid;
+  }
   const devTtl=2*60*60,token=issueSession(identity,devTtl);
   res.writeHead(303,{'set-cookie':sessionCookie(token,devTtl),'location':'/','cache-control':'no-store','referrer-policy':'no-referrer'});
   return res.end();

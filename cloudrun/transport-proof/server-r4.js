@@ -1629,7 +1629,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       for(const auditor of av.slice(1)){
         const email=val(auditor,ec).toLowerCase();if(!email||email===fromEmail||!yes(auditor[ac])||val(auditor,rc).toLowerCase()!=='auditor')continue;
         const hard=v211AssignmentHardCheck({auditorEmail:email,auditorValues:av,catalog,scopeCodes:required,companyValues:companies,companyUid,companyName:company,logValues:log,requestedDates:planned?[planned]:[]});
-        const rotation=rotationReadFromLoaded(auditId,email,ap,av,sc,log),rotationHard=v211RotationHardCheck(rotation);
+        const rotation=rotationReadFromLoaded(auditId,email,ap,av,sc,log,versioned?rotationIdentityVersions(v[5]?.values||[]):null),rotationHard=v211RotationHardCheck(rotation);
         const intervalReasons=hard.reasons.filter(x=>x.startsWith('MIN_INTERVAL_HARD_BLOCK_'));const auditorReasons=hard.reasons.filter(x=>!x.startsWith('MIN_INTERVAL_HARD_BLOCK_'));const entry={email,name:val(auditor,nc)||email,planningWarnings:intervalReasons,planningDateValid:intervalReasons.length===0};if(!auditorReasons.length&&rotationHard.ok)eligible.push(entry);else excluded.push({...entry,reasons:[...auditorReasons,...rotationHard.reasons],planningWarnings:intervalReasons});
       }
       return send(res,200,{ok:true,auditId,company,scopes:required,status:val(row,col(h,['Status'])),eligible,excluded,availabilityWarning:true});

@@ -106,7 +106,6 @@ async function withAuditorIdentityFirestoreLock(work){
 async function auditorEmailLockReadiness(){
   if(process.env.AMS_RUNTIME_ENV!=='DEV')return{ready:false,reason:'DEV_ONLY'};
   if(SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')return{ready:false,reason:'DEV_SPREADSHEET_MISMATCH'};
-  if(process.env.AMS_AUDITOR_IDENTITY_DISTRIBUTED_LOCK_ENABLED!=='true')return{ready:false,reason:'LOCK_DISABLED'};
   const project=clean(process.env.GOOGLE_CLOUD_PROJECT||process.env.GCLOUD_PROJECT||'');
   if(project!=='audit-management-system-dev')return{ready:false,reason:'LOCK_PROJECT_NOT_DEV'};
   const database=clean(process.env.AMS_AUDITOR_IDENTITY_LOCK_DATABASE||'(default)');
@@ -118,6 +117,7 @@ async function auditorEmailLockReadiness(){
     const root='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(project)+'/databases/'+encodeURIComponent(database);
     const db=await fetch(root,{headers:{authorization:'Bearer '+await accessToken()}});
     if(!db.ok)return{ready:false,reason:'FIRESTORE_DATABASE_ACCESS_'+db.status};
+    if(process.env.AMS_AUDITOR_IDENTITY_DISTRIBUTED_LOCK_ENABLED!=='true')return{ready:false,reason:'LOCK_DISABLED_FIRESTORE_READ_OK_WRITE_UNVERIFIED'};
     return{ready:true,reason:'LOCK_DOCUMENT_ABSENT_READ_ACCESS_OK_WRITE_UNVERIFIED'};
   }
   if(response.ok)return{ready:false,reason:'LOCK_HELD_RECONCILIATION_REQUIRED'};

@@ -1807,7 +1807,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       row[uidColumn]=newUid;vput('Version_ID',versionId);vput('Auditor_UID',newUid);vput('Email_Normalized',email);vput('Valid_From_UTC',stamp);vput('State','ACTIVE');vput('Created_At_UTC',stamp);vput('Created_By',clean(actor.email));vput('Approved_At_UTC',stamp);vput('Approved_By',clean(actor.email));vput('Reason','New inactive auditor identity');
       const auditId=randomUUID(),detail=JSON.stringify({auditId,name,email,actor:clean(actor.email),active:'No'});
       await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'AUDITOR_MANAGEMENT_2_0','AUDITOR_CREATE',email,'CHANGE_INTENT',clean(actor.email),'','',false,'Create inactive auditor',detail]]);
-      await sheetsValuesAppend('Auditors!A:AZ',[row]);
+      await sheetsAtomicAuditorCreate(row,versionRow);
       await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'AUDITOR_MANAGEMENT_2_0','AUDITOR_CREATE',email,'CHANGE_APPLIED',clean(actor.email),'','',false,'Inactive auditor created',detail]]);
       return send(res,200,{ok:true,email,active:false});
     }catch(e){return send(res,503,{ok:false,error:'AUDITOR_CREATE_UNCONFIRMED',detail:clean(e?.message||e)})}

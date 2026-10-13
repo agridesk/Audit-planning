@@ -76,6 +76,11 @@ async function withAuditorIdentityFirestoreLock(work){
   const collection='ams_identity_cutover_locks',document='global_auditor_email';
   const base='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(project)+'/databases/'+encodeURIComponent(database)+'/documents/'+collection;
   const url=base+'?documentId='+document;
+  // A lock left by a crashed instance must never be cleared automatically:
+  // manual reconciliation is required before further identity changes.
+  const probe=await fetch(base+'/'+document,{headers:{authorization:'Bearer '+token}});
+  if(probe.ok)throw Error('AUDITOR_EMAIL_LOCK_ALREADY_PRESENT_RECONCILIATION_REQUIRED');
+  if(probe.status!==404)throw Error('AUDITOR_EMAIL_LOCK_PROBE_FAILED_'+probe.status);
   const create=await fetch(url,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({fields:{holder:{stringValue:randomUUID()},createdAt:{timestampValue:new Date().toISOString()}}})});
   if(create.status===409)throw Error('AUDITOR_EMAIL_LOCK_BUSY');
   if(!create.ok)throw Error('AUDITOR_EMAIL_LOCK_ACQUIRE_FAILED_'+create.status);

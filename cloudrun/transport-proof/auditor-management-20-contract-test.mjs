@@ -168,3 +168,8 @@ assert.ok(server.includes("appendCells:{sheetId:byName.get('Auditors')"),'Audito
 assert.ok(server.includes("appendCells:{sheetId:byName.get('Auditor_Identity_Versions')"),'UID ledger is in same atomic transaction');
 assert.ok(server.includes('PLANNING_AUDITOR_UID_UNRESOLVED'),'Planning fails closed when UID cannot resolve');
 console.log('Auditor Management 2.0 profile edit contract PASS');
+
+assert.ok(server.includes('withAuditorIdentityFirestoreLock(async()=>'),'Email transition holds cross-instance lock across Sheets write');
+assert.ok(server.includes('if(create.status===409)throw Error(\'AUDITOR_EMAIL_LOCK_BUSY\')'),'Concurrent cutovers reject occupied lock');
+assert.ok(server.includes('currentDocument.updateTime'),'Lock release checks original document version');
+assert.ok(server.includes('AUDITOR_EMAIL_PLANNING_CHANGED'),'Cutover rejects changed planning projection');

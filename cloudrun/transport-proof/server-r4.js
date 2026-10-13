@@ -1476,6 +1476,19 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     try{return send(res,200,await auditorUidBackfillPreviewRead());}
     catch(e){return send(res,409,{ok:false,error:'UID_BACKFILL_PREVIEW_FAILED',detail:clean(e.message)});}
   }
+  if(u.pathname==='/api/v1/manager/auditor-identity/lock-readiness'&&req.method==='GET'){
+    const actor=await sessionFromRequestValidated(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    try{
+      const lock=await auditorEmailLockReadiness();
+      return send(res,200,{ok:true,lockReady:lock.ready,reason:lock.reason,
+        uidLoginEnabled:process.env.AMS_AUDITOR_UID_LOGIN_ENABLED==='true',
+        emailWriteEnabled:process.env.AMS_AUDITOR_EMAIL_CHANGE_WRITE_ENABLED==='true',
+        lockEnabled:process.env.AMS_AUDITOR_IDENTITY_DISTRIBUTED_LOCK_ENABLED==='true',
+        environment:clean(process.env.AMS_RUNTIME_ENV)});
+    }catch(e){return send(res,503,{ok:false,error:'AUDITOR_EMAIL_LOCK_READINESS_UNCONFIRMED',detail:clean(e.message)})}
+  }
   if(u.pathname==='/api/v1/manager/auditor-identity/readiness'&&req.method==='GET'){
     const actor=await sessionFromRequestValidated(req);
     if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});

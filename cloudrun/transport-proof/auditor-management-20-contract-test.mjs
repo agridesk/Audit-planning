@@ -53,6 +53,10 @@ assert.ok(server.includes("AUDITOR_INACTIVATION_REQUIRES_CONFIRMATION"),'Linked 
 assert.ok(html.includes('id="auditorManagement20Add"'),'Add Auditor toolbar');
 assert.ok(html.includes('<option value="active">Active auditors</option>')&&html.includes('<option value="inactive">Inactive auditors</option>'),'Active and inactive list filter');
 assert.ok(ui.includes("el('button','Create inactive auditor')"),'Create dialog');
+assert.ok(ui.indexOf("document.getElementById('auditorManagement20Add').onclick=function(){")>ui.indexOf("const trigger=document.getElementById('auditorManagement20')"),'Add Auditor handler must be inside Auditor Management closure');
+assert.ok(ui.includes("const created=auditors.find(x=>x.email===createdEmail)"),'Created auditor is selected from auditor directory after refresh');
+assert.ok(ui.includes("Creation not confirmed: ")&&ui.includes("Created, but directory refresh failed: "),'Create workflow distinguishes uncertain write from confirmed write and failed refresh');
+assert.ok(ui.includes("Auditor name or e-mail already exists"),'Add Auditor prevents known duplicate identity before submitting');
 assert.ok(ui.includes("el('button','Save identity')"),'Identity editor shown');
 assert.ok(server.includes("AUDITOR_NAME_REKEY_REQUIRES_REFERENCE_MIGRATION"),'Legacy name-based assignment protection');
 assert.ok(ui.includes("confirmedAuditIds"),'Manager reviews and confirms inactivation impact');

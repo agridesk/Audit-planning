@@ -96,6 +96,18 @@ async function withAuditorIdentityFirestoreLock(work){
   if(error)throw error;
   return result;
 }
+async function auditorEmailLockReadiness(){
+  if(process.env.AMS_RUNTIME_ENV!=='DEV')return{ready:false,reason:'DEV_ONLY'};
+  if(process.env.AMS_AUDITOR_IDENTITY_DISTRIBUTED_LOCK_ENABLED!=='true')return{ready:false,reason:'LOCK_DISABLED'};
+  const project=clean(process.env.GOOGLE_CLOUD_PROJECT||process.env.GCLOUD_PROJECT||'');
+  if(!project)return{ready:false,reason:'LOCK_PROJECT_MISSING'};
+  const database=clean(process.env.AMS_AUDITOR_IDENTITY_LOCK_DATABASE||'(default)');
+  const url='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(project)+'/databases/'+encodeURIComponent(database)+'/documents/ams_identity_cutover_locks/global_auditor_email';
+  const response=await fetch(url,{headers:{authorization:'Bearer '+await accessToken()}});
+  if(response.status===404)return{ready:true,reason:'LOCK_AVAILABLE'};
+  if(response.ok)return{ready:false,reason:'LOCK_HELD_RECONCILIATION_REQUIRED'};
+  return{ready:false,reason:'FIRESTORE_LOCK_ACCESS_'+response.status};
+}
 async function sheetsAtomicAuditorEmailTransition({auditorRow,auditorEmailCol,oldEmail,newEmail,uid,versionRow,versionHeaders,versionCells,at,actor,reason,planningRows=[]}){
   // Keep the write gated until DEV integration verifies multi-instance serialization.
   if(process.env.AMS_AUDITOR_EMAIL_CHANGE_WRITE_ENABLED!=='true')throw Error('AUDITOR_EMAIL_WRITE_DISABLED');
@@ -1858,6 +1870,8 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
         const planningRows=planningValues.slice(1).map((row,i)=>({row,line:i+2})).filter(x=>val(x.row,planningUidCol)===uid&&val(x.row,assignedCol).toLowerCase()===email).map(x=>x.line);
         if(planningValues.slice(1).some(row=>val(row,assignedCol).toLowerCase()===email&&val(row,planningUidCol)!==uid))return send(res,409,{ok:false,error:'AUDITOR_EMAIL_PLANNING_UID_CONFLICT'});
         if(process.env.AMS_AUDITOR_EMAIL_CHANGE_WRITE_ENABLED!=='true')return send(res,409,{ok:false,error:'AUDITOR_EMAIL_CHANGE_WRITE_DISABLED',identityReady:true,transitionReady:true});
+        const lockReadiness=await auditorEmailLockReadiness();
+        if(!lockReadiness.ready)return send(res,409,{ok:false,error:'AUDITOR_EMAIL_LOCK_NOT_READY',reason:lockReadiness.reason});
         const versionCells={Version_ID:randomUUID(),Auditor_UID:uid,Email_Normalized:newEmail,Valid_From_UTC:at,State:'ACTIVE',Created_At_UTC:at,Created_By:clean(actor.email),Approved_At_UTC:at,Approved_By:clean(actor.email),Reason:'Manager email change'};
         const outcome=await sheetsAtomicAuditorEmailTransition({auditorRow:target.line,auditorEmailCol:ec,oldEmail:email,newEmail,uid,versionRow:oldVersionMatches[0].line,versionHeaders:vh,versionCells,at,actor:clean(actor.email),reason:'Manager email change',planningRows});
         return send(res,200,{ok:true,updated:1,newEmail,newName,revokedTokens:outcome.revokedTokens,updatedAssignments:outcome.updatedAssignments});

@@ -649,7 +649,7 @@ function showAuditor(a,initialPage='Profile'){
    row('Default working hours','No canonical working-hours column yet');
    const timezoneLine=el('div'),timezonePicker=el('select'),timezoneCurrent=String(a.timezone||'');timezoneLine.style.cssText='display:grid;grid-template-columns:minmax(140px,220px) minmax(240px,1fr);gap:12px;padding:7px 0;border-bottom:1px solid #edf0f4';timezonePicker.style.cssText='padding:6px;max-width:620px;width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:5px';
    const timezoneOptions=typeof Intl.supportedValuesOf==='function'?Intl.supportedValuesOf('timeZone'):[];
-   const timezones=[...new Set([timezoneCurrent,...timezoneOptions,'Europe/Madrid','Europe/Lisbon','Europe/Amsterdam','UTC'].filter(Boolean))].sort();
+   const timezones=[...new Set([timezoneCurrent,...timezoneOptions,'Europe/Madrid','Europe/Lisbon','Europe/Amsterdam'].filter(Boolean))].sort();
    timezones.forEach(zone=>timezonePicker.appendChild(new Option(zone,zone)));timezonePicker.value=timezoneCurrent;timezonePicker.onchange=()=>stage('Default time zone',timezoneCurrent,timezonePicker.value);timezoneLine.append(el('strong','Time zone'),timezonePicker);content.appendChild(timezoneLine);
    editable('Departure from','Default departure from',a.homeBase);
   }else{const indicator=el('p','Loading change history…');content.appendChild(indicator);

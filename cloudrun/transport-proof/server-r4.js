@@ -106,7 +106,14 @@ async function auditorEmailLockReadiness(){
   const database=clean(process.env.AMS_AUDITOR_IDENTITY_LOCK_DATABASE||'(default)');
   const url='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(project)+'/databases/'+encodeURIComponent(database)+'/documents/ams_identity_cutover_locks/global_auditor_email';
   const response=await fetch(url,{headers:{authorization:'Bearer '+await accessToken()}});
-  if(response.status===404)return{ready:true,reason:'LOCK_AVAILABLE'};
+  if(response.status===404){
+    // A missing document does not prove the database exists or that writes
+    // are permitted. Probe the parent collection metadata separately.
+    const root='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(project)+'/databases/'+encodeURIComponent(database);
+    const db=await fetch(root,{headers:{authorization:'Bearer '+await accessToken()}});
+    if(!db.ok)return{ready:false,reason:'FIRESTORE_DATABASE_ACCESS_'+db.status};
+    return{ready:true,reason:'LOCK_DOCUMENT_ABSENT_READ_ACCESS_OK_WRITE_UNVERIFIED'};
+  }
   if(response.ok)return{ready:false,reason:'LOCK_HELD_RECONCILIATION_REQUIRED'};
   return{ready:false,reason:'FIRESTORE_LOCK_ACCESS_'+response.status};
 }

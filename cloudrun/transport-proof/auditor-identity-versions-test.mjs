@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {buildAuditorIdentityIndex,resolveAuditorUid,auditAuditorIdentityReadiness,currentAuditorLoginUid} from './auditor-identity-versions.js';
+import {buildAuditorIdentityIndex,resolveAuditorUid,auditAuditorIdentityReadiness,currentAuditorLoginUid,planAuditorEmailTransition} from './auditor-identity-versions.js';
 const rows=[{uid:'u1',email:'new@example.com'}];
 const history=[{uid:'u1',email:'old@example.com',validFrom:'2020-01-01T00:00:00Z',validTo:'2026-10-13T10:00:00Z',state:'EXPIRED'},{uid:'u1',email:'new@example.com',validFrom:'2026-10-13T10:00:00Z',state:'ACTIVE'}];
 const index=buildAuditorIdentityIndex(rows,history);
@@ -20,4 +20,14 @@ const pre=buildAuditorIdentityIndex([{uid:'u1',email:'old@example.com'}],[{uid:'
 assert.equal(currentAuditorLoginUid(pre,'old@example.com','2026-10-12T10:00:00Z'),'u1');
 assert.equal(auditAuditorIdentityReadiness([],[]).ready,false);
 assert.equal(auditAuditorIdentityReadiness([],[]).ready,false);
+const transition=planAuditorEmailTransition([{uid:'u1',email:'old@example.com'}],[{uid:'u1',email:'old@example.com',validFrom:'2020-01-01T00:00:00Z',state:'ACTIVE'}],{uid:'u1',oldEmail:'old@example.com',newEmail:'new@example.com',at:'2026-10-13T10:00:00Z'});
+assert.equal(transition.nextAuditors[0].email,'new@example.com');
+assert.equal(transition.oldVersion.validTo,transition.newVersion.validFrom);
+assert.equal(transition.oldVersion.state,'EXPIRED');
+assert.equal(transition.newVersion.state,'ACTIVE');
+assert.equal(resolveAuditorUid(buildAuditorIdentityIndex(transition.nextAuditors,transition.nextVersions),'old@example.com'),'u1');
+assert.equal(currentAuditorLoginUid(buildAuditorIdentityIndex(transition.nextAuditors,transition.nextVersions),'old@example.com','2026-10-13T10:00:00Z'),null);
+assert.throws(()=>planAuditorEmailTransition(transition.nextAuditors,transition.nextVersions,{uid:'u1',oldEmail:'old@example.com',newEmail:'other@example.com',at:'2026-10-13T11:00:00Z'}),/IDENTITY_CHANGE_STALE_PROJECTION/);
+assert.throws(()=>planAuditorEmailTransition([{uid:'u1',email:'old@example.com'}],[{uid:'u1',email:'old@example.com',validFrom:'2020-01-01T00:00:00Z',state:'ACTIVE'}],{uid:'u1',oldEmail:'old@example.com',newEmail:'new@example.com',at:'2019-01-01T00:00:00Z'}),/IDENTITY_CHANGE_OLD_EMAIL_NOT_ACTIVE|IDENTITY_CHANGE_NONMONOTONIC/);
+assert.throws(()=>planAuditorEmailTransition([{uid:'u1',email:'old@example.com'},{uid:'u2',email:'taken@example.com'}],[{uid:'u1',email:'old@example.com',validFrom:'2020-01-01T00:00:00Z',state:'ACTIVE'},{uid:'u2',email:'taken@example.com',validFrom:'2020-01-01T00:00:00Z',state:'ACTIVE'}],{uid:'u1',oldEmail:'old@example.com',newEmail:'taken@example.com',at:'2026-10-13T10:00:00Z'}),/IDENTITY_CHANGE_EMAIL_RESERVED/);
 console.log('Auditor identity version resolver PASS');

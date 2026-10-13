@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {buildAuditorIdentityIndex,resolveAuditorUid} from './auditor-identity-versions.js';
+const rows=[{uid:'u1',email:'new@example.com'}];
+const history=[{uid:'u1',email:'old@example.com',validFrom:'2020-01-01T00:00:00Z',validTo:'2026-10-13T10:00:00Z',state:'EXPIRED'},{uid:'u1',email:'new@example.com',validFrom:'2026-10-13T10:00:00Z',state:'ACTIVE'}];
+const index=buildAuditorIdentityIndex(rows,history);
+assert.equal(resolveAuditorUid(index,'old@example.com'),'u1');
+assert.equal(resolveAuditorUid(index,'new@example.com'),'u1');
+assert.equal(resolveAuditorUid(index,'old@example.com','2026-10-13T10:00:00Z'),null);
+assert.equal(resolveAuditorUid(index,'new@example.com','2026-10-13T10:00:00Z'),'u1');
+console.log('Auditor identity version resolver PASS');

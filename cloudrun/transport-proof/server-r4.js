@@ -65,7 +65,7 @@ async function sheetsAtomicAuditorCreate(auditorRow,versionRow){
   if(!response.ok)throw Error('AUDITOR_CREATE_ATOMIC_APPEND_FAILED_'+response.status);
   return response.json();
 }
-async function sheetsAtomicAuditorEmailTransition({auditorRow,auditorEmailCol,oldEmail,newEmail,uid,versionRow,versionHeaders,versionCells,at,actor,reason}){
+async function sheetsAtomicAuditorEmailTransition({auditorRow,auditorEmailCol,oldEmail,newEmail,uid,versionRow,versionHeaders,versionCells,at,actor,reason,planningRows=[]}){
   // Keep the write gated until DEV integration verifies multi-instance serialization.
   if(process.env.AMS_AUDITOR_EMAIL_CHANGE_WRITE_ENABLED!=='true')throw Error('AUDITOR_EMAIL_WRITE_DISABLED');
   if(process.env.AMS_AUDITOR_UID_LOGIN_ENABLED!=='true')throw Error('AUDITOR_EMAIL_CHANGE_REQUIRES_UID_LOGIN');
@@ -73,8 +73,8 @@ async function sheetsAtomicAuditorEmailTransition({auditorRow,auditorEmailCol,ol
   const mr=await fetch(base+'?fields=sheets.properties',{headers:{authorization:'Bearer '+token}});
   if(!mr.ok)throw Error('AUDITOR_EMAIL_SHEET_METADATA_FAILED');
   const meta=await mr.json(),ids=new Map((meta.sheets||[]).map(x=>[x.properties?.title,x.properties?.sheetId]));
-  for(const name of ['Auditors','Auditor_Identity_Versions','Auditor_Tokens','Diagnostics_Log'])if(!ids.has(name))throw Error('AUDITOR_EMAIL_SHEET_MISSING_'+name);
-  const read=await sheetsBatchGet(['Auditors!A1:AZ1000','Auditor_Identity_Versions!A1:P2000','Auditor_Tokens!A1:Z1024'],true);
+  for(const name of ['Auditors','Auditor_Identity_Versions','Auditor_Tokens','Diagnostics_Log','Audit planning'])if(!ids.has(name))throw Error('AUDITOR_EMAIL_SHEET_MISSING_'+name);
+  const read=await sheetsBatchGet(['Auditors!A1:AZ1000','Auditor_Identity_Versions!A1:P2000','Auditor_Tokens!A1:Z1024','Audit planning!A1:AZ2500'],true);
   const auditors=read[0]?.values||[],ah=auditors[0]||[],ac=col(ah,['E-mail','Email']),uc=col(ah,['Auditor_UID','Auditor UID']);
   if(ac!==auditorEmailCol||uc<0||clean(auditors[auditorRow-1]?.[ac]).toLowerCase()!==oldEmail||val(auditors[auditorRow-1],uc)!==uid)throw Error('AUDITOR_EMAIL_CONCURRENT_PROFILE_CHANGE');
   const vv=read[1]?.values||[],vh=vv[0]||[],ve=col(vh,['Email_Normalized']),vu=col(vh,['Auditor_UID']),vs=col(vh,['State']),vt=col(vh,['Valid_To_UTC']);
@@ -83,6 +83,11 @@ async function sheetsAtomicAuditorEmailTransition({auditorRow,auditorEmailCol,ol
   if(vv.slice(1).some(x=>val(x,ve).toLowerCase()===newEmail&&val(x,vs).toUpperCase()!=='CANCELLED'))throw Error('AUDITOR_EMAIL_ALIAS_RESERVED');
   const tv=read[2]?.values||[],th=tv[0]||[],te=col(th,['Email']),tr=col(th,['Revoked']),tro=col(th,['Role']);
   if([te,tr,tro].some(x=>x<0))throw Error('AUDITOR_EMAIL_TOKEN_SCHEMA_MISSING');
+  const pv=read[3]?.values||[],ph=pv[0]||[],pa=col(ph,['Assigned to']),pu=col(ph,['Auditor_UID','Auditor UID']);
+  if(pa<0||pu<0)throw Error('AUDITOR_EMAIL_PLANNING_SCHEMA_MISSING');
+  const liveRows=pv.slice(1).map((row,i)=>({row,line:i+2})).filter(x=>val(x.row,pu)===uid&&val(x.row,pa).toLowerCase()===oldEmail);
+  if(liveRows.length!==planningRows.length||liveRows.some((x,i)=>x.line!==planningRows[i]))throw Error('AUDITOR_EMAIL_PLANNING_CHANGED');
+  if(pv.slice(1).some(row=>val(row,pa).toLowerCase()===oldEmail&&val(row,pu)!==uid))throw Error('AUDITOR_EMAIL_PLANNING_UID_CONFLICT');
   const cell=v=>({userEnteredValue:{stringValue:clean(v)}}),range=(name,row,c)=>({sheetId:ids.get(name),startRowIndex:row-1,endRowIndex:row,startColumnIndex:c,endColumnIndex:c+1});
   const update=(name,row,c,value)=>({updateCells:{range:range(name,row,c),rows:[{values:[cell(value)]}],fields:'userEnteredValue'}});
   const append=(name,values)=>({appendCells:{sheetId:ids.get(name),rows:[{values:values.map(cell)}],fields:'userEnteredValue'}});
@@ -90,11 +95,12 @@ async function sheetsAtomicAuditorEmailTransition({auditorRow,auditorEmailCol,ol
   const detail=JSON.stringify({uid,oldEmail,newEmail,at,actor,reason,revokedTokens:tv.slice(1).filter(x=>val(x,te).toLowerCase()===oldEmail&&val(x,tro).toLowerCase()==='auditor').length});
   const log=phase=>[at,'AUDITOR_MANAGEMENT_2_0','AUDITOR_EMAIL_CHANGE',uid,phase,actor,'','',false,reason,detail];
   const requests=[append('Diagnostics_Log',log('CHANGE_INTENT')),update('Auditors',auditorRow,ac,newEmail),update('Auditor_Identity_Versions',versionRow,vs,'EXPIRED'),update('Auditor_Identity_Versions',versionRow,vt,at),append('Auditor_Identity_Versions',newVersion)];
+  for(const rowNumber of planningRows)requests.push(update('Audit planning',rowNumber,pa,newEmail));
   for(let i=1;i<tv.length;i++)if(val(tv[i],te).toLowerCase()===oldEmail&&val(tv[i],tro).toLowerCase()==='auditor')requests.push(update('Auditor_Tokens',i+1,tr,'TRUE'));
   requests.push(append('Diagnostics_Log',log('CHANGE_APPLIED')));
   const response=await fetch(base+':batchUpdate',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({requests})});
   if(!response.ok)throw Error('AUDITOR_EMAIL_ATOMIC_UPDATE_FAILED_'+response.status);
-  return{ok:true,revokedTokens:requests.length-6};
+  return{ok:true,revokedTokens:tv.slice(1).filter(x=>val(x,te).toLowerCase()===oldEmail&&val(x,tro).toLowerCase()==='auditor').length,updatedAssignments:planningRows.length};
 }
 async function sheetsDeleteRow(sheetTitle,rowNumber){
   const token=await accessToken(),metaUrl='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'?fields=sheets.properties';

@@ -56,6 +56,8 @@ export function auditAuditorIdentityReadiness(auditors,versions){
     for(let i=1;i<sorted.length;i++)if(sorted[i-1].to!==sorted[i].from)issues.push({uid,code:'IDENTITY_VERSION_GAP',from:sorted[i-1].to,to:sorted[i].from});
     if(sorted.length&&sorted[sorted.length-1].email!==a.email)issues.push({uid,code:'IDENTITY_CURRENT_EMAIL_NOT_LAST_VERSION'});
   }
+  if(!index.byUid.size)issues.push({code:'IDENTITY_NO_AUDITORS'});
+  if(!versions.length)issues.push({code:'IDENTITY_NO_VERSIONS'});
   return{ready:issues.length===0,auditorCount:index.byUid.size,aliasCount:index.byEmail.size,versionCount:versions.length,issues};
 }
 export function currentAuditorLoginUid(index,email,at){

@@ -1811,6 +1811,13 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
         if([vc,uc,emc,sc].some(x=>x<0))return send(res,409,{ok:false,error:'AUDITOR_VERSION_SCHEMA_INVALID'});
         const oldVersionMatches=vv.slice(1).map((row,i)=>({row,line:i+2})).filter(x=>val(x.row,uc)===uid&&val(x.row,emc).toLowerCase()===email&&val(x.row,sc)==='ACTIVE');
         if(oldVersionMatches.length!==1)return send(res,409,{ok:false,error:'AUDITOR_ACTIVE_VERSION_NOT_UNIQUE'});
+        // Planning stores denormalized auditor email in addition to Auditor_UID.
+        // Until projection migration is part of the same cutover, prevent orphaned
+        // current assignments even when an operator enables the write flag.
+        const planningValues=v[1]?.values||[],planningHeaders=planningValues[0]||[],assignedCol=col(planningHeaders,['Assigned to']),planningUidCol=col(planningHeaders,['Auditor_UID','Auditor UID']);
+        if(assignedCol<0||planningUidCol<0)return send(res,409,{ok:false,error:'AUDITOR_EMAIL_PLANNING_SCHEMA_MISSING'});
+        const linkedAssignments=planningValues.slice(1).filter(row=>val(row,planningUidCol)===uid&&val(row,assignedCol).toLowerCase()===email).length;
+        if(linkedAssignments)return send(res,409,{ok:false,error:'AUDITOR_EMAIL_PLANNING_PROJECTION_MIGRATION_REQUIRED',linkedAssignments});
         if(process.env.AMS_AUDITOR_EMAIL_CHANGE_WRITE_ENABLED!=='true')return send(res,409,{ok:false,error:'AUDITOR_EMAIL_CHANGE_WRITE_DISABLED',identityReady:true,transitionReady:true});
         const versionCells={Version_ID:randomUUID(),Auditor_UID:uid,Email_Normalized:newEmail,Valid_From_UTC:at,State:'ACTIVE',Created_At_UTC:at,Created_By:clean(actor.email),Approved_At_UTC:at,Approved_By:clean(actor.email),Reason:'Manager email change'};
         const outcome=await sheetsAtomicAuditorEmailTransition({auditorRow:target.line,auditorEmailCol:ec,oldEmail:email,newEmail,uid,versionRow:oldVersionMatches[0].line,versionHeaders:vh,versionCells,at,actor:clean(actor.email),reason:'Manager email change'});

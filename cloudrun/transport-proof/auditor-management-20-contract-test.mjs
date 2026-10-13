@@ -102,4 +102,5 @@ assert.ok(ui.includes("stage('Default time zone',timezoneCurrent,timezonePicker.
 assert.ok(ui.includes("editable('Departure from','Default departure from',a.homeBase)"),'Manager can edit default departure');
 assert.ok(ui.includes("card.textContent=date+' · '+action+' · '+description"),'History renders one compact line per event');
 assert.ok(server.includes("sheetsValuesAppend('Auditors!A:AZ',[row])"),'Add auditor writes full canonical Auditors schema');
+assert.ok(server.includes("if(newEmail!==email)return send(res,409,{ok:false,error:'AUDITOR_EMAIL_REKEY_REQUIRES_REFERENCE_MIGRATION'"),'All email changes fail closed until versioned UID identity and login are implemented');
 console.log('Auditor Management 2.0 profile edit contract PASS');

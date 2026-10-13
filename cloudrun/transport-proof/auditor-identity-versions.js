@@ -48,6 +48,8 @@ export function resolveAuditorUid(index,email,at=null){
 export function auditAuditorIdentityReadiness(auditors,versions){
   const index=buildAuditorIdentityIndex(auditors,versions);
   const issues=[];
+  if(!index.byUid.size)issues.push({code:'IDENTITY_NO_AUDITORS'});
+  if(!versions.length)issues.push({code:'IDENTITY_NO_VERSIONS'});
   for(const [uid,a] of index.byUid){
     const own=versions.filter(v=>String(v.uid??'').trim()===uid&&['ACTIVE','EXPIRED'].includes(String(v.state??'').trim().toUpperCase()));
     const sorted=own.map(v=>({email:norm(v.email),from:iso(v.validFrom),to:v.validTo?iso(v.validTo):null})).sort((x,y)=>x.from.localeCompare(y.from));

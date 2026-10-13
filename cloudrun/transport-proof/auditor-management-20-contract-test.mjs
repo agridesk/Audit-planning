@@ -200,3 +200,8 @@ assert.ok(server.includes('AUDITOR_EMAIL_DEV_SPREADSHEET_MISMATCH'),'Email chang
 assert.ok(server.includes('AUDITOR_EMAIL_LOCK_PROJECT_NOT_DEV'),'Firestore locks are pinned to DEV GCP project');
 assert.ok(server.includes('DEV_SPREADSHEET_MISMATCH'),'Lock diagnostic rejects non-DEV spreadsheet');
 assert.ok(server.includes('LOCK_PROJECT_NOT_DEV'),'Lock diagnostic rejects non-DEV project');
+
+assert.ok(server.includes('AUDITOR_EMAIL_LOCK_ACQUIRE_UNCERTAIN_RECONCILIATION_REQUIRED'),'Ambiguous Firestore lock acquisition fails closed');
+assert.ok(server.includes('AUDITOR_EMAIL_LOCK_ACQUIRE_RESPONSE_UNCERTAIN_RECONCILIATION_REQUIRED'),'Unreadable lock acquisition response fails closed');
+assert.ok(server.includes('AUDITOR_EMAIL_POST_WRITE_MULTIPLE_ACTIVE_IDENTITIES'),'Multiple active identities fail post-write verification');
+assert.ok(server.includes('versionCells.Version_ID'),'Post-write verification checks exact created identity version');

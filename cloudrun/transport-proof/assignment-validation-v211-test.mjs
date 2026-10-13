@@ -199,6 +199,8 @@ const withdrawalCatalog=[{slotKey:'SCOPE_01',scopeCode:'MPS-ABC',displayName:'MP
 const withdrawalAuditors=[['Name','E-mail','Active','Role','MPS-ABC','Qualification_Withdrawals_JSON'],['Leen','leen@agriqa.es','Yes','Auditor','x',JSON.stringify([{scopeCode:'MPS-ABC',effectiveDate:'2026-10-15',grandfatheredAuditIds:['A-1','A-2']}])]];
 const effectiveGuard=(requestedDates,nowDate)=>v211QualificationWithdrawalConstraint({auditorValues:withdrawalAuditors,catalog:withdrawalCatalog,scopeCodes:['SCOPE_01'],auditorEmail:'leen@agriqa.es',requestedDates,nowDate});
 assert.equal(effectiveGuard(['2026-10-14'],'2026-10-12').ok,true);
+assert.equal(v211AuditorQualified(withdrawalAuditors,withdrawalCatalog,['MPS-ABC'],'leen@agriqa.es',['2026-10-14']),true,'Future withdrawal preserves eligibility before effective date');
+assert.equal(v211AuditorQualified(withdrawalAuditors,withdrawalCatalog,['MPS-ABC'],'leen@agriqa.es',['2026-10-16']),false,'Future withdrawal blocks assignment dated after effective date');
 assert.equal(effectiveGuard(['2026-10-16'],'2026-10-12').ok,false);
 assert.equal(effectiveGuard([],'2026-10-15').ok,false);
 assert.equal(v211QualificationWithdrawalConstraint({auditorValues:withdrawalAuditors,catalog:withdrawalCatalog,scopeCodes:['MPS-GAP'],auditorEmail:'leen@agriqa.es',nowDate:'2026-10-16'}).ok,true);

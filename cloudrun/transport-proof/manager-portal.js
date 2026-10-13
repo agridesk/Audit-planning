@@ -622,7 +622,7 @@ function showAuditor(a,initialPage='Profile'){
  const activeRow=el('div');activeRow.style.cssText='margin:12px 0';activeRow.appendChild(el('strong','Active: '));const toggle=el('input');toggle.type='checkbox';toggle.checked=a.active;activeRow.appendChild(toggle);activeRow.appendChild(el('span',' '+(a.active?'Active':'Inactive')));const activeNote=el('span');activeNote.style.marginLeft='12px';activeRow.appendChild(activeNote);content.appendChild(activeRow);
  toggle.onchange=async()=>{
  const desired=toggle.checked;if(!window.confirm((desired?'Activate':'Inactivate')+' '+a.name+'?')){toggle.checked=a.active;return}toggle.disabled=true;
- async function apply(confirmedAuditIds){const resp=await fetch('/api/v1/manager/auditor-management/active/save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:a.email,expected:a.active,active:desired,confirmedAuditIds})});return{res:resp,data:await resp.json()}}
+ async function apply(confirmedAuditIds){const resp=await fetch('/api/v1/manager/auditor-management/active/save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:a.email,expected:a.active,active:desired,confirmedAuditIds})});return{res:resp,data:await auditorJson(resp)}}
  try{let result=await apply(undefined);
  if(result.data.error==='AUDITOR_INACTIVATION_REQUIRES_CONFIRMATION'){
   const affected=result.data.impacted||[];const detail=affected.map(x=>x.auditId+' · '+x.status).join('\n');

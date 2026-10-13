@@ -103,7 +103,7 @@ async function auditorIdentityReadinessRead(){
   const auditors=av.slice(1).filter(r=>val(r,e)).map(r=>({uid:val(r,u),email:val(r,e)}));
   const versions=rotationIdentityVersions(vr[1]?.values||[]),readiness=auditAuditorIdentityReadiness(auditors,versions),map=rotationAuditorMap(av,versions),logs=vr[2]?.values||[],lh=logs[0]||[],le=col(lh,['Auditor','Auditor Email','Email']),lu=col(lh,['Auditor_UID','Auditor UID']);
   let historicalUnresolved=0,historicalConflicts=0,historicalChecked=0;
-  for(const row of logs.slice(1)){const raw=val(row,le),uid=val(row,lu);if(!raw&&!uid)continue;historicalChecked++;let resolved='';try{resolved=raw?rotationResolveAuditor(map,raw):'';}catch{historicalUnresolved++;continue;}if(uid&&(!map.byUid.has(uid)||(resolved&&resolved!==uid)))historicalConflicts++;else if(!uid&&!resolved)historicalUnresolved++;}
+  for(const row of logs.slice(1)){const raw=val(row,le),uid=val(row,lu);if(!row.some(x=>clean(x)))continue;historicalChecked++;if(!raw&&!uid){historicalUnresolved++;continue;}let resolved='';try{resolved=raw?rotationResolveAuditor(map,raw):'';}catch{historicalUnresolved++;continue;}if(uid&&(!map.byUid.has(uid)||(resolved&&resolved!==uid)))historicalConflicts++;else if(!uid&&!resolved)historicalUnresolved++;}
   return{ok:true,backfill:{total:backfill.total,existing:backfill.existing,missing:0},...readiness,ready:readiness.ready&&!historicalUnresolved&&!historicalConflicts,historical:{checked:historicalChecked,unresolved:historicalUnresolved,conflicts:historicalConflicts}};
 }
 async function validateVersionedAuditorLogin(email){

@@ -421,7 +421,7 @@ function rotationAuditorMap(audValues){
     const identity={email,name:val(r,n),uid:uid||''};
     if(out.byEmail.has(email))throw Error('ROTATION_DUPLICATE_AUDITOR_EMAIL');
     out.byEmail.set(email,identity);
-    if(name){if(out.byName.has(name))out.byName.delete(name);else out.byName.set(name,identity)}
+    if(name){if(out.byName.has(name))out.byName.set(name,null);else out.byName.set(name,identity)}
     if(uid){if(out.byUid.has(uid))throw Error('ROTATION_DUPLICATE_AUDITOR_UID');out.byUid.set(uid,identity)}
   }
   return out;

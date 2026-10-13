@@ -89,6 +89,8 @@ async function withAuditorIdentityFirestoreLock(work){
   if(!clean(acquired.name).endsWith('/documents/'+collection+'/'+document))throw Error('AUDITOR_EMAIL_LOCK_DOCUMENT_MISMATCH');
   let result,error;
   try{result=await work()}catch(e){error=e}
+  // An uncertain write must retain the lock until an operator reconciles Sheets.
+  if(error&&/^AUDITOR_EMAIL_(ATOMIC_UPDATE_FAILED|POST_WRITE_)/.test(clean(error.message)))throw Error('AUDITOR_EMAIL_RECONCILIATION_REQUIRED: '+clean(error.message));
   const releaseUrl=base+'/'+document+'?currentDocument.updateTime='+encodeURIComponent(updateTime);
   try{const release=await fetch(releaseUrl,{method:'DELETE',headers:{authorization:'Bearer '+token}});
     if(!release.ok)throw Error('AUDITOR_EMAIL_LOCK_RELEASE_FAILED_'+release.status);
@@ -144,6 +146,14 @@ async function sheetsAtomicAuditorEmailTransition({auditorRow,auditorEmailCol,ol
   requests.push(append('Diagnostics_Log',log('CHANGE_APPLIED')));
   const response=await fetch(base+':batchUpdate',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({requests})});
   if(!response.ok)throw Error('AUDITOR_EMAIL_ATOMIC_UPDATE_FAILED_'+response.status);
+  const verified=await sheetsBatchGet(['Auditors!A1:AZ1000','Auditor_Identity_Versions!A1:P2000','Audit planning!A1:AZ2500','Auditor_Tokens!A1:Z1024'],true).catch(()=>{throw Error('AUDITOR_EMAIL_POST_WRITE_READ_FAILED')});
+  const va=verified[0]?.values||[],vav=verified[1]?.values||[],vp=verified[2]?.values||[],vtoken=verified[3]?.values||[];
+  if(clean(va[auditorRow-1]?.[ac]).toLowerCase()!==newEmail||val(va[auditorRow-1],uc)!==uid)throw Error('AUDITOR_EMAIL_POST_WRITE_AUDITOR_MISMATCH');
+  if(val(vav[versionRow-1],vs).toUpperCase()!=='EXPIRED'||val(vav[versionRow-1],vt)!==at)throw Error('AUDITOR_EMAIL_POST_WRITE_OLD_VERSION_MISMATCH');
+  const nh=vav[0]||[],nuid=col(nh,['Auditor_UID']),nemail=col(nh,['Email_Normalized']),nstate=col(nh,['State']);
+  if(vav.slice(1).filter(x=>val(x,nuid)===uid&&val(x,nemail).toLowerCase()===newEmail&&val(x,nstate).toUpperCase()==='ACTIVE').length!==1)throw Error('AUDITOR_EMAIL_POST_WRITE_NEW_VERSION_MISMATCH');
+  if(planningRows.some(line=>val(vp[line-1],pa).toLowerCase()!==newEmail||val(vp[line-1],pu)!==uid))throw Error('AUDITOR_EMAIL_POST_WRITE_PLANNING_MISMATCH');
+  if(vtoken.slice(1).some(x=>val(x,te).toLowerCase()===oldEmail&&val(x,tro).toLowerCase()==='auditor'&&!revoked(val(x,tr))))throw Error('AUDITOR_EMAIL_POST_WRITE_TOKEN_MISMATCH');
   return{ok:true,revokedTokens:tv.slice(1).filter(x=>val(x,te).toLowerCase()===oldEmail&&val(x,tro).toLowerCase()==='auditor').length,updatedAssignments:planningRows.length};
   });
 }

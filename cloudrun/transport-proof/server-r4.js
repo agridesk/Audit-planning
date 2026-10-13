@@ -1539,6 +1539,29 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       return send(res,200,{ok:true,updated:1,trailId});
     }catch(e){return send(res,503,{ok:false,error:'QUALIFICATION_SAVE_UNCONFIRMED',detail:clean(e?.message||e)})}
   }
+  if(u.pathname==='/api/v1/manager/auditor-management/audit/transfer-candidates'&&req.method==='GET'){
+    const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    const auditId=clean(u.searchParams.get('auditId')),fromEmail=clean(u.searchParams.get('fromEmail')).toLowerCase();
+    if(!auditId||!fromEmail)return send(res,400,{ok:false,error:'TRANSFER_CANDIDATE_INPUT_REQUIRED'});
+    try{
+      const v=await sheetsBatchGet(['Audit planning!A1:AX2500','Auditors!A1:AZ1000','Config_Scopes!A1:Z200','Companies!A1:AJ2500','Log realized audits!A1:AZ2500']);
+      const ap=v[0]?.values||[],av=v[1]?.values||[],sc=v[2]?.values||[],companies=v[3]?.values||[],log=v[4]?.values||[],found=findAudit(ap,auditId);
+      if(!found)return send(res,404,{ok:false,error:'AUDIT_NOT_FOUND'});
+      const h=found.h,row=found.row,ai=col(h,['Assigned to','Assigned auditor','Auditor']),pi=col(h,['Preassigned Auditor']);
+      if(directResolveAuditorEmail(av,val(row,ai))!==fromEmail&&directResolveAuditorEmail(av,val(row,pi))!==fromEmail)return send(res,409,{ok:false,error:'TRANSFER_SOURCE_MISMATCH'});
+      const catalog=scopeCatalog(sc),required=scopesForAudit(found,catalog),company=val(row,col(h,['Company'])),companyUid=val(row,col(h,['Company_UID','Company UID'])),planned=dateOnly(val(row,col(h,['Date planned','Date - Planned']))),ah=av[0]||[],ec=col(ah,['E-mail','Email']),nc=col(ah,['Name']),ac=col(ah,['Active']),rc=col(ah,['Role']);
+      if(!required.length||ec<0||ac<0||rc<0)return send(res,409,{ok:false,error:'TRANSFER_CANDIDATE_SCHEMA_UNRESOLVED'});
+      const eligible=[],excluded=[];
+      for(const auditor of av.slice(1)){
+        const email=val(auditor,ec).toLowerCase();if(!email||email===fromEmail||!yes(auditor[ac])||val(auditor,rc).toLowerCase()!=='auditor')continue;
+        const hard=v211AssignmentHardCheck({auditorEmail:email,auditorValues:av,catalog,scopeCodes:required,companyValues:companies,companyUid,companyName:company,logValues:log,requestedDates:planned?[planned]:[]});
+        const rotation=rotationReadFromLoaded(auditId,email,ap,av,sc,log),rotationHard=v211RotationHardCheck(rotation);
+        const entry={email,name:val(auditor,nc)||email};if(hard.ok&&rotationHard.ok)eligible.push(entry);else excluded.push({...entry,reasons:[...hard.reasons,...rotationHard.reasons]});
+      }
+      return send(res,200,{ok:true,auditId,company,scopes:required,status:val(row,col(h,['Status'])),eligible,excluded,availabilityWarning:true});
+    }catch(e){return send(res,503,{ok:false,error:'TRANSFER_CANDIDATES_FAILED',detail:clean(e?.message||e)})}
+  }
   if(u.pathname==='/api/v1/manager/auditor-management/audit/transfer'&&req.method==='POST'){
     const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});

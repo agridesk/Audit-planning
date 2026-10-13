@@ -78,7 +78,7 @@ export function v211QualificationWithdrawalConstraint({auditorValues,catalog,sco
  return{ok:reasons.length===0,reasons};
 }
 
-export function v211AuditorQualified(audValues,catalog,scopeCodes,auditorEmail){
+export function v211AuditorQualified(audValues,catalog,scopeCodes,auditorEmail,requestedDates){
   if(!Array.isArray(audValues)||!audValues.length)return false;
   const h=audValues[0],e=col(h,['E-mail','Email','E-mail address','Mail']),a=col(h,['Active','Is active']),r=col(h,['Role','Function']);
   const aliases=new Map();
@@ -94,7 +94,7 @@ export function v211AuditorQualified(audValues,catalog,scopeCodes,auditorEmail){
   const target=matches[0];
   if((a>=0&&!yes(target[a]))||(r>=0&&val(target,r).toLowerCase()!=='auditor'))return false;
   if(!target)return false;
-  if(!v211QualificationWithdrawalConstraint({auditorValues:audValues,catalog,scopeCodes,auditorEmail}).ok)return false;
+  if(!v211QualificationWithdrawalConstraint({auditorValues:audValues,catalog,scopeCodes,auditorEmail,requestedDates}).ok)return false;
   return (scopeCodes||[]).every(sc=>{
     const canon=aliases.get(key(sc))||key(sc);
     for(let i=0;i<h.length;i++){
@@ -168,7 +168,7 @@ export function v211AssignmentHardCheck({
 }={}){
   const reasons=[];
   if(v211CompanyIdentityAmbiguous(companyValues||[],companyUid,companyName))reasons.push('COMPANY_IDENTITY_AMBIGUOUS');
-  if(!v211AuditorQualified(auditorValues||[],catalog||[],scopeCodes||[],auditorEmail))reasons.push('AUDITOR_NOT_HARD_QUALIFIED');
+  if(!v211AuditorQualified(auditorValues||[],catalog||[],scopeCodes||[],auditorEmail,requestedDates||[]))reasons.push('AUDITOR_NOT_HARD_QUALIFIED');
   if(v211CompanyAuditorExclusions(companyValues||[],companyUid,companyName).has(clean(auditorEmail).toLowerCase()))reasons.push('AUDITOR_EXCLUDED_FOR_COMPANY');
   const withdrawal=v211QualificationWithdrawalConstraint({auditorValues:auditorValues||[],catalog:catalog||[],scopeCodes:scopeCodes||[],auditorEmail,requestedDates:requestedDates||[]});reasons.push(...withdrawal.reasons);
   const minInterval=v211MinimumIntervalConstraint({logValues:logValues||[],catalog:catalog||[],scopeCodes:scopeCodes||[],companyUid,companyName});

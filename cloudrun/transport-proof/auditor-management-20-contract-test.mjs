@@ -5,6 +5,8 @@ const ui=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const html=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
 assert.ok(server.includes("'/api/v1/manager/auditor-management'"),'Manager-only Auditor read route');
 assert.ok(server.includes('auditorUid:clean(identity.auditorUid)'),'Session cookies bind immutable auditor UID');
+assert.ok(server.includes("throw Error('AUDITOR_EMAIL_CHANGE_REQUIRES_TRANSACTIONAL_IDENTITY_CUTOVER')"),'Unsafe Sheets email mutation is disabled');
+assert.ok(server.includes("throw Error('AUDITOR_EMAIL_CHANGE_REQUIRES_UID_LOGIN')"),'Email write flag cannot bypass UID login enforcement');
 assert.ok(server.includes('session.auditorUid===check.uid?session:null'),'UID login rejects legacy sessions and mismatched identities');
 assert.ok(server.includes("auditorUid:valid.uid||''"),'Validated legacy token exchange issues UID-bound auditor sessions');
 assert.ok(server.includes("identityReady:readiness.ready===true"),'Email rotation reports live identity readiness');

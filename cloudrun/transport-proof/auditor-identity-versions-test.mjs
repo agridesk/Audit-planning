@@ -10,4 +10,6 @@ assert.equal(resolveAuditorUid(index,'new@example.com','2026-10-13T10:00:00Z'),'
 assert.throws(()=>buildAuditorIdentityIndex(rows,[{uid:'u1',email:'old@example.com',validFrom:'2020-01-01T00:00:00Z',validTo:'2027-01-01T00:00:00Z',state:'EXPIRED'},history[1]]),/IDENTITY_OVERLAPPING_UID_VERSIONS/);
 assert.equal(auditAuditorIdentityReadiness(rows,history).ready,true);
 assert.equal(auditAuditorIdentityReadiness(rows,[{...history[0],validTo:'2026-10-12T10:00:00Z'},history[1]]).ready,false);
+assert.throws(()=>buildAuditorIdentityIndex([...rows,{uid:'u2',email:'other@example.com'}],[...history,{uid:'u2',email:'other@example.com',validFrom:'2026-01-01T00:00:00Z',state:'ACTIVE'},{uid:'u2',email:'old@example.com',validFrom:'2027-01-01T00:00:00Z',state:'PENDING'}]),/IDENTITY_ALIAS_RESERVED_BY_ANOTHER_AUDITOR/);
+assert.throws(()=>resolveAuditorUid(index,'old@example.com','2026-02-30T00:00:00Z'),/IDENTITY_INVALID_UTC_INSTANT/);
 console.log('Auditor identity version resolver PASS');

@@ -136,4 +136,6 @@ assert.ok(server.includes('historicalConflicts'),'UID readiness checks conflicti
 const docker=readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
 assert.ok(docker.includes('COPY auditor-identity-versions.js ./'),'UID resolver packaged in Cloud Run');
 assert.ok(docker.includes('COPY auditor-uid-backfill-preview.js ./'),'UID migration preview packaged in Cloud Run');
+assert.ok(server.includes("if(uidColumn>=0){const auditorRows=vr[1]?.values||[]"),'Direct planning dual-writes assigned UID');
+assert.ok(server.includes("transferUidIndex>=0?[{range:'Audit planning!'"),'Transfer clears stale assigned UID');
 console.log('Auditor Management 2.0 profile edit contract PASS');

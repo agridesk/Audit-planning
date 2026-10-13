@@ -139,4 +139,7 @@ assert.ok(docker.includes('COPY auditor-identity-versions.js ./'),'UID resolver 
 assert.ok(docker.includes('COPY auditor-uid-backfill-preview.js ./'),'UID migration preview packaged in Cloud Run');
 assert.ok(server.includes("if(uidColumn>=0){const auditorRows=vr[1]?.values||[]"),'Direct planning dual-writes assigned UID');
 assert.ok(server.includes("transferUidIndex>=0?[{range:'Audit planning!'"),'Transfer clears stale assigned UID');
+assert.ok(server.includes("appendCells:{sheetId:byName.get('Auditors')"),'Auditor create uses atomic appendCells');
+assert.ok(server.includes("appendCells:{sheetId:byName.get('Auditor_Identity_Versions')"),'UID ledger is in same atomic transaction');
+assert.ok(server.includes('PLANNING_AUDITOR_UID_UNRESOLVED'),'Planning fails closed when UID cannot resolve');
 console.log('Auditor Management 2.0 profile edit contract PASS');

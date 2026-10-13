@@ -104,7 +104,7 @@ function safeEq(a,b){const x=Buffer.from(clean(a)),y=Buffer.from(clean(b));retur
 function issueSession(identity){if(!sessionConfigured())throw new Error('SESSION_SECRET_NOT_CONFIGURED');const now=Math.floor(Date.now()/1000),payload=b64url(JSON.stringify({v:1,email:clean(identity.email).toLowerCase(),role:clean(identity.role),auditorUid:clean(identity.auditorUid),iat:now,exp:now+SESSION_TTL_SECONDS}));return payload+'.'+sign(payload);}
 function verifySession(raw){if(!sessionConfigured()||!raw)return null;const parts=clean(raw).split('.');if(parts.length!==2||!safeEq(sign(parts[0]),parts[1]))return null;try{const p=JSON.parse(Buffer.from(parts[0],'base64url').toString('utf8')),now=Math.floor(Date.now()/1000);if(p.v!==1||!p.email||!p.role||!p.exp||p.exp<=now)return null;return p;}catch{return null;}}
 function sessionFromRequest(req){return verifySession(cookieMap(req)[SESSION_COOKIE]);}
-async function sessionFromRequestValidated(req){const session=sessionFromRequest(req);if(!session)return null;if(clean(session.role).toLowerCase()!=='auditor'||process.env.AMS_AUDITOR_UID_LOGIN_ENABLED!=='true')return session;const check=await validateVersionedAuditorLogin(clean(session.email).toLowerCase());return check.ok&&session.auditorUid===check.uid?session:null;}
+async function sessionFromRequestValidated(req){if(process.env.AMS_AUDITOR_EMAIL_CHANGE_WRITE_ENABLED==='true'&&process.env.AMS_AUDITOR_UID_LOGIN_ENABLED!=='true')throw Error('AUDITOR_EMAIL_CHANGE_REQUIRES_UID_LOGIN');const session=sessionFromRequest(req);if(!session)return null;if(clean(session.role).toLowerCase()!=='auditor'||process.env.AMS_AUDITOR_UID_LOGIN_ENABLED!=='true')return session;const check=await validateVersionedAuditorLogin(clean(session.email).toLowerCase());return check.ok&&session.auditorUid===check.uid?session:null;}
 function sessionCookie(token){return SESSION_COOKIE+'='+token+'; Max-Age='+SESSION_TTL_SECONDS+'; Path=/; HttpOnly; Secure; SameSite=Lax';}
 function html(res,status,body,headers={}){res.writeHead(status,{'content-type':'text/html; charset=utf-8','cache-control':'no-store',...headers});res.end(body);}
 function esc(v){return clean(v).replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));}
@@ -134,6 +134,7 @@ async function auditorIdentityReadinessRead(){
   return{ok:true,backfill:{total:backfill.total,existing:backfill.existing,missing:0},...readiness,ready:readiness.ready&&!historicalUnresolved&&!historicalConflicts&&!planningConflicts,historical:{checked:historicalChecked,unresolved:historicalUnresolved,conflicts:historicalConflicts},planning:{checked:planningChecked,conflicts:planningConflicts}};
 }
 async function validateVersionedAuditorLogin(email){
+  if(process.env.AMS_AUDITOR_EMAIL_CHANGE_WRITE_ENABLED==='true'&&process.env.AMS_AUDITOR_UID_LOGIN_ENABLED!=='true')throw Error('AUDITOR_EMAIL_CHANGE_REQUIRES_UID_LOGIN');
   if(process.env.AMS_AUDITOR_UID_LOGIN_ENABLED!=='true')return{ok:true};
   const vr=await sheetsBatchGet(['Auditors!A1:AZ1000','Auditor_Identity_Versions!A1:P2000'],true);
   const av=vr[0]?.values||[],h=av[0]||[],uidCol=col(h,['Auditor_UID','Auditor UID']),emailCol=col(h,['Email','E-mail']);

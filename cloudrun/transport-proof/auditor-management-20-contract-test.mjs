@@ -20,6 +20,9 @@ assert.ok(server.includes("error:'STALE_AUDITOR_FIELD'"),'Optimistic concurrency
 assert.ok(server.includes("sheetsValuesBatchUpdateRaw(updates)"),'Canonical RAW write for phone values');
 assert.ok(server.includes("'CHANGE_INTENT'")&&server.includes("'CHANGE_APPLIED'"),'Auditor profile trail before and after write');
 assert.ok(ui.includes("Discard changes"),'Discard unsaved profile edits');
+assert.ok(ui.includes("hasUnsavedAuditorChanges=()=>Object.keys(pending).length>0||saving"),'Unsaved auditor edits tracked');
+assert.ok(ui.includes("Discard unsaved auditor profile changes and open Add auditor?"),'Add auditor cannot silently discard pending edits');
+assert.ok(ui.includes("close.onclick=function(){if(hasUnsavedAuditorChanges()"),'Closing auditor management protects pending edits');
 assert.ok(ui.includes("el('button','Save identity')"),'Manager-governed identity editor present');
 assert.ok(ui.includes("'/api/v1/manager/auditor-management/profile/save'"),'Profile editor canonical API');
 assert.ok(ui.includes("['Mo','Tu','We','Th','Fr']"),'Only weekdays available for soft defaults');

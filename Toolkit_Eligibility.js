@@ -789,7 +789,7 @@ function _mp_findAuditorInList_(auditors, rawKey) {
   return null;
 }
 
-function _mp_assertAuditorQualifiedForPlanning_(ss, hdr, row, auditorEmail, auditorName) {
+function _mp_assertAuditorQualifiedForPlanning_(ss, hdr, row, auditorEmail, auditorName, requestedDates) {
   ss = ss || SpreadsheetApp.getActiveSpreadsheet();
   var key = V5_normalizeEmail_(auditorEmail || '');
   var keyName = String(auditorName || '').trim().toLowerCase();
@@ -857,10 +857,12 @@ function _mp_assertAuditorQualifiedForPlanning_(ss, hdr, row, auditorEmail, audi
       var dateIndex = _mp_findHeaderIdxCI_(hdr||[],['Date - Planned','Date planned']);
       var plannedValue = dateIndex>=0?row[dateIndex]:'';
       var datePlanned = plannedValue instanceof Date?Utilities.formatDate(plannedValue,'Etc/UTC','yyyy-MM-dd'):String(plannedValue||'').slice(0,10);
+      var checkedDates = Array.isArray(requestedDates) ? requestedDates : [];
+      if (checkedDates.some(function(d){return !/^\d{4}-\d{2}-\d{2}$/.test(String(d||''));})) return {success:false,message:'Invalid requested planning date for qualification withdrawal check'};
       for (var wi=0;wi<withdrawalEntries.length;wi++) {
         var entry=withdrawalEntries[wi];
         if (!entry||!entry.scopeCode||!/^\d{4}-\d{2}-\d{2}$/.test(String(entry.effectiveDate||'')))return{success:false,message:'Invalid Auditor qualification withdrawal policy'};
-        if (requiredScopes.some(function(x){return canon(x)===canon(entry.scopeCode);}) && (now>=entry.effectiveDate || /^\d{4}-\d{2}-\d{2}$/.test(datePlanned)&&datePlanned>=entry.effectiveDate))
+        if (requiredScopes.some(function(x){return canon(x)===canon(entry.scopeCode);}) && (now>=entry.effectiveDate || /^\d{4}-\d{2}-\d{2}$/.test(datePlanned)&&datePlanned>=entry.effectiveDate || checkedDates.some(function(d){return d>=entry.effectiveDate;})))
           return {success:false,message:'Qualification withdrawn from '+entry.effectiveDate+' for '+entry.scopeCode};
       }
     }

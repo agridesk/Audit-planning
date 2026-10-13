@@ -189,3 +189,9 @@ assert.ok(server.includes('AUDITOR_EMAIL_RECONCILIATION_REQUIRED'),'Uncertain cu
 assert.ok(server.includes("'/api/v1/manager/auditor-identity/lock-readiness'"),'Manager has read-only lock diagnostic');
 assert.ok(server.includes('FIRESTORE_DATABASE_ACCESS_'),'Lock diagnostic checks Firestore database accessibility');
 assert.ok(server.includes('WRITE_UNVERIFIED'),'Lock diagnostic does not imply write permissions');
+
+assert.ok(server.includes('AUDITOR_EMAIL_ATOMIC_UPDATE_FAILED_NETWORK_UNCERTAIN'),'Network uncertainty retains distributed lock');
+assert.ok(server.includes('AUDITOR_EMAIL_READ_RANGE_LIMIT_REACHED'),'Truncated Sheets reads cannot authorize email cutover');
+assert.ok(server.includes('AUDITOR_EMAIL_PLANNING_PROJECTION_CONFLICT'),'Mismatched UID planning projection blocks cutover');
+assert.ok(server.includes('AUDITOR_EMAIL_ACTIVE_VERSION_NOT_UNIQUE'),'Ambiguous active versions block cutover');
+assert.ok(server.includes('AUDITOR_EMAIL_ALREADY_ASSIGNED'),'Existing auditor aliases block cutover');

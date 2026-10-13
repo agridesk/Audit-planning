@@ -1509,8 +1509,8 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
     try{
-      const lock=await auditorEmailLockReadiness();
-      return send(res,200,{ok:true,lockReady:lock.ready,reason:lock.reason,
+      const [lock,identity]=await Promise.all([auditorEmailLockReadiness(),auditorIdentityReadinessRead()]);
+      return send(res,200,{ok:true,lockReady:lock.ready,identityReady:identity.ready===true,reason:lock.reason,
         uidLoginEnabled:process.env.AMS_AUDITOR_UID_LOGIN_ENABLED==='true',
         emailWriteEnabled:process.env.AMS_AUDITOR_EMAIL_CHANGE_WRITE_ENABLED==='true',
         lockEnabled:process.env.AMS_AUDITOR_IDENTITY_DISTRIBUTED_LOCK_ENABLED==='true',

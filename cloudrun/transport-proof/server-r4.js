@@ -411,8 +411,26 @@ function rotationAliasMeta(scopeValues){
   return meta;
 }
 function rotationCanonical(meta,raw){return meta.byAny.get(key(raw))||meta.byLoose.get(rotationLooseKey(raw))||clean(raw)}
-function rotationAuditorMap(audValues){const out={byName:new Map(),byEmail:new Map()};if(!audValues?.length)return out;const h=audValues[0],n=col(h,['Name','Auditor','Auditor name']),e=col(h,['E-mail','Email','E-mail address','Mail']);for(const r of audValues.slice(1)){const email=val(r,e).toLowerCase(),name=val(r,n).toLowerCase();if(email){out.byEmail.set(email,{email,name:val(r,n)});if(name)out.byName.set(name,{email,name:val(r,n)})}}return out}
-function rotationResolveAuditor(map,raw){const v=clean(raw).toLowerCase();if(!v)return'';if(v.includes('@'))return v;const a=map.byName.get(v);return a?a.email:v}
+function rotationAuditorMap(audValues){
+  const out={byName:new Map(),byEmail:new Map(),byUid:new Map()};
+  if(!audValues?.length)return out;
+  const h=audValues[0],n=col(h,['Name','Auditor','Auditor name']),e=col(h,['E-mail','Email','E-mail address','Mail']),u=col(h,['Auditor_UID','Auditor UID']);
+  for(const r of audValues.slice(1)){
+    const email=val(r,e).toLowerCase(),name=val(r,n).toLowerCase(),uid=val(r,u);
+    if(!email)continue;
+    const identity={email,name:val(r,n),uid:uid||''};
+    if(out.byEmail.has(email))throw Error('ROTATION_DUPLICATE_AUDITOR_EMAIL');
+    out.byEmail.set(email,identity);
+    if(name){if(out.byName.has(name))out.byName.delete(name);else out.byName.set(name,identity)}
+    if(uid){if(out.byUid.has(uid))throw Error('ROTATION_DUPLICATE_AUDITOR_UID');out.byUid.set(uid,identity)}
+  }
+  return out;
+}
+function rotationResolveAuditor(map,raw){
+  const v=clean(raw).toLowerCase();if(!v)return'';
+  const a=map.byEmail.get(v)||map.byName.get(v);
+  return a?(a.uid||a.email):v;
+}
 function rotationScopeCols(headers,meta){let da=-1,hp=-1;headers.forEach((x,i)=>{const k=key(x);if(k==='date_approved'||k==='date approved')da=i;if(k==='hours_planned'||k==='hours planned')hp=i});const out=[];if(da>=0&&hp>da+1){for(let i=da+1;i<hp;i++){const sc=rotationCanonical(meta,headers[i]);if(sc)out.push({i,scope:sc})}if(out.length)return out}for(let i=0;i<headers.length;i++){const raw=clean(headers[i]);if(/^SCOPE_\d+$/i.test(raw)){const sc=rotationCanonical(meta,raw);if(sc)out.push({i,scope:sc})}}if(out.length)return out;const one=col(headers,['Scope','Scopes','SCOPE','STANDARD','Standards']);return one>=0?[{i:one,single:true}]:[]}
 function rotationYear(v){if(v instanceof Date&&!Number.isNaN(v.getTime()))return v.getFullYear();const m=clean(v).match(/^(\d{4})[-\/]/);return m?Number(m[1]):null}
 function rotationConsecutive(ownersByYear,auditor,maxYearExclusive){const years=Object.keys(ownersByYear).map(Number).filter(y=>Number.isFinite(y)&&(!maxYearExclusive||y<maxYearExclusive)).sort((a,b)=>b-a);let count=0;for(const y of years){const owners=ownersByYear[y]||{};if(!owners[auditor])break;count++;if(Object.keys(owners).some(x=>x!==auditor))return count}return count}

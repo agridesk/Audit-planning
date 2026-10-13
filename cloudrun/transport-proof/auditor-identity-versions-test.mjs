@@ -18,4 +18,5 @@ assert.equal(currentAuditorLoginUid(index,'new@example.com','2026-10-13T10:00:00
 assert.equal(currentAuditorLoginUid(index,'old@example.com','2026-10-13T10:00:00Z'),null);
 const pre=buildAuditorIdentityIndex([{uid:'u1',email:'old@example.com'}],[{uid:'u1',email:'old@example.com',validFrom:'2020-01-01T00:00:00Z',state:'ACTIVE'},{uid:'u1',email:'new@example.com',validFrom:'2026-10-13T10:00:00Z',state:'PENDING'}]);
 assert.equal(currentAuditorLoginUid(pre,'old@example.com','2026-10-12T10:00:00Z'),'u1');
+assert.equal(auditAuditorIdentityReadiness([],[]).ready,false);
 console.log('Auditor identity version resolver PASS');

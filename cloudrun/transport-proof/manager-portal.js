@@ -595,6 +595,42 @@ open.onclick=function(){if(!['manager','auditor'].includes(String(actorRole).toL
 (function(){
 const trigger=document.getElementById('auditorManagement20'),panel=document.getElementById('auditorManagement20Panel'),close=document.getElementById('auditorManagement20Close'),search=document.getElementById('auditorManagement20Search'),filter=document.getElementById('auditorManagement20Filter'),rows=document.getElementById('auditorManagement20Rows'),status=document.getElementById('auditorManagement20Status'),dossier=document.getElementById('auditorManagement20Dossier');
 let auditors=[],scopeCatalog=[],hasUnsavedAuditorChanges=()=>false;
+const identityCheckButton=document.createElement('button');
+identityCheckButton.type='button';
+identityCheckButton.textContent='Check identity readiness';
+identityCheckButton.style.margin='8px 10px 8px 0';
+const identityCheckResult=document.createElement('div');
+identityCheckResult.setAttribute('role','status');
+identityCheckResult.style.cssText='white-space:pre-wrap;font-size:12px;padding:6px 0';
+status.parentNode.insertBefore(identityCheckButton,status.nextSibling);
+status.parentNode.insertBefore(identityCheckResult,identityCheckButton.nextSibling);
+identityCheckButton.onclick=async()=>{
+  identityCheckButton.disabled=true;
+  identityCheckResult.textContent='Checking DEV identity and Firestore access…';
+  try{
+    const endpoints=['/api/v1/manager/auditor-identity/readiness','/api/v1/manager/auditor-identity/lock-readiness'];
+    const results=await Promise.all(endpoints.map(async url=>{
+      const response=await fetch(url,{credentials:'same-origin',cache:'no-store'});
+      const data=await response.json();
+      return{http:response.status,...data};
+    }));
+    const [identity,lock]=results;
+    const identityPass=identity.ok===true&&identity.ready===true;
+    const lockPass=lock.ok===true&&lock.lockReady===true;
+    identityCheckResult.textContent=[
+      'UID identity: '+(identityPass?'READY':'NOT READY')+' (HTTP '+identity.http+')',
+      'Firestore lock: '+(lockPass?'READ ACCESS OK':'NOT READY')+' (HTTP '+lock.http+')',
+      'Reason: '+String(lock.reason||lock.error||identity.error||'not reported'),
+      'UID login: '+(lock.uidLoginEnabled?'ON':'OFF'),
+      'Email writes: '+(lock.emailWriteEnabled?'ON':'OFF'),
+      'Distributed lock: '+(lock.lockEnabled?'ON':'OFF'),
+      'Firestore write permission: NOT VERIFIED',
+      'No settings or data were changed.'
+    ].join('\n');
+  }catch(error){identityCheckResult.textContent='Diagnostic failed: '+String(error.message||error)}
+  finally{identityCheckButton.disabled=false}
+};
+
 async function auditorJson(response){const raw=await response.text();let data;try{data=JSON.parse(raw)}catch{throw Error(response.status===429||/rate exceeded/i.test(raw)?'SERVICE_RATE_LIMITED_RETRY':'SERVICE_NON_JSON_RESPONSE_'+response.status)}return data}
 function el(tag,content){const node=document.createElement(tag);if(content!==undefined)node.textContent=String(content);return node}
 function showAuditor(a,initialPage='Profile'){

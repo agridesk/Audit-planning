@@ -3,7 +3,9 @@ const norm = value => String(value ?? '').trim().toLowerCase();
 const iso = value => {
   const s=String(value ?? '').trim();
   if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(s)||!Number.isFinite(Date.parse(s)))throw Error('IDENTITY_INVALID_UTC_INSTANT');
-  return new Date(s).toISOString();
+  const parsed=new Date(s).toISOString();
+  if(parsed.slice(0,19)!==s.slice(0,19))throw Error('IDENTITY_INVALID_UTC_INSTANT');
+  return parsed;
 };
 export function buildAuditorIdentityIndex(auditors,versions=[]){
   const byUid=new Map(),byEmail=new Map(),activeByUid=new Map();

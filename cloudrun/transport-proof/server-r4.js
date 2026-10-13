@@ -439,7 +439,7 @@ function rotationAliasMeta(scopeValues){
 function rotationCanonical(meta,raw){return meta.byAny.get(key(raw))||meta.byLoose.get(rotationLooseKey(raw))||clean(raw)}
 function rotationAuditorMap(audValues,identityVersions=null){
   const out={byName:new Map(),byEmail:new Map(),byUid:new Map(),identityIndex:null};
-  if(!audValues?.length)return out;
+  if(!audValues?.length){if(identityVersions!==null)throw Error('ROTATION_AUDITORS_MISSING');return out;}
   const h=audValues[0],n=col(h,['Name','Auditor','Auditor name']),e=col(h,['E-mail','Email','E-mail address','Mail']),u=col(h,['Auditor_UID','Auditor UID']);
   const auditorRows=[];
   for(const r of audValues.slice(1)){

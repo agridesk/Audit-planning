@@ -173,3 +173,7 @@ assert.ok(server.includes('withAuditorIdentityFirestoreLock(async()=>'),'Email t
 assert.ok(server.includes('if(create.status===409)throw Error(\'AUDITOR_EMAIL_LOCK_BUSY\')'),'Concurrent cutovers reject occupied lock');
 assert.ok(server.includes('currentDocument.updateTime'),'Lock release checks original document version');
 assert.ok(server.includes('AUDITOR_EMAIL_PLANNING_CHANGED'),'Cutover rejects changed planning projection');
+
+assert.ok(server.includes("AUDITOR_EMAIL_LOCK_DEV_ONLY"),'Identity cutover lock is DEV-only');
+assert.ok(server.includes("AUDITOR_EMAIL_LOCK_DOCUMENT_MISMATCH"),'Firestore lock verifies acquired document');
+assert.ok(server.includes("AUDITOR_EMAIL_LOCK_RELEASE_UNCERTAIN"),'Uncertain lock release fails closed');

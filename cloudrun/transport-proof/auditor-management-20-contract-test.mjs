@@ -116,4 +116,8 @@ assert.ok(server.includes("ROTATION_UNRESOLVED_HISTORICAL_EMAIL"),'Unknown histo
 assert.ok(server.includes("import {buildAuditorIdentityIndex,resolveAuditorUid} from './auditor-identity-versions.js'"),'Rotation uses shared versioned identity resolver');
 assert.ok(server.includes('rotationIdentityVersions(vr[4]?.values||[])'),'Rotation loads identity version rows only when feature is enabled');
 assert.ok(server.includes('ROTATION_AUDITOR_UID_EMAIL_CONFLICT'),'Rotation prevents UID and historical email mismatch');
+assert.ok(server.includes('async function validateVersionedAuditorLogin(email)'),'Auditor login has versioned UID check');
+assert.ok(server.includes("process.env.AMS_AUDITOR_UID_LOGIN_ENABLED!=='true'"),'UID login feature defaults off');
+assert.ok(server.includes('async function sessionFromRequestValidated(req)'),'Auditor session checked per request');
+assert.ok(server.includes('const actor=await sessionFromRequestValidated(req)'),'API actor checks enforce session cutover');
 console.log('Auditor Management 2.0 profile edit contract PASS');

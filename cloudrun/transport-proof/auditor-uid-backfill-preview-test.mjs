@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {previewAuditorUidBackfill} from './auditor-uid-backfill-preview.js';
+import {previewAuditorUidBackfill,previewSheet} from './auditor-uid-backfill-preview.js';
 const rows=[{email:'A@EXAMPLE.COM',uid:'uid-1'},{email:'b@example.com',uid:''}];
 const preview=previewAuditorUidBackfill(rows);
 assert.equal(preview.total,2);
@@ -8,4 +8,6 @@ assert.deepEqual(preview.pending,[{email:'b@example.com'}]);
 assert.throws(()=>previewAuditorUidBackfill([{email:'A@EXAMPLE.COM'},{email:'a@example.com'}]),/BACKFILL_DUPLICATE_EMAIL/);
 assert.throws(()=>previewAuditorUidBackfill([{email:'a@example.com',uid:'uid-1'},{email:'b@example.com',uid:'uid-1'}]),/BACKFILL_DUPLICATE_UID/);
 assert.throws(()=>previewAuditorUidBackfill([{email:''}]),/BACKFILL_EMAIL_MISSING/);
+assert.equal(previewSheet([['Email','Auditor_UID'],['a@example.com','uid-1'],['b@example.com','']]).pending.length,1);
+assert.throws(()=>previewSheet([['Name'],['A']]),/BACKFILL_EMAIL_HEADER_MISSING/);
 console.log('Auditor UID backfill preview PASS');

@@ -124,4 +124,6 @@ assert.ok(server.includes('const actorUid=identityMap?rotationResolveAuditor(ide
 assert.ok(server.includes('rotationResolveAuditor(identityMap,r.auditor)===actorUid'),'Archived auditor filters historical email aliases');
 assert.ok(server.includes('AUDITOR_ASSIGNMENT_IDENTITY_UNRESOLVED'),'Open assignments fail closed on unresolved auditor identity');
 assert.ok(server.includes('rotationReadFromLoaded(row.auditId,actorEmail,ap,aud,scv,log,versions)'),'Auditor open rotation uses identity versions');
+assert.ok(server.includes("'/api/v1/manager/auditor-identity/readiness'"),'Read-only manager UID readiness endpoint exists');
+assert.ok(server.includes('async function auditorIdentityReadinessRead()'),'UID readiness endpoint has canonical read implementation');
 console.log('Auditor Management 2.0 profile edit contract PASS');

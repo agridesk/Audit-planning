@@ -67,6 +67,7 @@ async function sheetsAtomicAuditorCreate(auditorRow,versionRow){
 }
 async function withAuditorIdentityFirestoreLock(work){
   if(process.env.AMS_AUDITOR_IDENTITY_DISTRIBUTED_LOCK_ENABLED!=='true')throw Error('AUDITOR_EMAIL_DISTRIBUTED_LOCK_DISABLED');
+  if(process.env.AMS_RUNTIME_ENV!=='DEV')throw Error('AUDITOR_EMAIL_LOCK_DEV_ONLY');
   const project=clean(process.env.GOOGLE_CLOUD_PROJECT||process.env.GCLOUD_PROJECT||'');
   if(!/^[a-z][a-z0-9-]{4,62}$/.test(project))throw Error('AUDITOR_EMAIL_LOCK_PROJECT_MISSING');
   const database=clean(process.env.AMS_AUDITOR_IDENTITY_LOCK_DATABASE||'(default)');
@@ -80,6 +81,7 @@ async function withAuditorIdentityFirestoreLock(work){
   if(!create.ok)throw Error('AUDITOR_EMAIL_LOCK_ACQUIRE_FAILED_'+create.status);
   const acquired=await create.json(),updateTime=clean(acquired.updateTime);
   if(!updateTime)throw Error('AUDITOR_EMAIL_LOCK_VERSION_MISSING');
+  if(!clean(acquired.name).endsWith('/documents/'+collection+'/'+document))throw Error('AUDITOR_EMAIL_LOCK_DOCUMENT_MISMATCH');
   let result,error;
   try{result=await work()}catch(e){error=e}
   const releaseUrl=base+'/'+document+'?currentDocument.updateTime='+encodeURIComponent(updateTime);

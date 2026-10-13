@@ -836,6 +836,7 @@ function _mp_assertAuditorQualifiedForPlanning_(ss, hdr, row, auditorEmail, audi
   // Effective-dated qualification withdrawal is a HARD guard, including legacy GAS saves.
   if (qualified) {
     var withdrawalIndex = _mp_findHeaderIdxCI_(ah, ['Qualification_Withdrawals_JSON']);
+    if (withdrawalIndex < 0) return {success:false,message:'Auditor qualification withdrawal schema missing'};
     if (withdrawalIndex >= 0) {
       var withdrawalEntries = [];
       try { withdrawalEntries = JSON.parse(String(audRow[withdrawalIndex] || '[]')); }
@@ -861,7 +862,7 @@ function _mp_assertAuditorQualifiedForPlanning_(ss, hdr, row, auditorEmail, audi
       if (checkedDates.some(function(d){return !/^\d{4}-\d{2}-\d{2}$/.test(String(d||''));})) return {success:false,message:'Invalid requested planning date for qualification withdrawal check'};
       for (var wi=0;wi<withdrawalEntries.length;wi++) {
         var entry=withdrawalEntries[wi];
-        if (!entry||!entry.scopeCode||!/^\d{4}-\d{2}-\d{2}$/.test(String(entry.effectiveDate||'')))return{success:false,message:'Invalid Auditor qualification withdrawal policy'};
+        if (!entry||!entry.scopeCode||!/^\d{4}-\d{2}-\d{2}$/.test(String(entry.effectiveDate||''))||!Array.isArray(entry.grandfatheredAuditIds)||entry.grandfatheredAuditIds.some(function(id){return typeof id!=='string'||!id.trim();})||new Date(String(entry.effectiveDate)+'T00:00:00Z').toISOString().slice(0,10)!==entry.effectiveDate)return{success:false,message:'Invalid Auditor qualification withdrawal policy'};
         if (requiredScopes.some(function(x){return canon(x)===canon(entry.scopeCode);}) && (now>=entry.effectiveDate || /^\d{4}-\d{2}-\d{2}$/.test(datePlanned)&&datePlanned>=entry.effectiveDate || checkedDates.some(function(d){return d>=entry.effectiveDate;})))
           return {success:false,message:'Qualification withdrawn from '+entry.effectiveDate+' for '+entry.scopeCode};
       }

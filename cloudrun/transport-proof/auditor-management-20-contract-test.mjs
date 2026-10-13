@@ -76,4 +76,5 @@ assert.ok(server.includes("error:'TRANSFER_STALE_STATUS'"),'Transfer stale statu
 assert.ok(server.includes("'AUDIT_TRANSFER'"),'Transfer audit trail');
 assert.ok(ui.includes('Transfer → Pending Approval'),'Transfer action visible in conflict dossier');
 assert.ok(ui.includes('Availability is NOT confirmed'),'Transfer availability warning');
+assert.ok(server.includes('col(h,[scope.code,scope.name,def?.slotKey].filter(Boolean))'),'Qualification read model matches write column aliases');
 console.log('Auditor Management 2.0 profile edit contract PASS');

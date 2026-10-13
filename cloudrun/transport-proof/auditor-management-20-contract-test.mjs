@@ -210,3 +210,6 @@ assert.ok(server.includes('AUDITOR_EMAIL_POST_WRITE_STALE_EMAIL_PROJECTION'),'St
 
 assert.ok(server.includes('LOCK_DISABLED_FIRESTORE_READ_OK_WRITE_UNVERIFIED'),'Firestore access is probed without enabling writes');
 assert.ok(server.includes('identityReady:identity.ready===true'),'Readiness endpoint includes UID migration status');
+
+assert.ok(ui.includes('Check identity readiness'),'Auditor manager offers read-only diagnostic');
+assert.ok(ui.includes('Firestore write permission: NOT VERIFIED'),'Diagnostic never implies Firestore write permission');

@@ -170,9 +170,12 @@ async function sheetsAtomicAuditorEmailTransition({auditorRow,auditorEmailCol,ol
   if(clean(va[auditorRow-1]?.[ac]).toLowerCase()!==newEmail||val(va[auditorRow-1],uc)!==uid)throw Error('AUDITOR_EMAIL_POST_WRITE_AUDITOR_MISMATCH');
   if(val(vav[versionRow-1],vs).toUpperCase()!=='EXPIRED'||!(Math.abs(sheetSerialMs(val(vav[versionRow-1],vt))-Date.parse(at))<=1000))throw Error('AUDITOR_EMAIL_POST_WRITE_OLD_VERSION_MISMATCH');
   const nh=vav[0]||[],nuid=col(nh,['Auditor_UID']),nemail=col(nh,['Email_Normalized']),nstate=col(nh,['State']);
-  if(vav.slice(1).filter(x=>val(x,nuid)===uid&&val(x,nemail).toLowerCase()===newEmail&&val(x,nstate).toUpperCase()==='ACTIVE').length!==1)throw Error('AUDITOR_EMAIL_POST_WRITE_NEW_VERSION_MISMATCH');
+  const versionIdCol=col(nh,['Version_ID']),versionFromCol=col(nh,['Valid_From_UTC']);
+  const newVersionMatches=vav.slice(1).filter(x=>val(x,nuid)===uid&&val(x,nemail).toLowerCase()===newEmail&&val(x,nstate).toUpperCase()==='ACTIVE');
+  if(versionIdCol<0||versionFromCol<0||newVersionMatches.length!==1||val(newVersionMatches[0],versionIdCol)!==versionCells.Version_ID||!(Math.abs(sheetSerialMs(val(newVersionMatches[0],versionFromCol))-Date.parse(at))<=1000))throw Error('AUDITOR_EMAIL_POST_WRITE_NEW_VERSION_MISMATCH');
   if(planningRows.some(line=>val(vp[line-1],pa).toLowerCase()!==newEmail||val(vp[line-1],pu)!==uid))throw Error('AUDITOR_EMAIL_POST_WRITE_PLANNING_MISMATCH');
   if(vtoken.slice(1).some(x=>val(x,te).toLowerCase()===oldEmail&&val(x,tro).toLowerCase()==='auditor'&&!revoked(val(x,tr))))throw Error('AUDITOR_EMAIL_POST_WRITE_TOKEN_MISMATCH');
+  if(vav.slice(1).some(x=>val(x,nuid)===uid&&val(x,nstate).toUpperCase()==='ACTIVE'&&val(x,nemail).toLowerCase()!==newEmail))throw Error('AUDITOR_EMAIL_POST_WRITE_MULTIPLE_ACTIVE_IDENTITIES');
   return{ok:true,revokedTokens:tv.slice(1).filter(x=>val(x,te).toLowerCase()===oldEmail&&val(x,tro).toLowerCase()==='auditor').length,updatedAssignments:planningRows.length};
   });
 }

@@ -1539,6 +1539,38 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       return send(res,200,{ok:true,updated:1,trailId});
     }catch(e){return send(res,503,{ok:false,error:'QUALIFICATION_SAVE_UNCONFIRMED',detail:clean(e?.message||e)})}
   }
+  if(u.pathname==='/api/v1/manager/auditor-management/audit/transfer'&&req.method==='POST'){
+    const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
+    let body;try{body=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+    const auditId=clean(body?.auditId),fromEmail=clean(body?.fromEmail).toLowerCase(),toEmail=clean(body?.toEmail).toLowerCase(),expectedStatus=clean(body?.expectedStatus).toUpperCase().replace(/[\\s-]+/g,'_');
+    if(!auditId||!fromEmail||!toEmail||fromEmail===toEmail||!['PENDING_PLANNING','PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(expectedStatus))return send(res,400,{ok:false,error:'INVALID_TRANSFER'});
+    try{
+      const values=await sheetsBatchGet(['Audit planning!A1:AX2500','Auditors!A1:AZ1000','Config_Scopes!A1:Z200']);
+      const ap=values[0]?.values||[],av=values[1]?.values||[],sc=values[2]?.values||[],audit=findAudit(ap,auditId);
+      if(!audit)return send(res,404,{ok:false,error:'AUDIT_NOT_FOUND'});
+      const h=audit.h,row=audit.row,ci=col(h,['Status']),ai=col(h,['Assigned to','Assigned auditor','Auditor']),pi=col(h,['Preassigned Auditor']),si=col(h,['Status since']),li=col(h,['Last decision timestamp']);
+      if(ci<0||ai<0||pi<0||si<0||li<0)return send(res,409,{ok:false,error:'TRANSFER_SCHEMA_INCOMPLETE'});
+      const current=val(row,ci).toUpperCase().replace(/[\\s-]+/g,'_');
+      if(current!==expectedStatus)return send(res,409,{ok:false,error:'TRANSFER_STALE_STATUS',current});
+      if(!['PENDING_PLANNING','PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(current))return send(res,409,{ok:false,error:'TRANSFER_STATUS_FORBIDDEN'});
+      if(directResolveAuditorEmail(av,val(row,ai))!==fromEmail&&directResolveAuditorEmail(av,val(row,pi))!==fromEmail)return send(res,409,{ok:false,error:'TRANSFER_SOURCE_MISMATCH'});
+      const ah=av[0]||[],ec=col(ah,['E-mail','Email']),active=col(ah,['Active']),role=col(ah,['Role']);
+      const targets=av.slice(1).filter(r=>ec>=0&&val(r,ec).toLowerCase()===toEmail);
+      if(targets.length!==1||active<0||!yes(targets[0][active])||role<0||!['auditor','manager'].includes(val(targets[0],role).toLowerCase()))return send(res,409,{ok:false,error:'TRANSFER_TARGET_NOT_ACTIVE_AUDITOR'});
+      const catalog=scopeCatalog(sc).filter(x=>x.active&&!x.archived),required=catalog.filter(x=>[x.slotKey,x.scopeCode,x.displayName].some(name=>{const i=col(h,[name]);return i>=0&&yes(row[i])}));
+      if(!required.length)return send(res,409,{ok:false,error:'TRANSFER_SCOPE_UNRESOLVED'});
+      const missing=required.filter(x=>{const i=col(ah,[x.scopeCode,x.displayName,x.slotKey]);return i<0||!yes(targets[0][i])}).map(x=>x.scopeCode);
+      if(missing.length)return send(res,409,{ok:false,error:'TRANSFER_TARGET_NOT_QUALIFIED',missing});
+      const stamp=new Date().toISOString(),trail=JSON.stringify({auditId,actor:clean(actor.email),fromEmail,toEmail,oldStatus:current,newStatus:'Pending Approval',previousAssigned:val(row,ai),previousPreassigned:val(row,pi),plannedDate:val(row,col(h,['Date planned','Date - Planned'])),availability:'NOT_VERIFIED_SOFT_WARNING',reason:clean(body?.reason).slice(0,500)});
+      await sheetsValuesAppend('Diagnostics_Log!A:K',[[stamp,'AUDITOR_MANAGEMENT_2_0','AUDIT_TRANSFER',auditId,'CHANGE_INTENT',clean(actor.email),'','',false,'Transfer to Pending Approval',trail]]);
+      const letter=n=>{let x=n+1,out='';while(x){x--;out=String.fromCharCode(65+x%26)+out;x=Math.floor(x/26)}return out};
+      await sheetsValuesBatchUpdateRaw([{range:'Audit planning!'+letter(ai)+audit.sourceRow,values:[['']]},{range:'Audit planning!'+letter(pi)+audit.sourceRow,values:[[toEmail]]},{range:'Audit planning!'+letter(ci)+audit.sourceRow,values:[['Pending Approval']]},{range:'Audit planning!'+letter(si)+audit.sourceRow,values:[[stamp]]},{range:'Audit planning!'+letter(li)+audit.sourceRow,values:[[stamp]]}]);
+      await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'AUDITOR_MANAGEMENT_2_0','AUDIT_TRANSFER',auditId,'CHANGE_APPLIED',clean(actor.email),'','',false,'Transferred; approval required; availability unverified',trail]]);
+      return send(res,200,{ok:true,auditId,status:'Pending Approval',toEmail,availabilityWarning:true});
+    }catch(e){return send(res,503,{ok:false,error:'TRANSFER_UNCONFIRMED',detail:clean(e?.message||e)})}
+  }
   if(u.pathname==='/api/v1/manager/auditor-management/qualification-impact'&&req.method==='GET'){
     const actor=sessionFromRequest(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});

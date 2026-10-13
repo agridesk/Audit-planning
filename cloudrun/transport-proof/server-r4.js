@@ -1703,7 +1703,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       put('Name',name);row[ec]=email;put('Active','No');put('Role',role);put('Area',area);put('Default time zone',clean(data?.timezone)||'Europe/Madrid');put('Qualification_Withdrawals_JSON','[]');
       const auditId=randomUUID(),detail=JSON.stringify({auditId,name,email,actor:clean(actor.email),active:'No'});
       await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'AUDITOR_MANAGEMENT_2_0','AUDITOR_CREATE',email,'CHANGE_INTENT',clean(actor.email),'','',false,'Create inactive auditor',detail]]);
-      await sheetsValuesAppend('Auditors!A:S',[row.slice(0,19)]);
+      await sheetsValuesAppend('Auditors!A:AZ',[row]);
       await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'AUDITOR_MANAGEMENT_2_0','AUDITOR_CREATE',email,'CHANGE_APPLIED',clean(actor.email),'','',false,'Inactive auditor created',detail]]);
       return send(res,200,{ok:true,email,active:false});
     }catch(e){return send(res,503,{ok:false,error:'AUDITOR_CREATE_UNCONFIRMED',detail:clean(e?.message||e)})}

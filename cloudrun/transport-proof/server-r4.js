@@ -1618,7 +1618,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     const auditId=clean(u.searchParams.get('auditId')),fromEmail=clean(u.searchParams.get('fromEmail')).toLowerCase();
     if(!auditId||!fromEmail)return send(res,400,{ok:false,error:'TRANSFER_CANDIDATE_INPUT_REQUIRED'});
     try{
-      const v=await sheetsBatchGet(['Audit planning!A1:AX2500','Auditors!A1:AZ1000','Config_Scopes!A1:Z200','Companies!A1:AJ2500','Log realized audits!A1:AZ2500']);
+      const versioned=process.env.AMS_AUDITOR_UID_ROTATION_READ_ENABLED==='true',ranges=['Audit planning!A1:AX2500','Auditors!A1:AZ1000','Config_Scopes!A1:Z200','Companies!A1:AJ2500','Log realized audits!A1:AZ2500'];if(versioned)ranges.push('Auditor_Identity_Versions!A1:P2000');const v=await sheetsBatchGet(ranges);
       const ap=v[0]?.values||[],av=v[1]?.values||[],sc=v[2]?.values||[],companies=v[3]?.values||[],log=v[4]?.values||[],found=findAudit(ap,auditId);
       if(!found)return send(res,404,{ok:false,error:'AUDIT_NOT_FOUND'});
       const h=found.h,row=found.row,ai=col(h,['Assigned to','Assigned auditor','Auditor']),pi=col(h,['Preassigned Auditor']);

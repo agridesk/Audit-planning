@@ -15,6 +15,7 @@ import {resolveCompanyScopeHours20} from './company-scope-hours-resolver-20.js';
 import {buildCompanyManagementReadModel20} from './company-management-readmodel-20.js';
 import {validateAuditorCompanyChanges} from './company-auditor-permissions-20.js';
 import {buildAuditorIdentityIndex,resolveAuditorUid,auditAuditorIdentityReadiness,currentAuditorLoginUid} from './auditor-identity-versions.js';
+import {previewSheet} from './auditor-uid-backfill-preview.js';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';

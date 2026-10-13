@@ -89,4 +89,8 @@ assert.ok(ui.includes('Transfer allowed after explicit confirmation; audit date 
 assert.ok(server.includes('TRANSFER_DATE_RESTRICTION_ACK_REQUIRED'),'Transfer date warning must be acknowledged');
 assert.ok(server.includes('p.auditorEmail=toEmail'),'Transfer synchronizes embedded planning auditor identity');
 assert.ok(ui.includes('acknowledgeDateRestriction:true'),'Transfer confirms date restriction explicitly');
+assert.ok(ui.includes("transferSection.hidden=page!=='Qualifications'"),'Transfer panel only on Qualifications tab');
+assert.ok(ui.includes("const transfers=el('details')"),'Transfer panel collapsed by default');
+assert.ok(server.includes("values:[[transferComment]]"),'Transfer writes canonical manager comment');
+assert.ok(server.includes("latestComment:val(row,ccomment)"),'Manager grid shows transfer comment alert');
 console.log('Auditor Management 2.0 profile edit contract PASS');

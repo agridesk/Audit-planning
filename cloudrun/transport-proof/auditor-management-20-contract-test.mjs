@@ -96,7 +96,9 @@ assert.ok(server.includes("latestComment:val(row,ccomment)"),'Manager grid shows
 assert.ok(server.includes("clean(row[2])==='AUDIT_TRANSFER'"),'History includes audit transfer events');
 assert.ok(ui.includes("event.action==='AUDIT_TRANSFER'"),'History renders transfer details');
 assert.ok(ui.includes('Change registered; no additional details recorded'),'History explains incomplete historical events');
-assert.ok(ui.includes("editable('Time zone','Default time zone',a.timezone)"),'Manager can edit default time zone');
+assert.ok(ui.includes("Intl.supportedValuesOf('timeZone')"),'Manager timezone picker uses IANA time zone identifiers');
+assert.ok(ui.includes('timezonePicker.value=timezoneCurrent'),'Timezone picker preserves stored canonical value');
+assert.ok(ui.includes("stage('Default time zone',timezoneCurrent,timezonePicker.value)"),'Timezone picker saves canonical IANA identifier');
 assert.ok(ui.includes("editable('Departure from','Default departure from',a.homeBase)"),'Manager can edit default departure');
 assert.ok(ui.includes("card.textContent=date+' · '+action+' · '+description"),'History renders one compact line per event');
 console.log('Auditor Management 2.0 profile edit contract PASS');

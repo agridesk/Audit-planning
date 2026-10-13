@@ -56,6 +56,11 @@ export function auditAuditorIdentityReadiness(auditors,versions){
   }
   return{ready:issues.length===0,auditorCount:index.byUid.size,aliasCount:index.byEmail.size,versionCount:versions.length,issues};
 }
+export function currentAuditorLoginUid(index,email,at){
+  const uid=resolveAuditorUid(index,email,at);
+  if(!uid)return null;
+  return index.byUid.get(uid)?.email===norm(email)?uid:null;
+}
 export function activeAuditorEmail(index,uid,at){
   const a=index.byUid.get(String(uid??'').trim());if(!a)return null;
   return resolveAuditorUid(index,a.email,at)===a.uid?a.email:null;

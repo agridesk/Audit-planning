@@ -85,7 +85,7 @@ assert.ok(server.includes('TRANSFER_ELIGIBILITY_BLOCKED'),'Transfer commit hard-
 assert.ok(ui.includes("data.company+' · '+data.scopes.join(', ')"),'Transfer displays company and scope');
 assert.ok(ui.includes('data.eligible.forEach'),'Transfer selector only offers eligible colleagues');
 assert.ok(server.includes("hard.reasons.filter(x=>x.startsWith('MIN_INTERVAL_HARD_BLOCK_'))"),'Minimum interval separated from auditor eligibility');
-assert.ok(ui.includes('Correct audit planning before transfer'),'Date restriction shown without presenting auditor as ineligible');
+assert.ok(ui.includes('Transfer allowed after explicit confirmation; audit date must be corrected before approval.'),'Date restriction shown without presenting auditor as ineligible');
 assert.ok(server.includes('TRANSFER_DATE_RESTRICTION_ACK_REQUIRED'),'Transfer date warning must be acknowledged');
 assert.ok(server.includes('p.auditorEmail=toEmail'),'Transfer synchronizes embedded planning auditor identity');
 assert.ok(ui.includes('acknowledgeDateRestriction:true'),'Transfer confirms date restriction explicitly');

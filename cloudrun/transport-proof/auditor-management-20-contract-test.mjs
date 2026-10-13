@@ -78,7 +78,7 @@ assert.ok(ui.includes('Transfer → Pending Approval'),'Transfer action visible 
 assert.ok(ui.includes('Availability is NOT confirmed'),'Transfer availability warning');
 assert.ok(server.includes('col(h,[scope.code,scope.name,def?.slotKey].filter(Boolean))'),'Qualification read model matches write column aliases');
 assert.ok(server.includes("'/api/v1/manager/auditor-management/audit/transfer-candidates'"),'Transfer candidates endpoint');
-assert.ok(server.includes('rotationReadFromLoaded(auditId,email,ap,av,sc,log)'),'Rotation checked for candidate list');
+assert.ok(server.includes('rotationReadFromLoaded(auditId,email,ap,av,sc,log,versions)'),'Rotation checked for candidate list');
 assert.ok(server.includes('v211AssignmentHardCheck({auditorEmail:email'),'Assignment eligibility checked for candidates');
 assert.ok(server.includes('TRANSFER_ROTATION_BLOCKED'),'Transfer commit hard-blocks rotation');
 assert.ok(server.includes('TRANSFER_ELIGIBILITY_BLOCKED'),'Transfer commit hard-blocks ineligible auditors');

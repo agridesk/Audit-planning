@@ -101,7 +101,7 @@ async function validateVersionedAuditorLogin(email){
   const auditors=av.slice(1).filter(x=>val(x,emailCol)).map(x=>({uid:val(x,uidCol),email:val(x,emailCol)}));
   const index=buildAuditorIdentityIndex(auditors,rotationIdentityVersions(vr[1]?.values||[])||[]);
   const uid=currentAuditorLoginUid(index,email,new Date().toISOString());
-  if(!uid||index.byUid.get(uid)?.email!==email)return{ok:false,error:'AUDITOR_EMAIL_NOT_CURRENT'};
+  if(!uid)return{ok:false,error:'AUDITOR_EMAIL_NOT_CURRENT'};
   return{ok:true,uid};
 }
 function key(v){return clean(v).toLowerCase().replace(/\s+/g,'_');}

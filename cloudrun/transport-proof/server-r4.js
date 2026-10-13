@@ -70,7 +70,7 @@ async function withAuditorIdentityFirestoreLock(work){
   const project=clean(process.env.GOOGLE_CLOUD_PROJECT||process.env.GCLOUD_PROJECT||'');
   if(!/^[a-z][a-z0-9-]{4,62}$/.test(project))throw Error('AUDITOR_EMAIL_LOCK_PROJECT_MISSING');
   const database=clean(process.env.AMS_AUDITOR_IDENTITY_LOCK_DATABASE||'(default)');
-  if(!/^(\\(default\\)|[A-Za-z0-9_-]+)$/.test(database))throw Error('AUDITOR_EMAIL_LOCK_DATABASE_INVALID');
+  if(database!=='(default)'&&!/^[A-Za-z0-9_-]+$/.test(database))throw Error('AUDITOR_EMAIL_LOCK_DATABASE_INVALID');
   const token=await accessToken();
   const collection='ams_identity_cutover_locks',document='global_auditor_email';
   const base='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(project)+'/databases/'+encodeURIComponent(database)+'/documents/'+collection;

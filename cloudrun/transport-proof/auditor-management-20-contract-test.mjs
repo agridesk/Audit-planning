@@ -67,4 +67,10 @@ assert.ok(server.includes('const reviewed=input?.confirmedAuditIds'),'Qualificat
 assert.ok(ui.includes('confirmedAuditIds:impactedIds'),'Reviewed audit IDs submitted');
 assert.ok(server.includes('qualificationConflicts=linkedAudits.filter'),'Linked audit qualification conflicts calculated');
 assert.ok(ui.includes('a.qualificationConflictCount'),'Conflicts surfaced in Manager UI');
+assert.ok(server.includes("'/api/v1/manager/auditor-management/audit/transfer'"),'Manager transfer endpoint');
+assert.ok(server.includes("error:'TRANSFER_TARGET_NOT_QUALIFIED'"),'Transfer qualification hard guard');
+assert.ok(server.includes("error:'TRANSFER_STALE_STATUS'"),'Transfer stale status guard');
+assert.ok(server.includes("'AUDIT_TRANSFER'"),'Transfer audit trail');
+assert.ok(ui.includes('Transfer → Pending Approval'),'Transfer action visible in conflict dossier');
+assert.ok(ui.includes('Availability is NOT confirmed'),'Transfer availability warning');
 console.log('Auditor Management 2.0 profile edit contract PASS');

@@ -372,11 +372,14 @@ function actorAllowedActions(c){
 }
 async function auditorOpenRead(email){
   const t=Date.now(),actorEmail=clean(email).toLowerCase();
-  const vr=await sheetsBatchGet(['Audit planning!A1:AX483','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256','Log realized audits!A1:AZ2048']);
-  const ap=vr[0]?.values||[],scv=vr[1]?.values||[],companies=vr[2]?.values||[],aud=vr[3]?.values||[],log=vr[4]?.values||[],catalog=scopeCatalog(scv);
+  const versioned=process.env.AMS_AUDITOR_UID_ROTATION_READ_ENABLED==='true',ranges=['Audit planning!A1:AX483','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:AZ256','Log realized audits!A1:AZ2048'];
+  if(versioned)ranges.push('Auditor_Identity_Versions!A1:E2000');
+  const vr=await sheetsBatchGet(ranges);
+  const ap=vr[0]?.values||[],scv=vr[1]?.values||[],companies=vr[2]?.values||[],aud=vr[3]?.values||[],log=vr[4]?.values||[],catalog=scopeCatalog(scv),versions=versioned?rotationIdentityVersions(vr[5]?.values||[]):null,identityMap=versioned?rotationAuditorMap(aud,versions):null,actorUid=identityMap?rotationResolveAuditor(identityMap,actorEmail):null;
   const base=managerOpen(ap,'',scv,companies,aud),rows=[];
   for(const row of base.rows||[]){
-    const assigned=directResolveAuditorEmail(aud,row.assignedTo),preassigned=directResolveAuditorEmail(aud,row.preassignedAuditor);
+    const resolveAssignment=raw=>{if(!identityMap)return directResolveAuditorEmail(aud,raw);if(!clean(raw))return'';const uid=rotationResolveAuditor(identityMap,raw);return identityMap.byUid.get(uid)?.email||'';};
+    const assigned=resolveAssignment(row.assignedTo),preassigned=resolveAssignment(row.preassignedAuditor);
     let hardEligible=false,eligibilityConflictReason='';
     const pending=row.statusKey==='PENDING_PLANNING',selfPlanningAllowed=yes(row.allowSelfPlanning),ownAssigned=!!assigned&&assigned===actorEmail,ownPreassigned=!!preassigned&&preassigned===actorEmail,selfPoolCandidate=pending&&selfPlanningAllowed&&!assigned&&!preassigned;
     if(pending&&selfPlanningAllowed&&(ownAssigned||ownPreassigned||selfPoolCandidate)){
@@ -385,7 +388,7 @@ async function auditorOpenRead(email){
       if(!hard.ok)eligibilityConflictReason=(hard.reasons||[]).join('; ')||'AUDITOR_HARD_ELIGIBILITY_BLOCKED';
       else if(minDate&&windowTo&&windowTo<minDate)eligibilityConflictReason='MINIMUM_INTERVAL_OUTSIDE_PLANNING_WINDOW';
       else{
-        const rotation=v211RotationHardCheck(rotationReadFromLoaded(row.auditId,actorEmail,ap,aud,scv,log));
+        const rotation=v211RotationHardCheck(rotationReadFromLoaded(row.auditId,actorEmail,ap,aud,scv,log,versions));
         hardEligible=rotation.ok;
         if(!rotation.ok)eligibilityConflictReason=(rotation.reasons||[]).join('; ')||'ROTATION_BLOCKED';
       }

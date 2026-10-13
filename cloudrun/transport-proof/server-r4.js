@@ -71,7 +71,9 @@ async function sheetsAtomicAuditorEmailTransition({auditorRow,auditorEmailCol,ol
   if(process.env.AMS_AUDITOR_UID_LOGIN_ENABLED!=='true')throw Error('AUDITOR_EMAIL_CHANGE_REQUIRES_UID_LOGIN');
   // Google Sheets has no conditional batchUpdate precondition; preflight alone
   // cannot serialize competing Cloud Run instances. Require an external lock.
-  if(process.env.AMS_AUDITOR_IDENTITY_DISTRIBUTED_LOCK_ENABLED!=='true')throw Error('AUDITOR_EMAIL_DISTRIBUTED_LOCK_REQUIRED');
+  // A configuration flag is not a lock. Fail closed until a transactional
+  // cross-instance lock is actually acquired and held through the write.
+  throw Error('AUDITOR_EMAIL_DISTRIBUTED_LOCK_NOT_IMPLEMENTED');
   const token=await accessToken(),base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID);
   const mr=await fetch(base+'?fields=sheets.properties',{headers:{authorization:'Bearer '+token}});
   if(!mr.ok)throw Error('AUDITOR_EMAIL_SHEET_METADATA_FAILED');

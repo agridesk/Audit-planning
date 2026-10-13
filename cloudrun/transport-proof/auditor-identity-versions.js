@@ -56,8 +56,6 @@ export function auditAuditorIdentityReadiness(auditors,versions){
     for(let i=1;i<sorted.length;i++)if(sorted[i-1].to!==sorted[i].from)issues.push({uid,code:'IDENTITY_VERSION_GAP',from:sorted[i-1].to,to:sorted[i].from});
     if(sorted.length&&sorted[sorted.length-1].email!==a.email)issues.push({uid,code:'IDENTITY_CURRENT_EMAIL_NOT_LAST_VERSION'});
   }
-  if(!index.byUid.size)issues.push({code:'IDENTITY_NO_AUDITORS'});
-  if(!versions.length)issues.push({code:'IDENTITY_NO_VERSIONS'});
   return{ready:issues.length===0,auditorCount:index.byUid.size,aliasCount:index.byEmail.size,versionCount:versions.length,issues};
 }
 export function currentAuditorLoginUid(index,email,at){
@@ -68,4 +66,31 @@ export function currentAuditorLoginUid(index,email,at){
 export function activeAuditorEmail(index,uid,at){
   const a=index.byUid.get(String(uid??'').trim());if(!a)return null;
   return resolveAuditorUid(index,a.email,at)===a.uid?a.email:null;
+}
+
+/**
+ * Prepare an email transition without changing persisted state.
+ * Historical aliases stay attached to the immutable UID and never transfer owners.
+ * The caller must commit the projection and ledger together and revoke credentials.
+ */
+export function planAuditorEmailTransition(auditors,versions,{uid,oldEmail,newEmail,at}){
+  uid=String(uid??'').trim();oldEmail=norm(oldEmail);newEmail=norm(newEmail);at=iso(at);
+  if(!uid||!oldEmail||!newEmail||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail))throw Error('IDENTITY_CHANGE_INVALID');
+  if(oldEmail===newEmail)throw Error('IDENTITY_CHANGE_NOOP');
+  const index=buildAuditorIdentityIndex(auditors,versions);
+  const current=index.byUid.get(uid);
+  if(!current||current.email!==oldEmail)throw Error('IDENTITY_CHANGE_STALE_PROJECTION');
+  if(currentAuditorLoginUid(index,oldEmail,at)!==uid)throw Error('IDENTITY_CHANGE_OLD_EMAIL_NOT_ACTIVE');
+  if(versions.some(v=>norm(v.email)===newEmail&&String(v.state??'').toUpperCase()!=='CANCELLED'))throw Error('IDENTITY_CHANGE_EMAIL_RESERVED');
+  if(auditors.some(a=>norm(a.email)===newEmail))throw Error('IDENTITY_CHANGE_EMAIL_IN_USE');
+  const active=versions.map((v,i)=>({...v,index:i})).filter(v=>v.uid===uid&&String(v.state).toUpperCase()==='ACTIVE');
+  if(active.length!==1||norm(active[0].email)!==oldEmail)throw Error('IDENTITY_CHANGE_ACTIVE_VERSION_MISSING');
+  if(iso(active[0].validFrom)>=at)throw Error('IDENTITY_CHANGE_NONMONOTONIC');
+  const oldVersion={...versions[active[0].index],state:'EXPIRED',validTo:at};
+  const newVersion={uid,email:newEmail,validFrom:at,validTo:'',state:'ACTIVE'};
+  const nextAuditors=auditors.map(a=>String(a.uid).trim()===uid?{...a,email:newEmail}:a);
+  const nextVersions=versions.map((v,i)=>i===active[0].index?oldVersion:v).concat(newVersion);
+  const readiness=auditAuditorIdentityReadiness(nextAuditors,nextVersions);
+  if(!readiness.ready)throw Error('IDENTITY_CHANGE_READINESS_FAILED');
+  return{uid,oldEmail,newEmail,at,oldVersionIndex:active[0].index,oldVersion,newVersion,nextAuditors,nextVersions};
 }

@@ -13,6 +13,8 @@ COPY company-scope-hours-backfill-20.js ./
 COPY company-scope-hours-resolver-20.js ./
 COPY company-management-readmodel-20.js ./
 COPY company-auditor-permissions-20.js ./
+COPY auditor-identity-versions.js ./
+COPY auditor-uid-backfill-preview.js ./
 COPY server-r4.js ./
 COPY server-r5.js ./
 COPY server-r6.js ./

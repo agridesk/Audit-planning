@@ -1798,20 +1798,23 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       const affected=[];
       for(let j=1;j<=2;j++){const values=v[j]?.values||[],headers=values[0]||[];for(let i=1;i<values.length;i++){const row=values[i],hit=headers.some((h,k)=>/auditor|assigned|preassign/i.test(String(h||''))&&[email,name.toLowerCase()].includes(clean(row[k]).toLowerCase()));if(hit){const idcol=col(headers,['Audit ID']);affected.push({source:j===1?'Audit planning':'Log realized audits',auditId:val(row,idcol)||'row '+(i+1)})}}}
       if(newEmail!==email){
+        if(newName!==name)return send(res,409,{ok:false,error:'AUDITOR_EMAIL_AND_NAME_CHANGE_SEPARATELY'});
         const readiness=await auditorIdentityReadinessRead();
-        let transitionReady=false,transitionError='';
-        if(readiness.ready){
-          try{
-            const identityRows=await sheetsBatchGet(['Auditor_Identity_Versions!A1:P2000'],true);
-            const uidCol=col(ah,['Auditor_UID','Auditor UID']);
-            if(uidCol<0)throw Error('IDENTITY_UID_COLUMN_MISSING');
-            const auditors=av.slice(1).filter(row=>val(row,ec)).map(row=>({uid:val(row,uidCol),email:val(row,ec)}));
-            const versions=rotationIdentityVersions(identityRows[0]?.values||[]);
-            const planned=planAuditorEmailTransition(auditors,versions,{uid:val(target.row,uidCol),oldEmail:email,newEmail,at:new Date().toISOString()});
-            transitionReady=planned.uid===val(target.row,uidCol);
-          }catch(e){transitionError=clean(e?.message||e);}
-        }
-        return send(res,409,{ok:false,error:'AUDITOR_EMAIL_REKEY_REQUIRES_REFERENCE_MIGRATION',totalAffected:affected.length,identityReady:readiness.ready===true,transitionReady,transitionError,reason:transitionReady?'VERSIONED_IDENTITY_WRITE_AND_SESSION_REVOCATION_PENDING':'UID_IDENTITY_READINESS_INCOMPLETE'});
+        if(!readiness.ready)return send(res,409,{ok:false,error:'AUDITOR_UID_IDENTITY_NOT_READY',identityReady:false});
+        const uidCol=col(ah,['Auditor_UID','Auditor UID']);
+        if(uidCol<0)return send(res,409,{ok:false,error:'AUDITOR_UID_COLUMN_MISSING'});
+        const uid=val(target.row,uidCol),at=new Date().toISOString();
+        const vr=await sheetsBatchGet(['Auditor_Identity_Versions!A1:P2000'],true),vv=vr[0]?.values||[],vh=vv[0]||[],versions=rotationIdentityVersions(vv);
+        const auditors=av.slice(1).filter(row=>val(row,ec)).map(row=>({uid:val(row,uidCol),email:val(row,ec)}));
+        let plan;try{plan=planAuditorEmailTransition(auditors,versions,{uid,oldEmail:email,newEmail,at});}catch(e){return send(res,409,{ok:false,error:'AUDITOR_EMAIL_TRANSITION_REJECTED',reason:clean(e?.message||e)})}
+        const vc=col(vh,['Version_ID']),uc=col(vh,['Auditor_UID']),emc=col(vh,['Email_Normalized']),sc=col(vh,['State']);
+        if([vc,uc,emc,sc].some(x=>x<0))return send(res,409,{ok:false,error:'AUDITOR_VERSION_SCHEMA_INVALID'});
+        const oldVersionMatches=vv.slice(1).map((row,i)=>({row,line:i+2})).filter(x=>val(x.row,uc)===uid&&val(x.row,emc).toLowerCase()===email&&val(x.row,sc)==='ACTIVE');
+        if(oldVersionMatches.length!==1)return send(res,409,{ok:false,error:'AUDITOR_ACTIVE_VERSION_NOT_UNIQUE'});
+        if(process.env.AMS_AUDITOR_EMAIL_CHANGE_WRITE_ENABLED!=='true')return send(res,409,{ok:false,error:'AUDITOR_EMAIL_CHANGE_WRITE_DISABLED',identityReady:true,transitionReady:true});
+        const versionCells={Version_ID:randomUUID(),Auditor_UID:uid,Email_Normalized:newEmail,Valid_From_UTC:at,State:'ACTIVE',Created_At_UTC:at,Created_By:clean(actor.email),Approved_At_UTC:at,Approved_By:clean(actor.email),Reason:'Manager email change'};
+        const outcome=await sheetsAtomicAuditorEmailTransition({auditorRow:target.line,auditorEmailCol:ec,oldEmail:email,newEmail,uid,versionRow:oldVersionMatches[0].line,versionHeaders:vh,versionCells,at,actor:clean(actor.email),reason:'Manager email change'});
+        return send(res,200,{ok:true,updated:1,newEmail,newName,revokedTokens:outcome.revokedTokens});
       }
       if(newName!==name){const refs=v.slice(1).some(batch=>{const values=batch?.values||[],heads=values[0]||[];return values.slice(1).some(row=>heads.some((head,index)=>/auditor|assigned|preassign/i.test(String(head||''))&&clean(row[index]).toLowerCase()===name.toLowerCase()))});if(refs)return send(res,409,{ok:false,error:'AUDITOR_NAME_REKEY_REQUIRES_REFERENCE_MIGRATION'});}
       const updates=[];if(newName!==name)updates.push({range:'Auditors!A'+target.line,values:[[newName]]});if(newEmail!==email)updates.push({range:'Auditors!C'+target.line,values:[[newEmail]]});

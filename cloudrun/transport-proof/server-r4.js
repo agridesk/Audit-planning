@@ -1780,6 +1780,35 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       return send(res,200,{ok:true,scopeCode,effectiveDate:date,grandfatheredAuditIds:currentIds,trailId});
     }catch(e){return send(res,503,{ok:false,error:'WITHDRAWAL_SAVE_UNCONFIRMED',detail:clean(e?.message||e)})}
   }
+  if(u.pathname==='/api/v1/manager/auditor-management/qualification/withdraw/cancel'&&req.method==='POST'){
+    if(process.env.AMS_RUNTIME_ENV!=='DEV')return send(res,403,{ok:false,error:'DEV_ONLY'});
+    const actor=await sessionFromRequestValidated(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    let raw='';for await(const c of req){raw+=c;if(raw.length>4096)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
+    let body;try{body=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+    const email=clean(body?.email).toLowerCase(),scopeCode=clean(body?.scopeCode),expectedDate=clean(body?.expectedEffectiveDate);
+    if(!email||!scopeCode||!/^\\d{4}-\\d{2}-\\d{2}$/.test(expectedDate))return send(res,400,{ok:false,error:'INVALID_CANCELLATION'});
+    try{
+      const av=(await sheetsBatchGet(['Auditors!A1:AZ1000']))[0]?.values||[],h=av[0]||[],ec=col(h,['E-mail','Email']),pc=h.indexOf('Qualification_Withdrawals_JSON');
+      if(ec<0||pc<0)return send(res,409,{ok:false,error:'WITHDRAWAL_SCHEMA_MISSING'});
+      const matches=av.slice(1).map((row,i)=>({row,line:i+2})).filter(x=>val(x.row,ec).toLowerCase()===email);
+      if(matches.length!==1)return send(res,409,{ok:false,error:'AUDITOR_NOT_UNIQUE'});
+      const record=matches[0],oldValue=String(record.row[pc]||'');let policies;
+      try{policies=oldValue?JSON.parse(oldValue):[]}catch{return send(res,409,{ok:false,error:'WITHDRAWAL_POLICY_CORRUPT'})}
+      if(!Array.isArray(policies))return send(res,409,{ok:false,error:'WITHDRAWAL_POLICY_CORRUPT'});
+      const found=policies.filter(x=>clean(x?.scopeCode)===scopeCode);
+      if(found.length!==1||clean(found[0].effectiveDate)!==expectedDate)return send(res,409,{ok:false,error:'WITHDRAWAL_CHANGED_RELOAD_REQUIRED'});
+      const next=JSON.stringify(policies.filter(x=>clean(x?.scopeCode)!==scopeCode));
+      let n=pc+1,letter='';while(n){n--;letter=String.fromCharCode(65+n%26)+letter;n=Math.floor(n/26)}
+      const now=new Date().toISOString(),detail=JSON.stringify({email,scopeCode,expectedEffectiveDate:expectedDate,oldValue,newValue:next,actor:clean(actor.email)});
+      await sheetsValuesAppend('Diagnostics_Log!A:K',[[now,'AUDITOR_MANAGEMENT_2_0','QUALIFICATION_WITHDRAWAL_CANCEL',email,'CHANGE_INTENT',clean(actor.email),'','',false,'Withdrawal cancellation requested',detail]]);
+      await sheetsValuesBatchUpdateRaw([{range:'Auditors!'+letter+record.line,values:[[next]]}]);
+      const verify=(await sheetsBatchGet(['Auditors!A1:AZ1000']))[0]?.values||[];
+      if(String(verify[record.line-1]?.[pc]||'')!==next)return send(res,503,{ok:false,error:'CANCELLATION_WRITE_UNCONFIRMED_RECONCILE'});
+      await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'AUDITOR_MANAGEMENT_2_0','QUALIFICATION_WITHDRAWAL_CANCEL',email,'CHANGE_APPLIED',clean(actor.email),'','',false,'Withdrawal cancelled and verified',detail]]);
+      return send(res,200,{ok:true,email,scopeCode,cancelledEffectiveDate:expectedDate});
+    }catch(e){return send(res,503,{ok:false,error:'CANCELLATION_UNCONFIRMED',detail:clean(e?.message||e)})}
+  }
   if(u.pathname==='/api/v1/manager/auditor-management/qualification/save'&&req.method==='POST'){
     const actor=await sessionFromRequestValidated(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});

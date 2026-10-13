@@ -66,6 +66,7 @@ assert.ok(server.includes("AUDITOR_EMAIL_EXISTS"),'Duplicate auditor email denie
 assert.ok(server.includes("put('Active','No')"),'New auditors inactive by default');
 assert.ok(server.includes("'/api/v1/manager/auditor-management/identity/save'"),'Identity editor route');
 assert.ok(server.includes("AUDITOR_EMAIL_CHANGE_WRITE_DISABLED"),'Email cutover remains blocked until explicitly enabled');
+assert.ok(server.includes("AUDITOR_EMAIL_PLANNING_PROJECTION_MIGRATION_REQUIRED"),'Email cutover rejects stale assigned planning email projections');
 assert.ok(server.includes("'/api/v1/manager/auditor-management/active/save'"),'Active management route');
 assert.ok(server.includes("AUDITOR_INACTIVATION_REQUIRES_CONFIRMATION"),'Linked inactivation must be blocked');
 assert.ok(html.includes('id="auditorManagement20Add"'),'Add Auditor toolbar');

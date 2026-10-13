@@ -59,7 +59,7 @@ assert.ok(ui.includes("confirmedAuditIds"),'Manager reviews and confirms inactiv
 
 assert.ok(ui.includes("'/api/v1/manager/auditor-management/qualification-impact?email='"),'Qualification impact preview available');
 assert.ok(server.includes("QUALIFICATION_IMPACT_APPROVAL_REQUIRED"),'Linked assignment changes fail closed');
-assert.ok(server.includes("if(!qualified&&impacts.length)return send(res,409,{ok:false,error:'QUALIFICATION_IMPACT_APPROVAL_REQUIRED'"),'Adding qualification does not trigger withdrawal impact block');
+assert.ok(server.includes('if(!qualified&&impacts.length){const ids=impacts.map('),'Only qualification removal invokes linked audit approval');
 assert.ok(server.includes("if(!qualified&&scopeColumns.length===0)"),'Addition does not depend on impact projection scope columns');
 assert.ok(ui.includes("if(desired&&!original){if(!window.confirm('Add qualification '"),'Addition uses direct confirmation without impact preview');
 assert.ok(ui.includes("feedback.textContent='Qualification added'"),'Addition save success feedback');

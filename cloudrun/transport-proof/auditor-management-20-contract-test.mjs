@@ -103,4 +103,7 @@ assert.ok(ui.includes("editable('Departure from','Default departure from',a.home
 assert.ok(ui.includes("card.textContent=date+' · '+action+' · '+description"),'History renders one compact line per event');
 assert.ok(server.includes("sheetsValuesAppend('Auditors!A:AZ',[row])"),'Add auditor writes full canonical Auditors schema');
 assert.ok(server.includes("if(newEmail!==email)return send(res,409,{ok:false,error:'AUDITOR_EMAIL_REKEY_REQUIRES_REFERENCE_MIGRATION'"),'All email changes fail closed until versioned UID identity and login are implemented');
+assert.ok(server.includes("const identity={email,name:val(r,n),uid:uid||''}"),'Rotation identity reads stable UID when available');
+assert.ok(server.includes("return a?(a.uid||a.email):v;"),'Rotation uses UID with legacy email fallback');
+assert.ok(server.includes("ROTATION_DUPLICATE_AUDITOR_UID"),'Duplicate UID is rejected in rotation');
 console.log('Auditor Management 2.0 profile edit contract PASS');

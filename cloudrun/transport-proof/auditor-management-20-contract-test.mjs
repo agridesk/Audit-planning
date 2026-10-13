@@ -129,4 +129,5 @@ assert.ok(server.includes('async function auditorIdentityReadinessRead()'),'UID 
 assert.ok(server.includes("import {previewSheet} from './auditor-uid-backfill-preview.js'"),'UID backfill preflight uses shared read-only preview');
 assert.ok(server.includes('AUDITOR_UID_BACKFILL_REQUIRED'),'Readiness reports incomplete UID migration');
 assert.ok(server.includes('ROTATION_HISTORICAL_AUDITOR_IDENTITY_MISSING'),'Versioned rotation rejects ownerless historical audits');
+assert.ok(server.includes('rotationReadFromLoaded(auditId,email,ap,av,sc,log,versions)'),'Transfer candidate rotation uses historical UID versions');
 console.log('Auditor Management 2.0 profile edit contract PASS');

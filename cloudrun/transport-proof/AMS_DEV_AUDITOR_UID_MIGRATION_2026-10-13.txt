@@ -1,0 +1,29 @@
+AMS DEV AUDITOR UID MIGRATION - 2026-10-13
+Environment: DEV ONLY
+Source spreadsheet: Audit Management System DEV
+Backup: AMS DEV BACKUP before Auditor_UID migration 2026-10-13
+Backup spreadsheet ID: 1fc4k4jux3lR76iZZaA7H1ZF_iqPH3ZyQst7iVoNAAK4
+
+MIGRATED
+Auditors: 5 / 5 assigned immutable Auditor_UID.
+Auditor_Identity_Versions: 5 initial ACTIVE records, normalized current email, effective UTC 2026-10-13T10:00:00Z.
+Log realized audits: 366 / 366 historical audit rows assigned matching Auditor_UID.
+Audit planning: 48 / 48 assigned-auditor rows populated with matching Auditor_UID; 69 unassigned rows intentionally blank.
+
+VERIFICATION
+Identity readiness: READY (5 auditors, 5 aliases, 5 versions, 0 issues).
+Historical audit UID conflicts: 0.
+Planning UID conflicts: 0.
+Missing UID references for populated auditor fields: 0.
+Original auditor email values preserved.
+PROD untouched.
+
+RELEASE SAFETY
+AMS_AUDITOR_UID_ROTATION_READ_ENABLED: remain OFF pending deployment verification.
+AMS_AUDITOR_UID_LOGIN_ENABLED: remain OFF pending deployment verification.
+Auditor email changes: remain blocked until complete safe versioned identity workflow and session revocation.
+GitHub dev Cloud Run Dockerfile now includes new UID modules.
+GitHub dev package test suite now includes UID resolver and UID backfill tests.
+
+NOTE
+Initial identity version timestamps are migration baseline, not a claim that the email first existed at that timestamp. Existing audit history is linked via immutable UID.

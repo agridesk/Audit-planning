@@ -1,4 +1,3 @@
-import {randomUUID} from 'node:crypto';
 export function previewAuditorUidBackfill(rows){
  const emails=new Set(),uids=new Set(),pending=[];
  for(const row of rows){
@@ -9,6 +8,5 @@ export function previewAuditorUidBackfill(rows){
   if(uid){if(uids.has(uid))throw Error('BACKFILL_DUPLICATE_UID');uids.add(uid)}
   else pending.push({email});
  }
- for(const item of pending){const uid=randomUUID();if(uids.has(uid))throw Error('BACKFILL_UID_COLLISION');uids.add(uid);item.uid=uid}
  return {total:rows.length,existing:rows.length-pending.length,pending};
 }

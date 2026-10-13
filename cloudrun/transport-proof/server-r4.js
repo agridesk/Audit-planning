@@ -14,7 +14,7 @@ import {backfillCompanyHours20} from './company-scope-hours-backfill-20.js';
 import {resolveCompanyScopeHours20} from './company-scope-hours-resolver-20.js';
 import {buildCompanyManagementReadModel20} from './company-management-readmodel-20.js';
 import {validateAuditorCompanyChanges} from './company-auditor-permissions-20.js';
-import {buildAuditorIdentityIndex,resolveAuditorUid,auditAuditorIdentityReadiness,currentAuditorLoginUid} from './auditor-identity-versions.js';
+import {buildAuditorIdentityIndex,resolveAuditorUid,auditAuditorIdentityReadiness,currentAuditorLoginUid,planAuditorEmailTransition} from './auditor-identity-versions.js';
 import {previewSheet} from './auditor-uid-backfill-preview.js';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
@@ -1765,7 +1765,22 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       if(av.slice(1).some(row=>row!==target.row&&(clean(row[ec]).toLowerCase()===newEmail||clean(row[nc]).toLowerCase()===newName.toLowerCase())))return send(res,409,{ok:false,error:'IDENTITY_ALREADY_USED'});
       const affected=[];
       for(let j=1;j<=2;j++){const values=v[j]?.values||[],headers=values[0]||[];for(let i=1;i<values.length;i++){const row=values[i],hit=headers.some((h,k)=>/auditor|assigned|preassign/i.test(String(h||''))&&[email,name.toLowerCase()].includes(clean(row[k]).toLowerCase()));if(hit){const idcol=col(headers,['Audit ID']);affected.push({source:j===1?'Audit planning':'Log realized audits',auditId:val(row,idcol)||'row '+(i+1)})}}}
-      if(newEmail!==email){const readiness=await auditorIdentityReadinessRead();return send(res,409,{ok:false,error:'AUDITOR_EMAIL_REKEY_REQUIRES_REFERENCE_MIGRATION',totalAffected:affected.length,identityReady:readiness.ready===true,reason:readiness.ready?'VERSIONED_IDENTITY_WRITE_AND_SESSION_REVOCATION_PENDING':'UID_IDENTITY_READINESS_INCOMPLETE'});}
+      if(newEmail!==email){
+        const readiness=await auditorIdentityReadinessRead();
+        let transitionReady=false,transitionError='';
+        if(readiness.ready){
+          try{
+            const identityRows=await sheetsBatchGet(['Auditor_Identity_Versions!A1:P2000'],true);
+            const uidCol=col(ah,['Auditor_UID','Auditor UID']);
+            if(uidCol<0)throw Error('IDENTITY_UID_COLUMN_MISSING');
+            const auditors=av.slice(1).filter(row=>val(row,ec)).map(row=>({uid:val(row,uidCol),email:val(row,ec)}));
+            const versions=rotationIdentityVersions(identityRows[0]?.values||[]);
+            const planned=planAuditorEmailTransition(auditors,versions,{uid:val(target.row,uidCol),oldEmail:email,newEmail,at:new Date().toISOString()});
+            transitionReady=planned.uid===val(target.row,uidCol);
+          }catch(e){transitionError=clean(e?.message||e);}
+        }
+        return send(res,409,{ok:false,error:'AUDITOR_EMAIL_REKEY_REQUIRES_REFERENCE_MIGRATION',totalAffected:affected.length,identityReady:readiness.ready===true,transitionReady,transitionError,reason:transitionReady?'VERSIONED_IDENTITY_WRITE_AND_SESSION_REVOCATION_PENDING':'UID_IDENTITY_READINESS_INCOMPLETE'});
+      }
       if(newName!==name){const refs=v.slice(1).some(batch=>{const values=batch?.values||[],heads=values[0]||[];return values.slice(1).some(row=>heads.some((head,index)=>/auditor|assigned|preassign/i.test(String(head||''))&&clean(row[index]).toLowerCase()===name.toLowerCase()))});if(refs)return send(res,409,{ok:false,error:'AUDITOR_NAME_REKEY_REQUIRES_REFERENCE_MIGRATION'});}
       const updates=[];if(newName!==name)updates.push({range:'Auditors!A'+target.line,values:[[newName]]});if(newEmail!==email)updates.push({range:'Auditors!C'+target.line,values:[[newEmail]]});
       const detail=JSON.stringify({oldName:name,newName,oldEmail:email,newEmail,actor:clean(actor.email)}),stamp=new Date().toISOString();

@@ -53,6 +53,18 @@ async function sheetsValuesAppend(range,values){
   const r=await fetch(u,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({values})}),body=await r.json();
   if(!r.ok)throw new Error('SHEETS_APPEND_'+r.status+': '+JSON.stringify(body));return body;
 }
+async function sheetsAtomicAuditorCreate(auditorRow,versionRow){
+  const token=await accessToken(),base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID);
+  const metaResponse=await fetch(base+'?fields=sheets.properties',{headers:{authorization:'Bearer '+token}});
+  if(!metaResponse.ok)throw Error('AUDITOR_CREATE_SHEET_METADATA_FAILED');
+  const meta=await metaResponse.json(),byName=new Map((meta.sheets||[]).map(x=>[x.properties?.title,x.properties?.sheetId]));
+  if(!byName.has('Auditors')||!byName.has('Auditor_Identity_Versions'))throw Error('AUDITOR_CREATE_IDENTITY_SHEETS_MISSING');
+  const rowData=values=>({values:values.map(value=>({userEnteredValue:{stringValue:clean(value)}}))});
+  const requests=[{appendCells:{sheetId:byName.get('Auditors'),rows:[rowData(auditorRow)],fields:'userEnteredValue'}},{appendCells:{sheetId:byName.get('Auditor_Identity_Versions'),rows:[rowData(versionRow)],fields:'userEnteredValue'}}];
+  const response=await fetch(base+':batchUpdate',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({requests})});
+  if(!response.ok)throw Error('AUDITOR_CREATE_ATOMIC_APPEND_FAILED_'+response.status);
+  return response.json();
+}
 async function sheetsDeleteRow(sheetTitle,rowNumber){
   const token=await accessToken(),metaUrl='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'?fields=sheets.properties';
   const mr=await fetch(metaUrl,{headers:{authorization:'Bearer '+token}}),meta=await mr.json();

@@ -1451,10 +1451,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     const email=clean(u.searchParams.get('email')).toLowerCase();if(!email)return send(res,400,{ok:false,error:'AUDITOR_EMAIL_REQUIRED'});
     try{
       const values=(await sheetsBatchGet(['Diagnostics_Log!A1:K5000']))[0]?.values||[];
-      const rows=values.slice(1).filter(row=>clean(row[1])==='AUDITOR_MANAGEMENT_2_0'&&clean(row[3]).toLowerCase()===email&&clean(row[4])==='CHANGE_APPLIED').slice(-150).reverse().map(row=>{
-        let change=null;try{change=JSON.parse(String(row[10]||'{}'))}catch{}
-        return {timestamp:String(row[0]||''),action:String(row[2]||''),actor:String(row[5]||''),changes:Array.isArray(change?.changes)?change.changes:[],trailId:clean(change?.id)};
-      });
+      const rows=values.slice(1).map(row=>{let detail=null;try{detail=JSON.parse(String(row[10]||'{}'))}catch{}return{row,detail}}).filter(({row,detail})=>clean(row[1])==='AUDITOR_MANAGEMENT_2_0'&&clean(row[4])==='CHANGE_APPLIED'&&(clean(row[3]).toLowerCase()===email||(clean(row[2])==='AUDIT_TRANSFER'&&(clean(detail?.fromEmail).toLowerCase()===email||clean(detail?.toEmail).toLowerCase()===email)))).slice(-150).reverse().map(({row,detail})=>({timestamp:String(row[0]||''),action:String(row[2]||''),actor:String(row[5]||''),changes:Array.isArray(detail?.changes)?detail.changes:[],detail:detail&&typeof detail==='object'?detail:null,summary:clean(row[9]),trailId:clean(detail?.id)}));
       return send(res,200,{ok:true,email,rows});
     }catch(e){return send(res,503,{ok:false,error:'AUDITOR_HISTORY_READ_FAILED',detail:clean(e?.message||e)})}
   }

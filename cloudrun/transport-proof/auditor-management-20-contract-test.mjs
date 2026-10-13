@@ -185,3 +185,7 @@ assert.ok(server.includes('AUDITOR_EMAIL_LOCK_NOT_READY'),'Identity cutover chec
 assert.ok(server.includes('AUDITOR_EMAIL_POST_WRITE_TOKEN_MISMATCH'),'Cutover verifies old token revocation');
 assert.ok(server.includes('AUDITOR_EMAIL_POST_WRITE_PLANNING_MISMATCH'),'Cutover verifies planning projection');
 assert.ok(server.includes('AUDITOR_EMAIL_RECONCILIATION_REQUIRED'),'Uncertain cutover retains Firestore lock');
+
+assert.ok(server.includes("'/api/v1/manager/auditor-identity/lock-readiness'"),'Manager has read-only lock diagnostic');
+assert.ok(server.includes('FIRESTORE_DATABASE_ACCESS_'),'Lock diagnostic checks Firestore database accessibility');
+assert.ok(server.includes('WRITE_UNVERIFIED'),'Lock diagnostic does not imply write permissions');

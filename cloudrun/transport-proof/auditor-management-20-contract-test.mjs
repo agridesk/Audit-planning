@@ -84,4 +84,6 @@ assert.ok(server.includes('TRANSFER_ROTATION_BLOCKED'),'Transfer commit hard-blo
 assert.ok(server.includes('TRANSFER_ELIGIBILITY_BLOCKED'),'Transfer commit hard-blocks ineligible auditors');
 assert.ok(ui.includes("data.company+' · '+data.scopes.join(', ')"),'Transfer displays company and scope');
 assert.ok(ui.includes('data.eligible.forEach'),'Transfer selector only offers eligible colleagues');
+assert.ok(server.includes("hard.reasons.filter(x=>x.startsWith('MIN_INTERVAL_HARD_BLOCK_'))"),'Minimum interval separated from auditor eligibility');
+assert.ok(ui.includes('Correct audit planning before transfer'),'Date restriction shown without presenting auditor as ineligible');
 console.log('Auditor Management 2.0 profile edit contract PASS');

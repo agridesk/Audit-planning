@@ -32,7 +32,7 @@ export function buildAuditorIdentityIndex(auditors,versions=[]){
     const sorted=record.intervals.sort((a,b)=>a.from.localeCompare(b.from));
     for(let i=1;i<sorted.length;i++)if(!sorted[i-1].to||sorted[i].from<sorted[i-1].to)throw Error('IDENTITY_OVERLAPPING_ALIAS_INTERVALS');
   }
-  for(const [uid,a] of byUid)if(activeByUid.get(uid)!==a.email)throw Error('IDENTITY_CURRENT_EMAIL_PROJECTION_MISMATCH');
+  for(const [uid,a] of byUid){if(activeByUid.get(uid)!==a.email)throw Error('IDENTITY_CURRENT_EMAIL_PROJECTION_MISMATCH');const versionsForUid=versions.filter(v=>String(v.uid??'').trim()===uid&&['ACTIVE','EXPIRED'].includes(String(v.state??'').trim().toUpperCase())).map(v=>({from:iso(v.validFrom),to:v.validTo?iso(v.validTo):null})).sort((x,y)=>x.from.localeCompare(y.from));for(let i=1;i<versionsForUid.length;i++)if(!versionsForUid[i-1].to||versionsForUid[i].from<versionsForUid[i-1].to)throw Error('IDENTITY_OVERLAPPING_UID_VERSIONS');}
   return {byUid,byEmail};
 }
 export function resolveAuditorUid(index,email,at=null){

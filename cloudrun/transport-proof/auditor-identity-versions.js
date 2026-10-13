@@ -41,6 +41,17 @@ export function resolveAuditorUid(index,email,at=null){
   if(at!==null){const time=iso(at);if(!record.intervals.some(x=>x.from<=time&&(!x.to||time<x.to)))return null}
   return record.uid;
 }
+export function auditAuditorIdentityReadiness(auditors,versions){
+  const index=buildAuditorIdentityIndex(auditors,versions);
+  const issues=[];
+  for(const [uid,a] of index.byUid){
+    const own=versions.filter(v=>String(v.uid??'').trim()===uid&&['ACTIVE','EXPIRED'].includes(String(v.state??'').trim().toUpperCase()));
+    const sorted=own.map(v=>({email:norm(v.email),from:iso(v.validFrom),to:v.validTo?iso(v.validTo):null})).sort((x,y)=>x.from.localeCompare(y.from));
+    for(let i=1;i<sorted.length;i++)if(sorted[i-1].to!==sorted[i].from)issues.push({uid,code:'IDENTITY_VERSION_GAP',from:sorted[i-1].to,to:sorted[i].from});
+    if(sorted.length&&sorted[sorted.length-1].email!==a.email)issues.push({uid,code:'IDENTITY_CURRENT_EMAIL_NOT_LAST_VERSION'});
+  }
+  return{ready:issues.length===0,auditorCount:index.byUid.size,aliasCount:index.byEmail.size,versionCount:versions.length,issues};
+}
 export function activeAuditorEmail(index,uid,at){
   const a=index.byUid.get(String(uid??'').trim());if(!a)return null;
   return resolveAuditorUid(index,a.email,at)===a.uid?a.email:null;

@@ -1822,12 +1822,12 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
         // current assignments even when an operator enables the write flag.
         const planningValues=v[1]?.values||[],planningHeaders=planningValues[0]||[],assignedCol=col(planningHeaders,['Assigned to']),planningUidCol=col(planningHeaders,['Auditor_UID','Auditor UID']);
         if(assignedCol<0||planningUidCol<0)return send(res,409,{ok:false,error:'AUDITOR_EMAIL_PLANNING_SCHEMA_MISSING'});
-        const linkedAssignments=planningValues.slice(1).filter(row=>val(row,planningUidCol)===uid&&val(row,assignedCol).toLowerCase()===email).length;
-        if(linkedAssignments)return send(res,409,{ok:false,error:'AUDITOR_EMAIL_PLANNING_PROJECTION_MIGRATION_REQUIRED',linkedAssignments});
+        const planningRows=planningValues.slice(1).map((row,i)=>({row,line:i+2})).filter(x=>val(x.row,planningUidCol)===uid&&val(x.row,assignedCol).toLowerCase()===email).map(x=>x.line);
+        if(planningValues.slice(1).some(row=>val(row,assignedCol).toLowerCase()===email&&val(row,planningUidCol)!==uid))return send(res,409,{ok:false,error:'AUDITOR_EMAIL_PLANNING_UID_CONFLICT'});
         if(process.env.AMS_AUDITOR_EMAIL_CHANGE_WRITE_ENABLED!=='true')return send(res,409,{ok:false,error:'AUDITOR_EMAIL_CHANGE_WRITE_DISABLED',identityReady:true,transitionReady:true});
         const versionCells={Version_ID:randomUUID(),Auditor_UID:uid,Email_Normalized:newEmail,Valid_From_UTC:at,State:'ACTIVE',Created_At_UTC:at,Created_By:clean(actor.email),Approved_At_UTC:at,Approved_By:clean(actor.email),Reason:'Manager email change'};
-        const outcome=await sheetsAtomicAuditorEmailTransition({auditorRow:target.line,auditorEmailCol:ec,oldEmail:email,newEmail,uid,versionRow:oldVersionMatches[0].line,versionHeaders:vh,versionCells,at,actor:clean(actor.email),reason:'Manager email change'});
-        return send(res,200,{ok:true,updated:1,newEmail,newName,revokedTokens:outcome.revokedTokens});
+        const outcome=await sheetsAtomicAuditorEmailTransition({auditorRow:target.line,auditorEmailCol:ec,oldEmail:email,newEmail,uid,versionRow:oldVersionMatches[0].line,versionHeaders:vh,versionCells,at,actor:clean(actor.email),reason:'Manager email change',planningRows});
+        return send(res,200,{ok:true,updated:1,newEmail,newName,revokedTokens:outcome.revokedTokens,updatedAssignments:outcome.updatedAssignments});
       }
       if(newName!==name){const refs=v.slice(1).some(batch=>{const values=batch?.values||[],heads=values[0]||[];return values.slice(1).some(row=>heads.some((head,index)=>/auditor|assigned|preassign/i.test(String(head||''))&&clean(row[index]).toLowerCase()===name.toLowerCase()))});if(refs)return send(res,409,{ok:false,error:'AUDITOR_NAME_REKEY_REQUIRES_REFERENCE_MIGRATION'});}
       const updates=[];if(newName!==name)updates.push({range:'Auditors!A'+target.line,values:[[newName]]});if(newEmail!==email)updates.push({range:'Auditors!C'+target.line,values:[[newEmail]]});

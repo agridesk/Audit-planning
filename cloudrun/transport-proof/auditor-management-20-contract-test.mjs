@@ -205,3 +205,5 @@ assert.ok(server.includes('AUDITOR_EMAIL_LOCK_ACQUIRE_UNCERTAIN_RECONCILIATION_R
 assert.ok(server.includes('AUDITOR_EMAIL_LOCK_ACQUIRE_RESPONSE_UNCERTAIN_RECONCILIATION_REQUIRED'),'Unreadable lock acquisition response fails closed');
 assert.ok(server.includes('AUDITOR_EMAIL_POST_WRITE_MULTIPLE_ACTIVE_IDENTITIES'),'Multiple active identities fail post-write verification');
 assert.ok(server.includes('versionCells.Version_ID'),'Post-write verification checks exact created identity version');
+
+assert.ok(server.includes('AUDITOR_EMAIL_POST_WRITE_STALE_EMAIL_PROJECTION'),'Stale planning projection is rejected');

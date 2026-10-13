@@ -1794,7 +1794,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     const name=clean(data?.name),email=clean(data?.email).toLowerCase(),area=clean(data?.area),role=clean(data?.role||'Auditor');
     if(!name||name.length>160||!email||email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||role!=='Auditor')return send(res,400,{ok:false,error:'INVALID_AUDITOR_IDENTITY'});
     try{
-      const read=(await sheetsBatchGet(['Auditors!A1:AZ1000']))[0]?.values||[],headers=read[0]||[],ec=col(headers,['E-mail','Email']),nc=col(headers,['Name']);
+      const readBatch=await sheetsBatchGet(['Auditors!A1:AZ1000','Auditor_Identity_Versions!A1:P2000']),read=readBatch[0]?.values||[],versionValues=readBatch[1]?.values||[],headers=read[0]||[],ec=col(headers,['E-mail','Email']),nc=col(headers,['Name']);
       if(ec<0||nc<0)return send(res,409,{ok:false,error:'AUDITORS_SCHEMA_MISSING'});
       if(read.slice(1).some(row=>clean(row[ec]).toLowerCase()===email))return send(res,409,{ok:false,error:'AUDITOR_EMAIL_EXISTS'});
       if(read.slice(1).some(row=>clean(row[nc]).toLowerCase()===name.toLowerCase()))return send(res,409,{ok:false,error:'AUDITOR_NAME_EXISTS'});

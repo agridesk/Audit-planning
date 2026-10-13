@@ -948,7 +948,7 @@ function saveManagerPlanning(auditId, payload) {
       throw new Error('Missing canonical direct qualification guard');
     }
     var __qDirect = _mp_assertAuditorQualifiedForPlanning_(
-      __qSs, __qHdr, __qRow, auditorEmail, auditorName
+      __qSs, __qHdr, __qRow, auditorEmail, auditorName, payload.blocks.map(function(b){return b.date;})
     );
     var __qOk = !!(__qDirect && __qDirect.success === true);
     var __qCacheHit = false;

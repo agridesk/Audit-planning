@@ -74,7 +74,8 @@ async function sheetsAtomicAuditorEmailTransition({auditorRow,auditorEmailCol,ol
   if(!ids.has('Auditors')||!ids.has('Auditor_Identity_Versions'))throw Error('AUDITOR_EMAIL_SHEETS_MISSING');
   const stringCell=value=>({userEnteredValue:{stringValue:clean(value)}});
   const cell=(sheetId,rowIndex,columnIndex)=>({sheetId,startRowIndex:rowIndex,endRowIndex:rowIndex+1,startColumnIndex:columnIndex,endColumnIndex:columnIndex+1});
-  const guard=[{sheetId:ids.get('Auditors'),rowIndex:auditorRow-1,columnIndex:auditorEmailCol,expectedValue:{stringValue:oldEmail}}];
+  const preflight=await sheetsBatchGet(['Auditors!'+a1col(auditorEmailCol+1)+auditorRow,'Auditor_Identity_Versions!'+a1col(versionStateCol+1)+versionRow],true);
+  if(clean(preflight[0]?.values?.[0]?.[0]).toLowerCase()!==clean(oldEmail).toLowerCase()||clean(preflight[1]?.values?.[0]?.[0]).toUpperCase()!=='ACTIVE')throw Error('AUDITOR_EMAIL_CONCURRENT_EDIT_DETECTED');
   const requests=[
     {updateCells:{range:cell(ids.get('Auditors'),auditorRow-1,auditorEmailCol),rows:[{values:[stringCell(newEmail)]}],fields:'userEnteredValue'}},
     {updateCells:{range:cell(ids.get('Auditor_Identity_Versions'),versionRow-1,versionStateCol),rows:[{values:[stringCell('EXPIRED')]}],fields:'userEnteredValue'}},

@@ -213,3 +213,8 @@ assert.ok(server.includes('identityReady:identity.ready===true'),'Readiness endp
 
 assert.ok(ui.includes('Check identity readiness'),'Auditor manager offers read-only diagnostic');
 assert.ok(ui.includes('Firestore write permission: NOT VERIFIED'),'Diagnostic never implies Firestore write permission');
+
+assert.ok(server.includes('async function verifiedAuditorLockDevProject()'),'Cloud Run project verification exists');
+assert.ok(server.includes('metadata.google.internal/computeMetadata/v1/project/project-id'),'Cloud Run project resolved from metadata');
+assert.ok(server.includes("actual==='audit-management-system-dev'?actual:''"),'Metadata project pinned to DEV');
+assert.equal((server.match(/await verifiedAuditorLockDevProject\(\)/g)||[]).length,2,'Both lock readiness and lock acquisition verify runtime project');

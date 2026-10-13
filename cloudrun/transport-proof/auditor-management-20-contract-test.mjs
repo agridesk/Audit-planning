@@ -101,7 +101,8 @@ assert.ok(ui.includes('timezonePicker.value=timezoneCurrent'),'Timezone picker p
 assert.ok(ui.includes("stage('Default time zone',timezoneCurrent,timezonePicker.value)"),'Timezone picker saves canonical IANA identifier');
 assert.ok(ui.includes("editable('Departure from','Default departure from',a.homeBase)"),'Manager can edit default departure');
 assert.ok(ui.includes("card.textContent=date+' · '+action+' · '+description"),'History renders one compact line per event');
-assert.ok(server.includes("sheetsValuesAppend('Auditors!A:AZ',[row])"),'Add auditor writes full canonical Auditors schema');
+assert.ok(server.includes('await sheetsAtomicAuditorCreate(row,versionRow)'),'New auditor atomically writes profile and UID version ledger');
+assert.ok(server.includes('const newUid=randomUUID(),versionId=randomUUID()'),'New auditor receives immutable UUID and independent version ID');
 assert.ok(server.includes("if(newEmail!==email)return send(res,409,{ok:false,error:'AUDITOR_EMAIL_REKEY_REQUIRES_REFERENCE_MIGRATION'"),'All email changes fail closed until versioned UID identity and login are implemented');
 assert.ok(server.includes("const identity={email,name:val(r,n),uid:uid||''}"),'Rotation identity reads stable UID when available');
 assert.ok(server.includes("return a?(a.uid||a.email):v;"),'Rotation uses UID with legacy email fallback');

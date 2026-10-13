@@ -461,8 +461,11 @@ function rotationReadFromLoaded(auditId,auditorEmail,ap,aud,scv,log,identityVers
   return{success:true,auditId,auditor:{name:targetAud.name||target,email:targetAud.email||target,softBlockRotation:soft,nearRotationLimit:near,hardBlockQualification:false,ineligible:false,performedByScope,rotationByScope,performedCount,maxAllowed:strictestMax,eligibilityOwner:'CloudRun_DirectRotationRead_V211_HARD'},auditorEligibilityMeta:{requiredScopes:required,currentYear,rotationMode:'V211_HARD_ROTATION_MAX'},__serverMs:Date.now()-t,__rotationReadOwner:'CLOUD_RUN_DIRECT_SHEETS'};
 }
 async function directRotationRead(auditId,auditorEmail){
-  const vr=await sheetsBatchGet(['Audit planning!A1:AX483','Auditors!A1:Z256','Config_Scopes!A1:Z128','Log realized audits!A1:AZ2048']);
-  return rotationReadFromLoaded(auditId,auditorEmail,vr[0]?.values||[],vr[1]?.values||[],vr[2]?.values||[],vr[3]?.values||[]);
+  const versioned=process.env.AMS_AUDITOR_UID_ROTATION_READ_ENABLED==='true';
+  const ranges=['Audit planning!A1:AX483','Auditors!A1:AZ256','Config_Scopes!A1:Z128','Log realized audits!A1:AZ2048'];
+  if(versioned)ranges.push('Auditor_Identity_Versions!A1:E2000');
+  const vr=await sheetsBatchGet(ranges);
+  return rotationReadFromLoaded(auditId,auditorEmail,vr[0]?.values||[],vr[1]?.values||[],vr[2]?.values||[],vr[3]?.values||[],versioned?rotationIdentityVersions(vr[4]?.values||[]):null);
 }
 
 function extAddMonths(iso,n){const m=clean(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return'';let t=Number(m[1])*12+Number(m[2])-1+Number(n||0),y=Math.floor(t/12),mo=t-y*12+1,d=Math.min(Number(m[3]),new Date(Date.UTC(y,mo,0)).getUTCDate());return String(y).padStart(4,'0')+'-'+String(mo).padStart(2,'0')+'-'+String(d).padStart(2,'0');}

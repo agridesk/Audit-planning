@@ -181,3 +181,7 @@ assert.ok(server.includes("AUDITOR_EMAIL_LOCK_RELEASE_UNCERTAIN"),'Uncertain loc
 assert.ok(server.includes('AUDITOR_EMAIL_LOCK_ALREADY_PRESENT_RECONCILIATION_REQUIRED'),'Stale lock cannot be silently cleared');
 assert.ok(server.includes('AUDITOR_EMAIL_LOCK_PROBE_FAILED_'),'Lock probe access failures block changes');
 assert.ok(server.includes('AUDITOR_EMAIL_LOCK_NOT_READY'),'Identity cutover checks Firestore lock readiness');
+
+assert.ok(server.includes('AUDITOR_EMAIL_POST_WRITE_TOKEN_MISMATCH'),'Cutover verifies old token revocation');
+assert.ok(server.includes('AUDITOR_EMAIL_POST_WRITE_PLANNING_MISMATCH'),'Cutover verifies planning projection');
+assert.ok(server.includes('AUDITOR_EMAIL_RECONCILIATION_REQUIRED'),'Uncertain cutover retains Firestore lock');

@@ -93,4 +93,7 @@ assert.ok(ui.includes("transferSection.hidden=page!=='Qualifications'"),'Transfe
 assert.ok(ui.includes("const transfers=el('details')"),'Transfer panel collapsed by default');
 assert.ok(server.includes("values:[[transferComment]]"),'Transfer writes canonical manager comment');
 assert.ok(server.includes("latestComment:val(row,ccomment)"),'Manager grid shows transfer comment alert');
+assert.ok(server.includes("clean(row[2])==='AUDIT_TRANSFER'"),'History includes audit transfer events');
+assert.ok(ui.includes("event.action==='AUDIT_TRANSFER'"),'History renders transfer details');
+assert.ok(ui.includes('Change registered; no additional details recorded'),'History explains incomplete historical events');
 console.log('Auditor Management 2.0 profile edit contract PASS');

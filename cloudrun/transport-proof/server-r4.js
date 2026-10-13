@@ -1787,7 +1787,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     let raw='';for await(const c of req){raw+=c;if(raw.length>4096)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
     let body;try{body=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
     const email=clean(body?.email).toLowerCase(),scopeCode=clean(body?.scopeCode),expectedDate=clean(body?.expectedEffectiveDate);
-    if(!email||!scopeCode||!/^\\d{4}-\\d{2}-\\d{2}$/.test(expectedDate))return send(res,400,{ok:false,error:'INVALID_CANCELLATION'});
+    if(!email||!scopeCode||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(expectedDate))return send(res,400,{ok:false,error:'INVALID_CANCELLATION'});
     try{
       const av=(await sheetsBatchGet(['Auditors!A1:AZ1000']))[0]?.values||[],h=av[0]||[],ec=col(h,['E-mail','Email']),pc=h.indexOf('Qualification_Withdrawals_JSON');
       if(ec<0||pc<0)return send(res,409,{ok:false,error:'WITHDRAWAL_SCHEMA_MISSING'});

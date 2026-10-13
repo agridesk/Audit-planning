@@ -1377,6 +1377,13 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
   if(u.pathname==='/'&&req.method==='GET'){const s=await sessionFromRequestValidated(req);if(!s)return html(res,401,'<!doctype html><meta charset="utf-8"><title>AMS DEV</title><h1>AMS DEV</h1><p>Application session required.</p>');if(!['manager','auditor'].includes(clean(s.role).toLowerCase()))return html(res,403,'<!doctype html><meta charset="utf-8"><title>AMS DEV</title><h1>Role not available</h1>');return html(res,200,MANAGER_PORTAL_HTML);}
   if(u.pathname==='/auth/legacy-handoff'&&req.method==='POST'){let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});const form=new URLSearchParams(raw);try{const identity=await validateLegacyIdentity(form.get('token'),form.get('role'),form.get('deviceId'));if(!identity.ok)return send(res,401,identity);const token=issueSession(identity);res.writeHead(303,{'set-cookie':sessionCookie(token),'location':'/','cache-control':'no-store'});return res.end();}catch(e){return send(res,500,{ok:false,error:'IDENTITY_HANDOFF_FAILED',detail:clean(e?.message||e)});}}
   if(u.pathname==='/api/v1/session/exchange'&&req.method==='POST'){if(req.headers.origin&&(!ORIGIN||req.headers.origin!==ORIGIN))return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}');}catch{return send(res,400,{ok:false,error:'BAD_JSON'});}try{const identity=await validateLegacyIdentity(b.token,b.role,b.deviceId);if(!identity.ok)return send(res,401,identity);const token=issueSession(identity);return send(res,200,{ok:true,identity:{email:identity.email,role:identity.role},expiresIn:SESSION_TTL_SECONDS},{'set-cookie':sessionCookie(token)});}catch(e){return send(res,500,{ok:false,error:'IDENTITY_EXCHANGE_FAILED',detail:clean(e?.message||e)});}}
+  if(u.pathname==='/api/v1/manager/auditor-identity/backfill-preview'&&req.method==='GET'){
+    const actor=await sessionFromRequestValidated(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    try{return send(res,200,await auditorUidBackfillPreviewRead());}
+    catch(e){return send(res,409,{ok:false,error:'UID_BACKFILL_PREVIEW_FAILED',detail:clean(e.message)});}
+  }
   if(u.pathname==='/api/v1/manager/auditor-identity/readiness'&&req.method==='GET'){
     const actor=await sessionFromRequestValidated(req);
     if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});

@@ -1637,7 +1637,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
         if(!scopeColumns.some(i=>yes(row[i])))return false;
         return directResolveAuditorEmail(av,val(row,ai))===email||directResolveAuditorEmail(av,val(row,pi))===email;
       });
-      if(!qualified&&impacts.length){const ids=impacts.map(row=>val(row,col(ph,['Audit ID'])));const reviewed=input?.confirmedAuditIds;if(ids.some(x=>!x)||new Set(ids).size!==ids.length||!Array.isArray(reviewed)||reviewed.length!==ids.length||new Set(reviewed).size!==reviewed.length||ids.some(id=>!reviewed.includes(id)))return send(res,409,{ok:false,error:'QUALIFICATION_IMPACT_APPROVAL_REQUIRED',affected:impacts.length,impactAuditIds:ids});}
+      if(!qualified&&impacts.length)return send(res,409,{ok:false,error:'QUALIFICATION_WITH_OPEN_AUDITS_REQUIRES_SCHEDULED_WITHDRAWAL',affected:impacts.length,impactAuditIds:impacts.map(row=>val(row,col(ph,['Audit ID'])))});
       let n=fieldIndex+1,letter='';while(n){n--;letter=String.fromCharCode(65+n%26)+letter;n=Math.floor(n/26)}
       const now=new Date().toISOString(),trailId=createHash('sha256').update(now+email+scopeCode).digest('hex').slice(0,24),payload=JSON.stringify({trailId,auditorEmail:email,actor:clean(actor.email),scopeCode,old,newValue:qualified?'x':'',impactedAuditIds:!qualified?impacts.map(row=>val(row,col(ph,['Audit ID']))):[]});
       await sheetsValuesAppend('Diagnostics_Log!A:K',[[now,'AUDITOR_MANAGEMENT_2_0','QUALIFICATION_EDIT',email,'CHANGE_INTENT',clean(actor.email),'','',false,'No linked open audits; verified before write',payload]]);

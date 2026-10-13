@@ -1800,6 +1800,11 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       if(read.slice(1).some(row=>clean(row[nc]).toLowerCase()===name.toLowerCase()))return send(res,409,{ok:false,error:'AUDITOR_NAME_EXISTS'});
       const row=headers.map(()=>''),put=(field,value)=>{const i=headers.indexOf(field);if(i>=0)row[i]=value};
       put('Name',name);row[ec]=email;put('Active','No');put('Role',role);put('Area',area);put('Default time zone',clean(data?.timezone)||'Europe/Madrid');put('Qualification_Withdrawals_JSON','[]');
+      const uidColumn=col(headers,['Auditor_UID','Auditor UID']),vh=versionValues[0]||[],ve=col(vh,['Email_Normalized']),vu=col(vh,['Auditor_UID']),vf=col(vh,['Valid_From_UTC']),vs=col(vh,['State']),vv=col(vh,['Version_ID']);
+      if(uidColumn<0||[ve,vu,vf,vs,vv].some(i=>i<0))throw Error('AUDITOR_CREATE_VERSIONED_UID_SCHEMA_REQUIRED');
+      if(versionValues.slice(1).some(r=>val(r,ve).toLowerCase()===email))return send(res,409,{ok:false,error:'AUDITOR_EMAIL_ALIAS_ALREADY_RESERVED'});
+      const newUid=randomUUID(),versionId=randomUUID(),stamp=new Date().toISOString(),versionRow=vh.map(()=>''),vput=(field,value)=>{const i=col(vh,[field]);if(i>=0)versionRow[i]=value};
+      row[uidColumn]=newUid;vput('Version_ID',versionId);vput('Auditor_UID',newUid);vput('Email_Normalized',email);vput('Valid_From_UTC',stamp);vput('State','ACTIVE');vput('Created_At_UTC',stamp);vput('Created_By',clean(actor.email));vput('Approved_At_UTC',stamp);vput('Approved_By',clean(actor.email));vput('Reason','New inactive auditor identity');
       const auditId=randomUUID(),detail=JSON.stringify({auditId,name,email,actor:clean(actor.email),active:'No'});
       await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'AUDITOR_MANAGEMENT_2_0','AUDITOR_CREATE',email,'CHANGE_INTENT',clean(actor.email),'','',false,'Create inactive auditor',detail]]);
       await sheetsValuesAppend('Auditors!A:AZ',[row]);

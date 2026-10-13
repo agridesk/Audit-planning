@@ -65,4 +65,6 @@ assert.ok(ui.includes("if(desired&&!original){if(!window.confirm('Add qualificat
 assert.ok(ui.includes("feedback.textContent='Qualification added'"),'Addition save success feedback');
 assert.ok(server.includes('const reviewed=input?.confirmedAuditIds'),'Qualification impact concurrency guard');
 assert.ok(ui.includes('confirmedAuditIds:impactedIds'),'Reviewed audit IDs submitted');
+assert.ok(server.includes('qualificationConflicts=linkedAudits.filter'),'Linked audit qualification conflicts calculated');
+assert.ok(ui.includes('a.qualificationConflictCount'),'Conflicts surfaced in Manager UI');
 console.log('Auditor Management 2.0 profile edit contract PASS');

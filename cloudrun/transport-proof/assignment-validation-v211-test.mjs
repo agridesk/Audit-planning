@@ -10,6 +10,8 @@ assert.doesNotMatch(saveGuard, /_mp_fastOpenQualifiedCacheGet_\s*\(/, 'Planning 
 assert.match(directGuard, /shAud\.getDataRange\(\)\.getValues\(\)/, 'Canonical save-time guard must read live Auditor rows');
 assert.match(directGuard, /Qualification_Withdrawals_JSON/, 'Legacy GAS direct eligibility enforces qualification withdrawals');
 assert.match(directGuard, /datePlanned/, 'Legacy GAS must reject planned assignments beyond cutoff');
+assert.match(directGuard, /checkedDates\.some/, 'Legacy GAS validates requested block dates against withdrawal cutoff');
+assert.match(saveGuard, /payload\.blocks\.map\(function\(b\)\{return b\.date;\}\)/, 'Canonical planning save supplies all requested block dates to qualification guard');
 assert.doesNotMatch(directGuard, /__mp_getSheetDataPersistCached_\s*\(/, 'Canonical save-time guard must not use persisted Auditors cache');
 assert.match(directGuard, /key\s*\?\s*\(em\s*===\s*key\)\s*:\s*\(keyName\s*&&\s*nm\s*===\s*keyName\)/, 'BUG-003: supplied email must take precedence; same-name different-email must not authorize');
 assert.doesNotMatch(directGuard, /\(key\s*&&\s*em\s*===\s*key\)\s*\|\|\s*\(keyName\s*&&\s*nm\s*===\s*keyName\)/, 'BUG-003: OR name fallback is forbidden when email is supplied');

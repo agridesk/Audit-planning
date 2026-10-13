@@ -45,6 +45,14 @@ assert.ok(ui.includes("Preserve listed audits & schedule withdrawal"),'Manager m
 assert.ok(ui.includes("grandfatheredAuditIds:(impact.impacted||[]).map(x=>x.auditId)"),'Only reviewed audit IDs may be exempted');
 assert.ok(ui.includes("withdrawal '+scheduled.effectiveDate"),'Display qualification withdrawal effective date');
 assert.ok(server.includes('WITHDRAWAL_WRITE_DISABLED_PENDING_DUAL_RUNTIME_GUARDS'),'Withdrawal fail-closed until both runtimes guarded');
+assert.ok(server.includes("process.env.AMS_QUALIFICATION_WITHDRAWAL_WRITE_ENABLED!=='true'"),'Withdrawal write is disabled by default');
+assert.ok(server.includes("error:'IMPACT_CHANGED_REVIEW_AGAIN'"),'Withdrawal requires exact current affected audit IDs');
+assert.ok(server.includes("error:'WITHDRAWAL_ALREADY_DEFINED'"),'Withdrawal cannot overwrite existing effective-date policy');
+assert.ok(server.includes("error:'WITHDRAWAL_POLICY_CORRUPT'"),'Malformed withdrawal policy fails closed');
+assert.ok(server.includes("error:'QUALIFICATION_NOT_CURRENT'"),'Withdrawal requires currently qualified auditor');
+assert.ok(server.includes("error:'AMBIGUOUS_IMPACT_AUDITS'"),'Ambiguous impacted audit IDs block withdrawal');
+assert.ok(server.includes("'CHANGE_INTENT'")&&server.includes("'CHANGE_APPLIED'"),'Withdrawal write has audit trail');
+assert.ok(ui.includes("action.disabled=!data.withdrawalWriteEnabled"),'Date-picker scheduling action is locked until runtime guard is enabled');
 assert.ok(ui.includes('proceed.disabled=!impact.withdrawalWriteEnabled'),'Withdrawal controls unavailable until activated');
 assert.ok(server.includes("'/api/v1/manager/auditor-management/create'"),'New auditor route');
 assert.ok(server.includes("AUDITOR_EMAIL_EXISTS"),'Duplicate auditor email denied');

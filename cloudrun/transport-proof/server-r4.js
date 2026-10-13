@@ -165,6 +165,8 @@ async function sheetsAtomicAuditorEmailTransition({auditorRow,auditorEmailCol,ol
   try{response=await fetch(base+':batchUpdate',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({requests})});}
   catch(e){throw Error('AUDITOR_EMAIL_ATOMIC_UPDATE_FAILED_NETWORK_UNCERTAIN')}
   if(!response.ok)throw Error('AUDITOR_EMAIL_ATOMIC_UPDATE_FAILED_'+response.status);
+  // A successful HTTP response does not by itself establish the persisted state.
+  // Verification below must complete before the distributed lock is released.
   const verified=await sheetsBatchGet(['Auditors!A1:AZ1000','Auditor_Identity_Versions!A1:P2000','Audit planning!A1:AZ2500','Auditor_Tokens!A1:Z1024'],true).catch(()=>{throw Error('AUDITOR_EMAIL_POST_WRITE_READ_FAILED')});
   const va=verified[0]?.values||[],vav=verified[1]?.values||[],vp=verified[2]?.values||[],vtoken=verified[3]?.values||[];
   if(clean(va[auditorRow-1]?.[ac]).toLowerCase()!==newEmail||val(va[auditorRow-1],uc)!==uid)throw Error('AUDITOR_EMAIL_POST_WRITE_AUDITOR_MISMATCH');
@@ -174,6 +176,10 @@ async function sheetsAtomicAuditorEmailTransition({auditorRow,auditorEmailCol,ol
   const newVersionMatches=vav.slice(1).filter(x=>val(x,nuid)===uid&&val(x,nemail).toLowerCase()===newEmail&&val(x,nstate).toUpperCase()==='ACTIVE');
   if(versionIdCol<0||versionFromCol<0||newVersionMatches.length!==1||val(newVersionMatches[0],versionIdCol)!==versionCells.Version_ID||!(Math.abs(sheetSerialMs(val(newVersionMatches[0],versionFromCol))-Date.parse(at))<=1000))throw Error('AUDITOR_EMAIL_POST_WRITE_NEW_VERSION_MISMATCH');
   if(planningRows.some(line=>val(vp[line-1],pa).toLowerCase()!==newEmail||val(vp[line-1],pu)!==uid))throw Error('AUDITOR_EMAIL_POST_WRITE_PLANNING_MISMATCH');
+  if(vp.slice(1).some(row=>val(row,pu)===uid&&val(row,pa).toLowerCase()!==newEmail))throw Error('AUDITOR_EMAIL_POST_WRITE_PLANNING_MISMATCH');
+  if(vp.slice(1).some(row=>val(row,pa).toLowerCase()===oldEmail))throw Error('AUDITOR_EMAIL_POST_WRITE_STALE_EMAIL_PROJECTION');
+  const oldTokens=tv.slice(1).map((row,i)=>({row,line:i+2})).filter(x=>val(x.row,te).toLowerCase()===oldEmail&&val(x.row,tro).toLowerCase()==='auditor');
+  if(oldTokens.some(x=>val(vtoken[x.line-1],te).toLowerCase()!==oldEmail||val(vtoken[x.line-1],tro).toLowerCase()!=='auditor'||!revoked(val(vtoken[x.line-1],tr))))throw Error('AUDITOR_EMAIL_POST_WRITE_TOKEN_MISMATCH');
   if(vtoken.slice(1).some(x=>val(x,te).toLowerCase()===oldEmail&&val(x,tro).toLowerCase()==='auditor'&&!revoked(val(x,tr))))throw Error('AUDITOR_EMAIL_POST_WRITE_TOKEN_MISMATCH');
   if(vav.slice(1).some(x=>val(x,nuid)===uid&&val(x,nstate).toUpperCase()==='ACTIVE'&&val(x,nemail).toLowerCase()!==newEmail))throw Error('AUDITOR_EMAIL_POST_WRITE_MULTIPLE_ACTIVE_IDENTITIES');
   return{ok:true,revokedTokens:tv.slice(1).filter(x=>val(x,te).toLowerCase()===oldEmail&&val(x,tro).toLowerCase()==='auditor').length,updatedAssignments:planningRows.length};

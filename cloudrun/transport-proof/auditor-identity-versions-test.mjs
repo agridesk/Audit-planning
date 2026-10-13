@@ -15,4 +15,5 @@ assert.throws(()=>resolveAuditorUid(index,'old@example.com','2026-02-30T00:00:00
 assert.equal(currentAuditorLoginUid(index,'old@example.com','2026-10-12T10:00:00Z'),null);
 assert.equal(currentAuditorLoginUid(index,'new@example.com','2026-10-12T10:00:00Z'),null);
 assert.equal(currentAuditorLoginUid(index,'new@example.com','2026-10-13T10:00:00Z'),'u1');
+assert.equal(currentAuditorLoginUid(index,'old@example.com','2026-10-13T10:00:00Z'),null);
 console.log('Auditor identity version resolver PASS');

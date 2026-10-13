@@ -100,7 +100,7 @@ async function validateVersionedAuditorLogin(email){
   if(uidCol<0||emailCol<0)throw Error('AUDITOR_UID_LOGIN_SCHEMA_MISSING');
   const auditors=av.slice(1).filter(x=>val(x,emailCol)).map(x=>({uid:val(x,uidCol),email:val(x,emailCol)}));
   const index=buildAuditorIdentityIndex(auditors,rotationIdentityVersions(vr[1]?.values||[])||[]);
-  const uid=resolveAuditorUid(index,email,new Date().toISOString());
+  const uid=currentAuditorLoginUid(index,email,new Date().toISOString());
   if(!uid||index.byUid.get(uid)?.email!==email)return{ok:false,error:'AUDITOR_EMAIL_NOT_CURRENT'};
   return{ok:true,uid};
 }

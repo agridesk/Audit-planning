@@ -5,7 +5,7 @@ const ui=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const html=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
 assert.ok(server.includes("'/api/v1/manager/auditor-management'"),'Manager-only Auditor read route');
 assert.ok(server.includes('auditorUid:clean(identity.auditorUid)'),'Session cookies bind immutable auditor UID');
-assert.ok(server.includes("throw Error('AUDITOR_EMAIL_CHANGE_REQUIRES_TRANSACTIONAL_IDENTITY_CUTOVER')"),'Unsafe Sheets email mutation is disabled');
+assert.ok(server.includes("if(process.env.AMS_AUDITOR_EMAIL_CHANGE_WRITE_ENABLED!=='true')throw Error('AUDITOR_EMAIL_WRITE_DISABLED')"),'Email ledger cutover is gated off by default');
 assert.ok(server.includes("throw Error('AUDITOR_EMAIL_CHANGE_REQUIRES_UID_LOGIN')"),'Email write flag cannot bypass UID login enforcement');
 assert.ok(server.includes('session.auditorUid===check.uid?session:null'),'UID login rejects legacy sessions and mismatched identities');
 assert.ok(server.includes("auditorUid:valid.uid||''"),'Validated legacy token exchange issues UID-bound auditor sessions');
@@ -64,7 +64,7 @@ assert.ok(server.includes("'/api/v1/manager/auditor-management/create'"),'New au
 assert.ok(server.includes("AUDITOR_EMAIL_EXISTS"),'Duplicate auditor email denied');
 assert.ok(server.includes("put('Active','No')"),'New auditors inactive by default');
 assert.ok(server.includes("'/api/v1/manager/auditor-management/identity/save'"),'Identity editor route');
-assert.ok(server.includes("AUDITOR_EMAIL_REKEY_REQUIRES_REFERENCE_MIGRATION"),'Linked identity rekey blocked without reference migration');
+assert.ok(server.includes("AUDITOR_EMAIL_CHANGE_WRITE_DISABLED"),'Email cutover remains blocked until explicitly enabled');
 assert.ok(server.includes("'/api/v1/manager/auditor-management/active/save'"),'Active management route');
 assert.ok(server.includes("AUDITOR_INACTIVATION_REQUIRES_CONFIRMATION"),'Linked inactivation must be blocked');
 assert.ok(html.includes('id="auditorManagement20Add"'),'Add Auditor toolbar');
@@ -124,7 +124,9 @@ assert.ok(ui.includes("editable('Departure from','Default departure from',a.home
 assert.ok(ui.includes("card.textContent=date+' · '+action+' · '+description"),'History renders one compact line per event');
 assert.ok(server.includes('await sheetsAtomicAuditorCreate(row,versionRow)'),'New auditor atomically writes profile and UID version ledger');
 assert.ok(server.includes('const newUid=randomUUID(),versionId=randomUUID()'),'New auditor receives immutable UUID and independent version ID');
-assert.ok(server.includes('if(newEmail!==email){')&&server.includes('const readiness=await auditorIdentityReadinessRead();')&&server.includes("error:'AUDITOR_EMAIL_REKEY_REQUIRES_REFERENCE_MIGRATION'")&&server.includes('transitionReady'),'Email changes fail closed after live UID and transition validation');
+assert.ok(server.includes('if(newEmail!==email){')&&server.includes('const readiness=await auditorIdentityReadinessRead();')&&server.includes('planAuditorEmailTransition(auditors,versions')&&server.includes('sheetsAtomicAuditorEmailTransition({auditorRow:target.line'),'Email change uses UID version planning and atomic ledger cutover');
+assert.ok(server.includes("append('Diagnostics_Log',log('CHANGE_INTENT'))")&&server.includes("append('Diagnostics_Log',log('CHANGE_APPLIED'))"),'Identity change audit trail is included in the Sheets transaction');
+assert.ok(server.includes("requests.push(update('Auditor_Tokens',i+1,tr,'TRUE'))"),'Existing auditor tokens revoked during identity cutover');
 assert.ok(server.includes("const identity={email,name:val(r,n),uid:uid||''}"),'Rotation identity reads stable UID when available');
 assert.ok(server.includes("return a?(a.uid||a.email):v;"),'Rotation uses UID with legacy email fallback');
 assert.ok(server.includes("ROTATION_DUPLICATE_AUDITOR_UID"),'Duplicate UID is rejected in rotation');

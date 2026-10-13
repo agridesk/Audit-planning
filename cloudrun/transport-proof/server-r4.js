@@ -14,6 +14,7 @@ import {backfillCompanyHours20} from './company-scope-hours-backfill-20.js';
 import {resolveCompanyScopeHours20} from './company-scope-hours-resolver-20.js';
 import {buildCompanyManagementReadModel20} from './company-management-readmodel-20.js';
 import {validateAuditorCompanyChanges} from './company-auditor-permissions-20.js';
+import {buildAuditorIdentityIndex,resolveAuditorUid} from './auditor-identity-versions.js';
 const PORT=Number(process.env.PORT||8080);
 const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const ORIGIN=process.env.DEV_ALLOWED_ORIGIN||'';
@@ -411,10 +412,11 @@ function rotationAliasMeta(scopeValues){
   return meta;
 }
 function rotationCanonical(meta,raw){return meta.byAny.get(key(raw))||meta.byLoose.get(rotationLooseKey(raw))||clean(raw)}
-function rotationAuditorMap(audValues){
-  const out={byName:new Map(),byEmail:new Map(),byUid:new Map()};
+function rotationAuditorMap(audValues,identityVersions=null){
+  const out={byName:new Map(),byEmail:new Map(),byUid:new Map(),identityIndex:null};
   if(!audValues?.length)return out;
   const h=audValues[0],n=col(h,['Name','Auditor','Auditor name']),e=col(h,['E-mail','Email','E-mail address','Mail']),u=col(h,['Auditor_UID','Auditor UID']);
+  const auditorRows=[];
   for(const r of audValues.slice(1)){
     const email=val(r,e).toLowerCase(),name=val(r,n).toLowerCase(),uid=val(r,u);
     if(!email)continue;
@@ -423,21 +425,37 @@ function rotationAuditorMap(audValues){
     out.byEmail.set(email,identity);
     if(name){if(out.byName.has(name))out.byName.set(name,null);else out.byName.set(name,identity)}
     if(uid){if(out.byUid.has(uid))throw Error('ROTATION_DUPLICATE_AUDITOR_UID');out.byUid.set(uid,identity)}
+    auditorRows.push({uid,email,name:val(r,n)});
+  }
+  if(identityVersions!==null){
+    if(u<0)throw Error('ROTATION_UID_SCHEMA_REQUIRED');
+    out.identityIndex=buildAuditorIdentityIndex(auditorRows,identityVersions);
   }
   return out;
 }
 function rotationResolveAuditor(map,raw){
   const v=clean(raw).toLowerCase();if(!v)return'';
+  if(map.identityIndex){
+    const uid=resolveAuditorUid(map.identityIndex,v);
+    if(uid)return uid;
+    if(v.includes('@'))throw Error('ROTATION_UNRESOLVED_HISTORICAL_EMAIL');
+  }
   const a=map.byEmail.get(v)||map.byName.get(v);
   return a?(a.uid||a.email):v;
+}
+function rotationIdentityVersions(values){
+  if(!values?.length)return null;
+  const h=values[0],u=col(h,['Auditor_UID','Auditor UID']),e=col(h,['Email','E-mail']),f=col(h,['Valid_From_UTC','Valid from UTC']),t=col(h,['Valid_To_UTC','Valid to UTC']),st=col(h,['State','Status']);
+  if([u,e,f,t,st].some(x=>x<0))throw Error('ROTATION_IDENTITY_VERSIONS_SCHEMA_INVALID');
+  return values.slice(1).filter(r=>val(r,u)||val(r,e)).map(r=>({uid:val(r,u),email:val(r,e),validFrom:val(r,f),validTo:val(r,t),state:val(r,st)}));
 }
 function rotationScopeCols(headers,meta){let da=-1,hp=-1;headers.forEach((x,i)=>{const k=key(x);if(k==='date_approved'||k==='date approved')da=i;if(k==='hours_planned'||k==='hours planned')hp=i});const out=[];if(da>=0&&hp>da+1){for(let i=da+1;i<hp;i++){const sc=rotationCanonical(meta,headers[i]);if(sc)out.push({i,scope:sc})}if(out.length)return out}for(let i=0;i<headers.length;i++){const raw=clean(headers[i]);if(/^SCOPE_\d+$/i.test(raw)){const sc=rotationCanonical(meta,raw);if(sc)out.push({i,scope:sc})}}if(out.length)return out;const one=col(headers,['Scope','Scopes','SCOPE','STANDARD','Standards']);return one>=0?[{i:one,single:true}]:[]}
 function rotationYear(v){if(v instanceof Date&&!Number.isNaN(v.getTime()))return v.getFullYear();const m=clean(v).match(/^(\d{4})[-\/]/);return m?Number(m[1]):null}
 function rotationConsecutive(ownersByYear,auditor,maxYearExclusive){const years=Object.keys(ownersByYear).map(Number).filter(y=>Number.isFinite(y)&&(!maxYearExclusive||y<maxYearExclusive)).sort((a,b)=>b-a);let count=0;for(const y of years){const owners=ownersByYear[y]||{};if(!owners[auditor])break;count++;if(Object.keys(owners).some(x=>x!==auditor))return count}return count}
-function rotationReadFromLoaded(auditId,auditorEmail,ap,aud,scv,log){
+function rotationReadFromLoaded(auditId,auditorEmail,ap,aud,scv,log,identityVersions=null){
   const t=Date.now(),f=findAudit(ap,auditId);
   if(!f)return{success:false,error:'AUDIT_NOT_FOUND'};
-  const meta=rotationAliasMeta(scv),catalog=scopeCatalog(scv),required=[...new Set(scopesForAudit(f,catalog).map(x=>rotationCanonical(meta,x)).filter(Boolean))],uid=val(f.row,col(f.h,['Company_UID','Company UID','CompanyUid'])),company=val(f.row,col(f.h,['Company'])),yearRaw=val(f.row,col(f.h,['Year','YEAR'])),currentYear=parseInt(yearRaw,10)||new Date().getFullYear(),audMap=rotationAuditorMap(aud),target=rotationResolveAuditor(audMap,auditorEmail),targetAud=audMap.byUid.get(target)||audMap.byEmail.get(clean(auditorEmail).toLowerCase())||audMap.byName.get(clean(auditorEmail).toLowerCase())||{email:clean(auditorEmail).toLowerCase(),name:clean(auditorEmail)},ownersByScope={};
+  const meta=rotationAliasMeta(scv),catalog=scopeCatalog(scv),required=[...new Set(scopesForAudit(f,catalog).map(x=>rotationCanonical(meta,x)).filter(Boolean))],uid=val(f.row,col(f.h,['Company_UID','Company UID','CompanyUid'])),company=val(f.row,col(f.h,['Company'])),yearRaw=val(f.row,col(f.h,['Year','YEAR'])),currentYear=parseInt(yearRaw,10)||new Date().getFullYear(),audMap=rotationAuditorMap(aud,identityVersions),target=rotationResolveAuditor(audMap,auditorEmail),targetAud=audMap.byUid.get(target)||audMap.byEmail.get(clean(auditorEmail).toLowerCase())||audMap.byName.get(clean(auditorEmail).toLowerCase())||{email:clean(auditorEmail).toLowerCase(),name:clean(auditorEmail)},ownersByScope={};
   if(log.length){const h=log[0],cu=col(h,['Company_UID','Company UID','CompanyUID','COMPANY_UID']),cc=col(h,['Company','Customer','Bedrijf','COMPANY']),ca=col(h,['Auditor','AUDITOR','Auditor email','AuditorEmail','Auditor_Email','E-mail','Email']),cy=col(h,['Year','YEAR']),cd=col(h,['Date','Audit date','Audit_Date','Completed date','Completion date','Execution date','Executed on']),cs=col(h,['Status','STATUS']),auditorUidCol=col(h,['Auditor_UID','Auditor UID']),scopeCols=rotationScopeCols(h,meta);for(const r of log.slice(1)){const st=val(r,cs).toLowerCase();if(st&&(st.includes('cancel')||st.includes('reject')||st.includes('deny')||(!st.includes('complete')&&!st.includes('realized'))))continue;const ru=val(r,cu),rn=val(r,cc);if(uid){if(ru!==uid&&key(rn)!==key(company))continue}else if(key(rn)!==key(company))continue;const loggedUid=val(r,auditorUidCol),resolvedOwner=rotationResolveAuditor(audMap,val(r,ca));if(loggedUid&&!audMap.byUid.has(loggedUid))throw Error('ROTATION_UNKNOWN_AUDITOR_UID');if(loggedUid&&audMap.byEmail.has(val(r,ca).toLowerCase())&&resolvedOwner!==loggedUid)throw Error('ROTATION_AUDITOR_UID_EMAIL_CONFLICT');const owner=loggedUid||resolvedOwner,yr=parseInt(val(r,cy),10)||rotationYear(r[cd]);if(!owner||!yr)continue;let scopes=[];if(scopeCols.length===1&&scopeCols[0].single)scopes=val(r,scopeCols[0].i).split(',').map(x=>rotationCanonical(meta,x)).filter(Boolean);else scopes=scopeCols.filter(x=>yes(r[x.i])).map(x=>x.scope);for(const sc of scopes){if(!required.includes(sc))continue;(ownersByScope[sc]??={});(ownersByScope[sc][yr]??={})[owner]=true}}}
   const rotationByScope={},performedByScope={};let performedCount=0,strictestMax=null,soft=false,near=false;for(const sc of required){const pc=rotationConsecutive(ownersByScope[sc]||{},target,currentYear),mx=meta.maxByScope.has(sc)?meta.maxByScope.get(sc):null,at=mx!=null&&mx>0&&pc>=mx,nr=mx!=null&&mx>0&&pc===mx-1;performedByScope[sc]=pc;performedCount=Math.max(performedCount,pc);if(mx!=null)strictestMax=strictestMax==null?mx:Math.min(strictestMax,mx);soft ||= at;near ||= nr;rotationByScope[sc]={performedCount:pc,maxAllowed:mx,atLimit:at,nearLimit:nr}}
   return{success:true,auditId,auditor:{name:targetAud.name||target,email:targetAud.email||target,softBlockRotation:soft,nearRotationLimit:near,hardBlockQualification:false,ineligible:false,performedByScope,rotationByScope,performedCount,maxAllowed:strictestMax,eligibilityOwner:'CloudRun_DirectRotationRead_V211_HARD'},auditorEligibilityMeta:{requiredScopes:required,currentYear,rotationMode:'V211_HARD_ROTATION_MAX'},__serverMs:Date.now()-t,__rotationReadOwner:'CLOUD_RUN_DIRECT_SHEETS'};

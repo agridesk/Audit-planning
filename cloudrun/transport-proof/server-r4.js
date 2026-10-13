@@ -134,6 +134,8 @@ async function sheetsAtomicAuditorEmailTransition({auditorRow,auditorEmailCol,ol
   if([ve,vu,vs,vt].some(x=>x<0)||vh.join('|')!==versionHeaders.join('|'))throw Error('AUDITOR_EMAIL_VERSION_SCHEMA_CHANGED');
   if(val(vv[versionRow-1]||[],vu)!==uid||val(vv[versionRow-1]||[],ve).toLowerCase()!==oldEmail||val(vv[versionRow-1]||[],vs).toUpperCase()!=='ACTIVE')throw Error('AUDITOR_EMAIL_CONCURRENT_VERSION_CHANGE');
   if(vv.slice(1).some(x=>val(x,ve).toLowerCase()===newEmail&&val(x,vs).toUpperCase()!=='CANCELLED'))throw Error('AUDITOR_EMAIL_ALIAS_RESERVED');
+  if(vv.slice(1).filter(x=>val(x,vu)===uid&&val(x,vs).toUpperCase()==='ACTIVE').length!==1)throw Error('AUDITOR_EMAIL_ACTIVE_VERSION_NOT_UNIQUE');
+  if(auditors.slice(1).some((row,i)=>i!==auditorRow-2&&clean(row[ac]).toLowerCase()===newEmail))throw Error('AUDITOR_EMAIL_ALREADY_ASSIGNED');
   const tv=read[2]?.values||[],th=tv[0]||[],te=col(th,['Email']),tr=col(th,['Revoked']),tro=col(th,['Role']);
   if([te,tr,tro].some(x=>x<0))throw Error('AUDITOR_EMAIL_TOKEN_SCHEMA_MISSING');
   const pv=read[3]?.values||[],ph=pv[0]||[],pa=col(ph,['Assigned to']),pu=col(ph,['Auditor_UID','Auditor UID']);
@@ -141,6 +143,8 @@ async function sheetsAtomicAuditorEmailTransition({auditorRow,auditorEmailCol,ol
   const liveRows=pv.slice(1).map((row,i)=>({row,line:i+2})).filter(x=>val(x.row,pu)===uid&&val(x.row,pa).toLowerCase()===oldEmail);
   if(liveRows.length!==planningRows.length||liveRows.some((x,i)=>x.line!==planningRows[i]))throw Error('AUDITOR_EMAIL_PLANNING_CHANGED');
   if(pv.slice(1).some(row=>val(row,pa).toLowerCase()===oldEmail&&val(row,pu)!==uid))throw Error('AUDITOR_EMAIL_PLANNING_UID_CONFLICT');
+  if(pv.slice(1).some(row=>val(row,pu)===uid&&val(row,pa).toLowerCase()!==oldEmail))throw Error('AUDITOR_EMAIL_PLANNING_PROJECTION_CONFLICT');
+  if(pv.length>=2500||tv.length>=1024||vv.length>=2000||auditors.length>=1000)throw Error('AUDITOR_EMAIL_READ_RANGE_LIMIT_REACHED');
   const cell=v=>({userEnteredValue:{stringValue:clean(v)}}),range=(name,row,c)=>({sheetId:ids.get(name),startRowIndex:row-1,endRowIndex:row,startColumnIndex:c,endColumnIndex:c+1});
   const update=(name,row,c,value)=>({updateCells:{range:range(name,row,c),rows:[{values:[cell(value)]}],fields:'userEnteredValue'}});
   const append=(name,values)=>({appendCells:{sheetId:ids.get(name),rows:[{values:values.map(cell)}],fields:'userEnteredValue'}});
@@ -151,7 +155,9 @@ async function sheetsAtomicAuditorEmailTransition({auditorRow,auditorEmailCol,ol
   for(const rowNumber of planningRows)requests.push(update('Audit planning',rowNumber,pa,newEmail));
   for(let i=1;i<tv.length;i++)if(val(tv[i],te).toLowerCase()===oldEmail&&val(tv[i],tro).toLowerCase()==='auditor')requests.push(update('Auditor_Tokens',i+1,tr,'TRUE'));
   requests.push(append('Diagnostics_Log',log('CHANGE_APPLIED')));
-  const response=await fetch(base+':batchUpdate',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({requests})});
+  let response;
+  try{response=await fetch(base+':batchUpdate',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({requests})});}
+  catch(e){throw Error('AUDITOR_EMAIL_ATOMIC_UPDATE_FAILED_NETWORK_UNCERTAIN')}
   if(!response.ok)throw Error('AUDITOR_EMAIL_ATOMIC_UPDATE_FAILED_'+response.status);
   const verified=await sheetsBatchGet(['Auditors!A1:AZ1000','Auditor_Identity_Versions!A1:P2000','Audit planning!A1:AZ2500','Auditor_Tokens!A1:Z1024'],true).catch(()=>{throw Error('AUDITOR_EMAIL_POST_WRITE_READ_FAILED')});
   const va=verified[0]?.values||[],vav=verified[1]?.values||[],vp=verified[2]?.values||[],vtoken=verified[3]?.values||[];

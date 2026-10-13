@@ -602,7 +602,7 @@ const trigger=document.getElementById('auditorManagement20'),panel=document.getE
 let auditors=[],scopeCatalog=[];
 function el(tag,content){const node=document.createElement(tag);if(content!==undefined)node.textContent=String(content);return node}
 function showAuditor(a,initialPage='Profile'){
- dossier.hidden=false;dossier.replaceChildren();dossier.appendChild(el('h3',a.name));
+ dossier.hidden=false;dossier.replaceChildren();dossier.appendChild(el('h3',a.name));if(a.qualificationConflictCount){const warning=el('div','⚠ '+a.qualificationConflictCount+' open audit qualification conflict(s): '+(a.qualificationConflicts||[]).map(x=>x.auditId+' ('+x.status+')').join(', '));warning.style.cssText='color:#b91c1c;font-weight:700;padding:9px 0';dossier.appendChild(warning)}
  let pending={},currentPage='Profile',saving=false;
  const actions=el('div'),save=el('button','Save all'),discard=el('button','Discard changes'),feedback=el('span','All changes saved');
  actions.style.cssText='display:flex;align-items:center;gap:10px;margin:10px 0';feedback.setAttribute('role','status');save.type='button';discard.type='button';actions.append(save,discard,feedback);
@@ -667,7 +667,7 @@ function showAuditor(a,initialPage='Profile'){
 function render(){
  const q=search.value.trim().toLowerCase(),mode=filter.value;rows.replaceChildren();
  const list=auditors.filter(a=>(mode==='all'||(mode==='active')===a.active)&&(!q||[a.name,a.email,a.area,...a.qualifications].join(' ').toLowerCase().includes(q)));
- list.forEach(a=>{const tr=el('tr'),values=[a.name,a.area,a.active?'Yes':'No',a.qualifications.join(', '),a.futureAudits,''];values.forEach((value,i)=>{const td=el('td');if(i===0){const button=el('button',value);button.type='button';button.onclick=()=>showAuditor(a);td.appendChild(button)}else td.textContent=String(value);td.style.overflowWrap='anywhere';tr.appendChild(td)});rows.appendChild(tr)});
+ list.forEach(a=>{const tr=el('tr'),values=[a.name,a.area,a.active?'Yes':'No',a.qualifications.join(', '),a.futureAudits,a.qualificationConflictCount?'⚠ '+a.qualificationConflictCount+' qualification conflict(s)':''];values.forEach((value,i)=>{const td=el('td');if(i===0){const button=el('button',value);button.type='button';button.onclick=()=>showAuditor(a);td.appendChild(button)}else td.textContent=String(value);td.style.overflowWrap='anywhere';tr.appendChild(td)});rows.appendChild(tr)});
  status.textContent=list.length+' / '+auditors.length+' auditors · Profile/weekday defaults editable · qualifications require impact controls';
 }
 async function load(){status.textContent='Loading auditor directory…';const response=await fetch('/api/v1/manager/auditor-management',{credentials:'same-origin'}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'AUDITOR_MANAGEMENT_READ_FAILED');auditors=result.rows||[];scopeCatalog=result.scopeCatalog||[];render()}

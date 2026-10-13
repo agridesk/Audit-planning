@@ -110,4 +110,7 @@ assert.ok(server.includes('targetAud=audMap.byUid.get(target)'),'Rotation UID gr
 assert.ok(server.includes("auditorUidCol=col(h,['Auditor_UID','Auditor UID'])"),'Historical rotation reads explicit auditor UID');
 assert.ok(server.includes("ROTATION_UNKNOWN_AUDITOR_UID"),'Historical rotation rejects unknown UID');
 assert.ok(server.includes("ROTATION_AUDITOR_UID_EMAIL_CONFLICT"),'Historical rotation rejects conflicting UID and email');
+assert.ok(server.includes("process.env.AMS_AUDITOR_UID_ROTATION_READ_ENABLED==='true'"),'Versioned UID rotation defaults off');
+assert.ok(server.includes("Auditor_Identity_Versions!A1:E2000"),'Rotation identity history has explicit source');
+assert.ok(server.includes("ROTATION_UNRESOLVED_HISTORICAL_EMAIL"),'Unknown historical email fails closed when enabled');
 console.log('Auditor Management 2.0 profile edit contract PASS');

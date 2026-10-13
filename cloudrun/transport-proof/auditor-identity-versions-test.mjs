@@ -7,4 +7,5 @@ assert.equal(resolveAuditorUid(index,'old@example.com'),'u1');
 assert.equal(resolveAuditorUid(index,'new@example.com'),'u1');
 assert.equal(resolveAuditorUid(index,'old@example.com','2026-10-13T10:00:00Z'),null);
 assert.equal(resolveAuditorUid(index,'new@example.com','2026-10-13T10:00:00Z'),'u1');
+assert.throws(()=>buildAuditorIdentityIndex(rows,[{uid:'u1',email:'old@example.com',validFrom:'2020-01-01T00:00:00Z',validTo:'2027-01-01T00:00:00Z',state:'EXPIRED'},history[1]]),/IDENTITY_OVERLAPPING_UID_VERSIONS/);
 console.log('Auditor identity version resolver PASS');

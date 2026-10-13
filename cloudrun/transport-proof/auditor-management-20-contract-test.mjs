@@ -107,4 +107,7 @@ assert.ok(server.includes("const identity={email,name:val(r,n),uid:uid||''}"),'R
 assert.ok(server.includes("return a?(a.uid||a.email):v;"),'Rotation uses UID with legacy email fallback');
 assert.ok(server.includes("ROTATION_DUPLICATE_AUDITOR_UID"),'Duplicate UID is rejected in rotation');
 assert.ok(server.includes('targetAud=audMap.byUid.get(target)'),'Rotation UID grouping preserves current auditor profile and email');
+assert.ok(server.includes("auditorUidCol=col(h,['Auditor_UID','Auditor UID'])"),'Historical rotation reads explicit auditor UID');
+assert.ok(server.includes("ROTATION_UNKNOWN_AUDITOR_UID"),'Historical rotation rejects unknown UID');
+assert.ok(server.includes("ROTATION_AUDITOR_UID_EMAIL_CONFLICT"),'Historical rotation rejects conflicting UID and email');
 console.log('Auditor Management 2.0 profile edit contract PASS');

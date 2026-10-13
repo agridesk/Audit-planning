@@ -130,4 +130,7 @@ assert.ok(server.includes("import {previewSheet} from './auditor-uid-backfill-pr
 assert.ok(server.includes('AUDITOR_UID_BACKFILL_REQUIRED'),'Readiness reports incomplete UID migration');
 assert.ok(server.includes('ROTATION_HISTORICAL_AUDITOR_IDENTITY_MISSING'),'Versioned rotation rejects ownerless historical audits');
 assert.ok(server.includes('rotationReadFromLoaded(auditId,email,ap,av,sc,log,versions)'),'Transfer candidate rotation uses historical UID versions');
+assert.ok(server.includes('IDENTITY_HISTORICAL_AUDIT_SCHEMA_MISSING'),'UID readiness requires historical audit log');
+assert.ok(server.includes('historicalUnresolved'),'UID readiness checks historical unresolved aliases');
+assert.ok(server.includes('historicalConflicts'),'UID readiness checks conflicting historical UID ownership');
 console.log('Auditor Management 2.0 profile edit contract PASS');

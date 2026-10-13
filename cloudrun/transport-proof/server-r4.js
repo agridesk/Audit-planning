@@ -409,9 +409,12 @@ function managerArchived(logValues,email,scopeValues,companyValues,audValues){
 async function managerArchivedRead(email){const t=Date.now(),vr=await sheetsBatchGet(['Log realized audits!A1:AZ2048','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256']);const out=managerArchived(vr[0]?.values||[],clean(email).toLowerCase(),vr[1]?.values||[],vr[2]?.values||[],vr[3]?.values||[]);out.build=BUILD;out.serverMs=Date.now()-t;return out;}
 
 async function auditorArchivedRead(email){
-  const t=Date.now(),actorEmail=clean(email).toLowerCase(),vr=await sheetsBatchGet(['Log realized audits!A1:AZ2048','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256']);
-  const aud=vr[3]?.values||[],out=managerArchived(vr[0]?.values||[],'',vr[1]?.values||[],vr[2]?.values||[],aud);
-  out.rows=(out.rows||[]).filter(r=>directResolveAuditorEmail(aud,r.auditor)===actorEmail).map(r=>({...r,actorMode:'AUDITOR'}));
+  const t=Date.now(),actorEmail=clean(email).toLowerCase(),versioned=process.env.AMS_AUDITOR_UID_ROTATION_READ_ENABLED==='true',ranges=['Log realized audits!A1:AZ2048','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:AZ256'];
+  if(versioned)ranges.push('Auditor_Identity_Versions!A1:E2000');
+  const vr=await sheetsBatchGet(ranges),aud=vr[3]?.values||[],out=managerArchived(vr[0]?.values||[],'',vr[1]?.values||[],vr[2]?.values||[],aud);
+  const identityMap=versioned?rotationAuditorMap(aud,rotationIdentityVersions(vr[4]?.values||[])):null;
+  const actorUid=identityMap?rotationResolveAuditor(identityMap,actorEmail):null;
+  out.rows=(out.rows||[]).filter(r=>identityMap?rotationResolveAuditor(identityMap,r.auditor)===actorUid:directResolveAuditorEmail(aud,r.auditor)===actorEmail).map(r=>({...r,actorMode:'AUDITOR'}));
   out.actorRole='Auditor';out.actorEmail=actorEmail;out.build=BUILD;out.serverMs=Date.now()-t;return out;
 }
 

@@ -462,7 +462,7 @@ function rotationResolveAuditor(map,raw){
   return a?(a.uid||a.email):v;
 }
 function rotationIdentityVersions(values){
-  if(!values?.length)return null;
+  if(!values?.length)throw Error('ROTATION_IDENTITY_VERSIONS_MISSING');
   const h=values[0],u=col(h,['Auditor_UID','Auditor UID']),e=col(h,['Email','E-mail']),f=col(h,['Valid_From_UTC','Valid from UTC']),t=col(h,['Valid_To_UTC','Valid to UTC']),st=col(h,['State','Status']);
   if([u,e,f,t,st].some(x=>x<0))throw Error('ROTATION_IDENTITY_VERSIONS_SCHEMA_INVALID');
   return values.slice(1).filter(r=>val(r,u)||val(r,e)).map(r=>({uid:val(r,u),email:val(r,e),validFrom:val(r,f),validTo:val(r,t),state:val(r,st)}));

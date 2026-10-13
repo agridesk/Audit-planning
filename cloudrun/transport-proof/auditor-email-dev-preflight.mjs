@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // AMS auditor identity cutover: read-only DEV deployment preflight.
 // No mutation, no feature flag changes, no PROD access.
-import {execFileSync} from 'node:child_process';
+import {execSync} from 'node:child_process';
 const project='audit-management-system-dev',region='europe-west1',service='ams-transport-proof';
 const spreadsheet='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs';
 const checks=[];
 function check(name,ok,detail){checks.push({name,ok,detail});console.log((ok?'PASS':'BLOCK')+' '+name+' '+detail)}
-function gcloud(args){return execFileSync('gcloud',args,{encoding:'utf8',timeout:30000}).trim()}
+function gcloud(args){return execSync('gcloud '+args.join(' '),{encoding:'utf8',timeout:30000,windowsHide:true,shell:process.platform==='win32'?'cmd.exe':'/bin/sh'}).trim()}
 function requiredEnv(vars,key){return vars.find(x=>x.name===key)?.value||''}
 try{
   const raw=gcloud(['run','services','describe',service,'--project',project,'--region',region,'--format=json']);

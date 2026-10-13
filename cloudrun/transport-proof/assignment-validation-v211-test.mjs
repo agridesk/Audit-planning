@@ -9,6 +9,9 @@ assert.match(saveGuard, /_mp_assertAuditorQualifiedForPlanning_\s*\(/, 'Planning
 assert.doesNotMatch(saveGuard, /_mp_fastOpenQualifiedCacheGet_\s*\(/, 'Planning save must not authorize via dropdown cache');
 assert.match(directGuard, /shAud\.getDataRange\(\)\.getValues\(\)/, 'Canonical save-time guard must read live Auditor rows');
 assert.match(directGuard, /Qualification_Withdrawals_JSON/, 'Legacy GAS direct eligibility enforces qualification withdrawals');
+assert.match(directGuard, /withdrawalIndex < 0\) return \{success:false/, 'GAS fails closed if withdrawal policy column is missing');
+assert.match(directGuard, /Array\.isArray\(entry\.grandfatheredAuditIds\)/, 'GAS validates existing-audit preservation metadata');
+assert.match(directGuard, /isFinite\(Date\.parse/, 'GAS validates future-dated withdrawal dates');
 assert.match(directGuard, /datePlanned/, 'Legacy GAS must reject planned assignments beyond cutoff');
 assert.match(directGuard, /checkedDates\.some/, 'Legacy GAS validates requested block dates against withdrawal cutoff');
 assert.match(saveGuard, /payload\.blocks\.map\(function\(b\)\{return b\.date;\}\)/, 'Canonical planning save supplies all requested block dates to qualification guard');

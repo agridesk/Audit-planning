@@ -65,11 +65,23 @@ async function sheetsAtomicAuditorCreate(auditorRow,versionRow){
   if(!response.ok)throw Error('AUDITOR_CREATE_ATOMIC_APPEND_FAILED_'+response.status);
   return response.json();
 }
+async function verifiedAuditorLockDevProject(){
+  const configured=clean(process.env.GOOGLE_CLOUD_PROJECT||process.env.GCLOUD_PROJECT||'');
+  if(configured&&configured!=='audit-management-system-dev')return '';
+  // Cloud Run does not guarantee GOOGLE_CLOUD_PROJECT is populated.
+  // Verify the actual runtime project using the GCP metadata identity.
+  const response=await fetch('http://metadata.google.internal/computeMetadata/v1/project/project-id',{
+    headers:{'Metadata-Flavor':'Google'},signal:AbortSignal.timeout(3000)
+  });
+  if(!response.ok)return '';
+  const actual=clean(await response.text());
+  return actual==='audit-management-system-dev'?actual:'';
+}
 async function withAuditorIdentityFirestoreLock(work){
   if(process.env.AMS_AUDITOR_IDENTITY_DISTRIBUTED_LOCK_ENABLED!=='true')throw Error('AUDITOR_EMAIL_DISTRIBUTED_LOCK_DISABLED');
   if(process.env.AMS_RUNTIME_ENV!=='DEV')throw Error('AUDITOR_EMAIL_LOCK_DEV_ONLY');
   if(SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')throw Error('AUDITOR_EMAIL_DEV_SPREADSHEET_MISMATCH');
-  const project=clean(process.env.GOOGLE_CLOUD_PROJECT||process.env.GCLOUD_PROJECT||'');
+  const project=await verifiedAuditorLockDevProject();
   if(project!=='audit-management-system-dev')throw Error('AUDITOR_EMAIL_LOCK_PROJECT_NOT_DEV');
   const database=clean(process.env.AMS_AUDITOR_IDENTITY_LOCK_DATABASE||'(default)');
   if(database!=='(default)'&&!/^[A-Za-z0-9_-]+$/.test(database))throw Error('AUDITOR_EMAIL_LOCK_DATABASE_INVALID');
@@ -106,7 +118,7 @@ async function withAuditorIdentityFirestoreLock(work){
 async function auditorEmailLockReadiness(){
   if(process.env.AMS_RUNTIME_ENV!=='DEV')return{ready:false,reason:'DEV_ONLY'};
   if(SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')return{ready:false,reason:'DEV_SPREADSHEET_MISMATCH'};
-  const project=clean(process.env.GOOGLE_CLOUD_PROJECT||process.env.GCLOUD_PROJECT||'');
+  const project=await verifiedAuditorLockDevProject();
   if(project!=='audit-management-system-dev')return{ready:false,reason:'LOCK_PROJECT_NOT_DEV'};
   const database=clean(process.env.AMS_AUDITOR_IDENTITY_LOCK_DATABASE||'(default)');
   const url='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(project)+'/databases/'+encodeURIComponent(database)+'/documents/ams_identity_cutover_locks/global_auditor_email';

@@ -207,3 +207,6 @@ assert.ok(server.includes('AUDITOR_EMAIL_POST_WRITE_MULTIPLE_ACTIVE_IDENTITIES')
 assert.ok(server.includes('versionCells.Version_ID'),'Post-write verification checks exact created identity version');
 
 assert.ok(server.includes('AUDITOR_EMAIL_POST_WRITE_STALE_EMAIL_PROJECTION'),'Stale planning projection is rejected');
+
+assert.ok(server.includes('LOCK_DISABLED_FIRESTORE_READ_OK_WRITE_UNVERIFIED'),'Firestore access is probed without enabling writes');
+assert.ok(server.includes('identityReady:identity.ready===true'),'Readiness endpoint includes UID migration status');

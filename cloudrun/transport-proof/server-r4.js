@@ -457,6 +457,8 @@ function rotationResolveAuditor(map,raw){
     const uid=resolveAuditorUid(map.identityIndex,v);
     if(uid)return uid;
     if(v.includes('@'))throw Error('ROTATION_UNRESOLVED_HISTORICAL_EMAIL');
+    if(map.byUid.has(clean(raw)))return clean(raw);
+    throw Error('ROTATION_NONCANONICAL_AUDITOR_REFERENCE');
   }
   const a=map.byEmail.get(v)||map.byName.get(v);
   return a?(a.uid||a.email):v;

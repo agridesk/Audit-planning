@@ -95,7 +95,7 @@ function sheetSerialMs(v){if(typeof v==='number'&&Number.isFinite(v))return Math
 async function validateLegacyIdentity(rawToken,role,deviceId){rawToken=clean(rawToken);role=clean(role);deviceId=clean(deviceId);if(!rawToken)return{ok:false,error:'NO_TOKEN'};if(!deviceId)return{ok:false,error:'MISSING_DEVICE_ID'};if(!role)return{ok:false,error:'MISSING_ROLE'};const tokenHash=sha256Hex(rawToken),deviceHash=sha256Hex(deviceId),vr=await sheetsBatchGet(['Auditor_Tokens!A1:Z1024'],true),rows=vr[0]?.values||[];if(rows.length<2)return{ok:false,error:'TOKEN_NOT_FOUND'};const h=rows[0],ce=col(h,['Email']),cr=col(h,['Role']),ct=col(h,['Token_Hash']),cd=col(h,['Device_Fingerprint','Device_Fingerprin','Device_Fingerprint_Hash']),cx=col(h,['Expires_At']),cv=col(h,['Revoked']);if([ce,cr,ct,cd,cx,cv].some(x=>x<0))throw new Error('AUDITOR_TOKENS_HEADER_MISSING');for(let i=1;i<rows.length;i++){const row=rows[i];if(clean(row[cr]).toLowerCase()!==role.toLowerCase()||clean(row[ct])!==tokenHash)continue;if(revoked(row[cv]))return{ok:false,error:'TOKEN_REVOKED'};const exp=sheetSerialMs(row[cx]);if(!Number.isFinite(exp)||exp<Date.now())return{ok:false,error:'TOKEN_EXPIRED'};const stored=clean(row[cd]);if(stored&&stored!==deviceHash)return{ok:false,error:'DEVICE_MISMATCH'};const email=clean(row[ce]).toLowerCase();if(!email)return{ok:false,error:'TOKEN_EMAIL_EMPTY'};if(role.toLowerCase()==='auditor'){const valid=await validateVersionedAuditorLogin(email);if(!valid.ok)return valid;}return{ok:true,email,role};}return{ok:false,error:'TOKEN_NOT_FOUND'};}
 async function validateVersionedAuditorLogin(email){
   if(process.env.AMS_AUDITOR_UID_LOGIN_ENABLED!=='true')return{ok:true};
-  const vr=await sheetsBatchGet(['Auditors!A1:AZ1000','Auditor_Identity_Versions!A1:E2000'],true);
+  const vr=await sheetsBatchGet(['Auditors!A1:AZ1000','Auditor_Identity_Versions!A1:P2000'],true);
   const av=vr[0]?.values||[],h=av[0]||[],uidCol=col(h,['Auditor_UID','Auditor UID']),emailCol=col(h,['Email','E-mail']);
   if(uidCol<0||emailCol<0)throw Error('AUDITOR_UID_LOGIN_SCHEMA_MISSING');
   const auditors=av.slice(1).filter(x=>val(x,emailCol)).map(x=>({uid:val(x,uidCol),email:val(x,emailCol)}));
@@ -373,7 +373,7 @@ function actorAllowedActions(c){
 async function auditorOpenRead(email){
   const t=Date.now(),actorEmail=clean(email).toLowerCase();
   const versioned=process.env.AMS_AUDITOR_UID_ROTATION_READ_ENABLED==='true',ranges=['Audit planning!A1:AX483','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:AZ256','Log realized audits!A1:AZ2048'];
-  if(versioned)ranges.push('Auditor_Identity_Versions!A1:E2000');
+  if(versioned)ranges.push('Auditor_Identity_Versions!A1:P2000');
   const vr=await sheetsBatchGet(ranges);
   const ap=vr[0]?.values||[],scv=vr[1]?.values||[],companies=vr[2]?.values||[],aud=vr[3]?.values||[],log=vr[4]?.values||[],catalog=scopeCatalog(scv),versions=versioned?rotationIdentityVersions(vr[5]?.values||[]):null,identityMap=versioned?rotationAuditorMap(aud,versions):null,actorUid=identityMap?rotationResolveAuditor(identityMap,actorEmail):null;
   const base=managerOpen(ap,'',scv,companies,aud),rows=[];
@@ -413,7 +413,7 @@ async function managerArchivedRead(email){const t=Date.now(),vr=await sheetsBatc
 
 async function auditorArchivedRead(email){
   const t=Date.now(),actorEmail=clean(email).toLowerCase(),versioned=process.env.AMS_AUDITOR_UID_ROTATION_READ_ENABLED==='true',ranges=['Log realized audits!A1:AZ2048','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:AZ256'];
-  if(versioned)ranges.push('Auditor_Identity_Versions!A1:E2000');
+  if(versioned)ranges.push('Auditor_Identity_Versions!A1:P2000');
   const vr=await sheetsBatchGet(ranges),aud=vr[3]?.values||[],out=managerArchived(vr[0]?.values||[],'',vr[1]?.values||[],vr[2]?.values||[],aud);
   const identityMap=versioned?rotationAuditorMap(aud,rotationIdentityVersions(vr[4]?.values||[])):null;
   const actorUid=identityMap?rotationResolveAuditor(identityMap,actorEmail):null;
@@ -463,7 +463,7 @@ function rotationResolveAuditor(map,raw){
 }
 function rotationIdentityVersions(values){
   if(!values?.length)throw Error('ROTATION_IDENTITY_VERSIONS_MISSING');
-  const h=values[0],u=col(h,['Auditor_UID','Auditor UID']),e=col(h,['Email','E-mail']),f=col(h,['Valid_From_UTC','Valid from UTC']),t=col(h,['Valid_To_UTC','Valid to UTC']),st=col(h,['State','Status']);
+  const h=values[0],u=col(h,['Auditor_UID','Auditor UID']),e=col(h,['Email_Normalized','Email','E-mail']),f=col(h,['Valid_From_UTC','Valid from UTC']),t=col(h,['Valid_To_UTC','Valid to UTC']),st=col(h,['State','Status']);
   if([u,e,f,t,st].some(x=>x<0))throw Error('ROTATION_IDENTITY_VERSIONS_SCHEMA_INVALID');
   return values.slice(1).filter(r=>val(r,u)||val(r,e)).map(r=>({uid:val(r,u),email:val(r,e),validFrom:val(r,f),validTo:val(r,t),state:val(r,st)}));
 }
@@ -481,7 +481,7 @@ function rotationReadFromLoaded(auditId,auditorEmail,ap,aud,scv,log,identityVers
 async function directRotationRead(auditId,auditorEmail){
   const versioned=process.env.AMS_AUDITOR_UID_ROTATION_READ_ENABLED==='true';
   const ranges=['Audit planning!A1:AX483','Auditors!A1:AZ256','Config_Scopes!A1:Z128','Log realized audits!A1:AZ2048'];
-  if(versioned)ranges.push('Auditor_Identity_Versions!A1:E2000');
+  if(versioned)ranges.push('Auditor_Identity_Versions!A1:P2000');
   const vr=await sheetsBatchGet(ranges);
   return rotationReadFromLoaded(auditId,auditorEmail,vr[0]?.values||[],vr[1]?.values||[],vr[2]?.values||[],vr[3]?.values||[],versioned?rotationIdentityVersions(vr[4]?.values||[]):null);
 }

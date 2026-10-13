@@ -105,7 +105,11 @@ async function auditorIdentityReadinessRead(){
   if(!logs.length||le<0)throw Error('IDENTITY_HISTORICAL_AUDIT_SCHEMA_MISSING');
   let historicalUnresolved=0,historicalConflicts=0,historicalChecked=0;
   for(const row of logs.slice(1)){const raw=val(row,le),uid=val(row,lu);if(!row.some(x=>clean(x)))continue;historicalChecked++;if(!raw&&!uid){historicalUnresolved++;continue;}let resolved='';try{resolved=raw?rotationResolveAuditor(map,raw):'';}catch{historicalUnresolved++;continue;}if(uid&&(!map.byUid.has(uid)||(resolved&&resolved!==uid)))historicalConflicts++;else if(!uid&&!resolved)historicalUnresolved++;}
-  return{ok:true,backfill:{total:backfill.total,existing:backfill.existing,missing:0},...readiness,ready:readiness.ready&&!historicalUnresolved&&!historicalConflicts,historical:{checked:historicalChecked,unresolved:historicalUnresolved,conflicts:historicalConflicts}};
+  const plans=vr[3]?.values||[],ph=plans[0]||[],pe=col(ph,['Assigned to']),pu=col(ph,['Auditor_UID','Auditor UID']);
+  if(!plans.length||pe<0||pu<0)throw Error('IDENTITY_PLANNING_SCHEMA_MISSING');
+  let planningChecked=0,planningConflicts=0;
+  for(const row of plans.slice(1)){const email=val(row,pe),uid=val(row,pu);if(!email&&!uid)continue;planningChecked++;let resolved='';try{resolved=rotationResolveAuditor(map,email);}catch{planningConflicts++;continue;}if(!uid||resolved!==uid)planningConflicts++;}
+  return{ok:true,backfill:{total:backfill.total,existing:backfill.existing,missing:0},...readiness,ready:readiness.ready&&!historicalUnresolved&&!historicalConflicts&&!planningConflicts,historical:{checked:historicalChecked,unresolved:historicalUnresolved,conflicts:historicalConflicts},planning:{checked:planningChecked,conflicts:planningConflicts}};
 }
 async function validateVersionedAuditorLogin(email){
   if(process.env.AMS_AUDITOR_UID_LOGIN_ENABLED!=='true')return{ok:true};

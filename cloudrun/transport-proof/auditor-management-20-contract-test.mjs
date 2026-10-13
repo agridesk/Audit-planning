@@ -66,6 +66,9 @@ assert.ok(ui.includes("feedback.textContent='Qualification added'"),'Addition sa
 assert.ok(server.includes('const reviewed=input?.confirmedAuditIds'),'Qualification impact concurrency guard');
 assert.ok(ui.includes('confirmedAuditIds:impactedIds'),'Reviewed audit IDs submitted');
 assert.ok(server.includes('qualificationConflicts=linkedAudits.filter'),'Linked audit qualification conflicts calculated');
+assert.ok(server.includes('def?.slotKey'),'Qualification conflict matching includes canonical slot key');
+assert.ok(ui.includes('use Transfer for each audit below'),'Removal guides immediate transfer');
+
 assert.ok(ui.includes('a.qualificationConflictCount'),'Conflicts surfaced in Manager UI');
 assert.ok(server.includes("'/api/v1/manager/auditor-management/audit/transfer'"),'Manager transfer endpoint');
 assert.ok(server.includes("error:'TRANSFER_TARGET_NOT_QUALIFIED'"),'Transfer qualification hard guard');

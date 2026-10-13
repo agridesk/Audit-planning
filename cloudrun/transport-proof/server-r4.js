@@ -2350,6 +2350,16 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     }catch(e){return send(res,500,{ok:false,error:'SCOPE_READ_FAILED',detail:clean(e?.message||e)});}
   }
   if(u.pathname==='/api/v1/manager/open'&&req.method==='GET'){const s=await sessionFromRequestValidated(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});const role=clean(s.role).toLowerCase();if(!['manager','auditor'].includes(role))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});try{return send(res,200,role==='auditor'?await auditorOpenRead(clean(s.email).toLowerCase()):await managerOpenRead(clean(s.email).toLowerCase()));}catch(e){return send(res,500,{ok:false,error:'OPEN_GRID_READ_FAILED',detail:clean(e?.message||e)});}}
+  if(u.pathname==='/api/v1/internal/dev-auditor-uid'&&req.method==='POST'){
+    if(process.env.AMS_RUNTIME_ENV!=='DEV'||!sessionConfigured())return send(res,404,{ok:false,error:'NOT_FOUND'});
+    if(!safeEq(clean(req.headers['x-ams-internal-secret']),SESSION_SECRET))return send(res,403,{ok:false,error:'FORBIDDEN'});
+    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});}
+    let body;try{body=JSON.parse(raw);}catch{return send(res,400,{ok:false,error:'BAD_JSON'});}
+    const email=clean(body?.email).toLowerCase();
+    if(!email||email!==clean(process.env.AMS_DEV_AUDITOR_EMAIL).toLowerCase())return send(res,403,{ok:false,error:'DEV_AUDITOR_NOT_CONFIGURED'});
+    try{const result=await validateVersionedAuditorLogin(email);return result.ok&&result.uid?send(res,200,{ok:true,auditorUid:result.uid}):send(res,409,{ok:false,error:result.error||'AUDITOR_UID_UNAVAILABLE'});}
+    catch(e){return send(res,503,{ok:false,error:'AUDITOR_IDENTITY_LOOKUP_FAILED',detail:clean(e.message)});}
+  }
   if(u.pathname==='/api/v1/session'&&req.method==='GET'){if(req.headers.origin&&(!ORIGIN||req.headers.origin!==ORIGIN))return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});const s=await sessionFromRequestValidated(req);return s?send(res,200,{ok:true,identity:{email:s.email,role:s.role},expiresAt:s.exp}):send(res,401,{ok:false,error:'SESSION_REQUIRED'});}
   if(u.pathname!=='/api/v1/planning/workspace'||req.method!=='GET')return send(res,404,{ok:false,error:'NOT_FOUND'});
   const session=await sessionFromRequestValidated(req);if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(!['manager','auditor'].includes(clean(session.role).toLowerCase()))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});

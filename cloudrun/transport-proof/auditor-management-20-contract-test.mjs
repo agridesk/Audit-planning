@@ -122,7 +122,7 @@ assert.ok(ui.includes("editable('Departure from','Default departure from',a.home
 assert.ok(ui.includes("card.textContent=date+' · '+action+' · '+description"),'History renders one compact line per event');
 assert.ok(server.includes('await sheetsAtomicAuditorCreate(row,versionRow)'),'New auditor atomically writes profile and UID version ledger');
 assert.ok(server.includes('const newUid=randomUUID(),versionId=randomUUID()'),'New auditor receives immutable UUID and independent version ID');
-assert.ok(server.includes("if(newEmail!==email){const readiness=await auditorIdentityReadinessRead();return send(res,409,{ok:false,error:'AUDITOR_EMAIL_REKEY_REQUIRES_REFERENCE_MIGRATION'"),'Email changes fail closed and report live UID identity readiness');
+assert.ok(server.includes('if(newEmail!==email){')&&server.includes('const readiness=await auditorIdentityReadinessRead();')&&server.includes("error:'AUDITOR_EMAIL_REKEY_REQUIRES_REFERENCE_MIGRATION'")&&server.includes('transitionReady'),'Email changes fail closed after live UID and transition validation');
 assert.ok(server.includes("const identity={email,name:val(r,n),uid:uid||''}"),'Rotation identity reads stable UID when available');
 assert.ok(server.includes("return a?(a.uid||a.email):v;"),'Rotation uses UID with legacy email fallback');
 assert.ok(server.includes("ROTATION_DUPLICATE_AUDITOR_UID"),'Duplicate UID is rejected in rotation');

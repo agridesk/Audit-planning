@@ -1523,14 +1523,14 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       const aliases=[scopeCode,clean(sr[sdi]),clean(sr[slot])].filter(Boolean),scopeColumns=aliases.map(x=>col(ph,[x])).filter(i=>i>=0);
       // Changes to qualifications with any linked unfinished audit are governed later by an assignment-impact migration.
       // The fail-closed guard also applies to additions: an uncertain existing assignment never becomes silently valid.
-      if(scopeColumns.length===0)return send(res,409,{ok:false,error:'QUALIFICATION_IMPACT_SCHEMA_UNRESOLVED'});
+      if(!qualified&&scopeColumns.length===0)return send(res,409,{ok:false,error:'QUALIFICATION_IMPACT_SCHEMA_UNRESOLVED'});
       const impacts=ap.slice(1).filter(row=>{
         const status=clean(row[statusCol]).toUpperCase().replace(/[\s-]+/g,'_');
         if(!['PENDING_PLANNING','PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(status))return false;
         if(!scopeColumns.some(i=>yes(row[i])))return false;
         return directResolveAuditorEmail(av,val(row,ai))===email||directResolveAuditorEmail(av,val(row,pi))===email;
       });
-      if(impacts.length)return send(res,409,{ok:false,error:'QUALIFICATION_IMPACT_APPROVAL_REQUIRED',affected:impacts.length});
+      if(!qualified&&impacts.length)return send(res,409,{ok:false,error:'QUALIFICATION_IMPACT_APPROVAL_REQUIRED',affected:impacts.length});
       let n=fieldIndex+1,letter='';while(n){n--;letter=String.fromCharCode(65+n%26)+letter;n=Math.floor(n/26)}
       const now=new Date().toISOString(),trailId=createHash('sha256').update(now+email+scopeCode).digest('hex').slice(0,24),payload=JSON.stringify({trailId,auditorEmail:email,actor:clean(actor.email),scopeCode,old,newValue:qualified?'x':''});
       await sheetsValuesAppend('Diagnostics_Log!A:K',[[now,'AUDITOR_MANAGEMENT_2_0','QUALIFICATION_EDIT',email,'CHANGE_INTENT',clean(actor.email),'','',false,'No linked open audits; verified before write',payload]]);

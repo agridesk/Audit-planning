@@ -133,4 +133,7 @@ assert.ok(server.includes('rotationReadFromLoaded(auditId,email,ap,av,sc,log,ver
 assert.ok(server.includes('IDENTITY_HISTORICAL_AUDIT_SCHEMA_MISSING'),'UID readiness requires historical audit log');
 assert.ok(server.includes('historicalUnresolved'),'UID readiness checks historical unresolved aliases');
 assert.ok(server.includes('historicalConflicts'),'UID readiness checks conflicting historical UID ownership');
+const docker=readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
+assert.ok(docker.includes('COPY auditor-identity-versions.js ./'),'UID resolver packaged in Cloud Run');
+assert.ok(docker.includes('COPY auditor-uid-backfill-preview.js ./'),'UID migration preview packaged in Cloud Run');
 console.log('Auditor Management 2.0 profile edit contract PASS');

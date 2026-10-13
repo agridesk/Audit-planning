@@ -206,5 +206,17 @@ assert.equal(effectiveGuard([],'2026-10-15').ok,false);
 assert.equal(v211QualificationWithdrawalConstraint({auditorValues:withdrawalAuditors,catalog:withdrawalCatalog,scopeCodes:['MPS-GAP'],auditorEmail:'leen@agriqa.es',nowDate:'2026-10-16'}).ok,true);
 const badWithdrawalAuditors=withdrawalAuditors.map(x=>[...x]);badWithdrawalAuditors[1][5]='not-json';
 assert.equal(v211QualificationWithdrawalConstraint({auditorValues:badWithdrawalAuditors,catalog:withdrawalCatalog,scopeCodes:['MPS-ABC'],auditorEmail:'leen@agriqa.es',nowDate:'2026-10-16'}).ok,false);
+for(const malformed of [
+ {scopeCode:'MPS-ABC',effectiveDate:'2026-02-30',grandfatheredAuditIds:['A-1']},
+ {scopeCode:'MPS-ABC',effectiveDate:'2026-10-15'},
+ {scopeCode:'MPS-ABC',effectiveDate:'2026-10-15',grandfatheredAuditIds:['A-1','A-1']},
+ {scopeCode:'MPS-ABC',effectiveDate:'2026-10-15',grandfatheredAuditIds:[null]}
+]){
+ const rows=withdrawalAuditors.map(row=>[...row]);rows[1][5]=JSON.stringify([malformed]);
+ const check=v211QualificationWithdrawalConstraint({auditorValues:rows,catalog:withdrawalCatalog,scopeCodes:['MPS-ABC'],auditorEmail:'leen@agriqa.es',nowDate:'2026-10-01'});
+ assert.equal(check.ok,false,'Malformed future withdrawal policy must fail closed');
+ assert.ok(check.reasons.includes('QUALIFICATION_WITHDRAWAL_SCHEMA_INVALID'));
+}
+
 
 console.log(JSON.stringify({ok:true,build:'2026-10-04_ASSIGNMENT_VALIDATION_V211_TEST_R2',tests:13}));

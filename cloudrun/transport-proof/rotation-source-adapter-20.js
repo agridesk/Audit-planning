@@ -13,7 +13,7 @@ function canonicalRotationContexts(input){
   if((p.rotationApplies!==false&&(!Number.isInteger(p.normalMaximum)||p.normalMaximum<1))||typeof p.extensionPermitted!=='boolean')throw Error('ROTATION_SCOPE_POLICY_INVALID');
   const hist=consecutiveCompleted(completedAudits,companyUid,p.scopeKey,auditorUid);
   const exceptions=approvedExceptions.filter(x=>x.companyUid===companyUid&&x.scopeKey===p.scopeKey&&x.auditorUid===auditorUid&&x.status==='APPROVED');
-  if(exceptions.some(x=>!x.auditId||!x.justification||!x.approvedByManagerUid))throw Error('ROTATION_EXCEPTION_AUDIT_TRAIL_INCOMPLETE');
+  if(exceptions.some(x=>!x.auditId||!x.justification||!x.approvedByManagerUid||typeof x.justification!=='string'||!x.justification.trim()||typeof x.approvedByManagerUid!=='string'||!x.approvedByManagerUid.trim()))throw Error('ROTATION_EXCEPTION_AUDIT_TRAIL_INCOMPLETE');
   const seriesExceptions=exceptions.filter(x=>hist.auditIds.includes(x.auditId));
   if(seriesExceptions.length>1)throw Error('ROTATION_MULTIPLE_PLUS_ONE_APPROVALS');
   if(assignmentAuditId&&exceptions.filter(x=>x.auditId===assignmentAuditId).length>1)throw Error('ROTATION_DUPLICATE_ASSIGNMENT_APPROVAL');

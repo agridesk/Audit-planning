@@ -1,0 +1,59 @@
+AMS AUTHENTICATION 2.0 — SECURITY MIGRATION CONTRACT
+Date: 2026-10-14
+Status: PROPOSED ENGINEERING CONTRACT / NOT DEPLOYED
+Working branch: feature/auth-login-2-0-20261014
+PROD: NO CHANGES WITHOUT EXPLICIT AUTHORIZATION
+
+1. VERIFIED CURRENT IMPLEMENTATION
+- LoginV5.html routes by URL action and currently appends raw authentication tokens and device identifiers as GET query parameters.
+- EntryV5.js and EntryBootstrapV5.html accept these parameters and resolve existing role-specific portal routes.
+- AuthService.js hashes OTP values before verification (Code_Hash), and stores SHA-256 token hashes in Auditor_Tokens.
+- OTP is 6 digits, single use, with 10-minute TTL; trusted token duration is 14 days, ordinary session 2 hours.
+- DEV bypass exists with static test credentials and canonical runtime DEV guard.
+- Current code must not be described as storing plaintext OTPs; Code_Hash already exists.
+- Authentication data must never be written to URL query, browser console, logging or diagnostics in the target system.
+
+2. SECURITY DECISION
+Keep one passwordless OTP login and one canonical identity/token validator. Do not introduce a password flow or independent Cloud Run auth engine.
+The existing query-token bootstrap is a legacy compatibility pathway and must be replaced using a coordinated, tested transport migration. Removing URL parameters from LoginV5.html alone would break EntryBootstrapV5.html and EntryV5.js.
+
+3. REQUIRED TRANSPORT DESIGN GATE
+First establish a same-origin/hosting contract across GAS HtmlService, Google script iframe, Cloud Run Manager shell and Auditor shell.
+Preferred session conveyance where supported: Secure, HttpOnly, SameSite cookie on the application origin, issued by an authenticated backend exchange and validated on every protected request.
+If GAS iframe/cross-origin constraints prevent that contract, use a one-time short-lived, audience-bound opaque handoff ticket (not a reusable auth token) and perform a server-verified exchange; ensure URL tickets have strict TTL, single use, role/audience binding, redaction and no reusable token exposure.
+Do not claim HttpOnly cookies are possible across the existing GAS/Cloud Run origins without verifying the actual deployment topology.
+The result must not rely on a client-supplied role, identity or untrusted redirect URL for authorization.
+
+4. DEV / PROD ISOLATION
+Keep all changes on the separate authentication branch until My Availability and Rotation changes have been deployed and are verified on dev.
+Before any merge, rebase on current dev and redo tests against latest portal/availability/rotation integration.
+PROD must reject DEV bypass even when requests or URLs are manipulated.
+Replace static hardcoded DEV bypass secrets with runtime-gated short-lived impersonation/test sessions after the transport migration.
+
+5. ROLE AND DESTINATION
+Manager default = Manager Open Audits Grid 2.0.
+Auditor default = own Open Audits Grid 2.0.
+Preserve only authorized internal deep links; deny cross-role access server-side.
+Invalid, absent or expired deep link falls back to appropriate role-specific Grid.
+Never expose another Auditor's audit data through UI or API.
+
+6. MIGRATION & ACCEPTANCE GATES
+A. Validate current session and trust/expiry/device contract before choosing secure bootstrap mechanism.
+B. Implement new transport and server-side exchange with anti-replay, audit trail, revocation and controlled expiry.
+C. Switch both role portals atomically/compatibly; retain a short migration window for existing sessions if safe and approved.
+D. Test no authentication token in browser address bar, history, Referrer, logs and application diagnostic output.
+E. Test OTP expiry/reuse, duplicate sends, delayed mail, wrong email, role mismatch, device mismatch and race conditions.
+F. Test DEV shortcut, PROD hard block, both default Grid destinations, authorized and unauthorized deep links.
+G. Test refresh, browser Back, logout, token revoke, trusted versus short sessions and concurrent sessions.
+H. Test direct entry via Manager and Auditor URLs plus availability and rotation read surfaces.
+I. DEV functional acceptance and explicit approval before any PROD deployment.
+
+7. CURRENT BRANCH FIXES
+- Correct default Auditor routing to auditorgrid2.
+- Change-email flow, duplicate send prevention and stale RPC rejection.
+- Guard OTP verification against wrong requested email.
+- Validate device identifier before consuming a valid OTP.
+These are branch-only source changes; no deployment or browser acceptance is implied.
+
+8. RELEASE NO-GO
+Never merge a partial token-transport change that leaves any protected route inaccessible or introduces a reusable token in URLs. Never modify My Availability / Rotation files as a side effect of this work.

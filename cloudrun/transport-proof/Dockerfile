@@ -28,6 +28,7 @@ COPY server-r12.js ./
 COPY server-r15.js ./
 COPY availability-*.js ./
 COPY availability-manager-calendar-20.html ./
+COPY availability-my-calendar-20.html ./
 COPY scheduling-delta-test.mjs ./
 COPY manager-portal.html ./
 COPY manager-portal.js ./

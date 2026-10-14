@@ -1,6 +1,6 @@
 'use strict';
-const {canonicalRotationContexts}=require('./rotation-source-adapter-20');
-const {preassignmentRotationDecision}=require('./rotation-preassignment-20');
+const {canonicalRotationContexts}=require('./rotation-source-adapter-20.cjs');
+const {preassignmentRotationDecision}=require('./rotation-preassignment-20.cjs');
 // Canonical writers must call this inside their write lock with server-loaded data.
 // Never accept client-provided completed history, policy or manager approval.
 async function enforceRotationAtWrite20({loadCanonical,phase,companyUid,auditorUid,auditId}={}){

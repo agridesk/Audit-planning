@@ -13,7 +13,7 @@ const source=n=>({scopeRows,completedRows:history(n),approvedExceptions:[],assig
  await assert.rejects(gate({...args,phase:'PREASSIGN',loadSheets:async()=>source(3)}),/ROTATION_WRITE_BLOCKED/);
  await assert.rejects(gate({...args,loadSheets:async()=>({...source(2),scopeRows:scopeRows.map((row,i)=>i===1?[...row.slice(0,2),'',...row.slice(3)]:row)})}),/ROTATION_POLICY_MAXIMUM_UNRESOLVED/);
  await assert.rejects(gate({...args,loadSheets:async()=>({...source(2),approvedExceptions:null})}),/ROTATION_AMS_SERVER_SOURCES_MISSING/);
- await assert.rejects(gate({...args,scopeKeys:['UNKNOWN'],loadSheets:async()=>source(2)}),/ROTATION_AMS_SCOPE_POLICY_NOT_FOUND/);
+ await assert.rejects(gate({...args,scopeKeys:['UNKNOWN'],loadSheets:async()=>({...source(2),assignmentScopeKeys:['UNKNOWN']})}),/ROTATION_AMS_SCOPE_POLICY_NOT_FOUND/);
  await assert.rejects(gate({...args,scopeKeys:['CODE_1','CODE_1'],loadSheets:async()=>source(2)}),/ROTATION_AMS_WRITE_CONTEXT_INVALID/);
  await assert.rejects(gate({...args,loadSheets:async()=>({...source(2),completedRows:history(2).map((row,i)=>i===1?[...row.slice(0,-1),'']:row)})}),/ROTATION_AMS_AUDITOR_UID_UNRESOLVED/);
   await assert.rejects(gate({...args,loadSheets:async()=>({...source(2),assignmentScopeKeys:['CODE_2']})}),/ROTATION_AMS_ASSIGNMENT_SCOPE_MISMATCH/);

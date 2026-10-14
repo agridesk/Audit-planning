@@ -55,7 +55,7 @@ export function createAvailabilityHttpRouter({service,resolveIdentity,listAudito
     result=await service.managerOverview({actor,auditorIds:ids,fromDate,toDate,displayNames:Object.fromEntries(ids.map(id=>[id,allowed.get(id)]))});
    }
    reply(res,200,{success:true,...result});
-  }catch(e){const message=clean(e?.message)||'INTERNAL_ERROR';const status=message==='REQUEST_TOO_LARGE'?413:errorStatus(message);reply(res,status,{success:false,error:status===500?'INTERNAL_ERROR':message,...(status===403?{diagnosticStage:stage}:{})});}
+  }catch(e){const message=clean(e?.message)||'INTERNAL_ERROR';const status=message==='REQUEST_TOO_LARGE'?413:errorStatus(message);if(status===500)console.error('Availability 2.0 backend failure:',message);reply(res,status,{success:false,error:status===500?'INTERNAL_ERROR':message,...(status===403?{diagnosticStage:stage}:{})});}
   return true;
  };
 }

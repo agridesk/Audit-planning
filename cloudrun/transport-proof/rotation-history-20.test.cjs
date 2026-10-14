@@ -10,4 +10,6 @@ assert.deepEqual(consecutiveCompleted(history,'C1','S1','A').auditIds,['4','3'])
 assert.equal(consecutiveCompleted([],'C1','S1','A').count,0);
 assert.throws(()=>consecutiveCompleted([...history,row('4','A','2026-02-01')],'C1','S1','A'),/DUPLICATE/);
 assert.throws(()=>consecutiveCompleted([row('7','A','bad')],'C1','S1','A'),/INCOMPLETE/);
-console.log('7 history assertions passed');
+assert.equal(consecutiveCompleted([row('a','A','2026-01-01'),row('b','B','2026-02-01'),row('c','A','2026-03-01')],'C1','S1','A').count,1);
+assert.deepEqual(consecutiveCompleted([row('a','A','2026-01-01'),row('b','A','2026-02-01'),row('c','A','2026-03-01')],'C1','S1','A').auditIds,['c','b','a']);
+console.log('9 history assertions passed');

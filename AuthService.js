@@ -241,6 +241,8 @@ var V5_AUTH = (function () {
     var user = findUserByEmail_(email);
     if (!user || user.role !== role) return { ok: false, error: "ROLE_OR_EMAIL_INVALID" };
     if (!code || !/^\d{6}$/.test(code)) return { ok: false, error: "INVALID_CODE_FORMAT" };
+    deviceId = String(deviceId || "").trim();
+    if (!deviceId) return { ok: false, error: "MISSING_DEVICE_ID" };
 
     var lock = LockService.getScriptLock();
     lock.waitLock(10000);
@@ -251,9 +253,6 @@ var V5_AUTH = (function () {
     } finally {
       try { lock.releaseLock(); } catch (eLock) {}
     }
-
-    deviceId = String(deviceId || "").trim();
-    if (!deviceId) return { ok: false, error: "MISSING_DEVICE_ID" };
 
     var now = new Date();
     var rawToken = generateToken_();

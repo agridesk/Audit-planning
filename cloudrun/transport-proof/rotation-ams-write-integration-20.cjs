@@ -1,6 +1,6 @@
 'use strict';
-const {loadAmsRotationBundle20}=require('./rotation-ams-canonical-bundle-20');
-const {enforceRotationAtWrite20}=require('./rotation-write-gate-20');
+const {loadAmsRotationBundle20}=require('./rotation-ams-canonical-bundle-20.cjs');
+const {enforceRotationAtWrite20}=require('./rotation-write-gate-20.cjs');
 // The caller MUST execute this function inside the existing canonical writer lock.
 // loadSheets MUST read both sheets fresh while holding that same lock.
 // A read-only preview or a client payload is not an authorization.

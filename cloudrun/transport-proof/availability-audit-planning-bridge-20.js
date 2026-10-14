@@ -26,7 +26,7 @@ export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDa
   if(!email||!lookup.has(email))continue; // Unresolved historical assignments cannot reserve a known auditor UID.
   let parsed;try{parsed=JSON.parse(raw);}catch{throw Error('AUDIT_PLANNING_JSON_INVALID');}
   const blocks=Array.isArray(parsed)?parsed:parsed?.blocks;
-  if(!Array.isArray(blocks)){console.error('AVAILABILITY_PLANNING_SHAPE_DIAGNOSTIC',JSON.stringify({sheetRow:rows.indexOf(row)+1,shape:Array.isArray(parsed)?'array':parsed===null?'null':typeof parsed,keys:parsed&&typeof parsed==='object'&&!Array.isArray(parsed)?Object.keys(parsed).slice(0,20):[],blocksType:typeof parsed?.blocks}));throw Error('AUDIT_PLANNING_BLOCKS_INVALID');}
+  if(!Array.isArray(blocks)){console.warn('AVAILABILITY_LEGACY_PLANNING_WITHOUT_BLOCKS',JSON.stringify({sheetRow:rows.indexOf(row)+1,shape:Array.isArray(parsed)?'array':parsed===null?'null':typeof parsed,keys:parsed&&typeof parsed==='object'&&!Array.isArray(parsed)?Object.keys(parsed).slice(0,20):[]}));continue;} // Same non-blocking legacy interpretation as canonical R4 blocks(raw).
   if(!blocks.length)continue; // Historical empty plans reserve no calendar time.
   for(const b of blocks){
    const d=norm(b?.date),start=norm(b?.start),end=norm(b?.end);

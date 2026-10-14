@@ -12,6 +12,7 @@ const entry = fs.readFileSync(path.join(root, 'EntryV5.js'), 'utf8');
 const bootstrap = fs.readFileSync(path.join(root, 'EntryBootstrapV5.html'), 'utf8');
 const cloudRun = fs.readFileSync(path.join(root, 'cloudrun/transport-proof/server-r4.js'), 'utf8');
 const cloudRunHandoff = fs.readFileSync(path.join(root, 'cloudrun/transport-proof/server-r5.js'), 'utf8');
+const auditorHandoff = fs.readFileSync(path.join(root, 'zzz_ExternalAuditorPlanningSessionHandoff.js'), 'utf8');
 
 const cases = [
   ['Auditor defaults to Grid 2.0', () => assert.match(login, /return r === "Auditor" \? "auditorgrid2" : "manager"/)],
@@ -25,6 +26,15 @@ const cases = [
   }],
   ['Redirect debug UI does not display token-bearing target', () => assert.match(login, /if \(targetDbg\) targetDbg\.textContent = ""/)],
   ['Backend DEV bypass has runtime guard', () => assert.match(entry, /if \(!V5_ENTRY_isDevEnv_\(\)\) return false/)],
+  ['Auditor Grid 2.0 DEV route validates before signed handoff', () => {
+    assert.match(auditorHandoff, /auditorSharedEntry=\(action==='planningworkspace'\|\|action==='auditorgrid2'\)/);
+    assert.match(auditorHandoff, /V5_AUTH\.validateTrustedTokenByRole\(token,'Auditor',device\)/);
+    assert.match(auditorHandoff, /return ExternalAuditorPlanningHandoff_renderPost_/);
+  }],
+  ['Auditor Grid 2.0 PROD route is implemented (release gate)', () => {
+    const main = entry.slice(entry.indexOf('function V5_ENTRY_renderApp('), entry.indexOf('function RUN_ENTRY_ENV_SMOKE('));
+    assert.match(main, /action==='auditorgrid2'/);
+  }],
   ['DEV Manager normal tokens use canonical validation', () => {
     assert.doesNotMatch(entry, /runtimeEnv === 'DEV' && action === 'manager' && expectedRole === 'Manager' && !V5_ENTRY_isTestBypass_/);
     assert.match(entry, /V5_AUTH\.validateTrustedTokenByRole\(token, expectedRole, device\)/);

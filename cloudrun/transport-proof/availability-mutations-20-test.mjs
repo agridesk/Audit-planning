@@ -27,4 +27,6 @@ fail({mutation:{action:'SET_RECURRING',recurring:[{weekday:7,wholeDay:true}]}},'
 fail({mutation:{action:'SET_RECURRING',recurring:[{weekday:2,start:'18:00',end:'08:00'}]}},'INVALID_RECURRING_TIME');
 fail({mutation:{action:'SET_RECURRING',recurring:[{weekday:2,start:'08:00',end:'08:00'}]}},'INVALID_RECURRING_TIME');
 fail({mutation:{action:'SET_RECURRING',recurring:[{weekday:2,start:'08:01',end:'12:00'},{weekday:1,wholeDay:true},{weekday:3,wholeDay:true},{weekday:4,wholeDay:true},{weekday:5,wholeDay:true},{weekday:6,wholeDay:true},{weekday:0,wholeDay:true},{weekday:0,wholeDay:true}]}},'INVALID_RECURRING');
+ok({mutation:{action:'SET_FREE_OVERRIDE',fromDate:'2026-10-17',toDate:'2026-10-17',wholeDay:true}},'SET_FREE_OVERRIDE');
+fail({mutation:{action:'SET_FREE_OVERRIDE',fromDate:'2026-10-18',toDate:'2026-10-17',wholeDay:true}},'INVALID_DATE_RANGE');
 console.log(`${n} mutation policy checks passed`);

@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {completedLogRows20:convert}=require('./rotation-log-adapter-20');
+const {completedLogRows20:convert}=require('./rotation-log-adapter-20.cjs');
 const header=['Audit_ID','Company_UID','Auditor_UID','Date','Status','Scopes'];
 const rows=[header,['A1','C1','U1','2026-01-10','Completed','S1, S2'],['A2','C1','U1','2026-03-10','Planned','S1']];
 const aliases={S1:'SCOPE_1',S2:'SCOPE_2'};

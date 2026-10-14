@@ -29,6 +29,7 @@ export function createAvailabilityService(adapter){
   next.metadata??={};next.metadata.changes??=[];
   if(action==='BLOCK_PERIOD')next.baselineExceptions.push(prepared.payload);
   else if(action==='RELEASE_BASELINE')next.baselineReleases.push(prepared.payload);
+  else if(action==='SET_RECURRING')next.recurring=prepared.payload;
   else if(action==='CONFIRM_AVAILABILITY'){
    next.metadata.confirmation={confirmedAt:now,fromDate:prepared.payload.fromDate,throughDate:prepared.payload.toDate,availabilityVersion:next.version,confirmedBy:str(actor.id)};
   }

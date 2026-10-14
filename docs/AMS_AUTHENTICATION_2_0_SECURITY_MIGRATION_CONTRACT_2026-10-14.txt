@@ -98,3 +98,11 @@ P1: Complete token revocation/logout and browser-back controls must be verified 
 - Auth-session policy module syntax checked with Node and six actual bounded-expiry scenarios executed successfully in a separate local validation harness on 2026-10-14.
 - Full repository npm test and browser-integrated GAS / Cloud Run acceptance not yet executed.
 - Browser GET redirect still transmits reusable token in LoginV5.html and therefore remains a hard release blocker, enforced by tests/auth-login-2-0-contract.test.mjs.
+
+14. ADDITIONAL RELEASE GATE: PROD AUDITOR GRID ROUTING
+- On this branch, LoginV5 default Auditor destination is auditorgrid2 for both DEV and PROD.
+- zzz_ExternalAuditorPlanningSessionHandoff.js overrides V5_ENTRY_resolve for auditorgrid2 and planningworkspace only in DEV; Cloud Run target is explicitly the DEV service.
+- Base V5_ENTRY_renderApp does not currently contain an auditorgrid2 branch. Outside DEV override it returns Unhandled action for that route.
+- The new PROD route regression gate therefore correctly fails until an authorized production-safe Grid 2.0 integration exists.
+- DO NOT make PROD silently use the DEV Cloud Run service. Do not substitute the legacy Auditor Portal as a claim of Grid 2.0 readiness.
+- On this feature branch, do not merge until explicit routing for both roles/environments has been integrated and tested.

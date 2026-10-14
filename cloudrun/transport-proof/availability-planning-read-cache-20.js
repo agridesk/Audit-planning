@@ -1,18 +1,17 @@
-/** Bounded, short-lived canonical planning read cache. DEV Availability 2.0. */
-export function createPlanningReadCache({load,ttlMs=10000,now=()=>Date.now()}={}){
- if(typeof load!=='function')throw Error('AVAILABILITY_PLANNING_LOADER_REQUIRED');
- if(!Number.isFinite(ttlMs)||ttlMs<0)throw Error('AVAILABILITY_CACHE_TTL_INVALID');
- let value=null,expires=0,inFlight=null;
- async function read(){
-  const t=now();
-  if(value!==null&&t<expires)return value;
+/** DEV-only bounded planning read cache. Mutations ALWAYS bypass cached data. */
+export function createPlanningReadCache({load,ttlMs=10000,clock=()=>Date.now()}={}){
+ if(typeof load!=='function'||!Number.isInteger(ttlMs)||ttlMs<0||ttlMs>30000)throw Error('INVALID_PLANNING_CACHE_CONFIGURATION');
+ let rows=null,until=0,inFlight=null;
+ async function read({fresh=false}={}){
+  if(fresh)return load();
+  if(rows&&clock()<until)return rows;
   if(inFlight)return inFlight;
-  inFlight=Promise.resolve().then(load).then(rows=>{
-   if(!Array.isArray(rows)||rows.length===0)throw Error('CANONICAL_PLANNING_INCOMPLETE');
-   value=rows;expires=now()+ttlMs;return rows;
-  }).finally(()=>{inFlight=null;});
-  return inFlight;
+  const pending=Promise.resolve().then(load).then(value=>{
+   if(!Array.isArray(value)||!value.length)throw Error('CANONICAL_PLANNING_INCOMPLETE');
+   rows=value;until=clock()+ttlMs;return value;
+  });
+  inFlight=pending;
+  try{return await pending;}finally{if(inFlight===pending)inFlight=null;}
  }
- function invalidate(){value=null;expires=0;}
- return {read,invalidate};
+ return Object.freeze({read});
 }

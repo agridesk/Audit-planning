@@ -6,7 +6,7 @@ function completedLogRowsFromAms20(values,{resolveAuditorUid,scopeByColumn}={}){
  const h=values[0].map(v=>String(v||'').trim().toLowerCase().replace(/[\s_-]/g,''));
  const index=(name)=>h.indexOf(name);
  const company=index('companyuid'),auditor=index('auditor'),auditorUidIndex=index('auditoruid'),status=index('status'),date=index('datecompleted'),audit=index('auditid');
- if([company,auditor,status,date,audit].some(i=>i<0))throw Error('ROTATION_AMS_REQUIRED_COLUMN_MISSING');
+ if([company,status,date,audit].some(i=>i<0)||(auditor<0&&auditorUidIndex<0))throw Error('ROTATION_AMS_REQUIRED_COLUMN_MISSING');
  const scopeColumns=Object.keys(scopeByColumn);
  if(!scopeColumns.length)throw Error('ROTATION_AMS_SCOPE_MAPPING_MISSING');
  const scopeIndexes=scopeColumns.map(name=>({i:index(name.toLowerCase().replace(/[\s_-]/g,'')),scopeKey:scopeByColumn[name]}));
@@ -15,9 +15,9 @@ function completedLogRowsFromAms20(values,{resolveAuditorUid,scopeByColumn}={}){
  for(const row of values.slice(1)){
   if(String(row[status]||'').trim().toLowerCase()!=='completed')continue;
   const companyUid=String(row[company]||'').trim(),auditId=String(row[audit]||'').trim(),completedAt=String(row[date]||'').trim(),rawAuditor=String(row[auditor]||'').trim();
-  if(!companyUid||!auditId||!completedAt||!rawAuditor||!Number.isFinite(Date.parse(completedAt)))throw Error('ROTATION_AMS_COMPLETED_ROW_INCOMPLETE');
+  if(!companyUid||!auditId||!completedAt||!Number.isFinite(Date.parse(completedAt)))throw Error('ROTATION_AMS_COMPLETED_ROW_INCOMPLETE');
   const storedAuditorUid=auditorUidIndex>=0?String(row[auditorUidIndex]||'').trim():'';
-  const auditorUid=storedAuditorUid||(typeof resolveAuditorUid==='function'?resolveAuditorUid(rawAuditor,completedAt):'');
+  const auditorUid=storedAuditorUid||(rawAuditor&&typeof resolveAuditorUid==='function'?resolveAuditorUid(rawAuditor,completedAt):'');
   if(typeof auditorUid!=='string'||!auditorUid.trim())throw Error('ROTATION_AMS_AUDITOR_UID_UNRESOLVED');
   if(auditOwner.has(auditId))throw Error('ROTATION_AMS_DUPLICATE_AUDIT_ID');
   auditOwner.set(auditId,true);

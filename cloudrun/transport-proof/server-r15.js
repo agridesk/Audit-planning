@@ -99,8 +99,7 @@ async function proxy(req,res){
 http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url||'/','http://localhost');
-  if(req.method==='GET'&&u.pathname==='/my-availability'){res.writeHead(308,{'location':'/my-availability-20','cache-control':'no-store'});res.end();return;}
-  if(req.method==='GET'&&u.pathname==='/my-availability-20'){
+  if(req.method==='GET'&&(u.pathname==='/my-availability'||u.pathname==='/my-availability-20')){
    const identity=await session(req);
    if(identity?.role==='manager'){res.writeHead(302,{'location':'/availability-manager-20','cache-control':'no-store'});res.end();return;}if(!identity||identity.role!=='auditor'){res.writeHead(identity?403:401,{'cache-control':'no-store'});res.end('Not authorized');return;}
    const {readFile}=await import('node:fs/promises');

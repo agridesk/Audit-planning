@@ -86,6 +86,13 @@ async function proxy(req,res){
 http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url||'/','http://localhost');
+  if(req.method==='GET'&&u.pathname==='/my-availability-20'){
+   const identity=await session(req);
+   if(!identity||identity.role!=='auditor'){res.writeHead(identity?403:401,{'cache-control':'no-store'});res.end('Not authorized');return;}
+   const {readFile}=await import('node:fs/promises');
+   const html=await readFile(new URL('./availability-my-calendar-20.html',import.meta.url));
+   res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(html);return;
+  }
   if(req.method==='GET'&&u.pathname==='/availability-manager-20'){
    const identity=await session(req);
    if(!identity||identity.role!=='manager'){res.writeHead(identity?403:401);res.end('Not authorized');return;}

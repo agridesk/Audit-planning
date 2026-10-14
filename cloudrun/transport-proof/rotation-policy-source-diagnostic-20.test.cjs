@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {inspectRotationPolicySource20:inspect}=require('./rotation-policy-source-diagnostic-20');
+const {inspectRotationPolicySource20:inspect}=require('./rotation-policy-source-diagnostic-20.cjs');
 // Contract names here are test-only placeholders, not a schema migration.
 const contract=['Rotation_Normal_Maximum','Rotation_Applies','Rotation_Plus_One_Permitted'];
 const h=['SlotKey','ScopeCode','Extension','Max number audits'];

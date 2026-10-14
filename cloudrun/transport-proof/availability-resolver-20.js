@@ -1,47 +1,38 @@
-// AMS Availability 2.0 — pure interval resolver. DEV source only.
-// Does not persist data, materialize days, or write committed planning.
-// All intervals are half-open [start,end). Times expressed as minutes since midnight.
-export const AV20_STATES=Object.freeze({FREE:'FREE',SOFT:'SOFT',HARD:'HARD',PROVISIONAL:'PROVISIONAL',COMMITTED:'COMMITTED'});
+/** AMS 2.0 bounded, pure availability resolution. Node >=20, no GAS. */
+export const AVAILABILITY_STATES=Object.freeze(['FREE','SOFT','PROVISIONAL','HARD','COMMITTED']);
 const rank={FREE:0,SOFT:1,PROVISIONAL:2,HARD:3,COMMITTED:4};
-function assertMinute(n){if(!Number.isInteger(n)||n<0||n>1440)throw Error('AV20_INVALID_MINUTE');return n;}
-export function av20ValidateInterval(x){
-  if(!x||!Object.prototype.hasOwnProperty.call(rank,x.state))throw Error('AV20_INVALID_STATE');
-  const start=assertMinute(x.start),end=assertMinute(x.end);
-  if(start>=end)throw Error('AV20_INVALID_INTERVAL');
-  return {...x,start,end};
-}
-export function av20ResolveDay(blocks=[]){
-  const source=blocks.map(av20ValidateInterval);
-  const cuts=[0,1440,...source.flatMap(b=>[b.start,b.end])].sort((a,b)=>a-b);
-  const edges=[...new Set(cuts)],out=[];
-  for(let i=0;i<edges.length-1;i++){
-    const start=edges[i],end=edges[i+1];
-    const covering=source.filter(b=>b.start<end&&start<b.end);
-    const winner=covering.reduce((a,b)=>rank[b.state]>rank[a.state]?b:a,{state:'FREE'});
-    const state=winner.state;
-    const conflicts=covering.some(b=>b.state==='HARD')&&covering.some(b=>b.state==='PROVISIONAL');
-    const last=out[out.length-1];
-    if(last&&last.end===start&&last.state===state&&last.provisionalConflict===conflicts)last.end=end;
-    else out.push({start,end,state,provisionalConflict:conflicts});
+const clean=x=>String(x??'').trim();
+function dateNumber(v){const s=clean(v);if(!/^\d{4}-\d{2}-\d{2}$/.test(s)||!Number.isFinite(Date.parse(s+'T00:00:00Z'))||new Date(s+'T00:00:00Z').toISOString().slice(0,10)!==s)throw Error('INVALID_DATE');return Date.parse(s+'T00:00:00Z')/86400000;}
+function hhmm(v,allow24=false){const s=clean(v);if(allow24&&s==='24:00')return 1440;if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(s))throw Error('INVALID_TIME');return Number(s.slice(0,2))*60+Number(s.slice(3));}
+function format(n){return n===1440?'24:00':String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');}
+function normalize(x){if(!x||!Object.hasOwn(rank,x.state)||x.state==='FREE')throw Error('INVALID_STATE');const from=dateNumber(x.fromDate??x.date),to=dateNumber(x.toDate??x.fromDate??x.date);if(from>to)throw Error('INVALID_RANGE');const start=x.wholeDay===true?0:hhmm(x.start),end=x.wholeDay===true?1440:hhmm(x.end,true);if(start>=end)throw Error('INVALID_INTERVAL');return {...x,from,to,startMinute:start,endMinute:end};}
+function recurringForDate(p,date,weekday){if(p.weekday!==weekday)return null;const x=normalize({...p,state:'SOFT',date});return {...x,from:dateNumber(date),to:dateNumber(date)};}
+/** Inputs: inclusive date bounds, concrete blocks, weekly preferences, concrete Available overrides.
+ * Source blocks must already be authorized and fetched from canonical owners.
+ * Does NOT write planning, grant eligibility, or claim to validate concurrency.
+ */
+export function resolveAvailabilityPeriod({fromDate,toDate,blocks=[],recurring=[],overrides=[]}={}){
+ const from=dateNumber(fromDate),to=dateNumber(toDate);if(to<from||to-from>92)throw Error('QUERY_RANGE_OUT_OF_BOUNDS');
+ const concrete=blocks.map(normalize),available=overrides.map(v=>normalize({...v,state:'SOFT'}));
+ const result=[];
+ for(let day=from;day<=to;day++){
+  const date=new Date(day*86400000).toISOString().slice(0,10),weekday=(new Date(day*86400000).getUTCDay()+6)%7;
+  const active=concrete.filter(x=>x.from<=day&&x.to>=day);
+  for(const pref of recurring){const p=recurringForDate(pref,date,weekday);if(!p)continue;
+   const boundaries=[p.startMinute,p.endMinute];
+   for(const v of available){if(v.from>day||v.to<day)continue;boundaries.push(Math.max(p.startMinute,Math.min(p.endMinute,v.startMinute)),Math.max(p.startMinute,Math.min(p.endMinute,v.endMinute)));}
+   const cuts=[...new Set(boundaries)].sort((a,b)=>a-b);
+   for(let i=1;i<cuts.length;i++){const a=cuts[i-1],b=cuts[i];if(a===b||available.some(v=>v.from<=day&&v.to>=day&&v.startMinute<b&&v.endMinute>a))continue;active.push({...p,startMinute:a,endMinute:b});}
   }
-  return out;
-}
-export function av20Overlaps(a,b){return a.start<b.end&&b.start<a.end;}
-export function av20CanPlan(blocks,start,end){
-  av20ValidateInterval({state:'FREE',start,end});
-  const resolved=av20ResolveDay(blocks);
-  const blocked=resolved.filter(b=>av20Overlaps(b,{start,end})&&(b.state==='HARD'||b.state==='COMMITTED'||b.state==='PROVISIONAL'));
-  return {allowed:blocked.length===0,blocked};
-}
-export function av20ApplyAvailableOverride(blocks=[],start=0,end=1440){
-  av20ValidateInterval({state:'FREE',start,end});
-  // An Available override suppresses recurring SOFT only; preserves all other states.
-  const kept=[];
-  for(const raw of blocks){
-    const b=av20ValidateInterval(raw);
-    if(b.state!=='SOFT'||!av20Overlaps(b,{start,end})){kept.push(b);continue;}
-    if(b.start<start)kept.push({...b,end:start});
-    if(b.end>end)kept.push({...b,start:end});
+  const edges=[...new Set([0,1440,...active.flatMap(x=>[x.startMinute,x.endMinute])])].sort((a,b)=>a-b),segments=[];
+  for(let i=1;i<edges.length;i++){const a=edges[i-1],b=edges[i];if(a===b)continue;
+   const matches=active.filter(x=>x.startMinute<b&&x.endMinute>a).sort((x,y)=>rank[y.state]-rank[x.state]);
+   const state=matches[0]?.state??'FREE';const ids=matches.filter(x=>x.state===state).map(x=>clean(x.id)).filter(Boolean).sort();
+   const last=segments.at(-1);if(last&&last.state===state&&JSON.stringify(last.sourceIds)===JSON.stringify(ids)){last.end=format(b);continue;}
+   segments.push({start:format(a),end:format(b),state,sourceIds:ids});
   }
-  return kept;
+  result.push({date,segments});
+ }
+ return result;
 }
+export function intervalsOverlap(a,b){const x=normalize(a),y=normalize(b);return x.from<=y.to&&y.from<=x.to&&x.startMinute<y.endMinute&&y.startMinute<x.endMinute;}

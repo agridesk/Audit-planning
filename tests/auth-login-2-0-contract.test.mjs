@@ -13,7 +13,7 @@ const bootstrap = fs.readFileSync(path.join(root, 'EntryBootstrapV5.html'), 'utf
 
 const cases = [
   ['Auditor defaults to Grid 2.0', () => assert.match(login, /return r === "Auditor" \? "auditorgrid2" : "manager"/)],
-  ['OTP submit remains six digits', () => assert.match(login, /\^\\d\{6\}\$/)],
+  ['OTP submit remains six digits', () => assert.ok(login.includes('if (!/^\\d{6}$/.test(code))'))],
   ['OTP verification is bound to code request email', () => assert.match(login, /email !== __requestedEmail/)],
   ['Stale send callbacks are ignored', () => assert.equal((login.match(/requestId !== __sendRequestId/g) || []).length, 3)],
   ['Duplicate OTP sends prevented', () => assert.match(login, /if \(__sendInFlight\) return/)],

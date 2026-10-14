@@ -14,7 +14,7 @@ export function prepareAvailabilityMutation({actor,targetAuditorId,expectedVersi
  if(!Number.isSafeInteger(expectedVersion)||expectedVersion<0||snapshot?.version!==expectedVersion)throw Error('VERSION_CONFLICT');
  if(!mutation||typeof mutation!=='object')throw Error('INVALID_MUTATION');
  const action=str(mutation.action),id=str(mutation.id),items=Array.isArray(snapshot?.baselineExceptions)?snapshot.baselineExceptions:[];
- if(!['BLOCK_PERIOD','RELEASE_BASELINE','CONFIRM_AVAILABILITY','SET_RECURRING'].includes(action))throw Error('UNSUPPORTED_ACTION');
+ if(!['BLOCK_PERIOD','RELEASE_BASELINE','CONFIRM_AVAILABILITY','SET_RECURRING','SET_FREE_OVERRIDE'].includes(action))throw Error('UNSUPPORTED_ACTION');
  if(!now||!Number.isFinite(Date.parse(now)))throw Error('INVALID_TIMESTAMP');
  let payload;
  if(action==='BLOCK_PERIOD'){
@@ -27,6 +27,11 @@ export function prepareAvailabilityMutation({actor,targetAuditorId,expectedVersi
   const baseline=items.find(x=>str(x.id)===str(mutation.targetExceptionId));if(!baseline)throw Error('BASELINE_NOT_FOUND');
   const w=windowOf(mutation);if(!contains(windowOf(baseline),w))throw Error('RELEASE_OUTSIDE_BASELINE');
   payload={id,targetExceptionId:str(mutation.targetExceptionId),fromDate:mutation.fromDate??mutation.date,toDate:mutation.toDate??mutation.fromDate??mutation.date,wholeDay:mutation.wholeDay===true,...(mutation.wholeDay===true?{}:{start:mutation.start,end:mutation.end})};
+ }else if(action==='SET_FREE_OVERRIDE'){
+  const w=windowOf(mutation);if(w.to-w.from>3660)throw Error('PERIOD_TOO_LONG');
+  const committed=(snapshot?.blocks||[]).filter(x=>['COMMITTED','PROVISIONAL'].includes(str(x.state)));
+  if(committed.some(x=>intersects(w,windowOf(x))))throw Error('AUDIT_CONFLICT');
+  payload={id,fromDate:mutation.fromDate??mutation.date,toDate:mutation.toDate??mutation.fromDate??mutation.date,wholeDay:mutation.wholeDay===true,...(mutation.wholeDay===true?{}:{start:mutation.start,end:mutation.end})};
  }else if(action==='SET_RECURRING'){
   if(!Array.isArray(mutation.recurring)||mutation.recurring.length>7)throw Error('INVALID_RECURRING');
   const seen=new Set();payload=[];

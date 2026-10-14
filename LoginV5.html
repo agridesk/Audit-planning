@@ -138,7 +138,7 @@
         <div>
           <label for="code">6-digit code</label>
           <input id="code" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" />
-          <div class="hint">Enter the code from your email.</div>
+          <div class="hint">Enter the code from your email. Valid for 10 minutes.</div>
         </div>
 
         <div style="padding-top: 22px;">
@@ -152,6 +152,7 @@
 
       <div class="row" style="margin-top: 12px;">
         <button class="btn" id="btnVerify" onclick="window.verifyCode()">Verify</button>
+        <button class="btn" type="button" id="btnChangeEmail" onclick="window.changeLoginEmail()">Change email</button>
       </div>
     </div>
 
@@ -226,6 +227,7 @@
   let __targetUrl = "";
   let __verifyInFlight = false;
   let __fallbackTimer = null;
+  let __sendInFlight = false;
 
   function setMsg(kind, text) {
     const el = document.getElementById("msg");
@@ -574,15 +576,18 @@
 
 
   function sendCode() {
+    if (__sendInFlight) return;
     clearMsg();
     const email = normEmail(document.getElementById("email").value);
     if (!email) return setMsg("err", "Please enter an email address.");
 
+    __sendInFlight = true;
     setBusy(true, "send");
     document.getElementById("sendHint").textContent = "Sending...";
 
     // Watchdog: prevent silent hangs if server never responds (cached HTML / wrong deployment URL)
     var wd = setTimeout(function() {
+      __sendInFlight = false;
       setBusy(false, "send");
       document.getElementById("sendHint").textContent = "";
       setMsg("err", "The login request is taking longer than expected. Please wait a moment or try again.");
@@ -591,6 +596,7 @@
 google.script.run
       .withSuccessHandler(function(res) {
         try { clearTimeout(wd); } catch(e) {}
+        __sendInFlight = false;
         setBusy(false, "send");
         document.getElementById("sendHint").textContent = "";
         if (!res || !res.ok) {
@@ -607,7 +613,7 @@ google.script.run
           const wait = res.retryAfterSeconds ? (" Wait " + res.retryAfterSeconds + " seconds before requesting another code.") : "";
           setMsg("ok", "A login code was already sent recently. Use the latest email you received." + wait + " If no email arrived, wait and press Send code again.");
         } else {
-          setMsg("ok", "Code sent. Please check your email.");
+          setMsg("ok", "Code requested. Check your email, including spam if necessary.");
         }
         document.getElementById("stepVerify").classList.remove("hidden");
         document.getElementById("code").focus();
@@ -619,6 +625,14 @@ google.script.run
         setMsg("err", "Server error while sending code: " + formatServerError(err));
       })
       .V5_requestLoginCode(email);
+  }
+
+  function changeLoginEmail() {
+    if (__verifyInFlight || __sendInFlight) return;
+    clearMsg();
+    document.getElementById("stepVerify").classList.add("hidden");
+    document.getElementById("code").value = "";
+    document.getElementById("email").focus();
   }
 
   function verifyCode() {
@@ -670,6 +684,7 @@ google.script.run
   // Ensure handlers are reachable from inline onclick in Apps Script HTML
   try {
     window.sendCode = sendCode;
+    window.changeLoginEmail = changeLoginEmail;
     window.verifyCode = verifyCode;
     window.continueToPortal = continueToPortal;
     window.continueTrusted = continueTrusted;

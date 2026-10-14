@@ -94,7 +94,8 @@ async function handleManagerSessionHandoff(req,res){
   let form;try{form=await readForm(req);}catch(err){return sendJson(res,413,{ok:false,error:clean(err&&err.message||err)});}
   const verified=verifyManagerSessionHandoff(form);if(!verified.ok)return sendJson(res,401,verified);
   if(SESSION_SECRET.length<32)return sendJson(res,500,{ok:false,error:'SESSION_SECRET_NOT_CONFIGURED'});
-  const token=issueSession(verified);res.writeHead(303,{'set-cookie':sessionCookie(token),'location':verified.location||'/','cache-control':'no-store','referrer-policy':'no-referrer'});return res.end();
+  const handoffTtlSeconds=2*60*60;
+  const token=issueSession(verified,handoffTtlSeconds);res.writeHead(303,{'set-cookie':sessionCookie(token,handoffTtlSeconds),'location':verified.location||'/','cache-control':'no-store','referrer-policy':'no-referrer'});return res.end();
 }
 async function sessionIdentity(req){
   const r=await fetch('http://127.0.0.1:'+INNER_PORT+'/api/v1/session',{method:'GET',headers:{cookie:clean(req.headers.cookie)},redirect:'manual'});

@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {preassignmentRotationDecision:d}=require('./rotation-preassignment-20');
+const {preassignmentRotationDecision:d}=require('./rotation-preassignment-20.cjs');
 const base={identityResolved:true,policyResolved:true,rotationApplies:true,consecutiveCompleted:3,normalMaximum:3,extensionPermitted:true,extensionUsedInSeries:false,managerApproved:false,assignmentBound:false,justification:''};
 function test(phase,changes,expected){assert.equal(d([{...base,...changes}],phase).decision,expected);}
 test('DRAFT',{},'WARN');

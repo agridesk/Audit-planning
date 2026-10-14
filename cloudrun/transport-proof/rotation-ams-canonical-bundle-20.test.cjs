@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {loadAmsRotationBundle20:load}=require('./rotation-ams-canonical-bundle-20');
+const {loadAmsRotationBundle20:load}=require('./rotation-ams-canonical-bundle-20.cjs');
 const slots=Array.from({length:8},(_,i)=>'SCOPE_0'+(i+1));
 const sh=['SlotKey','ScopeCode','Rotation_Normal_Maximum','Rotation_Applies','Rotation_Plus_One_Permitted'];
 const scopeRows=[sh,...slots.map((s,i)=>[s,'CODE_'+(i+1),'3','TRUE','FALSE'])];

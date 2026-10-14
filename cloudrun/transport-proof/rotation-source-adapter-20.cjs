@@ -1,6 +1,6 @@
 'use strict';
-const {consecutiveCompleted}=require('./rotation-history-20');
-const {evaluateCombinedRotation}=require('./rotation-policy-20');
+const {consecutiveCompleted}=require('./rotation-history-20.cjs');
+const {evaluateCombinedRotation}=require('./rotation-policy-20.cjs');
 // Explicit canonical input contract. Never infer missing UID or scope from a display name.
 function canonicalRotationContexts(input){
  const {companyUid,auditorUid,scopePolicies,completedAudits,approvedExceptions=[],assignmentAuditId}=input||{};

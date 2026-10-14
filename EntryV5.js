@@ -200,7 +200,6 @@ function V5_ENTRY_resolve(ctx) {
   var runtimeEnv = V5_ENTRY_captureEnv_(ctx); ctx.env=runtimeEnv;
   var action = V5_ENTRY_normAction_(ctx.action); var expectedRole = V5_ENTRY_expectedRole_(action, ctx.role);
   var email=String(ctx.email || '').trim().toLowerCase(); var token=String(ctx.trustedToken || ctx.token || '').trim(); var device=String(ctx.deviceFingerprint || ctx.deviceId || '').trim();
-  if (runtimeEnv === 'DEV' && action === 'manager' && expectedRole === 'Manager' && !V5_ENTRY_isTestBypass_(email, expectedRole, token, device)) return V5_ENTRY_renderLogin(action, expectedRole);
   if (!action || !expectedRole) return V5_ENTRY_renderLogin(action, expectedRole);
   if (!V5_ENTRY_isTestBypass_(email, expectedRole, token, device)) {
     var authRes=null; try { authRes=V5_AUTH.validateTrustedTokenByRole(token, expectedRole, device); } catch(errAuth) { return V5_ENTRY_renderLogin(action, expectedRole); }

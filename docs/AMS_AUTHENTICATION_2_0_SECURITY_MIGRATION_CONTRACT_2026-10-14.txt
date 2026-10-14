@@ -112,3 +112,12 @@ P1: Complete token revocation/logout and browser-back controls must be verified 
 - Cloud Run legacy token exchange now rejects empty stored device-hash rows and mismatches (commit c710920).
 - Auth contract test has a deliberate release gate for GAS and Cloud Run strict device binding (commit 6a0de8).
 - This is independent from the login URL transport and PROD Grid routing blockers; all must pass before merge.
+
+16. IMPLEMENTATION UPDATE (LATEST BRANCH TRUTH OVERRIDES OLDER OPEN-ISSUE PARAGRAPHS)
+- LoginV5 navigation now omits bearer token, trustedToken, email, role and device identifiers from redirect query parameters (commit 38d47d2).
+- GAS AuthService now rejects missing or mismatched stored device hashes (commit f9dd613).
+- Auditor Grid 2.0 handoff in PROD is now explicit: only action=auditorgrid2 with configured HTTPS AMS_AUDITOR_GRID2_PROD_HANDOFF_URL; the DEV endpoint is never reused as a PROD target (commit 6cf9aa9).
+- PROD handoff URL is intentionally not configured here. Deployment and canonical PROD endpoint/signing configuration remain future release prerequisites.
+- Two Cloud Run runtimes (server-r4 and signed handoff server-r5) now limit issued session lifetimes more strictly than the original 30-day design.
+- The new URL-free bootstrap needs browser acceptance because GAS HtmlService storage scoping/navigation was not runtime-verified.
+- Full npm test and DEV browser smoke are still required. No DEV or PROD deploy performed by this branch work.

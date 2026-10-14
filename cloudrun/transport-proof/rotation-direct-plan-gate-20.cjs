@@ -1,5 +1,5 @@
 'use strict';
-const {enforceAmsRotationAtWrite20}=require('./rotation-ams-write-integration-20');
+const {enforceAmsRotationAtWrite20}=require('./rotation-ams-write-integration-20.cjs');
 const clean=x=>String(x??'').trim();
 const norm=x=>clean(x).toLowerCase().replace(/[\s_-]/g,'');
 function uniqueIndex(headers,name){

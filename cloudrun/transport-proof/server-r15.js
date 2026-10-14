@@ -52,14 +52,15 @@ async function session(req){
  if(!r.ok)return null;
  const j=await r.json().catch(()=>null);
  if(j?.ok!==true||!j.identity?.email)return null;
- const records=await getRoster();const user=records.find(x=>x.email===String(j.identity.email).trim().toLowerCase());
- if(!user)return null;
- const role=String(j.identity.role||'').toLowerCase();
+ const role=String(j.identity.role||'').trim().toLowerCase();
  if(!['auditor','manager'].includes(role))return null;
- // The verified session is authoritative for the active role. The roster
- // resolves the stable auditor UID; its optional Role field is not a login grant.
- if(role==='auditor'&&!user.auditorId)return null;
- return {role,email:user.email,auditorId:user.auditorId};
+ const email=String(j.identity.email).trim().toLowerCase();
+ // R12's authenticated session is the authorization grant. A missing or
+ // incomplete Auditors sheet row must never revoke a valid manager login.
+ if(role==='manager')return {role,email,auditorId:'manager:'+email};
+ const records=await getRoster();const user=records.find(x=>x.email===email);
+ if(!user?.auditorId)return null;
+ return {role,email,auditorId:user.auditorId};
 }
 const adapter=createFirestoreAvailabilityAdapter({projectId:project,getToken});
 const service=createAvailabilityService(adapter);

@@ -4,7 +4,7 @@ const {enforceRotationAtWrite20}=require('./rotation-write-gate-20');
 // The caller MUST execute this function inside the existing canonical writer lock.
 // loadSheets MUST read both sheets fresh while holding that same lock.
 // A read-only preview or a client payload is not an authorization.
-async function enforceAmsRotationAtWrite20({loadSheets,phase,companyUid,auditorUid,auditId,scopeKeys,approvedExceptions=[]}={}){
+async function enforceAmsRotationAtWrite20({loadSheets,phase,companyUid,auditorUid,auditId,scopeKeys}={}){
  if(typeof loadSheets!=='function'||!companyUid||!auditorUid||!auditId||!Array.isArray(scopeKeys)||scopeKeys.length===0||scopeKeys.some(x=>typeof x!=='string'||!x.trim())||new Set(scopeKeys).size!==scopeKeys.length)throw Error('ROTATION_AMS_WRITE_CONTEXT_INVALID');
  if(!Array.isArray(approvedExceptions))throw Error('ROTATION_AMS_APPROVAL_SOURCE_INVALID');
  return enforceRotationAtWrite20({phase,companyUid,auditorUid,auditId,loadCanonical:async()=>{

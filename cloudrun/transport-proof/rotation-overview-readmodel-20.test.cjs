@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {buildRotationOverview20}=require('./rotation-overview-readmodel-20');
+const {buildRotationOverview20}=require('./rotation-overview-readmodel-20.cjs');
 const result=buildRotationOverview20({
  auditors:[{uid:'A',name:'Auditor A'}],companies:[{uid:'C',name:'Company C'}],
  scopePoliciesByCompany:{C:[{scopeKey:'S1',normalMaximum:2,extensionPermitted:true},{scopeKey:'S2',normalMaximum:1,extensionPermitted:false}]},

@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {loadRotationPolicies20:load}=require('./rotation-config-policy-loader-20');
+const {loadRotationPolicies20:load}=require('./rotation-config-policy-loader-20.cjs');
 const h=['SlotKey','ScopeCode','Extension','Max number audits','Rotation_Normal_Maximum','Rotation_Applies','Rotation_Plus_One_Permitted'];
 const rows=Array.from({length:8},(_,i)=>['SCOPE_0'+(i+1),'CODE_'+(i+1),'4','3','3','TRUE','FALSE']);
 const result=load([h,...rows]);

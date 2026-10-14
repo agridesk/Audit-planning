@@ -106,3 +106,9 @@ P1: Complete token revocation/logout and browser-back controls must be verified 
 - The new PROD route regression gate therefore correctly fails until an authorized production-safe Grid 2.0 integration exists.
 - DO NOT make PROD silently use the DEV Cloud Run service. Do not substitute the legacy Auditor Portal as a claim of Grid 2.0 readiness.
 - On this feature branch, do not merge until explicit routing for both roles/environments has been integrated and tested.
+
+15. DEVICE-BINDING SECURITY REVIEW
+- Both canonical GAS token validation methods currently allow an empty stored Device_Fingerprint hash; this is not strictly device-bound. A direct full-file AuthService.js update was blocked by connected tool safety checks, so this GAS-side correction is not committed.
+- Cloud Run legacy token exchange now rejects empty stored device-hash rows and mismatches (commit c710920).
+- Auth contract test has a deliberate release gate for GAS and Cloud Run strict device binding (commit 6a0de8).
+- This is independent from the login URL transport and PROD Grid routing blockers; all must pass before merge.

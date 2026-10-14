@@ -1,6 +1,7 @@
 import http from 'node:http';
 import {URL} from 'node:url';
 import {readFileSync} from 'node:fs';
+import rotationDirectPlanGate20 from './rotation-direct-plan-gate-20.js';
 import {createHmac,createHash,timingSafeEqual,randomUUID} from 'node:crypto';
 import {v211AssignmentHardCheck,v211RotationHardCheck,v211AuditorQualified,v211ResolveAuditorEmail} from './assignment-validation-v211.js';
 import {v211ActorCapabilities} from './actor-capabilities-v211.js';
@@ -1430,7 +1431,11 @@ function directPlanningCommit(identity,body){
     if(sourceRevision&&sourceRevision!==clean(audit.sourceRevision))throw new Error('PLANNING_SOURCE_REVISION_CONFLICT');
     if(currentStatus!=='PENDING_PLANNING')throw new Error('STATUS_TRANSITION_BLOCKED');
     const assignmentHard=v211AssignmentHardCheck({auditorEmail,auditorValues:vr[1]?.values||[],catalog,scopeCodes:audit.scopes||[],companyValues:vr[5]?.values||[],companyUid:audit.companyUid,companyName:audit.company,logValues:vr[8]?.values||[],requestedDates:requested.map(b=>b.date)});if(!assignmentHard.ok)throw new Error(assignmentHard.reasons[0]);
-    const rotationCheck=await directRotationRead(auditId,auditorEmail),rotationHard=v211RotationHardCheck(rotationCheck);if(!rotationHard.ok)throw new Error(rotationHard.reasons[0]);
+    if(process.env.AMS_ROTATION_20_DIRECT_WRITER_ENABLED==='true'){
+      await rotationDirectPlanGate20.enforceDirectPlanningRotation20({auditId,auditorEmail,planningValues:ap,auditorValues:vr[1]?.values||[],scopeValues:vr[4]?.values||[],logValues:vr[8]?.values||[],approvedExceptions:[]});
+    }else{
+      const rotationCheck=await directRotationRead(auditId,auditorEmail),rotationHard=v211RotationHardCheck(rotationCheck);if(!rotationHard.ok)throw new Error(rotationHard.reasons[0]);
+    }
     const execution=executionConstraint(auditId,catalog,vr[6]?.values||[],vr[7]?.values||[]),from=dateOnly(audit.planningWindowFrom),to=dateOnly(audit.planningWindowTo);
     if(execution.mustCompleteBy&&requested.some(b=>b.date>execution.mustCompleteBy)&&body?.executionExceptionApproved!==true)throw new Error('EXECUTION_DEADLINE_APPROVAL_REQUIRED');
     if(requested.some(b=>(from&&b.date<from)||(to&&b.date>to)))throw new Error('PLANNING_WINDOW_BLOCKED');

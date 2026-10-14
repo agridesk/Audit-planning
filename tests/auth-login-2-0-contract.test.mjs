@@ -70,6 +70,12 @@ const cases = [
     assert.match(login, /Date\.parse\(String\(res\.expiresAt\)\) <= Date\.now\(\)/);
     assert.doesNotMatch(login, /if \(res\.token\) localStorage\.setItem\(KEY_TOKEN/);
   }],
+  ['Stored device hash must be present and match (release gate)', () => {
+    assert.doesNotMatch(auth, /storedDeviceHash && storedDeviceHash !== deviceHash/);
+    assert.doesNotMatch(cloudRun, /stored&&stored!==deviceHash/);
+    assert.match(auth, /!storedDeviceHash \|\| storedDeviceHash !== deviceHash/);
+    assert.match(cloudRun, /!stored\|\|stored!==deviceHash/);
+  }],
   ['Hashed token and OTP truth is preserved', () => {
     assert.match(auth, /tokenHash = sha256Hex_\(rawToken\)/);
     assert.match(auth, /row\[idx\.Code_Hash\]/);

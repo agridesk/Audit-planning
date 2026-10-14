@@ -1,5 +1,5 @@
 'use strict';
-const {completedLogRowsFromAms20}=require('./rotation-ams-log-20');
+const {completedLogRowsFromAms20}=require('./rotation-ams-log-20.cjs');
 const REQUIRED=Array.from({length:8},(_,i)=>'SCOPE_'+String(i+1).padStart(2,'0'));
 function strictAmsCompletedHistory20(values,options){
  if(!Array.isArray(values)||!Array.isArray(values[0]))throw Error('ROTATION_AMS_HEADERS_MISSING');

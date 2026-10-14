@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {rotationDecisionFromCanonical:d}=require('./rotation-source-adapter-20');
+const {rotationDecisionFromCanonical:d}=require('./rotation-source-adapter-20.cjs');
 const base={companyUid:'C1',auditorUid:'A1',scopePolicies:[{scopeKey:'S1',normalMaximum:2,extensionPermitted:true},{scopeKey:'S2',normalMaximum:3,extensionPermitted:false}],completedAudits:[{auditId:'1',companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'Completed',completedAt:'2024-01-01'},{auditId:'2',companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'Completed',completedAt:'2025-01-01'}]};
 assert.equal(d(base).decision.allowed,false);
 assert.equal(d(base).contexts[0].consecutiveCompleted,2);

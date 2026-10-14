@@ -10,6 +10,15 @@
 var EXTERNAL_AUDITOR_PLANNING_HANDOFF_BUILD='2026-10-04_EXTERNAL_AUDITOR_SHARED_GRID_HANDOFF_R2';
 var EXTERNAL_AUDITOR_PLANNING_HANDOFF_URL='https://ams-transport-proof-510075419067.europe-west1.run.app/auth/signed-handoff';
 var EXTERNAL_AUDITOR_PLANNING_HANDOFF_TTL_MS=60*1000;
+function ExternalAuditorPlanningHandoff_target_(runtimeEnv){
+  if(runtimeEnv==='DEV')return EXTERNAL_AUDITOR_PLANNING_HANDOFF_URL;
+  if(runtimeEnv!=='PROD')return '';
+  var configured=String(PropertiesService.getScriptProperties().getProperty('AMS_AUDITOR_GRID2_PROD_HANDOFF_URL')||'').trim();
+  if(!/^https:\/\/[^\/?#]+\/auth\/signed-handoff$/.test(configured))return '';
+  if(configured===EXTERNAL_AUDITOR_PLANNING_HANDOFF_URL)return '';
+  return configured;
+}
+
 
 function ExternalAuditorPlanningHandoff_escape_(v){
   return String(v==null?'':v).replace(/[&<>"']/g,function(ch){
@@ -38,10 +47,12 @@ function ExternalAuditorPlanningHandoff_buildAssertion_(email,auditId){
   var payload=ExternalAuditorPlanningHandoff_payload_(email,auditId,expMs);
   return{email:email,role:'Auditor',auditId:auditId,exp:String(expMs),signature:ExternalAuditorPlanningHandoff_sign_(payload,key)};
 }
-function ExternalAuditorPlanningHandoff_renderPost_(email,auditId){
+function ExternalAuditorPlanningHandoff_renderPost_(email,auditId,runtimeEnv){
+  var target=ExternalAuditorPlanningHandoff_target_(runtimeEnv||'DEV');
+  if(!target)throw new Error('AUDITOR_GRID2_HANDOFF_NOT_CONFIGURED');
   var a=ExternalAuditorPlanningHandoff_buildAssertion_(email,auditId);
   return ['<!doctype html><html><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"><title>AMS - Opening Audit Grid 2.0</title></head><body>',
-    '<form id="handoff" method="post" target="_top" action="',ExternalAuditorPlanningHandoff_escape_(EXTERNAL_AUDITOR_PLANNING_HANDOFF_URL),'">',
+    '<form id="handoff" method="post" target="_top" action="',ExternalAuditorPlanningHandoff_escape_(target),'">',
     '<input type="hidden" name="email" value="',ExternalAuditorPlanningHandoff_escape_(a.email),'">',
     '<input type="hidden" name="role" value="Auditor">',
     '<input type="hidden" name="auditId" value="',ExternalAuditorPlanningHandoff_escape_(a.auditId),'">',
@@ -59,21 +70,22 @@ V5_ENTRY_resolve=function(ctx){
   var action=V5_ENTRY_normAction_(ctx.action);
   var expectedRole=V5_ENTRY_expectedRole_(action,ctx.role);
   var auditorSharedEntry=(action==='planningworkspace'||action==='auditorgrid2');
-  if(runtimeEnv!=='DEV'||!auditorSharedEntry||expectedRole!=='Auditor'){
+  if(!auditorSharedEntry||expectedRole!=='Auditor'||(runtimeEnv!=='DEV'&&!(runtimeEnv==='PROD'&&action==='auditorgrid2'))){
     return EXTERNAL_AUDITOR_PLANNING_HANDOFF_BASE_RESOLVE_(ctx);
   }
+  if(!ExternalAuditorPlanningHandoff_target_(runtimeEnv))return '<h3>Audit Grid 2.0 is not configured for this environment.</h3>';
   var email=String(ctx.email||ctx.auditorEmail||'').trim().toLowerCase();
   var auditId=String(ctx.auditId||'').trim();
   var token=String(ctx.trustedToken||ctx.token||'').trim();
   var device=String(ctx.deviceFingerprint||ctx.deviceId||'').trim();
   if(V5_ENTRY_isTestBypass_(email,expectedRole,token,device)){
-    return ExternalAuditorPlanningHandoff_renderPost_(email,auditId);
+    return ExternalAuditorPlanningHandoff_renderPost_(email,auditId,runtimeEnv);
   }
   if(!token||!device)return V5_ENTRY_renderLogin(action,expectedRole);
   var authRes=null;
   try{authRes=V5_AUTH.validateTrustedTokenByRole(token,'Auditor',device);}catch(errAuth){authRes=null;}
   if(!authRes||authRes.ok!==true||!authRes.email)return V5_ENTRY_renderLogin(action,expectedRole);
-  return ExternalAuditorPlanningHandoff_renderPost_(String(authRes.email||'').trim().toLowerCase(),auditId);
+  return ExternalAuditorPlanningHandoff_renderPost_(String(authRes.email||'').trim().toLowerCase(),auditId,runtimeEnv);
 };
 
 function RUN_EXTERNAL_AUDITOR_PLANNING_HANDOFF_CONTRACT_ACCEPTANCE(){

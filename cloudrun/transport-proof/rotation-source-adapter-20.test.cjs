@@ -12,4 +12,6 @@ assert.throws(()=>d({...base,approvedExceptions:[{companyUid:'C1',scopeKey:'S1',
 assert.throws(()=>d({...base,approvedExceptions:[{companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'APPROVED',auditId:'1',justification:'x',approvedByManagerUid:'M'},{companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'APPROVED',auditId:'2',justification:'y',approvedByManagerUid:'M'}]}),/MULTIPLE/);
 assert.equal(d({...base,approvedExceptions:[{companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'APPROVED',auditId:'OLD',justification:'Prior series',approvedByManagerUid:'M'}]}).contexts[0].extensionUsedInSeries,false);
 assert.equal(d({...base,approvedExceptions:[{companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'APPROVED',auditId:'2',justification:'Current series',approvedByManagerUid:'M'}]}).contexts[0].extensionUsedInSeries,true);
-console.log('10 canonical adapter checks passed');
+assert.equal(d({...base,scopePolicies:[{scopeKey:'S1',normalMaximum:null,rotationApplies:false,extensionPermitted:false}]}).decision.allowed,true);
+assert.equal(d({...base,scopePolicies:[{scopeKey:'S1',normalMaximum:null,rotationApplies:false,extensionPermitted:false}]}).contexts[0].rotationApplies,false);
+console.log('12 canonical adapter checks passed');

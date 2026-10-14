@@ -9,5 +9,7 @@ assert.equal(d({...base,completedAudits:[...base.completedAudits,{auditId:'3',co
 assert.throws(()=>d({...base,scopePolicies:[base.scopePolicies[0],base.scopePolicies[0]]}),/DUPLICATE/);
 assert.throws(()=>d({...base,scopePolicies:[{scopeKey:'S1',normalMaximum:null,extensionPermitted:true}]}),/POLICY/);
 assert.throws(()=>d({...base,approvedExceptions:[{companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'APPROVED'}]}),/AUDIT_TRAIL/);
-assert.throws(()=>d({...base,approvedExceptions:[{companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'APPROVED',auditId:'A',justification:'x',approvedByManagerUid:'M'},{companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'APPROVED',auditId:'B',justification:'y',approvedByManagerUid:'M'}]}),/MULTIPLE/);
-console.log('8 canonical adapter checks passed');
+assert.throws(()=>d({...base,approvedExceptions:[{companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'APPROVED',auditId:'1',justification:'x',approvedByManagerUid:'M'},{companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'APPROVED',auditId:'2',justification:'y',approvedByManagerUid:'M'}]}),/MULTIPLE/);
+assert.equal(d({...base,approvedExceptions:[{companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'APPROVED',auditId:'OLD',justification:'Prior series',approvedByManagerUid:'M'}]}).contexts[0].extensionUsedInSeries,false);
+assert.equal(d({...base,approvedExceptions:[{companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'APPROVED',auditId:'2',justification:'Current series',approvedByManagerUid:'M'}]}).contexts[0].extensionUsedInSeries,true);
+console.log('10 canonical adapter checks passed');

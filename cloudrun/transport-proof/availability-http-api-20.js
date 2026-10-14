@@ -29,7 +29,7 @@ export function createAvailabilityHttpRouter({service,resolveIdentity,listAudito
    const directory=actor.role==='manager'?await listAuditors(actor):[{auditorId:actor.id,displayName:actor.id}];
    if(!Array.isArray(directory)||directory.length>2500)throw Error('INVALID_AUDITOR_DIRECTORY');
    const allowed=new Map(directory.map(x=>[clean(x.auditorId),clean(x.displayName)||clean(x.auditorId)]));
-   const authorizedId=id=>{const target=clean(id);if(!target||actor.role==='auditor'?target!==actor.id:!allowed.has(target))throw Error('NOT_AUTHORIZED');return target;};
+   const authorizedId=id=>{const target=clean(id);if(!target||(actor.role==='auditor'?target!==actor.id:!allowed.has(target)))throw Error('NOT_AUTHORIZED');return target;};
    let result;
    if(route==='calendar'){
     stage='TARGET_AUTHORIZATION';

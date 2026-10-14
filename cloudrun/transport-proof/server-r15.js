@@ -55,7 +55,10 @@ async function session(req){
  const records=await getRoster();const user=records.find(x=>x.email===String(j.identity.email).trim().toLowerCase());
  if(!user)return null;
  const role=String(j.identity.role||'').toLowerCase();
- if(role!==user.role||!['auditor','manager'].includes(role))return null;
+ if(!['auditor','manager'].includes(role))return null;
+ // The verified session is authoritative for the active role. The roster
+ // resolves the stable auditor UID; its optional Role field is not a login grant.
+ if(role==='auditor'&&!user.auditorId)return null;
  return {role,email:user.email,auditorId:user.auditorId};
 }
 const adapter=createFirestoreAvailabilityAdapter({projectId:project,getToken});

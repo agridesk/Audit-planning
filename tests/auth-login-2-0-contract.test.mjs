@@ -31,7 +31,9 @@ const cases = [
   }],
   ['Cloud Run does not exceed legacy token expiry (migration gate)', () => {
     assert.match(cloudRun, /legacyTokenExpiresAt/);
-    assert.match(cloudRun, /Math\.min\(now\+SESSION_TTL_SECONDS/);
+    assert.match(cloudRun, /boundedSessionExpiry\(now,SESSION_TTL_SECONDS,identity\.legacyTokenExpiresAt\)/);
+    assert.match(cloudRun, /legacyTokenExpiresAt:exp/);
+    assert.match(cloudRun, /session\.exp-Math\.floor\(Date\.now\(\)\/1000\)/);
   }],
   ['Incomplete OTP session response fails closed', () => {
     assert.match(login, /if \(!res\.token \|\| !res\.expiresAt \|\| !res\.tokenType/);

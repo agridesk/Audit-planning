@@ -671,14 +671,20 @@ google.script.run
         __verifyInFlight = false;
         setBusy(false, "verify");
         if (!res || !res.ok) return setMsg("err", "Login failed: " + (res && res.error ? res.error : "UNKNOWN"));
+        if (!res.token || !res.expiresAt || !res.tokenType || String(res.role || "") !== role) {
+          return setMsg("err", "Incomplete authentication response. Please request a new login code.");
+        }
+        if (!Number.isFinite(Date.parse(String(res.expiresAt))) || Date.parse(String(res.expiresAt)) <= Date.now()) {
+          return setMsg("err", "Login session already expired. Please request a new code.");
+        }
 
         localStorage.setItem(KEY_EMAIL, email);
         localStorage.setItem(KEY_ROLE, role);
         localStorage.setItem(KEY_DEVICE_ID, deviceId);
 
-        if (res.token) localStorage.setItem(KEY_TOKEN, res.token);
-        if (res.expiresAt) localStorage.setItem(KEY_EXP, res.expiresAt);
-        if (res.tokenType) localStorage.setItem(KEY_TT, res.tokenType);
+        localStorage.setItem(KEY_TOKEN, res.token);
+        localStorage.setItem(KEY_EXP, res.expiresAt);
+        localStorage.setItem(KEY_TT, res.tokenType);
         try { localStorage.removeItem(KEY_FORCE); } catch(e) {}
 
         const token = localStorage.getItem(KEY_TOKEN) || "";

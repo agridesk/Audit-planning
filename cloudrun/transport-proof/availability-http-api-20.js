@@ -14,11 +14,12 @@ export function createAvailabilityHttpRouter({service,resolveIdentity,listAudito
   const url=new URL(req.url||'/','http://localhost');
   if(!url.pathname.startsWith('/api/v1/availability/'))return false;
   const route=url.pathname.slice('/api/v1/availability/'.length);
-  if(!['calendar','mutate','manager-overview'].includes(route)){reply(res,404,{success:false,error:'NOT_FOUND'});return true;}
+  if(!['calendar','mutate','manager-overview','me'].includes(route)){reply(res,404,{success:false,error:'NOT_FOUND'});return true;}
   if(req.method!==(route==='mutate'?'POST':'GET')){reply(res,405,{success:false,error:'METHOD_NOT_ALLOWED'});return true;}
   try{
    const identity=await resolveIdentity(req);if(!identity){reply(res,401,{success:false,error:'SESSION_REQUIRED'});return true;}
    const actor=verifiedActor(identity);
+   if(route==='me'){reply(res,200,{success:true,auditorId:actor.id,role:actor.role});return true;}
    if(route==='manager-overview'&&actor.role!=='manager')throw Error('ROLE_FORBIDDEN');
    const directory=await listAuditors(actor);
    if(!Array.isArray(directory)||directory.length>2500)throw Error('INVALID_AUDITOR_DIRECTORY');

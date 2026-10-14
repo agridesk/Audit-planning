@@ -10,6 +10,7 @@ const login = fs.readFileSync(path.join(root, 'LoginV5.html'), 'utf8');
 const auth = fs.readFileSync(path.join(root, 'AuthService.js'), 'utf8');
 const entry = fs.readFileSync(path.join(root, 'EntryV5.js'), 'utf8');
 const bootstrap = fs.readFileSync(path.join(root, 'EntryBootstrapV5.html'), 'utf8');
+const cloudRun = fs.readFileSync(path.join(root, 'cloudrun/transport-proof/server-r4.js'), 'utf8');
 
 const cases = [
   ['Auditor defaults to Grid 2.0', () => assert.match(login, /return r === "Auditor" \? "auditorgrid2" : "manager"/)],
@@ -24,6 +25,14 @@ const cases = [
   ['Redirect debug UI does not display token-bearing target', () => assert.match(login, /if \(targetDbg\) targetDbg\.textContent = ""/)],
   ['Backend DEV bypass has runtime guard', () => assert.match(entry, /if \(!V5_ENTRY_isDevEnv_\(\)\) return false/)],
   ['Existing bootstrap validates with canonical service', () => assert.match(bootstrap, /V5_ENTRY_resolve\(ctx\)/)],
+  ['Cloud Run already uses secure session cookie', () => {
+    assert.match(cloudRun, /HttpOnly; Secure; SameSite=Lax/);
+    assert.match(cloudRun, /\/api\/v1\/session\/exchange/);
+  }],
+  ['Cloud Run does not exceed legacy token expiry (migration gate)', () => {
+    assert.match(cloudRun, /legacyTokenExpiresAt/);
+    assert.match(cloudRun, /Math\.min\(now\+SESSION_TTL_SECONDS/);
+  }],
   ['Hashed token and OTP truth is preserved', () => {
     assert.match(auth, /tokenHash = sha256Hex_\(rawToken\)/);
     assert.match(auth, /row\[idx\.Code_Hash\]/);

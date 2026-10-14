@@ -1,0 +1,16 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {completedLogRowsFromAms20:read}=require('./rotation-ams-log-20');
+const header=['Company','Auditor','Status','SCOPE_01','SCOPE_02','Audit ID','Company_UID','Date completed'];
+const row=['Acme','Auditor X','Completed','YES','1','A-1','C-1','2026-05-02'];
+const config={scopeByColumn:{SCOPE_01:'GLOBALGAP',SCOPE_02:'GRASP'},resolveAuditorUid:()=> 'UID-1'};
+const result=read([header,row],config);
+assert.equal(result.length,2);
+assert.equal(result[0].auditorUid,'UID-1');
+assert.equal(result[1].scopeKey,'GRASP');
+assert.equal(read([header,[...row.slice(0,2),'Planned',...row.slice(3)]],config).length,0);
+assert.throws(()=>read([header,row],{...config,resolveAuditorUid:()=>''}),/UNRESOLVED/);
+assert.throws(()=>read([header,row,row],config),/DUPLICATE/);
+assert.throws(()=>read([header,[...row.slice(0,3),'?',...row.slice(4)]],config),/INDICATOR/);
+assert.throws(()=>read([header,[...row.slice(0,3),'NO','0',...row.slice(5)]],config),/SCOPE_MISSING/);
+console.log('AMS log adapter: 7 assertions passed');

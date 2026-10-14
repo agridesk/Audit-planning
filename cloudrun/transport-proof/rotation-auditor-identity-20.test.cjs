@@ -1,0 +1,11 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {makeHistoricalAuditorUidResolver:make}=require('./rotation-auditor-identity-20');
+const resolver=make([{alias:'Auditor X',auditorUid:'UID1',validFrom:'2020-01-01',validUntil:'2025-01-01'},{alias:'Auditor X',auditorUid:'UID2',validFrom:'2025-01-01'}]);
+assert.equal(resolver('Auditor X','2024-12-31'),'UID1');
+assert.equal(resolver('Auditor X','2025-01-01'),'UID2');
+assert.throws(()=>resolver('Auditor Y','2025-01-01'),/UNRESOLVED/);
+assert.throws(()=>make([{alias:'X',auditorUid:'U',validFrom:'bad'}]),/PERIOD_INVALID/);
+assert.throws(()=>make([{alias:'X',auditorUid:'U1'},{alias:'X',auditorUid:'U2'}])('X','2026-01-01'),/AMBIGUOUS/);
+assert.throws(()=>make([{alias:'X',auditorUid:'U'}])('X','bad'),/LOOKUP_INVALID/);
+console.log('Historical auditor identity: 6 assertions passed');

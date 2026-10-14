@@ -16,6 +16,12 @@ assert.equal((await request(q,'POST')).status,405);
 identity=null;assert.equal((await request(q)).status,401);
 identity={role:'Auditor',id:'a'};
 assert.equal((await request(q)).status,200);
+// Regression: self-access must not depend on roster directory membership.
+const noRosterRouter=createAvailabilityHttpRouter({service,resolveIdentity:async()=>({role:'auditor',auditorId:'a'}),listAuditors:async()=>{throw Error('DIRECTORY_MUST_NOT_BE_READ_FOR_SELF');}});
+const selfReq={url:q,method:'GET',headers:{}};
+let selfStatus=0;
+await noRosterRouter(selfReq,{writeHead:s=>{selfStatus=s;},end:()=>{}});
+assert.equal(selfStatus,200);
 assert.equal((await request(q.replace('auditorId=a','auditorId=b'))).status,403);
 assert.equal((await request('/api/v1/availability/manager-overview?fromDate=2027-01-11&toDate=2027-01-24')).status,403);
 identity={role:'Manager',id:'m'};

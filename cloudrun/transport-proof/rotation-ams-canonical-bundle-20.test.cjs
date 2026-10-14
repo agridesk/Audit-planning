@@ -1,0 +1,17 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {loadAmsRotationBundle20:load}=require('./rotation-ams-canonical-bundle-20');
+const slots=Array.from({length:8},(_,i)=>'SCOPE_0'+(i+1));
+const sh=['SlotKey','ScopeCode','Rotation_Normal_Maximum','Rotation_Applies','Rotation_Plus_One_Permitted'];
+const scopeRows=[sh,...slots.map((s,i)=>[s,'CODE_'+(i+1),'3','TRUE','FALSE'])];
+const ah=['Company','Auditor','Status',...slots,'Audit ID','Company_UID','Date completed','Auditor_UID'];
+const completedRows=[ah,['Company','auditor@example.com','Completed',...slots.map((_,i)=>i===0?'x':''),'AUD1','C1','2025-02-01','UID1']];
+const result=load({scopeRows,completedRows});
+assert.equal(result.scopePolicies.length,8);
+assert.equal(result.completedAudits.length,1);
+assert.equal(result.completedAudits[0].auditorUid,'UID1');
+assert.equal(result.completedAudits[0].scopeKey,'CODE_1');
+assert.throws(()=>load({scopeRows:scopeRows.map((r,i)=>i===1?[...r.slice(0,2),'',...r.slice(3)]:r),completedRows}),/MAXIMUM_UNRESOLVED/);
+assert.throws(()=>load({scopeRows,completedRows:[ah.filter(x=>x!=='SCOPE_08')]}),/HEADERS_REQUIRED/);
+assert.throws(()=>load({scopeRows,completedRows:[ah,[...completedRows[1].slice(0,-1),'']]}),/UNRESOLVED/);
+console.log('Canonical AMS rotation bundle: 7 checks passed');

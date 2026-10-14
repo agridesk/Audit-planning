@@ -80,7 +80,7 @@ const overlay=createPlanningOverlayService({
  readPlanningRows:planningCache.read,
  listCanonicalAuditors:async()=>{
   const roster=await getRoster();
-  return roster.filter(x=>x.role==='auditor').map(x=>({auditorId:x.auditorId,email:x.email}));
+  return roster.filter(x=>x.auditorId&&!x.auditorId.startsWith('manager:')).map(x=>({auditorId:x.auditorId,email:x.email}));
  }
 });
 const availability=createAvailabilityHttpRouter({service:overlay,resolveIdentity:session,listAuditors:async actor=>{

@@ -1,0 +1,16 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {completedLogRows20:convert}=require('./rotation-log-adapter-20');
+const header=['Audit_ID','Company_UID','Auditor_UID','Date','Status','Scopes'];
+const rows=[header,['A1','C1','U1','2026-01-10','Completed','S1, S2'],['A2','C1','U1','2026-03-10','Planned','S1']];
+const aliases={S1:'SCOPE_1',S2:'SCOPE_2'};
+const out=convert(rows,aliases);
+assert.equal(out.length,2);
+assert.equal(out[0].scopeKey,'SCOPE_1');
+assert.equal(out[1].scopeKey,'SCOPE_2');
+assert.equal(out[0].status,'Completed');
+assert.throws(()=>convert([header,['A1','','U1','2026-01-10','Completed','S1']],aliases),/IDENTITY_MISSING/);
+assert.throws(()=>convert([header,['A1','C1','U1','2026-01-10','Completed','UNKNOWN']],aliases),/ALIAS_UNRESOLVED/);
+assert.throws(()=>convert([['Company','Auditor','Date','Status','Scopes']],aliases),/COLUMNS_MISSING/);
+assert.equal(convert([header,['A1','C1','U1','2026-01-10','Cancelled','S1']],aliases).length,0);
+console.log('8 log adapter checks passed');

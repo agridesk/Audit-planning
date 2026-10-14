@@ -412,7 +412,7 @@
     var continueBox = document.getElementById("stepContinue");
     var targetDbg = document.getElementById("targetUrlDbg");
     if (continueBox) continueBox.classList.add("hidden");
-    if (targetDbg) targetDbg.textContent = targetUrl || "";
+    if (targetDbg) targetDbg.textContent = "";
     try { if (__fallbackTimer) clearTimeout(__fallbackTimer); } catch(eTimer) {}
     var verifyButton = document.getElementById("btnVerify");
     if (verifyButton) verifyButton.disabled = true;

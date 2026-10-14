@@ -18,4 +18,6 @@ assert.throws(()=>read([header,row],{...config,scopeByColumn:{SCOPE_01:'GLOBALGA
 const migrated=[...header,'Auditor_UID'];
 assert.equal(read([migrated,[...row,'CANONICAL_UID']],{scopeByColumn:config.scopeByColumn})[0].auditorUid,'CANONICAL_UID');
 assert.throws(()=>read([migrated,[...row,'']],{scopeByColumn:config.scopeByColumn}),/UNRESOLVED/);
-console.log('AMS log adapter: 11 assertions passed');
+assert.equal(read([migrated,[...row.slice(0,1),'',...row.slice(2),'CANONICAL_UID']],{scopeByColumn:config.scopeByColumn})[0].auditorUid,'CANONICAL_UID');
+assert.equal(read([migrated.filter(x=>x!=='Auditor'),[...row.slice(0,1),...row.slice(2),'CANONICAL_UID']],{scopeByColumn:config.scopeByColumn})[0].auditorUid,'CANONICAL_UID');
+console.log('AMS log adapter: 13 assertions passed');

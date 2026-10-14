@@ -17,7 +17,7 @@ const pkg=JSON.parse(readFileSync(new URL('./package.json',import.meta.url),'utf
 function has(text,needle,label){assert.ok(text.includes(needle),label+' missing');}
 function not(text,needle,label){assert.ok(!text.includes(needle),label+' unexpectedly present');}
 
-assert.equal(pkg.scripts.start,'node server-r12.js','R12 must own public DEV runtime');
+assert.equal(pkg.scripts.start,'node server-r15.js','R15 must own public DEV runtime and preserve R12 routes');
 has(r10,"u.pathname==='/api/v1/manager/action-relay-url'",'warm Manager GAS worker bootstrap endpoint');
 has(r10,"u.pathname==='/api/v1/manager/audit'",'targeted Manager reread');
 has(r10,"sheetValues('Audit planning!A1:AX1')",'targeted reread header read');

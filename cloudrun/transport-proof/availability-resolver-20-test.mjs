@@ -10,4 +10,13 @@ assert.equal(resolve([block('PROVISIONAL','10:00','12:00'),block('HARD','11:00',
 assert.deepEqual(resolve([],{recurring:[{weekday:0,start:'08:00',end:'12:00'}],overrides:[{date,start:'09:00',end:'10:00'}]}).filter(x=>x.state==='SOFT').map(x=>[x.start,x.end]),[['08:00','09:00'],['10:00','12:00']]);
 assert.equal(resolveAvailabilityPeriod({fromDate:'2026-10-31',toDate:'2026-11-01',blocks:[{state:'HARD',fromDate:'2026-10-30',toDate:'2026-11-03',wholeDay:true}]}).length,2);
 assert.throws(()=>resolveAvailabilityPeriod({fromDate:'2026-02-30',toDate:'2026-03-01'}),/INVALID_DATE/);
-console.log('Availability 2.0 pure resolver: 7 checks passed');
+const baseline=[{id:'bulk-1',fromDate:'2026-10-01',toDate:'2027-09-30',wholeDay:true}];
+const released=[{targetExceptionId:'bulk-1',date,wholeDay:true}];
+assert.deepEqual(resolve([],{baselineExceptions:baseline,baselineReleases:released}),[{start:'00:00',end:'24:00',state:'FREE',sourceIds:[]}]);
+assert.equal(resolve([block('HARD','09:00','12:00','independent')],{baselineExceptions:baseline,baselineReleases:released}).find(x=>x.start==='09:00').state,'HARD');
+assert.equal(resolve([block('COMMITTED','10:00','12:00','audit')],{baselineExceptions:baseline}).find(x=>x.start==='10:00').state,'COMMITTED');
+assert.equal(resolve([block('PROVISIONAL','10:00','12:00','provisional')],{baselineExceptions:baseline,baselineReleases:released}).find(x=>x.start==='10:00').state,'PROVISIONAL');
+assert.equal(resolve([],{baselineExceptions:baseline,baselineReleases:[{targetExceptionId:'bulk-1',date,start:'10:00',end:'12:00'}]}).find(x=>x.start==='10:00').state,'FREE');
+assert.throws(()=>resolve([],{baselineExceptions:baseline,baselineReleases:[{targetExceptionId:'wrong',date,wholeDay:true}]}),/UNKNOWN_BASELINE_REFERENCE/);
+assert.equal(resolveAvailabilityPeriod({fromDate:'2026-10-31',toDate:'2026-11-01',baselineExceptions:baseline}).every(d=>d.segments[0].state==='HARD'),true);
+console.log('13 resolver checks passed');

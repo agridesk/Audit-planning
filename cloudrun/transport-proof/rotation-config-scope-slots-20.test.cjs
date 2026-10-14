@@ -1,0 +1,13 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {scopeSlotsFromConfig20:read}=require('./rotation-config-scope-slots-20');
+const h=['SlotKey','ScopeCode','DisplayName','Extension'];
+const rows=Array.from({length:8},(_,i)=>['SCOPE_'+String(i+1).padStart(2,'0'),'CODE_'+(i+1),'Display '+(i+1),'4']);
+const mapped=read([h,...rows,['SCOPE_09','INACTIVE','Other','']]);
+assert.equal(Object.keys(mapped).length,8);
+assert.equal(mapped.SCOPE_04,'CODE_4');
+assert.throws(()=>read([h,...rows.slice(0,7)]),/INCOMPLETE/);
+assert.throws(()=>read([h,...rows,rows[0]]),/MAPPING_INVALID/);
+assert.throws(()=>read([h,...rows.map((r,i)=>i===7?[r[0],'CODE_1',r[2],r[3]]:r)]),/INCOMPLETE/);
+assert.throws(()=>read([['SlotKey','DisplayName'],...rows]),/COLUMNS_MISSING/);
+console.log('Canonical scope slot mapping: 6 checks passed');

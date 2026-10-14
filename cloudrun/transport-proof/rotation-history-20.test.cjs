@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {consecutiveCompleted}=require('./rotation-history-20');
+const {consecutiveCompleted}=require('./rotation-history-20.cjs');
 const row=(auditId,auditorUid,completedAt,scopeKey='S1',status='Completed')=>({auditId,auditorUid,completedAt,scopeKey,companyUid:'C1',status});
 const history=[row('1','A','2023-02-01'),row('2','B','2024-02-01'),row('3','A','2025-02-01'),row('4','A','2026-02-01'),row('5','A','2026-03-01','S2'),row('6','A','2026-04-01','S1','Planned')];
 assert.equal(consecutiveCompleted(history,'C1','S1','A').count,2);

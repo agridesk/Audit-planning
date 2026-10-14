@@ -11,7 +11,7 @@ function index(headers,aliases){for(const alias of aliases){const i=headers.find
 export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDate}={}){
  if(!Array.isArray(rows)||!Array.isArray(auditors)||!date(fromDate)||!date(toDate)||fromDate>toDate)throw Error('INVALID_AUDIT_BRIDGE_INPUT');
  if(!rows.length)return [];
- const h=rows[0],id=index(h,['Audit ID','Audit_ID']),status=index(h,['Status']),assigned=index(h,['Assigned to','Assigned auditor']),json=index(h,['Planning JSON','Planning_JSON']);
+ const h=rows[0],id=index(h,['Audit ID','Audit_ID']),status=index(h,['Status']),assigned=index(h,['Assigned to','Assigned auditor','Auditor']),json=index(h,['Planning JSON','Planning_JSON']);
  if([id,status,assigned,json].some(x=>x<0))throw Error('AUDIT_PLANNING_HEADERS_MISSING');
  const lookup=new Map();
  for(const a of auditors){const uid=norm(a.auditorId),email=norm(a.email).toLowerCase();if(!uid||!email||lookup.has(email))throw Error('AUDITOR_IDENTITY_AMBIGUOUS');lookup.set(email,uid);}

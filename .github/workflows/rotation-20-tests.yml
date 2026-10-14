@@ -13,6 +13,8 @@ jobs:
           node-version: '22'
       - name: Run Rotation 2.0 tests
         run: |
+          node --check cloudrun/transport-proof/server-r4.js
+          for f in cloudrun/transport-proof/rotation-*.cjs; do node --check "$f"; done
           node cloudrun/transport-proof/rotation-policy-20.test.cjs
           node cloudrun/transport-proof/rotation-preassignment-20.test.cjs
           node cloudrun/transport-proof/rotation-history-20.test.cjs

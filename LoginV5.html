@@ -228,6 +228,8 @@
   let __verifyInFlight = false;
   let __fallbackTimer = null;
   let __sendInFlight = false;
+  let __sendRequestId = 0;
+  let __requestedEmail = "";
 
   function setMsg(kind, text) {
     const el = document.getElementById("msg");
@@ -581,12 +583,15 @@
     const email = normEmail(document.getElementById("email").value);
     if (!email) return setMsg("err", "Please enter an email address.");
 
+    const requestId = ++__sendRequestId;
     __sendInFlight = true;
     setBusy(true, "send");
     document.getElementById("sendHint").textContent = "Sending...";
 
     // Watchdog: prevent silent hangs if server never responds (cached HTML / wrong deployment URL)
     var wd = setTimeout(function() {
+      if (requestId !== __sendRequestId) return;
+      ++__sendRequestId;
       __sendInFlight = false;
       setBusy(false, "send");
       document.getElementById("sendHint").textContent = "";
@@ -595,6 +600,7 @@
 
 google.script.run
       .withSuccessHandler(function(res) {
+        if (requestId !== __sendRequestId) return;
         try { clearTimeout(wd); } catch(e) {}
         __sendInFlight = false;
         setBusy(false, "send");
@@ -606,6 +612,7 @@ google.script.run
           return setMsg("err", "Cannot send login code: " + baseError + mailStatus + mailError);
         }
 
+        __requestedEmail = email;
         localStorage.setItem(KEY_EMAIL, email);
         localStorage.setItem(KEY_ROLE, res.role || EXPECTED_ROLE);
 
@@ -619,7 +626,9 @@ google.script.run
         document.getElementById("code").focus();
       })
       .withFailureHandler(function(err) {
+        if (requestId !== __sendRequestId) return;
         try { clearTimeout(wd); } catch(e) {}
+        __sendInFlight = false;
         setBusy(false, "send");
         document.getElementById("sendHint").textContent = "";
         setMsg("err", "Server error while sending code: " + formatServerError(err));
@@ -630,6 +639,8 @@ google.script.run
   function changeLoginEmail() {
     if (__verifyInFlight || __sendInFlight) return;
     clearMsg();
+    ++__sendRequestId;
+    __requestedEmail = "";
     document.getElementById("stepVerify").classList.add("hidden");
     document.getElementById("code").value = "";
     document.getElementById("email").focus();
@@ -644,7 +655,7 @@ google.script.run
     const code = normLoginCode(rawCode);
     const remember = !!document.getElementById("remember").checked;
 
-    if (!email) return setMsg("err", "Please enter an email address.");
+    if (!email || email !== __requestedEmail) return setMsg("err", "Request a login code for this email address first.");
     if (!/^\d{6}$/.test(code)) return setMsg("err", "Please enter a valid 6-digit code.");
     try { document.getElementById("code").value = code; } catch(eNormCode) {}
 

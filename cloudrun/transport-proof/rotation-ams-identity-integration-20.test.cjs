@@ -1,8 +1,8 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {completedLogRowsFromAms20}=require('./rotation-ams-log-20');
-const {makeHistoricalAuditorUidResolver}=require('./rotation-auditor-identity-20');
-const {consecutiveCompleted}=require('./rotation-history-20');
+const {completedLogRowsFromAms20}=require('./rotation-ams-log-20.cjs');
+const {makeHistoricalAuditorUidResolver}=require('./rotation-auditor-identity-20.cjs');
+const {consecutiveCompleted}=require('./rotation-history-20.cjs');
 const resolveAuditorUid=makeHistoricalAuditorUidResolver([
  {alias:'Auditor X',auditorUid:'U1',validFrom:'2020-01-01',validUntil:'2025-01-01'},
  {alias:'Auditor X',auditorUid:'U2',validFrom:'2025-01-01'},

@@ -28,7 +28,7 @@ export function createAvailabilityService(adapter){
   const next=clone(current);next.version=prepared.nextVersion;
   next.metadata??={};next.metadata.changes??=[];
   if(action==='BLOCK_PERIOD')next.baselineExceptions.push(prepared.payload);
-  else if(action==='RELEASE_BASELINE')next.baselineReleases.push(prepared.payload);
+  else if(action==='RELEASE_BASELINE'||action==='REMOVE_HARD_BLOCK')next.baselineReleases.push({...prepared.payload,id:randomUUID()});
   else if(action==='SET_RECURRING')next.recurring=prepared.payload;
   else if(action==='SET_FREE_OVERRIDE')next.overrides.push(prepared.payload);
   else if(action==='CONFIRM_AVAILABILITY'){

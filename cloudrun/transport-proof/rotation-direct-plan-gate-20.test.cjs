@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {canonicalAssignment,enforceDirectPlanningRotation20}=require('./rotation-direct-plan-gate-20');
+const {canonicalAssignment,enforceDirectPlanningRotation20}=require('./rotation-direct-plan-gate-20.cjs');
 const slots=Array.from({length:8},(_,i)=>'SCOPE_0'+(i+1));
 const scopeValues=[['SlotKey','ScopeCode','Rotation_Normal_Maximum','Rotation_Applies','Rotation_Plus_One_Permitted'],...slots.map((slot,i)=>[slot,'CODE_'+(i+1),'3','TRUE','FALSE'])];
 const planningValues=[['Audit ID','Company_UID',...slots],['NEXT','C','x',...slots.slice(1).map(()=>'')]];

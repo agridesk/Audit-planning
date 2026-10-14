@@ -33,6 +33,12 @@ const cases = [
     assert.match(cloudRun, /legacyTokenExpiresAt/);
     assert.match(cloudRun, /Math\.min\(now\+SESSION_TTL_SECONDS/);
   }],
+  ['Incomplete OTP session response fails closed', () => {
+    assert.match(login, /if \(!res\.token \|\| !res\.expiresAt \|\| !res\.tokenType/);
+    assert.match(login, /String\(res\.role \|\| ""\) !== role/);
+    assert.match(login, /Date\.parse\(String\(res\.expiresAt\)\) <= Date\.now\(\)/);
+    assert.doesNotMatch(login, /if \(res\.token\) localStorage\.setItem\(KEY_TOKEN/);
+  }],
   ['Hashed token and OTP truth is preserved', () => {
     assert.match(auth, /tokenHash = sha256Hex_\(rawToken\)/);
     assert.match(auth, /row\[idx\.Code_Hash\]/);

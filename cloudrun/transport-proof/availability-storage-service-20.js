@@ -11,7 +11,7 @@ import {resolveAvailabilityPeriod} from './availability-resolver-20.js';
 import {buildManagerAvailabilityOverview} from './availability-manager-overview-20.js';
 const clone=x=>structuredClone(x);
 const str=x=>String(x??'').trim();
-const initial=id=>({auditorId:id,version:0,baselineExceptions:[],baselineReleases:[],blocks:[],recurring:[],overrides:[],metadata:{changes:[],historyComplete:true,lastAvailabilityChangeAt:null,lastAvailabilityChangeBy:null,confirmation:null}});
+const initial=id=>({auditorId:id,version:0,baselineExceptions:[],baselineReleases:[],blocks:[],recurring:[{weekday:5,start:'00:00',end:'24:00'},{weekday:6,start:'00:00',end:'24:00'}],overrides:[],metadata:{changes:[],historyComplete:true,lastAvailabilityChangeAt:null,lastAvailabilityChangeBy:null,confirmation:null}});
 function authorize(actor,id){const role=str(actor?.role).toLowerCase(),actorId=str(actor?.id);if(!actorId||!id||!(role==='manager'||role==='auditor'&&actorId===id))throw Error('NOT_AUTHORIZED');}
 function validateAdapter(adapter){if(typeof adapter?.read!=='function'||typeof adapter?.compareAndSwap!=='function')throw Error('ATOMIC_STORAGE_ADAPTER_REQUIRED');}
 export function createAvailabilityService(adapter){

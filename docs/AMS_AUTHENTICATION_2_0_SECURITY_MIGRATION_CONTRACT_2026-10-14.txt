@@ -80,3 +80,16 @@ P1: Complete token revocation/logout and browser-back controls must be verified 
 - After other DEV branches are integrated, compare/rebase and review any conflicts in EntryV5.js, EntryBootstrapV5.html, AuthService.js and Cloud Run server-r4.js.
 - Convert GAS-to-Cloud Run exchange to a secure one-time handoff and align session duration and revocation before retiring legacy routes.
 - End-to-end authorization and deployment acceptance must precede merge to dev or PROD.
+
+12. IMPLEMENTATION STATUS — 2026-10-14 (FEATURE BRANCH ONLY)
+- Cloud Run inner runtime server-r4.js now imports auth-session-policy.mjs; exchanged sessions expire no later than source GAS token and cookie Max-Age follows token expiry. Commit f9b3c97.
+- Existing signed handoff in server-r5.js now issues 2-hour sessions rather than 30-day sessions, pending a separate trusted-session handoff contract. Commit 4cedf7a.
+- DEV Manager ordinary verified tokens can reach canonical validation; special-case forced re-login removed on feature branch. Commit 68b83ac.
+- Incomplete/expired OTP response fails closed, preventing stale stored-token fallback.
+- New tests are registered in cloudrun/transport-proof/package.json npm test.
+- Current source-level check: 10 of 11 release criteria satisfied. The remaining failure is credentials still added to redirect URL in LoginV5.html (buildPortalTarget_ and buildTestTarget).
+- A direct complete-file update to eliminate those query credentials was rejected by connected tool safety checks and MUST NOT be claimed as committed.
+- Do not deploy or merge until that URL failure is corrected and full npm test plus end-to-end navigation passes.
+- Google Apps Script EntryBootstrapV5.html currently obtains canonical credentials from same-origin localStorage, then passes them server-side to V5_ENTRY_resolve. The proposed tokenless navigation relies on browser storage persistence across GAS iframe navigation; must be proven in real DEV browser before disabling compatibility.
+- Signed handoff is time-restricted but does not yet have a demonstrated server-side one-time replay ledger. Do not describe signed handoff as single-use.
+- No production changes or deployment authorization granted.

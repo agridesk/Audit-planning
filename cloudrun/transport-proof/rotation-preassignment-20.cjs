@@ -1,5 +1,5 @@
 'use strict';
-const {evaluateCombinedRotation}=require('./rotation-policy-20');
+const {evaluateCombinedRotation}=require('./rotation-policy-20.cjs');
 // This decision adapter is intentionally side-effect free. The canonical writer
 // must recompute under its write lock; a UI warning is never an authorization.
 function preassignmentRotationDecision(scopes,phase){

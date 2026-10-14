@@ -21,5 +21,10 @@ const source=n=>({scopeRows,completedRows:history(n),approvedExceptions:[],assig
   await assert.rejects(gate({...args,loadSheets:async()=>({...source(2),assignmentAuditId:'OTHER'})}),/ROTATION_AMS_ASSIGNMENT_IDENTITY_MISMATCH/);
  await assert.rejects(gate({...args,loadSheets:async()=>({...source(2),assignmentCompanyUid:'OTHER'})}),/ROTATION_AMS_ASSIGNMENT_IDENTITY_MISMATCH/);
  await assert.rejects(gate({...args,loadSheets:async()=>({...source(2),assignmentAuditorUid:'OTHER'})}),/ROTATION_AMS_ASSIGNMENT_IDENTITY_MISMATCH/);
- console.log('AMS writer integration: 13 checks passed');
+  const twoScopes={...source(2),assignmentScopeKeys:['CODE_1','CODE_2']};
+ assert.equal((await gate({...args,scopeKeys:['CODE_1','CODE_2'],loadSheets:async()=>twoScopes})).decision,'ALLOW');
+ await assert.rejects(gate({...args,scopeKeys:['CODE_1'],loadSheets:async()=>twoScopes}),/ROTATION_AMS_ASSIGNMENT_SCOPE_MISMATCH/);
+ const blockedSecond={...twoScopes,completedRows:[header,...Array.from({length:3},(_,i)=>['Company','auditor@example.com','Completed',...slots.map((_,j)=>j===1?'x':''),'B'+i,'C1','2025-02-'+String(i+1).padStart(2,'0'),'U1'])]};
+ await assert.rejects(gate({...args,scopeKeys:['CODE_1','CODE_2'],loadSheets:async()=>blockedSecond}),/ROTATION_WRITE_BLOCKED/);
+ console.log('AMS writer integration: 16 checks passed');
 })().catch(e=>{console.error(e);process.exitCode=1});

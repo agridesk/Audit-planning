@@ -7,8 +7,10 @@ function completedLogRowsFromAms20(values,{resolveAuditorUid,scopeByColumn}={}){
  const index=(name)=>h.indexOf(name);
  const company=index('companyuid'),auditor=index('auditor'),status=index('status'),date=index('datecompleted'),audit=index('auditid');
  if([company,auditor,status,date,audit].some(i=>i<0))throw Error('ROTATION_AMS_REQUIRED_COLUMN_MISSING');
+ const actualScopeHeaders=h.map((name,i)=>({name,i})).filter(x=>/^scope0[1-8]$/.test(x.name));
+ if(actualScopeHeaders.length!==8||new Set(actualScopeHeaders.map(x=>x.name)).size!==8)throw Error('ROTATION_AMS_SCOPE_HEADERS_INCOMPLETE');
  const scopeColumns=Object.keys(scopeByColumn);
- if(!scopeColumns.length)throw Error('ROTATION_AMS_SCOPE_MAPPING_MISSING');
+ if(scopeColumns.length!==8)throw Error('ROTATION_AMS_SCOPE_MAPPING_MISSING');
  const scopeIndexes=scopeColumns.map(name=>({i:index(name.toLowerCase().replace(/[\s_-]/g,'')),scopeKey:scopeByColumn[name]}));
  if(scopeIndexes.some(x=>x.i<0||!x.scopeKey)||new Set(scopeIndexes.map(x=>x.i)).size!==scopeIndexes.length||new Set(scopeIndexes.map(x=>x.scopeKey)).size!==scopeIndexes.length)throw Error('ROTATION_AMS_SCOPE_MAPPING_INVALID');
  const result=[],auditOwner=new Map();

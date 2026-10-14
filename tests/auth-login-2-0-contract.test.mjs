@@ -31,9 +31,11 @@ const cases = [
     assert.match(auditorHandoff, /V5_AUTH\.validateTrustedTokenByRole\(token,'Auditor',device\)/);
     assert.match(auditorHandoff, /return ExternalAuditorPlanningHandoff_renderPost_/);
   }],
-  ['Auditor Grid 2.0 PROD route is implemented (release gate)', () => {
-    const main = entry.slice(entry.indexOf('function V5_ENTRY_renderApp('), entry.indexOf('function RUN_ENTRY_ENV_SMOKE('));
-    assert.match(main, /action==='auditorgrid2'/);
+  ['Auditor Grid 2.0 PROD handoff is configured safely (release gate)', () => {
+    assert.match(auditorHandoff, /AMS_AUDITOR_GRID2_PROD_HANDOFF_URL/);
+    assert.match(auditorHandoff, /runtimeEnv==='PROD'&&action==='auditorgrid2'/);
+    assert.match(auditorHandoff, /if\(configured===EXTERNAL_AUDITOR_PLANNING_HANDOFF_URL\)return ''/);
+    assert.match(auditorHandoff, /if\(!target\)throw new Error\('AUDITOR_GRID2_HANDOFF_NOT_CONFIGURED'\)/);
   }],
   ['DEV Manager normal tokens use canonical validation', () => {
     assert.doesNotMatch(entry, /runtimeEnv === 'DEV' && action === 'manager' && expectedRole === 'Manager' && !V5_ENTRY_isTestBypass_/);

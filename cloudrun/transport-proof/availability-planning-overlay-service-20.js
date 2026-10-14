@@ -34,7 +34,7 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
   return buildManagerAvailabilityOverview({fromDate,toDate,auditors});
  }
  async function mutate({actor,auditorId,expectedVersion,mutation,now}){
-  if(mutation?.action==='BLOCK_PERIOD'){
+  if(['BLOCK_PERIOD','SET_FREE_OVERRIDE'].includes(mutation?.action)){
    const fromDate=clean(mutation.fromDate||mutation.date);
    const toDate=clean(mutation.toDate||mutation.fromDate||mutation.date);
    // Validate against authoritative planning before changing the baseline.
@@ -43,7 +43,7 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
    const blocks=committedBlocksFromCanonicalSlots({auditorId,slots});
    const start=mutation.wholeDay===true?'00:00':clean(mutation.start);
    const end=mutation.wholeDay===true?'24:00':clean(mutation.end);
-   if(blocks.some(b=>b.state==='COMMITTED'&&b.date>=fromDate&&b.date<=toDate&&start<b.end&&b.start<end))throw Error('COMMITTED_CONFLICT');
+   if(blocks.some(b=>['COMMITTED','PROVISIONAL'].includes(b.state)&&b.date>=fromDate&&b.date<=toDate&&start<b.end&&b.start<end))throw Error('COMMITTED_CONFLICT');
   }
   return service.mutate({actor,auditorId,expectedVersion,mutation,...(now?{now}:{})});
  }

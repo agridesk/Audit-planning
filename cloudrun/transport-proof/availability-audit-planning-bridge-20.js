@@ -13,6 +13,7 @@ export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDa
  if(!rows.length)return [];
  const h=rows[0],id=index(h,['Audit ID','Audit_ID']),status=index(h,['Status']),assigned=index(h,['Assigned to','Assigned auditor','Auditor']),json=index(h,['Planning JSON','Planning_JSON']);
  if([id,status,assigned,json].some(x=>x<0))throw Error('AUDIT_PLANNING_HEADERS_MISSING');
+ const companyColumn=index(h,['Company','Company name','Company Name','Company_Name','Company name (display)']),scopesColumn=index(h,['Scopes','Scope','Scope(s)','Scope names','Scope Names','Audit scopes']);
  const lookup=new Map();
  for(const a of auditors){const uid=norm(a.auditorId),email=norm(a.email).toLowerCase();if(!uid||!email||lookup.has(email))throw Error('AUDITOR_IDENTITY_AMBIGUOUS');lookup.set(email,uid);}
  const slots=[],seen=new Set();
@@ -34,7 +35,7 @@ export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDa
    if(d<fromDate||d>toDate)continue;
    const auditorId=lookup.get(email),signature=[auditId,d,start,end].join('|');
    if(seen.has(signature))throw Error('AUDIT_PLANNING_SLOT_DUPLICATE');seen.add(signature);
-   slots.push({auditorId,auditId,date:d,start,end,state:state==='PENDINGAPPROVAL'?'PROVISIONAL':'COMMITTED'});
+   slots.push({auditorId,auditId,date:d,start,end,state:state==='PENDINGAPPROVAL'?'PROVISIONAL':'COMMITTED',company:companyColumn<0?'':norm(row[companyColumn]),scopes:scopesColumn<0?'':norm(row[scopesColumn])});
   }
  }
  return slots;

@@ -21,8 +21,11 @@ const source=n=>({scopeRows,completedRows:rows(n),approvedExceptions:[],assignme
  await assert.rejects(commit({...args,withWriterLock,loadSheets:async()=>{throw Error('READ_FAILED')},commitAudit}),/READ_FAILED/);
  assert.equal(committed,1);
  assert.equal(locked,false);
+ await assert.rejects(commit({...args,scopeKeys:[],withWriterLock,loadSheets,commitAudit}),/ROTATION_WRITER_CONTEXT_INVALID/);
+ await assert.rejects(commit({...args,auditId:'',withWriterLock,loadSheets,commitAudit}),/ROTATION_WRITER_CONTEXT_INVALID/);
+ assert.equal(committed,1);
   let released=false;
  const lockThatDoesNotAwait=async fn=>{let output;try{output=fn();assert.equal(released,false);return await output}finally{released=true}};
  await commit({...args,withWriterLock:lockThatDoesNotAwait,loadSheets:async()=>source(2),commitAudit:async()=>{assert.equal(released,false)}});
- console.log('Atomic writer boundary: 11 checks passed');
+ console.log('Atomic writer boundary: 13 checks passed');
 })().catch(e=>{console.error(e);process.exitCode=1});

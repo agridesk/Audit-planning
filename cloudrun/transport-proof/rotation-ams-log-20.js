@@ -3,13 +3,13 @@
 // All identities and scope-column mappings must come from trusted server sources.
 function completedLogRowsFromAms20(values,{resolveAuditorUid,scopeByColumn}={}){
  if(!Array.isArray(values)||!values.length||typeof resolveAuditorUid!=='function'||!scopeByColumn||typeof scopeByColumn!=='object')throw Error('ROTATION_AMS_SOURCE_MISSING');
- const h=values[0].map(v=>String(v||'').trim().toLowerCase().replace(/[\\s_-]/g,''));
+ const h=values[0].map(v=>String(v||'').trim().toLowerCase().replace(/[\s_-]/g,''));
  const index=(name)=>h.indexOf(name);
  const company=index('companyuid'),auditor=index('auditor'),status=index('status'),date=index('datecompleted'),audit=index('auditid');
  if([company,auditor,status,date,audit].some(i=>i<0))throw Error('ROTATION_AMS_REQUIRED_COLUMN_MISSING');
  const scopeColumns=Object.keys(scopeByColumn);
  if(!scopeColumns.length)throw Error('ROTATION_AMS_SCOPE_MAPPING_MISSING');
- const scopeIndexes=scopeColumns.map(name=>({i:index(name.toLowerCase().replace(/[\\s_-]/g,'')),scopeKey:scopeByColumn[name]}));
+ const scopeIndexes=scopeColumns.map(name=>({i:index(name.toLowerCase().replace(/[\s_-]/g,'')),scopeKey:scopeByColumn[name]}));
  if(scopeIndexes.some(x=>x.i<0||!x.scopeKey))throw Error('ROTATION_AMS_SCOPE_MAPPING_INVALID');
  const result=[],auditOwner=new Map();
  for(const row of values.slice(1)){

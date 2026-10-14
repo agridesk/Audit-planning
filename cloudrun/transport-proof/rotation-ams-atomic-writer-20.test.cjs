@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {commitAuditWithRotation20:commit}=require('./rotation-ams-atomic-writer-20');
+const {commitAuditWithRotation20:commit}=require('./rotation-ams-atomic-writer-20.cjs');
 const slots=Array.from({length:8},(_,i)=>'SCOPE_0'+(i+1));
 const scopeRows=[['SlotKey','ScopeCode','Rotation_Normal_Maximum','Rotation_Applies','Rotation_Plus_One_Permitted'],...slots.map((s,i)=>[s,'CODE_'+(i+1),'3','TRUE','FALSE'])];
 const h=['Company','Auditor','Status',...slots,'Audit ID','Company_UID','Date completed','Auditor_UID'];

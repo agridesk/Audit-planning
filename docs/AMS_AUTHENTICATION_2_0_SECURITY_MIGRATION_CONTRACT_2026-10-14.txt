@@ -57,3 +57,26 @@ These are branch-only source changes; no deployment or browser acceptance is imp
 
 8. RELEASE NO-GO
 Never merge a partial token-transport change that leaves any protected route inaccessible or introduces a reusable token in URLs. Never modify My Availability / Rotation files as a side effect of this work.
+
+9. VERIFIED EXISTING CLOUD RUN SESSION INFRASTRUCTURE (2026-10-14)
+- cloudrun/transport-proof/server-r4.js already issues HMAC-signed sessions and uses the ams_dev_session cookie (HttpOnly; Secure; SameSite=Lax).
+- Endpoints /auth/legacy-handoff (POST) and /api/v1/session/exchange (POST) already exchange a GAS-derived legacy token/device identity for a Cloud Run session.
+- Role-checked Cloud Run manager portal access already exists. Do not create a second session cookie implementation.
+- Caveat: Cloud Run session TTL is currently 30 days, whereas the documented GAS OTP trusted/session TTLs are 14 days / 2 hours; exact session lifecycle and revocation parity needs deliberate reconciliation before broad rollout.
+- GAS EntryBootstrapV5.html currently consumes a localStorage bearer token and invokes V5_ENTRY_resolve; LoginV5.html currently creates token-bearing GET URLs. Cross-origin storage behavior and active GAS deployment routing must be verified before removing these parameters.
+- Current server-r4.js is very large; any future edit requires latest branch fetch, explicit conflict checking and full regression tests. Do not modify this shared runtime during parallel My Availability / Rotation deployment.
+- A preexisting signed handoff is referenced by EntryBootstrapV5.html. Inspect and reuse the existing implementation rather than building a competing transport.
+
+10. AUTHENTICATION RISK REGISTER
+P0: Browser-visible reusable credentials in GAS GET redirect URL.
+P0: Potential expiry mismatch across GAS and Cloud Run sessions (2h/14d versus 30d).
+P0: DEV manager-specific special-case in V5_ENTRY_resolve may reject a normal authenticated non-bypass DEV Manager session; verify before adopting.
+P1: Client-visible static DEV bypass credentials even though backend environment guard exists.
+P1: Legacy bootstrap temporarily substitutes a manual Manager Portal button for a signed auto-handoff.
+P1: Complete token revocation/logout and browser-back controls must be verified across both hosts.
+
+11. SAFE RELEASE STRATEGY
+- Keep fixes isolated on this feature branch.
+- After other DEV branches are integrated, compare/rebase and review any conflicts in EntryV5.js, EntryBootstrapV5.html, AuthService.js and Cloud Run server-r4.js.
+- Convert GAS-to-Cloud Run exchange to a secure one-time handoff and align session duration and revocation before retiring legacy routes.
+- End-to-end authorization and deployment acceptance must precede merge to dev or PROD.

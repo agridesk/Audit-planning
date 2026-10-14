@@ -23,7 +23,7 @@ export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDa
   if(!['APPROVED','ACCEPTED','PENDINGAPPROVAL'].includes(state))continue;
   const raw=norm(row[json]);if(!raw)continue;
   const email=norm(row[assigned]).toLowerCase();
-  if(!email||!lookup.has(email))throw Error('AUDITOR_IDENTITY_UNRESOLVED');
+  if(!email||!lookup.has(email))continue; // Unresolved historical assignments cannot reserve a known auditor UID.
   let parsed;try{parsed=JSON.parse(raw);}catch{throw Error('AUDIT_PLANNING_JSON_INVALID');}
   const blocks=Array.isArray(parsed)?parsed:parsed?.blocks;
   if(!Array.isArray(blocks)||!blocks.length)throw Error('AUDIT_PLANNING_BLOCKS_INVALID');

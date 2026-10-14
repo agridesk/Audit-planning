@@ -15,7 +15,7 @@ COPY company-management-readmodel-20.js ./
 COPY company-auditor-permissions-20.js ./
 COPY auditor-identity-versions.js ./
 COPY auditor-uid-backfill-preview.js ./
-COPY rotation-*.js ./
+COPY rotation-*.cjs ./
 COPY server-r4.js ./
 COPY server-r5.js ./
 COPY server-r6.js ./

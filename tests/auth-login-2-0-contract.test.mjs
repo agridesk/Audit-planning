@@ -39,6 +39,15 @@ const cases = [
     assert.match(cloudRun, /legacyTokenExpiresAt:exp/);
     assert.match(cloudRun, /session\.exp-Math\.floor\(Date\.now\(\)\/1000\)/);
   }],
+  ['No reusable credentials in login redirect URLs (release gate)', () => {
+    const portal = login.slice(login.indexOf('function buildPortalTarget_('), login.indexOf('function submitTopGet_('));
+    const shortcut = login.slice(login.indexOf('function buildTestTarget('), login.indexOf('function loginAsTestUser('));
+    for (const segment of [portal, shortcut]) {
+      for (const secret of ['trustedToken', 'deviceFingerprint', 'deviceId', 'token']) {
+        assert.doesNotMatch(segment, new RegExp('qs\\.set\\(["\\\']' + secret + '["\\\']'));
+      }
+    }
+  }],
   ['Incomplete OTP session response fails closed', () => {
     assert.match(login, /if \(!res\.token \|\| !res\.expiresAt \|\| !res\.tokenType/);
     assert.match(login, /String\(res\.role \|\| ""\) !== role/);

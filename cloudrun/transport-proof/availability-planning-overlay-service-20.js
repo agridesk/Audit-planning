@@ -43,7 +43,7 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
    const blocks=committedBlocksFromCanonicalSlots({auditorId,slots});
    const start=mutation.wholeDay===true?'00:00':clean(mutation.start);
    const end=mutation.wholeDay===true?'24:00':clean(mutation.end);
-   if(blocks.some(b=>['COMMITTED','PROVISIONAL'].includes(b.state)&&b.date>=fromDate&&b.date<=toDate&&start<b.end&&b.start<end))throw Error('COMMITTED_CONFLICT');
+   if(blocks.some(b=>(b.state==='COMMITTED'||mutation.action==='SET_FREE_OVERRIDE'&&b.state==='PROVISIONAL')&&b.date>=fromDate&&b.date<=toDate&&start<b.end&&b.start<end))throw Error('COMMITTED_CONFLICT');
   }
   return service.mutate({actor,auditorId,expectedVersion,mutation,...(now?{now}:{})});
  }

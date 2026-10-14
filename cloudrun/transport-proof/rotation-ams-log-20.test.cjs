@@ -13,4 +13,6 @@ assert.throws(()=>read([header,row],{...config,resolveAuditorUid:()=>''}),/UNRES
 assert.throws(()=>read([header,row,row],config),/DUPLICATE/);
 assert.throws(()=>read([header,[...row.slice(0,3),'?',...row.slice(4)]],config),/INDICATOR/);
 assert.throws(()=>read([header,[...row.slice(0,3),'NO','0',...row.slice(5)]],config),/SCOPE_MISSING/);
-console.log('AMS log adapter: 7 assertions passed');
+assert.throws(()=>read([header,row],{...config,scopeByColumn:{SCOPE_01:'SAME',SCOPE_02:'SAME'}}),/MAPPING_INVALID/);
+assert.throws(()=>read([header,row],{...config,scopeByColumn:{SCOPE_01:'GLOBALGAP',SCOPE_09:'UNKNOWN'}}),/MAPPING_INVALID/);
+console.log('AMS log adapter: 9 assertions passed');

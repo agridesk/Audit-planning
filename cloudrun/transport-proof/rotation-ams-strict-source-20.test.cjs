@@ -1,0 +1,15 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {strictAmsCompletedHistory20:read}=require('./rotation-ams-strict-source-20');
+const scopes=Array.from({length:8},(_,i)=>'SCOPE_'+String(i+1).padStart(2,'0'));
+const mapping=Object.fromEntries(scopes.map((s,i)=>[s,'CANON_'+(i+1)]));
+const h=['Company','Auditor','Status',...scopes,'Audit ID','Company_UID','Date completed'];
+const row=['Company','Auditor X','Completed',...scopes.map((_,i)=>i===0?'YES':'NO'),'A1','C1','2026-05-02'];
+const opts={scopeByColumn:mapping,resolveAuditorUid:()=> 'U1'};
+assert.equal(read([h,row],opts).length,1);
+assert.equal(read([h,row],opts)[0].scopeKey,'CANON_1');
+assert.throws(()=>read([h.filter(x=>x!=='SCOPE_08')],opts),/HEADERS_REQUIRED/);
+assert.throws(()=>read([h,row],{...opts,scopeByColumn:{SCOPE_01:'X'}}),/MAPPING_REQUIRED/);
+assert.throws(()=>read([h,row],{...opts,scopeByColumn:{...mapping,SCOPE_08:'CANON_1'}}),/NOT_UNIQUE/);
+assert.throws(()=>read([h,row],{...opts,resolveAuditorUid:()=>''}),/UNRESOLVED/);
+console.log('Strict AMS source: 6 checks passed');

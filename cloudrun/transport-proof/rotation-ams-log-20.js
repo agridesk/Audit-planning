@@ -10,7 +10,7 @@ function completedLogRowsFromAms20(values,{resolveAuditorUid,scopeByColumn}={}){
  const scopeColumns=Object.keys(scopeByColumn);
  if(!scopeColumns.length)throw Error('ROTATION_AMS_SCOPE_MAPPING_MISSING');
  const scopeIndexes=scopeColumns.map(name=>({i:index(name.toLowerCase().replace(/[\s_-]/g,'')),scopeKey:scopeByColumn[name]}));
- if(scopeIndexes.some(x=>x.i<0||!x.scopeKey))throw Error('ROTATION_AMS_SCOPE_MAPPING_INVALID');
+ if(scopeIndexes.some(x=>x.i<0||!x.scopeKey)||new Set(scopeIndexes.map(x=>x.i)).size!==scopeIndexes.length||new Set(scopeIndexes.map(x=>x.scopeKey)).size!==scopeIndexes.length)throw Error('ROTATION_AMS_SCOPE_MAPPING_INVALID');
  const result=[],auditOwner=new Map();
  for(const row of values.slice(1)){
   if(String(row[status]||'').trim().toLowerCase()!=='completed')continue;
@@ -18,9 +18,8 @@ function completedLogRowsFromAms20(values,{resolveAuditorUid,scopeByColumn}={}){
   if(!companyUid||!auditId||!completedAt||!rawAuditor||!Number.isFinite(Date.parse(completedAt)))throw Error('ROTATION_AMS_COMPLETED_ROW_INCOMPLETE');
   const auditorUid=resolveAuditorUid(rawAuditor,completedAt);
   if(typeof auditorUid!=='string'||!auditorUid.trim())throw Error('ROTATION_AMS_AUDITOR_UID_UNRESOLVED');
-  const fingerprint=companyUid+'|'+auditorUid;
   if(auditOwner.has(auditId))throw Error('ROTATION_AMS_DUPLICATE_AUDIT_ID');
-  auditOwner.set(auditId,fingerprint);
+  auditOwner.set(auditId,true);
   let found=0;
   for(const {i,scopeKey} of scopeIndexes){
    const v=String(row[i]||'').trim().toUpperCase();

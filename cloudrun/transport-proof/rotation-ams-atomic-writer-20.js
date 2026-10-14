@@ -7,7 +7,7 @@ async function commitAuditWithRotation20({withWriterLock,loadSheets,commitAudit,
  return withWriterLock(async()=>{
   const check=await enforceAmsRotationAtWrite20({loadSheets,phase:'COMMIT',companyUid,auditorUid,auditId,scopeKeys});
   if(check.decision!=='ALLOW')throw Error('ROTATION_WRITER_NOT_ALLOWED');
-  return commitAudit({companyUid,auditorUid,auditId,scopeKeys,rotationDecision:check});
+  return await commitAudit({companyUid,auditorUid,auditId,scopeKeys,rotationDecision:check});
  });
 }
 module.exports={commitAuditWithRotation20};

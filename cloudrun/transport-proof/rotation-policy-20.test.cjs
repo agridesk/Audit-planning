@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {evaluateRotation:e,evaluateCombinedRotation:c}=require('./rotation-policy-20');
+const {evaluateRotation:e,evaluateCombinedRotation:c}=require('./rotation-policy-20.cjs');
 const base={identityResolved:true,policyResolved:true,rotationApplies:true,consecutiveCompleted:0,normalMaximum:3,extensionPermitted:true,extensionUsedInSeries:false,managerApproved:false,assignmentBound:false,justification:''};
 const check=(changes,status,allowed)=>{const x=e({...base,...changes});assert.equal(x.status,status);assert.equal(x.allowed,allowed);};
 check({},'OK',true);

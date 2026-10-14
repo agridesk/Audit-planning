@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {createAvailabilityService} from './availability-storage-service-20.js';
+const store=new Map();
+const adapter={async read(id){return structuredClone(store.get(id)??null)},async compareAndSwap(id,expected,next){const old=store.get(id);if((old?.version??0)!==expected)return false;store.set(id,structuredClone(next));return true;}};
+const service=createAvailabilityService(adapter),manager={id:'manager1',role:'Manager'},auditor={id:'aud1',role:'Auditor'};
+let n=0;async function test(label,fn){await fn();console.log('PASS',++n,label);}
+async function fails(fn,code){await assert.rejects(fn,e=>e.message===code);}
+await test('initial snapshot',async()=>assert.equal((await service.read(auditor,'aud1')).version,0));
+await test('auditor cannot read colleague',async()=>fails(()=>service.read(auditor,'aud2'),'NOT_AUTHORIZED'));
+await test('manager blocks entire year',async()=>{const r=await service.mutate({actor:manager,auditorId:'aud1',expectedVersion:0,mutation:{action:'BLOCK_PERIOD',fromDate:'2027-01-01',toDate:'2027-12-31',wholeDay:true}});assert.equal(r.version,1);assert.ok(r.recordId);});
+const baseline=(await service.read(manager,'aud1')).baselineExceptions[0].id;
+await test('manager releases two weeks',async()=>{const r=await service.mutate({actor:manager,auditorId:'aud1',expectedVersion:1,mutation:{action:'RELEASE_BASELINE',targetExceptionId:baseline,fromDate:'2027-01-11',toDate:'2027-01-24',wholeDay:true}});assert.equal(r.version,2);});
+await test('stale writer rejected',async()=>fails(()=>service.mutate({actor:auditor,auditorId:'aud1',expectedVersion:1,mutation:{action:'CONFIRM_AVAILABILITY',fromDate:'2027-01-01',toDate:'2027-01-31',wholeDay:true}}),'VERSION_CONFLICT'));
+await test('manager sees released and blocked days',async()=>{const x=await service.period({actor:manager,auditorId:'aud1',fromDate:'2027-01-10',toDate:'2027-01-12'});assert.equal(x.days[0].segments[0].state,'HARD');assert.equal(x.days[1].segments[0].state,'FREE');});
+await test('not confirmed distinct from free',async()=>{const x=await service.managerOverview({actor:manager,auditorIds:['aud1'],fromDate:'2027-01-11',toDate:'2027-01-12'});assert.equal(x.auditors[0].confirmation.status,'NOT_CONFIRMED');});
+await test('auditor confirms period',async()=>{await service.mutate({actor:auditor,auditorId:'aud1',expectedVersion:2,now:'2027-01-01T10:00:00Z',mutation:{action:'CONFIRM_AVAILABILITY',fromDate:'2027-01-01',toDate:'2027-01-31',wholeDay:true}});const x=await service.managerOverview({actor:manager,auditorIds:['aud1'],fromDate:'2027-01-11',toDate:'2027-01-12'});assert.equal(x.auditors[0].confirmation.status,'CONFIRMED');});
+await test('later manager edit requires review',async()=>{await service.mutate({actor:manager,auditorId:'aud1',expectedVersion:3,now:'2027-01-01T12:00:00Z',mutation:{action:'RELEASE_BASELINE',targetExceptionId:baseline,fromDate:'2027-01-26',toDate:'2027-01-27',wholeDay:true}});const x=await service.managerOverview({actor:manager,auditorIds:['aud1'],fromDate:'2027-01-26',toDate:'2027-01-27'});assert.equal(x.auditors[0].confirmation.status,'REVIEW_NEEDED');});
+console.log(n,'storage service checks passed');

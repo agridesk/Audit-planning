@@ -85,7 +85,7 @@ const overlay=createPlanningOverlayService({
 });
 const availability=createAvailabilityHttpRouter({service:overlay,resolveIdentity:session,listAuditors:async actor=>{
  const roster=await getRoster();
- return roster.filter(x=>x.role==='auditor'&&(actor.role==='manager'||x.auditorId===actor.auditorId)).map(x=>({auditorId:x.auditorId,displayName:x.displayName}));
+ return roster.filter(x=>actor.role==='auditor'?x.auditorId===actor.auditorId:x.role==='auditor').map(x=>({auditorId:x.auditorId,displayName:x.displayName}));
 }});
 async function proxy(req,res){
  const url='http://127.0.0.1:'+innerPort+(req.url||'/');

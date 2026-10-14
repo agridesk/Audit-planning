@@ -93,3 +93,8 @@ P1: Complete token revocation/logout and browser-back controls must be verified 
 - Google Apps Script EntryBootstrapV5.html currently obtains canonical credentials from same-origin localStorage, then passes them server-side to V5_ENTRY_resolve. The proposed tokenless navigation relies on browser storage persistence across GAS iframe navigation; must be proven in real DEV browser before disabling compatibility.
 - Signed handoff is time-restricted but does not yet have a demonstrated server-side one-time replay ledger. Do not describe signed handoff as single-use.
 - No production changes or deployment authorization granted.
+
+13. ISOLATED EXECUTED VALIDATION
+- Auth-session policy module syntax checked with Node and six actual bounded-expiry scenarios executed successfully in a separate local validation harness on 2026-10-14.
+- Full repository npm test and browser-integrated GAS / Cloud Run acceptance not yet executed.
+- Browser GET redirect still transmits reusable token in LoginV5.html and therefore remains a hard release blocker, enforced by tests/auth-login-2-0-contract.test.mjs.

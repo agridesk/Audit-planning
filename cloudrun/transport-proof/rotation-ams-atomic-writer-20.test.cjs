@@ -1,0 +1,25 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {commitAuditWithRotation20:commit}=require('./rotation-ams-atomic-writer-20');
+const slots=Array.from({length:8},(_,i)=>'SCOPE_0'+(i+1));
+const scopeRows=[['SlotKey','ScopeCode','Rotation_Normal_Maximum','Rotation_Applies','Rotation_Plus_One_Permitted'],...slots.map((s,i)=>[s,'CODE_'+(i+1),'3','TRUE','FALSE'])];
+const h=['Company','Auditor','Status',...slots,'Audit ID','Company_UID','Date completed','Auditor_UID'];
+const rows=n=>[h,...Array.from({length:n},(_,i)=>['Company','Auditor','Completed',...slots.map((_,j)=>j===0?'x':''),'A'+i,'C','2025-01-'+String(i+1).padStart(2,'0'),'U'])];
+const args={companyUid:'C',auditorUid:'U',auditId:'NEXT',scopeKeys:['CODE_1']};
+const source=n=>({scopeRows,completedRows:rows(n),approvedExceptions:[],assignmentScopeKeys:['CODE_1'],assignmentAuditId:'NEXT',assignmentCompanyUid:'C',assignmentAuditorUid:'U'});
+(async()=>{
+ let locked=false,committed=0;
+ const withWriterLock=async fn=>{assert.equal(locked,false);locked=true;try{return await fn()}finally{locked=false}};
+ const loadSheets=async()=>{assert.equal(locked,true);return source(2)};
+ const commitAudit=async()=>{assert.equal(locked,true);committed++;return 'COMMITTED'};
+ assert.equal(await commit({...args,withWriterLock,loadSheets,commitAudit}),'COMMITTED');
+ assert.equal(committed,1);
+ await assert.rejects(commit({...args,withWriterLock,loadSheets:async()=>{assert.equal(locked,true);return source(3)},commitAudit}),/ROTATION_WRITE_BLOCKED/);
+ assert.equal(committed,1);
+ assert.equal(locked,false);
+ await assert.rejects(commit({...args,withWriterLock:null,loadSheets,commitAudit}),/ROTATION_WRITER_INTEGRATION_MISSING/);
+ await assert.rejects(commit({...args,withWriterLock,loadSheets:async()=>{throw Error('READ_FAILED')},commitAudit}),/READ_FAILED/);
+ assert.equal(committed,1);
+ assert.equal(locked,false);
+ console.log('Atomic writer boundary: 10 checks passed');
+})().catch(e=>{console.error(e);process.exitCode=1});

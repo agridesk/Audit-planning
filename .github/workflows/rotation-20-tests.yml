@@ -25,3 +25,4 @@ jobs:
           node cloudrun/transport-proof/rotation-ams-identity-integration-20.test.cjs
           node cloudrun/transport-proof/rotation-ams-strict-source-20.test.cjs
           node cloudrun/transport-proof/rotation-config-scope-slots-20.test.cjs
+          node cloudrun/transport-proof/rotation-policy-source-diagnostic-20.test.cjs

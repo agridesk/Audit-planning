@@ -28,7 +28,7 @@ export function prepareAvailabilityMutation({actor,targetAuditorId,expectedVersi
   const w=windowOf(mutation);if(!contains(windowOf(baseline),w))throw Error('RELEASE_OUTSIDE_BASELINE');
   payload={id,targetExceptionId:str(mutation.targetExceptionId),fromDate:mutation.fromDate??mutation.date,toDate:mutation.toDate??mutation.fromDate??mutation.date,wholeDay:mutation.wholeDay===true,...(mutation.wholeDay===true?{}:{start:mutation.start,end:mutation.end})};
  }else{
-  const w=windowOf(mutation);if(w.to-w.from>3660)throw Error('PERIOD_TOO_LONG');
+  const w=windowOf({...mutation,wholeDay:true});if(w.to-w.from>3660)throw Error('PERIOD_TOO_LONG');
   payload={fromDate:mutation.fromDate??mutation.date,toDate:mutation.toDate??mutation.fromDate??mutation.date};
  }
  return {targetAuditorId:target,expectedVersion,nextVersion:expectedVersion+1,action,payload,audit:{at:now,actorId,actorRole:role,targetAuditorId:target,action,fromDate:payload.fromDate,toDate:payload.toDate,substantive:action!=='CONFIRM_AVAILABILITY'}};

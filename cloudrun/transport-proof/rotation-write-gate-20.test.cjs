@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {enforceRotationAtWrite20:gate}=require('./rotation-write-gate-20');
+const {enforceRotationAtWrite20:gate}=require('./rotation-write-gate-20.cjs');
 const source={companyUid:'C',auditorUid:'A',scopePolicies:[{scopeKey:'S',normalMaximum:2,extensionPermitted:true}],completedAudits:[{companyUid:'C',scopeKey:'S',auditorUid:'A',status:'Completed',auditId:'1',completedAt:'2025-01-01'},{companyUid:'C',scopeKey:'S',auditorUid:'A',status:'Completed',auditId:'2',completedAt:'2026-01-01'}]};
 const args={companyUid:'C',auditorUid:'A',auditId:'NEXT'};
 (async()=>{

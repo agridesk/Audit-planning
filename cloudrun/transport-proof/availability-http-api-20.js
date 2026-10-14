@@ -16,25 +16,32 @@ export function createAvailabilityHttpRouter({service,resolveIdentity,listAudito
   const route=url.pathname.slice('/api/v1/availability/'.length);
   if(!['calendar','mutate','manager-overview','me'].includes(route)){reply(res,404,{success:false,error:'NOT_FOUND'});return true;}
   if(req.method!==(route==='mutate'?'POST':'GET')){reply(res,405,{success:false,error:'METHOD_NOT_ALLOWED'});return true;}
+  let stage='SESSION';
   try{
    const identity=await resolveIdentity(req);if(!identity){reply(res,401,{success:false,error:'SESSION_REQUIRED'});return true;}
+   stage='ACTOR';
    const actor=verifiedActor(identity);
    if(route==='me'){reply(res,200,{success:true,auditorId:actor.id,role:actor.role});return true;}
    if(route==='manager-overview'&&actor.role!=='manager')throw Error('ROLE_FORBIDDEN');
+   stage='DIRECTORY';
    const directory=await listAuditors(actor);
    if(!Array.isArray(directory)||directory.length>2500)throw Error('INVALID_AUDITOR_DIRECTORY');
    const allowed=new Map(directory.map(x=>[clean(x.auditorId),clean(x.displayName)||clean(x.auditorId)]));
    const authorizedId=id=>{const target=clean(id);if(!allowed.has(target)||actor.role==='auditor'&&actor.id!==target)throw Error('NOT_AUTHORIZED');return target;};
    let result;
    if(route==='calendar'){
+    stage='TARGET_AUTHORIZATION';
     const auditorId=authorizedId(url.searchParams.get('auditorId'));
     const fromDate=url.searchParams.get('fromDate'),toDate=url.searchParams.get('toDate');
     if(!isoDate(fromDate)||!isoDate(toDate))throw Error('INVALID_DATE');
+    stage='PERIOD_SERVICE';
     result=await service.period({actor,auditorId,fromDate,toDate});
    }else if(route==='mutate'){
     if(!/^application\/json(?:;|$)/i.test(clean(req.headers['content-type'])))throw Error('INVALID_CONTENT_TYPE');
+    stage='TARGET_AUTHORIZATION';
     const body=await jsonBody(req),auditorId=authorizedId(body.auditorId);
     if(!Number.isSafeInteger(body.expectedVersion)||body.expectedVersion<0||!body.mutation||typeof body.mutation!=='object'||Array.isArray(body.mutation))throw Error('INVALID_MUTATION');
+    stage='MUTATION_SERVICE';
     result=await service.mutate({actor,auditorId,expectedVersion:body.expectedVersion,mutation:body.mutation});
    }else{
     const fromDate=url.searchParams.get('fromDate'),toDate=url.searchParams.get('toDate');
@@ -46,7 +53,7 @@ export function createAvailabilityHttpRouter({service,resolveIdentity,listAudito
     result=await service.managerOverview({actor,auditorIds:ids,fromDate,toDate,displayNames:Object.fromEntries(ids.map(id=>[id,allowed.get(id)]))});
    }
    reply(res,200,{success:true,...result});
-  }catch(e){const message=clean(e?.message)||'INTERNAL_ERROR';const status=message==='REQUEST_TOO_LARGE'?413:errorStatus(message);reply(res,status,{success:false,error:status===500?'INTERNAL_ERROR':message});}
+  }catch(e){const message=clean(e?.message)||'INTERNAL_ERROR';const status=message==='REQUEST_TOO_LARGE'?413:errorStatus(message);reply(res,status,{success:false,error:status===500?'INTERNAL_ERROR':message,...(status===403?{diagnosticStage:stage}:{})});}
   return true;
  };
 }

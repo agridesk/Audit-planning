@@ -88,6 +88,21 @@ const availability=createAvailabilityHttpRouter({service:overlay,resolveIdentity
  const roster=await getRoster();
  return roster.filter(x=>actor.role==='auditor'?x.auditorId===actor.auditorId:x.role==='auditor').map(x=>({auditorId:x.auditorId,displayName:x.displayName}));
 }});
+async function legacyAvailabilityDiagnostic(req,res){
+ const actor=await session(req);
+ if(!actor||actor.role!=='manager'){res.writeHead(403);res.end();return;}
+ const range="'Auditor Availability'!A1:AZ2000";
+ const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range);
+ const r=await fetch(url,{headers:{authorization:'Bearer '+await getToken()}});
+ if(!r.ok)throw Error('LEGACY_AVAILABILITY_READ_'+r.status);
+ const rows=(await r.json()).values||[];
+ if(rows.length>=2000)throw Error('LEGACY_AVAILABILITY_SCAN_LIMIT');
+ const headers=rows[0]||[];
+ const required=['Date','Auditor_Email','Available','Status_1','Status_2'];
+ const missing=required.filter(x=>!headers.includes(x));
+ res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+ res.end(JSON.stringify({success:true,readOnly:true,rows:Math.max(0,rows.length-1),missing,legacySource:'Auditor Availability',migration:'NOT_APPLIED'}));
+}
 async function proxy(req,res){
  const url='http://127.0.0.1:'+innerPort+(req.url||'/');
  const headers={...req.headers};delete headers.host;delete headers.connection;delete headers['content-length'];
@@ -99,6 +114,7 @@ async function proxy(req,res){
 http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url||'/','http://localhost');
+  if(req.method==='GET'&&u.pathname==='/api/v1/availability/legacy-diagnostic'){await legacyAvailabilityDiagnostic(req,res);return;}
   if(req.method==='GET'&&(u.pathname==='/my-availability'||u.pathname==='/my-availability-20')){
    const identity=await session(req);
    if(identity?.role==='manager'){res.writeHead(302,{'location':'/availability-manager-20','cache-control':'no-store'});res.end();return;}if(!identity||identity.role!=='auditor'){res.writeHead(identity?403:401,{'cache-control':'no-store'});res.end('Not authorized');return;}

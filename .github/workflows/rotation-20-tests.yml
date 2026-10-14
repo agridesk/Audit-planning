@@ -30,3 +30,4 @@ jobs:
           node cloudrun/transport-proof/rotation-ams-canonical-bundle-20.test.cjs
           node cloudrun/transport-proof/rotation-ams-write-integration-20.test.cjs
           node cloudrun/transport-proof/rotation-ams-atomic-writer-20.test.cjs
+          node cloudrun/transport-proof/rotation-direct-plan-gate-20.test.cjs

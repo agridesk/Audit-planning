@@ -24,6 +24,10 @@ const cases = [
   }],
   ['Redirect debug UI does not display token-bearing target', () => assert.match(login, /if \(targetDbg\) targetDbg\.textContent = ""/)],
   ['Backend DEV bypass has runtime guard', () => assert.match(entry, /if \(!V5_ENTRY_isDevEnv_\(\)\) return false/)],
+  ['DEV Manager normal tokens use canonical validation', () => {
+    assert.doesNotMatch(entry, /runtimeEnv === 'DEV' && action === 'manager' && expectedRole === 'Manager' && !V5_ENTRY_isTestBypass_/);
+    assert.match(entry, /V5_AUTH\.validateTrustedTokenByRole\(token, expectedRole, device\)/);
+  }],
   ['Existing bootstrap validates with canonical service', () => assert.match(bootstrap, /V5_ENTRY_resolve\(ctx\)/)],
   ['Cloud Run already uses secure session cookie', () => {
     assert.match(cloudRun, /HttpOnly; Secure; SameSite=Lax/);

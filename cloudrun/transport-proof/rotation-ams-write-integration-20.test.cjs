@@ -6,7 +6,7 @@ const scopeRows=[['SlotKey','ScopeCode','Rotation_Normal_Maximum','Rotation_Appl
 const header=['Company','Auditor','Status',...slots,'Audit ID','Company_UID','Date completed','Auditor_UID'];
 const history=n=>[header,...Array.from({length:n},(_,i)=>['Company','auditor@example.com','Completed',...slots.map((_,j)=>j===0?'x':''),'AUD'+i,'C1','2025-01-'+String(i+1).padStart(2,'0'),'U1'])];
 const args={phase:'COMMIT',companyUid:'C1',auditorUid:'U1',auditId:'NEXT',scopeKeys:['CODE_1']};
-const source=n=>({scopeRows,completedRows:history(n),approvedExceptions:[],assignmentScopeKeys:['CODE_1']});
+const source=n=>({scopeRows,completedRows:history(n),approvedExceptions:[],assignmentScopeKeys:['CODE_1'],assignmentAuditId:'NEXT',assignmentCompanyUid:'C1',assignmentAuditorUid:'U1'});
 (async()=>{
  assert.equal((await gate({...args,loadSheets:async()=>source(2)})).decision,'ALLOW');
  await assert.rejects(gate({...args,loadSheets:async()=>source(3)}),/ROTATION_WRITE_BLOCKED/);
@@ -18,5 +18,8 @@ const source=n=>({scopeRows,completedRows:history(n),approvedExceptions:[],assig
  await assert.rejects(gate({...args,loadSheets:async()=>({...source(2),completedRows:history(2).map((row,i)=>i===1?[...row.slice(0,-1),'']:row)})}),/ROTATION_AMS_AUDITOR_UID_UNRESOLVED/);
   await assert.rejects(gate({...args,loadSheets:async()=>({...source(2),assignmentScopeKeys:['CODE_2']})}),/ROTATION_AMS_ASSIGNMENT_SCOPE_MISMATCH/);
  await assert.rejects(gate({...args,loadSheets:async()=>({...source(2),assignmentScopeKeys:null})}),/ROTATION_AMS_ASSIGNMENT_SCOPES_UNRESOLVED/);
- console.log('AMS writer integration: 10 checks passed');
+  await assert.rejects(gate({...args,loadSheets:async()=>({...source(2),assignmentAuditId:'OTHER'})}),/ROTATION_AMS_ASSIGNMENT_IDENTITY_MISMATCH/);
+ await assert.rejects(gate({...args,loadSheets:async()=>({...source(2),assignmentCompanyUid:'OTHER'})}),/ROTATION_AMS_ASSIGNMENT_IDENTITY_MISMATCH/);
+ await assert.rejects(gate({...args,loadSheets:async()=>({...source(2),assignmentAuditorUid:'OTHER'})}),/ROTATION_AMS_ASSIGNMENT_IDENTITY_MISMATCH/);
+ console.log('AMS writer integration: 13 checks passed');
 })().catch(e=>{console.error(e);process.exitCode=1});

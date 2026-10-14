@@ -359,12 +359,6 @@
 
     const qs = new URLSearchParams();
     qs.set("action", action);
-    qs.set("email", cleanEmail);
-    qs.set("role", cleanRole);
-    qs.set("trustedToken", cleanToken);
-    qs.set("token", cleanToken);
-    qs.set("deviceId", cleanDeviceId);
-    qs.set("deviceFingerprint", cleanDeviceId);
     qs.set("ts", String(Date.now()));
 
     return EXEC_URL + '?' + qs.toString();
@@ -430,16 +424,7 @@
   }
 
   function buildTestTarget(email, role) {
-    const qs = new URLSearchParams({
-      action: destinationForRole_(role),
-      email: normEmail(email),
-      role: String(role || '').trim(),
-      trustedToken: TEST_TOKEN,
-      token: TEST_TOKEN,
-      deviceId: TEST_DEVICE_ID,
-      deviceFingerprint: TEST_DEVICE_ID,
-      ts: String(Date.now())
-    });
+    const qs = new URLSearchParams({action: destinationForRole_(role), ts: String(Date.now())});
     return EXEC_URL + '?' + qs.toString();
   }
 

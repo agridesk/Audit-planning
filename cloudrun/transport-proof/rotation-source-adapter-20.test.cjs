@@ -16,4 +16,6 @@ assert.equal(d({...base,scopePolicies:[{scopeKey:'S1',normalMaximum:null,rotatio
 assert.equal(d({...base,scopePolicies:[{scopeKey:'S1',normalMaximum:null,rotationApplies:false,extensionPermitted:false}]}).contexts[0].rotationApplies,false);
 assert.throws(()=>d({...base,assignmentAuditId:'2'}),/ALREADY_COMPLETED/);
 assert.throws(()=>d({...base,assignmentAuditId:'NEXT',approvedExceptions:[{companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'APPROVED',auditId:'NEXT',justification:'One',approvedByManagerUid:'M'},{companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'APPROVED',auditId:'NEXT',justification:'Two',approvedByManagerUid:'M'}]}),/DUPLICATE_ASSIGNMENT_APPROVAL/);
-console.log('14 canonical adapter checks passed');
+assert.throws(()=>d({...base,approvedExceptions:[{companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'APPROVED',auditId:'NEXT',justification:'   ',approvedByManagerUid:'M'}]}),/AUDIT_TRAIL/);
+assert.throws(()=>d({...base,approvedExceptions:[{companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'APPROVED',auditId:'NEXT',justification:'Valid',approvedByManagerUid:'   '}]}),/AUDIT_TRAIL/);
+console.log('16 canonical adapter checks passed');

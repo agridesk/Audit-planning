@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {makeHistoricalAuditorUidResolver:make}=require('./rotation-auditor-identity-20');
+const {makeHistoricalAuditorUidResolver:make}=require('./rotation-auditor-identity-20.cjs');
 const resolver=make([{alias:'Auditor X',auditorUid:'UID1',validFrom:'2020-01-01',validUntil:'2025-01-01'},{alias:'Auditor X',auditorUid:'UID2',validFrom:'2025-01-01'}]);
 assert.equal(resolver('Auditor X','2024-12-31'),'UID1');
 assert.equal(resolver('Auditor X','2025-01-01'),'UID2');

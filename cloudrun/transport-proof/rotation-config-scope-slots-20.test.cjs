@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {scopeSlotsFromConfig20:read}=require('./rotation-config-scope-slots-20');
+const {scopeSlotsFromConfig20:read}=require('./rotation-config-scope-slots-20.cjs');
 const h=['SlotKey','ScopeCode','DisplayName','Extension'];
 const rows=Array.from({length:8},(_,i)=>['SCOPE_'+String(i+1).padStart(2,'0'),'CODE_'+(i+1),'Display '+(i+1),'4']);
 const mapped=read([h,...rows,['SCOPE_09','INACTIVE','Other','']]);

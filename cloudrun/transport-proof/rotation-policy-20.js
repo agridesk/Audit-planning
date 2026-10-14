@@ -3,11 +3,11 @@
 // All inputs must be resolved server-side from Config_Scopes, Auditor UID and Completed history.
 function evaluateRotation(input) {
   const i=input||{}, count=i.consecutiveCompleted, max=i.normalMaximum;
-  if(!Number.isInteger(count)||count<0||!Number.isInteger(max)||max<1)
-    return {status:'CONFIG_ERROR',allowed:false,reason:'INVALID_ROTATION_CONTEXT'};
   if(i.identityResolved!==true||i.policyResolved!==true)
     return {status:'CONFIG_ERROR',allowed:false,reason:'UNRESOLVED_CANONICAL_CONTEXT'};
   if(i.rotationApplies===false)return {status:'NOT_APPLICABLE',allowed:true,reason:null};
+  if(!Number.isInteger(count)||count<0||!Number.isInteger(max)||max<1)
+    return {status:'CONFIG_ERROR',allowed:false,reason:'INVALID_ROTATION_CONTEXT'};
   if(i.rotationApplies!==true)return {status:'CONFIG_ERROR',allowed:false,reason:'ROTATION_POLICY_UNDEFINED'};
   if(count<max)return {status:count===max-1?'LAST_AVAILABLE':'OK',allowed:true,reason:null};
   if(count>max)return {status:'CONFLICT',allowed:false,reason:'ROTATION_LIMIT_EXCEEDED'};

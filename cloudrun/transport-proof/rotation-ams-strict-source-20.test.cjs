@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {strictAmsCompletedHistory20:read}=require('./rotation-ams-strict-source-20');
+const {strictAmsCompletedHistory20:read}=require('./rotation-ams-strict-source-20.cjs');
 const scopes=Array.from({length:8},(_,i)=>'SCOPE_'+String(i+1).padStart(2,'0'));
 const mapping=Object.fromEntries(scopes.map((s,i)=>[s,'CANON_'+(i+1)]));
 const h=['Company','Auditor','Status',...scopes,'Audit ID','Company_UID','Date completed'];

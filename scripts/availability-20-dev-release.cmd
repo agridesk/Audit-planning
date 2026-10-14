@@ -25,9 +25,10 @@ if not exist "%STAGE%\server-r15.js" (echo ERROR: Release bundle incompleet & ex
 copy /y "%STAGE%\*.js" "%DEST%\" >nul || exit /b 1
 copy /y "%STAGE%\*.mjs" "%DEST%\" >nul || exit /b 1
 copy /y "%STAGE%\*.html" "%DEST%\" >nul || exit /b 1
-powershell -NoProfile -Command "$p=Join-Path $env:DEST 'package.json';$j=Get-Content -Raw $p|ConvertFrom-Json;$j.scripts.start='node server-r15.js';$j|ConvertTo-Json -Depth 30|Set-Content -Encoding UTF8 $p;$p=Join-Path $env:DEST 'Dockerfile';$s=Get-Content -Raw $p;if($s -notmatch 'COPY availability-\\*'){ $s=$s.Replace('COPY server-r12.js ./', 'COPY server-r12.js ./' + [Environment]::NewLine + 'COPY availability-*.js ./' + [Environment]::NewLine + 'COPY availability-*.html ./' + [Environment]::NewLine + 'COPY server-r15.js ./') };Set-Content -Encoding ascii $p $s" || exit /b 1
+powershell -NoProfile -Command "$p=Join-Path $env:DEST 'package.json';$j=Get-Content -Raw $p|ConvertFrom-Json;$j.scripts.start='node server-r15.js';[System.IO.File]::WriteAllText($p,($j|ConvertTo-Json -Depth 30),[System.Text.UTF8Encoding]::new($false));$p=Join-Path $env:DEST 'Dockerfile';$s=Get-Content -Raw $p;if($s -notmatch 'COPY availability-\\*'){ $s=$s.Replace('COPY server-r12.js ./', 'COPY server-r12.js ./' + [Environment]::NewLine + 'COPY availability-*.js ./' + [Environment]::NewLine + 'COPY availability-*.html ./' + [Environment]::NewLine + 'COPY server-r15.js ./') };Set-Content -Encoding ascii $p $s" || exit /b 1
 cd /d "%DEST%" || exit /b 1
 node availability-release-preflight-20.mjs || (echo ERROR: Availability tests FAILED - NO DEPLOY & exit /b 1)
+call npm test || (echo ERROR: Full regression tests FAILED - NO DEPLOY & exit /b 1)
 cd /d "%REPO%" || exit /b 1
 git add cloudrun/transport-proof || exit /b 1
 git diff --cached --check || exit /b 1

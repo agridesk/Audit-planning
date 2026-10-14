@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {completedLogRowsFromAms20:read}=require('./rotation-ams-log-20');
+const {completedLogRowsFromAms20:read}=require('./rotation-ams-log-20.cjs');
 const header=['Company','Auditor','Status','SCOPE_01','SCOPE_02','Audit ID','Company_UID','Date completed'];
 const row=['Acme','Auditor X','Completed','YES','1','A-1','C-1','2026-05-02'];
 const config={scopeByColumn:{SCOPE_01:'GLOBALGAP',SCOPE_02:'GRASP'},resolveAuditorUid:()=> 'UID-1'};

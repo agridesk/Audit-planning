@@ -24,3 +24,4 @@ jobs:
           node cloudrun/transport-proof/rotation-history-20.test.cjs
           node cloudrun/transport-proof/rotation-source-adapter-20.test.cjs
           node cloudrun/transport-proof/rotation-overview-readmodel-20.test.cjs
+          node cloudrun/transport-proof/rotation-write-gate-20.test.cjs

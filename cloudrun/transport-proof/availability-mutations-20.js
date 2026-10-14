@@ -14,7 +14,7 @@ export function prepareAvailabilityMutation({actor,targetAuditorId,expectedVersi
  if(!Number.isSafeInteger(expectedVersion)||expectedVersion<0||snapshot?.version!==expectedVersion)throw Error('VERSION_CONFLICT');
  if(!mutation||typeof mutation!=='object')throw Error('INVALID_MUTATION');
  const action=str(mutation.action),id=str(mutation.id),items=Array.isArray(snapshot?.baselineExceptions)?snapshot.baselineExceptions:[];
- if(!['BLOCK_PERIOD','RELEASE_BASELINE','CONFIRM_AVAILABILITY'].includes(action))throw Error('UNSUPPORTED_ACTION');
+ if(!['BLOCK_PERIOD','RELEASE_BASELINE','CONFIRM_AVAILABILITY','SET_RECURRING'].includes(action))throw Error('UNSUPPORTED_ACTION');
  if(!now||!Number.isFinite(Date.parse(now)))throw Error('INVALID_TIMESTAMP');
  let payload;
  if(action==='BLOCK_PERIOD'){
@@ -27,9 +27,18 @@ export function prepareAvailabilityMutation({actor,targetAuditorId,expectedVersi
   const baseline=items.find(x=>str(x.id)===str(mutation.targetExceptionId));if(!baseline)throw Error('BASELINE_NOT_FOUND');
   const w=windowOf(mutation);if(!contains(windowOf(baseline),w))throw Error('RELEASE_OUTSIDE_BASELINE');
   payload={id,targetExceptionId:str(mutation.targetExceptionId),fromDate:mutation.fromDate??mutation.date,toDate:mutation.toDate??mutation.fromDate??mutation.date,wholeDay:mutation.wholeDay===true,...(mutation.wholeDay===true?{}:{start:mutation.start,end:mutation.end})};
+ }else if(action==='SET_RECURRING'){
+  if(!Array.isArray(mutation.recurring)||mutation.recurring.length>7)throw Error('INVALID_RECURRING');
+  const seen=new Set();payload=[];
+  for(const item of mutation.recurring){if(!item||!Number.isInteger(item.weekday)||item.weekday<0||item.weekday>6||seen.has(item.weekday))throw Error('INVALID_RECURRING_WEEKDAY');seen.add(item.weekday);
+   const start=item.wholeDay===true?'00:00':str(item.start),end=item.wholeDay===true?'24:00':str(item.end);
+   if(time(start)>=time(end,true))throw Error('INVALID_RECURRING_TIME');
+   payload.push({weekday:item.weekday,start,end});
+  }
+  payload.sort((a,b)=>a.weekday-b.weekday);
  }else{
   const w=windowOf({...mutation,wholeDay:true});if(w.to-w.from>3660)throw Error('PERIOD_TOO_LONG');
   payload={fromDate:mutation.fromDate??mutation.date,toDate:mutation.toDate??mutation.fromDate??mutation.date};
  }
- return {targetAuditorId:target,expectedVersion,nextVersion:expectedVersion+1,action,payload,audit:{at:now,actorId,actorRole:role,targetAuditorId:target,action,fromDate:payload.fromDate,toDate:payload.toDate,substantive:action!=='CONFIRM_AVAILABILITY'}};
+ return {targetAuditorId:target,expectedVersion,nextVersion:expectedVersion+1,action,payload,audit:{at:now,actorId,actorRole:role,targetAuditorId:target,action,fromDate:payload.fromDate??null,toDate:payload.toDate??null,substantive:action!=='CONFIRM_AVAILABILITY'}};
 }

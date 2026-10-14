@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {createPlanningReadCache} from './availability-planning-read-cache-20.js';
+let calls=0,now=1000,fail=false;
+const cache=createPlanningReadCache({ttlMs:100,clock:()=>now,load:async()=>{calls++;if(fail)throw Error('SOURCE_UNAVAILABLE');return [['header'],['record-'+calls]];}});
+const [a,b,c]=await Promise.all([cache.read(),cache.read(),cache.read()]);
+assert.equal(calls,1);assert.deepEqual(a,b);assert.deepEqual(b,c);
+assert.equal((await cache.read())[1][0],'record-1');assert.equal(calls,1);
+assert.equal((await cache.read({fresh:true}))[1][0],'record-2');assert.equal(calls,2);
+now=1101;assert.equal((await cache.read())[1][0],'record-3');assert.equal(calls,3);
+fail=true;now=1300;await assert.rejects(()=>cache.read(),/SOURCE_UNAVAILABLE/);
+await assert.rejects(()=>cache.read({fresh:true}),/SOURCE_UNAVAILABLE/);
+fail=false;assert.equal((await cache.read())[1][0],'record-6');
+console.log('PASS: concurrent read coalescing, TTL, mutation fresh read, failure fail-closed');

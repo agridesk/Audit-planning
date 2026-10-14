@@ -1,0 +1,13 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {rotationDecisionFromCanonical:d}=require('./rotation-source-adapter-20');
+const base={companyUid:'C1',auditorUid:'A1',scopePolicies:[{scopeKey:'S1',normalMaximum:2,extensionPermitted:true},{scopeKey:'S2',normalMaximum:3,extensionPermitted:false}],completedAudits:[{auditId:'1',companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'Completed',completedAt:'2024-01-01'},{auditId:'2',companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'Completed',completedAt:'2025-01-01'}]};
+assert.equal(d(base).decision.allowed,false);
+assert.equal(d(base).contexts[0].consecutiveCompleted,2);
+assert.equal(d(base).contexts[1].consecutiveCompleted,0);
+assert.equal(d({...base,completedAudits:[...base.completedAudits,{auditId:'3',companyUid:'C1',scopeKey:'S1',auditorUid:'B1',status:'Completed',completedAt:'2026-01-01'}]}).contexts[0].consecutiveCompleted,0);
+assert.throws(()=>d({...base,scopePolicies:[base.scopePolicies[0],base.scopePolicies[0]]}),/DUPLICATE/);
+assert.throws(()=>d({...base,scopePolicies:[{scopeKey:'S1',normalMaximum:null,extensionPermitted:true}]}),/POLICY/);
+assert.throws(()=>d({...base,approvedExceptions:[{companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'APPROVED'}]}),/AUDIT_TRAIL/);
+assert.throws(()=>d({...base,approvedExceptions:[{companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'APPROVED',auditId:'A',justification:'x',approvedByManagerUid:'M'},{companyUid:'C1',scopeKey:'S1',auditorUid:'A1',status:'APPROVED',auditId:'B',justification:'y',approvedByManagerUid:'M'}]}),/MULTIPLE/);
+console.log('8 canonical adapter checks passed');

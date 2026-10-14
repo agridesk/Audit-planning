@@ -11,7 +11,16 @@ import {createPlanningReadCache} from './availability-planning-read-cache-20.js'
 
 const port=Number(process.env.PORT||8080);
 const innerPort=port+1;
-const project=process.env.GOOGLE_CLOUD_PROJECT||process.env.GCP_PROJECT||'';
+async function resolveProject(){
+ const configured=process.env.GOOGLE_CLOUD_PROJECT||process.env.GCP_PROJECT||'';
+ if(configured)return configured;
+ try{
+  const r=await fetch('http://metadata.google.internal/computeMetadata/v1/project/project-id',{headers:{'Metadata-Flavor':'Google'},signal:AbortSignal.timeout(2500)});
+  if(r.ok)return (await r.text()).trim();
+ }catch{}
+ return '';
+}
+const project=await resolveProject();
 const spreadsheet=process.env.DEV_SSOT_SPREADSHEET_ID||'';
 if(project!=='audit-management-system-dev')throw Error('AVAILABILITY_DEV_PROJECT_ONLY');
 if(!spreadsheet)throw Error('AVAILABILITY_DEV_SHEET_REQUIRED');

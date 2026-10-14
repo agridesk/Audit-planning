@@ -19,4 +19,12 @@ fail({snapshot:snap,mutation:{action:'RELEASE_BASELINE',id:'r1',targetExceptionI
 fail({mutation:{action:'CONFIRM_AVAILABILITY',fromDate:'2027-01-01',toDate:'2027-12-31',wholeDay:true}},'AUDITOR_CONFIRMATION_REQUIRED');
 ok({actor:{id:'auditor1',role:'Auditor'},mutation:{action:'CONFIRM_AVAILABILITY',fromDate:'2027-01-01',toDate:'2027-12-31',wholeDay:true}},'CONFIRM_AVAILABILITY');
 fail({mutation:{action:'DELETE_ALL'}},'UNSUPPORTED_ACTION');
+const recurring={action:'SET_RECURRING',recurring:[{weekday:5,wholeDay:true},{weekday:0,start:'08:00',end:'12:00'}]};
+const valid=prepare({...base,mutation:recurring});assert.deepEqual(valid.payload,[{weekday:0,start:'08:00',end:'12:00'},{weekday:5,start:'00:00',end:'24:00'}]);n++;
+ok({mutation:{action:'SET_RECURRING',recurring:[]}},'SET_RECURRING');
+fail({mutation:{action:'SET_RECURRING',recurring:[{weekday:5,wholeDay:true},{weekday:5,wholeDay:true}]}},'INVALID_RECURRING_WEEKDAY');
+fail({mutation:{action:'SET_RECURRING',recurring:[{weekday:7,wholeDay:true}]}},'INVALID_RECURRING_WEEKDAY');
+fail({mutation:{action:'SET_RECURRING',recurring:[{weekday:2,start:'18:00',end:'08:00'}]}},'INVALID_RECURRING_TIME');
+fail({mutation:{action:'SET_RECURRING',recurring:[{weekday:2,start:'08:00',end:'08:00'}]}},'INVALID_RECURRING_TIME');
+fail({mutation:{action:'SET_RECURRING',recurring:[{weekday:2,start:'08:01',end:'12:00'},{weekday:1,wholeDay:true},{weekday:3,wholeDay:true},{weekday:4,wholeDay:true},{weekday:5,wholeDay:true},{weekday:6,wholeDay:true},{weekday:0,wholeDay:true},{weekday:0,wholeDay:true}]}},'INVALID_RECURRING');
 console.log(`${n} mutation policy checks passed`);

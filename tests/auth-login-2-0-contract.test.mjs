@@ -11,6 +11,7 @@ const auth = fs.readFileSync(path.join(root, 'AuthService.js'), 'utf8');
 const entry = fs.readFileSync(path.join(root, 'EntryV5.js'), 'utf8');
 const bootstrap = fs.readFileSync(path.join(root, 'EntryBootstrapV5.html'), 'utf8');
 const cloudRun = fs.readFileSync(path.join(root, 'cloudrun/transport-proof/server-r4.js'), 'utf8');
+const cloudRunHandoff = fs.readFileSync(path.join(root, 'cloudrun/transport-proof/server-r5.js'), 'utf8');
 
 const cases = [
   ['Auditor defaults to Grid 2.0', () => assert.match(login, /return r === "Auditor" \? "auditorgrid2" : "manager"/)],
@@ -32,6 +33,11 @@ const cases = [
   ['Cloud Run already uses secure session cookie', () => {
     assert.match(cloudRun, /HttpOnly; Secure; SameSite=Lax/);
     assert.match(cloudRun, /\/api\/v1\/session\/exchange/);
+  }],
+  ['Signed handoff issues at most two-hour default session', () => {
+    assert.match(cloudRunHandoff, /const handoffTtlSeconds=2\*60\*60/);
+    assert.match(cloudRunHandoff, /issueSession\(verified,handoffTtlSeconds\)/);
+    assert.match(cloudRunHandoff, /sessionCookie\(token,handoffTtlSeconds\)/);
   }],
   ['Cloud Run does not exceed legacy token expiry (migration gate)', () => {
     assert.match(cloudRun, /legacyTokenExpiresAt/);

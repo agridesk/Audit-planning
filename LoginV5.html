@@ -343,8 +343,7 @@
       ? ["auditorportal","auditorgrid2","auditoravailability","planningworkspace","planningtoolkit","companymap"]
       : ["manager","planningworkspace","planningtoolkit","companies","companymap","diag"];
     if (deep && allowedByRole.indexOf(deep) >= 0) return deep;
-    if (String(APP_ENV || "").toUpperCase() === "DEV") return r === "Auditor" ? "auditorgrid2" : "manager";
-    return r === "Auditor" ? "auditorportal" : "manager";
+    return r === "Auditor" ? "auditorgrid2" : "manager";
   }
 
   function buildPortalTarget_(email, role, token, deviceId) {

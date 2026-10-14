@@ -59,7 +59,7 @@ async function session(req){
  // incomplete Auditors sheet row must never revoke a valid manager login.
  if(role==='manager')return {role,email,auditorId:'manager:'+email};
  const records=await getRoster();const user=records.find(x=>x.email===email);
- if(!user?.auditorId)return null;
+ if(!user?.auditorId)throw Error('AVAILABILITY_AUDITOR_UID_UNRESOLVED');
  return {role,email,auditorId:user.auditorId};
 }
 const adapter=createFirestoreAvailabilityAdapter({projectId:project,getToken});

@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import {canonicalAuditSlotsFromPlanningRows,canonicalAuditBlocksForAuditor} from './availability-audit-planning-bridge-20.js';
+const headers=['Audit ID','Status','Assigned to','Planning JSON'];
+const auditors=[{auditorId:'auditor-d',email:'d@example.com'},{auditorId:'auditor-e',email:'e@example.com'}];
+const row=(id,status,email,blocks)=>[id,status,email,typeof blocks==='string'?blocks:JSON.stringify({blocks})];
+const block=(date='2027-01-12',start='09:00',end='12:00')=>({date,start,end});
+const args={auditors,fromDate:'2027-01-01',toDate:'2027-01-31'};
+let count=0;function check(name,fn){fn();count++;console.log('PASS',name);}
+check('approved committed',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','APPROVED','d@example.com',[block()]) ]})[0].state,'COMMITTED'));
+check('accepted committed',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','ACCEPTED','d@example.com',[block()]) ]})[0].state,'COMMITTED'));
+check('pending approval provisional',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','PENDING_APPROVAL','d@example.com',[block()]) ]})[0].state,'PROVISIONAL'));
+check('pending planning excluded',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','PENDING_PLANNING','d@example.com',[block()]) ]}).length,0));
+check('other auditor isolated',()=>assert.equal(canonicalAuditBlocksForAuditor({...args,rows:[headers,row('A1','APPROVED','e@example.com',[block()])],auditorId:'auditor-d'}).length,0));
+check('outside range excluded',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','APPROVED','d@example.com',[block('2027-02-02')])]}).length,0));
+check('multiple slots',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','APPROVED','d@example.com',[block(),block('2027-01-13')])]}).length,2));
+check('bad json fails',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','APPROVED','d@example.com','{')] }),/JSON_INVALID/));
+check('unresolved auditor fails',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','APPROVED','unknown@example.com',[block()])] }),/IDENTITY_UNRESOLVED/));
+check('duplicate slot fails',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','APPROVED','d@example.com',[block(),block()])] }),/DUPLICATE/));
+check('bad interval fails',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','APPROVED','d@example.com',[block('2027-01-12','13:00','12:00')])] }),/SLOT_INVALID/));
+check('missing headers fails',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[['Audit ID']]}),/HEADERS_MISSING/));
+console.log(`${count} bridge checks passed`);

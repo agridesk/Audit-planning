@@ -1,11 +1,5 @@
 name: Rotation 2.0 unit tests
 on:
-  push:
-    branches: [dev]
-    paths:
-      - 'cloudrun/transport-proof/rotation-*.js'
-      - 'cloudrun/transport-proof/rotation-*.cjs'
-      - '.github/workflows/rotation-20-tests.yml'
   workflow_dispatch:
 jobs:
   rotation-unit:

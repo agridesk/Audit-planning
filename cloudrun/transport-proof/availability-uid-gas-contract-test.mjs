@@ -19,4 +19,8 @@ const rotation=readFileSync(new URL('../../RotationAuditorService.js',import.met
 assert.ok(rotation.includes('byUid: {}'),'Rotation auditor UID index');
 assert.ok(rotation.includes('input.auditorUid || input.auditorEmail'),'Rotation UID input precedence');
 assert.ok(rotation.includes("ROTATION_AUDITOR_IDENTITY_DUPLICATE"),'Rotation duplicate UID protection');
+const auditorV5=readFileSync(new URL('../../AuditorV5Backend.js',import.meta.url),'utf8');
+assert.ok(auditorV5.includes('AUD_V5_GRID_UID|'),'Auditor V5 cache UID keys');
+assert.ok(auditorV5.includes('AUDIT_CACHE.getAuditorGrid(auditorV5_cacheAuditorUid_(email), view)'),'Central grid cache UID lookup');
+assert.ok(auditorV5.includes('AUDIT_CACHE.removeAuditorGrid(auditorV5_cacheAuditorUid_(email))'),'Central grid cache UID invalidation');
 console.log('GAS UID contract PASS');

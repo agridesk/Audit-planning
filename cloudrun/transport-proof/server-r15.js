@@ -44,7 +44,7 @@ async function getRoster(){
  const idx=(...names)=>names.map(n=>headers.indexOf(n.toLowerCase().replace(/[\s_-]+/g,''))).find(i=>i>=0)??-1;
  const email=idx('Email','E-mail'),uid=idx('Auditor UID','AuditorUID','UID','Auditor ID','AuditorID'),name=idx('Auditor Name','Full Name','Name','Display Name'),role=idx('Role'),active=idx('Active');
  if(email<0||uid<0||role<0)throw Error('AUDITOR_ROSTER_CANONICAL_COLUMNS_MISSING');
- const records=rows.slice(1).map(r=>({auditorId:String(r[uid]||'').trim()||(String(r[role]||'').trim().toLowerCase()==='manager'?'manager:'+String(r[email]||'').trim().toLowerCase():''),email:String(r[email]||'').trim().toLowerCase(),displayName:String(r[name]||r[email]||'').trim(),role:String(r[role]||'').trim().toLowerCase(),active:active<0||['yes','true','1','active','x'].includes(String(r[active]||'').trim().toLowerCase())})).filter(x=>x.auditorId&&x.email&&x.active);
+ const records=rows.slice(1).map(r=>({auditorId:String(r[uid]||'').trim(),email:String(r[email]||'').trim().toLowerCase(),displayName:String(r[name]||r[email]||'').trim(),role:String(r[role]||'').trim().toLowerCase(),active:active<0||['yes','true','1','active','x'].includes(String(r[active]||'').trim().toLowerCase())})).filter(x=>x.auditorId&&x.email&&x.active);
  if(new Set(records.map(x=>x.auditorId)).size!==records.length||new Set(records.map(x=>x.email)).size!==records.length)throw Error('AUDITOR_ROSTER_DUPLICATE_IDENTITY');
  return records;
 }
@@ -56,11 +56,11 @@ async function session(req){
  const role=String(j.identity.role||'').trim().toLowerCase();
  if(!['auditor','manager'].includes(role))return null;
  const email=String(j.identity.email).trim().toLowerCase();
- // R12's authenticated session is the authorization grant. A missing or
- // incomplete Auditors sheet row must never revoke a valid manager login.
- if(role==='manager')return {role,email,auditorId:'manager:'+email};
- const records=await getRoster();const user=records.find(x=>x.email===email);
- if(!user?.auditorId)throw Error('AVAILABILITY_AUDITOR_UID_UNRESOLVED');
+ // The verified R12 session grants the role; the roster provides the immutable UID.
+ // Managers and auditors use the same canonical identity resolution.
+ const records=await getRoster();
+ const user=records.find(x=>x.email===email);
+ if(!user?.auditorId||user.role!==role)throw Error('AVAILABILITY_AUDITOR_UID_UNRESOLVED');
  return {role,email,auditorId:user.auditorId};
 }
 const adapter=createFirestoreAvailabilityAdapter({projectId:project,getToken});

@@ -67,7 +67,7 @@ export function v211QualificationWithdrawalConstraint({auditorValues,catalog,sco
  let data;try{data=rows[0][index]?JSON.parse(String(rows[0][index])):[]}catch{return{ok:false,reasons:['QUALIFICATION_WITHDRAWAL_SCHEMA_INVALID']}};
  if(!Array.isArray(data))return{ok:false,reasons:['QUALIFICATION_WITHDRAWAL_SCHEMA_INVALID']};
  const aliases=new Map();for(const sc of catalog||[]){const code=key(sc.scopeCode||sc.displayName||sc.slotKey);for(const k of [sc.scopeCode,sc.displayName,sc.slotKey])if(k)aliases.set(key(k),code)}
- const today=nowDate||new Date().toISOString().slice(0,10),dates=[today,...(requestedDates||[]).map(dateOnly)].filter(Boolean);
+ const today=nowDate||new Date().toISOString().slice(0,10),requested=Array.isArray(requestedDates)?requestedDates.map(dateOnly).filter(Boolean):[],dates=requested.length?requested:[today];
  const reasons=[];
  for(const entry of data){
   if(!entry||!/^(\d{4})-(\d{2})-(\d{2})$/.test(String(entry.effectiveDate||''))||!entry.scopeCode||!Array.isArray(entry.grandfatheredAuditIds)||entry.grandfatheredAuditIds.some(id=>typeof id!=='string'||!id.trim())||new Set(entry.grandfatheredAuditIds).size!==entry.grandfatheredAuditIds.length||!Number.isFinite(Date.parse(String(entry.effectiveDate)+'T00:00:00Z'))||new Date(String(entry.effectiveDate)+'T00:00:00Z').toISOString().slice(0,10)!==entry.effectiveDate){reasons.push('QUALIFICATION_WITHDRAWAL_SCHEMA_INVALID');continue}

@@ -212,7 +212,7 @@ var AvailabilityService = (function () {
 
   function validateRequiredCols_(cm) {
     if (cm.iDate < 0 || cm.iAud < 0 || cm.iUid < 0 || cm.iAvail < 0) {
-      throw new Error('Auditor Availability headers missing (need Date, Auditor_Email/Auditor_Name, Available)');
+      throw new Error('Auditor Availability headers missing (need Date, Auditor_UID, Auditor_Email, Available)');
     }
   }
 

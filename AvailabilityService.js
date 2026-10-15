@@ -1024,7 +1024,7 @@ var AvailabilityService = (function () {
 
   function repairDefaultTimeCells(req) {
     req = req || {};
-    var auditorFilter = normalizeEmail(req.auditorEmail || '');
+    var auditorFilter = req.auditorEmail ? auditorUidForEmail_(req.auditorEmail) : '';
     var sh = getSheet_();
     var meta = readHeaders_(sh);
     var cm = colMap_(meta.headers);
@@ -1042,7 +1042,7 @@ var AvailabilityService = (function () {
 
     for (var r = 0; r < vals.length; r++) {
       var row = vals[r] || [];
-      var aud = cm.iAud >= 0 ? normalizeEmail(row[cm.iAud]) : '';
+      var aud = cm.iUid >= 0 ? cleanText(row[cm.iUid]) : '';
       if (auditorFilter && aud !== auditorFilter) continue;
       scanned++;
 

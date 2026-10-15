@@ -66,7 +66,7 @@ function RotationAuditorService_getAuditorScopeResult(input) {
   var companyUid = RotationAuditorService_clean_(input.companyUid);
   var companyName = RotationAuditorService_clean_(input.companyName || input.company);
   var scope = RotationAuditorService_canonicalScope_(pack, input.scope);
-  var auditor = RotationAuditorService_resolveAuditor_(pack, input.auditorEmail || input.auditor || input.auditorName || input.name);
+  var auditor = RotationAuditorService_resolveAuditor_(pack, input.auditorUid || input.auditorEmail || input.auditor || input.auditorName || input.name);
   var group = RotationAuditorService_findGroup_(pack, companyUid, companyName, scope);
   var ownersByYear = group ? group.ownersByYear : {};
   var consecutiveYears = RotationAuditorService_countConsecutive_(ownersByYear, auditor, input.maxYearExclusive || null);
@@ -325,7 +325,7 @@ function RotationAuditorService_readMaxByScope_(ss, aliases) {
 }
 
 function RotationAuditorService_readAuditors_(ss, aliases) {
-  var out = { byEmail: {}, byName: {}, list: [] };
+  var out = { byUid: {}, byEmail: {}, byName: {}, list: [] };
   var sh = ss.getSheetByName('Auditors');
   if (!sh) return out;
   var values = sh.getDataRange().getValues();
@@ -334,6 +334,7 @@ function RotationAuditorService_readAuditors_(ss, aliases) {
   var hm = RotationAuditorService_headerMap_(headers);
   var nameCol = RotationAuditorService_pick_(hm, ['Name','Auditor','Auditor name']);
   var emailCol = RotationAuditorService_pick_(hm, ['E-mail','Email','E mail','Auditor email','Auditor_Email']);
+  var uidCol = RotationAuditorService_pick_(hm, ['Auditor_UID','Auditor UID']);
   var activeCol = RotationAuditorService_pick_(hm, ['Active']);
   var roleCol = RotationAuditorService_pick_(hm, ['Role']);
   for (var r = 1; r < values.length; r++) {
@@ -345,6 +346,8 @@ function RotationAuditorService_readAuditors_(ss, aliases) {
     if (role && role !== 'auditor') continue;
     if (active && active !== 'YES' && active !== 'TRUE' && active !== '1') continue;
     var name = nameCol >= 0 ? RotationAuditorService_clean_(row[nameCol]) : email;
+    var uid = uidCol >= 0 ? RotationAuditorService_clean_(row[uidCol]) : '';
+    if (!uid) throw new Error('ROTATION_AUDITOR_UID_MISSING');
     var qualifications = {};
     for (var c = 0; c < headers.length; c++) {
       var header = RotationAuditorService_clean_(headers[c]);
@@ -353,7 +356,9 @@ function RotationAuditorService_readAuditors_(ss, aliases) {
       if (!scope) continue;
       if (RotationAuditorService_isYes_(row[c])) qualifications[scope] = true;
     }
-    var item = { email: email, name: name || email, qualifications: qualifications };
+    var item = { auditorUid: uid, email: email, name: name || email, qualifications: qualifications };
+    if (out.byUid[uid] || out.byEmail[email]) throw new Error('ROTATION_AUDITOR_IDENTITY_DUPLICATE');
+    out.byUid[uid] = item;
     out.byEmail[email] = item;
     if (name) out.byName[name.toLowerCase()] = item;
     out.list.push(item);
@@ -604,8 +609,9 @@ function RotationAuditorService_scopeLooseKey_(s) {
 function RotationAuditorService_resolveAuditor_(pack, raw) {
   var s = RotationAuditorService_clean_(raw).toLowerCase();
   if (!s) return '';
-  if (s.indexOf('@') > 0) return RotationAuditorService_normEmail_(s);
   var auditors = pack && pack.auditors ? pack.auditors : null;
+  if (auditors && auditors.byUid && auditors.byUid[RotationAuditorService_clean_(raw)]) return auditors.byUid[RotationAuditorService_clean_(raw)].email;
+  if (s.indexOf('@') > 0) return RotationAuditorService_normEmail_(s);
   if (auditors && auditors.byName && auditors.byName[s]) return auditors.byName[s].email;
   return s;
 }

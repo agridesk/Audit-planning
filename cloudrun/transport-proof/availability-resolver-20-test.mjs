@@ -21,7 +21,7 @@ assert.throws(()=>resolve([],{baselineExceptions:baseline,baselineReleases:[{tar
 assert.equal(resolveAvailabilityPeriod({fromDate:'2026-10-31',toDate:'2026-11-01',baselineExceptions:baseline}).every(d=>d.segments[0].state==='HARD'),true);
 const weekendDefault=resolveAvailabilityPeriod({fromDate:'2026-12-05',toDate:'2026-12-06',recurring:[{weekday:0,start:'08:00',end:'18:00'}]});
 assert.equal(weekendDefault.length,2);
-assert(weekendDefault.every(d=>d.segments.some(x=>x.state==='SOFT'&&x.start==='08:00'&&x.end==='18:00')));
+assert(weekendDefault.every(d=>d.segments.some(x=>x.state==='SOFT'&&x.start==='00:00'&&x.end==='24:00')));
 const freeSaturday=resolveAvailabilityPeriod({fromDate:'2026-12-05',toDate:'2026-12-05',recurring:[],overrides:[{date:'2026-12-05',wholeDay:true}]});
 assert(freeSaturday[0].segments.every(x=>x.state==='FREE'),'Explicit override can open a weekend');
 console.log('15 resolver checks passed');

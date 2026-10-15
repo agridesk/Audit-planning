@@ -1316,6 +1316,8 @@ var AvailabilityService = (function () {
     var newRow = new Array(meta.lastCol).fill('');
     if (cm.iDate >= 0) newRow[cm.iDate] = dateISO;
     if (cm.iAud >= 0) newRow[cm.iAud] = auditorEmail;
+    if (cm.iUid < 0) throw new Error('AUDITOR_UID_COLUMN_MISSING');
+    newRow[cm.iUid] = auditorUidForEmail_(auditorEmail);
     if (cm.iAvail >= 0) newRow[cm.iAvail] = 'NO';
     if (cm.iS1 >= 0) newRow[cm.iS1] = from;
     if (cm.iE1 >= 0) newRow[cm.iE1] = to;
@@ -1941,6 +1943,8 @@ var AvailabilityService = (function () {
           var newRow = new Array(hdr.length).fill('');
           if (cm.iDate >= 0) newRow[cm.iDate] = ymd2;
           if (cm.iAud >= 0) newRow[cm.iAud] = cleanText(aud.email);
+          if (cm.iUid < 0) throw new Error('AUDITOR_UID_COLUMN_MISSING');
+          newRow[cm.iUid] = auditorUidForEmail_(aud.email);
           if (cm.iAvail >= 0) newRow[cm.iAvail] = 'NO';
           if (cm.iS1 >= 0) newRow[cm.iS1] = defaultStart;
           if (cm.iE1 >= 0) newRow[cm.iE1] = defaultEnd;
@@ -2162,6 +2166,8 @@ var AvailabilityService = (function () {
           var newRow = new Array(hdr.length).fill('');
           if (cm.iDate >= 0) newRow[cm.iDate] = ymd;
           if (cm.iAud >= 0) newRow[cm.iAud] = cleanText(metaAud.emailOriginal || emailLower);
+          if (cm.iUid < 0) throw new Error('AUDITOR_UID_COLUMN_MISSING');
+          newRow[cm.iUid] = auditorUidForEmail_(metaAud.emailOriginal || emailLower);
           if (cm.iAvail >= 0) newRow[cm.iAvail] = 'NO';
           if (cm.iS1 >= 0) newRow[cm.iS1] = defaultStart;
           if (cm.iE1 >= 0) newRow[cm.iE1] = defaultEnd;

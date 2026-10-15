@@ -1869,7 +1869,7 @@ var AvailabilityService = (function () {
     var map = {};
     for (var r = 1; r < data.length; r++) {
       var row = data[r] || [];
-      var email = cm.iAud >= 0 ? normalizeEmail(row[cm.iAud]) : '';
+      var email = cm.iUid >= 0 ? cleanText(row[cm.iUid]) : '';
       if (!email) continue;
       var d0 = cm.iDate >= 0 ? row[cm.iDate] : '';
       if (!d0) continue;
@@ -1892,14 +1892,14 @@ var AvailabilityService = (function () {
     var eligibleEmailSet = {};
     for (var a0 = 0; a0 < auditors.length; a0++) {
       var em0 = normalizeEmail(auditors[a0].email);
-      if (em0) eligibleEmailSet[em0] = true;
+      if (em0) eligibleEmailSet[auditorUidForEmail_(em0)] = true;
     }
 
     for (var k0 in map) {
       if (!map.hasOwnProperty(k0)) continue;
       var rec0 = map[k0];
       var row0 = rec0.row || [];
-      var email0 = cm.iAud >= 0 ? normalizeEmail(row0[cm.iAud]) : '';
+      var email0 = cm.iUid >= 0 ? cleanText(row0[cm.iUid]) : '';
       if (!email0) continue;
       if (eligibleEmailSet[email0]) continue;
 
@@ -1940,7 +1940,7 @@ var AvailabilityService = (function () {
         var statusToUse = isWeekend ? 'DEFAULT_WEEKEND_SOFT' : 'DEFAULT_AUDITOR_BLOCKED_SOFT';
         desired[ymd2] = statusToUse;
 
-        var key2 = emailNorm + '|' + ymd2;
+        var key2 = auditorUidForEmail_(emailNorm) + '|' + ymd2;
         var existing = map[key2];
 
         if (!existing) {
@@ -2115,7 +2115,7 @@ var AvailabilityService = (function () {
     var map = {};
     for (var r = 1; r < data.length; r++) {
       var row = data[r] || [];
-      var em = cm.iAud >= 0 ? normalizeEmail(row[cm.iAud]) : '';
+      var em = cm.iUid >= 0 ? cleanText(row[cm.iUid]) : '';
       if (!em) continue;
       var d0 = cm.iDate >= 0 ? row[cm.iDate] : '';
       if (!d0) continue;
@@ -2163,7 +2163,7 @@ var AvailabilityService = (function () {
         if (!weekend && !isAuditorBlocked) continue;
 
         var statusToUse = weekend ? 'DEFAULT_WEEKEND_SOFT' : 'DEFAULT_AUDITOR_BLOCKED_SOFT';
-        var key = emailLower + '|' + ymd;
+        var key = auditorUidForEmail_(emailLower) + '|' + ymd;
         var ex = map[key];
 
         if (!ex) {

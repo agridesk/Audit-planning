@@ -45,7 +45,7 @@ function AuditorsIndex_ClearCache() {
 function AuditorsIndex_GetDirectory(forceRefresh) {
   if (!forceRefresh && AUDITORSINDEX_EXEC_CACHE.directory) return AUDITORSINDEX_EXEC_CACHE.directory;
 
-  var key = 'directory:v1';
+  var key = 'directory:uid-v2';
 
   if (!forceRefresh) {
     var cached = AuditorsIndex_cacheGet_(key);
@@ -64,7 +64,7 @@ function AuditorsIndex_GetDirectory(forceRefresh) {
 function AuditorsIndex_GetQualifications(forceRefresh) {
   if (!forceRefresh && AUDITORSINDEX_EXEC_CACHE.qualifications) return AUDITORSINDEX_EXEC_CACHE.qualifications;
 
-  var key = 'qualifications:v1';
+  var key = 'qualifications:uid-v2';
 
   if (!forceRefresh) {
     var cached = AuditorsIndex_cacheGet_(key);

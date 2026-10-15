@@ -34,7 +34,8 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
   return buildManagerAvailabilityOverview({fromDate,toDate,auditors});
  }
  async function mutate({actor,auditorId,expectedVersion,mutation,now}){
-  if(['BLOCK_PERIOD','SET_FREE_OVERRIDE'].includes(mutation?.action)){
+  let affectedAudits=[];
+  if(['BLOCK_PERIOD','EDIT_HARD_BLOCK','SET_FREE_OVERRIDE'].includes(mutation?.action)){
    const fromDate=clean(mutation.fromDate||mutation.date);
    const toDate=clean(mutation.toDate||mutation.fromDate||mutation.date);
    // Validate against authoritative planning before changing the baseline.
@@ -43,11 +44,13 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
    const blocks=committedBlocksFromCanonicalSlots({auditorId,slots});
    const start=mutation.wholeDay===true?'00:00':clean(mutation.start);
    const end=mutation.wholeDay===true?'24:00':clean(mutation.end);
+   affectedAudits=slots.filter(slot=>slot.auditorId===auditorId&&slot.date>=fromDate&&slot.date<=toDate&&start<slot.end&&slot.start<end).map(slot=>({auditId:slot.auditId,date:slot.date,start:slot.start,end:slot.end,company:slot.company,state:slot.state}));
    if(mutation.action==='SET_FREE_OVERRIDE'&&blocks.some(b=>(b.state==='COMMITTED'||b.state==='PROVISIONAL')&&b.date>=fromDate&&b.date<=toDate&&start<b.end&&b.start<end))throw Error('AUDIT_CONFLICT');
    // A HARD exception may cover an already planned audit: the overlay keeps the audit protected.
    // Provisional intervals are revalidated by their canonical planning owner; never delete them here.
   }
-  return service.mutate({actor,auditorId,expectedVersion,mutation,...(now?{now}:{})});
+  const result=await service.mutate({actor,auditorId,expectedVersion,mutation,...(now?{now}:{})});
+  return {...result,protectedAudits:affectedAudits.filter(x=>x.state==='COMMITTED'),provisionalConflicts:mutation?.action==='SET_FREE_OVERRIDE'?[]:affectedAudits.filter(x=>x.state==='PROVISIONAL')};
  }
  return Object.freeze({period,managerOverview,mutate,read:service.read});
 }

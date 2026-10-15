@@ -1419,6 +1419,8 @@ var AvailabilityService = (function () {
       var row = new Array(meta.lastCol).fill('');
       if (cm.iDate >= 0) row[cm.iDate] = iso;
       if (cm.iAud >= 0) row[cm.iAud] = auditorEmail;
+      if (cm.iUid < 0) throw new Error('AUDITOR_UID_COLUMN_MISSING');
+      row[cm.iUid] = auditorUidForEmail_(auditorEmail);
       setSoftUnavailable_(row);
 
       var appendAt = sh.getLastRow() + 1;
@@ -1524,6 +1526,8 @@ var AvailabilityService = (function () {
       var row = new Array(hdr.length).fill('');
       if (cm.iDate >= 0) row[cm.iDate] = dateISO;
       if (cm.iAud >= 0) row[cm.iAud] = auditorEmail;
+      if (cm.iUid < 0) throw new Error('AUDITOR_UID_COLUMN_MISSING');
+      row[cm.iUid] = auditorUidForEmail_(auditorEmail);
       if (cm.iAvail >= 0) row[cm.iAvail] = 'NO';
       if (cm.iS1 >= 0) row[cm.iS1] = '08:00';
       if (cm.iE1 >= 0) row[cm.iE1] = '18:00';

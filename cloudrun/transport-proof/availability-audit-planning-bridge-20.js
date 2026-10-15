@@ -12,7 +12,7 @@ export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDa
  if(!Array.isArray(rows)||!Array.isArray(auditors)||!date(fromDate)||!date(toDate)||fromDate>toDate)throw Error('INVALID_AUDIT_BRIDGE_INPUT');
  if(!rows.length)return [];
  const h=rows[0],id=index(h,['Audit ID','Audit_ID']),status=index(h,['Status']),assigned=index(h,['Assigned to','Assigned auditor','Auditor']),json=index(h,['Planning JSON','Planning_JSON']);
- if([id,status,assigned,json].some(x=>x<0))throw Error('AUDIT_PLANNING_HEADERS_MISSING');
+ if([id,status,json].some(x=>x<0)||(assigned<0&&index(h,['Auditor_UID','Auditor UID','Assigned_Auditor_UID','Assigned Auditor UID'])<0))throw Error('AUDIT_PLANNING_HEADERS_MISSING');
  const assignedUid=index(h,['Auditor_UID','Auditor UID','Assigned_Auditor_UID','Assigned Auditor UID']);
  const companyColumn=index(h,['Company','Company name','Company Name','Company_Name','Company name (display)']),scopesColumn=index(h,['Scopes','Scope','Scope(s)','Scope names','Scope Names','Audit scopes']);
  const lookup=new Map(),uidLookup=new Set();
@@ -24,7 +24,7 @@ export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDa
   // Only these explicitly committed planning states can reserve an auditor.
   if(!['APPROVED','ACCEPTED','PENDINGAPPROVAL'].includes(state))continue;
   const raw=norm(row[json]);if(!raw)continue;
-  const email=norm(row[assigned]).toLowerCase(),explicitUid=assignedUid<0?'':norm(row[assignedUid]);
+  const email=assigned<0?'':norm(row[assigned]).toLowerCase(),explicitUid=assignedUid<0?'':norm(row[assignedUid]);
   if(explicitUid&&!uidLookup.has(explicitUid))throw Error('AUDIT_PLANNING_AUDITOR_UID_UNKNOWN');
   if(explicitUid&&email&&lookup.has(email)&&lookup.get(email)!==explicitUid)throw Error('AUDIT_PLANNING_AUDITOR_IDENTITY_CONFLICT');
   if(!explicitUid&&(!email||!lookup.has(email)))continue; // Legacy rows are resolved via current email until migrated.

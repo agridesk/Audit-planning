@@ -177,9 +177,25 @@ var AvailabilityService = (function () {
     return meta;
   }
 
+  // DEV compatibility bridge: resolve stable UID for legacy availability writes.
+  function auditorUidForEmail_(email) {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sh = ss && ss.getSheetByName('Auditors');
+    if (!sh) throw new Error('AUDITORS_DIRECTORY_MISSING');
+    var rows = sh.getDataRange().getValues();
+    var h = (rows.shift() || []).map(function(x){return cleanText(x).toLowerCase().replace(/[\\s_-]+/g,'');});
+    var ec = h.indexOf('email'), uc = h.indexOf('auditoruid');
+    if (ec < 0 || uc < 0) throw new Error('AUDITOR_UID_DIRECTORY_COLUMNS_MISSING');
+    var target = normalizeEmail(email), found = [];
+    rows.forEach(function(row){if(normalizeEmail(row[ec])===target && cleanText(row[uc])) found.push(cleanText(row[uc]));});
+    if (found.length !== 1) throw new Error('AUDITOR_UID_UNRESOLVED');
+    return found[0];
+  }
+
   function colMap_(headers) {
     return {
       iDate: findHeader(headers, ['Date']),
+      iUid: findHeader(headers, ['Auditor_UID']),
       iAud: findHeader(headers, ['Auditor_Email', 'Auditor Email', 'Email', 'E-mail', 'Auditor_Name', 'Auditor Name']),
       iAvail: findHeader(headers, ['Available']),
       iS1: findHeader(headers, ['First_Audit_Start_Time', 'First Audit Start Time']),
@@ -768,6 +784,8 @@ var AvailabilityService = (function () {
       var newRow = new Array(meta.lastCol).fill('');
       newRow[cm.iDate] = dateISO;
       newRow[cm.iAud] = auditorEmail;
+      if (cm.iUid < 0) throw new Error('AUDITOR_UID_COLUMN_MISSING');
+      newRow[cm.iUid] = auditorUidForEmail_(auditorEmail);
       newRow[cm.iAvail] = 'NO';
       if (cm.iUpd >= 0) newRow[cm.iUpd] = nowStamp;
       var appendAt = sh.getLastRow() + 1;

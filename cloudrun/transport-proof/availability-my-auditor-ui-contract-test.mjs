@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+const html=readFileSync(new URL('./availability-my-calendar-20.html',import.meta.url),'utf8');
+const script=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+assert.ok(script,'Auditor calendar script required');
+new vm.Script(script);
+for(const id of ['jumpMonth','currentMonth','prev','next','releaseDay','removeHard','editHard'])assert.ok(html.includes(id),'Missing calendar control '+id);
+assert.ok(html.includes("monthCache.clear();await load({fresh:true})"),'Mutations refresh month cache');
+assert.ok(html.includes("fromDate:day.date,toDate:day.date"),'Single-day release is bounded');
+assert.ok(html.includes("if(!confirm('Remove the entire unavailable period"),'Full removal requires explicit confirmation');
+assert.ok(html.includes("today.slice(0,7)"),'Calendar initializes current month');
+assert.ok(!html.includes('My Availability 2.0'),'No visible version suffix');
+console.log('PASS My Availability auditor interaction contract');

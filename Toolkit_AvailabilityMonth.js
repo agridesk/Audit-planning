@@ -145,7 +145,7 @@ function _mp_tdm_availableCell_(v) {
 }
 
 function _mp_tdm_cacheKey_(auditorEmail, monthKey) {
-  return 'TOOLKIT_DIRECT_MONTH|' + _mp_tdm_normEmail_(auditorEmail) + '|' + _mp_tdm_clean_(monthKey);
+  return 'TOOLKIT_DIRECT_MONTH_UID|' + _mp_tdm_auditorUid_(_mp_tdm_normEmail_(auditorEmail)) + '|' + _mp_tdm_clean_(monthKey);
 }
 
 function _mp_tdm_isCurrentCachePayload_(payload) {

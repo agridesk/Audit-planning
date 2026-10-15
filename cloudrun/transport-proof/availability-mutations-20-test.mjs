@@ -31,3 +31,10 @@ ok({mutation:{action:'SET_FREE_OVERRIDE',fromDate:'2026-10-17',toDate:'2026-10-1
 fail({mutation:{action:'SET_FREE_OVERRIDE',fromDate:'2026-10-18',toDate:'2026-10-17',wholeDay:true}},'INVALID_DATE_RANGE');
 ok({snapshot:snap,mutation:{action:'REMOVE_HARD_BLOCK',targetExceptionId:'b1',fromDate:'2027-01-11',toDate:'2027-01-11',wholeDay:true}},'REMOVE_HARD_BLOCK');
 console.log(`${n} mutation policy checks passed`);
+
+const existingHard={id:'hard-existing',fromDate:'2027-01-01',toDate:'2027-01-10',wholeDay:true};
+const edited=prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],blocks:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'hard-existing',fromDate:'2027-01-03',toDate:'2027-01-09',wholeDay:false,start:'08:00',end:'18:00'}});
+assert.equal(edited.payload.id,'hard-existing','HARD edit retains canonical exception ID');
+assert.equal(edited.payload.fromDate,'2027-01-03');
+assert.equal(edited.payload.wholeDay,false);
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],blocks:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'absent',fromDate:'2027-01-03',toDate:'2027-01-09',wholeDay:true}}),/BASELINE_NOT_FOUND/);

@@ -25,7 +25,7 @@ export function resolveAvailabilityPeriod({fromDate,toDate,blocks=[],recurring=[
   const date=new Date(day*86400000).toISOString().slice(0,10),weekday=(new Date(day*86400000).getUTCDay()+6)%7;
   const active=concrete.filter(x=>x.from<=day&&x.to>=day);
   const effectiveBaselines=baselines.filter(x=>x.from<=day&&x.to>=day);
-  const defaultRecurring=(weekday===5||weekday===6)&&!recurring.some(x=>x.weekday===weekday)?[...recurring,{weekday,start:'08:00',end:'18:00'}]:recurring;
+  const defaultRecurring=(weekday===5||weekday===6)&&!recurring.some(x=>x.weekday===weekday)?[...recurring,{weekday,start:'00:00',end:'24:00'}]:recurring;
   for(const pref of defaultRecurring){if(pref.weekday!==weekday)continue;const p=normalize({...pref,state:'SOFT',date,fromDate:date,toDate:date});
    const cuts=[p.startMinute,p.endMinute];for(const v of available){if(v.from>day||v.to<day)continue;cuts.push(Math.max(p.startMinute,Math.min(p.endMinute,v.startMinute)),Math.max(p.startMinute,Math.min(p.endMinute,v.endMinute)));}
    const sorted=[...new Set(cuts)].sort((a,b)=>a-b);for(let i=1;i<sorted.length;i++){const a=sorted[i-1],b=sorted[i];if(a!==b&&!available.some(v=>overlaps(v,day,a,b)))active.push({...p,startMinute:a,endMinute:b});}

@@ -211,7 +211,7 @@ var AvailabilityService = (function () {
   }
 
   function validateRequiredCols_(cm) {
-    if (cm.iDate < 0 || cm.iAud < 0 || cm.iAvail < 0) {
+    if (cm.iDate < 0 || cm.iAud < 0 || cm.iUid < 0 || cm.iAvail < 0) {
       throw new Error('Auditor Availability headers missing (need Date, Auditor_Email/Auditor_Name, Available)');
     }
   }
@@ -245,7 +245,7 @@ var AvailabilityService = (function () {
 
   function _ensureEmailLoadedInPack_(sh, cm, pack, auditorEmail) {
     var __t0 = Date.now();
-    var aud = normalizeEmail(auditorEmail);
+    var aud = auditorUidForEmail_(auditorEmail);
     if (!aud) return;
     if (!pack.lazyEmails) pack.lazyEmails = {};
     if (pack.lazyEmails[aud]) { pack.lastEnsurePerf = {cacheHit:true,totalMs:Date.now()-__t0}; return; }
@@ -258,16 +258,16 @@ var AvailabilityService = (function () {
       // AMS-01: the live Availability sheet is small (hundreds of rows).
       // One bounded Date+Auditor read is cheaper and more deterministic than
       // TextFinder.findAll() followed by a second spanning Date read.
-      var firstCol = Math.min(cm.iDate, cm.iAud) + 1;
-      var width = Math.abs(cm.iDate - cm.iAud) + 1;
+      var firstCol = Math.min(cm.iDate, cm.iUid) + 1;
+      var width = Math.abs(cm.iDate - cm.iUid) + 1;
       var __readT0 = Date.now();
       var vals = sh.getRange(2, firstCol, lastRow - 1, width).getValues();
       var __readMs = Date.now() - __readT0;
       var dateOffset = (cm.iDate + 1) - firstCol;
-      var audOffset = (cm.iAud + 1) - firstCol;
+      var audOffset = (cm.iUid + 1) - firstCol;
       var matches = 0;
       for (var i = 0; i < vals.length; i++) {
-        if (normalizeEmail(vals[i][audOffset]) !== aud) continue;
+        if (cleanText(vals[i][audOffset]) !== aud) continue;
         var d = normDateISO(vals[i][dateOffset]);
         if (!d) continue;
         var key = aud + '|' + d;
@@ -307,7 +307,7 @@ var AvailabilityService = (function () {
     // works whether pack.rows is dense (fallback path) or sparse (lite path).
     pack.rows[rowNumber - 2] = rowValues.slice();
     var d = normDateISO(cm.iDate >= 0 ? rowValues[cm.iDate] : '');
-    var a = normalizeEmail(cm.iAud >= 0 ? rowValues[cm.iAud] : '');
+    var a = cleanText(cm.iUid >= 0 ? rowValues[cm.iUid] : '');
     if (d && a) {
       var k = a + '|' + d;
       if (!pack.byDateAud[k]) pack.byDateAud[k] = [];
@@ -322,7 +322,7 @@ var AvailabilityService = (function () {
     // GATE MN (20260502): pack is now lazy by default; ensure this auditor
     // is populated before lookup. Cached per-execution after first call.
     _ensureEmailLoadedInPack_(sh, cm, pack, auditorEmail);
-    var key = normalizeEmail(auditorEmail) + '|' + cleanText(dateISO);
+    var key = auditorUidForEmail_(auditorEmail) + '|' + cleanText(dateISO);
     return (pack.byDateAud[key] || []).slice();
   }
 
@@ -481,8 +481,8 @@ var AvailabilityService = (function () {
 
     for (var i = 0; i < vals.length; i++) {
       var row = vals[i];
-      var rowAud = normalizeEmail(row[cm.iAud]);
-      if (rowAud !== auditorKey) continue;
+      var rowAud = cleanText(row[cm.iUid]);
+      if (rowAud !== auditorUidForEmail_(auditorEmail)) continue;
 
       var dateISO = normDateISO(row[cm.iDate]);
       if (!dateISO || dateISO < rangeStart || dateISO > rangeEnd) continue;

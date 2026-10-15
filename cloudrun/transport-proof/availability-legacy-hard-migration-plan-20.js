@@ -13,7 +13,12 @@ export function planLegacyHardMigration({rows,roster,verifiedEmailAliases=[]}={}
  if(names.some(x=>idx[x]<0))throw Error('LEGACY_SCHEMA_MISMATCH');
  const byEmail=new Map();
  for(const auditor of roster){const e=email(auditor.email),id=norm(auditor.auditorId);if(!e||!id||byEmail.has(e))throw Error('MIGRATION_ROSTER_AMBIGUOUS');byEmail.set(e,id);}
- const aliases=new Map(verifiedEmailAliases.map(a=>[email(a.oldEmail),{uid:norm(a.uid),newEmail:email(a.newEmail)}]));
+ const aliases=new Map();
+ for(const a of verifiedEmailAliases){
+  const old=email(a.oldEmail),current=email(a.newEmail),uid=norm(a.uid);
+  if(!old||!current||!uid||aliases.has(old)||byEmail.has(old)||byEmail.get(current)!==uid)throw Error('MIGRATION_ALIAS_UNVERIFIED');
+  aliases.set(old,uid);
+ }
  const candidates=[],quarantined=[],counts={manualHard:0,generated:0,audit:0,other:0};
  for(let i=1;i<rows.length;i++){
   const row=rows[i],get=k=>norm(row[idx[k]]),status=[get('Status_1'),get('Status_2')];
@@ -21,7 +26,7 @@ export function planLegacyHardMigration({rows,roster,verifiedEmailAliases=[]}={}
   if(status.includes('DEFAULT_WEEKEND_SOFT')||status.includes('DEFAULT_AUDITOR_BLOCKED_SOFT')){counts.generated++;continue;}
   if(!(status.includes('MANUAL_AUDITOR_BLOCKED_SOFT')&&status.includes('USER_MANUAL'))){counts.other++;continue;}
   counts.manualHard++;
-  const date=get('Date'),e=email(get('Auditor_Email')),auditorId=byEmail.get(e)||(aliases.has(e)&&byEmail.get(aliases.get(e).newEmail)===aliases.get(e).uid?aliases.get(e).uid:null),start=get('First_Audit_Start_Time'),end=get('First_Audit_End_Time');
+  const date=get('Date'),e=email(get('Auditor_Email')),auditorId=byEmail.get(e)||aliases.get(e),start=get('First_Audit_Start_Time'),end=get('First_Audit_End_Time');
   const problems=[];
   if(!auditorId)problems.push('AUDITOR_UID_UNRESOLVED');
   if(!validDate(date))problems.push('INVALID_DATE');

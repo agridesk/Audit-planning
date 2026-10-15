@@ -30,7 +30,7 @@ export function prepareAvailabilityMutation({actor,targetAuditorId,expectedVersi
   const w=windowOf(mutation);if(w.to-w.from>3660)throw Error('PERIOD_TOO_LONG');
   payload={id:targetId,fromDate:mutation.fromDate??mutation.date,toDate:mutation.toDate??mutation.fromDate??mutation.date,wholeDay:mutation.wholeDay===true,...(mutation.wholeDay===true?{}:{start:mutation.start,end:mutation.end})};
   if(items.some(x=>str(x.id)===targetId&&x!==existing))throw Error('DUPLICATE_BASELINE_ID');
-  else if(action==='RELEASE_BASELINE'){
+}else if(action==='RELEASE_BASELINE'){
   const baseline=items.find(x=>str(x.id)===str(mutation.targetExceptionId));if(!baseline)throw Error('BASELINE_NOT_FOUND');
   const w=windowOf(mutation);if(!contains(windowOf(baseline),w))throw Error('RELEASE_OUTSIDE_BASELINE');
   payload={id,targetExceptionId:str(mutation.targetExceptionId),fromDate:mutation.fromDate??mutation.date,toDate:mutation.toDate??mutation.fromDate??mutation.date,wholeDay:mutation.wholeDay===true,...(mutation.wholeDay===true?{}:{start:mutation.start,end:mutation.end})};

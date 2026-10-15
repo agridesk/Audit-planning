@@ -39,8 +39,17 @@ function auditorV5_getTz_() {
   return 'Europe/Paris';
 }
 
+function auditorV5_cacheAuditorUid_(email) {
+  var raw = String(email || '').trim();
+  if (!raw) throw new Error('AUDITOR_UID_REQUIRED');
+  var directory = AuditorsIndex_GetDirectory(true);
+  if (!directory || !directory.ok) throw new Error('AUDITOR_UID_DIRECTORY_UNAVAILABLE');
+  var entry = (directory.byUid && directory.byUid[raw]) || (directory.byEmail && directory.byEmail[raw.toLowerCase()]);
+  if (!entry || !entry.auditorUid) throw new Error('AUDITOR_UID_UNRESOLVED');
+  return String(entry.auditorUid).trim();
+}
 function auditorV5_userCacheKey_(email, view) {
-  return "AUD_V5_GRID|" + String(view||"") + "|" + String(email||"").toLowerCase();
+  return "AUD_V5_GRID_UID|" + String(view||"") + "|" + auditorV5_cacheAuditorUid_(email);
 }
 function auditorV5_userCacheGet_(email, view) {
   email = String(email || '').trim().toLowerCase();
@@ -48,7 +57,7 @@ function auditorV5_userCacheGet_(email, view) {
 
   try {
     if (typeof AUDIT_CACHE !== 'undefined' && AUDIT_CACHE && typeof AUDIT_CACHE.getAuditorGrid === 'function') {
-      return AUDIT_CACHE.getAuditorGrid(email, view);
+      return AUDIT_CACHE.getAuditorGrid(auditorV5_cacheAuditorUid_(email), view);
     }
   } catch (e0) {}
 
@@ -72,7 +81,7 @@ function auditorV5_userCacheSet_(email, view, obj) {
   try {
     if (typeof AUDIT_CACHE !== 'undefined' && AUDIT_CACHE && typeof AUDIT_CACHE.putAuditorGrid === 'function') {
       AUDIT_CACHE.putAuditorGrid(
-        email,
+        auditorV5_cacheAuditorUid_(email),
         view,
         obj || {},
         (AUDIT_CACHE.TTL && AUDIT_CACHE.TTL.AUDITOR_GRID) || AUDITOR_V5_TTL_GRID_SEC || 60
@@ -177,7 +186,7 @@ function auditorV5_invalidateUserGridCache_(email) {
 
   try {
     if (typeof AUDIT_CACHE !== 'undefined' && AUDIT_CACHE && typeof AUDIT_CACHE.removeAuditorGrid === 'function') {
-      AUDIT_CACHE.removeAuditorGrid(email);
+      AUDIT_CACHE.removeAuditorGrid(auditorV5_cacheAuditorUid_(email));
     }
   } catch (e0) {}
 

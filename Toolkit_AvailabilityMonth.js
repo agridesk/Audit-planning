@@ -994,7 +994,7 @@ function getToolkitAvailabilityMonthDirectV5(auditorEmail, monthKey, opts) {
       // Prefilter already guarantees auditor + month match, but keep the
       // defensive checks so a stale block (e.g. row deleted between filter
       // and read in a concurrent edit) cannot corrupt the day map.
-      if (_mp_tdm_normEmail_(row[cAud]) !== auditorEmail) continue;
+      if (String(row[cAud] || '').trim() !== targetAuditorUid) continue;
       var iso = _mp_tdm_fmtDate_(row[cDate]);
       if (!iso || iso < startISO || iso > endISO) continue;
       rowsInMonth++;

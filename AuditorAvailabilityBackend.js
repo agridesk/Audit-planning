@@ -302,7 +302,9 @@ function AV_classifyRow_(row, idx, rowNumber) {
   var slot1Soft = AV_isSoftStatus_(status1) || (AV_isSoftStatus_(status2) && slot1HasTime && !status1);
   var slot2Soft = AV_isSoftStatus_(status2) || (AV_isSoftStatus_(status1) && slot2HasTime && !status2);
 
-  var slot1Hard = (!!auditId1) || AV_isManagerPlanned_(status1) || AV_isNonDefaultHardStatus_(status1);
+  var manualExplicitHard = availableRaw === 'NO' && AV_isManualSoftStatus_(status1) && AV_isManualSoftStatus_(status2) && !auditId1 && !auditId2;
+  if (manualExplicitHard) { slot1Soft = false; slot2Soft = false; }
+  var slot1Hard = manualExplicitHard || (!!auditId1) || AV_isManagerPlanned_(status1) || AV_isNonDefaultHardStatus_(status1);
   var slot2Hard = (!!auditId2) || AV_isManagerPlanned_(status2) || AV_isNonDefaultHardStatus_(status2);
 
   if (!slot1Hard && slot1HasTime && availableRaw === 'NO' && !slot1Soft && !slot2Soft && !status1 && !status2) {

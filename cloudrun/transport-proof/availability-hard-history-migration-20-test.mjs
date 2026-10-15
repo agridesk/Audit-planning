@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {migrateLegacyHardHistory} from './availability-hard-history-migration-20.js';
+const dates=['2026-05-06','2026-05-08','2026-05-22','2026-06-12','2026-06-24','2026-06-26','2026-07-09','2026-07-15','2026-07-16','2026-07-22','2026-07-23','2026-07-24','2026-08-12','2026-08-13','2026-08-14','2026-09-23','2026-09-24'];
+const rowIds=[14,16,34,54,72,75,99,109,111,118,119,120,147,149,150,196,197];
+const plan={readOnly:true,writeApplied:false,sourceRows:969,counts:{manualHard:17},quarantined:[],candidates:rowIds.map((sourceRow,i)=>({sourceRow,auditorId:'aud-1',date:dates[i],start:'08:00',end:'18:00',targetState:'HARD'}))};
+let doc={auditorId:'aud-1',version:3,baselineExceptions:[],baselineReleases:[],blocks:[],recurring:[],overrides:[],metadata:{changes:[]}};
+const adapter={async read(){return structuredClone(doc)},async compareAndSwap(id,version,next){if(id!==doc.auditorId||version!==doc.version)return false;doc=structuredClone(next);return true;}};
+const preview=await migrateLegacyHardHistory({plan,adapter});assert.equal(preview.toCreate,17);assert.equal(doc.version,3);
+const applied=await migrateLegacyHardHistory({plan,adapter,dryRun:false});assert.equal(applied.created,17);assert.equal(doc.version,4);assert.equal(doc.baselineExceptions.length,17);
+const again=await migrateLegacyHardHistory({plan,adapter,dryRun:false});assert.equal(again.toCreate,0);assert.equal(doc.version,4);
+assert.equal(doc.metadata.changes.length,1);
+await assert.rejects(migrateLegacyHardHistory({plan:{...plan,quarantined:[{sourceRow:14}]},adapter,dryRun:false}),/MIGRATION_SOURCE_CHANGED/);
+await assert.rejects(migrateLegacyHardHistory({plan:{...plan,candidates:plan.candidates.map((x,i)=>i?x:{...x,date:'2026-12-01'})},adapter,dryRun:false}),/MIGRATION_CANDIDATE_MISMATCH/);
+const conflictAdapter={read:adapter.read,compareAndSwap:async()=>false};
+doc={...doc,baselineExceptions:doc.baselineExceptions.slice(0,16)};
+await assert.rejects(migrateLegacyHardHistory({plan,adapter:conflictAdapter,dryRun:false}),/VERSION_CONFLICT/);
+console.log('DEV historical HARD migration safety PASS');

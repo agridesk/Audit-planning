@@ -1,3 +1,18 @@
+
+// Resolve the stable auditor identity from the canonical Auditors directory.
+// Legacy availability rows are matched by UID, never by mutable email.
+function _mp_tdm_auditorUid_(auditorEmail) {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Auditors');
+  if (!sh) throw new Error('AUDITORS_DIRECTORY_MISSING');
+  var values = sh.getDataRange().getValues();
+  var headers = (values.shift() || []).map(function(x){return String(x||'').trim().toLowerCase().replace(/[\\s_-]+/g,'');});
+  var emailCol = headers.indexOf('email');
+  var uidCol = headers.indexOf('auditoruid');
+  if (emailCol < 0 || uidCol < 0) throw new Error('AUDITOR_UID_DIRECTORY_COLUMNS_MISSING');
+  var matches = values.filter(function(row){return _mp_tdm_normEmail_(row[emailCol]) === auditorEmail && String(row[uidCol]||'').trim();});
+  if (matches.length !== 1) throw new Error('AUDITOR_UID_UNRESOLVED');
+  return String(matches[0][uidCol]).trim();
+}
 // FILE: Toolkit_AvailabilityMonth.js
 // BUILD: TOOLKIT_AVAIL_MONTH_3S_R9_VERIFY_FRESHNESS_DEFAULT_20260703
 // PURPOSE:
@@ -241,7 +256,7 @@ function _mp_tdm_sheetSignature_(auditorEmail, monthKey) {
   var headers = sh.getRange(1, 1, 1, lastCol).getValues()[0] || [];
   var hm = _mp_tdm_headerMap_(headers);
   var cDate = hm.indexOf(['Date']);
-  var cAud = hm.indexOf(['Auditor_Email', 'Auditor Email', 'Email', 'E-mail', 'Auditor_Name', 'Auditor Name']);
+  var cAud = hm.indexOf(['Auditor_UID']);
   var cAvail = hm.indexOf(['Available']);
   var cS1 = hm.indexOf(['First_Audit_Start_Time', 'First Audit Start Time']);
   var cE1 = hm.indexOf(['First_Audit_End_Time', 'First Audit End Time']);
@@ -260,7 +275,7 @@ function _mp_tdm_sheetSignature_(auditorEmail, monthKey) {
 
   try {
     var rg = sh.getRange(2, cAud + 1, lastRow - 1, 1);
-    var finder = rg.createTextFinder(auditorEmail).matchEntireCell(true).matchCase(false);
+    var finder = rg.createTextFinder(_mp_tdm_auditorUid_(auditorEmail)).matchEntireCell(true).matchCase(true);
     var hits = finder.findAll() || [];
     for (var h = 0; h < hits.length; h++) {
       var rn = hits[h] && hits[h].getRow ? hits[h].getRow() : 0;
@@ -899,7 +914,7 @@ function getToolkitAvailabilityMonthDirectV5(auditorEmail, monthKey, opts) {
   var headers = sh.getRange(1, 1, 1, lastCol).getValues()[0] || [];
   var hm = _mp_tdm_headerMap_(headers);
   var cDate = hm.indexOf(['Date']);
-  var cAud = hm.indexOf(['Auditor_Email', 'Auditor Email', 'Email', 'E-mail', 'Auditor_Name', 'Auditor Name']);
+  var cAud = hm.indexOf(['Auditor_UID']);
   var cAvail = hm.indexOf(['Available']);
   var cS1 = hm.indexOf(['First_Audit_Start_Time', 'First Audit Start Time']);
   var cE1 = hm.indexOf(['First_Audit_End_Time', 'First Audit End Time']);
@@ -910,7 +925,7 @@ function getToolkitAvailabilityMonthDirectV5(auditorEmail, monthKey, opts) {
   var cSt1 = hm.indexOf(['Status_1', 'Status 1', 'Status']);
   var cSt2 = hm.indexOf(['Status_2', 'Status 2']);
   if (cDate < 0 || cAud < 0 || cAvail < 0) {
-    return { success:false, message:'Auditor Availability missing Date/Auditor_Email/Available columns' };
+    return { success:false, message:'Auditor Availability missing Date/Auditor_UID/Available columns' };
   }
 
   var startISO = monthKey + '-01';
@@ -922,7 +937,8 @@ function getToolkitAvailabilityMonthDirectV5(auditorEmail, monthKey, opts) {
   // has high and highly variable Apps Script service latency on this hot path.
   // One two-column read is cheaper and predictable, then month-filter in memory.
   var tFind0 = Date.now();
-  var rowDiscoveryMethod = 'BoundedDateAuditorColumns';
+  var rowDiscoveryMethod = 'BoundedDateAuditorUIDColumns';
+  var targetAuditorUid = _mp_tdm_auditorUid_(auditorEmail);
   try {
     var dateAudVals = sh.getRange(2, Math.min(cDate, cAud) + 1, lastRow - 1, Math.abs(cAud - cDate) + 1).getValues();
     var baseCol = Math.min(cDate, cAud);
@@ -931,7 +947,7 @@ function getToolkitAvailabilityMonthDirectV5(auditorEmail, monthKey, opts) {
     for (var i = 0; i < dateAudVals.length; i++) {
       var isoCheck = _mp_tdm_fmtDate_(dateAudVals[i][dateOff]);
       if (!isoCheck || isoCheck < startISO || isoCheck > endISO) continue;
-      if (_mp_tdm_normEmail_(dateAudVals[i][audOff]) !== auditorEmail) continue;
+      if (String(dateAudVals[i][audOff]||'').trim() !== targetAuditorUid) continue;
       rowNumbers.push(i + 2);
     }
   } catch (eFilter) {

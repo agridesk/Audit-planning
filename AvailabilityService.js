@@ -385,7 +385,7 @@ var AvailabilityService = (function () {
     for (var i = 0; i < vals.length; i++) {
       var row = vals[i];
       var dateISO = normDateISO(row[cm.iDate]);
-      var aud = normalizeEmail(row[cm.iAud]);
+      var aud = cleanText(row[cm.iUid]);
       if (!dateISO || !aud) continue;
       var key = aud + '|' + dateISO;
       if (!groups[key]) groups[key] = [];
@@ -1581,8 +1581,8 @@ var AvailabilityService = (function () {
     var lastRow = sh.getLastRow();
     for (var r = 1; r < data.length; r++) {
       var row = data[r] || [];
-      var em = cm.iAud >= 0 ? normalizeEmail(row[cm.iAud]) : '';
-      if (em !== auditorEmail) continue;
+      var em = cm.iUid >= 0 ? cleanText(row[cm.iUid]) : '';
+      if (em !== auditorUidForEmail_(auditorEmail)) continue;
       var dateISO = cm.iDate >= 0 ? normDateISO(row[cm.iDate]) : '';
       if (!dateISO || dateISO < startISO || dateISO > endISO) continue;
       if (!byDate[dateISO]) byDate[dateISO] = [];
@@ -2388,8 +2388,8 @@ var AvailabilityService = (function () {
     for (var i = 0; i < rowNumbers.length; i++) {
       var rn = rowNumbers[i];
       var rowVals = rowByNumber[rn] || [];
-      var rowAud = cm.iAud >= 0 ? normalizeEmail(rowVals[cm.iAud]) : '';
-      if (rowAud !== auditorKey) continue;
+      var rowAud = cm.iUid >= 0 ? cleanText(rowVals[cm.iUid]) : '';
+      if (rowAud !== auditorUidForEmail_(auditorKey)) continue;
 
       var dateISO = cm.iDate >= 0 ? normDateISO(rowVals[cm.iDate]) : '';
       if (!dateISO || dateISO < rangeStart || dateISO > rangeEnd) continue;

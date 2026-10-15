@@ -306,7 +306,7 @@ function _mp_tdm_sheetSignature_(auditorEmail, monthKey) {
     var vals = sh.getRange(blk.start, 1, blk.count, lastCol).getValues();
     for (var r = 0; r < vals.length; r++) {
       var row = vals[r] || [];
-      if (_mp_tdm_normEmail_(row[cAud]) !== auditorEmail) continue;
+      if (String(row[cAud] || '').trim() !== _mp_tdm_auditorUid_(auditorEmail)) continue;
       var iso = _mp_tdm_fmtDate_(row[cDate]);
       if (!iso || iso < startISO || iso > endISO) continue;
       rowsMatched++;

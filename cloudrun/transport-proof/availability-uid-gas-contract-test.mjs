@@ -23,4 +23,5 @@ const auditorV5=readFileSync(new URL('../../AuditorV5Backend.js',import.meta.url
 assert.ok(auditorV5.includes('AUD_V5_GRID_UID|'),'Auditor V5 cache UID keys');
 assert.ok(auditorV5.includes('AUDIT_CACHE.getAuditorGrid(auditorV5_cacheAuditorUid_(email), view)'),'Central grid cache UID lookup');
 assert.ok(auditorV5.includes('AUDIT_CACHE.removeAuditorGrid(auditorV5_cacheAuditorUid_(email))'),'Central grid cache UID invalidation');
+assert.ok(directory.includes('var key = AuditorsIndex_clean_(email);'),'Qualification accepts exact Auditor UID without email normalization');
 console.log('GAS UID contract PASS');

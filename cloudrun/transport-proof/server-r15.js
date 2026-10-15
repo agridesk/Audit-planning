@@ -104,7 +104,7 @@ async function legacyAvailabilityDiagnostic(req,res){
  const at=name=>headers.indexOf(name);
  const statusCols=[at('Status_1'),at('Status_2')].filter(i=>i>=0);
  const availableCol=at('Available'),dateCol=at('Date'),emailCol=at('Auditor_Email');
- const counts={recurringDefault:0,weekendDefault:0,manualCandidate:0,manualAmbiguous:0,occupancy:0,unclassified:0};
+ const counts={recurringDefault:0,weekendDefault:0,manualHardCandidate:0,manualAmbiguous:0,occupancy:0,unclassified:0};
  const statusCounts={};const candidates=[];
  for(let n=1;n<rows.length;n++){
   const row=rows[n],statuses=statusCols.map(i=>String(row[i]||'').trim().toUpperCase()).filter(Boolean);
@@ -114,13 +114,13 @@ async function legacyAvailabilityDiagnostic(req,res){
   if(statuses.includes('DEFAULT_WEEKEND_SOFT')){counts.weekendDefault++;continue;}
   if(statuses.includes('DEFAULT_AUDITOR_BLOCKED_SOFT')){counts.recurringDefault++;continue;}
   if(statuses.includes('MANUAL_AUDITOR_BLOCKED_SOFT')||statuses.includes('USER_MANUAL')||statuses.includes('MANUAL_AUDITOR_BLOCKED_HARD')){
-   if(statuses.includes('MANUAL_AUDITOR_BLOCKED_SOFT')&&statuses.includes('USER_MANUAL')&&dateCol>=0&&emailCol>=0&&row[dateCol]&&row[emailCol]&&String(row[availableCol]||'').toUpperCase()==='NO'){counts.manualCandidate++;candidates.push(n+1);}
+   if(statuses.includes('MANUAL_AUDITOR_BLOCKED_SOFT')&&statuses.includes('USER_MANUAL')&&dateCol>=0&&emailCol>=0&&row[dateCol]&&row[emailCol]&&String(row[availableCol]||'').toUpperCase()==='NO'){counts.manualHardCandidate++;candidates.push(n+1);}
    else counts.manualAmbiguous++;
    continue;
   }
   if(statuses.length||availableCol>=0&&String(row[availableCol]||'').toUpperCase()==='NO')counts.unclassified++;
  }
- res.end(JSON.stringify({success:true,readOnly:true,rows:Math.max(0,rows.length-1),missing,legacySource:'Auditor Availability',statusCounts,classification:counts,manualSoftCandidateRows:candidates.slice(0,100),candidatesTruncated:candidates.length>100,migration:'NOT_APPLIED'}));
+ res.end(JSON.stringify({success:true,readOnly:true,rows:Math.max(0,rows.length-1),missing,legacySource:'Auditor Availability',statusCounts,classification:counts,manualHardMigrationCandidateRows:candidates.slice(0,100),candidatesTruncated:candidates.length>100,migration:'NOT_APPLIED'}));
 }
 async function proxy(req,res){
  const url='http://127.0.0.1:'+innerPort+(req.url||'/');

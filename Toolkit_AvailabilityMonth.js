@@ -5,7 +5,7 @@ function _mp_tdm_auditorUid_(auditorEmail) {
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Auditors');
   if (!sh) throw new Error('AUDITORS_DIRECTORY_MISSING');
   var values = sh.getDataRange().getValues();
-  var headers = (values.shift() || []).map(function(x){return String(x||'').trim().toLowerCase().replace(/[\\s_-]+/g,'');});
+  var headers = (values.shift() || []).map(function(x){return String(x||'').trim().toLowerCase().replace(/[\s_-]+/g,'');});
   var emailCol = headers.indexOf('email');
   var uidCol = headers.indexOf('auditoruid');
   if (emailCol < 0 || uidCol < 0) throw new Error('AUDITOR_UID_DIRECTORY_COLUMNS_MISSING');

@@ -245,7 +245,7 @@ function AV_uidForCurrentEmail_(auditorEmail) {
   var sh = AV_getSs_().getSheetByName('Auditors');
   if (!sh) throw new Error('AUDITORS_DIRECTORY_MISSING');
   var rows = sh.getDataRange().getValues();
-  var h = (rows.shift() || []).map(function(v){return String(v||'').trim().toLowerCase().replace(/[\\s_-]+/g,'');});
+  var h = (rows.shift() || []).map(function(v){return String(v||'').trim().toLowerCase().replace(/[\s_-]+/g,'');});
   var e = h.indexOf('email'), u = h.indexOf('auditoruid');
   if (e < 0 || u < 0) throw new Error('AUDITOR_UID_DIRECTORY_COLUMNS_MISSING');
   var ids = rows.filter(function(r){return AV_normEmail_(r[e]) === AV_normEmail_(auditorEmail);}).map(function(r){return String(r[u]||'').trim();}).filter(Boolean);
@@ -442,7 +442,7 @@ function AV_compressRowNumbers_(rowNumbers) {
 
 
 function AV_monthCacheKey_(auditorEmail, monthKey) {
-  return 'AV_MONTH|' + AV_normEmail_(auditorEmail) + '|' + AV_normText_(monthKey);
+  return 'AV_MONTH_UID|' + AV_uidForCurrentEmail_(auditorEmail) + '|' + AV_normText_(monthKey);
 }
 
 function AV_parseMonthCacheKey_(keyPart) {

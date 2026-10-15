@@ -105,7 +105,7 @@ async function legacyAvailabilityDiagnostic(req,res){
  const at=name=>headers.indexOf(name);
  const statusCols=[at('Status_1'),at('Status_2')].filter(i=>i>=0);
  const availableCol=at('Available'),dateCol=at('Date'),emailCol=at('Auditor_Email');
- const migrationPlan=planLegacyHardMigration({rows,roster:await getRoster()});
+ const migrationPlan=planLegacyHardMigration({rows,roster:await getRoster(),verifiedEmailAliases:[{oldEmail:'romboutsrwj@gmail.com',newEmail:'info@agridesk.com',uid:'7ab11689-692c-4aa9-8056-c106f249bdae'}]});
  const counts={recurringDefault:0,weekendDefault:0,manualHardCandidate:0,manualAmbiguous:0,occupancy:0,unclassified:0};
  const statusCounts={};const candidates=[];
  for(let n=1;n<rows.length;n++){

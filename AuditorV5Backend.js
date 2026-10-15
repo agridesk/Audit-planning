@@ -42,7 +42,7 @@ function auditorV5_getTz_() {
 function auditorV5_cacheAuditorUid_(email) {
   var raw = String(email || '').trim();
   if (!raw) throw new Error('AUDITOR_UID_REQUIRED');
-  var directory = AuditorsIndex_GetDirectory(true);
+  var directory = AuditorsIndex_GetDirectory(false);
   if (!directory || !directory.ok) throw new Error('AUDITOR_UID_DIRECTORY_UNAVAILABLE');
   var entry = (directory.byUid && directory.byUid[raw]) || (directory.byEmail && directory.byEmail[raw.toLowerCase()]);
   if (!entry || !entry.auditorUid) throw new Error('AUDITOR_UID_UNRESOLVED');

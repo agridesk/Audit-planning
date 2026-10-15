@@ -7,16 +7,17 @@ const planningValues=[['Audit ID','Company_UID',...slots],['NEXT','C','x',...slo
 const auditorValues=[['Email','Auditor_UID'],['a@example.com','U']];
 const h=['Company','Auditor','Status',...slots,'Audit ID','Company_UID','Date completed','Auditor_UID'];
 const log=n=>[h,...Array.from({length:n},(_,i)=>['C','A','Completed','x',...slots.slice(1).map(()=>''),'OLD'+i,'C','2026-01-'+String(i+1).padStart(2,'0'),'U'])];
-const args=n=>({auditId:'NEXT',auditorEmail:'a@example.com',planningValues,auditorValues,scopeValues,logValues:log(n),approvedExceptions:[]});
+const args=n=>({auditId:'NEXT',auditorUid:'U',planningValues,auditorValues,scopeValues,logValues:log(n),approvedExceptions:[]});
 (async()=>{
  const assignment=canonicalAssignment(args(2));
  assert.deepEqual(assignment,{auditId:'NEXT',companyUid:'C',auditorUid:'U',scopeKeys:['CODE_1']});
  assert.equal((await enforceDirectPlanningRotation20(args(2))).decision,'ALLOW');
  await assert.rejects(enforceDirectPlanningRotation20(args(3)),/ROTATION_WRITE_BLOCKED/);
  await assert.rejects(enforceDirectPlanningRotation20({...args(2),approvedExceptions:undefined}),/ROTATION_DIRECT_APPROVAL_SOURCE_MISSING/);
- await assert.rejects(enforceDirectPlanningRotation20({...args(2),auditorEmail:'wrong@example.com'}),/ROTATION_DIRECT_AUDITOR_UID_UNRESOLVED/);
+ await assert.rejects(enforceDirectPlanningRotation20({...args(2),auditorUid:'WRONG'}),/ROTATION_DIRECT_AUDITOR_UID_UNRESOLVED/);
+ assert.equal((await enforceDirectPlanningRotation20({...args(2),auditorValues:[['Email','Auditor_UID'],['changed@example.com','U']]})).decision,'ALLOW');
  await assert.rejects(enforceDirectPlanningRotation20({...args(2),planningValues:[...planningValues,planningValues[1]]}),/ROTATION_DIRECT_ASSIGNMENT_NOT_UNIQUE/);
  await assert.rejects(enforceDirectPlanningRotation20({...args(2),planningValues:[planningValues[0],['NEXT','','x',...slots.slice(1).map(()=>'')]]}),/ROTATION_DIRECT_COMPANY_UID_MISSING/);
  await assert.rejects(enforceDirectPlanningRotation20({...args(2),planningValues:[planningValues[0],['NEXT','C','?',...slots.slice(1).map(()=>'')]]}),/ROTATION_DIRECT_SCOPE_INDICATOR_INVALID/);
- console.log('Rotation direct planning writer adapter: 8 checks passed');
+ console.log('Rotation direct planning writer adapter: 9 checks passed');
 })().catch(e=>{console.error(e);process.exitCode=1});

@@ -15,4 +15,8 @@ assert.ok(directory.includes('function AuditorsIndex_GetAuditorByUid(uid)'), 'Ca
 assert.ok(directory.includes("out.byUid[uid] = rec"),'Auditor directory keyed by UID');
 assert.ok(directory.includes("out.byUid[uid] = out.byEmail[email]"),'Qualifications keyed by UID');
 assert.ok(directory.includes("'directory:uid-v2'"),'UID schema cache isolation');
+const rotation=readFileSync(new URL('../../RotationAuditorService.js',import.meta.url),'utf8');
+assert.ok(rotation.includes('byUid: {}'),'Rotation auditor UID index');
+assert.ok(rotation.includes('input.auditorUid || input.auditorEmail'),'Rotation UID input precedence');
+assert.ok(rotation.includes("ROTATION_AUDITOR_IDENTITY_DUPLICATE"),'Rotation duplicate UID protection');
 console.log('GAS UID contract PASS');

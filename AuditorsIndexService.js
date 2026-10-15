@@ -88,6 +88,13 @@ function AuditorsIndex_GetAuditorByEmail(email) {
   return dir.byEmail && dir.byEmail[key] ? dir.byEmail[key] : null;
 }
 
+function AuditorsIndex_GetAuditorByUid(uid) {
+  var key = AuditorsIndex_clean_(uid);
+  if (!key) return null;
+  var dir = AuditorsIndex_GetDirectory(false);
+  return dir.byUid && dir.byUid[key] ? dir.byUid[key] : null;
+}
+
 function AuditorsIndex_ResolveEmail(raw) {
   var s = AuditorsIndex_clean_(raw);
   if (!s) return '';
@@ -110,7 +117,7 @@ function AuditorsIndex_IsQualified(email, scopeName) {
   if (!key || !scope) return false;
 
   var q = AuditorsIndex_GetQualifications(false);
-  var rec = q.byEmail && q.byEmail[key] ? q.byEmail[key] : null;
+  var rec = q.byUid && q.byUid[key] ? q.byUid[key] : (q.byEmail && q.byEmail[key] ? q.byEmail[key] : null);
   if (!rec || !rec.qualifiedScopes) return false;
 
   var canonical = scope;
@@ -132,6 +139,7 @@ function AuditorsIndex_buildDirectory_() {
     generatedAt: new Date().toISOString(),
     count: 0,
     byEmail: {},
+    byUid: {},
     byNameKey: {},
     list: [],
     error: pack.error || ''
@@ -153,7 +161,8 @@ function AuditorsIndex_buildDirectory_() {
       'Name', 'Auditor', 'Auditor name', 'Auditor Name'
     ]));
 
-    if (!email) continue;
+    var uid = AuditorsIndex_clean_(AuditorsIndex_val_(row, idx, ['Auditor_UID','Auditor UID']));
+    if (!email || !uid) continue;
 
     var active = AuditorsIndex_clean_(AuditorsIndex_val_(row, idx, ['Active', 'ACTIVE']));
     var role = AuditorsIndex_clean_(AuditorsIndex_val_(row, idx, ['Role', 'Function']));
@@ -162,6 +171,7 @@ function AuditorsIndex_buildDirectory_() {
     if (role && role.toLowerCase() !== 'auditor') continue;
 
     var rec = {
+      auditorUid: uid,
       email: email,
       name: name || email,
       display: (name ? (name + ' <' + email + '>') : email),
@@ -178,6 +188,8 @@ function AuditorsIndex_buildDirectory_() {
       ]))
     };
 
+    if (out.byUid[uid] || out.byEmail[email]) throw new Error('AUDITOR_IDENTITY_DIRECTORY_DUPLICATE');
+    out.byUid[uid] = rec;
     out.byEmail[email] = rec;
     if (rec.name) out.byNameKey[AuditorsIndex_normKey_(rec.name)] = rec;
     out.list.push(rec);
@@ -200,6 +212,7 @@ function AuditorsIndex_buildQualifications_() {
     generatedAt: new Date().toISOString(),
     count: 0,
     byEmail: {},
+    byUid: {},
     error: pack.error || ''
   };
 
@@ -252,12 +265,15 @@ function AuditorsIndex_buildQualifications_() {
       }
     }
 
+    var uid = directory.byEmail[email].auditorUid;
     out.byEmail[email] = {
+      auditorUid: uid,
       email: email,
       name: directory.byEmail[email].name || email,
       qualifiedScopes: qualifiedScopes,
       qualifiedScopeCount: Object.keys(qualifiedScopes).length / 2
     };
+    out.byUid[uid] = out.byEmail[email];
     out.count++;
   }
 

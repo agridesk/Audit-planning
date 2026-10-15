@@ -9,6 +9,7 @@ import {createFirestoreAvailabilityAdapter} from './availability-firestore-adapt
 import {createPlanningOverlayService} from './availability-planning-overlay-service-20.js';
 import {createPlanningReadCache} from './availability-planning-read-cache-20.js';
 import {planLegacyHardMigration} from './availability-legacy-hard-migration-plan-20.js';
+import {migrateLegacyHardHistory} from './availability-hard-history-migration-20.js';
 
 const port=Number(process.env.PORT||8080);
 const innerPort=port+1;
@@ -124,6 +125,30 @@ async function legacyAvailabilityDiagnostic(req,res){
  }
  res.end(JSON.stringify({success:true,readOnly:true,rows:Math.max(0,rows.length-1),missing,legacySource:'Auditor Availability',statusCounts,classification:counts,manualHardMigrationCandidateRows:candidates.slice(0,100),candidatesTruncated:candidates.length>100,migration:'NOT_APPLIED',hardMigrationPlan:migrationPlan}));
 }
+async function legacyHardMigration(req,res){
+ const actor=await session(req);
+ if(!actor||actor.role!=='manager'){res.writeHead(403,{'cache-control':'no-store'});res.end('Manager session required');return;}
+ const host=String(req.headers.host||'');
+ const origin=String(req.headers.origin||'');
+ if(req.method==='POST'&&(!origin||new URL(origin).host!==host||new URL(origin).protocol!=='https:')){res.writeHead(403);res.end('Invalid origin');return;}
+ const range="'Auditor Availability'!A1:AZ2000";
+ const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range);
+ const source=await fetch(url,{headers:{authorization:'Bearer '+await getToken()}});
+ if(!source.ok)throw Error('LEGACY_AVAILABILITY_READ_'+source.status);
+ const rows=(await source.json()).values||[];
+ if(rows.length>=2000)throw Error('LEGACY_AVAILABILITY_SCAN_LIMIT');
+ const plan=planLegacyHardMigration({rows,roster:await getRoster(),verifiedEmailAliases:[{oldEmail:'romboutsrwj@gmail.com',newEmail:'info@agridesk.com',uid:'7ab11689-692c-4aa9-8056-c106f249bdae'}]});
+ if(req.method==='GET'){
+  const result=await migrateLegacyHardHistory({plan,adapter,dryRun:true});
+  res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
+  res.end('<!doctype html><meta charset="utf-8"><title>DEV HARD migration</title><h2>DEV historical HARD migration</h2><p>Read-only check: '+result.total+' legacy records, '+result.alreadyMigrated+' already migrated, '+result.toCreate+' to create. PROD untouched.</p><form method="post"><button type="submit">Migrate historical HARD records to DEV Firestore</button></form>');
+  return;
+ }
+ if(req.method!=='POST'){res.writeHead(405);res.end();return;}
+ const result=await migrateLegacyHardHistory({plan,adapter,dryRun:false});
+ res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+ res.end(JSON.stringify(result));
+}
 async function proxy(req,res){
  const url='http://127.0.0.1:'+innerPort+(req.url||'/');
  const headers={...req.headers};delete headers.host;delete headers.connection;delete headers['content-length'];
@@ -135,6 +160,7 @@ async function proxy(req,res){
 http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url||'/','http://localhost');
+  if(['GET','POST'].includes(req.method)&&u.pathname==='/api/v1/availability/migrate-legacy-hard'){await legacyHardMigration(req,res);return;}
   if(req.method==='GET'&&u.pathname==='/api/v1/availability/legacy-diagnostic'){await legacyAvailabilityDiagnostic(req,res);return;}
   if(req.method==='GET'&&(u.pathname==='/my-availability'||u.pathname==='/my-availability-20')){
    const identity=await session(req);

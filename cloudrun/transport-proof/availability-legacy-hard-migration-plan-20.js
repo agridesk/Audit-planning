@@ -31,6 +31,8 @@ export function planLegacyHardMigration({rows,roster,verifiedEmailAliases=[]}={}
   const date=get('Date'),e=email(get('Auditor_Email')),uidFromRow=idx.Auditor_UID>=0?get('Auditor_UID'):'',auditorId=uidFromRow||byEmail.get(e)||aliases.get(e),start=get('First_Audit_Start_Time'),end=get('First_Audit_End_Time');
   const problems=[];
   if(!auditorId||!validUids.has(auditorId))problems.push('AUDITOR_UID_UNRESOLVED');
+  const linkedUid=byEmail.get(e)||aliases.get(e);
+  if(uidFromRow&&linkedUid&&uidFromRow!==linkedUid)problems.push('AUDITOR_UID_EMAIL_CONFLICT');
   if(!validDate(date))problems.push('INVALID_DATE');
   if(!validTime(start)||!validTime(end,true)||start>=end)problems.push('INVALID_INTERVAL');
   if(get('Available').toUpperCase()!=='NO')problems.push('NOT_MARKED_UNAVAILABLE');

@@ -10,6 +10,9 @@ const overlay=createPlanningOverlayService({service,readPlanningRows:async()=>{r
 const p=await overlay.period({actor,auditorId:'a',fromDate:'2027-01-11',toDate:'2027-01-14'});
 assert.equal(p.version,3);
 assert(p.days.find(d=>d.date==='2027-01-12').segments.some(s=>s.state==='COMMITTED'));
+assert.equal(Object.values(p.auditDetails)[0].auditId,'A1');
+assert.equal(Object.values(p.auditDetails)[0].date,'2027-01-12');
+assert.equal(Object.values(p.auditDetails)[0].state,'COMMITTED');
 assert(!p.days.find(d=>d.date==='2027-01-13').segments.some(s=>s.state==='PROVISIONAL'));
 const m=await overlay.managerOverview({actor,auditorIds:['a','b'],fromDate:'2027-01-11',toDate:'2027-01-14'});
 assert.equal(m.auditors.length,2);

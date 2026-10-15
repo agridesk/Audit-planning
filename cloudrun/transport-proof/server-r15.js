@@ -8,6 +8,7 @@ import {createAvailabilityService} from './availability-storage-service-20.js';
 import {createFirestoreAvailabilityAdapter} from './availability-firestore-adapter-20.js';
 import {createPlanningOverlayService} from './availability-planning-overlay-service-20.js';
 import {createPlanningReadCache} from './availability-planning-read-cache-20.js';
+import {planLegacyHardMigration} from './availability-legacy-hard-migration-plan-20.js';
 
 const port=Number(process.env.PORT||8080);
 const innerPort=port+1;
@@ -104,6 +105,7 @@ async function legacyAvailabilityDiagnostic(req,res){
  const at=name=>headers.indexOf(name);
  const statusCols=[at('Status_1'),at('Status_2')].filter(i=>i>=0);
  const availableCol=at('Available'),dateCol=at('Date'),emailCol=at('Auditor_Email');
+ const migrationPlan=planLegacyHardMigration({rows,roster:await getRoster()});
  const counts={recurringDefault:0,weekendDefault:0,manualHardCandidate:0,manualAmbiguous:0,occupancy:0,unclassified:0};
  const statusCounts={};const candidates=[];
  for(let n=1;n<rows.length;n++){
@@ -120,7 +122,7 @@ async function legacyAvailabilityDiagnostic(req,res){
   }
   if(statuses.length||availableCol>=0&&String(row[availableCol]||'').toUpperCase()==='NO')counts.unclassified++;
  }
- res.end(JSON.stringify({success:true,readOnly:true,rows:Math.max(0,rows.length-1),missing,legacySource:'Auditor Availability',statusCounts,classification:counts,manualHardMigrationCandidateRows:candidates.slice(0,100),candidatesTruncated:candidates.length>100,migration:'NOT_APPLIED'}));
+ res.end(JSON.stringify({success:true,readOnly:true,rows:Math.max(0,rows.length-1),missing,legacySource:'Auditor Availability',statusCounts,classification:counts,manualHardMigrationCandidateRows:candidates.slice(0,100),candidatesTruncated:candidates.length>100,migration:'NOT_APPLIED',hardMigrationPlan:migrationPlan}));
 }
 async function proxy(req,res){
  const url='http://127.0.0.1:'+innerPort+(req.url||'/');

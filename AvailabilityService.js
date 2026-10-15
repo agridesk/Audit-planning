@@ -250,7 +250,7 @@ var AvailabilityService = (function () {
     if (!pack.lazyEmails) pack.lazyEmails = {};
     if (pack.lazyEmails[aud]) { pack.lastEnsurePerf = {cacheHit:true,totalMs:Date.now()-__t0}; return; }
     pack.lazyEmails[aud] = true;
-    if (cm.iAud < 0 || cm.iDate < 0) return;
+    if (cm.iUid < 0 || cm.iDate < 0) throw new Error('AUDITOR_UID_COLUMN_MISSING');
     try {
       var lastRow = Number(pack.lastRow || sh.getLastRow() || 0);
       if (lastRow < 2) return;
@@ -277,7 +277,8 @@ var AvailabilityService = (function () {
       }
       pack.lastEnsurePerf = {cacheHit:false,lastRow:lastRow,matches:matches,span:lastRow-1,boundedReadMs:__readMs,totalMs:Date.now()-__t0};
     } catch (e) {
-      Logger.log('[AMS01] _ensureEmailLoadedInPack_ failed for ' + aud + ': ' + e);
+      Logger.log('[AMS01] UID availability index failed: ' + e);
+      throw e;
     }
   }
 

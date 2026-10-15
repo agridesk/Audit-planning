@@ -59,10 +59,18 @@ export function v211ResolveAuditorEmail(audValues,identity){
   return matches.length===1?val(matches[0],e).toLowerCase():'';
 }
 
+function v211AuditorRowByIdentity(values,identity){
+ const h=values?.[0]||[],u=col(h,['Auditor_UID','Auditor UID','AuditorUid']),e=col(h,['E-mail','Email','E-mail address','Mail']);
+ const requested=clean(identity).toLowerCase();if(!requested)return null;
+ const index=requested.includes('@')?e:u;if(index<0)return null;
+ const matches=values.slice(1).filter(r=>val(r,index).toLowerCase()===requested);
+ return matches.length===1?matches[0]:null;
+}
 export function v211QualificationWithdrawalConstraint({auditorValues,catalog,scopeCodes,auditorEmail,requestedDates,nowDate}={}){
  const h=Array.isArray(auditorValues)&&auditorValues[0]||[],index=col(h,['Qualification_Withdrawals_JSON']),emailCol=col(h,['E-mail','Email']);
  if(index<0)return{ok:true,reasons:[]};
- const rows=(auditorValues||[]).slice(1).filter(r=>emailCol>=0&&val(r,emailCol).toLowerCase()===clean(auditorEmail).toLowerCase());
+ const selected=v211AuditorRowByIdentity(auditorValues,auditorEmail);
+ const rows=selected?[selected]:[];
  if(rows.length!==1)return{ok:false,reasons:['QUALIFICATION_WITHDRAWAL_AUDITOR_NOT_UNIQUE']};
  let data;try{data=rows[0][index]?JSON.parse(String(rows[0][index])):[]}catch{return{ok:false,reasons:['QUALIFICATION_WITHDRAWAL_SCHEMA_INVALID']}};
  if(!Array.isArray(data))return{ok:false,reasons:['QUALIFICATION_WITHDRAWAL_SCHEMA_INVALID']};
@@ -88,10 +96,8 @@ export function v211AuditorQualified(audValues,catalog,scopeCodes,auditorEmail,r
   }
   const email=clean(auditorEmail).toLowerCase();
   if(!Array.isArray(scopeCodes)||scopeCodes.length===0)return false;
-  if(!email||!email.includes('@')||e<0)return false;
-  const matches=audValues.slice(1).filter(row=>val(row,e).toLowerCase()===email);
-  if(matches.length!==1)return false;
-  const target=matches[0];
+  const target=v211AuditorRowByIdentity(audValues,auditorEmail);
+  if(!target)return false;
   if((a>=0&&!yes(target[a]))||(r>=0&&val(target,r).toLowerCase()!=='auditor'))return false;
   if(!target)return false;
   if(!v211QualificationWithdrawalConstraint({auditorValues:audValues,catalog,scopeCodes,auditorEmail,requestedDates}).ok)return false;

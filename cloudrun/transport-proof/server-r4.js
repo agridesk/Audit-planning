@@ -1432,7 +1432,12 @@ function directPlanningCommit(identity,body){
     if(currentStatus!=='PENDING_PLANNING')throw new Error('STATUS_TRANSITION_BLOCKED');
     const assignmentHard=v211AssignmentHardCheck({auditorEmail,auditorValues:vr[1]?.values||[],catalog,scopeCodes:audit.scopes||[],companyValues:vr[5]?.values||[],companyUid:audit.companyUid,companyName:audit.company,logValues:vr[8]?.values||[],requestedDates:requested.map(b=>b.date)});if(!assignmentHard.ok)throw new Error(assignmentHard.reasons[0]);
     if(process.env.AMS_ROTATION_20_DIRECT_WRITER_ENABLED==='true'){
-      await rotationDirectPlanGate20.enforceDirectPlanningRotation20({auditId,auditorEmail,planningValues:ap,auditorValues:vr[1]?.values||[],scopeValues:vr[4]?.values||[],logValues:vr[8]?.values||[],approvedExceptions:[]});
+      const rotationAuditors=vr[1]?.values||[],rotationUidCol=col(rotationAuditors[0]||[],['Auditor_UID','Auditor UID']),rotationEmailCol=col(rotationAuditors[0]||[],['Email','E-mail']);
+      if(rotationUidCol<0||rotationEmailCol<0)throw Error('ROTATION_DIRECT_AUDITOR_DIRECTORY_SCHEMA_MISSING');
+      const rotationCandidates=rotationAuditors.slice(1).filter(row=>val(row,rotationEmailCol).toLowerCase()===auditorEmail);
+      if(rotationCandidates.length!==1||!val(rotationCandidates[0],rotationUidCol))throw Error('ROTATION_DIRECT_AUDITOR_UID_UNRESOLVED');
+      const rotationAuditorUid=val(rotationCandidates[0],rotationUidCol);
+      await rotationDirectPlanGate20.enforceDirectPlanningRotation20({auditId,auditorUid:rotationAuditorUid,planningValues:ap,auditorValues:rotationAuditors,scopeValues:vr[4]?.values||[],logValues:vr[8]?.values||[],approvedExceptions:[]});
     }else{
       const rotationCheck=await directRotationRead(auditId,auditorEmail),rotationHard=v211RotationHardCheck(rotationCheck);if(!rotationHard.ok)throw new Error(rotationHard.reasons[0]);
     }

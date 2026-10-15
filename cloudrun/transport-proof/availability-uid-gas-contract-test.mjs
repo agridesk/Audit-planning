@@ -6,4 +6,8 @@ assert.ok(toolkit.includes("return 'TOOLKIT_DIRECT_MONTH_UID|' + _mp_tdm_auditor
 assert.ok(toolkit.includes('function _mp_tdm_auditorUid_('),'Toolkit UID resolution');
 assert.ok(availability.includes('function auditorUidForEmail_('),'Legacy bridge UID resolution');
 assert.ok(availability.includes("var key = auditorUidForEmail_(auditorEmail) + '|'"),'Availability sheet identity UID');
+const legacy=readFileSync(new URL('../../AuditorAvailabilityBackend.js',import.meta.url),'utf8');
+assert.ok(legacy.includes("return 'AV_MONTH_UID|' + AV_uidForCurrentEmail_(auditorEmail)"),'Legacy monthly availability cache must be keyed by UID');
+assert.ok(legacy.includes("function AV_uidForCurrentEmail_(auditorEmail)"),'Legacy UID lookup must exist');
+assert.ok(!legacy.includes("return 'AV_MONTH|' + AV_normEmail_(auditorEmail)"),'Legacy mutable email cache prohibited');
 console.log('GAS UID contract PASS');

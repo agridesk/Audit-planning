@@ -24,4 +24,7 @@ assert.equal(weekendDefault.length,2);
 assert(weekendDefault.every(d=>d.segments.some(x=>x.state==='SOFT'&&x.start==='00:00'&&x.end==='24:00')));
 const freeSaturday=resolveAvailabilityPeriod({fromDate:'2026-12-05',toDate:'2026-12-05',recurring:[],overrides:[{date:'2026-12-05',wholeDay:true}]});
 assert(freeSaturday[0].segments.every(x=>x.state==='FREE'),'Explicit override can open a weekend');
+const persistentWeekend=resolveAvailabilityPeriod({fromDate:'2027-04-10',toDate:'2027-04-11',recurring:[{weekday:0,start:'08:00',end:'18:00'}],overrides:[{id:'weekend-open',fromDate:'2027-04-10',toDate:'2027-04-10',wholeDay:true}]});
+assert(persistentWeekend[0].segments.every(x=>x.state==='FREE'),'Explicit Saturday availability persists with other weekday defaults');
+assert(persistentWeekend[1].segments.some(x=>x.state==='SOFT'),'Sunday remains default SOFT');
 console.log('15 resolver checks passed');

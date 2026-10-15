@@ -241,11 +241,24 @@ function AV_monthBounds_(monthKey) {
 /* =========================
  * HEADERS (EXACT)
  * ========================= */
+function AV_uidForCurrentEmail_(auditorEmail) {
+  var sh = AV_getSs_().getSheetByName('Auditors');
+  if (!sh) throw new Error('AUDITORS_DIRECTORY_MISSING');
+  var rows = sh.getDataRange().getValues();
+  var h = (rows.shift() || []).map(function(v){return String(v||'').trim().toLowerCase().replace(/[\\s_-]+/g,'');});
+  var e = h.indexOf('email'), u = h.indexOf('auditoruid');
+  if (e < 0 || u < 0) throw new Error('AUDITOR_UID_DIRECTORY_COLUMNS_MISSING');
+  var ids = rows.filter(function(r){return AV_normEmail_(r[e]) === AV_normEmail_(auditorEmail);}).map(function(r){return String(r[u]||'').trim();}).filter(Boolean);
+  if (ids.length !== 1) throw new Error('AUDITOR_UID_UNRESOLVED');
+  return ids[0];
+}
+
 function AV_exactHeaderIndexes_(headers) {
   function idx(name) { return headers.indexOf(name); }
   var map = {
     date: idx('Date'),
     auditorEmail: idx('Auditor_Email'),
+    auditorUid: idx('Auditor_UID'),
     available: idx('Available'),
     firstStart: idx('First_Audit_Start_Time'),
     firstEnd: idx('First_Audit_End_Time'),
@@ -261,7 +274,7 @@ function AV_exactHeaderIndexes_(headers) {
 }
 
 function AV_assertHeaders_(idx) {
-  var req = ['date','auditorEmail','available','firstStart','firstEnd','auditId1','secondStart','secondEnd','auditId2','status1','status2'];
+  var req = ['date','auditorUid','available','firstStart','firstEnd','auditId1','secondStart','secondEnd','auditId2','status1','status2'];
   var missing = [];
   for (var i = 0; i < req.length; i++) {
     if (idx[req[i]] < 0) missing.push(req[i]);
@@ -645,11 +658,12 @@ function AV_getAvailabilityMonthJSON(auditorEmail, monthKey, forceFresh) {
   AV_assertHeaders_(idx);
 
   var numDataRows = lastRow - 1;
-  var matchedRowNumbers = AV_findAuditorRowNumbersFast_(sh, auditorEmail, idx.auditorEmail);
+  var targetUid = AV_uidForCurrentEmail_(auditorEmail);
+  var matchedRowNumbers = AV_findAuditorRowNumbersFast_(sh, targetUid, idx.auditorUid);
   if (!matchedRowNumbers.length) {
-    var emailCol = AV_getColumnValues_(sh, 2, idx.auditorEmail, numDataRows);
+    var emailCol = AV_getColumnValues_(sh, 2, idx.auditorUid, numDataRows);
     for (var i = 0; i < emailCol.length; i++) {
-      if (AV_normEmail_(emailCol[i][0]) === auditorEmail) matchedRowNumbers.push(i + 2);
+      if (String(emailCol[i][0]||'').trim() === targetUid) matchedRowNumbers.push(i + 2);
     }
   }
 
@@ -757,7 +771,7 @@ function AV_getAvailabilityMonthJSON(auditorEmail, monthKey, forceFresh) {
       rawAuditorEmail: String(rawEmail),
       normAuditorEmail: normEmail,
       targetAuditorEmail: auditorEmail,
-      emailMatch: normEmail === auditorEmail,
+      emailMatch: String(row[idx.auditorUid]||'').trim() === targetUid,
       inMonthRange: !!(iso && iso >= startISO && iso <= endISO),
       auditId1: AV_normText_(row[idx.auditId1]),
       auditId2: AV_normText_(row[idx.auditId2]),
@@ -773,8 +787,8 @@ function AV_getAvailabilityMonthJSON(auditorEmail, monthKey, forceFresh) {
       overwrite: false
     };
 
-    if (normEmail !== auditorEmail) {
-      rowInfo.skipReason = 'EMAIL_MISMATCH';
+    if (String(row[idx.auditorUid]||'').trim() !== targetUid) {
+      rowInfo.skipReason = 'UID_MISMATCH';
       if (!liteMode) trace.push(rowInfo);
       continue;
     }

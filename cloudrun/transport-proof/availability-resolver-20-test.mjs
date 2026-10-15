@@ -19,4 +19,9 @@ assert.equal(resolve([block('PROVISIONAL','10:00','12:00','provisional')],{basel
 assert.equal(resolve([],{baselineExceptions:baseline,baselineReleases:[{targetExceptionId:'bulk-1',date,start:'10:00',end:'12:00'}]}).find(x=>x.start==='10:00').state,'FREE');
 assert.throws(()=>resolve([],{baselineExceptions:baseline,baselineReleases:[{targetExceptionId:'wrong',date,wholeDay:true}]}),/UNKNOWN_BASELINE_REFERENCE/);
 assert.equal(resolveAvailabilityPeriod({fromDate:'2026-10-31',toDate:'2026-11-01',baselineExceptions:baseline}).every(d=>d.segments[0].state==='HARD'),true);
-console.log('13 resolver checks passed');
+const weekendDefault=resolveAvailabilityPeriod({fromDate:'2026-12-05',toDate:'2026-12-06',recurring:[{weekday:0,start:'08:00',end:'18:00'}]});
+assert.equal(weekendDefault.length,2);
+assert(weekendDefault.every(d=>d.segments.some(x=>x.state==='SOFT'&&x.start==='08:00'&&x.end==='18:00')));
+const freeSaturday=resolveAvailabilityPeriod({fromDate:'2026-12-05',toDate:'2026-12-05',recurring:[],overrides:[{date:'2026-12-05',wholeDay:true}]});
+assert(freeSaturday[0].segments.every(x=>x.state==='FREE'),'Explicit override can open a weekend');
+console.log('15 resolver checks passed');

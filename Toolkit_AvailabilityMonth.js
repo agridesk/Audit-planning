@@ -45,7 +45,7 @@ function _mp_tdm_auditorUid_(auditorEmail) {
  * Purpose:
  * - Avoid slow 90-day Toolkit first-load availability fetch.
  * - Avoid AvailabilityService full row-index build for the first visible month.
- * - Read only rows for the selected auditor using TextFinder on Auditor_Email.
+ * - Read only rows for the selected auditor using TextFinder on Auditor_UID.
  * - Return same lightweight days shape consumed by ManagerPlanningV5UI.mapSlotStatesToDayAvail_().
  *
  * Safety:

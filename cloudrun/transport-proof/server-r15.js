@@ -114,13 +114,13 @@ async function legacyAvailabilityDiagnostic(req,res){
   if(statuses.includes('DEFAULT_WEEKEND_SOFT')){counts.weekendDefault++;continue;}
   if(statuses.includes('DEFAULT_AUDITOR_BLOCKED_SOFT')){counts.recurringDefault++;continue;}
   if(statuses.includes('MANUAL_AUDITOR_BLOCKED_SOFT')||statuses.includes('USER_MANUAL')||statuses.includes('MANUAL_AUDITOR_BLOCKED_HARD')){
-   if(statuses.includes('MANUAL_AUDITOR_BLOCKED_HARD')&&dateCol>=0&&emailCol>=0&&row[dateCol]&&row[emailCol]){counts.manualCandidate++;candidates.push(n+1);}
+   if(statuses.includes('MANUAL_AUDITOR_BLOCKED_SOFT')&&statuses.includes('USER_MANUAL')&&dateCol>=0&&emailCol>=0&&row[dateCol]&&row[emailCol]&&String(row[availableCol]||'').toUpperCase()==='NO'){counts.manualCandidate++;candidates.push(n+1);}
    else counts.manualAmbiguous++;
    continue;
   }
   if(statuses.length||availableCol>=0&&String(row[availableCol]||'').toUpperCase()==='NO')counts.unclassified++;
  }
- res.end(JSON.stringify({success:true,readOnly:true,rows:Math.max(0,rows.length-1),missing,legacySource:'Auditor Availability',statusCounts,classification:counts,explicitHardCandidateRows:candidates.slice(0,100),candidatesTruncated:candidates.length>100,migration:'NOT_APPLIED'}));
+ res.end(JSON.stringify({success:true,readOnly:true,rows:Math.max(0,rows.length-1),missing,legacySource:'Auditor Availability',statusCounts,classification:counts,manualSoftCandidateRows:candidates.slice(0,100),candidatesTruncated:candidates.length>100,migration:'NOT_APPLIED'}));
 }
 async function proxy(req,res){
  const url='http://127.0.0.1:'+innerPort+(req.url||'/');

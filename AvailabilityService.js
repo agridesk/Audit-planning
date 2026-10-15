@@ -183,7 +183,7 @@ var AvailabilityService = (function () {
     var sh = ss && ss.getSheetByName('Auditors');
     if (!sh) throw new Error('AUDITORS_DIRECTORY_MISSING');
     var rows = sh.getDataRange().getValues();
-    var h = (rows.shift() || []).map(function(x){return cleanText(x).toLowerCase().replace(/[\\s_-]+/g,'');});
+    var h = (rows.shift() || []).map(function(x){return cleanText(x).toLowerCase().replace(/[\s_-]+/g,'');});
     var ec = h.indexOf('email'), uc = h.indexOf('auditoruid');
     if (ec < 0 || uc < 0) throw new Error('AUDITOR_UID_DIRECTORY_COLUMNS_MISSING');
     var target = normalizeEmail(email), found = [];

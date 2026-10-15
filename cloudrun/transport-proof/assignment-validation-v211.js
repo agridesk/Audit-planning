@@ -175,7 +175,12 @@ export function v211AssignmentHardCheck({
   const reasons=[];
   if(v211CompanyIdentityAmbiguous(companyValues||[],companyUid,companyName))reasons.push('COMPANY_IDENTITY_AMBIGUOUS');
   if(!v211AuditorQualified(auditorValues||[],catalog||[],scopeCodes||[],auditorEmail,requestedDates||[]))reasons.push('AUDITOR_NOT_HARD_QUALIFIED');
-  if(v211CompanyAuditorExclusions(companyValues||[],companyUid,companyName).has(clean(auditorEmail).toLowerCase()))reasons.push('AUDITOR_EXCLUDED_FOR_COMPANY');
+  const exclusions=v211CompanyAuditorExclusions(companyValues||[],companyUid,companyName);
+  const identityRow=v211AuditorRowByIdentity(auditorValues||[],auditorEmail);
+  const identityHeader=(auditorValues||[])[0]||[];
+  const emailIndex=col(identityHeader,['E-mail','Email','E-mail address','Mail']);
+  const canonicalEmail=identityRow&&emailIndex>=0?val(identityRow,emailIndex).toLowerCase():'';
+  if(exclusions.has(clean(auditorEmail).toLowerCase())||(canonicalEmail&&exclusions.has(canonicalEmail)))reasons.push('AUDITOR_EXCLUDED_FOR_COMPANY');
   const withdrawal=v211QualificationWithdrawalConstraint({auditorValues:auditorValues||[],catalog:catalog||[],scopeCodes:scopeCodes||[],auditorEmail,requestedDates:requestedDates||[]});reasons.push(...withdrawal.reasons);
   const minInterval=v211MinimumIntervalConstraint({logValues:logValues||[],catalog:catalog||[],scopeCodes:scopeCodes||[],companyUid,companyName});
   if(minInterval.ambiguousLegacyCompany)reasons.push('MIN_INTERVAL_LEGACY_COMPANY_AMBIGUOUS');

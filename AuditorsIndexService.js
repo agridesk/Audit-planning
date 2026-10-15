@@ -112,12 +112,13 @@ function AuditorsIndex_ResolveEmail(raw) {
 }
 
 function AuditorsIndex_IsQualified(email, scopeName) {
-  var key = AuditorsIndex_normEmail_(email);
+  var key = AuditorsIndex_clean_(email);
+  var emailKey = AuditorsIndex_normEmail_(email);
   var scope = AuditorsIndex_clean_(scopeName);
   if (!key || !scope) return false;
 
   var q = AuditorsIndex_GetQualifications(false);
-  var rec = q.byUid && q.byUid[key] ? q.byUid[key] : (q.byEmail && q.byEmail[key] ? q.byEmail[key] : null);
+  var rec = q.byUid && q.byUid[key] ? q.byUid[key] : (q.byEmail && q.byEmail[emailKey] ? q.byEmail[emailKey] : null);
   if (!rec || !rec.qualifiedScopes) return false;
 
   var canonical = scope;

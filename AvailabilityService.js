@@ -277,6 +277,7 @@ var AvailabilityService = (function () {
       }
       pack.lastEnsurePerf = {cacheHit:false,lastRow:lastRow,matches:matches,span:lastRow-1,boundedReadMs:__readMs,totalMs:Date.now()-__t0};
     } catch (e) {
+      delete pack.lazyEmails[aud];
       Logger.log('[AMS01] UID availability index failed: ' + e);
       throw e;
     }

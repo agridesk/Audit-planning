@@ -7,17 +7,16 @@ function uniqueIndex(headers,name){
  if(indices.length!==1)throw Error('ROTATION_DIRECT_HEADER_UNRESOLVED:'+name);
  return indices[0];
 }
-function canonicalAssignment({auditId,auditorEmail,planningValues,auditorValues,scopeValues,logValues}={}){
- if(!auditId||!auditorEmail||![planningValues,auditorValues,scopeValues,logValues].every(x=>Array.isArray(x)&&Array.isArray(x[0])))throw Error('ROTATION_DIRECT_SOURCES_MISSING');
+function canonicalAssignment({auditId,auditorUid,planningValues,auditorValues,scopeValues,logValues}={}){
+ if(!auditId||!auditorUid||![planningValues,auditorValues,scopeValues,logValues].every(x=>Array.isArray(x)&&Array.isArray(x[0])))throw Error('ROTATION_DIRECT_SOURCES_MISSING');
  const ah=planningValues[0],ai=uniqueIndex(ah,'Audit ID'),ci=uniqueIndex(ah,'Company_UID');
  const assignments=planningValues.slice(1).filter(r=>clean(r[ai])===auditId);
  if(assignments.length!==1)throw Error('ROTATION_DIRECT_ASSIGNMENT_NOT_UNIQUE');
  const row=assignments[0],companyUid=clean(row[ci]);
  if(!companyUid)throw Error('ROTATION_DIRECT_COMPANY_UID_MISSING');
- const uh=auditorValues[0],emailIdx=uniqueIndex(uh,'Email'),uidIdx=uniqueIndex(uh,'Auditor_UID');
- const matches=auditorValues.slice(1).filter(r=>clean(r[emailIdx]).toLowerCase()===auditorEmail.toLowerCase());
- if(matches.length!==1||!clean(matches[0][uidIdx]))throw Error('ROTATION_DIRECT_AUDITOR_UID_UNRESOLVED');
- const auditorUid=clean(matches[0][uidIdx]);
+ const uidIdx=uniqueIndex(auditorValues[0],'Auditor_UID');
+ const matches=auditorValues.slice(1).filter(r=>clean(r[uidIdx])===clean(auditorUid));
+ if(matches.length!==1)throw Error('ROTATION_DIRECT_AUDITOR_UID_UNRESOLVED');
  const sh=scopeValues[0],slotIdx=uniqueIndex(sh,'SlotKey'),codeIdx=uniqueIndex(sh,'ScopeCode');
  const scopeKeys=[];
  for(const sr of scopeValues.slice(1)){
@@ -33,9 +32,9 @@ function canonicalAssignment({auditId,auditorEmail,planningValues,auditorValues,
 }
 // Called ONLY inside the existing planning writer lock, using the same fresh
 // server-side Sheets snapshot as the actual planning mutation.
-async function enforceDirectPlanningRotation20({auditId,auditorEmail,planningValues,auditorValues,scopeValues,logValues,approvedExceptions}={}){
+async function enforceDirectPlanningRotation20({auditId,auditorUid,planningValues,auditorValues,scopeValues,logValues,approvedExceptions}={}){
  if(!Array.isArray(approvedExceptions))throw Error('ROTATION_DIRECT_APPROVAL_SOURCE_MISSING');
- const assignment=canonicalAssignment({auditId,auditorEmail,planningValues,auditorValues,scopeValues,logValues});
+ const assignment=canonicalAssignment({auditId,auditorUid,planningValues,auditorValues,scopeValues,logValues});
  return enforceAmsRotationAtWrite20({...assignment,phase:'COMMIT',loadSheets:async()=>({
   scopeRows:scopeValues,completedRows:logValues,approvedExceptions,
   assignmentAuditId:assignment.auditId,assignmentCompanyUid:assignment.companyUid,

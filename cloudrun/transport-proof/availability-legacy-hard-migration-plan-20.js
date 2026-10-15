@@ -8,10 +8,11 @@ const validDate=x=>/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(x+'T0
 const validTime=(x,end=false)=>/^([01]\d|2[0-3]):[0-5]\d$/.test(x)||(end&&x==='24:00');
 export function planLegacyHardMigration({rows,roster,verifiedEmailAliases=[]}={}){
  if(!Array.isArray(rows)||!rows.length||!Array.isArray(roster))throw Error('INVALID_MIGRATION_SOURCE');
- const header=rows[0].map(norm),names=['Date','Auditor_Email','Available','First_Audit_Start_Time','First_Audit_End_Time','Audit_ID_1','Audit_ID_2','Status_1','Status_2'];
+ const header=rows[0].map(norm),names=['Date','Auditor_Email','Available','First_Audit_Start_Time','First_Audit_End_Time','Audit_ID_1','Audit_ID_2','Status_1','Status_2','Auditor_UID'];
  const idx=Object.fromEntries(names.map(x=>[x,header.indexOf(x)]));
  if(names.some(x=>idx[x]<0))throw Error('LEGACY_SCHEMA_MISMATCH');
  const byEmail=new Map();
+ const knownUids=new Set(roster.map(a=>norm(a.auditorId)).filter(Boolean));
  for(const auditor of roster){const e=email(auditor.email),id=norm(auditor.auditorId);if(!e||!id||byEmail.has(e))throw Error('MIGRATION_ROSTER_AMBIGUOUS');byEmail.set(e,id);}
  const aliases=new Map();
  for(const a of verifiedEmailAliases){

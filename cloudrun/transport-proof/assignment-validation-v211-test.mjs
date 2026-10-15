@@ -223,3 +223,9 @@ for(const malformed of [
 
 
 console.log(JSON.stringify({ok:true,build:'2026-10-04_ASSIGNMENT_VALIDATION_V211_TEST_R2',tests:13}));
+
+const uidAuditors=[['Auditor_UID',...auditors[0]],['uid-david',...auditors[1]],['uid-other',...auditors[2]]];
+assert.equal(v211AuditorQualified(uidAuditors,catalog,['MPS-ABC'],'uid-david'),true,'UID qualification');
+assert.equal(v211AuditorQualified(uidAuditors,catalog,['MPS-GAP'],'uid-other'),false,'UID qualification rejects missing scope');
+assert.equal(v211QualificationWithdrawalConstraint({auditorValues:uidAuditors,catalog,scopeCodes:['MPS-ABC'],auditorEmail:'uid-david',requestedDates:['2026-10-14']}).ok,true,'UID withdrawal');
+assert.equal(v211AuditorQualified([...uidAuditors,['uid-david',...auditors[2]]],catalog,['MPS-ABC'],'uid-david'),false,'Duplicate UID fails closed');

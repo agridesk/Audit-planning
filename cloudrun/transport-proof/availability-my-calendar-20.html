@@ -92,10 +92,11 @@ function showDay(day){
  const other=(day.segments||[]).map(x=>'<div class="segment"><span class="pill '+esc(x.state)+'">'+esc(humanState(x.state))+'</span><span>'+esc(x.start+'–'+x.end)+'</span></div>').join('');
  const existing=hardExceptionForDay(day);
  const periodLabel=existing?(existing.fromDate===existing.toDate?existing.fromDate:existing.fromDate+' – '+existing.toDate):'';
- const actions=existing?'<div class="muted">Block period: '+esc(periodLabel)+'</div><div class="controls"><button type="button" id="editHard">Edit block ('+esc(periodLabel)+')</button><button type="button" id="removeHard">Remove entire block</button></div>':'';
+ const actions=existing?'<div class="muted">Block period: '+esc(periodLabel)+'</div><div class="controls"><button type="button" id="editHard">Edit block ('+esc(periodLabel)+')</button><button type="button" id="releaseDay">Release '+esc(day.date)+' only</button><button type="button" id="removeHard">Remove entire block</button></div>':'';
  $('selectedInfo').innerHTML='<strong>'+esc(day.date)+'</strong>'+auditHtml+'<div class="muted" style="margin-top:8px">Daily schedule</div>'+other+actions;
  if(existing){
   $('editHard').addEventListener('click',()=>editHardException(existing));
+  $('releaseDay').addEventListener('click',()=>{if(!confirm('Release only '+day.date+' from the unavailable period '+periodLabel+'?'))return;mutate({action:'RELEASE_BASELINE',targetExceptionId:existing.id,fromDate:day.date,toDate:day.date,wholeDay:true},{noConfirm:true})});
   $('removeHard').addEventListener('click',()=>{if(!confirm('Remove the entire unavailable period '+periodLabel+'?'))return;mutate({action:'RELEASE_BASELINE',targetExceptionId:existing.id,fromDate:existing.fromDate,toDate:existing.toDate,wholeDay:existing.wholeDay===true,...(existing.wholeDay?{}:{start:existing.start,end:existing.end})},{noConfirm:true})});
  }
 }

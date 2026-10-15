@@ -10,4 +10,9 @@ const legacy=readFileSync(new URL('../../AuditorAvailabilityBackend.js',import.m
 assert.ok(legacy.includes("return 'AV_MONTH_UID|' + AV_uidForCurrentEmail_(auditorEmail)"),'Legacy monthly availability cache must be keyed by UID');
 assert.ok(legacy.includes("function AV_uidForCurrentEmail_(auditorEmail)"),'Legacy UID lookup must exist');
 assert.ok(!legacy.includes("return 'AV_MONTH|' + AV_normEmail_(auditorEmail)"),'Legacy mutable email cache prohibited');
+const directory=readFileSync(new URL('../../AuditorsIndexService.js',import.meta.url),'utf8');
+assert.ok(directory.includes('function AuditorsIndex_GetAuditorByUid(uid)'), 'Canonical auditor directory lookup by UID');
+assert.ok(directory.includes("out.byUid[uid] = rec"),'Auditor directory keyed by UID');
+assert.ok(directory.includes("out.byUid[uid] = out.byEmail[email]"),'Qualifications keyed by UID');
+assert.ok(directory.includes("'directory:uid-v2'"),'UID schema cache isolation');
 console.log('GAS UID contract PASS');

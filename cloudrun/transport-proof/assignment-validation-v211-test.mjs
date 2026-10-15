@@ -229,3 +229,7 @@ assert.equal(v211AuditorQualified(uidAuditors,catalog,['MPS-ABC'],'uid-david'),t
 assert.equal(v211AuditorQualified(uidAuditors,catalog,['MPS-GAP'],'uid-other'),false,'UID qualification rejects missing scope');
 assert.equal(v211QualificationWithdrawalConstraint({auditorValues:uidAuditors,catalog,scopeCodes:['MPS-ABC'],auditorEmail:'uid-david',requestedDates:['2026-10-14']}).ok,true,'UID withdrawal');
 assert.equal(v211AuditorQualified([...uidAuditors,['uid-david',...auditors[2]]],catalog,['MPS-ABC'],'uid-david'),false,'Duplicate UID fails closed');
+
+const uidExclusionCompanies=[['Company_UID','Company','Auditor_Exclusions'],['C1','Grower A',JSON.stringify([{auditorEmail:'david@example.com',active:true}])]];
+const uidExclusion=v211AssignmentHardCheck({auditorEmail:'uid-david',auditorValues:uidAuditors,catalog,scopeCodes:['MPS-ABC'],companyValues:uidExclusionCompanies,companyUid:'C1',companyName:'Grower A',requestedDates:['2026-10-14']});
+assert.ok(uidExclusion.reasons.includes('AUDITOR_EXCLUDED_FOR_COMPANY'),'Legacy email exclusion must still block UID assignment');

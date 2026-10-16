@@ -21,3 +21,4 @@ jobs:
       - run: node --check cloudrun/transport-proof/notification-device-trust-20.mjs
       - run: node cloudrun/transport-proof/notification-email-action-policy-20-test.mjs
       - run: node cloudrun/transport-proof/notification-device-trust-20-test.mjs
+      - run: node cloudrun/transport-proof/notification-portal-settings-policy-20-test.mjs

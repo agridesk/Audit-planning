@@ -24,3 +24,5 @@ jobs:
       - run: node cloudrun/transport-proof/notification-portal-settings-policy-20-test.mjs
       - run: node cloudrun/transport-proof/notification-overview-20-test.mjs
       - run: node --check cloudrun/transport-proof/server-r15.js
+      - run: npm test
+        working-directory: cloudrun/transport-proof

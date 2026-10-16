@@ -1,0 +1,23 @@
+name: Notifications 2.0 security tests
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'cloudrun/transport-proof/notification-*-20.mjs'
+      - 'cloudrun/transport-proof/notification-*-20-test.mjs'
+      - '.github/workflows/notifications-20-tests.yml'
+  workflow_dispatch:
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check cloudrun/transport-proof/notification-email-action-policy-20.mjs
+      - run: node --check cloudrun/transport-proof/notification-device-trust-20.mjs
+      - run: node cloudrun/transport-proof/notification-email-action-policy-20-test.mjs
+      - run: node cloudrun/transport-proof/notification-device-trust-20-test.mjs

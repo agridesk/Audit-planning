@@ -50,6 +50,10 @@ assert.equal(doubleA.days[0].segments.filter(x=>x.state==='COMMITTED').reduce((m
 const doubleB=await doubleOverlay.period({actor,auditorId:'b',fromDate:'2027-01-12',toDate:'2027-01-12'});
 assert.equal(Object.values(doubleB.auditDetails).length,1,'Other auditor sees only their audit');
 assert.equal(Object.values(doubleB.auditDetails)[0].auditId,'B-OTHER');
+const doubleManager=await doubleOverlay.managerOverview({actor,auditorIds:['a','b'],fromDate:'2027-01-12',toDate:'2027-01-12'});
+assert.deepEqual((doubleManager.auditDetailsByAuditor.a||[]).map(x=>[x.auditId,x.scopes,x.location]).sort((x,y)=>x[0].localeCompare(y[0])),[['A-AFTERNOON','Scope A','Site A'],['A-MORNING','Scope M','Site M']],'Manager must receive exact scopes and locations for both same-day audits');
+assert.equal(doubleManager.auditDetailsByAuditor.b[0].auditId,'B-OTHER','Manager must keep identities separate');
+assert.deepEqual(doubleManager.auditors.find(x=>x.auditorId==='a').days,doubleA.days,'Manager and auditor must resolve identical calendar state');
 const overlappingRows=[
  ['Audit ID','Status','Assigned to','Planning JSON','Company','Scopes'],
  ['C1','ACCEPTED','a@example.com',JSON.stringify([{date:'2027-01-12',start:'09:00',end:'12:00'}]),'Company 1','Scope 1'],

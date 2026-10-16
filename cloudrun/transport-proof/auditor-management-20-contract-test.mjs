@@ -7,7 +7,7 @@ assert.ok(server.includes("'/api/v1/manager/auditor-management'"),'Manager-only 
 assert.ok(server.includes('auditorUid:clean(identity.auditorUid)'),'Session cookies bind immutable auditor UID');
 assert.ok(server.includes("if(process.env.AMS_AUDITOR_EMAIL_CHANGE_WRITE_ENABLED!=='true')throw Error('AUDITOR_EMAIL_WRITE_DISABLED')"),'Email ledger cutover is gated off by default');
 assert.ok(server.includes("throw Error('AUDITOR_EMAIL_CHANGE_REQUIRES_UID_LOGIN')"),'Email write flag cannot bypass UID login enforcement');
-assert.ok(server.includes('session.auditorUid===check.uid?session:null'),'UID login rejects legacy sessions and mismatched identities');
+assert.ok(server.includes('session.auditorUid!==check.uid')&&server.includes("return null;}return session;"),'UID login rejects legacy sessions and mismatched identities');
 assert.ok(server.includes("const session=await sessionFromRequestValidated(req);if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(!['manager','auditor'].includes"),'Planning workspace validates current auditor email and immutable UID');
 assert.ok(server.includes("auditorUid:valid.uid||''"),'Validated legacy token exchange issues UID-bound auditor sessions');
 assert.ok(server.includes("if(!readiness.ready)return send(res,409,{ok:false,error:'AUDITOR_UID_IDENTITY_NOT_READY',identityReady:false})"),'Email rotation fails closed when live UID readiness is incomplete');

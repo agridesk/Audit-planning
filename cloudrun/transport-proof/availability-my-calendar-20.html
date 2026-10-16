@@ -89,7 +89,7 @@ function showDay(day){
   else audits.set(key,{auditId:key,company:detail?.company||'',scopes:detail?.scopes||'',location:detail?.location||'',start:seg.start,end:seg.end,state:seg.state,lifecycle:detail?.state||''});
  }
  const entries=[...audits.values()].sort((a,b)=>a.start.localeCompare(b.start));
- const auditHtml=entries.map((x,i)=>'<div class="auditDetail"><strong>Audit '+(i+1)+' · '+esc(x.start)+'–'+esc(x.end)+'</strong><div>'+esc(x.company||x.auditId)+'</div><div class="muted">'+esc(x.scopes||'Scopes not recorded')+'</div><div class="muted">'+esc(x.location||'')+'</div></div>').join('');
+ const auditHtml=entries.map((x,i)=>'<div class="auditDetail"><strong>'+esc(x.state==='PROVISIONAL'?'Provisional audit':'Planned audit')+' '+(i+1)+' · '+esc(x.start)+'–'+esc(x.end)+'</strong><div>'+esc(x.company||x.auditId)+'</div><div class="muted">'+esc(x.scopes||'Scopes not recorded')+'</div><div class="muted">'+esc(x.location||'')+'</div></div>').join('');
  const unavailable=(day.segments||[]).filter(x=>x.state==='HARD'||x.state==='SOFT');
  const other=unavailable.length?unavailable.map(x=>'<div class="segment"><span class="pill '+esc(x.state)+'">'+esc(humanState(x.state))+'</span><span>'+esc(x.start+'–'+x.end)+'</span></div>').join(''):entries.length?'':'<div class="muted">Available during working hours</div>';
  const existing=hardExceptionForDay(day);

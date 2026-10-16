@@ -209,7 +209,7 @@ async function handleManagerSessionHandoff(req,res){
 async function sessionIdentity(req){
   const r=await fetch('http://127.0.0.1:'+INNER_PORT+'/api/v1/session',{method:'GET',headers:{cookie:clean(req.headers.cookie)},redirect:'manual'});
   let body={};try{body=await r.json();}catch{}
-  if(!r.ok||!body||body.ok!==true||!body.identity)return null;return body.identity;
+  if(!r.ok||!body||body.ok!==true||!body.identity){if(RUNTIME_ENV==='DEV')console.warn('AMS_AUTH_SESSION_GATE',JSON.stringify({innerStatus:r.status,sessionCookie:!!rawSessionCookie(req),deviceCookie:String(req.headers.cookie||'').includes('ams_auth_device=')}));return null;}return body.identity;
 }
 function validPlanningBody(body){
   const auditId=clean(body?.auditId),auditorEmail=clean(body?.auditorEmail).toLowerCase(),blocks=Array.isArray(body?.blocks)?body.blocks:[];

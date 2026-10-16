@@ -138,7 +138,7 @@
         <div>
           <label for="code">6-digit code</label>
           <input id="code" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" />
-          <div class="hint">Enter the code from your email.</div>
+          <div class="hint">Enter the code from your email. Valid for 10 minutes.</div>
         </div>
 
         <div style="padding-top: 22px;">
@@ -152,6 +152,7 @@
 
       <div class="row" style="margin-top: 12px;">
         <button class="btn" id="btnVerify" onclick="window.verifyCode()">Verify</button>
+        <button class="btn" type="button" id="btnChangeEmail" onclick="window.changeLoginEmail()">Change email</button>
       </div>
     </div>
 
@@ -226,6 +227,9 @@
   let __targetUrl = "";
   let __verifyInFlight = false;
   let __fallbackTimer = null;
+  let __sendInFlight = false;
+  let __sendRequestId = 0;
+  let __requestedEmail = "";
 
   function setMsg(kind, text) {
     const el = document.getElementById("msg");
@@ -343,8 +347,7 @@
       ? ["auditorportal","auditorgrid2","auditoravailability","planningworkspace","planningtoolkit","companymap"]
       : ["manager","planningworkspace","planningtoolkit","companies","companymap","diag"];
     if (deep && allowedByRole.indexOf(deep) >= 0) return deep;
-    if (String(APP_ENV || "").toUpperCase() === "DEV") return r === "Auditor" ? "auditorgrid2" : "manager";
-    return r === "Auditor" ? "auditorportal" : "manager";
+    return r === "Auditor" ? "auditorgrid2" : "manager";
   }
 
   function buildPortalTarget_(email, role, token, deviceId) {
@@ -356,12 +359,6 @@
 
     const qs = new URLSearchParams();
     qs.set("action", action);
-    qs.set("email", cleanEmail);
-    qs.set("role", cleanRole);
-    qs.set("trustedToken", cleanToken);
-    qs.set("token", cleanToken);
-    qs.set("deviceId", cleanDeviceId);
-    qs.set("deviceFingerprint", cleanDeviceId);
     qs.set("ts", String(Date.now()));
 
     return EXEC_URL + '?' + qs.toString();
@@ -409,7 +406,7 @@
     var continueBox = document.getElementById("stepContinue");
     var targetDbg = document.getElementById("targetUrlDbg");
     if (continueBox) continueBox.classList.add("hidden");
-    if (targetDbg) targetDbg.textContent = targetUrl || "";
+    if (targetDbg) targetDbg.textContent = "";
     try { if (__fallbackTimer) clearTimeout(__fallbackTimer); } catch(eTimer) {}
     var verifyButton = document.getElementById("btnVerify");
     if (verifyButton) verifyButton.disabled = true;
@@ -427,16 +424,7 @@
   }
 
   function buildTestTarget(email, role) {
-    const qs = new URLSearchParams({
-      action: destinationForRole_(role),
-      email: normEmail(email),
-      role: String(role || '').trim(),
-      trustedToken: TEST_TOKEN,
-      token: TEST_TOKEN,
-      deviceId: TEST_DEVICE_ID,
-      deviceFingerprint: TEST_DEVICE_ID,
-      ts: String(Date.now())
-    });
+    const qs = new URLSearchParams({action: destinationForRole_(role), ts: String(Date.now())});
     return EXEC_URL + '?' + qs.toString();
   }
 
@@ -575,15 +563,21 @@
 
 
   function sendCode() {
+    if (__sendInFlight) return;
     clearMsg();
     const email = normEmail(document.getElementById("email").value);
     if (!email) return setMsg("err", "Please enter an email address.");
 
+    const requestId = ++__sendRequestId;
+    __sendInFlight = true;
     setBusy(true, "send");
     document.getElementById("sendHint").textContent = "Sending...";
 
     // Watchdog: prevent silent hangs if server never responds (cached HTML / wrong deployment URL)
     var wd = setTimeout(function() {
+      if (requestId !== __sendRequestId) return;
+      ++__sendRequestId;
+      __sendInFlight = false;
       setBusy(false, "send");
       document.getElementById("sendHint").textContent = "";
       setMsg("err", "The login request is taking longer than expected. Please wait a moment or try again.");
@@ -591,7 +585,9 @@
 
 google.script.run
       .withSuccessHandler(function(res) {
+        if (requestId !== __sendRequestId) return;
         try { clearTimeout(wd); } catch(e) {}
+        __sendInFlight = false;
         setBusy(false, "send");
         document.getElementById("sendHint").textContent = "";
         if (!res || !res.ok) {
@@ -601,6 +597,7 @@ google.script.run
           return setMsg("err", "Cannot send login code: " + baseError + mailStatus + mailError);
         }
 
+        __requestedEmail = email;
         localStorage.setItem(KEY_EMAIL, email);
         localStorage.setItem(KEY_ROLE, res.role || EXPECTED_ROLE);
 
@@ -608,18 +605,30 @@ google.script.run
           const wait = res.retryAfterSeconds ? (" Wait " + res.retryAfterSeconds + " seconds before requesting another code.") : "";
           setMsg("ok", "A login code was already sent recently. Use the latest email you received." + wait + " If no email arrived, wait and press Send code again.");
         } else {
-          setMsg("ok", "Code sent. Please check your email.");
+          setMsg("ok", "Code requested. Check your email, including spam if necessary.");
         }
         document.getElementById("stepVerify").classList.remove("hidden");
         document.getElementById("code").focus();
       })
       .withFailureHandler(function(err) {
+        if (requestId !== __sendRequestId) return;
         try { clearTimeout(wd); } catch(e) {}
+        __sendInFlight = false;
         setBusy(false, "send");
         document.getElementById("sendHint").textContent = "";
         setMsg("err", "Server error while sending code: " + formatServerError(err));
       })
       .V5_requestLoginCode(email);
+  }
+
+  function changeLoginEmail() {
+    if (__verifyInFlight || __sendInFlight) return;
+    clearMsg();
+    ++__sendRequestId;
+    __requestedEmail = "";
+    document.getElementById("stepVerify").classList.add("hidden");
+    document.getElementById("code").value = "";
+    document.getElementById("email").focus();
   }
 
   function verifyCode() {
@@ -631,7 +640,7 @@ google.script.run
     const code = normLoginCode(rawCode);
     const remember = !!document.getElementById("remember").checked;
 
-    if (!email) return setMsg("err", "Please enter an email address.");
+    if (!email || email !== __requestedEmail) return setMsg("err", "Request a login code for this email address first.");
     if (!/^\d{6}$/.test(code)) return setMsg("err", "Please enter a valid 6-digit code.");
     try { document.getElementById("code").value = code; } catch(eNormCode) {}
 
@@ -647,14 +656,20 @@ google.script.run
         __verifyInFlight = false;
         setBusy(false, "verify");
         if (!res || !res.ok) return setMsg("err", "Login failed: " + (res && res.error ? res.error : "UNKNOWN"));
+        if (!res.token || !res.expiresAt || !res.tokenType || String(res.role || "") !== role) {
+          return setMsg("err", "Incomplete authentication response. Please request a new login code.");
+        }
+        if (!Number.isFinite(Date.parse(String(res.expiresAt))) || Date.parse(String(res.expiresAt)) <= Date.now()) {
+          return setMsg("err", "Login session already expired. Please request a new code.");
+        }
 
         localStorage.setItem(KEY_EMAIL, email);
         localStorage.setItem(KEY_ROLE, role);
         localStorage.setItem(KEY_DEVICE_ID, deviceId);
 
-        if (res.token) localStorage.setItem(KEY_TOKEN, res.token);
-        if (res.expiresAt) localStorage.setItem(KEY_EXP, res.expiresAt);
-        if (res.tokenType) localStorage.setItem(KEY_TT, res.tokenType);
+        localStorage.setItem(KEY_TOKEN, res.token);
+        localStorage.setItem(KEY_EXP, res.expiresAt);
+        localStorage.setItem(KEY_TT, res.tokenType);
         try { localStorage.removeItem(KEY_FORCE); } catch(e) {}
 
         const token = localStorage.getItem(KEY_TOKEN) || "";
@@ -671,6 +686,7 @@ google.script.run
   // Ensure handlers are reachable from inline onclick in Apps Script HTML
   try {
     window.sendCode = sendCode;
+    window.changeLoginEmail = changeLoginEmail;
     window.verifyCode = verifyCode;
     window.continueToPortal = continueToPortal;
     window.continueTrusted = continueTrusted;

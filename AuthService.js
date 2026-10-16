@@ -242,6 +242,9 @@ var V5_AUTH = (function () {
     if (!user || user.role !== role) return { ok: false, error: "ROLE_OR_EMAIL_INVALID" };
     if (!code || !/^\d{6}$/.test(code)) return { ok: false, error: "INVALID_CODE_FORMAT" };
 
+    deviceId = String(deviceId || "").trim();
+    if (!deviceId) return { ok: false, error: "MISSING_DEVICE_ID" };
+
     var lock = LockService.getScriptLock();
     lock.waitLock(10000);
     try {
@@ -251,9 +254,6 @@ var V5_AUTH = (function () {
     } finally {
       try { lock.releaseLock(); } catch (eLock) {}
     }
-
-    deviceId = String(deviceId || "").trim();
-    if (!deviceId) return { ok: false, error: "MISSING_DEVICE_ID" };
 
     var now = new Date();
     var rawToken = generateToken_();
@@ -317,7 +317,7 @@ var V5_AUTH = (function () {
         if (isNaN(exp.getTime()) || exp < now) return { ok: false, error: "TOKEN_EXPIRED" };
 
         var storedDeviceHash = String(row[idx.Device_Fingerprint] || "");
-        if (storedDeviceHash && storedDeviceHash !== deviceHash) return { ok: false, error: "DEVICE_MISMATCH" };
+        if (!storedDeviceHash || storedDeviceHash !== deviceHash) return { ok: false, error: "DEVICE_MISMATCH" };
 
         var colMap = TOKENS__getHeaderIndexMap_(sh);
         var lastUsedCol1 = TOKENS__requireHeader_(colMap, ["Last_Used_At"]) + 1;
@@ -845,7 +845,7 @@ var V5_AUTH = (function () {
         if (isNaN(exp.getTime()) || exp < now) return { ok: false, error: "TOKEN_EXPIRED" };
 
         var storedDeviceHash = String(row[idx.Device_Fingerprint] || "");
-        if (storedDeviceHash && storedDeviceHash !== deviceHash) return { ok: false, error: "DEVICE_MISMATCH" };
+        if (!storedDeviceHash || storedDeviceHash !== deviceHash) return { ok: false, error: "DEVICE_MISMATCH" };
 
         var canonicalEmail = normEmail_(row[idx.Email]);
         if (!canonicalEmail) return { ok: false, error: "TOKEN_EMAIL_EMPTY" };

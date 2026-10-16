@@ -64,8 +64,8 @@ function cloudAuthLoginHtml(){
 async function cloudAuthGas(action,data){
   if(RUNTIME_ENV!=='DEV'||!GAS_WRITE_URL||WRITE_KEY.length<32)throw Error('AUTH_BRIDGE_NOT_CONFIGURED');
   const url=new URL(GAS_WRITE_URL);url.searchParams.set('action',action);
-  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),60000);
-  try{const res=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...data,bridgeKey:WRITE_KEY}),redirect:'follow',signal:controller.signal});if(!res.ok)throw Error('AUTH_BRIDGE_HTTP_'+res.status);const json=await res.json();if(!json||typeof json.ok!=='boolean')throw Error('AUTH_BRIDGE_INVALID_REPLY');return json;}finally{clearTimeout(timeout);}
+  const started=Date.now(),controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),30000);console.info('AMS_AUTH_BRIDGE_START',JSON.stringify({action}));
+  try{const res=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...data,bridgeKey:WRITE_KEY}),redirect:'follow',signal:controller.signal});if(!res.ok)throw Error('AUTH_BRIDGE_HTTP_'+res.status);const json=await res.json();if(!json||typeof json.ok!=='boolean')throw Error('AUTH_BRIDGE_INVALID_REPLY');console.info('AMS_AUTH_BRIDGE_DONE',JSON.stringify({action,ms:Date.now()-started,ok:json.ok}));return json;}catch(error){console.error('AMS_AUTH_BRIDGE_FAILED',JSON.stringify({action,ms:Date.now()-started,kind:error?.name==='AbortError'?'TIMEOUT':clean(error?.message||'').slice(0,72)}));throw error;}finally{clearTimeout(timeout);}
 }
 async function cloudAuthRequest(req,res){
   if(RUNTIME_ENV!=='DEV')return sendJson(res,404,{ok:false,error:'NOT_FOUND'});

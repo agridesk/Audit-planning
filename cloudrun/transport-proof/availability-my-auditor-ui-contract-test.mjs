@@ -10,7 +10,8 @@ assert.ok(html.includes("monthCache.clear();await load({fresh:true})"),'Mutation
 assert.ok(html.includes("fromDate:day.date,toDate:day.date"),'Single-day release is bounded');
 assert.ok(!html.includes('id="removeHard"'),'Day details must not expose whole-period removal');
 assert.ok(html.includes("today.slice(0,7)"),'Calendar initializes current month');
-assert.ok(html.includes("block.fromDate===d&&block.toDate===d"),'Single HARD day can be released directly');
+assert.ok(html.includes("if(block){await mutate({action:'RELEASE_BASELINE'"),'Clicking a HARD date releases only selected date, including multi-day baselines');
+assert.ok(html.includes('prefetchNeighborMonths(a)'),'Calendar prefetches adjacent months');
 assert.ok(html.includes('Make this day available'),'Only one HARD day action is visible');
 assert.ok(html.includes("x.state==='PROVISIONAL'?'Provisional audit':'Planned audit'"),'Auditor sees provisional status explicitly');
 assert.ok(!html.includes('confirm('), 'Day details do not show blocking confirmation dialogs');

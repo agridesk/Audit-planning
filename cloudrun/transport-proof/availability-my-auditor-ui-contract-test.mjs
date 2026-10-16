@@ -5,14 +5,15 @@ const html=readFileSync(new URL('./availability-my-calendar-20.html',import.meta
 const script=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 assert.ok(script,'Auditor calendar script required');
 new vm.Script(script);
-for(const id of ['jumpMonth','currentMonth','prev','next','releaseDay','removeHard','editHard'])assert.ok(html.includes(id),'Missing calendar control '+id);
+for(const id of ['jumpMonth','currentMonth','prev','next','releaseDay'])assert.ok(html.includes(id),'Missing calendar control '+id);
 assert.ok(html.includes("monthCache.clear();await load({fresh:true})"),'Mutations refresh month cache');
 assert.ok(html.includes("fromDate:day.date,toDate:day.date"),'Single-day release is bounded');
-assert.ok(html.includes("if(!confirm('Remove the entire unavailable period"),'Full removal requires explicit confirmation');
+assert.ok(!html.includes('id="removeHard"'),'Day details must not expose whole-period removal');
 assert.ok(html.includes("today.slice(0,7)"),'Calendar initializes current month');
 assert.ok(html.includes("block.fromDate===d&&block.toDate===d"),'Single HARD day can be released directly');
+assert.ok(html.includes('Make this day available'),'Only one HARD day action is visible');
 assert.ok(html.includes("x.state==='PROVISIONAL'?'Provisional audit':'Planned audit'"),'Auditor sees provisional status explicitly');
-assert.ok(!html.includes("if(!confirm('Release only "), 'Single-day release does not require a modal');
+assert.ok(!html.includes('confirm('), 'Day details do not show blocking confirmation dialogs');
 assert.ok(html.includes("mutation.action==='BLOCK_PERIOD'&&j.recordId"),'HARD writes offer Undo using canonical record ID');
 assert.ok(html.includes("undo.addEventListener('click'"),'Undo action is interactive');
 assert.ok(!html.includes('My Availability 2.0'),'No visible version suffix');

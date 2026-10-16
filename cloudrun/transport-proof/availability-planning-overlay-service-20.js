@@ -7,12 +7,12 @@ import {committedBlocksFromCanonicalSlots,withCommittedOverlay} from './availabi
 import {resolveAvailabilityPeriod} from './availability-resolver-20.js';
 import {buildManagerAvailabilityOverview} from './availability-manager-overview-20.js';
 const clean=x=>String(x??'').trim();
-export function createPlanningOverlayService({service,readPlanningRows,listCanonicalAuditors}={}){
+export function createPlanningOverlayService({service,readPlanningRows,listCanonicalAuditors,readScopeNames}={}){
  if(!service||typeof service.read!=='function'||typeof service.mutate!=='function'||typeof readPlanningRows!=='function'||typeof listCanonicalAuditors!=='function')throw Error('INVALID_OVERLAY_CONFIGURATION');
  async function slotsFor(fromDate,toDate,{fresh=false}={}){
-  const [rows,auditors]=await Promise.all([readPlanningRows({fresh}),listCanonicalAuditors()]);
+  const [rows,auditors,scopeNamesBySlot]=await Promise.all([readPlanningRows({fresh}),listCanonicalAuditors(),readScopeNames?readScopeNames():{}]);
   if(!Array.isArray(rows)||!Array.isArray(auditors))throw Error('CANONICAL_PLANNING_UNAVAILABLE');
-  return canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDate});
+  return canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDate,scopeNamesBySlot});
  }
  async function period({actor,auditorId,fromDate,toDate}){
   const doc=await service.read(actor,auditorId);

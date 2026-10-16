@@ -13,5 +13,7 @@ assert.ok(html.includes("today.slice(0,7)"),'Calendar initializes current month'
 assert.ok(html.includes("block.fromDate===d&&block.toDate===d"),'Single HARD day can be released directly');
 assert.ok(html.includes("x.state==='PROVISIONAL'?'Provisional audit':'Planned audit'"),'Auditor sees provisional status explicitly');
 assert.ok(!html.includes("if(!confirm('Release only "), 'Single-day release does not require a modal');
+assert.ok(html.includes("mutation.action==='BLOCK_PERIOD'&&j.recordId"),'HARD writes offer Undo using canonical record ID');
+assert.ok(html.includes("undo.addEventListener('click'"),'Undo action is interactive');
 assert.ok(!html.includes('My Availability 2.0'),'No visible version suffix');
 console.log('PASS My Availability auditor interaction contract');

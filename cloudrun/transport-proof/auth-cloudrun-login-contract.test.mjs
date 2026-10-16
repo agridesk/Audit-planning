@@ -7,7 +7,7 @@ const cases=[
  ['Browser-facing OTP request and verify handlers',()=>{assert.match(server,/\/auth\/otp\/request/);assert.match(server,/\/auth\/otp\/verify/);}],
  ['No GAS script URL in rendered login HTML',()=>{const html=server.slice(server.indexOf('function cloudAuthLoginHtml'),server.indexOf('async function cloudAuthGas'));assert.doesNotMatch(html,/script\.google\.com/);assert.doesNotMatch(html,/trustedToken/);}],
  ['DEV-only GAS shared-key bridge',()=>{assert.match(server,/RUNTIME_ENV!=='DEV'\|\|!GAS_WRITE_URL\|\|WRITE_KEY\.length<32/);assert.match(gas,/V5_ENTRY_externalBridgeBody_\(e\)/);}],
- ['OTP verified by canonical GAS AuthService',()=>{assert.match(gas,/V5_AUTH\.requestLoginCode\(email\)/);assert.match(gas,/V5_AUTH\.verifyLoginCode\(email,code,candidate,body\.remember===true,deviceId/);}],
+ ['OTP verified by canonical GAS AuthService',()=>{assert.match(gas,/V5_AUTH\.requestLoginCode\(email\)/);assert.match(gas,/V5_AUTH\.verifyLoginCode\(email,code,'',body\.remember===true,deviceId/);}],
  ['Cloud Run exchanges verified token server-side',()=>{assert.match(server,/http:\/\/127\.0\.0\.1:'\+INNER_PORT\+'\/api\/v1\/session\/exchange/);assert.match(server,/exchanged\.headers\.get\('set-cookie'\)/);}],
  ['Invalid OTP cannot create a session',()=>assert.match(server,/if\(!verified\.ok\|\|!verified\.token\)return sendJson\(res,401/)],
  ['Auditor UID-gated DEV shortcut retained',()=>assert.match(server,/AMS_AUDITOR_UID_LOGIN_ENABLED/)],

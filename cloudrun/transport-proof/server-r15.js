@@ -87,11 +87,11 @@ const scopeNamesCache=createPlanningReadCache({load:async()=>{
  return rows;
 },ttlMs:30000});
 async function readScopeNames(){
- const rows=await scopeNamesCache.read(),headers=(rows[0]||[]).map(x=>String(x||'').trim().toLowerCase().replace(/[\\s_-]+/g,''));
- const idx=(...names)=>names.map(n=>headers.indexOf(n.toLowerCase().replace(/[\\s_-]+/g,''))).find(i=>i>=0)??-1;
+ const rows=await scopeNamesCache.read(),headers=(rows[0]||[]).map(x=>String(x||'').trim().toLowerCase().replace(/[\s_-]+/g,''));
+ const idx=(...names)=>names.map(n=>headers.indexOf(n.toLowerCase().replace(/[\s_-]+/g,''))).find(i=>i>=0)??-1;
  const slot=idx('SlotKey','Slot','ScopeSlot'),name=idx('DisplayName','Name','ScopeName','ScopeCode');
  if(slot<0||name<0)throw Error('CANONICAL_SCOPE_CONFIG_HEADERS_MISSING');
- const map={};for(const row of rows.slice(1)){const k=String(row[slot]||'').trim().toUpperCase(),v=String(row[name]||'').trim();if(/^SCOPE_\\d+$/.test(k)&&v)map[k]=v;}return map;
+ const map={};for(const row of rows.slice(1)){const k=String(row[slot]||'').trim().toUpperCase(),v=String(row[name]||'').trim();if(/^SCOPE_\d+$/.test(k)&&v)map[k]=v;}return map;
 }
 const overlay=createPlanningOverlayService({
  service,

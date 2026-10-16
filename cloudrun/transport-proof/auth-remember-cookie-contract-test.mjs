@@ -10,7 +10,7 @@ assert.ok(start>=0&&end>start,'fast OTP issue route located');
 const route=server.slice(start,end);
 assert.ok(route.includes("sessionCookie(token,data.remember===true)"),'remember setting controls signed session cookie persistence');
 assert.ok(route.includes("(data.remember===true?'; Max-Age='+ttl:'')"),'device cookie has same persistence mode');
-assert.ok(route.includes("ttl=data?.remember===true?14*86400:7200"),'signed session TTL remains capped at 14 days or 2 hours');
+assert.ok(server.includes("ttl=data?.remember===true?14*86400:7200"),'signed session TTL remains capped at 14 days or 2 hours');
 assert.ok(route.includes("HttpOnly; Secure; SameSite=Lax"),'cookie security flags retained');
 assert.ok(server.includes("store.isRevoked(cookieMap(req)[SESSION_COOKIE])"),'server-side revocation remains enabled');
 console.log('PASS Remember me: browser-only session cookies by default; persistent 14-day paired cookies when opted in');

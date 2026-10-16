@@ -239,7 +239,9 @@ var V5_AUTH = (function () {
     code = normOtpCode_(code);
 
     var user = findUserByEmail_(email);
-    if (!user || user.role !== role) return { ok: false, error: "ROLE_OR_EMAIL_INVALID" };
+    if (!user) return { ok: false, error: "ROLE_OR_EMAIL_INVALID" };
+    if (!role) role = user.role;
+    if (user.role !== role) return { ok: false, error: "ROLE_OR_EMAIL_INVALID" };
     if (!code || !/^\d{6}$/.test(code)) return { ok: false, error: "INVALID_CODE_FORMAT" };
 
     deviceId = String(deviceId || "").trim();

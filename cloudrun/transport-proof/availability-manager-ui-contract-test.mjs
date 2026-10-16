@@ -14,6 +14,10 @@ assert.ok(html.includes('id="filterDate"'),'Available auditors filter requires a
 assert.ok(html.includes('d.date===target&&freeWork(d.segments)>0'),'Availability filter uses the selected date');
 assert.ok(html.includes('HARD · blocked by auditor/manager'),'Hard unavailability is clearly identified');
 assert.ok(html.includes('SOFT · normally unavailable'),'Soft unavailability is clearly identified');
+assert.ok(html.includes('id="searchTerm"'),'Company and auditor search is present');
+assert.ok(html.includes('id="auditorFilter" multiple'),'Multiple auditors can be selected');
+assert.ok(html.includes('id="clearAuditorFilter"'),'Auditor filter can be reset');
+assert.ok(html.includes("title=\"'+esc(tooltip)+'\""),'Hover displays per-audit scopes and location');
 assert.ok(!html.includes('Baseline ID'),'Manager must not manually enter internal baseline IDs');
 assert.ok(!html.includes('id="auditor"'),'No legacy auditor dropdown required');
 console.log('PASS Manager Availability matrix and editor contract');

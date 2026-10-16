@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {createActionToken,hashActionToken,verifyActionToken,authorizeAction,validateActionInput} from './notification-email-action-policy-20.mjs';
+import {createActionToken,hashActionToken,verifyActionToken,authorizeAction,validateActionInput,auditorEmailActionAllowed} from './notification-email-action-policy-20.mjs';
 const token=createActionToken(), record={auditorUid:'aud-123',auditId:'audit-1',action:'ACCEPT',tokenHash:hashActionToken(token),status:'Approved',revision:7,expiresAt:Date.now()+60000};
 const base={record,token,auditorUid:'aud-123',auditId:'audit-1',action:'ACCEPT',status:'Approved',revision:7};
 assert.equal(verifyActionToken(record.tokenHash,token),true);
@@ -16,3 +16,10 @@ assert.equal(validateActionInput('CANCEL',{comment:'Reason'}),'OK');
 assert.equal(validateActionInput('COMPLETE',{realizedHours:1.2}),'INVALID_HOURS');
 assert.equal(validateActionInput('COMPLETE',{realizedHours:1.25}),'OK');
 console.log('notification-email-action-policy-20: PASS');
+
+assert.equal(auditorEmailActionAllowed('ACCEPT','Approved','MANAGER'),true);
+assert.equal(auditorEmailActionAllowed('ACCEPT','Pending Approval','AUDITOR'),false);
+assert.equal(auditorEmailActionAllowed('CANCEL','Pending Approval','AUDITOR'),true);
+assert.equal(auditorEmailActionAllowed('CANCEL','Accepted','AUDITOR'),false);
+assert.equal(auditorEmailActionAllowed('COMPLETE','Accepted','MANAGER'),true);
+assert.equal(auditorEmailActionAllowed('COMPLETE','Completed','MANAGER'),false);

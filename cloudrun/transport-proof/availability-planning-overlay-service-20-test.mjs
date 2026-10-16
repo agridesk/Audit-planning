@@ -50,4 +50,13 @@ assert.equal(doubleA.days[0].segments.filter(x=>x.state==='COMMITTED').reduce((m
 const doubleB=await doubleOverlay.period({actor,auditorId:'b',fromDate:'2027-01-12',toDate:'2027-01-12'});
 assert.equal(Object.values(doubleB.auditDetails).length,1,'Other auditor sees only their audit');
 assert.equal(Object.values(doubleB.auditDetails)[0].auditId,'B-OTHER');
+const overlappingRows=[
+ ['Audit ID','Status','Assigned to','Planning JSON','Company','Scopes'],
+ ['C1','ACCEPTED','a@example.com',JSON.stringify([{date:'2027-01-12',start:'09:00',end:'12:00'}]),'Company 1','Scope 1'],
+ ['P1','PENDING_APPROVAL','a@example.com',JSON.stringify([{date:'2027-01-12',start:'10:00',end:'11:00'}]),'Company 2','Scope 2']
+];
+const overlapOverlay=createPlanningOverlayService({service,readPlanningRows:async()=>overlappingRows,listCanonicalAuditors:async()=>auditors});
+const overlap=await overlapOverlay.period({actor,auditorId:'a',fromDate:'2027-01-12',toDate:'2027-01-12'});
+assert.equal(Object.values(overlap.auditDetails).length,2,'Overlapping provisional and committed audits both retained as details');
+assert(overlap.days[0].segments.some(x=>x.state==='COMMITTED'),'Committed remains precedence owner for occupied overlap');
 console.log('PASS: planning overlay period, manager overview, authorization, fail closed');

@@ -17,5 +17,8 @@ assert.ok(html.includes("x.state==='PROVISIONAL'?'Provisional audit':'Planned au
 assert.ok(!html.includes('confirm('), 'Day details do not show blocking confirmation dialogs');
 assert.ok(!html.includes("undo.addEventListener('click'"),'No detached Undo button is shown');
 assert.ok(!html.includes("(above target)"),'Do not conflate save and calendar reload latency');
+assert.ok(html.includes('queueMicrotask(async()=>'), 'Post-save refresh must not delay save acknowledgement');
+assert.ok(html.includes('AMS_DEV_AVAILABILITY_WRITE_MS'), 'Write latency remains separately measurable');
+assert.ok(html.includes('AMS_DEV_AVAILABILITY_REFRESH_MS'), 'Reload latency is separately measurable');
 assert.ok(!html.includes('My Availability 2.0'),'No visible version suffix');
 console.log('PASS My Availability auditor interaction contract');

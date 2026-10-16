@@ -2,6 +2,8 @@
  * Enable only after Firestore IAM/database preflight and DEV-only deployment approval.
  */
 import http from 'node:http';
+import {notificationOverview} from './notification-overview-20.mjs';
+
 import {URL} from 'node:url';
 import {createAvailabilityHttpRouter} from './availability-http-api-20.js';
 import {createAvailabilityService} from './availability-storage-service-20.js';
@@ -165,6 +167,25 @@ async function legacyHardMigration(req,res){
  res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
  res.end(JSON.stringify(result));
 }
+async function notificationsManagerOverview(req,res){
+ const actor=await session(req);
+ if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
+ const sources=[['Notification_Config',500],['Notification_Rules',500],['Notification_Settings',500],['Notification Queue',5000]];
+ const data={};
+ for(const [tab,limit] of sources){
+  const range="'"+tab+"'!A1:AZ"+limit;
+  const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range);
+  const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()}});
+  if(!response.ok)throw Error('NOTIFICATION_OVERVIEW_SOURCE_UNAVAILABLE');
+  const rows=(await response.json()).values||[];
+  if(rows.length>=limit)throw Error('NOTIFICATION_OVERVIEW_SOURCE_TRUNCATED');
+  data[tab]=rows;
+ }
+ const result=notificationOverview({config:data.Notification_Config,rules:data.Notification_Rules,settings:data.Notification_Settings,queue:data['Notification Queue']});
+ res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
+ res.end(JSON.stringify({success:true,...result}));
+}
+
 async function proxy(req,res){
  const url='http://127.0.0.1:'+innerPort+(req.url||'/');
  const headers={...req.headers};delete headers.host;delete headers.connection;delete headers['content-length'];
@@ -190,6 +211,14 @@ http.createServer(async(req,res)=>{
    if(!identity||identity.role!=='manager'){res.writeHead(identity?403:401);res.end('Not authorized');return;}
    const {readFile}=await import('node:fs/promises');
    const html=await readFile(new URL('./availability-manager-calendar-20.html',import.meta.url));
+   res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(html);return;
+  }
+  if(req.method==='GET'&&u.pathname==='/api/v1/notifications-manager-20/overview'){await notificationsManagerOverview(req,res);return;}
+  if(req.method==='GET'&&u.pathname==='/notifications-manager-20'){
+   const actor=await session(req);
+   if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
+   const {readFile}=await import('node:fs/promises');
+   const html=await readFile(new URL('./notification-manager-20.html',import.meta.url));
    res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(html);return;
   }
   if(await availability(req,res))return;

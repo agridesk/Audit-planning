@@ -9,6 +9,7 @@ let count=0;function check(name,fn){fn();count++;console.log('PASS',name);}
 check('approved committed',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','APPROVED','d@example.com',[block()]) ]})[0].state,'COMMITTED'));
 check('accepted committed',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','ACCEPTED','d@example.com',[block()]) ]})[0].state,'COMMITTED'));
 check('pending approval provisional',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','PENDING_APPROVAL','d@example.com',[block()]) ]})[0].state,'PROVISIONAL'));
+check('Proposed draft is not an occupancy source without canonical provisional ownership',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('P1','PROPOSED','d@example.com',[block()])]}).length,0));
 check('pending planning excluded',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','PENDING_PLANNING','d@example.com',[block()]) ]}).length,0));
 check('other auditor isolated',()=>assert.equal(canonicalAuditBlocksForAuditor({...args,rows:[headers,row('A1','APPROVED','e@example.com',[block()])],auditorId:'auditor-d'}).length,0));
 check('outside range excluded',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','APPROVED','d@example.com',[block('2027-02-02')])]}).length,0));

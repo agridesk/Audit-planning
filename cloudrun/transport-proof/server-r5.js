@@ -137,7 +137,7 @@ async function cloudAuthVerify(req,res){
     if(!identity.ok)return sendJson(res,401,{ok:false,error:identity.error||'INVALID_OR_EXPIRED_CODE'});
     const exchange=await fetch('http://127.0.0.1:'+INNER_PORT+'/api/v1/internal/fast-otp-session',{method:'POST',headers:{'content-type':'application/json','x-ams-internal-secret':SESSION_SECRET},body:JSON.stringify({...identity,remember,deviceId})});
     const result=await exchange.json(),cookie=exchange.headers.getSetCookie();
-    if(RUNTIME_ENV==='DEV')console.info('AMS_AUTH_COOKIE_HANDOFF',JSON.stringify({names:cookie.map(v=>v.split('=')[0]),sizes:cookie.map(v=>v.length),maxAges:cookie.map(v=>v.match(/Max-Age=(\\d+)/i)?.[1]||'missing')}));
+    if(RUNTIME_ENV==='DEV')console.info('AMS_AUTH_COOKIE_HANDOFF',JSON.stringify({names:cookie.map(v=>v.split('=')[0]),sizes:cookie.map(v=>v.length),maxAges:cookie.map(v=>v.match(/Max-Age=(\d+)/i)?.[1]||'missing')}));
     console.info('AMS_AUTH_FAST_SESSION_TIMING',JSON.stringify({totalMs:Date.now()-start,exchangeOk:exchange.ok&&result.ok===true}));
     if(!exchange.ok||!result.ok||cookie.length!==2)return sendJson(res,503,{ok:false,error:'FAST_OTP_SESSION_EXCHANGE_FAILED'});
     return sendJson(res,200,{ok:true,destination:safeLoginDestination(body.next,identity.role)},{'set-cookie':cookie});

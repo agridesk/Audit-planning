@@ -78,9 +78,25 @@ async function readPlanningRows(){
  return rows;
 }
 const planningCache=createPlanningReadCache({load:readPlanningRows,ttlMs:10000});
+const scopeNamesCache=createPlanningReadCache({load:async()=>{
+ const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent("'Config_Scopes'!A1:AZ250");
+ const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()}});
+ if(!response.ok)throw Error('CANONICAL_SCOPE_CONFIG_READ_'+response.status);
+ const rows=(await response.json()).values;
+ if(!Array.isArray(rows)||!rows.length)throw Error('CANONICAL_SCOPE_CONFIG_MISSING');
+ return rows;
+},ttlMs:30000});
+async function readScopeNames(){
+ const rows=await scopeNamesCache.read(),headers=(rows[0]||[]).map(x=>String(x||'').trim().toLowerCase().replace(/[\\s_-]+/g,''));
+ const idx=(...names)=>names.map(n=>headers.indexOf(n.toLowerCase().replace(/[\\s_-]+/g,''))).find(i=>i>=0)??-1;
+ const slot=idx('SlotKey','Slot','ScopeSlot'),name=idx('DisplayName','Name','ScopeName','ScopeCode');
+ if(slot<0||name<0)throw Error('CANONICAL_SCOPE_CONFIG_HEADERS_MISSING');
+ const map={};for(const row of rows.slice(1)){const k=String(row[slot]||'').trim().toUpperCase(),v=String(row[name]||'').trim();if(/^SCOPE_\\d+$/.test(k)&&v)map[k]=v;}return map;
+}
 const overlay=createPlanningOverlayService({
  service,
  readPlanningRows:planningCache.read,
+ readScopeNames,
  listCanonicalAuditors:async()=>{
   const roster=await getRoster();
   return roster.filter(x=>x.auditorId&&!x.auditorId.startsWith('manager:')).map(x=>({auditorId:x.auditorId,email:x.email}));

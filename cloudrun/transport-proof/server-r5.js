@@ -78,11 +78,13 @@ async function cloudAuthVerify(req,res){
   if(req.headers.origin&&req.headers.origin!=='https://ams-transport-proof-510075419067.europe-west1.run.app')return sendJson(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});
   const body=JSON.parse(await readRaw(req,2048));const {email,role,code,deviceId}=body;const remember=body.remember===true;
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean(email))||!/^\d{6}$/.test(clean(code))||!/^[a-f0-9]{64}$/.test(clean(deviceId)))return sendJson(res,400,{ok:false,error:'INVALID_LOGIN_INPUT'});
+  const authStart=Date.now();
   const verified=await cloudAuthGas('externalauthverifycode',{email,role,code,deviceId,remember});
+  const gasMs=Date.now()-authStart;
   if(!verified.ok||!verified.token)return sendJson(res,401,{ok:false,error:verified.error||'INVALID_OR_EXPIRED_CODE'});
   const exchanged=await fetch('http://127.0.0.1:'+INNER_PORT+'/api/v1/session/exchange',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token:verified.token,role:verified.role,deviceId})});
-  const result=await exchanged.json();const cookie=exchanged.headers.get('set-cookie');if(!exchanged.ok||!result.ok||!cookie)return sendJson(res,401,{ok:false,error:result.error||'SESSION_EXCHANGE_FAILED'});
-  return sendJson(res,200,{ok:true,destination:safeLoginDestination(body.next,verified.role)}, {'set-cookie':cookie});
+  const result=await exchanged.json();const exchangeMs=Date.now()-authStart-gasMs;const cookie=exchanged.headers.get('set-cookie');if(!exchanged.ok||!result.ok||!cookie)return sendJson(res,401,{ok:false,error:result.error||'SESSION_EXCHANGE_FAILED'});
+  res.setHeader('Server-Timing','gas_otp;dur='+gasMs+',session_exchange;dur='+exchangeMs);return sendJson(res,200,{ok:true,destination:safeLoginDestination(body.next,verified.role)}, {'set-cookie':cookie});
 }
 
 function portalLoginHtml(){

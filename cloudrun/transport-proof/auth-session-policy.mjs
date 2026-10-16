@@ -14,3 +14,5 @@ export function boundedSessionExpiry(nowSeconds, configuredTtlSeconds, legacyTok
   }
   return { expiresAtSeconds: expirySeconds, maxAgeSeconds: expirySeconds - now };
 }
+
+// Notifications 2.0: trusted-device sessions are scoped to Auditor_UID, never email.

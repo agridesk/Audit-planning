@@ -91,11 +91,11 @@ function showDay(day){
  const entries=[...audits.values()].sort((a,b)=>a.start.localeCompare(b.start));
  const auditHtml=entries.map((x,i)=>'<div class="auditDetail"><strong>Audit '+(i+1)+' · '+esc(x.start)+'–'+esc(x.end)+'</strong><div>'+esc(x.company||x.auditId)+'</div><div class="muted">'+esc(x.scopes||'Scopes not recorded')+'</div><div class="muted">'+esc(x.location||'')+'</div></div>').join('');
  const unavailable=(day.segments||[]).filter(x=>x.state==='HARD'||x.state==='SOFT');
- const other=unavailable.length?unavailable.map(x=>'<div class="segment"><span class="pill '+esc(x.state)+'">'+esc(humanState(x.state))+'</span><span>'+esc(x.start+'–'+x.end)+'</span></div>').join(''):'<div class="muted">Available all day</div>';
+ const other=unavailable.length?unavailable.map(x=>'<div class="segment"><span class="pill '+esc(x.state)+'">'+esc(humanState(x.state))+'</span><span>'+esc(x.start+'–'+x.end)+'</span></div>').join(''):entries.length?'':'<div class="muted">Available during working hours</div>';
  const existing=hardExceptionForDay(day);
  const periodLabel=existing?(existing.fromDate===existing.toDate?existing.fromDate:existing.fromDate+' – '+existing.toDate):'';
  const actions=existing?'<div class="muted">Block period: '+esc(periodLabel)+'</div><div class="controls"><button type="button" id="editHard">Edit block ('+esc(periodLabel)+')</button><button type="button" id="releaseDay">Release '+esc(day.date)+' only</button><button type="button" id="removeHard">Remove entire block</button></div>':'';
- $('selectedInfo').innerHTML='<strong>'+esc(day.date)+'</strong>'+auditHtml+'<div class="muted" style="margin-top:8px">Availability</div>'+other+actions;
+ $('selectedInfo').innerHTML='<strong>'+esc(day.date)+'</strong>'+auditHtml+(other?'<div class="muted" style="margin-top:8px">Availability</div>'+other:'')+actions;
  if(existing){
   $('editHard').addEventListener('click',()=>editHardException(existing));
   $('releaseDay').addEventListener('click',()=>{if(!confirm('Release only '+day.date+' from the unavailable period '+periodLabel+'?'))return;mutate({action:'RELEASE_BASELINE',targetExceptionId:existing.id,fromDate:day.date,toDate:day.date,wholeDay:existing.wholeDay===true,...(existing.wholeDay?{}:{start:existing.start,end:existing.end})},{noConfirm:true})});

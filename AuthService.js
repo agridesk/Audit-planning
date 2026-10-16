@@ -252,7 +252,7 @@ var V5_AUTH = (function () {
     try {
       var otpResult = verifyOtp_(email, role, code);
       if (!otpResult.ok) return { ok: false, error: otpResult.error || "INVALID_OR_EXPIRED_CODE" };
-      markOtpUsedAndRevokeSiblings_(email, role, otpResult.rowNumber);
+      markOtpUsedAndRevokeSiblings_(email, role, otpResult.rowNumber, otpResult.snapshot);
     } finally {
       try { lock.releaseLock(); } catch (eLock) {}
     }
@@ -605,7 +605,7 @@ var V5_AUTH = (function () {
       }
 
       if (String(row[idx.Code_Hash] || "") === targetHash) {
-        return { ok: true, rowNumber: r + 1 };
+        return { ok: true, rowNumber: r + 1, snapshot: {sheet:sh,values:values} };
       }
     }
 
@@ -613,15 +613,16 @@ var V5_AUTH = (function () {
     return { ok: false, error: "INVALID_OR_EXPIRED_CODE" };
   }
 
-  function markOtpUsedAndRevokeSiblings_(email, role, usedRowNumber) {
-    var sh = OTP__getSheet_();
-    var values = sh.getDataRange().getValues();
+  function markOtpUsedAndRevokeSiblings_(email, role, usedRowNumber, snapshot) {
+    var sh = snapshot && snapshot.sheet ? snapshot.sheet : OTP__getSheet_();
+    var values = snapshot && snapshot.values ? snapshot.values : sh.getDataRange().getValues();
     if (values.length < 2) return;
 
     var idx = OTP__idxValues_(values[0]);
     var now = new Date();
     var usedAtCol1 = idx.Used_At + 1;
     var revokedCol1 = idx.Revoked + 1;
+    var revokeCells = [];
 
     for (var r = 1; r < values.length; r++) {
       var rowNumber = r + 1;
@@ -630,11 +631,12 @@ var V5_AUTH = (function () {
       if (normRole_(row[idx.Role]) !== role) continue;
       if (rowNumber === usedRowNumber) {
         sh.getRange(rowNumber, usedAtCol1).setValue(now);
-        sh.getRange(rowNumber, revokedCol1).setValue(true);
+        revokeCells.push(sh.getRange(rowNumber, revokedCol1).getA1Notation());
       } else if (!row[idx.Used_At] && !isRevoked_(row[idx.Revoked])) {
-        sh.getRange(rowNumber, revokedCol1).setValue(true);
+        revokeCells.push(sh.getRange(rowNumber, revokedCol1).getA1Notation());
       }
     }
+    if (revokeCells.length) sh.getRangeList(revokeCells).setValue(true);
   }
 
   // ---------------- INTERNALS: TOKENS ----------------

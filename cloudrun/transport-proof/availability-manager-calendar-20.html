@@ -50,7 +50,7 @@ async function selectAuditor(id,date){
   $('dayDetails').innerHTML=auditsHtml+(stateHtml?'<p>'+stateHtml+'</p>':'')+'<p class="muted">Available in working day: '+fmt(freeWork(segs))+' hours (08:00–18:00)</p>';
   const hard=(j.metadata?.baselineExceptions||[]).filter(x=>x.fromDate<=date&&x.toDate>=date);
   S.activeBlock=hard.length===1?hard[0]:null;
-  S.hasSoft=segs.some(x=>x.state==='SOFT');$('action').value=hard.length||S.hasSoft?'MAKE_AVAILABLE':'BLOCK_PERIOD';
+  S.hasHard=segs.some(x=>x.state==='HARD');S.hasSoft=segs.some(x=>x.state==='SOFT');$('action').value=hard.length||S.hasSoft?'MAKE_AVAILABLE':'BLOCK_PERIOD';
   updateAction();
   $('editor').scrollIntoView({behavior:'smooth',block:'nearest'});
  }catch(e){showError(e)}
@@ -62,7 +62,7 @@ async function save(){
  if(!fromDate||!toDate||toDate<fromDate)return showError(Error('Invalid period'));
  const mutation={action,fromDate,toDate,wholeDay:$('whole').checked};
  if(!mutation.wholeDay){mutation.start=$('start').value;mutation.end=$('end').value;if(!mutation.start||!mutation.end||mutation.start>=mutation.end)return showError(Error('Invalid hours'));}
- if(action==='MAKE_AVAILABLE'){if(S.activeBlock){mutation.action='RELEASE_BASELINE';mutation.targetExceptionId=S.activeBlock.id;mutation.wholeDay=S.activeBlock.wholeDay===true;if(!mutation.wholeDay){mutation.start=S.activeBlock.start;mutation.end=S.activeBlock.end;}}else{mutation.action='SET_FREE_OVERRIDE';}}
+ if(action==='MAKE_AVAILABLE'){if(S.hasHard&&!S.activeBlock)return showError(Error('Multiple or legacy HARD blocks require individual review'));if(S.activeBlock){mutation.action='RELEASE_BASELINE';mutation.targetExceptionId=S.activeBlock.id;mutation.wholeDay=S.activeBlock.wholeDay===true;if(!mutation.wholeDay){mutation.start=S.activeBlock.start;mutation.end=S.activeBlock.end;}}else{mutation.action='SET_FREE_OVERRIDE';}}
  $('save').disabled=true;try{
   const result=await api('mutate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({auditorId:S.selected,expectedVersion:S.version,mutation})});
   $('success').textContent='Saved';

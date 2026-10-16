@@ -102,13 +102,22 @@ async function cloudAuthRequest(req,res){
   if(RUNTIME_ENV!=='DEV')return sendJson(res,404,{ok:false,error:'NOT_FOUND'});
   if(req.headers.origin&&req.headers.origin!=='https://ams-transport-proof-510075419067.europe-west1.run.app')return sendJson(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});
   const data=JSON.parse(await readRaw(req,2048));const email=clean(data.email).toLowerCase();if(email.length>254||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return sendJson(res,400,{ok:false,error:'INVALID_EMAIL'});
-  const response=await cloudAuthGas('externalauthrequestcode',{email});return sendJson(res,response.ok?200:401,{ok:response.ok===true,role:response.role||'',error:response.error||'CODE_REQUEST_FAILED',retryAfterSeconds:response.retryAfterSeconds||0});
+  const response=FAST_OTP_ENABLED?await fastOtpService().requestCode(email):await cloudAuthGas('externalauthrequestcode',{email});return sendJson(res,response.ok?200:401,{ok:response.ok===true,role:response.role||'',error:response.error||'CODE_REQUEST_FAILED',retryAfterSeconds:response.retryAfterSeconds||0});
 }
 async function cloudAuthVerify(req,res){
   if(RUNTIME_ENV!=='DEV')return sendJson(res,404,{ok:false,error:'NOT_FOUND'});
   if(req.headers.origin&&req.headers.origin!=='https://ams-transport-proof-510075419067.europe-west1.run.app')return sendJson(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});
   const body=JSON.parse(await readRaw(req,2048));const {email,role,code,deviceId}=body;const remember=body.remember===true;
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean(email))||!/^\d{6}$/.test(clean(code))||!/^[a-f0-9]{64}$/.test(clean(deviceId)))return sendJson(res,400,{ok:false,error:'INVALID_LOGIN_INPUT'});
+  if(FAST_OTP_ENABLED){
+    const start=Date.now(),identity=await fastOtpService().verifyCode(email,code);
+    if(!identity.ok)return sendJson(res,401,{ok:false,error:identity.error||'INVALID_OR_EXPIRED_CODE'});
+    const exchange=await fetch('http://127.0.0.1:'+INNER_PORT+'/api/v1/internal/fast-otp-session',{method:'POST',headers:{'content-type':'application/json','x-ams-internal-secret':SESSION_SECRET},body:JSON.stringify({...identity,remember})});
+    const result=await exchange.json(),cookie=exchange.headers.get('set-cookie');
+    console.info('AMS_AUTH_FAST_SESSION_TIMING',JSON.stringify({totalMs:Date.now()-start,exchangeOk:exchange.ok&&result.ok===true}));
+    if(!exchange.ok||!result.ok||!cookie)return sendJson(res,503,{ok:false,error:'FAST_OTP_SESSION_EXCHANGE_FAILED'});
+    return sendJson(res,200,{ok:true,destination:safeLoginDestination(body.next,identity.role)},{'set-cookie':cookie});
+  }
   const authStart=Date.now();
   const verified=await cloudAuthGas('externalauthverifycode',{email,role,code,deviceId,remember});
   const gasMs=Date.now()-authStart;

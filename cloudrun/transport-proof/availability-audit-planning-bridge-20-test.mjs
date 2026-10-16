@@ -10,6 +10,7 @@ check('approved committed',()=>assert.equal(canonicalAuditSlotsFromPlanningRows(
 check('accepted committed',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','ACCEPTED','d@example.com',[block()]) ]})[0].state,'COMMITTED'));
 check('pending approval provisional',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','PENDING_APPROVAL','d@example.com',[block()]) ]})[0].state,'PROVISIONAL'));
 check('Proposed draft is not an occupancy source without canonical provisional ownership',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('P1','PROPOSED','d@example.com',[block()])]}).length,0));
+check('scope marks mapped to Config_Scopes names',()=>{const hs=[...headers,'SCOPE_01','SCOPE_02'];const data=canonicalAuditSlotsFromPlanningRows({...args,rows:[hs,[...row('A1','APPROVED','d@example.com',[block()]),'x','']],scopeNamesBySlot:{SCOPE_01:'MPS-ABC',SCOPE_02:'MPS-GAP'}});assert.equal(data[0].scopes,'MPS-ABC');});
 check('pending planning excluded',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','PENDING_PLANNING','d@example.com',[block()]) ]}).length,0));
 check('other auditor isolated',()=>assert.equal(canonicalAuditBlocksForAuditor({...args,rows:[headers,row('A1','APPROVED','e@example.com',[block()])],auditorId:'auditor-d'}).length,0));
 check('outside range excluded',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','APPROVED','d@example.com',[block('2027-02-02')])]}).length,0));

@@ -19,7 +19,7 @@ async function proxy(req,res,raw){
   const init={method:req.method,headers,redirect:'manual'};
   if(req.method!=='GET'&&req.method!=='HEAD')init.body=raw||'';
   const r=await fetch(target,init),buf=Buffer.from(await r.arrayBuffer()),outHeaders={};
-  r.headers.forEach((v,k)=>{if(!['content-length','transfer-encoding','connection'].includes(k.toLowerCase()))outHeaders[k]=v;});
+  r.headers.forEach((v,k)=>{if(k!=='set-cookie'&&!['content-length','transfer-encoding','connection'].includes(k.toLowerCase()))outHeaders[k]=v;outHeaders['set-cookie']=r.headers.getSetCookie();});
   outHeaders['x-ams-build']=BUILD;
   res.writeHead(r.status,outHeaders);res.end(buf);
 }

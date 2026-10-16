@@ -17,7 +17,7 @@ const cases=[
  ['Login OTP supports keyboard verification',()=>{assert.match(server,/e\.key==='Enter'/);assert.match(server,/el\('verify'\)\.click\(\)/);}],
  ['Deep links are server-allowlisted and role-scoped',()=>{assert.match(server,/function safeLoginDestination\(raw,role\)/);assert.match(server,/value\.startsWith\('\/\/'\)/);assert.match(server,/parsed\.pathname==='\/planning'/);assert.match(server,/destination:safeLoginDestination\(body\.next,role\)/);}],
  ['OTP navigation uses authorized server destination',()=>{assert.match(server,/next:loginNext/);assert.match(server,/location\.assign\(verified\.destination\|\|'\/'\)/);}],
- ['Unauthenticated planning preserves authorized login destination',()=>{assert.match(server,/location:'\/\?next='\+encodeURIComponent\(next\)/);assert.match(server,/safeLoginDestination\(u\.searchParams\.get\('next'\),identity\.role\)/);}],
+ ['Unauthenticated planning preserves authorized login destination',()=>{assert.match(server,/'location':'\/\?next='\+encodeURIComponent\(next\)/);assert.match(server,/safeLoginDestination\(u\.searchParams\.get\('next'\),identity\.role\)/);}],
  ['Production OTP bridge stays closed',()=>assert.match(gas,/if\(!V5_ENTRY_isDevEnv_\(\)\)return authResponse\(\{ok:false,error:'DEV_ONLY'\}\)/)],
 ];
 let failed=0;for(const [name,fn] of cases){try{fn();console.log('PASS',name);}catch(error){failed++;console.error('FAIL',name,error.message);}}

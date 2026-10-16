@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {issueDeviceCredential,verifyDeviceCredential,deviceCookie,DEVICE_TRUST_TTL_MS} from './notification-device-trust-20.mjs';
+assert.throws(()=>issueDeviceCredential({auditorUid:'a',independentlyVerified:false}),/INDEPENDENT_VERIFICATION_REQUIRED/);
+const {secret,record}=issueDeviceCredential({auditorUid:'a',independentlyVerified:true,now:100});
+assert.equal(record.expiresAt,100+DEVICE_TRUST_TTL_MS);
+assert.equal(verifyDeviceCredential({record,secret,auditorUid:'a',now:101}),true);
+assert.equal(verifyDeviceCredential({record,secret,auditorUid:'b',now:101}),false);
+assert.equal(verifyDeviceCredential({record,secret,auditorUid:'a',now:record.expiresAt}),false);
+assert.equal(verifyDeviceCredential({record:{...record,revokedAt:200},secret,auditorUid:'a',now:101}),false);
+assert.equal(verifyDeviceCredential({record,secret:'A'.repeat(43),auditorUid:'a',now:101}),false);
+assert.match(deviceCookie(secret),/Secure; HttpOnly; SameSite=Strict/);
+assert.throws(()=>deviceCookie(secret,{maxAgeSeconds:2592001}),/INVALID_COOKIE_AGE/);
+console.log('notification-device-trust-20: PASS');

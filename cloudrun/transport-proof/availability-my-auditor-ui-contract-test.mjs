@@ -15,7 +15,7 @@ assert.ok(html.includes('prefetchNeighborMonths(a)'),'Calendar prefetches adjace
 assert.ok(html.includes('Make this day available'),'Only one HARD day action is visible');
 assert.ok(html.includes("x.state==='PROVISIONAL'?'Provisional audit':'Planned audit'"),'Auditor sees provisional status explicitly');
 assert.ok(!html.includes('confirm('), 'Day details do not show blocking confirmation dialogs');
-assert.ok(html.includes("mutation.action==='BLOCK_PERIOD'&&j.recordId"),'HARD writes offer Undo using canonical record ID');
-assert.ok(html.includes("undo.addEventListener('click'"),'Undo action is interactive');
+assert.ok(!html.includes("undo.addEventListener('click'"),'No detached Undo button is shown');
+assert.ok(!html.includes("(above target)"),'Do not conflate save and calendar reload latency');
 assert.ok(!html.includes('My Availability 2.0'),'No visible version suffix');
 console.log('PASS My Availability auditor interaction contract');

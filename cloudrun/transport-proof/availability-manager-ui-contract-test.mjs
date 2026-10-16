@@ -23,4 +23,8 @@ assert.ok(!html.includes('class="confirm"'),'Confirmation status removed from ca
 assert.ok(html.includes("title=\"'+esc(tooltip)+'\""),'Hover displays per-audit scopes and location');
 assert.ok(!html.includes('Baseline ID'),'Manager must not manually enter internal baseline IDs');
 assert.ok(!html.includes('id="auditor"'),'No legacy auditor dropdown required');
+const server=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
+assert.ok(server.includes(String.raw`/[\\s_-]+/g`),'Config_Scopes headers must use functional whitespace normalization');
+assert.ok(server.includes(String.raw`/^SCOPE_\\d+$/`),'Config_Scopes slot matcher must recognize SCOPE_01');
+assert.ok(!server.includes(String.raw`/^SCOPE_\\\\d+$/`),'Reject escaped digit matcher that cannot resolve scopes');
 console.log('PASS Manager Availability matrix and editor contract');

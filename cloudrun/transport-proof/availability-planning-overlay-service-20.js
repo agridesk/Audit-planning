@@ -31,7 +31,9 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
    const blocks=committedBlocksFromCanonicalSlots({auditorId,slots});
    return {auditorId,displayName:displayNames[auditorId]||auditorId,availability:withCommittedOverlay(doc,blocks),metadata:{...doc.metadata,availabilityVersion:doc.version}};
   }));
-  return buildManagerAvailabilityOverview({fromDate,toDate,auditors});
+  const overview=buildManagerAvailabilityOverview({fromDate,toDate,auditors});
+  const auditDetailsByAuditor={};for(const slot of slots){if(!auditorIds.includes(slot.auditorId))continue;(auditDetailsByAuditor[slot.auditorId]??=[]).push({auditId:slot.auditId,date:slot.date,start:slot.start,end:slot.end,state:slot.state,company:slot.company||'',scopes:slot.scopes||'',location:slot.location||''});}
+  return {...overview,auditDetailsByAuditor};
  }
  async function mutate({actor,auditorId,expectedVersion,mutation,now}){
   let affectedAudits=[];

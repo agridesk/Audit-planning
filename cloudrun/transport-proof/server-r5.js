@@ -136,9 +136,9 @@ async function cloudAuthVerify(req,res){
     const start=Date.now(),identity=await fastOtpService().verifyCode(email,code);
     if(!identity.ok)return sendJson(res,401,{ok:false,error:identity.error||'INVALID_OR_EXPIRED_CODE'});
     const exchange=await fetch('http://127.0.0.1:'+INNER_PORT+'/api/v1/internal/fast-otp-session',{method:'POST',headers:{'content-type':'application/json','x-ams-internal-secret':SESSION_SECRET},body:JSON.stringify({...identity,remember,deviceId})});
-    const result=await exchange.json(),cookie=exchange.headers.get('set-cookie');
+    const result=await exchange.json(),cookie=exchange.headers.getSetCookie();
     console.info('AMS_AUTH_FAST_SESSION_TIMING',JSON.stringify({totalMs:Date.now()-start,exchangeOk:exchange.ok&&result.ok===true}));
-    if(!exchange.ok||!result.ok||!cookie)return sendJson(res,503,{ok:false,error:'FAST_OTP_SESSION_EXCHANGE_FAILED'});
+    if(!exchange.ok||!result.ok||cookie.length!==2)return sendJson(res,503,{ok:false,error:'FAST_OTP_SESSION_EXCHANGE_FAILED'});
     return sendJson(res,200,{ok:true,destination:safeLoginDestination(body.next,identity.role)},{'set-cookie':cookie});
   }
   const authStart=Date.now();

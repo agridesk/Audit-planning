@@ -263,6 +263,27 @@ function V5_ENTRY_externalBridgeBody_(e) {
 function doPost(e) {
   var p=(e&&e.parameter)?e.parameter:{};
   var rawAction=String(p.action||'').trim().toLowerCase();
+  // Cloud Run is the only browser-facing login surface. This endpoint is a DEV-only
+  // server-to-server bridge; requests require the configured write-bridge key.
+  if(rawAction==='externalauthrequestcode'||rawAction==='externalauthverifycode') {
+    var authResponse=function(payload){return ContentService.createTextOutput(JSON.stringify(payload)).setMimeType(ContentService.MimeType.JSON);};
+    if(!V5_ENTRY_isDevEnv_())return authResponse({ok:false,error:'DEV_ONLY'});
+    var bridge=V5_ENTRY_externalBridgeBody_(e);
+    if(!bridge.ok)return bridge.response;
+    var body=bridge.body||{},email=String(body.email||'').trim().toLowerCase();
+    if(!email||email.length>254)return authResponse({ok:false,error:'EMAIL_REQUIRED'});
+    try {
+      if(rawAction==='externalauthrequestcode'){
+        var requested=V5_AUTH.requestLoginCode(email);
+        return authResponse({ok:requested.ok===true,error:requested.error||'',role:requested.role||'',retryAfterSeconds:requested.retryAfterSeconds||0,throttled:requested.throttled===true});
+      }
+      var code=String(body.code||'').trim(),role=String(body.role||'').trim(),deviceId=String(body.deviceId||'').trim();
+      if(!/^\d{6}$/.test(code)||!deviceId||deviceId.length>200||!['Manager','Auditor'].includes(role))return authResponse({ok:false,error:'INVALID_LOGIN_INPUT'});
+      var verified=V5_AUTH.verifyLoginCode(email,code,role,body.remember===true,deviceId,'Cloud Run portal 2.0');
+      if(verified.ok!==true)return authResponse({ok:false,error:verified.error||'INVALID_OR_EXPIRED_CODE'});
+      return authResponse({ok:true,role:verified.role,token:verified.token,expiresAt:verified.expiresAt});
+    }catch(authError){return authResponse({ok:false,error:'AUTHENTICATION_UNAVAILABLE'});}
+  }
   if(rawAction==='versioncheck')return ContentService.createTextOutput(JSON.stringify({ok:true,build:'2026-10-01_ENTRYV5_GRID2_BRIDGES_R2',runtimeEnv:V5_ENTRY_readProjectEnv_()})).setMimeType(ContentService.MimeType.JSON);
 
   if (rawAction === 'externalplanningworkspace') {

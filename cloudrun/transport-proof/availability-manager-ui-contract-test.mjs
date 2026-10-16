@@ -9,6 +9,7 @@ for(const marker of ['id="availabilityFilter"','All auditors','Available auditor
 }
 assert.ok(html.includes("days.map(date=>'<tr><th>'"),'Rows must represent calendar days');
 assert.ok(html.includes('shown.map((a,i)=>'),'Columns must represent auditors');
+assert.ok(html.includes('S.hasHard&&!S.activeBlock'),'Unknown or overlapping HARD blocks fail closed instead of reporting false availability');
 assert.ok(!html.includes('Baseline ID'),'Manager must not manually enter internal baseline IDs');
 assert.ok(!html.includes('id="auditor"'),'No legacy auditor dropdown required');
 console.log('PASS Manager Availability matrix and editor contract');

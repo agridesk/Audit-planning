@@ -279,7 +279,7 @@ function doPost(e) {
       }
       var code=String(body.code||'').trim(),role=String(body.role||'').trim(),deviceId=String(body.deviceId||'').trim();
       if(!/^\d{6}$/.test(code)||!deviceId||deviceId.length>200||!['Manager','Auditor'].includes(role))return authResponse({ok:false,error:'INVALID_LOGIN_INPUT'});
-      var verified=V5_AUTH.verifyLoginCode(email,code,role,false,deviceId,'Cloud Run portal 2.0');
+      var verified=V5_AUTH.verifyLoginCode(email,code,role,body.remember===true,deviceId,'Cloud Run portal 2.0');
       if(verified.ok!==true)return authResponse({ok:false,error:verified.error||'INVALID_OR_EXPIRED_CODE'});
       return authResponse({ok:true,role:verified.role,token:verified.token,expiresAt:verified.expiresAt});
     }catch(authError){return authResponse({ok:false,error:'AUTHENTICATION_UNAVAILABLE'});}

@@ -69,13 +69,13 @@ async function cloudAuthGas(action,data){
 }
 async function cloudAuthRequest(req,res){
   if(RUNTIME_ENV!=='DEV')return sendJson(res,404,{ok:false,error:'NOT_FOUND'});
-  if(req.headers.origin&&new URL(req.headers.origin).host!==req.headers.host)return sendJson(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});
+  if(req.headers.origin&&req.headers.origin!=='https://ams-transport-proof-510075419067.europe-west1.run.app')return sendJson(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});
   const data=JSON.parse(await readRaw(req,2048));const email=clean(data.email).toLowerCase();if(email.length>254||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return sendJson(res,400,{ok:false,error:'INVALID_EMAIL'});
   const response=await cloudAuthGas('externalauthrequestcode',{email});return sendJson(res,response.ok?200:401,{ok:response.ok===true,role:response.role||'',error:response.error||'CODE_REQUEST_FAILED',retryAfterSeconds:response.retryAfterSeconds||0});
 }
 async function cloudAuthVerify(req,res){
   if(RUNTIME_ENV!=='DEV')return sendJson(res,404,{ok:false,error:'NOT_FOUND'});
-  if(req.headers.origin&&new URL(req.headers.origin).host!==req.headers.host)return sendJson(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});
+  if(req.headers.origin&&req.headers.origin!=='https://ams-transport-proof-510075419067.europe-west1.run.app')return sendJson(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});
   const body=JSON.parse(await readRaw(req,2048));const {email,role,code,deviceId}=body;const remember=body.remember===true;
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean(email))||!['Manager','Auditor'].includes(role)||!/^\d{6}$/.test(clean(code))||!/^[a-f0-9]{64}$/.test(clean(deviceId)))return sendJson(res,400,{ok:false,error:'INVALID_LOGIN_INPUT'});
   const verified=await cloudAuthGas('externalauthverifycode',{email,role,code,deviceId,remember});

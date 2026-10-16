@@ -90,8 +90,23 @@ function showDay(day){
  $('selectedInfo').innerHTML='<strong>'+esc(day.date)+'</strong>'+auditHtml+(other?'<div class="muted" style="margin-top:8px">Availability</div>'+other:'');
 
 }
-async function selectDay(d){const clickStart=performance.now();clearEditHard();S.selected=d;$('editFrom').value=d;$('editThrough').value=d;const day=S.days.find(x=>x.date===d);document.querySelectorAll('.day.selected').forEach(el=>el.classList.remove('selected'));document.querySelector('[data-date="'+d+'"]')?.classList.add('selected');if(day)showDay(day);if(!day)return;const segs=day.segments||[];if(S.busy)return;if(segs.some(x=>x.state==='HARD')){const block=hardExceptionForDay(day);if(block){await mutate({action:'RELEASE_BASELINE',targetExceptionId:block.id,fromDate:d,toDate:d,wholeDay:block.wholeDay===true,...(block.wholeDay?{}:{start:block.start,end:block.end})});return;}$('status').textContent='More than one HARD block overlaps this day; individual editing is required.';return;}
-if(segs.some(x=>x.state==='COMMITTED'||x.state==='PROVISIONAL')){$('status').textContent='Audit scheduled: this day cannot be toggled.';return;}const full=segs.length===1&&segs[0].start==='00:00'&&segs[0].end==='24:00';if(segs.some(x=>x.state==='HARD')&&hardExceptionForDay(day)?.fromDate!==hardExceptionForDay(day)?.toDate){$('status').textContent='Select Edit or Remove unavailable period in Day details.';return;}if(!full&&segs.some(x=>x.state==='HARD')){$('status').textContent='Mixed HARD availability requires review.';return;}if(segs.some(x=>x.state==='SOFT')){await mutate({action:'SET_FREE_OVERRIDE',fromDate:d,toDate:d,wholeDay:true},{noConfirm:true});return;}if(segs[0].state==='FREE'){await mutate({action:'BLOCK_PERIOD',fromDate:d,toDate:d,wholeDay:true},{noConfirm:true});return;}if(segs[0].state==='HARD'&&segs[0].sourceIds?.length===1&&S.metadata?.baselineIds?.includes(segs[0].sourceIds[0])){await mutate({action:'RELEASE_BASELINE',targetExceptionId:segs[0].sourceIds[0],fromDate:d,toDate:d,wholeDay:true},{noConfirm:true});return;}$('status').textContent='This blocked day cannot be released with a single click.';}
+async function selectDay(d){
+ clearEditHard();S.selected=d;$('editFrom').value=d;$('editThrough').value=d;
+ const day=S.days.find(x=>x.date===d);
+ document.querySelectorAll('.day.selected').forEach(el=>el.classList.remove('selected'));
+ document.querySelector('[data-date="'+d+'"]')?.classList.add('selected');
+ if(day)showDay(day);if(!day||S.busy)return;
+ const segs=day.segments||[];
+ if(segs.some(x=>x.state==='COMMITTED'||x.state==='PROVISIONAL')){$('status').textContent='Audit scheduled: this day cannot be toggled.';return;}
+ if(segs.some(x=>x.state==='HARD')){
+  const block=hardExceptionForDay(day);
+  if(!block){$('status').textContent='Overlapping HARD blocks require individual review.';return;}
+  await mutate({action:'RELEASE_BASELINE',targetExceptionId:block.id,fromDate:d,toDate:d,wholeDay:block.wholeDay===true,...(block.wholeDay?{}:{start:block.start,end:block.end})});return;
+ }
+ if(segs.some(x=>x.state==='SOFT')){await mutate({action:'SET_FREE_OVERRIDE',fromDate:d,toDate:d,wholeDay:true});return;}
+ if(segs.length&&segs.every(x=>x.state==='FREE')){await mutate({action:'BLOCK_PERIOD',fromDate:d,toDate:d,wholeDay:true});return;}
+ $('status').textContent='This day needs manual review.';
+}
 const prefetchingMonths=new Set();
 function prefetchNeighborMonths(base){const month=base.slice(0,7);for(const offset of [-1,1]){const d=new Date(month+'-01T00:00:00Z');d.setUTCMonth(d.getUTCMonth()+offset);const from=d.toISOString().slice(0,7)+'-01',to=monthEnd(from),key=from+'|'+to;if(monthCache.has(key)||prefetchingMonths.has(key))continue;prefetchingMonths.add(key);const generation=cacheGeneration;api('calendar?auditorId='+encodeURIComponent(S.auditorId)+'&fromDate='+from+'&toDate='+to).then(data=>{if(generation===cacheGeneration&&!monthCache.has(key)){monthCache.set(key,{at:Date.now(),data});if(monthCache.size>5)monthCache.delete(monthCache.keys().next().value)}}).catch(()=>{}).finally(()=>prefetchingMonths.delete(key));}}
 async function load({fresh=false}={}){const request=++latestRequest;try{$('error').textContent='';const {a,b}=range(),key=a+'|'+b;

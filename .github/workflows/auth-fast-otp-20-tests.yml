@@ -1,7 +1,7 @@
 name: Authentication 2.0 Fast OTP Tests
 on:
   push:
-    branches: [feature/auth-fast-path-20261016]
+    branches: [dev, feature/auth-fast-path-20261016]
   pull_request:
     paths:
       - 'cloudrun/transport-proof/auth-fast-otp-20.mjs'

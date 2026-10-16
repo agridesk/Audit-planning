@@ -20,5 +20,6 @@ assert.ok(!html.includes("(above target)"),'Do not conflate save and calendar re
 assert.ok(html.includes('queueMicrotask(async()=>'), 'Post-save refresh must not delay save acknowledgement');
 assert.ok(html.includes('AMS_DEV_AVAILABILITY_WRITE_MS'), 'Write latency remains separately measurable');
 assert.ok(html.includes('AMS_DEV_AVAILABILITY_REFRESH_MS'), 'Reload latency is separately measurable');
+assert.ok(html.includes('for(const detail of Object.values(S.auditDetails||{}))'),'Render audits from canonical details instead of precedence-hidden time segments');
 assert.ok(!html.includes('My Availability 2.0'),'No visible version suffix');
 console.log('PASS My Availability auditor interaction contract');

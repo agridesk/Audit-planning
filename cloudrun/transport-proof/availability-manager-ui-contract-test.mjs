@@ -15,8 +15,11 @@ assert.ok(html.includes('d.date===target&&freeWork(d.segments)>0'),'Availability
 assert.ok(html.includes('HARD · blocked by auditor/manager'),'Hard unavailability is clearly identified');
 assert.ok(html.includes('SOFT · normally unavailable'),'Soft unavailability is clearly identified');
 assert.ok(html.includes('id="searchTerm"'),'Company and auditor search is present');
-assert.ok(html.includes('id="auditorFilter" multiple'),'Multiple auditors can be selected');
-assert.ok(html.includes('id="clearAuditorFilter"'),'Auditor filter can be reset');
+assert.ok(html.includes('id="auditorFilter"'),'Auditor checkbox picker exists');
+assert.ok(html.includes('S.selectedAuditors.add(input.value)'),'Multiple auditors can be checked');
+assert.ok(html.includes('value="__all__"'),'All auditors resets the checkbox selection');
+assert.ok(html.includes('id="confirmationOverview"'),'Confirmations shown in separate section');
+assert.ok(!html.includes('class="confirm"'),'Confirmation status removed from calendar headers');
 assert.ok(html.includes("title=\"'+esc(tooltip)+'\""),'Hover displays per-audit scopes and location');
 assert.ok(!html.includes('Baseline ID'),'Manager must not manually enter internal baseline IDs');
 assert.ok(!html.includes('id="auditor"'),'No legacy auditor dropdown required');

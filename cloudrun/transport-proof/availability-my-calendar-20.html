@@ -87,11 +87,7 @@ function showDay(day){
  const auditHtml=entries.map((x,i)=>'<div class="auditDetail"><strong>'+esc(x.state==='PROVISIONAL'?'Provisional audit':'Planned audit')+' '+(i+1)+' · '+esc(x.start)+'–'+esc(x.end)+'</strong><div>'+esc(x.company||x.auditId)+'</div><div class="muted">Audit ID: '+esc(x.auditId)+'</div><div class="muted">'+esc(x.scopes||'Scopes not recorded')+'</div><div class="muted">'+esc(x.location||'')+'</div></div>').join('');
  const unavailable=(day.segments||[]).filter(x=>x.state==='HARD'||x.state==='SOFT');
  const other=unavailable.length?unavailable.map(x=>'<div class="segment"><span class="pill '+esc(x.state)+'">'+esc(humanState(x.state))+'</span><span>'+esc(x.start+'–'+x.end)+'</span></div>').join(''):entries.length?'':'<div class="muted">Available during working hours</div>';
- const existing=hardExceptionForDay(day);
- const periodLabel=existing?(existing.fromDate===existing.toDate?existing.fromDate:existing.fromDate+' – '+existing.toDate):'';
- const actions=existing?'<div class="controls"><button type="button" id="releaseDay">Make this day available</button></div>':'';
- $('selectedInfo').innerHTML='<strong>'+esc(day.date)+'</strong>'+auditHtml+(other?'<div class="muted" style="margin-top:8px">Availability</div>'+other:'')+actions;
- if(existing)$('releaseDay').addEventListener('click',()=>mutate({action:'RELEASE_BASELINE',targetExceptionId:existing.id,fromDate:day.date,toDate:day.date,wholeDay:existing.wholeDay===true,...(existing.wholeDay?{}:{start:existing.start,end:existing.end})},{noConfirm:true}));
+ $('selectedInfo').innerHTML='<strong>'+esc(day.date)+'</strong>'+auditHtml+(other?'<div class="muted" style="margin-top:8px">Availability</div>'+other:'');
 
 }
 async function selectDay(d){const clickStart=performance.now();clearEditHard();S.selected=d;$('editFrom').value=d;$('editThrough').value=d;const day=S.days.find(x=>x.date===d);document.querySelectorAll('.day.selected').forEach(el=>el.classList.remove('selected'));document.querySelector('[data-date="'+d+'"]')?.classList.add('selected');if(day)showDay(day);if(!day)return;const segs=day.segments||[];if(S.busy)return;if(segs.some(x=>x.state==='HARD')){const block=hardExceptionForDay(day);if(block){await mutate({action:'RELEASE_BASELINE',targetExceptionId:block.id,fromDate:d,toDate:d,wholeDay:block.wholeDay===true,...(block.wholeDay?{}:{start:block.start,end:block.end})});return;}$('status').textContent='More than one HARD block overlaps this day; individual editing is required.';return;}

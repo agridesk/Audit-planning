@@ -254,7 +254,7 @@ http.createServer(async(req,res)=>{
     return proxy(req,res);
   }
   if(u.pathname==='/auth/otp/request'&&req.method==='POST'){try{return await cloudAuthRequest(req,res);}catch(err){const detail=clean(err&&err.message||'');const reason=detail==='AUTH_BRIDGE_INVALID_REPLY'?'AUTH_BRIDGE_INVALID_REPLY':detail.startsWith('AUTH_BRIDGE_HTTP_')?'AUTH_BRIDGE_HTTP_ERROR':err&&err.name==='TimeoutError'?'AUTH_BRIDGE_TIMEOUT':'AUTH_BRIDGE_REQUEST_FAILED';return sendJson(res,503,{ok:false,error:reason});}}
-  if(u.pathname==='/auth/otp/verify'&&req.method==='POST'){try{return await cloudAuthVerify(req,res);}catch{return sendJson(res,503,{ok:false,error:'AUTH_SERVICE_UNAVAILABLE'});}}
+  if(u.pathname==='/auth/otp/verify'&&req.method==='POST'){try{return await cloudAuthVerify(req,res);}catch(err){const message=clean(err?.message||'');const category=message==='AUTH_BRIDGE_NOT_CONFIGURED'?'AUTH_BRIDGE_NOT_CONFIGURED':message==='AUTH_BRIDGE_INVALID_REPLY'?'AUTH_BRIDGE_INVALID_REPLY':message.startsWith('AUTH_BRIDGE_HTTP_')?'AUTH_BRIDGE_HTTP_ERROR':err?.name==='AbortError'?'AUTH_BRIDGE_TIMEOUT':message.includes('fetch failed')?'AUTH_BACKEND_NETWORK_FAILED':'AUTH_EXCHANGE_OR_BACKEND_FAILED';console.error('AMS_AUTH_OTP_VERIFY_FAILURE',category,JSON.stringify({name:clean(err?.name),message:message.slice(0,160)}));return sendJson(res,503,{ok:false,error:category});}}
   if(u.pathname==='/auth/dev-login'&&req.method==='POST'){try{return await handleDevLogin(req,res);}catch(err){return sendJson(res,500,{ok:false,error:'DEV_LOGIN_FAILED',detail:clean(err&&err.message||err)});}}
   if(u.pathname==='/auth/logout'&&req.method==='POST'){try{return await handleSecureLogout(req,res);}catch{return sendJson(res,503,{ok:false,error:'AUTH_REVOCATION_UNAVAILABLE'});}}
 

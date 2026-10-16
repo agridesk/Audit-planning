@@ -1,6 +1,7 @@
 import http from 'node:http';
 import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 import {createSessionRevocationStore} from './auth-session-revocation-20.js';
+import {createFastOtpService} from './auth-fast-otp-20.mjs';
 
 const PUBLIC_PORT=Number(process.env.PORT||8080);
 const INNER_PORT=PUBLIC_PORT+1;
@@ -60,6 +61,36 @@ function cloudAuthLoginHtml(){
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AMS — Secure login</title><style>*{box-sizing:border-box}body{font:15px system-ui,sans-serif;background:#f1f5f9;min-height:100vh;margin:0;display:grid;place-items:center;padding:18px}.panel{background:white;max-width:460px;width:100%;padding:28px;border-radius:16px;box-shadow:0 12px 40px #0f172a19}h1{font-size:23px;margin:0 0 8px}p{color:#475569}label{display:block;margin:18px 0 7px;font-weight:600}input{display:block;width:100%;padding:13px;border:1px solid #94a3b8;border-radius:8px;font-size:16px}button{padding:12px 18px;border:0;border-radius:8px;background:#1d4ed8;color:#fff;font-weight:700;cursor:pointer;margin-top:15px}button:disabled{opacity:.5}#message{min-height:24px}#otp{display:none}#shortcut{margin-top:24px;padding-top:18px;border-top:1px solid #e2e8f0}#shortcut button{background:#334155;margin-right:7px;font-size:13px}a{color:#1d4ed8}</style></head><body><main class="panel"><h1>Audit Management System</h1><p>Agri Quality Assurance · Secure portal access</p><div id="start"><label for="email">Email address</label><input id="email" type="email" autocomplete="username" maxlength="254" required><button id="send">Send login code</button><label style="font-weight:400"><input style="display:inline;width:auto" id="remember" type="checkbox"> Remember me (14 days)</label></div><div id="otp"><p>Enter the six-digit email code (valid for 10 minutes).</p><label for="code">Login code</label><input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}"><button id="verify">Verify and log in</button> <button type="button" id="resend">Resend</button><p><a href="#" id="change">Change email</a></p></div><p id="message" role="status" aria-live="polite"></p><p id="countdown" aria-live="polite"></p><section id="shortcut"><b>DEV tester shortcuts</b><form method="post" action="/auth/dev-login"><input type="hidden" name="role" value="Manager"><button type="submit">Login as Manager</button></form><form method="post" action="/auth/dev-login"><input type="hidden" name="role" value="Auditor"><button type="submit">Login as Auditor</button></form></section></main><script>
 (function(){const el=id=>document.getElementById(id);let busy=false,requestedEmail='',role='',lastSend=0;const loginNext=new URLSearchParams(location.search).get('next')||'';const deviceKey='ams_auth20_browser_device';let deviceId=localStorage.getItem(deviceKey);if(!deviceId){deviceId=Array.from(crypto.getRandomValues(new Uint8Array(32)),b=>b.toString(16).padStart(2,'0')).join('');localStorage.setItem(deviceKey,deviceId);}function msg(t){el('message').textContent=t;}function updateCountdown(){const remaining=Math.max(0,45-Math.floor((Date.now()-lastSend)/1000));el('countdown').textContent=remaining?'Resend available in '+remaining+' seconds.':'';el('resend').disabled=busy||remaining>0;}setInterval(updateCountdown,1000);async function call(path,data){const r=await fetch(path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(data),credentials:'same-origin'});let body={};try{body=await r.json();}catch{}if(!r.ok||!body.ok)throw Error(body.error||'Login failed');return body;}async function send(){if(busy||Date.now()-lastSend<45000){msg('Wait before requesting another code.');return;}const email=el('email').value.trim().toLowerCase();if(!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)){msg('Enter a valid email address.');return;}busy=true;requestedEmail=email;role='';lastSend=Date.now();el('start').style.display='none';el('otp').style.display='block';el('send').disabled=true;el('resend').disabled=true;updateCountdown();msg('Requesting your code. You can enter it here as soon as it arrives.');try{const r=await call('/auth/otp/request',{email});if(requestedEmail===email){role=r.role||'';msg('Code requested. Check your email.');}}catch(e){if(requestedEmail===email)msg('Request could not be confirmed. If your code arrived, enter it here.');}finally{busy=false;el('send').disabled=false;updateCountdown();}}el('send').onclick=send;el('resend').onclick=send;el('change').onclick=e=>{e.preventDefault();requestedEmail='';role='';el('otp').style.display='none';el('start').style.display='block';el('code').value='';msg('');};el('code').addEventListener('input',()=>{el('code').value=el('code').value.replace(/[^0-9]/g,'').slice(0,6);});el('code').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();el('verify').click();}});el('verify').onclick=async()=>{if(busy)return;const code=el('code').value.trim();if(!/^\\d{6}$/.test(code)||!requestedEmail){msg('Enter a valid six-digit code.');return;}busy=true;el('verify').disabled=true;try{const verified=await call('/auth/otp/verify',{email:requestedEmail,role,code,deviceId,remember:el('remember').checked,next:loginNext});location.assign(verified.destination||'/');}catch(e){msg(e.message);}finally{busy=false;el('verify').disabled=false;}};})();
 </script></body></html>`;
+}
+const FAST_OTP_ENABLED=RUNTIME_ENV==='DEV'&&process.env.AMS_AUTH_FAST_OTP_ENABLED==='true';
+let fastOtpServiceInstance;
+async function fastOtpLookup(email){
+ const sheet=process.env.DEV_SSOT_SPREADSHEET_ID||'';
+ if(!sheet)throw Error('FAST_OTP_SHEET_NOT_CONFIGURED');
+ const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(sheet)+'/values/'+encodeURIComponent('Auditors!A1:AZ1000');
+ const r=await fetch(url,{headers:{authorization:'Bearer '+await cloudRevocationAccess()}});
+ if(!r.ok)throw Error('FAST_OTP_SHEET_ACCESS_'+r.status);
+ const values=(await r.json()).values||[],h=values[0]||[];
+ const idx=(names)=>h.findIndex(v=>names.includes(clean(v).toLowerCase().replace(/[- ]/g,'_')));
+ const e=idx(['email','e_mail']),role=idx(['role']),active=idx(['active']),uid=idx(['auditor_uid']);
+ if(e<0||role<0)throw Error('FAST_OTP_USER_SCHEMA_MISSING');
+ for(const row of values.slice(1)){
+  if(clean(row[e]).toLowerCase()!==email)continue;
+  if(active>=0&&clean(row[active]).toUpperCase()!=='YES')return null;
+  const r=clean(row[role]);if(!['Manager','Auditor'].includes(r))return null;
+  return{role:r,auditorUid:uid>=0?clean(row[uid]):''};
+ }
+ return null;
+}
+async function fastOtpMail(email,code){
+ const key=process.env.AMS_AUTH_RESEND_API_KEY||'';
+ if(key.length<20)throw Error('FAST_OTP_MAIL_NOT_CONFIGURED');
+ const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{authorization:'Bearer '+key,'content-type':'application/json'},body:JSON.stringify({from:'Agri Quality Assurance <planning@agriqa.es>',to:[email],reply_to:'planning@agriqa.es',subject:'Your Agri Quality Assurance login code',text:'Audit Management System login code: '+code+'\\nValid for 10 minutes. If you did not request this code, ignore this email.'})});
+ if(!response.ok)throw Error('FAST_OTP_MAIL_PROVIDER_'+response.status);
+}
+function fastOtpService(){
+ if(!fastOtpServiceInstance)fastOtpServiceInstance=createFastOtpService({projectId:process.env.GOOGLE_CLOUD_PROJECT||process.env.GCP_PROJECT||'audit-management-system-dev',secret:SESSION_SECRET,getAccessToken:cloudRevocationAccess,lookupAccount:fastOtpLookup,sendEmail:fastOtpMail});
+ return fastOtpServiceInstance;
 }
 async function cloudAuthGas(action,data){
   if(RUNTIME_ENV!=='DEV'||!GAS_WRITE_URL||WRITE_KEY.length<32)throw Error('AUTH_BRIDGE_NOT_CONFIGURED');

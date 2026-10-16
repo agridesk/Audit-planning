@@ -251,13 +251,13 @@ function cookieMap(req){const out={};for(const part of clean(req.headers.cookie)
 function sessionConfigured(){return SESSION_SECRET.length>=32;}
 function sign(v){return createHmac('sha256',SESSION_SECRET).update(v).digest('base64url');}
 function safeEq(a,b){const x=Buffer.from(clean(a)),y=Buffer.from(clean(b));return x.length===y.length&&timingSafeEqual(x,y);}
-function issueSession(identity){if(!sessionConfigured())throw new Error('SESSION_SECRET_NOT_CONFIGURED');const now=Math.floor(Date.now()/1000),payload=b64url(JSON.stringify({v:1,email:clean(identity.email).toLowerCase(),role:clean(identity.role),auditorUid:clean(identity.auditorUid),iat:now,exp:boundedSessionExpiry(now,SESSION_TTL_SECONDS,identity.legacyTokenExpiresAt).expiresAtSeconds}));return payload+'.'+sign(payload);}
+function issueSession(identity){if(!sessionConfigured())throw new Error('SESSION_SECRET_NOT_CONFIGURED');const now=Math.floor(Date.now()/1000),payload=b64url(JSON.stringify({v:1,email:clean(identity.email).toLowerCase(),role:clean(identity.role),auditorUid:clean(identity.auditorUid),deviceHash:clean(identity.deviceHash),iat:now,exp:boundedSessionExpiry(now,SESSION_TTL_SECONDS,identity.legacyTokenExpiresAt).expiresAtSeconds}));return payload+'.'+sign(payload);}
 function verifySession(raw){if(!sessionConfigured()||!raw)return null;const parts=clean(raw).split('.');if(parts.length!==2||!safeEq(sign(parts[0]),parts[1]))return null;try{const p=JSON.parse(Buffer.from(parts[0],'base64url').toString('utf8')),now=Math.floor(Date.now()/1000);if(p.v!==1||!p.email||!p.role||!p.exp||p.exp<=now)return null;return p;}catch{return null;}}
 function sessionFromRequest(req){return verifySession(cookieMap(req)[SESSION_COOKIE]);}
 let authRevocationAccess={token:'',expires:0};
 async function authRevocationAccessToken(){if(authRevocationAccess.token&&Date.now()<authRevocationAccess.expires-60000)return authRevocationAccess.token;const r=await fetch('http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',{headers:{'Metadata-Flavor':'Google'}});if(!r.ok)throw Error('AUTH_REVOCATION_IAM_'+r.status);const json=await r.json();authRevocationAccess={token:json.access_token||'',expires:Date.now()+(Number(json.expires_in)||300)*1000};return authRevocationAccess.token;}
 function authRevocationStore(){return createSessionRevocationStore({projectId:process.env.GOOGLE_CLOUD_PROJECT||process.env.GCP_PROJECT||'audit-management-system-dev',getAccessToken:authRevocationAccessToken});}
-async function sessionFromRequestValidated(req){if(process.env.AMS_AUDITOR_EMAIL_CHANGE_WRITE_ENABLED==='true'&&process.env.AMS_AUDITOR_UID_LOGIN_ENABLED!=='true')throw Error('AUDITOR_EMAIL_CHANGE_REQUIRES_UID_LOGIN');const session=sessionFromRequest(req);if(!session)return null;if(process.env.AMS_AUTH_LOGOUT_REVOCATION_ENABLED==='true'){const store=authRevocationStore();if(await store.isRevoked(cookieMap(req)[SESSION_COOKIE]))return null;}if(clean(session.role).toLowerCase()!=='auditor'||process.env.AMS_AUDITOR_UID_LOGIN_ENABLED!=='true')return session;const check=await validateVersionedAuditorLogin(clean(session.email).toLowerCase());return check.ok&&session.auditorUid===check.uid?session:null;}
+async function sessionFromRequestValidated(req){if(process.env.AMS_AUDITOR_EMAIL_CHANGE_WRITE_ENABLED==='true'&&process.env.AMS_AUDITOR_UID_LOGIN_ENABLED!=='true')throw Error('AUDITOR_EMAIL_CHANGE_REQUIRES_UID_LOGIN');const session=sessionFromRequest(req);if(!session)return null;if(session.deviceHash&&!safeEq(session.deviceHash,createHash('sha256').update(clean(cookieMap(req).ams_auth_device)).digest('hex')))return null;if(process.env.AMS_AUTH_LOGOUT_REVOCATION_ENABLED==='true'){const store=authRevocationStore();if(await store.isRevoked(cookieMap(req)[SESSION_COOKIE]))return null;}if(clean(session.role).toLowerCase()!=='auditor'||process.env.AMS_AUDITOR_UID_LOGIN_ENABLED!=='true')return session;const check=await validateVersionedAuditorLogin(clean(session.email).toLowerCase());return check.ok&&session.auditorUid===check.uid?session:null;}
 function sessionCookie(token){const session=verifySession(token);if(!session)throw new Error('SESSION_INVALID_OR_EXPIRED');return SESSION_COOKIE+'='+token+'; Max-Age='+Math.max(0,session.exp-Math.floor(Date.now()/1000))+'; Path=/; HttpOnly; Secure; SameSite=Lax';}
 function html(res,status,body,headers={}){res.writeHead(status,{'content-type':'text/html; charset=utf-8','cache-control':'no-store',...headers});res.end(body);}
 function esc(v){return clean(v).replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));}
@@ -1549,16 +1549,17 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(!safeEq(clean(req.headers['x-ams-internal-secret']),SESSION_SECRET))return send(res,403,{ok:false,error:'FORBIDDEN'});
     let raw='';for await(const part of req){raw+=part;if(raw.length>2048)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});}
     let data;try{data=JSON.parse(raw);}catch{return send(res,400,{ok:false,error:'BAD_JSON'});}
-    const email=clean(data?.email).toLowerCase(),role=clean(data?.role),ttl=data?.remember===true?14*86400:7200;
-    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)||!['Manager','Auditor'].includes(role))return send(res,400,{ok:false,error:'INVALID_IDENTITY'});
+    const email=clean(data?.email).toLowerCase(),role=clean(data?.role),ttl=data?.remember===true?14*86400:7200,deviceId=clean(data?.deviceId);
+    if(!/^[a-f0-9]{64}$/.test(deviceId)||!//^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)||!['Manager','Auditor'].includes(role))return send(res,400,{ok:false,error:'INVALID_IDENTITY'});
     let auditorUid='';
     if(role==='Auditor'){
       const current=await validateVersionedAuditorLogin(email);
       if(!current.ok||!current.uid||current.uid!==clean(data.auditorUid))return send(res,403,{ok:false,error:'AUDITOR_UID_NOT_CURRENT'});
       auditorUid=current.uid;
     }
-    const token=issueSession({email,role,auditorUid,legacyTokenExpiresAt:Date.now()+ttl*1000});
-    return send(res,200,{ok:true},{'set-cookie':sessionCookie(token)});
+    const deviceProof=createHash('sha256').update(SESSION_SECRET+':'+deviceId).digest('hex');
+    const token=issueSession({email,role,auditorUid,deviceHash:createHash('sha256').update(deviceProof).digest('hex'),legacyTokenExpiresAt:Date.now()+ttl*1000});
+    return send(res,200,{ok:true},{'set-cookie':[sessionCookie(token),'ams_auth_device='+deviceProof+'; Max-Age='+ttl+'; Path=/; HttpOnly; Secure; SameSite=Lax']});
   }
   if(u.pathname==='/api/v1/session/exchange'&&req.method==='POST'){if(req.headers.origin&&(!ORIGIN||req.headers.origin!==ORIGIN))return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}');}catch{return send(res,400,{ok:false,error:'BAD_JSON'});}try{const identity=await validateLegacyIdentity(b.token,b.role,b.deviceId);if(!identity.ok)return send(res,401,identity);const token=issueSession(identity);return send(res,200,{ok:true,identity:{email:identity.email,role:identity.role},expiresIn:verifySession(token).exp-Math.floor(Date.now()/1000)},{'set-cookie':sessionCookie(token)});}catch(e){return send(res,500,{ok:false,error:'IDENTITY_EXCHANGE_FAILED',detail:clean(e?.message||e)});}}
   if(u.pathname==='/api/v1/manager/auditor-identity/backfill-preview'&&req.method==='GET'){

@@ -10,5 +10,8 @@ assert.ok(html.includes("monthCache.clear();await load({fresh:true})"),'Mutation
 assert.ok(html.includes("fromDate:day.date,toDate:day.date"),'Single-day release is bounded');
 assert.ok(html.includes("if(!confirm('Remove the entire unavailable period"),'Full removal requires explicit confirmation');
 assert.ok(html.includes("today.slice(0,7)"),'Calendar initializes current month');
+assert.ok(html.includes("block.fromDate===d&&block.toDate===d"),'Single HARD day can be released directly');
+assert.ok(html.includes("x.state==='PROVISIONAL'?'Provisional audit':'Planned audit'"),'Auditor sees provisional status explicitly');
+assert.ok(!html.includes("if(!confirm('Release only "), 'Single-day release does not require a modal');
 assert.ok(!html.includes('My Availability 2.0'),'No visible version suffix');
 console.log('PASS My Availability auditor interaction contract');

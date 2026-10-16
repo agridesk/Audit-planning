@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AMS · Auditor Availability</title>
 <style>body{font:14px system-ui,Arial;margin:24px;color:#182b40;background:#f5f7fa}main{max-width:1350px;margin:auto}h1{font-size:24px}section{background:white;border:1px solid #d9e1ea;border-radius:9px;padding:18px;margin:14px 0}label{display:inline-flex;flex-direction:column;gap:5px;margin:6px 10px 6px 0}input,select,button{font:inherit;padding:8px;border:1px solid #a8b7c8;border-radius:5px}button{background:#184e78;color:white;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}.grid{overflow:auto;max-height:65vh}table{border-collapse:collapse;min-width:900px;width:100%}th,td{border:1px solid #d9e1ea;padding:8px;text-align:center;white-space:nowrap}th{position:sticky;top:0;background:#eaf0f6;z-index:1}td:first-child,th:first-child{position:sticky;left:0;background:#fff;z-index:2;text-align:left}td.FREE{background:#ddf5df}td.SOFT{background:#fdf0b5}td.HARD{background:#fbd5d5}td.COMMITTED{background:#c9d9f8}td.PROVISIONAL{background:#f0ddf8}small,.muted{color:#61758a}.status{min-height:22px}#editor{display:none}.actions{display:flex;flex-wrap:wrap;align-items:end;gap:8px}#error{color:#a52222}#success{color:#186335}caption{text-align:left;padding:8px}th .confirm{display:block;font-size:11px;font-weight:normal}.cellAction{display:block;width:100%;background:transparent;color:inherit;border:0;text-align:left;padding:6px;min-width:130px;white-space:normal}.cellAction:hover{outline:2px solid #184e78}.auditItem{padding:10px;border-bottom:1px solid #d9e1ea}.grid{max-height:72vh}td{min-width:145px}#dayDetails{max-width:850px}#editor{scroll-margin-top:18px}</style></head><body><main><h1>Auditor Availability · Manager Overview</h1><p class="muted">Availability and calendar confirmation are separate. FREE does not imply confirmed.</p>
-<section><div class="actions"><label>From<input id="from" type="date"></label><label>Through<input id="through" type="date"></label><button id="load">Load overview</button><label><span>Show</span><select id="availabilityFilter"><option value="all">All auditors</option><option value="available">Available auditors only</option></select></label></div><p id="error" role="alert"></p><p id="success" role="status"></p></section>
+<section><div class="actions"><label>From<input id="from" type="date"></label><label>Through<input id="through" type="date"></label><button id="load">Load overview</button><label><span>Show</span><select id="availabilityFilter"><option value="all">All auditors</option><option value="available">Available auditors only</option></select></label><label id="filterDateWrap">Available on<input id="filterDate" type="date"></label></div><p id="error" role="alert"></p><p id="success" role="status"></p></section>
 <section><h2>Availability comparison</h2><div class="grid" id="comparison">Loading…</div><p class="muted">Select an auditor and date to see audit times, scopes, location and availability.</p></section>
 <section id="editor"><h2 id="editorTitle">Selected day</h2><p id="metadata"></p><div id="dayDetails"></div><div class="actions"><label>Action<select id="action"><option value="BLOCK_PERIOD">Not available</option><option value="MAKE_AVAILABLE">Available</option></select></label><label>From<input id="editFrom" type="date"></label><label>Through<input id="editThrough" type="date"></label><label id="wholeWrap"><span>Whole day</span><input id="whole" type="checkbox" checked></label><label id="startWrap">Start<input id="start" type="time" value="09:00"></label><label id="endWrap">End<input id="end" type="time" value="17:00"></label><button id="save">Save change</button></div><p class="muted">Changes apply to the selected auditor. Existing audits remain protected.</p></section>
 </main><script>
@@ -20,14 +20,14 @@ function range(){const from=$('from').value,to=$('through').value;if(!from||!to|
 function renderOverview(data){
  S.auditors=data.auditors||[];S.auditDetailsByAuditor=data.auditDetailsByAuditor||{};
  const days=monthDays(data.fromDate,data.toDate),filter=$('availabilityFilter').value;
- const shown=S.auditors.filter(a=>filter==='all'||(a.days||[]).some(d=>freeWork(d.segments)>0));
+ const target=$('filterDate').value;const shown=S.auditors.filter(a=>filter==='all'||(a.days||[]).some(d=>d.date===target&&freeWork(d.segments)>0));
  const head='<thead><tr><th>Date</th>'+shown.map(a=>'<th>'+esc(a.displayName)+'<small class="confirm">'+esc(a.confirmation?.label||'Not confirmed')+'</small></th>').join('')+'</tr></thead>';
  const maps=shown.map(a=>new Map((a.days||[]).map(d=>[d.date,d])));
  const rows=days.map(date=>'<tr><th>'+esc(date)+'</th>'+shown.map((a,i)=>{
   const day=maps[i].get(date),segs=day?.segments||[],audits=(S.auditDetailsByAuditor[a.auditorId]||[]).filter(x=>x.date===date);
   const blocked=segs.some(x=>x.state==='HARD'),soft=segs.some(x=>x.state==='SOFT');
   const kind=audits.some(x=>x.state==='COMMITTED')?'COMMITTED':audits.length?'PROVISIONAL':blocked?'HARD':soft?'SOFT':'FREE';
-  const label=audits.length?audits.map(x=>x.start+'–'+x.end+' '+(x.company||'Audit')).join(' · '):blocked?'Unavailable':soft?'Normally unavailable':'Free '+fmt(freeWork(segs))+'h';
+  const label=audits.length?audits.map(x=>x.start+'–'+x.end+' '+(x.company||'Audit')).join(' · '):blocked?'HARD · blocked by auditor/manager':soft?'SOFT · normally unavailable':'Free '+fmt(freeWork(segs))+'h';
   return '<td class="'+kind+'"><button type="button" class="cellAction" data-id="'+esc(a.auditorId)+'" data-date="'+esc(date)+'">'+esc(label)+'</button></td>';
  }).join('')+'</tr>').join('');
  $('comparison').innerHTML='<table>'+head+'<tbody>'+rows+'</tbody></table><p class="muted">'+shown.length+' of '+S.auditors.length+' auditors · '+days.length+' days</p>';
@@ -71,10 +71,11 @@ async function save(){
  finally{$('save').disabled=false;updateAction();}
 }
 $('load').addEventListener('click',load);
-$('availabilityFilter').addEventListener('change',()=>{if(S.auditors.length)renderOverview({auditors:S.auditors,auditDetailsByAuditor:S.auditDetailsByAuditor,...rangeForRender()})});
+function applyFilter(){const filtered=$('availabilityFilter').value==='available';$('filterDateWrap').style.display=filtered?'':'none';if(S.auditors.length)renderOverview({auditors:S.auditors,auditDetailsByAuditor:S.auditDetailsByAuditor,...rangeForRender()})}
+$('availabilityFilter').addEventListener('change',applyFilter);$('filterDate').addEventListener('change',applyFilter);
 function rangeForRender(){const r=range();return{fromDate:r.from,toDate:r.to}}
 $('save').addEventListener('click',save);
 $('action').addEventListener('change',updateAction);$('whole').addEventListener('change',updateAction);
 const now=new Date(),today=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-$('from').value=today;$('through').value=addDays(today,27);updateAction();load();
+$('from').value=today;$('through').value=addDays(today,27);$('filterDate').value=today;updateAction();applyFilter();load();
 </script></body></html>

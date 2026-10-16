@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const server=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+const issuer=server.match(/function sessionCookie\(token,persistent=true\)\{[^\n]+\}/)?.[0];
+assert.ok(issuer,'session cookie writer accepts persistent option');
+assert.ok(issuer.includes("persistent?'; Max-Age='"),'Max-Age only used for persistent sessions');
+const start=server.indexOf("const deviceProof=createHash('sha256').update(SESSION_SECRET+':'+deviceId)");
+const end=server.indexOf("if(u.pathname==='/api/v1/session/exchange'",start);
+assert.ok(start>=0&&end>start,'fast OTP issue route located');
+const route=server.slice(start,end);
+assert.ok(route.includes("sessionCookie(token,data.remember===true)"),'remember setting controls signed session cookie persistence');
+assert.ok(route.includes("(data.remember===true?'; Max-Age='+ttl:'')"),'device cookie has same persistence mode');
+assert.ok(route.includes("ttl=data?.remember===true?14*86400:7200"),'signed session TTL remains capped at 14 days or 2 hours');
+assert.ok(route.includes("HttpOnly; Secure; SameSite=Lax"),'cookie security flags retained');
+assert.ok(server.includes("store.isRevoked(cookieMap(req)[SESSION_COOKIE])"),'server-side revocation remains enabled');
+console.log('PASS Remember me: browser-only session cookies by default; persistent 14-day paired cookies when opted in');

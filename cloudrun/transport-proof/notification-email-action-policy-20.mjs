@@ -30,3 +30,9 @@ export function validateActionInput(action,{comment='',realizedHours}={}) {
   return 'OK';
 }
 // GET read-only. Confirmation POST must atomically consume token and execute canonical lifecycle writer.
+
+export function auditorEmailActionAllowed(action,status,origin){
+ const state=String(status||'').toUpperCase().replace(/[ -]+/g,'_');
+ const source=String(origin||'').toUpperCase();
+ return (action==='ACCEPT'&&state==='APPROVED'&&source==='MANAGER')||(action==='CANCEL'&&state==='PENDING_APPROVAL'&&source==='AUDITOR')||(action==='COMPLETE'&&state==='ACCEPTED');
+}

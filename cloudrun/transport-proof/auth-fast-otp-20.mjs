@@ -65,13 +65,13 @@ export function createFastOtpService({projectId,secret,getAccessToken,lookupAcco
    const nonce=randomBytes(16).toString('hex');
    const active=state.codes.filter((row)=>row.expiresAt>current&&!row.usedAt&&row.attempts<MAX_ATTEMPTS).slice(-MAX_ACTIVE+1);
    const entry={nonce,hash:otpHash(email,code,nonce),expiresAt:current+TTL_MS,usedAt:0,attempts:0};
-   return{ok:true,update:true,state:{codes:[...active,entry],lastRequestedAt:current},code,nonce};
+   return{ok:true,update:true,state:{codes:[...active,entry],lastRequestedAt:current},code,nonce,issuedAt:current};
   });
   if(!issued.update)return{ok:true,throttled:true,retryAfterSeconds:issued.retryAfterSeconds};
   try{
    await sendEmail(email,issued.code);
   }catch{
-   await change(email,(state)=>{state.codes=state.codes.filter(row=>row.nonce!==issued.nonce);return{update:true,state};});
+   await change(email,(state)=>{state.codes=state.codes.filter(row=>row.nonce!==issued.nonce);if(state.lastRequestedAt===issued.issuedAt)state.lastRequestedAt=0;return{update:true,state};});
    return{ok:false,error:'LOGIN_CODE_DELIVERY_FAILED'};
   }
   return{ok:true,throttled:false,retryAfterSeconds:THROTTLE_MS/1000};

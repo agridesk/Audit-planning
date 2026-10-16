@@ -317,7 +317,7 @@ var V5_AUTH = (function () {
         if (isNaN(exp.getTime()) || exp < now) return { ok: false, error: "TOKEN_EXPIRED" };
 
         var storedDeviceHash = String(row[idx.Device_Fingerprint] || "");
-        if (storedDeviceHash && storedDeviceHash !== deviceHash) return { ok: false, error: "DEVICE_MISMATCH" };
+        if (!storedDeviceHash || storedDeviceHash !== deviceHash) return { ok: false, error: "DEVICE_MISMATCH" };
 
         var colMap = TOKENS__getHeaderIndexMap_(sh);
         var lastUsedCol1 = TOKENS__requireHeader_(colMap, ["Last_Used_At"]) + 1;
@@ -845,7 +845,7 @@ var V5_AUTH = (function () {
         if (isNaN(exp.getTime()) || exp < now) return { ok: false, error: "TOKEN_EXPIRED" };
 
         var storedDeviceHash = String(row[idx.Device_Fingerprint] || "");
-        if (storedDeviceHash && storedDeviceHash !== deviceHash) return { ok: false, error: "DEVICE_MISMATCH" };
+        if (!storedDeviceHash || storedDeviceHash !== deviceHash) return { ok: false, error: "DEVICE_MISMATCH" };
 
         var canonicalEmail = normEmail_(row[idx.Email]);
         if (!canonicalEmail) return { ok: false, error: "TOKEN_EMAIL_EMPTY" };

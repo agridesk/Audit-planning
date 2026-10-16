@@ -8,13 +8,14 @@ const key=x=>norm(x).toLowerCase().replace(/[\s_-]+/g,'');
 const date=x=>/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(x+'T00:00:00Z'))&&new Date(x+'T00:00:00Z').toISOString().slice(0,10)===x;
 const clock=(x,end=false)=>/^([01]\d|2[0-3]):[0-5]\d$/.test(x)||(end&&x==='24:00');
 function index(headers,aliases){for(const alias of aliases){const i=headers.findIndex(x=>key(x)===key(alias));if(i>=0)return i;}return -1;}
-export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDate}={}){
+export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDate,scopeNamesBySlot={}}={}){
  if(!Array.isArray(rows)||!Array.isArray(auditors)||!date(fromDate)||!date(toDate)||fromDate>toDate)throw Error('INVALID_AUDIT_BRIDGE_INPUT');
  if(!rows.length)return [];
  const h=rows[0],id=index(h,['Audit ID','Audit_ID']),status=index(h,['Status']),assigned=index(h,['Assigned to','Assigned auditor','Auditor']),json=index(h,['Planning JSON','Planning_JSON']);
  if([id,status,json].some(x=>x<0)||(assigned<0&&index(h,['Auditor_UID','Auditor UID','Assigned_Auditor_UID','Assigned Auditor UID'])<0))throw Error('AUDIT_PLANNING_HEADERS_MISSING');
  const assignedUid=index(h,['Auditor_UID','Auditor UID','Assigned_Auditor_UID','Assigned Auditor UID']);
  const companyColumn=index(h,['Company','Company name','Company Name','Company_Name','Company name (display)']),scopesColumn=index(h,['Scopes','Scope','Scope(s)','Scope names','Scope Names','Audit scopes']);
+ const scopeSlotColumns=h.map((header,i)=>({slot:norm(header).toUpperCase(),i})).filter(x=>/^SCOPE_\d+$/.test(x.slot));
  const locationColumn=index(h,['Execution location','Execution Location','Location','Audit location','Site','Visit location']);
  const lookup=new Map(),uidLookup=new Set();
  for(const a of auditors){const uid=norm(a.auditorId),email=norm(a.email).toLowerCase();if(!uid||!email||lookup.has(email)||uidLookup.has(uid))throw Error('AUDITOR_IDENTITY_AMBIGUOUS');lookup.set(email,uid);uidLookup.add(uid);}
@@ -39,7 +40,9 @@ export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDa
    if(d<fromDate||d>toDate)continue;
    const auditorId=explicitUid||lookup.get(email),signature=[auditId,d,start,end].join('|');
    if(seen.has(signature))throw Error('AUDIT_PLANNING_SLOT_DUPLICATE');seen.add(signature);
-   slots.push({auditorId,auditId,date:d,start,end,state:state==='PENDINGAPPROVAL'?'PROVISIONAL':'COMMITTED',company:companyColumn<0?'':norm(row[companyColumn]),scopes:scopesColumn<0?'':norm(row[scopesColumn]),location:locationColumn<0?'':norm(row[locationColumn])});
+   const markedScopes=scopeSlotColumns.filter(x=>['x','yes','true','1'].includes(norm(row[x.i]).toLowerCase())).map(x=>norm(scopeNamesBySlot[x.slot])||x.slot);
+   const scopeLabel=markedScopes.length?markedScopes.join(', '):scopesColumn<0?'':norm(row[scopesColumn]);
+   slots.push({auditorId,auditId,date:d,start,end,state:state==='PENDINGAPPROVAL'?'PROVISIONAL':'COMMITTED',company:companyColumn<0?'':norm(row[companyColumn]),scopes:scopeLabel,location:locationColumn<0?'':norm(row[locationColumn])});
   }
  }
  return slots;

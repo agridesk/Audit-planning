@@ -1,0 +1,26 @@
+name: Authentication 2.0 Fast OTP Tests
+on:
+  push:
+    branches: [feature/auth-fast-path-20261016]
+  pull_request:
+    paths:
+      - 'cloudrun/transport-proof/auth-fast-otp-20.mjs'
+      - 'cloudrun/transport-proof/auth-fast-otp-20-test.mjs'
+      - 'cloudrun/transport-proof/auth-fast-otp-contract-test.mjs'
+      - 'cloudrun/transport-proof/server-r4.js'
+      - 'cloudrun/transport-proof/server-r5.js'
+jobs:
+  fast-otp:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cloudrun/transport-proof
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check auth-fast-otp-20.mjs
+      - run: node --check server-r4.js
+      - run: node --check server-r5.js
+      - run: npm run test:auth-fast

@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+const r5=readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
+const image=readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
+assert.match(r4,/AMS_AUTH_FAST_OTP_ENABLED/);
+assert.match(r4,/fast-otp-session/);
+assert.match(r4,/validateVersionedAuditorLogin/);
+assert.match(r5,/FAST_OTP_ENABLED/);
+assert.match(r5,/fastOtpService\(\)\.verifyCode/);
+assert.match(r5,/fastOtpService\(\)\.requestCode/);
+assert.match(r5,/fastOtpMail/);
+assert.match(image,/COPY auth-fast-otp-20\.mjs/);
+console.log('PASS fast OTP feature-gating and Cloud Run integration contracts');

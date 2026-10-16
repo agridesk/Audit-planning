@@ -1,6 +1,7 @@
 import http from 'node:http';
 import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
 import {createSessionRevocationStore} from './auth-session-revocation-20.js';
+import {createFastOtpService} from './auth-fast-otp-20.mjs';
 
 const PUBLIC_PORT=Number(process.env.PORT||8080);
 const INNER_PORT=PUBLIC_PORT+1;
@@ -61,6 +62,36 @@ function cloudAuthLoginHtml(){
 (function(){const el=id=>document.getElementById(id);let busy=false,requestedEmail='',role='',lastSend=0;const loginNext=new URLSearchParams(location.search).get('next')||'';const deviceKey='ams_auth20_browser_device';let deviceId=localStorage.getItem(deviceKey);if(!deviceId){deviceId=Array.from(crypto.getRandomValues(new Uint8Array(32)),b=>b.toString(16).padStart(2,'0')).join('');localStorage.setItem(deviceKey,deviceId);}function msg(t){el('message').textContent=t;}function updateCountdown(){const remaining=Math.max(0,45-Math.floor((Date.now()-lastSend)/1000));el('countdown').textContent=remaining?'Resend available in '+remaining+' seconds.':'';el('resend').disabled=busy||remaining>0;}setInterval(updateCountdown,1000);async function call(path,data){const r=await fetch(path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(data),credentials:'same-origin'});let body={};try{body=await r.json();}catch{}if(!r.ok||!body.ok)throw Error(body.error||'Login failed');return body;}async function send(){if(busy||Date.now()-lastSend<45000){msg('Wait before requesting another code.');return;}const email=el('email').value.trim().toLowerCase();if(!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)){msg('Enter a valid email address.');return;}busy=true;requestedEmail=email;role='';lastSend=Date.now();el('start').style.display='none';el('otp').style.display='block';el('send').disabled=true;el('resend').disabled=true;updateCountdown();msg('Requesting your code. You can enter it here as soon as it arrives.');try{const r=await call('/auth/otp/request',{email});if(requestedEmail===email){role=r.role||'';msg('Code requested. Check your email.');}}catch(e){if(requestedEmail===email)msg('Request could not be confirmed. If your code arrived, enter it here.');}finally{busy=false;el('send').disabled=false;updateCountdown();}}el('send').onclick=send;el('resend').onclick=send;el('change').onclick=e=>{e.preventDefault();requestedEmail='';role='';el('otp').style.display='none';el('start').style.display='block';el('code').value='';msg('');};el('code').addEventListener('input',()=>{el('code').value=el('code').value.replace(/[^0-9]/g,'').slice(0,6);});el('code').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();el('verify').click();}});el('verify').onclick=async()=>{if(busy)return;const code=el('code').value.trim();if(!/^\\d{6}$/.test(code)||!requestedEmail){msg('Enter a valid six-digit code.');return;}busy=true;el('verify').disabled=true;try{const verified=await call('/auth/otp/verify',{email:requestedEmail,role,code,deviceId,remember:el('remember').checked,next:loginNext});location.assign(verified.destination||'/');}catch(e){msg(e.message);}finally{busy=false;el('verify').disabled=false;}};})();
 </script></body></html>`;
 }
+const FAST_OTP_ENABLED=RUNTIME_ENV==='DEV'&&process.env.AMS_AUTH_FAST_OTP_ENABLED==='true';
+let fastOtpServiceInstance;
+async function fastOtpLookup(email){
+ const sheet=process.env.DEV_SSOT_SPREADSHEET_ID||'';
+ if(!sheet)throw Error('FAST_OTP_SHEET_NOT_CONFIGURED');
+ const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(sheet)+'/values/'+encodeURIComponent('Auditors!A1:AZ1000');
+ const r=await fetch(url,{headers:{authorization:'Bearer '+await cloudRevocationAccess()}});
+ if(!r.ok)throw Error('FAST_OTP_SHEET_ACCESS_'+r.status);
+ const values=(await r.json()).values||[],h=values[0]||[];
+ const idx=(names)=>h.findIndex(v=>names.includes(clean(v).toLowerCase().replace(/[- ]/g,'_')));
+ const e=idx(['email','e_mail']),role=idx(['role']),active=idx(['active']),uid=idx(['auditor_uid']);
+ if(e<0||role<0)throw Error('FAST_OTP_USER_SCHEMA_MISSING');
+ for(const row of values.slice(1)){
+  if(clean(row[e]).toLowerCase()!==email)continue;
+  if(active>=0&&clean(row[active]).toUpperCase()!=='YES')return null;
+  const r=clean(row[role]);if(!['Manager','Auditor'].includes(r))return null;
+  return{role:r,auditorUid:uid>=0?clean(row[uid]):''};
+ }
+ return null;
+}
+async function fastOtpMail(email,code){
+ const key=process.env.AMS_AUTH_RESEND_API_KEY||'';
+ if(key.length<20)throw Error('FAST_OTP_MAIL_NOT_CONFIGURED');
+ const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{authorization:'Bearer '+key,'content-type':'application/json'},body:JSON.stringify({from:'Agri Quality Assurance <planning@agriqa.es>',to:[email],reply_to:'planning@agriqa.es',subject:'Your Agri Quality Assurance login code',text:'Audit Management System login code: '+code+'\\nValid for 10 minutes. If you did not request this code, ignore this email.'})});
+ if(!response.ok)throw Error('FAST_OTP_MAIL_PROVIDER_'+response.status);
+}
+function fastOtpService(){
+ if(!fastOtpServiceInstance)fastOtpServiceInstance=createFastOtpService({projectId:process.env.GOOGLE_CLOUD_PROJECT||process.env.GCP_PROJECT||'audit-management-system-dev',secret:SESSION_SECRET,getAccessToken:cloudRevocationAccess,lookupAccount:fastOtpLookup,sendEmail:fastOtpMail});
+ return fastOtpServiceInstance;
+}
 async function cloudAuthGas(action,data){
   if(RUNTIME_ENV!=='DEV'||!GAS_WRITE_URL||WRITE_KEY.length<32)throw Error('AUTH_BRIDGE_NOT_CONFIGURED');
   const url=new URL(GAS_WRITE_URL);url.searchParams.set('action',action);
@@ -71,13 +102,22 @@ async function cloudAuthRequest(req,res){
   if(RUNTIME_ENV!=='DEV')return sendJson(res,404,{ok:false,error:'NOT_FOUND'});
   if(req.headers.origin&&req.headers.origin!=='https://ams-transport-proof-510075419067.europe-west1.run.app')return sendJson(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});
   const data=JSON.parse(await readRaw(req,2048));const email=clean(data.email).toLowerCase();if(email.length>254||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return sendJson(res,400,{ok:false,error:'INVALID_EMAIL'});
-  const response=await cloudAuthGas('externalauthrequestcode',{email});return sendJson(res,response.ok?200:401,{ok:response.ok===true,role:response.role||'',error:response.error||'CODE_REQUEST_FAILED',retryAfterSeconds:response.retryAfterSeconds||0});
+  const response=FAST_OTP_ENABLED?await fastOtpService().requestCode(email):await cloudAuthGas('externalauthrequestcode',{email});return sendJson(res,response.ok?200:401,{ok:response.ok===true,role:response.role||'',error:response.error||'CODE_REQUEST_FAILED',retryAfterSeconds:response.retryAfterSeconds||0});
 }
 async function cloudAuthVerify(req,res){
   if(RUNTIME_ENV!=='DEV')return sendJson(res,404,{ok:false,error:'NOT_FOUND'});
   if(req.headers.origin&&req.headers.origin!=='https://ams-transport-proof-510075419067.europe-west1.run.app')return sendJson(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});
   const body=JSON.parse(await readRaw(req,2048));const {email,role,code,deviceId}=body;const remember=body.remember===true;
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean(email))||!/^\d{6}$/.test(clean(code))||!/^[a-f0-9]{64}$/.test(clean(deviceId)))return sendJson(res,400,{ok:false,error:'INVALID_LOGIN_INPUT'});
+  if(FAST_OTP_ENABLED){
+    const start=Date.now(),identity=await fastOtpService().verifyCode(email,code);
+    if(!identity.ok)return sendJson(res,401,{ok:false,error:identity.error||'INVALID_OR_EXPIRED_CODE'});
+    const exchange=await fetch('http://127.0.0.1:'+INNER_PORT+'/api/v1/internal/fast-otp-session',{method:'POST',headers:{'content-type':'application/json','x-ams-internal-secret':SESSION_SECRET},body:JSON.stringify({...identity,remember})});
+    const result=await exchange.json(),cookie=exchange.headers.get('set-cookie');
+    console.info('AMS_AUTH_FAST_SESSION_TIMING',JSON.stringify({totalMs:Date.now()-start,exchangeOk:exchange.ok&&result.ok===true}));
+    if(!exchange.ok||!result.ok||!cookie)return sendJson(res,503,{ok:false,error:'FAST_OTP_SESSION_EXCHANGE_FAILED'});
+    return sendJson(res,200,{ok:true,destination:safeLoginDestination(body.next,identity.role)},{'set-cookie':cookie});
+  }
   const authStart=Date.now();
   const verified=await cloudAuthGas('externalauthverifycode',{email,role,code,deviceId,remember});
   const gasMs=Date.now()-authStart;

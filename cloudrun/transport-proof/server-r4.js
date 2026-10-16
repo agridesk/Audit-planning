@@ -1544,6 +1544,22 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
   if(u.pathname==='/manager-portal.js'&&req.method==='GET'){const s=await sessionFromRequestValidated(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});res.writeHead(200,{'content-type':'application/javascript; charset=utf-8','cache-control':'no-store'});return res.end(MANAGER_PORTAL_JS);}
   if(u.pathname==='/'&&req.method==='GET'){const s=await sessionFromRequestValidated(req);if(!s)return html(res,401,'<!doctype html><meta charset="utf-8"><title>AMS DEV</title><h1>AMS DEV</h1><p>Application session required.</p>');if(!['manager','auditor'].includes(clean(s.role).toLowerCase()))return html(res,403,'<!doctype html><meta charset="utf-8"><title>AMS DEV</title><h1>Role not available</h1>');return html(res,200,MANAGER_PORTAL_HTML);}
   if(u.pathname==='/auth/legacy-handoff'&&req.method==='POST'){let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});const form=new URLSearchParams(raw);try{const identity=await validateLegacyIdentity(form.get('token'),form.get('role'),form.get('deviceId'));if(!identity.ok)return send(res,401,identity);const token=issueSession(identity);res.writeHead(303,{'set-cookie':sessionCookie(token),'location':'/','cache-control':'no-store'});return res.end();}catch(e){return send(res,500,{ok:false,error:'IDENTITY_HANDOFF_FAILED',detail:clean(e?.message||e)});}}
+  if(u.pathname==='/api/v1/internal/fast-otp-session'&&req.method==='POST'){
+    if(process.env.AMS_RUNTIME_ENV!=='DEV'||process.env.AMS_AUTH_FAST_OTP_ENABLED!=='true'||!sessionConfigured())return send(res,404,{ok:false,error:'NOT_FOUND'});
+    if(!safeEq(clean(req.headers['x-ams-internal-secret']),SESSION_SECRET))return send(res,403,{ok:false,error:'FORBIDDEN'});
+    let raw='';for await(const part of req){raw+=part;if(raw.length>2048)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});}
+    let data;try{data=JSON.parse(raw);}catch{return send(res,400,{ok:false,error:'BAD_JSON'});}
+    const email=clean(data?.email).toLowerCase(),role=clean(data?.role),ttl=data?.remember===true?14*86400:7200;
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)||!['Manager','Auditor'].includes(role))return send(res,400,{ok:false,error:'INVALID_IDENTITY'});
+    let auditorUid='';
+    if(role==='Auditor'){
+      const current=await validateVersionedAuditorLogin(email);
+      if(!current.ok||!current.uid||current.uid!==clean(data.auditorUid))return send(res,403,{ok:false,error:'AUDITOR_UID_NOT_CURRENT'});
+      auditorUid=current.uid;
+    }
+    const token=issueSession({email,role,auditorUid,legacyTokenExpiresAt:Date.now()+ttl*1000});
+    return send(res,200,{ok:true},{'set-cookie':sessionCookie(token)});
+  }
   if(u.pathname==='/api/v1/session/exchange'&&req.method==='POST'){if(req.headers.origin&&(!ORIGIN||req.headers.origin!==ORIGIN))return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}');}catch{return send(res,400,{ok:false,error:'BAD_JSON'});}try{const identity=await validateLegacyIdentity(b.token,b.role,b.deviceId);if(!identity.ok)return send(res,401,identity);const token=issueSession(identity);return send(res,200,{ok:true,identity:{email:identity.email,role:identity.role},expiresIn:verifySession(token).exp-Math.floor(Date.now()/1000)},{'set-cookie':sessionCookie(token)});}catch(e){return send(res,500,{ok:false,error:'IDENTITY_EXCHANGE_FAILED',detail:clean(e?.message||e)});}}
   if(u.pathname==='/api/v1/manager/auditor-identity/backfill-preview'&&req.method==='GET'){
     const actor=await sessionFromRequestValidated(req);

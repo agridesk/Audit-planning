@@ -191,7 +191,7 @@ async function proxy(req,res){
  const headers={...req.headers};delete headers.host;delete headers.connection;delete headers['content-length'];
  const init={method:req.method,headers,redirect:'manual'};
  if(!['GET','HEAD'].includes(req.method)){const chunks=[];for await(const c of req)chunks.push(c);init.body=Buffer.concat(chunks);}
- const r=await fetch(url,init);const h={};r.headers.forEach((v,k)=>{if(!['content-length','connection','transfer-encoding'].includes(k))h[k]=v;});
+ const r=await fetch(url,init);const h={};r.headers.forEach((v,k)=>{if(k!=='set-cookie'&&!['content-length','connection','transfer-encoding'].includes(k))h[k]=v;h['set-cookie']=r.headers.getSetCookie();});
  res.writeHead(r.status,h);res.end(Buffer.from(await r.arrayBuffer()));
 }
 http.createServer(async(req,res)=>{

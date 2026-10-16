@@ -31,4 +31,23 @@ assert.equal(lastMutation.mutation.action,'EDIT_HARD_BLOCK');
 assert.equal(blockResult.protectedAudits.length,1);
 assert.equal(blockResult.protectedAudits[0].auditId,'A1');
 await assert.rejects(()=>guarded.mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'SET_FREE_OVERRIDE',fromDate:'2027-01-12',toDate:'2027-01-12',wholeDay:true}}),/AUDIT_CONFLICT/);
+const doubleRows=[
+ ['Audit ID','Status','Assigned to','Planning JSON','Company','Scopes','Execution location'],
+ ['A-MORNING','ACCEPTED','a@example.com',JSON.stringify([{date:'2027-01-12',start:'08:00',end:'12:00'}]),'Company Morning','Scope M','Site M'],
+ ['A-AFTERNOON','PENDING_APPROVAL','a@example.com',JSON.stringify([{date:'2027-01-12',start:'13:00',end:'17:00'}]),'Company Afternoon','Scope A','Site A'],
+ ['B-OTHER','APPROVED','b@example.com',JSON.stringify([{date:'2027-01-12',start:'10:00',end:'15:00'}]),'Other Company','Other Scope','Other Site']
+];
+const doubleOverlay=createPlanningOverlayService({service,readPlanningRows:async()=>doubleRows,listCanonicalAuditors:async()=>auditors});
+const doubleA=await doubleOverlay.period({actor,auditorId:'a',fromDate:'2027-01-12',toDate:'2027-01-12'});
+const aDetails=Object.values(doubleA.auditDetails);
+assert.equal(aDetails.length,2,'Both audits must be present for the same auditor and date');
+assert.deepEqual(aDetails.map(x=>[x.auditId,x.start,x.end,x.state]).sort((x,y)=>x[0].localeCompare(y[0])),[
+ ['A-AFTERNOON','13:00','17:00','PROVISIONAL'],
+ ['A-MORNING','08:00','12:00','COMMITTED']
+]);
+assert(aDetails.every(x=>x.company!=='Other Company'),'Other auditor data cannot leak');
+assert.equal(doubleA.days[0].segments.filter(x=>x.state==='COMMITTED').reduce((m,x)=>m+(Number(x.end.slice(0,2))*60+Number(x.end.slice(3)))-(Number(x.start.slice(0,2))*60+Number(x.start.slice(3))),0),240);
+const doubleB=await doubleOverlay.period({actor,auditorId:'b',fromDate:'2027-01-12',toDate:'2027-01-12'});
+assert.equal(Object.values(doubleB.auditDetails).length,1,'Other auditor sees only their audit');
+assert.equal(Object.values(doubleB.auditDetails)[0].auditId,'B-OTHER');
 console.log('PASS: planning overlay period, manager overview, authorization, fail closed');

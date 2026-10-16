@@ -17,6 +17,7 @@ COPY auditor-identity-versions.js ./
 COPY auditor-uid-backfill-preview.js ./
 COPY rotation-*.cjs ./
 COPY auth-session-policy.mjs ./
+COPY auth-session-revocation-20.js ./
 COPY server-r4.js ./
 COPY server-r5.js ./
 COPY server-r6.js ./

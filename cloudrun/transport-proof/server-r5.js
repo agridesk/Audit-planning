@@ -64,7 +64,7 @@ function cloudAuthLoginHtml(){
 async function cloudAuthGas(action,data){
   if(RUNTIME_ENV!=='DEV'||!GAS_WRITE_URL||WRITE_KEY.length<32)throw Error('AUTH_BRIDGE_NOT_CONFIGURED');
   const url=new URL(GAS_WRITE_URL);url.searchParams.set('action',action);
-  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),60000);
   try{const res=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...data,bridgeKey:WRITE_KEY}),redirect:'follow',signal:controller.signal});if(!res.ok)throw Error('AUTH_BRIDGE_HTTP_'+res.status);const json=await res.json();if(!json||typeof json.ok!=='boolean')throw Error('AUTH_BRIDGE_INVALID_REPLY');return json;}finally{clearTimeout(timeout);}
 }
 async function cloudAuthRequest(req,res){
@@ -251,7 +251,7 @@ http.createServer(async(req,res)=>{
     const destination=safeLoginDestination(u.searchParams.get('next'),identity.role);if(destination!=='/'){res.writeHead(303,{'location':destination,'cache-control':'no-store'});return res.end();}
     return proxy(req,res);
   }
-  if(u.pathname==='/auth/otp/request'&&req.method==='POST'){try{return await cloudAuthRequest(req,res);}catch{return sendJson(res,503,{ok:false,error:'AUTH_SERVICE_UNAVAILABLE'});}}
+  if(u.pathname==='/auth/otp/request'&&req.method==='POST'){try{return await cloudAuthRequest(req,res);}catch(err){const detail=clean(err&&err.message||'');const reason=detail==='AUTH_BRIDGE_INVALID_REPLY'?'AUTH_BRIDGE_INVALID_REPLY':detail.startsWith('AUTH_BRIDGE_HTTP_')?'AUTH_BRIDGE_HTTP_ERROR':err&&err.name==='TimeoutError'?'AUTH_BRIDGE_TIMEOUT':'AUTH_BRIDGE_REQUEST_FAILED';return sendJson(res,503,{ok:false,error:reason});}}
   if(u.pathname==='/auth/otp/verify'&&req.method==='POST'){try{return await cloudAuthVerify(req,res);}catch{return sendJson(res,503,{ok:false,error:'AUTH_SERVICE_UNAVAILABLE'});}}
   if(u.pathname==='/auth/dev-login'&&req.method==='POST'){try{return await handleDevLogin(req,res);}catch(err){return sendJson(res,500,{ok:false,error:'DEV_LOGIN_FAILED',detail:clean(err&&err.message||err)});}}
   if(u.pathname==='/auth/logout'&&req.method==='POST'){try{return await handleSecureLogout(req,res);}catch{return sendJson(res,503,{ok:false,error:'AUTH_REVOCATION_UNAVAILABLE'});}}

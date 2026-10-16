@@ -41,6 +41,35 @@ function issueSession(identity,ttlSeconds=SESSION_TTL_SECONDS){
 function sessionCookie(token,maxAge=SESSION_TTL_SECONDS){return SESSION_COOKIE+'='+token+'; Max-Age='+Math.max(300,Math.floor(Number(maxAge)||SESSION_TTL_SECONDS))+'; Path=/; HttpOnly; Secure; SameSite=Lax';}
 
 function clearSessionCookie(){return SESSION_COOKIE+'=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax';}
+function cloudAuthLoginHtml(){
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AMS — Secure login</title><style>*{box-sizing:border-box}body{font:15px system-ui,sans-serif;background:#f1f5f9;min-height:100vh;margin:0;display:grid;place-items:center;padding:18px}.panel{background:white;max-width:460px;width:100%;padding:28px;border-radius:16px;box-shadow:0 12px 40px #0f172a19}h1{font-size:23px;margin:0 0 8px}p{color:#475569}label{display:block;margin:18px 0 7px;font-weight:600}input{display:block;width:100%;padding:13px;border:1px solid #94a3b8;border-radius:8px;font-size:16px}button{padding:12px 18px;border:0;border-radius:8px;background:#1d4ed8;color:#fff;font-weight:700;cursor:pointer;margin-top:15px}button:disabled{opacity:.5}#message{min-height:24px}#otp{display:none}#shortcut{margin-top:24px;padding-top:18px;border-top:1px solid #e2e8f0}#shortcut button{background:#334155;margin-right:7px;font-size:13px}a{color:#1d4ed8}</style></head><body><main class="panel"><h1>Audit Management System</h1><p>Agri Quality Assurance · Secure portal access</p><div id="start"><label for="email">Email address</label><input id="email" type="email" autocomplete="username" maxlength="254" required><button id="send">Send login code</button></div><div id="otp"><p>Enter the six-digit email code (valid for 10 minutes).</p><label for="code">Login code</label><input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}"><button id="verify">Verify and log in</button> <button type="button" id="resend">Resend</button><p><a href="#" id="change">Change email</a></p></div><p id="message" role="status" aria-live="polite"></p><section id="shortcut"><b>DEV tester shortcuts</b><form method="post" action="/auth/dev-login"><input type="hidden" name="role" value="Manager"><button type="submit">Login as Manager</button></form><form method="post" action="/auth/dev-login"><input type="hidden" name="role" value="Auditor"><button type="submit">Login as Auditor</button></form></section></main><script>
+(function(){const el=id=>document.getElementById(id);let busy=false,requestedEmail='',role='',lastSend=0;const deviceKey='ams_auth20_browser_device';let deviceId=sessionStorage.getItem(deviceKey);if(!deviceId){deviceId=Array.from(crypto.getRandomValues(new Uint8Array(32)),b=>b.toString(16).padStart(2,'0')).join('');sessionStorage.setItem(deviceKey,deviceId);}function msg(t){el('message').textContent=t;}async function call(path,data){const r=await fetch(path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(data),credentials:'same-origin'});let body={};try{body=await r.json();}catch{}if(!r.ok||!body.ok)throw Error(body.error||'Login failed');return body;}async function send(){if(busy||Date.now()-lastSend<45000){msg('Wait before requesting another code.');return;}const email=el('email').value.trim().toLowerCase();if(!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email)){msg('Enter a valid email address.');return;}busy=true;el('send').disabled=true;el('resend').disabled=true;try{const r=await call('/auth/otp/request',{email});requestedEmail=email;role=r.role;lastSend=Date.now();el('start').style.display='none';el('otp').style.display='block';msg('Code requested. Check your email.');}catch(e){msg(e.message);}finally{busy=false;el('send').disabled=false;el('resend').disabled=false;}}el('send').onclick=send;el('resend').onclick=send;el('change').onclick=e=>{e.preventDefault();requestedEmail='';role='';el('otp').style.display='none';el('start').style.display='block';el('code').value='';msg('');};el('verify').onclick=async()=>{if(busy)return;const code=el('code').value.trim();if(!/^\\d{6}$/.test(code)||!requestedEmail||!role){msg('Enter a valid six-digit code.');return;}busy=true;el('verify').disabled=true;try{await call('/auth/otp/verify',{email:requestedEmail,role,code,deviceId});location.assign('/');}catch(e){msg(e.message);}finally{busy=false;el('verify').disabled=false;}};})();
+</script></body></html>`;
+}
+async function cloudAuthGas(action,data){
+  if(RUNTIME_ENV!=='DEV'||!GAS_WRITE_URL||WRITE_KEY.length<32)throw Error('AUTH_BRIDGE_NOT_CONFIGURED');
+  const url=new URL(GAS_WRITE_URL);url.searchParams.set('action',action);
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);
+  try{const res=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...data,bridgeKey:WRITE_KEY}),redirect:'follow',signal:controller.signal});if(!res.ok)throw Error('AUTH_BRIDGE_HTTP_'+res.status);const json=await res.json();if(!json||typeof json.ok!=='boolean')throw Error('AUTH_BRIDGE_INVALID_REPLY');return json;}finally{clearTimeout(timeout);}
+}
+async function cloudAuthRequest(req,res){
+  if(RUNTIME_ENV!=='DEV')return sendJson(res,404,{ok:false,error:'NOT_FOUND'});
+  if(req.headers.origin&&new URL(req.headers.origin).host!==req.headers.host)return sendJson(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});
+  const data=JSON.parse(await readRaw(req,2048));const email=clean(data.email).toLowerCase();if(email.length>254||!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(email))return sendJson(res,400,{ok:false,error:'INVALID_EMAIL'});
+  const response=await cloudAuthGas('externalauthrequestcode',{email});return sendJson(res,response.ok?200:401,{ok:response.ok===true,role:response.role||'',error:response.error||'CODE_REQUEST_FAILED',retryAfterSeconds:response.retryAfterSeconds||0});
+}
+async function cloudAuthVerify(req,res){
+  if(RUNTIME_ENV!=='DEV')return sendJson(res,404,{ok:false,error:'NOT_FOUND'});
+  if(req.headers.origin&&new URL(req.headers.origin).host!==req.headers.host)return sendJson(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});
+  const body=JSON.parse(await readRaw(req,2048));const {email,role,code,deviceId}=body;
+  if(!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(clean(email))||!['Manager','Auditor'].includes(role)||!/^\\d{6}$/.test(clean(code))||!/^[a-f0-9]{64}$/.test(clean(deviceId)))return sendJson(res,400,{ok:false,error:'INVALID_LOGIN_INPUT'});
+  const verified=await cloudAuthGas('externalauthverifycode',{email,role,code,deviceId});
+  if(!verified.ok||!verified.token)return sendJson(res,401,{ok:false,error:verified.error||'INVALID_OR_EXPIRED_CODE'});
+  const exchanged=await fetch('http://127.0.0.1:'+INNER_PORT+'/api/v1/session/exchange',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token:verified.token,role,deviceId})});
+  const result=await exchanged.json();const cookie=exchanged.headers.get('set-cookie');if(!exchanged.ok||!result.ok||!cookie)return sendJson(res,401,{ok:false,error:result.error||'SESSION_EXCHANGE_FAILED'});
+  return sendJson(res,200,{ok:true}, {'set-cookie':cookie});
+}
+
 function portalLoginHtml(){
   const dev=RUNTIME_ENV==='DEV',managerReady=!!DEV_MANAGER_EMAIL,auditorReady=!!DEV_AUDITOR_EMAIL;
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AMS - Login</title><style>
@@ -203,9 +232,11 @@ http.createServer(async(req,res)=>{
   const u=new URL(req.url,'http://localhost');
   if(u.pathname==='/'&&req.method==='GET'){
     const identity=await sessionIdentity(req);
-    if(!identity)return sendHtml(res,200,portalLoginHtml());
+    if(!identity)return sendHtml(res,200,RUNTIME_ENV==='DEV'?cloudAuthLoginHtml():portalLoginHtml());
     return proxy(req,res);
   }
+  if(u.pathname==='/auth/otp/request'&&req.method==='POST'){try{return await cloudAuthRequest(req,res);}catch{return sendJson(res,503,{ok:false,error:'AUTH_SERVICE_UNAVAILABLE'});}}
+  if(u.pathname==='/auth/otp/verify'&&req.method==='POST'){try{return await cloudAuthVerify(req,res);}catch{return sendJson(res,503,{ok:false,error:'AUTH_SERVICE_UNAVAILABLE'});}}
   if(u.pathname==='/auth/dev-login'&&req.method==='POST'){try{return await handleDevLogin(req,res);}catch(err){return sendJson(res,500,{ok:false,error:'DEV_LOGIN_FAILED',detail:clean(err&&err.message||err)});}}
   if(u.pathname==='/auth/logout'&&req.method==='POST'){res.writeHead(303,{'set-cookie':clearSessionCookie(),'location':'/','cache-control':'no-store'});return res.end();}
 

@@ -1,5 +1,6 @@
 import http from 'node:http';
 import {createHmac,createHash,timingSafeEqual} from 'node:crypto';
+import {createSessionRevocationStore} from './auth-session-revocation-20.js';
 
 const PUBLIC_PORT=Number(process.env.PORT||8080);
 const INNER_PORT=PUBLIC_PORT+1;
@@ -40,6 +41,12 @@ function issueSession(identity,ttlSeconds=SESSION_TTL_SECONDS){
 }
 function sessionCookie(token,maxAge=SESSION_TTL_SECONDS){return SESSION_COOKIE+'='+token+'; Max-Age='+Math.max(300,Math.floor(Number(maxAge)||SESSION_TTL_SECONDS))+'; Path=/; HttpOnly; Secure; SameSite=Lax';}
 
+let revocationCloudToken={token:'',expires:0};
+async function cloudRevocationAccess(){if(revocationCloudToken.token&&Date.now()<revocationCloudToken.expires-60000)return revocationCloudToken.token;const r=await fetch('http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',{headers:{'Metadata-Flavor':'Google'}});if(!r.ok)throw Error('REVOCATION_CREDENTIAL_'+r.status);const v=await r.json();revocationCloudToken={token:v.access_token||'',expires:Date.now()+(Number(v.expires_in)||300)*1000};return revocationCloudToken.token;}
+function cloudRevocationStore(){return createSessionRevocationStore({projectId:process.env.GOOGLE_CLOUD_PROJECT||process.env.GCP_PROJECT||'audit-management-system-dev',getAccessToken:cloudRevocationAccess});}
+function rawSessionCookie(req){const raw=String(req.headers.cookie||'');for(const pair of raw.split(';')){const n=pair.trim();if(n.startsWith(SESSION_COOKIE+'='))return n.slice(SESSION_COOKIE.length+1);}return '';}
+function decodeSignedExpiry(token){const parts=String(token||'').split('.');if(parts.length!==2||!safeEq(signSession(parts[0]),parts[1]))throw Error('REVOCATION_SESSION_INVALID');const obj=JSON.parse(Buffer.from(parts[0],'base64url').toString('utf8'));if(!Number.isSafeInteger(obj.exp)||obj.exp<=Math.floor(Date.now()/1000))throw Error('REVOCATION_SESSION_EXPIRED');return obj.exp;}
+async function handleSecureLogout(req,res){if(RUNTIME_ENV!=='DEV'||process.env.AMS_AUTH_LOGOUT_REVOCATION_ENABLED!=='true')return sendJson(res,503,{ok:false,error:'AUTH_REVOCATION_NOT_ENABLED'});const token=rawSessionCookie(req);if(token){const exp=decodeSignedExpiry(token);await cloudRevocationStore().revoke(token,exp);}res.writeHead(303,{'set-cookie':clearSessionCookie(),'location':'/','cache-control':'no-store'});return res.end();}
 function clearSessionCookie(){return SESSION_COOKIE+'=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax';}
 function safeLoginDestination(raw,role){
   const value=clean(raw);if(!value||value.length>500||!value.startsWith('/')||value.startsWith('//')||value.includes('\\'))return '/';
@@ -247,7 +254,7 @@ http.createServer(async(req,res)=>{
   if(u.pathname==='/auth/otp/request'&&req.method==='POST'){try{return await cloudAuthRequest(req,res);}catch{return sendJson(res,503,{ok:false,error:'AUTH_SERVICE_UNAVAILABLE'});}}
   if(u.pathname==='/auth/otp/verify'&&req.method==='POST'){try{return await cloudAuthVerify(req,res);}catch{return sendJson(res,503,{ok:false,error:'AUTH_SERVICE_UNAVAILABLE'});}}
   if(u.pathname==='/auth/dev-login'&&req.method==='POST'){try{return await handleDevLogin(req,res);}catch(err){return sendJson(res,500,{ok:false,error:'DEV_LOGIN_FAILED',detail:clean(err&&err.message||err)});}}
-  if(u.pathname==='/auth/logout'&&req.method==='POST'){res.writeHead(303,{'set-cookie':clearSessionCookie(),'location':'/','cache-control':'no-store'});return res.end();}
+  if(u.pathname==='/auth/logout'&&req.method==='POST'){try{return await handleSecureLogout(req,res);}catch{return sendJson(res,503,{ok:false,error:'AUTH_REVOCATION_UNAVAILABLE'});}}
 
   if(u.pathname==='/auth/signed-handoff'&&req.method==='POST'){try{return await handleManagerSessionHandoff(req,res);}catch(err){return sendJson(res,500,{ok:false,error:'MANAGER_SESSION_HANDOFF_FAILED',detail:clean(err&&err.message||err)});}}
   if(u.pathname==='/planning'&&req.method==='GET'){try{return await handlePlanning(req,res,u);}catch(err){return sendJson(res,500,{ok:false,error:'PLANNING_2_0_OPEN_FAILED',detail:clean(err&&err.message||err)});}}

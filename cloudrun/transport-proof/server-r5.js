@@ -85,7 +85,30 @@ async function fastOtpLookup(email){
 async function fastOtpMail(email,code){
  const key=process.env.AMS_AUTH_RESEND_API_KEY||'';
  if(key.length<20)throw Error('FAST_OTP_MAIL_NOT_CONFIGURED');
- const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{authorization:'Bearer '+key,'content-type':'application/json'},body:JSON.stringify({from:'Agri Quality Assurance <planning@agriqa.es>',to:[email],reply_to:'planning@agriqa.es',subject:'Your Agri Quality Assurance login code',text:'Audit Management System login code: '+code+'\\nValid for 10 minutes. If you did not request this code, ignore this email.'})});
+ const textBody=['Agri Quality Assurance - Audit Management System','Secure portal access','','Your login code is: '+code,'','This code is valid for 10 minutes.','If you requested more than one code, use the most recent email.','','This is an automated security email for access to the Agri Quality Assurance Audit Management System.','If you did not request this code, you can ignore this email.','','Agri Quality Assurance'].join('\n');
+ const htmlBody = [
+      '<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">Secure login code for the Agri Quality Assurance Audit Management System.</div>',
+      '<div style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;color:#111827;">',
+      '  <div style="max-width:560px;margin:0 auto;padding:24px;">',
+      '    <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;">',
+      '      <div style="background:#0f172a;color:#ffffff;padding:18px 22px;">',
+      '        <div style="font-size:17px;font-weight:700;line-height:1.25;">Agri Quality Assurance</div>',
+      '        <div style="font-size:13px;color:#cbd5e1;margin-top:3px;">Audit Management System</div>',
+      '      </div>',
+      '      <div style="padding:22px;">',
+      '        <p style="margin:0 0 12px 0;font-size:14px;line-height:1.5;">Use the following verification code to sign in:</p>',
+      '        <div style="font-size:32px;font-weight:800;letter-spacing:7px;margin:18px 0;padding:16px 18px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;text-align:center;color:#0f172a;">' + code + '</div>',
+      '        <p style="margin:0 0 8px 0;font-size:14px;line-height:1.5;">This code is valid for <strong>' + 10 + ' minutes</strong>.</p>',
+      '        <p style="margin:0 0 10px 0;font-size:13px;line-height:1.5;color:#64748b;">If you requested more than one code, use the most recent email. Older codes may stop working after newer requests.</p>',
+      '        <p style="margin:0 0 16px 0;font-size:13px;line-height:1.5;color:#64748b;">This is an automated security email for access to the Agri Quality Assurance Audit Management System.</p>',
+      '        <p style="margin:0;font-size:12px;line-height:1.5;color:#6b7280;">If you did not request this code, you can ignore this email.</p>',
+      '      </div>',
+      '    </div>',
+      '    <div style="font-size:11px;color:#6b7280;text-align:center;margin-top:12px;">Agri Quality Assurance · Secure portal access</div>',
+      '  </div>',
+      '</div>'
+    ].join("");
+ const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{authorization:'Bearer '+key,'content-type':'application/json'},body:JSON.stringify({from:'Agri Quality Assurance <planning@agriqa.es>',to:[email],reply_to:'planning@agriqa.es',subject:'Agri Quality Assurance secure login code',text:textBody,html:htmlBody})});
  if(!response.ok)throw Error('FAST_OTP_MAIL_PROVIDER_'+response.status);
 }
 function fastOtpService(){

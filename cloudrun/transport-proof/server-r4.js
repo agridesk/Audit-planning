@@ -1550,7 +1550,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     let raw='';for await(const part of req){raw+=part;if(raw.length>2048)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});}
     let data;try{data=JSON.parse(raw);}catch{return send(res,400,{ok:false,error:'BAD_JSON'});}
     const email=clean(data?.email).toLowerCase(),role=clean(data?.role),ttl=data?.remember===true?14*86400:7200,deviceId=clean(data?.deviceId);
-    if(!/^[a-f0-9]{64}$/.test(deviceId)||!//^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)||!['Manager','Auditor'].includes(role))return send(res,400,{ok:false,error:'INVALID_IDENTITY'});
+    if(!/^[a-f0-9]{64}$/.test(deviceId)||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)||!['Manager','Auditor'].includes(role))return send(res,400,{ok:false,error:'INVALID_IDENTITY'});
     let auditorUid='';
     if(role==='Auditor'){
       const current=await validateVersionedAuditorLogin(email);

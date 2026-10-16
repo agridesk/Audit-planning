@@ -6,7 +6,7 @@ const script=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 assert.ok(script,'Auditor calendar script required');
 new vm.Script(script);
 for(const id of ['jumpMonth','currentMonth','prev','next','releaseDay'])assert.ok(html.includes(id),'Missing calendar control '+id);
-assert.ok(html.includes("monthCache.clear();await load({fresh:true})"),'Mutations refresh month cache');
+assert.ok(html.includes("monthCache.clear();cacheGeneration++;await load({fresh:true})"),'Mutations invalidate month cache and prefetch generation');
 assert.ok(html.includes("fromDate:day.date,toDate:day.date"),'Single-day release is bounded');
 assert.ok(!html.includes('id="removeHard"'),'Day details must not expose whole-period removal');
 assert.ok(html.includes("today.slice(0,7)"),'Calendar initializes current month');

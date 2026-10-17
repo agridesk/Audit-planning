@@ -336,8 +336,10 @@ function RotationAuditorService_readMaxByScope_(ss, aliases) {
     var appliesRaw = RotationAuditorService_clean_(values[r][appliesCol]).toLowerCase();
     if (appliesRaw !== 'true' && appliesRaw !== 'false' && appliesRaw !== 'yes' && appliesRaw !== 'no') throw new Error('ROTATION_POLICY_APPLIES_INVALID');
     if (appliesRaw === 'false' || appliesRaw === 'no') continue;
-    var max = RotationAuditorService_intOrNull_(values[r][maxCol]);
-    if (max === null || max <= 0) throw new Error('ROTATION_POLICY_MAXIMUM_INVALID');
+    var maxRaw = RotationAuditorService_clean_(values[r][maxCol]);
+    if (!/^[1-9][0-9]*$/.test(maxRaw)) throw new Error('ROTATION_POLICY_MAXIMUM_INVALID');
+    var max = Number(maxRaw);
+    if (!Number.isSafeInteger(max)) throw new Error('ROTATION_POLICY_MAXIMUM_INVALID');
     if (canonical) out[canonical] = max;
   }
   return out;

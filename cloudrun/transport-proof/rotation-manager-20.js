@@ -10,7 +10,7 @@ function populate(select,values){const selected=select.value;select.replaceChild
 function render(){
  table.replaceChildren();
  const q=search.value.trim().toLowerCase();
- for(const item of records.filter(r=>(!companyFilter.value||r.companyUid===companyFilter.value)&&(!auditorFilter.value||r.auditorUid===auditorFilter.value)&&(!statusFilter.value||r.status===statusFilter.value)&&[r.company,r.scope,r.auditor,r.auditorUid].join(' ').toLowerCase().includes(q))){
+ for(const item of records.filter(r=>(!companyFilter.value||r.companyUid===companyFilter.value)&&(!auditorFilter.value||r.auditorUid===auditorFilter.value)&&(!scopeFilter.value||r.slot===scopeFilter.value)&&(!statusFilter.value||r.status===statusFilter.value)&&[r.company,r.scope,r.auditor,r.auditorUid].join(' ').toLowerCase().includes(q))){
   const tr=document.createElement('tr');
   for(const key of ['company','scope','auditor','years','consecutiveYears','maximum','status']){
    const td=document.createElement('td');td.textContent=key==='status'?({AT_LIMIT:'Limit reached',NEAR_LIMIT:'Last available',AVAILABLE:'OK'}[item.status]||item.status):key==='consecutiveYears'?item.consecutiveYears+'/'+item.maximum:String(item[key]??'');if(key==='status')td.className='status-'+item.status;tr.append(td);
@@ -26,6 +26,8 @@ async function refresh(){
   const result=await response.json();
   if(result.success!==true)throw Error(result.error||'Rotation read failed');
   records=result.rows||[];
+  populate(scopeFilter,records.map(r=>r.slot));
+  for(const option of scopeFilter.options){const item=records.find(r=>r.slot===option.value);if(item)option.textContent=item.scope;}
   populate(companyFilter,records.map(r=>r.companyUid));
   for(const option of companyFilter.options){const item=records.find(r=>r.companyUid===option.value);if(item)option.textContent=item.company;}
   populate(auditorFilter,records.map(r=>r.auditorUid));
@@ -40,5 +42,5 @@ document.getElementById('reload').addEventListener('click',refresh);
 search.addEventListener('input',render);
 refresh();
 
-for(const element of [companyFilter,auditorFilter,statusFilter])element.addEventListener('change',render);
-document.getElementById('resetFilters').addEventListener('click',()=>{companyFilter.value='';auditorFilter.value='';statusFilter.value='';search.value='';render();});
+for(const element of [companyFilter,auditorFilter,scopeFilter,statusFilter])element.addEventListener('change',render);
+document.getElementById('resetFilters').addEventListener('click',()=>{companyFilter.value='';auditorFilter.value='';statusFilter.value='';scopeFilter.value='';search.value='';render();});

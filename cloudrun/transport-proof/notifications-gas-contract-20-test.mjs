@@ -19,6 +19,6 @@ assert.match(testMail,/NotificationDeliveryGuard_assertOutboundAllowed/);
 assert.match(testMail,/SYS_resolveNotificationRecipients_/);
 assert.match(config,/function SYS_resolveNotificationRecipients_\(/);
 assert.match(config,/function SYS_deliveryResult_\(/);
-assert.match(server,/CANONICAL_GAS_WRITE_BRIDGE_REQUIRED/);
+assert.match(server,/notificationGasCall/);
 assert.doesNotMatch(server,/NotificationMailGateway_SendEmail/);
 console.log('notifications-gas-contract-20: PASS');

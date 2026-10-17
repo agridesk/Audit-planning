@@ -84,9 +84,7 @@ var AUDIT_DIAGNOSTICS_CONFIG = {
         'Florimark Tracecert',
         'Florimark GTP',
         'Scope 7',
-        'Scope 8',
-        'SCOPE_09','SCOPE_10','SCOPE_11','SCOPE_12','SCOPE_13','SCOPE_14',
-        'SCOPE_15','SCOPE_16','SCOPE_17','SCOPE_18','SCOPE_19','SCOPE_20'
+        'Scope 8'
       ]
     }
   },
@@ -510,8 +508,10 @@ function AuditDiagnostics_checkAuditPlanningScopeHeaders_(ss, scopeModel) {
   Object.keys(scopeModel.activeCodes || {}).forEach(function(k) { known[k] = true; });
   Object.keys(scopeModel.activeSlotKeys || {}).forEach(function(k) { known[k] = true; });
 
-  for (var h = 0; h < cfg.headers.scopes.length; h++) {
-    var legacyScopeHeader = cfg.headers.scopes[h];
+  var scopeHeadersToCheck = cfg.headers.scopes.slice();
+  Object.keys(scopeModel.activeSlotKeys || {}).forEach(function(k) { scopeHeadersToCheck.push(k); });
+  for (var h = 0; h < scopeHeadersToCheck.length; h++) {
+    var legacyScopeHeader = scopeHeadersToCheck[h];
     var key = AuditDiagnostics_normKey_(legacyScopeHeader);
     if (headerKeys[key] && !known[key]) {
       out.push(AuditDiagnostics_diag_(

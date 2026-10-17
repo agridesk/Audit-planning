@@ -323,8 +323,10 @@ function RotationAuditorService_readMaxByScope_(ss, aliases) {
   for (var r = 1; r < values.length; r++) {
     var raw = nameCol >= 0 ? values[r][nameCol] : (codeCol >= 0 ? values[r][codeCol] : (slotCol >= 0 ? values[r][slotCol] : ''));
     var canonical = RotationAuditorService_canonicalScope_({ aliases: aliases }, raw);
-    if (activeCol >= 0 && !RotationAuditorService_isYes_(values[r][activeCol])) continue;
-    if (archivedCol >= 0 && RotationAuditorService_isYes_(values[r][archivedCol])) continue;
+    var activeRaw = activeCol >= 0 ? RotationAuditorService_clean_(values[r][activeCol]).toLowerCase() : 'true';
+    var archivedRaw = archivedCol >= 0 ? RotationAuditorService_clean_(values[r][archivedCol]).toLowerCase() : 'false';
+    if (['true','false','yes','no'].indexOf(activeRaw) < 0 || ['true','false','yes','no'].indexOf(archivedRaw) < 0) throw new Error('ROTATION_SCOPE_LIFECYCLE_INVALID');
+    if (activeRaw === 'false' || activeRaw === 'no' || archivedRaw === 'true' || archivedRaw === 'yes') continue;
     var appliesRaw = RotationAuditorService_clean_(values[r][appliesCol]).toLowerCase();
     if (appliesRaw !== 'true' && appliesRaw !== 'false' && appliesRaw !== 'yes' && appliesRaw !== 'no') throw new Error('ROTATION_POLICY_APPLIES_INVALID');
     if (appliesRaw === 'false' || appliesRaw === 'no') continue;

@@ -198,6 +198,22 @@ async function proxy(req,res){
 http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url||'/','http://localhost');
+  if(req.method==='GET'&&u.pathname==='/rotation-manager-20'){
+   const actor=await session(req);
+   if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401);res.end('Unauthorized');return;}
+   const {readFile}=await import('node:fs/promises');
+   const html=await readFile(new URL('./rotation-manager-20.html',import.meta.url));
+   res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});
+   res.end(html);return;
+  }
+  if(req.method==='GET'&&u.pathname==='/rotation-manager-20.js'){
+   const actor=await session(req);
+   if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401);res.end('Unauthorized');return;}
+   const {readFile}=await import('node:fs/promises');
+   const script=await readFile(new URL('./rotation-manager-20.js',import.meta.url));
+   res.writeHead(200,{'content-type':'text/javascript; charset=utf-8','cache-control':'no-store'});
+   res.end(script);return;
+  }
   if(['GET','POST'].includes(req.method)&&u.pathname==='/api/v1/availability/migrate-legacy-hard'){await legacyHardMigration(req,res);return;}
   if(req.method==='GET'&&u.pathname==='/api/v1/availability/legacy-diagnostic'){await legacyAvailabilityDiagnostic(req,res);return;}
   if(req.method==='GET'&&(u.pathname==='/my-availability'||u.pathname==='/my-availability-20')){

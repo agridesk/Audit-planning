@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+const source=fs.readFileSync('../../ConfigScopesRotation20Migration.js','utf8');
+let header=['SlotKey','ScopeCode','Extension'];
+let writes=0;
+const sheet={getLastColumn:()=>header.length,getRange:(r,c,nr,nc)=>({getValues:()=>[header.slice()],setValues:rows=>{assert.equal(r,1);assert.equal(c,header.length+1);assert.equal(nr,1);assert.equal(nc,3);header=header.concat(rows[0]);writes++;}})};
+const context={SpreadsheetApp:{getActiveSpreadsheet:()=>({getSheetByName:n=>n==='Config_Scopes'?sheet:null})}};
+vm.createContext(context);vm.runInContext(source,context);
+assert.equal(context.ConfigScopesRotation20_Preview().addedHeaders.length,3);
+assert.equal(writes,0);
+assert.equal(context.ConfigScopesRotation20_Apply().addedHeaders.length,3);
+assert.equal(writes,1);
+assert.equal(context.ConfigScopesRotation20_Apply().addedHeaders.length,0);
+assert.equal(writes,1);
+assert.equal(header[2],'Extension');
+console.log('rotation config schema-only migration: PASS');

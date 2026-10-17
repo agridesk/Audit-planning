@@ -9,8 +9,8 @@ function canonicalRotationContexts(input){
  return scopePolicies.map(p=>{
   if(!p||!p.scopeKey||seen.has(p.scopeKey))throw Error('ROTATION_SCOPE_DUPLICATE_OR_MISSING');
   seen.add(p.scopeKey);
-  if(p.rotationApplies!==undefined&&typeof p.rotationApplies!=='boolean')throw Error('ROTATION_SCOPE_POLICY_INVALID');
-  if((p.rotationApplies!==false&&(!Number.isInteger(p.normalMaximum)||p.normalMaximum<1))||typeof p.extensionPermitted!=='boolean')throw Error('ROTATION_SCOPE_POLICY_INVALID');
+  if(typeof p.rotationApplies!=='boolean')throw Error('ROTATION_SCOPE_POLICY_INVALID');
+  if((p.rotationApplies===true&&(!Number.isSafeInteger(p.normalMaximum)||p.normalMaximum<1))||(p.rotationApplies===false&&p.normalMaximum!==null)||typeof p.extensionPermitted!=='boolean'||(p.rotationApplies===false&&p.extensionPermitted))throw Error('ROTATION_SCOPE_POLICY_INVALID');
   const hist=consecutiveCompleted(completedAudits,companyUid,p.scopeKey,auditorUid);
   const exceptions=approvedExceptions.filter(x=>x.companyUid===companyUid&&x.scopeKey===p.scopeKey&&x.auditorUid===auditorUid&&x.status==='APPROVED');
   if(exceptions.some(x=>!x.auditId||!x.justification||!x.approvedByManagerUid||typeof x.justification!=='string'||!x.justification.trim()||typeof x.approvedByManagerUid!=='string'||!x.approvedByManagerUid.trim()))throw Error('ROTATION_EXCEPTION_AUDIT_TRAIL_INCOMPLETE');

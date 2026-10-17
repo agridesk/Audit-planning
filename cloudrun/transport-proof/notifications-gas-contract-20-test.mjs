@@ -48,3 +48,11 @@ for(const guard of ['function ns_currentEmailPermissions_()', 'function ns_suppr
   assert.ok(sender.includes(guard), 'Dispatch-time notification policy guard missing: '+guard);
 }
 assert.ok(sender.indexOf('var livePolicy = ns_currentEmailPermissions_()') < sender.indexOf('mail = ns_buildDigestEmail_(group.recipient, group.items)'), 'Filter disabled digest items before rendering');
+
+const gateway=read('NotificationMailGateway.js');
+assert.ok(sender.includes("if (env === 'DEV')"), 'DEV test mode must be environment-scoped');
+assert.ok(sender.includes("settings.DEV_NOTIFICATION_MODE||'OFF'"), 'DEV mode must be read from System_Config');
+assert.ok(sender.includes("settings.DEV_TEST_EMAIL||''"), 'DEV test recipient must come from System_Config');
+assert.ok(sender.includes("if (!ns_yesLike_(settings.SEND_NOTIFICATIONS))mode='OFF'"), 'Disabled notification sending must override test mode');
+assert.ok(gateway.includes('function NMG_getDevSystemSenderSettings_()'), 'DEV sender identity needs System_Config reader');
+for (const field of ['DEFAULT_FROM_EMAIL','DEFAULT_FROM_NAME','DEFAULT_REPLY_TO']) assert.ok(gateway.includes('devSettings.'+field+' ||'), 'System_Config must take priority for '+field);

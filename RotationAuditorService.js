@@ -446,12 +446,11 @@ function RotationAuditorService_detectScopeColumns_(headers, hm, aliases) {
       var sc = RotationAuditorService_canonicalScope_({ aliases: aliases }, headers[c]);
       if (sc) out.push({ index: c, scope: sc });
     }
-    if (out.length) return out;
   }
   for (var j = 0; j < headers.length; j++) {
     var raw = RotationAuditorService_clean_(headers[j]);
     var canon = RotationAuditorService_canonicalScope_({ aliases: aliases }, raw);
-    if (canon && /^SCOPE_\d+$/i.test(raw)) out.push({ index: j, scope: canon });
+    if (canon && /^SCOPE_\d+$/i.test(raw) && !out.some(function(x){return x.index === j;})) out.push({ index: j, scope: canon });
   }
   if (out.length) return out;
   var singleCol = RotationAuditorService_pick_(hm, ['Scope','Scopes','SCOPE','STANDARD','Standards']);

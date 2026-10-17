@@ -17,7 +17,7 @@ function ConfigScopesRotation20_run_(apply) {
   var sh = ss.getSheetByName('Config_Scopes');
   if (!sh) throw new Error('ROTATION20_CONFIG_SCOPES_MISSING');
   var headers = sh.getRange(1, 1, 1, Math.max(1, sh.getLastColumn())).getValues()[0];
-  var key = function(x) { return String(x == null ? '' : x).trim().toLowerCase().replace(/[\\s_-]/g,''); };
+  var key = function(x) { return String(x == null ? '' : x).trim().toLowerCase().replace(/\s|_|-/g,''); };
   var counts = {};
   headers.forEach(function(h) { var k=key(h); if(k) counts[k]=(counts[k]||0)+1; });
   if (Object.keys(counts).some(function(k){return counts[k]>1;})) throw new Error('ROTATION20_DUPLICATE_CONFIG_HEADER');

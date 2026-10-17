@@ -42,3 +42,9 @@ assert.match(html,/id="devModeSelect"/);
 assert.match(html,/id="saveDevMode"/);
 assert.doesNotMatch(server,/NotificationMailGateway_SendEmail/);
 console.log('notifications-gas-contract-20: PASS');
+
+const sender=read('NotificationSender.js');
+for(const guard of ['function ns_currentEmailPermissions_()', 'function ns_suppressDisabledQueueRows_(', 'var policy = ns_currentEmailPermissions_()', 'var livePolicy = ns_currentEmailPermissions_()', "getSheetByName('Notification_Config')", "setValue('SENT_SUPPRESSED')", 'group.items = allowed', 'group.rows = allowed.map']) {
+  assert.ok(sender.includes(guard), 'Dispatch-time notification policy guard missing: '+guard);
+}
+assert.ok(sender.indexOf('var livePolicy = ns_currentEmailPermissions_()') < sender.indexOf('mail = ns_buildDigestEmail_(group.recipient, group.items)'), 'Filter disabled digest items before rendering');

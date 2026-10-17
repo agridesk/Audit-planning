@@ -218,9 +218,23 @@ async function notificationGasCall(actor,operation,payload){
  if(project!=='audit-management-system-dev'||!endpoint||!secret)throw Error('NOTIFICATION_GAS_BRIDGE_UNAVAILABLE');
  const u=new URL(endpoint);if(u.protocol!=='https:')throw Error('NOTIFICATION_GAS_HTTPS_REQUIRED');
  u.searchParams.set('action','externalnotification20');
- const result=await fetch(u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({bridgeKey:secret,actorRole:'manager',actorEmail:actor.email,operation,...payload}),redirect:'follow',signal:AbortSignal.timeout(25000)});
+ let result;
+ try{
+  result=await fetch(u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({bridgeKey:secret,actorRole:'manager',actorEmail:actor.email,operation,...payload}),redirect:'follow',signal:AbortSignal.timeout(60000)});
+ }catch(err){
+  const cause=err?.cause?.code||err?.name||'NETWORK_ERROR';
+  console.error('[NOTIFICATION_GAS_BRIDGE]',JSON.stringify({operation,phase:'fetch',cause:String(cause).slice(0,80)}));
+  throw Error('NOTIFICATION_GAS_TRANSPORT_'+String(cause).replace(/[^A-Z0-9_]/gi,'_'));
+ }
  if(!result.ok)throw Error('NOTIFICATION_GAS_HTTP_'+result.status);
- const data=await result.json();if(data?.error==='UNHANDLED_POST')return {ok:false,error:'GAS_DEV_DEPLOYMENT_OUTDATED'};return data;
+ const raw=await result.text();
+ let data;
+ try{data=JSON.parse(raw);}catch{
+  console.error('[NOTIFICATION_GAS_BRIDGE]',JSON.stringify({operation,phase:'decode',status:result.status,contentType:result.headers.get('content-type')||'',bytes:raw.length}));
+  throw Error('NOTIFICATION_GAS_INVALID_RESPONSE');
+ }
+ if(data?.error==='UNHANDLED_POST')return {ok:false,error:'GAS_DEV_DEPLOYMENT_OUTDATED'};
+ return data;
 }
 async function notificationPreviewOrSend(req,res,operation){
  const actor=await session(req);if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401);res.end();return;}
@@ -351,5 +365,5 @@ http.createServer(async(req,res)=>{
   }
   if(await availability(req,res))return;
   await proxy(req,res);
- }catch(e){const path=String(req.url||'/').split('?')[0];const subsystem=path.includes('notification')?'NOTIFICATIONS':path.includes('rotation')?'ROTATION':path.includes('availability')?'AVAILABILITY':'PORTAL';const code=subsystem+'_INTEGRATION_FAILED';console.error('[AMS_ROUTE_ERROR]',JSON.stringify({subsystem,path,errorCode:String(e?.message||'UNKNOWN').slice(0,160)}));if(!res.headersSent){res.writeHead(503,{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify({success:false,error:code}));}else res.destroy();}
+ }catch(e){const path=String(req.url||'/').split('?')[0];const subsystem=path.includes('notification')?'NOTIFICATIONS':path.includes('rotation')?'ROTATION':path.includes('availability')?'AVAILABILITY':'PORTAL';const code=subsystem+'_INTEGRATION_FAILED';console.error('[AMS_ROUTE_ERROR]',JSON.stringify({subsystem,path,errorCode:String(e?.message||'UNKNOWN').slice(0,160)}));if(!res.headersSent){res.writeHead(503,{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify({success:false,error:code,diagnostic:subsystem==='NOTIFICATIONS'?String(e?.message||'UNKNOWN').slice(0,100):undefined}));}else res.destroy();}
 }).listen(port,'0.0.0.0');

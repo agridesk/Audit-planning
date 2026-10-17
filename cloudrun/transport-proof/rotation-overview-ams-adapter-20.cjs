@@ -21,6 +21,7 @@ function buildAmsRotationOverview20({scopeRows,completedRows,resolveAuditorUid,a
   const assignments=upcomingByCompany[company.uid];
   if(!Array.isArray(assignments))throw Error('ROTATION_AMS_OVERVIEW_UPCOMING_INVALID');
   if(assignments.some(a=>!a||!Array.isArray(a.scopeKeys)||a.scopeKeys.some(k=>!keys.includes(k))))throw Error('ROTATION_AMS_OVERVIEW_UPCOMING_SCOPE_NOT_APPLICABLE');
+  if(assignments.some(a=>!a.auditId||!a.auditorUid||!a.phase))throw Error('ROTATION_AMS_OVERVIEW_UPCOMING_INCOMPLETE');
  }
  return buildRotationOverview20({auditors,companies,completedAudits,scopePoliciesByCompany,upcomingByCompany,approvedExceptions});
 }

@@ -11,7 +11,8 @@ function buildRotationOverview20(input){
   const rows=[];
   for(const company of companies){
    if(!company.uid||!company.name)throw Error('ROTATION_OVERVIEW_COMPANY_UID_REQUIRED');
-   const policies=scopePoliciesByCompany[company.uid]||[];
+   const policies=scopePoliciesByCompany[company.uid];
+   if(!Array.isArray(policies))throw Error('ROTATION_OVERVIEW_POLICIES_MISSING');
    for(const policy of policies){
     const next=(upcomingByCompany[company.uid]||[]).filter(a=>Array.isArray(a.scopeKeys)&&a.scopeKeys.includes(policy.scopeKey)&&a.auditorUid===auditor.uid);
     const assignmentAuditId=next.length===1?next[0].auditId:undefined;

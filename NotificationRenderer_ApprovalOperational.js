@@ -75,6 +75,15 @@ function NB_renderApprovalOperationalHtml_(n) {
   html.push(NB_renderApprovalValidationHtml_(n));
 
   if (n.comment) html.push(NB_sectionHtml_('Comment', '<div style="white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px">' + NB_html_(n.comment) + '</div>'));
+  // Navigation only: the link never approves or denies on GET.
+  // Manager authentication, audit ownership and current-state checks stay server-side.
+  var managerPortalUrl = '';
+  try {
+    managerPortalUrl = NB_clean_(NB_getRuleValue_('MANAGER_PORTAL_URL', '') || NB_getRuleValue_('PORTAL_URL', ''));
+  } catch (e) {}
+  if (/^https:\/\/[^\s<>"']+$/.test(managerPortalUrl)) {
+    html.push('<div style="margin-top:16px"><a href="' + NB_htmlAttr_(managerPortalUrl) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:9px 14px;border-radius:7px;background:#2563eb;color:#ffffff;font-size:12px;font-weight:700;text-decoration:none">Review in Manager portal</a></div>');
+  }
   html.push('<div style="margin-top:16px;font-size:11px;color:#64748b">Review and approve or deny this planning in the Manager interface.</div>');
   html.push('</div>');
   html.push(NB_htmlShellEnd_());

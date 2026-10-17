@@ -10,7 +10,7 @@ async function enforceRotationAtWrite20({loadCanonical,phase,companyUid,auditorU
  if(!canonical||canonical.companyUid!==companyUid||canonical.auditorUid!==auditorUid)throw Error('ROTATION_WRITE_GATE_SOURCE_MISMATCH');
  const contexts=canonicalRotationContexts({...canonical,assignmentAuditId:auditId});
  const decision=preassignmentRotationDecision(contexts,phase);
- if(decision.decision==='BLOCK')throw Error('ROTATION_WRITE_BLOCKED:'+decision.results.map(r=>r.reason).filter(Boolean).join(','));
+ if(decision.decision!=='ALLOW')throw Error('ROTATION_WRITE_BLOCKED:'+decision.results.map(r=>r.reason).filter(Boolean).join(','));
  return {decision:decision.decision,requiresManagerReview:decision.requiresManagerReview===true,results:decision.results};
 }
 module.exports={enforceRotationAtWrite20};

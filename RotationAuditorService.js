@@ -328,6 +328,7 @@ function RotationAuditorService_readMaxByScope_(ss, aliases) {
   for (var r = 1; r < values.length; r++) {
     var raw = nameCol >= 0 ? values[r][nameCol] : (codeCol >= 0 ? values[r][codeCol] : (slotCol >= 0 ? values[r][slotCol] : ''));
     var canonical = RotationAuditorService_canonicalScope_({ aliases: aliases }, raw);
+    if (!RotationAuditorService_clean_(raw)) continue;
     var activeRaw = activeCol >= 0 ? RotationAuditorService_clean_(values[r][activeCol]).toLowerCase() : 'true';
     var archivedRaw = archivedCol >= 0 ? RotationAuditorService_clean_(values[r][archivedCol]).toLowerCase() : 'false';
     if (['true','false','yes','no'].indexOf(activeRaw) < 0 || ['true','false','yes','no'].indexOf(archivedRaw) < 0) throw new Error('ROTATION_SCOPE_LIFECYCLE_INVALID');

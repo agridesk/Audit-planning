@@ -37,7 +37,7 @@ async function refresh(){
   records=result.rows||[];
   const personal=result.role==='auditor';
   auditorFilter.closest('label').hidden=personal;
-  if(personal){auditorFilter.value='';document.getElementById('rotationTitle').textContent='My Rotation Overview';const back=document.getElementById('rotationBack');back.textContent='← Close My Rotation';back.removeAttribute('href');back.setAttribute('role','button');back.setAttribute('tabindex','0');back.addEventListener('click',()=>window.close());back.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();window.close();}});}
+  if(personal){auditorFilter.value='';document.getElementById('rotationTitle').textContent='My Rotation Overview';const back=document.getElementById('rotationBack');back.textContent='← Close My Rotation';back.removeAttribute('href');back.setAttribute('role','button');back.setAttribute('tabindex','0');back.onclick=()=>{window.close();if(!window.closed){back.textContent='← Return to Auditor Grid';back.href='/';}};back.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();back.click();}};}
   populate(scopeFilter,records.map(r=>r.slot));
   for(const option of scopeFilter.options){const item=records.find(r=>r.slot===option.value);if(item)option.textContent=item.scope;}
   populate(companyFilter,records.map(r=>r.companyUid));

@@ -261,7 +261,16 @@ async function notificationPreviewOrSend(req,res,operation){
  let body;try{body=JSON.parse(raw);}catch{res.writeHead(400);res.end();return;}
  const eventKey=String(body.eventKey||'').trim().toUpperCase();
  if(!/^[A-Z][A-Z0-9_]{1,100}$/.test(eventKey)){res.writeHead(400);res.end();return;}
- const data=await notificationGasCall(actor,operation,{eventKey});
+ let data;
+ try{data=await notificationGasCall(actor,operation,{eventKey});}
+ catch(err){
+  if(operation==='sendTest'&&/^NOTIFICATION_GAS_(HTTP_404_REDIRECT_GET|INVALID_RESPONSE_|TRANSPORT_)/.test(String(err.message||''))){
+   res.writeHead(202,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify({ok:true,deliveryStatus:'UNCONFIRMED',message:'The test request reached GAS but its response could not be verified. Email may have been sent. Check the DEV inbox before trying again.'}));
+   return;
+  }
+  throw err;
+ }
  res.writeHead(data.ok?200:409,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(data));
 }
 async function notificationDevModeMutation(req,res){

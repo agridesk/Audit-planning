@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {loadAmsRotationBundle20}=require('./rotation-ams-canonical-bundle-20.cjs');
+const scopeRows=[['SlotKey','ScopeCode','Rotation_Normal_Maximum','Rotation_Applies','Rotation_Plus_One_Permitted'],['SCOPE_01','A','3','true','false'],['SCOPE_20','B','','false','false']];
+const completedRows=[['Company_UID','Status','Date completed','Audit ID','Auditor_UID','SCOPE_01','SCOPE_20']];
+const bundle=loadAmsRotationBundle20({scopeRows,completedRows});
+assert.equal(bundle.scopePolicies.length,2);
+assert.equal(bundle.completedAudits.length,0);
+assert.throws(()=>loadAmsRotationBundle20({scopeRows,completedRows:[completedRows[0].slice(0,-1)]}),/ROTATION_AMS_SCOPE_HEADERS_REQUIRED/);
+assert.throws(()=>loadAmsRotationBundle20({scopeRows:[scopeRows[0],scopeRows[1],['SCOPE_20','A','','false','false']],completedRows}),/ROTATION_/);
+console.log('rotation canonical scope coverage: PASS');

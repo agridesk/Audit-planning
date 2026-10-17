@@ -16,7 +16,17 @@ function diagnoseRotationConfig20(values){
  if(slots&&policies){
   const expected=new Set(Object.keys(slots));
   const actual=new Set(policies.map(x=>x.slotKey));
-  for(const slot of expected)if(!actual.has(slot))findings.push('MISSING_POLICY:'+slot);
+  const h=values[0].map(x=>String(x??'').trim().toLowerCase().replace(/[\s_-]/g,''));
+  const slotIx=h.indexOf('slotkey'),activeIx=h.indexOf('active'),archivedIx=h.indexOf('archived');
+  const required=new Set();
+  for(const row of values.slice(1)){
+   const slot=String(row[slotIx]??'').trim();
+   if(!expected.has(slot))continue;
+   const active=activeIx<0||['true','yes'].includes(String(row[activeIx]??'').trim().toLowerCase());
+   const archived=archivedIx>=0&&['true','yes'].includes(String(row[archivedIx]??'').trim().toLowerCase());
+   if(active&&!archived)required.add(slot);
+  }
+  for(const slot of required)if(!actual.has(slot))findings.push('MISSING_POLICY:'+slot);
   for(const slot of actual)if(!expected.has(slot))findings.push('ORPHAN_POLICY:'+slot);
   for(const p of policies)if(slots[p.slotKey]!==p.scopeKey)findings.push('POLICY_SCOPE_MISMATCH:'+p.slotKey);
   if(policies.filter(p=>p.rotationApplies).length===0)findings.push('NO_ROTATION_APPLICABLE_SCOPES');

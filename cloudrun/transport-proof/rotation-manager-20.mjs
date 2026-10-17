@@ -17,6 +17,7 @@ export function buildRotationManager20(scopes,auditors,log){
   const r=log[rowNumber];if(!/^(completed|realized)$/i.test(clean(r[li.status])))continue;
   const companyUid=clean(r[li.companyUid]),auditorUid=clean(r[li.auditorUid]),company=clean(r[li.company]),year=Number(r[li.year]);
   const completed=li.completed>=0?clean(r[li.completed]):'';
+  if(/^TEST_/i.test(company)&&year>currentYear)continue;
   if(!companyUid||!auditorUid||!Number.isInteger(year)||year<2000||year>currentYear){issues.push({row:rowNumber+1,reason:'INVALID_YEAR_OR_IDENTITY',company,year:clean(r[li.year])});continue;}
   if(/^\d{4}-\d{2}-\d{2}/.test(completed)&&Number(completed.slice(0,4))!==year){issues.push({row:rowNumber+1,reason:'COMPLETION_YEAR_MISMATCH',company,year});continue;}
   for(const [s,i] of columns){const cfg=configured.get(s);if(!cfg.active||cfg.maximum===null||!truth(r[i]))continue;

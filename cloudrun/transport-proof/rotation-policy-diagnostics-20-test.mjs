@@ -6,6 +6,8 @@ const h=['SlotKey','ScopeCode','Rotation_Applies','Rotation_Normal_Maximum','Rot
 const rows=[h,['SCOPE_01','ABC','true','3','false'],['SCOPE_20','XYZ','false','','false']];
 assert.equal(diagnoseRotationConfig20(rows).ready,true);
 assert.equal(diagnoseRotationConfig20(rows).scopeCount,2);
+assert.equal(diagnoseRotationConfig20(rows).rotationApplicableCount,1);
+assert.equal(diagnoseRotationConfig20(rows).plusOnePermittedCount,0);
 assert.equal(diagnoseRotationConfig20([h,h.slice(0,5).map((x,i)=>i===0?'SCOPE_01':i===1?'ABC':i===2?'true':i===3?'':'false')]).ready,false);
 assert.equal(diagnoseRotationConfig20([h.concat('ScopeCode'),rows[1].concat('ABC')]).ready,false);
 assert.equal(diagnoseRotationConfig20([h,['SCOPE_01','ABC','true','','false']]).ready,false);

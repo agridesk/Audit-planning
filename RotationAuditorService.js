@@ -404,6 +404,7 @@ function RotationAuditorService_readLogEvents_(ss, aliases, auditors) {
     var rawAuditorUid = auditorUidCol >= 0 ? RotationAuditorService_clean_(row[auditorUidCol]) : '';
     var rawAuditor = auditorCol >= 0 ? RotationAuditorService_clean_(row[auditorCol]) : '';
     var auditor = RotationAuditorService_resolveAuditor_({ auditors: auditors }, rawAuditorUid || rawAuditor);
+    if (rawAuditorUid && auditors.byUid[rawAuditorUid] && rawAuditor && rawAuditor.indexOf('@') >= 0 && RotationAuditorService_normEmail_(rawAuditor) !== auditors.byUid[rawAuditorUid].email) throw new Error('ROTATION_LOG_AUDITOR_IDENTITY_CONFLICT');
     var year = yearCol >= 0 ? RotationAuditorService_intOrNull_(row[yearCol]) : null;
     if (!year && dateCol >= 0) year = RotationAuditorService_yearFromDate_(row[dateCol]);
     if (!company || !auditor || !year) continue;

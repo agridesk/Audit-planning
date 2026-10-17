@@ -35,6 +35,9 @@ async function refresh(){
   const result=await response.json();
   if(result.success!==true)throw Error(result.error||'Rotation read failed');
   records=result.rows||[];
+  const personal=result.role==='auditor';
+  auditorFilter.closest('label').hidden=personal;
+  if(personal){auditorFilter.value='';document.getElementById('rotationTitle').textContent='My Rotation Overview';document.getElementById('rotationBack').textContent='← Back to Auditor Grid';}
   populate(scopeFilter,records.map(r=>r.slot));
   for(const option of scopeFilter.options){const item=records.find(r=>r.slot===option.value);if(item)option.textContent=item.scope;}
   populate(companyFilter,records.map(r=>r.companyUid));

@@ -244,9 +244,32 @@ function ns_applyNotificationSafetyOverride_(delivery, originalRecipients) {
 }
 
 function ns_getNotificationTestPolicy_() {
+  // DEV has one authoritative source: the active DEV column in System_Config.
+  // No Notification_Settings TEST_MODE / TEST_RECIPIENT fallback in DEV.
+  var env = typeof ns_resolveActiveEnv_ === 'function' ? ns_resolveActiveEnv_() : '';
+  if (env === 'DEV') {
+    var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('System_Config');
+    if (!sh) return { mode:'OFF', testEmail:'' };
+    var rows = sh.getDataRange().getValues();
+    var headers = rows.length ? rows[0] : [];
+    var devCol = -1;
+    for (var c=0;c<headers.length;c++) {
+      if (String(headers[c]||'').trim().toUpperCase()==='DEV') { devCol=c; break; }
+    }
+    if (devCol<0) return { mode:'OFF', testEmail:'' };
+    var settings={};
+    for (var i=1;i<rows.length;i++) {
+      var key=String(rows[i][0]||'').trim().toUpperCase();
+      if(key)settings[key]=String(rows[i][devCol]==null?'':rows[i][devCol]).trim();
+    }
+    var mode=String(settings.DEV_NOTIFICATION_MODE||'OFF').toUpperCase();
+    if (mode!=='TEST_TO_SELF'&&mode!=='DRY_RUN')mode='OFF';
+    if (!ns_yesLike_(settings.SEND_NOTIFICATIONS))mode='OFF';
+    return { mode:mode, testEmail:String(settings.DEV_TEST_EMAIL||'').trim() };
+  }
+  // Preserve existing non-DEV behavior; this change must not alter PROD.
   var mode = '';
   var testEmail = '';
-
   try {
     if (typeof NotificationConfig_GetSenderSettings === 'function') {
       var s = NotificationConfig_GetSenderSettings() || {};
@@ -254,7 +277,6 @@ function ns_getNotificationTestPolicy_() {
       if (!testEmail) testEmail = String(s.TEST_RECIPIENT || '').trim();
     }
   } catch (eSettings) {}
-
   try {
     if (typeof NotificationConfig_GetSetting === 'function') {
       var explicitMode = String(NotificationConfig_GetSetting('DEV_NOTIFICATION_MODE', '') || NotificationConfig_GetSetting('NOTIFICATION_TEST_MODE', '') || '').trim().toUpperCase();
@@ -264,15 +286,10 @@ function ns_getNotificationTestPolicy_() {
       if (!testEmail) testEmail = String(NotificationConfig_GetSetting('DEV_TEST_EMAIL', '') || NotificationConfig_GetSetting('TEST_RECIPIENT', '') || '').trim();
     }
   } catch (eCfg) {}
-
   var sheetPolicy = ns_getNotificationTestPolicyFromSystemConfigSheet_();
   if (sheetPolicy.mode) mode = sheetPolicy.mode;
   if (!testEmail && sheetPolicy.testEmail) testEmail = sheetPolicy.testEmail;
-
-  return {
-    mode: mode,
-    testEmail: testEmail
-  };
+  return { mode:mode, testEmail:testEmail };
 }
 
 function ns_getNotificationTestPolicyFromSystemConfigSheet_() {

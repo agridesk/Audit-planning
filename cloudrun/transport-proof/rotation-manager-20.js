@@ -12,7 +12,7 @@ function render(){
  for(const item of records.filter(r=>(!companyFilter.value||r.companyUid===companyFilter.value)&&(!auditorFilter.value||r.auditorUid===auditorFilter.value)&&(!statusFilter.value||r.status===statusFilter.value)&&[r.company,r.scope,r.auditor,r.auditorUid].join(' ').toLowerCase().includes(q))){
   const tr=document.createElement('tr');
   for(const key of ['company','scope','auditor','years','consecutiveYears','maximum','status']){
-   const td=document.createElement('td');td.textContent=String(item[key]??'');tr.append(td);
+   const td=document.createElement('td');td.textContent=key==='status'?({AT_LIMIT:'Limit reached',NEAR_LIMIT:'Last available',AVAILABLE:'OK'}[item.status]||item.status):key==='consecutiveYears'?item.consecutiveYears+'/'+item.maximum:String(item[key]??'');if(key==='status')td.className='status-'+item.status;tr.append(td);
   }
   table.append(tr);
  }

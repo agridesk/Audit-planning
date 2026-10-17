@@ -1,16 +1,5 @@
 name: Notifications 2.0 security tests
 on:
-  push:
-    branches: [dev]
-    paths:
-      - 'cloudrun/transport-proof/notification-*-20.mjs'
-      - 'cloudrun/transport-proof/notification-*-20-test.mjs'
-      - '.github/workflows/notifications-20-tests.yml'
-      - 'cloudrun/transport-proof/notifications-auth-rotation-compat-20-test.mjs'
-      - 'cloudrun/transport-proof/server-r15.js'
-      - 'cloudrun/transport-proof/manager-portal.js'
-      - 'cloudrun/transport-proof/manager-portal.html'
-      - 'cloudrun/transport-proof/package.json'
   workflow_dispatch:
 jobs:
   security:

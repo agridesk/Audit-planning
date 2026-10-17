@@ -22,7 +22,7 @@ export function buildRotationManager20(scopes,auditors,log){
   if(/^\d{4}-\d{2}-\d{2}/.test(completed)&&Number(completed.slice(0,4))!==year){issues.push({row:rowNumber+1,reason:'COMPLETION_YEAR_MISMATCH',company,year});continue;}
   for(const [s,i] of columns){const cfg=configured.get(s);if(!cfg.active||cfg.maximum===null||!truth(r[i]))continue;
    const key=companyUid+'|'+s;if(!groups.has(key))groups.set(key,{companyUid,company,scope:cfg.scope,slot:s,maximum:cfg.maximum,years:new Map(),events:[]});
-   const g=groups.get(key);if(!g.years.has(year))g.years.set(year,new Set());g.years.get(year).add(auditorUid);
+   const g=groups.get(key);g.events.push({year,date:completed||String(year),auditorUid,row:rowNumber+1});if(!g.years.has(year))g.years.set(year,new Set());g.years.get(year).add(auditorUid);
   }
  }
  const rows=[];

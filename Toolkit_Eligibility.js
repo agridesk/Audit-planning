@@ -995,6 +995,18 @@ function TK3S_isAuditorQualified_R24_(ss, auditorRow, auditorHdr, requiredScopes
       if (canon) qMap[canon] = i;
     } catch(eCanon) {}
   }
+  try {
+    var slotCatalog = ConfigScopes_GetCatalog(false);
+    var slotRows = slotCatalog && Array.isArray(slotCatalog.rows) ? slotCatalog.rows : [];
+    slotRows.forEach(function(item) {
+      var key = String(item.slotKey || '').trim();
+      var name = String(item.displayName || '').trim();
+      var code = String(item.scopeCode || '').trim();
+      if (!key || !Object.prototype.hasOwnProperty.call(qMap, key)) return;
+      if (name) qMap[name] = qMap[key];
+      if (code) qMap[code] = qMap[key];
+    });
+  } catch (eSlotQualification) {}
   for (var r = 0; r < requiredScopes.length; r++) {
     var sc = String(requiredScopes[r] || '').trim();
     if (!sc) continue;

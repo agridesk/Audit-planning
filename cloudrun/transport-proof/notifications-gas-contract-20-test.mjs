@@ -4,6 +4,8 @@ const root=new URL('../../',import.meta.url);
 const read=name=>readFileSync(new URL(name,root),'utf8');
 const writer=read('NotificationManagement20.js');
 const testMail=read('NotificationTestMail20.js');
+for(const field of ['mpsNumber:', 'auditorName:', 'auditorEmail:', 'contactName:', 'contactEmail:', 'scopes:', 'plannedHours:', 'blocks:']) assert.ok(testMail.includes(field), 'Synthetic fixture missing '+field);
+assert.ok(testMail.includes('NB_buildNotification_(key,fixture)'), 'Preview must use canonical renderer');
 const config=read('SystemConfig.js');
 const entry=read('EntryV5.js');
 assert.match(entry,/rawAction==='externalnotification20'/);

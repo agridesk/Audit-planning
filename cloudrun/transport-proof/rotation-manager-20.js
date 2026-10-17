@@ -15,6 +15,7 @@ function render(){
   for(const key of ['company','scope','auditor','years','consecutiveYears','maximum','status']){
    const td=document.createElement('td');td.textContent=key==='status'?({AT_LIMIT:'Limit reached',NEAR_LIMIT:'Last available',AVAILABLE:'OK'}[item.status]||item.status):key==='consecutiveYears'?item.consecutiveYears+'/'+item.maximum:String(item[key]??'');if(key==='status')td.className='status-'+item.status;tr.append(td);
   }
+  tr.style.cursor='pointer';tr.title='View completed audit history';tr.addEventListener('click',()=>showDetail(item));
   table.append(tr);
  }
 }

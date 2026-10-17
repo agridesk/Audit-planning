@@ -3,7 +3,6 @@
  */
 import http from 'node:http';
 import {notificationOverview} from './notification-overview-20.mjs';
-import {buildRotationManager20} from './rotation-manager-20.mjs';
 
 import {URL} from 'node:url';
 import {createAvailabilityHttpRouter} from './availability-http-api-20.js';
@@ -198,20 +197,6 @@ async function proxy(req,res){
 http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url||'/','http://localhost');
-  if(req.method==='GET'&&u.pathname==='/rotation-manager-20'){
-   const actor=await session(req);if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401);res.end('Unauthorized');return;}
-   const {readFile}=await import('node:fs/promises');const html=await readFile(new URL('./rotation-manager-20.html',import.meta.url));
-   res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});res.end(html);return;
-  }
-  if(req.method==='GET'&&u.pathname==='/api/v1/rotation-manager-20'){
-   const actor=await session(req);if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401);res.end('Unauthorized');return;}
-   const data=[];for(const range of ["'Config_Scopes'!A1:AZ100","'Auditors'!A1:AZ500","'Log realized audits'!A1:AZ10000"]){
-    const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range);
-    const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()}});if(!response.ok)throw Error('ROTATION_READ_'+response.status);
-    data.push((await response.json()).values||[]);
-   }
-   const result=buildRotationManager20(...data);res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(result));return;
-  }
   if(['GET','POST'].includes(req.method)&&u.pathname==='/api/v1/availability/migrate-legacy-hard'){await legacyHardMigration(req,res);return;}
   if(req.method==='GET'&&u.pathname==='/api/v1/availability/legacy-diagnostic'){await legacyAvailabilityDiagnostic(req,res);return;}
   if(req.method==='GET'&&(u.pathname==='/my-availability'||u.pathname==='/my-availability-20')){

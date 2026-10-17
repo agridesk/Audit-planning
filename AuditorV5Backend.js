@@ -1090,8 +1090,8 @@ function auditorV5_buildArchivedGrid_(activeEmail) {
 
   function scopesFromLogRow_(row) {
     var scopes = [];
-    for (var i = 1; i <= 8; i++) {
-      var slot = "SCOPE_0" + i;
+    for (var i = 1; i <= 20; i++) {
+      var slot = "SCOPE_" + (i < 10 ? "0" : "") + i;
       var idx = H([slot]);
       if (idx >= 0 && truthy_(row[idx])) scopes.push(slot);
     }

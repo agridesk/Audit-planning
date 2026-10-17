@@ -9,11 +9,11 @@ function scopeSlotsFromConfig20(values){
  const mapping={};
  for(const row of values.slice(1)){
   const key=String(row[slot]||'').trim(),scope=String(row[code]||'').trim();
-  if(!/^SCOPE_0[1-8]$/.test(key))continue;
+  if(!/^SCOPE_(?:0[1-9]|1[0-9]|20)$/.test(key))continue;
   if(!scope||Object.prototype.hasOwnProperty.call(mapping,key))throw Error('ROTATION_CONFIG_SCOPE_MAPPING_INVALID');
   mapping[key]=scope;
  }
- if(Object.keys(mapping).length!==8||new Set(Object.values(mapping)).size!==8)throw Error('ROTATION_CONFIG_EIGHT_SCOPE_MAPPING_INCOMPLETE');
+ if(!Object.keys(mapping).length||new Set(Object.values(mapping)).size!==Object.keys(mapping).length)throw Error('ROTATION_CONFIG_SCOPE_MAPPING_INCOMPLETE');
  return mapping;
 }
 module.exports={scopeSlotsFromConfig20};

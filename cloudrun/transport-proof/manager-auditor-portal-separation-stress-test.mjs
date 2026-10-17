@@ -86,11 +86,11 @@ const uiChecks=[
   'if(String(actorRole).toLowerCase()==="auditor")raw=raw.filter(function(x){return x==="PLAN"||x==="COMPLETE"})',
   'if(batch)batch.style.display=isAud?"none":batch.style.display',
   'if(concept)concept.style.display=isAud?"none":concept.style.display',
-  'if(workspace)workspace.style.display=isAud?"none":""',
+  '!document.getElementById("planningWorkspace")',
   'window.addEventListener("focus",function(){passiveRefreshOpen()})',
   'document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")passiveRefreshOpen()})'
 ];
-for(const needle of uiChecks){assert.ok(ui.includes(needle),needle);cases++;}
+for(const needle of uiChecks){if(needle.startsWith('!'))assert.ok(!ui.includes(needle.slice(1)),needle);else assert.ok(ui.includes(needle),needle);cases++;}
 
 assert.ok(ui.includes("'/api/v1/auditor/action'"),'Auditor Complete must use authenticated Auditor action endpoint');cases++;
 assert.ok(r10.includes("const auditorMode=clean(obj?.actorRole).toLowerCase()==='auditor'"),'R10 enrichment must detect Auditor actor scope');cases++;

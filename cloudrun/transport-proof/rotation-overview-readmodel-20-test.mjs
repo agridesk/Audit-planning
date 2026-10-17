@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {buildRotationOverview20}=require('./rotation-overview-readmodel-20.cjs');
+const base={auditors:[{uid:'U1',name:'Auditor'}],companies:[{uid:'C1',name:'Company'}],scopePoliciesByCompany:{C1:[{scopeKey:'ABC',rotationApplies:true,normalMaximum:2,extensionPermitted:true}]},upcomingByCompany:{C1:[{auditId:'NEXT',auditorUid:'U1',scopeKeys:['ABC'],phase:'PREASSIGN',date:'2026-12-01'}]},completedAudits:[{companyUid:'C1',scopeKey:'ABC',auditorUid:'U1',auditId:'A1',status:'Completed',completedAt:'2024-01-01'},{companyUid:'C1',scopeKey:'ABC',auditorUid:'U1',auditId:'A2',status:'Completed',completedAt:'2025-01-01'}],approvedExceptions:[]};
+const initial=buildRotationOverview20(base).sections[0].rows[0];
+assert.equal(initial.performed,2);
+assert.equal(initial.lastCompletedAuditId,'A2');
+assert.equal(initial.status,'PLUS_ONE_POSSIBLE');
+assert.equal(initial.decision,'BLOCK');
+const approved={companyUid:'C1',scopeKey:'ABC',auditorUid:'U1',auditId:'NEXT',status:'APPROVED',justification:'Specific manager approval',approvedByManagerUid:'M1'};
+const accepted=buildRotationOverview20({...base,approvedExceptions:[approved]}).sections[0].rows[0];
+assert.equal(accepted.status,'PLUS_ONE_APPROVED');
+assert.equal(accepted.decision,'ALLOW');
+assert.equal(accepted.upcoming[0].auditId,'NEXT');
+console.log('rotation manager overview readmodel: PASS');

@@ -224,7 +224,10 @@ http.createServer(async(req,res)=>{
     if(!response.ok)throw Error('ROTATION_SOURCE_READ_'+response.status);
     data.push((await response.json()).values||[]);
    }
-   const result=buildRotationManager20(...data);
+   const includeTestData=project==='audit-management-system-dev'&&u.searchParams.get('includeTestData')==='1';
+   const result=buildRotationManager20(...data,{includeTestData});
+   result.testDataAvailable=project==='audit-management-system-dev';
+   result.includeTestData=includeTestData;
    if(actor.role==='auditor'){
     result.rows=result.rows.filter(row=>row.auditorUid===actor.auditorId);
     result.issues=[];

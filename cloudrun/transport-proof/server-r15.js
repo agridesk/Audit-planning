@@ -274,5 +274,5 @@ http.createServer(async(req,res)=>{
   }
   if(await availability(req,res))return;
   await proxy(req,res);
- }catch(e){if(!res.headersSent){res.writeHead(503,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:false,error:'AVAILABILITY_INTEGRATION_FAILED'}));}else res.destroy();}
+ }catch(e){const path=String(req.url||'/').split('?')[0];const subsystem=path.includes('notification')?'NOTIFICATIONS':path.includes('rotation')?'ROTATION':path.includes('availability')?'AVAILABILITY':'PORTAL';const code=subsystem+'_INTEGRATION_FAILED';console.error('[AMS_ROUTE_ERROR]',JSON.stringify({subsystem,path,errorCode:String(e?.message||'UNKNOWN').slice(0,160)}));if(!res.headersSent){res.writeHead(503,{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify({success:false,error:code}));}else res.destroy();}
 }).listen(port,'0.0.0.0');

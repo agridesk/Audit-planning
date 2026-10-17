@@ -27,16 +27,17 @@ export function buildRotationManager20(scopes,auditors,log){
  }
  const rows=[];
  for(const g of groups.values()){
-  const years=[...g.years.keys()].sort((a,b)=>b-a);
   g.events.sort((a,b)=>b.date.localeCompare(a.date)||b.row-a.row);
-  const latestYear=years[0],latestOwners=new Set([g.events[0].auditorUid]);
-  for(const uid of latestOwners){
-   let count=0;
-   const countedYears=new Set();
+  const uniqueAuditors=[...new Set(g.events.map(e=>e.auditorUid))];
+  for(const uid of uniqueAuditors){
+   const auditorEvents=g.events.filter(e=>e.auditorUid===uid);
+   const auditorYears=[...new Set(auditorEvents.map(e=>e.year))].sort((a,b)=>b-a);
+   let count=0;const countedYears=new Set();
    for(const event of g.events){if(event.auditorUid!==uid)break;if(!countedYears.has(event.year)){count++;countedYears.add(event.year);}}
    const person=people.get(uid)||{name:uid,email:''};
-   const status=count>=g.maximum?'AT_LIMIT':count===g.maximum-1?'NEAR_LIMIT':'AVAILABLE';
-   rows.push({company:g.company,companyUid:g.companyUid,scope:g.scope,slot:g.slot,auditor:person.name,auditorUid:uid,years:years.join(', '),consecutiveYears:count,maximum:g.maximum,status,latestYear,lastCompleted:g.events[0].date,history:g.events.map(e=>({date:e.date,year:e.year,auditor:(people.get(e.auditorUid)||{}).name||e.auditorUid,auditorUid:e.auditorUid}))});
+   const current=g.events[0].auditorUid===uid;
+   const status=current?(count>=g.maximum?'AT_LIMIT':count===g.maximum-1?'NEAR_LIMIT':'AVAILABLE'):'HISTORICAL';
+   rows.push({company:g.company,companyUid:g.companyUid,scope:g.scope,slot:g.slot,auditor:person.name,auditorUid:uid,years:auditorYears.join(', '),consecutiveYears:count,maximum:g.maximum,status,latestYear:auditorYears[0],lastCompleted:auditorEvents[0].date,current,history:auditorEvents.map(e=>({date:e.date,year:e.year,auditor:person.name,auditorUid:uid}))});
   }
  }
  rows.sort((a,b)=>({REVIEW_REQUIRED:0,AT_LIMIT:1,NEAR_LIMIT:2,AVAILABLE:3}[a.status]-{REVIEW_REQUIRED:0,AT_LIMIT:1,NEAR_LIMIT:2,AVAILABLE:3}[b.status])||a.company.localeCompare(b.company));

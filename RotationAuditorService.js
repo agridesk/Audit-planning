@@ -383,10 +383,11 @@ function RotationAuditorService_readLogEvents_(ss, aliases, auditors) {
   var companyUidCol = RotationAuditorService_pick_(hm, ['Company_UID','Company UID','CompanyUID','COMPANY_UID']);
   var companyCol = RotationAuditorService_pick_(hm, ['Company','Customer','Bedrijf','COMPANY']);
   var auditorCol = RotationAuditorService_pick_(hm, ['Auditor','AUDITOR','Auditor email','AuditorEmail','Auditor_Email','E-mail','Email']);
+  var auditorUidCol = RotationAuditorService_pick_(hm, ['Auditor_UID','Auditor UID']);
   var yearCol = RotationAuditorService_pick_(hm, ['Year','YEAR']);
   var dateCol = RotationAuditorService_pick_(hm, ['Date','Audit date','Audit_Date','Completed date','Completion date','Execution date','Executed on']);
   var statusCol = RotationAuditorService_pick_(hm, ['Status','STATUS']);
-  if (companyCol < 0 || auditorCol < 0) return groups;
+  if (companyCol < 0 || (auditorCol < 0 && auditorUidCol < 0)) return groups;
   var scopeCols = RotationAuditorService_detectScopeColumns_(headers, hm, aliases);
   if (!scopeCols.length) return groups;
 
@@ -399,8 +400,9 @@ function RotationAuditorService_readLogEvents_(ss, aliases, auditors) {
     }
     var company = companyCol >= 0 ? RotationAuditorService_clean_(row[companyCol]) : '';
     var companyUid = companyUidCol >= 0 ? RotationAuditorService_clean_(row[companyUidCol]) : '';
+    var rawAuditorUid = auditorUidCol >= 0 ? RotationAuditorService_clean_(row[auditorUidCol]) : '';
     var rawAuditor = auditorCol >= 0 ? RotationAuditorService_clean_(row[auditorCol]) : '';
-    var auditor = RotationAuditorService_resolveAuditor_({ auditors: auditors }, rawAuditor);
+    var auditor = RotationAuditorService_resolveAuditor_({ auditors: auditors }, rawAuditorUid || rawAuditor);
     var year = yearCol >= 0 ? RotationAuditorService_intOrNull_(row[yearCol]) : null;
     if (!year && dateCol >= 0) year = RotationAuditorService_yearFromDate_(row[dateCol]);
     if (!company || !auditor || !year) continue;

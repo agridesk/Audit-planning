@@ -617,6 +617,19 @@ function _mp_getEligibleAuditorsList_(ss, requiredScopes, preassignedName, audit
     if (canon) qMap[canon] = qi;
   }
 
+  try {
+    var slotCatalog = ConfigScopes_GetCatalog(false);
+    var slotRows = slotCatalog && Array.isArray(slotCatalog.rows) ? slotCatalog.rows : [];
+    slotRows.forEach(function(item) {
+      var key = String(item.slotKey || '').trim();
+      var name = String(item.displayName || '').trim();
+      var code = String(item.scopeCode || '').trim();
+      if (!key || !Object.prototype.hasOwnProperty.call(qMap, key)) return;
+      if (name) qMap[name] = qMap[key];
+      if (code) qMap[code] = qMap[key];
+    });
+  } catch (eScopeQualificationMap) {}
+
   function qualified_(rowVals) {
     for (var i = 0; i < required.length; i++) {
       var sc = required[i];

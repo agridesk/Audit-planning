@@ -12,6 +12,7 @@ function canonicalRotationContexts(input){
   if(typeof p.rotationApplies!=='boolean')throw Error('ROTATION_SCOPE_POLICY_INVALID');
   if((p.rotationApplies===true&&(!Number.isSafeInteger(p.normalMaximum)||p.normalMaximum<1))||(p.rotationApplies===false&&p.normalMaximum!==null)||typeof p.extensionPermitted!=='boolean'||(p.rotationApplies===false&&p.extensionPermitted))throw Error('ROTATION_SCOPE_POLICY_INVALID');
   const hist=consecutiveCompleted(completedAudits,companyUid,p.scopeKey,auditorUid);
+  if(approvedExceptions.some(x=>!x||typeof x!=='object'))throw Error('ROTATION_EXCEPTION_RECORD_INVALID');
   const exceptions=approvedExceptions.filter(x=>x.companyUid===companyUid&&x.scopeKey===p.scopeKey&&x.auditorUid===auditorUid&&x.status==='APPROVED');
   if(exceptions.some(x=>!x.auditId||!x.justification||!x.approvedByManagerUid||typeof x.justification!=='string'||!x.justification.trim()||typeof x.approvedByManagerUid!=='string'||!x.approvedByManagerUid.trim()))throw Error('ROTATION_EXCEPTION_AUDIT_TRAIL_INCOMPLETE');
   const seriesExceptions=exceptions.filter(x=>hist.auditIds.includes(x.auditId));

@@ -8,6 +8,8 @@ function loadRotationPolicies20(values){
  const indexes=names.map(x=>h.indexOf(norm(x)));
  if(indexes.some((i,j)=>i<0||h.filter(x=>x===norm(names[j])).length!==1))throw Error('ROTATION_POLICY_HEADERS_MISSING');
  const [slot,code,max,applies,plusOne]=indexes;
+ const activeIndex=h.indexOf('active');
+ const archivedIndex=h.indexOf('archived');
  const parseBoolean=v=>{const s=String(v??'').trim().toLowerCase();if(['true','yes'].includes(s))return true;if(['false','no'].includes(s))return false;throw Error('ROTATION_POLICY_BOOLEAN_UNRESOLVED')};
  const policies=[],seen=new Set(),codes=new Set();
  for(const row of values.slice(1)){
@@ -16,6 +18,9 @@ function loadRotationPolicies20(values){
   const scopeKey=String(row[code]||'').trim();
   if(!scopeKey||seen.has(key)||codes.has(scopeKey))throw Error('ROTATION_POLICY_SCOPE_INVALID');
   seen.add(key);codes.add(scopeKey);
+  const active=activeIndex<0?true:['true','yes'].includes(String(row[activeIndex]??'').trim().toLowerCase());
+  const archived=archivedIndex<0?false:['true','yes'].includes(String(row[archivedIndex]??'').trim().toLowerCase());
+  if((!active||archived)&&String(row[applies]??'').trim()===''&&String(row[max]??'').trim()===''&&String(row[plusOne]??'').trim()==='')continue;
   const rotationApplies=parseBoolean(row[applies]);
   const extensionPermitted=parseBoolean(row[plusOne]);
   const raw=String(row[max]??'').trim();

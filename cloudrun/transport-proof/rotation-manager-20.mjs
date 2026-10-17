@@ -36,7 +36,7 @@ export function buildRotationManager20(scopes,auditors,log){
    for(const event of g.events){if(event.auditorUid!==uid)break;if(!countedYears.has(event.year)){count++;countedYears.add(event.year);}}
    const person=people.get(uid)||{name:uid,email:''};
    const status=count>=g.maximum?'AT_LIMIT':count===g.maximum-1?'NEAR_LIMIT':'AVAILABLE';
-   rows.push({company:g.company,companyUid:g.companyUid,scope:g.scope,slot:g.slot,auditor:person.name,auditorUid:uid,years:years.join(', '),consecutiveYears:count,maximum:g.maximum,status,latestYear});
+   rows.push({company:g.company,companyUid:g.companyUid,scope:g.scope,slot:g.slot,auditor:person.name,auditorUid:uid,years:years.join(', '),consecutiveYears:count,maximum:g.maximum,status,latestYear,lastCompleted:g.events[0].date,history:g.events.map(e=>({date:e.date,year:e.year,auditor:(people.get(e.auditorUid)||{}).name||e.auditorUid,auditorUid:e.auditorUid}))});
   }
  }
  rows.sort((a,b)=>({REVIEW_REQUIRED:0,AT_LIMIT:1,NEAR_LIMIT:2,AVAILABLE:3}[a.status]-{REVIEW_REQUIRED:0,AT_LIMIT:1,NEAR_LIMIT:2,AVAILABLE:3}[b.status])||a.company.localeCompare(b.company));

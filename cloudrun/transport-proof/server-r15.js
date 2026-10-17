@@ -171,7 +171,7 @@ async function legacyHardMigration(req,res){
 async function notificationsManagerOverview(req,res){
  const actor=await session(req);
  if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
- const sources=[['Notification_Config',500],['Notification_Rules',500],['Notification_Settings',500],['Notification Queue',5000]];
+ const sources=[['Notification_Config',500],['Notification_Rules',500],['Notification_Settings',500]];
  const data={};
  for(const [tab,limit] of sources){
   const range="'"+tab+"'!A1:AZ"+limit;
@@ -182,7 +182,19 @@ async function notificationsManagerOverview(req,res){
   if(rows.length>=limit)throw Error('NOTIFICATION_OVERVIEW_SOURCE_TRUNCATED');
   data[tab]=rows;
  }
- const result=notificationOverview({config:data.Notification_Config,rules:data.Notification_Rules,settings:data.Notification_Settings,queue:data['Notification Queue']});
+ const rules=data.Notification_Rules||[];
+ const head=(rules[0]||[]).map(x=>String(x||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,''));
+ const keyCol=head.indexOf('RULEKEY'),valueCol=head.indexOf('VALUE');
+ const queueRule=rules.slice(1).find(row=>keyCol>=0&&String(row[keyCol]||'').trim().toUpperCase()==='QUEUE_SHEET_NAME');
+ const queueName=queueRule&&valueCol>=0?String(queueRule[valueCol]||'').trim():'Notification Queue';
+ if(!queueName||queueName.length>100||/[\\x00-\\x1f]/.test(queueName))throw Error('NOTIFICATION_QUEUE_NAME_INVALID');
+ const queueRange="'"+queueName.replace(/'/g,"''")+"'!A1:AZ5000";
+ const queueUrl='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(queueRange);
+ const queueResponse=await fetch(queueUrl,{headers:{authorization:'Bearer '+await getToken()}});
+ if(!queueResponse.ok)throw Error('NOTIFICATION_QUEUE_UNAVAILABLE');
+ const queue=(await queueResponse.json()).values||[];
+ if(queue.length>=5000)throw Error('NOTIFICATION_QUEUE_SOURCE_TRUNCATED');
+ const result=notificationOverview({config:data.Notification_Config,rules:data.Notification_Rules,settings:data.Notification_Settings,queue});
  res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
  res.end(JSON.stringify({success:true,...result}));
 }

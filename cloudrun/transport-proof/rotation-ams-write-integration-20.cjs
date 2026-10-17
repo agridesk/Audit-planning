@@ -13,6 +13,7 @@ async function enforceAmsRotationAtWrite20({loadSheets,phase,companyUid,auditorU
   if(!Array.isArray(source.assignmentScopeKeys)||source.assignmentScopeKeys.length===0||source.assignmentScopeKeys.some(x=>typeof x!=='string'||!x.trim())||new Set(source.assignmentScopeKeys).size!==source.assignmentScopeKeys.length)throw Error('ROTATION_AMS_ASSIGNMENT_SCOPES_UNRESOLVED');
   if(source.assignmentScopeKeys.length!==scopeKeys.length||source.assignmentScopeKeys.some(x=>!scopeKeys.includes(x)))throw Error('ROTATION_AMS_ASSIGNMENT_SCOPE_MISMATCH');
   if(source.resolveAuditorUid!=null&&typeof source.resolveAuditorUid!=='function')throw Error('ROTATION_AMS_AUDITOR_RESOLVER_INVALID');
+  if(source.approvedExceptions.some(x=>!x||typeof x!=='object'))throw Error('ROTATION_AMS_APPROVAL_RECORD_INVALID');
   const {scopePolicies,completedAudits}=loadAmsRotationBundle20(source);
   const byScope=new Map(scopePolicies.map(p=>[p.scopeKey,p]));
   const selected=scopeKeys.map(key=>byScope.get(key));

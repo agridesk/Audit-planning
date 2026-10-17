@@ -233,6 +233,18 @@ async function notificationPreviewOrSend(req,res,operation){
  const data=await notificationGasCall(actor,operation,{eventKey});
  res.writeHead(data.ok?200:409,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(data));
 }
+async function notificationDevModeMutation(req,res){
+ const actor=await session(req);
+ if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401);res.end();return;}
+ const origin=String(req.headers.origin||''),host=String(req.headers.host||'');
+ if(!origin||new URL(origin).host!==host||!origin.startsWith('https://')){res.writeHead(403);res.end('ORIGIN_REJECTED');return;}
+ let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>1024){res.writeHead(413);res.end();return;}}
+ let body;try{body=JSON.parse(raw);}catch{res.writeHead(400);res.end('INVALID_JSON');return;}
+ const mode=String(body.mode||''),expected=String(body.expected||'');
+ if(!['OFF','DRY_RUN','TEST_TO_SELF'].includes(mode)||!['OFF','DRY_RUN','TEST_TO_SELF'].includes(expected)){res.writeHead(400);res.end('INVALID_DEV_MODE');return;}
+ const data=await notificationGasCall(actor,'updateDevMode',{mode,expected});
+ res.writeHead(data.ok?200:409,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(data));
+}
 async function notificationEventMutation(req,res){
  const actor=await session(req);
  if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401);res.end();return;}
@@ -327,6 +339,7 @@ http.createServer(async(req,res)=>{
   }
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/preview'){await notificationPreviewOrSend(req,res,'preview');return;}
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/send-test'){await notificationPreviewOrSend(req,res,'sendTest');return;}
+  if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/dev-mode'){await notificationDevModeMutation(req,res);return;}
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/events'){await notificationEventMutation(req,res);return;}
   if(req.method==='GET'&&u.pathname==='/api/v1/notifications-manager-20/overview'){await notificationsManagerOverview(req,res);return;}
   if(req.method==='GET'&&u.pathname==='/notifications-manager-20'){

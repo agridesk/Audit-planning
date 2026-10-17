@@ -244,8 +244,11 @@ async function notificationGasCall(actor,operation,payload){
  const raw=await result.text();
  let data;
  try{data=JSON.parse(raw);}catch{
-  console.error('[NOTIFICATION_GAS_BRIDGE]',JSON.stringify({operation,phase:'decode',status:result.status,contentType:result.headers.get('content-type')||'',bytes:raw.length}));
-  throw Error('NOTIFICATION_GAS_INVALID_RESPONSE');
+  const type=String(result.headers.get('content-type')||'').toLowerCase();
+  const start=raw.slice(0,300).toLowerCase();
+  const kind=start.includes('accounts.google.com')||start.includes('signin')||start.includes('sign in')?'AUTH_HTML':start.includes('<!doctype html')||start.includes('<html')?'HTML':raw.trim()===''?'EMPTY':'NON_JSON';
+  console.error('[NOTIFICATION_GAS_BRIDGE]',JSON.stringify({operation,phase:'decode',status:result.status,contentType:type.slice(0,90),bytes:raw.length,kind,host:new URL(result.url).hostname}));
+  throw Error('NOTIFICATION_GAS_INVALID_RESPONSE_'+kind);
  }
  if(data?.error==='UNHANDLED_POST')return {ok:false,error:'GAS_DEV_DEPLOYMENT_OUTDATED'};
  return data;

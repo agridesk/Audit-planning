@@ -220,7 +220,7 @@ async function notificationGasCall(actor,operation,payload){
  u.searchParams.set('action','externalnotification20');
  const result=await fetch(u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({bridgeKey:secret,actorRole:'manager',actorEmail:actor.email,operation,...payload}),redirect:'follow',signal:AbortSignal.timeout(25000)});
  if(!result.ok)throw Error('NOTIFICATION_GAS_HTTP_'+result.status);
- const data=await result.json();return data;
+ const data=await result.json();if(data?.error==='UNHANDLED_POST')return {ok:false,error:'GAS_DEV_DEPLOYMENT_OUTDATED'};return data;
 }
 async function notificationPreviewOrSend(req,res,operation){
  const actor=await session(req);if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401);res.end();return;}

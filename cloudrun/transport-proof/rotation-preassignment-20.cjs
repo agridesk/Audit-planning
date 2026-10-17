@@ -8,7 +8,7 @@ function preassignmentRotationDecision(scopes,phase){
   if(!validPhase)return {decision:'BLOCK',reason:'UNKNOWN_PHASE',...result};
   if(result.allowed)return {decision:'ALLOW',...result};
   const hard=result.results.some(r=>['CONFIG_ERROR','CONFLICT','LIMIT_REACHED'].includes(r.status));
-  if(phase==='DRAFT'&&!hard)return {decision:'WARN',...result};
+  if(phase==='DRAFT'&&!hard)return {decision:'WARN',...result,requiresManagerReview:true};
   // An unapproved +1 is never an authorization to preassign.
   if(phase==='PREASSIGN'&&!hard)return {decision:'BLOCK',...result,requiresManagerReview:true};
   return {decision:'BLOCK',...result};

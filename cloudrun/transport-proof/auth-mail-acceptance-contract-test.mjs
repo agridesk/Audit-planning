@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const src=readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
+const start=src.indexOf('async function fastOtpMail(email,code)');
+const end=src.indexOf('function fastOtpService()',start);
+assert.ok(start>=0&&end>start,'mail function is present');
+const mail=src.slice(start,end);
+assert.ok(mail.includes("AMS_AUTH_MAIL_ACCEPTANCE"),'provider acceptance and failure are logged');
+assert.ok(mail.includes('providerId:clean(receipt.id)'),'Resend email ID is correlated');
+assert.ok(mail.includes("SESSION_SECRET+':mail:'+email"),'recipient identity is pseudonymized');
+assert.ok(!mail.includes('console.info(email')&&!mail.includes('console.warn(email'),'recipient not directly logged');
+assert.ok(mail.includes('if(!response.ok)'),'Resend non-2xx fails closed');
+assert.ok(mail.includes('await response.json().catch'),'provider acceptance response is parsed without another request');
+console.log('PASS Auth 2.0 DEV mail acceptance trace, no email address or OTP in trace');

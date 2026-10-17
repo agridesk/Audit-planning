@@ -72,13 +72,13 @@ body.actor-auditor .actions-cell .act{max-width:100%;white-space:normal;padding:
 <div class="grid-toolbar" style="display:flex;gap:8px;margin:10px 0;flex-wrap:wrap;min-width:0;max-width:100%">
 <button id="openView" style="padding:7px 11px;border:1px solid #2563eb;border-radius:999px;background:#dbeafe">Open audits</button>
 <button id="completedView" style="padding:7px 11px;border:1px solid #d1d5db;border-radius:999px;background:white">Completed</button>
-<button id="planningWorkspace" class="workspace-btn">Planning Workspace</button>
-<button id="scopeManagement20" class="workspace-btn" type="button">Scope Management 2.0</button>
+<button id="planningWorkspace" class="workspace-btn">Planning</button>
+<button id="scopeManagement20" class="workspace-btn" type="button">Scopes</button>
 <a id="rotationManager20" class="workspace-btn" href="/rotation" style="text-decoration:none">Rotation Management</a>
-<button id="companyManagement20" class="workspace-btn" type="button" hidden>Company Management 2.0</button>
-<button id="auditorManagement20" class="workspace-btn" type="button" hidden>Auditor Management 2.0</button>
-<a id="notificationsManager20" class="workspace-btn" href="/notifications-manager-20" style="text-decoration:none">Notifications 2.0</a>
-<a id="availabilityManager20" class="workspace-btn" href="/availability-manager-20" style="text-decoration:none">Auditor Availability 2.0</a>
+<button id="companyManagement20" class="workspace-btn" type="button" hidden>Companies</button>
+<button id="auditorManagement20" class="workspace-btn" type="button" hidden>Auditors</button>
+<a id="notificationsManager20" class="workspace-btn" href="/notifications-manager-20" style="text-decoration:none">Notifications</a>
+<a id="availabilityManager20" class="workspace-btn" href="/availability-manager-20" style="text-decoration:none">Availability</a>
 <input id="q" placeholder="Company, location, scope, auditor, planning…" style="padding:7px 11px;border:1px solid #d1d5db;border-radius:999px;min-width:340px">
 <button id="reset" style="padding:7px 11px;border:1px solid #d1d5db;border-radius:999px;background:white">Reset</button>
 </div>
@@ -91,21 +91,21 @@ body.actor-auditor .actions-cell .act{max-width:100%;white-space:normal;padding:
   <button id="selectionClear" type="button">Clear</button>
 </div>
 <section id="auditorManagement20Panel" hidden style="background:#fff;padding:18px;border:1px solid #cbd5e1;border-radius:10px;margin:12px 0">
-<div style="display:flex;align-items:center;justify-content:space-between"><h2>Auditor Management 2.0</h2><button id="auditorManagement20Close" type="button">Close</button></div>
+<div style="display:flex;align-items:center;justify-content:space-between"><h2>Auditors</h2><button id="auditorManagement20Close" type="button">Close</button></div>
 <p id="auditorManagement20Status" role="status">Manager-only canonical Auditor directory · read-only implementation stage</p>
 <div style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0"><button id="auditorManagement20Add" type="button">+ Add auditor</button><input id="auditorManagement20Search" placeholder="Search auditor, country, qualification…" aria-label="Search auditors"><select id="auditorManagement20Filter"><option value="all">All auditors</option><option value="active">Active auditors</option><option value="inactive">Inactive auditors</option></select></div>
 <div style="overflow:auto;max-height:240px"><table style="width:100%;min-width:740px"><thead><tr><th>Auditor</th><th>Area</th><th>Active</th><th>Qualifications</th><th>Future audits</th><th>Alerts</th></tr></thead><tbody id="auditorManagement20Rows"></tbody></table></div>
 <div id="auditorManagement20Dossier" hidden style="margin-top:14px;padding:14px;border:1px solid #ddd;border-radius:8px"></div>
 </section>
 <section id="companyManagement20Panel" hidden style="background:white;padding:18px;border:1px solid #cbd5e1;border-radius:10px;margin:12px 0">
-<div style="display:flex;justify-content:space-between;gap:10px"><h2>Company Management 2.0</h2><button id="companyManagement20Close" type="button">Close</button></div>
+<div style="display:flex;justify-content:space-between;gap:10px"><h2>Companies</h2><button id="companyManagement20Close" type="button">Close</button></div>
 <p id="companyManagement20Status" role="status">Select a company to edit its dossier. Save all commits changes per tab.</p>
 <div style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0"><input id="companyManagement20Search" placeholder="Search company, region, scope…" aria-label="Search companies" style="min-width:280px"><select id="companyManagement20Filter"><option value="all">All companies</option><option value="active">Active companies</option><option value="attention">Needs attention</option></select></div>
 <div style="overflow:auto;max-height:195px"><table id="companyManagement20Table" style="width:100%;min-width:720px;table-layout:fixed"><colgroup><col style="width:35%"><col style="width:35%"><col style="width:15%"><col style="width:8%"><col style="width:7%"></colgroup><thead><tr><th>Company</th><th>Scopes</th><th>Region</th><th>Locations</th><th>Status</th></tr></thead><tbody id="companyManagement20Rows"></tbody></table></div>
 <div id="companyManagement20Dossier" hidden style="margin-top:14px;padding:14px;border:1px solid #ddd;border-radius:8px"><h3 id="companyManagement20Name"></h3><div id="companyManagement20Tabs" style="display:flex;gap:8px;flex-wrap:wrap"><button data-company-tab="company">Company</button><button data-company-tab="scopes">Scopes</button><button data-company-tab="locations">Locations</button><button data-company-tab="planning">Planning</button><button data-company-tab="governance">Governance</button></div><div id="companyManagement20Details" style="margin-top:12px"></div></div>
 </section>
 <section id="scopeManagement20Panel" hidden style="background:#fff;padding:18px;border:1px solid #cbd5e1;border-radius:10px;margin:12px 0">
-<div style="display:flex;justify-content:space-between"><h2>Scope Management 2.0</h2><button id="scopeManagement20Close" type="button">Close</button></div>
+<div style="display:flex;justify-content:space-between"><h2>Scopes</h2><button id="scopeManagement20Close" type="button">Close</button></div>
 <p id="scopeManagement20Status" role="status"></p>
 <div style="display:flex;gap:12px;margin:12px 0"><input id="scopeManagement20Search" placeholder="Search scope" aria-label="Search scopes"><select id="scopeManagement20Filter"><option value="all">All scopes</option><option value="active">Active</option><option value="archived">Archived</option></select></div>
 <div style="overflow:auto"><table style="min-width:900px"><thead><tr><th>Details</th><th>Scope</th><th>Active</th><th>Current version</th><th>Hours to be planned</th><th>Rotation limit</th><th>Minimum interval</th><th>Planning window</th><th>Color</th><th>Text color</th><th>Preview</th><th>Sort order</th></tr></thead><tbody id="scopeManagement20Rows"></tbody></table></div>

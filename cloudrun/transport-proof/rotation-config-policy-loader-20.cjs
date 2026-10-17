@@ -12,7 +12,7 @@ function loadRotationPolicies20(values){
  const policies=[],seen=new Set(),codes=new Set();
  for(const row of values.slice(1)){
   const key=String(row[slot]||'').trim();
-  if(!/^SCOPE_0[1-8]$/.test(key))continue;
+  if(!/^SCOPE_(?:0[1-9]|1[0-9]|20)$/.test(key))continue;
   const scopeKey=String(row[code]||'').trim();
   if(!scopeKey||seen.has(key)||codes.has(scopeKey))throw Error('ROTATION_POLICY_SCOPE_INVALID');
   seen.add(key);codes.add(scopeKey);
@@ -25,7 +25,7 @@ function loadRotationPolicies20(values){
   if(!rotationApplies&&extensionPermitted)throw Error('ROTATION_POLICY_INCONSISTENT_EXEMPTION');
   policies.push({slotKey:key,scopeKey,rotationApplies,normalMaximum,extensionPermitted});
  }
- if(policies.length!==8)throw Error('ROTATION_POLICY_EIGHT_SCOPES_REQUIRED');
+ if(!policies.length)throw Error('ROTATION_POLICY_SCOPES_REQUIRED');
  return policies;
 }
 module.exports={loadRotationPolicies20};

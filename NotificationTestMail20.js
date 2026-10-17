@@ -27,7 +27,7 @@ function NotificationTestMail20_Send(eventKey) {
   if(!/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(to))throw new Error('DEV_TEST_EMAIL_INVALID');
   var mail=NotificationTestMail20_Preview(eventKey);
   var delivery=SYS_resolveNotificationRecipients_(['original-recipient@example.invalid']);
-  if(!delivery||delivery.mode!=='TEST_TO_SELF'||!delivery.send||delivery.recipients.length!==1||delivery.recipients[0].toLowerCase()!==to.toLowerCase())throw new Error('DEV_DELIVERY_GUARD_REJECTED');
+  if(!delivery||delivery.mode!=='TEST_TO_SELF'||!delivery.send||String(delivery.recipient||'').trim().toLowerCase()!==to.toLowerCase())throw new Error('DEV_DELIVERY_GUARD_REJECTED');
   if(typeof NotificationDeliveryGuard_assertOutboundAllowed==='function'){
     NotificationDeliveryGuard_assertOutboundAllowed({mode:'TEST_TO_SELF',to:to,redirectedTo:to,eventKey:mail.eventKey});
   }else throw new Error('DELIVERY_GUARD_MISSING');

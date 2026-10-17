@@ -13,4 +13,11 @@ assert.equal(diagnoseRotationConfig20([h.concat('ScopeCode'),rows[1].concat('ABC
 assert.equal(diagnoseRotationConfig20([h,['SCOPE_01','ABC','true','','false']]).ready,false);
 assert.equal(diagnoseRotationConfig20([h,['SCOPE_01','ABC','false','','false']]).ready,false);
 assert.ok(diagnoseRotationConfig20([h,['SCOPE_01','ABC','false','','false']]).findings.includes('NO_ROTATION_APPLICABLE_SCOPES'));
+const extendedHeaders=h.concat(['Active','Archived']);
+const extended=[extendedHeaders,['SCOPE_01','ABC','true','3','false','TRUE','FALSE'],['SCOPE_09','TESTSCOPE-2','','','','No','No']];
+assert.equal(diagnoseRotationConfig20(extended).ready,true);
+assert.equal(diagnoseRotationConfig20(extended).policyCount,1);
+const missingActive=[extendedHeaders,['SCOPE_01','ABC','','','','TRUE','FALSE']];
+assert.equal(diagnoseRotationConfig20(missingActive).ready,false);
+assert.ok(diagnoseRotationConfig20(missingActive).findings.some(x=>x.includes('BOOLEAN_UNRESOLVED')));
 console.log('rotation policy readiness diagnostics: PASS');

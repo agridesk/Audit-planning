@@ -325,9 +325,12 @@ function RotationAuditorService_readMaxByScope_(ss, aliases) {
     var canonical = RotationAuditorService_canonicalScope_({ aliases: aliases }, raw);
     if (activeCol >= 0 && !RotationAuditorService_isYes_(values[r][activeCol])) continue;
     if (archivedCol >= 0 && RotationAuditorService_isYes_(values[r][archivedCol])) continue;
-    if (!RotationAuditorService_isYes_(values[r][appliesCol])) continue;
+    var appliesRaw = RotationAuditorService_clean_(values[r][appliesCol]).toLowerCase();
+    if (appliesRaw !== 'true' && appliesRaw !== 'false' && appliesRaw !== 'yes' && appliesRaw !== 'no') throw new Error('ROTATION_POLICY_APPLIES_INVALID');
+    if (appliesRaw === 'false' || appliesRaw === 'no') continue;
     var max = RotationAuditorService_intOrNull_(values[r][maxCol]);
-    if (canonical && max !== null && max > 0) out[canonical] = max;
+    if (max === null || max <= 0) throw new Error('ROTATION_POLICY_MAXIMUM_INVALID');
+    if (canonical) out[canonical] = max;
   }
   return out;
 }

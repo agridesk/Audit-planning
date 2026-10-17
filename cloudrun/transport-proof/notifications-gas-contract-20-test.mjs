@@ -23,6 +23,7 @@ assert.match(writer,/DEV_NOTIFICATION_MODE/);
 assert.match(writer,/DEV_TEST_EMAIL_REQUIRED/);
 assert.ok(!writer.includes('\\\\s@'), 'Email validation must not use double-escaped regex character classes');
 assert.ok(writer.includes("actor.indexOf('@')<1"), 'Manager actor email must be validated');
+for(const marker of ['INVALID_ACTOR_MISSING','INVALID_ACTOR_LENGTH','INVALID_ACTOR_FORMAT','INVALID_ACTOR_WHITESPACE'])assert.ok(writer.includes(marker),'Missing actor diagnostic: '+marker);
 assert.match(testMail,/function NotificationTestMail20_Preview\(/);
 assert.match(testMail,/function NotificationTestMail20_Send\(/);
 assert.match(testMail,/DEV_TEST_TO_SELF_REQUIRED/);

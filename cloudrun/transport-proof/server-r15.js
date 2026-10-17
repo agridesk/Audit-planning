@@ -171,7 +171,7 @@ async function legacyHardMigration(req,res){
 async function notificationsManagerOverview(req,res){
  const actor=await session(req);
  if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
- const sources=[['Notification_Config',500],['Notification_Rules',500],['Notification_Settings',500]];
+ const sources=[['Notification_Config',500],['Notification_Rules',500],['Notification_Settings',500],['System_Config',500]];
  const data={};
  for(const [tab,limit] of sources){
   const range="'"+tab+"'!A1:AZ"+limit;
@@ -196,6 +196,9 @@ async function notificationsManagerOverview(req,res){
  const queue=(await queueResponse.json()).values||[];
  if(queue.length>=5000)throw Error('NOTIFICATION_QUEUE_SOURCE_TRUNCATED');
  const result=notificationOverview({config:data.Notification_Config,rules:data.Notification_Rules,settings:data.Notification_Settings,queue});
+ const sys=data.System_Config||[];const envHeaders=(sys[0]||[]).map(v=>String(v||'').trim().toUpperCase());const envCol=envHeaders.indexOf('DEV');const systemMap={};for(const row of sys.slice(1)){const key=String(row[0]||'').trim().toUpperCase();if(key&&envCol>=0)systemMap[key]=String(row[envCol]||'').trim();}
+ const settingsRows=data.Notification_Settings||[];const sh=(settingsRows[0]||[]).map(v=>String(v||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,''));const sk=sh.indexOf('SETTINGKEY')>=0?sh.indexOf('SETTINGKEY'):sh.indexOf('KEY');const sv=sh.indexOf('VALUE');const settingMap={};if(sk>=0&&sv>=0)for(const row of settingsRows.slice(1)){const key=String(row[sk]||'').trim().toUpperCase();if(key)settingMap[key]=String(row[sv]||'').trim();}
+ result.deliveryPolicy={environment:'DEV',mode:systemMap.DEV_NOTIFICATION_MODE||'DRY_RUN',sendNotifications:systemMap.SEND_NOTIFICATIONS||'FALSE',testRecipientConfigured:Boolean(systemMap.DEV_TEST_EMAIL),senderName:settingMap.DEFAULT_FROM_NAME||'',replyToConfigured:Boolean(settingMap.DEFAULT_REPLY_TO),overlapKeys:['DEV_NOTIFICATION_MODE','NOTIFICATION_TEST_MODE','TEST_MODE','DEV_TEST_EMAIL','TEST_RECIPIENT'].filter(k=>Object.hasOwn(systemMap,k)||Object.hasOwn(settingMap,k))};
  res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
  res.end(JSON.stringify({success:true,...result}));
 }

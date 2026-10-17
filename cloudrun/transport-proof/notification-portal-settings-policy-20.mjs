@@ -2,12 +2,13 @@
 export const EDITABLE_NOTIFICATION_SETTINGS=Object.freeze({
  DEFAULT_FROM_NAME:{type:'text',max:120,label:'Sender name'},
  DEFAULT_REPLY_TO:{type:'email',label:'Reply-to address'},
- TEST_MODE:{type:'choice',values:['OFF','DRY_RUN','TEST_TO_SELF'],label:'Test mode'},
- TEST_RECIPIENT:{type:'email',label:'Test recipient'}
+ // DEV mail policy is owned by System_Config; legacy Notification_Settings
+ // TEST_MODE / TEST_RECIPIENT must never be edited as independent controls.
+ // Only sender presentation fields may be edited through this policy.
 });
 export function validateNotificationSettingsPatch(patch){
  if(!patch||typeof patch!=='object'||Array.isArray(patch))throw Error('INVALID_SETTINGS_PATCH');
- const keys=Object.keys(patch);if(!keys.length||keys.length>4)throw Error('INVALID_SETTINGS_COUNT');
+ const keys=Object.keys(patch);if(!keys.length||keys.length>2)throw Error('INVALID_SETTINGS_COUNT');
  const clean={};
  for(const key of keys){
   if(!Object.hasOwn(EDITABLE_NOTIFICATION_SETTINGS,key))throw Error('SETTING_NOT_EDITABLE:'+key);

@@ -198,6 +198,16 @@ async function notificationsManagerOverview(req,res){
  const result=notificationOverview({config:data.Notification_Config,rules:data.Notification_Rules,settings:data.Notification_Settings,queue});
  const sys=data.System_Config||[];const envHeaders=(sys[0]||[]).map(v=>String(v||'').trim().toUpperCase());const envCol=envHeaders.indexOf('DEV');const systemMap={};for(const row of sys.slice(1)){const key=String(row[0]||'').trim().toUpperCase();if(key&&envCol>=0)systemMap[key]=String(row[envCol]||'').trim();}
  const settingsRows=data.Notification_Settings||[];const sh=(settingsRows[0]||[]).map(v=>String(v||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,''));const sk=sh.indexOf('SETTINGKEY')>=0?sh.indexOf('SETTINGKEY'):sh.indexOf('KEY');const sv=sh.indexOf('VALUE');const settingMap={};if(sk>=0&&sv>=0)for(const row of settingsRows.slice(1)){const key=String(row[sk]||'').trim().toUpperCase();if(key)settingMap[key]=String(row[sv]||'').trim();}
+ const duplicateDiagnostics=[];
+ for(const [tab,rows,keys] of [['Notification_Config',data.Notification_Config,['EVENTKEY']],['Notification_Rules',data.Notification_Rules,['RULEKEY']],['Notification_Settings',data.Notification_Settings,['SETTINGKEY','KEY']],['System_Config',data.System_Config,['KEY','SETTINGKEY']]]){
+  const header=(rows[0]||[]).map(v=>String(v||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,''));
+  const index=keys.map(k=>header.indexOf(k)).find(i=>i>=0)??(tab==='System_Config'?0:-1);
+  if(index<0){duplicateDiagnostics.push({tab,issue:'KEY_COLUMN_NOT_FOUND'});continue;}
+  const seen=new Map();
+  rows.slice(1).forEach((row,i)=>{const key=String(row[index]||'').trim().toUpperCase();if(!key)return;const found=seen.get(key)||[];found.push(i+2);seen.set(key,found);});
+  for(const [key,lines] of seen)if(lines.length>1)duplicateDiagnostics.push({tab,key,rows:lines,issue:'DUPLICATE_KEY'});
+ }
+ result.configurationDiagnostics={duplicates:duplicateDiagnostics,destructiveCleanupAllowed:false};
  const mode=String(systemMap.DEV_NOTIFICATION_MODE||'').toUpperCase();const send=String(systemMap.SEND_NOTIFICATIONS||'').toUpperCase();const validMode=['OFF','DRY_RUN','TEST_TO_SELF'].includes(mode);const validSend=['TRUE','FALSE','YES','NO','1','0'].includes(send);const isDev=project==='audit-management-system-dev';result.deliveryPolicy={environment:isDev?'DEV':'UNVERIFIED',mode:validMode?mode:'UNKNOWN',sendNotifications:validSend?send:'UNKNOWN',testRecipientConfigured:Boolean(systemMap.DEV_TEST_EMAIL),senderName:settingMap.DEFAULT_FROM_NAME||'',replyToConfigured:Boolean(settingMap.DEFAULT_REPLY_TO),configurationVerified:isDev&&envCol>=0&&validMode&&validSend,overlapKeys:['DEV_NOTIFICATION_MODE','NOTIFICATION_TEST_MODE','TEST_MODE','DEV_TEST_EMAIL','TEST_RECIPIENT'].filter(k=>Object.hasOwn(systemMap,k)||Object.hasOwn(settingMap,k))};
  res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
  res.end(JSON.stringify({success:true,...result}));

@@ -109,7 +109,9 @@ async function fastOtpMail(email,code){
       '</div>'
     ].join("");
  const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{authorization:'Bearer '+key,'content-type':'application/json'},body:JSON.stringify({from:'Agri Quality Assurance <planning@agriqa.es>',to:[email],reply_to:'planning@agriqa.es',subject:'Agri Quality Assurance secure login code',text:textBody,html:htmlBody})});
- if(!response.ok)throw Error('FAST_OTP_MAIL_PROVIDER_'+response.status);
+ if(!response.ok){console.warn('AMS_AUTH_MAIL_ACCEPTANCE',JSON.stringify({ok:false,httpStatus:response.status,recipientRef:createHash('sha256').update(SESSION_SECRET+':mail:'+email).digest('hex').slice(0,16)}));throw Error('FAST_OTP_MAIL_PROVIDER_'+response.status);}
+ const receipt=await response.json().catch(()=>({}));
+ console.info('AMS_AUTH_MAIL_ACCEPTANCE',JSON.stringify({ok:true,httpStatus:response.status,providerId:clean(receipt.id).slice(0,128),recipientRef:createHash('sha256').update(SESSION_SECRET+':mail:'+email).digest('hex').slice(0,16)}));
 }
 function fastOtpService(){
  if(!fastOtpServiceInstance)fastOtpServiceInstance=createFastOtpService({projectId:process.env.GOOGLE_CLOUD_PROJECT||process.env.GCP_PROJECT||'audit-management-system-dev',secret:SESSION_SECRET,getAccessToken:cloudRevocationAccess,lookupAccount:fastOtpLookup,sendEmail:fastOtpMail});

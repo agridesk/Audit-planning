@@ -16,6 +16,9 @@ COPY company-auditor-permissions-20.js ./
 COPY auditor-identity-versions.js ./
 COPY auditor-uid-backfill-preview.js ./
 COPY rotation-*.cjs ./
+COPY rotation-manager-20.mjs ./
+COPY rotation-manager-20.html ./
+COPY rotation-manager-20.js ./
 COPY auth-session-policy.mjs ./
 COPY auth-session-revocation-20.js ./
 COPY auth-fast-otp-20.mjs ./

@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {completedLogRowsFromAms20}=require('./rotation-ams-log-20.cjs');
+const header=['Company_UID','Status','Date completed','Audit ID','Auditor','Auditor_UID','SCOPE_01'];
+const row=['CO1','Completed','2026-10-01','AUD1','old@example.com','UID1','X'];
+const run=(h,r,resolveAuditorUid)=>completedLogRowsFromAms20([h,r],{scopeByColumn:{SCOPE_01:'ABC'},resolveAuditorUid});
+assert.equal(run(header,row,x=>x==='old@example.com'?'UID1':'').length,1);
+assert.throws(()=>run(header,row,()=> 'UID2'),/ROTATION_AMS_AUDITOR_UID_CONFLICT/);
+assert.throws(()=>run(header.concat('Audit_ID'),row.concat('AUD1'),()=> 'UID1'),/ROTATION_AMS_DUPLICATE_HEADER/);
+assert.equal(run(header,row,undefined)[0].auditorUid,'UID1');
+console.log('rotation historical auditor identity: PASS');

@@ -67,6 +67,7 @@ function RotationAuditorService_getAuditorScopeResult(input) {
   var companyUid = RotationAuditorService_clean_(input.companyUid);
   var companyName = RotationAuditorService_clean_(input.companyName || input.company);
   var scope = RotationAuditorService_canonicalScope_(pack, input.scope);
+  if (!scope || !pack.aliases.byAnyKey[RotationAuditorService_key_(scope)]) throw new Error('ROTATION_UNKNOWN_SCOPE');
   var auditor = RotationAuditorService_resolveAuditor_(pack, input.auditorUid || input.auditorEmail || input.auditor || input.auditorName || input.name);
   var group = RotationAuditorService_findGroup_(pack, companyUid, companyName, scope);
   var ownersByYear = group ? group.ownersByYear : {};

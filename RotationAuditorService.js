@@ -376,7 +376,7 @@ function RotationAuditorService_readAuditors_(ss, aliases) {
       var header = RotationAuditorService_clean_(headers[c]);
       if (!header) continue;
       var scope = RotationAuditorService_canonicalScope_({ aliases: aliases }, header);
-      if (!scope) continue;
+      if (!scope || !aliases.byAnyKey[RotationAuditorService_key_(scope)]) continue;
       if (RotationAuditorService_isYes_(row[c])) qualifications[scope] = true;
     }
     var item = { auditorUid: uid, email: email, name: name || email, qualifications: qualifications };

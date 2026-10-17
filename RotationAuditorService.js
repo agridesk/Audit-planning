@@ -268,6 +268,7 @@ function RotationAuditorService_readScopeAliases_(ss) {
   var codeCol = RotationAuditorService_pick_(hm, ['ScopeCode','Scope code','Code']);
   var nameCol = RotationAuditorService_pick_(hm, ['DisplayName','Display name','Name','ScopeName','Scope']);
   var aliasCols = [];
+  var seenSlots = {};
 
   for (var h = 0; h < headers.length; h++) {
     var hk = RotationAuditorService_key_(headers[h]);
@@ -286,6 +287,8 @@ function RotationAuditorService_readScopeAliases_(ss) {
     if (!slot && !code && !name) continue;
     if (!canonical) continue;
     if (!/^SCOPE_(?:0[1-9]|1[0-9]|20)$/.test(slot)) throw new Error('ROTATION_SCOPE_SLOT_INVALID');
+    if (seenSlots[slot]) throw new Error('ROTATION_SCOPE_SLOT_DUPLICATE');
+    seenSlots[slot] = true;
 
     meta.slots.push({ slot: slot, code: code, name: canonical });
     RotationAuditorService_registerScopeAlias_(meta, canonical, canonical);

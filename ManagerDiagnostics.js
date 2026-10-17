@@ -84,7 +84,9 @@ var AUDIT_DIAGNOSTICS_CONFIG = {
         'Florimark Tracecert',
         'Florimark GTP',
         'Scope 7',
-        'Scope 8'
+        'Scope 8',
+        'SCOPE_09','SCOPE_10','SCOPE_11','SCOPE_12','SCOPE_13','SCOPE_14',
+        'SCOPE_15','SCOPE_16','SCOPE_17','SCOPE_18','SCOPE_19','SCOPE_20'
       ]
     }
   },

@@ -31,7 +31,7 @@ assert.match(config,/function SYS_deliveryResult_\(/);
 assert.match(server,/notificationGasCall/);
 assert.match(server,/GAS_DEV_DEPLOYMENT_OUTDATED/);
 assert.match(server,/notificationDevModeMutation/);
-assert.match(server,/notifications-manager-20\\/dev-mode/);
+assert.ok(server.includes('notifications-manager-20/dev-mode'));
 const html=readFileSync(new URL('./notification-manager-20.html',import.meta.url),'utf8');
 assert.match(html,/id="devModeSelect"/);
 assert.match(html,/id="saveDevMode"/);

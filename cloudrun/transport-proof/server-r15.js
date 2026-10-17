@@ -203,6 +203,34 @@ async function notificationsManagerOverview(req,res){
  res.end(JSON.stringify({success:true,...result}));
 }
 
+async function notificationEventMutation(req,res){
+ const actor=await session(req);
+ if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401);res.end();return;}
+ const origin=String(req.headers.origin||'');
+ const host=String(req.headers.host||'');
+ if(!origin||new URL(origin).host!==host||!origin.startsWith('https://')){res.writeHead(403);res.end('ORIGIN_REJECTED');return;}
+ const chunks=[];let size=0;
+ for await(const chunk of req){size+=chunk.length;if(size>4096){res.writeHead(413);res.end();return;}chunks.push(chunk);}
+ let body;try{body=JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{res.writeHead(400);res.end('INVALID_JSON');return;}
+ const key=String(body.eventKey||'').trim().toUpperCase(),field=String(body.field||'');
+ if(!/^[A-Z][A-Z0-9_]{1,100}$/.test(key)||!['ACTIVE','SEND_EMAIL'].includes(field)||typeof body.value!=='boolean'||typeof body.expected!=='boolean'){res.writeHead(400);res.end('INVALID_MUTATION');return;}
+ const range="'Notification_Config'!A1:AZ500";
+ const base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/';
+ const headers={authorization:'Bearer '+await getToken()};
+ const read=await fetch(base+encodeURIComponent(range),{headers});
+ if(!read.ok)throw Error('NOTIFICATION_CONFIG_READ_FAILED');
+ const rows=(await read.json()).values||[];
+ const h=(rows[0]||[]).map(x=>String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,''));
+ const keyCol=h.indexOf('EVENTKEY'),col=h.indexOf(field.replace(/[^A-Z0-9]/g,''));
+ if(keyCol<0||col<0)throw Error('NOTIFICATION_SCHEMA_MISMATCH');
+ const matches=rows.slice(1).map((r,i)=>({r,i})).filter(x=>String(x.r[keyCol]||'').trim().toUpperCase()===key);
+ if(matches.length!==1){res.writeHead(409);res.end('EVENT_NOT_UNIQUE');return;}
+ const current=['YES','TRUE','1','ON'].includes(String(matches[0].r[col]||'').toUpperCase());
+ if(current!==body.expected){res.writeHead(409);res.end('RELOAD_REQUIRED');return;}
+ // No direct Cloud Run write: GAS canonical owner and audit log must be invoked.
+ res.writeHead(501,{'content-type':'application/json','cache-control':'no-store'});
+ res.end(JSON.stringify({success:false,error:'CANONICAL_GAS_WRITE_BRIDGE_REQUIRED'}));
+}
 async function proxy(req,res){
  const url='http://127.0.0.1:'+innerPort+(req.url||'/');
  const headers={...req.headers};delete headers.host;delete headers.connection;delete headers['content-length'];
@@ -268,6 +296,7 @@ http.createServer(async(req,res)=>{
    const html=await readFile(new URL('./availability-manager-calendar-20.html',import.meta.url));
    res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(html);return;
   }
+  if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/events'){await notificationEventMutation(req,res);return;}
   if(req.method==='GET'&&u.pathname==='/api/v1/notifications-manager-20/overview'){await notificationsManagerOverview(req,res);return;}
   if(req.method==='GET'&&u.pathname==='/notifications-manager-20'){
    const actor=await session(req);

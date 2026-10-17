@@ -465,13 +465,13 @@ function RotationAuditorService_detectScopeColumns_(headers, hm, aliases) {
   if (dateApprovedCol >= 0 && hoursPlannedCol > dateApprovedCol + 1) {
     for (var c = dateApprovedCol + 1; c < hoursPlannedCol; c++) {
       var sc = RotationAuditorService_canonicalScope_({ aliases: aliases }, headers[c]);
-      if (sc) out.push({ index: c, scope: sc });
+      if (sc && aliases.byAnyKey[RotationAuditorService_key_(headers[c])]) out.push({ index: c, scope: sc });
     }
   }
   for (var j = 0; j < headers.length; j++) {
     var raw = RotationAuditorService_clean_(headers[j]);
     var canon = RotationAuditorService_canonicalScope_({ aliases: aliases }, raw);
-    if (canon && /^SCOPE_\d+$/i.test(raw) && !out.some(function(x){return x.index === j;})) out.push({ index: j, scope: canon });
+    if (canon && aliases.byAnyKey[RotationAuditorService_key_(raw)] && /^SCOPE_(?:0[1-9]|1[0-9]|20)$/i.test(raw) && !out.some(function(x){return x.index === j;})) out.push({ index: j, scope: canon });
   }
   if (out.length) return out;
   var singleCol = RotationAuditorService_pick_(hm, ['Scope','Scopes','SCOPE','STANDARD','Standards']);

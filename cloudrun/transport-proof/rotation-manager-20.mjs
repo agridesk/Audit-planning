@@ -34,10 +34,11 @@ export function buildRotationManager20(scopes,auditors,log){
    const auditorYears=[...new Set(auditorEvents.map(e=>e.year))].sort((a,b)=>b-a);
    let count=0;const countedYears=new Set();
    for(const event of g.events){if(event.auditorUid!==uid)break;if(!countedYears.has(event.year)){count++;countedYears.add(event.year);}}
+   const historicalYearsInSequence=[];for(const y of auditorYears){if(historicalYearsInSequence.length&&historicalYearsInSequence[historicalYearsInSequence.length-1]!==y+1)break;historicalYearsInSequence.push(y);}
    const person=people.get(uid)||{name:uid,email:''};
    const current=g.events[0].auditorUid===uid;
    const status=current?(count>=g.maximum?'AT_LIMIT':count===g.maximum-1?'NEAR_LIMIT':'AVAILABLE'):'HISTORICAL';
-   rows.push({company:g.company,companyUid:g.companyUid,scope:g.scope,slot:g.slot,auditor:person.name,auditorUid:uid,years:auditorYears.join(', '),consecutiveYears:count,maximum:g.maximum,status,latestYear:auditorYears[0],lastCompleted:auditorEvents[0].date,current,history:auditorEvents.map(e=>({date:e.date,year:e.year,auditor:person.name,auditorUid:uid}))});
+   rows.push({company:g.company,companyUid:g.companyUid,scope:g.scope,slot:g.slot,auditor:person.name,auditorUid:uid,years:auditorYears.join(', '),consecutiveYears:count,consecutiveCalendarYears:historicalYearsInSequence.length,maximum:g.maximum,status,latestYear:auditorYears[0],lastCompleted:auditorEvents[0].date,current,history:auditorEvents.map(e=>({date:e.date,year:e.year,auditor:person.name,auditorUid:uid}))});
   }
  }
  rows.sort((a,b)=>({REVIEW_REQUIRED:0,AT_LIMIT:1,NEAR_LIMIT:2,AVAILABLE:3}[a.status]-{REVIEW_REQUIRED:0,AT_LIMIT:1,NEAR_LIMIT:2,AVAILABLE:3}[b.status])||a.company.localeCompare(b.company));

@@ -19,6 +19,14 @@ function render(){
   table.append(tr);
  }
 }
+function showDetail(item){
+ const panel=document.getElementById('detail');panel.replaceChildren();panel.hidden=false;
+ const title=document.createElement('h3');title.textContent=item.company+' · '+item.scope+' · '+item.auditor+' ('+item.consecutiveYears+'/'+item.maximum+')';panel.append(title);
+ const note=document.createElement('p');note.textContent='Completed audit history (newest first). Auditor changes reset the rotation sequence.';panel.append(note);
+ const list=document.createElement('ol');for(const event of item.history||[]){const line=document.createElement('li');line.textContent=event.date+' — '+event.auditor;list.append(line);}panel.append(list);
+ const close=document.createElement('button');close.textContent='Close details';close.onclick=()=>{panel.hidden=true;};panel.append(close);
+ panel.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
 async function refresh(){
  message.textContent='Loading...';
  try{

@@ -30,10 +30,10 @@ function NotificationManagement20_UpdateEvent(eventKey, changes, expected) {
     var cols={ACTIVE:activeCol,SEND_EMAIL:sendCol};
     function yes(v){return v===true||['TRUE','YES','1','ON'].indexOf(String(v||'').trim().toUpperCase())>=0;}
     keys.forEach(function(k){if(yes(row[cols[k]])!==expected[k])throw new Error('CONFIG_CHANGED_RELOAD_REQUIRED');});
-    var history=ss.getSheetByName('Notification_Change_Log');
-    if(!history){history=ss.insertSheet('Notification_Change_Log');history.appendRow(['Timestamp','Actor','EventKey','Field','Before','After','Source']);}
     var actor=String(Session.getEffectiveUser().getEmail()||'').trim();
     if(!actor)throw new Error('ACTOR_IDENTITY_REQUIRED');
+    var history=ss.getSheetByName('Notification_Change_Log');
+    if(!history){history=ss.insertSheet('Notification_Change_Log');history.appendRow(['Timestamp','Actor','EventKey','Field','Before','After','Source']);}
     var updates=keys.filter(function(k){return yes(row[cols[k]])!==changes[k];});
     if(!updates.length)return {ok:true,changed:0,eventKey:key};
     var previous=updates.map(function(k){return yes(row[cols[k]]);});

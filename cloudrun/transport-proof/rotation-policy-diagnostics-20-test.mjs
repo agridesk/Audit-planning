@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {diagnoseRotationConfig20}=require('./rotation-policy-diagnostics-20.cjs');
+const h=['SlotKey','ScopeCode','Rotation_Applies','Rotation_Normal_Maximum','Rotation_Plus_One_Permitted'];
+const rows=[h,['SCOPE_01','ABC','true','3','false'],['SCOPE_20','XYZ','false','','false']];
+assert.equal(diagnoseRotationConfig20(rows).ready,true);
+assert.equal(diagnoseRotationConfig20(rows).scopeCount,2);
+assert.equal(diagnoseRotationConfig20([h,h.slice(0,5).map((x,i)=>i===0?'SCOPE_01':i===1?'ABC':i===2?'true':i===3?'':'false')]).ready,false);
+assert.equal(diagnoseRotationConfig20([h.concat('ScopeCode'),rows[1].concat('ABC')]).ready,false);
+assert.equal(diagnoseRotationConfig20([h,['SCOPE_01','ABC','true','','false']]).ready,false);
+console.log('rotation policy readiness diagnostics: PASS');

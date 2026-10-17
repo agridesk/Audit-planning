@@ -288,6 +288,7 @@ function RotationAuditorService_readScopeAliases_(ss) {
     if (!canonical) continue;
     if (!/^SCOPE_(?:0[1-9]|1[0-9]|20)$/.test(slot)) throw new Error('ROTATION_SCOPE_SLOT_INVALID');
     if (seenSlots[slot]) throw new Error('ROTATION_SCOPE_SLOT_DUPLICATE');
+    if (!code || !name) throw new Error('ROTATION_SCOPE_IDENTITY_INCOMPLETE');
     seenSlots[slot] = true;
 
     meta.slots.push({ slot: slot, code: code, name: canonical });

@@ -61,6 +61,6 @@ function RUN_SCOPE_MANAGEMENT_2_0_SCHEMA_PREFLIGHT() {
   }
   if(missingAuditorSlots.length)warnings.push('Auditor qualification columns missing: '+missingAuditorSlots.join(', '));
   if(missingLegacySlots.length)warnings.push('Missing legacy grid columns: '+missingLegacySlots.join(', '));
-  var out={legacyGridReady:legacyGridReady,missingLegacySlots:missingLegacySlots,missingAuditorSlots:missingAuditorSlots,success:errors.length===0,readOnly:true,writesPerformed:false,scopeCount:Object.keys(seen).length,activeScopes:activeCount,archivedScopes:archivedCount,columnsPresent:headers.length,errors:errors,warnings:warnings};
+  var out={legacyGridReady:legacyGridReady,missingLegacySlots:missingLegacySlots,missingAuditorSlots:missingAuditorSlots,success:errors.length===0&&legacyGridReady,readOnly:true,writesPerformed:false,scopeCount:Object.keys(seen).length,activeScopes:activeCount,archivedScopes:archivedCount,columnsPresent:headers.length,errors:errors,warnings:warnings};
   Logger.log(JSON.stringify(out));return out;
 }

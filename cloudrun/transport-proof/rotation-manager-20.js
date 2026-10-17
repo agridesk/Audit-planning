@@ -13,16 +13,16 @@ function render(){
  for(const item of records.filter(r=>(!companyFilter.value||r.companyUid===companyFilter.value)&&(!auditorFilter.value||r.auditorUid===auditorFilter.value)&&(!scopeFilter.value||r.slot===scopeFilter.value)&&(!statusFilter.value||r.status===statusFilter.value)&&[r.company,r.scope,r.auditor,r.auditorUid].join(' ').toLowerCase().includes(q))){
   const tr=document.createElement('tr');
   for(const key of ['company','scope','auditor','years','consecutiveYears','maximum','status']){
-   const td=document.createElement('td');td.textContent=key==='status'?({AT_LIMIT:'Limit reached',NEAR_LIMIT:'Last available',AVAILABLE:'OK'}[item.status]||item.status):key==='consecutiveYears'?(item.current?item.consecutiveYears+'/'+item.maximum:'—'):String(item[key]??'');if(key==='status')td.className='status-'+item.status;tr.append(td);
+   const td=document.createElement('td');td.textContent=key==='status'?({AT_LIMIT:'Limit reached',NEAR_LIMIT:'Last available',AVAILABLE:'OK',HISTORICAL:'Previous auditor'}[item.status]||item.status):key==='consecutiveYears'?(item.current?item.consecutiveYears+'/'+item.maximum:'—'):String(item[key]??'');if(key==='status')td.className='status-'+item.status;tr.append(td);
   }
-  tr.style.cursor='pointer';tr.title='View completed audit history';tr.addEventListener('click',()=>showDetail(item));
+  tr.style.cursor='pointer';tr.title='Click to view this auditor’s completed audits';tr.addEventListener('click',()=>showDetail(item));
   table.append(tr);
  }
 }
 function showDetail(item){
  const panel=document.getElementById('detail');panel.replaceChildren();panel.hidden=false;
  const title=document.createElement('h3');title.textContent=item.company+' · '+item.scope+' · '+item.auditor+' ('+item.consecutiveYears+'/'+item.maximum+')';panel.append(title);
- const note=document.createElement('p');note.textContent='Completed audit history (newest first). Auditor changes reset the rotation sequence.';panel.append(note);
+ const note=document.createElement('p');note.textContent=item.current?'Current auditor. Completed audits shown newest first.':'Previous auditor. Historical audit years do not represent the current rotation position.';panel.append(note);
  const list=document.createElement('ol');for(const event of item.history||[]){const line=document.createElement('li');line.textContent=event.date+' — '+event.auditor;list.append(line);}panel.append(list);
  const close=document.createElement('button');close.textContent='Close details';close.onclick=()=>{panel.hidden=true;};panel.append(close);
  panel.scrollIntoView({block:'nearest',behavior:'smooth'});

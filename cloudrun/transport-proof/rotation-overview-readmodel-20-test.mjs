@@ -13,4 +13,7 @@ const accepted=buildRotationOverview20({...base,approvedExceptions:[approved]}).
 assert.equal(accepted.status,'PLUS_ONE_APPROVED');
 assert.equal(accepted.decision,'ALLOW');
 assert.equal(accepted.upcoming[0].auditId,'NEXT');
+assert.throws(()=>buildRotationOverview20({...base,scopePoliciesByCompany:{}}),/ROTATION_OVERVIEW_POLICIES_MISSING/);
+assert.throws(()=>buildRotationOverview20({...base,upcomingByCompany:{}}),/ROTATION_OVERVIEW_UPCOMING_MISSING/);
+assert.throws(()=>buildRotationOverview20({...base,upcomingByCompany:{C1:[...base.upcomingByCompany.C1,...base.upcomingByCompany.C1]}}),/ROTATION_OVERVIEW_AMBIGUOUS_ASSIGNMENT/);
 console.log('rotation manager overview readmodel: PASS');

@@ -19,6 +19,8 @@ const log=[logHeaders,['Same name','auditor@example.test','Completed','','YES','
 const auditors={byUid:{'uid-1':{email:'auditor@example.test'},'uid-2':{email:'other@example.test'}},byEmail:{'wrong@example.test':{auditorUid:'uid-2'}},byName:{}};
 const groups=ctx.RotationAuditorService_readLogEvents_(ss({'Log realized audits':sheet(log)}),aliases,auditors);
 assert.equal(Object.keys(groups).length,2);
+const unfinished=[logHeaders,['Same name','auditor@example.test','Planned','','YES','','2025','company-1','uid-1',''],['Same name','auditor@example.test','','','YES','','2025','company-1','uid-1','']];
+assert.equal(Object.keys(ctx.RotationAuditorService_readLogEvents_(ss({'Log realized audits':sheet(unfinished)}),aliases,auditors)).length,0);
 assert.equal(ctx.RUN_ROTATION_AUDITOR_SERVICE_SELFTEST().success,true);
 assert.doesNotThrow(()=>ctx.RotationAuditorService_readLogEvents_(ss({'Log realized audits':sheet([logHeaders,['Same name','historical@example.test','Completed','','YES','','2025','company-1','uid-1','']])}),aliases,auditors));
 const conflicting=[logHeaders,['Same name','wrong@example.test','Completed','','YES','','2025','company-1','uid-1','']];

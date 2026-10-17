@@ -14,5 +14,8 @@ const gap=buildRotationManager20(scopes,auditors,[h,row('a',2022,'2022-01-01'),r
 assert.equal(gap.rows[0].consecutiveYears,3);
 assert.equal(gap.rows[0].status,'AT_LIMIT');
 const ambiguous=buildRotationManager20(scopes,auditors,[h,row('a',2026,'2026-01-01'),row('b',2026,'2026-01-01')]);
-assert.equal(ambiguous.rows.every(r=>r.status==='REVIEW_REQUIRED'),true);
+assert.equal(ambiguous.rows.length,1);
+assert.equal(ambiguous.rows[0].auditorUid,'b');
+assert.equal(ambiguous.rows[0].consecutiveYears,1);
+assert.equal(ambiguous.rows[0].status,'AVAILABLE');
 console.log('rotation manager 2.0 read model: PASS');

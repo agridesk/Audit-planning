@@ -11,4 +11,6 @@ assert.equal(diagnoseRotationConfig20(rows).plusOnePermittedCount,0);
 assert.equal(diagnoseRotationConfig20([h,h.slice(0,5).map((x,i)=>i===0?'SCOPE_01':i===1?'ABC':i===2?'true':i===3?'':'false')]).ready,false);
 assert.equal(diagnoseRotationConfig20([h.concat('ScopeCode'),rows[1].concat('ABC')]).ready,false);
 assert.equal(diagnoseRotationConfig20([h,['SCOPE_01','ABC','true','','false']]).ready,false);
+assert.equal(diagnoseRotationConfig20([h,['SCOPE_01','ABC','false','','false']]).ready,false);
+assert.ok(diagnoseRotationConfig20([h,['SCOPE_01','ABC','false','','false']]).findings.includes('NO_ROTATION_APPLICABLE_SCOPES'));
 console.log('rotation policy readiness diagnostics: PASS');

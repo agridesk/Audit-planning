@@ -5,7 +5,8 @@ let records=[];
 const companyFilter=document.getElementById('companyFilter');
 const auditorFilter=document.getElementById('auditorFilter');
 const statusFilter=document.getElementById('statusFilter');
-function populate(select,values){const selected=select.value;select.replaceChildren();const first=document.createElement('option');first.value='';first.textContent=select===companyFilter?'All companies':'All auditors';select.append(first);for(const v of [...new Set(values.filter(Boolean))].sort((a,b)=>a.localeCompare(b))){const o=document.createElement('option');o.value=v;o.textContent=v;select.append(o)}select.value=selected;}
+const scopeFilter=document.getElementById('scopeFilter');
+function populate(select,values){const selected=select.value;select.replaceChildren();const first=document.createElement('option');first.value='';first.textContent=select===companyFilter?'All companies':select===scopeFilter?'All scopes':'All auditors';select.append(first);for(const v of [...new Set(values.filter(Boolean))].sort((a,b)=>a.localeCompare(b))){const o=document.createElement('option');o.value=v;o.textContent=v;select.append(o)}select.value=selected;}
 function render(){
  table.replaceChildren();
  const q=search.value.trim().toLowerCase();

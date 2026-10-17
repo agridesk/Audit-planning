@@ -100,7 +100,7 @@ function RotationAuditorService_getEligibleAuditors(input) {
   var seen = {};
   for (var s = 0; s < scopes.length; s++) {
     var canon = RotationAuditorService_canonicalScope_(pack, scopes[s]);
-    if (!canon) continue;
+    if (!canon || !pack.aliases.byAnyKey[RotationAuditorService_key_(canon)]) throw new Error('ROTATION_UNKNOWN_SCOPE');
     var sk = RotationAuditorService_key_(canon);
     if (seen[sk]) continue;
     seen[sk] = true;

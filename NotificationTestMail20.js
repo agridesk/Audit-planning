@@ -9,11 +9,18 @@ function NotificationTestMail20_Preview(eventKey) {
   if(typeof SYS_getEnv_!=='function'||SYS_getEnv_()!=='DEV')throw new Error('DEV_ONLY');
   var all=NotificationConfig_GetAllEvents();
   if(!Object.prototype.hasOwnProperty.call(all,key))throw new Error('UNKNOWN_NOTIFICATION_EVENT');
-  var rendered=NB_buildNotification_(key,{
+  // Deterministic, fully populated synthetic audit. Never use live customer records.
+  var fixture={
     eventType:key,type:key,company:'DEV TEST COMPANY',auditId:'TEST_NOTIFICATION_20',
+    mpsNumber:'MPS-TEST-2026-001',auditNumber:'MPS-TEST-2026-001',
+    auditorName:'DEV Example Auditor',auditorEmail:'auditor@example.invalid',
+    contactName:'DEV Example Contact',contactEmail:'contact@example.invalid',contactPhone:'+31 000 000 0000',
+    scopes:['MPS-ABC','MPS-GAP'],plannedHours:6,
+    blocks:[{date:'2026-11-03',start:'09:00',end:'15:00',hours:6,execLoc:'DEV Test Location'}],
     actor:'AMS DEV',actorRole:'manager',recipientRole:'auditor',
-    comment:'Test notification — no real audit',resultStatus:'TEST'
-  });
+    comment:'Synthetic DEV template test — not a real audit',resultStatus:'TEST'
+  };
+  var rendered=NB_buildNotification_(key,fixture);
   if(!rendered||!String(rendered.subject||'').trim()||!String(rendered.body||'').trim())throw new Error('TEMPLATE_RENDER_FAILED');
   return {eventKey:key,subject:String(rendered.subject),body:String(rendered.body),htmlBody:String(rendered.htmlBody||'')};
 }

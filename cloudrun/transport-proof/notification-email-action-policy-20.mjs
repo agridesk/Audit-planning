@@ -20,6 +20,9 @@ export function authorizeAction({record,token,auditorUid,auditId,action,status,r
   if (!Number.isFinite(record.expiresAt) || now >= record.expiresAt) return 'TOKEN_EXPIRED';
   if (!verifyActionToken(record.tokenHash,token)) return 'INVALID_TOKEN';
   if (record.status !== status || record.revision !== revision) return 'STALE_AUDIT';
+  // A valid link never creates a lifecycle capability. Bind it to the
+  // canonical action/state/origin combination before device verification.
+  if (!auditorEmailActionAllowed(action,status,record.origin)) return 'ACTION_NOT_ALLOWED';
   if (!deviceTrusted && !deviceVerified) return 'DEVICE_VERIFICATION_REQUIRED';
   return 'OK';
 }

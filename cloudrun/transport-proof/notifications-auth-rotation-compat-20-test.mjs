@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const server=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
+const portal=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+const html=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
+assert.match(server,/async function session\(req\)/);
+assert.match(server,/\/api\/v1\/session/);
+assert.match(server,/actor\.role!=='manager'/);
+assert.match(server,/NOTIFICATION_QUEUE_SOURCE_TRUNCATED/);
+assert.match(server,/QUEUE_SHEET_NAME/);
+assert.match(server,/notificationOverview\(/);
+assert.match(portal,/notificationsManager20"\)\.hidden=String\(actorRole\)\.toLowerCase\(\)!=="manager"/);
+assert.match(html,/href="\/notifications-manager-20"/);
+assert.doesNotMatch(server,/notifications-manager-20\/save|notifications-manager-20\/retry/);
+console.log('notifications-auth-rotation-compat-20: PASS');

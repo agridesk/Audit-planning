@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {createActionToken,hashActionToken,verifyActionToken,authorizeAction,validateActionInput,auditorEmailActionAllowed} from './notification-email-action-policy-20.mjs';
-const token=createActionToken(), record={auditorUid:'aud-123',auditId:'audit-1',action:'ACCEPT',tokenHash:hashActionToken(token),status:'Approved',revision:7,expiresAt:Date.now()+60000};
+const token=createActionToken(), record={auditorUid:'aud-123',auditId:'audit-1',action:'ACCEPT',tokenHash:hashActionToken(token),status:'Approved',origin:'MANAGER',revision:7,expiresAt:Date.now()+60000};
 const base={record,token,auditorUid:'aud-123',auditId:'audit-1',action:'ACCEPT',status:'Approved',revision:7};
 assert.equal(verifyActionToken(record.tokenHash,token),true);
 assert.equal(verifyActionToken(record.tokenHash,createActionToken()),false);
@@ -23,3 +23,7 @@ assert.equal(auditorEmailActionAllowed('CANCEL','Pending Approval','AUDITOR'),tr
 assert.equal(auditorEmailActionAllowed('CANCEL','Accepted','AUDITOR'),false);
 assert.equal(auditorEmailActionAllowed('COMPLETE','Accepted','MANAGER'),true);
 assert.equal(auditorEmailActionAllowed('COMPLETE','Completed','MANAGER'),false);
+
+assert.equal(authorizeAction({...base,record:{...record,origin:'AUDITOR'},deviceTrusted:true}),'ACTION_NOT_ALLOWED');
+assert.equal(authorizeAction({...base,record:{...record,origin:undefined},deviceTrusted:true}),'ACTION_NOT_ALLOWED');
+assert.equal(authorizeAction({...base,record:{...record,status:'Accepted'},status:'Accepted',deviceTrusted:true}),'ACTION_NOT_ALLOWED');

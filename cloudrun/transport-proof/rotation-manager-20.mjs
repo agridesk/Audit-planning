@@ -28,7 +28,8 @@ export function buildRotationManager20(scopes,auditors,log){
  const rows=[];
  for(const g of groups.values()){
   const years=[...g.years.keys()].sort((a,b)=>b-a);
-  const latestYear=years[0],latestOwners=g.years.get(latestYear);
+  g.events.sort((a,b)=>b.date.localeCompare(a.date)||b.row-a.row);
+  const latestYear=years[0],latestOwners=new Set([g.events[0].auditorUid]);
   for(const uid of latestOwners){
    let count=0;
    for(const y of years){const owners=g.years.get(y);if(owners.size!==1||!owners.has(uid))break;count++;}

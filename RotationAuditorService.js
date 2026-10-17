@@ -313,13 +313,19 @@ function RotationAuditorService_readMaxByScope_(ss, aliases) {
   var nameCol = RotationAuditorService_pick_(hm, ['DisplayName','Display name','Name','ScopeName','Scope']);
   var codeCol = RotationAuditorService_pick_(hm, ['ScopeCode','Scope code','Code']);
   var slotCol = RotationAuditorService_pick_(hm, ['SlotKey','Slot key','Slot']);
-  var maxCol = RotationAuditorService_pick_(hm, ['Max number audits','Max number audit','Max audits','Max audit','Maximum audits','Max consecutive','MaxConsecutive']);
-  if (maxCol < 0) return out;
+  var maxCol = RotationAuditorService_pick_(hm, ['Rotation_Normal_Maximum']);
+  var appliesCol = RotationAuditorService_pick_(hm, ['Rotation_Applies']);
+  var activeCol = RotationAuditorService_pick_(hm, ['Active']);
+  var archivedCol = RotationAuditorService_pick_(hm, ['Archived']);
+  if (maxCol < 0 || appliesCol < 0) throw new Error('ROTATION_POLICY_COLUMNS_MISSING');
   for (var r = 1; r < values.length; r++) {
     var raw = nameCol >= 0 ? values[r][nameCol] : (codeCol >= 0 ? values[r][codeCol] : (slotCol >= 0 ? values[r][slotCol] : ''));
     var canonical = RotationAuditorService_canonicalScope_({ aliases: aliases }, raw);
+    if (activeCol >= 0 && !RotationAuditorService_isYes_(values[r][activeCol])) continue;
+    if (archivedCol >= 0 && RotationAuditorService_isYes_(values[r][archivedCol])) continue;
+    if (!RotationAuditorService_isYes_(values[r][appliesCol])) continue;
     var max = RotationAuditorService_intOrNull_(values[r][maxCol]);
-    if (canonical && max !== null) out[canonical] = max;
+    if (canonical && max !== null && max > 0) out[canonical] = max;
   }
   return out;
 }

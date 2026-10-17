@@ -10,6 +10,7 @@ const headers=['SlotKey','ScopeCode','DisplayName','Active','Archived','Rotation
 const scopeRows=[headers,['SCOPE_01','MPS-ABC','MPS-ABC','TRUE','FALSE','TRUE','3'],['SCOPE_09','TEST','Test','No','No','','']];
 const aliases=ctx.RotationAuditorService_readScopeAliases_(ss({'Config_Scopes':sheet(scopeRows)}));
 assert.equal(aliases.slots.length,2);
+assert.throws(()=>ctx.RotationAuditorService_readScopeAliases_(ss({'Config_Scopes':sheet([headers,scopeRows[1],['SCOPE_02','MPS-ABC','Different name','TRUE','FALSE','TRUE','3']])})),/ROTATION_SCOPE_ALIAS_COLLISION/);
 assert.equal(ctx.RotationAuditorService_readMaxByScope_(ss({'Config_Scopes':sheet(scopeRows)}),aliases)['MPS-ABC'],3);
 assert.throws(()=>ctx.RotationAuditorService_readMaxByScope_(ss({'Config_Scopes':sheet([headers,['SCOPE_01','MPS-ABC','MPS-ABC','TRUE','FALSE','TRUE','3.5']])}),aliases),/ROTATION_POLICY_MAXIMUM_INVALID/);
 assert.throws(()=>ctx.RotationAuditorService_readScopeAliases_(ss({'Config_Scopes':sheet([headers,scopeRows[1],scopeRows[1]])})),/ROTATION_SCOPE_SLOT_DUPLICATE/);

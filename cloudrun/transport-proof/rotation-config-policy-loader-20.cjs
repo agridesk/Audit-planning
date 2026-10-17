@@ -18,8 +18,8 @@ function loadRotationPolicies20(values){
   const scopeKey=String(row[code]||'').trim();
   if(!scopeKey||seen.has(key)||codes.has(scopeKey))throw Error('ROTATION_POLICY_SCOPE_INVALID');
   seen.add(key);codes.add(scopeKey);
-  const active=activeIndex<0?true:['true','yes'].includes(String(row[activeIndex]??'').trim().toLowerCase());
-  const archived=archivedIndex<0?false:['true','yes'].includes(String(row[archivedIndex]??'').trim().toLowerCase());
+  const active=activeIndex<0?true:parseBoolean(row[activeIndex]);
+  const archived=archivedIndex<0?false:parseBoolean(row[archivedIndex]);
   if((!active||archived)&&String(row[applies]??'').trim()===''&&String(row[max]??'').trim()===''&&String(row[plusOne]??'').trim()==='')continue;
   const rotationApplies=parseBoolean(row[applies]);
   const extensionPermitted=parseBoolean(row[plusOne]);

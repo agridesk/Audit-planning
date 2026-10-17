@@ -20,13 +20,13 @@ function diagnoseRotationConfig20(values){
   const slotIx=h.indexOf('slotkey'),activeIx=h.indexOf('active'),archivedIx=h.indexOf('archived');
   const required=new Set();
   const parseLifecycle=(v,defaultValue)=>{if(v===undefined)return defaultValue;const s=String(v??'').trim().toLowerCase();if(['true','yes'].includes(s))return true;if(['false','no'].includes(s))return false;throw Error('ROTATION_POLICY_BOOLEAN_UNRESOLVED')};
-  for(const row of values.slice(1)){
+  try { for(const row of values.slice(1)){
    const slot=String(row[slotIx]??'').trim();
    if(!expected.has(slot))continue;
    const active=parseLifecycle(activeIx<0?undefined:row[activeIx],true);
    const archived=parseLifecycle(archivedIx<0?undefined:row[archivedIx],false);
    if(active&&!archived)required.add(slot);
-  }
+  } } catch(e) { findings.push(e.message); }
   for(const slot of required)if(!actual.has(slot))findings.push('MISSING_POLICY:'+slot);
   for(const slot of actual)if(!expected.has(slot))findings.push('ORPHAN_POLICY:'+slot);
   for(const p of policies)if(slots[p.slotKey]!==p.scopeKey)findings.push('POLICY_SCOPE_MISMATCH:'+p.slotKey);

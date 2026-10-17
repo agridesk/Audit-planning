@@ -4,7 +4,7 @@
 function completedLogRowsFromAms20(values,{resolveAuditorUid,scopeByColumn}={}){
  if(!Array.isArray(values)||!values.length||(resolveAuditorUid!=null&&typeof resolveAuditorUid!=='function')||!scopeByColumn||typeof scopeByColumn!=='object')throw Error('ROTATION_AMS_SOURCE_MISSING');
  const h=values[0].map(v=>String(v||'').trim().toLowerCase().replace(/[\s_-]/g,''));
- const index=(name)=>h.indexOf(name);
+ const index=(name)=>{const found=h.flatMap((x,i)=>x===name?[i]:[]);if(found.length>1)throw Error('ROTATION_AMS_DUPLICATE_HEADER:'+name);return found.length?found[0]:-1;};
  const company=index('companyuid'),auditor=index('auditor'),auditorUidIndex=index('auditoruid'),status=index('status'),date=index('datecompleted'),audit=index('auditid');
  if([company,status,date,audit].some(i=>i<0)||(auditor<0&&auditorUidIndex<0))throw Error('ROTATION_AMS_REQUIRED_COLUMN_MISSING');
  const scopeColumns=Object.keys(scopeByColumn);

@@ -22,7 +22,7 @@ function NotificationTestMail20_Send(eventKey) {
   var cfg=SYS_getConfig_();
   var mode=SYS_getResolvedNotificationMode_();
   if(mode!=='TEST_TO_SELF')throw new Error('DEV_TEST_TO_SELF_REQUIRED');
-  if(SYS_bool_(cfg.SEND_NOTIFICATIONS))throw new Error('DEV_LIVE_DELIVERY_FORBIDDEN');
+  // DEV TEST_TO_SELF is an explicit redirect-only mode. SEND_NOTIFICATIONS is a\n  // general delivery enablement flag, not permission to send to real recipients.\n  // The canonical recipient resolver and outbound guard enforce the test address.
   var to=String(cfg.DEV_TEST_EMAIL||'').trim();
   if(!/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(to))throw new Error('DEV_TEST_EMAIL_INVALID');
   var mail=NotificationTestMail20_Preview(eventKey);

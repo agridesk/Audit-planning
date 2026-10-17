@@ -625,8 +625,8 @@ function _mp_getEligibleAuditorsList_(ss, requiredScopes, preassignedName, audit
       var name = String(item.displayName || '').trim();
       var code = String(item.scopeCode || '').trim();
       if (!key || !Object.prototype.hasOwnProperty.call(qMap, key)) return;
-      if (name) qMap[name] = qMap[key];
-      if (code) qMap[code] = qMap[key];
+      if (name && !Object.prototype.hasOwnProperty.call(qMap, name)) qMap[name] = qMap[key];
+      if (code && !Object.prototype.hasOwnProperty.call(qMap, code)) qMap[code] = qMap[key];
     });
   } catch (eScopeQualificationMap) {}
 

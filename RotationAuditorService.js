@@ -706,11 +706,18 @@ function RUN_ROTATION_AUDITOR_SERVICE_SELFTEST() {
     2024: { y:true },
     2025: { x:true }
   };
+  var gapResult = RotationAuditorService_countConsecutive_(gap, 'x', null);
+  var otherResult = RotationAuditorService_countConsecutive_(other, 'x', null);
+  var uidResolution = RotationAuditorService_resolveAuditor_({ auditors: { byUid: { 'uid-test': { email: 'auditor@example.test' } } } }, 'uid-test');
+  var distinctCompanies = RotationAuditorService_groupKey_('company-1', 'Same name', 'MPS-ABC') !== RotationAuditorService_groupKey_('company-2', 'Same name', 'MPS-ABC');
+  var success = gapResult === 3 && otherResult === 1 && uidResolution === 'auditor@example.test' && distinctCompanies;
   return {
-    success: true,
+    success: success,
     version: ROTATION_AUDITOR_SERVICE.VERSION,
-    gapDoesNotBreak: RotationAuditorService_countConsecutive_(gap, 'x', null),
-    otherAuditorBreaks: RotationAuditorService_countConsecutive_(other, 'x', null)
+    gapDoesNotBreak: gapResult,
+    otherAuditorBreaks: otherResult,
+    auditorUidResolution: uidResolution,
+    companyUidIsolation: distinctCompanies
   };
 }
 

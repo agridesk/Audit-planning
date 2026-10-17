@@ -18,4 +18,8 @@ assert.equal(ambiguous.rows.length,1);
 assert.equal(ambiguous.rows[0].auditorUid,'b');
 assert.equal(ambiguous.rows[0].consecutiveYears,1);
 assert.equal(ambiguous.rows[0].status,'AVAILABLE');
+const sameYear=buildRotationManager20(scopes,auditors,[h,row('a',2025,'2025-05-01'),row('a',2026,'2026-03-01'),row('b',2026,'2026-10-03')]);
+assert.equal(sameYear.rows.length,1);
+assert.equal(sameYear.rows[0].auditorUid,'b');
+assert.equal(sameYear.rows[0].consecutiveYears,1);
 console.log('rotation manager 2.0 read model: PASS');

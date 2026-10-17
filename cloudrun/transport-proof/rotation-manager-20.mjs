@@ -1,5 +1,5 @@
 const clean=v=>String(v??'').trim();
-const norm=v=>clean(v).toLowerCase().replace(/[\\s_-]+/g,'');
+const norm=v=>clean(v).toLowerCase().replace(/[\s_-]+/g,'');
 const index=(h,...names)=>names.map(n=>h.findIndex(x=>norm(x)===norm(n))).find(i=>i>=0)??-1;
 const truth=v=>['true','yes','1','x'].includes(clean(v).toLowerCase());
 export function buildRotationManager20(scopes,auditors,log){

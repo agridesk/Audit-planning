@@ -198,7 +198,7 @@ async function proxy(req,res){
 http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url||'/','http://localhost');
-  if(req.method==='GET'&&u.pathname==='/rotation-manager-20'){
+  if(req.method==='GET'&&['/rotation','/rotation-manager-20'].includes(u.pathname)){
    const actor=await session(req);
    if(!actor||!['manager','auditor'].includes(actor.role)){res.writeHead(actor?403:401);res.end('Unauthorized');return;}
    const {readFile}=await import('node:fs/promises');
@@ -206,7 +206,7 @@ http.createServer(async(req,res)=>{
    res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});
    res.end(html);return;
   }
-  if(req.method==='GET'&&u.pathname==='/rotation-manager-20.js'){
+  if(req.method==='GET'&&['/rotation.js','/rotation-manager-20.js'].includes(u.pathname)){
    const actor=await session(req);
    if(!actor||!['manager','auditor'].includes(actor.role)){res.writeHead(actor?403:401);res.end('Unauthorized');return;}
    const {readFile}=await import('node:fs/promises');
@@ -214,7 +214,7 @@ http.createServer(async(req,res)=>{
    res.writeHead(200,{'content-type':'text/javascript; charset=utf-8','cache-control':'no-store'});
    res.end(script);return;
   }
-  if(req.method==='GET'&&u.pathname==='/api/v1/rotation-manager-20'){
+  if(req.method==='GET'&&['/api/v1/rotation','/api/v1/rotation-manager-20'].includes(u.pathname)){
    const actor=await session(req);
    if(!actor||!['manager','auditor'].includes(actor.role)){res.writeHead(actor?403:401);res.end('Unauthorized');return;}
    const data=[];

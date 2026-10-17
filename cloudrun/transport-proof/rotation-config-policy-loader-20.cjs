@@ -19,6 +19,7 @@ function loadRotationPolicies20(values){
   const rotationApplies=parseBoolean(row[applies]);
   const extensionPermitted=parseBoolean(row[plusOne]);
   const raw=String(row[max]??'').trim();
+  if(!rotationApplies&&raw)throw Error('ROTATION_POLICY_INCONSISTENT_MAXIMUM');
   if(rotationApplies&&!/^[1-9]\d*$/.test(raw))throw Error('ROTATION_POLICY_MAXIMUM_UNRESOLVED');
   const normalMaximum=rotationApplies?Number(raw):null;
   if(rotationApplies&&!Number.isSafeInteger(normalMaximum))throw Error('ROTATION_POLICY_MAXIMUM_UNRESOLVED');

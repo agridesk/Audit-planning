@@ -218,15 +218,29 @@ async function notificationGasCall(actor,operation,payload){
  if(project!=='audit-management-system-dev'||!endpoint||!secret)throw Error('NOTIFICATION_GAS_BRIDGE_UNAVAILABLE');
  const u=new URL(endpoint);if(u.protocol!=='https:')throw Error('NOTIFICATION_GAS_HTTPS_REQUIRED');
  u.searchParams.set('action','externalnotification20');
- let result;
+ let result,stage='post';
  try{
-  result=await fetch(u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({bridgeKey:secret,actorRole:'manager',actorEmail:actor.email,operation,...payload}),redirect:'follow',signal:AbortSignal.timeout(60000)});
+  const first=await fetch(u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({bridgeKey:secret,actorRole:'manager',actorEmail:actor.email,operation,...payload}),redirect:'manual',signal:AbortSignal.timeout(60000)});
+  result=first;
+  // Apps Script ContentService redirects its JSON response to googleusercontent.
+  // Follow the response with GET; never replay the write POST or forward the bridge secret.
+  if([301,302,303,307,308].includes(first.status)){
+   const location=first.headers.get('location');
+   if(!location)throw Error('NOTIFICATION_GAS_REDIRECT_MISSING');
+   const target=new URL(location,u);
+   if(target.protocol!=='https:'||!target.hostname.endsWith('.googleusercontent.com'))throw Error('NOTIFICATION_GAS_REDIRECT_REJECTED');
+   stage='redirect_get';
+   result=await fetch(target,{method:'GET',redirect:'follow',signal:AbortSignal.timeout(60000)});
+  }
  }catch(err){
-  const cause=err?.cause?.code||err?.name||'NETWORK_ERROR';
-  console.error('[NOTIFICATION_GAS_BRIDGE]',JSON.stringify({operation,phase:'fetch',cause:String(cause).slice(0,80)}));
-  throw Error('NOTIFICATION_GAS_TRANSPORT_'+String(cause).replace(/[^A-Z0-9_]/gi,'_'));
+  const cause=err?.message?.startsWith('NOTIFICATION_GAS_')?err.message:(err?.cause?.code||err?.name||'NETWORK_ERROR');
+  console.error('[NOTIFICATION_GAS_BRIDGE]',JSON.stringify({operation,stage,cause:String(cause).slice(0,80)}));
+  throw Error(String(cause).startsWith('NOTIFICATION_GAS_')?cause:'NOTIFICATION_GAS_TRANSPORT_'+String(cause).replace(/[^A-Z0-9_]/gi,'_'));
  }
- if(!result.ok)throw Error('NOTIFICATION_GAS_HTTP_'+result.status);
+ if(!result.ok){
+  console.error('[NOTIFICATION_GAS_BRIDGE]',JSON.stringify({operation,stage,status:result.status,host:new URL(result.url).hostname}));
+  throw Error('NOTIFICATION_GAS_HTTP_'+result.status+'_'+stage.toUpperCase());
+ }
  const raw=await result.text();
  let data;
  try{data=JSON.parse(raw);}catch{

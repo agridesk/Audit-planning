@@ -2,10 +2,14 @@ const table=document.getElementById('rows');
 const message=document.getElementById('message');
 const search=document.getElementById('search');
 let records=[];
+const companyFilter=document.getElementById('companyFilter');
+const auditorFilter=document.getElementById('auditorFilter');
+const statusFilter=document.getElementById('statusFilter');
+function populate(select,values){const selected=select.value;select.replaceChildren();const first=document.createElement('option');first.value='';first.textContent=select===companyFilter?'All companies':'All auditors';select.append(first);for(const v of [...new Set(values.filter(Boolean))].sort((a,b)=>a.localeCompare(b))){const o=document.createElement('option');o.value=v;o.textContent=v;select.append(o)}select.value=selected;}
 function render(){
  table.replaceChildren();
  const q=search.value.trim().toLowerCase();
- for(const item of records.filter(r=>[r.company,r.scope,r.auditor,r.auditorUid].join(' ').toLowerCase().includes(q))){
+ for(const item of records.filter(r=>(!companyFilter.value||r.companyUid===companyFilter.value)&&(!auditorFilter.value||r.auditorUid===auditorFilter.value)&&(!statusFilter.value||r.status===statusFilter.value)&&[r.company,r.scope,r.auditor,r.auditorUid].join(' ').toLowerCase().includes(q))){
   const tr=document.createElement('tr');
   for(const key of ['company','scope','auditor','years','consecutiveYears','maximum','status']){
    const td=document.createElement('td');td.textContent=String(item[key]??'');tr.append(td);
@@ -21,10 +25,19 @@ async function refresh(){
   const result=await response.json();
   if(result.success!==true)throw Error(result.error||'Rotation read failed');
   records=result.rows||[];
-  message.textContent=records.length+' rotation records (read-only)';
+  populate(companyFilter,records.map(r=>r.companyUid));
+  for(const option of companyFilter.options){const item=records.find(r=>r.companyUid===option.value);if(item)option.textContent=item.company;}
+  populate(auditorFilter,records.map(r=>r.auditorUid));
+  for(const option of auditorFilter.options){const item=records.find(r=>r.auditorUid===option.value);if(item)option.textContent=item.auditor;}
+  message.textContent=records.length+' current rotation chains · complete audit history retained (read-only)';
+  const issues=result.issues||[];
+  document.getElementById('quality').textContent=issues.length?issues.length+' source records excluded due to invalid year or identity. Check Log realized audits: '+issues.map(x=>'row '+x.row+' ('+x.reason+')').join(', '):'Source validation: no excluded records';
   render();
  }catch(error){message.textContent='Unable to load rotation: '+error.message;}
 }
 document.getElementById('reload').addEventListener('click',refresh);
 search.addEventListener('input',render);
 refresh();
+
+for(const element of [companyFilter,auditorFilter,statusFilter])element.addEventListener('change',render);
+document.getElementById('resetFilters').addEventListener('click',()=>{companyFilter.value='';auditorFilter.value='';statusFilter.value='';search.value='';render();});

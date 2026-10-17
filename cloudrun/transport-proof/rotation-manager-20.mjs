@@ -33,7 +33,7 @@ export function buildRotationManager20(scopes,auditors,log){
    let count=0;
    for(const y of years){const owners=g.years.get(y);if(owners.size!==1||!owners.has(uid))break;count++;}
    const person=people.get(uid)||{name:uid,email:''};
-   const status=latestOwners.size>1?'REVIEW_REQUIRED':count>=g.maximum?'AT_LIMIT':count===g.maximum-1?'NEAR_LIMIT':'AVAILABLE';
+   const status=latestOwners.size>1?'MULTIPLE_AUDITORS':count>=g.maximum?'AT_LIMIT':count===g.maximum-1?'NEAR_LIMIT':'AVAILABLE';
    rows.push({company:g.company,companyUid:g.companyUid,scope:g.scope,slot:g.slot,auditor:person.name,auditorUid:uid,years:years.join(', '),consecutiveYears:count,maximum:g.maximum,status,latestYear});
   }
  }

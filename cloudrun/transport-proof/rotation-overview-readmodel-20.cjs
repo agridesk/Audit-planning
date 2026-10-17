@@ -6,6 +6,9 @@ function buildRotationOverview20(input){
  const {auditors,companies,completedAudits,scopePoliciesByCompany,upcomingByCompany,approvedExceptions=[]}=input||{};
  if(!Array.isArray(auditors)||!Array.isArray(companies)||!Array.isArray(completedAudits)||!scopePoliciesByCompany||!upcomingByCompany)throw Error('ROTATION_OVERVIEW_INPUT_INCOMPLETE');
  if(!Array.isArray(approvedExceptions))throw Error('ROTATION_OVERVIEW_APPROVALS_INVALID');
+ const auditorIds=new Set(),companyIds=new Set();
+ for(const a of auditors){if(!a||!a.uid||!a.name||auditorIds.has(a.uid))throw Error('ROTATION_OVERVIEW_AUDITOR_IDENTITY_INVALID');auditorIds.add(a.uid);}
+ for(const co of companies){if(!co||!co.uid||!co.name||companyIds.has(co.uid))throw Error('ROTATION_OVERVIEW_COMPANY_IDENTITY_INVALID');companyIds.add(co.uid);}
  const sections=[];
  for(const auditor of auditors){
   if(!auditor.uid||!auditor.name)throw Error('ROTATION_OVERVIEW_AUDITOR_UID_REQUIRED');
@@ -14,11 +17,15 @@ function buildRotationOverview20(input){
    if(!company.uid||!company.name)throw Error('ROTATION_OVERVIEW_COMPANY_UID_REQUIRED');
    const policies=scopePoliciesByCompany[company.uid];
    if(!Array.isArray(policies))throw Error('ROTATION_OVERVIEW_POLICIES_MISSING');
+   const policyKeys=new Set();
    for(const policy of policies){
+    if(!policy||!policy.scopeKey||policyKeys.has(policy.scopeKey))throw Error('ROTATION_OVERVIEW_SCOPE_POLICY_DUPLICATE_OR_MISSING');
+    policyKeys.add(policy.scopeKey);
     const upcoming=upcomingByCompany[company.uid];
     if(!Array.isArray(upcoming))throw Error('ROTATION_OVERVIEW_UPCOMING_MISSING');
     const next=upcoming.filter(a=>Array.isArray(a.scopeKeys)&&a.scopeKeys.includes(policy.scopeKey)&&a.auditorUid===auditor.uid);
     if(next.length>1)throw Error('ROTATION_OVERVIEW_AMBIGUOUS_ASSIGNMENT');
+    if(next.length===1&&(!next[0].auditId||!next[0].phase))throw Error('ROTATION_OVERVIEW_UPCOMING_IDENTITY_INCOMPLETE');
     const assignmentAuditId=next.length===1?next[0].auditId:undefined;
     const contexts=canonicalRotationContexts({companyUid:company.uid,auditorUid:auditor.uid,scopePolicies:[policy],completedAudits,approvedExceptions,assignmentAuditId});
     const decision=preassignmentRotationDecision(contexts,'PREASSIGN');

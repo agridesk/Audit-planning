@@ -18,6 +18,10 @@ function completedLogRowsFromAms20(values,{resolveAuditorUid,scopeByColumn}={}){
   if(!companyUid||!auditId||!completedAt||!Number.isFinite(Date.parse(completedAt)))throw Error('ROTATION_AMS_COMPLETED_ROW_INCOMPLETE');
   const storedAuditorUid=auditorUidIndex>=0?String(row[auditorUidIndex]||'').trim():'';
   const auditorUid=storedAuditorUid||(rawAuditor&&typeof resolveAuditorUid==='function'?resolveAuditorUid(rawAuditor,completedAt):'');
+  if(storedAuditorUid&&rawAuditor&&typeof resolveAuditorUid==='function'){
+   const resolved=resolveAuditorUid(rawAuditor,completedAt);
+   if(resolved&&resolved!==storedAuditorUid)throw Error('ROTATION_AMS_AUDITOR_UID_CONFLICT');
+  }
   if(typeof auditorUid!=='string'||!auditorUid.trim())throw Error('ROTATION_AMS_AUDITOR_UID_UNRESOLVED');
   if(auditOwner.has(auditId))throw Error('ROTATION_AMS_DUPLICATE_AUDIT_ID');
   auditOwner.set(auditId,true);

@@ -282,7 +282,7 @@ function LogRealizedAuditService_prepareAppend_(rowObj, meta, dryRun) {
   LogRealizedAuditService_setByHeader_(logHeaders, row, ['Company_UID', 'Company UID', 'CompanyUid'], companyUid);
   LogRealizedAuditService_setByHeader_(logHeaders, row, ['Date completed', 'Date Completed'], dateCompleted);
 
-  for (var s = 1; s <= 8; s++) {
+  for (var s = 1; s <= 20; s++) {
     var key = 'SCOPE_' + ('0' + s).slice(-2);
     var scopeVal = LogRealizedAuditService_getCell_(rowObj, [key]);
     if (LogRealizedAuditService_isMarked_(scopeVal)) {

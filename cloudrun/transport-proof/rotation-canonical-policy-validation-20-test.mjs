@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {canonicalRotationContexts}=require('./rotation-source-adapter-20.cjs');
+const base={companyUid:'C1',auditorUid:'U1',assignmentAuditId:'A1',completedAudits:[],approvedExceptions:[],scopePolicies:[{scopeKey:'S1',rotationApplies:true,normalMaximum:3,extensionPermitted:false}]};
+assert.equal(canonicalRotationContexts(base).length,1);
+for(const policy of [{scopeKey:'S1',normalMaximum:3,extensionPermitted:false},{scopeKey:'S1',rotationApplies:false,normalMaximum:3,extensionPermitted:false},{scopeKey:'S1',rotationApplies:false,normalMaximum:null,extensionPermitted:true},{scopeKey:'S1',rotationApplies:true,normalMaximum:Number.MAX_SAFE_INTEGER+1,extensionPermitted:false}])assert.throws(()=>canonicalRotationContexts({...base,scopePolicies:[policy]}),/ROTATION_SCOPE_POLICY_INVALID/);
+assert.equal(canonicalRotationContexts({...base,scopePolicies:[{scopeKey:'S1',rotationApplies:false,normalMaximum:null,extensionPermitted:false}]}).length,1);
+assert.throws(()=>canonicalRotationContexts({...base,approvedExceptions:[null]}),/ROTATION_EXCEPTION_RECORD_INVALID/);
+console.log('rotation canonical policy validation: PASS');

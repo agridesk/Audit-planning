@@ -40,6 +40,7 @@ function RUN_SCOPE_MANAGEMENT_2_0_SCHEMA_PREFLIGHT() {
     if(archived==='YES'||archived==='TRUE')archivedCount++;
     if((active==='YES'||active==='TRUE')&&(archived==='YES'||archived==='TRUE'))errors.push('Archived scope marked active at row '+(k+1));
   }
-  var out={success:errors.length===0,readOnly:true,writesPerformed:false,scopeCount:Object.keys(seen).length,activeScopes:activeCount,archivedScopes:archivedCount,columnsPresent:headers.length,errors:errors,warnings:warnings};
+  var legacyGridReady=true;
+  var out={legacyGridReady:legacyGridReady,success:errors.length===0,readOnly:true,writesPerformed:false,scopeCount:Object.keys(seen).length,activeScopes:activeCount,archivedScopes:archivedCount,columnsPresent:headers.length,errors:errors,warnings:warnings};
   Logger.log(JSON.stringify(out));return out;
 }

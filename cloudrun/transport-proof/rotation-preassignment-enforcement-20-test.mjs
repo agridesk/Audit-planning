@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {preassignmentRotationDecision}=require('./rotation-preassignment-20.cjs');
+const base={scopeKey:'SCOPE_X',identityResolved:true,policyResolved:true,rotationApplies:true,consecutiveCompleted:3,normalMaximum:3,extensionPermitted:true,extensionUsedInSeries:false,managerApproved:false,assignmentBound:true,justification:''};
+assert.equal(preassignmentRotationDecision([base],'DRAFT').decision,'WARN');
+assert.equal(preassignmentRotationDecision([base],'PREASSIGN').decision,'BLOCK');
+assert.equal(preassignmentRotationDecision([base],'COMMIT').decision,'BLOCK');
+assert.equal(preassignmentRotationDecision([{...base,managerApproved:true,justification:'Manager authorized for this assignment'}],'PREASSIGN').decision,'ALLOW');
+assert.equal(preassignmentRotationDecision([{...base,managerApproved:true,justification:'Manager authorized for this assignment'}],'COMMIT').decision,'ALLOW');
+assert.equal(preassignmentRotationDecision([{...base,extensionUsedInSeries:true,managerApproved:true,justification:'Another +1'}],'COMMIT').decision,'BLOCK');
+console.log('rotation preassignment manager approval: PASS');

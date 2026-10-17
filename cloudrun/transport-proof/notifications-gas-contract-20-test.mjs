@@ -56,3 +56,10 @@ assert.ok(sender.includes("settings.DEV_TEST_EMAIL||''"), 'DEV test recipient mu
 assert.ok(sender.includes("if (!ns_yesLike_(settings.SEND_NOTIFICATIONS))mode='OFF'"), 'Disabled notification sending must override test mode');
 assert.ok(gateway.includes('function NMG_getDevSystemSenderSettings_()'), 'DEV sender identity needs System_Config reader');
 for (const field of ['DEFAULT_FROM_EMAIL','DEFAULT_FROM_NAME','DEFAULT_REPLY_TO']) assert.ok(gateway.includes('devSettings.'+field+' ||'), 'System_Config must take priority for '+field);
+
+// Action-from-email phase 1: Manager approval mail is navigation-only.
+const approvalMail=read('NotificationRenderer_ApprovalOperational.js');
+assert.match(approvalMail,/Review in Manager portal/);
+assert.match(approvalMail,/MANAGER_PORTAL_URL/);
+assert.match(approvalMail,/NB_htmlAttr_\(managerPortalUrl\)/);
+assert.doesNotMatch(approvalMail,/managerPortalUrl\s*\+\s*['"](?:\?|&).*approve/i);

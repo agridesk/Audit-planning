@@ -40,7 +40,17 @@ function RUN_SCOPE_MANAGEMENT_2_0_SCHEMA_PREFLIGHT() {
     if(archived==='YES'||archived==='TRUE')archivedCount++;
     if((active==='YES'||active==='TRUE')&&(archived==='YES'||archived==='TRUE'))errors.push('Archived scope marked active at row '+(k+1));
   }
-  var legacyGridReady=true;
-  var out={legacyGridReady:legacyGridReady,success:errors.length===0,readOnly:true,writesPerformed:false,scopeCount:Object.keys(seen).length,activeScopes:activeCount,archivedScopes:archivedCount,columnsPresent:headers.length,errors:errors,warnings:warnings};
+  var legacyGridReady=true,missingLegacySlots=[];
+  ['Audit planning','Log realized audits'].forEach(function(name){
+    var grid=ss.getSheetByName(name);
+    if(!grid){legacyGridReady=false;warnings.push('Legacy grid absent: '+name);return;}
+    var gh=grid.getRange(1,1,1,grid.getLastColumn()).getValues()[0].map(String);
+    Object.keys(slots).forEach(function(slot){
+      if(gh.indexOf(slot)<0){legacyGridReady=false;missingLegacySlots.push(name+':'+slot);}
+      if(name==='Audit planning'&&gh.indexOf('Duration '+slot)<0){legacyGridReady=false;missingLegacySlots.push(name+':Duration '+slot);}
+    });
+  });
+  if(missingLegacySlots.length)warnings.push('Missing legacy grid columns: '+missingLegacySlots.join(', '));
+  var out={legacyGridReady:legacyGridReady,missingLegacySlots:missingLegacySlots,success:errors.length===0,readOnly:true,writesPerformed:false,scopeCount:Object.keys(seen).length,activeScopes:activeCount,archivedScopes:archivedCount,columnsPresent:headers.length,errors:errors,warnings:warnings};
   Logger.log(JSON.stringify(out));return out;
 }

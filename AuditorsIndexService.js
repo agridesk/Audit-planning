@@ -257,6 +257,21 @@ function AuditorsIndex_buildQualifications_() {
         } catch (eAlias) {}
       }
 
+      if (col < 0) {
+        try {
+          if (typeof ConfigScopes_GetCatalog === 'function') {
+            var slotCatalog = ConfigScopes_GetCatalog(false);
+            var slotRows = slotCatalog && Array.isArray(slotCatalog.rows) ? slotCatalog.rows : [];
+            for (var sr = 0; sr < slotRows.length; sr++) {
+              var item = slotRows[sr];
+              if (String(item.displayName || '').trim().toLowerCase() === scope.toLowerCase()) {
+                col = AuditorsIndex_findExactHeader_(headers, String(item.slotKey || '').trim());
+                break;
+              }
+            }
+          }
+        } catch (eSlot) {}
+      }
       if (col < 0) continue;
 
       var val = AuditorsIndex_clean_(row[col]).toLowerCase();

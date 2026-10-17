@@ -19,4 +19,8 @@ assert.equal(accepted.upcoming[0].auditId,'NEXT');
 assert.throws(()=>buildRotationOverview20({...base,scopePoliciesByCompany:{}}),/ROTATION_OVERVIEW_POLICIES_MISSING/);
 assert.throws(()=>buildRotationOverview20({...base,upcomingByCompany:{}}),/ROTATION_OVERVIEW_UPCOMING_MISSING/);
 assert.throws(()=>buildRotationOverview20({...base,upcomingByCompany:{C1:[...base.upcomingByCompany.C1,...base.upcomingByCompany.C1]}}),/ROTATION_OVERVIEW_AMBIGUOUS_ASSIGNMENT/);
+assert.throws(()=>buildRotationOverview20({...base,auditors:[...base.auditors,...base.auditors]}),/ROTATION_OVERVIEW_AUDITOR_IDENTITY_INVALID/);
+assert.throws(()=>buildRotationOverview20({...base,companies:[...base.companies,...base.companies]}),/ROTATION_OVERVIEW_COMPANY_IDENTITY_INVALID/);
+assert.throws(()=>buildRotationOverview20({...base,scopePoliciesByCompany:{C1:[...base.scopePoliciesByCompany.C1,...base.scopePoliciesByCompany.C1]}}),/ROTATION_OVERVIEW_SCOPE_POLICY_DUPLICATE_OR_MISSING/);
+assert.throws(()=>buildRotationOverview20({...base,upcomingByCompany:{C1:[{auditorUid:'U1',scopeKeys:['ABC'],phase:'PREASSIGN'}]}}),/ROTATION_OVERVIEW_UPCOMING_IDENTITY_INCOMPLETE/);
 console.log('rotation manager overview readmodel: PASS');

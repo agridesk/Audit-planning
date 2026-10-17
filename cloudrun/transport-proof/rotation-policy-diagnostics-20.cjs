@@ -20,6 +20,6 @@ function diagnoseRotationConfig20(values){
   for(const slot of actual)if(!expected.has(slot))findings.push('ORPHAN_POLICY:'+slot);
   for(const p of policies)if(slots[p.slotKey]!==p.scopeKey)findings.push('POLICY_SCOPE_MISMATCH:'+p.slotKey);
  }
- return {ready:findings.length===0,findings,scopeCount:slots?Object.keys(slots).length:0,policyCount:policies?policies.length:0};
+ return {ready:findings.length===0,findings,scopeCount:slots?Object.keys(slots).length:0,policyCount:policies?policies.length:0,rotationApplicableCount:policies?policies.filter(p=>p.rotationApplies).length:0,plusOnePermittedCount:policies?policies.filter(p=>p.extensionPermitted).length:0};
 }
 module.exports={diagnoseRotationConfig20};

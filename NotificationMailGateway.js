@@ -131,8 +131,26 @@ function NMG_getProvider_() {
   return String(raw || '').trim().toUpperCase() || NMG_DEFAULT_PROVIDER;
 }
 
+function NMG_getDevSystemSenderSettings_() {
+  if (typeof SYS_getEnv_ !== 'function' || SYS_getEnv_() !== 'DEV') return null;
+  var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('System_Config');
+  if(!sh)return null;
+  var rows=sh.getDataRange().getValues(),col=-1;
+  for(var c=0;c<(rows[0]||[]).length;c++){
+    if(String(rows[0][c]||'').trim().toUpperCase()==='DEV'){col=c;break;}
+  }
+  if(col<0)return null;
+  var map={};
+  for(var i=1;i<rows.length;i++){
+    var key=String(rows[i][0]||'').trim().toUpperCase();
+    if(key)map[key]=String(rows[i][col]==null?'':rows[i][col]).trim();
+  }
+  return map;
+}
+
 function NMG_getSenderIdentity_() {
   var settings = {};
+  var devSettings = NMG_getDevSystemSenderSettings_() || {};
   try {
     if (typeof NotificationConfig_GetSenderSettings === 'function') {
       settings = NotificationConfig_GetSenderSettings() || {};
@@ -140,6 +158,7 @@ function NMG_getSenderIdentity_() {
   } catch (e) { settings = {}; }
 
   var fromEmail = String(
+    devSettings.DEFAULT_FROM_EMAIL ||
     settings.DEFAULT_FROM_EMAIL ||
     NMG_getSetting_('DEFAULT_FROM_EMAIL', '') ||
     (typeof NotificationConfig_GetDefaultFromEmail === 'function' ? NotificationConfig_GetDefaultFromEmail() : '') ||
@@ -148,6 +167,7 @@ function NMG_getSenderIdentity_() {
   ).trim();
 
   var fromName = String(
+    devSettings.DEFAULT_FROM_NAME ||
     settings.DEFAULT_FROM_NAME ||
     NMG_getSetting_('DEFAULT_FROM_NAME', '') ||
     (typeof NotificationConfig_GetDefaultFromName === 'function' ? NotificationConfig_GetDefaultFromName() : '') ||
@@ -156,6 +176,7 @@ function NMG_getSenderIdentity_() {
   ).trim();
 
   var replyTo = String(
+    devSettings.DEFAULT_REPLY_TO ||
     settings.DEFAULT_REPLY_TO ||
     NMG_getSetting_('DEFAULT_REPLY_TO', '') ||
     fromEmail ||

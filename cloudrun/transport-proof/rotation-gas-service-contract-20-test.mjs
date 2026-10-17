@@ -15,10 +15,11 @@ assert.throws(()=>ctx.RotationAuditorService_readMaxByScope_(ss({'Config_Scopes'
 assert.throws(()=>ctx.RotationAuditorService_readScopeAliases_(ss({'Config_Scopes':sheet([headers,scopeRows[1],scopeRows[1]])})),/ROTATION_SCOPE_SLOT_DUPLICATE/);
 const logHeaders=['Company','Auditor','Status','Date approved','SCOPE_01','Hours planned','Year','Company_UID','Auditor_UID','SCOPE_09'];
 const log=[logHeaders,['Same name','auditor@example.test','Completed','','YES','','2025','company-1','uid-1',''],['Same name','other@example.test','Completed','','YES','','2025','company-2','uid-2','']];
-const auditors={byUid:{'uid-1':{email:'auditor@example.test'},'uid-2':{email:'other@example.test'}},byEmail:{},byName:{}};
+const auditors={byUid:{'uid-1':{email:'auditor@example.test'},'uid-2':{email:'other@example.test'}},byEmail:{'wrong@example.test':{auditorUid:'uid-2'}},byName:{}};
 const groups=ctx.RotationAuditorService_readLogEvents_(ss({'Log realized audits':sheet(log)}),aliases,auditors);
 assert.equal(Object.keys(groups).length,2);
 assert.equal(ctx.RUN_ROTATION_AUDITOR_SERVICE_SELFTEST().success,true);
+assert.doesNotThrow(()=>ctx.RotationAuditorService_readLogEvents_(ss({'Log realized audits':sheet([logHeaders,['Same name','historical@example.test','Completed','','YES','','2025','company-1','uid-1','']])}),aliases,auditors));
 const conflicting=[logHeaders,['Same name','wrong@example.test','Completed','','YES','','2025','company-1','uid-1','']];
 assert.throws(()=>ctx.RotationAuditorService_readLogEvents_(ss({'Log realized audits':sheet(conflicting)}),aliases,auditors),/ROTATION_LOG_AUDITOR_IDENTITY_CONFLICT/);
 console.log('rotation GAS service contract: PASS');

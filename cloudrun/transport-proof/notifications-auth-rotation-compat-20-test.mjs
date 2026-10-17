@@ -11,7 +11,7 @@ assert.match(server,/QUEUE_SHEET_NAME/);
 assert.match(server,/notificationOverview\(/);
 assert.match(server,/configurationDiagnostics/);
 assert.match(server,/destructiveCleanupAllowed:false/);
-assert.match(server,/CANONICAL_GAS_WRITE_BRIDGE_REQUIRED/);
+assert.match(server,/notificationGasCall/);
 assert.match(portal,/notificationsManager20"\)\.hidden=String\(actorRole\)\.toLowerCase\(\)!=="manager"/);
 assert.match(html,/href="\/notifications-manager-20"/);
 assert.doesNotMatch(server,/notifications-manager-20\/save|notifications-manager-20\/retry/);

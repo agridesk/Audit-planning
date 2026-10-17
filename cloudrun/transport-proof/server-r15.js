@@ -3,6 +3,7 @@
  */
 import http from 'node:http';
 import {notificationOverview} from './notification-overview-20.mjs';
+import {buildRotationManager20} from './rotation-manager-20.mjs';
 
 import {URL} from 'node:url';
 import {createAvailabilityHttpRouter} from './availability-http-api-20.js';

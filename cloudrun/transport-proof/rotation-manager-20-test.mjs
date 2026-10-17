@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {buildRotationManager20} from './rotation-manager-20.mjs';
+const scopes=[['SlotKey','ScopeCode','DisplayName','Active','Archived','Rotation_Applies','Rotation_Normal_Maximum'],['SCOPE_01','ABC','ABC','TRUE','FALSE','TRUE','3']];
+const auditors=[['Name','E-mail','Auditor_UID'],['Auditor A','a@test.invalid','a'],['Auditor B','b@test.invalid','b']];
+const h=['Company','Company_UID','Auditor_UID','Status','Year','Date completed','SCOPE_01'];
+const row=(uid,year,completed)=>['Company','company-1',uid,'Completed',String(year),completed,'x'];
+const log=[h,row('a',2022,'2022-01-01'),row('a',2024,'2024-01-01'),row('a',2025,'2025-01-01'),row('b',2026,'2026-01-01'),row('a',2027,'2026-01-01')];
+const result=buildRotationManager20(scopes,auditors,log);
+assert.equal(result.rows.length,1);
+assert.equal(result.rows[0].auditorUid,'b');
+assert.equal(result.rows[0].consecutiveYears,1);
+assert.equal(result.issues.length,1);
+const gap=buildRotationManager20(scopes,auditors,[h,row('a',2022,'2022-01-01'),row('a',2024,'2024-01-01'),row('a',2026,'2026-01-01')]);
+assert.equal(gap.rows[0].consecutiveYears,3);
+assert.equal(gap.rows[0].status,'AT_LIMIT');
+const ambiguous=buildRotationManager20(scopes,auditors,[h,row('a',2026,'2026-01-01'),row('b',2026,'2026-01-01')]);
+assert.equal(ambiguous.rows.every(r=>r.status==='REVIEW_REQUIRED'),true);
+console.log('rotation manager 2.0 read model: PASS');

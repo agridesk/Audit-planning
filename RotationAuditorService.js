@@ -283,6 +283,7 @@ function RotationAuditorService_readScopeAliases_(ss) {
     var code = codeCol >= 0 ? RotationAuditorService_clean_(row[codeCol]) : '';
     var name = nameCol >= 0 ? RotationAuditorService_clean_(row[nameCol]) : '';
     var canonical = name || code || slot;
+    if (!slot && !code && !name) continue;
     if (!canonical) continue;
     if (!/^SCOPE_(?:0[1-9]|1[0-9]|20)$/.test(slot)) throw new Error('ROTATION_SCOPE_SLOT_INVALID');
 

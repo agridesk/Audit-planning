@@ -32,6 +32,7 @@ COPY server-r10.js ./
 COPY server-r11.js ./
 COPY server-r12.js ./
 COPY notification-overview-20.mjs ./
+COPY notification-manager-20.html ./
 COPY server-r15.js ./
 COPY availability-*.js ./
 COPY availability-manager-calendar-20.html ./

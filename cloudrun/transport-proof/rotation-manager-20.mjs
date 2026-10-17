@@ -32,7 +32,8 @@ export function buildRotationManager20(scopes,auditors,log){
   const latestYear=years[0],latestOwners=new Set([g.events[0].auditorUid]);
   for(const uid of latestOwners){
    let count=0;
-   for(const y of years){const owners=g.years.get(y);if(owners.size!==1||!owners.has(uid))break;count++;}
+   const countedYears=new Set();
+   for(const event of g.events){if(event.auditorUid!==uid)break;if(!countedYears.has(event.year)){count++;countedYears.add(event.year);}}
    const person=people.get(uid)||{name:uid,email:''};
    const status=latestOwners.size>1?'MULTIPLE_AUDITORS':count>=g.maximum?'AT_LIMIT':count===g.maximum-1?'NEAR_LIMIT':'AVAILABLE';
    rows.push({company:g.company,companyUid:g.companyUid,scope:g.scope,slot:g.slot,auditor:person.name,auditorUid:uid,years:years.join(', '),consecutiveYears:count,maximum:g.maximum,status,latestYear});

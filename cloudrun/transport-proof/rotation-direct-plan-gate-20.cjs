@@ -33,11 +33,11 @@ function canonicalAssignment({auditId,auditorUid,planningValues,auditorValues,sc
 }
 // Called ONLY inside the existing planning writer lock, using the same fresh
 // server-side Sheets snapshot as the actual planning mutation.
-async function enforceDirectPlanningRotation20({auditId,auditorUid,planningValues,auditorValues,scopeValues,logValues,approvedExceptions}={}){
+async function enforceDirectPlanningRotation20({auditId,auditorUid,planningValues,auditorValues,scopeValues,logValues,approvedExceptions,resolveAuditorUid}={}){
  if(!Array.isArray(approvedExceptions))throw Error('ROTATION_DIRECT_APPROVAL_SOURCE_MISSING');
  const assignment=canonicalAssignment({auditId,auditorUid,planningValues,auditorValues,scopeValues,logValues});
  return enforceAmsRotationAtWrite20({...assignment,phase:'COMMIT',loadSheets:async()=>({
-  scopeRows:scopeValues,completedRows:logValues,approvedExceptions,
+  scopeRows:scopeValues,completedRows:logValues,approvedExceptions,resolveAuditorUid,
   assignmentAuditId:assignment.auditId,assignmentCompanyUid:assignment.companyUid,
   assignmentAuditorUid:assignment.auditorUid,assignmentScopeKeys:assignment.scopeKeys
  })});

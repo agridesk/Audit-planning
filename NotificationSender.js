@@ -63,6 +63,9 @@ function NotificationSender_RunDigest() {
       };
     }
 
+    var policy = ns_currentEmailPermissions_();
+    var suppressedCount = ns_suppressDisabledQueueRows_(nq, values, policy);
+    values = nq.getDataRange().getValues();
     var resetCount = ns_resetStaleReserved_(nq, values);
 
     values = nq.getDataRange().getValues();
@@ -78,6 +81,7 @@ function NotificationSender_RunDigest() {
       failedGroups: sendRes.failedGroups || 0,
       sentRows: sendRes.sentRows || 0,
       failedRows: sendRes.failedRows || 0,
+      suppressed: suppressedCount || 0,
       reset: resetCount || 0,
       processedGroups: sendRes.processedGroups || 0
     };
@@ -475,6 +479,37 @@ function ns_yesLike_(v) {
  * Reservation
  * ============================================================ */
 
+function ns_currentEmailPermissions_() {
+  var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Notification_Config');
+  if(!sh)throw new Error('NOTIFICATION_CONFIG_MISSING');
+  var rows=sh.getDataRange().getValues();
+  var headers=(rows[0]||[]).map(function(v){return String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');});
+  var k=headers.indexOf('EVENTKEY'),a=headers.indexOf('ACTIVE'),e=headers.indexOf('SENDEMAIL'),l=headers.indexOf('LOGONLY');
+  if(k<0||a<0||e<0||l<0)throw new Error('NOTIFICATION_CONFIG_SCHEMA');
+  var result={};
+  for(var i=1;i<rows.length;i++){
+    var key=String(rows[i][k]||'').trim().toUpperCase();
+    if(!key)continue;
+    if(Object.prototype.hasOwnProperty.call(result,key))throw new Error('NOTIFICATION_CONFIG_DUPLICATE');
+    result[key]=ns_yesLike_(rows[i][a])&&ns_yesLike_(rows[i][e])&&!ns_yesLike_(rows[i][l]);
+  }
+  return result;
+}
+function ns_suppressDisabledQueueRows_(sheet,rows,policy){
+  var n=0;
+  for(var i=1;i<rows.length;i++){
+    var status=String(rows[i][1]||'').trim();
+    if(status!=='PENDING'&&status!=='RESERVED')continue;
+    var event=String(rows[i][2]||'').trim().toUpperCase();
+    if(policy[event]===true)continue;
+    sheet.getRange(i+1,2).setValue('SENT_SUPPRESSED');
+    sheet.getRange(i+1,10).setValue('Current notification configuration blocks email; no email sent');
+    sheet.getRange(i+1,13).setValue('');
+    n++;
+  }
+  return n;
+}
+
 function ns_reservePending_(nqSheet, values) {
   if (!values || values.length < 2) return 0;
 
@@ -641,6 +676,21 @@ function ns_sendDueReserved_(nqSheet, values) {
   for (var k = 0; k < keys.length; k++) {
     var group = allGroups[keys[k]];
     if (!group.items.length) continue;
+    var livePolicy = ns_currentEmailPermissions_();
+    var allowed = [];
+    for (var pi=0;pi<group.items.length;pi++) {
+      var item = group.items[pi];
+      if (livePolicy[String(item.eventCode||'').trim().toUpperCase()] === true) {
+        allowed.push(item);
+      } else {
+        nqSheet.getRange(item.rowIndex,2).setValue('SENT_SUPPRESSED');
+        nqSheet.getRange(item.rowIndex,10).setValue('Current notification configuration blocks email; no email sent');
+        nqSheet.getRange(item.rowIndex,13).setValue('');
+      }
+    }
+    if (!allowed.length) continue;
+    group.items = allowed;
+    group.rows = allowed.map(function(item){return item.rowIndex;});
 
     var mail = null;
     var fromName = NS_DEFAULT_FROM_NAME;

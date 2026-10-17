@@ -284,6 +284,20 @@ function doPost(e) {
       return authResponse({ok:true,role:verified.role,token:verified.token,expiresAt:verified.expiresAt});
     }catch(authError){return authResponse({ok:false,error:'AUTHENTICATION_UNAVAILABLE'});}
   }
+  if(rawAction==='externalnotification20'){
+    var reply=function(x){return ContentService.createTextOutput(JSON.stringify(x)).setMimeType(ContentService.MimeType.JSON);};
+    if(!V5_ENTRY_isDevEnv_())return reply({ok:false,error:'DEV_ONLY'});
+    var bridge=V5_ENTRY_externalBridgeBody_(e);
+    if(!bridge.ok)return bridge.response;
+    var b=bridge.body||{};
+    if(String(b.actorRole||'').toLowerCase()!=='manager'||!String(b.actorEmail||'').includes('@'))return reply({ok:false,error:'MANAGER_REQUIRED'});
+    try{
+      if(b.operation==='preview')return reply({ok:true,preview:NotificationTestMail20_Preview(b.eventKey)});
+      if(b.operation==='sendTest')return reply(NotificationTestMail20_Send(b.eventKey));
+      if(b.operation==='updateEvent')return reply(NotificationManagement20_UpdateEvent(b.eventKey,b.changes,b.expected));
+      return reply({ok:false,error:'INVALID_OPERATION'});
+    }catch(err){return reply({ok:false,error:String(err.message||'NOTIFICATION_FAILED').slice(0,120)});}
+  }
   if(rawAction==='versioncheck')return ContentService.createTextOutput(JSON.stringify({ok:true,build:'2026-10-01_ENTRYV5_GRID2_BRIDGES_R2',runtimeEnv:V5_ENTRY_readProjectEnv_()})).setMimeType(ContentService.MimeType.JSON);
 
   if (rawAction === 'externalplanningworkspace') {

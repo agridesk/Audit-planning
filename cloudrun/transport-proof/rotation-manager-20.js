@@ -30,7 +30,7 @@ function showDetail(item){
 async function refresh(){
  message.textContent='Loading...';
  try{
-  const response=await fetch('/api/v1/rotation-manager-20',{credentials:'same-origin',cache:'no-store'});
+  const response=await fetch('/api/v1/rotation',{credentials:'same-origin',cache:'no-store'});
   if(!response.ok)throw Error('HTTP '+response.status);
   const result=await response.json();
   if(result.success!==true)throw Error(result.error||'Rotation read failed');

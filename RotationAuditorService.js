@@ -536,7 +536,8 @@ function RotationAuditorService_findGroup_(pack, companyUid, companyName, scope)
     var g = pack.groups[keys[i]];
     if (g.scope !== scope) continue;
     if (targetUid && String(g.companyUid || '').trim() === targetUid) return g;
-    if (targetName && RotationAuditorService_key_(g.company) === targetName) return g;
+    if (!targetUid && targetName && RotationAuditorService_key_(g.company) === targetName) return g;
+    if (targetUid && !g.companyUid && targetName && RotationAuditorService_key_(g.company) === targetName) return g;
   }
   return null;
 }

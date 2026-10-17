@@ -5,6 +5,7 @@ const {strictAmsCompletedHistory20}=require('./rotation-ams-strict-source-20.cjs
 function loadAmsRotationBundle20({scopeRows,completedRows,resolveAuditorUid}={}){
  const scopeByColumn=scopeSlotsFromConfig20(scopeRows);
  const policies=loadRotationPolicies20(scopeRows);
+ if(policies.length!==Object.keys(scopeByColumn).length)throw Error('ROTATION_BUNDLE_POLICY_COVERAGE_INCOMPLETE');
  for(const policy of policies){if(scopeByColumn[policy.slotKey]!==policy.scopeKey)throw Error('ROTATION_BUNDLE_SCOPE_POLICY_MISMATCH');}
  const completedAudits=strictAmsCompletedHistory20(completedRows,{scopeByColumn,resolveAuditorUid});
  return {scopePolicies:policies.map(({scopeKey,normalMaximum,rotationApplies,extensionPermitted})=>({scopeKey,normalMaximum,rotationApplies,extensionPermitted})),completedAudits};

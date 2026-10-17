@@ -188,7 +188,7 @@ async function notificationsManagerOverview(req,res){
  const queueRule=rules.slice(1).find(row=>keyCol>=0&&String(row[keyCol]||'').trim().toUpperCase()==='QUEUE_SHEET_NAME');
  const configuredQueue=queueRule&&valueCol>=0?String(queueRule[valueCol]||'').trim():'';
  const queueName=configuredQueue||'Notification Queue';
- if(!queueName||queueName.length>100||/[\\x00-\\x1f]/.test(queueName))throw Error('NOTIFICATION_QUEUE_NAME_INVALID');
+ if(!queueName||queueName.length>100||/[\x00-\x1f]/.test(queueName))throw Error('NOTIFICATION_QUEUE_NAME_INVALID');
  const queueRange="'"+queueName.replace(/'/g,"''")+"'!A1:AZ5000";
  const queueUrl='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(queueRange);
  const queueResponse=await fetch(queueUrl,{headers:{authorization:'Bearer '+await getToken()}});

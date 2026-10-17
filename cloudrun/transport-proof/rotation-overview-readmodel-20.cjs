@@ -17,6 +17,7 @@ function buildRotationOverview20(input){
     const upcoming=upcomingByCompany[company.uid];
     if(!Array.isArray(upcoming))throw Error('ROTATION_OVERVIEW_UPCOMING_MISSING');
     const next=upcoming.filter(a=>Array.isArray(a.scopeKeys)&&a.scopeKeys.includes(policy.scopeKey)&&a.auditorUid===auditor.uid);
+    if(next.length>1)throw Error('ROTATION_OVERVIEW_AMBIGUOUS_ASSIGNMENT');
     const assignmentAuditId=next.length===1?next[0].auditId:undefined;
     const contexts=canonicalRotationContexts({companyUid:company.uid,auditorUid:auditor.uid,scopePolicies:[policy],completedAudits,approvedExceptions,assignmentAuditId});
     const decision=preassignmentRotationDecision(contexts,'PREASSIGN');

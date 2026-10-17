@@ -36,6 +36,6 @@ export function buildRotationManager20(scopes,auditors,log){
    rows.push({company:g.company,companyUid:g.companyUid,scope:g.scope,slot:g.slot,auditor:person.name,auditorUid:uid,years:years.join(', '),consecutiveYears:count,maximum:g.maximum,status,latestYear});
   }
  }
- rows.sort((a,b)=>({AT_LIMIT:0,NEAR_LIMIT:1,AVAILABLE:2}[a.status]-{AT_LIMIT:0,NEAR_LIMIT:1,AVAILABLE:2}[b.status])||a.company.localeCompare(b.company));
+ rows.sort((a,b)=>({REVIEW_REQUIRED:0,AT_LIMIT:1,NEAR_LIMIT:2,AVAILABLE:3}[a.status]-{REVIEW_REQUIRED:0,AT_LIMIT:1,NEAR_LIMIT:2,AVAILABLE:3}[b.status])||a.company.localeCompare(b.company));
  return {success:true,rows,scopeCount:configured.size,realizedRows:log.length-1,issues,historyPolicy:'ALL_AVAILABLE_YEARS_GAPS_DO_NOT_BREAK'};
 }

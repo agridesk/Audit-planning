@@ -605,8 +605,10 @@ function RotationAuditorService_registerScopeAlias_(meta, aliasValue, canonical)
   canonical = RotationAuditorService_clean_(canonical);
   if (!alias || !canonical) return;
   var exact = RotationAuditorService_key_(alias);
+  if (exact && meta.byAnyKey[exact] && meta.byAnyKey[exact] !== canonical) throw new Error('ROTATION_SCOPE_ALIAS_COLLISION');
   if (exact) meta.byAnyKey[exact] = canonical;
   var loose = RotationAuditorService_scopeLooseKey_(alias);
+  if (loose && meta.byLooseKey[loose] && meta.byLooseKey[loose] !== canonical) throw new Error('ROTATION_SCOPE_ALIAS_COLLISION');
   if (loose) meta.byLooseKey[loose] = canonical;
 }
 

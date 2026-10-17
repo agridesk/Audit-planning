@@ -411,10 +411,7 @@ function RotationAuditorService_readLogEvents_(ss, aliases, auditors) {
   for (var r = 1; r < values.length; r++) {
     var row = values[r] || [];
     var status = statusCol >= 0 ? RotationAuditorService_clean_(row[statusCol]).toLowerCase() : '';
-    if (status) {
-      if (status.indexOf('cancel') >= 0 || status.indexOf('reject') >= 0 || status.indexOf('deny') >= 0) continue;
-      if (!(status.indexOf('complete') >= 0 || status.indexOf('realized') >= 0)) continue;
-    }
+    if (!status || !(status.indexOf('complete') >= 0 || status.indexOf('realized') >= 0)) continue;
     var company = companyCol >= 0 ? RotationAuditorService_clean_(row[companyCol]) : '';
     var companyUid = companyUidCol >= 0 ? RotationAuditorService_clean_(row[companyUidCol]) : '';
     var rawAuditorUid = auditorUidCol >= 0 ? RotationAuditorService_clean_(row[auditorUidCol]) : '';

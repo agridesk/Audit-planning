@@ -20,4 +20,7 @@ assert.equal(diagnoseRotationConfig20(extended).policyCount,1);
 const missingActive=[extendedHeaders,['SCOPE_01','ABC','','','','TRUE','FALSE']];
 assert.equal(diagnoseRotationConfig20(missingActive).ready,false);
 assert.ok(diagnoseRotationConfig20(missingActive).findings.some(x=>x.includes('BOOLEAN_UNRESOLVED')));
+const invalidLifecycle=[extendedHeaders,['SCOPE_01','ABC','true','3','false','MAYBE','FALSE']];
+assert.equal(diagnoseRotationConfig20(invalidLifecycle).ready,false);
+assert.ok(diagnoseRotationConfig20(invalidLifecycle).findings.some(x=>x.includes('BOOLEAN_UNRESOLVED')));
 console.log('rotation policy readiness diagnostics: PASS');

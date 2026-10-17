@@ -18,10 +18,11 @@ function canonicalAssignment({auditId,auditorUid,planningValues,auditorValues,sc
  const matches=auditorValues.slice(1).filter(r=>clean(r[uidIdx])===clean(auditorUid));
  if(matches.length!==1)throw Error('ROTATION_DIRECT_AUDITOR_UID_UNRESOLVED');
  const sh=scopeValues[0],slotIdx=uniqueIndex(sh,'SlotKey'),codeIdx=uniqueIndex(sh,'ScopeCode');
- const scopeKeys=[];
+ const scopeKeys=[],seenSlots=new Set();
  for(const sr of scopeValues.slice(1)){
-  const slot=clean(sr[slotIdx]);if(!/^SCOPE_0[1-8]$/.test(slot))continue;
+  const slot=clean(sr[slotIdx]);if(!/^SCOPE_(?:0[1-9]|1[0-9]|20)$/.test(slot))continue;
   const col=uniqueIndex(ah,slot),scopeCode=clean(sr[codeIdx]);
+  if(seenSlots.has(slot))throw Error('ROTATION_DIRECT_DUPLICATE_SCOPE_SLOT');seenSlots.add(slot);
   if(!scopeCode)throw Error('ROTATION_DIRECT_SCOPE_CODE_MISSING');
   const indicator=clean(row[col]).toLowerCase();
   if(['x','true','yes','1'].includes(indicator))scopeKeys.push(scopeCode);

@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import {validateNotificationSettingsPatch,sanitizeNotificationSettingsForPortal} from './notification-portal-settings-policy-20.mjs';
 assert.deepEqual(validateNotificationSettingsPatch({DEFAULT_FROM_NAME:'AMS Notifications'}),{DEFAULT_FROM_NAME:'AMS Notifications'});
-assert.deepEqual(validateNotificationSettingsPatch({TEST_MODE:'DRY_RUN',TEST_RECIPIENT:'test@example.com'}),{TEST_MODE:'DRY_RUN',TEST_RECIPIENT:'test@example.com'});
+assert.throws(()=>validateNotificationSettingsPatch({TEST_MODE:'DRY_RUN',TEST_RECIPIENT:'test@example.com'}),/SETTING_NOT_EDITABLE/);
 assert.throws(()=>validateNotificationSettingsPatch({RESEND_API_KEY:'secret'}),/SETTING_NOT_EDITABLE/);
 assert.throws(()=>validateNotificationSettingsPatch({MAIL_PROVIDER:'GMAIL'}),/SETTING_NOT_EDITABLE/);
-assert.throws(()=>validateNotificationSettingsPatch({TEST_MODE:'PROD'}),/INVALID_CHOICE/);
+assert.throws(()=>validateNotificationSettingsPatch({TEST_MODE:'PROD'}),/SETTING_NOT_EDITABLE/);
 assert.throws(()=>validateNotificationSettingsPatch({DEFAULT_REPLY_TO:'not-email'}),/INVALID_EMAIL/);
-assert.equal(sanitizeNotificationSettingsForPortal({DEFAULT_FROM_NAME:'Name',RESEND_API_KEY:'secret'}).RESEND_API_KEY,undefined);
+assert.equal(sanitizeNotificationSettingsForPortal({DEFAULT_FROM_NAME:'Name',RESEND_API_KEY:'secret',TEST_MODE:'TEST_TO_SELF'}).RESEND_API_KEY,undefined);
+assert.equal(sanitizeNotificationSettingsForPortal({TEST_MODE:'TEST_TO_SELF'}).TEST_MODE,undefined);
 console.log('notification-portal-settings-policy-20: PASS');

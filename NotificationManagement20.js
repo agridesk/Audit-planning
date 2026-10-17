@@ -60,7 +60,10 @@ function NotificationManagement20_UpdateDevMode(mode, expected, actorEmail) {
   expected=String(expected||'').trim().toUpperCase();
   if(['OFF','DRY_RUN','TEST_TO_SELF'].indexOf(mode)<0||['OFF','DRY_RUN','TEST_TO_SELF'].indexOf(expected)<0)throw new Error('INVALID_DEV_MODE');
   var actor=String(actorEmail||'').trim().toLowerCase();
-  if(actor.length>254||actor.indexOf('@')<1||actor.lastIndexOf('.')<actor.indexOf('@')+2||actor.indexOf(' ')>=0||actor.indexOf('\\n')>=0||actor.indexOf('\\r')>=0)throw new Error('INVALID_ACTOR');
+  if(!actor||actor==='undefined'||actor==='null')throw new Error('INVALID_ACTOR_MISSING');
+  if(actor.length>254)throw new Error('INVALID_ACTOR_LENGTH');
+  if(actor.indexOf('@')<1||actor.lastIndexOf('.')<actor.indexOf('@')+2)throw new Error('INVALID_ACTOR_FORMAT');
+  if(actor.indexOf(' ')>=0||actor.indexOf(String.fromCharCode(10))>=0||actor.indexOf(String.fromCharCode(13))>=0)throw new Error('INVALID_ACTOR_WHITESPACE');
   var lock=LockService.getScriptLock();
   if(!lock.tryLock(15000))throw new Error('NOTIFICATION_CONFIG_BUSY');
   try {

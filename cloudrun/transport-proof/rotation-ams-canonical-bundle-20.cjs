@@ -6,7 +6,7 @@ function loadAmsRotationBundle20({scopeRows,completedRows,resolveAuditorUid}={})
  const scopeByColumn=scopeSlotsFromConfig20(scopeRows);
  const policies=loadRotationPolicies20(scopeRows);
  if(policies.length>Object.keys(scopeByColumn).length)throw Error('ROTATION_BUNDLE_POLICY_COVERAGE_INCOMPLETE');
- const headers=scopeRows[0].map(x=>String(x??'').trim().toLowerCase().replace(/[\\s_-]/g,''));
+ const headers=scopeRows[0].map(x=>String(x??'').trim().toLowerCase().replace(/[\s_-]/g,''));
  const slotIndex=headers.indexOf('slotkey'),activeIndex=headers.indexOf('active'),archivedIndex=headers.indexOf('archived');
  const configured=new Set(policies.map(p=>p.slotKey));
  for(const row of scopeRows.slice(1)){

@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {evaluateRotation}=require('./rotation-policy-20.cjs');
+const {preassignmentRotationDecision}=require('./rotation-preassignment-20.cjs');
+const base={identityResolved:true,policyResolved:true,rotationApplies:true,consecutiveCompleted:3,normalMaximum:3,extensionPermitted:true,extensionUsedInSeries:false,managerApproved:false,assignmentBound:true,justification:''};
+assert.equal(evaluateRotation({...base,rotationApplies:false,normalMaximum:null,extensionPermitted:false}).status,'NOT_APPLICABLE');
+assert.equal(evaluateRotation({...base,rotationApplies:false,normalMaximum:3,extensionPermitted:false}).status,'CONFIG_ERROR');
+assert.equal(evaluateRotation({...base,rotationApplies:false,normalMaximum:null,extensionPermitted:true}).status,'CONFIG_ERROR');
+assert.equal(evaluateRotation({...base,consecutiveCompleted:Number.MAX_SAFE_INTEGER+1}).status,'CONFIG_ERROR');
+assert.equal(preassignmentRotationDecision([base],'DRAFT').decision,'WARN');
+assert.equal(preassignmentRotationDecision([base],'DRAFT').requiresManagerReview,true);
+assert.equal(preassignmentRotationDecision([base],'PREASSIGN').decision,'BLOCK');
+assert.equal(preassignmentRotationDecision([base],'COMMIT').decision,'BLOCK');
+assert.equal(preassignmentRotationDecision([{...base,managerApproved:true,justification:'Approved exception'}],'COMMIT').decision,'ALLOW');
+console.log('rotation policy edge cases: PASS');

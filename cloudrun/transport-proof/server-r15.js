@@ -214,6 +214,20 @@ http.createServer(async(req,res)=>{
    res.writeHead(200,{'content-type':'text/javascript; charset=utf-8','cache-control':'no-store'});
    res.end(script);return;
   }
+  if(req.method==='GET'&&u.pathname==='/api/v1/rotation-manager-20'){
+   const actor=await session(req);
+   if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401);res.end('Unauthorized');return;}
+   const data=[];
+   for(const range of ["'Config_Scopes'!A1:AZ100","'Auditors'!A1:AZ500","'Log realized audits'!A1:AZ10000"]){
+    const endpoint='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range);
+    const response=await fetch(endpoint,{headers:{authorization:'Bearer '+await getToken()}});
+    if(!response.ok)throw Error('ROTATION_SOURCE_READ_'+response.status);
+    data.push((await response.json()).values||[]);
+   }
+   const result=buildRotationManager20(...data);
+   res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+   res.end(JSON.stringify(result));return;
+  }
   if(['GET','POST'].includes(req.method)&&u.pathname==='/api/v1/availability/migrate-legacy-hard'){await legacyHardMigration(req,res);return;}
   if(req.method==='GET'&&u.pathname==='/api/v1/availability/legacy-diagnostic'){await legacyAvailabilityDiagnostic(req,res);return;}
   if(req.method==='GET'&&(u.pathname==='/my-availability'||u.pathname==='/my-availability-20')){

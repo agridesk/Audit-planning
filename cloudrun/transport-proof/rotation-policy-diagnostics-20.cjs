@@ -19,11 +19,12 @@ function diagnoseRotationConfig20(values){
   const h=values[0].map(x=>String(x??'').trim().toLowerCase().replace(/[\s_-]/g,''));
   const slotIx=h.indexOf('slotkey'),activeIx=h.indexOf('active'),archivedIx=h.indexOf('archived');
   const required=new Set();
+  const parseLifecycle=(v,defaultValue)=>{if(v===undefined)return defaultValue;const s=String(v??'').trim().toLowerCase();if(['true','yes'].includes(s))return true;if(['false','no'].includes(s))return false;throw Error('ROTATION_POLICY_BOOLEAN_UNRESOLVED')};
   for(const row of values.slice(1)){
    const slot=String(row[slotIx]??'').trim();
    if(!expected.has(slot))continue;
-   const active=activeIx<0||['true','yes'].includes(String(row[activeIx]??'').trim().toLowerCase());
-   const archived=archivedIx>=0&&['true','yes'].includes(String(row[archivedIx]??'').trim().toLowerCase());
+   const active=parseLifecycle(activeIx<0?undefined:row[activeIx],true);
+   const archived=parseLifecycle(archivedIx<0?undefined:row[archivedIx],false);
    if(active&&!archived)required.add(slot);
   }
   for(const slot of required)if(!actual.has(slot))findings.push('MISSING_POLICY:'+slot);

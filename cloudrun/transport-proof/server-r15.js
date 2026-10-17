@@ -213,6 +213,26 @@ async function notificationsManagerOverview(req,res){
  res.end(JSON.stringify({success:true,...result}));
 }
 
+async function notificationGasCall(actor,operation,payload){
+ const endpoint=process.env.GAS_DEV_WRITE_URL,secret=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY;
+ if(project!=='audit-management-system-dev'||!endpoint||!secret)throw Error('NOTIFICATION_GAS_BRIDGE_UNAVAILABLE');
+ const u=new URL(endpoint);if(u.protocol!=='https:')throw Error('NOTIFICATION_GAS_HTTPS_REQUIRED');
+ u.searchParams.set('action','externalnotification20');
+ const result=await fetch(u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({bridgeKey:secret,actorRole:'manager',actorEmail:actor.email,operation,...payload}),redirect:'follow',signal:AbortSignal.timeout(25000)});
+ if(!result.ok)throw Error('NOTIFICATION_GAS_HTTP_'+result.status);
+ const data=await result.json();return data;
+}
+async function notificationPreviewOrSend(req,res,operation){
+ const actor=await session(req);if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401);res.end();return;}
+ const origin=String(req.headers.origin||''),host=String(req.headers.host||'');
+ if(!origin||new URL(origin).host!==host||!origin.startsWith('https://')){res.writeHead(403);res.end();return;}
+ let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>1024){res.writeHead(413);res.end();return;}}
+ let body;try{body=JSON.parse(raw);}catch{res.writeHead(400);res.end();return;}
+ const eventKey=String(body.eventKey||'').trim().toUpperCase();
+ if(!/^[A-Z][A-Z0-9_]{1,100}$/.test(eventKey)){res.writeHead(400);res.end();return;}
+ const data=await notificationGasCall(actor,operation,{eventKey});
+ res.writeHead(data.ok?200:409,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(data));
+}
 async function notificationEventMutation(req,res){
  const actor=await session(req);
  if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401);res.end();return;}
@@ -237,9 +257,8 @@ async function notificationEventMutation(req,res){
  if(matches.length!==1){res.writeHead(409);res.end('EVENT_NOT_UNIQUE');return;}
  const current=['YES','TRUE','1','ON'].includes(String(matches[0].r[col]||'').toUpperCase());
  if(current!==body.expected){res.writeHead(409);res.end('RELOAD_REQUIRED');return;}
- // No direct Cloud Run write: GAS canonical owner and audit log must be invoked.
- res.writeHead(501,{'content-type':'application/json','cache-control':'no-store'});
- res.end(JSON.stringify({success:false,error:'CANONICAL_GAS_WRITE_BRIDGE_REQUIRED'}));
+ const data=await notificationGasCall(actor,'updateEvent',{eventKey:key,changes:{[field]:body.value},expected:{[field]:body.expected}});
+ res.writeHead(data.ok?200:409,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(data));
 }
 async function proxy(req,res){
  const url='http://127.0.0.1:'+innerPort+(req.url||'/');
@@ -306,6 +325,8 @@ http.createServer(async(req,res)=>{
    const html=await readFile(new URL('./availability-manager-calendar-20.html',import.meta.url));
    res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(html);return;
   }
+  if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/preview'){await notificationPreviewOrSend(req,res,'preview');return;}
+  if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/send-test'){await notificationPreviewOrSend(req,res,'sendTest');return;}
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/events'){await notificationEventMutation(req,res);return;}
   if(req.method==='GET'&&u.pathname==='/api/v1/notifications-manager-20/overview'){await notificationsManagerOverview(req,res);return;}
   if(req.method==='GET'&&u.pathname==='/notifications-manager-20'){

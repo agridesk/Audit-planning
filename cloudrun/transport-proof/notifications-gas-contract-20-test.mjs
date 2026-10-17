@@ -21,6 +21,8 @@ assert.match(writer,/ACTOR_IDENTITY_REQUIRED/);
 assert.match(writer,/function NotificationManagement20_UpdateDevMode\(/);
 assert.match(writer,/DEV_NOTIFICATION_MODE/);
 assert.match(writer,/DEV_TEST_EMAIL_REQUIRED/);
+assert.ok(!writer.includes('\\\\s@'), 'Email validation must not use double-escaped regex character classes');
+assert.ok(writer.includes("actor.indexOf('@')<1"), 'Manager actor email must be validated');
 assert.match(testMail,/function NotificationTestMail20_Preview\(/);
 assert.match(testMail,/function NotificationTestMail20_Send\(/);
 assert.match(testMail,/DEV_TEST_TO_SELF_REQUIRED/);

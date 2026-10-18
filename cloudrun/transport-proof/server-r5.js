@@ -369,7 +369,7 @@ try{
  el('description').textContent=action==='ACCEPT'?'Confirm acceptance of the planned audit.':'Confirm cancellation of your own pending planning. A reason is required.';
  el('actions').hidden=false;el('confirm').disabled=false;el('comment').hidden=action!=='CANCEL';
  el('confirm').onclick=async()=>{
-  if(!confirm('Confirm '+action+' for audit '+auditId+'?'))return;
+  // The explicit Confirm button on this authenticated page is the sole confirmation; no browser popup.
   const comment=el('comment').value.trim();
   if(action==='CANCEL'&&!comment){el('error').textContent='Cancellation reason required';return;}
   el('confirm').disabled=true;el('error').textContent='';el('state').textContent='Processing…';

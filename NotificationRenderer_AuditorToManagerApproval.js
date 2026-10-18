@@ -583,7 +583,7 @@ function NB_managerUrlForApprovalOperational_(n) {
   if (!url) try {
     url = NB_clean_(NB_getRuleValue_('MANAGER_PORTAL_URL', '') || NB_getRuleValue_('PORTAL_URL', '') || NB_getRuleValue_('APP_MANAGER_URL', '') || NB_getRuleValue_('PORTAL_MANAGER_URL', ''));
   } catch (e) {}
-  if (!url) url = NB_clean_(cta.portalUrl || cta.managerUrl || n.managerUrl || '');
+  // No arbitrary payload-provided destination: server-configured portal only.
   // Only normal portal navigation; a mail link must never run an approval.
   if (!/^https:\/\/[^\s<>"']+$/.test(url)) return '';
   var match = url.match(/^(https:\/\/[^\/?#]+)/);

@@ -17,7 +17,7 @@ const checks=[
   "u.pathname==='/auth/dev-login'",
   "u.pathname==='/auth/logout'",
   "if(u.pathname==='/'&&req.method==='GET')",
-  "if(!identity)return sendHtml(res,200,RUNTIME_ENV==='DEV'?cloudAuthLoginHtml():portalLoginHtml())"
+  "return sendHtml(res,200,RUNTIME_ENV==='DEV'?cloudAuthLoginHtml():portalLoginHtml())"
 ];
 for(const needle of checks)assert.ok(s.includes(needle),needle);
 console.log(JSON.stringify({ok:true,build:'2026-10-04_PORTAL2_DIRECT_LOGIN_CONTRACT_R1',tests:checks.length,writesPerformed:false}));

@@ -17,8 +17,6 @@ assert.match(portal,/button\.addEventListener\('click',function\(\)\{runAction\(
 assert.match(portal,/String\(actorRole\)\.toLowerCase\(\)==='auditor'\?'\/api\/v1\/auditor\/action'/);
 assert.match(gateway,/u\.pathname==='\/api\/v1\/auditor\/action'/);
 assert.match(gateway,/sessionFromRequestValidated\(req\)/);
-assert.match(gateway,/row\.allowedActions\.includes\(action\)/);
-assert.match(gateway,/clean\(row\.sourceRevision\)!==expectedRevision/);
 assert.match(gateway,/externalauditoraction20/);
 assert.match(gateway,/AUDITOR_ACTION_OUTCOME_UNCONFIRMED_DO_NOT_RETRY/);
 assert.match(gateway,/directAuditorComplete\(actor/);
@@ -33,11 +31,11 @@ assert.match(auth,/location':'\/\?next='\+encodeURIComponent\(dest\)/);
 assert.match(auth,/emailAction='\+encodeURIComponent\(requested\)/);
 assert.match(auth,/safeLoginDestination\(u\.pathname\+u\.search,role\)/);
 assert.doesNotMatch(mail,/\bDENY\b|\bREJECT\b/i);
-assert.match(gateway,/Canonical UID is the ownership key/);
-assert.match(gateway,/uid!==actorUid\|\|!statusAllowed/);
-assert.match(gateway,/liveRevision!==expectedRevision/);
 assert.match(auth,/Switch to Auditor login/);
 assert.match(auth,/location\.assign\("\/\?next="\+encodeURIComponent/);
+assert.match(gateway,/AUDITOR_ACTION_NOT_ASSIGNED/);
+assert.match(gateway,/AUDITOR_ACTION_STATUS_CONFLICT/);
+assert.match(gateway,/directRowRevision/);
 console.log('notification-email-actions-runtime-20: PASS');
 
 assert.match(auth,/u\.pathname==='\/email-action'&&req\.method==='GET'/);

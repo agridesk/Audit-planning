@@ -1662,6 +1662,23 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
   }
   if(u.pathname==='/api/v1/planning/direct-commit'&&req.method==='POST'){const s=await sessionFromRequestValidated(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(!['manager','auditor'].includes(clean(s.role).toLowerCase()))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>65536)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}try{return send(res,200,await directPlanningCommit(s,b));}catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'DIRECT_PLANNING_COMMIT_BLOCKED',detail:clean(e?.message||e)});}}
 
+  if(u.pathname==='/api/v1/auditor/email-action-read'&&req.method==='GET'){
+    const actor=await sessionFromRequestValidated(req);
+    if(!actor)return send(res,401,{success:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='auditor'||!clean(actor.auditorUid||actor.auditorId))return send(res,403,{success:false,error:'AUDITOR_UID_REQUIRED'});
+    const auditId=clean(u.searchParams.get('auditId'));
+    if(!/^[A-Za-z0-9_-]{1,120}$/.test(auditId))return send(res,400,{success:false,error:'INVALID_AUDIT_ID'});
+    try{
+      const rows=(await sheetsBatchGet(['Audit planning!A1:AX483']))[0]?.values||[];
+      const found=findAudit(rows,auditId);
+      if(!found)return send(res,404,{success:false,error:'AUDIT_NOT_FOUND'});
+      const uid=clean(val(found.row,col(found.h,['Auditor_UID','Auditor UID'])));
+      if(!uid||uid!==clean(actor.auditorUid||actor.auditorId))return send(res,403,{success:false,error:'AUDITOR_ACTION_NOT_ASSIGNED'});
+      const status=directStatusKey(val(found.row,col(found.h,['Status'])));
+      const allowedActions=status==='APPROVED'?['ACCEPT']:status==='PENDING_APPROVAL'?['CANCEL']:[];
+      return send(res,200,{success:true,rows:[{auditId,statusKey:status,allowedActions,sourceRevision:directRowRevision(found.h,found.row)}]});
+    }catch(e){return send(res,503,{success:false,error:'EMAIL_AUDIT_READ_FAILED'});}
+  }
   if(u.pathname==='/api/v1/auditor/action'&&req.method==='POST'){
     const actor=await sessionFromRequestValidated(req);
     if(!actor)return send(res,401,{success:false,error:'SESSION_REQUIRED'});

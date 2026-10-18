@@ -77,10 +77,7 @@ function NB_renderApprovalOperationalHtml_(n) {
   if (n.comment) html.push(NB_sectionHtml_('Comment', '<div style="white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px">' + NB_html_(n.comment) + '</div>'));
   // Navigation only: the link never approves or denies on GET.
   // Manager authentication, audit ownership and current-state checks stay server-side.
-  var managerPortalUrl = '';
-  try {
-    managerPortalUrl = NB_clean_(NB_getRuleValue_('MANAGER_PORTAL_URL', '') || NB_getRuleValue_('PORTAL_URL', ''));
-  } catch (e) {}
+  var managerPortalUrl = NB_portalBaseUrl20_('MANAGER');
   if (/^https:\/\/[^\s<>"']+$/.test(managerPortalUrl)) {
     var portalOriginMatch = managerPortalUrl.match(/^(https:\/\/[^\/?#]+)/);
     var reviewUrl = portalOriginMatch && NB_clean_(n.auditId) ? portalOriginMatch[1] + '/planning?auditId=' + encodeURIComponent(NB_clean_(n.auditId)) : managerPortalUrl;

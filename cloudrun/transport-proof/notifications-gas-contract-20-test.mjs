@@ -130,3 +130,10 @@ assert.ok(!retirementDiagnostic.includes('nc_loadSettingsMap_'),'Legacy diagnost
 
 assert.match(consolidationAudit,/DEV_SPREADSHEET_ID_MISMATCH/,'Consolidation audit must reject non-DEV workbook');
 assert.match(consolidationAudit,/ss\.getId\(\)!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs'/,'Consolidation audit must be pinned to DEV spreadsheet ID');
+
+const triggerInventory=consolidationAudit.slice(consolidationAudit.indexOf('function RUN_NOTIFICATION_TRIGGER_INVENTORY()'));
+assert.match(triggerInventory,/DEV_SPREADSHEET_ID_MISMATCH/,'Trigger inventory must reject non-DEV workbook');
+assert.match(triggerInventory,/ScriptApp\.getProjectTriggers\(\)/,'Trigger inventory must inspect installed triggers');
+assert.match(triggerInventory,/CURRENT_EXECUTING_ACCOUNT_ONLY/,'Trigger inventory must disclose account visibility limit');
+assert.match(triggerInventory,/lastRunVerified:false/,'Trigger presence must not be confused with runner execution');
+assert.ok(!/ScriptApp\.deleteTrigger\(|ScriptApp\.newTrigger\(|\.setValue\(|MailApp\.|GmailApp\./.test(triggerInventory),'Trigger inventory must be read-only');

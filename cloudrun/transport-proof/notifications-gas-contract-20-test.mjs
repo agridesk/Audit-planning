@@ -102,5 +102,5 @@ for(const forbidden of ['QUEUE_SHEET_NAME','MANAGER_COMPLETE_LOG_ONLY','COMMENT_
 const statusBridge=read('StatusNotificationBridge.js');
 const auditorBackend=read('AuditorV5Backend.js');
 assert.ok(statusBridge.includes("action === ACTION.DENY && actor === ROLE.AUDITOR && afterStatus === STATUS.PENDING_PLANNING) return 'AUDIT_CANCELLED_BY_AUDITOR'"),'Legacy auditor DENY must route to Cancelled notification');
-assert.ok(auditorBackend.includes("auditorV5_notifyManager_(\n        'AUDIT_CANCELLED_BY_AUDITOR'"),'Legacy auditor deny path must use Cancelled notification');
+assert.match(auditorBackend,/auditorV5_notifyManager_\(\s*'AUDIT_CANCELLED_BY_AUDITOR'\s*,/,'Legacy auditor deny path must use Cancelled notification');
 assert.ok(!transport.includes("'COMMENT_ALLOWED_AUDIT_DENIED_BY_AUDITOR'"),'Legacy denied rule must not be editable in portal');

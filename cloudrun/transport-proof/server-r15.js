@@ -171,7 +171,7 @@ async function legacyHardMigration(req,res){
 async function notificationsManagerOverview(req,res){
  const actor=await session(req);
  if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
- const sources=[['Notification_Config',500],['Notification_Rules',500],['Notification_Settings',500],['System_Config',500]];
+ const sources=[['Notification_Config',500],['Notification_Rules',500],['System_Config',500]];
  const data={};
  for(const [tab,limit] of sources){
   const range="'"+tab+"'!A1:AZ"+limit;
@@ -195,11 +195,12 @@ async function notificationsManagerOverview(req,res){
  if(!queueResponse.ok)throw Error('NOTIFICATION_QUEUE_UNAVAILABLE');
  const queue=(await queueResponse.json()).values||[];
  if(queue.length>=5000)throw Error('NOTIFICATION_QUEUE_SOURCE_TRUNCATED');
- const result=notificationOverview({config:data.Notification_Config,rules:data.Notification_Rules,settings:data.Notification_Settings,queue});
+ const result=notificationOverview({config:data.Notification_Config,rules:data.Notification_Rules,settings:[],queue});
  const sys=data.System_Config||[];const envHeaders=(sys[0]||[]).map(v=>String(v||'').trim().toUpperCase());const envCol=envHeaders.indexOf('DEV');const systemMap={};for(const row of sys.slice(1)){const key=String(row[0]||'').trim().toUpperCase();if(key&&envCol>=0)systemMap[key]=String(row[envCol]||'').trim();}
- const settingsRows=data.Notification_Settings||[];const sh=(settingsRows[0]||[]).map(v=>String(v||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,''));const sk=sh.indexOf('SETTINGKEY')>=0?sh.indexOf('SETTINGKEY'):sh.indexOf('KEY');const sv=sh.indexOf('VALUE');const settingMap={};if(sk>=0&&sv>=0)for(const row of settingsRows.slice(1)){const key=String(row[sk]||'').trim().toUpperCase();if(key)settingMap[key]=String(row[sv]||'').trim();}
+ // DEV notification settings are owned exclusively by System_Config; do not read legacy Notification_Settings.
+ const settingMap=systemMap;
  const duplicateDiagnostics=[];
- for(const [tab,rows,keys] of [['Notification_Config',data.Notification_Config,['EVENTKEY']],['Notification_Rules',data.Notification_Rules,['RULEKEY']],['Notification_Settings',data.Notification_Settings,['SETTINGKEY','KEY']],['System_Config',data.System_Config,['KEY','SETTINGKEY']]]){
+ for(const [tab,rows,keys] of [['Notification_Config',data.Notification_Config,['EVENTKEY']],['Notification_Rules',data.Notification_Rules,['RULEKEY']],['System_Config',data.System_Config,['KEY','SETTINGKEY']]]){
   const header=(rows[0]||[]).map(v=>String(v||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,''));
   const index=keys.map(k=>header.indexOf(k)).find(i=>i>=0)??(tab==='System_Config'?0:-1);
   if(index<0){duplicateDiagnostics.push({tab,issue:'KEY_COLUMN_NOT_FOUND'});continue;}
@@ -211,7 +212,7 @@ async function notificationsManagerOverview(req,res){
  const activeCol=head.indexOf('ACTIVE'),unitCol=head.indexOf('UNIT'),descriptionCol=head.indexOf('DESCRIPTION'),groupCol=head.indexOf('RULEGROUP');
  result.editableRules=rules.slice(1).filter(row=>keyCol>=0&&editableRuleKeys.has(String(row[keyCol]||'').trim().toUpperCase())).map(row=>({key:String(row[keyCol]||'').trim().toUpperCase(),value:String(row[valueCol]??'').trim(),active:String(row[activeCol]||'').trim().toUpperCase()==='YES',unit:String(row[unitCol]||'').trim(),description:String(row[descriptionCol]||'').trim(),group:String(row[groupCol]||'').trim()}));
  result.configurationDiagnostics={duplicates:duplicateDiagnostics,destructiveCleanupAllowed:false};
- const mode=String(systemMap.DEV_NOTIFICATION_MODE||'').toUpperCase();const send=String(systemMap.SEND_NOTIFICATIONS||'').toUpperCase();const validMode=['OFF','DRY_RUN','TEST_TO_SELF'].includes(mode);const validSend=['TRUE','FALSE','YES','NO','1','0'].includes(send);const isDev=project==='audit-management-system-dev';result.deliveryPolicy={environment:isDev?'DEV':'UNVERIFIED',mode:validMode?mode:'UNKNOWN',sendNotifications:validSend?send:'UNKNOWN',testRecipientConfigured:Boolean(systemMap.DEV_TEST_EMAIL),senderName:settingMap.DEFAULT_FROM_NAME||'',replyToConfigured:Boolean(settingMap.DEFAULT_REPLY_TO),configurationVerified:isDev&&envCol>=0&&validMode&&validSend,overlapKeys:['DEV_NOTIFICATION_MODE','NOTIFICATION_TEST_MODE','TEST_MODE','DEV_TEST_EMAIL','TEST_RECIPIENT'].filter(k=>Object.hasOwn(systemMap,k)||Object.hasOwn(settingMap,k))};
+ const mode=String(systemMap.DEV_NOTIFICATION_MODE||'').toUpperCase();const send=String(systemMap.SEND_NOTIFICATIONS||'').toUpperCase();const validMode=['OFF','DRY_RUN','TEST_TO_SELF'].includes(mode);const validSend=['TRUE','FALSE','YES','NO','1','0'].includes(send);const isDev=project==='audit-management-system-dev';result.deliveryPolicy={environment:isDev?'DEV':'UNVERIFIED',mode:validMode?mode:'UNKNOWN',sendNotifications:validSend?send:'UNKNOWN',testRecipientConfigured:Boolean(systemMap.DEV_TEST_EMAIL),senderName:systemMap.DEFAULT_FROM_NAME||'',replyToConfigured:Boolean(systemMap.DEFAULT_REPLY_TO),configurationVerified:isDev&&envCol>=0&&validMode&&validSend,overlapKeys:['DEV_NOTIFICATION_MODE','NOTIFICATION_TEST_MODE','TEST_MODE','DEV_TEST_EMAIL','TEST_RECIPIENT'].filter(k=>Object.hasOwn(systemMap,k)||Object.hasOwn(settingMap,k))};
  res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
  res.end(JSON.stringify({success:true,...result}));
 }

@@ -9,11 +9,11 @@ export async function processEmailAction20({method,auditId,action,environment,in
  const verb=String(method||'').toUpperCase(),requested=String(action||'').toUpperCase();
  if(!['GET','POST'].includes(verb))return {ok:false,error:'METHOD_NOT_ALLOWED'};
  if(!auditId||typeof auditId!=='string'||auditId.length>256||!VALID_ACTIONS.has(requested))return {ok:false,error:'INVALID_ACTION'};
- if(!services||typeof services.currentSession!=='function'||typeof services.currentAudit!=='function'||typeof services.actorCapability!=='function')throw Error('EMAIL_ACTION_SERVICES_MISSING');
+ if(!services||typeof services.currentSession!=='function'||typeof services.currentAudit!=='function'||typeof services.actorCapability!=='function'||typeof services.runtimeEnvironment!=='function')throw Error('EMAIL_ACTION_SERVICES_MISSING');
  const actor=await services.currentSession();
  if(!actor||!actor.auditorId||!VALID_ROLES.has(String(actor.role||'').toUpperCase()))return {ok:false,error:'AUTHENTICATION_REQUIRED'};
  const env=String(environment||'').toUpperCase();
- if(!['DEV','PROD'].includes(env)||actor.environment!==env)return {ok:false,error:'ENVIRONMENT_MISMATCH'};
+ if(!['DEV','PROD'].includes(env)||String(await services.runtimeEnvironment()).toUpperCase()!==env)return {ok:false,error:'ENVIRONMENT_MISMATCH'};
  const audit=await services.currentAudit(auditId);
  if(!audit||audit.auditId!==auditId||!validRevision(audit.revision))return {ok:false,error:'AUDIT_UNAVAILABLE'};
  const role=String(actor.role).toUpperCase();

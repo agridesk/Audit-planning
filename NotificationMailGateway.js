@@ -152,8 +152,8 @@ function RUN_NOTIFICATION_SETTINGS_RETIREMENT_DIAGNOSTICS() {
   var env = typeof SYS_getEnv_ === 'function' ? String(SYS_getEnv_() || '').toUpperCase() : 'UNKNOWN';
   var dev = env === 'DEV' ? NMG_getDevSystemSenderSettings_() : null;
   var legacy = {};
-  if (typeof NotificationConfig_GetSenderSettings === 'function') {
-    legacy = NotificationConfig_GetSenderSettings() || {};
+  if (typeof nc_loadSettingsMap_ === 'function') {
+    legacy = nc_loadSettingsMap_() || {};
   }
   var fields = ['DEFAULT_FROM_EMAIL','DEFAULT_FROM_NAME','DEFAULT_REPLY_TO'];
   var checks = [];

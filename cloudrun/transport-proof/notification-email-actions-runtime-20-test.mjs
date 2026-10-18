@@ -50,6 +50,14 @@ assert.match(gas,/auditorHits20\.length!==1/);
 assert.match(gas,/auditHits20\.length!==1/);
 assert.doesNotMatch(gas,/a20\.getDataRange\(\)\.getValues\(\)/);
 assert.doesNotMatch(gas,/p20\.getDataRange\(\)\.getDisplayValues\(\)/);
+assert.match(gateway,/AMS_ACCEPT_TIMING_20/);
+assert.match(gateway,/canonicalReadMs/);
+assert.match(gateway,/gasRoundtripMs/);
+assert.match(gas,/AMS_ACCEPT_GAS_TIMING_20/);
+assert.match(gas,/statusMachineMs/);
+assert.match(gas,/lockWaitMs/);
+assert.match(auth,/acceptBrowserMs/);
+assert.match(auth,/acceptTiming/);
 console.log('notification-email-actions-runtime-20: PASS');
 
 assert.match(auth,/u\.pathname==='\/email-action'&&req\.method==='GET'/);

@@ -178,3 +178,10 @@ const selfPlanManagerMail=read('NotificationRenderer_AuditorToManagerApproval.js
 assert.match(selfPlanManagerMail,/planning\?auditId=/);
 assert.doesNotMatch(selfPlanManagerMail,/if \(!url\) url = '#'/);
 assert.doesNotMatch(selfPlanManagerMail,/cta\.approvalUrl\s*\|\|/);
+
+// DEV/PROD portal base must resolve through canonical System_Config, not hardcoded service hosts.
+const notificationBuilder=read('NotificationBuilder.js');
+assert.match(notificationBuilder,/function NB_portalBaseUrl20_\(/);
+assert.match(notificationBuilder,/SYS_getConfig_\(\)/);
+assert.doesNotMatch(notificationBuilder,/ams-transport-proof-510075419067/);
+for (const renderer of [approvalMail,auditorMail,selfPlanManagerMail]) assert.match(renderer,/NB_portalBaseUrl20_\(/);

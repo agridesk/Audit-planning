@@ -573,31 +573,21 @@ function NB_managerApprovalAppleCalendarDataUrl_(n, b, index) {
 
 function NB_managerApprovalCtaHtml_(n) {
   var url = NB_managerUrlForApprovalOperational_(n || {});
-  if (!url) url = '#';
-
-  return '<a href="' + NB_htmlAttr_(url) + '" target="_blank" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:8px 12px;border-radius:7px;font-size:11px;font-weight:900;line-height:1.1">Review in Manager</a>';
+  if (!url) return '<span style="font-size:11px;color:#64748b">Review in the Manager portal</span>';
+  return '<a href="' + NB_htmlAttr_(url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:8px 12px;border-radius:7px;font-size:11px;font-weight:900;line-height:1.1">Review in Manager</a>';
 }
-
 function NB_managerUrlForApprovalOperational_(n) {
   n = n || {};
-
   var cta = n.cta || {};
-  var url = NB_clean_(cta.managerUrl || cta.approvalUrl || cta.portalUrl || n.managerUrl || n.approvalUrl || '');
-
-  if (url) return url;
-
+  var url = '';
   try {
-    url = NB_clean_(
-      NB_getRuleValue_('MANAGER_URL', '') ||
-      NB_getRuleValue_('MANAGER_PORTAL_URL', '') ||
-      NB_getRuleValue_('APP_MANAGER_URL', '') ||
-      NB_getRuleValue_('PORTAL_MANAGER_URL', '')
-    );
-
-    if (url) return url;
+    url = NB_clean_(NB_getRuleValue_('MANAGER_PORTAL_URL', '') || NB_getRuleValue_('PORTAL_URL', '') || NB_getRuleValue_('APP_MANAGER_URL', '') || NB_getRuleValue_('PORTAL_MANAGER_URL', ''));
   } catch (e) {}
-
-  return '';
+  if (!url) url = NB_clean_(cta.portalUrl || cta.managerUrl || n.managerUrl || '');
+  // Only normal portal navigation; a mail link must never run an approval.
+  if (!/^https:\/\/[^\s<>"']+$/.test(url)) return '';
+  var match = url.match(/^(https:\/\/[^\/?#]+)/);
+  return match && NB_clean_(n.auditId) ? match[1] + '/planning?auditId=' + encodeURIComponent(NB_clean_(n.auditId)) : url;
 }
 
 /* ============================================================

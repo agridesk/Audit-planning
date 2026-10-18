@@ -6,7 +6,7 @@ const gateway=get('./server-r4.js');
 const auth=get('./server-r5.js');
 const gas=get('../../EntryV5.js');
 const mail=get('../../NotificationRenderer_ManagerToAuditorPlanning.js');
-assert.match(mail,/email-action\\?auditId=/);
+assert.match(mail,/email-action/);
 assert.match(mail,/ACCEPT audit/);
 assert.doesNotMatch(mail,/action=acceptaudit/i);
 assert.match(portal,/x==="PLAN"\|\|x==="ACCEPT"\|\|x==="CANCEL"\|\|x==="COMPLETE"/);

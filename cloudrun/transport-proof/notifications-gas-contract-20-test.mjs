@@ -166,3 +166,9 @@ assert.ok(templateReferences.includes('NotificationConsolidationDiagnostics.js')
 console.log('Notification source inventory: GAS files='+gasFiles.length+' legacy-settings refs='+legacyReferences.length+' template refs='+templateReferences.length);
 console.log('Notification template references: '+templateReferences.join(', '));
 console.log('Notification legacy-settings references: '+legacyReferences.join(', '));
+
+// Auditor email navigation must never reuse legacy direct accept/deny links.
+const auditorMail=read('NotificationRenderer_ManagerToAuditorPlanning.js');
+assert.match(auditorMail,/planning\?auditId=/);
+assert.doesNotMatch(auditorMail,/cta\.acceptUrl\s*\|\|/);
+assert.match(auditorMail,/AUDITOR_PORTAL_URL/);

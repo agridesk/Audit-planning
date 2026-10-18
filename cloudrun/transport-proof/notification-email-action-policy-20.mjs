@@ -13,10 +13,12 @@ export function verifyActionToken(expectedHash, token) {
   try { return timingSafeEqual(Buffer.from(expectedHash,'hex'), Buffer.from(hashActionToken(token),'hex')); }
   catch { return false; }
 }
-export function authorizeAction({record,token,auditorUid,auditId,action,status,revision,authenticatedActorUid='',authenticatedRole='',actorAuthorized=false,deviceTrusted=false,deviceVerified=false,now=Date.now()}) {
+export function authorizeAction({record,token,auditorUid,auditId,action,status,revision,authenticatedActorUid='',authenticatedRole='',actorAuthorized=false,environment='',deviceTrusted=false,deviceVerified=false,now=Date.now()}) {
   if (!record || !ACTIONS.includes(action)) return 'INVALID_ACTION';
   if (!auditorUid || record.auditorUid !== auditorUid || !auditId || record.auditId !== auditId || record.action !== action) return 'SCOPE_MISMATCH';
   if (record.usedAt != null || record.revokedAt != null) return 'TOKEN_CONSUMED';
+  const activeEnvironment=String(environment).toUpperCase();
+  if (!['DEV','PROD'].includes(activeEnvironment) || record.environment !== activeEnvironment) return 'ENVIRONMENT_MISMATCH';
   if (!Number.isFinite(record.expiresAt) || now >= record.expiresAt) return 'TOKEN_EXPIRED';
   if (!verifyActionToken(record.tokenHash,token)) return 'INVALID_TOKEN';
   if (record.status !== status || record.revision !== revision) return 'STALE_AUDIT';

@@ -6,8 +6,8 @@ const gateway=get('./server-r4.js');
 const auth=get('./server-r5.js');
 const gas=get('../../EntryV5.js');
 const mail=get('../../NotificationRenderer_ManagerToAuditorPlanning.js');
-assert.match(mail,/emailAction=ACCEPT/);
-assert.match(mail,/Review and ACCEPT audit/);
+assert.match(mail,/email-action\\?auditId=/);
+assert.match(mail,/ACCEPT audit/);
 assert.doesNotMatch(mail,/action=acceptaudit/i);
 assert.match(portal,/x==="PLAN"\|\|x==="ACCEPT"\|\|x==="CANCEL"\|\|x==="COMPLETE"/);
 assert.match(portal,/function focusEmailAudit20\(/);
@@ -34,3 +34,7 @@ assert.match(auth,/emailAction='\+encodeURIComponent\(requested\)/);
 assert.match(auth,/safeLoginDestination\(u\.pathname\+u\.search,role\)/);
 assert.doesNotMatch(mail,/\bDENY\b|\bREJECT\b/i);
 console.log('notification-email-actions-runtime-20: PASS');
+
+assert.match(auth,/u\.pathname==='\/email-action'&&req\.method==='GET'/);
+assert.match(auth,/safeLoginDestination\(raw,role\)/);
+assert.match(auth,/location':'\/\?next='\+encodeURIComponent\(dest\)/);

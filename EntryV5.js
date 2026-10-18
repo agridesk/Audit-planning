@@ -364,7 +364,7 @@ function doPost(e) {
       var aix20=function(n){return ah20.indexOf(n);};
       var ar20=av20.filter(function(r){return String(r[aix20('E-mail')]||'').trim().toLowerCase()===email20&&String(r[aix20('Auditor_UID')]||'').trim()===uid20&&String(r[aix20('Active')]||'').trim().toUpperCase()==='YES'&&String(r[aix20('Role')]||'').trim().toUpperCase()==='AUDITOR';});
       if(ar20.length!==1)return respond20({success:false,error:'AUDITOR_IDENTITY_NOT_CURRENT'});
-      var pv20=p20.getDataRange().getValues(),ph20=pv20.shift().map(function(v){return String(v||'').trim();});
+      var pv20=p20.getDataRange().getDisplayValues(),ph20=pv20.shift().map(function(v){return String(v||'').trim();});
       var ix20=function(names){for(var i=0;i<names.length;i++){var j=ph20.indexOf(names[i]);if(j>=0)return j;}return -1;};
       var ai20=ix20(['Audit ID','Audit_ID','AuditId','Audit Id']),si20=ix20(['Status']),as20=ix20(['Assigned to','Assigned auditor','Auditor']),pi20=ix20(['Planning JSON','Planning_JSON']),di20=ix20(['Last decision timestamp']),ti20=ix20(['Status since']);
       if([ai20,si20,as20,pi20,di20,ti20].some(function(x){return x<0;}))return respond20({success:false,error:'REVISION_HEADERS_MISSING'});
@@ -373,7 +373,7 @@ function doPost(e) {
       var current20=records20[0],assigned20=String(current20[as20]||'').trim().toLowerCase(),
         rowAud20=ar20[0],identities20=[email20,uid20,String(rowAud20[aix20('Name')]||'').trim().toLowerCase(),String(rowAud20[aix20('Abbreviation')]||'').trim().toLowerCase()];
       if(!assigned20||identities20.indexOf(assigned20)<0)return respond20({success:false,error:'AUDITOR_ASSIGNMENT_MISMATCH'});
-      var status20=String(current20[si20]||'').trim().toUpperCase().replace(/[\\s-]+/g,'_');
+      var status20=String(current20[si20]||'').trim().toUpperCase().replace(/[\s-]+/g,'_');
       if(!((action20==='ACCEPT'&&status20==='APPROVED')||(action20==='CANCEL'&&status20==='PENDING_APPROVAL')))return respond20({success:false,error:'ACTION_NOT_ALLOWED_FOR_STATUS'});
       var snapshot20=[id20,String(current20[si20]||'').trim(),String(current20[as20]||'').trim(),String(current20[pi20]||'').trim(),String(current20[di20]||'').trim(),String(current20[ti20]||'').trim()].join('|');
       var digest20=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,snapshot20,Utilities.Charset.UTF_8);

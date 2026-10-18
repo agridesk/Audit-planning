@@ -1520,6 +1520,24 @@ function NB_getRuleValue_(ruleKey, defaultValue) {
   return defaultValue;
 }
 
+// Authentication 2.0 email navigation: portal base is environment-specific system config.
+// Keep legacy Notification_Rules fallback solely for existing deployments.
+function NB_portalBaseUrl20_(role) {
+  var isManager = String(role || '').toUpperCase() === 'MANAGER';
+  var key = isManager ? 'MANAGER_PORTAL_URL' : 'AUDITOR_PORTAL_URL';
+  var url = '';
+  try {
+    if (typeof SYS_getConfig_ === 'function') {
+      var config = SYS_getConfig_() || {};
+      url = NB_clean_(config[key] || config.PORTAL_URL || '');
+    }
+  } catch (e) {}
+  if (!url) {
+    try { url = NB_clean_(NB_getRuleValue_(key, '') || NB_getRuleValue_('PORTAL_URL', '')); } catch (e) {}
+  }
+  return /^https:\/\/[^\s<>"']+$/.test(url) ? url : '';
+}
+
 function NB_loadNotificationRules_() {
   if (typeof NotificationConfig_GetAllRules === 'function') return NotificationConfig_GetAllRules();
   return {};

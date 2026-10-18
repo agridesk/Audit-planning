@@ -96,10 +96,31 @@ function NotificationConfig_RequiresReason(eventKey) {
  * PUBLIC SETTINGS
  * ============================================================ */
 
+function nc_getDevSystemConfigSettings_() {
+  if (typeof EnvironmentGuard_getRuntimeEnv !== 'function' ||
+      String(EnvironmentGuard_getRuntimeEnv() || '').trim().toUpperCase() !== 'DEV') return null;
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('System_Config');
+  if (!sh) throw new Error('DEV_SYSTEM_CONFIG_MISSING');
+  var rows = sh.getDataRange().getValues();
+  var col = (rows[0] || []).findIndex(function(v) { return String(v || '').trim().toUpperCase() === 'DEV'; });
+  if (col < 0) throw new Error('DEV_SYSTEM_CONFIG_COLUMN_MISSING');
+  var out = {};
+  rows.slice(1).forEach(function(row) {
+    var key = String(row[0] || '').trim().toUpperCase();
+    if (key) out[key] = row[col];
+  });
+  return out;
+}
+
 function NotificationConfig_GetSetting(settingKey, defaultValue) {
   var key = String(settingKey || '').trim();
   if (!key) return defaultValue;
 
+  var devSettings = nc_getDevSystemConfigSettings_();
+  if (devSettings && Object.prototype.hasOwnProperty.call(devSettings, key.toUpperCase())) {
+    var devValue = devSettings[key.toUpperCase()];
+    return devValue === '' || devValue === null || typeof devValue === 'undefined' ? defaultValue : devValue;
+  }
   var map = nc_loadSettingsMap_();
   if (!map.hasOwnProperty(key)) return defaultValue;
 

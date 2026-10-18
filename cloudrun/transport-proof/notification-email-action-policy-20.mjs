@@ -13,13 +13,15 @@ export function verifyActionToken(expectedHash, token) {
   try { return timingSafeEqual(Buffer.from(expectedHash,'hex'), Buffer.from(hashActionToken(token),'hex')); }
   catch { return false; }
 }
-export function authorizeAction({record,token,auditorUid,auditId,action,status,revision,deviceTrusted=false,deviceVerified=false,now=Date.now()}) {
+export function authorizeAction({record,token,auditorUid,auditId,action,status,revision,authenticatedActorUid='',authenticatedRole='',actorAuthorized=false,deviceTrusted=false,deviceVerified=false,now=Date.now()}) {
   if (!record || !ACTIONS.includes(action)) return 'INVALID_ACTION';
   if (!auditorUid || record.auditorUid !== auditorUid || !auditId || record.auditId !== auditId || record.action !== action) return 'SCOPE_MISMATCH';
   if (record.usedAt != null || record.revokedAt != null) return 'TOKEN_CONSUMED';
   if (!Number.isFinite(record.expiresAt) || now >= record.expiresAt) return 'TOKEN_EXPIRED';
   if (!verifyActionToken(record.tokenHash,token)) return 'INVALID_TOKEN';
   if (record.status !== status || record.revision !== revision) return 'STALE_AUDIT';
+  // Device trust protects the device only; it is never an AMS identity/permission grant.
+  if (!authenticatedActorUid || authenticatedActorUid !== record.auditorUid || authenticatedActorUid !== auditorUid || String(authenticatedRole).toUpperCase() !== 'AUDITOR' || actorAuthorized !== true) return 'AUTHENTICATION_REQUIRED';
   // A valid link never creates a lifecycle capability. Bind it to the
   // canonical action/state/origin combination before device verification.
   if (!auditorEmailActionAllowed(action,status,record.origin)) return 'ACTION_NOT_ALLOWED';

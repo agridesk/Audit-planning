@@ -253,6 +253,7 @@ function runAction(button){
       perf.workerRpcWallMs=(trace.rpcEndedAt&&trace.rpcStartedAt)?Math.max(0,Number(trace.rpcEndedAt)-Number(trace.rpcStartedAt)):Number(x.relayElapsedMs)||null;
       perf.workerToBrowserMs=trace.replyAt?Math.max(0,nowEpoch-Number(trace.replyAt)):null;
       patchActionLikeV1(auditId,action,reason,wr,perf);
+      if(action==='accept'&&button.getAttribute('data-email-confirm')==='true'){document.getElementById('emailActionPrompt20')?.remove();try{var cleanUrl=new URL(window.location.href);cleanUrl.searchParams.delete('emailAction');cleanUrl.searchParams.delete('auditId');history.replaceState(null,'',cleanUrl.pathname+cleanUrl.search)}catch(e){}}
       var st=wr&&wr.statusPerf||{},core=wr&&wr.actionPerf||{};
       perf.statusPerf=st;perf.actionPerf=core;
       var coreDetail="avail "+(core.availabilityMs==null?"-":core.availabilityMs)+" / reset "+(core.resetPlanningMs==null?"-":core.resetPlanningMs)+" / statuswrite "+(core.statusWriteMs==null?"-":core.statusWriteMs)+" / lifecycle "+(core.lifecycleMs==null?"-":core.lifecycleMs)+" / cache "+(core.cacheInvalidationMs==null?"-":core.cacheInvalidationMs)+(core.archiveMs==null?"":" / archive "+core.archiveMs);

@@ -172,3 +172,9 @@ const auditorMail=read('NotificationRenderer_ManagerToAuditorPlanning.js');
 assert.match(auditorMail,/planning\?auditId=/);
 assert.doesNotMatch(auditorMail,/cta\.acceptUrl\s*\|\|/);
 assert.match(auditorMail,/AUDITOR_PORTAL_URL/);
+
+// Active self-planning Manager renderer must not produce a broken # link.
+const selfPlanManagerMail=read('NotificationRenderer_AuditorToManagerApproval.js');
+assert.match(selfPlanManagerMail,/planning\?auditId=/);
+assert.doesNotMatch(selfPlanManagerMail,/if \(!url\) url = '#'/);
+assert.doesNotMatch(selfPlanManagerMail,/cta\.approvalUrl\s*\|\|/);

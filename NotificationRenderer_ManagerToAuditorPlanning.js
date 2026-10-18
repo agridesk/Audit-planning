@@ -441,7 +441,7 @@ function NB_portalUrlForOperational_(n) {
     url = NB_clean_(NB_getRuleValue_('AUDITOR_PORTAL_URL', '') || NB_getRuleValue_('PORTAL_URL', '') || NB_getRuleValue_('AUDIT_PORTAL_URL', '') || NB_getRuleValue_('APP_AUDITOR_PORTAL_URL', ''));
   } catch (e) {}
   // No arbitrary payload-provided destination: server-configured portal only.
-  // Authentication 2.0 owns access: never use legacy accept/deny URLs.
+  // Authentication 2.0 owns access; email navigation never commits a status change.
   if (!/^https:\/\/[^\s<>"']+$/.test(url)) return '';
   var match = url.match(/^(https:\/\/[^\/?#]+)/);
   return match && NB_clean_(n.auditId) ? match[1] + '/?auditId=' + encodeURIComponent(NB_clean_(n.auditId)) : url;

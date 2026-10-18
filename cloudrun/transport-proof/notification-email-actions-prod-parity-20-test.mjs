@@ -18,7 +18,7 @@ assert.match(sender,/DEV_NOTIFICATION_MODE/);
 assert.match(sender,/SENT_DEV_REDIRECT/);
 assert.match(gateway,/Resend/i);
 assert.match(approval,/MANAGER_PORTAL_URL/);
-assert.match(approval,/^https:/m); // configured absolute HTTPS; no hardcoded DEV host
+assert.ok(approval.includes('if (/^https:'), 'Manager CTA must accept configured HTTPS URLs only'); // configured absolute HTTPS; no hardcoded DEV host
 assert.doesNotMatch(approval,/ams-transport-proof-510075419067|audit-management-system-dev/);
 assert.doesNotMatch(policy,/1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs|1J4ykUsgDQc1gNeZJjyOJmQ-rsYnf8ujdwg9uTACmCNw/);
 assert.match(handoff,/PROD legacy/i);

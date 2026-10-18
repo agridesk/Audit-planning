@@ -376,7 +376,7 @@ function doPost(e) {
       var ph20=p20.getRange(1,1,1,p20.getLastColumn()).getDisplayValues()[0].map(function(v){return String(v||'').trim();});
       var ix20=function(names){for(var i=0;i<names.length;i++){var j=ph20.indexOf(names[i]);if(j>=0)return j;}return -1;};
       var ai20=ix20(['Audit ID','Audit_ID','AuditId','Audit Id']),si20=ix20(['Status']),as20=ix20(['Assigned to','Assigned auditor','Auditor']),pi20=ix20(['Planning JSON','Planning_JSON']),di20=ix20(['Last decision timestamp']),ti20=ix20(['Status since']);
-      if([ai20,si20,as20,pi20,di20,ti20].some(function(x){return x<0;}))return respond20({success:false,error:'REVISION_HEADERS_MISSING'});
+      if([ai20,si20,as20,pi20,di20,ti20,ix20(['Auditor_UID','Auditor UID'])].some(function(x){return x<0;}))return respond20({success:false,error:'REVISION_HEADERS_MISSING'});
       var auditHits20=p20.getRange(2,ai20+1,Math.max(1,p20.getLastRow()-1),1).createTextFinder(id20).matchEntireCell(true).matchCase(true).findAll();
       acceptStages20.auditLookupMs=Date.now()-acceptT020-acceptStages20.lockWaitMs-acceptStages20.auditorLookupMs;
       if(auditHits20.length!==1)return respond20({success:false,error:'AUDIT_UNAVAILABLE'});
@@ -384,6 +384,7 @@ function doPost(e) {
         assigned20=String(current20[as20]||'').trim().toLowerCase(),
         identities20=[email20,uid20,String(rowAud20[aix20('Name')]||'').trim().toLowerCase(),String(rowAud20[aix20('Abbreviation')]||'').trim().toLowerCase()];
       if(!assigned20||identities20.indexOf(assigned20)<0)return respond20({success:false,error:'AUDITOR_ASSIGNMENT_MISMATCH'});
+      if(String(current20[ix20(['Auditor_UID','Auditor UID'])]||'').trim()!==uid20)return respond20({success:false,error:'AUDITOR_UID_ASSIGNMENT_MISMATCH'});
       var status20=String(current20[si20]||'').trim().toUpperCase().replace(/[\s-]+/g,'_');
       if(!((action20==='ACCEPT'&&status20==='APPROVED')||(action20==='CANCEL'&&status20==='PENDING_APPROVAL')))return respond20({success:false,error:'ACTION_NOT_ALLOWED_FOR_STATUS'});
       var snapshot20=[id20,String(current20[si20]||'').trim(),String(current20[as20]||'').trim(),String(current20[pi20]||'').trim(),String(current20[di20]||'').trim(),String(current20[ti20]||'').trim()].join('|');

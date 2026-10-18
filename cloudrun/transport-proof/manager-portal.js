@@ -230,7 +230,7 @@ function runAction(button){
   if(busyAudits.has(auditId))return;
   if(action==="plan"){var w=window.open("/planning?auditId="+encodeURIComponent(auditId),"amsPlanning_"+auditId,"popup=yes,width=1500,height=920,resizable=yes,scrollbars=yes");if(!w)window.location.href="/planning?auditId="+encodeURIComponent(auditId);return}
   if(action==="complete"&&!button.getAttribute("data-complete-hours")){openCompleteDialog(auditId);return}
-  if(action==='accept'&&!window.confirm('Accept audit '+auditId+'?'))return;
+  if(action==='accept'&&button.getAttribute('data-email-confirm')!=='true'&&!window.confirm('Accept audit '+auditId+'?'))return;
   var reason="";
   if(action==="cancel"||action==="reject"){
     reason=window.prompt((action==="cancel"?"Cancel":"Reject")+" audit "+auditId+"\nComment:");
@@ -304,7 +304,8 @@ function focusEmailAudit20(){
  var message=document.createElement('span');message.textContent='Email action: '+requestedAction+' · '+String(match.company||requested)+'. Review the audit and confirm below. ';
  var button=document.createElement('button');button.type='button';button.className='act';button.textContent='Confirm '+requestedAction;
  button.setAttribute('data-audit-id',requested);button.setAttribute('data-action',requestedAction.toLowerCase());
- button.addEventListener('click',function(){runAction(button)});
+ button.setAttribute('data-email-confirm','true');
+ button.addEventListener('click',function(){button.disabled=true;message.textContent='Processing '+requestedAction+'…';runAction(button)});
  banner.appendChild(message);banner.appendChild(button);
  status.parentNode.insertBefore(banner,status.nextSibling);
 }

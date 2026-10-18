@@ -605,6 +605,7 @@ function NB_normalizePayload_(eventCode, data, cfg) {
 
   return {
     eventType:eventCode,
+    templatePreviewOnly:data.templatePreviewOnly===true,
     eventCode:eventCode,
     eventFamily:eventFamily,
     rendererProfile:rendererProfile,

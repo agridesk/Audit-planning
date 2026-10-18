@@ -207,6 +207,9 @@ async function notificationsManagerOverview(req,res){
   rows.slice(1).forEach((row,i)=>{const key=String(row[index]||'').trim().toUpperCase();if(!key)return;const found=seen.get(key)||[];found.push(i+2);seen.set(key,found);});
   for(const [key,lines] of seen)if(lines.length>1)duplicateDiagnostics.push({tab,key,rows:lines,issue:'DUPLICATE_KEY'});
  }
+ const editableRuleKeys=new Set(['COMING_UP_DAYS','PENDING_PLANNING_UPCOMING_DAYS','PENDING_PLANNING_URGENT_DAYS','PENDING_PLANNING_CRITICAL_DAYS','WEEKLY_MANAGER_SEND_DAY','WEEKLY_MANAGER_SEND_HOUR','WEEKLY_AUDITOR_SEND_DAY','WEEKLY_AUDITOR_SEND_HOUR','COMMENT_ALLOWED_AUDIT_APPROVED','COMMENT_ALLOWED_AUDIT_ACCEPTED','COMMENT_ALLOWED_AUDIT_COMPLETED','COMMENT_ALLOWED_AUDIT_CANCELLED_BY_AUDITOR','COMMENT_ALLOWED_AUDIT_DENIED_BY_AUDITOR']);
+ const activeCol=head.indexOf('ACTIVE'),unitCol=head.indexOf('UNIT'),descriptionCol=head.indexOf('DESCRIPTION'),groupCol=head.indexOf('RULEGROUP');
+ result.editableRules=rules.slice(1).filter(row=>keyCol>=0&&editableRuleKeys.has(String(row[keyCol]||'').trim().toUpperCase())).map(row=>({key:String(row[keyCol]||'').trim().toUpperCase(),value:String(row[valueCol]??'').trim(),active:String(row[activeCol]||'').trim().toUpperCase()==='YES',unit:String(row[unitCol]||'').trim(),description:String(row[descriptionCol]||'').trim(),group:String(row[groupCol]||'').trim()}));
  result.configurationDiagnostics={duplicates:duplicateDiagnostics,destructiveCleanupAllowed:false};
  const mode=String(systemMap.DEV_NOTIFICATION_MODE||'').toUpperCase();const send=String(systemMap.SEND_NOTIFICATIONS||'').toUpperCase();const validMode=['OFF','DRY_RUN','TEST_TO_SELF'].includes(mode);const validSend=['TRUE','FALSE','YES','NO','1','0'].includes(send);const isDev=project==='audit-management-system-dev';result.deliveryPolicy={environment:isDev?'DEV':'UNVERIFIED',mode:validMode?mode:'UNKNOWN',sendNotifications:validSend?send:'UNKNOWN',testRecipientConfigured:Boolean(systemMap.DEV_TEST_EMAIL),senderName:settingMap.DEFAULT_FROM_NAME||'',replyToConfigured:Boolean(settingMap.DEFAULT_REPLY_TO),configurationVerified:isDev&&envCol>=0&&validMode&&validSend,overlapKeys:['DEV_NOTIFICATION_MODE','NOTIFICATION_TEST_MODE','TEST_MODE','DEV_TEST_EMAIL','TEST_RECIPIENT'].filter(k=>Object.hasOwn(systemMap,k)||Object.hasOwn(settingMap,k))};
  res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
@@ -283,6 +286,20 @@ async function notificationDevModeMutation(req,res){
  const mode=String(body.mode||''),expected=String(body.expected||'');
  if(!['OFF','DRY_RUN','TEST_TO_SELF'].includes(mode)||!['OFF','DRY_RUN','TEST_TO_SELF'].includes(expected)){res.writeHead(400);res.end('INVALID_DEV_MODE');return;}
  const data=await notificationGasCall(actor,'updateDevMode',{mode,expected});
+ res.writeHead(data.ok?200:409,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(data));
+}
+async function notificationRuleMutation(req,res){
+ const actor=await session(req);
+ if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401);res.end();return;}
+ const origin=String(req.headers.origin||''),host=String(req.headers.host||'');
+ let validOrigin=false;try{const u=new URL(origin);validOrigin=u.protocol==='https:'&&u.host===host;}catch{}
+ if(!validOrigin){res.writeHead(403);res.end('ORIGIN_REJECTED');return;}
+ let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048){res.writeHead(413);res.end();return;}}
+ let body;try{body=JSON.parse(raw);}catch{res.writeHead(400);res.end('INVALID_JSON');return;}
+ const key=String(body.ruleKey||'').trim().toUpperCase(),value=body.value,expected=body.expected;
+ const editable=new Set(['COMING_UP_DAYS','PENDING_PLANNING_UPCOMING_DAYS','PENDING_PLANNING_URGENT_DAYS','PENDING_PLANNING_CRITICAL_DAYS','WEEKLY_MANAGER_SEND_DAY','WEEKLY_MANAGER_SEND_HOUR','WEEKLY_AUDITOR_SEND_DAY','WEEKLY_AUDITOR_SEND_HOUR','COMMENT_ALLOWED_AUDIT_APPROVED','COMMENT_ALLOWED_AUDIT_ACCEPTED','COMMENT_ALLOWED_AUDIT_COMPLETED','COMMENT_ALLOWED_AUDIT_CANCELLED_BY_AUDITOR','COMMENT_ALLOWED_AUDIT_DENIED_BY_AUDITOR']);
+ if(!editable.has(key)||typeof value!=='string'||typeof expected!=='string'||value.length>30||expected.length>30){res.writeHead(400);res.end('INVALID_RULE_MUTATION');return;}
+ const data=await notificationGasCall(actor,'updateRule',{ruleKey:key,value,expected});
  res.writeHead(data.ok?200:409,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(data));
 }
 async function notificationEventMutation(req,res){
@@ -380,6 +397,7 @@ http.createServer(async(req,res)=>{
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/preview'){await notificationPreviewOrSend(req,res,'preview');return;}
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/send-test'){await notificationPreviewOrSend(req,res,'sendTest');return;}
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/dev-mode'){await notificationDevModeMutation(req,res);return;}
+  if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/rules'){await notificationRuleMutation(req,res);return;}
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/events'){await notificationEventMutation(req,res);return;}
   if(req.method==='GET'&&u.pathname==='/api/v1/notifications-manager-20/overview'){await notificationsManagerOverview(req,res);return;}
   if(req.method==='GET'&&u.pathname==='/notifications-manager-20'){

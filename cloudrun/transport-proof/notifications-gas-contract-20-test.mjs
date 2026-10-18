@@ -116,3 +116,6 @@ assert.ok(overviewHandler.includes("['System_Config',500]"),'Overview must read 
 assert.ok(!overviewHandler.includes("['Notification_Settings',500]"),'DEV overview must not read legacy settings tab');
 assert.ok(!overviewHandler.includes('data.Notification_Settings'),'DEV overview must not derive settings from legacy tab');
 assert.ok(overviewHandler.includes('const settingMap=systemMap;'),'DEV overview must use canonical settings');
+
+const notificationConfigSource=read('NotificationConfig.js');
+assert.match(notificationConfigSource,/function nc_loadSettingsMap_\(\) \{[\s\S]*?var devSettings = nc_getDevSystemConfigSettings_\(\);[\s\S]*?if \(devSettings\) return nc_clone_\(devSettings\);/,'Direct legacy reader must return canonical DEV System_Config before legacy cache/sheet access');

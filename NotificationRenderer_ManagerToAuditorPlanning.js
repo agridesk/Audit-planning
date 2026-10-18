@@ -430,7 +430,8 @@ function NB_managerToAuditorValidationRowsHtml_(items) {
 function NB_managerToAuditorAcceptInPortalCtaHtml_(n) {
   var url = NB_portalUrlForOperational_(n || {});
   if (!url) return '<span style="font-size:11px;color:#64748b">Open Audit Grid 2.0 using your normal AMS bookmark.</span>';
-  return '<a href="' + NB_htmlAttr_(url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:8px 12px;border-radius:7px;font-size:11px;font-weight:900;line-height:1.1">View audit in Audit Grid 2.0</a>';
+  if (NB_clean_((n || {}).auditId)) url += (url.indexOf('?') >= 0 ? '&' : '?') + 'emailAction=ACCEPT';
+  return '<a href="' + NB_htmlAttr_(url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:8px 12px;border-radius:7px;font-size:11px;font-weight:900;line-height:1.1">Review and ACCEPT audit</a>';
 }
 
 function NB_managerToAuditorPortalTextLinkHtml_(n, label) {

@@ -22,7 +22,7 @@ export async function processEmailAction20({method,token,environment,input={},se
   // Validate stored record shape before reaching the audit source.
   if (!record.auditId || !record.auditorUid || !record.action || !record.environment) return DENIED;
   const audit=await services.currentAudit(record.auditId);
-  if(!audit)return DENIED;
+  if(!audit || audit.auditId!==record.auditId || !audit.auditorUid || !Number.isSafeInteger(audit.revision) || audit.revision<0)return DENIED;
   // Lookup and capability queries are read-only even on GET; never expose details to unauthorized users.
   if (typeof services.assertReadOnly==='function') await services.assertReadOnly();
   const capability=await services.actorCapability(actor,audit,record.action);

@@ -121,7 +121,8 @@ function StatusNotificationBridge_QueueWithLock_(recipientEmail, eventCode, queu
   });
 
   try {
-    acquired = lock.tryLock(5000);
+    var inheritedLock = typeof AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ !== 'undefined' && AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ === true;
+    acquired = inheritedLock || lock.tryLock(5000);
     var waitMs = new Date().getTime() - waitStarted;
 
     StatusNotificationBridge_Diag_(
@@ -229,7 +230,7 @@ function StatusNotificationBridge_QueueWithLock_(recipientEmail, eventCode, queu
 
     return result;
   } finally {
-    if (acquired) {
+    if (acquired && !inheritedLock) {
       try { lock.releaseLock(); } catch (eRelease) {}
     }
   }

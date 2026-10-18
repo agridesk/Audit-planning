@@ -4,14 +4,16 @@
  *
  * PURPOSE
  * - Single config owner for notifications.
- * - Reads Notification_Config, Notification_Rules and Notification_Settings.
+ * - Reads Notification_Config and Notification_Rules; DEV sender/system settings come from System_Config.
+ * - PROD retains a compatibility read of Notification_Settings until its own migration.
  * - Provides event config, rules, sender settings and weekly threshold bundles.
  * - Uses AUDIT_CACHE only as acceleration, never as truth.
  *
  * GOVERNANCE
  * - Notification_Config owns event-level notification config.
  * - Notification_Rules owns generic rule values such as queue sheet and trigger day/hour.
- * - Notification_Settings owns sender/test settings.
+ * - System_Config DEV column owns DEV sender/test settings (fail closed if absent).
+ * - Notification_Settings is a legacy PROD compatibility source, not a DEV configuration owner.
  * - Cache is explicitly clearable and never authoritative.
  * - No duplicate FINAL OVERRIDE definitions.
  ***********************************************************************/

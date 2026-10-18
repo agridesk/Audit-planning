@@ -428,6 +428,7 @@ function NB_managerToAuditorValidationRowsHtml_(items) {
 }
 
 function NB_managerToAuditorAcceptInPortalCtaHtml_(n) {
+  if (n && n.templatePreviewOnly === true) return '<div style="font-size:11px;color:#64748b;font-weight:700">Template preview only — no audit action is available for this synthetic test record.</div>';
   var url = NB_portalUrlForOperational_(n || {});
   if (!url) return '<span style="font-size:11px;color:#64748b">Open Audit Grid 2.0 using your normal AMS bookmark.</span>';
   var id = NB_clean_((n || {}).auditId);

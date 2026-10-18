@@ -74,3 +74,49 @@ function RUN_NOTIFICATION_CONSOLIDATION_AUDIT() {
   };
   Logger.log(JSON.stringify(out));return out;
 }
+
+/**
+ * Read-only DEV scheduler inventory. ScriptApp exposes only triggers visible
+ * to the executing account; absence does not prove that other owners have none.
+ * Never creates/deletes triggers, sends mail or mutates a sheet.
+ */
+function RUN_NOTIFICATION_TRIGGER_INVENTORY() {
+  var env=typeof SYS_getEnv_==='function'?String(SYS_getEnv_()||'').toUpperCase():'UNKNOWN';
+  if(env!=='DEV')throw new Error('DEV_ONLY');
+  var ss=SpreadsheetApp.getActiveSpreadsheet();
+  if(!ss||ss.getId()!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')throw new Error('DEV_SPREADSHEET_ID_MISMATCH');
+  var managed={
+    NotificationSender_RunDigest10M:'DIGEST',
+    NotificationSenderV5_RunDigest10M:'LEGACY_DIGEST',
+    runManagerWeeklyAlert:'WEEKLY_MANAGER',
+    runAuditorWeeklyAlert:'WEEKLY_AUDITOR'
+  };
+  var found=[],otherCount=0;
+  var triggers=ScriptApp.getProjectTriggers();
+  for(var i=0;i<triggers.length;i++){
+    var handler=String(triggers[i].getHandlerFunction()||'').trim();
+    if(!Object.prototype.hasOwnProperty.call(managed,handler)){otherCount++;continue;}
+    found.push({
+      handler:handler,
+      category:managed[handler],
+      source:typeof triggers[i].getTriggerSource==='function'?String(triggers[i].getTriggerSource()):'',
+      eventType:typeof triggers[i].getEventType==='function'?String(triggers[i].getEventType()):''
+    });
+  }
+  var counts={};
+  for(var j=0;j<found.length;j++)counts[found[j].handler]=(counts[found[j].handler]||0)+1;
+  var duplicates=Object.keys(counts).filter(function(k){return counts[k]>1;});
+  var out={
+    ok:true,environment:env,readOnly:true,
+    visibility:'CURRENT_EXECUTING_ACCOUNT_ONLY',
+    managedTriggers:found,managedCount:found.length,otherTriggerCount:otherCount,
+    duplicateManagedHandlers:duplicates,
+    legacyDigestPresent:!!counts.NotificationSenderV5_RunDigest10M,
+    digestTriggerVisible:!!counts.NotificationSender_RunDigest10M,
+    weeklyManagerTriggerVisible:!!counts.runManagerWeeklyAlert,
+    weeklyAuditorTriggerVisible:!!counts.runAuditorWeeklyAlert,
+    lastRunVerified:false,
+    note:'Trigger existence is not evidence of execution or delivery. Other accounts may own invisible triggers. LAST_RUN_* in Notification_Settings is a legacy snapshot.'
+  };
+  Logger.log(JSON.stringify(out));return out;
+}

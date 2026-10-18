@@ -25,7 +25,11 @@ function StatusNotificationBridge_QueueWithLock_(recipientEmail, eventCode, queu
   var action = queuePayload && queuePayload.action ? String(queuePayload.action) : '';
   var actorRole = queuePayload && queuePayload.actorRole ? String(queuePayload.actorRole) : '';
   try {
-    acquired = lock.tryLock(5000);
+    // The DEV external Auditor writer already owns the script lock through
+    // canonical status mutation. Reuse that lock instead of waiting on ourselves.
+    // This marker exists only within the same GAS execution and is cleared in finally.
+    var inheritedLock = typeof AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ !== 'undefined' && AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ === true;
+    acquired = inheritedLock || lock.tryLock(5000);
     var waitMs = Date.now() - txStarted;
     if (!acquired) {
       var deferred = {success:false,retryable:true,reason:'QUEUE_LOCK_TIMEOUT_RECONCILER_FALLBACK',bufferedBy:'AcceptedNotificationReconciler',recipient:String(recipientEmail||'').trim(),eventType:String(eventCode||'').trim(),auditId:String(auditId||'').trim(),txId:txId,waitMs:waitMs};
@@ -41,7 +45,7 @@ function StatusNotificationBridge_QueueWithLock_(recipientEmail, eventCode, queu
     var failed={success:false,retryable:true,reason:'QUEUE_WRITE_ERROR',error:msg,recipient:String(recipientEmail||'').trim(),eventType:String(eventCode||'').trim(),auditId:String(auditId||'').trim(),txId:txId};
     StatusNotificationBridge_Diag_('QUEUE_WRITE_ERROR_AMS01',auditId||'',action,actorRole,'','',false,msg,failed);
     return failed;
-  } finally { if(acquired){ try{lock.releaseLock();}catch(eRelease){} } }
+  } finally { if(acquired&&!inheritedLock){ try{lock.releaseLock();}catch(eRelease){} } }
 }
 
 function StatusNotificationBridge_QueueAcceptedExternalDigest_(recipientEmail, queuePayload) {

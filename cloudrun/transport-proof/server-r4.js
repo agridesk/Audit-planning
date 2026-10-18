@@ -1661,6 +1661,40 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     }
   }
   if(u.pathname==='/api/v1/planning/direct-commit'&&req.method==='POST'){const s=await sessionFromRequestValidated(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(!['manager','auditor'].includes(clean(s.role).toLowerCase()))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>65536)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}try{return send(res,200,await directPlanningCommit(s,b));}catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'DIRECT_PLANNING_COMMIT_BLOCKED',detail:clean(e?.message||e)});}}
+
+  if(u.pathname==='/api/v1/auditor/action'&&req.method==='POST'){
+    const actor=await sessionFromRequestValidated(req);
+    if(!actor)return send(res,401,{success:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='auditor'||!clean(actor.auditorUid||actor.auditorId))return send(res,403,{success:false,error:'AUDITOR_UID_REQUIRED'});
+    let sameOrigin=false;
+    try{const origin=new URL(String(req.headers.origin||''));sameOrigin=origin.protocol==='https:'&&origin.host===String(req.headers.host||'');}catch{}
+    if(!sameOrigin)return send(res,403,{success:false,error:'ORIGIN_FORBIDDEN'});
+    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192)return send(res,413,{success:false,error:'REQUEST_TOO_LARGE'});}
+    let body={};try{body=JSON.parse(raw);}catch{return send(res,400,{success:false,error:'INVALID_JSON'});}
+    const auditId=clean(body.auditId),action=clean(body.action).toUpperCase(),options=body.options||{},expectedRevision=clean(options.expectedRevision),comment=clean(options.reason||options.comment);
+    if(!auditId||auditId.length>256||!['ACCEPT','CANCEL'].includes(action)||!(/^[a-f0-9]{24}$/.test(expectedRevision)))return send(res,400,{success:false,error:'INVALID_AUDITOR_ACTION_REQUEST'});
+    if(action==='CANCEL'&&!comment)return send(res,400,{success:false,error:'CANCEL_REASON_REQUIRED'});
+    if(!GAS_WRITE_URL||!WRITE_KEY)return send(res,503,{success:false,error:'CANONICAL_WRITER_UNAVAILABLE'});
+    try{
+      const view=await auditorOpenRead(clean(actor.email).toLowerCase());
+      const row=(view.rows||[]).find(x=>x.auditId===auditId);
+      if(!row||!Array.isArray(row.allowedActions)||!row.allowedActions.includes(action))return send(res,403,{success:false,error:'AUDITOR_ACTION_FORBIDDEN'});
+      if(clean(row.sourceRevision)!==expectedRevision)return send(res,409,{success:false,error:'AUDIT_REVISION_CONFLICT'});
+      const url=new URL(GAS_WRITE_URL);
+      if(url.protocol!=='https:')return send(res,503,{success:false,error:'CANONICAL_WRITER_HTTPS_REQUIRED'});
+      url.searchParams.set('action','externalauditoraction20');
+      const first=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({bridgeKey:WRITE_KEY,actorRole:'AUDITOR',actorEmail:clean(actor.email).toLowerCase(),auditorUid:clean(actor.auditorUid||actor.auditorId),auditId,action,expectedRevision,comment}),redirect:'manual',signal:AbortSignal.timeout(60000)});
+      let reply=first;
+      if([301,302,303,307,308].includes(first.status)){
+        const loc=first.headers.get('location'),target=loc?new URL(loc,url):null;
+        if(!target||target.protocol!=='https:'||!target.hostname.endsWith('.googleusercontent.com'))return send(res,503,{success:false,error:'CANONICAL_RESPONSE_REDIRECT_REJECTED'});
+        reply=await fetch(target,{method:'GET',redirect:'follow',signal:AbortSignal.timeout(60000)});
+      }
+      if(!reply.ok)return send(res,503,{success:false,error:'AUDITOR_ACTION_OUTCOME_UNCONFIRMED_DO_NOT_RETRY'});
+      let result;try{result=JSON.parse(await reply.text());}catch{return send(res,503,{success:false,error:'AUDITOR_ACTION_OUTCOME_UNCONFIRMED_DO_NOT_RETRY'});}
+      return send(res,result&&result.success===true?200:409,result||{success:false,error:'CANONICAL_ACTION_EMPTY'});
+    }catch(error){return send(res,503,{success:false,error:'AUDITOR_ACTION_OUTCOME_UNCONFIRMED_DO_NOT_RETRY'});}
+  }
   if(u.pathname==='/api/v1/manager/action'&&req.method==='POST'){const s=await sessionFromRequestValidated(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(clean(s.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}try{const out=await canonicalManagerAction(s,b);return send(res,out&&out.success===false?409:200,out)}catch(e){return send(res,500,{ok:false,error:'MANAGER_ACTION_BRIDGE_FAILED',detail:clean(e?.message||e)})}}
   if(u.pathname==='/api/v1/manager/archived'&&req.method==='GET'){const s=await sessionFromRequestValidated(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});const role=clean(s.role).toLowerCase();if(!['manager','auditor'].includes(role))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});try{return send(res,200,role==='auditor'?await auditorArchivedRead(clean(s.email).toLowerCase()):await managerArchivedRead(clean(s.email).toLowerCase()));}catch(e){return send(res,500,{ok:false,error:'ARCHIVED_READ_FAILED',detail:clean(e?.message||e)});}}
   if(u.pathname==='/api/v1/manager/company-management/scopes/hours'&&req.method==='POST'){

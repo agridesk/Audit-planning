@@ -155,7 +155,7 @@ function RUN_NOTIFICATION_SETTINGS_RETIREMENT_DIAGNOSTICS() {
   if (typeof nc_loadSettingsMap_ === 'function') {
     legacy = nc_loadSettingsMap_() || {};
   }
-  var fields = ['DEFAULT_FROM_EMAIL','DEFAULT_FROM_NAME','DEFAULT_REPLY_TO'];
+  var fields = ['DEFAULT_FROM_EMAIL','DEFAULT_FROM_NAME','DEFAULT_REPLY_TO','DEFAULT_BUFFER_MINUTES','RUNNER_ENABLED','RUNNER_FREQUENCY_MINUTES','QUEUE_RETENTION_DAYS','MAIL_PROVIDER','TEST_MODE','TEST_RECIPIENT'];
   var checks = [];
   for (var i=0;i<fields.length;i++) {
     var key=fields[i], target=dev ? String(dev[key]||'').trim() : '';

@@ -106,14 +106,14 @@ function NotificationManagement20_UpdateRule(ruleKey, value, expected, actorEmai
   if(days.indexOf(key)<0&&hours.indexOf(key)<0&&weekdays.indexOf(key)<0&&comments.indexOf(key)<0)throw new Error('RULE_NOT_EDITABLE');
   var next=String(value==null?'':value).trim().toUpperCase(),prior=String(expected==null?'':expected).trim().toUpperCase();
   function valid(v){
-    if(days.indexOf(key)>=0)return /^\\d{1,3}$/.test(v)&&Number(v)>=1&&Number(v)<=365;
-    if(hours.indexOf(key)>=0)return /^\\d{1,2}$/.test(v)&&Number(v)>=0&&Number(v)<=23;
+    if(days.indexOf(key)>=0)return /^\d{1,3}$/.test(v)&&Number(v)>=1&&Number(v)<=365;
+    if(hours.indexOf(key)>=0)return /^\d{1,2}$/.test(v)&&Number(v)>=0&&Number(v)<=23;
     if(weekdays.indexOf(key)>=0)return ['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY'].indexOf(v)>=0;
     return v==='YES'||v==='NO';
   }
   if(!valid(next)||!valid(prior))throw new Error('RULE_VALUE_INVALID');
   var actor=String(actorEmail||'').trim().toLowerCase();
-  if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(actor)||actor.length>254)throw new Error('ACTOR_INVALID');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(actor)||actor.length>254)throw new Error('ACTOR_INVALID');
   var lock=LockService.getScriptLock();
   if(!lock.tryLock(15000))throw new Error('NOTIFICATION_RULE_BUSY');
   try {

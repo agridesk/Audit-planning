@@ -119,3 +119,9 @@ assert.ok(overviewHandler.includes('const settingMap=systemMap;'),'DEV overview 
 
 const notificationConfigSource=read('NotificationConfig.js');
 assert.match(notificationConfigSource,/function nc_loadSettingsMap_\(\) \{[\s\S]*?var devSettings = nc_getDevSystemConfigSettings_\(\);[\s\S]*?if \(devSettings\) return nc_clone_\(devSettings\);/,'Direct legacy reader must return canonical DEV System_Config before legacy cache/sheet access');
+
+const retirementGateway=read('NotificationMailGateway.js');
+const retirementDiagnostic=retirementGateway.slice(retirementGateway.indexOf('function RUN_NOTIFICATION_SETTINGS_RETIREMENT_DIAGNOSTICS()'),retirementGateway.indexOf('function NMG_getSenderIdentity_()'));
+assert.match(retirementDiagnostic,/RUN_NOTIFICATION_CONSOLIDATION_AUDIT\(\)/,'Legacy diagnostic must delegate to canonical audit');
+assert.match(retirementDiagnostic,/retirementReady: false/,'Legacy diagnostic must never falsely authorize deletion');
+assert.ok(!retirementDiagnostic.includes('nc_loadSettingsMap_'),'Legacy diagnostic must not compare canonical settings with themselves');

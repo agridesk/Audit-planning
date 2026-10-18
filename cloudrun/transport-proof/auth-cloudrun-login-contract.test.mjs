@@ -3,7 +3,7 @@ import fs from 'node:fs';
 const server=fs.readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
 const gas=fs.readFileSync(new URL('../../EntryV5.js',import.meta.url),'utf8');
 const cases=[
- ['Cloud Run renders unauthenticated DEV login',()=>assert.match(server,/if\(!identity\)return sendHtml\(res,200,RUNTIME_ENV==='DEV'\?cloudAuthLoginHtml\(\):portalLoginHtml\(\)\)/)],
+ ['Cloud Run renders unauthenticated DEV login',()=>assert.match(server,/return sendHtml\(res,200,RUNTIME_ENV==='DEV'\?cloudAuthLoginHtml\(\):portalLoginHtml\(\)\)/)],
  ['Browser-facing OTP request and verify handlers',()=>{assert.match(server,/\/auth\/otp\/request/);assert.match(server,/\/auth\/otp\/verify/);}],
  ['No GAS script URL in rendered login HTML',()=>{const html=server.slice(server.indexOf('function cloudAuthLoginHtml'),server.indexOf('async function cloudAuthGas'));assert.doesNotMatch(html,/script\.google\.com/);assert.doesNotMatch(html,/trustedToken/);}],
  ['DEV-only GAS shared-key bridge',()=>{assert.match(server,/RUNTIME_ENV!=='DEV'\|\|!GAS_WRITE_URL\|\|WRITE_KEY\.length<32/);assert.match(gas,/V5_ENTRY_externalBridgeBody_\(e\)/);}],

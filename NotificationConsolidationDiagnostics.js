@@ -169,7 +169,7 @@ function RUN_NOTIFICATION_CONSOLIDATION_FULL_AUDIT() {
     legacySheetRetirementReady:false,
     blockers:config.blockers,
     scheduler:triggers,
-    freshness:RUN_NOTIFICATION_OPERATIONS_EVIDENCE(),
+    freshness:RUN_NOTIFICATION_OPERATIONS_EVIDENCE(triggers),
     operations:{queue:queue,deliveryLog:log,configurationChangeLog:changeLog},
     templates:{sheet:templates,rendererSourceOfTruth:'GAS NotificationRenderer_*.js and NotificationBuilder.js',runtimeIndependenceVerified:false},
     lastRunVerified:false,
@@ -188,7 +188,7 @@ function RUN_NOTIFICATION_CONSOLIDATION_FULL_AUDIT() {
  * Reports timestamp freshness and visible scheduler coverage without assuming
  * that sent queue records prove a specific trigger executed.
  */
-function RUN_NOTIFICATION_OPERATIONS_EVIDENCE() {
+function RUN_NOTIFICATION_OPERATIONS_EVIDENCE(knownTriggers) {
   var env=typeof SYS_getEnv_==='function'?String(SYS_getEnv_()||'').toUpperCase():'UNKNOWN';
   if(env!=='DEV')throw new Error('DEV_ONLY');
   var ss=SpreadsheetApp.getActiveSpreadsheet();
@@ -219,7 +219,7 @@ function RUN_NOTIFICATION_OPERATIONS_EVIDENCE() {
     }
     return output;
   }
-  var triggers=RUN_NOTIFICATION_TRIGGER_INVENTORY();
+  var triggers=knownTriggers||RUN_NOTIFICATION_TRIGGER_INVENTORY();
   var result={
     ok:true,environment:'DEV',readOnly:true,
     queue:inspect('Notification Queue',['TimestampCreated','TimestampSent']),

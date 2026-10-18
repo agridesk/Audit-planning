@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createActionToken,hashActionToken,verifyActionToken,authorizeAction,validateActionInput,auditorEmailActionAllowed} from './notification-email-action-policy-20.mjs';
-const token=createActionToken(), record={auditorUid:'aud-123',auditId:'audit-1',action:'ACCEPT',tokenHash:hashActionToken(token),status:'Approved',origin:'MANAGER',revision:7,expiresAt:Date.now()+60000};
-const base={record,token,auditorUid:'aud-123',auditId:'audit-1',action:'ACCEPT',status:'Approved',revision:7,authenticatedActorUid:'aud-123',authenticatedRole:'AUDITOR',actorAuthorized:true};
+const token=createActionToken(), record={auditorUid:'aud-123',auditId:'audit-1',action:'ACCEPT',tokenHash:hashActionToken(token),status:'Approved',origin:'MANAGER',environment:'DEV',revision:7,expiresAt:Date.now()+60000};
+const base={record,token,auditorUid:'aud-123',auditId:'audit-1',action:'ACCEPT',status:'Approved',revision:7,authenticatedActorUid:'aud-123',authenticatedRole:'AUDITOR',actorAuthorized:true,environment:'DEV'};
 assert.equal(verifyActionToken(record.tokenHash,token),true);
 assert.equal(verifyActionToken(record.tokenHash,createActionToken()),false);
 assert.equal(authorizeAction(base),'DEVICE_VERIFICATION_REQUIRED');
@@ -31,3 +31,6 @@ assert.equal(authorizeAction({...base,record:{...record,status:'Accepted'},statu
 assert.equal(authorizeAction({...base,authenticatedActorUid:'' ,deviceTrusted:true}),'AUTHENTICATION_REQUIRED');
 assert.equal(authorizeAction({...base,authenticatedRole:'MANAGER',deviceTrusted:true}),'AUTHENTICATION_REQUIRED');
 assert.equal(authorizeAction({...base,actorAuthorized:false,deviceTrusted:true}),'AUTHENTICATION_REQUIRED');
+
+assert.equal(authorizeAction({...base,environment:'PROD',deviceTrusted:true}),'ENVIRONMENT_MISMATCH');
+assert.equal(authorizeAction({...base,environment:'',deviceTrusted:true}),'ENVIRONMENT_MISMATCH');

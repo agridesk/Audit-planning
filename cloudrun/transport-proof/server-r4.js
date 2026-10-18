@@ -1667,7 +1667,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(!actor)return send(res,401,{success:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='auditor'||!clean(actor.auditorUid||actor.auditorId))return send(res,403,{success:false,error:'AUDITOR_UID_REQUIRED'});
     let sameOrigin=false;
-    try{const origin=new URL(String(req.headers.origin||''));sameOrigin=origin.protocol==='https:'&&origin.host===String(req.headers.host||'');}catch{}
+    try{const origin=new URL(String(req.headers.origin||''));sameOrigin=origin.protocol==='https:'&&(origin.host===String(req.headers.host||'')||(process.env.AMS_RUNTIME_ENV==='DEV'&&origin.origin==='https://ams-transport-proof-510075419067.europe-west1.run.app'));}catch{}
     if(!sameOrigin)return send(res,403,{success:false,error:'ORIGIN_FORBIDDEN'});
     let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192)return send(res,413,{success:false,error:'REQUEST_TOO_LARGE'});}
     let body={};try{body=JSON.parse(raw);}catch{return send(res,400,{success:false,error:'INVALID_JSON'});}

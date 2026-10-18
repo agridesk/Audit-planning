@@ -68,3 +68,8 @@ assert.ok(sender.includes("mode:'DEV_UNRECOGNIZED_MODE'"), 'Unknown DEV delivery
 assert.ok(sender.includes("error:'DEV_NOTIFICATION_MODE must be DRY_RUN or TEST_TO_SELF'"), 'DEV mode contract must be explicit');
 assert.ok(gateway.includes('function RUN_NOTIFICATION_SETTINGS_RETIREMENT_DIAGNOSTICS()'), 'Retirement must be gated by diagnostic');
 assert.ok(gateway.includes('retirementReady:ready'), 'Retirement diagnostic must report readiness');
+
+const config=read('NotificationConfig.js');
+assert.ok(config.includes('if (devSettings) return defaultValue;'), 'DEV must not fall back to Notification_Settings for missing keys');
+assert.ok(config.includes('nc_clone_(devSettings || nc_loadSettingsMap_())'), 'DEV settings listing must use System_Config');
+for (const key of ['DEFAULT_FROM_EMAIL','DEFAULT_FROM_NAME','DEFAULT_REPLY_TO','DEFAULT_BUFFER_MINUTES','RUNNER_ENABLED','RUNNER_FREQUENCY_MINUTES','QUEUE_RETENTION_DAYS','MAIL_PROVIDER','TEST_MODE','TEST_RECIPIENT']) assert.ok(gateway.includes("'"+key+"'"), 'Migration diagnostic missing '+key);

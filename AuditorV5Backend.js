@@ -2062,7 +2062,7 @@ function AuditorV5_Action_U20260410(auditId, action, payload) {
 
     try {
       auditorV5_notifyManager_(
-        action === 'deny' ? 'AUDIT_DENIED_BY_AUDITOR' : 'AUDIT_CANCELLED_BY_AUDITOR',
+        'AUDIT_CANCELLED_BY_AUDITOR',
         auditId,
         headers,
         auditRow,

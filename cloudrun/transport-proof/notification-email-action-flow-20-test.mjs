@@ -45,4 +45,8 @@ assert.deepEqual(await processEmailAction20({method:'GET',token:'not-a-token',en
 assert.deepEqual(await call('GET',{}, {findByTokenHash:async()=>({...record,auditorUid:''})}),{ok:false,error:'ACTION_UNAVAILABLE'});
 assert.deepEqual(await call('GET',{}, {currentSession:async()=>({uid:'uid-1',role:'MANAGER',deviceVerified:true})}),{ok:false,error:'AUTHENTICATION_REQUIRED'});
 assert.equal(writes,1);
+assert.deepEqual(await call('GET',{}, {currentAudit:async()=>({...audit,auditId:'different'})}),{ok:false,error:'ACTION_UNAVAILABLE'});
+assert.deepEqual(await call('GET',{}, {currentAudit:async()=>({...audit,revision:'3'})}),{ok:false,error:'ACTION_UNAVAILABLE'});
+assert.deepEqual(await call('GET',{}, {currentAudit:async()=>({...audit,auditorUid:''})}),{ok:false,error:'ACTION_UNAVAILABLE'});
+assert.equal(writes,1);
 console.log('notification-email-action-flow-20: PASS');

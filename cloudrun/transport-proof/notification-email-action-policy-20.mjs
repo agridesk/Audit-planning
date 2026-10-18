@@ -32,7 +32,7 @@ export function authorizeAction({record,token,auditorUid,auditId,action,status,r
   if (record.usedAt != null || record.revokedAt != null) return 'TOKEN_CONSUMED';
   const activeEnvironment=String(environment).toUpperCase();
   if (!['DEV','PROD'].includes(activeEnvironment) || record.environment !== activeEnvironment) return 'ENVIRONMENT_MISMATCH';
-  if (!Number.isFinite(record.expiresAt) || now >= record.expiresAt) return 'TOKEN_EXPIRED';
+  if (!Number.isFinite(record.createdAt) || !Number.isFinite(record.expiresAt) || record.expiresAt-record.createdAt>ACTION_LINK_MINUTES*60000 || now<record.createdAt || now>=record.expiresAt) return 'TOKEN_EXPIRED';
   if (!verifyActionToken(record.tokenHash,token)) return 'INVALID_TOKEN';
   if (record.status !== status || record.revision !== revision) return 'STALE_AUDIT';
   // Device trust protects the device only; it is never an AMS identity/permission grant.

@@ -9,7 +9,8 @@ function NotificationQueue20_InstallDevTrigger() {
   var existing=triggers.filter(function(t){return t.getHandlerFunction()===handler;});
   if(!existing.length) ScriptApp.newTrigger(handler).timeBased().everyMinutes(5).create();
   var active=ScriptApp.getProjectTriggers().filter(function(t){return t.getHandlerFunction()===handler;});
-  return {ok:active.length>0,environment:'DEV',handler:handler,triggerCount:active.length,created:!existing.length};
+  var processed=NotificationSender_RunDigest10M();
+  return {ok:active.length>0&&processed.success===true,environment:'DEV',handler:handler,triggerCount:active.length,created:!existing.length,processed:processed};
 }
 function NotificationQueue20_DiagnoseDev() {
   if (typeof SYS_getEnv_ !== 'function' || SYS_getEnv_() !== 'DEV') throw new Error('DEV_ONLY');

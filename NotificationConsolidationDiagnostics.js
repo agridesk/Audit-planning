@@ -181,3 +181,54 @@ function RUN_NOTIFICATION_CONSOLIDATION_FULL_AUDIT() {
   };
   Logger.log(JSON.stringify(result));return result;
 }
+
+/**
+ * Read-only DEV notification operational evidence.
+ * Reports timestamp freshness and visible scheduler coverage without assuming
+ * that sent queue records prove a specific trigger executed.
+ */
+function RUN_NOTIFICATION_OPERATIONS_EVIDENCE() {
+  var env=typeof SYS_getEnv_==='function'?String(SYS_getEnv_()||'').toUpperCase():'UNKNOWN';
+  if(env!=='DEV')throw new Error('DEV_ONLY');
+  var ss=SpreadsheetApp.getActiveSpreadsheet();
+  if(!ss||ss.getId()!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')throw new Error('DEV_SPREADSHEET_ID_MISMATCH');
+  function inspect(name,dateHeaders){
+    var sh=ss.getSheetByName(name);
+    if(!sh)return {present:false};
+    var nr=sh.getLastRow(),nc=sh.getLastColumn();
+    if(nr<1||nc<1)return {present:true,rows:0};
+    var headers=sh.getRange(1,1,1,nc).getValues()[0].map(function(x){return String(x||'').trim().toUpperCase();});
+    var cols=dateHeaders.map(function(h){return {header:h,index:headers.indexOf(h.toUpperCase())};}).filter(function(x){return x.index>=0;});
+    var output={present:true,rows:Math.max(0,nr-1),columns:{},sampleLimit:20000};
+    for(var i=0;i<cols.length;i++){
+      var n=Math.min(nr-1,20000),dates=n?sh.getRange(nr-n+1,cols[i].index+1,n,1).getValues():[];
+      var latest=null,valid=0,invalid=0;
+      for(var j=0;j<dates.length;j++){
+        var raw=dates[j][0];if(raw===''||raw===null)continue;
+        var ms=raw instanceof Date?raw.getTime():Date.parse(String(raw));
+        if(!isFinite(ms)){invalid++;continue;}
+        valid++;if(latest===null||ms>latest)latest=ms;
+      }
+      output.columns[cols[i].header]={
+        validTimestamps:valid,unparseableTimestamps:invalid,
+        latestAt:latest===null?null:new Date(latest).toISOString(),
+        ageMinutes:latest===null?null:Math.round((Date.now()-latest)/60000),
+        sampleTruncated:n<nr-1
+      };
+    }
+    return output;
+  }
+  var triggers=RUN_NOTIFICATION_TRIGGER_INVENTORY();
+  var result={
+    ok:true,environment:'DEV',readOnly:true,
+    queue:inspect('Notification Queue',['TimestampCreated','TimestampSent']),
+    deliveryLog:inspect('Notification log',['Timestamp']),
+    changeLog:inspect('Notification_Change_Log',['Timestamp']),
+    visibleScheduler:triggers,
+    operationalState:'EVIDENCE_ONLY_NOT_EXECUTION_PROOF',
+    missingVisibleWeeklyTriggers:!triggers.weeklyManagerTriggerVisible||!triggers.weeklyAuditorTriggerVisible,
+    caution:'Weekly triggers may be intentionally disabled by event/rule policy or owned by another account. Do not create them automatically.',
+    noSheetDeletionAuthorized:true
+  };
+  Logger.log(JSON.stringify(result));return result;
+}

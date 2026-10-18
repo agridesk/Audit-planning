@@ -378,10 +378,14 @@ try{
   if(action==='CANCEL'&&!comment){el('error').textContent='Cancellation reason required';return;}
   el('confirm').disabled=true;el('error').textContent='';el('state').textContent='Processing…';
   try{
+    const acceptBrowserStart=performance.now();
     const result=await fetch('/api/v1/auditor/action',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({auditId,action:action.toLowerCase(),options:{expectedRevision:audit.sourceRevision,reason:comment,comment}})});
+    const acceptFetchMs=Math.round(performance.now()-acceptBrowserStart);
     const data=await result.json();
+    const acceptBrowserMs=Math.round(performance.now()-acceptBrowserStart);
+    if(action==='ACCEPT')console.info('[AMS_ACCEPT_TIMING_20]',{auditId,browserTotalMs:acceptBrowserMs,httpMs:acceptFetchMs,server:data.acceptTiming||null});
     if(!result.ok||data.success!==true)throw Error(data.error||data.detail||'Action could not be confirmed');
-    el('state').textContent='';el('actions').hidden=true;el('success').textContent=action+' confirmed. Current status: '+(data.afterStatusDisplay||data.newStatus||data.afterStatus||'updated');
+    el('state').textContent='';el('actions').hidden=true;el('success').textContent=action+' confirmed. Current status: '+(data.afterStatusDisplay||data.newStatus||data.afterStatus||'updated')+(action==='ACCEPT'?' · '+acceptBrowserMs+' ms':'');
     try{const channel=new BroadcastChannel('ams-auditor-actions-20');channel.postMessage({type:'AUDIT_ACTION_CONFIRMED',auditId: auditId,action:action});channel.close()}catch(e){}
   }catch(e){el('state').textContent='Action not confirmed';el('error').textContent=e.message;el('confirm').disabled=true;}
  };

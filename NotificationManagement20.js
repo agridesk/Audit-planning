@@ -91,3 +91,59 @@ function NotificationManagement20_UpdateDevMode(mode, expected, actorEmail) {
     return {ok:true,changed:1,mode:mode};
   }finally{lock.releaseLock();}
 }
+
+/**
+ * Manager-editable Notification_Rules. Technical routing and mandatory-reason
+ * rules are deliberately excluded. DEV only, optimistic concurrency and audit log.
+ */
+function NotificationManagement20_UpdateRule(ruleKey, value, expected, actorEmail) {
+  if(typeof SYS_getEnv_!=='function'||SYS_getEnv_()!=='DEV')throw new Error('DEV_ONLY');
+  var key=String(ruleKey||'').trim().toUpperCase();
+  var days=['COMING_UP_DAYS','PENDING_PLANNING_UPCOMING_DAYS','PENDING_PLANNING_URGENT_DAYS','PENDING_PLANNING_CRITICAL_DAYS'];
+  var hours=['WEEKLY_MANAGER_SEND_HOUR','WEEKLY_AUDITOR_SEND_HOUR'];
+  var weekdays=['WEEKLY_MANAGER_SEND_DAY','WEEKLY_AUDITOR_SEND_DAY'];
+  var comments=['COMMENT_ALLOWED_AUDIT_APPROVED','COMMENT_ALLOWED_AUDIT_ACCEPTED','COMMENT_ALLOWED_AUDIT_COMPLETED','COMMENT_ALLOWED_AUDIT_CANCELLED_BY_AUDITOR','COMMENT_ALLOWED_AUDIT_DENIED_BY_AUDITOR'];
+  if(days.indexOf(key)<0&&hours.indexOf(key)<0&&weekdays.indexOf(key)<0&&comments.indexOf(key)<0)throw new Error('RULE_NOT_EDITABLE');
+  var next=String(value==null?'':value).trim().toUpperCase(),prior=String(expected==null?'':expected).trim().toUpperCase();
+  function valid(v){
+    if(days.indexOf(key)>=0)return /^\\d{1,3}$/.test(v)&&Number(v)>=1&&Number(v)<=365;
+    if(hours.indexOf(key)>=0)return /^\\d{1,2}$/.test(v)&&Number(v)>=0&&Number(v)<=23;
+    if(weekdays.indexOf(key)>=0)return ['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY'].indexOf(v)>=0;
+    return v==='YES'||v==='NO';
+  }
+  if(!valid(next)||!valid(prior))throw new Error('RULE_VALUE_INVALID');
+  var actor=String(actorEmail||'').trim().toLowerCase();
+  if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(actor)||actor.length>254)throw new Error('ACTOR_INVALID');
+  var lock=LockService.getScriptLock();
+  if(!lock.tryLock(15000))throw new Error('NOTIFICATION_RULE_BUSY');
+  try {
+    var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.getSheetByName('Notification_Rules');
+    if(!sh)throw new Error('RULE_SHEET_MISSING');
+    var rows=sh.getDataRange().getValues();
+    var head=(rows[0]||[]).map(function(x){return String(x||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');});
+    var kcol=head.indexOf('RULEKEY'),vcol=head.indexOf('VALUE'),acol=head.indexOf('ACTIVE');
+    if(kcol<0||vcol<0||acol<0)throw new Error('RULE_SCHEMA_MISMATCH');
+    var hits=[];
+    for(var i=1;i<rows.length;i++)if(String(rows[i][kcol]||'').trim().toUpperCase()===key)hits.push(i);
+    if(hits.length!==1)throw new Error('RULE_NOT_UNIQUE');
+    var idx=hits[0],row=rows[idx];
+    if(String(row[acol]||'').trim().toUpperCase()!=='YES')throw new Error('RULE_INACTIVE');
+    var current=String(row[vcol]==null?'':row[vcol]).trim().toUpperCase();
+    if(current!==prior)throw new Error('RULE_CHANGED_RELOAD_REQUIRED');
+    if(current===next)return {ok:true,changed:0,ruleKey:key};
+    var byKey={};
+    for(var j=1;j<rows.length;j++){var k=String(rows[j][kcol]||'').trim().toUpperCase();if(k)byKey[k]=String(rows[j][vcol]==null?'':rows[j][vcol]).trim();}
+    byKey[key]=next;
+    if(days.indexOf(key)>=0){
+      var a=Number(byKey.PENDING_PLANNING_UPCOMING_DAYS),b=Number(byKey.PENDING_PLANNING_URGENT_DAYS),c=Number(byKey.PENDING_PLANNING_CRITICAL_DAYS);
+      if(!(a<b&&b<c))throw new Error('THRESHOLD_ORDER_INVALID');
+    }
+    var log=ss.getSheetByName('Notification_Change_Log');
+    if(!log){log=ss.insertSheet('Notification_Change_Log');log.appendRow(['Timestamp','Actor','EventKey','Field','Before','After','Source']);}
+    log.appendRow([new Date(),actor,key,'RULE_VALUE',current,next,'AMS_NOTIFICATION_RULES_20']);
+    sh.getRange(idx+1,vcol+1).setValue(next);
+    if(typeof NotificationConfig_ClearCache==='function')NotificationConfig_ClearCache();
+    if(typeof NB_InvalidateConfigCache==='function')NB_InvalidateConfigCache();
+    return {ok:true,changed:1,ruleKey:key,value:next};
+  }finally{lock.releaseLock();}
+}

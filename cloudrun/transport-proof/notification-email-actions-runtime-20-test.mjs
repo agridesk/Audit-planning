@@ -4,6 +4,7 @@ const get=p=>readFileSync(new URL(p,import.meta.url),'utf8');
 const portal=get('./manager-portal.js');
 const gateway=get('./server-r4.js');
 const auth=get('./server-r5.js');
+const router10=get('./server-r10.js');
 const gas=get('../../EntryV5.js');
 const mail=get('../../NotificationRenderer_ManagerToAuditorPlanning.js');
 assert.match(mail,/email-action/);
@@ -36,6 +37,8 @@ assert.match(auth,/location\.assign\("\/\?next="\+encodeURIComponent/);
 assert.match(gateway,/AUDITOR_ACTION_NOT_ASSIGNED/);
 assert.match(gateway,/AUDITOR_ACTION_STATUS_CONFLICT/);
 assert.match(gateway,/directRowRevision/);
+assert.match(router10,/\['accept','cancel'\]\.includes\(auditorAction\)\)return proxy\(req,res,raw\)/,'R10 must forward ACCEPT and CANCEL to canonical authorization');
+assert.match(gateway,/origin\.origin==='https:\/\/ams-transport-proof-510075419067\.europe-west1\.run\.app'/,'Canonical inner route must accept public DEV Origin behind loopback proxy');
 console.log('notification-email-actions-runtime-20: PASS');
 
 assert.match(auth,/u\.pathname==='\/email-action'&&req\.method==='GET'/);

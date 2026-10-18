@@ -121,6 +121,7 @@ function NotificationConfig_GetSetting(settingKey, defaultValue) {
     var devValue = devSettings[key.toUpperCase()];
     return devValue === '' || devValue === null || typeof devValue === 'undefined' ? defaultValue : devValue;
   }
+  if (devSettings) return defaultValue;
   var map = nc_loadSettingsMap_();
   if (!map.hasOwnProperty(key)) return defaultValue;
 
@@ -129,7 +130,8 @@ function NotificationConfig_GetSetting(settingKey, defaultValue) {
 }
 
 function NotificationConfig_GetAllSettings() {
-  return nc_clone_(nc_loadSettingsMap_());
+  var devSettings = nc_getDevSystemConfigSettings_();
+  return nc_clone_(devSettings || nc_loadSettingsMap_());
 }
 
 function NotificationConfig_GetSenderSettings() {

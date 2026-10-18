@@ -228,6 +228,8 @@ function RUN_NOTIFICATION_OPERATIONS_EVIDENCE(knownTriggers) {
     visibleScheduler:triggers,
     operationalState:'EVIDENCE_ONLY_NOT_EXECUTION_PROOF',
     missingVisibleWeeklyTriggers:!triggers.weeklyManagerTriggerVisible||!triggers.weeklyAuditorTriggerVisible,
+    schedulerCoverage:{digestVisible:triggers.digestTriggerVisible,managerWeeklyVisible:triggers.weeklyManagerTriggerVisible,auditorWeeklyVisible:triggers.weeklyAuditorTriggerVisible,duplicates:triggers.duplicateManagedHandlers,visibility:triggers.visibility},
+    interpretation:'Timestamp freshness is activity evidence only; no inference of scheduler ownership, successful delivery or expected weekly trigger activation.',
     caution:'Weekly triggers may be intentionally disabled by event/rule policy or owned by another account. Do not create them automatically.',
     noSheetDeletionAuthorized:true
   };

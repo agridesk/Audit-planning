@@ -195,7 +195,8 @@ async function notificationsManagerOverview(req,res){
  if(!queueResponse.ok)throw Error('NOTIFICATION_QUEUE_UNAVAILABLE');
  const queue=(await queueResponse.json()).values||[];
  if(queue.length>=5000)throw Error('NOTIFICATION_QUEUE_SOURCE_TRUNCATED');
- const result=notificationOverview({config:data.Notification_Config,rules:data.Notification_Rules,settings:[],queue});
+ const sysRowsForCount=data.System_Config||[];const sysHeadersForCount=(sysRowsForCount[0]||[]).map(v=>String(v||'').trim().toUpperCase());const devColForCount=sysHeadersForCount.indexOf('DEV');const systemSettingsForCount=[['SETTING_KEY','SETTING_VALUE']];if(devColForCount>=0)for(const row of sysRowsForCount.slice(1)){const key=String(row[0]||'').trim().toUpperCase();if(key)systemSettingsForCount.push([key,'CONFIGURED']);}
+ const result=notificationOverview({config:data.Notification_Config,rules:data.Notification_Rules,settings:systemSettingsForCount,queue});
  const sys=data.System_Config||[];const envHeaders=(sys[0]||[]).map(v=>String(v||'').trim().toUpperCase());const envCol=envHeaders.indexOf('DEV');const systemMap={};for(const row of sys.slice(1)){const key=String(row[0]||'').trim().toUpperCase();if(key&&envCol>=0)systemMap[key]=String(row[envCol]||'').trim();}
  // DEV notification settings are owned exclusively by System_Config; do not read legacy Notification_Settings.
  const settingMap=systemMap;

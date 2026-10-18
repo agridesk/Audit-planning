@@ -27,4 +27,18 @@ assert.equal((await processEmailAction20(params)).readOnly,true);
 assert.equal(writes,0);
 assert.equal((await processEmailAction20({...params,environment:'DEV'})).error,'ENVIRONMENT_MISMATCH');
 assert.equal(writes,0);
+// One code path for both environments. Portal origins are configuration, never source constants.
+const portalBuilder=source('NotificationBuilder.js');
+const auditorRenderer=source('NotificationRenderer_ManagerToAuditorPlanning.js');
+const managerRenderer=source('NotificationRenderer_AuditorToManagerApproval.js');
+assert.match(portalBuilder,/SYS_getConfig_\(\)/);
+assert.match(portalBuilder,/config\[key\] \|\| config\.PORTAL_URL/);
+assert.doesNotMatch(portalBuilder,/ams-transport-proof-510075419067/);
+assert.match(auditorRenderer,/NB_portalBaseUrl20_\('AUDITOR'\)/);
+assert.match(managerRenderer,/NB_portalBaseUrl20_\('MANAGER'\)/);
+assert.doesNotMatch(auditorRenderer,/https:\/\/ams-transport-proof-/);
+assert.doesNotMatch(managerRenderer,/https:\/\/ams-transport-proof-/);
+// PROD must keep its own entrypoint until the DEV-only R15 boot guard is replaced.
+const entrypoint=source('cloudrun/transport-proof/server-r15.js');
+assert.match(entrypoint,/AVAILABILITY_DEV_PROJECT_ONLY/);
 console.log('notification-email-actions-prod-parity-20: PASS');

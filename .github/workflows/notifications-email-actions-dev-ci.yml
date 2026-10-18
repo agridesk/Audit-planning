@@ -1,0 +1,28 @@
+name: AMS DEV email actions and notification regression
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'cloudrun/transport-proof/**'
+      - 'Notification*.js'
+      - 'StatusNotificationBridge.js'
+      - 'SystemConfig.js'
+      - 'docs/AMS_NOTIFICATIONS_2_0_*'
+      - '.github/workflows/notifications-email-actions-dev-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  full-dev-contract-suite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out dev source
+        uses: actions/checkout@v4
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate full Cloud Run and GAS contract suite
+        working-directory: cloudrun/transport-proof
+        run: npm test

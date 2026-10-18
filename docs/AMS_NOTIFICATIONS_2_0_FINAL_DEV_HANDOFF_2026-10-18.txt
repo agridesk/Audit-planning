@@ -1,0 +1,55 @@
+AMS NOTIFICATIONS 2.0 — DEV FINAL HANDOFF
+Date: 2026-10-18
+Repository: agridesk/Audit-planning, dev
+Confirmed GAS DEV deployment: @358
+Status: DEV CONSOLIDATION IMPLEMENTED; PHYSICAL LEGACY RETIREMENT NOT AUTHORIZED
+PROD: UNCHANGED
+
+1. DELIVERED
+- DEV technical configuration: System_Config (DEV column), not Notification_Settings.
+- Event delivery and routing: Notification_Config.
+- Business rules and scheduling configuration: Notification_Rules.
+- Manager-facing overview migrated off Notification_Settings.
+- Direct DEV legacy settings reader guarded to canonical System_Config.
+- DEV-only read-only consolidation audit and retirement diagnostic.
+- Exact DEV spreadsheet-ID isolation for diagnostics.
+- Combined diagnostic: RUN_NOTIFICATION_CONSOLIDATION_FULL_AUDIT.
+- Scheduler inventory with explicit executing-account visibility limitation.
+- Queue/log/change-log counts, timestamp freshness and template schema inventory.
+- Source-reference inventory added to notification GAS contract tests.
+- Historical auditor Denied event preserved; new action is Cancelled.
+- Automated regression tests executed by operator before deployment @358.
+
+2. OBSERVED DEV AUDIT EVIDENCE (operator run before latest deployment)
+- Migration parity: 10 of 10; no mismatches.
+- Visible notification triggers: 1 digest clock trigger, no duplicate managed handlers.
+- Weekly manager/auditor triggers not visible for executing account. Do NOT infer misconfiguration: event/rule policy or another account may own them.
+- Notification Queue: 504 rows; 305 SENT_DEV_REDIRECT, 195 AUDIT_TRAIL, 2 SENT, 2 SENT_SIMULATED; no open queue status in this sample.
+- Notification log: 141 rows.
+- Notification_Change_Log: 9 rows.
+- Notification_Templates: 3 rows.
+- LAST_RUN_* values in legacy Notification_Settings were dated 2026-04-15 and are NOT authoritative runner-health evidence.
+- Last-run execution and dynamic/external template independence remain unverified.
+
+3. NO MORE DEV DEPLOYMENTS REQUIRED FOR THIS HANDOFF
+All current DEV code changes are included in operator-confirmed GAS DEV @358. Do not run setup triggers, send test mail, migrate PROD or delete sheets as part of closing this DEV work package.
+
+4. LEGACY SHEET POLICY
+Notification_Settings: retain for PROD legacy reader compatibility and until production migration is independently verified. Do not use as editable DEV configuration.
+Notification_Templates: retain until runtime and external dependency inventory is complete. Static source-reference inventory is not proof of zero dynamic or external use.
+Historical Denied event/rule: retain historical compatibility; exclude from new workflows.
+No destructive action is approved.
+
+5. SEPARATE, DEFERRED WORK PACKAGES (NOT BLOCKING DEV CONSOLIDATION CLOSE)
+A. PROD-specific migration and regression validation; requires separate authorization and rollback.
+B. External trigger owner and execution-health validation if operational SLA demands it.
+C. Full dynamic/external template-reference proof before physical tab retirement.
+These are explicit change-controlled follow-ups, not reasons to repeat DEV deployment cycles.
+
+6. SOURCE OF TRUTH
+docs/AMS_NOTIFICATIONS_2_0_README_2026-10-18.txt
+RUN_NOTIFICATION_CONSOLIDATION_FULL_AUDIT in NotificationConsolidationDiagnostics.js
+cloudrun/transport-proof/notifications-gas-contract-20-test.mjs
+
+FINAL DECISION
+DEV Notifications 2.0 consolidation is closed at GAS DEV @358 with known, documented limitations. No more operator action required for this DEV work package. PROD migration and sheet removal are separate future approvals.

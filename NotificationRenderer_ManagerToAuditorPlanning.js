@@ -434,13 +434,6 @@ function NB_managerToAuditorAcceptInPortalCtaHtml_(n) {
   return '<a href="' + NB_htmlAttr_(url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:8px 12px;border-radius:7px;font-size:11px;font-weight:900;line-height:1.1">Review and ACCEPT audit</a>';
 }
 
-function NB_managerToAuditorPortalTextLinkHtml_(n, label) {
-  var text = NB_html_(label || 'Go to portal to accept or deny the audit.');
-  var url = NB_portalUrlForOperational_(n || {});
-  if (!url) return text;
-  return '<a href="' + NB_htmlAttr_(url) + '" target="_blank" style="color:#334155;text-decoration:none">' + text + '</a>';
-}
-
 function NB_portalUrlForOperational_(n) {
   n = n || {};
   var url = NB_portalBaseUrl20_('AUDITOR');

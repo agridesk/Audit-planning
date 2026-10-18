@@ -148,6 +148,32 @@ function NMG_getDevSystemSenderSettings_() {
   return map;
 }
 
+function RUN_NOTIFICATION_SETTINGS_RETIREMENT_DIAGNOSTICS() {
+  var env = typeof SYS_getEnv_ === 'function' ? String(SYS_getEnv_() || '').toUpperCase() : 'UNKNOWN';
+  var dev = env === 'DEV' ? NMG_getDevSystemSenderSettings_() : null;
+  var legacy = {};
+  if (typeof NotificationConfig_GetSenderSettings === 'function') {
+    legacy = NotificationConfig_GetSenderSettings() || {};
+  }
+  var fields = ['DEFAULT_FROM_EMAIL','DEFAULT_FROM_NAME','DEFAULT_REPLY_TO'];
+  var checks = [];
+  for (var i=0;i<fields.length;i++) {
+    var key=fields[i], target=dev ? String(dev[key]||'').trim() : '';
+    var prior=String(legacy[key]||'').trim();
+    checks.push({
+      key:key,
+      systemConfigPresent:!!target,
+      legacyPresent:!!prior,
+      valuesMatch:!!target && (!prior || target===prior)
+    });
+  }
+  var ready=env==='DEV' && checks.every(function(c){return c.systemConfigPresent && c.valuesMatch;});
+  var out={ok:ready,environment:env,retirementReady:ready,checks:checks,
+    note:'Read-only diagnostic. Never deletes Notification_Settings or writes System_Config.'};
+  Logger.log(JSON.stringify(out));
+  return out;
+}
+
 function NMG_getSenderIdentity_() {
   var settings = {};
   var devSettings = NMG_getDevSystemSenderSettings_() || {};

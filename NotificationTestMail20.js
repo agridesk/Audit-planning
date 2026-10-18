@@ -11,7 +11,7 @@ function NotificationTestMail20_Preview(eventKey) {
   if(!Object.prototype.hasOwnProperty.call(all,key))throw new Error('UNKNOWN_NOTIFICATION_EVENT');
   // Deterministic, fully populated synthetic audit. Never use live customer records.
   var fixture={
-    eventType:key,type:key,company:'DEV TEST COMPANY',auditId:'TEST_NOTIFICATION_20',
+    eventType:key,type:key,templatePreviewOnly:true,company:'DEV TEST COMPANY',auditId:'TEST_NOTIFICATION_20',
     mpsNumber:'MPS-TEST-2026-001',auditNumber:'MPS-TEST-2026-001',
     auditorName:'DEV Example Auditor',auditorEmail:'auditor@example.invalid',
     contactName:'DEV Example Contact',contactEmail:'contact@example.invalid',contactPhone:'+31 000 000 0000',

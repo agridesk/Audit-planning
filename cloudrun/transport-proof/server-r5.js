@@ -53,7 +53,14 @@ function safeLoginDestination(raw,role){
   const value=clean(raw);if(!value||value.length>500||!value.startsWith('/')||value.startsWith('//')||value.includes('\\'))return '/';
   let parsed;try{parsed=new URL(value,'https://ams.local');}catch{return '/';}
   if(parsed.origin!=='https://ams.local')return '/';
-  if(parsed.pathname==='/')return '/';
+  if(parsed.pathname==='/'){
+    const id=parsed.searchParams.get('auditId')||'',requested=String(parsed.searchParams.get('emailAction')||'').toUpperCase();
+    if(!id)return '/';
+    if(!/^[A-Za-z0-9_-]{1,120}$/.test(id)||!['','ACCEPT','CANCEL','APPROVE'].includes(requested))return '/';
+    if(requested==='APPROVE'&&role!=='Manager')return '/';
+    if(['ACCEPT','CANCEL'].includes(requested)&&role!=='Auditor')return '/';
+    return '/?auditId='+encodeURIComponent(id)+(requested?'&emailAction='+encodeURIComponent(requested):'');
+  }
   if(parsed.pathname==='/planning'&&/^[A-Za-z0-9_-]{1,120}$/.test(parsed.searchParams.get('auditId')||'')&&['Manager','Auditor'].includes(role))return '/planning?auditId='+encodeURIComponent(parsed.searchParams.get('auditId'));
   return '/';
 }
@@ -315,7 +322,14 @@ http.createServer(async(req,res)=>{
   const u=new URL(req.url,'http://localhost');
   if(u.pathname==='/'&&req.method==='GET'){
     const identity=await sessionIdentity(req);
-    if(!identity)return sendHtml(res,200,RUNTIME_ENV==='DEV'?cloudAuthLoginHtml():portalLoginHtml());
+    if(!identity){
+      if(u.searchParams.has('auditId')&&!u.searchParams.has('next')){
+        const role=String(u.searchParams.get('emailAction')||'').toUpperCase()==='APPROVE'?'Manager':'Auditor';
+        const dest=safeLoginDestination(u.pathname+u.search,role);
+        if(dest!=='/'){res.writeHead(303,{'location':'/?next='+encodeURIComponent(dest),'cache-control':'no-store'});return res.end();}
+      }
+      return sendHtml(res,200,RUNTIME_ENV==='DEV'?cloudAuthLoginHtml():portalLoginHtml());
+    }
     const destination=safeLoginDestination(u.searchParams.get('next'),identity.role);if(destination!=='/'){res.writeHead(303,{'location':destination,'cache-control':'no-store'});return res.end();}
     return proxy(req,res);
   }

@@ -1,3 +1,4 @@
+var AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_=false;
 /*****************************************************************************************
  * EntryV5.gs — RESTORE DOGET FROM LAST KNOWN WORKING ENTRY (20260514_R8_RESTORE_DOGET)
  *
@@ -357,6 +358,7 @@ function doPost(e) {
     var lock20=LockService.getScriptLock();
     if(!lock20.tryLock(10000))return respond20({success:false,error:'ACTION_BUSY'});
     acceptStages20.lockWaitMs=Date.now()-acceptT020;acceptPhase20='locked';
+    AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_=true;
     try{
       var ss20=SpreadsheetApp.getActiveSpreadsheet();
       if(!ss20||ss20.getId()!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')return respond20({success:false,error:'DEV_SPREADSHEET_MISMATCH'});
@@ -398,7 +400,7 @@ function doPost(e) {
       acceptStages20.statusMachineMs=Date.now()-statusT020;acceptPhase20='complete';
       return respond20(outcome20||{success:false,error:'CANONICAL_ACTION_EMPTY'});
     }catch(ex20){return respond20({success:false,error:'AUDITOR_ACTION_FAILED',detail:String(ex20&&ex20.message||ex20).slice(0,160)});}
-    finally{lock20.releaseLock();}
+    finally{AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_=false;lock20.releaseLock();}
   }
   if (rawAction==='externalmanageraction') {
     if(!V5_ENTRY_isDevEnv_())return ContentService.createTextOutput(JSON.stringify({success:false,error:'DEV_ONLY'})).setMimeType(ContentService.MimeType.JSON);

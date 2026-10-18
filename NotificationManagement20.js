@@ -102,7 +102,7 @@ function NotificationManagement20_UpdateRule(ruleKey, value, expected, actorEmai
   var days=['COMING_UP_DAYS','PENDING_PLANNING_UPCOMING_DAYS','PENDING_PLANNING_URGENT_DAYS','PENDING_PLANNING_CRITICAL_DAYS'];
   var hours=['WEEKLY_MANAGER_SEND_HOUR','WEEKLY_AUDITOR_SEND_HOUR'];
   var weekdays=['WEEKLY_MANAGER_SEND_DAY','WEEKLY_AUDITOR_SEND_DAY'];
-  var comments=['COMMENT_ALLOWED_AUDIT_APPROVED','COMMENT_ALLOWED_AUDIT_ACCEPTED','COMMENT_ALLOWED_AUDIT_COMPLETED','COMMENT_ALLOWED_AUDIT_CANCELLED_BY_AUDITOR','COMMENT_ALLOWED_AUDIT_DENIED_BY_AUDITOR'];
+  var comments=['COMMENT_ALLOWED_AUDIT_APPROVED','COMMENT_ALLOWED_AUDIT_ACCEPTED','COMMENT_ALLOWED_AUDIT_COMPLETED','COMMENT_ALLOWED_AUDIT_CANCELLED_BY_AUDITOR'];
   if(days.indexOf(key)<0&&hours.indexOf(key)<0&&weekdays.indexOf(key)<0&&comments.indexOf(key)<0)throw new Error('RULE_NOT_EDITABLE');
   var next=String(value==null?'':value).trim().toUpperCase(),prior=String(expected==null?'':expected).trim().toUpperCase();
   function valid(v){

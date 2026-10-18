@@ -1690,7 +1690,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
         const liveRevision=directRowRevision(h,r);
         if(liveRevision!==expectedRevision)return send(res,409,{success:false,error:'AUDIT_REVISION_CONFLICT'});
       }
-      if(clean(row.sourceRevision)!==expectedRevision)return send(res,409,{success:false,error:'AUDIT_REVISION_CONFLICT'});
+      if(row&&clean(row.sourceRevision)!==expectedRevision)return send(res,409,{success:false,error:'AUDIT_REVISION_CONFLICT'});
       if(action==='COMPLETE'){
         try{const result=await directAuditorComplete(actor,{auditId,action:'complete',options:{hoursDedicated:Number(options.hoursDedicated),expectedRevision}});return send(res,result&&result.success===false?409:200,result)}
         catch(error){return send(res,409,{success:false,error:'AUDITOR_COMPLETE_FAILED',detail:clean(error.message)})}

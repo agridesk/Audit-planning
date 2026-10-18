@@ -450,6 +450,23 @@ function ns_resolveNotificationDeliveryFromSystemConfigSheet_(originalRecipients
       }
     }
 
+    if (env === 'DEV') {
+      return {
+        resolved:true,
+        delivery:{
+          mode:'DEV_UNRECOGNIZED_MODE',
+          send:false,
+          recipient:'',
+          recipients:[],
+          originalRecipients:originalRecipients,
+          overridden:false,
+          source:'System_Config sheet',
+          failClosed:true,
+          error:'DEV_NOTIFICATION_MODE must be DRY_RUN or TEST_TO_SELF'
+        }
+      };
+    }
+
     return {
       resolved:true,
       delivery:{

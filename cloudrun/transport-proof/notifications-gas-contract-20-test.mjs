@@ -169,7 +169,8 @@ console.log('Notification legacy-settings references: '+legacyReferences.join(',
 
 // Auditor email navigation must never reuse legacy direct accept/deny links.
 const auditorMail=read('NotificationRenderer_ManagerToAuditorPlanning.js');
-assert.match(auditorMail,/planning\?auditId=/);
+assert.match(auditorMail,/\/?auditId=/);
+assert.doesNotMatch(auditorMail,/match\[1\] \+ '\/planning\?auditId='/);
 assert.doesNotMatch(auditorMail,/cta\.acceptUrl\s*\|\|/);
 assert.match(auditorMail,/AUDITOR_PORTAL_URL/);
 
@@ -189,3 +190,8 @@ for (const renderer of [approvalMail,auditorMail,selfPlanManagerMail]) assert.ma
 // Prevent redirect/phishing by payload-injected portal destinations.
 assert.doesNotMatch(auditorMail,/if \(!url\) url = NB_clean_\(cta\.portalUrl/);
 assert.doesNotMatch(selfPlanManagerMail,/if \(!url\) url = NB_clean_\(cta\.portalUrl/);
+
+const sharedGrid=read('cloudrun/transport-proof/manager-portal.js');
+assert.match(sharedGrid,/function focusEmailAudit20\(/);
+assert.match(sharedGrid,/new URLSearchParams\(window\.location\.search\)/);
+assert.match(sharedGrid,/focusEmailAudit20\(\);return loadOpenEnrichment/);

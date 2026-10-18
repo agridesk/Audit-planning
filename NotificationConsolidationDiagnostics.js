@@ -120,3 +120,64 @@ function RUN_NOTIFICATION_TRIGGER_INVENTORY() {
   };
   Logger.log(JSON.stringify(out));return out;
 }
+
+/**
+ * Comprehensive read-only DEV notification operations report.
+ * One invocation combines configuration migration, scheduler inventory,
+ * queue/log statistics and renderer ownership. No mail or mutation.
+ */
+function RUN_NOTIFICATION_CONSOLIDATION_FULL_AUDIT() {
+  var config=RUN_NOTIFICATION_CONSOLIDATION_AUDIT();
+  var triggers=RUN_NOTIFICATION_TRIGGER_INVENTORY();
+  var ss=SpreadsheetApp.getActiveSpreadsheet();
+  var now=Date.now();
+  function sheetSummary(name) {
+    var sh=ss.getSheetByName(name);
+    if(!sh)return {present:false,rows:0,headers:[],statusCounts:{},dateColumns:[]};
+    var lastRow=sh.getLastRow(),lastCol=sh.getLastColumn();
+    if(!lastRow||!lastCol)return {present:true,rows:0,headers:[],statusCounts:{},dateColumns:[]};
+    var head=sh.getRange(1,1,1,lastCol).getValues()[0].map(function(v){return String(v==null?'':v).trim();});
+    var upper=head.map(function(v){return v.toUpperCase().replace(/\s+/g,'_');});
+    var statusIndex=-1;
+    for(var i=0;i<upper.length;i++)if(['STATUS','QUEUE_STATUS','DELIVERY_STATUS','SEND_STATUS'].indexOf(upper[i])>=0){statusIndex=i;break;}
+    var counts={},sampleLimit=20000;
+    if(statusIndex>=0&&lastRow>1){
+      var n=Math.min(lastRow-1,sampleLimit);
+      var cells=sh.getRange(lastRow-n+1,statusIndex+1,n,1).getValues();
+      for(var j=0;j<cells.length;j++){
+        var value=String(cells[j][0]==null?'':cells[j][0]).trim().toUpperCase()||'(BLANK)';
+        counts[value]=(counts[value]||0)+1;
+      }
+    }
+    var dateColumns=[];
+    for(var k=0;k<upper.length;k++)if(/(?:DATE|TIME|_AT|TIMESTAMP)/.test(upper[k]))dateColumns.push(head[k]);
+    return {
+      present:true,rows:Math.max(0,lastRow-1),
+      headers:head,statusColumn:statusIndex>=0?head[statusIndex]:'',
+      statusCounts:counts,statusSampleRows:statusIndex>=0?Math.min(lastRow-1,sampleLimit):0,
+      statusSampleTruncated:statusIndex>=0&&lastRow-1>sampleLimit,
+      dateColumns:dateColumns
+    };
+  }
+  var queue=sheetSummary('Notification Queue');
+  var log=sheetSummary('Notification log');
+  var changeLog=sheetSummary('Notification_Change_Log');
+  var templates=sheetSummary('Notification_Templates');
+  var result={
+    ok:true,environment:'DEV',readOnly:true,generatedAt:new Date(now).toISOString(),
+    configMigrationVerified:config.migrationVerified,
+    legacySheetRetirementReady:false,
+    blockers:config.blockers,
+    scheduler:triggers,
+    operations:{queue:queue,deliveryLog:log,configurationChangeLog:changeLog},
+    templates:{sheet:templates,rendererSourceOfTruth:'GAS NotificationRenderer_*.js and NotificationBuilder.js',runtimeIndependenceVerified:false},
+    lastRunVerified:false,
+    limitations:[
+      'Trigger visibility is restricted to the executing GAS account.',
+      'Queue/log rows and statuses do not prove scheduler execution without timestamp correlation.',
+      'No outbound message is sent by this audit.',
+      'This report does not establish PROD migration readiness.'
+    ]
+  };
+  Logger.log(JSON.stringify(result));return result;
+}

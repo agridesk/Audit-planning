@@ -22,3 +22,10 @@ assert.match(builder,/SYS_getConfig_\(\)/);
 assert.doesNotMatch(auditor,/cta\.acceptUrl\s*\|\|/);
 assert.doesNotMatch(manager,/cta\.approvalUrl\s*\|\|/);
 console.log('notification-email-deeplink-20: PASS');
+
+// A consumed GAS POST may send email even when its ContentService redirect expires.
+// This uncertainty must not be reported as definitive send failure or trigger a retry.
+const notificationRuntime=read('cloudrun/transport-proof/server-r15.js');
+assert.match(notificationRuntime,/operation==='sendTest'&&\/\^NOTIFICATION_GAS_\(HTTP_404_REDIRECT_GET/);
+assert.match(notificationRuntime,/deliveryStatus:'UNCONFIRMED'/);
+assert.match(notificationRuntime,/res\.writeHead\(202/);

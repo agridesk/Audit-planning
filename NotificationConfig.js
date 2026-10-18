@@ -542,6 +542,9 @@ function nc_loadRuleMap_() {
 }
 
 function nc_loadSettingsMap_() {
+  // Strict DEV isolation: even direct legacy-reader calls must never consult Notification_Settings.
+  var devSettings = nc_getDevSystemConfigSettings_();
+  if (devSettings) return nc_clone_(devSettings);
   if (NC_SETTINGS_CACHE) return NC_SETTINGS_CACHE;
 
   var cached = nc_cacheGet_(NC_CACHE_NS_SETTINGS, NC_CACHE_KEY_PARSED);

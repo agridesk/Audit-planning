@@ -60,7 +60,7 @@ for (const field of ['DEFAULT_FROM_EMAIL','DEFAULT_FROM_NAME','DEFAULT_REPLY_TO'
 // Action-from-email phase 1: Manager approval mail is navigation-only.
 const approvalMail=read('NotificationRenderer_ApprovalOperational.js');
 assert.match(approvalMail,/Review in Manager portal/);
-assert.match(approvalMail,/MANAGER_PORTAL_URL/);
+assert.match(approvalMail,/NB_portalBaseUrl20_\('MANAGER'\)/);
 assert.match(approvalMail,/NB_htmlAttr_\(reviewUrl\)/);
 assert.match(approvalMail,/planning\?auditId=/);
 assert.doesNotMatch(approvalMail,/managerPortalUrl\s*\+\s*['"](?:\?|&).*approve/i);
@@ -172,7 +172,7 @@ const auditorMail=read('NotificationRenderer_ManagerToAuditorPlanning.js');
 assert.match(auditorMail,/\/?auditId=/);
 assert.doesNotMatch(auditorMail,/match\[1\] \+ '\/planning\?auditId='/);
 assert.doesNotMatch(auditorMail,/cta\.acceptUrl\s*\|\|/);
-assert.match(auditorMail,/AUDITOR_PORTAL_URL/);
+assert.match(auditorMail,/NB_portalBaseUrl20_\('AUDITOR'\)/);
 
 // Active self-planning Manager renderer must not produce a broken # link.
 const selfPlanManagerMail=read('NotificationRenderer_AuditorToManagerApproval.js');

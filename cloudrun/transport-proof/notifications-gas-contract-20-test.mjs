@@ -137,3 +137,9 @@ assert.match(triggerInventory,/ScriptApp\.getProjectTriggers\(\)/,'Trigger inven
 assert.match(triggerInventory,/CURRENT_EXECUTING_ACCOUNT_ONLY/,'Trigger inventory must disclose account visibility limit');
 assert.match(triggerInventory,/lastRunVerified:false/,'Trigger presence must not be confused with runner execution');
 assert.ok(!/ScriptApp\.deleteTrigger\(|ScriptApp\.newTrigger\(|\.setValue\(|MailApp\.|GmailApp\./.test(triggerInventory),'Trigger inventory must be read-only');
+
+const fullAudit=consolidationAudit.slice(consolidationAudit.indexOf('function RUN_NOTIFICATION_CONSOLIDATION_FULL_AUDIT()'));
+for(const expected of ['RUN_NOTIFICATION_CONSOLIDATION_AUDIT()','RUN_NOTIFICATION_TRIGGER_INVENTORY()',"sheetSummary('Notification Queue')","sheetSummary('Notification log')","sheetSummary('Notification_Change_Log')","sheetSummary('Notification_Templates')",'legacySheetRetirementReady:false','runtimeIndependenceVerified:false','lastRunVerified:false','statusSampleTruncated']) {
+  assert.ok(fullAudit.includes(expected),'Full notification audit missing '+expected);
+}
+assert.ok(!/\.setValue\(|\.setValues\(|\.deleteSheet\(|\.insertSheet\(|ScriptApp\.newTrigger\(|ScriptApp\.deleteTrigger\(|MailApp\.|GmailApp\.|UrlFetchApp\.fetch\(/.test(fullAudit),'Full notification audit must be read-only');

@@ -13,11 +13,14 @@ export async function processEmailAction20({method,token,environment,input={},se
     typeof services.actorCapability!=='function') throw Error('EMAIL_ACTION_SERVICES_MISSING');
   let digest;
   try{digest=hashActionToken(token);}catch{return DENIED;}
+  // Token records are never searched by raw token, recipient email or caller-supplied UID.
   const actor=await services.currentSession();
   // Logged-in user identity comes exclusively from server session, never query/body.
   if(!actor || !actor.uid || String(actor.role).toUpperCase()!=='AUDITOR')return {ok:false,error:'AUTHENTICATION_REQUIRED'};
   const record=await services.findByTokenHash(digest);
   if(!record)return DENIED;
+  // Validate stored record shape before reaching the audit source.
+  if (!record.auditId || !record.auditorUid || !record.action || !record.environment) return DENIED;
   const audit=await services.currentAudit(record.auditId);
   if(!audit)return DENIED;
   // Lookup and capability queries are read-only even on GET; never expose details to unauthorized users.
@@ -43,6 +46,7 @@ export async function processEmailAction20({method,token,environment,input={},se
       auditId:audit.auditId,action:record.action,status:audit.status,revision:audit.revision};
   }
   if(input.confirmed!==true)return {ok:false,error:'CONFIRMATION_REQUIRED'};
+  if (!input || typeof input!=='object' || Array.isArray(input)) return {ok:false,error:'INVALID_INPUT'};
   const invalid=validateActionInput(record.action,input);
   if(invalid!=='OK')return {ok:false,error:invalid};
   if(typeof services.executeAtomically!=='function')throw Error('ATOMIC_CANONICAL_WRITER_REQUIRED');

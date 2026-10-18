@@ -63,3 +63,8 @@ assert.match(approvalMail,/Review in Manager portal/);
 assert.match(approvalMail,/MANAGER_PORTAL_URL/);
 assert.match(approvalMail,/NB_htmlAttr_\(managerPortalUrl\)/);
 assert.doesNotMatch(approvalMail,/managerPortalUrl\s*\+\s*['"](?:\?|&).*approve/i);
+
+assert.ok(sender.includes("mode:'DEV_UNRECOGNIZED_MODE'"), 'Unknown DEV delivery mode must fail closed');
+assert.ok(sender.includes("error:'DEV_NOTIFICATION_MODE must be DRY_RUN or TEST_TO_SELF'"), 'DEV mode contract must be explicit');
+assert.ok(gateway.includes('function RUN_NOTIFICATION_SETTINGS_RETIREMENT_DIAGNOSTICS()'), 'Retirement must be gated by diagnostic');
+assert.ok(gateway.includes('retirementReady:ready'), 'Retirement diagnostic must report readiness');

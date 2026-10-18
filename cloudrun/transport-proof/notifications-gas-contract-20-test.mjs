@@ -185,3 +185,7 @@ assert.match(notificationBuilder,/function NB_portalBaseUrl20_\(/);
 assert.match(notificationBuilder,/SYS_getConfig_\(\)/);
 assert.doesNotMatch(notificationBuilder,/ams-transport-proof-510075419067/);
 for (const renderer of [approvalMail,auditorMail,selfPlanManagerMail]) assert.match(renderer,/NB_portalBaseUrl20_\(/);
+
+// Prevent redirect/phishing by payload-injected portal destinations.
+assert.doesNotMatch(auditorMail,/if \(!url\) url = NB_clean_\(cta\.portalUrl/);
+assert.doesNotMatch(selfPlanManagerMail,/if \(!url\) url = NB_clean_\(cta\.portalUrl/);

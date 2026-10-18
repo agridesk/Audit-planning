@@ -1664,6 +1664,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
 
   if(u.pathname==='/api/v1/auditor/email-action-read'&&req.method==='GET'){
     const actor=await sessionFromRequestValidated(req);
+    acceptPerf.authMs=Date.now()-acceptStarted;
     if(!actor)return send(res,401,{success:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='auditor'||!clean(actor.auditorUid||actor.auditorId))return send(res,403,{success:false,error:'AUDITOR_UID_REQUIRED'});
     const auditId=clean(u.searchParams.get('auditId'));
@@ -1680,6 +1681,8 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     }catch(e){return send(res,503,{success:false,error:'EMAIL_AUDIT_READ_FAILED'});}
   }
   if(u.pathname==='/api/v1/auditor/action'&&req.method==='POST'){
+    const acceptStarted=Date.now(),acceptPerf={};let acceptAuditId='',acceptAction='';
+    const acceptRecord=(phase,detail)=>{if(acceptAction!=='ACCEPT')return;console.log(JSON.stringify({event:'AMS_ACCEPT_TIMING_20',phase,auditId:acceptAuditId,totalMs:Date.now()-acceptStarted,stages:acceptPerf,...(detail||{})}));};
     const actor=await sessionFromRequestValidated(req);
     if(!actor)return send(res,401,{success:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='auditor'||!clean(actor.auditorUid||actor.auditorId))return send(res,403,{success:false,error:'AUDITOR_UID_REQUIRED'});
@@ -1689,13 +1692,16 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192)return send(res,413,{success:false,error:'REQUEST_TOO_LARGE'});}
     let body={};try{body=JSON.parse(raw);}catch{return send(res,400,{success:false,error:'INVALID_JSON'});}
     const auditId=clean(body.auditId),action=clean(body.action).toUpperCase(),options=body.options||{},expectedRevision=clean(options.expectedRevision),comment=clean(options.reason||options.comment);
+    acceptAuditId=auditId;acceptAction=action;
     if(!auditId||auditId.length>256||!['ACCEPT','CANCEL','COMPLETE'].includes(action)||!(/^[a-f0-9]{24}$/.test(expectedRevision)))return send(res,400,{success:false,error:'INVALID_AUDITOR_ACTION_REQUEST'});
     if(action==='CANCEL'&&!comment)return send(res,400,{success:false,error:'CANCEL_REASON_REQUIRED'});
     if(!GAS_WRITE_URL||!WRITE_KEY)return send(res,503,{success:false,error:'CANONICAL_WRITER_UNAVAILABLE'});
     try{
       // A status-changing action is authorized against one canonical live audit row.
       // Auditor Grid visibility is a presentation read and must not veto a UID-owned action.
+      const readStart=Date.now();
       const auditValues=(await sheetsBatchGet(['Audit planning!A1:AX483']))[0]?.values||[];
+      acceptPerf.canonicalReadMs=Date.now()-readStart;
       const current=findAudit(auditValues,auditId);
       if(!current)return send(res,404,{success:false,error:'AUDIT_NOT_FOUND'});
       const h=current.h,r=current.row,uid=clean(val(r,col(h,['Auditor_UID','Auditor UID']))),actorUid=clean(actor.auditorUid||actor.auditorId);
@@ -1711,6 +1717,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       const url=new URL(GAS_WRITE_URL);
       if(url.protocol!=='https:')return send(res,503,{success:false,error:'CANONICAL_WRITER_HTTPS_REQUIRED'});
       url.searchParams.set('action','externalauditoraction20');
+      const gasStart=Date.now();
       const first=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({bridgeKey:WRITE_KEY,actorRole:'AUDITOR',actorEmail:clean(actor.email).toLowerCase(),auditorUid:clean(actor.auditorUid||actor.auditorId),auditId,action,expectedRevision,comment}),redirect:'manual',signal:AbortSignal.timeout(60000)});
       let reply=first;
       if([301,302,303,307,308].includes(first.status)){
@@ -1727,10 +1734,13 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
         }catch(err){}
         return send(res,503,{success:false,error:'AUDITOR_ACTION_OUTCOME_UNCONFIRMED_DO_NOT_RETRY'});
       };
-      if(!reply.ok)return await verifyActionAfterLostReply();
+      acceptPerf.gasRoundtripMs=Date.now()-gasStart;
+      if(!reply.ok){acceptRecord('gas_non_ok',{httpStatus:reply.status});return await verifyActionAfterLostReply();}
       let result;try{result=JSON.parse(await reply.text());}catch{return await verifyActionAfterLostReply();}
-      return send(res,result&&result.success===true?200:409,result||{success:false,error:'CANONICAL_ACTION_EMPTY'});
-    }catch(error){return send(res,503,{success:false,error:'AUDITOR_ACTION_OUTCOME_UNCONFIRMED_DO_NOT_RETRY'});}
+      acceptPerf.gasExecution=result&&result.acceptPerf||null;
+      acceptRecord(result&&result.success===true?'confirmed':'rejected',{resultCode:result&&result.error||''});
+      return send(res,result&&result.success===true?200:409,{...(result||{success:false,error:'CANONICAL_ACTION_EMPTY'}),acceptTiming:{totalMs:Date.now()-acceptStarted,...acceptPerf}});
+    }catch(error){acceptRecord('exception',{error:clean(error.message)});return send(res,503,{success:false,error:'AUDITOR_ACTION_OUTCOME_UNCONFIRMED_DO_NOT_RETRY'});}
   }
   if(u.pathname==='/api/v1/manager/action'&&req.method==='POST'){const s=await sessionFromRequestValidated(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(clean(s.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}try{const out=await canonicalManagerAction(s,b);return send(res,out&&out.success===false?409:200,out)}catch(e){return send(res,500,{ok:false,error:'MANAGER_ACTION_BRIDGE_FAILED',detail:clean(e?.message||e)})}}
   if(u.pathname==='/api/v1/manager/archived'&&req.method==='GET'){const s=await sessionFromRequestValidated(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});const role=clean(s.role).toLowerCase();if(!['manager','auditor'].includes(role))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});try{return send(res,200,role==='auditor'?await auditorArchivedRead(clean(s.email).toLowerCase()):await managerArchivedRead(clean(s.email).toLowerCase()));}catch(e){return send(res,500,{ok:false,error:'ARCHIVED_READ_FAILED',detail:clean(e?.message||e)});}}

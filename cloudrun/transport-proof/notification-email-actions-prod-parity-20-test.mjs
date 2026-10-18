@@ -25,7 +25,7 @@ assert.match(handoff,/PROD legacy/i);
 assert.match(handoff,/DO NOT DELETE OR EDIT/);
 
 const token=createActionToken();
-const record={auditorUid:'uid-a',auditId:'audit-a',action:'ACCEPT',tokenHash:hashActionToken(token),status:'Approved',origin:'MANAGER',environment:'DEV',revision:1,expiresAt:Date.now()+60000};
+const record={auditorUid:'uid-a',auditId:'audit-a',action:'ACCEPT',tokenHash:hashActionToken(token),status:'Approved',origin:'MANAGER',environment:'DEV',revision:1,createdAt:Date.now(),expiresAt:Date.now()+60000};
 const context={record,token,auditorUid:'uid-a',auditId:'audit-a',action:'ACCEPT',status:'Approved',revision:1,deviceTrusted:true,authenticatedActorUid:'uid-a',authenticatedRole:'AUDITOR',actorAuthorized:true,environment:'DEV'};
 assert.equal(authorizeAction(context),'OK');
 assert.equal(authorizeAction({...context,auditorUid:'uid-b'}),'SCOPE_MISMATCH');

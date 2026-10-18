@@ -46,6 +46,9 @@ Candidate internal action navigation:
 - Internal email action flow is session-only and not yet routed to a deployed canonical writer. Do not advertise working action buttons until writer integration and E2E proof.
 
 5. PROD PARITY GATE
+- BLOCKER: current cloudrun/transport-proof/package.json starts server-r15.js, whose boot guard explicitly requires audit-management-system-dev and DEV_SSOT_SPREADSHEET_ID. The production Cloud Run entrypoint/runtime selection must be designed, tested and separately approved before PROD cutover. Do NOT deploy r15 to PROD or claim codebase parity alone makes the service PROD-ready.
+- BLOCKER: no live PORTAL_URL / AUDITOR_PORTAL_URL / MANAGER_PORTAL_URL values found in DEV Notification_Rules or System_Config on 2026-10-18. Internal email action buttons stay conditional until the real Cloud Run HTTPS portal origin is verified and configured for each environment.
+
 - Same source files and function contracts in both environments; configuration differs through validated environment owners only.
 - Test both DEV and PROD configuration schemas in read-only mode; never assume DEV-only columns exist in PROD.
 - Separate target environment, spreadsheet IDs, GAS script/deployment, Cloud Run project/URL and Resend settings.

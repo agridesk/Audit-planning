@@ -109,3 +109,10 @@ const consolidation=read('NotificationConsolidationDiagnostics.js');
 for(const expected of ['function RUN_NOTIFICATION_CONSOLIDATION_AUDIT()','DEV_ONLY','LAST_RUN_AT','LAST_SUCCESS_AT','LAST_ERROR','LAST_RUN_RESULT_JSON','LAST_RUN_NOTE','legacySheetRetirementReady:false','usageVerified:false','No deletion or destructive migration authorized.'])assert.ok(consolidation.includes(expected),'Consolidation diagnostic missing '+expected);
 assert.ok(!consolidation.includes('deleteSheet('),'Consolidation audit must never delete a sheet');
 assert.ok(!consolidation.includes('setValue('),'Consolidation audit must be read-only');
+
+const managerOverviewServer=read('cloudrun/transport-proof/server-r15.js');
+const overviewHandler=managerOverviewServer.slice(managerOverviewServer.indexOf('async function notificationsManagerOverview('),managerOverviewServer.indexOf('async function notificationGasCall('));
+assert.ok(overviewHandler.includes("['System_Config',500]"),'Overview must read canonical System_Config');
+assert.ok(!overviewHandler.includes("['Notification_Settings',500]"),'DEV overview must not read legacy settings tab');
+assert.ok(!overviewHandler.includes('data.Notification_Settings'),'DEV overview must not derive settings from legacy tab');
+assert.ok(overviewHandler.includes('const settingMap=systemMap;'),'DEV overview must use canonical settings');

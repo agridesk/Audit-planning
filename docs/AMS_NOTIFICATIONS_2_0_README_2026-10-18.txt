@@ -116,3 +116,6 @@ This README describes verified DEV status as of 2026-10-18. It is not an instruc
 
 11. FOLLOW-UP CONSOLIDATION (2026-10-18)
 Direct nc_loadSettingsMap_ now guards DEV and returns canonical System_Config settings before legacy cache or sheet access. Contract regression test added. GAS DEV deployment required for this change; PROD legacy behavior remains.
+
+12. LEGACY DIAGNOSTIC SAFETY (2026-10-18)
+RUN_NOTIFICATION_SETTINGS_RETIREMENT_DIAGNOSTICS in NotificationMailGateway.js is now a backward-compatible alias to RUN_NOTIFICATION_CONSOLIDATION_AUDIT, DEV-only. It always returns retirementReady=false and exposes the canonical blockers. Previously it could compare the DEV System_Config map with itself through nc_loadSettingsMap_ and incorrectly claim retirement readiness. Never treat settings parity as tab deletion authorization. Requires GAS DEV deployment.

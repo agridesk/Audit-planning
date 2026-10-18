@@ -42,6 +42,12 @@ assert.match(router10,/if\(auditorAction!=='complete'\)return proxy\(req,res,raw
 assert.doesNotMatch(router10,/AUDITOR_ACTION_FORBIDDEN/);
 assert.match(portal,/new BroadcastChannel\("ams-auditor-actions-20"\)/);
 assert.match(auth,/channel\.postMessage\(\{type:'AUDIT_ACTION_CONFIRMED'/);
+assert.match(gas,/createTextFinder\(uid20\)\.matchEntireCell\(true\)\.matchCase\(true\)\.findAll\(\)/);
+assert.match(gas,/createTextFinder\(id20\)\.matchEntireCell\(true\)\.matchCase\(true\)\.findAll\(\)/);
+assert.match(gas,/auditorHits20\.length!==1/);
+assert.match(gas,/auditHits20\.length!==1/);
+assert.doesNotMatch(gas,/a20\.getDataRange\(\)\.getValues\(\)/);
+assert.doesNotMatch(gas,/p20\.getDataRange\(\)\.getDisplayValues\(\)/);
 console.log('notification-email-actions-runtime-20: PASS');
 
 assert.match(auth,/u\.pathname==='\/email-action'&&req\.method==='GET'/);

@@ -63,7 +63,7 @@ StatusNotificationBridge.js
 NotificationConsolidationDiagnostics.js
   DEV-only read-only audit. Function: RUN_NOTIFICATION_CONSOLIDATION_AUDIT.
 cloudrun/transport-proof/server-r15.js
-  Manager portal API; currently reads Notification_Settings for overview/diagnostics and uses System_Config DEV policy. This is a remaining dependency, not a reason to re-enable legacy settings.
+  Manager portal API; DEV overview now reads System_Config instead of Notification_Settings, including sender identity and overlap diagnostics. Notification_Settings is not fetched by the overview. Verify other consumers separately.
 cloudrun/transport-proof/notification-overview-20.mjs
   Read-only overview aggregation; setting counts are inventory, not authoritative configuration.
 cloudrun/transport-proof/notifications-gas-contract-20-test.mjs
@@ -84,7 +84,7 @@ PROD must not be altered as a side effect of DEV cleanup.
 Cache invalidation must be verified after changing live configuration.
 
 7. RETIREMENT PLAN — ORDERED, NO DESTRUCTIVE SHORTCUTS
-A. Enumerate all read/write references to Notification_Settings, including GAS, Cloud Run, triggers, and external consumers. Replace remaining DEV overview inventory with System_Config DEV; preserve PROD compatibility until independently migrated and verified.
+A. DEV manager overview migrated to System_Config in dev commit d2be21c. Enumerate all remaining read/write references to Notification_Settings, including GAS, Cloud Run, triggers, and external consumers; preserve PROD compatibility until independently migrated and verified.
 B. Determine real owner of runner status from current queue, sender execution logs, and scheduler; LAST_RUN_* fields in Notification_Settings are stale snapshots, not reliable health monitoring. Implement an operational-status view before removing them.
 C. Enumerate every use of Notification_Templates across GAS/Cloud Run/renderers; compare actual rendered messages. If unused, archive its schema and content outside the active workbook before physical removal.
 D. Keep historical Denied event and comment rule until event-history migration and rollback constraints are verified. Exclude legacy Denied from new editable UI.

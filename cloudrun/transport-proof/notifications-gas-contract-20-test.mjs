@@ -94,7 +94,13 @@ for(const [name,source,needle] of [
  ['Portal rule editor',portal,'function renderRules()'],
  ['Portal save',portal,"'/api/v1/notifications-manager-20/rules'"]
 ])assert.ok(source.includes(needle),name+' missing');
-for(const forbidden of ['QUEUE_SHEET_NAME','MANAGER_COMPLETE_LOG_ONLY','COMMENT_ALLOWED_AUDIT_CANCELLED_BY_MANAGER','COMMENT_ALLOWED_AUDIT_DENIED_BY_MANAGER','COMMENT_ALLOWED_AUDIT_REJECTED_BY_MANAGER']){
+for(const forbidden of ['QUEUE_SHEET_NAME','MANAGER_COMPLETE_LOG_ONLY','COMMENT_ALLOWED_AUDIT_CANCELLED_BY_MANAGER','COMMENT_ALLOWED_AUDIT_DENIED_BY_MANAGER','COMMENT_ALLOWED_AUDIT_REJECTED_BY_MANAGER','COMMENT_ALLOWED_AUDIT_DENIED_BY_AUDITOR']){
  const whitelist=rulesBackend.slice(rulesBackend.indexOf('function NotificationManagement20_UpdateRule('),rulesBackend.indexOf("if(days.indexOf(key)<0",rulesBackend.indexOf('function NotificationManagement20_UpdateRule(')));
  assert.ok(!whitelist.includes("'"+forbidden+"'"),'Unsafe editable rule: '+forbidden);
 }
+
+const statusBridge=read('StatusNotificationBridge.js');
+const auditorBackend=read('AuditorV5Backend.js');
+assert.ok(statusBridge.includes("action === ACTION.DENY && actor === ROLE.AUDITOR && afterStatus === STATUS.PENDING_PLANNING) return 'AUDIT_CANCELLED_BY_AUDITOR'"),'Legacy auditor DENY must route to Cancelled notification');
+assert.ok(auditorBackend.includes("auditorV5_notifyManager_(\\n        'AUDIT_CANCELLED_BY_AUDITOR'"),'Legacy auditor deny path must use Cancelled notification');
+assert.ok(!transport.includes("'COMMENT_ALLOWED_AUDIT_DENIED_BY_AUDITOR'"),'Legacy denied rule must not be editable in portal');

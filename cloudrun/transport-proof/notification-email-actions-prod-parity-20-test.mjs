@@ -26,10 +26,13 @@ assert.match(handoff,/DO NOT DELETE OR EDIT/);
 
 const token=createActionToken();
 const record={auditorUid:'uid-a',auditId:'audit-a',action:'ACCEPT',tokenHash:hashActionToken(token),status:'Approved',origin:'MANAGER',revision:1,expiresAt:Date.now()+60000};
-const context={record,token,auditorUid:'uid-a',auditId:'audit-a',action:'ACCEPT',status:'Approved',revision:1,deviceTrusted:true};
+const context={record,token,auditorUid:'uid-a',auditId:'audit-a',action:'ACCEPT',status:'Approved',revision:1,deviceTrusted:true,authenticatedActorUid:'uid-a',authenticatedRole:'AUDITOR',actorAuthorized:true};
 assert.equal(authorizeAction(context),'OK');
 assert.equal(authorizeAction({...context,auditorUid:'uid-b'}),'SCOPE_MISMATCH');
 assert.equal(authorizeAction({...context,record:{...record,origin:'AUDITOR'}}),'ACTION_NOT_ALLOWED');
 assert.equal(authorizeAction({...context,record:{...record,usedAt:Date.now()}}),'TOKEN_CONSUMED');
 assert.equal(authorizeAction({...context,revision:2}),'STALE_AUDIT');
 console.log('notification-email-actions-prod-parity-20: PASS');
+
+assert.equal(authorizeAction({...context,authenticatedActorUid:'',deviceTrusted:true}),'AUTHENTICATION_REQUIRED');
+assert.equal(authorizeAction({...context,authenticatedRole:'MANAGER'}),'AUTHENTICATION_REQUIRED');

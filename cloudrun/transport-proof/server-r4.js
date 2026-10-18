@@ -1676,21 +1676,17 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(action==='CANCEL'&&!comment)return send(res,400,{success:false,error:'CANCEL_REASON_REQUIRED'});
     if(!GAS_WRITE_URL||!WRITE_KEY)return send(res,503,{success:false,error:'CANONICAL_WRITER_UNAVAILABLE'});
     try{
-      const view=await auditorOpenRead(clean(actor.email).toLowerCase());
-      const row=(view.rows||[]).find(x=>x.auditId===auditId);
-      if(!row||!Array.isArray(row.allowedActions)||!row.allowedActions.includes(action)){
-        // Canonical UID is the ownership key; email in legacy planning rows may be historical.
-        const auditValues=(await sheetsBatchGet(['Audit planning!A1:AX483']))[0]?.values||[];
-        const current=findAudit(auditValues,auditId);
-        if(!current)return send(res,404,{success:false,error:'AUDIT_NOT_FOUND'});
-        const h=current.h,r=current.row,uid=clean(val(r,col(h,['Auditor_UID','Auditor UID']))),actorUid=clean(actor.auditorUid||actor.auditorId);
-        const currentStatus=directStatusKey(val(r,col(h,['Status'])));
-        const statusAllowed=(action==='ACCEPT'&&currentStatus==='APPROVED')||(action==='CANCEL'&&currentStatus==='PENDING_APPROVAL')||(action==='COMPLETE'&&currentStatus==='ACCEPTED');
-        if(!uid||uid!==actorUid||!statusAllowed)return send(res,403,{success:false,error:'AUDITOR_ACTION_FORBIDDEN'});
-        const liveRevision=directRowRevision(h,r);
-        if(liveRevision!==expectedRevision)return send(res,409,{success:false,error:'AUDIT_REVISION_CONFLICT'});
-      }
-      if(row&&clean(row.sourceRevision)!==expectedRevision)return send(res,409,{success:false,error:'AUDIT_REVISION_CONFLICT'});
+      // A status-changing action is authorized against one canonical live audit row.
+      // Auditor Grid visibility is a presentation read and must not veto a UID-owned action.
+      const auditValues=(await sheetsBatchGet(['Audit planning!A1:AX483']))[0]?.values||[];
+      const current=findAudit(auditValues,auditId);
+      if(!current)return send(res,404,{success:false,error:'AUDIT_NOT_FOUND'});
+      const h=current.h,r=current.row,uid=clean(val(r,col(h,['Auditor_UID','Auditor UID']))),actorUid=clean(actor.auditorUid||actor.auditorId);
+      const currentStatus=directStatusKey(val(r,col(h,['Status'])));
+      const allowed=(action==='ACCEPT'&&currentStatus==='APPROVED')||(action==='CANCEL'&&currentStatus==='PENDING_APPROVAL')||(action==='COMPLETE'&&currentStatus==='ACCEPTED');
+      if(!uid||uid!==actorUid)return send(res,403,{success:false,error:'AUDITOR_ACTION_NOT_ASSIGNED'});
+      if(!allowed)return send(res,409,{success:false,error:'AUDITOR_ACTION_STATUS_CONFLICT',currentStatus});
+      if(directRowRevision(h,r)!==expectedRevision)return send(res,409,{success:false,error:'AUDIT_REVISION_CONFLICT'});
       if(action==='COMPLETE'){
         try{const result=await directAuditorComplete(actor,{auditId,action:'complete',options:{hoursDedicated:Number(options.hoursDedicated),expectedRevision}});return send(res,result&&result.success===false?409:200,result)}
         catch(error){return send(res,409,{success:false,error:'AUDITOR_COMPLETE_FAILED',detail:clean(error.message)})}

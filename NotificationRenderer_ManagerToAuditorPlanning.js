@@ -442,15 +442,16 @@ function NB_managerToAuditorPortalTextLinkHtml_(n, label) {
 function NB_portalUrlForOperational_(n) {
   n = n || {};
   var cta = n.cta || {};
-  var url = NB_clean_(cta.acceptUrl || cta.portalUrl || cta.auditorPortalUrl || cta.portal || cta.accept || n.acceptUrl || n.portalUrl || n.auditorPortalUrl || '');
-  if (url) return url;
+  var url = '';
   try {
     url = NB_clean_(NB_getRuleValue_('AUDITOR_PORTAL_URL', '') || NB_getRuleValue_('PORTAL_URL', '') || NB_getRuleValue_('AUDIT_PORTAL_URL', '') || NB_getRuleValue_('APP_AUDITOR_PORTAL_URL', ''));
-    if (url) return url;
   } catch (e) {}
-  return '';
+  if (!url) url = NB_clean_(cta.portalUrl || cta.auditorPortalUrl || cta.portal || n.portalUrl || n.auditorPortalUrl || '');
+  // Authentication 2.0 owns access: never use legacy accept/deny URLs.
+  if (!/^https:\/\/[^\s<>"']+$/.test(url)) return '';
+  var match = url.match(/^(https:\/\/[^\/?#]+)/);
+  return match && NB_clean_(n.auditId) ? match[1] + '/planning?auditId=' + encodeURIComponent(NB_clean_(n.auditId)) : url;
 }
-
 
 
 /* ============================================================

@@ -45,7 +45,7 @@ Settings verified:
 
 4. PRIMARY MODULE MAP
 NotificationConfig.js
-  Reads Notification_Config and Notification_Rules; NotificationConfig_GetSetting / GetAllSettings resolve DEV System_Config, PROD legacy settings compatibility. Cache is not authoritative.
+  Reads Notification_Config and Notification_Rules; NotificationConfig_GetSetting / GetAllSettings and direct nc_loadSettingsMap_ calls resolve DEV System_Config, PROD legacy settings compatibility. Cache is not authoritative.
 SystemConfig.js
   System configuration and environment access.
 NotificationSender.js
@@ -113,3 +113,6 @@ Do not interpret a successful GAS deployment as a successful Cloud Run release o
 
 10. DOCUMENT GOVERNANCE
 This README describes verified DEV status as of 2026-10-18. It is not an instruction to deploy or delete. Update it alongside any changes to configuration ownership, schema, API consumers, environment isolation, and tab retirement. Older AMS roadmaps V2.7 and earlier are not authoritative.
+
+11. FOLLOW-UP CONSOLIDATION (2026-10-18)
+Direct nc_loadSettingsMap_ now guards DEV and returns canonical System_Config settings before legacy cache or sheet access. Contract regression test added. GAS DEV deployment required for this change; PROD legacy behavior remains.

@@ -39,6 +39,10 @@ assert.match(gateway,/AUDITOR_ACTION_STATUS_CONFLICT/);
 assert.match(gateway,/directRowRevision/);
 assert.match(router10,/\['accept','cancel'\]\.includes\(auditorAction\)\)return proxy\(req,res,raw\)/,'R10 must forward ACCEPT and CANCEL to canonical authorization');
 assert.match(gateway,/origin\.origin==='https:\/\/ams-transport-proof-510075419067\.europe-west1\.run\.app'/,'Canonical inner route must accept public DEV Origin behind loopback proxy');
+assert.match(router10,/if\(auditorAction!=='complete'\)return proxy\(req,res,raw\)/);
+assert.doesNotMatch(router10,/AUDITOR_ACTION_FORBIDDEN/);
+assert.match(portal,/new BroadcastChannel\("ams-auditor-actions-20"\)/);
+assert.match(auth,/channel\.postMessage\(\{type:'AUDIT_ACTION_CONFIRMED'/);
 console.log('notification-email-actions-runtime-20: PASS');
 
 assert.match(auth,/u\.pathname==='\/email-action'&&req\.method==='GET'/);

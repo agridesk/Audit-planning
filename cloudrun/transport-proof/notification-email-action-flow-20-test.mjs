@@ -3,7 +3,7 @@ import {createActionToken,hashActionToken} from './notification-email-action-pol
 import {processEmailAction20} from './notification-email-action-flow-20.mjs';
 
 const token=createActionToken(),hash=hashActionToken(token);
-const record={tokenHash:hash,auditorUid:'uid-1',auditId:'audit-1',action:'ACCEPT',status:'Approved',origin:'MANAGER',revision:3,environment:'DEV',expiresAt:Date.now()+60000};
+const record={tokenHash:hash,auditorUid:'uid-1',auditId:'audit-1',action:'ACCEPT',status:'Approved',origin:'MANAGER',revision:3,environment:'DEV',createdAt:Date.now(),expiresAt:Date.now()+60000};
 const audit={auditId:'audit-1',auditorUid:'uid-1',status:'Approved',revision:3};
 let writes=0,lookups=0,consumed=false;
 const services={

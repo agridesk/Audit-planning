@@ -430,8 +430,12 @@ function NB_managerToAuditorValidationRowsHtml_(items) {
 function NB_managerToAuditorAcceptInPortalCtaHtml_(n) {
   var url = NB_portalUrlForOperational_(n || {});
   if (!url) return '<span style="font-size:11px;color:#64748b">Open Audit Grid 2.0 using your normal AMS bookmark.</span>';
-  if (NB_clean_((n || {}).auditId)) url += (url.indexOf('?') >= 0 ? '&' : '?') + 'emailAction=ACCEPT';
-  return '<a href="' + NB_htmlAttr_(url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:8px 12px;border-radius:7px;font-size:11px;font-weight:900;line-height:1.1">Review and ACCEPT audit</a>';
+  var id = NB_clean_((n || {}).auditId);
+  if (!id) return '<span style="font-size:11px;color:#64748b">Audit reference required for email acceptance.</span>';
+  var origin = url.match(/^https:\/\/[^\/?#]+/);
+  if (!origin) return '';
+  url = origin[0] + '/email-action?auditId=' + encodeURIComponent(id) + '&action=ACCEPT';
+  return '<a href="' + NB_htmlAttr_(url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:8px 12px;border-radius:7px;font-size:11px;font-weight:900;line-height:1.1">ACCEPT audit</a>';
 }
 
 function NB_portalUrlForOperational_(n) {

@@ -55,6 +55,7 @@ assert.match(gateway,/canonicalReadMs/);
 assert.match(gateway,/gasRoundtripMs/);
 assert.match(gas,/AMS_ACCEPT_GAS_TIMING_20/);
 assert.match(gas,/statusMachineMs/);
+assert.match(gas,/rowIndex:auditHits20\[0\]\.getRow\(\)/);
 assert.match(gas,/lockWaitMs/);
 assert.match(auth,/acceptBrowserMs/);
 assert.match(auth,/acceptTiming/);

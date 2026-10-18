@@ -1,14 +1,5 @@
 name: AMS DEV email actions and notification regression
 on:
-  push:
-    branches: [dev]
-    paths:
-      - 'cloudrun/transport-proof/**'
-      - 'Notification*.js'
-      - 'StatusNotificationBridge.js'
-      - 'SystemConfig.js'
-      - 'docs/AMS_NOTIFICATIONS_2_0_*'
-      - '.github/workflows/notifications-email-actions-dev-ci.yml'
   workflow_dispatch:
 permissions:
   contents: read

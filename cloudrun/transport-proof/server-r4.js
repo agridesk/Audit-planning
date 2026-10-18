@@ -1694,8 +1694,17 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
         if(!target||target.protocol!=='https:'||!target.hostname.endsWith('.googleusercontent.com'))return send(res,503,{success:false,error:'CANONICAL_RESPONSE_REDIRECT_REJECTED'});
         reply=await fetch(target,{method:'GET',redirect:'follow',signal:AbortSignal.timeout(60000)});
       }
-      if(!reply.ok)return send(res,503,{success:false,error:'AUDITOR_ACTION_OUTCOME_UNCONFIRMED_DO_NOT_RETRY'});
-      let result;try{result=JSON.parse(await reply.text());}catch{return send(res,503,{success:false,error:'AUDITOR_ACTION_OUTCOME_UNCONFIRMED_DO_NOT_RETRY'});}
+      const verifyActionAfterLostReply=async()=>{
+        try{
+          const rows=(await sheetsBatchGet(['Audit planning!A1:AX483']))[0]?.values||[];
+          const found=findAudit(rows,auditId),actual=found?directStatusKey(val(found.row,col(found.h,['Status']))):'';
+          const expected=action==='ACCEPT'?'ACCEPTED':'PENDING_PLANNING';
+          if(actual===expected)return send(res,200,{success:true,verifiedBy:'CANONICAL_AUDIT_STATUS_READBACK',auditId,action,newStatus:expected,afterStatus:expected,statusResultVerified:true});
+        }catch(err){}
+        return send(res,503,{success:false,error:'AUDITOR_ACTION_OUTCOME_UNCONFIRMED_DO_NOT_RETRY'});
+      };
+      if(!reply.ok)return await verifyActionAfterLostReply();
+      let result;try{result=JSON.parse(await reply.text());}catch{return await verifyActionAfterLostReply();}
       return send(res,result&&result.success===true?200:409,result||{success:false,error:'CANONICAL_ACTION_EMPTY'});
     }catch(error){return send(res,503,{success:false,error:'AUDITOR_ACTION_OUTCOME_UNCONFIRMED_DO_NOT_RETRY'});}
   }

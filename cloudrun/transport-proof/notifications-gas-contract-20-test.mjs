@@ -104,3 +104,8 @@ const auditorBackend=read('AuditorV5Backend.js');
 assert.ok(statusBridge.includes("action === ACTION.DENY && actor === ROLE.AUDITOR && afterStatus === STATUS.PENDING_PLANNING) return 'AUDIT_CANCELLED_BY_AUDITOR'"),'Legacy auditor DENY must route to Cancelled notification');
 assert.match(auditorBackend,/auditorV5_notifyManager_\(\s*'AUDIT_CANCELLED_BY_AUDITOR'\s*,/,'Legacy auditor deny path must use Cancelled notification');
 assert.ok(!transport.includes("'COMMENT_ALLOWED_AUDIT_DENIED_BY_AUDITOR'"),'Legacy denied rule must not be editable in portal');
+
+const consolidation=read('NotificationConsolidationDiagnostics.js');
+for(const expected of ['function RUN_NOTIFICATION_CONSOLIDATION_AUDIT()','DEV_ONLY','LAST_RUN_AT','LAST_SUCCESS_AT','LAST_ERROR','LAST_RUN_RESULT_JSON','LAST_RUN_NOTE','legacySheetRetirementReady:false','usageVerified:false','No deletion or destructive migration authorized.'])assert.ok(consolidation.includes(expected),'Consolidation diagnostic missing '+expected);
+assert.ok(!consolidation.includes('deleteSheet('),'Consolidation audit must never delete a sheet');
+assert.ok(!consolidation.includes('setValue('),'Consolidation audit must be read-only');

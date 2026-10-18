@@ -184,7 +184,7 @@ http.createServer(async(req,res)=>{
     const totalStarted=Date.now();
     const identity=await innerSession(req);if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED',build:BUILD});if(clean(identity.role).toLowerCase()!=='auditor')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN',build:BUILD});
     let body={};try{body=JSON.parse(raw||'{}');}catch{return sendJson(res,400,{success:false,error:'BAD_JSON',build:BUILD});}
-    const auditorAction=clean(body?.action).toLowerCase();if(['accept','cancel'].includes(auditorAction))return proxy(req,res,raw);if(auditorAction!=='complete')return sendJson(res,403,{success:false,error:'AUDITOR_ACTION_FORBIDDEN',build:BUILD});
+    const auditorAction=clean(body?.action).toLowerCase();if(auditorAction!=='complete')return proxy(req,res,raw);
     const payload=Object.assign({},body,{actorEmail:clean(identity.email).toLowerCase(),action:'complete'});
     try{
       const target='http://127.0.0.1:'+INNER_PORT+'/api/v1/internal/auditor/complete-direct';

@@ -1,0 +1,37 @@
+AMS EMAIL ACTIONS 2.0 — REMEMBER ME DEV RELEASE GATE
+DATE 2026-10-18
+SOURCE github.com/agridesk/Audit-planning branch dev
+
+CURRENT IMPLEMENTATION
+- Internal Auditor/Manager email actions use Authentication 2.0 Remember me sessions and canonical Auditor_UID, not separate email-action tokens.
+- Notification mail links navigate to the existing /planning?auditId=... route. GET is read-only; status mutations remain portal/canonical writer controlled.
+- Auditor planned by Manager: NotificationRenderer_ManagerToAuditorPlanning.js.
+- Manager approval of Auditor self-plan: NotificationRenderer_AuditorToManagerApproval.js.
+- Generic Manager approval: NotificationRenderer_ApprovalOperational.js.
+- Central portal configuration resolver: NotificationBuilder.js NB_portalBaseUrl20_, System_Config environment-specific, legacy Notification_Rules read fallback.
+- DEV System_Config PORTAL_URL: https://ams-transport-proof-510075419067.europe-west1.run.app/
+- PROD System_Config PORTAL_URL deliberately blank.
+- Existing R15 Cloud Run session contract: auditorId, role, email. Session-only coordinator aligns to auditorId. No live route installed for its POST action.
+- Internal old action-token mechanism removed from current notification-email-action-policy-20.mjs and action-flow-20.mjs.
+
+VERIFIED
+- Source parse checks passed for changed GAS renderers and Cloud Run action modules.
+- Action policy and flow assertions passed in isolated JS evaluator; not equivalent to npm test.
+- Auditor and Manager email URL helper checks return correct encoded /planning?auditId link and ignore old accept/approval direct URL.
+- Live DEV System_Config row PORTAL_URL value read back; PROD cell remains blank.
+- No mail sent, no status mutation, no deployment to Cloud Run, GAS or PROD performed.
+
+RELEASE GATES
+1. Run full existing cloudrun/transport-proof npm test using local checked-out dev branch.
+2. Deploy updated GAS source from current GitHub dev to canonical DEV Apps Script project using verified existing method (most recent operator-confirmed deployment @358). GitHub commits DO NOT update that deployment.
+3. Inspect DEV sender guards System_Config DEV_NOTIFICATION_MODE and DEV_TEST_EMAIL. Any smoke must remain TEST_TO_SELF or dry-run; do not send real customers.
+4. Send one approved DEV TEST_TO_SELF sample for each relevant Auditor/Manager renderer only when sender and deployment are verified, then inspect link, Remember me session, object-scope, role and current-state behavior.
+5. Confirm deep link survives 2.0 login redirect for a not-yet-remembered browser; no direct action on GET.
+6. Do not deploy PRODUCTION or remove Notification_Settings/Notification_Templates; PROD requires its own portal URL, migration and rollback gate.
+7. Current server-r15.js is DEV-only; do not deploy same entrypoint unchanged to PROD.
+
+HUMAN ACTION REQUIRED
+- Existing GAS DEV @358 deployment method/command is not stored in the technical handoff or accessible via current tools. Operator must supply the actual method or execute the DEV GAS deployment.
+- Test run in actual repository local/node environment or connected CI is required. The remote connector cannot execute Windows CMD on the user's PC.
+
+NO STATUS CLAIM OF FINISHED EMAIL ACTIONS UNTIL ALL ABOVE PASS.

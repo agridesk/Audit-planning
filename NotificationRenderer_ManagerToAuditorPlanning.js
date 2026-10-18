@@ -435,7 +435,7 @@ function NB_managerToAuditorAcceptInPortalCtaHtml_(n) {
   if (!id) return '<span style="font-size:11px;color:#64748b">Audit reference required for email acceptance.</span>';
   var origin = url.match(/^https:\/\/[^\/?#]+/);
   if (!origin) return '';
-  url = origin[0] + '/?auditId=' + encodeURIComponent(id) + '&emailAction=ACCEPT';
+  url = origin[0] + '/email-action?auditId=' + encodeURIComponent(id) + '&action=ACCEPT';
   return '<a href="' + NB_htmlAttr_(url) + '" target="_self" rel="noopener noreferrer" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:8px 12px;border-radius:7px;font-size:11px;font-weight:900;line-height:1.1">ACCEPT audit</a>';
 }
 

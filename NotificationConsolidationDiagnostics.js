@@ -169,6 +169,7 @@ function RUN_NOTIFICATION_CONSOLIDATION_FULL_AUDIT() {
     legacySheetRetirementReady:false,
     blockers:config.blockers,
     scheduler:triggers,
+    freshness:RUN_NOTIFICATION_OPERATIONS_EVIDENCE(),
     operations:{queue:queue,deliveryLog:log,configurationChangeLog:changeLog},
     templates:{sheet:templates,rendererSourceOfTruth:'GAS NotificationRenderer_*.js and NotificationBuilder.js',runtimeIndependenceVerified:false},
     lastRunVerified:false,

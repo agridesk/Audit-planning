@@ -83,7 +83,7 @@ for(const needle of routeChecks){assert.ok(r4.includes(needle),needle);cases++;}
 
 // Shared UI must hide Manager-only controls for Auditor and refresh cross-actor changes.
 const uiChecks=[
-  'if(String(actorRole).toLowerCase()==="auditor")raw=raw.filter(function(x){return x==="PLAN"||x==="COMPLETE"})',
+  'if(String(actorRole).toLowerCase()==="auditor")raw=raw.filter(function(x){return x==="PLAN"||x==="ACCEPT"||x==="CANCEL"||x==="COMPLETE"})',
   'if(batch)batch.style.display=isAud?"none":batch.style.display',
   'if(concept)concept.style.display=isAud?"none":concept.style.display',
   '!document.getElementById("planningWorkspace")',

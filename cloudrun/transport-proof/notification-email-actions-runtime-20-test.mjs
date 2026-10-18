@@ -6,6 +6,7 @@ const gateway=get('./server-r4.js');
 const auth=get('./server-r5.js');
 const router10=get('./server-r10.js');
 const gas=get('../../EntryV5.js');
+const notificationQueue=get('../../StatusNotificationBridge_PerformanceRoute.js');
 const mail=get('../../NotificationRenderer_ManagerToAuditorPlanning.js');
 assert.match(mail,/email-action/);
 assert.match(auth,/email-action-read\?auditId/);
@@ -62,6 +63,10 @@ assert.match(gas,/AUDITOR_UID_ASSIGNMENT_MISMATCH/);
 assert.match(gas,/lockWaitMs/);
 assert.match(auth,/acceptBrowserMs/);
 assert.match(auth,/acceptTiming/);
+assert.match(gas,/AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_=true/);
+assert.match(gas,/AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_=false;lock20\.releaseLock\(\)/);
+assert.match(notificationQueue,/inheritedLock \|\| lock\.tryLock\(5000\)/);
+assert.match(notificationQueue,/acquired&&!inheritedLock/);
 console.log('notification-email-actions-runtime-20: PASS');
 
 assert.match(auth,/u\.pathname==='\/email-action'&&req\.method==='GET'/);

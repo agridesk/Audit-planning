@@ -207,3 +207,9 @@ const auditorHeroStart=auditorMail.indexOf('Your manager has scheduled the audit
 const auditorHeroCta=auditorMail.indexOf("margin:12px 0 16px");
 const auditorDetailStart=auditorMail.indexOf('Audit overview');
 assert.ok(auditorHeroStart>=0 && auditorHeroCta>auditorHeroStart && auditorHeroCta<auditorDetailStart);
+
+// Synthetic template test mails cannot contain a live ACCEPT action.
+assert.match(testMail,/templatePreviewOnly:true/);
+assert.match(notificationBuilder,/templatePreviewOnly:data\.templatePreviewOnly===true/);
+assert.match(auditorMail,/n\.templatePreviewOnly === true/);
+assert.match(auditorMail,/Template preview only/);

@@ -61,7 +61,8 @@ for (const field of ['DEFAULT_FROM_EMAIL','DEFAULT_FROM_NAME','DEFAULT_REPLY_TO'
 const approvalMail=read('NotificationRenderer_ApprovalOperational.js');
 assert.match(approvalMail,/Review in Manager portal/);
 assert.match(approvalMail,/MANAGER_PORTAL_URL/);
-assert.match(approvalMail,/NB_htmlAttr_\(managerPortalUrl\)/);
+assert.match(approvalMail,/NB_htmlAttr_\(reviewUrl\)/);
+assert.match(approvalMail,/planning\?auditId=/);
 assert.doesNotMatch(approvalMail,/managerPortalUrl\s*\+\s*['"](?:\?|&).*approve/i);
 
 assert.ok(sender.includes("mode:'DEV_UNRECOGNIZED_MODE'"), 'Unknown DEV delivery mode must fail closed');

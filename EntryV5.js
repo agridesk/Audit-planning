@@ -338,6 +338,53 @@ function doPost(e) {
     var extResult=OpenAuditsGrid2_applyExtension(extAuditId,command);return ContentService.createTextOutput(JSON.stringify(extResult||{success:false,error:'EMPTY_RESULT'})).setMimeType(ContentService.MimeType.JSON);
   }
 
+
+  // Notifications 2.0: authenticated Cloud Run Auditor action writer.
+  // Cloud Run verifies its Remember-me session, role, visibility and capability.
+  // GAS independently verifies DEV ownership, current Auditor UID, assignment,
+  // canonical state and optimistic revision before invoking StatusMachine.
+  if (rawAction==='externalauditoraction20') {
+    var respond20=function(x){return ContentService.createTextOutput(JSON.stringify(x)).setMimeType(ContentService.MimeType.JSON);};
+    if(!V5_ENTRY_isDevEnv_())return respond20({success:false,error:'DEV_ONLY'});
+    var auth20=V5_ENTRY_externalBridgeBody_(e);if(!auth20.ok)return auth20.response;
+    var req20=auth20.body||{},email20=String(req20.actorEmail||'').trim().toLowerCase(),
+      uid20=String(req20.auditorUid||'').trim(),id20=String(req20.auditId||'').trim(),
+      action20=String(req20.action||'').trim().toUpperCase(),revision20=String(req20.expectedRevision||'').trim(),
+      reason20=String(req20.comment||'').trim();
+    if(!email20||!uid20||!id20||!revision20||!(/^[a-f0-9]{24}$/.test(revision20))||!['ACCEPT','CANCEL'].includes(action20))return respond20({success:false,error:'INVALID_AUDITOR_ACTION_REQUEST'});
+    if(action20==='CANCEL'&&!reason20)return respond20({success:false,error:'CANCEL_REASON_REQUIRED'});
+    var lock20=LockService.getScriptLock();
+    if(!lock20.tryLock(10000))return respond20({success:false,error:'ACTION_BUSY'});
+    try{
+      var ss20=SpreadsheetApp.getActiveSpreadsheet();
+      if(!ss20||ss20.getId()!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')return respond20({success:false,error:'DEV_SPREADSHEET_MISMATCH'});
+      var a20=ss20.getSheetByName('Auditors'),p20=ss20.getSheetByName('Audit planning');
+      if(!a20||!p20)return respond20({success:false,error:'CANONICAL_SHEET_MISSING'});
+      var av20=a20.getDataRange().getValues(),ah20=av20.shift().map(function(v){return String(v||'').trim();});
+      var aix20=function(n){return ah20.indexOf(n);};
+      var ar20=av20.filter(function(r){return String(r[aix20('E-mail')]||'').trim().toLowerCase()===email20&&String(r[aix20('Auditor_UID')]||'').trim()===uid20&&String(r[aix20('Active')]||'').trim().toUpperCase()==='YES'&&String(r[aix20('Role')]||'').trim().toUpperCase()==='AUDITOR';});
+      if(ar20.length!==1)return respond20({success:false,error:'AUDITOR_IDENTITY_NOT_CURRENT'});
+      var pv20=p20.getDataRange().getValues(),ph20=pv20.shift().map(function(v){return String(v||'').trim();});
+      var ix20=function(names){for(var i=0;i<names.length;i++){var j=ph20.indexOf(names[i]);if(j>=0)return j;}return -1;};
+      var ai20=ix20(['Audit ID','Audit_ID','AuditId','Audit Id']),si20=ix20(['Status']),as20=ix20(['Assigned to','Assigned auditor','Auditor']),pi20=ix20(['Planning JSON','Planning_JSON']),di20=ix20(['Last decision timestamp']),ti20=ix20(['Status since']);
+      if([ai20,si20,as20,pi20,di20,ti20].some(function(x){return x<0;}))return respond20({success:false,error:'REVISION_HEADERS_MISSING'});
+      var records20=pv20.filter(function(r){return String(r[ai20]||'').trim()===id20;});
+      if(records20.length!==1)return respond20({success:false,error:'AUDIT_UNAVAILABLE'});
+      var current20=records20[0],assigned20=String(current20[as20]||'').trim().toLowerCase(),
+        rowAud20=ar20[0],identities20=[email20,uid20,String(rowAud20[aix20('Name')]||'').trim().toLowerCase(),String(rowAud20[aix20('Abbreviation')]||'').trim().toLowerCase()];
+      if(!assigned20||identities20.indexOf(assigned20)<0)return respond20({success:false,error:'AUDITOR_ASSIGNMENT_MISMATCH'});
+      var status20=String(current20[si20]||'').trim().toUpperCase().replace(/[\\s-]+/g,'_');
+      if(!((action20==='ACCEPT'&&status20==='APPROVED')||(action20==='CANCEL'&&status20==='PENDING_APPROVAL')))return respond20({success:false,error:'ACTION_NOT_ALLOWED_FOR_STATUS'});
+      var snapshot20=[id20,String(current20[si20]||'').trim(),String(current20[as20]||'').trim(),String(current20[pi20]||'').trim(),String(current20[di20]||'').trim(),String(current20[ti20]||'').trim()].join('|');
+      var digest20=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,snapshot20,Utilities.Charset.UTF_8);
+      var currentRevision20=digest20.map(function(b){return ('0'+((b+256)%256).toString(16)).slice(-2);}).join('').slice(0,24);
+      if(currentRevision20!==revision20)return respond20({success:false,error:'AUDIT_REVISION_CONFLICT'});
+      if(typeof Status_applyAction!=='function')return respond20({success:false,error:'CANONICAL_STATUS_MACHINE_UNAVAILABLE'});
+      var outcome20=Status_applyAction('AUDITOR',action20,id20,{actorRole:'AUDITOR',actorEmail:email20,auditorUid:uid20,reason:reason20,comment:reason20});
+      return respond20(outcome20||{success:false,error:'CANONICAL_ACTION_EMPTY'});
+    }catch(ex20){return respond20({success:false,error:'AUDITOR_ACTION_FAILED',detail:String(ex20&&ex20.message||ex20).slice(0,160)});}
+    finally{lock20.releaseLock();}
+  }
   if (rawAction==='externalmanageraction') {
     if(!V5_ENTRY_isDevEnv_())return ContentService.createTextOutput(JSON.stringify({success:false,error:'DEV_ONLY'})).setMimeType(ContentService.MimeType.JSON);
     var actionBridge=V5_ENTRY_externalBridgeBody_(e);if(!actionBridge.ok)return actionBridge.response;var body=actionBridge.body||{};

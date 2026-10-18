@@ -20,6 +20,8 @@ export async function processEmailAction20({method,token,environment,input={},se
   if(!record)return DENIED;
   const audit=await services.currentAudit(record.auditId);
   if(!audit)return DENIED;
+  // Lookup and capability queries are read-only even on GET; never expose details to unauthorized users.
+  if (typeof services.assertReadOnly==='function') await services.assertReadOnly();
   const capability=await services.actorCapability(actor,audit,record.action);
   const result=authorizeAction({
     record,token,environment,
@@ -46,6 +48,7 @@ export async function processEmailAction20({method,token,environment,input={},se
   if(typeof services.executeAtomically!=='function')throw Error('ATOMIC_CANONICAL_WRITER_REQUIRED');
   // Adapter must recheck actor, action capability, revision and token freshness under one
   // serialization/transaction boundary; consume the token only upon successful write.
+  // Idempotency key must be stable for identical token retries; adapters must not derive it from caller input.
   return await services.executeAtomically({tokenHash:digest,record,actor,
     auditId:audit.auditId,action:record.action,expectedRevision:audit.revision,input});
 }

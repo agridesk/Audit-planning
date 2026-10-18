@@ -446,7 +446,7 @@ function NB_portalUrlForOperational_(n) {
   if (!url) try {
     url = NB_clean_(NB_getRuleValue_('AUDITOR_PORTAL_URL', '') || NB_getRuleValue_('PORTAL_URL', '') || NB_getRuleValue_('AUDIT_PORTAL_URL', '') || NB_getRuleValue_('APP_AUDITOR_PORTAL_URL', ''));
   } catch (e) {}
-  if (!url) url = NB_clean_(cta.portalUrl || cta.auditorPortalUrl || cta.portal || n.portalUrl || n.auditorPortalUrl || '');
+  // No arbitrary payload-provided destination: server-configured portal only.
   // Authentication 2.0 owns access: never use legacy accept/deny URLs.
   if (!/^https:\/\/[^\s<>"']+$/.test(url)) return '';
   var match = url.match(/^(https:\/\/[^\/?#]+)/);

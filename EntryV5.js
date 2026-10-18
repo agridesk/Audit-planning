@@ -295,6 +295,7 @@ function doPost(e) {
       if(b.operation==='preview')return reply({ok:true,preview:NotificationTestMail20_Preview(b.eventKey)});
       if(b.operation==='sendTest')return reply(NotificationTestMail20_Send(b.eventKey));
       if(b.operation==='updateEvent')return reply(NotificationManagement20_UpdateEvent(b.eventKey,b.changes,b.expected));
+      if(b.operation==='updateRule')return reply(NotificationManagement20_UpdateRule(b.ruleKey,b.value,b.expected,b.actorEmail));
       if(b.operation==='updateDevMode')return reply(NotificationManagement20_UpdateDevMode(b.mode,b.expected,b.actorEmail));
       return reply({ok:false,error:'INVALID_OPERATION'});
     }catch(err){return reply({ok:false,error:String(err.message||'NOTIFICATION_FAILED').slice(0,120)});}

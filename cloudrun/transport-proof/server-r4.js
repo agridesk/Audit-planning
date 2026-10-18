@@ -1672,7 +1672,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192)return send(res,413,{success:false,error:'REQUEST_TOO_LARGE'});}
     let body={};try{body=JSON.parse(raw);}catch{return send(res,400,{success:false,error:'INVALID_JSON'});}
     const auditId=clean(body.auditId),action=clean(body.action).toUpperCase(),options=body.options||{},expectedRevision=clean(options.expectedRevision),comment=clean(options.reason||options.comment);
-    if(!auditId||auditId.length>256||!['ACCEPT','CANCEL'].includes(action)||!(/^[a-f0-9]{24}$/.test(expectedRevision)))return send(res,400,{success:false,error:'INVALID_AUDITOR_ACTION_REQUEST'});
+    if(!auditId||auditId.length>256||!['ACCEPT','CANCEL','COMPLETE'].includes(action)||!(/^[a-f0-9]{24}$/.test(expectedRevision)))return send(res,400,{success:false,error:'INVALID_AUDITOR_ACTION_REQUEST'});
     if(action==='CANCEL'&&!comment)return send(res,400,{success:false,error:'CANCEL_REASON_REQUIRED'});
     if(!GAS_WRITE_URL||!WRITE_KEY)return send(res,503,{success:false,error:'CANONICAL_WRITER_UNAVAILABLE'});
     try{
@@ -1680,6 +1680,10 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       const row=(view.rows||[]).find(x=>x.auditId===auditId);
       if(!row||!Array.isArray(row.allowedActions)||!row.allowedActions.includes(action))return send(res,403,{success:false,error:'AUDITOR_ACTION_FORBIDDEN'});
       if(clean(row.sourceRevision)!==expectedRevision)return send(res,409,{success:false,error:'AUDIT_REVISION_CONFLICT'});
+      if(action==='COMPLETE'){
+        try{const result=await directAuditorComplete(actor,{auditId,action:'complete',options:{hoursDedicated:Number(options.hoursDedicated),expectedRevision}});return send(res,result&&result.success===false?409:200,result)}
+        catch(error){return send(res,409,{success:false,error:'AUDITOR_COMPLETE_FAILED',detail:clean(error.message)})}
+      }
       const url=new URL(GAS_WRITE_URL);
       if(url.protocol!=='https:')return send(res,503,{success:false,error:'CANONICAL_WRITER_HTTPS_REQUIRED'});
       url.searchParams.set('action','externalauditoraction20');

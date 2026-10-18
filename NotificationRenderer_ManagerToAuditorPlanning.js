@@ -86,6 +86,7 @@ function NB_renderRichOperationalHtml_(n) {
   html.push('<div style="font-size:11px;color:#667085;text-transform:uppercase;letter-spacing:.06em;font-weight:800">Audit planning package</div>');
   html.push('<div style="font-size:20px;font-weight:800;margin:4px 0 6px;color:#0f172a">Audit planned for you</div>');
   html.push('<div style="font-size:11px;color:#475569;margin:0 0 12px">Your manager has scheduled the audit below. Review the details in Audit Grid 2.0 using your existing AMS login.</div>');
+  html.push('<div style="margin:12px 0 16px">' + NB_managerToAuditorAcceptInPortalCtaHtml_(n) + '</div>');
 
   html.push('<table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;margin:12px 0">');
   html.push('<tr>');
@@ -145,7 +146,7 @@ function NB_renderRichOperationalHtml_(n) {
   html.push('<div>Check the planned dates, company details and available actions. Any change requires your confirmation in AMS.</div>');
   html.push('<div>This email does not confirm, cancel or change the audit.</div>');
   html.push('</div>');
-  html.push(NB_managerToAuditorAcceptInPortalCtaHtml_(n));
+  html.push('<div style="font-size:11px;color:#64748b;margin:8px 0">You can also use the button at the top of this message.</div>');
 
   html.push('<div style="margin-top:14px;color:#64748b;font-size:10.5px;line-height:1.35;border-top:1px solid #e6edf7;padding-top:9px">Automated message from the Audit Planning System. Please do not reply to this email.</div>');
   html.push('</div>');

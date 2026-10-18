@@ -382,6 +382,7 @@ try{
     const data=await result.json();
     if(!result.ok||data.success!==true)throw Error(data.error||data.detail||'Action could not be confirmed');
     el('state').textContent='';el('actions').hidden=true;el('success').textContent=action+' confirmed. Current status: '+(data.afterStatusDisplay||data.newStatus||data.afterStatus||'updated');
+    try{const channel=new BroadcastChannel('ams-auditor-actions-20');channel.postMessage({type:'AUDIT_ACTION_CONFIRMED',auditId: auditId,action:action});channel.close()}catch(e){}
   }catch(e){el('state').textContent='Action not confirmed';el('error').textContent=e.message;el('confirm').disabled=true;}
  };
 }catch(e){el('state').textContent='Action unavailable';el('error').textContent=e.message;}

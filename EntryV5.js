@@ -344,7 +344,8 @@ function doPost(e) {
   // GAS independently verifies DEV ownership, current Auditor UID, assignment,
   // canonical state and optimistic revision before invoking StatusMachine.
   if (rawAction==='externalauditoraction20') {
-    var respond20=function(x){return ContentService.createTextOutput(JSON.stringify(x)).setMimeType(ContentService.MimeType.JSON);};
+    var acceptT020=Date.now(),acceptStages20={},acceptPhase20='start';
+    var respond20=function(x){if(String(typeof action20==='undefined'?'':action20)==='ACCEPT'){x=x||{};x.acceptPerf={totalMs:Date.now()-acceptT020,phase:acceptPhase20,stages:acceptStages20};console.log(JSON.stringify({event:'AMS_ACCEPT_GAS_TIMING_20',auditId:id20||'',success:x.success===true,error:x.error||'',...x.acceptPerf}));}return ContentService.createTextOutput(JSON.stringify(x)).setMimeType(ContentService.MimeType.JSON);};
     if(!V5_ENTRY_isDevEnv_())return respond20({success:false,error:'DEV_ONLY'});
     var auth20=V5_ENTRY_externalBridgeBody_(e);if(!auth20.ok)return auth20.response;
     var req20=auth20.body||{},email20=String(req20.actorEmail||'').trim().toLowerCase(),
@@ -355,6 +356,7 @@ function doPost(e) {
     if(action20==='CANCEL'&&!reason20)return respond20({success:false,error:'CANCEL_REASON_REQUIRED'});
     var lock20=LockService.getScriptLock();
     if(!lock20.tryLock(10000))return respond20({success:false,error:'ACTION_BUSY'});
+    acceptStages20.lockWaitMs=Date.now()-acceptT020;acceptPhase20='locked';
     try{
       var ss20=SpreadsheetApp.getActiveSpreadsheet();
       if(!ss20||ss20.getId()!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')return respond20({success:false,error:'DEV_SPREADSHEET_MISMATCH'});
@@ -366,6 +368,7 @@ function doPost(e) {
       var auidCol20=aix20('Auditor_UID');
       if([auidCol20,aix20('E-mail'),aix20('Active'),aix20('Role')].some(function(i){return i<0;}))return respond20({success:false,error:'AUDITOR_IDENTITY_HEADERS_MISSING'});
       var auditorHits20=a20.getRange(2,auidCol20+1,Math.max(1,a20.getLastRow()-1),1).createTextFinder(uid20).matchEntireCell(true).matchCase(true).findAll();
+      acceptStages20.auditorLookupMs=Date.now()-acceptT020-acceptStages20.lockWaitMs;
       if(auditorHits20.length!==1)return respond20({success:false,error:'AUDITOR_IDENTITY_NOT_CURRENT'});
       var rowAud20=a20.getRange(auditorHits20[0].getRow(),1,1,ah20.length).getDisplayValues()[0];
       if(String(rowAud20[aix20('E-mail')]||'').trim().toLowerCase()!==email20||String(rowAud20[aix20('Active')]||'').trim().toUpperCase()!=='YES'||String(rowAud20[aix20('Role')]||'').trim().toUpperCase()!=='AUDITOR')return respond20({success:false,error:'AUDITOR_IDENTITY_NOT_CURRENT'});
@@ -375,6 +378,7 @@ function doPost(e) {
       var ai20=ix20(['Audit ID','Audit_ID','AuditId','Audit Id']),si20=ix20(['Status']),as20=ix20(['Assigned to','Assigned auditor','Auditor']),pi20=ix20(['Planning JSON','Planning_JSON']),di20=ix20(['Last decision timestamp']),ti20=ix20(['Status since']);
       if([ai20,si20,as20,pi20,di20,ti20].some(function(x){return x<0;}))return respond20({success:false,error:'REVISION_HEADERS_MISSING'});
       var auditHits20=p20.getRange(2,ai20+1,Math.max(1,p20.getLastRow()-1),1).createTextFinder(id20).matchEntireCell(true).matchCase(true).findAll();
+      acceptStages20.auditLookupMs=Date.now()-acceptT020-acceptStages20.lockWaitMs-acceptStages20.auditorLookupMs;
       if(auditHits20.length!==1)return respond20({success:false,error:'AUDIT_UNAVAILABLE'});
       var current20=p20.getRange(auditHits20[0].getRow(),1,1,ph20.length).getDisplayValues()[0],
         assigned20=String(current20[as20]||'').trim().toLowerCase(),
@@ -387,7 +391,10 @@ function doPost(e) {
       var currentRevision20=digest20.map(function(b){return ('0'+((b+256)%256).toString(16)).slice(-2);}).join('').slice(0,24);
       if(currentRevision20!==revision20)return respond20({success:false,error:'AUDIT_REVISION_CONFLICT'});
       if(typeof Status_applyAction!=='function')return respond20({success:false,error:'CANONICAL_STATUS_MACHINE_UNAVAILABLE'});
+      acceptPhase20='status_machine';
+      var statusT020=Date.now();
       var outcome20=Status_applyAction('AUDITOR',action20,id20,{actorRole:'AUDITOR',actorEmail:email20,auditorUid:uid20,reason:reason20,comment:reason20});
+      acceptStages20.statusMachineMs=Date.now()-statusT020;acceptPhase20='complete';
       return respond20(outcome20||{success:false,error:'CANONICAL_ACTION_EMPTY'});
     }catch(ex20){return respond20({success:false,error:'AUDITOR_ACTION_FAILED',detail:String(ex20&&ex20.message||ex20).slice(0,160)});}
     finally{lock20.releaseLock();}

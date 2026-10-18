@@ -54,12 +54,18 @@ function RUN_NOTIFICATION_CONSOLIDATION_AUDIT() {
   var templateSheet=ss.getSheetByName('Notification_Templates');
   var templateCount=templateSheet?Math.max(0,templateSheet.getLastRow()-1):0;
   var mismatches=comparisons.filter(function(c){return !c.equal;});
+  var legacyRuntimeLastRun=legacy.values.LAST_RUN_AT||'';
+  var legacyRuntimeLastSuccess=legacy.values.LAST_SUCCESS_AT||'';
+  var runtimeStateClass='LEGACY_SNAPSHOT_NOT_CANONICAL';
+  var retiredEventActive=deniedEvent&&deniedEvent.active==='YES';
   var out={
     ok:true,environment:env,
     legacySheetRetirementReady:false,
+    migrationVerified:mismatches.length===0,
+    blockers:['PROD_LEGACY_READ_COMPATIBILITY','LEGACY_RUNTIME_STATE_OWNER_UNVERIFIED','TEMPLATE_RUNTIME_REFERENCES_UNVERIFIED'],
     migratedSettings:{checked:comparisons.length,mismatches:mismatches,allMatch:mismatches.length===0},
-    runtimeState:{keys:runtimePresence,note:'Legacy runtime fields need a separately validated owner before retiring Notification_Settings.'},
-    obsoleteAuditorDenied:{rulePresent:Object.prototype.hasOwnProperty.call(rules.values,'COMMENT_ALLOWED_AUDIT_DENIED_BY_AUDITOR'),event:deniedEvent,policy:'Historical event preserved; no new writes should use it.'},
+    runtimeState:{keys:runtimePresence,classification:runtimeStateClass,lastRunAt:legacyRuntimeLastRun,lastSuccessAt:legacyRuntimeLastSuccess,note:'Legacy runner timestamps are not proof of a current runner; keep operational status separate from config.'},
+    obsoleteAuditorDenied:{rulePresent:Object.prototype.hasOwnProperty.call(rules.values,'COMMENT_ALLOWED_AUDIT_DENIED_BY_AUDITOR'),event:deniedEvent,stillEnabledInLegacyConfig:retiredEventActive,policy:'Historical event preserved; no new writes should use it.'},
     templates:{rows:templateCount,usageVerified:false,policy:'Do not retire without code-path validation.'},
     duplicates:{notificationSettings:legacy.duplicates,systemConfig:sysDuplicates,notificationRules:rules.duplicates},
     recommendation:'Keep Notification_Settings read-only for now. No deletion or destructive migration authorized.'

@@ -1697,22 +1697,28 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(action==='CANCEL'&&!comment)return send(res,400,{success:false,error:'CANCEL_REASON_REQUIRED'});
     if(!GAS_WRITE_URL||!WRITE_KEY)return send(res,503,{success:false,error:'CANONICAL_WRITER_UNAVAILABLE'});
     try{
-      // A status-changing action is authorized against one canonical live audit row.
-      // Auditor Grid visibility is a presentation read and must not veto a UID-owned action.
-      const readStart=Date.now();
-      const auditValues=(await sheetsBatchGet(['Audit planning!A1:AX483']))[0]?.values||[];
-      acceptPerf.canonicalReadMs=Date.now()-readStart;
-      const current=findAudit(auditValues,auditId);
-      if(!current)return send(res,404,{success:false,error:'AUDIT_NOT_FOUND'});
-      const h=current.h,r=current.row,uid=clean(val(r,col(h,['Auditor_UID','Auditor UID']))),actorUid=clean(actor.auditorUid||actor.auditorId);
-      const currentStatus=directStatusKey(val(r,col(h,['Status'])));
-      const allowed=(action==='ACCEPT'&&currentStatus==='APPROVED')||(action==='CANCEL'&&currentStatus==='PENDING_APPROVAL')||(action==='COMPLETE'&&currentStatus==='ACCEPTED');
-      if(!uid||uid!==actorUid)return send(res,403,{success:false,error:'AUDITOR_ACTION_NOT_ASSIGNED'});
-      if(!allowed)return send(res,409,{success:false,error:'AUDITOR_ACTION_STATUS_CONFLICT',currentStatus});
-      if(directRowRevision(h,r)!==expectedRevision)return send(res,409,{success:false,error:'AUDIT_REVISION_CONFLICT'});
-      if(action==='COMPLETE'){
-        try{const result=await directAuditorComplete(actor,{auditId,action:'complete',options:{hoursDedicated:Number(options.hoursDedicated),expectedRevision}});return send(res,result&&result.success===false?409:200,result)}
-        catch(error){return send(res,409,{success:false,error:'AUDITOR_COMPLETE_FAILED',detail:clean(error.message)})}
+      // GAS is the canonical transactional authorization point for ACCEPT:
+      // validates actor UID/email, assignment, status and revision under script lock.
+      // Avoid duplicate Google Sheets authorization read in Cloud Run.
+      if(action!=='ACCEPT'){
+        // A status-changing action is authorized against one canonical live audit row.
+        // Auditor Grid visibility is a presentation read and must not veto a UID-owned action.
+        const readStart=Date.now();
+        const auditValues=(await sheetsBatchGet(['Audit planning!A1:AX483']))[0]?.values||[];
+        acceptPerf.canonicalReadMs=Date.now()-readStart;
+        const current=findAudit(auditValues,auditId);
+        if(!current)return send(res,404,{success:false,error:'AUDIT_NOT_FOUND'});
+        const h=current.h,r=current.row,uid=clean(val(r,col(h,['Auditor_UID','Auditor UID']))),actorUid=clean(actor.auditorUid||actor.auditorId);
+        const currentStatus=directStatusKey(val(r,col(h,['Status'])));
+        const allowed=(action==='ACCEPT'&&currentStatus==='APPROVED')||(action==='CANCEL'&&currentStatus==='PENDING_APPROVAL')||(action==='COMPLETE'&&currentStatus==='ACCEPTED');
+        if(!uid||uid!==actorUid)return send(res,403,{success:false,error:'AUDITOR_ACTION_NOT_ASSIGNED'});
+        if(!allowed)return send(res,409,{success:false,error:'AUDITOR_ACTION_STATUS_CONFLICT',currentStatus});
+        if(directRowRevision(h,r)!==expectedRevision)return send(res,409,{success:false,error:'AUDIT_REVISION_CONFLICT'});
+        if(action==='COMPLETE'){
+          try{const result=await directAuditorComplete(actor,{auditId,action:'complete',options:{hoursDedicated:Number(options.hoursDedicated),expectedRevision}});return send(res,result&&result.success===false?409:200,result)}
+          catch(error){return send(res,409,{success:false,error:'AUDITOR_COMPLETE_FAILED',detail:clean(error.message)})}
+        }
+  
       }
       const url=new URL(GAS_WRITE_URL);
       if(url.protocol!=='https:')return send(res,503,{success:false,error:'CANONICAL_WRITER_HTTPS_REQUIRED'});

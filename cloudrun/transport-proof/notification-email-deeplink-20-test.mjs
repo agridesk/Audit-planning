@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const root=new URL('../../',import.meta.url);
+const read=p=>readFileSync(new URL(p,root),'utf8');
+const server=read('cloudrun/transport-proof/server-r4.js');
+const grid=read('cloudrun/transport-proof/manager-portal.js');
+const auditor=read('NotificationRenderer_ManagerToAuditorPlanning.js');
+const manager=read('NotificationRenderer_AuditorToManagerApproval.js');
+const generic=read('NotificationRenderer_ApprovalOperational.js');
+const builder=read('NotificationBuilder.js');
+
+assert.match(server,/u\.pathname==='\/planning'[\s\S]{0,300}role\)\.toLowerCase\(\)!=='manager'/);
+assert.match(server,/u\.pathname==='\/'&&req\.method==='GET'[\s\S]{0,350}auditor/);
+assert.match(auditor,/match\[1\] \+ '\/\?auditId='/);
+assert.doesNotMatch(auditor,/match\[1\] \+ '\/planning\?auditId='/);
+assert.match(manager,/match\[1\] \+ '\/planning\?auditId='/);
+assert.match(generic,/planning\?auditId=/);
+assert.match(grid,/function focusEmailAudit20\(/);
+assert.match(grid,/new URLSearchParams\(window\.location\.search\)/);
+assert.match(grid,/focusEmailAudit20\(\);return loadOpenEnrichment/);
+assert.match(builder,/SYS_getConfig_\(\)/);
+assert.doesNotMatch(auditor,/cta\.acceptUrl\s*\|\|/);
+assert.doesNotMatch(manager,/cta\.approvalUrl\s*\|\|/);
+console.log('notification-email-deeplink-20: PASS');

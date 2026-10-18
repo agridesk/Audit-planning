@@ -450,7 +450,7 @@ function NB_portalUrlForOperational_(n) {
   // Authentication 2.0 owns access: never use legacy accept/deny URLs.
   if (!/^https:\/\/[^\s<>"']+$/.test(url)) return '';
   var match = url.match(/^(https:\/\/[^\/?#]+)/);
-  return match && NB_clean_(n.auditId) ? match[1] + '/planning?auditId=' + encodeURIComponent(NB_clean_(n.auditId)) : url;
+  return match && NB_clean_(n.auditId) ? match[1] + '/?auditId=' + encodeURIComponent(NB_clean_(n.auditId)) : url;
 }
 
 

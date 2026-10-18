@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync,readdirSync} from 'node:fs';
 const root=new URL('../../',import.meta.url);
 const read=name=>readFileSync(new URL(name,root),'utf8');
 const writer=read('NotificationManagement20.js');
@@ -148,3 +148,20 @@ const freshnessAudit=consolidationAudit.slice(consolidationAudit.indexOf('functi
 for(const expected of ['DEV_SPREADSHEET_ID_MISMATCH',"inspect('Notification Queue'","inspect('Notification log'","inspect('Notification_Change_Log'",'EVIDENCE_ONLY_NOT_EXECUTION_PROOF','noSheetDeletionAuthorized:true'])assert.ok(freshnessAudit.includes(expected),'Freshness evidence missing '+expected);
 assert.ok(fullAudit.includes('freshness:RUN_NOTIFICATION_OPERATIONS_EVIDENCE()'),'Full audit must include freshness evidence');
 assert.ok(!/\.setValue\(|\.setValues\(|\.deleteSheet\(|ScriptApp\.newTrigger\(|ScriptApp\.deleteTrigger\(|MailApp\.|GmailApp\.|UrlFetchApp\.fetch\(/.test(freshnessAudit),'Freshness evidence must be read-only');
+
+assert.ok(fullAudit.includes('freshness:RUN_NOTIFICATION_OPERATIONS_EVIDENCE(triggers)'),'Full audit must reuse its scheduler inventory');
+assert.match(freshnessAudit,/knownTriggers\|\|RUN_NOTIFICATION_TRIGGER_INVENTORY\(\)/,'Freshness audit must support standalone invocation');
+const gasRoot=new URL('../../',import.meta.url);
+const gasFiles=readdirSync(gasRoot).filter(name=>name.endsWith('.js'));
+const legacyReferences=[];
+const templateReferences=[];
+for(const name of gasFiles){
+  const source=read(name);
+  if(source.includes('Notification_Settings'))legacyReferences.push(name);
+  if(source.includes('Notification_Templates'))templateReferences.push(name);
+}
+assert.ok(gasFiles.length>100,'Notification reference inventory unexpectedly incomplete');
+assert.ok(templateReferences.includes('NotificationConsolidationDiagnostics.js'),'Template inventory must include diagnostic owner');
+console.log('Notification source inventory: GAS files='+gasFiles.length+' legacy-settings refs='+legacyReferences.length+' template refs='+templateReferences.length);
+console.log('Notification template references: '+templateReferences.join(', '));
+console.log('Notification legacy-settings references: '+legacyReferences.join(', '));

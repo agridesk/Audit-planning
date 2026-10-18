@@ -143,3 +143,8 @@ for(const expected of ['RUN_NOTIFICATION_CONSOLIDATION_AUDIT()','RUN_NOTIFICATIO
   assert.ok(fullAudit.includes(expected),'Full notification audit missing '+expected);
 }
 assert.ok(!/\.setValue\(|\.setValues\(|\.deleteSheet\(|\.insertSheet\(|ScriptApp\.newTrigger\(|ScriptApp\.deleteTrigger\(|MailApp\.|GmailApp\.|UrlFetchApp\.fetch\(/.test(fullAudit),'Full notification audit must be read-only');
+
+const freshnessAudit=consolidationAudit.slice(consolidationAudit.indexOf('function RUN_NOTIFICATION_OPERATIONS_EVIDENCE()'));
+for(const expected of ['DEV_SPREADSHEET_ID_MISMATCH',"inspect('Notification Queue'","inspect('Notification log'","inspect('Notification_Change_Log'",'EVIDENCE_ONLY_NOT_EXECUTION_PROOF','noSheetDeletionAuthorized:true'])assert.ok(freshnessAudit.includes(expected),'Freshness evidence missing '+expected);
+assert.ok(fullAudit.includes('freshness:RUN_NOTIFICATION_OPERATIONS_EVIDENCE()'),'Full audit must include freshness evidence');
+assert.ok(!/\.setValue\(|\.setValues\(|\.deleteSheet\(|ScriptApp\.newTrigger\(|ScriptApp\.deleteTrigger\(|MailApp\.|GmailApp\.|UrlFetchApp\.fetch\(/.test(freshnessAudit),'Freshness evidence must be read-only');

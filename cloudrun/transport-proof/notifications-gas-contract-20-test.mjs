@@ -127,3 +127,6 @@ const retirementDiagnostic=retirementGateway.slice(retirementGateway.indexOf('fu
 assert.match(retirementDiagnostic,/RUN_NOTIFICATION_CONSOLIDATION_AUDIT\(\)/,'Legacy diagnostic must delegate to canonical audit');
 assert.match(retirementDiagnostic,/retirementReady: false/,'Legacy diagnostic must never falsely authorize deletion');
 assert.ok(!retirementDiagnostic.includes('nc_loadSettingsMap_'),'Legacy diagnostic must not compare canonical settings with themselves');
+
+assert.match(consolidationAudit,/DEV_SPREADSHEET_ID_MISMATCH/,'Consolidation audit must reject non-DEV workbook');
+assert.match(consolidationAudit,/ss\.getId\(\)!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs'/,'Consolidation audit must be pinned to DEV spreadsheet ID');

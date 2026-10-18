@@ -37,13 +37,13 @@ Candidate internal action navigation:
 4. SECURITY GATES BEFORE ENABLEMENT
 - Session identity verified server-side; UUID actor, role, tenant/object access and capability checked on each request.
 - Device trust alone does not authenticate or authorize.
-- Action token bound to exact runtime DEV/PROD, single actor/object/action, expected status/revision, limited lifetime.
+- Internal mail link contains no authentication token. Authentication 2.0 Remember me session supplies actor UUID and role. DEV/PROD validated on session and runtime.
 - GET must be read-only; explicit user confirmation and POST required.
-- Forwarded/expired/reused/mismatched token denied; scanners cannot trigger POST.
-- Consumption and canonical mutation must be atomic/idempotent. No parallel status machine or browser-to-Sheets writes.
+- Forwarded mail gives no access without a valid current session and object-level authorization. GET cannot mutate.
+- Canonical writer must recheck revision and role under its lock/transaction and remain idempotent. No parallel status machine or browser-to-Sheets writes.
 - Audit trail: actor UID, object ID, action, before/after, request ID, timestamp, source channel, outcome.
 - DEV tests use TEST_TO_SELF. No automatic customer email.
-- Current token/security module is inert; do not advertise fully functional action buttons until writer integration and real end-to-end proof.
+- Internal email action flow is session-only and not yet routed to a deployed canonical writer. Do not advertise working action buttons until writer integration and E2E proof.
 
 5. PROD PARITY GATE
 - Same source files and function contracts in both environments; configuration differs through validated environment owners only.
@@ -55,7 +55,7 @@ Candidate internal action navigation:
 - Cloud Run deployment and GAS deployment are separate releases. GitHub commit != deployed runtime.
 
 6. VERIFIED DEVELOPMENT WORK
-- Existing notification-email-action-policy-20.mjs checks token, state/origin, session actor authorization, device verification and environment.
+- Notification email action flow checks Authentication 2.0 session actor UUID, role, environment and capability; notification-email-action-policy-20.mjs contains only action/state/input validation.
 - Existing Manager approval renderer has optional configured HTTPS "Review in Manager portal" navigation-only CTA.
 - Tests in cloudrun/transport-proof/package.json run notification email action policy, parity gate and notifications GAS contracts.
 - These are code assertions only; complete npm test and live DEV E2E not yet independently executed in this session.

@@ -85,7 +85,7 @@ function NB_renderRichOperationalHtml_(n) {
 
   html.push('<div style="font-size:11px;color:#667085;text-transform:uppercase;letter-spacing:.06em;font-weight:800">Audit planning package</div>');
   html.push('<div style="font-size:20px;font-weight:800;margin:4px 0 6px;color:#0f172a">Audit planned for you</div>');
-  html.push('<div style="font-size:11px;color:#475569;margin:0 0 12px">The following audit has been planned by your manager.</div>');
+  html.push('<div style="font-size:11px;color:#475569;margin:0 0 12px">Your manager has scheduled the audit below. Review the details in Audit Grid 2.0 using your existing AMS login.</div>');
 
   html.push('<table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;margin:12px 0">');
   html.push('<tr>');
@@ -139,11 +139,11 @@ function NB_renderRichOperationalHtml_(n) {
 
   if (n.locations && n.locations.length > 1) html.push(NB_renderLocationsTableHtml_(n.locations));
 
-  html.push('<div style="font-size:15px;font-weight:800;color:#0f172a;margin:14px 0 8px">What happens next</div>');
+  html.push('<div style="font-size:15px;font-weight:800;color:#0f172a;margin:14px 0 8px">Review this audit</div>');
   html.push('<div style="font-size:11px;line-height:1.45;color:#334155;margin-bottom:10px">');
-  html.push('<div>Review the planning details in the Auditor Portal.</div>');
-  html.push('<div>' + NB_managerToAuditorPortalTextLinkHtml_(n, 'Go to portal to accept or deny the audit.') + '</div>');
-  html.push('<div>The audit will be confirmed once you accept the planning.</div>');
+  html.push('<div>Open the audit in Audit Grid 2.0. Access is controlled by your existing AMS session (Remember me).</div>');
+  html.push('<div>Check the planned dates, company details and available actions. Any change requires your confirmation in AMS.</div>');
+  html.push('<div>This email does not confirm, cancel or change the audit.</div>');
   html.push('</div>');
   html.push(NB_managerToAuditorAcceptInPortalCtaHtml_(n));
 
@@ -428,8 +428,8 @@ function NB_managerToAuditorValidationRowsHtml_(items) {
 
 function NB_managerToAuditorAcceptInPortalCtaHtml_(n) {
   var url = NB_portalUrlForOperational_(n || {});
-  if (!url) return '<span style="font-size:11px;color:#991b1b;font-weight:800">Portal URL unavailable</span>';
-  return '<a href="' + NB_htmlAttr_(url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:8px 12px;border-radius:7px;font-size:11px;font-weight:900;line-height:1.1">Go to portal</a>';
+  if (!url) return '<span style="font-size:11px;color:#64748b">Open Audit Grid 2.0 using your normal AMS bookmark.</span>';
+  return '<a href="' + NB_htmlAttr_(url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:8px 12px;border-radius:7px;font-size:11px;font-weight:900;line-height:1.1">View audit in Audit Grid 2.0</a>';
 }
 
 function NB_managerToAuditorPortalTextLinkHtml_(n, label) {
@@ -441,7 +441,6 @@ function NB_managerToAuditorPortalTextLinkHtml_(n, label) {
 
 function NB_portalUrlForOperational_(n) {
   n = n || {};
-  var cta = n.cta || {};
   var url = NB_portalBaseUrl20_('AUDITOR');
   if (!url) try {
     url = NB_clean_(NB_getRuleValue_('AUDITOR_PORTAL_URL', '') || NB_getRuleValue_('PORTAL_URL', '') || NB_getRuleValue_('AUDIT_PORTAL_URL', '') || NB_getRuleValue_('APP_AUDITOR_PORTAL_URL', ''));

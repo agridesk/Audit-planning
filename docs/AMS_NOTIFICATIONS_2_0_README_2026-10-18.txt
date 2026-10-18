@@ -122,3 +122,6 @@ RUN_NOTIFICATION_SETTINGS_RETIREMENT_DIAGNOSTICS in NotificationMailGateway.js i
 
 13. ENVIRONMENT ISOLATION HARDENING (2026-10-18)
 RUN_NOTIFICATION_CONSOLIDATION_AUDIT requires BOTH SYS_getEnv_() === DEV and the exact DEV spreadsheet ID; it fails closed with DEV_SPREADSHEET_ID_MISMATCH for any other workbook, including PROD. Regression test added. Requires GAS DEV deployment.
+
+14. READ-ONLY TRIGGER INVENTORY (2026-10-18)
+RUN_NOTIFICATION_TRIGGER_INVENTORY (NotificationConsolidationDiagnostics.js) lists digest and weekly notification triggers visible to the executing GAS account, flags duplicate managed handlers and legacy digest handlers, and explicitly does NOT certify last execution. It requires DEV environment and exact DEV spreadsheet ID. Google Apps Script project trigger visibility is account-scoped; missing triggers are not proof that another account has none. Does not mutate triggers or sheets, send email or touch PROD. Run in GAS DEV after deployment and preserve its JSON output for runner ownership investigation.

@@ -393,7 +393,7 @@ function doPost(e) {
       if(typeof Status_applyAction!=='function')return respond20({success:false,error:'CANONICAL_STATUS_MACHINE_UNAVAILABLE'});
       acceptPhase20='status_machine';
       var statusT020=Date.now();
-      var outcome20=Status_applyAction('AUDITOR',action20,id20,{actorRole:'AUDITOR',actorEmail:email20,auditorUid:uid20,reason:reason20,comment:reason20});
+      var outcome20=Status_applyAction('AUDITOR',action20,id20,{actorRole:'AUDITOR',actorEmail:email20,auditorUid:uid20,reason:reason20,comment:reason20,rowIndex:auditHits20[0].getRow()});
       acceptStages20.statusMachineMs=Date.now()-statusT020;acceptPhase20='complete';
       return respond20(outcome20||{success:false,error:'CANONICAL_ACTION_EMPTY'});
     }catch(ex20){return respond20({success:false,error:'AUDITOR_ACTION_FAILED',detail:String(ex20&&ex20.message||ex20).slice(0,160)});}

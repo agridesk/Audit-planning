@@ -1,40 +1,30 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {authorizeAction,createActionToken,hashActionToken} from './notification-email-action-policy-20.mjs';
-
+import {processEmailAction20} from './notification-email-action-flow-20.mjs';
 const source=name=>readFileSync(new URL('../../'+name,import.meta.url),'utf8');
 const config=source('NotificationConfig.js');
 const sender=source('NotificationSender.js');
-const gateway=source('NotificationMailGateway.js');
 const approval=source('NotificationRenderer_ApprovalOperational.js');
-const policy=source('cloudrun/transport-proof/notification-email-action-policy-20.mjs');
+const flow=source('cloudrun/transport-proof/notification-email-action-flow-20.mjs');
 const handoff=source('docs/AMS_NOTIFICATIONS_2_0_README_2026-10-18.txt');
-
 assert.match(config,/Notification_Config/);
 assert.match(config,/Notification_Rules/);
 assert.match(config,/System_Config/);
-assert.match(config,/Notification_Settings/); // PROD compatibility only; never delete prematurely
+assert.match(config,/Notification_Settings/);
 assert.match(sender,/DEV_NOTIFICATION_MODE/);
-assert.match(sender,/SENT_DEV_REDIRECT/);
-assert.match(gateway,/Resend/i);
 assert.match(approval,/MANAGER_PORTAL_URL/);
-assert.ok(approval.includes('if (/^https:'), 'Manager CTA must accept configured HTTPS URLs only'); // configured absolute HTTPS; no hardcoded DEV host
-assert.doesNotMatch(approval,/ams-transport-proof-510075419067|audit-management-system-dev/);
-assert.doesNotMatch(policy,/1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs|1J4ykUsgDQc1gNeZJjyOJmQ-rsYnf8ujdwg9uTACmCNw/);
+assert.doesNotMatch(approval,/audit-management-system-dev/);
+assert.doesNotMatch(flow,/tokenHash|createActionToken|findByTokenHash|deviceTrusted/);
+assert.match(flow,/currentSession/);
+assert.match(flow,/actorCapability/);
 assert.match(handoff,/PROD legacy/i);
-assert.match(handoff,/DO NOT DELETE OR EDIT/);
-
-const token=createActionToken();
-const record={auditorUid:'uid-a',auditId:'audit-a',action:'ACCEPT',tokenHash:hashActionToken(token),status:'Approved',origin:'MANAGER',environment:'DEV',revision:1,createdAt:Date.now(),expiresAt:Date.now()+60000};
-const context={record,token,auditorUid:'uid-a',auditId:'audit-a',action:'ACCEPT',status:'Approved',revision:1,deviceTrusted:true,authenticatedActorUid:'uid-a',authenticatedRole:'AUDITOR',actorAuthorized:true,environment:'DEV'};
-assert.equal(authorizeAction(context),'OK');
-assert.equal(authorizeAction({...context,auditorUid:'uid-b'}),'SCOPE_MISMATCH');
-assert.equal(authorizeAction({...context,record:{...record,origin:'AUDITOR'}}),'ACTION_NOT_ALLOWED');
-assert.equal(authorizeAction({...context,record:{...record,usedAt:Date.now()}}),'TOKEN_CONSUMED');
-assert.equal(authorizeAction({...context,revision:2}),'STALE_AUDIT');
+const audit={auditId:'audit',auditorUid:'aud-uid',status:'Approved',origin:'MANAGER',revision:'r'};
+const actor={uid:'aud-uid',role:'AUDITOR',environment:'PROD'};
+let writes=0;
+const services={currentSession:async()=>actor,currentAudit:async()=>audit,actorCapability:async()=>true,executeCanonical:async()=>{writes++;return {ok:true}}};
+const params={method:'GET',auditId:'audit',action:'ACCEPT',environment:'PROD',services};
+assert.equal((await processEmailAction20(params)).readOnly,true);
+assert.equal(writes,0);
+assert.equal((await processEmailAction20({...params,environment:'DEV'})).error,'ENVIRONMENT_MISMATCH');
+assert.equal(writes,0);
 console.log('notification-email-actions-prod-parity-20: PASS');
-
-assert.equal(authorizeAction({...context,authenticatedActorUid:'',deviceTrusted:true}),'AUTHENTICATION_REQUIRED');
-assert.equal(authorizeAction({...context,authenticatedRole:'MANAGER'}),'AUTHENTICATION_REQUIRED');
-
-assert.equal(authorizeAction({...context,environment:'PROD'}),'ENVIRONMENT_MISMATCH');

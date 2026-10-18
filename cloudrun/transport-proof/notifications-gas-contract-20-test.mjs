@@ -73,3 +73,28 @@ const config=read('NotificationConfig.js');
 assert.ok(config.includes('if (devSettings) return defaultValue;'), 'DEV must not fall back to Notification_Settings for missing keys');
 assert.ok(config.includes('nc_clone_(devSettings || nc_loadSettingsMap_())'), 'DEV settings listing must use System_Config');
 for (const key of ['DEFAULT_FROM_EMAIL','DEFAULT_FROM_NAME','DEFAULT_REPLY_TO','DEFAULT_BUFFER_MINUTES','RUNNER_ENABLED','RUNNER_FREQUENCY_MINUTES','QUEUE_RETENTION_DAYS','MAIL_PROVIDER','TEST_MODE','TEST_RECIPIENT']) assert.ok(gateway.includes("'"+key+"'"), 'Migration diagnostic missing '+key);
+
+const rulesBackend=read('NotificationManagement20.js');
+const entry=read('EntryV5.js');
+const portal=read('cloudrun/transport-proof/notification-manager-20.html');
+const transport=read('cloudrun/transport-proof/server-r15.js');
+for(const [name,source,needle] of [
+ ['GAS rule writer',rulesBackend,'function NotificationManagement20_UpdateRule('],
+ ['DEV guard',rulesBackend,"throw new Error('DEV_ONLY')"],
+ ['Technical rule excluded',rulesBackend,"throw new Error('RULE_NOT_EDITABLE')"],
+ ['Optimistic concurrency',rulesBackend,"throw new Error('RULE_CHANGED_RELOAD_REQUIRED')"],
+ ['Threshold ordering',rulesBackend,"throw new Error('THRESHOLD_ORDER_INVALID')"],
+ ['Audit logging',rulesBackend,'AMS_NOTIFICATION_RULES_20'],
+ ['Cache invalidation',rulesBackend,'NotificationConfig_ClearCache()'],
+ ['GAS bridge',entry,"b.operation==='updateRule'"],
+ ['Cloud Run mutation',transport,'async function notificationRuleMutation('],
+ ['Cloud Run endpoint',transport,"u.pathname==='/api/v1/notifications-manager-20/rules'"],
+ ['Overview rules',transport,'result.editableRules='],
+ ['Portal tab',portal,'data-tab="rules"'],
+ ['Portal rule editor',portal,'function renderRules()'],
+ ['Portal save',portal,"'/api/v1/notifications-manager-20/rules'"]
+])assert.ok(source.includes(needle),name+' missing');
+for(const forbidden of ['QUEUE_SHEET_NAME','MANAGER_COMPLETE_LOG_ONLY','COMMENT_ALLOWED_AUDIT_CANCELLED_BY_MANAGER','COMMENT_ALLOWED_AUDIT_DENIED_BY_MANAGER','COMMENT_ALLOWED_AUDIT_REJECTED_BY_MANAGER']){
+ const whitelist=rulesBackend.slice(rulesBackend.indexOf('function NotificationManagement20_UpdateRule('),rulesBackend.indexOf("if(days.indexOf(key)<0",rulesBackend.indexOf('function NotificationManagement20_UpdateRule(')));
+ assert.ok(!whitelist.includes("'"+forbidden+"'"),'Unsafe editable rule: '+forbidden);
+}

@@ -11,13 +11,13 @@ export async function processEmailAction20({method,auditId,action,environment,in
  if(!auditId||typeof auditId!=='string'||auditId.length>256||!VALID_ACTIONS.has(requested))return {ok:false,error:'INVALID_ACTION'};
  if(!services||typeof services.currentSession!=='function'||typeof services.currentAudit!=='function'||typeof services.actorCapability!=='function')throw Error('EMAIL_ACTION_SERVICES_MISSING');
  const actor=await services.currentSession();
- if(!actor||!actor.uid||!VALID_ROLES.has(String(actor.role||'').toUpperCase()))return {ok:false,error:'AUTHENTICATION_REQUIRED'};
+ if(!actor||!actor.auditorId||!VALID_ROLES.has(String(actor.role||'').toUpperCase()))return {ok:false,error:'AUTHENTICATION_REQUIRED'};
  const env=String(environment||'').toUpperCase();
  if(!['DEV','PROD'].includes(env)||actor.environment!==env)return {ok:false,error:'ENVIRONMENT_MISMATCH'};
  const audit=await services.currentAudit(auditId);
  if(!audit||audit.auditId!==auditId||!validRevision(audit.revision))return {ok:false,error:'AUDIT_UNAVAILABLE'};
  const role=String(actor.role).toUpperCase();
- if(role==='AUDITOR'&&(!audit.auditorUid||actor.uid!==audit.auditorUid))return {ok:false,error:'FORBIDDEN'};
+ if(role==='AUDITOR'&&(!audit.auditorUid||actor.auditorId!==audit.auditorUid))return {ok:false,error:'FORBIDDEN'};
  const permitted=await services.actorCapability(actor,audit,requested);
  if(permitted!==true)return {ok:false,error:'FORBIDDEN'};
  if(role==='AUDITOR'&&!auditorEmailActionAllowed(requested,audit.status,audit.origin))return {ok:false,error:'ACTION_NOT_ALLOWED'};

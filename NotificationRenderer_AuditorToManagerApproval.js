@@ -579,8 +579,8 @@ function NB_managerApprovalCtaHtml_(n) {
 function NB_managerUrlForApprovalOperational_(n) {
   n = n || {};
   var cta = n.cta || {};
-  var url = '';
-  try {
+  var url = NB_portalBaseUrl20_('MANAGER');
+  if (!url) try {
     url = NB_clean_(NB_getRuleValue_('MANAGER_PORTAL_URL', '') || NB_getRuleValue_('PORTAL_URL', '') || NB_getRuleValue_('APP_MANAGER_URL', '') || NB_getRuleValue_('PORTAL_MANAGER_URL', ''));
   } catch (e) {}
   if (!url) url = NB_clean_(cta.portalUrl || cta.managerUrl || n.managerUrl || '');

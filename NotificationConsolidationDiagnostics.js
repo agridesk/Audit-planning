@@ -7,6 +7,8 @@ function RUN_NOTIFICATION_CONSOLIDATION_AUDIT() {
   var env=typeof SYS_getEnv_==='function'?String(SYS_getEnv_()||'').toUpperCase():'UNKNOWN';
   if(env!=='DEV')throw new Error('DEV_ONLY');
   var ss=SpreadsheetApp.getActiveSpreadsheet();
+  // Environment labels alone are insufficient: prohibit diagnostics against PROD workbook.
+  if(!ss || ss.getId()!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')throw new Error('DEV_SPREADSHEET_ID_MISMATCH');
   function read(name,keyHeader,valueHeader){
     var sh=ss.getSheetByName(name);if(!sh)throw new Error('MISSING_SHEET_'+name);
     var rows=sh.getDataRange().getValues();

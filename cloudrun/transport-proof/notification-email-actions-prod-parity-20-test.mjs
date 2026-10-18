@@ -12,7 +12,7 @@ assert.match(config,/Notification_Rules/);
 assert.match(config,/System_Config/);
 assert.match(config,/Notification_Settings/);
 assert.match(sender,/DEV_NOTIFICATION_MODE/);
-assert.match(approval,/MANAGER_PORTAL_URL/);
+assert.match(approval,/NB_portalBaseUrl20_\('MANAGER'\)/);
 assert.doesNotMatch(approval,/audit-management-system-dev/);
 assert.doesNotMatch(flow,/tokenHash|createActionToken|findByTokenHash|deviceTrusted/);
 assert.match(flow,/currentSession/);

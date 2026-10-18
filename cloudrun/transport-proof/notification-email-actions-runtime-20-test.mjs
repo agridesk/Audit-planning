@@ -33,6 +33,11 @@ assert.match(auth,/location':'\/\?next='\+encodeURIComponent\(dest\)/);
 assert.match(auth,/emailAction='\+encodeURIComponent\(requested\)/);
 assert.match(auth,/safeLoginDestination\(u\.pathname\+u\.search,role\)/);
 assert.doesNotMatch(mail,/\bDENY\b|\bREJECT\b/i);
+assert.match(gateway,/Canonical UID is the ownership key/);
+assert.match(gateway,/uid!==actorUid\|\|!statusAllowed/);
+assert.match(gateway,/liveRevision!==expectedRevision/);
+assert.match(auth,/Switch to Auditor login/);
+assert.match(auth,/location\.assign\("\/\?next="\+encodeURIComponent/);
 console.log('notification-email-actions-runtime-20: PASS');
 
 assert.match(auth,/u\.pathname==='\/email-action'&&req\.method==='GET'/);

@@ -119,3 +119,6 @@ Direct nc_loadSettingsMap_ now guards DEV and returns canonical System_Config se
 
 12. LEGACY DIAGNOSTIC SAFETY (2026-10-18)
 RUN_NOTIFICATION_SETTINGS_RETIREMENT_DIAGNOSTICS in NotificationMailGateway.js is now a backward-compatible alias to RUN_NOTIFICATION_CONSOLIDATION_AUDIT, DEV-only. It always returns retirementReady=false and exposes the canonical blockers. Previously it could compare the DEV System_Config map with itself through nc_loadSettingsMap_ and incorrectly claim retirement readiness. Never treat settings parity as tab deletion authorization. Requires GAS DEV deployment.
+
+13. ENVIRONMENT ISOLATION HARDENING (2026-10-18)
+RUN_NOTIFICATION_CONSOLIDATION_AUDIT requires BOTH SYS_getEnv_() === DEV and the exact DEV spreadsheet ID; it fails closed with DEV_SPREADSHEET_ID_MISMATCH for any other workbook, including PROD. Regression test added. Requires GAS DEV deployment.

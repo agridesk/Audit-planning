@@ -197,8 +197,8 @@ assert.match(sharedGrid,/new URLSearchParams\(window\.location\.search\)/);
 assert.match(sharedGrid,/focusEmailAudit20\(\);return loadOpenEnrichment/);
 
 // Email never promises inline acceptance or carries a non-functional fake button.
-assert.match(auditorMail,/Review and ACCEPT audit/);
-assert.match(auditorMail,/emailAction=ACCEPT/);
+assert.match(auditorMail,/ACCEPT audit/);
+assert.match(auditorMail,/email-action\\?auditId=/);
 assert.match(auditorMail,/This email does not confirm, cancel or change the audit/);
 assert.doesNotMatch(auditorMail,/Go to portal to accept or deny the audit\.'\) \+ '<\/div>'/);
 

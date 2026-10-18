@@ -34,7 +34,7 @@ assert.match(liveServer,/nonce:relay\.nonce/,'Active R12 relay endpoint must ret
 assert.match(server,/k==='ACCEPTED'\?\['COMPLETE','CANCEL','REJECT'\]/,'Accepted Manager enrichment rows must expose Complete');
 assert.match(baseServer,/statusKey==='ACCEPTED'\?\['COMPLETE','CANCEL','REJECT'\]/,'Accepted Manager base rows must expose Complete');
 assert.match(portal,/raw\.indexOf\("COMPLETE"\)>=0/,'Manager UI must render Complete from canonical allowedActions');
-assert.match(portal,/x===\"PLAN\"\|\|x===\"COMPLETE\"/,'Shared Auditor Grid must expose Complete as well as Plan from server capabilities');
+assert.match(portal,/x===\"PLAN\"\|\|x===\"ACCEPT\"\|\|x===\"CANCEL\"\|\|x===\"COMPLETE\"/,'Shared Auditor Grid must expose Complete as well as Plan from server capabilities');
 assert.match(portal,/\/api\/v1\/auditor\/action/,'Auditor Complete must use authenticated Auditor Cloud Run action endpoint');
 assert.match(server,/u\.pathname==='\/api\/v1\/auditor\/action'/,'R10 must expose authenticated Auditor Complete action route');
 assert.match(portal,/Number\(row\.hoursPlanned\)/,'Complete default must use primary Hours planned');

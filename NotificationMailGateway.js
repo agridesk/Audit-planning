@@ -19,7 +19,7 @@
 //   Alternative accepted key name: NOTIFICATION_RESEND_API_KEY
 //
 // SETTINGS USED:
-//   Notification_Settings / NotificationConfig:
+//   DEV: System_Config (via NotificationConfig); PROD: legacy Notification_Settings compatibility:
 //     DEFAULT_FROM_EMAIL = planning@agriqa.es
 //     DEFAULT_FROM_NAME  = Agri Quality Assurance – Audit Planning
 //     DEFAULT_REPLY_TO   = planning@agriqa.es
@@ -149,29 +149,24 @@ function NMG_getDevSystemSenderSettings_() {
 }
 
 function RUN_NOTIFICATION_SETTINGS_RETIREMENT_DIAGNOSTICS() {
+  // Compatibility alias. The consolidated audit is the only authority on tab retirement.
+  // In particular, matching settings do NOT establish PROD safety or template independence.
   var env = typeof SYS_getEnv_ === 'function' ? String(SYS_getEnv_() || '').toUpperCase() : 'UNKNOWN';
-  var dev = env === 'DEV' ? NMG_getDevSystemSenderSettings_() : null;
-  var legacy = {};
-  if (typeof nc_loadSettingsMap_ === 'function') {
-    legacy = nc_loadSettingsMap_() || {};
+  if (env !== 'DEV') throw new Error('DEV_ONLY');
+  if (typeof RUN_NOTIFICATION_CONSOLIDATION_AUDIT !== 'function') {
+    throw new Error('NOTIFICATION_CONSOLIDATION_AUDIT_UNAVAILABLE');
   }
-  var fields = ['DEFAULT_FROM_EMAIL','DEFAULT_FROM_NAME','DEFAULT_REPLY_TO','DEFAULT_BUFFER_MINUTES','RUNNER_ENABLED','RUNNER_FREQUENCY_MINUTES','QUEUE_RETENTION_DAYS','MAIL_PROVIDER','TEST_MODE','TEST_RECIPIENT'];
-  var checks = [];
-  for (var i=0;i<fields.length;i++) {
-    var key=fields[i], target=dev ? String(dev[key]||'').trim() : '';
-    var prior=String(legacy[key]||'').trim();
-    checks.push({
-      key:key,
-      systemConfigPresent:!!target,
-      legacyPresent:!!prior,
-      valuesMatch:!!target && (!prior || target===prior)
-    });
-  }
-  var ready=env==='DEV' && checks.every(function(c){return c.systemConfigPresent && c.valuesMatch;});
-  var out={ok:ready,environment:env,retirementReady:ready,checks:checks,
-    note:'Read-only diagnostic. Never deletes Notification_Settings or writes System_Config.'};
-  Logger.log(JSON.stringify(out));
-  return out;
+  var audit = RUN_NOTIFICATION_CONSOLIDATION_AUDIT();
+  return {
+    ok: !!audit.ok,
+    environment: env,
+    migrationVerified: !!audit.migrationVerified,
+    retirementReady: false,
+    legacySheetRetirementReady: false,
+    blockers: audit.blockers || [],
+    migratedSettings: audit.migratedSettings || {},
+    note: 'Deprecated compatibility entrypoint; never use setting equality as permission to delete a sheet.'
+  };
 }
 
 function NMG_getSenderIdentity_() {

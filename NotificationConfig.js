@@ -629,8 +629,8 @@ function nc_defaultRoutingForEvent_(eventKey) {
       digestGroup: 'MANAGER_APPROVAL_OPERATIONAL',
       recipientMode: 'MANAGER',
       recipientTarget: 'MANAGER',
-      consolidate: false,
-      bufferMinutes: 0,
+      consolidate: true,
+      bufferMinutes: 5,
       description: 'Auditor self-planned audit; manager approval required.',
       notes: 'Triggered only by Pending Planning -- Plan (Auditor) --> Pending Approval.'
     };
@@ -643,8 +643,8 @@ function nc_defaultRoutingForEvent_(eventKey) {
       digestGroup: 'RICH_OPERATIONAL',
       recipientMode: 'AUDITOR',
       recipientTarget: 'AUDITOR',
-      consolidate: false,
-      bufferMinutes: 0,
+      consolidate: true,
+      bufferMinutes: 5,
       description: 'Manager planned audit; auditor must accept or deny.',
       notes: 'Triggered only by Pending Planning -- Plan (Manager) --> Approved.'
     };

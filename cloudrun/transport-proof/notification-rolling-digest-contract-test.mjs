@@ -44,5 +44,15 @@ assert.notEqual(JSON.parse(rows[5][12]).groupKey,a.groupKey,'Outside rolling win
 rows.push([new Date(startTime+60000),'PENDING','AUDIT_PLANNED_BY_MANAGER','info@agridesk.com','STALE','','','',0,'','','',JSON.stringify({payload:{config:{consolidate:false,bufferMinutes:0,digestGroup:'DEFAULT'}}})]);
 assert.equal(testReserve(rows),1);
 assert.equal(JSON.parse(rows[6][12]).groupKey,a.groupKey,'Live Notification_Config overrides stale queue snapshot and joins existing rolling window');
+// A digest must be per original auditor, not the DEV redirect destination.
+const sameTime=Date.parse('2026-10-19T18:22:00Z');
+const independent=[['TimestampCreated','Status','Type','Recipient','Audit ID'],
+row(sameTime,'info@agridesk.com','PACO_1'),
+row(sameTime+45000,'info@agridesk.com','PACO_2'),
+row(sameTime+60000,'isalia@agriqa.es','ISALIA_1')];
+assert.equal(testReserve(independent),3);
+const keyFor=i=>JSON.parse(independent[i][12]).groupKey;
+assert.equal(keyFor(1),keyFor(2),'DEV redirect must not split one auditor digest');
+assert.notEqual(keyFor(1),keyFor(3),'DEV redirect must not merge distinct auditors');
 assert.ok(events.length>0);
 console.log('notification-rolling-digest-contract: PASS');

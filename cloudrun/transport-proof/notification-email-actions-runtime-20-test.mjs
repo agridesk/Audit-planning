@@ -11,6 +11,12 @@ const notificationQueue=get('../../StatusNotificationBridge_PerformanceRoute.js'
 const mail=get('../../NotificationRenderer_ManagerToAuditorPlanning.js');
 assert.match(mail,/email-action/);
 assert.match(auth,/email-action-read\?auditId/);
+// Unicode audit IDs (for example DuñóSCP) must survive email action and login return validation.
+const unicodeAuditIdPattern=/^[\p{L}\p{N}_,.-]{1,120}$/u;
+assert.equal(unicodeAuditIdPattern.test('AUD_DuñóSCP_HQ_1777531729283_29'),true);
+assert.equal(unicodeAuditIdPattern.test('AUD_<>_unsafe'),false);
+assert.equal((auth.match(/\\p\{L\}\\p\{N\}_,\.\-/g)||[]).length,4);
+
 // Diagnostic timings must separately account for POST, response redirect, GAS execution and whole roundtrip.
 assert.match(gateway,/acceptPerf\.gasPostResponseMs=Date\.now\(\)-gasStart/);
 assert.match(gateway,/acceptPerf\.gasRedirectReadMs=Date\.now\(\)-redirectStarted/);

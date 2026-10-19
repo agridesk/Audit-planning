@@ -99,6 +99,7 @@ console.log('notification-email-actions-runtime-20: PASS');
 
 assert.match(auth,/u\.pathname==='\/email-action'&&req\.method==='GET'/);
 assert.match(gateway,/u\.pathname==='\/api\/v1\/auditor\/email-action-read'/);
+assert.doesNotMatch(gateway,/u\.pathname==='\/api\/v1\/auditor\/email-action-read'[\s\S]{0,160}acceptPerf\.authMs/,'GET read handler must not use POST-only ACCEPT timing variables');
 assert.doesNotMatch(auth,/Legacy email links land in the existing Auditor Grid/);
 assert.match(auth,/safeLoginDestination\(raw,role\)/);
 assert.match(auth,/location':'\/\?next='\+encodeURIComponent\(dest\)/);

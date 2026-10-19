@@ -548,6 +548,27 @@ function ns_reservePending_(nqSheet, values) {
   if (!values || values.length < 2) return 0;
 
   var touched = 0;
+  // Rolling 5-minute windows group by original recipient and operational digest.
+  // Reuse still-open reservations so cron execution boundaries cannot split a batch.
+  var rollingWindows20 = {};
+  function rollingKey20(recipient, group) {
+    return String(recipient||'').trim().toLowerCase()+'|'+String(group||'').trim().toUpperCase();
+  }
+  function rollingEligible20(cfg) {
+    var group=String(cfg.digestGroup||'').trim().toUpperCase();
+    return cfg.consolidate!==false && Number(cfg.bufferMinutes)>0 &&
+      (group==='AUDITOR_OPERATIONAL'||group==='MANAGER_APPROVAL'||group==='RICH_OPERATIONAL'||group==='MANAGER_APPROVAL_OPERATIONAL');
+  }
+  for (var w=1;w<values.length;w++) {
+    if(String(values[w][1]||'').trim()!=='RESERVED')continue;
+    var prev=ns_parseReserved_(values[w][12]),prevCfg=prev&&prev.payload&&prev.payload.config||{};
+    if(!prev||!rollingEligible20(prevCfg))continue;
+    var prevDue=Number(prev.windowDueAtMs||0),prevStart=Number(prev.windowStartAtMs||0);
+    if(!prevStart||!prevDue||!prev.groupKey)continue;
+    var rk=rollingKey20(values[w][3],prevCfg.digestGroup);
+    if(!rollingWindows20[rk])rollingWindows20[rk]=[];
+    rollingWindows20[rk].push({start:prevStart,due:prevDue,groupKey:prev.groupKey,windowKey:prev.windowKey});
+  }
 
   for (var r = 1; r < values.length; r++) {
     var status = String(values[r][1] || '').trim();
@@ -569,6 +590,22 @@ function ns_reservePending_(nqSheet, values) {
     if (!createdAtMs) createdAtMs = Date.now();
 
     var reservation = ns_computeReservation_(r + 1, recipient, createdAtMs, cfg);
+    if(rollingEligible20(cfg)){
+      var bucketKey=rollingKey20(recipient,cfg.digestGroup),windows=rollingWindows20[bucketKey]||[];
+      var matched=null;
+      for(var wi=0;wi<windows.length;wi++){
+        if(createdAtMs>=windows[wi].start&&createdAtMs<windows[wi].due){matched=windows[wi];break;}
+      }
+      if(!matched){
+        var windowLength=Math.max(1,Number(cfg.bufferMinutes))*60000;
+        matched={start:createdAtMs,due:createdAtMs+windowLength,
+          windowKey:'ROLLING_'+String(r+1)+'_'+String(createdAtMs),
+          groupKey:recipient.trim().toLowerCase()+'|'+String(cfg.digestGroup||'').trim().toUpperCase()+'|'+String(createdAtMs)};
+        windows.push(matched);rollingWindows20[bucketKey]=windows;
+      }
+      reservation={windowKey:matched.windowKey,groupKey:matched.groupKey,
+        windowStartAtMs:matched.start,windowDueAtMs:matched.due,rollingExternal:false};
+    }
 
     var newReserved = {
       payload: payload,

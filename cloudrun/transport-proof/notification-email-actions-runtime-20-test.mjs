@@ -23,6 +23,8 @@ assert.match(gas,/AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_=\{auditId:id20/);
 assert.match(gas,/AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_=null/);
 assert.match(statusMachine,/AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_\.auditId === auditId/);
 assert.match(statusMachine,/__indexed = AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_/);
+assert.match(statusMachine,/__indexed\.rowNumber > 1/);
+assert.match(gas,/acceptStages20\.statusBreakdown=outcome20\.statusPerf/);
 assert.match(statusMachine,/action === ACTION\.ACCEPT && actor === ROLE\.AUDITOR/,'ACCEPT queue dispatch is gated by durable audit evidence');
 assert.match(statusMachine,/result\.lifecycle\.auditTrail\.skipped !== true/,'Missing lifecycle audit trail cannot bypass synchronous notification');
 assert.match(statusMachine,/result\.lifecycle\.auditorMetadataWritten === true/,'Missing decision metadata cannot bypass synchronous notification');

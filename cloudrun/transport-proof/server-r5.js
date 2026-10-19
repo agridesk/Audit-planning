@@ -56,17 +56,17 @@ function safeLoginDestination(raw,role){
   if(parsed.pathname==='/'){
     const id=parsed.searchParams.get('auditId')||'',requested=String(parsed.searchParams.get('emailAction')||'').toUpperCase();
     if(!id)return '/';
-    if(!/^[A-Za-z0-9_-]{1,120}$/.test(id)||!['','ACCEPT','CANCEL','APPROVE'].includes(requested))return '/';
+    if(!/^[A-Za-z0-9_,.-]{1,120}$/.test(id)||!['','ACCEPT','CANCEL','APPROVE'].includes(requested))return '/';
     if(requested==='APPROVE'&&role!=='Manager')return '/';
     if(['ACCEPT','CANCEL'].includes(requested)&&role!=='Auditor')return '/';
     return '/?auditId='+encodeURIComponent(id)+(requested?'&emailAction='+encodeURIComponent(requested):'');
   }
   if(parsed.pathname==='/email-action'){
     const id=parsed.searchParams.get('auditId')||'',action=String(parsed.searchParams.get('action')||'').toUpperCase();
-    if(!/^[A-Za-z0-9_-]{1,120}$/.test(id)||!['ACCEPT','CANCEL'].includes(action)||role!=='Auditor')return '/';
+    if(!/^[A-Za-z0-9_,.-]{1,120}$/.test(id)||!['ACCEPT','CANCEL'].includes(action)||role!=='Auditor')return '/';
     return '/email-action?auditId='+encodeURIComponent(id)+'&action='+encodeURIComponent(action);
   }
-  if(parsed.pathname==='/planning'&&/^[A-Za-z0-9_-]{1,120}$/.test(parsed.searchParams.get('auditId')||'')&&['Manager','Auditor'].includes(role))return '/planning?auditId='+encodeURIComponent(parsed.searchParams.get('auditId'));
+  if(parsed.pathname==='/planning'&&/^[A-Za-z0-9_,.-]{1,120}$/.test(parsed.searchParams.get('auditId')||'')&&['Manager','Auditor'].includes(role))return '/planning?auditId='+encodeURIComponent(parsed.searchParams.get('auditId'));
   return '/';
 }
 function cloudAuthLoginHtml(){
@@ -346,7 +346,7 @@ http.createServer(async(req,res)=>{
   if(u.pathname==='/auth/signed-handoff'&&req.method==='POST'){try{return await handleManagerSessionHandoff(req,res);}catch(err){return sendJson(res,500,{ok:false,error:'MANAGER_SESSION_HANDOFF_FAILED',detail:clean(err&&err.message||err)});}}
   if(u.pathname==='/email-action'&&req.method==='GET'){
     const id=clean(u.searchParams.get('auditId')),action=clean(u.searchParams.get('action')).toUpperCase();
-    if(!/^[A-Za-z0-9_-]{1,120}$/.test(id)||!['ACCEPT','CANCEL'].includes(action))return sendHtml(res,400,'Invalid email action');
+    if(!/^[A-Za-z0-9_,.-]{1,120}$/.test(id)||!['ACCEPT','CANCEL'].includes(action))return sendHtml(res,400,'Invalid email action');
     const identity=await sessionIdentity(req);
     if(!identity){
       const dest='/email-action?auditId='+encodeURIComponent(id)+'&action='+encodeURIComponent(action);

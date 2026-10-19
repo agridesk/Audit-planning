@@ -363,7 +363,7 @@ http.createServer(async(req,res)=>{
 (async()=>{'use strict';const auditId=${JSON.stringify(id)},action=${JSON.stringify(action)};
 const el=id=>document.getElementById(id);
 try{
- const resp=await fetch('/api/v1/auditor/email-action-read?auditId='+encodeURIComponent(auditId),{credentials:'same-origin'}),data=await resp.json();
+ const resp=await fetch('/api/v1/auditor/email-action-read?auditId='+encodeURIComponent(auditId),{credentials:'same-origin'});const responseText=await resp.text();let data;try{data=JSON.parse(responseText)}catch{throw Error('Audit verification service unavailable (HTTP '+resp.status+'). No action performed.');}
  if(!resp.ok||data.success===false)throw Error('Cannot verify your audit permissions.');
  const audit=(data.rows||[]).find(r=>r.auditId===auditId);
  if(!audit)throw Error('This audit is not assigned to your account or is no longer available.');

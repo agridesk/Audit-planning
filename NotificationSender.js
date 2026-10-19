@@ -562,6 +562,9 @@ function ns_reservePending_(nqSheet, values) {
   for (var w=1;w<values.length;w++) {
     if(String(values[w][1]||'').trim()!=='RESERVED')continue;
     var prev=ns_parseReserved_(values[w][12]),prevCfg=prev&&prev.payload&&prev.payload.config||{};
+    if(String(values[w][2]||'').trim().toUpperCase()==='AUDIT_PLANNED_BY_MANAGER' && typeof NB_getEventConfig_==='function') {
+      prevCfg=NB_getEventConfig_('AUDIT_PLANNED_BY_MANAGER')||prevCfg;
+    }
     if(!prev||!rollingEligible20(prevCfg))continue;
     var prevDue=Number(prev.windowDueAtMs||0),prevStart=Number(prev.windowStartAtMs||0);
     if(!prevStart||!prevDue||!prev.groupKey)continue;
@@ -583,6 +586,11 @@ function ns_reservePending_(nqSheet, values) {
     var reservedWrapper = ns_parseReserved_(values[r][12]);
     var payload = (reservedWrapper && reservedWrapper.payload) ? reservedWrapper.payload : {};
     var cfg = (payload && payload.config) ? payload.config : {};
+    // Notification_Config is the live SSOT. Queue snapshots must not silently
+    // disable manager-to-auditor consolidation (e.g. stale DEFAULT group).
+    if(String(values[r][2]||'').trim().toUpperCase()==='AUDIT_PLANNED_BY_MANAGER' && typeof NB_getEventConfig_==='function') {
+      cfg=NB_getEventConfig_('AUDIT_PLANNED_BY_MANAGER')||cfg;
+    }
 
     if (cfg.sendEmail === false || cfg.logOnly === true) continue;
 

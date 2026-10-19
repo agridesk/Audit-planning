@@ -7,7 +7,7 @@ function NotificationQueue20_InstallDevTrigger() {
   var handler='NotificationSender_RunDigest10M';
   var triggers=ScriptApp.getProjectTriggers();
   var existing=triggers.filter(function(t){return t.getHandlerFunction()===handler;});
-  if(!existing.length) ScriptApp.newTrigger(handler).timeBased().everyMinutes(5).create();
+  if(!existing.length) ScriptApp.newTrigger(handler).timeBased().everyMinutes(1).create();
   var active=ScriptApp.getProjectTriggers().filter(function(t){return t.getHandlerFunction()===handler;});
   var processed=NotificationSender_RunDigest10M();
   return {ok:active.length>0&&processed.success===true,environment:'DEV',handler:handler,triggerCount:active.length,created:!existing.length,processed:processed};

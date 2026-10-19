@@ -569,11 +569,15 @@ function Status_applyPlan_(ctx, transition, payload, actorFromDispatcher, action
 }
 
 function Status_applySimpleStatusWrite_(ctx, transition, actor, action, payload) {
+  var __writeStarted = Date.now();
   ctx.sheet.getRange(ctx.rowIndex, ctx.col.status + 1).setValue(transition.afterStatusDisplay);
+  var __sheetWriteMs = Date.now() - __writeStarted;
+  var __lifecycleStarted = Date.now();
   var lifecycle = Status_lifecycleOnStatusChanged_(ctx, transition, actor, action, payload, 'CoreStatusMachine.Status_applySimpleStatusWrite_');
   Status_invalidateAuditPlanningPack_();
   var res = Status_buildActionResult_(transition, { auditId: ctx.auditId, action: action });
   res.lifecycle = lifecycle;
+  res.canonicalWriteTiming = {statusCellWriteMs:__sheetWriteMs,lifecycleMs:Date.now()-__lifecycleStarted};
   res.metadataWritten = !!(lifecycle && (lifecycle.managerMetadataWritten || lifecycle.statusSinceWritten));
   return res;
 }

@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const src=readFileSync(new URL('../../NotificationSender.js',import.meta.url),'utf8');
 const start=src.indexOf('function ns_reservePending_(');
-const end=src.indexOf('/* ============================================================\n * Sending',start);
+const end=src.indexOf('function ns_sendDueReserved_(',start);
 assert.ok(start>=0&&end>start,'Sender reservation contract found');
 const events=[];
 const c={

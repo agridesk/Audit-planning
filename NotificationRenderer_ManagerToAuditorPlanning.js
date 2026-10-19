@@ -74,9 +74,6 @@ function NB_renderRichOperationalHtml_(n) {
   var plannedBy = NB_clean_(n.actor || n.actorEmail || '');
   var plannedOn = NB_clean_(n.plannedOn || n.timestamp || '');
   var status = NB_clean_(n.displayStatus || 'Pending acceptance');
-  var contactName = NB_clean_(n.contactName || '');
-  var contactPhone = NB_clean_(n.contactPhone || n.contactTelephone || '');
-  var contactEmail = NB_clean_(n.contactEmail || '');
   var comment = NB_clean_(n.comment || '');
   var companyComment = NB_clean_(n.companyComments || '');
 
@@ -122,16 +119,6 @@ function NB_renderRichOperationalHtml_(n) {
   html.push('</td>');
   html.push('</tr>');
   html.push('</table>');
-
-  if (contactName || contactPhone || contactEmail || comment || companyComment || mpsNumber) {
-    html.push('<div style="font-size:15px;font-weight:800;color:#0f172a;margin:14px 0 8px">Contact details</div>');
-    html.push('<table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;margin:0 0 12px">');
-    html.push(NB_managerToAuditorSimpleRowHtml_('MPS Number', mpsNumber || '-'));
-    html.push(NB_managerToAuditorSimpleRowHtml_('Contact name', contactName || '-'));
-    html.push(NB_managerToAuditorSimpleRowHtml_('Contact telephone', contactPhone || '-'));
-    html.push(NB_managerToAuditorSimpleRowHtml_('Contact e-mail', contactEmail || '-'));
-    html.push('</table>');
-  }
 
   html.push(NB_renderManagerToAuditorValidationHtml_(n));
 
@@ -618,14 +605,6 @@ function NB_managerToAuditorCalendarDescriptionLines_(n, b) {
     desc.push('');
     desc.push('Company comments:');
     desc.push(NB_clean_(n.companyComments || b.companyComments));
-  }
-
-  if (n.contactName || n.contactEmail || n.contactPhone || b.contactName || b.contactEmail || b.contactPhone) {
-    desc.push('');
-    desc.push('Contact details:');
-    if (n.contactName || b.contactName) desc.push('Name: ' + NB_clean_(n.contactName || b.contactName));
-    if (n.contactEmail || b.contactEmail) desc.push('Email: ' + NB_clean_(n.contactEmail || b.contactEmail));
-    if (n.contactPhone || b.contactPhone) desc.push('Phone: ' + NB_clean_(n.contactPhone || b.contactPhone));
   }
 
   return desc;

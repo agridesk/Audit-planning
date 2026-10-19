@@ -7,10 +7,13 @@ function NotificationQueue20_InstallDevTrigger() {
   var handler='NotificationSender_RunDigest10M';
   var triggers=ScriptApp.getProjectTriggers();
   var existing=triggers.filter(function(t){return t.getHandlerFunction()===handler;});
-  if(!existing.length) ScriptApp.newTrigger(handler).timeBased().everyMinutes(1).create();
+  // GAS permits 1, 5, 10, 15 or 30 minute clock frequencies, not every 2 minutes.
+  // Reinstall only this managed handler's visible triggers; do not affect other jobs.
+  for(var i=0;i<existing.length;i++) ScriptApp.deleteTrigger(existing[i]);
+  ScriptApp.newTrigger(handler).timeBased().everyMinutes(1).create();
   var active=ScriptApp.getProjectTriggers().filter(function(t){return t.getHandlerFunction()===handler;});
   var processed=NotificationSender_RunDigest10M();
-  return {ok:active.length>0&&processed.success===true,environment:'DEV',handler:handler,triggerCount:active.length,created:!existing.length,processed:processed};
+  return {ok:active.length>0&&processed.success===true,environment:'DEV',handler:handler,triggerCount:active.length,created:true,replaced:existing.length,frequencyMinutes:1,processed:processed};
 }
 function NotificationQueue20_DiagnoseDev() {
   if (typeof SYS_getEnv_ !== 'function' || SYS_getEnv_() !== 'DEV') throw new Error('DEV_ONLY');

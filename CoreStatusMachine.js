@@ -421,7 +421,7 @@ function Status_loadAudit_(auditId, rowIndexHint) {
       }
     } catch (eHint) {}
   }
-  if (!__indexed && typeof AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_ !== "undefined" && AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_ && AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_.auditId === auditId && AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_.rowNumber === __hint && AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_.sheet === sh) {
+  if (!__indexed && typeof AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_ !== "undefined" && AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_ && AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ === true && AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_.auditId === auditId && AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_.rowNumber === __hint && AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_.sheet === sh) {
     __indexed = AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_;
   }
   if (!__indexed && typeof __mp_getAuditPlanningRow_ === 'function') {

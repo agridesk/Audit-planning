@@ -14,6 +14,7 @@ const ctx={
 Date,JSON,String,Number,Object,Math,Array,
 NS_DEFAULT_FROM_NAME:'AMS',NS_DEFAULT_FROM_EMAIL:'planning@agriqa.es',
 ns_parseReserved_:v=>JSON.parse(v),ns_toMs_:v=>new Date(v).getTime(),
+ns_normalizeBody_:v=>String(v??''),
 ns_currentEmailPermissions_:()=>({AUDIT_PLANNED_BY_MANAGER:true}),
 ns_buildDigestEmail_:(to,items)=>({subject:'Digest '+items.length,body:items.map(x=>x.auditId).join(','),htmlBody:'',fromName:'AMS'}),
 ns_resolveNotificationDelivery_:to=>({mode:'DRY_RUN',send:false,recipient:'',originalRecipients:[to],overridden:false}),

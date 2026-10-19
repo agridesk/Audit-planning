@@ -1664,7 +1664,6 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
 
   if(u.pathname==='/api/v1/auditor/email-action-read'&&req.method==='GET'){
     const actor=await sessionFromRequestValidated(req);
-    acceptPerf.authMs=Date.now()-acceptStarted;
     if(!actor)return send(res,401,{success:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='auditor'||!clean(actor.auditorUid||actor.auditorId))return send(res,403,{success:false,error:'AUDITOR_UID_REQUIRED'});
     const auditId=clean(u.searchParams.get('auditId'));

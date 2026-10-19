@@ -73,6 +73,7 @@ assert.match(notificationQueue,/inheritedLock \|\| lock\.tryLock\(5000\)/);
 assert.match(notificationQueue,/acquired&&!inheritedLock/);
 assert.match(portal,/async function acceptSelectedAudits20\(/);
 assert.match(portal,/bulkAcceptRunning20/);
+assert.match(portal,/String\(actorRole\)\.toLowerCase\(\)==='auditor'\?\['COMPLETE'\]/);
 assert.match(portal,/await runActionViaCloudRun\(id,"accept",\{expectedRevision:audit\.sourceRevision\}\)/);
 assert.match(mail,/Open Auditor Grid · accept multiple audits/);
 console.log('notification-email-actions-runtime-20: PASS');

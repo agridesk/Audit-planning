@@ -403,7 +403,7 @@ function Status_loadAudit_(auditId, rowIndexHint) {
   // rebuilding/scanning the Audit ID index for every external action.
   var __indexed = null;
   var __hint = Number(rowIndexHint || 0);
-  if (__hint > 1) {
+  if (__hint > 1 && !(typeof AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_ !== "undefined" && AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_ && AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_.auditId === auditId)) {
     try {
       var __hintLastCol = sh.getLastColumn();
       var __hintHdr = sh.getRange(1, 1, 1, __hintLastCol).getValues()[0];
@@ -420,6 +420,9 @@ function Status_loadAudit_(auditId, rowIndexHint) {
         }
       }
     } catch (eHint) {}
+  }
+  if (!__indexed && typeof AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_ !== "undefined" && AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_ && AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_.auditId === auditId && AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_.rowNumber === __hint && AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_.sheet === sh) {
+    __indexed = AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_;
   }
   if (!__indexed && typeof __mp_getAuditPlanningRow_ === 'function') {
     __indexed = __mp_getAuditPlanningRow_(ss, auditId);

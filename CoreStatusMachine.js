@@ -427,7 +427,7 @@ function Status_loadAudit_(auditId, rowIndexHint) {
   if (!__indexed && typeof __mp_getAuditPlanningRow_ === 'function') {
     __indexed = __mp_getAuditPlanningRow_(ss, auditId);
   }
-  var lastRow = sh.getLastRow();
+  var lastRow = (__indexed && __indexed.rowNumber > 1) ? __indexed.rowNumber : sh.getLastRow();
   var lastCol = (__indexed && __indexed.hdr && __indexed.hdr.length)
     ? __indexed.hdr.length
     : sh.getLastColumn();

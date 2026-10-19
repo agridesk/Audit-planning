@@ -27,6 +27,7 @@ function updateSelectionUi(){
   var auditorMode=String(actorRole).toLowerCase()==="auditor";
   if(batch)batch.style.display=currentView==="open"&&!auditorMode?"":"none";
   if(concept)concept.style.display=currentView==="open"&&!auditorMode?"":"none";
+  var bulkAccept=document.getElementById("selectionAcceptAuditor");if(bulkAccept){var elig=selectionRows().filter(function(r){return r.statusKey==="APPROVED"&&(r.allowedActions||[]).includes("ACCEPT")});bulkAccept.hidden=!(auditorMode&&currentView==="open"&&elig.length>0);bulkAccept.textContent="Accept selected ("+elig.length+")";bulkAccept.disabled=bulkAcceptRunning20;}
 }
 function bindSelectionControls(root){
   (root||document).querySelectorAll(".grid-select-row").forEach(function(cb){cb.addEventListener("change",function(){selectionToggle(cb.getAttribute("data-audit-id"),!!cb.checked)})});
@@ -34,6 +35,30 @@ function bindSelectionControls(root){
   updateSelectionUi();
 }
 function selectionRows(){var by={};all.forEach(function(r){if(r&&r.auditId)by[r.auditId]=r});return selectionIds().map(function(id){return by[id]}).filter(Boolean)}
+var bulkAcceptRunning20=false;
+async function acceptSelectedAudits20(){
+ if(bulkAcceptRunning20||String(actorRole).toLowerCase()!=="auditor"||currentView!=="open")return;
+ var selected=selectionRows().filter(function(r){return r.statusKey==="APPROVED"&&(r.allowedActions||[]).includes("ACCEPT")});
+ if(!selected.length)return;
+ if(!window.confirm("Accept "+selected.length+" selected audit(s)? Each audit will be verified separately."))return;
+ bulkAcceptRunning20=true;updateSelectionUi();
+ var ok=0,fail=0,firstError="",started=performance.now();
+ for(var i=0;i<selected.length;i++){
+   var audit=selected[i],id=audit.auditId;
+   document.getElementById("status").textContent="Accepting "+(i+1)+"/"+selected.length+": "+audit.company;
+   if(busyAudits.has(id)){fail++;continue}
+   busyAudits.add(id);
+   try{
+     var response=await runActionViaCloudRun(id,"accept",{expectedRevision:audit.sourceRevision});
+     var result=response.result||{};
+     patchActionLikeV1(id,"accept","",result,{startedAt:performance.now(),patchMs:0});
+     gridSelected.delete(id);ok++;
+   }catch(err){fail++;if(!firstError)firstError=String(err.message||err)}
+   finally{busyAudits.delete(id)}
+ }
+ bulkAcceptRunning20=false;updateSelectionUi();
+ document.getElementById("status").textContent="Bulk ACCEPT: "+ok+" accepted, "+fail+" failed · "+Math.round(performance.now()-started)+" ms"+(firstError?" · First error: "+firstError:"");
+}
 function selectionExportHeaders(){return currentView==="completed"?["Company","Region","Scopes","Executed on","Auditor","Hours planned","Hours dedicated","Completed date","Status"]:["Company","Locations","Region","GPS / Map","Scopes","Status","Expiration date","Planning window","Self planning","Date planned","To be planned","Hours planned","Auditor","Alert"]}
 function selectionExportRows(){return selectionRows().map(function(r){if(currentView==="completed")return[r.company,r.region,r.scopesText,r.executedOn,r.auditorDisplayName||r.auditorName||r.auditor,r.hoursPlanned,r.hoursDedicated,r.completedDate,r.status||"Completed"];var windowText=r.planningWindowText||([r.planningWindowFrom,r.planningWindowTo].filter(Boolean).join(" → "));return[r.company,locationText(r),r.region,(function(){var g=gpsValue(r);return g?(/^https?:\/\//i.test(g)?g:"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(g)):""})(),r.scopesText,displayStatus(r.status),compactDate(effectiveExpiry(r)),windowText,r.allowSelfPlanning===true||String(r.allowSelfPlanning).toLowerCase()==="true"?"Yes":"No",compactDate(r.datePlanned),r.requiredHours,r.hoursPlanned,r.assignedToDisplayName||r.auditorDisplayName||r.assignedTo||r.auditor,r.preassignmentConflict?eligibilityConflictText(r):(r.latestComment?((r.latestCommentTimestamp?String(r.latestCommentTimestamp)+" · ":"")+latestCommentText(r)):"")]})}
 function selectionExcelSafeCell(v){var s=String(v==null?"":v);return /^[\s\u0000-\u001f]*[=+@]/.test(s)||/^[\s\u0000-\u001f]*-[^0-9.]/.test(s)?"\u0027"+s:s}
@@ -329,6 +354,7 @@ function passiveRefreshOpen(){
 }
 window.addEventListener("focus",function(){passiveRefreshOpen()});
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")passiveRefreshOpen()});
+document.getElementById("selectionAcceptAuditor").onclick=acceptSelectedAudits20;
 document.getElementById("q").addEventListener("input",filter);document.getElementById("reset").onclick=function(){document.getElementById("q").value="";render(all)};document.getElementById("openView").onclick=loadOpen;document.getElementById("completedView").onclick=loadCompleted;
 document.getElementById("selectionClear").onclick=selectionClear;
 document.getElementById("selectionBatch").onclick=function(){submitSelectionHandoff("batch")};

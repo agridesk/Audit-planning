@@ -239,7 +239,7 @@ function patchActionLikeV1(auditId,action,reason,result,perf){
   if(action==='approve'){
     after.status='Accepted';after.statusKey='ACCEPTED';after.allowedActions=['CANCEL','REJECT']
   }else if(action==='accept'){
-    after.status='Accepted';after.statusKey='ACCEPTED';after.allowedActions=['CANCEL','REJECT']
+    after.status='Accepted';after.statusKey='ACCEPTED';after.allowedActions=String(actorRole).toLowerCase()==='auditor'?['COMPLETE']:['CANCEL','REJECT']
   }else if(action==='cancel'){
     after.status='Pending Planning';after.statusKey='PENDING_PLANNING';after.allowedActions=['PLAN','REJECT'];
     after.auditor='';after.assigned='';after.assignedTo='';after.assignedToEmail='';after.datePlanned='';

@@ -394,6 +394,7 @@ function doPost(e) {
       var currentRevision20=digest20.map(function(b){return ('0'+((b+256)%256).toString(16)).slice(-2);}).join('').slice(0,24);
       if(currentRevision20!==revision20)return respond20({success:false,error:'AUDIT_REVISION_CONFLICT'});
       if(typeof Status_applyAction!=='function')return respond20({success:false,error:'CANONICAL_STATUS_MACHINE_UNAVAILABLE'});
+      AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_={auditId:id20,rowNumber:auditHits20[0].getRow(),sheet:p20,hdr:ph20,row:current20,lastCol:ph20.length};
       acceptPhase20='status_machine';
       var statusT020=Date.now();
       var outcome20=Status_applyAction('AUDITOR',action20,id20,{actorRole:'AUDITOR',actorEmail:email20,auditorUid:uid20,reason:reason20,comment:reason20,rowIndex:auditHits20[0].getRow()});

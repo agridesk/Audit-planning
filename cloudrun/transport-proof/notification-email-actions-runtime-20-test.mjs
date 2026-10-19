@@ -11,6 +11,8 @@ const notificationQueue=get('../../StatusNotificationBridge_PerformanceRoute.js'
 const mail=get('../../NotificationRenderer_ManagerToAuditorPlanning.js');
 assert.match(mail,/email-action/);
 assert.match(auth,/email-action-read\?auditId/);
+assert.match(auth,/Audit verification service unavailable \(HTTP /);
+assert.match(auth,/data=JSON\.parse\(responseText\)/);
 assert.match(mail,/ACCEPT audit/);
 assert.doesNotMatch(mail,/action=acceptaudit/i);
 assert.match(portal,/x==="PLAN"\|\|x==="ACCEPT"\|\|x==="CANCEL"\|\|x==="COMPLETE"/);

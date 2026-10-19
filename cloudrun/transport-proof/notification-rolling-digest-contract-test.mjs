@@ -11,7 +11,8 @@ const c={
   ns_parseReserved_:v=>{try{return JSON.parse(v||'{}')}catch{return {}}},
   ns_toMs_:v=>v instanceof Date?v.getTime():Date.parse(v),
   ns_isoCompact_:d=>d.toISOString(),
-  Date,Number,String,JSON,Math,isFinite
+  Date,Number,String,JSON,Math,isFinite,
+  NB_getEventConfig_:event=>event==='AUDIT_PLANNED_BY_MANAGER'?{sendEmail:true,logOnly:false,consolidate:true,bufferMinutes:5,digestGroup:'AUDITOR_OPERATIONAL'}:{}
 };
 vm.runInNewContext(src.slice(start,end),c);
 function testReserve(rows){
@@ -37,5 +38,8 @@ assert.notEqual(JSON.parse(rows[4][12]).groupKey,a.groupKey,'Distinct auditors n
 rows.push(row(startTime+360000,'info@agridesk.com','E'));
 assert.equal(testReserve(rows),1);
 assert.notEqual(JSON.parse(rows[5][12]).groupKey,a.groupKey,'Outside rolling window starts a new digest');
+rows.push([new Date(startTime+60000),'PENDING','AUDIT_PLANNED_BY_MANAGER','info@agridesk.com','STALE','','','',0,'','','',JSON.stringify({payload:{config:{consolidate:false,bufferMinutes:0,digestGroup:'DEFAULT'}}})]);
+assert.equal(testReserve(rows),1);
+assert.equal(JSON.parse(rows[6][12]).groupKey,a.groupKey,'Live Notification_Config overrides stale queue snapshot and joins existing rolling window');
 assert.ok(events.length>0);
 console.log('notification-rolling-digest-contract: PASS');

@@ -76,6 +76,11 @@ assert.match(portal,/bulkAcceptRunning20/);
 assert.match(portal,/String\(actorRole\)\.toLowerCase\(\)==='auditor'\?\['COMPLETE'\]/);
 assert.match(portal,/await runActionViaCloudRun\(id,"accept",\{expectedRevision:audit\.sourceRevision\}\)/);
 assert.match(mail,/Open Auditor Grid · accept multiple audits/);
+assert.match(mail,/Before accepting:/);
+assert.match(mail,/Remember me \(14 days\)/);
+assert.match(auth,/emailActionLoginNote/);
+assert.match(auth,/loginNext\.startsWith\('\/email-action\?'\)/);
+assert.match(gateway,/data\?\.remember===true\?14\*86400:7200/);
 console.log('notification-email-actions-runtime-20: PASS');
 
 assert.match(auth,/u\.pathname==='\/email-action'&&req\.method==='GET'/);

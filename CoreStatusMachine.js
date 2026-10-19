@@ -294,6 +294,16 @@ function Status_applyAction(actor, action, auditId, payload) {
         // extend the interactive planning save with another queue transaction.
         if (action === ACTION.PLAN && actor === ROLE.MANAGER) {
           result.notificationBridge = { success:true, skipped:true, deferred:true, reason:'MANAGER_PLAN_RECONCILER' };
+        } else if (action === ACTION.ACCEPT && actor === ROLE.AUDITOR &&
+                   result.lifecycle && result.lifecycle.success === true &&
+                   result.lifecycle.auditTrail && result.lifecycle.auditTrail.success === true &&
+                   result.lifecycle.auditTrail.skipped !== true &&
+                   result.lifecycle.auditorMetadataWritten === true) {
+          // Durable ACCEPT lifecycle outbox + decision metadata are both present.
+          // NotificationAcceptedReconciler (1m), plus the metadata fallback,
+          // idempotently enqueue AUDIT_ACCEPTED and ECAS digest asynchronously.
+          // If either durable recovery source failed, retain synchronous dispatch.
+          result.notificationBridge = { success:true, skipped:true, deferred:true, reason:'ACCEPT_DURABLE_OUTBOX_RECONCILER' };
         } else if (typeof StatusNotificationBridge_Dispatch_ === 'function') {
           result.notificationBridge = StatusNotificationBridge_Dispatch_(action, actor, ctx, payload, result) || { success:true, skipped:true, reason:'NO_QUEUE_RESULT' };
         } else {

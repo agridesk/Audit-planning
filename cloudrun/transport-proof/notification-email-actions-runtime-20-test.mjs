@@ -11,6 +11,9 @@ const notificationQueue=get('../../StatusNotificationBridge_PerformanceRoute.js'
 const mail=get('../../NotificationRenderer_ManagerToAuditorPlanning.js');
 assert.match(mail,/email-action/);
 assert.match(auth,/email-action-read\?auditId/);
+assert.match(auth,/\[A-Za-z0-9_,\.\-\]\{1,120\}/,'Email action navigation accepts canonical punctuation in Audit IDs');
+assert.match(gateway,/\[A-Za-z0-9_,\.\-\]\{1,120\}/,'Email action read accepts canonical punctuation in Audit IDs');
+assert.equal(/^[A-Za-z0-9_,.-]{1,120}$/.test('AUD_RaizdaTerra,lda_HQ_1777531729483_70'),true);
 assert.match(auth,/Audit verification service unavailable \(HTTP /);
 assert.match(auth,/data=JSON\.parse\(responseText\)/);
 assert.match(mail,/ACCEPT audit/);

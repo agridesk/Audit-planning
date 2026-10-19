@@ -1667,7 +1667,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(!actor)return send(res,401,{success:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='auditor'||!clean(actor.auditorUid||actor.auditorId))return send(res,403,{success:false,error:'AUDITOR_UID_REQUIRED'});
     const auditId=clean(u.searchParams.get('auditId'));
-    if(!/^[A-Za-z0-9_,.-]{1,120}$/.test(auditId))return send(res,400,{success:false,error:'INVALID_AUDIT_ID'});
+    if(!/^[\p{L}\p{N}_,.-]{1,120}$/u.test(auditId))return send(res,400,{success:false,error:'INVALID_AUDIT_ID'});
     try{
       const rows=(await sheetsBatchGet(['Audit planning!A1:AX483']))[0]?.values||[];
       const found=findAudit(rows,auditId);

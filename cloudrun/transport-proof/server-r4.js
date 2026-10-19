@@ -1724,11 +1724,15 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       url.searchParams.set('action','externalauditoraction20');
       const gasStart=Date.now();
       const first=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({bridgeKey:WRITE_KEY,actorRole:'AUDITOR',actorEmail:clean(actor.email).toLowerCase(),auditorUid:clean(actor.auditorUid||actor.auditorId),auditId,action,expectedRevision,comment}),redirect:'manual',signal:AbortSignal.timeout(60000)});
+      acceptPerf.gasPostResponseMs=Date.now()-gasStart;
+      acceptPerf.gasPostHttpStatus=first.status;
       let reply=first;
       if([301,302,303,307,308].includes(first.status)){
+        const redirectStarted=Date.now();
         const loc=first.headers.get('location'),target=loc?new URL(loc,url):null;
         if(!target||target.protocol!=='https:'||!target.hostname.endsWith('.googleusercontent.com'))return send(res,503,{success:false,error:'CANONICAL_RESPONSE_REDIRECT_REJECTED'});
         reply=await fetch(target,{method:'GET',redirect:'follow',signal:AbortSignal.timeout(60000)});
+        acceptPerf.gasRedirectReadMs=Date.now()-redirectStarted;
       }
       const verifyActionAfterLostReply=async()=>{
         try{
@@ -1740,6 +1744,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
         return send(res,503,{success:false,error:'AUDITOR_ACTION_OUTCOME_UNCONFIRMED_DO_NOT_RETRY'});
       };
       acceptPerf.gasRoundtripMs=Date.now()-gasStart;
+      acceptPerf.gasResponseHttpStatus=reply.status;
       if(!reply.ok){acceptRecord('gas_non_ok',{httpStatus:reply.status});return await verifyActionAfterLostReply();}
       let result;try{result=JSON.parse(await reply.text());}catch{return await verifyActionAfterLostReply();}
       acceptPerf.gasExecution=result&&result.acceptPerf||null;

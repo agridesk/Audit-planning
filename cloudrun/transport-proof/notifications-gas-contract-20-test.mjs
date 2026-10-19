@@ -199,6 +199,11 @@ assert.match(sharedGrid,/focusEmailAudit20\(\);return loadOpenEnrichment/);
 // Email never promises inline acceptance or carries a non-functional fake button.
 assert.match(auditorMail,/ACCEPT audit/);
 assert.match(auditorMail,/email-action/);
+assert.doesNotMatch(auditorMail,/html\.push\('<div[^']*Contact details<\/div>'\)/,'Customer contact block must not appear in email');
+assert.doesNotMatch(auditorMail,/desc\.push\('Contact details:'\)/,'Customer contacts must not leak into calendar descriptions');
+assert.match(auditorMail,/NB_managerToAuditorGoogleCalendarUrl_\(n, b\)/);
+assert.match(auditorMail,/NB_managerToAuditorAppleCalendarDataUrl_\(n, b, index\)/);
+assert.match(auditorMail,/BEGIN:VCALENDAR/);
 
 assert.match(auditorMail,/This email does not confirm, cancel or change the audit/);
 assert.doesNotMatch(auditorMail,/Go to portal to accept or deny the audit\.'\) \+ '<\/div>'/);

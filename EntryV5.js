@@ -401,7 +401,7 @@ function doPost(e) {
       acceptStages20.statusMachineMs=Date.now()-statusT020;if(action20==='ACCEPT'&&outcome20&&outcome20.canonicalWriteTiming){acceptStages20.canonicalWrite=outcome20.canonicalWriteTiming;acceptStages20.statusNotificationMs=outcome20.statusPerf&&outcome20.statusPerf.notificationOnlyMs;acceptStages20.statusCoreMs=outcome20.statusPerf&&outcome20.statusPerf.coreMs;}acceptPhase20='complete';
       return respond20(outcome20||{success:false,error:'CANONICAL_ACTION_EMPTY'});
     }catch(ex20){return respond20({success:false,error:'AUDITOR_ACTION_FAILED',detail:String(ex20&&ex20.message||ex20).slice(0,160)});}
-    finally{AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_=false;lock20.releaseLock();}
+    finally{AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_=null;AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_=false;lock20.releaseLock();}
   }
   if (rawAction==='externalmanageraction') {
     if(!V5_ENTRY_isDevEnv_())return ContentService.createTextOutput(JSON.stringify({success:false,error:'DEV_ONLY'})).setMimeType(ContentService.MimeType.JSON);

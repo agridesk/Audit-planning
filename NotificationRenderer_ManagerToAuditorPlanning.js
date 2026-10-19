@@ -129,7 +129,7 @@ function NB_renderRichOperationalHtml_(n) {
 
   html.push('<div style="font-size:15px;font-weight:800;color:#0f172a;margin:14px 0 8px">Review this audit</div>');
   html.push('<div style="font-size:11px;line-height:1.45;color:#334155;margin-bottom:10px">');
-  html.push('<div>Open the audit in Audit Grid 2.0. Access is controlled by your existing AMS session (Remember me).</div>');
+  html.push('<div><strong>Before accepting:</strong> you must be signed in to the AMS Auditor Portal. If you are not signed in, the link will first show the secure login screen. Enter the code sent to your email, and select <strong>Remember me (14 days)</strong> to stay signed in on this device. After login you will return to this audit to confirm ACCEPT.</div>');
   html.push('<div>Check the planned dates, company details and available actions. Any change requires your confirmation in AMS.</div>');
   html.push('<div>This email does not confirm, cancel or change the audit.</div>');
   html.push('</div>');

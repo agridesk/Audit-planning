@@ -71,6 +71,10 @@ assert.match(gas,/AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_=true/);
 assert.match(gas,/AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_=false;lock20\.releaseLock\(\)/);
 assert.match(notificationQueue,/inheritedLock \|\| lock\.tryLock\(5000\)/);
 assert.match(notificationQueue,/acquired&&!inheritedLock/);
+assert.match(portal,/async function acceptSelectedAudits20\(/);
+assert.match(portal,/bulkAcceptRunning20/);
+assert.match(portal,/await runActionViaCloudRun\(id,"accept",\{expectedRevision:audit\.sourceRevision\}\)/);
+assert.match(mail,/Open Auditor Grid · accept multiple audits/);
 console.log('notification-email-actions-runtime-20: PASS');
 
 assert.match(auth,/u\.pathname==='\/email-action'&&req\.method==='GET'/);

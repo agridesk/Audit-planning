@@ -11,6 +11,14 @@ const notificationQueue=get('../../StatusNotificationBridge_PerformanceRoute.js'
 const mail=get('../../NotificationRenderer_ManagerToAuditorPlanning.js');
 assert.match(mail,/email-action/);
 assert.match(auth,/email-action-read\?auditId/);
+// Diagnostic timings must separately account for POST, response redirect, GAS execution and whole roundtrip.
+assert.match(gateway,/acceptPerf\.gasPostResponseMs=Date\.now\(\)-gasStart/);
+assert.match(gateway,/acceptPerf\.gasRedirectReadMs=Date\.now\(\)-redirectStarted/);
+assert.match(gateway,/acceptPerf\.gasRoundtripMs=Date\.now\(\)-gasStart/);
+assert.match(gateway,/gasExecution=result&&result\.acceptPerf/);
+assert.match(gateway,/if\(action!=='ACCEPT'\)/,'ACCEPT must avoid a duplicate Sheets read');
+assert.match(gas,/lock20\.tryLock\(10000\)/,'Canonical writer must keep a bounded lock');
+assert.match(gas,/currentRevision20!==revision20/,'Canonical writer must enforce revision CAS');
 assert.match(auth,/\[A-Za-z0-9_,\.\-\]\{1,120\}/,'Email action navigation accepts canonical punctuation in Audit IDs');
 assert.match(gateway,/\[A-Za-z0-9_,\.\-\]\{1,120\}/,'Email action read accepts canonical punctuation in Audit IDs');
 assert.equal(/^[A-Za-z0-9_,.-]{1,120}$/.test('AUD_RaizdaTerra,lda_HQ_1777531729483_70'),true);

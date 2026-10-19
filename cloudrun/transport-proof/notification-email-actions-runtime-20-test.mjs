@@ -36,7 +36,7 @@ assert.match(statusMachine,/result\.lifecycle\.auditTrail\.skipped !== true/,'Mi
 assert.match(statusMachine,/result\.lifecycle\.auditorMetadataWritten === true/,'Missing decision metadata cannot bypass synchronous notification');
 assert.match(statusMachine,/ACCEPT_DURABLE_OUTBOX_RECONCILER/,'ACCEPT uses async reconciler only after durable status evidence');
 assert.match(auth,/\\p\{L\}\\p\{N\}_,\.\-/,'Email action navigation accepts Unicode letters in Audit IDs');
-assert.match(gateway,/\[A-Za-z0-9_,\.\-\]\{1,120\}/,'Email action read accepts canonical punctuation in Audit IDs');
+assert.match(gateway,/\\p\{L\}\\p\{N\}_,\.\-/,'Email action read supports accented Unicode Audit IDs');
 assert.equal(/^[A-Za-z0-9_,.-]{1,120}$/.test('AUD_RaizdaTerra,lda_HQ_1777531729483_70'),true);
 assert.match(auth,/Audit verification service unavailable \(HTTP /);
 assert.match(auth,/data=JSON\.parse\(responseText\)/);

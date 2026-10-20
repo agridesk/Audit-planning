@@ -227,7 +227,7 @@ assert.match(notificationBuilder,/templatePreviewOnly:data\.templatePreviewOnly=
 assert.match(auditorMail,/n\.templatePreviewOnly === true/);
 assert.match(auditorMail,/Template preview only/);
 
-const sender=read('NotificationSender.js');
+const senderDigestSsot=read('NotificationSender.js');
 const overview=read('cloudrun/transport-proof/notification-overview-20.mjs');
 const dashboard=read('cloudrun/transport-proof/notification-manager-20.html');
 const entryBridge=read('EntryV5.js');
@@ -241,5 +241,5 @@ assert.match(notificationApi,/\/api\/v1\/notifications-manager-20\/digest-buffer
 assert.match(overview,/bufferMinutes:value\(r,eBuffer\)/);
 assert.match(dashboard,/Digest buffer \(minutes\)/);
 assert.match(dashboard,/notifications-manager-20\/digest-buffer/);
-assert.match(sender,/NB_getEventConfig_\(String\(values\[r\]\[2\]/);
-assert.match(sender,/cfg\.bufferMinutes == null/);
+assert.match(senderDigestSsot,/NB_getEventConfig_\(String\(values\[r\]\[2\]/);
+assert.match(senderDigestSsot,/cfg\.bufferMinutes == null/);

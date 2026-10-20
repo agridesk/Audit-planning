@@ -6,4 +6,14 @@ assert.equal(result.queue.statusCounts.FAILED,1);assert.equal(result.queue.recen
 assert.equal(JSON.stringify(result).includes('secret'),false);
 assert.equal(result.readOnly,true);
 assert.throws(()=>notificationOverview({queue:[['Other'],['x']]}),/NOTIFICATION_QUEUE_STATUS_MISSING/);
+// Canonical digest parameters must round-trip into the dashboard model.
+const digest=notificationOverview({config:[
+ ['EVENT_KEY','ACTIVE','SEND_EMAIL','CONSOLIDATE','BUFFER_MINUTES','DIGEST_GROUP'],
+ ['AUDIT_ACCEPTED','YES','YES','YES','2','LIFECYCLE_MANAGER'],
+ ['WEEKLY_MANAGER_COMING_UP','YES','YES','YES','60','MANAGER_WEEKLY']
+]});
+assert.equal(digest.events[0].bufferMinutes,'2');
+assert.equal(digest.events[0].digestGroup,'LIFECYCLE_MANAGER');
+assert.equal(digest.events[0].consolidate,'YES');
+assert.equal(digest.events[1].bufferMinutes,'60');
 console.log('notification-overview-20: PASS');

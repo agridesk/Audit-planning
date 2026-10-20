@@ -58,4 +58,5 @@ assert.equal(cancelRecipientGroups.length,2);
 assert.notEqual(cancelRecipientGroups[0][0],cancelRecipientGroups[1][0]);
 assert.ok(cancellationRows.slice(1).every(r=>r[1]==='SENT_SIMULATED'));
 assert.equal(sent.length,0,'No test scenario sends live mail');
+assert.equal(cancelCtx.ns_sendDueReserved_(cancelSheet,cancellationRows).sentGroups,0,'Re-running sender must not redeliver a completed cancellation');
 console.log('notification-digest-send-simulation: PASS');

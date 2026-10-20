@@ -38,6 +38,12 @@ function weeklyRow(recipient){
  return [new Date('2026-10-20T06:00:00Z'),'PENDING','WEEKLY_MANAGER_DIGEST',recipient,'','','','',0,'','','',
  JSON.stringify({payload:{config:{sendEmail:true,consolidate:false,bufferMinutes:0,digestGroup:'MANAGER_WEEKLY'},weeklyPreRendered:{subject:'Weekly overview',body:'Weekly overview'}}})];
 }
+const blockedRows=[['header'],weeklyRow('manager.blocked@example.org')];
+table[1][1]='NO';
+const blockedSheet={getRange:(r,c)=>({setValue:v=>{blockedRows[r-1][c-1]=v;}})};
+assert.equal(ctx.ns_suppressDisabledQueueRows_(blockedSheet,blockedRows,ctx.ns_currentEmailPermissions_()),1);
+assert.equal(blockedRows[1][1],'SENT_SUPPRESSED','Disabled canonical weekly event must suppress legacy mail');
+table[1][1]='YES';
 const rows=[['header'],weeklyRow('manager.one@example.org'),weeklyRow('manager.two@example.org')];
 const sheet={getRange:(r,c)=>({setValue:v=>{rows[r-1][c-1]=v}})};
 assert.equal(ctx.ns_reservePending_(sheet,rows),2);

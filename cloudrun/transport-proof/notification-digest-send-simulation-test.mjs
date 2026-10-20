@@ -32,4 +32,30 @@ assert.equal(result.failedGroups,0);
 assert.equal(sent.length,0,'Simulation never sends actual email');
 assert.equal(rows[4][1],'RESERVED','Undue notification remains queued');
 for(const index of [1,2,3])assert.equal(rows[index][1],'SENT_SIMULATED');
+
+// A manager cancellation keeps each original recipient isolated even in DEV redirection.
+const cancelRecipientGroups=[];
+const cancellationRows=[
+ ['TimestampCreated','Status','Event','Recipient','Audit ID'],
+ ['auditor.one@example.org','AUDITOR_1'],
+ ['auditor.two@example.org','AUDITOR_2']
+].slice(1).map((entry,i)=>[
+ new Date(now-180000),'RESERVED','AUDIT_CANCELLED_BY_MANAGER',entry[0],entry[1],
+ 'Test company','Cancellation','Body',0,'','','',
+ JSON.stringify({payload:{config:{sendEmail:true,consolidate:true,bufferMinutes:10,digestGroup:'LIFECYCLE_AUDITOR'}},windowKey:'cancel-window',groupKey:entry[0]+'|LIFECYCLE_AUDITOR|cancel-window',windowDueAtMs:now-1000})
+]);
+cancellationRows.unshift(['TimestampCreated','Status','Event','Recipient','Audit ID']);
+const cancelCtx={...ctx,
+ ns_currentEmailPermissions_:()=>({AUDIT_CANCELLED_BY_MANAGER:true}),
+ ns_buildDigestEmail_:(to,items)=>{cancelRecipientGroups.push([to,items.length]);return{subject:'Cancellation',body:'Body',htmlBody:'',fromName:'AMS'};},
+ ns_resolveNotificationDelivery_:to=>({mode:'DRY_RUN',send:false,recipient:'',originalRecipients:[to],overridden:false})
+};
+vm.runInNewContext(source.slice(start,end),cancelCtx);
+const cancelSheet={getRange:(r,c)=>({getValue:()=>cancellationRows[r-1][c-1],setValue:v=>{cancellationRows[r-1][c-1]=v;}})};
+const cancelResult=cancelCtx.ns_sendDueReserved_(cancelSheet,cancellationRows);
+assert.equal(cancelResult.sentGroups,2,'Cancellations must never be merged across original recipients');
+assert.equal(cancelRecipientGroups.length,2);
+assert.notEqual(cancelRecipientGroups[0][0],cancelRecipientGroups[1][0]);
+assert.ok(cancellationRows.slice(1).every(r=>r[1]==='SENT_SIMULATED'));
+assert.equal(sent.length,0,'No test scenario sends live mail');
 console.log('notification-digest-send-simulation: PASS');

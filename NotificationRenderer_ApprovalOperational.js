@@ -161,7 +161,7 @@ function NB_renderOperationalDigest_(recipientEmail, normalizedItems) {
       '<div style="margin:0 0 18px">'+NB_managerToAuditorAcceptInPortalCtaHtml_(normalizedItems[0])+'</div>'];
     for(var ci=0;ci<cards.length;ci++)html.push('<div style="margin-bottom:12px">'+cards[ci]+'</div>');
     html.push('<div style="font-size:11px;color:#64748b;margin-top:17px">Automated notification from AgriQA. Please do not reply.</div></div>');
-    return {subject:'[Audit Planning] '+heading,body:summary.join('\\n'),htmlBody:html.join('')};
+    return {subject:'[Audit Planning] '+heading,body:summary.join('\n'),htmlBody:html.join('')};
   }
 
   if (normalizedItems.length === 1) {

@@ -246,4 +246,8 @@ assert.match(senderDigestSsot,/cfg\.bufferMinutes == null/);
 const lifecycleDigestSource=read('NotificationRenderer_LifecycleDigest.js');
 assert.match(lifecycleDigestSource,/var subject = 'Audit status overview — ' \+ digestDate \+ ' ' \+ digestTime;/);
 assert.doesNotMatch(lifecycleDigestSource,/var subject = 'Audit status overview — ' \+ auditorName/);
+assert.match(lifecycleDigestSource,/function NB_lifecycleDigestIsAuditorRecipient_\(/);
+assert.match(lifecycleDigestSource,/AUDIT_CANCELLED_BY_MANAGER:true/);
+assert.match(lifecycleDigestSource,/if \(!NB_lifecycleDigestIsAuditorRecipient_\(normalizedItems\)\)/);
+assert.match(lifecycleDigestSource,/if \(!NB_lifecycleDigestIsAuditorRecipient_\(items\)\)/);
 console.log('notifications-gas-contract-20: PASS');

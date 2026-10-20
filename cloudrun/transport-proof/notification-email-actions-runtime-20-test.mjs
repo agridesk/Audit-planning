@@ -7,15 +7,16 @@ const auth=get('./server-r5.js');
 const router10=get('./server-r10.js');
 const gas=get('../../EntryV5.js');
 const statusMachine=get('../../CoreStatusMachine.js');
+assert.match(mail,/Open audit in Auditor Portal/);
+assert.doesNotMatch(mail,/\/email-action\?auditId=/);
+assert.match(auth,/Legacy email links are navigation-only/);
+assert.match(auth,/res\.writeHead\(303,\{'location':dest/);
 const notificationQueue=get('../../StatusNotificationBridge_PerformanceRoute.js');
 const mail=get('../../NotificationRenderer_ManagerToAuditorPlanning.js');
-assert.match(mail,/email-action/);
-assert.match(auth,/email-action-read\?auditId/);
 // Unicode audit IDs (for example DuñóSCP) must survive email action and login return validation.
 const unicodeAuditIdPattern=/^[\p{L}\p{N}_,.-]{1,120}$/u;
 assert.equal(unicodeAuditIdPattern.test('AUD_DuñóSCP_HQ_1777531729283_29'),true);
 assert.equal(unicodeAuditIdPattern.test('AUD_<>_unsafe'),false);
-assert.equal((auth.match(/\\p\{L\}\\p\{N\}_,\.\-/g)||[]).length,4);
 
 // Diagnostic timings must separately account for POST, response redirect, GAS execution and whole roundtrip.
 assert.match(gateway,/acceptPerf\.gasPostResponseMs=Date\.now\(\)-gasStart/);
@@ -38,9 +39,6 @@ assert.match(statusMachine,/ACCEPT_DURABLE_OUTBOX_RECONCILER/,'ACCEPT uses async
 assert.match(auth,/\\p\{L\}\\p\{N\}_,\.\-/,'Email action navigation accepts Unicode letters in Audit IDs');
 assert.match(gateway,/\\p\{L\}\\p\{N\}_,\.\-/,'Email action read supports accented Unicode Audit IDs');
 assert.equal(/^[A-Za-z0-9_,.-]{1,120}$/.test('AUD_RaizdaTerra,lda_HQ_1777531729483_70'),true);
-assert.match(auth,/Audit verification service unavailable \(HTTP /);
-assert.match(auth,/data=JSON\.parse\(responseText\)/);
-assert.match(mail,/ACCEPT audit/);
 assert.doesNotMatch(mail,/action=acceptaudit/i);
 assert.match(portal,/x==="PLAN"\|\|x==="ACCEPT"\|\|x==="CANCEL"\|\|x==="COMPLETE"/);
 assert.match(portal,/function focusEmailAudit20\(/);
@@ -65,8 +63,6 @@ assert.match(auth,/location':'\/\?next='\+encodeURIComponent\(dest\)/);
 assert.match(auth,/emailAction='\+encodeURIComponent\(requested\)/);
 assert.match(auth,/safeLoginDestination\(u\.pathname\+u\.search,role\)/);
 assert.doesNotMatch(mail,/\bDENY\b|\bREJECT\b/i);
-assert.match(auth,/Switch to Auditor login/);
-assert.match(auth,/location\.assign\("\/\?next="\+encodeURIComponent/);
 assert.match(gateway,/AUDITOR_ACTION_NOT_ASSIGNED/);
 assert.match(gateway,/AUDITOR_ACTION_STATUS_CONFLICT/);
 assert.match(gateway,/directRowRevision/);
@@ -74,7 +70,6 @@ assert.match(gateway,/origin\.origin==='https:\/\/ams-transport-proof-5100754190
 assert.match(router10,/if\(auditorAction!=='complete'\)return proxy\(req,res,raw\)/);
 assert.doesNotMatch(router10,/AUDITOR_ACTION_FORBIDDEN/);
 assert.match(portal,/new BroadcastChannel\("ams-auditor-actions-20"\)/);
-assert.match(auth,/channel\.postMessage\(\{type:'AUDIT_ACTION_CONFIRMED'/);
 assert.match(gas,/createTextFinder\(uid20\)\.matchEntireCell\(true\)\.matchCase\(true\)\.findAll\(\)/);
 assert.match(gas,/createTextFinder\(id20\)\.matchEntireCell\(true\)\.matchCase\(true\)\.findAll\(\)/);
 assert.match(gas,/auditorHits20\.length!==1/);
@@ -97,7 +92,6 @@ assert.match(statusMachine,/notificationOnlyMs = Date\.now\(\) - __notifyT0/);
 assert.match(gas,/acceptStages20\.canonicalWrite=outcome20\.canonicalWriteTiming/);
 assert.match(gas,/acceptStages20\.statusNotificationMs=outcome20\.statusPerf/);
 assert.match(auth,/u\.pathname==='\/email-action'&&req\.method==='GET'/);
-assert.match(auth,/el\('confirm'\)\.onclick=async\(\)=>/);
 assert.match(gateway,/if\(action!=='ACCEPT'\)/);
 assert.match(gas,/rowIndex:auditHits20\[0\]\.getRow\(\)/);
 assert.match(gateway,/if\(action!=='ACCEPT'\)\{/);

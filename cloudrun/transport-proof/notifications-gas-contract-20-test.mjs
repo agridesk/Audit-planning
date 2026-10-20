@@ -260,4 +260,6 @@ assert.equal(headerCheck([{eventCode:'AUDIT_CANCELLED_BY_MANAGER'}]),true);
 assert.equal(headerCheck([{eventCode:'AUDIT_APPROVED'},{eventCode:'AUDIT_CANCELLED_BY_MANAGER'}]),true);
 assert.equal(headerCheck([{eventCode:'AUDIT_ACCEPTED'}]),false,'Manager-targeted lifecycle retains auditor attribution');
 assert.equal(headerCheck([{eventCode:'AUDIT_ACCEPTED'},{eventCode:'AUDIT_CANCELLED_BY_MANAGER'}]),false,'Mixed groups do not lose audit attribution');
+assert.match(senderDigestSsot,/lock\.waitLock\(25000\)/,'Notification sender holds exclusive queue lock for up to 25 seconds');
+assert.doesNotMatch(senderDigestSsot,/lock\.waitLock\(25 \* 10\)/,'250ms lock is not sufficient for concurrent GAS triggers');
 console.log('notifications-gas-contract-20: PASS');

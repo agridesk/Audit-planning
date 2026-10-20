@@ -55,6 +55,7 @@ function safeLoginDestination(raw,role){
   if(parsed.origin!=='https://ams.local')return '/';
   if(parsed.pathname==='/'){
     const id=parsed.searchParams.get('auditId')||'',requested=String(parsed.searchParams.get('emailAction')||'').toUpperCase();
+    if(!id&&String(parsed.searchParams.get('status')||'').toUpperCase()==='APPROVED'&&role==='Auditor')return '/?status=APPROVED';
     if(!id)return '/';
     if(!/^[\p{L}\p{N}_,.-]{1,120}$/u.test(id)||!['','ACCEPT','CANCEL','APPROVE'].includes(requested))return '/';
     if(requested==='APPROVE'&&role!=='Manager')return '/';
@@ -328,7 +329,7 @@ http.createServer(async(req,res)=>{
   if(u.pathname==='/'&&req.method==='GET'){
     const identity=await sessionIdentity(req);
     if(!identity){
-      if(u.searchParams.has('auditId')&&!u.searchParams.has('next')){
+      if((u.searchParams.has('auditId')||u.searchParams.get('status')==='APPROVED')&&!u.searchParams.has('next')){
         const role=String(u.searchParams.get('emailAction')||'').toUpperCase()==='APPROVE'?'Manager':'Auditor';
         const dest=safeLoginDestination(u.pathname+u.search,role);
         if(dest!=='/'){res.writeHead(303,{'location':'/?next='+encodeURIComponent(dest),'cache-control':'no-store'});return res.end();}

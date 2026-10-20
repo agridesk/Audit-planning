@@ -309,11 +309,32 @@ function extensionAppliedState(r){return !!(r&&(r.extensionApplied||r.extApplied
 function recoverExtension(auditId,command,sx,sy,started){return rereadEnrichedAudit(auditId).then(function(patch){var expected=command==='apply';if(extensionAppliedState(patch)!==expected)throw new Error('CANONICAL_EXTENSION_NOT_COMMITTED');mergeRowInPlace(auditId,patch);window.scrollTo(sx,sy);document.getElementById("status").textContent=Number(openCounts.total||all.length)+" open audits · extension "+command+" "+Math.round(performance.now()-started)+" ms · canonical recovery";return patch})}
 function runExtension(button){var auditId=button.getAttribute("data-audit-id"),command=button.getAttribute("data-extension");if(busyAudits.has(auditId))return;var row=all.find(function(r){return r.auditId===auditId});if(!row)return;busyAudits.add(auditId);var tr=button.closest("tr"),sx=window.scrollX,sy=window.scrollY,started=performance.now();if(tr)tr.querySelectorAll(".act,.ext-act").forEach(function(b){b.disabled=true});fetch('/api/v1/manager/extension',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({auditId:auditId,command:command})}).then(function(r){return r.json().then(function(x){if(!r.ok||x.success===false)throw new Error(x.error||x.message||'Extension failed');return x})}).then(function(x){if(!x.patch)throw new Error('EXTENSION_PATCH_MISSING');mergeRowInPlace(auditId,x.patch);window.scrollTo(sx,sy);document.getElementById("status").textContent=Number(openCounts.total||all.length)+" open audits · extension "+command+" "+Math.round(performance.now()-started)+" ms"}).catch(function(e){return recoverExtension(auditId,command,sx,sy,started).catch(function(){window.alert('Extension failed: '+e.message);if(tr)tr.querySelectorAll(".act,.ext-act").forEach(function(b){b.disabled=false})})}).finally(function(){busyAudits.delete(auditId)})}
 function searchable(r){if(currentView==="completed")return[r.auditId,r.company,r.region,r.scopesText,r.status,r.auditor,r.executedOn,r.completedDate,r.hoursPlanned,r.hoursDedicated].join(" ").toLowerCase();return[r.auditId,r.company,locationText(r),r.region,r.scopesText,r.status,r.assignedTo,r.planningWindowText,r.requiredHours,r.hoursPlanned,r.datePlanned,effectiveExpiry(r),r.conceptMonth,r.hasProvisionalPlanning?"provisional":"",r.latestComment].join(" ").toLowerCase()}
-function filter(){var z=document.getElementById("q").value.toLowerCase().trim();var pending=false;try{pending=new URLSearchParams(window.location.search).get("status")==="APPROVED"&&String(actorRole).toLowerCase()==="auditor"}catch(e){}var rows=all.filter(function(r){return (!pending||(String(r.statusKey||r.status||"").trim().toUpperCase()==="APPROVED"&&(r.allowedActions||[]).includes("ACCEPT")))&&(!z||searchable(r).indexOf(z)>=0)});render(rows)}
+function filter(){
+ var z=document.getElementById("q").value.toLowerCase().trim();
+ var sel=document.getElementById("auditorStatusFilter20");
+ var pending=!!(sel&&sel.value==="APPROVED"&&String(actorRole).toLowerCase()==="auditor");
+ var rows=all.filter(function(r){return (!pending||(String(r.statusKey||r.status||"").trim().toUpperCase()==="APPROVED"&&(r.allowedActions||[]).includes("ACCEPT")))&&(!z||searchable(r).indexOf(z)>=0)});
+ render(rows);
+}
+function initAuditorStatusFilter20(){
+ if(String(actorRole).toLowerCase()!=="auditor")return;
+ var input=document.getElementById("q");if(!input||document.getElementById("auditorStatusFilter20"))return;
+ var sel=document.createElement("select");sel.id="auditorStatusFilter20";sel.setAttribute("aria-label","Audit status filter");
+ sel.innerHTML='<option value="">All audits</option><option value="APPROVED">Pending acceptance</option>';
+ sel.style.cssText="margin-left:10px;padding:8px;border:1px solid #cbd5e1;border-radius:6px;background:white;color:#172033";
+ try{if(new URLSearchParams(window.location.search).get("status")==="APPROVED")sel.value="APPROVED"}catch(e){}
+ sel.addEventListener("change",function(){
+  try{var url=new URL(window.location.href);url.searchParams.delete("status");if(sel.value==="APPROVED")url.searchParams.set("status","APPROVED");window.history.replaceState(null,"",url.pathname+url.search+url.hash)}catch(e){}
+  filter();
+ });
+ input.insertAdjacentElement("afterend",sel);
+}
+
 function focusEmailAudit20(){
  var params;try{params=new URLSearchParams(window.location.search)}catch(e){return}
  var requested=params.get('auditId')||'',requestedAction=String(params.get('emailAction')||'').toUpperCase();
  if(String(params.get('status')||'').toUpperCase()==='APPROVED' && String(actorRole).toLowerCase()==='auditor'){
+  var sel=document.getElementById('auditorStatusFilter20');if(sel)sel.value='APPROVED';
   var pending=all.filter(function(r){return String(r.statusKey||r.status||'').trim().toUpperCase()==='APPROVED' && (r.allowedActions||[]).includes('ACCEPT')});
   var qAll=document.getElementById('q');if(qAll)qAll.value='';
   render(pending);
@@ -801,5 +822,5 @@ close.onclick=function(){panel.hidden=true};search.oninput=render;filter.onchang
 })();
 
 try{var mailActionEvents20=new BroadcastChannel("ams-auditor-actions-20");mailActionEvents20.onmessage=function(e){if(e.data&&e.data.type==="AUDIT_ACTION_CONFIRMED"&&currentView==="open")loadOpen()}}catch(e){console.warn("[AUDITOR_ACTION_SYNC]",e)}
-fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("scopeManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("auditorManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("notificationsManager20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("companyManagement20").hidden=!['manager','auditor'].includes(String(actorRole).toLowerCase());document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();if(String(actorRole).toLowerCase()==="manager")initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)});return loadOpen()}).catch(fail);
+fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("scopeManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("auditorManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("notificationsManager20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("companyManagement20").hidden=!['manager','auditor'].includes(String(actorRole).toLowerCase());document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();initAuditorStatusFilter20();if(String(actorRole).toLowerCase()==="manager")initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)});return loadOpen()}).catch(fail);
 })();

@@ -77,7 +77,7 @@ function NB_renderRichOperationalHtml_(n) {
   if(!contactPhone)contactPhone=NB_clean_(first.contactPhone||'');
   var gps=NB_clean_(first.gps||'');
   if(!gps && locations.length)gps=NB_clean_(locations[0].gps||'');
-  var maps=gps?NB_googleMapsUrl_(gps):'';
+  var maps=NB_managerToAuditorMapsForBlock_(n,first);
   function item(label,value){return value?'<div style="margin:0 0 11px"><span style="font-size:11px;color:#64748b">'+NB_html_(label)+'</span><div style="font-size:13px;color:#172033;margin-top:2px">'+NB_html_(value)+'</div></div>':'';}
   html.push('<div style="font-family:Arial,Helvetica,sans-serif;color:#172033;max-width:690px;font-size:13px;line-height:1.5">');
   html.push('<div style="border:1px solid #dce5f0;border-radius:12px;padding:18px 20px;background:#fff">');
@@ -550,12 +550,27 @@ function NB_managerToAuditorCalendarLinksHtml_(n, b, index) {
     '</tr></table>';
 }
 
+function NB_managerToAuditorMapsForBlock_(n,b) {
+  n=n||{};b=b||{};
+  var gps=NB_clean_(b.gps||''),locations=Array.isArray(n.locations)?n.locations:[];
+  if(!gps&&locations.length){
+    var code=NB_clean_(b.execLoc||b.location||'').toLowerCase();
+    for(var i=0;i<locations.length;i++){
+      var loc=locations[i]||{};
+      if(code&&(NB_clean_(loc.code).toLowerCase()===code||NB_clean_(loc.name).toLowerCase()===code)){gps=NB_clean_(loc.gps);break;}
+    }
+    if(!gps&&locations.length===1)gps=NB_clean_(locations[0].gps);
+  }
+  if(!gps)return '';
+  return /^https:\/\/(?:www\.)?(?:google\.[^/]+\/maps|maps\.google\.[^/]+\/)/i.test(gps)?gps:NB_googleMapsUrl_(gps);
+}
+
 function NB_managerToAuditorCalendarDescriptionLines_(n, b) {
   n = n || {};
   b = b || {};
   var locationName = NB_managerToAuditorLocationText_(b.execLoc || b.location || '');
   var gps = NB_clean_(b.gps || '');
-  var mapsUrl = gps ? NB_googleMapsUrl_(gps) : '';
+  var mapsUrl = NB_managerToAuditorMapsForBlock_(n,b);
   var desc = [];
 
   if (NB_mpsNumber_(n) || b.mpsNumber || b.auditNumber) desc.push('MPS: ' + NB_clean_(NB_mpsNumber_(n) || b.mpsNumber || b.auditNumber));
@@ -605,7 +620,7 @@ function NB_managerToAuditorGoogleCalendarUrl_(n, b) {
   var title = NB_managerToAuditorCalendarTitle_(n, b);
   var locationName = NB_managerToAuditorLocationText_(b.execLoc || b.location || '');
   var gps = NB_clean_(b.gps || '');
-  var location = gps || locationName;
+  var location = NB_managerToAuditorMapsForBlock_(n,b) || locationName;
   var details = NB_managerToAuditorCalendarDescriptionLines_(n, b);
 
   return 'https://calendar.google.com/calendar/render?action=TEMPLATE' +
@@ -628,7 +643,7 @@ function NB_managerToAuditorAppleCalendarDataUrl_(n, b, index) {
   var title = NB_managerToAuditorCalendarTitle_(n, b);
   var locationName = NB_managerToAuditorLocationText_(b.execLoc || b.location || '');
   var gps = NB_clean_(b.gps || '');
-  var location = gps || locationName;
+  var location = NB_managerToAuditorMapsForBlock_(n,b) || locationName;
   var desc = NB_managerToAuditorCalendarDescriptionLines_(n, b);
 
   var ics = [

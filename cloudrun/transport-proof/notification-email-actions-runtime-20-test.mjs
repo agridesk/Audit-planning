@@ -14,6 +14,11 @@ assert.doesNotMatch(mail,/\/email-action\?auditId=/);
 assert.match(mail,/\?status=APPROVED/);
 const portalOverview=get('./manager-portal.js');
 assert.match(portalOverview,/audits pending your acceptance/);
+assert.match(portalOverview,/function initAuditorStatusFilter20\(/);
+assert.match(portalOverview,/All audits/);
+assert.match(portalOverview,/Pending acceptance/);
+assert.match(portalOverview,/url\.searchParams\.delete\("status"\)/);
+
 assert.match(auth,/role==='Auditor'\)return '\/\?status=APPROVED'/);
 
 assert.match(auth,/Legacy email links are navigation-only/);

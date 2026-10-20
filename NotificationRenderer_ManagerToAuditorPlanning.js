@@ -20,9 +20,7 @@ function NB_renderRichOperational_(n) {
   lines.push('Event: ' + n.eventCode);
   if (n.company) lines.push('Company: ' + n.company);
   if (NB_mpsNumber_(n)) lines.push('MPS Number: ' + NB_mpsNumber_(n));
-  if (n.auditId) lines.push('Audit ID: ' + n.auditId);
   if (n.displayStatus) lines.push('Status result: ' + n.displayStatus);
-  if (n.auditorEmail) lines.push('Auditor: ' + n.auditorEmail);
   if (n.scopes && n.scopes.length) lines.push('Scopes: ' + n.scopes.join(', '));
   if (n.country) lines.push('Country: ' + n.country);
   if (n.region) lines.push('Region: ' + n.region);
@@ -457,7 +455,7 @@ function NB_managerToAuditorCalendarTitle_(n, block) {
 function NB_managerToAuditorLocationText_(value) {
   var v = NB_clean_(value);
   if (!v) return '';
-  if (/^hq$/i.test(v)) return 'First point to meet';
+  if (/^hq$/i.test(v)) return '';
   return v;
 }
 
@@ -558,7 +556,6 @@ function NB_managerToAuditorCalendarDescriptionLines_(n, b) {
   var mapsUrl = gps ? NB_googleMapsUrl_(gps) : '';
   var desc = [];
 
-  if (n.auditId || b.auditId) desc.push('Audit ID: ' + NB_clean_(n.auditId || b.auditId));
   if (NB_mpsNumber_(n) || b.mpsNumber || b.auditNumber) desc.push('MPS: ' + NB_clean_(NB_mpsNumber_(n) || b.mpsNumber || b.auditNumber));
   if (n.company || b.company) desc.push('Company: ' + NB_clean_(n.company || b.company));
   if (NB_managerToAuditorScopeTitle_(n)) desc.push('Scopes: ' + NB_managerToAuditorScopeTitle_(n));

@@ -243,4 +243,7 @@ assert.match(dashboard,/Digest buffer \(minutes\)/);
 assert.match(dashboard,/notifications-manager-20\/digest-buffer/);
 assert.match(senderDigestSsot,/NB_getEventConfig_\(String\(values\[r\]\[2\]/);
 assert.match(senderDigestSsot,/cfg\.bufferMinutes == null/);
+const lifecycleDigestSource=read('NotificationRenderer_LifecycleDigest.js');
+assert.match(lifecycleDigestSource,/var subject = 'Audit status overview — ' \+ digestDate \+ ' ' \+ digestTime;/);
+assert.doesNotMatch(lifecycleDigestSource,/var subject = 'Audit status overview — ' \+ auditorName/);
 console.log('notifications-gas-contract-20: PASS');

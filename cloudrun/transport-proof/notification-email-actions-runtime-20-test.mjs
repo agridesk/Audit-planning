@@ -9,8 +9,13 @@ const gas=get('../../EntryV5.js');
 const statusMachine=get('../../CoreStatusMachine.js');
 const notificationQueue=get('../../StatusNotificationBridge_PerformanceRoute.js');
 const mail=get('../../NotificationRenderer_ManagerToAuditorPlanning.js');
-assert.match(mail,/Open audit in Auditor Portal/);
+assert.match(mail,/Open pending acceptances in Auditor Portal/);
 assert.doesNotMatch(mail,/\/email-action\?auditId=/);
+assert.match(mail,/\?status=APPROVED/);
+const portalOverview=get('./manager-portal.js');
+assert.match(portalOverview,/audits pending your acceptance/);
+assert.match(auth,/role==='Auditor'\)return '\/\?status=APPROVED'/);
+
 assert.match(auth,/Legacy email links are navigation-only/);
 assert.match(auth,/res\.writeHead\(303,\{'location':dest/);
 const digestRenderer=get('../../NotificationRenderer_ApprovalOperational.js');

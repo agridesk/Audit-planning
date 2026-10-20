@@ -43,7 +43,7 @@ function NotificationSender_RunDigest() {
   var lock = LockService.getScriptLock();
 
   try {
-    lock.waitLock(25 * 10);
+    lock.waitLock(25000); // Apps Script expects milliseconds: 25 seconds, not 250 ms.
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var nq = ss.getSheetByName(ns_getQueueSheetName_());

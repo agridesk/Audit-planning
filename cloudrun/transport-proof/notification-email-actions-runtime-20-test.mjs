@@ -13,6 +13,17 @@ assert.match(auth,/Legacy email links are navigation-only/);
 assert.match(auth,/res\.writeHead\(303,\{'location':dest/);
 const notificationQueue=get('../../StatusNotificationBridge_PerformanceRoute.js');
 const mail=get('../../NotificationRenderer_ManagerToAuditorPlanning.js');
+const digestRenderer=get('../../NotificationRenderer_ApprovalOperational.js');
+assert.match(digestRenderer,/allManagerPlanned/);
+assert.match(digestRenderer,/AUDIT_PLANNED_BY_MANAGER/);
+assert.match(digestRenderer,/NB_renderRichOperationalHtml_\(n\)/);
+assert.match(digestRenderer,/NB_managerToAuditorAcceptInPortalCtaHtml_\(normalizedItems\[0\]\)/);
+assert.match(mail,/for\(var i=0;i<blocks.length;i\+\+\)/);
+assert.match(mail,/NB_managerToAuditorGoogleCalendarUrl_\(n,block\)/);
+assert.match(mail,/NB_managerToAuditorAppleCalendarDataUrl_\(n,block,i\)/);
+assert.doesNotMatch(mail,/lines\.push\('Audit ID: '/);
+assert.doesNotMatch(mail,/desc\.push\('Audit ID: '/);
+
 // Unicode audit IDs (for example DuñóSCP) must survive email action and login return validation.
 const unicodeAuditIdPattern=/^[\p{L}\p{N}_,.-]{1,120}$/u;
 assert.equal(unicodeAuditIdPattern.test('AUD_DuñóSCP_HQ_1777531729283_29'),true);

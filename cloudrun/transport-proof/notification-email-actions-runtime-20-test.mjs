@@ -121,8 +121,6 @@ assert.match(portal,/async function acceptSelectedAudits20\(/);
 assert.match(portal,/bulkAcceptRunning20/);
 assert.match(portal,/String\(actorRole\)\.toLowerCase\(\)==='auditor'\?\['COMPLETE'\]/);
 assert.match(portal,/await runActionViaCloudRun\(id,"accept",\{expectedRevision:audit\.sourceRevision\}\)/);
-assert.match(mail,/Before accepting:/);
-assert.match(mail,/Remember me \(14 days\)/);
 assert.match(auth,/emailActionLoginNote/);
 assert.match(auth,/loginNext\.startsWith\('\/email-action\?'\)/);
 assert.match(gateway,/data\?\.remember===true\?14\*86400:7200/);

@@ -140,6 +140,30 @@ function NB_validationListHtml_(items) {
 function NB_renderOperationalDigest_(recipientEmail, normalizedItems) {
   normalizedItems = normalizedItems || [];
 
+  var allManagerPlanned = normalizedItems.length > 0 && normalizedItems.every(function(n){
+    return NB_clean_(n.eventType || n.type).toUpperCase() === 'AUDIT_PLANNED_BY_MANAGER';
+  });
+  if (allManagerPlanned) {
+    var count = normalizedItems.length;
+    var heading = count + (count === 1 ? ' audit planned for you' : ' audits planned for you');
+    var cards = normalizedItems.map(function(n){ return NB_renderRichOperationalHtml_(n); });
+    var summary = [heading, 'Review the planned audits in the Auditor Portal.'];
+    normalizedItems.forEach(function(n){
+      summary.push(NB_clean_(n.company || 'Audit'));
+      NB_managerToAuditorEnrichedBlocks_(n).forEach(function(b){
+        summary.push(NB_clean_(b.date) + ' ' + NB_clean_(b.start) + '–' + NB_clean_(b.end));
+      });
+    });
+    var html = ['<div style="font-family:Arial,Helvetica,sans-serif;max-width:730px;color:#172033">',
+      '<div style="font-size:13px;color:#475569;margin:0 0 8px">AgriQA</div>',
+      '<div style="font-size:23px;font-weight:700;margin:0 0 9px">'+NB_html_(heading)+'</div>',
+      '<div style="font-size:13px;color:#475569;margin-bottom:14px">Your manager has scheduled the following '+(count===1?'audit':'audits')+'. Review the details in the Auditor Portal.</div>',
+      '<div style="margin:0 0 18px">'+NB_managerToAuditorAcceptInPortalCtaHtml_(normalizedItems[0])+'</div>'];
+    for(var ci=0;ci<cards.length;ci++)html.push('<div style="margin-bottom:12px">'+cards[ci]+'</div>');
+    html.push('<div style="font-size:11px;color:#64748b;margin-top:17px">Automated notification from AgriQA. Please do not reply.</div></div>');
+    return {subject:'[Audit Planning] '+heading,body:summary.join('\\n'),htmlBody:html.join('')};
+  }
+
   if (normalizedItems.length === 1) {
     var single = normalizedItems[0] || {};
     var singleProfile = NB_clean_(single.rendererProfile).toUpperCase();

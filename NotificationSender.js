@@ -639,7 +639,7 @@ function ns_computeReservation_(rowNo, recipient, createdAtMs, cfg) {
   cfg = cfg || {};
 
   var consolidate = cfg.consolidate !== false;
-  var bufferMinutes = Number(cfg.bufferMinutes || NS_DEFAULT_CONSOLIDATION_MINUTES);
+  var bufferMinutes = Number(cfg.bufferMinutes == null || cfg.bufferMinutes === '' ? NS_DEFAULT_CONSOLIDATION_MINUTES : cfg.bufferMinutes);
   if (!isFinite(bufferMinutes) || bufferMinutes < 0) bufferMinutes = NS_DEFAULT_CONSOLIDATION_MINUTES;
 
   var digestGroup = String(cfg.digestGroup || '').trim() || 'DEFAULT';

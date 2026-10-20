@@ -944,6 +944,13 @@ function NB_loadAuditBriefing_(auditId, payload) {
     if (out.plannedHours === '' || out.plannedHours === null) out.plannedHours = NB_sumBlockHours_(out.blocks);
     if (!out.scopes.length) out.scopes = NB_extractScopesFromAuditRow_(hdr, row);
     if (!out.locations.length) out.locations = NB_loadCompanyLocationsForBriefing_(ss, out.companyUid, out.company);
+    var companyContact = NB_loadCompanyContactForBriefing_(ss, out.companyUid, out.company);
+    if(companyContact.found){
+      out.contactName=companyContact.contactName||out.contactName;
+      out.contactEmail=companyContact.contactEmail||out.contactEmail;
+      out.contactPhone=companyContact.contactPhone||out.contactPhone;
+      out.comments=companyContact.comments||out.comments;
+    }
     if (!out.auditNumber) out.auditNumber = NB_loadCompanyNumberForBriefing_(ss, out.companyUid, out.company);
   } catch (e) {
     out.warnings.push('Briefing load failed: ' + String(e && e.message ? e.message : e));
@@ -1304,6 +1311,30 @@ function NB_loadCompanyNumberForBriefing_(ss, companyUid, companyName) {
     }
   } catch (e) {}
   return '';
+}
+
+function NB_loadCompanyContactForBriefing_(ss, companyUid, companyName) {
+  var out={found:false,contactName:'',contactEmail:'',contactPhone:'',comments:''};
+  try {
+    var sh=ss.getSheetByName('Companies');
+    if(!sh||sh.getLastRow()<2)return out;
+    var data=sh.getDataRange().getValues(),hdr=data[0]||[],idx=NB_headerIndexMapLoose_(hdr);
+    var uidCol=NB_findColLoose_(idx,['Company_UID','Company UID','CompanyUid']);
+    var nameCol=NB_findColLoose_(idx,['Company','Company name','Name']);
+    var uid=NB_clean_(companyUid).toLowerCase(),name=NB_clean_(companyName).toLowerCase();
+    for(var j=1;j<data.length;j++){
+      var row=data[j]||[],ru=uidCol<0?'':NB_clean_(row[uidCol]).toLowerCase(),rn=nameCol<0?'':NB_clean_(row[nameCol]).toLowerCase();
+      if((uid&&ru===uid)||(!uid&&name&&rn===name)){
+        out.found=true;
+        out.contactName=NB_cellLoose_(row,idx,['Contactperson','Contact person','Contact name']);
+        out.contactEmail=NB_cellLoose_(row,idx,['Contactperson e-mail','Contactperson email','Contact person e-mail','Contact email']);
+        out.contactPhone=NB_cellLoose_(row,idx,['Contactperson phone','Contact person phone','Contactperson_phone','Telephone','Phone']);
+        out.comments=NB_cellLoose_(row,idx,['Comments','Comment','Company comments']);
+        break;
+      }
+    }
+  }catch(e){}
+  return out;
 }
 
 function NB_loadCompanyLocationsForBriefing_(ss, companyUid, companyName) {

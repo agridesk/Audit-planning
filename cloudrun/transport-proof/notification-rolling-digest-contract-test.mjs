@@ -5,6 +5,9 @@ const src=readFileSync(new URL('../../NotificationSender.js',import.meta.url),'u
 const scheduler=readFileSync(new URL('../../NotificationQueueAutoTrigger20.js',import.meta.url),'utf8');
 assert.match(scheduler,/everyMinutes\(1\)/,'DEV 2-minute buffer requires 1-minute polling');
 assert.match(scheduler,/ScriptApp\.deleteTrigger\(existing\[i\]\)/,'Reinstall existing managed sender trigger');
+const helperStart=src.indexOf('function ns_isWeeklyPreRenderedEnvelope20_(');
+const helperEnd=src.indexOf('function ns_currentEmailPermissions_(',helperStart);
+assert.ok(helperStart>=0&&helperEnd>helperStart,'Weekly envelope helper available');
 const start=src.indexOf('function ns_reservePending_(');
 const end=src.indexOf('function ns_sendDueReserved_(',start);
 assert.ok(start>=0&&end>start,'Sender reservation contract found');
@@ -17,7 +20,7 @@ const c={
   Date,Number,String,JSON,Math,isFinite,
   NB_getEventConfig_:event=>event==='AUDIT_PLANNED_BY_MANAGER'?{sendEmail:true,logOnly:false,consolidate:true,bufferMinutes:5,digestGroup:'AUDITOR_OPERATIONAL'}:{}
 };
-vm.runInNewContext(src.slice(start,end),c);
+vm.runInNewContext(src.slice(helperStart,helperEnd)+'\n'+src.slice(start,end),c);
 function testReserve(rows){
   const sheet={getRange:(r,col)=>({setValue(v){rows[r-1][col-1]=v;events.push([r,col]);}})};
   return c.ns_reservePending_(sheet,rows);

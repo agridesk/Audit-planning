@@ -53,6 +53,45 @@ function NotificationManagement20_UpdateEvent(eventKey, changes, expected) {
   }finally{lock.releaseLock();}
 }
 
+/**
+ * Manager-controlled digest buffer in Notification_Config.
+ * One canonical BUFFER_MINUTES value per event; queued unreserved notifications
+ * consume current configuration on reservation.
+ */
+function NotificationManagement20_UpdateDigestBuffer(eventKey, minutes, expected, actorEmail) {
+  if(typeof SYS_getEnv_!=='function'||SYS_getEnv_()!=='DEV')throw new Error('DEV_ONLY');
+  var key=String(eventKey||'').trim().toUpperCase();
+  if(!/^[A-Z][A-Z0-9_]{1,100}$/.test(key))throw new Error('INVALID_EVENT_KEY');
+  function valid(v){return typeof v==='number'&&isFinite(v)&&Math.floor(v)===v&&v>=0&&v<=1440;}
+  if(!valid(minutes)||!valid(expected))throw new Error('INVALID_BUFFER_MINUTES');
+  var actor=String(actorEmail||'').trim().toLowerCase();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(actor)||actor.length>254)throw new Error('ACTOR_INVALID');
+  var lock=LockService.getScriptLock();
+  if(!lock.tryLock(15000))throw new Error('NOTIFICATION_CONFIG_BUSY');
+  try {
+    var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.getSheetByName('Notification_Config');
+    if(!sh)throw new Error('CONFIG_SHEET_MISSING');
+    var rows=sh.getDataRange().getValues();
+    var head=(rows[0]||[]).map(function(x){return String(x||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');});
+    var keyCol=head.indexOf('EVENTKEY'),bufferCol=head.indexOf('BUFFERMINUTES');
+    if(keyCol<0||bufferCol<0)throw new Error('CONFIG_SCHEMA_MISMATCH');
+    var matches=[];
+    for(var i=1;i<rows.length;i++)if(String(rows[i][keyCol]||'').trim().toUpperCase()===key)matches.push(i);
+    if(matches.length!==1)throw new Error(matches.length?'DUPLICATE_EVENT':'EVENT_NOT_FOUND');
+    var rowIndex=matches[0],prior=Number(rows[rowIndex][bufferCol]);
+    if(!valid(prior))throw new Error('CURRENT_BUFFER_INVALID');
+    if(prior!==expected)throw new Error('CONFIG_CHANGED_RELOAD_REQUIRED');
+    if(prior===minutes)return {ok:true,changed:0,eventKey:key,bufferMinutes:prior};
+    var log=ss.getSheetByName('Notification_Change_Log');
+    if(!log){log=ss.insertSheet('Notification_Change_Log');log.appendRow(['Timestamp','Actor','EventKey','Field','Before','After','Source']);}
+    log.appendRow([new Date(),actor,key,'BUFFER_MINUTES',String(prior),String(minutes),'AMS_NOTIFICATION_MANAGEMENT_20']);
+    sh.getRange(rowIndex+1,bufferCol+1).setValue(minutes);
+    if(typeof NotificationConfig_ClearCache==='function')NotificationConfig_ClearCache();
+    if(typeof NB_InvalidateConfigCache==='function')NB_InvalidateConfigCache();
+    return {ok:true,changed:1,eventKey:key,bufferMinutes:minutes};
+  }finally{lock.releaseLock();}
+}
+
 /** Manager-controlled DEV mail mode. Never modifies PROD or recipient address. */
 function NotificationManagement20_UpdateDevMode(mode, expected, actorEmail) {
   if(typeof SYS_getEnv_!=='function'||SYS_getEnv_()!=='DEV')throw new Error('DEV_ONLY');

@@ -270,34 +270,48 @@ function nrm2_queueWeeklyMail_(ss, mail) {
     meta: mail.meta || {}
   };
 
-  var row = [
-    new Date(),
-    'PENDING',
-    eventKey,
-    recipient,
-    '',
-    '',
-    subject,
-    body,
-    0,
-    '',
-    nrm2_payloadHash_(eventKey, recipient, subject, htmlBody),
-    '',
-    JSON.stringify({ payload: payload })
-  ];
-
-  nq.appendRow(row);
-  return { ok:true, status:'PENDING', row:nq.getLastRow(), queueSheet:queueName, eventKey:eventKey, recipient:recipient };
+  // One weekly overview per event + original recipient + ISO-week.
+  // Re-running the scheduled handler must not queue the same email twice.
+  if(typeof NB_recentQueueDuplicate_!=='function')return {ok:false,error:'WEEKLY_QUEUE_DEDUP_UNAVAILABLE'};
+  var lock=LockService.getScriptLock();
+  if(!lock.tryLock(15000))return {ok:false,error:'WEEKLY_QUEUE_BUSY'};
+  try {
+    var hash=nrm2_payloadHash_(eventKey, recipient, subject, htmlBody);
+    var duplicate=NB_recentQueueDuplicate_(nq,hash,eventKey,recipient,'');
+    if(duplicate&&duplicate.found)return {
+      ok:true,status:'DUPLICATE_SUPPRESSED',row:duplicate.row,queueSheet:queueName,eventKey:eventKey,recipient:recipient
+    };
+    var row = [
+      new Date(),
+      'PENDING',
+      eventKey,
+      recipient,
+      '',
+      '',
+      subject,
+      body,
+      0,
+      '',
+      hash,
+      '',
+      JSON.stringify({ payload: payload })
+    ];
+    nq.appendRow(row);
+    return { ok:true, status:'PENDING', row:nq.getLastRow(), queueSheet:queueName, eventKey:eventKey, recipient:recipient };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function nrm2_payloadHash_(eventKey, recipient, subject, htmlBody) {
-  var raw = [eventKey, recipient, subject, htmlBody, new Date().getTime()].join('|');
-  try {
-    var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, raw);
-    return Utilities.base64EncodeWebSafe(bytes).substring(0, 32);
-  } catch (e) {
-    return String(raw.length) + '_' + String(new Date().getTime());
-  }
+  var now=new Date();
+  var monday=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()));
+  monday.setUTCDate(monday.getUTCDate()-((monday.getUTCDay()+6)%7));
+  var raw=[String(eventKey||'').trim().toUpperCase(),String(recipient||'').trim().toLowerCase(),monday.toISOString().slice(0,10)].join('|');
+  var bytes=Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,raw);
+  var hash=Utilities.base64EncodeWebSafe(bytes).substring(0,32);
+  if(!hash)throw new Error('WEEKLY_QUEUE_HASH_UNAVAILABLE');
+  return hash;
 }
 
 function RUN_NF_WEEKLY_QUEUE_SMOKE() {

@@ -911,7 +911,12 @@ function ns_resetStaleReserved_(nqSheet, values) {
     if (!refMs) refMs = ns_toMs_(values[r][0]);
 
     if (!refMs) continue;
-    if ((nowMs - refMs) < maxAgeMs) continue;
+    // Never reset a reservation while its configured digest window is still open.
+    // The stale timeout applies after the later of reservation time and due time.
+    var dueMs=Number(reserved.windowDueAtMs||0);
+    if(!dueMs)dueMs=ns_toMs_(reserved.windowDueAt);
+    var staleFromMs=Math.max(refMs,isFinite(dueMs)&&dueMs>0?dueMs:refMs);
+    if ((nowMs-staleFromMs)<maxAgeMs) continue;
 
     nqSheet.getRange(r + 1, 2).setValue('PENDING');
     nqSheet.getRange(r + 1, 10).setValue('Stale RESERVED reset to PENDING at ' + ns_timestamp_());

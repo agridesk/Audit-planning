@@ -70,7 +70,7 @@ function NB_renderLifecycleDigest_(recipientEmail, normalizedItems) {
   var tz = NB_getTz_(SpreadsheetApp.getActiveSpreadsheet());
   var digestDate = Utilities.formatDate(now, tz, 'dd-MM-yyyy');
   var digestTime = Utilities.formatDate(now, tz, 'HH:mm');
-  var subject = 'Audit status overview — ' + auditorName + ' — ' + digestDate + ' ' + digestTime;
+  var subject = 'Audit status overview — ' + digestDate + ' ' + digestTime;
 
   var lines = [];
   lines.push('Hello,');

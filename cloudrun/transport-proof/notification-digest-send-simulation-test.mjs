@@ -80,4 +80,27 @@ assert.equal(failedRows[1][8],1);
 assert.match(failedRows[1][9],/SIMULATED_PROVIDER_FAILURE/);
 assert.equal(failureSecond.processedGroups,0,'Ambiguous failures must not be resent automatically');
 assert.equal(providerAttempts,1);
+
+// Long digest windows must survive the stale-reservation sweep until due.
+const staleStart=source.indexOf('function ns_resetStaleReserved_(');
+const staleEnd=source.indexOf('/* ============================================================\n * Digest rendering',staleStart);
+assert.ok(staleStart>0&&staleEnd>staleStart);
+const staleCtx={Date,Number,Math,isFinite,JSON,String,
+ NS_STALE_RESERVED_MINUTES:60,
+ ns_parseReserved_:v=>JSON.parse(v),
+ ns_toMs_:v=>new Date(v).getTime(),
+ ns_timestamp_:()=>new Date().toISOString()};
+vm.runInNewContext(source.slice(staleStart,staleEnd),staleCtx);
+const twentyMinutesAgo=Date.now()-20*60000;
+const twoHoursAgo=Date.now()-120*60000;
+const longWindowRows=[['header'],
+ [new Date(twoHoursAgo),'RESERVED','WEEKLY_MANAGER_DIGEST','manager@example.org','A','','','',0,'','','',JSON.stringify({reservedAtMs:twoHoursAgo,windowDueAtMs:Date.now()+40*60000})],
+ [new Date(twoHoursAgo),'RESERVED','AUDIT_ACCEPTED','manager@example.org','B','','','',0,'','','',JSON.stringify({reservedAtMs:twoHoursAgo,windowDueAtMs:twentyMinutesAgo})],
+ [new Date(twoHoursAgo),'RESERVED','AUDIT_ACCEPTED','manager@example.org','C','','','',0,'','','',JSON.stringify({reservedAtMs:twoHoursAgo,windowDueAtMs:twoHoursAgo})]
+];
+const staleSheet={getRange:(r,c)=>({setValue:v=>{longWindowRows[r-1][c-1]=v;}})};
+assert.equal(staleCtx.ns_resetStaleReserved_(staleSheet,longWindowRows),1);
+assert.equal(longWindowRows[1][1],'RESERVED','A future due time is not a stale reservation');
+assert.equal(longWindowRows[2][1],'RESERVED','Recently due digest must not be reset before it can be sent');
+assert.equal(longWindowRows[3][1],'PENDING','Old overdue reservation may be recovered');
 console.log('notification-digest-send-simulation: PASS');

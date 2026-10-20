@@ -53,4 +53,15 @@ ctx.NB_getEventConfig_=()=>({consolidate:true,bufferMinutes:0,digestGroup:'AUDIT
 assert.equal(ctx.ns_reservePending_({getRange(row,col){return{setValue(value){zeroRows[row-1][col-1]=value}}}},zeroRows),1);
 const zeroReservation=JSON.parse(zeroRows[1][12]);
 assert.equal(zeroReservation.windowDueAtMs,zeroReservation.windowStartAtMs,'zero buffer is immediate and not coerced to a default');
+
+// Dashboard change 10 -> 9 minutes: newly queued work uses nine minutes.
+const nineRows=[['Created','Status','Event','Recipient'],item(0,'auditor@example.org')];
+ctx.NB_getEventConfig_=()=>({consolidate:true,bufferMinutes:9,digestGroup:'AUDITOR_OPERATIONAL',sendEmail:true});
+assert.equal(ctx.ns_reservePending_({getRange(row,col){return{setValue(value){nineRows[row-1][col-1]=value}}}},nineRows),1);
+const nineReservation=JSON.parse(nineRows[1][12]);
+assert.equal(nineReservation.windowDueAtMs-nineReservation.windowStartAtMs,540000,'Dashboard buffer of nine minutes takes effect on new PENDING rows');
+// Existing RESERVED due times must stay intact when config subsequently changes.
+ctx.NB_getEventConfig_=()=>({consolidate:true,bufferMinutes:10,digestGroup:'AUDITOR_OPERATIONAL',sendEmail:true});
+assert.equal(ctx.ns_reservePending_({getRange(row,col){return{setValue(value){nineRows[row-1][col-1]=value}}}},nineRows),0);
+assert.equal(JSON.parse(nineRows[1][12]).windowDueAtMs,nineReservation.windowDueAtMs,'Changing buffer does not retroactively shift existing RESERVED deliveries');
 console.log('notification-batching-window-20: PASS');

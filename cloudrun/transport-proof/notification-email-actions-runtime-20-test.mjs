@@ -14,8 +14,8 @@ assert.doesNotMatch(mail,/\/email-action\?auditId=/);
 assert.match(mail,/\?status=APPROVED/);
 const portalOverview=get('./manager-portal.js');
 assert.match(portalOverview,/audits pending your acceptance/);
-assert.match(portalOverview,/function initAuditorStatusFilter20\(/);
-assert.match(portalOverview,/All audits/);
+assert.match(portalOverview,/function auditorCardFilterSet20\(/);
+assert.match(portalOverview,/data-card-status/);
 assert.match(portalOverview,/Pending acceptance/);
 assert.match(portalOverview,/url\.searchParams\.delete\("status"\)/);
 

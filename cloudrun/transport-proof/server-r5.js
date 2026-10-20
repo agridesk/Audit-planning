@@ -344,55 +344,13 @@ http.createServer(async(req,res)=>{
   if(u.pathname==='/auth/logout'&&req.method==='POST'){try{return await handleSecureLogout(req,res);}catch{return sendJson(res,503,{ok:false,error:'AUTH_REVOCATION_UNAVAILABLE'});}}
 
   if(u.pathname==='/auth/signed-handoff'&&req.method==='POST'){try{return await handleManagerSessionHandoff(req,res);}catch(err){return sendJson(res,500,{ok:false,error:'MANAGER_SESSION_HANDOFF_FAILED',detail:clean(err&&err.message||err)});}}
+  // Legacy email links are navigation-only: GET must never commit ACCEPT.
   if(u.pathname==='/email-action'&&req.method==='GET'){
-    const id=clean(u.searchParams.get('auditId')),action=clean(u.searchParams.get('action')).toUpperCase();
-    if(!/^[\p{L}\p{N}_,.-]{1,120}$/u.test(id)||!['ACCEPT','CANCEL'].includes(action))return sendHtml(res,400,'Invalid email action');
-    const identity=await sessionIdentity(req);
-    if(!identity){
-      const dest='/email-action?auditId='+encodeURIComponent(id)+'&action='+encodeURIComponent(action);
-      res.writeHead(303,{'location':'/?next='+encodeURIComponent(dest),'cache-control':'no-store'});return res.end();
-    }
-    if(clean(identity.role).toLowerCase()!=='auditor'){
-      const dest='/email-action?auditId='+encodeURIComponent(id)+'&action='+encodeURIComponent(action);
-      const page='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Auditor login required</title><style>body{font:16px system-ui;background:#f1f5f9;padding:28px}.panel{max-width:520px;margin:8vh auto;background:white;padding:28px;border-radius:14px}button{padding:12px 18px;background:#175cd3;color:white;border:0;border-radius:8px;cursor:pointer}</style></head><body><main class="panel"><h1>Auditor login required</h1><p>You are signed in as a different role. Switch to the Auditor account to review this email action.</p><button id="switch">Switch to Auditor login</button><p id="message" role="alert"></p></main><script>document.getElementById("switch").onclick=async function(){this.disabled=true;const msg=document.getElementById("message");try{const r=await fetch("/auth/logout",{method:"POST",credentials:"same-origin",redirect:"follow"});if(!r.ok)throw Error("Secure logout unavailable. Use Log out in the portal first.");location.assign("/?next="+encodeURIComponent('+JSON.stringify(dest)+'));}catch(e){msg.textContent=e.message;this.disabled=false;}}</script></body></html>';
-      return sendHtml(res,403,page,{'content-security-policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"});
-    }
-    const escapeHtml=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    const title=action==='ACCEPT'?'Accept audit':'Cancel own planning';
-    const page=`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} | AMS</title><style>body{font:16px system-ui;background:#f1f5f9;margin:0;padding:28px;color:#172033}.panel{max-width:560px;margin:5vh auto;padding:28px;border-radius:14px;background:white;box-shadow:0 9px 28px #1232}button{padding:12px 18px;border:0;border-radius:8px;background:#175cd3;color:white;font-weight:bold;cursor:pointer}button:disabled{opacity:.5}textarea{box-sizing:border-box;width:100%;padding:12px;margin:10px 0}#error{color:#a31515}#success{color:#146534}</style></head><body><main class="panel"><h1>${title}</h1><p>Audit: <strong>${escapeHtml(id)}</strong></p><p>Signed in as ${escapeHtml(identity.email)} (Auditor)</p><p id="state">Checking this action against your current permissions…</p><div id="actions" hidden><p id="description"></p><textarea id="comment" rows="3" placeholder="Reason for cancellation" hidden></textarea><button id="confirm" disabled>Confirm ${action}</button></div><p id="error" role="alert"></p><p id="success" role="status"></p></main><script>
-(async()=>{'use strict';const auditId=${JSON.stringify(id)},action=${JSON.stringify(action)};
-const el=id=>document.getElementById(id);
-try{
- const resp=await fetch('/api/v1/auditor/email-action-read?auditId='+encodeURIComponent(auditId),{credentials:'same-origin'});const responseText=await resp.text();let data;try{data=JSON.parse(responseText)}catch{throw Error('Audit verification service unavailable (HTTP '+resp.status+'). No action performed.');}
- if(!resp.ok||data.success===false)throw Error('Cannot verify your audit permissions.');
- const audit=(data.rows||[]).find(r=>r.auditId===auditId);
- if(!audit)throw Error('This audit is not assigned to your account or is no longer available.');
- if(!(audit.allowedActions||[]).includes(action))throw Error('This action is not permitted for the current audit status.');
- if(!/^[a-f0-9]{24}$/.test(String(audit.sourceRevision||'')))throw Error('Current audit revision unavailable. No changes made.');
- el('state').textContent='Ready to review';
- el('description').textContent=action==='ACCEPT'?'Confirm acceptance of the planned audit.':'Confirm cancellation of your own pending planning. A reason is required.';
- el('actions').hidden=false;el('confirm').disabled=false;el('comment').hidden=action!=='CANCEL';
- el('confirm').onclick=async()=>{
-  // The explicit Confirm button on this authenticated page is the sole confirmation; no browser popup.
-  const comment=el('comment').value.trim();
-  if(action==='CANCEL'&&!comment){el('error').textContent='Cancellation reason required';return;}
-  el('confirm').disabled=true;el('error').textContent='';el('state').textContent='Processing…';
-  try{
-    const acceptBrowserStart=performance.now();
-    const result=await fetch('/api/v1/auditor/action',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({auditId,action:action.toLowerCase(),options:{expectedRevision:audit.sourceRevision,reason:comment,comment}})});
-    const acceptFetchMs=Math.round(performance.now()-acceptBrowserStart);
-    const data=await result.json();
-    const acceptBrowserMs=Math.round(performance.now()-acceptBrowserStart);
-    if(action==='ACCEPT')console.info('[AMS_ACCEPT_TIMING_20]',{auditId,browserTotalMs:acceptBrowserMs,httpMs:acceptFetchMs,server:data.acceptTiming||null});
-    if(!result.ok||data.success!==true)throw Error(data.error||data.detail||'Action could not be confirmed');
-    el('state').textContent='';el('actions').hidden=true;el('success').textContent=action+' confirmed. Current status: '+(data.afterStatusDisplay||data.newStatus||data.afterStatus||'updated')+(action==='ACCEPT'?' · '+acceptBrowserMs+' ms':'');
-    try{const channel=new BroadcastChannel('ams-auditor-actions-20');channel.postMessage({type:'AUDIT_ACTION_CONFIRMED',auditId: auditId,action:action});channel.close()}catch(e){}
-  }catch(e){el('state').textContent='Action not confirmed';el('error').textContent=e.message;el('confirm').disabled=true;}
- };
-}catch(e){el('state').textContent='Action unavailable';el('error').textContent=e.message;}
-})();
-</script></body></html>`;
-    return sendHtml(res,200,page,{'content-security-policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"});
+    const id=clean(u.searchParams.get('auditId'));
+    const safeId=/^[\p{L}\p{N}_,.-]{1,120}$/u.test(id);
+    const dest=safeId?'/?auditId='+encodeURIComponent(id):'/';
+    res.writeHead(303,{'location':dest,'cache-control':'no-store'});
+    return res.end();
   }
   if(u.pathname==='/planning'&&req.method==='GET'){try{return await handlePlanning(req,res,u);}catch(err){return sendJson(res,500,{ok:false,error:'PLANNING_2_0_OPEN_FAILED',detail:clean(err&&err.message||err)});}}
   if(u.pathname==='/api/v1/planning/rotation'&&req.method==='GET'){return handlePlanningRotation(req,res,u);}

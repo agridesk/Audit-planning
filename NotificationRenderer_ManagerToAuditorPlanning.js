@@ -394,7 +394,7 @@ function NB_managerToAuditorAcceptInPortalCtaHtml_(n) {
   var url = NB_portalUrlForOperational_(n || {});
   if (!url) return '<span style="font-size:11px;color:#64748b">Open Audit Grid 2.0 using your normal AMS bookmark.</span>';
   // Email is navigation only. The Auditor Portal owns authenticated ACCEPT.
-  return '<a href="' + NB_htmlAttr_(url) + '" target="_self" rel="noopener noreferrer" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:8px 12px;border-radius:7px;font-size:11px;font-weight:900;line-height:1.1">Open audit in Auditor Portal</a>';
+  return '<a href="' + NB_htmlAttr_(url) + '" target="_self" rel="noopener noreferrer" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:8px 12px;border-radius:7px;font-size:11px;font-weight:900;line-height:1.1">Open pending acceptances in Auditor Portal</a>';
 }
 
 function NB_portalUrlForOperational_(n) {
@@ -407,7 +407,7 @@ function NB_portalUrlForOperational_(n) {
   // Authentication 2.0 owns access; email navigation never commits a status change.
   if (!/^https:\/\/[^\s<>"']+$/.test(url)) return '';
   var match = url.match(/^(https:\/\/[^\/?#]+)/);
-  return match && NB_clean_(n.auditId) ? match[1] + '/?auditId=' + encodeURIComponent(NB_clean_(n.auditId)) : url;
+  return match ? match[1] + '/?status=APPROVED' : url;
 }
 
 

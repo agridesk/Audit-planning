@@ -10,6 +10,7 @@ function extract(name,next){
   return sender.slice(begin,end);
 }
 const source=[
+  extract('ns_isWeeklyPreRenderedEnvelope20_','ns_currentEmailPermissions_'),
   extract('ns_reservePending_','ns_computeReservation_'),
   extract('ns_computeReservation_','ns_isRollingExternalDigestGroup_'),
   extract('ns_isRollingExternalDigestGroup_','ns_sendDueReserved_')

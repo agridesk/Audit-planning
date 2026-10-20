@@ -418,14 +418,8 @@ function NB_managerToAuditorAcceptInPortalCtaHtml_(n) {
   if (n && n.templatePreviewOnly === true) return '<div style="font-size:11px;color:#64748b;font-weight:700">Template preview only — no audit action is available for this synthetic test record.</div>';
   var url = NB_portalUrlForOperational_(n || {});
   if (!url) return '<span style="font-size:11px;color:#64748b">Open Audit Grid 2.0 using your normal AMS bookmark.</span>';
-  var id = NB_clean_((n || {}).auditId);
-  if (!id) return '<span style="font-size:11px;color:#64748b">Audit reference required for email acceptance.</span>';
-  var origin = url.match(/^https:\/\/[^\/?#]+/);
-  if (!origin) return '';
-  url = origin[0] + '/email-action?auditId=' + encodeURIComponent(id) + '&action=ACCEPT';
-  var portalUrl = origin[0] + '/';
-  return '<a href="' + NB_htmlAttr_(url) + '" target="_self" rel="noopener noreferrer" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:8px 12px;border-radius:7px;font-size:11px;font-weight:900;line-height:1.1">ACCEPT audit</a>' +
-    ' <a href="' + NB_htmlAttr_(portalUrl) + '" target="_self" rel="noopener noreferrer" style="display:inline-block;margin-left:8px;color:#2563eb;text-decoration:underline;padding:8px;font-size:11px;font-weight:800">Open Auditor Grid · accept multiple audits</a>';
+  // Email is navigation only. The Auditor Portal owns authenticated ACCEPT.
+  return '<a href="' + NB_htmlAttr_(url) + '" target="_self" rel="noopener noreferrer" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:8px 12px;border-radius:7px;font-size:11px;font-weight:900;line-height:1.1">Open audit in Auditor Portal</a>';
 }
 
 function NB_portalUrlForOperational_(n) {

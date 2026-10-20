@@ -44,12 +44,12 @@ const liveRows=[['Created','Status','Event','Recipient'],item(0,'auditor@example
 ctx.NB_getEventConfig_=(key)=>key==='AUDIT_PLANNED_BY_MANAGER'
  ? {consolidate:true,bufferMinutes:2,digestGroup:'AUDITOR_OPERATIONAL',sendEmail:true}
  : null;
-assert.equal(ctx.ns_reservePending_(sheet,liveRows),1);
+assert.equal(ctx.ns_reservePending_({getRange(row,col){return{setValue(value){liveRows[row-1][col-1]=value}}}},liveRows),1);
 const liveReservation=JSON.parse(liveRows[1][12]);
 assert.equal(liveReservation.windowDueAtMs-liveReservation.windowStartAtMs,120000,'live 2-minute digest overrides stale 5-minute queue snapshot');
 const zeroRows=[['Created','Status','Event','Recipient'],item(0,'auditor@example.org')];
 ctx.NB_getEventConfig_=()=>({consolidate:true,bufferMinutes:0,digestGroup:'AUDITOR_OPERATIONAL',sendEmail:true});
-assert.equal(ctx.ns_reservePending_(sheet,zeroRows),1);
+assert.equal(ctx.ns_reservePending_({getRange(row,col){return{setValue(value){zeroRows[row-1][col-1]=value}}}},zeroRows),1);
 const zeroReservation=JSON.parse(zeroRows[1][12]);
 assert.equal(zeroReservation.windowDueAtMs,zeroReservation.windowStartAtMs,'zero buffer is immediate and not coerced to a default');
 console.log('notification-batching-window-20: PASS');

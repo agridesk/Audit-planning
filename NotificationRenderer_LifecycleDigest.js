@@ -77,8 +77,10 @@ function NB_renderLifecycleDigest_(recipientEmail, normalizedItems) {
   lines.push('');
   lines.push('Below is an overview of recent audit status updates.');
   lines.push('');
-  lines.push('Auditor: ' + auditorName);
-  lines.push('');
+  if (!NB_lifecycleDigestIsAuditorRecipient_(normalizedItems)) {
+    lines.push('Auditor: ' + auditorName);
+    lines.push('');
+  }
   lines.push('Status | MPS No. | Company | Scopes | Date(s)' + (NB_lifecycleHasReason_(normalizedItems) ? ' | Reason' : ''));
 
   for (var i = 0; i < normalizedItems.length; i++) {
@@ -116,7 +118,9 @@ function NB_renderLifecycleDigestHtml_(subject, recipientEmail, items, auditorNa
   html.push('<div style="font-size:17px;font-weight:700;margin-bottom:8px">' + NB_html_(subject || 'Audit status overview') + '</div>');
   html.push('<p style="margin:0 0 12px;color:#475569">Hello,</p>');
   html.push('<p style="margin:0 0 14px;color:#475569">Below is an overview of recent audit status updates.</p>');
+  if (!NB_lifecycleDigestIsAuditorRecipient_(items)) {
   html.push('<div style="margin:0 0 10px;padding:6px 8px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:9px;font-weight:700">Auditor: ' + NB_html_(auditorName) + '</div>');
+  }
 
   html.push('<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;font-size:11px;margin:0 0 12px 0">');
   html.push('<thead><tr style="background:#f8fafc">');
@@ -148,6 +152,23 @@ function NB_renderLifecycleDigestHtml_(subject, recipientEmail, items, auditorNa
   html.push('<div style="font-size:11px;color:#334155;margin-top:18px">Thank you,<br><br>René Rombouts</div>');
   html.push(NB_htmlShellEnd_());
   return html.join('');
+}
+
+// For auditor-addressed lifecycle digests, repeating the recipient's name
+// in the mail header is redundant and can expose stale audit assignment data.
+function NB_lifecycleDigestIsAuditorRecipient_(items) {
+  if(!items||!items.length)return false;
+  var auditorEvents={
+    AUDIT_APPROVED:true,
+    AUDIT_CANCELLED_BY_MANAGER:true,
+    AUDIT_DENIED_BY_MANAGER:true,
+    AUDIT_REJECTED_BY_MANAGER:true
+  };
+  for(var i=0;i<items.length;i++){
+    var event=String(items[i]&&items[i].eventCode||'').trim().toUpperCase();
+    if(!auditorEvents[event])return false;
+  }
+  return true;
 }
 
 function NB_lifecycleDigestAuditor_(recipientEmail, items) {

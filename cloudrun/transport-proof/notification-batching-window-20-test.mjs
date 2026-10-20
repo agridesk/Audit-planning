@@ -38,4 +38,18 @@ assert.notEqual(reservation(1).groupKey,reservation(5).groupKey,'manager and aud
 assert.equal(reservation(1).windowDueAtMs-reservation(1).windowStartAtMs,300000);
 assert.match(config,/if \(eventKey === 'AUDIT_PLANNED_BY_AUDITOR'\)[\s\S]*?consolidate: true,[\s\S]*?bufferMinutes: 5/);
 assert.match(config,/if \(eventKey === 'AUDIT_PLANNED_BY_MANAGER'\)[\s\S]*?consolidate: true,[\s\S]*?bufferMinutes: 5/);
+
+// Regression: current Notification_Config overrides stale queued payload snapshots.
+const liveRows=[['Created','Status','Event','Recipient'],item(0,'auditor@example.org')];
+ctx.NB_getEventConfig_=(key)=>key==='AUDIT_PLANNED_BY_MANAGER'
+ ? {consolidate:true,bufferMinutes:2,digestGroup:'AUDITOR_OPERATIONAL',sendEmail:true}
+ : null;
+assert.equal(ctx.ns_reservePending_(sheet,liveRows),1);
+const liveReservation=JSON.parse(liveRows[1][12]);
+assert.equal(liveReservation.windowDueAtMs-liveReservation.windowStartAtMs,120000,'live 2-minute digest overrides stale 5-minute queue snapshot');
+const zeroRows=[['Created','Status','Event','Recipient'],item(0,'auditor@example.org')];
+ctx.NB_getEventConfig_=()=>({consolidate:true,bufferMinutes:0,digestGroup:'AUDITOR_OPERATIONAL',sendEmail:true});
+assert.equal(ctx.ns_reservePending_(sheet,zeroRows),1);
+const zeroReservation=JSON.parse(zeroRows[1][12]);
+assert.equal(zeroReservation.windowDueAtMs,zeroReservation.windowStartAtMs,'zero buffer is immediate and not coerced to a default');
 console.log('notification-batching-window-20: PASS');

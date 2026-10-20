@@ -175,6 +175,10 @@ assert.match(notificationBuilder,/out\.contactPhone=companyContact\.contactPhone
 assert.match(auditorMail,/Contact person: /);
 assert.match(auditorMail,/Mobile \/ phone: /);
 assert.match(auditorMail,/Manager comment: /);
+assert.match(auditorMail,/function NB_managerToAuditorMapsForBlock_/);
+assert.match(auditorMail,/var location = NB_managerToAuditorMapsForBlock_\(n,b\) \|\| locationName;/);
+assert.match(auditorMail,/var mapsUrl = NB_managerToAuditorMapsForBlock_\(n,b\);/);
+
 assert.match(auditorMail,/Company comments:/);
 
 assert.match(auditorMail,/\/?auditId=/);

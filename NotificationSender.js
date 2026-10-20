@@ -513,6 +513,14 @@ function ns_yesLike_(v) {
  * Reservation
  * ============================================================ */
 
+// Legacy weekly queue envelopes are one pre-rendered overview per recipient.
+// Their eligibility is derived only from the canonical event configuration.
+function ns_isWeeklyPreRenderedEnvelope20_(eventCode, payload) {
+  var key=String(eventCode||'').trim().toUpperCase();
+  return (key==='WEEKLY_MANAGER_DIGEST'||key==='WEEKLY_AUDITOR_DIGEST') &&
+    !!(payload&&payload.weeklyPreRendered);
+}
+
 function ns_currentEmailPermissions_() {
   var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Notification_Config');
   if(!sh)throw new Error('NOTIFICATION_CONFIG_MISSING');
@@ -527,6 +535,16 @@ function ns_currentEmailPermissions_() {
     if(Object.prototype.hasOwnProperty.call(result,key))throw new Error('NOTIFICATION_CONFIG_DUPLICATE');
     result[key]=ns_yesLike_(rows[i][a])&&ns_yesLike_(rows[i][e])&&!ns_yesLike_(rows[i][l]);
   }
+  // Composite weekly envelopes have legacy queue codes, not independent settings.
+  // Allow only if at least one canonical family event is currently sendable.
+  result.WEEKLY_MANAGER_DIGEST=[
+    'WEEKLY_MANAGER_COMING_UP','WEEKLY_MANAGER_PENDING_PLANNING',
+    'BIRTHDATE_CERTIFICATE_EMPTY','EXPIRY_ALERT'
+  ].some(function(k){return result[k]===true;});
+  result.WEEKLY_AUDITOR_DIGEST=[
+    'WEEKLY_AUDITOR_COMING_UP','WEEKLY_AUDITOR_PENDING_PLANNING',
+    'WEEKLY_AUDITOR_PENDING_ACCEPTANCE','WEEKLY_AUDITOR_PENDING_COMPLETION'
+  ].some(function(k){return result[k]===true;});
   return result;
 }
 function ns_suppressDisabledQueueRows_(sheet,rows,policy){
@@ -562,7 +580,7 @@ function ns_reservePending_(nqSheet, values) {
   for (var w=1;w<values.length;w++) {
     if(String(values[w][1]||'').trim()!=='RESERVED')continue;
     var prev=ns_parseReserved_(values[w][12]),prevCfg=prev&&prev.payload&&prev.payload.config||{};
-    if(typeof NB_getEventConfig_==='function') {
+    if(typeof NB_getEventConfig_==='function' && !ns_isWeeklyPreRenderedEnvelope20_(values[w][2],prev&&prev.payload)) {
       prevCfg=NB_getEventConfig_(String(values[w][2]||'').trim().toUpperCase())||prevCfg;
     }
     if(!prev||!rollingEligible20(prevCfg))continue;
@@ -588,7 +606,7 @@ function ns_reservePending_(nqSheet, values) {
     var cfg = (payload && payload.config) ? payload.config : {};
     // Resolve every unreserved event against live Notification_Config.
     // Queue payload snapshots are delivery context, not routing/buffer authority.
-    if(typeof NB_getEventConfig_==='function') {
+    if(typeof NB_getEventConfig_==='function' && !ns_isWeeklyPreRenderedEnvelope20_(values[r][2],payload)) {
       cfg=NB_getEventConfig_(String(values[r][2]||'').trim().toUpperCase())||cfg;
     }
 

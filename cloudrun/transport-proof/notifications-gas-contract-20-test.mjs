@@ -41,7 +41,7 @@ const html=readFileSync(new URL('./notification-manager-20.html',import.meta.url
 assert.match(html,/id="devModeSelect"/);
 assert.match(html,/id="saveDevMode"/);
 assert.doesNotMatch(server,/NotificationMailGateway_SendEmail/);
-console.log('notifications-gas-contract-20: PASS');
+
 
 const sender=read('NotificationSender.js');
 for(const guard of ['function ns_currentEmailPermissions_()', 'function ns_suppressDisabledQueueRows_(', 'var policy = ns_currentEmailPermissions_()', 'var livePolicy = ns_currentEmailPermissions_()', "getSheetByName('Notification_Config')", "setValue('SENT_SUPPRESSED')", 'group.items = allowed', 'group.rows = allowed.map']) {
@@ -243,3 +243,4 @@ assert.match(dashboard,/Digest buffer \(minutes\)/);
 assert.match(dashboard,/notifications-manager-20\/digest-buffer/);
 assert.match(senderDigestSsot,/NB_getEventConfig_\(String\(values\[r\]\[2\]/);
 assert.match(senderDigestSsot,/cfg\.bufferMinutes == null/);
+console.log('notifications-gas-contract-20: PASS');

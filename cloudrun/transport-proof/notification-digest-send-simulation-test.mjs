@@ -59,4 +59,25 @@ assert.notEqual(cancelRecipientGroups[0][0],cancelRecipientGroups[1][0]);
 assert.ok(cancellationRows.slice(1).every(r=>r[1]==='SENT_SIMULATED'));
 assert.equal(sent.length,0,'No test scenario sends live mail');
 assert.equal(cancelCtx.ns_sendDueReserved_(cancelSheet,cancellationRows).sentGroups,0,'Re-running sender must not redeliver a completed cancellation');
+
+// Provider exceptions must be recorded as FAILED, never silently marked SENT.
+// A subsequent sender pass must not automatically resend an ambiguous failure.
+let providerAttempts=0;
+const failedRows=[['Header'],[new Date(now-180000),'RESERVED','AUDIT_CANCELLED_BY_MANAGER','paco@example.org','AUD_FAILED','Company','Subject','Body',0,'','','',JSON.stringify({payload:{},windowKey:'W',groupKey:'paco@example.org|W',windowDueAtMs:now-1000})]];
+const failureCtx={...ctx,
+ ns_currentEmailPermissions_:()=>({AUDIT_CANCELLED_BY_MANAGER:true}),
+ ns_buildDigestEmail_:()=>({subject:'Cancellation',body:'Body',htmlBody:''}),
+ ns_resolveNotificationDelivery_:to=>({mode:'TEST_TO_SELF',send:true,recipient:'test@example.org',originalRecipients:[to],overridden:true}),
+ NS_sendEmailWithConfiguredIdentity_:()=>{providerAttempts++;throw Error('SIMULATED_PROVIDER_FAILURE');}
+};
+vm.runInNewContext(source.slice(start,end),failureCtx);
+const failedSheet={getRange:(r,c)=>({getValue:()=>failedRows[r-1][c-1],setValue:v=>{failedRows[r-1][c-1]=v;}})};
+const failureFirst=failureCtx.ns_sendDueReserved_(failedSheet,failedRows);
+const failureSecond=failureCtx.ns_sendDueReserved_(failedSheet,failedRows);
+assert.equal(failureFirst.failedGroups,1);
+assert.equal(failedRows[1][1],'FAILED');
+assert.equal(failedRows[1][8],1);
+assert.match(failedRows[1][9],/SIMULATED_PROVIDER_FAILURE/);
+assert.equal(failureSecond.processedGroups,0,'Ambiguous failures must not be resent automatically');
+assert.equal(providerAttempts,1);
 console.log('notification-digest-send-simulation: PASS');

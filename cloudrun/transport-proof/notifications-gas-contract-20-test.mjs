@@ -169,6 +169,14 @@ console.log('Notification legacy-settings references: '+legacyReferences.join(',
 
 // Auditor email navigation must never reuse legacy direct accept/deny links.
 const auditorMail=read('NotificationRenderer_ManagerToAuditorPlanning.js');
+const notificationBuilder=read('NotificationBuilder.js');
+assert.match(notificationBuilder,/function NB_loadCompanyContactForBriefing_/);
+assert.match(notificationBuilder,/out\.contactPhone=companyContact\.contactPhone/);
+assert.match(auditorMail,/Contact person: /);
+assert.match(auditorMail,/Mobile \/ phone: /);
+assert.match(auditorMail,/Manager comment: /);
+assert.match(auditorMail,/Company comments:/);
+
 assert.match(auditorMail,/\/?auditId=/);
 assert.doesNotMatch(auditorMail,/match\[1\] \+ '\/planning\?auditId='/);
 assert.doesNotMatch(auditorMail,/cta\.acceptUrl\s*\|\|/);

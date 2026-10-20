@@ -313,6 +313,13 @@ function filter(){var z=document.getElementById("q").value.toLowerCase().trim();
 function focusEmailAudit20(){
  var params;try{params=new URLSearchParams(window.location.search)}catch(e){return}
  var requested=params.get('auditId')||'',requestedAction=String(params.get('emailAction')||'').toUpperCase();
+ if(String(params.get('status')||'').toUpperCase()==='APPROVED' && String(actorRole).toLowerCase()==='auditor'){
+  var pending=all.filter(function(r){return String(r.statusKey||r.status||'').trim().toUpperCase()==='APPROVED' && (r.allowedActions||[]).includes('ACCEPT')});
+  var qAll=document.getElementById('q');if(qAll)qAll.value='';
+  render(pending);
+  document.getElementById('status').textContent=pending.length+' audits pending your acceptance';
+  return;
+ }
  if(!requested||requested.length>256)return;
  var match=all.find(function(r){return String(r.auditId||'')===requested});
  if(!match){document.getElementById('status').textContent='Email audit not available for this account or current status';return}

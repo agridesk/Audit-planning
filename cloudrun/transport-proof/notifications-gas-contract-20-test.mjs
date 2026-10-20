@@ -209,7 +209,7 @@ assert.match(sharedGrid,/new URLSearchParams\(window\.location\.search\)/);
 assert.match(sharedGrid,/focusEmailAudit20\(\);return loadOpenEnrichment/);
 
 // Email never promises inline acceptance or carries a non-functional fake button.
-assert.match(auditorMail,/Open audit in Auditor Portal/);
+assert.match(auditorMail,/Open pending acceptances in Auditor Portal/);
 assert.doesNotMatch(auditorMail,/\/email-action\?auditId=/);
 assert.doesNotMatch(auditorMail,/html\.push\('<div[^']*Contact details<\/div>'\)/,'Customer contact block must not appear in email');
 assert.doesNotMatch(auditorMail,/desc\.push\('Contact details:'\)/,'Customer contacts must not leak into calendar descriptions');

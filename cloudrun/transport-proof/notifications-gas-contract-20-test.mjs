@@ -250,4 +250,14 @@ assert.match(lifecycleDigestSource,/function NB_lifecycleDigestIsAuditorRecipien
 assert.match(lifecycleDigestSource,/AUDIT_CANCELLED_BY_MANAGER:true/);
 assert.match(lifecycleDigestSource,/if \(!NB_lifecycleDigestIsAuditorRecipient_\(normalizedItems\)\)/);
 assert.match(lifecycleDigestSource,/if \(!NB_lifecycleDigestIsAuditorRecipient_\(items\)\)/);
+// Verify auditor recipient header selection without running GAS.
+const headerFnSrc=lifecycleDigestSource.slice(
+ lifecycleDigestSource.indexOf('function NB_lifecycleDigestIsAuditorRecipient_('),
+ lifecycleDigestSource.indexOf('function NB_lifecycleDigestAuditor_(')
+);
+const headerCheck=new Function(headerFnSrc+';return NB_lifecycleDigestIsAuditorRecipient_;')();
+assert.equal(headerCheck([{eventCode:'AUDIT_CANCELLED_BY_MANAGER'}]),true);
+assert.equal(headerCheck([{eventCode:'AUDIT_APPROVED'},{eventCode:'AUDIT_CANCELLED_BY_MANAGER'}]),true);
+assert.equal(headerCheck([{eventCode:'AUDIT_ACCEPTED'}]),false,'Manager-targeted lifecycle retains auditor attribution');
+assert.equal(headerCheck([{eventCode:'AUDIT_ACCEPTED'},{eventCode:'AUDIT_CANCELLED_BY_MANAGER'}]),false,'Mixed groups do not lose audit attribution');
 console.log('notifications-gas-contract-20: PASS');

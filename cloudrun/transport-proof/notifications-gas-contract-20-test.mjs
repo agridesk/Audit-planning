@@ -181,7 +181,7 @@ assert.match(auditorMail,/var mapsUrl = NB_managerToAuditorMapsForBlock_\(n,b\);
 
 assert.match(auditorMail,/Company comments:/);
 
-assert.match(auditorMail,/\/?auditId=/);
+assert.match(auditorMail,/\?status=APPROVED/);
 assert.doesNotMatch(auditorMail,/match\[1\] \+ '\/planning\?auditId='/);
 assert.doesNotMatch(auditorMail,/cta\.acceptUrl\s*\|\|/);
 assert.match(auditorMail,/NB_portalBaseUrl20_\('AUDITOR'\)/);

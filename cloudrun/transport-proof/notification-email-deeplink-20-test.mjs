@@ -11,7 +11,7 @@ const builder=read('NotificationBuilder.js');
 
 assert.match(server,/u\.pathname==='\/planning'[\s\S]{0,300}role\)\.toLowerCase\(\)!=='manager'/);
 assert.match(server,/u\.pathname==='\/'&&req\.method==='GET'[\s\S]{0,350}auditor/);
-assert.match(auditor,/match\[1\] \+ '\/\?auditId='/);
+assert.match(auditor,/match \? match\[1\] \+ '\/\?status=APPROVED'/);
 assert.doesNotMatch(auditor,/match\[1\] \+ '\/planning\?auditId='/);
 assert.match(manager,/match\[1\] \+ '\/planning\?auditId='/);
 assert.match(generic,/planning\?auditId=/);

@@ -71,9 +71,10 @@ function NB_renderRichOperationalHtml_(n) {
   var html=[],mps=NB_mpsNumber_(n),locations=Array.isArray(n.locations)?n.locations:[];
   var company=NB_clean_(n.company||'Audit'),status=NB_clean_(n.displayStatus||'Pending acceptance');
   var scope=NB_managerToAuditorScopeTitle_(n),contact=NB_clean_(n.contactName||'');
-  var contactEmail=NB_clean_(n.contactEmail||''),first=blocks[0]||{};
+  var contactEmail=NB_clean_(n.contactEmail||''),contactPhone=NB_clean_(n.contactPhone||''),first=blocks[0]||{};
   if(!contact)contact=NB_clean_(first.contactName||'');
   if(!contactEmail)contactEmail=NB_clean_(first.contactEmail||'');
+  if(!contactPhone)contactPhone=NB_clean_(first.contactPhone||'');
   var gps=NB_clean_(first.gps||'');
   if(!gps && locations.length)gps=NB_clean_(locations[0].gps||'');
   var maps=gps?NB_googleMapsUrl_(gps):'';
@@ -101,10 +102,11 @@ function NB_renderRichOperationalHtml_(n) {
   html.push('</td><td valign="top" style="width:47%;border-left:1px solid #e2e8f0;padding-left:18px">');
   if(maps)html.push('<div style="margin-bottom:11px"><div style="font-size:11px;color:#64748b">Location</div><a href="'+NB_htmlAttr_(maps)+'" target="_blank" style="font-size:13px;color:#2563eb">Open in Google Maps ↗</a></div>');
   if(locations.length)html.push(item('Locations',String(locations.length)+(locations.length===1?' location':' locations')));
-  if(contact||contactEmail) {
+  if(contact||contactEmail||contactPhone) {
     html.push('<div style="margin-bottom:11px"><div style="font-size:11px;color:#64748b">Contact person</div>');
     if(contact)html.push('<div style="font-size:13px">'+NB_html_(contact)+'</div>');
     if(contactEmail)html.push('<a style="color:#2563eb;font-size:12px" href="mailto:'+NB_htmlAttr_(contactEmail)+'">'+NB_html_(contactEmail)+'</a>');
+    if(contactPhone)html.push('<div><a style="color:#2563eb;font-size:12px" href="tel:'+NB_htmlAttr_(contactPhone.replace(/[^0-9+]/g,''))+'">'+NB_html_(contactPhone)+'</a></div>');
     html.push('</div>');
   }
   html.push('</td></tr></table>');
@@ -562,6 +564,17 @@ function NB_managerToAuditorCalendarDescriptionLines_(n, b) {
   if (locationName) desc.push('Location: ' + locationName);
   if (gps) desc.push('GPS: ' + gps);
   if (mapsUrl) desc.push('Google Maps: ' + mapsUrl);
+  var contactName=NB_clean_(n.contactName||b.contactName||'');
+  var contactEmail=NB_clean_(n.contactEmail||b.contactEmail||'');
+  var contactPhone=NB_clean_(n.contactPhone||b.contactPhone||'');
+  if(contactName||contactEmail||contactPhone){
+    desc.push('');
+    if(contactName)desc.push('Contact person: '+contactName);
+    if(contactEmail)desc.push('Email: '+contactEmail);
+    if(contactPhone)desc.push('Mobile / phone: '+contactPhone);
+  }
+  var managerComment=NB_clean_(n.comment||n.reason||'');
+  if(managerComment){desc.push('');desc.push('Manager comment: '+managerComment);}
 
   if (b.slotComment) {
     desc.push('');

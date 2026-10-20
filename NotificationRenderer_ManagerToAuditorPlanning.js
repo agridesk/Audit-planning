@@ -68,76 +68,51 @@ function NB_renderRichOperational_(n) {
 }
 
 function NB_renderRichOperationalHtml_(n) {
-  n = n || {};
-  var html = [];
-  var mpsNumber = NB_mpsNumber_(n);
-  var plannedBy = NB_clean_(n.actor || n.actorEmail || '');
-  var plannedOn = NB_clean_(n.plannedOn || n.timestamp || '');
-  var status = NB_clean_(n.displayStatus || 'Pending acceptance');
-  var comment = NB_clean_(n.comment || '');
-  var companyComment = NB_clean_(n.companyComments || '');
-
-  html.push('<div style="font-family:Arial,Helvetica,sans-serif;color:#172033;font-size:12px;line-height:1.35;max-width:820px">');
-  html.push('<div style="border:1px solid #d8e1ef;border-radius:12px;background:#ffffff;padding:14px 18px">');
-
-  html.push('<div style="font-size:11px;color:#667085;text-transform:uppercase;letter-spacing:.06em;font-weight:800">Audit planning package</div>');
-  html.push('<div style="font-size:20px;font-weight:800;margin:4px 0 6px;color:#0f172a">Audit planned for you</div>');
-  html.push('<div style="font-size:11px;color:#475569;margin:0 0 12px">Your manager has scheduled the audit below. Review the details in Audit Grid 2.0 using your existing AMS login.</div>');
-  html.push('<div style="margin:12px 0 16px">' + NB_managerToAuditorAcceptInPortalCtaHtml_(n) + '</div>');
-
-  html.push('<table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;margin:12px 0">');
-  html.push('<tr>');
-  html.push('<td valign="top" style="width:34%;padding-right:16px">');
-  html.push(NB_managerToAuditorLabelValue_('Company', n.company));
-  html.push(NB_managerToAuditorLabelValue_('MPS Number', mpsNumber || 'Not available', 'bigblue'));
-  if (n.auditId) html.push(NB_managerToAuditorLabelValue_('Audit ID', n.auditId, 'muted'));
-  html.push('</td>');
-
-  html.push('<td valign="top" style="width:28%;padding:0 16px;border-left:1px solid #dbe4f0">');
-  html.push(NB_managerToAuditorLabelValue_('Status', NB_statusBadgeHtml_(status), 'html'));
-  if (n.plannedHours !== '' && n.plannedHours !== null && typeof n.plannedHours !== 'undefined') {
-    html.push(NB_managerToAuditorLabelValue_('Planned total hours', NB_formatHours_(n.plannedHours)));
+  n=n||{};
+  var blocks=NB_managerToAuditorEnrichedBlocks_(n);
+  var html=[],mps=NB_mpsNumber_(n),locations=Array.isArray(n.locations)?n.locations:[];
+  var company=NB_clean_(n.company||'Audit'),status=NB_clean_(n.displayStatus||'Pending acceptance');
+  var scope=NB_managerToAuditorScopeTitle_(n),contact=NB_clean_(n.contactName||'');
+  var contactEmail=NB_clean_(n.contactEmail||''),first=blocks[0]||{};
+  if(!contact)contact=NB_clean_(first.contactName||'');
+  if(!contactEmail)contactEmail=NB_clean_(first.contactEmail||'');
+  var gps=NB_clean_(first.gps||'');
+  if(!gps && locations.length)gps=NB_clean_(locations[0].gps||'');
+  var maps=gps?NB_googleMapsUrl_(gps):'';
+  function item(label,value){return value?'<div style="margin:0 0 11px"><span style="font-size:11px;color:#64748b">'+NB_html_(label)+'</span><div style="font-size:13px;color:#172033;margin-top:2px">'+NB_html_(value)+'</div></div>':'';}
+  html.push('<div style="font-family:Arial,Helvetica,sans-serif;color:#172033;max-width:690px;font-size:13px;line-height:1.5">');
+  html.push('<div style="border:1px solid #dce5f0;border-radius:12px;padding:18px 20px;background:#fff">');
+  html.push('<div style="font-size:20px;font-weight:700;color:#101d37;margin-bottom:5px">'+NB_html_(company)+'</div>');
+  if(mps)html.push('<div style="font-size:12px;color:#64748b;margin-bottom:11px">MPS '+NB_html_(mps)+'</div>');
+  html.push('<div style="font-size:12px;color:#2563eb;background:#eff6ff;border-radius:12px;display:inline-block;padding:3px 10px;margin-bottom:15px">'+NB_html_(status)+'</div>');
+  html.push('<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td valign="top" style="width:53%;padding-right:18px">');
+  if(scope)html.push(item('Scope',scope));
+  if(blocks.length) {
+    html.push('<div style="font-size:11px;color:#64748b;margin-bottom:5px">'+(blocks.length>1?'Planned days':'Planned day')+'</div>');
+    for(var i=0;i<blocks.length;i++){
+      var block=blocks[i],date=NB_prettyDate_(block.date),times=NB_externalTimeRangePlain_(block.start,block.end);
+      html.push('<div style="font-size:12px;border-bottom:1px solid #eef2f7;padding:5px 0">'+NB_html_(date)+' &nbsp; '+NB_html_(times)+'</div>');
+      // Each audit day is a separate event, never one all-day/multi-day calendar span.
+      html.push('<div style="padding:5px 0 10px;font-size:11px">');
+      var gc=NB_managerToAuditorGoogleCalendarUrl_(n,block),ac=NB_managerToAuditorAppleCalendarDataUrl_(n,block,i);
+      if(gc)html.push('<a href="'+NB_htmlAttr_(gc)+'" target="_blank" style="color:#2563eb;margin-right:12px;text-decoration:none">📅 Google Calendar</a>');
+      if(ac)html.push('<a href="'+NB_htmlAttr_(ac)+'" style="color:#2563eb;text-decoration:none">▣ Apple Calendar</a>');
+      html.push('</div>');
+    }
   }
-  if (n.country) html.push(NB_managerToAuditorLabelValue_('Country', n.country));
-  if (n.region) html.push(NB_managerToAuditorLabelValue_('Region', n.region));
-  html.push('</td>');
-
-  html.push('<td valign="top" style="padding-left:16px;border-left:1px solid #dbe4f0">');
-  if (plannedBy) html.push(NB_managerToAuditorLabelValue_('Planned by', NB_managerToAuditorMailtoMaybeHtml_(plannedBy), 'html'));
-  if (n.auditorEmail) html.push(NB_managerToAuditorLabelValue_('Auditor', NB_managerToAuditorMailtoMaybeHtml_(n.auditorEmail), 'html'));
-  if (plannedOn) html.push(NB_managerToAuditorLabelValue_('Planned on', plannedOn));
-  html.push('</td>');
-  html.push('</tr>');
-  html.push('</table>');
-
-  html.push('<div style="font-size:15px;font-weight:800;color:#0f172a;margin:14px 0 8px">Audit overview</div>');
-  html.push('<table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;margin:0 0 12px">');
-  html.push('<tr>');
-  html.push('<td valign="top" style="width:34%;padding-right:16px"><div style="font-size:10px;color:#667085;font-weight:800;margin-bottom:6px">Scopes</div>' + NB_scopeBadgesHtml_(n.scopes || []) + '</td>');
-  html.push('<td valign="top" style="padding-left:16px;border-left:1px solid #dbe4f0"><div style="font-size:10px;color:#667085;font-weight:800;margin-bottom:6px">Comments</div>');
-  html.push('<div style="font-size:11px;color:#0f172a;white-space:pre-wrap">' + NB_html_(comment || companyComment || '-') + '</div>');
-  html.push('</td>');
-  html.push('</tr>');
-  html.push('</table>');
-
-  html.push(NB_renderManagerToAuditorValidationHtml_(n));
-
-  html.push('<div style="font-size:15px;font-weight:800;color:#0f172a;margin:14px 0 8px">Planned days</div>');
-  html.push(NB_managerToAuditorPlanningTableHtml_(n));
-
-  if (n.locations && n.locations.length > 1) html.push(NB_renderLocationsTableHtml_(n.locations));
-
-  html.push('<div style="font-size:15px;font-weight:800;color:#0f172a;margin:14px 0 8px">Review this audit</div>');
-  html.push('<div style="font-size:11px;line-height:1.45;color:#334155;margin-bottom:10px">');
-  html.push('<div><strong>Before accepting:</strong> you must be signed in to the AMS Auditor Portal. If you are not signed in, the link will first show the secure login screen. Enter the code sent to your email, and select <strong>Remember me (14 days)</strong> to stay signed in on this device. After login you will return to this audit to confirm ACCEPT.</div>');
-  html.push('<div>Check the planned dates, company details and available actions. Any change requires your confirmation in AMS.</div>');
-  html.push('<div>This email does not confirm, cancel or change the audit.</div>');
-  html.push('</div>');
-  html.push('<div style="font-size:11px;color:#64748b;margin:8px 0">You can also use the button at the top of this message.</div>');
-
-  html.push('<div style="margin-top:14px;color:#64748b;font-size:10.5px;line-height:1.35;border-top:1px solid #e6edf7;padding-top:9px">Automated message from the Audit Planning System. Please do not reply to this email.</div>');
-  html.push('</div>');
-  html.push('</div>');
+  html.push('</td><td valign="top" style="width:47%;border-left:1px solid #e2e8f0;padding-left:18px">');
+  if(maps)html.push('<div style="margin-bottom:11px"><div style="font-size:11px;color:#64748b">Location</div><a href="'+NB_htmlAttr_(maps)+'" target="_blank" style="font-size:13px;color:#2563eb">Open in Google Maps ↗</a></div>');
+  if(locations.length)html.push(item('Locations',String(locations.length)+(locations.length===1?' location':' locations')));
+  if(contact||contactEmail) {
+    html.push('<div style="margin-bottom:11px"><div style="font-size:11px;color:#64748b">Contact person</div>');
+    if(contact)html.push('<div style="font-size:13px">'+NB_html_(contact)+'</div>');
+    if(contactEmail)html.push('<a style="color:#2563eb;font-size:12px" href="mailto:'+NB_htmlAttr_(contactEmail)+'">'+NB_html_(contactEmail)+'</a>');
+    html.push('</div>');
+  }
+  html.push('</td></tr></table>');
+  var checks=n.validation||{},hasSoft=!!(n.companyConstraints||checks.companyConstraints||checks.companyConstraintMeta);
+  if(hasSoft)html.push('<div style="background:#fff9ed;border-radius:8px;padding:9px 11px;color:#8a5a22;font-size:11px;margin-top:12px">Soft constraints are preferences only; review details in the Auditor Portal.</div>');
+  html.push('</div></div>');
   return html.join('');
 }
 

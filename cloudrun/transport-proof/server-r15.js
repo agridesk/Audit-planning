@@ -304,6 +304,19 @@ async function notificationRuleMutation(req,res){
  const data=await notificationGasCall(actor,'updateRule',{ruleKey:key,value,expected});
  res.writeHead(data.ok?200:409,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(data));
 }
+async function notificationDigestBufferMutation(req,res){
+ const actor=await session(req);
+ if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401);res.end();return;}
+ let validOrigin=false;try{const origin=new URL(String(req.headers.origin||''));validOrigin=origin.protocol==='https:'&&origin.host===String(req.headers.host||'');}catch{}
+ if(!validOrigin){res.writeHead(403);res.end('ORIGIN_REJECTED');return;}
+ let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048){res.writeHead(413);res.end();return;}}
+ let body;try{body=JSON.parse(raw);}catch{res.writeHead(400);res.end('INVALID_JSON');return;}
+ const key=String(body.eventKey||'').trim().toUpperCase(),minutes=body.minutes,expected=body.expected;
+ const valid=v=>typeof v==='number'&&Number.isInteger(v)&&v>=0&&v<=1440;
+ if(!/^[A-Z][A-Z0-9_]{1,100}$/.test(key)||!valid(minutes)||!valid(expected)){res.writeHead(400);res.end('INVALID_BUFFER_MUTATION');return;}
+ const data=await notificationGasCall(actor,'updateDigestBuffer',{eventKey:key,minutes,expected});
+ res.writeHead(data.ok?200:409,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(data));
+}
 async function notificationEventMutation(req,res){
  const actor=await session(req);
  if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401);res.end();return;}
@@ -400,6 +413,7 @@ http.createServer(async(req,res)=>{
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/send-test'){await notificationPreviewOrSend(req,res,'sendTest');return;}
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/dev-mode'){await notificationDevModeMutation(req,res);return;}
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/rules'){await notificationRuleMutation(req,res);return;}
+  if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/digest-buffer'){await notificationDigestBufferMutation(req,res);return;}
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/events'){await notificationEventMutation(req,res);return;}
   if(req.method==='GET'&&u.pathname==='/api/v1/notifications-manager-20/overview'){await notificationsManagerOverview(req,res);return;}
   if(req.method==='GET'&&u.pathname==='/notifications-manager-20'){

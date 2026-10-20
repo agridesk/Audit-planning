@@ -101,6 +101,7 @@ function NB_renderRichOperationalHtml_(n) {
   }
   html.push('</td><td valign="top" style="width:47%;border-left:1px solid #e2e8f0;padding-left:18px">');
   if(maps)html.push('<div style="margin-bottom:11px"><div style="font-size:11px;color:#64748b">Location</div><a href="'+NB_htmlAttr_(maps)+'" target="_blank" style="font-size:13px;color:#2563eb">Open in Google Maps ↗</a></div>');
+  else html.push('<div style="margin-bottom:11px"><div style="font-size:11px;color:#64748b">Location</div><div style="font-size:12px;color:#64748b">Google Maps location not available</div></div>');
   if(locations.length)html.push(item('Locations',String(locations.length)+(locations.length===1?' location':' locations')));
   if(contact||contactEmail||contactPhone) {
     html.push('<div style="margin-bottom:11px"><div style="font-size:11px;color:#64748b">Contact person</div>');
@@ -576,8 +577,7 @@ function NB_managerToAuditorCalendarDescriptionLines_(n, b) {
   if (NB_mpsNumber_(n) || b.mpsNumber || b.auditNumber) desc.push('MPS: ' + NB_clean_(NB_mpsNumber_(n) || b.mpsNumber || b.auditNumber));
   if (n.company || b.company) desc.push('Company: ' + NB_clean_(n.company || b.company));
   if (NB_managerToAuditorScopeTitle_(n)) desc.push('Scopes: ' + NB_managerToAuditorScopeTitle_(n));
-  if (locationName) desc.push('Location: ' + locationName);
-  if (gps) desc.push('GPS: ' + gps);
+  if (locationName && !mapsUrl) desc.push('Location: ' + locationName);
   if (mapsUrl) desc.push('Google Maps: ' + mapsUrl);
   var contactName=NB_clean_(n.contactName||b.contactName||'');
   var contactEmail=NB_clean_(n.contactEmail||b.contactEmail||'');
@@ -591,17 +591,10 @@ function NB_managerToAuditorCalendarDescriptionLines_(n, b) {
   var managerComment=NB_clean_(n.comment||n.reason||'');
   if(managerComment){desc.push('');desc.push('Manager comment: '+managerComment);}
 
-  if (b.slotComment) {
-    desc.push('');
-    desc.push('Audit slot comment:');
-    desc.push(NB_clean_(b.slotComment));
-  }
-
-  if (n.companyComments || b.companyComments) {
-    desc.push('');
-    desc.push('Company comments:');
-    desc.push(NB_clean_(n.companyComments || b.companyComments));
-  }
+  var slotComment=NB_clean_(b.slotComment||'');
+  if(slotComment){desc.push('');desc.push('Audit day comment: '+slotComment);}
+  var companyComment=NB_clean_(n.companyComments||b.companyComments||'');
+  if(companyComment){desc.push('');desc.push('Company comments: '+companyComment);}
 
   return desc;
 }

@@ -42,6 +42,11 @@ function NB_renderExternalOperationalDigest_(recipientEmail, normalizedItems) {
   normalizedItems = normalizedItems || [];
   var validation = NB_externalValidateDigestItems_(normalizedItems);
   var validItems = validation.validItems;
+  // A digest is atomic. Sending only valid rows would incorrectly mark skipped
+  // queue entries as SENT even though their audit was never communicated.
+  if (validation.invalid.length) {
+    throw new Error('PlanningToClientDigest refused partial digest: ' + JSON.stringify(validation.invalid));
+  }
   if (!validItems.length) {
     throw new Error('PlanningToClientDigest has no valid rows. Missing required fields: auditor, MPS number, scopes, planning dates and planned hours. Invalid rows: ' + JSON.stringify(validation.invalid));
   }

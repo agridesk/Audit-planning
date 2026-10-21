@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {createSwapProposal,applySwapProposalEvent,swapProposalNeedsAction,previewSwapFinalState,validateSwapProposalSource,evaluateSwapEligibility,prepareSwapCommit,buildSwapSlotExchange,evaluateSwapFinalState,validateSwapBlock,planSwapJournal,advanceSwapJournal,classifySwapChange,deriveSwapAcknowledgementPolicy,planSwapFollowUpNotifications,buildMappedSwapSlotExchange,validateSwapBlockMapping,verifySwapCommitInvariants,assessSwapJournalRecovery} from './swap-proposal-20.mjs';
+import {createSwapProposal,applySwapProposalEvent,swapProposalNeedsAction,previewSwapFinalState,validateSwapProposalSource,evaluateSwapEligibility,prepareSwapCommit,buildSwapSlotExchange,evaluateSwapFinalState,validateSwapBlock,planSwapJournal,advanceSwapJournal,classifySwapChange,deriveSwapAcknowledgementPolicy,planSwapFollowUpNotifications,buildMappedSwapSlotExchange,validateSwapBlockMapping,verifySwapCommitInvariants,assessSwapJournalRecovery,prepareSwapBeforeImages} from './swap-proposal-20.mjs';
 const at='2026-10-21T10:00:00Z',later='2026-10-23T10:00:00Z';
 const p=createSwapProposal({operationId:'s1',auditA:'A',auditB:'B',requiredAuditorUids:['u1','u2'],createdAt:at,originalRevisions:{A:1,B:2},internalReason:'logistics',ecasComment:'Change agreed'});
 assert.equal(p.status,'AWAITING_ACKNOWLEDGEMENT');
@@ -142,4 +142,11 @@ assert.equal(assessSwapJournalRecovery({...recoveryBase,phase:'WRITING'}).action
 assert.equal(assessSwapJournalRecovery({...recoveryBase,phase:'FAILED'}).safeToRetry,false);
 assert.equal(assessSwapJournalRecovery({...recoveryBase,phase:'COMMITTED'}).action,'NOOP');
 assert.throws(()=>assessSwapJournalRecovery({...recoveryBase,phase:'UNKNOWN'}));
+const originalRow={auditId:'A',status:'Accepted',planning:{date:'2026-11-01'}};
+const before=prepareSwapBeforeImages({operationId:'s1',auditA:'A',auditB:'B',canonicalA:originalRow,canonicalB:{auditId:'B',status:'Accepted'},reservationsA:[{id:'r1'}],reservationsB:[]});
+originalRow.planning.date='2026-12-01';
+assert.equal(before.canonical.A.planning.date,'2026-11-01');
+assert.equal(before.writeAuthorized,false);
+assert.equal(before.durablyPersisted,false);
+assert.throws(()=>prepareSwapBeforeImages({operationId:'s1',auditA:'A',auditB:'B',canonicalA:{auditId:'B'},canonicalB:{auditId:'A'},reservationsA:[],reservationsB:[]}));
 console.log('Swap proposal tests passed');

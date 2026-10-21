@@ -320,6 +320,13 @@ function NB_externalScheduleRows_(n) {
   if(event==='ECAS_AUDIT_CANCELLED_DIGEST' && !((n.blocks||[]).length || (n.plannedDates||[]).length)) {
     n={blocks:n.previousBlocks||[],plannedDates:n.previousPlannedDates||[]};
   }
+  if(event==='ECAS_AUDIT_CHANGED_DIGEST') {
+    var prior=NB_externalScheduleRows_({blocks:n.previousBlocks||[],plannedDates:n.previousPlannedDates||[]});
+    var current=NB_externalScheduleRows_({blocks:n.blocks||[],plannedDates:n.plannedDates||[]});
+    return prior.map(function(x){return {date:'Was: '+x.date,time:x.time};}).concat(
+      current.map(function(x){return {date:'Nu: '+x.date,time:x.time};})
+    );
+  }
   var blocks = n.blocks || [];
   var out = [];
   if (blocks.length) {

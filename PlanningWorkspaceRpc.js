@@ -95,3 +95,5 @@ function PlanningWorkspaceRpc_swapGetProposal(input){
 }
 
 function PlanningWorkspaceRpc_swapCreateProposal(input){return PWR_envelope_('swapCreateProposal',function(){return Swap20ManagerCreateProposal(input||{});});}
+
+function PlanningWorkspaceRpc_swapWithdrawProposal(input){return PWR_envelope_('swapWithdrawProposal',function(){return Swap20ManagerWithdrawProposal(input||{});});}

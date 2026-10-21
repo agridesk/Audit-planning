@@ -22,4 +22,6 @@ assert.throws(()=>previewSwapFinalState({auditA:'A',auditB:'A',auditorA:'u1',aud
 assert.equal(validateSwapProposalSource(p,{A:{revision:1,status:'Accepted'},B:{revision:2,status:'Accepted'}}).valid,true);
 assert.deepEqual(validateSwapProposalSource(p,{A:{revision:3,status:'Accepted'},B:{revision:2,status:'Accepted'}}).conflictingAuditIds,['A']);
 assert.deepEqual(validateSwapProposalSource(p,{A:{revision:1,status:'Completed'},B:{revision:2,status:'Accepted'}}).conflictingAuditIds,['A']);
+assert.equal(validateSwapProposalSource(p,{A:{revision:'1',status:'accepted'},B:{revision:'2',status:'Accepted'}}).valid,true);
+assert.equal(previewSwapFinalState({auditA:'A',auditB:'B',auditorA:'u1',auditorB:'u2',blocksA:[{date:'2026-11-01',start:'09:00',end:'11:00'},{date:'2026-11-01',start:'11:00',end:'13:00'}],blocksB}).canProceed,true);
 console.log('Swap proposal tests passed');

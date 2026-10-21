@@ -77,4 +77,8 @@ const displayFn=new Function(source.slice(managerNameBegin,managerNameEnd)+';ret
 assert.equal(displayFn('david@agriqa.es',{'david@agriqa.es':'David Pastor'}),'David Pastor');
 assert.equal(displayFn('UID-1',{'uid-1':'Paco Pelota'}),'Paco Pelota');
 assert.equal(displayFn('unmapped@example.org',{}),'Unresolved auditor');
+assert.match(source,/function RUN_PREVIEW_WEEKLY_MANAGER_DEV_20261021\(/);
+assert.match(source,/if\(options\.previewOnly===true\) return \{ok:true,previewOnly:true,queued:false/);
+assert.match(source,/PREVIEW_RECIPIENT_NOT_WHITELISTED/);
+assert.match(source,/DEV_TEST_TO_SELF_REQUIRED/);
 console.log('notification-weekly-queue-idempotency-20: PASS');

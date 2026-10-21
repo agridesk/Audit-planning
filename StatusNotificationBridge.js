@@ -1101,7 +1101,7 @@ function StatusNotificationBridge_MapEvent_(action, actor, beforeStatus, afterSt
   if (beforeStatus === STATUS.PENDING_PLANNING && action === ACTION.PLAN && actor === ROLE.AUDITOR && afterStatus === STATUS.PENDING_APPROVAL) return 'AUDIT_PLANNED_BY_AUDITOR';
   if (beforeStatus === STATUS.PENDING_APPROVAL && action === ACTION.APPROVE && actor === ROLE.MANAGER && afterStatus === STATUS.APPROVED) return 'AUDIT_APPROVED';
   if (beforeStatus === STATUS.PENDING_PLANNING && action === ACTION.PLAN && actor === ROLE.MANAGER && afterStatus === STATUS.APPROVED) return 'AUDIT_PLANNED_BY_MANAGER';
-  if (beforeStatus === STATUS.APPROVED && action === ACTION.ACCEPT && actor === ROLE.AUDITOR && afterStatus === STATUS.ACCEPTED) return 'AUDIT_ACCEPTED';
+  if (beforeStatus === STATUS.APPROVED && action === ACTION.ACCEPT && (actor === ROLE.AUDITOR || actor === ROLE.MANAGER) && afterStatus === STATUS.ACCEPTED) return 'AUDIT_ACCEPTED';
   if (beforeStatus === STATUS.ACCEPTED && action === ACTION.COMPLETE && actor === ROLE.MANAGER && afterStatus === STATUS.COMPLETED) return 'COMPLETED_ON_BEHALF';
   if (beforeStatus === STATUS.ACCEPTED && action === ACTION.COMPLETE && actor === ROLE.AUDITOR && afterStatus === STATUS.COMPLETED) return 'AUDIT_COMPLETED';
   if (action === ACTION.CANCEL && actor === ROLE.MANAGER && afterStatus === STATUS.PENDING_PLANNING) return 'AUDIT_CANCELLED_BY_MANAGER';

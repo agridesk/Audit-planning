@@ -67,4 +67,14 @@ const known={'david@agriqa.es':{uid:'uid-david'}};
 assert.equal(ctxUid.nra2_resolveWeeklyAuditUid_('DAVID@agriqa.es',known),'uid-david');
 assert.equal(ctxUid.nra2_resolveWeeklyAuditUid_('uid-david',known),'uid-david');
 assert.equal(ctxUid.nra2_resolveWeeklyAuditUid_('unknown@example.org',known),'');
+// Manager digest must display full names; never publish auditor email as an identifier.
+assert.match(source,/assigned: nrm2_weeklyAuditorDisplay_\(/);
+assert.match(source,/preassigned: nrm2_weeklyAuditorDisplay_\(/);
+const managerNameBegin=source.indexOf('function nrm2_weeklyAuditorDisplay_(');
+const managerNameEnd=source.indexOf('function nrm2_buildMail_(',managerNameBegin);
+assert.ok(managerNameBegin>=0&&managerNameEnd>managerNameBegin);
+const displayFn=new Function(source.slice(managerNameBegin,managerNameEnd)+';return nrm2_weeklyAuditorDisplay_;')();
+assert.equal(displayFn('david@agriqa.es',{'david@agriqa.es':'David Pastor'}),'David Pastor');
+assert.equal(displayFn('UID-1',{'uid-1':'Paco Pelota'}),'Paco Pelota');
+assert.equal(displayFn('unmapped@example.org',{}),'Unresolved auditor');
 console.log('notification-weekly-queue-idempotency-20: PASS');

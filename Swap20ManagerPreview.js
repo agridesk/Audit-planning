@@ -1,0 +1,1 @@
+function Swap20ManagerPreview(input){input=input||{};var a=V5_AUTH.validateTrustedTokenByRole(input.trustedToken||input.token,'Manager',input.deviceFingerprint||input.deviceId);if(!a||a.ok!==true||!a.email)throw new Error('Manager authentication required');return Swap20_readCanonicalPair({auditA:input.auditA,auditB:input.auditB});}

@@ -70,7 +70,11 @@ function NB_renderLifecycleDigest_(recipientEmail, normalizedItems) {
   var tz = NB_getTz_(SpreadsheetApp.getActiveSpreadsheet());
   var digestDate = Utilities.formatDate(now, tz, 'dd-MM-yyyy');
   var digestTime = Utilities.formatDate(now, tz, 'HH:mm');
-  var subject = 'Audit status overview — ' + digestDate + ' ' + digestTime;
+  var isAuditorRecipient=NB_lifecycleDigestIsAuditorRecipient_(normalizedItems);
+  var singleCompany=(normalizedItems.length===1)?NB_clean_(normalizedItems[0]&&normalizedItems[0].company):'';
+  var subject = singleCompany
+    ? 'Audit status update — '+singleCompany+' — '+digestDate+' '+digestTime
+    : 'Audit status overview — '+digestDate+' '+digestTime;
 
   var lines = [];
   lines.push('Hello,');

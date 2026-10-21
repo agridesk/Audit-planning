@@ -34,5 +34,15 @@ function Swap20_recordNotificationIntentLocked_(proposal) {
 // Call after the transaction has been durably APPLIED, under the same script lock.
 // It does not queue or send, since earlier communication receipts are not yet proven.
 function Swap20_stageNotificationAfterCommitLocked_(operationId) {
- return Swap20_recordNotificationIntentLocked_(Swap20Store_read_(operationId));
+ var intent=Swap20_recordNotificationIntentLocked_(Swap20Store_read_(operationId));
+ var flags=PropertiesService.getScriptProperties();
+ if(String(flags.getProperty('ECAS20_CHANGE_CANCEL_ENABLED')||'').toUpperCase()!=='YES')
+  return intent;
+ if(typeof Swap20_tryQueueCombinedEcasLocked_!=='function')
+  return {ok:false,queued:false,reason:'SWAP_ECAS_DISPATCH_UNAVAILABLE',intent:intent};
+ var dispatch=Swap20_tryQueueCombinedEcasLocked_(operationId);
+ return {ok:dispatch.ok===true,queued:dispatch.queued===true,
+  idempotent:dispatch.idempotent===true,reason:dispatch.reason||'',
+  notificationStatus:dispatch.status||intent.notificationStatus,
+  operationId:operationId};
 }

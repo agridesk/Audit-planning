@@ -3,6 +3,7 @@ function Swap20_availabilityPlan_(before,proposal,owners){
  if(!before||!Array.isArray(before.values)||!proposal||!owners)throw Error('Missing swap availability input');
  var values=before.values.map(function(row){return row.slice();});
  if(values.length!==before.height||values[0].length!==before.width)throw Error('Availability snapshot dimensions mismatch');
+ if(values.length!==before.height||values[0].length!==before.width)throw Error('Availability snapshot dimensions mismatch');
  var hdr=values[0].map(function(x){return String(x||'').toLowerCase().replace(/[_ -]/g,'');});
  function col(names){for(var n=0;n<names.length;n++){var ix=hdr.indexOf(names[n].toLowerCase().replace(/[_ -]/g,''));if(ix>=0)return ix;}throw Error('Missing availability column '+names[0]);}
  var d=col(['Date']),a=col(['Auditor_Email','Auditor Email']),available=col(['Available']);

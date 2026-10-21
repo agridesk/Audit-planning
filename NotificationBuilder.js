@@ -626,6 +626,9 @@ function NB_normalizePayload_(eventCode, data, cfg) {
     // External ECAS operational explanation is distinct from internal lifecycle comments.
     ecasComment:NB_clean_(data.ecasComment),
     previousPlanningJson:NB_clean_(data.previousPlanningJson),
+    previousBlocks:NB_normalizeBlocks_(data.previousBlocks || [], data.previousPlanningJson || ''),
+    previousPlannedDates:Array.isArray(data.previousPlannedDates) ? data.previousPlannedDates.slice() : [],
+    previousPlannedHours:data.previousPlannedHours == null ? '' : data.previousPlannedHours,
     resultStatus:resultStatus,
     displayStatus:displayStatus,
     title:NB_titleForEvent_(eventCode),

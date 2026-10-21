@@ -18,6 +18,14 @@ function ECAS20_SubmitVerifiedChangeCancel_(input) {
   // The proof must be a persisted receipt, not a caller-provided boolean alone.
   if(!before.communicationId||!before.communicatedToEcas)
     return {ok:false,queued:false,reason:'PREVIOUS_DELIVERY_NOT_PROVEN'};
+  // A caller-supplied receipt is not authoritative. Require the scheduling
+  // owner to expose a persisted delivery-verification function.
+  if(typeof ECAS20_VerifyPersistedCommunication_!=='function')
+    return {ok:false,queued:false,reason:'COMMUNICATION_VERIFIER_UNAVAILABLE'};
+  var verified=false;
+  try { verified=ECAS20_VerifyPersistedCommunication_(String(before.auditId),String(before.communicationId),before)===true; }
+  catch(eVerify){return {ok:false,queued:false,reason:'COMMUNICATION_VERIFICATION_ERROR'};}
+  if(!verified)return {ok:false,queued:false,reason:'PREVIOUS_DELIVERY_NOT_VERIFIED'};
   if(String(PropertiesService.getScriptProperties().getProperty('ECAS20_CHANGE_CANCEL_ENABLED')||'').toUpperCase()!=='YES')
     return {ok:false,queued:false,reason:'FEATURE_DISABLED'};
   if(typeof NotificationConfig_GetEvent!=='function')

@@ -17,14 +17,5 @@ function Swap20_recoverLocked_(operationId){
  if(last==='CONFLICT')throw Error('Manual review required for conflicted recovery');
  if(last==='FAILED')throw Error('Manual review required for failed recovery');
  if(last==='ROLLING_BACK')return {success:true,stage:last,readOnly:true,requiresReview:true};
- var prepared=history[0];
- if(prepared.stage!=='PREPARED'||!prepared.payload||!prepared.payload.canonical||!prepared.payload.availability)throw Error('Swap before-images unavailable');
- var failures=[];
- try{Swap20Journal_appendLocked_(operationId,history.length,'ROLLING_BACK',{recovery:true});}catch(e){failures.push(String(e));}
- try{Swap20_restoreCanonicalBeforeImages_(prepared.payload.canonical);}catch(e){failures.push(String(e));}
- try{Swap20_restoreAvailabilityBeforeImages_(prepared.payload.availability);}catch(e){failures.push(String(e));}
- var stage=failures.length?'FAILED':'ROLLED_BACK';
- Swap20Journal_appendLocked_(operationId,Swap20Journal_history_(operationId).length,stage,{recovery:true,failures:failures});
- if(failures.length)throw Error('Swap recovery incomplete: '+failures.join('; '));
- return {success:true,stage:stage,operationId:operationId};
+ throw Error('Unsupported recovery stage; manual review required');
 }

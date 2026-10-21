@@ -314,6 +314,12 @@ function NB_externalScheduleBlockText_(b) {
 
 function NB_externalScheduleRows_(n) {
   n = n || {};
+  var event=NB_clean_(n.eventCode || n.eventType || n.type).toUpperCase();
+  // A canonical CANCEL clears live scheduling. Its external digest must
+  // identify the *previously communicated* slot, never an unrelated new slot.
+  if(event==='ECAS_AUDIT_CANCELLED_DIGEST' && !((n.blocks||[]).length || (n.plannedDates||[]).length)) {
+    n={blocks:n.previousBlocks||[],plannedDates:n.previousPlannedDates||[]};
+  }
   var blocks = n.blocks || [];
   var out = [];
   if (blocks.length) {
@@ -396,6 +402,9 @@ function NB_externalMissingRequiredFields_(n) {
   if (!NB_clean_(n.auditorEmail || n.auditorName)) missing.push('auditor');
   if (!n.scopes || !n.scopes.length) missing.push('scopes');
   if (!NB_externalScheduleRows_(n).length) missing.push('planning');
+  if (externalCode==='ECAS_AUDIT_CHANGED_DIGEST') {
+    if (!NB_externalScheduleRows_({blocks:n.previousBlocks||[],plannedDates:n.previousPlannedDates||[]}).length) missing.push('previousPlanning');
+  }
   if (n.plannedHours === '' || n.plannedHours === null || typeof n.plannedHours === 'undefined') missing.push('plannedHours');
   return missing;
 }

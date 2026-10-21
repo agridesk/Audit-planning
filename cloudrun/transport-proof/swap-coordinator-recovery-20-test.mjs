@@ -32,6 +32,11 @@ const early=fixture('prewrite');assert.throws(()=>early.ctx.Swap20_executeLocked
 assert.equal(early.journal.at(-1).stage,'CONFLICT');assert.ok(!early.events.includes('restoreCanonical'));
 const stale=fixture();stale.ctx.Swap20Store_read_=()=>({...p,status:'WITHDRAWN'});
 assert.throws(()=>stale.ctx.Swap20_executeLocked_(p),/Proposal changed/);assert.equal(stale.journal.length,0);
+const missingEmail=fixture();missingEmail.ctx.PlanningWorkspacePlannedAuditReadService_get=()=>({assignedTo:'a@x.com',auditorEmail:''});assert.throws(()=>missingEmail.ctx.Swap20_executeLocked_(p),/Auditor identity mismatch/);assert.equal(missingEmail.journal.length,0);
+const wrongOwner=fixture();wrongOwner.ctx.PlanningWorkspacePlannedAuditReadService_get=()=>({assignedTo:'other@x.com',auditorEmail:'other@x.com'});assert.throws(()=>wrongOwner.ctx.Swap20_executeLocked_(p),/Auditor identity mismatch/);
+const noDev=fixture();noDev.ctx.PropertiesService={getScriptProperties:()=>({getProperty:()=> 'PROD'})};assert.throws(()=>noDev.ctx.Swap20_executeLocked_(p),/restricted to DEV/);
+const invalidPlan=fixture();invalidPlan.ctx.Swap20_availabilityPlan_=()=>({sheetName:'Other',width:1,values:[['Date']]});assert.throws(()=>invalidPlan.ctx.Swap20_executeLocked_(p),/Invalid paired reservation plan/);
+const missingPair=fixture();missingPair.ctx.Swap20_captureCanonicalBeforeImages_=()=>({sheetName:'Audit planning',headers:['Assigned to'],rows:[{auditId:'A',values:['a@x.com']} ]});assert.throws(()=>missingPair.ctx.Swap20_executeLocked_(p),/Canonical pair snapshot incomplete/);
 const interrupted=fixture();interrupted.journal.push({stage:'PREPARED',payload:{}});interrupted.journal.push({stage:'WRITING',payload:{}});
 assert.equal(interrupted.ctx.Swap20_recoverLocked_(p.operationId).readOnly,true);
 assert.equal(interrupted.journal.length,2);

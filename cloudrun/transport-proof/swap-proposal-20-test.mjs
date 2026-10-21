@@ -89,11 +89,12 @@ const failed=advanceSwapJournal(journal3,{type:'ROLLBACK_FAILED',operationId:b.o
 assert.equal(failed.rollbackRequired,true);
 const rpcGas=readFileSync(new URL('../../PlanningWorkspaceRpc.js',import.meta.url),'utf8');
 assert.match(rpcGas,/function PlanningWorkspaceRpc_swapPreview\(input\)/);
-const rpcContext={Swap20_readCanonicalPair:()=>({eligible:true,auditA:{auditId:'A'},auditB:{auditId:'B'}})};
+const rpcContext={Swap20ManagerPreview:({trustedToken})=>{if(trustedToken!=='valid')throw Error('Manager authentication required');return {eligible:true,auditA:{auditId:'A'},auditB:{auditId:'B'}};}};
 vm.createContext(rpcContext);
 vm.runInContext(rpcGas,rpcContext);
-const rpcResult=rpcContext.PlanningWorkspaceRpc_swapPreview({auditA:'A',auditB:'B'});
+const rpcResult=rpcContext.PlanningWorkspaceRpc_swapPreview({auditA:'A',auditB:'B',token:'valid'});
 assert.equal(rpcResult.ok,true);
+assert.equal(rpcContext.PlanningWorkspaceRpc_swapPreview({auditA:'A',auditB:'B',token:'invalid'}).ok,false);
 assert.equal(rpcResult.data.canCommit,false);
 assert.equal(rpcResult.data.readOnly,true);
 assert.ok(rpcContext.PlanningWorkspaceRpc_contract().endpoints.includes('PlanningWorkspaceRpc_swapPreview'));

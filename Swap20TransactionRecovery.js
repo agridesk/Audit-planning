@@ -8,6 +8,7 @@ function Swap20_recoveryStatus_(operationId){
 
 /** Recover interrupted swap using its durable PREPARED before-images. */
 function Swap20_recoverLocked_(operationId){
+ if(String(PropertiesService.getScriptProperties().getProperty('AMS_ENV')||'').toUpperCase()!=='DEV')throw Error('Swap recovery restricted to DEV');
  var history=Swap20Journal_history_(operationId);
  if(!history.length)throw Error('Swap journal not found');
  var last=history[history.length-1].stage;

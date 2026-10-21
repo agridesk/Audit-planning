@@ -500,7 +500,7 @@ function nrm2_renderStandardTable_(rows, scopeStyleMap, columns, emptyText) {
   var html = [];
   html.push('<table style="border-collapse:collapse;width:100%;table-layout:fixed;margin:0 0 10px 0;">');
   html.push('<tr style="background:#f6f8fa;">');
-  for (var c = 0; c < columns.length; c++) html.push('<th style="border:1px solid #d0d7de;padding:6px 8px;text-align:left;vertical-align:top;background:#f6f8fa;font-weight:600;">' + nrm2_safe_(columns[c].label) + '</th>');
+  for (var c = 0; c < columns.length; c++) html.push('<th style="border-bottom:1px solid #d0d7de;padding:3px 5px;text-align:left;background:#f6f8fa;font-weight:600;">' + nrm2_safe_(columns[c].label) + '</th>');
   html.push('</tr>');
 
   if (!rows || !rows.length) {
@@ -515,7 +515,7 @@ function nrm2_renderStandardTable_(rows, scopeStyleMap, columns, emptyText) {
     for (var k = 0; k < columns.length; k++) {
       var key = columns[k].key;
       var cellHtml = key === 'scopes' ? nrm2_renderScopes_(row.scopes, scopeStyleMap) : nrm2_safe_(row[key] !== null && row[key] !== undefined ? row[key] : '');
-      html.push('<td style="border:1px solid #d0d7de;padding:6px 8px;vertical-align:top;background:#ffffff;">' + cellHtml + '</td>');
+      html.push('<td style="border-bottom:1px solid #e5e7eb;padding:3px 5px;vertical-align:top;">' + cellHtml + '</td>');
     }
     html.push('</tr>');
   }
@@ -723,7 +723,7 @@ function nrm2_renderScopes_(scopes, scopeStyleMap) {
   for (var i = 0; i < scopes.length; i++) {
     var slotKey = scopes[i];
     var style = scopeStyleMap[slotKey] || { label:slotKey, bg:'#e5e7eb', fg:'#111827' };
-    html.push('<span style="display:inline-block;margin:0 6px 6px 0;padding:4px 10px;border-radius:999px;background:' + nrm2_safe_(style.bg) + ';color:' + nrm2_safe_(style.fg) + ';font-weight:700;font-size:12px;line-height:1.2;white-space:nowrap;">' + nrm2_safe_(style.label) + '</span>');
+    html.push('<span style="display:inline-block;margin:0 3px 2px 0;padding:2px 5px;border-radius:5px;background:' + nrm2_safe_(style.bg) + ';color:' + nrm2_safe_(style.fg) + ';font-weight:700;font-size:11px;white-space:nowrap;">' + nrm2_safe_(style.label) + '</span>');
   }
   return html.join(' &nbsp; ');
 }
@@ -1225,7 +1225,7 @@ function nra2_renderStandardTable_(rows, scopeStyleMap, columns, emptyText) {
   html.push('<tr style="background:#f6f8fa;">');
 
   for (var c = 0; c < columns.length; c++) {
-    html.push('<th style="border:1px solid #d0d7de;padding:6px 8px;text-align:left;vertical-align:top;background:#f6f8fa;font-weight:600;">' + nra2_safe_(columns[c].label) + '</th>');
+    html.push('<th style="border-bottom:1px solid #d0d7de;padding:3px 5px;text-align:left;background:#f6f8fa;font-weight:600;">' + nra2_safe_(columns[c].label) + '</th>');
   }
   html.push('</tr>');
 
@@ -1246,7 +1246,7 @@ function nra2_renderStandardTable_(rows, scopeStyleMap, columns, emptyText) {
       } else {
         cellHtml = nra2_safe_(row[key] !== null && row[key] !== undefined ? row[key] : '');
       }
-      html.push('<td style="border:1px solid #d0d7de;padding:6px 8px;vertical-align:top;background:#ffffff;">' + cellHtml + '</td>');
+      html.push('<td style="border-bottom:1px solid #e5e7eb;padding:3px 5px;vertical-align:top;">' + cellHtml + '</td>');
     }
     html.push('</tr>');
   }
@@ -1557,11 +1557,11 @@ function nra2_renderScopes_(scopes, scopeStyleMap) {
     var slotKey = scopes[i];
     var style = scopeStyleMap[slotKey] || { label: slotKey, bg: '#e5e7eb', fg: '#111827' };
     html.push(
-      '<span style="display:inline-block;margin:0 6px 6px 0;padding:4px 10px;border-radius:999px;background:' +
+      '<span style="display:inline-block;margin:0 3px 2px 0;padding:2px 5px;border-radius:5px;background:' +
       nra2_safe_(style.bg) +
       ';color:' +
       nra2_safe_(style.fg) +
-      ';font-weight:700;font-size:12px;line-height:1.2;white-space:nowrap;">' +
+      ';font-weight:700;font-size:11px;white-space:nowrap;">' +
       nra2_safe_(style.label) +
       '</span>'
     );

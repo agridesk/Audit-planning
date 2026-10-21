@@ -34,6 +34,10 @@ function RUN_SWAP_NOTIFICATIONS_FINAL_PREFLIGHT_DEV_20261021() {
    for(var i=0;i<values.length;i++)for(var j=0;j<values[i].length;j++)
     if(Object.prototype.toString.call(values[i][j])==='[object Date]')dates++;
    info.nativeDateCells=dates;
+   if(typeof Swap20Journal_encodePayload_==='function'){
+    info.compressedAvailabilityChars=Swap20Journal_encodePayload_({availability:{sheetName:av.getName(),height:av.getLastRow(),width:av.getLastColumn(),values:[h].concat(values)}}).length;
+    if(info.compressedAvailabilityChars>36000)findings.push('AVAILABILITY_COMPRESSED_SNAPSHOT_NEAR_JOURNAL_LIMIT');
+   }
    info.dateCodecAvailable=typeof Swap20Journal_markDates_==='function'&&typeof Swap20Journal_rehydrateDates_==='function';
    if(dates&&!info.dateCodecAvailable)findings.push('AVAILABILITY_DATE_CODEC_MISSING');
   }

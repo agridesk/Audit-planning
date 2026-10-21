@@ -9,11 +9,13 @@ function Swap20_availabilityPlan_(before,proposal,owners){
  var slots=[{id:col(['Audit_ID_1']),start:col(['First_Audit_Start_Time']),end:col(['First_Audit_End_Time']),status:col(['Status_1'])},
  {id:col(['Audit_ID_2']),start:col(['Second_Audit_Start_Time']),end:col(['Second_Audit_End_Time']),status:col(['Status_2'])}];
  var ids=[String(proposal.auditA),String(proposal.auditB)],removed={};
+ if(!ids[0]||!ids[1]||ids[0]===ids[1])throw Error('Invalid swap audit pair');
  values.slice(1).forEach(function(row){var changed=false;slots.forEach(function(s){var id=String(row[s.id]||'').trim();if(ids.indexOf(id)<0)return;removed[id]=(removed[id]||0)+1;changed=true;row[s.id]='';row[s.start]='';row[s.end]='';row[s.status]='';});if(changed)row[available]=slots.some(function(s){return String(row[s.id]||'').trim();})?'NO':'';});
  var changes=[{id:ids[0],owner:owners[ids[0]],blocks:proposal.blocksA},{id:ids[1],owner:owners[ids[1]],blocks:proposal.blocksB}];
  changes.forEach(function(x){
   if(!x.owner||!Array.isArray(x.blocks)||!x.blocks.length)throw Error('Missing swap owner or blocks');
   if(removed[x.id]!==x.blocks.length)throw Error('Original availability reservation count mismatch');
+  if(String(x.owner).indexOf('@')<1)throw Error('Auditor email required for availability reservation');
   x.blocks.forEach(function(b){
    var key=String(x.owner).trim().toLowerCase(),row=null;
    for(var i=1;i<values.length;i++)if(String(values[i][a]||'').trim().toLowerCase()===key&&Planning_cellToYmd_(values[i][d])===String(b.date)){if(row)throw Error('Duplicate availability owner/day');row=values[i];}

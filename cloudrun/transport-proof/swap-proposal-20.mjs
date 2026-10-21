@@ -67,7 +67,7 @@ export function previewSwapFinalState(input){
  for(const [auditId,auditorUid,blocks] of [[auditA,auditorA,blocksA],[auditB,auditorB,blocksB]]){
   if(!Array.isArray(blocks)||!blocks.length)throw Error('Planning blocks required');
   for(const b of blocks){
-   if(!b||!b.date||!b.start||!b.end||b.start>=b.end)throw Error('Invalid block');
+   validateSwapBlock(b);
    entries.push({...b,auditId,auditorUid});
   }
  }
@@ -121,7 +121,7 @@ export function buildSwapSlotExchange(input){
  const clock=n=>String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');
  const move=(source,target)=>source.map((b,i)=>{
   const slot=target[i];
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(b.date||'')||!/^\d{4}-\d{2}-\d{2}$/.test(slot.date||''))throw Error('Invalid date');
+  validateSwapBlock(b);validateSwapBlock(slot);
   const duration=mins(b.end)-mins(b.start),start=mins(slot.start);
   if(duration<=0||start+duration>1440)throw Error('Swap duration cannot fit target slot');
   return {...b,date:slot.date,start:clock(start),end:clock(start+duration)};
@@ -129,6 +129,15 @@ export function buildSwapSlotExchange(input){
  return {auditA,auditB,blocksA:move(blocksA,blocksB),blocksB:move(blocksB,blocksA),requiresCanonicalValidation:true};
 }
 
+export function validateSwapBlock(block){
+ if(!block||typeof block!=='object')throw Error('Invalid swap block');
+ const date=String(block.date||''),start=String(block.start||''),end=String(block.end||'');
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw Error('Invalid swap date');
+ const d=new Date(date+'T00:00:00Z');
+ if(!Number.isFinite(d.getTime())||d.toISOString().slice(0,10)!==date)throw Error('Nonexistent swap date');
+ if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(start)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(end)||start>=end)throw Error('Invalid swap time interval');
+ return {date,start,end};
+}
 export function evaluateSwapFinalState(input){
  const {proposal,current,sourceBlocksA,sourceBlocksB,otherReservations=[],auditorA,auditorB}=input||{};
  if(!proposal)throw Error('Proposal required');

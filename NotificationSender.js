@@ -45,6 +45,12 @@ function NotificationSender_RunDigest() {
   try {
     lock.waitLock(25000); // Apps Script expects milliseconds: 25 seconds, not 250 ms.
 
+    if(typeof Swap20_reconcileEcasIntentsLocked_==='function'){
+      try{
+        var swapOutbox=Swap20_reconcileEcasIntentsLocked_();
+        if(swapOutbox&&swapOutbox.errors)Logger.log('SWAP20_ECAS_OUTBOX '+JSON.stringify(swapOutbox));
+      }catch(swapOutboxErr){Logger.log('SWAP20_ECAS_OUTBOX_ERROR '+String(swapOutboxErr));}
+    }
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var nq = ss.getSheetByName(ns_getQueueSheetName_());
     if (!nq) return { success:false, error:'MISSING_QUEUE_SHEET' };

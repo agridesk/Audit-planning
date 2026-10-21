@@ -28,6 +28,7 @@ function Swap20_executeLocked_(proposal){
  Swap20Journal_appendLocked_(proposal.operationId,0,'PREPARED',before);
  try{
   Swap20_verifyCanonicalBeforeImages_(canonical);
+  if(JSON.stringify(Swap20Store_read_(proposal.operationId))!==JSON.stringify(proposal))throw Error('Proposal changed before writing');
   Swap20Journal_appendLocked_(proposal.operationId,Swap20Journal_history_(proposal.operationId).length,'WRITING',{auditA:proposal.auditA,auditB:proposal.auditB});
   Swap20_writeAvailabilityPlanLocked_(plan,availability);
   Swap20_writeCanonicalPairLocked_(canonical,proposal);

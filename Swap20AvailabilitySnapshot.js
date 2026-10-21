@@ -13,15 +13,24 @@ function Swap20_captureAvailabilityBeforeImages_(){
  values.forEach(function(row){row.forEach(function(v){if(Object.prototype.toString.call(v)==='[object Date]')throw Error('Date cell cannot be safely serialized for swap recovery');});});
  return {sheetName:sh.getName(),height:height,width:width,values:values};
 }
-function Swap20_restoreAvailabilityBeforeImages_(before){
+function Swap20_restoreAvailabilityBeforeImages_(before,plan){
+ if(!plan||!Array.isArray(plan.values)||plan.sheetName!==before.sheetName||plan.width!==before.width||plan.originalHeight!==before.height)throw Error('Verified rollback plan required');
  var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(before.sheetName);
- if(!sh||sh.getLastColumn()!==before.width)throw Error('Availability rollback schema mismatch');
- if(sh.getLastRow()<before.height)throw Error('Availability rows deleted; manual recovery required');
- var current=sh.getRange(1,1,1,before.width).getValues()[0];
- if(JSON.stringify(current)!==JSON.stringify(before.values[0]))throw Error('Availability rollback header mismatch');
- if(sh.getLastRow()>before.height)sh.deleteRows(before.height+1,sh.getLastRow()-before.height);
- if(sh.getMaxRows()<before.height)sh.insertRowsAfter(sh.getMaxRows(),before.height-sh.getMaxRows());
- sh.getRange(1,1,before.height,before.width).setValues(before.values);
+ if(!sh||sh.getLastColumn()!==before.width||sh.getLastRow()!==plan.values.length)throw Error('Availability rollback schema or row count changed; manual recovery required');
+ var current=sh.getRange(1,1,plan.values.length,before.width).getValues();
+ if(JSON.stringify(current[0])!==JSON.stringify(before.values[0]))throw Error('Availability rollback header mismatch');
+ var changed=[];
+ for(var i=1;i<before.height;i++){
+  if(JSON.stringify(before.values[i])===JSON.stringify(plan.values[i]))continue;
+  var actual=JSON.stringify(current[i]);
+  if(actual!==JSON.stringify(before.values[i])&&actual!==JSON.stringify(plan.values[i]))throw Error('Availability rollback row changed externally; manual recovery required');
+  if(actual===JSON.stringify(plan.values[i]))changed.push(i);
+ }
+ for(var j=before.height;j<plan.values.length;j++){
+  if(JSON.stringify(current[j])!==JSON.stringify(plan.values[j]))throw Error('Availability appended row changed externally; manual recovery required');
+ }
+ for(var k=0;k<changed.length;k++)sh.getRange(changed[k]+1,1,1,before.width).setValues([before.values[changed[k]]]);
+ if(plan.values.length>before.height)sh.deleteRows(before.height+1,plan.values.length-before.height);
  SpreadsheetApp.flush();
- return {success:true,restored:before.height};
+ return {success:true,restored:changed.length,removedAppended:plan.values.length-before.height};
 }

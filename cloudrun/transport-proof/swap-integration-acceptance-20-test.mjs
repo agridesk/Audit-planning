@@ -23,7 +23,7 @@ assert.equal(x.ok,true);
 assert.equal(x.readOnly,true);
 assert.equal(x.endToEndProven,false);
 assert.equal(x.prodReady,false);
-assert.equal(x.checks.length,12);
+assert.equal(x.checks.length,13);
 assert.equal(writes,0);
 props.ECAS20_CHANGE_CANCEL_ENABLED='YES';
 assert.equal(ctx.RUN_ACCEPTANCE_SWAP_NOTIFICATIONS_DEV_20261021().ok,false);

@@ -21,7 +21,7 @@ function Swap20_recordNotificationIntentLocked_(proposal) {
  if(existing){
   var found=JSON.parse(existing);
   if(found.auditA!==state.auditA||found.auditB!==state.auditB||found.eventKey!=='ECAS_AUDIT_CHANGED_DIGEST'||found.combined!==true||found.lifecycleUnchanged!==true||found.ecasComment!==String(state.ecasComment||''))throw Error('SWAP notification intent conflict');
-  return {ok:true,idempotent:true,operationId:state.operationId,notificationStatus:found.status};
+  return {ok:true,idempotent:true,operationId:state.operationId,notificationStatus:found.status,combined:true,queued:false};
  }
  var intent={operationId:state.operationId,auditA:state.auditA,auditB:state.auditB,
   eventKey:'ECAS_AUDIT_CHANGED_DIGEST',status:'AWAITING_PRIOR_ECAS_RECEIPTS',

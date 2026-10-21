@@ -328,8 +328,8 @@ assert.match(lifecycleRenderer,/Audit status update — '.?\+singleCompany/);
 // in current outgoing lifecycle communication.
 assert.doesNotMatch(notificationBridge,/ACTION\.DENY && actor === ROLE\.MANAGER/);
 assert.doesNotMatch(lifecycleRenderer,/return 'Deny by (manager|auditor)'/);
-assert.match(lifecycleRenderer,/if \(code === 'AUDIT_DENIED_BY_MANAGER'\) return 'Cancel by manager'/);
-assert.match(lifecycleRenderer,/if \(code === 'AUDIT_DENIED_BY_AUDITOR'\) return 'Cancel by auditor'/);
+assert.match(lifecycleRenderer,/if \(code === 'AUDIT_DENIED_BY_MANAGER'\) return 'Historical manager decision \(retired\)'/);
+assert.match(lifecycleRenderer,/if \(code === 'AUDIT_DENIED_BY_AUDITOR'\) return 'Historical auditor decision \(retired\)'/);
 assert.match(statusSource,/if \(a === ACTION\.DENY\) return '';/);
 assert.doesNotMatch(managerAdapter,/deny: 'DENY'/);
 const managerPortal=read('ManagerV5UI.html');

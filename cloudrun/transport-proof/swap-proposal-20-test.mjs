@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {createSwapProposal,applySwapProposalEvent,swapProposalNeedsAction,previewSwapFinalState,validateSwapProposalSource,evaluateSwapEligibility,prepareSwapCommit,buildSwapSlotExchange} from './swap-proposal-20.mjs';
+import {createSwapProposal,applySwapProposalEvent,swapProposalNeedsAction,previewSwapFinalState,validateSwapProposalSource,evaluateSwapEligibility,prepareSwapCommit,buildSwapSlotExchange,evaluateSwapFinalState} from './swap-proposal-20.mjs';
 const at='2026-10-21T10:00:00Z',later='2026-10-23T10:00:00Z';
 const p=createSwapProposal({operationId:'s1',auditA:'A',auditB:'B',requiredAuditorUids:['u1','u2'],createdAt:at,originalRevisions:{A:1,B:2},internalReason:'logistics',ecasComment:'Change agreed'});
 assert.equal(p.status,'AWAITING_ACKNOWLEDGEMENT');
@@ -55,4 +55,14 @@ assert.deepEqual(exchange.blocksA,[{date:'2026-11-02',start:'10:00',end:'12:00'}
 assert.deepEqual(exchange.blocksB,[{date:'2026-11-01',start:'09:00',end:'12:00'}]);
 assert.throws(()=>buildSwapSlotExchange({auditA:'A',auditB:'B',blocksA,blocksB:[...blocksB,...blocksB]}));
 assert.throws(()=>buildSwapSlotExchange({auditA:'A',auditB:'B',blocksA:[{date:'2026-11-01',start:'22:00',end:'23:30'}],blocksB:[{date:'2026-11-02',start:'23:00',end:'23:30'}]}));
+const state=evaluateSwapFinalState({proposal:b,current:{A:{revision:1,status:'Accepted'},B:{revision:2,status:'Accepted'}},sourceBlocksA:[{date:'2026-11-01',start:'09:00',end:'11:00'}],sourceBlocksB:[{date:'2026-11-02',start:'10:00',end:'13:00'}],auditorA:'u1',auditorB:'u2'});
+assert.equal(state.canProceed,true);
+assert.equal(state.exchange.blocksA[0].end,'12:00');
+assert.equal(state.readOnly,true);
+const staleState=evaluateSwapFinalState({proposal:b,current:{A:{revision:3,status:'Accepted'},B:{revision:2,status:'Accepted'}}});
+assert.equal(staleState.canProceed,false);
+assert.equal(staleState.reason,'STALE_CANONICAL_REVISION');
+const occupied=evaluateSwapFinalState({proposal:b,current:{A:{revision:1,status:'Accepted'},B:{revision:2,status:'Accepted'}},sourceBlocksA:[{date:'2026-11-01',start:'09:00',end:'11:00'}],sourceBlocksB:[{date:'2026-11-02',start:'10:00',end:'13:00'}],auditorA:'u1',auditorB:'u2',otherReservations:[{auditId:'C',auditorUid:'u1',date:'2026-11-02',start:'11:00',end:'12:00'}]});
+assert.equal(occupied.canProceed,false);
+assert.equal(occupied.reason,'AUDITOR_SLOT_CONFLICT');
 console.log('Swap proposal tests passed');

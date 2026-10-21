@@ -45,6 +45,7 @@ assert.ok(!source.includes('plannedInfo.firstPlannedDate < today'), 'Invalid ove
 assert.match(source,/function RUN_INSTALL_WEEKLY_DIGEST_TRIGGERS_DEV_20261021\(/);
 assert.match(source,/ScriptApp\.WeekDay\.TUESDAY/);
 assert.match(source,/\.atHour\(6\)/);
+assert.match(source,/\.inTimezone\('Europe\/Amsterdam'\)/);
 assert.match(source,/ScriptApp\.deleteTrigger\(existing\[i\]\)/);
 // Weekly auditor lookup: UID is canonical, name is for display, email only transports.
 assert.match(source,/var recipientUid=recipientInfo\.uid/);

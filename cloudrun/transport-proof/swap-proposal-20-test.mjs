@@ -128,5 +128,5 @@ assert.throws(()=>buildMappedSwapSlotExchange({auditA:'A',auditB:'B',blocksA:[{d
 assert.deepEqual(validateSwapBlockMapping({blocksA:[1,2],blocksB:[3,4],mappingA:[1,0],mappingB:[1,0]}),{valid:true,complete:true,unique:true});
 assert.throws(()=>validateSwapBlockMapping({blocksA:[1,2],blocksB:[3],mappingA:[0,0],mappingB:[0]}));
 assert.throws(()=>validateSwapBlockMapping({blocksA:[1],blocksB:[3,4],mappingA:[0],mappingB:[0,0]}));
-assert.equal(typeof verifySwapCommitInvariants,'function');
+assert.throws(()=>verifySwapCommitInvariants({}));
 console.log('Swap proposal tests passed');

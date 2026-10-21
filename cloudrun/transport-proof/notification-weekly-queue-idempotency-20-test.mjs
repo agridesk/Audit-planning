@@ -105,4 +105,6 @@ assert.equal((auditorRunner.match(/recipientUid &&\s*assignedUid === recipientUi
 assert.doesNotMatch(auditorRunner,/assigned &&\s*recipient &&\s*assignedUid === recipientUid/);
 assert.match(source,/function nrm2_renderGroupTable_\(title, rows, scopeStyleMap\) \{\s*if \(!rows \|\| !rows\.length\) return '';/);
 assert.match(source,/function nrm2_renderSection_\(title, rows, scopeStyleMap, helpText\) \{\s*if \(!rows \|\| !rows\.length\) return '';/);
+assert.match(source,/border-bottom:1px solid #e5e7eb;padding:3px 5px/);
+assert.match(source,/font-weight:700;font-size:11px;white-space:nowrap/);
 console.log('notification-weekly-queue-idempotency-20: PASS');

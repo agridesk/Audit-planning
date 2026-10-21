@@ -14,6 +14,7 @@ Swap20Store_read_:()=>JSON.parse(raw),
 Swap20Store_key_:()=>key,
 Swap20Journal_history_:()=>journal,
 Swap20_executeLocked_:()=>{writes++;throw Error('must not replay');},
+Swap20_verifyCommittedReconciliationLocked_:(history,proposal)=>history.length===1&&history[0].stage==='COMMITTED'&&proposal.status==='CONFIRMED',
 Swap20_validateTransition_:(before,after)=>{assert.equal(before.status,'CONFIRMED');assert.equal(after.status,'APPLIED');}};
 runInNewContext(source,context);
 const first=context.Swap20ManagerCommit({token:'valid',operationId:'op1'});

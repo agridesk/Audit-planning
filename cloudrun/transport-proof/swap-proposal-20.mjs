@@ -117,11 +117,11 @@ export function buildSwapSlotExchange(input){
  if(!auditA||!auditB||auditA===auditB)throw Error('Distinct audit IDs required');
  if(!Array.isArray(blocksA)||!blocksA.length||!Array.isArray(blocksB)||!blocksB.length)throw Error('Both audit schedules required');
  if(blocksA.length!==blocksB.length)throw Error('Unequal block counts require explicit manager mapping');
- const mins=t=>{if(!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(t||''))throw Error('Invalid time');return Number(t.slice(0,2))*60+Number(t.slice(3));};
+ const mins=t=>{if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(t||''))throw Error('Invalid time');return Number(t.slice(0,2))*60+Number(t.slice(3));};
  const clock=n=>String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');
  const move=(source,target)=>source.map((b,i)=>{
   const slot=target[i];
-  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(b.date||'')||!/^\\d{4}-\\d{2}-\\d{2}$/.test(slot.date||''))throw Error('Invalid date');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(b.date||'')||!/^\d{4}-\d{2}-\d{2}$/.test(slot.date||''))throw Error('Invalid date');
   const duration=mins(b.end)-mins(b.start),start=mins(slot.start);
   if(duration<=0||start+duration>1440)throw Error('Swap duration cannot fit target slot');
   return {...b,date:slot.date,start:clock(start),end:clock(start+duration)};

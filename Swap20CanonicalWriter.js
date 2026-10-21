@@ -12,6 +12,7 @@ function Swap20_writeCanonicalPairLocked_(before,proposal){
   if(!old||!Array.isArray(old.blocks)||!old.blocks.length||!normalized.length)throw Error('Canonical planning blocks unavailable');
   var oldHours=old.blocks.reduce(function(n,b){return n+(Swap20_scheduleMinutes_(b.end)-Swap20_scheduleMinutes_(b.start))/60;},0);
   if(Math.abs(hours-oldHours)>0.000001)throw Error('Canonical duration changed');
+  if(old.totalPlannedHours!=null&&Math.abs(Number(old.totalPlannedHours)-hours)>0.000001)throw Error('Canonical total planned hours mismatch');
   old.blocks=normalized;old.totalPlannedHours=hours;
   row[json]=JSON.stringify(old);row[date]=normalized[0].date;
   if(row[assigned]!==image.values[assigned]||row[status]!==image.values[status])throw Error('Swap changed canonical owner or lifecycle');

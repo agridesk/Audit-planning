@@ -290,3 +290,14 @@ export function verifySwapCommitInvariants(input){
  };
  return {valid:true,auditA:check(originalBlocksA,proposedBlocksA,proposal.auditA),auditB:check(originalBlocksB,proposedBlocksB,proposal.auditB),canonicalLockRequired:true,durableJournalRequired:true,commitAuthorized:false};
 }
+
+/** Journal replay validation for crash recovery. No write side effects. */
+export function assessSwapJournalRecovery(journal){
+ if(!journal||!journal.operationId||!Array.isArray(journal.auditIds)||journal.auditIds.length!==2)throw Error('Invalid durable swap journal');
+ const phase=journal.phase;
+ if(phase==='COMMITTED')return {operationId:journal.operationId,action:'NOOP',safeToRetry:false,requiresManualIntervention:false};
+ if(phase==='ROLLED_BACK')return {operationId:journal.operationId,action:'NOOP',safeToRetry:false,requiresManualIntervention:false};
+ if(phase==='PREPARED'||phase==='LOCKED'||phase==='VALIDATED')return {operationId:journal.operationId,action:'REVALIDATE_UNDER_LOCK',safeToRetry:true,requiresManualIntervention:false};
+ if(phase==='WRITING'||phase==='FAILED')return {operationId:journal.operationId,action:'RECOVER_FROM_DURABLE_BEFORE_IMAGES',safeToRetry:false,requiresManualIntervention:true};
+ throw Error('Unknown swap journal phase');
+}

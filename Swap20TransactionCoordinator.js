@@ -46,7 +46,7 @@ function Swap20_executeLocked_(proposal){
   var failures=[];
   try{Swap20Journal_appendLocked_(proposal.operationId,Swap20Journal_history_(proposal.operationId).length,'ROLLING_BACK',{reason:String(err)});}catch(e){failures.push(String(e));}
   try{Swap20_restoreCanonicalBeforeImages_(canonical);}catch(e){failures.push(String(e));}
-  try{Swap20_restoreAvailabilityBeforeImages_(availability);}catch(e){failures.push(String(e));}
+  try{Swap20_restoreAvailabilityBeforeImages_(availability,plan);}catch(e){failures.push(String(e));}
   try{Swap20Journal_appendLocked_(proposal.operationId,Swap20Journal_history_(proposal.operationId).length,failures.length?'FAILED':'ROLLED_BACK',{reason:String(err),failures:failures});}catch(e){failures.push(String(e));}
   throw Error('Swap transaction aborted: '+String(err)+(failures.length?'; recovery required: '+failures.join('; '):''));
  }

@@ -27,6 +27,7 @@ function Swap20_executeLocked_(proposal){
  if(plan.values.length<availability.height||plan.values.length>2000)throw Error('Availability plan exceeds safe row limit');
  var before={canonical:canonical,availability:availability};
  if(JSON.stringify(before).length>35000)throw Error('Swap before-images exceed journal capacity');
+ if(!Array.isArray(canonical.rows)||canonical.rows.length!==2)throw Error('Canonical pair snapshot incomplete');
  Swap20Journal_appendLocked_(proposal.operationId,0,'PREPARED',before);
  var writingStarted=false;
  try{

@@ -93,4 +93,8 @@ assert.match(source,/function RUN_PREVIEW_WEEKLY_AUDITORS_DEV_20261021\(/);
 assert.match(source,/var report=runAuditorWeeklyAlert\(\{previewOnly:true\}\)/);
 assert.match(source,/if\(options\.previewOnly===true\) \{\s*results\.push\(\{auditorUid:recipientUid/);
 assert.match(source,/return html\.join\(' &nbsp; '\)/);
+assert.match(source,/if \(pendingPlanningTotal > 0\) \{/);
+assert.match(source,/if \(blocks\.critical\.length\) \{/);
+assert.match(source,/if \(blocks\.urgent\.length\) \{/);
+assert.match(source,/if \(blocks\.upcoming\.length\) \{/);
 console.log('notification-weekly-queue-idempotency-20: PASS');

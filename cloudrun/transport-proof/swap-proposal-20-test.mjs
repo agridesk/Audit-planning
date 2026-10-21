@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {createSwapProposal,applySwapProposalEvent,swapProposalNeedsAction,previewSwapFinalState,validateSwapProposalSource,evaluateSwapEligibility,prepareSwapCommit,buildSwapSlotExchange,evaluateSwapFinalState,validateSwapBlock,planSwapJournal,advanceSwapJournal,classifySwapChange,deriveSwapAcknowledgementPolicy,planSwapFollowUpNotifications,buildMappedSwapSlotExchange} from './swap-proposal-20.mjs';
+import {createSwapProposal,applySwapProposalEvent,swapProposalNeedsAction,previewSwapFinalState,validateSwapProposalSource,evaluateSwapEligibility,prepareSwapCommit,buildSwapSlotExchange,evaluateSwapFinalState,validateSwapBlock,planSwapJournal,advanceSwapJournal,classifySwapChange,deriveSwapAcknowledgementPolicy,planSwapFollowUpNotifications,buildMappedSwapSlotExchange,validateSwapBlockMapping} from './swap-proposal-20.mjs';
 const at='2026-10-21T10:00:00Z',later='2026-10-23T10:00:00Z';
 const p=createSwapProposal({operationId:'s1',auditA:'A',auditB:'B',requiredAuditorUids:['u1','u2'],createdAt:at,originalRevisions:{A:1,B:2},internalReason:'logistics',ecasComment:'Change agreed'});
 assert.equal(p.status,'AWAITING_ACKNOWLEDGEMENT');
@@ -125,4 +125,7 @@ assert.deepEqual(planSwapFollowUpNotifications(oneAck,later).notifications.filte
 assert.deepEqual(planSwapFollowUpNotifications(applySwapProposalEvent(p,{type:'DECLINE',auditorUid:'u1',at:later}),later).notifications,[]);
 assert.throws(()=>buildMappedSwapSlotExchange({auditA:'A',auditB:'B',blocksA:[{date:'2026-11-01',start:'08:00',end:'09:00'},{date:'2026-11-01',start:'10:00',end:'11:30'}],blocksB:[{date:'2026-11-03',start:'13:00',end:'15:00'}],mappingA:[0,0],mappingB:[0]}));
 assert.throws(()=>buildMappedSwapSlotExchange({auditA:'A',auditB:'B',blocksA:[{date:'2026-11-01',start:'08:00',end:'09:00'}],blocksB:[{date:'2026-11-03',start:'13:00',end:'15:00'}],mappingA:[1],mappingB:[0]}));
+assert.deepEqual(validateSwapBlockMapping({blocksA:[1,2],blocksB:[3,4],mappingA:[1,0],mappingB:[1,0]}),{valid:true,complete:true,unique:true});
+assert.throws(()=>validateSwapBlockMapping({blocksA:[1,2],blocksB:[3],mappingA:[0,0],mappingB:[0]}));
+assert.throws(()=>validateSwapBlockMapping({blocksA:[1],blocksB:[3,4],mappingA:[0],mappingB:[0,0]}));
 console.log('Swap proposal tests passed');

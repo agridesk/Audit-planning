@@ -2184,11 +2184,9 @@ function auditorUi_applyActionMicroRefresh_(auditId, action, payload, resp) {
 
     if (s === 'APPROVED') {
       out.push(auditorActionButtonHtml_('accept', 'data-audit-id="' + id + '"', 'Accept'));
-      out.push(auditorActionButtonHtml_('cancel', 'onclick="doCancel(\'' + id + '\')"', 'Cancel'));
     }
 
     if (s === 'ACCEPTED') {
-      out.push(auditorActionButtonHtml_('cancel', 'onclick="doCancel(\'' + id + '\')"', 'Cancel'));
       out.push(auditorActionButtonHtml_('complete', 'onclick="openComplete(\'' + id + '\')"', 'Complete'));
     }
 

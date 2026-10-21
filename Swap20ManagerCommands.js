@@ -23,3 +23,18 @@ function Swap20ManagerCreateProposal(input){
  proposal.originalRevisions[b]=pair.auditB.revision;
  return Swap20Store_create_(proposal);
 }
+
+/** Manager withdrawal. Does not change canonical Accepted audits. */
+function Swap20ManagerWithdrawProposal(input){
+ input=input||{};
+ var auth=V5_AUTH.validateTrustedTokenByRole(input.trustedToken||input.token,'Manager',input.deviceFingerprint||input.deviceId);
+ if(!auth||auth.ok!==true||!auth.email)throw Error('Manager authentication required');
+ var id=String(input.operationId||'').trim(),old=Swap20Store_read_(id);
+ if(!old)throw Error('Swap proposal not found');
+ if(old.status!=='AWAITING_ACKNOWLEDGEMENT'&&old.status!=='ESCALATED'&&old.status!=='CONFIRMED')throw Error('Proposal cannot be withdrawn');
+ var next=JSON.parse(JSON.stringify(old));
+ next.status='WITHDRAWN';
+ next.withdrawnAt=new Date().toISOString();
+ next.withdrawnBy=auth.email;
+ return Swap20Store_transition_(id,old.status,next);
+}

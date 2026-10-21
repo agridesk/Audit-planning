@@ -1071,26 +1071,34 @@ function nra2_buildMail_(auditorName, blocks, thresholds, scopeStyleMap) {
   html.push('<p style="margin:0 0 16px 0;">Below are the audits that currently require your action. Report generated on: ' + nra2_safe_(Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd-MM-yyyy')) + '</p>');
 
   var pendingPlanningTotal = blocks.critical.length + blocks.urgent.length + blocks.upcoming.length;
+  if (pendingPlanningTotal > 0) {
   html.push('<div style="margin:0 0 22px 0;">');
   html.push('<div style="font-size:18px;font-weight:700;margin:0 0 6px 0;">1) Pending planning - self planning required (' + pendingPlanningTotal + ')</div>');
   html.push('<div style="margin:0 0 10px 0;color:#57606a;">You are preassigned and allowed to plan these audits. Urgency is based on the last day of the planning window.</div>');
 
+  if (blocks.critical.length) {
   html.push(nra2_renderGroupTable_(
     'Critical (≤ ' + thresholds.criticalDays + ' days)',
     blocks.critical,
     scopeStyleMap
   ));
+
+  }  if (blocks.urgent.length) {
   html.push(nra2_renderGroupTable_(
     'Urgent (' + (thresholds.criticalDays + 1) + ' - ' + thresholds.urgentDays + ' days)',
     blocks.urgent,
     scopeStyleMap
   ));
+
+  }  if (blocks.upcoming.length) {
   html.push(nra2_renderGroupTable_(
     'Upcoming (' + (thresholds.urgentDays + 1) + ' - ' + thresholds.upcomingDays + ' days)',
     blocks.upcoming,
     scopeStyleMap
   ));
-  html.push('</div>');
+
+  }  html.push('</div>');
+  }
 
   html.push('<div style="margin:0 0 22px 0;">');
   html.push('<div style="font-size:18px;font-weight:700;margin:0 0 6px 0;">2) Pending acceptance (' + blocks.pendingAcceptance.length + ')</div>');

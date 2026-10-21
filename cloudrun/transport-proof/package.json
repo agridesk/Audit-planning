@@ -12,6 +12,6 @@
     "preflight:auditor-email:dev": "node auditor-email-dev-preflight.mjs",
     "preflight:availability:dev": "node availability-release-preflight-20.mjs",
     "test:auth-fast": "node auth-fast-otp-20-test.mjs && node auth-fast-otp-contract-test.mjs",
-    "test:swap": "node swap-proposal-20-test.mjs && node swap-atomic-20-test.mjs && node swap-gas-guards-test.mjs && node swap-identity-20-test.mjs"
+    "test:swap": "node swap-proposal-20-test.mjs && node swap-atomic-20-test.mjs && node swap-gas-guards-test.mjs && node swap-identity-20-test.mjs && node swap-preflight-20-test.mjs"
   }
 }

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {createSwapProposal,applySwapProposalEvent,swapProposalNeedsAction,previewSwapFinalState,validateSwapProposalSource,evaluateSwapEligibility,prepareSwapCommit,buildSwapSlotExchange,evaluateSwapFinalState,validateSwapBlock,planSwapJournal,advanceSwapJournal,classifySwapChange,deriveSwapAcknowledgementPolicy,planSwapFollowUpNotifications} from './swap-proposal-20.mjs';
+import {createSwapProposal,applySwapProposalEvent,swapProposalNeedsAction,previewSwapFinalState,validateSwapProposalSource,evaluateSwapEligibility,prepareSwapCommit,buildSwapSlotExchange,evaluateSwapFinalState,validateSwapBlock,planSwapJournal,advanceSwapJournal,classifySwapChange,deriveSwapAcknowledgementPolicy,planSwapFollowUpNotifications,buildMappedSwapSlotExchange} from './swap-proposal-20.mjs';
 const at='2026-10-21T10:00:00Z',later='2026-10-23T10:00:00Z';
 const p=createSwapProposal({operationId:'s1',auditA:'A',auditB:'B',requiredAuditorUids:['u1','u2'],createdAt:at,originalRevisions:{A:1,B:2},internalReason:'logistics',ecasComment:'Change agreed'});
 assert.equal(p.status,'AWAITING_ACKNOWLEDGEMENT');
@@ -123,4 +123,9 @@ assert.deepEqual(planSwapFollowUpNotifications(b,later).notifications,[]);
 const oneAck=applySwapProposalEvent(p,{type:'ACKNOWLEDGE',auditorUid:'u1',at:'2026-10-21T11:00:00Z'});
 assert.deepEqual(planSwapFollowUpNotifications(oneAck,later).notifications.filter(x=>x.type==='AUDITOR_REMINDER_24H').map(x=>x.auditorUid),['u2']);
 assert.deepEqual(planSwapFollowUpNotifications(applySwapProposalEvent(p,{type:'DECLINE',auditorUid:'u1',at:later}),later).notifications,[]);
+const mapped=buildMappedSwapSlotExchange({auditA:'A',auditB:'B',blocksA:[{date:'2026-11-01',start:'08:00',end:'09:00'},{date:'2026-11-01',start:'10:00',end:'11:30'}],blocksB:[{date:'2026-11-03',start:'13:00',end:'15:00'}],mappingA:[0,0],mappingB:[0]});
+assert.equal(mapped.blocksA.length,2);
+assert.equal(mapped.blocksA[0].end,'14:00');
+assert.equal(mapped.blocksA[1].end,'14:30');
+assert.throws(()=>buildMappedSwapSlotExchange({auditA:'A',auditB:'B',blocksA:[{date:'2026-11-01',start:'08:00',end:'09:00'}],blocksB:[{date:'2026-11-03',start:'13:00',end:'15:00'}],mappingA:[1],mappingB:[0]}));
 console.log('Swap proposal tests passed');

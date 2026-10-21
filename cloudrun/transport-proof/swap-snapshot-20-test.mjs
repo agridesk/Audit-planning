@@ -21,7 +21,10 @@ runInNewContext(readFileSync(new URL('Swap20CanonicalSnapshot.js',root),'utf8'),
 const before=ctx.Swap20_captureCanonicalBeforeImages_({auditA:'A',auditB:'B',originalRevisions:{A:'revision-A',B:'revision-B'}});
 assert.equal(before.rows.length,2);
 assert.equal(ctx.Swap20_verifyCanonicalBeforeImages_(before),true);
+before.rollbackExpectedBlocksA=[{date:'2026-11-01'}];
+before.rollbackExpectedBlocksB=[];
 rows[1][3]='2026-11-01';
+rows[1][4]=JSON.stringify({blocks:before.rollbackExpectedBlocksA});
 ctx.Swap20_restoreCanonicalBeforeImages_(before);
 assert.equal(rows[1][3],'2026-10-21');
 rows[2][0]='WRONG';

@@ -212,7 +212,7 @@ function AcceptedNotificationReconciler_Run_(opts) {
 
         var payload = {
           actorEmail: String(ev.actorEmail || '').trim(),
-          actorRole: 'AUDITOR',
+          actorRole: (String(ev.actorRole||'').toUpperCase()==='MANAGER'?'MANAGER':'AUDITOR'),
           action: 'ACCEPT',
           source: 'AcceptedNotificationReconciler',
           reconciledFromLifecycleRow: ev.rowNumber
@@ -232,7 +232,7 @@ function AcceptedNotificationReconciler_Run_(opts) {
           throw new Error('StatusNotificationBridge_Dispatch_ unavailable');
         }
 
-        var bridgeResult = StatusNotificationBridge_Dispatch_('ACCEPT', 'AUDITOR', ctx, payload, result);
+        var bridgeResult = StatusNotificationBridge_Dispatch_('ACCEPT', payload.actorRole, ctx, payload, result);
 
         // Proof-based postcondition: never claim repair from a return value alone.
         var freshQueue = AcceptedNotificationReconciler_LoadQueue_(queueSheet);
@@ -368,6 +368,7 @@ function AcceptedNotificationReconciler_FindAcceptedLifecycleEvents_(queue, opts
       auditId: auditId,
       rowNumber: row.rowNumber,
       actorEmail: String(payload.actorEmail || '').trim(),
+      actorRole: String(payload.actorRole || '').trim().toUpperCase(),
       timestamp: payload.timestamp || row.displayValues[0] || '',
       payload: payload
     });

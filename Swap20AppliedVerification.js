@@ -5,7 +5,7 @@ function Swap20_verifyAppliedPairLocked_(before,proposal,plan){
  if(js<0||st<0||owner<0)throw Error('Canonical verification columns missing');
  before.rows.forEach(function(image,i){
   var row=sh.getRange(image.rowNumber,1,1,headers.length).getValues()[0];
-  if(row[st]!=='Accepted'||row[owner]!==image.values[owner])throw Error('Swap changed lifecycle or owner');
+  if(String(row[st]||'').toLowerCase()!=='accepted'||row[owner]!==image.values[owner])throw Error('Swap changed lifecycle or owner');
   var expected=i===0?proposal.blocksA:proposal.blocksB;
   var actual=JSON.parse(String(row[js]||'{}')).blocks;
   if(!Array.isArray(actual)||actual.length!==expected.length)throw Error('Swap canonical blocks missing');

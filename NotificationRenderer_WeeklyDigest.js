@@ -374,6 +374,28 @@ function RUN_PREVIEW_WEEKLY_MANAGER_DEV_20261021() {
   return {ok:true,previewOnly:true,recipient:target,queued:false,counts:data.counts};
 }
 
+function RUN_PREVIEW_WEEKLY_AUDITORS_DEV_20261021() {
+  var props=PropertiesService.getScriptProperties();
+  var env=String(props.getProperty('AMS_ENV')||props.getProperty('ENVIRONMENT')||'').toUpperCase();
+  if(env==='PROD'||env==='PRODUCTION')throw new Error('DEV_ONLY_WEEKLY_PREVIEW');
+  var target='info@agridesk.com';
+  var delivery=typeof ns_resolveNotificationDelivery_==='function'?ns_resolveNotificationDelivery_(target):null;
+  if(!delivery||!delivery.send||String(delivery.recipient||'').toLowerCase()!==target)throw new Error('DEV_TEST_TO_SELF_REQUIRED');
+  var report=runAuditorWeeklyAlert({previewOnly:true});
+  if(!report||report.ok!==true||!report.results)throw new Error('AUDITOR_WEEKLY_PREVIEW_FAILED');
+  var sent=0;
+  for(var i=0;i<report.results.length;i++) {
+    var item=report.results[i];
+    if(!item.previewOnly||!item.htmlBody)continue;
+    NS_sendEmailWithConfiguredIdentity_(target,'[DEV PREVIEW] '+item.subject,
+      'DEV-only weekly auditor preview; no Notification Queue rows created.',
+      {htmlBody:'<p><b>DEV PREVIEW - no regular weekly notification queued</b></p>'+item.htmlBody},
+      {source:'RUN_PREVIEW_WEEKLY_AUDITORS_DEV_20261021',deliveryMode:delivery.mode});
+    sent++;
+  }
+  return {ok:true,previewOnly:true,recipient:target,queued:false,emailsSent:sent};
+}
+
 function nrm2_buildMail_(blocks, thresholds, scopeStyleMap) {
   var html = [];
   html.push('<div style="font-family:Arial,sans-serif;font-size:13px;line-height:1.4;color:#24292f;">');
@@ -663,7 +685,7 @@ function nrm2_renderScopes_(scopes, scopeStyleMap) {
     var style = scopeStyleMap[slotKey] || { label:slotKey, bg:'#e5e7eb', fg:'#111827' };
     html.push('<span style="display:inline-block;margin:0 6px 6px 0;padding:4px 10px;border-radius:999px;background:' + nrm2_safe_(style.bg) + ';color:' + nrm2_safe_(style.fg) + ';font-weight:700;font-size:12px;line-height:1.2;white-space:nowrap;">' + nrm2_safe_(style.label) + '</span>');
   }
-  return html.join('');
+  return html.join(' &nbsp; ');
 }
 
 function nrm2_sendEmailRespectingSystemConfig_(recipient, subject, body, options) {
@@ -797,7 +819,8 @@ var NRA2_SHEET_COMPANIES = 'Companies';
 // RUNNER
 // ============================================================
 
-function runAuditorWeeklyAlert() {
+function runAuditorWeeklyAlert(options) {
+  options=options||{};
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(NRA2_SHEET_AUDIT_PLANNING);
   if (!sh) return { ok: false, error: 'Audit planning not found' };
@@ -982,6 +1005,10 @@ function runAuditorWeeklyAlert() {
     var body = 'See HTML version';
     var html = nra2_buildMail_(recipientName, blocks, thresholds, scopeConfig.styleMap);
 
+    if(options.previewOnly===true) {
+      results.push({auditorUid:recipientUid,auditorName:recipientName,recipient:recipient,previewOnly:true,queued:false,subject:subject,htmlBody:html,counts:{total:total,pendingAcceptance:blocks.pendingAcceptance.length,comingUp:blocks.comingUp.length,pendingCompletion:blocks.pendingCompletion.length}});
+      continue;
+    }
     var queueResult = nrm2_queueWeeklyMail_(ss, {
       eventKey: 'WEEKLY_AUDITOR_DIGEST',
       digestGroup: 'AUDITOR_WEEKLY',
@@ -1494,7 +1521,7 @@ function nra2_renderScopes_(scopes, scopeStyleMap) {
       '</span>'
     );
   }
-  return html.join('');
+  return html.join(' &nbsp; ');
 }
 
 function nra2_sortByDaysLeft_(rows) {

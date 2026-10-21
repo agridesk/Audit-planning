@@ -332,6 +332,9 @@ assert.match(lifecycleRenderer,/if \(code === 'AUDIT_DENIED_BY_MANAGER'\) return
 assert.match(lifecycleRenderer,/if \(code === 'AUDIT_DENIED_BY_AUDITOR'\) return 'Cancel by auditor'/);
 assert.match(statusSource,/if \(a === ACTION\.DENY\) return '';/);
 assert.doesNotMatch(managerAdapter,/deny: 'DENY'/);
+const managerPortal=read('ManagerV5UI.html');
+assert.doesNotMatch(managerPortal,/mkBtn\("Deny",\s*"btn-deny"/,'Manager Portal must not offer Deny');
+assert.doesNotMatch(managerAdapter,/deny:1/,'Manager action alias must not expose retired Deny');
 const auditorPortal=read('AuditorPortalV5.html');
 assert.doesNotMatch(auditorPortal,/out\.push\(auditorActionButtonHtml_\('deny'/);
 assert.doesNotMatch(auditorBackend,/action === "deny" \|\| action === "cancel"/);

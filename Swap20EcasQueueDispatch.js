@@ -43,6 +43,7 @@ function Swap20_tryQueueCombinedEcasLocked_(operationId) {
    return {ok:false,queued:false,reason:'LIVE_AUDIT_NOT_ACCEPTED'};
   var newPlan=JSON.parse(String(liveValues[liveIndex.planningjson]||'{}'));
   var actualBlocks=newPlan.blocks||[],expected=i===0?proposal.blocksA:proposal.blocksB;
+  if(!Array.isArray(expected)||!expected.length)return {ok:false,queued:false,reason:'COMMITTED_SWAP_BLOCKS_MISSING'};
   if(JSON.stringify(actualBlocks.map(Swap20_justScheduleBlock_))!==JSON.stringify(expected.map(Swap20_justScheduleBlock_)))
    return {ok:false,queued:false,reason:'LIVE_PLAN_NOT_COMMITTED'};
   var detail=PlanningWorkspacePlannedAuditReadService_get({auditId:aid});

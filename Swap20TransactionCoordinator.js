@@ -26,16 +26,19 @@ function Swap20_executeLocked_(proposal){
  var before={canonical:canonical,availability:availability};
  if(JSON.stringify(before).length>35000)throw Error('Swap before-images exceed journal capacity');
  Swap20Journal_appendLocked_(proposal.operationId,0,'PREPARED',before);
+ var writingStarted=false;
  try{
   Swap20_verifyCanonicalBeforeImages_(canonical);
   if(JSON.stringify(Swap20Store_read_(proposal.operationId))!==JSON.stringify(proposal))throw Error('Proposal changed before writing');
   Swap20Journal_appendLocked_(proposal.operationId,Swap20Journal_history_(proposal.operationId).length,'WRITING',{auditA:proposal.auditA,auditB:proposal.auditB});
+  writingStarted=true;
   Swap20_writeAvailabilityPlanLocked_(plan,availability);
   Swap20_writeCanonicalPairLocked_(canonical,proposal);
   Swap20_verifyAppliedPairLocked_(canonical,proposal,plan);
   Swap20Journal_appendLocked_(proposal.operationId,Swap20Journal_history_(proposal.operationId).length,'COMMITTED',{auditA:proposal.auditA,auditB:proposal.auditB});
   return {success:true,operationId:proposal.operationId,committed:true};
  }catch(err){
+  if(!writingStarted)throw Error('Swap stopped before data writes: '+String(err));
   var failures=[];
   try{Swap20Journal_appendLocked_(proposal.operationId,Swap20Journal_history_(proposal.operationId).length,'ROLLING_BACK',{reason:String(err)});}catch(e){failures.push(String(e));}
   try{Swap20_restoreCanonicalBeforeImages_(canonical);}catch(e){failures.push(String(e));}

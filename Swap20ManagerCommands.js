@@ -36,5 +36,5 @@ function Swap20ManagerWithdrawProposal(input){
  next.status='WITHDRAWN';
  next.withdrawnAt=new Date().toISOString();
  next.withdrawnBy=auth.email;
- return Swap20Store_transition_(id,old.status,next);
+ return Swap20Store_transition_(id,old.status,next,old);
 }

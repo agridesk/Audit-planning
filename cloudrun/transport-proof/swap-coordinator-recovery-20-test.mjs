@@ -40,4 +40,5 @@ const missingPair=fixture();missingPair.ctx.Swap20_captureCanonicalBeforeImages_
 const interrupted=fixture();interrupted.journal.push({stage:'PREPARED',payload:{}});interrupted.journal.push({stage:'WRITING',payload:{}});
 assert.equal(interrupted.ctx.Swap20_recoverLocked_(p.operationId).readOnly,true);
 assert.equal(interrupted.journal.length,2);
+const rollbackInterrupted=fixture();rollbackInterrupted.journal.push({stage:'PREPARED',payload:{}});rollbackInterrupted.journal.push({stage:'ROLLING_BACK',payload:{}});assert.equal(rollbackInterrupted.ctx.Swap20_recoverLocked_(p.operationId).readOnly,true);assert.equal(rollbackInterrupted.journal.length,2);
 console.log('Swap coordinator and recovery regression tests passed');

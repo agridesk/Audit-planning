@@ -27,7 +27,7 @@ function Swap20_executeLocked_(proposal){
  if(!plan||!Array.isArray(plan.values)||plan.sheetName!==availability.sheetName||plan.width!==availability.width||plan.originalHeight!==availability.height)throw Error('Invalid paired reservation plan');
  if(plan.values.length<availability.height||plan.values.length>2000)throw Error('Availability plan exceeds safe row limit');
  var before={canonical:canonical,availability:availability};
- if(JSON.stringify(before).length>35000)throw Error('Swap before-images exceed journal capacity');
+ if(Swap20Journal_encodePayload_(before).length>40000)throw Error('Swap compressed before-images exceed journal capacity');
  if(!Array.isArray(canonical.rows)||canonical.rows.length!==2)throw Error('Canonical pair snapshot incomplete');
  if(String(canonical.rows[0].auditId)!==String(proposal.auditA)||String(canonical.rows[1].auditId)!==String(proposal.auditB))throw Error('Canonical pair order mismatch');
  Swap20Journal_appendLocked_(proposal.operationId,0,'PREPARED',before);

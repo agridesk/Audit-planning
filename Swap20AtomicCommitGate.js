@@ -19,6 +19,19 @@ function Swap20ManagerCommit(input){
     var current=Swap20Store_read_(proposal.operationId);
     if(current&&current.status==='APPLIED'&&current.canonicalCommitVerified===true)
      return {success:true,operationId:proposal.operationId,committed:true,idempotent:true};
+    if(current&&current.status==='CONFIRMED'&&JSON.stringify(current)===JSON.stringify(proposal)){
+     // Journal COMMITTED is written only after verified paired canonical and
+     // availability writes; never repeat those writes on a retry.
+     var repaired=JSON.parse(JSON.stringify(current));
+     repaired.status='APPLIED';repaired.canonicalCommitVerified=true;
+     repaired.appliedAt=new Date().toISOString();repaired.appliedBy=String(auth.email);
+     Swap20_validateTransition_(current,repaired);
+     var repairedKey=Swap20Store_key_(proposal.operationId);
+     if(props.getProperty(repairedKey)!==JSON.stringify(current))
+      throw Error('Committed swap proposal changed; reconciliation required');
+     props.setProperty(repairedKey,JSON.stringify(repaired));
+     return {success:true,operationId:proposal.operationId,committed:true,reconciled:true,status:'APPLIED'};
+    }
     throw Error('Committed swap requires proposal reconciliation');
    }
    throw Error('Swap transaction already journaled; recovery required');

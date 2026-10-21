@@ -48,6 +48,9 @@ function Swap20ManagerCommit(input){
   if(!raw||raw!==JSON.stringify(proposal))throw Error('Committed swap proposal changed; reconciliation required');
   Swap20_validateTransition_(proposal,next);
   props.setProperty(key,JSON.stringify(next));
-  return {success:true,operationId:proposal.operationId,committed:true,status:'APPLIED'};
+  var notificationIntent={ok:false,reason:'INTENT_NOT_RECORDED'};
+  try{notificationIntent=Swap20_stageNotificationAfterCommitLocked_(proposal.operationId);}
+  catch(eIntent){notificationIntent={ok:false,reason:'INTENT_STAGE_FAILED',detail:String(eIntent)};}
+  return {success:true,operationId:proposal.operationId,committed:true,status:'APPLIED',notificationIntent:notificationIntent};
  }finally{lock.releaseLock();}
 }

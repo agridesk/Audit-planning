@@ -104,7 +104,7 @@ for(const forbidden of ['QUEUE_SHEET_NAME','MANAGER_COMPLETE_LOG_ONLY','COMMENT_
 
 const statusBridge=read('StatusNotificationBridge.js');
 const auditorBackend=read('AuditorV5Backend.js');
-assert.ok(statusBridge.includes("action === ACTION.DENY && actor === ROLE.AUDITOR && afterStatus === STATUS.PENDING_PLANNING) return 'AUDIT_CANCELLED_BY_AUDITOR'"),'Legacy auditor DENY must route to Cancelled notification');
+assert.ok(statusBridge.includes("if (action === ACTION.DENY) return '';"),'Retired DENY must never create notification');
 assert.match(auditorBackend,/auditorV5_notifyManager_\(\s*'AUDIT_CANCELLED_BY_AUDITOR'\s*,/,'Legacy auditor deny path must use Cancelled notification');
 assert.ok(!transport.includes("'COMMENT_ALLOWED_AUDIT_DENIED_BY_AUDITOR'"),'Legacy denied rule must not be editable in portal');
 
@@ -326,8 +326,16 @@ assert.match(lifecycleRenderer,/Audit status update — '.?\+singleCompany/);
 
 // Historical DENIED event codes may exist in archives but never appear as Denied
 // in current outgoing lifecycle communication.
-assert.match(notificationBridge,/ACTION\.DENY && actor === ROLE\.MANAGER[\s\S]*?return 'AUDIT_CANCELLED_BY_MANAGER'/);
+assert.doesNotMatch(notificationBridge,/ACTION\.DENY && actor === ROLE\.MANAGER/);
 assert.doesNotMatch(lifecycleRenderer,/return 'Deny by (manager|auditor)'/);
 assert.match(lifecycleRenderer,/if \(code === 'AUDIT_DENIED_BY_MANAGER'\) return 'Cancel by manager'/);
 assert.match(lifecycleRenderer,/if \(code === 'AUDIT_DENIED_BY_AUDITOR'\) return 'Cancel by auditor'/);
+assert.match(statusSource,/if \(a === ACTION\.DENY\) return '';/);
+assert.doesNotMatch(managerAdapter,/deny: 'DENY'/);
+const auditorPortal=read('AuditorPortalV5.html');
+assert.doesNotMatch(auditorPortal,/out\.push\(auditorActionButtonHtml_\('deny'/);
+assert.doesNotMatch(auditorBackend,/action === "deny" \|\| action === "cancel"/);
+assert.equal(nextStatus('APPROVED','CANCEL','AUDITOR'),'','Auditor must not cancel approved');
+assert.equal(nextStatus('ACCEPTED','CANCEL','AUDITOR'),'','Auditor must not cancel accepted');
+assert.equal(nextStatus('PENDING_APPROVAL','CANCEL','AUDITOR'),'PENDING_PLANNING');
 console.log('notifications-gas-contract-20: PASS');

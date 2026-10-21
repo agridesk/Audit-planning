@@ -223,3 +223,28 @@ export function planSwapFollowUpNotifications(proposal,now){
   notifications.push({id:operationId+':MANAGER_ESCALATION_48H',operationId,type:'MANAGER_ESCALATION_48H'});
  return {notifications,readOnly:true,noAutomaticExpiry:true};
 }
+
+/** Explicit block mapping for unequal multi-block schedules; no implicit partial swap. */
+export function buildMappedSwapSlotExchange(input){
+ const {auditA,auditB,blocksA,blocksB,mappingA,mappingB}=input||{};
+ if(!auditA||!auditB||auditA===auditB)throw Error('Distinct audit IDs required');
+ if(!Array.isArray(blocksA)||!blocksA.length||!Array.isArray(blocksB)||!blocksB.length)throw Error('Both audit schedules required');
+ const check=(map,sources,targets)=>{
+  if(!Array.isArray(map)||map.length!==sources.length)throw Error('Complete explicit block mapping required');
+  for(const i of map)if(!Number.isInteger(i)||i<0||i>=targets.length)throw Error('Invalid target block index');
+ };
+ check(mappingA,blocksA,blocksB);check(mappingB,blocksB,blocksA);
+ const mins=t=>Number(t.slice(0,2))*60+Number(t.slice(3));
+ const clock=n=>String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');
+ const move=(sources,targets,map)=>sources.map((source,i)=>{
+  validateSwapBlock(source);
+  const target=targets[map[i]];validateSwapBlock(target);
+  const start=mins(target.start),duration=mins(source.end)-mins(source.start);
+  if(start+duration>1440)throw Error('Swap duration cannot fit target slot');
+  return {...source,date:target.date,start:clock(start),end:clock(start+duration)};
+ });
+ const out={auditA,auditB,blocksA:move(blocksA,blocksB,mappingA),blocksB:move(blocksB,blocksA,mappingB),requiresCanonicalValidation:true,explicitMapping:true};
+ const detect=(blocks,id)=>{for(let i=0;i<blocks.length;i++)for(let j=i+1;j<blocks.length;j++)if(blocks[i].date===blocks[j].date&&blocks[i].start<blocks[j].end&&blocks[j].start<blocks[i].end)throw Error('Overlapping blocks within '+id);};
+ detect(out.blocksA,auditA);detect(out.blocksB,auditB);
+ return out;
+}

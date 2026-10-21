@@ -36,6 +36,20 @@ vm.runInContext(external.slice(validationStart,validationEnd),validationCtx);
 const validChange={eventCode:'ECAS_AUDIT_CHANGED_DIGEST',company:'Teler',mpsNumber:'123',auditorName:'Auditor',scopes:['ABC'],plannedHours:2};
 assert.ok(validationCtx.NB_externalMissingRequiredFields_(validChange).includes('ecasComment'));
 assert.ok(!validationCtx.NB_externalMissingRequiredFields_({...validChange,ecasComment:'Datum gewijzigd'}).includes('ecasComment'));
+
+// Cancellation identification must use the last communicated schedule after
+// the status machine clears current planning blocks.
+const scheduleStart=external.indexOf('function NB_externalScheduleRows_(');
+const scheduleEnd=external.indexOf('function NB_externalParsePlannedDateLine_(',scheduleStart);
+assert.ok(scheduleStart>=0&&scheduleEnd>scheduleStart);
+const scheduleCtx={NB_clean_:x=>String(x??'').trim(),NB_externalFormatDateNl_:x=>x,NB_externalTimeRangeNl_:(x,y)=>x+' - '+y};
+vm.createContext(scheduleCtx);
+vm.runInContext(external.slice(scheduleStart,scheduleEnd),scheduleCtx);
+const cancelled={eventCode:'ECAS_AUDIT_CANCELLED_DIGEST',blocks:[],plannedDates:[],previousBlocks:[{date:'2026-11-17',start:'08:00',end:'12:00'}]};
+assert.equal(scheduleCtx.NB_externalScheduleRows_(cancelled)[0].date,'2026-11-17');
+assert.equal(scheduleCtx.NB_externalScheduleRows_({...cancelled,previousBlocks:[]}).length,0,'Must fail closed if old plan is missing');
+assert.equal(scheduleCtx.NB_externalScheduleRows_({eventCode:'ECAS_AUDIT_APPROVAL_DIGEST',blocks:[{date:'2026-11-18'}]})[0].date,'2026-11-18');
+
 const sender=readFileSync(new URL('../../NotificationSender.js',import.meta.url),'utf8');
 const sendBegin=sender.indexOf('function ns_sendDueReserved_(');
 const sendEnd=sender.indexOf('function ns_resetStaleReserved_(',sendBegin);

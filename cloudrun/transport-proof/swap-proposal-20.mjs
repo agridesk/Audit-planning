@@ -100,3 +100,14 @@ export function evaluateSwapEligibility(pair){
  const eligible=accepted(a)&&accepted(b)&&planned(a)&&planned(b)&&Boolean(a.assignedTo)&&Boolean(b.assignedTo)&&Boolean(a.revision)&&Boolean(b.revision);
  return {eligible,readOnly:true,canCommit:false,revisions:{[a.auditId]:a.revision,[b.auditId]:b.revision},reason:eligible?null:'CANONICAL_SWAP_INELIGIBLE'};
 }
+
+export function prepareSwapCommit(proposal,current,preview){
+ if(!proposal||proposal.status!=='CONFIRMED')throw Error('Auditor acknowledgements incomplete');
+ const source=validateSwapProposalSource(proposal,current);
+ if(!source.valid)throw Error('Canonical revision conflict: '+source.conflictingAuditIds.join(','));
+ if(!preview||!preview.canProceed||preview.requiresCanonicalValidation!==true||preview.committed!==false)throw Error('Final-state preview not approved');
+ if(!Array.isArray(preview.proposedBlocks)||!preview.proposedBlocks.length)throw Error('Missing final-state blocks');
+ const ids=new Set(preview.proposedBlocks.map(x=>x.auditId));
+ if(ids.size!==2||!ids.has(proposal.auditA)||!ids.has(proposal.auditB))throw Error('Preview audit pair mismatch');
+ return {operationId:proposal.operationId,auditIds:[proposal.auditA,proposal.auditB],expectedRevisions:{...proposal.originalRevisions},proposedBlocks:preview.proposedBlocks.map(x=>({...x})),ecasComment:proposal.ecasComment,requiresCanonicalLock:true,requiresDurableJournal:true,requiresAtomicCommit:true,commitAuthorized:false};
+}

@@ -7,6 +7,7 @@ function fixture(failure){
  const events=[],journal=[];
  const ctx={Error,String,JSON,Array,Number,Math,PropertiesService:{getScriptProperties:()=>({getProperty:()=> 'DEV'})},
  Swap20Store_read_:()=>p,Swap20Journal_history_:()=>journal.slice(),
+ Swap20Journal_encodePayload_:payload=>JSON.stringify(payload),
  PlanningWorkspacePlannedAuditReadService_get:({auditId})=>({auditorEmail:auditId==='A'?'a@x.com':'b@x.com',assignedTo:auditId==='A'?'a@x.com':'b@x.com'}),
  Swap20CanonicalCommitGuard:()=>({ok:true}),
  Swap20_captureCanonicalBeforeImages_:()=>({sheetName:'Audit planning',headers:['Assigned to'],rows:[{auditId:'A',values:['a@x.com']},{auditId:'B',values:['b@x.com']}]}),

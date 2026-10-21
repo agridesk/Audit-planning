@@ -97,4 +97,8 @@ assert.match(source,/if \(pendingPlanningTotal > 0\) \{/);
 assert.match(source,/if \(blocks\.critical\.length\) \{/);
 assert.match(source,/if \(blocks\.urgent\.length\) \{/);
 assert.match(source,/if \(blocks\.upcoming\.length\) \{/);
+assert.match(source,/function RUN_DIAG_WEEKLY_STATUS_CONSISTENCY_DEV_20261021\(/);
+assert.match(source,/DEV_ONLY_WEEKLY_DIAGNOSTICS/);
+assert.match(source,/lastAuditorDecision:action/);
+assert.match(source,/review, do not auto-complete/);
 console.log('notification-weekly-queue-idempotency-20: PASS');

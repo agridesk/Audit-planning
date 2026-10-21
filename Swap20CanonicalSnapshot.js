@@ -30,3 +30,19 @@ function Swap20_verifyCanonicalBeforeImages_(snapshot){
  });
  return true;
 }
+
+function Swap20_restoreCanonicalBeforeImages_(snapshot){
+ var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(snapshot.sheetName);
+ if(!sh||sh.getLastColumn()!==snapshot.headers.length)throw Error('Canonical rollback schema mismatch');
+ var headers=sh.getRange(1,1,1,snapshot.headers.length).getValues()[0];
+ if(JSON.stringify(headers)!==JSON.stringify(snapshot.headers))throw Error('Canonical rollback headers mismatch');
+ var idCol=headers.map(function(x){return String(x).toLowerCase().replace(/[ _-]/g,'');}).indexOf('auditid');
+ snapshot.rows.forEach(function(image){
+  var range=sh.getRange(image.rowNumber,1,1,headers.length);
+  if(String(range.getValues()[0][idCol])!==String(image.auditId))throw Error('Canonical rollback identity mismatch');
+  range.setValues([image.values]);
+ });
+ SpreadsheetApp.flush();
+ Swap20_verifyCanonicalBeforeImages_(snapshot);
+ return {success:true,restored:snapshot.rows.length};
+}

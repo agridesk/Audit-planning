@@ -1732,11 +1732,11 @@ function RUN_INSTALL_WEEKLY_DIGEST_TRIGGERS_DEV_20261021() {
   var tz=Session.getScriptTimeZone();
   var created=[];
   for(var j=0;j<handlers.length;j++) {
-    var trigger=ScriptApp.newTrigger(handlers[j]).timeBased().onWeekDay(ScriptApp.WeekDay.TUESDAY).atHour(6).create();
+    var trigger=ScriptApp.newTrigger(handlers[j]).timeBased().onWeekDay(ScriptApp.WeekDay.TUESDAY).atHour(6).inTimezone('Europe/Amsterdam').create();
     created.push({handler:handlers[j],id:trigger.getUniqueId()});
   }
   var result={ok:true,scriptId:scriptId,timezone:tz,removed:removed,created:created,
-    note:'Apps Script atHour(6) runs within the 06:00-07:00 window; no emails sent by installer'};
+    triggerTimezone:'Europe/Amsterdam',note:'Weekly triggers run Tuesday 06:00-07:00 Europe/Amsterdam; no emails sent by installer'};
   Logger.log(JSON.stringify(result));
   return result;
 }

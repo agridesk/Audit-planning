@@ -83,7 +83,7 @@ assert.equal(providerAttempts,1);
 
 // Long digest windows must survive the stale-reservation sweep until due.
 const staleStart=source.indexOf('function ns_resetStaleReserved_(');
-const staleEnd=source.indexOf('/* ============================================================\n * Digest rendering',staleStart);
+const staleEnd=source.indexOf('function ns_buildDigestEmail_(',staleStart);
 assert.ok(staleStart>0&&staleEnd>staleStart);
 const staleCtx={Date,Number,Math,isFinite,JSON,String,
  NS_STALE_RESERVED_MINUTES:60,

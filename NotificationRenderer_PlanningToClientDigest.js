@@ -279,6 +279,7 @@ function NB_externalDateSortKey_(value) {
 function NB_externalStatusText_(n) {
   var code = NB_clean_(n && (n.eventCode || n.eventType || n.type)).toUpperCase();
   if (code.indexOf('CANCELLED') >= 0 || code.indexOf('CANCEL') >= 0) return 'Geannuleerd';
+  if (code === 'ECAS_AUDIT_CHANGED_DIGEST') return 'Gewijzigd';
   if (code.indexOf('DENIED') >= 0 || code.indexOf('DENY') >= 0) return 'Geweigerd';
   if (code.indexOf('REJECTED') >= 0 || code.indexOf('REJECT') >= 0) return 'Afgewezen';
   return 'Ingepland';
@@ -353,8 +354,10 @@ function NB_externalReasonText_(n) {
   n = n || {};
   var code = NB_clean_(n.eventCode || n.eventType || n.type).toUpperCase();
   if (code.indexOf('CANCELLED') >= 0 || code.indexOf('CANCEL') >= 0 || code.indexOf('DENIED') >= 0 || code.indexOf('DENY') >= 0 || code.indexOf('REJECTED') >= 0 || code.indexOf('REJECT') >= 0) {
+    if (code.indexOf('ECAS_') === 0) return NB_clean_(n.ecasComment);
     return NB_clean_(n.comment || n.reason || 'Geen reden opgegeven');
   }
+  if (code === 'ECAS_AUDIT_CHANGED_DIGEST') return NB_clean_(n.ecasComment);
   return '';
 }
 
@@ -384,6 +387,10 @@ function NB_externalValidateDigestItems_(items) {
 function NB_externalMissingRequiredFields_(n) {
   n = n || {};
   var missing = [];
+  var externalCode=NB_clean_(n.eventCode || n.eventType || n.type).toUpperCase();
+  if (externalCode==='ECAS_AUDIT_CANCELLED_DIGEST' || externalCode==='ECAS_AUDIT_CHANGED_DIGEST') {
+    if (!NB_clean_(n.ecasComment)) missing.push('ecasComment');
+  }
   if (!NB_clean_(n.company)) missing.push('company');
   if (!NB_clean_(NB_mpsNumber_(n))) missing.push('mpsNumber');
   if (!NB_clean_(n.auditorEmail || n.auditorName)) missing.push('auditor');

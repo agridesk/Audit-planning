@@ -301,3 +301,13 @@ export function assessSwapJournalRecovery(journal){
  if(phase==='WRITING'||phase==='FAILED')return {operationId:journal.operationId,action:'RECOVER_FROM_DURABLE_BEFORE_IMAGES',safeToRetry:false,requiresManualIntervention:true};
  throw Error('Unknown swap journal phase');
 }
+
+/** Canonical before-image envelope: caller must persist durably before writing. */
+export function prepareSwapBeforeImages(input){
+ const {operationId,auditA,auditB,canonicalA,canonicalB,reservationsA,reservationsB}=input||{};
+ if(!operationId||!auditA||!auditB||auditA===auditB)throw Error('Valid swap operation and audit pair required');
+ if(!canonicalA||!canonicalB||!Array.isArray(reservationsA)||!Array.isArray(reservationsB))throw Error('Complete canonical before-images required');
+ if(canonicalA.auditId!==auditA||canonicalB.auditId!==auditB)throw Error('Canonical before-image audit mismatch');
+ const copy=value=>JSON.parse(JSON.stringify(value));
+ return {operationId,auditIds:[auditA,auditB],canonical:{[auditA]:copy(canonicalA),[auditB]:copy(canonicalB)},reservations:{[auditA]:copy(reservationsA),[auditB]:copy(reservationsB)},durablyPersisted:false,writeAuthorized:false,requiresPairLock:true};
+}

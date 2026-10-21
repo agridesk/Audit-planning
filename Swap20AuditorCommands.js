@@ -22,5 +22,5 @@ function Swap20AuditorRespond(input){
   if(next.acknowledgedAuditorUids.indexOf(uid)<0)next.acknowledgedAuditorUids.push(uid);
   if(next.requiredAuditorUids.every(function(x){return next.acknowledgedAuditorUids.indexOf(x)>=0;}))next.status='CONFIRMED';
  }
- return Swap20Store_transition_(id,p.status,next);
+ return Swap20Store_transition_(id,p.status,next,p);
 }

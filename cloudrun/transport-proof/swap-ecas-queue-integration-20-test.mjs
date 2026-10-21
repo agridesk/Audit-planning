@@ -5,7 +5,7 @@ const root=new URL('../../',import.meta.url);
 const files=['Swap20CombinedEcasDigest.js','Swap20EcasQueueDispatch.js','Swap20EcasIntentReconciler.js'];
 const operationId='swap-12345678';
 const intentKey='AMS_SWAP20_ECAS_INTENT_'+operationId;
-const proposal={operationId,auditA:'A',auditB:'B',status:'APPLIED',canonicalCommitVerified:true,ecasComment:'Twee audits wisselen'};
+const proposal={operationId,auditA:'A',auditB:'B',status:'APPLIED',canonicalCommitVerified:true,ecasComment:'Twee audits wisselen',blocksA:[{date:'2026-10-21',start:'09:00',end:'17:00'}],blocksB:[{date:'2026-10-20',start:'09:00',end:'17:00'}]};
 const makePlan=date=>JSON.stringify({blocks:[{date,start:'09:00',end:'17:00'}]});
 const headers=['Audit ID','Company','Company_UID','SCOPE_01','Planning JSON','Status'];
 const snapshots=[

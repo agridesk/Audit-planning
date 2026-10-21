@@ -2037,7 +2037,7 @@ function AuditorV5_Action_U20260410(auditId, action, payload) {
       statusResult: acceptResult,
       uiPatch: auditorV5_buildActionUiPatch_(auditId, action, acceptStatusNorm, false)
     };
-  } else if (action === "deny" || action === "cancel") {
+  } else if (action === "cancel") {
     // Governance fix 2026-05-04: Auditor Cancel/Deny must use the same
     // central reopen owner as Manager actions. No direct status/planning-field
     // writes here; StatusMachine owns transition + planning reset + availability
@@ -2046,7 +2046,7 @@ function AuditorV5_Action_U20260410(auditId, action, payload) {
       throw new Error('AuditorV5_Action_U20260410: Status_applyAction not deployed — fail-loud per governance');
     }
 
-    var actionUpper = action === 'deny' ? 'DENY' : 'CANCEL';
+    var actionUpper = 'CANCEL';
     var centralPayload = {};
     for (var pk in payload) {
       if (Object.prototype.hasOwnProperty.call(payload, pk)) centralPayload[pk] = payload[pk];

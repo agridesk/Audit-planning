@@ -42,4 +42,8 @@ assert.notEqual(rows[0][10],rows[1][10],'Distinct recipient must have distinct h
 assert.equal(locks,0);
 assert.ok(source.includes('plannedInfo.firstDate && plannedInfo.firstDate < today'), 'Auditor weekly overdue check must use real first planned date');
 assert.ok(!source.includes('plannedInfo.firstPlannedDate < today'), 'Invalid overdue property must not return');
+assert.match(source,/function RUN_INSTALL_WEEKLY_DIGEST_TRIGGERS_DEV_20261021\(/);
+assert.match(source,/ScriptApp\.WeekDay\.TUESDAY/);
+assert.match(source,/\.atHour\(6\)/);
+assert.match(source,/ScriptApp\.deleteTrigger\(existing\[i\]\)/);
 console.log('notification-weekly-queue-idempotency-20: PASS');

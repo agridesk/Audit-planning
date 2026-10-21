@@ -107,4 +107,17 @@ assert.match(source,/function nrm2_renderGroupTable_\(title, rows, scopeStyleMap
 assert.match(source,/function nrm2_renderSection_\(title, rows, scopeStyleMap, helpText\) \{\s*if \(!rows \|\| !rows\.length\) return '';/);
 assert.match(source,/border-bottom:1px solid #e5e7eb;padding:3px 5px/);
 assert.match(source,/font-weight:700;font-size:11px;white-space:nowrap/);
+const bridgeSource=readFileSync(new URL('../../StatusNotificationBridge.js',import.meta.url),'utf8');
+const validatorStart=bridgeSource.indexOf('function StatusNotificationBridge_ValidateEcasChangeCancel_(');
+const validatorEnd=bridgeSource.indexOf('\nfunction ',validatorStart+10);
+assert.ok(validatorStart>=0 && validatorEnd>validatorStart,'ECAS validator available');
+const ecasCheck=new Function(bridgeSource.slice(validatorStart,validatorEnd)+'; return StatusNotificationBridge_ValidateEcasChangeCancel_;')();
+const old={auditId:'audit-1',communicatedToEcas:true,plannedDates:['2026-10-20'],version:'1'};
+const next={auditId:'audit-1',plannedDates:['2026-10-25'],version:'2'};
+assert.equal(ecasCheck('ECAS_AUDIT_CHANGED_DIGEST',old,next,'Updated plan').ok,true);
+assert.equal(ecasCheck('ECAS_AUDIT_CANCELLED_DIGEST',old,{auditId:'audit-1',version:'2'},'Cancelled by manager').ok,true);
+assert.equal(ecasCheck('ECAS_AUDIT_CHANGED_DIGEST',{...old,communicatedToEcas:false},next,'reason').ok,false);
+assert.equal(ecasCheck('ECAS_AUDIT_CHANGED_DIGEST',old,next,'').ok,false);
+assert.equal(ecasCheck('ECAS_AUDIT_CHANGED_DIGEST',old,{...next,version:'1'},'reason').ok,false);
+assert.equal(ecasCheck('ECAS_AUDIT_CHANGED_DIGEST',old,{auditId:'audit-2',plannedDates:['2026-10-25']},'reason').ok,false);
 console.log('notification-weekly-queue-idempotency-20: PASS');

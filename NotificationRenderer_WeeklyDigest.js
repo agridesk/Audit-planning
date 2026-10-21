@@ -458,6 +458,8 @@ function nrm2_buildMail_(blocks, thresholds, scopeStyleMap) {
 }
 
 function nrm2_renderSection_(title, rows, scopeStyleMap, helpText) {
+  if (!rows || !rows.length) return '';
+
   var html = [];
   html.push('<div style="margin:0 0 22px 0;">');
   html.push('<div style="font-size:18px;font-weight:700;margin:0 0 6px 0;">' + nrm2_safe_(title) + ' (' + (rows ? rows.length : 0) + ')</div>');
@@ -476,6 +478,8 @@ function nrm2_renderSection_(title, rows, scopeStyleMap, helpText) {
 }
 
 function nrm2_renderGroupTable_(title, rows, scopeStyleMap) {
+  if (!rows || !rows.length) return '';
+
   return '<div style="margin:0 0 14px 0;">' +
     '<div style="font-weight:700;margin:0 0 6px 0;">' + nrm2_safe_(title) + '</div>' +
     nrm2_renderStandardTable_(rows, scopeStyleMap, [
@@ -982,8 +986,7 @@ function runAuditorWeeklyAlert(options) {
 
       // 2) Pending acceptance
       if (
-        assigned &&
-        recipient &&
+        recipientUid &&
         assignedUid === recipientUid &&
         upStatus === 'APPROVED'
       ) {
@@ -992,8 +995,7 @@ function runAuditorWeeklyAlert(options) {
 
       // 3) Coming up
       if (
-        assigned &&
-        recipient &&
+        recipientUid &&
         assignedUid === recipientUid &&
         upStatus === 'ACCEPTED' &&
         record.firstPlannedDate &&
@@ -1005,8 +1007,7 @@ function runAuditorWeeklyAlert(options) {
 
       // 4) Pending completion
       if (
-        assigned &&
-        recipient &&
+        recipientUid &&
         assignedUid === recipientUid &&
         upStatus === 'ACCEPTED' &&
         record.firstPlannedDate &&

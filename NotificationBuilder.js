@@ -623,6 +623,9 @@ function NB_normalizePayload_(eventCode, data, cfg) {
     recipientRole:recipientRole,
     comment:NB_reasonText_(data, briefing),
     reason:NB_reasonText_(data, briefing),
+    // External ECAS operational explanation is distinct from internal lifecycle comments.
+    ecasComment:NB_clean_(data.ecasComment),
+    previousPlanningJson:NB_clean_(data.previousPlanningJson),
     resultStatus:resultStatus,
     displayStatus:displayStatus,
     title:NB_titleForEvent_(eventCode),

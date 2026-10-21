@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {createSwapProposal,applySwapProposalEvent,swapProposalNeedsAction,previewSwapFinalState,validateSwapProposalSource,evaluateSwapEligibility} from './swap-proposal-20.mjs';
+import {createSwapProposal,applySwapProposalEvent,swapProposalNeedsAction,previewSwapFinalState,validateSwapProposalSource,evaluateSwapEligibility,prepareSwapCommit} from './swap-proposal-20.mjs';
 const at='2026-10-21T10:00:00Z',later='2026-10-23T10:00:00Z';
 const p=createSwapProposal({operationId:'s1',auditA:'A',auditB:'B',requiredAuditorUids:['u1','u2'],createdAt:at,originalRevisions:{A:1,B:2},internalReason:'logistics',ecasComment:'Change agreed'});
 assert.equal(p.status,'AWAITING_ACKNOWLEDGEMENT');
@@ -33,4 +33,10 @@ const canonicalGas=readFileSync(new URL('../../PlanningRevisionTokenService.js',
 assert.match(canonicalGas,/function Swap20_readCanonicalPair\(input\)/);
 assert.match(canonicalGas,/PlanningRevisionTokenService_getMany\(\{auditIds:\[a,b\]\}\)/);
 assert.match(canonicalGas,/canCommit:false/);
+assert.throws(()=>prepareSwapCommit(p,{A:{revision:1,status:'Accepted'},B:{revision:2,status:'Accepted'}},preview));
+const ready=prepareSwapCommit(b,{A:{revision:1,status:'Accepted'},B:{revision:2,status:'Accepted'}},preview);
+assert.equal(ready.commitAuthorized,false);
+assert.equal(ready.requiresAtomicCommit,true);
+assert.equal(ready.requiresDurableJournal,true);
+assert.throws(()=>prepareSwapCommit(b,{A:{revision:4,status:'Accepted'},B:{revision:2,status:'Accepted'}},preview));
 console.log('Swap proposal tests passed');

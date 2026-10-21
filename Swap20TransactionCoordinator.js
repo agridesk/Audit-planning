@@ -38,7 +38,7 @@ function Swap20_executeLocked_(proposal){
   Swap20Journal_appendLocked_(proposal.operationId,Swap20Journal_history_(proposal.operationId).length,'COMMITTED',{auditA:proposal.auditA,auditB:proposal.auditB});
   return {success:true,operationId:proposal.operationId,committed:true};
  }catch(err){
-  if(!writingStarted)throw Error('Swap stopped before data writes: '+String(err));
+  if(!writingStarted){Swap20Journal_appendLocked_(proposal.operationId,Swap20Journal_history_(proposal.operationId).length,'CONFLICT',{reason:String(err),noWrites:true});throw Error('Swap stopped before data writes: '+String(err));}
   var failures=[];
   try{Swap20Journal_appendLocked_(proposal.operationId,Swap20Journal_history_(proposal.operationId).length,'ROLLING_BACK',{reason:String(err)});}catch(e){failures.push(String(e));}
   try{Swap20_restoreCanonicalBeforeImages_(canonical);}catch(e){failures.push(String(e));}

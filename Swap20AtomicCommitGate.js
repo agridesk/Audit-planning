@@ -1,20 +1,39 @@
-/**
- * Explicitly disabled write gate until durable pair transaction is connected.
- * This endpoint cannot mutate Accepted audits or availability.
- */
+/** Authenticated manager commit. DEV only, opt-in after DEV acceptance. */
 function Swap20ManagerCommit(input){
  input=input||{};
  var auth=V5_AUTH.validateTrustedTokenByRole(input.trustedToken||input.token,'Manager',input.deviceFingerprint||input.deviceId);
  if(!auth||auth.ok!==true||!auth.email)throw Error('Manager authentication required');
- var proposal=Swap20Store_read_(input.operationId);
- if(!proposal||proposal.status!=='CONFIRMED')throw Error('Confirmed swap proposal required');
- var history=Swap20Journal_history_(proposal.operationId);
- if(history.length)throw Error('Swap transaction already journaled; recovery required');
- Swap20CanonicalCommitGuard({
-  auditA:proposal.auditA,auditB:proposal.auditB,
-  expectedRevisions:proposal.originalRevisions,
-  blocksA:proposal.blocksA,blocksB:proposal.blocksB
- });
- return {success:false,code:'SWAP_ATOMIC_WRITE_DISABLED',readOnly:true,
-  message:'Atomic pair commit adapter and recovery verification are not enabled'};
+ var props=PropertiesService.getScriptProperties();
+ if(String(props.getProperty('AMS_ENV')||'').toUpperCase()!=='DEV')throw Error('Swap commit restricted to DEV');
+ if(String(props.getProperty('AMS_SWAP20_COMMIT_ENABLED')||'')!=='true')
+  return {success:false,code:'SWAP_ATOMIC_WRITE_DISABLED',readOnly:true,message:'DEV acceptance gate not enabled'};
+ var lock=LockService.getScriptLock();
+ if(!lock.tryLock(20000))throw Error('Swap transaction lock busy');
+ try{
+  var proposal=Swap20Store_read_(input.operationId);
+  if(!proposal)throw Error('Swap proposal missing');
+  var history=Swap20Journal_history_(proposal.operationId);
+  if(history.length){
+   var last=history[history.length-1].stage;
+   if(last==='COMMITTED'){
+    var current=Swap20Store_read_(proposal.operationId);
+    if(current&&current.status==='APPLIED'&&current.canonicalCommitVerified===true)
+     return {success:true,operationId:proposal.operationId,committed:true,idempotent:true};
+    throw Error('Committed swap requires proposal reconciliation');
+   }
+   throw Error('Swap transaction already journaled; recovery required');
+  }
+  if(proposal.status!=='CONFIRMED')throw Error('Confirmed swap proposal required');
+  var result=Swap20_executeLocked_(proposal);
+  if(!result||result.committed!==true)throw Error('Swap canonical commit unverified');
+  var next=JSON.parse(JSON.stringify(proposal));
+  next.status='APPLIED';next.canonicalCommitVerified=true;
+  next.appliedAt=new Date().toISOString();next.appliedBy=String(auth.email);
+  // Store transition uses the script lock itself; do not re-enter LockService.
+  var key=Swap20Store_key_(proposal.operationId),raw=props.getProperty(key);
+  if(!raw||raw!==JSON.stringify(proposal))throw Error('Committed swap proposal changed; reconciliation required');
+  Swap20_validateTransition_(proposal,next);
+  props.setProperty(key,JSON.stringify(next));
+  return {success:true,operationId:proposal.operationId,committed:true,status:'APPLIED'};
+ }finally{lock.releaseLock();}
 }

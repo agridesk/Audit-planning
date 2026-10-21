@@ -181,3 +181,19 @@ export function advanceSwapJournal(journal,event){
  j.steps.push({type:event.type,at:event.at||null});
  return j;
 }
+
+export function classifySwapChange(exchange,original){
+ if(!exchange||!original)throw Error('Swap comparison requires both schedules');
+ const ids=[exchange.auditA,exchange.auditB],byAuditId={};
+ for(const [id,newBlocks,oldBlocks] of [[ids[0],exchange.blocksA,original.blocksA],[ids[1],exchange.blocksB,original.blocksB]]){
+  if(!Array.isArray(newBlocks)||!Array.isArray(oldBlocks)||newBlocks.length!==oldBlocks.length)throw Error('Swap block mapping mismatch');
+  let dateChanged=false,timeChanged=false;
+  for(let i=0;i<newBlocks.length;i++){
+   validateSwapBlock(newBlocks[i]);validateSwapBlock(oldBlocks[i]);
+   if(newBlocks[i].date!==oldBlocks[i].date)dateChanged=true;
+   if(newBlocks[i].start!==oldBlocks[i].start||newBlocks[i].end!==oldBlocks[i].end)timeChanged=true;
+  }
+  byAuditId[id]={dateChanged,timeChanged,requiresAcknowledgement:dateChanged,notificationOnly:!dateChanged&&timeChanged,unchanged:!dateChanged&&!timeChanged};
+ }
+ return {byAuditId,requiredAcknowledgementAuditIds:ids.filter(id=>byAuditId[id].requiresAcknowledgement),notificationOnlyAuditIds:ids.filter(id=>byAuditId[id].notificationOnly)};
+}

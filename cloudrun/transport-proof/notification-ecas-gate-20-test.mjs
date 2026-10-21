@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const source=readFileSync(new URL('../../NotificationEcasChangeCancelGate.js',import.meta.url),'utf8');
+const gate=new Function('StatusNotificationBridge_PrepareEcasChangeCancel_','PropertiesService','NotificationConfig_GetEvent','StatusNotificationBridge_GetEcasRecipientEmail_','StatusNotificationBridge_QueueWithLock_',source+';return ECAS20_SubmitVerifiedChangeCancel_;');
+let called=0;
+const prepare=(key,before,after,comment)=>({ok:true,payload:{auditId:after.auditId,eventType:key,ecasComment:comment}});
+const props={getScriptProperties:()=>({getProperty:()=>''})};
+const run=gate(prepare,props,()=>({active:true}),()=>'planning@example.test',()=>{called++;return {success:true}});
+const old={auditId:'A',communicatedToEcas:true,communicationId:'receipt',blocks:[{date:'2026-10-20'}]};
+const next={auditId:'A',blocks:[{date:'2026-10-21'}]};
+assert.equal(run({eventKey:'ECAS_AUDIT_CHANGED_DIGEST',before:old,after:next,ecasComment:'Change'}).reason,'FEATURE_DISABLED');
+assert.equal(run({eventKey:'ECAS_AUDIT_CHANGED_DIGEST',before:old,after:{auditId:'A',blocks:[{date:'2026-10-20'}]},ecasComment:'Same'}).reason,'SCHEDULE_UNCHANGED');
+assert.equal(run({eventKey:'ECAS_AUDIT_CHANGED_DIGEST',before:{...old,communicationId:''},after:next}).reason,'PREVIOUS_DELIVERY_NOT_PROVEN');
+assert.equal(called,0);
+const enabled=gate(prepare,{getScriptProperties:()=>({getProperty:()=> 'YES'})},()=>({active:false}),()=>'planning@example.test',()=>{called++;return {success:true}});
+assert.equal(enabled({eventKey:'ECAS_AUDIT_CANCELLED_DIGEST',before:old,after:{auditId:'A'},ecasComment:'Cancel'}).reason,'EVENT_INACTIVE');
+assert.equal(called,0);
+console.log('ECAS change/cancel operational gate tests passed');

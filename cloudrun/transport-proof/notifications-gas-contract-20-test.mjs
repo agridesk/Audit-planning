@@ -304,4 +304,9 @@ assert.equal(nextStatus('APPROVED','ACCEPT','MANAGER'),'ACCEPTED');
 assert.equal(nextStatus('APPROVED','ACCEPT','AUDITOR'),'ACCEPTED');
 assert.equal(nextStatus('ACCEPTED','ACCEPT','MANAGER'),'','Never accept twice');
 assert.equal(nextStatus('PENDING_APPROVAL','ACCEPT','MANAGER'),'','Never bypass approval');
+// External details must survive normalize -> queue -> digest; previous implementation
+// dropped these fields after normalization and silently lost ECAS-facing reason.
+for (const prop of ['ecasComment','previousPlanningJson','previousBlocks','previousPlannedDates','previousPlannedHours']) {
+ assert.ok(builder.includes(prop+': normalized.'+prop),'Queue payload missing '+prop);
+}
 console.log('notifications-gas-contract-20: PASS');

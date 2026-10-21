@@ -178,10 +178,10 @@ function NB_lifecycleDigestIsAuditorRecipient_(items) {
 function NB_lifecycleDigestAuditor_(recipientEmail, items) {
   for (var i = 0; i < (items || []).length; i++) {
     var n = items[i] || {};
-    var a = NB_clean_(n.auditorName || n.auditorEmail);
-    if (a) return a;
+    var a = NB_clean_(n.auditorName);
+    if (a && a.indexOf('@') < 0) return a;
   }
-  return NB_clean_(recipientEmail) || 'Auditor';
+  return 'Auditor';
 }
 
 function NB_lifecycleHasReason_(items) {

@@ -290,4 +290,18 @@ for(const code of ['ECAS_AUDIT_CHANGED_DIGEST','ECAS_AUDIT_CANCELLED_DIGEST']){
 const builder=read('NotificationBuilder.js');
 assert.match(builder,/ecasComment:NB_clean_\(data\.ecasComment\)/);
 assert.match(builder,/previousBlocks:NB_normalizeBlocks_\(data\.previousBlocks/);
+// Execute the canonical transition owner in isolation, including replay denial.
+const nextBegin=statusSource.indexOf('function Status_getNextStatus_(');
+const nextEnd=statusSource.indexOf('function Status_canTransition_(',nextBegin);
+assert.ok(nextBegin>=0&&nextEnd>nextBegin);
+const nextStatus=new Function('STATUS','ACTION','ROLE','Status_normalizeStatus_','Status_normalizeAction_','Status_normalizeRole_',
+ statusSource.slice(nextBegin,nextEnd)+';return Status_getNextStatus_;')(
+ {PENDING_APPROVAL:'PENDING_APPROVAL',APPROVED:'APPROVED',ACCEPTED:'ACCEPTED',COMPLETED:'COMPLETED',PENDING_PLANNING:'PENDING_PLANNING',REJECTED:'REJECTED'},
+ {APPROVE:'APPROVE',ACCEPT:'ACCEPT',COMPLETE:'COMPLETE',DENY:'DENY',CANCEL:'CANCEL',REJECT:'REJECT',PLAN:'PLAN'},
+ {AUDITOR:'AUDITOR',MANAGER:'MANAGER'},
+ x=>x,x=>x,x=>x);
+assert.equal(nextStatus('APPROVED','ACCEPT','MANAGER'),'ACCEPTED');
+assert.equal(nextStatus('APPROVED','ACCEPT','AUDITOR'),'ACCEPTED');
+assert.equal(nextStatus('ACCEPTED','ACCEPT','MANAGER'),'','Never accept twice');
+assert.equal(nextStatus('PENDING_APPROVAL','ACCEPT','MANAGER'),'','Never bypass approval');
 console.log('notifications-gas-contract-20: PASS');

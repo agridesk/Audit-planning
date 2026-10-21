@@ -448,6 +448,72 @@ function StatusNotificationBridge_ValidateEcasChangeCancel_(eventKey, before, af
   return {ok:errors.length===0,eventKey:key,errors:errors};
 }
 
+/**
+ * Pure ECAS change/cancel payload assembler.
+ * No queue writes, email sends or status mutations.
+ * Caller must supply the prior ECAS-communicated snapshot, not merely the
+ * current audit row or the last saved edit. A preview alone is not provenance.
+ */
+function StatusNotificationBridge_PrepareEcasChangeCancel_(eventKey, before, after, reason) {
+  var check=StatusNotificationBridge_ValidateEcasChangeCancel_(eventKey,before,after,reason);
+  var errors=check.errors.slice();
+  if(check.ok){
+    if(!String(after.company||before.company||'').trim())errors.push('COMPANY_MISSING');
+    if(!String(after.mpsNumber||before.mpsNumber||'').trim())errors.push('MPS_NUMBER_MISSING');
+    if(!String(after.auditorName||before.auditorName||'').trim())errors.push('AUDITOR_NAME_MISSING');
+    if(!(after.scopes||before.scopes)||!(after.scopes||before.scopes).length)errors.push('SCOPES_MISSING');
+    if(after.plannedHours===undefined&&before.plannedHours===undefined)errors.push('HOURS_MISSING');
+    if(!String(before.communicationId||'').trim())errors.push('COMMUNICATION_RECEIPT_MISSING');
+  }
+  if(errors.length)return {ok:false,eventKey:check.eventKey,errors:errors,payload:null};
+  var payload={
+    auditId:String(after.auditId),
+    eventType:check.eventKey,
+    type:check.eventKey,
+    company:String(after.company||before.company),
+    mpsNumber:String(after.mpsNumber||before.mpsNumber),
+    auditorName:String(after.auditorName||before.auditorName),
+    auditorUid:String(after.auditorUid||before.auditorUid||''),
+    auditorEmail:String(after.auditorEmail||before.auditorEmail||''),
+    scopes:after.scopes||before.scopes,
+    blocks:check.eventKey==='ECAS_AUDIT_CHANGED_DIGEST'?(after.blocks||[]):(before.blocks||[]),
+    plannedDates:check.eventKey==='ECAS_AUDIT_CHANGED_DIGEST'?(after.plannedDates||[]):(before.plannedDates||[]),
+    planningJson:check.eventKey==='ECAS_AUDIT_CHANGED_DIGEST'?(after.planningJson||''):(before.planningJson||''),
+    plannedHours:after.plannedHours!==undefined?after.plannedHours:before.plannedHours,
+    previousBlocks:before.blocks||[],
+    previousPlannedDates:before.plannedDates||[],
+    previousPlanningJson:before.planningJson||'',
+    previousPlannedHours:before.plannedHours,
+    ecasComment:String(reason).trim(),
+    originalEcasCommunicationId:String(before.communicationId),
+    previousVersion:String(before.version||''),
+    newVersion:String(after.version||''),
+    skipAuditBriefing:true,
+    config:{consolidate:true,bufferMinutes:10,digestGroup:'ECAS_OPERATIONAL',templateFamily:'EXTERNAL_OPERATIONAL'}
+  };
+  return {ok:true,eventKey:check.eventKey,errors:[],payload:payload,queueAllowed:false,
+    reason:'ECAS source integration and live configuration activation remain gated'};
+}
+
+/** Read-only DEV integration contract diagnostic. No queue/email writes. */
+function RUN_DIAG_ECAS_CHANGE_CANCEL_CONTRACT_DEV_20261021() {
+  var env=String(PropertiesService.getScriptProperties().getProperty('AMS_ENV')||
+    PropertiesService.getScriptProperties().getProperty('ENVIRONMENT')||'').toUpperCase();
+  if(env==='PROD'||env==='PRODUCTION')throw new Error('DEV_ONLY_ECAS_DIAGNOSTIC');
+  var prior={auditId:'ECAS_DIAGNOSTIC',communicatedToEcas:true,communicationId:'TEST_RECEIPT',
+    version:'1',company:'TEST',mpsNumber:'TEST',auditorName:'Test Auditor',
+    scopes:['MPS-GAP'],plannedHours:8,blocks:[{date:'2026-10-20',start:'09:00',end:'17:00'}]};
+  var changed={auditId:'ECAS_DIAGNOSTIC',version:'2',blocks:[{date:'2026-10-21',start:'09:00',end:'17:00'}]};
+  var pass=StatusNotificationBridge_PrepareEcasChangeCancel_('ECAS_AUDIT_CHANGED_DIGEST',prior,changed,'Planning changed');
+  var cancel=StatusNotificationBridge_PrepareEcasChangeCancel_('ECAS_AUDIT_CANCELLED_DIGEST',prior,{auditId:'ECAS_DIAGNOSTIC',version:'2'},'Audit cancelled');
+  var refused=StatusNotificationBridge_PrepareEcasChangeCancel_('ECAS_AUDIT_CHANGED_DIGEST',
+    {auditId:'ECAS_DIAGNOSTIC',version:'1'},changed,'Planning changed');
+  var result={ok:pass.ok&&cancel.ok&&!refused.ok,readOnly:true,queued:false,
+    changedValid:pass.ok,cancelValid:cancel.ok,missingProvenanceBlocked:!refused.ok};
+  Logger.log(JSON.stringify(result));
+  return result;
+}
+
 function StatusNotificationBridge_QueueAcceptedExternalDigest_(recipientEmail, queuePayload) {
   var auditId = '';
   try {

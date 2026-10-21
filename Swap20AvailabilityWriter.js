@@ -8,7 +8,12 @@ function Swap20_writeAvailabilityPlanLocked_(plan,before){
  var added=plan.values.length-before.height;
  if(added<0||plan.values.some(function(row){return !Array.isArray(row)||row.length!==plan.width;}))throw Error('Invalid availability plan shape');
  if(added&&sh.getMaxRows()<plan.values.length)sh.insertRowsAfter(sh.getMaxRows(),plan.values.length-sh.getMaxRows());
- sh.getRange(1,1,plan.values.length,plan.width).setValues(plan.values);
+ for(var i=1;i<before.height;i++){
+  if(JSON.stringify(before.values[i])!==JSON.stringify(plan.values[i])){
+   sh.getRange(i+1,1,1,plan.width).setValues([plan.values[i]]);
+  }
+ }
+ if(added)sh.getRange(before.height+1,1,added,plan.width).setValues(plan.values.slice(before.height));
  SpreadsheetApp.flush();
  var after=sh.getRange(1,1,plan.values.length,plan.width).getValues();
  if(JSON.stringify(after)!==JSON.stringify(plan.values))throw Error('Availability write verification failed');

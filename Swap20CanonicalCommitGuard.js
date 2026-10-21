@@ -1,9 +1,36 @@
+/**
+ * Read-only GAS preflight. Never use this function as write authorization.
+ */
 function Swap20CanonicalCommitGuard(input) {
   input = input || {};
   var a = String(input.auditA || '').trim();
   var b = String(input.auditB || '').trim();
   if (!a || !b || a === b) throw new Error('Distinct audit IDs required');
+  var expected = input.expectedRevisions || {};
+  if (!expected[a] || !expected[b]) throw new Error('Expected revisions required');
   var pair = Swap20_readCanonicalPair({auditA:a,auditB:b});
   if (!pair.eligible) throw new Error('Swap pair not eligible');
-  return {ok:true,readOnly:true,commitAuthorized:false,pair:pair};
+  if (String(pair.auditA.revision) !== String(expected[a]) ||
+      String(pair.auditB.revision) !== String(expected[b])) throw new Error('Stale canonical revision');
+  function mins(clock) {
+    var m = /^([01][0-9]|2[0-3]):([0-5][0-9])$/.exec(String(clock || ''));
+    if (!m) throw new Error('Invalid time');
+    return Number(m[1]) * 60 + Number(m[2]);
+  }
+  function validate(source, target) {
+    if (!Array.isArray(target) || source.length !== target.length || !target.length) throw new Error('Block count mismatch');
+    var total = 0;
+    for (var i = 0; i < source.length; i++) {
+      var oldBlock = source[i], newBlock = target[i];
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(newBlock.date || ''))) throw new Error('Invalid date');
+      var before = mins(oldBlock.end) - mins(oldBlock.start);
+      var after = mins(newBlock.end) - mins(newBlock.start);
+      if (before <= 0 || before !== after) throw new Error('Duration mismatch');
+      total += after;
+    }
+    return total;
+  }
+  var minutesA = validate(pair.auditA.blocks,input.blocksA);
+  var minutesB = validate(pair.auditB.blocks,input.blocksB);
+  return {ok:true,readOnly:true,commitAuthorized:false,requiresPairLock:true,requiresDurableJournal:true,auditIds:[a,b],minutesA:minutesA,minutesB:minutesB};
 }

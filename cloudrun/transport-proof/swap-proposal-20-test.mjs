@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {createSwapProposal,applySwapProposalEvent,swapProposalNeedsAction,previewSwapFinalState,validateSwapProposalSource,evaluateSwapEligibility,prepareSwapCommit} from './swap-proposal-20.mjs';
+import {createSwapProposal,applySwapProposalEvent,swapProposalNeedsAction,previewSwapFinalState,validateSwapProposalSource,evaluateSwapEligibility,prepareSwapCommit,buildSwapSlotExchange} from './swap-proposal-20.mjs';
 const at='2026-10-21T10:00:00Z',later='2026-10-23T10:00:00Z';
 const p=createSwapProposal({operationId:'s1',auditA:'A',auditB:'B',requiredAuditorUids:['u1','u2'],createdAt:at,originalRevisions:{A:1,B:2},internalReason:'logistics',ecasComment:'Change agreed'});
 assert.equal(p.status,'AWAITING_ACKNOWLEDGEMENT');
@@ -49,4 +49,9 @@ assert.equal(canonicalPair.canCommit,false);
 assert.equal(canonicalPair.auditA.revision,'r1');
 assert.equal(canonicalPair.auditB.blocks.length,1);
 assert.throws(()=>gasContext.Swap20_readCanonicalPair({auditA:'A',auditB:'A'}));
+const exchange=buildSwapSlotExchange({auditA:'A',auditB:'B',blocksA:[{date:'2026-11-01',start:'09:00',end:'11:00'}],blocksB:[{date:'2026-11-02',start:'10:00',end:'13:00'}]});
+assert.deepEqual(exchange.blocksA,[{date:'2026-11-02',start:'10:00',end:'12:00'}]);
+assert.deepEqual(exchange.blocksB,[{date:'2026-11-01',start:'09:00',end:'12:00'}]);
+assert.throws(()=>buildSwapSlotExchange({auditA:'A',auditB:'B',blocksA,blocksB:[...blocksB,...blocksB]}));
+assert.throws(()=>buildSwapSlotExchange({auditA:'A',auditB:'B',blocksA:[{date:'2026-11-01',start:'22:00',end:'23:30'}],blocksB:[{date:'2026-11-02',start:'23:00',end:'23:30'}]}));
 console.log('Swap proposal tests passed');

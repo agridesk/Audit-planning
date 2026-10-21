@@ -28,6 +28,7 @@ function Swap20_executeLocked_(proposal){
  var before={canonical:canonical,availability:availability};
  if(JSON.stringify(before).length>35000)throw Error('Swap before-images exceed journal capacity');
  if(!Array.isArray(canonical.rows)||canonical.rows.length!==2)throw Error('Canonical pair snapshot incomplete');
+ if(String(canonical.rows[0].auditId)!==String(proposal.auditA)||String(canonical.rows[1].auditId)!==String(proposal.auditB))throw Error('Canonical pair order mismatch');
  Swap20Journal_appendLocked_(proposal.operationId,0,'PREPARED',before);
  var writingStarted=false;
  try{

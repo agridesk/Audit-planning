@@ -89,4 +89,8 @@ const managerRunner=source.slice(source.indexOf('function runManagerWeeklyAlert(
 const auditorRunner=source.slice(source.indexOf('function runAuditorWeeklyAlert()'),source.indexOf('// ============================================================\n// MAIL RENDER',source.indexOf('function runAuditorWeeklyAlert()')));
 assert.match(managerRunner,/upStatus === 'ACCEPTED' &&\s*record\.firstPlannedDate &&\s*record\.firstPlannedDate >= today/);
 assert.equal((auditorRunner.match(/assignedUid === recipientUid &&\s*upStatus === 'ACCEPTED' &&\s*record\.firstPlannedDate/g)||[]).length,2);
+assert.match(source,/function RUN_PREVIEW_WEEKLY_AUDITORS_DEV_20261021\(/);
+assert.match(source,/var report=runAuditorWeeklyAlert\(\{previewOnly:true\}\)/);
+assert.match(source,/if\(options\.previewOnly===true\) \{\s*results\.push\(\{auditorUid:recipientUid/);
+assert.match(source,/return html\.join\(' &nbsp; '\)/);
 console.log('notification-weekly-queue-idempotency-20: PASS');

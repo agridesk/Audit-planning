@@ -122,10 +122,8 @@ function Status_getNextStatus_(status, action, role) {
   if (a === ACTION.ACCEPT && (r === ROLE.AUDITOR || r === ROLE.MANAGER) && s === STATUS.APPROVED) return STATUS.ACCEPTED;
   if (a === ACTION.COMPLETE && (r === ROLE.AUDITOR || r === ROLE.MANAGER) && s === STATUS.ACCEPTED) return STATUS.COMPLETED;
 
-  if (a === ACTION.DENY) {
-    if (r === ROLE.MANAGER && s === STATUS.PENDING_APPROVAL) return STATUS.PENDING_PLANNING;
-    if (r === ROLE.AUDITOR && (s === STATUS.PENDING_APPROVAL || s === STATUS.APPROVED)) return STATUS.PENDING_PLANNING;
-  }
+  // DENY retired; legacy history remains readable.
+  if (a === ACTION.DENY) return '';
 
   if (a === ACTION.CANCEL && (r === ROLE.MANAGER || r === ROLE.AUDITOR) &&
       (s === STATUS.PENDING_APPROVAL || s === STATUS.APPROVED || s === STATUS.ACCEPTED)) {

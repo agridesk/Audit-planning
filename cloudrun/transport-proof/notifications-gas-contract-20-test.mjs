@@ -262,4 +262,15 @@ assert.equal(headerCheck([{eventCode:'AUDIT_ACCEPTED'}]),false,'Manager-targeted
 assert.equal(headerCheck([{eventCode:'AUDIT_ACCEPTED'},{eventCode:'AUDIT_CANCELLED_BY_MANAGER'}]),false,'Mixed groups do not lose audit attribution');
 assert.match(senderDigestSsot,/lock\.waitLock\(25000\)/,'Notification sender holds exclusive queue lock for up to 25 seconds');
 assert.doesNotMatch(senderDigestSsot,/lock\.waitLock\(25 \* 10\)/,'250ms lock is not sufficient for concurrent GAS triggers');
+
+// Manager acceptance is a canonical Approved -> Accepted transition, not a
+// second status writer. Audit trail retains MANAGER actor identity.
+const statusSource=read('CoreStatusMachine.js');
+const managerAdapter=read('AuditManagerActions.js');
+const notificationBridge=read('StatusNotificationBridge.js');
+assert.match(statusSource,/ACTION\.ACCEPT && \(r === ROLE\.AUDITOR \|\| r === ROLE\.MANAGER\) && s === STATUS\.APPROVED/);
+assert.match(managerAdapter,/accept: 'ACCEPT'/);
+assert.match(notificationBridge,/ACTION\.ACCEPT && \(actor === ROLE\.AUDITOR \|\| actor === ROLE\.MANAGER\)/);
+assert.match(statusSource,/actorEmail: payload && \(payload\.actorEmail/);
+assert.match(notificationBridge,/if \(eventCode === 'AUDIT_ACCEPTED'\)/);
 console.log('notifications-gas-contract-20: PASS');

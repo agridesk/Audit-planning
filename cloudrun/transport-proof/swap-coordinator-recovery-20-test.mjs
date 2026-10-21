@@ -38,6 +38,7 @@ const noDev=fixture();noDev.ctx.PropertiesService={getScriptProperties:()=>({get
 const invalidPlan=fixture();invalidPlan.ctx.Swap20_availabilityPlan_=()=>({sheetName:'Other',width:1,values:[['Date']]});assert.throws(()=>invalidPlan.ctx.Swap20_executeLocked_(p),/Invalid paired reservation plan/);
 const missingPair=fixture();missingPair.ctx.Swap20_captureCanonicalBeforeImages_=()=>({sheetName:'Audit planning',headers:['Assigned to'],rows:[{auditId:'A',values:['a@x.com']} ]});assert.throws(()=>missingPair.ctx.Swap20_executeLocked_(p),/Canonical pair snapshot incomplete/);
 const unknown=fixture();unknown.journal.push({stage:'UNKNOWN',payload:{}});assert.throws(()=>unknown.ctx.Swap20_recoverLocked_(p.operationId),/Unsupported recovery stage/);
+const reversed=fixture();reversed.ctx.Swap20_captureCanonicalBeforeImages_=()=>({sheetName:'Audit planning',headers:['Assigned to'],rows:[{auditId:'B',values:['b@x.com']},{auditId:'A',values:['a@x.com']}]});assert.throws(()=>reversed.ctx.Swap20_executeLocked_(p),/Canonical pair order mismatch/);assert.equal(reversed.journal.length,0);
 const interrupted=fixture();interrupted.journal.push({stage:'PREPARED',payload:{}});interrupted.journal.push({stage:'WRITING',payload:{}});
 assert.equal(interrupted.ctx.Swap20_recoverLocked_(p.operationId).readOnly,true);
 assert.equal(interrupted.journal.length,2);

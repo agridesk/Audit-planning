@@ -10,7 +10,7 @@ function Swap20_captureAvailabilityBeforeImages_(){
  var height=sh.getLastRow(),width=sh.getLastColumn();
  if(height<1||width<1||height>2000||width>80)throw Error('Availability snapshot exceeds safe limits');
  var values=sh.getRange(1,1,height,width).getValues();
- values.forEach(function(row){row.forEach(function(v){if(Object.prototype.toString.call(v)==='[object Date]')throw Error('Date cell cannot be safely serialized for swap recovery');});});
+ values.forEach(function(row){row.forEach(function(v){if(Object.prototype.toString.call(v)==='[object Date]'&&isNaN(v.getTime()))throw Error('Invalid availability Date');});});
  return {sheetName:sh.getName(),height:height,width:width,values:values};
 }
 function Swap20_restoreAvailabilityBeforeImages_(before,plan){

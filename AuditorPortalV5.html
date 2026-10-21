@@ -915,17 +915,6 @@ async function promptRequiredComment_(title) {
   return String(res.value || '').trim();
 }
 
-async function doDeny(auditId, btnEl, setBtnBusyFn) {
-  auditId = String(auditId || '').trim();
-  if (!auditId) return;
-
-  var reason = await promptRequiredComment_('Deny planning proposal');
-  if (reason == null) return;
-
-  if (setBtnBusyFn) setBtnBusyFn(btnEl, true, 'Denying…');
-  v5_callAuditorAction_(auditId, 'deny', { reason: reason }, btnEl, setBtnBusyFn);
-}
-
 async function doCancel(auditId) {
   auditId = String(auditId || '').trim();
   if (!auditId) return;
@@ -2073,7 +2062,7 @@ function auditorUi_applyActionMicroRefresh_(auditId, action, payload, resp) {
     var newStatus =
       (resp && (resp.newStatus || resp.status || (resp.uiPatch && resp.uiPatch.newStatus))) ||
       (action === 'accept' ? 'ACCEPTED' :
-       (action === 'deny' || action === 'cancel') ? 'PENDING_PLANNING' :
+       action === 'cancel' ? 'PENDING_PLANNING' :
        action === 'complete' ? 'COMPLETED' : '');
 
     if (action === 'complete') {
@@ -2084,7 +2073,7 @@ function auditorUi_applyActionMicroRefresh_(auditId, action, payload, resp) {
       return removedOk;
     }
 
-    if (action === 'deny' || action === 'cancel') {
+    if (action === 'cancel') {
       delete row.__pending; delete row.__pendingAction; delete row.__pendingLabel; delete row.__pendingStatus; delete row.__pendingPlannedDates; delete row.__pendingPlannedHours;
       row.status = 'PENDING_PLANNING';
       row.plannedDates = '';
@@ -2165,7 +2154,6 @@ function auditorUi_applyActionMicroRefresh_(auditId, action, payload, resp) {
     var tone = action === 'approve' ? 'success' :
       action === 'accept' ? 'accept' :
       action === 'complete' ? 'complete' :
-      action === 'deny' ? 'warning' :
       action === 'reject' ? 'danger' :
       (action === 'plan' || action === 'save' || action === 'saveplanning') ? 'primary' : 'neutral';
     var label = labelOverride || (action ? action.charAt(0).toUpperCase() + action.slice(1) : 'Action');
@@ -2192,12 +2180,10 @@ function auditorUi_applyActionMicroRefresh_(auditId, action, payload, resp) {
 
     if (s === 'PENDING_APPROVAL') {
       out.push(auditorActionButtonHtml_('cancel', 'onclick="doCancel(\'' + id + '\')"', 'Cancel'));
-      out.push(auditorActionButtonHtml_('deny', 'data-audit-id="' + id + '"', 'Deny'));
     }
 
     if (s === 'APPROVED') {
       out.push(auditorActionButtonHtml_('accept', 'data-audit-id="' + id + '"', 'Accept'));
-      out.push(auditorActionButtonHtml_('deny', 'data-audit-id="' + id + '"', 'Deny'));
       out.push(auditorActionButtonHtml_('cancel', 'onclick="doCancel(\'' + id + '\')"', 'Cancel'));
     }
 
@@ -3354,12 +3340,10 @@ function confirmReason() {
     }
     if (s === 'PENDING_APPROVAL') {
       out.push(auditorActionButtonHtml_('cancel', 'onclick="doCancel(\'' + id + '\')"', 'Cancel'));
-      out.push(auditorActionButtonHtml_('deny', 'data-audit-id="' + id + '"', 'Deny'));
     }
     if (s === 'APPROVED') {
       out.push(auditorActionButtonHtml_('accept', 'data-audit-id="' + id + '"', 'Accept'));
       out.push(auditorActionButtonHtml_('cancel', 'onclick="doCancel(\'' + id + '\')"', 'Cancel'));
-      out.push(auditorActionButtonHtml_('deny', 'data-audit-id="' + id + '"', 'Deny'));
     }
     if (s === 'ACCEPTED') {
       out.push(auditorActionButtonHtml_('cancel', 'onclick="doCancel(\'' + id + '\')"', 'Cancel'));

@@ -60,6 +60,8 @@ function runManagerWeeklyAlert() {
   var scopeConfig = nrm2_loadScopeConfig_(ss);
   var companiesMap = nrm2_loadCompaniesMap_(ss);
   var recipients = nrm2_getManagerRecipients_(ss, settings);
+  var managerAuditorNames = nrm2_weeklyAuditorNames_(ss);
+
 
   if (!recipients.length) return { ok:false, error:'No manager recipients found' };
 
@@ -118,8 +120,8 @@ function runManagerWeeklyAlert() {
       number: companyMeta.number || '',
       country: companyMeta.country || '',
       status: status,
-      assigned: idxAssigned >= 0 ? String(row[idxAssigned] || '').trim() : '',
-      preassigned: idxPreassigned >= 0 ? String(row[idxPreassigned] || '').trim() : '',
+      assigned: nrm2_weeklyAuditorDisplay_(idxAssigned >= 0 ? row[idxAssigned] : '', managerAuditorNames),
+      preassigned: nrm2_weeklyAuditorDisplay_(idxPreassigned >= 0 ? row[idxPreassigned] : '', managerAuditorNames),
       allowSelfPlanning: idxAllowSelfPlanning >= 0 ? nrm2_up_(row[idxAllowSelfPlanning]) : '',
       planningWindowDisplay: nrm2_formatWindow_(planningWindowFrom, planningWindowTo),
       expiryDisplay: expiryDate ? Utilities.formatDate(expiryDate, nrm2_getTz_(), 'dd-MM-yyyy') : '',
@@ -320,6 +322,36 @@ function RUN_NF_WEEKLY_QUEUE_SMOKE() {
   var out = { ok:true, manager:manager, auditor:auditor };
   Logger.log(JSON.stringify(out, null, 2));
   return out;
+}
+
+function nrm2_weeklyAuditorNames_(ss) {
+  var sh=ss.getSheetByName(NRM2_SHEET_AUDITORS);
+  if(!sh) throw new Error('WEEKLY_MANAGER_AUDITOR_DIRECTORY_MISSING');
+  var data=sh.getDataRange().getValues();
+  if(!data.length) throw new Error('WEEKLY_MANAGER_AUDITOR_DIRECTORY_EMPTY');
+  var names={};
+  var h=data[0].map(function(x){return String(x||'').trim();});
+  var ni=h.indexOf('Name'),ui=h.indexOf('Auditor_UID');
+  var ei=h.indexOf('E-mail');
+  if(ei<0)ei=h.indexOf('Email');
+  if(ni<0||ui<0||ei<0)throw new Error('WEEKLY_MANAGER_AUDITOR_DIRECTORY_HEADERS_MISSING');
+  for(var i=1;i<data.length;i++){
+    var row=data[i],name=String(row[ni]||'').trim();
+    if(!name)continue;
+    var uid=String(row[ui]||'').trim(),email=String(row[ei]||'').trim().toLowerCase();
+    if(uid)names[uid.toLowerCase()]=name;
+    if(email)names[email]=name;
+  }
+  return names;
+}
+
+function nrm2_weeklyAuditorDisplay_(value,names) {
+  var key=String(value||'').trim();
+  if(!key)return '';
+  var name=names[key.toLowerCase()];
+  if(name)return name;
+  if(key.indexOf('@')>=0)return 'Unresolved auditor';
+  return key;
 }
 
 function nrm2_buildMail_(blocks, thresholds, scopeStyleMap) {

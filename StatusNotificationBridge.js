@@ -429,6 +429,25 @@ function StatusNotificationBridge_Dispatch_(action, actor, ctx, payload, result)
   }
 }
 
+/**
+ * Guarded ECAS change/cancel staging contract (DEV integration).
+ * Not wired to status actions: event source must supply an authentic previous
+ * communicated schedule and an explicit ECAS-facing reason. Configuration
+ * remains INACTIVE until integration acceptance.
+ */
+function StatusNotificationBridge_ValidateEcasChangeCancel_(eventKey, before, after, reason) {
+  var key=String(eventKey||'').trim();
+  var errors=[];
+  if(key!=='ECAS_AUDIT_CHANGED_DIGEST'&&key!=='ECAS_AUDIT_CANCELLED_DIGEST')errors.push('UNSUPPORTED_ECAS_EVENT');
+  if(!before||!before.auditId||!before.communicatedToEcas)errors.push('PRIOR_ECAS_COMMUNICATION_NOT_PROVEN');
+  if(!before||!before.planningJson&&!before.blocks&&!before.plannedDates)errors.push('PRIOR_SCHEDULE_MISSING');
+  if(!reason||!String(reason).trim())errors.push('EXPLICIT_ECAS_REASON_REQUIRED');
+  if(!after||!after.auditId||!before||String(after.auditId)!==String(before.auditId))errors.push('AUDIT_ID_MISMATCH');
+  if(key==='ECAS_AUDIT_CHANGED_DIGEST'&&(!after||!after.planningJson&&!after.blocks&&!after.plannedDates))errors.push('NEW_SCHEDULE_MISSING');
+  if(before&&after&&before.version&&after.version&&String(before.version)===String(after.version))errors.push('UNCHANGED_VERSION');
+  return {ok:errors.length===0,eventKey:key,errors:errors};
+}
+
 function StatusNotificationBridge_QueueAcceptedExternalDigest_(recipientEmail, queuePayload) {
   var auditId = '';
   try {

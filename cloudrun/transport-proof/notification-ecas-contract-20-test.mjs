@@ -27,7 +27,7 @@ assert.equal(cancelled.payload.previousBlocks[0].date,'2026-10-20');
 for(const [label,prior,current,reason] of [
   ['no receipt',{...before,communicationId:''},after,'Date adjusted'],
   ['not communicated',{...before,communicatedToEcas:false},after,'Date adjusted'],
-  ['no previous planning',{...before,blocks:[]},after,'Date adjusted'],
+  ['no previous planning',{...before,blocks:null,plannedDates:null,planningJson:''},after,'Date adjusted'],
   ['no reason',before,after,''],
   ['wrong audit',before,{...after,auditId:'ID-2'},'Date adjusted'],
   ['same version',before,{...after,version:'1'},'Date adjusted'],

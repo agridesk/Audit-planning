@@ -59,6 +59,27 @@ export function applySwapProposalEvent(proposal,event){
  default:throw Error('Unknown swap proposal event');
  }
 }
+export function previewSwapFinalState(input){
+ const {auditA,auditB,blocksA,blocksB,otherReservations=[],auditorA,auditorB}=input||{};
+ if(!auditA||!auditB||auditA===auditB)throw Error('Distinct audit IDs required');
+ if(!auditorA||!auditorB)throw Error('Auditor IDs required');
+ const entries=[];
+ for(const [auditId,auditorUid,blocks] of [[auditA,auditorA,blocksA],[auditB,auditorB,blocksB]]){
+  if(!Array.isArray(blocks)||!blocks.length)throw Error('Planning blocks required');
+  for(const b of blocks){
+   if(!b||!b.date||!b.start||!b.end||b.start>=b.end)throw Error('Invalid block');
+   entries.push({...b,auditId,auditorUid});
+  }
+ }
+ const others=otherReservations.filter(x=>x.auditId!==auditA&&x.auditId!==auditB);
+ const all=[...others,...entries],conflicts=[];
+ for(let i=0;i<all.length;i++)for(let j=i+1;j<all.length;j++){
+  const a=all[i],b=all[j];
+  if(a.auditorUid===b.auditorUid&&a.date===b.date&&a.start<b.end&&b.start<a.end)
+   conflicts.push({auditA:a.auditId,auditB:b.auditId,date:a.date});
+ }
+ return {canProceed:conflicts.length===0,conflicts,proposedBlocks:entries,committed:false,requiresCanonicalValidation:true};
+}
 export function swapProposalNeedsAction(proposal,now){
  const age=Date.parse(now)-Date.parse(proposal.createdAt);
  const waiting=proposal.status==='AWAITING_ACKNOWLEDGEMENT'||proposal.status==='ESCALATED';

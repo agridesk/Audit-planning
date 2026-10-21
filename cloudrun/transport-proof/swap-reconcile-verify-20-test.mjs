@@ -4,6 +4,7 @@ import {runInNewContext} from 'node:vm';
 const src=readFileSync(new URL('../../Swap20CommittedReconciliation.js',import.meta.url),'utf8');
 let calls=0, allow=true;
 const ctx={String,Error,
+ PlanningWorkspacePlannedAuditReadService_get:({auditId})=>({assignedTo:auditId==='A'?'first@example.test':'second@example.test',auditorEmail:auditId==='A'?'first@example.test':'second@example.test'}),
  Swap20_availabilityPlan_:(availability,proposal,owners)=>{
    assert.equal(owners.A,'first@example.test');
    assert.equal(owners.B,'second@example.test');

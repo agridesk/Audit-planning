@@ -229,6 +229,7 @@ export function buildMappedSwapSlotExchange(input){
  const {auditA,auditB,blocksA,blocksB,mappingA,mappingB}=input||{};
  if(!auditA||!auditB||auditA===auditB)throw Error('Distinct audit IDs required');
  if(!Array.isArray(blocksA)||!blocksA.length||!Array.isArray(blocksB)||!blocksB.length)throw Error('Both audit schedules required');
+ validateSwapBlockMapping({blocksA,blocksB,mappingA,mappingB});
  const check=(map,sources,targets)=>{
   if(!Array.isArray(map)||map.length!==sources.length)throw Error('Complete explicit block mapping required');
   for(const i of map)if(!Number.isInteger(i)||i<0||i>=targets.length)throw Error('Invalid target block index');

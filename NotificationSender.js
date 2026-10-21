@@ -646,8 +646,8 @@ function ns_reservePending_(nqSheet, values) {
       reservedAt: ns_isoCompact_(new Date())
     };
 
-    nqSheet.getRange(r + 1, 2).setValue('RESERVED');
     nqSheet.getRange(r + 1, 13).setValue(JSON.stringify(newReserved));
+    nqSheet.getRange(r + 1, 2).setValue('RESERVED');
     touched++;
   }
 

@@ -323,4 +323,11 @@ assert.equal(nameFn('paco@example.org',[{auditorName:'Paco Pelota',auditorEmail:
 assert.equal(nameFn('paco@example.org',[{auditorEmail:'david@example.org'}]),'Auditor','Emails must never become identity labels');
 assert.equal(nameFn('paco@example.org',[{auditorName:'david@example.org'}]),'Auditor','Malformed email-like name is not a display name');
 assert.match(lifecycleRenderer,/Audit status update — '.?\+singleCompany/);
+
+// Historical DENIED event codes may exist in archives but never appear as Denied
+// in current outgoing lifecycle communication.
+assert.match(notificationBridge,/ACTION\.DENY && actor === ROLE\.MANAGER[\s\S]*?return 'AUDIT_CANCELLED_BY_MANAGER'/);
+assert.doesNotMatch(lifecycleRenderer,/return 'Deny by (manager|auditor)'/);
+assert.match(lifecycleRenderer,/if \(code === 'AUDIT_DENIED_BY_MANAGER'\) return 'Cancel by manager'/);
+assert.match(lifecycleRenderer,/if \(code === 'AUDIT_DENIED_BY_AUDITOR'\) return 'Cancel by auditor'/);
 console.log('notifications-gas-contract-20: PASS');

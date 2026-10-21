@@ -129,4 +129,5 @@ assert.deepEqual(validateSwapBlockMapping({blocksA:[1,2],blocksB:[3,4],mappingA:
 assert.throws(()=>validateSwapBlockMapping({blocksA:[1,2],blocksB:[3],mappingA:[0,0],mappingB:[0]}));
 assert.throws(()=>validateSwapBlockMapping({blocksA:[1],blocksB:[3,4],mappingA:[0],mappingB:[0,0]}));
 assert.throws(()=>verifySwapCommitInvariants({}));
+assert.throws(()=>verifySwapCommitInvariants({proposal:{status:'CONFIRMED',requiredAuditorUids:['u1']},acknowledgedAuditorUids:[]}));
 console.log('Swap proposal tests passed');

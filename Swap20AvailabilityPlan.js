@@ -9,7 +9,7 @@ function Swap20_availabilityPlan_(before,proposal,owners){
  var slots=[{id:col(['Audit_ID_1']),start:col(['First_Audit_Start_Time']),end:col(['First_Audit_End_Time']),status:col(['Status_1'])},
  {id:col(['Audit_ID_2']),start:col(['Second_Audit_Start_Time']),end:col(['Second_Audit_End_Time']),status:col(['Status_2'])}];
  var ids=[String(proposal.auditA),String(proposal.auditB)],removed={};
- values.slice(1).forEach(function(row){slots.forEach(function(s){var id=String(row[s.id]||'').trim();if(ids.indexOf(id)<0)return;removed[id]=(removed[id]||0)+1;row[s.id]='';row[s.start]='';row[s.end]='';row[s.status]='';});if(removed[ids[0]]||removed[ids[1]])row[available]=slots.some(function(s){return String(row[s.id]||'').trim();})?'NO':'';});
+ values.slice(1).forEach(function(row){var changed=false;slots.forEach(function(s){var id=String(row[s.id]||'').trim();if(ids.indexOf(id)<0)return;removed[id]=(removed[id]||0)+1;changed=true;row[s.id]='';row[s.start]='';row[s.end]='';row[s.status]='';});if(changed)row[available]=slots.some(function(s){return String(row[s.id]||'').trim();})?'NO':'';});
  var changes=[{id:ids[0],owner:owners[ids[0]],blocks:proposal.blocksA},{id:ids[1],owner:owners[ids[1]],blocks:proposal.blocksB}];
  changes.forEach(function(x){
   if(!x.owner||!Array.isArray(x.blocks)||!x.blocks.length)throw Error('Missing swap owner or blocks');

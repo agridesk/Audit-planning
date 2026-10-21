@@ -11,7 +11,7 @@ function fixture(failure){
  Swap20CanonicalCommitGuard:()=>({ok:true}),
  Swap20_captureCanonicalBeforeImages_:()=>({sheetName:'Audit planning',headers:['Assigned to'],rows:[{auditId:'A',values:['a@x.com']},{auditId:'B',values:['b@x.com']}]}),
  Swap20_captureAvailabilityBeforeImages_:()=>({sheetName:'Auditor Availability',height:1,width:1,values:[['Date']]}),
- Swap20_availabilityPlan_:()=>({sheetName:'Auditor Availability',width:1,values:[['Date']]}),
+ Swap20_availabilityPlan_:()=>({sheetName:'Auditor Availability',width:1,originalHeight:1,values:[['Date']]}),
  Swap20Journal_appendLocked_:(_,seq,stage,payload)=>{assert.equal(seq,journal.length);journal.push({stage,payload});events.push(stage);},
  Swap20_verifyCanonicalBeforeImages_:()=>{if(failure==='prewrite')throw Error('prewrite');},
  Swap20_writeAvailabilityPlanLocked_:()=>{if(failure==='availability')throw Error('availability');events.push('availability');},

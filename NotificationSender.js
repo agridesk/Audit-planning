@@ -726,6 +726,12 @@ function ns_sendDueReserved_(nqSheet, values) {
     if (!recipient) continue;
 
     var reserved = ns_parseReserved_(values[r][12]);
+    if (reserved && !reserved.windowKey && ns_isWeeklyPreRenderedEnvelope20_(values[r][2],reserved.payload)) {
+      var createdMs = ns_toMs_(values[r][0]) || nowMs;
+      reserved.windowKey = 'WEEKLY_ROW_' + (r+1);
+      reserved.groupKey = recipient + '|WEEKLY_ROW_' + (r+1);
+      reserved.windowDueAtMs = createdMs;
+    }
     if (!reserved || !reserved.windowKey) continue;
 
     var dueAtMs = Number(reserved.windowDueAtMs || 0);

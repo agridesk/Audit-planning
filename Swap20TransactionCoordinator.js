@@ -18,7 +18,9 @@ function Swap20_executeLocked_(proposal){
  canonical.rows.forEach(function(image){
   var index=canonical.headers.map(function(x){return String(x||'').toLowerCase().replace(/[ _-]/g,'');}).indexOf('assignedto');
   if(index<0)throw Error('Canonical auditor owner missing');
-  owners[image.auditId]=String(image.values[index]||'').trim();
+  var detail=PlanningWorkspacePlannedAuditReadService_get({auditId:image.auditId});
+  if(!detail||!detail.auditorEmail||String(detail.assignedTo||'').trim()!==String(image.values[index]||'').trim())throw Error('Auditor identity mismatch');
+  owners[image.auditId]=String(detail.auditorEmail).trim().toLowerCase();
  });
  var plan=Swap20_availabilityPlan_(availability,proposal,owners);
  if(!plan||!Array.isArray(plan.values)||plan.sheetName!==availability.sheetName||plan.width!==availability.width)throw Error('Invalid paired reservation plan');

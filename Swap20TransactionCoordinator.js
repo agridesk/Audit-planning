@@ -8,7 +8,7 @@ function Swap20_executeLocked_(proposal){
  var history=Swap20Journal_history_(proposal.operationId);
  if(history.length)throw Error('Existing journal requires recovery');
  var guard=Swap20CanonicalCommitGuard({auditA:proposal.auditA,auditB:proposal.auditB,expectedRevisions:proposal.originalRevisions,blocksA:proposal.blocksA,blocksB:proposal.blocksB});
- if(!guard)throw Error('Swap canonical preflight failed');
+ if(!guard||guard.ok!==true)throw Error('Swap canonical preflight failed');
  var canonical=Swap20_captureCanonicalBeforeImages_(proposal);
  var availability=Swap20_captureAvailabilityBeforeImages_();
  var owners={};

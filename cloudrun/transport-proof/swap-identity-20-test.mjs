@@ -5,7 +5,7 @@ const root=new URL('../../',import.meta.url);
 const rows=[['UID','Email','Active'],['auditor-001','one@example.com','YES'],['auditor-002','two@example.com','YES']];
 const context={
  PropertiesService:{getScriptProperties:()=>({getProperty:()=> 'test-ssot'})},
- SpreadsheetApp:{openById:()=>({getSheetByName:()=>({getDataRange:()=>({getValues:()=>rows})})})},
+ SpreadsheetApp:{openById:()=>({getSheetByName:()=>({getDataRange:()=>({getValues:()=>rows.map(row=>row.slice())})})})},
  PlanningWorkspacePlannedAuditReadService_get:({auditId})=>({success:true,normalizedStatus:'ACCEPTED',auditorEmail:auditId==='A'?'one@example.com':'two@example.com'}),
  Error,String,Array
 };

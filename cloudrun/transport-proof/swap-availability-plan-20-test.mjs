@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+const root=new URL('../../',import.meta.url),ctx={Error,String,Array,Number,JSON,Date};
+for(const f of ['Swap20ProposalSchedule.js','Swap20AvailabilityPlan.js'])runInNewContext(readFileSync(new URL(f,root),'utf8'),ctx);
+const headers=['Date','Auditor_Email','Available','Audit_ID_1','First_Audit_Start_Time','First_Audit_End_Time','Status_1','Audit_ID_2','Second_Audit_Start_Time','Second_Audit_End_Time','Status_2'];
+const before={sheetName:'Auditor Availability',width:11,height:4,values:[headers,['2026-10-21','a@example.com','NO','A','09:00','11:00','Accepted','','','',''],['2026-10-22','b@example.com','NO','B','13:00','15:00','Accepted','','','',''],['2026-10-21','a@example.com','NO','OTHER','15:00','16:00','Accepted','','','','']]};
+const p={auditA:'A',auditB:'B',blocksA:[{date:'2026-10-22',start:'13:00',end:'15:00'}],blocksB:[{date:'2026-10-21',start:'09:00',end:'11:00'}]};
+assert.throws(()=>ctx.Swap20_availabilityPlan_(before,p,{A:'a@example.com',B:'b@example.com'}),/Duplicate availability owner\/day/);
+const unique=JSON.parse(JSON.stringify(before));unique.values.splice(3,1);unique.height=3;
+const result=ctx.Swap20_availabilityPlan_(unique,p,{A:'a@example.com',B:'b@example.com'});
+assert.equal(result.values.length,5);
+assert.equal(result.values.filter(r=>r[3]==='A').length,1);
+assert.equal(result.values.filter(r=>r[3]==='B').length,1);
+assert.equal(unique.values[1][3],'A');
+const conflicting=JSON.parse(JSON.stringify(unique));conflicting.values.push(['2026-10-22','a@example.com','NO','OTHER','13:30','14:30','Accepted','','','','']);conflicting.height++;
+assert.throws(()=>ctx.Swap20_availabilityPlan_(conflicting,p,{A:'a@example.com',B:'b@example.com'}),/conflicts with unrelated/);
+console.log('Swap paired availability plan tests passed');

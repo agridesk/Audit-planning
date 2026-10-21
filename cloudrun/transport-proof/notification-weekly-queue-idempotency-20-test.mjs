@@ -86,7 +86,7 @@ assert.match(source,/DEV_TEST_TO_SELF_REQUIRED/);
 // Only Accepted audits are confirmed upcoming or pending completion.
 // Approved/Pending Approval belong to acceptance/approval queues, never completion.
 const managerRunner=source.slice(source.indexOf('function runManagerWeeklyAlert('),source.indexOf('function nrm2_queueWeeklyMail_('));
-const auditorRunner=source.slice(source.indexOf('function runAuditorWeeklyAlert()'),source.indexOf('// ============================================================\n// MAIL RENDER',source.indexOf('function runAuditorWeeklyAlert()')));
+const auditorRunner=source.slice(source.indexOf('function runAuditorWeeklyAlert(options)'),source.indexOf('// ============================================================\n// MAIL RENDER',source.indexOf('function runAuditorWeeklyAlert(options)')));
 assert.match(managerRunner,/upStatus === 'ACCEPTED' &&\s*record\.firstPlannedDate &&\s*record\.firstPlannedDate >= today/);
 assert.equal((auditorRunner.match(/assignedUid === recipientUid &&\s*upStatus === 'ACCEPTED' &&\s*record\.firstPlannedDate/g)||[]).length,2);
 assert.match(source,/function RUN_PREVIEW_WEEKLY_AUDITORS_DEV_20261021\(/);

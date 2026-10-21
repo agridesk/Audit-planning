@@ -838,7 +838,7 @@ function runAuditorWeeklyAlert() {
         daysLeft: planningWindowTo ? nra2_daysBetween_(today, planningWindowTo) : '',
         plannedDisplay: plannedInfo.display,
         firstPlannedDate: plannedInfo.firstDate,
-        daysOverdue: plannedInfo.firstDate && plannedInfo.firstPlannedDate < today ? Math.abs(nra2_daysBetween_(today, plannedInfo.firstDate)) : '',
+        daysOverdue: plannedInfo.firstDate && plannedInfo.firstDate < today ? Math.abs(nra2_daysBetween_(today, plannedInfo.firstDate)) : '',
         scopes: scopes
       };
 

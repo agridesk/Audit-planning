@@ -21,6 +21,7 @@ function Swap20_availabilityPlan_(before,proposal,owners){
    Swap20_scheduleDate_(b.date);
    var begin=Swap20_scheduleMinutes_(b.start),end=Swap20_scheduleMinutes_(b.end);
    if(begin>=end)throw Error('Invalid swap slot');
+   if(values.length>2000)throw Error('Availability row limit exceeded');
    slots.forEach(function(s){if(String(row[s.id]||'').trim()&&begin<Swap20_scheduleMinutes_(row[s.end])&&Swap20_scheduleMinutes_(row[s.start])<end)throw Error('Swap conflicts with unrelated reservation');});
    var free=slots.filter(function(s){return !String(row[s.id]||'').trim();})[0];
    if(!free)throw Error('No available reservation slot');

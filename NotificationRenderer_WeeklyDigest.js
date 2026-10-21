@@ -757,6 +757,8 @@ function runAuditorWeeklyAlert() {
   var scopeConfig = nra2_loadScopeConfig_(ss);
   var companiesMap = nra2_loadCompaniesMap_(ss);
   var recipients = nra2_getAuditorRecipients_(ss, settings);
+  var directoryByEmail={};
+  for(var ri=0;ri<recipients.length;ri++)directoryByEmail[recipients[ri].email]=recipients[ri];
 
   if (!recipients.length) {
     return { ok: false, error: 'No auditor recipients found' };
@@ -777,6 +779,8 @@ function runAuditorWeeklyAlert() {
   var idxStatus = nra2_idx_(m, ['Status']);
   var idxAssigned = nra2_findOptionalIdx_(m, ['Assigned to', 'Auditor']);
   var idxPreassigned = nra2_findOptionalIdx_(m, ['Preassigned Auditor']);
+  var idxAuditorUid = nra2_findOptionalIdx_(m, ['Auditor_UID']);
+  if(idxAuditorUid<0)throw new Error('WEEKLY_AUDIT_PLANNING_UID_COLUMN_MISSING');
   var idxAllowSelfPlanning = nra2_findOptionalIdx_(m, ['Allow self planning']);
   var idxPlanningWindowFrom = nra2_findOptionalIdx_(m, ['Planning window from']);
   var idxPlanningWindowTo = nra2_findOptionalIdx_(m, ['Planning window to']);
@@ -789,8 +793,10 @@ function runAuditorWeeklyAlert() {
   var results = [];
 
   for (var rcp = 0; rcp < recipients.length; rcp++) {
-    var recipient = recipients[rcp];
-    if (!recipient) continue;
+    var recipientInfo = recipients[rcp];
+    if (!recipientInfo || !recipientInfo.uid) continue;
+    var recipient=recipientInfo.email;
+    var recipientUid=recipientInfo.uid;
 
     var blocks = {
       critical: [],
@@ -815,6 +821,8 @@ function runAuditorWeeklyAlert() {
       var assigned = idxAssigned >= 0 ? String(row[idxAssigned] || '').trim() : '';
       var preassigned = idxPreassigned >= 0 ? String(row[idxPreassigned] || '').trim() : '';
       var allowSelfPlanning = idxAllowSelfPlanning >= 0 ? nra2_up_(row[idxAllowSelfPlanning]) : '';
+      var assignedUid=String(row[idxAuditorUid]||'').trim();
+      var preassignedUid=nra2_resolveWeeklyAuditUid_(preassigned,directoryByEmail);
 
       var planningWindowFrom = idxPlanningWindowFrom >= 0 ? nra2_parseSheetDate_(row[idxPlanningWindowFrom]) : null;
       var planningWindowTo = idxPlanningWindowTo >= 0 ? nra2_parseSheetDate_(row[idxPlanningWindowTo]) : null;
@@ -846,7 +854,7 @@ function runAuditorWeeklyAlert() {
       if (
         preassigned &&
         recipient &&
-        preassigned.toLowerCase() === recipient.toLowerCase() &&
+        preassignedUid === recipientUid &&
         allowSelfPlanning === 'YES' &&
         upStatus === 'PENDING PLANNING'
       ) {
@@ -865,7 +873,7 @@ function runAuditorWeeklyAlert() {
       if (
         assigned &&
         recipient &&
-        assigned.toLowerCase() === recipient.toLowerCase() &&
+        assignedUid === recipientUid &&
         upStatus === 'APPROVED'
       ) {
         blocks.pendingAcceptance.push(record);
@@ -875,7 +883,7 @@ function runAuditorWeeklyAlert() {
       if (
         assigned &&
         recipient &&
-        assigned.toLowerCase() === recipient.toLowerCase() &&
+        assignedUid === recipientUid &&
         record.firstPlannedDate &&
         record.firstPlannedDate >= today &&
         record.firstPlannedDate <= nra2_addDays_(today, thresholds.comingUpDays)
@@ -887,7 +895,7 @@ function runAuditorWeeklyAlert() {
       if (
         assigned &&
         recipient &&
-        assigned.toLowerCase() === recipient.toLowerCase() &&
+        assignedUid === recipientUid &&
         record.firstPlannedDate &&
         record.firstPlannedDate < today
       ) {
@@ -915,7 +923,7 @@ function runAuditorWeeklyAlert() {
       continue;
     }
 
-    var recipientName = nra2_nameFromEmail_(recipient);
+    var recipientName = recipientInfo.name;
     var subject = 'Weekly audit actions - ' + recipientName + ' - ' + Utilities.formatDate(today, Session.getScriptTimeZone(), 'dd-MM-yyyy');
     var body = 'See HTML version';
     var html = nra2_buildMail_(recipientName, blocks, thresholds, scopeConfig.styleMap);
@@ -931,6 +939,7 @@ function runAuditorWeeklyAlert() {
       replyTo: settings.DEFAULT_REPLY_TO || '',
       meta: {
         source: 'runAuditorWeeklyAlert',
+        auditorUid: recipientUid,
         auditorName: recipientName,
         counts: {
           critical: blocks.critical.length,
@@ -945,7 +954,8 @@ function runAuditorWeeklyAlert() {
     });
 
     results.push({
-      auditor: recipient,
+      auditorUid: recipientUid,
+      auditor: recipientName,
       queued: !!queueResult.ok,
       queueRow: queueResult.row || '',
       status: queueResult.status || '',
@@ -1167,45 +1177,43 @@ function nra2_getActiveLevelDays_(cfg) {
 }
 
 function nra2_getAuditorRecipients_(ss, settings) {
-  var sh = ss.getSheetByName(NRA2_SHEET_AUDITORS);
-  if (!sh) return [];
-
-  var data = sh.getDataRange().getValues();
-  if (data.length <= 1) return [];
-
-  var headers = data[0];
-  var m = {};
-  for (var i = 0; i < headers.length; i++) {
-    m[String(headers[i] || '').trim()] = i;
+  var sh=ss.getSheetByName(NRA2_SHEET_AUDITORS);
+  if(!sh) throw new Error('WEEKLY_AUDITORS_SHEET_MISSING');
+  var data=sh.getDataRange().getValues();
+  if(data.length<=1) return [];
+  var m={}; for(var i=0;i<data[0].length;i++)m[String(data[0][i]||'').trim()]=i;
+  var idxEmail=nra2_findOptionalIdx_(m,['E-mail','Email']);
+  var idxName=nra2_findOptionalIdx_(m,['Name']);
+  var idxUid=nra2_findOptionalIdx_(m,['Auditor_UID']);
+  var idxActive=nra2_findOptionalIdx_(m,['Active']);
+  var idxRole=nra2_findOptionalIdx_(m,['Role']);
+  if(idxUid<0||idxEmail<0||idxName<0)throw new Error('WEEKLY_AUDITOR_UID_DIRECTORY_INCOMPLETE');
+  var byUid={},byEmail={};
+  for(var r=1;r<data.length;r++){
+    var row=data[r],uid=String(row[idxUid]||'').trim(),email=String(row[idxEmail]||'').trim().toLowerCase(),
+      name=String(row[idxName]||'').trim(),active=idxActive<0?'YES':nra2_up_(row[idxActive]),
+      role=idxRole<0?'':nra2_up_(row[idxRole]);
+    if(active!=='YES'&&active!=='TRUE')continue;
+    if(role==='MANAGER')continue;
+    if(!uid||!email||!name)throw new Error('WEEKLY_ACTIVE_AUDITOR_IDENTITY_INCOMPLETE_ROW_'+(r+1));
+    if(byUid[uid])throw new Error('WEEKLY_DUPLICATE_AUDITOR_UID_'+uid);
+    if(byEmail[email])throw new Error('WEEKLY_DUPLICATE_AUDITOR_DELIVERY_ADDRESS_'+email);
+    var obj={uid:uid,name:name,email:email};
+    byUid[uid]=obj;byEmail[email]=obj;
   }
+  var out=[];for(var key in byUid)if(Object.prototype.hasOwnProperty.call(byUid,key))out.push(byUid[key]);
+  return out;
+}
 
-  var idxEmail = nra2_findOptionalIdx_(m, ['E-mail', 'Email']);
-  var idxActive = nra2_findOptionalIdx_(m, ['Active']);
-  var idxRole = nra2_findOptionalIdx_(m, ['Role']);
-
-  if (idxEmail < 0) return [];
-
-  var testMode = nra2_up_(settings.TEST_MODE || '') === 'YES';
-  var testRecipient = String(settings.TEST_RECIPIENT || '').trim();
-  if (testMode && testRecipient) {
-    return [testRecipient];
+function nra2_resolveWeeklyAuditUid_(raw, directoryByEmail) {
+  var value=String(raw||'').trim();
+  if(!value)return '';
+  // Only a migration lookup for legacy audit rows; matching is thereafter UID-only.
+  if(value.indexOf('@')>=0){
+    var entry=directoryByEmail[value.toLowerCase()];
+    return entry?entry.uid:'';
   }
-
-  var recipients = [];
-  for (var r = 1; r < data.length; r++) {
-    var row = data[r];
-    var email = String(row[idxEmail] || '').trim();
-    var active = idxActive >= 0 ? nra2_up_(row[idxActive]) : 'YES';
-    var role = idxRole >= 0 ? nra2_up_(row[idxRole]) : '';
-
-    if (!email) continue;
-    if (active && active !== 'YES' && active !== 'TRUE') continue;
-    if (role === 'MANAGER') continue;
-
-    recipients.push(email);
-  }
-
-  return nra2_unique_(recipients);
+  return value;
 }
 
 // ============================================================

@@ -59,7 +59,7 @@ const directoryStart=source.indexOf('function nra2_getAuditorRecipients_(');
 const directoryEnd=source.indexOf('function nra2_resolveWeeklyAuditUid_(',directoryStart);
 assert.ok(directoryStart>=0 && directoryEnd>directoryStart);
 const resolverStart=directoryEnd;
-const resolverEnd=source.indexOf('// ============================================================\\n// SUPPORT DATA',resolverStart);
+const resolverEnd=source.indexOf('function nra2_loadScopeConfig_(',resolverStart);
 assert.ok(resolverEnd>resolverStart);
 const ctxUid={};vm.createContext(ctxUid);
 vm.runInContext(source.slice(resolverStart,resolverEnd),ctxUid);

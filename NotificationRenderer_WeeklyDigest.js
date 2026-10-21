@@ -145,6 +145,7 @@ function runManagerWeeklyAlert(options) {
     if (upStatus === 'APPROVED') blocks.pendingAcceptance.push(record);
 
     if (
+      upStatus === 'ACCEPTED' &&
       record.firstPlannedDate &&
       record.firstPlannedDate >= today &&
       record.firstPlannedDate <= nrm2_addDays_(today, thresholds.comingUpDays)
@@ -935,6 +936,7 @@ function runAuditorWeeklyAlert() {
         assigned &&
         recipient &&
         assignedUid === recipientUid &&
+        upStatus === 'ACCEPTED' &&
         record.firstPlannedDate &&
         record.firstPlannedDate >= today &&
         record.firstPlannedDate <= nra2_addDays_(today, thresholds.comingUpDays)
@@ -947,6 +949,7 @@ function runAuditorWeeklyAlert() {
         assigned &&
         recipient &&
         assignedUid === recipientUid &&
+        upStatus === 'ACCEPTED' &&
         record.firstPlannedDate &&
         record.firstPlannedDate < today
       ) {

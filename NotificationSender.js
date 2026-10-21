@@ -637,6 +637,7 @@ function ns_reservePending_(nqSheet, values) {
       payload: payload,
       windowKey: reservation.windowKey,
       groupKey: reservation.groupKey,
+      rollingExternal: !!reservation.rollingExternal,
       windowStartAtMs: reservation.windowStartAtMs,
       windowStartAt: ns_isoCompact_(new Date(reservation.windowStartAtMs)),
       windowDueAtMs: reservation.windowDueAtMs,

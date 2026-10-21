@@ -91,3 +91,12 @@ export function swapProposalNeedsAction(proposal,now){
  const waiting=proposal.status==='AWAITING_ACKNOWLEDGEMENT'||proposal.status==='ESCALATED';
  return {reminderDue:waiting&&!proposal.reminderSentAt&&age>=86400000,escalationDue:proposal.status==='AWAITING_ACKNOWLEDGEMENT'&&age>=172800000,unacknowledgedAuditorUids:proposal.requiredAuditorUids.filter(uid=>!proposal.acknowledgedAuditorUids.includes(uid))};
 }
+
+export function evaluateSwapEligibility(pair){
+ const a=pair&&pair.auditA,b=pair&&pair.auditB;
+ if(!a||!b||a.auditId===b.auditId)throw Error('Distinct canonical audits required');
+ const accepted=x=>String(x.status||'').trim().toLowerCase()==='accepted';
+ const planned=x=>Array.isArray(x.blocks)&&x.blocks.length>0;
+ const eligible=accepted(a)&&accepted(b)&&planned(a)&&planned(b)&&Boolean(a.assignedTo)&&Boolean(b.assignedTo)&&Boolean(a.revision)&&Boolean(b.revision);
+ return {eligible,readOnly:true,canCommit:false,revisions:{[a.auditId]:a.revision,[b.auditId]:b.revision},reason:eligible?null:'CANONICAL_SWAP_INELIGIBLE'};
+}

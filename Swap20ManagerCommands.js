@@ -20,7 +20,7 @@ function Swap20ManagerCreateProposal(input){
  var id=String(input.operationId||'').trim();
  var reason=String(input.internalReason||'').trim(),comment=String(input.ecasComment||'').trim();
  if(!reason||!comment)throw Error('Internal reason and ECAS explanation required');
- var proposal={operationId:id,auditA:a,auditB:b,requiredAuditorUids:canonicalUids,acknowledgedAuditorUids:[],createdAt:new Date().toISOString(),status:'AWAITING_ACKNOWLEDGEMENT',reminderSentAt:null,escalatedAt:null,originalRevisions:{},internalReason:reason,ecasComment:comment,blocksA:schedule.blocksA,blocksB:schedule.blocksB,dateChanged:schedule.dateChanged};
+ var proposal={operationId:id,auditA:a,auditB:b,requiredAuditorUids:canonicalUids,acknowledgedAuditorUids:[],createdAt:new Date().toISOString(),status:schedule.dateChanged?'AWAITING_ACKNOWLEDGEMENT':'CONFIRMED',reminderSentAt:null,escalatedAt:null,originalRevisions:{},internalReason:reason,ecasComment:comment,blocksA:schedule.blocksA,blocksB:schedule.blocksB,dateChanged:schedule.dateChanged};
  proposal.originalRevisions[a]=pair.auditA.revision;
  proposal.originalRevisions[b]=pair.auditB.revision;
  return Swap20Store_create_(proposal);

@@ -12,6 +12,7 @@ function Swap20_recoverLocked_(operationId){
  var history=Swap20Journal_history_(operationId);
  if(!history.length)throw Error('Swap journal not found');
  var last=history[history.length-1].stage;
+ if(last==='PREPARED')return {success:true,stage:'PREPARED',readOnly:true,requiresReview:true};
  if(last==='COMMITTED'||last==='ROLLED_BACK')return {success:true,stage:last,idempotent:true};
  var prepared=history[0];
  if(prepared.stage!=='PREPARED'||!prepared.payload||!prepared.payload.canonical||!prepared.payload.availability)throw Error('Swap before-images unavailable');

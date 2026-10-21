@@ -1,9 +1,14 @@
 // DEV-only non-mutating final readiness gate for SWAP 2.0 + Notifications.
 function RUN_SWAP_NOTIFICATIONS_FINAL_PREFLIGHT_DEV_20261021() {
  var p=PropertiesService.getScriptProperties();
- if(String(p.getProperty('AMS_ENV')||'').toUpperCase()!=='DEV')throw Error('DEV_ONLY_PREFLIGHT');
+ var environment=String(p.getProperty('AMS_ENV')||'').toUpperCase();
+ if(environment==='PROD'||environment==='PRODUCTION')throw Error('DEV_ONLY_PREFLIGHT');
+ var configuredId=String(p.getProperty('V5_SSOT_SPREADSHEET_ID')||'').trim();
+ if(configuredId&&configuredId!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')throw Error('DEV_ONLY_PREFLIGHT');
  var ss=SpreadsheetApp.getActiveSpreadsheet();
- var findings=[],info={};
+ var findings=[],info={environmentMarker:environment||'MISSING',configuredSpreadsheetIdMatchesDev:configuredId==='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs'};
+ if(environment!=='DEV')findings.push('AMS_ENV_NOT_DEV');
+ if(!configuredId)findings.push('V5_SSOT_SPREADSHEET_ID_MISSING');
  var audits=ss.getSheetByName('Audit planning');
  var av=ss.getSheetByName('Auditor Availability')||ss.getSheetByName('Auditor availability');
  var journal=ss.getSheetByName('AMS_Swap_20_Journal');

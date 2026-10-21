@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {createSwapProposal,applySwapProposalEvent,swapProposalNeedsAction,previewSwapFinalState,validateSwapProposalSource,evaluateSwapEligibility,prepareSwapCommit,buildSwapSlotExchange,evaluateSwapFinalState,validateSwapBlock,planSwapJournal,advanceSwapJournal} from './swap-proposal-20.mjs';
+import {createSwapProposal,applySwapProposalEvent,swapProposalNeedsAction,previewSwapFinalState,validateSwapProposalSource,evaluateSwapEligibility,prepareSwapCommit,buildSwapSlotExchange,evaluateSwapFinalState,validateSwapBlock,planSwapJournal,advanceSwapJournal,classifySwapChange} from './swap-proposal-20.mjs';
 const at='2026-10-21T10:00:00Z',later='2026-10-23T10:00:00Z';
 const p=createSwapProposal({operationId:'s1',auditA:'A',auditB:'B',requiredAuditorUids:['u1','u2'],createdAt:at,originalRevisions:{A:1,B:2},internalReason:'logistics',ecasComment:'Change agreed'});
 assert.equal(p.status,'AWAITING_ACKNOWLEDGEMENT');
@@ -103,4 +103,9 @@ const managerCtx={V5_AUTH:{validateTrustedTokenByRole:(token,role)=>({ok:token==
 vm.createContext(managerCtx);vm.runInContext(managerGas,managerCtx);
 assert.throws(()=>managerCtx.Swap20ManagerPreview({token:'invalid',auditA:'A',auditB:'B'}));
 assert.equal(managerCtx.Swap20ManagerPreview({token:'valid',auditA:'A',auditB:'B'}).readOnly,true);
+const dateChange=classifySwapChange(exchange,{blocksA:[{date:'2026-11-01',start:'09:00',end:'11:00'}],blocksB:[{date:'2026-11-02',start:'10:00',end:'13:00'}]});
+assert.deepEqual(dateChange.requiredAcknowledgementAuditIds,['A','B']);
+const timeOnly=classifySwapChange({auditA:'A',auditB:'B',blocksA:[{date:'2026-11-01',start:'10:00',end:'12:00'}],blocksB:[{date:'2026-11-02',start:'11:00',end:'14:00'}]},{blocksA:[{date:'2026-11-01',start:'09:00',end:'11:00'}],blocksB:[{date:'2026-11-02',start:'10:00',end:'13:00'}]});
+assert.deepEqual(timeOnly.requiredAcknowledgementAuditIds,[]);
+assert.deepEqual(timeOnly.notificationOnlyAuditIds,['A','B']);
 console.log('Swap proposal tests passed');

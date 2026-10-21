@@ -1878,7 +1878,7 @@ window.V5.modal = window.V5.modal || {
 
         // Comment mandatory for Reject / Deny / Cancel
         var actionLc = String(action || '').toLowerCase();
-        if (['reject','deny','cancel'].indexOf(actionLc) !== -1) {
+        if (['reject','cancel'].indexOf(actionLc) !== -1) {
           if (!window.UiDialogs) {
             showToast('UiDialogs is not available.');
             return;
@@ -2321,8 +2321,6 @@ function mkBtn(text, cls, onClick) {
           var approveBtn = mkBtn("Approve", "btn-approve", function () { callManagerAction("approve", a); });
           actTd.appendChild(approveBtn);
 
-          var denyBtn = mkBtn("Deny", "btn-deny", function () { callManagerAction("deny", a); });
-          actTd.appendChild(denyBtn);
 
           var cancelBtn = mkBtn("Cancel", "btn-ghost", function () { callManagerAction("cancel", a); });
           actTd.appendChild(cancelBtn);

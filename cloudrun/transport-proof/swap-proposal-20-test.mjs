@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {createSwapProposal,applySwapProposalEvent,swapProposalNeedsAction,previewSwapFinalState,validateSwapProposalSource,evaluateSwapEligibility,prepareSwapCommit,buildSwapSlotExchange,evaluateSwapFinalState,validateSwapBlock} from './swap-proposal-20.mjs';
+import {createSwapProposal,applySwapProposalEvent,swapProposalNeedsAction,previewSwapFinalState,validateSwapProposalSource,evaluateSwapEligibility,prepareSwapCommit,buildSwapSlotExchange,evaluateSwapFinalState,validateSwapBlock,planSwapJournal,advanceSwapJournal} from './swap-proposal-20.mjs';
 const at='2026-10-21T10:00:00Z',later='2026-10-23T10:00:00Z';
 const p=createSwapProposal({operationId:'s1',auditA:'A',auditB:'B',requiredAuditorUids:['u1','u2'],createdAt:at,originalRevisions:{A:1,B:2},internalReason:'logistics',ecasComment:'Change agreed'});
 assert.equal(p.status,'AWAITING_ACKNOWLEDGEMENT');
@@ -70,4 +70,21 @@ assert.throws(()=>validateSwapBlock({date:'2026-02-29',start:'08:00',end:'09:00'
 assert.throws(()=>validateSwapBlock({date:'2026-11-01',start:'24:00',end:'25:00'}));
 assert.throws(()=>validateSwapBlock({date:'2026-11-01',start:'11:00',end:'09:00'}));
 assert.throws(()=>buildSwapSlotExchange({auditA:'A',auditB:'B',blocksA:[{date:'2026-02-30',start:'09:00',end:'10:00'}],blocksB:[{date:'2026-11-02',start:'10:00',end:'11:00'}]}));
+const journal0=planSwapJournal(b,ready);
+assert.equal(journal0.writePermitted,false);
+assert.throws(()=>advanceSwapJournal(journal0,{type:'WRITE_STARTED',operationId:b.operationId,durableBeforeImagesVerified:true}));
+const journal1=advanceSwapJournal(journal0,{type:'LOCK_ACQUIRED',operationId:b.operationId,canonicalPairLockVerified:true});
+const journal2=advanceSwapJournal(journal1,{type:'REVALIDATED',operationId:b.operationId,canonicalRevisionsVerified:true,finalStateVerified:true});
+const journal3=advanceSwapJournal(journal2,{type:'WRITE_STARTED',operationId:b.operationId,durableBeforeImagesVerified:true});
+assert.equal(journal3.rollbackRequired,true);
+assert.throws(()=>advanceSwapJournal(journal3,{type:'COMMIT_VERIFIED',operationId:b.operationId,bothCanonicalRowsVerified:true}));
+const journal4=advanceSwapJournal(journal3,{type:'COMMIT_VERIFIED',operationId:b.operationId,bothCanonicalRowsVerified:true,bothReservationsVerified:true});
+assert.equal(journal4.phase,'COMMITTED');
+assert.equal(journal4.commitVerified,true);
+assert.throws(()=>advanceSwapJournal(journal4,{type:'ROLLBACK_VERIFIED',operationId:b.operationId}));
+const rollback=advanceSwapJournal(journal3,{type:'ROLLBACK_VERIFIED',operationId:b.operationId,originalRowsRestored:true,originalReservationsRestored:true});
+assert.equal(rollback.phase,'ROLLED_BACK');
+assert.equal(rollback.rollbackRequired,false);
+const failed=advanceSwapJournal(journal3,{type:'ROLLBACK_FAILED',operationId:b.operationId});
+assert.equal(failed.rollbackRequired,true);
 console.log('Swap proposal tests passed');

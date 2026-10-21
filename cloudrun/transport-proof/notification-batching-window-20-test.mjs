@@ -87,4 +87,6 @@ assert.notEqual(ecasReservation(1).groupKey,ecasReservation(5).groupKey,'ECAS re
 assert.equal(ecasReservation(1).windowDueAtMs,Date.parse('2026-10-18T17:02:00Z'),'first window closes exactly 10 minutes after first event');
 assert.equal(ecasReservation(3).windowDueAtMs,Date.parse('2026-10-18T17:13:00Z'),'second window closes independently');
 assert.equal(ecasReservation(1).rollingExternal,true);
+assert.match(sender,/encoded\.length > 49000/,'Large weekly digest reservation must preserve original payload');
+assert.match(sender,/WEEKLY_ROW_/,'Payload-only weekly reservation must recover');
 console.log('notification-batching-window-20: PASS');

@@ -16,7 +16,7 @@ function Swap20_executeLocked_(proposal){
  var availability=Swap20_captureAvailabilityBeforeImages_();
  var owners={};
  canonical.rows.forEach(function(image){
-  var index=canonical.headers.indexOf('Assigned to');
+  var index=canonical.headers.map(function(x){return String(x||'').toLowerCase().replace(/[ _-]/g,'');}).indexOf('assignedto');
   if(index<0)throw Error('Canonical auditor owner missing');
   owners[image.auditId]=String(image.values[index]||'').trim();
  });

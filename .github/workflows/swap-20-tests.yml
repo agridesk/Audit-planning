@@ -1,0 +1,27 @@
+name: Swap 2.0 DEV Tests
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'Swap20*.js'
+      - 'cloudrun/transport-proof/swap-*.mjs'
+      - 'cloudrun/transport-proof/package.json'
+      - '.github/workflows/swap-20-tests.yml'
+  pull_request:
+    paths:
+      - 'Swap20*.js'
+      - 'cloudrun/transport-proof/swap-*.mjs'
+      - 'cloudrun/transport-proof/package.json'
+      - '.github/workflows/swap-20-tests.yml'
+jobs:
+  swap-regressions:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cloudrun/transport-proof
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm run test:swap

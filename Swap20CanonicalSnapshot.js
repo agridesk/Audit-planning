@@ -10,6 +10,7 @@ function Swap20_captureCanonicalBeforeImages_(proposal){
   if(!item||!item.rowNumber||String(item.row[idCol])!==String(id))throw Error('Canonical audit row mismatch');
   var revision=PRT_result_(id,item.headers,item.row,'swap snapshot',item.rowNumber).revision;
   if(revision!==proposal.originalRevisions[id])throw Error('Canonical revision mismatch');
+  if(String(PRT_snapshotFromRow_(item.headers,item.row).status).toLowerCase()!=='accepted')throw Error('Swap requires Accepted status');
   if(item.row.length!==width)throw Error('Canonical row width mismatch');
   return {auditId:id,rowNumber:item.rowNumber,revision:revision,values:item.row.slice()};
  });

@@ -20,6 +20,7 @@ function Swap20ManagerCommit(input){
     if(current&&current.status==='APPLIED'&&current.canonicalCommitVerified===true)
      return {success:true,operationId:proposal.operationId,committed:true,idempotent:true};
     if(current&&current.status==='CONFIRMED'&&JSON.stringify(current)===JSON.stringify(proposal)){
+     if(typeof Swap20_verifyCommittedReconciliationLocked_!=='function'||Swap20_verifyCommittedReconciliationLocked_(history,current)!==true)throw Error('Committed swap cannot be reconciled without verified paired state');
      // Journal COMMITTED is written only after verified paired canonical and
      // availability writes; never repeat those writes on a retry.
      var repaired=JSON.parse(JSON.stringify(current));

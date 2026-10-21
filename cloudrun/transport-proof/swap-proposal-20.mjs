@@ -267,3 +267,26 @@ export function validateSwapBlockMapping(input){
  if(countA!==blocksB.length||countB!==blocksA.length)throw Error('Unmatched target blocks require explicit rescheduling, not a swap');
  return {valid:true,complete:true,unique:true};
 }
+
+/** Pure commit invariant check; does not authorize or perform a write. */
+export function verifySwapCommitInvariants(input){
+ const {proposal,current,originalBlocksA,originalBlocksB,proposedBlocksA,proposedBlocksB,acknowledgedAuditorUids=[]}=input||{};
+ if(!proposal||proposal.status!=='CONFIRMED')throw Error('Confirmed swap proposal required');
+ if(!Array.isArray(proposal.requiredAuditorUids)||!proposal.requiredAuditorUids.length)throw Error('Missing required auditor UUIDs');
+ if(!Array.isArray(acknowledgedAuditorUids)||!proposal.requiredAuditorUids.every(uid=>acknowledgedAuditorUids.includes(uid)))throw Error('Outstanding auditor acknowledgement');
+ const source=validateSwapProposalSource(proposal,current);
+ if(!source.valid)throw Error('Stale canonical revisions: '+source.conflictingAuditIds.join(','));
+ const check=(before,after,label)=>{
+  if(!Array.isArray(before)||!before.length||!Array.isArray(after)||before.length!==after.length)throw Error('Block count changed: '+label);
+  let beforeMinutes=0,afterMinutes=0;
+  const duration=b=>{validateSwapBlock(b);return (Number(b.end.slice(0,2))*60+Number(b.end.slice(3)))-(Number(b.start.slice(0,2))*60+Number(b.start.slice(3)));};
+  for(let i=0;i<before.length;i++){
+   const a=before[i],b=after[i];
+   const da=duration(a),db=duration(b);
+   if(da!==db)throw Error('Block duration changed: '+label+' #'+i);
+   beforeMinutes+=da;afterMinutes+=db;
+  }
+  return {blocks:before.length,minutes:beforeMinutes,preserved:beforeMinutes===afterMinutes};
+ };
+ return {valid:true,auditA:check(originalBlocksA,proposedBlocksA,proposal.auditA),auditB:check(originalBlocksB,proposedBlocksB,proposal.auditB),canonicalLockRequired:true,durableJournalRequired:true,commitAuthorized:false};
+}

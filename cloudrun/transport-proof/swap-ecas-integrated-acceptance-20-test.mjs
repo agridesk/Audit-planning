@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+const root=new URL('../../',import.meta.url);
+const proposal={operationId:'swap-final-12345',auditA:'A',auditB:'B',status:'APPLIED',
+ canonicalCommitVerified:true,ecasComment:'Both dates exchanged'};
+let stored={},writes=0;
+const key='AMS_SWAP20_ECAS_INTENT_'+proposal.operationId;
+const props={getProperty:k=>k==='AMS_ENV'?'DEV':stored[k]||'',setProperty:(k,v)=>{writes++;stored[k]=v;}};
+let history=[{stage:'PREPARED'},{stage:'WRITING'},{stage:'COMMITTED'}];
+const ctx={String,JSON,Date,Error,PropertiesService:{getScriptProperties:()=>props},
+ Swap20Store_read_:()=>proposal,Swap20Journal_history_:()=>history};
+runInNewContext(readFileSync(new URL('Swap20NotificationIntent.js',root),'utf8'),ctx);
+let first=ctx.Swap20_stageNotificationAfterCommitLocked_(proposal.operationId);
+assert.equal(first.ok,true);
+assert.equal(first.idempotent,false);
+assert.equal(stored[key]!==undefined,true);
+assert.equal(JSON.parse(stored[key]).eventKey,'ECAS_AUDIT_CHANGED_DIGEST');
+assert.equal(JSON.parse(stored[key]).combined,true);
+assert.equal(JSON.parse(stored[key]).lifecycleUnchanged,true);
+assert.equal(writes,1);
+let repeated=ctx.Swap20_stageNotificationAfterCommitLocked_(proposal.operationId);
+assert.equal(repeated.idempotent,true);
+assert.equal(writes,1);
+history=[{stage:'WRITING'}];
+stored={};writes=0;
+assert.throws(()=>ctx.Swap20_stageNotificationAfterCommitLocked_(proposal.operationId),/durably APPLIED/);
+assert.equal(writes,0);
+history=[{stage:'PREPARED'},{stage:'WRITING'},{stage:'COMMITTED'}];
+proposal.status='CONFIRMED';
+assert.throws(()=>ctx.Swap20_stageNotificationAfterCommitLocked_(proposal.operationId),/durably APPLIED/);
+assert.equal(writes,0);
+console.log('SWAP combined ECAS intent idempotency and fail-closed acceptance passed');

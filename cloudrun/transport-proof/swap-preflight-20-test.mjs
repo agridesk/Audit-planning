@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+const root=new URL('../../',import.meta.url);
+const oldA=[{date:'2026-10-21',start:'09:00',end:'10:00'},{date:'2026-10-21',start:'10:00',end:'11:00'}];
+const oldB=[{date:'2026-10-22',start:'13:00',end:'14:00'}];
+const pair={eligible:true,auditA:{revision:'rev-a',blocks:oldA},auditB:{revision:'rev-b',blocks:oldB}};
+const ctx={Swap20_readCanonicalPair:()=>pair,Error,String,Array,Date,Number,isNaN};
+runInNewContext(readFileSync(new URL('Swap20CanonicalCommitGuard.js',root),'utf8'),ctx);
+const base={auditA:'A',auditB:'B',expectedRevisions:{A:'rev-a',B:'rev-b'},blocksA:oldA,blocksB:oldB};
+assert.equal(ctx.Swap20CanonicalCommitGuard(base).commitAuthorized,false);
+assert.throws(()=>ctx.Swap20CanonicalCommitGuard({...base,blocksA:[{...oldA[0],date:'2026-02-30'},oldA[1]]}),/Invalid calendar date/);
+assert.throws(()=>ctx.Swap20CanonicalCommitGuard({...base,blocksA:[oldA[0],{...oldA[1],start:'09:30',end:'10:30'}]}),/Overlapping final audit blocks/);
+assert.throws(()=>ctx.Swap20CanonicalCommitGuard({...base,expectedRevisions:{A:'stale',B:'rev-b'}}),/Stale canonical revision/);
+console.log('Swap canonical preflight tests passed');

@@ -38,24 +38,32 @@ function Swap20_restoreCanonicalBeforeImages_(snapshot){
  if(!sh||sh.getLastColumn()!==snapshot.headers.length)throw Error('Canonical rollback schema mismatch');
  var headers=sh.getRange(1,1,1,snapshot.headers.length).getValues()[0];
  if(JSON.stringify(headers)!==JSON.stringify(snapshot.headers))throw Error('Canonical rollback headers mismatch');
- var idCol=headers.map(function(x){return String(x).toLowerCase().replace(/[ _-]/g,'');}).indexOf('auditid');
- snapshot.rows.forEach(function(image){
+ var norm=headers.map(function(x){return String(x||'').toLowerCase().replace(/[ _-]/g,'');});
+ var idCol=norm.indexOf('auditid'),planningCol=norm.indexOf('planningjson'),dateCol=norm.indexOf('dateplanned');
+ if(idCol<0||planningCol<0||dateCol<0)throw Error('Canonical rollback required columns missing');
+ var checks=[];
+ snapshot.rows.forEach(function(image,i){
   var range=sh.getRange(image.rowNumber,1,1,headers.length);
   var current=range.getValues()[0];
   if(String(current[idCol])!==String(image.auditId))throw Error('Canonical rollback identity mismatch');
-  var planningCol=headers.map(function(x){return String(x).toLowerCase().replace(/[ _-]/g,'');}).indexOf('planningjson');
-  if(planningCol<0)throw Error('Canonical rollback planning column missing');
-  var expectedBlocks=image.auditId===snapshot.rows[0].auditId?snapshot.rollbackExpectedBlocksA:snapshot.rollbackExpectedBlocksB;
-  if(!Array.isArray(expectedBlocks))throw Error('Canonical rollback expected blocks unavailable');
-  var currentPlanning=String(current[planningCol]||'');
-  var beforePlanning=String(image.values[planningCol]||'');
-  if(currentPlanning!==beforePlanning){
-   var parsed;try{parsed=JSON.parse(currentPlanning);}catch(e){throw Error('Canonical rollback planning changed externally');}
-   if(JSON.stringify(parsed.blocks||[])!==JSON.stringify(expectedBlocks))throw Error('Canonical rollback planning changed externally');
+  var expected=i===0?snapshot.rollbackExpectedBlocksA:snapshot.rollbackExpectedBlocksB;
+  if(!Array.isArray(expected))throw Error('Canonical rollback expected blocks unavailable');
+  if(String(current[planningCol]||'')!==String(image.values[planningCol]||'')){
+   var parsed;try{parsed=JSON.parse(String(current[planningCol]||''));}catch(e){throw Error('Canonical rollback planning changed externally');}
+   if(JSON.stringify(parsed.blocks||[])!==JSON.stringify(expected))throw Error('Canonical rollback planning changed externally');
   }
-  range.setValues([image.values]);
+  var dateExpected=expected.length?String(expected[0].date||''):'';
+  if(String(current[dateCol]||'')!==String(image.values[dateCol]||'')&&String(current[dateCol]||'')!==dateExpected)
+   throw Error('Canonical rollback planned date changed externally');
+  for(var c=0;c<headers.length;c++){
+   if(c===planningCol||c===dateCol)continue;
+   if(JSON.stringify(current[c])!==JSON.stringify(image.values[c]))
+    throw Error('Canonical rollback external field change');
+  }
+  checks.push({range:range,image:image});
  });
+ checks.forEach(function(item){item.range.setValues([item.image.values]);});
  SpreadsheetApp.flush();
  Swap20_verifyCanonicalBeforeImages_(snapshot);
- return {success:true,restored:snapshot.rows.length};
+ return {success:true,restored:checks.length};
 }

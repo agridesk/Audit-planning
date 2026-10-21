@@ -27,7 +27,7 @@ function Swap20Store_create_(proposal){
   return {success:true,operationId:proposal.operationId,status:proposal.status};
  }finally{lock.releaseLock();}
 }
-function Swap20Store_transition_(operationId,expectedStatus,nextProposal){
+function Swap20Store_transition_(operationId,expectedStatus,nextProposal,expectedSnapshot){
  var key=Swap20Store_key_(operationId),lock=LockService.getScriptLock();
  if(!lock.tryLock(20000))throw new Error('Swap proposal store busy');
  try{
@@ -35,6 +35,7 @@ function Swap20Store_transition_(operationId,expectedStatus,nextProposal){
   if(!raw)throw new Error('Swap proposal not found');
   var previous=JSON.parse(raw);
   if(previous.status!==expectedStatus)throw new Error('Swap proposal status conflict');
+  if(expectedSnapshot&&JSON.stringify(previous)!==JSON.stringify(expectedSnapshot))throw new Error('Swap proposal concurrent modification');
   Swap20_validateTransition_(previous,nextProposal);
   if(!nextProposal||nextProposal.operationId!==operationId||nextProposal.auditA!==previous.auditA||nextProposal.auditB!==previous.auditB)throw new Error('Swap proposal identity mismatch');
   var output=JSON.stringify(nextProposal);

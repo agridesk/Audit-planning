@@ -309,4 +309,17 @@ assert.equal(nextStatus('PENDING_APPROVAL','ACCEPT','MANAGER'),'','Never bypass 
 for (const prop of ['ecasComment','previousPlanningJson','previousBlocks','previousPlannedDates','previousPlannedHours']) {
  assert.ok(builder.includes(prop+': normalized.'+prop),'Queue payload missing '+prop);
 }
+
+// Auditor UID is canonical identity; email is transport-only and never a display fallback.
+const lifecycleRenderer=read('NotificationRenderer_LifecycleDigest.js');
+assert.match(builder,/auditorUid:NB_clean_\(data\.auditorUid/);
+assert.match(builder,/auditorUid: normalized\.auditorUid/);
+const nameBegin=lifecycleRenderer.indexOf('function NB_lifecycleDigestAuditor_(');
+const nameEnd=lifecycleRenderer.indexOf('function NB_lifecycleHasReason_(',nameBegin);
+assert.ok(nameBegin>=0&&nameEnd>nameBegin);
+const nameFn=new Function('NB_clean_',lifecycleRenderer.slice(nameBegin,nameEnd)+';return NB_lifecycleDigestAuditor_;')(x=>String(x??'').trim());
+assert.equal(nameFn('paco@example.org',[{auditorName:'Paco Pelota',auditorEmail:'david@example.org'}]),'Paco Pelota');
+assert.equal(nameFn('paco@example.org',[{auditorEmail:'david@example.org'}]),'Auditor','Emails must never become identity labels');
+assert.equal(nameFn('paco@example.org',[{auditorName:'david@example.org'}]),'Auditor','Malformed email-like name is not a display name');
+assert.match(lifecycleRenderer,/Audit status update — '.?\+singleCompany/);
 console.log('notifications-gas-contract-20: PASS');

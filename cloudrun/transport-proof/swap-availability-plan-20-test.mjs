@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
-const root=new URL('../../',import.meta.url),ctx={Error,String,Array,Number,JSON,Date};
+const root=new URL('../../',import.meta.url),ctx={Error,String,Array,Number,JSON,Date,Planning_cellToYmd_:v=>String(v)};
 for(const f of ['Swap20ProposalSchedule.js','Swap20AvailabilityPlan.js'])runInNewContext(readFileSync(new URL(f,root),'utf8'),ctx);
 const headers=['Date','Auditor_Email','Available','Audit_ID_1','First_Audit_Start_Time','First_Audit_End_Time','Status_1','Audit_ID_2','Second_Audit_Start_Time','Second_Audit_End_Time','Status_2'];
 const before={sheetName:'Auditor Availability',width:11,height:4,values:[headers,['2026-10-21','a@example.com','NO','A','09:00','11:00','Accepted','','','',''],['2026-10-22','b@example.com','NO','B','13:00','15:00','Accepted','','','',''],['2026-10-22','a@example.com','NO','OTHER','14:00','16:00','Accepted','','','','']]};

@@ -20,10 +20,10 @@ function ECAS20_SubmitVerifiedChangeCancel_(input) {
     return {ok:false,queued:false,reason:'PREVIOUS_DELIVERY_NOT_PROVEN'};
   if(String(PropertiesService.getScriptProperties().getProperty('ECAS20_CHANGE_CANCEL_ENABLED')||'').toUpperCase()!=='YES')
     return {ok:false,queued:false,reason:'FEATURE_DISABLED'};
-  if(typeof NotificationConfig_GetByEventKey!=='function')
+  if(typeof NotificationConfig_GetEvent!=='function')
     return {ok:false,queued:false,reason:'CONFIG_LOOKUP_UNAVAILABLE'};
-  var config=NotificationConfig_GetByEventKey(key);
-  if(!config||String(config.ACTIVE||'').toUpperCase()!=='YES')
+  var config=NotificationConfig_GetEvent(key);
+  if(!config||config.active!==true)
     return {ok:false,queued:false,reason:'EVENT_INACTIVE'};
   var recipient=StatusNotificationBridge_GetEcasRecipientEmail_();
   if(!recipient)return {ok:false,queued:false,reason:'ECAS_RECIPIENT_MISSING'};

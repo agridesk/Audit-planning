@@ -6,7 +6,7 @@ function Swap20_writeAvailabilityPlanLocked_(plan,before){
  var current=sh.getRange(1,1,before.height,before.width).getValues();
  if(JSON.stringify(current)!==JSON.stringify(before.values))throw Error('Availability changed since snapshot');
  var added=plan.values.length-before.height;
- if(added<0)throw Error('Availability plan removes rows');
+ if(added<0||plan.values.some(function(row){return !Array.isArray(row)||row.length!==plan.width;}))throw Error('Invalid availability plan shape');
  if(added&&sh.getMaxRows()<plan.values.length)sh.insertRowsAfter(sh.getMaxRows(),plan.values.length-sh.getMaxRows());
  sh.getRange(1,1,plan.values.length,plan.width).setValues(plan.values);
  SpreadsheetApp.flush();

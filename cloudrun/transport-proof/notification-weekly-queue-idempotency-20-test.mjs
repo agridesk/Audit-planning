@@ -46,4 +46,25 @@ assert.match(source,/function RUN_INSTALL_WEEKLY_DIGEST_TRIGGERS_DEV_20261021\(/
 assert.match(source,/ScriptApp\.WeekDay\.TUESDAY/);
 assert.match(source,/\.atHour\(6\)/);
 assert.match(source,/ScriptApp\.deleteTrigger\(existing\[i\]\)/);
+// Weekly auditor lookup: UID is canonical, name is for display, email only transports.
+assert.match(source,/var recipientUid=recipientInfo\.uid/);
+assert.match(source,/var recipientName = recipientInfo\.name/);
+assert.match(source,/assignedUid === recipientUid/);
+assert.match(source,/preassignedUid === recipientUid/);
+assert.doesNotMatch(source,/assigned\.toLowerCase\(\) === recipient\.toLowerCase\(\)/);
+assert.match(source,/WEEKLY_AUDITOR_UID_DIRECTORY_INCOMPLETE/);
+assert.match(source,/WEEKLY_DUPLICATE_AUDITOR_UID/);
+assert.match(source,/auditorUid: recipientUid/);
+const directoryStart=source.indexOf('function nra2_getAuditorRecipients_(');
+const directoryEnd=source.indexOf('function nra2_resolveWeeklyAuditUid_(',directoryStart);
+assert.ok(directoryStart>=0 && directoryEnd>directoryStart);
+const resolverStart=directoryEnd;
+const resolverEnd=source.indexOf('// ============================================================\\n// SUPPORT DATA',resolverStart);
+assert.ok(resolverEnd>resolverStart);
+const ctxUid={};vm.createContext(ctxUid);
+vm.runInContext(source.slice(resolverStart,resolverEnd),ctxUid);
+const known={'david@agriqa.es':{uid:'uid-david'}};
+assert.equal(ctxUid.nra2_resolveWeeklyAuditUid_('DAVID@agriqa.es',known),'uid-david');
+assert.equal(ctxUid.nra2_resolveWeeklyAuditUid_('uid-david',known),'uid-david');
+assert.equal(ctxUid.nra2_resolveWeeklyAuditUid_('unknown@example.org',known),'');
 console.log('notification-weekly-queue-idempotency-20: PASS');

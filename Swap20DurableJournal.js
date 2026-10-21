@@ -48,6 +48,7 @@ function Swap20Journal_appendLocked_(operationId,expectedSequence,stage,payload)
   COMMITTED:[],ROLLED_BACK:[],FAILED:[],CONFLICT:[]
  };
  var previous=history.length?history[history.length-1].stage:'';
+ if(previous==='COMMITTED'||previous==='ROLLED_BACK'||previous==='FAILED'||previous==='CONFLICT')throw Error('Swap journal terminal state');
  if(!Object.prototype.hasOwnProperty.call(transitions,previous)||transitions[previous].indexOf(stage)<0)throw Error('Illegal swap journal transition');
  var raw=JSON.stringify(payload);
  if(raw.length>40000)throw Error('Swap journal payload too large');

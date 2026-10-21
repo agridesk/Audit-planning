@@ -70,6 +70,7 @@ assert.equal(ctxUid.nra2_resolveWeeklyAuditUid_('uid-david',known),'uid-david');
 assert.equal(ctxUid.nra2_resolveWeeklyAuditUid_('unknown@example.org',known),'');
 // Manager digest must display full names; never publish auditor email as an identifier.
 assert.match(source,/assigned: nrm2_weeklyAuditorDisplay_\(/);
+assert.match(source,/upStatus === 'PENDING APPROVAL' \? nrm2_weeklyAuditorDisplay_\(/);
 assert.match(source,/preassigned: nrm2_weeklyAuditorDisplay_\(/);
 const managerNameBegin=source.indexOf('function nrm2_weeklyAuditorDisplay_(');
 const managerNameEnd=source.indexOf('function nrm2_buildMail_(',managerNameBegin);

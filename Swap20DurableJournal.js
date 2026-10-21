@@ -15,6 +15,7 @@ function Swap20Journal_sheet_(){
  return sh;
 }
 function Swap20Journal_initializeDev_(){
+ if(String(PropertiesService.getScriptProperties().getProperty('AMS_ENV')||'').toUpperCase()!=='DEV')throw Error('DEV environment marker required');
  var id=String(PropertiesService.getScriptProperties().getProperty('V5_SSOT_SPREADSHEET_ID')||'').trim();
  if(!id)throw Error('Canonical SSOT spreadsheet unavailable');
  var ss=SpreadsheetApp.openById(id),sh=ss.getSheetByName(SWAP20_JOURNAL_TAB_);

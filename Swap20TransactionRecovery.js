@@ -14,6 +14,7 @@ function Swap20_recoverLocked_(operationId){
  var last=history[history.length-1].stage;
  if(last==='PREPARED'||last==='WRITING')return {success:true,stage:last,readOnly:true,requiresReview:true};
  if(last==='COMMITTED'||last==='ROLLED_BACK')return {success:true,stage:last,idempotent:true};
+ if(last==='CONFLICT')throw Error('Manual review required for conflicted recovery');
  if(last==='FAILED')throw Error('Manual review required for failed recovery');
  var prepared=history[0];
  if(prepared.stage!=='PREPARED'||!prepared.payload||!prepared.payload.canonical||!prepared.payload.availability)throw Error('Swap before-images unavailable');

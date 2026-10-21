@@ -15,6 +15,27 @@ assert.throws(()=>ctx.NB_renderExternalOperationalDigest_('ecas@example.org',[{}
 ctx.NB_externalValidateDigestItems_=()=>({validItems:[],invalid:[]});
 assert.throws(()=>ctx.NB_renderExternalOperationalDigest_('ecas@example.org',[]),/no valid rows/);
 
+
+// ECAS-specific cancellation/change explanation must never leak an internal comment.
+const reasonStart=external.indexOf('function NB_externalReasonText_(');
+const reasonEnd=external.indexOf('/* ============================================================\\n * Input validation',reasonStart);
+assert.ok(reasonStart>=0&&reasonEnd>reasonStart,'External explanation helper found');
+const explainCtx={NB_clean_:x=>String(x??'').trim()};
+vm.createContext(explainCtx);
+vm.runInContext(external.slice(reasonStart,reasonEnd),explainCtx);
+assert.equal(explainCtx.NB_externalReasonText_({eventCode:'ECAS_AUDIT_CANCELLED_DIGEST',comment:'INTERNAL ONLY',ecasComment:'Audit vervalt'}),'Audit vervalt');
+assert.equal(explainCtx.NB_externalReasonText_({eventCode:'ECAS_AUDIT_CANCELLED_DIGEST',comment:'INTERNAL ONLY'}),'','No internal fallback for external cancellation');
+assert.equal(explainCtx.NB_externalReasonText_({eventCode:'ECAS_AUDIT_CHANGED_DIGEST',comment:'INTERNAL ONLY',ecasComment:'Datumvolgorde aangepast'}),'Datumvolgorde aangepast');
+assert.equal(explainCtx.NB_externalReasonText_({eventCode:'CUSTOMER_AUDIT_CANCELLED_DIGEST',comment:'Customer reason'}),'Customer reason','Non-ECAS legacy behavior preserved');
+const validationStart=external.indexOf('function NB_externalMissingRequiredFields_(');
+const validationEnd=external.indexOf('function NB_externalSkippedRowsHtml_(',validationStart);
+assert.ok(validationStart>=0&&validationEnd>validationStart);
+const validationCtx={NB_clean_:x=>String(x??'').trim(),NB_mpsNumber_:x=>x.mpsNumber,NB_externalScheduleRows_:()=>[{}]};
+vm.createContext(validationCtx);
+vm.runInContext(external.slice(validationStart,validationEnd),validationCtx);
+const validChange={eventCode:'ECAS_AUDIT_CHANGED_DIGEST',company:'Teler',mpsNumber:'123',auditorName:'Auditor',scopes:['ABC'],plannedHours:2};
+assert.ok(validationCtx.NB_externalMissingRequiredFields_(validChange).includes('ecasComment'));
+assert.ok(!validationCtx.NB_externalMissingRequiredFields_({...validChange,ecasComment:'Datum gewijzigd'}).includes('ecasComment'));
 const sender=readFileSync(new URL('../../NotificationSender.js',import.meta.url),'utf8');
 const sendBegin=sender.indexOf('function ns_sendDueReserved_(');
 const sendEnd=sender.indexOf('function ns_resetStaleReserved_(',sendBegin);

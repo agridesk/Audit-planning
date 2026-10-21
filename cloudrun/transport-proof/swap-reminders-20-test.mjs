@@ -7,11 +7,11 @@ const ctx={Date,Error,String,Array,JSON,isFinite,Swap20Store_read_:()=>structure
 runInNewContext(readFileSync(new URL('Swap20ReminderScheduler.js',root),'utf8'),ctx);
 assert.equal(ctx.Swap20_dueActions_(state,'2026-10-21T09:59:00.000Z').length,0);
 const day1=ctx.Swap20_dueActions_(state,'2026-10-21T10:00:00.000Z');
-assert.deepEqual(day1.map(x=>x.kind),['AUDITOR_REMINDER','MANAGER_ALERT']);
+assert.deepEqual(Array.from(day1,x=>x.kind),['AUDITOR_REMINDER','MANAGER_ALERT']);
 assert.deepEqual(Array.from(day1[0].missingAuditorUids),['uid-b']);
 assert.throws(()=>ctx.Swap20_markDelivery_(state.operationId,'AUDITOR_REMINDER',{accepted:false}),/receipt/);
 assert.equal(ctx.Swap20_markDelivery_(state.operationId,'AUDITOR_REMINDER',{accepted:true,providerId:'delivery-1'}).success,true);
 assert.equal(ctx.Swap20_markDelivery_(state.operationId,'AUDITOR_REMINDER',{accepted:true,providerId:'delivery-1'}).idempotent,true);
-assert.deepEqual(ctx.Swap20_dueActions_(state,'2026-10-22T10:00:00.000Z').map(x=>x.kind),['MANAGER_ALERT','MANAGER_ESCALATION']);
+assert.deepEqual(Array.from(ctx.Swap20_dueActions_(state,'2026-10-22T10:00:00.000Z'),x=>x.kind),['MANAGER_ALERT','MANAGER_ESCALATION']);
 assert.equal(ctx.Swap20_markDelivery_(state.operationId,'MANAGER_ESCALATION',{accepted:true,providerId:'delivery-2'}).status,'ESCALATED');
 console.log('Swap reminder and escalation tests passed');

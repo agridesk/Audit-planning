@@ -33,3 +33,33 @@ function RUN_DIAG_ECAS_RECEIPTS_DEV_20261021() {
     note:'Queue delivery rows alone do not verify the previously communicated schedule. ECAS Change/Cancel remains disabled.'};
   Logger.log(JSON.stringify(result));return result;
 }
+
+// Strict verifier for an authoritative, separately persisted ECAS snapshot receipt.
+// Historical queue rows and caller-provided booleans do not qualify.
+// A receipt record must be written by the future scheduling/notification
+// integration owner after confirmed delivery, with matching schedule digest.
+function ECAS20_VerifyPersistedCommunication_(auditId,communicationId,before) {
+  if(!auditId||!communicationId||!before||!before.planningDigest)return false;
+  var props=PropertiesService.getScriptProperties();
+  var id=String(props.getProperty('V5_SSOT_SPREADSHEET_ID')||'').trim();
+  if(!id)return false;
+  var ss=SpreadsheetApp.openById(id);
+  var sheet=ss.getSheetByName('AMS_ECAS_Communication_Receipts');
+  if(!sheet)return false;
+  var values=sheet.getDataRange().getValues();
+  if(values.length<2)return false;
+  var headings=values[0].map(function(v){return String(v||'').trim();});
+  var expected=['Audit_ID','Communication_ID','Planning_Digest','Delivery_Status','Delivered_At'];
+  var idx=expected.map(function(h){return headings.indexOf(h);});
+  if(idx.some(function(n){return n<0;}))return false;
+  for(var i=1;i<values.length;i++){
+    var row=values[i];
+    if(String(row[idx[0]]||'')!==String(auditId))continue;
+    if(String(row[idx[1]]||'')!==String(communicationId))continue;
+    if(String(row[idx[2]]||'')!==String(before.planningDigest))continue;
+    if(String(row[idx[3]]||'').toUpperCase()!=='SENT')continue;
+    if(!row[idx[4]])continue;
+    return true;
+  }
+  return false;
+}

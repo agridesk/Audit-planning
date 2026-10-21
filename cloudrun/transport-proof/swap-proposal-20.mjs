@@ -206,3 +206,20 @@ export function deriveSwapAcknowledgementPolicy(exchange,original,auditorUids){
  const notification=[...new Set(change.notificationOnlyAuditIds.map(id=>uids[id]).filter(Boolean))];
  return {requiredAuditorUids:required,notificationOnlyAuditorUids:notification,requiresProposal:required.length>0,change};
 }
+
+/** Pure, idempotent notification intents; dispatch and persistence remain with GAS owners. */
+export function planSwapFollowUpNotifications(proposal,now){
+ if(!proposal||!Array.isArray(proposal.requiredAuditorUids)||!Array.isArray(proposal.acknowledgedAuditorUids))throw Error('Valid swap proposal required');
+ if(!Number.isFinite(Date.parse(now)))throw Error('Valid follow-up timestamp required');
+ const due=swapProposalNeedsAction(proposal,now),operationId=String(proposal.operationId||'');
+ if(!operationId)throw Error('Swap operation ID required');
+ const notifications=[];
+ if(due.reminderDue){
+  for(const auditorUid of due.unacknowledgedAuditorUids)
+   notifications.push({id:operationId+':REMINDER_24H:'+auditorUid,operationId,type:'AUDITOR_REMINDER_24H',auditorUid});
+  notifications.push({id:operationId+':MANAGER_ALERT_24H',operationId,type:'MANAGER_ALERT_24H'});
+ }
+ if(due.escalationDue)
+  notifications.push({id:operationId+':MANAGER_ESCALATION_48H',operationId,type:'MANAGER_ESCALATION_48H'});
+ return {notifications,readOnly:true,noAutomaticExpiry:true};
+}

@@ -248,3 +248,21 @@ export function buildMappedSwapSlotExchange(input){
  detect(out.blocksA,auditA);detect(out.blocksB,auditB);
  return out;
 }
+
+/** Fail-closed explicit mapping: a destination slot cannot be allocated twice. */
+export function validateSwapBlockMapping(input){
+ const {blocksA,blocksB,mappingA,mappingB}=input||{};
+ const check=(sources,targets,map,label)=>{
+  if(!Array.isArray(sources)||!sources.length||!Array.isArray(targets)||!targets.length||!Array.isArray(map)||map.length!==sources.length)throw Error('Incomplete '+label+' mapping');
+  const seen=new Set();
+  for(const index of map){
+   if(!Number.isInteger(index)||index<0||index>=targets.length)throw Error('Invalid '+label+' mapping index');
+   if(seen.has(index))throw Error('Duplicate '+label+' target slot');
+   seen.add(index);
+  }
+  return seen.size;
+ };
+ const countA=check(blocksA,blocksB,mappingA,'A'),countB=check(blocksB,blocksA,mappingB,'B');
+ if(countA!==blocksB.length||countB!==blocksA.length)throw Error('Unmatched target blocks require explicit rescheduling, not a swap');
+ return {valid:true,complete:true,unique:true};
+}

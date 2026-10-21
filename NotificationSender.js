@@ -575,7 +575,7 @@ function ns_reservePending_(nqSheet, values) {
   function rollingEligible20(cfg) {
     var group=String(cfg.digestGroup||'').trim().toUpperCase();
     return cfg.consolidate!==false && Number(cfg.bufferMinutes)>0 &&
-      (group==='AUDITOR_OPERATIONAL'||group==='MANAGER_APPROVAL'||group==='RICH_OPERATIONAL'||group==='MANAGER_APPROVAL_OPERATIONAL');
+      (group==='AUDITOR_OPERATIONAL'||group==='MANAGER_APPROVAL'||group==='RICH_OPERATIONAL'||group==='MANAGER_APPROVAL_OPERATIONAL'||ns_isRollingExternalDigestGroup_(group));
   }
   for (var w=1;w<values.length;w++) {
     if(String(values[w][1]||'').trim()!=='RESERVED')continue;
@@ -630,7 +630,7 @@ function ns_reservePending_(nqSheet, values) {
         windows.push(matched);rollingWindows20[bucketKey]=windows;
       }
       reservation={windowKey:matched.windowKey,groupKey:matched.groupKey,
-        windowStartAtMs:matched.start,windowDueAtMs:matched.due,rollingExternal:false};
+        windowStartAtMs:matched.start,windowDueAtMs:matched.due,rollingExternal:ns_isRollingExternalDigestGroup_(String(cfg.digestGroup||'').trim().toUpperCase())};
     }
 
     var newReserved = {
@@ -678,8 +678,8 @@ function ns_computeReservation_(rowNo, recipient, createdAtMs, cfg) {
 
   if (rollingExternal) {
     return {
-      windowKey: 'ROLLING_' + digestGroupKey,
-      groupKey: recipient + '|' + digestGroup + '|ROLLING',
+      windowKey: 'ROLLING_' + digestGroupKey + '_' + String(createdAtMs) + '_' + String(rowNo),
+      groupKey: recipient.trim().toLowerCase() + '|' + digestGroupKey + '|' + String(createdAtMs) + '|' + String(rowNo),
       windowStartAtMs: createdAtMs,
       windowDueAtMs: createdAtMs + bufferMs,
       rollingExternal: true

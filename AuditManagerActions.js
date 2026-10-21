@@ -112,6 +112,15 @@ function managerV5Action(auditId, action, options) {
 
     payload.actorRole = 'MANAGER';
     payload.role = 'MANAGER';
+    if (actionKey === 'ACCEPT') {
+      // On-behalf acceptance is attributed to the acting Manager, not the assigned Auditor.
+      // Never substitute the Auditor identity or an unlabelled system identity.
+      payload.actorEmail = String(options.actorEmail || options.managerEmail || '').trim().toLowerCase();
+      if (!payload.actorEmail || payload.actorEmail.indexOf('@') < 1) {
+        return done_({success:false,code:'ACCEPT_MANAGER_IDENTITY_REQUIRED',message:'Authenticated Manager identity required for on-behalf acceptance'});
+      }
+      payload.acceptedOnBehalf = true;
+    }
 
     var result = Status_applyAction('MANAGER', actionKey, auditId, payload);
 

@@ -40,6 +40,24 @@ function NB_renderExternalOperationalSingle_(n) {
 
 function NB_renderExternalOperationalDigest_(recipientEmail, normalizedItems) {
   normalizedItems = normalizedItems || [];
+  // One persisted SWAP queue item contains exactly two audit updates.
+  // Expand only in the renderer, keeping a single atomic ECAS email.
+  var expanded=[];
+  for(var sw=0;sw<normalizedItems.length;sw++){
+    var entry=normalizedItems[sw]||{};
+    if(!Array.isArray(entry.swapItems)||!entry.swapItems.length){expanded.push(entry);continue;}
+    if(entry.swapItems.length!==2)throw Error('SWAP digest requires exactly two audits');
+    if(String(entry.eventType||entry.eventCode)!=='ECAS_AUDIT_CHANGED_DIGEST')throw Error('SWAP digest event mismatch');
+    if(!String(entry.auditId||'').startsWith('SWAP_'))throw Error('SWAP digest identity missing');
+    if(String(entry.swapItems[0].auditId||'')===String(entry.swapItems[1].auditId||''))throw Error('SWAP digest audit identity collision');
+    for(var si=0;si<entry.swapItems.length;si++){
+      var child=entry.swapItems[si]||{};
+      if(String(child.eventType||child.type)!=='ECAS_AUDIT_CHANGED_DIGEST')throw Error('SWAP child event invalid');
+      if(Array.isArray(child.swapItems)&&child.swapItems.length)throw Error('Nested SWAP digest prohibited');
+      expanded.push(NB_normalizePayload_('ECAS_AUDIT_CHANGED_DIGEST',child,NB_getEventConfig_('ECAS_AUDIT_CHANGED_DIGEST')));
+    }
+  }
+  normalizedItems=expanded;
   var validation = NB_externalValidateDigestItems_(normalizedItems);
   var validItems = validation.validItems;
   // A digest is atomic. Sending only valid rows would incorrectly mark skipped

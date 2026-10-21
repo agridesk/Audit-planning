@@ -19,6 +19,7 @@ assert.equal(mock.Swap20Store_transition_(proposal.operationId,proposal.status,f
 assert.throws(()=>mock.Swap20Store_transition_(proposal.operationId,'CONFIRMED',first),/status conflict/);
 assert.throws(()=>mock.Swap20Store_transition_(proposal.operationId,proposal.status,{...first,status:'CONFIRMED'}),/Acknowledgement incomplete/);
 assert.throws(()=>mock.Swap20Store_transition_(proposal.operationId,proposal.status,{...first,originalRevisions:{A:'bad',B:'2'}}),/Revisions changed/);
+assert.throws(()=>mock.Swap20Store_transition_(proposal.operationId,proposal.status,{...first},proposal),/concurrent modification/);
 const complete={...first,acknowledgedAuditorUids:['uid-one','uid-two'],status:'CONFIRMED'};
 assert.equal(mock.Swap20Store_transition_(proposal.operationId,proposal.status,complete).status,'CONFIRMED');
 assert.throws(()=>mock.Swap20Store_transition_(proposal.operationId,'CONFIRMED',{...complete,status:'APPLIED'}),/Canonical commit proof required/);

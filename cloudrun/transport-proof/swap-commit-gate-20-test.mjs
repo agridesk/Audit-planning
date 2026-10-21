@@ -5,7 +5,7 @@ const root=new URL('../../',import.meta.url);
 const proposal={operationId:'swap-commit-1',status:'CONFIRMED',auditA:'A',auditB:'B',originalRevisions:{A:'1',B:'2'},blocksA:[],blocksB:[]};
 let preflight=0,history=[],enabled=false;
 const props={getProperty:key=>key==='AMS_ENV'?'DEV':key==='AMS_SWAP20_COMMIT_ENABLED'?(enabled?'true':'false'):''};
-const ctx={Error,String,PropertiesService:{getScriptProperties:()=>({getProperty:()=> 'DEV'})},Date,JSON,
+const ctx={Error,String,Date,JSON,
  PropertiesService:{getScriptProperties:()=>props},
  LockService:{getScriptLock:()=>({tryLock:()=>true,releaseLock:()=>{}})},
  V5_AUTH:{validateTrustedTokenByRole:token=>token==='valid'?{ok:true,email:'manager@example.com'}:{ok:false}},
@@ -22,10 +22,10 @@ history=[{stage:'PREPARED'}];
 assert.throws(()=>ctx.Swap20ManagerCommit({token:'valid',operationId:proposal.operationId}),/recovery required/);
 proposal.status='WITHDRAWN';
 history=[];
-assert.equal(ctx.Swap20ManagerCommit({token:'valid',operationId:proposal.operationId}).code,'SWAP_ATOMIC_WRITE_DISABLED');
+assert.throws(()=>ctx.Swap20ManagerCommit({token:'valid',operationId:proposal.operationId}),/Confirmed swap proposal required/);
 assert.equal(preflight,0);
 const live={...proposal,status:'CONFIRMED'},records=[];let stored=JSON.stringify(live),writes=0,locked=false;
-ctx.PropertiesService={getScriptProperties:()=>({getProperty:key=>key==='AMS_ENV'?'DEV':key==='AMS_SWAP20_COMMIT_ENABLED'?'true':stored,setProperty:(key,value)=>{stored=value;}})};
+ctx.PropertiesService={getScriptProperties:()=>({getProperty:key=>key==='AMS_ENV'?'DEV':key==='AMS_SWAP20_COMMIT_ENABLED'?'true':key==='AMS_SWAP20_PROPOSAL_swap-commit-1'?stored:'',setProperty:(key,value)=>{assert.equal(key,'AMS_SWAP20_PROPOSAL_swap-commit-1');stored=value;}})};
 ctx.LockService={getScriptLock:()=>({tryLock:()=>{if(locked)return false;locked=true;return true;},releaseLock:()=>{locked=false;}})};
 ctx.Swap20Store_read_=()=>JSON.parse(stored);
 ctx.Swap20Store_key_=()=> 'AMS_SWAP20_PROPOSAL_swap-commit-1';

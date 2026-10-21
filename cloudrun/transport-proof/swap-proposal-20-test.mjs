@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {createSwapProposal,applySwapProposalEvent,swapProposalNeedsAction,previewSwapFinalState,validateSwapProposalSource,evaluateSwapEligibility,prepareSwapCommit,buildSwapSlotExchange,evaluateSwapFinalState,validateSwapBlock,planSwapJournal,advanceSwapJournal,classifySwapChange,deriveSwapAcknowledgementPolicy,planSwapFollowUpNotifications,buildMappedSwapSlotExchange,validateSwapBlockMapping,verifySwapCommitInvariants} from './swap-proposal-20.mjs';
+import {createSwapProposal,applySwapProposalEvent,swapProposalNeedsAction,previewSwapFinalState,validateSwapProposalSource,evaluateSwapEligibility,prepareSwapCommit,buildSwapSlotExchange,evaluateSwapFinalState,validateSwapBlock,planSwapJournal,advanceSwapJournal,classifySwapChange,deriveSwapAcknowledgementPolicy,planSwapFollowUpNotifications,buildMappedSwapSlotExchange,validateSwapBlockMapping,verifySwapCommitInvariants,assessSwapJournalRecovery} from './swap-proposal-20.mjs';
 const at='2026-10-21T10:00:00Z',later='2026-10-23T10:00:00Z';
 const p=createSwapProposal({operationId:'s1',auditA:'A',auditB:'B',requiredAuditorUids:['u1','u2'],createdAt:at,originalRevisions:{A:1,B:2},internalReason:'logistics',ecasComment:'Change agreed'});
 assert.equal(p.status,'AWAITING_ACKNOWLEDGEMENT');
@@ -136,4 +136,10 @@ assert.throws(()=>verifySwapCommitInvariants({...swapInvariantFixture,acknowledg
 assert.throws(()=>verifySwapCommitInvariants({...swapInvariantFixture,proposedBlocksA:[{date:'2026-11-02',start:'10:00',end:'13:00'}]}));
 assert.throws(()=>verifySwapCommitInvariants({...swapInvariantFixture,current:{A:{revision:99,status:'Accepted'},B:{revision:2,status:'Accepted'}}}));
 
+const recoveryBase={operationId:'op-1',auditIds:['A','B']};
+assert.equal(assessSwapJournalRecovery({...recoveryBase,phase:'PREPARED'}).action,'REVALIDATE_UNDER_LOCK');
+assert.equal(assessSwapJournalRecovery({...recoveryBase,phase:'WRITING'}).action,'RECOVER_FROM_DURABLE_BEFORE_IMAGES');
+assert.equal(assessSwapJournalRecovery({...recoveryBase,phase:'FAILED'}).safeToRetry,false);
+assert.equal(assessSwapJournalRecovery({...recoveryBase,phase:'COMMITTED'}).action,'NOOP');
+assert.throws(()=>assessSwapJournalRecovery({...recoveryBase,phase:'UNKNOWN'}));
 console.log('Swap proposal tests passed');

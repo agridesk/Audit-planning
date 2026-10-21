@@ -23,6 +23,7 @@ function Swap20_executeLocked_(proposal){
   Swap20Journal_appendLocked_(proposal.operationId,1,'WRITING',{auditA:proposal.auditA,auditB:proposal.auditB});
   Swap20_writeAvailabilityPlanLocked_(plan,availability);
   Swap20_writeCanonicalPairLocked_(canonical,proposal);
+  Swap20_verifyAppliedPairLocked_(canonical,proposal,plan);
   Swap20Journal_appendLocked_(proposal.operationId,2,'COMMITTED',{auditA:proposal.auditA,auditB:proposal.auditB});
   return {success:true,operationId:proposal.operationId,committed:true};
  }catch(err){

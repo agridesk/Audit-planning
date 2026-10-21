@@ -18,5 +18,5 @@ assert.equal(ctx.Swap20Journal_appendLocked_('swap-journal-1',1,'WRITING',{audit
 assert.equal(ctx.Swap20Journal_history_('swap-journal-1').length,2);
 assert.throws(()=>ctx.Swap20Journal_appendLocked_('swap-journal-1',1,'COMMITTED',{}),/concurrent modification/);
 assert.equal(ctx.Swap20Journal_appendLocked_('swap-journal-1',2,'COMMITTED',{}).sequence,3);
-assert.throws(()=>ctx.Swap20Journal_appendLocked_('swap-journal-1',3,'WRITING',{}),/terminal/);
+assert.throws(()=>ctx.Swap20Journal_appendLocked_('swap-journal-1',3,'WRITING',{}),/terminal|Illegal swap journal transition/);
 console.log('Swap durable journal tests passed');

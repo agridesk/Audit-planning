@@ -86,3 +86,10 @@ function PlanningWorkspaceRpc_swapPreview(input){
   return {success:true,eligible:pair.eligible,auditA:pair.auditA,auditB:pair.auditB,readOnly:true,canCommit:false,requiresAcknowledgement:true};
  });
 }
+
+/** Read-only authenticated proposal lookup for manager workspace. */
+function PlanningWorkspaceRpc_swapGetProposal(input){
+ return PWR_envelope_('swapGetProposal',function(){
+  return Swap20ManagerGetProposal(input||{});
+ });
+}

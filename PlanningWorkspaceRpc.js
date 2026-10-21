@@ -82,7 +82,7 @@ function PlanningWorkspaceRpc_contract(){return{build:PLANNING_WORKSPACE_RPC_BUI
 function PlanningWorkspaceRpc_swapPreview(input){
  return PWR_envelope_('swapPreview',function(){
   input=input||{};
-  var pair=Swap20_readCanonicalPair({auditA:PWR_clean_(input.auditA),auditB:PWR_clean_(input.auditB)});
+  var pair=Swap20ManagerPreview({auditA:PWR_clean_(input.auditA),auditB:PWR_clean_(input.auditB),trustedToken:input.trustedToken||input.token,deviceFingerprint:input.deviceFingerprint||input.deviceId});
   return {success:true,eligible:pair.eligible,auditA:pair.auditA,auditB:pair.auditB,readOnly:true,canCommit:false,requiresAcknowledgement:true};
  });
 }

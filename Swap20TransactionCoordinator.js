@@ -5,6 +5,7 @@
 function Swap20_executeLocked_(proposal){
  if(String(PropertiesService.getScriptProperties().getProperty('AMS_ENV')||'').toUpperCase()!=='DEV')throw Error('Swap writes restricted to DEV');
  if(!proposal||proposal.status!=='CONFIRMED')throw Error('Confirmed proposal required');
+ if(proposal.dateChanged===true&&(!Array.isArray(proposal.requiredAuditorUids)||!proposal.requiredAuditorUids.length||!Array.isArray(proposal.acknowledgedAuditorUids)||proposal.requiredAuditorUids.some(function(uid){return proposal.acknowledgedAuditorUids.indexOf(uid)<0;})))throw Error('Swap auditor acknowledgements incomplete');
  if(!proposal.operationId||!proposal.auditA||!proposal.auditB||proposal.auditA===proposal.auditB)throw Error('Invalid swap operation identity');
  var persisted=Swap20Store_read_(proposal.operationId);
  if(!persisted||persisted.status!=='CONFIRMED'||JSON.stringify(persisted)!==JSON.stringify(proposal))throw Error('Proposal changed before commit');

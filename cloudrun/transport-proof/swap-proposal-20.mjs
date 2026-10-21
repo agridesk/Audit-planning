@@ -197,3 +197,12 @@ export function classifySwapChange(exchange,original){
  }
  return {byAuditId,requiredAcknowledgementAuditIds:ids.filter(id=>byAuditId[id].requiresAcknowledgement),notificationOnlyAuditIds:ids.filter(id=>byAuditId[id].notificationOnly)};
 }
+
+export function deriveSwapAcknowledgementPolicy(exchange,original,auditorUids){
+ const change=classifySwapChange(exchange,original);
+ const ids=[exchange.auditA,exchange.auditB],uids=auditorUids||{};
+ const required=[...new Set(change.requiredAcknowledgementAuditIds.map(id=>uids[id]))];
+ if(required.some(uid=>!uid||typeof uid!=='string'))throw Error('Auditor UUID required for date-changing audit');
+ const notification=[...new Set(change.notificationOnlyAuditIds.map(id=>uids[id]).filter(Boolean))];
+ return {requiredAuditorUids:required,notificationOnlyAuditorUids:notification,requiresProposal:required.length>0,change};
+}

@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
+const root=new URL('../../',import.meta.url);
+let state={operationId:'swap-reminder-1',status:'AWAITING_ACKNOWLEDGEMENT',createdAt:'2026-10-20T10:00:00.000Z',requiredAuditorUids:['uid-a','uid-b'],acknowledgedAuditorUids:['uid-a'],reminderSentAt:null,managerAlertSentAt:null,escalatedAt:null};
+const ctx={Date,Error,String,Array,JSON,isFinite,Swap20Store_read_:()=>structuredClone(state),Swap20Store_transition_:(id,status,next,previous)=>{assert.equal(id,state.operationId);assert.equal(status,state.status);assert.deepEqual(previous,state);state=structuredClone(next);return {success:true,status:state.status};}};
+runInNewContext(readFileSync(new URL('Swap20ReminderScheduler.js',root),'utf8'),ctx);
+assert.equal(ctx.Swap20_dueActions_(state,'2026-10-21T09:59:00.000Z').length,0);
+const day1=ctx.Swap20_dueActions_(state,'2026-10-21T10:00:00.000Z');
+assert.deepEqual(day1.map(x=>x.kind),['AUDITOR_REMINDER','MANAGER_ALERT']);
+assert.deepEqual(Array.from(day1[0].missingAuditorUids),['uid-b']);
+assert.throws(()=>ctx.Swap20_markDelivery_(state.operationId,'AUDITOR_REMINDER',{accepted:false}),/receipt/);
+assert.equal(ctx.Swap20_markDelivery_(state.operationId,'AUDITOR_REMINDER',{accepted:true,providerId:'delivery-1'}).success,true);
+assert.equal(ctx.Swap20_markDelivery_(state.operationId,'AUDITOR_REMINDER',{accepted:true,providerId:'delivery-1'}).idempotent,true);
+assert.deepEqual(ctx.Swap20_dueActions_(state,'2026-10-22T10:00:00.000Z').map(x=>x.kind),['MANAGER_ALERT','MANAGER_ESCALATION']);
+assert.equal(ctx.Swap20_markDelivery_(state.operationId,'MANAGER_ESCALATION',{accepted:true,providerId:'delivery-2'}).status,'ESCALATED');
+console.log('Swap reminder and escalation tests passed');

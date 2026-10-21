@@ -24,7 +24,7 @@ export async function executeSwapAtomic(input,adapter){
   const valid=await adapter.validateFinalState({auditA,auditB,blocksA,blocksB,current});
   if(valid?.ok!==true)throw Error('Final state rejected');
   const before=await adapter.captureBeforeImages([auditA,auditB]);
-  if(!before?.canonical||!before?.reservations)throw Error('Missing canonical before-images');
+  if(!before?.canonical||!before?.reservations||!before.canonical[auditA]||!before.canonical[auditB]||!Array.isArray(before.reservations[auditA])||!Array.isArray(before.reservations[auditB]))throw Error('Incomplete canonical before-images');
   const journal={operationId,auditIds:[auditA,auditB],expectedRevisions,phase:'PREPARED',before,createdAt:new Date().toISOString()};
   await adapter.persistJournal(journal);
   // Journal must reach WRITING before the first mutating operation.

@@ -9,6 +9,8 @@ function Swap20ManagerCreateProposal(input){
  var a=String(input.auditA||'').trim(),b=String(input.auditB||'').trim();
  var pair=Swap20_readCanonicalPair({auditA:a,auditB:b});
  if(!pair.eligible)throw Error('Swap pair not eligible');
+ var schedule=Swap20_scheduleExchange_(pair);
+ Swap20CanonicalCommitGuard({auditA:a,auditB:b,expectedRevisions:(function(){var v={};v[a]=pair.auditA.revision;v[b]=pair.auditB.revision;return v;})(),blocksA:schedule.blocksA,blocksB:schedule.blocksB});
  var uids=input.requiredAuditorUids;
  if(!Array.isArray(uids)||!uids.length||uids.some(function(x){return !/^[A-Za-z0-9_-]{8,128}$/.test(String(x||''));})||new Set(uids).size!==uids.length)throw Error('Valid auditor UUIDs required');
  if(typeof Swap20_resolveAuditorUidForAudit_!=='function')throw Error('Canonical auditor UID resolver unavailable');
@@ -18,7 +20,7 @@ function Swap20ManagerCreateProposal(input){
  var id=String(input.operationId||'').trim();
  var reason=String(input.internalReason||'').trim(),comment=String(input.ecasComment||'').trim();
  if(!reason||!comment)throw Error('Internal reason and ECAS explanation required');
- var proposal={operationId:id,auditA:a,auditB:b,requiredAuditorUids:canonicalUids,acknowledgedAuditorUids:[],createdAt:new Date().toISOString(),status:'AWAITING_ACKNOWLEDGEMENT',reminderSentAt:null,escalatedAt:null,originalRevisions:{},internalReason:reason,ecasComment:comment};
+ var proposal={operationId:id,auditA:a,auditB:b,requiredAuditorUids:canonicalUids,acknowledgedAuditorUids:[],createdAt:new Date().toISOString(),status:'AWAITING_ACKNOWLEDGEMENT',reminderSentAt:null,escalatedAt:null,originalRevisions:{},internalReason:reason,ecasComment:comment,blocksA:schedule.blocksA,blocksB:schedule.blocksB,dateChanged:schedule.dateChanged};
  proposal.originalRevisions[a]=pair.auditA.revision;
  proposal.originalRevisions[b]=pair.auditB.revision;
  return Swap20Store_create_(proposal);

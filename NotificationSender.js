@@ -646,8 +646,14 @@ function ns_reservePending_(nqSheet, values) {
       reservedAt: ns_isoCompact_(new Date())
     };
 
-    nqSheet.getRange(r + 1, 13).setValue(JSON.stringify(newReserved));
-    nqSheet.getRange(r + 1, 2).setValue('RESERVED');
+    var encoded = JSON.stringify(newReserved);
+    if (ns_isWeeklyPreRenderedEnvelope20_(values[r][2],payload) && encoded.length > 49000) {
+      // Keep original payload; sender reconstructs independent weekly reservation.
+      nqSheet.getRange(r + 1, 2).setValue('RESERVED');
+    } else {
+      nqSheet.getRange(r + 1, 13).setValue(encoded);
+      nqSheet.getRange(r + 1, 2).setValue('RESERVED');
+    }
     touched++;
   }
 

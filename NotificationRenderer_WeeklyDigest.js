@@ -49,7 +49,8 @@ var NRM2_SHEET_AUDITORS = 'Auditors';
 var NRM2_SHEET_SCOPE_CONFIG = 'Config_Scopes';
 var NRM2_SHEET_COMPANIES = 'Companies';
 
-function runManagerWeeklyAlert() {
+function runManagerWeeklyAlert(options) {
+  options=options||{};
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(NRM2_SHEET_AUDIT_PLANNING);
   if (!sh) return { ok:false, error:'Audit planning not found' };
@@ -174,6 +175,7 @@ function runManagerWeeklyAlert() {
   var subject = 'Weekly manager audit overview - ' + Utilities.formatDate(today, nrm2_getTz_(), 'dd-MM-yyyy');
   var body = 'See HTML version';
   var html = nrm2_buildMail_(blocks, thresholds, scopeConfig.styleMap);
+  if(options.previewOnly===true) return {ok:true,previewOnly:true,queued:false,subject:subject,htmlBody:html,counts:{total:total},recipientCount:recipients.length};
   var results = [];
 
   for (var x = 0; x < recipients.length; x++) {
@@ -352,6 +354,23 @@ function nrm2_weeklyAuditorDisplay_(value,names) {
   if(name)return name;
   if(key.indexOf('@')>=0)return 'Unresolved auditor';
   return key;
+}
+
+function RUN_PREVIEW_WEEKLY_MANAGER_DEV_20261021() {
+  var props=PropertiesService.getScriptProperties();
+  var env=String(props.getProperty('AMS_ENV')||props.getProperty('ENVIRONMENT')||'').toUpperCase();
+  if(env==='PROD'||env==='PRODUCTION')throw new Error('DEV_ONLY_WEEKLY_PREVIEW');
+  var data=runManagerWeeklyAlert({previewOnly:true});
+  if(!data||!data.ok||!data.previewOnly)throw new Error('WEEKLY_PREVIEW_FAILED');
+  var target=String(props.getProperty('WEEKLY_PREVIEW_RECIPIENT')||'info@agridesk.com').trim();
+  if(target.toLowerCase()!=='info@agridesk.com')throw new Error('PREVIEW_RECIPIENT_NOT_WHITELISTED');
+  var delivery=typeof ns_resolveNotificationDelivery_==='function'?ns_resolveNotificationDelivery_(target):null;
+  if(!delivery||!delivery.send||String(delivery.recipient||'').toLowerCase()!==target.toLowerCase())throw new Error('DEV_TEST_TO_SELF_REQUIRED');
+  NS_sendEmailWithConfiguredIdentity_(target,'[DEV PREVIEW] '+data.subject,
+    'DEV-only independent preview; no Notification Queue rows created.',
+    {htmlBody:'<p><b>DEV PREVIEW - no regular weekly notification queued</b></p>'+data.htmlBody},
+    {source:'RUN_PREVIEW_WEEKLY_MANAGER_DEV_20261021',deliveryMode:delivery.mode});
+  return {ok:true,previewOnly:true,recipient:target,queued:false,counts:data.counts};
 }
 
 function nrm2_buildMail_(blocks, thresholds, scopeStyleMap) {

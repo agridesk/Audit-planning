@@ -23,6 +23,8 @@ function Swap20CanonicalCommitGuard(input) {
     for (var i = 0; i < source.length; i++) {
       var oldBlock = source[i], newBlock = target[i];
       if (!/^\d{4}-\d{2}-\d{2}$/.test(String(newBlock.date || ''))) throw new Error('Invalid date');
+      var d=new Date(String(newBlock.date)+'T12:00:00Z');
+      if(isNaN(d.getTime())||d.toISOString().slice(0,10)!==String(newBlock.date))throw Error('Invalid calendar date');
       var before = mins(oldBlock.end) - mins(oldBlock.start);
       var after = mins(newBlock.end) - mins(newBlock.start);
       if (before <= 0 || before !== after) throw new Error('Duration mismatch');

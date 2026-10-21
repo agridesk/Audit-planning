@@ -40,4 +40,6 @@ assert.equal(separateEvent.status,'PENDING');
 assert.equal(rows.length,3,'Only distinct weekly event/recipient pairs can be queued');
 assert.notEqual(rows[0][10],rows[1][10],'Distinct recipient must have distinct hash');
 assert.equal(locks,0);
+assert.ok(source.includes('plannedInfo.firstDate && plannedInfo.firstDate < today'), 'Auditor weekly overdue check must use real first planned date');
+assert.ok(!source.includes('plannedInfo.firstPlannedDate < today'), 'Invalid overdue property must not return');
 console.log('notification-weekly-queue-idempotency-20: PASS');

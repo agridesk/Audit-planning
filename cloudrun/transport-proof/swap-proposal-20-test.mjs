@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {createSwapProposal,applySwapProposalEvent,swapProposalNeedsAction,previewSwapFinalState} from './swap-proposal-20.mjs';
+import {createSwapProposal,applySwapProposalEvent,swapProposalNeedsAction,previewSwapFinalState,validateSwapProposalSource} from './swap-proposal-20.mjs';
 const at='2026-10-21T10:00:00Z',later='2026-10-23T10:00:00Z';
 const p=createSwapProposal({operationId:'s1',auditA:'A',auditB:'B',requiredAuditorUids:['u1','u2'],createdAt:at,originalRevisions:{A:1,B:2},internalReason:'logistics',ecasComment:'Change agreed'});
 assert.equal(p.status,'AWAITING_ACKNOWLEDGEMENT');
@@ -19,4 +19,7 @@ assert.equal(preview.requiresCanonicalValidation,true);
 assert.equal(preview.proposedBlocks.length,2);
 assert.equal(previewSwapFinalState({auditA:'A',auditB:'B',auditorA:'u1',auditorB:'u2',blocksA,blocksB,otherReservations:[{auditId:'C',auditorUid:'u1',date:'2026-11-01',start:'11:00',end:'14:00'}]}).canProceed,false);
 assert.throws(()=>previewSwapFinalState({auditA:'A',auditB:'A',auditorA:'u1',auditorB:'u2',blocksA,blocksB}));
+assert.equal(validateSwapProposalSource(p,{A:{revision:1,status:'Accepted'},B:{revision:2,status:'Accepted'}}).valid,true);
+assert.deepEqual(validateSwapProposalSource(p,{A:{revision:3,status:'Accepted'},B:{revision:2,status:'Accepted'}}).conflictingAuditIds,['A']);
+assert.deepEqual(validateSwapProposalSource(p,{A:{revision:1,status:'Completed'},B:{revision:2,status:'Accepted'}}).conflictingAuditIds,['A']);
 console.log('Swap proposal tests passed');

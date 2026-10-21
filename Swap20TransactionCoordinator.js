@@ -22,7 +22,7 @@ function Swap20_executeLocked_(proposal){
  });
  var plan=Swap20_availabilityPlan_(availability,proposal,owners);
  if(!plan||!Array.isArray(plan.values)||plan.sheetName!==availability.sheetName||plan.width!==availability.width)throw Error('Invalid paired reservation plan');
- if(plan.values.length>2000)throw Error('Availability plan exceeds safe row limit');
+ if(plan.values.length<availability.height||plan.values.length>2000)throw Error('Availability plan exceeds safe row limit');
  var before={canonical:canonical,availability:availability};
  if(JSON.stringify(before).length>35000)throw Error('Swap before-images exceed journal capacity');
  Swap20Journal_appendLocked_(proposal.operationId,0,'PREPARED',before);

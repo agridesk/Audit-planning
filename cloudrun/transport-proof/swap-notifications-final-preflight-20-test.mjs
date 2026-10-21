@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 const src=readFileSync(new URL('../../SwapNotificationsFinalPreflight.js',import.meta.url),'utf8');
-const props={AMS_ENV:'DEV',AMS_SWAP20_COMMIT_ENABLED:'false',ECAS20_CHANGE_CANCEL_ENABLED:'NO'};
+const props={V5_SSOT_SPREADSHEET_ID:'1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs',AMS_ENV:'DEV',AMS_SWAP20_COMMIT_ENABLED:'false',ECAS20_CHANGE_CANCEL_ENABLED:'NO'};
 const sheets={
  'Audit planning':[['Audit ID','Planning JSON','Date - Planned','Status','Assigned to','Auditor_UID'],['A','{}','2026-10-20','Accepted','a@example.test','UID']],
  'Auditor Availability':[['Date','Auditor_Email','Audit_ID_1'],['2026-10-20','a@example.test','A']],

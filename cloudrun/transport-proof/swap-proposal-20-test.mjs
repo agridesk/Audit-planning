@@ -43,6 +43,7 @@ import vm from 'node:vm';
 const gasContext={PlanningRevisionTokenService_getMany:({auditIds})=>({items:auditIds.map(auditId=>({auditId,revision:auditId==='A'?'r1':'r2',snapshot:{status:'Accepted',assignedTo:auditId==='A'?'u1':'u2',planningJson:JSON.stringify({blocks:auditId==='A'?blocksA:blocksB})}}))})};
 vm.createContext(gasContext);
 vm.runInContext(canonicalGas,gasContext);
+gasContext.PlanningRevisionTokenService_getMany=({auditIds})=>({items:auditIds.map(auditId=>({auditId,revision:auditId==='A'?'r1':'r2',snapshot:{status:'Accepted',assignedTo:auditId==='A'?'u1':'u2',planningJson:JSON.stringify({blocks:auditId==='A'?blocksA:blocksB})}}))});
 const canonicalPair=gasContext.Swap20_readCanonicalPair({auditA:'A',auditB:'B'});
 assert.equal(canonicalPair.eligible,true);
 assert.equal(canonicalPair.canCommit,false);

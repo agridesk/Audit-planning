@@ -1106,7 +1106,7 @@ function StatusNotificationBridge_MapEvent_(action, actor, beforeStatus, afterSt
   if (beforeStatus === STATUS.ACCEPTED && action === ACTION.COMPLETE && actor === ROLE.AUDITOR && afterStatus === STATUS.COMPLETED) return 'AUDIT_COMPLETED';
   if (action === ACTION.CANCEL && actor === ROLE.MANAGER && afterStatus === STATUS.PENDING_PLANNING) return 'AUDIT_CANCELLED_BY_MANAGER';
   if (action === ACTION.CANCEL && actor === ROLE.AUDITOR && afterStatus === STATUS.PENDING_PLANNING) return 'AUDIT_CANCELLED_BY_AUDITOR';
-  if (action === ACTION.DENY && actor === ROLE.MANAGER && afterStatus === STATUS.PENDING_PLANNING) return 'AUDIT_DENIED_BY_MANAGER';
+  if (action === ACTION.DENY && actor === ROLE.MANAGER && afterStatus === STATUS.PENDING_PLANNING) return 'AUDIT_CANCELLED_BY_MANAGER';
   // Legacy DENY still records its canonical action; notification uses the unified Cancelled event.
   if (action === ACTION.DENY && actor === ROLE.AUDITOR && afterStatus === STATUS.PENDING_PLANNING) return 'AUDIT_CANCELLED_BY_AUDITOR';
   if (action === ACTION.REJECT && actor === ROLE.MANAGER && afterStatus === STATUS.REJECTED) return 'AUDIT_REJECTED_BY_MANAGER';

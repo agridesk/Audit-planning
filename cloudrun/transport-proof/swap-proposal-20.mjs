@@ -128,3 +128,13 @@ export function buildSwapSlotExchange(input){
  });
  return {auditA,auditB,blocksA:move(blocksA,blocksB),blocksB:move(blocksB,blocksA),requiresCanonicalValidation:true};
 }
+
+export function evaluateSwapFinalState(input){
+ const {proposal,current,sourceBlocksA,sourceBlocksB,otherReservations=[],auditorA,auditorB}=input||{};
+ if(!proposal)throw Error('Proposal required');
+ const source=validateSwapProposalSource(proposal,current);
+ if(!source.valid)return {canProceed:false,reason:'STALE_CANONICAL_REVISION',conflictingAuditIds:source.conflictingAuditIds,committed:false};
+ const exchange=buildSwapSlotExchange({auditA:proposal.auditA,auditB:proposal.auditB,blocksA:sourceBlocksA,blocksB:sourceBlocksB});
+ const preview=previewSwapFinalState({auditA:proposal.auditA,auditB:proposal.auditB,blocksA:exchange.blocksA,blocksB:exchange.blocksB,otherReservations,auditorA,auditorB});
+ return {...preview,reason:preview.canProceed?null:'AUDITOR_SLOT_CONFLICT',sourceRevisions:{...proposal.originalRevisions},exchange,readOnly:true};
+}

@@ -64,4 +64,27 @@ assert.equal(nineReservation.windowDueAtMs-nineReservation.windowStartAtMs,54000
 ctx.NB_getEventConfig_=()=>({consolidate:true,bufferMinutes:10,digestGroup:'AUDITOR_OPERATIONAL',sendEmail:true});
 assert.equal(ctx.ns_reservePending_({getRange(row,col){return{setValue(value){nineRows[row-1][col-1]=value}}}},nineRows),0);
 assert.equal(JSON.parse(nineRows[1][12]).windowDueAtMs,nineReservation.windowDueAtMs,'Changing buffer does not retroactively shift existing RESERVED deliveries');
+
+// ECAS must close each digest after 10 minutes even if new events arrive later.
+// A single constant groupKey would postpone every older ECAS email indefinitely.
+ctx.NB_getEventConfig_=undefined;
+function ecasItem(minute,email='ecas@example.org'){
+  const row=item(minute,email,'ECAS_OPERATIONAL');
+  const envelope=JSON.parse(row[12]);
+  envelope.payload.config.bufferMinutes=10;
+  row[12]=JSON.stringify(envelope);
+  row[2]='ECAS_AUDIT_APPROVAL_DIGEST';
+  return row;
+}
+const ecasRows=[['Created','Status','Event','Recipient'],ecasItem(0),ecasItem(8),ecasItem(11),ecasItem(18),ecasItem(8,'different-ecas@example.org')];
+const ecasSheet={getRange(row,col){return{setValue(value){ecasRows[row-1][col-1]=value}}}};
+assert.equal(ctx.ns_reservePending_(ecasSheet,ecasRows),5);
+const ecasReservation=i=>JSON.parse(ecasRows[i][12]);
+assert.equal(ecasReservation(1).groupKey,ecasReservation(2).groupKey,'same recipient within ECAS window');
+assert.notEqual(ecasReservation(1).groupKey,ecasReservation(3).groupKey,'new ECAS window cannot delay earlier digest');
+assert.equal(ecasReservation(3).groupKey,ecasReservation(4).groupKey,'second bounded ECAS window consolidates');
+assert.notEqual(ecasReservation(1).groupKey,ecasReservation(5).groupKey,'ECAS recipient isolation');
+assert.equal(ecasReservation(1).windowDueAtMs,Date.parse('2026-10-18T17:02:00Z'),'first window closes exactly 10 minutes after first event');
+assert.equal(ecasReservation(3).windowDueAtMs,Date.parse('2026-10-18T17:13:00Z'),'second window closes independently');
+assert.equal(ecasReservation(1).rollingExternal,true);
 console.log('notification-batching-window-20: PASS');

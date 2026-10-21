@@ -278,4 +278,16 @@ assert.match(acceptedReconciler,/actorRole: String\(payload\.actorRole \|\| ''\)
 assert.match(acceptedReconciler,/StatusNotificationBridge_Dispatch_\('ACCEPT', payload\.actorRole/,'Reconciler never impersonates the Auditor');
 assert.match(managerAdapter,/ACCEPT_MANAGER_IDENTITY_REQUIRED/,'Manager on-behalf acceptance cannot be anonymous');
 assert.match(managerAdapter,/payload\.acceptedOnBehalf = true/);
+
+// ECAS change/cancel events remain disabled until the external-comment UI,
+// previous-communication proof, and final-state reducer are integrated.
+const catalog=read('NotificationConfigCanonicalizer.js');
+for(const code of ['ECAS_AUDIT_CHANGED_DIGEST','ECAS_AUDIT_CANCELLED_DIGEST']){
+ const pos=catalog.indexOf("EVENT_KEY: '"+code+"'");
+ assert.ok(pos>=0,'Missing staged ECAS event '+code);
+ assert.match(catalog.slice(pos,pos+180),/ACTIVE: 'NO'/,'New ECAS event must remain off until integration');
+}
+const builder=read('NotificationBuilder.js');
+assert.match(builder,/ecasComment:NB_clean_\(data\.ecasComment\)/);
+assert.match(builder,/previousBlocks:NB_normalizeBlocks_\(data\.previousBlocks/);
 console.log('notifications-gas-contract-20: PASS');

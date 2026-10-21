@@ -13,7 +13,9 @@ function Swap20_verifyCommittedReconciliationLocked_(history, proposal) {
   canonical.rows.forEach(function(image) {
     var assigned = String(image.values[col] || '').trim().toLowerCase();
     if (!assigned) throw Error('Missing swap auditor owner');
-    owners[image.auditId] = assigned;
+    var detail=PlanningWorkspacePlannedAuditReadService_get({auditId:image.auditId});
+    if(!detail||String(detail.assignedTo||'').trim().toLowerCase()!==assigned||!String(detail.auditorEmail||'').trim())throw Error('SWAP reconciler auditor identity mismatch');
+    owners[image.auditId] = String(detail.auditorEmail).trim().toLowerCase();
   });
   var plan = Swap20_availabilityPlan_(availability, proposal, owners);
   if (!plan || plan.sheetName !== availability.sheetName || plan.width !== availability.width ||

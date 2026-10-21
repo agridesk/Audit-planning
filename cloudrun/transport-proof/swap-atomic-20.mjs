@@ -13,6 +13,7 @@ export async function executeSwapAtomic(input,adapter){
  return adapter.withPairLock([auditA,auditB],async()=>{
   const existing=await adapter.readJournal(operationId);
   if(existing){
+   if(!Array.isArray(existing.auditIds)||existing.auditIds[0]!==auditA||existing.auditIds[1]!==auditB)throw Error('Operation identity conflict');
    if(existing.phase==='COMMITTED')return {success:true,idempotent:true,operationId};
    if(existing.phase==='WRITING'||existing.phase==='FAILED')throw Error('Recovery required before retry: '+operationId);
    throw Error('Existing incomplete swap operation: '+operationId);

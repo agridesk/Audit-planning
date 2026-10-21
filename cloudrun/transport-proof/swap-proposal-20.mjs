@@ -80,6 +80,12 @@ export function previewSwapFinalState(input){
  }
  return {canProceed:conflicts.length===0,conflicts,proposedBlocks:entries,committed:false,requiresCanonicalValidation:true};
 }
+export function validateSwapProposalSource(proposal,current){
+ if(!proposal||!current)throw Error('Proposal and current revisions required');
+ const ids=[proposal.auditA,proposal.auditB];
+ const conflicts=ids.filter(id=>!current[id]||current[id].revision!==proposal.originalRevisions[id]||current[id].status!=='Accepted');
+ return {valid:conflicts.length===0,conflictingAuditIds:conflicts,readOnly:true};
+}
 export function swapProposalNeedsAction(proposal,now){
  const age=Date.parse(now)-Date.parse(proposal.createdAt);
  const waiting=proposal.status==='AWAITING_ACKNOWLEDGEMENT'||proposal.status==='ESCALATED';

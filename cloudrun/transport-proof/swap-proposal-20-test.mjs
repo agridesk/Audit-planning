@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {createSwapProposal,applySwapProposalEvent,swapProposalNeedsAction} from './swap-proposal-20.mjs';
+const at='2026-10-21T10:00:00Z',later='2026-10-23T10:00:00Z';
+const p=createSwapProposal({operationId:'s1',auditA:'A',auditB:'B',requiredAuditorUids:['u1','u2'],createdAt:at,originalRevisions:{A:1,B:2},internalReason:'logistics',ecasComment:'Change agreed'});
+assert.equal(p.status,'AWAITING_ACKNOWLEDGEMENT');
+assert.equal(swapProposalNeedsAction(p,later).escalationDue,true);
+assert.throws(()=>applySwapProposalEvent(p,{type:'APPLY',at:later,actorRole:'MANAGER',canonicalCommitVerified:true}));
+const a=applySwapProposalEvent(p,{type:'ACKNOWLEDGE',auditorUid:'u1',at:later});
+const b=applySwapProposalEvent(a,{type:'ACKNOWLEDGE',auditorUid:'u2',at:later});
+assert.equal(b.status,'CONFIRMED');
+assert.equal(applySwapProposalEvent(b,{type:'APPLY',at:later,actorRole:'MANAGER',canonicalCommitVerified:true}).status,'APPLIED');
+assert.equal(applySwapProposalEvent(p,{type:'DECLINE',auditorUid:'u1',at:later}).status,'DECLINED');
+console.log('Swap proposal tests passed');

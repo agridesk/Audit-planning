@@ -374,6 +374,42 @@ function RUN_PREVIEW_WEEKLY_MANAGER_DEV_20261021() {
   return {ok:true,previewOnly:true,recipient:target,queued:false,counts:data.counts};
 }
 
+/**
+ * DEV-only, read-only lifecycle consistency scan for weekly notification review.
+ * Auditor decision is historical metadata, not a replacement for canonical Status.
+ */
+function RUN_DIAG_WEEKLY_STATUS_CONSISTENCY_DEV_20261021() {
+  var env=String(PropertiesService.getScriptProperties().getProperty('AMS_ENV')||
+    PropertiesService.getScriptProperties().getProperty('ENVIRONMENT')||'').toUpperCase();
+  if(env==='PROD'||env==='PRODUCTION')throw new Error('DEV_ONLY_WEEKLY_DIAGNOSTICS');
+  var ss=SpreadsheetApp.getActiveSpreadsheet();
+  var sheet=ss.getSheetByName('Audit planning');
+  if(!sheet)throw new Error('MISSING_AUDIT_PLANNING');
+  var rows=sheet.getDataRange().getValues();
+  if(rows.length<2)return {ok:true,checked:0,findings:[]};
+  var map={};
+  for(var c=0;c<rows[0].length;c++)map[String(rows[0][c]||'').trim().toLowerCase()]=c;
+  function col(k){return Object.prototype.hasOwnProperty.call(map,k.toLowerCase())?map[k.toLowerCase()]:-1;}
+  var st=col('Status'),decision=col('Last auditor decision'),company=col('Company');
+  var aid=col('Audit ID'),stamp=col('Last auditor decision timestamp'),date=col('Date - Planned');
+  if(st<0||decision<0||company<0||aid<0)throw new Error('MISSING_REQUIRED_LIFECYCLE_COLUMNS');
+  var findings=[];
+  for(var i=1;i<rows.length;i++){
+    var row=rows[i],status=String(row[st]||'').trim().toUpperCase();
+    var action=String(row[decision]||'').trim().toUpperCase();
+    if((action==='COMPLETE'||action==='COMPLETED')&&status!=='COMPLETED'){
+      findings.push({row:i+1,auditId:String(row[aid]||''),company:String(row[company]||''),
+        status:status,lastAuditorDecision:action,
+        lastDecisionTimestamp:stamp<0?'':String(row[stamp]||''),
+        plannedDate:date<0?'':String(row[date]||''),
+        advisory:'Historical auditor decision conflicts with canonical Status; review, do not auto-complete.'});
+    }
+  }
+  var report={ok:true,readOnly:true,checked:rows.length-1,findings:findings};
+  Logger.log(JSON.stringify(report));
+  return report;
+}
+
 function RUN_PREVIEW_WEEKLY_AUDITORS_DEV_20261021() {
   var props=PropertiesService.getScriptProperties();
   var env=String(props.getProperty('AMS_ENV')||props.getProperty('ENVIRONMENT')||'').toUpperCase();

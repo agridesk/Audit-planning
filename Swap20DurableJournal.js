@@ -40,7 +40,15 @@ function Swap20Journal_appendLocked_(operationId,expectedSequence,stage,payload)
  if(!/^(PREPARED|WRITING|COMMITTED|ROLLING_BACK|ROLLED_BACK|FAILED|CONFLICT)$/.test(String(stage||'')))throw Error('Invalid swap journal stage');
  var history=Swap20Journal_history_(operationId);
  if(history.length!==expectedSequence)throw Error('Swap journal concurrent modification');
- if(history.length&&['COMMITTED','ROLLED_BACK'].indexOf(history[history.length-1].stage)>=0)throw Error('Swap journal terminal state');
+ var transitions={
+  '': ['PREPARED'],
+  PREPARED:['WRITING','CONFLICT'],
+  WRITING:['COMMITTED','ROLLING_BACK'],
+  ROLLING_BACK:['ROLLED_BACK','FAILED'],
+  COMMITTED:[],ROLLED_BACK:[],FAILED:[],CONFLICT:[]
+ };
+ var previous=history.length?history[history.length-1].stage:'';
+ if(!Object.prototype.hasOwnProperty.call(transitions,previous)||transitions[previous].indexOf(stage)<0)throw Error('Illegal swap journal transition');
  var raw=JSON.stringify(payload);
  if(raw.length>40000)throw Error('Swap journal payload too large');
  var sh=Swap20Journal_sheet_(),next=history.length+1;

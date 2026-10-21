@@ -28,4 +28,9 @@ const eligiblePair={auditA:{auditId:'A',status:'Accepted',assignedTo:'u1',revisi
 assert.equal(evaluateSwapEligibility(eligiblePair).eligible,true);
 assert.equal(evaluateSwapEligibility(eligiblePair).canCommit,false);
 assert.equal(evaluateSwapEligibility({...eligiblePair,auditB:{...eligiblePair.auditB,status:'Completed'}}).eligible,false);
+import {readFileSync} from 'node:fs';
+const canonicalGas=readFileSync(new URL('../../PlanningRevisionTokenService.js',import.meta.url),'utf8');
+assert.match(canonicalGas,/function Swap20_readCanonicalPair\(input\)/);
+assert.match(canonicalGas,/PlanningRevisionTokenService_getMany\(\{auditIds:\[a,b\]\}\)/);
+assert.match(canonicalGas,/canCommit:false/);
 console.log('Swap proposal tests passed');

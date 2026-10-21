@@ -41,5 +41,8 @@ function Swap20CanonicalCommitGuard(input) {
   checkNoInternalOverlap(input.blocksB||[]);
   var minutesA = validate(pair.auditA.blocks,input.blocksA);
   var minutesB = validate(pair.auditB.blocks,input.blocksB);
+  if(String(pair.auditA.assignedTo||'').toLowerCase()===String(pair.auditB.assignedTo||'').toLowerCase()){
+   input.blocksA.forEach(function(x){input.blocksB.forEach(function(y){if(Swap20_overlap_(x,y))throw Error('Cross-audit overlap');});});
+  }
   return {ok:true,readOnly:true,commitAuthorized:false,requiresPairLock:true,requiresDurableJournal:true,auditIds:[a,b],minutesA:minutesA,minutesB:minutesB};
 }

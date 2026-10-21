@@ -147,3 +147,37 @@ export function evaluateSwapFinalState(input){
  const preview=previewSwapFinalState({auditA:proposal.auditA,auditB:proposal.auditB,blocksA:exchange.blocksA,blocksB:exchange.blocksB,otherReservations,auditorA,auditorB});
  return {...preview,reason:preview.canProceed?null:'AUDITOR_SLOT_CONFLICT',sourceRevisions:{...proposal.originalRevisions},exchange,readOnly:true};
 }
+
+export function planSwapJournal(proposal,prepared){
+ if(!proposal||!prepared||proposal.status!=='CONFIRMED'||proposal.operationId!==prepared.operationId)throw Error('Confirmed proposal and matching prepared operation required');
+ if(prepared.commitAuthorized!==false||prepared.requiresCanonicalLock!==true||prepared.requiresDurableJournal!==true||prepared.requiresAtomicCommit!==true)throw Error('Unsafe swap commit preparation');
+ if(!Array.isArray(prepared.auditIds)||prepared.auditIds.length!==2||prepared.auditIds[0]!==proposal.auditA||prepared.auditIds[1]!==proposal.auditB)throw Error('Journal audit pair mismatch');
+ return {operationId:proposal.operationId,auditIds:[...prepared.auditIds],expectedRevisions:{...prepared.expectedRevisions},phase:'PREPARED',steps:[],commitVerified:false,rollbackRequired:false,writePermitted:false};
+}
+export function advanceSwapJournal(journal,event){
+ if(!journal||!event||!event.type)throw Error('Journal event required');
+ const j={...journal,steps:[...(journal.steps||[])]};
+ if(j.phase==='COMMITTED'||j.phase==='ROLLED_BACK'||j.phase==='FAILED')throw Error('Terminal swap journal');
+ if(event.operationId!==j.operationId)throw Error('Swap journal operation mismatch');
+ if(event.type==='LOCK_ACQUIRED'){
+  if(j.phase!=='PREPARED'||event.canonicalPairLockVerified!==true)throw Error('Canonical pair lock required');
+  j.phase='LOCKED';
+ }else if(event.type==='REVALIDATED'){
+  if(j.phase!=='LOCKED'||event.canonicalRevisionsVerified!==true||event.finalStateVerified!==true)throw Error('Locked canonical revalidation required');
+  j.phase='VALIDATED';
+ }else if(event.type==='WRITE_STARTED'){
+  if(j.phase!=='VALIDATED'||event.durableBeforeImagesVerified!==true)throw Error('Durable before-images required');
+  j.phase='WRITING';j.rollbackRequired=true;
+ }else if(event.type==='COMMIT_VERIFIED'){
+  if(j.phase!=='WRITING'||event.bothCanonicalRowsVerified!==true||event.bothReservationsVerified!==true)throw Error('Both canonical rows and reservations must be verified');
+  j.phase='COMMITTED';j.commitVerified=true;j.rollbackRequired=false;
+ }else if(event.type==='ROLLBACK_VERIFIED'){
+  if(j.phase!=='WRITING'||event.originalRowsRestored!==true||event.originalReservationsRestored!==true)throw Error('Complete rollback verification required');
+  j.phase='ROLLED_BACK';j.rollbackRequired=false;
+ }else if(event.type==='ROLLBACK_FAILED'){
+  if(j.phase!=='WRITING')throw Error('Rollback failure only after writes');
+  j.phase='FAILED';j.rollbackRequired=true;
+ }else throw Error('Unknown swap journal event');
+ j.steps.push({type:event.type,at:event.at||null});
+ return j;
+}

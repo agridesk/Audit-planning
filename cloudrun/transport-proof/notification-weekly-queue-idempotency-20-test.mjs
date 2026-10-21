@@ -101,4 +101,8 @@ assert.match(source,/function RUN_DIAG_WEEKLY_STATUS_CONSISTENCY_DEV_20261021\(/
 assert.match(source,/DEV_ONLY_WEEKLY_DIAGNOSTICS/);
 assert.match(source,/lastAuditorDecision:action/);
 assert.match(source,/review, do not auto-complete/);
+assert.equal((auditorRunner.match(/recipientUid &&\s*assignedUid === recipientUid &&/g)||[]).length,3);
+assert.doesNotMatch(auditorRunner,/assigned &&\s*recipient &&\s*assignedUid === recipientUid/);
+assert.match(source,/function nrm2_renderGroupTable_\(title, rows, scopeStyleMap\) \{\s*if \(!rows \|\| !rows\.length\) return '';/);
+assert.match(source,/function nrm2_renderSection_\(title, rows, scopeStyleMap, helpText\) \{\s*if \(!rows \|\| !rows\.length\) return '';/);
 console.log('notification-weekly-queue-idempotency-20: PASS');

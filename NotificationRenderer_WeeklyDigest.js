@@ -121,7 +121,7 @@ function runManagerWeeklyAlert(options) {
       number: companyMeta.number || '',
       country: companyMeta.country || '',
       status: status,
-      assigned: nrm2_weeklyAuditorDisplay_(idxAssigned >= 0 ? row[idxAssigned] : '', managerAuditorNames),
+      assigned: nrm2_weeklyAuditorDisplay_(idxAssigned >= 0 ? row[idxAssigned] : '', managerAuditorNames) || (upStatus === 'PENDING APPROVAL' ? nrm2_weeklyAuditorDisplay_(idxPreassigned >= 0 ? row[idxPreassigned] : '', managerAuditorNames) : ''),
       preassigned: nrm2_weeklyAuditorDisplay_(idxPreassigned >= 0 ? row[idxPreassigned] : '', managerAuditorNames),
       allowSelfPlanning: idxAllowSelfPlanning >= 0 ? nrm2_up_(row[idxAllowSelfPlanning]) : '',
       planningWindowDisplay: nrm2_formatWindow_(planningWindowFrom, planningWindowTo),

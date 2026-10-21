@@ -82,7 +82,6 @@ function managerV5Action(auditId, action, options) {
     var actionMap = {
       approve: 'APPROVE',
       accept: 'ACCEPT',
-      deny: 'DENY',
       cancel: 'CANCEL',
       reject: 'REJECT',
       complete: 'COMPLETE'
@@ -100,7 +99,7 @@ function managerV5Action(auditId, action, options) {
     // AMS-01: prepare Cancel/Reject/Deny hot path before entering StatusMachine.
     // StatusMachine remains the lifecycle owner; this only removes synchronous
     // diagnostic sheet I/O and corrects Manager -> Auditor notification routing.
-    if ((actionKey === 'CANCEL' || actionKey === 'REJECT' || actionKey === 'DENY') &&
+    if ((actionKey === 'CANCEL' || actionKey === 'REJECT') &&
         typeof AMS01_prepareLifecycleHotPath_ === 'function') {
       try { AMS01_prepareLifecycleHotPath_(); } catch (eHotPath) {}
     }
@@ -173,7 +172,7 @@ function managerV5Action(auditId, action, options) {
 function ManagerV5_Action(a, b, options) {
   var s1 = String(a || '').toLowerCase().trim();
   var s2 = String(b || '').toLowerCase().trim();
-  var known = { approve:1, accept:1, deny:1, cancel:1, reject:1, complete:1, edit_realized_hours:1 };
+  var known = { approve:1, accept:1, cancel:1, reject:1, complete:1, edit_realized_hours:1 };
 
   if (known[s1]) return managerV5Action(b, a, options);
   if (known[s2]) return managerV5Action(a, b, options);

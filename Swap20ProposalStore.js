@@ -34,6 +34,7 @@ function Swap20Store_transition_(operationId,expectedStatus,nextProposal){
   if(!raw)throw new Error('Swap proposal not found');
   var previous=JSON.parse(raw);
   if(previous.status!==expectedStatus)throw new Error('Swap proposal status conflict');
+  Swap20_validateImmutable_(previous,nextProposal);
   if(!nextProposal||nextProposal.operationId!==operationId||nextProposal.auditA!==previous.auditA||nextProposal.auditB!==previous.auditB)throw new Error('Swap proposal identity mismatch');
   var output=JSON.stringify(nextProposal);
   if(output.length>8000)throw new Error('Swap proposal exceeds storage limit');

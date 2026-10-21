@@ -213,7 +213,7 @@ function NB_lifecycleEventLabel_(n) {
   if (code === 'COMPLETED_ON_BEHALF') return 'Completed on behalf of auditor';
   if (code === 'AUDIT_CANCELLED_BY_MANAGER') return 'Cancel by manager';
   if (code === 'AUDIT_CANCELLED_BY_AUDITOR') return 'Cancel by auditor';
-  if (code === 'AUDIT_DENIED_BY_MANAGER') return 'Deny by manager';
+  if (code === 'AUDIT_DENIED_BY_MANAGER') return 'Cancel by manager';
   if (code === 'AUDIT_DENIED_BY_AUDITOR') return 'Deny by auditor';
   if (code === 'AUDIT_REJECTED_BY_MANAGER') return 'Rejected by manager';
   if (code === 'AUDIT_APPROVED') return 'Approved';

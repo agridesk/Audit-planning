@@ -18,6 +18,7 @@ function Swap20_availabilityPlan_(before,proposal,owners){
    var key=String(x.owner).trim().toLowerCase(),row=null;
    for(var i=1;i<values.length;i++)if(String(values[i][a]||'').trim().toLowerCase()===key&&Planning_cellToYmd_(values[i][d])===String(b.date)){if(row)throw Error('Duplicate availability owner/day');row=values[i];}
    if(!row){row=new Array(hdr.length).fill('');row[d]=b.date;row[a]=x.owner;values.push(row);}
+   Swap20_scheduleDate_(b.date);
    var begin=Swap20_scheduleMinutes_(b.start),end=Swap20_scheduleMinutes_(b.end);
    if(begin>=end)throw Error('Invalid swap slot');
    slots.forEach(function(s){if(String(row[s.id]||'').trim()&&begin<Swap20_scheduleMinutes_(row[s.end])&&Swap20_scheduleMinutes_(row[s.start])<end)throw Error('Swap conflicts with unrelated reservation');});

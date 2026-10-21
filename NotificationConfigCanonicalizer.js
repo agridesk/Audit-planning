@@ -309,7 +309,7 @@ function NCC_targets_() {
     },
     {
       EVENT_KEY: 'AUDIT_DENIED_BY_MANAGER',
-      ACTIVE: 'YES',
+      ACTIVE: 'NO',
       SEND_EMAIL: 'YES',
       LOG_ONLY: 'NO',
       EVENT_CLASS: 'COMPACT_LIFECYCLE',
@@ -372,7 +372,7 @@ function NCC_targets_() {
     },
     {
       EVENT_KEY: 'AUDIT_DENIED_BY_AUDITOR',
-      ACTIVE: 'YES',
+      ACTIVE: 'NO',
       SEND_EMAIL: 'YES',
       LOG_ONLY: 'NO',
       EVENT_CLASS: 'COMPACT_LIFECYCLE',

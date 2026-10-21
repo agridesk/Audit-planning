@@ -18,7 +18,7 @@ assert.throws(()=>ctx.NB_renderExternalOperationalDigest_('ecas@example.org',[])
 
 // ECAS-specific cancellation/change explanation must never leak an internal comment.
 const reasonStart=external.indexOf('function NB_externalReasonText_(');
-const reasonEnd=external.indexOf('/* ============================================================\\n * Input validation',reasonStart);
+const reasonEnd=external.indexOf('function NB_externalValidateDigestItems_(',reasonStart);
 assert.ok(reasonStart>=0&&reasonEnd>reasonStart,'External explanation helper found');
 const explainCtx={NB_clean_:x=>String(x??'').trim()};
 vm.createContext(explainCtx);

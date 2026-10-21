@@ -3,14 +3,13 @@ function Swap20_availabilityPlan_(before,proposal,owners){
  if(!before||!Array.isArray(before.values)||!proposal||!owners)throw Error('Missing swap availability input');
  var values=before.values.map(function(row){return row.slice();});
  if(values.length!==before.height||values[0].length!==before.width)throw Error('Availability snapshot dimensions mismatch');
- if(values.length!==before.height||values[0].length!==before.width)throw Error('Availability snapshot dimensions mismatch');
  var hdr=values[0].map(function(x){return String(x||'').toLowerCase().replace(/[_ -]/g,'');});
  function col(names){for(var n=0;n<names.length;n++){var ix=hdr.indexOf(names[n].toLowerCase().replace(/[_ -]/g,''));if(ix>=0)return ix;}throw Error('Missing availability column '+names[0]);}
  var d=col(['Date']),a=col(['Auditor_Email','Auditor Email']),available=col(['Available']);
  var slots=[{id:col(['Audit_ID_1']),start:col(['First_Audit_Start_Time']),end:col(['First_Audit_End_Time']),status:col(['Status_1'])},
  {id:col(['Audit_ID_2']),start:col(['Second_Audit_Start_Time']),end:col(['Second_Audit_End_Time']),status:col(['Status_2'])}];
  var ids=[String(proposal.auditA),String(proposal.auditB)],removed={};
- values.slice(1).forEach(function(row){var changed=false;slots.forEach(function(s){var id=String(row[s.id]||'').trim();if(ids.indexOf(id)<0)return;removed[id]=(removed[id]||0)+1;changed=true;row[s.id]='';row[s.start]='';row[s.end]='';row[s.status]='';});if(changed)if(changed)row[available]=slots.some(function(s){return String(row[s.id]||'').trim();})?'NO':'';});
+ values.slice(1).forEach(function(row){var changed=false;slots.forEach(function(s){var id=String(row[s.id]||'').trim();if(ids.indexOf(id)<0)return;removed[id]=(removed[id]||0)+1;changed=true;row[s.id]='';row[s.start]='';row[s.end]='';row[s.status]='';});if(changed)row[available]=slots.some(function(s){return String(row[s.id]||'').trim();})?'NO':'';});
  var changes=[{id:ids[0],owner:owners[ids[0]],blocks:proposal.blocksA},{id:ids[1],owner:owners[ids[1]],blocks:proposal.blocksB}];
  changes.forEach(function(x){
   if(!x.owner||!Array.isArray(x.blocks)||!x.blocks.length)throw Error('Missing swap owner or blocks');

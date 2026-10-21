@@ -75,7 +75,7 @@ export function previewSwapFinalState(input){
  const all=[...others,...entries],conflicts=[];
  for(let i=0;i<all.length;i++)for(let j=i+1;j<all.length;j++){
   const a=all[i],b=all[j];
-  if(a.auditorUid===b.auditorUid&&a.date===b.date&&a.start<b.end&&b.start<a.end)
+  if(a.auditId!==b.auditId&&a.auditorUid===b.auditorUid&&a.date===b.date&&a.start<b.end&&b.start<a.end)
    conflicts.push({auditA:a.auditId,auditB:b.auditId,date:a.date});
  }
  return {canProceed:conflicts.length===0,conflicts,proposedBlocks:entries,committed:false,requiresCanonicalValidation:true};

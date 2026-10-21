@@ -16,6 +16,7 @@ function Swap20_executeLocked_(proposal){
  });
  var plan=Swap20_availabilityPlan_(availability,proposal,owners);
  var before={canonical:canonical,availability:availability};
+ if(JSON.stringify(before).length>35000)throw Error('Swap before-images exceed journal capacity');
  Swap20Journal_appendLocked_(proposal.operationId,0,'PREPARED',before);
  try{
   Swap20_verifyCanonicalBeforeImages_(canonical);

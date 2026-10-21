@@ -16,3 +16,17 @@ function Swap20_captureCanonicalBeforeImages_(proposal){
  if(rows[0].rowNumber===rows[1].rowNumber)throw Error('Canonical row collision');
  return {sheetName:'Audit planning',headers:headers,rows:rows};
 }
+
+function Swap20_verifyCanonicalBeforeImages_(snapshot){
+ var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(snapshot.sheetName);
+ if(!sh||sh.getLastColumn()!==snapshot.headers.length)throw Error('Canonical schema changed');
+ var headers=sh.getRange(1,1,1,snapshot.headers.length).getValues()[0];
+ if(JSON.stringify(headers)!==JSON.stringify(snapshot.headers))throw Error('Canonical headers changed');
+ var idCol=headers.map(function(x){return String(x).toLowerCase().replace(/[ _-]/g,'');}).indexOf('auditid');
+ snapshot.rows.forEach(function(image){
+  var row=sh.getRange(image.rowNumber,1,1,headers.length).getValues()[0];
+  if(String(row[idCol])!==String(image.auditId))throw Error('Canonical audit row moved');
+  if(PRT_tokenFromSnapshot_(PRT_snapshotFromRow_(headers,row))!==image.revision)throw Error('Canonical revision changed during swap');
+ });
+ return true;
+}

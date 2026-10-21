@@ -93,3 +93,5 @@ function PlanningWorkspaceRpc_swapGetProposal(input){
   return Swap20ManagerGetProposal(input||{});
  });
 }
+
+function PlanningWorkspaceRpc_swapCreateProposal(input){return PWR_envelope_('swapCreateProposal',function(){return Swap20ManagerCreateProposal(input||{});});}

@@ -12,7 +12,7 @@ function Swap20_recoverLocked_(operationId){
  var history=Swap20Journal_history_(operationId);
  if(!history.length)throw Error('Swap journal not found');
  var last=history[history.length-1].stage;
- if(last==='PREPARED')return {success:true,stage:'PREPARED',readOnly:true,requiresReview:true};
+ if(last==='PREPARED'||last==='WRITING')return {success:true,stage:last,readOnly:true,requiresReview:true};
  if(last==='COMMITTED'||last==='ROLLED_BACK')return {success:true,stage:last,idempotent:true};
  if(last==='FAILED')throw Error('Manual review required for failed recovery');
  var prepared=history[0];

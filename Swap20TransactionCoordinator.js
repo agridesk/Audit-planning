@@ -4,6 +4,7 @@
  */
 function Swap20_executeLocked_(proposal){
  if(String(PropertiesService.getScriptProperties().getProperty('AMS_ENV')||'').toUpperCase()!=='DEV')throw Error('Swap writes restricted to DEV');
+ if(!proposal||proposal.status!=='CONFIRMED')throw Error('Confirmed proposal required');
  var history=Swap20Journal_history_(proposal.operationId);
  if(history.length)throw Error('Existing journal requires recovery');
  var canonical=Swap20_captureCanonicalBeforeImages_(proposal);

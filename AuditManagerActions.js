@@ -81,6 +81,7 @@ function managerV5Action(auditId, action, options) {
 
     var actionMap = {
       approve: 'APPROVE',
+      accept: 'ACCEPT',
       deny: 'DENY',
       cancel: 'CANCEL',
       reject: 'REJECT',

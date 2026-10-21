@@ -18,7 +18,7 @@ function Swap20ManagerCommit(input){
    if(last==='COMMITTED'){
     var current=Swap20Store_read_(proposal.operationId);
     if(current&&current.status==='APPLIED'&&current.canonicalCommitVerified===true)
-     return {success:true,operationId:proposal.operationId,committed:true,idempotent:true};
+     return Swap20_finishCommitWithNotificationLocked_({success:true,operationId:proposal.operationId,committed:true,idempotent:true});
     if(current&&current.status==='CONFIRMED'&&JSON.stringify(current)===JSON.stringify(proposal)){
      if(typeof Swap20_verifyCommittedReconciliationLocked_!=='function'||Swap20_verifyCommittedReconciliationLocked_(history,current)!==true)throw Error('Committed swap cannot be reconciled without verified paired state');
      // Journal COMMITTED is written only after verified paired canonical and
@@ -31,7 +31,7 @@ function Swap20ManagerCommit(input){
      if(props.getProperty(repairedKey)!==JSON.stringify(current))
       throw Error('Committed swap proposal changed; reconciliation required');
      props.setProperty(repairedKey,JSON.stringify(repaired));
-     return {success:true,operationId:proposal.operationId,committed:true,reconciled:true,status:'APPLIED'};
+     return Swap20_finishCommitWithNotificationLocked_({success:true,operationId:proposal.operationId,committed:true,reconciled:true,status:'APPLIED'});
     }
     throw Error('Committed swap requires proposal reconciliation');
    }
@@ -48,9 +48,16 @@ function Swap20ManagerCommit(input){
   if(!raw||raw!==JSON.stringify(proposal))throw Error('Committed swap proposal changed; reconciliation required');
   Swap20_validateTransition_(proposal,next);
   props.setProperty(key,JSON.stringify(next));
-  var notificationIntent={ok:false,reason:'INTENT_NOT_RECORDED'};
-  try{notificationIntent=Swap20_stageNotificationAfterCommitLocked_(proposal.operationId);}
-  catch(eIntent){notificationIntent={ok:false,reason:'INTENT_STAGE_FAILED',detail:String(eIntent)};}
-  return {success:true,operationId:proposal.operationId,committed:true,status:'APPLIED',notificationIntent:notificationIntent};
+  return Swap20_finishCommitWithNotificationLocked_({success:true,operationId:proposal.operationId,committed:true,status:'APPLIED'});
  }finally{lock.releaseLock();}
+}
+
+function Swap20_finishCommitWithNotificationLocked_(result){
+ var intent={ok:false,reason:'INTENT_NOT_RECORDED'};
+ try{
+  if(typeof Swap20_stageNotificationAfterCommitLocked_!=='function')throw Error('Intent stage handler missing');
+  intent=Swap20_stageNotificationAfterCommitLocked_(result.operationId);
+ }catch(e){intent={ok:false,reason:'INTENT_STAGE_FAILED',detail:String(e)};}
+ result.notificationIntent=intent;
+ return result;
 }

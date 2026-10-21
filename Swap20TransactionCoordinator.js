@@ -5,6 +5,7 @@
 function Swap20_executeLocked_(proposal){
  if(String(PropertiesService.getScriptProperties().getProperty('AMS_ENV')||'').toUpperCase()!=='DEV')throw Error('Swap writes restricted to DEV');
  if(!proposal||proposal.status!=='CONFIRMED')throw Error('Confirmed proposal required');
+ if(!proposal.operationId||!proposal.auditA||!proposal.auditB||proposal.auditA===proposal.auditB)throw Error('Invalid swap operation identity');
  var history=Swap20Journal_history_(proposal.operationId);
  if(history.length)throw Error('Existing journal requires recovery');
  var guard=Swap20CanonicalCommitGuard({auditA:proposal.auditA,auditB:proposal.auditB,expectedRevisions:proposal.originalRevisions,blocksA:proposal.blocksA,blocksB:proposal.blocksB});

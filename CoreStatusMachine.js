@@ -119,7 +119,7 @@ function Status_getNextStatus_(status, action, role) {
   var r = Status_normalizeRole_(role);
 
   if (a === ACTION.APPROVE && r === ROLE.MANAGER && s === STATUS.PENDING_APPROVAL) return STATUS.APPROVED;
-  if (a === ACTION.ACCEPT && r === ROLE.AUDITOR && s === STATUS.APPROVED) return STATUS.ACCEPTED;
+  if (a === ACTION.ACCEPT && (r === ROLE.AUDITOR || r === ROLE.MANAGER) && s === STATUS.APPROVED) return STATUS.ACCEPTED;
   if (a === ACTION.COMPLETE && (r === ROLE.AUDITOR || r === ROLE.MANAGER) && s === STATUS.ACCEPTED) return STATUS.COMPLETED;
 
   if (a === ACTION.DENY) {

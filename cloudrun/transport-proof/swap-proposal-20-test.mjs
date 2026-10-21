@@ -130,4 +130,10 @@ assert.throws(()=>validateSwapBlockMapping({blocksA:[1,2],blocksB:[3],mappingA:[
 assert.throws(()=>validateSwapBlockMapping({blocksA:[1],blocksB:[3,4],mappingA:[0],mappingB:[0,0]}));
 assert.throws(()=>verifySwapCommitInvariants({}));
 assert.throws(()=>verifySwapCommitInvariants({proposal:{status:'CONFIRMED',requiredAuditorUids:['u1']},acknowledgedAuditorUids:[]}));
+const swapInvariantFixture={proposal:b,current:{A:{revision:1,status:'Accepted'},B:{revision:2,status:'Accepted'}},originalBlocksA:[{date:'2026-11-01',start:'09:00',end:'11:00'}],originalBlocksB:[{date:'2026-11-02',start:'10:00',end:'13:00'}],proposedBlocksA:[{date:'2026-11-02',start:'10:00',end:'12:00'}],proposedBlocksB:[{date:'2026-11-01',start:'09:00',end:'12:00'}],acknowledgedAuditorUids:['u1','u2']};
+assert.equal(verifySwapCommitInvariants(swapInvariantFixture).commitAuthorized,false);
+assert.throws(()=>verifySwapCommitInvariants({...swapInvariantFixture,acknowledgedAuditorUids:['u1']}));
+assert.throws(()=>verifySwapCommitInvariants({...swapInvariantFixture,proposedBlocksA:[{date:'2026-11-02',start:'10:00',end:'13:00'}]}));
+assert.throws(()=>verifySwapCommitInvariants({...swapInvariantFixture,current:{A:{revision:99,status:'Accepted'},B:{revision:2,status:'Accepted'}}}));
+
 console.log('Swap proposal tests passed');

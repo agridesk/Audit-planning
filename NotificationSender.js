@@ -872,6 +872,15 @@ function ns_sendDueReserved_(nqSheet, values) {
         nqSheet.getRange(rr, 13).setValue('');
         sentRows++;
       }
+      // Optional provenance hook: only actual ECAS delivery counts, never DEV
+      // TEST_TO_SELF, DRY_RUN or suppressed emails. Receipt failures must not
+      // retroactively mark a successfully delivered email FAILED.
+      if(finalStatus==='SENT'&&typeof ECAS20_recordConfirmedDelivery_==='function'){
+        try{
+          var receiptResult=ECAS20_recordConfirmedDelivery_(group.items,sentStamp,finalStatus);
+          if(receiptResult&&receiptResult.ok!==true)Logger.log('ECAS20_RECEIPT_NOT_RECORDED: '+JSON.stringify(receiptResult));
+        }catch(receiptError){Logger.log('ECAS20_RECEIPT_ERROR: '+String(receiptError));}
+      }
       sentGroups++;
     } catch (e) {
       var err = String(e && e.message ? e.message : e);

@@ -422,6 +422,22 @@ function doPost(e) {
     catch(canonicalPlan20Error){return replyCanonicalPlan20({success:false,error:'CANONICAL_PLAN_COMMIT_FAILED',detail:String(canonicalPlan20Error&&canonicalPlan20Error.message||canonicalPlan20Error).slice(0,180)});}
   }
 
+  // Issue #45: DEV-only canonical Model C combined Visit commit.
+  // The service owns the shared GAS write lock, lifecycle, links and rollback.
+  if (rawAction==='externalcanonicalcombinedvisit20') {
+    var respondCombined20=function(x){return ContentService.createTextOutput(JSON.stringify(x)).setMimeType(ContentService.MimeType.JSON);};
+    if(!V5_ENTRY_isDevEnv_())return respondCombined20({success:false,error:'DEV_ONLY'});
+    var combinedBridge20=V5_ENTRY_externalBridgeBody_(e);if(!combinedBridge20.ok)return combinedBridge20.response;
+    var combinedInput20=combinedBridge20.body||{};
+    if(String(combinedInput20.actorRole||'').trim().toUpperCase()!=='MANAGER')
+      return respondCombined20({success:false,error:'COMBINED_MANAGER_REQUIRED'});
+    if(typeof ModelCCombinedVisitCanonicalCommit20_execute!=='function')
+      return respondCombined20({success:false,error:'COMBINED_CANONICAL_OWNER_UNAVAILABLE'});
+    combinedInput20.runtimeEnv='DEV';
+    try{return respondCombined20(ModelCCombinedVisitCanonicalCommit20_execute(combinedInput20));}
+    catch(combinedError20){return respondCombined20({success:false,error:'COMBINED_CANONICAL_EXCEPTION',detail:String(combinedError20&&combinedError20.message||combinedError20).slice(0,180)});}
+  }
+
   if (rawAction==='externalmanageraction') {
     if(!V5_ENTRY_isDevEnv_())return ContentService.createTextOutput(JSON.stringify({success:false,error:'DEV_ONLY'})).setMimeType(ContentService.MimeType.JSON);
     var actionBridge=V5_ENTRY_externalBridgeBody_(e);if(!actionBridge.ok)return actionBridge.response;var body=actionBridge.body||{};

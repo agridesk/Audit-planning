@@ -11,6 +11,11 @@ assert.throws(()=>resolve({...base,AMS_PROD_RELEASE_ENABLED:'true'},dev),/PROD_R
 const prod={...base,AMS_RUNTIME_ENV:'PROD',AMS_PROD_AUTH_OTP_ENABLED:'true',AMS_AUTH_LOGOUT_REVOCATION_ENABLED:'true',AMS_PROD_GCP_PROJECT:'isolated-prod-project',AMS_PROD_SSOT_SPREADSHEET_ID:'prod-sheet',AMS_PROD_GAS_WRITE_URL:'https://script.google.com/macros/s/prod/exec',AMS_EXTERNAL_WRITE_BRIDGE_KEY:'d'.repeat(40),AMS_PROD_EXTERNAL_WRITE_BRIDGE_KEY:'p'.repeat(40),AMS_SESSION_SIGNING_SECRET:'s'.repeat(40),AMS_PROD_SESSION_SIGNING_SECRET:'t'.repeat(40),AMS_PROD_ALLOWED_ORIGIN:'https://prod.example.test'};
 assert.throws(()=>resolve(prod,'isolated-prod-project'),/PROD_NOT_AUTHORIZED/);
 assert.throws(()=>resolve({...prod,AMS_PROD_RELEASE_ENABLED:'true'},dev),/PROD_PROJECT_MISMATCH/);
+assert.throws(()=>resolve({...prod,AMS_PROD_RELEASE_ENABLED:'true',AMS_PROD_AUTH_OTP_ENABLED:'false'},'isolated-prod-project'),/PROD_OTP_NOT_ENABLED/);
+assert.throws(()=>resolve({...prod,AMS_PROD_RELEASE_ENABLED:'true',AMS_AUTH_LOGOUT_REVOCATION_ENABLED:'false'},'isolated-prod-project'),/PROD_LOGOUT_REVOCATION_REQUIRED/);
+assert.throws(()=>resolve({...prod,AMS_PROD_RELEASE_ENABLED:'true',AMS_PROD_EXTERNAL_WRITE_BRIDGE_KEY:prod.AMS_EXTERNAL_WRITE_BRIDGE_KEY},'isolated-prod-project'),/PROD_WRITE_KEY_NOT_ISOLATED/);
+assert.throws(()=>resolve({...prod,AMS_PROD_RELEASE_ENABLED:'true',AMS_PROD_SESSION_SIGNING_SECRET:''},'isolated-prod-project'),/PROD_SESSION_SECRET_REQUIRED/);
+assert.throws(()=>resolve({...prod,AMS_PROD_RELEASE_ENABLED:'true',AMS_PROD_SESSION_SIGNING_SECRET:prod.AMS_SESSION_SIGNING_SECRET},'isolated-prod-project'),/PROD_SESSION_SECRET_NOT_ISOLATED/);
 assert.throws(()=>resolve({...prod,AMS_PROD_RELEASE_ENABLED:'true',AMS_PROD_SSOT_SPREADSHEET_ID:'dev-sheet'},'isolated-prod-project'),/PROD_SHEET_NOT_ISOLATED/);
 assert.deepEqual(resolve({...prod,AMS_PROD_RELEASE_ENABLED:'true'},'isolated-prod-project'),{mode:'PROD',project:'isolated-prod-project',spreadsheet:'prod-sheet',isDev:false,origin:'https://prod.example.test',gasWriteUrl:'https://script.google.com/macros/s/prod/exec'});
 assert.throws(()=>resolve({...prod,AMS_PROD_RELEASE_ENABLED:'true',AMS_PROD_GAS_WRITE_URL:''},'isolated-prod-project'),/PROD_GAS_WRITE_URL_REQUIRED/);

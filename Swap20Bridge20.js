@@ -97,7 +97,7 @@ function Swap20Bridge20_handle_(body) {
  }
  if(operation==='withdraw') {
   var withdrawn=Swap20ManagerWithdrawProposalAuthorized_({operationId:body.operationId},manager);
-  return {ok:withdrawn.success===true,operationId:withdrawn.operationId,status:withdrawn.status};
+  return Swap20Bridge20_mirrorEvent_({ok:withdrawn.success===true,operationId:withdrawn.operationId,status:withdrawn.status},withdrawn.operationId);
  }
  if(operation==='commit') {
   var committed=Swap20ManagerCommitAuthorized_({operationId:body.operationId},manager);

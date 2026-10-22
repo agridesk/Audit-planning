@@ -303,6 +303,22 @@ function doPost(e) {
       return reply({ok:false,error:'INVALID_OPERATION'});
     }catch(err){return reply({ok:false,error:String(err.message||'NOTIFICATION_FAILED').slice(0,120)});}
   }
+  // SWAP 2.0: Cloud Run session-authenticated, signed DEV manager bridge.
+  // The GAS service independently checks the active canonical Manager roster.
+  // No canonical planning or availability writes are exposed by this route.
+  if(rawAction==='externalswap20'){
+    var swapReply20=function(value){return ContentService.createTextOutput(JSON.stringify(value)).setMimeType(ContentService.MimeType.JSON);};
+    if(!V5_ENTRY_isDevEnv_())return swapReply20({ok:false,error:'DEV_ONLY'});
+    var swapBridge20=V5_ENTRY_externalBridgeBody_(e);
+    if(!swapBridge20.ok)return swapBridge20.response;
+    var swapInput20=swapBridge20.body||{};
+    if(String(swapInput20.actorRole||'').trim().toLowerCase()!=='manager')
+      return swapReply20({ok:false,error:'MANAGER_REQUIRED'});
+    if(typeof Swap20Bridge20_handle_!=='function')
+      return swapReply20({ok:false,error:'SWAP_BRIDGE_OWNER_MISSING'});
+    try{return swapReply20(Swap20Bridge20_handle_(swapInput20));}
+    catch(swapError20){return swapReply20({ok:false,error:String(swapError20&&swapError20.message||swapError20).slice(0,180)});}
+  }
   if(rawAction==='versioncheck')return ContentService.createTextOutput(JSON.stringify({ok:true,build:'2026-10-01_ENTRYV5_GRID2_BRIDGES_R2',runtimeEnv:V5_ENTRY_readProjectEnv_()})).setMimeType(ContentService.MimeType.JSON);
 
   if (rawAction === 'externalplanningworkspace') {

@@ -13,6 +13,8 @@ const cases=[
 ['PROD bridge missing',{...base,AMS_PROD_GAS_WRITE_URL:''},prod,'AMS_PROD_GAS_WRITE_URL_REQUIRED'],
 ['PROD bridge key missing',{...base,AMS_PROD_EXTERNAL_WRITE_BRIDGE_KEY:''},prod,'AMS_PROD_WRITE_BRIDGE_KEY_REQUIRED'],
 ['PROD origin equals DEV',{...base,AMS_PROD_ALLOWED_ORIGIN:base.DEV_ALLOWED_ORIGIN},prod,'AMS_PROD_ORIGIN_NOT_ISOLATED'],
+['PROD session secret too short',{...base,AMS_PROD_SESSION_SIGNING_SECRET:'short'},prod,'AMS_PROD_SESSION_SECRET_REQUIRED'],
+['PROD writer key too short',{...base,AMS_PROD_EXTERNAL_WRITE_BRIDGE_KEY:'short'},prod,'AMS_PROD_WRITE_BRIDGE_KEY_REQUIRED'],
 ['PROD missing session secret',{...base,AMS_PROD_SESSION_SIGNING_SECRET:''},prod,'AMS_PROD_SESSION_SECRET_REQUIRED'],
 ['PROD reused DEV session secret',{...base,AMS_PROD_SESSION_SIGNING_SECRET:'shared-session',AMS_SESSION_SIGNING_SECRET:'shared-session'},prod,'AMS_PROD_SESSION_SECRET_NOT_ISOLATED'],
 ['PROD reused DEV bridge key',{...base,AMS_PROD_EXTERNAL_WRITE_BRIDGE_KEY:'shared-bridge',AMS_EXTERNAL_WRITE_BRIDGE_KEY:'shared-bridge'},prod,'AMS_PROD_WRITE_KEY_NOT_ISOLATED'],

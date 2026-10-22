@@ -60,6 +60,7 @@ const COMBINED_LOCKS=new Map();
 async function withCombinedLock(fn){const k='__GLOBAL_COMBINED_VISIT__',prev=COMBINED_LOCKS.get(k)||Promise.resolve();let release;const gate=new Promise(r=>release=r),chain=prev.then(()=>gate);COMBINED_LOCKS.set(k,chain);await prev;try{return await fn();}finally{release();if(COMBINED_LOCKS.get(k)===chain)COMBINED_LOCKS.delete(k);}}
 
 async function combinedCommit(identity,body,req){
+  if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_COMBINED_VISIT_CANONICAL_WRITER_REQUIRED');
   if(!SID)throw new Error('DEV_SSOT_SPREADSHEET_ID_NOT_CONFIGURED');
   const started=Date.now(),targetAuditId=clean(body?.auditId),auditorEmail=clean(body?.auditorEmail).toLowerCase(),auditorName=clean(body?.auditorName),requested=directPlanNormBlocks(body?.blocks);
   if(!targetAuditId||!auditorEmail||!requested.length)throw new Error('PLANNING_REQUIRED_FIELDS_MISSING');

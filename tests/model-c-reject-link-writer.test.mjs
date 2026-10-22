@@ -21,5 +21,5 @@ const closed=x.ctx.ModelCRejectLinkWriter_close_('A1',x.ss);
 assert.equal(closed.success,true);assert.equal(closed.changed,2);assert.equal(x.links.rows[1][2],'INACTIVE');assert.equal(x.links.rows[2][2],'INACTIVE');assert.equal(x.links.rows[3][2],'ACTIVE');assert.equal(JSON.stringify(x.obs.rows),original);
 const replay=x.ctx.ModelCRejectLinkWriter_close_('A1',x.ss);assert.equal(replay.idempotent,true);
 assert.equal(x.ctx.ModelCRejectLinkWriter_rollback_(closed,x.links),true);assert.equal(x.links.rows[1][2],'ACTIVE');
-x=scenario(r=>r===3);const failure=x.ctx.ModelCRejectLinkWriter_close_('A1',x.ss);assert.equal(failure.success,false);assert.equal(failure.rolledBack,true);assert.equal(x.links.rows[1][2],'ACTIVE');
+x=scenario(r=>r===3);const failure=x.ctx.ModelCRejectLinkWriter_close_('A1',x.ss);assert.equal(failure.success,false);assert.equal(failure.repairRequired,true);assert.equal(x.links.rows[1][2],'ACTIVE');
 console.log('MODEL_C_REJECT_LINK_WRITER: PASS');

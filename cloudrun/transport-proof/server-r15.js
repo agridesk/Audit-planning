@@ -6,6 +6,7 @@ import {resolveAmsRuntimeConfig} from './runtime-environment-20.mjs';
 import {notificationOverview} from './notification-overview-20.mjs';
 import {buildRotationManager20} from './rotation-manager-20.mjs';
 import {createSwapFirestoreReadmodel} from './swap-firestore-readmodel-20.mjs';
+import {createSwapProposalIndex} from './swap-proposal-index-20.mjs';
 
 import {URL} from 'node:url';
 import {createAvailabilityHttpRouter} from './availability-http-api-20.js';
@@ -305,6 +306,9 @@ async function notificationGasCallOnce(actor,operation,payload,gasAction){
 // Opt-in only; no Firestore data used until explicit DEV readiness approval.
 const swap20MirrorEnabled=runtime.isDev&&process.env.AMS_SWAP20_FIRESTORE_MIRROR_ENABLED==='true';
 const swap20Mirror=swap20MirrorEnabled?createSwapFirestoreReadmodel({project,getToken}):null;
+const swap20IndexEnabled=runtime.isDev&&process.env.AMS_SWAP20_PROPOSAL_INDEX_ENABLED==='true';
+const swap20Index=swap20IndexEnabled?createSwapProposalIndex({project,getToken}):null;
+
 const swap20Lists=new Map();
 const swap20ListInflight=new Map();
 function swap20ListKey(actor){return actor.role+":"+actor.email;}

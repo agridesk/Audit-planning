@@ -14,7 +14,7 @@ for(const signature of [
 ]){
   assert.ok(r4.includes(signature) && r4.slice(r4.indexOf(signature)+signature.length).trimStart().startsWith(guard),'Missing fail-closed PROD guard: '+signature);
 }
-assert.match(r6,/async function combinedCommit\(identity,body,req\)\{\n\s*if\(process\.env\.AMS_RUNTIME_ENV==='PROD'\)throw new Error\('PROD_COMBINED_VISIT_CANONICAL_WRITER_REQUIRED'\)/);
+assert.match(r6,/async function combinedCommit\(identity,body,req\)\{\r?\n\s*if\(process\.env\.AMS_RUNTIME_ENV==='PROD'\)throw new Error\('PROD_COMBINED_VISIT_CANONICAL_WRITER_REQUIRED'\)/);
 assert.match(r4,/if\(u\.pathname==='\/api\/v1\/manager\/approve-direct'/);
 assert.match(r4,/if\(u\.pathname==='\/api\/v1\/manager\/cancel-direct'/);
 assert.match(r4,/if\(u\.pathname==='\/api\/v1\/planning\/direct-commit'/);

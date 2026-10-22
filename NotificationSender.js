@@ -622,7 +622,17 @@ function ns_reservePending_(nqSheet, values) {
     if (!createdAtMs) createdAtMs = Date.now();
 
     var reservation = ns_computeReservation_(r + 1, recipient, createdAtMs, cfg);
-    if(rollingEligible20(cfg)){
+    var isSwap20=String(values[r][4]||'').indexOf('SWAP_')===0 &&
+      String(values[r][2]||'')==='ECAS_AUDIT_CHANGED_DIGEST' &&
+      Array.isArray(payload.swapItems)&&payload.swapItems.length===2 &&
+      String(payload.operationId||'')===String(values[r][4]).slice(5);
+    if(isSwap20){
+      var opKey=String(payload.operationId);
+      var swapWindow=Math.max(1,Number(cfg.bufferMinutes)||10)*60000;
+      reservation={windowKey:'SWAP_'+opKey,groupKey:recipient.trim().toLowerCase()+'|SWAP20|'+opKey,
+        windowStartAtMs:createdAtMs,windowDueAtMs:createdAtMs+swapWindow,rollingExternal:false};
+    }
+    if(!isSwap20 && rollingEligible20(cfg)){
       var bucketKey=rollingKey20(recipient,cfg.digestGroup),windows=rollingWindows20[bucketKey]||[];
       var matched=null;
       for(var wi=0;wi<windows.length;wi++){

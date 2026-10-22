@@ -5,7 +5,7 @@ const OPEN_AUDITOR=['AWAITING_ACKNOWLEDGEMENT','ESCALATED'];
 const validId=id=>/^[A-Za-z0-9_-]{8,100}$/.test(String(id||''));
 const validAudit=id=>typeof id==='string'&&id.trim().length>0&&id.length<=140;
 export function createSwapProposalIndex({project,getToken,fetchImpl=fetch}={}){
- if(!/^[a-z][a-z0-9-]{4,62}$/.test(project||''))throw Error('SWAP_INDEX_PROJECT_INVALID_'+String(project));
+ if(!/^[a-z][a-z0-9-]{4,62}$/.test(project||''))throw Error('SWAP_INDEX_PROJECT_INVALID');
  if(typeof getToken!=='function')throw Error('SWAP_INDEX_TOKEN_PROVIDER_INVALID');
  const base='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(project)+'/databases/(default)/documents/'+COLLECTION;
  async function request(url,init={}){
@@ -55,7 +55,7 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch}={}){
    throw Error('SWAP_INDEX_PROPOSAL_INVALID');
   return p;
  }
- function project(actor,records){
+ function projectList(actor,records){
   if(!actor||!['manager','auditor'].includes(actor.role))throw Error('SWAP_INDEX_ROLE');
   const items=records.filter(p=>{
    validateProposal(p);
@@ -84,7 +84,7 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch}={}){
   const records=await listRaw();
   const after=await meta();
   if(!after||after.updateTime!==before.updateTime||after.data.status!=='READY')return null;
-  return project(actor,records);
+  return projectList(actor,records);
  }
  async function bootstrap(records){
   const prior=await meta();
@@ -126,5 +126,5 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch}={}){
   if(!ready)throw Error('SWAP_INDEX_COMPLETE_CONFLICT');
   return true;
  }
- return Object.freeze({read,bootstrap,begin,finish,abort,project,meta});
+ return Object.freeze({read,bootstrap,begin,finish,abort,project:projectList,meta});
 }

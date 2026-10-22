@@ -270,8 +270,31 @@ function MoveAuditToRejected(auditId, payload) {
   setRA(raCfg.columns.managerEmail, managerEmail);
   setRA(raCfg.columns.companyUid, companyUid);
 
+  // Model C reject invariant: no active visit link may outlive its archived Audit Visit.
+  // The canonical link owner returns a rollback receipt; never mark archive success
+  // when link closure is uncertain. No obligation state is rewritten here.
+  if(typeof ModelCRejectLinkWriter_close_!=='function'||typeof ModelCRejectLinkWriter_rollback_!=='function')
+    return {success:false,message:'MODEL_C_REJECT_LINK_WRITER_UNAVAILABLE'};
+  var rejectLinkSheet=ss.getSheetByName('Audit_Visit_Obligations');
+  if(!rejectLinkSheet)return {success:false,message:'MODEL_C_REJECT_LINK_SHEET_MISSING'};
+  var archiveRowExpected=raSheet.getLastRow()+1;
   raSheet.appendRow(newRow);
-
+  var rejectLinkClose=ModelCRejectLinkWriter_close_(auditId,ss);
+  function rollbackRejectedArchive_(reason,receipt){
+    var linkRestored=true;
+    if(receipt&&receipt.length)linkRestored=ModelCRejectLinkWriter_rollback_({receipt:receipt},rejectLinkSheet);
+    var archiveRestored=false;
+    try{
+      var ai=raMap.indexOf(raCfg.columns.auditId);
+      if(ai>=0&&archiveRowExpected<=raSheet.getLastRow()&&String(raSheet.getRange(archiveRowExpected,ai+1).getDisplayValue()||'').trim()===auditId){
+        raSheet.deleteRow(archiveRowExpected);archiveRestored=true;
+      }
+    }catch(archiveRollbackErr){}
+    return{success:false,message:reason,repairRequired:!linkRestored||!archiveRestored,linkRollbackVerified:linkRestored,archiveRollbackVerified:archiveRestored};
+  }
+  if(!rejectLinkClose||rejectLinkClose.success!==true){
+    return rollbackRejectedArchive_('MODEL_C_REJECT_LINK_CLOSE_FAILED_'+String(rejectLinkClose&&rejectLinkClose.error||'UNKNOWN'),[]);
+  }
 
   var lifecycle = _raLifecycleOnStatusChanged(apInfo, {
     auditId:auditId,
@@ -286,7 +309,8 @@ function MoveAuditToRejected(auditId, payload) {
 
   var activeAuditsUpdate = _raSetCompanyActiveAudits(ss, companyUid, apInfo.company, 'No');
 
-  apInfo.sheet.deleteRow(apInfo.sheetRow);
+  try{apInfo.sheet.deleteRow(apInfo.sheetRow);}
+  catch(rejectArchiveDeleteErr){return rollbackRejectedArchive_('REJECT_SOURCE_ARCHIVE_DELETE_FAILED_'+String(rejectArchiveDeleteErr&&rejectArchiveDeleteErr.message||rejectArchiveDeleteErr),rejectLinkClose.receipt||[]);}
 
   // The source row no longer exists. Flush planning read caches immediately so
   // Manager Portal/Open reads cannot briefly resurrect the rejected audit.
@@ -313,6 +337,8 @@ function MoveAuditToRejected(auditId, payload) {
     companyUid: companyUid,
     activeAuditsUpdate: activeAuditsUpdate,
     lifecycle: lifecycle,
+    modelCLinksClosed:rejectLinkClose.changed||0,
+    modelCLinkCloseOwner:'ModelCRejectLinkWriter_close_',
     metadataWritten: !!(lifecycle && (lifecycle.managerMetadataWritten || lifecycle.statusSinceWritten))
   };
 }

@@ -1,0 +1,27 @@
+name: AMS DEV contract tests
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'cloudrun/transport-proof/**'
+      - '.github/workflows/ams-dev-contracts.yml'
+      - 'EntryV5.js'
+      - 'OpenAuditsGrid2Service.js'
+      - 'CoreStatusMachine.js'
+      - 'AuditLifecycleService.js'
+      - 'tests/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify Cloud Run contracts
+        working-directory: cloudrun/transport-proof
+        run: npm test

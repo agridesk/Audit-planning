@@ -63,7 +63,7 @@ assert.equal(created.createdBy,'manager@example.test');
 assert.equal(ctx.Swap20Bridge20_handle_(req).idempotent,true);
 assert.equal(ctx.Swap20Bridge20_handle_({actorEmail:req.actorEmail,operation:'getProposal',operationId:req.operationId}).status,'AWAITING_ACKNOWLEDGEMENT');
 assert.equal(ctx.Swap20Bridge20_handle_({actorEmail:req.actorEmail,operation:'withdraw',operationId:req.operationId}).status,'WITHDRAWN');
-assert.equal(ctx.Swap20Bridge20_handle_({...req,operation:'commit'}).error,'SWAP_OPERATION_NOT_SUPPORTED');
+assert.equal(ctx.Swap20Bridge20_handle_({...req,operation:'commit'}).status,'SWAP_ATOMIC_WRITE_DISABLED');
 assert.throws(()=>ctx.Swap20Bridge20_handle_({...req,auditB:'A'}),/NOT_DISTINCT/);
 auditors[1][1]='Auditor';
 assert.throws(()=>ctx.Swap20Bridge20_handle_(req),/NOT_AUTHORIZED/);

@@ -404,6 +404,22 @@ function doPost(e) {
     }catch(ex20){return respond20({success:false,error:'AUDITOR_ACTION_FAILED',detail:String(ex20&&ex20.message||ex20).slice(0,160)});}
     finally{AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_=null;AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_=false;lock20.releaseLock();}
   }
+  // Issue #45 — DEV-only server-to-server Planning 2.0 canonical commit.
+  // Cloud Run authenticates the caller; GAS verifies the independent write bridge key.
+  if (rawAction==='externalcanonicalplan20') {
+    var replyCanonicalPlan20=function(x){return ContentService.createTextOutput(JSON.stringify(x)).setMimeType(ContentService.MimeType.JSON);};
+    if(!V5_ENTRY_isDevEnv_())return replyCanonicalPlan20({success:false,error:'DEV_ONLY'});
+    var verifiedCanonicalPlan20=V5_ENTRY_externalBridgeBody_(e);
+    if(!verifiedCanonicalPlan20.ok)return verifiedCanonicalPlan20.response;
+    var inputCanonicalPlan20=verifiedCanonicalPlan20.body||{},planActor20=String(inputCanonicalPlan20.actorRole||'').trim().toUpperCase();
+    if(planActor20!=='MANAGER'&&planActor20!=='AUDITOR')return replyCanonicalPlan20({success:false,error:'ACTOR_ROLE_FORBIDDEN'});
+    if(!String(inputCanonicalPlan20.actorEmail||'').trim()||!String(inputCanonicalPlan20.auditId||'').trim()||!String(inputCanonicalPlan20.expectedRevision||'').trim())return replyCanonicalPlan20({success:false,error:'CANONICAL_PLAN_REQUIRED_FIELDS_MISSING'});
+    if(planActor20==='AUDITOR'&&String(inputCanonicalPlan20.auditorEmail||'').trim().toLowerCase()!==String(inputCanonicalPlan20.actorEmail||'').trim().toLowerCase())return replyCanonicalPlan20({success:false,error:'AUDITOR_CANNOT_PLAN_FOR_OTHER_AUDITOR'});
+    if(typeof PlanningCanonicalCommitService_commit!=='function')return replyCanonicalPlan20({success:false,error:'CANONICAL_PLANNING_OWNER_UNAVAILABLE'});
+    try{return replyCanonicalPlan20(PlanningCanonicalCommitService_commit(inputCanonicalPlan20));}
+    catch(canonicalPlan20Error){return replyCanonicalPlan20({success:false,error:'CANONICAL_PLAN_COMMIT_FAILED',detail:String(canonicalPlan20Error&&canonicalPlan20Error.message||canonicalPlan20Error).slice(0,180)});}
+  }
+
   if (rawAction==='externalmanageraction') {
     if(!V5_ENTRY_isDevEnv_())return ContentService.createTextOutput(JSON.stringify({success:false,error:'DEV_ONLY'})).setMimeType(ContentService.MimeType.JSON);
     var actionBridge=V5_ENTRY_externalBridgeBody_(e);if(!actionBridge.ok)return actionBridge.response;var body=actionBridge.body||{};

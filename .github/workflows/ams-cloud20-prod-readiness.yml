@@ -40,5 +40,9 @@ jobs:
           node --check runtime-environment-20.mjs
           node --check prod-contract-20-regression-test.mjs
           node --check gas-trigger-source-inventory-20.mjs
-      - name: Run full non-deploying production readiness checks
-        run: npm run test:prod-readiness
+      - name: Verify DEV/PROD configuration regression
+        run: npm run test:prod-config
+      - name: Inventory trigger source without installation
+        run: node gas-trigger-source-inventory-20.mjs
+      - name: Apply fail-closed production release gate
+        run: node prod-readiness-contract-20.mjs

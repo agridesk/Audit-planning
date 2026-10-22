@@ -1,0 +1,37 @@
+AMS 2.0 — ISSUE #45, LIFECYCLE / AVAILABILITY IMPLEMENTATION R9
+Datum: 2026-10-22 | Branch dev | PROD onaangeroerd
+
+OPGELEVERDE DEV-CORRECTIES
+- Manager Approve auditor self-plan: StatusMachine PENDING_APPROVAL -> ACCEPTED volgens V2.12; notificatie AUDIT_APPROVED en Accepted/ECAS-digest behouden.
+- Manager Approve/Cancel/Reject: optionele canonieke GAS bridge; alle R4 manager/action en *-direct endpoints via gedeelde dispatcher; geen fallback na bridge-fout. Flag standaard UIT.
+- Manager Accept-on-behalf / Complete blijven DEV-functioneel via hun bestaande route; niet onbedoeld door bridge-schakelaar geblokkeerd.
+- Planning: DEV-only GAS canonical Plan bridge voorbereid; PRT1-revisietoken verplicht. Niet ingeschakeld: Cloud Run gebruikt nog ander sourceRevision-formaat.
+- R4/R6 legacy lifecycle / gecombineerde writes fail-closed in PROD; ook manager extension, complete en plan. Dit is afscherming, nog geen canonieke PROD-vervanger.
+- Reject: Model C planner, rollback-aware unlink writer, geïntegreerde archive-compensatie en read-only integriteitsdiagnose.
+- Combined visits: exacte replay-herkenning; geen tweede link-/notificatiewrite op identieke replay. Optionele Firestore cross-instance lock in DEV, standaard UIT.
+
+UITGEVOERDE NIET-DESTRUCTIEVE TESTS
+- Manager GAS bridge 11/11 scenario's PASS lokaal Node v22.
+- V2.12 lifecycle transition matrix 10/10 PASS; APPROVE notificatie event mapping PASS.
+- Reject unlink planner 8/8 PASS; Model C rejected-link read mock 4/4 PASS.
+- Combined replay matcher 10/10 PASS.
+- Distributed combined lock 6/6 PASS in geïsoleerde source-uitvoering.
+- Cancel Availability release eerst: failure doet geen planning write; success volgorde PASS.
+- Manager dispatcher routes 6/6 en opt-in scoped 4/4 PASS.
+- Aangepaste R4/R6/GAS broncode syntaxiscontrole PASS.
+
+LIVE DEV DATA BEVINDING
+- 161 ACTIVE Visit-Obligation links; 115 OPEN, 45 LINKED_TO_VISIT, 1 REJECTED.
+- 2 ACTIVE links wijzen op Rejected audits buiten actieve planning. Gegevens bewust NIET automatisch gewijzigd.
+
+NIET AANGETOOND / RELEASE GATES OPEN
+- Geen live DEV GAS write-integratietest of Cloud Run E2E voor Plan/Approve/Accept/Cancel/Deny/Reject/Combined/Availability.
+- Geen volledige gedeelde canonieke GAS combined-visit writer met atomair gevalideerde Model C transactie.
+- Geen live validatie van lock IAM of plan-PRT1 tokenhandshake.
+- Geen queue/notification exactly-once of crash-recovery bewijs.
+- Daarom blijven beide issue #45 PROD releaseblokkades OPEN. Er is geen PROD-deploy of PROD-datawijziging gedaan.
+
+Laatste relevante commits:
+9bc3b3f7 85ffddca a32095e6 6548b44d a474e9b7 ef2627a2 d1479b91 0e49a0f9
+10a46b4a 652f683e 57072802 b3fc0019 b8f8ed1b 16efb546
+Bron: https://github.com/agridesk/Audit-planning/issues/45

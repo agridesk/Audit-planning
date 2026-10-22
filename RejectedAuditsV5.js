@@ -293,7 +293,10 @@ function MoveAuditToRejected(auditId, payload) {
     return{success:false,message:reason,repairRequired:!linkRestored||!archiveRestored,linkRollbackVerified:linkRestored,archiveRollbackVerified:archiveRestored};
   }
   if(!rejectLinkClose||rejectLinkClose.success!==true){
-    return rollbackRejectedArchive_('MODEL_C_REJECT_LINK_CLOSE_FAILED_'+String(rejectLinkClose&&rejectLinkClose.error||'UNKNOWN'),[]);
+    var rejectRollbackOutcome=rollbackRejectedArchive_('MODEL_C_REJECT_LINK_CLOSE_FAILED_'+String(rejectLinkClose&&rejectLinkClose.error||'UNKNOWN'),[]);
+    rejectRollbackOutcome.repairRequired=rejectRollbackOutcome.repairRequired===true||!!(rejectLinkClose&&rejectLinkClose.repairRequired);
+    rejectRollbackOutcome.linkRollbackVerified=!(rejectLinkClose&&rejectLinkClose.repairRequired);
+    return rejectRollbackOutcome;
   }
 
   var lifecycle = _raLifecycleOnStatusChanged(apInfo, {
@@ -310,7 +313,11 @@ function MoveAuditToRejected(auditId, payload) {
   var activeAuditsUpdate = _raSetCompanyActiveAudits(ss, companyUid, apInfo.company, 'No');
 
   try{apInfo.sheet.deleteRow(apInfo.sheetRow);}
-  catch(rejectArchiveDeleteErr){return rollbackRejectedArchive_('REJECT_SOURCE_ARCHIVE_DELETE_FAILED_'+String(rejectArchiveDeleteErr&&rejectArchiveDeleteErr.message||rejectArchiveDeleteErr),rejectLinkClose.receipt||[]);}
+  catch(rejectArchiveDeleteErr){
+    var rejectDeleteRollback=rollbackRejectedArchive_('REJECT_SOURCE_ARCHIVE_DELETE_FAILED_'+String(rejectArchiveDeleteErr&&rejectArchiveDeleteErr.message||rejectArchiveDeleteErr),rejectLinkClose.receipt||[]);
+    rejectDeleteRollback.repairRequired=true; // metadata/Company side effects may have committed already.
+    return rejectDeleteRollback;
+  }
 
   // The source row no longer exists. Flush planning read caches immediately so
   // Manager Portal/Open reads cannot briefly resurrect the rejected audit.

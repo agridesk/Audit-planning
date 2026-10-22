@@ -5,7 +5,8 @@ const OPEN_AUDITOR=['AWAITING_ACKNOWLEDGEMENT','ESCALATED'];
 const validId=id=>/^[A-Za-z0-9_-]{8,100}$/.test(String(id||''));
 const validAudit=id=>typeof id==='string'&&id.trim().length>0&&id.length<=140;
 export function createSwapProposalIndex({project,getToken,fetchImpl=fetch}={}){
- if(!/^[a-z][a-z0-9-]{4,62}$/.test(project||'')||typeof getToken!=='function')throw Error('SWAP_INDEX_CONFIG');
+ if(!/^[a-z][a-z0-9-]{4,62}$/.test(project||''))throw Error('SWAP_INDEX_PROJECT_INVALID');
+ if(typeof getToken!=='function')throw Error('SWAP_INDEX_TOKEN_PROVIDER_INVALID');
  const base='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(project)+'/databases/(default)/documents/'+COLLECTION;
  async function request(url,init={}){
   const token=await getToken();

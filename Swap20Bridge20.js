@@ -48,6 +48,21 @@ function Swap20Bridge20_preview_(a,b) {
   dateChanged:proposed.dateChanged,requiresAcknowledgement:proposed.requiresAcknowledgement,
   commitEnabled:String(PropertiesService.getScriptProperties().getProperty('AMS_SWAP20_COMMIT_ENABLED')||'')==='true'};
 }
+function Swap20Bridge20_mirrorEvent_(result,id){
+ if(!result||result.ok!==true)return result;
+ var p=Swap20Store_read_(id);
+ if(!p)throw Error('SWAP_MIRROR_SOURCE_MISSING');
+ result._mirrorEvent={
+  operationId:p.operationId,auditA:p.auditA,auditB:p.auditB,
+  status:p.status,createdAt:p.createdAt||'',createdBy:p.createdBy||'',
+  blocksA:p.blocksA||[],blocksB:p.blocksB||[],
+  requiredAuditorUids:p.requiredAuditorUids||[],
+  acknowledgedAuditorUids:p.acknowledgedAuditorUids||[],
+  internalReason:p.internalReason||'',ecasComment:p.ecasComment||'',
+  dateChanged:p.dateChanged===true
+ };
+ return result;
+}
 function Swap20Bridge20_handle_(body) {
  body=body||{};
  var manager=Swap20Bridge20_manager_(body.actorEmail);

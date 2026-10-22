@@ -1,6 +1,8 @@
+// Retired ECAS dispatcher retained only for legacy regression diagnostics.
+// Runtime canonical owner: Swap20CombinedEcasDispatch.js.
 // Queue ONE atomic ECAS change digest for a committed two-audit SWAP.
 // Called with the manager script lock already held. No direct email sending.
-function Swap20_tryQueueCombinedEcasLocked_(operationId) {
+function Swap20_tryQueueCombinedEcasLegacyLocked_(operationId) {
  var props=PropertiesService.getScriptProperties(),id=String(operationId||'').trim();
  if(String(props.getProperty('AMS_ENV')||'').toUpperCase()!=='DEV')return {ok:false,queued:false,reason:'DEV_ONLY'};
  if(String(props.getProperty('ECAS20_CHANGE_CANCEL_ENABLED')||'').toUpperCase()!=='YES')return {ok:false,queued:false,reason:'FEATURE_DISABLED'};

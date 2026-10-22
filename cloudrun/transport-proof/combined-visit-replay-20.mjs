@@ -10,6 +10,7 @@ export function isCanonicalCombinedReplay20({status='',planningJson='',assignedT
   if(JSON.stringify(prior.blocks)!==JSON.stringify(blocks))return false;
   const expected=sorted(prior.obligationIds);
   if(!expected.length)return false;
-  const live=sorted((Array.isArray(activeLinks)?activeLinks:[]).filter(x=>clean(x?.auditId)===clean(targetAuditId)&&clean(x?.state).toUpperCase()==='ACTIVE').map(x=>x.obligationId));
-  return JSON.stringify(live)===JSON.stringify(expected);
+  const relevant=(Array.isArray(activeLinks)?activeLinks:[]).filter(x=>clean(x?.auditId)===clean(targetAuditId)&&clean(x?.state).toUpperCase()==='ACTIVE');
+  const live=sorted(relevant.map(x=>x.obligationId));
+  return relevant.length===expected.length&&JSON.stringify(live)===JSON.stringify(expected);
 }

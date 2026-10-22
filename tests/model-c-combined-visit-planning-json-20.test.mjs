@@ -7,6 +7,7 @@ assert.ok(owner.includes('combinedVisitComposition:input.combinedVisitCompositio
 const emitted=[];
 const ctx=vm.createContext({PlanningCanonicalRowWriter_validate:()=>({success:true,blocks:[{date:'2026-11-06',start:'09:00',end:'13:00',hours:4}],requiredHours:4,plannedHours:4,auditorOwner:'a@example.test',softConflicts:[]}),Planning_invalidate_:()=>{},Set});
 vm.runInContext(writer,ctx);
+ctx.PlanningCanonicalRowWriter_validate=()=>({success:true,blocks:[{date:'2026-11-06',start:'09:00',end:'13:00',hours:4}],requiredHours:4,plannedHours:4,auditorOwner:'a@example.test',softConflicts:[]});
 const info={row:[],rowIndex:2,ctx:{hdr:['Audit ID','Status','Assigned to','Date - Planned','Planning JSON'],colJson:5,colAssigned:3,colDatePlanned:4,colStatus:2,sh:{getRange:()=>({setValues:r=>emitted.push(r[0])})}}};
 const t={beforeStatus:'PENDING_PLANNING',afterStatus:'APPROVED',beforeStatusDisplay:'Pending Planning',afterStatusDisplay:'Approved'};
 const simple=ctx.PlanningCanonicalRowWriter_execute(info,t,{auditId:'A1',auditorEmail:'a@example.test'});

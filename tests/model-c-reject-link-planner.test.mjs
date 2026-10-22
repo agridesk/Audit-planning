@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+const source=readFileSync(new URL('../ModelCRejectLinkPlanner.js',import.meta.url),'utf8');
+const ctx=vm.createContext({});vm.runInContext(source,ctx);
+const plan=ctx.ModelCRejectLinkPlanner_plan;
+assert.equal(typeof plan,'function');
+const obligations=[{obligationId:'O1',state:'OPEN'},{obligationId:'O2',state:'REJECTED'}];
+const links=[{rowNumber:2,auditId:'A1',obligationId:'O1',linkState:'ACTIVE'},{rowNumber:3,auditId:'A1',obligationId:'O2',linkState:'ACTIVE'},{rowNumber:4,auditId:'A2',obligationId:'O1',linkState:'INACTIVE'}];
+const out=plan('A1',links,obligations,'2026-10-22 12:00:00');
+assert.equal(out.changed,2);assert.equal(out.edits[0].after,'INACTIVE');assert.equal(out.obligationsUnmodified,true);
+assert.equal(plan('A1',links.map(x=>({...x,linkState:'INACTIVE'})),obligations,'').idempotent,true);
+assert.throws(()=>plan('A1',links,[], 'now'),/ORPHAN_OBLIGATION/);
+assert.throws(()=>plan('A1',[links[0],{...links[0],rowNumber:9}],obligations,'now'),/DUPLICATE_ACTIVE/);
+assert.throws(()=>plan('A1',links,obligations,''),/TIMESTAMP_REQUIRED/);
+assert.throws(()=>plan('',links,obligations,'now'),/AUDIT_ID_REQUIRED/);
+assert.throws(()=>plan('A1',[{...links[0],rowNumber:0}],obligations,'now'),/LINK_ROW_INVALID/);
+console.log('MODEL_C_REJECT_LINK_PLANNER: PASS 8 assertions');

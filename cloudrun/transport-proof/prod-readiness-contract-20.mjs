@@ -18,6 +18,7 @@ const core=files['server-r4.js'];
 const packageJson=JSON.parse(files['package.json']);
 if(packageJson.scripts?.start!=='node server-r15.js')flag('ENTRYPOINT_CHANGED','package.json','Recheck startup and routing chain.');
 if(!entry.includes('resolveAmsRuntimeConfig(process.env,await resolveProject())'))flag('ENTRYPOINT_ENV_CONTRACT','server-r15.js','Entry point does not use shared runtime configuration.');
+if(!entry.includes('process.env.GOOGLE_CLOUD_PROJECT=project'))flag('NESTED_GCP_PROJECT_PROPAGATION','server-r15.js','Nested stores must use the validated Cloud project, never implicit DEV defaults.');
 if(!entry.includes('process.env.AMS_SSOT_SPREADSHEET_ID=spreadsheet'))flag('INNER_SHEET_PROPAGATION','server-r15.js','Resolved spreadsheet is not forwarded to inner servers.');
 if(!/AMS_PROD_RELEASE_ENABLED/.test(env)||!/AMS_PROD_GCP_PROJECT/.test(env)||!/AMS_PROD_SSOT_SPREADSHEET_ID/.test(env))flag('PROD_ENV_GATE_INCOMPLETE','runtime-environment-20.mjs','Missing explicit production release, project or isolated sheet guard.');
 if(!/project!==allowedProject/.test(env))flag('PROD_PROJECT_BINDING_UNPROVEN','runtime-environment-20.mjs','Missing exact production project binding.');

@@ -51,7 +51,7 @@ function Swap20Bridge20_preview_(a,b) {
 function Swap20Bridge20_mirrorEvent_(result,id){
  if(!result||result.ok!==true)return result;
  var p=Swap20Store_read_(id);
- if(!p)throw Error('SWAP_MIRROR_SOURCE_MISSING');
+ if(!p)return result;
  result._mirrorEvent={
   operationId:p.operationId,auditA:p.auditA,auditB:p.auditB,
   status:p.status,createdAt:p.createdAt||'',createdBy:p.createdBy||'',

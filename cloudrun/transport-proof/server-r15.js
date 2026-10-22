@@ -358,6 +358,23 @@ async function swap20ReadList(actor){
  swap20ListInflight.set(key,call);
  return call;
 }
+async function swap20GasOperation(actor,operation,data){
+ if(!swap20Index||!['propose','withdraw','commit','respond'].includes(operation))
+  return notificationGasCall(actor,operation,data,'externalswap20');
+ const op=String(data.operationId||'');
+ if(!await swap20Index.begin(op))throw Error('SWAP_INDEX_NOT_READY_OR_BUSY');
+ // Fail closed on uncertain GAS transport; the persistent DIRTY marker
+ // stops stale Firestore responses until explicitly reconciled.
+ const result=await notificationGasCall(actor,operation,data,'externalswap20');
+ if(result?.ok===true){
+  if(!result._mirrorEvent||result._mirrorEvent.operationId!==op)
+   throw Error('SWAP_INDEX_CANONICAL_EVENT_MISSING');
+  await swap20Index.finish(op,result._mirrorEvent);
+ }else{
+  await swap20Index.abort(op);
+ }
+ return result;
+}
 async function swap20ManagerRequest(req,res,operation){
  if(!runtime.isDev){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}
  const actor=await session(req);
@@ -391,7 +408,7 @@ async function swap20ManagerRequest(req,res,operation){
  }
  const result=operation==='listPending'
   ?await swap20ReadList(actor)
-  :await notificationGasCall(actor,operation,data,'externalswap20');
+  :await swap20GasOperation(actor,operation,data);
  if(operation!=='listPending'&&result?.ok===true){swap20InvalidateLists();await swap20InvalidateMirror(actor);}
  res.writeHead(result?.ok===true?200:409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
  res.end(JSON.stringify(Object.fromEntries(Object.entries(result||{}).filter(([k])=>k!=='_mirrorEvent'))));return;
@@ -420,7 +437,7 @@ async function swap20AuditorRequest(req,res,operation){
  }
  const result=operation==='listPending'
   ?await swap20ReadList(actor)
-  :await notificationGasCall(actor,operation,data,'externalswap20');
+  :await swap20GasOperation(actor,operation,data);
  if(operation!=='listPending'&&result?.ok===true){swap20InvalidateLists();await swap20InvalidateMirror(actor);}
  res.writeHead(result?.ok===true?200:409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
  res.end(JSON.stringify(Object.fromEntries(Object.entries(result||{}).filter(([k])=>k!=='_mirrorEvent'))));return;

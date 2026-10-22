@@ -36,6 +36,7 @@ COPY server-r12.js ./
 COPY notification-overview-20.mjs ./
 COPY notification-manager-20.html ./
 COPY runtime-environment-20.mjs ./
+COPY swap-firestore-readmodel-20.mjs ./
 COPY server-r15.js ./
 COPY availability-*.js ./
 COPY availability-manager-calendar-20.html ./

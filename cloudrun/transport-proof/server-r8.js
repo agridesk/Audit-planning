@@ -5,7 +5,7 @@ import {createHash} from 'node:crypto';
 const PUBLIC_PORT=Number(process.env.PORT||8080);
 const INNER_PORT=PUBLIC_PORT+1;
 const COMBINED_WRITER_PORT=PUBLIC_PORT+2;
-const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
+const SID=process.env.AMS_SSOT_SPREADSHEET_ID||process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const BUILD='2026-10-01_AMS_COMBINED_VISIT_ROUTING_R2';
 
 process.env.PORT=String(INNER_PORT);

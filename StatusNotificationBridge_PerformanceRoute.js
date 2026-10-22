@@ -28,7 +28,8 @@ function StatusNotificationBridge_QueueWithLock_(recipientEmail, eventCode, queu
     // The DEV external Auditor writer already owns the script lock through
     // canonical status mutation. Reuse that lock instead of waiting on ourselves.
     // This marker exists only within the same GAS execution and is cleared in finally.
-    var inheritedLock = typeof AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ !== 'undefined' && AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ === true;
+    var inheritedLock = (typeof AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ !== 'undefined' && AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ === true) ||
+      (typeof AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_ !== 'undefined' && AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_ === true);
     acquired = inheritedLock || lock.tryLock(5000);
     var waitMs = Date.now() - txStarted;
     if (!acquired) {

@@ -520,6 +520,89 @@ document.getElementById("selectionSwap20").onclick=async function(){
     finally{busy=false;}
   };
 };
+// Auditor-only SWAP acknowledgement inbox. Never relies on browser-provided UID.
+document.getElementById("auditorSwapInbox20").onclick=async function(){
+  if(String(actorRole).toLowerCase()!=="auditor")return;
+  var panel=document.getElementById("auditorSwap20InboxDialog");
+  if(!panel){
+    panel=document.createElement("dialog");panel.id="auditorSwap20InboxDialog";
+    panel.setAttribute("aria-labelledby","auditorSwap20InboxTitle");
+    panel.style.cssText="width:min(680px,95vw);max-height:90vh;overflow:auto;border:1px solid #cbd5e1;border-radius:10px;padding:20px";
+    panel.innerHTML='<h2 id="auditorSwap20InboxTitle">SWAP requests</h2>'+
+      '<p id="auditorSwap20Status" role="status" aria-live="polite"></p>'+
+      '<div id="auditorSwap20Items"></div>'+
+      '<div style="display:flex;gap:8px;margin-top:12px">'+
+      '<button type="button" id="auditorSwap20Reload">Refresh</button>'+
+      '<button type="button" id="auditorSwap20Close">Close</button></div>';
+    document.body.appendChild(panel);
+    panel.querySelector("#auditorSwap20Close").onclick=function(){panel.close()};
+  }
+  var message=panel.querySelector("#auditorSwap20Status"),items=panel.querySelector("#auditorSwap20Items");
+  async function request(operation,payload){
+    var response=await fetch("/api/v1/auditor/swap20/"+operation,{
+      method:"POST",credentials:"same-origin",
+      headers:{"content-type":"application/json"},body:JSON.stringify(payload||{})
+    });
+    var data=await response.json().catch(function(){return {ok:false,error:"SWAP_RESPONSE_UNAVAILABLE"}});
+    if(!response.ok||data.ok!==true)throw Error(String(data.error||"SWAP_REQUEST_FAILED"));
+    return data;
+  }
+  function schedule(blocks){
+    return (Array.isArray(blocks)?blocks:[]).map(function(b){
+      return String(b.date||"")+" "+String(b.start||"")+"–"+String(b.end||"");
+    }).join("; ");
+  }
+  async function reload(){
+    message.textContent="Loading assigned SWAP requests...";items.replaceChildren();
+    try{
+      var result=await request("list",{});
+      var data=Array.isArray(result.items)?result.items:[];
+      message.textContent=data.length?data.length+" assigned SWAP request(s).":"No pending SWAP requests.";
+      data.forEach(function(item){
+        var card=document.createElement("section");
+        card.style.cssText="border:1px solid #cbd5e1;padding:12px;border-radius:8px;margin:9px 0";
+        function info(title,value){
+          var p=document.createElement("p");p.style.margin="6px 0";
+          var b=document.createElement("strong");b.textContent=title+" ";
+          p.append(b,document.createTextNode(value));card.appendChild(p);
+        }
+        info("Proposal:",String(item.operationId||""));
+        info("Status:",String(item.status||""));
+        info("Audit A:",String(item.auditA||"")+" → "+schedule(item.afterA));
+        info("Audit B:",String(item.auditB||"")+" → "+schedule(item.afterB));
+        info("ECAS explanation:",String(item.ecasComment||""));
+        if(item.acknowledged){
+          info("Your response:","Acknowledged; awaiting any remaining auditor");
+        }else{
+          var ack=document.createElement("button"),decline=document.createElement("button");
+          ack.type="button";ack.textContent="Acknowledge SWAP";
+          decline.type="button";decline.textContent="Decline";
+          decline.style.marginLeft="8px";
+          async function respond(decision){
+            if(decision==="DECLINE"&&!window.confirm("Decline this SWAP proposal?"))return;
+            ack.disabled=true;decline.disabled=true;
+            message.textContent="Saving auditor response...";
+            try{
+              var outcome=await request("respond",{operationId:item.operationId,decision:decision});
+              message.textContent="Response saved: "+String(outcome.status||"");
+              await reload();
+            }catch(error){
+              message.textContent=String(error.message||error);
+              ack.disabled=false;decline.disabled=false;
+            }
+          }
+          ack.onclick=function(){respond("ACKNOWLEDGE")};
+          decline.onclick=function(){respond("DECLINE")};
+          card.append(ack,decline);
+        }
+        items.appendChild(card);
+      });
+    }catch(error){message.textContent=String(error.message||error);}
+  }
+  panel.querySelector("#auditorSwap20Reload").onclick=reload;
+  if(typeof panel.showModal==="function"){if(!panel.open)panel.showModal();}else panel.setAttribute("open","");
+  await reload();
+};
 document.getElementById("selectionClear").onclick=selectionClear;
 document.getElementById("selectionBatch").onclick=function(){submitSelectionHandoff("batch")};
 document.getElementById("selectionConcept").onclick=function(){submitSelectionHandoff("concept")};

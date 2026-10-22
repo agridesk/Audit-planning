@@ -25,6 +25,7 @@ function updateSelectionUi(){
   var n=gridSelected.size,bar=document.getElementById("selectionBar"),lab=document.getElementById("selectionCount"),batch=document.getElementById("selectionBatch"),concept=document.getElementById("selectionConcept");
   if(lab)lab.textContent=n+" selected";if(bar)bar.classList.toggle("visible",n>0);
   var auditorMode=String(actorRole).toLowerCase()==="auditor";
+  var auditorSwap=document.getElementById("auditorSwapInbox20");if(auditorSwap)auditorSwap.hidden=!auditorMode;
   if(batch)batch.style.display=currentView==="open"&&!auditorMode?"":"none";
   if(concept)concept.style.display=currentView==="open"&&!auditorMode?"":"none";
   var swap=document.getElementById("selectionSwap20");
@@ -411,6 +412,7 @@ document.getElementById("selectionSwap20").onclick=async function(){
       '<div style="display:flex;flex-wrap:wrap;gap:8px">'+
       '<button type="button" id="swap20CreateProposal" hidden>Create SWAP proposal</button>'+
       '<button type="button" id="swap20RefreshStatus" hidden>Refresh proposal status</button>'+
+      '<button type="button" id="swap20Apply" hidden>Apply SWAP (DEV)</button>'+
       '<button type="button" id="swap20Withdraw" hidden>Withdraw proposal</button>'+
       '<button type="button" id="swap20Close">Close</button></div>';
     document.body.appendChild(panel);
@@ -418,12 +420,12 @@ document.getElementById("selectionSwap20").onclick=async function(){
   }
   var content=panel.querySelector("#swap20PreviewContent"),explain=panel.querySelector("#swap20Explanation");
   var form=panel.querySelector("#swap20ReasonForm"),feedback=panel.querySelector("#swap20Feedback");
-  var create=panel.querySelector("#swap20CreateProposal"),refresh=panel.querySelector("#swap20RefreshStatus"),withdraw=panel.querySelector("#swap20Withdraw");
+  var create=panel.querySelector("#swap20CreateProposal"),refresh=panel.querySelector("#swap20RefreshStatus"),apply=panel.querySelector("#swap20Apply"),withdraw=panel.querySelector("#swap20Withdraw");
   var internal=panel.querySelector("#swap20InternalReason"),ecas=panel.querySelector("#swap20EcasComment");
   var requestId="SWAP20_"+(window.crypto&&window.crypto.randomUUID?window.crypto.randomUUID().replace(/-/g,""):String(Date.now())+"_"+Math.random().toString(36).slice(2));
   var submitted=false,busy=false,preview=null;
   content.replaceChildren();explain.textContent="Checking current canonical schedules...";
-  feedback.textContent="";form.hidden=true;create.hidden=true;refresh.hidden=true;withdraw.hidden=true;
+  feedback.textContent="";form.hidden=true;create.hidden=true;refresh.hidden=true;apply.hidden=true;withdraw.hidden=true;
   internal.value="";ecas.value="";internal.disabled=false;ecas.disabled=false;
   async function swapRequest(operation,body){
     var response=await fetch("/api/v1/manager/swap20/"+operation,{
@@ -444,9 +446,13 @@ document.getElementById("selectionSwap20").onclick=async function(){
     p.append(b,document.createTextNode(text));content.appendChild(p);
   }
   function showStatus(data){
-    feedback.textContent="Proposal "+String(data.operationId||requestId)+" — "+String(data.status||"unknown")+
+    var status=String(data.status||"unknown"),applied=status==="APPLIED"||data.committed===true;
+    var canApply=!applied&&status==="CONFIRMED"&&(data.commitEnabled===true||(preview&&preview.commitEnabled===true));
+    apply.hidden=!canApply;
+    if(applied){refresh.hidden=true;withdraw.hidden=true;apply.hidden=true;}
+    feedback.textContent="Proposal "+String(data.operationId||requestId)+" — "+status+
       (data.requiredCount!=null?" ("+String(data.acknowledgedCount||0)+"/"+String(data.requiredCount)+" auditor ACK)":"")+
-      ". No canonical audit has been changed.";
+      (applied?". Canonical time slots exchanged. ECAS notification "+(data.notificationQueued?"queued":"pending")+".":". No canonical audit has been changed.");
   }
   if(typeof panel.showModal==="function"){if(!panel.open)panel.showModal();}else panel.setAttribute("open","");
   try{
@@ -491,13 +497,25 @@ document.getElementById("selectionSwap20").onclick=async function(){
     catch(error){feedback.textContent=String(error.message||error);}
     finally{busy=false;refresh.disabled=false;}
   };
+  apply.onclick=async function(){
+    if(busy||!submitted||apply.hidden||!window.confirm("Apply this SWAP in DEV? Both Accepted audits will exchange time slots."))return;
+    busy=true;apply.disabled=true;feedback.textContent="Verifying and committing the paired SWAP...";
+    try{
+      var outcome=await swapRequest("commit",{operationId:requestId});
+      if(outcome.committed!==true)throw Error("SWAP_COMMIT_NOT_CONFIRMED");
+      showStatus(outcome);
+      selectionClear();
+      await loadOpen();
+    }catch(error){feedback.textContent="SWAP not confirmed: "+String(error.message||error);}
+    finally{busy=false;apply.disabled=false;}
+  };
   withdraw.onclick=async function(){
     if(busy||!submitted||!window.confirm("Withdraw this SWAP proposal? Accepted audits will remain unchanged."))return;
     busy=true;withdraw.disabled=true;
     try{
       var result=await swapRequest("withdraw",{operationId:requestId});
       feedback.textContent="Proposal withdrawn: "+String(result.status||"WITHDRAWN")+". No audit changed.";
-      refresh.hidden=true;withdraw.hidden=true;
+      refresh.hidden=true;withdraw.hidden=true;apply.hidden=true;
     }catch(error){feedback.textContent=String(error.message||error);withdraw.disabled=false;}
     finally{busy=false;}
   };

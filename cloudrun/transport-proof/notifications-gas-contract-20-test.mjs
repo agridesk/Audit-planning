@@ -273,7 +273,7 @@ assert.match(statusSource,/ACTION\.ACCEPT && \(r === ROLE\.AUDITOR \|\| r === RO
 assert.match(managerAdapter,/accept: 'ACCEPT'/);
 assert.match(notificationBridge,/ACTION\.ACCEPT && \(actor === ROLE\.AUDITOR \|\| actor === ROLE\.MANAGER\)/);
 assert.match(statusSource,/actorEmail: payload && \(payload\.actorEmail/);
-assert.match(notificationBridge,/if \(eventCode === 'AUDIT_ACCEPTED'\)/);
+assert.match(notificationBridge,/if \(eventCode === 'AUDIT_ACCEPTED' \|\| \(eventCode === 'AUDIT_APPROVED' && afterStatus === STATUS\.ACCEPTED\)\)/);
 const acceptedReconciler=read('NotificationAcceptedReconciler.js');
 assert.match(acceptedReconciler,/actorRole: String\(payload\.actorRole \|\| ''\)/,'Durable ACCEPT outbox captures actual role');
 assert.match(acceptedReconciler,/StatusNotificationBridge_Dispatch_\('ACCEPT', payload\.actorRole/,'Reconciler never impersonates the Auditor');

@@ -768,7 +768,7 @@ async function canonicalManagerAction(identity,body){
   if(!auditId||!['approve','accept','cancel','reject','complete'].includes(managerAction))throw new Error('INVALID_MANAGER_ACTION_REQUEST');
   const options=body?.options&&typeof body.options==='object'?body.options:{};
   if((managerAction==='cancel'||managerAction==='reject')&&!clean(options.reason||options.comment))throw new Error('ACTION_REASON_REQUIRED');
-  const canonicalResult=await managerCanonicalWriteBridge20({enabled:process.env.AMS_MANAGER_CANONICAL_GAS_WRITE_ENABLED==='true',mode:process.env.AMS_RUNTIME_ENV||'',gasWriteUrl:GAS_WRITE_URL,bridgeKey:WRITE_KEY,auditId,action:managerAction,actorEmail:clean(identity.email).toLowerCase(),options});
+  const canonicalResult=await managerCanonicalWriteBridge20({enabled:process.env.AMS_MANAGER_CANONICAL_GAS_WRITE_ENABLED==='true'&&['approve','cancel','reject'].includes(managerAction),mode:process.env.AMS_RUNTIME_ENV||'',gasWriteUrl:GAS_WRITE_URL,bridgeKey:WRITE_KEY,auditId,action:managerAction,actorEmail:clean(identity.email).toLowerCase(),options});
   if(canonicalResult)return canonicalResult;
   if(managerAction==='approve')return directManagerApprove(identity,body);
   if(managerAction==='accept')return directManagerAcceptOnBehalf(identity,body);

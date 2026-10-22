@@ -1,0 +1,46 @@
+AMS 2.0 — PROD CUTOVER DATA READINESS (READ-ONLY EVIDENCE)
+Date: 2026-10-22
+Status: OPEN — RELEASE GATE; no PROD changes authorized
+Owner workstream: AMS 2.0 DEV -> PROD Livegang
+Source: connected live Google Sheets metadata / bounded reads, and GitHub dev sources.
+Parallel development: other chats own module implementation. Do not copy DEV rows to PROD.
+
+LIVE DATA INVENTORY
+DEV: 43 tabs; PROD: 30 tabs.
+Audit planning: DEV 115 distinct Audit IDs, PROD 88, common 52, DEV-only 63, PROD-only 36.
+Companies: DEV 186 distinct Company_UIDs, PROD 186, common 177, 9 only in each.
+DEV Model C tables:
+  Company_Scopes 179 rows
+  Audit_Obligations 199 rows
+  Audit_Visit_Obligations 201 rows, 133 distinct Visit IDs
+  ScopeVersions 11 rows across 8 ScopeCodes
+  Company_Scope_Hours 138 rows
+PROD lacks these Model C tables.
+Column contracts:
+  Config_Scopes DEV 25 populated headers, PROD 14.
+  Audit planning DEV 71 populated headers, PROD 46.
+  Auditors DEV 32 headers, PROD 18.
+  Companies DEV 25 headers, PROD 23.
+  Availability DEV 13 headers, PROD 12.
+This is schema drift, not proof that all DEV changes are approved/released.
+
+RELEASE RULES
+P0: Migration source is a frozen, validated PROD snapshot; DEV-only mock/test data excluded.
+P0: Never replace PROD data with DEV data.
+P0: Build schema migration & migration journal with idempotency/restart/rollback.
+P0: preserve Audit ID, Company_UID, Auditor identity, completed/rejected history and lifecycle status.
+P0: run dry-run conversion on isolated production snapshot; check referential integrity and reconciliation.
+P0: stop notification senders and competing 1.0 writers during final synchronization window.
+P0: take verified pre-cutover snapshot with exact source/target revision and table checksums.
+P0: resume only one canonical writer family after cutover; prevent dual-write between 1.0 and 2.0.
+P0: rollback code alone is insufficient when 2.0 has already modified data; define data recovery/runbook.
+P0: permit release only after performance, permissions, authentication, email, access-domain, 3S and migration approvals.
+
+GAS & CLOUD RUNTIME EVIDENCE
+- GitHub contains EnvLegacyRuntimeScanner.js, SystemConfig.js, EnvironmentGuardService.js and current Cloud Run runtime-environment-20.mjs; these expose diagnostic or environment logic as source code only.
+- This session's available connector operations provide GitHub source, Drive spreadsheet metadata/data but do not include direct Apps Script executions or Cloud Run administration APIs. Running any GAS runtime diagnostic requires an authorized execution path, not merely fetching the function source.
+- Current live deployment revisions, Cloud Run IAM and GAS ScriptProperties therefore remain UNVERIFIED from direct management-plane read.
+- Maintain no-secret evidence; never print tokens or bridge keys.
+
+DECISION: keep 1.0 separately deployed until verified 2.0 acceptance; no big-bang data overwrite.
+NEXT TASK: design a repeatable PROD-snapshot migration dry-run and collision/resolution report; do not execute PROD writes.

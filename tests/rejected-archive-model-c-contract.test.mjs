@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const archive=readFileSync(new URL('../RejectedAuditsV5.js',import.meta.url),'utf8');
+const start=archive.indexOf('function MoveAuditToRejected(auditId, payload) {');
+const end=archive.indexOf('// PUBLIC: Clear planning fields',start);
+assert.ok(start>=0&&end>start,'archive owner missing');
+const source=archive.slice(start,end);
+for(const text of ['ModelCRejectLinkWriter_close_(auditId,ss)','ModelCRejectLinkWriter_rollback_','rollbackRejectedArchive_','MODEL_C_REJECT_LINK_CLOSE_FAILED_','MODEL_C_REJECT_LINK_WRITER_UNAVAILABLE','modelCLinksClosed:rejectLinkClose.changed||0'])assert.ok(source.includes(text),'Reject safety contract missing: '+text);
+assert.ok(source.indexOf('raSheet.appendRow(newRow)')<source.indexOf('ModelCRejectLinkWriter_close_(auditId,ss)'),'link close must follow archive append');
+assert.ok(source.indexOf('ModelCRejectLinkWriter_close_(auditId,ss)')<source.indexOf('apInfo.sheet.deleteRow(apInfo.sheetRow)'),'link close must precede source deletion');
+assert.match(source,/rejectRollbackOutcome\.repairRequired=.*rejectLinkClose\.repairRequired/);
+assert.match(source,/rejectDeleteRollback\.repairRequired=true/);
+console.log('Rejected audit Model C link closure / archive compensation source contract: PASS');

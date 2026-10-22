@@ -79,7 +79,7 @@ const service=createAvailabilityService(adapter);
 async function readPlanningRows(){
  // Existing DEV Audit planning tab; bounded read, never a full-sheet hot-path scan.
  // Fail closed if configured maximum is reached: a truncated source is unsafe.
- const range='Audit planning!A1:AZ2000';
+ const range='Audit planning!A1:BW2000';
  const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range);
  const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()}});
  if(!response.ok)throw Error('CANONICAL_PLANNING_READ_'+response.status);

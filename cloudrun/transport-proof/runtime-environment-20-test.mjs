@@ -18,7 +18,9 @@ assert.throws(()=>resolve({...prod,AMS_PROD_RELEASE_ENABLED:'true',GAS_DEV_WRITE
 assert.throws(()=>resolve({...prod,AMS_PROD_RELEASE_ENABLED:'true',AMS_PROD_EXTERNAL_WRITE_BRIDGE_KEY:''},'isolated-prod-project'),/PROD_WRITE_BRIDGE_KEY_REQUIRED/);
 const entry=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 assert.match(entry,/resolveAmsRuntimeConfig\(process\.env,await resolveProject\(\)\)/);
-assert.match(entry,/if\(!runtime\.isDev\|\|!endpoint\|\|!secret\)/);
+assert.match(entry,/if\(!endpoint\|\|!secret\)/);
+assert.match(entry,/const endpoint=process\.env\.AMS_GAS_WRITE_URL\|\|process\.env\.GAS_DEV_WRITE_URL/);
+assert.match(entry,/notifications-manager-20\/dev-mode'\)\{if\(!runtime\.isDev\)/);
 assert.match(entry,/const includeTestData=runtime\.isDev/);
 assert.match(entry,/migrate-legacy-hard'\)\{if\(!runtime\.isDev\)/);
 assert.match(entry,/process\.env\.AMS_RUNTIME_ENV=runtime\.mode/);

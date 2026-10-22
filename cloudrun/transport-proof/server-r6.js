@@ -5,8 +5,8 @@ import {v211AssignmentHardCheck,v211RotationHardCheck} from './assignment-valida
 
 const PUBLIC_PORT=Number(process.env.PORT||8080);
 const INNER_PORT=PUBLIC_PORT+1;
-const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
-const SESSION_COOKIE='ams_dev_session';
+const SID=process.env.AMS_SSOT_SPREADSHEET_ID||process.env.DEV_SSOT_SPREADSHEET_ID||'';
+const SESSION_COOKIE=process.env.AMS_RUNTIME_ENV==='PROD'?'ams_prod_session':'ams_dev_session';
 const BUILD='2026-10-04_AMS_COMBINED_VISIT_R5_CENTRAL_ASSIGNMENT_HARD_CHECK';
 
 process.env.PORT=String(INNER_PORT);

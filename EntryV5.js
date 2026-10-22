@@ -1,4 +1,5 @@
 var AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_=false;
+var AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_=false;
 /*****************************************************************************************
  * EntryV5.gs — RESTORE DOGET FROM LAST KNOWN WORKING ENTRY (20260514_R8_RESTORE_DOGET)
  *
@@ -433,12 +434,13 @@ function doPost(e) {
     var managerBridgeLock=LockService.getScriptLock();
     if(!managerBridgeLock.tryLock(10000))return ContentService.createTextOutput(JSON.stringify({success:false,error:'CANONICAL_MANAGER_LOCK_BUSY'})).setMimeType(ContentService.MimeType.JSON);
     try{
+      AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_=true;
       options.actorEmail=actorEmail;options.managerEmail=actorEmail;options.externalSession=true;
       var result=managerV5Action(auditId,managerAction,options);
       return ContentService.createTextOutput(JSON.stringify(result||{success:false,error:'EMPTY_RESULT'})).setMimeType(ContentService.MimeType.JSON);
     }catch(managerBridgeError){
       return ContentService.createTextOutput(JSON.stringify({success:false,error:'CANONICAL_MANAGER_WRITE_FAILED',detail:String(managerBridgeError&&managerBridgeError.message||managerBridgeError).slice(0,160)})).setMimeType(ContentService.MimeType.JSON);
-    }finally{managerBridgeLock.releaseLock();}
+    }finally{AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_=false;managerBridgeLock.releaseLock();}
   }
   if(rawAction==='manageroverviewcommand'||rawAction==='overviewcommand')return ContentService.createTextOutput(JSON.stringify({success:false,error:'OVERVIEW_COMMAND_DEPRECATED',redirectAction:'manager'})).setMimeType(ContentService.MimeType.JSON);
   return ContentService.createTextOutput(JSON.stringify({success:false,error:'UNHANDLED_POST'})).setMimeType(ContentService.MimeType.JSON);

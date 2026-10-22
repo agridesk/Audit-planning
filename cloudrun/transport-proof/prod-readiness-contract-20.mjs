@@ -22,6 +22,11 @@ if(!entry.includes('process.env.AMS_SSOT_SPREADSHEET_ID=spreadsheet'))flag('INNE
 if(!/AMS_PROD_RELEASE_ENABLED/.test(env)||!/AMS_PROD_GCP_PROJECT/.test(env)||!/AMS_PROD_SSOT_SPREADSHEET_ID/.test(env))flag('PROD_ENV_GATE_INCOMPLETE','runtime-environment-20.mjs','Missing explicit production release, project or isolated sheet guard.');
 if(!/project!==allowedProject/.test(env))flag('PROD_PROJECT_BINDING_UNPROVEN','runtime-environment-20.mjs','Missing exact production project binding.');
 if(!/spreadsheet===String\(env\.DEV_SSOT_SPREADSHEET_ID/.test(env))flag('PROD_SHEET_ISOLATION_UNPROVEN','runtime-environment-20.mjs','Missing explicit protection against using the DEV sheet.');
+if(!env.includes('AMS_PROD_SESSION_SIGNING_SECRET')||!env.includes('AMS_PROD_SESSION_SECRET_NOT_ISOLATED'))flag('PROD_SESSION_SECRET_GATE_MISSING','runtime-environment-20.mjs','PROD must have its own separate signing secret.');
+if(!env.includes('AMS_PROD_WRITE_KEY_NOT_ISOLATED'))flag('PROD_GAS_KEY_ISOLATION_GATE_MISSING','runtime-environment-20.mjs','PROD GAS writer key must not equal DEV key.');
+if(!entry.includes('process.env.AMS_SESSION_SIGNING_SECRET=process.env.AMS_PROD_SESSION_SIGNING_SECRET'))flag('PROD_SESSION_SECRET_PROPAGATION','server-r15.js','PROD signing secret must be set before inner servers start.');
+if(!/SESSION_COOKIE=process\.env\.AMS_RUNTIME_ENV===['"]PROD['"]/.test(core))flag('PROD_COOKIE_ISOLATION','server-r4.js','Production and development session cookie names must be separate.');
+if(!r12.includes('process.env.AMS_ALLOWED_ORIGIN'))flag('MANAGER_ORIGIN_RUNTIME','server-r12.js','Manager origin must be supplied through runtime configuration.');
 if(!r12.includes('process.env.AMS_SSOT_SPREADSHEET_ID'))flag('R12_SHEET_ENV_MISSING','server-r12.js','R12 does not consume generic spreadsheet configuration.');
 if(!core.includes('process.env.AMS_SSOT_SPREADSHEET_ID'))flag('CORE_SHEET_ENV_MISSING','server-r4.js','Core backend does not consume generic spreadsheet configuration.');
 if(/const GAS_WRITE_URL=process\.env\.GAS_DEV_WRITE_URL\|\|''/.test(r12)||/const GAS_WRITE_URL=process\.env\.GAS_DEV_WRITE_URL\|\|''/.test(core))flag('GAS_BRIDGE_DEV_ONLY','server-r12.js / server-r4.js','GAS bridge is still bound to a DEV-named endpoint, without verified PROD isolation.');

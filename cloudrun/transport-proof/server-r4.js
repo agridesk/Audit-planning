@@ -991,9 +991,7 @@ function directExistingSuccessorRows(ap,auditId,actorEmail,cfgValues,companies){
   return out;
 }
 async function directManagerComplete(identity,body){return directComplete(identity,body,'MANAGER');}
-  if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
 async function directAuditorComplete(identity,body){return directComplete(identity,body,'AUDITOR');}
-  if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
 function directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companyScopes,companyUid,stamp){
   const h=found.h,row=found.row,oh=obs[0]||[],lh=links[0]||[],csH=companyScopes[0]||[];
   const oi=col(oh,['Obligation_ID','Obligation ID']),ocs=col(oh,['Company_Scope_ID','Company Scope ID']),ocu=col(oh,['Company_UID','Company UID']),osc=col(oh,['ScopeCode','Scope Code']),ock=col(oh,['Cycle_Key','Cycle Key']),ots=col(oh,['Trigger_Source','Trigger Source']),ost=col(oh,['Obligation_State','Obligation State']),obe=col(oh,['Base_Expiry_Date','Base Expiry Date']),oee=col(oh,['Effective_Expiry_Date','Effective Expiry Date']),opf=col(oh,['Planning_Window_From','Planning Window From']),opt=col(oh,['Planning_Window_To','Planning Window To']),ofh=col(oh,['Formal_Hours','Formal Hours']),opa=col(oh,['Preassigned_Auditor_Email']),oas=col(oh,['Allow_Self_Planning']),oup=col(oh,['Updated_At','Updated At']),osrc=col(oh,['Source_Audit_ID']);
@@ -1054,6 +1052,7 @@ function directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companySco
 }
 
 async function directComplete(identity,body,actorRole){
+  if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
   actorRole=clean(actorRole).toUpperCase();
   if(actorRole!=='MANAGER'&&actorRole!=='AUDITOR')throw new Error('COMPLETE_ACTOR_ROLE_INVALID');
   const started=Date.now(),auditId=clean(body?.auditId),options=body?.options&&typeof body.options==='object'?body.options:{},hoursDedicated=Number(options.hoursDedicated),expectedRevision=clean(options.expectedRevision||body?.expectedRevision);
@@ -1427,6 +1426,7 @@ async function visitCompositionPlan(targetAuditId,memberAuditIds,obValues,linkVa
 }
 
 function directPlanningCommit(identity,body){
+  if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
   const actorRole=clean(identity?.role).toUpperCase(),actorEmail=clean(identity?.email).toLowerCase(),started=Date.now(),auditId=clean(body?.auditId),auditorEmail=clean(body?.auditorEmail).toLowerCase(),auditorName=clean(body?.auditorName),sourceRevision=clean(body?.sourceRevision);
   if(actorRole!=='MANAGER'&&actorRole!=='AUDITOR')throw new Error('PLANNING_ACTOR_ROLE_INVALID');
   if(actorRole==='AUDITOR'&&auditorEmail!==actorEmail)throw new Error('AUDITOR_CANNOT_PLAN_FOR_OTHER_AUDITOR');

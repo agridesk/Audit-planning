@@ -4,7 +4,7 @@ import {createHmac,randomBytes} from 'node:crypto';
 
 const PUBLIC_PORT=Number(process.env.PORT||8080);
 const INNER_PORT=PUBLIC_PORT+1;
-const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
+const SID=process.env.AMS_SSOT_SPREADSHEET_ID||process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
 const BUILD='2026-10-03_GRID2_R12_MAX_OFFSITE_POLICY';

@@ -14,6 +14,7 @@ export function resolveAmsRuntimeConfig(env, projectId) {
  // An explicit release switch, exact project binding and independent sheet prevent DEV data reaching PROD.
  if(env.AMS_PROD_RELEASE_ENABLED!=='true')throw Error('AMS_PROD_NOT_AUTHORIZED');
  if(env.AMS_PROD_AUTH_OTP_ENABLED!=='true')throw Error('AMS_PROD_OTP_NOT_ENABLED');
+ if(env.AMS_AUTH_LOGOUT_REVOCATION_ENABLED!=='true')throw Error('AMS_PROD_LOGOUT_REVOCATION_REQUIRED');
  const allowedProject=String(env.AMS_PROD_GCP_PROJECT||'').trim();
  if(!allowedProject||allowedProject==='audit-management-system-dev'||project!==allowedProject)throw Error('AMS_PROD_PROJECT_MISMATCH');
  const spreadsheet=String(env.AMS_PROD_SSOT_SPREADSHEET_ID||'').trim();

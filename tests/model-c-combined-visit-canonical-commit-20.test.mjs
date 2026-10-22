@@ -14,7 +14,8 @@ function scenario(commitResult){
   'Audit planning':sheet([['Audit ID','Status','Company_UID','Total audit time in hours','MPS-GAP','GRASP','Planning JSON'],['A1','Pending Planning','C1',4,'X','',''],['A2','Pending Planning','C1',2,'','X','']]),
   'Audit_Obligations':sheet([['Obligation_ID','Obligation_State','Company_UID','ScopeCode','Formal_Hours'],['O1','OPEN','C1','MPS-GAP',4],['O2','LINKED_TO_VISIT','C1','GRASP',2]]),
   'Audit_Visit_Obligations':sheet([['Audit_ID','Obligation_ID','Link_State','Unlinked_At','Linked_At'],['A1','O1','ACTIVE','',''],['A2','O2','ACTIVE','','']]),
-  'Config_Scopes':sheet([['ScopeCode','DisplayName'],['MPS-GAP','MPS-GAP'],['GRASP','GRASP']])
+  'Config_Scopes':sheet([['ScopeCode','DisplayName'],['MPS-GAP','MPS-GAP'],['GRASP','GRASP']]),
+  'Concept Reservations':sheet([['Audit ID','State','Released By','Released At','Release Reason','Updated At'],['A2','ACTIVE','','','','']])
  };
  const seen=[];let released=0;
  const ctx=vm.createContext({Date,AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_:false,
@@ -33,6 +34,7 @@ assert.equal(ok.sheets['Audit planning'].rows[1][3],6);
 assert.equal(ok.sheets['Audit planning'].rows[2][0],'');
 assert.equal(ok.sheets['Audit_Visit_Obligations'].rows[2][2],'INACTIVE');
 assert.equal(ok.sheets['Audit_Visit_Obligations'].rows[3][0],'A1');
+assert.equal(ok.sheets['Concept Reservations'].rows[1][1],'RELEASED');
 assert.equal(ok.seen[0].combinedVisitComposition.sourceAuditIds[0],'A2');
 assert.equal(ok.ctx.AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_,false);
 assert.equal(ok.released,1);

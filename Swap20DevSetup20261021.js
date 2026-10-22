@@ -23,8 +23,19 @@ function RUN_SETUP_SWAP20_DEV_20261021(){
   journal.setFrozenRows(1);
   created=true;
  }
+ var receipts=ss.getSheetByName('AMS_ECAS_Communication_Receipts'),receiptsCreated=false;
+ var receiptHeaders=['Audit_ID','Communication_ID','Planning_Digest','Delivery_Status','Delivered_At'];
+ if(receipts){
+  if(JSON.stringify(receipts.getRange(1,1,1,5).getValues()[0].map(String))!==JSON.stringify(receiptHeaders))
+   throw Error('ECAS_RECEIPT_HEADER_CONFLICT_NO_CHANGES');
+ }else{
+  receipts=ss.insertSheet('AMS_ECAS_Communication_Receipts');
+  receipts.getRange(1,1,1,5).setValues([receiptHeaders]);
+  receipts.setFrozenRows(1);
+  receiptsCreated=true;
+ }
  props.setProperties({AMS_ENV:'DEV',V5_SSOT_SPREADSHEET_ID:id},false);
- var result={ok:true,createdJournal:created,env:'DEV',journalRows:journal.getLastRow(),
+ var result={ok:true,createdJournal:created,createdEcasReceipts:receiptsCreated,env:'DEV',journalRows:journal.getLastRow(),
   flagsChanged:false,planningChanged:false,availabilityChanged:false};
  Logger.log(JSON.stringify(result));return result;
 }

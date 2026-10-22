@@ -19,6 +19,7 @@ Status: NOT AUTHORIZED FOR PROD DEPLOYMENT. This checklist is the cutover contra
 Run `npm run test:prod-readiness` or use the dedicated GitHub Actions readiness workflow (no deployment). These checks do not replace live runtime evidence.
 
 ## Known source blocker
+- PROVEN_DEVIATION: `server-r4.js` retains direct manager approval/cancel sheet mutations. Route precedence/disablement and canonical-write ownership require proof before PROD.
 - PROVEN_DEVIATION: `server-r6.js` contains a legacy direct Sheets write path for combined visits. It writes planning, auditor availability and visit obligation links directly. Ownership and remediation belong to the parallel lifecycle chat; this readiness track must not bypass the gate or silently enable it in PROD.
 
 ## Deploy preflight — MUST verify in actual GCP/GAS runtimes

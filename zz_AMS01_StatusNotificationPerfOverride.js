@@ -17,7 +17,9 @@ function StatusNotificationBridge_QueueWithLock_(recipientEmail,eventCode,queueP
   var txStarted=Date.now(),txId=Utilities.getUuid();
   var action=queuePayload&&queuePayload.action?String(queuePayload.action).trim().toUpperCase():'';
   var actorRole=queuePayload&&queuePayload.actorRole?String(queuePayload.actorRole):'';
-  var reuseOuterPlanLock=(action==='PLAN');
+  var managerInherited=(typeof AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_!=='undefined'&&AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_===true);
+  var auditorInherited=(typeof AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_!=='undefined'&&AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_===true);
+  var reuseOuterPlanLock=(action==='PLAN')||managerInherited||auditorInherited;
   var lock=null,acquired=false,waitMs=0,q0=0,result=null;
 
   try{

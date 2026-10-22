@@ -7,7 +7,7 @@ import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 
 const root=resolve(import.meta.dirname);
-const names=['server-r15.js','server-r12.js','server-r4.js','runtime-environment-20.mjs','package.json'];
+const names=['server-r15.js','server-r12.js','server-r10.js','server-r9.js','server-r8.js','server-r6.js','server-r5.js','server-r4.js','runtime-environment-20.mjs','package.json'];
 const files=Object.fromEntries(names.map(name=>[name,readFileSync(resolve(root,name),'utf8')]));
 const findings=[];
 function flag(code,file,detail,severity='BLOCKER'){findings.push({code,file,severity,detail});}
@@ -27,6 +27,16 @@ if(!env.includes('AMS_PROD_WRITE_KEY_NOT_ISOLATED'))flag('PROD_GAS_KEY_ISOLATION
 if(!entry.includes('process.env.AMS_SESSION_SIGNING_SECRET=process.env.AMS_PROD_SESSION_SIGNING_SECRET'))flag('PROD_SESSION_SECRET_PROPAGATION','server-r15.js','PROD signing secret must be set before inner servers start.');
 if(!/SESSION_COOKIE=process\.env\.AMS_RUNTIME_ENV===['"]PROD['"]/.test(core))flag('PROD_COOKIE_ISOLATION','server-r4.js','Production and development session cookie names must be separate.');
 if(!r12.includes('process.env.AMS_ALLOWED_ORIGIN'))flag('MANAGER_ORIGIN_RUNTIME','server-r12.js','Manager origin must be supplied through runtime configuration.');
+for(const name of ['server-r6.js','server-r8.js','server-r9.js','server-r10.js']){
+ if(!files[name].includes('process.env.AMS_SSOT_SPREADSHEET_ID'))flag('LAYER_SHEET_CONFIG',name,'Nested runtime layer must use resolved shared spreadsheet ID.');
+}
+for(const name of ['server-r5.js','server-r10.js']){
+ if(!files[name].includes('process.env.AMS_GAS_WRITE_URL'))flag('LAYER_BRIDGE_CONFIG',name,'Nested runtime layer must use shared GAS writer URL.');
+}
+for(const name of ['server-r5.js','server-r6.js']){
+ if(!files[name].includes("'ams_prod_session'"))flag('LAYER_COOKIE_CONFIG',name,'Nested authentication layer must use PROD session cookie.');
+}
+if(!files['server-r10.js'].includes('process.env.AMS_ALLOWED_ORIGIN'))flag('RELAY_ORIGIN_R10','server-r10.js','Nested relay must use allowed runtime origin.');
 if(!r12.includes('process.env.AMS_SSOT_SPREADSHEET_ID'))flag('R12_SHEET_ENV_MISSING','server-r12.js','R12 does not consume generic spreadsheet configuration.');
 if(!core.includes('process.env.AMS_SSOT_SPREADSHEET_ID'))flag('CORE_SHEET_ENV_MISSING','server-r4.js','Core backend does not consume generic spreadsheet configuration.');
 if(/const GAS_WRITE_URL=process\.env\.GAS_DEV_WRITE_URL\|\|''/.test(r12)||/const GAS_WRITE_URL=process\.env\.GAS_DEV_WRITE_URL\|\|''/.test(core))flag('GAS_BRIDGE_DEV_ONLY','server-r12.js / server-r4.js','GAS bridge is still bound to a DEV-named endpoint, without verified PROD isolation.');

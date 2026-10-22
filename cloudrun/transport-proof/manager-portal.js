@@ -26,6 +26,7 @@ function updateSelectionUi(){
   if(lab)lab.textContent=n+" selected";if(bar)bar.classList.toggle("visible",n>0);
   var auditorMode=String(actorRole).toLowerCase()==="auditor";
   var auditorSwap=document.getElementById("auditorSwapInbox20");if(auditorSwap)auditorSwap.hidden=!auditorMode;
+  var managerSwap=document.getElementById("managerSwapInbox20");if(managerSwap)managerSwap.hidden=auditorMode;
   if(batch)batch.style.display=currentView==="open"&&!auditorMode?"":"none";
   if(concept)concept.style.display=currentView==="open"&&!auditorMode?"":"none";
   var swap=document.getElementById("selectionSwap20");
@@ -521,6 +522,100 @@ document.getElementById("selectionSwap20").onclick=async function(){
   };
 };
 // Auditor-only SWAP acknowledgement inbox. Never relies on browser-provided UID.
+// Role-scoped SWAP attention is outstanding work, never a browser-only unread counter.
+async function swap20GridRequest(role,operation,body){
+  var response=await fetch("/api/v1/"+role+"/swap20/"+operation,{
+    method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},
+    body:JSON.stringify(body||{})});
+  var data=await response.json().catch(function(){return {ok:false,error:"SWAP_RESPONSE_INVALID"}});
+  if(!response.ok||data.ok!==true)throw Error(String(data.error||"SWAP_REQUEST_FAILED"));
+  return data;
+}
+function swap20BadgeUpdate(role,count){
+  var badge=document.getElementById(role==="manager"?"managerSwapBadge20":"auditorSwapBadge20");
+  if(!badge)return;
+  count=Number(count)||0;badge.hidden=count<=0;badge.textContent=count>99?"99+":String(count);
+  badge.style.cssText="display:"+(count>0?"inline-flex":"none")+";align-items:center;justify-content:center;margin-left:4px;min-width:19px;height:19px;border-radius:12px;padding:0 5px;background:#dc2626;color:#fff;font-weight:700;font-size:11px";
+}
+async function swap20RefreshAttention(){
+  var role=String(actorRole).toLowerCase();
+  if(!["manager","auditor"].includes(role))return;
+  try{
+    var result=await swap20GridRequest(role,"list",{});
+    swap20BadgeUpdate(role,result.attentionCount||0);
+  }catch(error){console.warn("[SWAP20_ATTENTION_UNAVAILABLE]",String(error.message||error));}
+}
+document.getElementById("managerSwapInbox20").onclick=async function(){
+  if(String(actorRole).toLowerCase()!=="manager")return;
+  var panel=document.getElementById("managerSwap20InboxDialog");
+  if(!panel){
+    panel=document.createElement("dialog");panel.id="managerSwap20InboxDialog";
+    panel.setAttribute("aria-labelledby","managerSwap20InboxTitle");
+    panel.style.cssText="width:min(790px,96vw);max-height:90vh;overflow:auto;border:1px solid #cbd5e1;border-radius:10px;padding:20px";
+    panel.innerHTML='<h2 id="managerSwap20InboxTitle">SWAP requests — Manager</h2>'+
+      '<p id="managerSwap20Status" role="status" aria-live="polite"></p><div id="managerSwap20Items"></div>'+
+      '<div style="display:flex;gap:8px;margin-top:12px"><button type="button" id="managerSwap20Reload">Refresh</button>'+
+      '<button type="button" id="managerSwap20Close">Close</button></div>';
+    document.body.appendChild(panel);
+    panel.querySelector("#managerSwap20Close").onclick=function(){panel.close()};
+  }
+  var status=panel.querySelector("#managerSwap20Status"),items=panel.querySelector("#managerSwap20Items");
+  function blocks(v){return (Array.isArray(v)?v:[]).map(function(b){return String(b.date||"")+" "+String(b.start||"")+"–"+String(b.end||"")}).join("; ");}
+  async function reload(){
+    status.textContent="Loading current SWAP proposals...";items.replaceChildren();
+    try{
+      var result=await swap20GridRequest("manager","list",{});
+      var proposals=Array.isArray(result.items)?result.items:[];
+      swap20BadgeUpdate("manager",result.attentionCount||0);
+      status.textContent=proposals.length+" open proposal(s); "+String(result.attentionCount||0)+" requiring manager action.";
+      proposals.forEach(function(p){
+        var card=document.createElement("section");card.style.cssText="border:1px solid #cbd5e1;border-radius:9px;margin:10px 0;padding:12px";
+        function info(title,value){
+          var line=document.createElement("p");line.style.margin="6px 0";
+          var bold=document.createElement("strong");bold.textContent=title+" ";
+          line.append(bold,document.createTextNode(String(value||"")));card.appendChild(line);
+        }
+        info("Proposal:",p.operationId);info("Status:",p.status);
+        info("Audit A:",String(p.auditA||"")+" → "+blocks(p.blocksA));
+        info("Audit B:",String(p.auditB||"")+" → "+blocks(p.blocksB));
+        info("Auditor ACKs:",String(p.acknowledgedCount||0)+" / "+String(p.requiredCount||0));
+        info("Internal reason:",p.internalReason);info("ECAS explanation:",p.ecasComment);
+        var refresh=document.createElement("button");refresh.textContent="Refresh status";refresh.type="button";
+        refresh.onclick=reload;card.appendChild(refresh);
+        if(p.status==="CONFIRMED"&&p.commitEnabled===true){
+          var apply=document.createElement("button");apply.type="button";apply.textContent="Apply SWAP (DEV)";
+          apply.style.marginLeft="8px";
+          apply.onclick=async function(){
+            if(!window.confirm("Apply the confirmed SWAP in DEV? The Accepted audit schedules will change."))return;
+            apply.disabled=true;status.textContent="Committing verified SWAP...";
+            try{
+              var outcome=await swap20GridRequest("manager","commit",{operationId:p.operationId});
+              if(outcome.committed!==true)throw Error("SWAP_COMMIT_NOT_CONFIRMED");
+              await reload();selectionClear();await loadOpen();
+            }catch(e){status.textContent="Commit not confirmed: "+String(e.message||e);}
+            finally{apply.disabled=false;}
+          };
+          card.appendChild(apply);
+        }
+        if(["AWAITING_ACKNOWLEDGEMENT","ESCALATED","CONFIRMED"].includes(p.status)){
+          var withdraw=document.createElement("button");withdraw.type="button";withdraw.textContent="Withdraw";
+          withdraw.style.marginLeft="8px";
+          withdraw.onclick=async function(){
+            if(!window.confirm("Withdraw this SWAP proposal?"))return;
+            withdraw.disabled=true;
+            try{await swap20GridRequest("manager","withdraw",{operationId:p.operationId});await reload();}
+            catch(e){status.textContent=String(e.message||e);withdraw.disabled=false;}
+          };
+          card.appendChild(withdraw);
+        }
+        items.appendChild(card);
+      });
+    }catch(error){status.textContent=String(error.message||error);}
+  }
+  panel.querySelector("#managerSwap20Reload").onclick=reload;
+  if(typeof panel.showModal==="function"){if(!panel.open)panel.showModal();}else panel.setAttribute("open","");
+  await reload();
+};
 document.getElementById("auditorSwapInbox20").onclick=async function(){
   if(String(actorRole).toLowerCase()!=="auditor")return;
   var panel=document.getElementById("auditorSwap20InboxDialog");
@@ -585,6 +680,7 @@ document.getElementById("auditorSwapInbox20").onclick=async function(){
             try{
               var outcome=await request("respond",{operationId:item.operationId,decision:decision});
               message.textContent="Response saved: "+String(outcome.status||"");
+              swap20RefreshAttention();
               await reload();
             }catch(error){
               message.textContent=String(error.message||error);
@@ -1041,5 +1137,5 @@ close.onclick=function(){panel.hidden=true};search.oninput=render;filter.onchang
 })();
 
 try{var mailActionEvents20=new BroadcastChannel("ams-auditor-actions-20");mailActionEvents20.onmessage=function(e){if(e.data&&e.data.type==="AUDIT_ACTION_CONFIRMED"&&currentView==="open")loadOpen()}}catch(e){console.warn("[AUDITOR_ACTION_SYNC]",e)}
-fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("scopeManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("auditorManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("notificationsManager20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("companyManagement20").hidden=!['manager','auditor'].includes(String(actorRole).toLowerCase());document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();if(String(actorRole).toLowerCase()==="manager")initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)});return loadOpen()}).catch(fail);
+fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("scopeManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("auditorManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("notificationsManager20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("companyManagement20").hidden=!['manager','auditor'].includes(String(actorRole).toLowerCase());document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();if(String(actorRole).toLowerCase()==="manager")initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)});return loadOpen().then(function(){swap20RefreshAttention();document.addEventListener("visibilitychange",function(){if(!document.hidden)swap20RefreshAttention()});window.addEventListener("focus",swap20RefreshAttention);})}).catch(fail);
 })();

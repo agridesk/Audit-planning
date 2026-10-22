@@ -36,6 +36,7 @@ if(!env.includes('AMS_PROD_WRITE_KEY_NOT_ISOLATED'))flag('PROD_GAS_KEY_ISOLATION
 if(!entry.includes('process.env.AMS_SESSION_SIGNING_SECRET=process.env.AMS_PROD_SESSION_SIGNING_SECRET'))flag('PROD_SESSION_SECRET_PROPAGATION','server-r15.js','PROD signing secret must be set before inner servers start.');
 if(!/SESSION_COOKIE=process\.env\.AMS_RUNTIME_ENV===['"]PROD['"]/.test(core))flag('PROD_COOKIE_ISOLATION','server-r4.js','Production and development session cookie names must be separate.');
 if(!r12.includes('process.env.AMS_ALLOWED_ORIGIN'))flag('MANAGER_ORIGIN_RUNTIME','server-r12.js','Manager origin must be supplied through runtime configuration.');
+if(/async function directManagerApprove\(/.test(core)&&/async function directManagerCancel\(/.test(core)&&/sheetsValuesBatchUpdate\(/.test(core))flag('PROD_LEGACY_MANAGER_LIFECYCLE_WRITES','server-r4.js','Older manager approval/cancel handlers contain direct sheet mutations; prove routing ownership or migrate before PROD.');
 if(/async function sheetsValuesBatchUpdate\(/.test(files['server-r6.js'])&&/sheetsValuesBatchUpdate\(writes\)/.test(files['server-r6.js']))flag('PROD_LEGACY_DIRECT_LIFECYCLE_WRITE','server-r6.js','Combined-visit legacy path directly mutates planning, availability and Model C sheets; migrate or isolate before PROD cutover.');
 for(const name of ['server-r6.js','server-r8.js','server-r9.js','server-r10.js']){
  if(!files[name].includes('process.env.AMS_SSOT_SPREADSHEET_ID'))flag('LAYER_SHEET_CONFIG',name,'Nested runtime layer must use resolved shared spreadsheet ID.');

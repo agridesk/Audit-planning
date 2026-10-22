@@ -19,6 +19,7 @@ on:
       - 'cloudrun/transport-proof/server-r4.js'
       - 'cloudrun/transport-proof/server-r6.js'
       - 'cloudrun/transport-proof/manager-canonical-write-bridge-20.mjs'
+      - 'cloudrun/transport-proof/combined-visit-canonical-gas-bridge-20.mjs'
       - 'cloudrun/transport-proof/combined-visit-*.mjs'
       - 'cloudrun/transport-proof/*45*.mjs'
       - 'tests/*model-c*.test.mjs'
@@ -69,6 +70,8 @@ jobs:
           node cloudrun/transport-proof/manager-canonical-write-bridge-20-test.mjs
           node cloudrun/transport-proof/manager-canonical-routing-20-test.mjs
           node cloudrun/transport-proof/prod-lifecycle-writer-guard-20-test.mjs
+          node cloudrun/transport-proof/combined-visit-canonical-gas-bridge-20-test.mjs
+          node cloudrun/transport-proof/combined-visit-canonical-routing-20-test.mjs
           node cloudrun/transport-proof/combined-visit-replay-20-test.mjs
           node cloudrun/transport-proof/combined-visit-distributed-lock-20-test.mjs
           node cloudrun/transport-proof/combined-visit-terminal-link-20-test.mjs

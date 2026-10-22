@@ -236,7 +236,7 @@ async function notificationGasCall(actor,operation,payload,gasAction){
  if(gasAction==='externalswap20')u.searchParams.set('action','externalswap20');
  let result,stage='post';
  try{
-  const first=await fetch(u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({bridgeKey:secret,actorRole:'manager',actorEmail:actor.email,operation,...payload}),redirect:'manual',signal:AbortSignal.timeout(60000)});
+  const first=await fetch(u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({bridgeKey:secret,actorRole:gasAction==='externalswap20'&&actor.role==='auditor'?'auditor':'manager',actorEmail:actor.email,operation,...payload}),redirect:'manual',signal:AbortSignal.timeout(60000)});
   result=first;
   // Apps Script ContentService redirects its JSON response to googleusercontent.
   // Follow the response with GET; never replay the write POST or forward the bridge secret.
@@ -298,9 +298,35 @@ async function swap20ManagerRequest(req,res,operation){
    res.writeHead(400);res.end('INVALID_SWAP_PROPOSAL');return;
   }
  }
- if(operation==='getProposal'||operation==='withdraw'){
+ if(operation==='getProposal'||operation==='withdraw'||operation==='commit'){
   data.operationId=String(body.operationId||'').trim();
   if(!/^[A-Za-z0-9_-]{8,100}$/.test(data.operationId)){res.writeHead(400);res.end('INVALID_SWAP_OPERATION_ID');return;}
+ }
+ const result=await notificationGasCall(actor,operation,data,'externalswap20');
+ res.writeHead(result?.ok===true?200:409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
+ res.end(JSON.stringify(result));return;
+}
+// Auditor SWAP 2.0 inbox and ACK. UID is resolved independently by GAS.
+async function swap20AuditorRequest(req,res,operation){
+ if(!runtime.isDev){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}
+ const actor=await session(req);
+ if(!actor||actor.role!=='auditor'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Auditor session required');return;}
+ let originOk=false;
+ try{const origin=new URL(String(req.headers.origin||''));originOk=origin.protocol==='https:'&&origin.host===String(req.headers.host||'');}catch{}
+ if(!originOk){res.writeHead(403,{'cache-control':'no-store'});res.end('ORIGIN_REJECTED');return;}
+ let raw='';
+ for await(const chunk of req){raw+=chunk;if(raw.length>1200){res.writeHead(413);res.end('SWAP_RESPONSE_TOO_LARGE');return;}}
+ let body;
+ try{body=JSON.parse(raw);}catch{res.writeHead(400);res.end('INVALID_JSON');return;}
+ if(!body||typeof body!=='object'||Array.isArray(body)){res.writeHead(400);res.end('INVALID_SWAP_REQUEST');return;}
+ const data={};
+ if(operation==='respond'){
+  data.operationId=String(body.operationId||'').trim();
+  data.decision=String(body.decision||'').trim().toUpperCase();
+  if(!/^[A-Za-z0-9_-]{8,100}$/.test(data.operationId)||
+     !['ACKNOWLEDGE','DECLINE'].includes(data.decision)){
+   res.writeHead(400);res.end('INVALID_AUDITOR_SWAP_RESPONSE');return;
+  }
  }
  const result=await notificationGasCall(actor,operation,data,'externalswap20');
  res.writeHead(result?.ok===true?200:409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
@@ -485,10 +511,19 @@ http.createServer(async(req,res)=>{
     '/api/v1/manager/swap20/preview':'preview',
     '/api/v1/manager/swap20/propose':'propose',
     '/api/v1/manager/swap20/status':'getProposal',
-    '/api/v1/manager/swap20/withdraw':'withdraw'
+    '/api/v1/manager/swap20/withdraw':'withdraw',
+    '/api/v1/manager/swap20/commit':'commit'
    }[u.pathname];
    if(!operation){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}
    await swap20ManagerRequest(req,res,operation);return;
+  }
+  if(req.method==='POST'&&u.pathname.startsWith('/api/v1/auditor/swap20/')){
+   const operation={
+    '/api/v1/auditor/swap20/list':'listPending',
+    '/api/v1/auditor/swap20/respond':'respond'
+   }[u.pathname];
+   if(!operation){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}
+   await swap20AuditorRequest(req,res,operation);return;
   }
   if(await availability(req,res))return;
   await proxy(req,res);

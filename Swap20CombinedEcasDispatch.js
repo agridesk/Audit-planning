@@ -64,13 +64,10 @@ function Swap20_tryQueueCombinedEcasLocked_(operationId){
    throw Error('SWAP before-image audit identity mismatch');
   var oldJson=String(image.values[jsonCol]||''),old=JSON.parse(oldJson);
   if(!Array.isArray(old.blocks)||!old.blocks.length)throw Error('Previous audit blocks missing');
-  var communicated=old.ecasCommunication||{};
-  // Receipt identifiers cannot be inferred from queue success or fabricated.
-  if(!communicated.communicationId||!communicated.planningDigest)
+  var actualDigest=ECAS20_receiptDigest_(old.blocks);
+  var communicated=ECAS20_findConfirmedReceipt_(auditId,actualDigest);
+  if(!communicated)
    return {ok:false,queued:false,reason:'PREVIOUS_DELIVERY_PROOF_MISSING',auditId:auditId};
-  var actualDigest=Swap20_digestPlanning_(JSON.stringify(old.blocks));
-  if(String(communicated.planningDigest)!==actualDigest)
-   return {ok:false,queued:false,reason:'PREVIOUS_PLANNING_DIGEST_MISMATCH',auditId:auditId};
   if(ECAS20_VerifyPersistedCommunication_(auditId,communicated.communicationId,
       {planningDigest:actualDigest})!==true)
    return {ok:false,queued:false,reason:'PREVIOUS_DELIVERY_NOT_VERIFIED',auditId:auditId};

@@ -8,7 +8,7 @@ const SID=process.env.AMS_SSOT_SPREADSHEET_ID||process.env.DEV_SSOT_SPREADSHEET_
 const GAS_WRITE_URL=process.env.AMS_GAS_WRITE_URL||process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
 const BUILD='2026-10-03_GRID2_R12_MAX_OFFSITE_POLICY';
-const MANAGER_ORIGIN='https://ams-transport-proof-510075419067.europe-west1.run.app';
+const MANAGER_ORIGIN=process.env.AMS_ALLOWED_ORIGIN||process.env.DEV_ALLOWED_ORIGIN||'https://ams-transport-proof-510075419067.europe-west1.run.app';
 let tokenCache={token:'',expiresAt:0};
 const realizedHoursInFlight=new Set();
 

@@ -1,0 +1,41 @@
+name: AMS issue 45 npm full-suite diagnostic
+on:
+  push:
+    branches: [dev]
+    paths:
+      - '.github/workflows/ams-issue45-npm-diagnose.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  npm-suite-diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run suite and record bounded failures
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set +e
+          cd cloudrun/transport-proof
+          npm test > /tmp/ams-issue45-npm.log 2>&1
+          status=$?
+          set -e
+          {
+            echo "### AMS issue #45 — full npm test diagnostic"
+            echo "Commit: \`$GITHUB_SHA\`; exit code: $status."
+            echo "Run: https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo 'Diagnostic excerpt (last 45 log lines; no runtime credentials loaded):'
+            echo '\`\`\`text'
+            tail -n 45 /tmp/ams-issue45-npm.log | sed -E 's/(token|key|secret|password)(=|:)[^ ,]*/\\1=[REDACTED]/Ig'
+            echo '\`\`\`'
+          } > /tmp/ams-issue45-note.md
+          gh issue comment 45 --body-file /tmp/ams-issue45-note.md
+          exit "$status"

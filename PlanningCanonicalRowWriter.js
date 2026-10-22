@@ -99,6 +99,25 @@ function PlanningCanonicalRowWriter_execute(rowInfo,transition,opts){
     auditorName:opts.auditorName||''
   };
 
+  // Issue #45: optional, canonical Model C Visit-composition provenance.
+  // Never include these fields in single-Visit planning unless the canonical
+  // combined writer has supplied a validated composition.
+  if(opts.combinedVisitComposition){
+    var composition=opts.combinedVisitComposition;
+    var sourceIds=Array.isArray(composition.sourceAuditIds)?composition.sourceAuditIds.map(PCRW_clean_):[];
+    var obligationIds=Array.isArray(composition.obligationIds)?composition.obligationIds.map(PCRW_clean_):[];
+    var scopeCodes=Array.isArray(composition.scopeCodes)?composition.scopeCodes.map(PCRW_clean_):[];
+    if(!sourceIds.length||!obligationIds.length||sourceIds.some(function(x){return !x;})||obligationIds.some(function(x){return !x;}))
+      throw new Error('CANONICAL_COMBINED_VISIT_PROVENANCE_INVALID');
+    if(new Set(sourceIds).size!==sourceIds.length||new Set(obligationIds).size!==obligationIds.length)
+      throw new Error('CANONICAL_COMBINED_VISIT_PROVENANCE_DUPLICATE');
+    planningJson.visitAuditId=PCRW_clean_(opts.auditId);
+    planningJson.sourceAuditIds=sourceIds;
+    planningJson.obligationIds=obligationIds;
+    planningJson.scopeCodes=scopeCodes;
+    planningJson.formalHours=Number(composition.formalHours||0);
+  }
+
   var row=rowInfo.row.slice();
   while(row.length<rowInfo.ctx.hdr.length)row.push('');
   if(rowInfo.ctx.colJson>0)row[rowInfo.ctx.colJson-1]=JSON.stringify(planningJson);

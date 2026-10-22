@@ -14,7 +14,7 @@ assert.ok(server.includes("if(!readiness.ready)return send(res,409,{ok:false,err
 assert.ok(server.includes("error:'MANAGER_REQUIRED'"),'Server Manager role guard');
 assert.ok(server.includes("Auditors!A1:AZ1000"),'Auditors canonical read');
 assert.ok(server.includes("Config_Scopes!A1:Z200"),'Live canonical qualifications');
-assert.ok(server.includes("Audit planning!A1:AX2500"),'Future audits drawn from canonical planning');
+assert.ok(server.includes("Audit planning!A1:BW2500"),'Future audits drawn from canonical planning');
 assert.ok(html.includes('id="auditorManagement20Panel"'),'Auditor internal panel');
 assert.ok(html.includes('id="auditorManagement20Rows"'),'Auditor list');
 assert.ok(ui.includes("'Profile','Qualifications','Availability Defaults','History'"),'Handoff dossier tabs');

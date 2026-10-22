@@ -21,5 +21,7 @@ export function resolveAmsRuntimeConfig(env, projectId) {
  if(!/^https:\/\//.test(gasWriteUrl))throw Error('AMS_PROD_GAS_WRITE_URL_REQUIRED');
  if(gasWriteUrl===String(env.GAS_DEV_WRITE_URL||'').trim())throw Error('AMS_PROD_GAS_BRIDGE_NOT_ISOLATED');
  if(!String(env.AMS_PROD_EXTERNAL_WRITE_BRIDGE_KEY||'').trim())throw Error('AMS_PROD_WRITE_BRIDGE_KEY_REQUIRED');
- return Object.freeze({mode,project,spreadsheet,isDev:false,gasWriteUrl});
+ const origin=String(env.AMS_PROD_ALLOWED_ORIGIN||'').trim();
+ if(!/^https:\/\//.test(origin)||origin===String(env.DEV_ALLOWED_ORIGIN||'').trim())throw Error('AMS_PROD_ORIGIN_NOT_ISOLATED');
+ return Object.freeze({mode,project,spreadsheet,isDev:false,origin,gasWriteUrl});
 }

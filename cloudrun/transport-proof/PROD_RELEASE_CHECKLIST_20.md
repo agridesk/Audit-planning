@@ -12,15 +12,17 @@ Status: NOT AUTHORIZED FOR PROD DEPLOYMENT. This checklist is the cutover contra
 
 ## Source regression checks
 - node prod-contract-20-regression-test.mjs
-- node prod-environment-isolation-20-test.mjs (existing fixture needs to be aligned with new required PROD GAS URL/key/origin)
-- node prod-readiness-contract-20.mjs (static review: interpret its legacy matching patterns against current source)
+- node prod-environment-isolation-20-test.mjs (PROD bridge, signing secret and origin fixture aligned)
+- node prod-readiness-contract-20.mjs (static source readiness contract)
 - node gas-trigger-source-inventory-20.mjs (source inventory; NOT evidence of installed triggers)
+
+Run `npm run test:prod-readiness` or use the dedicated GitHub Actions readiness workflow (no deployment). These checks do not replace live runtime evidence.
 
 ## Deploy preflight — MUST verify in actual GCP/GAS runtimes
 1. Capture exact DEV and candidate PROD commit/build SHA, container digest, Cloud Run revision, service and region.
 2. Prove PROD project identity equals AMS_PROD_GCP_PROJECT and differs from audit-management-system-dev.
 3. Verify PROD spreadsheet ID exists, is independently permissioned, and is unequal to DEV sheet ID.
-4. Verify PROD GAS URL + bridge key are independent from DEV; credentials stay out of logs and repository.
+4. Verify PROD GAS URL + bridge key are independent from DEV; credentials stay out of logs and repository. A separate PROD session-signing secret is mandatory; neither PROD key nor secret may equal the respective DEV credential.
 5. Verify PROD allowed origin and cookie scope; ensure session signing secret is PROD-specific.
 6. Check Firestore database, IAM grants, indexes, quotas and data isolation, including availability collections.
 7. Inventory all actually installed GAS triggers by execution identity; compare handler, project, timezone and cadence. Do not blindly install the source candidates (especially legacy cache triggers).

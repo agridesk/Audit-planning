@@ -62,6 +62,16 @@ async function getRoster(){
  if(new Set(records.map(x=>x.auditorId)).size!==records.length||new Set(records.map(x=>x.email)).size!==records.length)throw Error('AUDITOR_ROSTER_DUPLICATE_IDENTITY');
  return records;
 }
+// Reuse the canonical roster briefly; session still comes from the signed local identity endpoint.
+let swapRosterCache={until:0,rows:null,inflight:null};
+async function swapRoster(){
+ if(swapRosterCache.rows&&Date.now()<swapRosterCache.until)return swapRosterCache.rows;
+ if(swapRosterCache.inflight)return swapRosterCache.inflight;
+ swapRosterCache.inflight=getRoster().then(rows=>{
+  swapRosterCache.rows=rows;swapRosterCache.until=Date.now()+60000;return rows;
+ }).finally(()=>{swapRosterCache.inflight=null;});
+ return swapRosterCache.inflight;
+}
 async function session(req){
  const r=await fetch('http://127.0.0.1:'+innerPort+'/api/v1/session',{headers:{cookie:String(req.headers.cookie||'')},redirect:'manual'});
  if(!r.ok)return null;
@@ -72,7 +82,7 @@ async function session(req){
  const email=String(j.identity.email).trim().toLowerCase();
  // The verified R12 session grants the role; the roster provides the immutable UID.
  // Managers and auditors use the same canonical identity resolution.
- const records=await getRoster();
+ const records=await swapRoster();
  const user=records.find(x=>x.email===email);
  if(!user?.auditorId||user.role!==role)throw Error('AVAILABILITY_AUDITOR_UID_UNRESOLVED');
  return {role,email,auditorId:user.auditorId};
@@ -289,6 +299,23 @@ async function notificationGasCallOnce(actor,operation,payload,gasAction){
 }
 // SWAP 2.0 Manager Grid: signed DEV-only preview and proposal transport.
 // Never changes Accepted audit planning; canonical commit remains separately gated.
+// Cache signed, role-scoped SWAP lists per identity to avoid repeated 10s GAS calls.
+// A cold cache still needs GAS; mutations immediately invalidate both role views.
+const swap20Lists=new Map();
+const swap20ListInflight=new Map();
+function swap20ListKey(actor){return actor.role+":"+actor.email;}
+function swap20InvalidateLists(){swap20Lists.clear();swap20ListInflight.clear();}
+async function swap20ReadList(actor){
+ const key=swap20ListKey(actor),now=Date.now(),cached=swap20Lists.get(key);
+ if(cached&&cached.expires>now)return cached.data;
+ if(swap20ListInflight.has(key))return swap20ListInflight.get(key);
+ const call=notificationGasCall(actor,'listPending',{},'externalswap20').then(data=>{
+  if(data?.ok===true)swap20Lists.set(key,{data,expires:Date.now()+90000});
+  return data;
+ }).finally(()=>swap20ListInflight.delete(key));
+ swap20ListInflight.set(key,call);
+ return call;
+}
 async function swap20ManagerRequest(req,res,operation){
  if(!runtime.isDev){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}
  const actor=await session(req);
@@ -320,7 +347,10 @@ async function swap20ManagerRequest(req,res,operation){
   data.operationId=String(body.operationId||'').trim();
   if(!/^[A-Za-z0-9_-]{8,100}$/.test(data.operationId)){res.writeHead(400);res.end('INVALID_SWAP_OPERATION_ID');return;}
  }
- const result=await notificationGasCall(actor,operation,data,'externalswap20');
+ const result=operation==='listPending'
+  ?await swap20ReadList(actor)
+  :await notificationGasCall(actor,operation,data,'externalswap20');
+ if(operation!=='listPending'&&result?.ok===true)swap20InvalidateLists();
  res.writeHead(result?.ok===true?200:409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
  res.end(JSON.stringify(result));return;
 }
@@ -346,7 +376,10 @@ async function swap20AuditorRequest(req,res,operation){
    res.writeHead(400);res.end('INVALID_AUDITOR_SWAP_RESPONSE');return;
   }
  }
- const result=await notificationGasCall(actor,operation,data,'externalswap20');
+ const result=operation==='listPending'
+  ?await swap20ReadList(actor)
+  :await notificationGasCall(actor,operation,data,'externalswap20');
+ if(operation!=='listPending'&&result?.ok===true)swap20InvalidateLists();
  res.writeHead(result?.ok===true?200:409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
  res.end(JSON.stringify(result));return;
 }

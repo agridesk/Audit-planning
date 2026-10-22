@@ -131,8 +131,8 @@ function Swap20Bridge20_handle_(body) {
   operationId:op,auditA:a,auditB:b,requiredAuditorUids:uids,
   internalReason:internalReason,ecasComment:ecasComment
  },manager);
- return {ok:out.success===true,operationId:out.operationId,status:out.status,
-  requiresAcknowledgement:preview.requiresAcknowledgement===true,canonicalChanged:false};
+ return Swap20Bridge20_mirrorEvent_({ok:out.success===true,operationId:out.operationId,status:out.status,
+  requiresAcknowledgement:preview.requiresAcknowledgement===true,canonicalChanged:false},out.operationId);
 }
 
 // Auditor portal SWAP inbox, restricted to the authenticated canonical UID.

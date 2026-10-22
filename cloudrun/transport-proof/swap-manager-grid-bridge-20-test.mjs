@@ -42,6 +42,7 @@ const ctx={String,JSON,Date,Error,Array,Object,
   stored[input.operationId]=created;
   return {success:true,operationId:input.operationId,status:created.status};
  },
+ Swap20ManagerCommitAuthorized_:()=>({success:false,code:'SWAP_ATOMIC_WRITE_DISABLED',readOnly:true}),
  Swap20ManagerWithdrawProposalAuthorized_:()=>({success:true,status:'WITHDRAWN'})
 };
 runInNewContext(bridge,ctx);

@@ -163,6 +163,7 @@ function NB_buildPayloadForQueue_(eventType, data) {
   return {
     eventType: eventCode,
     swapItems: normalized.swapItems,
+    operationId: normalized.operationId,
     eventFamily: normalized.eventFamily,
     rendererProfile: normalized.rendererProfile,
     deliveryProfile: normalized.deliveryProfile,
@@ -613,6 +614,7 @@ function NB_normalizePayload_(eventCode, data, cfg) {
   return {
     eventType:eventCode,
     swapItems:Array.isArray(data.swapItems)?data.swapItems.slice():[],
+    operationId:NB_clean_(data.operationId),
     templatePreviewOnly:data.templatePreviewOnly===true,
     eventCode:eventCode,
     eventFamily:eventFamily,

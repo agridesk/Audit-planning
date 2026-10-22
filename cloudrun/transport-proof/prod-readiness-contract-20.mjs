@@ -22,6 +22,7 @@ if(!entry.includes('process.env.AMS_SSOT_SPREADSHEET_ID=spreadsheet'))flag('INNE
 if(!/AMS_PROD_RELEASE_ENABLED/.test(env)||!/AMS_PROD_GCP_PROJECT/.test(env)||!/AMS_PROD_SSOT_SPREADSHEET_ID/.test(env))flag('PROD_ENV_GATE_INCOMPLETE','runtime-environment-20.mjs','Missing explicit production release, project or isolated sheet guard.');
 if(!/project!==allowedProject/.test(env))flag('PROD_PROJECT_BINDING_UNPROVEN','runtime-environment-20.mjs','Missing exact production project binding.');
 if(!/spreadsheet===String\(env\.DEV_SSOT_SPREADSHEET_ID/.test(env))flag('PROD_SHEET_ISOLATION_UNPROVEN','runtime-environment-20.mjs','Missing explicit protection against using the DEV sheet.');
+if(!env.includes('AMS_PROD_LOGOUT_REVOCATION_REQUIRED'))flag('PROD_LOGOUT_REVOCATION_GATE','runtime-environment-20.mjs','PROD must have revocable sessions and reliable logout.');
 if(!env.includes('AMS_PROD_AUTH_OTP_ENABLED')||!env.includes('AMS_PROD_OTP_NOT_ENABLED'))flag('PROD_OTP_STARTUP_GATE','runtime-environment-20.mjs','PROD OTP must be enabled explicitly before launch.');
 const auth=files['server-r5.js'];
 if(!auth.includes("OTP_ENABLED=RUNTIME_ENV==='DEV'||(RUNTIME_ENV==='PROD'&&process.env.AMS_PROD_AUTH_OTP_ENABLED==='true')"))flag('PROD_OTP_ROUTING','server-r5.js','PROD OTP auth must use a separate explicit gate.');

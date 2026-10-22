@@ -368,6 +368,13 @@ async function proxy(req,res){
 http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url||'/','http://localhost');
+  if(req.method==='GET'&&u.pathname==='/api/v1/manager/runtime-readiness'){
+   const identity=await session(req);
+   if(!identity||identity.role!=='manager'){res.writeHead(identity?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
+   res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
+   res.end(JSON.stringify({ok:true,entrypoint:'R15',environment:runtime.mode,revision:process.env.K_REVISION||'UNAVAILABLE',buildSha:process.env.AMS_BUILD_SHA||'UNAVAILABLE',ssotConfigured:Boolean(spreadsheet),gasWriterConfigured:Boolean(process.env.AMS_GAS_WRITE_URL||process.env.GAS_DEV_WRITE_URL),availabilityBackend:'FIRESTORE',productionReleaseEnabled:!runtime.isDev}));
+   return;
+  }
   if(req.method==='GET'&&['/rotation','/rotation-manager-20'].includes(u.pathname)){
    const actor=await session(req);
    if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}

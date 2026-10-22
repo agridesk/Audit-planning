@@ -1,0 +1,22 @@
+AMS 2.0 — PROD CUTOVER STATIC PREFLIGHT RESULT
+Date 2026-10-22 | Source GitHub dev | Read-only evaluation
+
+Total: 9 checks; 6 PASS; 3 BLOCK.
+
+PASS PROD_RELEASE_OPT_IN
+PASS PROD_AUTH_OTP
+PASS PROD_LOGOUT_REVOCATION
+PASS PROD_SESSION_SECRET_ISOLATION
+PASS PROD_SHEET_ISOLATION
+PASS PROD_RELAY_ORIGIN_RUNTIME_RESOLVED
+BLOCK PROD_FIRESTORE_COLLECTION_EXPLICIT
+BLOCK PROD_FIRESTORE_DEV_DEFAULT_NOT_USED
+BLOCK DIRECT_SHEETS_WRITER_REVIEW_REQUIRED
+
+Meaning:
+1. server-r15.js constructs Firestore availability adapter without an explicit collection name; adapter currently defaults to ams_availability_20_dev. PROD project separation does not replace explicit release classification.
+2. server-r12.js retains direct Sheets batchUpdate for realized-hours change. Gate requires review of access control, audit trail and canonical writer ownership, not necessarily deletion of that route.
+
+Result: source-level static check, not deployed environment/CI test.
+Action owner: parallel feature development; livegang track retains gate and reruns after merges.
+No PROD changes.

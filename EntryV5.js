@@ -428,7 +428,17 @@ function doPost(e) {
     if(!actorEmail||!auditId||!managerAction)return ContentService.createTextOutput(JSON.stringify({success:false,error:'MISSING_REQUIRED_FIELDS'})).setMimeType(ContentService.MimeType.JSON);
     if(managerAction!=='approve'&&managerAction!=='cancel'&&managerAction!=='reject'&&managerAction!=='edit_realized_hours')return ContentService.createTextOutput(JSON.stringify({success:false,error:'MANAGER_PORTAL_ACTION_NOT_ALLOWED'})).setMimeType(ContentService.MimeType.JSON);
     if((managerAction==='cancel'||managerAction==='reject')&&!String(options.reason||options.comment||'').trim())return ContentService.createTextOutput(JSON.stringify({success:false,error:'ACTION_REASON_REQUIRED'})).setMimeType(ContentService.MimeType.JSON);
-    options.actorEmail=actorEmail;options.managerEmail=actorEmail;options.externalSession=true;var result=managerV5Action(auditId,managerAction,options);return ContentService.createTextOutput(JSON.stringify(result||{success:false,error:'EMPTY_RESULT'})).setMimeType(ContentService.MimeType.JSON);
+    // The script lock serializes Manager bridge writes across Cloud Run instances.
+    // No fallback to direct Sheets if the lock is busy or the canonical write fails.
+    var managerBridgeLock=LockService.getScriptLock();
+    if(!managerBridgeLock.tryLock(10000))return ContentService.createTextOutput(JSON.stringify({success:false,error:'CANONICAL_MANAGER_LOCK_BUSY'})).setMimeType(ContentService.MimeType.JSON);
+    try{
+      options.actorEmail=actorEmail;options.managerEmail=actorEmail;options.externalSession=true;
+      var result=managerV5Action(auditId,managerAction,options);
+      return ContentService.createTextOutput(JSON.stringify(result||{success:false,error:'EMPTY_RESULT'})).setMimeType(ContentService.MimeType.JSON);
+    }catch(managerBridgeError){
+      return ContentService.createTextOutput(JSON.stringify({success:false,error:'CANONICAL_MANAGER_WRITE_FAILED',detail:String(managerBridgeError&&managerBridgeError.message||managerBridgeError).slice(0,160)})).setMimeType(ContentService.MimeType.JSON);
+    }finally{managerBridgeLock.releaseLock();}
   }
   if(rawAction==='manageroverviewcommand'||rawAction==='overviewcommand')return ContentService.createTextOutput(JSON.stringify({success:false,error:'OVERVIEW_COMMAND_DEPRECATED',redirectAction:'manager'})).setMimeType(ContentService.MimeType.JSON);
   return ContentService.createTextOutput(JSON.stringify({success:false,error:'UNHANDLED_POST'})).setMimeType(ContentService.MimeType.JSON);

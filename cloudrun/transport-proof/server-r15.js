@@ -225,8 +225,8 @@ async function notificationsManagerOverview(req,res){
 }
 
 async function notificationGasCall(actor,operation,payload){
- const endpoint=process.env.GAS_DEV_WRITE_URL,secret=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY;
- if(!runtime.isDev||!endpoint||!secret)throw Error('NOTIFICATION_GAS_BRIDGE_UNAVAILABLE');
+ const endpoint=process.env.AMS_GAS_WRITE_URL||process.env.GAS_DEV_WRITE_URL,secret=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY;
+ if(!endpoint||!secret)throw Error('NOTIFICATION_GAS_BRIDGE_UNAVAILABLE');
  const u=new URL(endpoint);if(u.protocol!=='https:')throw Error('NOTIFICATION_GAS_HTTPS_REQUIRED');
  u.searchParams.set('action','externalnotification20');
  let result,stage='post';
@@ -277,7 +277,7 @@ async function notificationPreviewOrSend(req,res,operation){
  catch(err){
   if(operation==='sendTest'&&/^NOTIFICATION_GAS_(HTTP_404_REDIRECT_GET|INVALID_RESPONSE_|TRANSPORT_)/.test(String(err.message||''))){
    res.writeHead(202,{'content-type':'application/json','cache-control':'no-store'});
-   res.end(JSON.stringify({ok:true,deliveryStatus:'UNCONFIRMED',message:'The test request reached GAS but its response could not be verified. Email may have been sent. Check the DEV inbox before trying again.'}));
+   res.end(JSON.stringify({ok:true,deliveryStatus:'UNCONFIRMED',message:'The test request reached GAS but its response could not be verified. Email may have been sent. Check the receiving inbox before trying again.'}));
    return;
   }
   throw err;
@@ -413,7 +413,7 @@ http.createServer(async(req,res)=>{
   }
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/preview'){await notificationPreviewOrSend(req,res,'preview');return;}
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/send-test'){await notificationPreviewOrSend(req,res,'sendTest');return;}
-  if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/dev-mode'){await notificationDevModeMutation(req,res);return;}
+  if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/dev-mode'){if(!runtime.isDev){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}await notificationDevModeMutation(req,res);return;}
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/rules'){await notificationRuleMutation(req,res);return;}
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/digest-buffer'){await notificationDigestBufferMutation(req,res);return;}
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/events'){await notificationEventMutation(req,res);return;}

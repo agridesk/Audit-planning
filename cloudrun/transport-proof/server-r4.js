@@ -26,7 +26,7 @@ const BUILD='2026-10-04_PLANNING_R62_AUDITOR_SHARED_MODE';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const GAS_WRITE_URL=process.env.AMS_GAS_WRITE_URL||process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
-const SESSION_COOKIE='ams_dev_session';
+const SESSION_COOKIE=process.env.AMS_RUNTIME_ENV==='PROD'?'ams_prod_session':'ams_dev_session';
 const SESSION_TTL_SECONDS=30*24*60*60;
 const MANAGER_PORTAL_HTML=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
 const MANAGER_PORTAL_JS=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');

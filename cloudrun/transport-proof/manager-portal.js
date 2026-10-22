@@ -27,6 +27,13 @@ function updateSelectionUi(){
   var auditorMode=String(actorRole).toLowerCase()==="auditor";
   if(batch)batch.style.display=currentView==="open"&&!auditorMode?"":"none";
   if(concept)concept.style.display=currentView==="open"&&!auditorMode?"":"none";
+  var swap=document.getElementById("selectionSwap20");
+  if(swap){
+    var chosen=selectionRows(),eligible=chosen.length===2&&chosen.every(function(r){return String(r.statusKey||"").toUpperCase()==="ACCEPTED"});
+    swap.hidden=auditorMode||currentView!=="open"||n===0;
+    swap.disabled=!eligible;
+    swap.title=eligible?"Preview exchange of two Accepted audit time slots":"Select exactly two Accepted audits";
+  }
   var bulkAccept=document.getElementById("selectionAcceptAuditor");if(bulkAccept){var elig=selectionRows().filter(function(r){return r.statusKey==="APPROVED"&&(r.allowedActions||[]).includes("ACCEPT")});bulkAccept.hidden=!(auditorMode&&currentView==="open"&&elig.length>0);bulkAccept.textContent="Accept selected ("+elig.length+")";bulkAccept.disabled=bulkAcceptRunning20;}
 }
 function bindSelectionControls(root){
@@ -380,6 +387,27 @@ window.addEventListener("focus",function(){passiveRefreshOpen()});
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")passiveRefreshOpen()});
 document.getElementById("selectionAcceptAuditor").onclick=acceptSelectedAudits20;
 document.getElementById("q").addEventListener("input",filter);document.getElementById("reset").onclick=function(){document.getElementById("q").value="";render(all)};document.getElementById("openView").onclick=loadOpen;document.getElementById("completedView").onclick=loadCompleted;
+document.getElementById("selectionSwap20").onclick=function(){
+  var selected=selectionRows();
+  if(selected.length!==2||selected.some(function(r){return String(r.statusKey||"").toUpperCase()!=="ACCEPTED"})){
+    document.getElementById("status").textContent="SWAP requires exactly two Accepted audits.";return;
+  }
+  var panel=document.getElementById("swap20PreviewDialog");
+  if(!panel){
+    panel=document.createElement("dialog");panel.id="swap20PreviewDialog";
+    panel.style.cssText="width:min(600px,94vw);border:1px solid #cbd5e1;border-radius:10px;padding:22px";
+    panel.innerHTML='<h2>Swap audits — preview</h2><div id="swap20PreviewContent"></div><p>SWAP execution remains disabled pending live DEV acceptance. No audit or availability data will be changed.</p><button type="button" id="swap20Close">Close</button>';
+    document.body.appendChild(panel);
+    panel.querySelector("#swap20Close").onclick=function(){panel.close()};
+  }
+  var content=panel.querySelector("#swap20PreviewContent");content.replaceChildren();
+  selected.forEach(function(row,index){
+    var line=document.createElement("p");
+    line.textContent=(index===0?"Audit A: ":"Audit B: ")+String(row.company||"")+" — "+String(row.auditId||"")+" — "+String(row.datePlanned||"");
+    content.appendChild(line);
+  });
+  if(typeof panel.showModal==="function")panel.showModal();else panel.setAttribute("open","");
+};
 document.getElementById("selectionClear").onclick=selectionClear;
 document.getElementById("selectionBatch").onclick=function(){submitSelectionHandoff("batch")};
 document.getElementById("selectionConcept").onclick=function(){submitSelectionHandoff("concept")};

@@ -22,10 +22,10 @@ export function resolveAmsRuntimeConfig(env, projectId) {
  if(!/^https:\/\//.test(gasWriteUrl))throw Error('AMS_PROD_GAS_WRITE_URL_REQUIRED');
  if(gasWriteUrl===String(env.GAS_DEV_WRITE_URL||'').trim())throw Error('AMS_PROD_GAS_BRIDGE_NOT_ISOLATED');
  const prodWriteKey=String(env.AMS_PROD_EXTERNAL_WRITE_BRIDGE_KEY||'').trim();
- if(!prodWriteKey)throw Error('AMS_PROD_WRITE_BRIDGE_KEY_REQUIRED');
+ if(prodWriteKey.length<32)throw Error('AMS_PROD_WRITE_BRIDGE_KEY_REQUIRED');
  if(prodWriteKey===String(env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'').trim())throw Error('AMS_PROD_WRITE_KEY_NOT_ISOLATED');
  const prodSessionSecret=String(env.AMS_PROD_SESSION_SIGNING_SECRET||'').trim();
- if(!prodSessionSecret)throw Error('AMS_PROD_SESSION_SECRET_REQUIRED');
+ if(prodSessionSecret.length<32)throw Error('AMS_PROD_SESSION_SECRET_REQUIRED');
  if(prodSessionSecret===String(env.AMS_SESSION_SIGNING_SECRET||'').trim())throw Error('AMS_PROD_SESSION_SECRET_NOT_ISOLATED');
  const origin=String(env.AMS_PROD_ALLOWED_ORIGIN||'').trim();
  if(!/^https:\/\//.test(origin)||origin===String(env.DEV_ALLOWED_ORIGIN||'').trim())throw Error('AMS_PROD_ORIGIN_NOT_ISOLATED');

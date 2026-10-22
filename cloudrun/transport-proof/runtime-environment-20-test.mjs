@@ -23,6 +23,7 @@ assert.match(entry,/resolveAmsRuntimeConfig\(process\.env,await resolveProject\(
 assert.match(entry,/if\(!endpoint\|\|!secret\)/);
 assert.match(entry,/const endpoint=process\.env\.AMS_GAS_WRITE_URL\|\|process\.env\.GAS_DEV_WRITE_URL/);
 assert.match(entry,/notifications-manager-20\/dev-mode'\)\{if\(!runtime\.isDev\)/);
+assert.match(entry,/notifications-manager-20\/send-test'\)\{if\(!runtime\.isDev\)/);
 assert.match(entry,/const includeTestData=runtime\.isDev/);
 assert.match(entry,/envHeaders\.indexOf\(runtime\.mode\)/);
 assert.match(entry,/sysHeadersForCount\.indexOf\(runtime\.mode\)/);
@@ -42,4 +43,8 @@ for(const file of ['server-r4.js','server-r12.js']){
  assert.match(source,/process\.env\.AMS_GAS_WRITE_URL\|\|process\.env\.GAS_DEV_WRITE_URL/);
 }
 assert.doesNotMatch(readFileSync(new URL('./server-r4.js',import.meta.url),'utf8'),/projectId:process\.env\.GOOGLE_CLOUD_PROJECT\|\|process\.env\.GCP_PROJECT\|\|'audit-management-system-dev'/);
+const notifyUi=readFileSync(new URL('./notification-manager-20.html',import.meta.url),'utf8');
+assert.match(notifyUi,/id="devMailSafety"/);
+assert.match(notifyUi,/testTab\.classList\.toggle\('hidden',!devOnly\)/);
+assert.match(notifyUi,/\$\('devMailSafety'\)\.classList\.toggle\('hidden',!devOnly\)/);
 console.log('AMS runtime environment isolation contract: PASS');

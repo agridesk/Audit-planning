@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {withCombinedVisitDistributedLock20 as lock} from './combined-visit-distributed-lock-20.mjs';
+const base={enabled:true,mode:'DEV',projectId:'audit-management-system-dev',getToken:async()=>'test-token'};
+const events=[];
+const fetchOk=async(url,opts)=>{events.push(opts.method);return opts.method==='POST'?{ok:true,status:200,json:async()=>({name:'projects/audit-management-system-dev/databases/(default)/documents/ams_combined_visit_locks/global',updateTime:'2026-10-22T00:00:00Z'})}:{ok:true,status:200}};
+assert.equal(await lock({...base,enabled:false,work:async()=>42}),42);
+assert.equal(await lock({...base,fetchImpl:fetchOk,work:async()=>7}),7);
+assert.deepEqual(events,['POST','DELETE']);
+await assert.rejects(lock({...base,mode:'PROD',fetchImpl:fetchOk,work:async()=>1}),/DEV_PROJECT_REQUIRED/);
+await assert.rejects(lock({...base,fetchImpl:async()=>({ok:false,status:409}),work:async()=>1}),/LOCK_BUSY/);
+let didRelease=false;
+await assert.rejects(lock({...base,fetchImpl:async(url,opts)=>opts.method==='POST'?{ok:true,json:async()=>({name:'projects/audit-management-system-dev/databases/(default)/documents/ams_combined_visit_locks/global',updateTime:'2026-10-22T00:00:00Z'})}:(didRelease=true,{ok:true}),work:async()=>{throw Error('VALIDATION_REJECTED')}}),/VALIDATION_REJECTED/);
+assert.equal(didRelease,true);
+didRelease=false;
+await assert.rejects(lock({...base,fetchImpl:async(url,opts)=>opts.method==='POST'?{ok:true,json:async()=>({name:'projects/audit-management-system-dev/databases/(default)/documents/ams_combined_visit_locks/global',updateTime:'2026-10-22T00:00:00Z'})}:(didRelease=true,{ok:true}),work:async()=>{throw Error('SHEETS_BATCH_UPDATE_UNCERTAIN')}}),/MUTATION_UNCERTAIN/);
+assert.equal(didRelease,false);
+console.log('COMBINED_VISIT_DISTRIBUTED_LOCK: PASS');

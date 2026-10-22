@@ -1,0 +1,62 @@
+name: AMS issue 45 lifecycle and Availability DEV regressions
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'CoreStatusMachine.js'
+      - 'StatusNotificationBridge.js'
+      - 'RejectedAuditsV5.js'
+      - 'ModelCRejectLinkPlanner.js'
+      - 'ModelCRejectLinkWriter.js'
+      - 'ModelCRejectedLinkIntegrity.js'
+      - 'EntryV5.js'
+      - 'cloudrun/transport-proof/server-r4.js'
+      - 'cloudrun/transport-proof/server-r6.js'
+      - 'cloudrun/transport-proof/manager-canonical-write-bridge-20.mjs'
+      - 'cloudrun/transport-proof/combined-visit-*.mjs'
+      - 'cloudrun/transport-proof/*45*.mjs'
+      - 'tests/*model-c*.test.mjs'
+      - 'tests/*lifecycle*.test.mjs'
+      - 'tests/*manager*.test.mjs'
+      - '.github/workflows/ams-issue45-lifecycle-availability.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  lifecycle-contract:
+    name: Lifecycle, combined Visit and Availability non-destructive tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate changed source syntax
+        run: |
+          node --check CoreStatusMachine.js
+          node --check StatusNotificationBridge.js
+          node --check RejectedAuditsV5.js
+          node --check ModelCRejectLinkPlanner.js
+          node --check ModelCRejectLinkWriter.js
+          node --check ModelCRejectedLinkIntegrity.js
+          node --check EntryV5.js
+          node --check cloudrun/transport-proof/server-r4.js
+          node --check cloudrun/transport-proof/server-r6.js
+      - name: Lifecycle and Model C tests
+        run: |
+          node tests/lifecycle-v212-status-contract.test.mjs
+          node tests/lifecycle-cancel-availability-invariant.test.mjs
+          node tests/model-c-reject-link-planner.test.mjs
+          node tests/model-c-reject-link-writer.test.mjs
+          node tests/model-c-rejected-link-integrity.test.mjs
+          node tests/rejected-archive-model-c-contract.test.mjs
+          node tests/external-manager-canonical-lock-20.test.mjs
+      - name: Cloud Run writer and combined Visit tests
+        run: |
+          node cloudrun/transport-proof/manager-canonical-write-bridge-20-test.mjs
+          node cloudrun/transport-proof/manager-canonical-routing-20-test.mjs
+          node cloudrun/transport-proof/prod-lifecycle-writer-guard-20-test.mjs
+          node cloudrun/transport-proof/combined-visit-replay-20-test.mjs
+          node cloudrun/transport-proof/combined-visit-distributed-lock-20-test.mjs
+          node cloudrun/transport-proof/combined-visit-terminal-link-20-test.mjs

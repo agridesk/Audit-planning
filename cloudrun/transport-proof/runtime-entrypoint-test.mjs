@@ -7,6 +7,7 @@ const checks=[
   ['package starts canonical Availability R15 runtime',pkg?.scripts?.start==='node server-r15.js'],
   ['Docker image contains R12',docker.includes('COPY server-r12.js ./')],
   ['Docker image contains R15',docker.includes('COPY server-r15.js ./')],
+  ['Docker contains runtime environment resolver',docker.includes('COPY runtime-environment-20.mjs ./')],
   ['Docker image contains Availability modules',docker.includes('COPY availability-*.js ./')],
   ['Docker image contains shared assignment validator',docker.includes('COPY assignment-validation-v211.js ./')],
   ['Docker image contains shared actor capabilities',docker.includes('COPY actor-capabilities-v211.js ./')],

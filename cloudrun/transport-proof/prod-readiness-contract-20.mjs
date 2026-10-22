@@ -28,6 +28,8 @@ if(!env.includes('AMS_PROD_AUTH_OTP_ENABLED')||!env.includes('AMS_PROD_OTP_NOT_E
 const auth=files['server-r5.js'];
 if(!auth.includes("OTP_ENABLED=RUNTIME_ENV==='DEV'||(RUNTIME_ENV==='PROD'&&process.env.AMS_PROD_AUTH_OTP_ENABLED==='true')"))flag('PROD_OTP_ROUTING','server-r5.js','PROD OTP auth must use a separate explicit gate.');
 if(!auth.includes("if(RUNTIME_ENV!=='DEV')return sendJson(res,404,{ok:false,error:'NOT_FOUND'});"))flag('DEV_SHORTCUT_GUARD','server-r5.js','DEV one-click login must remain forbidden outside DEV.');
+if(!auth.includes('deviceId,remember})'))flag('OTP_REMEMBER_PROPAGATION','server-r5.js','OTP exchange must preserve Remember me choice.');
+if(!core.includes('sessionCookie(token,b.remember===true)'))flag('OTP_SESSION_COOKIE_POLICY','server-r4.js','Without Remember the session cookie must remain browser-session-only.');
 if(!auth.includes("cloudAuthLoginHtml().replace(/<section id=\"shortcut\">"))flag('PROD_SHORTCUT_HIDDEN','server-r5.js','Production OTP login page must hide DEV bypass controls.');
 if(!env.includes('AMS_PROD_SESSION_SIGNING_SECRET')||!env.includes('AMS_PROD_SESSION_SECRET_NOT_ISOLATED'))flag('PROD_SESSION_SECRET_GATE_MISSING','runtime-environment-20.mjs','PROD must have its own separate signing secret.');
 if(!env.includes('AMS_PROD_WRITE_KEY_NOT_ISOLATED'))flag('PROD_GAS_KEY_ISOLATION_GATE_MISSING','runtime-environment-20.mjs','PROD GAS writer key must not equal DEV key.');

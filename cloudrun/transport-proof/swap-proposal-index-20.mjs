@@ -3,6 +3,7 @@ const COLLECTION='ams_swap20_dev_index';
 const OPEN_MANAGER=['AWAITING_ACKNOWLEDGEMENT','ESCALATED','CONFIRMED','DECLINED'];
 const OPEN_AUDITOR=['AWAITING_ACKNOWLEDGEMENT','ESCALATED'];
 const validId=id=>/^[A-Za-z0-9_-]{8,100}$/.test(String(id||''));
+const validAudit=id=>typeof id==='string'&&id.trim().length>0&&id.length<=140;
 export function createSwapProposalIndex({project,getToken,fetchImpl=fetch}={}){
  if(!/^[a-z][a-z0-9-]{4,62}$/.test(project||'')||typeof getToken!=='function')throw Error('SWAP_INDEX_CONFIG');
  const base='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(project)+'/databases/(default)/documents/'+COLLECTION;
@@ -47,7 +48,7 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch}={}){
   return docs.filter(x=>!String(x.name||'').endsWith('/_META')).map(decode);
  }
  function validateProposal(p){
-  if(!p||!validId(p.operationId)||!validId(p.auditA)||!validId(p.auditB)||
+  if(!p||!validId(p.operationId)||!validAudit(p.auditA)||!validAudit(p.auditB)||
     !Array.isArray(p.requiredAuditorUids)||!Array.isArray(p.acknowledgedAuditorUids)||
     !Array.isArray(p.blocksA)||!Array.isArray(p.blocksB)||typeof p.status!=='string')
    throw Error('SWAP_INDEX_PROPOSAL_INVALID');
@@ -88,9 +89,15 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch}={}){
   const prior=await meta();
   if(prior)return false;
   if(!Array.isArray(records)||records.length>300)throw Error('SWAP_INDEX_BOOTSTRAP_INVALID');
-  for(const record of records)await put(validateProposal(record).operationId,record);
-  const created=await put('_META',{status:'READY',sequence:1,initializedAt:new Date().toISOString()});
-  return !!created;
+  const started=await put('_META',{status:'BOOTSTRAPPING',sequence:1});
+  if(!started)return false;
+  for(const record of records){
+   const saved=await put(validateProposal(record).operationId,record);
+   if(!saved)throw Error('SWAP_INDEX_BOOTSTRAP_ROW_CONFLICT');
+  }
+  const ready=await put('_META',{status:'READY',sequence:1,initializedAt:new Date().toISOString()},started.updateTime);
+  if(!ready)throw Error('SWAP_INDEX_BOOTSTRAP_RACE');
+  return true;
  }
  async function begin(op){
   if(!validId(op))throw Error('SWAP_INDEX_OPERATION_INVALID');
@@ -105,7 +112,8 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch}={}){
   const current=await meta();
   if(!current||current.data.status!=='DIRTY'||current.data.operationId!==op)
    throw Error('SWAP_INDEX_LOCK_LOST');
-  await put(op,proposal,(await doc(op))?.updateTime);
+  const saved=await put(op,proposal,(await doc(op))?.updateTime);
+  if(!saved)throw Error('SWAP_INDEX_PROPOSAL_WRITE_CONFLICT');
   const ready=await put('_META',{status:'READY',sequence:current.data.sequence,updatedAt:new Date().toISOString()},current.updateTime);
   if(!ready)throw Error('SWAP_INDEX_COMPLETE_CONFLICT');
   return true;

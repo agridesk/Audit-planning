@@ -1,0 +1,24 @@
+AMS 2.0 — RUNTIME ENVIRONMENT EXECUTED TEST EVIDENCE
+Date: 2026-10-22
+Source: GitHub agridesk/Audit-planning branch dev, cloudrun/transport-proof/runtime-environment-20.mjs
+Method: retrieved actual module source and evaluated exported resolveAmsRuntimeConfig function in an isolated JavaScript test harness with synthetic configuration. No cloud deployment or production writes.
+
+EXECUTED SCENARIOS — 7/7 PASS
+1. DEV_VALID: mode DEV with correct dev project => PASS
+2. PROD_VALID: explicit release flags, OTP, logout revocation, isolated project/sheet/bridge/session key/origin => PASS
+3. OTP_OFF: expected AMS_PROD_OTP_NOT_ENABLED => PASS
+4. LOGOUT_OFF: expected AMS_PROD_LOGOUT_REVOCATION_REQUIRED => PASS
+5. SHARED_BRIDGE: expected AMS_PROD_WRITE_KEY_NOT_ISOLATED => PASS
+6. SHARED_SESSION: expected AMS_PROD_SESSION_SECRET_NOT_ISOLATED => PASS
+7. DEV_PROJECT_PROD: expected AMS_PROD_PROJECT_MISMATCH => PASS
+
+LIMITATIONS
+This directly tests the runtime resolver from actual source, NOT the full repository test suite, deployed Cloud Run revision, GAS script properties or production behavior.
+The GitHub connector returned no pull-request-triggered workflow runs or commit statuses for commit da6ec88fead10118ac37001c266e8d9ae166e266. Absence of status is not evidence tests passed or failed.
+Full integration tests and production migration rehearsal still required.
+
+DEV CODE UPDATE VERIFIED
+cloudrun/transport-proof/runtime-environment-20-test.mjs contains updated fixture for PROD OTP/logout-revocation and separate signing/write secrets, plus five negative test cases.
+Commit da6ec88fead10118ac37001c266e8d9ae166e266.
+
+PROD NOT MODIFIED.

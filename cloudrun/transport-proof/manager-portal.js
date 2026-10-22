@@ -523,6 +523,8 @@ document.getElementById("selectionSwap20").onclick=async function(){
 };
 // Auditor-only SWAP acknowledgement inbox. Never relies on browser-provided UID.
 // Role-scoped SWAP attention is outstanding work, never a browser-only unread counter.
+// The role's pending SWAP list starts loading during portal login,
+ // concurrently with grid data. Opening the dialog shares the in-flight request.
 var swap20ListCache={manager:null,auditor:null};
 var swap20ListPending={manager:null,auditor:null};
 async function swap20GridRequest(role,operation,body){
@@ -1151,5 +1153,5 @@ close.onclick=function(){panel.hidden=true};search.oninput=render;filter.onchang
 })();
 
 try{var mailActionEvents20=new BroadcastChannel("ams-auditor-actions-20");mailActionEvents20.onmessage=function(e){if(e.data&&e.data.type==="AUDIT_ACTION_CONFIRMED"&&currentView==="open")loadOpen()}}catch(e){console.warn("[AUDITOR_ACTION_SYNC]",e)}
-fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("scopeManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("auditorManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("notificationsManager20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("companyManagement20").hidden=!['manager','auditor'].includes(String(actorRole).toLowerCase());document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();if(String(actorRole).toLowerCase()==="manager")initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)});return loadOpen().then(function(){swap20RefreshAttention();document.addEventListener("visibilitychange",function(){if(!document.hidden)swap20RefreshAttention()});window.addEventListener("focus",swap20RefreshAttention);})}).catch(fail);
+fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("scopeManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("auditorManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("notificationsManager20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("companyManagement20").hidden=!['manager','auditor'].includes(String(actorRole).toLowerCase());document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();swap20RefreshAttention();if(String(actorRole).toLowerCase()==="manager")initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)});return loadOpen().then(function(){document.addEventListener("visibilitychange",function(){if(!document.hidden)swap20RefreshAttention()});window.addEventListener("focus",swap20RefreshAttention);})}).catch(fail);
 })();

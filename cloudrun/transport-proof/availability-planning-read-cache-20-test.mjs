@@ -10,4 +10,18 @@ now=1101;assert.equal((await cache.read())[1][0],'record-3');assert.equal(calls,
 fail=true;now=1300;await assert.rejects(()=>cache.read(),/SOURCE_UNAVAILABLE/);
 await assert.rejects(()=>cache.read({fresh:true}),/SOURCE_UNAVAILABLE/);
 fail=false;assert.equal((await cache.read())[1][0],'record-6');
+cache.invalidate();
+assert.equal((await cache.read())[1][0],'record-7');
+let release;
+const held=createPlanningReadCache({ttlMs:1000,load:()=>new Promise(resolve=>{release=resolve})});
+const stale=held.read();
+await Promise.resolve();
+held.invalidate();
+release([['header'],['stale']]);
+assert.equal((await stale)[1][0],'stale');
+const fresh=held.read();
+await Promise.resolve();
+release([['header'],['fresh']]);
+assert.equal((await fresh)[1][0],'fresh');
+assert.equal((await held.read())[1][0],'fresh');
 console.log('PASS: concurrent read coalescing, TTL, mutation fresh read, failure fail-closed');

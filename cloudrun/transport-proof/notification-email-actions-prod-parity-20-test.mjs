@@ -40,5 +40,6 @@ assert.doesNotMatch(auditorRenderer,/https:\/\/ams-transport-proof-/);
 assert.doesNotMatch(managerRenderer,/https:\/\/ams-transport-proof-/);
 // PROD must keep its own entrypoint until the DEV-only R15 boot guard is replaced.
 const entrypoint=source('cloudrun/transport-proof/server-r15.js');
-assert.match(entrypoint,/AVAILABILITY_DEV_PROJECT_ONLY/);
+assert.match(entrypoint,/resolveAmsRuntimeConfig/);
+assert.match(source('cloudrun/transport-proof/runtime-environment-20.mjs'),/AVAILABILITY_DEV_PROJECT_ONLY/);
 console.log('notification-email-actions-prod-parity-20: PASS');

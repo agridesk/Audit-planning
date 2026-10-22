@@ -17,6 +17,7 @@ const entry=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 assert.match(entry,/resolveAmsRuntimeConfig\(process\.env,await resolveProject\(\)\)/);
 assert.match(entry,/if\(!runtime\.isDev\|\|!endpoint\|\|!secret\)/);
 assert.match(entry,/const includeTestData=runtime\.isDev/);
+assert.match(entry,/migrate-legacy-hard'\)\{if\(!runtime\.isDev\)/);
 assert.match(entry,/process\.env\.AMS_SSOT_SPREADSHEET_ID=spreadsheet/);
 for(const file of ['server-r4.js','server-r12.js'])assert.match(readFileSync(new URL('./'+file,import.meta.url),'utf8'),/process\.env\.AMS_SSOT_SPREADSHEET_ID\|\|process\.env\.DEV_SSOT_SPREADSHEET_ID/);
 console.log('AMS runtime environment isolation contract: PASS');

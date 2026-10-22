@@ -3,7 +3,7 @@ import {URL} from 'node:url';
 
 const PUBLIC_PORT=Number(process.env.PORT||8080);
 const INNER_PORT=PUBLIC_PORT+1;
-const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
+const SID=process.env.AMS_SSOT_SPREADSHEET_ID||process.env.DEV_SSOT_SPREADSHEET_ID||'';
 const BUILD='2026-10-01_AMS_COMBINED_VISIT_HOURS_PROJECTION_R1';
 
 process.env.PORT=String(INNER_PORT);

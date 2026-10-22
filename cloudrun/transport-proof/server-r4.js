@@ -718,6 +718,7 @@ async function saveScopeCosmetic20(body){
   return{ok:true,scopeCode:code,field,value,previous:old};
 }
 async function directManagerExtension(identity,body){
+  if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
   const t0=Date.now(),auditId=clean(body?.auditId),command=clean(body?.command).toLowerCase();
   if(!auditId)throw new Error('AUDIT_ID_REQUIRED');
   if(!['apply','undo'].includes(command))throw new Error('EXTENSION_COMMAND_NOT_ALLOWED');

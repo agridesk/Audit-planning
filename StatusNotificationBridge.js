@@ -297,7 +297,7 @@ function StatusNotificationBridge_Dispatch_(action, actor, ctx, payload, result)
      * 3. isolate internal queueing and ECAS queueing so failure/dedup of one cannot block the other.
      */
     var acceptBriefing = null;
-    if (eventCode === 'AUDIT_ACCEPTED') {
+    if (eventCode === 'AUDIT_ACCEPTED' || (eventCode === 'AUDIT_APPROVED' && afterStatus === STATUS.ACCEPTED)) {
       acceptBriefing = StatusNotificationBridge_LoadEcasAuditBriefing_(auditId);
 
       StatusNotificationBridge_Diag_('ACCEPT_BRIEFING_LOADED_R11', auditId, action, actor, beforeStatus, afterStatus, true, '', {
@@ -372,7 +372,7 @@ function StatusNotificationBridge_Dispatch_(action, actor, ctx, payload, result)
     }
 
     var externalQueueResult = null;
-    if (eventCode === 'AUDIT_ACCEPTED') {
+    if (eventCode === 'AUDIT_ACCEPTED' || (eventCode === 'AUDIT_APPROVED' && afterStatus === STATUS.ACCEPTED)) {
       StatusNotificationBridge_Diag_('ECAS_DISPATCH_BRANCH_ENTER', auditId, action, actor, beforeStatus, afterStatus, true, '', {
         recipient: recipient.email,
         eventCode: eventCode,
@@ -1184,7 +1184,7 @@ function StatusNotificationBridge_MapEvent_(action, actor, beforeStatus, afterSt
   afterStatus = Status_normalizeStatus_(afterStatus);
 
   if (beforeStatus === STATUS.PENDING_PLANNING && action === ACTION.PLAN && actor === ROLE.AUDITOR && afterStatus === STATUS.PENDING_APPROVAL) return 'AUDIT_PLANNED_BY_AUDITOR';
-  if (beforeStatus === STATUS.PENDING_APPROVAL && action === ACTION.APPROVE && actor === ROLE.MANAGER && afterStatus === STATUS.APPROVED) return 'AUDIT_APPROVED';
+  if (beforeStatus === STATUS.PENDING_APPROVAL && action === ACTION.APPROVE && actor === ROLE.MANAGER && afterStatus === STATUS.ACCEPTED) return 'AUDIT_APPROVED';
   if (beforeStatus === STATUS.PENDING_PLANNING && action === ACTION.PLAN && actor === ROLE.MANAGER && afterStatus === STATUS.APPROVED) return 'AUDIT_PLANNED_BY_MANAGER';
   if (beforeStatus === STATUS.APPROVED && action === ACTION.ACCEPT && (actor === ROLE.AUDITOR || actor === ROLE.MANAGER) && afterStatus === STATUS.ACCEPTED) return 'AUDIT_ACCEPTED';
   if (beforeStatus === STATUS.ACCEPTED && action === ACTION.COMPLETE && actor === ROLE.MANAGER && afterStatus === STATUS.COMPLETED) return 'COMPLETED_ON_BEHALF';
@@ -1471,7 +1471,7 @@ function RUN_STATUS_NOTIFICATION_BRIDGE_QUEUE_TX_VALIDATE_R15() {
 function RUN_STATUS_NOTIFICATION_BRIDGE_TRIGGER_CONTRACT() {
   var cases = [
     { name: 'Auditor plans; manager approval required', beforeStatus: STATUS.PENDING_PLANNING, action: ACTION.PLAN, actor: ROLE.AUDITOR, afterStatus: STATUS.PENDING_APPROVAL, expectedEvent: 'AUDIT_PLANNED_BY_AUDITOR' },
-    { name: 'Manager approves auditor planning', beforeStatus: STATUS.PENDING_APPROVAL, action: ACTION.APPROVE, actor: ROLE.MANAGER, afterStatus: STATUS.APPROVED, expectedEvent: 'AUDIT_APPROVED' },
+    { name: 'Manager approves auditor planning', beforeStatus: STATUS.PENDING_APPROVAL, action: ACTION.APPROVE, actor: ROLE.MANAGER, afterStatus: STATUS.ACCEPTED, expectedEvent: 'AUDIT_APPROVED' },
     { name: 'Manager plans directly', beforeStatus: STATUS.PENDING_PLANNING, action: ACTION.PLAN, actor: ROLE.MANAGER, afterStatus: STATUS.APPROVED, expectedEvent: 'AUDIT_PLANNED_BY_MANAGER' },
     { name: 'Auditor accepts approved planning', beforeStatus: STATUS.APPROVED, action: ACTION.ACCEPT, actor: ROLE.AUDITOR, afterStatus: STATUS.ACCEPTED, expectedEvent: 'AUDIT_ACCEPTED' }
   ];

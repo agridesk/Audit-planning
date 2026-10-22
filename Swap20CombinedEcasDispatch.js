@@ -68,7 +68,7 @@ function Swap20_tryQueueCombinedEcasLocked_(operationId){
   // Receipt identifiers cannot be inferred from queue success or fabricated.
   if(!communicated.communicationId||!communicated.planningDigest)
    return {ok:false,queued:false,reason:'PREVIOUS_DELIVERY_PROOF_MISSING',auditId:auditId};
-  var actualDigest=Swap20_digestPlanning_(oldJson);
+  var actualDigest=Swap20_digestPlanning_(JSON.stringify(old.blocks));
   if(String(communicated.planningDigest)!==actualDigest)
    return {ok:false,queued:false,reason:'PREVIOUS_PLANNING_DIGEST_MISMATCH',auditId:auditId};
   if(ECAS20_VerifyPersistedCommunication_(auditId,communicated.communicationId,

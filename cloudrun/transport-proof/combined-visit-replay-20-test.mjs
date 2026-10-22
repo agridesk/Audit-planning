@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {isCanonicalCombinedReplay20 as same} from './combined-visit-replay-20.mjs';
+const blocks=[{date:'2026-11-04',start:'09:00',end:'13:00',hours:4,executionType:'ONSITE',execLoc:'HQ'}];
+const base={targetAuditId:'A1',status:'Approved',assignedTo:'a@example.test',auditorEmail:'a@example.test',sourceAuditIds:['A2','A3'],blocks,planningJson:JSON.stringify({blocks,sourceAuditIds:['A3','A2'],obligationIds:['O1','O2']}),activeLinks:[{auditId:'A1',obligationId:'O1',state:'ACTIVE'},{auditId:'A1',obligationId:'O2',state:'ACTIVE'}]};
+assert.equal(same(base),true);
+assert.equal(same({...base,status:'Accepted'}),true);
+assert.equal(same({...base,sourceAuditIds:['A2']}),false);
+assert.equal(same({...base,assignedTo:'wrong@example.test'}),false);
+assert.equal(same({...base,status:'Pending Planning'}),false);
+assert.equal(same({...base,blocks:[{...blocks[0],end:'14:00'}]}),false);
+assert.equal(same({...base,activeLinks:base.activeLinks.slice(0,1)}),false);
+assert.equal(same({...base,activeLinks:[...base.activeLinks,base.activeLinks[0]]}),false);
+assert.equal(same({...base,planningJson:'bad json'}),false);
+assert.equal(same({...base,planningJson:JSON.stringify({blocks,obligationIds:['O1','O2']})}),false);
+console.log('COMBINED_VISIT_REPLAY: PASS 10 scenarios');

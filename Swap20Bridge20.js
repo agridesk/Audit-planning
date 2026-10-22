@@ -52,6 +52,25 @@ function Swap20Bridge20_handle_(body) {
  body=body||{};
  var manager=Swap20Bridge20_manager_(body.actorEmail);
  var operation=String(body.operation||'').trim();
+ if(operation==='listPending'){
+  var raw=PropertiesService.getScriptProperties().getProperties(),keys=Object.keys(raw).filter(function(k){return k.indexOf('AMS_SWAP20_PROPOSAL_')===0;}).sort();
+  if(keys.length>300)throw Error('SWAP_MANAGER_INBOX_SIZE_REQUIRES_REVIEW');
+  var items=[];
+  keys.forEach(function(k){
+   var p;try{p=JSON.parse(raw[k]);}catch(e){return;}
+   if(!p||!p.operationId||['AWAITING_ACKNOWLEDGEMENT','ESCALATED','CONFIRMED','DECLINED'].indexOf(p.status)<0)return;
+   var needed=Array.isArray(p.requiredAuditorUids)?p.requiredAuditorUids:[];
+   var ack=Array.isArray(p.acknowledgedAuditorUids)?p.acknowledgedAuditorUids:[];
+   items.push({operationId:p.operationId,auditA:p.auditA,auditB:p.auditB,status:p.status,
+    createdAt:p.createdAt||'',createdBy:p.createdBy||'',blocksA:p.blocksA||[],blocksB:p.blocksB||[],
+    acknowledgedCount:ack.length,requiredCount:needed.length,acknowledgedAuditorUids:ack,
+    requiredAuditorUids:needed,internalReason:p.internalReason||'',ecasComment:p.ecasComment||'',
+    commitEnabled:String(PropertiesService.getScriptProperties().getProperty('AMS_SWAP20_COMMIT_ENABLED')||'')==='true'});
+  });
+  items.sort(function(a,b){return String(b.createdAt).localeCompare(String(a.createdAt));});
+  return {ok:true,readOnly:true,items:items.slice(0,100),
+    attentionCount:items.filter(function(p){return p.status==='CONFIRMED'||p.status==='DECLINED';}).length};
+ }
  if(operation==='getProposal') {
   var id=String(body.operationId||'').trim(),p=Swap20Store_read_(id);
   if(!p)return {ok:false,error:'SWAP_PROPOSAL_NOT_FOUND'};
@@ -124,7 +143,8 @@ function Swap20Bridge20_handleAuditor_(body) {
     acknowledged:(p.acknowledgedAuditorUids||[]).indexOf(uid)>=0});
   });
   items.sort(function(a,b){return b.createdAt.localeCompare(a.createdAt);});
-  return {ok:true,readOnly:true,items:items.slice(0,50)};
+  return {ok:true,readOnly:true,items:items.slice(0,50),
+   attentionCount:items.filter(function(p){return !p.acknowledged;}).length};
  }
  if(operation==='respond') {
   var op=String(body.operationId||'').trim(),decision=String(body.decision||'').toUpperCase();

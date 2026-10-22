@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+const source=readFileSync(new URL('../ModelCCombinedVisitPlanner20.js',import.meta.url),'utf8');
+const ctx=vm.createContext({});vm.runInContext(source,ctx);
+const plan=ctx.ModelCCombinedVisitPlanner20_plan;
+const base={targetAuditId:'A1',memberAuditIds:['A2'],audits:[{auditId:'A1',status:'Pending Planning',companyUid:'C1'},{auditId:'A2',status:'Pending Planning',companyUid:'C1'}],obligations:[{obligationId:'O1',obligationState:'OPEN',companyUid:'C1',scopeCode:'MPS-GAP'},{obligationId:'O2',obligationState:'LINKED_TO_VISIT',companyUid:'C1',scopeCode:'GRASP'}],links:[{auditId:'A1',obligationId:'O1',linkState:'ACTIVE'},{auditId:'A2',obligationId:'O2',linkState:'ACTIVE'}]};
+const good=plan(base);assert.equal(good.success,true);assert.equal(good.closeLinks.length,1);assert.equal(good.newLinks.length,1);assert.equal(good.unchangedTargetLinks,1);assert.equal(good.writesPerformed,false);
+const changed=v=>({...base,...v});
+assert.throws(()=>plan(changed({audits:[{...base.audits[0],status:'Accepted'},base.audits[1]]})),/STATUS_CONFLICT/);
+assert.throws(()=>plan(changed({audits:[base.audits[0],{...base.audits[1],companyUid:'OTHER'}]})),/COMPANY_MISMATCH/);
+assert.throws(()=>plan(changed({obligations:[base.obligations[0],{...base.obligations[1],obligationState:'REJECTED'}]})),/TERMINAL_OBLIGATION/);
+assert.throws(()=>plan(changed({links:[...base.links,{...base.links[0]}]})),/DUPLICATE_ACTIVE/);
+assert.throws(()=>plan(changed({links:[base.links[0]]})),/WITHOUT_ACTIVE_LINK/);
+assert.throws(()=>plan(changed({obligations:[base.obligations[0]]})),/ORPHAN_OBLIGATION/);
+assert.throws(()=>plan(changed({memberAuditIds:['A1']})),/MEMBER_SET_INVALID/);
+assert.throws(()=>plan(changed({obligations:[base.obligations[0],{...base.obligations[1],companyUid:'OTHER'}]})),/OBLIGATION_COMPANY_CONFLICT/);
+console.log('MODEL_C_COMBINED_VISIT_PLANNER: PASS 12 assertions');

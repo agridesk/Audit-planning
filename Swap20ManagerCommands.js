@@ -6,6 +6,11 @@ function Swap20ManagerCreateProposal(input){
  input=input||{};
  var auth=V5_AUTH.validateTrustedTokenByRole(input.trustedToken||input.token,'Manager',input.deviceFingerprint||input.deviceId);
  if(!auth||auth.ok!==true||!auth.email)throw Error('Manager authentication required');
+ return Swap20ManagerCreateProposalAuthorized_(input,auth);
+}
+function Swap20ManagerCreateProposalAuthorized_(input,auth){
+ input=input||{};
+ if(!auth||auth.ok!==true||!auth.email||auth.role&&String(auth.role).toLowerCase()!=='manager')throw Error('Manager authentication required');
  var a=String(input.auditA||'').trim(),b=String(input.auditB||'').trim();
  var pair=Swap20_readCanonicalPair({auditA:a,auditB:b});
  if(!pair.eligible)throw Error('Swap pair not eligible');
@@ -20,7 +25,7 @@ function Swap20ManagerCreateProposal(input){
  var id=String(input.operationId||'').trim();
  var reason=String(input.internalReason||'').trim(),comment=String(input.ecasComment||'').trim();
  if(!reason||!comment)throw Error('Internal reason and ECAS explanation required');
- var proposal={operationId:id,auditA:a,auditB:b,requiredAuditorUids:canonicalUids,acknowledgedAuditorUids:[],createdAt:new Date().toISOString(),status:schedule.dateChanged?'AWAITING_ACKNOWLEDGEMENT':'CONFIRMED',reminderSentAt:null,escalatedAt:null,originalRevisions:{},internalReason:reason,ecasComment:comment,blocksA:schedule.blocksA,blocksB:schedule.blocksB,dateChanged:schedule.dateChanged};
+ var proposal={operationId:id,auditA:a,auditB:b,requiredAuditorUids:canonicalUids,acknowledgedAuditorUids:[],createdBy:String(auth.email).trim().toLowerCase(),createdAt:new Date().toISOString(),status:schedule.dateChanged?'AWAITING_ACKNOWLEDGEMENT':'CONFIRMED',reminderSentAt:null,escalatedAt:null,originalRevisions:{},internalReason:reason,ecasComment:comment,blocksA:schedule.blocksA,blocksB:schedule.blocksB,dateChanged:schedule.dateChanged};
  proposal.originalRevisions[a]=pair.auditA.revision;
  proposal.originalRevisions[b]=pair.auditB.revision;
  return Swap20Store_create_(proposal);
@@ -31,6 +36,11 @@ function Swap20ManagerWithdrawProposal(input){
  input=input||{};
  var auth=V5_AUTH.validateTrustedTokenByRole(input.trustedToken||input.token,'Manager',input.deviceFingerprint||input.deviceId);
  if(!auth||auth.ok!==true||!auth.email)throw Error('Manager authentication required');
+ return Swap20ManagerWithdrawProposalAuthorized_(input,auth);
+}
+function Swap20ManagerWithdrawProposalAuthorized_(input,auth){
+ input=input||{};
+ if(!auth||auth.ok!==true||!auth.email||auth.role&&String(auth.role).toLowerCase()!=='manager')throw Error('Manager authentication required');
  var id=String(input.operationId||'').trim(),old=Swap20Store_read_(id);
  if(!old)throw Error('Swap proposal not found');
  if(old.status!=='AWAITING_ACKNOWLEDGEMENT'&&old.status!=='ESCALATED'&&old.status!=='CONFIRMED')throw Error('Proposal cannot be withdrawn');

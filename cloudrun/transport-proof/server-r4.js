@@ -695,7 +695,7 @@ async function saveScopeCosmetic20(body){
   if(field==='Color'||field==='TextColor'){
     const rgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)/255).map(v=>v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4));
     const lum=h=>{const c=rgb(h);return c[0]*0.2126+c[1]*0.7152+c[2]*0.0722};
-    const values=await sheetsBatchGet(['Config_Scopes!A1:U128']),rows=values[0]?.values||[],head=(rows[0]||[]).map(clean),ci=head.indexOf('ScopeCode'),colorI=head.indexOf('Color'),textI=head.indexOf('TextColor');
+    const values=await sheetsBatchGet(['Config_Scopes!A1:Z128']),rows=values[0]?.values||[],head=(rows[0]||[]).map(clean),ci=head.indexOf('ScopeCode'),colorI=head.indexOf('Color'),textI=head.indexOf('TextColor');
     const matches=rows.slice(1).filter(r=>clean(r[ci])===code);
     if(matches.length!==1||colorI<0||textI<0)throw Error('COLOR_SCHEMA_INVALID');
     const row=matches[0],background=field==='Color'?value:clean(row[colorI]),foreground=field==='TextColor'?value:clean(row[textI]);
@@ -705,7 +705,7 @@ async function saveScopeCosmetic20(body){
     }
   }
   if(field==='SortOrder'&&(!/^[0-9]{1,4}$/.test(value)||Number(value)>9999))throw Error('INVALID_SORT_ORDER');
-  const vr=await sheetsBatchGet(['Config_Scopes!A1:U128']),rows=vr[0]?.values||[],head=(rows[0]||[]).map(clean),ci=head.indexOf('ScopeCode'),fi=head.indexOf(field);
+  const vr=await sheetsBatchGet(['Config_Scopes!A1:Z128']),rows=vr[0]?.values||[],head=(rows[0]||[]).map(clean),ci=head.indexOf('ScopeCode'),fi=head.indexOf(field);
   if(ci<0||fi<0)throw Error('SCOPE_SCHEMA_MISSING');
   const matches=rows.map((r,i)=>({r,i})).filter(x=>x.i>0&&clean(x.r[ci])===code);
   if(matches.length!==1)throw Error('SCOPE_IDENTITY_AMBIGUOUS');
@@ -1760,7 +1760,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
     let b;try{b=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
     const uid=clean(b?.companyUid),code=clean(b?.scopeCode),value=clean(b?.hours),expected=clean(b?.expected);if(!uid||!code||!Object.hasOwn(b,'expected')||value&&!(/^\d+(?:\.\d{1,2})?$/.test(value)&&Number(value)>=0.25&&Number(value)<=200&&Number.isInteger(Number(value)*4)))return send(res,400,{ok:false,error:'INVALID_COMPANY_HOURS'});
-    try{const v=await sheetsBatchGet(['Company_Scopes!A1:L3000','Company_Scope_Hours!A1:M3000','Config_Scopes!A1:U128','ScopeVersions!A1:I1000']);const [cs,hs,cfg,versions]=v.map(x=>x?.values||[]),ch=cs[0]||[],hh=hs[0]||[],sh=cfg[0]||[],vh=versions[0]||[];
+    try{const v=await sheetsBatchGet(['Company_Scopes!A1:L3000','Company_Scope_Hours!A1:M3000','Config_Scopes!A1:Z128','ScopeVersions!A1:I1000']);const [cs,hs,cfg,versions]=v.map(x=>x?.values||[]),ch=cs[0]||[],hh=hs[0]||[],sh=cfg[0]||[],vh=versions[0]||[];
       if(!['Company_UID','ScopeCode','Active','Company_Formal_Hours_Override'].every(x=>ch.includes(x))||!['OverrideId','Company_UID','ScopeCode','Hours','Status','Revision','EffectiveTo','EffectiveFrom'].every(x=>hh.includes(x)))throw Error('SCHEMA_MISSING');
       const relation=cs.slice(1).filter(r=>clean(r[ch.indexOf('Company_UID')])===uid&&clean(r[ch.indexOf('ScopeCode')])===code);if(relation.length!==1)return send(res,409,{ok:false,error:'SCOPE_RELATION_REQUIRED'});
       if(!['YES','TRUE','1'].includes(clean(relation[0][ch.indexOf('Active')]).toUpperCase()))return send(res,409,{ok:false,error:'COMPANY_SCOPE_INACTIVE'});
@@ -1781,7 +1781,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
     let b;try{b=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
     const uid=clean(b?.companyUid),code=clean(b?.scopeCode);if(!uid||!code)return send(res,400,{ok:false,error:'REQUIRED_FIELDS_MISSING'});
-    try{const v=await sheetsBatchGet(['Companies!A1:X2500','Company_Scopes!A1:L3000','Config_Scopes!A1:U128']);const [companies,relations,scopes]=v.map(x=>x?.values||[]);
+    try{const v=await sheetsBatchGet(['Companies!A1:X2500','Company_Scopes!A1:L3000','Config_Scopes!A1:Z128']);const [companies,relations,scopes]=v.map(x=>x?.values||[]);
       const ch=companies[0]||[],rh=relations[0]||[],sh=scopes[0]||[];if(!['Company_UID'].every(x=>ch.includes(x))||!['Company_UID','ScopeCode','Company_Scope_ID','Active'].every(x=>rh.includes(x))||!['ScopeCode','Active','Archived'].every(x=>sh.includes(x)))throw Error('SCHEMA_MISSING');
       if(companies.slice(1).filter(r=>clean(r[ch.indexOf('Company_UID')])===uid).length!==1)return send(res,409,{ok:false,error:'COMPANY_NOT_UNIQUE'});
       const match=scopes.slice(1).filter(r=>clean(r[sh.indexOf('ScopeCode')])===code);if(match.length!==1||!['YES','TRUE','1'].includes(clean(match[0][sh.indexOf('Active')]).toUpperCase())||['YES','TRUE','1'].includes(clean(match[0][sh.indexOf('Archived')]).toUpperCase()))return send(res,409,{ok:false,error:'SCOPE_NOT_AVAILABLE'});
@@ -1797,7 +1797,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     let b;try{b=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
     if(!clean(b?.companyUid)||!Array.isArray(b.changes)||!b.changes.length||b.changes.length>20)return send(res,400,{ok:false,error:'INVALID_SCOPE_CHANGES'});
     try{
-      const v=await sheetsBatchGet(['Company_Scopes!A1:L3000','Config_Scopes!A1:U128','Companies!A1:X2500']);const cs=v[0]?.values||[],cfg=v[1]?.values||[],companies=v[2]?.values||[];
+      const v=await sheetsBatchGet(['Company_Scopes!A1:L3000','Config_Scopes!A1:Z128','Companies!A1:X2500']);const cs=v[0]?.values||[],cfg=v[1]?.values||[],companies=v[2]?.values||[];
       const h=cs[0]||[],ch=cfg[0]||[],companyH=companies[0]||[];const idx=k=>h.indexOf(k),ci=k=>ch.indexOf(k);
       if(['Company_UID','ScopeCode','Active'].some(k=>idx(k)<0)||['ScopeCode','Active','Archived'].some(k=>ci(k)<0))throw Error('SCOPE_SCHEMA_MISSING');
       if(!companies.slice(1).some(r=>clean(r[companyH.indexOf('Company_UID')])===clean(b.companyUid)))return send(res,404,{ok:false,error:'COMPANY_NOT_FOUND'});
@@ -2266,7 +2266,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     const actor=await sessionFromRequestValidated(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='auditor')return send(res,403,{ok:false,error:'AUDITOR_REQUIRED'});
     try{
-      const values=await sheetsBatchGet(['Companies!A1:Y2500','Company_Scopes!A1:L3000','Config_Scopes!A1:U128','ScopeVersions!A1:I1000','Company_Scope_Hours!A1:M3000','Audit planning!A1:BW2500','Log realized audits!A1:AZ2500','Auditors!A1:R256']);
+      const values=await sheetsBatchGet(['Companies!A1:Y2500','Company_Scopes!A1:L3000','Config_Scopes!A1:Z128','ScopeVersions!A1:I1000','Company_Scope_Hours!A1:M3000','Audit planning!A1:BW2500','Log realized audits!A1:AZ2500','Auditors!A1:R256']);
       const ap=values[5]?.values||[],ah=ap[0]||[],ci=col(ah,['Company_UID','Company UID']),cn=col(ah,['Company']),ca=col(ah,['Assigned to','Assigned auditor','Auditor']),cp=col(ah,['Preassigned Auditor']),aud=values[7]?.values||[],email=clean(actor.email).toLowerCase(),uids=new Set(),names=new Set();
       for(const row of ap.slice(1)){
         if(directResolveAuditorEmail(aud,val(row,ca))!==email&&directResolveAuditorEmail(aud,val(row,cp))!==email)continue;
@@ -2282,7 +2282,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
   if(u.pathname==='/api/v1/manager/company-management'&&req.method==='GET'){
     const actor=await sessionFromRequestValidated(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
-    try{const v=await sheetsBatchGet(['Companies!A1:Y2500','Company_Scopes!A1:L3000','Config_Scopes!A1:U128','ScopeVersions!A1:I1000','Company_Scope_Hours!A1:M3000','Auditors!A1:R256']);
+    try{const v=await sheetsBatchGet(['Companies!A1:Y2500','Company_Scopes!A1:L3000','Config_Scopes!A1:Z128','ScopeVersions!A1:I1000','Company_Scope_Hours!A1:M3000','Auditors!A1:R256']);
       const out=buildCompanyManagementReadModel20({companies:v[0]?.values||[],companyScopes:v[1]?.values||[],configScopes:v[2]?.values||[],scopeVersions:v[3]?.values||[],companyHours:v[4]?.values||[]});const aud=v[5]?.values||[],ah=aud[0]||[],ei=ah.indexOf('E-mail'),ni=ah.indexOf('Name'),ai=ah.indexOf('Active'),ri=ah.indexOf('Role');out.activeAuditors=aud.slice(1).filter(r=>ei>=0&&ni>=0&&clean(r[ei])&&(!~ai||['YES','TRUE','1'].includes(clean(r[ai]).toUpperCase()))&&(!~ri||clean(r[ri]).toLowerCase()==='auditor')).map(r=>({email:clean(r[ei]).toLowerCase(),name:clean(r[ni])}));return send(res,200,out);
     }catch(e){return send(res,409,{ok:false,error:'COMPANY_MANAGEMENT_READ_FAILED',detail:clean(e?.message||e)});}
   }
@@ -2327,7 +2327,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
     try{
       const storage=await companyHoursStorage20({method:'GET',SID,accessToken,sheetsBatchGet});
-      const ranges=['Company_Scopes!A1:L2000','Config_Scopes!A1:U128'];
+      const ranges=['Company_Scopes!A1:L2000','Config_Scopes!A1:Z128'];
       if(storage.ready)ranges.push('Company_Scope_Hours!A1:M2000');
       const vr=await sheetsBatchGet(ranges);
       return send(res,200,previewCompanyHoursMigration20({companyScopes:vr[0]?.values||[],configScopes:vr[1]?.values||[],targetRows:storage.ready?vr[2]?.values||[]:[]}));
@@ -2386,7 +2386,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     const code=clean(u.searchParams.get('scopeCode')),field=clean(u.searchParams.get('field'));
     if(!code||!['Default_hours','Active','Archived','Max number audits','Min_Interval_Months','Planning from','Planning to','Extension','Recurring','Obligation cycle','Complete by','Provisioning source','Trigger source','Source service','Max_Offsite_Hours'].includes(field))return send(res,400,{ok:false,error:'IMPACT_FIELD_NOT_ALLOWED'});
     try{
-      const vr=await sheetsBatchGet(['Config_Scopes!A1:U128','Audit planning!A1:BW2500','Audit_Obligations!A1:Z2500','Audit_Visit_Obligations!A1:Z2500']);
+      const vr=await sheetsBatchGet(['Config_Scopes!A1:Z128','Audit planning!A1:BW2500','Audit_Obligations!A1:Z2500','Audit_Visit_Obligations!A1:Z2500']);
       const catalog=vr[0]?.values||[],head=(catalog[0]||[]).map(clean),ci=head.indexOf('ScopeCode'),fi=head.indexOf(field);
       if(ci<0||fi<0)return send(res,409,{ok:false,error:'SCOPE_SCHEMA_MISSING'});
       const matches=catalog.slice(1).filter(r=>clean(r[ci])===code);
@@ -2420,7 +2420,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     let body;try{body=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
     if(body?.confirmation!=='INITIALIZE_CURRENT_V1'||!clean(body?.reason))return send(res,400,{ok:false,error:'EXPLICIT_CONFIRMATION_AND_REASON_REQUIRED'});
     try{
-      const catalog=(await sheetsBatchGet(['Config_Scopes!A1:U128']))[0]?.values||[],head=(catalog[0]||[]).map(clean),codeIndex=head.indexOf('ScopeCode'),hoursIndex=head.indexOf('Default_hours');
+      const catalog=(await sheetsBatchGet(['Config_Scopes!A1:Z128']))[0]?.values||[],head=(catalog[0]||[]).map(clean),codeIndex=head.indexOf('ScopeCode'),hoursIndex=head.indexOf('Default_hours');
       if(codeIndex<0||hoursIndex<0)return send(res,409,{ok:false,error:'CATALOG_SCHEMA_MISSING'});
       const records=catalog.slice(1).filter(r=>clean(r[codeIndex]));
       if(!records.length||records.length>20)return send(res,409,{ok:false,error:'CATALOG_SIZE_INVALID'});
@@ -2481,7 +2481,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(session.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
     try{
-      const vr=await sheetsBatchGet(['Config_Scopes!A1:U128','ScopeVersions!A1:I1000']);
+      const vr=await sheetsBatchGet(['Config_Scopes!A1:Z128','ScopeVersions!A1:I1000']);
       const values=vr[0]?.values||[],headers=(values[0]||[]).map(v=>clean(v));
       const versionRows=vr[1]?.values||[],vh=(versionRows[0]||[]).map(v=>clean(v));
       const vCode=vh.indexOf('ScopeCode'),vId=vh.indexOf('VersionId'),vStatus=vh.indexOf('Status');

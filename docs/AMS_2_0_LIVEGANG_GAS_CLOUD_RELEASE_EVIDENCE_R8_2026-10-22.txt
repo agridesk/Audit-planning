@@ -1,0 +1,51 @@
+AMS 2.0 LIVEGANG — GAS / CLOUD RELEASE EVIDENCE R8
+Date: 2026-10-22. Branch: dev. Read-only investigation; documentation-only commit.
+Purpose: prevent false runtime-readiness claims while implementation continues in other chats.
+
+1. CONNECTOR CAPABILITY INVENTORY
+GitHub: authenticated source read and development-branch documentation commits available.
+Google Drive/Sheets: authenticated metadata and bounded live spreadsheet reads available.
+This session tool catalog: no callable Cloud Run Admin, Cloud Build, Apps Script Execution API, ScriptProperties administration, or equivalent direct management-plane action exposed.
+Container shell: gcloud and clasp executables not installed; no GCP runtime credentials visible.
+Therefore a source file proving that a diagnostic function exists is NOT execution evidence.
+
+2. CURRENT VERIFIED DEV CODE (blob SHA)
+server-r12.js 0a1237d71768a1feaa89909e8ee0523d2be5ce00:
+  MANAGER_ORIGIN uses AMS_ALLOWED_ORIGIN / DEV_ALLOWED_ORIGIN / DEV fallback;
+  direct Sheets :batchUpdate write path remains for completed-hours override.
+server-r15.js 0edd15c2656d1668c64273e20a7b86c91ee5da9e:
+  Firestore adapter instantiated with projectId only; no explicit collection argument.
+availability-firestore-adapter-20.js f1b132fbcf2667c41b9de4204b4b21adcebd4349:
+  default collection name ams_availability_20_dev.
+runtime-environment-20.mjs c7ca98270eda6e207ba66b2868fe015411cd9bd9:
+  explicit PROD release opt-in, project and spreadsheet separation, GAS bridge/origin validation.
+Other chats may have changed branches during this inspection: re-fetch SHA before any future edit.
+
+3. GAS CODE READINESS
+EnvLegacyRuntimeScanner.js contains RUN_ENV_LEGACY_RUNTIME_SCAN and _COMPACT, which inspect GAS ScriptProperties/UserProperties/DocumentProperties without mutation.
+SystemConfig.js contains ENV resolution and RUN_SYSTEM_CONFIG_ENV_COLUMNS_DIAGNOSTICS.
+EnvironmentGuardService.js includes ScriptApp.getScriptId() availability check.
+None of these GAS functions has been executed in this session.
+Do NOT assert current ACTIVE_ENV or deployed GAS revision from static code.
+
+4. LIVE DATA RELEASE GATE
+DEV 43 tabs; PROD 30.
+Audit IDs: DEV 115; PROD 88; intersection 52; DEV-only 63; PROD-only 36.
+Company_UIDs: 186 each; intersection 177; 9 only each.
+DEV Model C tables exist; PROD Model C tables absent. No DEV->PROD full-sheet overwrite.
+PROD migration must derive from isolated, frozen PROD snapshot, with idempotent conversion and audit reconciliation.
+Current DEV and PROD System_Config keys: DEV 24 vs PROD 15 in inspected A1:D160.
+
+5. RELEASE ACCEPTANCE CHECKS
+P0 validate actual Cloud Run deployed revision, project, region, service account and runtime config (without exposing secrets).
+P0 validate actual GAS DEV and PROD script IDs, deployment IDs, script property key existence, triggers and write bridge target.
+P0 explicit PROD Firestore collection and IAM isolation (not only GCP project separation).
+P0 direct Sheets writer inventory, manager permission checks, notification trigger single ownership and rollback.
+P0 PROD-snapshot dry run: exact audit/company identities, schema conversion, foreign keys, obligations, availability and historical audits.
+P0 production smoke, security, reconciliation, performance and restore rehearsals.
+P0 operator signoff before any PROD deployment or data writes.
+
+6. PARALLEL WORK RULE
+Do not alter other chats' active runtime source files from this livegang track without coordinating. This document is release evidence only.
+
+Source references: GitHub agridesk/Audit-planning branch dev and live Google Drive spreadsheets Audit Management System DEV and PROD.

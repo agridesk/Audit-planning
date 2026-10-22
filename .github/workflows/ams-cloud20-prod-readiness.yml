@@ -1,0 +1,35 @@
+name: AMS Cloud 2.0 PROD readiness (non-deploying)
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'cloudrun/transport-proof/runtime-environment-20.mjs'
+      - 'cloudrun/transport-proof/prod-contract-20-regression-test.mjs'
+      - 'cloudrun/transport-proof/gas-trigger-source-inventory-20.mjs'
+      - '.github/workflows/ams-cloud20-prod-readiness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  environment-isolation:
+    name: DEV/PROD configuration contract
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cloudrun/transport-proof
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate source syntax
+        run: |
+          node --check runtime-environment-20.mjs
+          node --check prod-contract-20-regression-test.mjs
+          node --check gas-trigger-source-inventory-20.mjs
+      - name: Run environment isolation regression
+        run: node prod-contract-20-regression-test.mjs
+      - name: Verify source trigger candidates (never install)
+        run: node gas-trigger-source-inventory-20.mjs

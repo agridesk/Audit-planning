@@ -324,12 +324,12 @@ async function swap20ReadList(actor){
   if(swap20Mirror){
    try{
     const gen=await swap20Mirror.epoch();const mirrored=gen?await swap20Mirror.read(actor,gen):null;
-    if(mirrored){console.info('[SWAP20_MIRROR_PERF]',JSON.stringify({role:actor.role,source:'FIRESTORE',ms:Date.now()-started}));return mirrored;}
+    if(mirrored&&await swap20Mirror.epoch()===gen){console.info('[SWAP20_MIRROR_PERF]',JSON.stringify({role:actor.role,source:'FIRESTORE',ms:Date.now()-started}));return mirrored;}
    }catch(e){console.warn('[SWAP20_MIRROR_FALLBACK]',String(e?.message||e).slice(0,120));}
   }
   const canonical=await notificationGasCall(actor,'listPending',{},'externalswap20');
   if(swap20Mirror&&canonical?.ok===true){
-   try{await swap20Mirror.save(actor,canonical);}catch(e){console.warn('[SWAP20_MIRROR_SAVE_FAILED]',String(e?.message||e).slice(0,120));}
+   try{const gen=await swap20Mirror.epoch();if(gen)await swap20Mirror.save(actor,canonical,gen);}catch(e){console.warn('[SWAP20_MIRROR_SAVE_FAILED]',String(e?.message||e).slice(0,120));}
   }
   return canonical;
  })().then(data=>{

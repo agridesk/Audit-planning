@@ -20,8 +20,8 @@ function not(text,needle,label){assert.ok(!text.includes(needle),label+' unexpec
 assert.equal(pkg.scripts.start,'node server-r15.js','R15 must own public DEV runtime and preserve R12 routes');
 has(r10,"u.pathname==='/api/v1/manager/action-relay-url'",'warm Manager GAS worker bootstrap endpoint');
 has(r10,"u.pathname==='/api/v1/manager/audit'",'targeted Manager reread');
-has(r10,"sheetValues('Audit planning!A1:AX1')",'targeted reread header read');
-has(r10,"sheetValues('Audit planning!A'+rowNo+':AX'+rowNo)",'targeted reread exact-row read');
+has(r10,"sheetValues('Audit planning!A1:BW1')",'targeted reread header read');
+has(r10,"sheetValues('Audit planning!A'+rowNo+':BW'+rowNo)",'targeted reread exact-row read');
 has(r10,"if(k==='PENDING_PLANNING'){planningJson='';formal=null;assigned='';display='';}",'Pending Planning clears committed formal hours in projection');
 has(portal,"fetch('/api/v1/manager/action-relay-url'",'Manager 2.0 warm GAS worker bootstrap');
 has(portal,' · trace ','timing identifies instrumented warm GAS transport');

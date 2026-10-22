@@ -342,7 +342,15 @@ async function swap20ReadList(actor){
    try{const gen=await swap20Mirror.epoch();if(gen)await swap20Mirror.save(actor,canonical,gen);}catch(e){console.warn('[SWAP20_MIRROR_SAVE_FAILED]',String(e?.message||e).slice(0,120));}
   }
   return canonical;
- })().then(data=>{
+ })().then(async data=>{
+  if(swap20Index&&actor.role==='manager'&&data?.ok===true){
+   try{
+    if(!await swap20Index.meta()){
+     const created=await swap20Index.bootstrap(data.items||[]);
+     console.info('[SWAP20_INDEX_BOOTSTRAP]',JSON.stringify({created,count:(data.items||[]).length}));
+    }
+   }catch(e){console.error('[SWAP20_INDEX_BOOTSTRAP_FAILED]',String(e?.message||e).slice(0,130));}
+  }
   console.info('[SWAP20_LIST_PERF]',JSON.stringify({role:actor.role,source:'GAS',ms:Date.now()-started,ok:data?.ok===true}));
   if(data?.ok===true&&!swap20Index)swap20Lists.set(key,{data,expires:Date.now()+90000});
   return data;

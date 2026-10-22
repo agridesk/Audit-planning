@@ -12,6 +12,7 @@ assert.match(html,/id="managerSwapInbox20"/);
 assert.match(html,/id="auditorSwapBadge20"/);
 assert.match(html,/id="managerSwapBadge20"/);
 assert.match(ui,/function swap20RefreshAttention/);
+assert.match(ui,/applyActorUi\(\);swap20RefreshAttention\(\);/);
 assert.match(ui,/var swap20ListCache=/);
 assert.match(ui,/Date\.now\(\)-cached\.at<12000/);
 assert.match(ui,/swap20ListPending\[role\]/);

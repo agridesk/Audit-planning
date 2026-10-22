@@ -376,7 +376,7 @@ async function swap20ManagerRequest(req,res,operation){
   :await notificationGasCall(actor,operation,data,'externalswap20');
  if(operation!=='listPending'&&result?.ok===true){swap20InvalidateLists();await swap20InvalidateMirror(actor);}
  res.writeHead(result?.ok===true?200:409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
- res.end(JSON.stringify(result));return;
+ res.end(JSON.stringify(Object.fromEntries(Object.entries(result||{}).filter(([k])=>k!=='_mirrorEvent'))));return;
 }
 // Auditor SWAP 2.0 inbox and ACK. UID is resolved independently by GAS.
 async function swap20AuditorRequest(req,res,operation){
@@ -405,7 +405,7 @@ async function swap20AuditorRequest(req,res,operation){
   :await notificationGasCall(actor,operation,data,'externalswap20');
  if(operation!=='listPending'&&result?.ok===true){swap20InvalidateLists();await swap20InvalidateMirror(actor);}
  res.writeHead(result?.ok===true?200:409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
- res.end(JSON.stringify(result));return;
+ res.end(JSON.stringify(Object.fromEntries(Object.entries(result||{}).filter(([k])=>k!=='_mirrorEvent'))));return;
 }
 async function notificationPreviewOrSend(req,res,operation){
  const actor=await session(req);if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401);res.end();return;}

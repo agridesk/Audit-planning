@@ -4,7 +4,7 @@ const pkg=JSON.parse(fs.readFileSync(new URL('./package.json',import.meta.url),'
 const docker=fs.readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
 
 const checks=[
-  ['package starts DEV Availability R15 runtime',pkg?.scripts?.start==='node server-r15.js'],
+  ['package starts canonical Availability R15 runtime',pkg?.scripts?.start==='node server-r15.js'],
   ['Docker image contains R12',docker.includes('COPY server-r12.js ./')],
   ['Docker image contains R15',docker.includes('COPY server-r15.js ./')],
   ['Docker image contains Availability modules',docker.includes('COPY availability-*.js ./')],

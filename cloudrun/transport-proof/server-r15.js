@@ -307,12 +307,14 @@ function swap20ListKey(actor){return actor.role+":"+actor.email;}
 function swap20InvalidateLists(){swap20Lists.clear();swap20ListInflight.clear();}
 async function swap20ReadList(actor){
  const key=swap20ListKey(actor),now=Date.now(),cached=swap20Lists.get(key);
- if(cached&&cached.expires>now)return cached.data;
+ if(cached&&cached.expires>now){console.info('[SWAP20_LIST_PERF]',JSON.stringify({role:actor.role,source:'CACHE',ms:Date.now()-now}));return cached.data;}
  if(swap20ListInflight.has(key))return swap20ListInflight.get(key);
+ const started=Date.now();
  const call=notificationGasCall(actor,'listPending',{},'externalswap20').then(data=>{
+  console.info('[SWAP20_LIST_PERF]',JSON.stringify({role:actor.role,source:'GAS',ms:Date.now()-started,ok:data?.ok===true}));
   if(data?.ok===true)swap20Lists.set(key,{data,expires:Date.now()+90000});
   return data;
- }).finally(()=>swap20ListInflight.delete(key));
+ }).catch(err=>{console.error('[SWAP20_LIST_PERF]',JSON.stringify({role:actor.role,source:'GAS',ms:Date.now()-started,ok:false,code:String(err?.message||'UNKNOWN').slice(0,90)}));throw err;}).finally(()=>swap20ListInflight.delete(key));
  swap20ListInflight.set(key,call);
  return call;
 }

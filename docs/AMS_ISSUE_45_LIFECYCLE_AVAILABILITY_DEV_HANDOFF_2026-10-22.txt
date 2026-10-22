@@ -1,0 +1,36 @@
+AMS 2.0 — ISSUE #45 LIFECYCLE / AVAILABILITY PROD CUTOVER HANDOFF
+Date: 2026-10-22; branch: dev. Status: IN PROGRESS — BOTH RELEASE GATES STILL OPEN.
+
+1. VERIFIED REACHABILITY
+Cloud Run boot chain: R15 -> R12 -> R11 -> R10 -> R9 -> R8 -> R7 -> R6 -> R5 -> R4.
+R4 exposes POST manager/approve-direct, manager/cancel-direct, manager/accept-direct, manager/reject-direct, manager/complete-direct, planning/direct-commit and manager/action.
+R6 intercepts POST planning/direct-commit whenever it has multiple visit members. This route is reached before R4.
+
+2. OBSERVED DIRECT WRITES / MODEL C RISKS
+R4 directManagerApprove/Accept/Cancel/Reject/Complete, and Plan writes to Audit planning and/or Availability via Sheets API.
+R6 combinedCommit directly writes Audit planning, Auditor Availability, Audit_Visit_Obligations and Concept Reservations; notification queue appended in separate step.
+R4 and R6 rely on process-local locking. Independent instances do not share the mutex. This is insufficient as sole concurrency control.
+R6 manipulates canonical obligation links and audit projections in one batch; direct writer ownership is not proven to be the single lifecycle owner.
+GAS EntryV5.js externalmanageraction exists but is explicitly DEV_ONLY and allows approve/cancel/reject/edit_realized_hours; it is not a deployable PROD canonical fallback as currently written.
+
+3. DEV-ONLY REMEDIATION IMPLEMENTED
+R4 guards direct Manager Extension/Approve/Accept/Cancel/Reject, directComplete and directPlanningCommit against AMS_RUNTIME_ENV=PROD.
+R6 guards combinedCommit before any direct Sheets mutation in PROD.
+DEV behavior is not intentionally changed. No PROD/GAS deployment was performed.
+Commits: e4306c18, a17f74d5, 652bb3d5, 9e2b2019, 239d6a70.
+
+4. TEST EVIDENCE
+Read-only source/reachability test assertions executed against GitHub dev source: 11/11 PASS.
+Static regression file added: cloudrun/transport-proof/prod-lifecycle-writer-guard-20-test.mjs.
+No full end-to-end mutation regression for Plan, Approve, Accept, Cancel, Deny, combined visit and Availability was executed. Do not label this gate PASS.
+
+5. REQUIRED TO CLEAR ISSUE #45
+One canonical shared writer for lifecycle transitions and combined visit across Cloud Run and GAS, with persistent idempotency, concurrency guards and revision checking.
+Canonical Model C obligations, visit links, Availability and lifecycle statuses updated without split-brain or double write.
+DEV end-to-end scenario matrix for Plan, Approve, Accept, Cancel, Deny, combined visit, availability conflicts, notifications, retry and concurrent requests.
+PROD route must use canonical writer rather than fail closed; release gate can close only when this is proven.
+Do not clear PROD_LEGACY_DIRECT_LIFECYCLE_WRITE nor PROD_LEGACY_MANAGER_LIFECYCLE_WRITES at this point.
+
+6. GOVERNANCE
+This workstream owns lifecycle/Availability business logic; other chat owns deployment readiness and the release gate checker.
+PROD remains untouched.

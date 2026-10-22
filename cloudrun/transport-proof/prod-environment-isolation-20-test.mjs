@@ -19,7 +19,7 @@ reject({AMS_RUNTIME_ENV:'PROD',AMS_PROD_RELEASE_ENABLED:'true',AMS_PROD_GCP_PROJ
 reject({AMS_RUNTIME_ENV:'PROD',AMS_PROD_RELEASE_ENABLED:'true',AMS_PROD_GCP_PROJECT:prodProject,AMS_PROD_SSOT_SPREADSHEET_ID:devSheet,DEV_SSOT_SPREADSHEET_ID:devSheet},prodProject,'PROD and DEV sheet must differ');
 reject({AMS_RUNTIME_ENV:'PROD',AMS_PROD_RELEASE_ENABLED:'true',AMS_PROD_GCP_PROJECT:prodProject},prodProject,'PROD sheet required');
 reject({AMS_RUNTIME_ENV:'UNKNOWN',DEV_SSOT_SPREADSHEET_ID:devSheet},devProject,'Unexpected mode fails closed');
-const prod=resolveAmsRuntimeConfig({AMS_RUNTIME_ENV:'PROD',AMS_PROD_RELEASE_ENABLED:'true',AMS_PROD_GCP_PROJECT:prodProject,AMS_PROD_SSOT_SPREADSHEET_ID:prodSheet,DEV_SSOT_SPREADSHEET_ID:devSheet,AMS_PROD_GAS_WRITE_URL:'https://prod.example.test/gas',AMS_PROD_EXTERNAL_WRITE_BRIDGE_KEY:'fixture-key',AMS_PROD_ALLOWED_ORIGIN:'https://prod.example.test'},prodProject);
+const prod=resolveAmsRuntimeConfig({AMS_RUNTIME_ENV:'PROD',AMS_PROD_RELEASE_ENABLED:'true',AMS_PROD_GCP_PROJECT:prodProject,AMS_PROD_SSOT_SPREADSHEET_ID:prodSheet,DEV_SSOT_SPREADSHEET_ID:devSheet,AMS_PROD_GAS_WRITE_URL:'https://prod.example.test/gas',AMS_PROD_EXTERNAL_WRITE_BRIDGE_KEY:'fixture-key',AMS_PROD_SESSION_SIGNING_SECRET:'prod-session-fixture',AMS_PROD_ALLOWED_ORIGIN:'https://prod.example.test'},prodProject);
 assert.equal(prod.isDev,false);
 assert.equal(prod.spreadsheet,prodSheet);
 assert.equal(prod.mode,'PROD');

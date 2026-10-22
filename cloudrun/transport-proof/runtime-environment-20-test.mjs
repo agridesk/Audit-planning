@@ -33,6 +33,7 @@ assert.match(entry,/u\.pathname==='\/api\/v1\/manager\/runtime-readiness'/);
 assert.match(entry,/entrypoint:'R15',environment:runtime\.mode/);
 assert.match(entry,/if\(!identity\|\|identity\.role!=='manager'\)/);
 assert.match(entry,/migrate-legacy-hard'\)\{if\(!runtime\.isDev\)/);
+assert.match(entry,/process\.env\.AMS_GCP_PROJECT=project/);
 assert.match(entry,/process\.env\.AMS_RUNTIME_ENV=runtime\.mode/);
 assert.match(entry,/process\.env\.AMS_GAS_WRITE_URL=runtime\.gasWriteUrl/);
 assert.match(entry,/process\.env\.AMS_ALLOWED_ORIGIN=runtime\.origin/);
@@ -43,6 +44,7 @@ for(const file of ['server-r4.js','server-r12.js']){
  assert.match(source,/process\.env\.AMS_GAS_WRITE_URL\|\|process\.env\.GAS_DEV_WRITE_URL/);
 }
 assert.doesNotMatch(readFileSync(new URL('./server-r4.js',import.meta.url),'utf8'),/projectId:process\.env\.GOOGLE_CLOUD_PROJECT\|\|process\.env\.GCP_PROJECT\|\|'audit-management-system-dev'/);
+assert.match(readFileSync(new URL('./server-r4.js',import.meta.url),'utf8'),/projectId=process\.env\.AMS_GCP_PROJECT\|\|process\.env\.GOOGLE_CLOUD_PROJECT/);
 const notifyUi=readFileSync(new URL('./notification-manager-20.html',import.meta.url),'utf8');
 assert.match(notifyUi,/id="devMailSafety"/);
 assert.match(notifyUi,/testTab\.classList\.toggle\('hidden',!devOnly\)/);

@@ -229,6 +229,24 @@ async function notificationsManagerOverview(req,res){
 }
 
 async function notificationGasCall(actor,operation,payload,gasAction){
+ // Apps Script's ContentService response uses an ephemeral googleusercontent URL.
+ // Retry only requests proven read-only; never replay a proposal, ACK, commit,
+ // notification send or any other mutation after an uncertain response.
+ if(gasAction==='externalswap20'&&['preview','getProposal','listPending'].includes(operation)){
+  let lastError;
+  for(let attempt=0;attempt<2;attempt++){
+   try{return await notificationGasCallOnce(actor,operation,payload,gasAction);}
+   catch(err){
+    lastError=err;
+    if(!/^NOTIFICATION_GAS_(HTTP_404_REDIRECT_GET|INVALID_RESPONSE_(HTML|AUTH_HTML|EMPTY))$/.test(String(err?.message||'')))throw err;
+    if(attempt===0)console.warn('[SWAP20_READONLY_GAS_RETRY]',JSON.stringify({operation,reason:String(err.message)}));
+   }
+  }
+  throw lastError;
+ }
+ return notificationGasCallOnce(actor,operation,payload,gasAction);
+}
+async function notificationGasCallOnce(actor,operation,payload,gasAction){
  const endpoint=process.env.AMS_GAS_WRITE_URL||process.env.GAS_DEV_WRITE_URL,secret=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY;
  if(!endpoint||!secret)throw Error('NOTIFICATION_GAS_BRIDGE_UNAVAILABLE');
  const u=new URL(endpoint);if(u.protocol!=='https:')throw Error('NOTIFICATION_GAS_HTTPS_REQUIRED');

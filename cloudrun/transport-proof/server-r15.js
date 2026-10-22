@@ -28,6 +28,7 @@ async function resolveProject(){
 }
 const runtime=resolveAmsRuntimeConfig(process.env,await resolveProject());
 const project=runtime.project;
+process.env.AMS_GCP_PROJECT=project;
 const spreadsheet=runtime.spreadsheet;
 process.env.AMS_RUNTIME_ENV=runtime.mode;
 process.env.AMS_SSOT_SPREADSHEET_ID=spreadsheet;

@@ -59,5 +59,9 @@ function Swap20_finishCommitWithNotificationLocked_(result){
   intent=Swap20_stageNotificationAfterCommitLocked_(result.operationId);
  }catch(e){intent={ok:false,reason:'INTENT_STAGE_FAILED',detail:String(e)};}
  result.notificationIntent=intent;
+ result.notificationPending=!(intent&&intent.ok===true&&intent.queued===true);
+ result.notificationQueued=!!(intent&&intent.queued===true);
+ // A notification failure must not convert an APPLIED canonical transaction into failure.
+ // Retry the same operation ID after delivery prerequisites are satisfied.
  return result;
 }

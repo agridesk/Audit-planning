@@ -357,7 +357,13 @@ async function proxy(req,res){
  const init={method:req.method,headers,redirect:'manual'};
  if(!['GET','HEAD'].includes(req.method)){const chunks=[];for await(const c of req)chunks.push(c);init.body=Buffer.concat(chunks);}
  const r=await fetch(url,init);const h={};r.headers.forEach((v,k)=>{if(k!=='set-cookie'&&!['content-length','connection','transfer-encoding'].includes(k))h[k]=v;});const multiCookies=r.headers.getSetCookie();if(multiCookies.length)h['set-cookie']=multiCookies;
- res.writeHead(r.status,h);res.end(Buffer.from(await r.arrayBuffer()));
+ const responseBody=Buffer.from(await r.arrayBuffer());
+ const mutationPath=new URL(req.url||'/','http://localhost').pathname;
+ const planningWriter=/^\/api\/v1\/(?:manager\/(?:approve-direct|accept-direct|reject-direct|cancel-direct|complete-direct|action|auditor-management\/audit\/transfer)|internal\/auditor\/complete-direct|planning\/direct-commit|auditor\/action)$/;
+ if(req.method==='POST'&&r.ok&&planningWriter.test(mutationPath)){
+  try{const outcome=JSON.parse(responseBody.toString('utf8'));if(outcome?.success!==false&&outcome?.ok!==false)planningCache.invalidate();}catch{}
+ }
+ res.writeHead(r.status,h);res.end(responseBody);
 }
 http.createServer(async(req,res)=>{
  try{

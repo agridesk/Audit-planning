@@ -55,7 +55,7 @@ function offsitePolicyForAuditRow(header,row,scopeValues){
 }
 async function readAuditPatch(auditId,sourceRow){
   const t=Date.now();let row=[],rowNo=Number(sourceRow)||0,header=[],scopeValues=[];
-  if(rowNo>1){const vr=await batchValues(['Audit planning!A1:BW1','Audit planning!A'+rowNo+':AX'+rowNo,'Config_Scopes!A1:Z128']);header=vr[0]?.[0]||[];row=vr[1]?.[0]||[];scopeValues=vr[2]||[];const ci=col(header,['Audit ID','Audit_ID','AuditId','Audit Id']);if(val(row,ci)!==auditId){row=[];rowNo=0;}}
+  if(rowNo>1){const vr=await batchValues(['Audit planning!A1:BW1','Audit planning!A'+rowNo+':BW'+rowNo,'Config_Scopes!A1:Z128']);header=vr[0]?.[0]||[];row=vr[1]?.[0]||[];scopeValues=vr[2]||[];const ci=col(header,['Audit ID','Audit_ID','AuditId','Audit Id']);if(val(row,ci)!==auditId){row=[];rowNo=0;}}
   if(!header.length)header=(await values('Audit planning!A1:BW1'))[0]||[];
   if(!row.length){const ap=await values('Audit planning!A2:BW483'),ci=col(header,['Audit ID','Audit_ID','AuditId','Audit Id']);for(let i=0;i<ap.length;i++)if(val(ap[i],ci)===auditId){row=ap[i];rowNo=i+2;break;}}
   if(!row.length)return{success:false,error:'AUDIT_NOT_FOUND',auditId,serverMs:Date.now()-t};

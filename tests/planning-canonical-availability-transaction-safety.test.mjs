@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+const code=readFileSync(new URL('../PlanningCanonicalAvailabilityTransaction.js',import.meta.url),'utf8');
+const ctx=vm.createContext({});vm.runInContext(code,ctx);
+const run=ctx.PlanningCanonicalAvailabilityTransaction_execute;
+let calls=[];
+let result=run({reserveFn:()=>{calls.push('reserve');return{success:false}},writeFn:()=>{calls.push('write');return{success:true}},rollbackFn:()=>{calls.push('rollback');return{success:true}}});
+assert.equal(result.committed,false);assert.equal(calls.join(','),'reserve');
+calls=[];result=run({reserveFn:()=>{calls.push('reserve');return{success:true}},writeFn:()=>{calls.push('write');return{success:true}},rollbackFn:()=>{calls.push('rollback');return{success:true}}});
+assert.equal(result.committed,true);assert.equal(calls.join(','),'reserve,write');
+calls=[];result=run({reserveFn:()=>{calls.push('reserve');return{success:true}},writeFn:()=>{calls.push('write');throw Error('WRITE_FAILED')},rollbackFn:()=>{calls.push('rollback');return{success:true}}});
+assert.equal(result.committed,false);assert.equal(result.rollbackAttempted,true);assert.equal(result.repairRequired,false);assert.equal(calls.join(','),'reserve,write,rollback');
+result=run({reserveFn:()=>({success:true}),writeFn:()=>({success:false}),rollbackFn:()=>({success:false})});
+assert.equal(result.committed,false);assert.equal(result.repairRequired,true);
+console.log('PLANNING_CANONICAL_AVAILABILITY_TRANSACTION: PASS');

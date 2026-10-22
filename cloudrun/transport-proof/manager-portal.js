@@ -523,7 +523,23 @@ document.getElementById("selectionSwap20").onclick=async function(){
 };
 // Auditor-only SWAP acknowledgement inbox. Never relies on browser-provided UID.
 // Role-scoped SWAP attention is outstanding work, never a browser-only unread counter.
+var swap20ListCache={manager:null,auditor:null};
+var swap20ListPending={manager:null,auditor:null};
 async function swap20GridRequest(role,operation,body){
+  if(operation==="list"){
+    var cached=swap20ListCache[role];
+    if(cached&&Date.now()-cached.at<12000)return cached.data;
+    if(swap20ListPending[role])return swap20ListPending[role];
+    var inflight=swap20GridFetch(role,operation,body).then(function(data){
+      swap20ListCache[role]={at:Date.now(),data:data};return data;
+    }).finally(function(){swap20ListPending[role]=null;});
+    swap20ListPending[role]=inflight;return inflight;
+  }
+  var result=await swap20GridFetch(role,operation,body);
+  swap20ListCache.manager=null;swap20ListCache.auditor=null;
+  return result;
+}
+async function swap20GridFetch(role,operation,body){
   var response=await fetch("/api/v1/"+role+"/swap20/"+operation,{
     method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},
     body:JSON.stringify(body||{})});
@@ -580,8 +596,6 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
         info("Audit B:",String(p.auditB||"")+" → "+blocks(p.blocksB));
         info("Auditor ACKs:",String(p.acknowledgedCount||0)+" / "+String(p.requiredCount||0));
         info("Internal reason:",p.internalReason);info("ECAS explanation:",p.ecasComment);
-        var refresh=document.createElement("button");refresh.textContent="Refresh status";refresh.type="button";
-        refresh.onclick=reload;card.appendChild(refresh);
         if(p.status==="CONFIRMED"&&p.commitEnabled===true){
           var apply=document.createElement("button");apply.type="button";apply.textContent="Apply SWAP (DEV)";
           apply.style.marginLeft="8px";
@@ -612,7 +626,7 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
       });
     }catch(error){status.textContent=String(error.message||error);}
   }
-  panel.querySelector("#managerSwap20Reload").onclick=reload;
+  panel.querySelector("#managerSwap20Reload").onclick=function(){swap20ListCache.manager=null;reload();};
   if(typeof panel.showModal==="function"){if(!panel.open)panel.showModal();}else panel.setAttribute("open","");
   await reload();
 };
@@ -650,7 +664,7 @@ document.getElementById("auditorSwapInbox20").onclick=async function(){
   async function reload(){
     message.textContent="Loading assigned SWAP requests...";items.replaceChildren();
     try{
-      var result=await request("list",{});
+      var result=await swap20GridRequest("auditor","list",{});
       var data=Array.isArray(result.items)?result.items:[];
       message.textContent=data.length?data.length+" assigned SWAP request(s).":"No pending SWAP requests.";
       data.forEach(function(item){
@@ -678,7 +692,7 @@ document.getElementById("auditorSwapInbox20").onclick=async function(){
             ack.disabled=true;decline.disabled=true;
             message.textContent="Saving auditor response...";
             try{
-              var outcome=await request("respond",{operationId:item.operationId,decision:decision});
+              var outcome=await swap20GridRequest("auditor","respond",{operationId:item.operationId,decision:decision});
               message.textContent="Response saved: "+String(outcome.status||"");
               swap20RefreshAttention();
               await reload();
@@ -695,7 +709,7 @@ document.getElementById("auditorSwapInbox20").onclick=async function(){
       });
     }catch(error){message.textContent=String(error.message||error);}
   }
-  panel.querySelector("#auditorSwap20Reload").onclick=reload;
+  panel.querySelector("#auditorSwap20Reload").onclick=function(){swap20ListCache.auditor=null;reload();};
   if(typeof panel.showModal==="function"){if(!panel.open)panel.showModal();}else panel.setAttribute("open","");
   await reload();
 };

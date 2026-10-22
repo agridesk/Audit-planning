@@ -28,6 +28,7 @@ Run `npm run test:prod-readiness` or use the dedicated GitHub Actions readiness 
 7. Inventory all actually installed GAS triggers by execution identity; compare handler, project, timezone and cadence. Do not blindly install the source candidates (especially legacy cache triggers).
 8. Enumerate Cloud Scheduler / Cloud Build / deploy jobs and their service accounts. Prevent DEV jobs targeting PROD and duplicate sends.
 9. Confirm PROD notifications have explicit safe launch mode and recipient policy. No real email sending in preflight.
+9a. Confirm AMS_PROD_AUTH_OTP_ENABLED=true, isolated signing credentials of at least 32 characters, PROD GAS OTP handlers, mail deliverability, resend throttling, token exchange, automatic redirect and server-side DEV-login rejection. Confirm logout revocation when enabled.
 10. Verify test suite in CI or a controlled runner; protect against an outdated failing fixture and missing npm script registration.
 11. Validate health/build endpoint and representative manager/auditor read-only screens, authentication and authorization.
 12. Obtain affirmative release approval before PROD cutover.

@@ -1,4 +1,5 @@
 import http from 'node:http';
+import {withCombinedVisitDistributedLock20} from './combined-visit-distributed-lock-20.mjs';
 import {isCanonicalCombinedReplay20} from './combined-visit-replay-20.mjs';
 import {URL} from 'node:url';
 import {createHash} from 'node:crypto';
@@ -58,7 +59,20 @@ function companyAuditorExcluded(values,companyUid,companyName,auditorEmail){
 function companyLocationCodes(values,companyUid,companyName){const out=new Set();if(!values.length)return out;const h=values[0],cu=col(h,['Company_UID','Company UID','UID']),cn=col(h,['Company']),cj=col(h,['Locations_JSON','Locations JSON','locations_json']),cl=col(h,['Location']);const uid=key(companyUid),name=key(companyName);let row=null;for(const r of values.slice(1)){if(uid&&cu>=0&&key(r[cu])===uid){row=r;break}if(!row&&name&&cn>=0&&key(r[cn])===name)row=r;}if(!row)return out;const raw=cj>=0?val(row,cj):'';const add=(o,i)=>{o=o||{};if(o.active===false||String(o.active).toLowerCase()==='false')return;const code=clean(o.code||o.Code||o.locationCode||o.location_code||o.type||o.Type||(i===0?'HQ':String(i+1)));const nm=clean(o.location||o.Location||o.name||o.Name||o.label||o.Label||o.address||o.Address||(cl>=0?val(row,cl):'')||code);if(code)out.add(code);if(!code&&nm)out.add(nm);};try{const j=JSON.parse(raw);const arr=Array.isArray(j)?j:(Array.isArray(j?.locations)?j.locations:Array.isArray(j?.Locations)?j.Locations:Array.isArray(j?.items)?j.items:Array.isArray(j?.sites)?j.sites:Array.isArray(j?.points)?j.points:(j&&typeof j==='object'?[j]:[]));arr.forEach(add);}catch{}if(!out.size)add({code:'HQ',name:cl>=0?val(row,cl):'HQ'},0);return out;}
 
 const COMBINED_LOCKS=new Map();
-async function withCombinedLock(fn){const k='__GLOBAL_COMBINED_VISIT__',prev=COMBINED_LOCKS.get(k)||Promise.resolve();let release;const gate=new Promise(r=>release=r),chain=prev.then(()=>gate);COMBINED_LOCKS.set(k,chain);await prev;try{return await fn();}finally{release();if(COMBINED_LOCKS.get(k)===chain)COMBINED_LOCKS.delete(k);}}
+async function withCombinedLock(fn){
+ const k='__GLOBAL_COMBINED_VISIT__',prev=COMBINED_LOCKS.get(k)||Promise.resolve();
+ let release;const gate=new Promise(r=>release=r),chain=prev.then(()=>gate);COMBINED_LOCKS.set(k,chain);await prev;
+ try{
+   const enabled=process.env.AMS_COMBINED_VISIT_DISTRIBUTED_LOCK_ENABLED==='true';
+   let projectId='';
+   if(enabled){
+     const response=await fetch('http://metadata.google.internal/computeMetadata/v1/project/project-id',{headers:{'Metadata-Flavor':'Google'},signal:AbortSignal.timeout(3000)});
+     if(!response.ok)throw Error('COMBINED_LOCK_PROJECT_ID_UNAVAILABLE');
+     projectId=clean(await response.text());
+   }
+   return await withCombinedVisitDistributedLock20({enabled,mode:process.env.AMS_RUNTIME_ENV||'',projectId,getToken:accessToken,work:fn});
+ }finally{release();if(COMBINED_LOCKS.get(k)===chain)COMBINED_LOCKS.delete(k);}
+}
 
 async function combinedCommit(identity,body,req){
   if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_COMBINED_VISIT_CANONICAL_WRITER_REQUIRED');

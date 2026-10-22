@@ -44,3 +44,6 @@ GAS & CLOUD RUNTIME EVIDENCE
 
 DECISION: keep 1.0 separately deployed until verified 2.0 acceptance; no big-bang data overwrite.
 NEXT TASK: design a repeatable PROD-snapshot migration dry-run and collision/resolution report; do not execute PROD writes.
+
+SYSTEM_CONFIG LIVE READ (keys only, no secret values)
+DEV: 24 populated setting keys in inspected A1:D160; PROD: 15. Both contain ENV, DEPLOY_LABEL, ALLOW_DEV_WRITES, DEV_WRITE_MODE, DEV_ALLOWED_AUDIT_PREFIX, DEV_NOTIFICATION_MODE, DEV_TEST_EMAIL, SEND_NOTIFICATIONS and DEV_BANNER. This is an environment config gap. Sheet settings do NOT prove actual GAS ScriptProperties or Cloud Run runtime variables.

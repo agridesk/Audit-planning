@@ -101,10 +101,10 @@ function Swap20Bridge20_handle_(body) {
  }
  if(operation==='commit') {
   var committed=Swap20ManagerCommitAuthorized_({operationId:body.operationId},manager);
-  return {ok:committed.success===true,operationId:committed.operationId,
+  return Swap20Bridge20_mirrorEvent_({ok:committed.success===true,operationId:committed.operationId,
    status:committed.status||committed.code||'',committed:committed.committed===true,
    notificationPending:committed.notificationPending===true,
-   notificationQueued:committed.notificationQueued===true,readOnly:committed.readOnly===true};
+   notificationQueued:committed.notificationQueued===true,readOnly:committed.readOnly===true},committed.operationId);
  }
  if(operation!=='preview'&&operation!=='propose')
   return {ok:false,error:'SWAP_OPERATION_NOT_SUPPORTED'};

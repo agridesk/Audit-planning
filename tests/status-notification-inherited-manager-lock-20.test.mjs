@@ -23,4 +23,12 @@ const manager=run(true,false,false);assert.equal(manager.response.success,true);
 const auditor=run(false,true,false);assert.equal(auditor.response.success,true);assert.equal(auditor.tryCount,0);
 const standard=run(false,false,true);assert.equal(standard.response.success,true);assert.equal(standard.tryCount,1);assert.equal(standard.releaseCount,1);
 const busy=run(false,false,false);assert.equal(busy.response.reason,'QUEUE_LOCK_TIMEOUT_RECONCILER_FALLBACK');assert.equal(busy.enqueueCount,0);
+for(const file of ['StatusNotificationBridge_PerformanceRoute.js','zz_AMS01_StatusNotificationPerfOverride.js']){
+ const text=readFileSync(new URL('../'+file,import.meta.url),'utf8');
+ const a=text.indexOf('function StatusNotificationBridge_QueueWithLock_('),b=text.indexOf('\nfunction ',a+25);
+ assert.ok(a>=0&&b>a,file);
+ const fn=text.slice(a,b);
+ assert.ok(fn.includes('AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_'),file+' must inherit Manager lock');
+ assert.ok(fn.includes('tryLock(5000)'),file+' must preserve ordinary lock acquisition');
+}
 console.log('STATUS_NOTIFICATION_INHERITED_MANAGER_LOCK: PASS');

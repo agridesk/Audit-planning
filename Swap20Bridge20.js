@@ -122,8 +122,8 @@ function Swap20Bridge20_handle_(body) {
   if(prior.auditA!==a||prior.auditB!==b||prior.createdBy!==manager.email||
      prior.internalReason!==internalReason||prior.ecasComment!==ecasComment)
    return {ok:false,error:'SWAP_OPERATION_ID_CONFLICT'};
-  return {ok:true,idempotent:true,operationId:op,status:prior.status,
-   requiresAcknowledgement:prior.dateChanged===true,canonicalChanged:false};
+  return Swap20Bridge20_mirrorEvent_({ok:true,idempotent:true,operationId:op,status:prior.status,
+   requiresAcknowledgement:prior.dateChanged===true,canonicalChanged:false},op);
  }
  var uids=[Swap20_resolveAuditorUidForAudit_(a),Swap20_resolveAuditorUidForAudit_(b)];
  uids=uids.filter(function(v,i){return uids.indexOf(v)===i;});

@@ -228,11 +228,12 @@ async function notificationsManagerOverview(req,res){
  res.end(JSON.stringify({success:true,...result}));
 }
 
-async function notificationGasCall(actor,operation,payload){
+async function notificationGasCall(actor,operation,payload,gasAction){
  const endpoint=process.env.AMS_GAS_WRITE_URL||process.env.GAS_DEV_WRITE_URL,secret=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY;
  if(!endpoint||!secret)throw Error('NOTIFICATION_GAS_BRIDGE_UNAVAILABLE');
  const u=new URL(endpoint);if(u.protocol!=='https:')throw Error('NOTIFICATION_GAS_HTTPS_REQUIRED');
  u.searchParams.set('action','externalnotification20');
+ if(gasAction==='externalswap20')u.searchParams.set('action','externalswap20');
  let result,stage='post';
  try{
   const first=await fetch(u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({bridgeKey:secret,actorRole:'manager',actorEmail:actor.email,operation,...payload}),redirect:'manual',signal:AbortSignal.timeout(60000)});
@@ -267,6 +268,43 @@ async function notificationGasCall(actor,operation,payload){
  }
  if(data?.error==='UNHANDLED_POST')return {ok:false,error:'GAS_DEV_DEPLOYMENT_OUTDATED'};
  return data;
+}
+// SWAP 2.0 Manager Grid: signed DEV-only preview and proposal transport.
+// Never changes Accepted audit planning; canonical commit remains separately gated.
+async function swap20ManagerRequest(req,res,operation){
+ if(!runtime.isDev){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}
+ const actor=await session(req);
+ if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
+ let originOk=false;
+ try{const origin=new URL(String(req.headers.origin||''));originOk=origin.protocol==='https:'&&origin.host===String(req.headers.host||'');}catch{}
+ if(!originOk){res.writeHead(403,{'cache-control':'no-store'});res.end('ORIGIN_REJECTED');return;}
+ let raw='';
+ for await(const chunk of req){raw+=chunk;if(raw.length>3000){res.writeHead(413);res.end('SWAP_REQUEST_TOO_LARGE');return;}}
+ let body;
+ try{body=JSON.parse(raw);}catch{res.writeHead(400);res.end('INVALID_JSON');return;}
+ if(!body||typeof body!=='object'||Array.isArray(body)){res.writeHead(400);res.end('INVALID_SWAP_REQUEST');return;}
+ const data={};
+ if(operation==='preview'||operation==='propose'){
+  data.auditA=String(body.auditA||'').trim();data.auditB=String(body.auditB||'').trim();
+  if(!data.auditA||!data.auditB||data.auditA===data.auditB||
+     data.auditA.length>140||data.auditB.length>140){res.writeHead(400);res.end('INVALID_SWAP_PAIR');return;}
+ }
+ if(operation==='propose'){
+  data.operationId=String(body.operationId||'').trim();
+  data.internalReason=String(body.internalReason||'').trim();
+  data.ecasComment=String(body.ecasComment||'').trim();
+  if(!/^[A-Za-z0-9_-]{8,100}$/.test(data.operationId)||
+     !data.internalReason||!data.ecasComment||data.internalReason.length>500||data.ecasComment.length>1000){
+   res.writeHead(400);res.end('INVALID_SWAP_PROPOSAL');return;
+  }
+ }
+ if(operation==='getProposal'||operation==='withdraw'){
+  data.operationId=String(body.operationId||'').trim();
+  if(!/^[A-Za-z0-9_-]{8,100}$/.test(data.operationId)){res.writeHead(400);res.end('INVALID_SWAP_OPERATION_ID');return;}
+ }
+ const result=await notificationGasCall(actor,operation,data,'externalswap20');
+ res.writeHead(result?.ok===true?200:409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
+ res.end(JSON.stringify(result));return;
 }
 async function notificationPreviewOrSend(req,res,operation){
  const actor=await session(req);if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401);res.end();return;}
@@ -441,6 +479,16 @@ http.createServer(async(req,res)=>{
    const {readFile}=await import('node:fs/promises');
    const html=await readFile(new URL('./notification-manager-20.html',import.meta.url));
    res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(html);return;
+  }
+  if(req.method==='POST'&&u.pathname.startsWith('/api/v1/manager/swap20/')){
+   const operation={
+    '/api/v1/manager/swap20/preview':'preview',
+    '/api/v1/manager/swap20/propose':'propose',
+    '/api/v1/manager/swap20/status':'getProposal',
+    '/api/v1/manager/swap20/withdraw':'withdraw'
+   }[u.pathname];
+   if(!operation){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}
+   await swap20ManagerRequest(req,res,operation);return;
   }
   if(await availability(req,res))return;
   await proxy(req,res);

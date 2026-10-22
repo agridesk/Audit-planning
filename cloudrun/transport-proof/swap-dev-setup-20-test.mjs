@@ -13,12 +13,14 @@ const ctx={Error,String,JSON,
  PropertiesService:{getScriptProperties:()=>({getProperty:k=>properties[k]||'',setProperties:v=>Object.assign(properties,v)})},
  Logger:{log:()=>{}}};
 runInNewContext(src,ctx);
-assert.equal(ctx.RUN_SETUP_SWAP20_DEV_20261021().createdJournal,true);
+const setup=ctx.RUN_SETUP_SWAP20_DEV_20261021();
+assert.equal(setup.createdJournal,true);
+assert.equal(setup.createdEcasReceipts,true);
 assert.equal(ctx.RUN_SETUP_SWAP20_DEV_20261021().createdJournal,false);
-assert.equal(created,1);
+assert.equal(created,2);
 assert.equal(properties.AMS_ENV,'DEV');
 assert.equal(properties.V5_SSOT_SPREADSHEET_ID,DEV);
 properties.AMS_ENV='PROD';
 assert.throws(()=>ctx.RUN_SETUP_SWAP20_DEV_20261021(),/ENV_CONFLICT/);
-assert.equal(created,1);
+assert.equal(created,2);
 console.log('SWAP DEV setup guard tests passed');

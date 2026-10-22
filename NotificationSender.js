@@ -839,6 +839,7 @@ function ns_sendDueReserved_(nqSheet, values) {
       if (mail.htmlBody) opt.htmlBody = mail.htmlBody;
       if (mail.attachments && mail.attachments.length && delivery.send) opt.attachments = mail.attachments;
 
+      var providerResponse = null;
       var finalStatus = 'SENT';
       var deliveryNote = '';
       var sentStamp = ns_timestamp_();
@@ -857,7 +858,15 @@ function ns_sendDueReserved_(nqSheet, values) {
           deliveryNote = 'DEV TEST_TO_SELF: redirected to ' + delivery.recipient + '; original=' + delivery.originalRecipients.join(', ');
         }
 
-        NS_sendEmailWithConfiguredIdentity_(delivery.recipient, finalSubject, finalBody, opt, { source: 'NotificationSender_RunDigest', deliveryMode: delivery.mode });
+        providerResponse = NS_sendEmailWithConfiguredIdentity_(delivery.recipient, finalSubject, finalBody, opt, { source: 'NotificationSender_RunDigest', deliveryMode: delivery.mode });
+        if(finalStatus==='SENT' && String(PropertiesService.getScriptProperties().getProperty('AMS_ENV')||'').toUpperCase()==='DEV' &&
+           group.items.some(function(it){return String(it.eventCode||it.eventType||'').indexOf('ECAS_')===0;})){
+          if(providerResponse && providerResponse.provider==='RESEND' && /^[a-f0-9-]{36}$/i.test(String(providerResponse.id||''))){
+            deliveryNote='RESEND_ACCEPTED_ID:'+providerResponse.id;
+          }else{
+            deliveryNote='ECAS_PROVIDER_ID_NOT_RETURNED';
+          }
+        }
       } else {
         if (delivery.mode === 'DRY_RUN') {
           finalStatus = 'SENT_SIMULATED';

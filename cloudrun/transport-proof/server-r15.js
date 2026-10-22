@@ -31,6 +31,10 @@ const project=runtime.project;
 const spreadsheet=runtime.spreadsheet;
 process.env.AMS_RUNTIME_ENV=runtime.mode;
 process.env.AMS_SSOT_SPREADSHEET_ID=spreadsheet;
+if(!runtime.isDev){
+ process.env.AMS_GAS_WRITE_URL=runtime.gasWriteUrl;
+ process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY=process.env.AMS_PROD_EXTERNAL_WRITE_BRIDGE_KEY;
+}
 process.env.PORT=String(innerPort);
 await import('./server-r12.js');
 process.env.PORT=String(port);

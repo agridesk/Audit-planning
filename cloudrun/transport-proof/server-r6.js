@@ -1,4 +1,5 @@
 import http from 'node:http';
+import {canonicalPlanningRevision20,canonicalCombinedGasBridge20} from './combined-visit-canonical-gas-bridge-20.mjs';
 import {withCombinedVisitDistributedLock20} from './combined-visit-distributed-lock-20.mjs';
 import {isCanonicalCombinedReplay20} from './combined-visit-replay-20.mjs';
 import {URL} from 'node:url';
@@ -116,6 +117,23 @@ async function combinedCommit(identity,body,req){
     for(const x of touchedAv.values())writes.push({range:'Auditor Availability!A'+x.sheetRow+':'+a1col(ah.length)+x.sheetRow,values:[x.row]});
     let nextLinkRow=links.length+1;for(const x of selectedObligations){if(x.link.auditId===targetAuditId)continue;const old=x.link.row.slice();old[ls]='INACTIVE';old[lu]=now;writes.push({range:'Audit_Visit_Obligations!A'+x.link.sheetRow+':'+a1col(lh.length)+x.link.sheetRow,values:[old]});const nr=new Array(lh.length).fill('');nr[la]=targetAuditId;nr[lo]=x.obligationId;nr[ls]='ACTIVE';if(lm>=0)nr[lm]='';nr[ll]=now;nr[lu]='';writes.push({range:'Audit_Visit_Obligations!A'+nextLinkRow+':'+a1col(lh.length)+nextLinkRow,values:[nr]});nextLinkRow++;}
     const ch=cr[0]||[],ci=col(ch,['Audit ID']),cs=col(ch,['State']),cu=col(ch,['Updated At']),cby=col(ch,['Released By']),cat=col(ch,['Released At']),creason=col(ch,['Release Reason']);for(let i=1;i<cr.length;i++){const rr=cr[i].slice(),rid=clean(rr[ci]);if(!memberIds.includes(rid)||clean(rr[cs]).toUpperCase()!=='ACTIVE')continue;rr[cs]='RELEASED';if(cu>=0)rr[cu]=now;if(cby>=0)rr[cby]=clean(identity?.email);if(cat>=0)rr[cat]=now;if(creason>=0)rr[creason]='CANONICAL_COMBINED_VISIT_COMMIT';writes.push({range:'Concept Reservations!A'+(i+1)+':'+a1col(ch.length)+(i+1),values:[rr]});}
+    // Issue #45: opt-in DEV canonical GAS Model C/Planning/Availability commit.
+    // This branch executes BEFORE all Cloud Run direct Sheets writes/queue appends.
+    // The write owner is GAS and failures never fall through to the legacy batch.
+    if(process.env.AMS_COMBINED_CANONICAL_GAS_WRITE_ENABLED==='true'){
+      const revisions={};
+      for(const id of memberIds){
+        const item=audits.get(id);if(!item)throw Error('COMBINED_CANONICAL_MEMBER_MISSING');
+        revisions[id]=canonicalPlanningRevision20(item.h,item.row);
+      }
+      return await canonicalCombinedGasBridge20({
+        enabled:true,mode:process.env.AMS_RUNTIME_ENV||'',
+        gasWriteUrl:process.env.AMS_GAS_WRITE_URL||process.env.GAS_DEV_WRITE_URL||'',
+        bridgeKey:process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'',
+        targetAuditId,sourceAuditIds,actorEmail:clean(identity?.email).toLowerCase(),
+        auditorEmail,auditorName,blocks:requested,expectedRevisionsByAudit:revisions
+      });
+    }
     const maxAv=Math.max(0,...[...touchedAv.values()].map(x=>x.sheetRow));if(maxAv)await sheetsEnsureRows('Auditor Availability',maxAv);if(nextLinkRow>links.length+1)await sheetsEnsureRows('Audit_Visit_Obligations',nextLinkRow-1);
     const writeStarted=Date.now();await sheetsValuesBatchUpdate(writes);const writeMs=Date.now()-writeStarted;
     const actorEmail=clean(identity?.email).toLowerCase(),minuteStamp=now.slice(0,16),company=clean(target.company),scopeNames=scopeCodes.map(code=>cfgByCode.get(code)?.displayName||code),trailRows=[];const composePayload={type:'VISIT_COMPOSITION_CHANGED',auditId:targetAuditId,company,actorEmail,actorRole:'MANAGER',sourceAuditIds,obligationIds:selectedObligations.map(x=>x.obligationId),scopeCodes,source:'CLOUD_RUN_COMBINED_VISIT',timestamp:now,action:'COMBINE_VISIT'};trailRows.push([minuteStamp,'AUDIT_TRAIL','VISIT_COMPOSITION_CHANGED','',targetAuditId,company,'[TRAIL] VISIT_COMPOSITION_CHANGED :: '+targetAuditId,JSON.stringify(composePayload),0,'',createHash('md5').update('VISIT_COMPOSITION_CHANGED|'+targetAuditId+'|'+now).digest('hex'),'',JSON.stringify({payload:composePayload})]);for(const src of sourceAuditIds){const p={type:'VISIT_SOURCE_PROJECTION_RETIRED',auditId:src,targetAuditId,company,actorEmail,actorRole:'MANAGER',source:'CLOUD_RUN_COMBINED_VISIT',timestamp:now,action:'COMBINE_VISIT'};trailRows.push([minuteStamp,'AUDIT_TRAIL','VISIT_SOURCE_PROJECTION_RETIRED','',src,company,'[TRAIL] VISIT_SOURCE_PROJECTION_RETIRED :: '+src+' -> '+targetAuditId,JSON.stringify(p),0,'',createHash('md5').update('VISIT_SOURCE_PROJECTION_RETIRED|'+src+'|'+targetAuditId+'|'+now).digest('hex'),'',JSON.stringify({payload:p})]);}

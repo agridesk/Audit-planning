@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const source=readFileSync(new URL('../EntryV5.js',import.meta.url),'utf8');
+const start=source.indexOf("if (rawAction==='externalmanageraction') {");
+const end=source.indexOf("if(rawAction==='manageroverviewcommand'",start);
+assert.ok(start>0&&end>start,'External Manager canonical route not found');
+const route=source.slice(start,end);
+assert.ok(route.includes("if(!V5_ENTRY_isDevEnv_())"),'DEV-only boundary missing');
+assert.ok(route.includes("V5_ENTRY_externalBridgeBody_(e)"),'Authenticated bridge missing');
+assert.ok(route.includes('LockService.getScriptLock()'),'Shared GAS script lock missing');
+assert.ok(route.includes('managerBridgeLock.tryLock(10000)'),'Bounded lock acquisition missing');
+assert.ok(route.includes('CANONICAL_MANAGER_LOCK_BUSY'),'Busy lock must reject');
+assert.ok(route.includes('managerBridgeLock.releaseLock()'),'Lock must release');
+assert.ok(route.indexOf('tryLock(10000)')<route.indexOf('managerV5Action(auditId,managerAction,options)'),'Lock acquisition must precede canonical write');
+assert.ok(route.includes('CANONICAL_MANAGER_WRITE_FAILED'),'Exceptions must fail closed');
+assert.ok(!route.includes('sheetsValuesBatchUpdate'),'No direct Sheets writes');
+console.log('EXTERNAL_MANAGER_CANONICAL_LOCK_CONTRACT: PASS 10 assertions');

@@ -44,7 +44,7 @@ function ModelCCombinedVisitCanonicalCommit20_execute(input){
  var previousMarker=(typeof AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_!=='undefined'&&AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_===true);
  try{
   AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_=true;
-  var ss=SpreadsheetApp.getActiveSpreadsheet(),ap=MCC20_table_(ss,'Audit planning'),ob=MCC20_table_(ss,'Audit_Obligations'),lk=MCC20_table_(ss,'Audit_Visit_Obligations'),cfg=MCC20_table_(ss,'Config_Scopes');
+  var ss=SpreadsheetApp.getActiveSpreadsheet(),ap=MCC20_table_(ss,'Audit planning'),ob=MCC20_table_(ss,'Audit_Obligations'),lk=MCC20_table_(ss,'Audit_Visit_Obligations'),cfg=MCC20_table_(ss,'Config_Scopes'),cr=MCC20_table_(ss,'Concept Reservations');
   var apId=MCC20_col_(ap.headers,['Audit ID']),apStatus=MCC20_col_(ap.headers,['Status']),apCompany=MCC20_col_(ap.headers,['Company_UID','Company UID']);
   var lkAudit=MCC20_col_(lk.headers,['Audit_ID']),lkOb=MCC20_col_(lk.headers,['Obligation_ID']),lkState=MCC20_col_(lk.headers,['Link_State']),lkEnd=MCC20_col_(lk.headers,['Unlinked_At']),lkStart=MCC20_col_(lk.headers,['Linked_At']);
   var obId=MCC20_col_(ob.headers,['Obligation_ID']),obState=MCC20_col_(ob.headers,['Obligation_State']),obCompany=MCC20_col_(ob.headers,['Company_UID']),obScope=MCC20_col_(ob.headers,['ScopeCode']),obHours=MCC20_col_(ob.headers,['Formal_Hours']);
@@ -71,6 +71,20 @@ function ModelCCombinedVisitCanonicalCommit20_execute(input){
   // Every changed row is retained in a reverse-order restoration journal.
   MCC20_stageRow_(journal,ap.sheet,target.row,targetNext);
   composition.sourceAuditIds.forEach(function(id){var src=auditById[id];MCC20_stageRow_(journal,ap.sheet,src.row,new Array(ap.headers.length).fill(''));});
+  // Release source members' provisional reservations under the same journal.
+  // The canonical Plan finalizer is responsible for the target reservation.
+  var crAudit=MCC20_col_(cr.headers,['Audit ID']),crState=MCC20_col_(cr.headers,['State']);
+  var crBy=cr.headers.indexOf('Released By'),crAt=cr.headers.indexOf('Released At'),crReason=cr.headers.indexOf('Release Reason'),crUpdated=cr.headers.indexOf('Updated At');
+  for(var ci=0;ci<cr.rows.length;ci++){
+    var crRow=cr.rows[ci],crId=MCC20_clean_(crRow[crAudit]);
+    if(composition.sourceAuditIds.indexOf(crId)<0||MCC20_norm_(crRow[crState])!=='ACTIVE')continue;
+    var changed=crRow.slice();changed[crState]='RELEASED';
+    if(crBy>=0)changed[crBy]=MCC20_clean_(input.actorEmail);
+    if(crAt>=0)changed[crAt]=new Date().toISOString();
+    if(crUpdated>=0)changed[crUpdated]=new Date().toISOString();
+    if(crReason>=0)changed[crReason]='CANONICAL_COMBINED_VISIT_COMMIT';
+    MCC20_stageRow_(journal,cr.sheet,ci+2,changed);
+  }
   var now=new Date().toISOString(),linkRows={};
   for(var li=0;li<lk.rows.length;li++){var lr=lk.rows[li],key=MCC20_clean_(lr[lkAudit])+'|'+MCC20_clean_(lr[lkOb]);if(MCC20_norm_(lr[lkState])==='ACTIVE')linkRows[key]={row:li+2,values:lr.slice()};}
   composition.closeLinks.forEach(function(ch){var link=linkRows[ch.auditId+'|'+ch.obligationId];if(!link)throw Error('COMBINED_CANONICAL_LINK_CHANGED');

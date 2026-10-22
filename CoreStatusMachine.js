@@ -118,7 +118,8 @@ function Status_getNextStatus_(status, action, role) {
   var a = Status_normalizeAction_(action);
   var r = Status_normalizeRole_(role);
 
-  if (a === ACTION.APPROVE && r === ROLE.MANAGER && s === STATUS.PENDING_APPROVAL) return STATUS.APPROVED;
+  // Roadmap V2.12: Manager approval of an Auditor self-plan is final acceptance.
+  if (a === ACTION.APPROVE && r === ROLE.MANAGER && s === STATUS.PENDING_APPROVAL) return STATUS.ACCEPTED;
   if (a === ACTION.ACCEPT && (r === ROLE.AUDITOR || r === ROLE.MANAGER) && s === STATUS.APPROVED) return STATUS.ACCEPTED;
   if (a === ACTION.COMPLETE && (r === ROLE.AUDITOR || r === ROLE.MANAGER) && s === STATUS.ACCEPTED) return STATUS.COMPLETED;
 

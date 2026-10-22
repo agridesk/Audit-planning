@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const r6=readFileSync(new URL('./server-r6.js',import.meta.url),'utf8');
+const gas=readFileSync(new URL('../../EntryV5.js',import.meta.url),'utf8');
+assert.ok(r6.includes("AMS_COMBINED_CANONICAL_GAS_WRITE_ENABLED==='true'"));
+assert.ok(r6.includes('return await canonicalCombinedGasBridge20({'));
+assert.ok(r6.indexOf('return await canonicalCombinedGasBridge20({')<r6.indexOf('await sheetsEnsureRows('));
+assert.ok(r6.indexOf('return await canonicalCombinedGasBridge20({')<r6.indexOf('await sheetsValuesBatchUpdate(writes)'));
+assert.ok(r6.includes('canonicalPlanningRevision20(item.h,item.row)'));
+assert.ok(gas.includes("rawAction==='externalcanonicalcombinedvisit20'"));
+assert.ok(gas.includes("if(!V5_ENTRY_isDevEnv_())"));
+assert.ok(gas.includes("ModelCCombinedVisitCanonicalCommit20_execute(combinedInput20)"));
+assert.ok(r6.includes("if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_COMBINED_VISIT_CANONICAL_WRITER_REQUIRED')"));
+console.log('COMBINED_VISIT_CANONICAL_ROUTING: PASS');

@@ -415,6 +415,7 @@ function doPost(e) {
     if(planActor20!=='MANAGER'&&planActor20!=='AUDITOR')return replyCanonicalPlan20({success:false,error:'ACTOR_ROLE_FORBIDDEN'});
     if(!String(inputCanonicalPlan20.actorEmail||'').trim()||!String(inputCanonicalPlan20.auditId||'').trim()||!String(inputCanonicalPlan20.expectedRevision||'').trim())return replyCanonicalPlan20({success:false,error:'CANONICAL_PLAN_REQUIRED_FIELDS_MISSING'});
     if(planActor20==='AUDITOR'&&String(inputCanonicalPlan20.auditorEmail||'').trim().toLowerCase()!==String(inputCanonicalPlan20.actorEmail||'').trim().toLowerCase())return replyCanonicalPlan20({success:false,error:'AUDITOR_CANNOT_PLAN_FOR_OTHER_AUDITOR'});
+    if(!/^PRT1-[a-f0-9]{40}$/i.test(String(inputCanonicalPlan20.expectedRevision||'')))return replyCanonicalPlan20({success:false,error:'CANONICAL_PLAN_REVISION_FORMAT_REQUIRED'});
     if(typeof PlanningCanonicalCommitService_commit!=='function')return replyCanonicalPlan20({success:false,error:'CANONICAL_PLANNING_OWNER_UNAVAILABLE'});
     try{return replyCanonicalPlan20(PlanningCanonicalCommitService_commit(inputCanonicalPlan20));}
     catch(canonicalPlan20Error){return replyCanonicalPlan20({success:false,error:'CANONICAL_PLAN_COMMIT_FAILED',detail:String(canonicalPlan20Error&&canonicalPlan20Error.message||canonicalPlan20Error).slice(0,180)});}

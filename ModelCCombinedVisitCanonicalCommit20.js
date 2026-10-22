@@ -104,11 +104,22 @@ function ModelCCombinedVisitCanonicalCommit20_execute(input){
     repairRequired:!restored||!!(result&&result.meta&&result.meta.availabilityRepairRequired),rolledBack:restored,canonicalPlanResult:result||null};
   }
   planned=true;journal=[];
+  var trailResult=null,trailError='';
+  try{
+   if(typeof ModelCCombinedVisitTrail20_emit!=='function')throw Error('COMBINED_AUDIT_TRAIL_OWNER_UNAVAILABLE');
+   var companyNameCol=ap.headers.indexOf('Company');
+   trailResult=ModelCCombinedVisitTrail20_emit({targetAuditId:composition.targetAuditId,
+    sourceAuditIds:composition.sourceAuditIds,obligationIds:composition.obligationIds,
+    actorEmail:MCC20_clean_(input.actorEmail),company:companyNameCol>=0?MCC20_clean_(target.values[companyNameCol]):''});
+   if(!trailResult||trailResult.success!==true)throw Error('COMBINED_AUDIT_TRAIL_NOT_CONFIRMED');
+  }catch(trailException){trailError=MCC20_clean_(trailException&&trailException.message||trailException);}
   try{if(typeof __mp_invalidateAuditPlanningPack_==='function')__mp_invalidateAuditPlanningPack_();}catch(ignore){}
   return{success:true,committed:true,combinedVisit:true,auditId:composition.targetAuditId,sourceAuditIds:composition.sourceAuditIds,
    obligationIds:composition.obligationIds,scopeCodes:composition.scopeCodes,formalHours:Math.round(required*100)/100,
-   canonicalPlanResult:result,postCommitRepairRequired:!!(result.meta&&result.meta.postCommitRepairRequired),
-   sourceAuditTrailRepairRequired:true,build:MODEL_C_COMBINED_CANONICAL_COMMIT20_BUILD};
+   canonicalPlanResult:result,trailResult:trailResult,trailError:trailError,
+   sourceAuditTrailRepairRequired:!!trailError,
+   postCommitRepairRequired:!!trailError||!!(result.meta&&result.meta.postCommitRepairRequired),
+   build:MODEL_C_COMBINED_CANONICAL_COMMIT20_BUILD};
  }catch(e){
   var restoredOnException=MCC20_restore_(journal);
   return{success:false,committed:planned,error:MCC20_clean_(e&&e.message||e),rolledBack:restoredOnException,

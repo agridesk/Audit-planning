@@ -304,7 +304,7 @@ async function notificationGasCallOnce(actor,operation,payload,gasAction){
 // Cache signed, role-scoped SWAP lists per identity to avoid repeated 10s GAS calls.
 // A cold cache still needs GAS; mutations immediately invalidate both role views.
 // Opt-in only; no Firestore data used until explicit DEV readiness approval.
-const swap20MirrorEnabled=runtime.isDev&&process.env.AMS_SWAP20_FIRESTORE_MIRROR_ENABLED==='true';
+const swap20MirrorEnabled=runtime.isDev&&process.env.AMS_SWAP20_FIRESTORE_MIRROR_ENABLED==='true'&&process.env.AMS_SWAP20_PROPOSAL_INDEX_ENABLED!=='true';
 const swap20Mirror=swap20MirrorEnabled?createSwapFirestoreReadmodel({project,getToken}):null;
 const swap20IndexEnabled=runtime.isDev&&process.env.AMS_SWAP20_PROPOSAL_INDEX_ENABLED==='true';
 const swap20Index=swap20IndexEnabled?createSwapProposalIndex({project,getToken}):null;
@@ -320,6 +320,12 @@ async function swap20InvalidateMirror(actor){
  try{await swap20Mirror.bumpEpoch();}catch(e){console.error('[SWAP20_MIRROR_INVALIDATION_FAILED]',String(e?.message||e));}
 }
 async function swap20ReadList(actor){
+ if(swap20Index){
+  try{
+   const started=Date.now(),direct=await swap20Index.read(actor);
+   if(direct){console.info('[SWAP20_INDEX_PERF]',JSON.stringify({role:actor.role,source:'FIRESTORE_INDEX',ms:Date.now()-started}));return direct;}
+  }catch(e){console.error('[SWAP20_INDEX_READ_FALLBACK]',String(e?.message||e).slice(0,130));}
+ }
  const key=swap20ListKey(actor),now=Date.now(),cached=swap20Lists.get(key);
  if(cached&&cached.expires>now){console.info('[SWAP20_LIST_PERF]',JSON.stringify({role:actor.role,source:'CACHE',ms:Date.now()-now}));return cached.data;}
  if(swap20ListInflight.has(key))return swap20ListInflight.get(key);
@@ -338,7 +344,7 @@ async function swap20ReadList(actor){
   return canonical;
  })().then(data=>{
   console.info('[SWAP20_LIST_PERF]',JSON.stringify({role:actor.role,source:'GAS',ms:Date.now()-started,ok:data?.ok===true}));
-  if(data?.ok===true)swap20Lists.set(key,{data,expires:Date.now()+90000});
+  if(data?.ok===true&&!swap20Index)swap20Lists.set(key,{data,expires:Date.now()+90000});
   return data;
  }).catch(err=>{console.error('[SWAP20_LIST_PERF]',JSON.stringify({role:actor.role,source:'GAS',ms:Date.now()-started,ok:false,code:String(err?.message||'UNKNOWN').slice(0,90)}));throw err;}).finally(()=>swap20ListInflight.delete(key));
  swap20ListInflight.set(key,call);

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {resolveAmsRuntimeConfig as resolve} from './runtime-environment-20.mjs';
 const dev='audit-management-system-dev',prod='prod-project-fixture';
 const devSheet='dev-sheet-fixture',prodSheet='prod-sheet-fixture';
-const base={AMS_RUNTIME_ENV:'PROD',AMS_PROD_RELEASE_ENABLED:'true',AMS_PROD_GCP_PROJECT:prod,AMS_PROD_SSOT_SPREADSHEET_ID:prodSheet,DEV_SSOT_SPREADSHEET_ID:devSheet,AMS_PROD_GAS_WRITE_URL:'https://prod.example.test/bridge',GAS_DEV_WRITE_URL:'https://dev.example.test/bridge',AMS_PROD_EXTERNAL_WRITE_BRIDGE_KEY:'fixture-key-only',AMS_PROD_ALLOWED_ORIGIN:'https://prod.example.test',DEV_ALLOWED_ORIGIN:'https://dev.example.test'};
+const base={AMS_RUNTIME_ENV:'PROD',AMS_PROD_RELEASE_ENABLED:'true',AMS_PROD_GCP_PROJECT:prod,AMS_PROD_SSOT_SPREADSHEET_ID:prodSheet,DEV_SSOT_SPREADSHEET_ID:devSheet,AMS_PROD_GAS_WRITE_URL:'https://prod.example.test/bridge',GAS_DEV_WRITE_URL:'https://dev.example.test/bridge',AMS_PROD_EXTERNAL_WRITE_BRIDGE_KEY:'fixture-key-only',AMS_PROD_SESSION_SIGNING_SECRET:'prod-session-fixture',AMS_PROD_ALLOWED_ORIGIN:'https://prod.example.test',DEV_ALLOWED_ORIGIN:'https://dev.example.test'};
 const cases=[
 ['valid PROD',base,prod,null],
 ['PROD release flag absent',{...base,AMS_PROD_RELEASE_ENABLED:''},prod,'AMS_PROD_NOT_AUTHORIZED'],
@@ -12,6 +12,9 @@ const cases=[
 ['PROD bridge missing',{...base,AMS_PROD_GAS_WRITE_URL:''},prod,'AMS_PROD_GAS_WRITE_URL_REQUIRED'],
 ['PROD bridge key missing',{...base,AMS_PROD_EXTERNAL_WRITE_BRIDGE_KEY:''},prod,'AMS_PROD_WRITE_BRIDGE_KEY_REQUIRED'],
 ['PROD origin equals DEV',{...base,AMS_PROD_ALLOWED_ORIGIN:base.DEV_ALLOWED_ORIGIN},prod,'AMS_PROD_ORIGIN_NOT_ISOLATED'],
+['PROD missing session secret',{...base,AMS_PROD_SESSION_SIGNING_SECRET:''},prod,'AMS_PROD_SESSION_SECRET_REQUIRED'],
+['PROD reused DEV session secret',{...base,AMS_PROD_SESSION_SIGNING_SECRET:'shared-session',AMS_SESSION_SIGNING_SECRET:'shared-session'},prod,'AMS_PROD_SESSION_SECRET_NOT_ISOLATED'],
+['PROD reused DEV bridge key',{...base,AMS_PROD_EXTERNAL_WRITE_BRIDGE_KEY:'shared-bridge',AMS_EXTERNAL_WRITE_BRIDGE_KEY:'shared-bridge'},prod,'AMS_PROD_WRITE_KEY_NOT_ISOLATED'],
 ['PROD origin missing',{...base,AMS_PROD_ALLOWED_ORIGIN:''},prod,'AMS_PROD_ORIGIN_NOT_ISOLATED'],
 ['PROD wrong mode',{...base,AMS_RUNTIME_ENV:'UNKNOWN'},prod,'AMS_RUNTIME_ENV_INVALID'],
 ['DEV valid',{AMS_RUNTIME_ENV:'DEV',DEV_SSOT_SPREADSHEET_ID:devSheet},dev,null],

@@ -28,38 +28,10 @@ function RUN_SETUP_ECAS20_RECEIPTS_DEV_20261022(){
  sh.setFrozenRows(1);
  return {ok:true,created:true};
 }
+// Resend HTTP 2xx only confirms API acceptance. A verified delivery webhook
+// is required to write SENT receipt evidence; do not manufacture it here.
 function ECAS20_recordConfirmedDelivery_(items,sentAt,status){
- if(String(status)!=='SENT')return {ok:false,reason:'NOT_CONFIRMED_SEND'};
- // Sender SENT means Resend API acceptance, not recipient delivery.
- // Require independently authenticated provider delivery evidence; never mint it here.
  return {ok:false,recorded:0,reason:'RESEND_DELIVERY_CONFIRMATION_REQUIRED'};
- var env=String(PropertiesService.getScriptProperties().getProperty('AMS_ENV')||'').toUpperCase();
- if(env!=='DEV')return {ok:false,reason:'DEV_ONLY_INSTRUMENTATION'};
- var sh=ECAS20_receiptSheet_();
- if(!sh)return {ok:false,reason:'RECEIPT_SHEET_NOT_INITIALIZED'};
- var records=[];
- (items||[]).forEach(function(item){
-  var payload=item.payload||item;
-  var event=String(item.eventCode||item.eventType||payload.eventType||'');
-  if(event!=='ECAS_AUDIT_APPROVAL_DIGEST'&&event!=='ECAS_AUDIT_CHANGED_DIGEST')return;
-  var audits=Array.isArray(payload.swapItems)&&payload.swapItems.length===2?payload.swapItems:[payload];
-  audits.forEach(function(a){
-   if(!a.auditId||!Array.isArray(a.blocks)||!a.blocks.length)return;
-   records.push({auditId:String(a.auditId),digest:ECAS20_receiptDigest_(a.blocks),
-    communicationId:String(payload.operationId||a.auditId)+'_'+String(sentAt)});
-  });
- });
- if(!records.length)return {ok:true,recorded:0};
- var existing=sh.getLastRow()>1?sh.getRange(2,1,sh.getLastRow()-1,5).getValues():[];
- var count=0;
- records.forEach(function(rec){
-  var duplicate=existing.some(function(row){return String(row[0])===rec.auditId&&
-   String(row[1])===rec.communicationId&&String(row[2])===rec.digest;});
-  if(duplicate)return;
-  sh.appendRow([rec.auditId,rec.communicationId,rec.digest,'SENT',String(sentAt)]);
-  existing.push([rec.auditId,rec.communicationId,rec.digest,'SENT',String(sentAt)]);count++;
- });
- return {ok:true,recorded:count};
 }
 function ECAS20_findConfirmedReceipt_(auditId,digest){
  var sh=ECAS20_receiptSheet_();

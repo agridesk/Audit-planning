@@ -5,6 +5,7 @@ import http from 'node:http';
 import {resolveAmsRuntimeConfig} from './runtime-environment-20.mjs';
 import {notificationOverview} from './notification-overview-20.mjs';
 import {buildRotationManager20} from './rotation-manager-20.mjs';
+import {createSwapFirestoreReadmodel} from './swap-firestore-readmodel-20.mjs';
 
 import {URL} from 'node:url';
 import {createAvailabilityHttpRouter} from './availability-http-api-20.js';
@@ -301,16 +302,37 @@ async function notificationGasCallOnce(actor,operation,payload,gasAction){
 // Never changes Accepted audit planning; canonical commit remains separately gated.
 // Cache signed, role-scoped SWAP lists per identity to avoid repeated 10s GAS calls.
 // A cold cache still needs GAS; mutations immediately invalidate both role views.
+// Opt-in only; no Firestore data used until explicit DEV readiness approval.
+const swap20MirrorEnabled=runtime.isDev&&process.env.AMS_SWAP20_FIRESTORE_MIRROR_ENABLED==='true';
+const swap20Mirror=swap20MirrorEnabled?createSwapFirestoreReadmodel({project,getToken}):null;
 const swap20Lists=new Map();
 const swap20ListInflight=new Map();
 function swap20ListKey(actor){return actor.role+":"+actor.email;}
 function swap20InvalidateLists(){swap20Lists.clear();swap20ListInflight.clear();}
+async function swap20InvalidateMirror(actor){
+ if(!swap20Mirror)return;
+ // No mutation may be called "complete" while stale local role data is retained.
+ // Opposite-role mirror is not authoritatively invalidated by this process.
+ try{await swap20Mirror.invalidate(actor);}catch(e){console.error('[SWAP20_MIRROR_INVALIDATION_FAILED]',String(e?.message||e));}
+}
 async function swap20ReadList(actor){
  const key=swap20ListKey(actor),now=Date.now(),cached=swap20Lists.get(key);
  if(cached&&cached.expires>now){console.info('[SWAP20_LIST_PERF]',JSON.stringify({role:actor.role,source:'CACHE',ms:Date.now()-now}));return cached.data;}
  if(swap20ListInflight.has(key))return swap20ListInflight.get(key);
  const started=Date.now();
- const call=notificationGasCall(actor,'listPending',{},'externalswap20').then(data=>{
+ const call=(async()=>{
+  if(swap20Mirror){
+   try{
+    const mirrored=await swap20Mirror.read(actor);
+    if(mirrored){console.info('[SWAP20_MIRROR_PERF]',JSON.stringify({role:actor.role,source:'FIRESTORE',ms:Date.now()-started}));return mirrored;}
+   }catch(e){console.warn('[SWAP20_MIRROR_FALLBACK]',String(e?.message||e).slice(0,120));}
+  }
+  const canonical=await notificationGasCall(actor,'listPending',{},'externalswap20');
+  if(swap20Mirror&&canonical?.ok===true){
+   try{await swap20Mirror.save(actor,canonical);}catch(e){console.warn('[SWAP20_MIRROR_SAVE_FAILED]',String(e?.message||e).slice(0,120));}
+  }
+  return canonical;
+ })().then(data=>{
   console.info('[SWAP20_LIST_PERF]',JSON.stringify({role:actor.role,source:'GAS',ms:Date.now()-started,ok:data?.ok===true}));
   if(data?.ok===true)swap20Lists.set(key,{data,expires:Date.now()+90000});
   return data;
@@ -352,7 +374,7 @@ async function swap20ManagerRequest(req,res,operation){
  const result=operation==='listPending'
   ?await swap20ReadList(actor)
   :await notificationGasCall(actor,operation,data,'externalswap20');
- if(operation!=='listPending'&&result?.ok===true)swap20InvalidateLists();
+ if(operation!=='listPending'&&result?.ok===true){swap20InvalidateLists();await swap20InvalidateMirror(actor);}
  res.writeHead(result?.ok===true?200:409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
  res.end(JSON.stringify(result));return;
 }
@@ -381,7 +403,7 @@ async function swap20AuditorRequest(req,res,operation){
  const result=operation==='listPending'
   ?await swap20ReadList(actor)
   :await notificationGasCall(actor,operation,data,'externalswap20');
- if(operation!=='listPending'&&result?.ok===true)swap20InvalidateLists();
+ if(operation!=='listPending'&&result?.ok===true){swap20InvalidateLists();await swap20InvalidateMirror(actor);}
  res.writeHead(result?.ok===true?200:409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
  res.end(JSON.stringify(result));return;
 }

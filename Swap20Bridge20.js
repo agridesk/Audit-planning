@@ -1,7 +1,7 @@
 // Cloud Run authenticated manager bridge for SWAP 2.0.
 // DEV only. The shared bridge key is verified by EntryV5 before this service.
 // Preview and proposal creation do not alter canonical audit planning.
-function Swap20Bridge20_manager_(email) {
+function Swap20Bridge20_actor_(email,expectedRole) {
  var props=PropertiesService.getScriptProperties();
  var id='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs';
  if(String(props.getProperty('AMS_ENV')||'').toUpperCase()!=='DEV'||
@@ -18,11 +18,13 @@ function Swap20Bridge20_manager_(email) {
  var e=ix(['email','emailaddress']),role=ix(['role','function']),active=ix(['active']);
  if(e<0||role<0||active<0)throw Error('SWAP_MANAGER_ROSTER_SCHEMA');
  var matches=data.slice(1).filter(function(row){return String(row[e]||'').trim().toLowerCase()===email;});
- if(matches.length!==1||String(matches[0][role]||'').trim().toLowerCase()!=='manager'||
+ if(matches.length!==1||String(matches[0][role]||'').trim().toLowerCase()!==expectedRole||
     !['YES','TRUE','1','ACTIVE'].includes(String(matches[0][active]||'').trim().toUpperCase()))
   throw Error('SWAP_MANAGER_IDENTITY_NOT_AUTHORIZED');
- return {ok:true,email:email,role:'Manager'};
+ return {ok:true,email:email,role:expectedRole==='manager'?'Manager':'Auditor'};
 }
+function Swap20Bridge20_manager_(email){return Swap20Bridge20_actor_(email,'manager');}
+function Swap20Bridge20_auditor_(email){return Swap20Bridge20_actor_(email,'auditor');}
 function Swap20Bridge20_auditId_(value) {
  var id=String(value||'').trim();
  if(!id||id.length>140||/[\u0000-\u001f<>]/.test(id))throw Error('SWAP_AUDIT_ID_INVALID');
@@ -56,10 +58,19 @@ function Swap20Bridge20_handle_(body) {
   return {ok:true,readOnly:true,operationId:id,status:p.status,
    auditA:p.auditA,auditB:p.auditB,dateChanged:p.dateChanged,
    acknowledgedCount:(p.acknowledgedAuditorUids||[]).length,
-   requiredCount:(p.requiredAuditorUids||[]).length};
+   requiredCount:(p.requiredAuditorUids||[]).length,
+   commitEnabled:String(PropertiesService.getScriptProperties().getProperty('AMS_SWAP20_COMMIT_ENABLED')||'')==='true'};
  }
  if(operation==='withdraw') {
-  return Swap20ManagerWithdrawProposalAuthorized_({operationId:body.operationId},manager);
+  var withdrawn=Swap20ManagerWithdrawProposalAuthorized_({operationId:body.operationId},manager);
+  return {ok:withdrawn.success===true,operationId:withdrawn.operationId,status:withdrawn.status};
+ }
+ if(operation==='commit') {
+  var committed=Swap20ManagerCommitAuthorized_({operationId:body.operationId},manager);
+  return {ok:committed.success===true,operationId:committed.operationId,
+   status:committed.status||committed.code||'',committed:committed.committed===true,
+   notificationPending:committed.notificationPending===true,
+   notificationQueued:committed.notificationQueued===true,readOnly:committed.readOnly===true};
  }
  if(operation!=='preview'&&operation!=='propose')
   return {ok:false,error:'SWAP_OPERATION_NOT_SUPPORTED'};
@@ -88,4 +99,40 @@ function Swap20Bridge20_handle_(body) {
  },manager);
  return {ok:out.success===true,operationId:out.operationId,status:out.status,
   requiresAcknowledgement:preview.requiresAcknowledgement===true,canonicalChanged:false};
+}
+
+// Auditor portal SWAP inbox, restricted to the authenticated canonical UID.
+// No manager-only internal reasons are exposed to auditors.
+function Swap20Bridge20_handleAuditor_(body) {
+ body=body||{};
+ var actor=Swap20Bridge20_auditor_(body.actorEmail);
+ var uid=Swap20_resolveAuditorUidByEmail_(actor.email);
+ var operation=String(body.operation||'').trim();
+ if(operation==='listPending') {
+  var props=PropertiesService.getScriptProperties().getProperties();
+  var keys=Object.keys(props).filter(function(k){return k.indexOf('AMS_SWAP20_PROPOSAL_')===0;}).sort();
+  if(keys.length>300)throw Error('SWAP_INBOX_SIZE_REQUIRES_REVIEW');
+  var items=[];
+  keys.forEach(function(key){
+   var p;try{p=JSON.parse(props[key]);}catch(e){return;}
+   if(!p||!Array.isArray(p.requiredAuditorUids)||p.requiredAuditorUids.indexOf(uid)<0)return;
+   if(['AWAITING_ACKNOWLEDGEMENT','ESCALATED'].indexOf(p.status)<0)return;
+   items.push({operationId:String(p.operationId||''),status:p.status,
+    auditA:String(p.auditA||''),auditB:String(p.auditB||''),
+    afterA:p.blocksA||[],afterB:p.blocksB||[],createdAt:String(p.createdAt||''),
+    ecasComment:String(p.ecasComment||''),dateChanged:p.dateChanged===true,
+    acknowledged:(p.acknowledgedAuditorUids||[]).indexOf(uid)>=0});
+  });
+  items.sort(function(a,b){return b.createdAt.localeCompare(a.createdAt);});
+  return {ok:true,readOnly:true,items:items.slice(0,50)};
+ }
+ if(operation==='respond') {
+  var op=String(body.operationId||'').trim(),decision=String(body.decision||'').toUpperCase();
+  if(!/^[A-Za-z0-9_-]{8,100}$/.test(op)||['ACKNOWLEDGE','DECLINE'].indexOf(decision)<0)
+   return {ok:false,error:'SWAP_AUDITOR_RESPONSE_INVALID'};
+  var result=Swap20AuditorRespondAuthorized_({operationId:op,decision:decision},actor);
+  return {ok:result.success===true,status:result.status,operationId:result.operationId,
+   idempotent:result.idempotent===true};
+ }
+ return {ok:false,error:'SWAP_AUDITOR_OPERATION_UNSUPPORTED'};
 }

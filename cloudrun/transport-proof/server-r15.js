@@ -313,7 +313,7 @@ async function swap20InvalidateMirror(actor){
  if(!swap20Mirror)return;
  // No mutation may be called "complete" while stale local role data is retained.
  // Opposite-role mirror is not authoritatively invalidated by this process.
- try{await swap20Mirror.invalidate(actor);}catch(e){console.error('[SWAP20_MIRROR_INVALIDATION_FAILED]',String(e?.message||e));}
+ try{await swap20Mirror.bumpEpoch();}catch(e){console.error('[SWAP20_MIRROR_INVALIDATION_FAILED]',String(e?.message||e));}
 }
 async function swap20ReadList(actor){
  const key=swap20ListKey(actor),now=Date.now(),cached=swap20Lists.get(key);

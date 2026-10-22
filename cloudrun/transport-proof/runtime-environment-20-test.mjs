@@ -13,6 +13,9 @@ assert.throws(()=>resolve(prod,'isolated-prod-project'),/PROD_NOT_AUTHORIZED/);
 assert.throws(()=>resolve({...prod,AMS_PROD_RELEASE_ENABLED:'true'},dev),/PROD_PROJECT_MISMATCH/);
 assert.throws(()=>resolve({...prod,AMS_PROD_RELEASE_ENABLED:'true',AMS_PROD_SSOT_SPREADSHEET_ID:'dev-sheet'},'isolated-prod-project'),/PROD_SHEET_NOT_ISOLATED/);
 assert.deepEqual(resolve({...prod,AMS_PROD_RELEASE_ENABLED:'true'},'isolated-prod-project'),{mode:'PROD',project:'isolated-prod-project',spreadsheet:'prod-sheet',isDev:false,gasWriteUrl:'https://script.google.com/macros/s/prod/exec'});
+assert.throws(()=>resolve({...prod,AMS_PROD_RELEASE_ENABLED:'true',AMS_PROD_GAS_WRITE_URL:''},'isolated-prod-project'),/PROD_GAS_WRITE_URL_REQUIRED/);
+assert.throws(()=>resolve({...prod,AMS_PROD_RELEASE_ENABLED:'true',GAS_DEV_WRITE_URL:prod.AMS_PROD_GAS_WRITE_URL},'isolated-prod-project'),/PROD_GAS_BRIDGE_NOT_ISOLATED/);
+assert.throws(()=>resolve({...prod,AMS_PROD_RELEASE_ENABLED:'true',AMS_PROD_EXTERNAL_WRITE_BRIDGE_KEY:''},'isolated-prod-project'),/PROD_WRITE_BRIDGE_KEY_REQUIRED/);
 const entry=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 assert.match(entry,/resolveAmsRuntimeConfig\(process\.env,await resolveProject\(\)\)/);
 assert.match(entry,/if\(!runtime\.isDev\|\|!endpoint\|\|!secret\)/);
@@ -21,5 +24,10 @@ assert.match(entry,/migrate-legacy-hard'\)\{if\(!runtime\.isDev\)/);
 assert.match(entry,/process\.env\.AMS_RUNTIME_ENV=runtime\.mode/);
 assert.match(entry,/process\.env\.AMS_GAS_WRITE_URL=runtime\.gasWriteUrl/);
 assert.match(entry,/process\.env\.AMS_SSOT_SPREADSHEET_ID=spreadsheet/);
-for(const file of ['server-r4.js','server-r12.js'])assert.match(readFileSync(new URL('./'+file,import.meta.url),'utf8'),/process\.env\.AMS_SSOT_SPREADSHEET_ID\|\|process\.env\.DEV_SSOT_SPREADSHEET_ID/);
+for(const file of ['server-r4.js','server-r12.js']){
+ const source=readFileSync(new URL('./'+file,import.meta.url),'utf8');
+ assert.match(source,/process\.env\.AMS_SSOT_SPREADSHEET_ID\|\|process\.env\.DEV_SSOT_SPREADSHEET_ID/);
+ assert.match(source,/process\.env\.AMS_GAS_WRITE_URL\|\|process\.env\.GAS_DEV_WRITE_URL/);
+}
+assert.doesNotMatch(readFileSync(new URL('./server-r4.js',import.meta.url),'utf8'),/projectId:process\.env\.GOOGLE_CLOUD_PROJECT\|\|process\.env\.GCP_PROJECT\|\|'audit-management-system-dev'/);
 console.log('AMS runtime environment isolation contract: PASS');

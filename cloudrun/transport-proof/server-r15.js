@@ -323,7 +323,7 @@ async function swap20ReadList(actor){
  const call=(async()=>{
   if(swap20Mirror){
    try{
-    const mirrored=await swap20Mirror.read(actor);
+    const gen=await swap20Mirror.epoch();const mirrored=gen?await swap20Mirror.read(actor,gen):null;
     if(mirrored){console.info('[SWAP20_MIRROR_PERF]',JSON.stringify({role:actor.role,source:'FIRESTORE',ms:Date.now()-started}));return mirrored;}
    }catch(e){console.warn('[SWAP20_MIRROR_FALLBACK]',String(e?.message||e).slice(0,120));}
   }

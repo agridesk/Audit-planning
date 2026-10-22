@@ -357,7 +357,7 @@ http.createServer(async(req,res)=>{
   const u=new URL(req.url||'/','http://localhost');
   if(req.method==='GET'&&['/rotation','/rotation-manager-20'].includes(u.pathname)){
    const actor=await session(req);
-   if(!actor||!['manager','auditor'].includes(actor.role)){res.writeHead(actor?403:401);res.end('Unauthorized');return;}
+   if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
    const {readFile}=await import('node:fs/promises');
    const html=await readFile(new URL('./rotation-manager-20.html',import.meta.url));
    res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});
@@ -365,7 +365,7 @@ http.createServer(async(req,res)=>{
   }
   if(req.method==='GET'&&['/rotation.js','/rotation-manager-20.js'].includes(u.pathname)){
    const actor=await session(req);
-   if(!actor||!['manager','auditor'].includes(actor.role)){res.writeHead(actor?403:401);res.end('Unauthorized');return;}
+   if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
    const {readFile}=await import('node:fs/promises');
    const script=await readFile(new URL('./rotation-manager-20.js',import.meta.url));
    res.writeHead(200,{'content-type':'text/javascript; charset=utf-8','cache-control':'no-store'});
@@ -373,7 +373,7 @@ http.createServer(async(req,res)=>{
   }
   if(req.method==='GET'&&['/api/v1/rotation','/api/v1/rotation-manager-20'].includes(u.pathname)){
    const actor=await session(req);
-   if(!actor||!['manager','auditor'].includes(actor.role)){res.writeHead(actor?403:401);res.end('Unauthorized');return;}
+   if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
    const data=[];
    for(const range of ["'Config_Scopes'!A1:AZ100","'Auditors'!A1:AZ500","'Log realized audits'!A1:AZ10000"]){
     const endpoint='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range);
@@ -385,11 +385,7 @@ http.createServer(async(req,res)=>{
    const result=buildRotationManager20(...data,{includeTestData});
    result.testDataAvailable=project==='audit-management-system-dev';
    result.includeTestData=includeTestData;
-   if(actor.role==='auditor'){
-    result.rows=result.rows.filter(row=>row.auditorUid===actor.auditorId);
-    result.issues=[];
-    result.role='auditor';
-   }else result.role='manager';
+   result.role='manager';
    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
    res.end(JSON.stringify(result));return;
   }

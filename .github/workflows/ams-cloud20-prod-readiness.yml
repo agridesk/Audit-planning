@@ -4,6 +4,12 @@ on:
     branches: [dev]
     paths:
       - 'cloudrun/transport-proof/runtime-environment-20.mjs'
+      - 'cloudrun/transport-proof/server-r15.js'
+      - 'cloudrun/transport-proof/server-r12.js'
+      - 'cloudrun/transport-proof/server-r4.js'
+      - 'cloudrun/transport-proof/package.json'
+      - 'cloudrun/transport-proof/prod-environment-isolation-20-test.mjs'
+      - 'cloudrun/transport-proof/prod-readiness-contract-20.mjs'
       - 'cloudrun/transport-proof/prod-contract-20-regression-test.mjs'
       - 'cloudrun/transport-proof/gas-trigger-source-inventory-20.mjs'
       - '.github/workflows/ams-cloud20-prod-readiness.yml'
@@ -29,7 +35,5 @@ jobs:
           node --check runtime-environment-20.mjs
           node --check prod-contract-20-regression-test.mjs
           node --check gas-trigger-source-inventory-20.mjs
-      - name: Run environment isolation regression
-        run: node prod-contract-20-regression-test.mjs
-      - name: Verify source trigger candidates (never install)
-        run: node gas-trigger-source-inventory-20.mjs
+      - name: Run full non-deploying production readiness checks
+        run: npm run test:prod-readiness

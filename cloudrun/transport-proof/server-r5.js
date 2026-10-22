@@ -11,6 +11,8 @@ const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
 const SESSION_SECRET=process.env.AMS_SESSION_SIGNING_SECRET||'';
 const SESSION_COOKIE=process.env.AMS_RUNTIME_ENV==='PROD'?'ams_prod_session':'ams_dev_session';
 const RUNTIME_ENV=clean(process.env.AMS_RUNTIME_ENV||process.env.AUDIT_RUNTIME_ENV||'').toUpperCase();
+const OTP_ENABLED=RUNTIME_ENV==='DEV'||(RUNTIME_ENV==='PROD'&&process.env.AMS_PROD_AUTH_OTP_ENABLED==='true');
+const AUTH_ORIGIN=process.env.AMS_ALLOWED_ORIGIN||process.env.DEV_ALLOWED_ORIGIN||'https://ams-transport-proof-510075419067.europe-west1.run.app';
 const DEV_MANAGER_EMAIL=clean(process.env.AMS_DEV_MANAGER_EMAIL||'').toLowerCase();
 const DEV_AUDITOR_EMAIL=clean(process.env.AMS_DEV_AUDITOR_EMAIL||'').toLowerCase();
 const SESSION_TTL_SECONDS=30*24*60*60;
@@ -47,7 +49,7 @@ async function cloudRevocationAccess(){if(revocationCloudToken.token&&Date.now()
 function cloudRevocationStore(){return createSessionRevocationStore({projectId:process.env.GOOGLE_CLOUD_PROJECT||process.env.GCP_PROJECT||'audit-management-system-dev',getAccessToken:cloudRevocationAccess});}
 function rawSessionCookie(req){const raw=String(req.headers.cookie||'');for(const pair of raw.split(';')){const n=pair.trim();if(n.startsWith(SESSION_COOKIE+'='))return n.slice(SESSION_COOKIE.length+1);}return '';}
 function decodeSignedExpiry(token){const parts=String(token||'').split('.');if(parts.length!==2||!safeEq(signSession(parts[0]),parts[1]))throw Error('REVOCATION_SESSION_INVALID');const obj=JSON.parse(Buffer.from(parts[0],'base64url').toString('utf8'));if(!Number.isSafeInteger(obj.exp)||obj.exp<=Math.floor(Date.now()/1000))throw Error('REVOCATION_SESSION_EXPIRED');return obj.exp;}
-async function handleSecureLogout(req,res){if(RUNTIME_ENV!=='DEV'||process.env.AMS_AUTH_LOGOUT_REVOCATION_ENABLED!=='true')return sendJson(res,503,{ok:false,error:'AUTH_REVOCATION_NOT_ENABLED'});const token=rawSessionCookie(req);if(token){const exp=decodeSignedExpiry(token);await cloudRevocationStore().revoke(token,exp);}res.writeHead(303,{'set-cookie':[clearSessionCookie(),'ams_auth_device=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax'],'location':'/','cache-control':'no-store'});return res.end();}
+async function handleSecureLogout(req,res){if(!OTP_ENABLED||process.env.AMS_AUTH_LOGOUT_REVOCATION_ENABLED!=='true')return sendJson(res,503,{ok:false,error:'AUTH_REVOCATION_NOT_ENABLED'});const token=rawSessionCookie(req);if(token){const exp=decodeSignedExpiry(token);await cloudRevocationStore().revoke(token,exp);}res.writeHead(303,{'set-cookie':[clearSessionCookie(),'ams_auth_device=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax'],'location':'/','cache-control':'no-store'});return res.end();}
 function clearSessionCookie(){return SESSION_COOKIE+'=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax';}
 function safeLoginDestination(raw,role){
   const value=clean(raw);if(!value||value.length>500||!value.startsWith('/')||value.startsWith('//')||value.includes('\\'))return '/';
@@ -131,20 +133,20 @@ function fastOtpService(){
  return fastOtpServiceInstance;
 }
 async function cloudAuthGas(action,data){
-  if(RUNTIME_ENV!=='DEV'||!GAS_WRITE_URL||WRITE_KEY.length<32)throw Error('AUTH_BRIDGE_NOT_CONFIGURED');
+  if(!OTP_ENABLED||!GAS_WRITE_URL||WRITE_KEY.length<32)throw Error('AUTH_BRIDGE_NOT_CONFIGURED');
   const url=new URL(GAS_WRITE_URL);url.searchParams.set('action',action);
   const started=Date.now(),controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),30000);console.info('AMS_AUTH_BRIDGE_START',JSON.stringify({action}));
   try{const res=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...data,bridgeKey:WRITE_KEY}),redirect:'follow',signal:controller.signal});if(!res.ok)throw Error('AUTH_BRIDGE_HTTP_'+res.status);const json=await res.json();if(!json||typeof json.ok!=='boolean')throw Error('AUTH_BRIDGE_INVALID_REPLY');console.info('AMS_AUTH_BRIDGE_DONE',JSON.stringify({action,ms:Date.now()-started,ok:json.ok}));return json;}catch(error){console.error('AMS_AUTH_BRIDGE_FAILED',JSON.stringify({action,ms:Date.now()-started,kind:error?.name==='AbortError'?'TIMEOUT':clean(error?.message||'').slice(0,72)}));throw error;}finally{clearTimeout(timeout);}
 }
 async function cloudAuthRequest(req,res){
-  if(RUNTIME_ENV!=='DEV')return sendJson(res,404,{ok:false,error:'NOT_FOUND'});
-  if(req.headers.origin&&req.headers.origin!=='https://ams-transport-proof-510075419067.europe-west1.run.app')return sendJson(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});
+  if(!OTP_ENABLED)return sendJson(res,404,{ok:false,error:'NOT_FOUND'});
+  if(req.headers.origin&&req.headers.origin!==AUTH_ORIGIN)return sendJson(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});
   const data=JSON.parse(await readRaw(req,2048));const email=clean(data.email).toLowerCase();if(email.length>254||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return sendJson(res,400,{ok:false,error:'INVALID_EMAIL'});
   const response=FAST_OTP_ENABLED?await fastOtpService().requestCode(email):await cloudAuthGas('externalauthrequestcode',{email});return sendJson(res,response.ok?200:401,{ok:response.ok===true,role:response.role||'',error:response.error||'CODE_REQUEST_FAILED',retryAfterSeconds:response.retryAfterSeconds||0});
 }
 async function cloudAuthVerify(req,res){
-  if(RUNTIME_ENV!=='DEV')return sendJson(res,404,{ok:false,error:'NOT_FOUND'});
-  if(req.headers.origin&&req.headers.origin!=='https://ams-transport-proof-510075419067.europe-west1.run.app')return sendJson(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});
+  if(!OTP_ENABLED)return sendJson(res,404,{ok:false,error:'NOT_FOUND'});
+  if(req.headers.origin&&req.headers.origin!==AUTH_ORIGIN)return sendJson(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});
   const body=JSON.parse(await readRaw(req,2048));const {email,role,code,deviceId}=body;const remember=body.remember===true;
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean(email))||!/^\d{6}$/.test(clean(code))||!/^[a-f0-9]{64}$/.test(clean(deviceId)))return sendJson(res,400,{ok:false,error:'INVALID_LOGIN_INPUT'});
   if(FAST_OTP_ENABLED){
@@ -334,7 +336,7 @@ http.createServer(async(req,res)=>{
         const dest=safeLoginDestination(u.pathname+u.search,role);
         if(dest!=='/'){res.writeHead(303,{'location':'/?next='+encodeURIComponent(dest),'cache-control':'no-store'});return res.end();}
       }
-      return sendHtml(res,200,RUNTIME_ENV==='DEV'?cloudAuthLoginHtml():portalLoginHtml());
+      return sendHtml(res,200,RUNTIME_ENV==='DEV'?cloudAuthLoginHtml():(OTP_ENABLED?cloudAuthLoginHtml().replace(/<section id="shortcut">[\s\S]*?<\/section>/,''):portalLoginHtml()));
     }
     const destination=safeLoginDestination(u.searchParams.get('next'),identity.role);if(destination!=='/'){res.writeHead(303,{'location':destination,'cache-control':'no-store'});return res.end();}
     return proxy(req,res);

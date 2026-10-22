@@ -47,4 +47,9 @@ const notifyUi=readFileSync(new URL('./notification-manager-20.html',import.meta
 assert.match(notifyUi,/id="devMailSafety"/);
 assert.match(notifyUi,/testTab\.classList\.toggle\('hidden',!devOnly\)/);
 assert.match(notifyUi,/\$\('devMailSafety'\)\.classList\.toggle\('hidden',!devOnly\)/);
+for(const file of ['server-r4.js','server-r10.js','server-r12.js','server-r15.js']){
+ const source=readFileSync(new URL('./'+file,import.meta.url),'utf8');
+ assert.doesNotMatch(source,/Audit planning!A(?:1|2):A(?:X|Z)(?:483|600|2000|2500|1)/,'Truncated 20-scope read in '+file);
+ assert.match(source,/Audit planning!A1:BW/,'Missing full 20-scope range in '+file);
+}
 console.log('AMS runtime environment isolation contract: PASS');

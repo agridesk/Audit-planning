@@ -6,6 +6,11 @@ on:
       - 'CoreStatusMachine.js'
       - 'StatusNotificationBridge.js'
       - 'RejectedAuditsV5.js'
+      - 'ModelCCombinedVisitPlanner20.js'
+      - 'PlanningCanonicalRowWriter.js'
+      - 'PlanningCanonicalCommitService.js'
+      - 'StatusNotificationBridge_PerformanceRoute.js'
+      - 'zz_AMS01_StatusNotificationPerfOverride.js'
       - 'ModelCRejectLinkPlanner.js'
       - 'ModelCRejectLinkWriter.js'
       - 'ModelCRejectedLinkIntegrity.js'
@@ -47,6 +52,9 @@ jobs:
         run: |
           node tests/lifecycle-v212-status-contract.test.mjs
           node tests/lifecycle-cancel-availability-invariant.test.mjs
+          node tests/model-c-combined-visit-planner-20.test.mjs
+          node tests/model-c-combined-visit-planning-json-20.test.mjs
+          node tests/status-notification-inherited-manager-lock-20.test.mjs
           node tests/model-c-reject-link-planner.test.mjs
           node tests/model-c-reject-link-writer.test.mjs
           node tests/model-c-rejected-link-integrity.test.mjs

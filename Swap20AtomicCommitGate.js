@@ -3,6 +3,11 @@ function Swap20ManagerCommit(input){
  input=input||{};
  var auth=V5_AUTH.validateTrustedTokenByRole(input.trustedToken||input.token,'Manager',input.deviceFingerprint||input.deviceId);
  if(!auth||auth.ok!==true||!auth.email)throw Error('Manager authentication required');
+ return Swap20ManagerCommitAuthorized_(input,auth);
+}
+function Swap20ManagerCommitAuthorized_(input,auth){
+ input=input||{};
+ if(!auth||auth.ok!==true||!auth.email||(auth.role&&String(auth.role).toLowerCase()!=='manager'))throw Error('Manager authentication required');
  var props=PropertiesService.getScriptProperties();
  if(String(props.getProperty('AMS_ENV')||'').toUpperCase()!=='DEV')throw Error('Swap commit restricted to DEV');
  if(String(props.getProperty('AMS_SWAP20_COMMIT_ENABLED')||'')!=='true')

@@ -29,6 +29,7 @@ async function resolveProject(){
 const runtime=resolveAmsRuntimeConfig(process.env,await resolveProject());
 const project=runtime.project;
 const spreadsheet=runtime.spreadsheet;
+process.env.AMS_RUNTIME_ENV=runtime.mode;
 process.env.AMS_SSOT_SPREADSHEET_ID=spreadsheet;
 process.env.PORT=String(innerPort);
 await import('./server-r12.js');

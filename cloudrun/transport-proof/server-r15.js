@@ -390,7 +390,7 @@ http.createServer(async(req,res)=>{
    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
    res.end(JSON.stringify(result));return;
   }
-  if(['GET','POST'].includes(req.method)&&u.pathname==='/api/v1/availability/migrate-legacy-hard'){await legacyHardMigration(req,res);return;}
+  if(['GET','POST'].includes(req.method)&&u.pathname==='/api/v1/availability/migrate-legacy-hard'){if(!runtime.isDev){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}await legacyHardMigration(req,res);return;}
   if(req.method==='GET'&&u.pathname==='/api/v1/availability/legacy-diagnostic'){await legacyAvailabilityDiagnostic(req,res);return;}
   if(req.method==='GET'&&(u.pathname==='/my-availability'||u.pathname==='/my-availability-20')){
    const identity=await session(req);

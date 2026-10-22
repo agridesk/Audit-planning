@@ -42,10 +42,10 @@ for(const sig of [
 ]){
  const first=entryGuard(r4,sig);
  assert.match(first,/^\s*if\(process\.env\.AMS_RUNTIME_ENV==='PROD'\)throw new Error\('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED'\)/);
- const snippet='(function(){'+first.split('\\n').slice(0,2).join('\\n')+';return true})()';
+ const snippet='(function(){'+first.match(/if\\(process\\.env\\.AMS_RUNTIME_ENV==='PROD'\\)throw new Error\\('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED'\\);/)[0]+'return true})()';
  assert.throws(()=>vm.runInNewContext(snippet,{process:{env:{AMS_RUNTIME_ENV:'PROD'}}}),/PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED/);
 }
 const combinedFirst=entryGuard(r6,'async function combinedCommit(identity,body,req){');
 assert.match(combinedFirst,/^\s*if\(process\.env\.AMS_RUNTIME_ENV==='PROD'\)throw new Error\('PROD_COMBINED_VISIT_CANONICAL_WRITER_REQUIRED'\)/);
-assert.throws(()=>vm.runInNewContext('(function(){'+combinedFirst.split('\\n').slice(0,2).join('\\n')+';return true})()',{process:{env:{AMS_RUNTIME_ENV:'PROD'}}}),/PROD_COMBINED_VISIT_CANONICAL_WRITER_REQUIRED/);
+assert.throws(()=>vm.runInNewContext('(function(){'+combinedFirst.match(/if\\(process\\.env\\.AMS_RUNTIME_ENV==='PROD'\\)throw new Error\\('PROD_COMBINED_VISIT_CANONICAL_WRITER_REQUIRED'\\);/)[0]+'return true})()',{process:{env:{AMS_RUNTIME_ENV:'PROD'}}}),/PROD_COMBINED_VISIT_CANONICAL_WRITER_REQUIRED/);
 console.log('PROD lifecycle guard execution probes: PASS');

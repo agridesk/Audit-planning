@@ -30,6 +30,9 @@ function RUN_SETUP_ECAS20_RECEIPTS_DEV_20261022(){
 }
 function ECAS20_recordConfirmedDelivery_(items,sentAt,status){
  if(String(status)!=='SENT')return {ok:false,reason:'NOT_CONFIRMED_SEND'};
+ // Sender SENT means Resend API acceptance, not recipient delivery.
+ // Require independently authenticated provider delivery evidence; never mint it here.
+ return {ok:false,recorded:0,reason:'RESEND_DELIVERY_CONFIRMATION_REQUIRED'};
  var env=String(PropertiesService.getScriptProperties().getProperty('AMS_ENV')||'').toUpperCase();
  if(env!=='DEV')return {ok:false,reason:'DEV_ONLY_INSTRUMENTATION'};
  var sh=ECAS20_receiptSheet_();

@@ -121,7 +121,8 @@ function StatusNotificationBridge_QueueWithLock_(recipientEmail, eventCode, queu
   });
 
   try {
-    var inheritedLock = typeof AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ !== 'undefined' && AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ === true;
+    var inheritedLock = (typeof AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ !== 'undefined' && AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ === true) ||
+      (typeof AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_ !== 'undefined' && AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_ === true);
     acquired = inheritedLock || lock.tryLock(5000);
     var waitMs = new Date().getTime() - waitStarted;
 

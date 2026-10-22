@@ -8,7 +8,7 @@ let attempts=0;
 const ctx={String,JSON,Date,Error,Array,Object,
  PropertiesService:{getScriptProperties:()=>({getProperty:k=>props[k]||''})},
  Swap20Store_read_:()=>p,
- Swap20Journal_history_:()=>[{stage:'PREPARED',payload:{canonical:{headers:[],rows:[]}}},{stage:'WRITING'},{stage:'COMMITTED'}],
+ Swap20Journal_history_:()=>[{stage:'PREPARED',payload:{canonical:{headers:['Audit ID','Planning JSON'],rows:[{auditId:'A',values:['A','{}']},{auditId:'B',values:['B','{}']}]}}},{stage:'WRITING'},{stage:'COMMITTED'}],
  SpreadsheetApp:{openById:()=>({getSheetByName:()=>({getLastRow:()=>1})})},
  NotificationConfig_GetQueueSheetName:()=> 'Notification Queue',
  NotificationConfig_GetEvent:()=>({active:false}),

@@ -3,7 +3,7 @@
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 const root=resolve(import.meta.dirname,'../..');
-const files=['NotificationSender.js','NotificationAcceptedReconciler.js','OpenCacheWarmer.js','AnnualCycleEngineV5.js','AvailabilityService.js','AuditorV5Backend.js','MpCacheWarmer_GATE_Q_2.js','Cache_Admin_AuditorScopeInvalidation.js','WeeklyTriggerRepair_20260525.js','Platform.js'];
+const files=['NotificationSender.js','NotificationAcceptedReconciler.js','OpenCacheWarmer.js','AnnualCycleEngineV5.js','AvailabilityService.js','AuditorV5Backend.js','MpCacheWarmer_GATE_Q_2.js','Cache_Admin_AuditorScopeInvalidation.js','Platform.js'];
 const rows=[];
 for(const file of files){
  const lines=readFileSync(resolve(root,file),'utf8').split('\n');

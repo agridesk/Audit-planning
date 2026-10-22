@@ -426,7 +426,7 @@ http.createServer(async(req,res)=>{
    res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(html);return;
   }
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/preview'){await notificationPreviewOrSend(req,res,'preview');return;}
-  if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/send-test'){await notificationPreviewOrSend(req,res,'sendTest');return;}
+  if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/send-test'){if(!runtime.isDev){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}await notificationPreviewOrSend(req,res,'sendTest');return;}
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/dev-mode'){if(!runtime.isDev){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}await notificationDevModeMutation(req,res);return;}
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/rules'){await notificationRuleMutation(req,res);return;}
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/digest-buffer'){await notificationDigestBufferMutation(req,res);return;}

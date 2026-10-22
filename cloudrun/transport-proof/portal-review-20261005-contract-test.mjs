@@ -92,4 +92,6 @@ assert.ok(pdfExport.includes('"GPS / Map"'),'Auditor PDF must include GPS / Map 
 assert.ok(ui.includes('var g=gpsValue(r)'),'Export must resolve GPS from canonical grid source');tests++;
 assert.ok(pdfExport.includes('headers[i]==="GPS / Map"&&v')&&pdfExport.includes('>Open map</a>'),'PDF GPS values must render as clickable map links');tests++;
 assert.ok(ui.includes('headers[i]==="GPS / Map"&&/^https:')&&ui.includes('>Open map</a>'),'Excel export must provide compact HTTPS GPS hyperlinks');tests++;
+assert.ok(r4.includes('row.extensionMonths=months;row.extMonths=months;row.canExtend=null;'),'Fast first paint must distinguish unknown extension eligibility from canonical denial');tests++;
+assert.ok(ui.includes('months>0&&r.canExtend==null'),'Grid should present pending extension eligibility deterministically');tests++;
 console.log(JSON.stringify({ok:true,build:'2026-10-10_PORTAL_REVIEW_HARDENING_CONTRACT_R8',tests,writesPerformed:false}));

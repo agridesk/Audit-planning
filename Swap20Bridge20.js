@@ -67,6 +67,15 @@ function Swap20Bridge20_handle_(body) {
  body=body||{};
  var manager=Swap20Bridge20_manager_(body.actorEmail);
  var operation=String(body.operation||'').trim();
+ if(operation==='listIndexSeed'){
+  var properties=PropertiesService.getScriptProperties().getProperties();
+  var ids=Object.keys(properties).filter(function(k){return k.indexOf('AMS_SWAP20_PROPOSAL_')===0;}).sort();
+  if(ids.length>300)throw Error('SWAP_INDEX_SEED_LIMIT');
+  var records=ids.map(function(k){return JSON.parse(properties[k]);});
+  if(records.some(function(p){return !p||!p.operationId||!p.status||!p.auditA||!p.auditB||!Array.isArray(p.requiredAuditorUids)||!Array.isArray(p.acknowledgedAuditorUids);}))
+   throw Error('SWAP_INDEX_SEED_CORRUPT');
+  return {ok:true,readOnly:true,records:records};
+ }
  if(operation==='listPending'){
   var raw=PropertiesService.getScriptProperties().getProperties(),keys=Object.keys(raw).filter(function(k){return k.indexOf('AMS_SWAP20_PROPOSAL_')===0;}).sort();
   if(keys.length>300)throw Error('SWAP_MANAGER_INBOX_SIZE_REQUIRES_REVIEW');

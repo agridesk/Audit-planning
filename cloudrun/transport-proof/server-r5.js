@@ -163,7 +163,7 @@ async function cloudAuthVerify(req,res){
   const verified=await cloudAuthGas('externalauthverifycode',{email,role,code,deviceId,remember});
   const gasMs=Date.now()-authStart;
   if(!verified.ok||!verified.token)return sendJson(res,401,{ok:false,error:verified.error||'INVALID_OR_EXPIRED_CODE'});
-  const exchanged=await fetch('http://127.0.0.1:'+INNER_PORT+'/api/v1/session/exchange',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token:verified.token,role:verified.role,deviceId})});
+  const exchanged=await fetch('http://127.0.0.1:'+INNER_PORT+'/api/v1/session/exchange',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token:verified.token,role:verified.role,deviceId,remember})});
   const result=await exchanged.json();const exchangeMs=Date.now()-authStart-gasMs;console.info('AMS_AUTH_SESSION_TIMING',JSON.stringify({gasMs,exchangeMs,totalMs:Date.now()-authStart,exchangeOk:exchanged.ok&&result.ok===true}));const cookie=exchanged.headers.get('set-cookie');if(!exchanged.ok||!result.ok||!cookie)return sendJson(res,401,{ok:false,error:result.error||'SESSION_EXCHANGE_FAILED'});
   res.setHeader('Server-Timing','gas_otp;dur='+gasMs+',session_exchange;dur='+exchangeMs);return sendJson(res,200,{ok:true,destination:safeLoginDestination(body.next,verified.role)}, {'set-cookie':cookie});
 }

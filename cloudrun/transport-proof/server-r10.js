@@ -4,10 +4,10 @@ import crypto from 'node:crypto';
 
 const PUBLIC_PORT=Number(process.env.PORT||8080);
 const INNER_PORT=PUBLIC_PORT+1;
-const SID=process.env.DEV_SSOT_SPREADSHEET_ID||'';
-const GAS_WRITE_URL=process.env.GAS_DEV_WRITE_URL||'';
+const SID=process.env.AMS_SSOT_SPREADSHEET_ID||process.env.DEV_SSOT_SPREADSHEET_ID||'';
+const GAS_WRITE_URL=process.env.AMS_GAS_WRITE_URL||process.env.GAS_DEV_WRITE_URL||'';
 const WRITE_KEY=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'';
-const RELAY_PARENT_ORIGIN='https://ams-transport-proof-510075419067.europe-west1.run.app';
+const RELAY_PARENT_ORIGIN=process.env.AMS_ALLOWED_ORIGIN||process.env.DEV_ALLOWED_ORIGIN||'https://ams-transport-proof-510075419067.europe-west1.run.app';
 const BUILD='2026-10-03_GRID2_SELECTION_R7';
 
 process.env.PORT=String(INNER_PORT);

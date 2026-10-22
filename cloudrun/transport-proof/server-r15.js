@@ -2,6 +2,7 @@
  * Enable only after Firestore IAM/database preflight and DEV-only deployment approval.
  */
 import http from 'node:http';
+import {resolveAmsRuntimeConfig} from './runtime-environment-20.mjs';
 import {notificationOverview} from './notification-overview-20.mjs';
 import {buildRotationManager20} from './rotation-manager-20.mjs';
 
@@ -25,10 +26,9 @@ async function resolveProject(){
  }catch{}
  return '';
 }
-const project=await resolveProject();
-const spreadsheet=process.env.DEV_SSOT_SPREADSHEET_ID||'';
-if(project!=='audit-management-system-dev')throw Error('AVAILABILITY_DEV_PROJECT_ONLY');
-if(!spreadsheet)throw Error('AVAILABILITY_DEV_SHEET_REQUIRED');
+const runtime=resolveAmsRuntimeConfig(process.env,await resolveProject());
+const project=runtime.project;
+const spreadsheet=runtime.spreadsheet;
 process.env.PORT=String(innerPort);
 await import('./server-r12.js');
 process.env.PORT=String(port);
@@ -213,14 +213,14 @@ async function notificationsManagerOverview(req,res){
  const activeCol=head.indexOf('ACTIVE'),unitCol=head.indexOf('UNIT'),descriptionCol=head.indexOf('DESCRIPTION'),groupCol=head.indexOf('RULEGROUP');
  result.editableRules=rules.slice(1).filter(row=>keyCol>=0&&editableRuleKeys.has(String(row[keyCol]||'').trim().toUpperCase())).map(row=>({key:String(row[keyCol]||'').trim().toUpperCase(),value:String(row[valueCol]??'').trim(),active:String(row[activeCol]||'').trim().toUpperCase()==='YES',unit:String(row[unitCol]||'').trim(),description:String(row[descriptionCol]||'').trim(),group:String(row[groupCol]||'').trim()}));
  result.configurationDiagnostics={duplicates:duplicateDiagnostics,destructiveCleanupAllowed:false};
- const mode=String(systemMap.DEV_NOTIFICATION_MODE||'').toUpperCase();const send=String(systemMap.SEND_NOTIFICATIONS||'').toUpperCase();const validMode=['OFF','DRY_RUN','TEST_TO_SELF'].includes(mode);const validSend=['TRUE','FALSE','YES','NO','1','0'].includes(send);const isDev=project==='audit-management-system-dev';result.deliveryPolicy={environment:isDev?'DEV':'UNVERIFIED',mode:validMode?mode:'UNKNOWN',sendNotifications:validSend?send:'UNKNOWN',testRecipientConfigured:Boolean(systemMap.DEV_TEST_EMAIL),senderName:systemMap.DEFAULT_FROM_NAME||'',replyToConfigured:Boolean(systemMap.DEFAULT_REPLY_TO),configurationVerified:isDev&&envCol>=0&&validMode&&validSend,overlapKeys:['DEV_NOTIFICATION_MODE','NOTIFICATION_TEST_MODE','TEST_MODE','DEV_TEST_EMAIL','TEST_RECIPIENT'].filter(k=>Object.hasOwn(systemMap,k)||Object.hasOwn(settingMap,k))};
+ const mode=String(systemMap.DEV_NOTIFICATION_MODE||'').toUpperCase();const send=String(systemMap.SEND_NOTIFICATIONS||'').toUpperCase();const validMode=['OFF','DRY_RUN','TEST_TO_SELF'].includes(mode);const validSend=['TRUE','FALSE','YES','NO','1','0'].includes(send);const isDev=runtime.isDev;result.deliveryPolicy={environment:isDev?'DEV':'UNVERIFIED',mode:validMode?mode:'UNKNOWN',sendNotifications:validSend?send:'UNKNOWN',testRecipientConfigured:Boolean(systemMap.DEV_TEST_EMAIL),senderName:systemMap.DEFAULT_FROM_NAME||'',replyToConfigured:Boolean(systemMap.DEFAULT_REPLY_TO),configurationVerified:isDev&&envCol>=0&&validMode&&validSend,overlapKeys:['DEV_NOTIFICATION_MODE','NOTIFICATION_TEST_MODE','TEST_MODE','DEV_TEST_EMAIL','TEST_RECIPIENT'].filter(k=>Object.hasOwn(systemMap,k)||Object.hasOwn(settingMap,k))};
  res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
  res.end(JSON.stringify({success:true,...result}));
 }
 
 async function notificationGasCall(actor,operation,payload){
  const endpoint=process.env.GAS_DEV_WRITE_URL,secret=process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY;
- if(project!=='audit-management-system-dev'||!endpoint||!secret)throw Error('NOTIFICATION_GAS_BRIDGE_UNAVAILABLE');
+ if(!runtime.isDev||!endpoint||!secret)throw Error('NOTIFICATION_GAS_BRIDGE_UNAVAILABLE');
  const u=new URL(endpoint);if(u.protocol!=='https:')throw Error('NOTIFICATION_GAS_HTTPS_REQUIRED');
  u.searchParams.set('action','externalnotification20');
  let result,stage='post';
@@ -381,9 +381,9 @@ http.createServer(async(req,res)=>{
     if(!response.ok)throw Error('ROTATION_SOURCE_READ_'+response.status);
     data.push((await response.json()).values||[]);
    }
-   const includeTestData=project==='audit-management-system-dev'&&u.searchParams.get('includeTestData')==='1';
+   const includeTestData=runtime.isDev&&u.searchParams.get('includeTestData')==='1';
    const result=buildRotationManager20(...data,{includeTestData});
-   result.testDataAvailable=project==='audit-management-system-dev';
+   result.testDataAvailable=runtime.isDev;
    result.includeTestData=includeTestData;
    result.role='manager';
    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});

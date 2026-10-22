@@ -166,8 +166,8 @@ function Swap20Bridge20_handleAuditor_(body) {
   if(!/^[A-Za-z0-9_-]{8,100}$/.test(op)||['ACKNOWLEDGE','DECLINE'].indexOf(decision)<0)
    return {ok:false,error:'SWAP_AUDITOR_RESPONSE_INVALID'};
   var result=Swap20AuditorRespondAuthorized_({operationId:op,decision:decision},actor);
-  return {ok:result.success===true,status:result.status,operationId:result.operationId,
-   idempotent:result.idempotent===true};
+  return Swap20Bridge20_mirrorEvent_({ok:result.success===true,status:result.status,operationId:result.operationId,
+   idempotent:result.idempotent===true},op);
  }
  return {ok:false,error:'SWAP_AUDITOR_OPERATION_UNSUPPORTED'};
 }

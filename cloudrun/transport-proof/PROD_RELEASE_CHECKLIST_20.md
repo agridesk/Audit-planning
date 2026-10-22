@@ -18,6 +18,9 @@ Status: NOT AUTHORIZED FOR PROD DEPLOYMENT. This checklist is the cutover contra
 
 Run `npm run test:prod-readiness` or use the dedicated GitHub Actions readiness workflow (no deployment). These checks do not replace live runtime evidence.
 
+## Known source blocker
+- PROVEN_DEVIATION: `server-r6.js` contains a legacy direct Sheets write path for combined visits. It writes planning, auditor availability and visit obligation links directly. Ownership and remediation belong to the parallel lifecycle chat; this readiness track must not bypass the gate or silently enable it in PROD.
+
 ## Deploy preflight — MUST verify in actual GCP/GAS runtimes
 1. Capture exact DEV and candidate PROD commit/build SHA, container digest, Cloud Run revision, service and region.
 2. Prove PROD project identity equals AMS_PROD_GCP_PROJECT and differs from audit-management-system-dev.

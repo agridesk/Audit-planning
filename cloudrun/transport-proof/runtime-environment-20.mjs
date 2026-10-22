@@ -17,5 +17,9 @@ export function resolveAmsRuntimeConfig(env, projectId) {
  if(!allowedProject||allowedProject==='audit-management-system-dev'||project!==allowedProject)throw Error('AMS_PROD_PROJECT_MISMATCH');
  const spreadsheet=String(env.AMS_PROD_SSOT_SPREADSHEET_ID||'').trim();
  if(!spreadsheet||spreadsheet===String(env.DEV_SSOT_SPREADSHEET_ID||'').trim())throw Error('AMS_PROD_SHEET_NOT_ISOLATED');
- return Object.freeze({mode,project,spreadsheet,isDev:false});
+ const gasWriteUrl=String(env.AMS_PROD_GAS_WRITE_URL||'').trim();
+ if(!/^https:\/\//.test(gasWriteUrl))throw Error('AMS_PROD_GAS_WRITE_URL_REQUIRED');
+ if(gasWriteUrl===String(env.GAS_DEV_WRITE_URL||'').trim())throw Error('AMS_PROD_GAS_BRIDGE_NOT_ISOLATED');
+ if(!String(env.AMS_PROD_EXTERNAL_WRITE_BRIDGE_KEY||'').trim())throw Error('AMS_PROD_WRITE_BRIDGE_KEY_REQUIRED');
+ return Object.freeze({mode,project,spreadsheet,isDev:false,gasWriteUrl});
 }

@@ -106,6 +106,13 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch}={}){
   const updated=await put('_META',{status:'DIRTY',operationId:op,sequence:(current.data.sequence||0)+1},current.updateTime);
   return !!updated;
  }
+ async function abort(op){
+  const current=await meta();
+  if(!current||current.data.status!=='DIRTY'||current.data.operationId!==op)
+   throw Error('SWAP_INDEX_ABORT_LOCK_LOST');
+  const ready=await put('_META',{status:'READY',sequence:current.data.sequence,abortedAt:new Date().toISOString()},current.updateTime);
+  if(!ready)throw Error('SWAP_INDEX_ABORT_CONFLICT');
+ }
  async function finish(op,proposal){
   validateProposal(proposal);
   if(op!==proposal.operationId)throw Error('SWAP_INDEX_RECEIPT_MISMATCH');
@@ -118,5 +125,5 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch}={}){
   if(!ready)throw Error('SWAP_INDEX_COMPLETE_CONFLICT');
   return true;
  }
- return Object.freeze({read,bootstrap,begin,finish,project,meta});
+ return Object.freeze({read,bootstrap,begin,finish,abort,project,meta});
 }

@@ -1628,7 +1628,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(clean(s.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});
     let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});
     let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
-    try{b.action='approve';const out=await directManagerApprove(s,b);return send(res,out&&out.success===false?409:200,out);}
+    try{b.action='approve';const out=await canonicalManagerAction(s,b);return send(res,out&&out.success===false?409:200,out);}
     catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'DIRECT_MANAGER_APPROVE_BLOCKED',detail:clean(e?.message||e)});}
   }
   if(u.pathname==='/api/v1/manager/reject-direct'&&req.method==='POST'){
@@ -1636,7 +1636,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(clean(s.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});
     let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});
     let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
-    try{b.action='reject';const out=await directManagerReject(s,b);return send(res,out&&out.success===false?409:200,out);}
+    try{b.action='reject';const out=await canonicalManagerAction(s,b);return send(res,out&&out.success===false?409:200,out);}
     catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'DIRECT_MANAGER_REJECT_BLOCKED',detail:clean(e?.message||e)});}
   }
   if(u.pathname==='/api/v1/internal/auditor/complete-direct'&&req.method==='POST'){
@@ -1664,7 +1664,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
     try{
       b.action='cancel';
-      const out=await directManagerCancel(s,b);
+      const out=await canonicalManagerAction(s,b);
       return send(res,out&&out.success===false?409:200,out);
     }catch(e){
       return send(res,409,{ok:false,error:clean(e?.message||e)||'DIRECT_MANAGER_CANCEL_BLOCKED',detail:clean(e?.message||e)});

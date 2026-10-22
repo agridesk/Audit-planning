@@ -767,6 +767,18 @@ async function canonicalManagerAction(identity,body){
   if(!auditId||!['approve','accept','cancel','reject','complete'].includes(managerAction))throw new Error('INVALID_MANAGER_ACTION_REQUEST');
   const options=body?.options&&typeof body.options==='object'?body.options:{};
   if((managerAction==='cancel'||managerAction==='reject')&&!clean(options.reason||options.comment))throw new Error('ACTION_REASON_REQUIRED');
+  // Issue #45: opt-in DEV-only canonical GAS lifecycle owner. Never fall back after a bridge failure.
+  if(process.env.AMS_MANAGER_CANONICAL_GAS_WRITE_ENABLED==='true'){
+    if(process.env.AMS_RUNTIME_ENV!=='DEV')throw new Error('CANONICAL_MANAGER_BRIDGE_DEV_ONLY');
+    if(!['approve','cancel','reject'].includes(managerAction))throw new Error('CANONICAL_MANAGER_ACTION_NOT_MIGRATED');
+    if(!GAS_WRITE_URL||!WRITE_KEY)throw new Error('WRITE_BRIDGE_NOT_CONFIGURED');
+    const canonicalUrl=new URL(GAS_WRITE_URL);canonicalUrl.searchParams.set('action','externalmanageraction');
+    const response=await fetch(canonicalUrl,{method:'POST',headers:{'content-type':'application/json'},redirect:'follow',body:JSON.stringify({bridgeKey:WRITE_KEY,auditId,managerAction,actorEmail:clean(identity.email).toLowerCase(),options})});
+    const raw=await response.text();let result;try{result=JSON.parse(raw)}catch{throw new Error('CANONICAL_MANAGER_BRIDGE_NON_JSON_'+response.status)}
+    if(!response.ok||result?.success===false||result?.ok===false)throw new Error('CANONICAL_MANAGER_BRIDGE_REJECTED_'+clean(result?.error||result?.message||response.status));
+    if(!result||result.success!==true&&result.ok!==true)throw new Error('CANONICAL_MANAGER_BRIDGE_UNCONFIRMED');
+    return {...result,owner:'GAS_STATUS_MACHINE',canonicalBridge:true};
+  }
   if(managerAction==='approve')return directManagerApprove(identity,body);
   if(managerAction==='accept')return directManagerAcceptOnBehalf(identity,body);
   if(managerAction==='cancel')return directManagerCancel(identity,body);

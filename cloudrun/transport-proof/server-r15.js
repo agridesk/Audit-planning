@@ -526,6 +526,7 @@ http.createServer(async(req,res)=>{
   }
   if(req.method==='POST'&&u.pathname.startsWith('/api/v1/manager/swap20/')){
    const operation={
+    '/api/v1/manager/swap20/list':'listPending',
     '/api/v1/manager/swap20/preview':'preview',
     '/api/v1/manager/swap20/propose':'propose',
     '/api/v1/manager/swap20/status':'getProposal',

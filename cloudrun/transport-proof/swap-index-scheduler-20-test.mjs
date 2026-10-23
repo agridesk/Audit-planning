@@ -5,7 +5,7 @@ const server=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 const docker=readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
 assert.match(docker,/COPY swap-index-scheduler-20\.mjs/);
 assert.match(server,/swap20Scheduler\.verify\(req\.headers\.authorization\)/);
-const now=Date.now(),audience='https://ams.example.run.app/api/v1/internal/swap20/reconcile';
+const now=Date.now(),audience='https://ams.example.run.app';
 const email='swap-scheduler@example.iam.gserviceaccount.com';
 const valid={aud:audience,email,email_verified:'true',iss:'https://accounts.google.com',exp:String(Math.floor(now/1000)+200),sub:'service-123'};
 let response={...valid},syncs=0,seedRecords=[{operationId:'SWAP20_test0001'}];

@@ -499,7 +499,7 @@ document.getElementById("selectionSwap20").onclick=async function(){
       submitted=true;internal.disabled=true;ecas.disabled=true;create.hidden=true;
       refresh.hidden=false;withdraw.hidden=false;
       showStatus(saved);
-    }catch(error){feedback.textContent=String(error.message||error);create.disabled=false;}
+    }catch(error){feedback.textContent="The request could not be confirmed. It may already have been recorded. Check Audit date changes before trying again.";create.disabled=false;}
     finally{busy=false;}
   };
   refresh.onclick=async function(){

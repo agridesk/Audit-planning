@@ -123,7 +123,7 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch,now=Da
    throw Error('SWAP_INDEX_LOCK_LOST');
   const saved=await put(op,proposal,(await doc(op))?.updateTime);
   if(!saved)throw Error('SWAP_INDEX_PROPOSAL_WRITE_CONFLICT');
-  const ready=await put('_META',{status:'READY',sequence:current.data.sequence,updatedAt:new Date().toISOString()},current.updateTime);
+  const ready=await put('_META',{status:'READY',sequence:current.data.sequence,verifiedAtMs:0,updatedAt:new Date().toISOString()},current.updateTime);
   if(!ready)throw Error('SWAP_INDEX_COMPLETE_CONFLICT');
   return true;
  }

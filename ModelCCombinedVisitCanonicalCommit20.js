@@ -26,8 +26,9 @@ function MCC20_stageRow_(journal,sheet,row,after){
 }
 function MCC20_append_(journal,sheet,after){
  var before=sheet.getLastRow();sheet.appendRow(after);var row=sheet.getLastRow();
+ // Journal the observed append even if row order changed; never lose rollback evidence.
+ journal.push({sheet:sheet,row:row,created:true,expectedRow:before+1});
  if(row!==before+1)throw Error('COMBINED_APPEND_RACE_REPAIR_REQUIRED');
- journal.push({sheet:sheet,row:row,created:true});
 }
 function ModelCCombinedVisitCanonicalCommit20_execute(input){
  input=input||{};

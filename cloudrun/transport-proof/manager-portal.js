@@ -596,7 +596,7 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
       var result=await swap20GridRequest("manager","list",{});
       var proposals=Array.isArray(result.items)?result.items:[];
       swap20BadgeUpdate("manager",result.attentionCount||0);
-      status.textContent=proposals.length+" open proposal(s); "+String(result.attentionCount||0)+" requiring manager action.";
+      status.textContent=proposals.length+" open date change request(s); "+String(result.attentionCount||0)+" awaiting manager action.";
       proposals.forEach(function(p){
         var card=document.createElement("section");card.style.cssText="border:1px solid #cbd5e1;border-radius:9px;margin:10px 0;padding:12px";
         function info(title,value){
@@ -604,7 +604,7 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
           var bold=document.createElement("strong");bold.textContent=title+" ";
           line.append(bold,document.createTextNode(String(value||"")));card.appendChild(line);
         }
-        info("Status:",p.status);
+        info("Status:",({AWAITING_ACKNOWLEDGEMENT:"Awaiting auditor confirmation",ESCALATED:"Auditor confirmation overdue",CONFIRMED:"Confirmed by auditor; awaiting manager action",DECLINED:"Declined by auditor",APPLIED:"Applied",WITHDRAWN:"Withdrawn"})[p.status]||"Status unavailable");
         var aRow=all.find(function(r){return r.auditId===p.auditA});info("Audit A:",String(aRow?.company||"Audit")+" → "+blocks(p.blocksA));if(aRow)info("Assigned auditor:",aRow.assignedToDisplayName||aRow.auditorName||aRow.assignedTo||"Not assigned");
         var bRow=all.find(function(r){return r.auditId===p.auditB});info("Audit B:",String(bRow?.company||"Audit")+" → "+blocks(p.blocksB));if(bRow)info("Assigned auditor:",bRow.assignedToDisplayName||bRow.auditorName||bRow.assignedTo||"Not assigned");
         info("Auditor confirmations:",String(p.acknowledgedCount||0)+" / "+String(p.requiredCount||0));
@@ -679,7 +679,7 @@ document.getElementById("auditorSwapInbox20").onclick=async function(){
     try{
       var result=await swap20GridRequest("auditor","list",{});
       var data=Array.isArray(result.items)?result.items:[];
-      message.textContent=data.length?data.length+" assigned date change request(s).":"No pending Audit date changes.";
+      message.textContent=data.length?data.length+" date change request(s) awaiting your review.":"No date change requests awaiting your review.";
       data.forEach(function(item){
         var card=document.createElement("section");
         card.style.cssText="border:1px solid #cbd5e1;padding:12px;border-radius:8px;margin:9px 0";
@@ -1164,5 +1164,5 @@ close.onclick=function(){panel.hidden=true};search.oninput=render;filter.onchang
 })();
 
 try{var mailActionEvents20=new BroadcastChannel("ams-auditor-actions-20");mailActionEvents20.onmessage=function(e){if(e.data&&e.data.type==="AUDIT_ACTION_CONFIRMED"&&currentView==="open")loadOpen()}}catch(e){console.warn("[AUDITOR_ACTION_SYNC]",e)}
-fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("scopeManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("auditorManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("notificationsManager20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("companyManagement20").hidden=!['manager','auditor'].includes(String(actorRole).toLowerCase());document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();if(String(actorRole).toLowerCase()==="manager")initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)});return loadOpen().then(function(){document.addEventListener("visibilitychange",function(){if(!document.hidden)swap20RefreshAttention()});window.addEventListener("focus",swap20RefreshAttention);})}).catch(fail);
+fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("scopeManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("auditorManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("notificationsManager20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("companyManagement20").hidden=!['manager','auditor'].includes(String(actorRole).toLowerCase());document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();if(String(actorRole).toLowerCase()==="manager")initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)});return loadOpen().then(function(){swap20RefreshAttention();document.addEventListener("visibilitychange",function(){if(!document.hidden)swap20RefreshAttention()});window.addEventListener("focus",swap20RefreshAttention);})}).catch(fail);
 })();

@@ -56,4 +56,12 @@ const raced=appendRace.ctx.ModelCCombinedVisitCanonicalCommit20_execute(appendRa
 assert.equal(raced.committed,false);
 assert.equal(raced.repairRequired,true);
 assert.match(raced.error,/COMBINED_APPEND_RACE_REPAIR_REQUIRED/);
+const uncertain=scenario({success:false,committed:false});
+uncertain.ctx.PlanningCanonicalCommitService_commit=()=>{throw Error('NETWORK_LOST_AFTER_COMMIT')};
+const uncertainResult=uncertain.ctx.ModelCCombinedVisitCanonicalCommit20_execute(uncertain.input);
+assert.equal(uncertainResult.commitOutcomeUncertain,true);
+assert.equal(uncertainResult.repairRequired,true);
+assert.equal(uncertainResult.rollbackSkippedToProtectCanonicalCommit,true);
+assert.equal(uncertain.sheets['Audit_Visit_Obligations'].rows[2][2],'INACTIVE');
+assert.equal(uncertain.released,1);
 console.log('MODEL_C_COMBINED_CANONICAL_COMMIT: PASS success rollback stale revision and lock release');

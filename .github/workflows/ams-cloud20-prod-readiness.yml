@@ -16,6 +16,7 @@ on:
       - 'cloudrun/transport-proof/package.json'
       - 'cloudrun/transport-proof/prod-environment-isolation-20-test.mjs'
       - 'cloudrun/transport-proof/prod-readiness-contract-20.mjs'
+      - 'cloudrun/transport-proof/prod-release-evidence-20.mjs'
       - 'cloudrun/transport-proof/prod-contract-20-regression-test.mjs'
       - 'cloudrun/transport-proof/gas-trigger-source-inventory-20.mjs'
       - '.github/workflows/ams-cloud20-prod-readiness.yml'
@@ -45,5 +46,7 @@ jobs:
         run: npm run test:prod-config
       - name: Inventory trigger source without installation
         run: node gas-trigger-source-inventory-20.mjs
+      - name: Inventory source release evidence
+        run: npm run audit:prod-evidence
       - name: Apply fail-closed production release gate
         run: node prod-readiness-contract-20.mjs

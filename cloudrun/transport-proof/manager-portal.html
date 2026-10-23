@@ -72,8 +72,8 @@ body.actor-auditor .actions-cell .act{max-width:100%;white-space:normal;padding:
 <div class="grid-toolbar" style="display:flex;gap:8px;margin:10px 0;flex-wrap:wrap;min-width:0;max-width:100%">
 <button id="openView" style="padding:7px 11px;border:1px solid #2563eb;border-radius:999px;background:#dbeafe">Open audits</button>
 <button id="completedView" style="padding:7px 11px;border:1px solid #d1d5db;border-radius:999px;background:white">Completed</button>
-<button id="auditorSwapInbox20" class="workspace-btn" type="button" hidden>SWAP requests <span id="auditorSwapBadge20" hidden aria-label="Unanswered SWAP requests"></span></button>
-<button id="managerSwapInbox20" class="workspace-btn" type="button" hidden>SWAP requests <span id="managerSwapBadge20" hidden aria-label="SWAP proposals needing manager attention"></span></button>
+<button id="auditorSwapInbox20" class="workspace-btn" type="button" hidden>Audit date changes <span id="auditorSwapBadge20" hidden aria-label="Unanswered Audit date changes"></span></button>
+<button id="managerSwapInbox20" class="workspace-btn" type="button" hidden>Audit date changes <span id="managerSwapBadge20" hidden aria-label="Audit date changes needing manager attention"></span></button>
 <button id="scopeManagement20" class="workspace-btn" type="button">Scopes</button>
 <a id="rotationManager20" class="workspace-btn" href="/rotation" style="text-decoration:none">Rotation</a>
 <button id="companyManagement20" class="workspace-btn" type="button" hidden>Companies</button>
@@ -86,7 +86,7 @@ body.actor-auditor .actions-cell .act{max-width:100%;white-space:normal;padding:
 <div id="selectionBar" class="selection-bar" aria-live="polite">
   <span id="selectionCount" class="count">0 selected</span>
   <button id="selectionAcceptAuditor" type="button" class="primary" hidden>Accept selected audits</button>
-  <button id="selectionSwap20" type="button" hidden title="Select exactly two Accepted audits to preview a SWAP">Swap audits</button>
+  <button id="selectionSwap20" type="button" hidden title="Select two accepted audits to preview a date exchange">Propose date exchange</button>
   <button id="selectionBatch" class="primary" type="button" title="Batch / Workweek planning: optimise the selected audits into feasible dates, routes and workload proposals.">Batch plan</button>
   <button id="selectionConcept" type="button" title="Concept / Annual planning: use the selected audits as annual planning context; selection itself creates no concrete schedule or occupancy.">Concept planning</button>
   <select id="selectionExportFormat" aria-label="Export format"><option value="excel">Excel</option><option value="pdf">PDF</option></select>

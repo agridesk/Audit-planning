@@ -41,7 +41,7 @@ function ModelCCombinedVisitCanonicalCommit20_execute(input){
  var expected=input.expectedRevisionsByAudit||{};
  members.forEach(function(id){if(!/^PRT1-[0-9a-f]{40}$/i.test(MCC20_clean_(expected[id])))throw Error('COMBINED_CANONICAL_REVISION_REQUIRED_'+id);});
  var lock=LockService.getScriptLock();if(!lock.tryLock(10000))throw Error('COMBINED_CANONICAL_LOCK_BUSY');
- var journal=[],planned=false;
+ var journal=[],planned=false,canonicalPlanAttempted=false;
  var previousMarker=(typeof AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_!=='undefined'&&AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_===true);
  try{
   AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_=true;
@@ -92,6 +92,7 @@ function ModelCCombinedVisitCanonicalCommit20_execute(input){
    var next=link.values.slice();next[lkState]='INACTIVE';next[lkEnd]=now;MCC20_stageRow_(journal,lk.sheet,link.row,next);
   });
   composition.newLinks.forEach(function(ch){var nr=new Array(lk.headers.length).fill('');nr[lkAudit]=ch.auditId;nr[lkOb]=ch.obligationId;nr[lkState]='ACTIVE';nr[lkStart]=now;MCC20_append_(journal,lk.sheet,nr);});
+  canonicalPlanAttempted=true;
   var result=PlanningCanonicalCommitService_commit({
    auditId:composition.targetAuditId,expectedRevision:expected[composition.targetAuditId],
    actorRole:'MANAGER',actorEmail:MCC20_clean_(input.actorEmail),
@@ -122,6 +123,9 @@ function ModelCCombinedVisitCanonicalCommit20_execute(input){
    postCommitRepairRequired:!!trailError||!!(result.meta&&result.meta.postCommitRepairRequired),
    build:MODEL_C_COMBINED_CANONICAL_COMMIT20_BUILD};
  }catch(e){
+  if(canonicalPlanAttempted){return{success:false,committed:false,commitOutcomeUncertain:true,
+    error:'COMBINED_CANONICAL_COMMIT_OUTCOME_UNCERTAIN_'+MCC20_clean_(e&&e.message||e),
+    repairRequired:true,rollbackSkippedToProtectCanonicalCommit:true,build:MODEL_C_COMBINED_CANONICAL_COMMIT20_BUILD};}
   var restoredOnException=MCC20_restore_(journal);
   return{success:false,committed:planned,error:MCC20_clean_(e&&e.message||e),rolledBack:restoredOnException,
    repairRequired:!restoredOnException||planned,build:MODEL_C_COMBINED_CANONICAL_COMMIT20_BUILD};

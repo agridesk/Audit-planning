@@ -104,7 +104,15 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch,now=Da
  async function reconcile(records){
   if(!Array.isArray(records)||records.length>300)throw Error('SWAP_INDEX_RECONCILE_INPUT');
   const current=await meta();
-  if(!current||current.data.status!=='READY')return false;
+  if(!current)return false;
+  // A failed mutation can leave DIRTY after GAS executed but its redirect failed.
+  // Reconcile only from the full authoritative GAS seed and after the lock has aged.
+  const status=current.data.status;
+  if(status!=='READY'){
+   if(!['DIRTY','RECONCILING','BOOTSTRAPPING'].includes(status))return false;
+   const age=now()-Date.parse(current.updateTime||'');
+   if(!Number.isFinite(age)||age<120000)return false;
+  }
   const locked=await put('_META',{status:'RECONCILING',sequence:(current.data.sequence||0)+1},current.updateTime);
   if(!locked)return false;
   // Never expose an incomplete reconciliation: an interrupted pass remains locked.

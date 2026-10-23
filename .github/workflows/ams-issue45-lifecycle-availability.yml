@@ -76,6 +76,7 @@ jobs:
           node tests/model-c-reject-link-planner.test.mjs
           node tests/model-c-reject-link-writer.test.mjs
           node tests/model-c-rejected-link-integrity.test.mjs
+          node tests/model-c-rejected-link-repair-preview-20.test.mjs
           node tests/rejected-archive-model-c-contract.test.mjs
           node tests/external-manager-canonical-lock-20.test.mjs
       - name: Cloud Run writer and combined Visit tests

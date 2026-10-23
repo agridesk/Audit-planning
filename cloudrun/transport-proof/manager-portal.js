@@ -423,7 +423,7 @@ document.getElementById("selectionSwap20").onclick=async function(){
       '<div style="display:flex;flex-wrap:wrap;gap:8px">'+
       '<button type="button" id="swap20CreateProposal" hidden>Submit date change request</button>'+
       '<button type="button" id="swap20RefreshStatus" hidden>Refresh request status</button>'+
-      '<button type="button" id="swap20Apply" hidden>Apply date exchange (DEV)</button>'+
+      '<button type="button" id="swap20Apply" hidden>Apply date exchange</button>'+
       '<button type="button" id="swap20Withdraw" hidden>Withdraw request</button>'+
       '<button type="button" id="swap20Close">Close</button></div>';
     document.body.appendChild(panel);
@@ -611,7 +611,7 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
         info("Auditor confirmations:",String(p.acknowledgedCount||0)+" / "+String(p.requiredCount||0));
         info("Internal reason:",p.internalReason);info("Explanation for participants:",p.ecasComment);
         if(p.status==="CONFIRMED"){
-          var apply=document.createElement("button");apply.type="button";apply.textContent="Apply date exchange (DEV)";
+          var apply=document.createElement("button");apply.type="button";apply.textContent="Apply date exchange";
           apply.style.marginLeft="8px";
           apply.onclick=async function(){
             if(!window.confirm("Apply this approved date change in DEV? Both audit schedules will change."))return;
@@ -1165,5 +1165,5 @@ close.onclick=function(){panel.hidden=true};search.oninput=render;filter.onchang
 })();
 
 try{var mailActionEvents20=new BroadcastChannel("ams-auditor-actions-20");mailActionEvents20.onmessage=function(e){if(e.data&&e.data.type==="AUDIT_ACTION_CONFIRMED"&&currentView==="open")loadOpen()}}catch(e){console.warn("[AUDITOR_ACTION_SYNC]",e)}
-fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("scopeManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("auditorManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("notificationsManager20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("companyManagement20").hidden=!['manager','auditor'].includes(String(actorRole).toLowerCase());document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();if(String(actorRole).toLowerCase()==="manager")initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)});return loadOpen().then(function(){swap20RefreshAttention();document.addEventListener("visibilitychange",function(){if(!document.hidden)swap20RefreshAttention()});window.addEventListener("focus",swap20RefreshAttention);})}).catch(fail);
+fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("scopeManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("auditorManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("notificationsManager20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("companyManagement20").hidden=!['manager','auditor'].includes(String(actorRole).toLowerCase());document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();swap20RefreshAttention();if(String(actorRole).toLowerCase()==="manager")initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)});return loadOpen().then(function(){document.addEventListener("visibilitychange",function(){if(!document.hidden)swap20RefreshAttention()});window.addEventListener("focus",swap20RefreshAttention);})}).catch(fail);
 })();

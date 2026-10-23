@@ -21,7 +21,7 @@ var swap20PreviewPrefetch={key:"",at:0,promise:null};
 function swap20WarmPreview(rows){
  if(!Array.isArray(rows)||rows.length!==2)return;
  var pair={auditA:String(rows[0].auditId),auditB:String(rows[1].auditId)},key=[pair.auditA,pair.auditB].sort().join("|");
- if(swap20PreviewPrefetch.key===key&&Date.now()-swap20PreviewPrefetch.at<12000)return;
+ if(swap20PreviewPrefetch.key===key&&Date.now()-swap20PreviewPrefetch.at<60000)return;
  var request=fetch("/api/v1/manager/swap20/preview",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify(pair)}).then(function(r){return r.json().then(function(j){if(!r.ok||j.ok!==true)throw Error(String(j.error||"SWAP_PREVIEW_FAILED"));return j;})});
  swap20PreviewPrefetch={key:key,at:Date.now(),promise:request};
  request.catch(function(){/* Preview button can retry the canonical read on demand. */});
@@ -468,7 +468,7 @@ document.getElementById("selectionSwap20").onclick=async function(){
   if(typeof panel.showModal==="function"){if(!panel.open)panel.showModal();}else panel.setAttribute("open","");
   try{
     var prefetchKey=[pair.auditA,pair.auditB].sort().join("|");
-    preview=swap20PreviewPrefetch.key===prefetchKey&&Date.now()-swap20PreviewPrefetch.at<12000?await swap20PreviewPrefetch.promise.catch(function(){return swapRequest("preview",pair);}):await swapRequest("preview",pair);
+    preview=swap20PreviewPrefetch.key===prefetchKey&&Date.now()-swap20PreviewPrefetch.at<60000?await swap20PreviewPrefetch.promise.catch(function(){return swapRequest("preview",pair);}):await swapRequest("preview",pair);
     if(!preview.eligible){explain.textContent="This Accepted pair cannot be swapped: "+String(preview.reason||"not eligible");return;}
     explain.textContent=preview.requiresAcknowledgement?
       "The proposed audit dates will change. The assigned auditor(s) must confirm before the change is applied.":

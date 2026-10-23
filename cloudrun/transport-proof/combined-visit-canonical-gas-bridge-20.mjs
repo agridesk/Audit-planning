@@ -25,5 +25,5 @@ export async function canonicalCombinedGasBridge20({enabled=false,mode='',gasWri
  const response=await fetchImpl(url,{method:'POST',headers:{'content-type':'application/json'},redirect:'follow',body:JSON.stringify({bridgeKey,runtimeEnv:'DEV',actorRole:'MANAGER',actorEmail,targetAuditId,sourceAuditIds,auditorEmail,auditorName,blocks,expectedRevisionsByAudit})});
  const raw=await response.text();let result;try{result=JSON.parse(raw)}catch{throw Error('COMBINED_CANONICAL_BRIDGE_NON_JSON_'+response.status)}
  if(!response.ok||result?.success!==true||result?.committed!==true)throw Error('COMBINED_CANONICAL_BRIDGE_REJECTED_'+clean(result?.error||result?.message||response.status));
- return {...result,canonicalBridge:true,owner:'GAS_MODEL_C_COMBINED_VISIT'};
+ return {...result,canonicalBridge:true,owner:'GAS_MODEL_C_COMBINED_VISIT',requiresReconciliation:result.postCommitRepairRequired===true||result.sourceAuditTrailRepairRequired===true};
 }

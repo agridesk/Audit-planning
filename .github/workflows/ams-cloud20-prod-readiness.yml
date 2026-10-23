@@ -3,6 +3,7 @@ on:
   push:
     branches: [dev]
     paths:
+      - 'cloudrun/transport-proof/availability-firestore-adapter-20.js'
       - 'cloudrun/transport-proof/runtime-environment-20.mjs'
       - 'cloudrun/transport-proof/server-r15.js'
       - 'cloudrun/transport-proof/server-r12.js'

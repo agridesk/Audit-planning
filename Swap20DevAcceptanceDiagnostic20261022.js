@@ -89,3 +89,17 @@ function RUN_SET_SWAP20_DEV_FLAG_20261023(){
  var check={ok:properties.getProperty('AMS_SWAP20_COMMIT_ENABLED')==='true',commitEnabled:properties.getProperty('AMS_SWAP20_COMMIT_ENABLED')==='true'};
  Logger.log(JSON.stringify(check));return check;
 }
+
+// Read-only comparison of stored proposal revisions with live audit revisions.
+function RUN_DIAG_SWAP20_STALE_REVISIONS_DEV_20261023(){
+ var props=PropertiesService.getScriptProperties();
+ if(props.getProperty('AMS_ENV')!=='DEV')throw Error('DEV_ONLY');
+ var result=[];
+ Object.keys(props.getProperties()).filter(function(k){return k.indexOf('AMS_SWAP20_PROPOSAL_')===0;}).forEach(function(key){
+  var p=JSON.parse(props.getProperty(key));
+  if(!p||p.status!=='CONFIRMED')return;
+  var pair=Swap20_readCanonicalPair({auditA:p.auditA,auditB:p.auditB});
+  result.push({operationId:p.operationId,eligible:pair.eligible,auditA:{id:p.auditA,changed:String(pair.auditA.revision)!==String(p.originalRevisions[p.auditA])},auditB:{id:p.auditB,changed:String(pair.auditB.revision)!==String(p.originalRevisions[p.auditB])}});
+ });
+ Logger.log(JSON.stringify({readOnly:true,proposals:result}));return result;
+}

@@ -78,3 +78,14 @@ function RUN_CHECK_SWAP20_COMMIT_PROPERTY_DEV_20261023(){
  var out={environment:'DEV',propertyPresent:Object.prototype.hasOwnProperty.call(props.getProperties(),key),currentValue:props.getProperty(key),commitEnabled:props.getProperty(key)==='true'};
  Logger.log(JSON.stringify(out));return out;
 }
+
+function RUN_SET_SWAP20_DEV_FLAG_20261023(){
+ var properties=PropertiesService.getScriptProperties();
+ if(properties.getProperty('AMS_ENV')!=='DEV')throw Error('DEV_ONLY');
+ if(properties.getProperty('V5_SSOT_SPREADSHEET_ID')!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')throw Error('WRONG_SSOT');
+ var result=RUN_DIAG_SWAP20_CONFIRMED_COMMIT_DEV_20261023();
+ if(!result.ok||!result.proposals.some(function(p){return p.ready;}))throw Error('PREFLIGHT_FAILED');
+ properties.setProperty('AMS_SWAP20_COMMIT_ENABLED','true');
+ var check={ok:properties.getProperty('AMS_SWAP20_COMMIT_ENABLED')==='true',commitEnabled:properties.getProperty('AMS_SWAP20_COMMIT_ENABLED')==='true'};
+ Logger.log(JSON.stringify(check));return check;
+}

@@ -103,3 +103,14 @@ function RUN_DIAG_SWAP20_STALE_REVISIONS_DEV_20261023(){
  });
  Logger.log(JSON.stringify({readOnly:true,proposals:result}));return result;
 }
+
+function RUN_SET_SWAP20_COMMIT_FLAG_DEV_20261023(){
+ var p=PropertiesService.getScriptProperties();
+ if(p.getProperty('AMS_ENV')!=='DEV')throw Error('DEV_REQUIRED');
+ if(p.getProperty('V5_SSOT_SPREADSHEET_ID')!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')throw Error('DEV_SHEET_REQUIRED');
+ var check=RUN_DIAG_SWAP20_CONFIRMED_COMMIT_DEV_20261023();
+ if(!check.ok)throw Error('PREFLIGHT_FAILED');
+ p.setProperty('AMS_SWAP20_COMMIT_ENABLED','true');
+ var result={ok:p.getProperty('AMS_SWAP20_COMMIT_ENABLED')==='true'};
+ Logger.log(JSON.stringify(result));return result;
+}

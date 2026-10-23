@@ -38,6 +38,7 @@ COPY notification-manager-20.html ./
 COPY runtime-environment-20.mjs ./
 COPY swap-firestore-readmodel-20.mjs ./
 COPY swap-proposal-index-20.mjs ./
+COPY swap-index-scheduler-20.mjs ./
 COPY server-r15.js ./
 COPY availability-*.js ./
 COPY availability-manager-calendar-20.html ./

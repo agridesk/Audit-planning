@@ -132,7 +132,7 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch,now=Da
   const current=await meta();
   if(!current||current.data.status!=='DIRTY'||current.data.operationId!==op)
    throw Error('SWAP_INDEX_ABORT_LOCK_LOST');
-  const ready=await put('_META',{status:'READY',sequence:current.data.sequence,verifiedAtMs:0,abortedAt:new Date().toISOString()},current.updateTime);
+  const ready=await put('_META',{status:'READY',sequence:current.data.sequence,verifiedAtMs:current.data.verifiedAtMs||0,abortedAt:new Date().toISOString()},current.updateTime);
   if(!ready)throw Error('SWAP_INDEX_ABORT_CONFLICT');
  }
  async function finish(op,proposal){
@@ -143,7 +143,7 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch,now=Da
    throw Error('SWAP_INDEX_LOCK_LOST');
   const saved=await put(op,proposal,(await doc(op))?.updateTime);
   if(!saved)throw Error('SWAP_INDEX_PROPOSAL_WRITE_CONFLICT');
-  const ready=await put('_META',{status:'READY',sequence:current.data.sequence,verifiedAtMs:0,updatedAt:new Date().toISOString()},current.updateTime);
+  const ready=await put('_META',{status:'READY',sequence:current.data.sequence,verifiedAtMs:current.data.verifiedAtMs||0,updatedAt:new Date().toISOString()},current.updateTime);
   if(!ready)throw Error('SWAP_INDEX_COMPLETE_CONFLICT');
   return true;
  }

@@ -12,7 +12,7 @@ function ModelCCombinedVisitReconcile20_run(input){
  var ai=ix(audit.h,'Audit ID'),as=ix(audit.h,'Status'),ap=ix(audit.h,'Planning JSON'),li=ix(link.h,'Audit_ID'),lo=ix(link.h,'Obligation_ID'),ls=ix(link.h,'Link_State'),ci=ix(concept.h,'Audit ID'),cs=ix(concept.h,'State');
  var ids=[target].concat(sources),visits=[],links=[],reservations=[];
  audit.r.forEach(function(r){var id=String(r[ai]||'').trim();if(ids.indexOf(id)>=0)visits.push({auditId:id,status:r[as],planningJson:r[ap]});});
- link.r.forEach(function(r){var id=String(r[li]||'').trim();if(ids.indexOf(id)>=0)links.push({auditId:id,obligationId:r[lo],linkState:r[ls]});});
+ link.r.forEach(function(r){var id=String(r[li]||'').trim();links.push({auditId:id,obligationId:r[lo],linkState:r[ls]});});
  concept.r.forEach(function(r){var id=String(r[ci]||'').trim();if(ids.indexOf(id)>=0)reservations.push({auditId:id,state:r[cs]});});
  var result=ModelCCombinedVisitReconcile20_classify({targetAuditId:target,sourceAuditIds:sources,visits:visits,links:links,reservations:reservations});
  result.runtimeEnv='DEV';result.readOnly=true;result.writesPerformed=false;

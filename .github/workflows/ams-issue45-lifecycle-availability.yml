@@ -8,6 +8,7 @@ on:
       - 'RejectedAuditsV5.js'
       - 'ModelCCombinedVisitPlanner20.js'
       - 'ModelCCombinedVisitCanonicalCommit20.js'
+      - 'ModelCCombinedVisitReconcile20.js'
       - 'ModelCCombinedVisitTrail20.js'
       - 'PlanningCanonicalRowWriter.js'
       - 'PlanningCanonicalCommitService.js'
@@ -47,6 +48,7 @@ jobs:
           node --check RejectedAuditsV5.js
           node --check ModelCCombinedVisitPlanner20.js
           node --check ModelCCombinedVisitCanonicalCommit20.js
+          node --check ModelCCombinedVisitReconcile20.js
           node --check ModelCCombinedVisitTrail20.js
           node --check ModelCRejectLinkPlanner.js
           node --check ModelCRejectLinkWriter.js
@@ -60,6 +62,7 @@ jobs:
           node tests/lifecycle-cancel-availability-invariant.test.mjs
           node tests/model-c-combined-visit-planner-20.test.mjs
           node tests/model-c-combined-visit-canonical-commit-20.test.mjs
+          node tests/model-c-combined-visit-reconcile-20.test.mjs
           node tests/model-c-combined-visit-trail-20.test.mjs
           node tests/model-c-combined-visit-planning-json-20.test.mjs
           node tests/status-notification-inherited-manager-lock-20.test.mjs

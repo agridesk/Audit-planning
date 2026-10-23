@@ -70,6 +70,18 @@ function ModelCCombinedVisitCanonicalCommit20_execute(input){
   cfg.rows.forEach(function(row){var code=MCC20_clean_(row[cfgCode]),name=cfgDisplay>=0?MCC20_clean_(row[cfgDisplay]):'';
    if(!code)return;[code,name].forEach(function(n){var idx=ap.headers.indexOf(n);if(idx>=0)targetNext[idx]=selected[code]?'X':'';});
   });
+  // Fail-closed source Availability ownership preflight.
+  // AvailabilityService.clearAuditId sorts/deletes rows: it cannot participate
+  // in this row-journal rollback without a separate canonical transaction.
+  var availability=MCC20_table_(ss,'Auditor Availability');
+  var av1=MCC20_col_(availability.headers,['Audit_ID_1','Audit ID 1']);
+  var av2=MCC20_col_(availability.headers,['Audit_ID_2','Audit ID 2']);
+  for(var vi=0;vi<availability.rows.length;vi++){
+    var avRow=availability.rows[vi];
+    if(composition.sourceAuditIds.indexOf(MCC20_clean_(avRow[av1]))>=0||
+       composition.sourceAuditIds.indexOf(MCC20_clean_(avRow[av2]))>=0)
+      throw Error('COMBINED_CANONICAL_SOURCE_AVAILABILITY_RELEASE_REQUIRED');
+  }
   // Stage all membership/projection changes BEFORE the canonical Plan writer.
   // Every changed row is retained in a reverse-order restoration journal.
   MCC20_stageRow_(journal,ap.sheet,target.row,targetNext,target.values);

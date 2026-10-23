@@ -690,7 +690,7 @@ document.getElementById("auditorSwapInbox20").onclick=async function(){
           p.append(b,document.createTextNode(value));card.appendChild(p);
         }
         
-        info("Status:",String(item.status||""));
+        info("Status:",({AWAITING_ACKNOWLEDGEMENT:"Awaiting your confirmation",ESCALATED:"Your confirmation is overdue",CONFIRMED:"Confirmed",DECLINED:"Declined",APPLIED:"Date exchange completed"})[item.status]||"Pending review");
         var aa=all.find(function(r){return r.auditId===item.auditA});info("Audit A:",String(aa?.company||"Audit")+" → "+schedule(item.afterA));if(aa)info("Assigned auditor:",String(aa.assignedToDisplayName||aa.auditorName||aa.assignedTo||"Not assigned"));
         var bb=all.find(function(r){return r.auditId===item.auditB});info("Audit B:",String(bb?.company||"Audit")+" → "+schedule(item.afterB));if(bb)info("Assigned auditor:",String(bb.assignedToDisplayName||bb.auditorName||bb.assignedTo||"Not assigned"));
         info("Explanation for participants:",String(item.ecasComment||""));
@@ -711,7 +711,7 @@ document.getElementById("auditorSwapInbox20").onclick=async function(){
               swap20RefreshAttention();
               await reload();
             }catch(error){
-              message.textContent=String(error.message||error);
+              message.textContent="Your response could not be confirmed. Refresh the request before trying again.";
               ack.disabled=false;decline.disabled=false;
             }
           }
@@ -721,7 +721,7 @@ document.getElementById("auditorSwapInbox20").onclick=async function(){
         }
         items.appendChild(card);
       });
-    }catch(error){message.textContent=String(error.message||error);}
+    }catch(error){message.textContent="The latest requests could not be loaded. Please refresh.";}
   }
   panel.querySelector("#auditorSwap20Reload").onclick=function(){swap20ListCache.auditor=null;reload();};
   if(typeof panel.showModal==="function"){if(!panel.open)panel.showModal();}else panel.setAttribute("open","");

@@ -25,6 +25,8 @@ function ModelCCombinedVisitReconcile20_classify(input){
  });
  var expectedOb=Array.isArray(p.obligationIds)?p.obligationIds.map(clean):[];
  expectedOb.forEach(function(id){if(activeByOb[id]!==target)issues.push('OBLIGATION_OWNER_MISMATCH');});
+ (activeByAudit[target]||[]).forEach(function(id){if(expectedOb.indexOf(id)<0)issues.push('UNEXPECTED_TARGET_ACTIVE_OBLIGATION');});
+ if((activeByAudit[target]||[]).length!==expectedOb.length)issues.push('TARGET_LINK_CARDINALITY_MISMATCH');
  sources.forEach(function(id){if((activeByAudit[id]||[]).length)issues.push('SOURCE_ACTIVE_LINK_REMAINS');});
  if(duplicate)issues.push('MULTIPLE_ACTIVE_LINKS');
  reservations.forEach(function(r){if(sources.indexOf(clean(r.auditId))>=0&&clean(r.state).toUpperCase()==='ACTIVE')issues.push('SOURCE_RESERVATION_ACTIVE');});

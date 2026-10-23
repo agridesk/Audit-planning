@@ -22,6 +22,11 @@ Run `npm run test:prod-readiness` or use the dedicated GitHub Actions readiness 
 - PROVEN_DEVIATION: `server-r4.js` retains direct manager approval/cancel sheet mutations. Route precedence/disablement and canonical-write ownership require proof before PROD.
 - PROVEN_DEVIATION: `server-r6.js` contains a legacy direct Sheets write path for combined visits. It writes planning, auditor availability and visit obligation links directly. Ownership and remediation belong to the parallel lifecycle chat; this readiness track must not bypass the gate or silently enable it in PROD.
 
+## Independent issue #44 source gates
+- `PROD_FIRESTORE_COLLECTION_DEFAULT_DEV`: Availability adapter still uses a DEV-named default collection and R15 supplies no explicit collection binding. Require separate PROD collection and real project/database evidence.
+- `PROD_REALIZED_HOURS_DIRECT_SHEETS_WRITE`: R12 still sends a direct Google Sheets batchUpdate for realized-hours corrections; verify actor checks, canonical write ownership and collisions.
+- `npm run audit:prod-evidence` emits source-only evidence with all live checks explicitly NOT_VERIFIED. It never deploys, mutates Sheets, or reads secrets.
+
 ## Deploy preflight — MUST verify in actual GCP/GAS runtimes
 1. Capture exact DEV and candidate PROD commit/build SHA, container digest, Cloud Run revision, service and region.
 2. Prove PROD project identity equals AMS_PROD_GCP_PROJECT and differs from audit-management-system-dev.

@@ -6,7 +6,7 @@ const bridge=read('../../Swap20Bridge20.js'),entry=read('../../EntryV5.js');
 const cloud=read('./server-r15.js'),html=read('./manager-portal.html'),ui=read('./manager-portal.js');
 assert.match(html,/id="auditorSwapInbox20"/);
 assert.match(ui,/auditorSwap20InboxDialog/);
-assert.match(ui,/Acknowledge SWAP/);
+assert.match(ui,/Confirm date change/);
 assert.match(ui,/\/api\/v1\/auditor\/swap20\//);
 assert.match(ui,/id="swap20Apply"/);
 assert.match(ui,/if\(busy\|\|!submitted\|\|apply.hidden/);

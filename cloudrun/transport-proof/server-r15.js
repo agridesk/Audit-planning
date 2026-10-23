@@ -348,7 +348,7 @@ async function swap20ReadList(actor){
     if(!(await swap20Index.meta())||(await swap20Index.meta()).data.status==='READY'){
      const seed=await notificationGasCall(actor,'listIndexSeed',{},'externalswap20');
      if(seed?.ok!==true||!Array.isArray(seed.records))throw Error('SWAP_INDEX_SEED_NOT_AUTHORIZED');
-     const created=await swap20Index.bootstrap(seed.records);
+     const created=(await swap20Index.meta())?await swap20Index.reconcile(seed.records):await swap20Index.bootstrap(seed.records);
      console.info('[SWAP20_INDEX_BOOTSTRAP]',JSON.stringify({created,count:seed.records.length}));
     }
    }catch(e){console.error('[SWAP20_INDEX_BOOTSTRAP_FAILED]',String(e?.message||e).slice(0,130));}

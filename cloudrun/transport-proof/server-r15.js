@@ -350,16 +350,6 @@ async function swap20ReadList(actor){
   }
   return canonical;
  })().then(async data=>{
-  if(swap20Index&&actor.role==='manager'&&data?.ok===true){
-   try{
-    if(!(await swap20Index.meta())||(await swap20Index.meta()).data.status==='READY'){
-     const seed=await notificationGasCall(actor,'listIndexSeed',{},'externalswap20');
-     if(seed?.ok!==true||!Array.isArray(seed.records))throw Error('SWAP_INDEX_SEED_NOT_AUTHORIZED');
-     const created=(await swap20Index.meta())?await swap20Index.reconcile(seed.records):await swap20Index.bootstrap(seed.records);
-     console.info('[SWAP20_INDEX_BOOTSTRAP]',JSON.stringify({created,count:seed.records.length}));
-    }
-   }catch(e){console.error('[SWAP20_INDEX_BOOTSTRAP_FAILED]',String(e?.message||e).slice(0,130));}
-  }
   console.info('[SWAP20_LIST_PERF]',JSON.stringify({role:actor.role,source:'GAS',ms:Date.now()-started,ok:data?.ok===true}));
   if(data?.ok===true&&!swap20Index)swap20Lists.set(key,{data,expires:Date.now()+90000});
   return data;

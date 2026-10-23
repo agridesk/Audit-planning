@@ -26,6 +26,7 @@ on:
       - 'cloudrun/transport-proof/combined-visit-canonical-gas-bridge-20.mjs'
       - 'cloudrun/transport-proof/combined-visit-*.mjs'
       - 'cloudrun/transport-proof/*45*.mjs'
+      - 'tests/ams45-*.test.mjs'
       - 'tests/*model-c*.test.mjs'
       - 'tests/*lifecycle*.test.mjs'
       - 'tests/*manager*.test.mjs'

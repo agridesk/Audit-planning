@@ -56,6 +56,9 @@ await index.finish(base.operationId,{...base,status:'CONFIRMED',acknowledgedAudi
 assert.equal((await index.read(mgr)).items[0].status,'CONFIRMED');
 await index.reconcile([{...base,status:'CONFIRMED',acknowledgedAuditorUids:['auditor-uid']}]);
 assert.equal((await index.read(mgr)).attentionCount,1);
+clockMs+=480001;
+assert.equal(await index.read(mgr),null,'expired snapshot must fall back to GAS');
+clockMs-=480001;
 assert.equal((await index.read(aud)).items.length,0);
 assert.equal(await index.begin(base.operationId),true);
 await index.abort(base.operationId);

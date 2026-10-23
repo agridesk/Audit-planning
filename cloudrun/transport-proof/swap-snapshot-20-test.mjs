@@ -11,7 +11,7 @@ const sh={
   setValues:values=>{values.forEach((v,i)=>rows[r-1+i]=v.slice());}
  })
 };
-const ctx={Error,String,Array,JSON,SpreadsheetApp:{getActiveSpreadsheet:()=>({getSheetByName:()=>sh}),flush:()=>{}},
+const ctx={Error,String,Array,JSON,isNaN,Date,SpreadsheetApp:{getActiveSpreadsheet:()=>({getSheetByName:()=>sh}),flush:()=>{}},
  PRT_readCanonicalRow_:id=>({rowNumber:id==='A'?2:3,row:rows[id==='A'?1:2].slice(),headers}),
  PRT_result_:(id,h,row)=>({revision:'revision-'+id}),
  PRT_snapshotFromRow_:(h,row)=>({status:row[1],auditId:row[0]}),

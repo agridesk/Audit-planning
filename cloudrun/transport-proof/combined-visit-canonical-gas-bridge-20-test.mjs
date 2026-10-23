@@ -9,6 +9,8 @@ let requests=[];
 const ok=async(url,opts)=>{requests.push({url:String(url),payload:JSON.parse(opts.body)});return{ok:true,status:200,text:async()=>JSON.stringify({success:true,committed:true,auditId:'A1'})}};
 assert.equal(await bridge({...base,enabled:false,fetchImpl:()=>{throw Error('network must not run')}}),null);
 const result=await bridge({...base,fetchImpl:ok});assert.equal(result.canonicalBridge,true);assert.equal(result.owner,'GAS_MODEL_C_COMBINED_VISIT');
+const repair=await bridge({...base,fetchImpl:async()=>({ok:true,status:200,text:async()=>JSON.stringify({success:true,committed:true,postCommitRepairRequired:true})})});
+assert.equal(repair.requiresReconciliation,true);
 assert.equal(requests.length,1);assert.equal(requests[0].payload.actorRole,'MANAGER');assert.ok(requests[0].url.includes('action=externalcanonicalcombinedvisit20'));
 await assert.rejects(bridge({...base,mode:'PROD',fetchImpl:ok}),/DEV_ONLY/);
 await assert.rejects(bridge({...base,sourceAuditIds:[],fetchImpl:ok}),/REQUIRED_FIELDS/);

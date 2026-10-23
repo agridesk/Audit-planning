@@ -101,6 +101,26 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch,now=Da
   if(!ready)throw Error('SWAP_INDEX_BOOTSTRAP_RACE');
   return true;
  }
+ async function reconcile(records){
+  if(!Array.isArray(records)||records.length>300)throw Error('SWAP_INDEX_RECONCILE_INPUT');
+  const current=await meta();
+  if(!current||current.data.status!=='READY')return false;
+  const locked=await put('_META',{status:'RECONCILING',sequence:(current.data.sequence||0)+1},current.updateTime);
+  if(!locked)return false;
+  // Never expose an incomplete reconciliation: an interrupted pass remains locked.
+  const existing=await listRaw();
+  const incoming=new Set(records.map(p=>validateProposal(p).operationId));
+  if(existing.some(p=>!incoming.has(p.operationId)))throw Error('SWAP_INDEX_RECONCILE_MISSING_SOURCE_RECORD');
+  for(const p of records){
+   const currentDoc=await doc(p.operationId);
+   const saved=await put(p.operationId,p,currentDoc?.updateTime);
+   if(!saved)throw Error('SWAP_INDEX_RECONCILE_WRITE_CONFLICT');
+  }
+  const ready=await put('_META',{status:'READY',sequence:(current.data.sequence||0)+1,
+   verifiedAtMs:now(),verifiedAt:new Date().toISOString()},locked.updateTime);
+  if(!ready)throw Error('SWAP_INDEX_RECONCILE_COMPLETE_CONFLICT');
+  return true;
+ }
  async function begin(op){
   if(!validId(op))throw Error('SWAP_INDEX_OPERATION_INVALID');
   const current=await meta();
@@ -127,5 +147,5 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch,now=Da
   if(!ready)throw Error('SWAP_INDEX_COMPLETE_CONFLICT');
   return true;
  }
- return Object.freeze({read,bootstrap,begin,finish,abort,project:projectList,meta});
+ return Object.freeze({read,bootstrap,begin,finish,abort,reconcile,project:projectList,meta});
 }

@@ -53,6 +53,7 @@ assert.equal(await index.read(mgr),null,'never read an in-flight mutation');
 assert.equal(await index.begin(base.operationId),false,'parallel writes blocked');
 await index.finish(base.operationId,{...base,status:'CONFIRMED',acknowledgedAuditorUids:['auditor-uid']});
 assert.equal(await index.read(mgr),null);
+await index.reconcile([{...base,status:'CONFIRMED',acknowledgedAuditorUids:['auditor-uid']}]);
 assert.equal((await index.read(mgr)).attentionCount,1);
 assert.equal((await index.read(aud)).items.length,0);
 assert.equal(await index.begin(base.operationId),true);

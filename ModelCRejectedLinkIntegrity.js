@@ -24,3 +24,40 @@ function RUN_MODEL_C_REJECTED_LINK_INTEGRITY_20(){
   out.ok=out.activeDuplicateObligationLinks===0&&out.activeMissingObligation===0&&out.activeRejectedAuditLinks===0&&out.activeUnknownAuditLinks===0;
   return out;
 }
+
+/**
+ * DEV-only, read-only candidate preview for pre-existing rejected Visit links.
+ * Does not close links: that is a separate approved canonical repair action.
+ */
+function RUN_MODEL_C_REJECTED_LINK_REPAIR_PREVIEW_20(){
+  if(typeof V5_ENTRY_isDevEnv_!=='function'||!V5_ENTRY_isDevEnv_())throw Error('MODEL_C_REPAIR_PREVIEW_DEV_ONLY');
+  var ss=SpreadsheetApp.getActiveSpreadsheet();
+  if(!ss)throw Error('MODEL_C_REPAIR_PREVIEW_NO_SPREADSHEET');
+  function rows(name){
+    var sh=ss.getSheetByName(name);if(!sh)throw Error('MODEL_C_REPAIR_PREVIEW_MISSING_SHEET_'+name);
+    var last=sh.getLastRow();if(last>30000)throw Error('MODEL_C_REPAIR_PREVIEW_ROW_BOUND');
+    var data=last?sh.getRange(1,1,last,Math.min(sh.getLastColumn(),60)).getDisplayValues():[[]];
+    return{h:(data[0]||[]).map(function(x){return String(x||'').trim();}),r:data.slice(1)};
+  }
+  function col(t,k){var i=t.h.indexOf(k);if(i<0)throw Error('MODEL_C_REPAIR_PREVIEW_MISSING_HEADER_'+k);return i;}
+  var planning=rows('Audit planning'),rejected=rows('Rejected audits'),links=rows('Audit_Visit_Obligations'),ob=rows('Audit_Obligations');
+  var pi=col(planning,'Audit ID'),ri=col(rejected,'Audit ID'),la=col(links,'Audit_ID'),lo=col(links,'Obligation_ID'),ls=col(links,'Link_State'),oi=col(ob,'Obligation_ID');
+  var active={},archived={},known={},occurrences={},candidates=[];
+  planning.r.forEach(function(r){var id=String(r[pi]||'').trim();if(id)active[id]=true;});
+  rejected.r.forEach(function(r){var id=String(r[ri]||'').trim();if(id)archived[id]=true;});
+  ob.r.forEach(function(r){var id=String(r[oi]||'').trim();if(id)known[id]=true;});
+  links.r.forEach(function(r,i){
+    if(String(r[ls]||'').trim().toUpperCase()!=='ACTIVE')return;
+    var oid=String(r[lo]||'').trim();if(oid)occurrences[oid]=(occurrences[oid]||0)+1;
+    var aid=String(r[la]||'').trim();
+    if(archived[aid]&&!active[aid])candidates.push({rowNumber:i+2,auditId:aid,obligationId:oid,linkState:'ACTIVE'});
+  });
+  var conflicts=[];
+  candidates.forEach(function(c){
+    if(!known[c.obligationId])conflicts.push('OBLIGATION_MISSING:'+c.obligationId);
+    if(occurrences[c.obligationId]!==1)conflicts.push('MULTIPLE_ACTIVE_OWNERS:'+c.obligationId);
+  });
+  return{success:true,readOnly:true,writesPerformed:false,canonicalRepairExecuted:false,
+    candidates:candidates,conflicts:conflicts,eligibleForReviewedRepair:candidates.length>0&&conflicts.length===0,
+    nextStep:'MANUAL_CANONICAL_REPAIR_APPROVAL_REQUIRED'};
+}

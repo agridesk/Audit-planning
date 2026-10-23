@@ -25,7 +25,7 @@ assert.match(ui,/String\(r\.statusKey\|\|""\)\.toUpperCase\(\)!=="ACCEPTED"/);
 assert.match(ui,/\/api\/v1\/manager\/swap20\//);
 assert.match(ui,/swap20InternalReason/);
 assert.match(ui,/swap20EcasComment/);
-assert.match(ui,/No canonical audit has been changed/);
+assert.match(ui,/The audit dates have not been changed/);
 assert.match(server,/async function notificationGasCallOnce/);
 assert.match(server,/\['preview','getProposal','listPending'\]\.includes\(operation\)/);
 assert.match(server,/SWAP20_READONLY_GAS_RETRY/);

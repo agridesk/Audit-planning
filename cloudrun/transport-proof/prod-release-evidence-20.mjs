@@ -21,6 +21,8 @@ const checks=[
  {id:'LEGACY_MANAGER_LIFECYCLE_WRITERS',status:r4.includes('async function directManagerApprove(')&&r4.includes('async function directManagerCancel(')?'PROVEN_DEVIATION':'NOT_VERIFIED'},
  ...['DEV_CLOUD_REVISION','PROD_CLOUD_REVISION','IAM_SERVICE_ACCOUNTS','FIRESTORE_DATABASE_AND_INDEXES','GAS_DEV_DEPLOYED_VERSION','GAS_PROD_DEPLOYED_VERSION','GAS_INSTALLABLE_TRIGGERS','CLOUD_SCHEDULER_JOBS','NOTIFICATION_DELIVERY_POLICY','LIVE_DEV_E2E','CUTOVER_ROLLBACK_PROOF','LEGAL_OWNERSHIP_LICENSE'].map(id=>({id,status:'NOT_VERIFIED'}))
 ];
+// Keep source hazard detection separate from proof that a guarded route is callable in PROD.
+const knownGuards={combinedProdGuard:r6.includes("AMS_RUNTIME_ENV!=='DEV'")||r6.includes("RUNTIME_ENV!=='DEV'"),managerProdGuard:r4.includes("AMS_RUNTIME_ENV!=='DEV'")};
 const counts=Object.fromEntries([...new Set(checks.map(c=>c.status))].map(status=>[status,checks.filter(c=>c.status===status).length]));
-const evidence={scope:'AMS_CLOUD_20_PROD_CUTOVER',branch:'dev',sourceOnly:true,status:'NOT_READY',counts,checks,rule:'SOURCE_CONFIRMED never means production deployment verified. All live controls require actual runtime evidence.'};
+const evidence={scope:'AMS_CLOUD_20_PROD_CUTOVER',branch:'dev',sourceOnly:true,status:'NOT_READY',counts,knownGuards,checks,rule:'SOURCE_CONFIRMED never means production deployment verified. All live controls require actual runtime evidence.'};
 process.stdout.write(JSON.stringify(evidence,null,2)+'\n');

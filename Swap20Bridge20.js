@@ -110,7 +110,7 @@ function Swap20Bridge20_handle_(body) {
  }
  if(operation==='commit') {
   var committed=Swap20ManagerCommitAuthorized_({operationId:body.operationId},manager);
-  return Swap20Bridge20_mirrorEvent_({ok:committed.success===true,operationId:committed.operationId,
+  return Swap20Bridge20_mirrorEvent_({ok:committed.success===true,error:committed.success===true?undefined:String(committed.code||'SWAP_COMMIT_NOT_AVAILABLE'),operationId:committed.operationId,
    status:committed.status||committed.code||'',committed:committed.committed===true,
    notificationPending:committed.notificationPending===true,
    notificationQueued:committed.notificationQueued===true,readOnly:committed.readOnly===true},committed.operationId);

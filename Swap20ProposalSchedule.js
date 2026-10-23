@@ -29,9 +29,11 @@ function Swap20_scheduleExchange_(pair){
  for(var i=0;i<a.length;i++){
   var durationA=Swap20_scheduleMinutes_(a[i].end)-Swap20_scheduleMinutes_(a[i].start);
   var durationB=Swap20_scheduleMinutes_(b[i].end)-Swap20_scheduleMinutes_(b[i].start);
-  if(durationA!==durationB)throw Error('Unequal swap block duration requires explicit mapping');
-  outA.push({date:b[i].date,start:b[i].start,end:b[i].end});
-  outB.push({date:a[i].date,start:a[i].start,end:a[i].end});
+  if(durationA!==durationB&&a.length!==1)throw Error('Unequal swap block duration requires explicit mapping');
+  // Single-block audits exchange dates, retaining each audit's own duration and clock times.
+  // The canonical guard and Availability reservation preflight validate the new schedule.
+  outA.push(durationA===durationB?{date:b[i].date,start:b[i].start,end:b[i].end}:{date:b[i].date,start:a[i].start,end:a[i].end});
+  outB.push(durationA===durationB?{date:a[i].date,start:a[i].start,end:a[i].end}:{date:a[i].date,start:b[i].start,end:b[i].end});
   if(a[i].date!==outA[i].date||b[i].date!==outB[i].date)dateChanged=true;
  }
  if(JSON.stringify(outA)===JSON.stringify(a)&&JSON.stringify(outB)===JSON.stringify(b))throw Error('Swap has no schedule change');

@@ -13,7 +13,7 @@ function MCC20_restore_(journal){
  var ok=true;
  for(var i=journal.length-1;i>=0;i--){var j=journal[i];
   try{
-   if(j.created){var last=j.sheet.getLastRow();if(last!==j.row)throw Error('COMBINED_ROLLBACK_APPEND_ORDER_CHANGED');j.sheet.deleteRow(j.row);}
+   if(j.created){if(j.uncertain)throw Error('COMBINED_ROLLBACK_APPEND_ORDER_UNCERTAIN');var last=j.sheet.getLastRow();if(last!==j.row)throw Error('COMBINED_ROLLBACK_APPEND_ORDER_CHANGED');j.sheet.deleteRow(j.row);}
    else j.sheet.getRange(j.row,1,1,j.before.length).setValues([j.before]);
   }catch(e){ok=false;}
  }
@@ -27,7 +27,7 @@ function MCC20_stageRow_(journal,sheet,row,after){
 function MCC20_append_(journal,sheet,after){
  var before=sheet.getLastRow();sheet.appendRow(after);var row=sheet.getLastRow();
  // Journal the observed append even if row order changed; never lose rollback evidence.
- journal.push({sheet:sheet,row:row,created:true,expectedRow:before+1});
+ journal.push({sheet:sheet,row:before+1,created:true,observedRow:row,uncertain:row!==before+1});
  if(row!==before+1)throw Error('COMBINED_APPEND_RACE_REPAIR_REQUIRED');
 }
 function ModelCCombinedVisitCanonicalCommit20_execute(input){

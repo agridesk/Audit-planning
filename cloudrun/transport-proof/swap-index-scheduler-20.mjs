@@ -1,7 +1,7 @@
 /** DEV SWAP Firestore reconciliation. Requires verified Cloud Scheduler OIDC. */
 export function createSwapIndexScheduler({index,roster,gasCall,serviceEmail,audience,fetchImpl=fetch,now=Date.now}={}){
  if(!index||typeof roster!=='function'||typeof gasCall!=='function')throw Error('SWAP_SCHEDULER_DEPENDENCIES');
- if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(serviceEmail||'')||!/^https:\/\/[^/]+\/api\/v1\/internal\/swap20\/reconcile$/.test(audience||''))throw Error('SWAP_SCHEDULER_CONFIG');
+ if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(serviceEmail||'')||!/^https:\/\/[^/]+$/.test(audience||''))throw Error('SWAP_SCHEDULER_CONFIG');
  async function verify(auth){
   const matched=/^Bearer ([A-Za-z0-9._-]+)$/.exec(String(auth||''));
   if(!matched)return false;

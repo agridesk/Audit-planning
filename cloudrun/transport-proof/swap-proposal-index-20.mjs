@@ -5,7 +5,7 @@ const OPEN_MANAGER=['AWAITING_ACKNOWLEDGEMENT','ESCALATED','CONFIRMED','DECLINED
 const OPEN_AUDITOR=['AWAITING_ACKNOWLEDGEMENT','ESCALATED'];
 const validId=id=>/^[A-Za-z0-9_-]{8,100}$/.test(String(id||''));
 const validAudit=id=>typeof id==='string'&&id.trim().length>0&&id.length<=140;
-export function createSwapProposalIndex({project,getToken,fetchImpl=fetch}={}){
+export function createSwapProposalIndex({project,getToken,fetchImpl=fetch,now=Date.now}={}){
  if(!/^[a-z][a-z0-9-]{4,62}$/.test(project||''))throw Error('SWAP_INDEX_PROJECT_INVALID');
  if(typeof getToken!=='function')throw Error('SWAP_INDEX_TOKEN_PROVIDER_INVALID');
  const base='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(project)+'/databases/(default)/documents/'+COLLECTION;
@@ -81,7 +81,7 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch}={}){
  }
  async function read(actor){
   const before=await meta();
-  if(!before||before.data.status!=='READY')return null;
+  if(!before||before.data.status!=='READY'||!Number.isSafeInteger(before.data.verifiedAtMs)||now()-before.data.verifiedAtMs>=MAX_VERIFIED_AGE_MS||before.data.verifiedAtMs>now())return null;
   const records=await listRaw();
   const after=await meta();
   if(!after||after.updateTime!==before.updateTime||after.data.status!=='READY')return null;

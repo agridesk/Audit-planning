@@ -69,3 +69,12 @@ function RUN_DIAG_SWAP20_CONFIRMED_COMMIT_DEV_20261023(){
  if(result.proposals.some(function(p){return !p.ready;}))result.ok=false;
  Logger.log(JSON.stringify(result));return result;
 }
+
+// DEV-only configuration verification. Does not modify audits or notifications.
+function RUN_CHECK_SWAP20_COMMIT_PROPERTY_DEV_20261023(){
+ var props=PropertiesService.getScriptProperties();
+ if(String(props.getProperty('AMS_ENV')||'').toUpperCase()!=='DEV')throw Error('DEV_ONLY');
+ var key='AMS_SWAP20_COMMIT_ENABLED';
+ var out={environment:'DEV',propertyPresent:Object.prototype.hasOwnProperty.call(props.getProperties(),key),currentValue:props.getProperty(key),commitEnabled:props.getProperty(key)==='true'};
+ Logger.log(JSON.stringify(out));return out;
+}

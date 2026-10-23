@@ -26,7 +26,8 @@ function RUN_AMS45_DEV_READONLY_SMOKE(){
   catch(e){diagnosticError=String(e&&e.message||e).slice(0,180);}
  }
  return{
-  success:missing.length===0&&unresolved.length===0&&!diagnosticError,
+  success:missing.length===0&&unresolved.length===0&&!diagnosticError&&!!(modelC&&modelC.ok===true),
+  integrationBlockers:modelC&&modelC.ok===false?['MODEL_C_ACTIVE_LINK_INTEGRITY_FAILED']:[],
   build:AMS45_DEV_READ_ONLY_SMOKE_BUILD,
   env:'DEV',readOnly:true,writesPerformed:false,
   ssotId:ss.getId(),missingSheets:missing,

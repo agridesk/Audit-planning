@@ -310,6 +310,7 @@ const swap20Mirror=swap20MirrorEnabled?createSwapFirestoreReadmodel({project,get
 const swap20IndexEnabled=runtime.isDev&&process.env.AMS_SWAP20_PROPOSAL_INDEX_ENABLED==='true';
 const swap20Index=swap20IndexEnabled?createSwapProposalIndex({project,getToken}):null;
 
+const swap20Scheduler=swap20Index&&process.env.AMS_SWAP20_SCHEDULER_SA_EMAIL&&process.env.AMS_SWAP20_SCHEDULER_AUDIENCE?createSwapIndexScheduler({index:swap20Index,roster:swapRoster,gasCall:notificationGasCall,serviceEmail:process.env.AMS_SWAP20_SCHEDULER_SA_EMAIL,audience:process.env.AMS_SWAP20_SCHEDULER_AUDIENCE}):null;
 const swap20Lists=new Map();
 const swap20ListInflight=new Map();
 function swap20ListKey(actor){return actor.role+":"+actor.email;}

@@ -451,6 +451,20 @@ function doPost(e) {
 
   // Issue #45: DEV-only canonical Model C combined Visit commit.
   // The service owns the shared GAS write lock, lifecycle, links and rollback.
+  // Issue #45 — read-only DEV verification of canonical combined Visit links.
+  if(rawAction==='externalcanonicalcombinedreconcile20'){
+    var replyCombinedReconcile20=function(o){return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);};
+    if(!V5_ENTRY_isDevEnv_())return replyCombinedReconcile20({success:false,error:'DEV_ONLY'});
+    var authCombinedReconcile20=V5_ENTRY_externalBridgeBody_(e);
+    if(!authCombinedReconcile20.ok)return authCombinedReconcile20.response;
+    var recheck20=authCombinedReconcile20.body||{};
+    if(String(recheck20.actorRole||'').toUpperCase()!=='MANAGER')return replyCombinedReconcile20({success:false,error:'MANAGER_ONLY'});
+    if(typeof ModelCCombinedVisitReconcile20_run!=='function')return replyCombinedReconcile20({success:false,error:'RECONCILER_UNAVAILABLE'});
+    recheck20.runtimeEnv='DEV';
+    try{return replyCombinedReconcile20(ModelCCombinedVisitReconcile20_run(recheck20));}
+    catch(recheckError20){return replyCombinedReconcile20({success:false,error:'RECONCILE_READ_FAILED',detail:String(recheckError20&&recheckError20.message||recheckError20).slice(0,160)});}
+  }
+
   if (rawAction==='externalcanonicalcombinedvisit20') {
     var respondCombined20=function(x){return ContentService.createTextOutput(JSON.stringify(x)).setMimeType(ContentService.MimeType.JSON);};
     if(!V5_ENTRY_isDevEnv_())return respondCombined20({success:false,error:'DEV_ONLY'});

@@ -435,7 +435,7 @@ document.getElementById("selectionSwap20").onclick=async function(){
   var internal=panel.querySelector("#swap20InternalReason"),ecas=panel.querySelector("#swap20EcasComment");
   var requestId="SWAP20_"+(window.crypto&&window.crypto.randomUUID?window.crypto.randomUUID().replace(/-/g,""):String(Date.now())+"_"+Math.random().toString(36).slice(2));
   var submitted=false,busy=false,preview=null;
-  content.replaceChildren();explain.textContent="Checking current canonical schedules...";
+  content.replaceChildren();explain.textContent="Checking the planned audit dates...";
   feedback.textContent="";form.hidden=true;create.hidden=true;refresh.hidden=true;apply.hidden=true;withdraw.hidden=true;
   internal.value="";ecas.value="";internal.disabled=false;ecas.disabled=false;create.disabled=false;refresh.disabled=false;apply.disabled=false;withdraw.disabled=false;
   async function swapRequest(operation,body){
@@ -458,12 +458,13 @@ document.getElementById("selectionSwap20").onclick=async function(){
   }
   function showStatus(data){
     var status=String(data.status||"unknown"),applied=status==="APPLIED"||data.committed===true;
+    var labels={AWAITING_ACKNOWLEDGEMENT:"Awaiting auditor confirmation",ESCALATED:"Auditor confirmation overdue",CONFIRMED:"Confirmed by auditor; ready for manager review",DECLINED:"Declined by auditor",WITHDRAWN:"Withdrawn",APPLIED:"Date exchange completed"};
     var canApply=!applied&&status==="CONFIRMED"&&(data.commitEnabled===true||(preview&&preview.commitEnabled===true));
     apply.hidden=!canApply;
     if(applied){refresh.hidden=true;withdraw.hidden=true;apply.hidden=true;}
-    feedback.textContent="Proposal "+String(data.operationId||requestId)+" — "+status+
-      (data.requiredCount!=null?" ("+String(data.acknowledgedCount||0)+"/"+String(data.requiredCount)+" auditor ACK)":"")+
-      (applied?". Canonical time slots exchanged. ECAS notification "+(data.notificationQueued?"queued":"pending")+".":". No canonical audit has been changed.");
+    var count=data.requiredCount!=null?" ("+String(data.acknowledgedCount||0)+" of "+String(data.requiredCount)+" auditors confirmed).":".";
+    feedback.textContent=applied?"The date exchange has been applied. "+(data.notificationQueued?"Participant notification has been queued.":"Participant notification is pending."):
+      "Date change request received. "+(labels[status]||"Check the request status")+count+" The audit dates have not been changed.";
   }
   if(typeof panel.showModal==="function"){if(!panel.open)panel.showModal();}else panel.setAttribute("open","");
   try{
@@ -526,7 +527,7 @@ document.getElementById("selectionSwap20").onclick=async function(){
     busy=true;withdraw.disabled=true;
     try{
       var result=await swapRequest("withdraw",{operationId:requestId});
-      feedback.textContent="Proposal withdrawn: "+String(result.status||"WITHDRAWN")+". No audit changed.";
+      feedback.textContent="Date change request withdrawn. The audit dates have not been changed.";
       refresh.hidden=true;withdraw.hidden=true;apply.hidden=true;
     }catch(error){feedback.textContent=String(error.message||error);withdraw.disabled=false;}
     finally{busy=false;}

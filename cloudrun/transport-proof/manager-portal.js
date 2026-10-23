@@ -522,7 +522,7 @@ document.getElementById("selectionSwap20").onclick=async function(){
     finally{busy=false;apply.disabled=false;}
   };
   withdraw.onclick=async function(){
-    if(busy||!submitted||!window.confirm("Withdraw this SWAP proposal? Accepted audits will remain unchanged."))return;
+    if(busy||!submitted||!window.confirm("Withdraw this audit date change request? Accepted audits will remain unchanged."))return;
     busy=true;withdraw.disabled=true;
     try{
       var result=await swapRequest("withdraw",{operationId:requestId});
@@ -613,7 +613,7 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
           var apply=document.createElement("button");apply.type="button";apply.textContent="Apply date exchange (DEV)";
           apply.style.marginLeft="8px";
           apply.onclick=async function(){
-            if(!window.confirm("Apply the confirmed SWAP in DEV? The Accepted audit schedules will change."))return;
+            if(!window.confirm("Apply this approved date change in DEV? Both audit schedules will change."))return;
             apply.disabled=true;status.textContent="Applying confirmed audit date exchange...";
             try{
               var outcome=await swap20GridRequest("manager","commit",{operationId:p.operationId});
@@ -628,7 +628,7 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
           var withdraw=document.createElement("button");withdraw.type="button";withdraw.textContent="Withdraw";
           withdraw.style.marginLeft="8px";
           withdraw.onclick=async function(){
-            if(!window.confirm("Withdraw this SWAP proposal?"))return;
+            if(!window.confirm("Withdraw this audit date change request?"))return;
             withdraw.disabled=true;
             try{await swap20GridRequest("manager","withdraw",{operationId:p.operationId});await reload();}
             catch(e){status.textContent=String(e.message||e);withdraw.disabled=false;}
@@ -679,7 +679,7 @@ document.getElementById("auditorSwapInbox20").onclick=async function(){
     try{
       var result=await swap20GridRequest("auditor","list",{});
       var data=Array.isArray(result.items)?result.items:[];
-      message.textContent=data.length?data.length+" assigned SWAP request(s).":"No pending Audit date changes.";
+      message.textContent=data.length?data.length+" assigned date change request(s).":"No pending Audit date changes.";
       data.forEach(function(item){
         var card=document.createElement("section");
         card.style.cssText="border:1px solid #cbd5e1;padding:12px;border-radius:8px;margin:9px 0";
@@ -688,20 +688,20 @@ document.getElementById("auditorSwapInbox20").onclick=async function(){
           var b=document.createElement("strong");b.textContent=title+" ";
           p.append(b,document.createTextNode(value));card.appendChild(p);
         }
-        info("Proposal:",String(item.operationId||""));
+        
         info("Status:",String(item.status||""));
-        info("Audit A:",String(item.auditA||"")+" → "+schedule(item.afterA));
-        info("Audit B:",String(item.auditB||"")+" → "+schedule(item.afterB));
+        var aa=all.find(function(r){return r.auditId===item.auditA});info("Audit A:",String(aa?.company||"Audit")+" → "+schedule(item.afterA));if(aa)info("Assigned auditor:",String(aa.assignedToDisplayName||aa.auditorName||aa.assignedTo||"Not assigned"));
+        var bb=all.find(function(r){return r.auditId===item.auditB});info("Audit B:",String(bb?.company||"Audit")+" → "+schedule(item.afterB));if(bb)info("Assigned auditor:",String(bb.assignedToDisplayName||bb.auditorName||bb.assignedTo||"Not assigned"));
         info("Explanation for participants:",String(item.ecasComment||""));
         if(item.acknowledged){
           info("Your response:","Acknowledged; awaiting any remaining auditor");
         }else{
           var ack=document.createElement("button"),decline=document.createElement("button");
-          ack.type="button";ack.textContent="Acknowledge SWAP";
+          ack.type="button";ack.textContent="Confirm date change";
           decline.type="button";decline.textContent="Decline";
           decline.style.marginLeft="8px";
           async function respond(decision){
-            if(decision==="DECLINE"&&!window.confirm("Decline this SWAP proposal?"))return;
+            if(decision==="DECLINE"&&!window.confirm("Decline this audit date change request?"))return;
             ack.disabled=true;decline.disabled=true;
             message.textContent="Saving auditor response...";
             try{

@@ -3,6 +3,7 @@ on:
   push:
     branches: [dev]
     paths:
+      - 'AMS45DevReadOnlySmoke.js'
       - 'CoreStatusMachine.js'
       - 'StatusNotificationBridge.js'
       - 'RejectedAuditsV5.js'
@@ -44,6 +45,7 @@ jobs:
           node-version: '22'
       - name: Validate changed source syntax
         run: |
+          node --check AMS45DevReadOnlySmoke.js
           node --check CoreStatusMachine.js
           node --check StatusNotificationBridge.js
           node --check RejectedAuditsV5.js
@@ -60,6 +62,7 @@ jobs:
           node --check cloudrun/transport-proof/server-r6.js
       - name: Lifecycle and Model C tests
         run: |
+          node tests/ams45-dev-readonly-smoke.test.mjs
           node tests/lifecycle-v212-status-contract.test.mjs
           node tests/lifecycle-cancel-availability-invariant.test.mjs
           node tests/model-c-combined-visit-planner-20.test.mjs

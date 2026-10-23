@@ -114,3 +114,20 @@ function RUN_SET_SWAP20_COMMIT_FLAG_DEV_20261023(){
  var result={ok:p.getProperty('AMS_SWAP20_COMMIT_ENABLED')==='true'};
  Logger.log(JSON.stringify(result));return result;
 }
+
+
+// Read-only DEV triage for stale confirmed SWAP. Never updates the proposal or audit rows.
+function RUN_DIAG_SWAP20_STALE_DETAIL_DEV_20261023(){
+ var props=PropertiesService.getScriptProperties();
+ if(props.getProperty('AMS_ENV')!=='DEV'||props.getProperty('V5_SSOT_SPREADSHEET_ID')!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')throw Error('DEV_ONLY');
+ var result=[];
+ Object.keys(props.getProperties()).filter(function(k){return k.indexOf('AMS_SWAP20_PROPOSAL_')===0;}).forEach(function(k){
+  var p=JSON.parse(props.getProperty(k));if(!p||p.status!=='CONFIRMED')return;
+  var pair=Swap20_readCanonicalPair({auditA:p.auditA,auditB:p.auditB});
+  var history=Swap20Journal_history_(p.operationId);
+  result.push({operationId:p.operationId,status:p.status,journalStage:history.length?history[history.length-1].stage:'NOT_STARTED',
+   auditA:{changed:String(pair.auditA.revision)!==String(p.originalRevisions[p.auditA]),currentBlocks:pair.auditA.blocks||null,proposedBlocks:p.blocksA},
+   auditB:{changed:String(pair.auditB.revision)!==String(p.originalRevisions[p.auditB]),currentBlocks:pair.auditB.blocks||null,proposedBlocks:p.blocksB}});
+ });
+ Logger.log(JSON.stringify({ok:true,readOnly:true,proposals:result}));return result;
+}

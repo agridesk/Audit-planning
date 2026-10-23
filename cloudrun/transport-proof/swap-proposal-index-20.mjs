@@ -132,7 +132,7 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch,now=Da
   const current=await meta();
   if(!current||current.data.status!=='DIRTY'||current.data.operationId!==op)
    throw Error('SWAP_INDEX_ABORT_LOCK_LOST');
-  const ready=await put('_META',{status:'READY',sequence:current.data.sequence,abortedAt:new Date().toISOString()},current.updateTime);
+  const ready=await put('_META',{status:'READY',sequence:current.data.sequence,verifiedAtMs:0,abortedAt:new Date().toISOString()},current.updateTime);
   if(!ready)throw Error('SWAP_INDEX_ABORT_CONFLICT');
  }
  async function finish(op,proposal){

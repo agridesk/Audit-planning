@@ -97,7 +97,7 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch,now=Da
    const saved=await put(validateProposal(record).operationId,record);
    if(!saved)throw Error('SWAP_INDEX_BOOTSTRAP_ROW_CONFLICT');
   }
-  const ready=await put('_META',{status:'READY',sequence:1,initializedAt:new Date().toISOString()},started.updateTime);
+  const ready=await put('_META',{status:'READY',sequence:1,verifiedAtMs:now(),initializedAt:new Date().toISOString()},started.updateTime);
   if(!ready)throw Error('SWAP_INDEX_BOOTSTRAP_RACE');
   return true;
  }

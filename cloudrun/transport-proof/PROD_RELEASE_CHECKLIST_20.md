@@ -27,6 +27,9 @@ Run `npm run test:prod-readiness` or use the dedicated GitHub Actions readiness 
 - `PROD_REALIZED_HOURS_DIRECT_SHEETS_WRITE`: R12 still sends a direct Google Sheets batchUpdate for realized-hours corrections; verify actor checks, canonical write ownership and collisions.
 - `npm run audit:prod-evidence` emits source-only evidence with all live checks explicitly NOT_VERIFIED. It never deploys, mutates Sheets, or reads secrets.
 
+## One-command read-only operator verification
+For actual DEV deployment evidence, an authorized operator can execute the CMD one-liner supplied in chat. It must only run read-only `gcloud run services describe`, `gcloud scheduler jobs list` and `gcloud builds list`; outputs are not proof of GAS installable triggers. Never print secrets or perform deploy/update commands during this stage.
+
 ## Deploy preflight — MUST verify in actual GCP/GAS runtimes
 1. Capture exact DEV and candidate PROD commit/build SHA, container digest, Cloud Run revision, service and region.
 2. Prove PROD project identity equals AMS_PROD_GCP_PROJECT and differs from audit-management-system-dev.

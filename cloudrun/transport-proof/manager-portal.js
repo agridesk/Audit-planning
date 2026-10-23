@@ -558,7 +558,7 @@ async function swap20GridFetch(role,operation,body){
     method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},
     body:JSON.stringify(body||{})});
   var data=await response.json().catch(function(){return {ok:false,error:"SWAP_RESPONSE_INVALID"}});
-  if(!response.ok||data.ok!==true)throw Error(String(data.error||"SWAP_REQUEST_FAILED"));
+  if(!response.ok||data.ok!==true)throw Error(String(data.error||data.code||data.status||"SWAP_REQUEST_FAILED"));
   return data;
 }
 function swap20BadgeUpdate(role,count){
@@ -620,7 +620,7 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
               var outcome=await swap20GridRequest("manager","commit",{operationId:p.operationId});
               if(outcome.committed!==true)throw Error("SWAP_COMMIT_NOT_CONFIRMED");
               await reload();selectionClear();await loadOpen();
-            }catch(e){status.textContent="Commit not confirmed: "+String(e.message||e);}
+            }catch(e){status.textContent=String(e.message||e)==="SWAP_ATOMIC_WRITE_DISABLED"?"The final date change is not yet enabled. The confirmed request remains saved.":"The date exchange could not be confirmed. Check the request status before retrying."; }
             finally{apply.disabled=false;}
           };
           card.appendChild(apply);

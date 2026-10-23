@@ -64,4 +64,17 @@ assert.equal(uncertainResult.repairRequired,true);
 assert.equal(uncertainResult.rollbackSkippedToProtectCanonicalCommit,true);
 assert.equal(uncertain.sheets['Audit_Visit_Obligations'].rows[2][2],'INACTIVE');
 assert.equal(uncertain.released,1);
+const staleWrite=scenario({success:true,committed:true,meta:{}});
+const firstSheet=staleWrite.sheets['Audit planning'];
+const originalGetRange=firstSheet.getRange;
+let injected=false;
+firstSheet.getRange=function(r,c,n,m){
+ const range=originalGetRange(r,c,n,m);
+ if(r===2&&!injected){injected=true;const normal=range.getValues;range.getValues=()=>{const snapshot=normal();snapshot[0][1]='Accepted';return snapshot;};}
+ return range;
+};
+const staleWriteResult=staleWrite.ctx.ModelCCombinedVisitCanonicalCommit20_execute(staleWrite.input);
+assert.equal(staleWriteResult.committed,false);
+assert.match(staleWriteResult.error,/STALE_ROW_AT_WRITE_BOUNDARY/);
+assert.equal(staleWrite.seen.length,0);
 console.log('MODEL_C_COMBINED_CANONICAL_COMMIT: PASS success rollback stale revision and lock release');

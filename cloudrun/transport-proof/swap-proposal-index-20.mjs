@@ -1,6 +1,6 @@
 /** DEV-only durable SWAP read index. GAS is the sole transactional source. */
 const COLLECTION='ams_swap20_dev_index';
-const MAX_VERIFIED_AGE_MS=30000;
+const MAX_VERIFIED_AGE_MS=480000;
 const OPEN_MANAGER=['AWAITING_ACKNOWLEDGEMENT','ESCALATED','CONFIRMED','DECLINED'];
 const OPEN_AUDITOR=['AWAITING_ACKNOWLEDGEMENT','ESCALATED'];
 const validId=id=>/^[A-Za-z0-9_-]{8,100}$/.test(String(id||''));

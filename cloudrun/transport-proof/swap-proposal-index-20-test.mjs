@@ -27,7 +27,8 @@ const fetchImpl=async(url,opts)=>{
  }
  throw Error('unexpected '+method);
 };
-const index=createSwapProposalIndex({project:'audit-management-system-dev',getToken:async()=> 'test',fetchImpl});
+let clockMs=Date.now();
+const index=createSwapProposalIndex({project:'audit-management-system-dev',getToken:async()=> 'test',fetchImpl,now:()=>clockMs});
 const mgr={role:'manager',email:'manager@example.test',auditorId:'manager-uid'};
 const aud={role:'auditor',email:'auditor@example.test',auditorId:'auditor-uid'};
 const other={role:'auditor',email:'other@example.test',auditorId:'other-uid'};

@@ -19,8 +19,10 @@ function MCC20_restore_(journal){
  }
  return ok;
 }
-function MCC20_stageRow_(journal,sheet,row,after){
+function MCC20_stageRow_(journal,sheet,row,after,expectedBefore){
  var before=sheet.getRange(row,1,1,after.length).getValues()[0];
+ if(expectedBefore&&JSON.stringify(before)!==JSON.stringify(expectedBefore))
+   throw Error('COMBINED_CANONICAL_STALE_ROW_AT_WRITE_BOUNDARY');
  journal.push({sheet:sheet,row:row,before:before});
  sheet.getRange(row,1,1,after.length).setValues([after]);
 }
@@ -70,8 +72,8 @@ function ModelCCombinedVisitCanonicalCommit20_execute(input){
   });
   // Stage all membership/projection changes BEFORE the canonical Plan writer.
   // Every changed row is retained in a reverse-order restoration journal.
-  MCC20_stageRow_(journal,ap.sheet,target.row,targetNext);
-  composition.sourceAuditIds.forEach(function(id){var src=auditById[id];MCC20_stageRow_(journal,ap.sheet,src.row,new Array(ap.headers.length).fill(''));});
+  MCC20_stageRow_(journal,ap.sheet,target.row,targetNext,target.values);
+  composition.sourceAuditIds.forEach(function(id){var src=auditById[id];MCC20_stageRow_(journal,ap.sheet,src.row,new Array(ap.headers.length).fill(''),src.values);});
   // Release source members' provisional reservations under the same journal.
   // The canonical Plan finalizer is responsible for the target reservation.
   var crAudit=MCC20_col_(cr.headers,['Audit ID']),crState=MCC20_col_(cr.headers,['State']);
@@ -84,12 +86,12 @@ function ModelCCombinedVisitCanonicalCommit20_execute(input){
     if(crAt>=0)changed[crAt]=new Date().toISOString();
     if(crUpdated>=0)changed[crUpdated]=new Date().toISOString();
     if(crReason>=0)changed[crReason]='CANONICAL_COMBINED_VISIT_COMMIT';
-    MCC20_stageRow_(journal,cr.sheet,ci+2,changed);
+    MCC20_stageRow_(journal,cr.sheet,ci+2,changed,crRow);
   }
   var now=new Date().toISOString(),linkRows={};
   for(var li=0;li<lk.rows.length;li++){var lr=lk.rows[li],key=MCC20_clean_(lr[lkAudit])+'|'+MCC20_clean_(lr[lkOb]);if(MCC20_norm_(lr[lkState])==='ACTIVE')linkRows[key]={row:li+2,values:lr.slice()};}
   composition.closeLinks.forEach(function(ch){var link=linkRows[ch.auditId+'|'+ch.obligationId];if(!link)throw Error('COMBINED_CANONICAL_LINK_CHANGED');
-   var next=link.values.slice();next[lkState]='INACTIVE';next[lkEnd]=now;MCC20_stageRow_(journal,lk.sheet,link.row,next);
+   var next=link.values.slice();next[lkState]='INACTIVE';next[lkEnd]=now;MCC20_stageRow_(journal,lk.sheet,link.row,next,link.values);
   });
   composition.newLinks.forEach(function(ch){var nr=new Array(lk.headers.length).fill('');nr[lkAudit]=ch.auditId;nr[lkOb]=ch.obligationId;nr[lkState]='ACTIVE';nr[lkStart]=now;MCC20_append_(journal,lk.sheet,nr);});
   canonicalPlanAttempted=true;

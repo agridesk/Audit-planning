@@ -546,6 +546,13 @@ async function proxy(req,res){
 http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url||'/','http://localhost');
+  if(req.method==='POST'&&u.pathname==='/api/v1/internal/swap20/reconcile'){
+   if(!runtime.isDev||!swap20Scheduler){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}
+   if(!await swap20Scheduler.verify(req.headers.authorization)){res.writeHead(403,{'cache-control':'no-store'});res.end('Forbidden');return;}
+   const began=Date.now(),synced=await swap20Scheduler.reconcile();
+   console.info('[SWAP20_INDEX_SCHEDULED_SYNC]',JSON.stringify({ok:true,records:synced.records,ms:Date.now()-began}));
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(synced));return;
+  }
   if(req.method==='GET'&&u.pathname==='/api/v1/manager/runtime-readiness'){
    const identity=await session(req);
    if(!identity||identity.role!=='manager'){res.writeHead(identity?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}

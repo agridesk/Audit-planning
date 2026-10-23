@@ -125,7 +125,7 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch,now=Da
   if(!validId(op))throw Error('SWAP_INDEX_OPERATION_INVALID');
   const current=await meta();
   if(!current||current.data.status!=='READY')return false;
-  const updated=await put('_META',{status:'DIRTY',operationId:op,sequence:(current.data.sequence||0)+1},current.updateTime);
+  const updated=await put('_META',{status:'DIRTY',operationId:op,sequence:(current.data.sequence||0)+1,verifiedAtMs:current.data.verifiedAtMs||0},current.updateTime);
   return !!updated;
  }
  async function abort(op){

@@ -14,8 +14,9 @@ function run(dev){
  StatusNotificationBridge_Dispatch_:()=>{}});
  vm.runInContext(src,ctx);return ctx.RUN_AMS45_DEV_READONLY_SMOKE();
 }
-const result=run(true);assert.equal(result.success,true);assert.equal(result.readOnly,true);
+const result=run(true);assert.equal(result.success,false);assert.equal(result.readOnly,true);
 assert.equal(result.writesPerformed,false);assert.equal(result.modelCIntegrity.activeRejectedAuditLinks,2);
+assert.equal(result.integrationBlockers[0],'MODEL_C_ACTIVE_LINK_INTEGRITY_FAILED');
 assert.equal(result.integrationStatus,'READ_ONLY_PREFLIGHT_ONLY_NO_LIFECYCLE_WRITE_TESTED');
 assert.throws(()=>run(false),/DEV_ONLY/);
 console.log('AMS45_DEV_READONLY_SMOKE: PASS');

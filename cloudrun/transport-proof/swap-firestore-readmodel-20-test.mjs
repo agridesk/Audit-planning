@@ -5,7 +5,7 @@ const server=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 const docker=readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
 assert.match(docker,/COPY swap-firestore-readmodel-20\.mjs/);
 assert.match(server,/AMS_SWAP20_FIRESTORE_MIRROR_ENABLED==='true'/);
-assert.match(server,/notificationGasCall\(actor,'listPending'/);
+assert.match(server,/notificationGasCall\(actor,swap20Index/);
 assert.match(server,/swap20InvalidateMirror/);
 let time=100000, stored=new Map(),calls=[];
 const fetchImpl=async(url,opts)=>{

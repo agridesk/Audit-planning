@@ -58,7 +58,7 @@ assert.equal((await index.read(mgr)).attentionCount,1);
 assert.equal((await index.read(aud)).items.length,0);
 assert.equal(await index.begin(base.operationId),true);
 await index.abort(base.operationId);
-assert.equal(await index.read(mgr),null);
+assert.equal((await index.read(mgr)).items.length,1);
 await index.reconcile([{...base,status:'CONFIRMED',acknowledgedAuditorUids:['auditor-uid']}]);
 assert.equal((await index.read(mgr)).items.length,1);
 assert.equal(await index.begin(base.operationId),true);

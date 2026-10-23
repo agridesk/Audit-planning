@@ -459,7 +459,7 @@ document.getElementById("selectionSwap20").onclick=async function(){
   function showStatus(data){
     var status=String(data.status||"unknown"),applied=status==="APPLIED"||data.committed===true;
     var labels={AWAITING_ACKNOWLEDGEMENT:"Awaiting auditor confirmation",ESCALATED:"Auditor confirmation overdue",CONFIRMED:"Confirmed by auditor; ready for manager review",DECLINED:"Declined by auditor",WITHDRAWN:"Withdrawn",APPLIED:"Date exchange completed"};
-    var canApply=!applied&&status==="CONFIRMED"&&(data.commitEnabled===true||(preview&&preview.commitEnabled===true));
+    var canApply=!applied&&status==="CONFIRMED";
     apply.hidden=!canApply;
     if(applied){refresh.hidden=true;withdraw.hidden=true;apply.hidden=true;}
     var count=data.requiredCount!=null?" ("+String(data.acknowledgedCount||0)+" of "+String(data.requiredCount)+" auditors confirmed).":".";
@@ -610,7 +610,7 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
         var bRow=all.find(function(r){return r.auditId===p.auditB});info("Audit B:",String(bRow?.company||"Audit")+" → "+blocks(p.blocksB));if(bRow)info("Assigned auditor:",bRow.assignedToDisplayName||bRow.auditorName||bRow.assignedTo||"Not assigned");
         info("Auditor confirmations:",String(p.acknowledgedCount||0)+" / "+String(p.requiredCount||0));
         info("Internal reason:",p.internalReason);info("Explanation for participants:",p.ecasComment);
-        if(p.status==="CONFIRMED"&&p.commitEnabled===true){
+        if(p.status==="CONFIRMED"){
           var apply=document.createElement("button");apply.type="button";apply.textContent="Apply date exchange (DEV)";
           apply.style.marginLeft="8px";
           apply.onclick=async function(){

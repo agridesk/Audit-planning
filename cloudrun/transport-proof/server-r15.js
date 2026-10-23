@@ -7,6 +7,7 @@ import {notificationOverview} from './notification-overview-20.mjs';
 import {buildRotationManager20} from './rotation-manager-20.mjs';
 import {createSwapFirestoreReadmodel} from './swap-firestore-readmodel-20.mjs';
 import {createSwapProposalIndex} from './swap-proposal-index-20.mjs';
+import {createSwapIndexScheduler} from './swap-index-scheduler-20.mjs';
 
 import {URL} from 'node:url';
 import {createAvailabilityHttpRouter} from './availability-http-api-20.js';

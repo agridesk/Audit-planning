@@ -15,7 +15,8 @@ function scenario(commitResult){
   'Audit_Obligations':sheet([['Obligation_ID','Obligation_State','Company_UID','ScopeCode','Formal_Hours'],['O1','OPEN','C1','MPS-GAP',4],['O2','LINKED_TO_VISIT','C1','GRASP',2]]),
   'Audit_Visit_Obligations':sheet([['Audit_ID','Obligation_ID','Link_State','Unlinked_At','Linked_At'],['A1','O1','ACTIVE','',''],['A2','O2','ACTIVE','','']]),
   'Config_Scopes':sheet([['ScopeCode','DisplayName'],['MPS-GAP','MPS-GAP'],['GRASP','GRASP']]),
-  'Concept Reservations':sheet([['Audit ID','State','Released By','Released At','Release Reason','Updated At'],['A2','ACTIVE','','','','']])
+  'Concept Reservations':sheet([['Audit ID','State','Released By','Released At','Release Reason','Updated At'],['A2','ACTIVE','','','','']]),
+  'Auditor Availability':sheet([['Audit_ID_1','Audit_ID_2'],['','']])
  };
  const seen=[];let released=0;
  const ctx=vm.createContext({Date,AMS_EXTERNAL_MANAGER_ACTION_LOCK_HELD_:false,
@@ -77,4 +78,11 @@ const staleWriteResult=staleWrite.ctx.ModelCCombinedVisitCanonicalCommit20_execu
 assert.equal(staleWriteResult.committed,false);
 assert.match(staleWriteResult.error,/STALE_ROW_AT_WRITE_BOUNDARY/);
 assert.equal(staleWrite.seen.length,0);
+const occupied=scenario({success:true,committed:true,meta:{}});
+occupied.sheets['Auditor Availability'].rows[1][0]='A2';
+const stopped=occupied.ctx.ModelCCombinedVisitCanonicalCommit20_execute(occupied.input);
+assert.equal(stopped.committed,false);
+assert.match(stopped.error,/SOURCE_AVAILABILITY_RELEASE_REQUIRED/);
+assert.equal(occupied.seen.length,0);
+assert.equal(occupied.sheets['Audit planning'].rows[2][0],'A2');
 console.log('MODEL_C_COMBINED_CANONICAL_COMMIT: PASS success rollback stale revision and lock release');

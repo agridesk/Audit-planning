@@ -13,4 +13,7 @@ assert.equal(classify({...base,visits:[{...base.visits[0],planningJson:'{}'}]}).
 assert.equal(classify({...base,links:base.links.slice(0,1)}).reconcileRequired,true);
 assert.equal(classify({...base,visits:[]}).reconcileRequired,true);
 assert.equal(classify(base).automaticWritesAllowed,false);
-console.log('MODEL_C_COMBINED_VISIT_RECONCILE: PASS 8');
+const extra=classify({...base,links:[...base.links,{auditId:'A1',obligationId:'O3',linkState:'ACTIVE'}]});
+assert.equal(extra.reconcileRequired,true);
+assert.match(extra.issues.join(','),/UNEXPECTED_TARGET_ACTIVE_OBLIGATION/);
+console.log('MODEL_C_COMBINED_VISIT_RECONCILE: PASS 10');

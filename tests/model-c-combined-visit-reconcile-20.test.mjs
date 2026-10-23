@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+const source=readFileSync(new URL('../ModelCCombinedVisitReconcile20.js',import.meta.url),'utf8');
+const ctx=vm.createContext({});vm.runInContext(source,ctx);
+const classify=ctx.ModelCCombinedVisitReconcile20_classify;
+const base={targetAuditId:'A1',sourceAuditIds:['A2'],visits:[{auditId:'A1',status:'Approved',planningJson:JSON.stringify({sourceAuditIds:['A2'],obligationIds:['O1','O2']})}],links:[{auditId:'A1',obligationId:'O1',linkState:'ACTIVE'},{auditId:'A1',obligationId:'O2',linkState:'ACTIVE'},{auditId:'A2',obligationId:'O2',linkState:'INACTIVE'}],reservations:[{auditId:'A2',state:'RELEASED'}]};
+assert.equal(classify(base).classification,'COMMITTED_CONSISTENT');
+assert.equal(classify({...base,visits:[...base.visits,{auditId:'A2',status:'Pending Planning'}]}).reconcileRequired,true);
+assert.equal(classify({...base,links:[...base.links,{auditId:'A2',obligationId:'O2',linkState:'ACTIVE'}]}).reconcileRequired,true);
+assert.equal(classify({...base,reservations:[{auditId:'A2',state:'ACTIVE'}]}).reconcileRequired,true);
+assert.equal(classify({...base,visits:[{...base.visits[0],planningJson:'{}'}]}).reconcileRequired,true);
+assert.equal(classify({...base,links:base.links.slice(0,1)}).reconcileRequired,true);
+assert.equal(classify({...base,visits:[]}).reconcileRequired,true);
+assert.equal(classify(base).automaticWritesAllowed,false);
+console.log('MODEL_C_COMBINED_VISIT_RECONCILE: PASS 8');

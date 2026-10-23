@@ -17,7 +17,7 @@ export function createSwapIndexScheduler({index,roster,gasCall,serviceEmail,audi
   const records=await roster(),manager=records.find(x=>x.role==='manager'&&x.email&&x.auditorId);
   if(!manager)throw Error('SWAP_SCHEDULER_NO_MANAGER');
   const seed=await gasCall({role:'manager',email:manager.email,auditorId:manager.auditorId},'listIndexSeed',{},'externalswap20');
-  if(seed?.ok!==true||!Array.isArray(seed.records))throw Error('SWAP_SCHEDULER_SEED_FAILED');
+  if(seed?.ok!==true||!Array.isArray(seed.records)){ console.error('[SWAP_SEED_REJECTED]',JSON.stringify({ok:seed?.ok,code:String(seed?.error||'MISSING_RECORDS').slice(0,80)}));throw Error('SWAP_SCHEDULER_SEED_FAILED'); }
   const meta=await index.meta();
   const updated=meta?await index.reconcile(seed.records):await index.bootstrap(seed.records);
   if(!updated)throw Error('SWAP_SCHEDULER_RECONCILIATION_BUSY');

@@ -17,6 +17,15 @@ function selectionIds(){return Array.from(gridSelected)}
 function selectionClear(){gridSelected.clear();updateSelectionUi()}
 function selectionToggle(id,on){id=String(id||"").trim();if(!id)return;if(on)gridSelected.add(id);else gridSelected.delete(id);updateSelectionUi()}
 function selectionSelectVisible(on){gridVisibleIds.forEach(function(id){if(on)gridSelected.add(id);else gridSelected.delete(id)});updateSelectionUi()}
+var swap20PreviewPrefetch={key:"",at:0,promise:null};
+function swap20WarmPreview(rows){
+ if(!Array.isArray(rows)||rows.length!==2)return;
+ var pair={auditA:String(rows[0].auditId),auditB:String(rows[1].auditId)},key=[pair.auditA,pair.auditB].sort().join("|");
+ if(swap20PreviewPrefetch.key===key&&Date.now()-swap20PreviewPrefetch.at<12000)return;
+ var request=fetch("/api/v1/manager/swap20/preview",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify(pair)}).then(function(r){return r.json().then(function(j){if(!r.ok||j.ok!==true)throw Error(String(j.error||"SWAP_PREVIEW_FAILED"));return j;})});
+ swap20PreviewPrefetch={key:key,at:Date.now(),promise:request};
+ request.catch(function(){/* Preview button can retry the canonical read on demand. */});
+}
 function updateSelectionUi(){
   gridVisibleIds=Array.from(document.querySelectorAll('#rows tr[data-audit-id]')).map(function(tr){return String(tr.getAttribute('data-audit-id')||'')}).filter(Boolean);
   document.querySelectorAll(".grid-select-row").forEach(function(cb){cb.checked=gridSelected.has(String(cb.getAttribute("data-audit-id")||""))});
@@ -34,6 +43,7 @@ function updateSelectionUi(){
     var chosen=selectionRows(),eligible=chosen.length===2&&chosen.every(function(r){return String(r.statusKey||"").toUpperCase()==="ACCEPTED"});
     swap.hidden=auditorMode||currentView!=="open"||n===0;
     swap.disabled=!eligible;
+    if(eligible&&!auditorMode&&currentView==="open")swap20WarmPreview(chosen);
     swap.title=eligible?"Preview exchange of two Accepted audit time slots":"Select exactly two Accepted audits";
   }
   var bulkAccept=document.getElementById("selectionAcceptAuditor");if(bulkAccept){var elig=selectionRows().filter(function(r){return r.statusKey==="APPROVED"&&(r.allowedActions||[]).includes("ACCEPT")});bulkAccept.hidden=!(auditorMode&&currentView==="open"&&elig.length>0);bulkAccept.textContent="Accept selected ("+elig.length+")";bulkAccept.disabled=bulkAcceptRunning20;}
@@ -457,7 +467,8 @@ document.getElementById("selectionSwap20").onclick=async function(){
   }
   if(typeof panel.showModal==="function"){if(!panel.open)panel.showModal();}else panel.setAttribute("open","");
   try{
-    preview=await swapRequest("preview",pair);
+    var prefetchKey=[pair.auditA,pair.auditB].sort().join("|");
+    preview=swap20PreviewPrefetch.key===prefetchKey&&Date.now()-swap20PreviewPrefetch.at<12000?await swap20PreviewPrefetch.promise.catch(function(){return swapRequest("preview",pair);}):await swapRequest("preview",pair);
     if(!preview.eligible){explain.textContent="This Accepted pair cannot be swapped: "+String(preview.reason||"not eligible");return;}
     explain.textContent=preview.requiresAcknowledgement?
       "The proposed audit dates will change. The assigned auditor(s) must confirm before the change is applied.":

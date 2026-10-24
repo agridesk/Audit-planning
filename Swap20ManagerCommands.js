@@ -15,7 +15,7 @@ function Swap20ManagerCreateProposalAuthorized_(input,auth){
  var pair=Swap20_readCanonicalPair({auditA:a,auditB:b});
  if(!pair.eligible)throw Error('Swap pair not eligible');
  var schedule=Swap20_scheduleExchange_(pair);
- Swap20CanonicalCommitGuard({auditA:a,auditB:b,expectedRevisions:(function(){var v={};v[a]=pair.auditA.revision;v[b]=pair.auditB.revision;return v;})(),blocksA:schedule.blocksA,blocksB:schedule.blocksB});
+ Swap20CanonicalCommitGuard({auditA:a,auditB:b,expectedRevisions:(function(){var v={};v[a]=pair.auditA.revision;v[b]=pair.auditB.revision;return v;})(),blocksA:schedule.blocksA,blocksB:schedule.blocksB,canonicalPair:pair});
  var uids=input.requiredAuditorUids;
  if(!Array.isArray(uids)||!uids.length||uids.some(function(x){return !/^[A-Za-z0-9_-]{8,128}$/.test(String(x||''));})||new Set(uids).size!==uids.length)throw Error('Valid auditor UUIDs required');
  if(typeof Swap20_resolveAuditorUidForAudit_!=='function')throw Error('Canonical auditor UID resolver unavailable');

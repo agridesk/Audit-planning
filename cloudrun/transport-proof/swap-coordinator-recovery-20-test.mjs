@@ -10,7 +10,7 @@ function fixture(failure){
  Swap20Journal_encodePayload_:payload=>JSON.stringify(payload),
  PlanningWorkspacePlannedAuditReadService_get:({auditId})=>({auditorEmail:auditId==='A'?'a@x.com':'b@x.com',assignedTo:auditId==='A'?'a@x.com':'b@x.com'}),
  Swap20CanonicalCommitGuard:()=>({ok:true}),
- Swap20_captureCanonicalBeforeImages_:()=>({sheetName:'Audit planning',headers:['Assigned to'],rows:[{auditId:'A',values:['a@x.com']},{auditId:'B',values:['b@x.com']}]}),
+ Swap20_captureCanonicalBeforeImages_:()=>({sheetName:'Audit planning',headers:['Assigned to','Planning JSON'],rows:[{auditId:'A',values:['a@x.com',JSON.stringify({auditorEmail:'a@x.com'})]},{auditId:'B',values:['b@x.com',JSON.stringify({auditorEmail:'b@x.com'})]}]}),
  Swap20_captureAvailabilityBeforeImages_:()=>({sheetName:'Auditor Availability',height:1,width:1,values:[['Date']]}),
  Swap20_availabilityPlan_:()=>({sheetName:'Auditor Availability',width:1,originalHeight:1,values:[['Date']]}),
  Swap20Journal_appendLocked_:(_,seq,stage,payload)=>{assert.equal(seq,journal.length);journal.push({stage,payload});events.push(stage);},
@@ -33,8 +33,8 @@ const early=fixture('prewrite');assert.throws(()=>early.ctx.Swap20_executeLocked
 assert.equal(early.journal.at(-1).stage,'CONFLICT');assert.ok(!early.events.includes('restoreCanonical'));
 const stale=fixture();stale.ctx.Swap20Store_read_=()=>({...p,status:'WITHDRAWN'});
 assert.throws(()=>stale.ctx.Swap20_executeLocked_(p),/Proposal changed/);assert.equal(stale.journal.length,0);
-const missingEmail=fixture();missingEmail.ctx.PlanningWorkspacePlannedAuditReadService_get=()=>({assignedTo:'a@x.com',auditorEmail:''});assert.throws(()=>missingEmail.ctx.Swap20_executeLocked_(p),/Auditor identity mismatch/);assert.equal(missingEmail.journal.length,0);
-const wrongOwner=fixture();wrongOwner.ctx.PlanningWorkspacePlannedAuditReadService_get=()=>({assignedTo:'other@x.com',auditorEmail:'other@x.com'});assert.throws(()=>wrongOwner.ctx.Swap20_executeLocked_(p),/Auditor identity mismatch/);
+const missingEmail=fixture();missingEmail.ctx.Swap20_captureCanonicalBeforeImages_=()=>({sheetName:'Audit planning',headers:['Assigned to','Planning JSON'],rows:[{auditId:'A',values:['',JSON.stringify({})]},{auditId:'B',values:['b@x.com',JSON.stringify({auditorEmail:'b@x.com'})]}]});assert.throws(()=>missingEmail.ctx.Swap20_executeLocked_(p),/Auditor identity mismatch/);assert.equal(missingEmail.journal.length,0);
+const malformedPlanning=fixture();malformedPlanning.ctx.Swap20_captureCanonicalBeforeImages_=()=>({sheetName:'Audit planning',headers:['Assigned to','Planning JSON'],rows:[{auditId:'A',values:['a@x.com','{bad']},{auditId:'B',values:['b@x.com',JSON.stringify({auditorEmail:'b@x.com'})]}]});assert.throws(()=>malformedPlanning.ctx.Swap20_executeLocked_(p));assert.equal(malformedPlanning.journal.length,0);
 const missingAck=fixture();const pending={...p,dateChanged:true,requiredAuditorUids:['auditor-1'],acknowledgedAuditorUids:[]};assert.throws(()=>missingAck.ctx.Swap20_executeLocked_(pending),/acknowledgements incomplete/);assert.equal(missingAck.journal.length,0);
 const noDev=fixture();noDev.ctx.PropertiesService={getScriptProperties:()=>({getProperty:()=> 'PROD'})};assert.throws(()=>noDev.ctx.Swap20_executeLocked_(p),/restricted to DEV/);
 const invalidPlan=fixture();invalidPlan.ctx.Swap20_availabilityPlan_=()=>({sheetName:'Other',width:1,values:[['Date']]});assert.throws(()=>invalidPlan.ctx.Swap20_executeLocked_(p),/Invalid paired reservation plan/);

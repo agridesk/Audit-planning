@@ -69,3 +69,6 @@ NOT_VERIFIED = source-only inference or inaccessible live configuration.
 NOT_APPLICABLE = documented reason, not silence.
 
 As of this file: live Cloud Run and GAS runtime parity, trigger installation, scheduler jobs and actual CI execution remain NOT_VERIFIED.
+
+## Local Windows contract verification — 2026-10-24
+Operator executed from `cloudrun/transport-proof` on Node v24.18.0: `npm run test:prod-evidence` PASS (25 evidence checks); `npm run test:prod-config` PASS (20 environment regression cases and 9 isolation cases). These prove source-level test behavior, not runtime PROD deployment safety. DEV/PROD cutover remains NOT_READY.

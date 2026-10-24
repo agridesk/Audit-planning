@@ -7,6 +7,11 @@ const ID=/^[A-Za-z0-9_-]{8,100}$/;
 const TIMESTAMP=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 const statusOk=s=>s==='Accepted';
 const encode=value=>({stringValue:JSON.stringify(value)});
+function validBlocks(blocks){
+ return Array.isArray(blocks)&&blocks.length>0&&blocks.length<=100&&blocks.every(b=>
+  (typeof b==='string'&&b.trim().length>0&&b.length<=150)||
+  (b!==null&&typeof b==='object'&&!Array.isArray(b)&&Object.keys(b).length>0));
+}
 export function buildSwapFirestoreWriteSet({project,operationId,proposal,pair,availability,actorEmail,now=new Date().toISOString()}={}){
  if(!/^[a-z][a-z0-9-]{4,62}$/.test(project||'')||!ID.test(operationId||'')||
   !proposal||proposal.operationId!==operationId||proposal.status!=='CONFIRMED'||!TIMESTAMP.test(proposal.updateTime||'')||
@@ -14,7 +19,7 @@ export function buildSwapFirestoreWriteSet({project,operationId,proposal,pair,av
   !Array.isArray(pair)||pair.length!==2||!Array.isArray(availability)||availability.length!==2||
   !TIMESTAMP.test(now)||typeof actorEmail!=='string'||!actorEmail.includes('@'))
   throw Error('SWAP_WRITESET_INPUT_INVALID');
- if(!Array.isArray(proposal.blocksA)||!Array.isArray(proposal.blocksB)||!proposal.blocksA.length||!proposal.blocksB.length)throw Error('SWAP_WRITESET_PROPOSED_BLOCKS_REQUIRED');
+ if(!validBlocks(proposal.blocksA)||!validBlocks(proposal.blocksB))throw Error('SWAP_WRITESET_PROPOSED_BLOCKS_REQUIRED');
  if(proposal.dateChanged===true&&(!Array.isArray(proposal.requiredAuditorUids)||!proposal.requiredAuditorUids.length||
   proposal.requiredAuditorUids.some(uid=>!proposal.acknowledgedAuditorUids?.includes(uid))))
   throw Error('SWAP_WRITESET_ACK_INCOMPLETE');
@@ -24,7 +29,7 @@ export function buildSwapFirestoreWriteSet({project,operationId,proposal,pair,av
   const row=pair[i],slot=availability[i];
   if(!row||row.auditId!==ids[i]||!statusOk(row.status)||!TIMESTAMP.test(row.updateTime||'')||
    !row.canonical||typeof row.canonical!=='object'||!slot||slot.auditId!==ids[i]||
-   !TIMESTAMP.test(slot.updateTime||'')||!slot.reservations||!Array.isArray(slot.reservations))
+   !TIMESTAMP.test(slot.updateTime||'')||!Array.isArray(slot.reservations))
    throw Error('SWAP_WRITESET_PAIR_INVALID');
   revisions.add(row.updateTime+'|'+row.auditId);
  }

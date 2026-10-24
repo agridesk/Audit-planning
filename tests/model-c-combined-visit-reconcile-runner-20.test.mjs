@@ -8,7 +8,8 @@ const data={
  'Audit planning':[['Audit ID','Status','Planning JSON'],['A1','Approved',JSON.stringify({sourceAuditIds:['A2'],obligationIds:['O1','O2']})]],
  'Audit_Visit_Obligations':[['Audit_ID','Obligation_ID','Link_State'],['A1','O1','ACTIVE'],['A1','O2','ACTIVE'],['A2','O2','INACTIVE']],
  'Concept Reservations':[['Audit ID','State'],['A2','RELEASED']],
- 'Auditor Availability':[['Audit_ID_1','Audit_ID_2'],['','']]
+ 'Auditor Availability':[['Audit_ID_1','Audit_ID_2'],['','']],
+ 'Audit_Obligations':[['Obligation_ID','Obligation_State'],['O1','LINKED_TO_VISIT'],['O2','LINKED_TO_VISIT']]
 };
 const ss={getSheetByName:n=>data[n]?{getDataRange:()=>({getValues:()=>data[n].map(r=>r.slice())})}:null};
 const ctx=vm.createContext({SpreadsheetApp:{getActiveSpreadsheet:()=>ss}});
@@ -32,4 +33,9 @@ data['Auditor Availability'][1][1]='A2';
 result=ctx.ModelCCombinedVisitReconcile20_run({runtimeEnv:'DEV',targetAuditId:'A1',sourceAuditIds:['A2']});
 assert.equal(result.reconcileRequired,true);
 assert.match(result.issues.join(','),/SOURCE_AVAILABILITY_SLOT_STILL_ASSIGNED/);
+data['Auditor Availability'][1][1]='';
+data['Audit_Obligations'][2][1]='REJECTED';
+result=ctx.ModelCCombinedVisitReconcile20_run({runtimeEnv:'DEV',targetAuditId:'A1',sourceAuditIds:['A2']});
+assert.equal(result.reconcileRequired,true);
+assert.match(result.issues.join(','),/ACTIVE_LINK_TERMINAL_OBLIGATION/);
 console.log('MODEL_C_COMBINED_RECONCILE_RUNNER: PASS');

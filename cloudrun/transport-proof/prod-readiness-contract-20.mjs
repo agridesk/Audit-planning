@@ -18,7 +18,12 @@ const core=files['server-r4.js'];
 const packageJson=JSON.parse(files['package.json']);
 const availabilityFirestore=files['availability-firestore-adapter-20.js'];
 if(/collection='ams_availability_20_dev'/.test(availabilityFirestore)&&/createFirestoreAvailabilityAdapter\(\{projectId:project,getToken\}\)/.test(entry))flag('PROD_FIRESTORE_COLLECTION_DEFAULT_DEV','availability-firestore-adapter-20.js / server-r15.js','PROD Availability still inherits DEV-named Firestore collection; require explicit per-environment binding and verified isolation.');
-if(/\/api\/v1\/manager\/realized-hours-direct/.test(r12)&&/fetch\(root\+'\:batchUpdate'/.test(r12))flag('PROD_REALIZED_HOURS_DIRECT_SHEETS_WRITE','server-r12.js','Realized-hours route directly writes Sheets: canonical ownership, authorization and concurrency require release evidence.');
+if(/\/api\/v1\/manager\/realized-hours-direct/.test(r12)&&/fetch\(root\+'\:batchUpdate'/.test(r12)){
+ const contained=r12.includes("if(process.env.AMS_RUNTIME_ENV==='PROD')return sendJson(res,503,{success:false,error:'PROD_REALIZED_HOURS_DIRECT_WRITER_DISABLED'});");
+ if(contained)flag('PROD_REALIZED_HOURS_DIRECT_WRITER_CONTAINED','server-r12.js','Explicit PROD fail-closed guard is present. It prevents this legacy route from mutating PROD while canonical parity remains unproven.','INFO');
+ else flag('PROD_REALIZED_HOURS_DIRECT_WRITER_UNGUARDED','server-r12.js','Direct Sheets writer lacks explicit PROD fail-closed guard.');
+ flag('PROD_REALIZED_HOURS_CANONICAL_PARITY_UNPROVEN','server-r12.js','Canonical realized-hours write path, concurrency and audit-trail parity must be verified before PROD cutover.');
+}
 if(packageJson.scripts?.start!=='node server-r15.js')flag('ENTRYPOINT_CHANGED','package.json','Recheck startup and routing chain.');
 if(!entry.includes('resolveAmsRuntimeConfig(process.env,await resolveProject())'))flag('ENTRYPOINT_ENV_CONTRACT','server-r15.js','Entry point does not use shared runtime configuration.');
 if(!entry.includes('process.env.GOOGLE_CLOUD_PROJECT=project'))flag('NESTED_GCP_PROJECT_PROPAGATION','server-r15.js','Nested stores must use the validated Cloud project, never implicit DEV defaults.');

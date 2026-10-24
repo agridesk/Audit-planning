@@ -109,7 +109,9 @@ function Swap20Bridge20_handle_(body) {
  if(operation==='getProposal') {
   var id=String(body.operationId||'').trim(),p=Swap20Store_read_(id);
   if(!p)return {ok:false,error:'SWAP_PROPOSAL_NOT_FOUND'};
+  var journal=Swap20_recoveryStatus_(id);
   return {ok:true,readOnly:true,operationId:id,status:p.status,
+   journalStage:journal.stage,journalSequence:journal.sequence,journalRequiresManualReview:journal.requiresManualReview,
    auditA:p.auditA,auditB:p.auditB,dateChanged:p.dateChanged,
    acknowledgedCount:(p.acknowledgedAuditorUids||[]).length,
    requiredCount:(p.requiredAuditorUids||[]).length,

@@ -15,7 +15,8 @@ function Swap20_writeAvailabilityPlanLocked_(plan,before){
  }
  if(added)sh.getRange(before.height+1,1,added,plan.width).setValues(plan.values.slice(before.height));
  SpreadsheetApp.flush();
- var after=sh.getRange(1,1,plan.values.length,plan.width).getValues();
- if(JSON.stringify(after)!==JSON.stringify(plan.values))throw Error('Availability write verification failed');
+ // Full-table post-write verification is performed once by
+ // Swap20_verifyAppliedPairLocked_ after both canonical rows are written.
+ // Avoid a redundant full-sheet read on the critical commit path.
  return {success:true,rows:plan.values.length};
 }

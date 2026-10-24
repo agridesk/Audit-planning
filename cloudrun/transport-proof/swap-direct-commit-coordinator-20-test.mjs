@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import {createSwapDirectCommitCoordinator} from './swap-direct-commit-coordinator-20.mjs';
 const timestamp='2026-10-25T10:00:00Z';
-const proposal={operationId:'swap_12345678',auditA:'A',auditB:'B',source:'firestore-canonical',status:'CONFIRMED',updateTime:timestamp,dateChanged:true,requiredAuditorUids:['u1'],acknowledgedAuditorUids:['u1'],blocksA:['2026-10-27'],blocksB:['2026-10-26']};
-const pair=['A','B'].map((auditId,i)=>({auditId,source:'firestore-canonical',status:'Accepted',updateTime:timestamp,canonical:{plannedBlocks:['2026-10-'+(26+i)]}}));
+const proposal={operationId:'swap_12345678',auditA:'A',auditB:'B',source:'firestore-canonical',status:'CONFIRMED',updateTime:timestamp,dateChanged:true,requiredAuditorUids:['u1'],acknowledgedAuditorUids:['u1'],blocksA:[{date:'2026-10-27',start:'09:00',end:'11:00'}],blocksB:[{date:'2026-10-26',start:'09:00',end:'11:00'}]};
+const pair=['A','B'].map((auditId,i)=>({auditId,source:'firestore-canonical',status:'Accepted',updateTime:timestamp,canonical:{assignedTo:(i?'b':'a')+'@example.test',plannedBlocks:[{date:'2026-10-'+(26+i),start:'09:00',end:'11:00'}]}}));
 const availability=['A','B'].map(auditId=>({auditId,source:'firestore-canonical',updateTime:timestamp,reservations:['reservation-'+auditId]}));
 let writes=0,authorized=0;
 const deps={project:'ams-test-dev',readProposal:async()=>proposal,readPair:async()=>pair,readAvailability:async()=>availability,

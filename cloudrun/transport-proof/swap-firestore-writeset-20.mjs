@@ -14,6 +14,7 @@ export function buildSwapFirestoreWriteSet({project,operationId,proposal,pair,av
   !Array.isArray(pair)||pair.length!==2||!Array.isArray(availability)||availability.length!==2||
   !TIMESTAMP.test(now)||typeof actorEmail!=='string'||!actorEmail.includes('@'))
   throw Error('SWAP_WRITESET_INPUT_INVALID');
+ if(!Array.isArray(proposal.blocksA)||!Array.isArray(proposal.blocksB)||!proposal.blocksA.length||!proposal.blocksB.length)throw Error('SWAP_WRITESET_PROPOSED_BLOCKS_REQUIRED');
  if(proposal.dateChanged===true&&(!Array.isArray(proposal.requiredAuditorUids)||!proposal.requiredAuditorUids.length||
   proposal.requiredAuditorUids.some(uid=>!proposal.acknowledgedAuditorUids?.includes(uid))))
   throw Error('SWAP_WRITESET_ACK_INCOMPLETE');
@@ -31,13 +32,13 @@ export function buildSwapFirestoreWriteSet({project,operationId,proposal,pair,av
  const root='projects/'+project+'/databases/(default)/documents/';
  const writes=[];
  for(let i=0;i<2;i++){
-  const source=pair[i],other=pair[1-i],slot=availability[i],otherSlot=availability[1-i];
+  const source=pair[i],slot=availability[i];
   // Only exchange explicitly supplied planned dates and reservation sets.
-  if(!Array.isArray(source.canonical.plannedBlocks)||!Array.isArray(other.canonical.plannedBlocks))
+  if(!Array.isArray(source.canonical.plannedBlocks))
    throw Error('SWAP_WRITESET_BLOCKS_MISSING');
-  const next={...source.canonical,plannedBlocks:other.canonical.plannedBlocks};
+  const next={...source.canonical,plannedBlocks:i===0?proposal.blocksA:proposal.blocksB};
   writes.push({update:{name:root+'ams_swap20_dev_audits/'+encodeURIComponent(source.auditId),fields:{payload:encode(next)}},currentDocument:{updateTime:source.updateTime}});
-  writes.push({update:{name:root+'ams_swap20_dev_availability/'+encodeURIComponent(slot.auditId),fields:{payload:encode({reservations:otherSlot.reservations})}},currentDocument:{updateTime:slot.updateTime}});
+  writes.push({update:{name:root+'ams_swap20_dev_availability/'+encodeURIComponent(slot.auditId),fields:{payload:encode({reservations:i===0?proposal.blocksA:proposal.blocksB})}},currentDocument:{updateTime:slot.updateTime}});
  }
  writes.push({update:{name:root+'ams_swap20_dev_proposals/'+operationId,
   fields:{payload:encode({...proposal,status:'APPLIED',canonicalCommitVerified:true,appliedAt:now,appliedBy:actorEmail})}},

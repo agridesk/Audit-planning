@@ -5,7 +5,7 @@ function ModelCCombinedVisitReconcile20_classify(input){
  var clean=function(x){return String(x==null?'':x).trim();};
  var target=clean(input.targetAuditId),sources=Array.isArray(input.sourceAuditIds)?input.sourceAuditIds.map(clean):[];
  if(!target||!sources.length||new Set([target].concat(sources)).size!==sources.length+1)throw Error('RECONCILE_COMBINED_MEMBER_SET_INVALID');
- var visits=Array.isArray(input.visits)?input.visits:[],links=Array.isArray(input.links)?input.links:[],reservations=Array.isArray(input.reservations)?input.reservations:[];
+ var visits=Array.isArray(input.visits)?input.visits:[],links=Array.isArray(input.links)?input.links:[],reservations=Array.isArray(input.reservations)?input.reservations:[],availability=Array.isArray(input.availability)?input.availability:[];
  var byId={},issues=[];
  visits.forEach(function(v){var id=clean(v.auditId);if(id){if(byId[id])issues.push('DUPLICATE_VISIT_ID:'+id);byId[id]=v;}});
  var parent=byId[target],p={};
@@ -30,6 +30,7 @@ function ModelCCombinedVisitReconcile20_classify(input){
  sources.forEach(function(id){if((activeByAudit[id]||[]).length)issues.push('SOURCE_ACTIVE_LINK_REMAINS');});
  if(duplicate)issues.push('MULTIPLE_ACTIVE_LINKS');
  reservations.forEach(function(r){if(sources.indexOf(clean(r.auditId))>=0&&clean(r.state).toUpperCase()==='ACTIVE')issues.push('SOURCE_RESERVATION_ACTIVE');});
+ availability.forEach(function(a){if(sources.indexOf(clean(a.auditId))>=0)issues.push('SOURCE_AVAILABILITY_SLOT_STILL_ASSIGNED');});
  issues=Array.from(new Set(issues));
  var healthy=issues.length===0;
  return{success:true,readOnly:true,consistent:healthy,reconcileRequired:!healthy,

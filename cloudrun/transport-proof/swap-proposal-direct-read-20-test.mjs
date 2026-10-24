@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import {createSwapProposalIndex} from './swap-proposal-index-20.mjs';
 const proposal={operationId:'op_12345678',auditA:'A',auditB:'B',status:'CONFIRMED',requiredAuditorUids:[],acknowledgedAuditorUids:[],blocksA:[],blocksB:[]};
 const payload=value=>({fields:{payload:{stringValue:JSON.stringify(value)}}});
-let metaVersion='v1',clock=1100,metaStatus='READY',metaReads=0;
+let metaVersion='v1',clock=1100,metaStatus='READY',metaReads=0,listReads=0;
 const fetchImpl=async url=>{
- const name=decodeURIComponent(new URL(url).pathname);
+ const parsed=new URL(url),name=decodeURIComponent(parsed.pathname);
+ if(name.endsWith('/ams_swap20_dev_index')){listReads++;return {ok:true,status:200,json:async()=>({documents:[{...payload(proposal),name:name+'/op_12345678'}]})};}
  if(name.endsWith('/_META')){metaReads++;return {ok:true,status:200,json:async()=>({...payload({status:metaStatus,verifiedAtMs:1000}),updateTime:metaVersion})};}
  if(name.endsWith('/op_12345678'))return {ok:true,status:200,json:async()=>payload(proposal)};
  return {ok:false,status:404};
@@ -19,4 +20,11 @@ assert.equal(await index.readProposal('op_12345678'),null,'stale index must not 
 clock=1100;metaVersion='v2';
 assert.deepEqual(await index.readProposal('op_12345678'),proposal);
 await assert.rejects(index.readProposal('invalid'),/SWAP_INDEX_OPERATION_INVALID/);
-console.log('SWAP direct proposal read safety checks passed');
+const [manager,auditor]=await Promise.all([
+ index.read({role:'manager',email:'manager@example.test'}),
+ index.read({role:'auditor',email:'auditor@example.test',auditorId:'auditor-1'})
+]);
+assert.equal(manager.ok,true);
+assert.equal(auditor.ok,true);
+assert.equal(listReads,1,'concurrent role reads must share one Firestore list');
+console.log('SWAP direct Firestore read safety and concurrency checks passed');

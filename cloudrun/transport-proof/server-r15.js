@@ -245,7 +245,7 @@ async function notificationGasCall(actor,operation,payload,gasAction){
  // Apps Script's ContentService response uses an ephemeral googleusercontent URL.
  // Retry only requests proven read-only; never replay a proposal, ACK, commit,
  // notification send or any other mutation after an uncertain response.
- if(gasAction==='externalswap20'&&['preview','getProposal','listPending'].includes(operation)){
+ if(gasAction==='externalswap20'&&['preview','getProposal','listPending','listIndexSeed'].includes(operation)){
   let lastError;
   for(let attempt=0;attempt<2;attempt++){
    try{return await notificationGasCallOnce(actor,operation,payload,gasAction);}

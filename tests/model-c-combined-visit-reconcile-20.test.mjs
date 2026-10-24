@@ -16,4 +16,7 @@ assert.equal(classify(base).automaticWritesAllowed,false);
 const extra=classify({...base,links:[...base.links,{auditId:'A1',obligationId:'O3',linkState:'ACTIVE'}]});
 assert.equal(extra.reconcileRequired,true);
 assert.match(extra.issues.join(','),/UNEXPECTED_TARGET_ACTIVE_OBLIGATION/);
-console.log('MODEL_C_COMBINED_VISIT_RECONCILE: PASS 10');
+const occupied=classify({...base,availability:[{auditId:'A2'}]});
+assert.equal(occupied.reconcileRequired,true);
+assert.match(occupied.issues.join(','),/SOURCE_AVAILABILITY_SLOT_STILL_ASSIGNED/);
+console.log('MODEL_C_COMBINED_VISIT_RECONCILE: PASS 12');

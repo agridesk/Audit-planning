@@ -8,6 +8,7 @@
   },
   "scripts": {
     "audit:prod-evidence": "node prod-release-evidence-20.mjs",
+    "test:prod-evidence": "node prod-release-evidence-20-test.mjs",
     "test:prod-config": "node prod-contract-20-regression-test.mjs && node prod-environment-isolation-20-test.mjs",
     "test:prod-readiness": "npm run test:prod-config && node gas-trigger-source-inventory-20.mjs && node prod-readiness-contract-20.mjs",
     "start": "node server-r15.js",

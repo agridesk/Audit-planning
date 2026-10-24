@@ -305,3 +305,21 @@ function RUN_DIAG_SWAP20_PREPARED_RESUME_DEV_20261024(){
  if(!out.availabilityEqual){for(var i=0;i<Math.min(x.availability.values.length,y.availability.values.length);i++){if(JSON.stringify(x.availability.values[i])!==JSON.stringify(y.availability.values[i])){out.firstChangedRow=i+1;break;}}}
  Logger.log(JSON.stringify(out));return out;
 }
+
+function RUN_DIAG_SWAP20_RESUME_STAGES_DEV_20261024(){
+ var sp=PropertiesService.getScriptProperties();
+ if(sp.getProperty('AMS_ENV')!=='DEV'||sp.getProperty('V5_SSOT_SPREADSHEET_ID')!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')throw Error('DEV_ONLY');
+ var id='SWAP20_aded19c574a940b398b8c1ded84ff9e9',p=Swap20Store_read_(id),h=Swap20Journal_history_(id);
+ if(h.length!==1||h[0].stage!=='PREPARED'||p.status!=='CONFIRMED')throw Error('NOT_READY');
+ var out={id:id,stages:[],ok:true};
+ function check(name,fn){try{var v=fn();out.stages.push({name:name,ok:true,value:v===true?true:undefined});}catch(e){out.ok=false;out.stages.push({name:name,ok:false,error:String(e.message||e)});}}
+ var c,a,owners={},plan;
+ check('guard',function(){return Swap20CanonicalCommitGuard({auditA:p.auditA,auditB:p.auditB,expectedRevisions:p.originalRevisions,blocksA:p.blocksA,blocksB:p.blocksB}).ok;});
+ check('canonical',function(){c=Swap20_captureCanonicalBeforeImages_(p);return c.rows.length===2;});
+ check('availability',function(){a=Swap20_captureAvailabilityBeforeImages_();return a.height>0;});
+ if(c)check('owners',function(){c.rows.forEach(function(image){var index=c.headers.map(function(x){return String(x||'').toLowerCase().replace(/[ _-]/g,'');}).indexOf('assignedto');var detail=PlanningWorkspacePlannedAuditReadService_get({auditId:image.auditId});if(!detail||!detail.auditorEmail||String(detail.assignedTo||'').trim()!==String(image.values[index]||'').trim())throw Error('Auditor identity mismatch');owners[image.auditId]=String(detail.auditorEmail).trim().toLowerCase();});return true;});
+ if(a&&Object.keys(owners).length===2)check('plan',function(){plan=Swap20_availabilityPlan_(a,p,owners);return plan.values.length;});
+ if(c&&a)check('snapshotMatch',function(){return JSON.stringify(Swap20Journal_markDates_(h[0].payload))===JSON.stringify(Swap20Journal_markDates_({canonical:c,availability:a}));});
+ if(c)check('canonicalVerify',function(){return Swap20_verifyCanonicalBeforeImages_(c);});
+ Logger.log(JSON.stringify(out));return out;
+}

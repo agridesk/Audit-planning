@@ -37,7 +37,7 @@ function Swap20Bridge20_preview_(a,b) {
  var proposed;
  try{proposed=Swap20_scheduleExchange_(pair);}
  catch(err){return {ok:true,readOnly:true,eligible:false,reason:String(err&&err.message||err).slice(0,180)};}
- Swap20CanonicalCommitGuard({auditA:a,auditB:b,expectedRevisions:(function(){
+ Swap20CanonicalCommitGuard({canonicalPair:pair,auditA:a,auditB:b,expectedRevisions:(function(){
   var v={};v[a]=pair.auditA.revision;v[b]=pair.auditB.revision;return v;
  })(),blocksA:proposed.blocksA,blocksB:proposed.blocksB});
  function display(item){return {auditId:String(item.auditId||''),assignedTo:String(item.assignedTo||''),

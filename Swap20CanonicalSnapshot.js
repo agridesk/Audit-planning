@@ -28,7 +28,16 @@ function Swap20_verifyCanonicalBeforeImages_(snapshot){
  snapshot.rows.forEach(function(image){
   var row=sh.getRange(image.rowNumber,1,1,headers.length).getValues()[0];
   if(String(row[idCol])!==String(image.auditId))throw Error('Canonical audit row moved');
-  if(PRT_tokenFromSnapshot_(PRT_snapshotFromRow_(headers,row))!==image.revision)throw Error('Canonical revision changed during swap');
+  if(PRT_tokenFromSnapshot_(PRT_snapshotFromRow_(headers,row))!==image.revision){
+   var changed=[];
+   for(var c=0;c<headers.length;c++){
+    var before=image.values[c],after=row[c];
+    var normalize=function(v){return Object.prototype.toString.call(v)==='[object Date]'?v.getTime():JSON.stringify(v);};
+    if(normalize(before)!==normalize(after))changed.push(String(headers[c]||'column '+(c+1)).slice(0,55));
+   }
+   console.error('[SWAP20_CANONICAL_REVISION_CONFLICT]',JSON.stringify({auditId:image.auditId,changedColumns:changed.slice(0,30),changedCount:changed.length,tokenMismatchWithoutCellChange:changed.length===0}));
+   throw Error('Canonical revision changed during swap');
+  }
  });
  return true;
 }

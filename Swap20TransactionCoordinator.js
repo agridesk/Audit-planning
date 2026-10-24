@@ -16,11 +16,14 @@ function Swap20_executeLocked_(proposal,lockedHistory){
  var journalHistoryMs=Date.now()-entryStarted-persistedReadMs;
  console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:proposal.operationId,phase:'entryReads',persistedReadMs:persistedReadMs,journalHistoryMs:journalHistoryMs,elapsedMs:Date.now()-entryStarted}));
  var perfStarted=Date.now();
+ console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:proposal.operationId,phase:'canonicalGuardStarted'}));
  var guard=Swap20CanonicalCommitGuard({auditA:proposal.auditA,auditB:proposal.auditB,expectedRevisions:proposal.originalRevisions,blocksA:proposal.blocksA,blocksB:proposal.blocksB});
  if(!guard||guard.ok!==true)throw Error('Swap canonical preflight failed');
  var perfGuardMs=Date.now()-perfStarted;
+ console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:proposal.operationId,phase:'canonicalGuardFinished',ms:perfGuardMs}));
  var canonical=Swap20_captureCanonicalBeforeImages_(proposal);
  var perfCanonicalMs=Date.now()-perfStarted-perfGuardMs;
+ console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:proposal.operationId,phase:'canonicalSnapshotFinished',ms:perfCanonicalMs}));
  var availability=Swap20_captureAvailabilityBeforeImages_();
  var perfAvailabilityMs=Date.now()-perfStarted-perfGuardMs-perfCanonicalMs;
  console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:proposal.operationId,guardMs:perfGuardMs,canonicalSnapshotMs:perfCanonicalMs,availabilitySnapshotMs:perfAvailabilityMs,elapsedMs:Date.now()-perfStarted}));

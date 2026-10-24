@@ -658,7 +658,7 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
             apply.disabled=true;
             try{
               var precheck=await swap20GridRequest("manager","status",{operationId:p.operationId});
-              if(precheck.status!=="CONFIRMED"||precheck.journalRequiresManualReview!==false||!["NONE","PREPARED"].includes(String(precheck.journalStage||""))||precheck.commitEnabled!==true){
+              if(precheck.status!=="CONFIRMED"||precheck.journalRequiresManualReview!==false||String(precheck.journalStage||"")!=="NOT_STARTED"||precheck.commitEnabled!==true){
                 status.textContent="Date exchange blocked: canonical "+String(precheck.status||"UNKNOWN")+", journal "+String(precheck.journalStage||"UNKNOWN")+", manual review "+String(precheck.journalRequiresManualReview)+". Do not retry.";
                 return;
               }

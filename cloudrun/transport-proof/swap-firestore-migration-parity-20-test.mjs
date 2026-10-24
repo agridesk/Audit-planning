@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {verifySwapFirestoreMigration} from './swap-firestore-migration-parity-20.mjs';
+const ids=['A','B'];
+const audits=ids.map(auditId=>({auditId,data:{status:'Accepted',plannedBlocks:[{date:'2026-10-27',start:'09:00',end:'11:00'}]}}));
+const availability=ids.map(auditId=>({auditId,data:{reservations:[]}}));
+const input={expectedAuditIds:ids,sheetAudits:audits,firestoreAudits:audits.map(row=>({...row,data:{plannedBlocks:row.data.plannedBlocks,status:'Accepted'}})),sheetAvailability:availability,firestoreAvailability:availability};
+assert.equal(verifySwapFirestoreMigration(input).ok,true);
+assert.equal(verifySwapFirestoreMigration(input).cutoverAuthorized,false);
+assert.equal(verifySwapFirestoreMigration({...input,firestoreAudits:audits.slice(0,1)}).issues[0].kind,'MISSING');
+assert.equal(verifySwapFirestoreMigration({...input,firestoreAvailability:[...availability,availability[0]]}).issues[0].kind,'DUPLICATE_OR_INVALID');
+assert.equal(verifySwapFirestoreMigration({...input,firestoreAudits:audits.map((row,i)=>i?{...row,data:{status:'Completed'}}:row)}).issues[0].kind,'MISMATCH');
+console.log('SWAP migration parity coverage and mismatch checks passed');

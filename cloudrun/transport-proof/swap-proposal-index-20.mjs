@@ -79,12 +79,20 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch,now=Da
    attentionCount:items.filter(p=>actor.role==='manager'?
     p.status==='CONFIRMED'||p.status==='DECLINED':!p.acknowledged).length};
  }
+ let verifiedSnapshot=null;
  async function read(actor){
   const before=await meta();
-  if(!before||before.data.status!=='READY'||!Number.isSafeInteger(before.data.verifiedAtMs)||now()-before.data.verifiedAtMs>=MAX_VERIFIED_AGE_MS||before.data.verifiedAtMs>now())return null;
+  if(!before||before.data.status!=='READY'||!Number.isSafeInteger(before.data.verifiedAtMs)||now()-before.data.verifiedAtMs>=MAX_VERIFIED_AGE_MS||before.data.verifiedAtMs>now()){
+   verifiedSnapshot=null;return null;
+  }
+  if(verifiedSnapshot&&verifiedSnapshot.updateTime===before.updateTime)
+   return projectList(actor,verifiedSnapshot.records);
   const records=await listRaw();
   const after=await meta();
-  if(!after||after.updateTime!==before.updateTime||after.data.status!=='READY')return null;
+  if(!after||after.updateTime!==before.updateTime||after.data.status!=='READY'){
+   verifiedSnapshot=null;return null;
+  }
+  verifiedSnapshot={updateTime:after.updateTime,records};
   return projectList(actor,records);
  }
  async function bootstrap(records){

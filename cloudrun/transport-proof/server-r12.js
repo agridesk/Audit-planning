@@ -81,6 +81,7 @@ http.createServer(async(req,res)=>{
     try{const relay=actionRelayUrl(identity);return sendJson(res,200,{success:true,url:relay.url,nonce:relay.nonce,expiresInMs:600000,build:BUILD});}catch(e){return sendJson(res,500,{success:false,error:'ACTION_RELAY_URL_FAILED',detail:clean(e?.message||e),build:BUILD});}
   }
   if(req.method==='POST'&&u.pathname==='/api/v1/manager/realized-hours-direct'){
+    if(process.env.AMS_RUNTIME_ENV==='PROD')return sendJson(res,503,{success:false,error:'PROD_REALIZED_HOURS_DIRECT_WRITER_DISABLED'});
     const identity=await innerSession(req);
     if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED'});
     if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN'});

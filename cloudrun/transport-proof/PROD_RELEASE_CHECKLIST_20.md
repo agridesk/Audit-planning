@@ -81,3 +81,6 @@ Native Google Sheet verified in Drive: `AMS 2.0 PROD`, spreadsheet ID `1-nnRHMhw
 
 ## Spreadsheet-bound GAS script identity — 2026-10-24
 User opened `AMS 2.0 PROD` spreadsheet > Extensions > Apps Script and reported bound script ID `1cl2oBQKzncKvSSnI691tGPidu9ucNrIF8CYBrDzRFmjfgL38wvQ5mLOj`. This is distinct from previously independently created empty standalone GAS script `1lWMkeygwnsJjni20f-q_3CvA0YQB0la1mEgZYRqJfB0BXUbFfZu7uOnd`. **Use the spreadsheet-bound ID as the candidate for PROD 2.0 GAS**; do not configure clasp with the standalone ID or run pushes until source/export/deployment governance is reviewed. Confirm existing triggers/Script Properties and copied code before use; no deployment authorized.
+
+## Dedicated Cloud PROD project bootstrap — 2026-10-24
+User confirmed `audit-management-system-2-prod` (project number `360556060824`, ACTIVE) created. Billing account `018B23-2DC67C-9E3A29` is linked, `billingEnabled: true`. `gcloud services enable run.googleapis.com firestore.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com iam.googleapis.com --project=audit-management-system-2-prod` completed successfully. No Cloud Run deployment, no Firestore database, no GAS execution, and no production traffic authorized. Runtime IAM and artifact registry creation remain pending user CLI execution.

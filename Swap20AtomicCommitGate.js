@@ -40,7 +40,7 @@ function Swap20ManagerCommitAuthorized_(input,auth){
     }
     throw Error('Committed swap requires proposal reconciliation');
    }
-   throw Error('Swap transaction already journaled; recovery required');
+   if(!(history.length===1&&last==='PREPARED'&&proposal.status==='CONFIRMED'))throw Error('Swap transaction already journaled; recovery required');
   }
   if(proposal.status!=='CONFIRMED')throw Error('Confirmed swap proposal required');
   var result=Swap20_executeLocked_(proposal);

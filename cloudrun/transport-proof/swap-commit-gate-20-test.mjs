@@ -10,6 +10,7 @@ const ctx={Error,String,Date,JSON,
  LockService:{getScriptLock:()=>({tryLock:()=>true,releaseLock:()=>{}})},
  V5_AUTH:{validateTrustedTokenByRole:token=>token==='valid'?{ok:true,email:'manager@example.com'}:{ok:false}},
  Swap20Store_read_:()=>proposal,
+ Swap20Store_key_:id=>'AMS_SWAP20_PROPOSAL_'+id,
  Swap20Journal_history_:()=>history,
  Swap20_executeLocked_:()=>{preflight++;return {committed:true}}
 };

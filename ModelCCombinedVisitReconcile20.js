@@ -5,7 +5,7 @@ function ModelCCombinedVisitReconcile20_classify(input){
  var clean=function(x){return String(x==null?'':x).trim();};
  var target=clean(input.targetAuditId),sources=Array.isArray(input.sourceAuditIds)?input.sourceAuditIds.map(clean):[];
  if(!target||!sources.length||new Set([target].concat(sources)).size!==sources.length+1)throw Error('RECONCILE_COMBINED_MEMBER_SET_INVALID');
- var visits=Array.isArray(input.visits)?input.visits:[],links=Array.isArray(input.links)?input.links:[],reservations=Array.isArray(input.reservations)?input.reservations:[],availability=Array.isArray(input.availability)?input.availability:[];
+ var visits=Array.isArray(input.visits)?input.visits:[],links=Array.isArray(input.links)?input.links:[],reservations=Array.isArray(input.reservations)?input.reservations:[],availability=Array.isArray(input.availability)?input.availability:[],obligations=Array.isArray(input.obligations)?input.obligations:[];
  var byId={},issues=[];
  visits.forEach(function(v){var id=clean(v.auditId);if(id){if(byId[id])issues.push('DUPLICATE_VISIT_ID:'+id);byId[id]=v;}});
  var parent=byId[target],p={};
@@ -22,6 +22,12 @@ function ModelCCombinedVisitReconcile20_classify(input){
  links.forEach(function(l){if(clean(l.linkState).toUpperCase()!=='ACTIVE')return;var ob=clean(l.obligationId),aid=clean(l.auditId);
  if(activeByOb[ob]){duplicate=true;issues.push('DUPLICATE_ACTIVE_OBLIGATION_LINK');}
  activeByOb[ob]=aid;if(!activeByAudit[aid])activeByAudit[aid]=[];activeByAudit[aid].push(ob);
+ });
+ var obligationById={};
+ obligations.forEach(function(o){var id=clean(o.obligationId);if(id)obligationById[id]=clean(o.obligationState).toUpperCase();});
+ Object.keys(activeByOb).forEach(function(id){
+   if(obligations.length&&!(id in obligationById))issues.push('ACTIVE_LINK_OBLIGATION_MISSING');
+   if(['REJECTED','CANCELLED','COMPLETED'].indexOf(obligationById[id])>=0)issues.push('ACTIVE_LINK_TERMINAL_OBLIGATION');
  });
  var expectedOb=Array.isArray(p.obligationIds)?p.obligationIds.map(clean):[];
  expectedOb.forEach(function(id){if(activeByOb[id]!==target)issues.push('OBLIGATION_OWNER_MISMATCH');});

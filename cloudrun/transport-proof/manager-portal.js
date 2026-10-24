@@ -611,14 +611,14 @@ function swap20PaintManagerGridAlerts(){
     if(String(actorRole).toLowerCase()!=='manager')return;
     var cases=swap20ManagerGridCases.get(id)||[];
     if(!cases.length)return;
-    var target=tr.querySelector('td');
+    var target=tr.querySelector('td.alerts-cell, td.alert-cell')||tr.querySelector('td.company-cell')||tr.querySelector('td');
     if(!target)return;
     var alert=document.createElement('button');
     alert.type='button';alert.className='swap20-grid-alert';
     alert.textContent='SWAP '+cases.length;
     alert.title=cases.map(function(p){return String(p.status||'SWAP')+' — '+String(p.operationId||'')}).join('; ');
     alert.setAttribute('aria-label','Open SWAP case for this audit');
-    alert.style.cssText='margin-left:6px;padding:2px 6px;border:1px solid #b45309;border-radius:5px;background:#fef3c7;color:#92400e;font-size:11px;font-weight:700;cursor:pointer';
+    alert.style.cssText='margin-left:6px;padding:2px 6px;border:1px solid #b91c1c;border-radius:5px;background:#fee2e2;color:#991b1b;font-size:11px;font-weight:700;cursor:pointer';
     alert.onclick=function(){document.getElementById('managerSwapInbox20')?.click()};
     target.appendChild(alert);
   });

@@ -21,5 +21,23 @@ export function createSwapCanonicalSheetsTransport({spreadsheetId, getToken, fet
   const data=await request('/values/'+encodeURIComponent(quoted)+'?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER');
   return {range:data.range||quoted,values:Array.isArray(data.values)?data.values:[]};
  }
- return Object.freeze({readValues});
+ async function readAuditRows({sheetName='Audit planning',auditIdHeader='Audit ID',auditIds,columns='A1:AZ2000'}={}){
+  if(!Array.isArray(auditIds)||auditIds.length!==2||auditIds.some(id=>typeof id!=='string'||!id.trim()||id.length>140)||auditIds[0]===auditIds[1])
+   throw Error('SWAP_SHEETS_PAIR_INVALID');
+  const {values}=await readValues(sheetName,columns);
+  if(!values.length)throw Error('SWAP_SHEETS_HEADERS_MISSING');
+  const headers=values[0].map(value=>String(value??'').trim());
+  const auditColumn=headers.indexOf(auditIdHeader);
+  if(auditColumn<0||headers.indexOf(auditIdHeader,auditColumn+1)>=0)throw Error('SWAP_SHEETS_AUDIT_HEADER_INVALID');
+  const selected=new Map();
+  values.slice(1).forEach((row,index)=>{
+   const id=String(row[auditColumn]??'').trim();
+   if(!auditIds.includes(id))return;
+   if(selected.has(id))throw Error('SWAP_SHEETS_AUDIT_DUPLICATE');
+   selected.set(id,{sheetRow:index+2,values:row});
+  });
+  if(selected.size!==2)throw Error('SWAP_SHEETS_AUDIT_NOT_FOUND');
+  return {headers,rows:auditIds.map(id=>({auditId:id,...selected.get(id)}))};
+ }
+ return Object.freeze({readValues,readAuditRows});
 }

@@ -344,13 +344,13 @@ async function swap20ReadList(actor){
  if(swap20Index){
   try{
    const started=Date.now(),direct=await swap20Index.read(actor);
-   if(direct){console.info('[SWAP20_INDEX_PERF]',JSON.stringify({role:actor.role,source:'FIRESTORE_INDEX',ms:Date.now()-started}));return direct;}
+   if(direct){if(direct.ok===true&&generation===swap20ListGeneration)swap20Lists.set(key,{data:direct,expires:Date.now()+3000});console.info('[SWAP20_INDEX_PERF]',JSON.stringify({role:actor.role,source:'FIRESTORE_INDEX',ms:Date.now()-started}));return direct;}
   }catch(e){console.error('[SWAP20_INDEX_READ_FALLBACK]',String(e?.message||e).slice(0,130));}
  }
   if(swap20Mirror){
    try{
     const gen=await swap20Mirror.epoch();const mirrored=gen?await swap20Mirror.read(actor,gen):null;
-    if(mirrored&&await swap20Mirror.epoch()===gen){console.info('[SWAP20_MIRROR_PERF]',JSON.stringify({role:actor.role,source:'FIRESTORE',ms:Date.now()-started}));return mirrored;}
+    if(mirrored&&await swap20Mirror.epoch()===gen){if(mirrored.ok===true&&generation===swap20ListGeneration)swap20Lists.set(key,{data:mirrored,expires:Date.now()+3000});console.info('[SWAP20_MIRROR_PERF]',JSON.stringify({role:actor.role,source:'FIRESTORE',ms:Date.now()-started}));return mirrored;}
    }catch(e){console.warn('[SWAP20_MIRROR_FALLBACK]',String(e?.message||e).slice(0,120));}
   }
   const gasStarted=Date.now();

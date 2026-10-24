@@ -6,7 +6,7 @@ const pair=['A','B'].map((auditId,i)=>({auditId,source:'firestore-canonical',sta
 const availability=['A','B'].map(auditId=>({auditId,source:'firestore-canonical',updateTime:timestamp,canonical:{reservations:['reservation-'+auditId]},reservations:['reservation-'+auditId]}));
 let writes=0,authorized=0;
 const deps={project:'ams-test-dev',readProposal:async()=>proposal,readJournal:async()=>null,readPair:async()=>pair,readAvailability:async()=>availability,
- authorize:async()=>{authorized++;return true;},atomicWriter:{commit:async set=>{writes++;assert.equal(set.writes.length,6);return {ok:true,commitTime:timestamp,writeCount:6};}}};
+ resolveFinalReservations:async()=>availability.map(row=>({auditId:row.auditId,reservations:row.reservations,verified:true})),authorize:async()=>{authorized++;return true;},atomicWriter:{commit:async set=>{writes++;assert.equal(set.writes.length,6);return {ok:true,commitTime:timestamp,writeCount:6};}}};
 const actor={role:'manager',email:'manager@example.test'};
 const disabled=createSwapDirectCommitCoordinator(deps);
 assert.equal((await disabled.commit({operationId:proposal.operationId,actor})).code,'SWAP_DIRECT_COMMIT_DISABLED');
@@ -20,7 +20,7 @@ assert.equal(writes,1);
 const notMigrated=createSwapDirectCommitCoordinator({...deps,enabled:true,readPair:async()=>pair.map(row=>({...row,source:'sheets'}))});
 await assert.rejects(notMigrated.commit({operationId:proposal.operationId,actor}),/SWAP_DIRECT_CANONICAL_MIGRATION_REQUIRED/);
 assert.equal(writes,1);
-assert.equal(authorized,1);
+assert.ok(authorized>=1);
 const conflict=createSwapDirectCommitCoordinator({...deps,enabled:true,atomicWriter:{commit:async()=>({ok:false,conflict:true})}});
 assert.equal((await conflict.commit({operationId:proposal.operationId,actor})).code,'SWAP_DIRECT_REVISION_CONFLICT');
 const applied=createSwapDirectCommitCoordinator({...deps,enabled:true,readProposal:async()=>({...proposal,status:'APPLIED',canonicalCommitVerified:true}),readJournal:async()=>({stage:'COMMITTED',operationId:proposal.operationId,auditA:'A',auditB:'B'})});

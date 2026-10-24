@@ -115,6 +115,13 @@ function ModelCCombinedVisitCanonicalCommit20_execute(input){
    combinedVisitComposition:{sourceAuditIds:composition.sourceAuditIds,obligationIds:composition.obligationIds,scopeCodes:composition.scopeCodes,formalHours:Math.round(required*100)/100}
   });
   if(!result||result.committed!==true){
+   // Canonical service may report uncertainty without throwing; never unwind
+   // Model C projections if the target write may already have committed.
+   if(result&&(result.commitOutcomeUncertain===true||result.repairRequired===true||result.meta&&result.meta.commitOutcomeUncertain===true)){
+    return{success:false,committed:false,commitOutcomeUncertain:true,repairRequired:true,
+     rollbackSkippedToProtectCanonicalCommit:true,canonicalPlanResult:result,
+     error:'COMBINED_CANONICAL_COMMIT_RECONCILIATION_REQUIRED',build:MODEL_C_COMBINED_CANONICAL_COMMIT20_BUILD};
+   }
    var restored=MCC20_restore_(journal);journal=[];
    return{success:false,committed:false,error:MCC20_clean_(result&&result.reason)||'COMBINED_CANONICAL_PLAN_FAILED',
     repairRequired:!restored||!!(result&&result.meta&&result.meta.availabilityRepairRequired),rolledBack:restored,canonicalPlanResult:result||null};

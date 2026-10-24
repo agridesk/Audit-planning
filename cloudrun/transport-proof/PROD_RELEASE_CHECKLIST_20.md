@@ -24,7 +24,7 @@ Run `npm run test:prod-readiness` or use the dedicated GitHub Actions readiness 
 
 ## Independent issue #44 source gates
 - `PROD_FIRESTORE_COLLECTION_DEFAULT_DEV`: Availability adapter still uses a DEV-named default collection and R15 supplies no explicit collection binding. Require separate PROD collection and real project/database evidence.
-- `PROD_REALIZED_HOURS_DIRECT_SHEETS_WRITE`: R12 still sends a direct Google Sheets batchUpdate for realized-hours corrections; verify actor checks, canonical write ownership and collisions.
+- `PROD_REALIZED_HOURS_DIRECT_SHEETS_WRITE`: R12 still sends a direct Google Sheets batchUpdate for realized-hours corrections; verify actor checks, canonical write ownership and collisions. The handler validates Manager session/roster and completed audit state, but the optional expected-hours check is not an atomic compare-and-swap and the in-process lock is not distributed; retain blocker until owner proves safe cross-instance conflict handling.
 - `npm run audit:prod-evidence` emits source-only evidence with all live checks explicitly NOT_VERIFIED. It never deploys, mutates Sheets, or reads secrets.
 
 ## One-command read-only operator verification

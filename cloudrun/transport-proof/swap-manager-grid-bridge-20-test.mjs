@@ -55,6 +55,7 @@ const ctx={String,JSON,Date,Error,Array,Object,
  Swap20_readCanonicalPair:()=>pair,
  Swap20_scheduleExchange_:()=>({blocksA:pair.auditB.blocks,blocksB:pair.auditA.blocks,dateChanged:true,requiresAcknowledgement:true}),
  Swap20CanonicalCommitGuard:()=>({ok:true}),
+ Swap20_recoveryStatus_:id=>({operationId:id,stage:'NOT_STARTED',sequence:0,requiresManualReview:false}),
  Swap20Store_read_:id=>stored[id]||null,
  Swap20_resolveAuditorUidForAudit_:id=>'auditor-'+id,
  Swap20ManagerCreateProposalAuthorized_:(input,actor)=>{

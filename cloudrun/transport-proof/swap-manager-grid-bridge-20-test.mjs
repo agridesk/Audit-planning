@@ -97,7 +97,7 @@ const managerList=ctx.Swap20Bridge20_handle_({actorEmail:'manager@example.test',
 assert.equal(managerList.ok,true);
 assert.equal(managerList.items.length,1);
 assert.equal(managerList.items[0].status,'AWAITING_ACKNOWLEDGEMENT');
-assert.equal(managerList.attentionCount,0);
+assert.equal(managerList.attentionCount,1); // Active SWAP proposal requires manager inbox attention.
 assert.throws(()=>ctx.Swap20Bridge20_handle_({...req,auditB:'A'}),/NOT_DISTINCT/);
 auditors[1][1]='Auditor';
 assert.throws(()=>ctx.Swap20Bridge20_handle_(req),/NOT_AUTHORIZED/);

@@ -539,19 +539,35 @@ document.getElementById("selectionSwap20").onclick=async function(){
  // concurrently with grid data. Opening the dialog shares the in-flight request.
 var swap20ListCache={manager:null,auditor:null};
 var swap20ListPending={manager:null,auditor:null};
+var swap20ListGeneration={manager:0,auditor:0};
+function swap20InvalidateBrowserLists(){
+  ["manager","auditor"].forEach(function(role){
+    swap20ListGeneration[role]++;
+    swap20ListCache[role]=null;
+    swap20ListPending[role]=null;
+  });
+}
 async function swap20GridRequest(role,operation,body){
   if(operation==="list"){
     var cached=swap20ListCache[role];
     if(cached&&Date.now()-cached.at<12000)return cached.data;
     if(swap20ListPending[role])return swap20ListPending[role];
+    var generation=swap20ListGeneration[role];
     var inflight=swap20GridFetch(role,operation,body).then(function(data){
-      swap20ListCache[role]={at:Date.now(),data:data};return data;
-    }).finally(function(){swap20ListPending[role]=null;});
+      if(swap20ListGeneration[role]===generation)swap20ListCache[role]={at:Date.now(),data:data};
+      return data;
+    }).finally(function(){
+      if(swap20ListPending[role]===inflight)swap20ListPending[role]=null;
+    });
     swap20ListPending[role]=inflight;return inflight;
   }
-  var result=await swap20GridFetch(role,operation,body);
-  if(["propose","withdraw","commit","respond"].includes(operation)){swap20ListCache.manager=null;swap20ListCache.auditor=null;}
-  return result;
+  var mutation=["propose","withdraw","commit","respond"].includes(operation);
+  if(mutation)swap20InvalidateBrowserLists();
+  try{
+    return await swap20GridFetch(role,operation,body);
+  }finally{
+    if(mutation)swap20InvalidateBrowserLists();
+  }
 }
 async function swap20GridFetch(role,operation,body){
   var started=performance.now();
@@ -643,7 +659,7 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
       });
     }catch(error){status.textContent=String(error.message||error);}
   }
-  panel.querySelector("#managerSwap20Reload").onclick=function(){swap20ListCache.manager=null;reload();};
+  panel.querySelector("#managerSwap20Reload").onclick=function(){swap20InvalidateBrowserLists();reload();};
   if(typeof panel.showModal==="function"){if(!panel.open)panel.showModal();}else panel.setAttribute("open","");
   await reload();
 };
@@ -726,7 +742,7 @@ document.getElementById("auditorSwapInbox20").onclick=async function(){
       });
     }catch(error){message.textContent="The latest requests could not be loaded. Please refresh.";}
   }
-  panel.querySelector("#auditorSwap20Reload").onclick=function(){swap20ListCache.auditor=null;reload();};
+  panel.querySelector("#auditorSwap20Reload").onclick=function(){swap20InvalidateBrowserLists();reload();};
   if(typeof panel.showModal==="function"){if(!panel.open)panel.showModal();}else panel.setAttribute("open","");
   await reload();
 };

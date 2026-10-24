@@ -24,6 +24,11 @@ export async function canonicalCombinedGasBridge20({enabled=false,mode='',gasWri
  url.searchParams.set('action','externalcanonicalcombinedvisit20');
  const response=await fetchImpl(url,{method:'POST',headers:{'content-type':'application/json'},redirect:'follow',body:JSON.stringify({bridgeKey,runtimeEnv:'DEV',actorRole:'MANAGER',actorEmail,targetAuditId,sourceAuditIds,auditorEmail,auditorName,blocks,expectedRevisionsByAudit})});
  const raw=await response.text();let result;try{result=JSON.parse(raw)}catch{throw Error('COMBINED_CANONICAL_BRIDGE_NON_JSON_'+response.status)}
- if(!response.ok||result?.success!==true||result?.committed!==true)throw Error('COMBINED_CANONICAL_BRIDGE_REJECTED_'+clean(result?.error||result?.message||response.status));
+ if(!response.ok||result?.success!==true||result?.committed!==true){
+  const uncertain=result?.commitOutcomeUncertain===true||result?.repairRequired===true||result?.rollbackSkippedToProtectCanonicalCommit===true;
+  const error=Error((uncertain?'COMBINED_CANONICAL_BRIDGE_RECONCILIATION_REQUIRED_':'COMBINED_CANONICAL_BRIDGE_REJECTED_')+clean(result?.error||result?.message||response.status));
+  if(uncertain){error.commitOutcomeUncertain=true;error.requiresReconciliation=true;error.safeToRetry=false;}
+  throw error;
+ }
  return {...result,canonicalBridge:true,owner:'GAS_MODEL_C_COMBINED_VISIT',requiresReconciliation:result.postCommitRepairRequired===true||result.sourceAuditTrailRepairRequired===true};
 }

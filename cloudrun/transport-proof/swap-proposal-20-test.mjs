@@ -44,6 +44,15 @@ const gasContext={PlanningRevisionTokenService_getMany:({auditIds})=>({items:aud
 vm.createContext(gasContext);
 vm.runInContext(canonicalGas,gasContext);
 gasContext.PlanningRevisionTokenService_getMany=({auditIds})=>({items:auditIds.map(auditId=>({auditId,revision:auditId==='A'?'r1':'r2',snapshot:{status:'Accepted',assignedTo:auditId==='A'?'u1':'u2',planningJson:JSON.stringify({blocks:auditId==='A'?blocksA:blocksB})}}))});
+const liveRows=[
+ ['Audit ID','Status','Assigned to','Date - Planned','Planning JSON'],
+ ['A','Accepted','u1','2026-11-01',JSON.stringify({blocks:blocksA})],
+ ['B','Accepted','u2','2026-11-02',JSON.stringify({blocks:blocksB})]
+];
+gasContext.SpreadsheetApp={getActiveSpreadsheet:()=>({getSheetByName:()=>({getLastColumn:()=>5,getRange:(row,col,height,width)=>({getValues:()=>liveRows.slice(row-1,row-1+height).map(v=>v.slice(col-1,col-1+width))})})})};
+gasContext.PRT_readCanonicalRow_=id=>({rowNumber:id==='A'?2:3});
+gasContext.PRT_result_=(id,h,row)=>({auditId:id,revision:id==='A'?'r1':'r2',snapshot:{status:row[1],assignedTo:row[2],planningJson:row[4]}});
+
 const canonicalPair=gasContext.Swap20_readCanonicalPair({auditA:'A',auditB:'B'});
 assert.equal(canonicalPair.eligible,true);
 assert.equal(canonicalPair.canCommit,false);

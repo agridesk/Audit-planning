@@ -520,7 +520,7 @@ document.getElementById("selectionSwap20").onclick=async function(){
       selectionClear();
       await loadOpen();
     }catch(error){feedback.textContent="SWAP not confirmed: "+String(error.message||error);}
-    finally{busy=false;apply.disabled=false;}
+    finally{busy=false;apply.disabled=true;}
   };
   withdraw.onclick=async function(){
     if(busy||!submitted||!window.confirm("Withdraw this audit date change request? Accepted audits will remain unchanged."))return;

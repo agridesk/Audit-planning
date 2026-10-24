@@ -91,4 +91,14 @@ assert.equal(responseResult.commitOutcomeUncertain,true);
 assert.equal(responseResult.rollbackSkippedToProtectCanonicalCommit,true);
 assert.equal(responseResult.repairRequired,true);
 assert.equal(uncertainResponse.sheets['Audit_Visit_Obligations'].rows[2][2],'INACTIVE');
+const concurrentAfterStage=scenario({success:false,committed:false,reason:'CANONICAL_GATE_REJECTED',meta:{}});
+concurrentAfterStage.ctx.PlanningCanonicalCommitService_commit=()=>{
+ concurrentAfterStage.sheets['Audit planning'].rows[1][1]='Accepted';
+ return {success:false,committed:false,reason:'CANONICAL_GATE_REJECTED',meta:{}};
+};
+const concurrentRecovery=concurrentAfterStage.ctx.ModelCCombinedVisitCanonicalCommit20_execute(concurrentAfterStage.input);
+assert.equal(concurrentRecovery.committed,false);
+assert.equal(concurrentRecovery.repairRequired,true);
+assert.equal(concurrentRecovery.rolledBack,false);
+assert.equal(concurrentAfterStage.sheets['Audit planning'].rows[1][1],'Accepted');
 console.log('MODEL_C_COMBINED_CANONICAL_COMMIT: PASS success rollback stale revision and lock release');

@@ -28,7 +28,11 @@ export function createSwapFirestoreReservationIndex({project,getToken,fetchImpl=
     try{record=JSON.parse(document.fields?.payload?.stringValue||'null');}
     catch{throw Error('SWAP_INDEX_PAYLOAD_INVALID');}
     if(!record||!Array.isArray(record.reservations))throw Error('SWAP_INDEX_RESERVATIONS_INVALID');
-    reservations.push(...record.reservations);
+    const auditId=document.name.split('/').pop();
+    for(const reservation of record.reservations){
+     if(!reservation||reservation.auditId!==auditId)throw Error('SWAP_INDEX_RESERVATION_ID_MISMATCH');
+     reservations.push(reservation);
+    }
    }
    if(!result.nextPageToken)return {complete:true,reservations,documentCount:seen.size};
    if(result.nextPageToken===pageToken)throw Error('SWAP_INDEX_PAGINATION_LOOP');

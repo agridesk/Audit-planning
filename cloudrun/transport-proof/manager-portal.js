@@ -620,7 +620,7 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
               var outcome=await swap20GridRequest("manager","commit",{operationId:p.operationId});
               if(outcome.committed!==true)throw Error("SWAP_COMMIT_NOT_CONFIRMED");
               await reload();selectionClear();await loadOpen();
-            }catch(e){var code=String(e&&e.message||e||"SWAP_REQUEST_FAILED").slice(0,120);status.textContent=code==="SWAP_ATOMIC_WRITE_DISABLED"?"The final date change is not yet enabled. The confirmed request remains saved.":"The date exchange could not be confirmed (diagnostic: "+code+"). Check the request status before retrying.";console.error("[SWAP20_MANAGER_COMMIT_FAILED]",{operationId:p.operationId,code:code}); }
+            }catch(e){var code=String(e&&e.message||e||"SWAP_REQUEST_FAILED").slice(0,120);status.textContent=code==="SWAP_ATOMIC_WRITE_DISABLED"?"The final date change is not yet enabled. The confirmed request remains saved.":"The date exchange could not be confirmed (diagnostic: "+code+"). Check the request status before retrying.";console.error("[SWAP20_MANAGER_COMMIT_FAILED]",{operationId:p.operationId,code:code});try{var verified=await swap20GridRequest("manager","status",{operationId:p.operationId});status.textContent+=" Canonical request: "+String(verified.status||"UNKNOWN")+". Commit enabled: "+String(verified.commitEnabled===true)+". No automatic retry.";}catch(verifyError){status.textContent+=" Read-only status verification failed: "+String(verifyError&&verifyError.message||verifyError).slice(0,80)+".";} }
             finally{apply.disabled=false;}
           };
           card.appendChild(apply);

@@ -46,6 +46,6 @@ function Swap20CanonicalCommitGuard(input) {
   if(String(pair.auditA.assignedTo||'').toLowerCase()===String(pair.auditB.assignedTo||'').toLowerCase()){
    input.blocksA.forEach(function(x){input.blocksB.forEach(function(y){if(Swap20_overlap_(x,y))throw Error('Cross-audit overlap');});});
   }
-  Logger.log('[SWAP20_PERF] '+JSON.stringify({step:'canonicalGuard',ms:Date.now()-perfStart,reusedPair:!!input.canonicalPair}));
+  if(typeof Logger!=='undefined'&&Logger&&typeof Logger.log==='function')Logger.log('[SWAP20_PERF] '+JSON.stringify({step:'canonicalGuard',ms:Date.now()-perfStart,reusedPair:!!input.canonicalPair}));
   return {ok:true,readOnly:true,commitAuthorized:false,requiresPairLock:true,requiresDurableJournal:true,auditIds:[a,b],minutesA:minutesA,minutesB:minutesB};
 }

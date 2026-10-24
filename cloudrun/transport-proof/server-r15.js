@@ -364,7 +364,7 @@ async function swap20ReadList(actor){
   return canonical;
  })().then(async data=>{
   console.info('[SWAP20_LIST_PERF]',JSON.stringify({role:actor.role,source:'GAS',ms:Date.now()-started,ok:data?.ok===true}));
-  if(data?.ok===true&&!swap20Index&&generation===swap20ListGeneration)swap20Lists.set(key,{data,expires:Date.now()+90000});
+  if(data?.ok===true&&!swap20Index&&generation===swap20ListGeneration)swap20Lists.set(key,{data,expires:Date.now()+12000});
   return data;
  }).catch(err=>{console.error('[SWAP20_LIST_PERF]',JSON.stringify({role:actor.role,source:'GAS',ms:Date.now()-started,ok:false,code:String(err?.message||'UNKNOWN').slice(0,90)}));throw err;}).finally(()=>{if(swap20ListInflight.get(key)===call)swap20ListInflight.delete(key);});
  swap20ListInflight.set(key,call);

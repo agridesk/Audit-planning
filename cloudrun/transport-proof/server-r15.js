@@ -45,13 +45,20 @@ if(!runtime.isDev){
 process.env.PORT=String(innerPort);
 await import('./server-r12.js');
 process.env.PORT=String(port);
-const tokenState={token:'',expires:0};
+const tokenState={token:'',expires:0,inflight:null};
 async function getToken(){
  if(tokenState.token&&Date.now()<tokenState.expires-60000)return tokenState.token;
- const r=await fetch('http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',{headers:{'Metadata-Flavor':'Google'}});
- if(!r.ok)throw Error('METADATA_TOKEN_'+r.status);
- const j=await r.json();tokenState.token=j.access_token;tokenState.expires=Date.now()+(Number(j.expires_in)||300)*1000;
- if(!tokenState.token)throw Error('METADATA_TOKEN_MISSING');return tokenState.token;
+ if(tokenState.inflight)return tokenState.inflight;
+ const request=(async()=>{
+  const r=await fetch('http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',{headers:{'Metadata-Flavor':'Google'},signal:AbortSignal.timeout(5000)});
+  if(!r.ok)throw Error('METADATA_TOKEN_'+r.status);
+  const j=await r.json();
+  if(!j.access_token)throw Error('METADATA_TOKEN_MISSING');
+  tokenState.token=j.access_token;tokenState.expires=Date.now()+(Number(j.expires_in)||300)*1000;
+  return tokenState.token;
+ })();
+ tokenState.inflight=request;
+ try{return await request;}finally{if(tokenState.inflight===request)tokenState.inflight=null;}
 }
 async function getRoster(){
  const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent("'Auditors'!A1:AZ500");

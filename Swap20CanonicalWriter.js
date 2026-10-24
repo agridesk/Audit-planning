@@ -1,6 +1,7 @@
 /** Canonical pair writer: preserves identity, lifecycle and auditor assignments. */
 function Swap20_writeCanonicalPairLocked_(before,proposal){
- Swap20_verifyCanonicalBeforeImages_(before);
+ // Caller already verifies the same before-images immediately before WRITING.
+ // Script lock is held; do not re-read both full canonical rows here.
  var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(before.sheetName),headers=before.headers;
  function col(names){var h=headers.map(function(x){return String(x||'').toLowerCase().replace(/[ _-]/g,'');});for(var i=0;i<names.length;i++){var ix=h.indexOf(names[i].toLowerCase().replace(/[ _-]/g,''));if(ix>=0)return ix;}throw Error('Canonical column missing '+names[0]);}
  var json=col(['Planning JSON']),date=col(['Date - Planned']),assigned=col(['Assigned to']),status=col(['Status']);

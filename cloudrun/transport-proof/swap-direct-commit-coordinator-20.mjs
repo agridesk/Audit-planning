@@ -18,6 +18,10 @@ export function createSwapDirectCommitCoordinator({project,readProposal,readPair
    throw Error('SWAP_DIRECT_PROPOSAL_NOT_CONFIRMED');
   const ids=[proposal.auditA,proposal.auditB];
   const [pair,availability]=await Promise.all([readPair(ids),readAvailability(ids)]);
+  if(pair.some(row=>row?.source!=='firestore-canonical')||
+     availability.some(row=>row?.source!=='firestore-canonical')||
+     proposal.source!=='firestore-canonical')
+   throw Error('SWAP_DIRECT_CANONICAL_MIGRATION_REQUIRED');
   const writeSet=buildSwapFirestoreWriteSet({project,operationId,proposal,pair,availability,actorEmail:actor.email});
   const result=await atomicWriter.commit(writeSet);
   if(!result.ok)return {ok:false,code:result.conflict?'SWAP_DIRECT_REVISION_CONFLICT':'SWAP_DIRECT_COMMIT_FAILED'};

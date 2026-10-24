@@ -87,3 +87,6 @@ User confirmed `audit-management-system-2-prod` (project number `360556060824`, 
 
 ## PROD IAM and Artifact Registry bootstrap — 2026-10-24
 User provided successful CMD evidence: `ams20-prod-runtime@audit-management-system-2-prod.iam.gserviceaccount.com` and `ams20-prod-scheduler@audit-management-system-2-prod.iam.gserviceaccount.com` created; runtime granted project `roles/datastore.user` and `roles/logging.logWriter`; Artifact Registry Docker repo `ams-cloud20` created in `europe-west1`. Project default Compute SA `360556060824-compute@developer.gserviceaccount.com` still has inherited `roles/editor` and must NOT be used for Cloud Run PROD runtime. No Firestore database, Cloud Run service, build/deployment, scheduler or live traffic. Next: safe infrastructure readback and dedicated Firestore provisioning, with application release blockers still enforced.
+
+## PROD infrastructure readback — 2026-10-24
+User ran read-only `gcloud` inventory against `audit-management-system-2-prod`: Firestore databases 0; SAs active: `ams20-prod-scheduler`, `ams20-prod-runtime`, default Compute; Docker Artifact Registry `ams-cloud20` in `europe-west1`; Cloud Run services 0. This verifies an isolated *empty* infrastructure, not PROD release readiness. Firestore database creation and collection-namespace release guards still pending.

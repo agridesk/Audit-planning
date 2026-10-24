@@ -6,6 +6,6 @@ export function createSwapFirestoreDevTransport(options={}){
  if(typeof project!=='string'||!project.endsWith('-dev'))throw Error('SWAP_DEV_PROJECT_REQUIRED');
  const reader=createSwapFirestoreCanonicalReader({project,getToken,fetchImpl});
  const writer=createSwapFirestoreAtomicWriter({project,getToken,fetchImpl});
- const coordinator=createSwapDirectCommitCoordinator({project,readProposal:reader.readProposal,readPair:reader.readPair,readAvailability:reader.readAvailability,atomicWriter:writer,authorize,resolveFinalReservations,enabled});
+ const coordinator=createSwapDirectCommitCoordinator({project,readProposal:reader.readProposal,readJournal:reader.readJournal,readPair:reader.readPair,readAvailability:reader.readAvailability,atomicWriter:writer,authorize,resolveFinalReservations,enabled});
  return Object.freeze({...reader,commit:coordinator.commit});
 }

@@ -1,0 +1,9 @@
+AMS CLOUD 2.0 — READINESS EVIDENCE CORRECTION (2026-10-24)
+
+Scope: source-only release evidence. No PROD release authorization.
+
+1. The `knownGuards` boolean substring checks in `prod-release-evidence-20.mjs` do NOT prove route reachability or PROD authorization. Treat their outcomes as NOT_VERIFIED until route-level tests verify them.
+2. Running DEV revision 02981-cmb matches automatic build a618c6d0 at GitHub commit 1a383a3d (image digest sha256:03569835b50ab8aca2fc1c2b0401b9e6e6b64f30a306a9840b338fe25ef79641). That evidence is DEV-only.
+3. The Firestore adapter still defaults to a DEV-named collection. Realized-hours handler retains a direct Sheets write with per-process serialization, not verified cross-instance CAS.
+4. Issue #45 lifecycle and combined visit work is owned by a separate chat. Neither a source-level guard nor an HTTP 200 from scheduler proves integrated lifecycle E2E safety.
+5. Release gates remain OPEN. The original evidence-generator guard classification should be corrected after source ownership and concurrency are reconciled.

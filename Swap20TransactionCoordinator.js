@@ -2,7 +2,7 @@
  * Swap transaction coordinator. Runs only on DEV; caller must hold script lock.
  * All before-images are journaled before any write.
  */
-function Swap20_executeLocked_(proposal){
+function Swap20_executeLocked_(proposal,lockedHistory){
  if(String(PropertiesService.getScriptProperties().getProperty('AMS_ENV')||'').toUpperCase()!=='DEV')throw Error('Swap writes restricted to DEV');
  if(!proposal||proposal.status!=='CONFIRMED')throw Error('Confirmed proposal required');
  if(proposal.dateChanged===true&&(!Array.isArray(proposal.requiredAuditorUids)||!proposal.requiredAuditorUids.length||!Array.isArray(proposal.acknowledgedAuditorUids)||proposal.requiredAuditorUids.some(function(uid){return proposal.acknowledgedAuditorUids.indexOf(uid)<0;})))throw Error('Swap auditor acknowledgements incomplete');
@@ -11,7 +11,7 @@ function Swap20_executeLocked_(proposal){
  var persisted=Swap20Store_read_(proposal.operationId);
  if(!persisted||persisted.status!=='CONFIRMED'||JSON.stringify(persisted)!==JSON.stringify(proposal))throw Error('Proposal changed before commit');
  var persistedReadMs=Date.now()-entryStarted;
- var history=Swap20Journal_history_(proposal.operationId);
+ var history=Array.isArray(lockedHistory)?lockedHistory:Swap20Journal_history_(proposal.operationId);
  if(history.length&&(history.length!==1||history[0].stage!=='PREPARED'))throw Error('Existing journal requires recovery');
  var journalHistoryMs=Date.now()-entryStarted-persistedReadMs;
  console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:proposal.operationId,phase:'entryReads',persistedReadMs:persistedReadMs,journalHistoryMs:journalHistoryMs,elapsedMs:Date.now()-entryStarted}));

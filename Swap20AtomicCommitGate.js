@@ -20,9 +20,12 @@ function Swap20ManagerCommitAuthorized_(input,auth){
  }
  console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:String(input.operationId||''),phase:'lockAcquired',waitMs:Date.now()-lockStarted}));
  try{
+  var gateReadStarted=Date.now();
   var proposal=Swap20Store_read_(input.operationId);
   if(!proposal)throw Error('Swap proposal missing');
+  var gateProposalMs=Date.now()-gateReadStarted;
   var history=Swap20Journal_history_(proposal.operationId);
+  console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:proposal.operationId,phase:'gateReads',proposalMs:gateProposalMs,journalMs:Date.now()-gateReadStarted-gateProposalMs,historyCount:history.length}));
   if(history.length){
    var last=history[history.length-1].stage;
    if(last==='COMMITTED'){

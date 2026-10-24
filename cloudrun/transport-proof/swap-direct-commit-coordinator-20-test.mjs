@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import {createSwapDirectCommitCoordinator} from './swap-direct-commit-coordinator-20.mjs';
 const timestamp='2026-10-25T10:00:00Z';
-const proposal={operationId:'swap_12345678',auditA:'A',auditB:'B',status:'CONFIRMED',updateTime:timestamp,dateChanged:true,requiredAuditorUids:['u1'],acknowledgedAuditorUids:['u1'],blocksA:['2026-10-27'],blocksB:['2026-10-26']};
-const pair=['A','B'].map((auditId,i)=>({auditId,status:'Accepted',updateTime:timestamp,canonical:{plannedBlocks:['2026-10-'+(26+i)]}}));
-const availability=['A','B'].map(auditId=>({auditId,updateTime:timestamp,reservations:['reservation-'+auditId]}));
+const proposal={operationId:'swap_12345678',auditA:'A',auditB:'B',source:'firestore-canonical',status:'CONFIRMED',updateTime:timestamp,dateChanged:true,requiredAuditorUids:['u1'],acknowledgedAuditorUids:['u1'],blocksA:['2026-10-27'],blocksB:['2026-10-26']};
+const pair=['A','B'].map((auditId,i)=>({auditId,source:'firestore-canonical',status:'Accepted',updateTime:timestamp,canonical:{plannedBlocks:['2026-10-'+(26+i)]}}));
+const availability=['A','B'].map(auditId=>({auditId,source:'firestore-canonical',updateTime:timestamp,reservations:['reservation-'+auditId]}));
 let writes=0,authorized=0;
 const deps={project:'ams-test-dev',readProposal:async()=>proposal,readPair:async()=>pair,readAvailability:async()=>availability,
  authorize:async()=>{authorized++;return true;},atomicWriter:{commit:async set=>{writes++;assert.equal(set.writes.length,6);return {ok:true,commitTime:timestamp,writeCount:6};}}};
@@ -16,6 +16,9 @@ await assert.rejects(enabled.commit({operationId:proposal.operationId,actor:{rol
 assert.equal(writes,0);
 const success=await enabled.commit({operationId:proposal.operationId,actor});
 assert.equal(success.committed,true);
+assert.equal(writes,1);
+const notMigrated=createSwapDirectCommitCoordinator({...deps,enabled:true,readPair:async()=>pair.map(row=>({...row,source:'sheets'}))});
+await assert.rejects(notMigrated.commit({operationId:proposal.operationId,actor}),/SWAP_DIRECT_CANONICAL_MIGRATION_REQUIRED/);
 assert.equal(writes,1);
 assert.equal(authorized,1);
 const conflict=createSwapDirectCommitCoordinator({...deps,enabled:true,atomicWriter:{commit:async()=>({ok:false,conflict:true})}});

@@ -264,3 +264,16 @@ function RUN_DIAG_SWAP20_LATEST_MANAGER_FAILURE_DEV_20261024(){
  });
  Logger.log(JSON.stringify(out));return out;
 }
+
+function RUN_DIAG_SWAP20_PREPARED_CAUSE_DEV_20261024(){
+ var sp=PropertiesService.getScriptProperties();
+ if(sp.getProperty('AMS_ENV')!=='DEV'||sp.getProperty('V5_SSOT_SPREADSHEET_ID')!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')throw Error('DEV_ONLY');
+ var id='SWAP20_aded19c574a940b398b8c1ded84ff9e9',p=Swap20Store_read_(id),h=Swap20Journal_history_(id);
+ if(!p||h.length!==1||h[0].stage!=='PREPARED')throw Error('NOT_PREPARED');
+ var before=h[0].payload&&h[0].payload.canonical;
+ var out={id:id,status:p.status,journalStage:'PREPARED',snapshotRows:before&&before.rows&&before.rows.length};
+ try{out.canonicalVerified=Swap20_verifyCanonicalBeforeImages_(before);}catch(e){out.canonicalError=String(e.message||e);}
+ try{out.proposalUnchanged=JSON.stringify(Swap20Store_read_(id))===JSON.stringify(p);}catch(e){out.proposalError=String(e.message||e);}
+ try{var a=Swap20_captureAvailabilityBeforeImages_();out.availabilityHeight=a.height;}catch(e){out.availabilityError=String(e.message||e);}
+ Logger.log(JSON.stringify(out));return out;
+}

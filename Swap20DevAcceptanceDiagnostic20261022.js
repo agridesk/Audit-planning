@@ -323,3 +323,13 @@ function RUN_DIAG_SWAP20_RESUME_STAGES_DEV_20261024(){
  if(c)check('canonicalVerify',function(){return Swap20_verifyCanonicalBeforeImages_(c);});
  Logger.log(JSON.stringify(out));return out;
 }
+
+function RUN_READ_SWAP20_MANAGER_COMMIT_ERROR_DEV_20261024(){
+ var sp=PropertiesService.getScriptProperties();
+ if(sp.getProperty('AMS_ENV')!=='DEV')throw Error('DEV_ONLY');
+ var id='SWAP20_aded19c574a940b398b8c1ded84ff9e9';
+ var p=Swap20Store_read_(id),h=Swap20Journal_history_(id);
+ var raw=sp.getProperty('AMS_SWAP20_LAST_COMMIT_ERROR_'+id);
+ var out={operationId:id,status:p&&p.status,journalStages:h.map(function(x){return x.stage;}),lastError:raw?JSON.parse(raw):null};
+ Logger.log(JSON.stringify(out));return out;
+}

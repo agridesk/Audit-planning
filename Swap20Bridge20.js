@@ -106,7 +106,7 @@ function Swap20Bridge20_handle_(body) {
   });
   items.sort(function(a,b){return String(b.createdAt).localeCompare(String(a.createdAt));});
   return {ok:true,readOnly:true,items:items.slice(0,100),
-    attentionCount:items.filter(function(p){return p.status==='CONFIRMED'||p.status==='DECLINED';}).length};
+    attentionCount:items.length};
  }
  if(operation==='getProposal') {
   var id=String(body.operationId||'').trim(),p=Swap20Store_read_(id);

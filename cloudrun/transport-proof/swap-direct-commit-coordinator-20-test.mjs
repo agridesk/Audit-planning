@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createSwapDirectCommitCoordinator} from './swap-direct-commit-coordinator-20.mjs';
 const timestamp='2026-10-25T10:00:00Z';
-const proposal={operationId:'swap_12345678',auditA:'A',auditB:'B',status:'CONFIRMED',updateTime:timestamp,dateChanged:true,requiredAuditorUids:['u1'],acknowledgedAuditorUids:['u1']};
+const proposal={operationId:'swap_12345678',auditA:'A',auditB:'B',status:'CONFIRMED',updateTime:timestamp,dateChanged:true,requiredAuditorUids:['u1'],acknowledgedAuditorUids:['u1'],blocksA:['2026-10-27'],blocksB:['2026-10-26']};
 const pair=['A','B'].map((auditId,i)=>({auditId,status:'Accepted',updateTime:timestamp,canonical:{plannedBlocks:['2026-10-'+(26+i)]}}));
 const availability=['A','B'].map(auditId=>({auditId,updateTime:timestamp,reservations:['reservation-'+auditId]}));
 let writes=0,authorized=0;

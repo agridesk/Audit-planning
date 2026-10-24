@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {buildSwapFirestoreWriteSet} from './swap-firestore-writeset-20.mjs';
+const time='2026-10-25T10:00:00Z';
+const proposal={operationId:'swap_12345678',auditA:'A',auditB:'B',status:'CONFIRMED',dateChanged:true,requiredAuditorUids:['u1'],acknowledgedAuditorUids:['u1']};
+const pair=[{auditId:'A',status:'Accepted',updateTime:time,canonical:{plannedBlocks:['2026-10-26'],status:'Accepted'}},{auditId:'B',status:'Accepted',updateTime:time,canonical:{plannedBlocks:['2026-10-27'],status:'Accepted'}}];
+const availability=[{auditId:'A',updateTime:time,reservations:['rA']},{auditId:'B',updateTime:time,reservations:['rB']}];
+const input={project:'ams-test-dev',operationId:proposal.operationId,proposal,pair,availability,actorEmail:'manager@example.test',now:time};
+const result=buildSwapFirestoreWriteSet(input);
+assert.equal(result.writes.length,5);
+assert.equal(result.writes[4].currentDocument.exists,false);
+assert.equal(JSON.parse(result.writes[0].update.fields.payload.stringValue).plannedBlocks[0],'2026-10-27');
+assert.equal(JSON.parse(result.writes[1].update.fields.payload.stringValue).reservations[0],'rB');
+assert.equal(pair[0].canonical.plannedBlocks[0],'2026-10-26');
+assert.throws(()=>buildSwapFirestoreWriteSet({...input,proposal:{...proposal,acknowledgedAuditorUids:[]}}),/SWAP_WRITESET_ACK_INCOMPLETE/);
+assert.throws(()=>buildSwapFirestoreWriteSet({...input,pair:[pair[1],pair[0]]}),/SWAP_WRITESET_PAIR_INVALID/);
+assert.throws(()=>buildSwapFirestoreWriteSet({...input,availability:[availability[1],availability[0]]}),/SWAP_WRITESET_PAIR_INVALID/);
+console.log('SWAP Firestore write-set validation passed');

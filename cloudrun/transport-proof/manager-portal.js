@@ -554,10 +554,12 @@ async function swap20GridRequest(role,operation,body){
   return result;
 }
 async function swap20GridFetch(role,operation,body){
+  var started=performance.now();
   var response=await fetch("/api/v1/"+role+"/swap20/"+operation,{
     method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},
     body:JSON.stringify(body||{})});
   var data=await response.json().catch(function(){return {ok:false,error:"SWAP_RESPONSE_INVALID"}});
+  console.info("[SWAP20_CLIENT_PERF]",JSON.stringify({role:role,operation:operation,ms:Math.round(performance.now()-started),httpStatus:response.status,ok:response.ok&&data.ok===true}));
   if(!response.ok||data.ok!==true)throw Error(String(data.error||data.code||data.status||"SWAP_REQUEST_FAILED"));
   return data;
 }

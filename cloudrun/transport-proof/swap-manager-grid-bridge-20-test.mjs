@@ -99,5 +99,5 @@ assert.throws(()=>ctx.Swap20Bridge20_handle_(req),/SWAP_DEV_ENV_OR_SSOT_MISMATCH
 console.log('SWAP Manager Grid signed preview/proposal bridge: PASS');
 
 // Once a commit has been attempted, the UI must not silently re-arm Apply.
-assert.match(portal, /finally\{apply\.disabled=true;apply\.title=/);
-assert.doesNotMatch(portal, /finally\{apply\.disabled=false;\}\s*\};\s*card\.appendChild\(apply\)/);
+assert.match(ui, /finally\{apply\.disabled=true;apply\.title=/);
+assert.doesNotMatch(ui, /finally\{apply\.disabled=false;\}\s*\};\s*card\.appendChild\(apply\)/);

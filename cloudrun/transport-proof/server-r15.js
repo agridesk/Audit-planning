@@ -268,10 +268,11 @@ async function notificationGasCallOnce(actor,operation,payload,gasAction){
  let result,stage='post';
  const bridgeStarted=Date.now();
  const swapBridge=gasAction==='externalswap20';
+ const swapOperationId=swapBridge?String(payload?.operationId||'').slice(0,100):'';
  try{
   const first=await fetch(u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({bridgeKey:secret,actorRole:gasAction==='externalswap20'&&actor.role==='auditor'?'auditor':'manager',actorEmail:actor.email,operation,...payload}),redirect:'manual',signal:AbortSignal.timeout(swapBridge?45000:60000)});
   result=first;
-  if(swapBridge)console.info('[SWAP20_BRIDGE_PHASE_PERF]',JSON.stringify({operation,phase:'postResponse',ms:Date.now()-bridgeStarted,httpStatus:first.status}));
+  if(swapBridge)console.info('[SWAP20_BRIDGE_PHASE_PERF]',JSON.stringify({operation,operationId:swapOperationId,phase:'postResponse',ms:Date.now()-bridgeStarted,httpStatus:first.status}));
   // Apps Script ContentService redirects its JSON response to googleusercontent.
   // Follow the response with GET; never replay the write POST or forward the bridge secret.
   if([301,302,303,307,308].includes(first.status)){
@@ -281,14 +282,14 @@ async function notificationGasCallOnce(actor,operation,payload,gasAction){
    if(target.protocol!=='https:'||!target.hostname.endsWith('.googleusercontent.com'))throw Error('NOTIFICATION_GAS_REDIRECT_REJECTED');
    stage='redirect_get';
    result=await fetch(target,{method:'GET',redirect:'follow',signal:AbortSignal.timeout(swapBridge?15000:60000)});
-   if(swapBridge)console.info('[SWAP20_BRIDGE_PHASE_PERF]',JSON.stringify({operation,phase:'redirectResponse',ms:Date.now()-bridgeStarted,httpStatus:result.status}));
+   if(swapBridge)console.info('[SWAP20_BRIDGE_PHASE_PERF]',JSON.stringify({operation,operationId:swapOperationId,phase:'redirectResponse',ms:Date.now()-bridgeStarted,httpStatus:result.status}));
   }
  }catch(err){
   const cause=err?.message?.startsWith('NOTIFICATION_GAS_')?err.message:(err?.cause?.code||err?.name||'NETWORK_ERROR');
-  console.error('[NOTIFICATION_GAS_BRIDGE]',JSON.stringify({operation,stage,cause:String(cause).slice(0,80),ms:Date.now()-bridgeStarted}));
+  console.error('[NOTIFICATION_GAS_BRIDGE]',JSON.stringify({operation,operationId:swapOperationId,stage,cause:String(cause).slice(0,80),ms:Date.now()-bridgeStarted}));
   throw Error(String(cause).startsWith('NOTIFICATION_GAS_')?cause:'NOTIFICATION_GAS_TRANSPORT_'+String(cause).replace(/[^A-Z0-9_]/gi,'_'));
  }
- if(swapBridge)console.info('[SWAP20_BRIDGE_PHASE_PERF]',JSON.stringify({operation,phase:'responseReady',ms:Date.now()-bridgeStarted,httpStatus:result.status}));
+ if(swapBridge)console.info('[SWAP20_BRIDGE_PHASE_PERF]',JSON.stringify({operation,operationId:swapOperationId,phase:'responseReady',ms:Date.now()-bridgeStarted,httpStatus:result.status}));
  if(!result.ok){
   console.error('[NOTIFICATION_GAS_BRIDGE]',JSON.stringify({operation,stage,status:result.status,host:new URL(result.url).hostname}));
   throw Error('NOTIFICATION_GAS_HTTP_'+result.status+'_'+stage.toUpperCase());

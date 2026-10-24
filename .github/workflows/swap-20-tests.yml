@@ -6,12 +6,18 @@ on:
       - 'Swap20*.js'
       - 'cloudrun/transport-proof/swap-*.mjs'
       - 'cloudrun/transport-proof/package.json'
+      - 'cloudrun/transport-proof/manager-portal.js'
+      - 'cloudrun/transport-proof/server-r15.js'
+      - 'cloudrun/transport-proof/swap-proposal-index-20.mjs'
       - '.github/workflows/swap-20-tests.yml'
   pull_request:
     paths:
       - 'Swap20*.js'
       - 'cloudrun/transport-proof/swap-*.mjs'
       - 'cloudrun/transport-proof/package.json'
+      - 'cloudrun/transport-proof/manager-portal.js'
+      - 'cloudrun/transport-proof/server-r15.js'
+      - 'cloudrun/transport-proof/swap-proposal-index-20.mjs'
       - '.github/workflows/swap-20-tests.yml'
 jobs:
   swap-regressions:

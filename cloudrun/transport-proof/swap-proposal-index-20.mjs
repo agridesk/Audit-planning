@@ -77,7 +77,7 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch,now=Da
   items.sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
   return {ok:true,readOnly:true,items:items.slice(0,actor.role==='manager'?100:50),
    attentionCount:items.filter(p=>actor.role==='manager'?
-    p.status==='CONFIRMED'||p.status==='DECLINED':!p.acknowledged).length};
+    true:!p.acknowledged).length};
  }
  let verifiedSnapshot=null;
  async function read(actor){

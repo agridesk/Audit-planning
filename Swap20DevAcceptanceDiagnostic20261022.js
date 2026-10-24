@@ -214,3 +214,28 @@ function RUN_DIAG_SWAP20_LIVE_PAIR_DEV_20261024(){
  });
  Logger.log(JSON.stringify(out));return out;
 }
+
+function RUN_REFRESH_SWAP20_A_REVISION_DEV_20261024(){
+ var sp=PropertiesService.getScriptProperties();
+ if(sp.getProperty('AMS_ENV')!=='DEV'||sp.getProperty('V5_SSOT_SPREADSHEET_ID')!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs'||sp.getProperty('AMS_SWAP20_COMMIT_ENABLED')==='true')throw Error('DEV_GATE_REQUIRED');
+ var id='SWAP20_75c82baa8f8248dc93690667df7a6c07',lock=LockService.getScriptLock();
+ if(!lock.tryLock(20000))throw Error('LOCK_BUSY');
+ try{
+  var key=Swap20Store_key_(id),raw=sp.getProperty(key),p=JSON.parse(raw);
+  if(p.status!=='CONFIRMED'||Swap20Journal_history_(id).length)throw Error('NOT_READY');
+  var pair=Swap20_readCanonicalPair({auditA:p.auditA,auditB:p.auditB});
+  if(!pair.eligible||pair.auditA.status!=='Accepted'||pair.auditB.status!=='Accepted')throw Error('NOT_ELIGIBLE');
+  if(pair.auditB.revision!==p.originalRevisions[p.auditB])throw Error('B_REVISION_CHANGED');
+  function match(x,d,s,e,h){return x.length===1&&x[0].date===d&&x[0].start===s&&x[0].end===e&&Number(x[0].hours)===h&&x[0].executionType==='ONSITE'&&x[0].execLoc==='HQ';}
+  if(!match(pair.auditA.blocks,'2026-11-18','09:00','14:00',5)||!match(pair.auditB.blocks,'2026-10-26','09:00','15:00',6))throw Error('ORIGINAL_SCHEDULE_CHANGED');
+  if(pair.auditA.assignedTo!=='info@agridesk.com'||pair.auditB.assignedTo!=='info@agridesk.com')throw Error('AUDITOR_CHANGED');
+  var row=PRT_readCanonicalRow_(p.auditA),fresh=PRT_result_(p.auditA,row.headers,row.row,'swap snapshot',row.rowNumber);
+  if(fresh.revision!==pair.auditA.revision)throw Error('REVISION_READ_CONFLICT');
+  p.originalRevisions[p.auditA]=fresh.revision;
+  Swap20CanonicalCommitGuard({auditA:p.auditA,auditB:p.auditB,expectedRevisions:p.originalRevisions,blocksA:p.blocksA,blocksB:p.blocksB});
+  Swap20_captureCanonicalBeforeImages_(p);
+  if(sp.getProperty(key)!==raw)throw Error('CONCURRENT_UPDATE');
+  sp.setProperty(key,JSON.stringify(p));
+  var out={ok:true,status:p.status,updatedAudit:'A',canonicalWrites:0,managerDecisionPending:true};Logger.log(JSON.stringify(out));return out;
+ }finally{lock.releaseLock();}
+}

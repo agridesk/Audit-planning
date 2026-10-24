@@ -162,3 +162,40 @@ function RUN_DIAG_SWAP20_CANONICAL_FIELDS_DEV_20261024(){
  });
  Logger.log(JSON.stringify({readOnly:true,proposals:output}));return output;
 }
+
+ 
+// DEV-only guarded revision refresh; preserves manager's final Confirm/Withdraw decision.
+function RUN_REPAIR_SWAP20_CONFIRMED_REVISION_DEV_20261024(){
+ var props=PropertiesService.getScriptProperties();
+ if(props.getProperty('AMS_ENV')!=='DEV'||props.getProperty('V5_SSOT_SPREADSHEET_ID')!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')throw Error('DEV_ONLY');
+ if(props.getProperty('AMS_SWAP20_COMMIT_ENABLED')==='true')throw Error('COMMIT_GATE_MUST_BE_OFF');
+ var id='SWAP20_75c82baa8f8248dc93690667df7a6c07';
+ var lock=LockService.getScriptLock();if(!lock.tryLock(20000))throw Error('LOCK_BUSY');
+ try{
+  var key=Swap20Store_key_(id),raw=props.getProperty(key);
+  if(!raw)throw Error('PROPOSAL_MISSING');
+  var p=JSON.parse(raw);
+  if(p.status!=='CONFIRMED')throw Error('NOT_CONFIRMED');
+  if(Swap20Journal_history_(id).length)throw Error('TRANSACTION_ALREADY_STARTED');
+  var pair=Swap20_readCanonicalPair({auditA:p.auditA,auditB:p.auditB});
+  if(!pair.eligible)throw Error('PAIR_NOT_ELIGIBLE');
+  if(String(pair.auditB.revision)!==String(p.originalRevisions[p.auditB]))throw Error('AUDIT_B_CHANGED');
+  function slot(b){return JSON.stringify((b||[]).map(function(x){return [x.date,x.start,x.end];}));}
+  if(slot(pair.auditA.blocks)!==JSON.stringify([['2026-11-18','09:00','14:00']]))throw Error('AUDIT_A_SCHEDULE_CHANGED');
+  if(slot(pair.auditB.blocks)!==JSON.stringify([['2026-10-26','09:00','15:00']]))throw Error('AUDIT_B_SCHEDULE_CHANGED');
+  if(String(pair.auditA.assignedTo||'').toLowerCase()!=='info@agridesk.com'||String(pair.auditB.assignedTo||'').toLowerCase()!=='info@agridesk.com')throw Error('AUDITOR_CHANGED');
+  var row=PRT_readCanonicalRow_(p.auditA);
+  var index=row.headers.map(function(h){return String(h).toLowerCase().replace(/[^a-z0-9]/g,'');});
+  function val(n){var i=index.indexOf(n);if(i<0)throw Error('MISSING_'+n);return row.row[i];}
+  if(String(val('status')).toLowerCase()!=='accepted')throw Error('STATUS_CHANGED');
+  var plan=JSON.parse(String(val('planningjson')));
+  if(slot(plan.blocks)!==slot(pair.auditA.blocks)||Number(plan.formalHours)!==5||String(plan.auditorEmail||'').toLowerCase()!=='info@agridesk.com')throw Error('CANONICAL_DETAILS_CHANGED');
+  var next=JSON.parse(raw);next.originalRevisions[p.auditA]=pair.auditA.revision;
+  Swap20CanonicalCommitGuard({auditA:next.auditA,auditB:next.auditB,expectedRevisions:next.originalRevisions,blocksA:next.blocksA,blocksB:next.blocksB});
+  if(Swap20_captureCanonicalBeforeImages_(next).rows.length!==2)throw Error('SNAPSHOT_FAILED');
+  if(props.getProperty(key)!==raw)throw Error('PROPOSAL_CONCURRENT_CHANGE');
+  props.setProperty(key,JSON.stringify(next));
+  var result={ok:true,operationId:id,status:next.status,revisionRefreshed:true,canonicalChanged:false,managerDecisionPending:true};
+  Logger.log(JSON.stringify(result));return result;
+ }finally{lock.releaseLock();}
+}

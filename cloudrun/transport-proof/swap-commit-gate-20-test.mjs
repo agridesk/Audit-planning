@@ -19,7 +19,7 @@ assert.throws(()=>ctx.Swap20ManagerCommit({token:'invalid',operationId:proposal.
 assert.equal(ctx.Swap20ManagerCommit({token:'valid',operationId:proposal.operationId}).code,'SWAP_ATOMIC_WRITE_DISABLED');
 assert.equal(preflight,0);
 enabled=true;
-history=[{stage:'PREPARED'}];
+history=[{stage:'CANONICAL_WRITE_STARTED'}];
 assert.throws(()=>ctx.Swap20ManagerCommit({token:'valid',operationId:proposal.operationId}),/recovery required/);
 proposal.status='WITHDRAWN';
 history=[];

@@ -27,7 +27,7 @@ assert.match(ui,/swap20InternalReason/);
 assert.match(ui,/swap20EcasComment/);
 assert.match(ui,/The audit dates have not been changed/);
 assert.match(server,/async function notificationGasCallOnce/);
-assert.match(server,/\['preview','getProposal','listPending'\]\.includes\(operation\)/);
+assert.match(server,/\['preview','getProposal','listPending','listIndexSeed'\]\.includes\(operation\)/);
 assert.match(server,/SWAP20_READONLY_GAS_RETRY/);
 assert.match(server,/return notificationGasCallOnce\(actor,operation,payload,gasAction\)/);
 assert.match(server,/async function swapRoster\(/);

@@ -8,6 +8,7 @@ const read=(name)=>readFileSync(resolve(dir,name),'utf8');
 const contract=read('prod-readiness-contract-20.mjs');
 const env=read('runtime-environment-20.mjs');
 const r4=read('server-r4.js');
+const r12=read('server-r12.js');
 const r6=read('server-r6.js');
 const entry=read('server-r15.js');
 const checks=[
@@ -23,6 +24,7 @@ const checks=[
  ['legacy manager writer is still inventoried',!r4.includes('async function directManagerApprove(')||contract.includes('PROD_LEGACY_MANAGER_LIFECYCLE_WRITES')],
  ['legacy combined writer is still inventoried',!r6.includes('sheetsValuesBatchUpdate(writes)')||contract.includes('PROD_LEGACY_DIRECT_LIFECYCLE_WRITE')],
  ['realized-hours bypass blocker retained',contract.includes('PROD_REALIZED_HOURS_DIRECT_SHEETS_WRITE')],
+ ['realized-hours route PROD fail-closed',/if\(process\.env\.AMS_RUNTIME_ENV==='PROD'\)return sendJson\(res,503,\{success:false,error:'PROD_REALIZED_HOURS_DIRECT_WRITER_DISABLED'\}\)/.test(r12)],
  ['Firestore environment binding blocker retained',contract.includes('PROD_FIRESTORE_COLLECTION_DEFAULT_DEV')],
  ['release contract explicitly exits nonzero for blockers',contract.includes("process.exitCode=1")],
  ['GAS DEV endpoint gate inventoried',contract.includes('GAS_BRIDGE_DEV_ONLY')],

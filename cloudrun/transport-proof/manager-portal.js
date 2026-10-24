@@ -663,8 +663,8 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
                 return;
               }
             }catch(precheckError){status.textContent="Date exchange blocked: read-only journal verification failed ("+String(precheckError&&precheckError.message||precheckError).slice(0,100)+").";return;}
-            finally{apply.disabled=false;}
-            if(!window.confirm("Apply this approved date change in DEV? Both audit schedules will change."))return;
+            finally{apply.disabled=true;}
+            if(!window.confirm("Apply this approved date change in DEV? Both audit schedules will change.")){apply.disabled=false;return;}
             apply.disabled=true;status.textContent="Applying confirmed audit date exchange...";
             try{
               var outcome=await swap20GridRequest("manager","commit",{operationId:p.operationId});

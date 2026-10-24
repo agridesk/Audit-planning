@@ -96,3 +96,6 @@ User ran read-only `gcloud` inventory against `audit-management-system-2-prod`: 
 
 ## PROD Firestore authoritative direct verification — 2026-10-24
 User ran `gcloud firestore databases describe --database="(default)" --project=audit-management-system-2-prod` and list: `projects/audit-management-system-2-prod/databases/(default)` exists; `FIRESTORE_NATIVE`; `europe-west1`; `createTime: 2026-10-24T12:52:46.899801Z`; `DELETE_PROTECTION_DISABLED`. Previous 0-list was transient / stale compared with authoritative post-create describe; the subsequent create returned `already exists`. This resolves existence uncertainty. Do NOT re-create. Consider enabling delete protection with explicit user authority after operational design approved. Database has not been populated or attached to Cloud Run by this workstream.
+
+## PROD infrastructure IAM/DB/Scheduler verification — 2026-10-24
+User readback: Firestore `(default)` `FIRESTORE_NATIVE` `europe-west1`, deletion protection currently DISABLED; PROD runtime SA only `roles/datastore.user` and `roles/logging.logWriter` from filtered policy; Cloud Run services 0; Scheduler jobs 0. PROD remains inactive. Next safe hardening action: enable Firestore delete protection (explicit CMD), then verify; continue release gate investigation before deploying.

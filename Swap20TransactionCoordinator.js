@@ -29,9 +29,13 @@ function Swap20_executeLocked_(proposal){
  canonical.rows.forEach(function(image){
   var index=canonical.headers.map(function(x){return String(x||'').toLowerCase().replace(/[ _-]/g,'');}).indexOf('assignedto');
   if(index<0)throw Error('Canonical auditor owner missing');
-  var detail=PlanningWorkspacePlannedAuditReadService_get({auditId:image.auditId});
-  if(!detail||!detail.auditorEmail||String(detail.assignedTo||'').trim()!==String(image.values[index]||'').trim())throw Error('Auditor identity mismatch');
-  owners[image.auditId]=String(detail.auditorEmail).trim().toLowerCase();
+  var jsonIndex=canonical.headers.map(function(x){return String(x||'').toLowerCase().replace(/[ _-]/g,'');}).indexOf('planningjson');
+  if(jsonIndex<0)throw Error('Canonical planning JSON missing');
+  var assignedTo=String(image.values[index]||'').trim();
+  var planning=JSON.parse(String(image.values[jsonIndex]||'{}'));
+  var email=String(planning.auditorEmail||assignedTo).trim().toLowerCase();
+  if(!assignedTo||!email||email.indexOf('@')<1)throw Error('Auditor identity mismatch');
+  owners[image.auditId]=email;
  });
  console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:proposal.operationId,phase:'ownerResolution',ms:Date.now()-ownersStarted}));
  var plan=Swap20_availabilityPlan_(availability,proposal,owners);

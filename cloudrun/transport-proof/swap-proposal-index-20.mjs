@@ -87,6 +87,18 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch,now=Da
   metaReadPending=pending;
   try{return await pending;}finally{if(metaReadPending===pending)metaReadPending=null;}
  }
+ async function readProposal(operationId){
+  if(!validId(operationId))throw Error('SWAP_INDEX_OPERATION_INVALID');
+  const state=await readMetaSingleflight();
+  if(!state||state.data.status!=='READY'||!Number.isSafeInteger(state.data.verifiedAtMs)||
+     now()-state.data.verifiedAtMs>=MAX_VERIFIED_AGE_MS||state.data.verifiedAtMs>now())return null;
+  const raw=await doc(operationId);
+  if(!raw)return null;
+  const proposal=validateProposal(decode(raw));
+  const after=await meta();
+  if(!after||after.updateTime!==state.updateTime||after.data.status!=='READY')return null;
+  return proposal;
+ }
  async function read(actor){
   const before=await readMetaSingleflight();
   if(!before||before.data.status!=='READY'||!Number.isSafeInteger(before.data.verifiedAtMs)||now()-before.data.verifiedAtMs>=MAX_VERIFIED_AGE_MS||before.data.verifiedAtMs>now()){
@@ -170,5 +182,5 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch,now=Da
   if(!ready)throw Error('SWAP_INDEX_COMPLETE_CONFLICT');
   return true;
  }
- return Object.freeze({read,bootstrap,begin,finish,abort,reconcile,project:projectList,meta});
+ return Object.freeze({read,readProposal,bootstrap,begin,finish,abort,reconcile,project:projectList,meta});
 }

@@ -329,17 +329,17 @@ async function swap20InvalidateMirror(actor){
  try{await swap20Mirror.bumpEpoch();}catch(e){console.error('[SWAP20_MIRROR_INVALIDATION_FAILED]',String(e?.message||e));}
 }
 async function swap20ReadList(actor){
+ const key=swap20ListKey(actor),now=Date.now(),cached=swap20Lists.get(key);
+ if(cached&&cached.expires>now){console.info('[SWAP20_LIST_PERF]',JSON.stringify({role:actor.role,source:'CACHE',ms:Date.now()-now}));return cached.data;}
+ if(swap20ListInflight.has(key))return swap20ListInflight.get(key);
+ const started=Date.now(),generation=swap20ListGeneration;
+ const call=(async()=>{
  if(swap20Index){
   try{
    const started=Date.now(),direct=await swap20Index.read(actor);
    if(direct){console.info('[SWAP20_INDEX_PERF]',JSON.stringify({role:actor.role,source:'FIRESTORE_INDEX',ms:Date.now()-started}));return direct;}
   }catch(e){console.error('[SWAP20_INDEX_READ_FALLBACK]',String(e?.message||e).slice(0,130));}
  }
- const key=swap20ListKey(actor),now=Date.now(),cached=swap20Lists.get(key);
- if(cached&&cached.expires>now){console.info('[SWAP20_LIST_PERF]',JSON.stringify({role:actor.role,source:'CACHE',ms:Date.now()-now}));return cached.data;}
- if(swap20ListInflight.has(key))return swap20ListInflight.get(key);
- const started=Date.now(),generation=swap20ListGeneration;
- const call=(async()=>{
   if(swap20Mirror){
    try{
     const gen=await swap20Mirror.epoch();const mirrored=gen?await swap20Mirror.read(actor,gen):null;
@@ -364,7 +364,7 @@ async function swap20ReadList(actor){
   return canonical;
  })().then(async data=>{
   console.info('[SWAP20_LIST_PERF]',JSON.stringify({role:actor.role,source:'GAS',ms:Date.now()-started,ok:data?.ok===true}));
-  if(data?.ok===true&&!swap20Index&&generation===swap20ListGeneration)swap20Lists.set(key,{data,expires:Date.now()+12000});
+  if(data?.ok===true&&generation===swap20ListGeneration)swap20Lists.set(key,{data,expires:Date.now()+(swap20Index?3000:12000)});
   return data;
  }).catch(err=>{console.error('[SWAP20_LIST_PERF]',JSON.stringify({role:actor.role,source:'GAS',ms:Date.now()-started,ok:false,code:String(err?.message||'UNKNOWN').slice(0,90)}));throw err;}).finally(()=>{if(swap20ListInflight.get(key)===call)swap20ListInflight.delete(key);});
  swap20ListInflight.set(key,call);

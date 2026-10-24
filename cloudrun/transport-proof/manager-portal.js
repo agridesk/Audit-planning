@@ -550,7 +550,7 @@ async function swap20GridRequest(role,operation,body){
     swap20ListPending[role]=inflight;return inflight;
   }
   var result=await swap20GridFetch(role,operation,body);
-  swap20ListCache.manager=null;swap20ListCache.auditor=null;
+  if(["propose","withdraw","commit","respond"].includes(operation)){swap20ListCache.manager=null;swap20ListCache.auditor=null;}
   return result;
 }
 async function swap20GridFetch(role,operation,body){

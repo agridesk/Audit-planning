@@ -36,7 +36,9 @@ function Swap20_verifyCanonicalBeforeImages_(snapshot){
     if(normalize(before)!==normalize(after))changed.push(String(headers[c]||'column '+(c+1)).slice(0,55));
    }
    console.error('[SWAP20_CANONICAL_REVISION_CONFLICT]',JSON.stringify({auditId:image.auditId,changedColumns:changed.slice(0,30),changedCount:changed.length,tokenMismatchWithoutCellChange:changed.length===0}));
-   throw Error('Canonical revision changed during swap');
+   var conflict=new Error('Canonical revision changed during swap');
+   conflict.swapConflict={auditId:image.auditId,changedColumns:changed.slice(0,30),tokenMismatchWithoutCellChange:changed.length===0};
+   throw conflict;
   }
  });
  return true;

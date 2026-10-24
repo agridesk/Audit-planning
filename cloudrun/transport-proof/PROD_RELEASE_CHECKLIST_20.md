@@ -99,3 +99,6 @@ User ran `gcloud firestore databases describe --database="(default)" --project=a
 
 ## PROD infrastructure IAM/DB/Scheduler verification — 2026-10-24
 User readback: Firestore `(default)` `FIRESTORE_NATIVE` `europe-west1`, deletion protection currently DISABLED; PROD runtime SA only `roles/datastore.user` and `roles/logging.logWriter` from filtered policy; Cloud Run services 0; Scheduler jobs 0. PROD remains inactive. Next safe hardening action: enable Firestore delete protection (explicit CMD), then verify; continue release gate investigation before deploying.
+
+## PROD Firestore deletion protection verified — 2026-10-24
+User executed database update and readback successfully: `projects/audit-management-system-2-prod/databases/(default)` Firestore Native `europe-west1`, `DELETE_PROTECTION_ENABLED`, `freeTier:true`, `POINT_IN_TIME_RECOVERY_DISABLED`, update timestamp `2026-10-24T13:05:13.036048Z`. No PROD Cloud Run deployment / Scheduler job / live traffic. Software release blockers remain and must not be bypassed.

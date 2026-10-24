@@ -115,7 +115,7 @@ function Swap20Bridge20_handle_(body) {
    auditA:p.auditA,auditB:p.auditB,dateChanged:p.dateChanged,
    acknowledgedCount:(p.acknowledgedAuditorUids||[]).length,
    requiredCount:(p.requiredAuditorUids||[]).length,
-   commitEnabled:p.status==='CONFIRMED'&&!journal.requiresManualReview&&(journal.stage==='NONE'||journal.stage==='PREPARED')&&String(PropertiesService.getScriptProperties().getProperty('AMS_SWAP20_COMMIT_ENABLED')||'')==='true'};
+   commitEnabled:p.status==='CONFIRMED'&&!journal.requiresManualReview&&journal.stage==='NOT_STARTED'&&String(PropertiesService.getScriptProperties().getProperty('AMS_SWAP20_COMMIT_ENABLED')||'')==='true'};
  }
  if(operation==='withdraw') {
   var withdrawn=Swap20ManagerWithdrawProposalAuthorized_({operationId:body.operationId},manager);

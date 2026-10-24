@@ -4,6 +4,7 @@ on:
     branches: [dev]
     paths:
       - 'AMS45DevReadOnlySmoke.js'
+      - 'AMS45CombinedVisitCandidatePreflight.js'
       - 'CoreStatusMachine.js'
       - 'StatusNotificationBridge.js'
       - 'RejectedAuditsV5.js'
@@ -47,6 +48,7 @@ jobs:
       - name: Validate changed source syntax
         run: |
           node --check AMS45DevReadOnlySmoke.js
+          node --check AMS45CombinedVisitCandidatePreflight.js
           node --check CoreStatusMachine.js
           node --check StatusNotificationBridge.js
           node --check RejectedAuditsV5.js
@@ -64,6 +66,7 @@ jobs:
       - name: Lifecycle and Model C tests
         run: |
           node tests/ams45-dev-readonly-smoke.test.mjs
+          node tests/ams45-combined-candidate-preflight.test.mjs
           node tests/lifecycle-v212-status-contract.test.mjs
           node tests/lifecycle-cancel-availability-invariant.test.mjs
           node tests/model-c-combined-visit-planner-20.test.mjs

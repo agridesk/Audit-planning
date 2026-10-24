@@ -45,6 +45,15 @@ For actual DEV deployment evidence, an authorized operator can execute the CMD o
 11. Validate health/build endpoint and representative manager/auditor read-only screens, authentication and authorization.
 12. Obtain affirmative release approval before PROD cutover.
 
+## Verified DEV runtime evidence — 2026-10-24 (operator read-only output)
+- Project: `audit-management-system-dev`; service: `ams-transport-proof`; region: `europe-west1`.
+- Active revision: `ams-transport-proof-02981-cmb`, 100% traffic, image digest `sha256:03569835b50ab8aca2fc1c2b0401b9e6e6b64f30a306a9840b338fe25ef79641`.
+- GitHub-triggered Cloud Build `a618c6d0-2497-407e-aaee-ecf0d48d2d88` from `1a383a3d93827730f813e46bc51ba2926830675a` succeeded in npm test, build, push and deploy; output digest matches active revision. **This replaces the earlier obsolete 7028b7e provenance interpretation**; that older label/build does not describe the actual active image provenance.
+- Cloud Scheduler `ams-swap20-reconcile-dev` every five minutes targets the DEV service with its dedicated OIDC service account. Operator logs: HTTP 200 and `SWAP20_INDEX_SCHEDULED_SYNC` `ok:true`, `records:6` on three consecutive checks. This verifies scheduler delivery and application-level index synchronization, **not** full SWAP business correctness.
+- Runtime is `AMS_RUNTIME_ENV=DEV`, uses DEV spreadsheet and GAS bridge; secret values are Secret Manager references. Service runs under the default Compute Engine service account; ingress is public and invoker IAM check disabled. Authorization requires separate verification.
+- All evidence is **DEV-only**. Actual GAS deployed version, PROD runtime, PROD identities/Firestore collections, trigger installations and lifecycle E2E remain NOT_VERIFIED.
+- Build provenance source: operator-supplied `gcloud run revisions describe`, `gcloud builds describe`, `gcloud scheduler jobs describe` and Cloud Logging output; avoid inferring deploy status from build SUCCESS alone.
+
 ## Cutover / rollback
 - Pin and record candidate image digest and configuration version.
 - Deploy new PROD revision with no production traffic; perform authenticated preflight.

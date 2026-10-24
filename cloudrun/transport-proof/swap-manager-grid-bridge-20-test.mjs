@@ -17,6 +17,9 @@ assert.match(ui,/var swap20ListCache=/);
 assert.match(ui,/Date\.now\(\)-cached\.at<12000/);
 assert.match(ui,/swap20ListPending\[role\]/);
 assert.doesNotMatch(ui,/refresh\.textContent="Refresh status"/);
+assert.match(ui,/finally\{busy=false;apply\.disabled=true;\}/);
+assert.match(ui,/finally\{apply\.disabled=true;apply\.title="Commit attempted/);
+assert.doesNotMatch(ui,/finally\{busy=false;apply\.disabled=false;\}/);
 
 assert.match(ui,/managerSwap20InboxDialog/);
 assert.match(server,/\/api\/v1\/manager\/swap20\/list/);

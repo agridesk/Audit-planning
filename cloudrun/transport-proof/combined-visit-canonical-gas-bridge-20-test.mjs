@@ -18,4 +18,9 @@ await assert.rejects(bridge({...base,expectedRevisionsByAudit:{},fetchImpl:ok}),
 await assert.rejects(bridge({...base,gasWriteUrl:'http://example.test',fetchImpl:ok}),/HTTPS_REQUIRED/);
 await assert.rejects(bridge({...base,fetchImpl:async()=>({ok:true,status:200,text:async()=>JSON.stringify({success:false,committed:false,error:'CONFLICT'})})}),/REJECTED_CONFLICT/);
 await assert.rejects(bridge({...base,fetchImpl:async()=>({ok:true,status:200,text:async()=>'<html>'})}),/NON_JSON/);
+const uncertainError=await bridge({...base,fetchImpl:async()=>({ok:true,status:200,text:async()=>JSON.stringify({success:false,committed:false,commitOutcomeUncertain:true,repairRequired:true,error:'COMMIT_UNKNOWN'})})}).then(()=>null,e=>e);
+assert.equal(uncertainError?.commitOutcomeUncertain,true);
+assert.equal(uncertainError?.requiresReconciliation,true);
+assert.equal(uncertainError?.safeToRetry,false);
+assert.match(uncertainError?.message||'',/RECONCILIATION_REQUIRED/);
 console.log('COMBINED_VISIT_CANONICAL_GAS_BRIDGE: PASS');

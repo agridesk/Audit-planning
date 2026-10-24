@@ -642,7 +642,14 @@ function swap20BadgeUpdate(role,count){
   count=Number(count)||0;badge.hidden=count<=0;badge.textContent=count>99?"99+":String(count);
   badge.style.cssText="display:"+(count>0?"inline-flex":"none")+";align-items:center;justify-content:center;margin-left:4px;min-width:19px;height:19px;border-radius:12px;padding:0 5px;background:#dc2626;color:#fff;font-weight:700;font-size:11px";
 }
+var swap20AttentionPending=null;
 async function swap20RefreshAttention(){
+  if(swap20AttentionPending)return swap20AttentionPending;
+  var pending=swap20RefreshAttentionOnce();
+  swap20AttentionPending=pending;
+  try{return await pending;}finally{if(swap20AttentionPending===pending)swap20AttentionPending=null;}
+}
+async function swap20RefreshAttentionOnce(){
   var role=String(actorRole).toLowerCase();
   if(!["manager","auditor"].includes(role))return;
   try{

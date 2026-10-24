@@ -24,7 +24,7 @@ function Swap20_readCanonicalPair(input){
  if(!a||!b||a===b)throw new Error('Swap20: two distinct audit IDs required');
  // SWAP proposals must derive their optimistic-lock tokens from physical sheet
  // cells, not from the potentially cached bulk planning index.
- var rr=PlanningRevisionTokenService_getMany({auditIds:[a,b]}),by={};
+ var by={};
  var sheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Audit planning');
  if(!sheet)throw Error('SWAP_CANONICAL_SHEET_MISSING');
  var width=sheet.getLastColumn();
@@ -39,8 +39,8 @@ function Swap20_readCanonicalPair(input){
   if(PRT_clean_(live[idCol])!==id)throw Error('SWAP_CANONICAL_ROW_MOVED');
   liveItems[id]=PRT_result_(id,liveHeaders,live,'swap live pair',found.rowNumber);
  });
- (rr.items||[]).forEach(function(cachedItem){
-  var item=liveItems[cachedItem.auditId];
+ [a,b].forEach(function(id){
+  var item=liveItems[id];
   if(!item)throw Error('SWAP_CANONICAL_LIVE_PAIR_INCOMPLETE');
   var s=item.snapshot||{},p={};
   try{p=JSON.parse(s.planningJson||'{}');}catch(e){throw new Error('Swap20: invalid canonical planning JSON for '+item.auditId);}

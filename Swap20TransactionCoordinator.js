@@ -48,7 +48,7 @@ function Swap20_executeLocked_(proposal){
  try{
   Swap20_verifyCanonicalBeforeImages_(canonical);
   if(JSON.stringify(Swap20Store_read_(proposal.operationId))!==JSON.stringify(proposal))throw Error('Proposal changed before writing');
-  Swap20Journal_appendLocked_(proposal.operationId,Swap20Journal_history_(proposal.operationId).length,'WRITING',{auditA:proposal.auditA,auditB:proposal.auditB});
+  Swap20Journal_appendLocked_(proposal.operationId,history.length+1,'WRITING',{auditA:proposal.auditA,auditB:proposal.auditB});
   writingStarted=true;
   var writesStarted=Date.now();
   Swap20_writeAvailabilityPlanLocked_(plan,availability);
@@ -57,7 +57,7 @@ function Swap20_executeLocked_(proposal){
   var canonicalWriteMs=Date.now()-writesStarted-availabilityWriteMs;
   Swap20_verifyAppliedPairLocked_(canonical,proposal,plan);
   console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:proposal.operationId,phase:'writeAndVerify',availabilityWriteMs:availabilityWriteMs,canonicalWriteMs:canonicalWriteMs,verificationMs:Date.now()-writesStarted-availabilityWriteMs-canonicalWriteMs}));
-  Swap20Journal_appendLocked_(proposal.operationId,Swap20Journal_history_(proposal.operationId).length,'COMMITTED',{auditA:proposal.auditA,auditB:proposal.auditB});
+  Swap20Journal_appendLocked_(proposal.operationId,history.length+2,'COMMITTED',{auditA:proposal.auditA,auditB:proposal.auditB});
   console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:proposal.operationId,phase:'committed',totalMs:Date.now()-perfStarted}));
   return {success:true,operationId:proposal.operationId,committed:true};
  }catch(err){

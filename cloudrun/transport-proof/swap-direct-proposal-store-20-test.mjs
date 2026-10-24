@@ -25,4 +25,7 @@ assert.equal((await store.compareAndSet(proposal.operationId,prior.updateTime,co
 assert.equal(writes,2);
 await assert.rejects(store.compareAndSet(proposal.operationId,'revision-2',{...confirmed,status:'APPLIED'},()=>false),/SWAP_DIRECT_TRANSITION_REJECTED/);
 assert.equal(writes,2);
+await assert.rejects(store.compareAndSet(proposal.operationId,'revision-2',{...confirmed,auditB:'C'},()=>true),/SWAP_DIRECT_TRANSITION_REJECTED/);
+await assert.rejects(store.compareAndSet(proposal.operationId,'revision-2',{...confirmed,status:'APPLIED'},()=>true),/SWAP_DIRECT_TRANSITION_REJECTED/);
+assert.equal(writes,2);
 console.log('SWAP direct Firestore proposal write concurrency checks passed');

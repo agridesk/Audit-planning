@@ -433,6 +433,12 @@ async function swap20ManagerRequest(req,res,operation){
  const result=operation==='listPending'
   ?await swap20ReadList(actor)
   :await swap20GasOperation(actor,operation,data);
+ // Status is read-only: expose the separate index write gate so that
+ // canonical CONFIRMED/NOT_STARTED cannot be mistaken for end-to-end readiness.
+ if(operation==='getProposal'&&result?.ok===true&&swap20Index){
+  try{const indexState=await swap20Index.meta();result.indexStatus=indexState?.data?.status||'MISSING';result.indexOperationId=indexState?.data?.operationId||'';result.commitEnabled=result.commitEnabled===true&&result.indexStatus==='READY';}
+  catch(err){result.indexStatus='UNAVAILABLE';result.commitEnabled=false;console.error('[SWAP20_INDEX_STATUS_FAILED]',String(err?.message||err).slice(0,140));}
+ }
  if(['propose','withdraw','commit'].includes(operation)&&result?.ok===true){swap20InvalidateLists();await swap20InvalidateMirror(actor);}
  console.info('[SWAP20_REQUEST_PERF]',JSON.stringify({role:'manager',operation,ms:Date.now()-swap20RequestStarted,ok:result?.ok===true}));
  res.writeHead(result?.ok===true?200:409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});

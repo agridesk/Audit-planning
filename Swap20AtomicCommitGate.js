@@ -43,7 +43,7 @@ function Swap20ManagerCommitAuthorized_(input,auth){
    if(!(history.length===1&&last==='PREPARED'&&proposal.status==='CONFIRMED'))throw Error('Swap transaction already journaled; recovery required');
   }
   if(proposal.status!=='CONFIRMED')throw Error('Confirmed swap proposal required');
-  var result=Swap20_executeLocked_(proposal);
+  var result=Swap20_executeLocked_(proposal,history);
   if(!result||result.committed!==true)throw Error('Swap canonical commit unverified');
   var next=JSON.parse(JSON.stringify(proposal));
   next.status='APPLIED';next.canonicalCommitVerified=true;

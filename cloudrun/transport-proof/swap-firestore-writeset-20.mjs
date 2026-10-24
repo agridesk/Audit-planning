@@ -29,7 +29,7 @@ export function buildSwapFirestoreWriteSet({project,operationId,proposal,pair,av
   const row=pair[i],slot=availability[i],finalSlot=finalReservations[i];
   if(!row||row.auditId!==ids[i]||!statusOk(row.status)||!TIMESTAMP.test(row.updateTime||'')||
    !row.canonical||typeof row.canonical!=='object'||!slot||slot.auditId!==ids[i]||
-   !TIMESTAMP.test(slot.updateTime||'')||!Array.isArray(slot.reservations)||!finalSlot||finalSlot.auditId!==ids[i]||!Array.isArray(finalSlot.reservations)||finalSlot.verified!==true)
+   !TIMESTAMP.test(slot.updateTime||'')||!Array.isArray(slot.reservations)||!slot.canonical||typeof slot.canonical!=='object'||!finalSlot||finalSlot.auditId!==ids[i]||!Array.isArray(finalSlot.reservations)||finalSlot.verified!==true)
    throw Error('SWAP_WRITESET_PAIR_INVALID');
   revisions.add(row.updateTime+'|'+row.auditId);
  }
@@ -43,10 +43,11 @@ export function buildSwapFirestoreWriteSet({project,operationId,proposal,pair,av
    throw Error('SWAP_WRITESET_BLOCKS_MISSING');
   const next={...source.canonical,plannedBlocks:i===0?proposal.blocksA:proposal.blocksB};
   writes.push({update:{name:root+'ams_swap20_dev_audits/'+encodeURIComponent(source.auditId),fields:{payload:encode(next)}},currentDocument:{updateTime:source.updateTime}});
-  writes.push({update:{name:root+'ams_swap20_dev_availability/'+encodeURIComponent(slot.auditId),fields:{payload:encode({reservations:finalReservations[i].reservations})}},currentDocument:{updateTime:slot.updateTime}});
+  writes.push({update:{name:root+'ams_swap20_dev_availability/'+encodeURIComponent(slot.auditId),fields:{payload:encode({...slot.canonical,reservations:finalReservations[i].reservations})}},currentDocument:{updateTime:slot.updateTime}});
  }
+ const {updateTime:proposalRevision,source:proposalSource,...storedProposal}=proposal;
  writes.push({update:{name:root+'ams_swap20_dev_proposals/'+operationId,
-  fields:{payload:encode({...proposal,status:'APPLIED',canonicalCommitVerified:true,appliedAt:now,appliedBy:actorEmail})}},
+  fields:{payload:encode({...storedProposal,status:'APPLIED',canonicalCommitVerified:true,appliedAt:now,appliedBy:actorEmail})}},
   currentDocument:{updateTime:proposal.updateTime}});
  const journal={operationId,auditA:ids[0],auditB:ids[1],stage:'COMMITTED',actorEmail,committedAt:now,
   auditRevisions:pair.map(row=>row.updateTime),availabilityRevisions:availability.map(row=>row.updateTime)};

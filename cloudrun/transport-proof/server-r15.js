@@ -424,10 +424,12 @@ async function swap20ManagerRequest(req,res,operation){
   data.operationId=String(body.operationId||'').trim();
   if(!/^[A-Za-z0-9_-]{8,100}$/.test(data.operationId)){res.writeHead(400);res.end('INVALID_SWAP_OPERATION_ID');return;}
  }
+ const swap20RequestStarted=Date.now();
  const result=operation==='listPending'
   ?await swap20ReadList(actor)
   :await swap20GasOperation(actor,operation,data);
  if(['propose','withdraw','commit'].includes(operation)&&result?.ok===true){swap20InvalidateLists();await swap20InvalidateMirror(actor);}
+ console.info('[SWAP20_REQUEST_PERF]',JSON.stringify({role:'manager',operation,ms:Date.now()-swap20RequestStarted,ok:result?.ok===true}));
  res.writeHead(result?.ok===true?200:409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
  res.end(JSON.stringify(Object.fromEntries(Object.entries(result||{}).filter(([k])=>k!=='_mirrorEvent'))));return;
 }
@@ -453,10 +455,12 @@ async function swap20AuditorRequest(req,res,operation){
    res.writeHead(400);res.end('INVALID_AUDITOR_SWAP_RESPONSE');return;
   }
  }
+ const swap20RequestStarted=Date.now();
  const result=operation==='listPending'
   ?await swap20ReadList(actor)
   :await swap20GasOperation(actor,operation,data);
  if(operation==='respond'&&result?.ok===true){swap20InvalidateLists();await swap20InvalidateMirror(actor);}
+ console.info('[SWAP20_REQUEST_PERF]',JSON.stringify({role:'auditor',operation,ms:Date.now()-swap20RequestStarted,ok:result?.ok===true}));
  res.writeHead(result?.ok===true?200:409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
  res.end(JSON.stringify(Object.fromEntries(Object.entries(result||{}).filter(([k])=>k!=='_mirrorEvent'))));return;
 }

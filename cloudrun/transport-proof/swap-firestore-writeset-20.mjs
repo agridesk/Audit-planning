@@ -9,7 +9,7 @@ const statusOk=s=>s==='Accepted';
 const encode=value=>({stringValue:JSON.stringify(value)});
 export function buildSwapFirestoreWriteSet({project,operationId,proposal,pair,availability,actorEmail,now=new Date().toISOString()}={}){
  if(!/^[a-z][a-z0-9-]{4,62}$/.test(project||'')||!ID.test(operationId||'')||
-  !proposal||proposal.operationId!==operationId||proposal.status!=='CONFIRMED'||
+  !proposal||proposal.operationId!==operationId||proposal.status!=='CONFIRMED'||!TIMESTAMP.test(proposal.updateTime||'')||
   !proposal.auditA||!proposal.auditB||proposal.auditA===proposal.auditB||
   !Array.isArray(pair)||pair.length!==2||!Array.isArray(availability)||availability.length!==2||
   !TIMESTAMP.test(now)||typeof actorEmail!=='string'||!actorEmail.includes('@'))
@@ -39,6 +39,9 @@ export function buildSwapFirestoreWriteSet({project,operationId,proposal,pair,av
   writes.push({update:{name:root+'ams_swap20_dev_audits/'+encodeURIComponent(source.auditId),fields:{payload:encode(next)}},currentDocument:{updateTime:source.updateTime}});
   writes.push({update:{name:root+'ams_swap20_dev_availability/'+encodeURIComponent(slot.auditId),fields:{payload:encode({reservations:otherSlot.reservations})}},currentDocument:{updateTime:slot.updateTime}});
  }
+ writes.push({update:{name:root+'ams_swap20_dev_proposals/'+operationId,
+  fields:{payload:encode({...proposal,status:'APPLIED',canonicalCommitVerified:true,appliedAt:now,appliedBy:actorEmail})}},
+  currentDocument:{updateTime:proposal.updateTime}});
  const journal={operationId,auditA:ids[0],auditB:ids[1],stage:'COMMITTED',actorEmail,committedAt:now,
   auditRevisions:pair.map(row=>row.updateTime),availabilityRevisions:availability.map(row=>row.updateTime)};
  writes.push({update:{name:root+'ams_swap20_dev_journal/'+operationId,fields:{payload:encode(journal)}},currentDocument:{exists:false}});

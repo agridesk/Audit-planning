@@ -109,7 +109,15 @@ function Swap20Bridge20_handle_(body) {
   return Swap20Bridge20_mirrorEvent_({ok:withdrawn.success===true,operationId:withdrawn.operationId,status:withdrawn.status},withdrawn.operationId);
  }
  if(operation==='commit') {
-  var committed=Swap20ManagerCommitAuthorized_({operationId:body.operationId},manager);
+  var committed;
+  try{
+   committed=Swap20ManagerCommitAuthorized_({operationId:body.operationId},manager);
+  }catch(err){
+   var msg=String(err&&err.message||err).slice(0,600);
+   Logger.log('[SWAP20_MANAGER_COMMIT_ERROR] '+JSON.stringify({operationId:body.operationId,error:msg,stack:String(err&&err.stack||'').slice(0,1200)}));
+   PropertiesService.getScriptProperties().setProperty('AMS_SWAP20_LAST_COMMIT_ERROR_'+String(body.operationId),JSON.stringify({at:new Date().toISOString(),error:msg}));
+   throw err;
+  }
   return Swap20Bridge20_mirrorEvent_({ok:committed.success===true,error:committed.success===true?undefined:String(committed.code||'SWAP_COMMIT_NOT_AVAILABLE'),operationId:committed.operationId,
    status:committed.status||committed.code||'',committed:committed.committed===true,
    notificationPending:committed.notificationPending===true,

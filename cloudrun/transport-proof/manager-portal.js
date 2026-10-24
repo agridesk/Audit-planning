@@ -138,7 +138,7 @@ function diagnoseGridOverflow(){
   var offenders=nodes.filter(function(el){return el.getBoundingClientRect().right>viewport+2||el.scrollWidth>el.clientWidth+2}).map(function(el){return {element:el.tagName.toLowerCase()+(el.className&&typeof el.className==='string'?'.'+el.className.trim().replace(/\s+/g,'.'):''),clientWidth:el.clientWidth,scrollWidth:el.scrollWidth,right:Math.round(el.getBoundingClientRect().right)}});
   if(offenders.length)console.warn('[GRID_2_RESPONSIVE_OVERFLOW]',{viewport:viewport,actor:actorRole,offenders:offenders});
 }
-function render(rows){renderHead();gridVisibleIds=(rows||[]).map(function(r){return String(r.auditId||"")}).filter(Boolean);var body=document.getElementById("rows");if(!rows.length){body.innerHTML="<tr><td class=\"empty\" colspan=\""+(currentView==="completed"?"11":"16")+"\">No audits found</td></tr>";bindSelectionControls(body);return}body.innerHTML=currentView==="completed"?renderCompleted(rows):renderOpen(rows);if(currentView==="open")bindActionButtons(body);else bindCompletedButtons(body);bindSelectionControls(body);requestAnimationFrame(diagnoseGridOverflow)}
+function render(rows){renderHead();gridVisibleIds=(rows||[]).map(function(r){return String(r.auditId||"")}).filter(Boolean);var body=document.getElementById("rows");if(!rows.length){body.innerHTML="<tr><td class=\"empty\" colspan=\""+(currentView==="completed"?"11":"16")+"\">No audits found</td></tr>";bindSelectionControls(body);return}body.innerHTML=currentView==="completed"?renderCompleted(rows):renderOpen(rows);if(currentView==="open")bindActionButtons(body);else bindCompletedButtons(body);bindSelectionControls(body);swap20PaintManagerGridAlerts();requestAnimationFrame(diagnoseGridOverflow)}
 function replaceVisibleRow(auditId,row){var tr=document.querySelector('tr[data-audit-id="'+CSS.escape(auditId)+'"]');if(!tr)return;tr.outerHTML=renderOpenRow(row);var fresh=document.querySelector('tr[data-audit-id="'+CSS.escape(auditId)+'"]');if(fresh){bindActionButtons(fresh);bindSelectionControls(fresh)}}
 function mergeRowInPlace(auditId,patch){var idx=all.findIndex(function(r){return r.auditId===auditId});if(idx<0)return null;all[idx]=Object.assign({},all[idx],patch);replaceVisibleRow(auditId,all[idx]);return all[idx]}
 function patchRowInPlace(auditId,patch,perf){var idx=all.findIndex(function(r){return r.auditId===auditId});if(idx<0)throw new Error("Audit row not found locally");var before=all[idx],after=Object.assign({},before,patch),beforeKey=before.statusKey,scrollX=window.scrollX,scrollY=window.scrollY,t=performance.now();all[idx]=after;replaceVisibleRow(auditId,after);adjustCounters(beforeKey,after.statusKey);window.scrollTo(scrollX,scrollY);perf.patchMs=Math.round(performance.now()-t);perf.totalMs=Math.round(performance.now()-perf.startedAt);var timing="request "+perf.writeMs+" · GAS HTTP "+perf.gasHttpMs;if(perf.statusTotalMs!=null)timing+=" · status "+perf.statusTotalMs+" [load "+perf.statusLoadMs+" / core "+perf.statusCoreMs+" / notify "+perf.statusNotifyMs+"]";timing+=" · reread "+perf.rereadMs+" · patch "+perf.patchMs+(perf.canonicalRecovery?" · canonical recovery":"")+" · direct-gas-action";document.getElementById("status").textContent=Number(openCounts.total||all.length)+" open audits · action "+perf.totalMs+" ms ("+timing+")";console.info("[MANAGER_ACTION_TIMING]",perf)}
@@ -601,6 +601,41 @@ async function swap20GridFetch(role,operation,body){
   }
   throw Error("SWAP_LIST_UNAVAILABLE");
 }
+// Manager grid SWAP attention is derived from the role-authorized canonical inbox.
+var swap20ManagerGridCases=new Map();
+function swap20PaintManagerGridAlerts(){
+  document.querySelectorAll('#rows tr[data-audit-id]').forEach(function(tr){
+    var id=String(tr.getAttribute('data-audit-id')||'');
+    var existing=tr.querySelector('.swap20-grid-alert');
+    if(existing)existing.remove();
+    if(String(actorRole).toLowerCase()!=='manager')return;
+    var cases=swap20ManagerGridCases.get(id)||[];
+    if(!cases.length)return;
+    var target=tr.querySelector('td');
+    if(!target)return;
+    var alert=document.createElement('button');
+    alert.type='button';alert.className='swap20-grid-alert';
+    alert.textContent='SWAP '+cases.length;
+    alert.title=cases.map(function(p){return String(p.status||'SWAP')+' — '+String(p.operationId||'')}).join('; ');
+    alert.setAttribute('aria-label','Open SWAP case for this audit');
+    alert.style.cssText='margin-left:6px;padding:2px 6px;border:1px solid #b45309;border-radius:5px;background:#fef3c7;color:#92400e;font-size:11px;font-weight:700;cursor:pointer';
+    alert.onclick=function(){document.getElementById('managerSwapInbox20')?.click()};
+    target.appendChild(alert);
+  });
+}
+function swap20SetManagerGridCases(items){
+  var next=new Map();
+  (Array.isArray(items)?items:[]).forEach(function(p){
+    if(!['AWAITING_ACKNOWLEDGEMENT','ESCALATED','CONFIRMED','DECLINED'].includes(String(p.status||'').toUpperCase()))return;
+    [p.auditA,p.auditB].forEach(function(id){
+      id=String(id||'').trim();if(!id)return;
+      if(!next.has(id))next.set(id,[]);
+      next.get(id).push(p);
+    });
+  });
+  swap20ManagerGridCases=next;
+  swap20PaintManagerGridAlerts();
+}
 function swap20BadgeUpdate(role,count){
   var badge=document.getElementById(role==="manager"?"managerSwapBadge20":"auditorSwapBadge20");
   if(!badge)return;
@@ -614,6 +649,7 @@ async function swap20RefreshAttention(){
     // Badge polling must not reuse the inbox's local 12-second snapshot.
     var result=await swap20GridFetch(role,"list",{});
     var items=Array.isArray(result.items)?result.items:[];
+    if(role==="manager")swap20SetManagerGridCases(items);
     var count=role==="manager"?items.filter(function(p){return ["AWAITING_ACKNOWLEDGEMENT","ESCALATED","CONFIRMED","DECLINED"].includes(p.status);}).length:
       items.filter(function(p){return !p.acknowledged;}).length;
     // The server's total may include records beyond the paginated inbox.
@@ -641,6 +677,7 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
     try{
       var result=await swap20GridRequest("manager","list",{});
       var proposals=Array.isArray(result.items)?result.items:[];
+      swap20SetManagerGridCases(proposals);
       swap20BadgeUpdate("manager",result.attentionCount||0);
       status.textContent=proposals.length+" open date change request(s); "+String(result.attentionCount||0)+" awaiting manager action.";
       proposals.forEach(function(p){

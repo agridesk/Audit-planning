@@ -5,7 +5,7 @@ const proposal={operationId:'swap_12345678',auditA:'A',auditB:'B',source:'firest
 const pair=['A','B'].map((auditId,i)=>({auditId,source:'firestore-canonical',status:'Accepted',updateTime:timestamp,canonical:{assignedTo:(i?'b':'a')+'@example.test',plannedBlocks:[{date:'2026-10-'+(26+i),start:'09:00',end:'11:00'}]}}));
 const availability=['A','B'].map(auditId=>({auditId,source:'firestore-canonical',updateTime:timestamp,canonical:{reservations:['reservation-'+auditId]},reservations:['reservation-'+auditId]}));
 let writes=0,authorized=0;
-const deps={project:'ams-test-dev',readProposal:async()=>proposal,readPair:async()=>pair,readAvailability:async()=>availability,
+const deps={project:'ams-test-dev',readProposal:async()=>proposal,readJournal:async()=>null,readPair:async()=>pair,readAvailability:async()=>availability,
  authorize:async()=>{authorized++;return true;},atomicWriter:{commit:async set=>{writes++;assert.equal(set.writes.length,6);return {ok:true,commitTime:timestamp,writeCount:6};}}};
 const actor={role:'manager',email:'manager@example.test'};
 const disabled=createSwapDirectCommitCoordinator(deps);
@@ -23,4 +23,7 @@ assert.equal(writes,1);
 assert.equal(authorized,1);
 const conflict=createSwapDirectCommitCoordinator({...deps,enabled:true,atomicWriter:{commit:async()=>({ok:false,conflict:true})}});
 assert.equal((await conflict.commit({operationId:proposal.operationId,actor})).code,'SWAP_DIRECT_REVISION_CONFLICT');
+const applied=createSwapDirectCommitCoordinator({...deps,enabled:true,readProposal:async()=>({...proposal,status:'APPLIED',canonicalCommitVerified:true}),readJournal:async()=>({stage:'COMMITTED',operationId:proposal.operationId,auditA:'A',auditB:'B'})});
+assert.equal((await applied.commit({operationId:proposal.operationId,actor})).idempotent,true);
+assert.equal(writes,1);
 console.log('SWAP direct commit coordinator gate and atomic integration checks passed');

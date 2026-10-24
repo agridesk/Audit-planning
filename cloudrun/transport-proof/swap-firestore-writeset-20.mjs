@@ -1,0 +1,46 @@
+/**
+ * DEV-only canonical Firestore SWAP write-set builder.
+ * Requires a previously verified pair snapshot and immutable revisions.
+ * This does not authorize migration of spreadsheet-backed audits.
+ */
+const ID=/^[A-Za-z0-9_-]{8,100}$/;
+const TIMESTAMP=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+const statusOk=s=>s==='Accepted';
+const encode=value=>({stringValue:JSON.stringify(value)});
+export function buildSwapFirestoreWriteSet({project,operationId,proposal,pair,availability,actorEmail,now=new Date().toISOString()}={}){
+ if(!/^[a-z][a-z0-9-]{4,62}$/.test(project||'')||!ID.test(operationId||'')||
+  !proposal||proposal.operationId!==operationId||proposal.status!=='CONFIRMED'||
+  !proposal.auditA||!proposal.auditB||proposal.auditA===proposal.auditB||
+  !Array.isArray(pair)||pair.length!==2||!Array.isArray(availability)||availability.length!==2||
+  !TIMESTAMP.test(now)||typeof actorEmail!=='string'||!actorEmail.includes('@'))
+  throw Error('SWAP_WRITESET_INPUT_INVALID');
+ if(proposal.dateChanged===true&&(!Array.isArray(proposal.requiredAuditorUids)||!proposal.requiredAuditorUids.length||
+  proposal.requiredAuditorUids.some(uid=>!proposal.acknowledgedAuditorUids?.includes(uid))))
+  throw Error('SWAP_WRITESET_ACK_INCOMPLETE');
+ const ids=[proposal.auditA,proposal.auditB];
+ const revisions=new Set();
+ for(let i=0;i<2;i++){
+  const row=pair[i],slot=availability[i];
+  if(!row||row.auditId!==ids[i]||!statusOk(row.status)||!TIMESTAMP.test(row.updateTime||'')||
+   !row.canonical||typeof row.canonical!=='object'||!slot||slot.auditId!==ids[i]||
+   !TIMESTAMP.test(slot.updateTime||'')||!slot.reservations||!Array.isArray(slot.reservations))
+   throw Error('SWAP_WRITESET_PAIR_INVALID');
+  revisions.add(row.updateTime+'|'+row.auditId);
+ }
+ if(revisions.size!==2)throw Error('SWAP_WRITESET_REVISIONS_INVALID');
+ const root='projects/'+project+'/databases/(default)/documents/';
+ const writes=[];
+ for(let i=0;i<2;i++){
+  const source=pair[i],other=pair[1-i],slot=availability[i],otherSlot=availability[1-i];
+  // Only exchange explicitly supplied planned dates and reservation sets.
+  if(!Array.isArray(source.canonical.plannedBlocks)||!Array.isArray(other.canonical.plannedBlocks))
+   throw Error('SWAP_WRITESET_BLOCKS_MISSING');
+  const next={...source.canonical,plannedBlocks:other.canonical.plannedBlocks};
+  writes.push({update:{name:root+'ams_swap20_dev_audits/'+encodeURIComponent(source.auditId),fields:{payload:encode(next)}},currentDocument:{updateTime:source.updateTime}});
+  writes.push({update:{name:root+'ams_swap20_dev_availability/'+encodeURIComponent(slot.auditId),fields:{payload:encode({reservations:otherSlot.reservations})}},currentDocument:{updateTime:slot.updateTime}});
+ }
+ const journal={operationId,auditA:ids[0],auditB:ids[1],stage:'COMMITTED',actorEmail,committedAt:now,
+  auditRevisions:pair.map(row=>row.updateTime),availabilityRevisions:availability.map(row=>row.updateTime)};
+ writes.push({update:{name:root+'ams_swap20_dev_journal/'+operationId,fields:{payload:encode(journal)}},currentDocument:{exists:false}});
+ return Object.freeze({operationId,writes});
+}

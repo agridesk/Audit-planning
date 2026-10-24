@@ -20,6 +20,7 @@ function Swap20_executeLocked_(proposal){
  var availability=Swap20_captureAvailabilityBeforeImages_();
  var perfAvailabilityMs=Date.now()-perfStarted-perfGuardMs-perfCanonicalMs;
  console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:proposal.operationId,guardMs:perfGuardMs,canonicalSnapshotMs:perfCanonicalMs,availabilitySnapshotMs:perfAvailabilityMs,elapsedMs:Date.now()-perfStarted}));
+ var ownersStarted=Date.now();
  var owners={};
  canonical.rows.forEach(function(image){
   var index=canonical.headers.map(function(x){return String(x||'').toLowerCase().replace(/[ _-]/g,'');}).indexOf('assignedto');
@@ -28,6 +29,7 @@ function Swap20_executeLocked_(proposal){
   if(!detail||!detail.auditorEmail||String(detail.assignedTo||'').trim()!==String(image.values[index]||'').trim())throw Error('Auditor identity mismatch');
   owners[image.auditId]=String(detail.auditorEmail).trim().toLowerCase();
  });
+ console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:proposal.operationId,phase:'ownerResolution',ms:Date.now()-ownersStarted}));
  var plan=Swap20_availabilityPlan_(availability,proposal,owners);
  if(!plan||!Array.isArray(plan.values)||plan.sheetName!==availability.sheetName||plan.width!==availability.width||plan.originalHeight!==availability.height)throw Error('Invalid paired reservation plan');
  if(plan.values.length<availability.height||plan.values.length>2000)throw Error('Availability plan exceeds safe row limit');
@@ -39,16 +41,22 @@ function Swap20_executeLocked_(proposal){
  if(Swap20Journal_encodePayload_(before).length>40000)throw Error('Swap compressed before-images exceed journal capacity');
  if(!Array.isArray(canonical.rows)||canonical.rows.length!==2)throw Error('Canonical pair snapshot incomplete');
  if(String(canonical.rows[0].auditId)!==String(proposal.auditA)||String(canonical.rows[1].auditId)!==String(proposal.auditB))throw Error('Canonical pair order mismatch');
+ var journalStarted=Date.now();
  if(!history.length)Swap20Journal_appendLocked_(proposal.operationId,0,'PREPARED',before);
+ console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:proposal.operationId,phase:'preparedJournal',ms:Date.now()-journalStarted}));
  var writingStarted=false;
  try{
   Swap20_verifyCanonicalBeforeImages_(canonical);
   if(JSON.stringify(Swap20Store_read_(proposal.operationId))!==JSON.stringify(proposal))throw Error('Proposal changed before writing');
   Swap20Journal_appendLocked_(proposal.operationId,Swap20Journal_history_(proposal.operationId).length,'WRITING',{auditA:proposal.auditA,auditB:proposal.auditB});
   writingStarted=true;
+  var writesStarted=Date.now();
   Swap20_writeAvailabilityPlanLocked_(plan,availability);
+  var availabilityWriteMs=Date.now()-writesStarted;
   Swap20_writeCanonicalPairLocked_(canonical,proposal);
+  var canonicalWriteMs=Date.now()-writesStarted-availabilityWriteMs;
   Swap20_verifyAppliedPairLocked_(canonical,proposal,plan);
+  console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:proposal.operationId,phase:'writeAndVerify',availabilityWriteMs:availabilityWriteMs,canonicalWriteMs:canonicalWriteMs,verificationMs:Date.now()-writesStarted-availabilityWriteMs-canonicalWriteMs}));
   Swap20Journal_appendLocked_(proposal.operationId,Swap20Journal_history_(proposal.operationId).length,'COMMITTED',{auditA:proposal.auditA,auditB:proposal.auditB});
   console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:proposal.operationId,phase:'committed',totalMs:Date.now()-perfStarted}));
   return {success:true,operationId:proposal.operationId,committed:true};

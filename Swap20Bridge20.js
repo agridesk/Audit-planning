@@ -31,6 +31,7 @@ function Swap20Bridge20_auditId_(value) {
  return id;
 }
 function Swap20Bridge20_preview_(a,b) {
+ var perfStart=Date.now();
  var pair=Swap20_readCanonicalPair({auditA:a,auditB:b});
  if(!pair||pair.eligible!==true)
   return {ok:true,readOnly:true,eligible:false,reason:'PAIR_NOT_ELIGIBLE'};
@@ -42,6 +43,7 @@ function Swap20Bridge20_preview_(a,b) {
  })(),blocksA:proposed.blocksA,blocksB:proposed.blocksB});
  function display(item){return {auditId:String(item.auditId||''),assignedTo:String(item.assignedTo||''),
   blocks:item.blocks,revision:item.revision};}
+ Logger.log('[SWAP20_PERF] '+JSON.stringify({step:'managerPreview',ms:Date.now()-perfStart}));
  return {ok:true,readOnly:true,eligible:true,
   beforeA:display(pair.auditA),beforeB:display(pair.auditB),
   afterA:proposed.blocksA,afterB:proposed.blocksB,
@@ -191,7 +193,9 @@ function Swap20Bridge20_handleAuditor_(body) {
   var op=String(body.operationId||'').trim(),decision=String(body.decision||'').toUpperCase();
   if(!/^[A-Za-z0-9_-]{8,100}$/.test(op)||['ACKNOWLEDGE','DECLINE'].indexOf(decision)<0)
    return {ok:false,error:'SWAP_AUDITOR_RESPONSE_INVALID'};
+  var respondStart=Date.now();
   var result=Swap20AuditorRespondAuthorized_({operationId:op,decision:decision},actor);
+  Logger.log('[SWAP20_PERF] '+JSON.stringify({step:'auditorRespond',ms:Date.now()-respondStart,decision:decision}));
   return Swap20Bridge20_mirrorEvent_({ok:result.success===true,status:result.status,operationId:result.operationId,
    idempotent:result.idempotent===true},op);
  }

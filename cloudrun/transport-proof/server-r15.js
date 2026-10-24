@@ -339,15 +339,19 @@ async function swap20ReadList(actor){
     if(mirrored&&await swap20Mirror.epoch()===gen){console.info('[SWAP20_MIRROR_PERF]',JSON.stringify({role:actor.role,source:'FIRESTORE',ms:Date.now()-started}));return mirrored;}
    }catch(e){console.warn('[SWAP20_MIRROR_FALLBACK]',String(e?.message||e).slice(0,120));}
   }
-  const canonical=await notificationGasCall(actor,swap20Index&&actor.role==='manager'?'listIndexSeed':'listPending',{},'externalswap20');
+  const gasStarted=Date.now();
+ const canonical=await notificationGasCall(actor,swap20Index&&actor.role==='manager'?'listIndexSeed':'listPending',{},'externalswap20');
+ console.info('[SWAP20_LIST_PHASE_PERF]',JSON.stringify({role:actor.role,phase:'gasRead',ms:Date.now()-gasStarted,ok:canonical?.ok===true}));
   if(swap20Mirror&&canonical?.ok===true){
    try{const gen=await swap20Mirror.epoch();if(gen)await swap20Mirror.save(actor,canonical,gen);}catch(e){console.warn('[SWAP20_MIRROR_SAVE_FAILED]',String(e?.message||e).slice(0,120));}
   }
   if(swap20Index&&actor.role==='manager'){
    if(canonical?.ok!==true||!Array.isArray(canonical.records))throw Error('SWAP_INDEX_CANONICAL_SEED_UNAVAILABLE');
+   const indexSyncStarted=Date.now();
    const meta=await swap20Index.meta();
    if(!meta)await swap20Index.bootstrap(canonical.records);
    else if(meta.data.status==='READY')await swap20Index.reconcile(canonical.records);
+   console.info('[SWAP20_LIST_PHASE_PERF]',JSON.stringify({role:actor.role,phase:'indexSync',ms:Date.now()-indexSyncStarted,records:canonical.records.length}));
    return swap20Index.project(actor,canonical.records);
   }
   return canonical;

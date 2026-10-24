@@ -12,8 +12,13 @@ function Swap20ManagerCommitAuthorized_(input,auth){
  if(String(props.getProperty('AMS_ENV')||'').toUpperCase()!=='DEV')throw Error('Swap commit restricted to DEV');
  if(String(props.getProperty('AMS_SWAP20_COMMIT_ENABLED')||'')!=='true')
   return {success:false,code:'SWAP_ATOMIC_WRITE_DISABLED',readOnly:true,message:'DEV acceptance gate not enabled'};
+ var lockStarted=Date.now();
  var lock=LockService.getScriptLock();
- if(!lock.tryLock(20000))throw Error('Swap transaction lock busy');
+ if(!lock.tryLock(20000)){
+  console.error('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:String(input.operationId||''),phase:'lockTimeout',waitMs:Date.now()-lockStarted}));
+  throw Error('Swap transaction lock busy');
+ }
+ console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:String(input.operationId||''),phase:'lockAcquired',waitMs:Date.now()-lockStarted}));
  try{
   var proposal=Swap20Store_read_(input.operationId);
   if(!proposal)throw Error('Swap proposal missing');

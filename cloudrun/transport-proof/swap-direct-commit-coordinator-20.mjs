@@ -6,15 +6,21 @@ import {buildSwapFirestoreWriteSet} from './swap-firestore-writeset-20.mjs';
  * Deliberately not connected to the live SWAP route until canonical
  * audit and availability records are migrated and reconciled.
  */
-export function createSwapDirectCommitCoordinator({project,readProposal,readPair,readAvailability,atomicWriter,authorize,resolveFinalReservations,enabled=false}={}){
+export function createSwapDirectCommitCoordinator({project,readProposal,readJournal,readPair,readAvailability,atomicWriter,authorize,resolveFinalReservations,enabled=false}={}){
  if(!project||typeof readProposal!=='function'||typeof readPair!=='function'||
-  typeof readAvailability!=='function'||typeof atomicWriter?.commit!=='function'||typeof authorize!=='function'||typeof resolveFinalReservations!=='function')
+  typeof readAvailability!=='function'||typeof readJournal!=='function'||typeof atomicWriter?.commit!=='function'||typeof authorize!=='function'||typeof resolveFinalReservations!=='function')
   throw Error('SWAP_DIRECT_COORDINATOR_CONFIG_INVALID');
  async function commit({operationId,actor}={}){
   if(enabled!==true)return {ok:false,code:'SWAP_DIRECT_COMMIT_DISABLED'};
   if(!actor||actor.role!=='manager'||await authorize(actor,operationId)!==true)
    throw Error('SWAP_DIRECT_MANAGER_UNAUTHORIZED');
   const proposal=await readProposal(operationId);
+  if(proposal?.operationId===operationId&&proposal.status==='APPLIED'&&proposal.canonicalCommitVerified===true){
+   const journal=await readJournal(operationId);
+   if(journal?.stage==='COMMITTED'&&journal.operationId===operationId&&journal.auditA===proposal.auditA&&journal.auditB===proposal.auditB)
+    return {ok:true,committed:true,idempotent:true,operationId};
+   throw Error('SWAP_DIRECT_APPLIED_JOURNAL_MISMATCH');
+  }
   if(!proposal||proposal.operationId!==operationId||proposal.status!=='CONFIRMED')
    throw Error('SWAP_DIRECT_PROPOSAL_NOT_CONFIRMED');
   const ids=[proposal.auditA,proposal.auditB];

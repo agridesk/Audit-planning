@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import {createSwapDirectProposalStore} from './swap-direct-proposal-store-20.mjs';
+let record=null,version=0,writes=0;
+const fetchImpl=async(url,init)=>{
+ const method=init.method||'GET',params=new URL(url).searchParams;
+ if(method==='GET')return record?{ok:true,json:async()=>record}:{status:404,ok:false};
+ if(method!=='PATCH')throw Error('unexpected method');
+ if(params.get('currentDocument.exists')==='false'&&record)return {status:412,ok:false};
+ const expected=params.get('currentDocument.updateTime');
+ if(expected&&expected!==record?.updateTime)return {status:412,ok:false};
+ const body=JSON.parse(init.body);record={...body,updateTime:'revision-'+(++version)};
+ writes++;
+ return {ok:true,json:async()=>record};
+};
+const store=createSwapDirectProposalStore({project:'ams-test-dev',getToken:async()=>'token',fetchImpl});
+const proposal={operationId:'swap_12345678',auditA:'A',auditB:'B',status:'AWAITING_ACKNOWLEDGEMENT',requiredAuditorUids:['u1'],acknowledgedAuditorUids:[]};
+assert.equal((await store.create(proposal)).ok,true);
+assert.equal((await store.create(proposal)).conflict,true);
+assert.equal(writes,1);
+const prior=await store.read(proposal.operationId);
+assert.deepEqual(prior.proposal,proposal);
+const confirmed={...proposal,status:'CONFIRMED',acknowledgedAuditorUids:['u1']};
+assert.equal((await store.compareAndSet(proposal.operationId,prior.updateTime,confirmed,()=>true)).ok,true);
+assert.equal((await store.compareAndSet(proposal.operationId,prior.updateTime,confirmed,()=>true)).conflict,true);
+assert.equal(writes,2);
+await assert.rejects(store.compareAndSet(proposal.operationId,'revision-2',{...confirmed,status:'APPLIED'},()=>false),/SWAP_DIRECT_TRANSITION_REJECTED/);
+assert.equal(writes,2);
+console.log('SWAP direct Firestore proposal write concurrency checks passed');

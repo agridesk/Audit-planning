@@ -51,11 +51,17 @@ export function createSwapFirestoreCanonicalReader({project,getToken,fetchImpl=f
    return {auditId:ids[i],canonical:record.payload,reservations:record.payload.reservations,updateTime:record.updateTime,source:'firestore-canonical'};
   });
  }
+ async function readJournal(operationId){
+  if(!ID.test(String(operationId||'')))throw Error('SWAP_CANONICAL_READER_OPERATION_INVALID');
+  const [record]=await fetchDocuments(['ams_swap20_dev_journal/'+operationId]);
+  if(record.payload.operationId!==operationId)throw Error('SWAP_CANONICAL_READER_JOURNAL_MISMATCH');
+  return {...record.payload,updateTime:record.updateTime};
+ }
  async function readProposal(operationId){
   if(!ID.test(String(operationId||'')))throw Error('SWAP_CANONICAL_READER_OPERATION_INVALID');
   const [record]=await fetchDocuments(['ams_swap20_dev_proposals/'+operationId]);
   if(record.payload.operationId!==operationId)throw Error('SWAP_CANONICAL_READER_OPERATION_MISMATCH');
   return {...record.payload,updateTime:record.updateTime,source:'firestore-canonical'};
  }
- return Object.freeze({readPair,readAvailability,readProposal});
+ return Object.freeze({readPair,readAvailability,readProposal,readJournal});
 }

@@ -70,7 +70,7 @@ function Swap20Journal_decodePayload_(raw){
  if(raw.indexOf('SWAP_GZIP_V1:')===0){
   if(typeof Utilities==='undefined')throw Error('SWAP journal decompression unavailable');
   var bytes=Utilities.base64Decode(raw.substring(13));
-  raw=Utilities.ungzip(Utilities.newBlob(bytes)).getDataAsString();
+  raw=Utilities.ungzip(Utilities.newBlob(bytes,'application/x-gzip')).getDataAsString();
  }
  return Swap20Journal_rehydrateDates_(JSON.parse(raw));
 }

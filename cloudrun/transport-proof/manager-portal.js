@@ -633,7 +633,7 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
             if(!window.confirm("Withdraw this audit date change request?"))return;
             withdraw.disabled=true;
             try{await swap20GridRequest("manager","withdraw",{operationId:p.operationId});await reload();}
-            catch(e){status.textContent=String(e.message||e);withdraw.disabled=false;}
+            catch(e){var failure=String(e&&e.message||e);status.textContent="Withdraw response uncertain ("+failure+"). Checking canonical request; do not retry.";try{var check=await swap20GridRequest("manager","status",{operationId:p.operationId});if(check.status==="WITHDRAWN"){status.textContent="Withdrawal confirmed in canonical request. Refreshing list.";await reload();}else{status.textContent="Withdraw not confirmed. Canonical status: "+String(check.status||"UNKNOWN")+". Do not retry until checked.";}}catch(checkError){status.textContent="Withdraw outcome unknown; read-only verification failed ("+String(checkError&&checkError.message||checkError)+"). Do not retry.";}}
           };
           card.appendChild(withdraw);
         }

@@ -293,3 +293,15 @@ function RUN_VERIFY_SWAP20_LAST_COMMIT_DEV_20261024(){
  out.applied=h.length>0&&h[h.length-1].stage==='COMMITTED'&&p.status==='APPLIED'&&out.audits.every(function(x){return x.matches;});
  Logger.log(JSON.stringify(out));return out;
 }
+
+function RUN_DIAG_SWAP20_PREPARED_RESUME_DEV_20261024(){
+ var sp=PropertiesService.getScriptProperties();
+ if(sp.getProperty('AMS_ENV')!=='DEV'||sp.getProperty('V5_SSOT_SPREADSHEET_ID')!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')throw Error('DEV_ONLY');
+ var id='SWAP20_aded19c574a940b398b8c1ded84ff9e9',p=Swap20Store_read_(id),h=Swap20Journal_history_(id);
+ if(h.length!==1||h[0].stage!=='PREPARED')throw Error('NOT_PREPARED');
+ var c=Swap20_captureCanonicalBeforeImages_(p),a=Swap20_captureAvailabilityBeforeImages_(),saved=h[0].payload;
+ var x=Swap20Journal_markDates_(saved),y=Swap20Journal_markDates_({canonical:c,availability:a});
+ var out={stage:'PREPARED',canonicalEqual:JSON.stringify(x.canonical)===JSON.stringify(y.canonical),availabilityEqual:JSON.stringify(x.availability)===JSON.stringify(y.availability),savedAvailabilityRows:x.availability.values.length,currentAvailabilityRows:y.availability.values.length,firstChangedRow:-1};
+ if(!out.availabilityEqual){for(var i=0;i<Math.min(x.availability.values.length,y.availability.values.length);i++){if(JSON.stringify(x.availability.values[i])!==JSON.stringify(y.availability.values[i])){out.firstChangedRow=i+1;break;}}}
+ Logger.log(JSON.stringify(out));return out;
+}

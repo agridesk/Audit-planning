@@ -32,6 +32,7 @@ const ctx={String,Number,Array,Object,JSON,Date,Error,
  PropertiesService:{getScriptProperties:()=>({getProperty:k=>prop[k]||'',getProperties:()=>({...prop})})},
  SpreadsheetApp:{openById:()=>({getSheetByName:()=>({getDataRange:()=>({getValues:()=>actors})})})},
  Swap20_resolveAuditorUidByEmail_:email=>email==='auditor@example.test'?'uid-auditor':null,
+ Swap20_recoveryStatus_:id=>({operationId:id,stage:'NOT_STARTED',sequence:0,requiresManualReview:false}),
  Swap20Store_read_:id=>id===proposal.operationId?proposal:null,
  Swap20AuditorRespondAuthorized_:(input,actor)=>{
   assert.equal(actor.email,'auditor@example.test');

@@ -74,7 +74,7 @@ function Swap20Bridge20_handle_(body) {
   if(operation==='commit'){
    var msg=String(e&&e.message||e).slice(0,500);
    if(typeof Logger!=='undefined'&&Logger&&typeof Logger.log==='function')Logger.log('[SWAP20_MANAGER_AUTH_ERROR] '+msg);
-   PropertiesService.getScriptProperties().setProperty('AMS_SWAP20_LAST_COMMIT_ERROR_'+String(body.operationId||''),JSON.stringify({at:new Date().toISOString(),phase:'managerIdentity',error:msg}));
+   try{PropertiesService.getScriptProperties().setProperty('AMS_SWAP20_LAST_COMMIT_ERROR_'+String(body.operationId||''),JSON.stringify({at:new Date().toISOString(),phase:'managerIdentity',error:msg}))}catch(diagnosticError){/* Diagnostics must never mask the original failure. */}
   }
   throw e;
  }
@@ -126,7 +126,7 @@ function Swap20Bridge20_handle_(body) {
   }catch(err){
    var msg=String(err&&err.message||err).slice(0,600);
    if(typeof Logger!=='undefined'&&Logger&&typeof Logger.log==='function')Logger.log('[SWAP20_MANAGER_COMMIT_ERROR] '+JSON.stringify({operationId:body.operationId,error:msg,stack:String(err&&err.stack||'').slice(0,1200)}));
-   PropertiesService.getScriptProperties().setProperty('AMS_SWAP20_LAST_COMMIT_ERROR_'+String(body.operationId),JSON.stringify({at:new Date().toISOString(),error:msg}));
+   try{PropertiesService.getScriptProperties().setProperty('AMS_SWAP20_LAST_COMMIT_ERROR_'+String(body.operationId),JSON.stringify({at:new Date().toISOString(),error:msg}))}catch(diagnosticError){/* Diagnostics must never mask the original failure. */}
    throw err;
   }
   return Swap20Bridge20_mirrorEvent_({ok:committed.success===true,error:committed.success===true?undefined:String(committed.code||'SWAP_COMMIT_NOT_AVAILABLE'),operationId:committed.operationId,

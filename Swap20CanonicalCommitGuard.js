@@ -8,6 +8,7 @@ function Swap20CanonicalCommitGuard(input) {
   if (!a || !b || a === b) throw new Error('Distinct audit IDs required');
   var expected = input.expectedRevisions || {};
   if (!expected[a] || !expected[b]) throw new Error('Expected revisions required');
+  var perfStart=Date.now();
   var pair = input.canonicalPair || Swap20_readCanonicalPair({auditA:a,auditB:b});
   if(input.canonicalPair && (String(pair.auditA&&pair.auditA.auditId)!==a || String(pair.auditB&&pair.auditB.auditId)!==b))throw Error('Canonical pair identity mismatch');
   if (!pair.eligible) throw new Error('Swap pair not eligible');
@@ -45,5 +46,6 @@ function Swap20CanonicalCommitGuard(input) {
   if(String(pair.auditA.assignedTo||'').toLowerCase()===String(pair.auditB.assignedTo||'').toLowerCase()){
    input.blocksA.forEach(function(x){input.blocksB.forEach(function(y){if(Swap20_overlap_(x,y))throw Error('Cross-audit overlap');});});
   }
+  Logger.log('[SWAP20_PERF] '+JSON.stringify({step:'canonicalGuard',ms:Date.now()-perfStart,reusedPair:!!input.canonicalPair}));
   return {ok:true,readOnly:true,commitAuthorized:false,requiresPairLock:true,requiresDurableJournal:true,auditIds:[a,b],minutesA:minutesA,minutesB:minutesB};
 }

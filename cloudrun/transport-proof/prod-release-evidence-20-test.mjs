@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
-const x=JSON.parse(execFileSync(process.execPath,[new URL('./prod-release-evidence-20.mjs',import.meta.url).pathname],{encoding:'utf8'}));
+import {fileURLToPath} from 'node:url';
+const x=JSON.parse(execFileSync(process.execPath,[fileURLToPath(new URL('./prod-release-evidence-20.mjs',import.meta.url))],{encoding:'utf8'}));
 assert.equal(x.sourceOnly,true);
 assert.equal(x.status,'NOT_READY');
 assert.equal(x.scope,'AMS_CLOUD_20_PROD_CUTOVER');

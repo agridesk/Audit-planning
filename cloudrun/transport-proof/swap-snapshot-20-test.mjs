@@ -21,6 +21,15 @@ runInNewContext(readFileSync(new URL('Swap20CanonicalSnapshot.js',root),'utf8'),
 const before=ctx.Swap20_captureCanonicalBeforeImages_({auditA:'A',auditB:'B',originalRevisions:{A:'revision-A',B:'revision-B'}});
 assert.equal(before.rows.length,2);
 assert.equal(ctx.Swap20_verifyCanonicalBeforeImages_(before),true);
+// The lookup may return an obsolete cached row: only physical sheet values
+// are valid durable before-images, and revision mismatch must fail closed.
+const originalLookup=ctx.PRT_readCanonicalRow_;
+rows[1][3]='2026-10-23';
+ctx.PRT_readCanonicalRow_=id=>({rowNumber:id==='A'?2:3,row:id==='A'?['A','Accepted','one@example.com','2026-10-21','{}']:rows[2].slice(),headers});
+const fresh=ctx.Swap20_captureCanonicalBeforeImages_({auditA:'A',auditB:'B',originalRevisions:{A:'revision-A',B:'revision-B'}});
+assert.equal(fresh.rows[0].values[3],'2026-10-23','snapshot must read live sheet instead of cached lookup');
+ctx.PRT_readCanonicalRow_=originalLookup;
+rows[1][3]='2026-10-21';
 before.rollbackExpectedBlocksA=[{date:'2026-11-01'}];
 before.rollbackExpectedBlocksB=[];
 rows[1][3]='2026-11-01';

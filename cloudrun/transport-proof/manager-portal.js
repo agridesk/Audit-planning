@@ -611,6 +611,7 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
         info("Auditor confirmations:",String(p.acknowledgedCount||0)+" / "+String(p.requiredCount||0));
         info("Internal reason:",p.internalReason);info("Explanation for participants:",p.ecasComment);
         if(p.status==="CONFIRMED"){
+          var inspect=document.createElement("button");inspect.type="button";inspect.textContent="Inspect journal (read-only)";inspect.style.marginLeft="8px";inspect.onclick=async function(){inspect.disabled=true;try{var v=await swap20GridRequest("manager","status",{operationId:p.operationId});status.textContent="Canonical: "+String(v.status||"UNKNOWN")+" | Journal: "+String(v.journalStage||"UNKNOWN")+" | Sequence: "+String(v.journalSequence??"?")+" | Manual review: "+String(v.journalRequiresManualReview===true)+" | Commit enabled: "+String(v.commitEnabled===true);}catch(e){status.textContent="Journal inspection failed: "+String(e&&e.message||e).slice(0,120);}finally{inspect.disabled=false;}};card.appendChild(inspect);
           var apply=document.createElement("button");apply.type="button";apply.textContent="Apply date exchange";
           apply.style.marginLeft="8px";
           apply.onclick=async function(){

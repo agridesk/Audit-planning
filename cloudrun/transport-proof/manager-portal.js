@@ -655,6 +655,15 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
           var apply=document.createElement("button");apply.type="button";apply.textContent="Apply date exchange";
           apply.style.marginLeft="8px";
           apply.onclick=async function(){
+            apply.disabled=true;
+            try{
+              var precheck=await swap20GridRequest("manager","status",{operationId:p.operationId});
+              if(precheck.status!=="CONFIRMED"||precheck.journalRequiresManualReview!==false||!["NONE","PREPARED"].includes(String(precheck.journalStage||""))||precheck.commitEnabled!==true){
+                status.textContent="Date exchange blocked: canonical "+String(precheck.status||"UNKNOWN")+", journal "+String(precheck.journalStage||"UNKNOWN")+", manual review "+String(precheck.journalRequiresManualReview)+". Do not retry.";
+                return;
+              }
+            }catch(precheckError){status.textContent="Date exchange blocked: read-only journal verification failed ("+String(precheckError&&precheckError.message||precheckError).slice(0,100)+").";return;}
+            finally{apply.disabled=false;}
             if(!window.confirm("Apply this approved date change in DEV? Both audit schedules will change."))return;
             apply.disabled=true;status.textContent="Applying confirmed audit date exchange...";
             try{

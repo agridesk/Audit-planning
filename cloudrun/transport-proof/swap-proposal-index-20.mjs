@@ -80,6 +80,12 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch,now=Da
     true:!p.acknowledged).length};
  }
  let verifiedSnapshot=null;
+ let listReadPending=null;
+ async function listRawSingleflight(){
+  if(listReadPending)return listReadPending;
+  const pending=listRaw();listReadPending=pending;
+  try{return await pending;}finally{if(listReadPending===pending)listReadPending=null;}
+ }
  let metaReadPending=null;
  async function readMetaSingleflight(){
   if(metaReadPending)return metaReadPending;
@@ -106,7 +112,7 @@ export function createSwapProposalIndex({project,getToken,fetchImpl=fetch,now=Da
   }
   if(verifiedSnapshot&&verifiedSnapshot.updateTime===before.updateTime)
    return projectList(actor,verifiedSnapshot.records);
-  const records=await listRaw();
+  const records=await listRawSingleflight();
   const after=await meta();
   if(!after||after.updateTime!==before.updateTime||after.data.status!=='READY'){
    verifiedSnapshot=null;return null;

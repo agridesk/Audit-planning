@@ -93,3 +93,6 @@ User ran read-only `gcloud` inventory against `audit-management-system-2-prod`: 
 
 ## PROD Firestore create conflict — 2026-10-24
 `gcloud firestore databases list --project=audit-management-system-2-prod` returned 0 items, but subsequent `gcloud firestore databases create --database="(default)" --location=europe-west1 --type=firestore-native ...` failed `Database already exists`. Treat database status as **UNVERIFIED** pending explicit `gcloud firestore databases describe --database="(default)" --project=...` and full inventory; do not retry create or create alternate DB ID. No Firestore creation success is claimed.
+
+## PROD Firestore authoritative direct verification — 2026-10-24
+User ran `gcloud firestore databases describe --database="(default)" --project=audit-management-system-2-prod` and list: `projects/audit-management-system-2-prod/databases/(default)` exists; `FIRESTORE_NATIVE`; `europe-west1`; `createTime: 2026-10-24T12:52:46.899801Z`; `DELETE_PROTECTION_DISABLED`. Previous 0-list was transient / stale compared with authoritative post-create describe; the subsequent create returned `already exists`. This resolves existence uncertainty. Do NOT re-create. Consider enabling delete protection with explicit user authority after operational design approved. Database has not been populated or attached to Cloud Run by this workstream.

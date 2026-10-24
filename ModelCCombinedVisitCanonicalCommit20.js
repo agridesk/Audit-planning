@@ -14,7 +14,11 @@ function MCC20_restore_(journal){
  for(var i=journal.length-1;i>=0;i--){var j=journal[i];
   try{
    if(j.created){if(j.uncertain)throw Error('COMBINED_ROLLBACK_APPEND_ORDER_UNCERTAIN');var last=j.sheet.getLastRow();if(last!==j.row)throw Error('COMBINED_ROLLBACK_APPEND_ORDER_CHANGED');j.sheet.deleteRow(j.row);}
-   else j.sheet.getRange(j.row,1,1,j.before.length).setValues([j.before]);
+   else {
+    var now=j.sheet.getRange(j.row,1,1,j.before.length).getValues()[0];
+    if(j.after&&JSON.stringify(now)!==JSON.stringify(j.after))throw Error('COMBINED_ROLLBACK_CONCURRENT_ROW_CHANGE');
+    j.sheet.getRange(j.row,1,1,j.before.length).setValues([j.before]);
+   }
   }catch(e){ok=false;}
  }
  return ok;
@@ -23,7 +27,7 @@ function MCC20_stageRow_(journal,sheet,row,after,expectedBefore){
  var before=sheet.getRange(row,1,1,after.length).getValues()[0];
  if(expectedBefore&&JSON.stringify(before)!==JSON.stringify(expectedBefore))
    throw Error('COMBINED_CANONICAL_STALE_ROW_AT_WRITE_BOUNDARY');
- journal.push({sheet:sheet,row:row,before:before});
+ journal.push({sheet:sheet,row:row,before:before,after:after.slice()});
  sheet.getRange(row,1,1,after.length).setValues([after]);
 }
 function MCC20_append_(journal,sheet,after){

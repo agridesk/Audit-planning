@@ -427,7 +427,7 @@ async function swap20ManagerRequest(req,res,operation){
  const result=operation==='listPending'
   ?await swap20ReadList(actor)
   :await swap20GasOperation(actor,operation,data);
- if(operation!=='listPending'&&result?.ok===true){swap20InvalidateLists();await swap20InvalidateMirror(actor);}
+ if(['propose','withdraw','commit'].includes(operation)&&result?.ok===true){swap20InvalidateLists();await swap20InvalidateMirror(actor);}
  res.writeHead(result?.ok===true?200:409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
  res.end(JSON.stringify(Object.fromEntries(Object.entries(result||{}).filter(([k])=>k!=='_mirrorEvent'))));return;
 }

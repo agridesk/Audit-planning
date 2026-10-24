@@ -239,3 +239,14 @@ function RUN_REFRESH_SWAP20_A_REVISION_DEV_20261024(){
   var out={ok:true,status:p.status,updatedAudit:'A',canonicalWrites:0,managerDecisionPending:true};Logger.log(JSON.stringify(out));return out;
  }finally{lock.releaseLock();}
 }
+
+function RUN_DIAG_SWAP20_COMMIT_FAILURE_DEV_20261024(){
+ var sp=PropertiesService.getScriptProperties();
+ if(sp.getProperty('AMS_ENV')!=='DEV'||sp.getProperty('V5_SSOT_SPREADSHEET_ID')!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')throw Error('DEV_ONLY');
+ var id='SWAP20_75c82baa8f8248dc93690667df7a6c07',p=Swap20Store_read_(id);
+ var history=Swap20Journal_history_(id),out={operationId:id,status:p&&p.status,commitFlag:sp.getProperty('AMS_SWAP20_COMMIT_ENABLED'),journalStages:history.map(function(x){return x.stage;})};
+ try{var g=Swap20CanonicalCommitGuard({auditA:p.auditA,auditB:p.auditB,expectedRevisions:p.originalRevisions,blocksA:p.blocksA,blocksB:p.blocksB});out.guard={ok:g.ok};}catch(e){out.guard={ok:false,error:String(e.message||e)};}
+ try{var c=Swap20_captureCanonicalBeforeImages_(p);out.canonical={ok:!!c,rows:c.rows.length};}catch(e){out.canonical={ok:false,error:String(e.message||e)};}
+ try{var a=Swap20_captureAvailabilityBeforeImages_();out.availability={ok:!!a};}catch(e){out.availability={ok:false,error:String(e.message||e)};}
+ Logger.log(JSON.stringify(out));return out;
+}

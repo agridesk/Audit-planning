@@ -11,10 +11,15 @@ function Swap20_executeLocked_(proposal){
  if(!persisted||persisted.status!=='CONFIRMED'||JSON.stringify(persisted)!==JSON.stringify(proposal))throw Error('Proposal changed before commit');
  var history=Swap20Journal_history_(proposal.operationId);
  if(history.length&&(history.length!==1||history[0].stage!=='PREPARED'))throw Error('Existing journal requires recovery');
+ var perfStarted=Date.now();
  var guard=Swap20CanonicalCommitGuard({auditA:proposal.auditA,auditB:proposal.auditB,expectedRevisions:proposal.originalRevisions,blocksA:proposal.blocksA,blocksB:proposal.blocksB});
  if(!guard||guard.ok!==true)throw Error('Swap canonical preflight failed');
+ var perfGuardMs=Date.now()-perfStarted;
  var canonical=Swap20_captureCanonicalBeforeImages_(proposal);
+ var perfCanonicalMs=Date.now()-perfStarted-perfGuardMs;
  var availability=Swap20_captureAvailabilityBeforeImages_();
+ var perfAvailabilityMs=Date.now()-perfStarted-perfGuardMs-perfCanonicalMs;
+ console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:proposal.operationId,guardMs:perfGuardMs,canonicalSnapshotMs:perfCanonicalMs,availabilitySnapshotMs:perfAvailabilityMs,elapsedMs:Date.now()-perfStarted}));
  var owners={};
  canonical.rows.forEach(function(image){
   var index=canonical.headers.map(function(x){return String(x||'').toLowerCase().replace(/[ _-]/g,'');}).indexOf('assignedto');
@@ -45,6 +50,7 @@ function Swap20_executeLocked_(proposal){
   Swap20_writeCanonicalPairLocked_(canonical,proposal);
   Swap20_verifyAppliedPairLocked_(canonical,proposal,plan);
   Swap20Journal_appendLocked_(proposal.operationId,Swap20Journal_history_(proposal.operationId).length,'COMMITTED',{auditA:proposal.auditA,auditB:proposal.auditB});
+  console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:proposal.operationId,phase:'committed',totalMs:Date.now()-perfStarted}));
   return {success:true,operationId:proposal.operationId,committed:true};
  }catch(err){
   if(!writingStarted){Swap20Journal_appendLocked_(proposal.operationId,Swap20Journal_history_(proposal.operationId).length,'CONFLICT',{reason:String(err),noWrites:true,revisionConflict:err&&err.swapConflict||null});throw Error('Swap stopped before data writes: '+String(err));}

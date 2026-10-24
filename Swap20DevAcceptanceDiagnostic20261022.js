@@ -277,3 +277,19 @@ function RUN_DIAG_SWAP20_PREPARED_CAUSE_DEV_20261024(){
  try{var a=Swap20_captureAvailabilityBeforeImages_();out.availabilityHeight=a.height;}catch(e){out.availabilityError=String(e.message||e);}
  Logger.log(JSON.stringify(out));return out;
 }
+
+function RUN_VERIFY_SWAP20_LAST_COMMIT_DEV_20261024(){
+ var sp=PropertiesService.getScriptProperties();
+ if(sp.getProperty('AMS_ENV')!=='DEV'||sp.getProperty('V5_SSOT_SPREADSHEET_ID')!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')throw Error('DEV_ONLY');
+ var id='SWAP20_aded19c574a940b398b8c1ded84ff9e9',p=Swap20Store_read_(id),h=Swap20Journal_history_(id);
+ if(!p)throw Error('PROPOSAL_MISSING');
+ var out={operationId:id,status:p.status,canonicalCommitVerified:p.canonicalCommitVerified===true,stages:h.map(function(x){return x.stage;}),audits:[]};
+ [p.auditA,p.auditB].forEach(function(a,i){
+  var row=PRT_readCanonicalRow_(a),n=row.headers.map(function(x){return String(x).toLowerCase().replace(/[^a-z0-9]/g,'');}),ix=n.indexOf('planningjson');
+  if(ix<0)throw Error('PLANNING_JSON_MISSING');
+  var actual=JSON.parse(String(row.row[ix]||'{}')).blocks||[],expected=i===0?p.blocksA:p.blocksB;
+  out.audits.push({auditId:a,expected:expected.map(function(b){return [b.date,b.start,b.end];}),actual:actual.map(function(b){return [b.date,b.start,b.end];}),matches:JSON.stringify(actual.map(function(b){return [b.date,b.start,b.end];}))===JSON.stringify(expected.map(function(b){return [b.date,b.start,b.end];}))});
+ });
+ out.applied=h.length>0&&h[h.length-1].stage==='COMMITTED'&&p.status==='APPLIED'&&out.audits.every(function(x){return x.matches;});
+ Logger.log(JSON.stringify(out));return out;
+}

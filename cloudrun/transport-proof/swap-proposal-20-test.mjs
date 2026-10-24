@@ -31,7 +31,7 @@ assert.equal(evaluateSwapEligibility({...eligiblePair,auditB:{...eligiblePair.au
 import {readFileSync} from 'node:fs';
 const canonicalGas=readFileSync(new URL('../../PlanningRevisionTokenService.js',import.meta.url),'utf8');
 assert.match(canonicalGas,/function Swap20_readCanonicalPair\(input\)/);
-assert.match(canonicalGas,/PlanningRevisionTokenService_getMany\(\{auditIds:\[a,b\]\}\)/);
+assert.match(canonicalGas,/var live=sheet\.getRange\(found\.rowNumber,1,1,width\)\.getValues\(\)\[0\]/);
 assert.match(canonicalGas,/canCommit:false/);
 assert.throws(()=>prepareSwapCommit(p,{A:{revision:1,status:'Accepted'},B:{revision:2,status:'Accepted'}},preview));
 const ready=prepareSwapCommit(b,{A:{revision:1,status:'Accepted'},B:{revision:2,status:'Accepted'}},preview);

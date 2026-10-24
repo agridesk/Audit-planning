@@ -23,4 +23,7 @@ assert.equal(uncertainError?.commitOutcomeUncertain,true);
 assert.equal(uncertainError?.requiresReconciliation,true);
 assert.equal(uncertainError?.safeToRetry,false);
 assert.match(uncertainError?.message||'',/RECONCILIATION_REQUIRED/);
+const brokenTransport=await bridge({...base,fetchImpl:async()=>{throw new Error('transport unavailable')}}).then(()=>null,e=>e);
+assert.equal(brokenTransport.safeToRetry,false);
+assert.equal(brokenTransport.requiresReconciliation,true);
 console.log('COMBINED_VISIT_CANONICAL_GAS_BRIDGE: PASS');

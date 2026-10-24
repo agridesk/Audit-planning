@@ -8,12 +8,15 @@ function Swap20_captureCanonicalBeforeImages_(proposal){
  var rows=[proposal.auditA,proposal.auditB].map(function(id){
   var item=PRT_readCanonicalRow_(id);
   if(!item||!item.rowNumber||String(item.row[idCol])!==String(id))throw Error('Canonical audit row mismatch');
-  var revision=PRT_result_(id,item.headers,item.row,'swap snapshot',item.rowNumber).revision;
+  // PRT_readCanonicalRow_ may use a cached planning lookup. The durable
+  // before-image must instead come from the same physical sheet as verification.
+  var liveRow=sh.getRange(item.rowNumber,1,1,width).getValues()[0];
+  if(String(liveRow[idCol])!==String(id))throw Error('Canonical audit row moved before snapshot');
+  var revision=PRT_result_(id,headers,liveRow,'swap live snapshot',item.rowNumber).revision;
   if(revision!==proposal.originalRevisions[id])throw Error('Canonical revision mismatch');
-  if(String(PRT_snapshotFromRow_(item.headers,item.row).status).toLowerCase()!=='accepted')throw Error('Swap requires Accepted status');
-  if(item.row.length!==width)throw Error('Canonical row width mismatch');
-  if(item.row.some(function(v){return Object.prototype.toString.call(v)==='[object Date]'&&isNaN(v.getTime());}))throw Error('Invalid Date cell in durable swap snapshot');
-  return {auditId:id,rowNumber:item.rowNumber,revision:revision,values:item.row.slice()};
+  if(String(PRT_snapshotFromRow_(headers,liveRow).status).toLowerCase()!=='accepted')throw Error('Swap requires Accepted status');
+  if(liveRow.some(function(v){return Object.prototype.toString.call(v)==='[object Date]'&&isNaN(v.getTime());}))throw Error('Invalid Date cell in durable swap snapshot');
+  return {auditId:id,rowNumber:item.rowNumber,revision:revision,values:liveRow.slice()};
  });
  if(rows[0].rowNumber===rows[1].rowNumber)throw Error('Canonical row collision');
  return {sheetName:'Audit planning',headers:headers,rows:rows};

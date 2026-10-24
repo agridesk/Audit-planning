@@ -18,6 +18,7 @@ export function createSwapFirestoreAtomicWriter({project,getToken,fetchImpl=fetc
   if(write.update&&(!write.update.fields||typeof write.update.fields!=='object'))return false;
   const pre=write.currentDocument;
   if(!pre||typeof pre!=='object'||(typeof pre.updateTime!=='string'&&typeof pre.exists!=='boolean'))return false;
+  if(pre.updateTime!==undefined&&!/^\\d{4}-\\d{2}-\\d{2}T/.test(pre.updateTime))return false;
   if(pre.updateTime&&pre.exists!==undefined)return false;
   if(pre.exists===true)return false;
   return true;
@@ -28,7 +29,7 @@ export function createSwapFirestoreAtomicWriter({project,getToken,fetchImpl=fetc
    throw Error('SWAP_ATOMIC_WRITES_INVALID');
   const names=writes.map(w=>w.update?.name||w.delete||w.transform?.document);
   if(new Set(names).size!==names.length)throw Error('SWAP_ATOMIC_DUPLICATE_DOCUMENT');
-  if(!names.some(name=>name.endsWith('/ams_swap20_dev_journal/'+operationId)))
+  if(!writes.some(w=>w.update?.name===root+'ams_swap20_dev_journal/'+operationId&&w.currentDocument?.exists===false))
    throw Error('SWAP_ATOMIC_JOURNAL_REQUIRED');
   const token=await getToken();
   if(!token)throw Error('SWAP_ATOMIC_TOKEN_MISSING');

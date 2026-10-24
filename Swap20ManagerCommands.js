@@ -44,6 +44,16 @@ function Swap20ManagerWithdrawProposalAuthorized_(input,auth){
  var id=String(input.operationId||'').trim(),old=Swap20Store_read_(id);
  if(!old)throw Error('Swap proposal not found');
  if(old.status!=='AWAITING_ACKNOWLEDGEMENT'&&old.status!=='ESCALATED'&&old.status!=='CONFIRMED')throw Error('Proposal cannot be withdrawn');
+ // A journaled transaction may be withdrawn only if no canonical writes began,
+ // or if a verified rollback completed. Never conceal an uncertain write state.
+ var journal=Swap20Journal_history_(id);
+ if(journal.length){
+  var terminal=journal[journal.length-1];
+  if(terminal.stage==='CONFLICT'){
+   if(terminal.payload&&terminal.payload.noWrites!==true)throw Error('SWAP_WITHDRAW_REQUIRES_MANUAL_RECOVERY');
+   if(journal.some(function(event){return event.stage==='WRITING'||event.stage==='COMMITTED'||event.stage==='ROLLING_BACK'||event.stage==='FAILED';}))throw Error('SWAP_WITHDRAW_REQUIRES_MANUAL_RECOVERY');
+  }else if(terminal.stage!=='ROLLED_BACK')throw Error('SWAP_WITHDRAW_REQUIRES_MANUAL_RECOVERY');
+ }
  var next=JSON.parse(JSON.stringify(old));
  next.status='WITHDRAWN';
  next.withdrawnAt=new Date().toISOString();

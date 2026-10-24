@@ -90,3 +90,6 @@ User provided successful CMD evidence: `ams20-prod-runtime@audit-management-syst
 
 ## PROD infrastructure readback — 2026-10-24
 User ran read-only `gcloud` inventory against `audit-management-system-2-prod`: Firestore databases 0; SAs active: `ams20-prod-scheduler`, `ams20-prod-runtime`, default Compute; Docker Artifact Registry `ams-cloud20` in `europe-west1`; Cloud Run services 0. This verifies an isolated *empty* infrastructure, not PROD release readiness. Firestore database creation and collection-namespace release guards still pending.
+
+## PROD Firestore create conflict — 2026-10-24
+`gcloud firestore databases list --project=audit-management-system-2-prod` returned 0 items, but subsequent `gcloud firestore databases create --database="(default)" --location=europe-west1 --type=firestore-native ...` failed `Database already exists`. Treat database status as **UNVERIFIED** pending explicit `gcloud firestore databases describe --database="(default)" --project=...` and full inventory; do not retry create or create alternate DB ID. No Firestore creation success is claimed.

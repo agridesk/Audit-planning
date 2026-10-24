@@ -18,7 +18,7 @@ export function createSwapFirestoreAtomicWriter({project,getToken,fetchImpl=fetc
   if(write.update&&(!write.update.fields||typeof write.update.fields!=='object'))return false;
   const pre=write.currentDocument;
   if(!pre||typeof pre!=='object'||(typeof pre.updateTime!=='string'&&typeof pre.exists!=='boolean'))return false;
-  if(pre.updateTime!==undefined&&!/^\\d{4}-\\d{2}-\\d{2}T/.test(pre.updateTime))return false;
+  if(pre.updateTime!==undefined&&!/^\d{4}-\d{2}-\d{2}T/.test(pre.updateTime))return false;
   if(pre.updateTime&&pre.exists!==undefined)return false;
   if(pre.exists===true)return false;
   return true;

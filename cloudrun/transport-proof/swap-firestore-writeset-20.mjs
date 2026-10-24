@@ -12,11 +12,11 @@ function validBlocks(blocks){
   (typeof b==='string'&&b.trim().length>0&&b.length<=150)||
   (b!==null&&typeof b==='object'&&!Array.isArray(b)&&Object.keys(b).length>0));
 }
-export function buildSwapFirestoreWriteSet({project,operationId,proposal,pair,availability,actorEmail,now=new Date().toISOString()}={}){
+export function buildSwapFirestoreWriteSet({project,operationId,proposal,pair,availability,finalReservations,actorEmail,now=new Date().toISOString()}={}){
  if(!/^[a-z][a-z0-9-]{4,62}$/.test(project||'')||!ID.test(operationId||'')||
   !proposal||proposal.operationId!==operationId||proposal.status!=='CONFIRMED'||!TIMESTAMP.test(proposal.updateTime||'')||
   !proposal.auditA||!proposal.auditB||proposal.auditA===proposal.auditB||
-  !Array.isArray(pair)||pair.length!==2||!Array.isArray(availability)||availability.length!==2||
+  !Array.isArray(pair)||pair.length!==2||!Array.isArray(availability)||availability.length!==2||!Array.isArray(finalReservations)||finalReservations.length!==2||
   !TIMESTAMP.test(now)||typeof actorEmail!=='string'||!actorEmail.includes('@'))
   throw Error('SWAP_WRITESET_INPUT_INVALID');
  if(!validBlocks(proposal.blocksA)||!validBlocks(proposal.blocksB))throw Error('SWAP_WRITESET_PROPOSED_BLOCKS_REQUIRED');
@@ -26,10 +26,10 @@ export function buildSwapFirestoreWriteSet({project,operationId,proposal,pair,av
  const ids=[proposal.auditA,proposal.auditB];
  const revisions=new Set();
  for(let i=0;i<2;i++){
-  const row=pair[i],slot=availability[i];
+  const row=pair[i],slot=availability[i],finalSlot=finalReservations[i];
   if(!row||row.auditId!==ids[i]||!statusOk(row.status)||!TIMESTAMP.test(row.updateTime||'')||
    !row.canonical||typeof row.canonical!=='object'||!slot||slot.auditId!==ids[i]||
-   !TIMESTAMP.test(slot.updateTime||'')||!Array.isArray(slot.reservations))
+   !TIMESTAMP.test(slot.updateTime||'')||!Array.isArray(slot.reservations)||!finalSlot||finalSlot.auditId!==ids[i]||!Array.isArray(finalSlot.reservations)||finalSlot.verified!==true)
    throw Error('SWAP_WRITESET_PAIR_INVALID');
   revisions.add(row.updateTime+'|'+row.auditId);
  }
@@ -43,7 +43,7 @@ export function buildSwapFirestoreWriteSet({project,operationId,proposal,pair,av
    throw Error('SWAP_WRITESET_BLOCKS_MISSING');
   const next={...source.canonical,plannedBlocks:i===0?proposal.blocksA:proposal.blocksB};
   writes.push({update:{name:root+'ams_swap20_dev_audits/'+encodeURIComponent(source.auditId),fields:{payload:encode(next)}},currentDocument:{updateTime:source.updateTime}});
-  writes.push({update:{name:root+'ams_swap20_dev_availability/'+encodeURIComponent(slot.auditId),fields:{payload:encode({reservations:i===0?proposal.blocksA:proposal.blocksB})}},currentDocument:{updateTime:slot.updateTime}});
+  writes.push({update:{name:root+'ams_swap20_dev_availability/'+encodeURIComponent(slot.auditId),fields:{payload:encode({reservations:finalReservations[i].reservations})}},currentDocument:{updateTime:slot.updateTime}});
  }
  writes.push({update:{name:root+'ams_swap20_dev_proposals/'+operationId,
   fields:{payload:encode({...proposal,status:'APPLIED',canonicalCommitVerified:true,appliedAt:now,appliedBy:actorEmail})}},

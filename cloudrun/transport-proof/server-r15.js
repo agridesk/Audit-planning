@@ -313,8 +313,9 @@ const swap20Index=swap20IndexEnabled?createSwapProposalIndex({project,getToken})
 const swap20Scheduler=swap20Index&&process.env.AMS_SWAP20_SCHEDULER_SA_EMAIL&&process.env.AMS_SWAP20_SCHEDULER_AUDIENCE?createSwapIndexScheduler({index:swap20Index,roster:swapRoster,gasCall:notificationGasCall,serviceEmail:process.env.AMS_SWAP20_SCHEDULER_SA_EMAIL,audience:process.env.AMS_SWAP20_SCHEDULER_AUDIENCE}):null;
 const swap20Lists=new Map();
 const swap20ListInflight=new Map();
+let swap20ListGeneration=0;
 function swap20ListKey(actor){return actor.role+":"+actor.email;}
-function swap20InvalidateLists(){swap20Lists.clear();swap20ListInflight.clear();}
+function swap20InvalidateLists(){swap20ListGeneration++;swap20Lists.clear();swap20ListInflight.clear();}
 async function swap20InvalidateMirror(actor){
  if(!swap20Mirror)return;
  // No mutation may be called "complete" while stale local role data is retained.
@@ -331,7 +332,7 @@ async function swap20ReadList(actor){
  const key=swap20ListKey(actor),now=Date.now(),cached=swap20Lists.get(key);
  if(cached&&cached.expires>now){console.info('[SWAP20_LIST_PERF]',JSON.stringify({role:actor.role,source:'CACHE',ms:Date.now()-now}));return cached.data;}
  if(swap20ListInflight.has(key))return swap20ListInflight.get(key);
- const started=Date.now();
+ const started=Date.now(),generation=swap20ListGeneration;
  const call=(async()=>{
   if(swap20Mirror){
    try{
@@ -357,9 +358,9 @@ async function swap20ReadList(actor){
   return canonical;
  })().then(async data=>{
   console.info('[SWAP20_LIST_PERF]',JSON.stringify({role:actor.role,source:'GAS',ms:Date.now()-started,ok:data?.ok===true}));
-  if(data?.ok===true&&!swap20Index)swap20Lists.set(key,{data,expires:Date.now()+90000});
+  if(data?.ok===true&&!swap20Index&&generation===swap20ListGeneration)swap20Lists.set(key,{data,expires:Date.now()+90000});
   return data;
- }).catch(err=>{console.error('[SWAP20_LIST_PERF]',JSON.stringify({role:actor.role,source:'GAS',ms:Date.now()-started,ok:false,code:String(err?.message||'UNKNOWN').slice(0,90)}));throw err;}).finally(()=>swap20ListInflight.delete(key));
+ }).catch(err=>{console.error('[SWAP20_LIST_PERF]',JSON.stringify({role:actor.role,source:'GAS',ms:Date.now()-started,ok:false,code:String(err?.message||'UNKNOWN').slice(0,90)}));throw err;}).finally(()=>{if(swap20ListInflight.get(key)===call)swap20ListInflight.delete(key);});
  swap20ListInflight.set(key,call);
  return call;
 }

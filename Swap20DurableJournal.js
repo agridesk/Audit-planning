@@ -29,6 +29,8 @@ function Swap20Journal_history_(operationId){
  var id=Swap20Store_key_(operationId).slice(SWAP20_STORE_PREFIX_.length),sh=Swap20Journal_sheet_(),last=sh.getLastRow();
  if(last<2)return [];
  var rows=sh.getRange(2,1,last-1,5).getValues(),out=[];
+ // Decode only matching operation rows: unrelated compressed before-images
+ // must not be inflated during each journal status/append request.
  rows.forEach(function(row){if(String(row[0])===id){
   var payload=Swap20Journal_decodePayload_(String(row[4]||'null'));
   out.push({operationId:id,sequence:Number(row[1]),stage:String(row[2]),recordedAt:String(row[3]),payload:payload});

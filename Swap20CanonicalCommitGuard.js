@@ -8,7 +8,8 @@ function Swap20CanonicalCommitGuard(input) {
   if (!a || !b || a === b) throw new Error('Distinct audit IDs required');
   var expected = input.expectedRevisions || {};
   if (!expected[a] || !expected[b]) throw new Error('Expected revisions required');
-  var pair = Swap20_readCanonicalPair({auditA:a,auditB:b});
+  var pair = input.canonicalPair || Swap20_readCanonicalPair({auditA:a,auditB:b});
+  if(input.canonicalPair && (String(pair.auditA&&pair.auditA.auditId)!==a || String(pair.auditB&&pair.auditB.auditId)!==b))throw Error('Canonical pair identity mismatch');
   if (!pair.eligible) throw new Error('Swap pair not eligible');
   if (String(pair.auditA.revision) !== String(expected[a]) ||
       String(pair.auditB.revision) !== String(expected[b])) throw new Error('Stale canonical revision');

@@ -48,7 +48,7 @@ export function createSwapFirestoreCanonicalReader({project,getToken,fetchImpl=f
   const records=await fetchDocuments(ids.map(id=>'ams_swap20_dev_availability/'+id));
   return records.map((record,i)=>{
    if(!Array.isArray(record.payload.reservations))throw Error('SWAP_CANONICAL_READER_RESERVATIONS_INVALID');
-   return {auditId:ids[i],reservations:record.payload.reservations,updateTime:record.updateTime,source:'firestore-canonical'};
+   return {auditId:ids[i],canonical:record.payload,reservations:record.payload.reservations,updateTime:record.updateTime,source:'firestore-canonical'};
   });
  }
  async function readProposal(operationId){

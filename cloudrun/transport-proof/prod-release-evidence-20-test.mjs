@@ -4,6 +4,9 @@ import {fileURLToPath} from 'node:url';
 const x=JSON.parse(execFileSync(process.execPath,[fileURLToPath(new URL('./prod-release-evidence-20.mjs',import.meta.url))],{encoding:'utf8'}));
 assert.equal(x.sourceOnly,true);
 assert.equal(x.status,'NOT_READY');
+assert.equal(x.knownGuards.combinedProdGuard,'NOT_VERIFIED');
+assert.equal(x.knownGuards.managerProdGuard,'NOT_VERIFIED');
+
 assert.equal(x.scope,'AMS_CLOUD_20_PROD_CUTOVER');
 assert.ok(Array.isArray(x.checks));
 assert.equal(x.checks.length,new Set(x.checks.map(c=>c.id)).size,'IDs unique');

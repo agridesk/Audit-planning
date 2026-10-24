@@ -10,7 +10,7 @@ function Swap20_executeLocked_(proposal){
  var persisted=Swap20Store_read_(proposal.operationId);
  if(!persisted||persisted.status!=='CONFIRMED'||JSON.stringify(persisted)!==JSON.stringify(proposal))throw Error('Proposal changed before commit');
  var history=Swap20Journal_history_(proposal.operationId);
- if(history.length)throw Error('Existing journal requires recovery');
+ if(history.length&&(history.length!==1||history[0].stage!=='PREPARED'))throw Error('Existing journal requires recovery');
  var guard=Swap20CanonicalCommitGuard({auditA:proposal.auditA,auditB:proposal.auditB,expectedRevisions:proposal.originalRevisions,blocksA:proposal.blocksA,blocksB:proposal.blocksB});
  if(!guard||guard.ok!==true)throw Error('Swap canonical preflight failed');
  var canonical=Swap20_captureCanonicalBeforeImages_(proposal);
@@ -27,10 +27,14 @@ function Swap20_executeLocked_(proposal){
  if(!plan||!Array.isArray(plan.values)||plan.sheetName!==availability.sheetName||plan.width!==availability.width||plan.originalHeight!==availability.height)throw Error('Invalid paired reservation plan');
  if(plan.values.length<availability.height||plan.values.length>2000)throw Error('Availability plan exceeds safe row limit');
  var before={canonical:canonical,availability:availability};
+ if(history.length){
+  var saved=history[0].payload;
+  if(!saved||JSON.stringify(Swap20Journal_markDates_(saved))!==JSON.stringify(Swap20Journal_markDates_(before)))throw Error('PREPARED before-image changed; manual review required');
+ }
  if(Swap20Journal_encodePayload_(before).length>40000)throw Error('Swap compressed before-images exceed journal capacity');
  if(!Array.isArray(canonical.rows)||canonical.rows.length!==2)throw Error('Canonical pair snapshot incomplete');
  if(String(canonical.rows[0].auditId)!==String(proposal.auditA)||String(canonical.rows[1].auditId)!==String(proposal.auditB))throw Error('Canonical pair order mismatch');
- Swap20Journal_appendLocked_(proposal.operationId,0,'PREPARED',before);
+ if(!history.length)Swap20Journal_appendLocked_(proposal.operationId,0,'PREPARED',before);
  var writingStarted=false;
  try{
   Swap20_verifyCanonicalBeforeImages_(canonical);

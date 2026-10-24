@@ -1,0 +1,32 @@
+// AMS release-only regression: detect accidental removal of PROD safety gates.
+// Read-only. Does not deploy, contact GCP, or touch SWAP runtime.
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+const dir=import.meta.dirname;
+const read=(name)=>readFileSync(resolve(dir,name),'utf8');
+const contract=read('prod-readiness-contract-20.mjs');
+const env=read('runtime-environment-20.mjs');
+const r4=read('server-r4.js');
+const r6=read('server-r6.js');
+const entry=read('server-r15.js');
+const checks=[
+ ['explicit PROD release opt-in',env.includes('AMS_PROD_RELEASE_ENABLED')],
+ ['PROD project binding',env.includes('AMS_PROD_GCP_PROJECT')],
+ ['PROD sheet binding',env.includes('AMS_PROD_SSOT_SPREADSHEET_ID')],
+ ['DEV/PROD sheet inequality',env.includes('AMS_PROD_SHEET_NOT_ISOLATED')],
+ ['PROD signing secret isolation',env.includes('AMS_PROD_SESSION_SECRET_NOT_ISOLATED')],
+ ['PROD writer key isolation',env.includes('AMS_PROD_WRITE_KEY_NOT_ISOLATED')],
+ ['PROD logout revocation contract',env.includes('AMS_PROD_LOGOUT_REVOCATION_REQUIRED')],
+ ['PROD real OTP contract',env.includes('AMS_PROD_AUTH_OTP_ENABLED')],
+ ['PROD entrypoint validates runtime',entry.includes('resolveAmsRuntimeConfig(process.env,await resolveProject())')],
+ ['legacy manager writer is still inventoried',!r4.includes('async function directManagerApprove(')||contract.includes('PROD_LEGACY_MANAGER_LIFECYCLE_WRITES')],
+ ['legacy combined writer is still inventoried',!r6.includes('sheetsValuesBatchUpdate(writes)')||contract.includes('PROD_LEGACY_DIRECT_LIFECYCLE_WRITE')],
+ ['realized-hours bypass blocker retained',contract.includes('PROD_REALIZED_HOURS_DIRECT_SHEETS_WRITE')],
+ ['Firestore environment binding blocker retained',contract.includes('PROD_FIRESTORE_COLLECTION_DEFAULT_DEV')],
+ ['release contract explicitly exits nonzero for blockers',contract.includes("process.exitCode=1")],
+ ['GAS DEV endpoint gate inventoried',contract.includes('GAS_BRIDGE_DEV_ONLY')],
+ ['notification PROD gate inventoried',contract.includes('NOTIFICATION_PROD_DISABLED')]
+];
+for(const [name,ok] of checks){assert.equal(ok,true,'AMS PROD release contract regression: '+name);}
+console.log('AMS PROD release safeguards: PASS '+checks.length+' source contract assertions; NO release authorization inferred.');

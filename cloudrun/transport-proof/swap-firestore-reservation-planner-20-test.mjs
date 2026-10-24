@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {resolveSwapFirestoreReservations} from './swap-firestore-reservation-planner-20.mjs';
+const block=(date,start='09:00',end='11:00')=>({date,start,end});
+const proposal={auditA:'A',auditB:'B',blocksA:[block('2026-10-27')],blocksB:[block('2026-10-26')]};
+const availability=['A','B'].map(auditId=>({auditId,reservations:[{auditId}]}));
+const owners={A:'a@example.test',B:'b@example.test'};
+const base={proposal,pair:[],availability,owners,externalReservations:[],completeExternalIndex:true};
+const result=resolveSwapFirestoreReservations(base);
+assert.equal(result.length,2);
+assert.equal(result[0].verified,true);
+assert.equal(result[0].reservations[0].status,'Accepted');
+assert.throws(()=>resolveSwapFirestoreReservations({...base,completeExternalIndex:false}),/INDEX_INCOMPLETE/);
+assert.throws(()=>resolveSwapFirestoreReservations({...base,availability:[{auditId:'A',reservations:[]},availability[1]]}),/COUNT_MISMATCH/);
+const external={auditId:'X',owner:'a@example.test',date:'2026-10-27',start:'10:00',end:'12:00'};
+assert.throws(()=>resolveSwapFirestoreReservations({...base,externalReservations:[external]}),/RESERVATION_OVERLAP/);
+assert.equal(resolveSwapFirestoreReservations({...base,externalReservations:[{...external,date:'2026-10-28'}]}).length,2);
+assert.throws(()=>resolveSwapFirestoreReservations({...base,externalReservations:[{...external,auditId:'A'}]}),/INDEX_CONTAINS_PAIR/);
+console.log('SWAP reservation planner coverage and overlap checks passed');

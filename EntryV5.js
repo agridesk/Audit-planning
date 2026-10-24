@@ -313,6 +313,9 @@ function doPost(e) {
     if(!swapBridge20.ok)return swapBridge20.response;
     var swapInput20=swapBridge20.body||{};
     var swapRole20=String(swapInput20.actorRole||'').trim().toLowerCase();
+    if(swapInput20.operation==='commit'){
+      try{PropertiesService.getScriptProperties().setProperty('AMS_SWAP20_LAST_COMMIT_ENTRY_'+String(swapInput20.operationId||''),JSON.stringify({at:new Date().toISOString(),phase:'received',role:swapRole20}));}catch(ignore20){}
+    }
     if(swapRole20!=='manager'&&swapRole20!=='auditor')
       return swapReply20({ok:false,error:'SWAP_AUTHENTICATED_ROLE_REQUIRED'});
     try {
@@ -325,8 +328,11 @@ function doPost(e) {
       }
       if(typeof Swap20Bridge20_handle_!=='function')
         return swapReply20({ok:false,error:'SWAP_BRIDGE_OWNER_MISSING'});
-      return swapReply20(Swap20Bridge20_handle_(swapInput20));
+      var swapResult20=Swap20Bridge20_handle_(swapInput20);
+      if(swapInput20.operation==='commit')try{PropertiesService.getScriptProperties().setProperty('AMS_SWAP20_LAST_COMMIT_ENTRY_'+String(swapInput20.operationId||''),JSON.stringify({at:new Date().toISOString(),phase:'returned',ok:swapResult20&&swapResult20.ok===true,error:String(swapResult20&&swapResult20.error||'').slice(0,350)}));}catch(ignore21){}
+      return swapReply20(swapResult20);
     }catch(swapError20){
+      if(swapInput20.operation==='commit')try{PropertiesService.getScriptProperties().setProperty('AMS_SWAP20_LAST_COMMIT_ENTRY_'+String(swapInput20.operationId||''),JSON.stringify({at:new Date().toISOString(),phase:'exception',error:String(swapError20&&swapError20.message||swapError20).slice(0,500)}));}catch(ignore22){}
       return swapReply20({ok:false,error:String(swapError20&&swapError20.message||swapError20).slice(0,180)});
     }
   }

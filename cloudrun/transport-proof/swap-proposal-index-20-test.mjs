@@ -8,11 +8,12 @@ assert.match(cloud,/AMS_SWAP20_PROPOSAL_INDEX_ENABLED==='true'/);
 assert.match(cloud,/swap20Index\.begin\(op\)/);
 assert.match(cloud,/swap20Index\.finish\(op,result\._mirrorEvent\)/);
 assert.match(cloud,/SWAP_INDEX_CANONICAL_EVENT_MISSING/);
-const storage=new Map();let rev=0;
+const storage=new Map();let rev=0;let listReads=0;
 function pathOf(url){return new URL(url).pathname.split('/').pop();}
 const fetchImpl=async(url,opts)=>{
  const method=opts.method||'GET',id=pathOf(url);
  if(method==='GET'&&id==='ams_swap20_dev_index'){
+  listReads++;
   return {ok:true,status:200,json:async()=>({documents:[...storage.entries()].map(([name,d])=>({name:'documents/ams_swap20_dev_index/'+name,fields:{payload:{stringValue:JSON.stringify(d.data)}},updateTime:d.time}))})};
  }
  const old=storage.get(id);
@@ -43,6 +44,9 @@ assert.equal(await index.begin(base.operationId),false);
 assert.equal(await index.bootstrap([base]),true);
 assert.equal(await index.bootstrap([]),false);
 assert.equal((await index.read(mgr)).items[0].status,'AWAITING_ACKNOWLEDGEMENT');
+const firstListReads=listReads;
+assert.equal((await index.read(mgr)).items[0].status,'AWAITING_ACKNOWLEDGEMENT');
+assert.equal(listReads,firstListReads,'unchanged metadata must reuse verified index snapshot');
 const ai=await index.read(aud);
 assert.equal(ai.items.length,1);
 assert.equal(ai.attentionCount,1);
@@ -54,6 +58,7 @@ assert.equal(await index.read(mgr),null,'never read an in-flight mutation');
 assert.equal(await index.begin(base.operationId),false,'parallel writes blocked');
 await index.finish(base.operationId,{...base,status:'CONFIRMED',acknowledgedAuditorUids:['auditor-uid']});
 assert.equal((await index.read(mgr)).items[0].status,'CONFIRMED');
+assert.ok(listReads>firstListReads,'mutation must invalidate previously verified snapshot');
 await index.reconcile([{...base,status:'CONFIRMED',acknowledgedAuditorUids:['auditor-uid']}]);
 assert.equal((await index.read(mgr)).attentionCount,1);
 clockMs+=480001;

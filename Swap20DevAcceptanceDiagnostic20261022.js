@@ -144,3 +144,21 @@ function RUN_DIAG_SWAP20_REVISION_TOKENS_DEV_20261024(){
  });
  Logger.log(JSON.stringify({readOnly:true,proposals:out}));return out;
 }
+
+function RUN_DIAG_SWAP20_CANONICAL_FIELDS_DEV_20261024(){
+ var props=PropertiesService.getScriptProperties();
+ if(props.getProperty('AMS_ENV')!=='DEV')throw Error('DEV_ONLY');
+ var output=[];
+ Object.keys(props.getProperties()).filter(function(k){return k.indexOf('AMS_SWAP20_PROPOSAL_')===0;}).forEach(function(k){
+ var p=JSON.parse(props.getProperty(k));if(p.status!=='CONFIRMED')return;
+ var pair=Swap20_readCanonicalPair({auditA:p.auditA,auditB:p.auditB});
+ var audits=[p.auditA,p.auditB].map(function(id){
+ var row=PRT_readCanonicalRow_(id);var fields={};
+ row.headers.forEach(function(h,i){var n=String(h).toLowerCase().replace(/[^a-z0-9]/g,'');if(['status','assignedto','dateplanned','planningjson','dateapproved','statussince'].indexOf(n)>=0){var v=row.row[i];fields[String(h)]=Object.prototype.toString.call(v)==='[object Date]'?v.toISOString():String(v==null?'':v).slice(0,1200);}});
+ var actual=id===p.auditA?pair.auditA:pair.auditB;
+ return {id:id,expected:p.originalRevisions[id],current:actual.revision,fields:fields,blocks:actual.blocks};
+ });
+ output.push({operationId:p.operationId,audits:audits});
+ });
+ Logger.log(JSON.stringify({readOnly:true,proposals:output}));return output;
+}

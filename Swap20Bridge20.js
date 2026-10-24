@@ -43,7 +43,7 @@ function Swap20Bridge20_preview_(a,b) {
  })(),blocksA:proposed.blocksA,blocksB:proposed.blocksB});
  function display(item){return {auditId:String(item.auditId||''),assignedTo:String(item.assignedTo||''),
   blocks:item.blocks,revision:item.revision};}
- Logger.log('[SWAP20_PERF] '+JSON.stringify({step:'managerPreview',ms:Date.now()-perfStart}));
+ if(typeof Logger!=='undefined'&&Logger&&typeof Logger.log==='function')Logger.log('[SWAP20_PERF] '+JSON.stringify({step:'managerPreview',ms:Date.now()-perfStart}));
  return {ok:true,readOnly:true,eligible:true,
   beforeA:display(pair.auditA),beforeB:display(pair.auditB),
   afterA:proposed.blocksA,afterB:proposed.blocksB,
@@ -170,7 +170,7 @@ function Swap20Bridge20_handleAuditor_(body) {
  body=body||{};
  var actor=Swap20Bridge20_auditor_(body.actorEmail);
  var uid=Swap20_resolveAuditorUidByEmail_(actor.email);
- Logger.log('[SWAP20_PERF] '+JSON.stringify({step:'auditorIdentity',ms:Date.now()-swapPerfStarted}));
+ if(typeof Logger!=='undefined'&&Logger&&typeof Logger.log==='function')Logger.log('[SWAP20_PERF] '+JSON.stringify({step:'auditorIdentity',ms:Date.now()-swapPerfStarted}));
  var operation=String(body.operation||'').trim();
  if(operation==='listPending') {
   var props=PropertiesService.getScriptProperties().getProperties();
@@ -188,7 +188,7 @@ function Swap20Bridge20_handleAuditor_(body) {
     acknowledged:(p.acknowledgedAuditorUids||[]).indexOf(uid)>=0});
   });
   items.sort(function(a,b){return b.createdAt.localeCompare(a.createdAt);});
-  Logger.log('[SWAP20_PERF] '+JSON.stringify({step:'auditorList',ms:Date.now()-swapPerfStarted,items:items.length}));
+  if(typeof Logger!=='undefined'&&Logger&&typeof Logger.log==='function')Logger.log('[SWAP20_PERF] '+JSON.stringify({step:'auditorList',ms:Date.now()-swapPerfStarted,items:items.length}));
   return {ok:true,readOnly:true,items:items.slice(0,50),
    attentionCount:items.filter(function(p){return !p.acknowledged;}).length};
  }
@@ -198,7 +198,7 @@ function Swap20Bridge20_handleAuditor_(body) {
    return {ok:false,error:'SWAP_AUDITOR_RESPONSE_INVALID'};
   var respondStart=Date.now();
   var result=Swap20AuditorRespondAuthorized_({operationId:op,decision:decision},actor);
-  Logger.log('[SWAP20_PERF] '+JSON.stringify({step:'auditorRespond',ms:Date.now()-respondStart,decision:decision}));
+  if(typeof Logger!=='undefined'&&Logger&&typeof Logger.log==='function')Logger.log('[SWAP20_PERF] '+JSON.stringify({step:'auditorRespond',ms:Date.now()-respondStart,decision:decision}));
   return Swap20Bridge20_mirrorEvent_({ok:result.success===true,status:result.status,operationId:result.operationId,
    idempotent:result.idempotent===true},op);
  }

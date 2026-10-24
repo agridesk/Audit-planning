@@ -199,3 +199,18 @@ function RUN_REPAIR_SWAP20_CONFIRMED_REVISION_DEV_20261024(){
   Logger.log(JSON.stringify(result));return result;
  }finally{lock.releaseLock();}
 }
+
+function RUN_DIAG_SWAP20_LIVE_PAIR_DEV_20261024(){
+ var sp=PropertiesService.getScriptProperties();
+ if(sp.getProperty('AMS_ENV')!=='DEV'||sp.getProperty('V5_SSOT_SPREADSHEET_ID')!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')throw Error('DEV_ONLY');
+ var id='SWAP20_75c82baa8f8248dc93690667df7a6c07',p=Swap20Store_read_(id);
+ if(!p)throw Error('NOT_FOUND');
+ var pair=Swap20_readCanonicalPair({auditA:p.auditA,auditB:p.auditB});
+ var out={operationId:id,status:p.status,journalEntries:Swap20Journal_history_(id).length,eligible:pair.eligible,audits:[]};
+ [p.auditA,p.auditB].forEach(function(a,i){
+  var item=i?pair.auditB:pair.auditA,row=PRT_readCanonicalRow_(a);
+  var fresh=PRT_result_(a,row.headers,row.row,'swap snapshot',row.rowNumber);
+  out.audits.push({auditId:a,storedRevision:p.originalRevisions[a],pairRevision:item.revision,freshRevision:fresh.revision,blocks:item.blocks,keys:Object.keys(item),status:item.status,assignedTo:item.assignedTo});
+ });
+ Logger.log(JSON.stringify(out));return out;
+}

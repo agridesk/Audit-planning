@@ -7,10 +7,14 @@ function Swap20_executeLocked_(proposal){
  if(!proposal||proposal.status!=='CONFIRMED')throw Error('Confirmed proposal required');
  if(proposal.dateChanged===true&&(!Array.isArray(proposal.requiredAuditorUids)||!proposal.requiredAuditorUids.length||!Array.isArray(proposal.acknowledgedAuditorUids)||proposal.requiredAuditorUids.some(function(uid){return proposal.acknowledgedAuditorUids.indexOf(uid)<0;})))throw Error('Swap auditor acknowledgements incomplete');
  if(!proposal.operationId||!proposal.auditA||!proposal.auditB||proposal.auditA===proposal.auditB)throw Error('Invalid swap operation identity');
+ var entryStarted=Date.now();
  var persisted=Swap20Store_read_(proposal.operationId);
  if(!persisted||persisted.status!=='CONFIRMED'||JSON.stringify(persisted)!==JSON.stringify(proposal))throw Error('Proposal changed before commit');
+ var persistedReadMs=Date.now()-entryStarted;
  var history=Swap20Journal_history_(proposal.operationId);
  if(history.length&&(history.length!==1||history[0].stage!=='PREPARED'))throw Error('Existing journal requires recovery');
+ var journalHistoryMs=Date.now()-entryStarted-persistedReadMs;
+ console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:proposal.operationId,phase:'entryReads',persistedReadMs:persistedReadMs,journalHistoryMs:journalHistoryMs,elapsedMs:Date.now()-entryStarted}));
  var perfStarted=Date.now();
  var guard=Swap20CanonicalCommitGuard({auditA:proposal.auditA,auditB:proposal.auditB,expectedRevisions:proposal.originalRevisions,blocksA:proposal.blocksA,blocksB:proposal.blocksB});
  if(!guard||guard.ok!==true)throw Error('Swap canonical preflight failed');

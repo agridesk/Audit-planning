@@ -363,17 +363,34 @@ async function swap20GasOperation(actor,operation,data){
  if(!swap20Index||!['propose','withdraw','commit','respond'].includes(operation))
   return notificationGasCall(actor,operation,data,'externalswap20');
  const op=String(data.operationId||'');
- if(!await swap20Index.begin(op))throw Error('SWAP_INDEX_NOT_READY_OR_BUSY');
- // Fail closed on uncertain GAS transport; the persistent DIRTY marker
- // stops stale Firestore responses until explicitly reconciled.
- const result=await notificationGasCall(actor,operation,data,'externalswap20');
+ const started=Date.now();
+ const acquired=await swap20Index.begin(op);
+ if(!acquired){
+  const state=await swap20Index.meta();
+  console.error('[SWAP20_MUTATION_BLOCKED]',JSON.stringify({operation,operationId:op,indexStatus:state?.data?.status||'MISSING',indexOperationId:state?.data?.operationId||'',ms:Date.now()-started}));
+  throw Error('SWAP_INDEX_NOT_READY_OR_BUSY');
+ }
+ console.info('[SWAP20_MUTATION_PERF]',JSON.stringify({operation,phase:'indexBegin',ms:Date.now()-started}));
+ let result;
+ try{result=await notificationGasCall(actor,operation,data,'externalswap20');}
+ catch(e){
+  console.error('[SWAP20_MUTATION_UNCERTAIN]',JSON.stringify({operation,operationId:op,phase:'gasTransport',ms:Date.now()-started,code:String(e?.message||e).slice(0,160)}));
+  throw e;
+ }
  if(result?.ok===true){
-  if(!result._mirrorEvent||result._mirrorEvent.operationId!==op)
+  if(!result._mirrorEvent||result._mirrorEvent.operationId!==op){
+   console.error('[SWAP20_MUTATION_UNCERTAIN]',JSON.stringify({operation,operationId:op,phase:'missingCanonicalEvent',ms:Date.now()-started}));
    throw Error('SWAP_INDEX_CANONICAL_EVENT_MISSING');
-  await swap20Index.finish(op,result._mirrorEvent);
+  }
+  try{await swap20Index.finish(op,result._mirrorEvent);}
+  catch(e){
+   console.error('[SWAP20_MUTATION_UNCERTAIN]',JSON.stringify({operation,operationId:op,phase:'indexFinish',ms:Date.now()-started,code:String(e?.message||e).slice(0,160)}));
+   throw e;
+  }
  }else{
   await swap20Index.abort(op);
  }
+ console.info('[SWAP20_MUTATION_PERF]',JSON.stringify({operation,phase:'complete',ms:Date.now()-started,ok:result?.ok===true,status:result?.status||'',error:result?.error||''}));
  return result;
 }
 async function swap20ManagerRequest(req,res,operation){

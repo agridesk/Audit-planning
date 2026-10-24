@@ -8,7 +8,8 @@ const payloads={
  'ams_swap20_dev_audits/B':{status:'Accepted',plannedBlocks:['b']},
  'ams_swap20_dev_availability/A':{reservations:['a']},
  'ams_swap20_dev_availability/B':{reservations:['b']},
- 'ams_swap20_dev_proposals/swap_12345678':{operationId:'swap_12345678',status:'CONFIRMED'}
+ 'ams_swap20_dev_proposals/swap_12345678':{operationId:'swap_12345678',status:'CONFIRMED'},
+ 'ams_swap20_dev_journal/swap_12345678':{operationId:'swap_12345678',stage:'COMMITTED'}
 };
 const fetchImpl=async(url,init)=>{
  calls++;
@@ -25,7 +26,8 @@ const availability=await reader.readAvailability(['A','B']);
 assert.deepEqual(availability[1].reservations,['b']);
 const proposal=await reader.readProposal('swap_12345678');
 assert.equal(proposal.updateTime,updateTime);
-assert.equal(calls,3);
+assert.equal((await reader.readJournal('swap_12345678')).stage,'COMMITTED');
+assert.equal(calls,4);
 await assert.rejects(reader.readPair(['A','A']),/SWAP_CANONICAL_READER_PAIR_INVALID/);
 const broken=createSwapFirestoreCanonicalReader({project:'ams-test-dev',getToken:async()=>'token',fetchImpl:async()=>({ok:true,json:async()=>[]})});
 await assert.rejects(broken.readPair(['A','B']),/SWAP_CANONICAL_READER_COUNT_INVALID/);

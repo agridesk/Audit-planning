@@ -73,7 +73,7 @@ function Swap20Bridge20_handle_(body) {
  catch(e){
   if(operation==='commit'){
    var msg=String(e&&e.message||e).slice(0,500);
-   Logger.log('[SWAP20_MANAGER_AUTH_ERROR] '+msg);
+   if(typeof Logger!=='undefined'&&Logger&&typeof Logger.log==='function')Logger.log('[SWAP20_MANAGER_AUTH_ERROR] '+msg);
    PropertiesService.getScriptProperties().setProperty('AMS_SWAP20_LAST_COMMIT_ERROR_'+String(body.operationId||''),JSON.stringify({at:new Date().toISOString(),phase:'managerIdentity',error:msg}));
   }
   throw e;
@@ -125,7 +125,7 @@ function Swap20Bridge20_handle_(body) {
    committed=Swap20ManagerCommitAuthorized_({operationId:body.operationId},manager);
   }catch(err){
    var msg=String(err&&err.message||err).slice(0,600);
-   Logger.log('[SWAP20_MANAGER_COMMIT_ERROR] '+JSON.stringify({operationId:body.operationId,error:msg,stack:String(err&&err.stack||'').slice(0,1200)}));
+   if(typeof Logger!=='undefined'&&Logger&&typeof Logger.log==='function')Logger.log('[SWAP20_MANAGER_COMMIT_ERROR] '+JSON.stringify({operationId:body.operationId,error:msg,stack:String(err&&err.stack||'').slice(0,1200)}));
    PropertiesService.getScriptProperties().setProperty('AMS_SWAP20_LAST_COMMIT_ERROR_'+String(body.operationId),JSON.stringify({at:new Date().toISOString(),error:msg}));
    throw err;
   }

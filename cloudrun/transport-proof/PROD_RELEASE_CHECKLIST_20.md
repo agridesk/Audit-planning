@@ -72,3 +72,6 @@ As of this file: live Cloud Run and GAS runtime parity, trigger installation, sc
 
 ## Local Windows contract verification — 2026-10-24
 Operator executed from `cloudrun/transport-proof` on Node v24.18.0: `npm run test:prod-evidence` PASS (25 evidence checks); `npm run test:prod-config` PASS (20 environment regression cases and 9 isolation cases). These prove source-level test behavior, not runtime PROD deployment safety. DEV/PROD cutover remains NOT_READY.
+
+## New AMS 2.0 PROD Apps Script identity — 2026-10-24
+User created a distinct GAS project named `AMS 2.0 PROD`, script ID `1lWMkeygwnsJjni20f-q_3CvA0YQB0la1mEgZYRqJfB0BXUbFfZu7uOnd`. Script creation is confirmed by user; deployed source version, spreadsheet binding, OAuth scopes, Script Properties, installable triggers, web-app deployment URL and permissions are NOT_VERIFIED. Do not confuse this Apps Script project with a separate new Cloud Run/Firestore Google Cloud project. No PROD source push, run or deployment authorized.

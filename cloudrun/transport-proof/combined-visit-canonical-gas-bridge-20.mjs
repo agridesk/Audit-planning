@@ -22,8 +22,13 @@ export async function canonicalCombinedGasBridge20({enabled=false,mode='',gasWri
  for(const id of all)if(!/^PRT1-[0-9a-f]{40}$/i.test(clean(expectedRevisionsByAudit[id])))throw Error('COMBINED_CANONICAL_BRIDGE_REVISION_REQUIRED');
  const url=new URL(gasWriteUrl);if(url.protocol!=='https:')throw Error('COMBINED_CANONICAL_BRIDGE_HTTPS_REQUIRED');
  url.searchParams.set('action','externalcanonicalcombinedvisit20');
- const response=await fetchImpl(url,{method:'POST',headers:{'content-type':'application/json'},redirect:'follow',body:JSON.stringify({bridgeKey,runtimeEnv:'DEV',actorRole:'MANAGER',actorEmail,targetAuditId,sourceAuditIds,auditorEmail,auditorName,blocks,expectedRevisionsByAudit})});
- const raw=await response.text();let result;try{result=JSON.parse(raw)}catch{throw Error('COMBINED_CANONICAL_BRIDGE_NON_JSON_'+response.status)}
+ const ambiguous=reason=>{const error=Error('COMBINED_CANONICAL_BRIDGE_RECONCILIATION_REQUIRED_'+reason);error.commitOutcomeUncertain=true;error.requiresReconciliation=true;error.safeToRetry=false;return error};
+ let response,raw;
+ try{
+  response=await fetchImpl(url,{method:'POST',headers:{'content-type':'application/json'},redirect:'follow',body:JSON.stringify({bridgeKey,runtimeEnv:'DEV',actorRole:'MANAGER',actorEmail,targetAuditId,sourceAuditIds,auditorEmail,auditorName,blocks,expectedRevisionsByAudit})});
+  raw=await response.text();
+ }catch{throw ambiguous('TRANSPORT_OUTCOME_UNKNOWN')}
+ let result;try{result=JSON.parse(raw)}catch{throw ambiguous('NON_JSON_'+response.status)}
  if(!response.ok||result?.success!==true||result?.committed!==true){
   const uncertain=result?.commitOutcomeUncertain===true||result?.repairRequired===true||result?.rollbackSkippedToProtectCanonicalCommit===true;
   const error=Error((uncertain?'COMBINED_CANONICAL_BRIDGE_RECONCILIATION_REQUIRED_':'COMBINED_CANONICAL_BRIDGE_REJECTED_')+clean(result?.error||result?.message||response.status));

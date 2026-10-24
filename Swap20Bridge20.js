@@ -166,9 +166,11 @@ function Swap20Bridge20_handle_(body) {
 // Auditor portal SWAP inbox, restricted to the authenticated canonical UID.
 // No manager-only internal reasons are exposed to auditors.
 function Swap20Bridge20_handleAuditor_(body) {
+ var swapPerfStarted=Date.now();
  body=body||{};
  var actor=Swap20Bridge20_auditor_(body.actorEmail);
  var uid=Swap20_resolveAuditorUidByEmail_(actor.email);
+ Logger.log('[SWAP20_PERF] '+JSON.stringify({step:'auditorIdentity',ms:Date.now()-swapPerfStarted}));
  var operation=String(body.operation||'').trim();
  if(operation==='listPending') {
   var props=PropertiesService.getScriptProperties().getProperties();
@@ -186,6 +188,7 @@ function Swap20Bridge20_handleAuditor_(body) {
     acknowledged:(p.acknowledgedAuditorUids||[]).indexOf(uid)>=0});
   });
   items.sort(function(a,b){return b.createdAt.localeCompare(a.createdAt);});
+  Logger.log('[SWAP20_PERF] '+JSON.stringify({step:'auditorList',ms:Date.now()-swapPerfStarted,items:items.length}));
   return {ok:true,readOnly:true,items:items.slice(0,50),
    attentionCount:items.filter(function(p){return !p.acknowledged;}).length};
  }

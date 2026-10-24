@@ -69,6 +69,7 @@ function Swap20Bridge20_handle_(body) {
  body=body||{};
  var operation=String(body.operation||'').trim();
  var manager;
+ var bridgeAuthStarted=Date.now();
  try{manager=Swap20Bridge20_manager_(body.actorEmail);}
  catch(e){
   if(operation==='commit'){
@@ -78,6 +79,7 @@ function Swap20Bridge20_handle_(body) {
   }
   throw e;
  }
+ if(operation==='commit')console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:String(body.operationId||''),phase:'bridgeActorAuthorized',authMs:Date.now()-bridgeAuthStarted}));
  if(operation==='listIndexSeed'){
   var properties=PropertiesService.getScriptProperties().getProperties();
   var ids=Object.keys(properties).filter(function(k){return k.indexOf('AMS_SWAP20_PROPOSAL_')===0;}).sort();

@@ -1,7 +1,7 @@
 // AMS issue #45 - read-only DEV GAS lifecycle/Availability integration preflight.
 // No lifecycle action, notifications, Availability reservation or data mutation.
-var AMS45_DEV_READ_ONLY_SMOKE_BUILD='2026-10-23_R1';
-function RUN_AMS45_DEV_READONLY_SMOKE(){
+var AMS45_DEV_READ_ONLY_SMOKE_BUILD='2026-10-24_R2_VISIBLE_RESULT';
+function AMS45_DEV_READONLY_SMOKE_RESULT_(){
  var env=typeof V5_ENTRY_isDevEnv_==='function'&&V5_ENTRY_isDevEnv_();
  if(!env)throw Error('AMS45_SMOKE_DEV_ONLY');
  var ss=SpreadsheetApp.getActiveSpreadsheet();
@@ -35,4 +35,15 @@ function RUN_AMS45_DEV_READONLY_SMOKE(){
   modelCIntegrity:modelC,integrityDiagnosticError:diagnosticError,
   integrationStatus:'READ_ONLY_PREFLIGHT_ONLY_NO_LIFECYCLE_WRITE_TESTED'
  };
+}
+
+// GAS editor runs do not reliably display returned values. Always print one JSON record.
+function RUN_AMS45_DEV_READONLY_SMOKE(){
+ var result;
+ try{result=AMS45_DEV_READONLY_SMOKE_RESULT_();}
+ catch(e){result={success:false,build:AMS45_DEV_READ_ONLY_SMOKE_BUILD,readOnly:true,writesPerformed:false,error:String(e&&e.message||e)};}
+ var output=JSON.stringify(result);
+ console.log('AMS45_DEV_READONLY_SMOKE_RESULT '+output);
+ if(typeof Logger!=='undefined'&&Logger&&typeof Logger.log==='function')Logger.log('AMS45_DEV_READONLY_SMOKE_RESULT '+output);
+ return result;
 }

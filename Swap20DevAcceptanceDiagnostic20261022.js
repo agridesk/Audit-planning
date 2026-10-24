@@ -131,3 +131,16 @@ function RUN_DIAG_SWAP20_STALE_DETAIL_DEV_20261023(){
  });
  Logger.log(JSON.stringify({ok:true,readOnly:true,proposals:result}));return result;
 }
+
+// Read-only DEV diagnostics for stale proposal revision tokens.
+function RUN_DIAG_SWAP20_REVISION_TOKENS_DEV_20261024(){
+ var p=PropertiesService.getScriptProperties();
+ if(p.getProperty('AMS_ENV')!=='DEV')throw Error('DEV_ONLY');
+ var out=[];
+ Object.keys(p.getProperties()).filter(function(k){return k.indexOf('AMS_SWAP20_PROPOSAL_')===0;}).forEach(function(k){
+  var proposal=JSON.parse(p.getProperty(k));if(proposal.status!=='CONFIRMED')return;
+  var pair=Swap20_readCanonicalPair({auditA:proposal.auditA,auditB:proposal.auditB});
+  out.push({operationId:proposal.operationId,auditA:{expected:proposal.originalRevisions[proposal.auditA],current:pair.auditA.revision},auditB:{expected:proposal.originalRevisions[proposal.auditB],current:pair.auditB.revision}});
+ });
+ Logger.log(JSON.stringify({readOnly:true,proposals:out}));return out;
+}

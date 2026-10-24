@@ -65,8 +65,17 @@ function Swap20Bridge20_mirrorEvent_(result,id){
 }
 function Swap20Bridge20_handle_(body) {
  body=body||{};
- var manager=Swap20Bridge20_manager_(body.actorEmail);
  var operation=String(body.operation||'').trim();
+ var manager;
+ try{manager=Swap20Bridge20_manager_(body.actorEmail);}
+ catch(e){
+  if(operation==='commit'){
+   var msg=String(e&&e.message||e).slice(0,500);
+   Logger.log('[SWAP20_MANAGER_AUTH_ERROR] '+msg);
+   PropertiesService.getScriptProperties().setProperty('AMS_SWAP20_LAST_COMMIT_ERROR_'+String(body.operationId||''),JSON.stringify({at:new Date().toISOString(),phase:'managerIdentity',error:msg}));
+  }
+  throw e;
+ }
  if(operation==='listIndexSeed'){
   var properties=PropertiesService.getScriptProperties().getProperties();
   var ids=Object.keys(properties).filter(function(k){return k.indexOf('AMS_SWAP20_PROPOSAL_')===0;}).sort();

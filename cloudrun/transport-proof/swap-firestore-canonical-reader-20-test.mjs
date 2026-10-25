@@ -15,7 +15,7 @@ const fetchImpl=async(url,init)=>{
  calls++;
  assert.ok(url.endsWith(':batchGet'));
  const paths=JSON.parse(init.body).documents.map(name=>name.slice(root.length));
- return {ok:true,json:async()=>paths.reverse().map(path=>({found:{name:root+path,updateTime,fields:{payload:{stringValue:JSON.stringify(payloads[path])}}}}))};
+ return {ok:true,text:async()=>JSON.stringify(paths.reverse().map(path=>({found:{name:root+path,updateTime,fields:{payload:{stringValue:JSON.stringify(payloads[path])}}}})))};
 };
 const reader=createSwapFirestoreCanonicalReader({project:'ams-test-dev',getToken:async()=>'token',fetchImpl});
 const pair=await reader.readPair(['A','B']);
@@ -29,6 +29,6 @@ assert.equal(proposal.updateTime,updateTime);
 assert.equal((await reader.readJournal('swap_12345678')).stage,'COMMITTED');
 assert.equal(calls,4);
 await assert.rejects(reader.readPair(['A','A']),/SWAP_CANONICAL_READER_PAIR_INVALID/);
-const broken=createSwapFirestoreCanonicalReader({project:'ams-test-dev',getToken:async()=>'token',fetchImpl:async()=>({ok:true,json:async()=>[]})});
+const broken=createSwapFirestoreCanonicalReader({project:'ams-test-dev',getToken:async()=>'token',fetchImpl:async()=>({ok:true,text:async()=>'[]'})});
 await assert.rejects(broken.readPair(['A','B']),/SWAP_CANONICAL_READER_COUNT_INVALID/);
 console.log('SWAP direct Firestore canonical batch reader checks passed');

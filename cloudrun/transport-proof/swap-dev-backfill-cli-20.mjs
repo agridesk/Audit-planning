@@ -9,6 +9,8 @@ import {join} from 'node:path';
 import {buildSwapMigrationManifest} from './swap-migration-manifest-20.mjs';
 import {planSwapMigrationBackfill} from './swap-migration-backfill-plan-20.mjs';
 import {partitionSwapSheetMigration} from './swap-sheet-migration-partition-20.mjs';
+import {createSwapFirestoreCanonicalReader} from './swap-firestore-canonical-reader-20.mjs';
+import {createSwapReservationFenceReader} from './swap-reservation-fence-reader-20.mjs';
 const project='audit-management-system-dev';
 const sheetId='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs';
 const apply=process.argv.includes('--apply');
@@ -94,6 +96,18 @@ if(verify||liveTest){
     if(!expectedNames.has(doc.name)||!migrated.has(doc.name.split('/').pop()))throw Error('SWAP_DEV_SCOPE_UNEXPECTED_'+collection);
    }
   }
+  const canonicalReader=createSwapFirestoreCanonicalReader({project,getToken:async()=>token});
+  const auditIds=audits.map(d=>d.name.split('/').pop());
+  for(let i=0;i<auditIds.length;i+=2){
+   const pair=auditIds.slice(i,i+2);
+   if(pair.length===2){
+    const [a,b]=await Promise.all([canonicalReader.readPair(pair),canonicalReader.readAvailability(pair)]);
+    if(a.length!==2||b.length!==2||a.some(v=>v.source!=='firestore-canonical')||b.some(v=>v.source!=='firestore-canonical'))throw Error('SWAP_DEV_CANONICAL_READER_FAILED');
+   }
+  }
+  let fence='NOT_READY';
+  try{const result=await createSwapReservationFenceReader({project,getToken:async()=>token})();fence=result.revision?'READY':'INVALID';}catch(e){fence='BLOCKED_'+String(e.message||e).slice(0,90);}
+  console.log(JSON.stringify({result:'DEV_RUNTIME_READINESS',canonicalPairsTested:Math.floor(auditIds.length/2),reservationFence:fence,gridCutoverAuthorized:false}));
   console.log(JSON.stringify({result:'DEV_LIVE_FIRESTORE_SCOPE_PASS',audits:audits.length,availability:availability.length,parityDocuments:existing.size,excludedLegacyTest:partition.quarantined.length,orphanReferences:partition.orphanReservations.length,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
  }else console.log(JSON.stringify({result:'DEV_PARITY_VERIFIED',documents:existing.size,eligible:plan.eligibleCount,quarantined:plan.quarantinedCount,orphans:plan.orphanCount,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
  process.exit(0);

@@ -18,7 +18,8 @@ const verify=process.argv.includes('--verify');
 const coverage=process.argv.includes('--coverage');
 const exceptions=process.argv.includes('--exceptions');
 const liveTest=process.argv.includes('--live-test');
-if([apply,verify,coverage,exceptions,liveTest].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
+const initFence=process.argv.includes('--init-fence');
+if([apply,verify,coverage,exceptions,liveTest,initFence].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
 const locations=[process.env.GCLOUD_CMD,process.env.LOCALAPPDATA&&join(process.env.LOCALAPPDATA,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd'),process.env.PROGRAMFILES&&join(process.env.PROGRAMFILES,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd')].filter(Boolean);
 const executable=locations.find(existsSync)||(process.platform==='win32'?'gcloud.cmd':'gcloud');
 let token;
@@ -52,6 +53,19 @@ if(plan.eligibleCount===0)throw Error('SWAP_DEV_NO_ELIGIBLE_AUDITS');
 if(plan.writes.length>100)throw Error('SWAP_DEV_TOO_MANY_WRITES');
 const base='https://firestore.googleapis.com/v1/projects/'+project+'/databases/(default)/documents';
 const names=plan.writes.map(w=>w.update.name);
+if(initFence){
+ const name='projects/'+project+'/databases/(default)/documents/ams_swap20_dev_meta/reservation_fence';
+ const url=base+'/ams_swap20_dev_meta/reservation_fence';
+ const response=await fetch(url,{headers:{authorization:'Bearer '+token},signal:AbortSignal.timeout(15000)});
+ if(response.ok){const doc=await response.json();console.log(JSON.stringify({result:'DEV_RESERVATION_FENCE_ALREADY_EXISTS',revision:doc.updateTime,cutoverAuthorized:false}));process.exit(0);}
+ if(response.status!==404)throw Error('SWAP_DEV_FENCE_PREFLIGHT_HTTP_'+response.status);
+ const result=await json(base+':commit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({writes:[{update:{name,fields:{payload:{stringValue:JSON.stringify({operationId:'DEV_INITIALIZATION',now:new Date().toISOString()})}}},currentDocument:{exists:false}}]})});
+ if(result.writeResults?.length!==1)throw Error('SWAP_DEV_FENCE_INIT_RECEIPT_INVALID');
+ const after=await json(url);
+ if(!after.updateTime)throw Error('SWAP_DEV_FENCE_INIT_READBACK_INVALID');
+ console.log(JSON.stringify({result:'DEV_RESERVATION_FENCE_INITIALIZED',revision:after.updateTime,cutoverAuthorized:false}));process.exit(0);
+}
+
 const read=async()=>{
  const response=await fetch(base+':batchGet',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({documents:names}),signal:AbortSignal.timeout(30000)});
  if(!response.ok)throw Error('SWAP_DEV_BATCHGET_HTTP_'+response.status);

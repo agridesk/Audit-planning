@@ -16,3 +16,5 @@ assert.throws(()=>resolveSwapFirestoreReservations({...base,externalReservations
 assert.equal(resolveSwapFirestoreReservations({...base,externalReservations:[{...external,date:'2026-10-28'}]}).length,2);
 assert.throws(()=>resolveSwapFirestoreReservations({...base,externalReservations:[{...external,auditId:'A'}]}),/INDEX_CONTAINS_PAIR/);
 console.log('SWAP reservation planner coverage and overlap checks passed');
+
+assert.throws(()=>resolveSwapFirestoreReservations({...base,proposal:{...proposal,auditB:'A'}}),/SWAP_RESERVATION_PAIR_INVALID/);

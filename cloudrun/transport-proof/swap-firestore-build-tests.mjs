@@ -18,3 +18,4 @@ import './swap-sheet-source-preflight-20.test.mjs';
 
 import './swap-sheet-migration-coverage-20.test.mjs';
 import './swap-sheet-migration-partition-20.test.mjs';
+import './swap-migration-manifest-20.test.mjs';

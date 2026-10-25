@@ -18,3 +18,5 @@ assert.throws(()=>buildSwapFirestoreWriteSet({...input,proposal:{...proposal,ack
 assert.throws(()=>buildSwapFirestoreWriteSet({...input,pair:[pair[1],pair[0]]}),/SWAP_WRITESET_PAIR_INVALID/);
 assert.throws(()=>buildSwapFirestoreWriteSet({...input,availability:[availability[1],availability[0]]}),/SWAP_WRITESET_PAIR_INVALID/);
 console.log('SWAP Firestore write-set validation passed');
+
+assert.throws(()=>buildSwapFirestoreWriteSet({...input,project:'ams-test-prod'}),/SWAP_WRITESET_INPUT_INVALID/);

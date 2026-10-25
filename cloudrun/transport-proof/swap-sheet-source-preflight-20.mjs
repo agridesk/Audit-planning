@@ -24,7 +24,7 @@ export function inspectSwapSheetSources({auditRows,availabilityRows,journalRows}
   try{const parsed=JSON.parse(raw);if(!parsed||!Array.isArray(parsed.blocks))throw Error('BLOCKS_MISSING');planning.valid++;}
   catch{planning.invalid++;issues.push({kind:'PLANNING_JSON_INVALID',row:i+1,auditId:id});}
  }
- const seen=new Map(),referenced=new Set();
+ const seen=new Map(),referenced=new Set(),journalOperations=new Map();
  for(let i=1;i<availabilityRows.length;i++){
   const row=availabilityRows[i]||[];if(!val(row,vd))continue;availability.rows++;
   const auditor=val(row,vu)||val(row,ve),key=val(row,vd)+'|'+auditor;
@@ -40,6 +40,18 @@ export function inspectSwapSheetSources({auditRows,availabilityRows,journalRows}
    if(!ids.has(id)){availability.orphanReferences++;issues.push({kind:'AVAILABILITY_UNKNOWN_AUDIT',row:i+1,auditId:id,status:val(row,sx)});}
   }
  }
- for(let i=1;i<journalRows.length;i++){const row=journalRows[i]||[];if(!val(row,jo))continue;const stage=val(row,js);stages[stage]=(stages[stage]||0)+1;}
- return Object.freeze({auditCount:ids.size,statuses,planning,availability,journalStages:stages,issueCount:issues.length,issues,sourceValidated:issues.length===0,cutoverAuthorized:false});
+ for(let i=1;i<journalRows.length;i++){
+  const row=journalRows[i]||[],operationId=val(row,jo);if(!operationId)continue;
+  const stage=val(row,js);stages[stage]=(stages[stage]||0)+1;
+  if(!journalOperations.has(operationId))journalOperations.set(operationId,[]);
+  journalOperations.get(operationId).push({stage,row:i+1});
+ }
+ const journalTerminal={};
+ for(const [operationId,events] of journalOperations){
+  const terminal=events.at(-1).stage;journalTerminal[terminal]=(journalTerminal[terminal]||0)+1;
+  if(terminal==='PREPARED'||terminal==='WRITING')issues.push({kind:'SWAP_JOURNAL_INCOMPLETE',operationId,lastRow:events.at(-1).row,stage:terminal});
+  if(terminal!=='COMMITTED'&&terminal!=='CONFLICT'&&terminal!=='PREPARED'&&terminal!=='WRITING')issues.push({kind:'SWAP_JOURNAL_TERMINAL_UNKNOWN',operationId,lastRow:events.at(-1).row,stage:terminal});
+  if(events.filter(e=>e.stage==='COMMITTED').length>1)issues.push({kind:'SWAP_JOURNAL_MULTIPLE_COMMITS',operationId});
+ }
+ return Object.freeze({auditCount:ids.size,statuses,planning,availability,journalStages:stages,journalTerminal,issueCount:issues.length,issues,sourceValidated:issues.length===0,cutoverAuthorized:false});
 }

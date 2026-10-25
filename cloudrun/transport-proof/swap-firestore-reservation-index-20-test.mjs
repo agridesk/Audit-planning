@@ -20,3 +20,6 @@ await assert.rejects(duplicate.loadCompleteReservationIndex(),/SWAP_INDEX_DUPLIC
 
 const malformed=createSwapFirestoreReservationIndex({project:'ams-test-dev',getToken:async()=>'token',fetchImpl:async()=>({ok:true,json:async()=>({documents:[{name:root+'A',fields:{payload:{stringValue:JSON.stringify({reservations:[{auditId:'A'}]})}}}]})})});
 await assert.rejects(malformed.loadCompleteReservationIndex(),/SWAP_INDEX_RESERVATION_SHAPE_INVALID/);
+
+const nested=createSwapFirestoreReservationIndex({project:'ams-test-dev',getToken:async()=>'token',fetchImpl:async()=>({ok:true,json:async()=>({documents:[{name:root+'A/child/B',fields:{payload:{stringValue:JSON.stringify({reservations:[]})}}}]})})});
+await assert.rejects(nested.loadCompleteReservationIndex(),/SWAP_INDEX_DOCUMENT_PATH_INVALID/);

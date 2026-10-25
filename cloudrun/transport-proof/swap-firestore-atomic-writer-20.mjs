@@ -35,6 +35,7 @@ export function createSwapFirestoreAtomicWriter({project,getToken,fetchImpl=fetc
    throw Error('SWAP_ATOMIC_RESERVATION_FENCE_REQUIRED');
   const allowed=new Set(['ams_swap20_dev_audits','ams_swap20_dev_availability','ams_swap20_dev_proposals','ams_swap20_dev_journal','ams_swap20_dev_meta']);
   if(names.some(name=>!allowed.has(name.slice(root.length).split('/')[0])))throw Error('SWAP_ATOMIC_COLLECTION_FORBIDDEN');
+  if(names.some(name=>name.slice(root.length).split('/').length!==2))throw Error('SWAP_ATOMIC_DOCUMENT_PATH_INVALID');
   const token=await getToken();
   if(!token)throw Error('SWAP_ATOMIC_TOKEN_MISSING');
   const response=await fetchImpl(endpoint,{

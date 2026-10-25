@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {partitionSwapSheetMigration} from './swap-sheet-migration-partition-20.mjs';
+const a=[['Audit ID','Status','Planning JSON','Assigned to'],['A1','Accepted',JSON.stringify({blocks:[{date:'2026-10-25',start:'09:00',end:'11:00'}]}),'a@example.test'],['A2','Approved',JSON.stringify({blocks:[{date:'2026-10-25',start:'09:00',end:'11:00'}]}),'a@example.test'],['A3','Accepted','','a@example.test']];
+const v=[['Date','Auditor_Email','Audit_ID_1','Audit_ID_2','First_Audit_Start_Time','First_Audit_End_Time','Second_Audit_Start_Time','Second_Audit_End_Time'],['2026-10-25','a@example.test','A1','','09:00','11:00','',''],['2026-10-25','a@example.test','MISSING','','12:00','13:00','','']];
+const r=partitionSwapSheetMigration({auditRows:a,availabilityRows:v});
+assert.equal(r.counts.source,3);
+assert.equal(r.counts.eligible,1);
+assert.equal(r.counts.quarantined,2);
+assert.equal(r.counts.orphans,1);
+assert.equal(r.eligible[0].auditId,'A1');
+assert.ok(r.quarantined.some(x=>x.reason==='LEGACY_STATUS_UNRESOLVED'));
+assert.ok(r.quarantined.some(x=>x.reason==='PLANNING_MISSING'));
+assert.equal(r.writeAuthorized,false);
+assert.equal(r.cutoverAuthorized,false);
+console.log('SWAP migration partition and quarantine checks passed');

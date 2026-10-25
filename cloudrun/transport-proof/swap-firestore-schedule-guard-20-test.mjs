@@ -13,3 +13,5 @@ const sameOwner=pair.map(row=>({...row,canonical:{...row.canonical,assignedTo:'a
 assert.throws(()=>test({...proposal,blocksB:[block('2026-10-27')]},sameOwner),/CROSS_AUDIT_OVERLAP/);
 assert.throws(()=>test({...proposal,originalRevisions:{A:'stale',B:'v1'}},pair),/REVISION_CONFLICT/);
 console.log('SWAP canonical schedule parity guards passed');
+
+assert.throws(()=>test(proposal,pair.map((row,i)=>i===0?{...row,canonical:{...row.canonical,status:'Completed'}}:row)),/SWAP_SCHEDULE_STATUS_MISMATCH/);

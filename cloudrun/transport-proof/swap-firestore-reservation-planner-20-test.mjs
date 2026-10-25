@@ -18,3 +18,5 @@ assert.throws(()=>resolveSwapFirestoreReservations({...base,externalReservations
 console.log('SWAP reservation planner coverage and overlap checks passed');
 
 assert.throws(()=>resolveSwapFirestoreReservations({...base,proposal:{...proposal,auditB:'A'}}),/SWAP_RESERVATION_PAIR_INVALID/);
+
+assert.throws(()=>resolveSwapFirestoreReservations({...base,proposal:{...proposal,blocksA:null}}),/SWAP_RESERVATION_BLOCK_INVALID/);

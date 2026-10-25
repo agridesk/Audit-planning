@@ -14,7 +14,7 @@ function validBlocks(blocks){
   (b!==null&&typeof b==='object'&&!Array.isArray(b)&&Object.keys(b).length>0));
 }
 export function buildSwapFirestoreWriteSet({project,operationId,proposal,pair,availability,finalReservations,fenceRevision,actorEmail,now=new Date().toISOString()}={}){
- if(!/^[a-z][a-z0-9-]{4,62}$/.test(project||'')||!ID.test(operationId||'')||
+ if(!/^[a-z][a-z0-9-]{4,62}-dev$/.test(project||'')||!ID.test(operationId||'')||
   !proposal||proposal.operationId!==operationId||proposal.status!=='CONFIRMED'||!TIMESTAMP.test(proposal.updateTime||'')||
   !proposal.auditA||!proposal.auditB||proposal.auditA===proposal.auditB||
   !Array.isArray(pair)||pair.length!==2||!Array.isArray(availability)||availability.length!==2||!Array.isArray(finalReservations)||finalReservations.length!==2||

@@ -7,4 +7,8 @@ assert.equal(verifySwapMigrationPreflight({...base,legacyWritesDisabled:true}).o
 assert.equal(verifySwapMigrationPreflight({...base,targetAvailabilityIds:['A'],legacyWritesDisabled:true}).ok,false);
 assert.throws(()=>verifySwapMigrationPreflight({...base,targetAuditIds:['A','A']}),/DUPLICATE_ID/);
 assert.equal(verifySwapMigrationPreflight({...base,legacyWritesDisabled:true}).cutoverAuthorized,false);
+const sparse={sourceAuditIds:['A','B'],targetAuditIds:['A','B'],sourceAvailabilityIds:['A'],targetAvailabilityIds:['A'],legacyWritesDisabled:true};
+assert.equal(verifySwapMigrationPreflight(sparse).ok,false);
+assert.equal(verifySwapMigrationPreflight({...sparse,allowUnreservedAudits:true}).ok,true);
+assert.equal(verifySwapMigrationPreflight({...sparse,sourceAvailabilityIds:['C'],targetAvailabilityIds:['C'],allowUnreservedAudits:true}).ok,false);
 console.log('SWAP migration preflight guards passed');

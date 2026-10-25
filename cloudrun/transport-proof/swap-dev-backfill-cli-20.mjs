@@ -14,7 +14,7 @@ const apply=process.argv.includes('--apply');
 const locations=[process.env.GCLOUD_CMD,process.env.LOCALAPPDATA&&join(process.env.LOCALAPPDATA,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd'),process.env.PROGRAMFILES&&join(process.env.PROGRAMFILES,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd')].filter(Boolean);
 const executable=locations.find(existsSync)||(process.platform==='win32'?'gcloud.cmd':'gcloud');
 let token;
-try{token=(process.platform==='win32' ? execFileSync('cmd.exe',['/d','/s','/c','""'+executable+'" auth print-access-token"'],{encoding:'utf8',timeout:15000}) : execFileSync(executable,['auth','print-access-token'],{encoding:'utf8',timeout:15000})).trim();}
+try{token=(process.platform==='win32' ? execFileSync('cmd.exe',['/d','/s','/c', '"'+executable+'" auth print-access-token'],{encoding:'utf8',timeout:15000,windowsVerbatimArguments:true}) : execFileSync(executable,['auth','print-access-token'],{encoding:'utf8',timeout:15000})).trim();}
 catch(e){throw Error('SWAP_DEV_GCLOUD_UNAVAILABLE: install Google Cloud CLI, run gcloud auth login, or set GCLOUD_CMD to its full path. Cause: '+(e.code||e.status||'AUTH_FAILED'));}
 if(!token)throw Error('SWAP_DEV_TOKEN_MISSING');
 async function json(url,options={}){

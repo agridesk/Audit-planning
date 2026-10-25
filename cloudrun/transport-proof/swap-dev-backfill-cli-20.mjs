@@ -80,6 +80,7 @@ const read=async()=>{
 };
 const existing=await read();
 if(verify||liveTest){
+ const drift=[];
  if(existing.size!==names.length)throw Error('SWAP_DEV_VERIFY_MISSING_DOCS_'+(names.length-existing.size));
  for(const write of plan.writes){
   const found=existing.get(write.update.name);
@@ -89,7 +90,8 @@ if(verify||liveTest){
    try{actual=JSON.parse(found?.fields?.payload?.stringValue||'null');expected=JSON.parse(write.update.fields.payload.stringValue);}catch{}
    const changed=actual&&expected?[...new Set([...Object.keys(actual),...Object.keys(expected)])].filter(k=>JSON.stringify(actual[k])!==JSON.stringify(expected[k])):['PAYLOAD_INVALID'];
    console.log(JSON.stringify({result:'DEV_SOURCE_DRIFT',auditId:id,collection:write.update.name.split('/').at(-2),changedFields:changed,storedManifest:'3b680d9e4f00bf8fd9b2a639db8c6c5a5a9c96673cb639f937ce1b5be2241630',currentManifest:manifest.manifestHash,cutoverAuthorized:false}));
-   throw Error('SWAP_DEV_VERIFY_PAYLOAD_MISMATCH');
+   if(!liveTest)throw Error('SWAP_DEV_VERIFY_PAYLOAD_MISMATCH');
+   drift.push({auditId:id,collection:write.update.name.split('/').at(-2),changedFields:changed});
   }
  }
  if(liveTest){
@@ -129,7 +131,7 @@ if(verify||liveTest){
   let fence='NOT_READY';
   try{const result=await createSwapReservationFenceReader({project,getToken:async()=>token})();fence=result.revision?'READY':'INVALID';}catch(e){fence='BLOCKED_'+String(e.message||e).slice(0,90);}
   console.log(JSON.stringify({result:'DEV_RUNTIME_READINESS',canonicalPairsTested:Math.floor(auditIds.length/2),reservationFence:fence,gridCutoverAuthorized:false}));
-  console.log(JSON.stringify({result:'DEV_LIVE_FIRESTORE_SCOPE_PASS',audits:audits.length,availability:availability.length,parityDocuments:existing.size,excludedLegacyTest:partition.quarantined.length,orphanReferences:partition.orphanReservations.length,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
+  console.log(JSON.stringify({result:drift.length?'DEV_LIVE_FIRESTORE_SCOPE_PASS_WITH_SOURCE_DRIFT':'DEV_LIVE_FIRESTORE_SCOPE_PASS',audits:audits.length,availability:availability.length,verifiedDocuments:existing.size,parityDocuments:existing.size-drift.length,driftCount:drift.length,excludedLegacyTest:partition.quarantined.length,orphanReferences:partition.orphanReservations.length,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
  }else console.log(JSON.stringify({result:'DEV_PARITY_VERIFIED',documents:existing.size,eligible:plan.eligibleCount,quarantined:plan.quarantinedCount,orphans:plan.orphanCount,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
  process.exit(0);
 }

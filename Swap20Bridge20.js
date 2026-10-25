@@ -37,11 +37,12 @@ function Swap20Bridge20_preview_(a,b) {
  if(!pair||pair.eligible!==true)
   return {ok:true,readOnly:true,eligible:false,reason:'PAIR_NOT_ELIGIBLE'};
  var proposed;
- try{proposed=Swap20_scheduleExchange_(pair);}
+ try{proposed=Swap20_scheduleExchange_(pair);if(typeof console!=='undefined')console.info('[SWAP20_PREVIEW_PHASE_PERF] '+JSON.stringify({phase:'scheduleExchange',ms:Date.now()-perfStart}));}
  catch(err){return {ok:true,readOnly:true,eligible:false,reason:String(err&&err.message||err).slice(0,180)};}
  Swap20CanonicalCommitGuard({canonicalPair:pair,auditA:a,auditB:b,expectedRevisions:(function(){
   var v={};v[a]=pair.auditA.revision;v[b]=pair.auditB.revision;return v;
  })(),blocksA:proposed.blocksA,blocksB:proposed.blocksB});
+ if(typeof console!=='undefined')console.info('[SWAP20_PREVIEW_PHASE_PERF] '+JSON.stringify({phase:'commitGuard',ms:Date.now()-perfStart}));
  function display(item){return {auditId:String(item.auditId||''),assignedTo:String(item.assignedTo||''),
   blocks:item.blocks,revision:item.revision};}
  if(typeof Logger!=='undefined'&&Logger&&typeof Logger.log==='function')Logger.log('[SWAP20_PERF] '+JSON.stringify({step:'managerPreview',ms:Date.now()-perfStart}));

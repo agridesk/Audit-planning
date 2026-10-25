@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+const file=fileURLToPath(new URL('./prod-realized-hours-parity-20.mjs',import.meta.url));
+const report=JSON.parse(execFileSync(process.execPath,[file],{encoding:'utf8'}));
+assert.equal(report.contract,'AMS_PROD_REALIZED_HOURS_PARITY');
+assert.equal(report.status,'NOT_READY');
+assert.equal(report.checks.PROD_DIRECT_ROUTE_DISABLED,true);
+assert.equal(report.checks.MANAGER_AUTH_REQUIRED,true);
+assert.equal(report.checks.COMPLETED_STATUS_REQUIRED,true);
+assert.equal(report.checks.WRITES_AUDIT_TRAIL_TOGETHER,true);
+assert.equal(report.checks.SHEETS_BATCH_UPDATE,true);
+assert.equal(report.checks.IN_MEMORY_LOCK_ONLY,true);
+assert.equal(report.checks.SERVER_EXPECTED_HOURS_OPTIONAL,true);
+assert.equal(report.checks.CLIENT_SENDS_EXPECTED_HOURS,true);
+assert.ok(report.missingProductionProof.includes('cross-instance atomic compare-and-swap'));
+console.log('PROD_REALIZED_HOURS_PARITY_SOURCE_PASS');

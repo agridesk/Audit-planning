@@ -5,7 +5,7 @@
  * This is a preflight index, not a replacement for transactional conflict locks.
  */
 export function createSwapFirestoreReservationIndex({project,getToken,fetchImpl=fetch,maxPages=100}={}){
- if(typeof project!=='string'||!project.endsWith('-dev')||typeof getToken!=='function')
+ if(!/^[a-z][a-z0-9-]{4,62}-dev$/.test(project||'')||typeof getToken!=='function'||!Number.isSafeInteger(maxPages)||maxPages<1||maxPages>1000)
   throw Error('SWAP_INDEX_CONFIG_INVALID');
  const url='https://firestore.googleapis.com/v1/projects/'+project+'/databases/(default)/documents/ams_swap20_dev_availability';
  async function loadCompleteReservationIndex(){

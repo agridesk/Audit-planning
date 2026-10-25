@@ -1,3 +1,4 @@
+import {resolveProdRuntimeIdentity} from './prod-runtime-identity-20.mjs';
 // Deployment configuration for the shared AMS 2.0 runtime.
 // PROD is opt-in and must be configured independently from DEV.
 export function resolveAmsRuntimeConfig(env, projectId) {
@@ -17,6 +18,7 @@ export function resolveAmsRuntimeConfig(env, projectId) {
  if(env.AMS_AUTH_LOGOUT_REVOCATION_ENABLED!=='true')throw Error('AMS_PROD_LOGOUT_REVOCATION_REQUIRED');
  const allowedProject=String(env.AMS_PROD_GCP_PROJECT||'').trim();
  if(!allowedProject||allowedProject==='audit-management-system-dev'||project!==allowedProject)throw Error('AMS_PROD_PROJECT_MISMATCH');
+ const runtimeServiceAccount=resolveProdRuntimeIdentity(env,project);
  const spreadsheet=String(env.AMS_PROD_SSOT_SPREADSHEET_ID||'').trim();
  if(!spreadsheet||spreadsheet===String(env.DEV_SSOT_SPREADSHEET_ID||'').trim())throw Error('AMS_PROD_SHEET_NOT_ISOLATED');
  const gasWriteUrl=String(env.AMS_PROD_GAS_WRITE_URL||'').trim();
@@ -30,5 +32,5 @@ export function resolveAmsRuntimeConfig(env, projectId) {
  if(prodSessionSecret===String(env.AMS_SESSION_SIGNING_SECRET||'').trim())throw Error('AMS_PROD_SESSION_SECRET_NOT_ISOLATED');
  const origin=String(env.AMS_PROD_ALLOWED_ORIGIN||'').trim();
  if(!/^https:\/\//.test(origin)||origin===String(env.DEV_ALLOWED_ORIGIN||'').trim())throw Error('AMS_PROD_ORIGIN_NOT_ISOLATED');
- return Object.freeze({mode,project,spreadsheet,isDev:false,origin,gasWriteUrl});
+ return Object.freeze({mode,project,spreadsheet,isDev:false,origin,gasWriteUrl,runtimeServiceAccount});
 }

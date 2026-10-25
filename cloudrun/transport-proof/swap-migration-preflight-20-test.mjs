@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {verifySwapMigrationPreflight} from './swap-migration-preflight-20.mjs';
+const ids=['A','B'];
+const base={sourceAuditIds:ids,sourceAvailabilityIds:ids,targetAuditIds:ids,targetAvailabilityIds:ids};
+assert.equal(verifySwapMigrationPreflight(base).ok,false);
+assert.equal(verifySwapMigrationPreflight({...base,legacyWritesDisabled:true}).ok,true);
+assert.equal(verifySwapMigrationPreflight({...base,targetAvailabilityIds:['A'],legacyWritesDisabled:true}).ok,false);
+assert.throws(()=>verifySwapMigrationPreflight({...base,targetAuditIds:['A','A']}),/DUPLICATE_ID/);
+assert.equal(verifySwapMigrationPreflight({...base,legacyWritesDisabled:true}).cutoverAuthorized,false);
+console.log('SWAP migration preflight guards passed');

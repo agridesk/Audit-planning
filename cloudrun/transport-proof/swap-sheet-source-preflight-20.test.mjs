@@ -13,4 +13,8 @@ assert.ok(anomalies.issues.some(x=>x.kind==='LEGACY_APPROVED_STATUS'));
 assert.ok(anomalies.issues.some(x=>x.kind==='DUPLICATE_RESERVATION_ROW'));
 assert.ok(anomalies.issues.some(x=>x.kind==='DUPLICATE_AVAILABILITY_POLICY_ROW'));
 assert.equal(anomalies.cutoverAuthorized,false);
+const unfinished=inspectSwapSheetSources({auditRows,availabilityRows,journalRows:[journalRows[0],['OP_PENDING','PREPARED'],['OP_DONE','PREPARED'],['OP_DONE','WRITING'],['OP_DONE','COMMITTED']]});
+assert.equal(unfinished.journalTerminal.PREPARED,1);
+assert.equal(unfinished.journalTerminal.COMMITTED,1);
+assert.ok(unfinished.issues.some(x=>x.kind==='SWAP_JOURNAL_INCOMPLETE'));
 console.log('SWAP sheet source preflight passed');

@@ -17,6 +17,8 @@ const NEXT={
 function transitionAllowed(prior,next){
  if(!prior||!next||prior.operationId!==next.operationId||prior.auditA!==next.auditA||prior.auditB!==next.auditB)return false;
  if(TERMINAL.has(prior.status)||!NEXT[prior.status]?.has(next.status))return false;
+ for(const field of ['blocksA','blocksB','originalRevisions','dateChanged','internalReason','ecasComment'])
+  if(JSON.stringify(prior[field])!==JSON.stringify(next[field]))return false;
  if(!Array.isArray(next.requiredAuditorUids)||!Array.isArray(next.acknowledgedAuditorUids))return false;
  if(JSON.stringify(prior.requiredAuditorUids)!==JSON.stringify(next.requiredAuditorUids))return false;
  if(next.acknowledgedAuditorUids.some(uid=>!next.requiredAuditorUids.includes(uid)))return false;

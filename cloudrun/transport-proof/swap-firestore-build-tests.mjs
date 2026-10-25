@@ -9,3 +9,4 @@ import './swap-firestore-reservation-planner-20-test.mjs';
 import './swap-reservation-fence-20-test.mjs';
 import './swap-index-coverage-test.mjs';
 import './swap-firestore-cutover-gate-20-test.mjs';
+import './swap-firestore-batchget-stream-20-test.mjs';

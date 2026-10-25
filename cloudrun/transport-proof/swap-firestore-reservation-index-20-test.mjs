@@ -17,3 +17,6 @@ console.log('SWAP complete Firestore reservation index pagination passed');
 
 const duplicate=createSwapFirestoreReservationIndex({project:'ams-test-dev',getToken:async()=>'token',fetchImpl:async()=>({ok:true,json:async()=>({documents:[{name:root+'A',fields:{payload:{stringValue:JSON.stringify({reservations:[{auditId:'A',owner:'a@example.test',date:'2026-10-27',start:'09:00',end:'11:00'},{auditId:'A',owner:'a@example.test',date:'2026-10-27',start:'09:00',end:'11:00'}]})}}}]})})});
 await assert.rejects(duplicate.loadCompleteReservationIndex(),/SWAP_INDEX_DUPLICATE_RESERVATION/);
+
+const malformed=createSwapFirestoreReservationIndex({project:'ams-test-dev',getToken:async()=>'token',fetchImpl:async()=>({ok:true,json:async()=>({documents:[{name:root+'A',fields:{payload:{stringValue:JSON.stringify({reservations:[{auditId:'A'}]})}}}]})})});
+await assert.rejects(malformed.loadCompleteReservationIndex(),/SWAP_INDEX_RESERVATION_SHAPE_INVALID/);

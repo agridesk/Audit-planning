@@ -5,6 +5,8 @@ const file=fileURLToPath(new URL('./prod-realized-hours-parity-20.mjs',import.me
 const report=JSON.parse(execFileSync(process.execPath,[file],{encoding:'utf8'}));
 assert.equal(report.contract,'AMS_PROD_REALIZED_HOURS_PARITY');
 assert.equal(report.status,'NOT_READY');
+assert.equal(report.sourceChecksPassed,true);
+assert.deepEqual(report.failedSourceChecks,[]);
 assert.equal(report.checks.PROD_DIRECT_ROUTE_DISABLED,true);
 assert.equal(report.checks.MANAGER_AUTH_REQUIRED,true);
 assert.equal(report.checks.COMPLETED_STATUS_REQUIRED,true);

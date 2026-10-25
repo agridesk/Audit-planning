@@ -29,7 +29,7 @@ const read=async()=>{
  const response=await fetch(base+':batchGet',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({documents:names}),signal:AbortSignal.timeout(30000)});
  if(!response.ok)throw Error('SWAP_DEV_BATCHGET_HTTP_'+response.status);
  const body=await response.text();
- let result;try{result=JSON.parse(body);}catch{result=body.trim().split(/\\r?\\n/).filter(Boolean).map(x=>JSON.parse(x));}
+ let result;try{result=JSON.parse(body);}catch{result=body.trim().split(/\r?\n/).filter(Boolean).map(x=>JSON.parse(x));}
  if(!Array.isArray(result))result=[result];
  if(!Array.isArray(result))throw Error('SWAP_DEV_BATCHGET_RESPONSE_INVALID');
  if(result.length!==names.length)throw Error('SWAP_DEV_BATCHGET_INCOMPLETE');

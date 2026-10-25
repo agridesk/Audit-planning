@@ -20,3 +20,6 @@ assert.throws(()=>buildSwapFirestoreWriteSet({...input,availability:[availabilit
 console.log('SWAP Firestore write-set validation passed');
 
 assert.throws(()=>buildSwapFirestoreWriteSet({...input,project:'ams-test-prod'}),/SWAP_WRITESET_INPUT_INVALID/);
+
+const completedPair=pair.map((item,index)=>index===0?{...item,canonical:{...item.canonical,status:'Completed'}}:item);
+assert.throws(()=>buildSwapFirestoreWriteSet({...input,pair:completedPair}),/SWAP_WRITESET_CANONICAL_STATUS_INVALID/);

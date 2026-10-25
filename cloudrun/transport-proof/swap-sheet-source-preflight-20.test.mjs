@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {inspectSwapSheetSources} from './swap-sheet-source-preflight-20.mjs';
+const auditRows=[['Audit ID','Status','Planning JSON'],['A1','Accepted',JSON.stringify({blocks:[{date:'2026-10-25'}]})]];
+const availabilityRows=[['Date','Auditor_UID','Auditor_Email','Audit_ID_1','Audit_ID_2','Status_1','Status_2'],['2026-10-25','U1','','A1','','Accepted','']];
+const journalRows=[['Operation_ID','Stage'],['O1','COMMITTED']];
+const result=inspectSwapSheetSources({auditRows,availabilityRows,journalRows});
+assert.equal(result.sourceValidated,true);
+assert.equal(result.cutoverAuthorized,false);
+assert.equal(result.availability.auditReferences,1);
+console.log('SWAP sheet source preflight passed');

@@ -256,9 +256,9 @@ function patchActionLikeV1(auditId,action,reason,result,perf){
   var idx=all.findIndex(function(r){return r.auditId===auditId});if(idx<0)throw new Error('Audit row not found locally');
   var before=all[idx],after=Object.assign({},before),beforeKey=before.statusKey,scrollX=window.scrollX,scrollY=window.scrollY,t=performance.now();
   if(action==='approve'){
-    after.status='Accepted';after.statusKey='ACCEPTED';after.allowedActions=['CANCEL','REJECT']
+    after.status='Accepted';after.statusKey='ACCEPTED';after.allowedActions=['COMPLETE','CANCEL','REJECT']
   }else if(action==='accept'){
-    after.status='Accepted';after.statusKey='ACCEPTED';after.allowedActions=String(actorRole).toLowerCase()==='auditor'?['COMPLETE']:['CANCEL','REJECT']
+    after.status='Accepted';after.statusKey='ACCEPTED';after.allowedActions=['COMPLETE','CANCEL','REJECT']
   }else if(action==='cancel'){
     after.status='Pending Planning';after.statusKey='PENDING_PLANNING';after.allowedActions=['PLAN','REJECT'];
     after.auditor='';after.assigned='';after.assignedTo='';after.assignedToEmail='';after.datePlanned='';

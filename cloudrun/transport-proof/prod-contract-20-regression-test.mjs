@@ -37,4 +37,5 @@ assert.equal(approved.isDev,false);
 assert.equal(approved.spreadsheet,prodSheet);
 assert.equal(approved.gasWriteUrl,base.AMS_PROD_GAS_WRITE_URL);
 assert.equal(approved.origin,base.AMS_PROD_ALLOWED_ORIGIN);
+assert.equal(approved.runtimeServiceAccount,base.AMS_PROD_RUNTIME_SERVICE_ACCOUNT);
 console.log('AMS PROD environment regression: PASS ('+cases.length+' cases)');

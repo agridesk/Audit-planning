@@ -19,6 +19,8 @@ function PlanningRevisionTokenService_getMany(input){input=input||{};var ids=Arr
 
 /** Swap 2.0 read-only canonical eligibility. No lifecycle or reservation writes. */
 function Swap20_readCanonicalPair(input){
+ var swapPairPerfStarted=Date.now();
+ function swapPairPhase(phase){if(typeof console!=='undefined'&&console&&typeof console.info==='function')console.info('[SWAP20_CANONICAL_PHASE_PERF] '+JSON.stringify({phase:phase,ms:Date.now()-swapPairPerfStarted}));}
  input=input||{};
  var a=String(input.auditA||'').trim(),b=String(input.auditB||'').trim();
  if(!a||!b||a===b)throw new Error('Swap20: two distinct audit IDs required');
@@ -29,13 +31,16 @@ function Swap20_readCanonicalPair(input){
  if(!sheet)throw Error('SWAP_CANONICAL_SHEET_MISSING');
  var width=sheet.getLastColumn();
  var liveHeaders=sheet.getRange(1,1,1,width).getValues()[0];
+ swapPairPhase('headersRead');
  var idCol=PRT_findCol_(liveHeaders,['Audit ID','Audit_ID','AuditId']);
  if(idCol<0)throw Error('SWAP_CANONICAL_ID_COLUMN_MISSING');
  var liveItems={};
  [a,b].forEach(function(id){
   var found=PRT_readCanonicalRow_(id);
+  swapPairPhase(id===a?'auditALocated':'auditBLocated');
   if(!found||!found.rowNumber||found.rowNumber<2)throw Error('SWAP_CANONICAL_ROW_NOT_FOUND');
   var live=sheet.getRange(found.rowNumber,1,1,width).getValues()[0];
+  swapPairPhase(id===a?'auditARowRead':'auditBRowRead');
   if(PRT_clean_(live[idCol])!==id)throw Error('SWAP_CANONICAL_ROW_MOVED');
   liveItems[id]=PRT_result_(id,liveHeaders,live,'swap live pair',found.rowNumber);
  });
@@ -48,5 +53,6 @@ function Swap20_readCanonicalPair(input){
   by[item.auditId]={auditId:item.auditId,revision:String(item.revision||''),status:String(s.status||''),assignedTo:String(s.assignedTo||''),blocks:blocks,eligible:String(s.status||'').trim().toLowerCase()==='accepted'&&!!String(s.assignedTo||'').trim()&&!!String(item.revision||'')&&blocks.length>0};
  });
  if(!by[a]||!by[b])throw new Error('Swap20: canonical audit missing');
+ swapPairPhase('pairValidated');
  return {success:true,eligible:by[a].eligible&&by[b].eligible,auditA:by[a],auditB:by[b],readOnly:true,canCommit:false,requiresAcknowledgement:true};
 }

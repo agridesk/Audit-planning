@@ -13,6 +13,7 @@ export function resolveSwapFirestoreReservations({proposal,pair,availability,own
   throw Error('SWAP_RESERVATION_INDEX_INCOMPLETE');
  const ids=[proposal.auditA,proposal.auditB],result=[];
  const seen=new Set();
+ if(ids[0]===ids[1])throw Error('SWAP_RESERVATION_PAIR_INVALID');
  for(const record of externalReservations){
   if(!record||typeof record.auditId!=='string'||!record.auditId||
    typeof record.owner!=='string'||!record.owner.includes('@')||!DAY.test(record.date||'')||

@@ -13,6 +13,7 @@ export function createSwapFirestoreReservationIndex({project,getToken,fetchImpl=
   if(!token)throw Error('SWAP_INDEX_TOKEN_MISSING');
   const reservations=[],seen=new Set();
   let pageToken='';
+  const visitedTokens=new Set();
   for(let page=0;page<maxPages;page++){
    const target=url+'?pageSize=100'+(pageToken?'&pageToken='+encodeURIComponent(pageToken):'');
    const response=await fetchImpl(target,{headers:{authorization:'Bearer '+token},signal:AbortSignal.timeout(15000)});
@@ -35,7 +36,8 @@ export function createSwapFirestoreReservationIndex({project,getToken,fetchImpl=
     }
    }
    if(!result.nextPageToken)return {complete:true,reservations,documentCount:seen.size};
-   if(result.nextPageToken===pageToken)throw Error('SWAP_INDEX_PAGINATION_LOOP');
+   if(result.nextPageToken===pageToken||visitedTokens.has(result.nextPageToken))throw Error('SWAP_INDEX_PAGINATION_LOOP');
+   visitedTokens.add(result.nextPageToken);
    pageToken=result.nextPageToken;
   }
   throw Error('SWAP_INDEX_PAGE_LIMIT');

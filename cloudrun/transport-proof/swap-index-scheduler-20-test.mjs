@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import {createSwapIndexScheduler} from './swap-index-scheduler-20.mjs';
 const server=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 const docker=readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
-assert.match(docker,/COPY swap-index-scheduler-20\.mjs/);
+assert.match(docker,/COPY (?:swap\-index\-scheduler\-20\.mjs|swap-\*\.mjs) \.\//);
 assert.match(server,/swap20Scheduler\.verify\(req\.headers\.authorization\)/);
 const now=Date.now(),audience='https://ams.example.run.app';
 const email='swap-scheduler@example.iam.gserviceaccount.com';

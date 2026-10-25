@@ -8,7 +8,7 @@ import {createSwapFirestoreAtomicWriter} from './swap-firestore-atomic-writer-20
 import {createSwapDirectCommitCoordinator} from './swap-direct-commit-coordinator-20.mjs';
 export function createSwapFirestoreDevTransport(options={}){
  const {project,getToken,fetchImpl,authorize,loadCompleteReservationIndex,expectedAvailabilityDocuments,canonicalCutoverVerified=false,enabled=false}=options;
- if(typeof project!=='string'||!project.endsWith('-dev'))throw Error('SWAP_DEV_PROJECT_REQUIRED');
+ if(!/^[a-z][a-z0-9-]{4,62}-dev$/.test(project||''))throw Error('SWAP_DEV_PROJECT_REQUIRED');
  const reader=createSwapFirestoreCanonicalReader({project,getToken,fetchImpl});
  const writer=createSwapFirestoreAtomicWriter({project,getToken,fetchImpl});
  const indexLoader=loadCompleteReservationIndex||createSwapFirestoreReservationIndex({project,getToken,fetchImpl}).loadCompleteReservationIndex;

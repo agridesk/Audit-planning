@@ -16,7 +16,12 @@ export function createSwapFirestoreCanonicalReader({project,getToken,fetchImpl=f
   const response=await fetchImpl(endpoint,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},
    body:JSON.stringify({documents:paths.map(path=>root+path)}),signal:AbortSignal.timeout(15000)});
   if(!response.ok)throw Error('SWAP_CANONICAL_READER_HTTP_'+response.status);
-  const raw=await response.json();
+  const body=await response.text();
+  let raw;
+  try{raw=JSON.parse(body);}catch{
+   try{raw=body.trim().split(/\r?\n/).filter(Boolean).map(line=>JSON.parse(line));}
+   catch{throw Error('SWAP_CANONICAL_READER_RESPONSE_INVALID');}
+  }
   if(!Array.isArray(raw)||raw.length!==paths.length)throw Error('SWAP_CANONICAL_READER_COUNT_INVALID');
   const map=new Map();
   for(const item of raw){

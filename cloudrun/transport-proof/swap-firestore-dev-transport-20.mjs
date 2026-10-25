@@ -1,3 +1,4 @@
+import {createSwapFirestoreReservationIndex} from './swap-firestore-reservation-index-20.mjs';
 import {outsideSwapPair} from './swap-reservation-index-filter-20.mjs';
 import {resolveSwapFirestoreReservations} from './swap-firestore-reservation-planner-20.mjs';
 import {createSwapFirestoreCanonicalReader} from './swap-firestore-canonical-reader-20.mjs';
@@ -8,9 +9,9 @@ export function createSwapFirestoreDevTransport(options={}){
  if(typeof project!=='string'||!project.endsWith('-dev'))throw Error('SWAP_DEV_PROJECT_REQUIRED');
  const reader=createSwapFirestoreCanonicalReader({project,getToken,fetchImpl});
  const writer=createSwapFirestoreAtomicWriter({project,getToken,fetchImpl});
- if(typeof loadCompleteReservationIndex!=='function')throw Error('SWAP_DEV_COMPLETE_INDEX_LOADER_REQUIRED');
+ const indexLoader=loadCompleteReservationIndex||createSwapFirestoreReservationIndex({project,getToken,fetchImpl}).loadCompleteReservationIndex;
  const resolveFinalReservations=async context=>{
-  const index=await loadCompleteReservationIndex(context);
+  const index=await indexLoader(context);
   return resolveSwapFirestoreReservations({...context,externalReservations:outsideSwapPair(index?.reservations||[],context.proposal.auditA,context.proposal.auditB),completeExternalIndex:index?.complete===true});
  };
  const coordinator=createSwapDirectCommitCoordinator({project,readProposal:reader.readProposal,readJournal:reader.readJournal,readPair:reader.readPair,readAvailability:reader.readAvailability,atomicWriter:writer,authorize,resolveFinalReservations,enabled});

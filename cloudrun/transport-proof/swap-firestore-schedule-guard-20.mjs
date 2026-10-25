@@ -16,6 +16,7 @@ export function validateSwapCanonicalSchedule({proposal,pair}={}){
  if(!proposal||!Array.isArray(pair)||pair.length!==2||pair[0]?.auditId!==proposal.auditA||pair[1]?.auditId!==proposal.auditB)
   throw Error('SWAP_SCHEDULE_PAIR_INVALID');
  const ids=[proposal.auditA,proposal.auditB];
+ if(!proposal.originalRevisions||ids.some(id=>!proposal.originalRevisions[id]))throw Error('SWAP_SCHEDULE_REVISIONS_REQUIRED');
  const final=[proposal.blocksA,proposal.blocksB];
  for(let i=0;i<2;i++){
   const source=pair[i]?.canonical;
@@ -23,7 +24,7 @@ export function validateSwapCanonicalSchedule({proposal,pair}={}){
   const after=final[i];
   if(!Array.isArray(before)||!Array.isArray(after)||!before.length||before.length!==after.length)
    throw Error('SWAP_SCHEDULE_BLOCK_COUNT');
-  if(proposal.originalRevisions&&String(proposal.originalRevisions[ids[i]])!==String(pair[i].canonical.revision))
+  if(String(proposal.originalRevisions[ids[i]])!==String(pair[i].canonical.revision))
    throw Error('SWAP_SCHEDULE_REVISION_CONFLICT');
   for(let j=0;j<after.length;j++){
    const b=before[j],n=after[j];

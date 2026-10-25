@@ -11,3 +11,4 @@ import './swap-index-coverage-test.mjs';
 import './swap-firestore-cutover-gate-20-test.mjs';
 import './swap-firestore-batchget-stream-20-test.mjs';
 import './swap-firestore-reservation-index-20-test.mjs';
+// DEV validation trigger: regression coverage for canonical Firestore cutover.

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import {validateSwapCanonicalSchedule} from './swap-firestore-schedule-guard-20.mjs';
 const block=(date,start='09:00',end='11:00')=>({date,start,end});
-const proposal={auditA:'A',auditB:'B',blocksA:[block('2026-10-27')],blocksB:[block('2026-10-26')]};
-const pair=[{auditId:'A',canonical:{assignedTo:'a@example.test',plannedBlocks:[block('2026-10-26')]}},{auditId:'B',canonical:{assignedTo:'b@example.test',plannedBlocks:[block('2026-10-27')]}}];
+const proposal={auditA:'A',auditB:'B',originalRevisions:{A:'v1',B:'v1'},blocksA:[block('2026-10-27')],blocksB:[block('2026-10-26')]};
+const pair=[{auditId:'A',canonical:{assignedTo:'a@example.test',revision:'v1',plannedBlocks:[block('2026-10-26')]}},{auditId:'B',canonical:{assignedTo:'b@example.test',revision:'v1',plannedBlocks:[block('2026-10-27')]}}];
 const test=(p=proposal,rows=pair)=>validateSwapCanonicalSchedule({proposal:p,pair:rows});
 assert.equal(test().ok,true);
 assert.throws(()=>test({...proposal,blocksA:[block('2026-02-30')]}),/DATE_INVALID/);

@@ -24,7 +24,7 @@ function transitionAllowed(prior,next){
  return true;
 }
 export function createSwapDirectProposalStore({project,getToken,fetchImpl=fetch}={}){
- if(!/^[a-z][a-z0-9-]{4,62}$/.test(project||''))throw Error('SWAP_DIRECT_PROJECT_INVALID');
+ if(!/^[a-z][a-z0-9-]{4,62}-dev$/.test(project||''))throw Error('SWAP_DIRECT_PROJECT_INVALID');
  if(typeof getToken!=='function')throw Error('SWAP_DIRECT_AUTH_INVALID');
  const base='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(project)+'/databases/(default)/documents/'+COLLECTION;
  const encode=v=>({fields:{payload:{stringValue:JSON.stringify(v)}}});

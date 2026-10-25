@@ -30,3 +30,9 @@ NEXT REQUIRED DECISIONS
 
 SAFETY
 This report is not an authorization for migration, data correction, PROD deployment, or canonical cutover.
+
+USER DECISION 2026-10-25
+- User confirms the historical Approved and four exceptional Accepted records are legacy/test material and authorizes excluding them from the scoped DEV Firestore migration.
+- This is an exclusion decision, NOT permission to delete/modify source Sheets records, silently convert statuses, or authorize PROD.
+- Scoped DEV parity for 15 Accepted audits / 30 Firestore documents has been verified.
+- Any DEV cutover remains contingent on a demonstrated hard filter: excluded legacy/test IDs and orphan reservations must not enter Firestore canonical reads/writes; no automatic fallback that silently mixes authorities. Reservation fence, runtime gate, E2E and rollback verification remain required.

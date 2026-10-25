@@ -4,12 +4,18 @@
  * create-only; never switches canonical read/write traffic.
  */
 import {execFileSync} from 'node:child_process';
+import {existsSync} from 'node:fs';
+import {join} from 'node:path';
 import {buildSwapMigrationManifest} from './swap-migration-manifest-20.mjs';
 import {planSwapMigrationBackfill} from './swap-migration-backfill-plan-20.mjs';
 const project='audit-management-system-dev';
 const sheetId='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs';
 const apply=process.argv.includes('--apply');
-const token=execFileSync('gcloud',['auth','print-access-token'],{encoding:'utf8',timeout:15000}).trim();
+const locations=[process.env.GCLOUD_CMD,process.env.LOCALAPPDATA&&join(process.env.LOCALAPPDATA,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd'),process.env.PROGRAMFILES&&join(process.env.PROGRAMFILES,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd')].filter(Boolean);
+const executable=locations.find(existsSync)||(process.platform==='win32'?'gcloud.cmd':'gcloud');
+let token;
+try{token=execFileSync(executable,['auth','print-access-token'],{encoding:'utf8',timeout:15000,shell:process.platform==='win32'}).trim();}
+catch(e){throw Error('SWAP_DEV_GCLOUD_UNAVAILABLE: install Google Cloud CLI, run gcloud auth login, or set GCLOUD_CMD to its full path. Cause: '+(e.code||e.status||'AUTH_FAILED'));}
 if(!token)throw Error('SWAP_DEV_TOKEN_MISSING');
 async function json(url,options={}){
  const r=await fetch(url,{...options,headers:{authorization:'Bearer '+token,...options.headers},signal:AbortSignal.timeout(30000)});

@@ -32,6 +32,7 @@ export function buildSwapFirestoreWriteSet({project,operationId,proposal,pair,av
    !row.canonical||typeof row.canonical!=='object'||!slot||slot.auditId!==ids[i]||
    !TIMESTAMP.test(slot.updateTime||'')||!Array.isArray(slot.reservations)||!slot.canonical||typeof slot.canonical!=='object'||!finalSlot||finalSlot.auditId!==ids[i]||!Array.isArray(finalSlot.reservations)||finalSlot.verified!==true)
    throw Error('SWAP_WRITESET_PAIR_INVALID');
+  if(row.canonical.status&&row.canonical.status!=='Accepted')throw Error('SWAP_WRITESET_CANONICAL_STATUS_INVALID');
   revisions.add(row.updateTime+'|'+row.auditId);
  }
  if(revisions.size!==2)throw Error('SWAP_WRITESET_REVISIONS_INVALID');

@@ -3,6 +3,7 @@
  * Requires a previously verified pair snapshot and immutable revisions.
  * This does not authorize migration of spreadsheet-backed audits.
  */
+import {reservationFenceWrite} from './swap-reservation-fence-write-20.mjs';
 const ID=/^[A-Za-z0-9_-]{8,100}$/;
 const TIMESTAMP=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 const statusOk=s=>s==='Accepted';
@@ -12,12 +13,12 @@ function validBlocks(blocks){
   (typeof b==='string'&&b.trim().length>0&&b.length<=150)||
   (b!==null&&typeof b==='object'&&!Array.isArray(b)&&Object.keys(b).length>0));
 }
-export function buildSwapFirestoreWriteSet({project,operationId,proposal,pair,availability,finalReservations,actorEmail,now=new Date().toISOString()}={}){
+export function buildSwapFirestoreWriteSet({project,operationId,proposal,pair,availability,finalReservations,fenceRevision,actorEmail,now=new Date().toISOString()}={}){
  if(!/^[a-z][a-z0-9-]{4,62}$/.test(project||'')||!ID.test(operationId||'')||
   !proposal||proposal.operationId!==operationId||proposal.status!=='CONFIRMED'||!TIMESTAMP.test(proposal.updateTime||'')||
   !proposal.auditA||!proposal.auditB||proposal.auditA===proposal.auditB||
   !Array.isArray(pair)||pair.length!==2||!Array.isArray(availability)||availability.length!==2||!Array.isArray(finalReservations)||finalReservations.length!==2||
-  !TIMESTAMP.test(now)||typeof actorEmail!=='string'||!actorEmail.includes('@'))
+  !TIMESTAMP.test(fenceRevision||'')||!TIMESTAMP.test(now)||typeof actorEmail!=='string'||!actorEmail.includes('@'))
   throw Error('SWAP_WRITESET_INPUT_INVALID');
  if(!validBlocks(proposal.blocksA)||!validBlocks(proposal.blocksB))throw Error('SWAP_WRITESET_PROPOSED_BLOCKS_REQUIRED');
  if(proposal.dateChanged===true&&(!Array.isArray(proposal.requiredAuditorUids)||!proposal.requiredAuditorUids.length||
@@ -49,6 +50,7 @@ export function buildSwapFirestoreWriteSet({project,operationId,proposal,pair,av
  writes.push({update:{name:root+'ams_swap20_dev_proposals/'+operationId,
   fields:{payload:encode({...storedProposal,status:'APPLIED',canonicalCommitVerified:true,appliedAt:now,appliedBy:actorEmail})}},
   currentDocument:{updateTime:proposal.updateTime}});
+ writes.push(reservationFenceWrite(project,operationId,fenceRevision,now));
  const journal={operationId,auditA:ids[0],auditB:ids[1],stage:'COMMITTED',actorEmail,committedAt:now,
   auditRevisions:pair.map(row=>row.updateTime),availabilityRevisions:availability.map(row=>row.updateTime)};
  writes.push({update:{name:root+'ams_swap20_dev_journal/'+operationId,fields:{payload:encode(journal)}},currentDocument:{exists:false}});

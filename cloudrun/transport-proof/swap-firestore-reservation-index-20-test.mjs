@@ -14,3 +14,6 @@ assert.equal(result.documentCount,2);
 assert.equal(result.reservations.length,2);
 assert.equal(page,2);
 console.log('SWAP complete Firestore reservation index pagination passed');
+
+const duplicate=createSwapFirestoreReservationIndex({project:'ams-test-dev',getToken:async()=>'token',fetchImpl:async()=>({ok:true,json:async()=>({documents:[{name:root+'A',fields:{payload:{stringValue:JSON.stringify({reservations:[{auditId:'A',owner:'a@example.test',date:'2026-10-27',start:'09:00',end:'11:00'},{auditId:'A',owner:'a@example.test',date:'2026-10-27',start:'09:00',end:'11:00'}]})}}}]})})});
+await assert.rejects(duplicate.loadCompleteReservationIndex(),/SWAP_INDEX_DUPLICATE_RESERVATION/);

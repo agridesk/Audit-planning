@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {buildSwapMigrationManifest} from './swap-migration-manifest-20.mjs';
+import {planSwapMigrationBackfill} from './swap-migration-backfill-plan-20.mjs';
+const auditRows=[['Audit ID','Status','Planning JSON','Assigned to'],['A1','Accepted',JSON.stringify({blocks:[{date:'2026-10-25',start:'09:00',end:'11:00'}]}),'a@example.test'],['A2','Approved','','a@example.test']];
+const availabilityRows=[['Date','Auditor_Email','Audit_ID_1','Audit_ID_2','First_Audit_Start_Time','First_Audit_End_Time','Second_Audit_Start_Time','Second_Audit_End_Time'],['2026-10-25','a@example.test','A1','','09:00','11:00','','']];
+const input={project:'audit-management-system-dev',auditRows,availabilityRows};
+const hash=buildSwapMigrationManifest(input).manifestHash;
+const plan=planSwapMigrationBackfill({...input,expectedManifestHash:hash});
+assert.equal(plan.eligibleCount,1);
+assert.equal(plan.quarantinedCount,1);
+assert.equal(plan.writes.length,2);
+assert.ok(plan.writes.every(w=>w.currentDocument.exists===false));
+assert.ok(plan.writes.every(w=>w.update.name.includes('ams_swap20_dev_')));
+assert.equal(plan.executionAuthorized,false);
+assert.equal(plan.cutoverAuthorized,false);
+assert.throws(()=>planSwapMigrationBackfill({...input,expectedManifestHash:'0'.repeat(64)}),/SOURCE_DRIFT/);
+assert.throws(()=>planSwapMigrationBackfill({...input,project:'audit-management-system-prod',expectedManifestHash:hash}),/DEV_ONLY/);
+console.log('SWAP create-only DEV backfill plan guards passed');

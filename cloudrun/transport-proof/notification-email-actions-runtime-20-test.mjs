@@ -129,7 +129,7 @@ assert.match(notificationQueue,/inheritedLock \|\| lock\.tryLock\(5000\)/);
 assert.match(notificationQueue,/acquired&&!inheritedLock/);
 assert.match(portal,/async function acceptSelectedAudits20\(/);
 assert.match(portal,/bulkAcceptRunning20/);
-assert.match(portal,/String\(actorRole\)\.toLowerCase\(\)==='auditor'\?\['COMPLETE'\]/);
+assert.match(portal,/var possible=String\(actorRole\)\.toLowerCase\(\)==='auditor'\?\['ACCEPT','CANCEL'\]:\['APPROVE'\]/);
 assert.match(portal,/await runActionViaCloudRun\(id,"accept",\{expectedRevision:audit\.sourceRevision\}\)/);
 assert.match(auth,/emailActionLoginNote/);
 assert.match(auth,/loginNext\.startsWith\('\/email-action\?'\)/);

@@ -11,7 +11,7 @@ export function createSwapFirestoreReservationIndex({project,getToken,fetchImpl=
  async function loadCompleteReservationIndex(){
   const token=await getToken();
   if(!token)throw Error('SWAP_INDEX_TOKEN_MISSING');
-  const reservations=[],seen=new Set();
+  const reservations=[],seen=new Set(),seenReservations=new Set();
   let pageToken='';
   const visitedTokens=new Set();
   for(let page=0;page<maxPages;page++){
@@ -33,6 +33,9 @@ export function createSwapFirestoreReservationIndex({project,getToken,fetchImpl=
     if(!/^[A-Za-z0-9_-]{1,140}$/.test(auditId))throw Error('SWAP_INDEX_AUDIT_ID_INVALID');
     for(const reservation of record.reservations){
      if(!reservation||reservation.auditId!==auditId)throw Error('SWAP_INDEX_RESERVATION_ID_MISMATCH');
+     const key=[reservation.auditId,reservation.owner,reservation.date,reservation.start,reservation.end].join('|');
+     if(seenReservations.has(key))throw Error('SWAP_INDEX_DUPLICATE_RESERVATION');
+     seenReservations.add(key);
      reservations.push(reservation);
     }
    }

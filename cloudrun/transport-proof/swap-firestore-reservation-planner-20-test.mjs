@@ -4,7 +4,7 @@ const block=(date,start='09:00',end='11:00')=>({date,start,end});
 const proposal={auditA:'A',auditB:'B',blocksA:[block('2026-10-27')],blocksB:[block('2026-10-26')]};
 const availability=['A','B'].map(auditId=>({auditId,reservations:[{auditId}]}));
 const owners={A:'a@example.test',B:'b@example.test'};
-const base={proposal,pair:[],availability,owners,externalReservations:[],completeExternalIndex:true};
+const base={proposal,pair:[{auditId:'A'},{auditId:'B'}],availability,owners,externalReservations:[],completeExternalIndex:true};
 const result=resolveSwapFirestoreReservations(base);
 assert.equal(result.length,2);
 assert.equal(result[0].verified,true);

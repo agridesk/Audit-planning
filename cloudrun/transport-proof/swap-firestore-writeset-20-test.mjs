@@ -5,10 +5,10 @@ const proposal={operationId:'swap_12345678',auditA:'A',auditB:'B',status:'CONFIR
 const pair=[{auditId:'A',status:'Accepted',updateTime:time,canonical:{plannedBlocks:['2026-10-26'],status:'Accepted'}},{auditId:'B',status:'Accepted',updateTime:time,canonical:{plannedBlocks:['2026-10-27'],status:'Accepted'}}];
 const availability=[{auditId:'A',updateTime:time,canonical:{reservations:['rA'],note:'retain'},reservations:['rA']},{auditId:'B',updateTime:time,canonical:{reservations:['rB'],note:'retain'},reservations:['rB']}];
 const finalReservations=availability.map(row=>({auditId:row.auditId,reservations:row.reservations,verified:true}));
-const input={finalReservations,project:'ams-test-dev',operationId:proposal.operationId,proposal,pair,availability,actorEmail:'manager@example.test',now:time};
+const input={finalReservations,fenceRevision:time,project:'ams-test-dev',operationId:proposal.operationId,proposal,pair,availability,actorEmail:'manager@example.test',now:time};
 const result=buildSwapFirestoreWriteSet(input);
-assert.equal(result.writes.length,6);
-assert.equal(result.writes[5].currentDocument.exists,false);
+assert.equal(result.writes.length,7);
+assert.equal(result.writes[6].currentDocument.exists,false);
 assert.equal(JSON.parse(result.writes[0].update.fields.payload.stringValue).plannedBlocks[0],'2026-10-27');
 assert.equal(JSON.parse(result.writes[1].update.fields.payload.stringValue).reservations[0],'rA');
 assert.equal(JSON.parse(result.writes[4].update.fields.payload.stringValue).status,'APPLIED');

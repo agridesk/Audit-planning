@@ -9,6 +9,7 @@ import {createSwapFirestoreReadmodel} from './swap-firestore-readmodel-20.mjs';
 import {createSwapProposalIndex} from './swap-proposal-index-20.mjs';
 import {createSwapIndexScheduler} from './swap-index-scheduler-20.mjs';
 import {createSwapFirestoreDevTransport} from './swap-firestore-dev-transport-20.mjs';
+import {createSwapDirectProposalStore} from './swap-direct-proposal-store-20.mjs';
 
 import {URL} from 'node:url';
 import {createAvailabilityHttpRouter} from './availability-http-api-20.js';
@@ -324,6 +325,7 @@ const swap20Mirror=swap20MirrorEnabled?createSwapFirestoreReadmodel({project,get
 const swap20IndexEnabled=runtime.isDev&&process.env.AMS_SWAP20_PROPOSAL_INDEX_ENABLED==='true';
 const swap20DirectTransport=runtime.isDev?createSwapFirestoreDevTransport({project,getToken,enabled:process.env.AMS_SWAP20_DIRECT_COMMIT_ENABLED==='true',canonicalCutoverVerified:process.env.AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED==='true',expectedAvailabilityDocuments:15,authorize:async(actor,operationId)=>actor?.role==='manager'&&Boolean(actor?.email)&&/^[A-Za-z0-9_-]{8,100}$/.test(operationId)}):null;
 const swap20Index=swap20IndexEnabled?createSwapProposalIndex({project,getToken}):null;
+const swap20CanonicalProposalStore=runtime.isDev&&process.env.AMS_SWAP20_CANONICAL_PROPOSAL_MIRROR==='true'?createSwapDirectProposalStore({project,getToken}):null;
 
 const swap20Scheduler=swap20Index&&process.env.AMS_SWAP20_SCHEDULER_SA_EMAIL&&process.env.AMS_SWAP20_SCHEDULER_AUDIENCE?createSwapIndexScheduler({index:swap20Index,roster:swapRoster,gasCall:notificationGasCall,serviceEmail:process.env.AMS_SWAP20_SCHEDULER_SA_EMAIL,audience:process.env.AMS_SWAP20_SCHEDULER_AUDIENCE}):null;
 const swap20Lists=new Map();
@@ -402,7 +404,21 @@ async function swap20GasOperation(actor,operation,data){
    console.error('[SWAP20_MUTATION_UNCERTAIN]',JSON.stringify({operation,operationId:op,phase:'missingCanonicalEvent',ms:Date.now()-started}));
    throw Error('SWAP_INDEX_CANONICAL_EVENT_MISSING');
   }
-  try{await swap20Index.finish(op,result._mirrorEvent);}
+  try{
+   if(swap20CanonicalProposalStore){
+    const proposal=result._mirrorEvent;
+    const prior=await swap20CanonicalProposalStore.read(op);
+    if(!prior){
+     if(operation!=='propose')throw Error('SWAP_CANONICAL_PROPOSAL_MISSING');
+     const created=await swap20CanonicalProposalStore.create(proposal);
+     if(!created.ok)throw Error('SWAP_CANONICAL_PROPOSAL_CREATE_CONFLICT');
+    }else{
+     const updated=await swap20CanonicalProposalStore.compareAndSet(op,prior.updateTime,proposal,()=>true);
+     if(!updated.ok)throw Error('SWAP_CANONICAL_PROPOSAL_REVISION_CONFLICT');
+    }
+   }
+   await swap20Index.finish(op,result._mirrorEvent);
+  }
   catch(e){
    console.error('[SWAP20_MUTATION_UNCERTAIN]',JSON.stringify({operation,operationId:op,phase:'indexFinish',ms:Date.now()-started,code:String(e?.message||e).slice(0,160)}));
    throw e;

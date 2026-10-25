@@ -24,6 +24,7 @@ const checks=[
  ['legacy manager writer is still inventoried',!r4.includes('async function directManagerApprove(')||contract.includes('PROD_LEGACY_MANAGER_LIFECYCLE_WRITES')],
  ['legacy combined writer is still inventoried',!r6.includes('sheetsValuesBatchUpdate(writes)')||contract.includes('PROD_LEGACY_DIRECT_LIFECYCLE_WRITE')],
  ['realized-hours bypass blocker retained',contract.includes('PROD_REALIZED_HOURS_CANONICAL_PARITY_UNPROVEN')],
+ ['realized-hours guard precedes session and write',(()=>{const start=r12.indexOf("u.pathname==='/api/v1/manager/realized-hours-direct'");const end=r12.indexOf("u.pathname==='/api/v1/manager/audit'",start);const route=r12.slice(start,end);const guard=route.indexOf("PROD_REALIZED_HOURS_DIRECT_WRITER_DISABLED");return guard>=0&&guard<route.indexOf('innerSession(req)')&&guard<route.indexOf("fetch(root+':batchUpdate'");})()],
  ['realized-hours route PROD fail-closed',/if\(process\.env\.AMS_RUNTIME_ENV==='PROD'\)return sendJson\(res,503,\{success:false,error:'PROD_REALIZED_HOURS_DIRECT_WRITER_DISABLED'\}\)/.test(r12)],
  ['Firestore environment binding blocker retained',contract.includes('PROD_FIRESTORE_COLLECTION_DEFAULT_DEV')],
  ['release contract explicitly exits nonzero for blockers',contract.includes("process.exitCode=1")],

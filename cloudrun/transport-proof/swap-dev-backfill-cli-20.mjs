@@ -8,11 +8,13 @@ import {existsSync} from 'node:fs';
 import {join} from 'node:path';
 import {buildSwapMigrationManifest} from './swap-migration-manifest-20.mjs';
 import {planSwapMigrationBackfill} from './swap-migration-backfill-plan-20.mjs';
+import {partitionSwapSheetMigration} from './swap-sheet-migration-partition-20.mjs';
 const project='audit-management-system-dev';
 const sheetId='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs';
 const apply=process.argv.includes('--apply');
 const verify=process.argv.includes('--verify');
-if(apply&&verify)throw Error('SWAP_DEV_MODE_CONFLICT');
+const coverage=process.argv.includes('--coverage');
+if([apply,verify,coverage].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
 const locations=[process.env.GCLOUD_CMD,process.env.LOCALAPPDATA&&join(process.env.LOCALAPPDATA,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd'),process.env.PROGRAMFILES&&join(process.env.PROGRAMFILES,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd')].filter(Boolean);
 const executable=locations.find(existsSync)||(process.platform==='win32'?'gcloud.cmd':'gcloud');
 let token;
@@ -28,6 +30,13 @@ const range=async tab=>{const url='https://sheets.googleapis.com/v4/spreadsheets
 const [auditRows,availabilityRows]=await Promise.all([range('Audit planning'),range('Auditor Availability')]);
 const manifest=buildSwapMigrationManifest({auditRows,availabilityRows});
 const plan=planSwapMigrationBackfill({project,auditRows,availabilityRows,expectedManifestHash:manifest.manifestHash});
+if(coverage){
+ const p=partitionSwapSheetMigration({auditRows,availabilityRows});
+ const reasons={};for(const row of p.quarantined)reasons[row.reason]=(reasons[row.reason]||0)+1;
+ const statusIndex=auditRows[0].indexOf('Status');const statuses={};for(const row of auditRows.slice(1)){const status=String(row[statusIndex]||'').trim();if(status)statuses[status]=(statuses[status]||0)+1;}
+ console.log(JSON.stringify({result:'DEV_COVERAGE_REPORT',statuses,reasons,eligible:p.eligible.length,orphanReservations:p.orphanReservations.length,cutoverAuthorized:false}));
+ process.exit(0);
+}
 console.log(JSON.stringify({mode:apply?'APPLY':verify?'VERIFY':'DRY_RUN',manifestHash:plan.manifestHash,source:plan.sourceCount,eligible:plan.eligibleCount,quarantined:plan.quarantinedCount,orphans:plan.orphanCount,writes:plan.writes.length}));
 if(plan.eligibleCount===0)throw Error('SWAP_DEV_NO_ELIGIBLE_AUDITS');
 if(plan.writes.length>100)throw Error('SWAP_DEV_TOO_MANY_WRITES');

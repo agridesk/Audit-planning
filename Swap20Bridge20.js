@@ -81,6 +81,7 @@ function Swap20Bridge20_handle_(body) {
   }
   throw e;
  }
+ if(operation==='preview')console.info('[SWAP20_PREVIEW_PHASE_PERF] '+JSON.stringify({phase:'managerAuthorized',ms:Date.now()-bridgeAuthStarted}));
  if(operation==='commit')console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:String(body.operationId||''),phase:'bridgeActorAuthorized',authMs:Date.now()-bridgeAuthStarted}));
  if(operation==='listIndexSeed'){
   var properties=PropertiesService.getScriptProperties().getProperties();

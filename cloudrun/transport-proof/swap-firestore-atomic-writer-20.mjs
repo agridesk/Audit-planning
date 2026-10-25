@@ -31,6 +31,8 @@ export function createSwapFirestoreAtomicWriter({project,getToken,fetchImpl=fetc
   if(new Set(names).size!==names.length)throw Error('SWAP_ATOMIC_DUPLICATE_DOCUMENT');
   if(!writes.some(w=>w.update?.name===root+'ams_swap20_dev_journal/'+operationId&&w.currentDocument?.exists===false))
    throw Error('SWAP_ATOMIC_JOURNAL_REQUIRED');
+  if(!writes.some(w=>w.update?.name===root+'ams_swap20_dev_meta/reservation_fence'&&typeof w.currentDocument?.updateTime==='string'))
+   throw Error('SWAP_ATOMIC_RESERVATION_FENCE_REQUIRED');
   const token=await getToken();
   if(!token)throw Error('SWAP_ATOMIC_TOKEN_MISSING');
   const response=await fetchImpl(endpoint,{

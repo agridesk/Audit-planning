@@ -19,5 +19,6 @@ const tests=[
  ['IN_MEMORY_LOCK_ONLY',route.includes('const realizedHoursInFlight=new Set()')],
  ['SHEETS_BATCH_UPDATE',source.includes("fetch(root+':batchUpdate'")]
 ];
-const result={contract:'AMS_PROD_REALIZED_HOURS_PARITY',status:'NOT_READY',checks:Object.fromEntries(tests),missingProductionProof:['mandatory expected revision','cross-instance atomic compare-and-swap','canonical write ownership','authenticated audit trail parity','live E2E with concurrent requests'],note:'Source findings are not live evidence. Existing PROD fail-closed guard must remain until canonical parity is proven.'};
+const failedSourceChecks=tests.filter(([,passed])=>!passed).map(([name])=>name);
+const result={contract:'AMS_PROD_REALIZED_HOURS_PARITY',status:'NOT_READY',sourceChecksPassed:failedSourceChecks.length===0,failedSourceChecks,checks:Object.fromEntries(tests),missingProductionProof:['mandatory expected revision','cross-instance atomic compare-and-swap','canonical write ownership','authenticated audit trail parity','live E2E with concurrent requests'],note:'Source findings are not live evidence. Existing PROD fail-closed guard must remain until canonical parity is proven.'};
 console.log(JSON.stringify(result,null,2));

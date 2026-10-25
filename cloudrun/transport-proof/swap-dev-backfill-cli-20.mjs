@@ -26,7 +26,11 @@ if(plan.writes.length>100)throw Error('SWAP_DEV_TOO_MANY_WRITES');
 const base='https://firestore.googleapis.com/v1/projects/'+project+'/databases/(default)/documents';
 const names=plan.writes.map(w=>w.update.name);
 const read=async()=>{
- const result=await json(base+':batchGet',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({documents:names})});
+ const response=await fetch(base+':batchGet',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({documents:names}),signal:AbortSignal.timeout(30000)});
+ if(!response.ok)throw Error('SWAP_DEV_BATCHGET_HTTP_'+response.status);
+ const body=await response.text();
+ let result;try{result=JSON.parse(body);}catch{result=body.trim().split(/\\r?\\n/).filter(Boolean).map(x=>JSON.parse(x));}
+ if(!Array.isArray(result))result=[result];
  if(!Array.isArray(result))throw Error('SWAP_DEV_BATCHGET_RESPONSE_INVALID');
  if(result.length!==names.length)throw Error('SWAP_DEV_BATCHGET_INCOMPLETE');
  const found=new Map(result.filter(x=>x.found).map(x=>[x.found.name,x.found]));

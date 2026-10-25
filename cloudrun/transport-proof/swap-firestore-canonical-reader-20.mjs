@@ -3,7 +3,7 @@
  * Uses batchGet to retrieve six independent revisioned documents.
  * Fail closed on missing records, unexpected document paths and duplicates.
  */
-const ID=/^[A-Za-z0-9_-]{1,140}$/;
+const ID=/^[^/\u0000-\u001f\u007f]{1,140}$/;
 const TIME=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 export function createSwapFirestoreCanonicalReader({project,getToken,fetchImpl=fetch}={}){
  if(!/^[a-z][a-z0-9-]{4,62}-dev$/.test(project||'')||typeof getToken!=='function')
@@ -44,7 +44,7 @@ export function createSwapFirestoreCanonicalReader({project,getToken,fetchImpl=f
   return paths.map(path=>map.get(root+path));
  }
  function validatePair(ids){
-  if(!Array.isArray(ids)||ids.length!==2||ids.some(id=>!ID.test(String(id||'')))||ids[0]===ids[1])
+  if(!Array.isArray(ids)||ids.length!==2||ids.some(id=>!ID.test(String(id||''))||id==='.'||id==='..')||ids[0]===ids[1])
    throw Error('SWAP_CANONICAL_READER_PAIR_INVALID');
  }
  async function readPair(ids){

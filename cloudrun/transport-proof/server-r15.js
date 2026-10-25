@@ -8,6 +8,7 @@ import {buildRotationManager20} from './rotation-manager-20.mjs';
 import {createSwapFirestoreReadmodel} from './swap-firestore-readmodel-20.mjs';
 import {createSwapProposalIndex} from './swap-proposal-index-20.mjs';
 import {createSwapIndexScheduler} from './swap-index-scheduler-20.mjs';
+import {createSwapFirestoreDevTransport} from './swap-firestore-dev-transport-20.mjs';
 
 import {URL} from 'node:url';
 import {createAvailabilityHttpRouter} from './availability-http-api-20.js';
@@ -321,6 +322,7 @@ async function notificationGasCallOnce(actor,operation,payload,gasAction){
 const swap20MirrorEnabled=runtime.isDev&&process.env.AMS_SWAP20_FIRESTORE_MIRROR_ENABLED==='true'&&process.env.AMS_SWAP20_PROPOSAL_INDEX_ENABLED!=='true';
 const swap20Mirror=swap20MirrorEnabled?createSwapFirestoreReadmodel({project,getToken}):null;
 const swap20IndexEnabled=runtime.isDev&&process.env.AMS_SWAP20_PROPOSAL_INDEX_ENABLED==='true';
+const swap20DirectTransport=runtime.isDev?createSwapFirestoreDevTransport({project,getToken,enabled:false,canonicalCutoverVerified:false,authorize:async()=>false}):null;
 const swap20Index=swap20IndexEnabled?createSwapProposalIndex({project,getToken}):null;
 
 const swap20Scheduler=swap20Index&&process.env.AMS_SWAP20_SCHEDULER_SA_EMAIL&&process.env.AMS_SWAP20_SCHEDULER_AUDIENCE?createSwapIndexScheduler({index:swap20Index,roster:swapRoster,gasCall:notificationGasCall,serviceEmail:process.env.AMS_SWAP20_SCHEDULER_SA_EMAIL,audience:process.env.AMS_SWAP20_SCHEDULER_AUDIENCE}):null;
@@ -445,7 +447,9 @@ async function swap20ManagerRequest(req,res,operation){
  const swap20RequestStarted=Date.now();
  const result=operation==='listPending'
   ?await swap20ReadList(actor)
-  :await swap20GasOperation(actor,operation,data);
+  :operation==='commit'&&process.env.AMS_SWAP20_DIRECT_ROUTE==='true'
+   ?await swap20DirectTransport.commit({operationId:data.operationId,actor})
+   :await swap20GasOperation(actor,operation,data);
  // Status is read-only: expose the separate index write gate so that
  // canonical CONFIRMED/NOT_STARTED cannot be mistaken for end-to-end readiness.
  if(operation==='getProposal'&&result?.ok===true&&swap20Index){

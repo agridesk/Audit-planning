@@ -35,3 +35,7 @@ console.log('SWAP direct Firestore canonical batch reader checks passed');
 
 const single=createSwapFirestoreCanonicalReader({project:'ams-test-dev',getToken:async()=>'token',fetchImpl:async(url,init)=>{const name=JSON.parse(init.body).documents[0];return {ok:true,text:async()=>JSON.stringify({found:{name,updateTime,fields:{payload:{stringValue:JSON.stringify(payloads[name.slice(root.length)])}}}})};}});
 assert.equal((await single.readProposal('swap_12345678')).status,'CONFIRMED');
+
+const noJournal=createSwapFirestoreCanonicalReader({project:'ams-test-dev',getToken:async()=>'token',fetchImpl:async(url,init)=>({ok:true,text:async()=>JSON.stringify({missing:JSON.parse(init.body).documents[0]})})});
+assert.equal(await noJournal.readJournal('swap_12345678'),null);
+await assert.rejects(noJournal.readProposal('swap_12345678'),/SWAP_CANONICAL_READER_DOCUMENT_MISSING/);

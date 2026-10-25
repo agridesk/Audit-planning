@@ -32,3 +32,6 @@ await assert.rejects(reader.readPair(['A','A']),/SWAP_CANONICAL_READER_PAIR_INVA
 const broken=createSwapFirestoreCanonicalReader({project:'ams-test-dev',getToken:async()=>'token',fetchImpl:async()=>({ok:true,text:async()=>'[]'})});
 await assert.rejects(broken.readPair(['A','B']),/SWAP_CANONICAL_READER_COUNT_INVALID/);
 console.log('SWAP direct Firestore canonical batch reader checks passed');
+
+const single=createSwapFirestoreCanonicalReader({project:'ams-test-dev',getToken:async()=>'token',fetchImpl:async(url,init)=>{const name=JSON.parse(init.body).documents[0];return {ok:true,text:async()=>JSON.stringify({found:{name,updateTime,fields:{payload:{stringValue:JSON.stringify(payloads[name.slice(root.length)])}}}})};}});
+assert.equal((await single.readProposal('swap_12345678')).status,'CONFIRMED');

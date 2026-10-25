@@ -19,7 +19,8 @@ const coverage=process.argv.includes('--coverage');
 const exceptions=process.argv.includes('--exceptions');
 const liveTest=process.argv.includes('--live-test');
 const initFence=process.argv.includes('--init-fence');
-if([apply,verify,coverage,exceptions,liveTest,initFence].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
+const syncDrift=process.argv.includes('--sync-drift');
+if([apply,verify,coverage,exceptions,liveTest,initFence,syncDrift].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
 const locations=[process.env.GCLOUD_CMD,process.env.LOCALAPPDATA&&join(process.env.LOCALAPPDATA,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd'),process.env.PROGRAMFILES&&join(process.env.PROGRAMFILES,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd')].filter(Boolean);
 const executable=locations.find(existsSync)||(process.platform==='win32'?'gcloud.cmd':'gcloud');
 let token;
@@ -79,6 +80,20 @@ const read=async()=>{
  return found;
 };
 const existing=await read();
+if(syncDrift){
+ const permitted=new Set(['AUD_GrupoViverosLasCunas_HQ_1777531729329_38','AUD_MistralBonsai,S.L._HQ_1777531729397_52']);
+ const delta=plan.writes.filter(w=>existing.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue);
+ if(delta.length!==4||delta.some(w=>!permitted.has(w.update.name.split('/').pop())||!existing.get(w.update.name)?.updateTime))throw Error('DEV_SYNC_UNEXPECTED_DELTA');
+ const fresh=buildSwapMigrationManifest({auditRows:await range('Audit planning'),availabilityRows:await range('Auditor Availability')});
+ if(fresh.manifestHash!==manifest.manifestHash)throw Error('DEV_SYNC_SOURCE_CHANGED');
+ const writes=delta.map(w=>({update:w.update,currentDocument:{updateTime:existing.get(w.update.name).updateTime}}));
+ const result=await json(base+':commit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({writes})});
+ if(result.writeResults?.length!==4)throw Error('DEV_SYNC_RECEIPT_INVALID');
+ const after=await read();
+ if(plan.writes.some(w=>after.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue))throw Error('DEV_SYNC_READBACK_MISMATCH');
+ console.log(JSON.stringify({result:'DEV_DRIFT_SYNC_VERIFIED',documents:after.size,updated:4,audits:2,cutoverAuthorized:false}));
+ process.exit(0);
+}
 if(verify||liveTest){
  const drift=[];
  if(existing.size!==names.length)throw Error('SWAP_DEV_VERIFY_MISSING_DOCS_'+(names.length-existing.size));

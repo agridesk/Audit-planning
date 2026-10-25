@@ -6,5 +6,7 @@ const result=assessSwapSheetMigrationCoverage({auditRows,availabilityRows});
 assert.equal(result.auditCount,2);
 assert.equal(result.reservationReferences,2);
 assert.equal(result.cutoverAuthorized,false);
+assert.equal(result.statuses.Accepted,1);
+assert.equal(result.issueCounts.ORPHAN_RESERVATION,1);
 for(const kind of ['ACCEPTED_PLAN_MISSING','LEGACY_STATUS_UNMAPPED','ORPHAN_RESERVATION'])assert.ok(result.issues.some(x=>x.kind===kind));
 console.log('SWAP Sheets migration coverage passed');

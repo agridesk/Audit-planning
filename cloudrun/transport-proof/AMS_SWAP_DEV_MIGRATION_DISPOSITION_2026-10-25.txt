@@ -1,0 +1,32 @@
+AMS SWAP 2.0 — DEV MIGRATION DISPOSITION — 2026-10-25
+Status: PARTIAL DEV BACKFILL VERIFIED; FULL CUTOVER BLOCKED
+Project: audit-management-system-dev
+Source manifest: 3b680d9e4f00bf8fd9b2a639db8c6c5a5a9c96673cb639f937ce1b5be2241630
+
+COMPLETED
+- 115 audit records examined.
+- 15 Accepted audit records migrated create-only to DEV Firestore.
+- 30 canonical documents written and read back; live Sheets parity verified.
+- No PROD writes, no canonical traffic switch.
+
+DISPOSITION OF NON-MIGRATED RECORDS
+- 35 Pending Planning: remain in Sheets, not Accepted; not automatically convertible.
+- 14 Pending Approval: remain in Sheets, pending approval.
+- 3 Rejected: remain in Sheets; no accepted reservation migration.
+- 44 Approved: legacy status; remain in Sheets until lifecycle semantics approved.
+- 4 Accepted exceptions:
+  * Audit planning row 26: planning block exists, no availability reservation; do not fabricate reservation.
+  * Audit planning row 38: planning missing; do not infer date.
+  * Audit planning row 47: planning missing; do not infer date.
+  * Audit planning row 73: TEST audit; reservation exists at Auditor Availability row 720 on 2027-05-19, 09:00–17:00, but reservation owner romboutsrwj@gmail.com differs from assigned auditor info@agridesk.com. Keep quarantined; do not silently change owner.
+- 4 orphan reservation references: Auditor Availability rows 2, 3, 4, 227; keep quarantined until source ownership is established.
+
+NEXT REQUIRED DECISIONS
+1. Confirm whether row 73 TEST audit should be excluded from production scope or have its assigned auditor/reservation reconciled.
+2. For rows 26, 38, 47 provide actual authoritative schedule/reservation or approve leaving these Accepted records in Sheets with cutover blocked.
+3. Define lifecycle mapping for 44 Approved records; do not automatically relabel Accepted.
+4. Resolve orphan reservation references against authoritative source records.
+5. After authorized source remediation, regenerate manifest, perform idempotent delta backfill with rollback safeguards, verify parity/coverage and reservation fence, run DEV end-to-end, and obtain separate approval before PROD.
+
+SAFETY
+This report is not an authorization for migration, data correction, PROD deployment, or canonical cutover.

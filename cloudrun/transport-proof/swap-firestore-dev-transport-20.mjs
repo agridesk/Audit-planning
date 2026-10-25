@@ -1,3 +1,4 @@
+import {outsideSwapPair} from './swap-reservation-index-filter-20.mjs';
 import {resolveSwapFirestoreReservations} from './swap-firestore-reservation-planner-20.mjs';
 import {createSwapFirestoreCanonicalReader} from './swap-firestore-canonical-reader-20.mjs';
 import {createSwapFirestoreAtomicWriter} from './swap-firestore-atomic-writer-20.mjs';
@@ -10,7 +11,7 @@ export function createSwapFirestoreDevTransport(options={}){
  if(typeof loadCompleteReservationIndex!=='function')throw Error('SWAP_DEV_COMPLETE_INDEX_LOADER_REQUIRED');
  const resolveFinalReservations=async context=>{
   const index=await loadCompleteReservationIndex(context);
-  return resolveSwapFirestoreReservations({...context,externalReservations:index?.reservations,completeExternalIndex:index?.complete===true});
+  return resolveSwapFirestoreReservations({...context,externalReservations:outsideSwapPair(index?.reservations||[],context.proposal.auditA,context.proposal.auditB),completeExternalIndex:index?.complete===true});
  };
  const coordinator=createSwapDirectCommitCoordinator({project,readProposal:reader.readProposal,readJournal:reader.readJournal,readPair:reader.readPair,readAvailability:reader.readAvailability,atomicWriter:writer,authorize,resolveFinalReservations,enabled});
  return Object.freeze({...reader,commit:coordinator.commit});

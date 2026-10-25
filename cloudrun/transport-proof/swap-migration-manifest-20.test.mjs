@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {buildSwapMigrationManifest} from './swap-migration-manifest-20.mjs';
+const audits=[['Audit ID','Status','Planning JSON','Assigned to'],['A1','Accepted',JSON.stringify({blocks:[{date:'2026-10-25',start:'09:00',end:'11:00'}]}),'a@example.test'],['A2','Approved','','a@example.test']];
+const availability=[['Date','Auditor_Email','Audit_ID_1','Audit_ID_2','First_Audit_Start_Time','First_Audit_End_Time','Second_Audit_Start_Time','Second_Audit_End_Time'],['2026-10-25','a@example.test','A1','','09:00','11:00','','']];
+const input={auditRows:audits,availabilityRows:availability};
+const a=buildSwapMigrationManifest(input),b=buildSwapMigrationManifest(input);
+assert.equal(a.manifestHash,b.manifestHash);
+assert.equal(a.eligible.length,1);
+assert.equal(a.excluded.length,1);
+assert.match(a.eligible[0].sourceHash,/^[0-9a-f]{64}$/);
+assert.equal(a.writeAuthorized,false);
+assert.equal(a.cutoverAuthorized,false);
+const altered=JSON.parse(JSON.stringify(audits));
+altered[1][2]=JSON.stringify({blocks:[{date:'2026-10-25',start:'10:00',end:'12:00'}]});
+assert.notEqual(buildSwapMigrationManifest({auditRows:altered,availabilityRows:availability}).manifestHash,a.manifestHash);
+console.log('SWAP deterministic migration manifest checks passed');

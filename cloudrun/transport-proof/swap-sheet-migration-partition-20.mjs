@@ -42,6 +42,7 @@ export function partitionSwapSheetMigration({auditRows,availabilityRows}={}){
   const slots=references.get(id)||[];
   if(!reason&&slots.length!==r.blocks.length)reason='RESERVATION_COUNT_MISMATCH';
   if(!reason&&slots.some(s=>!/^\d{4}-\d{2}-\d{2}$/.test(s.date)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(s.start)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(s.end)||s.start>=s.end||s.owner!==r.assignedTo))reason='RESERVATION_INVALID';
+  if(!reason&&new Set(slots.map(s=>[s.date,s.start,s.end,s.owner].join('|'))).size!==slots.length)reason='DUPLICATE_RESERVATION';
   if(!reason){
    const a=r.blocks.map(b=>[b.date,b.start,b.end].join('|')).sort();
    const b=slots.map(s=>[s.date,s.start,s.end].join('|')).sort();

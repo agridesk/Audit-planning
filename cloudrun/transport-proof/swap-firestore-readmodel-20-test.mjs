@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import {createSwapFirestoreReadmodel} from './swap-firestore-readmodel-20.mjs';
 const server=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 const docker=readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
-assert.match(docker,/COPY swap-firestore-readmodel-20\.mjs/);
+assert.match(docker,/COPY (?:swap\-firestore\-readmodel\-20\.mjs|swap-\*\.mjs) \.\//);
 assert.match(server,/AMS_SWAP20_FIRESTORE_MIRROR_ENABLED==='true'/);
 assert.match(server,/notificationGasCall\(actor,swap20Index/);
 assert.match(server,/swap20InvalidateMirror/);

@@ -48,7 +48,7 @@ export function createSwapDirectProposalStore({project,getToken,fetchImpl=fetch}
   if(!proposal||!ID.test(String(proposal.operationId||''))||!proposal.auditA||!proposal.auditB||
     proposal.auditA===proposal.auditB||!['AWAITING_ACKNOWLEDGEMENT','CONFIRMED'].includes(proposal.status)||
     !Array.isArray(proposal.requiredAuditorUids)||!proposal.requiredAuditorUids.length||
-    !Array.isArray(proposal.acknowledgedAuditorUids)||proposal.acknowledgedAuditorUids.length)
+    !Array.isArray(proposal.acknowledgedAuditorUids)||proposal.acknowledgedAuditorUids.length||proposal.status==='CONFIRMED')
    throw Error('SWAP_DIRECT_PROPOSAL_INVALID');
   const url=new URL(base+'/'+encodeURIComponent(proposal.operationId));
   url.searchParams.set('currentDocument.exists','false');

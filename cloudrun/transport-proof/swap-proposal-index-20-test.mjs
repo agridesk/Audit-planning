@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import {createSwapProposalIndex} from './swap-proposal-index-20.mjs';
 const cloud=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 const docker=readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
-assert.match(docker,/COPY swap-proposal-index-20\.mjs/);
+assert.match(docker,/COPY (?:swap\-proposal\-index\-20\.mjs|swap-\*\.mjs) \.\//);
 assert.match(cloud,/AMS_SWAP20_PROPOSAL_INDEX_ENABLED==='true'/);
 assert.match(cloud,/swap20Index\.begin\(op\)/);
 assert.match(cloud,/swap20Index\.finish\(op,result\._mirrorEvent\)/);

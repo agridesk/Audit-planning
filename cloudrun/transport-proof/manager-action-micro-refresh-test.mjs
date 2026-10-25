@@ -60,6 +60,9 @@ const checks=[
 ['Planning save message patches row immediately and background-rereads direct audit',manager.includes("msg.type==='AMS_PLANNING_SAVED'")&&manager.includes('mergeRowInPlace(auditId,patch)')&&manager.includes('rereadAudit(auditId,before.sourceRow)')],
 ['r10 stable chain',r10.includes("await import('./server-r9.js')")]
 ];
+checks.push(['manager Accept immediately enables Complete',manager.includes("}else if(action==='accept'){\n    after.status='Accepted';after.statusKey='ACCEPTED';after.allowedActions=['COMPLETE','CANCEL','REJECT']")]);
+checks.push(['manager Approve self-plan immediately enables Complete',manager.includes("if(action==='approve'){\n    after.status='Accepted';after.statusKey='ACCEPTED';after.allowedActions=['COMPLETE','CANCEL','REJECT']")]);
+checks.push(['server canonical Accepted action includes Complete',r4.includes("statusKey==='ACCEPTED'?['COMPLETE','CANCEL','REJECT']")]);
 const failed=checks.filter(([,ok])=>!ok);
 for(const [name,ok] of checks)console.log(`${ok?'PASS':'FAIL'} ${name}`);
 if(failed.length)process.exit(1);

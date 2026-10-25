@@ -28,6 +28,7 @@ export function resolveSwapFirestoreReservations({proposal,pair,availability,own
   const id=ids[i],source=availability[i],blocks=i===0?proposal.blocksA:proposal.blocksB;
   if(!source||source.auditId!==id||!Array.isArray(source.reservations)||source.reservations.length!==blocks.length)
    throw Error('SWAP_RESERVATION_COUNT_MISMATCH');
+  if(!Array.isArray(blocks))throw Error('SWAP_RESERVATION_BLOCK_INVALID');
   const owner=owners[id];
   if(typeof owner!=='string'||!owner.includes('@'))throw Error('SWAP_RESERVATION_OWNER_INVALID');
   const reservations=blocks.map(block=>{

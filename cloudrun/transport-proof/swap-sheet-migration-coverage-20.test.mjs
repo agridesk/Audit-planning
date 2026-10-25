@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {assessSwapSheetMigrationCoverage} from './swap-sheet-migration-coverage-20.mjs';
+const auditRows=[['Audit ID','Status','Planning JSON'],['A1','Accepted',''],['A2','Approved','{}']];
+const availabilityRows=[['Audit_ID_1','Audit_ID_2'],['A1','UNKNOWN']];
+const result=assessSwapSheetMigrationCoverage({auditRows,availabilityRows});
+assert.equal(result.auditCount,2);
+assert.equal(result.reservationReferences,2);
+assert.equal(result.cutoverAuthorized,false);
+for(const kind of ['ACCEPTED_PLAN_MISSING','LEGACY_STATUS_UNMAPPED','ORPHAN_RESERVATION'])assert.ok(result.issues.some(x=>x.kind===kind));
+console.log('SWAP Sheets migration coverage passed');

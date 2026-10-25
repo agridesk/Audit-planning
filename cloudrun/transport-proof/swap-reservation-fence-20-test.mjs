@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {reservationFenceWrite} from './swap-reservation-fence-write-20.mjs';
+import {createSwapReservationFenceReader} from './swap-reservation-fence-reader-20.mjs';
+const revision='2026-10-25T07:00:00Z';
+const read=createSwapReservationFenceReader({project:'ams-test-dev',getToken:async()=>'token',fetchImpl:async()=>({ok:true,json:async()=>({updateTime:revision})})});
+const fence=await read();
+assert.equal(fence.revision,revision);
+const write=reservationFenceWrite('ams-test-dev','swap_12345678',fence.revision,revision);
+assert.equal(write.currentDocument.updateTime,revision);
+assert.ok(write.update.name.endsWith('/ams_swap20_dev_meta/reservation_fence'));
+assert.throws(()=>reservationFenceWrite('ams-test-prod','swap_12345678',revision,revision),/SWAP_FENCE_INVALID/);
+console.log('SWAP reservation fence read and compare-and-set checks passed');

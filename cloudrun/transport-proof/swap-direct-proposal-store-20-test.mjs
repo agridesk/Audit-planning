@@ -34,3 +34,5 @@ assert.throws(()=>createSwapDirectProposalStore({project:'ams-test-prod',getToke
 
 const changedSchedule={...confirmed,blocksA:[{date:'2026-10-29'}]};
 await assert.rejects(store.compareAndSet(proposal.operationId,'revision-2',changedSchedule,()=>true),/SWAP_DIRECT_TRANSITION_REJECTED/);
+
+await assert.rejects(store.create({...proposal,operationId:'swap_87654321',status:'CONFIRMED'}),/SWAP_DIRECT_PROPOSAL_INVALID/);

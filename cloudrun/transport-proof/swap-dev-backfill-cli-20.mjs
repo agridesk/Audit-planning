@@ -62,13 +62,39 @@ const read=async()=>{
  return found;
 };
 const existing=await read();
-if(verify){
+if(verify||liveTest){
  if(existing.size!==names.length)throw Error('SWAP_DEV_VERIFY_MISSING_DOCS_'+(names.length-existing.size));
  for(const write of plan.writes){
   const found=existing.get(write.update.name);
   if(found?.fields?.payload?.stringValue!==write.update.fields.payload.stringValue)throw Error('SWAP_DEV_VERIFY_PAYLOAD_MISMATCH');
  }
- console.log(JSON.stringify({result:'DEV_PARITY_VERIFIED',documents:existing.size,eligible:plan.eligibleCount,quarantined:plan.quarantinedCount,orphans:plan.orphanCount,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
+ if(liveTest){
+  const partition=partitionSwapSheetMigration({auditRows,availabilityRows});
+  const excluded=new Set(partition.quarantined.map(x=>x.auditId));
+  const migrated=new Set(partition.eligible.map(x=>x.auditId));
+  if([...migrated].some(id=>excluded.has(id)))throw Error('SWAP_DEV_SCOPE_OVERLAP');
+  const expectedNames=new Set(names);
+  const actualNames=new Set(existing.keys());
+  if([...actualNames].some(name=>!expectedNames.has(name)))throw Error('SWAP_DEV_SCOPE_UNEXPECTED_DOCUMENT');
+  const list=async collection=>{
+   let pageToken='',all=[];
+   do{
+    const url=base+'/'+collection+'?pageSize=100'+(pageToken?'&pageToken='+encodeURIComponent(pageToken):'');
+    const page=await json(url);
+    all.push(...(page.documents||[]));pageToken=page.nextPageToken||'';
+    if(all.length>2000)throw Error('SWAP_DEV_SCOPE_LIST_LIMIT');
+   }while(pageToken);
+   return all;
+  };
+  const [audits,availability]=await Promise.all([list('ams_swap20_dev_audits'),list('ams_swap20_dev_availability')]);
+  for(const [collection,docs] of [['ams_swap20_dev_audits',audits],['ams_swap20_dev_availability',availability]]){
+   if(docs.length!==plan.eligibleCount)throw Error('SWAP_DEV_SCOPE_COLLECTION_COUNT_'+collection+'_'+docs.length);
+   for(const doc of docs){
+    if(!expectedNames.has(doc.name)||!migrated.has(doc.name.split('/').pop()))throw Error('SWAP_DEV_SCOPE_UNEXPECTED_'+collection);
+   }
+  }
+  console.log(JSON.stringify({result:'DEV_LIVE_FIRESTORE_SCOPE_PASS',audits:audits.length,availability:availability.length,parityDocuments:existing.size,excludedLegacyTest:partition.quarantined.length,orphanReferences:partition.orphanReservations.length,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
+ }else console.log(JSON.stringify({result:'DEV_PARITY_VERIFIED',documents:existing.size,eligible:plan.eligibleCount,quarantined:plan.quarantinedCount,orphans:plan.orphanCount,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
  process.exit(0);
 }
 if(existing.size)throw Error('SWAP_DEV_EXISTING_CANONICAL_DOCS_'+existing.size);

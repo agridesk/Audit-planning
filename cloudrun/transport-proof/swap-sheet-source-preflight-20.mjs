@@ -18,11 +18,11 @@ export function inspectSwapSheetSources({auditRows,availabilityRows,journalRows}
   const status=val(row,as);statuses[status]=(statuses[status]||0)+1;
   if(ids.has(id))issues.push({kind:'DUPLICATE_AUDIT_ID',row:i+1,firstRow:ids.get(id),auditId:id});
   else ids.set(id,i+1);
+  if(status==='Approved')issues.push({kind:'LEGACY_APPROVED_STATUS',row:i+1,auditId:id});
   const raw=val(row,ap);
   if(!raw){planning.empty++;if(status==='Accepted')issues.push({kind:'ACCEPTED_WITHOUT_PLANNING',row:i+1,auditId:id});continue;}
   try{const parsed=JSON.parse(raw);if(!parsed||!Array.isArray(parsed.blocks))throw Error('BLOCKS_MISSING');planning.valid++;}
   catch{planning.invalid++;issues.push({kind:'PLANNING_JSON_INVALID',row:i+1,auditId:id});}
-  if(status==='Approved')issues.push({kind:'LEGACY_APPROVED_STATUS',row:i+1,auditId:id});
  }
  const seen=new Set(),referenced=new Set();
  for(let i=1;i<availabilityRows.length;i++){

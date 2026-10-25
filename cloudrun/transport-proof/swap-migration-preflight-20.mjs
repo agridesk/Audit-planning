@@ -18,7 +18,8 @@ export function verifySwapMigrationPreflight({sourceAuditIds,sourceAvailabilityI
   missingAvailability:missing(sourceAvailability,targetAvailability),
   extraAvailability:missing(targetAvailability,sourceAvailability),
   sourceAuditWithoutAvailability:missing(sourceAudits,sourceAvailability),
-  legacyWritesStillEnabled:legacyWritesDisabled!==true
+  legacyWritesStillEnabled:legacyWritesDisabled!==true,
+  emptySource:sourceAudits.size===0||sourceAvailability.size===0
  };
  return {ok:Object.values(issues).every(value=>Array.isArray(value)?value.length===0:value===false),issues,cutoverAuthorized:false};
 }

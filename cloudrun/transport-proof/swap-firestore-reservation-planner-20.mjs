@@ -26,6 +26,7 @@ export function resolveSwapFirestoreReservations({proposal,pair,availability,own
  const allocated=[];
  for(let i=0;i<2;i++){
   const id=ids[i],source=availability[i],blocks=i===0?proposal.blocksA:proposal.blocksB;
+  if(!Array.isArray(blocks))throw Error('SWAP_RESERVATION_BLOCK_INVALID');
   if(!source||source.auditId!==id||!Array.isArray(source.reservations)||source.reservations.length!==blocks.length)
    throw Error('SWAP_RESERVATION_COUNT_MISMATCH');
   if(!Array.isArray(blocks))throw Error('SWAP_RESERVATION_BLOCK_INVALID');

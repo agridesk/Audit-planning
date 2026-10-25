@@ -33,7 +33,7 @@ export function createSwapFirestoreReservationIndex({project,getToken,fetchImpl=
     if(!/^[A-Za-z0-9_-]{1,140}$/.test(auditId))throw Error('SWAP_INDEX_AUDIT_ID_INVALID');
     for(const reservation of record.reservations){
      if(!reservation||reservation.auditId!==auditId)throw Error('SWAP_INDEX_RESERVATION_ID_MISMATCH');
-     if(typeof reservation.owner!=='string'||!reservation.owner.includes('@')||!/^\\d{4}-\\d{2}-\\d{2}$/.test(reservation.date||'')||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(reservation.start||'')||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(reservation.end||''))throw Error('SWAP_INDEX_RESERVATION_SHAPE_INVALID');
+     if(typeof reservation.owner!=='string'||!reservation.owner.includes('@')||!/^\d{4}-\d{2}-\d{2}$/.test(reservation.date||'')||!/^([01]\d|2[0-3]):[0-5]\d$/.test(reservation.start||'')||!/^([01]\d|2[0-3]):[0-5]\d$/.test(reservation.end||''))throw Error('SWAP_INDEX_RESERVATION_SHAPE_INVALID');
      const key=[reservation.auditId,reservation.owner,reservation.date,reservation.start,reservation.end].join('|');
      if(seenReservations.has(key))throw Error('SWAP_INDEX_DUPLICATE_RESERVATION');
      seenReservations.add(key);

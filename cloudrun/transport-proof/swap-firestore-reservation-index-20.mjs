@@ -23,6 +23,7 @@ export function createSwapFirestoreReservationIndex({project,getToken,fetchImpl=
    for(const document of result.documents||[]){
     if(!document.name?.startsWith('projects/'+project+'/databases/(default)/documents/ams_swap20_dev_availability/'))
      throw Error('SWAP_INDEX_DOCUMENT_INVALID');
+    if(document.name.slice(url.replace('https://firestore.googleapis.com/v1/','').length+1).includes('/'))throw Error('SWAP_INDEX_DOCUMENT_PATH_INVALID');
     if(seen.has(document.name))throw Error('SWAP_INDEX_DUPLICATE_DOCUMENT');
     seen.add(document.name);
     let record;

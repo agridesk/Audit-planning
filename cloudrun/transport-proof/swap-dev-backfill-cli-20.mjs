@@ -83,15 +83,18 @@ const existing=await read();
 if(syncDrift){
  const permitted=new Set(['AUD_GrupoViverosLasCunas_HQ_1777531729329_38','AUD_MistralBonsai,S.L._HQ_1777531729397_52']);
  const delta=plan.writes.filter(w=>existing.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue);
- if(delta.length!==4||delta.some(w=>!permitted.has(w.update.name.split('/').pop())||!existing.get(w.update.name)?.updateTime))throw Error('DEV_SYNC_UNEXPECTED_DELTA');
+ const unexpected=delta.filter(w=>!permitted.has(w.update.name.split('/').pop()));
+ const missingRevision=delta.filter(w=>!existing.get(w.update.name)?.updateTime);
+ if(unexpected.length||missingRevision.length||delta.length>4)throw Error('DEV_SYNC_UNEXPECTED_DELTA '+JSON.stringify({count:delta.length,unexpected:unexpected.map(w=>w.update.name.split('/').pop()),missingRevision:missingRevision.map(w=>w.update.name.split('/').pop())}));
+ if(delta.length===0){console.log(JSON.stringify({result:'DEV_DRIFT_ALREADY_SYNCED',documents:existing.size,cutoverAuthorized:false}));process.exit(0);}
  const fresh=buildSwapMigrationManifest({auditRows:await range('Audit planning'),availabilityRows:await range('Auditor Availability')});
  if(fresh.manifestHash!==manifest.manifestHash)throw Error('DEV_SYNC_SOURCE_CHANGED');
  const writes=delta.map(w=>({update:w.update,currentDocument:{updateTime:existing.get(w.update.name).updateTime}}));
  const result=await json(base+':commit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({writes})});
- if(result.writeResults?.length!==4)throw Error('DEV_SYNC_RECEIPT_INVALID');
+ if(result.writeResults?.length!==writes.length)throw Error('DEV_SYNC_RECEIPT_INVALID');
  const after=await read();
  if(plan.writes.some(w=>after.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue))throw Error('DEV_SYNC_READBACK_MISMATCH');
- console.log(JSON.stringify({result:'DEV_DRIFT_SYNC_VERIFIED',documents:after.size,updated:4,audits:2,cutoverAuthorized:false}));
+ console.log(JSON.stringify({result:'DEV_DRIFT_SYNC_VERIFIED',documents:after.size,updated:writes.length,audits:new Set(delta.map(w=>w.update.name.split('/').pop())).size,cutoverAuthorized:false}));
  process.exit(0);
 }
 if(verify||liveTest){

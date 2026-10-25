@@ -30,8 +30,10 @@ export function createSwapDirectCommitCoordinator({project,readProposal,readJour
      proposal.source!=='firestore-canonical')
    throw Error('SWAP_DIRECT_CANONICAL_MIGRATION_REQUIRED');
   const schedule=validateSwapCanonicalSchedule({proposal,pair});
-  const finalReservations=await resolveFinalReservations({proposal,pair,availability,owners:schedule.owners});
-  const writeSet=buildSwapFirestoreWriteSet({project,operationId,proposal,pair,availability,finalReservations,actorEmail:actor.email});
+  const resolved=await resolveFinalReservations({proposal,pair,availability,owners:schedule.owners});
+  const finalReservations=resolved.reservations;
+  const fenceRevision=resolved.fenceRevision;
+  const writeSet=buildSwapFirestoreWriteSet({project,operationId,proposal,pair,availability,finalReservations,fenceRevision,actorEmail:actor.email});
   const result=await atomicWriter.commit(writeSet);
   if(!result.ok)return {ok:false,code:result.conflict?'SWAP_DIRECT_REVISION_CONFLICT':'SWAP_DIRECT_COMMIT_FAILED'};
   return {ok:true,committed:true,operationId,commitTime:result.commitTime,writeCount:result.writeCount};

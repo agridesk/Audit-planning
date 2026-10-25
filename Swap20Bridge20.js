@@ -2,6 +2,8 @@
 // DEV only. The shared bridge key is verified by EntryV5 before this service.
 // Preview and proposal creation do not alter canonical audit planning.
 function Swap20Bridge20_actor_(email,expectedRole) {
+ var authPerfStarted=Date.now();
+ function authPhase(phase){if(expectedRole==='manager'&&typeof console!=='undefined'&&console&&typeof console.info==='function')console.info('[SWAP20_AUTH_PHASE_PERF] '+JSON.stringify({phase:phase,ms:Date.now()-authPerfStarted}));}
  var props=PropertiesService.getScriptProperties();
  var id='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs';
  if(String(props.getProperty('AMS_ENV')||'').toUpperCase()!=='DEV'||
@@ -10,8 +12,10 @@ function Swap20Bridge20_actor_(email,expectedRole) {
  email=String(email||'').trim().toLowerCase();
  if(!email||email.length>254||!/^\S+@\S+\.\S+$/.test(email))throw Error('SWAP_ACTOR_EMAIL_INVALID');
  var sh=SpreadsheetApp.openById(id).getSheetByName('Auditors');
+ authPhase('auditorSheetOpened');
  if(!sh)throw Error('SWAP_AUDITOR_ROSTER_MISSING');
  var data=sh.getDataRange().getValues();
+ authPhase('auditorRosterRead');
  if(data.length<2)throw Error('SWAP_MANAGER_ROSTER_EMPTY');
  var head=data[0].map(function(h){return String(h||'').toLowerCase().replace(/[ _-]/g,'');});
  function ix(names){for(var n=0;n<names.length;n++){var c=head.indexOf(names[n]);if(c>=0)return c;}return -1;}
@@ -21,6 +25,7 @@ function Swap20Bridge20_actor_(email,expectedRole) {
  if(matches.length!==1||String(matches[0][role]||'').trim().toLowerCase()!==expectedRole||
     !['YES','TRUE','1','ACTIVE'].includes(String(matches[0][active]||'').trim().toUpperCase()))
   throw Error('SWAP_MANAGER_IDENTITY_NOT_AUTHORIZED');
+ authPhase('auditorIdentityVerified');
  return {ok:true,email:email,role:expectedRole==='manager'?'Manager':'Auditor'};
 }
 function Swap20Bridge20_manager_(email){return Swap20Bridge20_actor_(email,'manager');}

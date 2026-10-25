@@ -30,6 +30,7 @@ export function createSwapFirestoreReservationIndex({project,getToken,fetchImpl=
     catch{throw Error('SWAP_INDEX_PAYLOAD_INVALID');}
     if(!record||!Array.isArray(record.reservations))throw Error('SWAP_INDEX_RESERVATIONS_INVALID');
     const auditId=document.name.split('/').pop();
+    if(!/^[A-Za-z0-9_-]{1,140}$/.test(auditId))throw Error('SWAP_INDEX_AUDIT_ID_INVALID');
     for(const reservation of record.reservations){
      if(!reservation||reservation.auditId!==auditId)throw Error('SWAP_INDEX_RESERVATION_ID_MISMATCH');
      reservations.push(reservation);

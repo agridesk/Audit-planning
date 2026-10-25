@@ -345,8 +345,8 @@ async function swap20ReadList(actor){
  if(cached&&cached.expires>now){console.info('[SWAP20_LIST_PERF]',JSON.stringify({role:actor.role,source:'CACHE',ms:Date.now()-now}));return cached.data;}
  if(swap20ListInflight.has(key))return swap20ListInflight.get(key);
  const started=Date.now(),generation=swap20ListGeneration;
- const call=(async()=>{
  let source='GAS';
+ const call=(async()=>{
  if(swap20Index){
   try{
    const started=Date.now(),direct=await swap20Index.read(actor);

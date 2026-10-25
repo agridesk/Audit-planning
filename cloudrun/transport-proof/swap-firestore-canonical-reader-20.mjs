@@ -22,7 +22,8 @@ export function createSwapFirestoreCanonicalReader({project,getToken,fetchImpl=f
    try{raw=body.trim().split(/\r?\n/).filter(Boolean).map(line=>JSON.parse(line));}
    catch{throw Error('SWAP_CANONICAL_READER_RESPONSE_INVALID');}
   }
-  if(!Array.isArray(raw)||raw.length!==paths.length)throw Error('SWAP_CANONICAL_READER_COUNT_INVALID');
+  if(!Array.isArray(raw))raw=[raw];
+  if(raw.length!==paths.length)throw Error('SWAP_CANONICAL_READER_COUNT_INVALID');
   const map=new Map();
   for(const item of raw){
    if(!item.found||!item.found.name||!item.found.updateTime||!TIME.test(item.found.updateTime))

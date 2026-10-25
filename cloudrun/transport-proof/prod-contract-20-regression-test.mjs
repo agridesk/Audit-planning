@@ -2,9 +2,12 @@ import assert from 'node:assert/strict';
 import {resolveAmsRuntimeConfig as resolve} from './runtime-environment-20.mjs';
 const dev='audit-management-system-dev',prod='prod-project-fixture';
 const devSheet='dev-sheet-fixture',prodSheet='prod-sheet-fixture';
-const base={AMS_RUNTIME_ENV:'PROD',AMS_PROD_RELEASE_ENABLED:'true',AMS_PROD_AUTH_OTP_ENABLED:'true',AMS_AUTH_LOGOUT_REVOCATION_ENABLED:'true',AMS_PROD_GCP_PROJECT:prod,AMS_PROD_SSOT_SPREADSHEET_ID:prodSheet,DEV_SSOT_SPREADSHEET_ID:devSheet,AMS_PROD_GAS_WRITE_URL:'https://prod.example.test/bridge',GAS_DEV_WRITE_URL:'https://dev.example.test/bridge',AMS_PROD_EXTERNAL_WRITE_BRIDGE_KEY:'fixture-production-gas-writer-key-0123456789',AMS_PROD_SESSION_SIGNING_SECRET:'fixture-production-session-signing-secret-0123456789',AMS_PROD_ALLOWED_ORIGIN:'https://prod.example.test',DEV_ALLOWED_ORIGIN:'https://dev.example.test'};
+const base={AMS_RUNTIME_ENV:'PROD',AMS_PROD_RELEASE_ENABLED:'true',AMS_PROD_AUTH_OTP_ENABLED:'true',AMS_AUTH_LOGOUT_REVOCATION_ENABLED:'true',AMS_PROD_GCP_PROJECT:prod,AMS_PROD_RUNTIME_SERVICE_ACCOUNT:'ams-prod-runtime@'+prod+'.iam.gserviceaccount.com',AMS_PROD_SSOT_SPREADSHEET_ID:prodSheet,DEV_SSOT_SPREADSHEET_ID:devSheet,AMS_PROD_GAS_WRITE_URL:'https://prod.example.test/bridge',GAS_DEV_WRITE_URL:'https://dev.example.test/bridge',AMS_PROD_EXTERNAL_WRITE_BRIDGE_KEY:'fixture-production-gas-writer-key-0123456789',AMS_PROD_SESSION_SIGNING_SECRET:'fixture-production-session-signing-secret-0123456789',AMS_PROD_ALLOWED_ORIGIN:'https://prod.example.test',DEV_ALLOWED_ORIGIN:'https://dev.example.test'};
 const cases=[
 ['valid PROD',base,prod,null],
+['PROD missing dedicated runtime service account',{...base,AMS_PROD_RUNTIME_SERVICE_ACCOUNT:''},prod,'AMS_PROD_RUNTIME_SERVICE_ACCOUNT_REQUIRED'],
+['PROD cross-project runtime service account',{...base,AMS_PROD_RUNTIME_SERVICE_ACCOUNT:'ams-prod-runtime@other-project.iam.gserviceaccount.com'},prod,'AMS_PROD_RUNTIME_SERVICE_ACCOUNT_REQUIRED'],
+['PROD reused DEV runtime service account',{...base,AMS_DEV_RUNTIME_SERVICE_ACCOUNT:base.AMS_PROD_RUNTIME_SERVICE_ACCOUNT},prod,'AMS_PROD_RUNTIME_ACCOUNT_NOT_ISOLATED'],
 ['PROD logout revocation disabled',{...base,AMS_AUTH_LOGOUT_REVOCATION_ENABLED:'false'},prod,'AMS_PROD_LOGOUT_REVOCATION_REQUIRED'],
 ['PROD OTP not enabled',{...base,AMS_PROD_AUTH_OTP_ENABLED:'false'},prod,'AMS_PROD_OTP_NOT_ENABLED'],
 ['PROD release flag absent',{...base,AMS_PROD_RELEASE_ENABLED:''},prod,'AMS_PROD_NOT_AUTHORIZED'],

@@ -29,3 +29,5 @@ await assert.rejects(store.compareAndSet(proposal.operationId,'revision-2',{...c
 await assert.rejects(store.compareAndSet(proposal.operationId,'revision-2',{...confirmed,status:'APPLIED'},()=>true),/SWAP_DIRECT_TRANSITION_REJECTED/);
 assert.equal(writes,2);
 console.log('SWAP direct Firestore proposal write concurrency checks passed');
+
+assert.throws(()=>createSwapDirectProposalStore({project:'ams-test-prod',getToken:async()=>'token'}),/SWAP_DIRECT_PROJECT_INVALID/);

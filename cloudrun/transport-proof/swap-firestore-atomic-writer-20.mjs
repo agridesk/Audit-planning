@@ -8,7 +8,7 @@ const ID=/^[A-Za-z0-9_-]{8,100}$/;
 const DOC=/^projects\/[a-z][a-z0-9-]{4,62}\/databases\/\(default\)\/documents\/[A-Za-z0-9_/-]+$/;
 const MAX_WRITES=100;
 export function createSwapFirestoreAtomicWriter({project,getToken,fetchImpl=fetch}={}){
- if(!/^[a-z][a-z0-9-]{4,62}$/.test(project||'')||typeof getToken!=='function')
+ if(!/^[a-z][a-z0-9-]{4,62}-dev$/.test(project||'')||typeof getToken!=='function')
   throw Error('SWAP_ATOMIC_CONFIG_INVALID');
  const root='projects/'+project+'/databases/(default)/documents/';
  const endpoint='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(project)+'/databases/(default)/documents:commit';

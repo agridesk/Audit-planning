@@ -24,12 +24,17 @@ export function inspectSwapSheetSources({auditRows,availabilityRows,journalRows}
   try{const parsed=JSON.parse(raw);if(!parsed||!Array.isArray(parsed.blocks))throw Error('BLOCKS_MISSING');planning.valid++;}
   catch{planning.invalid++;issues.push({kind:'PLANNING_JSON_INVALID',row:i+1,auditId:id});}
  }
- const seen=new Set(),referenced=new Set();
+ const seen=new Map(),referenced=new Set();
  for(let i=1;i<availabilityRows.length;i++){
   const row=availabilityRows[i]||[];if(!val(row,vd))continue;availability.rows++;
   const auditor=val(row,vu)||val(row,ve),key=val(row,vd)+'|'+auditor;
-  if(auditor&&seen.has(key)){availability.duplicateDayAuditorKeys++;issues.push({kind:'DUPLICATE_AVAILABILITY_DAY_AUDITOR',row:i+1});}
-  seen.add(key);
+  if(auditor&&seen.has(key)){
+   availability.duplicateDayAuditorKeys++;
+   const previous=seen.get(key);
+   const sameReservation=val(previous.row,v1)===val(row,v1)&&val(previous.row,v2)===val(row,v2)&&val(previous.row,vs1)===val(row,vs1)&&val(previous.row,vs2)===val(row,vs2);
+   const reservationPresent=!!(val(row,v1)||val(row,v2)||val(previous.row,v1)||val(previous.row,v2));
+   issues.push({kind:reservationPresent?(sameReservation?'DUPLICATE_RESERVATION_ROW':'CONFLICTING_RESERVATION_ROW'):'DUPLICATE_AVAILABILITY_POLICY_ROW',row:i+1,firstRow:previous.index});
+  }else if(auditor)seen.set(key,{row,index:i+1});
   for(const [ix,sx] of [[v1,vs1],[v2,vs2]]){
    const id=val(row,ix);if(!id)continue;availability.auditReferences++;referenced.add(id);
    if(!ids.has(id)){availability.orphanReferences++;issues.push({kind:'AVAILABILITY_UNKNOWN_AUDIT',row:i+1,auditId:id,status:val(row,sx)});}

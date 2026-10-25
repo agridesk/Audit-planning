@@ -83,7 +83,14 @@ if(verify||liveTest){
  if(existing.size!==names.length)throw Error('SWAP_DEV_VERIFY_MISSING_DOCS_'+(names.length-existing.size));
  for(const write of plan.writes){
   const found=existing.get(write.update.name);
-  if(found?.fields?.payload?.stringValue!==write.update.fields.payload.stringValue)throw Error('SWAP_DEV_VERIFY_PAYLOAD_MISMATCH');
+  if(found?.fields?.payload?.stringValue!==write.update.fields.payload.stringValue){
+   const id=write.update.name.split('/').pop();
+   let actual=null,expected=null;
+   try{actual=JSON.parse(found?.fields?.payload?.stringValue||'null');expected=JSON.parse(write.update.fields.payload.stringValue);}catch{}
+   const changed=actual&&expected?[...new Set([...Object.keys(actual),...Object.keys(expected)])].filter(k=>JSON.stringify(actual[k])!==JSON.stringify(expected[k])):['PAYLOAD_INVALID'];
+   console.log(JSON.stringify({result:'DEV_SOURCE_DRIFT',auditId:id,collection:write.update.name.split('/').at(-2),changedFields:changed,storedManifest:'3b680d9e4f00bf8fd9b2a639db8c6c5a5a9c96673cb639f937ce1b5be2241630',currentManifest:manifest.manifestHash,cutoverAuthorized:false}));
+   throw Error('SWAP_DEV_VERIFY_PAYLOAD_MISMATCH');
+  }
  }
  if(liveTest){
   const partition=partitionSwapSheetMigration({auditRows,availabilityRows});

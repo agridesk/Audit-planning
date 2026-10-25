@@ -10,7 +10,7 @@ export function createSwapFirestoreCanonicalReader({project,getToken,fetchImpl=f
   throw Error('SWAP_CANONICAL_READER_CONFIG_INVALID');
  const root='projects/'+project+'/databases/(default)/documents/';
  const endpoint='https://firestore.googleapis.com/v1/'+root+':batchGet';
- async function fetchDocuments(paths){
+ async function fetchDocuments(paths,{allowMissing=false}={}){
   const token=await getToken();
   if(!token)throw Error('SWAP_CANONICAL_READER_TOKEN_MISSING');
   const response=await fetchImpl(endpoint,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},
@@ -26,6 +26,10 @@ export function createSwapFirestoreCanonicalReader({project,getToken,fetchImpl=f
   if(raw.length!==paths.length)throw Error('SWAP_CANONICAL_READER_COUNT_INVALID');
   const map=new Map();
   for(const item of raw){
+   if(allowMissing&&item.missing&&paths.some(path=>root+path===item.missing)){
+    if(map.has(item.missing))throw Error('SWAP_CANONICAL_READER_DOCUMENT_UNEXPECTED');
+    map.set(item.missing,null);continue;
+   }
    if(!item.found||!item.found.name||!item.found.updateTime||!TIME.test(item.found.updateTime))
     throw Error('SWAP_CANONICAL_READER_DOCUMENT_MISSING');
    const name=item.found.name;
@@ -59,7 +63,8 @@ export function createSwapFirestoreCanonicalReader({project,getToken,fetchImpl=f
  }
  async function readJournal(operationId){
   if(!ID.test(String(operationId||'')))throw Error('SWAP_CANONICAL_READER_OPERATION_INVALID');
-  const [record]=await fetchDocuments(['ams_swap20_dev_journal/'+operationId]);
+  const [record]=await fetchDocuments(['ams_swap20_dev_journal/'+operationId],{allowMissing:true});
+  if(!record)return null;
   if(record.payload.operationId!==operationId)throw Error('SWAP_CANONICAL_READER_JOURNAL_MISMATCH');
   return {...record.payload,updateTime:record.updateTime};
  }

@@ -15,7 +15,8 @@ const apply=process.argv.includes('--apply');
 const verify=process.argv.includes('--verify');
 const coverage=process.argv.includes('--coverage');
 const exceptions=process.argv.includes('--exceptions');
-if([apply,verify,coverage,exceptions].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
+const liveTest=process.argv.includes('--live-test');
+if([apply,verify,coverage,exceptions,liveTest].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
 const locations=[process.env.GCLOUD_CMD,process.env.LOCALAPPDATA&&join(process.env.LOCALAPPDATA,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd'),process.env.PROGRAMFILES&&join(process.env.PROGRAMFILES,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd')].filter(Boolean);
 const executable=locations.find(existsSync)||(process.platform==='win32'?'gcloud.cmd':'gcloud');
 let token;
@@ -44,7 +45,7 @@ if(coverage){
  console.log(JSON.stringify({result:'DEV_COVERAGE_REPORT',statuses,reasons,eligible:p.eligible.length,orphanReservations:p.orphanReservations.length,cutoverAuthorized:false}));
  process.exit(0);
 }
-console.log(JSON.stringify({mode:apply?'APPLY':verify?'VERIFY':'DRY_RUN',manifestHash:plan.manifestHash,source:plan.sourceCount,eligible:plan.eligibleCount,quarantined:plan.quarantinedCount,orphans:plan.orphanCount,writes:plan.writes.length}));
+console.log(JSON.stringify({mode:apply?'APPLY':verify?'VERIFY':liveTest?'LIVE_TEST':'DRY_RUN',manifestHash:plan.manifestHash,source:plan.sourceCount,eligible:plan.eligibleCount,quarantined:plan.quarantinedCount,orphans:plan.orphanCount,writes:plan.writes.length}));
 if(plan.eligibleCount===0)throw Error('SWAP_DEV_NO_ELIGIBLE_AUDITS');
 if(plan.writes.length>100)throw Error('SWAP_DEV_TOO_MANY_WRITES');
 const base='https://firestore.googleapis.com/v1/projects/'+project+'/databases/(default)/documents';

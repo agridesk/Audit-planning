@@ -6,7 +6,7 @@
 const ID=/^[A-Za-z0-9_-]{1,140}$/;
 const TIME=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 export function createSwapFirestoreCanonicalReader({project,getToken,fetchImpl=fetch}={}){
- if(!/^[a-z][a-z0-9-]{4,62}$/.test(project||'')||typeof getToken!=='function')
+ if(!/^[a-z][a-z0-9-]{4,62}-dev$/.test(project||'')||typeof getToken!=='function')
   throw Error('SWAP_CANONICAL_READER_CONFIG_INVALID');
  const root='projects/'+project+'/databases/(default)/documents/';
  const endpoint='https://firestore.googleapis.com/v1/'+root+':batchGet';

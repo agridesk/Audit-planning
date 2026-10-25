@@ -34,6 +34,11 @@ assert.match(server,/\['preview','getProposal','listPending','listIndexSeed'\]\.
 assert.match(server,/SWAP20_READONLY_GAS_RETRY/);
 assert.match(server,/AbortSignal\.timeout\(swapBridge\?45000:60000\)/);
 assert.match(server,/AbortSignal\.timeout\(swapBridge\?15000:60000\)/);
+assert.match(bridge,/SWAP20_PREVIEW_PHASE_PERF/);
+assert.match(bridge,/phase:'managerAuthorized'/);
+assert.match(bridge,/phase:'canonicalPair'/);
+assert.match(bridge,/phase:'scheduleExchange'/);
+assert.match(bridge,/phase:'commitGuard'/);
 assert.match(server,/SWAP20_BRIDGE_PHASE_PERF/);
 assert.match(server,/operationId:swapOperationId,phase:'postResponse'/);
 assert.match(server,/operationId:swapOperationId,phase:'redirectResponse'/);

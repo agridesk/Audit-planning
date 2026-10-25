@@ -15,3 +15,5 @@ import './swap-firestore-reservation-index-20-test.mjs';
 import './swap-migration-preflight-20-test.mjs';
 
 import './swap-sheet-source-preflight-20.test.mjs';
+
+import './swap-sheet-migration-coverage-20.test.mjs';

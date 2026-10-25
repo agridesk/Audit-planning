@@ -33,6 +33,7 @@ function Swap20Bridge20_auditId_(value) {
 function Swap20Bridge20_preview_(a,b) {
  var perfStart=Date.now();
  var pair=Swap20_readCanonicalPair({auditA:a,auditB:b});
+ if(typeof console!=='undefined')console.info('[SWAP20_PREVIEW_PHASE_PERF] '+JSON.stringify({phase:'canonicalPair',ms:Date.now()-perfStart}));
  if(!pair||pair.eligible!==true)
   return {ok:true,readOnly:true,eligible:false,reason:'PAIR_NOT_ELIGIBLE'};
  var proposed;

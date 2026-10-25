@@ -31,3 +31,6 @@ assert.equal(writes,2);
 console.log('SWAP direct Firestore proposal write concurrency checks passed');
 
 assert.throws(()=>createSwapDirectProposalStore({project:'ams-test-prod',getToken:async()=>'token'}),/SWAP_DIRECT_PROJECT_INVALID/);
+
+const changedSchedule={...confirmed,blocksA:[{date:'2026-10-29'}]};
+await assert.rejects(store.compareAndSet(proposal.operationId,'revision-2',changedSchedule,()=>true),/SWAP_DIRECT_TRANSITION_REJECTED/);

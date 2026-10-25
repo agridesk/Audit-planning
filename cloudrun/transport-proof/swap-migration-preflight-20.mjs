@@ -2,7 +2,7 @@
  * DEV migration preflight: source coverage and write isolation.
  * No remote writes. A mismatch always blocks cutover.
  */
-export function verifySwapMigrationPreflight({sourceAuditIds,sourceAvailabilityIds,targetAuditIds,targetAvailabilityIds,legacyWritesDisabled=false}={}){
+export function verifySwapMigrationPreflight({sourceAuditIds,sourceAvailabilityIds,targetAuditIds,targetAvailabilityIds,legacyWritesDisabled=false,allowUnreservedAudits=false}={}){
  const normalized=values=>{
   if(!Array.isArray(values)||values.some(v=>typeof v!=='string'||!v.trim()))throw Error('SWAP_MIGRATION_IDS_INVALID');
   const ids=new Set(values);
@@ -17,7 +17,9 @@ export function verifySwapMigrationPreflight({sourceAuditIds,sourceAvailabilityI
   extraAudits:missing(targetAudits,sourceAudits),
   missingAvailability:missing(sourceAvailability,targetAvailability),
   extraAvailability:missing(targetAvailability,sourceAvailability),
-  sourceAuditWithoutAvailability:missing(sourceAudits,sourceAvailability),
+  sourceAuditWithoutAvailability:allowUnreservedAudits?[]:missing(sourceAudits,sourceAvailability),
+  sourceAvailabilityUnknownAudit:missing(sourceAvailability,sourceAudits),
+  targetAvailabilityUnknownAudit:missing(targetAvailability,targetAudits),
   legacyWritesStillEnabled:legacyWritesDisabled!==true,
   emptySource:sourceAudits.size===0||sourceAvailability.size===0
  };

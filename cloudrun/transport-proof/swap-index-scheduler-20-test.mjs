@@ -60,7 +60,7 @@ const isolatedStage=createSwapIndexScheduler({
  index:{meta:async()=>null},serviceEmail:email,audience,
  roster:async()=>[{role:'manager',email:'manager@example.test',auditorId:'manager-uid'}],
  gasCall:async()=>{sourceReads++;return {ok:true,records:[historic,eligible]};},
- readCanonicalProposal:async()=>null,
+ readCanonicalProposal:async()=>stagingWrites.length?{proposal:{...stagingWrites[0].proposal,migrationState:'STAGED_FROM_GAS',migrationVerified:false}}:null,
  readJournalOperationIds:async()=>new Set([historic.operationId]),
  stageCanonicalProposal:async input=>{stagingWrites.push(input);return {ok:true,staged:true};}
 });

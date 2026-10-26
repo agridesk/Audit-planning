@@ -342,7 +342,7 @@ const swap20DirectTransport=runtime.isDev?createSwapFirestoreDevTransport({proje
  }}):null;
 const swap20Index=swap20IndexEnabled?createSwapProposalIndex({project,getToken}):null;
 const swap20CanonicalProposalStore=runtime.isDev&&process.env.AMS_SWAP20_CANONICAL_PROPOSAL_MIRROR==='true'?createSwapDirectProposalStore({project,getToken}):null;
-const swap20DirectReady=Boolean(runtime.isDev&&swap20Index&&swap20CanonicalProposalStore&&process.env.AMS_SWAP20_DIRECT_COMMIT_ENABLED==='true'&&process.env.AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED==='true');
+const swap20DirectReady=Boolean(runtime.isDev&&swap20DirectTransport&&process.env.AMS_SWAP20_DIRECT_COMMIT_ENABLED==='true'&&process.env.AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED==='true');
 const swap20DirectRouteEnabled=swap20DirectReady&&process.env.AMS_SWAP20_DIRECT_ROUTE==='true';
 
 const swap20MigrationProposalReader=runtime.isDev?createSwapDirectProposalStore({project,getToken}):null;

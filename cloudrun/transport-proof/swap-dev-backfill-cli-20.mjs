@@ -25,9 +25,11 @@ const deltaApply=process.argv.includes('--delta-apply');
 const inspectDelta=process.argv.includes('--inspect-delta');
 const inspectOrphans=process.argv.includes('--inspect-orphans');
 const proposalInventory=process.argv.includes('--proposal-inventory');
+const inspectAudit=process.argv.includes('--inspect-audit');
+const inspectAuditId=inspectAudit?process.argv[process.argv.indexOf('--inspect-audit')+1]:null;
 const repairAvailability=process.argv.includes('--repair-availability');
 const repairId=repairAvailability?process.argv[process.argv.indexOf('--repair-availability')+1]:null;
-if([apply,verify,coverage,exceptions,liveTest,initFence,syncDrift,deltaApply,inspectDelta,inspectOrphans,proposalInventory,repairAvailability].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
+if([apply,verify,coverage,exceptions,liveTest,initFence,syncDrift,deltaApply,inspectDelta,inspectOrphans,proposalInventory,repairAvailability,inspectAudit].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
 const locations=[process.env.GCLOUD_CMD,process.env.LOCALAPPDATA&&join(process.env.LOCALAPPDATA,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd'),process.env.PROGRAMFILES&&join(process.env.PROGRAMFILES,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd')].filter(Boolean);
 const executable=locations.find(existsSync)||(process.platform==='win32'?'gcloud.cmd':'gcloud');
 let token;
@@ -86,6 +88,25 @@ if(proposalInventory){
 const [auditRows,availabilityRows]=await Promise.all([range('Audit planning'),range('Auditor Availability')]);
 const manifest=buildSwapMigrationManifest({auditRows,availabilityRows});
 const plan=planSwapMigrationBackfill({project,auditRows,availabilityRows,expectedManifestHash:manifest.manifestHash});
+if(inspectAudit){
+ if(!inspectAuditId||!/^[^/\\u0000-\\u001f\\u007f]{1,140}$/.test(inspectAuditId))throw Error('SWAP_INSPECT_AUDIT_ID_INVALID');
+ const root='https://firestore.googleapis.com/v1/projects/'+project+'/databases/(default)/documents/';
+ const read=async collection=>{
+  const response=await fetch(root+collection+'/'+encodeURIComponent(inspectAuditId),{headers:{authorization:'Bearer '+token},signal:AbortSignal.timeout(15000)});
+  if(response.status===404)return null;
+  if(!response.ok)throw Error('SWAP_INSPECT_FIRESTORE_'+collection+'_'+response.status);
+  const doc=await response.json();let data;
+  try{data=JSON.parse(doc.fields?.payload?.stringValue||'null');}catch{throw Error('SWAP_INSPECT_PAYLOAD_CORRUPT');}
+  return {updateTime:doc.updateTime,data};
+ };
+ const [audit,availability]=await Promise.all([read('ams_swap20_dev_audits'),read('ams_swap20_dev_availability')]);
+ const index=auditRows[0].indexOf('Audit ID'),matches=auditRows.slice(1).filter(row=>String(row[index]||'').trim()===inspectAuditId);
+ const avHeader=availabilityRows[0],indices=['Audit_ID_1','Audit_ID_2'].map(k=>avHeader.indexOf(k)),refs=availabilityRows.slice(1).filter(row=>indices.some(i=>i>=0&&String(row[i]||'').trim()===inspectAuditId)).length;
+ const partition=partitionSwapSheetMigration({auditRows,availabilityRows}),eligible=partition.eligible.some(x=>x.auditId===inspectAuditId),reason=partition.quarantined.find(x=>x.auditId===inspectAuditId)?.reason||null;
+ const blocks=audit?.data?.plannedBlocks||[];
+ console.log(JSON.stringify({result:'DEV_AUDIT_SOURCE_INSPECTION',auditId:inspectAuditId,sheetMatches:matches.length,sheetAvailabilityReferences:refs,eligible,reason,firestoreAuditExists:!!audit,firestoreAvailabilityExists:!!availability,firestoreAuditStatus:audit?.data?.status||null,firestoreAuditBlocks:Array.isArray(blocks)?blocks.length:null,firestoreAvailabilityBlocks:Array.isArray(availability?.data?.reservations)?availability.data.reservations.length:null,firestoreAuditRevision:audit?.updateTime||null,readOnly:true}));
+ return;
+}
 if(repairAvailability){
  if(!repairId||!/^AUD_[^/\u0000-\u001f\u007f]{1,135}$/.test(repairId))
   throw Error('SWAP_DEV_REPAIR_AUDIT_ID_INVALID');

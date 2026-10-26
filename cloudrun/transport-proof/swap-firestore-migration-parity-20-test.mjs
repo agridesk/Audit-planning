@@ -20,3 +20,10 @@ assert.ok(assessSwapFirestorePreviewReadiness(gateInput).reasons.includes('ORPHA
 assert.equal(assessSwapFirestorePreviewReadiness({...gateInput,orphanReservationsUnresolved:false}).ready,true);
 assert.equal(assessSwapFirestorePreviewReadiness({...gateInput,orphanReservationsUnresolved:false}).commitAuthorized,false);
 assert.equal(assessSwapFirestorePreviewReadiness({...gateInput,orphanReservationsUnresolved:false,index:{complete:true,documentCount:15}}).ready,false);
+
+import {assessHistoricalOrphanIsolation} from './swap-firestore-dev-transport-20.mjs';
+const historical={orphanSlots:[{date:'2026-04-20',owner:'auditor@example.com',start:'08:30',end:'16:30'},{date:'2026-10-10',owner:'auditor@example.com',start:'08:30',end:'16:30'}],targetBlocks:[{date:'2026-10-27'}],referenceDate:'2026-10-26'};
+assert.equal(assessHistoricalOrphanIsolation(historical).isolated,true);
+assert.equal(assessHistoricalOrphanIsolation(historical).cutoverAuthorized,false);
+assert.equal(assessHistoricalOrphanIsolation({...historical,orphanSlots:[{...historical.orphanSlots[0],date:'2026-10-27'}]}).isolated,false);
+assert.equal(assessHistoricalOrphanIsolation({...historical,targetBlocks:[{date:'2026-10-20'}]}).isolated,false);

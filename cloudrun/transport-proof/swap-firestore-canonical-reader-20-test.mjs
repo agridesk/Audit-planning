@@ -39,3 +39,10 @@ assert.equal((await single.readProposal('swap_12345678')).status,'CONFIRMED');
 const noJournal=createSwapFirestoreCanonicalReader({project:'ams-test-dev',getToken:async()=>'token',fetchImpl:async(url,init)=>({ok:true,text:async()=>JSON.stringify({missing:JSON.parse(init.body).documents[0]})})});
 assert.equal(await noJournal.readJournal('swap_12345678'),null);
 await assert.rejects(noJournal.readProposal('swap_12345678'),/SWAP_CANONICAL_READER_DOCUMENT_MISSING/);
+
+payloads['ams_swap20_dev_proposals/swap_12345678']={
+ operationId:'swap_12345678',status:'CONFIRMED',
+ migrationState:'STAGED_FROM_GAS',migrationVerified:false
+};
+await assert.rejects(single.readProposal('swap_12345678'),
+ /SWAP_CANONICAL_READER_STAGED_GAS_PROPOSAL_NOT_ACTIVE/);

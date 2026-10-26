@@ -94,17 +94,7 @@ export function createSwapFirestoreDevTransport(options={}){
   const [pair,availability]=await Promise.all([reader.readPair(ids),reader.readAvailability(ids)]);
   return buildSwapFirestoreReadOnlyPreview({pair,availability});
  };
- const commit=async args=>{
-  if(enabled===true&&canonicalCutoverVerified===true){
-   await assertSourceFreeze();
-   // An atomic swap updates the reservation index state as well as both
-   // audits; no standalone proposal can authorize an incomplete cutover.
-   if(typeof options.verifySwapReservationAuthority!=='function'||
-      await options.verifySwapReservationAuthority(args)!==true)
-    throw Error('SWAP_DIRECT_RESERVATION_AUTHORITY_UNVERIFIED');
-  }
-  return coordinator.commit(args);
- };
+ const commit=async args=>{if(enabled===true&&canonicalCutoverVerified===true)await assertSourceFreeze();return coordinator.commit(args);};
  return Object.freeze({...reader,preview,propose,respond,getProposal,list,commit});
 }
 

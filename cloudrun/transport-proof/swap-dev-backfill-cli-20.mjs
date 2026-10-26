@@ -21,7 +21,8 @@ const liveTest=process.argv.includes('--live-test');
 const initFence=process.argv.includes('--init-fence');
 const syncDrift=process.argv.includes('--sync-drift');
 const deltaApply=process.argv.includes('--delta-apply');
-if([apply,verify,coverage,exceptions,liveTest,initFence,syncDrift,deltaApply].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
+const inspectDelta=process.argv.includes('--inspect-delta');
+if([apply,verify,coverage,exceptions,liveTest,initFence,syncDrift,deltaApply,inspectDelta].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
 const locations=[process.env.GCLOUD_CMD,process.env.LOCALAPPDATA&&join(process.env.LOCALAPPDATA,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd'),process.env.PROGRAMFILES&&join(process.env.PROGRAMFILES,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd')].filter(Boolean);
 const executable=locations.find(existsSync)||(process.platform==='win32'?'gcloud.cmd':'gcloud');
 let token;
@@ -81,6 +82,18 @@ const read=async()=>{
  return found;
 };
 const existing=await read();
+if(inspectDelta){
+ const discrepancies=plan.writes.filter(w=>existing.has(w.update.name)&&existing.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue);
+ const missing=plan.writes.filter(w=>!existing.has(w.update.name));
+ const summary=discrepancies.map(w=>{
+  const actual=JSON.parse(existing.get(w.update.name).fields.payload.stringValue);
+  const expected=JSON.parse(w.update.fields.payload.stringValue);
+  return {collection:w.update.name.split('/').at(-2),auditId:w.update.name.split('/').pop(),
+   changedFields:[...new Set([...Object.keys(actual),...Object.keys(expected)])].filter(k=>JSON.stringify(actual[k])!==JSON.stringify(expected[k]))};
+ });
+ console.log(JSON.stringify({result:'DEV_DELTA_INSPECTION',existing:existing.size,missing:missing.length,drift:summary,cutoverAuthorized:false}));
+ process.exit(0);
+}
 if(deltaApply){
  // Fail closed: original migrated records must still agree with canonical Sheets.
  const stale=plan.writes.filter(w=>existing.has(w.update.name)&&existing.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue);

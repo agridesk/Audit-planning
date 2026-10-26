@@ -9,7 +9,7 @@ import {createSwapDirectCommitCoordinator} from './swap-direct-commit-coordinato
 import {createSwapDirectProposalStore} from './swap-direct-proposal-store-20.mjs';
 import {validateSwapCanonicalSchedule} from './swap-firestore-schedule-guard-20.mjs';
 export function createSwapFirestoreDevTransport(options={}){
- const {project,getToken,fetchImpl,authorize,loadCompleteReservationIndex,expectedAvailabilityDocuments,canonicalCutoverVerified=false,enabled=false,resolveCanonicalAuditorUids,authorizeCanonicalAuditor}=options;
+ const {project,getToken,fetchImpl,authorize,loadCompleteReservationIndex,expectedAvailabilityDocuments,canonicalCutoverVerified=false,enabled=false,resolveCanonicalAuditorUids,authorizeCanonicalAuditor,verifySourceFreeze}=options;
  if(!/^[a-z][a-z0-9-]{4,62}-dev$/.test(project||''))throw Error('SWAP_DEV_PROJECT_REQUIRED');
  const reader=createSwapFirestoreCanonicalReader({project,getToken,fetchImpl});
  const writer=createSwapFirestoreAtomicWriter({project,getToken,fetchImpl});
@@ -23,8 +23,16 @@ export function createSwapFirestoreDevTransport(options={}){
  };
  const coordinator=createSwapDirectCommitCoordinator({project,readProposal:reader.readProposal,readJournal:reader.readJournal,readPair:reader.readPair,readAvailability:reader.readAvailability,atomicWriter:writer,authorize,resolveFinalReservations,enabled:enabled===true&&canonicalCutoverVerified===true});
  const directProposalStore=createSwapDirectProposalStore({project,getToken,fetchImpl});
+ const assertSourceFreeze=async()=>{
+  // Flags alone do not prove that the canonical Sheets writers were stopped.
+  // A direct-write cutover must supply a independently verified, current
+  // source-freeze evidence provider; absent proof always blocks mutations.
+  if(typeof verifySourceFreeze!=='function'||await verifySourceFreeze()!==true)
+   throw Error('SWAP_DIRECT_SHEETS_SOURCE_FREEZE_UNVERIFIED');
+ };
  const propose=async({operationId,auditA,auditB,internalReason,ecasComment,actor}={})=>{
   if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_PROPOSE_DISABLED'};
+  await assertSourceFreeze();
   if(actor?.role!=='manager'||!actor.email||typeof resolveCanonicalAuditorUids!=='function')
    throw Error('SWAP_DIRECT_MANAGER_OR_AUDITOR_DIRECTORY_UNAVAILABLE');
   if(!/^[A-Za-z0-9_-]{8,100}$/.test(operationId||'')||typeof internalReason!=='string'||
@@ -55,15 +63,18 @@ export function createSwapFirestoreDevTransport(options={}){
  };
  const respond=async({operationId,decision,actor}={})=>{
   if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_RESPOND_DISABLED'};
+  await assertSourceFreeze();
   if(typeof authorizeCanonicalAuditor!=='function')throw Error('SWAP_DIRECT_AUDITOR_DIRECTORY_UNAVAILABLE');
   return directProposalStore.respond({operationId,decision,actor,authorizeAuditor:authorizeCanonicalAuditor});
  };
  const list=async({actor}={})=>{
   if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_LIST_DISABLED'};
+  await assertSourceFreeze();
   return directProposalStore.list({actor,authorizeAuditor:authorizeCanonicalAuditor});
  };
  const getProposal=async({operationId,actor}={})=>{
   if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_GET_PROPOSAL_DISABLED'};
+  await assertSourceFreeze();
   if(actor?.role!=='manager'||!actor.email)throw Error('SWAP_DIRECT_MANAGER_UNAUTHORIZED');
   const proposal=await reader.readProposal(operationId);
   const journal=await reader.readJournal(operationId);
@@ -83,7 +94,8 @@ export function createSwapFirestoreDevTransport(options={}){
   const [pair,availability]=await Promise.all([reader.readPair(ids),reader.readAvailability(ids)]);
   return buildSwapFirestoreReadOnlyPreview({pair,availability});
  };
- return Object.freeze({...reader,preview,propose,respond,getProposal,list,commit:coordinator.commit});
+ const commit=async args=>{if(enabled===true&&canonicalCutoverVerified===true)await assertSourceFreeze();return coordinator.commit(args);};
+ return Object.freeze({...reader,preview,propose,respond,getProposal,list,commit});
 }
 
 /** Read-only preview readiness check; no commit or routing authorization. */

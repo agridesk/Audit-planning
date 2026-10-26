@@ -12,7 +12,7 @@ function Swap20AuditorRespondAuthorized_(input,auth){
  input=input||{};
  if(!auth||auth.ok!==true||!auth.email||(auth.role&&String(auth.role).toLowerCase()!=='auditor'))throw Error('Auditor authentication required');
  if(typeof Swap20_resolveAuditorUidByEmail_!=='function')throw Error('Canonical auditor UID resolver unavailable');
- var uid=String(Swap20_resolveAuditorUidByEmail_(auth.email)||'').trim();
+ var uid=String(auth.swap20UidVerifiedByBridge===true&&auth.role==='Auditor'&&auth.swap20VerifiedUid?auth.swap20VerifiedUid:Swap20_resolveAuditorUidByEmail_(auth.email)||'').trim();
  if(!uid)throw Error('Authenticated auditor UID unavailable');
  var id=String(input.operationId||'').trim(),p=Swap20Store_read_(id);
  if(!p)throw Error('Swap proposal not found');

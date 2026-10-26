@@ -180,7 +180,6 @@ export function createSwapIndexScheduler({index,roster,gasCall,serviceEmail,audi
     pending++;
     pendingOperations.push({operationId:operation.operationId,stage:operation.finalStage,
      sequence:operation.history.length,manualReviewRequired:true});
-    continue;
    }
    const result=await stageHistoricalJournal(operation);
    if(result?.staged===true)archived++;

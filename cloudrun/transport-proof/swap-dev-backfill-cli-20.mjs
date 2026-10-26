@@ -23,7 +23,8 @@ const syncDrift=process.argv.includes('--sync-drift');
 const deltaApply=process.argv.includes('--delta-apply');
 const inspectDelta=process.argv.includes('--inspect-delta');
 const inspectOrphans=process.argv.includes('--inspect-orphans');
-if([apply,verify,coverage,exceptions,liveTest,initFence,syncDrift,deltaApply,inspectDelta,inspectOrphans].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
+const proposalInventory=process.argv.includes('--proposal-inventory');
+if([apply,verify,coverage,exceptions,liveTest,initFence,syncDrift,deltaApply,inspectDelta,inspectOrphans,proposalInventory].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
 const locations=[process.env.GCLOUD_CMD,process.env.LOCALAPPDATA&&join(process.env.LOCALAPPDATA,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd'),process.env.PROGRAMFILES&&join(process.env.PROGRAMFILES,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd')].filter(Boolean);
 const executable=locations.find(existsSync)||(process.platform==='win32'?'gcloud.cmd':'gcloud');
 let token;
@@ -36,6 +37,42 @@ async function json(url,options={}){
  return r.json();
 }
 const range=async tab=>{const url='https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+'/values/'+encodeURIComponent("'"+tab+"'!A1:CN1500");return (await json(url)).values||[];};
+if(proposalInventory){
+ const docRoot='https://firestore.googleapis.com/v1/projects/'+project+'/databases/(default)/documents/';
+ const list=async collection=>{
+  const out=[];let pageToken='';
+  do{
+   const url=docRoot+collection+'?pageSize=100'+(pageToken?'&pageToken='+encodeURIComponent(pageToken):'');
+   const payload=await json(url);
+   out.push(...(payload.documents||[]));pageToken=payload.nextPageToken||'';
+   if(out.length>500)throw Error('SWAP_PROPOSAL_INVENTORY_LIMIT');
+  }while(pageToken);
+  return out;
+ };
+ const [proposals,journals,rows]=await Promise.all([
+  list('ams_swap20_dev_proposals'),list('ams_swap20_dev_journal'),
+  json('https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+'/values/'+encodeURIComponent("'AMS_Swap_20_Journal'!A1:C3000"))
+ ]);
+ const decode=doc=>{try{return JSON.parse(doc.fields?.payload?.stringValue||'null');}catch{return null;}};
+ const records=proposals.map(decode);
+ const statuses={};
+ for(const p of records)statuses[String(p?.status||'CORRUPT')]=(statuses[String(p?.status||'CORRUPT')]||0)+1;
+ const full=records.filter(p=>p&&p.operationId&&p.auditA&&p.auditB&&
+  p.originalRevisions?.[p.auditA]&&p.originalRevisions?.[p.auditB]&&
+  Array.isArray(p.requiredAuditorUids)&&Array.isArray(p.acknowledgedAuditorUids));
+ const sheetRows=(rows.values||[]).slice(1).filter(row=>row[0]);
+ const journalIds=new Set(sheetRows.map(row=>String(row[0]||'')));
+ const firestoreJournalIds=new Set(journals.map(d=>String(d.name||'').split('/').pop()));
+ const journalMismatch=[...journalIds].filter(id=>!firestoreJournalIds.has(id)).length;
+ const missingFull=records.length-full.length;
+ console.log(JSON.stringify({result:'DEV_PROPOSAL_JOURNAL_INVENTORY_READ_ONLY',
+  firestoreProposalDocuments:proposals.length,firestoreFullCanonicalProposalDocuments:full.length,
+  firestoreIncompleteProposalDocuments:missingFull,proposalStatuses:statuses,
+  firestoreJournalDocuments:journals.length,gasJournalRows:sheetRows.length,
+  gasJournalOperations:journalIds.size,missingFirestoreJournalOperations:journalMismatch,
+  sourceScriptPropertiesNotVerified:true,cutoverAuthorized:false}));
+ process.exit(0);
+}
 const [auditRows,availabilityRows]=await Promise.all([range('Audit planning'),range('Auditor Availability')]);
 const manifest=buildSwapMigrationManifest({auditRows,availabilityRows});
 const plan=planSwapMigrationBackfill({project,auditRows,availabilityRows,expectedManifestHash:manifest.manifestHash});

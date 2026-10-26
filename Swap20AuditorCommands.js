@@ -9,6 +9,7 @@ function Swap20AuditorRespond(input){
  return Swap20AuditorRespondAuthorized_(input,auth);
 }
 function Swap20AuditorRespondAuthorized_(input,auth){
+ Swap20_assertGasWriteAuthority_();
  input=input||{};
  if(!auth||auth.ok!==true||!auth.email||(auth.role&&String(auth.role).toLowerCase()!=='auditor'))throw Error('Auditor authentication required');
  if(typeof Swap20_resolveAuditorUidByEmail_!=='function')throw Error('Canonical auditor UID resolver unavailable');

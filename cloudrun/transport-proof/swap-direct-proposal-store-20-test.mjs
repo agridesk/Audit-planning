@@ -43,7 +43,7 @@ const second={...proposal,operationId:'swap_99999999',requiredAuditorUids:['u1',
 assert.equal((await store.create(second)).ok,true);
 const auditor={role:'auditor',email:'auditor@example.com'};
 const authorized=async actor=>actor===auditor?'u1':null;
-await assert.rejects(store.respond({operationId:second.operationId,decision:'ACKNOWLEDGE',actor:{},authorizeAuditor:authorized}),/SWAP_DIRECT_AUDITOR_UNAUTHORIZED/);
+await assert.rejects(store.respond({operationId:second.operationId,decision:'ACKNOWLEDGE',actor:{},authorizeAuditor:authorized}),/SWAP_DIRECT_RESPONSE_INVALID/);
 assert.equal((await store.respond({operationId:second.operationId,decision:'ACKNOWLEDGE',actor:auditor,authorizeAuditor:authorized})).status,'AWAITING_ACKNOWLEDGEMENT');
 const partly=await store.read(second.operationId);
 assert.deepEqual(partly.proposal.acknowledgedAuditorUids,['u1']);

@@ -392,6 +392,7 @@ async function swap20FastPreview(actor,data){
    console.info('[SWAP20_FAST_PREVIEW]',JSON.stringify({role:actor.role,source:'FIRESTORE_PROVISIONAL',ms:Date.now()-started,eligible:result.eligible===true}));
    return result;
   }
+  console.warn('[SWAP20_FAST_PREVIEW_FALLBACK]',JSON.stringify({ms:Date.now()-started,reason:'INCOMPLETE_OR_UNMIGRATED_PAIR'}));
  }catch(error){
   console.warn('[SWAP20_FAST_PREVIEW_FALLBACK]',JSON.stringify({ms:Date.now()-started,code:String(error?.message||error).slice(0,100)}));
  }

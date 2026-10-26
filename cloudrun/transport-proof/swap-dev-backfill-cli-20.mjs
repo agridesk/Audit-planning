@@ -49,12 +49,16 @@ if(proposalInventory){
   }while(pageToken);
   return out;
  };
- const [proposals,journals,rows]=await Promise.all([
-  list('ams_swap20_dev_proposals'),list('ams_swap20_dev_journal'),
+ const [proposals,journals,indexDocuments,rows]=await Promise.all([
+  list('ams_swap20_dev_proposals'),list('ams_swap20_dev_journal'),list('ams_swap20_dev_index'),
   json('https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+'/values/'+encodeURIComponent("'AMS_Swap_20_Journal'!A1:C3000"))
  ]);
  const decode=doc=>{try{return JSON.parse(doc.fields?.payload?.stringValue||'null');}catch{return null;}};
  const records=proposals.map(decode);
+ const indexRecords=indexDocuments.filter(doc=>!String(doc.name||'').endsWith('/_META')).map(decode);
+ const indexIds=new Set(indexRecords.map(p=>p?.operationId).filter(Boolean));
+ const indexStatuses={};
+ for(const p of indexRecords)indexStatuses[String(p?.status||'CORRUPT')]=(indexStatuses[String(p?.status||'CORRUPT')]||0)+1;
  const statuses={};
  for(const p of records)statuses[String(p?.status||'CORRUPT')]=(statuses[String(p?.status||'CORRUPT')]||0)+1;
  const full=records.filter(p=>p&&p.operationId&&p.auditA&&p.auditB&&
@@ -70,6 +74,9 @@ if(proposalInventory){
   firestoreIncompleteProposalDocuments:missingFull,proposalStatuses:statuses,
   firestoreJournalDocuments:journals.length,gasJournalRows:sheetRows.length,
   gasJournalOperations:journalIds.size,missingFirestoreJournalOperations:journalMismatch,
+  firestoreIndexProposals:indexRecords.length,indexStatuses:indexStatuses,
+  incompleteIndexDocuments:indexRecords.filter(p=>!p?.operationId||!p?.auditA||!p?.auditB).length,
+  indexedProposalsWithoutCanonicalFirestore:([...indexIds].filter(id=>!full.some(p=>p.operationId===id))).length,
   sourceScriptPropertiesNotVerified:true,cutoverAuthorized:false}));
  process.exit(0);
 }

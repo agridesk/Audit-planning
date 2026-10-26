@@ -1,5 +1,5 @@
 /** DEV SWAP Firestore reconciliation. Requires verified Cloud Scheduler OIDC. */
-export function createSwapIndexScheduler({index,roster,gasCall,serviceEmail,audience,readCanonicalProposal,readJournalOperationIds,stageCanonicalProposal,fetchImpl=fetch,now=Date.now}={}){
+export function createSwapIndexScheduler({index,roster,gasCall,serviceEmail,audience,readCanonicalProposal,readJournalOperationIds,stageCanonicalProposal,readHistoricalJournalRows,classifyHistoricalJournal,stageHistoricalJournal,fetchImpl=fetch,now=Date.now}={}){
  if(!index||typeof roster!=='function'||typeof gasCall!=='function')throw Error('SWAP_SCHEDULER_DEPENDENCIES');
  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(serviceEmail||'')||!/^https:\/\/[^/]+$/.test(audience||''))throw Error('SWAP_SCHEDULER_CONFIG');
  async function verify(auth){
@@ -31,6 +31,15 @@ export function createSwapIndexScheduler({index,roster,gasCall,serviceEmail,audi
     console.info('[SWAP20_CANONICAL_MIGRATION_PREFLIGHT]',JSON.stringify(status));
     // Non-authoritative, create-only copies. Journaled proposals are excluded;
     // no active Firestore route ever reads a staged proposal.
+    if(typeof readHistoricalJournalRows==='function'&&
+       typeof classifyHistoricalJournal==='function'&&typeof stageHistoricalJournal==='function'){
+     try{
+      const archive=await archiveHistoricalJournals();
+      console.info('[SWAP20_LEGACY_JOURNAL_ARCHIVE]',JSON.stringify(archive));
+     }catch(archiveError){
+      console.error('[SWAP20_LEGACY_JOURNAL_ARCHIVE_FAILED]',String(archiveError?.message||archiveError).slice(0,180));
+     }
+    }
     if(typeof stageCanonicalProposal==='function'){
      try{
       const staged=await stageCanonicalProposals();
@@ -160,5 +169,21 @@ export function createSwapIndexScheduler({index,roster,gasCall,serviceEmail,audi
    journalExcluded:before.length-candidates.length,candidates:candidates.length,
    staged,existing,stale,directWriteEnabled:false,cutoverAuthorized:false};
  }
- return Object.freeze({verify,reconcile,previewCanonicalMigration,stageCanonicalProposals});
+ async function archiveHistoricalJournals(){
+  if(typeof readHistoricalJournalRows!=='function'||typeof classifyHistoricalJournal!=='function'||typeof stageHistoricalJournal!=='function')
+   throw Error('SWAP_LEGACY_ARCHIVE_DEPENDENCIES');
+  const rows=await readHistoricalJournalRows(),operations=classifyHistoricalJournal(rows);
+  let archived=0,existing=0,pending=0;
+  for(const operation of operations){
+   if(!operation.terminal){pending++;continue;}
+   const result=await stageHistoricalJournal(operation);
+   if(result?.staged===true)archived++;
+   else if(result?.existing===true)existing++;
+   else throw Error('SWAP_LEGACY_ARCHIVE_CONFLICT');
+  }
+  return {ok:true,result:'SWAP_LEGACY_JOURNAL_ARCHIVED_INACTIVE',
+   operations:operations.length,archived,existing,pending,
+   directWriteEnabled:false,cutoverAuthorized:false};
+ }
+ return Object.freeze({verify,reconcile,previewCanonicalMigration,stageCanonicalProposals,archiveHistoricalJournals});
 }

@@ -552,6 +552,8 @@ async function swap20ManagerRequest(req,res,operation){
    ?await swap20DirectTransport.getProposal({...data,actor})
    :operation==='getProposal'
    ?await swap20GasOperation(actor,operation,data)
+   :operation==='withdraw'&&swap20DirectRouteEnabled
+   ?await swap20DirectTransport.withdraw({operationId:data.operationId,actor})
    :operation==='commit'&&swap20DirectRouteEnabled
    ?await swap20DirectTransport.commit({operationId:data.operationId,actor})
    :await swap20GasOperation(actor,operation,data);

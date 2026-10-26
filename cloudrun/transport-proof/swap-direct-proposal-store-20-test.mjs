@@ -36,3 +36,19 @@ const changedSchedule={...confirmed,blocksA:[{date:'2026-10-29'}]};
 await assert.rejects(store.compareAndSet(proposal.operationId,'revision-2',changedSchedule,()=>true),/SWAP_DIRECT_TRANSITION_REJECTED/);
 
 await assert.rejects(store.create({...proposal,operationId:'swap_87654321',status:'CONFIRMED'}),/SWAP_DIRECT_PROPOSAL_INVALID/);
+
+
+const second={...proposal,operationId:'swap_99999999',requiredAuditorUids:['u1','u2']};
+assert.equal((await store.create(second)).ok,true);
+const auditor={role:'auditor',email:'auditor@example.com'};
+const authorized=async actor=>actor===auditor?'u1':null;
+await assert.rejects(store.respond({operationId:second.operationId,decision:'ACKNOWLEDGE',actor:{},authorizeAuditor:authorized}),/SWAP_DIRECT_AUDITOR_UNAUTHORIZED/);
+assert.equal((await store.respond({operationId:second.operationId,decision:'ACKNOWLEDGE',actor:auditor,authorizeAuditor:authorized})).status,'AWAITING_ACKNOWLEDGEMENT');
+const partly=await store.read(second.operationId);
+assert.deepEqual(partly.proposal.acknowledgedAuditorUids,['u1']);
+assert.equal((await store.respond({operationId:second.operationId,decision:'ACKNOWLEDGE',actor:auditor,authorizeAuditor:authorized})).status,'AWAITING_ACKNOWLEDGEMENT');
+assert.deepEqual((await store.read(second.operationId)).proposal.acknowledgedAuditorUids,['u1']);
+assert.equal((await store.respond({operationId:second.operationId,decision:'ACKNOWLEDGE',actor:auditor,authorizeAuditor:async()=> 'u2'})).status,'CONFIRMED');
+const repeated=await store.respond({operationId:second.operationId,decision:'ACKNOWLEDGE',actor:auditor,authorizeAuditor:async()=> 'u2'});
+assert.equal(repeated.idempotent,true);
+await assert.rejects(store.respond({operationId:second.operationId,decision:'DECLINE',actor:auditor,authorizeAuditor:authorized}),/SWAP_DIRECT_RESPONSE_STATUS_INVALID/);

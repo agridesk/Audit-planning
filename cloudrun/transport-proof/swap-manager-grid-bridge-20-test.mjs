@@ -23,6 +23,9 @@ assert.match(ui,/swap20ListPending\[role\]/);
 assert.doesNotMatch(ui,/refresh\.textContent="Refresh status"/);
 assert.match(ui,/finally\{busy=false;apply\.disabled=true;\}/);
 assert.match(ui,/finally\{apply\.disabled=true;apply\.title="Commit attempted/);
+assert.match(ui,/var swap20CommitAttempted20=new Set\(\)/);
+assert.match(ui,/swap20CommitAttempted20\.has\(String\(p\.operationId\)\)/);
+assert.match(ui,/swap20CommitAttempted20\.add\(String\(p\.operationId\)\)/);
 assert.doesNotMatch(ui,/finally\{busy=false;apply\.disabled=false;\}/);
 
 assert.match(ui,/managerSwap20InboxDialog/);

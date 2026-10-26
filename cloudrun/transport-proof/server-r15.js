@@ -516,6 +516,8 @@ async function swap20ManagerRequest(req,res,operation){
    ?(await swap20FastPreview(actor,data))||await swap20GasOperation(actor,operation,data)
    :operation==='propose'&&swap20DirectRouteEnabled
    ?await swap20DirectTransport.propose({...data,actor})
+   :operation==='getProposal'&&swap20DirectRouteEnabled
+   ?await swap20DirectTransport.getProposal({...data,actor})
    :operation==='getProposal'
    ?await swap20GasOperation(actor,operation,data)
    :operation==='commit'&&swap20DirectRouteEnabled
@@ -523,7 +525,7 @@ async function swap20ManagerRequest(req,res,operation){
    :await swap20GasOperation(actor,operation,data);
  // Status is read-only: expose the separate index write gate so that
  // canonical CONFIRMED/NOT_STARTED cannot be mistaken for end-to-end readiness.
- if(operation==='getProposal'&&result?.ok===true&&swap20Index){
+ if(operation==='getProposal'&&!swap20DirectRouteEnabled&&result?.ok===true&&swap20Index){
   try{const indexState=await swap20Index.meta();result.indexStatus=indexState?.data?.status||'MISSING';result.indexOperationId=indexState?.data?.operationId||'';result.commitEnabled=result.commitEnabled===true&&result.indexStatus==='READY';}
   catch(err){result.indexStatus='UNAVAILABLE';result.commitEnabled=false;console.error('[SWAP20_INDEX_STATUS_FAILED]',String(err?.message||err).slice(0,140));}
  }

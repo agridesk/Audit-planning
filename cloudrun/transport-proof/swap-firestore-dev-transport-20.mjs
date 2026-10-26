@@ -72,6 +72,14 @@ export function createSwapFirestoreDevTransport(options={}){
   await assertSourceFreeze();
   return directProposalStore.withdraw({operationId,actor});
  };
+ const eligibleAuditIds=async({actor}={})=>{
+  if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_SELECTION_DISABLED'};
+  if(actor?.role!=='manager'||!actor.email)throw Error('SWAP_DIRECT_MANAGER_UNAUTHORIZED');
+  const index=requireSwapIndexCoverage(await indexLoader(),expectedAvailabilityDocuments);
+  if(!Array.isArray(index.auditIds)||index.auditIds.length!==index.documentCount)
+   throw Error('SWAP_DIRECT_ELIGIBLE_IDS_UNVERIFIED');
+  return {ok:true,source:'firestore-canonical',auditIds:index.auditIds};
+ };
  const list=async({actor}={})=>{
   if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_LIST_DISABLED'};
   return directProposalStore.list({actor,authorizeAuditor:authorizeCanonicalAuditor});
@@ -97,7 +105,7 @@ export function createSwapFirestoreDevTransport(options={}){
   return buildSwapFirestoreReadOnlyPreview({pair,availability});
  };
  const commit=async args=>{if(enabled===true&&canonicalCutoverVerified===true)await assertSourceFreeze();return coordinator.commit(args);};
- return Object.freeze({...reader,preview,propose,respond,withdraw,getProposal,list,commit});
+ return Object.freeze({...reader,preview,propose,respond,withdraw,getProposal,list,eligibleAuditIds,commit});
 }
 
 /** Read-only preview readiness check; no commit or routing authorization. */

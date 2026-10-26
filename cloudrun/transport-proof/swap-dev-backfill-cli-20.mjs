@@ -101,11 +101,16 @@ if(repairAvailability){
  const planned=plan.writes.find(w=>w.update.name===auditName);
  const reservation=plan.writes.find(w=>w.update.name===availabilityName);
  if(!planned||!reservation)throw Error('SWAP_DEV_REPAIR_PLAN_INCOMPLETE');
- const batch=await json('https://firestore.googleapis.com/v1/'+root+':batchGet',{
-  method:'POST',headers:{'content-type':'application/json'},
-  body:JSON.stringify({documents:[auditName,availabilityName]})
+ const batchResponse=await fetch('https://firestore.googleapis.com/v1/'+root+':batchGet',{
+  method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},
+  body:JSON.stringify({documents:[auditName,availabilityName]}),signal:AbortSignal.timeout(30000)
  });
- const results=Array.isArray(batch)?batch:[batch];
+ if(!batchResponse.ok)throw Error('SWAP_DEV_REPAIR_BATCHGET_'+batchResponse.status);
+ const batchText=await batchResponse.text();
+ let results;
+ try{results=JSON.parse(batchText);}catch{results=batchText.trim().split(/\\r?\\n/).filter(Boolean).map(line=>JSON.parse(line));}
+ if(!Array.isArray(results))results=[results];
+ if(results.length!==2)throw Error('SWAP_DEV_REPAIR_BATCHGET_INCOMPLETE');
  const found=results.filter(x=>x.found).map(x=>x.found);
  const audit=found.find(x=>x.name===auditName),slot=found.find(x=>x.name===availabilityName);
  if(!audit||audit.fields?.payload?.stringValue!==planned.update.fields.payload.stringValue)

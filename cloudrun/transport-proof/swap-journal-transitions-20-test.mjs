@@ -5,7 +5,8 @@ const src=readFileSync(new URL('../../Swap20DurableJournal.js',import.meta.url),
 function setup(){
  const rows=[['Operation_ID','Sequence','Stage','Recorded_At','Payload_JSON']];
  const sh={getLastRow:()=>rows.length,getRange:(r,c,h,w)=>({getValues:()=>rows.slice(r-1,r-1+h).map(row=>row.slice(c-1,c-1+w)),setValues:v=>{v.forEach((row,i)=>rows[r-1+i]=row);}})};
- const ctx={PropertiesService:{getScriptProperties:()=>({getProperty:k=>k==='V5_SSOT_SPREADSHEET_ID'?'test':'DEV'})},SpreadsheetApp:{openById:()=>({getSheetByName:()=>sh}),flush:()=>{}},Swap20Store_key_:id=>'AMS_SWAP20_PROPOSAL_'+id,SWAP20_STORE_PREFIX_:'AMS_SWAP20_PROPOSAL_',JSON,String,Number,Date,Error,Object};
+ const ctx={
+ Swap20_assertGasWriteAuthority_:()=>{},PropertiesService:{getScriptProperties:()=>({getProperty:k=>k==='V5_SSOT_SPREADSHEET_ID'?'test':'DEV'})},SpreadsheetApp:{openById:()=>({getSheetByName:()=>sh}),flush:()=>{}},Swap20Store_key_:id=>'AMS_SWAP20_PROPOSAL_'+id,SWAP20_STORE_PREFIX_:'AMS_SWAP20_PROPOSAL_',JSON,String,Number,Date,Error,Object};
  runInNewContext(src,ctx);return {ctx,rows};
 }
 const id='swap-12345678';

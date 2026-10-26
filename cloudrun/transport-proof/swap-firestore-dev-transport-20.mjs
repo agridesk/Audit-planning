@@ -22,3 +22,17 @@ export function createSwapFirestoreDevTransport(options={}){
  const coordinator=createSwapDirectCommitCoordinator({project,readProposal:reader.readProposal,readJournal:reader.readJournal,readPair:reader.readPair,readAvailability:reader.readAvailability,atomicWriter:writer,authorize,resolveFinalReservations,enabled:enabled===true&&canonicalCutoverVerified===true});
  return Object.freeze({...reader,commit:coordinator.commit});
 }
+
+/** Read-only preview readiness check; no commit or routing authorization. */
+export function assessSwapFirestorePreviewReadiness({pair,availability,index,expectedDocuments=20}={}){
+ const reasons=[];
+ if(!Array.isArray(pair)||pair.length!==2||!Array.isArray(availability)||availability.length!==2)reasons.push('PAIR_INVALID');
+ else for(let i=0;i<2;i++){
+  const audit=pair[i],av=availability[i];
+  if(audit?.source!=='firestore-canonical'||av?.source!=='firestore-canonical'||audit?.auditId!==av?.auditId)reasons.push('PAIR_SOURCE_INVALID');
+  if(audit?.canonical?.status!=='Accepted'||!Array.isArray(audit?.canonical?.plannedBlocks)||!audit.canonical.plannedBlocks.length)reasons.push('AUDIT_NOT_ACCEPTED');
+  if(!Array.isArray(av?.reservations)||!av.reservations.length)reasons.push('AVAILABILITY_INCOMPLETE');
+ }
+ if(index?.complete!==true||index?.documentCount!==expectedDocuments)reasons.push('RESERVATION_COVERAGE_UNVERIFIED');
+ return {ready:reasons.length===0,readOnly:true,commitAuthorized:false,reasons:[...new Set(reasons)]};
+}

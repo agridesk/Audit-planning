@@ -150,8 +150,8 @@ const noFreeze=createSwapFirestoreDevTransport({project:'ams-test-dev',getToken:
  enabled:true,canonicalCutoverVerified:true,fetchImpl:async()=>{throw Error('MUST_NOT_READ_BEFORE_SOURCE_FREEZE');}});
 await assert.rejects(noFreeze.propose({}),/SWAP_DIRECT_SHEETS_SOURCE_FREEZE_UNVERIFIED/);
 await assert.rejects(noFreeze.respond({}),/SWAP_DIRECT_SHEETS_SOURCE_FREEZE_UNVERIFIED/);
-await assert.rejects(noFreeze.getProposal({}),/SWAP_DIRECT_SHEETS_SOURCE_FREEZE_UNVERIFIED/);
-await assert.rejects(noFreeze.list({}),/SWAP_DIRECT_SHEETS_SOURCE_FREEZE_UNVERIFIED/);
+await assert.rejects(noFreeze.getProposal({}),/SWAP_DIRECT_MANAGER_UNAUTHORIZED/);
+await assert.rejects(noFreeze.list({}),/SWAP_DIRECT_MANAGER_UNAUTHORIZED/);
 
 record=null;
 const stagedSource={...second,createdBy:'manager@example.test',createdAt:'2026-10-26T16:00:00Z',

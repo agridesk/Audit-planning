@@ -67,6 +67,11 @@ export function createSwapFirestoreDevTransport(options={}){
   if(typeof authorizeCanonicalAuditor!=='function')throw Error('SWAP_DIRECT_AUDITOR_DIRECTORY_UNAVAILABLE');
   return directProposalStore.respond({operationId,decision,actor,authorizeAuditor:authorizeCanonicalAuditor});
  };
+ const withdraw=async({operationId,actor}={})=>{
+  if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_WITHDRAW_DISABLED'};
+  await assertSourceFreeze();
+  return directProposalStore.withdraw({operationId,actor});
+ };
  const list=async({actor}={})=>{
   if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_LIST_DISABLED'};
   return directProposalStore.list({actor,authorizeAuditor:authorizeCanonicalAuditor});
@@ -92,7 +97,7 @@ export function createSwapFirestoreDevTransport(options={}){
   return buildSwapFirestoreReadOnlyPreview({pair,availability});
  };
  const commit=async args=>{if(enabled===true&&canonicalCutoverVerified===true)await assertSourceFreeze();return coordinator.commit(args);};
- return Object.freeze({...reader,preview,propose,respond,getProposal,list,commit});
+ return Object.freeze({...reader,preview,propose,respond,withdraw,getProposal,list,commit});
 }
 
 /** Read-only preview readiness check; no commit or routing authorization. */

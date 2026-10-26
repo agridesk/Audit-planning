@@ -22,3 +22,33 @@ response={...valid,exp:String(Math.floor(now/1000)-1)};assert.equal(await schedu
 assert.deepEqual(await scheduler.reconcile(),{ok:true,records:1});
 assert.equal(syncs,1);
 console.log('SWAP DEV scheduler OIDC isolation and index synchronization: PASS');
+
+const migrationProposals=[
+ {operationId:'SWAP20_test0001',auditA:'a1',auditB:'b1',status:'CONFIRMED',
+  originalRevisions:{a1:'r1',b1:'r2'},blocksA:[],blocksB:[],
+  requiredAuditorUids:['uid_12345678'],acknowledgedAuditorUids:['uid_12345678'],dateChanged:true}
+];
+let migrationReadCount=0;
+const migrationScheduler=createSwapIndexScheduler({
+ index:{meta:async()=>null},serviceEmail:email,audience,
+ roster:async()=>[{role:'manager',email:'manager@example.test',auditorId:'manager-uid'}],
+ gasCall:async()=>({ok:true,records:migrationProposals}),
+ readCanonicalProposal:async()=>{migrationReadCount++;return null;},
+ readJournalOperationIds:async()=>new Set(['SWAP20_test0001'])
+});
+const preflight=await migrationScheduler.previewCanonicalMigration();
+assert.equal(preflight.ok,true);
+assert.equal(preflight.dryRun,true);
+assert.equal(preflight.gasProposalCount,1);
+assert.equal(preflight.gasJournalledProposalCount,1);
+assert.equal(preflight.firestoreMissing,1);
+assert.equal(preflight.firestoneMatched,undefined);
+assert.equal(preflight.cutoverAuthorized,false);
+assert.equal(migrationReadCount,1);
+const missingJournalReader=createSwapIndexScheduler({
+ index:{meta:async()=>null},serviceEmail:email,audience,
+ roster:async()=>[{role:'manager',email:'manager@example.test',auditorId:'manager-uid'}],
+ gasCall:async()=>({ok:true,records:migrationProposals}),
+ readCanonicalProposal:async()=>null
+});
+await assert.rejects(missingJournalReader.previewCanonicalMigration(),/SWAP_MIGRATION_SOURCE_READERS_UNAVAILABLE/);

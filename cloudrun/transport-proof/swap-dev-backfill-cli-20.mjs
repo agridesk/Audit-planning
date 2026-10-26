@@ -87,7 +87,7 @@ const [auditRows,availabilityRows]=await Promise.all([range('Audit planning'),ra
 const manifest=buildSwapMigrationManifest({auditRows,availabilityRows});
 const plan=planSwapMigrationBackfill({project,auditRows,availabilityRows,expectedManifestHash:manifest.manifestHash});
 if(repairAvailability){
- if(!repairId||!/^AUD_[^/\\u0000-\\u001f\\u007f]{1,135}$/.test(repairId))
+ if(!repairId||!/^AUD_[^/\u0000-\u001f\u007f]{1,135}$/.test(repairId))
   throw Error('SWAP_DEV_REPAIR_AUDIT_ID_INVALID');
  const partition=partitionSwapSheetMigration({auditRows,availabilityRows});
  const eligible=partition.eligible.find(x=>x.auditId===repairId);

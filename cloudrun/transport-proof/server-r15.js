@@ -569,7 +569,9 @@ async function swap20ManagerRequest(req,res,operation){
   return;
  }
  const swap20RequestStarted=Date.now();
- const result=operation==='listPending'
+ const result=operation==='eligibleAudits'
+  ?(swap20DirectRouteEnabled?await swap20DirectTransport.eligibleAuditIds({actor}):{ok:false,code:'SWAP_DIRECT_SELECTION_DISABLED'})
+  :operation==='listPending'
   ?(swap20DirectRouteEnabled?await swap20DirectTransport.list({actor}):await swap20ReadList(actor))
   :operation==='preview'
    ?(swap20DirectRouteEnabled?await swap20DirectTransport.preview(data):(await swap20FastPreview(actor,data))||await swap20GasOperation(actor,operation,data))
@@ -833,6 +835,7 @@ http.createServer(async(req,res)=>{
   if(req.method==='POST'&&u.pathname.startsWith('/api/v1/manager/swap20/')){
    const operation={
     '/api/v1/manager/swap20/list':'listPending',
+    '/api/v1/manager/swap20/eligible':'eligibleAudits',
     '/api/v1/manager/swap20/preview':'preview',
     '/api/v1/manager/swap20/propose':'propose',
     '/api/v1/manager/swap20/status':'getProposal',

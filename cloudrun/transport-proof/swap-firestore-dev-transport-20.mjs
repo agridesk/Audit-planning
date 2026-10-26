@@ -80,9 +80,9 @@ export function buildSwapFirestoreReadOnlyPreview({pair,availability}={}){
   if(JSON.stringify(planned)!==JSON.stringify(reserved)||
     v.reservations.some(x=>String(x.owner||'').toLowerCase()!==String(c.assignedTo).toLowerCase()))return null;
  }
- const time=s=>typeof s==='string'&&/^([01]\\d|2[0-3]):[0-5]\\d$/.test(s);
+ const time=s=>typeof s==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(s);
  const min=s=>Number(s.slice(0,2))*60+Number(s.slice(3));
- const date=s=>typeof s==='string'&&/^\\d{4}-\\d{2}-\\d{2}$/.test(s)&&new Date(s+'T12:00:00Z').toISOString().slice(0,10)===s;
+ const date=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s)&&new Date(s+'T12:00:00Z').toISOString().slice(0,10)===s;
  const normalize=blocks=>blocks.map(b=>({date:b.date,start:b.start,end:b.end}));
  const beforeA=normalize(pair[0].canonical.plannedBlocks),beforeB=normalize(pair[1].canonical.plannedBlocks);
  const eligible=(reason)=>({ok:true,eligible:false,readOnly:true,provisional:true,commitEnabled:false,reason});

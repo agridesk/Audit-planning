@@ -174,15 +174,21 @@ export function createSwapIndexScheduler({index,roster,gasCall,serviceEmail,audi
    throw Error('SWAP_LEGACY_ARCHIVE_DEPENDENCIES');
   const rows=await readHistoricalJournalRows(),operations=classifyHistoricalJournal(rows);
   let archived=0,existing=0,pending=0;
+  const pendingOperations=[];
   for(const operation of operations){
-   if(!operation.terminal){pending++;continue;}
+   if(!operation.terminal){
+    pending++;
+    pendingOperations.push({operationId:operation.operationId,stage:operation.finalStage,
+     sequence:operation.history.length,manualReviewRequired:true});
+    continue;
+   }
    const result=await stageHistoricalJournal(operation);
    if(result?.staged===true)archived++;
    else if(result?.existing===true)existing++;
    else throw Error('SWAP_LEGACY_ARCHIVE_CONFLICT');
   }
   return {ok:true,result:'SWAP_LEGACY_JOURNAL_ARCHIVED_INACTIVE',
-   operations:operations.length,archived,existing,pending,
+   operations:operations.length,archived,existing,pending,pendingOperations,
    directWriteEnabled:false,cutoverAuthorized:false};
  }
  return Object.freeze({verify,reconcile,previewCanonicalMigration,stageCanonicalProposals,archiveHistoricalJournals});

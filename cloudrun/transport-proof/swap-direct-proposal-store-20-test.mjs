@@ -122,7 +122,7 @@ assert.equal(directWrites,1);
 const storedDirect=JSON.parse(directCreated);
 assert.equal(storedDirect.status,'AWAITING_ACKNOWLEDGEMENT');
 assert.deepEqual(storedDirect.requiredAuditorUids,['auditor_111111','auditor_222222']);
-assert.deepEqual(storedDirect.originalRevisions,{A:'A-rev',B:'B-rev'});
+assert.deepEqual(storedDirect.originalRevisions,{A:today,B:today});
 
 const directFirst=await liveIsolated.respond({operationId:'test_direct_12345678',decision:'ACKNOWLEDGE',actor:{role:'auditor',email:'a@example.test'}});
 assert.equal(directFirst.status,'AWAITING_ACKNOWLEDGEMENT');

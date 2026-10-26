@@ -163,5 +163,22 @@ export function createSwapDirectProposalStore({project,getToken,fetchImpl=fetch}
   if(!result.ok)return {ok:false,conflict:true,code:'SWAP_DIRECT_RESPONSE_RETRY_FROM_FRESH_STATE'};
   return {ok:true,status:next.status,operationId,updateTime:result.updateTime};
  }
- return Object.freeze({read,list,create,stageFromGas,compareAndSet,respond});
+ async function withdraw({operationId,actor}={}){
+  if(!ID.test(String(operationId||''))||actor?.role!=='manager'||!actor.email)
+   throw Error('SWAP_DIRECT_WITHDRAW_UNAUTHORIZED');
+  const current=await read(operationId);
+  if(!current)throw Error('SWAP_DIRECT_PROPOSAL_NOT_FOUND');
+  const prior=current.proposal;
+  if(prior.migrationVerified===false||prior.migrationState==='STAGED_FROM_GAS')
+   throw Error('SWAP_DIRECT_STAGED_GAS_PROPOSAL_NOT_ACTIVE');
+  if(prior.status==='WITHDRAWN')return {ok:true,idempotent:true,status:'WITHDRAWN',operationId};
+  if(!['AWAITING_ACKNOWLEDGEMENT','ESCALATED','CONFIRMED'].includes(prior.status))
+   throw Error('SWAP_DIRECT_WITHDRAW_STATUS_INVALID');
+  const next={...prior,status:'WITHDRAWN',withdrawnAt:new Date().toISOString(),
+   withdrawnBy:actor.email.toLowerCase()};
+  const result=await compareAndSet(operationId,current.updateTime,next,()=>true);
+  if(!result.ok)return {ok:false,conflict:true,code:'SWAP_DIRECT_WITHDRAW_RETRY_FROM_FRESH_STATE'};
+  return {ok:true,status:'WITHDRAWN',operationId,updateTime:result.updateTime};
+ }
+ return Object.freeze({read,list,create,stageFromGas,compareAndSet,respond,withdraw});
 }

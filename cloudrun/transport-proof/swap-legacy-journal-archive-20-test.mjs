@@ -22,9 +22,11 @@ const archive=createSwapLegacyJournalArchive({project:'ams-test-dev',getToken:as
   }
   return saved?{ok:true,status:200,json:async()=>({fields:{payload:{stringValue:saved}}})}:{ok:false,status:404};
  }});
-assert.equal((await archive.stage(ops[1])).code,'NONTERMINAL_NOT_ARCHIVED');
+assert.equal((await archive.stage(ops[1])).staged,true);
+assert.equal(JSON.parse(saved).archiveState,'HISTORICAL_PENDING_REVIEW');
+saved=null;
 assert.equal((await archive.stage(ops[0])).staged,true);
 assert.equal((await archive.stage(ops[0])).existing,true);
-assert.equal(writes,1);
+assert.equal(writes,2);
 assert.equal(JSON.parse(saved).archiveState,'HISTORICAL_INACTIVE');
 console.log('SWAP legacy journal archive: PASS');

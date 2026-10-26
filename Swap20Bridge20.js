@@ -26,7 +26,23 @@ function Swap20Bridge20_actor_(email,expectedRole) {
     !['YES','TRUE','1','ACTIVE'].includes(String(matches[0][active]||'').trim().toUpperCase()))
   throw Error('SWAP_MANAGER_IDENTITY_NOT_AUTHORIZED');
  authPhase('auditorIdentityVerified');
- return {ok:true,email:email,role:expectedRole==='manager'?'Manager':'Auditor'};
+ var trustedUid='';
+ if(expectedRole==='auditor'){
+  var uidCol=ix(['auditoruid','auditoruuid','uid','uuid']);
+  if(uidCol<0)throw Error('SWAP_CANONICAL_AUDITOR_UID_COLUMN_MISSING');
+  var activeEmail={},activeUid={};
+  data.slice(1).forEach(function(row){
+   if(!['YES','TRUE','1','ACTIVE'].includes(String(row[active]||'').trim().toUpperCase()))return;
+   var em=String(row[e]||'').trim().toLowerCase(),uid=String(row[uidCol]||'').trim();
+   if(!em||!uid)return;
+   if(activeEmail[em]||activeUid[uid])throw Error('Duplicate canonical auditor identity');
+   activeEmail[em]=uid;activeUid[uid]=em;
+  });
+  trustedUid=activeEmail[email]||'';
+  if(!trustedUid||!/^[A-Za-z0-9_-]{8,128}$/.test(trustedUid))throw Error('SWAP_CANONICAL_AUDITOR_UID_INVALID');
+ }
+ return {ok:true,email:email,role:expectedRole==='manager'?'Manager':'Auditor',
+  swap20VerifiedUid:trustedUid,swap20UidVerifiedByBridge:expectedRole==='auditor'};
 }
 function Swap20Bridge20_manager_(email){return Swap20Bridge20_actor_(email,'manager');}
 function Swap20Bridge20_auditor_(email){return Swap20Bridge20_actor_(email,'auditor');}
@@ -180,7 +196,7 @@ function Swap20Bridge20_handleAuditor_(body) {
  var swapPerfStarted=Date.now();
  body=body||{};
  var actor=Swap20Bridge20_auditor_(body.actorEmail);
- var uid=Swap20_resolveAuditorUidByEmail_(actor.email);
+ var uid=actor.swap20UidVerifiedByBridge===true?actor.swap20VerifiedUid:Swap20_resolveAuditorUidByEmail_(actor.email);
  if(typeof Logger!=='undefined'&&Logger&&typeof Logger.log==='function')Logger.log('[SWAP20_PERF] '+JSON.stringify({step:'auditorIdentity',ms:Date.now()-swapPerfStarted}));
  var operation=String(body.operation||'').trim();
  if(operation==='listPending') {

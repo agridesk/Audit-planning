@@ -120,15 +120,27 @@ export function createSwapIndexScheduler({index,roster,gasCall,serviceEmail,audi
   const sourceFields=['operationId','auditA','auditB','status','createdAt','createdBy',
    'originalRevisions','requiredAuditorUids','acknowledgedAuditorUids',
    'blocksA','blocksB','internalReason','ecasComment','dateChanged'];
-  for(const p of candidates){
-   if(!latest.has(p.operationId)||sourceFields.some(k=>JSON.stringify(p[k])!==JSON.stringify(latest.get(p.operationId)[k]))){stale++;continue;}
-   // Recheck that a journal has not started; a journaled proposal is never staged.
-   if((await readJournalOperationIds()).has(p.operationId)){stale++;continue;}
-   if(await readCanonicalProposal(p.operationId)){existing++;continue;}
-   const result=await stageCanonicalProposal({proposal:p,journalAbsentVerified:true});
-   if(result?.ok===true&&result.staged===true)staged++;
-   else if(result?.conflict===true)existing++;
-   else throw Error('SWAP_STAGING_WRITE_UNVERIFIED');
+  // Bound concurrent Firestore writes and avoid a Sheets journal read
+  // for every historical proposal. Copies remain inactive during staging.
+  for(let start=0;start<candidates.length;start+=4){
+   const currentJournal=await readJournalOperationIds();
+   if(!(currentJournal instanceof Set))throw Error('SWAP_STAGING_JOURNAL_RECHECK_FAILED');
+   const batch=candidates.slice(start,start+4);
+   const outcomes=await Promise.all(batch.map(async p=>{
+    if(!latest.has(p.operationId)||
+       sourceFields.some(k=>JSON.stringify(p[k])!==JSON.stringify(latest.get(p.operationId)[k]))||
+       currentJournal.has(p.operationId))return 'stale';
+    if(await readCanonicalProposal(p.operationId))return 'existing';
+    const result=await stageCanonicalProposal({proposal:p,journalAbsentVerified:true});
+    if(result?.ok===true&&result.staged===true)return 'staged';
+    if(result?.conflict===true)return 'existing';
+    throw Error('SWAP_STAGING_WRITE_UNVERIFIED');
+   }));
+   for(const outcome of outcomes){
+    if(outcome==='stale')stale++;
+    else if(outcome==='existing')existing++;
+    else if(outcome==='staged')staged++;
+   }
   }
   return {ok:true,result:'SWAP_GAS_PROPOSALS_STAGED_INACTIVE',sourceProposals:before.length,
    journalExcluded:before.length-candidates.length,candidates:candidates.length,

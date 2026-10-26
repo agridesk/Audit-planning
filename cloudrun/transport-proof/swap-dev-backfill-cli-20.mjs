@@ -11,6 +11,7 @@ import {planSwapMigrationBackfill} from './swap-migration-backfill-plan-20.mjs';
 import {partitionSwapSheetMigration} from './swap-sheet-migration-partition-20.mjs';
 import {createSwapFirestoreCanonicalReader} from './swap-firestore-canonical-reader-20.mjs';
 import {createSwapReservationFenceReader} from './swap-reservation-fence-reader-20.mjs';
+async function main(){
 const project='audit-management-system-dev';
 const sheetId='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs';
 const apply=process.argv.includes('--apply');
@@ -78,7 +79,7 @@ if(proposalInventory){
   incompleteIndexDocuments:indexRecords.filter(p=>!p?.operationId||!p?.auditA||!p?.auditB).length,
   indexedProposalsWithoutCanonicalFirestore:([...indexIds].filter(id=>!full.some(p=>p.operationId===id))).length,
   sourceScriptPropertiesNotVerified:true,cutoverAuthorized:false}));
- process.exit(0);
+ return;
 }
 const [auditRows,availabilityRows]=await Promise.all([range('Audit planning'),range('Auditor Availability')]);
 const manifest=buildSwapMigrationManifest({auditRows,availabilityRows});
@@ -103,20 +104,20 @@ if(inspectOrphans){
  const valid=slot=>slot.owner.includes('@')&&/^\\d{4}-\\d{2}-\\d{2}$/.test(slot.date)&&/^([01]\\d|2[0-3]):[0-5]\\d$/.test(slot.start)&&/^([01]\\d|2[0-3]):[0-5]\\d$/.test(slot.end)&&slot.start<slot.end;
  const impacts=orphanSlots.map(slot=>({sheetRow:slot.row,valid:valid(slot),affectedAudits:valid(slot)?partition.eligible.filter(a=>a.assignedTo===slot.owner&&a.reservations.some(r=>r.date===slot.date&&r.start<slot.end&&slot.start<r.end)).map(a=>a.auditId):[]}));
  console.log(JSON.stringify({result:'DEV_ORPHAN_IMPACT',orphanCount:partition.orphanReservations.length,slotsAnalyzed:orphanSlots.length,impacts,unresolved:true,cutoverAuthorized:false}));
- process.exit(0);
+ return;
 }
 if(exceptions){
  const p=partitionSwapSheetMigration({auditRows,availabilityRows});
  const accepted=p.quarantined.filter(x=>x.reason!=='NOT_ACCEPTED'&&x.reason!=='LEGACY_STATUS_UNRESOLVED').map(x=>({sheetRow:x.row,reason:x.reason}));
  console.log(JSON.stringify({result:'DEV_ACCEPTED_EXCEPTION_REVIEW',accepted,legacyApproved:p.quarantined.filter(x=>x.reason==='LEGACY_STATUS_UNRESOLVED').length,orphans:p.orphanReservations.map(x=>({sheetRow:x.row,reason:x.kind})),safeAutomaticRepairs:0,cutoverAuthorized:false}));
- process.exit(0);
+ return;
 }
 if(coverage){
  const p=partitionSwapSheetMigration({auditRows,availabilityRows});
  const reasons={};for(const row of p.quarantined)reasons[row.reason]=(reasons[row.reason]||0)+1;
  const statusIndex=auditRows[0].indexOf('Status');const statuses={};for(const row of auditRows.slice(1)){const status=String(row[statusIndex]||'').trim();if(status)statuses[status]=(statuses[status]||0)+1;}
  console.log(JSON.stringify({result:'DEV_COVERAGE_REPORT',statuses,reasons,eligible:p.eligible.length,orphanReservations:p.orphanReservations.length,cutoverAuthorized:false}));
- process.exit(0);
+ return;
 }
 console.log(JSON.stringify({mode:deltaApply?'DELTA_APPLY':apply?'APPLY':verify?'VERIFY':liveTest?'LIVE_TEST':'DRY_RUN',manifestHash:plan.manifestHash,source:plan.sourceCount,eligible:plan.eligibleCount,quarantined:plan.quarantinedCount,orphans:plan.orphanCount,writes:plan.writes.length}));
 if(plan.eligibleCount===0)throw Error('SWAP_DEV_NO_ELIGIBLE_AUDITS');
@@ -127,13 +128,13 @@ if(initFence){
  const name='projects/'+project+'/databases/(default)/documents/ams_swap20_dev_meta/reservation_fence';
  const url=base+'/ams_swap20_dev_meta/reservation_fence';
  const response=await fetch(url,{headers:{authorization:'Bearer '+token},signal:AbortSignal.timeout(15000)});
- if(response.ok){const doc=await response.json();console.log(JSON.stringify({result:'DEV_RESERVATION_FENCE_ALREADY_EXISTS',revision:doc.updateTime,cutoverAuthorized:false}));process.exit(0);}
+ if(response.ok){const doc=await response.json();console.log(JSON.stringify({result:'DEV_RESERVATION_FENCE_ALREADY_EXISTS',revision:doc.updateTime,cutoverAuthorized:false}));return;}
  if(response.status!==404)throw Error('SWAP_DEV_FENCE_PREFLIGHT_HTTP_'+response.status);
  const result=await json(base+':commit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({writes:[{update:{name,fields:{payload:{stringValue:JSON.stringify({operationId:'DEV_INITIALIZATION',now:new Date().toISOString()})}}},currentDocument:{exists:false}}]})});
  if(result.writeResults?.length!==1)throw Error('SWAP_DEV_FENCE_INIT_RECEIPT_INVALID');
  const after=await json(url);
  if(!after.updateTime)throw Error('SWAP_DEV_FENCE_INIT_READBACK_INVALID');
- console.log(JSON.stringify({result:'DEV_RESERVATION_FENCE_INITIALIZED',revision:after.updateTime,cutoverAuthorized:false}));process.exit(0);
+ console.log(JSON.stringify({result:'DEV_RESERVATION_FENCE_INITIALIZED',revision:after.updateTime,cutoverAuthorized:false}));return;
 }
 
 const read=async()=>{
@@ -159,7 +160,7 @@ if(inspectDelta){
    changedFields:[...new Set([...Object.keys(actual),...Object.keys(expected)])].filter(k=>JSON.stringify(actual[k])!==JSON.stringify(expected[k]))};
  });
  console.log(JSON.stringify({result:'DEV_DELTA_INSPECTION',existing:existing.size,missing:missing.length,drift:summary,cutoverAuthorized:false}));
- process.exit(0);
+ return;
 }
 if(deltaApply){
  // Fail closed: original migrated records must still agree with canonical Sheets.
@@ -183,7 +184,7 @@ if(deltaApply){
  const expected=new Set(names);
  if([...auditDocs,...availabilityDocs].some(d=>!expected.has(d.name)))throw Error('SWAP_DEV_DELTA_UNEXPECTED_DOCUMENT');
  if(auditDocs.length!==availabilityDocs.length||auditDocs.length!==existing.size/2)throw Error('SWAP_DEV_DELTA_EXISTING_COLLECTION_MISMATCH');
- if(missing.length===0){console.log(JSON.stringify({result:'SWAP_DEV_DELTA_ALREADY_COMPLETE',documents:existing.size,cutoverAuthorized:false}));process.exit(0);}
+ if(missing.length===0){console.log(JSON.stringify({result:'SWAP_DEV_DELTA_ALREADY_COMPLETE',documents:existing.size,cutoverAuthorized:false}));return;}
  const fresh=buildSwapMigrationManifest({auditRows:await range('Audit planning'),availabilityRows:await range('Auditor Availability')});
  if(fresh.manifestHash!==manifest.manifestHash)throw Error('SWAP_DEV_DELTA_SOURCE_CHANGED');
  const result=await json(base+':commit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({writes:missing})});
@@ -191,7 +192,7 @@ if(deltaApply){
  const after=await read();
  if(after.size!==names.length||plan.writes.some(w=>after.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue))throw Error('SWAP_DEV_DELTA_READBACK_OR_PARITY_FAILED');
  console.log(JSON.stringify({result:'SWAP_DEV_DELTA_VERIFIED',addedAudits:byAudit.size,addedDocuments:missing.length,totalAudits:plan.eligibleCount,totalDocuments:after.size,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
- process.exit(0);
+ return;
 }
 if(syncDrift){
  const permitted=new Set(['AUD_GrupoViverosLasCunas_HQ_1777531729329_38','AUD_MistralBonsai,S.L._HQ_1777531729397_52','AUD_ViverosMedipalmS.A._HQ_1777531729583_96']);
@@ -200,7 +201,7 @@ if(syncDrift){
  const missingRevision=delta.filter(w=>!existing.get(w.update.name)?.updateTime);
  const unexpectedFields=delta.filter(w=>{try{const before=JSON.parse(existing.get(w.update.name).fields.payload.stringValue),after=JSON.parse(w.update.fields.payload.stringValue);const keys=[...new Set([...Object.keys(before),...Object.keys(after)])].filter(k=>JSON.stringify(before[k])!==JSON.stringify(after[k]));return keys.length!==1||keys[0]!== (w.update.name.includes('/ams_swap20_dev_audits/')?'plannedBlocks':'reservations');}catch{return true;}});
  if(unexpected.length||missingRevision.length||unexpectedFields.length||delta.length>4)throw Error('DEV_SYNC_UNEXPECTED_DELTA '+JSON.stringify({count:delta.length,unexpected:unexpected.map(w=>w.update.name.split('/').pop()),missingRevision:missingRevision.map(w=>w.update.name.split('/').pop()),unexpectedFields:unexpectedFields.map(w=>w.update.name.split('/').pop())}));
- if(delta.length===0){console.log(JSON.stringify({result:'DEV_DRIFT_ALREADY_SYNCED',documents:existing.size,cutoverAuthorized:false}));process.exit(0);}
+ if(delta.length===0){console.log(JSON.stringify({result:'DEV_DRIFT_ALREADY_SYNCED',documents:existing.size,cutoverAuthorized:false}));return;}
  const fresh=buildSwapMigrationManifest({auditRows:await range('Audit planning'),availabilityRows:await range('Auditor Availability')});
  if(fresh.manifestHash!==manifest.manifestHash)throw Error('DEV_SYNC_SOURCE_CHANGED');
  const writes=delta.map(w=>({update:w.update,currentDocument:{updateTime:existing.get(w.update.name).updateTime}}));
@@ -209,7 +210,7 @@ if(syncDrift){
  const after=await read();
  if(plan.writes.filter(w=>existing.has(w.update.name)).some(w=>after.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue))throw Error('DEV_SYNC_READBACK_MISMATCH');
  console.log(JSON.stringify({result:'DEV_DRIFT_SYNC_VERIFIED',documents:after.size,updated:writes.length,audits:new Set(delta.map(w=>w.update.name.split('/').pop())).size,cutoverAuthorized:false}));
- process.exit(0);
+ return;
 }
 if(verify||liveTest){
  const drift=[];
@@ -265,10 +266,10 @@ if(verify||liveTest){
   console.log(JSON.stringify({result:'DEV_RUNTIME_READINESS',canonicalPairsTested:Math.floor(auditIds.length/2),reservationFence:fence,gridCutoverAuthorized:false}));
   console.log(JSON.stringify({result:drift.length?'DEV_LIVE_FIRESTORE_SCOPE_PASS_WITH_SOURCE_DRIFT':'DEV_LIVE_FIRESTORE_SCOPE_PASS',audits:audits.length,availability:availability.length,verifiedDocuments:existing.size,parityDocuments:existing.size-drift.length,driftCount:drift.length,excludedLegacyTest:partition.quarantined.length,orphanReferences:partition.orphanReservations.length,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
  }else console.log(JSON.stringify({result:'DEV_PARITY_VERIFIED',documents:existing.size,eligible:plan.eligibleCount,quarantined:plan.quarantinedCount,orphans:plan.orphanCount,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
- process.exit(0);
+ return;
 }
 if(existing.size)throw Error('SWAP_DEV_EXISTING_CANONICAL_DOCS_'+existing.size);
-if(!apply){console.log('SWAP_DEV_DRY_RUN_OK; use --apply only after review');process.exit(0);}
+if(!apply){console.log('SWAP_DEV_DRY_RUN_OK; use --apply only after review');return;}
 const freshManifest=buildSwapMigrationManifest({auditRows:await range('Audit planning'),availabilityRows:await range('Auditor Availability')});
 if(freshManifest.manifestHash!==manifest.manifestHash)throw Error('SWAP_DEV_SOURCE_CHANGED');
 const result=await json(base+':commit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({writes:plan.writes})});
@@ -280,3 +281,6 @@ for(const write of plan.writes){
  if(found?.fields?.payload?.stringValue!==write.update.fields.payload.stringValue)throw Error('SWAP_DEV_READBACK_MISMATCH');
 }
 console.log(JSON.stringify({result:'DEV_BACKFILL_VERIFIED',documents:after.size,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
+
+}
+await main();

@@ -24,7 +24,7 @@ export function createSwapFirestoreDevTransport(options={}){
 }
 
 /** Read-only preview readiness check; no commit or routing authorization. */
-export function assessSwapFirestorePreviewReadiness({pair,availability,index,expectedDocuments=20}={}){
+export function assessSwapFirestorePreviewReadiness({pair,availability,index,expectedDocuments=20,orphanReservationsUnresolved=true}={}){
  const reasons=[];
  if(!Array.isArray(pair)||pair.length!==2||!Array.isArray(availability)||availability.length!==2)reasons.push('PAIR_INVALID');
  else for(let i=0;i<2;i++){
@@ -34,5 +34,6 @@ export function assessSwapFirestorePreviewReadiness({pair,availability,index,exp
   if(!Array.isArray(av?.reservations)||!av.reservations.length)reasons.push('AVAILABILITY_INCOMPLETE');
  }
  if(index?.complete!==true||index?.documentCount!==expectedDocuments)reasons.push('RESERVATION_COVERAGE_UNVERIFIED');
+ if(orphanReservationsUnresolved!==false)reasons.push('ORPHAN_RESERVATIONS_UNRESOLVED');
  return {ready:reasons.length===0,readOnly:true,commitAuthorized:false,reasons:[...new Set(reasons)]};
 }

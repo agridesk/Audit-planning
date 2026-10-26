@@ -50,7 +50,7 @@ export function createSwapFirestoreDevTransport(options={}){
   if(!Array.isArray(resolved)||resolved.length!==2||resolved.some(uid=>!/^([A-Za-z0-9_-]{8,128})$/.test(uid)))
    throw Error('SWAP_DIRECT_CANONICAL_AUDITORS_UNVERIFIED');
   const uids=[...new Set(resolved)];
-  const revisions={[auditA]:pair[0].canonical.revision,[auditB]:pair[1].canonical.revision};
+  const revisions={[auditA]:pair[0].updateTime,[auditB]:pair[1].updateTime};
   const proposal={operationId,auditA,auditB,requiredAuditorUids:uids,acknowledgedAuditorUids:[],
    createdBy:actor.email.toLowerCase(),createdAt:new Date().toISOString(),status:'AWAITING_ACKNOWLEDGEMENT',
    reminderSentAt:null,escalatedAt:null,originalRevisions:revisions,

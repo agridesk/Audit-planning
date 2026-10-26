@@ -22,6 +22,9 @@ function transitionAllowed(prior,next){
  if(!Array.isArray(next.requiredAuditorUids)||!Array.isArray(next.acknowledgedAuditorUids))return false;
  if(JSON.stringify(prior.requiredAuditorUids)!==JSON.stringify(next.requiredAuditorUids))return false;
  if(next.acknowledgedAuditorUids.some(uid=>!next.requiredAuditorUids.includes(uid)))return false;
+ if(new Set(next.acknowledgedAuditorUids).size!==next.acknowledgedAuditorUids.length)return false;
+ if(!Array.isArray(prior.acknowledgedAuditorUids)||prior.acknowledgedAuditorUids.some(uid=>!next.acknowledgedAuditorUids.includes(uid)))return false;
+ if(next.status==='DECLINED'&&(!next.declinedBy||!next.requiredAuditorUids.includes(next.declinedBy)))return false;
  if(next.status==='CONFIRMED'&&next.requiredAuditorUids.some(uid=>!next.acknowledgedAuditorUids.includes(uid)))return false;
  return true;
 }

@@ -44,8 +44,8 @@ export function buildSwapFirestoreWriteSet({project,operationId,proposal,pair,av
   if(!Array.isArray(source.canonical.plannedBlocks))
    throw Error('SWAP_WRITESET_BLOCKS_MISSING');
   const next={...source.canonical,plannedBlocks:i===0?proposal.blocksA:proposal.blocksB};
-  writes.push({update:{name:root+'ams_swap20_dev_audits/'+encodeURIComponent(source.auditId),fields:{payload:encode(next)}},currentDocument:{updateTime:source.updateTime}});
-  writes.push({update:{name:root+'ams_swap20_dev_availability/'+encodeURIComponent(slot.auditId),fields:{payload:encode({...slot.canonical,reservations:finalReservations[i].reservations})}},currentDocument:{updateTime:slot.updateTime}});
+  writes.push({update:{name:root+'ams_swap20_dev_audits/'+source.auditId,fields:{payload:encode(next)}},currentDocument:{updateTime:source.updateTime}});
+  writes.push({update:{name:root+'ams_swap20_dev_availability/'+slot.auditId,fields:{payload:encode({...slot.canonical,reservations:finalReservations[i].reservations})}},currentDocument:{updateTime:slot.updateTime}});
  }
  const {updateTime:proposalRevision,source:proposalSource,...storedProposal}=proposal;
  writes.push({update:{name:root+'ams_swap20_dev_proposals/'+operationId,

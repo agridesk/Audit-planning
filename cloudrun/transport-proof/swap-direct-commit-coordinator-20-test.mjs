@@ -34,4 +34,15 @@ const journalUncertain=createSwapDirectCommitCoordinator({...deps,enabled:true,
  readJournal:async()=>({operationId:proposal.operationId,stage:'FAILED'})});
 await assert.rejects(journalUncertain.commit({operationId:proposal.operationId,actor}),/SWAP_DIRECT_JOURNAL_ALREADY_EXISTS/);
 assert.equal(writes,1);
+const uncertainNoReadback=createSwapDirectCommitCoordinator({...deps,enabled:true,
+ atomicWriter:{commit:async()=>{throw Error('connection reset');}}});
+await assert.rejects(uncertainNoReadback.commit({operationId:proposal.operationId,actor}),/SWAP_DIRECT_COMMIT_OUTCOME_UNKNOWN_MANUAL_REVIEW/);
+assert.equal(writes,1);
+const uncertainVerified=createSwapDirectCommitCoordinator({...deps,enabled:true,
+ atomicWriter:{commit:async()=>{throw Error('response lost');}},
+ readProposal:async()=>({...proposal,status:'APPLIED',canonicalCommitVerified:true}),
+ readJournal:async()=>({stage:'COMMITTED',operationId:proposal.operationId,auditA:'A',auditB:'B'})});
+const verified=await uncertainVerified.commit({operationId:proposal.operationId,actor});
+assert.equal(verified.verifiedAfterUncertainResponse,true);
+assert.equal(writes,1);
 console.log('SWAP direct commit coordinator gate and atomic integration checks passed');

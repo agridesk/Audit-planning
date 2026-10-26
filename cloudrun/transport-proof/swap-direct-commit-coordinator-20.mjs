@@ -39,7 +39,20 @@ export function createSwapDirectCommitCoordinator({project,readProposal,readJour
   const finalReservations=resolved.reservations;
   const fenceRevision=resolved.fenceRevision;
   const writeSet=buildSwapFirestoreWriteSet({project,operationId,proposal,pair,availability,finalReservations,fenceRevision,actorEmail:actor.email});
-  const result=await atomicWriter.commit(writeSet);
+  let result;
+  try{result=await atomicWriter.commit(writeSet);}
+  catch(error){
+   // Firestore may commit while its HTTP response is lost. Resolve by readback;
+   // never automatically submit the same commit a second time.
+   let afterProposal,afterJournal;
+   try{[afterProposal,afterJournal]=await Promise.all([readProposal(operationId),readJournal(operationId)]);}
+   catch{throw Error('SWAP_DIRECT_COMMIT_OUTCOME_UNKNOWN_MANUAL_REVIEW');}
+   if(afterProposal?.operationId===operationId&&afterProposal.status==='APPLIED'&&
+      afterProposal.canonicalCommitVerified===true&&afterJournal?.stage==='COMMITTED'&&
+      afterJournal.operationId===operationId&&afterJournal.auditA===proposal.auditA&&afterJournal.auditB===proposal.auditB)
+    return {ok:true,committed:true,verifiedAfterUncertainResponse:true,operationId};
+   throw Error('SWAP_DIRECT_COMMIT_OUTCOME_UNKNOWN_MANUAL_REVIEW');
+  }
   if(!result.ok)return {ok:false,code:result.conflict?'SWAP_DIRECT_REVISION_CONFLICT':'SWAP_DIRECT_COMMIT_FAILED'};
   return {ok:true,committed:true,operationId,commitTime:result.commitTime,writeCount:result.writeCount};
  }

@@ -63,3 +63,53 @@ await assert.rejects(store.compareAndSet(second.operationId,latest.updateTime,{
 const disabledTransport=createSwapFirestoreDevTransport({project:'ams-test-dev',getToken:async()=>'token',
  fetchImpl:async()=>{throw Error('NO_NETWORK_BEFORE_CUTOVER');}});
 assert.deepEqual(await disabledTransport.propose({operationId:'op_12345678'}),{ok:false,code:'SWAP_DIRECT_PROPOSE_DISABLED'});
+
+
+const root='projects/ams-test-dev/databases/(default)/documents/';
+const today='2026-10-26T16:00:00Z';
+const canonical={
+ A:{status:'Accepted',assignedTo:'a@example.test',revision:'A-rev',plannedBlocks:[{date:'2026-11-01',start:'09:00',end:'10:00'}]},
+ B:{status:'Accepted',assignedTo:'b@example.test',revision:'B-rev',plannedBlocks:[{date:'2026-11-03',start:'11:00',end:'12:00'}]}
+};
+const availability={
+ A:{reservations:[{date:'2026-11-01',start:'09:00',end:'10:00',owner:'a@example.test'}]},
+ B:{reservations:[{date:'2026-11-03',start:'11:00',end:'12:00',owner:'b@example.test'}]}
+};
+let directWrites=0,directCreated=null;
+const directFetch=async(url,init={})=>{
+ if(url.endsWith('documents:batchGet')){
+  const documents=JSON.parse(init.body).documents;
+  return {ok:true,text:async()=>JSON.stringify(documents.map(name=>{
+   const parts=name.slice(root.length).split('/');
+   const payload=(parts[0]==='ams_swap20_dev_audits'?canonical:availability)[parts[1]];
+   return {found:{name,updateTime:today,fields:{payload:{stringValue:JSON.stringify(payload)}}}};
+  }))};
+ }
+ if(url.endsWith('/ams_swap20_dev_meta/reservation_fence'))
+  return {ok:true,json:async()=>({updateTime:today})};
+ if(url.includes('/ams_swap20_dev_proposals/')){
+  if(init.method!=='PATCH')throw Error('Unexpected proposal method');
+  directWrites++;
+  directCreated=JSON.parse(init.body).fields.payload.stringValue;
+  return {ok:true,json:async()=>({...JSON.parse(init.body),updateTime:today})};
+ }
+ throw Error('Unexpected direct request: '+url);
+};
+const liveIsolated=createSwapFirestoreDevTransport({
+ project:'ams-test-dev',getToken:async()=>'token',fetchImpl:directFetch,
+ enabled:true,canonicalCutoverVerified:true,expectedAvailabilityDocuments:20,
+ loadCompleteReservationIndex:async()=>({complete:true,documentCount:20,reservations:[]}),
+ resolveCanonicalAuditorUids:async()=>['auditor_111111','auditor_222222']
+});
+const created=await liveIsolated.propose({
+ operationId:'test_direct_12345678',auditA:'A',auditB:'B',
+ internalReason:'Controlled DEV fixture',ecasComment:'Date swap fixture',
+ actor:{role:'manager',email:'manager@example.test'}
+});
+assert.equal(created.ok,true);
+assert.equal(created.source,'firestore-direct');
+assert.equal(directWrites,1);
+const storedDirect=JSON.parse(directCreated);
+assert.equal(storedDirect.status,'AWAITING_ACKNOWLEDGEMENT');
+assert.deepEqual(storedDirect.requiredAuditorUids,['auditor_111111','auditor_222222']);
+assert.deepEqual(storedDirect.originalRevisions,{A:'A-rev',B:'B-rev'});

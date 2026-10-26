@@ -330,8 +330,10 @@ let swap20AuthorityUntil=0,swap20AuthorityInflight=null;
 async function swap20VerifyGasWriteAuthority(){
  if(Date.now()<swap20AuthorityUntil)return true;
  if(swap20AuthorityInflight)return swap20AuthorityInflight;
- const email=String(process.env.AMS_SWAP20_AUTHORITY_MANAGER_EMAIL||'').trim().toLowerCase();
- if(!/^\S+@\S+\.\S+$/.test(email))return false;
+ const roster=await swapRoster();
+ const manager=roster.find(row=>row.role==='manager'&&row.active&&/^\S+@\S+\.\S+$/.test(row.email||''));
+ const email=manager?.email||'';
+ if(!email)return false;
  swap20AuthorityInflight=(async()=>{
   const reply=await notificationGasCall({role:'manager',email},'writeAuthority',{},'externalswap20');
   if(reply?.ok!==true||reply.authority!=='FIRESTORE'||reply.firestoreExclusive!==true)

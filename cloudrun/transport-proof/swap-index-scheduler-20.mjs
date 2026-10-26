@@ -130,7 +130,14 @@ export function createSwapIndexScheduler({index,roster,gasCall,serviceEmail,audi
     if(!latest.has(p.operationId)||
        sourceFields.some(k=>JSON.stringify(p[k])!==JSON.stringify(latest.get(p.operationId)[k]))||
        currentJournal.has(p.operationId))return 'stale';
-    if(await readCanonicalProposal(p.operationId))return 'existing';
+    const prior=await readCanonicalProposal(p.operationId);
+    if(prior){
+     const actual=prior.proposal||prior;
+     if(actual.migrationState!=='STAGED_FROM_GAS'||actual.migrationVerified!==false||
+        sourceFields.some(k=>JSON.stringify(actual[k])!==JSON.stringify(p[k])))
+      throw Error('SWAP_STAGING_EXISTING_PARITY_MISMATCH');
+     return 'existing';
+    }
     const result=await stageCanonicalProposal({proposal:p,journalAbsentVerified:true});
     if(result?.ok===true&&result.staged===true){
      const record=await readCanonicalProposal(p.operationId);

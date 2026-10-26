@@ -13,6 +13,7 @@ function Swap20Store_read_(id){
  return raw?JSON.parse(raw):null;
 }
 function Swap20Store_create_(proposal){
+ Swap20_assertGasWriteAuthority_();
  if(!proposal||!proposal.operationId||!proposal.auditA||!proposal.auditB||proposal.auditA===proposal.auditB)throw new Error('Invalid swap proposal');
  if(!Array.isArray(proposal.requiredAuditorUids)||!proposal.requiredAuditorUids.length||!Array.isArray(proposal.acknowledgedAuditorUids)||proposal.acknowledgedAuditorUids.length)throw new Error('Invalid initial acknowledgements');
  if(proposal.status!=='AWAITING_ACKNOWLEDGEMENT'&&!(proposal.status==='CONFIRMED'&&proposal.dateChanged===false))throw new Error('Invalid initial proposal status');
@@ -28,6 +29,7 @@ function Swap20Store_create_(proposal){
  }finally{lock.releaseLock();}
 }
 function Swap20Store_transition_(operationId,expectedStatus,nextProposal,expectedSnapshot){
+ Swap20_assertGasWriteAuthority_();
  var key=Swap20Store_key_(operationId),lock=LockService.getScriptLock();
  if(!lock.tryLock(20000))throw new Error('Swap proposal store busy');
  try{

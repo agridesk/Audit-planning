@@ -151,3 +151,20 @@ await assert.rejects(noFreeze.propose({}),/SWAP_DIRECT_SHEETS_SOURCE_FREEZE_UNVE
 await assert.rejects(noFreeze.respond({}),/SWAP_DIRECT_SHEETS_SOURCE_FREEZE_UNVERIFIED/);
 await assert.rejects(noFreeze.getProposal({}),/SWAP_DIRECT_SHEETS_SOURCE_FREEZE_UNVERIFIED/);
 await assert.rejects(noFreeze.list({}),/SWAP_DIRECT_SHEETS_SOURCE_FREEZE_UNVERIFIED/);
+
+record=null;
+const stagedSource={...second,createdBy:'manager@example.test',createdAt:'2026-10-26T16:00:00Z',
+ status:'AWAITING_ACKNOWLEDGEMENT',acknowledgedAuditorUids:[],
+ originalRevisions:{A:'rA',B:'rB'},blocksA:[],blocksB:[]};
+await assert.rejects(store.stageFromGas({proposal:stagedSource,journalAbsentVerified:false}),
+ /SWAP_GAS_PROPOSAL_STAGING_SOURCE_INVALID/);
+assert.equal((await store.stageFromGas({proposal:stagedSource,journalAbsentVerified:true})).staged,true);
+const savedStage=(await store.read(stagedSource.operationId)).proposal;
+assert.equal(savedStage.migrationState,'STAGED_FROM_GAS');
+assert.equal(savedStage.migrationVerified,false);
+await assert.rejects(store.respond({operationId:stagedSource.operationId,decision:'ACKNOWLEDGE',actor:auditor,
+ authorizeAuditor:async()=> 'u1'}),/SWAP_DIRECT_STAGED_GAS_PROPOSAL_NOT_ACTIVE/);
+await assert.rejects(store.compareAndSet(stagedSource.operationId,record.updateTime,
+ {...savedStage,status:'CONFIRMED',acknowledgedAuditorUids:['u1','u2']},()=>true),
+ /SWAP_DIRECT_TRANSITION_REJECTED/);
+assert.equal((await store.stageFromGas({proposal:stagedSource,journalAbsentVerified:true})).conflict,true);

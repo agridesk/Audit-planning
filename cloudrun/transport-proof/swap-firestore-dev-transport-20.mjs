@@ -45,11 +45,11 @@ export function assessSwapFirestorePreviewReadiness({pair,availability,index,exp
  * Caller must obtain a complete, contemporaneous orphan snapshot from Sheets.
  */
 export function assessHistoricalOrphanIsolation({orphanSlots,targetBlocks,referenceDate}={}){
- const date=x=>typeof x==='string'&&/^\\d{4}-\\d{2}-\\d{2}$/.test(x)&&!Number.isNaN(Date.parse(x+'T12:00:00Z'))&&new Date(x+'T12:00:00Z').toISOString().slice(0,10)===x;
+ const date=x=>typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(x+'T12:00:00Z'))&&new Date(x+'T12:00:00Z').toISOString().slice(0,10)===x;
  if(!date(referenceDate)||!Array.isArray(orphanSlots)||!orphanSlots.length||!Array.isArray(targetBlocks)||!targetBlocks.length)
   return {isolated:false,readOnly:true,cutoverAuthorized:false,reason:'EVIDENCE_INCOMPLETE'};
  const bad=orphanSlots.some(s=>!date(s?.date)||typeof s?.owner!=='string'||!s.owner.includes('@')||
-  !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(s?.start||'')||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(s?.end||'')||
+  !/^([01]\d|2[0-3]):[0-5]\d$/.test(s?.start||'')||!/^([01]\d|2[0-3]):[0-5]\d$/.test(s?.end||'')||
   s.start>=s.end||s.date>=referenceDate);
  const targetsInvalid=targetBlocks.some(b=>!date(b?.date)||b.date<referenceDate);
  return {isolated:!bad&&!targetsInvalid,readOnly:true,cutoverAuthorized:false,

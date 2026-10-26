@@ -127,11 +127,12 @@ if(deltaApply){
  process.exit(0);
 }
 if(syncDrift){
- const permitted=new Set(['AUD_GrupoViverosLasCunas_HQ_1777531729329_38','AUD_MistralBonsai,S.L._HQ_1777531729397_52']);
+ const permitted=new Set(['AUD_GrupoViverosLasCunas_HQ_1777531729329_38','AUD_MistralBonsai,S.L._HQ_1777531729397_52','AUD_ViverosMedipalmS.A._HQ_1777531729583_96']);
  const delta=plan.writes.filter(w=>existing.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue);
  const unexpected=delta.filter(w=>!permitted.has(w.update.name.split('/').pop()));
  const missingRevision=delta.filter(w=>!existing.get(w.update.name)?.updateTime);
- if(unexpected.length||missingRevision.length||delta.length>4)throw Error('DEV_SYNC_UNEXPECTED_DELTA '+JSON.stringify({count:delta.length,unexpected:unexpected.map(w=>w.update.name.split('/').pop()),missingRevision:missingRevision.map(w=>w.update.name.split('/').pop())}));
+ const unexpectedFields=delta.filter(w=>{try{const before=JSON.parse(existing.get(w.update.name).fields.payload.stringValue),after=JSON.parse(w.update.fields.payload.stringValue);const keys=[...new Set([...Object.keys(before),...Object.keys(after)])].filter(k=>JSON.stringify(before[k])!==JSON.stringify(after[k]));return keys.length!==1||keys[0]!== (w.update.name.includes('/ams_swap20_dev_audits/')?'plannedBlocks':'reservations');}catch{return true;}});
+ if(unexpected.length||missingRevision.length||unexpectedFields.length||delta.length>4)throw Error('DEV_SYNC_UNEXPECTED_DELTA '+JSON.stringify({count:delta.length,unexpected:unexpected.map(w=>w.update.name.split('/').pop()),missingRevision:missingRevision.map(w=>w.update.name.split('/').pop()),unexpectedFields:unexpectedFields.map(w=>w.update.name.split('/').pop())}));
  if(delta.length===0){console.log(JSON.stringify({result:'DEV_DRIFT_ALREADY_SYNCED',documents:existing.size,cutoverAuthorized:false}));process.exit(0);}
  const fresh=buildSwapMigrationManifest({auditRows:await range('Audit planning'),availabilityRows:await range('Auditor Availability')});
  if(fresh.manifestHash!==manifest.manifestHash)throw Error('DEV_SYNC_SOURCE_CHANGED');

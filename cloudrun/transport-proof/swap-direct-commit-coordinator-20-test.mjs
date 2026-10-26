@@ -46,4 +46,8 @@ const uncertainVerified=createSwapDirectCommitCoordinator({...deps,enabled:true,
 const verified=await uncertainVerified.commit({operationId:proposal.operationId,actor});
 assert.equal(verified.verifiedAfterUncertainResponse,true);
 assert.equal(writes,1);
+const noncanonicalProposal=createSwapDirectCommitCoordinator({...deps,enabled:true,
+ readProposal:async()=>({...proposal,source:'gas-index-projection'})});
+await assert.rejects(noncanonicalProposal.commit({operationId:proposal.operationId,actor}),/SWAP_DIRECT_PROPOSAL_MIGRATION_REQUIRED/);
+assert.equal(writes,1);
 console.log('SWAP direct commit coordinator gate and atomic integration checks passed');

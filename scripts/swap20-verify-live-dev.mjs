@@ -1,8 +1,9 @@
 import {spawnSync} from 'node:child_process';
 const project='audit-management-system-dev',service='ams-transport-proof',region='europe-west1';
 function gcloud(args){
- const cmd=process.platform==='win32'?'gcloud.cmd':'gcloud';
- const r=spawnSync(cmd,args,{encoding:'utf8',timeout:45000,maxBuffer:2_000_000});
+ const cmd=process.platform==='win32'?'cmd.exe':'gcloud';
+ const cliArgs=process.platform==='win32'?['/d','/s','/c','gcloud '+args.join(' ')]:args;
+ const r=spawnSync(cmd,cliArgs,{encoding:'utf8',timeout:45000,maxBuffer:2_000_000});
  if(r.error||r.status!==0)throw Error('GCLOUD_READ_FAILED: '+String(r.stderr||r.error?.message||r.status).slice(0,350));
  return r.stdout;
 }

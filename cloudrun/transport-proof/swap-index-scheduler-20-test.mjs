@@ -52,3 +52,34 @@ const missingJournalReader=createSwapIndexScheduler({
  readCanonicalProposal:async()=>null
 });
 await assert.rejects(missingJournalReader.previewCanonicalMigration(),/SWAP_MIGRATION_SOURCE_READERS_UNAVAILABLE/);
+
+let stagingWrites=[],sourceReads=0;
+const historic={...migrationProposals[0],createdAt:'2026-10-26T16:00:00Z',createdBy:'manager@example.test'};
+const eligible={...historic,operationId:'SWAP20_test0002'};
+const isolatedStage=createSwapIndexScheduler({
+ index:{meta:async()=>null},serviceEmail:email,audience,
+ roster:async()=>[{role:'manager',email:'manager@example.test',auditorId:'manager-uid'}],
+ gasCall:async()=>{sourceReads++;return {ok:true,records:[historic,eligible]};},
+ readCanonicalProposal:async()=>null,
+ readJournalOperationIds:async()=>new Set([historic.operationId]),
+ stageCanonicalProposal:async input=>{stagingWrites.push(input);return {ok:true,staged:true};}
+});
+const stageResult=await isolatedStage.stageCanonicalProposals();
+assert.equal(stageResult.sourceProposals,2);
+assert.equal(stageResult.journalExcluded,1);
+assert.equal(stageResult.staged,1);
+assert.equal(stageResult.directWriteEnabled,false);
+assert.equal(stagingWrites[0].proposal.operationId,eligible.operationId);
+assert.equal(stagingWrites[0].journalAbsentVerified,true);
+assert.equal(sourceReads,2);
+const staleStage=createSwapIndexScheduler({
+ index:{meta:async()=>null},serviceEmail:email,audience,
+ roster:async()=>[{role:'manager',email:'manager@example.test',auditorId:'manager-uid'}],
+ gasCall:async()=>({ok:true,records:[eligible]}),
+ readCanonicalProposal:async()=>null,
+ readJournalOperationIds:(()=>{let count=0;return async()=>++count===1?new Set():new Set([eligible.operationId]);})(),
+ stageCanonicalProposal:async()=>{throw Error('MUST_NOT_STAGE_JOURNALLED_PROPOSAL');}
+});
+const staleResult=await staleStage.stageCanonicalProposals();
+assert.equal(staleResult.staged,0);
+assert.equal(staleResult.stale,1);

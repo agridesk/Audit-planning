@@ -1,5 +1,6 @@
 /** Canonical pair writer: preserves identity, lifecycle and auditor assignments. */
 function Swap20_writeCanonicalPairLocked_(before,proposal){
+ Swap20_assertGasWriteAuthority_();
  // Reverify immediately before canonical writes: other sheet clients do not
  // share this script lock, so this check cannot safely be eliminated.
  Swap20_verifyCanonicalBeforeImages_(before);

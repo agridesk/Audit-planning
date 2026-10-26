@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-const manager=fs.readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+const manager=fs.readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8').replace(/\r\n/g,'\n');
 const r10=fs.readFileSync(new URL('./server-r10.js',import.meta.url),'utf8');
 const r4=fs.readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const entry=fs.readFileSync(new URL('../../EntryV5.js',import.meta.url),'utf8');

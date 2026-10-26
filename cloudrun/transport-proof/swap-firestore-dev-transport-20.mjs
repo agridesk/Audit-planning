@@ -58,6 +58,10 @@ export function createSwapFirestoreDevTransport(options={}){
   if(typeof authorizeCanonicalAuditor!=='function')throw Error('SWAP_DIRECT_AUDITOR_DIRECTORY_UNAVAILABLE');
   return directProposalStore.respond({operationId,decision,actor,authorizeAuditor:authorizeCanonicalAuditor});
  };
+ const list=async({actor}={})=>{
+  if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_LIST_DISABLED'};
+  return directProposalStore.list({actor,authorizeAuditor:authorizeCanonicalAuditor});
+ };
  const getProposal=async({operationId,actor}={})=>{
   if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_GET_PROPOSAL_DISABLED'};
   if(actor?.role!=='manager'||!actor.email)throw Error('SWAP_DIRECT_MANAGER_UNAUTHORIZED');
@@ -79,7 +83,7 @@ export function createSwapFirestoreDevTransport(options={}){
   const [pair,availability]=await Promise.all([reader.readPair(ids),reader.readAvailability(ids)]);
   return buildSwapFirestoreReadOnlyPreview({pair,availability});
  };
- return Object.freeze({...reader,preview,propose,respond,getProposal,commit:coordinator.commit});
+ return Object.freeze({...reader,preview,propose,respond,getProposal,list,commit:coordinator.commit});
 }
 
 /** Read-only preview readiness check; no commit or routing authorization. */

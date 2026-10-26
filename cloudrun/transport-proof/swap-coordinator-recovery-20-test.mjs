@@ -5,7 +5,8 @@ const root=new URL('../../',import.meta.url);
 const p={operationId:'swap-12345678',auditA:'A',auditB:'B',status:'CONFIRMED',originalRevisions:{A:'ra',B:'rb'},blocksA:[{date:'2026-10-22',start:'09:00',end:'10:00'}],blocksB:[{date:'2026-10-21',start:'09:00',end:'10:00'}]};
 function fixture(failure){
  const events=[],journal=[];
- const ctx={Error,String,JSON,Array,Number,Math,PropertiesService:{getScriptProperties:()=>({getProperty:()=> 'DEV'})},
+ const ctx={
+ Swap20_assertGasWriteAuthority_:()=>{},Error,String,JSON,Array,Number,Math,PropertiesService:{getScriptProperties:()=>({getProperty:()=> 'DEV'})},
  Swap20Store_read_:()=>p,Swap20Journal_history_:()=>journal.slice(),
  Swap20Journal_encodePayload_:payload=>JSON.stringify(payload),
  PlanningWorkspacePlannedAuditReadService_get:({auditId})=>({auditorEmail:auditId==='A'?'a@x.com':'b@x.com',assignedTo:auditId==='A'?'a@x.com':'b@x.com'}),

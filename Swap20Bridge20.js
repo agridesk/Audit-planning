@@ -108,6 +108,11 @@ function Swap20Bridge20_handle_(body) {
  }
  if(operation==='preview')console.info('[SWAP20_PREVIEW_PHASE_PERF] '+JSON.stringify({phase:'managerAuthorized',ms:Date.now()-bridgeAuthStarted}));
  if(operation==='commit')console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:String(body.operationId||''),phase:'bridgeActorAuthorized',authMs:Date.now()-bridgeAuthStarted}));
+ if(operation==='writeAuthority'){
+  var authority=PropertiesService.getScriptProperties().getProperty('AMS_SWAP20_WRITE_AUTHORITY');
+  return {ok:true,readOnly:true,authority:authority==='FIRESTORE'?'FIRESTORE':'GAS',
+   firestoreExclusive:authority==='FIRESTORE'};
+ }
  if(operation==='listIndexSeed'){
   var properties=PropertiesService.getScriptProperties().getProperties();
   var ids=Object.keys(properties).filter(function(k){return k.indexOf('AMS_SWAP20_PROPOSAL_')===0;}).sort();

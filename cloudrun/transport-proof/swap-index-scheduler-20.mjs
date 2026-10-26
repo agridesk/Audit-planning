@@ -132,7 +132,14 @@ export function createSwapIndexScheduler({index,roster,gasCall,serviceEmail,audi
        currentJournal.has(p.operationId))return 'stale';
     if(await readCanonicalProposal(p.operationId))return 'existing';
     const result=await stageCanonicalProposal({proposal:p,journalAbsentVerified:true});
-    if(result?.ok===true&&result.staged===true)return 'staged';
+    if(result?.ok===true&&result.staged===true){
+     const record=await readCanonicalProposal(p.operationId);
+     const actual=record?.proposal||record;
+     if(!actual||actual.migrationState!=='STAGED_FROM_GAS'||actual.migrationVerified!==false||
+        sourceFields.some(k=>JSON.stringify(actual[k])!==JSON.stringify(p[k])))
+      throw Error('SWAP_STAGING_READBACK_MISMATCH');
+     return 'staged';
+    }
     if(result?.conflict===true)return 'existing';
     throw Error('SWAP_STAGING_WRITE_UNVERIFIED');
    }));

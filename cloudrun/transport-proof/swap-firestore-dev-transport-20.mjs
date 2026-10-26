@@ -6,8 +6,10 @@ import {resolveSwapFirestoreReservations} from './swap-firestore-reservation-pla
 import {createSwapFirestoreCanonicalReader} from './swap-firestore-canonical-reader-20.mjs';
 import {createSwapFirestoreAtomicWriter} from './swap-firestore-atomic-writer-20.mjs';
 import {createSwapDirectCommitCoordinator} from './swap-direct-commit-coordinator-20.mjs';
+import {createSwapDirectProposalStore} from './swap-direct-proposal-store-20.mjs';
+import {validateSwapCanonicalSchedule} from './swap-firestore-schedule-guard-20.mjs';
 export function createSwapFirestoreDevTransport(options={}){
- const {project,getToken,fetchImpl,authorize,loadCompleteReservationIndex,expectedAvailabilityDocuments,canonicalCutoverVerified=false,enabled=false}=options;
+ const {project,getToken,fetchImpl,authorize,loadCompleteReservationIndex,expectedAvailabilityDocuments,canonicalCutoverVerified=false,enabled=false,resolveCanonicalAuditorUids}=options;
  if(!/^[a-z][a-z0-9-]{4,62}-dev$/.test(project||''))throw Error('SWAP_DEV_PROJECT_REQUIRED');
  const reader=createSwapFirestoreCanonicalReader({project,getToken,fetchImpl});
  const writer=createSwapFirestoreAtomicWriter({project,getToken,fetchImpl});
@@ -20,13 +22,44 @@ export function createSwapFirestoreDevTransport(options={}){
   return {reservations,fenceRevision:fence.revision};
  };
  const coordinator=createSwapDirectCommitCoordinator({project,readProposal:reader.readProposal,readJournal:reader.readJournal,readPair:reader.readPair,readAvailability:reader.readAvailability,atomicWriter:writer,authorize,resolveFinalReservations,enabled:enabled===true&&canonicalCutoverVerified===true});
+ const directProposalStore=createSwapDirectProposalStore({project,getToken,fetchImpl});
+ const propose=async({operationId,auditA,auditB,internalReason,ecasComment,actor}={})=>{
+  if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_PROPOSE_DISABLED'};
+  if(actor?.role!=='manager'||!actor.email||typeof resolveCanonicalAuditorUids!=='function')
+   throw Error('SWAP_DIRECT_MANAGER_OR_AUDITOR_DIRECTORY_UNAVAILABLE');
+  if(!/^[A-Za-z0-9_-]{8,100}$/.test(operationId||'')||typeof internalReason!=='string'||
+     !internalReason.trim()||internalReason.length>500||typeof ecasComment!=='string'||
+     !ecasComment.trim()||ecasComment.length>1000)throw Error('SWAP_DIRECT_PROPOSAL_INPUT_INVALID');
+  const ids=[auditA,auditB];
+  const [pair,availability]=await Promise.all([reader.readPair(ids),reader.readAvailability(ids)]);
+  const draft=buildSwapFirestoreReadOnlyPreview({pair,availability});
+  if(!draft?.eligible||draft.dateChanged!==true)throw Error('SWAP_DIRECT_PAIR_NOT_ELIGIBLE');
+  const index=requireSwapIndexCoverage(await indexLoader({auditA,auditB}),expectedAvailabilityDocuments);
+  if(!index.complete)throw Error('SWAP_DIRECT_RESERVATIONS_INCOMPLETE');
+  const fence=await readFence();
+  if(!fence?.revision)throw Error('SWAP_DIRECT_RESERVATION_FENCE_INVALID');
+  const resolved=await resolveCanonicalAuditorUids({actor,owners:ids.map((id,i)=>pair[i].canonical.assignedTo),pair});
+  if(!Array.isArray(resolved)||resolved.length!==2||resolved.some(uid=>!/^([A-Za-z0-9_-]{8,128})$/.test(uid)))
+   throw Error('SWAP_DIRECT_CANONICAL_AUDITORS_UNVERIFIED');
+  const uids=[...new Set(resolved)];
+  const revisions={[auditA]:pair[0].canonical.revision,[auditB]:pair[1].canonical.revision};
+  const proposal={operationId,auditA,auditB,requiredAuditorUids:uids,acknowledgedAuditorUids:[],
+   createdBy:actor.email.toLowerCase(),createdAt:new Date().toISOString(),status:'AWAITING_ACKNOWLEDGEMENT',
+   reminderSentAt:null,escalatedAt:null,originalRevisions:revisions,
+   internalReason:internalReason.trim(),ecasComment:ecasComment.trim(),
+   blocksA:draft.afterA,blocksB:draft.afterB,dateChanged:true};
+  validateSwapCanonicalSchedule({proposal,pair});
+  const stored=await directProposalStore.create(proposal);
+  if(!stored.ok)return {ok:false,code:'SWAP_DIRECT_PROPOSAL_OPERATION_CONFLICT'};
+  return {ok:true,status:proposal.status,operationId,requiresAcknowledgement:true,source:'firestore-direct'};
+ };
  const preview=async({auditA,auditB}={})=>{
   if(typeof auditA!=='string'||typeof auditB!=='string'||!auditA||!auditB||auditA===auditB)return null;
   const ids=[auditA,auditB];
   const [pair,availability]=await Promise.all([reader.readPair(ids),reader.readAvailability(ids)]);
   return buildSwapFirestoreReadOnlyPreview({pair,availability});
  };
- return Object.freeze({...reader,preview,commit:coordinator.commit});
+ return Object.freeze({...reader,preview,propose,commit:coordinator.commit});
 }
 
 /** Read-only preview readiness check; no commit or routing authorization. */

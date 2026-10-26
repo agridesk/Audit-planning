@@ -360,7 +360,8 @@ async function swap20GasJournalInventory(){
 }
 const swap20Scheduler=swap20Index&&process.env.AMS_SWAP20_SCHEDULER_SA_EMAIL&&process.env.AMS_SWAP20_SCHEDULER_AUDIENCE?createSwapIndexScheduler({index:swap20Index,roster:swapRoster,gasCall:notificationGasCall,serviceEmail:process.env.AMS_SWAP20_SCHEDULER_SA_EMAIL,audience:process.env.AMS_SWAP20_SCHEDULER_AUDIENCE,
  readCanonicalProposal:operationId=>swap20MigrationProposalReader.read(operationId),
- readJournalOperationIds:swap20GasJournalInventory}):null;
+ readJournalOperationIds:swap20GasJournalInventory,
+ stageCanonicalProposal:input=>swap20MigrationProposalReader.stageFromGas(input)}):null;
 const swap20Lists=new Map();
 const swap20ListInflight=new Map();
 let swap20ListGeneration=0;
@@ -692,6 +693,15 @@ http.createServer(async(req,res)=>{
    const began=Date.now(),synced=await swap20Scheduler.reconcile();
    console.info('[SWAP20_INDEX_SCHEDULED_SYNC]',JSON.stringify({ok:true,records:synced.records,ms:Date.now()-began}));
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(synced));return;
+  }
+  if(req.method==='POST'&&u.pathname==='/api/v1/internal/swap20/stage-inactive-proposals'){
+   if(!runtime.isDev||!swap20Scheduler){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}
+   if(!await swap20Scheduler.verify(req.headers.authorization)){res.writeHead(403,{'cache-control':'no-store'});res.end('Forbidden');return;}
+   // Isolated staging ONLY. Active read/write routes never expose staged records.
+   const result=await swap20Scheduler.stageCanonicalProposals();
+   console.info('[SWAP20_STAGE_INACTIVE_PROPOSALS]',JSON.stringify(result));
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify(result));return;
   }
   if(req.method==='POST'&&u.pathname==='/api/v1/internal/swap20/proposal-migration-preflight'){
    if(!runtime.isDev||!swap20Scheduler){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}

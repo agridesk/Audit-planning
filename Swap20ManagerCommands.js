@@ -9,6 +9,7 @@ function Swap20ManagerCreateProposal(input){
  return Swap20ManagerCreateProposalAuthorized_(input,auth);
 }
 function Swap20ManagerCreateProposalAuthorized_(input,auth){
+ Swap20_assertGasWriteAuthority_();
  input=input||{};
  if(!auth||auth.ok!==true||!auth.email||auth.role&&String(auth.role).toLowerCase()!=='manager')throw Error('Manager authentication required');
  var a=String(input.auditA||'').trim(),b=String(input.auditB||'').trim();
@@ -39,6 +40,7 @@ function Swap20ManagerWithdrawProposal(input){
  return Swap20ManagerWithdrawProposalAuthorized_(input,auth);
 }
 function Swap20ManagerWithdrawProposalAuthorized_(input,auth){
+ Swap20_assertGasWriteAuthority_();
  input=input||{};
  if(!auth||auth.ok!==true||!auth.email||auth.role&&String(auth.role).toLowerCase()!=='manager')throw Error('Manager authentication required');
  var id=String(input.operationId||'').trim(),old=Swap20Store_read_(id);

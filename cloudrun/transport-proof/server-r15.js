@@ -324,7 +324,24 @@ async function notificationGasCallOnce(actor,operation,payload,gasAction){
 const swap20MirrorEnabled=runtime.isDev&&process.env.AMS_SWAP20_FIRESTORE_MIRROR_ENABLED==='true'&&process.env.AMS_SWAP20_PROPOSAL_INDEX_ENABLED!=='true';
 const swap20Mirror=swap20MirrorEnabled?createSwapFirestoreReadmodel({project,getToken}):null;
 const swap20IndexEnabled=runtime.isDev&&process.env.AMS_SWAP20_PROPOSAL_INDEX_ENABLED==='true';
-const swap20DirectTransport=runtime.isDev?createSwapFirestoreDevTransport({project,getToken,enabled:process.env.AMS_SWAP20_DIRECT_COMMIT_ENABLED==='true',canonicalCutoverVerified:process.env.AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED==='true',expectedAvailabilityDocuments:20,
+// Authenticated GAS authority attestation. The read is cached briefly to avoid
+// reintroducing full GAS latency on every direct Firestore mutation.
+let swap20AuthorityUntil=0,swap20AuthorityInflight=null;
+async function swap20VerifyGasWriteAuthority(){
+ if(Date.now()<swap20AuthorityUntil)return true;
+ if(swap20AuthorityInflight)return swap20AuthorityInflight;
+ const email=String(process.env.AMS_SWAP20_AUTHORITY_MANAGER_EMAIL||'').trim().toLowerCase();
+ if(!/^\S+@\S+\.\S+$/.test(email))return false;
+ swap20AuthorityInflight=(async()=>{
+  const reply=await notificationGasCall({role:'manager',email},'writeAuthority',{},'externalswap20');
+  if(reply?.ok!==true||reply.authority!=='FIRESTORE'||reply.firestoreExclusive!==true)
+   return false;
+  swap20AuthorityUntil=Date.now()+10000;
+  return true;
+ })().catch(()=>false).finally(()=>{swap20AuthorityInflight=null;});
+ return swap20AuthorityInflight;
+}
+const swap20DirectTransport=runtime.isDev?createSwapFirestoreDevTransport({project,getToken,enabled:process.env.AMS_SWAP20_DIRECT_COMMIT_ENABLED==='true',canonicalCutoverVerified:process.env.AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED==='true',expectedAvailabilityDocuments:20,verifySourceFreeze:swap20VerifyGasWriteAuthority,
  authorize:async(actor,operationId)=>actor?.role==='manager'&&Boolean(actor?.email)&&/^[A-Za-z0-9_-]{8,100}$/.test(operationId),
  resolveCanonicalAuditorUids:async({owners})=>{
   const roster=await swapRoster();

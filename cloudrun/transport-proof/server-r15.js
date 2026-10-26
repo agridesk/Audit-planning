@@ -383,6 +383,20 @@ async function swap20ReadList(actor){
  swap20ListInflight.set(key,call);
  return call;
 }
+async function swap20FastPreview(actor,data){
+ if(!runtime.isDev||process.env.AMS_SWAP20_FAST_PREVIEW_ENABLED!=='true'||!swap20DirectTransport)return null;
+ const started=Date.now();
+ try{
+  const result=await swap20DirectTransport.preview(data);
+  if(result?.ok===true){
+   console.info('[SWAP20_FAST_PREVIEW]',JSON.stringify({role:actor.role,source:'FIRESTORE_PROVISIONAL',ms:Date.now()-started,eligible:result.eligible===true}));
+   return result;
+  }
+ }catch(error){
+  console.warn('[SWAP20_FAST_PREVIEW_FALLBACK]',JSON.stringify({ms:Date.now()-started,code:String(error?.message||error).slice(0,100)}));
+ }
+ return null;
+}
 async function swap20FastProposalRead(actor,operationId){
  if(!runtime.isDev||process.env.AMS_SWAP20_FAST_PROPOSAL_READ_ENABLED!=='true'||!swap20Index)return null;
  try{
@@ -481,7 +495,9 @@ async function swap20ManagerRequest(req,res,operation){
  const swap20RequestStarted=Date.now();
  const result=operation==='listPending'
   ?await swap20ReadList(actor)
-  :operation==='getProposal'
+  :operation==='preview'
+   ?(await swap20FastPreview(actor,data))||await swap20GasOperation(actor,operation,data)
+   :operation==='getProposal'
    ?(await swap20FastProposalRead(actor,data.operationId))||await swap20GasOperation(actor,operation,data)
    :operation==='commit'&&swap20DirectReady&&process.env.AMS_SWAP20_DIRECT_ROUTE==='true'
    ?await swap20DirectTransport.commit({operationId:data.operationId,actor})

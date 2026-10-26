@@ -101,7 +101,7 @@ if(inspectOrphans){
    orphanSlots.push(slot);
   }
  }
- const valid=slot=>slot.owner.includes('@')&&/^\\d{4}-\\d{2}-\\d{2}$/.test(slot.date)&&/^([01]\\d|2[0-3]):[0-5]\\d$/.test(slot.start)&&/^([01]\\d|2[0-3]):[0-5]\\d$/.test(slot.end)&&slot.start<slot.end;
+ const valid=slot=>slot.owner.includes('@')&&/^\\d{4}-\\d{2}-\\d{2}$/.test(slot.date)&&/^([01]\d|2[0-3]):[0-5]\d$/.test(slot.start)&&/^([01]\d|2[0-3]):[0-5]\d$/.test(slot.end)&&slot.start<slot.end;
  const impacts=orphanSlots.map(slot=>({sheetRow:slot.row,valid:valid(slot),affectedAudits:valid(slot)?partition.eligible.filter(a=>a.assignedTo===slot.owner&&a.reservations.some(r=>r.date===slot.date&&r.start<slot.end&&slot.start<r.end)).map(a=>a.auditId):[]}));
  console.log(JSON.stringify({result:'DEV_ORPHAN_IMPACT',orphanCount:partition.orphanReservations.length,slotsAnalyzed:orphanSlots.length,impacts,unresolved:true,cutoverAuthorized:false}));
  return;

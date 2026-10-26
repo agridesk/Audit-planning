@@ -31,6 +31,11 @@ assert.doesNotMatch(ui,/finally\{busy=false;apply\.disabled=false;\}/);
 assert.match(ui,/managerSwap20InboxDialog/);
 assert.match(server,/\/api\/v1\/manager\/swap20\/list/);
 assert.match(ui,/gridSelected\.size!==2/);
+assert.match(server,/\/api\/v1\/manager\/swap20\/eligible/);
+assert.match(ui,/swap20EligibleAuditIds/);
+assert.match(ui,/swap20LoadEligibleAuditIds/);
+assert.match(ui,/selected\.some\(function\(r\)\{return !swap20EligibleAuditIds\.has/);
+
 assert.match(ui,/String\(r\.statusKey\|\|""\)\.toUpperCase\(\)!=="ACCEPTED"/);
 assert.match(ui,/\/api\/v1\/manager\/swap20\//);
 assert.match(ui,/swap20InternalReason/);

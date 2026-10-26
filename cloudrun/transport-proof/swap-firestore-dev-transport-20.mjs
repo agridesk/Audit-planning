@@ -27,11 +27,14 @@ export function createSwapFirestoreDevTransport(options={}){
 export function assessSwapFirestorePreviewReadiness({pair,availability,index,expectedDocuments=20,orphanReservationsUnresolved=true}={}){
  const reasons=[];
  if(!Array.isArray(pair)||pair.length!==2||!Array.isArray(availability)||availability.length!==2)reasons.push('PAIR_INVALID');
- else for(let i=0;i<2;i++){
+ else {
+ if(!pair[0]?.auditId||pair[0].auditId===pair[1]?.auditId)reasons.push('PAIR_ID_INVALID');
+ for(let i=0;i<2;i++){
   const audit=pair[i],av=availability[i];
   if(audit?.source!=='firestore-canonical'||av?.source!=='firestore-canonical'||audit?.auditId!==av?.auditId)reasons.push('PAIR_SOURCE_INVALID');
   if(audit?.canonical?.status!=='Accepted'||!Array.isArray(audit?.canonical?.plannedBlocks)||!audit.canonical.plannedBlocks.length)reasons.push('AUDIT_NOT_ACCEPTED');
   if(!Array.isArray(av?.reservations)||!av.reservations.length)reasons.push('AVAILABILITY_INCOMPLETE');
+ }
  }
  if(index?.complete!==true||index?.documentCount!==expectedDocuments)reasons.push('RESERVATION_COVERAGE_UNVERIFIED');
  if(orphanReservationsUnresolved!==false)reasons.push('ORPHAN_RESERVATIONS_UNRESOLVED');

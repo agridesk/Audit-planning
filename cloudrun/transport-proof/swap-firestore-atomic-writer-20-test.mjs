@@ -29,4 +29,8 @@ console.log('SWAP Firestore atomic commit guard tests passed');
 
 await assert.rejects(writer.commit({operationId:'swap_12345678',writes:[writes[0],writes[1],writes[2],writes[3],update('unrelated_collection/X',{updateTime:'2026-10-25T00:00:00Z'})]}),/SWAP_ATOMIC_COLLECTION_FORBIDDEN/);
 
-await assert.rejects(writer.commit({operationId:'swap_12345678',writes:[...writes,update('ams_swap20_dev_audits/A/extra/nested',{updateTime:'2026-10-25T00:00:00Z'})]}),/SWAP_ATOMIC_DOCUMENT_PATH_INVALID/);
+await assert.rejects(writer.commit({operationId:'swap_12345678',writes:[...writes,update('ams_swap20_dev_audits/A/extra/nested',{updateTime:'2026-10-25T00:00:00Z'})]}),/SWAP_ATOMIC_WRITES_INVALID/);
+
+mode=200;
+const punctuated=writes.map((w,i)=>i===0?update('ams_swap20_dev_audits/Audit,Example.S.L.',{updateTime:'2026-10-25T00:00:00Z'}):w);
+assert.equal((await writer.commit({operationId:'swap_12345678',writes:punctuated})).ok,true);

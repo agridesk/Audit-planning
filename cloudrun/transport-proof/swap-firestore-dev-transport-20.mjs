@@ -9,7 +9,7 @@ import {createSwapDirectCommitCoordinator} from './swap-direct-commit-coordinato
 import {createSwapDirectProposalStore} from './swap-direct-proposal-store-20.mjs';
 import {validateSwapCanonicalSchedule} from './swap-firestore-schedule-guard-20.mjs';
 export function createSwapFirestoreDevTransport(options={}){
- const {project,getToken,fetchImpl,authorize,loadCompleteReservationIndex,expectedAvailabilityDocuments,canonicalCutoverVerified=false,enabled=false,resolveCanonicalAuditorUids}=options;
+ const {project,getToken,fetchImpl,authorize,loadCompleteReservationIndex,expectedAvailabilityDocuments,canonicalCutoverVerified=false,enabled=false,resolveCanonicalAuditorUids,authorizeCanonicalAuditor}=options;
  if(!/^[a-z][a-z0-9-]{4,62}-dev$/.test(project||''))throw Error('SWAP_DEV_PROJECT_REQUIRED');
  const reader=createSwapFirestoreCanonicalReader({project,getToken,fetchImpl});
  const writer=createSwapFirestoreAtomicWriter({project,getToken,fetchImpl});
@@ -53,13 +53,18 @@ export function createSwapFirestoreDevTransport(options={}){
   if(!stored.ok)return {ok:false,code:'SWAP_DIRECT_PROPOSAL_OPERATION_CONFLICT'};
   return {ok:true,status:proposal.status,operationId,requiresAcknowledgement:true,source:'firestore-direct'};
  };
+ const respond=async({operationId,decision,actor}={})=>{
+  if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_RESPOND_DISABLED'};
+  if(typeof authorizeCanonicalAuditor!=='function')throw Error('SWAP_DIRECT_AUDITOR_DIRECTORY_UNAVAILABLE');
+  return directProposalStore.respond({operationId,decision,actor,authorizeAuditor:authorizeCanonicalAuditor});
+ };
  const preview=async({auditA,auditB}={})=>{
   if(typeof auditA!=='string'||typeof auditB!=='string'||!auditA||!auditB||auditA===auditB)return null;
   const ids=[auditA,auditB];
   const [pair,availability]=await Promise.all([reader.readPair(ids),reader.readAvailability(ids)]);
   return buildSwapFirestoreReadOnlyPreview({pair,availability});
  };
- return Object.freeze({...reader,preview,propose,commit:coordinator.commit});
+ return Object.freeze({...reader,preview,propose,respond,commit:coordinator.commit});
 }
 
 /** Read-only preview readiness check; no commit or routing authorization. */

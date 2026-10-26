@@ -150,8 +150,7 @@ function Swap20Bridge20_handle_(body) {
   return {ok:false,error:'SWAP_OPERATION_NOT_SUPPORTED'};
  var a=Swap20Bridge20_auditId_(body.auditA),b=Swap20Bridge20_auditId_(body.auditB);
  if(a===b)throw Error('SWAP_PAIR_NOT_DISTINCT');
- var preview=Swap20Bridge20_preview_(a,b);
- if(operation==='preview'||preview.eligible!==true)return preview;
+ if(operation==='preview')return Swap20Bridge20_preview_(a,b);
  var internalReason=String(body.internalReason||'').trim(),ecasComment=String(body.ecasComment||'').trim();
  if(!internalReason||!ecasComment||internalReason.length>500||ecasComment.length>1000)
   return {ok:false,error:'SWAP_REASONS_REQUIRED'};
@@ -172,7 +171,7 @@ function Swap20Bridge20_handle_(body) {
   internalReason:internalReason,ecasComment:ecasComment
  },manager);
  return Swap20Bridge20_mirrorEvent_({ok:out.success===true,operationId:out.operationId,status:out.status,
-  requiresAcknowledgement:preview.requiresAcknowledgement===true,canonicalChanged:false},out.operationId);
+  requiresAcknowledgement:out.status==='AWAITING_ACKNOWLEDGEMENT',canonicalChanged:false},out.operationId);
 }
 
 // Auditor portal SWAP inbox, restricted to the authenticated canonical UID.

@@ -29,7 +29,7 @@ function Swap20Bridge20_actor_(email,expectedRole) {
  var trustedUid='';
  if(expectedRole==='auditor'){
   var uidCol=ix(['auditoruid','auditoruuid','uid','uuid']);
-  if(uidCol<0)throw Error('SWAP_CANONICAL_AUDITOR_UID_COLUMN_MISSING');
+  if(uidCol>=0){
   var activeEmail={},activeUid={};
   data.slice(1).forEach(function(row){
    if(!['YES','TRUE','1','ACTIVE'].includes(String(row[active]||'').trim().toUpperCase()))return;
@@ -39,10 +39,11 @@ function Swap20Bridge20_actor_(email,expectedRole) {
    activeEmail[em]=uid;activeUid[uid]=em;
   });
   trustedUid=activeEmail[email]||'';
-  if(!trustedUid||!/^[A-Za-z0-9_-]{8,128}$/.test(trustedUid))throw Error('SWAP_CANONICAL_AUDITOR_UID_INVALID');
+  if(trustedUid&&!/^[A-Za-z0-9_-]{8,128}$/.test(trustedUid))throw Error('SWAP_CANONICAL_AUDITOR_UID_INVALID');
+  }
  }
  return {ok:true,email:email,role:expectedRole==='manager'?'Manager':'Auditor',
-  swap20VerifiedUid:trustedUid,swap20UidVerifiedByBridge:expectedRole==='auditor'};
+  swap20VerifiedUid:trustedUid,swap20UidVerifiedByBridge:expectedRole==='auditor'&&Boolean(trustedUid)};
 }
 function Swap20Bridge20_manager_(email){return Swap20Bridge20_actor_(email,'manager');}
 function Swap20Bridge20_auditor_(email){return Swap20Bridge20_actor_(email,'auditor');}

@@ -1,5 +1,5 @@
 /** DEV SWAP Firestore reconciliation. Requires verified Cloud Scheduler OIDC. */
-export function createSwapIndexScheduler({index,roster,gasCall,serviceEmail,audience,fetchImpl=fetch,now=Date.now}={}){
+export function createSwapIndexScheduler({index,roster,gasCall,serviceEmail,audience,readCanonicalProposal,readJournalOperationIds,fetchImpl=fetch,now=Date.now}={}){
  if(!index||typeof roster!=='function'||typeof gasCall!=='function')throw Error('SWAP_SCHEDULER_DEPENDENCIES');
  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(serviceEmail||'')||!/^https:\/\/[^/]+$/.test(audience||''))throw Error('SWAP_SCHEDULER_CONFIG');
  async function verify(auth){
@@ -23,5 +23,55 @@ export function createSwapIndexScheduler({index,roster,gasCall,serviceEmail,audi
   if(!updated)throw Error('SWAP_SCHEDULER_RECONCILIATION_BUSY');
   return {ok:true,records:seed.records.length};
  }
- return Object.freeze({verify,reconcile});
+ async function previewCanonicalMigration(){
+  if(typeof readCanonicalProposal!=='function'||typeof readJournalOperationIds!=='function')
+   throw Error('SWAP_MIGRATION_SOURCE_READERS_UNAVAILABLE');
+  const records=await roster();
+  const manager=records.find(x=>x.role==='manager'&&x.email&&x.auditorId);
+  if(!manager)throw Error('SWAP_MIGRATION_NO_TRUSTED_MANAGER');
+  // This source reads GAS ScriptProperties, not the incomplete read index.
+  const seed=await gasCall({role:'manager',email:manager.email,auditorId:manager.auditorId},
+   'listIndexSeed',{},'externalswap20');
+  if(seed?.ok!==true||!Array.isArray(seed.records)||seed.records.length>300)
+   throw Error('SWAP_MIGRATION_GAS_SEED_UNAVAILABLE');
+  const ids=new Set();
+  const sourceProblems=[];
+  const all=seed.records;
+  for(const p of all){
+   if(!p||!/^[A-Za-z0-9_-]{8,100}$/.test(String(p.operationId||''))||
+      ids.has(p.operationId)||!p.auditA||!p.auditB||p.auditA===p.auditB||
+      !p.originalRevisions?.[p.auditA]||!p.originalRevisions?.[p.auditB]||
+      !Array.isArray(p.blocksA)||!Array.isArray(p.blocksB)||
+      !Array.isArray(p.requiredAuditorUids)||!p.requiredAuditorUids.length||
+      !Array.isArray(p.acknowledgedAuditorUids)||!p.status)
+    sourceProblems.push(String(p?.operationId||'INVALID').slice(0,100));
+   else ids.add(p.operationId);
+  }
+  if(sourceProblems.length)throw Error('SWAP_MIGRATION_GAS_CANONICAL_PROPOSAL_INVALID_'+sourceProblems.length);
+  const journalled=await readJournalOperationIds();
+  if(!(journalled instanceof Set))throw Error('SWAP_MIGRATION_JOURNAL_INVENTORY_INVALID');
+  let firestoreMissing=0,firestoreMatched=0,firestoreConflict=0,journalledProposals=0;
+  const sourceStatus={};
+  for(let i=0;i<all.length;i+=8){
+   const batch=all.slice(i,i+8);
+   const results=await Promise.all(batch.map(p=>readCanonicalProposal(p.operationId)));
+   for(let j=0;j<batch.length;j++){
+    const p=batch[j],found=results[j];
+    sourceStatus[p.status]=(sourceStatus[p.status]||0)+1;
+    if(journalled.has(p.operationId))journalledProposals++;
+    if(!found){firestoreMissing++;continue;}
+    const snapshot=found.proposal||found;
+    const fields=['operationId','auditA','auditB','status','originalRevisions',
+     'requiredAuditorUids','acknowledgedAuditorUids','blocksA','blocksB','dateChanged'];
+    if(fields.every(key=>JSON.stringify(snapshot[key])===JSON.stringify(p[key])))firestoreMatched++;
+    else firestoreConflict++;
+   }
+  }
+  return {ok:true,result:'SWAP_CANONICAL_PROPOSAL_MIGRATION_PREFLIGHT',dryRun:true,
+   gasProposalCount:all.length,gasStatusCounts:sourceStatus,
+   firestoreMissing,firestoreMatched,firestoreConflict,
+   gasJournalledProposalCount:journalledProposals,gasJournalOperationCount:journalled.size,
+   sourceFreezeVerified:false,cutoverAuthorized:false};
+ }
+ return Object.freeze({verify,reconcile,previewCanonicalMigration});
 }

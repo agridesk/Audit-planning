@@ -23,6 +23,11 @@ export function createSwapDirectCommitCoordinator({project,readProposal,readJour
   }
   if(!proposal||proposal.operationId!==operationId||proposal.status!=='CONFIRMED')
    throw Error('SWAP_DIRECT_PROPOSAL_NOT_CONFIRMED');
+  // A pre-existing journal indicates an attempted or uncertain operation.
+  // Never start a second write, even if the proposal still says CONFIRMED.
+  const priorJournal=await readJournal(operationId);
+  if(priorJournal!==null&&priorJournal!==undefined)
+   throw Error('SWAP_DIRECT_JOURNAL_ALREADY_EXISTS');
   const ids=[proposal.auditA,proposal.auditB];
   const [pair,availability]=await Promise.all([readPair(ids),readAvailability(ids)]);
   if(pair.some(row=>row?.source!=='firestore-canonical')||

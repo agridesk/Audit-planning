@@ -88,6 +88,7 @@ const directFetch=async(url,init={})=>{
  if(url.endsWith('/ams_swap20_dev_meta/reservation_fence'))
   return {ok:true,json:async()=>({updateTime:today})};
  if(url.includes('/ams_swap20_dev_proposals/')){
+  if(!init.method||init.method==='GET')return directCreated?{ok:true,json:async()=>({fields:{payload:{stringValue:directCreated}},updateTime:today})}:{ok:false,status:404};
   if(init.method!=='PATCH')throw Error('Unexpected proposal method');
   directWrites++;
   directCreated=JSON.parse(init.body).fields.payload.stringValue;
@@ -99,7 +100,8 @@ const liveIsolated=createSwapFirestoreDevTransport({
  project:'ams-test-dev',getToken:async()=>'token',fetchImpl:directFetch,authorize:async()=>true,
  enabled:true,canonicalCutoverVerified:true,expectedAvailabilityDocuments:20,
  loadCompleteReservationIndex:async()=>({complete:true,documentCount:20,reservations:[]}),
- resolveCanonicalAuditorUids:async()=>['auditor_111111','auditor_222222']
+ resolveCanonicalAuditorUids:async()=>['auditor_111111','auditor_222222'],
+ authorizeCanonicalAuditor:async actor=>actor?.email==='a@example.test'?'auditor_111111':actor?.email==='b@example.test'?'auditor_222222':null
 });
 const created=await liveIsolated.propose({
  operationId:'test_direct_12345678',auditA:'A',auditB:'B',
@@ -113,3 +115,11 @@ const storedDirect=JSON.parse(directCreated);
 assert.equal(storedDirect.status,'AWAITING_ACKNOWLEDGEMENT');
 assert.deepEqual(storedDirect.requiredAuditorUids,['auditor_111111','auditor_222222']);
 assert.deepEqual(storedDirect.originalRevisions,{A:'A-rev',B:'B-rev'});
+
+const directFirst=await liveIsolated.respond({operationId:'test_direct_12345678',decision:'ACKNOWLEDGE',actor:{role:'auditor',email:'a@example.test'}});
+assert.equal(directFirst.status,'AWAITING_ACKNOWLEDGEMENT');
+const directSecond=await liveIsolated.respond({operationId:'test_direct_12345678',decision:'ACKNOWLEDGE',actor:{role:'auditor',email:'b@example.test'}});
+assert.equal(directSecond.status,'CONFIRMED');
+assert.equal(JSON.parse(directCreated).status,'CONFIRMED');
+assert.equal(directWrites,3);
+assert.deepEqual(await disabledTransport.respond({operationId:'test_direct_12345678'}),{ok:false,code:'SWAP_DIRECT_RESPOND_DISABLED'});

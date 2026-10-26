@@ -84,4 +84,4 @@ const staleResult=await staleStage.stageCanonicalProposals();
 assert.equal(staleResult.staged,0);
 assert.equal(staleResult.stale,1);
 
-assert.match(server,/SWAP20_LEGACY_JOURNAL_ARCHIVE/);
+assert.match(readFileSync(new URL('./swap-index-scheduler-20.mjs',import.meta.url),'utf8'),/SWAP20_LEGACY_JOURNAL_ARCHIVE/);

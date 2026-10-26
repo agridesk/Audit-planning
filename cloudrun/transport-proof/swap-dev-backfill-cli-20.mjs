@@ -108,7 +108,7 @@ if(repairAvailability){
  if(!batchResponse.ok)throw Error('SWAP_DEV_REPAIR_BATCHGET_'+batchResponse.status);
  const batchText=await batchResponse.text();
  let results;
- try{results=JSON.parse(batchText);}catch{results=batchText.trim().split(/\\r?\\n/).filter(Boolean).map(line=>JSON.parse(line));}
+ try{results=JSON.parse(batchText);}catch{results=batchText.trim().split(/\r?\n/).filter(Boolean).map(line=>JSON.parse(line));}
  if(!Array.isArray(results))results=[results];
  if(results.length!==2)throw Error('SWAP_DEV_REPAIR_BATCHGET_INCOMPLETE');
  const found=results.filter(x=>x.found).map(x=>x.found);

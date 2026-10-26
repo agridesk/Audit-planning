@@ -169,3 +169,12 @@ await assert.rejects(store.compareAndSet(stagedSource.operationId,record.updateT
  {...savedStage,status:'CONFIRMED',acknowledgedAuditorUids:['u1','u2']},()=>true),
  /SWAP_DIRECT_TRANSITION_REJECTED/);
 assert.equal((await store.stageFromGas({proposal:stagedSource,journalAbsentVerified:true})).conflict,true);
+
+record=null;
+const withdrawProposal={...proposal,operationId:'swap_withdraw_1234'};
+assert.equal((await store.create(withdrawProposal)).ok,true);
+const manager={role:'manager',email:'manager@example.test'};
+assert.equal((await store.withdraw({operationId:withdrawProposal.operationId,actor:manager})).status,'WITHDRAWN');
+assert.equal((await store.withdraw({operationId:withdrawProposal.operationId,actor:manager})).idempotent,true);
+assert.equal((await store.read(withdrawProposal.operationId)).proposal.status,'WITHDRAWN');
+await assert.rejects(store.withdraw({operationId:withdrawProposal.operationId,actor:{role:'auditor',email:'a@example.test'}}),/WITHDRAW_UNAUTHORIZED/);

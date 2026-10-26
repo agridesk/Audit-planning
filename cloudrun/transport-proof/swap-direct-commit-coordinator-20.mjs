@@ -25,6 +25,10 @@ export function createSwapDirectCommitCoordinator({project,readProposal,readJour
    throw Error('SWAP_DIRECT_PROPOSAL_NOT_CONFIRMED');
   // A pre-existing journal indicates an attempted or uncertain operation.
   // Never start a second write, even if the proposal still says CONFIRMED.
+  // Commit is not authoritative until the proposal and its GAS journal have
+  // been migrated together. An index projection cannot replace that proof.
+  if(proposal.source!=='firestore-canonical'||!proposal.updateTime)
+   throw Error('SWAP_DIRECT_PROPOSAL_MIGRATION_REQUIRED');
   const priorJournal=await readJournal(operationId);
   if(priorJournal!==null&&priorJournal!==undefined)
    throw Error('SWAP_DIRECT_JOURNAL_ALREADY_EXISTS');

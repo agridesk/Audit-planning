@@ -24,7 +24,7 @@ export function validateSwapCanonicalSchedule({proposal,pair}={}){
   const after=final[i];
   if(!Array.isArray(before)||!Array.isArray(after)||!before.length||before.length!==after.length)
    throw Error('SWAP_SCHEDULE_BLOCK_COUNT');
-  if(String(proposal.originalRevisions[ids[i]])!==String(pair[i].updateTime||pair[i].canonical.revision))
+  if(String(proposal.originalRevisions[ids[i]])!==String(pair[i].updateTime||'')&&String(proposal.originalRevisions[ids[i]])!==String(pair[i].canonical.revision||''))
    throw Error('SWAP_SCHEDULE_REVISION_CONFLICT');
   if(source.status!=='Accepted'&&pair[i].status!=='Accepted')throw Error('SWAP_SCHEDULE_STATUS_INVALID');
   if(source.status&&pair[i].status&&source.status!==pair[i].status)throw Error('SWAP_SCHEDULE_STATUS_MISMATCH');

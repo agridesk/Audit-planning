@@ -3,6 +3,7 @@
  * All before-images are journaled before any write.
  */
 function Swap20_executeLocked_(proposal,lockedHistory){
+ Swap20_assertGasWriteAuthority_();
  if(String(PropertiesService.getScriptProperties().getProperty('AMS_ENV')||'').toUpperCase()!=='DEV')throw Error('Swap writes restricted to DEV');
  if(!proposal||proposal.status!=='CONFIRMED')throw Error('Confirmed proposal required');
  if(proposal.dateChanged===true&&(!Array.isArray(proposal.requiredAuditorUids)||!proposal.requiredAuditorUids.length||!Array.isArray(proposal.acknowledgedAuditorUids)||proposal.requiredAuditorUids.some(function(uid){return proposal.acknowledgedAuditorUids.indexOf(uid)<0;})))throw Error('Swap auditor acknowledgements incomplete');

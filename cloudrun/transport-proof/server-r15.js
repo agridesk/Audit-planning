@@ -598,6 +598,10 @@ async function swap20AuditorRequest(req,res,operation){
    res.writeHead(400);res.end('INVALID_AUDITOR_SWAP_RESPONSE');return;
   }
  }
+ if(swap20DirectRequested&&!swap20DirectRouteEnabled){
+  res.writeHead(503,{'content-type':'application/json','cache-control':'no-store'});
+  res.end(JSON.stringify({ok:false,code:'SWAP_DIRECT_CUTOVER_NOT_READY'}));return;
+ }
  const swap20RequestStarted=Date.now();
  const result=operation==='listPending'
   ?(swap20DirectRouteEnabled?await swap20DirectTransport.list({actor}):await swap20ReadList(actor))

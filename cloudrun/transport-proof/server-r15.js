@@ -1,3 +1,4 @@
+import {createSwapLegacyJournalArchive,classifySwapLegacyJournal} from './swap-legacy-journal-archive-20.mjs';
 /** AMS DEV Availability 2.0 entrypoint. All existing R12 routes are preserved by proxy.
  * Enable only after Firestore IAM/database preflight and DEV-only deployment approval.
  */
@@ -345,6 +346,17 @@ const swap20DirectReady=Boolean(runtime.isDev&&swap20Index&&swap20CanonicalPropo
 const swap20DirectRouteEnabled=swap20DirectReady&&process.env.AMS_SWAP20_DIRECT_ROUTE==='true';
 
 const swap20MigrationProposalReader=runtime.isDev?createSwapDirectProposalStore({project,getToken}):null;
+const swap20LegacyArchive=runtime.isDev?createSwapLegacyJournalArchive({project,getToken}):null;
+async function swap20GasJournalFullRows(){
+ const range=encodeURIComponent("'AMS_Swap_20_Journal'!A2:E3000");
+ const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+range;
+ const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()},signal:AbortSignal.timeout(15000)});
+ if(!response.ok)throw Error('SWAP_LEGACY_JOURNAL_SOURCE_'+response.status);
+ const rows=(await response.json()).values||[];
+ if(rows.length>=2999)throw Error('SWAP_LEGACY_JOURNAL_TRUNCATED');
+ return rows;
+}
+
 async function swap20GasJournalInventory(){
  const range=encodeURIComponent("'AMS_Swap_20_Journal'!A2:C3000");
  const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+range;
@@ -361,7 +373,10 @@ async function swap20GasJournalInventory(){
 const swap20Scheduler=swap20Index&&process.env.AMS_SWAP20_SCHEDULER_SA_EMAIL&&process.env.AMS_SWAP20_SCHEDULER_AUDIENCE?createSwapIndexScheduler({index:swap20Index,roster:swapRoster,gasCall:notificationGasCall,serviceEmail:process.env.AMS_SWAP20_SCHEDULER_SA_EMAIL,audience:process.env.AMS_SWAP20_SCHEDULER_AUDIENCE,
  readCanonicalProposal:operationId=>swap20MigrationProposalReader.read(operationId),
  readJournalOperationIds:swap20GasJournalInventory,
- stageCanonicalProposal:input=>swap20MigrationProposalReader.stageFromGas(input)}):null;
+ stageCanonicalProposal:input=>swap20MigrationProposalReader.stageFromGas(input),
+ readHistoricalJournalRows:swap20GasJournalFullRows,
+ classifyHistoricalJournal:classifySwapLegacyJournal,
+ stageHistoricalJournal:input=>swap20LegacyArchive.stage(input)}):null;
 const swap20Lists=new Map();
 const swap20ListInflight=new Map();
 let swap20ListGeneration=0;

@@ -36,12 +36,16 @@ export function createSwapLegacyJournalArchive({project,getToken,fetchImpl=fetch
  const base='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(project)+'/databases/(default)/documents/ams_swap20_dev_legacy_journal/';
  const canonical=x=>JSON.stringify(x);
  async function stage(operation){
-  if(!operation?.terminal||!OP.test(operation.operationId)||!Array.isArray(operation.history)||!operation.history.length)
-   return {ok:false,code:'NONTERMINAL_NOT_ARCHIVED'};
+  if(!operation||!OP.test(operation.operationId)||!Array.isArray(operation.history)||!operation.history.length)
+   throw Error('SWAP_LEGACY_ARCHIVE_OPERATION_INVALID');
+  if(operation.terminal!==true&&operation.terminal!==false)
+   throw Error('SWAP_LEGACY_ARCHIVE_TERMINAL_STATE_UNVERIFIED');
   const url=new URL(base+encodeURIComponent(operation.operationId));
   const headers={authorization:'Bearer '+await getToken()};
   const existing=await fetchImpl(url.toString(),{headers,signal:AbortSignal.timeout(12000)});
-  const payload={...operation,archiveState:'HISTORICAL_INACTIVE',canonicalCommitVerified:false};
+  const payload={...operation,
+   archiveState:operation.terminal?'HISTORICAL_INACTIVE':'HISTORICAL_PENDING_REVIEW',
+   manualReviewRequired:!operation.terminal,canonicalCommitVerified:false};
   if(existing.ok){
    const doc=await existing.json(),found=JSON.parse(doc?.fields?.payload?.stringValue||'null');
    if(canonical(found)!==canonical(payload))throw Error('SWAP_LEGACY_ARCHIVE_EXISTING_MISMATCH');

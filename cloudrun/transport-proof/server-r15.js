@@ -511,7 +511,7 @@ async function swap20ManagerRequest(req,res,operation){
  }
  const swap20RequestStarted=Date.now();
  const result=operation==='listPending'
-  ?await swap20ReadList(actor)
+  ?(swap20DirectRouteEnabled?await swap20DirectTransport.list({actor}):await swap20ReadList(actor))
   :operation==='preview'
    ?(await swap20FastPreview(actor,data))||await swap20GasOperation(actor,operation,data)
    :operation==='propose'&&swap20DirectRouteEnabled
@@ -558,7 +558,7 @@ async function swap20AuditorRequest(req,res,operation){
  }
  const swap20RequestStarted=Date.now();
  const result=operation==='listPending'
-  ?await swap20ReadList(actor)
+  ?(swap20DirectRouteEnabled?await swap20DirectTransport.list({actor}):await swap20ReadList(actor))
   :operation==='respond'&&swap20DirectRouteEnabled
    ?await swap20DirectTransport.respond({...data,actor})
    :await swap20GasOperation(actor,operation,data);

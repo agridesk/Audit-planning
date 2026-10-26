@@ -76,8 +76,7 @@ export function createSwapFirestoreDevTransport(options={}){
   if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_GET_PROPOSAL_DISABLED'};
   await assertSourceFreeze();
   if(actor?.role!=='manager'||!actor.email)throw Error('SWAP_DIRECT_MANAGER_UNAUTHORIZED');
-  const proposal=await reader.readProposal(operationId);
-  const journal=await reader.readJournal(operationId);
+  const [proposal,journal]=await Promise.all([reader.readProposal(operationId),reader.readJournal(operationId)]);
   const stage=journal?.stage||'NOT_STARTED';
   const requiresManualReview=Boolean(journal&&stage!=='COMMITTED');
   return {ok:true,readOnly:true,operationId,status:proposal.status,

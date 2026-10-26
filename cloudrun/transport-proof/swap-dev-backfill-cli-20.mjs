@@ -22,7 +22,8 @@ const initFence=process.argv.includes('--init-fence');
 const syncDrift=process.argv.includes('--sync-drift');
 const deltaApply=process.argv.includes('--delta-apply');
 const inspectDelta=process.argv.includes('--inspect-delta');
-if([apply,verify,coverage,exceptions,liveTest,initFence,syncDrift,deltaApply,inspectDelta].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
+const inspectOrphans=process.argv.includes('--inspect-orphans');
+if([apply,verify,coverage,exceptions,liveTest,initFence,syncDrift,deltaApply,inspectDelta,inspectOrphans].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
 const locations=[process.env.GCLOUD_CMD,process.env.LOCALAPPDATA&&join(process.env.LOCALAPPDATA,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd'),process.env.PROGRAMFILES&&join(process.env.PROGRAMFILES,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd')].filter(Boolean);
 const executable=locations.find(existsSync)||(process.platform==='win32'?'gcloud.cmd':'gcloud');
 let token;
@@ -38,6 +39,28 @@ const range=async tab=>{const url='https://sheets.googleapis.com/v4/spreadsheets
 const [auditRows,availabilityRows]=await Promise.all([range('Audit planning'),range('Auditor Availability')]);
 const manifest=buildSwapMigrationManifest({auditRows,availabilityRows});
 const plan=planSwapMigrationBackfill({project,auditRows,availabilityRows,expectedManifestHash:manifest.manifestHash});
+if(inspectOrphans){
+ const partition=partitionSwapSheetMigration({auditRows,availabilityRows});
+ const vh=availabilityRows[0],ah=auditRows[0],idx=name=>vh.indexOf(name);
+ const date=idx('Date'),owner=idx('Auditor_Email'),idA=idx('Audit_ID_1'),idB=idx('Audit_ID_2');
+ const starts=[idx('First_Audit_Start_Time'),idx('Second_Audit_Start_Time')],ends=[idx('First_Audit_End_Time'),idx('Second_Audit_End_Time')];
+ if([date,owner,idA,idB,...starts,...ends].some(i=>i<0))throw Error('SWAP_ORPHAN_SCHEMA_INVALID');
+ const known=new Set(auditRows.slice(1).map(row=>String(row[ah.indexOf('Audit ID')]||'').trim()).filter(Boolean));
+ const orphanSlots=[];
+ for(let rowNumber=2;rowNumber<=availabilityRows.length;rowNumber++){
+  const row=availabilityRows[rowNumber-1]||[];
+  for(const [n,idCol] of [idA,idB].entries()){
+   const auditId=String(row[idCol]||'').trim();
+   if(!auditId||known.has(auditId))continue;
+   const slot={row:rowNumber,owner:String(row[owner]||'').trim().toLowerCase(),date:String(row[date]||'').trim(),start:String(row[starts[n]]||'').trim(),end:String(row[ends[n]]||'').trim()};
+   orphanSlots.push(slot);
+  }
+ }
+ const valid=slot=>slot.owner.includes('@')&&/^\\d{4}-\\d{2}-\\d{2}$/.test(slot.date)&&/^([01]\\d|2[0-3]):[0-5]\\d$/.test(slot.start)&&/^([01]\\d|2[0-3]):[0-5]\\d$/.test(slot.end)&&slot.start<slot.end;
+ const impacts=orphanSlots.map(slot=>({sheetRow:slot.row,valid:valid(slot),affectedAudits:valid(slot)?partition.eligible.filter(a=>a.assignedTo===slot.owner&&a.reservations.some(r=>r.date===slot.date&&r.start<slot.end&&slot.start<r.end)).map(a=>a.auditId):[]}));
+ console.log(JSON.stringify({result:'DEV_ORPHAN_IMPACT',orphanCount:partition.orphanReservations.length,slotsAnalyzed:orphanSlots.length,impacts,unresolved:true,cutoverAuthorized:false}));
+ process.exit(0);
+}
 if(exceptions){
  const p=partitionSwapSheetMigration({auditRows,availabilityRows});
  const accepted=p.quarantined.filter(x=>x.reason!=='NOT_ACCEPTED'&&x.reason!=='LEGACY_STATUS_UNRESOLVED').map(x=>({sheetRow:x.row,reason:x.reason}));

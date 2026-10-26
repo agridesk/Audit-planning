@@ -60,7 +60,7 @@ await assert.rejects(store.compareAndSet(second.operationId,latest.updateTime,{
  ...latest.proposal,status:'CONFIRMED',acknowledgedAuditorUids:['u2']
 },()=>true),/SWAP_DIRECT_TRANSITION_REJECTED/);
 
-const disabledTransport=createSwapFirestoreDevTransport({project:'ams-test-dev',getToken:async()=>'token',
+const disabledTransport=createSwapFirestoreDevTransport({project:'ams-test-dev',getToken:async()=>'token',authorize:async()=>true,
  fetchImpl:async()=>{throw Error('NO_NETWORK_BEFORE_CUTOVER');}});
 assert.deepEqual(await disabledTransport.propose({operationId:'op_12345678'}),{ok:false,code:'SWAP_DIRECT_PROPOSE_DISABLED'});
 
@@ -96,7 +96,7 @@ const directFetch=async(url,init={})=>{
  throw Error('Unexpected direct request: '+url);
 };
 const liveIsolated=createSwapFirestoreDevTransport({
- project:'ams-test-dev',getToken:async()=>'token',fetchImpl:directFetch,
+ project:'ams-test-dev',getToken:async()=>'token',fetchImpl:directFetch,authorize:async()=>true,
  enabled:true,canonicalCutoverVerified:true,expectedAvailabilityDocuments:20,
  loadCompleteReservationIndex:async()=>({complete:true,documentCount:20,reservations:[]}),
  resolveCanonicalAuditorUids:async()=>['auditor_111111','auditor_222222']

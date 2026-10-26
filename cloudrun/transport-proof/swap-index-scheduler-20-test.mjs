@@ -83,3 +83,5 @@ const staleStage=createSwapIndexScheduler({
 const staleResult=await staleStage.stageCanonicalProposals();
 assert.equal(staleResult.staged,0);
 assert.equal(staleResult.stale,1);
+
+assert.match(server,/SWAP20_LEGACY_JOURNAL_ARCHIVE/);

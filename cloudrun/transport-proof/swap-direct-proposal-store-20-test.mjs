@@ -77,7 +77,7 @@ const availability={
 };
 let directWrites=0,directCreated=null;
 const directFetch=async(url,init={})=>{
- if(url.endsWith('documents:batchGet')){
+ if(url.endsWith(':batchGet')){
   const documents=JSON.parse(init.body).documents;
   return {ok:true,text:async()=>JSON.stringify(documents.map(name=>{
    const parts=name.slice(root.length).split('/');

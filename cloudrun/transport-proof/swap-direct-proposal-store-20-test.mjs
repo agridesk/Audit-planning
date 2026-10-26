@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {createSwapDirectProposalStore} from './swap-direct-proposal-store-20.mjs';
+import {createSwapFirestoreDevTransport} from './swap-firestore-dev-transport-20.mjs';
 let record=null,version=0,writes=0;
 const fetchImpl=async(url,init)=>{
  const method=init.method||'GET',params=new URL(url).searchParams;
@@ -58,3 +59,7 @@ const latest=await store.read(second.operationId);
 await assert.rejects(store.compareAndSet(second.operationId,latest.updateTime,{
  ...latest.proposal,status:'CONFIRMED',acknowledgedAuditorUids:['u2']
 },()=>true),/SWAP_DIRECT_TRANSITION_REJECTED/);
+
+const disabledTransport=createSwapFirestoreDevTransport({project:'ams-test-dev',getToken:async()=>'token',
+ fetchImpl:async()=>{throw Error('NO_NETWORK_BEFORE_CUTOVER');}});
+assert.deepEqual(await disabledTransport.propose({operationId:'op_12345678'}),{ok:false,code:'SWAP_DIRECT_PROPOSE_DISABLED'});

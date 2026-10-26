@@ -31,7 +31,7 @@ export function createSwapFirestoreReservationIndex({project,getToken,fetchImpl=
     catch{throw Error('SWAP_INDEX_PAYLOAD_INVALID');}
     if(!record||!Array.isArray(record.reservations))throw Error('SWAP_INDEX_RESERVATIONS_INVALID');
     const auditId=document.name.split('/').pop();
-    if(!/^[^/\u0000-\u001f\u007f]{1,140}$/.test(auditId)&&auditId!=='.'&&auditId!=='..')throw Error('SWAP_INDEX_AUDIT_ID_INVALID');
+    if(!/^[^/\u0000-\u001f\u007f]{1,140}$/.test(auditId)||auditId==='.'||auditId==='..')throw Error('SWAP_INDEX_AUDIT_ID_INVALID');
     for(const reservation of record.reservations){
      if(!reservation||reservation.auditId!==auditId)throw Error('SWAP_INDEX_RESERVATION_ID_MISMATCH');
      if(typeof reservation.owner!=='string'||!reservation.owner.includes('@')||!/^\d{4}-\d{2}-\d{2}$/.test(reservation.date||'')||!/^([01]\d|2[0-3]):[0-5]\d$/.test(reservation.start||'')||!/^([01]\d|2[0-3]):[0-5]\d$/.test(reservation.end||''))throw Error('SWAP_INDEX_RESERVATION_SHAPE_INVALID');

@@ -42,7 +42,7 @@ assert.equal(preflight.dryRun,true);
 assert.equal(preflight.gasProposalCount,1);
 assert.equal(preflight.gasJournalledProposalCount,1);
 assert.equal(preflight.firestoreMissing,1);
-assert.equal(preflight.firestoneMatched,undefined);
+assert.equal(preflight.firestoreMatched,0);
 assert.equal(preflight.cutoverAuthorized,false);
 assert.equal(migrationReadCount,1);
 const missingJournalReader=createSwapIndexScheduler({

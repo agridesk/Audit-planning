@@ -11,7 +11,8 @@ const sheet={
  })
 };
 const props={V5_SSOT_SPREADSHEET_ID:'dev-id',AMS_ENV:'DEV'};
-const ctx={Error,String,Number,JSON,Date,Array,SpreadsheetApp:{openById:id=>({getSheetByName:()=>sheet}) ,flush:()=>{}},PropertiesService:{getScriptProperties:()=>({getProperty:k=>props[k]})},SWAP20_STORE_PREFIX_:'AMS_SWAP20_PROPOSAL_',Swap20Store_key_:id=>'AMS_SWAP20_PROPOSAL_'+id};
+const ctx={
+ Swap20_assertGasWriteAuthority_:()=>{},Error,String,Number,JSON,Date,Array,SpreadsheetApp:{openById:id=>({getSheetByName:()=>sheet}) ,flush:()=>{}},PropertiesService:{getScriptProperties:()=>({getProperty:k=>props[k]})},SWAP20_STORE_PREFIX_:'AMS_SWAP20_PROPOSAL_',Swap20Store_key_:id=>'AMS_SWAP20_PROPOSAL_'+id};
 runInNewContext(readFileSync(new URL('Swap20DurableJournal.js',root),'utf8'),ctx);
 assert.equal(ctx.Swap20Journal_appendLocked_('swap-journal-1',0,'PREPARED',{auditA:'A'}).sequence,1);
 assert.equal(ctx.Swap20Journal_appendLocked_('swap-journal-1',1,'WRITING',{auditB:'B'}).sequence,2);

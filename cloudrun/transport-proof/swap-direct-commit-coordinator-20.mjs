@@ -14,9 +14,10 @@ export function createSwapDirectCommitCoordinator({project,readProposal,readJour
   if(enabled!==true)return {ok:false,code:'SWAP_DIRECT_COMMIT_DISABLED'};
   if(!actor||actor.role!=='manager'||await authorize(actor,operationId)!==true)
    throw Error('SWAP_DIRECT_MANAGER_UNAUTHORIZED');
-  const proposal=await readProposal(operationId);
+  // Independent Firestore reads in one network round-trip window.
+  const [proposal,priorJournal]=await Promise.all([readProposal(operationId),readJournal(operationId)]);
   if(proposal?.operationId===operationId&&proposal.status==='APPLIED'&&proposal.canonicalCommitVerified===true){
-   const journal=await readJournal(operationId);
+   const journal=priorJournal;
    if(journal?.stage==='COMMITTED'&&journal.operationId===operationId&&journal.auditA===proposal.auditA&&journal.auditB===proposal.auditB)
     return {ok:true,committed:true,idempotent:true,operationId};
    throw Error('SWAP_DIRECT_APPLIED_JOURNAL_MISMATCH');
@@ -29,7 +30,6 @@ export function createSwapDirectCommitCoordinator({project,readProposal,readJour
   // been migrated together. An index projection cannot replace that proof.
   if(proposal.source!=='firestore-canonical'||!proposal.updateTime)
    throw Error('SWAP_DIRECT_PROPOSAL_MIGRATION_REQUIRED');
-  const priorJournal=await readJournal(operationId);
   if(priorJournal!==null&&priorJournal!==undefined)
    throw Error('SWAP_DIRECT_JOURNAL_ALREADY_EXISTS');
   const ids=[proposal.auditA,proposal.auditB];

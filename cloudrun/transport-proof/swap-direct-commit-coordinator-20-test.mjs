@@ -26,4 +26,12 @@ assert.equal((await conflict.commit({operationId:proposal.operationId,actor})).c
 const applied=createSwapDirectCommitCoordinator({...deps,enabled:true,readProposal:async()=>({...proposal,status:'APPLIED',canonicalCommitVerified:true}),readJournal:async()=>({stage:'COMMITTED',operationId:proposal.operationId,auditA:'A',auditB:'B'})});
 assert.equal((await applied.commit({operationId:proposal.operationId,actor})).idempotent,true);
 assert.equal(writes,1);
+const journalPresent=createSwapDirectCommitCoordinator({...deps,enabled:true,
+ readJournal:async()=>({operationId:proposal.operationId,stage:'WRITING'})});
+await assert.rejects(journalPresent.commit({operationId:proposal.operationId,actor}),/SWAP_DIRECT_JOURNAL_ALREADY_EXISTS/);
+assert.equal(writes,1);
+const journalUncertain=createSwapDirectCommitCoordinator({...deps,enabled:true,
+ readJournal:async()=>({operationId:proposal.operationId,stage:'FAILED'})});
+await assert.rejects(journalUncertain.commit({operationId:proposal.operationId,actor}),/SWAP_DIRECT_JOURNAL_ALREADY_EXISTS/);
+assert.equal(writes,1);
 console.log('SWAP direct commit coordinator gate and atomic integration checks passed');

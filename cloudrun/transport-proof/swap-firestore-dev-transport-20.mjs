@@ -69,12 +69,10 @@ export function createSwapFirestoreDevTransport(options={}){
  };
  const list=async({actor}={})=>{
   if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_LIST_DISABLED'};
-  await assertSourceFreeze();
   return directProposalStore.list({actor,authorizeAuditor:authorizeCanonicalAuditor});
  };
  const getProposal=async({operationId,actor}={})=>{
   if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_GET_PROPOSAL_DISABLED'};
-  await assertSourceFreeze();
   if(actor?.role!=='manager'||!actor.email)throw Error('SWAP_DIRECT_MANAGER_UNAUTHORIZED');
   const [proposal,journal]=await Promise.all([reader.readProposal(operationId),reader.readJournal(operationId)]);
   const stage=journal?.stage||'NOT_STARTED';

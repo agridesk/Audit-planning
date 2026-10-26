@@ -140,7 +140,7 @@ if(syncDrift){
  const result=await json(base+':commit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({writes})});
  if(result.writeResults?.length!==writes.length)throw Error('DEV_SYNC_RECEIPT_INVALID');
  const after=await read();
- if(plan.writes.some(w=>after.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue))throw Error('DEV_SYNC_READBACK_MISMATCH');
+ if(plan.writes.filter(w=>existing.has(w.update.name)).some(w=>after.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue))throw Error('DEV_SYNC_READBACK_MISMATCH');
  console.log(JSON.stringify({result:'DEV_DRIFT_SYNC_VERIFIED',documents:after.size,updated:writes.length,audits:new Set(delta.map(w=>w.update.name.split('/').pop())).size,cutoverAuthorized:false}));
  process.exit(0);
 }

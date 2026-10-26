@@ -19,13 +19,13 @@ function selectionToggle(id,on){id=String(id||"").trim();if(!id)return;if(on)gri
 function selectionSelectVisible(on){gridVisibleIds.forEach(function(id){if(on)gridSelected.add(id);else gridSelected.delete(id)});updateSelectionUi()}
 var swap20EligibleAuditIds=null,swap20EligibleAt=0,swap20EligibleLoading=false;
 function swap20LoadEligibleAuditIds(){
- if(swap20EligibleLoading||(swap20EligibleAuditIds&&Date.now()-swap20EligibleAt<60000))return;
+ if(swap20EligibleLoading||(swap20EligibleAt&&Date.now()-swap20EligibleAt<60000))return;
  if(String(actorRole).toLowerCase()!=="manager")return;
  swap20EligibleLoading=true;
  fetch("/api/v1/manager/swap20/eligible",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:"{}"})
  .then(function(r){return r.json().then(function(v){if(!r.ok||v.ok!==true||!Array.isArray(v.auditIds))throw Error("SWAP_ELIGIBILITY_UNAVAILABLE");return v.auditIds;})})
  .then(function(ids){swap20EligibleAuditIds=new Set(ids);swap20EligibleAt=Date.now();})
- .catch(function(){swap20EligibleAuditIds=null;swap20EligibleAt=0;})
+ .catch(function(){swap20EligibleAuditIds=null;swap20EligibleAt=Date.now();})
  .finally(function(){swap20EligibleLoading=false;updateSelectionUi();});
 }
 var swap20PreviewPrefetch={key:"",at:0,promise:null};
@@ -417,6 +417,9 @@ document.getElementById("selectionSwap20").onclick=async function(){
   var selected=selectionRows();
   if(selected.length!==2||gridSelected.size!==2||selected.some(function(r){return String(r.statusKey||"").toUpperCase()!=="ACCEPTED"})){
     document.getElementById("status").textContent="Select exactly two accepted audits to propose a date exchange.";return;
+  }
+  if(!swap20EligibleAuditIds||selected.some(function(r){return !swap20EligibleAuditIds.has(String(r.auditId))})){
+    document.getElementById("status").textContent="Selected audit is not in the canonical Firestore SWAP dataset.";return;
   }
   var pair={auditA:String(selected[0].auditId),auditB:String(selected[1].auditId)};
   var panel=document.getElementById("swap20PreviewDialog");

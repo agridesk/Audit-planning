@@ -38,10 +38,11 @@ const uncertainNoReadback=createSwapDirectCommitCoordinator({...deps,enabled:tru
  atomicWriter:{commit:async()=>{throw Error('connection reset');}}});
 await assert.rejects(uncertainNoReadback.commit({operationId:proposal.operationId,actor}),/SWAP_DIRECT_COMMIT_OUTCOME_UNKNOWN_MANUAL_REVIEW/);
 assert.equal(writes,1);
+let lostResponse=false;
 const uncertainVerified=createSwapDirectCommitCoordinator({...deps,enabled:true,
- atomicWriter:{commit:async()=>{throw Error('response lost');}},
- readProposal:async()=>({...proposal,status:'APPLIED',canonicalCommitVerified:true}),
- readJournal:async()=>({stage:'COMMITTED',operationId:proposal.operationId,auditA:'A',auditB:'B'})});
+ atomicWriter:{commit:async()=>{lostResponse=true;throw Error('response lost');}},
+ readProposal:async()=>lostResponse?{...proposal,status:'APPLIED',canonicalCommitVerified:true}:proposal,
+ readJournal:async()=>lostResponse?{stage:'COMMITTED',operationId:proposal.operationId,auditA:'A',auditB:'B'}:null});
 const verified=await uncertainVerified.commit({operationId:proposal.operationId,actor});
 assert.equal(verified.verifiedAfterUncertainResponse,true);
 assert.equal(writes,1);

@@ -49,13 +49,17 @@ export function createSwapFirestoreCanonicalReader({project,getToken,fetchImpl=f
  }
  async function readPair(ids){
   validatePair(ids);
-  const records=await fetchDocuments(ids.map(id=>'ams_swap20_dev_audits/'+id));
+  const records=await fetchDocuments(ids.map(id=>'ams_swap20_dev_audits/'+id),{allowMissing:true});
+  const missing=ids.filter((id,i)=>records[i]===null);
+  if(missing.length)throw Error('SWAP_DIRECT_AUDITS_NOT_MIGRATED:'+missing.join(','));
   return records.map((record,i)=>({auditId:ids[i],status:record.payload.status,canonical:record.payload,
    updateTime:record.updateTime,source:'firestore-canonical'}));
  }
  async function readAvailability(ids){
   validatePair(ids);
-  const records=await fetchDocuments(ids.map(id=>'ams_swap20_dev_availability/'+id));
+  const records=await fetchDocuments(ids.map(id=>'ams_swap20_dev_availability/'+id),{allowMissing:true});
+  const missing=ids.filter((id,i)=>records[i]===null);
+  if(missing.length)throw Error('SWAP_DIRECT_AVAILABILITY_NOT_MIGRATED:'+missing.join(','));
   return records.map((record,i)=>{
    if(!Array.isArray(record.payload.reservations))throw Error('SWAP_CANONICAL_READER_RESERVATIONS_INVALID');
    return {auditId:ids[i],canonical:record.payload,reservations:record.payload.reservations,updateTime:record.updateTime,source:'firestore-canonical'};

@@ -81,7 +81,10 @@ const directFetch=async(url,init={})=>{
   const documents=JSON.parse(init.body).documents;
   return {ok:true,text:async()=>JSON.stringify(documents.map(name=>{
    const parts=name.slice(root.length).split('/');
-   const payload=(parts[0]==='ams_swap20_dev_audits'?canonical:availability)[parts[1]];
+   if(parts[0]==='ams_swap20_dev_journal')return {missing:name};
+   const payload=parts[0]==='ams_swap20_dev_proposals'
+    ?JSON.parse(directCreated||'null')
+    :(parts[0]==='ams_swap20_dev_audits'?canonical:availability)[parts[1]];
    return {found:{name,updateTime:today,fields:{payload:{stringValue:JSON.stringify(payload)}}}};
   }))};
  }

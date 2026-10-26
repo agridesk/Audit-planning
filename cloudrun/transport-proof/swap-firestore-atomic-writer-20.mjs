@@ -5,7 +5,7 @@
  * changed atomically by Firestore and must be migrated before enabling.
  */
 const ID=/^[A-Za-z0-9_-]{8,100}$/;
-const DOC=/^projects\/[a-z][a-z0-9-]{4,62}\/databases\/\(default\)\/documents\/[A-Za-z0-9_/-]+$/;
+const DOC=/^projects\/[a-z][a-z0-9-]{4,62}\/databases\/\(default\)\/documents\/[^/\u0000-\u001f\u007f]+\/[^/\u0000-\u001f\u007f]+$/;
 const MAX_WRITES=100;
 export function createSwapFirestoreAtomicWriter({project,getToken,fetchImpl=fetch}={}){
  if(!/^[a-z][a-z0-9-]{4,62}-dev$/.test(project||'')||typeof getToken!=='function')

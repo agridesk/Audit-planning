@@ -93,7 +93,7 @@ if(repairAvailability){
  const eligible=partition.eligible.find(x=>x.auditId===repairId);
  const quarantined=partition.quarantined.find(x=>x.auditId===repairId);
  if(!eligible){
-  console.log(JSON.stringify({result:'DEV_AVAILABILITY_REPAIR_BLOCKED',auditId:repairId,reason:quarantined?.reason||'SOURCE_AUDIT_NOT_ELIGIBLE',writePerformed:false}));
+  console.log(JSON.stringify({result:'DEV_AVAILABILITY_REPAIR_BLOCKED',auditId:repairId,reason:quarantined?.reason||'AUDIT_NOT_FOUND_IN_SOURCE',sourceMatches:auditRows.slice(1).filter(row=>String(row[auditRows[0].indexOf('Audit ID')]||'').trim()===repairId).length,availabilityReferences:availabilityRows.slice(1).reduce((n,row)=>n+[availabilityRows[0].indexOf('Audit_ID_1'),availabilityRows[0].indexOf('Audit_ID_2')].filter(i=>String(row[i]||'').trim()===repairId).length,0),writePerformed:false}));
   return;
  }
  const root='projects/'+project+'/databases/(default)/documents/';

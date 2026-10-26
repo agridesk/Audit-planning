@@ -68,5 +68,36 @@ export function createSwapDirectProposalStore({project,getToken,fetchImpl=fetch}
   if(!raw)return {ok:false,conflict:true};
   return {ok:true,proposal:decode(raw),updateTime:raw.updateTime};
  }
- return Object.freeze({read,create,compareAndSet});
+ async function respond({operationId,decision,actor,authorizeAuditor}={}){
+  if(!ID.test(String(operationId||''))||!['ACKNOWLEDGE','DECLINE'].includes(decision)||
+     !actor||typeof authorizeAuditor!=='function')
+   throw Error('SWAP_DIRECT_RESPONSE_INVALID');
+  // The caller must resolve the authenticated principal to a canonical UID.
+  // A UID furnished by the browser is never accepted as authorization.
+  const uid=await authorizeAuditor(actor,operationId);
+  if(typeof uid!=='string'||!uid.trim())throw Error('SWAP_DIRECT_AUDITOR_UNAUTHORIZED');
+  const current=await read(operationId);
+  if(!current)throw Error('SWAP_DIRECT_PROPOSAL_NOT_FOUND');
+  const prior=current.proposal;
+  if(!Array.isArray(prior.requiredAuditorUids)||!prior.requiredAuditorUids.includes(uid))
+   throw Error('SWAP_DIRECT_AUDITOR_NOT_ASSIGNED');
+  if(decision==='ACKNOWLEDGE'&&prior.status==='CONFIRMED'&&
+     prior.acknowledgedAuditorUids?.includes(uid))
+   return {ok:true,idempotent:true,status:'CONFIRMED',operationId};
+  if(!['AWAITING_ACKNOWLEDGEMENT','ESCALATED'].includes(prior.status))
+   throw Error('SWAP_DIRECT_RESPONSE_STATUS_INVALID');
+  const acknowledged=[...(prior.acknowledgedAuditorUids||[])];
+  const next={...prior};
+  if(decision==='DECLINE'){
+   next.status='DECLINED';next.declinedBy=uid;next.declinedAt=new Date().toISOString();
+  }else{
+   if(!acknowledged.includes(uid))acknowledged.push(uid);
+   next.acknowledgedAuditorUids=acknowledged;
+   next.status=prior.requiredAuditorUids.every(x=>acknowledged.includes(x))?'CONFIRMED':prior.status;
+  }
+  const result=await compareAndSet(operationId,current.updateTime,next,()=>true);
+  if(!result.ok)return {ok:false,conflict:true,code:'SWAP_DIRECT_RESPONSE_RETRY_FROM_FRESH_STATE'};
+  return {ok:true,status:next.status,operationId,updateTime:result.updateTime};
+ }
+ return Object.freeze({read,create,compareAndSet,respond});
 }

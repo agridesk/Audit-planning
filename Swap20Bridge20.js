@@ -92,6 +92,9 @@ function Swap20Bridge20_mirrorEvent_(result,id){
 function Swap20Bridge20_handle_(body) {
  body=body||{};
  var operation=String(body.operation||'').trim();
+ if(['propose','respond','withdraw','commit'].indexOf(operation)>=0&&
+    PropertiesService.getScriptProperties().getProperty('AMS_SWAP20_WRITE_AUTHORITY')==='FIRESTORE')
+  throw Error('SWAP_GAS_WRITES_DISABLED_FIRESTORE_AUTHORITY');
  var manager;
  var bridgeAuthStarted=Date.now();
  try{manager=Swap20Bridge20_manager_(body.actorEmail);}
@@ -200,6 +203,8 @@ function Swap20Bridge20_handleAuditor_(body) {
  var uid=actor.swap20UidVerifiedByBridge===true?actor.swap20VerifiedUid:Swap20_resolveAuditorUidByEmail_(actor.email);
  if(typeof Logger!=='undefined'&&Logger&&typeof Logger.log==='function')Logger.log('[SWAP20_PERF] '+JSON.stringify({step:'auditorIdentity',ms:Date.now()-swapPerfStarted}));
  var operation=String(body.operation||'').trim();
+ if(operation==='respond'&&PropertiesService.getScriptProperties().getProperty('AMS_SWAP20_WRITE_AUTHORITY')==='FIRESTORE')
+  throw Error('SWAP_GAS_WRITES_DISABLED_FIRESTORE_AUTHORITY');
  if(operation==='listPending') {
   var props=PropertiesService.getScriptProperties().getProperties();
   var keys=Object.keys(props).filter(function(k){return k.indexOf('AMS_SWAP20_PROPOSAL_')===0;}).sort();

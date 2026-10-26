@@ -323,10 +323,26 @@ async function notificationGasCallOnce(actor,operation,payload,gasAction){
 const swap20MirrorEnabled=runtime.isDev&&process.env.AMS_SWAP20_FIRESTORE_MIRROR_ENABLED==='true'&&process.env.AMS_SWAP20_PROPOSAL_INDEX_ENABLED!=='true';
 const swap20Mirror=swap20MirrorEnabled?createSwapFirestoreReadmodel({project,getToken}):null;
 const swap20IndexEnabled=runtime.isDev&&process.env.AMS_SWAP20_PROPOSAL_INDEX_ENABLED==='true';
-const swap20DirectTransport=runtime.isDev?createSwapFirestoreDevTransport({project,getToken,enabled:process.env.AMS_SWAP20_DIRECT_COMMIT_ENABLED==='true',canonicalCutoverVerified:process.env.AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED==='true',expectedAvailabilityDocuments:20,authorize:async(actor,operationId)=>actor?.role==='manager'&&Boolean(actor?.email)&&/^[A-Za-z0-9_-]{8,100}$/.test(operationId)}):null;
+const swap20DirectTransport=runtime.isDev?createSwapFirestoreDevTransport({project,getToken,enabled:process.env.AMS_SWAP20_DIRECT_COMMIT_ENABLED==='true',canonicalCutoverVerified:process.env.AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED==='true',expectedAvailabilityDocuments:20,
+ authorize:async(actor,operationId)=>actor?.role==='manager'&&Boolean(actor?.email)&&/^[A-Za-z0-9_-]{8,100}$/.test(operationId),
+ resolveCanonicalAuditorUids:async({owners})=>{
+  const roster=await swapRoster();
+  return owners.map(email=>{
+   const record=roster.find(row=>row.email===String(email||'').trim().toLowerCase()&&row.role==='auditor'&&row.active);
+   if(!record?.auditorId)throw Error('SWAP_DIRECT_CANONICAL_AUDITOR_UNRESOLVED');
+   return record.auditorId;
+  });
+ },
+ authorizeCanonicalAuditor:async(actor)=>{
+  if(actor?.role!=='auditor'||!actor.email||!actor.auditorId)return null;
+  const roster=await swapRoster();
+  const record=roster.find(row=>row.email===actor.email&&row.role==='auditor'&&row.active);
+  return record?.auditorId===actor.auditorId?record.auditorId:null;
+ }}):null;
 const swap20Index=swap20IndexEnabled?createSwapProposalIndex({project,getToken}):null;
 const swap20CanonicalProposalStore=runtime.isDev&&process.env.AMS_SWAP20_CANONICAL_PROPOSAL_MIRROR==='true'?createSwapDirectProposalStore({project,getToken}):null;
 const swap20DirectReady=Boolean(runtime.isDev&&swap20Index&&swap20CanonicalProposalStore&&process.env.AMS_SWAP20_DIRECT_COMMIT_ENABLED==='true'&&process.env.AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED==='true');
+const swap20DirectRouteEnabled=swap20DirectReady&&process.env.AMS_SWAP20_DIRECT_ROUTE==='true';
 
 const swap20Scheduler=swap20Index&&process.env.AMS_SWAP20_SCHEDULER_SA_EMAIL&&process.env.AMS_SWAP20_SCHEDULER_AUDIENCE?createSwapIndexScheduler({index:swap20Index,roster:swapRoster,gasCall:notificationGasCall,serviceEmail:process.env.AMS_SWAP20_SCHEDULER_SA_EMAIL,audience:process.env.AMS_SWAP20_SCHEDULER_AUDIENCE}):null;
 const swap20Lists=new Map();
@@ -498,9 +514,11 @@ async function swap20ManagerRequest(req,res,operation){
   ?await swap20ReadList(actor)
   :operation==='preview'
    ?(await swap20FastPreview(actor,data))||await swap20GasOperation(actor,operation,data)
+   :operation==='propose'&&swap20DirectRouteEnabled
+   ?await swap20DirectTransport.propose({...data,actor})
    :operation==='getProposal'
    ?await swap20GasOperation(actor,operation,data)
-   :operation==='commit'&&swap20DirectReady&&process.env.AMS_SWAP20_DIRECT_ROUTE==='true'
+   :operation==='commit'&&swap20DirectRouteEnabled
    ?await swap20DirectTransport.commit({operationId:data.operationId,actor})
    :await swap20GasOperation(actor,operation,data);
  // Status is read-only: expose the separate index write gate so that
@@ -539,7 +557,9 @@ async function swap20AuditorRequest(req,res,operation){
  const swap20RequestStarted=Date.now();
  const result=operation==='listPending'
   ?await swap20ReadList(actor)
-  :await swap20GasOperation(actor,operation,data);
+  :operation==='respond'&&swap20DirectRouteEnabled
+   ?await swap20DirectTransport.respond({...data,actor})
+   :await swap20GasOperation(actor,operation,data);
  if(operation==='respond'&&result?.ok===true){swap20InvalidateLists();await swap20InvalidateMirror(actor);}
  console.info('[SWAP20_REQUEST_PERF]',JSON.stringify({role:'auditor',operation,ms:Date.now()-swap20RequestStarted,ok:result?.ok===true}));
  res.writeHead(result?.ok===true?200:409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});

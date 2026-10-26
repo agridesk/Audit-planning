@@ -5,7 +5,8 @@ const root=new URL('../../',import.meta.url);
 const b=(date,start,end)=>({date,start,end});
 let pair={eligible:true,auditA:{auditId:'A',revision:'rev-a',assignedTo:'a@example.com',blocks:[b('2026-10-21','09:00','11:00')]},auditB:{auditId:'B',revision:'rev-b',assignedTo:'b@example.com',blocks:[b('2026-10-22','13:00','15:00')]}};
 let saved;
-const ctx={Error,String,Array,Date,Number,JSON,Set,isNaN,
+const ctx={
+ Swap20_assertGasWriteAuthority_:()=>{},Error,String,Array,Date,Number,JSON,Set,isNaN,
  V5_AUTH:{validateTrustedTokenByRole:(token,role)=>token==='valid'&&role==='Manager'?{ok:true,email:'manager@example.com'}:{ok:false}},
  Swap20_readCanonicalPair:()=>pair,
  Swap20_resolveAuditorUidForAudit_:id=>id==='A'?'auditor-001':'auditor-002',

@@ -73,7 +73,7 @@ export function createSwapDirectProposalStore({project,getToken,fetchImpl=fetch}
  }
  async function respond({operationId,decision,actor,authorizeAuditor}={}){
   if(!ID.test(String(operationId||''))||!['ACKNOWLEDGE','DECLINE'].includes(decision)||
-     !actor||typeof authorizeAuditor!=='function')
+     !actor||String(actor.role||'').toLowerCase()!=='auditor'||!actor.email||typeof authorizeAuditor!=='function')
    throw Error('SWAP_DIRECT_RESPONSE_INVALID');
   // The caller must resolve the authenticated principal to a canonical UID.
   // A UID furnished by the browser is never accepted as authorization.

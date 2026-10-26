@@ -20,7 +20,8 @@ const exceptions=process.argv.includes('--exceptions');
 const liveTest=process.argv.includes('--live-test');
 const initFence=process.argv.includes('--init-fence');
 const syncDrift=process.argv.includes('--sync-drift');
-if([apply,verify,coverage,exceptions,liveTest,initFence,syncDrift].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
+const deltaApply=process.argv.includes('--delta-apply');
+if([apply,verify,coverage,exceptions,liveTest,initFence,syncDrift,deltaApply].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
 const locations=[process.env.GCLOUD_CMD,process.env.LOCALAPPDATA&&join(process.env.LOCALAPPDATA,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd'),process.env.PROGRAMFILES&&join(process.env.PROGRAMFILES,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd')].filter(Boolean);
 const executable=locations.find(existsSync)||(process.platform==='win32'?'gcloud.cmd':'gcloud');
 let token;
@@ -49,7 +50,7 @@ if(coverage){
  console.log(JSON.stringify({result:'DEV_COVERAGE_REPORT',statuses,reasons,eligible:p.eligible.length,orphanReservations:p.orphanReservations.length,cutoverAuthorized:false}));
  process.exit(0);
 }
-console.log(JSON.stringify({mode:apply?'APPLY':verify?'VERIFY':liveTest?'LIVE_TEST':'DRY_RUN',manifestHash:plan.manifestHash,source:plan.sourceCount,eligible:plan.eligibleCount,quarantined:plan.quarantinedCount,orphans:plan.orphanCount,writes:plan.writes.length}));
+console.log(JSON.stringify({mode:deltaApply?'DELTA_APPLY':apply?'APPLY':verify?'VERIFY':liveTest?'LIVE_TEST':'DRY_RUN',manifestHash:plan.manifestHash,source:plan.sourceCount,eligible:plan.eligibleCount,quarantined:plan.quarantinedCount,orphans:plan.orphanCount,writes:plan.writes.length}));
 if(plan.eligibleCount===0)throw Error('SWAP_DEV_NO_ELIGIBLE_AUDITS');
 if(plan.writes.length>100)throw Error('SWAP_DEV_TOO_MANY_WRITES');
 const base='https://firestore.googleapis.com/v1/projects/'+project+'/databases/(default)/documents';
@@ -80,6 +81,38 @@ const read=async()=>{
  return found;
 };
 const existing=await read();
+if(deltaApply){
+ // Fail closed: original migrated records must still agree with canonical Sheets.
+ const stale=plan.writes.filter(w=>existing.has(w.update.name)&&existing.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue);
+ if(stale.length)throw Error('SWAP_DEV_DELTA_EXISTING_SOURCE_DRIFT_'+stale.length);
+ const missing=plan.writes.filter(w=>!existing.has(w.update.name));
+ if(missing.length%2!==0||missing.length>100)throw Error('SWAP_DEV_DELTA_INCOMPLETE_AUDIT_PAIR');
+ const byAudit=new Map();
+ for(const write of missing){const id=write.update.name.split('/').pop();byAudit.set(id,(byAudit.get(id)||0)+1);}
+ if([...byAudit.values()].some(n=>n!==2))throw Error('SWAP_DEV_DELTA_PARTIAL_AUDIT_PAIR');
+ const list=async collection=>{
+  let pageToken='',all=[];
+  do{
+   const page=await json(base+'/'+collection+'?pageSize=100'+(pageToken?'&pageToken='+encodeURIComponent(pageToken):''));
+   all.push(...(page.documents||[]));pageToken=page.nextPageToken||'';
+   if(all.length>2000)throw Error('SWAP_DEV_DELTA_COLLECTION_LIMIT');
+  }while(pageToken);
+  return all;
+ };
+ const [auditDocs,availabilityDocs]=await Promise.all([list('ams_swap20_dev_audits'),list('ams_swap20_dev_availability')]);
+ const expected=new Set(names);
+ if([...auditDocs,...availabilityDocs].some(d=>!expected.has(d.name)))throw Error('SWAP_DEV_DELTA_UNEXPECTED_DOCUMENT');
+ if(auditDocs.length!==availabilityDocs.length||auditDocs.length!==existing.size/2)throw Error('SWAP_DEV_DELTA_EXISTING_COLLECTION_MISMATCH');
+ if(missing.length===0){console.log(JSON.stringify({result:'SWAP_DEV_DELTA_ALREADY_COMPLETE',documents:existing.size,cutoverAuthorized:false}));process.exit(0);}
+ const fresh=buildSwapMigrationManifest({auditRows:await range('Audit planning'),availabilityRows:await range('Auditor Availability')});
+ if(fresh.manifestHash!==manifest.manifestHash)throw Error('SWAP_DEV_DELTA_SOURCE_CHANGED');
+ const result=await json(base+':commit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({writes:missing})});
+ if(result.writeResults?.length!==missing.length)throw Error('SWAP_DEV_DELTA_WRITE_RECEIPT_INVALID');
+ const after=await read();
+ if(after.size!==names.length||plan.writes.some(w=>after.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue))throw Error('SWAP_DEV_DELTA_READBACK_OR_PARITY_FAILED');
+ console.log(JSON.stringify({result:'SWAP_DEV_DELTA_VERIFIED',addedAudits:byAudit.size,addedDocuments:missing.length,totalAudits:plan.eligibleCount,totalDocuments:after.size,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
+ process.exit(0);
+}
 if(syncDrift){
  const permitted=new Set(['AUD_GrupoViverosLasCunas_HQ_1777531729329_38','AUD_MistralBonsai,S.L._HQ_1777531729397_52']);
  const delta=plan.writes.filter(w=>existing.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue);

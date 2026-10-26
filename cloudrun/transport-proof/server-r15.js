@@ -343,7 +343,8 @@ const swap20DirectTransport=runtime.isDev?createSwapFirestoreDevTransport({proje
 const swap20Index=swap20IndexEnabled?createSwapProposalIndex({project,getToken}):null;
 const swap20CanonicalProposalStore=runtime.isDev&&process.env.AMS_SWAP20_CANONICAL_PROPOSAL_MIRROR==='true'?createSwapDirectProposalStore({project,getToken}):null;
 const swap20DirectReady=Boolean(runtime.isDev&&swap20DirectTransport&&process.env.AMS_SWAP20_DIRECT_COMMIT_ENABLED==='true'&&process.env.AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED==='true');
-const swap20DirectRouteEnabled=swap20DirectReady&&process.env.AMS_SWAP20_DIRECT_ROUTE==='true';
+const swap20DirectRequested=runtime.isDev&&process.env.AMS_SWAP20_DIRECT_ROUTE==='true';
+const swap20DirectRouteEnabled=swap20DirectRequested&&swap20DirectReady;
 
 const swap20MigrationProposalReader=runtime.isDev?createSwapDirectProposalStore({project,getToken}):null;
 const swap20LegacyArchive=runtime.isDev?createSwapLegacyJournalArchive({project,getToken}):null;
@@ -540,6 +541,13 @@ async function swap20ManagerRequest(req,res,operation){
  if(operation==='getProposal'||operation==='withdraw'||operation==='commit'){
   data.operationId=String(body.operationId||'').trim();
   if(!/^[A-Za-z0-9_-]{8,100}$/.test(data.operationId)){res.writeHead(400);res.end('INVALID_SWAP_OPERATION_ID');return;}
+ }
+ // Exclusive DEV ownership: never fall back to GAS if direct route was requested
+ // but its safety preconditions are not fulfilled.
+ if(swap20DirectRequested&&!swap20DirectRouteEnabled){
+  res.writeHead(503,{'content-type':'application/json','cache-control':'no-store'});
+  res.end(JSON.stringify({ok:false,code:'SWAP_DIRECT_CUTOVER_NOT_READY'}));
+  return;
  }
  const swap20RequestStarted=Date.now();
  const result=operation==='listPending'

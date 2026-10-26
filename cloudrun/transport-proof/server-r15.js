@@ -498,7 +498,7 @@ async function swap20ManagerRequest(req,res,operation){
   :operation==='preview'
    ?(await swap20FastPreview(actor,data))||await swap20GasOperation(actor,operation,data)
    :operation==='getProposal'
-   ?(await swap20FastProposalRead(actor,data.operationId))||await swap20GasOperation(actor,operation,data)
+   ?await swap20GasOperation(actor,operation,data)
    :operation==='commit'&&swap20DirectReady&&process.env.AMS_SWAP20_DIRECT_ROUTE==='true'
    ?await swap20DirectTransport.commit({operationId:data.operationId,actor})
    :await swap20GasOperation(actor,operation,data);

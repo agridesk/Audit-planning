@@ -642,6 +642,7 @@ function swap20BadgeUpdate(role,count){
   count=Number(count)||0;badge.hidden=count<=0;badge.textContent=count>99?"99+":String(count);
   badge.style.cssText="display:"+(count>0?"inline-flex":"none")+";align-items:center;justify-content:center;margin-left:4px;min-width:19px;height:19px;border-radius:12px;padding:0 5px;background:#dc2626;color:#fff;font-weight:700;font-size:11px";
 }
+var swap20CommitAttempted20=new Set();
 var swap20AttentionPending=null;
 async function swap20RefreshAttention(){
   if(swap20AttentionPending)return swap20AttentionPending;
@@ -703,8 +704,11 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
           var inspect=document.createElement("button");inspect.type="button";inspect.textContent="Inspect journal (read-only)";inspect.style.marginLeft="8px";inspect.onclick=async function(){inspect.disabled=true;try{var v=await swap20GridRequest("manager","status",{operationId:p.operationId});status.textContent="Canonical: "+String(v.status||"UNKNOWN")+" | Journal: "+String(v.journalStage||"UNAVAILABLE (GAS bridge not updated)")+" | Sequence: "+String(v.journalSequence??"unavailable")+" | Manual review: "+String(v.journalRequiresManualReview==null?"unknown":v.journalRequiresManualReview===true)+" | Commit enabled: "+String(v.commitEnabled===true);}catch(e){status.textContent="Journal inspection failed: "+String(e&&e.message||e).slice(0,120);}finally{inspect.disabled=false;}};card.appendChild(inspect);
           var apply=document.createElement("button");apply.type="button";apply.textContent="Apply date exchange";
           apply.style.marginLeft="8px";
+          if(swap20CommitAttempted20.has(String(p.operationId))){apply.disabled=true;apply.title="Previous commit outcome uncertain. Inspect canonical journal; do not retry in this session.";}
+
           apply.onclick=async function(){
             apply.disabled=true;
+            if(swap20CommitAttempted20.has(String(p.operationId))){status.textContent="A commit was already attempted in this session. Inspect the canonical journal before any further action.";return;}
             try{
               var precheck=await swap20GridRequest("manager","status",{operationId:p.operationId});
               if(precheck.status!=="CONFIRMED"||precheck.journalRequiresManualReview!==false||String(precheck.journalStage||"")!=="NOT_STARTED"||precheck.commitEnabled!==true){
@@ -714,6 +718,7 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
             }catch(precheckError){status.textContent="Date exchange blocked: read-only journal verification failed ("+String(precheckError&&precheckError.message||precheckError).slice(0,100)+").";return;}
             finally{apply.disabled=false;}
             if(!window.confirm("Apply this approved date change in DEV? Both audit schedules will change."))return;
+            swap20CommitAttempted20.add(String(p.operationId));
             apply.disabled=true;status.textContent="Applying confirmed audit date exchange...";
             try{
               var outcome=await swap20GridRequest("manager","commit",{operationId:p.operationId});

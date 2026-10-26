@@ -383,6 +383,22 @@ async function swap20ReadList(actor){
  swap20ListInflight.set(key,call);
  return call;
 }
+async function swap20FastProposalRead(actor,operationId){
+ if(!runtime.isDev||process.env.AMS_SWAP20_FAST_PROPOSAL_READ_ENABLED!=='true'||!swap20Index)return null;
+ try{
+  const p=await swap20Index.readProposal(operationId);
+  if(!p)return null;
+  console.info('[SWAP20_FAST_PROPOSAL_READ]',JSON.stringify({role:actor.role,operationId,source:'VERIFIED_FIRESTORE_INDEX'}));
+  return {ok:true,readOnly:true,operationId:p.operationId,auditA:p.auditA,auditB:p.auditB,status:p.status,
+   blocksA:p.blocksA,blocksB:p.blocksB,requiredAuditorUids:p.requiredAuditorUids,
+   acknowledgedAuditorUids:p.acknowledgedAuditorUids,internalReason:p.internalReason||'',
+   ecasComment:p.ecasComment||'',dateChanged:p.dateChanged===true,
+   commitEnabled:false,journalStage:'UNVERIFIED',journalRequiresManualReview:true};
+ }catch(error){
+  console.error('[SWAP20_FAST_PROPOSAL_READ_FALLBACK]',String(error?.message||error).slice(0,130));
+  return null;
+ }
+}
 async function swap20GasOperation(actor,operation,data){
  if(!swap20Index||!['propose','withdraw','commit','respond'].includes(operation))
   return notificationGasCall(actor,operation,data,'externalswap20');
@@ -465,7 +481,9 @@ async function swap20ManagerRequest(req,res,operation){
  const swap20RequestStarted=Date.now();
  const result=operation==='listPending'
   ?await swap20ReadList(actor)
-  :operation==='commit'&&swap20DirectReady&&process.env.AMS_SWAP20_DIRECT_ROUTE==='true'
+  :operation==='getProposal'
+   ?(await swap20FastProposalRead(actor,data.operationId))||await swap20GasOperation(actor,operation,data)
+   :operation==='commit'&&swap20DirectReady&&process.env.AMS_SWAP20_DIRECT_ROUTE==='true'
    ?await swap20DirectTransport.commit({operationId:data.operationId,actor})
    :await swap20GasOperation(actor,operation,data);
  // Status is read-only: expose the separate index write gate so that

@@ -39,6 +39,7 @@ function Swap20Journal_history_(operationId){
  return out;
 }
 function Swap20Journal_appendLocked_(operationId,expectedSequence,stage,payload){
+ Swap20_assertGasWriteAuthority_();
  if(!/^(PREPARED|WRITING|COMMITTED|ROLLING_BACK|ROLLED_BACK|FAILED|CONFLICT)$/.test(String(stage||'')))throw Error('Invalid swap journal stage');
  var history=Swap20Journal_history_(operationId);
  if(history.length!==expectedSequence)throw Error('Swap journal concurrent modification');

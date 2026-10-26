@@ -68,8 +68,8 @@ assert.deepEqual(await disabledTransport.propose({operationId:'op_12345678'}),{o
 const root='projects/ams-test-dev/databases/(default)/documents/';
 const today='2026-10-26T16:00:00Z';
 const canonical={
- A:{status:'Accepted',assignedTo:'a@example.test',revision:'A-rev',plannedBlocks:[{date:'2026-11-01',start:'09:00',end:'10:00'}]},
- B:{status:'Accepted',assignedTo:'b@example.test',revision:'B-rev',plannedBlocks:[{date:'2026-11-03',start:'11:00',end:'12:00'}]}
+ A:{status:'Accepted',assignedTo:'a@example.test',plannedBlocks:[{date:'2026-11-01',start:'09:00',end:'10:00'}]},
+ B:{status:'Accepted',assignedTo:'b@example.test',plannedBlocks:[{date:'2026-11-03',start:'11:00',end:'12:00'}]}
 };
 const availability={
  A:{reservations:[{date:'2026-11-01',start:'09:00',end:'10:00',owner:'a@example.test'}]},

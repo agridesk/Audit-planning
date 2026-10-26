@@ -1,5 +1,6 @@
 /** Pair availability writer. Caller holds the transaction lock. */
 function Swap20_writeAvailabilityPlanLocked_(plan,before){
+ Swap20_assertGasWriteAuthority_();
  if(!plan||!before||plan.sheetName!==before.sheetName||plan.width!==before.width)throw Error('Availability write schema mismatch');
  var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(plan.sheetName);
  if(!sh||sh.getLastColumn()!==plan.width||sh.getLastRow()!==before.height)throw Error('Availability changed before write');

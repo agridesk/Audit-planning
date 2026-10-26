@@ -344,7 +344,23 @@ const swap20CanonicalProposalStore=runtime.isDev&&process.env.AMS_SWAP20_CANONIC
 const swap20DirectReady=Boolean(runtime.isDev&&swap20Index&&swap20CanonicalProposalStore&&process.env.AMS_SWAP20_DIRECT_COMMIT_ENABLED==='true'&&process.env.AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED==='true');
 const swap20DirectRouteEnabled=swap20DirectReady&&process.env.AMS_SWAP20_DIRECT_ROUTE==='true';
 
-const swap20Scheduler=swap20Index&&process.env.AMS_SWAP20_SCHEDULER_SA_EMAIL&&process.env.AMS_SWAP20_SCHEDULER_AUDIENCE?createSwapIndexScheduler({index:swap20Index,roster:swapRoster,gasCall:notificationGasCall,serviceEmail:process.env.AMS_SWAP20_SCHEDULER_SA_EMAIL,audience:process.env.AMS_SWAP20_SCHEDULER_AUDIENCE}):null;
+const swap20MigrationProposalReader=runtime.isDev?createSwapDirectProposalStore({project,getToken}):null;
+async function swap20GasJournalInventory(){
+ const range=encodeURIComponent("'AMS_Swap_20_Journal'!A2:C3000");
+ const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+range;
+ const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()},signal:AbortSignal.timeout(15000)});
+ if(!response.ok)throw Error('SWAP_MIGRATION_GAS_JOURNAL_READ_'+response.status);
+ const rows=(await response.json()).values||[];
+ if(rows.length>=2999)throw Error('SWAP_MIGRATION_JOURNAL_INVENTORY_TRUNCATED');
+ if(rows.some(row=>!row[0]||!/^[A-Za-z0-9_-]{8,100}$/.test(String(row[0]))||
+    !Number.isSafeInteger(Number(row[1]))||Number(row[1])<1||
+    !['PREPARED','WRITING','COMMITTED','ROLLING_BACK','ROLLED_BACK','FAILED','CONFLICT'].includes(String(row[2]))))
+  throw Error('SWAP_MIGRATION_JOURNAL_SOURCE_INVALID');
+ return new Set(rows.map(row=>String(row[0])));
+}
+const swap20Scheduler=swap20Index&&process.env.AMS_SWAP20_SCHEDULER_SA_EMAIL&&process.env.AMS_SWAP20_SCHEDULER_AUDIENCE?createSwapIndexScheduler({index:swap20Index,roster:swapRoster,gasCall:notificationGasCall,serviceEmail:process.env.AMS_SWAP20_SCHEDULER_SA_EMAIL,audience:process.env.AMS_SWAP20_SCHEDULER_AUDIENCE,
+ readCanonicalProposal:operationId=>swap20MigrationProposalReader.read(operationId),
+ readJournalOperationIds:swap20GasJournalInventory}):null;
 const swap20Lists=new Map();
 const swap20ListInflight=new Map();
 let swap20ListGeneration=0;
@@ -676,6 +692,14 @@ http.createServer(async(req,res)=>{
    const began=Date.now(),synced=await swap20Scheduler.reconcile();
    console.info('[SWAP20_INDEX_SCHEDULED_SYNC]',JSON.stringify({ok:true,records:synced.records,ms:Date.now()-began}));
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(synced));return;
+  }
+  if(req.method==='POST'&&u.pathname==='/api/v1/internal/swap20/proposal-migration-preflight'){
+   if(!runtime.isDev||!swap20Scheduler){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}
+   if(!await swap20Scheduler.verify(req.headers.authorization)){res.writeHead(403,{'cache-control':'no-store'});res.end('Forbidden');return;}
+   const started=Date.now(),result=await swap20Scheduler.previewCanonicalMigration();
+   console.info('[SWAP20_PROPOSAL_MIGRATION_PREFLIGHT]',JSON.stringify({...result,ms:Date.now()-started}));
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify(result));return;
   }
   if(req.method==='GET'&&u.pathname==='/api/v1/manager/runtime-readiness'){
    const identity=await session(req);

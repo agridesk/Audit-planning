@@ -13,6 +13,7 @@ export function createSwapIndexScheduler({index,roster,gasCall,serviceEmail,audi
    ['https://accounts.google.com','accounts.google.com'].includes(t.iss)&&
    Number(t.exp)>Math.floor(now()/1000)&&typeof t.sub==='string'&&t.sub.length>0;
  }
+ let migrationPreflightAttempted=false;
  async function reconcile(){
   const records=await roster(),manager=records.find(x=>x.role==='manager'&&x.email&&x.auditorId);
   if(!manager)throw Error('SWAP_SCHEDULER_NO_MANAGER');
@@ -21,6 +22,18 @@ export function createSwapIndexScheduler({index,roster,gasCall,serviceEmail,audi
   const meta=await index.meta();
   const updated=meta?await index.reconcile(seed.records):await index.bootstrap(seed.records);
   if(!updated)throw Error('SWAP_SCHEDULER_RECONCILIATION_BUSY');
+  // Single read-only migration check per Cloud Run instance, not each
+  // five-minute synchronization. Never affect the operational read index.
+  if(!migrationPreflightAttempted&&typeof readCanonicalProposal==='function'&&typeof readJournalOperationIds==='function'){
+   migrationPreflightAttempted=true;
+   try{
+    const status=await previewCanonicalMigration();
+    console.info('[SWAP20_CANONICAL_MIGRATION_PREFLIGHT]',JSON.stringify(status));
+   }catch(error){
+    console.error('[SWAP20_CANONICAL_MIGRATION_PREFLIGHT_FAILED]',
+     String(error?.message||error).slice(0,180));
+   }
+  }
   return {ok:true,records:seed.records.length};
  }
  async function previewCanonicalMigration(){

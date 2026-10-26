@@ -27,3 +27,20 @@ assert.equal(assessHistoricalOrphanIsolation(historical).isolated,true);
 assert.equal(assessHistoricalOrphanIsolation(historical).cutoverAuthorized,false);
 assert.equal(assessHistoricalOrphanIsolation({...historical,orphanSlots:[{...historical.orphanSlots[0],date:'2026-10-27'}]}).isolated,false);
 assert.equal(assessHistoricalOrphanIsolation({...historical,targetBlocks:[{date:'2026-10-20'}]}).isolated,false);
+
+import {buildSwapFirestoreReadOnlyPreview} from './swap-firestore-dev-transport-20.mjs';
+const futurePair=['a','b'].map((auditId,i)=>({auditId,source:'firestore-canonical',updateTime:'2026-10-26T10:00:00Z',
+ canonical:{status:'Accepted',assignedTo:i?'second@example.com':'first@example.com',revision:'rev'+i,
+  plannedBlocks:[{date:i?'2026-11-03':'2026-11-02',start:'09:00',end:'17:00'}]}}));
+const futureAvailability=futurePair.map(row=>({auditId:row.auditId,source:'firestore-canonical',updateTime:row.updateTime,
+ reservations:row.canonical.plannedBlocks.map(x=>({...x,owner:row.canonical.assignedTo,auditId:row.auditId}))}));
+const fastPreview=buildSwapFirestoreReadOnlyPreview({pair:futurePair,availability:futureAvailability});
+assert.equal(fastPreview.eligible,true);
+assert.equal(fastPreview.afterA[0].date,'2026-11-03');
+assert.equal(fastPreview.afterB[0].date,'2026-11-02');
+assert.equal(fastPreview.commitEnabled,false);
+assert.equal(fastPreview.provisional,true);
+assert.equal(buildSwapFirestoreReadOnlyPreview({pair:futurePair,availability:[{...futureAvailability[0],reservations:[]},futureAvailability[1]]}),null);
+assert.equal(buildSwapFirestoreReadOnlyPreview({pair:[futurePair[0],futurePair[0]],availability:futureAvailability}),null);
+const sameOwner=futurePair.map(x=>({...x,canonical:{...x.canonical,assignedTo:'first@example.com'}}));
+assert.equal(buildSwapFirestoreReadOnlyPreview({pair:sameOwner,availability:futureAvailability}),null);

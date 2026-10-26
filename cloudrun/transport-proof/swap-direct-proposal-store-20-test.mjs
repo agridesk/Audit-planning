@@ -87,6 +87,10 @@ const directFetch=async(url,init={})=>{
  }
  if(url.endsWith('/ams_swap20_dev_meta/reservation_fence'))
   return {ok:true,json:async()=>({updateTime:today})};
+ if(url.includes('/ams_swap20_dev_proposals?')){
+  const record=JSON.parse(directCreated||'null');
+  return {ok:true,json:async()=>({documents:record?[{fields:{payload:{stringValue:directCreated}}}]:[]})};
+ }
  if(url.includes('/ams_swap20_dev_proposals/')){
   if(!init.method||init.method==='GET')return directCreated?{ok:true,json:async()=>({fields:{payload:{stringValue:directCreated}},updateTime:today})}:{ok:false,status:404};
   if(init.method!=='PATCH')throw Error('Unexpected proposal method');
@@ -123,3 +127,17 @@ assert.equal(directSecond.status,'CONFIRMED');
 assert.equal(JSON.parse(directCreated).status,'CONFIRMED');
 assert.equal(directWrites,3);
 assert.deepEqual(await disabledTransport.respond({operationId:'test_direct_12345678'}),{ok:false,code:'SWAP_DIRECT_RESPOND_DISABLED'});
+
+const managerInbox=await liveIsolated.list({actor:{role:'manager',email:'manager@example.test'}});
+assert.equal(managerInbox.ok,true);
+assert.equal(managerInbox.items.length,1);
+assert.equal(managerInbox.items[0].status,'CONFIRMED');
+assert.equal(managerInbox.items[0].internalReason,'Controlled DEV fixture');
+const auditorInbox=await liveIsolated.list({actor:{role:'auditor',email:'a@example.test'}});
+assert.equal(auditorInbox.ok,true);
+assert.equal(auditorInbox.items.length,0,'Confirmed proposals must not remain in auditor pending inbox');
+assert.deepEqual(await disabledTransport.list({actor:{role:'manager',email:'manager@example.test'}}),{ok:false,code:'SWAP_DIRECT_LIST_DISABLED'});
+const directStatus=await liveIsolated.getProposal({operationId:'test_direct_12345678',actor:{role:'manager',email:'manager@example.test'}});
+assert.equal(directStatus.status,'CONFIRMED');
+assert.equal(directStatus.journalStage,'NOT_STARTED');
+assert.equal(directStatus.commitEnabled,true);

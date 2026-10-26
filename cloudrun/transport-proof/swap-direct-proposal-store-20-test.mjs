@@ -105,7 +105,8 @@ const directFetch=async(url,init={})=>{
 };
 const liveIsolated=createSwapFirestoreDevTransport({
  project:'ams-test-dev',getToken:async()=>'token',fetchImpl:directFetch,authorize:async()=>true,
- enabled:true,canonicalCutoverVerified:true,verifySourceFreeze:async()=>true,expectedAvailabilityDocuments:20,
+ enabled:true,canonicalCutoverVerified:true,verifySourceFreeze:async()=>true,
+ verifySharedAvailabilityAuthority:async()=>true,expectedAvailabilityDocuments:20,
  loadCompleteReservationIndex:async()=>({complete:true,documentCount:20,reservations:[]}),
  resolveCanonicalAuditorUids:async()=>['auditor_111111','auditor_222222'],
  authorizeCanonicalAuditor:async actor=>actor?.email==='a@example.test'?'auditor_111111':actor?.email==='b@example.test'?'auditor_222222':null
@@ -168,3 +169,14 @@ await assert.rejects(store.compareAndSet(stagedSource.operationId,record.updateT
  {...savedStage,status:'CONFIRMED',acknowledgedAuditorUids:['u1','u2']},()=>true),
  /SWAP_DIRECT_TRANSITION_REJECTED/);
 assert.equal((await store.stageFromGas({proposal:stagedSource,journalAbsentVerified:true})).conflict,true);
+
+const unverifiedAvailability=createSwapFirestoreDevTransport({
+ project:'ams-test-dev',getToken:async()=>'token',authorize:async()=>true,
+ enabled:true,canonicalCutoverVerified:true,verifySourceFreeze:async()=>true,
+ resolveCanonicalAuditorUids:async()=>['auditor_111111','auditor_222222'],
+ fetchImpl:async()=>{throw Error('MUST_NOT_READ_UNVERIFIED_AVAILABILITY');}
+});
+await assert.rejects(unverifiedAvailability.propose({
+ operationId:'another_12345678',auditA:'A',auditB:'B',
+ internalReason:'test',ecasComment:'test',actor:{role:'manager',email:'manager@example.test'}
+}),/SWAP_DIRECT_AVAILABILITY_AUTHORITY_UNVERIFIED/);

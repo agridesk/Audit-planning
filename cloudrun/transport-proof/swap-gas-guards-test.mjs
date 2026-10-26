@@ -4,6 +4,7 @@ import {runInNewContext} from 'node:vm';
 const root=new URL('../../',import.meta.url);
 const props=new Map();
 const mock={
+ Swap20_assertGasWriteAuthority_:()=>{},
  PropertiesService:{getScriptProperties:()=>({getProperty:k=>props.get(k)||null,setProperty:(k,v)=>props.set(k,v)})},
  LockService:{getScriptLock:()=>({tryLock:()=>true,releaseLock:()=>{}})},
  Set,JSON,Error,Date,String,Array

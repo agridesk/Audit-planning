@@ -17,6 +17,7 @@ const NEXT={
 function transitionAllowed(prior,next){
  if(!prior||!next||prior.operationId!==next.operationId||prior.auditA!==next.auditA||prior.auditB!==next.auditB)return false;
  if(TERMINAL.has(prior.status)||!NEXT[prior.status]?.has(next.status))return false;
+ if(prior.migrationVerified===false||prior.migrationState==='STAGED_FROM_GAS')return false;
  for(const field of ['blocksA','blocksB','originalRevisions','dateChanged','internalReason','ecasComment'])
   if(JSON.stringify(prior[field])!==JSON.stringify(next[field]))return false;
  if(!Array.isArray(next.requiredAuditorUids)||!Array.isArray(next.acknowledgedAuditorUids))return false;
@@ -59,6 +60,27 @@ export function createSwapDirectProposalStore({project,getToken,fetchImpl=fetch}
   if(!raw)return {ok:false,conflict:true};
   return {ok:true,proposal:decode(raw),updateTime:raw.updateTime};
  }
+ async function stageFromGas({proposal,journalAbsentVerified}={}){
+  if(journalAbsentVerified!==true||!proposal||!ID.test(String(proposal.operationId||''))||
+   !proposal.auditA||!proposal.auditB||proposal.auditA===proposal.auditB||
+   !proposal.originalRevisions?.[proposal.auditA]||!proposal.originalRevisions?.[proposal.auditB]||
+   !['AWAITING_ACKNOWLEDGEMENT','ESCALATED','CONFIRMED','DECLINED','WITHDRAWN'].includes(proposal.status)||
+   !Array.isArray(proposal.requiredAuditorUids)||!proposal.requiredAuditorUids.length||
+   !Array.isArray(proposal.acknowledgedAuditorUids)||
+   proposal.acknowledgedAuditorUids.some(uid=>!proposal.requiredAuditorUids.includes(uid))||
+   !Array.isArray(proposal.blocksA)||!Array.isArray(proposal.blocksB)||
+   !proposal.createdBy||!proposal.createdAt)
+   throw Error('SWAP_GAS_PROPOSAL_STAGING_SOURCE_INVALID');
+  if(proposal.status==='CONFIRMED'&&
+   proposal.requiredAuditorUids.some(uid=>!proposal.acknowledgedAuditorUids.includes(uid)))
+   throw Error('SWAP_GAS_PROPOSAL_STAGING_ACK_INVALID');
+  const staged={...proposal,migrationState:'STAGED_FROM_GAS',migrationVerified:false};
+  const url=new URL(base+'/'+encodeURIComponent(proposal.operationId));
+  url.searchParams.set('currentDocument.exists','false');
+  const raw=await request(url.toString(),{method:'PATCH',body:JSON.stringify(encode(staged))});
+  if(!raw)return {ok:false,conflict:true};
+  return {ok:true,operationId:proposal.operationId,staged:true,updateTime:raw.updateTime};
+ }
  async function compareAndSet(operationId,expectedUpdateTime,next,validateTransition){
   if(!ID.test(String(operationId||''))||!expectedUpdateTime||!next||
     next.operationId!==operationId||typeof validateTransition!=='function')throw Error('SWAP_DIRECT_TRANSITION_INVALID');
@@ -92,7 +114,7 @@ export function createSwapDirectProposalStore({project,getToken,fetchImpl=fetch}
    }
    pageToken=raw?.nextPageToken||'';
   }while(pageToken);
-  const relevant=all.filter(p=>actor.role==='manager'
+  const relevant=all.filter(p=>p.migrationVerified!==false&&p.migrationState!=='STAGED_FROM_GAS').filter(p=>actor.role==='manager'
    ?['AWAITING_ACKNOWLEDGEMENT','ESCALATED','CONFIRMED','DECLINED'].includes(p.status)
    :['AWAITING_ACKNOWLEDGEMENT','ESCALATED'].includes(p.status)&&p.requiredAuditorUids.includes(uid));
   relevant.sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
@@ -120,6 +142,7 @@ export function createSwapDirectProposalStore({project,getToken,fetchImpl=fetch}
   const current=await read(operationId);
   if(!current)throw Error('SWAP_DIRECT_PROPOSAL_NOT_FOUND');
   const prior=current.proposal;
+  if(prior.migrationVerified===false||prior.migrationState==='STAGED_FROM_GAS')throw Error('SWAP_DIRECT_STAGED_GAS_PROPOSAL_NOT_ACTIVE');
   if(!Array.isArray(prior.requiredAuditorUids)||!prior.requiredAuditorUids.includes(uid))
    throw Error('SWAP_DIRECT_AUDITOR_NOT_ASSIGNED');
   if(decision==='ACKNOWLEDGE'&&prior.status==='CONFIRMED'&&
@@ -140,5 +163,5 @@ export function createSwapDirectProposalStore({project,getToken,fetchImpl=fetch}
   if(!result.ok)return {ok:false,conflict:true,code:'SWAP_DIRECT_RESPONSE_RETRY_FROM_FRESH_STATE'};
   return {ok:true,status:next.status,operationId,updateTime:result.updateTime};
  }
- return Object.freeze({read,list,create,compareAndSet,respond});
+ return Object.freeze({read,list,create,stageFromGas,compareAndSet,respond});
 }

@@ -5,7 +5,8 @@ const src=readFileSync(new URL('../../Swap20ManagerCommands.js',import.meta.url)
 let stage='CONFLICT',payload={noWrites:true},history=[];
 let saved=null;
 const proposal={operationId:'SWAP20_test1234',status:'CONFIRMED',auditA:'A',auditB:'B',acknowledgedAuditorUids:[],requiredAuditorUids:[]};
-const ctx={String,JSON,Date,Array,Set,Error,
+const ctx={
+ Swap20_assertGasWriteAuthority_:()=>{},String,JSON,Date,Array,Set,Error,
  Swap20Store_read_:()=>proposal,
  Swap20Journal_history_:()=>history,
  Swap20Store_transition_:(id,expected,next)=>{saved=next;return {success:true,status:next.status}},

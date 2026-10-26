@@ -38,6 +38,7 @@ await assert.rejects(store.compareAndSet(proposal.operationId,'revision-2',chang
 await assert.rejects(store.create({...proposal,operationId:'swap_87654321',status:'CONFIRMED'}),/SWAP_DIRECT_PROPOSAL_INVALID/);
 
 
+record=null; // Independent isolated Firestore document fixture.
 const second={...proposal,operationId:'swap_99999999',requiredAuditorUids:['u1','u2']};
 assert.equal((await store.create(second)).ok,true);
 const auditor={role:'auditor',email:'auditor@example.com'};

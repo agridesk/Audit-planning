@@ -105,7 +105,7 @@ const directFetch=async(url,init={})=>{
 };
 const liveIsolated=createSwapFirestoreDevTransport({
  project:'ams-test-dev',getToken:async()=>'token',fetchImpl:directFetch,authorize:async()=>true,
- enabled:true,canonicalCutoverVerified:true,expectedAvailabilityDocuments:20,
+ enabled:true,canonicalCutoverVerified:true,verifySourceFreeze:async()=>true,expectedAvailabilityDocuments:20,
  loadCompleteReservationIndex:async()=>({complete:true,documentCount:20,reservations:[]}),
  resolveCanonicalAuditorUids:async()=>['auditor_111111','auditor_222222'],
  authorizeCanonicalAuditor:async actor=>actor?.email==='a@example.test'?'auditor_111111':actor?.email==='b@example.test'?'auditor_222222':null
@@ -144,3 +144,10 @@ const directStatus=await liveIsolated.getProposal({operationId:'test_direct_1234
 assert.equal(directStatus.status,'CONFIRMED');
 assert.equal(directStatus.journalStage,'NOT_STARTED');
 assert.equal(directStatus.commitEnabled,true);
+
+const noFreeze=createSwapFirestoreDevTransport({project:'ams-test-dev',getToken:async()=>'token',authorize:async()=>true,
+ enabled:true,canonicalCutoverVerified:true,fetchImpl:async()=>{throw Error('MUST_NOT_READ_BEFORE_SOURCE_FREEZE');}});
+await assert.rejects(noFreeze.propose({}),/SWAP_DIRECT_SHEETS_SOURCE_FREEZE_UNVERIFIED/);
+await assert.rejects(noFreeze.respond({}),/SWAP_DIRECT_SHEETS_SOURCE_FREEZE_UNVERIFIED/);
+await assert.rejects(noFreeze.getProposal({}),/SWAP_DIRECT_SHEETS_SOURCE_FREEZE_UNVERIFIED/);
+await assert.rejects(noFreeze.list({}),/SWAP_DIRECT_SHEETS_SOURCE_FREEZE_UNVERIFIED/);

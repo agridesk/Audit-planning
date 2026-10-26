@@ -41,7 +41,7 @@ export function createSwapFirestoreReservationIndex({project,getToken,fetchImpl=
      reservations.push(reservation);
     }
    }
-   if(!result.nextPageToken)return {complete:true,reservations,documentCount:seen.size};
+   if(!result.nextPageToken)return {complete:true,reservations,documentCount:seen.size,auditIds:[...seen].map(name=>name.slice(('projects/'+project+'/databases/(default)/documents/ams_swap20_dev_availability/').length))};
    if(result.nextPageToken===pageToken||visitedTokens.has(result.nextPageToken))throw Error('SWAP_INDEX_PAGINATION_LOOP');
    visitedTokens.add(result.nextPageToken);
    pageToken=result.nextPageToken;

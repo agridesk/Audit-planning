@@ -25,7 +25,9 @@ const deltaApply=process.argv.includes('--delta-apply');
 const inspectDelta=process.argv.includes('--inspect-delta');
 const inspectOrphans=process.argv.includes('--inspect-orphans');
 const proposalInventory=process.argv.includes('--proposal-inventory');
-if([apply,verify,coverage,exceptions,liveTest,initFence,syncDrift,deltaApply,inspectDelta,inspectOrphans,proposalInventory].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
+const repairAvailability=process.argv.includes('--repair-availability');
+const repairId=repairAvailability?process.argv[process.argv.indexOf('--repair-availability')+1]:null;
+if([apply,verify,coverage,exceptions,liveTest,initFence,syncDrift,deltaApply,inspectDelta,inspectOrphans,proposalInventory,repairAvailability].filter(Boolean).length>1)throw Error('SWAP_DEV_MODE_CONFLICT');
 const locations=[process.env.GCLOUD_CMD,process.env.LOCALAPPDATA&&join(process.env.LOCALAPPDATA,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd'),process.env.PROGRAMFILES&&join(process.env.PROGRAMFILES,'Google','Cloud SDK','google-cloud-sdk','bin','gcloud.cmd')].filter(Boolean);
 const executable=locations.find(existsSync)||(process.platform==='win32'?'gcloud.cmd':'gcloud');
 let token;
@@ -84,6 +86,47 @@ if(proposalInventory){
 const [auditRows,availabilityRows]=await Promise.all([range('Audit planning'),range('Auditor Availability')]);
 const manifest=buildSwapMigrationManifest({auditRows,availabilityRows});
 const plan=planSwapMigrationBackfill({project,auditRows,availabilityRows,expectedManifestHash:manifest.manifestHash});
+if(repairAvailability){
+ if(!repairId||!/^AUD_[^/\\u0000-\\u001f\\u007f]{1,135}$/.test(repairId))
+  throw Error('SWAP_DEV_REPAIR_AUDIT_ID_INVALID');
+ const partition=partitionSwapSheetMigration({auditRows,availabilityRows});
+ const eligible=partition.eligible.find(x=>x.auditId===repairId);
+ const quarantined=partition.quarantined.find(x=>x.auditId===repairId);
+ if(!eligible){
+  console.log(JSON.stringify({result:'DEV_AVAILABILITY_REPAIR_BLOCKED',auditId:repairId,reason:quarantined?.reason||'SOURCE_AUDIT_NOT_ELIGIBLE',writePerformed:false}));
+  return;
+ }
+ const root='projects/'+project+'/databases/(default)/documents/';
+ const auditName=root+'ams_swap20_dev_audits/'+repairId,availabilityName=root+'ams_swap20_dev_availability/'+repairId;
+ const planned=plan.writes.find(w=>w.update.name===auditName);
+ const reservation=plan.writes.find(w=>w.update.name===availabilityName);
+ if(!planned||!reservation)throw Error('SWAP_DEV_REPAIR_PLAN_INCOMPLETE');
+ const batch=await json('https://firestore.googleapis.com/v1/'+root+':batchGet',{
+  method:'POST',headers:{'content-type':'application/json'},
+  body:JSON.stringify({documents:[auditName,availabilityName]})
+ });
+ const results=Array.isArray(batch)?batch:[batch];
+ const found=results.filter(x=>x.found).map(x=>x.found);
+ const audit=found.find(x=>x.name===auditName),slot=found.find(x=>x.name===availabilityName);
+ if(!audit||audit.fields?.payload?.stringValue!==planned.update.fields.payload.stringValue)
+  throw Error('SWAP_DEV_REPAIR_AUDIT_SOURCE_MISMATCH');
+ if(slot){
+  console.log(JSON.stringify({result:'DEV_AVAILABILITY_ALREADY_EXISTS',auditId:repairId,sourceParity:slot.fields?.payload?.stringValue===reservation.update.fields.payload.stringValue,writePerformed:false}));
+  return;
+ }
+ if(!results.some(x=>x.missing===availabilityName))throw Error('SWAP_DEV_REPAIR_MISSING_NOT_CONFIRMED');
+ const fresh=buildSwapMigrationManifest({auditRows:await range('Audit planning'),availabilityRows:await range('Auditor Availability')});
+ if(fresh.manifestHash!==manifest.manifestHash)throw Error('SWAP_DEV_REPAIR_SOURCE_CHANGED');
+ const base='https://firestore.googleapis.com/v1/projects/'+project+'/databases/(default)/documents';
+ const receipt=await json(base+':commit',{method:'POST',headers:{'content-type':'application/json'},
+  body:JSON.stringify({writes:[reservation]})});
+ if(receipt.writeResults?.length!==1)throw Error('SWAP_DEV_REPAIR_RECEIPT_INVALID');
+ const verify=await json(base+'/ams_swap20_dev_availability/'+encodeURIComponent(repairId));
+ if(verify.fields?.payload?.stringValue!==reservation.update.fields.payload.stringValue)
+  throw Error('SWAP_DEV_REPAIR_READBACK_MISMATCH');
+ console.log(JSON.stringify({result:'DEV_AVAILABILITY_REPAIRED',auditId:repairId,writePerformed:true,sourceVerified:true}));
+ return;
+}
 if(inspectOrphans){
  const partition=partitionSwapSheetMigration({auditRows,availabilityRows});
  const vh=availabilityRows[0],ah=auditRows[0],idx=name=>vh.indexOf(name);

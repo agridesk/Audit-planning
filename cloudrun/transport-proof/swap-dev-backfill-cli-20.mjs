@@ -128,7 +128,7 @@ if(deltaApply){
 }
 if(syncDrift){
  const permitted=new Set(['AUD_GrupoViverosLasCunas_HQ_1777531729329_38','AUD_MistralBonsai,S.L._HQ_1777531729397_52','AUD_ViverosMedipalmS.A._HQ_1777531729583_96']);
- const delta=plan.writes.filter(w=>existing.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue);
+ const delta=plan.writes.filter(w=>existing.has(w.update.name)&&existing.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue);
  const unexpected=delta.filter(w=>!permitted.has(w.update.name.split('/').pop()));
  const missingRevision=delta.filter(w=>!existing.get(w.update.name)?.updateTime);
  const unexpectedFields=delta.filter(w=>{try{const before=JSON.parse(existing.get(w.update.name).fields.payload.stringValue),after=JSON.parse(w.update.fields.payload.stringValue);const keys=[...new Set([...Object.keys(before),...Object.keys(after)])].filter(k=>JSON.stringify(before[k])!==JSON.stringify(after[k]));return keys.length!==1||keys[0]!== (w.update.name.includes('/ams_swap20_dev_audits/')?'plannedBlocks':'reservations');}catch{return true;}});

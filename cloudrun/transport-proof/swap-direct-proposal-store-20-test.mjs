@@ -53,3 +53,8 @@ assert.equal((await store.respond({operationId:second.operationId,decision:'ACKN
 const repeated=await store.respond({operationId:second.operationId,decision:'ACKNOWLEDGE',actor:auditor,authorizeAuditor:async()=> 'u2'});
 assert.equal(repeated.idempotent,true);
 await assert.rejects(store.respond({operationId:second.operationId,decision:'DECLINE',actor:auditor,authorizeAuditor:authorized}),/SWAP_DIRECT_RESPONSE_STATUS_INVALID/);
+
+const latest=await store.read(second.operationId);
+await assert.rejects(store.compareAndSet(second.operationId,latest.updateTime,{
+ ...latest.proposal,status:'CONFIRMED',acknowledgedAuditorUids:['u2']
+},()=>true),/SWAP_DIRECT_TRANSITION_REJECTED/);

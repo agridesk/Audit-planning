@@ -29,6 +29,17 @@ export function createSwapIndexScheduler({index,roster,gasCall,serviceEmail,audi
    try{
     const status=await previewCanonicalMigration();
     console.info('[SWAP20_CANONICAL_MIGRATION_PREFLIGHT]',JSON.stringify(status));
+    // Non-authoritative, create-only copies. Journaled proposals are excluded;
+    // no active Firestore route ever reads a staged proposal.
+    if(typeof stageCanonicalProposal==='function'){
+     try{
+      const staged=await stageCanonicalProposals();
+      console.info('[SWAP20_INACTIVE_PROPOSAL_STAGING]',JSON.stringify(staged));
+     }catch(stageError){
+      console.error('[SWAP20_INACTIVE_PROPOSAL_STAGING_FAILED]',
+       String(stageError?.message||stageError).slice(0,180));
+     }
+    }
    }catch(error){
     console.error('[SWAP20_CANONICAL_MIGRATION_PREFLIGHT_FAILED]',
      String(error?.message||error).slice(0,180));

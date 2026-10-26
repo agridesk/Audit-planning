@@ -516,7 +516,20 @@ document.getElementById("selectionSwap20").onclick=async function(){
       submitted=true;internal.disabled=true;ecas.disabled=true;create.hidden=true;
       refresh.hidden=false;withdraw.hidden=false;
       showStatus(saved);
-    }catch(error){feedback.textContent="The request could not be confirmed. It may already have been recorded. Check Audit date changes before trying again.";create.disabled=false;}
+    }catch(error){
+      var original=String(error&&error.message||error||"SWAP_PROPOSE_FAILED");
+      feedback.textContent="Proposal not confirmed: "+original+". Checking whether this request was already saved...";
+      try{
+        var persisted=await swapRequest("status",{operationId:requestId});
+        if(persisted&&persisted.ok===true){
+          submitted=true;internal.disabled=true;ecas.disabled=true;create.hidden=true;
+          refresh.hidden=false;withdraw.hidden=false;showStatus(persisted);
+        }else{feedback.textContent="Proposal failed: "+original;create.disabled=false;}
+      }catch(checkError){
+        feedback.textContent="Proposal failed: "+original+". Persistence not confirmed ("+String(checkError&&checkError.message||checkError)+"). Do not resubmit until verified.";
+        create.disabled=true;
+      }
+    }
     finally{busy=false;}
   };
   refresh.onclick=async function(){

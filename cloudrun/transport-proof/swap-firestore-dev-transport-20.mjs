@@ -20,7 +20,13 @@ export function createSwapFirestoreDevTransport(options={}){
   return {reservations,fenceRevision:fence.revision};
  };
  const coordinator=createSwapDirectCommitCoordinator({project,readProposal:reader.readProposal,readJournal:reader.readJournal,readPair:reader.readPair,readAvailability:reader.readAvailability,atomicWriter:writer,authorize,resolveFinalReservations,enabled:enabled===true&&canonicalCutoverVerified===true});
- return Object.freeze({...reader,commit:coordinator.commit});
+ const preview=async({auditA,auditB}={})=>{
+  if(typeof auditA!=='string'||typeof auditB!=='string'||!auditA||!auditB||auditA===auditB)return null;
+  const ids=[auditA,auditB];
+  const [pair,availability]=await Promise.all([reader.readPair(ids),reader.readAvailability(ids)]);
+  return buildSwapFirestoreReadOnlyPreview({pair,availability});
+ };
+ return Object.freeze({...reader,preview,commit:coordinator.commit});
 }
 
 /** Read-only preview readiness check; no commit or routing authorization. */
@@ -54,4 +60,48 @@ export function assessHistoricalOrphanIsolation({orphanSlots,targetBlocks,refere
  const targetsInvalid=targetBlocks.some(b=>!date(b?.date)||b.date<referenceDate);
  return {isolated:!bad&&!targetsInvalid,readOnly:true,cutoverAuthorized:false,
   reason:bad?'ORPHAN_DATE_OR_SHAPE_UNVERIFIED':targetsInvalid?'TARGET_NOT_FUTURE':'HISTORICAL_ONLY'};
+}
+
+/** Provisional, read-only preview. Canonical GAS proposal always revalidates.
+ * Never supplies write authorization or pretends to confirm a reservation fence.
+ */
+export function buildSwapFirestoreReadOnlyPreview({pair,availability}={}){
+ if(!Array.isArray(pair)||pair.length!==2||!Array.isArray(availability)||availability.length!==2)return null;
+ const idA=pair[0]?.auditId,idB=pair[1]?.auditId;
+ if(!idA||!idB||idA===idB||availability[0]?.auditId!==idA||availability[1]?.auditId!==idB)return null;
+ for(let i=0;i<2;i++){
+  const a=pair[i],v=availability[i],c=a?.canonical;
+  if(a?.source!=='firestore-canonical'||v?.source!=='firestore-canonical'||c?.status!=='Accepted'||
+     !Array.isArray(c?.plannedBlocks)||!c.plannedBlocks.length||c.plannedBlocks.length>30||
+     !Array.isArray(v?.reservations)||v.reservations.length!==c.plannedBlocks.length)return null;
+  if(!String(c.assignedTo||'').includes('@')||!a.updateTime||!v.updateTime)return null;
+  const planned=c.plannedBlocks.map(b=>[b.date,b.start,b.end].join('|')).sort();
+  const reserved=v.reservations.map(b=>[b.date,b.start,b.end].join('|')).sort();
+  if(JSON.stringify(planned)!==JSON.stringify(reserved)||
+    v.reservations.some(x=>String(x.owner||'').toLowerCase()!==String(c.assignedTo).toLowerCase()))return null;
+ }
+ const time=s=>typeof s==='string'&&/^([01]\\d|2[0-3]):[0-5]\\d$/.test(s);
+ const min=s=>Number(s.slice(0,2))*60+Number(s.slice(3));
+ const date=s=>typeof s==='string'&&/^\\d{4}-\\d{2}-\\d{2}$/.test(s)&&new Date(s+'T12:00:00Z').toISOString().slice(0,10)===s;
+ const normalize=blocks=>blocks.map(b=>({date:b.date,start:b.start,end:b.end}));
+ const beforeA=normalize(pair[0].canonical.plannedBlocks),beforeB=normalize(pair[1].canonical.plannedBlocks);
+ const eligible=(reason)=>({ok:true,eligible:false,readOnly:true,provisional:true,commitEnabled:false,reason});
+ if(beforeA.length!==beforeB.length)return eligible('Unequal swap block count requires explicit mapping');
+ if([...beforeA,...beforeB].some(b=>!date(b.date)||!time(b.start)||!time(b.end)||min(b.start)>=min(b.end)))return null;
+ const afterA=[],afterB=[];
+ for(let i=0;i<beforeA.length;i++){
+  const a=beforeA[i],b=beforeB[i],da=min(a.end)-min(a.start),db=min(b.end)-min(b.start);
+  if(da!==db&&beforeA.length!==1)return eligible('Unequal swap block duration requires explicit mapping');
+  afterA.push(da===db?{...b}:{date:b.date,start:a.start,end:a.end});
+  afterB.push(da===db?{...a}:{date:a.date,start:b.start,end:b.end});
+ }
+ if(JSON.stringify(afterA)===JSON.stringify(beforeA)&&JSON.stringify(afterB)===JSON.stringify(beforeB))return eligible('Swap has no schedule change');
+ const overlap=(x,y)=>x.date===y.date&&min(x.start)<min(y.end)&&min(y.start)<min(x.end);
+ if(String(pair[0].canonical.assignedTo).toLowerCase()===String(pair[1].canonical.assignedTo).toLowerCase()&&
+ afterA.some(a=>afterB.some(b=>overlap(a,b))))return eligible('Swap overlaps same auditor');
+ const display=(audit,blocks)=>({auditId:audit.auditId,assignedTo:audit.canonical.assignedTo,blocks,revision:audit.canonical.revision||audit.updateTime});
+ const changed=beforeA.some((b,i)=>b.date!==afterA[i].date)||beforeB.some((b,i)=>b.date!==afterB[i].date);
+ return {ok:true,eligible:true,readOnly:true,provisional:true,canonicalRevalidationRequired:true,
+  commitEnabled:false,beforeA:display(pair[0],beforeA),beforeB:display(pair[1],beforeB),
+  afterA,afterB,dateChanged:changed,requiresAcknowledgement:changed};
 }

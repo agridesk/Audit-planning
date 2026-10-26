@@ -72,6 +72,7 @@ export function createSwapFirestoreCanonicalReader({project,getToken,fetchImpl=f
   if(!ID.test(String(operationId||'')))throw Error('SWAP_CANONICAL_READER_OPERATION_INVALID');
   const [record]=await fetchDocuments(['ams_swap20_dev_proposals/'+operationId]);
   if(record.payload.operationId!==operationId)throw Error('SWAP_CANONICAL_READER_OPERATION_MISMATCH');
+  if(record.payload.migrationVerified===false||record.payload.migrationState==='STAGED_FROM_GAS')throw Error('SWAP_CANONICAL_READER_STAGED_GAS_PROPOSAL_NOT_ACTIVE');
   return {...record.payload,updateTime:record.updateTime,source:'firestore-canonical'};
  }
  return Object.freeze({readPair,readAvailability,readProposal,readJournal});

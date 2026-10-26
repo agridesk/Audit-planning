@@ -1,5 +1,5 @@
 /** DEV SWAP Firestore reconciliation. Requires verified Cloud Scheduler OIDC. */
-export function createSwapIndexScheduler({index,roster,gasCall,serviceEmail,audience,readCanonicalProposal,readJournalOperationIds,fetchImpl=fetch,now=Date.now}={}){
+export function createSwapIndexScheduler({index,roster,gasCall,serviceEmail,audience,readCanonicalProposal,readJournalOperationIds,stageCanonicalProposal,fetchImpl=fetch,now=Date.now}={}){
  if(!index||typeof roster!=='function'||typeof gasCall!=='function')throw Error('SWAP_SCHEDULER_DEPENDENCIES');
  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(serviceEmail||'')||!/^https:\/\/[^/]+$/.test(audience||''))throw Error('SWAP_SCHEDULER_CONFIG');
  async function verify(auth){
@@ -86,5 +86,42 @@ export function createSwapIndexScheduler({index,roster,gasCall,serviceEmail,audi
    gasJournalledProposalCount:journalledProposals,gasJournalOperationCount:journalled.size,
    sourceFreezeVerified:false,cutoverAuthorized:false};
  }
- return Object.freeze({verify,reconcile,previewCanonicalMigration});
+ async function stageCanonicalProposals(){
+  if(typeof stageCanonicalProposal!=='function'||typeof readCanonicalProposal!=='function'||
+     typeof readJournalOperationIds!=='function')
+   throw Error('SWAP_STAGING_DEPENDENCIES_MISSING');
+  const manager=(await roster()).find(x=>x.role==='manager'&&x.email&&x.auditorId);
+  if(!manager)throw Error('SWAP_STAGING_NO_MANAGER');
+  const source=async()=>{
+   const result=await gasCall(manager,'listIndexSeed',{},'externalswap20');
+   if(result?.ok!==true||!Array.isArray(result.records)||result.records.length>300)
+    throw Error('SWAP_STAGING_GAS_SOURCE_MISSING');
+   return result.records;
+  };
+  const before=await source(),journalled=await readJournalOperationIds();
+  if(!(journalled instanceof Set))throw Error('SWAP_STAGING_JOURNAL_INVENTORY_MISSING');
+  const candidates=before.filter(p=>!journalled.has(p.operationId)&&
+   ['WITHDRAWN','DECLINED','CONFIRMED','AWAITING_ACKNOWLEDGEMENT','ESCALATED'].includes(p.status));
+  const verified=await source();
+  // Source may mutate while GAS is live. Exclude every non-identical record.
+  const latest=new Map(verified.map(p=>[p.operationId,p]));
+  let stale=0,existing=0,staged=0;
+  const sourceFields=['operationId','auditA','auditB','status','createdAt','createdBy',
+   'originalRevisions','requiredAuditorUids','acknowledgedAuditorUids',
+   'blocksA','blocksB','internalReason','ecasComment','dateChanged'];
+  for(const p of candidates){
+   if(!latest.has(p.operationId)||sourceFields.some(k=>JSON.stringify(p[k])!==JSON.stringify(latest.get(p.operationId)[k]))){stale++;continue;}
+   // Recheck that a journal has not started; a journaled proposal is never staged.
+   if((await readJournalOperationIds()).has(p.operationId)){stale++;continue;}
+   if(await readCanonicalProposal(p.operationId)){existing++;continue;}
+   const result=await stageCanonicalProposal({proposal:p,journalAbsentVerified:true});
+   if(result?.ok===true&&result.staged===true)staged++;
+   else if(result?.conflict===true)existing++;
+   else throw Error('SWAP_STAGING_WRITE_UNVERIFIED');
+  }
+  return {ok:true,result:'SWAP_GAS_PROPOSALS_STAGED_INACTIVE',sourceProposals:before.length,
+   journalExcluded:before.length-candidates.length,candidates:candidates.length,
+   staged,existing,stale,directWriteEnabled:false,cutoverAuthorized:false};
+ }
+ return Object.freeze({verify,reconcile,previewCanonicalMigration,stageCanonicalProposals});
 }

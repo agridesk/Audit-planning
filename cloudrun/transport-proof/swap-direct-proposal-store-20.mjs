@@ -71,6 +71,44 @@ export function createSwapDirectProposalStore({project,getToken,fetchImpl=fetch}
   if(!raw)return {ok:false,conflict:true};
   return {ok:true,proposal:decode(raw),updateTime:raw.updateTime};
  }
+ async function list({actor,authorizeAuditor}={}){
+  if(!actor||!['manager','auditor'].includes(actor.role)||!actor.email)throw Error('SWAP_DIRECT_LIST_UNAUTHORIZED');
+  const uid=actor.role==='auditor'?await authorizeAuditor?.(actor):null;
+  if(actor.role==='auditor'&&(!uid||typeof uid!=='string'))throw Error('SWAP_DIRECT_LIST_AUDITOR_UNAUTHORIZED');
+  let pageToken='',count=0;const all=[];
+  do{
+   const url=new URL(base);
+   url.searchParams.set('pageSize','100');
+   if(pageToken)url.searchParams.set('pageToken',pageToken);
+   const raw=await request(url.toString());
+   for(const doc of raw?.documents||[]){
+    count++;
+    if(count>300)throw Error('SWAP_DIRECT_LIST_SIZE_REQUIRES_REVIEW');
+    const p=decode(doc);
+    if(!p||!ID.test(String(p.operationId||''))||!p.auditA||!p.auditB||
+       !Array.isArray(p.requiredAuditorUids)||!Array.isArray(p.acknowledgedAuditorUids))
+     throw Error('SWAP_DIRECT_LIST_PROPOSAL_INVALID');
+    all.push(p);
+   }
+   pageToken=raw?.nextPageToken||'';
+  }while(pageToken);
+  const relevant=all.filter(p=>actor.role==='manager'
+   ?['AWAITING_ACKNOWLEDGEMENT','ESCALATED','CONFIRMED','DECLINED'].includes(p.status)
+   :['AWAITING_ACKNOWLEDGEMENT','ESCALATED'].includes(p.status)&&p.requiredAuditorUids.includes(uid));
+  relevant.sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+  const items=relevant.slice(0,actor.role==='manager'?100:50).map(p=>actor.role==='manager'
+   ?{operationId:p.operationId,auditA:p.auditA,auditB:p.auditB,status:p.status,
+      createdAt:p.createdAt||'',createdBy:p.createdBy||'',blocksA:p.blocksA||[],blocksB:p.blocksB||[],
+      requiredCount:p.requiredAuditorUids.length,acknowledgedCount:p.acknowledgedAuditorUids.length,
+      requiredAuditorUids:p.requiredAuditorUids,acknowledgedAuditorUids:p.acknowledgedAuditorUids,
+      internalReason:p.internalReason||'',ecasComment:p.ecasComment||'',commitEnabled:p.status==='CONFIRMED'}
+   :{operationId:p.operationId,auditA:p.auditA,auditB:p.auditB,status:p.status,
+      createdAt:p.createdAt||'',afterA:p.blocksA||[],afterB:p.blocksB||[],
+      ecasComment:p.ecasComment||'',dateChanged:p.dateChanged===true,
+      acknowledged:p.acknowledgedAuditorUids.includes(uid)});
+  return {ok:true,readOnly:true,source:'firestore-canonical',items,
+   attentionCount:actor.role==='manager'?relevant.length:relevant.filter(p=>!p.acknowledgedAuditorUids.includes(uid)).length};
+ }
  async function respond({operationId,decision,actor,authorizeAuditor}={}){
   if(!ID.test(String(operationId||''))||!['ACKNOWLEDGE','DECLINE'].includes(decision)||
      !actor||String(actor.role||'').toLowerCase()!=='auditor'||!actor.email||typeof authorizeAuditor!=='function')
@@ -102,5 +140,5 @@ export function createSwapDirectProposalStore({project,getToken,fetchImpl=fetch}
   if(!result.ok)return {ok:false,conflict:true,code:'SWAP_DIRECT_RESPONSE_RETRY_FROM_FRESH_STATE'};
   return {ok:true,status:next.status,operationId,updateTime:result.updateTime};
  }
- return Object.freeze({read,create,compareAndSet,respond});
+ return Object.freeze({read,list,create,compareAndSet,respond});
 }

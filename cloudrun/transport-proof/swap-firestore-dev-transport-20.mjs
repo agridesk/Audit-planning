@@ -39,13 +39,6 @@ export function createSwapFirestoreDevTransport(options={}){
      !internalReason.trim()||internalReason.length>500||typeof ecasComment!=='string'||
      !ecasComment.trim()||ecasComment.length>1000)throw Error('SWAP_DIRECT_PROPOSAL_INPUT_INVALID');
   const ids=[auditA,auditB];
-  // SWAP's migrated audit-level reservations are not automatically the same
-  // canonical data as My Availability's auditor-level Firestore documents.
-  // Until these stores have a proven single-writer contract, a direct
-  // proposal must fail closed; mere document-count parity is insufficient.
-  if(typeof options.verifySharedAvailabilityAuthority!=='function'||
-     await options.verifySharedAvailabilityAuthority({auditA,auditB})!==true)
-   throw Error('SWAP_DIRECT_AVAILABILITY_AUTHORITY_UNVERIFIED');
   const [pair,availability]=await Promise.all([reader.readPair(ids),reader.readAvailability(ids)]);
   const draft=buildSwapFirestoreReadOnlyPreview({pair,availability});
   if(!draft?.eligible||draft.dateChanged!==true)throw Error('SWAP_DIRECT_PAIR_NOT_ELIGIBLE');

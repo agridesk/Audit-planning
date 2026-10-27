@@ -25,7 +25,7 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
    if(!prior.length)throw Error('AVAILABILITY_SWAP_SHEET_AUDIT_NOT_FOUND');
    const meta=prior[0];
    for(const block of audit.plannedBlocks){
-    if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(block.date||''))||!/^\\d{2}:\\d{2}$/.test(String(block.start||''))||!/^\\d{2}:\\d{2}$/.test(String(block.end||''))||block.start>=block.end)throw Error('AVAILABILITY_SWAP_BLOCK_INVALID');
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(String(block.date||''))||!/^\d{2}:\d{2}$/.test(String(block.start||''))||!/^\d{2}:\d{2}$/.test(String(block.end||''))||block.start>=block.end)throw Error('AVAILABILITY_SWAP_BLOCK_INVALID');
     canonical.push({...meta,date:block.date,start:block.start,end:block.end,state:'COMMITTED'});
    }
   }

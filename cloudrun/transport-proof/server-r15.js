@@ -343,7 +343,7 @@ async function swap20VerifyGasWriteAuthority(){
  })().catch(()=>false).finally(()=>{swap20AuthorityInflight=null;});
  return swap20AuthorityInflight;
 }
-const swap20DirectTransport=runtime.isDev?createSwapFirestoreDevTransport({project,getToken,enabled:process.env.AMS_SWAP20_DIRECT_COMMIT_ENABLED==='true',canonicalCutoverVerified:process.env.AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED==='true',expectedAvailabilityDocuments:20,verifySourceFreeze:swap20VerifyGasWriteAuthority,
+const swap20DirectTransport=runtime.isDev?createSwapFirestoreDevTransport({project,getToken,enabled:process.env.AMS_SWAP20_DIRECT_COMMIT_ENABLED==='true',canonicalCutoverVerified:process.env.AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED==='true',expectedAvailabilityDocuments:27,verifySourceFreeze:swap20VerifyGasWriteAuthority,
  authorize:async(actor,operationId)=>actor?.role==='manager'&&Boolean(actor?.email)&&/^[A-Za-z0-9_-]{8,100}$/.test(operationId),
  resolveCanonicalAuditorUids:async({owners})=>{
   const roster=await swapRoster();

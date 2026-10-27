@@ -286,6 +286,19 @@ function doPost(e) {
       return authResponse({ok:true,role:verified.role,token:verified.token,expiresAt:verified.expiresAt});
     }catch(authError){return authResponse({ok:false,error:'AUTHENTICATION_UNAVAILABLE'});}
   }
+  if(rawAction==='externalrealizedhours20'){
+    var realizedReply=function(value){return ContentService.createTextOutput(JSON.stringify(value)).setMimeType(ContentService.MimeType.JSON);};
+    if(!V5_ENTRY_isDevEnv_())return realizedReply({success:false,error:'DEV_ONLY'});
+    var realizedBridge=V5_ENTRY_externalBridgeBody_(e);
+    if(!realizedBridge.ok)return realizedBridge.response;
+    var correction=realizedBridge.body||{};
+    if(correction.operation!=='correctCompletedHours'||String(correction.actorRole||'').toLowerCase()!=='manager')return realizedReply({success:false,error:'MANAGER_OPERATION_REQUIRED'});
+    if(typeof CompletionService_OverrideCompletedHours!=='function')return realizedReply({success:false,error:'CANONICAL_REALIZED_HOURS_OWNER_UNAVAILABLE'});
+    try{
+      var result=CompletionService_OverrideCompletedHours({auditId:correction.auditId,hoursDedicated:correction.hoursDedicated,expectedHoursDedicated:correction.expectedHoursDedicated,actorEmail:correction.actorEmail,reason:correction.reason});
+      return realizedReply(result||{success:false,error:'CANONICAL_REALIZED_HOURS_NO_RESULT'});
+    }catch(err){return realizedReply({success:false,error:'CANONICAL_REALIZED_HOURS_FAILED'});}
+  }
   if(rawAction==='externalnotification20'){
     var reply=function(x){return ContentService.createTextOutput(JSON.stringify(x)).setMimeType(ContentService.MimeType.JSON);};
     if(!V5_ENTRY_isDevEnv_())return reply({ok:false,error:'DEV_ONLY'});

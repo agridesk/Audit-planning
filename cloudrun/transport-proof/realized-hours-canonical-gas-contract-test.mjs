@@ -26,5 +26,6 @@ assert.ok(route.includes('perf.managerAuthorizationMs'),'manager roster phase mi
 assert.ok(route.includes('perf.canonicalReadMs'),'canonical read phase missing');
 assert.ok(route.includes('perf.unclassifiedMs'),'unclassified phase missing');
 const transport=readFileSync(new URL('./server-r12.js',import.meta.url),'utf8');
-assert.ok(transport.includes('bridgePerf:{postResponseMs,redirectGetMs'),'transport phase metrics missing');
+assert.ok(transport.includes('DIRECT_SHEETS_ATOMIC'),'DEV restored fast transport route missing');
+assert.ok(transport.includes('PROD_REALIZED_HOURS_DIRECT_WRITER_DISABLED'),'PROD gate missing');
 console.log('REALIZED_HOURS_CANONICAL_GAS_CONTRACT_PASS');

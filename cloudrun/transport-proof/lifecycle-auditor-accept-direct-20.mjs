@@ -20,11 +20,11 @@ export function prepareDirectAuditorAccept20({cutover,actor,audit,roster,now}={}
   const assigned=read(h,r,['Assigned to','Assigned auditor','Auditor']).toLowerCase();
   const identities=[email,clean(actor.auditorUid).toLowerCase(),read(roster.headers,member,['Name']).toLowerCase(),read(roster.headers,member,['Abbreviation']).toLowerCase()];
   if(!assigned||!identities.includes(assigned))throw Error('AUDITOR_ACCEPT_ASSIGNMENT_MISMATCH');
-  if(read(h,r,['Status']).toUpperCase().replace(/[\\s-]+/g,'_')!=='APPROVED')throw Error('AUDITOR_ACCEPT_STATUS_CONFLICT');
+  if(read(h,r,['Status']).toUpperCase().replace(/[ \t-]+/g,'_')!=='APPROVED')throw Error('AUDITOR_ACCEPT_STATUS_CONFLICT');
   const revisionParts=[auditId,read(h,r,['Status']),read(h,r,['Assigned to','Assigned auditor','Auditor']),read(h,r,['Planning JSON','Planning_JSON']),read(h,r,['Last decision timestamp']),read(h,r,['Status since'])];
   const revision=createHash('sha256').update(revisionParts.join('|')).digest('hex').slice(0,24);
   if(revision!==cutover.expectedRevision)throw Error('AUDITOR_ACCEPT_REVISION_CONFLICT');
-  if(!/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}/.test(clean(now)))throw Error('AUDITOR_ACCEPT_TIMESTAMP_REQUIRED');
+  if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}/.test(clean(now)))throw Error('AUDITOR_ACCEPT_TIMESTAMP_REQUIRED');
   const next=r.slice();
   const set=(names,value)=>{const i=index(h,names);if(i<0)throw Error('AUDITOR_ACCEPT_REQUIRED_COLUMN_MISSING_'+names[0]);next[i]=value;};
   set(['Status'],'Accepted');

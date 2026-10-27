@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const gas=readFileSync(new URL('../../CompletionService.js',import.meta.url),'utf8');
+const start=gas.indexOf('function completionService_overrideCompletedHours_(payload)');
+const end=gas.indexOf('\nfunction ',start+20);
+assert.ok(start>=0,'canonical GAS writer missing');
+const route=gas.slice(start,end>start?end:gas.length);
+const lock=route.indexOf('LockService.getScriptLock()');
+const compare=route.indexOf("code:'STALE_REALIZED_HOURS'");
+const write=route.indexOf('LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated');
+assert.ok(lock>=0&&compare>lock&&write>compare,'lock / compare / write ordering must remain');
+assert.ok(route.includes("code:'REALIZED_HOURS_EXPECTED_VALUE_REQUIRED'"),'expected hours mandatory');
+assert.ok(route.includes('LogRealizedAuditService_GetCompletedAudit(auditId)'),'canonical record read required');
+assert.ok(route.includes("code:'AUDIT_NOT_COMPLETED'"),'completed status required');
+assert.ok(route.includes('lock.releaseLock()'),'lock release required');
+console.log('REALIZED_HOURS_CANONICAL_GAS_CONTRACT_PASS');

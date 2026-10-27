@@ -7,8 +7,8 @@ export function buildAtomicAcceptCommit20({cutover,project,database='(default)',
   assertAuditorAcceptCutover20({...cutover,auditId,expectedRevision,auditorUid:cutover?.auditorUid});
   if(!/^[a-z][a-z0-9-]{4,62}-dev$/.test(project||''))throw Error('ACCEPT_FIRESTORE_DEV_PROJECT_REQUIRED');
   if(database!=='(default)'||!validName(auditId)||!validName(operationId))throw Error('ACCEPT_FIRESTORE_IDENTIFIER_INVALID');
-  if(!/^\\d{4}-\\d{2}-\\d{2}T/.test(updateTime||''))throw Error('ACCEPT_SOURCE_UPDATE_TIME_REQUIRED');
-  if(!/^\\d{4}-\\d{2}-\\d{2}T/.test(now||'')||!actorEmail||!actorEmail.includes('@'))throw Error('ACCEPT_ACTOR_OR_TIME_INVALID');
+  if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}T/.test(updateTime||''))throw Error('ACCEPT_SOURCE_UPDATE_TIME_REQUIRED');
+  if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}T/.test(now||'')||!actorEmail||!actorEmail.includes('@'))throw Error('ACCEPT_ACTOR_OR_TIME_INVALID');
   const base='projects/'+project+'/databases/'+database+'/documents';
   const doc=base+'/ams_lifecycle_audits_20_dev/'+auditId;
   const event=base+'/ams_lifecycle_outbox_20_dev/'+operationId;

@@ -133,10 +133,20 @@ function selectionPdf(){
 }
 function submitSelectionHandoff(mode){
   var ids=selectionIds();if(!ids.length)return;
+  // Reserve the destination within the original user gesture, before async fetch.
+  // This prevents popup blockers from silently discarding the planning handoff.
+  var target="ams_selection_handoff_"+Date.now(),win=window.open("about:blank",target);
+  if(!win){window.alert("Allow pop-ups for AMS to open the selected audits in the Planning Toolkit.");return}
+  try{win.document.title="Preparing Planning Toolkit…";win.document.body.textContent="Preparing the selected audits…"}catch(e){}
   fetch("/api/v1/manager/selection-handoff",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({auditIds:ids,mode:mode})})
     .then(function(r){return r.json().then(function(x){if(!r.ok||x.success===false)throw new Error(x.error||"Selection handoff failed");return x})})
-    .then(function(x){var form=document.createElement("form");form.method="POST";form.action=x.url;form.target="_blank";Object.keys(x.fields||{}).forEach(function(k){var i=document.createElement("input");i.type="hidden";i.name=k;i.value=String(x.fields[k]||"");form.appendChild(i)});document.body.appendChild(form);form.submit();form.remove()})
-    .catch(function(e){window.alert("Selection action failed: "+e.message)})
+    .then(function(x){
+      if(!x||typeof x.url!=="string"||!/^https:\/\//i.test(x.url))throw new Error("Invalid toolkit destination");
+      var form=document.createElement("form");form.method="POST";form.action=x.url;form.target=target;
+      Object.keys(x.fields||{}).forEach(function(k){var i=document.createElement("input");i.type="hidden";i.name=k;i.value=String(x.fields[k]||"");form.appendChild(i)});
+      document.body.appendChild(form);try{form.submit()}finally{form.remove()}
+    })
+    .catch(function(e){try{win.close()}catch(_){}window.alert("Selection action failed: "+e.message)})
 }
 
 function text(v){return v==null||v===""?"-":String(v)}

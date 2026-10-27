@@ -38,14 +38,15 @@ export function createAuditorAcceptOrchestrator20({
     });
     if(!parity.ok)fail('ACCEPT_SOURCE_PARITY_FAILED:'+parity.errors.join(','));
     const cutover={...state,canonicalOwner:'CLOUD_RUN',enabled:true,expectedRevision,auditorUid:actor.auditorUid};
+    const timestamp=now();
     const planned=prepareDirectAuditorAccept20({
-      cutover,actor,audit:source,roster,now:now()
+      cutover,actor,audit:source,roster,now:timestamp
     });
     if(planned.auditId!==auditId)fail('ACCEPT_PREPARED_ID_MISMATCH');
     return write({
       cutover,canonicalSource:'FIRESTORE',sourceRetirementVerified:true,
       project:state.project,auditId,operationId,expectedRevision,
-      updateTime:firestore.updateTime,actorEmail:actor.email,now:now(),getToken,fetchImpl
+      updateTime:firestore.updateTime,actorEmail:actor.email,now:timestamp,getToken,fetchImpl
     });
   };
 }

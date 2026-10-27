@@ -18,4 +18,8 @@ const entryRoute=entry.split("if(rawAction==='externalrealizedhours20')")[1]?.sp
 assert.ok(entryRoute.includes('V5_ENTRY_externalBridgeBody_(e)'),'canonical GAS bridge requires credential verification');
 assert.ok(entryRoute.includes("if(!V5_ENTRY_isDevEnv_())"),'canonical bridge stays DEV-only');
 assert.ok(entryRoute.includes('CompletionService_OverrideCompletedHours('),'bridge must call locked canonical owner');
+const rotation=readFileSync(new URL('../../RotationAuditorService.js',import.meta.url),'utf8');
+const cacheClear=rotation.split('function RotationAuditorService_clearCache()')[1]?.split('\nfunction ')[0]||'';
+assert.ok(cacheClear.includes('c.removeAll(keys);'),'rotation cache must invalidate keys in one service call');
+assert.ok(!cacheClear.includes('c.remove(keys[i])'),'rotation cache must avoid per-key remote calls');
 console.log('REALIZED_HOURS_CANONICAL_GAS_CONTRACT_PASS');

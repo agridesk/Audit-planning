@@ -7,12 +7,29 @@ import {committedBlocksFromCanonicalSlots,withCommittedOverlay} from './availabi
 import {resolveAvailabilityPeriod} from './availability-resolver-20.js';
 import {buildManagerAvailabilityOverview} from './availability-manager-overview-20.js';
 const clean=x=>String(x??'').trim();
-export function createPlanningOverlayService({service,readPlanningRows,listCanonicalAuditors,readScopeNames}={}){
+export function createPlanningOverlayService({service,readPlanningRows,listCanonicalAuditors,readScopeNames,readCanonicalSwaps}={}){
  if(!service||typeof service.read!=='function'||typeof service.mutate!=='function'||typeof readPlanningRows!=='function'||typeof listCanonicalAuditors!=='function')throw Error('INVALID_OVERLAY_CONFIGURATION');
  async function slotsFor(fromDate,toDate,{fresh=false}={}){
   const [rows,auditors,scopeNamesBySlot]=await Promise.all([readPlanningRows({fresh}),listCanonicalAuditors(),readScopeNames?readScopeNames():{}]);
   if(!Array.isArray(rows)||!Array.isArray(auditors))throw Error('CANONICAL_PLANNING_UNAVAILABLE');
-  return canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDate,scopeNamesBySlot});
+  const legacy=canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate:'1900-01-01',toDate:'2100-12-31',scopeNamesBySlot});
+  if(typeof readCanonicalSwaps!=='function')return legacy.filter(x=>x.date>=fromDate&&x.date<=toDate);
+  const swaps=await readCanonicalSwaps();
+  if(swaps?.ok!==true||!Array.isArray(swaps.rows))throw Error('AVAILABILITY_SWAP_CANONICAL_READ_UNVERIFIED');
+  const replaceIds=new Set(),canonical=[];
+  for(const audit of swaps.rows){
+   const id=clean(audit.auditId);
+   if(!id||replaceIds.has(id)||!Array.isArray(audit.plannedBlocks)||!audit.plannedBlocks.length)throw Error('AVAILABILITY_SWAP_CANONICAL_INVALID');
+   replaceIds.add(id);
+   const prior=legacy.filter(x=>x.auditId===id);
+   if(!prior.length)throw Error('AVAILABILITY_SWAP_SHEET_AUDIT_NOT_FOUND');
+   const meta=prior[0];
+   for(const block of audit.plannedBlocks){
+    if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(block.date||''))||!/^\\d{2}:\\d{2}$/.test(String(block.start||''))||!/^\\d{2}:\\d{2}$/.test(String(block.end||''))||block.start>=block.end)throw Error('AVAILABILITY_SWAP_BLOCK_INVALID');
+    canonical.push({...meta,date:block.date,start:block.start,end:block.end,state:'COMMITTED'});
+   }
+  }
+  return legacy.filter(x=>!replaceIds.has(x.auditId)&&x.date>=fromDate&&x.date<=toDate).concat(canonical.filter(x=>x.date>=fromDate&&x.date<=toDate));
  }
  async function period({actor,auditorId,fromDate,toDate}){
   const doc=await service.read(actor,auditorId);

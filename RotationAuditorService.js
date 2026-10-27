@@ -39,7 +39,7 @@ function RotationAuditorService_clearCache() {
   ];
   try {
     var c = CacheService.getScriptCache();
-    for (var i = 0; i < keys.length; i++) c.remove(keys[i]);
+    c.removeAll(keys);
   } catch (e) {}
   try {
     if (typeof AUDIT_CACHE !== 'undefined' && AUDIT_CACHE && typeof AUDIT_CACHE.remove === 'function') {

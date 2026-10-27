@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {verifyProdRuntimeIdentity} from './prod-runtime-identity-20.mjs';
+const account='ams-prod-runtime@ams-prod-fixture.iam.gserviceaccount.com';
+const fake=(status,email)=>async()=>({ok:status,text:async()=>email});
+assert.equal(await verifyProdRuntimeIdentity(account,fake(true,account)),true);
+assert.equal(await verifyProdRuntimeIdentity(account,fake(true,account.toUpperCase())),true);
+await assert.rejects(()=>verifyProdRuntimeIdentity(account,fake(false,'')),/AMS_PROD_RUNTIME_IDENTITY_UNVERIFIED/);
+await assert.rejects(()=>verifyProdRuntimeIdentity(account,fake(true,'510075419067-compute@developer.gserviceaccount.com')), /AMS_PROD_RUNTIME_IDENTITY_MISMATCH/);
+await assert.rejects(()=>verifyProdRuntimeIdentity(account,fake(true,'ams-prod-runtime@wrong-project.iam.gserviceaccount.com')), /AMS_PROD_RUNTIME_IDENTITY_MISMATCH/);
+console.log('PROD_RUNTIME_IDENTITY_PROOF_PASS');

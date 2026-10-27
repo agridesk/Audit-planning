@@ -13,4 +13,9 @@ assert.match(portal,/var enrichment=loadOpenEnrichment\(seq\);var canonical=load
 assert.match(portal,/enrichment\.then\(function\(\)\{return loadSwap20CanonicalGridDates\(seq\)\}\)/);
 assert.match(portal,/row\.planningJson=JSON\.stringify\(original\)/);
 assert.match(portal,/row\.datePlanned=blocks\[0\]\.date/);
+const overlay=readFileSync(new URL('./availability-planning-overlay-service-20.js',import.meta.url),'utf8');
+assert.match(overlay,/readCanonicalSwaps/);
+assert.match(overlay,/replaceIds\.has\(x\.auditId\)/);
+assert.match(overlay,/AVAILABILITY_SWAP_CANONICAL_READ_UNVERIFIED/);
+assert.match(server,/swap20DirectTransport\.canonicalGridDates\(\{actor:\{role:'manager'/);
 console.log('SWAP_CANONICAL_GRID_OVERLAY_CONTRACT_PASS');

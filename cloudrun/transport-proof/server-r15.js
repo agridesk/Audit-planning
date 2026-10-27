@@ -133,6 +133,9 @@ const overlay=createPlanningOverlayService({
  service,
  readPlanningRows:planningCache.read,
  readScopeNames,
+ readCanonicalSwaps:async()=>runtime.isDev&&process.env.AMS_SWAP20_DIRECT_ROUTE==='true'
+  ?swap20DirectTransport.canonicalGridDates({actor:{role:'manager',email:process.env.AMS_DEV_MANAGER_EMAIL||''}})
+  :{ok:true,rows:[]},
  listCanonicalAuditors:async()=>{
   const roster=await getRoster();
   return roster.filter(x=>x.auditorId&&!x.auditorId.startsWith('manager:')).map(x=>({auditorId:x.auditorId,email:x.email}));

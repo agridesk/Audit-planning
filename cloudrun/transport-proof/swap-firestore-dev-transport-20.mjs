@@ -92,7 +92,8 @@ export function createSwapFirestoreDevTransport(options={}){
     const message=String(e?.message||'');
     const prefix=kind==='audits'?'SWAP_DIRECT_AUDITS_NOT_MIGRATED:':'SWAP_DIRECT_AVAILABILITY_NOT_MIGRATED:';
     if(message.startsWith(prefix)){
-     const missing=message.slice(prefix.length).split(',').filter(id=>ids.includes(id));
+     const tail=message.slice(prefix.length);
+     const missing=tail===ids[0]+','+ids[1]||tail===ids[1]+','+ids[0]?[...ids]:ids.filter(id=>tail===id);
      return {state:'MISSING',auditIds:missing};
     }
     return {state:'UNVERIFIED',code:message.startsWith('SWAP_')?message.slice(0,110):'SWAP_DIAGNOSTIC_READ_FAILED'};

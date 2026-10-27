@@ -543,7 +543,7 @@ async function swap20ManagerRequest(req,res,operation){
  try{body=JSON.parse(raw);}catch{res.writeHead(400);res.end('INVALID_JSON');return;}
  if(!body||typeof body!=='object'||Array.isArray(body)){res.writeHead(400);res.end('INVALID_SWAP_REQUEST');return;}
  const data={};
- if(operation==='preview'||operation==='propose'){
+ if(operation==='preview'||operation==='propose'||operation==='diagnosePair'){
   data.auditA=String(body.auditA||'').trim();data.auditB=String(body.auditB||'').trim();
   if(!data.auditA||!data.auditB||data.auditA===data.auditB||
      data.auditA.length>140||data.auditB.length>140){res.writeHead(400);res.end('INVALID_SWAP_PAIR');return;}
@@ -571,7 +571,9 @@ async function swap20ManagerRequest(req,res,operation){
  const swap20RequestStarted=Date.now();
  const result=operation==='eligibleAudits'
   ?(swap20DirectRouteEnabled?await swap20DirectTransport.eligibleAuditIds({actor}):{ok:false,code:'SWAP_DIRECT_SELECTION_DISABLED'})
-  :operation==='listPending'
+  :operation==='diagnosePair'
+   ?(swap20DirectRouteEnabled?await swap20DirectTransport.diagnosePair({...data,actor}):{ok:false,code:'SWAP_DIRECT_SELECTION_DISABLED'})
+   :operation==='listPending'
   ?(swap20DirectRouteEnabled?await swap20DirectTransport.list({actor}):await swap20ReadList(actor))
   :operation==='preview'
    ?(swap20DirectRouteEnabled?await swap20DirectTransport.preview(data):(await swap20FastPreview(actor,data))||await swap20GasOperation(actor,operation,data))
@@ -836,6 +838,7 @@ http.createServer(async(req,res)=>{
    const operation={
     '/api/v1/manager/swap20/list':'listPending',
     '/api/v1/manager/swap20/eligible':'eligibleAudits',
+     '/api/v1/manager/swap20/diagnose':'diagnosePair',
     '/api/v1/manager/swap20/preview':'preview',
     '/api/v1/manager/swap20/propose':'propose',
     '/api/v1/manager/swap20/status':'getProposal',

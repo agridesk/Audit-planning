@@ -417,8 +417,8 @@ function focusEmailAudit20(){
 
 function setTabs(){document.getElementById("completedView").style.background=currentView==="completed"?"#dbeafe":"white";document.getElementById("openView").style.background=currentView==="open"?"#dbeafe":"white"}
 function loadSwap20CanonicalGridDates(seq){
- if(String(actorRole).toLowerCase()!=="manager")return Promise.resolve();
- return fetch("/api/v1/manager/swap20/canonical-grid-dates",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:"{}"})
+ var role=String(actorRole).toLowerCase();if(role!=="manager"&&role!=="auditor")return Promise.resolve();
+ return fetch(role==="auditor"?"/api/v1/auditor/swap20/canonical-grid-dates":"/api/v1/manager/swap20/canonical-grid-dates",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:"{}"})
  .then(function(r){return r.json().then(function(x){if(!r.ok||x.ok!==true||!Array.isArray(x.rows))throw Error(String(x.code||"SWAP_CANONICAL_GRID_UNAVAILABLE"));return x;})})
  .then(function(result){
   if(seq!==enrichmentSeq||currentView!=="open")return;

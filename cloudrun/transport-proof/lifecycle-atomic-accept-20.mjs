@@ -3,8 +3,11 @@
 import {assertAuditorAcceptCutover20} from './lifecycle-accept-cutover-20.mjs';
 const field=v=>({stringValue:String(v)});
 const validName=s=>/^[A-Za-z0-9_-]{1,256}$/.test(s||'');
-export function buildAtomicAcceptCommit20({cutover,project,database='(default)',auditId,updateTime,operationId,actorEmail,expectedRevision,now}={}){
+export function buildAtomicAcceptCommit20({cutover,project,database='(default)',auditId,updateTime,operationId,actorEmail,expectedRevision,now,canonicalSource,sourceRetirementVerified}={}){
   assertAuditorAcceptCutover20({...cutover,auditId,expectedRevision,auditorUid:cutover?.auditorUid});
+  // A transaction in a shadow Firestore collection does not change the live Sheets audit.
+  // Never report success until Firestore is demonstrably the sole canonical owner.
+  if(canonicalSource!=='FIRESTORE'||sourceRetirementVerified!==true)throw Error('ACCEPT_CANONICAL_SHEETS_SOURCE_NOT_RETIRED');
   if(!/^[a-z][a-z0-9-]{4,62}-dev$/.test(project||''))throw Error('ACCEPT_FIRESTORE_DEV_PROJECT_REQUIRED');
   if(database!=='(default)'||!validName(auditId)||!validName(operationId))throw Error('ACCEPT_FIRESTORE_IDENTIFIER_INVALID');
   if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}T/.test(updateTime||''))throw Error('ACCEPT_SOURCE_UPDATE_TIME_REQUIRED');

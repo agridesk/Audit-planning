@@ -87,55 +87,29 @@ http.createServer(async(req,res)=>{
     if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN'});
     let body={};
     try{body=JSON.parse(await readRaw(req,16384));}catch{return sendJson(res,400,{success:false,error:'INVALID_JSON'});}
-    const auditId=clean(body.auditId),hoursDedicated=Number(body.hoursDedicated);
-    if(!auditId||!Number.isFinite(hoursDedicated)||hoursDedicated<=0||Math.abs(Math.round(hoursDedicated*4)/4-hoursDedicated)>1e-9)return sendJson(res,400,{success:false,error:'INVALID_HOURS'});
-    if(realizedHoursInFlight.has(auditId))return sendJson(res,409,{success:false,error:'REALIZED_HOURS_WRITE_IN_PROGRESS'});
-    realizedHoursInFlight.add(auditId);
-    try{
-    const t0=Date.now();
-    if(!SID)return sendJson(res,503,{success:false,error:'DEV_SSOT_NOT_CONFIGURED'});
-    const rows=await batchValues(["'Log realized audits'!A1:AZ10000","'Auditors'!A1:Z500"]);
-    const log=rows[0]||[],auditors=rows[1]||[];
-    const ah=auditors[0]||[],emailCol=col(ah,['Email','E-mail']),roleCol=col(ah,['Role']),activeCol=col(ah,['Active']);
-    if(emailCol<0||roleCol<0)return sendJson(res,503,{success:false,error:'MANAGER_ROSTER_INVALID'});
+    const auditId=clean(body.auditId),hoursDedicated=Number(body.hoursDedicated),expected=Number(body.expectedHoursDedicated);
+    if(!auditId||body.hoursDedicated==null||!Number.isFinite(hoursDedicated)||hoursDedicated<=0||Math.abs(Math.round(hoursDedicated*4)/4-hoursDedicated)>1e-9)return sendJson(res,400,{success:false,error:'INVALID_HOURS'});
+    if(body.expectedHoursDedicated==null||body.expectedHoursDedicated===''||!Number.isFinite(expected))return sendJson(res,428,{success:false,error:'REALIZED_HOURS_EXPECTED_VALUE_REQUIRED'});
+    if(!GAS_WRITE_URL||!WRITE_KEY)return sendJson(res,503,{success:false,error:'CANONICAL_REALIZED_HOURS_GAS_BRIDGE_UNAVAILABLE'});
     const actor=clean(identity.email).toLowerCase();
-    if(!auditors.slice(1).some(row=>val(row,emailCol).toLowerCase()===actor&&val(row,roleCol).toLowerCase()==='manager'&&(activeCol<0||val(row,activeCol).toUpperCase()==='YES')))return sendJson(res,403,{success:false,error:'MANAGER_ROLE_REQUIRED'});
-    const h=log[0]||[],idCol=col(h,['Audit ID']),hoursCol=col(h,['Hours dedicated']),statusCol=col(h,['Status']);
-    if(idCol<0||hoursCol<0||statusCol<0)return sendJson(res,503,{success:false,error:'LOG_HEADERS_INVALID'});
-    const hits=[];for(let i=1;i<log.length;i++)if(val(log[i],idCol)===auditId)hits.push(i);
-    if(hits.length!==1)return sendJson(res,409,{success:false,error:hits.length?'DUPLICATE_AUDIT_ID':'AUDIT_NOT_FOUND'});
-    const rowIndex=hits[0],record=log[rowIndex];
-    if(statusKey(val(record,statusCol))!=='COMPLETED')return sendJson(res,409,{success:false,error:'AUDIT_NOT_COMPLETED'});
-    const oldHoursDedicated=Number(record[hoursCol]);
-    if(!Number.isFinite(oldHoursDedicated))return sendJson(res,409,{success:false,error:'INVALID_OLD_HOURS'});
-    if(body.expectedHoursDedicated==null||body.expectedHoursDedicated===''||!Number.isFinite(Number(body.expectedHoursDedicated)))return sendJson(res,428,{success:false,error:'REALIZED_HOURS_EXPECTED_VALUE_REQUIRED'});
-    if(Number(body.expectedHoursDedicated)!==oldHoursDedicated)return sendJson(res,409,{success:false,error:'STALE_REALIZED_HOURS',oldHoursDedicated});
-    const lookupMs=Date.now()-t0;
-    if(oldHoursDedicated===hoursDedicated)return sendJson(res,200,{success:true,auditId,oldHoursDedicated,newHoursDedicated:hoursDedicated,changed:false,perf:{lookupMs,totalMs:Date.now()-t0},transport:'DIRECT_SHEETS'});
+    if(!actor)return sendJson(res,401,{success:false,error:'SESSION_EMAIL_REQUIRED'});
+    const endpoint=new URL(GAS_WRITE_URL);
+    if(endpoint.protocol!=='https:')return sendJson(res,503,{success:false,error:'CANONICAL_REALIZED_HOURS_BRIDGE_HTTPS_REQUIRED'});
+    endpoint.searchParams.set('action','externalrealizedhours20');
+    const payload={bridgeKey:WRITE_KEY,actorRole:'manager',actorEmail:actor,operation:'correctCompletedHours',auditId,hoursDedicated,expectedHoursDedicated:expected,reason:clean(body.reason)};
+    // A write request MUST NEVER be repeated after an uncertain network response.
     try{
-      const token=await accessToken(),root='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID);
-      const metadataResponse=await fetch(root+'?fields=sheets(properties(sheetId,title))',{headers:{authorization:'Bearer '+token}});
-      if(!metadataResponse.ok)throw new Error('SHEETS_METADATA_'+metadataResponse.status);
-      const metadata=await metadataResponse.json(),sheets=metadata.sheets||[];
-      const logSheet=sheets.find(x=>x.properties?.title==='Log realized audits'),trailSheet=sheets.find(x=>x.properties?.title==='Notification Queue');
-      if(!logSheet||!trailSheet)throw new Error('CANONICAL_SHEETS_MISSING');
-      const now=new Date(),timestamp=now.toISOString(),type='COMPLETED_HOURS_OVERRIDE';
-      const payload={type,auditId,auditNumber:'',company:'',actorEmail:actor,actorRole:'MANAGER',beforeStatus:'',afterStatus:'',reason:clean(body.reason)||'Manager realized-hours correction',hours:hoursDedicated,oldHoursDedicated,newHoursDedicated:hoursDedicated,source:'CloudRun.RealizedHoursDirect',timestamp,action:''};
-      const subject='[TRAIL] '+type+' :: '+auditId,bodyText=JSON.stringify(payload);
-      const hash=b64url(createHmac('sha256',WRITE_KEY||'AMS_DEV').update(type+'|'+auditId+'|'+timestamp+'|').digest());
-      const queueRow=[timestamp.slice(0,16).replace('T',' '),'AUDIT_TRAIL',type,'',auditId,'',subject,bodyText,0,'',hash,'',JSON.stringify({payload})];
-      const cell=v=>({userEnteredValue:typeof v==='number'?{numberValue:v}:{stringValue:String(v)}});
-      const startedWrite=Date.now();
-      const batch={requests:[
-        {updateCells:{start:{sheetId:logSheet.properties.sheetId,rowIndex,columnIndex:hoursCol},rows:[{values:[cell(hoursDedicated)]}],fields:'userEnteredValue'}},
-        {appendCells:{sheetId:trailSheet.properties.sheetId,rows:[{values:queueRow.map(cell)}],fields:'userEnteredValue'}}
-      ]};
-      const response=await fetch(root+':batchUpdate',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify(batch)});
-      if(!response.ok)throw new Error('SHEETS_ATOMIC_WRITE_'+response.status+':'+(await response.text()).slice(0,200));
-      const writeMs=Date.now()-startedWrite;
-      return sendJson(res,200,{success:true,auditId,oldHoursDedicated,newHoursDedicated:hoursDedicated,hoursDedicated,changed:true,changedAt:timestamp,auditTrail:{success:true,type,status:'AUDIT_TRAIL'},perf:{lookupMs,logWriteMs:writeMs,cellWriteMs:writeMs,auditTrailMs:0,totalMs:Date.now()-t0},transport:'DIRECT_SHEETS_ATOMIC'});
-    }catch(e){return sendJson(res,502,{success:false,error:'DIRECT_SHEETS_COMMIT_FAILED',detail:clean(e.message)});}
-    }finally{realizedHoursInFlight.delete(auditId);}
+      let response=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload),redirect:'manual',signal:AbortSignal.timeout(60000)});
+      if([301,302,303,307,308].includes(response.status)){
+        const target=new URL(response.headers.get('location')||'',endpoint);
+        if(target.protocol!=='https:'||!target.hostname.endsWith('.googleusercontent.com'))throw Error('GAS_REDIRECT_INVALID');
+        response=await fetch(target,{method:'GET',redirect:'follow',signal:AbortSignal.timeout(30000)});
+      }
+      if(!response.ok)throw Error('GAS_HTTP_'+response.status);
+      const result=await response.json();
+      if(result?.success!==true)return sendJson(res,result?.code==='STALE_REALIZED_HOURS'?409:422,{success:false,error:clean(result?.code||result?.error||result?.message)||'CANONICAL_REALIZED_HOURS_REJECTED',oldHoursDedicated:result?.oldHoursDedicated});
+      return sendJson(res,200,{...result,transport:'CANONICAL_GAS_LOCKED'});
+    }catch(e){return sendJson(res,502,{success:false,error:'CANONICAL_REALIZED_HOURS_OUTCOME_UNCERTAIN',requiresReconciliation:true,safeToRetry:false});}
   }
   if(req.method==='GET'&&u.pathname==='/api/v1/manager/audit'){
     const identity=await innerSession(req);if(!identity)return sendJson(res,401,{success:false,error:'SESSION_REQUIRED'});if(clean(identity.role).toLowerCase()!=='manager')return sendJson(res,403,{success:false,error:'ROLE_FORBIDDEN'});const auditId=clean(u.searchParams.get('auditId')),sourceRow=clean(u.searchParams.get('sourceRow'));if(!auditId)return sendJson(res,400,{success:false,error:'AUDIT_ID_REQUIRED'});try{const out=await readAuditPatch(auditId,sourceRow);return sendJson(res,out.success?200:404,out);}catch(e){return sendJson(res,500,{success:false,error:'MANAGER_AUDIT_REREAD_FAILED',detail:clean(e?.message||e),build:BUILD});}

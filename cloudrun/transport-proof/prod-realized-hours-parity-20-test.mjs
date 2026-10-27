@@ -13,7 +13,7 @@ assert.equal(report.checks.COMPLETED_STATUS_REQUIRED,true);
 assert.equal(report.checks.WRITES_AUDIT_TRAIL_TOGETHER,true);
 assert.equal(report.checks.SHEETS_BATCH_UPDATE,true);
 assert.equal(report.checks.IN_MEMORY_LOCK_ONLY,true);
-assert.equal(report.checks.SERVER_EXPECTED_HOURS_OPTIONAL,true);
+assert.equal(report.checks.SERVER_EXPECTED_HOURS_REQUIRED,true);
 assert.equal(report.checks.CLIENT_SENDS_EXPECTED_HOURS,true);
 assert.ok(report.missingProductionProof.includes('cross-instance atomic compare-and-swap'));
 console.log('PROD_REALIZED_HOURS_PARITY_SOURCE_PASS');

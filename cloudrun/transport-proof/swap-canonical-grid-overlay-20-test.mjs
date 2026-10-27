@@ -17,5 +17,7 @@ const overlay=readFileSync(new URL('./availability-planning-overlay-service-20.j
 assert.match(overlay,/readCanonicalSwaps/);
 assert.match(overlay,/replaceIds\.has\(x\.auditId\)/);
 assert.match(overlay,/AVAILABILITY_SWAP_CANONICAL_READ_UNVERIFIED/);
+assert.ok(overlay.includes(String.raw`/^\d{4}-\d{2}-\d{2}$/`),'SWAP overlay date validation must match YYYY-MM-DD');
+assert.ok(!overlay.includes(String.raw`/^\\d{4}-\\d{2}-\\d{2}$/`),'SWAP overlay must not use double-escaped regex');
 assert.match(server,/swap20DirectTransport\.canonicalGridDates\(\{actor:\{role:'manager'/);
 console.log('SWAP_CANONICAL_GRID_OVERLAY_CONTRACT_PASS');

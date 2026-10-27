@@ -13,4 +13,9 @@ assert.ok(route.includes("code:'REALIZED_HOURS_EXPECTED_VALUE_REQUIRED'"),'expec
 assert.ok(route.includes('LogRealizedAuditService_GetCompletedAudit(auditId)'),'canonical record read required');
 assert.ok(route.includes("code:'AUDIT_NOT_COMPLETED'"),'completed status required');
 assert.ok(route.includes('lock.releaseLock()'),'lock release required');
+const entry=readFileSync(new URL('../../EntryV5.js',import.meta.url),'utf8');
+const entryRoute=entry.split("if(rawAction==='externalrealizedhours20')")[1]?.split("if(rawAction==='externalnotification20')")[0]||'';
+assert.ok(entryRoute.includes('V5_ENTRY_externalBridgeBody_(e)'),'canonical GAS bridge requires credential verification');
+assert.ok(entryRoute.includes("if(!V5_ENTRY_isDevEnv_())"),'canonical bridge stays DEV-only');
+assert.ok(entryRoute.includes('CompletionService_OverrideCompletedHours('),'bridge must call locked canonical owner');
 console.log('REALIZED_HOURS_CANONICAL_GAS_CONTRACT_PASS');

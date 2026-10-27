@@ -28,6 +28,22 @@ function swap20LoadEligibleAuditIds(){
  .catch(function(error){swap20EligibleAuditIds=null;swap20EligibleAt=Date.now();swap20EligibleError=String(error&&error.message||"SWAP_ELIGIBILITY_UNAVAILABLE");})
  .finally(function(){swap20EligibleLoading=false;updateSelectionUi();});
 }
+var swap20PairDiagnosis20={key:"",status:"",at:0,loading:false};
+function swap20DiagnoseSelection20(chosen){
+ if(!Array.isArray(chosen)||chosen.length!==2)return;
+ var pair={auditA:String(chosen[0].auditId),auditB:String(chosen[1].auditId)},key=[pair.auditA,pair.auditB].sort().join("|");
+ if(swap20PairDiagnosis20.loading||(swap20PairDiagnosis20.key===key&&Date.now()-swap20PairDiagnosis20.at<60000))return;
+ swap20PairDiagnosis20={key:key,status:"Checking canonical Firestore documents...",at:Date.now(),loading:true};
+ fetch("/api/v1/manager/swap20/diagnose",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify(pair)})
+ .then(function(r){return r.json().then(function(v){if(!r.ok||v.ok!==true)throw Error(String(v.code||"SWAP_DIAGNOSIS_FAILED"));return v;})})
+ .then(function(result){
+  function label(value,kind){if(value&&value.state==="MISSING")return kind+" missing: "+(value.auditIds||[]).map(function(id){var row=chosen.find(function(x){return String(x.auditId)===id;});return row?String(row.company||id):id;}).join(", ");return value&&value.state==="PRESENT"?"":kind+" unverified ("+String(value&&value.code||"UNKNOWN")+")";}
+  var issues=[label(result.audits,"Audit"),label(result.availability,"Reservation")].filter(Boolean);
+  swap20PairDiagnosis20.status=issues.length?issues.join(" | "):"Both canonical document pairs exist; verify index coverage and eligibility.";
+ })
+ .catch(function(error){swap20PairDiagnosis20.status="Firestore diagnosis unavailable: "+String(error&&error.message||"UNKNOWN");})
+ .finally(function(){swap20PairDiagnosis20.loading=false;swap20PairDiagnosis20.at=Date.now();updateSelectionUi();});
+}
 var swap20PreviewPrefetch={key:"",at:0,promise:null};
 function swap20WarmPreview(rows){
  if(!Array.isArray(rows)||rows.length!==2)return;
@@ -57,11 +73,12 @@ function updateSelectionUi(){
     swap.hidden=auditorMode||currentView!=="open"||n===0;
     swap.disabled=!eligible;
     if(eligible&&!auditorMode&&currentView==="open")swap20WarmPreview(chosen);
-    var excluded=accepted&&swap20EligibleAuditIds?chosen.filter(function(r){return !swap20EligibleAuditIds.has(String(r.auditId));}).map(function(r){return String(r.company||r.auditId);}):[];
+    if(accepted&&!eligible&&!swap20EligibleLoading)swap20DiagnoseSelection20(chosen);
+     var excluded=accepted&&swap20EligibleAuditIds?chosen.filter(function(r){return !swap20EligibleAuditIds.has(String(r.auditId));}).map(function(r){return String(r.company||r.auditId);}):[];
     swap.title=!accepted?"Select exactly two Accepted audits":swap20EligibleError?"Firestore SWAP eligibility check failed: "+swap20EligibleError:swap20EligibleAuditIds===null?"Verifying Firestore SWAP availability":eligible?"Preview exchange of two Accepted audit time slots":"Not migrated to Firestore SWAP: "+excluded.join(", ");
     var notice=document.getElementById("swap20SelectionEligibilityNotice");
     if(!notice){notice=document.createElement("span");notice.id="swap20SelectionEligibilityNotice";notice.setAttribute("role","status");notice.style.cssText="margin-left:12px;font-size:12px;color:#a34813";swap.insertAdjacentElement("afterend",notice);}
-    notice.textContent=accepted&&!eligible?(swap20EligibleError?"SWAP eligibility check failed ("+swap20EligibleError+"). Retry by reselecting after 60 seconds.":swap20EligibleAuditIds===null?"Checking Firestore SWAP eligibility...":"SWAP unavailable: "+excluded.join(" / ")+" not migrated to Firestore."): "";
+    notice.textContent=accepted&&!eligible?(swap20PairDiagnosis20.status&&swap20PairDiagnosis20.key===[String(chosen[0].auditId),String(chosen[1].auditId)].sort().join("|")?swap20PairDiagnosis20.status:swap20EligibleError?"SWAP eligibility check failed ("+swap20EligibleError+").":swap20EligibleAuditIds===null?"Checking Firestore SWAP eligibility...":"SWAP unavailable: "+excluded.join(" / ")+" not migrated to Firestore."): "";
   }
   var bulkAccept=document.getElementById("selectionAcceptAuditor");if(bulkAccept){var elig=selectionRows().filter(function(r){return r.statusKey==="APPROVED"&&(r.allowedActions||[]).includes("ACCEPT")});bulkAccept.hidden=!(auditorMode&&currentView==="open"&&elig.length>0);bulkAccept.textContent="Accept selected ("+elig.length+")";bulkAccept.disabled=bulkAcceptRunning20;}
 }

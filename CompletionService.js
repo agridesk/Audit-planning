@@ -507,6 +507,12 @@ function completionService_overrideCompletedHours_(payload) {
     if (Math.abs((Math.round(hoursDedicated * 4) / 4) - hoursDedicated) > 1e-9) return { success:false, message:'Hours dedicated must be in steps of 0.25' };
     if (typeof managerV5_isManagerActor_ !== 'function' || !managerV5_isManagerActor_(actorEmail)) return { success:false, message:'Manager role required' };
     if (typeof LogRealizedAuditService_UpdateCompletedHours !== 'function') return { success:false, message:'Missing dependency: LogRealizedAuditService_UpdateCompletedHours. Add LogRealizedAuditService.gs.' };
+    if (typeof LogRealizedAuditService_GetCompletedAudit !== 'function') return { success:false, code:'REALIZED_HOURS_CANONICAL_READ_MISSING' };
+    if (payload.expectedHoursDedicated === '' || payload.expectedHoursDedicated == null || !isFinite(Number(payload.expectedHoursDedicated))) return { success:false, code:'REALIZED_HOURS_EXPECTED_VALUE_REQUIRED' };
+    var canonical = LogRealizedAuditService_GetCompletedAudit(auditId);
+    if (!canonical || canonical.success !== true || canonical.found !== true) return { success:false, code:'REALIZED_HOURS_CANONICAL_RECORD_MISSING' };
+    if (String(canonical.status || '').trim().toUpperCase() !== 'COMPLETED') return { success:false, code:'AUDIT_NOT_COMPLETED' };
+    if (!isFinite(canonical.hoursDedicated) || Number(payload.expectedHoursDedicated) !== canonical.hoursDedicated) return { success:false, code:'STALE_REALIZED_HOURS', oldHoursDedicated:canonical.hoursDedicated };
 
     var writeStarted = Date.now();
     var res = LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, { status:completionService_getCompletedDisplayStatus_() });

@@ -17,15 +17,15 @@ function selectionIds(){return Array.from(gridSelected)}
 function selectionClear(){gridSelected.clear();updateSelectionUi()}
 function selectionToggle(id,on){id=String(id||"").trim();if(!id)return;if(on)gridSelected.add(id);else gridSelected.delete(id);updateSelectionUi()}
 function selectionSelectVisible(on){gridVisibleIds.forEach(function(id){if(on)gridSelected.add(id);else gridSelected.delete(id)});updateSelectionUi()}
-var swap20EligibleAuditIds=null,swap20EligibleAt=0,swap20EligibleLoading=false;
+var swap20EligibleAuditIds=null,swap20EligibleAt=0,swap20EligibleLoading=false,swap20EligibleError="";
 function swap20LoadEligibleAuditIds(){
  if(swap20EligibleLoading||(swap20EligibleAt&&Date.now()-swap20EligibleAt<60000))return;
  if(String(actorRole).toLowerCase()!=="manager")return;
  swap20EligibleLoading=true;
  fetch("/api/v1/manager/swap20/eligible",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:"{}"})
  .then(function(r){return r.json().then(function(v){if(!r.ok||v.ok!==true||!Array.isArray(v.auditIds))throw Error("SWAP_ELIGIBILITY_UNAVAILABLE");return v.auditIds;})})
- .then(function(ids){swap20EligibleAuditIds=new Set(ids);swap20EligibleAt=Date.now();})
- .catch(function(){swap20EligibleAuditIds=null;swap20EligibleAt=Date.now();})
+ .then(function(ids){swap20EligibleAuditIds=new Set(ids);swap20EligibleAt=Date.now();swap20EligibleError="";})
+ .catch(function(error){swap20EligibleAuditIds=null;swap20EligibleAt=Date.now();swap20EligibleError=String(error&&error.message||"SWAP_ELIGIBILITY_UNAVAILABLE");})
  .finally(function(){swap20EligibleLoading=false;updateSelectionUi();});
 }
 var swap20PreviewPrefetch={key:"",at:0,promise:null};
@@ -58,10 +58,10 @@ function updateSelectionUi(){
     swap.disabled=!eligible;
     if(eligible&&!auditorMode&&currentView==="open")swap20WarmPreview(chosen);
     var excluded=accepted&&swap20EligibleAuditIds?chosen.filter(function(r){return !swap20EligibleAuditIds.has(String(r.auditId));}).map(function(r){return String(r.company||r.auditId);}):[];
-    swap.title=!accepted?"Select exactly two Accepted audits":swap20EligibleAuditIds===null?"Verifying Firestore SWAP availability":eligible?"Preview exchange of two Accepted audit time slots":"Not migrated to Firestore SWAP: "+excluded.join(", ");
+    swap.title=!accepted?"Select exactly two Accepted audits":swap20EligibleError?"Firestore SWAP eligibility check failed: "+swap20EligibleError:swap20EligibleAuditIds===null?"Verifying Firestore SWAP availability":eligible?"Preview exchange of two Accepted audit time slots":"Not migrated to Firestore SWAP: "+excluded.join(", ");
     var notice=document.getElementById("swap20SelectionEligibilityNotice");
     if(!notice){notice=document.createElement("span");notice.id="swap20SelectionEligibilityNotice";notice.setAttribute("role","status");notice.style.cssText="margin-left:12px;font-size:12px;color:#a34813";swap.insertAdjacentElement("afterend",notice);}
-    notice.textContent=accepted&&!eligible?(swap20EligibleAuditIds===null?"Checking Firestore SWAP eligibility...":"SWAP unavailable: "+excluded.join(" / ")+" not migrated to Firestore."): "";
+    notice.textContent=accepted&&!eligible?(swap20EligibleError?"SWAP eligibility check failed ("+swap20EligibleError+"). Retry by reselecting after 60 seconds.":swap20EligibleAuditIds===null?"Checking Firestore SWAP eligibility...":"SWAP unavailable: "+excluded.join(" / ")+" not migrated to Firestore."): "";
   }
   var bulkAccept=document.getElementById("selectionAcceptAuditor");if(bulkAccept){var elig=selectionRows().filter(function(r){return r.statusKey==="APPROVED"&&(r.allowedActions||[]).includes("ACCEPT")});bulkAccept.hidden=!(auditorMode&&currentView==="open"&&elig.length>0);bulkAccept.textContent="Accept selected ("+elig.length+")";bulkAccept.disabled=bulkAcceptRunning20;}
 }

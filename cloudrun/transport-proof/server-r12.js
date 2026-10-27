@@ -98,17 +98,21 @@ http.createServer(async(req,res)=>{
     endpoint.searchParams.set('action','externalrealizedhours20');
     const payload={bridgeKey:WRITE_KEY,actorRole:'manager',actorEmail:actor,operation:'correctCompletedHours',auditId,hoursDedicated,expectedHoursDedicated:expected,reason:clean(body.reason)};
     // A write request MUST NEVER be repeated after an uncertain network response.
+    const bridgeStart=Date.now();let postResponseMs=0,redirectGetMs=0;
     try{
       let response=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload),redirect:'manual',signal:AbortSignal.timeout(60000)});
+      postResponseMs=Date.now()-bridgeStart;
       if([301,302,303,307,308].includes(response.status)){
         const target=new URL(response.headers.get('location')||'',endpoint);
         if(target.protocol!=='https:'||!target.hostname.endsWith('.googleusercontent.com'))throw Error('GAS_REDIRECT_INVALID');
+        const redirectStarted=Date.now();
         response=await fetch(target,{method:'GET',redirect:'follow',signal:AbortSignal.timeout(30000)});
+        redirectGetMs=Date.now()-redirectStarted;
       }
       if(!response.ok)throw Error('GAS_HTTP_'+response.status);
       const result=await response.json();
       if(result?.success!==true)return sendJson(res,result?.code==='STALE_REALIZED_HOURS'?409:422,{success:false,error:clean(result?.code||result?.error||result?.message)||'CANONICAL_REALIZED_HOURS_REJECTED',oldHoursDedicated:result?.oldHoursDedicated});
-      return sendJson(res,200,{...result,transport:'CANONICAL_GAS_LOCKED'});
+      return sendJson(res,200,{...result,transport:'CANONICAL_GAS_LOCKED',bridgePerf:{postResponseMs,redirectGetMs,totalMs:Date.now()-bridgeStart}});
     }catch(e){return sendJson(res,502,{success:false,error:'CANONICAL_REALIZED_HOURS_OUTCOME_UNCERTAIN',requiresReconciliation:true,safeToRetry:false});}
   }
   if(req.method==='GET'&&u.pathname==='/api/v1/manager/audit'){

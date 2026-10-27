@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {buildAtomicAcceptCommit20,atomicAcceptCommit20} from './lifecycle-atomic-accept-20.mjs';
+const cutover={environment:'DEV',enabled:true,canonicalOwner:'CLOUD_RUN',gasAcceptDisabled:true,managerAcceptFenced:true,sharedFenceVerified:true,outboxVerified:true,auditorUid:'auditor_012345'};
+const args={cutover,project:'audit-management-system-dev',auditId:'audit_012345',operationId:'accept_012345',updateTime:'2026-10-27T21:00:00Z',expectedRevision:'abcdef012345abcdef012345',actorEmail:'auditor@example.org',now:'2026-10-27T22:00:00Z'};
+const draft=buildAtomicAcceptCommit20(args);
+assert.equal(draft.writes.length,2);
+assert.equal(draft.writes[0].currentDocument.updateTime,args.updateTime);
+assert.deepEqual(draft.writes[1].currentDocument,{exists:false});
+assert.equal(draft.writes[1].update.fields.status.stringValue,'PENDING');
+for(const [patch,expected] of [[{cutover:{...cutover,gasAcceptDisabled:false}},'GAS_WRITER_STILL_ACTIVE'],[{project:'audit-management-system-prod'},'DEV_PROJECT_REQUIRED'],[{updateTime:''},'SOURCE_UPDATE_TIME_REQUIRED'],[{operationId:'bad/id'},'IDENTIFIER_INVALID']])assert.throws(()=>buildAtomicAcceptCommit20({...args,...patch}),new RegExp(expected));
+const success=await atomicAcceptCommit20({...args,getToken:async()=>'token',fetchImpl:async()=>({ok:true,json:async()=>({writeResults:[{},{}],commitTime:'2026-10-27T22:00:01Z'})})});
+assert.equal(success.atomicOutbox,true);
+await assert.rejects(()=>atomicAcceptCommit20({...args,getToken:async()=>'token',fetchImpl:async()=>{throw Error('socket')} }),/DO_NOT_RETRY/);
+await assert.rejects(()=>atomicAcceptCommit20({...args,getToken:async()=>'token',fetchImpl:async()=>({ok:false,status:409})}),/CONFLICT/);
+console.log('LIFECYCLE_ATOMIC_ACCEPT_SOURCE_PASS 10');

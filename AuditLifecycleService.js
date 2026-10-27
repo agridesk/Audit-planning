@@ -83,8 +83,7 @@ function Lifecycle_onStatusChanged_(ctx) {
     return result;
   }
 
-  var precommittedAccept = action === 'ACCEPT' && actorRole === 'AUDITOR' && ctx.__foldAuditorAccept20 === true && !!ctx.__foldAuditorAcceptStamp20;
-  var stamp = precommittedAccept ? ctx.__foldAuditorAcceptStamp20 : lifecycle_nowStamp_();
+  var stamp = lifecycle_nowStamp_();
   var target = lifecycle_resolveSheetTarget_(ctx);
   if (target && target.success) {
     var updates = [];
@@ -108,10 +107,7 @@ function Lifecycle_onStatusChanged_(ctx) {
     // PLAN can fold lifecycle metadata into the canonical row already being
     // written by CoreStatusMachine. Avoid a second synchronous Sheets write.
     var metaRes;
-    if (precommittedAccept) {
-      metaRes = {success:true,written:true,count:updates.length,batches:0,foldedIntoCanonicalRow:true};
-      result.foldedAcceptMetadata = true;
-    } else if (action === 'PLAN' && ctx.row && target.rowIndex === Number(ctx.rowIndex || 0)) {
+    if (action === 'PLAN' && ctx.row && target.rowIndex === Number(ctx.rowIndex || 0)) {
       var folded = 0;
       for (var fu = 0; fu < updates.length; fu++) {
         var fcol = Number(updates[fu] && updates[fu].col || 0);

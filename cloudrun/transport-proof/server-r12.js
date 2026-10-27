@@ -108,7 +108,8 @@ http.createServer(async(req,res)=>{
     if(statusKey(val(record,statusCol))!=='COMPLETED')return sendJson(res,409,{success:false,error:'AUDIT_NOT_COMPLETED'});
     const oldHoursDedicated=Number(record[hoursCol]);
     if(!Number.isFinite(oldHoursDedicated))return sendJson(res,409,{success:false,error:'INVALID_OLD_HOURS'});
-    if(body.expectedHoursDedicated!=null&&body.expectedHoursDedicated!==''&&Number(body.expectedHoursDedicated)!==oldHoursDedicated)return sendJson(res,409,{success:false,error:'STALE_REALIZED_HOURS',oldHoursDedicated});
+    if(body.expectedHoursDedicated==null||body.expectedHoursDedicated===''||!Number.isFinite(Number(body.expectedHoursDedicated)))return sendJson(res,428,{success:false,error:'REALIZED_HOURS_EXPECTED_VALUE_REQUIRED'});
+    if(Number(body.expectedHoursDedicated)!==oldHoursDedicated)return sendJson(res,409,{success:false,error:'STALE_REALIZED_HOURS',oldHoursDedicated});
     const lookupMs=Date.now()-t0;
     if(oldHoursDedicated===hoursDedicated)return sendJson(res,200,{success:true,auditId,oldHoursDedicated,newHoursDedicated:hoursDedicated,changed:false,perf:{lookupMs,totalMs:Date.now()-t0},transport:'DIRECT_SHEETS'});
     try{

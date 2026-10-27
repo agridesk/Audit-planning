@@ -43,8 +43,22 @@ try{
  const listed=[...new Set(listing.match(/AKfy[A-Za-z0-9_-]+/g)||[])];
  if(!listed.includes(configuredId))throw Error('DEV_GAS_DEPLOYMENT_NOT_IN_CLASP_PROJECT');
  run('clasp',['push']);
- run('clasp',['deploy','--deploymentId',configuredId,'--description','SWAP20 DEV verified Firestore write authority']);
- console.log('DEV GAS executable deployment updated: '+configuredId);
+ const versionOf=(log,id)=>{
+  const row=log.split(/\r?\n/).find(line=>line.includes(id+' @'));
+  const match=row?.match(/@(\d+)/);
+  return match?Number(match[1]):null;
+ };
+ const priorVersion=versionOf(listing,configuredId);
+ if(priorVersion===null)throw Error('DEV_GAS_PRIOR_VERSION_UNKNOWN');
+ // Installed clasp 3.x: the 2.x deploy alias silently prints a CLI error yet exits 0.
+ const deploymentOutput=run('clasp',['update-deployment',configuredId]);
+ if(/(^|\n)\s*error:|too many arguments|unknown command/i.test(deploymentOutput))
+  throw Error('DEV_GAS_CLI_DEPLOYMENT_REJECTED');
+ const postListing=run('clasp',['list-deployments']);
+ const nextVersion=versionOf(postListing,configuredId);
+ if(nextVersion===null||nextVersion<=priorVersion)
+  throw Error('DEV_GAS_VERSION_NOT_ADVANCED_'+priorVersion+'_'+nextVersion);
+ console.log('DEV GAS executable deployment updated: '+configuredId+' @'+priorVersion+' -> @'+nextVersion);
  run('gcloud',['run','deploy',service,'--source','.','--project',project,'--region',region,
   '--update-env-vars','AMS_SWAP20_DIRECT_COMMIT_ENABLED=true,AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED=true,AMS_SWAP20_DIRECT_ROUTE=true','--quiet'],cloud);
  const after=serviceState(),ready=after.data.status?.conditions?.find(x=>x.type==='Ready');

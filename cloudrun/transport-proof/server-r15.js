@@ -840,6 +840,24 @@ http.createServer(async(req,res)=>{
    const html=await readFile(new URL('./notification-manager-20.html',import.meta.url));
    res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(html);return;
   }
+  if(req.method==='POST'&&u.pathname==='/api/v1/auditor/swap20/canonical-grid-dates'){
+   if(!runtime.isDev){res.writeHead(404);res.end('Not found');return;}
+   const actor=await session(req);
+   if(!actor||actor.role!=='auditor'){res.writeHead(actor?403:401);res.end('Auditor session required');return;}
+   let originOk=false;try{const origin=new URL(String(req.headers.origin||''));originOk=origin.protocol==='https:'&&origin.host===String(req.headers.host||'');}catch{}
+   if(!originOk){res.writeHead(403);res.end('ORIGIN_REJECTED');return;}
+   if(!swap20DirectRouteEnabled){res.writeHead(409,{'content-type':'application/json'});res.end(JSON.stringify({ok:false,code:'SWAP_DIRECT_GRID_DISABLED'}));return;}
+   // Read through the same session-scoped grid source as the authenticated auditor.
+   const permitted=await fetch('http://127.0.0.1:'+innerPort+'/api/v1/manager/open',{headers:{cookie:String(req.headers.cookie||'')},signal:AbortSignal.timeout(15000)});
+   if(!permitted.ok)throw Error('SWAP_AUDITOR_GRID_SCOPE_UNAVAILABLE');
+   const grid=await permitted.json();
+   if(grid.success!==true||!Array.isArray(grid.rows))throw Error('SWAP_AUDITOR_GRID_SCOPE_INVALID');
+   const allowed=new Set(grid.rows.map(row=>String(row.auditId||'')).filter(Boolean));
+   const canonical=await swap20DirectTransport.canonicalGridDates({actor:{role:'manager',email:process.env.AMS_DEV_MANAGER_EMAIL||''}});
+   const result=canonical.ok===true?{...canonical,rows:canonical.rows.filter(row=>allowed.has(String(row.auditId)))}:canonical;
+   res.writeHead(result.ok===true?200:409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
+   res.end(JSON.stringify(result));return;
+  }
   if(req.method==='POST'&&u.pathname.startsWith('/api/v1/manager/swap20/')){
    const operation={
     '/api/v1/manager/swap20/list':'listPending',

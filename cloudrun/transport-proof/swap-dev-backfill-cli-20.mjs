@@ -243,7 +243,28 @@ if(inspectDelta){
 if(deltaApply){
  // Fail closed: original migrated records must still agree with canonical Sheets.
  const stale=plan.writes.filter(w=>existing.has(w.update.name)&&existing.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue);
- if(stale.length)throw Error('SWAP_DEV_DELTA_EXISTING_SOURCE_DRIFT_'+stale.length);
+ const knownAppliedPair=new Set(['AUD_MistralBonsai,S.L._HQ_1777531729397_52','AUD_GrupoViverosLasCunas_HQ_1777531729329_38']);
+ const expectedDriftPaths=new Set([...knownAppliedPair].flatMap(id=>['ams_swap20_dev_audits','ams_swap20_dev_availability'].map(collection=>rootDoc(collection,id))));
+ function rootDoc(collection,id){return 'projects/'+project+'/databases/(default)/documents/'+collection+'/'+id;}
+ if(stale.length){
+  if(stale.length!==4||stale.some(w=>!expectedDriftPaths.has(w.update.name))||
+    new Set(stale.map(w=>w.update.name)).size!==4)throw Error('SWAP_DEV_DELTA_EXISTING_SOURCE_DRIFT_'+stale.length);
+  const docRoot=base+'/';
+  const proposals=await json(docRoot+'ams_swap20_dev_proposals?'+new URLSearchParams({pageSize:'100'}));
+  const applied=(proposals.documents||[]).map(doc=>{try{return JSON.parse(doc.fields?.payload?.stringValue||'null');}catch{return null;}}).filter(p=>p?.status==='APPLIED'&&p.canonicalCommitVerified===true&&knownAppliedPair.has(p.auditA)&&knownAppliedPair.has(p.auditB)&&p.auditA!==p.auditB);
+  if(applied.length!==1)throw Error('SWAP_DEV_DELTA_APPLIED_PROPOSAL_UNVERIFIED');
+  const proposal=applied[0];
+  const journal=await json(docRoot+'ams_swap20_dev_journal/'+encodeURIComponent(proposal.operationId));
+  let journalPayload;try{journalPayload=JSON.parse(journal.fields?.payload?.stringValue||'null');}catch{throw Error('SWAP_DEV_DELTA_APPLIED_JOURNAL_INVALID');}
+  if(journalPayload?.stage!=='COMMITTED'||journalPayload.auditA!==proposal.auditA||journalPayload.auditB!==proposal.auditB)throw Error('SWAP_DEV_DELTA_APPLIED_JOURNAL_UNVERIFIED');
+  for(const write of stale){
+   let prior,now;try{prior=JSON.parse(existing.get(write.update.name).fields.payload.stringValue);now=JSON.parse(write.update.fields.payload.stringValue);}catch{throw Error('SWAP_DEV_DELTA_DRIFT_PAYLOAD_INVALID');}
+   const fields=[...new Set([...Object.keys(prior),...Object.keys(now)])].filter(k=>JSON.stringify(prior[k])!==JSON.stringify(now[k]));
+   const allowed=write.update.name.includes('/ams_swap20_dev_audits/')?'plannedBlocks':'reservations';
+   if(fields.length!==1||fields[0]!==allowed)throw Error('SWAP_DEV_DELTA_DRIFT_FIELDS_UNVERIFIED');
+  }
+  console.log(JSON.stringify({result:'SWAP_DEV_DELTA_APPLIED_PAIR_PRESERVED',operationId:proposal.operationId,documents:stale.length,readOnlyVerification:true}));
+ }
  const missing=plan.writes.filter(w=>!existing.has(w.update.name));
  if(missing.length%2!==0||missing.length>100)throw Error('SWAP_DEV_DELTA_INCOMPLETE_AUDIT_PAIR');
  const byAudit=new Map();

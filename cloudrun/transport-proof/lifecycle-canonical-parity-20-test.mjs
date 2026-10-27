@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {reconcileLifecycleCanonicalParity20 as reconcile} from './lifecycle-canonical-parity-20.mjs';
+const a={auditId:'a1',status:'APPROVED',auditorUid:'uid1',assignedTo:'Auditor',planningJson:'{}',lastDecisionTimestamp:'',statusSince:''};
+const opts={sheets:[a],firestore:[{...a}],expectedAuditIds:['a1'],sheetsWriterDisabled:true,gasWriterDisabled:true,managerWriterFenced:true};
+assert.equal(reconcile(opts).ok,true);
+assert.equal(reconcile({...opts,gasWriterDisabled:false}).ok,false);
+assert.equal(reconcile({...opts,firestore:[{...a,status:'ACCEPTED'}]}).ok,false);
+assert.equal(reconcile({...opts,firestore:[]}).ok,false);
+assert.equal(reconcile({...opts,sheets:[a,a]}).ok,false);
+console.log('LIFECYCLE_CANONICAL_PARITY_SOURCE_PASS 5');

@@ -581,11 +581,25 @@ function Status_applyPlan_(ctx, transition, payload, actorFromDispatcher, action
 
 function Status_applySimpleStatusWrite_(ctx, transition, actor, action, payload) {
   var __writeStarted = Date.now();
-  ctx.sheet.getRange(ctx.rowIndex, ctx.col.status + 1).setValue(transition.afterStatusDisplay);
+  // Auditor ACCEPT: stage lifecycle metadata in the verified row and write once.
+  // Keep all other transitions on the existing canonical writer.
+  var __foldAccept = actor === ROLE.AUDITOR && action === ACTION.ACCEPT &&
+    typeof AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ !== 'undefined' && AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ === true &&
+    ctx.row && ctx.hdr && typeof Lifecycle_onStatusChanged_ === 'function';
+  if (__foldAccept) {
+    ctx.__foldAuditorAccept20 = true;
+    ctx.row[ctx.col.status] = transition.afterStatusDisplay;
+  } else {
+    ctx.sheet.getRange(ctx.rowIndex, ctx.col.status + 1).setValue(transition.afterStatusDisplay);
+  }
   var __statusSetValueReturnedAt = new Date().toISOString();
   var __sheetWriteMs = Date.now() - __writeStarted;
   var __lifecycleStarted = Date.now();
   var lifecycle = Status_lifecycleOnStatusChanged_(ctx, transition, actor, action, payload, 'CoreStatusMachine.Status_applySimpleStatusWrite_');
+  if (__foldAccept) {
+    if (!lifecycle || lifecycle.success !== true || lifecycle.auditorMetadataWritten !== true || lifecycle.foldedAcceptMetadata !== true) throw new Error('ACCEPT_METADATA_STAGE_FAILED');
+    ctx.sheet.getRange(ctx.rowIndex, 1, 1, ctx.hdr.length).setValues([ctx.row]);
+  }
   Status_invalidateAuditPlanningPack_();
   var res = Status_buildActionResult_(transition, { auditId: ctx.auditId, action: action });
   res.lifecycle = lifecycle;

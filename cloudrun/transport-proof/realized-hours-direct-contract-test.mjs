@@ -15,4 +15,7 @@ assert.ok(client.includes('direct=x.result.transport==="DIRECT_SHEETS_ATOMIC"'),
 assert.ok(client.includes('direct?" · Sheets lookup "'),'direct timing UI must not label Sheets duration as GAS');
 assert.ok(client.includes("response.status===409&&result.error==='STALE_REALIZED_HOURS'"),'stale-value conflict must show actionable guidance');
 assert.ok(client.includes("result.error==='REALIZED_HOURS_WRITE_IN_PROGRESS'"),'local collision must show actionable guidance');
+assert.ok(route.includes('AUDIT_TRAIL_SIGNING_KEY_NOT_CONFIGURED'),'trail signing key must be mandatory');
+assert.ok(server.includes("createHmac('sha256',WRITE_KEY)"),'trail must use configured signing key');
+assert.ok(!route.includes("WRITE_KEY||'AMS_DEV'"),'hardcoded fallback signing key forbidden');
 console.log('PASS: restored DEV direct realized-hours contracts');

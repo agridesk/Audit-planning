@@ -102,7 +102,7 @@ async function session(req){
  if(!user?.auditorId||user.role!==role)throw Error('AVAILABILITY_AUDITOR_UID_UNRESOLVED');
  return {role,email,auditorId:user.auditorId};
 }
-const adapter=createFirestoreAvailabilityAdapter({projectId:project,getToken});
+const adapter=createFirestoreAvailabilityAdapter({projectId:project,getToken,collection:runtime.isDev?'ams_availability_20_dev':runtime.availabilityCollection});
 const service=createAvailabilityService(adapter);
 async function readPlanningRows(){
  // Existing DEV Audit planning tab; bounded read, never a full-sheet hot-path scan.

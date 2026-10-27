@@ -15,6 +15,7 @@ const checks=[
  ['explicit PROD release opt-in',env.includes('AMS_PROD_RELEASE_ENABLED')],
  ['PROD project binding',env.includes('AMS_PROD_GCP_PROJECT')],
  ['PROD dedicated runtime SA declaration',env.includes('resolveProdRuntimeIdentity(env,project)')],
+ ['PROD Availability collection isolation',env.includes('AMS_PROD_AVAILABILITY_COLLECTION_REQUIRED')&&entry.includes("collection:runtime.isDev?'ams_availability_20_dev':runtime.availabilityCollection")],
  ['PROD verifies real principal before listener',entry.includes('if(!runtime.isDev)await verifyProdRuntimeIdentity(runtime.runtimeServiceAccount);')&&entry.indexOf('verifyProdRuntimeIdentity(runtime.runtimeServiceAccount)')<entry.indexOf("await import('./server-r12.js')")],
  ['PROD sheet binding',env.includes('AMS_PROD_SSOT_SPREADSHEET_ID')],
  ['DEV/PROD sheet inequality',env.includes('AMS_PROD_SHEET_NOT_ISOLATED')],

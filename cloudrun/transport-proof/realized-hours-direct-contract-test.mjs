@@ -11,4 +11,6 @@ assert.ok(route.includes('updateCells:')&&route.includes("fetch(root+':batchUpda
 assert.ok(route.includes('appendCells:')&&route.includes('auditTrail'),'atomic audit-trail batch missing');
 assert.ok(client.includes('runRealizedHoursDirect(id,q)'),'client should use restored direct route');
 assert.ok(route.indexOf('REALIZED_HOURS_EXPECTED_VALUE_REQUIRED')<route.indexOf("fetch(root+':batchUpdate'"),'must reject missing expected value before write');
+assert.ok(client.includes('direct=x.result.transport==="DIRECT_SHEETS_ATOMIC"'),'direct timing branch required');
+assert.ok(client.includes('direct?" · Sheets lookup "'),'direct timing UI must not label Sheets duration as GAS');
 console.log('PASS: restored DEV direct realized-hours contracts');

@@ -80,6 +80,30 @@ export function createSwapFirestoreDevTransport(options={}){
    throw Error('SWAP_DIRECT_ELIGIBLE_IDS_UNVERIFIED');
   return {ok:true,source:'firestore-canonical',auditIds:index.auditIds};
  };
+ const diagnosePair=async({actor,auditA,auditB}={})=>{
+  if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_SELECTION_DISABLED'};
+  if(actor?.role!=='manager'||!actor.email)throw Error('SWAP_DIRECT_MANAGER_UNAUTHORIZED');
+  const ids=[auditA,auditB];
+  if(ids.some(id=>typeof id!=='string'||!id||id.length>140||id.includes('/')||/[\u0000-\u001f\u007f]/.test(id))||auditA===auditB)
+   return {ok:false,code:'SWAP_DIAGNOSTIC_PAIR_INVALID'};
+  const inspect=async(kind,readerFn)=>{
+   try{await readerFn(ids);return {state:'PRESENT'};}
+   catch(e){
+    const message=String(e?.message||'');
+    const prefix=kind==='audits'?'SWAP_DIRECT_AUDITS_NOT_MIGRATED:':'SWAP_DIRECT_AVAILABILITY_NOT_MIGRATED:';
+    if(message.startsWith(prefix)){
+     const missing=message.slice(prefix.length).split(',').filter(id=>ids.includes(id));
+     return {state:'MISSING',auditIds:missing};
+    }
+    return {state:'UNVERIFIED',code:message.startsWith('SWAP_')?message.slice(0,110):'SWAP_DIAGNOSTIC_READ_FAILED'};
+   }
+  };
+  const [audits,availability]=await Promise.all([
+   inspect('audits',ids=>reader.readPair(ids)),
+   inspect('availability',ids=>reader.readAvailability(ids))
+  ]);
+  return {ok:true,readOnly:true,source:'firestore-canonical',audits,availability};
+ };
  const list=async({actor}={})=>{
   if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_LIST_DISABLED'};
   return directProposalStore.list({actor,authorizeAuditor:authorizeCanonicalAuditor});
@@ -105,7 +129,7 @@ export function createSwapFirestoreDevTransport(options={}){
   return buildSwapFirestoreReadOnlyPreview({pair,availability});
  };
  const commit=async args=>{if(enabled===true&&canonicalCutoverVerified===true)await assertSourceFreeze();return coordinator.commit(args);};
- return Object.freeze({...reader,preview,propose,respond,withdraw,getProposal,list,eligibleAuditIds,commit});
+ return Object.freeze({...reader,preview,propose,respond,withdraw,getProposal,list,eligibleAuditIds,diagnosePair,commit});
 }
 
 /** Read-only preview readiness check; no commit or routing authorization. */

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {createSwapFirestoreDevTransport} from './swap-firestore-dev-transport-20.mjs';
 const project='audit-management-system-dev';
 const root='projects/'+project+'/databases/(default)/documents/';
-const ids=['AUD_TEST_A','AUD_TEST_B'];
+const ids=['AUD_TEST_A','AUD_TEST,B'];
 const found=(name,payload)=>({found:{name,updateTime:'2026-10-27T12:00:00Z',fields:{payload:{stringValue:JSON.stringify(payload)}}}});
 const fetchImpl=async(_url,options)=>{
  const request=JSON.parse(options.body);

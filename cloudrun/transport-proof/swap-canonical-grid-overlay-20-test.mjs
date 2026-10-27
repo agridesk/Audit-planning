@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const server=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
+const transport=readFileSync(new URL('./swap-firestore-dev-transport-20.mjs',import.meta.url),'utf8');
+const portal=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+assert.match(server,/canonical-grid-dates':\s*'canonicalGridDates'/);
+assert.match(server,/swap20DirectTransport\.canonicalGridDates\(\{actor\}\)/);
+assert.match(transport,/p\.canonicalCommitVerified!==true/);
+assert.match(transport,/journal\?\.stage!=='COMMITTED'/);
+assert.match(transport,/reader\.readPair\(\[p\.auditA,p\.auditB\]\)/);
+assert.match(transport,/readOnly:true,source:'firestore-canonical'/);
+assert.match(portal,/loadOpenEnrichment\(seq\)\.then\(function\(\)\{return loadSwap20CanonicalGridDates\(seq\)\}\)/);
+assert.match(portal,/row\.planningJson=JSON\.stringify\(original\)/);
+assert.match(portal,/row\.datePlanned=blocks\[0\]\.date/);
+console.log('SWAP_CANONICAL_GRID_OVERLAY_CONTRACT_PASS');

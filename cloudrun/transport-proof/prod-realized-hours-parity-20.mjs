@@ -1,24 +1,25 @@
-// Read-only canonical realized-hours release assessment. Does not mutate data.
+// Read-only source evidence for the canonical locked Realized Hours bridge.
 import {readFileSync} from 'node:fs';
-const read=(file)=>readFileSync(new URL(file,import.meta.url),'utf8');
+const read=file=>readFileSync(new URL(file,import.meta.url),'utf8');
 const route=read('./server-r12.js');
+const gas=read('../../EntryV5.js');
+const owner=read('../../CompletionService.js');
 const portal=read('./manager-portal.js');
 const start=route.indexOf("u.pathname==='/api/v1/manager/realized-hours-direct'");
 const end=route.indexOf("u.pathname==='/api/v1/manager/audit'",start);
 if(start<0||end<=start)throw Error('REALIZED_HOURS_ROUTE_NOT_FOUND');
 const source=route.slice(start,end);
-const tests=[
- ['PROD_DIRECT_ROUTE_DISABLED',source.includes("PROD_REALIZED_HOURS_DIRECT_WRITER_DISABLED")],
- ['MANAGER_AUTH_REQUIRED',source.includes('MANAGER_ROLE_REQUIRED')],
- ['COMPLETED_STATUS_REQUIRED',source.includes('AUDIT_NOT_COMPLETED')],
- ['SINGLE_AUDIT_ID_REQUIRED',source.includes('DUPLICATE_AUDIT_ID')],
+const checks=[
+ ['PROD_DIRECT_ROUTE_DISABLED',source.includes('PROD_REALIZED_HOURS_DIRECT_WRITER_DISABLED')],
+ ['MANAGER_SESSION_REQUIRED',source.includes('innerSession(req)')&&source.includes('ROLE_FORBIDDEN')],
  ['QUARTER_HOUR_PRECISION',source.includes('Math.round(hoursDedicated*4)/4')],
+ ['EXPECTED_VALUE_REQUIRED',source.includes('REALIZED_HOURS_EXPECTED_VALUE_REQUIRED')],
  ['CLIENT_SENDS_EXPECTED_HOURS',portal.includes('expectedHoursDedicated:')],
- ['SERVER_EXPECTED_HOURS_REQUIRED',source.includes('REALIZED_HOURS_EXPECTED_VALUE_REQUIRED')&&source.includes('STALE_REALIZED_HOURS')],
- ['WRITES_AUDIT_TRAIL_TOGETHER',source.includes('updateCells:')&&source.includes('appendCells:')],
- ['IN_MEMORY_LOCK_ONLY',route.includes('const realizedHoursInFlight=new Set()')],
- ['SHEETS_BATCH_UPDATE',source.includes("fetch(root+':batchUpdate'")]
+ ['USES_CANONICAL_GAS_BRIDGE',source.includes('externalrealizedhours20')&&gas.includes("rawAction==='externalrealizedhours20'")],
+ ['CANONICAL_OWNER_UNDER_GAS_LOCK',owner.includes('function completionService_overrideCompletedHours_')&&owner.includes('LockService.getScriptLock()')],
+ ['CANONICAL_EXPECTED_COMPARISON',owner.includes("code:'STALE_REALIZED_HOURS'")],
+ ['NO_DIRECT_SHEETS_WRITE',!source.includes("fetch(root+':batchUpdate'")&&!source.includes('updateCells:')],
+ ['NO_UNCERTAIN_WRITE_RETRY',source.includes('CANONICAL_REALIZED_HOURS_OUTCOME_UNCERTAIN')&&source.includes('safeToRetry:false')]
 ];
-const failedSourceChecks=tests.filter(([,passed])=>!passed).map(([name])=>name);
-const result={contract:'AMS_PROD_REALIZED_HOURS_PARITY',status:'NOT_READY',sourceChecksPassed:failedSourceChecks.length===0,failedSourceChecks,checks:Object.fromEntries(tests),missingProductionProof:['cross-instance atomic compare-and-swap','canonical write ownership','authenticated audit trail parity','live E2E with concurrent requests'],note:'Source findings are not live evidence. Existing PROD fail-closed guard must remain until canonical parity is proven.'};
-console.log(JSON.stringify(result,null,2));
+const failedSourceChecks=checks.filter(([,ok])=>!ok).map(([name])=>name);
+console.log(JSON.stringify({contract:'AMS_PROD_REALIZED_HOURS_PARITY',status:'NOT_READY',sourceChecksPassed:failedSourceChecks.length===0,failedSourceChecks,checks:Object.fromEntries(checks),missingProductionProof:['GAS deployment/version proof','DEV end-to-end write/read parity','concurrent correction collision and stale-value rejection','audit-trail reliability/reconciliation','canonical integration approval'],note:'Static source checks do not authorize PROD release.'},null,2));

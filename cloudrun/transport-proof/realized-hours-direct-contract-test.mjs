@@ -13,4 +13,6 @@ assert.ok(client.includes('runRealizedHoursDirect(id,q)'),'client should use res
 assert.ok(route.indexOf('REALIZED_HOURS_EXPECTED_VALUE_REQUIRED')<route.indexOf("fetch(root+':batchUpdate'"),'must reject missing expected value before write');
 assert.ok(client.includes('direct=x.result.transport==="DIRECT_SHEETS_ATOMIC"'),'direct timing branch required');
 assert.ok(client.includes('direct?" · Sheets lookup "'),'direct timing UI must not label Sheets duration as GAS');
+assert.ok(client.includes("response.status===409&&result.error==='STALE_REALIZED_HOURS'"),'stale-value conflict must show actionable guidance');
+assert.ok(client.includes("result.error==='REALIZED_HOURS_WRITE_IN_PROGRESS'"),'local collision must show actionable guidance');
 console.log('PASS: restored DEV direct realized-hours contracts');

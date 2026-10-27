@@ -39,6 +39,8 @@ function swap20DiagnoseSelection20(chosen){
  .then(function(result){
   function label(value,kind){if(value&&value.state==="MISSING")return kind+" missing: "+(value.auditIds||[]).map(function(id){var row=chosen.find(function(x){return String(x.auditId)===id;});return row?String(row.company||id):id;}).join(", ");return value&&value.state==="PRESENT"?"":kind+" unverified ("+String(value&&value.code||"UNKNOWN")+")";}
   var issues=[label(result.audits,"Audit"),label(result.availability,"Reservation")].filter(Boolean);
+  if(result.index&&result.index.state==="VALID"){var missingIndex=(result.index.auditIds||[]).filter(function(item){return item.present!==true;}).map(function(item){var row=chosen.find(function(x){return String(x.auditId)===item.auditId;});return row?String(row.company||item.auditId):item.auditId;});if(missingIndex.length)issues.push("Index missing: "+missingIndex.join(", "));}
+  else issues.push("Index unverified ("+String(result.index&&result.index.code||"UNKNOWN")+")");
   swap20PairDiagnosis20.status=issues.length?issues.join(" | "):"Both canonical document pairs exist; verify index coverage and eligibility.";
  })
  .catch(function(error){swap20PairDiagnosis20.status="Firestore diagnosis unavailable: "+String(error&&error.message||"UNKNOWN");})

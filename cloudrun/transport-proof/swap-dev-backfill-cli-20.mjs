@@ -74,6 +74,15 @@ if(proposalInventory){
  const firestoreJournalIds=new Set(journals.map(d=>String(d.name||'').split('/').pop()));
  const journalMismatch=[...journalIds].filter(id=>!firestoreJournalIds.has(id)).length;
  const missingFull=records.length-full.length;
+ const journalById=new Map(journals.map(doc=>{let payload=null;try{payload=JSON.parse(doc.fields?.payload?.stringValue||'null');}catch{}return [String(doc.name||'').split('/').pop(),payload];}));
+ const appliedDetails=records.filter(p=>p?.status==='APPLIED').map(p=>{
+  const journal=journalById.get(p.operationId);
+  return {operationId:p.operationId,auditA:p.auditA,auditB:p.auditB,
+   journalExists:journalById.has(p.operationId),journalStage:journal?.stage||null,
+   journalAuditIdsMatch:journal?.auditA===p.auditA&&journal?.auditB===p.auditB,
+   canonicalCommitVerified:p.canonicalCommitVerified===true};
+ });
+ console.log(JSON.stringify({result:'DEV_APPLIED_PROPOSAL_DETAILS_READ_ONLY',appliedDetails,cutoverAuthorized:false}));
  console.log(JSON.stringify({result:'DEV_PROPOSAL_JOURNAL_INVENTORY_READ_ONLY',
   firestoreProposalDocuments:proposals.length,firestoreFullCanonicalProposalDocuments:full.length,
   firestoreIncompleteProposalDocuments:missingFull,proposalStatuses:statuses,

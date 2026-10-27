@@ -22,4 +22,9 @@ const rotation=readFileSync(new URL('../../RotationAuditorService.js',import.met
 const cacheClear=rotation.split('function RotationAuditorService_clearCache()')[1]?.split('\nfunction ')[0]||'';
 assert.ok(cacheClear.includes('c.removeAll(keys);'),'rotation cache must invalidate keys in one service call');
 assert.ok(!cacheClear.includes('c.remove(keys[i])'),'rotation cache must avoid per-key remote calls');
+assert.ok(route.includes('perf.managerAuthorizationMs'),'manager roster phase missing');
+assert.ok(route.includes('perf.canonicalReadMs'),'canonical read phase missing');
+assert.ok(route.includes('perf.unclassifiedMs'),'unclassified phase missing');
+const transport=readFileSync(new URL('./server-r12.js',import.meta.url),'utf8');
+assert.ok(transport.includes('bridgePerf:{postResponseMs,redirectGetMs'),'transport phase metrics missing');
 console.log('REALIZED_HOURS_CANONICAL_GAS_CONTRACT_PASS');

@@ -23,3 +23,4 @@ import './swap-migration-manifest-20.test.mjs';
 import './swap-migration-backfill-plan-20.test.mjs';
 
 import './swap-grid-direct-cutover-guard-20-test.mjs';
+import './swap-canonical-grid-overlay-20-test.mjs';

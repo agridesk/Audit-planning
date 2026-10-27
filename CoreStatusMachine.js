@@ -581,14 +581,22 @@ function Status_applyPlan_(ctx, transition, payload, actorFromDispatcher, action
 
 function Status_applySimpleStatusWrite_(ctx, transition, actor, action, payload) {
   var __writeStarted = Date.now();
-  // Auditor ACCEPT: stage lifecycle metadata in the verified row and write once.
-  // Keep all other transitions on the existing canonical writer.
   var __foldAccept = actor === ROLE.AUDITOR && action === ACTION.ACCEPT &&
     typeof AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ !== 'undefined' && AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ === true &&
-    ctx.row && ctx.hdr && typeof Lifecycle_onStatusChanged_ === 'function';
+    Array.isArray(ctx.row) && Array.isArray(ctx.hdr) && typeof Lifecycle_onStatusChanged_ === 'function';
   if (__foldAccept) {
+    // Commit status + metadata together; post-commit lifecycle/outbox runs only after setValues returns.
+    var stamp = lifecycle_nowStamp_();
+    var ix = function(name){ return lifecycle_findHeaderIndex_(ctx.hdr,[name]); };
+    var set = function(name,value){ var k=ix(name);if(k<0)throw new Error('ACCEPT_COLUMN_MISSING_'+name);ctx.row[k]=value; };
+    set('Status',transition.afterStatusDisplay);
+    set('Status since',stamp);
+    set('Last auditor decision','ACCEPT');
+    set('Last auditor decision timestamp',stamp);
+    set('Auditor comment (last)',String(payload && (payload.reason||payload.comment)||'').trim());
+    ctx.sheet.getRange(ctx.rowIndex,1,1,ctx.hdr.length).setValues([ctx.row]);
     ctx.__foldAuditorAccept20 = true;
-    ctx.row[ctx.col.status] = transition.afterStatusDisplay;
+    ctx.__foldAuditorAcceptStamp20 = stamp;
   } else {
     ctx.sheet.getRange(ctx.rowIndex, ctx.col.status + 1).setValue(transition.afterStatusDisplay);
   }
@@ -596,14 +604,10 @@ function Status_applySimpleStatusWrite_(ctx, transition, actor, action, payload)
   var __sheetWriteMs = Date.now() - __writeStarted;
   var __lifecycleStarted = Date.now();
   var lifecycle = Status_lifecycleOnStatusChanged_(ctx, transition, actor, action, payload, 'CoreStatusMachine.Status_applySimpleStatusWrite_');
-  if (__foldAccept) {
-    if (!lifecycle || lifecycle.success !== true || lifecycle.auditorMetadataWritten !== true || lifecycle.foldedAcceptMetadata !== true) throw new Error('ACCEPT_METADATA_STAGE_FAILED');
-    ctx.sheet.getRange(ctx.rowIndex, 1, 1, ctx.hdr.length).setValues([ctx.row]);
-  }
   Status_invalidateAuditPlanningPack_();
   var res = Status_buildActionResult_(transition, { auditId: ctx.auditId, action: action });
   res.lifecycle = lifecycle;
-  res.canonicalWriteTiming = {statusCellWriteMs:__sheetWriteMs,statusSetValueReturnedAt:__statusSetValueReturnedAt,lifecycleMs:Date.now()-__lifecycleStarted,measurement:'setValue returned; not independently verified sheet durability'};
+  res.canonicalWriteTiming = {statusCellWriteMs:__sheetWriteMs,statusSetValueReturnedAt:__statusSetValueReturnedAt,lifecycleMs:Date.now()-__lifecycleStarted,measurement:'Sheets write returned; not independently verified sheet durability'};
   res.metadataWritten = !!(lifecycle && (lifecycle.managerMetadataWritten || lifecycle.statusSinceWritten));
   return res;
 }

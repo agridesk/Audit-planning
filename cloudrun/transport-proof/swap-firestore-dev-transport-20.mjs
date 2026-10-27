@@ -138,7 +138,7 @@ export function createSwapFirestoreDevTransport(options={}){
    if(journal?.stage!=='COMMITTED'||journal.auditA!==p.auditA||journal.auditB!==p.auditB)throw Error('SWAP_DIRECT_GRID_JOURNAL_UNVERIFIED');
    const pair=await reader.readPair([p.auditA,p.auditB]);
    for(const audit of pair){
-    if(audit.status!=='Accepted'||!Array.isArray(audit.canonical.plannedBlocks)||!audit.canonical.plannedBlocks.length)
+    if(audit?.canonical?.status!=='Accepted'||!Array.isArray(audit.canonical.plannedBlocks)||!audit.canonical.plannedBlocks.length)
      throw Error('SWAP_DIRECT_GRID_CANONICAL_AUDIT_INVALID');
     const prev=rows.get(audit.auditId);
     if(prev&&prev.operationId!==p.operationId)throw Error('SWAP_DIRECT_GRID_MULTIPLE_APPLIED_CHANGES_REQUIRES_REVIEW');

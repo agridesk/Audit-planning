@@ -583,7 +583,9 @@ function Status_applySimpleStatusWrite_(ctx, transition, actor, action, payload)
   var __writeStarted = Date.now();
   var __foldAccept = actor === ROLE.AUDITOR && action === ACTION.ACCEPT &&
     typeof AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ !== 'undefined' && AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ === true &&
-    Array.isArray(ctx.row) && Array.isArray(ctx.hdr) && typeof Lifecycle_onStatusChanged_ === 'function';
+    Array.isArray(ctx.row) && Array.isArray(ctx.hdr) && typeof Lifecycle_onStatusChanged_ === 'function' &&
+    typeof lifecycle_nowStamp_ === 'function' && typeof lifecycle_findHeaderIndex_ === 'function' &&
+    ['Status','Status since','Last auditor decision','Last auditor decision timestamp','Auditor comment (last)'].every(function(name){return lifecycle_findHeaderIndex_(ctx.hdr,[name])>=0;});
   if (__foldAccept) {
     // Commit status + metadata together; post-commit lifecycle/outbox runs only after setValues returns.
     var stamp = lifecycle_nowStamp_();

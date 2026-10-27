@@ -15,6 +15,8 @@ const checks={
   'PROD realized hours stays fail closed':r12.includes('PROD_REALIZED_HOURS_DIRECT_WRITER_DISABLED'),
   'Customer Confirmation isolated from first release':!r4.includes('customer-confirmation-policy-20')&&!r6.includes('customer-confirmation-policy-20')&&!r12.includes('customer-confirmation-policy-20'),
   'Toolkit destination reserved before async handoff':handoff.indexOf('window.open("about:blank",target)')>=0&&handoff.indexOf('window.open("about:blank",target)')<handoff.indexOf('fetch("/api/v1/manager/selection-handoff"'),
+  'unsupported Toolkit handoff modes rejected':handoff.includes('mode!=="batch"&&mode!=="concept"'),
+  'Toolkit handoff request has bounded wait':handoff.includes('signal:AbortSignal.timeout(20000)'),
   'handoff form targets reserved window':handoff.includes('form.target=target')&&handoff.includes('form.submit()'),
   'failed handoff closes reserved window':handoff.includes('win.close()'),
   'existing regression targets available':!!packageJson.scripts['test:realized-hours']&&!!packageJson.scripts['test:prod-config']

@@ -417,20 +417,22 @@ function doPost(e) {
       var aix20=function(n){return ah20.indexOf(n);};
       var auidCol20=aix20('Auditor_UID');
       if([auidCol20,aix20('E-mail'),aix20('Active'),aix20('Role')].some(function(i){return i<0;}))return respond20({success:false,error:'AUDITOR_IDENTITY_HEADERS_MISSING'});
-      var auditorHits20=a20.getRange(2,auidCol20+1,Math.max(1,a20.getLastRow()-1),1).createTextFinder(uid20).matchEntireCell(true).matchCase(true).findAll();
+      var auditorUidValues20=a20.getRange(2,auidCol20+1,Math.max(1,a20.getLastRow()-1),1).getDisplayValues(),auditorHits20=[];
+      for(var aiRow20=0;aiRow20<auditorUidValues20.length;aiRow20++)if(String(auditorUidValues20[aiRow20][0]||'')===uid20)auditorHits20.push(aiRow20+2);
       acceptStages20.auditorLookupMs=Date.now()-acceptT020-acceptStages20.lockWaitMs;
       if(auditorHits20.length!==1)return respond20({success:false,error:'AUDITOR_IDENTITY_NOT_CURRENT'});
-      var rowAud20=a20.getRange(auditorHits20[0].getRow(),1,1,ah20.length).getDisplayValues()[0];
+      var rowAud20=a20.getRange(auditorHits20[0],1,1,ah20.length).getDisplayValues()[0];
       if(String(rowAud20[aix20('E-mail')]||'').trim().toLowerCase()!==email20||String(rowAud20[aix20('Active')]||'').trim().toUpperCase()!=='YES'||String(rowAud20[aix20('Role')]||'').trim().toUpperCase()!=='AUDITOR')return respond20({success:false,error:'AUDITOR_IDENTITY_NOT_CURRENT'});
       // Audit-ID lookup uses an exact text finder, then only one row is read.
       var ph20=p20.getRange(1,1,1,p20.getLastColumn()).getDisplayValues()[0].map(function(v){return String(v||'').trim();});
       var ix20=function(names){for(var i=0;i<names.length;i++){var j=ph20.indexOf(names[i]);if(j>=0)return j;}return -1;};
       var ai20=ix20(['Audit ID','Audit_ID','AuditId','Audit Id']),si20=ix20(['Status']),as20=ix20(['Assigned to','Assigned auditor','Auditor']),pi20=ix20(['Planning JSON','Planning_JSON']),di20=ix20(['Last decision timestamp']),ti20=ix20(['Status since']);
       if([ai20,si20,as20,pi20,di20,ti20,ix20(['Auditor_UID','Auditor UID'])].some(function(x){return x<0;}))return respond20({success:false,error:'REVISION_HEADERS_MISSING'});
-      var auditHits20=p20.getRange(2,ai20+1,Math.max(1,p20.getLastRow()-1),1).createTextFinder(id20).matchEntireCell(true).matchCase(true).findAll();
+      var auditIdValues20=p20.getRange(2,ai20+1,Math.max(1,p20.getLastRow()-1),1).getDisplayValues(),auditHits20=[];
+      for(var apRow20=0;apRow20<auditIdValues20.length;apRow20++)if(String(auditIdValues20[apRow20][0]||'')===id20)auditHits20.push(apRow20+2);
       acceptStages20.auditLookupMs=Date.now()-acceptT020-acceptStages20.lockWaitMs-acceptStages20.auditorLookupMs;
       if(auditHits20.length!==1)return respond20({success:false,error:'AUDIT_UNAVAILABLE'});
-      var current20=p20.getRange(auditHits20[0].getRow(),1,1,ph20.length).getDisplayValues()[0],
+      var current20=p20.getRange(auditHits20[0],1,1,ph20.length).getDisplayValues()[0],
         assigned20=String(current20[as20]||'').trim().toLowerCase(),
         identities20=[email20,uid20,String(rowAud20[aix20('Name')]||'').trim().toLowerCase(),String(rowAud20[aix20('Abbreviation')]||'').trim().toLowerCase()];
       if(!assigned20||identities20.indexOf(assigned20)<0)return respond20({success:false,error:'AUDITOR_ASSIGNMENT_MISMATCH'});
@@ -442,10 +444,10 @@ function doPost(e) {
       var currentRevision20=digest20.map(function(b){return ('0'+((b+256)%256).toString(16)).slice(-2);}).join('').slice(0,24);
       if(currentRevision20!==revision20)return respond20({success:false,error:'AUDIT_REVISION_CONFLICT'});
       if(typeof Status_applyAction!=='function')return respond20({success:false,error:'CANONICAL_STATUS_MACHINE_UNAVAILABLE'});
-      AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_={auditId:id20,rowNumber:auditHits20[0].getRow(),sheet:p20,hdr:ph20,row:current20,lastCol:ph20.length};
+      AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_={auditId:id20,rowNumber:auditHits20[0],sheet:p20,hdr:ph20,row:current20,lastCol:ph20.length};
       acceptPhase20='status_machine';
       var statusT020=Date.now();
-      var outcome20=Status_applyAction('AUDITOR',action20,id20,{actorRole:'AUDITOR',actorEmail:email20,auditorUid:uid20,reason:reason20,comment:reason20,rowIndex:auditHits20[0].getRow()});
+      var outcome20=Status_applyAction('AUDITOR',action20,id20,{actorRole:'AUDITOR',actorEmail:email20,auditorUid:uid20,reason:reason20,comment:reason20,rowIndex:auditHits20[0]});
       acceptStages20.statusMachineMs=Date.now()-statusT020;if(action20==='ACCEPT'&&outcome20&&outcome20.canonicalWriteTiming){acceptStages20.canonicalWrite=outcome20.canonicalWriteTiming;acceptStages20.statusNotificationMs=outcome20.statusPerf&&outcome20.statusPerf.notificationOnlyMs;acceptStages20.statusCoreMs=outcome20.statusPerf&&outcome20.statusPerf.coreMs;acceptStages20.statusBreakdown=outcome20.statusPerf||null;}acceptPhase20='complete';
       return respond20(outcome20||{success:false,error:'CANONICAL_ACTION_EMPTY'});
     }catch(ex20){return respond20({success:false,error:'AUDITOR_ACTION_FAILED',detail:String(ex20&&ex20.message||ex20).slice(0,160)});}

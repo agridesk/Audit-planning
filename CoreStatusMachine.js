@@ -763,6 +763,8 @@ function Status_lifecycleOnStatusChanged_(ctx, transition, actor, action, payloa
       rowIndex: ctx && ctx.rowIndex,
       headers: ctx && ctx.hdr,
       row: ctx && ctx.row,
+      __foldAuditorAccept20: ctx && ctx.__foldAuditorAccept20 === true,
+      __foldAuditorAcceptStamp20: ctx && ctx.__foldAuditorAcceptStamp20,
       payload: payload || {}
     });
   } catch (e) {

@@ -573,6 +573,8 @@ async function swap20ManagerRequest(req,res,operation){
   ?(swap20DirectRouteEnabled?await swap20DirectTransport.eligibleAuditIds({actor}):{ok:false,code:'SWAP_DIRECT_SELECTION_DISABLED'})
   :operation==='diagnosePair'
    ?(swap20DirectRouteEnabled?await swap20DirectTransport.diagnosePair({...data,actor}):{ok:false,code:'SWAP_DIRECT_SELECTION_DISABLED'})
+   :operation==='canonicalGridDates'
+   ?(swap20DirectRouteEnabled?await swap20DirectTransport.canonicalGridDates({actor}):{ok:false,code:'SWAP_DIRECT_GRID_DISABLED'})
    :operation==='listPending'
   ?(swap20DirectRouteEnabled?await swap20DirectTransport.list({actor}):await swap20ReadList(actor))
   :operation==='preview'
@@ -839,6 +841,7 @@ http.createServer(async(req,res)=>{
     '/api/v1/manager/swap20/list':'listPending',
     '/api/v1/manager/swap20/eligible':'eligibleAudits',
      '/api/v1/manager/swap20/diagnose':'diagnosePair',
+     '/api/v1/manager/swap20/canonical-grid-dates':'canonicalGridDates',
     '/api/v1/manager/swap20/preview':'preview',
     '/api/v1/manager/swap20/propose':'propose',
     '/api/v1/manager/swap20/status':'getProposal',

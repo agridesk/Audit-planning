@@ -581,27 +581,7 @@ function Status_applyPlan_(ctx, transition, payload, actorFromDispatcher, action
 
 function Status_applySimpleStatusWrite_(ctx, transition, actor, action, payload) {
   var __writeStarted = Date.now();
-  var __foldAccept = actor === ROLE.AUDITOR && action === ACTION.ACCEPT &&
-    typeof AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ !== 'undefined' && AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ === true &&
-    Array.isArray(ctx.row) && Array.isArray(ctx.hdr) && typeof Lifecycle_onStatusChanged_ === 'function' &&
-    typeof lifecycle_nowStamp_ === 'function' && typeof lifecycle_findHeaderIndex_ === 'function' &&
-    ['Status','Status since','Last auditor decision','Last auditor decision timestamp','Auditor comment (last)'].every(function(name){return lifecycle_findHeaderIndex_(ctx.hdr,[name])>=0;});
-  if (__foldAccept) {
-    // Commit status + metadata together; post-commit lifecycle/outbox runs only after setValues returns.
-    var stamp = lifecycle_nowStamp_();
-    var ix = function(name){ return lifecycle_findHeaderIndex_(ctx.hdr,[name]); };
-    var set = function(name,value){ var k=ix(name);if(k<0)throw new Error('ACCEPT_COLUMN_MISSING_'+name);ctx.row[k]=value; };
-    set('Status',transition.afterStatusDisplay);
-    set('Status since',stamp);
-    set('Last auditor decision','ACCEPT');
-    set('Last auditor decision timestamp',stamp);
-    set('Auditor comment (last)',String(payload && (payload.reason||payload.comment)||'').trim());
-    ctx.sheet.getRange(ctx.rowIndex,1,1,ctx.hdr.length).setValues([ctx.row]);
-    ctx.__foldAuditorAccept20 = true;
-    ctx.__foldAuditorAcceptStamp20 = stamp;
-  } else {
-    ctx.sheet.getRange(ctx.rowIndex, ctx.col.status + 1).setValue(transition.afterStatusDisplay);
-  }
+  ctx.sheet.getRange(ctx.rowIndex, ctx.col.status + 1).setValue(transition.afterStatusDisplay);
   var __statusSetValueReturnedAt = new Date().toISOString();
   var __sheetWriteMs = Date.now() - __writeStarted;
   var __lifecycleStarted = Date.now();
@@ -609,7 +589,7 @@ function Status_applySimpleStatusWrite_(ctx, transition, actor, action, payload)
   Status_invalidateAuditPlanningPack_();
   var res = Status_buildActionResult_(transition, { auditId: ctx.auditId, action: action });
   res.lifecycle = lifecycle;
-  res.canonicalWriteTiming = {statusCellWriteMs:__sheetWriteMs,statusSetValueReturnedAt:__statusSetValueReturnedAt,lifecycleMs:Date.now()-__lifecycleStarted,measurement:'Sheets write returned; not independently verified sheet durability'};
+  res.canonicalWriteTiming = {statusCellWriteMs:__sheetWriteMs,statusSetValueReturnedAt:__statusSetValueReturnedAt,lifecycleMs:Date.now()-__lifecycleStarted,measurement:'setValue returned; not independently verified sheet durability'};
   res.metadataWritten = !!(lifecycle && (lifecycle.managerMetadataWritten || lifecycle.statusSinceWritten));
   return res;
 }
@@ -765,8 +745,6 @@ function Status_lifecycleOnStatusChanged_(ctx, transition, actor, action, payloa
       rowIndex: ctx && ctx.rowIndex,
       headers: ctx && ctx.hdr,
       row: ctx && ctx.row,
-      __foldAuditorAccept20: ctx && ctx.__foldAuditorAccept20 === true,
-      __foldAuditorAcceptStamp20: ctx && ctx.__foldAuditorAcceptStamp20,
       payload: payload || {}
     });
   } catch (e) {

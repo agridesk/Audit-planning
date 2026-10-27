@@ -102,7 +102,13 @@ export function createSwapFirestoreDevTransport(options={}){
    inspect('audits',ids=>reader.readPair(ids)),
    inspect('availability',ids=>reader.readAvailability(ids))
   ]);
-  return {ok:true,readOnly:true,source:'firestore-canonical',audits,availability};
+  let index;
+  try{
+   const snapshot=requireSwapIndexCoverage(await indexLoader(),expectedAvailabilityDocuments);
+   index={state:'VALID',documentCount:snapshot.documentCount,expectedCount:expectedAvailabilityDocuments,
+    auditIds:ids.map(auditId=>({auditId,present:snapshot.auditIds.includes(auditId)}))};
+  }catch(e){index={state:'UNVERIFIED',code:String(e?.message||'SWAP_INDEX_UNAVAILABLE').slice(0,110)};}
+  return {ok:true,readOnly:true,source:'firestore-canonical',audits,availability,index};
  };
  const list=async({actor}={})=>{
   if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_LIST_DISABLED'};

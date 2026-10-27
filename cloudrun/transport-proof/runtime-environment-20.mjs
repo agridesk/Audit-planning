@@ -19,6 +19,9 @@ export function resolveAmsRuntimeConfig(env, projectId) {
  const allowedProject=String(env.AMS_PROD_GCP_PROJECT||'').trim();
  if(!allowedProject||allowedProject==='audit-management-system-dev'||project!==allowedProject)throw Error('AMS_PROD_PROJECT_MISMATCH');
  const runtimeServiceAccount=resolveProdRuntimeIdentity(env,project);
+ const availabilityCollection=String(env.AMS_PROD_AVAILABILITY_COLLECTION||'').trim();
+ if(!/^ams_availability_20_prod(?:_[a-z0-9_]+)?$/.test(availabilityCollection))throw Error('AMS_PROD_AVAILABILITY_COLLECTION_REQUIRED');
+ if(availabilityCollection===String(env.AMS_DEV_AVAILABILITY_COLLECTION||'ams_availability_20_dev').trim())throw Error('AMS_PROD_AVAILABILITY_COLLECTION_NOT_ISOLATED');
  const spreadsheet=String(env.AMS_PROD_SSOT_SPREADSHEET_ID||'').trim();
  if(!spreadsheet||spreadsheet===String(env.DEV_SSOT_SPREADSHEET_ID||'').trim())throw Error('AMS_PROD_SHEET_NOT_ISOLATED');
  const gasWriteUrl=String(env.AMS_PROD_GAS_WRITE_URL||'').trim();
@@ -32,5 +35,5 @@ export function resolveAmsRuntimeConfig(env, projectId) {
  if(prodSessionSecret===String(env.AMS_SESSION_SIGNING_SECRET||'').trim())throw Error('AMS_PROD_SESSION_SECRET_NOT_ISOLATED');
  const origin=String(env.AMS_PROD_ALLOWED_ORIGIN||'').trim();
  if(!/^https:\/\//.test(origin)||origin===String(env.DEV_ALLOWED_ORIGIN||'').trim())throw Error('AMS_PROD_ORIGIN_NOT_ISOLATED');
- return Object.freeze({mode,project,spreadsheet,isDev:false,origin,gasWriteUrl,runtimeServiceAccount});
+ return Object.freeze({mode,project,spreadsheet,isDev:false,origin,gasWriteUrl,runtimeServiceAccount,availabilityCollection});
 }

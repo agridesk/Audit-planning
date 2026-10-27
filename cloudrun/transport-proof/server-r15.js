@@ -4,6 +4,7 @@ import {createSwapLegacyJournalArchive,classifySwapLegacyJournal} from './swap-l
  */
 import http from 'node:http';
 import {resolveAmsRuntimeConfig} from './runtime-environment-20.mjs';
+import {verifyProdRuntimeIdentity} from './prod-runtime-identity-20.mjs';
 import {notificationOverview} from './notification-overview-20.mjs';
 import {buildRotationManager20} from './rotation-manager-20.mjs';
 import {createSwapFirestoreReadmodel} from './swap-firestore-readmodel-20.mjs';
@@ -33,6 +34,7 @@ async function resolveProject(){
  return '';
 }
 const runtime=resolveAmsRuntimeConfig(process.env,await resolveProject());
+if(!runtime.isDev)await verifyProdRuntimeIdentity(runtime.runtimeServiceAccount);
 const project=runtime.project;
 process.env.AMS_GCP_PROJECT=project;
 process.env.GOOGLE_CLOUD_PROJECT=project;

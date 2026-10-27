@@ -241,7 +241,7 @@ function runActionViaWarmWorker(auditId,action,options){
 function runRealizedHoursDirect(auditId,hoursDedicated){
   var started=performance.now();
   return fetch('/api/v1/manager/realized-hours-direct',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({auditId:auditId,hoursDedicated:hoursDedicated,expectedHoursDedicated:(all.find(function(r){return r.auditId===auditId})||{}).hoursDedicated})})
-    .then(function(response){return response.json().then(function(result){if(!response.ok||result.success===false)throw new Error(result.error||'REALIZED_HOURS_DIRECT_FAILED');return {result:result,relayElapsedMs:Math.round(performance.now()-started),trace:{transport:'CLOUD_RUN_DIRECT'}};})});
+    .then(function(response){return response.json().then(function(result){if(!response.ok||result.success===false){if(response.status===409&&result.error==='STALE_REALIZED_HOURS')throw new Error('Hours were changed by another user. Refresh the completed audits before trying again.');if(result.error==='REALIZED_HOURS_WRITE_IN_PROGRESS')throw new Error('Another correction is in progress. Refresh before making another change.');throw new Error(result.error||'REALIZED_HOURS_DIRECT_FAILED');}return {result:result,relayElapsedMs:Math.round(performance.now()-started),trace:{transport:'CLOUD_RUN_DIRECT'}};})});
 }
 function runActionViaCloudRun(auditId,action,options){
   var started=performance.now();

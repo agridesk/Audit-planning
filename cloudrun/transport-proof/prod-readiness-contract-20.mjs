@@ -17,7 +17,7 @@ const r12=files['server-r12.js'];
 const core=files['server-r4.js'];
 const packageJson=JSON.parse(files['package.json']);
 const availabilityFirestore=files['availability-firestore-adapter-20.js'];
-if(/collection='ams_availability_20_dev'/.test(availabilityFirestore)&&/createFirestoreAvailabilityAdapter\(\{projectId:project,getToken\}\)/.test(entry))flag('PROD_FIRESTORE_COLLECTION_DEFAULT_DEV','availability-firestore-adapter-20.js / server-r15.js','PROD Availability still inherits DEV-named Firestore collection; require explicit per-environment binding and verified isolation.');
+if(/collection='ams_availability_20_dev'/.test(availabilityFirestore)&&!/collection:runtime\.isDev\?'ams_availability_20_dev':runtime\.availabilityCollection/.test(entry))flag('PROD_FIRESTORE_COLLECTION_DEFAULT_DEV','availability-firestore-adapter-20.js / server-r15.js','PROD Availability still inherits DEV-named Firestore collection; require explicit per-environment binding and verified isolation.');
 if(/\/api\/v1\/manager\/realized-hours-direct/.test(r12)&&/fetch\(root\+'\:batchUpdate'/.test(r12)){
  const contained=r12.includes("if(process.env.AMS_RUNTIME_ENV==='PROD')return sendJson(res,503,{success:false,error:'PROD_REALIZED_HOURS_DIRECT_WRITER_DISABLED'});");
  if(contained)flag('PROD_REALIZED_HOURS_DIRECT_WRITER_CONTAINED','server-r12.js','Explicit PROD fail-closed guard is present. It prevents this legacy route from mutating PROD while canonical parity remains unproven.','INFO');

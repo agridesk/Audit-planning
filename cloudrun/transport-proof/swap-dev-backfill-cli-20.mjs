@@ -289,7 +289,7 @@ if(deltaApply){
  const result=await json(base+':commit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({writes:missing})});
  if(result.writeResults?.length!==missing.length)throw Error('SWAP_DEV_DELTA_WRITE_RECEIPT_INVALID');
  const after=await read();
- if(after.size!==names.length||plan.writes.some(w=>after.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue))throw Error('SWAP_DEV_DELTA_READBACK_OR_PARITY_FAILED');
+ if(after.size!==names.length||plan.writes.some(w=>!expectedDriftPaths.has(w.update.name)&&after.get(w.update.name)?.fields?.payload?.stringValue!==w.update.fields.payload.stringValue)||stale.some(w=>after.get(w.update.name)?.fields?.payload?.stringValue!==existing.get(w.update.name)?.fields?.payload?.stringValue))throw Error('SWAP_DEV_DELTA_READBACK_OR_PARITY_FAILED');
  console.log(JSON.stringify({result:'SWAP_DEV_DELTA_VERIFIED',addedAudits:byAudit.size,addedDocuments:missing.length,totalAudits:plan.eligibleCount,totalDocuments:after.size,manifestHash:manifest.manifestHash,cutoverAuthorized:false}));
  return;
 }

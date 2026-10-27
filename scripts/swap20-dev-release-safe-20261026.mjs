@@ -25,8 +25,8 @@ function serviceState(){
 }
 try{
  console.log('DEV SWAP release preflight. PROD excluded.');
- const git=run('git',['status','--porcelain']);
- if(git.trim())throw Error('WORKTREE_NOT_CLEAN');
+ const git=run('git',['status','--porcelain','--untracked-files=no']);
+ if(git.trim())throw Error('TRACKED_WORKTREE_NOT_CLEAN');
  const state=serviceState();
  for(const k of ['AMS_SWAP20_DIRECT_COMMIT_ENABLED','AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED','AMS_SWAP20_DIRECT_ROUTE'])
   if(state.env[k]!=='true')throw Error('DIRECT_CUTOVER_FLAG_MISSING_'+k);

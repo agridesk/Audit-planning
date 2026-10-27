@@ -94,6 +94,7 @@ http.createServer(async(req,res)=>{
     try{
     const t0=Date.now();
     if(!SID)return sendJson(res,503,{success:false,error:'DEV_SSOT_NOT_CONFIGURED'});
+    if(!WRITE_KEY)return sendJson(res,503,{success:false,error:'AUDIT_TRAIL_SIGNING_KEY_NOT_CONFIGURED'});
     const rows=await batchValues(["'Log realized audits'!A1:AZ10000","'Auditors'!A1:Z500"]);
     const log=rows[0]||[],auditors=rows[1]||[];
     const ah=auditors[0]||[],emailCol=col(ah,['Email','E-mail']),roleCol=col(ah,['Role']),activeCol=col(ah,['Active']);
@@ -122,7 +123,7 @@ http.createServer(async(req,res)=>{
       const now=new Date(),timestamp=now.toISOString(),type='COMPLETED_HOURS_OVERRIDE';
       const payload={type,auditId,auditNumber:'',company:'',actorEmail:actor,actorRole:'MANAGER',beforeStatus:'',afterStatus:'',reason:clean(body.reason)||'Manager realized-hours correction',hours:hoursDedicated,oldHoursDedicated,newHoursDedicated:hoursDedicated,source:'CloudRun.RealizedHoursDirect',timestamp,action:''};
       const subject='[TRAIL] '+type+' :: '+auditId,bodyText=JSON.stringify(payload);
-      const hash=b64url(createHmac('sha256',WRITE_KEY||'AMS_DEV').update(type+'|'+auditId+'|'+timestamp+'|').digest());
+      const hash=b64url(createHmac('sha256',WRITE_KEY).update(type+'|'+auditId+'|'+timestamp+'|').digest());
       const queueRow=[timestamp.slice(0,16).replace('T',' '),'AUDIT_TRAIL',type,'',auditId,'',subject,bodyText,0,'',hash,'',JSON.stringify({payload})];
       const cell=v=>({userEnteredValue:typeof v==='number'?{numberValue:v}:{stringValue:String(v)}});
       const startedWrite=Date.now();

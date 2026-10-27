@@ -505,15 +505,21 @@ function completionService_overrideCompletedHours_(payload) {
     if (payload.hoursDedicated === '' || payload.hoursDedicated == null) return { success:false, message:'Hours dedicated is required' };
     if (!isFinite(hoursDedicated) || hoursDedicated <= 0) return { success:false, message:'Hours dedicated must be > 0' };
     if (Math.abs((Math.round(hoursDedicated * 4) / 4) - hoursDedicated) > 1e-9) return { success:false, message:'Hours dedicated must be in steps of 0.25' };
-    if (typeof managerV5_isManagerActor_ !== 'function' || !managerV5_isManagerActor_(actorEmail)) return { success:false, message:'Manager role required' };
+    var rosterStart = Date.now();
+    var managerAuthorized = typeof managerV5_isManagerActor_ === 'function' && managerV5_isManagerActor_(actorEmail);
+    perf.managerAuthorizationMs = Date.now() - rosterStart;
+    if (!managerAuthorized) return { success:false, message:'Manager role required' };
     if (typeof LogRealizedAuditService_UpdateCompletedHours !== 'function') return { success:false, message:'Missing dependency: LogRealizedAuditService_UpdateCompletedHours. Add LogRealizedAuditService.gs.' };
     if (typeof LogRealizedAuditService_GetCompletedAudit !== 'function') return { success:false, code:'REALIZED_HOURS_CANONICAL_READ_MISSING' };
     if (payload.expectedHoursDedicated === '' || payload.expectedHoursDedicated == null || !isFinite(Number(payload.expectedHoursDedicated))) return { success:false, code:'REALIZED_HOURS_EXPECTED_VALUE_REQUIRED' };
+    var canonicalReadStart = Date.now();
     var canonical = LogRealizedAuditService_GetCompletedAudit(auditId);
+    perf.canonicalReadMs = Date.now() - canonicalReadStart;
     if (!canonical || canonical.success !== true || canonical.found !== true) return { success:false, code:'REALIZED_HOURS_CANONICAL_RECORD_MISSING' };
     if (String(canonical.status || '').trim().toUpperCase() !== 'COMPLETED') return { success:false, code:'AUDIT_NOT_COMPLETED' };
     if (!isFinite(canonical.hoursDedicated) || Number(payload.expectedHoursDedicated) !== canonical.hoursDedicated) return { success:false, code:'STALE_REALIZED_HOURS', oldHoursDedicated:canonical.hoursDedicated };
 
+    perf.preWriteMs = Date.now() - perfStarted;
     var writeStarted = Date.now();
     var res = LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, { status:completionService_getCompletedDisplayStatus_() });
     perf.logWriteMs = Date.now() - writeStarted;
@@ -540,6 +546,7 @@ function completionService_overrideCompletedHours_(payload) {
     completionService_invalidateRealizedReadModels_(auditId, res.auditorEmail);
     perf.invalidateMs = Date.now() - invalidateStarted;
     perf.totalMs = Date.now() - perfStarted;
+    perf.unclassifiedMs = Math.max(0,perf.totalMs-(perf.lockMs||0)-(perf.managerAuthorizationMs||0)-(perf.canonicalReadMs||0)-(perf.logWriteMs||0)-(perf.auditTrailMs||0)-(perf.invalidateMs||0));
 
     return {
       success:true,

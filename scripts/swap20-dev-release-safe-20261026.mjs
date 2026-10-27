@@ -54,10 +54,18 @@ try{
  const deploymentOutput=run('clasp',['update-deployment',configuredId]);
  if(/(^|\n)\s*error:|too many arguments|unknown command/i.test(deploymentOutput))
   throw Error('DEV_GAS_CLI_DEPLOYMENT_REJECTED');
+ const outputVersion=versionOf(deploymentOutput,configuredId);
+ if(outputVersion===null||outputVersion<=priorVersion)
+  throw Error('DEV_GAS_UPDATE_RESPONSE_UNVERIFIED_'+priorVersion+'_'+outputVersion);
+ // clasp list-deployments can lag behind its successful update-deployment response.
+ // Require confirmation from the update response; never accept a stale list as failure.
+ let nextVersion=outputVersion;
  const postListing=run('clasp',['list-deployments']);
- const nextVersion=versionOf(postListing,configuredId);
- if(nextVersion===null||nextVersion<=priorVersion)
-  throw Error('DEV_GAS_VERSION_NOT_ADVANCED_'+priorVersion+'_'+nextVersion);
+ const listedVersion=versionOf(postListing,configuredId);
+ if(listedVersion!==null&&listedVersion>outputVersion)
+  nextVersion=listedVersion;
+ if(listedVersion!==null&&listedVersion<priorVersion)
+  throw Error('DEV_GAS_LIST_REGRESSED_'+listedVersion+'_'+priorVersion);
  console.log('DEV GAS executable deployment updated: '+configuredId+' @'+priorVersion+' -> @'+nextVersion);
  run('gcloud',['run','deploy',service,'--source','.','--project',project,'--region',region,
   '--update-env-vars','AMS_SWAP20_DIRECT_COMMIT_ENABLED=true,AMS_SWAP20_CANONICAL_CUTOVER_VERIFIED=true,AMS_SWAP20_DIRECT_ROUTE=true','--quiet'],cloud);

@@ -716,7 +716,8 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
       var proposals=Array.isArray(result.items)?result.items:[];
       swap20SetManagerGridCases(proposals);
       swap20BadgeUpdate("manager",result.attentionCount||0);
-      status.textContent=proposals.length+" open date change request(s); "+String(result.attentionCount||0)+" awaiting manager action.";
+      var managerActions=proposals.filter(function(p){return p.status==="CONFIRMED"&&p.commitEnabled!==false;}).length;
+      status.textContent=proposals.length+" open date change request(s); "+managerActions+" ready for manager action.";
       proposals.forEach(function(p){
         var card=document.createElement("section");card.style.cssText="border:1px solid #cbd5e1;border-radius:9px;margin:10px 0;padding:12px";
         function info(title,value){

@@ -597,6 +597,7 @@ async function swap20ManagerRequest(req,res,operation){
   catch(err){result.indexStatus='UNAVAILABLE';result.commitEnabled=false;console.error('[SWAP20_INDEX_STATUS_FAILED]',String(err?.message||err).slice(0,140));}
  }
  if(['propose','withdraw','commit'].includes(operation)&&result?.ok===true){swap20InvalidateLists();await swap20InvalidateMirror(actor);}
+ if(operation==='canonicalGridDates')console.info('[SWAP_CANONICAL_GRID_DIAG]',JSON.stringify({ok:result?.ok===true,returnedRows:Array.isArray(result?.rows)?result.rows.length:-1,ms:Date.now()-swap20RequestStarted,revision:process.env.K_REVISION||'UNAVAILABLE'}));
  console.info('[SWAP20_REQUEST_PERF]',JSON.stringify({role:'manager',operation,ms:Date.now()-swap20RequestStarted,ok:result?.ok===true}));
  res.writeHead(result?.ok===true?200:409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
  res.end(JSON.stringify(Object.fromEntries(Object.entries(result||{}).filter(([k])=>k!=='_mirrorEvent'))));return;

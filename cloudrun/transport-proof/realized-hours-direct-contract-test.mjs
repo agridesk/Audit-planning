@@ -5,9 +5,10 @@ const client=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8')
 const entry=readFileSync(new URL('../../EntryV5.js',import.meta.url),'utf8');
 const route=server.split("u.pathname==='/api/v1/manager/realized-hours-direct'")[1]?.split("u.pathname==='/api/v1/manager/audit'")[0]||'';
 assert.ok(route,'route missing');
-for(const marker of ['innerSession(req)','ROLE_FORBIDDEN','REALIZED_HOURS_EXPECTED_VALUE_REQUIRED','externalrealizedhours20','safeToRetry:false','requiresReconciliation:true','PROD_REALIZED_HOURS_DIRECT_WRITER_DISABLED'])assert.ok(route.includes(marker),marker);
+for(const marker of ['innerSession(req)','ROLE_FORBIDDEN','REALIZED_HOURS_EXPECTED_VALUE_REQUIRED','DIRECT_SHEETS_ATOMIC','STALE_REALIZED_HOURS','REALIZED_HOURS_WRITE_IN_PROGRESS','PROD_REALIZED_HOURS_DIRECT_WRITER_DISABLED'])assert.ok(route.includes(marker),marker);
 assert.ok(entry.includes("rawAction==='externalrealizedhours20'"),'GAS bridge missing');
-assert.ok(!route.includes('updateCells:')&&!route.includes("fetch(root+':batchUpdate'"),'direct Sheets bypass forbidden');
-assert.ok(client.includes('runRealizedHoursDirect(id,q)'),'client should use canonical bridge');
-assert.ok(route.indexOf('REALIZED_HOURS_EXPECTED_VALUE_REQUIRED')<route.indexOf("endpoint.searchParams.set('action'"),'must reject missing expected value before GAS write');
-console.log('PASS: realized-hours canonical bridge contracts');
+assert.ok(route.includes('updateCells:')&&route.includes("fetch(root+':batchUpdate'"),'restored direct Sheets write missing');
+assert.ok(route.includes('appendCells:')&&route.includes('auditTrail'),'atomic audit-trail batch missing');
+assert.ok(client.includes('runRealizedHoursDirect(id,q)'),'client should use restored direct route');
+assert.ok(route.indexOf('REALIZED_HOURS_EXPECTED_VALUE_REQUIRED')<route.indexOf("fetch(root+':batchUpdate'"),'must reject missing expected value before write');
+console.log('PASS: restored DEV direct realized-hours contracts');

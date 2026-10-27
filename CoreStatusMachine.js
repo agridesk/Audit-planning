@@ -390,8 +390,17 @@ function Status_loadAudit_(auditId, rowIndexHint) {
   auditId = String(auditId || '').trim();
   if (!auditId) return { found:false, error: Status_fail_('Missing auditId') };
 
-  var ss = SpreadsheetApp.getActive();
-  var sh = ss.getSheetByName('Audit planning');
+  // External Auditor Accept already resolved and verified this sheet under the
+  // canonical GAS script lock. Do not request SpreadsheetApp again on this path.
+  var verified = typeof AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_ !== 'undefined' &&
+    typeof AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ !== 'undefined' &&
+    AMS_EXTERNAL_AUDITOR_ACTION_LOCK_HELD_ === true &&
+    AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_ &&
+    AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_.auditId === auditId &&
+    AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_.rowNumber === Number(rowIndexHint || 0) &&
+    AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_.sheet;
+  var ss = verified ? null : SpreadsheetApp.getActive();
+  var sh = verified ? AMS_EXTERNAL_AUDITOR_VERIFIED_ROW_.sheet : ss.getSheetByName('Audit planning');
   if (!sh) return { found:false, error: Status_fail_("Missing sheet 'Audit planning'") };
 
   // AMS-01: use the canonical Audit planning execution cache first.

@@ -111,6 +111,43 @@ export function createSwapFirestoreDevTransport(options={}){
   }catch(e){index={state:'UNVERIFIED',code:String(e?.message||'SWAP_INDEX_UNAVAILABLE').slice(0,110)};}
   return {ok:true,readOnly:true,source:'firestore-canonical',audits,availability,index};
  };
+ const canonicalGridDates=async({actor}={})=>{
+  if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_GRID_DISABLED'};
+  if(actor?.role!=='manager'||!actor.email)throw Error('SWAP_DIRECT_MANAGER_UNAUTHORIZED');
+  const base='https://firestore.googleapis.com/v1/projects/'+project+'/databases/(default)/documents/ams_swap20_dev_proposals';
+  const token=await getToken();if(!token)throw Error('SWAP_DIRECT_GRID_TOKEN_MISSING');
+  const items=[];let pageToken='',pages=0;
+  do{
+   if(++pages>5)throw Error('SWAP_DIRECT_GRID_PAGE_LIMIT');
+   const url=base+'?pageSize=100'+(pageToken?'&pageToken='+encodeURIComponent(pageToken):'');
+   const response=await (fetchImpl||fetch)(url,{headers:{authorization:'Bearer '+token},signal:AbortSignal.timeout(15000)});
+   if(!response.ok)throw Error('SWAP_DIRECT_GRID_HTTP_'+response.status);
+   const data=await response.json();
+   for(const doc of data.documents||[]){
+    let p;try{p=JSON.parse(doc.fields?.payload?.stringValue||'null');}catch{throw Error('SWAP_DIRECT_GRID_PROPOSAL_CORRUPT');}
+    if(p?.status==='APPLIED'){
+     if(p.canonicalCommitVerified!==true)throw Error('SWAP_DIRECT_GRID_APPLIED_UNVERIFIED');
+     items.push(p);
+    }
+   }
+   pageToken=data.nextPageToken||'';
+  }while(pageToken);
+  const rows=new Map();
+  for(const p of items){
+   const journal=await reader.readJournal(p.operationId);
+   if(journal?.stage!=='COMMITTED'||journal.auditA!==p.auditA||journal.auditB!==p.auditB)throw Error('SWAP_DIRECT_GRID_JOURNAL_UNVERIFIED');
+   const pair=await reader.readPair([p.auditA,p.auditB]);
+   for(const audit of pair){
+    if(audit.status!=='Accepted'||!Array.isArray(audit.canonical.plannedBlocks)||!audit.canonical.plannedBlocks.length)
+     throw Error('SWAP_DIRECT_GRID_CANONICAL_AUDIT_INVALID');
+    const prev=rows.get(audit.auditId);
+    if(prev&&prev.operationId!==p.operationId)throw Error('SWAP_DIRECT_GRID_MULTIPLE_APPLIED_CHANGES_REQUIRES_REVIEW');
+    rows.set(audit.auditId,{auditId:audit.auditId,operationId:p.operationId,plannedBlocks:audit.canonical.plannedBlocks,
+      revision:audit.updateTime});
+   }
+  }
+  return {ok:true,readOnly:true,source:'firestore-canonical',rows:[...rows.values()]};
+ };
  const list=async({actor}={})=>{
   if(enabled!==true||canonicalCutoverVerified!==true)return {ok:false,code:'SWAP_DIRECT_LIST_DISABLED'};
   return directProposalStore.list({actor,authorizeAuditor:authorizeCanonicalAuditor});
@@ -136,7 +173,7 @@ export function createSwapFirestoreDevTransport(options={}){
   return buildSwapFirestoreReadOnlyPreview({pair,availability});
  };
  const commit=async args=>{if(enabled===true&&canonicalCutoverVerified===true)await assertSourceFreeze();return coordinator.commit(args);};
- return Object.freeze({...reader,preview,propose,respond,withdraw,getProposal,list,eligibleAuditIds,diagnosePair,commit});
+ return Object.freeze({...reader,preview,propose,respond,withdraw,getProposal,list,eligibleAuditIds,diagnosePair,canonicalGridDates,commit});
 }
 
 /** Read-only preview readiness check; no commit or routing authorization. */

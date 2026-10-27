@@ -132,13 +132,14 @@ function selectionPdf(){
   w.document.write(html);w.document.close();setTimeout(function(){w.focus();w.print()},150)
 }
 function submitSelectionHandoff(mode){
+  if(mode!=="batch"&&mode!=="concept"){window.alert("Unsupported selection action");return}
   var ids=selectionIds();if(!ids.length)return;
   // Reserve the destination within the original user gesture, before async fetch.
   // This prevents popup blockers from silently discarding the planning handoff.
   var target="ams_selection_handoff_"+Date.now(),win=window.open("about:blank",target);
   if(!win){window.alert("Allow pop-ups for AMS to open the selected audits in the Planning Toolkit.");return}
   try{win.document.title="Preparing Planning Toolkit…";win.document.body.textContent="Preparing the selected audits…"}catch(e){}
-  fetch("/api/v1/manager/selection-handoff",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({auditIds:ids,mode:mode})})
+  fetch("/api/v1/manager/selection-handoff",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:JSON.stringify({auditIds:ids,mode:mode}),signal:AbortSignal.timeout(20000)})
     .then(function(r){return r.json().then(function(x){if(!r.ok||x.success===false)throw new Error(x.error||"Selection handoff failed");return x})})
     .then(function(x){
       if(!x||typeof x.url!=="string"||!/^https:\/\//i.test(x.url))throw new Error("Invalid toolkit destination");

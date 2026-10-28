@@ -736,6 +736,8 @@ async function proxy(req,res){
  const headers={...req.headers};delete headers.host;delete headers.connection;delete headers['content-length'];
  const init={method:req.method,headers,redirect:'manual'};
  if(!['GET','HEAD'].includes(req.method)){const chunks=[];for await(const c of req)chunks.push(c);init.body=Buffer.concat(chunks);}
+ let planningLease=null,planningLeaseActor=null;
+ try{
  if(runtime.isDev&&req.method==='POST'&&new URL(req.url||'/','http://localhost').pathname==='/api/v1/planning/direct-commit'){
   const actor=await session(req);
   if(!actor)throw Error('PLANNING_SESSION_REQUIRED');
@@ -744,7 +746,9 @@ async function proxy(req,res){
   const candidates=(await getRoster()).filter(x=>x.role==='auditor'&&x.email===email);
   if(candidates.length!==1)throw Error('PLANNING_AUDITOR_UID_UNRESOLVED');
   if(actor.role==='auditor'&&actor.auditorId!==candidates[0].auditorId)throw Error('PLANNING_AUDITOR_IDENTITY_MISMATCH');
-  const doc=await service.read({role:'manager',id:actor.auditorId},candidates[0].auditorId);
+  planningLeaseActor={role:actor.role,id:actor.auditorId};
+  planningLease=await service.acquirePlanningLease({actor:planningLeaseActor,auditorId:candidates[0].auditorId,auditId:String(body.auditId||'').trim()});
+  const doc=planningLease.document;
   if(!Number.isSafeInteger(doc.version)||doc.version<0)throw Error('PLANNING_AVAILABILITY_VERSION_INVALID');
   enforceAvailabilityHardGate20({document:doc,blocks:body.blocks});
  }
@@ -755,7 +759,9 @@ async function proxy(req,res){
  if(req.method==='POST'&&r.ok&&planningWriter.test(mutationPath)){
   try{const outcome=JSON.parse(responseBody.toString('utf8'));if(outcome?.success!==false&&outcome?.ok!==false)planningCache.invalidate();}catch{}
  }
+ if(planningLease){await service.releasePlanningLease({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token});planningLease=null;}
  res.writeHead(r.status,h);res.end(responseBody);
+ }finally{if(planningLease)await service.releasePlanningLease({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token});}
 }
 http.createServer(async(req,res)=>{
  try{

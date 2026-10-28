@@ -75,13 +75,16 @@ await test('exhausted availability version rejected on read',async()=>{
 await test('durable planning lease serializes planning and availability across service instances',async()=>{
  const id='aud-lease',actor={id:'manager1',role:'manager'};
  const second=createAvailabilityService(adapter);
+ const confirmed=await service.mutate({actor:{id,role:'auditor'},auditorId:id,expectedVersion:0,mutation:{action:'CONFIRM_AVAILABILITY',fromDate:'2027-01-01',toDate:'2027-01-31'}});
  const lease=await service.acquirePlanningLease({actor,auditorId:id,auditId:'audit-1'});
+ assert.equal(lease.document.metadata.confirmation.availabilityVersion,lease.version);
  assert.equal((await second.read(actor,id)).planningLease.token,lease.token);
  await fails(()=>second.acquirePlanningLease({actor,auditorId:id,auditId:'audit-2'}),'PLANNING_LEASE_ACTIVE');
  await fails(()=>second.mutate({actor,auditorId:id,expectedVersion:lease.version,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}}),'PLANNING_LEASE_ACTIVE');
  await fails(()=>second.releasePlanningLease({actor,auditorId:id,token:'incorrect'}),'PLANNING_LEASE_TOKEN_MISMATCH');
  const released=await second.releasePlanningLease({actor,auditorId:id,token:lease.token});
  assert.equal(released.version,lease.version+1);
+ assert.equal((await second.read(actor,id)).metadata.confirmation.availabilityVersion,released.version);
  const blocked=await service.mutate({actor,auditorId:id,expectedVersion:released.version,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}});
  assert.equal(blocked.version,released.version+1);
  store.delete(id);

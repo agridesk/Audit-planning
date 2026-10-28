@@ -1407,7 +1407,7 @@ async function directManagerReject(identity,body){
       'Audit_Obligations!A1:Z2000',
       'Audit_Visit_Obligations!A1:H2000'
     ]);
-    const readMs=Date.now()-readStarted,ap=vr[0]?.values||[];if(ap.length>=2000)throw Error('CANONICAL_PLANNING_INCOMPLETE');const found=findAudit(ap,auditId);
+    const readMs=Date.now()-readStarted,ap=vr[0]?.values||[];if(!ap.length||ap.length>=2000)throw Error('CANONICAL_PLANNING_INCOMPLETE');const found=findAudit(ap,auditId);
     const rejected=vr[3]?.values||[],rh=rejected[0]||[],rAuditId=col(rh,['Audit ID']);
     if(!found){
       const already=rAuditId>=0&&rejected.slice(1).some(r=>val(r,rAuditId)===auditId);

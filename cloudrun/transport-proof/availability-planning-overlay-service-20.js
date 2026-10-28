@@ -69,6 +69,7 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
    const toDate=clean(mutation.toDate||mutation.fromDate||mutation.date);
    const dateValid=s=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&Number.isFinite(Date.parse(s+'T00:00:00Z'))&&new Date(s+'T00:00:00Z').toISOString().slice(0,10)===s;
    if(!dateValid(fromDate)||!dateValid(toDate)||fromDate>toDate)throw Error('INVALID_DATE_RANGE');
+   if((Date.parse(toDate+'T00:00:00Z')-Date.parse(fromDate+'T00:00:00Z'))/86400000>3660)throw Error('PERIOD_TOO_LONG');
    const validStart=s=>/^([01]\d|2[0-3]):[0-5]\d$/.test(s);
    const validEnd=s=>validStart(s)||s==='24:00';
    const startTime=mutation.wholeDay===true?'00:00':mutation.start,endTime=mutation.wholeDay===true?'24:00':mutation.end;

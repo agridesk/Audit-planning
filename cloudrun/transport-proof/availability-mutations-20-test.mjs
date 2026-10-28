@@ -40,3 +40,7 @@ assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],blo
 
 assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],blocks:[{state:'COMMITTED',date:'2027-01-05',start:'09:00',end:'12:00'}]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'hard-existing',fromDate:'2027-01-03',toDate:'2027-01-09',start:'08:00',end:'18:00'}}),/COMMITTED_CONFLICT/);
 console.log(`${n} mutation policy checks and HARD edit regressions passed`);
+
+const releasedHard={...existingHard};
+const existingRelease={targetExceptionId:'hard-existing',fromDate:'2027-01-02',toDate:'2027-01-02',wholeDay:true};
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[releasedHard],baselineReleases:[existingRelease],blocks:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'hard-existing',fromDate:'2027-01-03',toDate:'2027-01-09',wholeDay:true}}),/EXISTING_RELEASE_OUTSIDE_EDITED_BASELINE/);

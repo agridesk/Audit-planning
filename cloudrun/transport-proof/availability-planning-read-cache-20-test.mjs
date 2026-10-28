@@ -24,4 +24,8 @@ await Promise.resolve();
 release([['header'],['fresh']]);
 assert.equal((await fresh)[1][0],'fresh');
 assert.equal((await held.read())[1][0],'fresh');
+const malformedFresh=createPlanningReadCache({load:async()=>null});
+await assert.rejects(()=>malformedFresh.read({fresh:true}),/CANONICAL_PLANNING_INCOMPLETE/);
+const emptyFresh=createPlanningReadCache({load:async()=>[]});
+await assert.rejects(()=>emptyFresh.read({fresh:true}),/CANONICAL_PLANNING_INCOMPLETE/);
 console.log('PASS: concurrent read coalescing, TTL, mutation fresh read, failure fail-closed');

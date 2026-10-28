@@ -517,6 +517,16 @@ function doPost(e) {
     if(!actorEmail||!auditId||!managerAction)return ContentService.createTextOutput(JSON.stringify({success:false,error:'MISSING_REQUIRED_FIELDS'})).setMimeType(ContentService.MimeType.JSON);
     if(managerAction!=='approve'&&managerAction!=='cancel'&&managerAction!=='reject'&&managerAction!=='edit_realized_hours')return ContentService.createTextOutput(JSON.stringify({success:false,error:'MANAGER_PORTAL_ACTION_NOT_ALLOWED'})).setMimeType(ContentService.MimeType.JSON);
     if((managerAction==='cancel'||managerAction==='reject')&&!String(options.reason||options.comment||'').trim())return ContentService.createTextOutput(JSON.stringify({success:false,error:'ACTION_REASON_REQUIRED'})).setMimeType(ContentService.MimeType.JSON);
+    // DEV exclusive-owner fence: GAS script locks do not coordinate with Cloud Run Firestore locks.
+    // Block competing GAS lifecycle writes after the Auditor Accept owner cutover.
+    if(managerAction==='approve'||managerAction==='cancel'||managerAction==='reject'){
+      try{
+        if(PropertiesService.getScriptProperties().getProperty('AMS_AUDITOR_ACCEPT_CANONICAL_OWNER_20')==='CLOUD_RUN')
+          return ContentService.createTextOutput(JSON.stringify({success:false,error:'MANAGER_LIFECYCLE_CANONICAL_OWNER_CLOUD_RUN'})).setMimeType(ContentService.MimeType.JSON);
+      }catch(ownerFenceError20){
+        return ContentService.createTextOutput(JSON.stringify({success:false,error:'MANAGER_LIFECYCLE_OWNER_FENCE_CHECK_FAILED'})).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
     // The script lock serializes Manager bridge writes across Cloud Run instances.
     // No fallback to direct Sheets if the lock is busy or the canonical write fails.
     var managerBridgeLock=LockService.getScriptLock();

@@ -53,6 +53,8 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
   return {...overview,auditDetailsByAuditor};
  }
  async function mutate({actor,auditorId,expectedVersion,mutation,now}){
+  const role=clean(actor?.role).toLowerCase(),actorId=clean(actor?.id),target=clean(auditorId);
+  if(!actorId||!target||!(role==='manager'||role==='auditor'&&actorId===target))throw Error('NOT_AUTHORIZED');
   let affectedAudits=[];
   if(['BLOCK_PERIOD','EDIT_HARD_BLOCK','SET_FREE_OVERRIDE'].includes(mutation?.action)){
    const fromDate=clean(mutation.fromDate||mutation.date);

@@ -25,7 +25,7 @@ function freshness(meta,fromDate,toDate){
  // A later substantive change invalidates only overlapping confirmation coverage.
  const stale=changes.some(x=>{
   if(x?.substantive!==true)return false;
-  if(!x.at||!Number.isFinite(Date.parse(x.at)))return true;
+  if(!validTimestamp(x.at))return true;
   if(Date.parse(x.at)<=Date.parse(c.confirmedAt))return false;
   // Recurring availability changes have no finite date window and invalidate every confirmed period.
   if(x.action==='SET_RECURRING')return true;

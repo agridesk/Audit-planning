@@ -45,7 +45,7 @@ export function createFirestoreAvailabilityAdapter({projectId,databaseId='(defau
  }
  async function read(id){const raw=await readRaw(id);return raw?copy(raw.doc):null;}
  async function compareAndSwap(id,expectedVersion,next){
-  if(!validId(id)||!Number.isSafeInteger(expectedVersion)||expectedVersion<0||next?.auditorId!==id||next?.version!==expectedVersion+1)throw Error('INVALID_CAS_REQUEST');
+  if(!validId(id)||!Number.isSafeInteger(expectedVersion)||expectedVersion<0||expectedVersion>=Number.MAX_SAFE_INTEGER||next?.auditorId!==id||next?.version!==expectedVersion+1)throw Error('INVALID_CAS_REQUEST');
   const current=await readRaw(id);
   if((current?.doc.version??0)!==expectedVersion)return false;
   const url=new URL(`${base}/${enc(id)}`);

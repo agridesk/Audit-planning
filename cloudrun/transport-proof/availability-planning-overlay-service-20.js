@@ -69,6 +69,10 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
    const toDate=clean(mutation.toDate||mutation.fromDate||mutation.date);
    const dateValid=s=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&Number.isFinite(Date.parse(s+'T00:00:00Z'))&&new Date(s+'T00:00:00Z').toISOString().slice(0,10)===s;
    if(!dateValid(fromDate)||!dateValid(toDate)||fromDate>toDate)throw Error('INVALID_DATE_RANGE');
+   const validStart=s=>/^([01]\d|2[0-3]):[0-5]\d$/.test(s);
+   const validEnd=s=>validStart(s)||s==='24:00';
+   const startTime=mutation.wholeDay===true?'00:00':mutation.start,endTime=mutation.wholeDay===true?'24:00':mutation.end;
+   if(!validStart(startTime)||!validEnd(endTime)||startTime>=endTime)throw Error('INVALID_TIME_RANGE');
    // Validate against authoritative planning before changing the baseline.
    // A baseline is not permitted to overwrite a committed audit.
    const slots=await slotsFor(fromDate,toDate,{fresh:true});

@@ -12,6 +12,7 @@ function freshness(meta,fromDate,toDate){
  const cf=dateNumber(c.fromDate),ct=dateNumber(c.throughDate),f=dateNumber(fromDate),t=dateNumber(toDate);
  if(cf>f||ct<t)return {status:'OUTSIDE_CONFIRMATION',label:'Not confirmed for this period'};
  const changes=Array.isArray(meta?.changes)?meta.changes:[];
+ if(meta?.historyComplete===true&&!Array.isArray(meta?.changes)&&Number.isSafeInteger(meta?.availabilityVersion)&&Number.isSafeInteger(c.availabilityVersion)&&meta.availabilityVersion!==c.availabilityVersion)return {status:'REVIEW_NEEDED',label:'Review needed'};
  // A later substantive change invalidates only overlapping confirmation coverage.
  const stale=changes.some(x=>{
   if(x?.substantive!==true)return false;

@@ -1337,7 +1337,7 @@ async function directManagerCancel(identity,body){
   if(!auditId)throw new Error('AUDIT_ID_REQUIRED');
   if(!reason)throw new Error('ACTION_REASON_REQUIRED');
   return withDirectManagerActionLock(auditId,async()=>{
-    const readStarted=Date.now(),vr=await sheetsBatchGet(['Audit planning!A1:BW483','Auditor Availability!A:P','Auditors!A1:Z256']),readMs=Date.now()-readStarted;
+    const readStarted=Date.now(),vr=await sheetsBatchGet(['Audit planning!A1:BW2000','Auditor Availability!A:P','Auditors!A1:Z256']),readMs=Date.now()-readStarted;
     const ap=vr[0]?.values||[],found=findAudit(ap,auditId);if(!found)throw new Error('AUDIT_NOT_FOUND');
     const h=found.h,row=found.row.slice(),statusCol=col(h,['Status']),beforeStatus=statusCol>=0?clean(row[statusCol]):'',beforeKey=directStatusKey(beforeStatus);
     if(!['PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(beforeKey))throw new Error('STATUS_TRANSITION_BLOCKED');

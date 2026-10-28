@@ -217,7 +217,7 @@ assert.ok(ui.includes('Firestore write permission: NOT VERIFIED'),'Diagnostic ne
 assert.ok(server.includes('async function verifiedAuditorLockDevProject()'),'Cloud Run project verification exists');
 assert.ok(server.includes('metadata.google.internal/computeMetadata/v1/project/project-id'),'Cloud Run project resolved from metadata');
 assert.ok(server.includes("actual==='audit-management-system-dev'?actual:''"),'Metadata project pinned to DEV');
-assert.equal((server.match(/await verifiedAuditorLockDevProject\(\)/g)||[]).length,3,'Lock readiness, acquisition and isolated write probe verify runtime project');
+assert.equal((server.match(/await verifiedAuditorLockDevProject\(\)/g)||[]).length,4,'Lock readiness, acquisition, isolated write probe and lifecycle lock verify runtime project');
 
 assert.ok(server.includes("'/api/v1/manager/auditor-identity/firestore-write-probe'"),'DEV manager write probe route');
 assert.ok(server.includes('ams_identity_cutover_probes'),'Write probe isolated from audit records and real locks');

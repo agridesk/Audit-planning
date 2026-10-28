@@ -28,4 +28,5 @@ assert.equal(overviewWithChange({at:'not-a-date',action:'BLOCK_PERIOD',fromDate:
 assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'invalid-confirmation',metadata:{confirmation:{...confirmed,confirmedAt:'invalid'}}}]}).auditors[0].confirmation.status,'NOT_CONFIRMED');
 assert.equal(overviewWithChange({at:'2026-12-15T11:00:00+01:00',action:'SET_RECURRING',substantive:true}),'CONFIRMED');
 assert.equal(overviewWithChange({at:'2026-12-15T12:00:00+01:00',action:'SET_RECURRING',substantive:true}),'REVIEW_NEEDED');
-console.log('Manager Availability Overview: 16 checks passed');
+assert.throws(()=>buildManagerAvailabilityOverview({fromDate:'not-a-date',toDate:'2027-01-24'}),/INVALID_DATE/);
+console.log('Manager Availability Overview: 17 checks passed');

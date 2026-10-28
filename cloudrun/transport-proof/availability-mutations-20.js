@@ -16,7 +16,7 @@ export function prepareAvailabilityMutation({actor,targetAuditorId,expectedVersi
  if(!mutation||typeof mutation!=='object')throw Error('INVALID_MUTATION');
  const action=str(mutation.action),id=str(mutation.id),items=Array.isArray(snapshot?.baselineExceptions)?snapshot.baselineExceptions:[];
  if(!['BLOCK_PERIOD','EDIT_HARD_BLOCK','RELEASE_BASELINE','CONFIRM_AVAILABILITY','SET_RECURRING','SET_FREE_OVERRIDE','REMOVE_HARD_BLOCK'].includes(action))throw Error('UNSUPPORTED_ACTION');
- if(!now||!Number.isFinite(Date.parse(now)))throw Error('INVALID_TIMESTAMP');
+ if(typeof now!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(now)||!Number.isFinite(Date.parse(now)))throw Error('INVALID_TIMESTAMP');
  let payload;
  if(action==='BLOCK_PERIOD'){
   if(!Array.isArray(snapshot?.baselineExceptions))throw Error('CANONICAL_BASELINES_REQUIRED');

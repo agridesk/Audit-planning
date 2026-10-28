@@ -678,7 +678,7 @@ function rotationReadFromLoaded(auditId,auditorEmail,ap,aud,scv,log,identityVers
 }
 async function directRotationRead(auditId,auditorEmail){
   const versioned=process.env.AMS_AUDITOR_UID_ROTATION_READ_ENABLED==='true';
-  const ranges=['Audit planning!A1:BW483','Auditors!A1:AZ256','Config_Scopes!A1:Z128','Log realized audits!A1:AZ2048'];
+  const ranges=['Audit planning!A1:BW2000','Auditors!A1:AZ256','Config_Scopes!A1:Z128','Log realized audits!A1:AZ2048'];
   if(versioned)ranges.push('Auditor_Identity_Versions!A1:P2000');
   const vr=await sheetsBatchGet(ranges);
   return rotationReadFromLoaded(auditId,auditorEmail,vr[0]?.values||[],vr[1]?.values||[],vr[2]?.values||[],vr[3]?.values||[],versioned?rotationIdentityVersions(vr[4]?.values||[]):null);

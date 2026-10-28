@@ -29,4 +29,15 @@ await test('HARD exception edit is one atomic CAS and preserves ID',async()=>{
  assert.equal(after.baselineExceptions[0].start,'08:00');
  assert.equal(after.baselineExceptions[0].fromDate,'2027-05-02');
 });
+await test('release and removal return persisted record identifiers',async()=>{
+ const id='aud-release-id',actor={id,role:'auditor'};
+ const first=await service.mutate({actor,auditorId:id,expectedVersion:0,mutation:{action:'BLOCK_PERIOD',date:'2027-06-01',wholeDay:true}});
+ const release=await service.mutate({actor,auditorId:id,expectedVersion:1,mutation:{action:'RELEASE_BASELINE',targetExceptionId:first.recordId,date:'2027-06-01',start:'09:00',end:'10:00'}});
+ const remove=await service.mutate({actor,auditorId:id,expectedVersion:2,mutation:{action:'REMOVE_HARD_BLOCK',targetExceptionId:first.recordId,date:'2027-06-01',start:'10:00',end:'11:00'}});
+ const doc=await service.read(actor,id);
+ assert.equal(doc.baselineReleases.length,2);
+ assert.equal(release.recordId,doc.baselineReleases[0].id);
+ assert.equal(remove.recordId,doc.baselineReleases[1].id);
+ assert.equal(doc.baselineReleases[1].start,'10:00');
+});
 console.log(n,'storage service checks passed');

@@ -874,6 +874,7 @@ async function directManagerApprove(identity,body){
   });
 }
 
+let directAcceptSheetIdsCache20=null;
 // Disabled by default. This writer must not be enabled until ALL GAS lifecycle
 // writers are retired/fenced and the DEV Cloud Run lifecycle owner is exclusive.
 async function directAuditorAcceptSheets20(identity,{auditId,expectedRevision}){
@@ -886,13 +887,19 @@ async function directAuditorAcceptSheets20(identity,{auditId,expectedRevision}){
     const started=Date.now();
     const token=await accessToken();
     const base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID);
+    const idsFresh=directAcceptSheetIdsCache20 && directAcceptSheetIdsCache20.expires>Date.now();
     const [auditReads,metaResponse]=await Promise.all([
       sheetsBatchGet(['Audit planning!A1:BW483','Auditors!A1:Z256']),
-      fetch(base+'?fields=sheets.properties',{headers:{authorization:'Bearer '+token}})
+      idsFresh?Promise.resolve(null):fetch(base+'?fields=sheets.properties',{headers:{authorization:'Bearer '+token}})
     ]);
-    if(!metaResponse.ok)throw Error('DIRECT_ACCEPT_SHEET_METADATA_HTTP_'+metaResponse.status);
-    const metadata=await metaResponse.json();
-    const ids=new Map((metadata.sheets||[]).map(sh=>[sh.properties?.title,sh.properties?.sheetId]));
+    if(metaResponse){
+      if(!metaResponse.ok)throw Error('DIRECT_ACCEPT_SHEET_METADATA_HTTP_'+metaResponse.status);
+      const metadata=await metaResponse.json(),byName=new Map((metadata.sheets||[]).map(sh=>[sh.properties?.title,sh.properties?.sheetId]));
+      if(!Number.isInteger(byName.get('Audit planning'))||!Number.isInteger(byName.get('Notification Queue')))
+        throw Error('DIRECT_ACCEPT_CANONICAL_SHEETS_MISSING');
+      directAcceptSheetIdsCache20={ids:byName,expires:Date.now()+600000};
+    }
+    const ids=directAcceptSheetIdsCache20.ids;
     const prepared=buildDirectAuditorAcceptSheets20({
       actor:{role:'AUDITOR',uid:clean(identity.auditorUid||identity.auditorId),email:clean(identity.email)},
       auditId,expectedRevision,

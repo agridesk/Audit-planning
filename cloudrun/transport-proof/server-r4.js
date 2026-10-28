@@ -1777,8 +1777,9 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       }catch(error){
         const code=clean(error?.message||error);
         acceptRecord('direct_sheets_rejected',{error:code});
-        return send(res,code==='DIRECT_AUDITOR_ACCEPT_EXCLUSIVE_WRITER_CUTOVER_REQUIRED'?503:409,
-          {success:false,error:code});
+        const outcomeUnknown=code.includes('OUTCOME_UNCONFIRMED_DO_NOT_RETRY');
+        return send(res,outcomeUnknown||code==='DIRECT_AUDITOR_ACCEPT_EXCLUSIVE_WRITER_CUTOVER_REQUIRED'?503:409,
+          {success:false,error:code,safeToRetry:!outcomeUnknown});
       }
     }
     if(!GAS_WRITE_URL||!WRITE_KEY)return send(res,503,{success:false,error:'CANONICAL_WRITER_UNAVAILABLE'});

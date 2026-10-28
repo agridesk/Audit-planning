@@ -32,4 +32,5 @@ check('missing committed auditor identity fails closed',()=>assert.throws(()=>ca
 check('committed row without audit ID fails closed',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('','APPROVED','d@example.com',[block()])]}),/COMMITTED_ID_MISSING/));
 check('committed row without planning payload fails closed',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,['A1','ACCEPTED','d@example.com','']]}),/COMMITTED_PLAN_MISSING/));
 check('draft row without audit ID remains excluded',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('','PENDING_PLANNING','d@example.com',[block()])]}).length,0));
+check('duplicate committed audit IDs fail closed',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','APPROVED','d@example.com',[block()]),row('A1','ACCEPTED','d@example.com',[block('2027-01-13')])]}),/COMMITTED_ID_DUPLICATE/));
 console.log(`${count} bridge checks passed`);

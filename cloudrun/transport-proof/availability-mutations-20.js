@@ -26,6 +26,7 @@ export function prepareAvailabilityMutation({actor,targetAuditorId,expectedVersi
   if(committed.some(x=>intersects(w,windowOf(x))))throw Error('COMMITTED_CONFLICT');
   payload={id,fromDate:mutation.fromDate??mutation.date,toDate:mutation.toDate??mutation.fromDate??mutation.date,wholeDay:mutation.wholeDay===true,...(mutation.wholeDay===true?{}:{start:mutation.start,end:mutation.end})};
  }else if(action==='EDIT_HARD_BLOCK'){
+  if(!Array.isArray(snapshot?.baselineExceptions))throw Error('CANONICAL_BASELINES_REQUIRED');
   const targetId=str(mutation.targetExceptionId);
   const existing=items.find(x=>str(x.id)===targetId);
   if(!targetId||!existing)throw Error('BASELINE_NOT_FOUND');

@@ -33,7 +33,7 @@ export function createAvailabilityService(adapter){
    if(at<0)throw Error('BASELINE_NOT_FOUND');
    next.baselineExceptions[at]=prepared.payload;
   }
-  else if(action==='RELEASE_BASELINE'||action==='REMOVE_HARD_BLOCK')next.baselineReleases.push({...prepared.payload,id:randomUUID()});
+  else if(action==='RELEASE_BASELINE'||action==='REMOVE_HARD_BLOCK')next.baselineReleases.push({...prepared.payload,id:prepared.payload.id||randomUUID()});
   else if(action==='SET_RECURRING')next.recurring=prepared.payload;
   else if(action==='SET_FREE_OVERRIDE')next.overrides.push(prepared.payload);
   else if(action==='CONFIRM_AVAILABILITY'){
@@ -45,7 +45,7 @@ export function createAvailabilityService(adapter){
   next.metadata.changes.push(prepared.audit);
   const success=await adapter.compareAndSwap(id,expectedVersion,next);
   if(success!==true)throw Error('VERSION_CONFLICT');
-  return {auditorId:id,version:next.version,action,recordId:prepared.payload.id??null};
+  return {auditorId:id,version:next.version,action,recordId:prepared.payload.id??(action==='REMOVE_HARD_BLOCK'?next.baselineReleases.at(-1)?.id:null)};
  }
  async function period({actor,auditorId,fromDate,toDate}){
   const doc=await read(actor,auditorId);

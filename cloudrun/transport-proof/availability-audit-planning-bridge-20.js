@@ -19,12 +19,13 @@ export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDa
  const locationColumn=index(h,['Execution location','Execution Location','Location','Audit location','Site','Visit location']);
  const lookup=new Map(),uidLookup=new Set();
  for(const a of auditors){const uid=norm(a.auditorId),email=norm(a.email).toLowerCase();if(!uid||!email||lookup.has(email)||uidLookup.has(uid))throw Error('AUDITOR_IDENTITY_AMBIGUOUS');lookup.set(email,uid);uidLookup.add(uid);}
- const slots=[],seen=new Set();
+ const slots=[],seen=new Set(),seenAuditIds=new Set();
  for(const row of rows.slice(1)){
   const auditId=norm(row[id]),state=key(row[status]).toUpperCase();
   // Only these explicitly committed planning states can reserve an auditor.
   if(!['APPROVED','ACCEPTED','PENDINGAPPROVAL'].includes(state))continue;
   if(!auditId)throw Error('AUDIT_PLANNING_COMMITTED_ID_MISSING');
+  if(seenAuditIds.has(auditId))throw Error('AUDIT_PLANNING_COMMITTED_ID_DUPLICATE');seenAuditIds.add(auditId);
   const raw=norm(row[json]);if(!raw)throw Error('AUDIT_PLANNING_COMMITTED_PLAN_MISSING');
   const email=assigned<0?'':norm(row[assigned]).toLowerCase(),explicitUid=assignedUid<0?'':norm(row[assignedUid]);
   if(explicitUid&&!uidLookup.has(explicitUid))throw Error('AUDIT_PLANNING_AUDITOR_UID_UNKNOWN');

@@ -4,8 +4,8 @@ const day=s=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(s)||!Number.isFinite(Date.parse(s+'
 const time=(s,allow24=false)=>{if(allow24&&s==='24:00')return 1440;if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(s))throw Error('INVALID_TIME');return Number(s.slice(0,2))*60+Number(s.slice(3));};
 function windowOf(v){const from=day(v.fromDate??v.date),to=day(v.toDate??v.fromDate??v.date);if(to<from)throw Error('INVALID_DATE_RANGE');const start=v.wholeDay===true?0:time(v.start),end=v.wholeDay===true?1440:time(v.end,true);if(end<=start)throw Error('INVALID_TIME_RANGE');return {from,to,start,end};}
 function canonicalBlocks(snapshot){if(!Array.isArray(snapshot?.blocks))throw Error('CANONICAL_BLOCKS_REQUIRED');if(snapshot.blocks.some(x=>!x||typeof x!=='object'||!['SOFT','PROVISIONAL','HARD','COMMITTED'].includes(x.state)))throw Error('CANONICAL_BLOCKS_INVALID');return snapshot.blocks;}
-function intersects(a,b){if(a.from>b.to||b.from>a.to)return false;if(a.from===b.to&&a.start>=b.end)return false;if(b.from===a.to&&b.start>=a.end)return false;return true;}
-function contains(a,b){if(a.from>b.from||a.to<b.to)return false;if(a.from===b.from&&a.start>b.start)return false;if(a.to===b.to&&a.end<b.end)return false;return true;}
+function intersects(a,b){return a.from<=b.to&&b.from<=a.to&&a.start<b.end&&b.start<a.end;}
+function contains(a,b){return a.from<=b.from&&a.to>=b.to&&a.start<=b.start&&a.end>=b.end;}
 /** Validate one atomic write request against current canonical snapshot; no state is modified. */
 export function prepareAvailabilityMutation({actor,targetAuditorId,expectedVersion,mutation,snapshot,now}={}){
  const actorId=str(actor?.id),role=str(actor?.role).toLowerCase(),target=str(targetAuditorId);

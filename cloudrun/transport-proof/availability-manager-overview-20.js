@@ -45,7 +45,7 @@ export function buildManagerAvailabilityOverview({fromDate,toDate,auditors=[]}={
   const auditorId=clean(a?.auditorId);
   if(!auditorId||seen.has(auditorId))throw Error('DUPLICATE_OR_MISSING_AUDITOR_ID');
   seen.add(auditorId);
-  const days=resolveAvailabilityPeriod({fromDate,toDate,...(a.availability||{})});
+  const days=resolveAvailabilityPeriod({...(a.availability||{}),fromDate,toDate});
   const counts=Object.fromEntries([...states].map(s=>[s,0]));
   for(const day of days)for(const s of day.segments){if(!states.has(s.state))throw Error('UNKNOWN_STATE');const [h1,m1]=s.start.split(':').map(Number),[h2,m2]=s.end.split(':').map(Number);counts[s.state]+=(h2*60+m2)-(h1*60+m1);}
   return {auditorId,displayName:clean(a.displayName)||auditorId,lastAvailabilityChangeAt:a.metadata?.lastAvailabilityChangeAt||null,lastAvailabilityChangeBy:a.metadata?.lastAvailabilityChangeBy||null,confirmation:freshness(a.metadata,fromDate,toDate),days,stateMinutes:counts};

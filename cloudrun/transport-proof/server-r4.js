@@ -726,7 +726,7 @@ async function directManagerExtension(identity,body){
   if(!['apply','undo'].includes(command))throw new Error('EXTENSION_COMMAND_NOT_ALLOWED');
   return withDirectManagerActionLock(auditId,async()=>{
     const tr=Date.now();
-    const vr=await sheetsBatchGet(['Audit planning!A1:BW483','Config_Scopes!A1:Z128','Audit_Obligations!A1:Z1024','Audit_Visit_Obligations!A1:Z1024']);
+    const vr=await sheetsBatchGet(['Audit planning!A1:BW2000','Config_Scopes!A1:Z128','Audit_Obligations!A1:Z1024','Audit_Visit_Obligations!A1:Z1024']);
     const readMs=Date.now()-tr,found=findAudit(vr[0]?.values||[],auditId);
     if(!found)throw new Error('AUDIT_NOT_FOUND');
     if(directStatusKey(val(found.row,col(found.h,['Status'])))!=='PENDING_PLANNING')throw new Error('EXTENSION_ALLOWED_ONLY_PENDING_PLANNING');

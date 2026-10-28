@@ -39,4 +39,4 @@ assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'ne
 assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'malformed-history',metadata:{confirmation:confirmed,historyComplete:true,availabilityVersion:1,changes:[null]}}]}).auditors[0].confirmation.status,'REVIEW_NEEDED');
 assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'missing-substantive',metadata:{confirmation:confirmed,historyComplete:true,availabilityVersion:1,changes:[{at:'2026-12-16T10:00:00Z',action:'BLOCK_PERIOD'}]}}]}).auditors[0].confirmation.status,'REVIEW_NEEDED');
 assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'missing-timestamp',metadata:{confirmation:confirmed,historyComplete:true,availabilityVersion:1,changes:[{action:'BLOCK_PERIOD',substantive:false}]}}]}).auditors[0].confirmation.status,'REVIEW_NEEDED');
-console.log('Manager Availability Overview: 27 checks passed');
+console.log('Manager Availability Overview: 30 checks passed');

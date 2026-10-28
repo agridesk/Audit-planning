@@ -37,6 +37,7 @@ export function prepareAvailabilityMutation({actor,targetAuditorId,expectedVersi
   payload={id:targetId,fromDate:mutation.fromDate??mutation.date,toDate:mutation.toDate??mutation.fromDate??mutation.date,wholeDay:mutation.wholeDay===true,...(mutation.wholeDay===true?{}:{start:mutation.start,end:mutation.end})};
   if(items.some(x=>str(x.id)===targetId&&x!==existing))throw Error('DUPLICATE_BASELINE_ID');
 }else if(action==='RELEASE_BASELINE'){
+  if(!Array.isArray(snapshot?.baselineExceptions))throw Error('CANONICAL_BASELINES_REQUIRED');
   const baseline=items.find(x=>str(x.id)===str(mutation.targetExceptionId));if(!baseline)throw Error('BASELINE_NOT_FOUND');
   const w=windowOf(mutation);if(!contains(windowOf(baseline),w))throw Error('RELEASE_OUTSIDE_BASELINE');
   payload={id,targetExceptionId:str(mutation.targetExceptionId),fromDate:mutation.fromDate??mutation.date,toDate:mutation.toDate??mutation.fromDate??mutation.date,wholeDay:mutation.wholeDay===true,...(mutation.wholeDay===true?{}:{start:mutation.start,end:mutation.end})};

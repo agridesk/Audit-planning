@@ -42,7 +42,7 @@ export function buildDirectAuditorAcceptSheets20({actor,auditId,expectedRevision
  const updates=changes.map(([name,value])=>{const i=names(h,[name]);if(i<0)fail('DIRECT_ACCEPT_LIFECYCLE_HEADER_MISSING_'+name);return {updateCells:{range:{sheetId:sheetIds.audit,startRowIndex:at-1,endRowIndex:at,startColumnIndex:i,endColumnIndex:i+1},rows:[{values:[setCell(i,value)]}],fields:'userEnteredValue'}}});
  const trail={type:'LIFECYCLE_STATUS_CHANGED',auditId,action:'ACCEPT',actorRole:'AUDITOR',actorEmail:email,beforeStatus:'Approved',afterStatus:'Accepted',timestamp:stamp,source:'CLOUD_RUN_DIRECT_AUDITOR_ACCEPT'};
  const minute=stamp.slice(0,16),hash=createHash('md5').update('LIFECYCLE_STATUS_CHANGED|'+auditId+'|'+stamp+'|Accepted').digest('hex');
- const queue=[minute,'PENDING','LIFECYCLE_STATUS_CHANGED','',auditId,cell(r,names(h,['Company'])),'Auditor accepted – '+auditId,JSON.stringify(trail),0,'',hash,'',JSON.stringify({payload:trail})];
+ const queue=[minute,'AUDIT_TRAIL','LIFECYCLE_STATUS_CHANGED','',auditId,cell(r,names(h,['Company'])),'[TRAIL] LIFECYCLE_STATUS_CHANGED :: '+auditId,JSON.stringify(trail),0,'',hash,'',JSON.stringify({payload:trail})];
  updates.push({appendCells:{sheetId:sheetIds.queue,rows:[{values:queue.map(v=>setCell(0,v))}],fields:'userEnteredValue'}});
  return {requests:updates,auditId,operation:'ACCEPT',sourceRow:at,expectedRevision,previousStatus:'Approved',newStatus:'Accepted'};
 }

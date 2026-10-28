@@ -1758,6 +1758,12 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       if(!reply.ok){acceptRecord('gas_non_ok',{httpStatus:reply.status});return await verifyActionAfterLostReply();}
       let result;try{result=JSON.parse(await reply.text());}catch{return await verifyActionAfterLostReply();}
       acceptPerf.gasExecution=result&&result.acceptPerf||null;
+      if(action==='ACCEPT' && Number.isFinite(Number(result?.acceptPerf?.totalMs))){
+        // Cross-runtime diagnostic only: this is NOT proven network latency.
+        acceptPerf.gasHandlerReportedMs=Number(result.acceptPerf.totalMs);
+        acceptPerf.gasOutsideHandlerMs=Math.max(0,acceptPerf.gasPostResponseMs-acceptPerf.gasHandlerReportedMs);
+        acceptPerf.gasOutsideHandlerMeaning='GAS_POST_ELAPSED_MINUS_INSTRUMENTED_HANDLER_NOT_NETWORK_PROOF';
+      }
       acceptRecord(result&&result.success===true?'confirmed':'rejected',{resultCode:result&&result.error||''});
       return send(res,result&&result.success===true?200:409,{...(result||{success:false,error:'CANONICAL_ACTION_EMPTY'}),acceptTiming:{totalMs:Date.now()-acceptStarted,...acceptPerf}});
     }catch(error){acceptRecord('exception',{error:clean(error.message)});return send(res,503,{success:false,error:'AUDITOR_ACTION_OUTCOME_UNCONFIRMED_DO_NOT_RETRY'});}

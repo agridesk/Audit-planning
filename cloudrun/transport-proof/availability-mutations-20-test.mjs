@@ -43,7 +43,7 @@ assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[exist
 const releasedHard={...existingHard};
 const existingRelease={targetExceptionId:'hard-existing',fromDate:'2027-01-02',toDate:'2027-01-02',wholeDay:true};
 assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[releasedHard],baselineReleases:[existingRelease],blocks:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'hard-existing',fromDate:'2027-01-03',toDate:'2027-01-09',wholeDay:true}}),/EXISTING_RELEASE_OUTSIDE_EDITED_BASELINE/);
-assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],blocks:null},mutation:block}),/CANONICAL_BLOCKS_REQUIRED/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],baselineReleases:[],blocks:null},mutation:block}),/CANONICAL_BLOCKS_REQUIRED/);
 assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],baselineReleases:[],blocks:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'hard-existing',fromDate:'2027-01-03',toDate:'2027-01-09',wholeDay:true}}),/CANONICAL_HARD_SOURCE_REQUIRED/);
 assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],blocks:null},mutation:{action:'SET_FREE_OVERRIDE',date:'2027-01-12',wholeDay:true}}),/CANONICAL_BLOCKS_REQUIRED/);
 assert.equal(prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],baselineReleases:[{targetExceptionId:'hard-existing',date:'2027-01-05',start:'09:00',end:'12:00'}],blocks:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'hard-existing',fromDate:'2027-01-03',toDate:'2027-01-09',start:'08:00',end:'18:00'}}).action,'EDIT_HARD_BLOCK');
@@ -54,11 +54,11 @@ const partialRemoval=prepare({...base,snapshot:{version:2,baselineExceptions:[ex
 assert.equal(partialRemoval.payload.wholeDay,false);
 assert.equal(partialRemoval.payload.start,'09:00');
 assert.equal(partialRemoval.payload.end,'12:00');
-assert.throws(()=>prepare({...base,snapshot:{version:2,blocks:[]},mutation:block}),/CANONICAL_RELEASE_SOURCE_REQUIRED/);
-assert.throws(()=>prepare({...base,snapshot:{version:2,blocks:[],baselineReleases:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'missing',date:'2027-01-05',wholeDay:true}}),/CANONICAL_RELEASE_SOURCE_REQUIRED/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,blocks:[]},mutation:block}),/CANONICAL_BASELINES_REQUIRED/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,blocks:[],baselineReleases:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'missing',date:'2027-01-05',wholeDay:true}}),/CANONICAL_BASELINES_REQUIRED/);
 assert.throws(()=>prepare({...base,snapshot:{version:2,blocks:[]},mutation:{action:'RELEASE_BASELINE',targetExceptionId:'missing',date:'2027-01-05',wholeDay:true}}),/CANONICAL_RELEASE_SOURCE_REQUIRED/);
 assert.throws(()=>prepare({...base,snapshot:{version:2,blocks:[]},mutation:{action:'REMOVE_HARD_BLOCK',targetExceptionId:'missing',date:'2027-01-05',wholeDay:true}}),/CANONICAL_RELEASE_SOURCE_REQUIRED/);
-assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],blocks:[]},mutation:{action:'REMOVE_HARD_BLOCK',targetExceptionId:'hard-existing',date:'2027-01-05',start:'14:00',end:'10:00'}}),/INVALID_TIME_RANGE/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],baselineReleases:[],blocks:[]},mutation:{action:'REMOVE_HARD_BLOCK',targetExceptionId:'hard-existing',date:'2027-01-05',start:'14:00',end:'10:00'}}),/INVALID_TIME_RANGE/);
 assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],blocks:[null]},mutation:block}),/CANONICAL_BLOCKS_INVALID/);
 assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],baselineReleases:[],blocks:[{state:'UNKNOWN'}]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'hard-existing',date:'2027-01-05',wholeDay:true}}),/CANONICAL_BLOCKS_INVALID/);
 assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],blocks:[{state:'UNKNOWN'}]},mutation:{action:'SET_FREE_OVERRIDE',date:'2027-01-05',wholeDay:true}}),/CANONICAL_BLOCKS_INVALID/);

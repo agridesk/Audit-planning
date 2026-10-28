@@ -24,12 +24,9 @@ const broken=createPlanningOverlayService({service,readPlanningRows:async()=>nul
 await assert.rejects(()=>broken.period({actor,auditorId:'a',fromDate:'2027-01-11',toDate:'2027-01-14'}),/CANONICAL_PLANNING_UNAVAILABLE/);
 let lastMutation=null;
 const guarded=createPlanningOverlayService({service:{read:async(a,id)=>base(id),mutate:async args=>(lastMutation=args,{success:true})},readPlanningRows:async()=>rows,listCanonicalAuditors:async()=>auditors});
-await guarded.mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',fromDate:'2027-01-12',toDate:'2027-01-12',wholeDay:true}});
-assert.equal(lastMutation.mutation.action,'BLOCK_PERIOD','Existing committed audit must not block underlying HARD exception');
-const blockResult=await guarded.mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'old-hard',fromDate:'2027-01-12',toDate:'2027-01-12',wholeDay:true}});
-assert.equal(lastMutation.mutation.action,'EDIT_HARD_BLOCK');
-assert.equal(blockResult.protectedAudits.length,1);
-assert.equal(blockResult.protectedAudits[0].auditId,'A1');
+await assert.rejects(()=>guarded.mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',fromDate:'2027-01-12',toDate:'2027-01-12',wholeDay:true}}),/COMMITTED_CONFLICT/);
+await assert.rejects(()=>guarded.mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'old-hard',fromDate:'2027-01-12',toDate:'2027-01-12',wholeDay:true}}),/COMMITTED_CONFLICT/);
+assert.equal(lastMutation,null,'Conflicting HARD writes must never reach storage');
 await assert.rejects(()=>guarded.mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'SET_FREE_OVERRIDE',fromDate:'2027-01-12',toDate:'2027-01-12',wholeDay:true}}),/AUDIT_CONFLICT/);
 const doubleRows=[
  ['Audit ID','Status','Assigned to','Planning JSON','Company','Scopes','Execution location'],

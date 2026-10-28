@@ -22,6 +22,7 @@ check('unresolved historical auditor fails closed',()=>assert.throws(()=>canonic
 check('duplicate slot fails',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','APPROVED','d@example.com',[block(),block()])] }),/DUPLICATE/));
 check('bad interval fails',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','APPROVED','d@example.com',[block('2027-01-12','13:00','12:00')])] }),/SLOT_INVALID/));
 check('empty canonical planning response fails closed',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[]}),/HEADERS_MISSING/));
+check('invalid header shape fails',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[null]}),/HEADERS_MISSING/));
 check('duplicate headers fail',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[[...headers,'Audit_ID']]}),/HEADERS_DUPLICATE/));
 check('missing headers fails',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[['Audit ID']]}),/HEADERS_MISSING/));
 check('canonical UID overrides stale legacy email',()=>{const results=canonicalAuditSlotsFromPlanningRows({...args,rows:[['Audit ID','Status','Assigned to','Planning JSON','Auditor_UID'],['A1','APPROVED','old@example.com',JSON.stringify({blocks:[block()]}),'auditor-d']]});assert.equal(results[0].auditorId,'auditor-d');});

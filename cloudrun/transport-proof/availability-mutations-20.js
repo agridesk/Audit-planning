@@ -12,7 +12,7 @@ export function prepareAvailabilityMutation({actor,targetAuditorId,expectedVersi
  if(!actorId||!target||!['manager','auditor'].includes(role))throw Error('NOT_AUTHORIZED');
  if(role==='auditor'&&actorId!==target)throw Error('NOT_AUTHORIZED');
  if(str(mutation?.action)==='CONFIRM_AVAILABILITY'&&role!=='auditor')throw Error('AUDITOR_CONFIRMATION_REQUIRED');
- if(!Number.isSafeInteger(expectedVersion)||expectedVersion<0||snapshot?.version!==expectedVersion)throw Error('VERSION_CONFLICT');
+ if(!Number.isSafeInteger(expectedVersion)||expectedVersion<0||expectedVersion>=Number.MAX_SAFE_INTEGER||snapshot?.version!==expectedVersion)throw Error('VERSION_CONFLICT');
  if(!mutation||typeof mutation!=='object')throw Error('INVALID_MUTATION');
  const action=str(mutation.action),id=str(mutation.id),items=Array.isArray(snapshot?.baselineExceptions)?snapshot.baselineExceptions:[];
  if(!['BLOCK_PERIOD','EDIT_HARD_BLOCK','RELEASE_BASELINE','CONFIRM_AVAILABILITY','SET_RECURRING','SET_FREE_OVERRIDE','REMOVE_HARD_BLOCK'].includes(action))throw Error('UNSUPPORTED_ACTION');

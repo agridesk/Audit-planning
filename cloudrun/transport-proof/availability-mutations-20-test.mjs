@@ -62,4 +62,6 @@ assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[exist
 assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],blocks:[null]},mutation:block}),/CANONICAL_BLOCKS_INVALID/);
 assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],baselineReleases:[],blocks:[{state:'UNKNOWN'}]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'hard-existing',date:'2027-01-05',wholeDay:true}}),/CANONICAL_BLOCKS_INVALID/);
 assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],blocks:[{state:'UNKNOWN'}]},mutation:{action:'SET_FREE_OVERRIDE',date:'2027-01-05',wholeDay:true}}),/CANONICAL_BLOCKS_INVALID/);
+assert.throws(()=>prepare({...base,now:'2026-10-14T10:00:00',mutation:block}),/INVALID_TIMESTAMP/);
+assert.throws(()=>prepare({...base,now:'not-a-timestamp',mutation:block}),/INVALID_TIMESTAMP/);
 console.log(`${n} mutation policy checks and HARD edit regressions passed`);

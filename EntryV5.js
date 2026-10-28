@@ -403,6 +403,16 @@ function doPost(e) {
       reason20=String(req20.comment||'').trim();
     if(!email20||!uid20||!id20||!revision20||!(/^[a-f0-9]{24}$/.test(revision20))||!['ACCEPT','CANCEL'].includes(action20))return respond20({success:false,error:'INVALID_AUDITOR_ACTION_REQUEST'});
     if(action20==='CANCEL'&&!reason20)return respond20({success:false,error:'CANCEL_REASON_REQUIRED'});
+    // Fast fail-closed on the legacy GAS entry when the DEV Cloud Run Auditor
+    // Accept owner cutover is active. Default property absent => unchanged.
+    if(action20==='ACCEPT') {
+      try {
+        if(PropertiesService.getScriptProperties().getProperty('AMS_AUDITOR_ACCEPT_CANONICAL_OWNER_20')==='CLOUD_RUN')
+          return respond20({success:false,error:'AUDITOR_ACCEPT_CANONICAL_OWNER_CLOUD_RUN'});
+      } catch(fenceError20) {
+        return respond20({success:false,error:'AUDITOR_ACCEPT_OWNER_FENCE_CHECK_FAILED'});
+      }
+    }
     var lock20=LockService.getScriptLock();
     if(!lock20.tryLock(10000))return respond20({success:false,error:'ACTION_BUSY'});
     acceptStages20.lockWaitMs=Date.now()-acceptT020;acceptPhase20='locked';

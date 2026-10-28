@@ -27,7 +27,7 @@ export function createAvailabilityHttpRouter({service,resolveIdentity,listAudito
    // A validated auditor session is the authoritative grant for its own UID.
    // Directory lookups are needed only for managers selecting other auditors.
    const directory=actor.role==='manager'?await listAuditors(actor):[{auditorId:actor.id,displayName:actor.id}];
-   if(!Array.isArray(directory)||directory.length>2500||directory.some(x=>!x||typeof x!=='object'||Array.isArray(x)||!clean(x.auditorId)))throw Error('INVALID_AUDITOR_DIRECTORY');
+   if(!Array.isArray(directory)||directory.length>2500||directory.some(x=>!x||typeof x!=='object'||Array.isArray(x)||typeof x.auditorId!=='string'||!x.auditorId.trim()))throw Error('INVALID_AUDITOR_DIRECTORY');
    const allowed=new Map(directory.map(x=>[clean(x.auditorId),clean(x.displayName)||clean(x.auditorId)]));
    if(allowed.size!==directory.length)throw Error('INVALID_AUDITOR_DIRECTORY');
    const authorizedId=id=>{const target=clean(id);if(!target||(actor.role==='auditor'?target!==actor.id:!allowed.has(target)))throw Error('NOT_AUTHORIZED');return target;};

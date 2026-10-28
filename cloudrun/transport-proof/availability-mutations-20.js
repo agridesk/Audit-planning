@@ -20,7 +20,8 @@ export function prepareAvailabilityMutation({actor,targetAuditorId,expectedVersi
  if(action==='BLOCK_PERIOD'){
   if(!id||items.some(x=>str(x.id)===id))throw Error('DUPLICATE_OR_MISSING_ID');
   const w=windowOf(mutation);if(w.to-w.from>3660)throw Error('PERIOD_TOO_LONG');
-  const committed=(snapshot?.blocks||[]).filter(x=>str(x.state)==='COMMITTED');
+  if(!Array.isArray(snapshot?.blocks))throw Error('CANONICAL_BLOCKS_REQUIRED');
+  const committed=snapshot.blocks.filter(x=>str(x.state)==='COMMITTED');
   if(committed.some(x=>intersects(w,windowOf(x))))throw Error('COMMITTED_CONFLICT');
   payload={id,fromDate:mutation.fromDate,toDate:mutation.toDate,wholeDay:mutation.wholeDay===true,...(mutation.wholeDay===true?{}:{start:mutation.start,end:mutation.end})};
  }else if(action==='EDIT_HARD_BLOCK'){

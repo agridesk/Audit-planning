@@ -18,6 +18,7 @@ export function prepareAvailabilityMutation({actor,targetAuditorId,expectedVersi
  if(!now||!Number.isFinite(Date.parse(now)))throw Error('INVALID_TIMESTAMP');
  let payload;
  if(action==='BLOCK_PERIOD'){
+  if(!Array.isArray(snapshot?.baselineExceptions))throw Error('CANONICAL_BASELINES_REQUIRED');
   if(!id||items.some(x=>str(x.id)===id))throw Error('DUPLICATE_OR_MISSING_ID');
   const w=windowOf(mutation);if(w.to-w.from>3660)throw Error('PERIOD_TOO_LONG');
   if(!Array.isArray(snapshot?.blocks))throw Error('CANONICAL_BLOCKS_REQUIRED');

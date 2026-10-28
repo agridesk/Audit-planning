@@ -23,4 +23,6 @@ assert.equal(overviewWithChange({at:'2026-12-16T10:00:00Z',action:'SET_RECURRING
 assert.equal(overviewWithChange({at:'2026-12-16T10:00:00Z',action:'BLOCK_PERIOD',fromDate:null,toDate:null,substantive:true}),'REVIEW_NEEDED');
 assert.equal(overviewWithChange({at:'2026-12-16T10:00:00Z',action:'BLOCK_PERIOD',fromDate:'2027-02-01',toDate:'2027-02-02',substantive:true}),'CONFIRMED');
 assert.equal(overviewWithChange({at:'2026-12-14T10:00:00Z',action:'SET_RECURRING',fromDate:null,toDate:null,substantive:true}),'CONFIRMED');
-console.log('Manager Availability Overview: 11 checks passed');
+assert.equal(overviewWithChange({action:'BLOCK_PERIOD',fromDate:'2027-01-12',toDate:'2027-01-12',substantive:true}),'REVIEW_NEEDED');
+assert.equal(overviewWithChange({at:'not-a-date',action:'BLOCK_PERIOD',fromDate:'2027-01-12',toDate:'2027-01-12',substantive:true}),'REVIEW_NEEDED');
+console.log('Manager Availability Overview: 13 checks passed');

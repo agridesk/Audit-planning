@@ -46,4 +46,5 @@ assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[relea
 assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],blocks:null},mutation:block}),/CANONICAL_BLOCKS_REQUIRED/);
 assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],blocks:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'hard-existing',fromDate:'2027-01-03',toDate:'2027-01-09',wholeDay:true}}),/CANONICAL_HARD_SOURCE_REQUIRED/);
 assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],blocks:null},mutation:{action:'SET_FREE_OVERRIDE',date:'2027-01-12',wholeDay:true}}),/CANONICAL_BLOCKS_REQUIRED/);
+assert.equal(prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],baselineReleases:[{targetExceptionId:'hard-existing',date:'2027-01-05',start:'09:00',end:'12:00'}],blocks:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'hard-existing',fromDate:'2027-01-03',toDate:'2027-01-09',start:'08:00',end:'18:00'}}).action,'EDIT_HARD_BLOCK');
 console.log(`${n} mutation policy checks and HARD edit regressions passed`);

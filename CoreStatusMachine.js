@@ -231,7 +231,7 @@ function Status_applyAction(actor, action, auditId, payload) {
     // DEV cutover fence for Auditor ACCEPT. Default is unchanged (property absent).
     // Prevent the legacy GAS StatusMachine from accepting an audit when Cloud Run
     // has explicitly become the exclusive owner for this transition.
-    if (actor === ROLE.AUDITOR && action === ACTION.ACCEPT) {
+    if (actor === ROLE.AUDITOR && action === ACTION.ACCEPT && typeof ENV_isDev_ === 'function' && ENV_isDev_()) {
       try {
         if (PropertiesService.getScriptProperties().getProperty('AMS_AUDITOR_ACCEPT_CANONICAL_OWNER_20') === 'CLOUD_RUN')
           return {success:false,error:'AUDITOR_ACCEPT_CANONICAL_OWNER_CLOUD_RUN'};

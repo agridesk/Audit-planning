@@ -8,7 +8,7 @@ const col=(h,n)=>h.indexOf(n);
 const names=(h,a)=>a.map(n=>col(h,n)).find(x=>x>=0)??-1;
 const cell=(r,i)=>i>=0?clean(r[i]):'';
 const setCell=(index,v)=>({userEnteredValue:{stringValue:clean(v)}});
-const norm=v=>clean(v).toUpperCase().replace(/[\\s-]+/g,'_');
+const norm=v=>clean(v).toUpperCase().replace(/[\s-]+/g,'_');
 const revision=(h,r)=>createHash('sha256').update([
  cell(r,names(h,['Audit ID','Audit_ID','AuditId','Audit Id'])),
  cell(r,names(h,['Status'])),cell(r,names(h,['Assigned to','Assigned auditor','Auditor'])),
@@ -37,7 +37,7 @@ export function buildDirectAuditorAcceptSheets20({actor,auditId,expectedRevision
  if(!assigned||!possible.includes(assigned))fail('DIRECT_ACCEPT_ASSIGNMENT_MISMATCH');
  if(norm(cell(r,statusIndex))!=='APPROVED')fail('DIRECT_ACCEPT_STATUS_CONFLICT');
  if(revision(h,r)!==expectedRevision)fail('DIRECT_ACCEPT_REVISION_CONFLICT');
- if(!/^\\d{4}-\\d{2}-\\d{2}T/.test(clean(stamp)))fail('DIRECT_ACCEPT_TIMESTAMP_REQUIRED');
+ if(!/^\d{4}-\d{2}-\d{2}T/.test(clean(stamp)))fail('DIRECT_ACCEPT_TIMESTAMP_REQUIRED');
  const changes=[['Status','Accepted'],['Status since',stamp],['Last auditor decision','ACCEPT'],['Last auditor decision timestamp',stamp],['Auditor comment (last)','']];
  const updates=changes.map(([name,value])=>{const i=names(h,[name]);if(i<0)fail('DIRECT_ACCEPT_LIFECYCLE_HEADER_MISSING_'+name);return {updateCells:{range:{sheetId:sheetIds.audit,startRowIndex:at-1,endRowIndex:at,startColumnIndex:i,endColumnIndex:i+1},rows:[{values:[setCell(i,value)]}],fields:'userEnteredValue'}}});
  const trail={type:'LIFECYCLE_STATUS_CHANGED',auditId,action:'ACCEPT',actorRole:'AUDITOR',actorEmail:email,beforeStatus:'Approved',afterStatus:'Accepted',timestamp:stamp,source:'CLOUD_RUN_DIRECT_AUDITOR_ACCEPT'};

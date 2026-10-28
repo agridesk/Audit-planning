@@ -1,0 +1,43 @@
+AMS 2.0 — DEV BACKUP & RECOVERY REGISTER
+Record date: 2026-10-28
+Status: recovery reference / NOT a restore test or deployment approval.
+
+REPOSITORY
+GitHub: https://github.com/agridesk/Audit-planning
+Protected pre-remediation reference branch: backup/ams-dev-pre-remediation-2026-10-28
+Baseline commit (verified against GitHub compare): 900cbbb05db96d3b5ed6d14e35596a42025cbf0b
+Baseline commit URL: https://github.com/agridesk/Audit-planning/commit/900cbbb05db96d3b5ed6d14e35596a42025cbf0b
+Active remediation branch: feature/ams-2-remediation-2026-10-28
+At registration: 98 commits ahead of backup branch; 0 behind (GitHub compare).
+Do NOT overwrite or delete the backup branch. Do NOT assume the feature branch is approved for production.
+
+GOOGLE SHEETS DEV BACKUP
+Recorded backup name: BACKUP - Audit Management System DEV - 2026-10-28 - pre-remediation
+Recorded Google Sheets file ID: 1AlGtqeSdCFPTD0nv26iqLoJo8mXQDrWXPngJs0IIRNg
+Link: https://docs.google.com/spreadsheets/d/1AlGtqeSdCFPTD0nv26iqLoJo8mXQDrWXPngJs0IIRNg/edit
+This ID and backup name are from the earlier backup handoff; this session has NOT independently opened the sheet or performed a restore.
+
+FIRESTORE DEV EXPORT
+Recorded Google Cloud Storage bucket: gs://ams-dev-firestore-backup-20261028
+Earlier export result reported: successful; 151 documents; 248.15 KB.
+Exact export object/prefix, database ID, project ID, manifest path, retention settings and restore compatibility are NOT independently verified in this session.
+Find and preserve the export manifest and exact export prefix before attempting recovery.
+
+RECOVERY SAFETY RULES
+1. PROD is out of scope. Never point DEV recovery at PROD credentials, Sheets, Firestore or Cloud Run.
+2. Preserve original backup assets and Git baseline before any restore.
+3. Verify target DEV project, Firestore database, export manifest, Sheets file permissions, Apps Script/Cloud Run configuration and current revision before restoring.
+4. Recovery must be explicitly authorized; use a separate DEV restore environment and validate consistency before any cutover.
+5. Firestore, Google Sheets and Git snapshots were recorded separately; no guarantee of cross-system transactional consistency.
+6. SWAP remains frozen/out of scope. No merge, deployment, destructive restore or production changes without explicit user approval.
+
+KNOWN OPEN ITEMS (as of registration)
+- Planning Save Firestore HARD preflight is not atomic with downstream Sheets commit.
+- Automated regression suite has not been executed in this session.
+- Full integration/recovery drill and end-to-end DEV verification are outstanding.
+- Backup retention and restore permissions must be checked by an authorized operator.
+
+SOURCE OF TRUTH
+This file is the durable recovery reference for the 2026-10-28 pre-remediation backups.
+It records identifiers and known limits; it is not evidence of a successful restoration.
+Older AMS roadmaps V2.7 and earlier are not current implementation authority.

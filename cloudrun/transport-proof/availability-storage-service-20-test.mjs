@@ -66,4 +66,10 @@ await test('malformed change-history array rejected before CAS',async()=>{
  assert.equal(store.get(id).version,1);
  store.delete(id);
 });
+await test('exhausted availability version rejected on read',async()=>{
+ const id='aud-version-max',actor={id,role:'auditor'};
+ store.set(id,{auditorId:id,version:Number.MAX_SAFE_INTEGER,baselineExceptions:[],baselineReleases:[],blocks:[],recurring:[],overrides:[],metadata:{changes:[]}});
+ await fails(()=>service.read(actor,id),'CANONICAL_AVAILABILITY_DOCUMENT_INVALID');
+ store.delete(id);
+});
 console.log(n,'storage service checks passed');

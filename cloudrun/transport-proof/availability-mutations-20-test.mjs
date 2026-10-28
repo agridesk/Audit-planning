@@ -50,4 +50,8 @@ assert.equal(prepare({...base,snapshot:{version:2,baselineExceptions:[existingHa
 const singleDateBlock=prepare({...base,mutation:{action:'BLOCK_PERIOD',id:'single-date',date:'2027-01-05',wholeDay:true}});
 assert.equal(singleDateBlock.payload.fromDate,'2027-01-05');
 assert.equal(singleDateBlock.payload.toDate,'2027-01-05');
+const partialRemoval=prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],blocks:[]},mutation:{action:'REMOVE_HARD_BLOCK',targetExceptionId:'hard-existing',date:'2027-01-05',start:'09:00',end:'12:00'}});
+assert.equal(partialRemoval.payload.wholeDay,false);
+assert.equal(partialRemoval.payload.start,'09:00');
+assert.equal(partialRemoval.payload.end,'12:00');
 console.log(`${n} mutation policy checks and HARD edit regressions passed`);

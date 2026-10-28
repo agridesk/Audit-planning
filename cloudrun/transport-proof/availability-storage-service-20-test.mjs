@@ -40,4 +40,11 @@ await test('release and removal return persisted record identifiers',async()=>{
  assert.equal(remove.recordId,doc.baselineReleases[1].id);
  assert.equal(doc.baselineReleases[1].start,'10:00');
 });
+await test('malformed persisted availability cannot silently resolve as FREE',async()=>{
+ store.set('aud-corrupt',{auditorId:'aud-corrupt',version:3,blocks:[],recurring:[],overrides:[],metadata:{}});
+ const actor={id:'aud-corrupt',role:'auditor'};
+ await fails(()=>service.read(actor,'aud-corrupt'),'CANONICAL_AVAILABILITY_DOCUMENT_INVALID');
+ await fails(()=>service.period({actor,auditorId:'aud-corrupt',fromDate:'2027-01-01',toDate:'2027-01-01'}),'CANONICAL_AVAILABILITY_DOCUMENT_INVALID');
+ store.delete('aud-corrupt');
+});
 console.log(n,'storage service checks passed');

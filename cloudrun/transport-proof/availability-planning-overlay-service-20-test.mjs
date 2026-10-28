@@ -28,6 +28,8 @@ await assert.rejects(()=>guarded.mutate({actor,auditorId:'a',expectedVersion:3,m
 await assert.rejects(()=>guarded.mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'old-hard',fromDate:'2027-01-12',toDate:'2027-01-12',wholeDay:true}}),/COMMITTED_CONFLICT/);
 assert.equal(lastMutation,null,'Conflicting HARD writes must never reach storage');
 await assert.rejects(()=>guarded.mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'SET_FREE_OVERRIDE',fromDate:'2027-01-12',toDate:'2027-01-12',wholeDay:true}}),/AUDIT_CONFLICT/);
+await assert.rejects(()=>guarded.mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',fromDate:'2027-02-30',toDate:'2027-03-01',wholeDay:true}}),/INVALID_DATE_RANGE/);
+await assert.rejects(()=>guarded.mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',fromDate:'2027-02-03',toDate:'2027-02-02',wholeDay:true}}),/INVALID_DATE_RANGE/);
 const doubleRows=[
  ['Audit ID','Status','Assigned to','Planning JSON','Company','Scopes','Execution location'],
  ['A-MORNING','ACCEPTED','a@example.com',JSON.stringify([{date:'2027-01-12',start:'08:00',end:'12:00'}]),'Company Morning','Scope M','Site M'],

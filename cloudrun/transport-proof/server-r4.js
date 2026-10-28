@@ -568,7 +568,7 @@ function actorAllowedActions(c){
 }
 async function auditorOpenRead(email){
   const t=Date.now(),actorEmail=clean(email).toLowerCase();
-  const versioned=process.env.AMS_AUDITOR_UID_ROTATION_READ_ENABLED==='true',ranges=['Audit planning!A1:BW483','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:AZ256','Log realized audits!A1:AZ2048'];
+  const versioned=process.env.AMS_AUDITOR_UID_ROTATION_READ_ENABLED==='true',ranges=['Audit planning!A1:BW2000','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:AZ256','Log realized audits!A1:AZ2048'];
   if(versioned)ranges.push('Auditor_Identity_Versions!A1:P2000');
   const vr=await sheetsBatchGet(ranges);
   const ap=vr[0]?.values||[],scv=vr[1]?.values||[],companies=vr[2]?.values||[],aud=vr[3]?.values||[],log=vr[4]?.values||[],catalog=scopeCatalog(scv),versions=versioned?rotationIdentityVersions(vr[5]?.values||[]):null,identityMap=versioned?rotationAuditorMap(aud,versions):null,actorUid=identityMap?rotationResolveAuditor(identityMap,actorEmail):null;

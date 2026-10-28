@@ -14,7 +14,7 @@ assert.equal(data.auditors[1].confirmation.status,'REVIEW_NEEDED');
 assert.equal(data.auditors[1].days[1].segments[0].state,'HARD');
 assert.equal(data.auditors[1].stateMinutes.FREE,9*1440);
 assert.equal(data.auditors[1].stateMinutes.SOFT,4*1440);
-assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'a',metadata:{confirmation:{confirmedAt:'2026-12-01',fromDate:'2027-01-01',throughDate:'2027-01-15'}}}]}).auditors[0].confirmation.status,'OUTSIDE_CONFIRMATION');
+assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'a',metadata:{confirmation:{confirmedAt:'2026-12-01T00:00:00Z',fromDate:'2027-01-01',throughDate:'2027-01-15'}}}]}).auditors[0].confirmation.status,'OUTSIDE_CONFIRMATION');
 assert.throws(()=>buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'a'},{auditorId:'a'}]}),/DUPLICATE/);
 assert.throws(()=>buildManagerAvailabilityOverview({fromDate:'2027-01-01',toDate:'2027-12-31'}),/BOUNDS/);
 const confirmed={confirmedAt:'2026-12-15T10:00:00Z',fromDate:'2027-01-01',throughDate:'2027-03-31',availabilityVersion:1};
@@ -45,4 +45,5 @@ assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'in
 assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'invalid-old-history',metadata:{confirmation:confirmed,historyComplete:true,availabilityVersion:2,changes:[{at:'2026-12-01T10:00:00Z',action:'BLOCK_PERIOD',substantive:true,fromDate:'2027-02-30',toDate:'2027-03-01'}]}}]}).auditors[0].confirmation.status,'REVIEW_NEEDED');
 assert.equal(buildManagerAvailabilityOverview({fromDate:'2027-01-11',toDate:'2027-01-11',auditors:[{auditorId:'range-protected',availability:{fromDate:'2027-01-01',toDate:'2027-12-31',blocks:[]}}]}).auditors[0].days.length,1);
 assert.throws(()=>buildManagerAvailabilityOverview({...range,auditors:[null]}),/DUPLICATE_OR_MISSING_AUDITOR_ID|INVALID_AUDITOR_RECORD/);
-console.log('Manager Availability Overview: 36 checks passed');
+assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'ambiguous-confirmation',metadata:{confirmation:{confirmedAt:'2026-12-01',fromDate:'2027-01-01',throughDate:'2027-12-31',availabilityVersion:1},availabilityVersion:1,historyComplete:true,changes:[]}}]}).auditors[0].confirmation.status,'NOT_CONFIRMED');
+console.log('Manager Availability Overview: 37 checks passed');

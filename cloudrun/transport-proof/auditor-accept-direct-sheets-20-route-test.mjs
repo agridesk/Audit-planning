@@ -5,6 +5,7 @@ const p=readFileSync(new URL('./auditor-accept-direct-sheets-20.mjs',import.meta
 const core=readFileSync(new URL('../../CoreStatusMachine.js',import.meta.url),'utf8');
 const gas=readFileSync(new URL('../../EntryV5.js',import.meta.url),'utf8');
 const ui=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+const dockerfile=readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
 assert.match(s,/import \{buildDirectAuditorAcceptSheets20\}/);
 assert.match(s,/AMS_AUDITOR_DIRECT_ACCEPT_ENABLED/);
 assert.match(s,/AMS_GAS_LIFECYCLE_WRITER_RETIRED_VERIFIED/);
@@ -25,4 +26,5 @@ assert.match(gas,/AMS_AUDITOR_ACCEPT_CANONICAL_OWNER_20/);
 assert.match(ui,/String\(actorRole\)\.toLowerCase\(\)==='auditor'\?'\/api\/v1\/auditor\/action'/);
 assert.match(ui,/expectedRevision:audit\.sourceRevision/);
 assert.match(s,/if\(action==='ACCEPT' && process\.env\.AMS_AUDITOR_DIRECT_ACCEPT_ENABLED==='true'\)/);
-console.log('DIRECT_AUDITOR_ACCEPT_ROUTE_FENCED_SOURCE_PASS 21');
+assert.match(dockerfile,/^COPY auditor-accept-direct-sheets-20\.mjs \.\/\s*$/m);
+console.log('DIRECT_AUDITOR_ACCEPT_ROUTE_FENCED_SOURCE_PASS 22');

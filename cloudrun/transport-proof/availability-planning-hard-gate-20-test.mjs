@@ -18,4 +18,8 @@ assert.throws(()=>enforceAvailabilityHardGate20({document:{blocks:[{state:'UNKNO
 assert.equal(enforceAvailabilityHardGate20({document:{blocks:[],baselineExceptions:[],baselineReleases:[]},blocks:[{date:'2027-01-12',start:'09:05',end:'09:45'}]}),true);
 assert.throws(()=>enforceAvailabilityHardGate20({document:{blocks:[],baselineExceptions:[],baselineReleases:[]},blocks:[{date:'2027-01-12',start:'09:60',end:'10:00'}]}),/PLANNING_INTERVAL_INVALID/);
 assert.throws(()=>enforceAvailabilityHardGate20({document:[],blocks:plan}),/AVAILABILITY_HARD_GATE_INPUT_INVALID/);
-console.log('Availability HARD planning gate: 15 checks passed');
+const multiday={id:'multi',fromDate:'2027-01-10',toDate:'2027-01-15',start:'10:00',end:'14:00'};
+assert.throws(()=>enforceAvailabilityHardGate20({document:{blocks:[],baselineExceptions:[multiday],baselineReleases:[]},blocks:[{date:'2027-01-12',start:'13:00',end:'15:00'}]}),/AVAILABILITY_HARD_BLOCK/);
+assert.equal(enforceAvailabilityHardGate20({document:{blocks:[],baselineExceptions:[multiday],baselineReleases:[]},blocks:[{date:'2027-01-12',start:'14:00',end:'15:00'}]}),true);
+assert.equal(enforceAvailabilityHardGate20({document:{blocks:[],baselineExceptions:[multiday],baselineReleases:[{targetExceptionId:'multi',date:'2027-01-12',start:'10:00',end:'14:00'}]},blocks:[{date:'2027-01-12',start:'13:00',end:'15:00'}]}),true);
+console.log('Availability HARD planning gate: 18 checks passed');

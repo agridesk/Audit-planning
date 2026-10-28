@@ -6,6 +6,7 @@ import {resolveAvailabilityPeriod} from './availability-resolver-20.js';
 const minute=s=>{if(typeof s!=='string'||!/^([01]\d|2[0-3]):[0-5]$/.test(s)&&s!=='24:00')throw Error('PLANNING_INTERVAL_INVALID');return s==='24:00'?1440:Number(s.slice(0,2))*60+Number(s.slice(3));};
 export function enforceAvailabilityHardGate20({document,blocks}={}){
  if(!document||typeof document!=='object'||!Array.isArray(blocks)||!blocks.length)throw Error('AVAILABILITY_HARD_GATE_INPUT_INVALID');
+ if(!Array.isArray(document.blocks)||!Array.isArray(document.baselineExceptions)||!Array.isArray(document.baselineReleases))throw Error('AVAILABILITY_HARD_GATE_SOURCE_INVALID');
  const hardOnly={blocks:(document.blocks||[]).filter(x=>x?.state==='HARD'),baselineExceptions:document.baselineExceptions||[],baselineReleases:document.baselineReleases||[],recurring:[],overrides:[]};
  for(const block of blocks){
   const date=block?.date,start=block?.start,end=block?.end;

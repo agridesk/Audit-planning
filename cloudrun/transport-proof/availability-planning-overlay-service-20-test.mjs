@@ -63,4 +63,9 @@ const overlapOverlay=createPlanningOverlayService({service,readPlanningRows:asyn
 const overlap=await overlapOverlay.period({actor,auditorId:'a',fromDate:'2027-01-12',toDate:'2027-01-12'});
 assert.equal(Object.values(overlap.auditDetails).length,2,'Overlapping provisional and committed audits both retained as details');
 assert(overlap.days[0].segments.some(x=>x.state==='COMMITTED'),'Committed remains precedence owner for occupied overlap');
+const adversarialService={read:async(a,id)=>({...base(id),fromDate:'2027-01-01',toDate:'2027-12-31'}),mutate:async()=>({success:true})};
+const boundedOverlay=createPlanningOverlayService({service:adversarialService,readPlanningRows:async()=>rows,listCanonicalAuditors:async()=>auditors});
+const boundedPeriod=await boundedOverlay.period({actor,auditorId:'a',fromDate:'2027-01-12',toDate:'2027-01-12'});
+assert.equal(boundedPeriod.days.length,1,'Stored availability cannot expand requested period');
+assert.equal(boundedPeriod.days[0].date,'2027-01-12');
 console.log('PASS: planning overlay period, manager overview, authorization, fail closed');

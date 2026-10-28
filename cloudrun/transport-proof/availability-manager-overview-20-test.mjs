@@ -46,4 +46,6 @@ assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'in
 assert.equal(buildManagerAvailabilityOverview({fromDate:'2027-01-11',toDate:'2027-01-11',auditors:[{auditorId:'range-protected',availability:{fromDate:'2027-01-01',toDate:'2027-12-31',blocks:[]}}]}).auditors[0].days.length,1);
 assert.throws(()=>buildManagerAvailabilityOverview({...range,auditors:[null]}),/DUPLICATE_OR_MISSING_AUDITOR_ID|INVALID_AUDITOR_RECORD/);
 assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'ambiguous-confirmation',metadata:{confirmation:{confirmedAt:'2026-12-01',fromDate:'2027-01-01',throughDate:'2027-12-31',availabilityVersion:1},availabilityVersion:1,historyComplete:true,changes:[]}}]}).auditors[0].confirmation.status,'NOT_CONFIRMED');
-console.log('Manager Availability Overview: 37 checks passed');
+assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'ambiguous-history-time',metadata:{confirmation:confirmed,historyComplete:true,availabilityVersion:2,changes:[{at:'2026-12-16',action:'BLOCK_PERIOD',substantive:true,fromDate:'2027-02-01',toDate:'2027-02-02'}]}}]}).auditors[0].confirmation.status,'REVIEW_NEEDED');
+assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'ambiguous-last-change-time',metadata:{confirmation:confirmed,historyComplete:true,availabilityVersion:1,changes:[],lastAvailabilityChangeAt:'2026-12-16'}}]}).auditors[0].confirmation.status,'REVIEW_NEEDED');
+console.log('Manager Availability Overview: 39 checks passed');

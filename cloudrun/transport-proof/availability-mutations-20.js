@@ -44,7 +44,8 @@ export function prepareAvailabilityMutation({actor,targetAuditorId,expectedVersi
   payload={targetExceptionId:target,fromDate:mutation.fromDate??mutation.date,toDate:mutation.toDate??mutation.fromDate??mutation.date,wholeDay:mutation.wholeDay===true};
  }else if(action==='SET_FREE_OVERRIDE'){
   const w=windowOf(mutation);if(w.to-w.from>3660)throw Error('PERIOD_TOO_LONG');
-  const committed=(snapshot?.blocks||[]).filter(x=>['COMMITTED','PROVISIONAL'].includes(str(x.state)));
+  if(!Array.isArray(snapshot?.blocks))throw Error('CANONICAL_BLOCKS_REQUIRED');
+  const committed=snapshot.blocks.filter(x=>['COMMITTED','PROVISIONAL'].includes(str(x.state)));
   if(committed.some(x=>intersects(w,windowOf(x))))throw Error('AUDIT_CONFLICT');
   payload={id,fromDate:mutation.fromDate??mutation.date,toDate:mutation.toDate??mutation.fromDate??mutation.date,wholeDay:mutation.wholeDay===true,...(mutation.wholeDay===true?{}:{start:mutation.start,end:mutation.end})};
  }else if(action==='SET_RECURRING'){

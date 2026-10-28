@@ -1172,7 +1172,7 @@ async function directComplete(identity,body,actorRole){
   const owner=actorRole==='MANAGER'?'CLOUD_RUN_DIRECT_MANAGER_COMPLETE':'CLOUD_RUN_DIRECT_AUDITOR_COMPLETE';
   return withDirectManagerActionLock(auditId,async()=>{
     const readStarted=Date.now(),vr=await sheetsBatchGet([
-      'Audit planning!A1:BW600','Log realized audits!A1:AZ2500','Auditor Availability!A:P',
+      'Audit planning!A1:BW2000','Log realized audits!A1:AZ2500','Auditor Availability!A:P',
       'Config_Scopes!A1:Z128','Audit_Obligations!A1:Z2500','Audit_Visit_Obligations!A1:H2500',
       'Company_Scopes!A1:Z1500','Companies!A1:AZ1200','Auditors!A1:Z256'
     ]),readMs=Date.now()-readStarted;

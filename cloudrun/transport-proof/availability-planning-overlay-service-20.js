@@ -57,6 +57,8 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
   if(['BLOCK_PERIOD','EDIT_HARD_BLOCK','SET_FREE_OVERRIDE'].includes(mutation?.action)){
    const fromDate=clean(mutation.fromDate||mutation.date);
    const toDate=clean(mutation.toDate||mutation.fromDate||mutation.date);
+   const dateValid=s=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&Number.isFinite(Date.parse(s+'T00:00:00Z'))&&new Date(s+'T00:00:00Z').toISOString().slice(0,10)===s;
+   if(!dateValid(fromDate)||!dateValid(toDate)||fromDate>toDate)throw Error('INVALID_DATE_RANGE');
    // Validate against authoritative planning before changing the baseline.
    // A baseline is not permitted to overwrite a committed audit.
    const slots=await slotsFor(fromDate,toDate,{fresh:true});

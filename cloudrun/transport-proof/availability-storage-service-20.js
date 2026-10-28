@@ -66,6 +66,7 @@ export function createAvailabilityService(adapter){
   if(current.version>=Number.MAX_SAFE_INTEGER-1)throw Error('VERSION_CONFLICT');
   const token=randomUUID(),next=clone(current);
   next.version=current.version+1;
+  if(next.metadata?.confirmation)next.metadata.confirmation.availabilityVersion=next.version;
   next.planningLease={token,auditId:str(auditId),acquiredAt:now,actorId:str(actor.id)};
   if(await adapter.compareAndSwap(id,current.version,next)!==true)throw Error('VERSION_CONFLICT');
   return {token,auditorId:id,auditId:str(auditId),version:next.version,document:next};
@@ -75,7 +76,7 @@ export function createAvailabilityService(adapter){
   const current=await read(actor,id);
   if(!token||current.planningLease?.token!==token)throw Error('PLANNING_LEASE_TOKEN_MISMATCH');
   if(current.version>=Number.MAX_SAFE_INTEGER-1)throw Error('VERSION_CONFLICT');
-  const next=clone(current);next.version=current.version+1;next.planningLease=null;
+  const next=clone(current);next.version=current.version+1;if(next.metadata?.confirmation)next.metadata.confirmation.availabilityVersion=next.version;next.planningLease=null;
   if(await adapter.compareAndSwap(id,current.version,next)!==true)throw Error('VERSION_CONFLICT');
   return {auditorId:id,version:next.version};
  }

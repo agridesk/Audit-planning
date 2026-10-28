@@ -33,4 +33,5 @@ assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'hi
 assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'history-empty',metadata:{confirmation:confirmed,historyComplete:true,availabilityVersion:2,changes:[]}}]}).auditors[0].confirmation.status,'REVIEW_NEEDED');
 assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'invalid-range',metadata:{confirmation:{...confirmed,fromDate:'2027-02-30'}}}]}).auditors[0].confirmation.status,'NOT_CONFIRMED');
 assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'reversed-range',metadata:{confirmation:{...confirmed,fromDate:'2027-04-01'}}}]}).auditors[0].confirmation.status,'NOT_CONFIRMED');
-console.log('Manager Availability Overview: 21 checks passed');
+assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'missing-version',metadata:{confirmation:confirmed,historyComplete:true,changes:[]}}]}).auditors[0].confirmation.status,'REVIEW_NEEDED');
+console.log('Manager Availability Overview: 22 checks passed');

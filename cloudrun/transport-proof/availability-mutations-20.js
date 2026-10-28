@@ -41,7 +41,7 @@ export function prepareAvailabilityMutation({actor,targetAuditorId,expectedVersi
  }else if(action==='REMOVE_HARD_BLOCK'){
   const target=str(mutation.targetExceptionId);const baseline=items.find(x=>str(x.id)===target);if(!baseline)throw Error('BASELINE_NOT_FOUND');
   const w=windowOf(mutation);if(!contains(windowOf(baseline),w))throw Error('RELEASE_OUTSIDE_BASELINE');
-  payload={targetExceptionId:target,fromDate:mutation.fromDate??mutation.date,toDate:mutation.toDate??mutation.fromDate??mutation.date,wholeDay:mutation.wholeDay===true};
+  payload={targetExceptionId:target,fromDate:mutation.fromDate??mutation.date,toDate:mutation.toDate??mutation.fromDate??mutation.date,wholeDay:mutation.wholeDay===true,...(mutation.wholeDay===true?{}:{start:mutation.start,end:mutation.end})};
  }else if(action==='SET_FREE_OVERRIDE'){
   const w=windowOf(mutation);if(w.to-w.from>3660)throw Error('PERIOD_TOO_LONG');
   if(!Array.isArray(snapshot?.blocks))throw Error('CANONICAL_BLOCKS_REQUIRED');

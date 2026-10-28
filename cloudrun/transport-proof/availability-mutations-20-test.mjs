@@ -59,4 +59,7 @@ assert.throws(()=>prepare({...base,snapshot:{version:2,blocks:[],baselineRelease
 assert.throws(()=>prepare({...base,snapshot:{version:2,blocks:[]},mutation:{action:'RELEASE_BASELINE',targetExceptionId:'missing',date:'2027-01-05',wholeDay:true}}),/CANONICAL_BASELINES_REQUIRED/);
 assert.throws(()=>prepare({...base,snapshot:{version:2,blocks:[]},mutation:{action:'REMOVE_HARD_BLOCK',targetExceptionId:'missing',date:'2027-01-05',wholeDay:true}}),/CANONICAL_BASELINES_REQUIRED/);
 assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],blocks:[]},mutation:{action:'REMOVE_HARD_BLOCK',targetExceptionId:'hard-existing',date:'2027-01-05',start:'14:00',end:'10:00'}}),/INVALID_TIME_RANGE/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],blocks:[null]},mutation:block}),/CANONICAL_BLOCKS_INVALID/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],baselineReleases:[],blocks:[{state:'UNKNOWN'}]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'hard-existing',date:'2027-01-05',wholeDay:true}}),/CANONICAL_BLOCKS_INVALID/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],blocks:[{state:'UNKNOWN'}]},mutation:{action:'SET_FREE_OVERRIDE',date:'2027-01-05',wholeDay:true}}),/CANONICAL_BLOCKS_INVALID/);
 console.log(`${n} mutation policy checks and HARD edit regressions passed`);

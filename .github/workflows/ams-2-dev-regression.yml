@@ -1,0 +1,28 @@
+name: AMS 2.0 DEV regression (no deploy)
+on:
+  push:
+    branches:
+      - feature/ams-2-remediation-2026-10-28
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: cloudrun/transport-proof
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install test dependencies (no scripts)
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Run repository regression suite
+        run: npm test

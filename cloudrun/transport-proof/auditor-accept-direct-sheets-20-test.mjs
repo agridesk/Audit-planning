@@ -16,4 +16,15 @@ assert.throws(()=>build({...opts,actor:{...opts.actor,uid:'other'}}),/IDENTITY_N
 assert.throws(()=>build({...opts,expectedRevision:'a'.repeat(24)}),/REVISION_CONFLICT/);
 assert.throws(()=>build({...opts,values:{...opts.values,audit:[h,[...row.slice(0,1),'Accepted',...row.slice(2)]]}}),/STATUS_CONFLICT/);
 assert.throws(()=>build({...opts,sheetIds:{audit:123}}),/SHEET_IDS_REQUIRED/);
-console.log('DIRECT_AUDITOR_ACCEPT_SHEETS_ATOMIC_SOURCE_PASS 8');
+assert.throws(()=>build({...opts,values:{...opts.values,audit:[h,row,row]}}),/AUDIT_NOT_UNIQUE/);
+assert.throws(()=>build({...opts,values:{...opts.values,auditors:[ah,ar,ar]}}),/IDENTITY_NOT_CURRENT/);
+assert.throws(()=>build({...opts,values:{...opts.values,auditors:[ah,[...ar.slice(0,2),'MANAGER',...ar.slice(3)]]}}),/IDENTITY_NOT_CURRENT/);
+assert.throws(()=>build({...opts,values:{...opts.values,auditors:[ah,[...ar.slice(0,3),'NO',...ar.slice(4)]]}}),/IDENTITY_NOT_CURRENT/);
+assert.throws(()=>build({...opts,values:{...opts.values,audit:[h,[...row.slice(0,6),'WRONG',...row.slice(7)]]}}),/ASSIGNED_UID_MISMATCH/);
+const trail=good.requests[good.requests.length-1].appendCells.rows[0].values;
+assert.equal(trail[1].userEnteredValue.stringValue,'AUDIT_TRAIL');
+assert.equal(trail[2].userEnteredValue.stringValue,'LIFECYCLE_STATUS_CHANGED');
+assert.equal(trail[4].userEnteredValue.stringValue,'A-123');
+const actualBatchCells=good.requests.filter(x=>x.updateCells).map(x=>x.updateCells.range.startColumnIndex);
+assert.deepEqual(actualBatchCells,[1,5,7,8,9]);
+console.log('DIRECT_AUDITOR_ACCEPT_SHEETS_ATOMIC_SOURCE_PASS 17');

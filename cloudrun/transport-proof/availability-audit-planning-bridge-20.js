@@ -32,6 +32,7 @@ export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDa
   if(!explicitUid&&(!email||!lookup.has(email)))throw Error('AUDIT_PLANNING_AUDITOR_IDENTITY_UNRESOLVED'); // A committed audit must never disappear from availability because its legacy email no longer resolves.
   let parsed;try{parsed=JSON.parse(raw);}catch{throw Error('AUDIT_PLANNING_JSON_INVALID');}
   const blocks=Array.isArray(parsed)?parsed:parsed?.blocks;
+  if(!Array.isArray(blocks))throw Error('AUDIT_PLANNING_COMMITTED_BLOCKS_INVALID');
   if(!Array.isArray(blocks)){console.warn('AVAILABILITY_LEGACY_PLANNING_WITHOUT_BLOCKS',JSON.stringify({sheetRow:rows.indexOf(row)+1,shape:Array.isArray(parsed)?'array':parsed===null?'null':typeof parsed,keys:parsed&&typeof parsed==='object'&&!Array.isArray(parsed)?Object.keys(parsed).slice(0,20):[]}));continue;} // Same non-blocking legacy interpretation as canonical R4 blocks(raw).
   if(!blocks.length)throw Error('AUDIT_PLANNING_COMMITTED_BLOCKS_EMPTY');
   for(const b of blocks){

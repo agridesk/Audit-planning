@@ -1869,7 +1869,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       }
       const verifyActionAfterLostReply=async()=>{
         try{
-          const rows=(await sheetsBatchGet(['Audit planning!A1:BW483']))[0]?.values||[];
+          const rows=(await sheetsBatchGet(['Audit planning!A1:BW2000']))[0]?.values||[];
           const found=findAudit(rows,auditId),actual=found?directStatusKey(val(found.row,col(found.h,['Status']))):'';
           const expected=action==='ACCEPT'?'ACCEPTED':'PENDING_PLANNING';
           if(actual===expected)return send(res,200,{success:true,verifiedBy:'CANONICAL_AUDIT_STATUS_READBACK',auditId,action,newStatus:expected,afterStatus:expected,statusResultVerified:true});

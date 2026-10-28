@@ -43,6 +43,12 @@ const doubleRows=[
  ['B-OTHER','APPROVED','b@example.com',JSON.stringify([{date:'2027-01-12',start:'10:00',end:'15:00'}]),'Other Company','Other Scope','Other Site']
 ];
 const doubleOverlay=createPlanningOverlayService({service,readPlanningRows:async()=>doubleRows,listCanonicalAuditors:async()=>auditors});
+let doubleMutation=null;
+const doubleGuard=createPlanningOverlayService({service:{read:async(a,id)=>base(id),mutate:async args=>(doubleMutation=args,{success:true})},readPlanningRows:async()=>doubleRows,listCanonicalAuditors:async()=>auditors});
+await assert.rejects(()=>doubleGuard.mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',start:'09:00',end:'10:00'}}),/COMMITTED_CONFLICT/);
+assert.equal(doubleMutation,null);
+await doubleGuard.mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',start:'13:00',end:'14:00'}});
+assert.equal(doubleMutation.mutation.action,'BLOCK_PERIOD','Provisional conflict remains separately reported');
 const doubleA=await doubleOverlay.period({actor,auditorId:'a',fromDate:'2027-01-12',toDate:'2027-01-12'});
 const aDetails=Object.values(doubleA.auditDetails);
 assert.equal(aDetails.length,2,'Both audits must be present for the same auditor and date');

@@ -29,4 +29,7 @@ check('UID and current email conflict fails closed',()=>assert.throws(()=>canoni
 check('UID-only canonical rows require no legacy Assigned to header',()=>{const slots=canonicalAuditSlotsFromPlanningRows({...args,rows:[['Audit ID','Status','Auditor_UID','Planning JSON'],['A1','APPROVED','auditor-d',JSON.stringify({blocks:[block()]})]]});assert.equal(slots[0].auditorId,'auditor-d');});
 check('unresolved draft does not occupy calendar',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('D1','PENDING_PLANNING','unknown@example.com',[block()])]}).length,0));
 check('missing committed auditor identity fails closed',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A2','APPROVED','',[block()])]}),/AUDITOR_IDENTITY_UNRESOLVED/));
+check('committed row without audit ID fails closed',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('','APPROVED','d@example.com',[block()])]}),/COMMITTED_ID_MISSING/));
+check('committed row without planning payload fails closed',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,['A1','ACCEPTED','d@example.com','']]}),/COMMITTED_PLAN_MISSING/));
+check('draft row without audit ID remains excluded',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('','PENDING_PLANNING','d@example.com',[block()])]}).length,0));
 console.log(`${count} bridge checks passed`);

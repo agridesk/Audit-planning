@@ -7,6 +7,10 @@ import {committedBlocksFromCanonicalSlots,withCommittedOverlay} from './availabi
 import {resolveAvailabilityPeriod} from './availability-resolver-20.js';
 import {buildManagerAvailabilityOverview} from './availability-manager-overview-20.js';
 const clean=x=>String(x??'').trim();
+function validateReadRange(fromDate,toDate){
+ const parse=s=>{if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s)||!Number.isFinite(Date.parse(s+'T00:00:00Z'))||new Date(s+'T00:00:00Z').toISOString().slice(0,10)!==s)throw Error('INVALID_DATE');return Date.parse(s+'T00:00:00Z')/86400000;};
+ const from=parse(fromDate),to=parse(toDate);if(to<from||to-from>92)throw Error('QUERY_RANGE_OUT_OF_BOUNDS');
+}
 export function createPlanningOverlayService({service,readPlanningRows,listCanonicalAuditors,readScopeNames,readCanonicalSwaps}={}){
  if(!service||typeof service.read!=='function'||typeof service.mutate!=='function'||typeof readPlanningRows!=='function'||typeof listCanonicalAuditors!=='function')throw Error('INVALID_OVERLAY_CONFIGURATION');
  async function slotsFor(fromDate,toDate,{fresh=false}={}){
@@ -32,6 +36,7 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
   return legacy.filter(x=>!replaceIds.has(x.auditId)&&x.date>=fromDate&&x.date<=toDate).concat(canonical.filter(x=>x.date>=fromDate&&x.date<=toDate));
  }
  async function period({actor,auditorId,fromDate,toDate}){
+  validateReadRange(fromDate,toDate);
   const doc=await service.read(actor,auditorId);
   const slots=await slotsFor(fromDate,toDate);
   const blocks=committedBlocksFromCanonicalSlots({auditorId,slots});
@@ -40,6 +45,7 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
   return {auditorId,version:doc.version,days:resolveAvailabilityPeriod({...merged,fromDate,toDate}),auditDetails,metadata:{...structuredClone(doc.metadata),baselineIds:(doc.baselineExceptions||[]).map(x=>x.id),baselineExceptions:structuredClone(doc.baselineExceptions||[]),recurring:structuredClone(doc.recurring||[])}};
  }
  async function managerOverview({actor,auditorIds,fromDate,toDate,displayNames={}}){
+  validateReadRange(fromDate,toDate);
   if(clean(actor?.role).toLowerCase()!=='manager'||!clean(actor?.id))throw Error('NOT_AUTHORIZED');
   if(!Array.isArray(auditorIds)||auditorIds.length>250||new Set(auditorIds).size!==auditorIds.length)throw Error('INVALID_AUDITOR_SET');
   const slots=await slotsFor(fromDate,toDate);

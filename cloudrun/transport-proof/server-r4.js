@@ -1836,7 +1836,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
         // A status-changing action is authorized against one canonical live audit row.
         // Auditor Grid visibility is a presentation read and must not veto a UID-owned action.
         const readStart=Date.now();
-        const auditValues=(await sheetsBatchGet(['Audit planning!A1:BW483']))[0]?.values||[];
+        const auditValues=(await sheetsBatchGet(['Audit planning!A1:BW2000']))[0]?.values||[];
         acceptPerf.canonicalReadMs=Date.now()-readStart;
         const current=findAudit(auditValues,auditId);
         if(!current)return send(res,404,{success:false,error:'AUDIT_NOT_FOUND'});

@@ -22,10 +22,10 @@ export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDa
  const slots=[],seen=new Set();
  for(const row of rows.slice(1)){
   const auditId=norm(row[id]),state=key(row[status]).toUpperCase();
-  if(!auditId)continue;
   // Only these explicitly committed planning states can reserve an auditor.
   if(!['APPROVED','ACCEPTED','PENDINGAPPROVAL'].includes(state))continue;
-  const raw=norm(row[json]);if(!raw)continue;
+  if(!auditId)throw Error('AUDIT_PLANNING_COMMITTED_ID_MISSING');
+  const raw=norm(row[json]);if(!raw)throw Error('AUDIT_PLANNING_COMMITTED_PLAN_MISSING');
   const email=assigned<0?'':norm(row[assigned]).toLowerCase(),explicitUid=assignedUid<0?'':norm(row[assignedUid]);
   if(explicitUid&&!uidLookup.has(explicitUid))throw Error('AUDIT_PLANNING_AUDITOR_UID_UNKNOWN');
   if(explicitUid&&email&&lookup.has(email)&&lookup.get(email)!==explicitUid)throw Error('AUDIT_PLANNING_AUDITOR_IDENTITY_CONFLICT');

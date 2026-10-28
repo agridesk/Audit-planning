@@ -3,7 +3,7 @@
  * No writes, no external requests, no daily persistence materialization.
  */
 import {resolveAvailabilityPeriod} from './availability-resolver-20.js';
-const dateNumber=s=>{if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s)||new Date(s+'T00:00:00Z').toISOString().slice(0,10)!==s)throw Error('INVALID_DATE');return Date.parse(s+'T00:00:00Z')/86400000;};
+const dateNumber=s=>{if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s)||!Number.isFinite(Date.parse(s+'T00:00:00Z'))||new Date(s+'T00:00:00Z').toISOString().slice(0,10)!==s)throw Error('INVALID_DATE');return Date.parse(s+'T00:00:00Z')/86400000;};
 const clean=x=>String(x??'').trim();
 const states=new Set(['FREE','SOFT','PROVISIONAL','HARD','COMMITTED']);
 function freshness(meta,fromDate,toDate){

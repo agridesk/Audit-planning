@@ -58,4 +58,5 @@ assert.throws(()=>prepare({...base,snapshot:{version:2,blocks:[]},mutation:block
 assert.throws(()=>prepare({...base,snapshot:{version:2,blocks:[],baselineReleases:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'missing',date:'2027-01-05',wholeDay:true}}),/CANONICAL_BASELINES_REQUIRED/);
 assert.throws(()=>prepare({...base,snapshot:{version:2,blocks:[]},mutation:{action:'RELEASE_BASELINE',targetExceptionId:'missing',date:'2027-01-05',wholeDay:true}}),/CANONICAL_BASELINES_REQUIRED/);
 assert.throws(()=>prepare({...base,snapshot:{version:2,blocks:[]},mutation:{action:'REMOVE_HARD_BLOCK',targetExceptionId:'missing',date:'2027-01-05',wholeDay:true}}),/CANONICAL_BASELINES_REQUIRED/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],blocks:[]},mutation:{action:'REMOVE_HARD_BLOCK',targetExceptionId:'hard-existing',date:'2027-01-05',start:'14:00',end:'10:00'}}),/INVALID_TIME_RANGE/);
 console.log(`${n} mutation policy checks and HARD edit regressions passed`);

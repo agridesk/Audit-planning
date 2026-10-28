@@ -13,7 +13,14 @@ function freshness(meta,fromDate,toDate){
  if(cf>f||ct<t)return {status:'OUTSIDE_CONFIRMATION',label:'Not confirmed for this period'};
  const changes=Array.isArray(meta?.changes)?meta.changes:[];
  // A later substantive change invalidates only overlapping confirmation coverage.
- const stale=changes.some(x=>x?.substantive===true&&x.at>c.confirmedAt&&dateNumber(x.fromDate)<=t&&dateNumber(x.toDate)>=f);
+ const stale=changes.some(x=>{
+  if(x?.substantive!==true||!x.at||x.at<=c.confirmedAt)return false;
+  // Recurring availability changes have no finite date window and invalidate every confirmed period.
+  if(x.action==='SET_RECURRING')return true;
+  // Missing or invalid bounds must never silently preserve a confirmation.
+  if(!x.fromDate||!x.toDate)return true;
+  try{return dateNumber(x.fromDate)<=t&&dateNumber(x.toDate)>=f;}catch{return true;}
+ });
  if(stale)return {status:'REVIEW_NEEDED',label:'Review needed'};
  // If event history is not complete, use version guard conservatively.
  if(meta?.historyComplete!==true&&Number.isSafeInteger(meta?.availabilityVersion)&&Number.isSafeInteger(c.availabilityVersion)&&meta.availabilityVersion!==c.availabilityVersion)return {status:'REVIEW_NEEDED',label:'Review needed'};

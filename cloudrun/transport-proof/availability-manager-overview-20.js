@@ -9,7 +9,9 @@ const states=new Set(['FREE','SOFT','PROVISIONAL','HARD','COMMITTED']);
 function freshness(meta,fromDate,toDate){
  const c=meta?.confirmation;
  if(!c?.confirmedAt||!c?.fromDate||!c?.throughDate||!Number.isFinite(Date.parse(c.confirmedAt)))return {status:'NOT_CONFIRMED',label:'Not confirmed'};
- const cf=dateNumber(c.fromDate),ct=dateNumber(c.throughDate),f=dateNumber(fromDate),t=dateNumber(toDate);
+ let cf,ct;try{cf=dateNumber(c.fromDate);ct=dateNumber(c.throughDate);}catch{return {status:'NOT_CONFIRMED',label:'Not confirmed'};}
+ if(cf>ct)return {status:'NOT_CONFIRMED',label:'Not confirmed'};
+ const f=dateNumber(fromDate),t=dateNumber(toDate);
  if(cf>f||ct<t)return {status:'OUTSIDE_CONFIRMATION',label:'Not confirmed for this period'};
  const changes=Array.isArray(meta?.changes)?meta.changes:[];
  if(meta?.historyComplete===true&&changes.length===0&&Number.isSafeInteger(meta?.availabilityVersion)&&Number.isSafeInteger(c.availabilityVersion)&&meta.availabilityVersion!==c.availabilityVersion)return {status:'REVIEW_NEEDED',label:'Review needed'};

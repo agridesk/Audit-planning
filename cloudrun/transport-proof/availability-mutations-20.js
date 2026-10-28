@@ -22,8 +22,7 @@ export function prepareAvailabilityMutation({actor,targetAuditorId,expectedVersi
   if(!Array.isArray(snapshot?.baselineExceptions))throw Error('CANONICAL_BASELINES_REQUIRED');
   if(!id||items.some(x=>str(x.id)===id))throw Error('DUPLICATE_OR_MISSING_ID');
   const w=windowOf(mutation);if(w.to-w.from>3660)throw Error('PERIOD_TOO_LONG');
-  if(!Array.isArray(snapshot?.blocks))throw Error('CANONICAL_BLOCKS_REQUIRED');
-  const committed=snapshot.blocks.filter(x=>str(x.state)==='COMMITTED');
+  const committed=canonicalBlocks(snapshot).filter(x=>str(x.state)==='COMMITTED');
   if(committed.some(x=>intersects(w,windowOf(x))))throw Error('COMMITTED_CONFLICT');
   payload={id,fromDate:mutation.fromDate??mutation.date,toDate:mutation.toDate??mutation.fromDate??mutation.date,wholeDay:mutation.wholeDay===true,...(mutation.wholeDay===true?{}:{start:mutation.start,end:mutation.end})};
  }else if(action==='EDIT_HARD_BLOCK'){
@@ -32,8 +31,8 @@ export function prepareAvailabilityMutation({actor,targetAuditorId,expectedVersi
   const existing=items.find(x=>str(x.id)===targetId);
   if(!targetId||!existing)throw Error('BASELINE_NOT_FOUND');
   const w=windowOf(mutation);if(w.to-w.from>3660)throw Error('PERIOD_TOO_LONG');
-  if(!Array.isArray(snapshot?.blocks)||!Array.isArray(snapshot?.baselineReleases))throw Error('CANONICAL_HARD_SOURCE_REQUIRED');
-  if(snapshot.blocks.filter(x=>str(x.state)==='COMMITTED').some(x=>intersects(w,windowOf(x))))throw Error('COMMITTED_CONFLICT');
+  if(!Array.isArray(snapshot?.baselineReleases))throw Error('CANONICAL_HARD_SOURCE_REQUIRED');
+  if(canonicalBlocks(snapshot).filter(x=>str(x.state)==='COMMITTED').some(x=>intersects(w,windowOf(x))))throw Error('COMMITTED_CONFLICT');
   if((snapshot?.baselineReleases||[]).some(x=>str(x.targetExceptionId)===targetId&&!contains(w,windowOf(x))))throw Error('EXISTING_RELEASE_OUTSIDE_EDITED_BASELINE');
   payload={id:targetId,fromDate:mutation.fromDate??mutation.date,toDate:mutation.toDate??mutation.fromDate??mutation.date,wholeDay:mutation.wholeDay===true,...(mutation.wholeDay===true?{}:{start:mutation.start,end:mutation.end})};
   if(items.some(x=>str(x.id)===targetId&&x!==existing))throw Error('DUPLICATE_BASELINE_ID');
@@ -49,8 +48,7 @@ export function prepareAvailabilityMutation({actor,targetAuditorId,expectedVersi
   payload={targetExceptionId:target,fromDate:mutation.fromDate??mutation.date,toDate:mutation.toDate??mutation.fromDate??mutation.date,wholeDay:mutation.wholeDay===true,...(mutation.wholeDay===true?{}:{start:mutation.start,end:mutation.end})};
  }else if(action==='SET_FREE_OVERRIDE'){
   const w=windowOf(mutation);if(w.to-w.from>3660)throw Error('PERIOD_TOO_LONG');
-  if(!Array.isArray(snapshot?.blocks))throw Error('CANONICAL_BLOCKS_REQUIRED');
-  const committed=snapshot.blocks.filter(x=>['COMMITTED','PROVISIONAL'].includes(str(x.state)));
+  const committed=canonicalBlocks(snapshot).filter(x=>['COMMITTED','PROVISIONAL'].includes(str(x.state)));
   if(committed.some(x=>intersects(w,windowOf(x))))throw Error('AUDIT_CONFLICT');
   payload={id,fromDate:mutation.fromDate??mutation.date,toDate:mutation.toDate??mutation.fromDate??mutation.date,wholeDay:mutation.wholeDay===true,...(mutation.wholeDay===true?{}:{start:mutation.start,end:mutation.end})};
  }else if(action==='SET_RECURRING'){

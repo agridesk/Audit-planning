@@ -38,3 +38,5 @@ assert.equal(edited.payload.id,'hard-existing','HARD edit retains canonical exce
 assert.equal(edited.payload.fromDate,'2027-01-03');
 assert.equal(edited.payload.wholeDay,false);
 assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],blocks:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'absent',fromDate:'2027-01-03',toDate:'2027-01-09',wholeDay:true}}),/BASELINE_NOT_FOUND/);
+
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],blocks:[{state:'COMMITTED',date:'2027-01-05',start:'09:00',end:'12:00'}]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'hard-existing',fromDate:'2027-01-03',toDate:'2027-01-09',start:'08:00',end:'18:00'}}),/COMMITTED_CONFLICT/);

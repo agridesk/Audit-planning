@@ -16,7 +16,7 @@ function freshness(meta,fromDate,toDate){
  const changes=Array.isArray(meta?.changes)?meta.changes:[];
  if(meta?.historyComplete===true&&!Array.isArray(meta?.changes))return {status:'REVIEW_NEEDED',label:'Review needed'};
  if(meta?.historyComplete===true&&changes.length===0&&Number.isSafeInteger(meta?.availabilityVersion)&&Number.isSafeInteger(c.availabilityVersion)&&meta.availabilityVersion!==c.availabilityVersion)return {status:'REVIEW_NEEDED',label:'Review needed'};
- if(!Number.isSafeInteger(c.availabilityVersion)||!Number.isSafeInteger(meta?.availabilityVersion))return {status:'REVIEW_NEEDED',label:'Review needed'};
+ if(!Number.isSafeInteger(c.availabilityVersion)||!Number.isSafeInteger(meta?.availabilityVersion)||c.availabilityVersion<0||meta.availabilityVersion<0||c.availabilityVersion>meta.availabilityVersion)return {status:'REVIEW_NEEDED',label:'Review needed'};
  // A later substantive change invalidates only overlapping confirmation coverage.
  const stale=changes.some(x=>{
   if(x?.substantive!==true)return false;

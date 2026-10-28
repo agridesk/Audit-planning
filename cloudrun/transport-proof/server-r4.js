@@ -1397,7 +1397,7 @@ async function directManagerReject(identity,body){
   return withDirectManagerActionLock(auditId,async()=>{
     const readStarted=Date.now();
     const vr=await sheetsBatchGet([
-      'Audit planning!A1:BW483',
+      'Audit planning!A1:BW2000',
       'Auditor Availability!A:P',
       'Auditors!A1:Z256',
       'Rejected audits!A1:Z2000',

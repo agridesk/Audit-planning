@@ -23,7 +23,7 @@ export function prepareAvailabilityMutation({actor,targetAuditorId,expectedVersi
   if(!Array.isArray(snapshot?.blocks))throw Error('CANONICAL_BLOCKS_REQUIRED');
   const committed=snapshot.blocks.filter(x=>str(x.state)==='COMMITTED');
   if(committed.some(x=>intersects(w,windowOf(x))))throw Error('COMMITTED_CONFLICT');
-  payload={id,fromDate:mutation.fromDate,toDate:mutation.toDate,wholeDay:mutation.wholeDay===true,...(mutation.wholeDay===true?{}:{start:mutation.start,end:mutation.end})};
+  payload={id,fromDate:mutation.fromDate??mutation.date,toDate:mutation.toDate??mutation.fromDate??mutation.date,wholeDay:mutation.wholeDay===true,...(mutation.wholeDay===true?{}:{start:mutation.start,end:mutation.end})};
  }else if(action==='EDIT_HARD_BLOCK'){
   const targetId=str(mutation.targetExceptionId);
   const existing=items.find(x=>str(x.id)===targetId);

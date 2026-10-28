@@ -30,4 +30,5 @@ assert.equal(overviewWithChange({at:'2026-12-15T11:00:00+01:00',action:'SET_RECU
 assert.equal(overviewWithChange({at:'2026-12-15T12:00:00+01:00',action:'SET_RECURRING',substantive:true}),'REVIEW_NEEDED');
 assert.throws(()=>buildManagerAvailabilityOverview({fromDate:'not-a-date',toDate:'2027-01-24'}),/INVALID_DATE/);
 assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'history-missing',metadata:{confirmation:confirmed,historyComplete:true,availabilityVersion:2}}]}).auditors[0].confirmation.status,'REVIEW_NEEDED');
-console.log('Manager Availability Overview: 18 checks passed');
+assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'history-empty',metadata:{confirmation:confirmed,historyComplete:true,availabilityVersion:2,changes:[]}}]}).auditors[0].confirmation.status,'REVIEW_NEEDED');
+console.log('Manager Availability Overview: 19 checks passed');

@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const s=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+const p=readFileSync(new URL('./auditor-accept-direct-sheets-20.mjs',import.meta.url),'utf8');
+assert.match(s,/import \{buildDirectAuditorAcceptSheets20\}/);
+assert.match(s,/AMS_AUDITOR_DIRECT_ACCEPT_ENABLED/);
+assert.match(s,/AMS_GAS_LIFECYCLE_WRITER_RETIRED_VERIFIED/);
+assert.match(s,/AMS_MANAGER_LIFECYCLE_OWNER_SHARED_VERIFIED/);
+assert.match(s,/action==='ACCEPT' && process\.env\.AMS_AUDITOR_DIRECT_ACCEPT_ENABLED==='true'/);
+assert.match(s,/return withDirectManagerActionLock\(auditId,async\(\)=>/);
+assert.match(s,/fetch\(base\+':batchUpdate'/);
+assert.match(s,/DIRECT_ACCEPT_OUTCOME_UNCONFIRMED_DO_NOT_RETRY/);
+assert.match(p,/updateCells/);assert.match(p,/appendCells/);
+assert.doesNotMatch(p,/values:\[row\]/);
+console.log('DIRECT_AUDITOR_ACCEPT_ROUTE_FENCED_SOURCE_PASS 11');

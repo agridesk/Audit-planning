@@ -16,6 +16,7 @@ function freshness(meta,fromDate,toDate){
  if(cf>f||ct<t)return {status:'OUTSIDE_CONFIRMATION',label:'Not confirmed for this period'};
  if(meta?.lastAvailabilityChangeAt&&(!validTimestamp(meta.lastAvailabilityChangeAt)||(Date.parse(meta.lastAvailabilityChangeAt)>Date.parse(c.confirmedAt)&&(meta?.historyComplete!==true||!Array.isArray(meta?.changes)||meta.changes.length===0))))return {status:'REVIEW_NEEDED',label:'Review needed'};
  const changes=Array.isArray(meta?.changes)?meta.changes:[];
+ if(meta?.historyComplete===true&&validTimestamp(meta?.lastAvailabilityChangeAt)&&changes.length>0&&!changes.some(x=>validTimestamp(x?.at)&&Date.parse(x.at)===Date.parse(meta.lastAvailabilityChangeAt)&&x.substantive===true))return {status:'REVIEW_NEEDED',label:'Review needed'};
  if(meta?.historyComplete===true&&changes.some(x=>!x||typeof x!=='object'||Array.isArray(x)||typeof x.substantive!=='boolean'||!x.at||!validTimestamp(x.at)||(x.substantive===true&&x.action!=='SET_RECURRING'&&(!x.fromDate||!x.toDate))))return {status:'REVIEW_NEEDED',label:'Review needed'};
  if(meta?.historyComplete===true&&changes.some(x=>{if(!x?.fromDate&&!x?.toDate)return false;try{return dateNumber(x.fromDate)>dateNumber(x.toDate);}catch{return true;}}))return {status:'REVIEW_NEEDED',label:'Review needed'};
  if(meta?.historyComplete===true&&!Array.isArray(meta?.changes))return {status:'REVIEW_NEEDED',label:'Review needed'};

@@ -10,7 +10,7 @@ const clock=(x,end=false)=>/^([01]\d|2[0-3]):[0-5]\d$/.test(x)||(end&&x==='24:00
 function index(headers,aliases){for(const alias of aliases){const i=headers.findIndex(x=>key(x)===key(alias));if(i>=0)return i;}return -1;}
 export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDate,scopeNamesBySlot={}}={}){
  if(!Array.isArray(rows)||!Array.isArray(auditors)||!date(fromDate)||!date(toDate)||fromDate>toDate)throw Error('INVALID_AUDIT_BRIDGE_INPUT');
- if(!rows.length)throw Error('AUDIT_PLANNING_HEADERS_MISSING');
+ if(!rows.length||!Array.isArray(rows[0]))throw Error('AUDIT_PLANNING_HEADERS_MISSING');
  const h=rows[0],id=index(h,['Audit ID','Audit_ID']),status=index(h,['Status']),assigned=index(h,['Assigned to','Assigned auditor','Auditor']),json=index(h,['Planning JSON','Planning_JSON']);
  if([id,status,json].some(x=>x<0)||(assigned<0&&index(h,['Auditor_UID','Auditor UID','Assigned_Auditor_UID','Assigned Auditor UID'])<0))throw Error('AUDIT_PLANNING_HEADERS_MISSING');
  const assignedUid=index(h,['Auditor_UID','Auditor UID','Assigned_Auditor_UID','Assigned Auditor UID']);

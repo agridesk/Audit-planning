@@ -65,4 +65,6 @@ assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],blo
 assert.throws(()=>prepare({...base,now:'2026-10-14T10:00:00',mutation:block}),/INVALID_TIMESTAMP/);
 assert.throws(()=>prepare({...base,now:'not-a-timestamp',mutation:block}),/INVALID_TIMESTAMP/);
 assert.throws(()=>prepare({...base,expectedVersion:Number.MAX_SAFE_INTEGER,snapshot:{...base.snapshot,version:Number.MAX_SAFE_INTEGER},mutation:block}),/VERSION_CONFLICT/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],blocks:[{state:'COMMITTED',date:'2027-01-02',start:'09:00',end:'10:00'}]},mutation:{action:'BLOCK_PERIOD',id:'multiday',fromDate:'2027-01-01',toDate:'2027-01-03',start:'09:30',end:'11:00'}}),/COMMITTED_CONFLICT/);
+assert.equal(prepare({...base,snapshot:{version:2,baselineExceptions:[],blocks:[{state:'COMMITTED',date:'2027-01-02',start:'09:00',end:'10:00'}]},mutation:{action:'BLOCK_PERIOD',id:'multiday-nonoverlap',fromDate:'2027-01-01',toDate:'2027-01-03',start:'10:00',end:'11:00'}}).action,'BLOCK_PERIOD');
 console.log(`${n} mutation policy checks and HARD edit regressions passed`);

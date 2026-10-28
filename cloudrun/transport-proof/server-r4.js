@@ -787,7 +787,50 @@ const DIRECT_MANAGER_ACTION_LOCKS=new Map();
 async function withDirectManagerActionLock(auditId,fn){
   const key='MANAGER_ACTION|'+clean(auditId),prev=DIRECT_MANAGER_ACTION_LOCKS.get(key)||Promise.resolve();let release;
   const gate=new Promise(r=>release=r),chain=prev.then(()=>gate);DIRECT_MANAGER_ACTION_LOCKS.set(key,chain);await prev;
-  try{return await fn();}finally{release();if(DIRECT_MANAGER_ACTION_LOCKS.get(key)===chain)DIRECT_MANAGER_ACTION_LOCKS.delete(key);}
+  try{
+    // When direct Auditor Accept is enabled, ALL direct Manager lifecycle paths
+    // that already use this mutex must share a cross-instance Firestore fence.
+    if(process.env.AMS_RUNTIME_ENV==='DEV' && process.env.AMS_AUDITOR_DIRECT_ACCEPT_ENABLED==='true')
+      return await withDevLifecycleFirestoreLock20(auditId,fn);
+    return await fn();
+  }finally{release();if(DIRECT_MANAGER_ACTION_LOCKS.get(key)===chain)DIRECT_MANAGER_ACTION_LOCKS.delete(key);}
+}
+async function withDevLifecycleFirestoreLock20(auditId,fn){
+  if(!clean(auditId)||typeof fn!=='function')throw Error('LIFECYCLE_LOCK_AUDIT_REQUIRED');
+  if(process.env.AMS_RUNTIME_ENV!=='DEV'||SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')
+    throw Error('LIFECYCLE_LOCK_DEV_ONLY');
+  if(await verifiedAuditorLockDevProject()!=='audit-management-system-dev')
+    throw Error('LIFECYCLE_LOCK_PROJECT_MISMATCH');
+  const token=await accessToken(),id=createHash('sha256').update(clean(auditId)).digest('hex').slice(0,48);
+  const base='https://firestore.googleapis.com/v1/projects/audit-management-system-dev/databases/(default)/documents/ams_lifecycle_direct_locks_20_dev';
+  const url=base+'?documentId='+id;
+  let created;
+  try{
+    const response=await fetch(url,{method:'POST',
+      headers:{authorization:'Bearer '+token,'content-type':'application/json'},
+      body:JSON.stringify({fields:{auditId:{stringValue:clean(auditId)},holder:{stringValue:randomUUID()},createdAt:{timestampValue:new Date().toISOString()}}}),
+      signal:AbortSignal.timeout(5000)});
+    if(response.status===409)throw Error('LIFECYCLE_LOCK_BUSY');
+    if(!response.ok)throw Error('LIFECYCLE_LOCK_CREATE_HTTP_'+response.status);
+    created=await response.json();
+  }catch(e){
+    if(clean(e?.message)==='LIFECYCLE_LOCK_BUSY')throw e;
+    throw Error('LIFECYCLE_LOCK_ACQUIRE_UNCONFIRMED_MANUAL_RECONCILIATION_REQUIRED');
+  }
+  const version=clean(created?.updateTime),doc=clean(created?.name);
+  if(!version||!doc.endsWith('/ams_lifecycle_direct_locks_20_dev/'+id))
+    throw Error('LIFECYCLE_LOCK_CREATE_UNCONFIRMED_MANUAL_RECONCILIATION_REQUIRED');
+  let result,failed;
+  try{result=await fn();}catch(e){failed=e;}
+  if(failed&&/OUTCOME_UNCONFIRMED|RECONCILIATION_REQUIRED/.test(clean(failed.message)))
+    throw Error('LIFECYCLE_LOCK_HELD_FOR_RECONCILIATION: '+clean(failed.message));
+  try{
+    const releaseResult=await fetch(base+'/'+id+'?currentDocument.updateTime='+encodeURIComponent(version),{
+      method:'DELETE',headers:{authorization:'Bearer '+token},signal:AbortSignal.timeout(5000)});
+    if(!releaseResult.ok)throw Error('HTTP_'+releaseResult.status);
+  }catch(e){throw Error('LIFECYCLE_LOCK_RELEASE_UNCONFIRMED_MANUAL_RECONCILIATION_REQUIRED');}
+  if(failed)throw failed;
+  return result;
 }
 function directStatusKey(v){return clean(v).toUpperCase().replace(/[\s-]+/g,'_');}
 function directRowRevision(h,row){

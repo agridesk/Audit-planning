@@ -52,4 +52,11 @@ await test('non-object Firestore payload rejected',async()=>{
  await fails(()=>service.read({id:'aud-primitive',role:'auditor'},'aud-primitive'),'CANONICAL_AVAILABILITY_DOCUMENT_INVALID');
  store.delete('aud-primitive');
 });
+await test('malformed persisted availability blocks mutations before CAS',async()=>{
+ const id='aud-corrupt-write',actor={id,role:'auditor'};
+ store.set(id,{auditorId:id,version:1,baselineExceptions:[],blocks:[],recurring:[],overrides:[],metadata:{changes:[]}});
+ await fails(()=>service.mutate({actor,auditorId:id,expectedVersion:1,mutation:{action:'BLOCK_PERIOD',date:'2027-07-01',wholeDay:true}}),'CANONICAL_AVAILABILITY_DOCUMENT_INVALID');
+ assert.equal(store.get(id).version,1);
+ store.delete(id);
+});
 console.log(n,'storage service checks passed');

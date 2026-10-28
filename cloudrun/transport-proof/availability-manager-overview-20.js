@@ -14,6 +14,7 @@ function freshness(meta,fromDate,toDate){
  const f=dateNumber(fromDate),t=dateNumber(toDate);
  if(cf>f||ct<t)return {status:'OUTSIDE_CONFIRMATION',label:'Not confirmed for this period'};
  const changes=Array.isArray(meta?.changes)?meta.changes:[];
+ if(meta?.historyComplete===true&&changes.some(x=>!x||typeof x!=='object'||Array.isArray(x)))return {status:'REVIEW_NEEDED',label:'Review needed'};
  if(meta?.historyComplete===true&&!Array.isArray(meta?.changes))return {status:'REVIEW_NEEDED',label:'Review needed'};
  if(meta?.historyComplete===true&&changes.length===0&&Number.isSafeInteger(meta?.availabilityVersion)&&Number.isSafeInteger(c.availabilityVersion)&&meta.availabilityVersion!==c.availabilityVersion)return {status:'REVIEW_NEEDED',label:'Review needed'};
  if(!Number.isSafeInteger(c.availabilityVersion)||!Number.isSafeInteger(meta?.availabilityVersion)||c.availabilityVersion<0||meta.availabilityVersion<0||c.availabilityVersion>meta.availabilityVersion)return {status:'REVIEW_NEEDED',label:'Review needed'};

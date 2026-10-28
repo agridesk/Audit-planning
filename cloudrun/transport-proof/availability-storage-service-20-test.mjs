@@ -47,4 +47,9 @@ await test('malformed persisted availability cannot silently resolve as FREE',as
  await fails(()=>service.period({actor,auditorId:'aud-corrupt',fromDate:'2027-01-01',toDate:'2027-01-01'}),'CANONICAL_AVAILABILITY_DOCUMENT_INVALID');
  store.delete('aud-corrupt');
 });
+await test('non-object Firestore payload rejected',async()=>{
+ store.set('aud-primitive',0);
+ await fails(()=>service.read({id:'aud-primitive',role:'auditor'},'aud-primitive'),'CANONICAL_AVAILABILITY_DOCUMENT_INVALID');
+ store.delete('aud-primitive');
+});
 console.log(n,'storage service checks passed');

@@ -7,7 +7,7 @@ const minute=s=>{if(typeof s!=='string'||!/^([01]\d|2[0-3]):[0-5]$/.test(s)&&s!=
 export function enforceAvailabilityHardGate20({document,blocks}={}){
  if(!document||typeof document!=='object'||!Array.isArray(blocks)||!blocks.length)throw Error('AVAILABILITY_HARD_GATE_INPUT_INVALID');
  if(!Array.isArray(document.blocks)||!Array.isArray(document.baselineExceptions)||!Array.isArray(document.baselineReleases))throw Error('AVAILABILITY_HARD_GATE_SOURCE_INVALID');
- const hardOnly={blocks:(document.blocks||[]).filter(x=>x?.state==='HARD'),baselineExceptions:document.baselineExceptions||[],baselineReleases:document.baselineReleases||[],recurring:[],overrides:[]};
+ const hardOnly={blocks:document.blocks.filter(x=>x?.state==='HARD'),baselineExceptions:document.baselineExceptions,baselineReleases:document.baselineReleases,recurring:[],overrides:[]};
  for(const block of blocks){
   const date=block?.date,start=block?.start,end=block?.end;
   const a=minute(start),b=minute(end);if(a>=b)throw Error('PLANNING_INTERVAL_INVALID');

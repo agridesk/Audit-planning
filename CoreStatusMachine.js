@@ -228,6 +228,18 @@ function Status_applyAction(actor, action, auditId, payload) {
   try {
     if (!auditId) return Status_fail_('Missing auditId');
 
+    // DEV cutover fence for Auditor ACCEPT. Default is unchanged (property absent).
+    // Prevent the legacy GAS StatusMachine from accepting an audit when Cloud Run
+    // has explicitly become the exclusive owner for this transition.
+    if (actor === ROLE.AUDITOR && action === ACTION.ACCEPT) {
+      try {
+        if (PropertiesService.getScriptProperties().getProperty('AMS_AUDITOR_ACCEPT_CANONICAL_OWNER_20') === 'CLOUD_RUN')
+          return {success:false,error:'AUDITOR_ACCEPT_CANONICAL_OWNER_CLOUD_RUN'};
+      } catch (ownerError) {
+        return {success:false,error:'AUDITOR_ACCEPT_OWNER_FENCE_CHECK_FAILED'};
+      }
+    }
+
     var __guardT0 = Date.now();
     var writeGuard = (action === ACTION.PLAN && payload.writeGuardAlreadyPassed === true)
       ? { success:true, ok:true, code:'CANONICAL_PLANNING_WRITER_GUARD' }

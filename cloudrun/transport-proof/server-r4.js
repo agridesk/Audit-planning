@@ -944,6 +944,12 @@ async function directAuditorAcceptSheets20(identity,{auditId,expectedRevision}){
       directAcceptSheetIdsCache20={ids:byName,expires:Date.now()+600000};
     }
     const ids=directAcceptSheetIdsCache20.ids;
+    // Fail closed if the exclusive-writer attestation changes during the read.
+    if(process.env.AMS_RUNTIME_ENV!=='DEV' ||
+       process.env.AMS_AUDITOR_DIRECT_ACCEPT_ENABLED!=='true' ||
+       process.env.AMS_GAS_LIFECYCLE_WRITER_RETIRED_VERIFIED!=='true' ||
+       process.env.AMS_MANAGER_LIFECYCLE_OWNER_SHARED_VERIFIED!=='true')
+      throw Error('DIRECT_AUDITOR_ACCEPT_EXCLUSIVE_WRITER_CUTOVER_REQUIRED');
     const prepared=buildDirectAuditorAcceptSheets20({
       actor:{role:'AUDITOR',uid:clean(identity.auditorUid||identity.auditorId),email:clean(identity.email)},
       auditId,expectedRevision,

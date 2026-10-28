@@ -13,6 +13,7 @@ function freshness(meta,fromDate,toDate){
  if(cf>ct)return {status:'NOT_CONFIRMED',label:'Not confirmed'};
  const f=dateNumber(fromDate),t=dateNumber(toDate);
  if(cf>f||ct<t)return {status:'OUTSIDE_CONFIRMATION',label:'Not confirmed for this period'};
+ if(meta?.lastAvailabilityChangeAt&&(!Number.isFinite(Date.parse(meta.lastAvailabilityChangeAt))||Date.parse(meta.lastAvailabilityChangeAt)>Date.parse(c.confirmedAt)))return {status:'REVIEW_NEEDED',label:'Review needed'};
  const changes=Array.isArray(meta?.changes)?meta.changes:[];
  if(meta?.historyComplete===true&&changes.some(x=>!x||typeof x!=='object'||Array.isArray(x)||typeof x.substantive!=='boolean'||!x.at||!Number.isFinite(Date.parse(x.at))))return {status:'REVIEW_NEEDED',label:'Review needed'};
  if(meta?.historyComplete===true&&!Array.isArray(meta?.changes))return {status:'REVIEW_NEEDED',label:'Review needed'};

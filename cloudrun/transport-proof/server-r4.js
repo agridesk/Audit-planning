@@ -1772,8 +1772,11 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(action==='ACCEPT' && process.env.AMS_AUDITOR_DIRECT_ACCEPT_ENABLED==='true'){
       try{
         const result=await directAuditorAcceptSheets20(actor,{auditId,expectedRevision});
-        acceptRecord('direct_sheets_confirmed',{totalMs:Date.now()-acceptStarted,owner:result.owner});
-        return send(res,200,result);
+        acceptRecord('direct_sheets_confirmed',{totalMs:Date.now()-acceptStarted,owner:result.owner,readMs:result.readMs,writeMs:result.writeMs});
+        return send(res,200,{...result,acceptTiming:{
+          totalMs:Date.now()-acceptStarted,transport:'CLOUD_RUN_DIRECT_SHEETS',
+          directReadMs:result.readMs,directWriteMs:result.writeMs
+        }});
       }catch(error){
         const code=clean(error?.message||error);
         acceptRecord('direct_sheets_rejected',{error:code});

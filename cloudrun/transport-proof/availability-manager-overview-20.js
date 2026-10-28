@@ -8,7 +8,7 @@ const clean=x=>String(x??'').trim();
 const states=new Set(['FREE','SOFT','PROVISIONAL','HARD','COMMITTED']);
 function freshness(meta,fromDate,toDate){
  const c=meta?.confirmation;
- if(!c?.confirmedAt||!c?.fromDate||!c?.throughDate)return {status:'NOT_CONFIRMED',label:'Not confirmed'};
+ if(!c?.confirmedAt||!c?.fromDate||!c?.throughDate||!Number.isFinite(Date.parse(c.confirmedAt)))return {status:'NOT_CONFIRMED',label:'Not confirmed'};
  const cf=dateNumber(c.fromDate),ct=dateNumber(c.throughDate),f=dateNumber(fromDate),t=dateNumber(toDate);
  if(cf>f||ct<t)return {status:'OUTSIDE_CONFIRMATION',label:'Not confirmed for this period'};
  const changes=Array.isArray(meta?.changes)?meta.changes:[];

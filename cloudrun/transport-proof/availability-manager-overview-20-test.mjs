@@ -44,4 +44,5 @@ assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'la
 assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'incomplete-substantive',metadata:{confirmation:confirmed,historyComplete:true,availabilityVersion:2,changes:[{at:'2026-12-16T10:00:00Z',action:'BLOCK_PERIOD',substantive:true}]}}]}).auditors[0].confirmation.status,'REVIEW_NEEDED');
 assert.equal(buildManagerAvailabilityOverview({...range,auditors:[{auditorId:'invalid-old-history',metadata:{confirmation:confirmed,historyComplete:true,availabilityVersion:2,changes:[{at:'2026-12-01T10:00:00Z',action:'BLOCK_PERIOD',substantive:true,fromDate:'2027-02-30',toDate:'2027-03-01'}]}}]}).auditors[0].confirmation.status,'REVIEW_NEEDED');
 assert.equal(buildManagerAvailabilityOverview({fromDate:'2027-01-11',toDate:'2027-01-11',auditors:[{auditorId:'range-protected',availability:{fromDate:'2027-01-01',toDate:'2027-12-31',blocks:[]}}]}).auditors[0].days.length,1);
-console.log('Manager Availability Overview: 35 checks passed');
+assert.throws(()=>buildManagerAvailabilityOverview({...range,auditors:[null]}),/DUPLICATE_OR_MISSING_AUDITOR_ID|INVALID_AUDITOR_RECORD/);
+console.log('Manager Availability Overview: 36 checks passed');

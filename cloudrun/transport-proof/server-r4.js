@@ -1,5 +1,6 @@
 import http from 'node:http';
 import {managerCanonicalWriteBridge20} from './manager-canonical-write-bridge-20.mjs';
+import {buildDirectAuditorAcceptSheets20} from './auditor-accept-direct-sheets-20.mjs';
 import {boundedSessionExpiry} from './auth-session-policy.mjs';
 import {createSessionRevocationStore} from './auth-session-revocation-20.js';
 import {URL} from 'node:url';
@@ -873,6 +874,53 @@ async function directManagerApprove(identity,body){
   });
 }
 
+// Disabled by default. This writer must not be enabled until ALL GAS lifecycle
+// writers are retired/fenced and the DEV Cloud Run lifecycle owner is exclusive.
+async function directAuditorAcceptSheets20(identity,{auditId,expectedRevision}){
+  if(process.env.AMS_RUNTIME_ENV!=='DEV' ||
+     process.env.AMS_AUDITOR_DIRECT_ACCEPT_ENABLED!=='true' ||
+     process.env.AMS_GAS_LIFECYCLE_WRITER_RETIRED_VERIFIED!=='true' ||
+     process.env.AMS_MANAGER_LIFECYCLE_OWNER_SHARED_VERIFIED!=='true')
+    throw Error('DIRECT_AUDITOR_ACCEPT_EXCLUSIVE_WRITER_CUTOVER_REQUIRED');
+  return withDirectManagerActionLock(auditId,async()=>{
+    const started=Date.now();
+    const token=await accessToken();
+    const base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID);
+    const [auditReads,metaResponse]=await Promise.all([
+      sheetsBatchGet(['Audit planning!A1:BW483','Auditors!A1:Z256']),
+      fetch(base+'?fields=sheets.properties',{headers:{authorization:'Bearer '+token}})
+    ]);
+    if(!metaResponse.ok)throw Error('DIRECT_ACCEPT_SHEET_METADATA_HTTP_'+metaResponse.status);
+    const metadata=await metaResponse.json();
+    const ids=new Map((metadata.sheets||[]).map(sh=>[sh.properties?.title,sh.properties?.sheetId]));
+    const prepared=buildDirectAuditorAcceptSheets20({
+      actor:{role:'AUDITOR',uid:clean(identity.auditorUid||identity.auditorId),email:clean(identity.email)},
+      auditId,expectedRevision,
+      values:{audit:auditReads[0]?.values||[],auditors:auditReads[1]?.values||[]},
+      sheetIds:{audit:ids.get('Audit planning'),queue:ids.get('Notification Queue')},
+      stamp:new Date().toISOString()
+    });
+    // Atomic status/metadata + audit-trail append within one Sheets API request.
+    // No separate notification append and no whole-row replacement.
+    const startedWrite=Date.now();
+    let response;
+    try{response=await fetch(base+':batchUpdate',{method:'POST',
+      headers:{authorization:'Bearer '+token,'content-type':'application/json'},
+      body:JSON.stringify({requests:prepared.requests}),signal:AbortSignal.timeout(30000)});
+    }catch(error){throw Error('DIRECT_ACCEPT_OUTCOME_UNCONFIRMED_DO_NOT_RETRY');}
+    if(!response.ok){
+      const http=response.status;
+      if(http===409||http===412)throw Error('DIRECT_ACCEPT_CONFLICT');
+      throw Error('DIRECT_ACCEPT_OUTCOME_UNCONFIRMED_DO_NOT_RETRY');
+    }
+    return {success:true,auditId,action:'ACCEPT',beforeStatus:'Approved',newStatus:'Accepted',
+      afterStatus:'ACCEPTED',afterStatusDisplay:'Accepted',directCommit:true,
+      owner:'CLOUD_RUN_DIRECT_AUDITOR_ACCEPT_SHEETS',readMs:startedWrite-started,
+      writeMs:Date.now()-startedWrite,totalMs:Date.now()-started,
+      auditTrailQueued:true,notificationReconcilerRequired:true};
+  });
+}
+
 async function directManagerAcceptOnBehalf(identity,body){
   if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
   const started=Date.now(),auditId=clean(body?.auditId),options=body?.options&&typeof body.options==='object'?body.options:{},expectedRevision=clean(options.expectedRevision||body?.expectedRevision);
@@ -1704,6 +1752,18 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     acceptAuditId=auditId;acceptAction=action;
     if(!auditId||auditId.length>256||!['ACCEPT','CANCEL','COMPLETE'].includes(action)||!(/^[a-f0-9]{24}$/.test(expectedRevision)))return send(res,400,{success:false,error:'INVALID_AUDITOR_ACTION_REQUEST'});
     if(action==='CANCEL'&&!comment)return send(res,400,{success:false,error:'CANCEL_REASON_REQUIRED'});
+    if(action==='ACCEPT' && process.env.AMS_AUDITOR_DIRECT_ACCEPT_ENABLED==='true'){
+      try{
+        const result=await directAuditorAcceptSheets20(actor,{auditId,expectedRevision});
+        acceptRecord('direct_sheets_confirmed',{totalMs:Date.now()-acceptStarted,owner:result.owner});
+        return send(res,200,result);
+      }catch(error){
+        const code=clean(error?.message||error);
+        acceptRecord('direct_sheets_rejected',{error:code});
+        return send(res,code==='DIRECT_AUDITOR_ACCEPT_EXCLUSIVE_WRITER_CUTOVER_REQUIRED'?503:409,
+          {success:false,error:code});
+      }
+    }
     if(!GAS_WRITE_URL||!WRITE_KEY)return send(res,503,{success:false,error:'CANONICAL_WRITER_UNAVAILABLE'});
     try{
       // GAS is the canonical transactional authorization point for ACCEPT:

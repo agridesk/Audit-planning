@@ -23,6 +23,6 @@
     "test:realized-hours": "node --check server-r12.js && node --check manager-portal.js && node --check realized-hours-direct-contract-test.mjs && node --check realized-hours-canonical-gas-contract-test.mjs && node --check prod-realized-hours-parity-20.mjs && node realized-hours-direct-contract-test.mjs && node realized-hours-canonical-gas-contract-test.mjs && node prod-realized-hours-parity-20-test.mjs",
     "test:customer-confirmation": "node --check customer-confirmation-policy-20.mjs && node --check customer-confirmation-policy-20-test.mjs && node customer-confirmation-policy-20-test.mjs",
     "test:release1-source": "node --check single-planning-release-gate-20.mjs && node single-planning-release-gate-20.mjs && npm run test:realized-hours && npm run test:prod-config && npm run test:lifecycle-accept-cutover",
-    "test:lifecycle-accept-cutover": "node lifecycle-accept-cutover-20-test.mjs && node lifecycle-auditor-accept-direct-20-test.mjs && node lifecycle-atomic-accept-20-test.mjs && node lifecycle-canonical-parity-20-test.mjs && node lifecycle-auditor-accept-orchestrator-20-test.mjs && node auditor-accept-direct-sheets-20-test.mjs"
+    "test:lifecycle-accept-cutover": "node lifecycle-accept-cutover-20-test.mjs && node lifecycle-auditor-accept-direct-20-test.mjs && node lifecycle-atomic-accept-20-test.mjs && node lifecycle-canonical-parity-20-test.mjs && node lifecycle-auditor-accept-orchestrator-20-test.mjs && node auditor-accept-direct-sheets-20-test.mjs && node auditor-accept-direct-sheets-20-route-test.mjs"
   }
 }

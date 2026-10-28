@@ -745,6 +745,7 @@ async function proxy(req,res){
   if(candidates.length!==1)throw Error('PLANNING_AUDITOR_UID_UNRESOLVED');
   if(actor.role==='auditor'&&actor.auditorId!==candidates[0].auditorId)throw Error('PLANNING_AUDITOR_IDENTITY_MISMATCH');
   const doc=await service.read({role:'manager',id:actor.auditorId},candidates[0].auditorId);
+  if(!Number.isSafeInteger(doc.version)||doc.version<0)throw Error('PLANNING_AVAILABILITY_VERSION_INVALID');
   enforceAvailabilityHardGate20({document:doc,blocks:body.blocks});
  }
  const r=await fetch(url,init);const h={};r.headers.forEach((v,k)=>{if(k!=='set-cookie'&&!['content-length','connection','transfer-encoding'].includes(k))h[k]=v;});const multiCookies=r.headers.getSetCookie();if(multiCookies.length)h['set-cookie']=multiCookies;

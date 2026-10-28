@@ -27,6 +27,8 @@ const broken=createPlanningOverlayService({service,readPlanningRows:async()=>nul
 await assert.rejects(()=>broken.period({actor,auditorId:'a',fromDate:'2027-01-11',toDate:'2027-01-14'}),/CANONICAL_PLANNING_UNAVAILABLE/);
 const deniedOverlay=createPlanningOverlayService({service,readPlanningRows:async()=>{throw Error('PLANNING_READ_SHOULD_NOT_RUN');},listCanonicalAuditors:async()=>auditors});
 await assert.rejects(()=>deniedOverlay.mutate({actor:{id:'b',role:'auditor'},auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}}),/NOT_AUTHORIZED/);
+await assert.rejects(()=>deniedOverlay.mutate({actor,auditorId:'a',expectedVersion:Number.MAX_SAFE_INTEGER,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}}),/VERSION_CONFLICT/);
+await assert.rejects(()=>deniedOverlay.mutate({actor,auditorId:'a',expectedVersion:3,mutation:[]}),/INVALID_MUTATION/);
 let lastMutation=null;
 const guarded=createPlanningOverlayService({service:{read:async(a,id)=>base(id),mutate:async args=>(lastMutation=args,{success:true})},readPlanningRows:async()=>rows,listCanonicalAuditors:async()=>auditors});
 await assert.rejects(()=>guarded.mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',fromDate:'2027-01-12',toDate:'2027-01-12',wholeDay:true}}),/COMMITTED_CONFLICT/);

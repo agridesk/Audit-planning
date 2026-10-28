@@ -561,7 +561,7 @@ function managerOpen(apValues,email,scopeValues,companyValues,audValues){
   const count=k=>rows.filter(x=>x.statusKey===k).length;
   return{success:true,view:'open',fastFirstPaint:false,enrichmentAvailable:true,managerEmail:email,rows,counts:{total:rows.length,pendingPlanning:count('PENDING_PLANNING'),pendingApproval:count('PENDING_APPROVAL'),approved:count('APPROVED'),accepted:count('ACCEPTED')}};
 }
-async function managerOpenRead(email){const t=Date.now(),actorEmail=clean(email).toLowerCase(),vr=await sheetsBatchGet(['Audit planning!A1:BW483','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256']),aud=vr[3]?.values||[],catalog=scopeCatalog(vr[1]?.values||[]);const out=managerOpen(vr[0]?.values||[],actorEmail,vr[1]?.values||[],vr[2]?.values||[],aud);for(const row of out.rows||[]){const months=extensionMonthsForScopes(catalog,row.scopes||[]);row.extensionMonths=months;row.extMonths=months;row.canExtend=null;}out.fastFirstPaint=true;out.actorDisplayName=directAuditorDisplayName(aud,actorEmail);out.build=BUILD;out.serverMs=Date.now()-t;return out;}
+async function managerOpenRead(email){const t=Date.now(),actorEmail=clean(email).toLowerCase(),vr=await sheetsBatchGet(['Audit planning!A1:BW2000','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256']),aud=vr[3]?.values||[],catalog=scopeCatalog(vr[1]?.values||[]);const out=managerOpen(vr[0]?.values||[],actorEmail,vr[1]?.values||[],vr[2]?.values||[],aud);for(const row of out.rows||[]){const months=extensionMonthsForScopes(catalog,row.scopes||[]);row.extensionMonths=months;row.extMonths=months;row.canExtend=null;}out.fastFirstPaint=true;out.actorDisplayName=directAuditorDisplayName(aud,actorEmail);out.build=BUILD;out.serverMs=Date.now()-t;return out;}
 
 function actorAllowedActions(c){
   const out=[];if(c?.canPlan)out.push('PLAN');if(c?.canApprove)out.push('APPROVE');if(c?.canAccept||c?.canAcceptOnBehalf)out.push('ACCEPT');if(c?.canComplete)out.push('COMPLETE');if(c?.canCancel)out.push('CANCEL');return out;
@@ -879,7 +879,7 @@ async function directManagerApprove(identity,body){
   if(!auditId)throw new Error('AUDIT_ID_REQUIRED');
   return withDirectManagerActionLock(auditId,async()=>{
     const readStarted=Date.now(),vr=await sheetsBatchGet(['Audit planning!A1:BW483','Auditors!A1:Z256','Companies!A1:AJ686','Config_Scopes!A1:Z128']),readMs=Date.now()-readStarted;
-    const ap=vr[0]?.values||[],found=findAudit(ap,auditId);if(!found)throw new Error('AUDIT_NOT_FOUND');
+    const ap=vr[0]?.values||[];if(!ap.length||ap.length>=2000)throw new Error('CANONICAL_PLANNING_INCOMPLETE');const found=findAudit(ap,auditId);if(!found)throw new Error('AUDIT_NOT_FOUND');
     const h=found.h,row=found.row.slice(),beforeStatus=val(row,col(h,['Status'])),beforeKey=directStatusKey(beforeStatus);
     if(beforeKey==='ACCEPTED')return{success:true,idempotent:true,auditId,action:'APPROVE',beforeStatus:'Accepted',newStatus:'Accepted',afterStatus:'ACCEPTED',afterStatusDisplay:'Accepted',directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_APPROVE',readMs,writeMs:0,sideEffectMs:0,totalMs:Date.now()-started};
     if(beforeKey!=='PENDING_APPROVAL')throw new Error('STATUS_TRANSITION_BLOCKED');

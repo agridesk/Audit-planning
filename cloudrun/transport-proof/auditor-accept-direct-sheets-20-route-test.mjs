@@ -27,4 +27,6 @@ assert.match(ui,/String\(actorRole\)\.toLowerCase\(\)==='auditor'\?'\/api\/v1\/a
 assert.match(ui,/expectedRevision:audit\.sourceRevision/);
 assert.match(s,/if\(action==='ACCEPT' && process\.env\.AMS_AUDITOR_DIRECT_ACCEPT_ENABLED==='true'\)/);
 assert.match(dockerfile,/^COPY auditor-accept-direct-sheets-20\.mjs \.\/\s*$/m);
-console.log('DIRECT_AUDITOR_ACCEPT_ROUTE_FENCED_SOURCE_PASS 22');
+assert.match(s,/enabled:process\.env\.AMS_AUDITOR_DIRECT_ACCEPT_ENABLED!=='true'&&process\.env\.AMS_MANAGER_CANONICAL_GAS_WRITE_ENABLED/);
+assert.match(s,/DIRECT_LIFECYCLE_UNSUPPORTED_MANAGER_ACTION/);
+console.log('DIRECT_AUDITOR_ACCEPT_ROUTE_FENCED_SOURCE_PASS 24');

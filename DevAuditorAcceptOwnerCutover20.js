@@ -30,7 +30,7 @@ function RUN_DEV_AUDITOR_ACCEPT_OWNER_DIAGNOSTIC_20(){
 function AMS_DEV_AcceptOwnerCheck_20_(){
   var actual=ScriptApp.getScriptId();
   if(actual!==AMS_DEV_ACCEPT_OWNER_SCRIPT_ID_20)throw new Error('CUTOVER_BLOCKED_NOT_DEV_SCRIPT');
-  if(typeof ENV_isDev_!=='function'||ENV_isDev_()!==true)throw new Error('CUTOVER_BLOCKED_NOT_DEV_ENV');
+  if(typeof V5_ENTRY_isDevEnv_!=='function'||V5_ENTRY_isDevEnv_()!==true)throw new Error('CUTOVER_BLOCKED_NOT_DEV_ENV');
   if(typeof Status_applyAction!=='function'||typeof V5_ENTRY_isDevEnv_!=='function'||V5_ENTRY_isDevEnv_()!==true)
     throw new Error('CUTOVER_BLOCKED_GAS_RUNTIME_NOT_VERIFIED');
   var ss=SpreadsheetApp.getActiveSpreadsheet();

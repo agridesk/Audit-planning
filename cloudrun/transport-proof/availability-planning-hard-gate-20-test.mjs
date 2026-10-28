@@ -17,4 +17,5 @@ assert.throws(()=>enforceAvailabilityHardGate20({document:{blocks:[null],baselin
 assert.throws(()=>enforceAvailabilityHardGate20({document:{blocks:[{state:'UNKNOWN',date:'2027-01-12',wholeDay:true}],baselineExceptions:[],baselineReleases:[]},blocks:plan}),/AVAILABILITY_HARD_GATE_SOURCE_INVALID/);
 assert.equal(enforceAvailabilityHardGate20({document:{blocks:[],baselineExceptions:[],baselineReleases:[]},blocks:[{date:'2027-01-12',start:'09:05',end:'09:45'}]}),true);
 assert.throws(()=>enforceAvailabilityHardGate20({document:{blocks:[],baselineExceptions:[],baselineReleases:[]},blocks:[{date:'2027-01-12',start:'09:60',end:'10:00'}]}),/PLANNING_INTERVAL_INVALID/);
-console.log('Availability HARD planning gate: 14 checks passed');
+assert.throws(()=>enforceAvailabilityHardGate20({document:[],blocks:plan}),/AVAILABILITY_HARD_GATE_INPUT_INVALID/);
+console.log('Availability HARD planning gate: 15 checks passed');

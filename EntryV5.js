@@ -405,7 +405,7 @@ function doPost(e) {
     if(action20==='CANCEL'&&!reason20)return respond20({success:false,error:'CANCEL_REASON_REQUIRED'});
     // Fast fail-closed on the legacy GAS entry when the DEV Cloud Run Auditor
     // Accept owner cutover is active. Default property absent => unchanged.
-    if(action20==='ACCEPT') {
+    if(action20==='ACCEPT' && V5_ENTRY_isDevEnv_()) {
       try {
         if(PropertiesService.getScriptProperties().getProperty('AMS_AUDITOR_ACCEPT_CANONICAL_OWNER_20')==='CLOUD_RUN')
           return respond20({success:false,error:'AUDITOR_ACCEPT_CANONICAL_OWNER_CLOUD_RUN'});

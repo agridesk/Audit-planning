@@ -23,6 +23,7 @@ COPY auth-session-policy.mjs ./
 COPY auth-session-revocation-20.js ./
 COPY auth-fast-otp-20.mjs ./
 COPY manager-canonical-write-bridge-20.mjs ./
+COPY auditor-accept-direct-sheets-20.mjs ./
 COPY combined-visit-*.mjs ./
 COPY server-r4.js ./
 COPY server-r5.js ./

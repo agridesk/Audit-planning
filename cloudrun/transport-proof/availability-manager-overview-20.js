@@ -15,7 +15,7 @@ function freshness(meta,fromDate,toDate){
  if(cf>f||ct<t)return {status:'OUTSIDE_CONFIRMATION',label:'Not confirmed for this period'};
  if(meta?.lastAvailabilityChangeAt&&(!Number.isFinite(Date.parse(meta.lastAvailabilityChangeAt))||(Date.parse(meta.lastAvailabilityChangeAt)>Date.parse(c.confirmedAt)&&(meta?.historyComplete!==true||!Array.isArray(meta?.changes)||meta.changes.length===0))))return {status:'REVIEW_NEEDED',label:'Review needed'};
  const changes=Array.isArray(meta?.changes)?meta.changes:[];
- if(meta?.historyComplete===true&&changes.some(x=>!x||typeof x!=='object'||Array.isArray(x)||typeof x.substantive!=='boolean'||!x.at||!Number.isFinite(Date.parse(x.at))))return {status:'REVIEW_NEEDED',label:'Review needed'};
+ if(meta?.historyComplete===true&&changes.some(x=>!x||typeof x!=='object'||Array.isArray(x)||typeof x.substantive!=='boolean'||!x.at||!Number.isFinite(Date.parse(x.at))||(x.substantive===true&&x.action!=='SET_RECURRING'&&(!x.fromDate||!x.toDate))))return {status:'REVIEW_NEEDED',label:'Review needed'};
  if(meta?.historyComplete===true&&!Array.isArray(meta?.changes))return {status:'REVIEW_NEEDED',label:'Review needed'};
  if(meta?.historyComplete===true&&changes.length===0&&Number.isSafeInteger(meta?.availabilityVersion)&&Number.isSafeInteger(c.availabilityVersion)&&meta.availabilityVersion!==c.availabilityVersion)return {status:'REVIEW_NEEDED',label:'Review needed'};
  if(!Number.isSafeInteger(c.availabilityVersion)||!Number.isSafeInteger(meta?.availabilityVersion)||c.availabilityVersion<0||meta.availabilityVersion<0||c.availabilityVersion>meta.availabilityVersion)return {status:'REVIEW_NEEDED',label:'Review needed'};

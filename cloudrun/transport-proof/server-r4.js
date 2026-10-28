@@ -1786,7 +1786,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     const auditId=clean(u.searchParams.get('auditId'));
     if(!/^[\p{L}\p{N}_,.-]{1,120}$/u.test(auditId))return send(res,400,{success:false,error:'INVALID_AUDIT_ID'});
     try{
-      const rows=(await sheetsBatchGet(['Audit planning!A1:BW483']))[0]?.values||[];
+      const rows=(await sheetsBatchGet(['Audit planning!A1:BW2000']))[0]?.values||[];
       const found=findAudit(rows,auditId);
       if(!found)return send(res,404,{success:false,error:'AUDIT_NOT_FOUND'});
       const uid=clean(val(found.row,col(found.h,['Auditor_UID','Auditor UID'])));

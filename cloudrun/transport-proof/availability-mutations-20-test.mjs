@@ -55,4 +55,7 @@ assert.equal(partialRemoval.payload.wholeDay,false);
 assert.equal(partialRemoval.payload.start,'09:00');
 assert.equal(partialRemoval.payload.end,'12:00');
 assert.throws(()=>prepare({...base,snapshot:{version:2,blocks:[]},mutation:block}),/CANONICAL_BASELINES_REQUIRED/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,blocks:[],baselineReleases:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'missing',date:'2027-01-05',wholeDay:true}}),/CANONICAL_BASELINES_REQUIRED/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,blocks:[]},mutation:{action:'RELEASE_BASELINE',targetExceptionId:'missing',date:'2027-01-05',wholeDay:true}}),/CANONICAL_BASELINES_REQUIRED/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,blocks:[]},mutation:{action:'REMOVE_HARD_BLOCK',targetExceptionId:'missing',date:'2027-01-05',wholeDay:true}}),/CANONICAL_BASELINES_REQUIRED/);
 console.log(`${n} mutation policy checks and HARD edit regressions passed`);

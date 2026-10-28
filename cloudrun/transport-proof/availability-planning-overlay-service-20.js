@@ -61,6 +61,8 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
  async function mutate({actor,auditorId,expectedVersion,mutation,now}){
   const role=clean(actor?.role).toLowerCase(),actorId=clean(actor?.id),target=clean(auditorId);
   if(!actorId||!target||!(role==='manager'||role==='auditor'&&actorId===target))throw Error('NOT_AUTHORIZED');
+  if(!Number.isSafeInteger(expectedVersion)||expectedVersion<0||expectedVersion>=Number.MAX_SAFE_INTEGER)throw Error('VERSION_CONFLICT');
+  if(!mutation||typeof mutation!=='object'||Array.isArray(mutation))throw Error('INVALID_MUTATION');
   let affectedAudits=[];
   if(['BLOCK_PERIOD','EDIT_HARD_BLOCK','SET_FREE_OVERRIDE'].includes(mutation?.action)){
    const fromDate=clean(mutation.fromDate||mutation.date);

@@ -1049,18 +1049,10 @@ function directExistingSuccessorRows(ap,auditId,actorEmail,cfgValues,companies){
   }
   return out;
 }
-// When DEV direct Accept is cut over, Complete shares its per-audit mutex.
-// Legacy path is byte-for-byte unchanged while the cutover feature is disabled.
-async function directManagerComplete(identity,body){
-  return process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_AUDITOR_DIRECT_ACCEPT_ENABLED==='true'
-    ?withDirectManagerActionLock(clean(body?.auditId),()=>directComplete(identity,body,'MANAGER'))
-    :directComplete(identity,body,'MANAGER');
-}
-async function directAuditorComplete(identity,body){
-  return process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_AUDITOR_DIRECT_ACCEPT_ENABLED==='true'
-    ?withDirectManagerActionLock(clean(body?.auditId),()=>directComplete(identity,body,'AUDITOR'))
-    :directComplete(identity,body,'AUDITOR');
-}
+// directComplete already acquires withDirectManagerActionLock internally.
+// Do not nest that same lock: nested acquisition deadlocks the audit.
+async function directManagerComplete(identity,body){return directComplete(identity,body,'MANAGER');}
+async function directAuditorComplete(identity,body){return directComplete(identity,body,'AUDITOR');}
 function directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companyScopes,companyUid,stamp){
   const h=found.h,row=found.row,oh=obs[0]||[],lh=links[0]||[],csH=companyScopes[0]||[];
   const oi=col(oh,['Obligation_ID','Obligation ID']),ocs=col(oh,['Company_Scope_ID','Company Scope ID']),ocu=col(oh,['Company_UID','Company UID']),osc=col(oh,['ScopeCode','Scope Code']),ock=col(oh,['Cycle_Key','Cycle Key']),ots=col(oh,['Trigger_Source','Trigger Source']),ost=col(oh,['Obligation_State','Obligation State']),obe=col(oh,['Base_Expiry_Date','Base Expiry Date']),oee=col(oh,['Effective_Expiry_Date','Effective Expiry Date']),opf=col(oh,['Planning_Window_From','Planning Window From']),opt=col(oh,['Planning_Window_To','Planning Window To']),ofh=col(oh,['Formal_Hours','Formal Hours']),opa=col(oh,['Preassigned_Auditor_Email']),oas=col(oh,['Allow_Self_Planning']),oup=col(oh,['Updated_At','Updated At']),osrc=col(oh,['Source_Audit_ID']);

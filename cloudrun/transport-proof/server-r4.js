@@ -776,6 +776,7 @@ async function canonicalManagerAction(identity,body){
   if(managerAction==='cancel')return directManagerCancel(identity,body);
   if(managerAction==='reject')return directManagerReject(identity,body);
   if(managerAction==='complete')return directManagerComplete(identity,body);
+  if(process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_AUDITOR_DIRECT_ACCEPT_ENABLED==='true')throw new Error('DIRECT_LIFECYCLE_UNSUPPORTED_MANAGER_ACTION');
   if(!GAS_WRITE_URL||!WRITE_KEY)throw new Error('WRITE_BRIDGE_NOT_CONFIGURED');
   const writeUrl=new URL(GAS_WRITE_URL);writeUrl.searchParams.set('action','externalmanageraction');
   const r=await fetch(writeUrl,{method:'POST',headers:{'content-type':'application/json'},redirect:'follow',body:JSON.stringify({bridgeKey:WRITE_KEY,auditId,managerAction,actorEmail:clean(identity.email).toLowerCase(),options})});

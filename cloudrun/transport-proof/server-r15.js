@@ -16,6 +16,7 @@ import {createSwapDirectProposalStore} from './swap-direct-proposal-store-20.mjs
 import {URL} from 'node:url';
 import {createAvailabilityHttpRouter} from './availability-http-api-20.js';
 import {createAvailabilityService} from './availability-storage-service-20.js';
+import {enforceAvailabilityHardGate20} from './availability-planning-hard-gate-20.js';
 import {createFirestoreAvailabilityAdapter} from './availability-firestore-adapter-20.js';
 import {createPlanningOverlayService} from './availability-planning-overlay-service-20.js';
 import {createPlanningReadCache} from './availability-planning-read-cache-20.js';
@@ -735,6 +736,17 @@ async function proxy(req,res){
  const headers={...req.headers};delete headers.host;delete headers.connection;delete headers['content-length'];
  const init={method:req.method,headers,redirect:'manual'};
  if(!['GET','HEAD'].includes(req.method)){const chunks=[];for await(const c of req)chunks.push(c);init.body=Buffer.concat(chunks);}
+ if(runtime.isDev&&req.method==='POST'&&new URL(req.url||'/','http://localhost').pathname==='/api/v1/planning/direct-commit'){
+  const actor=await session(req);
+  if(!actor)throw Error('PLANNING_SESSION_REQUIRED');
+  let body;try{body=JSON.parse(init.body?.toString('utf8')||'{}');}catch{throw Error('PLANNING_BODY_INVALID');}
+  const email=String(body.auditorEmail||'').trim().toLowerCase();
+  const candidates=(await getRoster()).filter(x=>x.role==='auditor'&&x.email===email);
+  if(candidates.length!==1)throw Error('PLANNING_AUDITOR_UID_UNRESOLVED');
+  if(actor.role==='auditor'&&actor.auditorId!==candidates[0].auditorId)throw Error('PLANNING_AUDITOR_IDENTITY_MISMATCH');
+  const doc=await service.read({role:'manager',id:actor.auditorId},candidates[0].auditorId);
+  enforceAvailabilityHardGate20({document:doc,blocks:body.blocks});
+ }
  const r=await fetch(url,init);const h={};r.headers.forEach((v,k)=>{if(k!=='set-cookie'&&!['content-length','connection','transfer-encoding'].includes(k))h[k]=v;});const multiCookies=r.headers.getSetCookie();if(multiCookies.length)h['set-cookie']=multiCookies;
  const responseBody=Buffer.from(await r.arrayBuffer());
  const mutationPath=new URL(req.url||'/','http://localhost').pathname;

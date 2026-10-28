@@ -89,4 +89,17 @@ await test('durable planning lease serializes planning and availability across s
  assert.equal(blocked.version,released.version+1);
  store.delete(id);
 });
+await test('simultaneous cross-instance planning lease acquisition has exactly one winner',async()=>{
+ const id='aud-lease-race',actor={id:'manager1',role:'manager'};
+ const other=createAvailabilityService(adapter);
+ const results=await Promise.allSettled([
+  service.acquirePlanningLease({actor,auditorId:id,auditId:'audit-left'}),
+  other.acquirePlanningLease({actor,auditorId:id,auditId:'audit-right'})
+ ]);
+ assert.equal(results.filter(x=>x.status==='fulfilled').length,1);
+ assert.equal(results.filter(x=>x.status==='rejected').length,1);
+ const winner=results.find(x=>x.status==='fulfilled').value;
+ await other.releasePlanningLease({actor,auditorId:id,token:winner.token});
+ store.delete(id);
+});
 console.log(n,'storage service checks passed');

@@ -8,7 +8,7 @@ const clean=x=>String(x??'').trim();
 const states=new Set(['FREE','SOFT','PROVISIONAL','HARD','COMMITTED']);
 function freshness(meta,fromDate,toDate){
  const c=meta?.confirmation;
- if(!c?.confirmedAt||!c?.fromDate||!c?.throughDate||!Number.isFinite(Date.parse(c.confirmedAt)))return {status:'NOT_CONFIRMED',label:'Not confirmed'};
+ if(typeof c?.confirmedAt!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(c.confirmedAt)||!c?.fromDate||!c?.throughDate||!Number.isFinite(Date.parse(c.confirmedAt)))return {status:'NOT_CONFIRMED',label:'Not confirmed'};
  let cf,ct;try{cf=dateNumber(c.fromDate);ct=dateNumber(c.throughDate);}catch{return {status:'NOT_CONFIRMED',label:'Not confirmed'};}
  if(cf>ct)return {status:'NOT_CONFIRMED',label:'Not confirmed'};
  const f=dateNumber(fromDate),t=dateNumber(toDate);

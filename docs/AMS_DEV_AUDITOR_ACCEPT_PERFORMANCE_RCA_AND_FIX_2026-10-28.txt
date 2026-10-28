@@ -1,0 +1,67 @@
+AMS 2.0 — DEV Auditor Accept: incident, oplossing en ontwikkelregels
+Datum: 2026-10-28
+Status: PERFORMANCE DOEL BEHAALD IN DEV; functionele audittrail-/notificatiecontrole nog afzonderlijk bevestigen.
+Broncode: agridesk/Audit-planning, branch dev
+Scope: uitsluitend DEV; geen PROD- of SWAP-cutover.
+
+1. Probleem
+Auditor Accept duurde circa 13.149 ms (trace cr1793194724082), grotendeels via de oude GAS-route. Gewenst: minder dan 2.000 ms. De bestaande Cloud Run directe Sheets-route was wel geïmplementeerd, maar niet actief.
+
+2. Architectuur en cutover
+DEV Cloud Run: project audit-management-system-dev, service ams-transport-proof, region europe-west1.
+DEV spreadsheet: 1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs.
+DEV GAS script: 1AcQe5wV9uGwABV-Tv1ZXVaSEgXGHuI_au-WFzN3fh4M0L8ezHnfH93xb.
+GAS webapp deployment: AKfycbxB6Vs7dTbriWYToqSr6kovvkkkYIs4zj2m69UPevINSDfmu0DO4qUKpjoKpAlvMbqI4g, versie 424.
+
+In bestand DevAuditorAcceptOwnerCutover20.js werd RUN_DEV_AUDITOR_ACCEPT_OWNER_ENABLE_20 uitgevoerd; log: AMS_DEV_AUDITOR_ACCEPT_OWNER_CLOUD_RUN_ENABLED. Daarmee is de GAS Accept-eigenaar omgeschakeld naar CLOUD_RUN en wordt de oude GAS Accept-route afgeschermd.
+
+Daarna is op Cloud Run DEV de volgende configuratie aangezet:
+AMS_AUDITOR_DIRECT_ACCEPT_ENABLED=true
+AMS_GAS_LIFECYCLE_WRITER_RETIRED_VERIFIED=true
+AMS_MANAGER_LIFECYCLE_OWNER_SHARED_VERIFIED=true
+De service kreeg revisie ams-transport-proof-03337-rw2. De flags zijn cutover-attestaties; bij volgende wijzigingen moet de feitelijke exclusiviteit van alle relevante writers opnieuw worden getoetst. Niet blind kopiëren naar andere omgevingen.
+
+3. Eerste live fout na activering
+De snelle route werd daadwerkelijk bereikt, maar faalde met:
+DIRECT_ACCEPT_LIFECYCLE_HEADER_MISSING_Last auditor decision
+Dit kwam uit cloudrun/transport-proof/auditor-accept-direct-sheets-20.mjs. De oorspronkelijke code zocht de header met exacte tekstvergelijking. Een afwijking in hoofdletters of witruimte kon daardoor een bestaande kolom als ontbrekend behandelen.
+
+4. Correctie
+GitHub dev commit b047e0777ba5375815f9d0215fd6dc3bc5c4abe6.
+Bestand: cloudrun/transport-proof/auditor-accept-direct-sheets-20.mjs.
+De lifecycle-headerlookup normaliseert witruimte en hoofdletters, eist precies één overeenkomende kolom en weigert een write bij ontbrekende of ambigue headers. Er worden geen kolomnummers gegokt. De bestaande directe Sheets batchUpdate schrijft alleen de vijf relevante auditcellen en voegt een audittrail-queue-item toe in dezelfde batch.
+
+5. Test en live meting
+Na git pull op dev zijn in cloudrun/transport-proof alle zes Accept-tests geslaagd:
+DIRECT_AUDITOR_ACCEPT_SHEETS_ATOMIC_SOURCE_PASS 17
+DIRECT_AUDITOR_ACCEPT_ROUTE_FENCED_SOURCE_PASS 24
+LIFECYCLE_ACCEPT_CUTOVER_FAIL_CLOSED_PASS 10
+LIFECYCLE_ATOMIC_ACCEPT_SOURCE_PASS 12
+LIFECYCLE_DIRECT_AUDITOR_ACCEPT_PREPARATION_PASS 7
+LIFECYCLE_ACCEPT_ORCHESTRATOR_PASS 4
+Totaal 74 controles.
+Cloud Run DEV opnieuw gedeployed vanuit cloudrun/transport-proof met gcloud run deploy ... --source=.
+Daarna rapporteerde de echte DEV Auditor Portal Accept:
+action 1669 ms (worker 1666; RPC 1665; patch 3; trace cr1793205221910).
+Verbetering versus 13.149 ms: circa 87,3%; doel <2.000 ms gehaald in deze live meting.
+
+6. Belangrijke beperkingen / nog te verifiëren
+De gebruiker heeft de succesvolle timing bevestigd. Een afzonderlijke, expliciete controle van de uiteindelijke Accepted-status, audittrail-queueverwerking en operationele notificaties is in dit incidentverslag niet gedocumenteerd; deze mogen niet zonder bewijs als afgerond worden aangemerkt.
+De Sheets API batchUpdate is atomair als request, maar biedt geen conditionele compare-and-swap op de eerder gelezen bronrevisie. De Firestore-lock in Cloud Run is niet automatisch gedeeld met GAS LockService. Daarom zijn exclusief eigenaarschap en afscherming van concurrerende lifecycle-writers essentieel. Bij uitbreiding van Manager/Auditor lifecycle-schrijfpaden opnieuw controleren.
+Deze oplossing is uitsluitend voor DEV gevalideerd; geen PROD-goedkeuring of SWAP-wijziging afleiden.
+
+7. Ontwikkelregels
+- Begin bij het daadwerkelijke gebruikerspad en de trace: GAS versus directe Cloud Run-route.
+- Verifieer cutover-eigenaarschap en exclusiviteit vóór activering van directe writes.
+- Gebruik canonieke headers, normaliseer onschuldige tekstverschillen en fail closed bij ontbrekende/dubbele kolommen.
+- Test gericht, deploy alleen DEV, en meet vervolgens een echte Accept; source-tests bewijzen geen live latency.
+- Bevestig status, audittrail en notificatie apart.
+- Geen oude AMS-roadmaps V2.7 of eerder als actuele bron gebruiken.
+- Houd GitHub Actions-kosten laag: bundel wijzigingen en vermijd onnodige CI-runs.
+
+8. Bekende toolingvalkuilen
+clasp run en clasp run --nondev gaven NOT_FOUND, ondanks correct script-ID en bestaande deployment. Uitvoering van de functie via DEV Apps Script-editor werkte wel.
+Een lokale gcloud auth print-access-token gaf voor Sheets API 403 ACCESS_TOKEN_SCOPE_INSUFFICIENT; dat zegt niets over de Cloud Run serviceaccount-toegang.
+npm run test:auditor-accept-cutover moet vanuit cloudrun/transport-proof worden gestart, niet vanuit de repository-root.
+
+Dit document is de incident-/implementatiehistorie, geen bewijs van productiegeschiktheid.

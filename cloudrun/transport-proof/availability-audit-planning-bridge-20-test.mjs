@@ -16,7 +16,7 @@ check('other auditor isolated',()=>assert.equal(canonicalAuditBlocksForAuditor({
 check('outside range excluded',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','APPROVED','d@example.com',[block('2027-02-02')])]}).length,0));
 check('multiple slots',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','APPROVED','d@example.com',[block(),block('2027-01-13')])]}).length,2));
 check('empty committed plan fails closed',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A0','APPROVED','d@example.com',[])]}),/COMMITTED_BLOCKS_EMPTY/));
-check('legacy planning object without blocks excluded as R4',()=>assert.equal(canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('LEGACY','APPROVED','d@example.com',JSON.stringify({date:'2027-01-12',hours:3})),row('A1','APPROVED','d@example.com',[block()])]}).length,1));
+check('malformed committed plan fails closed',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','APPROVED','d@example.com','{}')]}),/COMMITTED_BLOCKS_INVALID/));
 check('bad json fails',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','APPROVED','d@example.com','{')] }),/JSON_INVALID/));
 check('unresolved historical auditor fails closed',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','APPROVED','unknown@example.com',[block()])] }),/AUDITOR_IDENTITY_UNRESOLVED/));
 check('duplicate slot fails',()=>assert.throws(()=>canonicalAuditSlotsFromPlanningRows({...args,rows:[headers,row('A1','APPROVED','d@example.com',[block(),block()])] }),/DUPLICATE/));

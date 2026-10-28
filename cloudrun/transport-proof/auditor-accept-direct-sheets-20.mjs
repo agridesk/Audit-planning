@@ -39,7 +39,10 @@ export function buildDirectAuditorAcceptSheets20({actor,auditId,expectedRevision
  if(revision(h,r)!==expectedRevision)fail('DIRECT_ACCEPT_REVISION_CONFLICT');
  if(!/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}/.test(clean(stamp)))fail('DIRECT_ACCEPT_TIMESTAMP_REQUIRED');
  const changes=[['Status','Accepted'],['Status since',stamp],['Last auditor decision','ACCEPT'],['Last auditor decision timestamp',stamp],['Auditor comment (last)','']];
- const updates=changes.map(([name,value])=>{const i=names(h,[name]);if(i<0)fail('DIRECT_ACCEPT_LIFECYCLE_HEADER_MISSING_'+name);return {updateCells:{range:{sheetId:sheetIds.audit,startRowIndex:at-1,endRowIndex:at,startColumnIndex:i,endColumnIndex:i+1},rows:[{values:[setCell(i,value)]}],fields:'userEnteredValue'}}});
+ // Fail closed on absent canonical columns: never write to a guessed column.
+ // Keep the original headers intact; whitespace in Sheets headers is non-semantic.
+ const lifecycleHeaderIndex=name=>{const canonical=v=>clean(v).replace(/\s+/g,' ').toLowerCase();const found=h.map((v,i)=>canonical(v)===canonical(name)?i:-1).filter(i=>i>=0);if(found.length!==1)fail('DIRECT_ACCEPT_LIFECYCLE_HEADER_MISSING_OR_AMBIGUOUS_'+name);return found[0];};
+ const updates=changes.map(([name,value])=>{const i=lifecycleHeaderIndex(name);return {updateCells:{range:{sheetId:sheetIds.audit,startRowIndex:at-1,endRowIndex:at,startColumnIndex:i,endColumnIndex:i+1},rows:[{values:[setCell(i,value)]}],fields:'userEnteredValue'}}});
  const trail={type:'LIFECYCLE_STATUS_CHANGED',auditId,action:'ACCEPT',actorRole:'AUDITOR',actorEmail:email,beforeStatus:'Approved',afterStatus:'Accepted',timestamp:stamp,source:'CLOUD_RUN_DIRECT_AUDITOR_ACCEPT'};
  const minute=stamp.slice(0,16),hash=createHash('md5').update('LIFECYCLE_STATUS_CHANGED|'+auditId+'|'+stamp+'|Accepted').digest('hex');
  const queue=[minute,'AUDIT_TRAIL','LIFECYCLE_STATUS_CHANGED','',auditId,cell(r,names(h,['Company'])),'[TRAIL] LIFECYCLE_STATUS_CHANGED :: '+auditId,JSON.stringify(trail),0,'',hash,'',JSON.stringify({payload:trail})];

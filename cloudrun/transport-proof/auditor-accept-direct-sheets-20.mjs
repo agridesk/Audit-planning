@@ -30,7 +30,7 @@ export function buildDirectAuditorAcceptSheets20({actor,auditId,expectedRevision
  const uid=clean(actor.uid),email=lower(actor.email),ui=names(ah,['Auditor_UID','Auditor UID']),ei=names(ah,['E-mail','Email']),ri=names(ah,['Role']),ai=names(ah,['Active']);
  if([ui,ei,ri,ai].some(i=>i<0))fail('DIRECT_ACCEPT_ROSTER_HEADERS_MISSING');
  const actors=au.slice(1).filter(ar=>cell(ar,ui)===uid);
- if(actors.length!==1||lower(cell(actors[0],ei))!==email||norm(cell(actors[0],ri))!=='AUDITOR'||norm(cell(actors[0],ai))!=='YES')fail('DIRECT_ACCEPT_IDENTITY_NOT_CURRENT');
+ if(actors.length!==1||lower(cell(actors[0],ei))!==email||norm(cell(actors[0],ri))!=='AUDITOR'||!['YES','TRUE','1','JA','ACTIVE','X'].includes(norm(cell(actors[0],ai))))fail('DIRECT_ACCEPT_IDENTITY_NOT_CURRENT');
  if(cell(r,uidIndex)!==uid)fail('DIRECT_ACCEPT_ASSIGNED_UID_MISMATCH');
  const assigned=lower(cell(r,names(h,['Assigned to','Assigned auditor','Auditor'])));
  const roster=actors[0],possible=[email,lower(uid),lower(cell(roster,names(ah,['Name']))),lower(cell(roster,names(ah,['Abbreviation'])))];

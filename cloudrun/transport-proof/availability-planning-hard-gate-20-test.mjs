@@ -5,7 +5,7 @@ const hard={id:'h1',state:'HARD',fromDate:'2027-01-12',toDate:'2027-01-12',start
 assert.equal(enforceAvailabilityHardGate20({document:{blocks:[]},blocks:plan}),true);
 assert.throws(()=>enforceAvailabilityHardGate20({document:{blocks:[hard]},blocks:plan}),/AVAILABILITY_HARD_BLOCK/);
 assert.equal(enforceAvailabilityHardGate20({document:{blocks:[hard]},blocks:[{date:'2027-01-12',start:'11:00',end:'12:00'}]}),true);
-assert.throws(()=>enforceAvailabilityHardGate20({document:{blocks:[hard,{id:'committed',state:'COMMITTED',...hard}]},blocks:plan}),/AVAILABILITY_HARD_BLOCK/);
+assert.throws(()=>enforceAvailabilityHardGate20({document:{blocks:[hard,{...hard,id:'committed',state:'COMMITTED'}]},blocks:plan}),/AVAILABILITY_HARD_BLOCK/);
 const baseline={id:'baseline',fromDate:'2027-01-12',toDate:'2027-01-12',wholeDay:true};
 assert.throws(()=>enforceAvailabilityHardGate20({document:{baselineExceptions:[baseline]},blocks:plan}),/AVAILABILITY_HARD_BLOCK/);
 assert.equal(enforceAvailabilityHardGate20({document:{baselineExceptions:[baseline],baselineReleases:[{targetExceptionId:'baseline',fromDate:'2027-01-12',toDate:'2027-01-12',start:'09:00',end:'12:00'}]},blocks:plan}),true);

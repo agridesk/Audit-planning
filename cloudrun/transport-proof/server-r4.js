@@ -905,7 +905,7 @@ async function directAuditorAcceptSheets20(identity,{auditId,expectedRevision}){
       auditId,expectedRevision,
       values:{audit:auditReads[0]?.values||[],auditors:auditReads[1]?.values||[]},
       sheetIds:{audit:ids.get('Audit planning'),queue:ids.get('Notification Queue')},
-      stamp:new Date().toISOString()
+      stamp:isoLocalStamp()
     });
     // Atomic status/metadata + audit-trail append within one Sheets API request.
     // No separate notification append and no whole-row replacement.

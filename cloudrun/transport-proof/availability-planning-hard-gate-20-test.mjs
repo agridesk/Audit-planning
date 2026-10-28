@@ -10,4 +10,6 @@ const baseline={id:'baseline',fromDate:'2027-01-12',toDate:'2027-01-12',wholeDay
 assert.throws(()=>enforceAvailabilityHardGate20({document:{blocks:[],baselineExceptions:[baseline],baselineReleases:[]},blocks:plan}),/AVAILABILITY_HARD_BLOCK/);
 assert.equal(enforceAvailabilityHardGate20({document:{blocks:[],baselineExceptions:[baseline],baselineReleases:[{targetExceptionId:'baseline',fromDate:'2027-01-12',toDate:'2027-01-12',start:'09:00',end:'12:00'}]},blocks:plan}),true);
 assert.throws(()=>enforceAvailabilityHardGate20({document:{baselineExceptions:[],baselineReleases:[],blocks:[]},blocks:[{date:'invalid',start:'09:00',end:'12:00'}]}),/INVALID_DATE/);
-console.log('Availability HARD planning gate: 7 checks passed');
+assert.throws(()=>enforceAvailabilityHardGate20({document:{blocks:[]},blocks:plan}),/AVAILABILITY_HARD_GATE_SOURCE_INVALID/);
+assert.throws(()=>enforceAvailabilityHardGate20({document:{blocks:[hard],baselineExceptions:[],baselineReleases:[]},blocks:[{date:'2027-01-12',start:'08:00',end:'09:00'},...plan]}),/AVAILABILITY_HARD_BLOCK/);
+console.log('Availability HARD planning gate: 9 checks passed');

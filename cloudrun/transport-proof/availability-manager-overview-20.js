@@ -6,16 +6,17 @@ import {resolveAvailabilityPeriod} from './availability-resolver-20.js';
 const dateNumber=s=>{if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s)||!Number.isFinite(Date.parse(s+'T00:00:00Z'))||new Date(s+'T00:00:00Z').toISOString().slice(0,10)!==s)throw Error('INVALID_DATE');return Date.parse(s+'T00:00:00Z')/86400000;};
 const clean=x=>String(x??'').trim();
 const states=new Set(['FREE','SOFT','PROVISIONAL','HARD','COMMITTED']);
+const validTimestamp=x=>typeof x==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(x)&&Number.isFinite(Date.parse(x));
 function freshness(meta,fromDate,toDate){
  const c=meta?.confirmation;
- if(typeof c?.confirmedAt!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(c.confirmedAt)||!c?.fromDate||!c?.throughDate||!Number.isFinite(Date.parse(c.confirmedAt)))return {status:'NOT_CONFIRMED',label:'Not confirmed'};
+ if(!validTimestamp(c?.confirmedAt)||!c?.fromDate||!c?.throughDate||!Number.isFinite(Date.parse(c.confirmedAt)))return {status:'NOT_CONFIRMED',label:'Not confirmed'};
  let cf,ct;try{cf=dateNumber(c.fromDate);ct=dateNumber(c.throughDate);}catch{return {status:'NOT_CONFIRMED',label:'Not confirmed'};}
  if(cf>ct)return {status:'NOT_CONFIRMED',label:'Not confirmed'};
  const f=dateNumber(fromDate),t=dateNumber(toDate);
  if(cf>f||ct<t)return {status:'OUTSIDE_CONFIRMATION',label:'Not confirmed for this period'};
- if(meta?.lastAvailabilityChangeAt&&(!Number.isFinite(Date.parse(meta.lastAvailabilityChangeAt))||(Date.parse(meta.lastAvailabilityChangeAt)>Date.parse(c.confirmedAt)&&(meta?.historyComplete!==true||!Array.isArray(meta?.changes)||meta.changes.length===0))))return {status:'REVIEW_NEEDED',label:'Review needed'};
+ if(meta?.lastAvailabilityChangeAt&&(!validTimestamp(meta.lastAvailabilityChangeAt)||(Date.parse(meta.lastAvailabilityChangeAt)>Date.parse(c.confirmedAt)&&(meta?.historyComplete!==true||!Array.isArray(meta?.changes)||meta.changes.length===0))))return {status:'REVIEW_NEEDED',label:'Review needed'};
  const changes=Array.isArray(meta?.changes)?meta.changes:[];
- if(meta?.historyComplete===true&&changes.some(x=>!x||typeof x!=='object'||Array.isArray(x)||typeof x.substantive!=='boolean'||!x.at||!Number.isFinite(Date.parse(x.at))||(x.substantive===true&&x.action!=='SET_RECURRING'&&(!x.fromDate||!x.toDate))))return {status:'REVIEW_NEEDED',label:'Review needed'};
+ if(meta?.historyComplete===true&&changes.some(x=>!x||typeof x!=='object'||Array.isArray(x)||typeof x.substantive!=='boolean'||!x.at||!validTimestamp(x.at)||(x.substantive===true&&x.action!=='SET_RECURRING'&&(!x.fromDate||!x.toDate))))return {status:'REVIEW_NEEDED',label:'Review needed'};
  if(meta?.historyComplete===true&&changes.some(x=>{if(!x?.fromDate&&!x?.toDate)return false;try{return dateNumber(x.fromDate)>dateNumber(x.toDate);}catch{return true;}}))return {status:'REVIEW_NEEDED',label:'Review needed'};
  if(meta?.historyComplete===true&&!Array.isArray(meta?.changes))return {status:'REVIEW_NEEDED',label:'Review needed'};
  if(meta?.historyComplete===true&&changes.length===0&&Number.isSafeInteger(meta?.availabilityVersion)&&Number.isSafeInteger(c.availabilityVersion)&&meta.availabilityVersion!==c.availabilityVersion)return {status:'REVIEW_NEEDED',label:'Review needed'};

@@ -40,6 +40,7 @@ await assert.rejects(()=>guarded.mutate({actor,auditorId:'a',expectedVersion:3,m
 await assert.rejects(()=>guarded.mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',start:'09:60',end:'11:00'}}),/INVALID_TIME_RANGE/);
 await assert.rejects(()=>guarded.mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'SET_FREE_OVERRIDE',date:'2027-01-12',start:'14:00',end:'13:00'}}),/INVALID_TIME_RANGE/);
 await assert.rejects(()=>guarded.mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'old-hard',date:'2027-01-12',start:'24:00',end:'24:00'}}),/INVALID_TIME_RANGE/);
+await assert.rejects(()=>guarded.mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',fromDate:'2027-01-01',toDate:'2038-01-01',wholeDay:true}}),/PERIOD_TOO_LONG/);
 const safeHard=await guarded.mutate({actor,auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',fromDate:'2027-01-12',toDate:'2027-01-12',start:'12:00',end:'13:00'}});
 assert.equal(lastMutation.mutation.action,'BLOCK_PERIOD','Nonoverlapping HARD block may be persisted');
 assert.equal(safeHard.protectedAudits.length,0);

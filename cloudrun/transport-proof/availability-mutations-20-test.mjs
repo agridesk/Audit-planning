@@ -30,7 +30,6 @@ fail({mutation:{action:'SET_RECURRING',recurring:[{weekday:2,start:'08:01',end:'
 ok({mutation:{action:'SET_FREE_OVERRIDE',fromDate:'2026-10-17',toDate:'2026-10-17',wholeDay:true}},'SET_FREE_OVERRIDE');
 fail({mutation:{action:'SET_FREE_OVERRIDE',fromDate:'2026-10-18',toDate:'2026-10-17',wholeDay:true}},'INVALID_DATE_RANGE');
 ok({snapshot:snap,mutation:{action:'REMOVE_HARD_BLOCK',targetExceptionId:'b1',fromDate:'2027-01-11',toDate:'2027-01-11',wholeDay:true}},'REMOVE_HARD_BLOCK');
-console.log(`${n} mutation policy checks passed`);
 
 const existingHard={id:'hard-existing',fromDate:'2027-01-01',toDate:'2027-01-10',wholeDay:true};
 const edited=prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],blocks:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'hard-existing',fromDate:'2027-01-03',toDate:'2027-01-09',wholeDay:false,start:'08:00',end:'18:00'}});
@@ -40,3 +39,4 @@ assert.equal(edited.payload.wholeDay,false);
 assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],blocks:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'absent',fromDate:'2027-01-03',toDate:'2027-01-09',wholeDay:true}}),/BASELINE_NOT_FOUND/);
 
 assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],blocks:[{state:'COMMITTED',date:'2027-01-05',start:'09:00',end:'12:00'}]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'hard-existing',fromDate:'2027-01-03',toDate:'2027-01-09',start:'08:00',end:'18:00'}}),/COMMITTED_CONFLICT/);
+console.log(`${n} mutation policy checks and HARD edit regressions passed`);

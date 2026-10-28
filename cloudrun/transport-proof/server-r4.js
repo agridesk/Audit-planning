@@ -932,7 +932,7 @@ async function directAuditorAcceptSheets20(identity,{auditId,expectedRevision}){
     const base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID);
     const idsFresh=directAcceptSheetIdsCache20 && directAcceptSheetIdsCache20.expires>Date.now();
     const [auditReads,metaResponse]=await Promise.all([
-      sheetsBatchGet(['Audit planning!A1:BW483','Auditors!A1:Z256']),
+      sheetsBatchGet(['Audit planning!A1:BW','Auditors!A1:Z']),
       idsFresh?Promise.resolve(null):fetch(base+'?fields=sheets.properties',{headers:{authorization:'Bearer '+token}})
     ]);
     if(metaResponse){

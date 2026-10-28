@@ -64,6 +64,7 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
    const start=mutation.wholeDay===true?'00:00':clean(mutation.start);
    const end=mutation.wholeDay===true?'24:00':clean(mutation.end);
    affectedAudits=slots.filter(slot=>slot.auditorId===auditorId&&slot.date>=fromDate&&slot.date<=toDate&&start<slot.end&&slot.start<end).map(slot=>({auditId:slot.auditId,date:slot.date,start:slot.start,end:slot.end,company:slot.company,state:slot.state}));
+   if((mutation.action==='BLOCK_PERIOD'||mutation.action==='EDIT_HARD_BLOCK')&&affectedAudits.some(a=>a.state==='COMMITTED'))throw Error('COMMITTED_CONFLICT');
    if(mutation.action==='SET_FREE_OVERRIDE'&&blocks.some(b=>(b.state==='COMMITTED'||b.state==='PROVISIONAL')&&b.date>=fromDate&&b.date<=toDate&&start<b.end&&b.start<end))throw Error('AUDIT_CONFLICT');
    // A HARD exception may cover an already planned audit: the overlay keeps the audit protected.
    // Provisional intervals are revalidated by their canonical planning owner; never delete them here.

@@ -25,6 +25,7 @@ import {createPlanningAtomicFirestoreStore} from './planning-atomic-firestore-st
 import {createPlanningAtomicCommandService} from './planning-atomic-command-service-20.js';
 import {createPlanningLifecycleAtomicService} from './planning-lifecycle-atomic-service-20.js';
 import {createPlanningAtomicRecovery} from './planning-atomic-recovery-20.js';
+import {enforcePlanningAtomicCutover20} from './planning-atomic-cutover-guard-20.js';
 import {createPlanningSheetsWritesetProjector} from './planning-sheets-writeset-projector-20.js';
 import {createPlanningSheetsAppendProjector} from './planning-sheets-append-projector-20.js';
 import {createPlanningBackfillRunner} from './planning-atomic-backfill-20.js';
@@ -849,6 +850,7 @@ async function proxy(req,res){
  const init={method:req.method,headers,redirect:'manual'};
  if(!['GET','HEAD'].includes(req.method)){const chunks=[];for await(const c of req)chunks.push(c);init.body=Buffer.concat(chunks);}
  const writerPath=new URL(req.url||'/','http://localhost').pathname;
+ enforcePlanningAtomicCutover20({enabled:planningAtomicEnabled,method:req.method,path:writerPath});
  if((planningAuthorityEnabled||planningAtomicEnabled)&&req.method==='POST'&&/^\/api\/v1\/(?:manager\/(?:approve-direct|accept-direct|reject-direct|cancel-direct|complete-direct|action|auditor-management\/audit\/transfer)|internal\/auditor\/complete-direct|auditor\/action)$/.test(writerPath))throw Error('PLANNING_AUTHORITY_WRITER_NOT_MIGRATED');
  let planningLease=null,planningLeaseActor=null,planningForwarded=false,planningWriteConfirmed=false,planningIntent=null,planningProjectionVerified=false,planningGlobalLock=null;
  try{

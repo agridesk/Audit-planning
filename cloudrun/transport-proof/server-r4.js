@@ -772,6 +772,49 @@ async function directManagerExtension(identity,body){
   });
 }
 
+async function lifecycleAuthorityPreflight20(identity,body,action,writer){
+ const enabled=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true'&&body?.authorityPreflight===true;
+ if(!enabled)return writer();
+ const capture={writes:[],appends:[],ensureRows:[]};
+ return lifecyclePreviewContext20.run(capture,async()=>{
+  const outcome=await writer();
+  if(outcome?.success!==true)throw Error('LIFECYCLE_PREFLIGHT_NOT_SUCCESSFUL');
+  if(outcome.idempotent===true)return {...outcome,authorityPreflight:true,projectionWrites:[],projectionPreconditions:[],appendIntents:[],idempotent:true};
+  if(!capture.writes.length||capture.writes.length>120)throw Error('LIFECYCLE_PREFLIGHT_WRITES_UNSUPPORTED');
+  const ranges=capture.writes.map(x=>x.range);
+  const original=await sheetsBatchGet(ranges);
+  if(original.length!==ranges.length)throw Error('LIFECYCLE_PREFLIGHT_READ_INCOMPLETE');
+  const preconditions=capture.writes.map((write,i)=>{
+   if(!Array.isArray(write.values)||write.values.length!==1||!Array.isArray(write.values[0])||!/^([^!]+)!([A-Z]+)(\\d+):([A-Z]+)(\\d+)$/.test(write.range))throw Error('LIFECYCLE_PREFLIGHT_RANGE_UNSUPPORTED');
+   return {range:write.range,before:original[i]?.values?.[0]||[]};
+  });
+  const planning=(await sheetsBatchGet(['Audit planning!A1:BW2000']))[0]?.values||[];
+  if(!planning.length||planning.length>=2000)throw Error('LIFECYCLE_PREFLIGHT_PLANNING_INCOMPLETE');
+  const auditId=clean(body?.auditId),found=findAudit(planning,auditId);
+  if(!found)throw Error('LIFECYCLE_PREFLIGHT_AUDIT_MISSING');
+  const row=found.row.slice();
+  const colNum=letters=>[...letters].reduce((value,ch)=>value*26+ch.charCodeAt(0)-64,0)-1;
+  let updated=false;
+  for(const write of capture.writes){
+   const match=/^Audit planning!([A-Z]+)(\\d+):([A-Z]+)(\\d+)$/.exec(write.range);
+   if(!match)continue;
+   if(Number(match[2])!==found.sourceRow||Number(match[4])!==found.sourceRow)throw Error('LIFECYCLE_PREFLIGHT_CROSS_AUDIT_UNSUPPORTED');
+   const from=colNum(match[1]),to=colNum(match[3]);
+   if(from<0||to<from||to>=found.h.length||write.values[0].length!==to-from+1)throw Error('LIFECYCLE_PREFLIGHT_PLANNING_RANGE_INVALID');
+   for(let j=from;j<=to;j++)row[j]=write.values[0][j-from];
+   updated=true;
+  }
+  if(!updated)throw Error('LIFECYCLE_PREFLIGHT_NO_PLANNING_MUTATION');
+  const h=found.h,at=names=>val(row,col(h,names));
+  return {success:true,authorityPreflight:true,auditId,action:clean(action).toUpperCase(),
+   expectedSourceRevision:directRowRevision(h,found.row),
+   canonicalSnapshot:{auditId,sourceRow:found.sourceRow,headers:h,row,
+    status:at(['Status']),assignedTo:at(['Assigned to','Assigned auditor','Auditor']),
+    sourceRevision:directRowRevision(h,row)},
+   projectionWrites:capture.writes,projectionPreconditions:preconditions,appendIntents:capture.appends,
+   projectionEnsureRows:capture.ensureRows,owner:'CLOUD_RUN_DEV_LIFECYCLE_PREFLIGHT'};
+ });
+}
 async function canonicalManagerAction(identity,body){
   const auditId=clean(body?.auditId),managerAction=clean(body?.action).toLowerCase();
   if(!auditId||!['approve','accept','cancel','reject','complete'].includes(managerAction))throw new Error('INVALID_MANAGER_ACTION_REQUEST');

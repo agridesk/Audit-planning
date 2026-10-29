@@ -800,7 +800,7 @@ async function proxy(req,res){
  const init={method:req.method,headers,redirect:'manual'};
  if(!['GET','HEAD'].includes(req.method)){const chunks=[];for await(const c of req)chunks.push(c);init.body=Buffer.concat(chunks);}
  const writerPath=new URL(req.url||'/','http://localhost').pathname;
- if(planningAuthorityEnabled&&req.method==='POST'&&/^\/api\/v1\/(?:manager\/(?:approve-direct|accept-direct|reject-direct|cancel-direct|complete-direct|action|auditor-management\/audit\/transfer)|internal\/auditor\/complete-direct|auditor\/action)$/.test(writerPath))throw Error('PLANNING_AUTHORITY_WRITER_NOT_MIGRATED');
+ if((planningAuthorityEnabled||planningAtomicEnabled)&&req.method==='POST'&&/^\/api\/v1\/(?:manager\/(?:approve-direct|accept-direct|reject-direct|cancel-direct|complete-direct|action|auditor-management\/audit\/transfer)|internal\/auditor\/complete-direct|auditor\/action)$/.test(writerPath))throw Error('PLANNING_AUTHORITY_WRITER_NOT_MIGRATED');
  let planningLease=null,planningLeaseActor=null,planningForwarded=false,planningWriteConfirmed=false,planningIntent=null,planningProjectionVerified=false,planningGlobalLock=null;
  try{
  if(runtime.isDev&&req.method==='POST'&&new URL(req.url||'/','http://localhost').pathname==='/api/v1/planning/direct-commit'){

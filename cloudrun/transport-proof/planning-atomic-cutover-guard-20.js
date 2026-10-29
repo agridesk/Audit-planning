@@ -4,6 +4,8 @@
  */
 const blocked=[
  /^\/api\/v1\/manager\/extension-direct$/,
+ /^\/api\/v1\/manager\/scopes\/scheme-version$/,
+ /^\/api\/v1\/manager\/auditor-identity\/firestore-write-probe$/,
  /^\/api\/v1\/internal\/auditor\/complete-direct$/,
  /^\/api\/v1\/(?:manager|auditor)\/company-management\/(?:save|scopes\/(?:hours|assign|save))$/,
  /^\/api\/v1\/manager\/company-scope-hours\/backfill$/,

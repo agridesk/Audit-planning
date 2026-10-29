@@ -809,7 +809,7 @@ async function lifecycleAuthorityPreflight20(identity,body,action,writer){
   for(const write of capture.writes){
    const match=/^Audit planning!([A-Z]+)(\\d+):([A-Z]+)(\\d+)$/.exec(write.range);
    if(!match)continue;
-   if(Number(match[2])!==found.sourceRow||Number(match[4])!==found.sourceRow)throw Error('LIFECYCLE_PREFLIGHT_CROSS_AUDIT_UNSUPPORTED');
+   if(Number(match[2])!==found.sourceRow||Number(match[4])!==found.sourceRow)continue;
    const from=colNum(match[1]),to=colNum(match[3]);
    if(from<0||to<from||to>=found.h.length||write.values[0].length!==to-from+1)throw Error('LIFECYCLE_PREFLIGHT_PLANNING_RANGE_INVALID');
    for(let j=from;j<=to;j++)row[j]=write.values[0][j-from];
@@ -825,7 +825,7 @@ async function lifecycleAuthorityPreflight20(identity,body,action,writer){
    projectionWrites:capture.writes,projectionPreconditions:preconditions,appendIntents:capture.appends,
    projectionEnsureRows:capture.ensureRows,
    removedSourceRows:capture.deletes,
-   successorSnapshots:capture.writes.filter(w=>/^Audit planning!A(\\d+):/.test(w.range)&&Number(/^Audit planning!A(\\d+):/.exec(w.range)[1])>ap.length).map(w=>{
+   successorSnapshots:capture.writes.filter(w=>/^Audit planning!A(\\d+):/.test(w.range)&&Number(/^Audit planning!A(\\d+):/.exec(w.range)[1])>planning.length).map(w=>{
     const rr=w.values[0],nextId=val(rr,col(found.h,['Audit ID']));
     if(!nextId||nextId===auditId)throw Error('LIFECYCLE_PREFLIGHT_SUCCESSOR_ID_INVALID');
     return {auditId:nextId,sourceRow:Number(/^Audit planning!A(\\d+):/.exec(w.range)[1]),headers:found.h,row:rr,status:val(rr,col(found.h,['Status'])),assignedTo:val(rr,col(found.h,['Assigned to'])),sourceRevision:directRowRevision(found.h,rr)};

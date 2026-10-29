@@ -6,7 +6,7 @@ SOURCE: exact file contents of named branch, inspected 2026-10-29. Line referenc
 Confirmed direct legacy writers and review targets:
 1. CoreStatusMachine.js
    L219-L248: Status_applyAction dispatch has DEV owner check limited to AUDITOR ACCEPT, then calls Status_checkDevWriteGuard_; PLAN may also skip this guard when payload.writeGuardAlreadyPassed is true.
-   L1073-L1109: DEV_WRITE_MODE=ALLOW_ALL compatibility path explicitly converts a central guard rejection into success for PLAN, APPROVE, ACCEPT, COMPLETE, CANCEL, DENY and REJECT. This is a concrete cutover-blocking bypass risk unless exclusive ownership is independently proven. DO NOT activate Firestore writer merely because normal guard tests pass.
+   L1073-L1109: DEV_WRITE_MODE=ALLOW_ALL compatibility path explicitly converts a central guard rejection into success for PLAN, APPROVE, ACCEPT, COMPLETE, CANCEL, DENY and REJECT. Central SystemWriteGuard.js currently explicitly accepts ALLOW_ALL (L172-L180), so this compatibility catch is not normally reached. It remains a conditional fallback and is not a proven active bypass. Crucially, ALLOW_ALL permits legacy DEV writes, and the ACCEPT-specific owner guard does not cover every lifecycle action. Exclusive ownership of all actions must be proven before cutover. DO NOT activate Firestore writer merely because normal guard tests pass.
    L579: full Audit planning row setValues (PLAN)
    L605: status setValue (simple actions)
    L646: status setValue (reopen)

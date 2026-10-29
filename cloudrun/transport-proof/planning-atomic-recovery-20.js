@@ -17,6 +17,7 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
   if(rowCheck.state!=='MATCH'||appendCheck.state!=='MATCH')return {state:'UNRESOLVED',rowState:rowCheck.state,appendState:appendCheck.state};
   const global=await gate.read();
   if(global.holder&&global.holder.operationId!==entry.operationId)throw Error('ATOMIC_RECOVERY_GATE_OWNERSHIP_MISMATCH');
+  if(global.holder&&global.holder.state!=='UNCERTAIN')throw Error('ATOMIC_RECOVERY_ACTIVE_WRITER_MUST_FINISH');
   const proof={verified:true,auditId:entry.auditId,rowHash:hash({rows:rowCheck.detail,appends:appendCheck.count})};
   await store.markProjected({auditId:entry.auditId,operationId:entry.operationId,proof});
   // A verified outbox is enough to unlock the global gate. An availability lease

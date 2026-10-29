@@ -801,6 +801,17 @@ async function proxy(req,res){
 http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url||'/','http://localhost');
+  if(req.method==='GET'&&u.pathname==='/api/v1/planning/firestore-authority-status'){
+   if(!planningAuthorityEnabled){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403);res.end();return;}
+   const auditId=String(u.searchParams.get('auditId')||'').trim();
+   if(!auditId)throw Error('PLANNING_AUDIT_ID_REQUIRED');
+   const ledger=await planningAuthority.read(auditId);
+   const latest=ledger.commits.at(-1)||null;
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify({success:true,authority:'FIRESTORE',projection:'GOOGLE_SHEETS',auditId,version:ledger.version,latestCommit:latest?{id:latest.id,state:latest.state,createdAt:latest.createdAt,updatedAt:latest.updatedAt||null}:null}));return;
+  }
   if(req.method==='GET'&&u.pathname==='/api/v1/planning/lease-status'){
    if(!runtime.isDev){res.writeHead(404);res.end();return;}
    const actor=await session(req);

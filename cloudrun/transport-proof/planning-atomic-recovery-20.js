@@ -9,7 +9,12 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
  async function recoverOne(entry){
   if(!entry||!['PENDING','UNCERTAIN','PROJECTED'].includes(entry.state)||!entry.auditId||!entry.operationId||!entry.snapshot)return {state:'SKIPPED'};
   const settled=entry.state==='PROJECTED';
-  if(settled){const gateBefore=await gate.read();if(gateBefore.holder?.operationId!==entry.operationId)return {state:'SKIPPED'};}
+  if(settled){
+   const gateBefore=await gate.read();
+   // A settled outbox may have already released its global fence while its
+   // auditor availability lease remains UNKNOWN after a second crash.
+   if(gateBefore.holder?.operationId!==entry.operationId&&!entry.auditorId)return {state:'SKIPPED'};
+  }
   const audit=await store.readAudit(entry.auditId);
   if(!audit||(settled?audit.lastProjectedOperationId!==entry.operationId:audit.pendingOperationId!==entry.operationId)||entry.multi!==true&&audit.revision!==entry.revision)throw Error('ATOMIC_RECOVERY_CANONICAL_MISMATCH');
   if(entry.multi===true){
@@ -51,6 +56,9 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
    const doc=await availabilityService.read(actor,entry.auditorId);
    const lease=doc.planningLease;
    if((lease?.state==='UNCERTAIN'||lease?.state==='ACTIVE'||lease&&lease.state===undefined)&&lease.auditId===entry.auditId){
+    const leaseSince=Date.parse(lease.state==='UNCERTAIN'?lease.uncertainAt||lease.acquiredAt||'':lease.acquiredAt||'');
+    if(!Number.isFinite(leaseSince)||Date.now()-leaseSince<30*60*1000)
+     return {state:'UNRESOLVED',reason:'AVAILABILITY_LEASE_QUARANTINE'};
     await availabilityService.reconcilePlanningLease({actor,auditorId:entry.auditorId,token:lease.token,verifiedAuditId:entry.auditId,verifiedProjectionProof:proof.rowHash});
    }
   }

@@ -55,8 +55,10 @@ export function createPlanningCutoverDataAudit({auditParity,claimsParity,store}=
    items.sort((x,y)=>x[0].localeCompare(y[0]));
    return {checked:count,unresolved,pages,truncated,problems,signature:fingerprint(items)};
   }
+  if(claims.ready===true&&!/^[0-9a-f]{64}$/.test(claims.claimsFingerprint||''))throw Error('CUTOVER_CLAIMS_FINGERPRINT_REQUIRED');
   const initialOutbox=await scanOutbox();
   const claimsAgain=await claimsParity.verify({asOfDate,maxPages});
+  if(claimsAgain.ready===true&&!/^[0-9a-f]{64}$/.test(claimsAgain.claimsFingerprint||''))throw Error('CUTOVER_CLAIMS_FINGERPRINT_REQUIRED');
   if(claimsAgain.sourceManifest!==audits.sourceManifest)throw Error('CUTOVER_SOURCE_CHANGED_DURING_SECOND_CLAIM_SCAN');
   const finalOutbox=await scanOutbox();
   if(initialOutbox.signature!==finalOutbox.signature||initialOutbox.truncated!==finalOutbox.truncated)throw Error('CUTOVER_OUTBOX_CHANGED_DURING_SCAN');

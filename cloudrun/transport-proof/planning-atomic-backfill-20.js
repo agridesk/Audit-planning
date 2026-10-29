@@ -66,7 +66,7 @@ export function createPlanningBackfillRunner({atomicStore,readPlanningRows,getRo
   const prepared=preparePlanningBackfill({rows:await readPlanningRows(),roster:await getRoster()});
   // One manifest covers every source audit and every canonical row, not only
   // the current batch. Cross-batch drift cannot be mistaken for clean backfill.
-  const manifest=hash(JSON.stringify(prepared.items.map(x=>[x.auditId,x.snapshot.sourceRow,x.snapshot.row,x.auditorId,x.blocks])));
+  const manifest=hash(JSON.stringify([new Date().toISOString().slice(0,10),prepared.items.map(x=>[x.auditId,x.snapshot.sourceRow,x.snapshot.headers,x.snapshot.row,x.auditorId,x.blocks])]));
   const targets=prepared.items.filter(x=>x.snapshot.sourceRow>=startRow).slice(0,limit);
   if(dryRun)return {dryRun:true,sourceManifest:manifest,...prepared.stats,batch:targets.length,nextRow:targets.at(-1)?.snapshot.sourceRow+1||null};
   if(!/^[0-9a-f]{64}$/.test(sourceManifest||'')||sourceManifest!==manifest)throw Error('BACKFILL_SOURCE_MANIFEST_CHANGED');

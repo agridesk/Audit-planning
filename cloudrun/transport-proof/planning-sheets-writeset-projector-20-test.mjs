@@ -49,4 +49,5 @@ deny=false;loseFenceAfterWrite=true;
 await assert.rejects(()=>projector.apply({operationId:'operation-9',gateToken:'token-9',plan}),/FENCE_LOST/);
 assert.equal(writeCount,2);
 assert.equal((await projector.inspect(plan)).state,'MATCH');
+await assert.rejects(()=>projector.inspect({projectionWrites:[plan.projectionWrites[0],plan.projectionWrites[0]],projectionPreconditions:[plan.projectionPreconditions[0],plan.projectionPreconditions[0]]}),/SHEETS_PROJECTION_DUPLICATE_TARGET/);
 console.log('Sheets writeset projection: raw idempotence, row expansion, replay, conflict and fencing passed');

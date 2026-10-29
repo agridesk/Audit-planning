@@ -30,4 +30,10 @@ outbox=[];
 assert.equal((await paged.verify({asOfDate:'2026-10-29'})).ready,true);
 pageManifest='modified';
 await assert.rejects(()=>paged.verify({asOfDate:'2026-10-29'}),/CUTOVER_AUDIT_SOURCE_CHANGED_DURING_SCAN/);
+const mismatch=createPlanningCutoverDataAudit({
+ auditParity:{async verify(){return {sourceManifest:'before',sourceAudits:1,batch:1,verified:1,remaining:false,problems:[]};}},
+ claimsParity:{async verify(){return {sourceManifest:'after',ready:true,expected:0,checked:0,totalProblems:0,problems:[]};}},
+ store:{async listOutbox(){return {entries:[],nextPageToken:null};}}
+});
+await assert.rejects(()=>mismatch.verify(),/CUTOVER_SOURCE_CHANGED_BETWEEN_AUDIT_AND_CLAIMS/);
 console.log('Cutover readiness: full row/claim parity and no unresolved outbox needed before switch');

@@ -87,6 +87,7 @@ export function createAvailabilityService(adapter){
   const id=str(auditorId);authorize(actor,id);
   const current=await read(actor,id);
   if(!token||current.planningLease?.token!==token)throw Error('PLANNING_LEASE_TOKEN_MISMATCH');
+  if(current.planningLease.state==='UNCERTAIN')throw Error('PLANNING_RECONCILIATION_REQUIRED');
   if(current.version>=Number.MAX_SAFE_INTEGER-1)throw Error('VERSION_CONFLICT');
   const next=clone(current);next.version=current.version+1;if(next.metadata?.confirmation)next.metadata.confirmation.availabilityVersion=next.version;next.planningLease=null;
   if(await adapter.compareAndSwap(id,current.version,next)!==true)throw Error('VERSION_CONFLICT');

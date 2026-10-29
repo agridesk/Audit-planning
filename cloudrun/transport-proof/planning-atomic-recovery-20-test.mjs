@@ -11,6 +11,13 @@ matched=false;
 assert.equal((await recovery.scan()).unresolved,1);assert.equal(settled,0);
 matched=true;gateState='ACTIVE';
 assert.equal((await recovery.scan()).errors,1);assert.equal(settled,0);
+// An orphaned ACTIVE writer cannot be proven dead by wall-clock age alone.
+const veryOldActive=createPlanningAtomicRecovery({
+ store,projector,appendProjector,
+ gate:{async read(){return {holder:{token:'old',operationId:'op1',state:'ACTIVE',acquiredAt:new Date(Date.now()-48*3600000).toISOString()}};}}
+});
+assert.equal((await veryOldActive.scan()).errors,1);
+assert.equal(settled,0);
 gateState='UNCERTAIN';
 const gateFresh={state:'UNCERTAIN',uncertainAt:new Date().toISOString()};
 const freshRecovery=createPlanningAtomicRecovery({

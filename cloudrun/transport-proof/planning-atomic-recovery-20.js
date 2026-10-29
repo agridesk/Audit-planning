@@ -51,6 +51,7 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
    if(current.holder?.token!==global.holder.token)throw Error('ATOMIC_RECOVERY_GATE_MOVED');
    await gate.release({token:global.holder.token,verified:true,proof:'CANONICAL_FIRESTORE_SHEETS_OUTBOX_MATCH'});
   }
+  let leaseRecovered=false;
   if(availabilityService&&entry.auditorId&&typeof availabilityService.read==='function'&&typeof availabilityService.reconcilePlanningLease==='function'){
    const actor={role:'manager',id:'atomic-recovery'};
    const doc=await availabilityService.read(actor,entry.auditorId);
@@ -60,8 +61,10 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
     if(!Number.isFinite(leaseSince)||Date.now()-leaseSince<30*60*1000)
      return {state:'UNRESOLVED',reason:'AVAILABILITY_LEASE_QUARANTINE'};
     await availabilityService.reconcilePlanningLease({actor,auditorId:entry.auditorId,token:lease.token,verifiedAuditId:entry.auditId,verifiedProjectionProof:proof.rowHash});
+    leaseRecovered=true;
    }
   }
+  if(settled&&!global.holder&&!leaseRecovered)return {state:'SKIPPED'};
   return {state:'PROJECTED'};
  }
  let nextScanPageToken='';

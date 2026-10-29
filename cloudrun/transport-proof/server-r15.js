@@ -856,9 +856,11 @@ http.createServer(async(req,res)=>{
    if(JSON.stringify(signature(intervals))!==JSON.stringify(signature(lease.plannedBlocks)))throw Error('PLANNING_RECOVERY_INTERVAL_MISMATCH');
    if(!await verifyUncertainPlanningLeaseInSheets(lease))throw Error('PLANNING_RECOVERY_AVAILABILITY_NOT_VERIFIED');
    if(planningAuthorityEnabled){
-    const ledger=await planningAuthority.read(auditId),pending=ledger.commits.filter(x=>x.auditorId===auditorId&&['PENDING','UNCERTAIN'].includes(x.state));
-    if(pending.length!==1||JSON.stringify(pending[0].blocks.map(x=>[x.date,x.start,x.end]).sort())!==JSON.stringify(lease.plannedBlocks.map(x=>[x.date,x.start,x.end]).sort()))throw Error('PLANNING_RECOVERY_LEDGER_MISMATCH');
-    await planningAuthority.transition({auditId,commitId:pending[0].id,from:pending[0].state,to:'PROJECTED',detail:'VERIFIED_SHEETS_PROJECTION'});
+    const ledger=await planningAuthority.read(auditId);
+    const unresolved=ledger.commits.filter(x=>x.auditorId===auditorId&&['PENDING','UNCERTAIN'].includes(x.state));
+    const candidates=unresolved.length?unresolved:ledger.commits.filter(x=>x.auditorId===auditorId&&x.state==='PROJECTED').slice(-1);
+    if(candidates.length!==1||JSON.stringify(candidates[0].blocks.map(x=>[x.date,x.start,x.end]).sort())!==JSON.stringify(lease.plannedBlocks.map(x=>[x.date,x.start,x.end]).sort()))throw Error('PLANNING_RECOVERY_LEDGER_MISMATCH');
+    if(candidates[0].state!=='PROJECTED')await planningAuthority.transition({auditId,commitId:candidates[0].id,from:candidates[0].state,to:'PROJECTED',detail:'VERIFIED_SHEETS_PROJECTION'});
    }
    const result=await service.reconcilePlanningLease({actor:verifiedActor,auditorId,token:lease.token,verifiedAuditId:auditId});
    planningCache.invalidate();

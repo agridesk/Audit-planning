@@ -67,8 +67,10 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   if(second.state!=='READY')throw Error('SHEETS_PROJECTION_CHANGED_DURING_WRITE');
   const payload={valueInputOption:'USER_ENTERED',data:changes.map(x=>({range:x.range,values:[x.values]})),includeValuesInResponse:false};
   await request(base+'/values:batchUpdate','POST',payload);
+  await verifyFence({operationId,gateToken});
   const verified=await inspect(plan);
   if(verified.state!=='MATCH')throw Error('SHEETS_PROJECTION_VERIFY_FAILED');
+  await verifyFence({operationId,gateToken});
   return {operationId,idempotent:true,projected:true,replayed:false};
  }
  return Object.freeze({inspect,apply});

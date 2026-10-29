@@ -71,6 +71,17 @@ export function createAvailabilityService(adapter){
   if(await adapter.compareAndSwap(id,current.version,next)!==true)throw Error('VERSION_CONFLICT');
   return {token,auditorId:id,auditId:str(auditId),version:next.version,document:next};
  }
+ async function markPlanningLeaseUncertain({actor,auditorId,token,reason='WRITE_OUTCOME_UNKNOWN',now=new Date().toISOString()}){
+  const id=str(auditorId);authorize(actor,id);
+  const current=await read(actor,id);
+  if(!token||current.planningLease?.token!==token)throw Error('PLANNING_LEASE_TOKEN_MISMATCH');
+  if(current.version>=Number.MAX_SAFE_INTEGER-1)throw Error('VERSION_CONFLICT');
+  const next=clone(current);next.version=current.version+1;
+  if(next.metadata?.confirmation)next.metadata.confirmation.availabilityVersion=next.version;
+  next.planningLease={...current.planningLease,state:'UNCERTAIN',uncertainAt:now,reason:str(reason).slice(0,80)};
+  if(await adapter.compareAndSwap(id,current.version,next)!==true)throw Error('VERSION_CONFLICT');
+  return {auditorId:id,version:next.version,state:'UNCERTAIN'};
+ }
  async function releasePlanningLease({actor,auditorId,token}){
   const id=str(auditorId);authorize(actor,id);
   const current=await read(actor,id);
@@ -80,5 +91,5 @@ export function createAvailabilityService(adapter){
   if(await adapter.compareAndSwap(id,current.version,next)!==true)throw Error('VERSION_CONFLICT');
   return {auditorId:id,version:next.version};
  }
- return Object.freeze({read,mutate,period,managerOverview,acquirePlanningLease,releasePlanningLease});
+ return Object.freeze({read,mutate,period,managerOverview,acquirePlanningLease,markPlanningLeaseUncertain,releasePlanningLease});
 }

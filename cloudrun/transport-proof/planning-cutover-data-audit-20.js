@@ -60,7 +60,7 @@ export function createPlanningCutoverDataAudit({auditParity,claimsParity,store}=
   if(claimsAgain.sourceManifest!==audits.sourceManifest)throw Error('CUTOVER_SOURCE_CHANGED_DURING_SECOND_CLAIM_SCAN');
   const finalOutbox=await scanOutbox();
   if(initialOutbox.signature!==finalOutbox.signature||initialOutbox.truncated!==finalOutbox.truncated)throw Error('CUTOVER_OUTBOX_CHANGED_DURING_SCAN');
-  if(claims.ready!==claimsAgain.ready||claims.expected!==claimsAgain.expected||claims.checked!==claimsAgain.checked||claims.totalProblems!==claimsAgain.totalProblems||claimsAgain.ready!==true)throw Error('CUTOVER_CLAIMS_CHANGED_DURING_SCAN');
+  if(claims.ready!==claimsAgain.ready||claims.expected!==claimsAgain.expected||claims.checked!==claimsAgain.checked||claims.totalProblems!==claimsAgain.totalProblems||(claims.claimsFingerprint!==undefined||claimsAgain.claimsFingerprint!==undefined ? claims.claimsFingerprint!==claimsAgain.claimsFingerprint : false)||claimsAgain.ready!==true)throw Error('CUTOVER_CLAIMS_CHANGED_DURING_SCAN');
   const finalSource=await auditParity.verify({startRow:2,limit:1,asOfDate});
   if(finalSource.sourceManifest!==audits.sourceManifest)throw Error('CUTOVER_SOURCE_CHANGED_AFTER_OUTBOX_SCAN');
   const outbox={checked:finalOutbox.checked,unresolved:finalOutbox.unresolved,pages:finalOutbox.pages,truncated:finalOutbox.truncated,problems:finalOutbox.problems};

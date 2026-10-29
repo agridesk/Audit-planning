@@ -16,4 +16,16 @@ await assert.rejects(()=>b.release({token:'wrong',verified:true,proof:'verified-
 await b.release({token:holder.token,verified:true,proof:'verified-sheets-commit'});
 assert.equal((await a.read()).holder,null);
 assert.equal((await b.acquire({...req,operationId:'operation-c'})).operationId,'operation-c');
+// A crashed ACTIVE owner is never unlocked based solely on elapsed age.
+await assert.rejects(()=>a.quarantineOrphan({operationId:'operation-c',actorId:'manager-a',evidenceRef:'verified Cloud Run instance terminated 2026-10-29'}),/PLANNING_ORPHAN_TOO_RECENT/);
+const stale=docs.get('__planning_write_gate__');
+stale.holder.acquiredAt=new Date(Date.now()-31*60*1000).toISOString();
+docs.set('__planning_write_gate__',stale);
+await assert.rejects(()=>a.quarantineOrphan({operationId:'operation-c',actorId:'manager-a',evidenceRef:'short'}),/PLANNING_ORPHAN_ATTESTATION_REQUIRED/);
+await assert.rejects(()=>a.quarantineOrphan({operationId:'wrong-operation',actorId:'manager-a',evidenceRef:'verified Cloud Run instance terminated 2026-10-29'}),/PLANNING_ORPHAN_GATE_MISMATCH/);
+const quarantined=await a.quarantineOrphan({operationId:'operation-c',actorId:'manager-a',evidenceRef:'Cloud Run request ended; traceID-483782; independent operator checked logs'});
+assert.equal(quarantined.state,'UNCERTAIN');
+assert.ok(quarantined.uncertainAt);
+assert.equal(quarantined.operatorAttestation.actorId,'manager-a');
+await assert.rejects(()=>b.acquire({...req,operationId:'operation-d'}),/PLANNING_GATE_BUSY/);
 console.log('Distributed planning gate: concurrent acquisitions, unknown outcome and proof-only recovery OK');

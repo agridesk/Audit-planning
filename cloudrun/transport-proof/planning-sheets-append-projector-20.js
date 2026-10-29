@@ -61,9 +61,11 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
    await verifyFence({operationId,gateToken});
    const url=base+'/values/'+encodeURIComponent(missing.range)+':append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS';
    await request(url,'POST',{values:[missing.row]});
+   await verifyFence({operationId,gateToken});
   }
   const after=await inspect(intents);
   if(after.state!=='MATCH')throw Error('APPEND_PROJECTION_UNVERIFIED');
+  await verifyFence({operationId,gateToken});
   return {operationId,confirmed:true,replayed:false};
  }
  return Object.freeze({inspect,apply});

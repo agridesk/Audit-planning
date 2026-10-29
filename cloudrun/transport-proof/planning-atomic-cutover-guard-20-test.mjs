@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {enforcePlanningAtomicCutover20} from './planning-atomic-cutover-guard-20.js';
+import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20} from './planning-atomic-cutover-guard-20.js';
 const blocked=[
  '/api/v1/manager/extension-direct',
  '/api/v1/internal/auditor/complete-direct',
@@ -24,4 +24,10 @@ for(const path of blocked){
 for(const path of ['/api/v1/planning/direct-commit','/api/v1/manager/approve-direct','/api/v1/manager/cancel-direct','/api/v1/auditor/action','/api/v1/planning/atomic-recover']){
  assert.doesNotThrow(()=>enforcePlanningAtomicCutover20({enabled:true,method:'POST',path}));
 }
+assert.equal(validatePlanningAtomicRuntime20({enabled:false}),true);
+const validated={enabled:true,legacyWriterRetired:true,managerOwnerShared:true,backfillParityVerified:true,otherAuthorityEnabled:false};
+assert.equal(validatePlanningAtomicRuntime20(validated),true);
+assert.throws(()=>validatePlanningAtomicRuntime20({...validated,legacyWriterRetired:false}),/PLANNING_ATOMIC_LEGACY_WRITER_NOT_RETIRED/);
+assert.throws(()=>validatePlanningAtomicRuntime20({...validated,backfillParityVerified:false}),/PLANNING_ATOMIC_BACKFILL_PARITY_REQUIRED/);
+assert.throws(()=>validatePlanningAtomicRuntime20({...validated,otherAuthorityEnabled:true}),/PLANNING_ATOMIC_DUAL_AUTHORITY_ENABLED/);
 console.log('Atomic cutover write surface: migration fence and unaffected PROD paths OK');

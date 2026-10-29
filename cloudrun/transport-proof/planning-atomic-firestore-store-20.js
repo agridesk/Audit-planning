@@ -126,7 +126,7 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
   const result=await fn({get:getInTx,set,remove});
   // Firestore read/write transactions are all-or-nothing: never silently
   // accept a planning command which staged no durable mutation.
-  if(!writes.length)throw Error('PLANNING_TX_EMPTY_WRITESET');
+  if(!writes.length){if(result?.replayed===true||result?.seeded===false&&result?.idempotent===true)return result;throw Error('PLANNING_TX_EMPTY_WRITESET');}
   if(writes.length>500)throw Error('PLANNING_FIRESTORE_WRITE_LIMIT');
   let committed;
   try{committed=await request(base+':commit','POST',{transaction:tx,writes});}

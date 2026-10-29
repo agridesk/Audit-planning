@@ -875,14 +875,23 @@ http.createServer(async(req,res)=>{
    const signature=blocks=>blocks.map(x=>[String(x.date||''),String(x.start||''),String(x.end||'')].join('|')).sort();
    if(JSON.stringify(signature(intervals))!==JSON.stringify(signature(lease.plannedBlocks)))throw Error('PLANNING_RECOVERY_INTERVAL_MISMATCH');
    if(!await verifyUncertainPlanningLeaseInSheets(lease))throw Error('PLANNING_RECOVERY_AVAILABILITY_NOT_VERIFIED');
+   let recoveryCommit=null;
    if(planningAuthorityEnabled){
     const ledger=await planningAuthority.read(auditId);
     const unresolved=ledger.commits.filter(x=>x.auditorId===auditorId&&['PENDING','UNCERTAIN'].includes(x.state));
     const candidates=unresolved.length?unresolved:ledger.commits.filter(x=>x.auditorId===auditorId&&x.state==='PROJECTED').slice(-1);
     if(candidates.length!==1||JSON.stringify(candidates[0].blocks.map(x=>[x.date,x.start,x.end]).sort())!==JSON.stringify(lease.plannedBlocks.map(x=>[x.date,x.start,x.end]).sort()))throw Error('PLANNING_RECOVERY_LEDGER_MISMATCH');
-    if(candidates[0].state!=='PROJECTED')await planningAuthority.transition({auditId,commitId:candidates[0].id,from:candidates[0].state,to:'PROJECTED',detail:'VERIFIED_SHEETS_PROJECTION'});
+    recoveryCommit=candidates[0];
+    if(recoveryCommit.state!=='PROJECTED')await planningAuthority.transition({auditId,commitId:recoveryCommit.id,from:recoveryCommit.state,to:'PROJECTED',detail:'VERIFIED_SHEETS_PROJECTION'});
    }
    const result=await service.reconcilePlanningLease({actor:verifiedActor,auditorId,token:lease.token,verifiedAuditId:auditId});
+   if(planningAuthorityEnabled){
+    const gate=await planningGlobalGate.read();
+    if(gate.holder){
+     if(gate.holder.state!=='UNCERTAIN'||gate.holder.operationId!==recoveryCommit.requestId)throw Error('PLANNING_RECOVERY_GATE_MISMATCH');
+     await planningGlobalGate.release({token:gate.holder.token,verified:true,proof:'VERIFIED_SHEETS_AND_FIRESTORE'});
+    }
+   }
    planningCache.invalidate();
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,reconciled:true,auditId,auditorId,version:result.version}));return;
   }

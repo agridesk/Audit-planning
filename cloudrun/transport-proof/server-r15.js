@@ -199,10 +199,10 @@ const planningAtomicLifecycle=planningAtomicStore?createPlanningLifecycleAtomicS
  atomicStore:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,
  appendProjector:planningAtomicAppendProjector,roster:getRoster,
  preflight:async({actor,body,action})=>{
-  const route=Object.keys(atomicLifecyclePaths).find(k=>atomicLifecyclePaths[k]===action);
+  const route=actor.role==='auditor'&&action==='ACCEPT'?'/api/v1/auditor/action':Object.keys(atomicLifecyclePaths).find(k=>atomicLifecyclePaths[k]===action);
   if(!route)throw Error('LIFECYCLE_ATOMIC_ROUTE_UNSUPPORTED');
   const r=await fetch('http://127.0.0.1:'+innerPort+route,{method:'POST',redirect:'manual',
-   headers:{'content-type':'application/json',cookie:String(actor.cookie||'')},body:JSON.stringify(body)});
+   headers:{'content-type':'application/json',cookie:String(actor.cookie||''),...(actor.role==='auditor'?{origin:runtime.origin}: {})},body:JSON.stringify(body)});
   const data=await r.json().catch(()=>null);
   if(!r.ok||data?.success!==true||data?.authorityPreflight!==true)throw Error('LIFECYCLE_ATOMIC_PREFLIGHT_FAILED_'+String(data?.error||r.status).slice(0,80));
   return data;
@@ -904,6 +904,16 @@ async function proxy(req,res){
 http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url||'/','http://localhost');
+  if(req.method==='POST'&&planningAtomicLifecycle&&u.pathname==='/api/v1/auditor/action'){
+   const actor=await session(req);
+   if(actor?.role!=='auditor'){res.writeHead(403);res.end(JSON.stringify({success:false,error:'AUDITOR_REQUIRED'}));return;}
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192)throw Error('AUDITOR_ATOMIC_BODY_TOO_LARGE');}
+   let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('AUDITOR_ATOMIC_BODY_INVALID');}
+   if(String(body.action||'').toUpperCase()!=='ACCEPT')throw Error('AUDITOR_ATOMIC_ACTION_NOT_MIGRATED');
+   const result=await planningAtomicLifecycle.commit({actor:{...actor,cookie:String(req.headers.cookie||'')},body,action:'ACCEPT'});
+   planningCache.invalidate();
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
+  }
   if(req.method==='POST'&&planningAtomicLifecycle&&(atomicLifecyclePaths[u.pathname]||u.pathname==='/api/v1/manager/action')){
    const actor=await session(req);
    if(actor?.role!=='manager'){res.writeHead(403,{'content-type':'application/json'});res.end(JSON.stringify({success:false,error:'MANAGER_REQUIRED'}));return;}

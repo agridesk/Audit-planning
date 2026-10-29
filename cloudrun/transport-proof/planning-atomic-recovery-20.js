@@ -9,7 +9,14 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
  async function recoverOne(entry){
   if(!entry||!['PENDING','UNCERTAIN'].includes(entry.state)||!entry.auditId||!entry.operationId||!entry.snapshot)return {state:'SKIPPED'};
   const audit=await store.readAudit(entry.auditId);
-  if(!audit||audit.pendingOperationId!==entry.operationId||audit.revision!==entry.revision)throw Error('ATOMIC_RECOVERY_CANONICAL_MISMATCH');
+  if(!audit||audit.pendingOperationId!==entry.operationId||entry.multi!==true&&audit.revision!==entry.revision)throw Error('ATOMIC_RECOVERY_CANONICAL_MISMATCH');
+  if(entry.multi===true){
+   if(!Array.isArray(entry.entities)||!entry.entities.length||!entry.entities.some(e=>e.auditId===entry.auditId))throw Error('ATOMIC_RECOVERY_MULTI_INDEX_INVALID');
+   for(const entity of entry.entities){
+    const related=await store.readAudit(entity.auditId);
+    if(!related||related.pendingOperationId!==entry.operationId||related.revision!==entity.revision)throw Error('ATOMIC_RECOVERY_MULTI_ENTITY_MISMATCH');
+   }
+  }
   const snapshot=entry.snapshot;
   if(!Array.isArray(snapshot.projectionWrites)||!Array.isArray(snapshot.projectionPreconditions)||!Array.isArray(snapshot.appendIntents))throw Error('ATOMIC_RECOVERY_SNAPSHOT_INCOMPLETE');
   const rowCheck=await projector.inspect(snapshot);

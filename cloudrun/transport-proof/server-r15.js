@@ -116,6 +116,25 @@ async function readPlanningRows(){
  if(!Array.isArray(rows)||rows.length===0||rows.length>=2000)throw Error('CANONICAL_PLANNING_INCOMPLETE');
  return rows;
 }
+async function verifyUncertainPlanningLeaseInSheets(lease){
+ if(lease?.state!=='UNCERTAIN'||!lease.auditId||!lease.auditorEmail||!Array.isArray(lease.plannedBlocks)||!lease.plannedBlocks.length)return false;
+ const planning=await readPlanningRows(),head=planning[0].map(x=>String(x||'').trim());
+ const idCol=head.indexOf('Audit ID'),emailCol=head.indexOf('Assigned to'),jsonCol=head.indexOf('Planning JSON');
+ if([idCol,emailCol,jsonCol].some(x=>x<0))throw Error('PLANNING_RECONCILIATION_SCHEMA_INVALID');
+ const matches=planning.slice(1).filter(row=>String(row[idCol]||'').trim()===lease.auditId);
+ if(matches.length!==1||String(matches[0][emailCol]||'').trim().toLowerCase()!==lease.auditorEmail)return false;
+ let parsed;try{parsed=JSON.parse(matches[0][jsonCol]||'{}');}catch{return false;}
+ const key=x=>String(x.date||'')+'|'+String(x.start||'')+'|'+String(x.end||'');
+ const expected=lease.plannedBlocks.map(key).sort(),actual=(Array.isArray(parsed.blocks)?parsed.blocks:[]).map(key).sort();
+ if(expected.length!==actual.length||expected.some((x,i)=>x!==actual[i]))return false;
+ const range='Auditor Availability!A1:M2000',url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range);
+ const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()}});
+ if(!response.ok)throw Error('PLANNING_RECONCILIATION_AVAILABILITY_READ_'+response.status);
+ const values=(await response.json()).values||[],headers=(values[0]||[]).map(x=>String(x||'').trim());
+ const indices=['Date','Auditor_Email','First_Audit_Start_Time','First_Audit_End_Time','Audit_ID_1','Second_Audit_Start_Time','Second_Audit_End_Time','Audit_ID_2'].map(x=>headers.indexOf(x));
+ if(indices.some(x=>x<0)||values.length>=2000)throw Error('PLANNING_RECONCILIATION_AVAILABILITY_INCOMPLETE');
+ return lease.plannedBlocks.every(b=>values.slice(1).some(row=>String(row[indices[0]]||'').slice(0,10)===b.date&&String(row[indices[1]]||'').trim().toLowerCase()===lease.auditorEmail&&([[indices[2],indices[3],indices[4]],[indices[5],indices[6],indices[7]]].some(([start,end,id])=>String(row[start]||'').trim()===b.start&&String(row[end]||'').trim()===b.end&&String(row[id]||'').trim()===lease.auditId))));
+}
 const planningCache=createPlanningReadCache({load:readPlanningRows,ttlMs:10000});
 const scopeNamesCache=createPlanningReadCache({load:async()=>{
  const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent("'Config_Scopes'!A1:AZ250");

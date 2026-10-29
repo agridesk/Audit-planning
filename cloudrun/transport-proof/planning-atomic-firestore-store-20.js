@@ -160,6 +160,67 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
    return {operationId,replayed:false,state:'PENDING',revision:nextRevision,claimCount:newIds.length};
   });
  }
+ /** Atomic multi-audit lifecycle (completion successor audits / transfer).
+  * Writes every affected audit, ownership claim and one projection outbox in
+  * the SAME Firestore transaction. No Sheets mutation occurs inside this call.
+  */
+ async function commitMulti({operationId,actorId,action,entities,projectionPlan}){
+  if(!validId(operationId)||!validId(actorId)||!str(action)||!Array.isArray(entities)||!entities.length||entities.length>15||!projectionPlan||typeof projectionPlan!=='object')throw Error('PLANNING_MULTI_INPUT_INVALID');
+  const auditIds=entities.map(e=>e?.auditId);
+  if(new Set(auditIds).size!==auditIds.length||auditIds.some(x=>!validId(x)))throw Error('PLANNING_MULTI_AUDIT_ID_INVALID');
+  for(const e of entities){
+   if(!e.nextSnapshot||e.nextSnapshot.auditId!==e.auditId||!(e.expectedRevision===null||Number.isSafeInteger(e.expectedRevision)&&e.expectedRevision>=0)||e.remove!==undefined&&typeof e.remove!=='boolean')throw Error('PLANNING_MULTI_ENTITY_INVALID');
+  }
+  const sorted=entities.slice().sort((a,b)=>a.auditId.localeCompare(b.auditId));
+  const digest=hex(JSON.stringify({operationId,actorId,action,entities:sorted,projectionPlan}));
+  return transaction(async tx=>{
+   const previous=await tx.get('outbox',operationId);
+   if(previous){
+    if(previous.value.requestDigest!==digest||previous.value.action!==action)throw Error('PLANNING_MULTI_REPLAY_CONFLICT');
+    return {operationId,replayed:true,state:previous.value.state,entities:previous.value.entities};
+   }
+   const existing=new Map(),newClaimGroups=new Map(),oldIds=new Set(),newIds=new Set();
+   for(const e of sorted){
+    const old=await tx.get('audit',e.auditId);
+    if(e.expectedRevision===null){if(old)throw Error('PLANNING_MULTI_SUCCESSOR_ALREADY_EXISTS');}
+    else if(!old||old.value.revision!==e.expectedRevision||old.value.pendingOperationId)throw Error('PLANNING_MULTI_REVISION_CONFLICT');
+    existing.set(e.auditId,old);
+    if(e.remove&&e.blocks?.length)throw Error('PLANNING_MULTI_REMOVE_WITH_BLOCKS');
+    const nextClaims=e.remove?[]:claimsFor(e.blocks||[],e.auditorId||null);
+    newClaimGroups.set(e.auditId,nextClaims);
+    for(const c of nextClaims){if(newIds.has(c.claimId))throw Error('PLANNING_MULTI_INTERNAL_SLOT_CONFLICT');newIds.add(c.claimId);}
+    for(const id of old?.value?.claimIds||[])oldIds.add(id);
+   }
+   const ids=[...new Set([...oldIds,...newIds])].sort();
+   if(ids.length>450)throw Error('PLANNING_MULTI_CLAIMS_TOO_MANY');
+   const claims=new Map();
+   for(const id of ids)claims.set(id,await tx.get('claim',id));
+   for(const e of sorted){
+    for(const id of existing.get(e.auditId)?.value?.claimIds||[]){
+     if(claims.get(id)?.value?.auditId!==e.auditId)throw Error('PLANNING_MULTI_EXISTING_CLAIM_CORRUPT');
+    }
+   }
+   for(const e of sorted)for(const c of newClaimGroups.get(e.auditId)){
+    const holder=claims.get(c.claimId)?.value;
+    if(holder&&holder.auditId!==e.auditId&&!auditIds.includes(holder.auditId))throw Error('PLANNING_MULTI_SLOT_CONFLICT');
+    if(holder&&holder.auditId!==e.auditId){
+     const transferred=sorted.find(x=>x.auditId===holder.auditId);
+     if(newClaimGroups.get(transferred.auditId).some(x=>x.claimId===c.claimId))throw Error('PLANNING_MULTI_SLOT_CONFLICT');
+    }
+   }
+   const now=new Date().toISOString(),receipts=[];
+   for(const e of sorted){
+    const old=existing.get(e.auditId),revision=(old?.value?.revision??-1)+1,claimIds=newClaimGroups.get(e.auditId).map(c=>c.claimId);
+    const canonical={auditId:e.auditId,revision,snapshot:clone(e.nextSnapshot),auditorId:e.remove?null:e.auditorId||null,blocks:e.remove?[]:clone(e.blocks||[]),claimIds,pendingOperationId:operationId,removed:e.remove===true,updatedAt:now,lastOperationId:operationId};
+    tx.set('audit',e.auditId,canonical);
+    receipts.push({auditId:e.auditId,revision,removed:e.remove===true});
+   }
+   for(const id of oldIds)if(!newIds.has(id))tx.remove('claim',id);
+   for(const e of sorted)for(const c of newClaimGroups.get(e.auditId))tx.set('claim',c.claimId,{...c,auditId:e.auditId,revision:receipts.find(x=>x.auditId===e.auditId).revision,operationId});
+   tx.set('outbox',operationId,{operationId,auditId:sorted[0].auditId,auditIds,entities:receipts,actorId,action,requestDigest,snapshot:clone(projectionPlan),state:'PENDING',createdAt:now,multi:true});
+   return {operationId,replayed:false,state:'PENDING',entities:receipts};
+  });
+ }
  async function seed({auditId,snapshot,auditorId,blocks=[]}){
   if(!validId(auditId)||!snapshot||typeof snapshot!=='object'||snapshot.auditId!==auditId||!/^([a-f0-9]{24})$/.test(str(snapshot.sourceRevision)))throw Error('PLANNING_BACKFILL_SOURCE_INVALID');
   const newClaims=claimsFor(blocks,auditorId),ids=newClaims.map(x=>x.claimId);
@@ -205,5 +266,5 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
    return {state:'UNCERTAIN',replayed:false};
   });
  }
- return Object.freeze({readAudit,readOutbox,listOutbox,commit,seed,markProjected,markUncertain});
+ return Object.freeze({readAudit,readOutbox,listOutbox,commit,commitMulti,seed,markProjected,markUncertain});
 }

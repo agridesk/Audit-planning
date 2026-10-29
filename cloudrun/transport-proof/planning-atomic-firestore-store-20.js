@@ -248,9 +248,20 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
     if(outbox.value.proof?.rowHash!==proof.rowHash)throw Error('PLANNING_PROJECTION_PROOF_CONFLICT');
     return {state:'PROJECTED',replayed:true};
    }
-   if(!['PENDING','UNCERTAIN'].includes(outbox.value.state)||audit.value.pendingOperationId!==operationId||audit.value.revision!==outbox.value.revision)throw Error('PLANNING_PROJECTION_STATE_CONFLICT');
+   if(!['PENDING','UNCERTAIN'].includes(outbox.value.state)||audit.value.pendingOperationId!==operationId)throw Error('PLANNING_PROJECTION_STATE_CONFLICT');
+   const related=outbox.value.multi===true?outbox.value.entities:[{auditId,revision:outbox.value.revision}];
+   if(!Array.isArray(related)||!related.length||related.some(x=>!validId(x.auditId)||!Number.isSafeInteger(x.revision)))throw Error('PLANNING_MULTI_PROJECTION_INDEX_CORRUPT');
+   const audited=new Map([[auditId,audit]]);
+   for(const item of related)if(item.auditId!==auditId)audited.set(item.auditId,await tx.get('audit',item.auditId));
+   for(const item of related){
+    const row=audited.get(item.auditId);
+    if(!row||row.value.pendingOperationId!==operationId||row.value.revision!==item.revision)throw Error('PLANNING_MULTI_PROJECTION_STATE_CONFLICT');
+   }
    const now=new Date().toISOString();
-   tx.set('audit',auditId,{...audit.value,pendingOperationId:null,lastProjectedOperationId:operationId,lastProjectedAt:now});
+   for(const item of related){
+    const row=audited.get(item.auditId);
+    tx.set('audit',item.auditId,{...row.value,pendingOperationId:null,lastProjectedOperationId:operationId,lastProjectedAt:now});
+   }
    tx.set('outbox',operationId,{...outbox.value,state:'PROJECTED',projectedAt:now,proof:clone(proof)});
    return {state:'PROJECTED',replayed:false};
   });

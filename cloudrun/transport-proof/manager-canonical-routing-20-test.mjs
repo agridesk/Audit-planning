@@ -4,7 +4,7 @@ const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 for(const action of ['approve','reject']){
  assert.ok(r4.includes("try{b.action='"+action+"';const out=await lifecycleAuthorityPreflight20(s,b,")&&r4.includes("canonicalManagerAction(s,b)"),'direct '+action+' must use canonical dispatcher');
 }
-assert.match(r4,/b\.action='cancel';\s*const out=await canonicalManagerAction\(s,b\)/);
+assert.match(r4,/b\.action='cancel';\s*const out=await lifecycleAuthorityPreflight20\(s,b,'CANCEL'/);
 assert.match(r4,/if\(u\.pathname==='\/api\/v1\/manager\/action'/);
 assert.match(r4,/AMS_MANAGER_CANONICAL_GAS_WRITE_ENABLED==='true'/);
 assert.match(r4,/if\(canonicalResult\)return canonicalResult/);

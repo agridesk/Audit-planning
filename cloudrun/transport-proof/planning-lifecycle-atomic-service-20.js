@@ -30,6 +30,7 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
    if(!Array.isArray(preview.projectionWrites)||!preview.projectionWrites.length||!Array.isArray(preview.projectionPreconditions)||!preview.canonicalSnapshot||!Array.isArray(preview.appendIntents))throw Error('LIFECYCLE_ATOMIC_PREFLIGHT_INCOMPLETE');
    const old=await atomicStore.readAudit(auditId);
    if(!old||!Number.isSafeInteger(old.revision)||old.pendingOperationId||old.snapshot?.sourceRevision!==preview.expectedSourceRevision)throw Error('LIFECYCLE_ATOMIC_CANONICAL_PARITY_CONFLICT');
+   if(old.snapshot?.legacyUnverified===true)throw Error('LIFECYCLE_LEGACY_UNVERIFIED_BLOCKED');
    const snapshot={...preview.canonicalSnapshot,projectionWrites:preview.projectionWrites,projectionPreconditions:preview.projectionPreconditions,appendIntents:preview.appendIntents};
    const status=norm(snapshot.status);
    let auditorId=null,blocks=[];

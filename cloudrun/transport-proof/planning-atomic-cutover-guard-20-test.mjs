@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20} from './planning-atomic-cutover-guard-20.js';
 const blocked=[
  '/api/v1/manager/extension-direct',
+ '/api/v1/manager/scopes/scheme-version',
+ '/api/v1/manager/auditor-identity/firestore-write-probe',
  '/api/v1/internal/auditor/complete-direct',
  '/api/v1/manager/company-management/scopes/hours',
  '/api/v1/manager/company-management/scopes/assign',

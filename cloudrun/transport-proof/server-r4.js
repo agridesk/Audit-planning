@@ -1883,6 +1883,40 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     acceptAuditId=auditId;acceptAction=action;
     if(!auditId||auditId.length>256||!['ACCEPT','CANCEL','COMPLETE'].includes(action)||!(/^[a-f0-9]{24}$/.test(expectedRevision)))return send(res,400,{success:false,error:'INVALID_AUDITOR_ACTION_REQUEST'});
     if(action==='CANCEL'&&!comment)return send(res,400,{success:false,error:'CANCEL_REASON_REQUIRED'});
+    if(process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true'&&body.authorityPreflight===true){
+      if(action!=='ACCEPT')return send(res,409,{success:false,error:'AUDITOR_LIFECYCLE_ATOMIC_PREFLIGHT_NOT_MIGRATED'});
+      try{
+       const vr=await sheetsBatchGet(['Audit planning!A1:BW2000','Auditors!A1:Z256']),ap=vr[0]?.values||[],av=vr[1]?.values||[];
+       if(ap.length>=2000||!ap.length)throw Error('DIRECT_ACCEPT_PREFLIGHT_CANONICAL_INCOMPLETE');
+       const found=findAudit(ap,auditId);if(!found)throw Error('AUDIT_NOT_FOUND');
+       const builder=buildDirectAuditorAcceptSheets20({
+        actor:{role:'AUDITOR',uid:clean(actor.auditorUid||actor.auditorId),email:clean(actor.email)},
+        auditId,expectedRevision,values:{audit:ap,auditors:av},
+        sheetIds:{audit:1,queue:2},stamp:new Date().toISOString()
+       });
+       const row=found.row.slice();
+       const queue=[];
+       for(const request of builder.requests){
+        if(request.updateCells){
+         const index=request.updateCells.range.startColumnIndex;
+         if(request.updateCells.range.startRowIndex!==found.sourceRow-1||request.updateCells.range.endColumnIndex!==index+1)throw Error('DIRECT_ACCEPT_PREFLIGHT_OUT_OF_SCOPE');
+         row[index]=request.updateCells.rows?.[0]?.values?.[0]?.userEnteredValue?.stringValue??'';
+        }else if(request.appendCells){
+         const values=request.appendCells.rows?.[0]?.values?.map(x=>x.userEnteredValue?.stringValue??'');
+         if(!values?.length)throw Error('DIRECT_ACCEPT_PREFLIGHT_QUEUE_INVALID');
+         queue.push({range:'Notification Queue!A:M',values:[values]});
+        }else throw Error('DIRECT_ACCEPT_PREFLIGHT_REQUEST_UNSUPPORTED');
+       }
+       if(queue.length!==1)throw Error('DIRECT_ACCEPT_PREFLIGHT_TRAIL_REQUIRED');
+       const range='Audit planning!A'+found.sourceRow+':'+a1col(found.h.length)+found.sourceRow;
+       return send(res,200,{success:true,authorityPreflight:true,auditId,action:'ACCEPT',
+        expectedSourceRevision:directRowRevision(found.h,found.row),
+        canonicalSnapshot:{auditId,sourceRow:found.sourceRow,headers:found.h,row,status:'Accepted',
+         assignedTo:val(row,col(found.h,['Assigned to','Assigned auditor','Auditor'])),sourceRevision:directRowRevision(found.h,row)},
+        projectionWrites:[{range,values:[row]}],projectionPreconditions:[{range,before:found.row.slice()}],
+        appendIntents:queue,owner:'CLOUD_RUN_DEV_AUDITOR_ACCEPT_PREFLIGHT'});
+      }catch(error){return send(res,409,{success:false,error:clean(error?.message||error)});}
+    }
     if(action==='ACCEPT' && process.env.AMS_AUDITOR_DIRECT_ACCEPT_ENABLED==='true'){
       try{
         const result=await directAuditorAcceptSheets20(actor,{auditId,expectedRevision});

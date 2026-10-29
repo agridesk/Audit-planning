@@ -119,7 +119,12 @@ await test('uncertain Planning Save is durable and blocks future mutations until
  assert.equal(snapshot.planningLease.plannedBlocks[0].start,'09:00');
  await fails(()=>service.mutate({actor,auditorId:id,expectedVersion:marked.version,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}}),'PLANNING_LEASE_ACTIVE');
  await fails(()=>service.markPlanningLeaseUncertain({actor,auditorId:id,token:'wrong'}),'PLANNING_LEASE_TOKEN_MISMATCH');
- await service.releasePlanningLease({actor,auditorId:id,token:lease.token});
+ await fails(()=>service.releasePlanningLease({actor,auditorId:id,token:lease.token}),'PLANNING_RECONCILIATION_REQUIRED');
+ await fails(()=>service.reconcilePlanningLease({actor:{id,role:'auditor'},auditorId:id,token:lease.token,verifiedAuditId:'audit-uncertain'}),'NOT_AUTHORIZED');
+ await fails(()=>service.reconcilePlanningLease({actor,auditorId:id,token:lease.token,verifiedAuditId:'wrong'}),'PLANNING_RECONCILIATION_EVIDENCE_INVALID');
+ const recovered=await service.reconcilePlanningLease({actor,auditorId:id,token:lease.token,verifiedAuditId:'audit-uncertain'});
+ assert.equal(recovered.version,marked.version+1);
+ assert.equal((await service.read(actor,id)).planningLease,null);
  store.delete(id);
 });
 console.log(n,'storage service checks passed');

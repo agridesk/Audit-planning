@@ -40,7 +40,7 @@ export function preparePlanningBackfill({rows,roster,asOfDate=new Date().toISOSt
    let parsed;try{parsed=legacyUnverified?{blocks:[]}:JSON.parse(planned);}catch{throw Error('BACKFILL_PLANNING_JSON_INVALID');}
    const raw=Array.isArray(parsed)?parsed:parsed?.blocks;
    if(!Array.isArray(raw)||!raw.length&&!legacyUnverified)throw Error('BACKFILL_ACTIVE_BLOCKS_MISSING');
-   blocks=raw.map(b=>({date:trim(b.date),start:trim(b.start),end:trim(b.end)}));
+   blocks=raw.map(b=>({date:trim(b.date),start:trim(b.start),end:trim(b.end)})).filter(b=>b.date>=asOfDate);
    if(blocks.length>50)throw Error('BACKFILL_TOO_MANY_BLOCKS');
    const auditorId=byEmail.get(email);
    for(const b of blocks){

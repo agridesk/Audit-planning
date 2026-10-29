@@ -10,6 +10,7 @@ const request={auditId:'audit-7',auditorId:'aud-2',actorId:'manager',sourceRevis
 const first=await a.stage(request);
 assert.equal(first.commit.state,'PENDING');
 assert.equal(first.replayed,false);
+await assert.rejects(()=>b.stage({...request,blocks:[{date:'2027-03-02',start:'09:00',end:'12:00'}]}),/PLANNING_IDEMPOTENCY_KEY_REUSED/);
 const replay=await b.stage(request);
 assert.equal(replay.replayed,true);
 assert.equal(replay.commit.id,first.commit.id);

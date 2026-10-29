@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createPlanningSheetsAppendProjector} from './planning-sheets-append-projector-20.js';
 const rows={'Notification Queue':[['Stamp','State','Event']], 'Rejected audits':[['Audit ID','Status']]};
-let appended=0,fenceChecks=0,deny=false;
+let appended=0,fenceChecks=0,deny=false,loseFenceAfterAppend=false;
 const ok=result=>({ok:true,status:200,async json(){return structuredClone(result)}});
 const fetchImpl=async(url,init={})=>{
  const u=new URL(url),path=decodeURIComponent(u.pathname),method=init.method||'GET';
@@ -12,6 +12,7 @@ const fetchImpl=async(url,init={})=>{
  if(method==='POST'&&path.endsWith(':append')){
   const sheet=path.split('/values/')[1].split('!')[0];
   rows[sheet].push(...JSON.parse(init.body).values);appended++;
+  if(loseFenceAfterAppend)deny=true;
   return ok({updates:{updatedRows:1}});
  }
  throw Error('HTTP_FIXTURE_UNKNOWN');
@@ -29,4 +30,8 @@ await assert.rejects(()=>service.apply({operationId:'op2',gateToken:'token',inte
 assert.equal(appended,1);
 await assert.rejects(()=>service.inspect([{range:'Unsafe!A:Z',values:[['x']]}]),/APPEND_INTENT_UNSUPPORTED/);
 assert.ok(fenceChecks>=3);
+deny=false;loseFenceAfterAppend=true;
+await assert.rejects(()=>service.apply({operationId:'op3',gateToken:'token',intents:[{range:'Rejected audits!A:Z',values:[['audit-3','Rejected']]}]}),/FENCE_LOST/);
+assert.equal(appended,2);
+assert.equal((await service.inspect([{range:'Rejected audits!A:Z',values:[['audit-3','Rejected']]}])).state,'MATCH');
 console.log('Append projector: dedupe, replay, fence and unsupported-target guards passed');

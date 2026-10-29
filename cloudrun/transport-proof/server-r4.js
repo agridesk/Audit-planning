@@ -1539,7 +1539,7 @@ async function visitCompositionPlan(targetAuditId,memberAuditIds,obValues,linkVa
 function directPlanningCommit(identity,body){
   if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
   const actorRole=clean(identity?.role).toUpperCase(),actorEmail=clean(identity?.email).toLowerCase(),started=Date.now(),auditId=clean(body?.auditId),auditorEmail=clean(body?.auditorEmail).toLowerCase(),auditorName=clean(body?.auditorName),sourceRevision=clean(body?.sourceRevision);
-  const authorityPreflight=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_FIRESTORE_PLANNING_AUTHORITY_ENABLED==='true'&&body?.authorityPreflight===true;
+  const authorityPreflight=process.env.AMS_RUNTIME_ENV==='DEV'&&(process.env.AMS_DEV_FIRESTORE_PLANNING_AUTHORITY_ENABLED==='true'||process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true')&&body?.authorityPreflight===true;
   if(actorRole!=='MANAGER'&&actorRole!=='AUDITOR')throw new Error('PLANNING_ACTOR_ROLE_INVALID');
   if(actorRole==='AUDITOR'&&auditorEmail!==actorEmail)throw new Error('AUDITOR_CANNOT_PLAN_FOR_OTHER_AUDITOR');
   if(!auditId||!auditorEmail)throw new Error('PLANNING_REQUIRED_FIELDS_MISSING');

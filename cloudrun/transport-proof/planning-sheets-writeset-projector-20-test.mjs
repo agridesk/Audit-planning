@@ -11,7 +11,7 @@ const fetchImpl=async(url,init={})=>{
  if(method==='GET'&&p.endsWith('/spreadsheets/dev-sheet')){
   return ok({sheets:[{properties:{title:'Audit planning',sheetId:1,gridProperties:{rowCount:100}}},{properties:{title:'Auditor Availability',sheetId:2,gridProperties:{rowCount:rows}}}]});
  }
- if(method==='POST'&&p.endsWith(':batchUpdate')){
+ if(method==='POST'&&p.endsWith('/spreadsheets/dev-sheet:batchUpdate')){
   const requests=JSON.parse(init.body).requests;
   expanded+=requests.length;rows+=requests[0]?.appendDimension.length||0;
   return ok({});

@@ -769,6 +769,16 @@ async function proxy(req,res){
 http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url||'/','http://localhost');
+  if(req.method==='GET'&&u.pathname==='/api/v1/planning/lease-status'){
+   if(!runtime.isDev){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403);res.end();return;}
+   const auditorId=String(u.searchParams.get('auditorId')||'').trim();
+   if(!auditorId)throw Error('PLANNING_LEASE_AUDITOR_REQUIRED');
+   const doc=await service.read({role:'manager',id:actor.auditorId},auditorId),lease=doc.planningLease;
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify({success:true,auditorId,version:doc.version,locked:!!lease,state:lease?.state|| (lease?'ACTIVE':'NONE'),auditId:lease?.auditId||null,acquiredAt:lease?.acquiredAt||null,uncertainAt:lease?.uncertainAt||null}));return;
+  }
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/reconcile-uncertain-lease'){
    if(!runtime.isDev){res.writeHead(404);res.end();return;}
    const actor=await session(req);

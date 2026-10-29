@@ -5,7 +5,6 @@
 const blocked=[
  /^\/api\/v1\/manager\/extension-direct$/,
  /^\/api\/v1\/internal\/auditor\/complete-direct$/,
- /^\/api\/v1\/manager\/auditor-management\/audit\/transfer$/,
  /^\/api\/v1\/(?:manager|auditor)\/company-management\/(?:save|scopes\/(?:hours|assign|save))$/,
  /^\/api\/v1\/manager\/company-scope-hours\/backfill$/,
  /^\/api\/v1\/manager\/auditor-management\/(?:qualification\/(?:withdraw|withdraw\/cancel|save)|role\/save|identity\/save|active\/save|create|profile\/save)$/,

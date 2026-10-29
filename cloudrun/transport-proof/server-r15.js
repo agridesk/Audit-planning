@@ -125,7 +125,7 @@ async function verifyUncertainPlanningLeaseInSheets(lease){
  if(matches.length!==1||String(matches[0][emailCol]||'').trim().toLowerCase()!==lease.auditorEmail)return false;
  let parsed;try{parsed=JSON.parse(matches[0][jsonCol]||'{}');}catch{return false;}
  const key=x=>String(x.date||'')+'|'+String(x.start||'')+'|'+String(x.end||'');
- const expected=lease.plannedBlocks.map(key).sort(),actual=(Array.isArray(parsed.blocks)?parsed.blocks:[]).map(key).sort();
+ const expected=lease.plannedBlocks.map(key).sort(),actual=(Array.isArray(parsed)?parsed:Array.isArray(parsed.blocks)?parsed.blocks:[]).map(key).sort();
  if(expected.length!==actual.length||expected.some((x,i)=>x!==actual[i]))return false;
  const range='Auditor Availability!A1:M2000',url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range);
  const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()}});

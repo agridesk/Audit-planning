@@ -34,4 +34,9 @@ deny=false;loseFenceAfterAppend=true;
 await assert.rejects(()=>service.apply({operationId:'op3',gateToken:'token',intents:[{range:'Rejected audits!A:Z',values:[['audit-3','Rejected']]}]}),/FENCE_LOST/);
 assert.equal(appended,2);
 assert.equal((await service.inspect([{range:'Rejected audits!A:Z',values:[['audit-3','Rejected']]}])).state,'MATCH');
+
+await assert.rejects(()=>service.inspect([
+ {range:'Notification Queue!A:C',values:[['event-a']]},
+ {range:'Notification Queue!A:M',values:[['event-b']]}
+]),/APPEND_INTENT_MIXED_RANGES/);
 console.log('Append projector: dedupe, replay, fence and unsupported-target guards passed');

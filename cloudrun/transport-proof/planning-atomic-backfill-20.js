@@ -24,7 +24,10 @@ export function preparePlanningBackfill({rows,roster}){
   const status=cleanStatus(row[statusCol]),email=trim(row[assignedCol]).toLowerCase(),planned=trim(row[jsonCol]);
   const sourceRevision=hash([auditId,trim(row[statusCol]),trim(row[assignedCol]),planned,trim(row[decisionCol]),trim(row[sinceCol])].join('|')).slice(0,24);
   let blocks=[];
-  if(activeStatuses.has(status)){
+  // An unassigned Pending Approval is still a proposal, not a committed
+  // auditor reservation. Preserve its row snapshot without claiming slots.
+  const committedAssignment=activeStatuses.has(status)&&!(status==='PENDING_APPROVAL'&&!email);
+  if(committedAssignment){
    if(!email||!byEmail.has(email))throw Error('BACKFILL_ACTIVE_AUDITOR_UID_UNRESOLVED');
    if(!planned)throw Error('BACKFILL_ACTIVE_PLANNING_MISSING');
    let parsed;try{parsed=JSON.parse(planned);}catch{throw Error('BACKFILL_PLANNING_JSON_INVALID');}
@@ -45,7 +48,7 @@ export function preparePlanningBackfill({rows,roster}){
    }
   }
   const snapshot={auditId,sourceRow:i+1,headers,row:row.slice(),status:trim(row[statusCol]),assignedTo:email,sourceRevision};
-  items.push({auditId,snapshot,auditorId:activeStatuses.has(status)?byEmail.get(email):null,blocks});
+  items.push({auditId,snapshot,auditorId:committedAssignment?byEmail.get(email):null,blocks});
  }
  return {items,stats:{audits:items.length,active:items.filter(x=>x.blocks.length).length,claimedSlots:seenClaims.size}};
 }

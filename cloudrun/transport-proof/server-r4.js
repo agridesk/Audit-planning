@@ -1590,7 +1590,7 @@ function directPlanningCommit(identity,body){
         if(blocks(reservationRow[reservationBlocksCol]).some(reserved=>requested.some(b=>dateOnly(reserved.date)===b.date&&overlaps(b,{start:clean(reserved.start),end:clean(reserved.end)}))))throw new Error('PROVISIONAL_RESERVATION_AUDITOR_COLLISION');
       }
     }
-    const av=vr[2]?.values||[],ah=av[0]||[],cd=col(ah,['Date']),ce=col(ah,['Auditor_Email','Auditor Email','Email','E-mail']),ca=col(ah,['Available']),s1=col(ah,['First_Audit_Start_Time']),e1=col(ah,['First_Audit_End_Time']),id1=col(ah,['Audit_ID_1']),s2=col(ah,['Second_Audit_Start_Time']),e2=col(ah,['Second_Audit_End_Time']),id2=col(ah,['Audit_ID_2']),st1=col(ah,['Status_1']),st2=col(ah,['Status_2']),lu=col(ah,['Last_Updated']);
+    const av=vr[2]?.values||[],initialAvailabilityRowCount=av.length,ah=av[0]||[],cd=col(ah,['Date']),ce=col(ah,['Auditor_Email','Auditor Email','Email','E-mail']),ca=col(ah,['Available']),s1=col(ah,['First_Audit_Start_Time']),e1=col(ah,['First_Audit_End_Time']),id1=col(ah,['Audit_ID_1']),s2=col(ah,['Second_Audit_Start_Time']),e2=col(ah,['Second_Audit_End_Time']),id2=col(ah,['Audit_ID_2']),st1=col(ah,['Status_1']),st2=col(ah,['Status_2']),lu=col(ah,['Last_Updated']);
     if([cd,ce,ca,s1,e1,id1,s2,e2,id2,st1,st2].some(x=>x<0))throw new Error('AVAILABILITY_SCHEMA_INVALID');
     const avRows=av.slice(1).map((row,i)=>({row:row.slice(),sheetRow:i+2,date:dateOnly(row[cd]),email:clean(row[ce]).toLowerCase()}));
     const touched=new Map();
@@ -1641,7 +1641,7 @@ set(['Date - Planned'],requested[0].date);if(actorRole==='MANAGER')set(['Date - 
           const sources={'Audit planning':ap,'Auditor Availability':vr[2]?.values||[],'Concept Reservations':cr};
           const source=sources[match[1]];
           if(!source)throw Error('PLANNING_PREFLIGHT_TAB_INVALID');
-          return {range:w.range,before:source[Number(match[2])-1]?.slice()||[]};
+          return {range:w.range,before:match[1]==='Auditor Availability'&&Number(match[2])>initialAvailabilityRowCount?[]:source[Number(match[2])-1]?.slice()||[]};
         }),
         notificationIntents:[trailRow,plannedRow],
         plannedHours:Math.round(total*100)/100,

@@ -6,7 +6,7 @@
 const str=x=>String(x??'');
 const norm=x=>{const a=(x||[]).map(str);while(a.length&&a.at(-1)==='')a.pop();return a;};
 const same=(a,b)=>JSON.stringify(norm(a))===JSON.stringify(norm(b));
-const allowed=new Set(['Notification Queue','Rejected audits','Log realized audits','Audit planning','Audit_Obligations','Audit_Visit_Obligations']);
+const allowed=new Set(['Notification Queue','Rejected audits','Log realized audits','Audit planning','Audit_Obligations','Audit_Visit_Obligations','Diagnostics_Log']);
 function validate(intents){
  if(!Array.isArray(intents)||intents.length>24)throw Error('APPEND_INTENTS_INVALID');
  const result=[];

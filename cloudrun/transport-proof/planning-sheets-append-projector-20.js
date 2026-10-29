@@ -16,6 +16,13 @@ function validate(intents){
   for(const row of item.values)result.push({range:item.range,sheet:match[1],row});
  }
  if(result.length>200)throw Error('APPEND_INTENTS_TOO_MANY');
+ // A single sheet scan cannot safely verify intents using different column widths.
+ const sheetRanges=new Map();
+ for(const item of result){
+  const previous=sheetRanges.get(item.sheet);
+  if(previous&&previous!==item.range)throw Error('APPEND_INTENT_MIXED_RANGES');
+  sheetRanges.set(item.sheet,item.range);
+ }
  const signatures=new Set();
  for(const item of result){
   const sig=item.sheet+'|'+JSON.stringify(norm(item.row));

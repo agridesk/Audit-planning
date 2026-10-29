@@ -68,7 +68,7 @@ export function createPlanningCutoverDataAudit({auditParity,claimsParity,store}=
    ready:audits.ready===true&&claims.ready===true&&!outbox.truncated&&!outbox.unresolved,
    asOfDate,audits:{ready:audits.ready,expected:audits.sourceAudits,verified:audits.verified,problems:audits.problems},
    claims:{ready:claims.ready,expected:claims.expected,checked:claims.checked,totalProblems:claims.totalProblems,problems:claims.problems},
-   outbox:{checked:count,unresolved,pages:outboxPages,truncated,problems}
+   outbox
   };
  }
  return Object.freeze({verify});

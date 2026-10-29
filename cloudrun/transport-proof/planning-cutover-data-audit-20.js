@@ -32,9 +32,11 @@ export function createPlanningCutoverDataAudit({auditParity,claimsParity,store}=
   // Two complete bounded sweeps catch an outbox changing during pagination.
   // This is stability evidence, NOT an atomic Firestore/Sheets snapshot.
   async function scanOutbox(){
-   let token='',pages=0,count=0,unresolved=0,truncated=false;const problems=[],seen=new Set(),items=[];
+   let token='',pages=0,count=0,unresolved=0,truncated=false;const problems=[],seen=new Set(),pageTokens=new Set(),items=[];
    do{
     if(pages>=maxPages){truncated=true;break;}
+    if(pageTokens.has(token))throw Error('CUTOVER_OUTBOX_PAGINATION_LOOP');
+    pageTokens.add(token);
     const r=await store.listOutbox({pageSize:200,pageToken:token});pages++;
     if(!Array.isArray(r?.entries)||r.entries.length>200)throw Error('CUTOVER_DATA_AUDIT_OUTBOX_INVALID');
     for(const entry of r.entries){

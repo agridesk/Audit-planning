@@ -27,4 +27,7 @@ assert.equal((await b.read(request.auditId)).commits[1].state,'REJECTED');
 const race=await Promise.allSettled([a.stage({...request,requestId:'req-9'}),b.stage({...request,requestId:'req-10'})]);
 assert.equal(race.filter(x=>x.status==='fulfilled').length,1);
 assert.equal(race.filter(x=>x.status==='rejected').length,1);
+store.set('corrupt',{auditorId:'corrupt',version:2,commits:[{state:'PROJECTED',auditId:'corrupt'}]});
+await assert.rejects(()=>a.read('corrupt'),/PLANNING_CANONICAL_CORRUPT/);
+store.delete('corrupt');
 console.log('Firestore planning authority CAS, replay, recovery and concurrency passed');

@@ -121,7 +121,7 @@ async function readPlanningRows(){
  return rows;
 }
 async function verifyUncertainPlanningLeaseInSheets(lease){
- if(lease?.state!=='UNCERTAIN'||!lease.auditId||!lease.auditorEmail||!Array.isArray(lease.plannedBlocks)||!lease.plannedBlocks.length)return false;
+ if(!lease||!['UNCERTAIN',undefined,'ACTIVE'].includes(lease.state)||!lease.auditId||!lease.auditorEmail||!Array.isArray(lease.plannedBlocks)||!lease.plannedBlocks.length)return false;
  const planning=await readPlanningRows(),head=planning[0].map(x=>String(x||'').trim());
  const idCol=head.indexOf('Audit ID'),emailCol=head.indexOf('Assigned to'),jsonCol=head.indexOf('Planning JSON');
  if([idCol,emailCol,jsonCol].some(x=>x<0))throw Error('PLANNING_RECONCILIATION_SCHEMA_INVALID');
@@ -796,10 +796,14 @@ async function proxy(req,res){
   try{const outcome=JSON.parse(responseBody.toString('utf8'));if(outcome?.success!==false&&outcome?.ok!==false)planningCache.invalidate();}catch{}
  }
  if(planningLease&&planningForwarded&&!planningWriteConfirmed)throw Error('PLANNING_COMMIT_OUTCOME_UNCERTAIN');
- if(planningIntent)await planningAuthority.transition({auditId:planningIntent.auditId,commitId:planningIntent.id,from:'PENDING',to:'PROJECTED'});
+ if(planningIntent){
+   const verified=await verifyUncertainPlanningLeaseInSheets({...planningLease.document.planningLease,state:'UNCERTAIN'});
+   if(!verified)throw Error('PLANNING_PROJECTION_NOT_VERIFIED');
+   await planningAuthority.transition({auditId:planningIntent.auditId,commitId:planningIntent.id,from:'PENDING',to:'PROJECTED',detail:'VERIFIED_SHEETS_PROJECTION'});
+  }
  if(planningLease){await service.releasePlanningLease({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token});planningLease=null;}
  res.writeHead(r.status,h);res.end(responseBody);
- }finally{if(planningLease){if(planningIntent&&planningForwarded&&!planningWriteConfirmed)await planningAuthority.transition({auditId:planningIntent.auditId,commitId:planningIntent.id,from:'PENDING',to:'UNCERTAIN',detail:'SHEETS_WRITE_UNCONFIRMED'});if(!planningForwarded)await service.releasePlanningLease({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token});else await service.markPlanningLeaseUncertain({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token,reason:planningWriteConfirmed?'LEASE_RELEASE_FAILED':'SHEETS_WRITE_UNCONFIRMED'});}}
+ }finally{if(planningLease){if(planningIntent&&planningForwarded&&(!planningWriteConfirmed||planningIntent))await planningAuthority.transition({auditId:planningIntent.auditId,commitId:planningIntent.id,from:'PENDING',to:'UNCERTAIN',detail:'SHEETS_WRITE_UNCONFIRMED'});if(!planningForwarded)await service.releasePlanningLease({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token});else await service.markPlanningLeaseUncertain({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token,reason:planningWriteConfirmed?'LEASE_RELEASE_FAILED':'SHEETS_WRITE_UNCONFIRMED'});}}
 }
 http.createServer(async(req,res)=>{
  try{

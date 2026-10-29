@@ -20,6 +20,7 @@ export function createPlanningFirestoreAuthority(adapter){
   const previous=current.commits.find(x=>x.requestId===requestId);
   if(previous){if(previous.auditorId!==auditorId||previous.actorId!==actorId||previous.sourceRevision!==String(sourceRevision??'')||JSON.stringify(previous.blocks)!==JSON.stringify(blocks))throw Error('PLANNING_IDEMPOTENCY_KEY_REUSED');return {commit:copy(previous),replayed:true,version:current.version};}
   if(current.commits.some(x=>x.state==='PENDING'||x.state==='UNCERTAIN'))throw Error('PLANNING_PROJECTION_PENDING');
+  if(current.commits.length>=200)throw Error('PLANNING_LEDGER_ARCHIVE_REQUIRED');
   if(current.version>=Number.MAX_SAFE_INTEGER-1)throw Error('PLANNING_VERSION_EXHAUSTED');
   const commit={id:randomUUID(),requestId,auditId,auditorId,actorId,sourceRevision:String(sourceRevision??''),blocks:copy(blocks),state:'PENDING',createdAt:new Date().toISOString()};
   const next={...current,version:current.version+1,commits:[...current.commits,commit]};

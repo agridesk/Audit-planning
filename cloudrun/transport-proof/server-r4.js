@@ -1,4 +1,6 @@
 import http from 'node:http';
+import {AsyncLocalStorage} from 'node:async_hooks';
+const lifecyclePreviewContext20=new AsyncLocalStorage();
 import {managerCanonicalWriteBridge20} from './manager-canonical-write-bridge-20.mjs';
 import {buildDirectAuditorAcceptSheets20} from './auditor-accept-direct-sheets-20.mjs';
 import {boundedSessionExpiry} from './auth-session-policy.mjs';
@@ -49,11 +51,15 @@ async function sheetsBatchGet(ranges,serialDates=false){
   if(!r.ok)throw new Error('SHEETS_API_'+r.status+': '+JSON.stringify(body));return body.valueRanges||[];
 }
 async function sheetsValuesBatchUpdate(data){
+  const preview=lifecyclePreviewContext20.getStore();
+  if(preview){preview.writes.push(...structuredClone(data));return {totalUpdatedCells:0,authorityPreflight:true};}
   const token=await accessToken(),u='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'/values:batchUpdate';
   const r=await fetch(u,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({valueInputOption:'USER_ENTERED',data})}),body=await r.json();
   if(!r.ok)throw new Error('SHEETS_BATCH_UPDATE_'+r.status+': '+JSON.stringify(body));return body;
 }
 async function sheetsValuesAppend(range,values){
+  const preview=lifecyclePreviewContext20.getStore();
+  if(preview){preview.appends.push({range,values:structuredClone(values)});return {updates:{updatedRows:values.length},authorityPreflight:true};}
   const token=await accessToken(),u='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'/values/'+encodeURIComponent(range)+':append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS';
   const r=await fetch(u,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({values})}),body=await r.json();
   if(!r.ok)throw new Error('SHEETS_APPEND_'+r.status+': '+JSON.stringify(body));return body;
@@ -235,6 +241,8 @@ async function sheetsDeleteRow(sheetTitle,rowNumber){
   if(!r.ok)throw new Error('SHEETS_DELETE_ROW_'+r.status+': '+JSON.stringify(out));return out;
 }
 async function sheetsEnsureRows(sheetTitle,requiredRows){
+  const preview=lifecyclePreviewContext20.getStore();
+  if(preview){preview.ensureRows.push({sheetTitle,requiredRows});return;}
   const token=await accessToken(),metaUrl='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'?fields=sheets.properties';
   const mr=await fetch(metaUrl,{headers:{authorization:'Bearer '+token}}),meta=await mr.json();
   if(!mr.ok)throw new Error('SHEETS_META_'+mr.status+': '+JSON.stringify(meta));

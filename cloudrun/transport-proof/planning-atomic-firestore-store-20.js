@@ -85,6 +85,20 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
   });
   return {entries:docs,nextPageToken:data.nextPageToken||null};
  }
+ async function listClaims({pageSize=100,pageToken=''}={}){
+  if(!Number.isSafeInteger(pageSize)||pageSize<1||pageSize>200||typeof pageToken!=='string')throw Error('PLANNING_CLAIM_SCAN_INPUT_INVALID');
+  const u=new URL(base+'/'+coll.claim);u.searchParams.set('pageSize',String(pageSize));
+  if(pageToken)u.searchParams.set('pageToken',pageToken);
+  const r=await request(u.toString());
+  if(!r.ok)throw Error('PLANNING_CLAIM_SCAN_'+r.status);
+  const data=await r.json(),claims=(data.documents||[]).map(raw=>{
+   const key=decodeURIComponent(String(raw.name||'').split('/').at(-1)||'');
+   const decoded=decodeDoc(raw);
+   if(!validId(key)||decoded?.value?.claimId!==key)throw Error('PLANNING_CLAIM_SCAN_CORRUPT');
+   return decoded.value;
+  });
+  return {claims,nextPageToken:data.nextPageToken||null};
+ }
  async function readAudit(auditId){return clone((await get('audit',auditId))?.value??null);}
  async function inspectAuditClaimIndex(auditId){
   const audit=await readAudit(auditId);
@@ -294,5 +308,5 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
    return {state:'UNCERTAIN',replayed:false};
   });
  }
- return Object.freeze({readAudit,readOutbox,listOutbox,inspectAuditClaimIndex,commit,commitMulti,seed,markProjected,markUncertain});
+ return Object.freeze({readAudit,readOutbox,listOutbox,listClaims,inspectAuditClaimIndex,commit,commitMulti,seed,markProjected,markUncertain});
 }

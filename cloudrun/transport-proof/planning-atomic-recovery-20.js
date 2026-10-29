@@ -50,9 +50,10 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
   }
   return {state:'PROJECTED'};
  }
+ let nextScanPageToken='';
  async function scan({limit=100}={}){
   if(!Number.isSafeInteger(limit)||limit<1||limit>1000)throw Error('ATOMIC_RECOVERY_LIMIT_INVALID');
-  let token='',scanned=0,recovered=0,unresolved=0,errors=0,pages=0;
+  let token=nextScanPageToken,scanned=0,recovered=0,unresolved=0,errors=0,pages=0;
   do{
    const result=await store.listOutbox({pageSize:Math.min(100,limit-scanned),pageToken:token});
    pages++;if(!Array.isArray(result.entries)||pages>limit+1)throw Error('ATOMIC_RECOVERY_SCAN_INVALID');
@@ -65,6 +66,9 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
    token=result.nextPageToken||'';
    if(scanned>=limit)break;
   }while(token);
+  // Resume subsequent scans from the next page; otherwise a large history
+  // of already PROJECTED operations can permanently starve newer outbox work.
+  nextScanPageToken=token||'';
   return {scanned,recovered,unresolved,errors,truncated:!!token};
  }
  return Object.freeze({scan,recoverOne});

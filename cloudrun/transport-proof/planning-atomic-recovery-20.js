@@ -35,8 +35,8 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
    const actor={role:'manager',id:'atomic-recovery'};
    const doc=await availabilityService.read(actor,entry.auditorId);
    const lease=doc.planningLease;
-   if(lease?.state==='UNCERTAIN'&&lease.auditId===entry.auditId){
-    await availabilityService.reconcilePlanningLease({actor,auditorId:entry.auditorId,token:lease.token,verifiedAuditId:entry.auditId});
+   if((lease?.state==='UNCERTAIN'||lease?.state==='ACTIVE'||lease&&lease.state===undefined)&&lease.auditId===entry.auditId){
+    await availabilityService.reconcilePlanningLease({actor,auditorId:entry.auditorId,token:lease.token,verifiedAuditId:entry.auditId,verifiedProjectionProof:proof.rowHash});
    }
   }
   return {state:'PROJECTED'};

@@ -3,6 +3,8 @@ import fs from 'node:fs';
 const pkg=JSON.parse(fs.readFileSync(new URL('./package.json',import.meta.url),'utf8'));
 const docker=fs.readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
 
+const r15=fs.readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
+const planningProxy=r15.slice(r15.indexOf('async function proxy(req,res){'),r15.indexOf('http.createServer(async(req,res)=>'));
 const checks=[
   ['package starts canonical Availability R15 runtime',pkg?.scripts?.start==='node server-r15.js'],
   ['Docker image contains R12',docker.includes('COPY server-r12.js ./')],
@@ -15,6 +17,9 @@ const checks=[
   ['Docker image contains scope policy service',docker.includes('COPY scope-policy-20.js ./')],
   ['Docker image contains scheme version service',docker.includes('COPY scope-scheme-version-20.js ./')],
   ['Docker image contains Add scope service',docker.includes('COPY scope-create-20.js ./')],
+  ['DEV Planning Save obtains durable CAS lease before HARD gate',planningProxy.indexOf('service.acquirePlanningLease(')>=0&&planningProxy.indexOf('service.acquirePlanningLease(')<planningProxy.indexOf('enforceAvailabilityHardGate20(')],
+  ['DEV Planning Save holds lease until Sheets proxy returns',planningProxy.indexOf('service.releasePlanningLease(')>planningProxy.indexOf('const r=await fetch(url,init)')],
+  ['DEV Planning Save attempts lease cleanup after failure',planningProxy.includes('finally{if(planningLease)await service.releasePlanningLease(')],
   ['Docker starts npm start',docker.includes('CMD ["npm","start"]')]
 ];
 

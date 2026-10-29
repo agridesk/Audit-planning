@@ -83,11 +83,13 @@ export function createAvailabilityService(adapter){
   if(await adapter.compareAndSwap(id,current.version,next)!==true)throw Error('VERSION_CONFLICT');
   return {auditorId:id,version:next.version,state:'UNCERTAIN'};
  }
- async function reconcilePlanningLease({actor,auditorId,token,verifiedAuditId}){
+ async function reconcilePlanningLease({actor,auditorId,token,verifiedAuditId,verifiedProjectionProof=null}){
   const id=str(auditorId);authorize(actor,id);
   if(str(actor?.role).toLowerCase()!=='manager')throw Error('NOT_AUTHORIZED');
   const current=await read(actor,id);
-  if(!token||current.planningLease?.token!==token||current.planningLease?.state!=='UNCERTAIN'||!str(verifiedAuditId)||current.planningLease.auditId!==str(verifiedAuditId))throw Error('PLANNING_RECONCILIATION_EVIDENCE_INVALID');
+  const lease=current.planningLease;
+  const isActiveOrphan=(lease?.state===undefined||lease?.state==='ACTIVE')&&verifiedProjectionProof&&/^[a-f0-9]{64}$/.test(str(verifiedProjectionProof))&&Number.isFinite(Date.parse(lease?.acquiredAt||''))&&Date.now()-Date.parse(lease.acquiredAt)>=30*60*1000;
+  if(!token||lease?.token!==token||!str(verifiedAuditId)||lease.auditId!==str(verifiedAuditId)||!(lease.state==='UNCERTAIN'||isActiveOrphan))throw Error('PLANNING_RECONCILIATION_EVIDENCE_INVALID');
   if(current.version>=Number.MAX_SAFE_INTEGER-1)throw Error('VERSION_CONFLICT');
   const next=clone(current);next.version=current.version+1;
   if(next.metadata?.confirmation)next.metadata.confirmation.availabilityVersion=next.version;

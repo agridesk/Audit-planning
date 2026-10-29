@@ -822,6 +822,7 @@ http.createServer(async(req,res)=>{
    if(!Array.isArray(intervals))throw Error('PLANNING_RECOVERY_PLANNING_INVALID');
    const signature=blocks=>blocks.map(x=>[String(x.date||''),String(x.start||''),String(x.end||'')].join('|')).sort();
    if(JSON.stringify(signature(intervals))!==JSON.stringify(signature(lease.plannedBlocks)))throw Error('PLANNING_RECOVERY_INTERVAL_MISMATCH');
+   if(!await verifyUncertainPlanningLeaseInSheets(lease))throw Error('PLANNING_RECOVERY_AVAILABILITY_NOT_VERIFIED');
    const result=await service.releasePlanningLease({actor:verifiedActor,auditorId,token:lease.token});
    planningCache.invalidate();
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,reconciled:true,auditId,auditorId,version:result.version}));return;
@@ -961,21 +962,6 @@ http.createServer(async(req,res)=>{
    }[u.pathname];
    if(!operation){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}
    await swap20AuditorRequest(req,res,operation);return;
-  }
-  if(runtime.isDev&&req.method==='POST'&&u.pathname==='/api/v1/internal/planning/reconcile-uncertain'){
-   const actor=await session(req);
-   if(!actor){res.writeHead(401,{'cache-control':'no-store'});res.end('Unauthorized');return;}
-   if(actor.role!=='manager'){res.writeHead(403,{'cache-control':'no-store'});res.end('Forbidden');return;}
-   let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>4096)throw Error('PLANNING_RECONCILIATION_REQUEST_TOO_LARGE');}
-   let body;try{body=JSON.parse(raw);}catch{throw Error('PLANNING_RECONCILIATION_INVALID_JSON');}
-   const auditorId=String(body?.auditorId||'').trim(),manager={role:'manager',id:actor.auditorId};
-   if(!auditorId||auditorId.length>200)throw Error('PLANNING_RECONCILIATION_AUDITOR_REQUIRED');
-   const snapshot=await service.read(manager,auditorId),lease=snapshot.planningLease;
-   if(lease?.state!=='UNCERTAIN'){res.writeHead(409,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:false,error:'NO_UNCERTAIN_PLANNING_LEASE'}));return;}
-   const verified=await verifyUncertainPlanningLeaseInSheets(lease);
-   if(!verified){res.writeHead(409,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:false,error:'PLANNING_RECONCILIATION_NOT_PROVEN'}));return;}
-   const result=await service.releasePlanningLease({actor:manager,auditorId,token:lease.token});planningCache.invalidate();
-   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,auditorId,version:result.version,reconciled:true}));return;
   }
   if(await availability(req,res))return;
   await proxy(req,res);

@@ -17,4 +17,17 @@ assert.equal(blocked.outbox.unresolved,1);
 assert.equal(blocked.outbox.problems[0].operationId,'uncertain');
 assert.equal((await auditor.verify({asOfDate:'2026-10-29',maxPages:1})).outbox.truncated,true);
 await assert.rejects(()=>auditor.verify({maxPages:101}),/CUTOVER_DATA_AUDIT_PAGE_LIMIT_INVALID/);
+let pageManifest='stable';
+const paged=createPlanningCutoverDataAudit({
+ auditParity:{async verify({startRow}){
+  if(startRow===2)return {sourceManifest:'stable',sourceAudits:300,batch:250,verified:250,remaining:true,nextRow:252,problems:[]};
+  return {sourceManifest:pageManifest,sourceAudits:300,batch:50,verified:50,remaining:false,problems:[]};
+ }},
+ claimsParity:source.claimsParity,
+ store:{async listOutbox(){return {entries:[],nextPageToken:null};}}
+});
+outbox=[];
+assert.equal((await paged.verify({asOfDate:'2026-10-29'})).ready,true);
+pageManifest='modified';
+await assert.rejects(()=>paged.verify({asOfDate:'2026-10-29'}),/CUTOVER_AUDIT_SOURCE_CHANGED_DURING_SCAN/);
 console.log('Cutover readiness: full row/claim parity and no unresolved outbox needed before switch');

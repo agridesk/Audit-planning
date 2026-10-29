@@ -230,6 +230,8 @@ async function sheetsAtomicAuditorEmailTransition({auditorRow,auditorEmailCol,ol
   });
 }
 async function sheetsDeleteRow(sheetTitle,rowNumber){
+  const preview=lifecyclePreviewContext20.getStore();
+  if(preview){preview.deletes.push({sheetTitle,rowNumber});return {authorityPreflight:true};}
   const token=await accessToken(),metaUrl='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'?fields=sheets.properties';
   const mr=await fetch(metaUrl,{headers:{authorization:'Bearer '+token}}),meta=await mr.json();
   if(!mr.ok)throw new Error('SHEETS_META_'+mr.status+': '+JSON.stringify(meta));
@@ -775,9 +777,10 @@ async function directManagerExtension(identity,body){
 async function lifecycleAuthorityPreflight20(identity,body,action,writer){
  const enabled=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true'&&body?.authorityPreflight===true;
  if(!enabled)return writer();
- const capture={writes:[],appends:[],ensureRows:[]};
+ const capture={writes:[],appends:[],ensureRows:[],deletes:[]};
  return lifecyclePreviewContext20.run(capture,async()=>{
   const outcome=await writer();
+  if(capture.deletes.length)throw Error('LIFECYCLE_ATOMIC_ROW_DELETION_NOT_MIGRATED');
   if(outcome?.success!==true)throw Error('LIFECYCLE_PREFLIGHT_NOT_SUCCESSFUL');
   if(outcome.idempotent===true)return {...outcome,authorityPreflight:true,projectionWrites:[],projectionPreconditions:[],appendIntents:[],idempotent:true};
   if(!capture.writes.length||capture.writes.length>120)throw Error('LIFECYCLE_PREFLIGHT_WRITES_UNSUPPORTED');

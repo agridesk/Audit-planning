@@ -769,6 +769,33 @@ async function proxy(req,res){
 http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url||'/','http://localhost');
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/reconcile-uncertain-lease'){
+   if(!runtime.isDev){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403);res.end();return;}
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)throw Error('PLANNING_RECOVERY_REQUEST_TOO_LARGE');}
+   const input=JSON.parse(raw),auditorId=String(input?.auditorId||'').trim(),auditId=String(input?.auditId||'').trim();
+   if(!auditorId||!auditId)throw Error('PLANNING_RECOVERY_TARGET_REQUIRED');
+   const verifiedActor={role:'manager',id:actor.auditorId},doc=await service.read(verifiedActor,auditorId),lease=doc.planningLease;
+   if(lease?.state!=='UNCERTAIN'||lease.auditId!==auditId||!Array.isArray(lease.plannedBlocks)||!lease.auditorEmail)throw Error('PLANNING_RECOVERY_EVIDENCE_MISSING');
+   if(!Number.isFinite(Date.parse(lease.uncertainAt))||Date.now()-Date.parse(lease.uncertainAt)<1800000)throw Error('PLANNING_RECOVERY_COOLDOWN');
+   const rows=await readPlanningRows(),headers=(rows[0]||[]).map(x=>String(x||'').trim().toLowerCase().replace(/[\\s_-]+/g,''));
+   const column=(...names)=>names.map(n=>headers.indexOf(n.toLowerCase().replace(/[\\s_-]+/g,''))).find(i=>i>=0)??-1;
+   const idCol=column('Audit ID','Audit_ID'),statusCol=column('Status'),assignedCol=column('Assigned to'),planningCol=column('Planning JSON');
+   if([idCol,statusCol,assignedCol,planningCol].some(i=>i<0))throw Error('PLANNING_RECOVERY_SCHEMA_INVALID');
+   const matches=rows.slice(1).filter(row=>String(row[idCol]||'').trim()===auditId);
+   if(matches.length!==1)throw Error('PLANNING_RECOVERY_AUDIT_NOT_UNIQUE');
+   const row=matches[0],status=String(row[statusCol]||'').trim().toUpperCase().replace(/[\\s-]+/g,'_');
+   if(!['APPROVED','PENDING_APPROVAL'].includes(status)||String(row[assignedCol]||'').trim().toLowerCase()!==lease.auditorEmail)throw Error('PLANNING_RECOVERY_NOT_COMMITTED');
+   let stored;try{stored=JSON.parse(String(row[planningCol]||''));}catch{throw Error('PLANNING_RECOVERY_PLANNING_INVALID');}
+   const intervals=Array.isArray(stored)?stored:stored?.blocks;
+   if(!Array.isArray(intervals))throw Error('PLANNING_RECOVERY_PLANNING_INVALID');
+   const signature=blocks=>blocks.map(x=>[String(x.date||''),String(x.start||''),String(x.end||'')].join('|')).sort();
+   if(JSON.stringify(signature(intervals))!==JSON.stringify(signature(lease.plannedBlocks)))throw Error('PLANNING_RECOVERY_INTERVAL_MISMATCH');
+   const result=await service.releasePlanningLease({actor:verifiedActor,auditorId,token:lease.token});
+   planningCache.invalidate();
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,reconciled:true,auditId,auditorId,version:result.version}));return;
+  }
   if(req.method==='POST'&&u.pathname==='/api/v1/internal/swap20/reconcile'){
    if(!runtime.isDev||!swap20Scheduler){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}
    if(!await swap20Scheduler.verify(req.headers.authorization)){res.writeHead(403,{'cache-control':'no-store'});res.end('Forbidden');return;}

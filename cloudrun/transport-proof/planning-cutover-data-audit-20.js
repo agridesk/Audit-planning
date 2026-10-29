@@ -41,6 +41,8 @@ export function createPlanningCutoverDataAudit({auditParity,claimsParity,store}=
    }
    token=r.nextPageToken||'';
   }while(token);
+  const finalSource=await auditParity.verify({startRow:2,limit:1,asOfDate});
+  if(finalSource.sourceManifest!==audits.sourceManifest)throw Error('CUTOVER_SOURCE_CHANGED_AFTER_OUTBOX_SCAN');
   return {
    ready:audits.ready===true&&claims.ready===true&&!truncated&&!unresolved,
    asOfDate,audits:{ready:audits.ready,expected:audits.sourceAudits,verified:audits.verified,problems:audits.problems},

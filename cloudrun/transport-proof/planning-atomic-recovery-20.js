@@ -38,7 +38,10 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
    const since=Date.parse(global.holder.state==='UNCERTAIN'
     ?global.holder.uncertainAt||global.holder.acquiredAt||''
     :global.holder.acquiredAt||'');
-   if(!['ACTIVE','UNCERTAIN'].includes(global.holder.state)||!Number.isFinite(since)||Date.now()-since<30*60*1000)
+   // Even a very old ACTIVE gate could belong to an in-flight writer.
+   // Only the writer may release ACTIVE, or a verified manual intervention may
+   // mark it UNCERTAIN. Elapsed time alone never fences a still-active writer.
+   if(global.holder.state!=='UNCERTAIN'||!Number.isFinite(since)||Date.now()-since<30*60*1000)
     throw Error('ATOMIC_RECOVERY_WRITER_QUARANTINE_ACTIVE');
   }
   const proof={verified:true,auditId:entry.auditId,rowHash:hash({rows:rowCheck.detail,appends:appendCheck.count})};

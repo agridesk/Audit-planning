@@ -91,8 +91,10 @@ assert.match(gateway,/origin\.origin==='https:\/\/ams-transport-proof-5100754190
 assert.match(router10,/if\(auditorAction!=='complete'\)return proxy\(req,res,raw\)/);
 assert.doesNotMatch(router10,/AUDITOR_ACTION_FORBIDDEN/);
 assert.match(portal,/new BroadcastChannel\("ams-auditor-actions-20"\)/);
-assert.match(gas,/createTextFinder\(uid20\)\.matchEntireCell\(true\)\.matchCase\(true\)\.findAll\(\)/);
-assert.match(gas,/createTextFinder\(id20\)\.matchEntireCell\(true\)\.matchCase\(true\)\.findAll\(\)/);
+assert.match(gas,/auditorUidValues20=a20\.getRange\(2,auidCol20\+1/);
+assert.match(gas,/auditorHits20\.length!==1/);
+assert.match(gas,/auditIdValues20=p20\.getRange\(2,ai20\+1/);
+assert.match(gas,/auditHits20\.length!==1/);
 assert.match(gas,/auditorHits20\.length!==1/);
 assert.match(gas,/auditHits20\.length!==1/);
 assert.doesNotMatch(gas,/a20\.getDataRange\(\)\.getValues\(\)/);

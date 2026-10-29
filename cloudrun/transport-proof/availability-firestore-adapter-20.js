@@ -57,5 +57,20 @@ export function createFirestoreAvailabilityAdapter({projectId,databaseId='(defau
   const written=await r.json();if(!written.updateTime)throw Error('FIRESTORE_WRITE_MISSING_VERSION');
   return true;
  }
- return Object.freeze({read,compareAndSwap});
+ async function listPage({pageSize=100,pageToken=''}={}){
+  if(!Number.isSafeInteger(pageSize)||pageSize<1||pageSize>250||typeof pageToken!=='string')throw Error('INVALID_LIST_REQUEST');
+  const url=new URL(base);url.searchParams.set('pageSize',String(pageSize));
+  if(pageToken)url.searchParams.set('pageToken',pageToken);
+  const r=await request(url.toString());
+  if(!r.ok)throw Error('FIRESTORE_LIST_'+r.status);
+  const data=await r.json();
+  const documents=(data.documents||[]).map(raw=>{
+   const id=decodeURIComponent(String(raw.name||'').split('/').at(-1)||'');
+   const value=decodeValue(raw.fields?.payload||{});
+   if(!validId(id)||value?.auditorId!==id||!Number.isSafeInteger(value.version))throw Error('FIRESTORE_LIST_CORRUPT_DOCUMENT');
+   return {id,document:value};
+  });
+  return {documents,nextPageToken:data.nextPageToken||null};
+ }
+ return Object.freeze({read,compareAndSwap,listPage});
 }

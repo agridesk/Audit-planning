@@ -63,10 +63,11 @@ export function createPlanningBackfillRunner({atomicStore,readPlanningRows,getRo
  if(typeof atomicStore?.seed!=='function'||typeof readPlanningRows!=='function'||typeof getRoster!=='function')throw Error('BACKFILL_RUNNER_CONFIG_INVALID');
  async function run({dryRun=true,startRow=2,limit=100,sourceManifest=null}={}){
   if(!Number.isSafeInteger(startRow)||startRow<2||!Number.isSafeInteger(limit)||limit<1||limit>200)throw Error('BACKFILL_BATCH_INVALID');
-  const prepared=preparePlanningBackfill({rows:await readPlanningRows(),roster:await getRoster()});
+  const asOfDate=new Date().toISOString().slice(0,10);
+  const prepared=preparePlanningBackfill({rows:await readPlanningRows(),roster:await getRoster(),asOfDate});
   // One manifest covers every source audit and every canonical row, not only
   // the current batch. Cross-batch drift cannot be mistaken for clean backfill.
-  const manifest=hash(JSON.stringify([new Date().toISOString().slice(0,10),prepared.items.map(x=>[x.auditId,x.snapshot.sourceRow,x.snapshot.headers,x.snapshot.row,x.auditorId,x.blocks])]));
+  const manifest=hash(JSON.stringify([asOfDate,prepared.items.map(x=>[x.auditId,x.snapshot.sourceRow,x.snapshot.headers,x.snapshot.row,x.auditorId,x.blocks])]));
   const targets=prepared.items.filter(x=>x.snapshot.sourceRow>=startRow).slice(0,limit);
   if(dryRun)return {dryRun:true,sourceManifest:manifest,...prepared.stats,batch:targets.length,nextRow:targets.at(-1)?.snapshot.sourceRow+1||null};
   if(!/^[0-9a-f]{64}$/.test(sourceManifest||'')||sourceManifest!==manifest)throw Error('BACKFILL_SOURCE_MANIFEST_CHANGED');
@@ -74,6 +75,12 @@ export function createPlanningBackfillRunner({atomicStore,readPlanningRows,getRo
    const result=await atomicStore.seed(item);
    if(result.seeded)seeded++;else replayed++;
   }
+  // A long backfill can race an external edit even after the intended freeze.
+  // Re-read the complete canonical source and roster. On drift, fail closed:
+  // any partial seed must be repaired/reconciled, never certified by the caller.
+  const verified=preparePlanningBackfill({rows:await readPlanningRows(),roster:await getRoster(),asOfDate});
+  const after=hash(JSON.stringify([asOfDate,verified.items.map(x=>[x.auditId,x.snapshot.sourceRow,x.snapshot.headers,x.snapshot.row,x.auditorId,x.blocks])]));
+  if(after!==manifest)throw Error('BACKFILL_SOURCE_DRIFT_DURING_WRITE');
   return {dryRun:false,sourceManifest:manifest,...prepared.stats,batch:targets.length,seeded,replayed,nextRow:targets.at(-1)?.snapshot.sourceRow+1||null};
  }
  return Object.freeze({run});

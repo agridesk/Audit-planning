@@ -25,10 +25,10 @@ export function createPlanningCutoverDataAudit({auditParity,claimsParity,store}=
   if(verified!==total||errors.length)ready=false;
   const audits={ready,sourceManifest:manifest,sourceAudits:total??0,verified,pages,problems:errors.slice(0,100)};
   const claims=await claimsParity.verify({asOfDate,maxPages});
-  let token='',pages=0,count=0,unresolved=0,truncated=false;const problems=[];
+  let token='',outboxPages=0,count=0,unresolved=0,truncated=false;const problems=[];
   do{
-   if(pages>=maxPages){truncated=true;break;}
-   const r=await store.listOutbox({pageSize:200,pageToken:token});pages++;
+   if(outboxPages>=maxPages){truncated=true;break;}
+   const r=await store.listOutbox({pageSize:200,pageToken:token});outboxPages++;
    if(!Array.isArray(r?.entries)||r.entries.length>200)throw Error('CUTOVER_DATA_AUDIT_OUTBOX_INVALID');
    count+=r.entries.length;
    for(const entry of r.entries){
@@ -43,7 +43,7 @@ export function createPlanningCutoverDataAudit({auditParity,claimsParity,store}=
    ready:audits.ready===true&&claims.ready===true&&!truncated&&!unresolved,
    asOfDate,audits:{ready:audits.ready,expected:audits.sourceAudits,verified:audits.verified,problems:audits.problems},
    claims:{ready:claims.ready,expected:claims.expected,checked:claims.checked,totalProblems:claims.totalProblems,problems:claims.problems},
-   outbox:{checked:count,unresolved,pages,truncated,problems}
+   outbox:{checked:count,unresolved,pages:outboxPages,truncated,problems}
   };
  }
  return Object.freeze({verify});

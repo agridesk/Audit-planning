@@ -19,7 +19,8 @@ const checks=[
   ['Docker image contains Add scope service',docker.includes('COPY scope-create-20.js ./')],
   ['DEV Planning Save obtains durable CAS lease before HARD gate',planningProxy.indexOf('service.acquirePlanningLease(')>=0&&planningProxy.indexOf('service.acquirePlanningLease(')<planningProxy.indexOf('enforceAvailabilityHardGate20(')],
   ['DEV Planning Save holds lease until Sheets proxy returns',planningProxy.indexOf('service.releasePlanningLease(')>planningProxy.indexOf('const r=await fetch(url,init)')],
-  ['DEV Planning Save attempts lease cleanup after failure',planningProxy.includes('finally{if(planningLease)await service.releasePlanningLease(')],
+  ['DEV Planning Save preserves uncertain write for reconciliation',planningProxy.includes('service.markPlanningLeaseUncertain(')&&planningProxy.includes('PLANNING_COMMIT_OUTCOME_UNCERTAIN')],
+  ['DEV manager recovery verifies canonical Sheets and cooldown',r15.includes("'/api/v1/planning/reconcile-uncertain-lease'")&&r15.includes('PLANNING_RECOVERY_COOLDOWN')&&r15.includes('PLANNING_RECOVERY_INTERVAL_MISMATCH')],
   ['Docker starts npm start',docker.includes('CMD ["npm","start"]')]
 ];
 

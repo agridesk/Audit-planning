@@ -148,7 +148,7 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
   return transaction(async tx=>{
    const old=await tx.get('audit',auditId);
    if(old){
-    if(old.value.revision===0&&old.value.snapshot?.sourceRevision===snapshot.sourceRevision&&JSON.stringify(old.value.claimIds||[])===JSON.stringify(ids))return {seeded:false,idempotent:true};
+    if(old.value.revision===0&&old.value.snapshot?.sourceRevision===snapshot.sourceRevision&&JSON.stringify(old.value.snapshot)===JSON.stringify(snapshot)&&JSON.stringify(old.value.claimIds||[])===JSON.stringify(ids))return {seeded:false,idempotent:true};
     throw Error('PLANNING_BACKFILL_EXISTING_CANONICAL');
    }
    for(const claim of newClaims){

@@ -39,4 +39,12 @@ await assert.rejects(()=>service.inspect([
  {range:'Notification Queue!A:C',values:[['event-a']]},
  {range:'Notification Queue!A:M',values:[['event-b']]}
 ]),/APPEND_INTENT_MIXED_RANGES/);
+// A replay cannot be acknowledged if the global fence is lost during inspection.
+let replayFenceChecks=0;
+const replayFence=createPlanningSheetsAppendProjector({
+ spreadsheetId:'dev-sheet',getToken:async()=> 'token',fetchImpl,
+ verifyFence:async()=>{if(++replayFenceChecks===2)throw Error('REPLAY_FENCE_LOST');}
+});
+await assert.rejects(()=>replayFence.apply({operationId:'op-replay',gateToken:'token',intents}),/REPLAY_FENCE_LOST/);
+assert.equal(appended,2);
 console.log('Append projector: dedupe, replay, fence and unsupported-target guards passed');

@@ -13,7 +13,7 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
    const gateBefore=await gate.read();
    // A settled outbox may have already released its global fence while its
    // auditor availability lease remains UNKNOWN after a second crash.
-   if(gateBefore.holder?.operationId!==entry.operationId&&!entry.auditorId)return {state:'SKIPPED'};
+   if(gateBefore.holder?.operationId!==entry.operationId&&(!entry.auditorId||!availabilityService))return {state:'SKIPPED'};
   }
   const audit=await store.readAudit(entry.auditId);
   if(!audit||(settled?audit.lastProjectedOperationId!==entry.operationId:audit.pendingOperationId!==entry.operationId)||entry.multi!==true&&audit.revision!==entry.revision)throw Error('ATOMIC_RECOVERY_CANONICAL_MISMATCH');

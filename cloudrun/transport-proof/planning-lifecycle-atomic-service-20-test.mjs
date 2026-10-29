@@ -28,7 +28,7 @@ audit.snapshot.sourceRevision='newrev';preview.expectedSourceRevision='newrev';s
 await assert.rejects(()=>service.commit({...req,action:'APPROVE'}),/PROJECTOR_TIMEOUT/);
 assert.equal(uncertain,2);assert.equal(lock.state,'UNCERTAIN');
 // Separate canonical fixture for auditor ACCEPT; other actions must remain forbidden.
-const auditorState={revision:0,pendingOperationId:null,snapshot:{sourceRevision:'oldrev'}};
+const auditorState={revision:0,pendingOperationId:null,auditorId:'uid1',snapshot:{sourceRevision:'oldrev',status:'Approved'}};
 let auditorWrites=0,storedOperation=null;
 const auditorStore={
  async readOutbox(){return null;},
@@ -44,7 +44,18 @@ const auditorService=createPlanningLifecycleAtomicService({
  preflight:async()=>auditorPreview,roster:async()=>[{auditorId:'uid1',email:'aud@example.test',role:'auditor'}]
 });
 await assert.rejects(()=>auditorService.commit({actor:{role:'auditor',auditorId:'uid2'},body:{auditId:'a1'},action:'ACCEPT'}),/LIFECYCLE_ATOMIC_AUDITOR_OWNERSHIP_DENIED/);
-await assert.rejects(()=>auditorService.commit({actor:{role:'auditor',auditorId:'uid1'},body:{auditId:'a1'},action:'CANCEL'}),/LIFECYCLE_ATOMIC_FORBIDDEN/);
+await assert.rejects(()=>auditorService.commit({actor:{role:'auditor',auditorId:'uid1'},body:{auditId:'a1'},action:'CANCEL'}),/LIFECYCLE_ATOMIC_AUDITOR_OWNERSHIP_DENIED/);
 assert.equal((await auditorService.commit({actor:{role:'auditor',auditorId:'uid1'},body:{auditId:'a1'},action:'ACCEPT'})).success,true);
 assert.equal(auditorWrites,1);assert.equal(storedOperation.auditorId,'uid1');
+auditorState.snapshot={sourceRevision:'oldrev2',status:'Pending Approval'};
+auditorPreview.expectedSourceRevision='oldrev2';
+auditorPreview.canonicalSnapshot={...snapshot,status:'Pending Planning',assignedTo:'',sourceRevision:'nextrev'};
+assert.equal((await auditorService.commit({actor:{role:'auditor',auditorId:'uid1'},body:{auditId:'a1',action:'CANCEL'},action:'CANCEL'})).success,true);
+assert.equal(storedOperation.action,'CANCEL');assert.equal(storedOperation.auditorId,null);
+auditorState.snapshot={sourceRevision:'oldrev3',status:'Accepted'};
+auditorPreview.expectedSourceRevision='oldrev3';
+auditorPreview.canonicalSnapshot={...snapshot,status:'Completed',assignedTo:'',sourceRevision:'newrev3'};
+assert.equal((await auditorService.commit({actor:{role:'auditor',auditorId:'uid1'},body:{auditId:'a1',action:'COMPLETE'},action:'COMPLETE'})).success,true);
+assert.equal(storedOperation.action,'COMPLETE');assert.equal(storedOperation.auditorId,null);
+assert.equal(auditorWrites,3);
 console.log('Lifecycle atomic service: source parity, Firestore commit, projection, replay and uncertainty passed');

@@ -27,4 +27,24 @@ assert.equal(writes,1);
 audit.snapshot.sourceRevision='newrev';preview.expectedSourceRevision='newrev';snapshot.sourceRevision='newrev2';failed=true;
 await assert.rejects(()=>service.commit({...req,action:'APPROVE'}),/PROJECTOR_TIMEOUT/);
 assert.equal(uncertain,2);assert.equal(lock.state,'UNCERTAIN');
+// Separate canonical fixture for auditor ACCEPT; other actions must remain forbidden.
+const auditorState={revision:0,pendingOperationId:null,snapshot:{sourceRevision:'oldrev'}};
+let auditorWrites=0,storedOperation=null;
+const auditorStore={
+ async readOutbox(){return null;},
+ async readAudit(){return structuredClone(auditorState);},
+ async commit(input){auditorWrites++;storedOperation=input;auditorState.revision++;return {revision:auditorState.revision,replayed:false};},
+ async markProjected(){return {state:'PROJECTED'};}
+};
+const auditorGate={async acquire(){return {token:'accept-fence'};},async release(){},async uncertain(){}};
+const auditorPreview={...preview,expectedSourceRevision:'oldrev',canonicalSnapshot:{...snapshot,sourceRevision:'auditor-accepted'}};
+const auditorService=createPlanningLifecycleAtomicService({
+ atomicStore:auditorStore,gate:auditorGate,projector:{async apply(){},async inspect(){return {state:'MATCH',detail:[]}}},
+ appendProjector:{async apply(){},async inspect(){return {state:'MATCH',count:1}}},
+ preflight:async()=>auditorPreview,roster:async()=>[{auditorId:'uid1',email:'aud@example.test',role:'auditor'}]
+});
+await assert.rejects(()=>auditorService.commit({actor:{role:'auditor',auditorId:'uid2'},body:{auditId:'a1'},action:'ACCEPT'}),/LIFECYCLE_ATOMIC_AUDITOR_OWNERSHIP_DENIED/);
+await assert.rejects(()=>auditorService.commit({actor:{role:'auditor',auditorId:'uid1'},body:{auditId:'a1'},action:'CANCEL'}),/LIFECYCLE_ATOMIC_FORBIDDEN/);
+assert.equal((await auditorService.commit({actor:{role:'auditor',auditorId:'uid1'},body:{auditId:'a1'},action:'ACCEPT'})).success,true);
+assert.equal(auditorWrites,1);assert.equal(storedOperation.auditorId,'uid1');
 console.log('Lifecycle atomic service: source parity, Firestore commit, projection, replay and uncertainty passed');

@@ -26,16 +26,22 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
   if(rowCheck.state!=='MATCH'||appendCheck.state!=='MATCH')return {state:'UNRESOLVED',rowState:rowCheck.state,appendState:appendCheck.state};
   const global=await gate.read();
   if(global.holder&&global.holder.operationId!==entry.operationId)throw Error('ATOMIC_RECOVERY_GATE_OWNERSHIP_MISMATCH');
-  if(global.holder&&global.holder.state!=='UNCERTAIN'){
-   const acquired=Date.parse(global.holder.acquiredAt||'');
-   if(global.holder.state!=='ACTIVE'||!Number.isFinite(acquired)||Date.now()-acquired<30*60*1000)throw Error('ATOMIC_RECOVERY_ACTIVE_WRITER_MUST_FINISH');
+  if(global.holder){
+   // UNCONFIRMED request termination is not proof that Sheets can no longer
+   // complete an in-flight HTTP mutation. Quarantine the fence for at least
+   // 30 minutes from its transition to UNCERTAIN, not only its acquisition.
+   const since=Date.parse(global.holder.state==='UNCERTAIN'
+    ?global.holder.uncertainAt||global.holder.acquiredAt||''
+    :global.holder.acquiredAt||'');
+   if(!['ACTIVE','UNCERTAIN'].includes(global.holder.state)||!Number.isFinite(since)||Date.now()-since<30*60*1000)
+    throw Error('ATOMIC_RECOVERY_WRITER_QUARANTINE_ACTIVE');
   }
   const proof={verified:true,auditId:entry.auditId,rowHash:hash({rows:rowCheck.detail,appends:appendCheck.count})};
   if(!settled)await store.markProjected({auditId:entry.auditId,operationId:entry.operationId,proof});
   // A verified outbox is enough to unlock the global gate. An availability lease
   // is released only if the exact auditor/audit pair and token are observed.
   if(global.holder&&global.holder.operationId===entry.operationId){
-   if(global.holder.state==='ACTIVE'&&Date.now()-Date.parse(global.holder.acquiredAt||'')<30*60*1000)throw Error('ATOMIC_RECOVERY_ACTIVE_WRITER_MUST_FINISH');
+   // The same quarantined gate was already independently checked above.
    const current=await gate.read();
    if(current.holder?.token!==global.holder.token)throw Error('ATOMIC_RECOVERY_GATE_MOVED');
    await gate.release({token:global.holder.token,verified:true,proof:'CANONICAL_FIRESTORE_SHEETS_OUTBOX_MATCH'});

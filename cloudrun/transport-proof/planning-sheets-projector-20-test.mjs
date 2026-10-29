@@ -21,11 +21,11 @@ assert.deepEqual(await projector.reconcile({auditId:req.auditId,commitId:first.i
 assert.equal(writes,1);
 assert.deepEqual(await projector.reconcile({auditId:req.auditId,commitId:first.id}),{state:'PROJECTED',replayed:true});
 assert.equal(writes,1);
-const second=(await authority.stage({...req,requestId:'req-P1',projectionPayload:payload})).commit;
+const second=(await authority.stage({...req,sourceRevision:'r2',requestId:'req-P1',projectionPayload:{...payload,sourceRevision:'r2'}})).commit;
 actual='MATCH';
 assert.deepEqual(await projector.reconcile({auditId:req.auditId,commitId:second.id}),{state:'PROJECTED',recovered:true});
 assert.equal(writes,1);
-const third=(await authority.stage({...req,requestId:'req-P2',projectionPayload:payload})).commit;
+const third=(await authority.stage({...req,sourceRevision:'r3',requestId:'req-P2',projectionPayload:{...payload,sourceRevision:'r3'}})).commit;
 actual='CONFLICT';
 await assert.rejects(()=>projector.reconcile({auditId:req.auditId,commitId:third.id}),/PROJECTOR_CANONICAL_CONFLICT/);
 actual='ABSENT';unknown=true;

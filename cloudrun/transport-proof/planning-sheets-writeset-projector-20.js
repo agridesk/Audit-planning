@@ -19,7 +19,7 @@ function rows(plan){
   if(seenRanges.has(write.range))throw Error('SHEETS_PROJECTION_DUPLICATE_TARGET');
   seenRanges.add(write.range);
   const start=columnIndex(m[2]),end=columnIndex(m[4]),row=Number(m[3]);
-  if(row<2||start>end)throw Error('SHEETS_PROJECTION_RANGE_INVALID');
+  if(row<2||start>end||write.values[0].length>end-start+1||pre[i].before.length>end-start+1)throw Error('SHEETS_PROJECTION_RANGE_INVALID');
   if(occupied.some(x=>x.sheet===m[1]&&x.row===row&&start<=x.end&&end>=x.start))throw Error('SHEETS_PROJECTION_OVERLAPPING_TARGET');
   occupied.push({sheet:m[1],row,start,end});
   return {range:write.range,sheet:m[1],row:Number(m[3]),values:write.values[0],before:pre[i].before};

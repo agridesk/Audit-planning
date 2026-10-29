@@ -2320,7 +2320,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
         canonicalSnapshot:{auditId,sourceRow:audit.sourceRow,headers:h,row:nextRow,status:'Pending Approval',
          assignedTo:'',sourceRevision:directRowRevision(h,nextRow)},
         projectionWrites:envelope.projectionWrites,projectionPreconditions:envelope.projectionPreconditions,
-        appendIntents:[{range:'Diagnostics_Log!A:K',values:[[stamp,'AUDITOR_MANAGEMENT_2_0','AUDIT_TRANSFER',auditId,'CHANGE_APPLIED',clean(actor.email),'','',false,'Transferred; approval required; availability unverified',trail]]}],
+        appendIntents:[{range:'Diagnostics_Log!A:K',values:[[stamp,'AUDITOR_MANAGEMENT_2_0','AUDIT_TRANSFER',auditId,'CHANGE_INTENT',clean(actor.email),'','',false,'Transfer to Pending Approval',trail],[stamp,'AUDITOR_MANAGEMENT_2_0','AUDIT_TRANSFER',auditId,'CHANGE_APPLIED',clean(actor.email),'','',false,'Transferred; approval required; availability unverified',trail]]}],
         owner:'CLOUD_RUN_DEV_FIRESTORE_TRANSFER_PREFLIGHT'});
       }
       await sheetsValuesBatchUpdateRaw(transferWrites);

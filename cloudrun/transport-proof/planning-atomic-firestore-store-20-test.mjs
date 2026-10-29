@@ -67,4 +67,21 @@ const second=await authority.commit({...body,operationId:'op-two',expectedRevisi
 assert.equal(second.claimCount,0);
 assert.equal([...store.keys()].filter(x=>x.includes('_claims/')).length,0);
 assert.equal((await authority.readAudit(auditId)).snapshot.status,'Accepted');
+// One Firestore transaction archives parent, creates successor, and shifts claims.
+const parent='PARENT',successor='SUCCESSOR';
+store.set('ams_planning_20_dev_audits/'+parent,{name:db+'/ams_planning_20_dev_audits/'+parent,updateTime:'t0',fields:{payload:encode({auditId:parent,revision:0,snapshot:{auditId:parent,status:'Accepted'},auditorId:'aud-3',blocks:[{date:'2027-09-04',start:'09:00',end:'10:00'}],claimIds:[],pendingOperationId:null})}});
+const entities=[
+ {auditId:parent,expectedRevision:0,remove:true,nextSnapshot:{auditId:parent,status:'Completed',sourceRevision:'rev-parent'},auditorId:null,blocks:[]},
+ {auditId:successor,expectedRevision:null,nextSnapshot:{auditId:successor,status:'Pending Planning',sourceRevision:'rev-child'},auditorId:'aud-3',blocks:[{date:'2027-09-04',start:'09:00',end:'10:00'}]}
+];
+const args={operationId:'multi-complete-1',actorId:'manager',action:'COMPLETE',entities,projectionPlan:{projectionWrites:[{range:'Audit planning!A2:B2',values:[['parent','completed']]}],projectionPreconditions:[{range:'Audit planning!A2:B2',before:['parent','accepted']}],appendIntents:[]}};
+const multi=await authority.commitMulti(args);
+assert.equal(multi.entities.length,2);assert.equal((await authority.readAudit(parent)).removed,true);
+assert.equal((await authority.readAudit(successor)).revision,0);
+assert.equal((await authority.commitMulti(args)).replayed,true);
+await assert.rejects(()=>authority.commitMulti({...args,operationId:'multi-overlap',entities:[...entities,{...entities[1],auditId:'another-successor',nextSnapshot:{auditId:'another-successor'}}]}),/PLANNING_MULTI_INTERNAL_SLOT_CONFLICT/);
+await authority.markUncertain({auditId:parent,operationId:'multi-complete-1',reason:'SHEETS_TIMEOUT'});
+assert.equal((await authority.markProjected({auditId:parent,operationId:'multi-complete-1',proof:{verified:true,auditId:parent,rowHash:'c'.repeat(64)}})).state,'PROJECTED');
+assert.equal((await authority.readAudit(successor)).pendingOperationId,null);
+assert.equal((await authority.readAudit(parent)).pendingOperationId,null);
 console.log('Multi-document Firestore transaction, replay, occupancy, crash ambiguity and settlement OK');

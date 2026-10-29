@@ -6,8 +6,8 @@
 import {createHash} from 'node:crypto';
 const hash=s=>createHash('sha256').update(s).digest('hex');
 const trim=x=>String(x??'').trim();
-export function createPlanningAtomicCommandService({atomicStore,gate,availabilityService,hardGate,preflight,projector,roster}={}){
- if(!atomicStore||typeof atomicStore.commit!=='function'||typeof atomicStore.readAudit!=='function'||typeof atomicStore.readOutbox!=='function'||typeof atomicStore.markProjected!=='function'||typeof gate?.acquire!=='function'||typeof gate?.release!=='function'||typeof gate?.uncertain!=='function'||typeof availabilityService?.acquirePlanningLease!=='function'||typeof availabilityService?.releasePlanningLease!=='function'||typeof availabilityService?.markPlanningLeaseUncertain!=='function'||typeof hardGate!=='function'||typeof preflight!=='function'||typeof projector?.apply!=='function'||typeof projector?.inspect!=='function'||typeof roster!=='function')throw Error('PLANNING_ATOMIC_SERVICE_CONFIG_INVALID');
+export function createPlanningAtomicCommandService({atomicStore,gate,availabilityService,hardGate,preflight,projector,appendProjector,roster}={}){
+ if(!atomicStore||typeof atomicStore.commit!=='function'||typeof atomicStore.readAudit!=='function'||typeof atomicStore.readOutbox!=='function'||typeof atomicStore.markProjected!=='function'||typeof gate?.acquire!=='function'||typeof gate?.release!=='function'||typeof gate?.uncertain!=='function'||typeof availabilityService?.acquirePlanningLease!=='function'||typeof availabilityService?.releasePlanningLease!=='function'||typeof availabilityService?.markPlanningLeaseUncertain!=='function'||typeof hardGate!=='function'||typeof preflight!=='function'||typeof projector?.apply!=='function'||typeof projector?.inspect!=='function'||typeof appendProjector?.apply!=='function'||typeof appendProjector?.inspect!=='function'||typeof roster!=='function')throw Error('PLANNING_ATOMIC_SERVICE_CONFIG_INVALID');
  async function commit({actor,body}){
   if(!['manager','auditor'].includes(actor?.role)||!trim(actor?.auditorId)||!body||typeof body!=='object'||!trim(body.auditId)||!trim(body.auditorEmail)||!trim(body.sourceRevision)||!Array.isArray(body.blocks)||!body.blocks.length)throw Error('PLANNING_ATOMIC_INPUT_INVALID');
   const auditId=trim(body.auditId),auditorEmail=trim(body.auditorEmail).toLowerCase();
@@ -34,7 +34,10 @@ export function createPlanningAtomicCommandService({atomicStore,gate,availabilit
    const previous=await atomicStore.readAudit(auditId);
    if(!previous||!Number.isSafeInteger(previous.revision)||previous.pendingOperationId)throw Error('PLANNING_ATOMIC_BACKFILL_OR_PROJECTION_REQUIRED');
    if(previous.snapshot?.sourceRevision!==preview.expectedSourceRevision)throw Error('PLANNING_ATOMIC_CANONICAL_PARITY_CONFLICT');
-   const nextSnapshot={...preview.canonicalSnapshot,projectionWrites:preview.projectionWrites,projectionPreconditions:preview.projectionPreconditions,notificationIntents:preview.notificationIntents||[]};
+   const notificationIntents=preview.notificationIntents||[];
+   if(!Array.isArray(notificationIntents)||!notificationIntents.length)throw Error('PLANNING_NOTIFICATION_OUTBOX_REQUIRED');
+   const appendIntents=[{range:'Notification Queue!A:M',values:notificationIntents}];
+   const nextSnapshot={...preview.canonicalSnapshot,projectionWrites:preview.projectionWrites,projectionPreconditions:preview.projectionPreconditions,appendIntents};
    transactionAttempted=true;
    const accepted=await atomicStore.commit({auditId,operationId,actorId:actor.auditorId,expectedRevision:previous.revision,nextSnapshot,auditorId,blocks:body.blocks,action:'PLAN'});
    committed=true;
@@ -42,7 +45,10 @@ export function createPlanningAtomicCommandService({atomicStore,gate,availabilit
    await projector.apply({operationId,gateToken:lock.token,plan:nextSnapshot});
    const inspection=await projector.inspect(nextSnapshot);
    if(inspection.state!=='MATCH')throw Error('PLANNING_ATOMIC_PROJECTION_NOT_VERIFIED');
-   const proof={verified:true,auditId,rowHash:hash(JSON.stringify(inspection.detail))};
+   await appendProjector.apply({operationId,gateToken:lock.token,intents:appendIntents});
+   const appendEvidence=await appendProjector.inspect(appendIntents);
+   if(appendEvidence.state!=='MATCH')throw Error('PLANNING_ATOMIC_APPEND_UNVERIFIED');
+   const proof={verified:true,auditId,rowHash:hash(JSON.stringify({rows:inspection.detail,appendCount:appendEvidence.count}))};
    await atomicStore.markProjected({auditId,operationId,proof});
    projected=true;
    await availabilityService.releasePlanningLease({actor:leaseActor,auditorId,token:lease.token});

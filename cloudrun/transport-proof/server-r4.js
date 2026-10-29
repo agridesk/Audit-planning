@@ -1,5 +1,6 @@
 import http from 'node:http';
 import {AsyncLocalStorage} from 'node:async_hooks';
+import {normalizeLifecycleWriteset} from './planning-lifecycle-writeset-20.js';
 const lifecyclePreviewContext20=new AsyncLocalStorage();
 import {managerCanonicalWriteBridge20} from './manager-canonical-write-bridge-20.mjs';
 import {buildDirectAuditorAcceptSheets20} from './auditor-accept-direct-sheets-20.mjs';
@@ -780,22 +781,29 @@ async function lifecycleAuthorityPreflight20(identity,body,action,writer){
  const capture={writes:[],appends:[],ensureRows:[],deletes:[]};
  return lifecyclePreviewContext20.run(capture,async()=>{
   const outcome=await writer();
-  if(capture.deletes.length)throw Error('LIFECYCLE_ATOMIC_ROW_DELETION_NOT_MIGRATED');
+  if(capture.deletes.length&& !['REJECT','COMPLETE'].includes(String(action).toUpperCase()))throw Error('LIFECYCLE_ATOMIC_ROW_DELETION_NOT_MIGRATED');
   if(outcome?.success!==true)throw Error('LIFECYCLE_PREFLIGHT_NOT_SUCCESSFUL');
   if(outcome.idempotent===true)return {...outcome,authorityPreflight:true,projectionWrites:[],projectionPreconditions:[],appendIntents:[],idempotent:true};
   if(!capture.writes.length||capture.writes.length>120)throw Error('LIFECYCLE_PREFLIGHT_WRITES_UNSUPPORTED');
-  const ranges=capture.writes.map(x=>x.range);
-  const original=await sheetsBatchGet(ranges);
-  if(original.length!==ranges.length)throw Error('LIFECYCLE_PREFLIGHT_READ_INCOMPLETE');
-  const preconditions=capture.writes.map((write,i)=>{
-   if(!Array.isArray(write.values)||write.values.length!==1||!Array.isArray(write.values[0])||!/^([^!]+)!([A-Z]+)(\\d+):([A-Z]+)(\\d+)$/.test(write.range))throw Error('LIFECYCLE_PREFLIGHT_RANGE_UNSUPPORTED');
-   return {range:write.range,before:original[i]?.values?.[0]||[]};
-  });
+
   const planning=(await sheetsBatchGet(['Audit planning!A1:BW2000']))[0]?.values||[];
   if(!planning.length||planning.length>=2000)throw Error('LIFECYCLE_PREFLIGHT_PLANNING_INCOMPLETE');
   const auditId=clean(body?.auditId),found=findAudit(planning,auditId);
   if(!found)throw Error('LIFECYCLE_PREFLIGHT_AUDIT_MISSING');
   const row=found.row.slice();
+  if(capture.deletes.length){
+   if(capture.deletes.length!==1||capture.deletes[0].sheetTitle!=='Audit planning'||capture.deletes[0].rowNumber!==found.sourceRow)throw Error('LIFECYCLE_PREFLIGHT_DELETE_TARGET_UNSUPPORTED');
+   const terminal=String(action).toUpperCase()==='REJECT'?'Rejected':'Completed';
+   const tombstone=found.row.slice();
+   const statusCol=col(found.h,['Status']),assignedCol=col(found.h,['Assigned to','Assigned auditor','Auditor']),uidCol=col(found.h,['Auditor_UID','Auditor UID']);
+   if(statusCol<0||assignedCol<0||uidCol<0)throw Error('LIFECYCLE_PREFLIGHT_TOMBSTONE_SCHEMA_MISSING');
+   tombstone[statusCol]=terminal;tombstone[assignedCol]='';tombstone[uidCol]='';
+   const width=a1col(found.h.length);
+   capture.writes.push({range:'Audit planning!A'+found.sourceRow+':'+width+found.sourceRow,values:[tombstone]});
+  }
+  const normalized=await normalizeLifecycleWriteset({writes:capture.writes,readBefore:sheetsBatchGet});
+  const preconditions=normalized.projectionPreconditions;
+  capture.writes=normalized.projectionWrites;
   const colNum=letters=>[...letters].reduce((value,ch)=>value*26+ch.charCodeAt(0)-64,0)-1;
   let updated=false;
   for(const write of capture.writes){
@@ -815,7 +823,14 @@ async function lifecycleAuthorityPreflight20(identity,body,action,writer){
     status:at(['Status']),assignedTo:at(['Assigned to','Assigned auditor','Auditor']),
     sourceRevision:directRowRevision(h,row)},
    projectionWrites:capture.writes,projectionPreconditions:preconditions,appendIntents:capture.appends,
-   projectionEnsureRows:capture.ensureRows,owner:'CLOUD_RUN_DEV_LIFECYCLE_PREFLIGHT'};
+   projectionEnsureRows:capture.ensureRows,
+   removedSourceRows:capture.deletes,
+   successorSnapshots:capture.writes.filter(w=>/^Audit planning!A(\\d+):/.test(w.range)&&Number(/^Audit planning!A(\\d+):/.exec(w.range)[1])>ap.length).map(w=>{
+    const rr=w.values[0],nextId=val(rr,col(found.h,['Audit ID']));
+    if(!nextId||nextId===auditId)throw Error('LIFECYCLE_PREFLIGHT_SUCCESSOR_ID_INVALID');
+    return {auditId:nextId,sourceRow:Number(/^Audit planning!A(\\d+):/.exec(w.range)[1]),headers:found.h,row:rr,status:val(rr,col(found.h,['Status'])),assignedTo:val(rr,col(found.h,['Assigned to'])),sourceRevision:directRowRevision(found.h,rr)};
+   }),
+   owner:'CLOUD_RUN_DEV_LIFECYCLE_PREFLIGHT'};
  });
 }
 async function canonicalManagerAction(identity,body){

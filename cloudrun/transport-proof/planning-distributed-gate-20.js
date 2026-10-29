@@ -25,7 +25,7 @@ export function createPlanningDistributedGate(adapter){
  async function uncertain({token,reason}){
   const current=await read();
   if(!current.holder||current.holder.token!==token)throw Error('PLANNING_GATE_TOKEN_MISMATCH');
-  const next={...current,version:current.version+1,holder:{...current.holder,state:'UNCERTAIN',reason:String(reason||'UNKNOWN').slice(0,100)}};
+  const next={...current,version:current.version+1,holder:{...current.holder,state:'UNCERTAIN',uncertainAt:new Date().toISOString(),reason:String(reason||'UNKNOWN').slice(0,100)}};
   if(await adapter.compareAndSwap(initial.auditorId,current.version,next)!==true)throw Error('PLANNING_GATE_CONFLICT');
   return clone(next.holder);
  }

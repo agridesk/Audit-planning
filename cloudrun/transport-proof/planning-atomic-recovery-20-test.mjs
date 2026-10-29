@@ -34,7 +34,7 @@ await assert.rejects(()=>recovery.scan({limit:0}),/ATOMIC_RECOVERY_LIMIT_INVALID
 // later writes, nor should it mutate an already settled receipt again.
 let postAckRelease=0,postAckSettle=0;
 const projected={...e,state:'PROJECTED'};
-let projectedGate={token:'settled-gate',operationId:'op1',state:'UNCERTAIN',acquiredAt:new Date(Date.now()-3600000).toISOString()};
+let projectedGate={token:'settled-gate',operationId:'op1',state:'UNCERTAIN',uncertainAt:new Date(Date.now()-3600000).toISOString(),acquiredAt:new Date(Date.now()-3600000).toISOString()};
 const settledRecovery=createPlanningAtomicRecovery({
  store:{
   async listOutbox(){return {entries:[projected],nextPageToken:null};},
@@ -50,6 +50,15 @@ const settledRecovery=createPlanningAtomicRecovery({
 assert.equal((await settledRecovery.scan()).recovered,1);
 assert.equal(postAckRelease,1);assert.equal(postAckSettle,0);
 assert.equal((await settledRecovery.scan()).recovered,0);
+// Uncertain gate without its transition timestamp is not safe to release:
+let legacyReleased=0;
+const unknownAge=createPlanningAtomicRecovery({
+ store,projector,appendProjector,
+ gate:{async read(){return {holder:{token:'legacy',operationId:'op1',state:'UNCERTAIN',acquiredAt:new Date(Date.now()-86400000).toISOString()}};},
+ async release(){legacyReleased++;}}
+});
+assert.equal((await unknownAge.scan()).errors,1);
+assert.equal(legacyReleased,0);
 // Fairness: 100 already settled receipts in the first page must not starve
 // an uncertain operation on the following page across periodic scans.
 const seenTokens=[],scannedBatches=[];

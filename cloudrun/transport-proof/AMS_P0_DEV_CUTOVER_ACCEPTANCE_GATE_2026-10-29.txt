@@ -1,0 +1,41 @@
+AMS 2.0 — DEV-only Firestore cutover acceptance gate
+29 October 2026 — remediation branch
+Repository: agridesk/Audit-planning
+Branch: feature/ams-2-remediation-2026-10-28
+Draft PR: https://github.com/agridesk/Audit-planning/pull/47
+
+STATUS
+Code, mocks and CI do not establish live Firestore/Sheets integration correctness.
+No deployment, merge, DEV schema mutation or PROD modification is authorized by this document.
+SWAP remains frozen and is not part of planning cutover.
+
+PRE-DEPLOYMENT GATES
+1. Three GitHub jobs green on the exact commit: AMS remediation P0, SWAP 2.0 DEV, Authentication 2.0.
+2. No direct legacy lifecycle, scope, identity, availability or auditor transfer writer may bypass the atomic cutover guard.
+3. Firestore transactions retain canonical audit snapshots, all 15-minute auditor claims and an immutable outbox. Multi-audit operations settle all affected snapshots atomically.
+4. A missing/lost distributed fence, mismatching Sheets row, missing append or uncertain HTTP outcome must not be treated as success.
+5. Projector and crash simulator tests cover double retries, unique slot conflicts, invalid ownership, torn projection, and lost acknowledgements.
+
+AFTER EXPLICIT OWNER AUTHORIZATION — DEV PREPARATION
+1. Deploy DEV preparation only: AMS_DEV_ATOMIC_PREFLIGHT_ENABLED=true; leave AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED=false.
+2. Manager read-only atomic-backfill dryRun obtains full sourceManifest; record asOfDate and original source snapshot.
+3. Freeze/verify all DEV legacy GAS/Sheets writers and every direct mutation route; confirm no unrelated writer remains.
+4. Enable the separate write authorization AMS_DEV_ATOMIC_BACKFILL_WRITE_ENABLED=true and attest AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED=true only after independent confirmation.
+5. Seed bounded batches using the SAME 64-character sourceManifest. A changed source or roster aborts; never blindly restart on a different manifest.
+6. Complete the entire backfill; check historical unverified audits separately; no invented reservations.
+7. Run atomic-parity, atomic-claims-parity and atomic-cutover-evidence. Require ready=true for all audit rows, every Firestore claim and the complete outbox. Absence of orphaned claims and pending outbox is mandatory.
+
+AFTER SEPARATE OWNER AUTHORIZATION — DEV ATOMIC ACTIVATION
+1. Confirm Firestore owner is exclusive and the legacy writer is retired, not merely hidden in the UI.
+2. Set verified runtime flags only from corresponding confirmed evidence:
+   AMS_GAS_LIFECYCLE_WRITER_RETIRED_VERIFIED=true
+   AMS_MANAGER_LIFECYCLE_OWNER_SHARED_VERIFIED=true
+   AMS_DEV_ATOMIC_BACKFILL_PARITY_VERIFIED=true
+3. Enable AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED=true only on DEV after all evidence is recorded.
+4. Verify direct planning, five manager actions, three auditor actions, multi-entity COMPLETE/REJECT, auditor transfer, every append intent, frozen old writer rejection and permission isolation using separate test audit records.
+5. Deliberately simulate timeout/restart and cross-instance concurrency. ACTIVE gates cannot be released by age alone. Manually attested terminated writers may first enter UNCERTAIN quarantine; thirty-minute minimum then independent matching Sheets evidence are required.
+6. Roll back on any conflict, disagreement or non-green runtime check. Do not ever substitute unconfirmed state with guessed success.
+
+NON-NEGOTIABLE
+No PROD change. No merge. No deployment of any kind without the user's explicit consent.
+Draft PR is not a deployment authorization.

@@ -13,7 +13,7 @@ function rows(plan){
  if(!Array.isArray(writes)||!writes.length||writes.length>80||!Array.isArray(pre)||pre.length!==writes.length)throw Error('SHEETS_PROJECTION_PLAN_INVALID');
  return writes.map((write,i)=>{
   const m=/^([^!]+)!([A-Z]+)(\d+):([A-Z]+)(\d+)$/.exec(write.range||'');
-  if(!m||m[3]!==m[5]||!oneRow(write)||pre[i]?.range!==write.range||!Array.isArray(pre[i]?.before)||!['Audit planning','Auditor Availability','Concept Reservations'].includes(m[1]))throw Error('SHEETS_PROJECTION_RANGE_INVALID');
+  if(!m||m[3]!==m[5]||!oneRow(write)||pre[i]?.range!==write.range||!Array.isArray(pre[i]?.before)||!['Audit planning','Auditor Availability','Concept Reservations','Audit_Obligations','Audit_Visit_Obligations','Company_Scopes','Rejected audits','Log realized audits','Notification Queue'].includes(m[1]))throw Error('SHEETS_PROJECTION_RANGE_INVALID');
   return {range:write.range,sheet:m[1],row:Number(m[3]),values:write.values[0],before:pre[i].before};
  });
 }
@@ -65,7 +65,7 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   const second=await inspect(plan);
   if(second.state==='MATCH')return {operationId,idempotent:true,projected:true,replayed:true};
   if(second.state!=='READY')throw Error('SHEETS_PROJECTION_CHANGED_DURING_WRITE');
-  const payload={valueInputOption:'RAW',data:changes.map(x=>({range:x.range,values:[x.values]})),includeValuesInResponse:false};
+  const payload={valueInputOption:'USER_ENTERED',data:changes.map(x=>({range:x.range,values:[x.values]})),includeValuesInResponse:false};
   await request(base+'/values:batchUpdate','POST',payload);
   const verified=await inspect(plan);
   if(verified.state!=='MATCH')throw Error('SHEETS_PROJECTION_VERIFY_FAILED');

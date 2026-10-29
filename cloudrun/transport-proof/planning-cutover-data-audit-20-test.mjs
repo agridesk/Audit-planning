@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {createPlanningCutoverDataAudit} from './planning-cutover-data-audit-20.js';
 let auditOK=true,claimOK=true,outbox=[{operationId:'already',state:'PROJECTED'}];
 const source={
- auditParity:{async verify(args){assert.equal(args.startRow,2);return {ready:auditOK,sourceAudits:115,verified:auditOK?115:114,problems:auditOK?[]:[{reason:'ROW_DRIFT'}]};}},
+ auditParity:{async verify(args){assert.equal(args.startRow,2);return {ready:auditOK,sourceAudits:115,batch:115,remaining:false,verified:auditOK?115:114,problems:auditOK?[]:[{reason:'ROW_DRIFT'}]};}},
  claimsParity:{async verify(){return {ready:claimOK,expected:1048,checked:claimOK?1048:1047,totalProblems:claimOK?0:1,problems:claimOK?[]:[{reason:'MISSING_FIRESTORE_CLAIM'}]};}},
  store:{async listOutbox({pageToken}){return pageToken?{entries:outbox.slice(1),nextPageToken:null}:{entries:outbox.slice(0,1),nextPageToken:outbox.length>1?'page2':null};}}
 };

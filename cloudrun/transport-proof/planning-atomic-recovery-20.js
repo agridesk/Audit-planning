@@ -77,16 +77,23 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
  async function scan({limit=100}={}){
   if(!Number.isSafeInteger(limit)||limit<1||limit>1000)throw Error('ATOMIC_RECOVERY_LIMIT_INVALID');
   let token=nextScanPageToken,scanned=0,recovered=0,unresolved=0,errors=0,pages=0;
+  const seenPages=new Set();
   do{
-   const result=await store.listOutbox({pageSize:Math.min(100,limit-scanned),pageToken:token});
-   pages++;if(!Array.isArray(result.entries)||pages>limit+1)throw Error('ATOMIC_RECOVERY_SCAN_INVALID');
+   if(seenPages.has(token))throw Error('ATOMIC_RECOVERY_PAGINATION_LOOP');
+   seenPages.add(token);
+   const requested=Math.min(100,limit-scanned);
+   const result=await store.listOutbox({pageSize:requested,pageToken:token});
+   pages++;if(!Array.isArray(result?.entries)||result.entries.length>requested||pages>limit+1)throw Error('ATOMIC_RECOVERY_SCAN_INVALID');
+   if(result.entries.length===0&&result.nextPageToken)throw Error('ATOMIC_RECOVERY_EMPTY_PAGE');
    for(const entry of result.entries){
     scanned++;
     if(!['PENDING','UNCERTAIN','PROJECTED'].includes(entry.state))continue;
     try{const outcome=await recoverOne(entry);if(outcome.state==='PROJECTED')recovered++;else unresolved++;}
     catch{errors++;unresolved++;}
    }
-   token=result.nextPageToken||'';
+   const next=result.nextPageToken||'';
+   if(next&&next===token)throw Error('ATOMIC_RECOVERY_PAGINATION_LOOP');
+   token=next;
    if(scanned>=limit)break;
   }while(token);
   // Resume subsequent scans from the next page; otherwise a large history

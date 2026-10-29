@@ -57,4 +57,12 @@ const lostReplay=createPlanningSheetsWritesetProjector({
 });
 await assert.rejects(()=>lostReplay.apply({operationId:'late',gateToken:'token',plan}),/REPLAY_FENCE_LOST/);
 assert.equal(writeCount,2);
+await assert.rejects(()=>projector.inspect({
+ projectionWrites:[plan.projectionWrites[0],{range:'Audit planning!B2:D2',values:[['x','y','z']]}],
+ projectionPreconditions:[plan.projectionPreconditions[0],{range:'Audit planning!B2:D2',before:['a','b','c']}]
+}),/SHEETS_PROJECTION_OVERLAPPING_TARGET/);
+await assert.rejects(()=>projector.inspect({
+ projectionWrites:[{range:'Audit planning!A1:C1',values:[['x','y','z']]}],
+ projectionPreconditions:[{range:'Audit planning!A1:C1',before:['a','b','c']}]
+}),/SHEETS_PROJECTION_RANGE_INVALID/);
 console.log('Sheets writeset projection: raw idempotence, row expansion, replay, conflict and fencing passed');

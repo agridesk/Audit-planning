@@ -4,7 +4,7 @@ const e={auditId:'a1',operationId:'op1',revision:1,state:'UNCERTAIN',auditorId:'
 let matched=true,gateState='UNCERTAIN',settled=0,released=0,leaseReleased=0;
 const store={async listOutbox(){return {entries:[e],nextPageToken:null}},async readAudit(){return {revision:1,pendingOperationId:'op1'}},async markProjected(){settled++;}};
 const projector={async inspect(){return {state:matched?'MATCH':'READY',detail:[{target:matched}]}}},appendProjector={async inspect(){return {state:'MATCH',count:1}}};
-const gate={async read(){return {holder:gateState?{token:'t1',operationId:'op1',state:gateState,acquiredAt:new Date(Date.now()-(gateState==='ACTIVE'?5:31)*60*1000).toISOString()}:null}},async release(){released++;gateState=null;}};
+const gate={async read(){return {holder:gateState?{token:'t1',operationId:'op1',state:gateState,acquiredAt:new Date(Date.now()-(gateState==='ACTIVE'?5:31)*60*1000).toISOString(),uncertainAt:new Date(Date.now()-31*60*1000).toISOString()}:null}},async release(){released++;gateState=null;}};
 const availabilityService={async read(){return {planningLease:{token:'lease1',state:'UNCERTAIN',auditId:'a1'}}},async reconcilePlanningLease(){leaseReleased++}};
 const recovery=createPlanningAtomicRecovery({store,projector,appendProjector,gate,availabilityService});
 matched=false;
@@ -12,6 +12,13 @@ assert.equal((await recovery.scan()).unresolved,1);assert.equal(settled,0);
 matched=true;gateState='ACTIVE';
 assert.equal((await recovery.scan()).errors,1);assert.equal(settled,0);
 gateState='UNCERTAIN';
+const gateFresh={state:'UNCERTAIN',uncertainAt:new Date().toISOString()};
+const freshRecovery=createPlanningAtomicRecovery({
+ store,projector,appendProjector,
+ gate:{async read(){return {holder:{token:'fresh',operationId:'op1',acquiredAt:new Date(Date.now()-3600000).toISOString(),...gateFresh}};}}
+});
+assert.equal((await freshRecovery.scan()).errors,1);
+assert.equal(settled,0);
 assert.equal((await recovery.scan()).recovered,1);
 assert.equal(settled,1);assert.equal(released,1);assert.equal(leaseReleased,1);
 assert.equal(gateState,null);

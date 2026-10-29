@@ -23,6 +23,7 @@ import {createPlanningDistributedGate} from './planning-distributed-gate-20.js';
 import {createPlanningOutboxReconciler} from './planning-outbox-reconciler-20.js';
 import {createPlanningAtomicFirestoreStore} from './planning-atomic-firestore-store-20.js';
 import {createPlanningAtomicCommandService} from './planning-atomic-command-service-20.js';
+import {createPlanningLifecycleAtomicService} from './planning-lifecycle-atomic-service-20.js';
 import {createPlanningSheetsWritesetProjector} from './planning-sheets-writeset-projector-20.js';
 import {createPlanningSheetsAppendProjector} from './planning-sheets-append-projector-20.js';
 import {createPlanningBackfillRunner} from './planning-atomic-backfill-20.js';
@@ -184,6 +185,26 @@ const planningAtomicCommands=planningAtomicStore?createPlanningAtomicCommandServ
   const j=await r.json().catch(()=>null);
   if(!r.ok||j?.success!==true||j?.authorityPreflight!==true)throw Error('PLANNING_ATOMIC_BUSINESS_PREFLIGHT_FAILED_'+String(j?.error||r.status).slice(0,80));
   return j;
+ }
+}):null;
+const atomicLifecyclePaths={
+ '/api/v1/manager/approve-direct':'APPROVE',
+ '/api/v1/manager/accept-direct':'ACCEPT',
+ '/api/v1/manager/reject-direct':'REJECT',
+ '/api/v1/manager/cancel-direct':'CANCEL',
+ '/api/v1/manager/complete-direct':'COMPLETE'
+};
+const planningAtomicLifecycle=planningAtomicStore?createPlanningLifecycleAtomicService({
+ atomicStore:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,
+ appendProjector:planningAtomicAppendProjector,roster:getRoster,
+ preflight:async({actor,body,action})=>{
+  const route=Object.keys(atomicLifecyclePaths).find(k=>atomicLifecyclePaths[k]===action);
+  if(!route)throw Error('LIFECYCLE_ATOMIC_ROUTE_UNSUPPORTED');
+  const r=await fetch('http://127.0.0.1:'+innerPort+route,{method:'POST',redirect:'manual',
+   headers:{'content-type':'application/json',cookie:String(actor.cookie||'')},body:JSON.stringify(body)});
+  const data=await r.json().catch(()=>null);
+  if(!r.ok||data?.success!==true||data?.authorityPreflight!==true)throw Error('LIFECYCLE_ATOMIC_PREFLIGHT_FAILED_'+String(data?.error||r.status).slice(0,80));
+  return data;
  }
 }):null;
 const planningCache=createPlanningReadCache({load:readPlanningRows,ttlMs:10000});
@@ -873,6 +894,15 @@ async function proxy(req,res){
 http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url||'/','http://localhost');
+  if(req.method==='POST'&&planningAtomicLifecycle&&atomicLifecyclePaths[u.pathname]){
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403,{'content-type':'application/json'});res.end(JSON.stringify({success:false,error:'MANAGER_REQUIRED'}));return;}
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>16384)throw Error('LIFECYCLE_BODY_TOO_LARGE');}
+   let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('LIFECYCLE_BODY_INVALID');}
+   const result=await planningAtomicLifecycle.commit({actor:{...actor,cookie:String(req.headers.cookie||'')},body,action:atomicLifecyclePaths[u.pathname]});
+   planningCache.invalidate();
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
+  }
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-backfill'){
    if(!planningAtomicBackfill){res.writeHead(404);res.end();return;}
    const actor=await session(req);

@@ -49,7 +49,7 @@ export function createPlanningCutoverDataAudit({auditParity,claimsParity,store}=
      }
     }
     const next=r.nextPageToken||'';
-    if(next&&next===token)throw Error('CUTOVER_OUTBOX_PAGINATION_STALLED');
+    if(next&&(!r.entries.length||next===token))throw Error('CUTOVER_OUTBOX_PAGINATION_STALLED');
     token=next;
    }while(token);
    items.sort((x,y)=>x[0].localeCompare(y[0]));

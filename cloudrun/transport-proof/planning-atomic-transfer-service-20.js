@@ -14,7 +14,7 @@ export function createPlanningAtomicTransferService({store,gate,projector,append
   const replay=await store.readOutbox(operationId);
   if(replay){
    if(replay.actorId!==actor.auditorId||replay.auditId!==auditId||replay.action!=='TRANSFER')throw Error('TRANSFER_ATOMIC_REPLAY_CONFLICT');
-   if(replay.state==='PROJECTED')return {success:true,idempotent:true,operationId,auditId,authority:'FIRESTORE'};
+   if(replay.state==='PROJECTED')return {ok:true,success:true,idempotent:true,operationId,auditId,authority:'FIRESTORE'};
    throw Error('TRANSFER_ATOMIC_RECONCILIATION_REQUIRED');
   }
   let lock=null,attempted=false,committed=false,projected=false;
@@ -39,7 +39,7 @@ export function createPlanningAtomicTransferService({store,gate,projector,append
    projected=true;
    await gate.release({token:lock.token,verified:true,proof:'TRANSFER_FIRESTORE_SHEETS_VERIFIED'});
    lock=null;
-   return {success:true,auditId,operationId,status:'Pending Approval',toEmail:preview.toEmail,authority:'FIRESTORE',projection:'PROJECTED',availabilityWarning:true};
+   return {ok:true,success:true,auditId,operationId,status:'Pending Approval',toEmail:preview.toEmail,authority:'FIRESTORE',projection:'PROJECTED',availabilityWarning:true};
   }finally{
    if(lock){
     if(!attempted)await gate.release({token:lock.token,verified:true,proof:'TRANSFER_VALIDATION_FAILED_BEFORE_WRITE'});

@@ -79,7 +79,7 @@ const multi=await authority.commitMulti(args);
 assert.equal(multi.entities.length,2);assert.equal((await authority.readAudit(parent)).removed,true);
 assert.equal((await authority.readAudit(successor)).revision,0);
 assert.equal((await authority.commitMulti(args)).replayed,true);
-await assert.rejects(()=>authority.commitMulti({...args,operationId:'multi-overlap',entities:[...entities,{...entities[1],auditId:'another-successor',nextSnapshot:{auditId:'another-successor'}}]}),/PLANNING_MULTI_INTERNAL_SLOT_CONFLICT/);
+await assert.rejects(()=>authority.commitMulti({...args,operationId:'multi-overlap',entities:[{...entities[1],auditId:'other-successor',nextSnapshot:{auditId:'other-successor'}},{...entities[1],auditId:'another-successor',nextSnapshot:{auditId:'another-successor'}}]}),/PLANNING_MULTI_INTERNAL_SLOT_CONFLICT/);
 await authority.markUncertain({auditId:parent,operationId:'multi-complete-1',reason:'SHEETS_TIMEOUT'});
 assert.equal((await authority.markProjected({auditId:parent,operationId:'multi-complete-1',proof:{verified:true,auditId:parent,rowHash:'c'.repeat(64)}})).state,'PROJECTED');
 assert.equal((await authority.readAudit(successor)).pendingOperationId,null);

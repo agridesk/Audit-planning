@@ -24,6 +24,7 @@ import {createPlanningOutboxReconciler} from './planning-outbox-reconciler-20.js
 import {createPlanningAtomicFirestoreStore} from './planning-atomic-firestore-store-20.js';
 import {createPlanningAtomicCommandService} from './planning-atomic-command-service-20.js';
 import {createPlanningSheetsWritesetProjector} from './planning-sheets-writeset-projector-20.js';
+import {createPlanningSheetsAppendProjector} from './planning-sheets-append-projector-20.js';
 import {createPlanningBackfillRunner} from './planning-atomic-backfill-20.js';
 import {createHash} from 'node:crypto';
 import {createPlanningOverlayService} from './availability-planning-overlay-service-20.js';
@@ -167,9 +168,15 @@ const planningAtomicProjector=planningAtomicStore?createPlanningSheetsWritesetPr
   if(gate.holder?.token!==gateToken||gate.holder.operationId!==operationId||gate.holder.state!=='ACTIVE')throw Error('PLANNING_ATOMIC_DISTRIBUTED_FENCE_LOST');
  }
 }):null;
+const planningAtomicAppendProjector=planningAtomicStore?createPlanningSheetsAppendProjector({
+ spreadsheetId:spreadsheet,getToken,verifyFence:async({operationId,gateToken})=>{
+  const gate=await planningGlobalGate.read();
+  if(gate.holder?.token!==gateToken||gate.holder.operationId!==operationId||gate.holder.state!=='ACTIVE')throw Error('PLANNING_ATOMIC_APPEND_FENCE_LOST');
+ }
+}):null;
 const planningAtomicCommands=planningAtomicStore?createPlanningAtomicCommandService({
  atomicStore:planningAtomicStore,gate:planningGlobalGate,availabilityService:service,
- hardGate:enforceAvailabilityHardGate20,projector:planningAtomicProjector,roster:getRoster,
+ hardGate:enforceAvailabilityHardGate20,projector:planningAtomicProjector,appendProjector:planningAtomicAppendProjector,roster:getRoster,
  preflight:async({actor,body})=>{
   const r=await fetch('http://127.0.0.1:'+innerPort+'/api/v1/planning/direct-commit',{
    method:'POST',headers:{'content-type':'application/json',cookie:String(actor.cookie||'')},

@@ -36,4 +36,11 @@ const mismatch=createPlanningCutoverDataAudit({
  store:{async listOutbox(){return {entries:[],nextPageToken:null};}}
 });
 await assert.rejects(()=>mismatch.verify(),/CUTOVER_SOURCE_CHANGED_BETWEEN_AUDIT_AND_CLAIMS/);
+let sourceVersion='a';
+const sourceDrift=createPlanningCutoverDataAudit({
+ auditParity:{async verify(){return {sourceManifest:sourceVersion.repeat(64),sourceAudits:1,batch:1,verified:1,remaining:false,problems:[]};}},
+ claimsParity:{async verify(){return {sourceManifest:'a'.repeat(64),ready:true,expected:0,checked:0,totalProblems:0,problems:[]};}},
+ store:{async listOutbox(){sourceVersion='b';return {entries:[],nextPageToken:null};}}
+});
+await assert.rejects(()=>sourceDrift.verify(),/CUTOVER_SOURCE_CHANGED_AFTER_OUTBOX_SCAN/);
 console.log('Cutover readiness: full row/claim parity and no unresolved outbox needed before switch');

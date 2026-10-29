@@ -50,7 +50,7 @@ const gate={
  async acquire({operationId}){if(holder)throw Error('GLOBAL_GATE_BUSY');holder={token:'gate-unique',operationId,state:'ACTIVE',acquiredAt:new Date().toISOString()};return structuredClone(holder);},
  async read(){return {holder:structuredClone(holder)};},
  async release({token,verified}){assert.equal(token,holder?.token);assert.equal(verified,true);holder=null;},
- async uncertain({token}){assert.equal(token,holder?.token);holder.state='UNCERTAIN';}
+ async uncertain({token}){assert.equal(token,holder?.token);holder.state='UNCERTAIN';holder.uncertainAt=new Date(Date.now()-31*60*1000).toISOString();}
 };
 const verifyFence=async({operationId,gateToken})=>{
  if(holder?.token!==gateToken||holder?.operationId!==operationId||holder.state!=='ACTIVE')throw Error('FENCE_LOST');

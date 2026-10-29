@@ -7,7 +7,7 @@ for(const signature of [
   'async function directManagerExtension(identity,body){',
   'async function directManagerApprove(identity,body){',
   'async function directManagerAcceptOnBehalf(identity,body){',
-  'async function directManagerCancel(identity,body){',
+  'async function directManagerCancel(identity,body,auditorMode=false){',
   'async function directManagerReject(identity,body){',
   'async function directComplete(identity,body,actorRole){',
   'function directPlanningCommit(identity,body){'
@@ -35,7 +35,7 @@ for(const sig of [
  'async function directManagerExtension(identity,body){',
  'async function directManagerApprove(identity,body){',
  'async function directManagerAcceptOnBehalf(identity,body){',
- 'async function directManagerCancel(identity,body){',
+ 'async function directManagerCancel(identity,body,auditorMode=false){',
  'async function directManagerReject(identity,body){',
  'async function directComplete(identity,body,actorRole){',
  'function directPlanningCommit(identity,body){'

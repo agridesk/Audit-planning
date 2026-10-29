@@ -1,0 +1,29 @@
+import assert from 'node:assert/strict';
+import {createPlanningFirestoreAuthority} from './planning-firestore-authority-20.js';
+const store=new Map();
+const adapter={
+ async read(id){return structuredClone(store.get(id)??null);},
+ async compareAndSwap(id,expected,next){const current=store.get(id);if((current?.version??0)!==expected)return false;store.set(id,structuredClone(next));return true;}
+};
+const a=createPlanningFirestoreAuthority(adapter),b=createPlanningFirestoreAuthority(adapter);
+const request={auditId:'audit-7',auditorId:'aud-2',actorId:'manager',sourceRevision:'r1',requestId:'req-7',blocks:[{date:'2027-03-01',start:'09:00',end:'12:00'}]};
+const first=await a.stage(request);
+assert.equal(first.commit.state,'PENDING');
+assert.equal(first.replayed,false);
+const replay=await b.stage(request);
+assert.equal(replay.replayed,true);
+assert.equal(replay.commit.id,first.commit.id);
+await assert.rejects(()=>b.stage({...request,requestId:'req-8'}),/PLANNING_PROJECTION_PENDING/);
+await a.transition({auditId:request.auditId,commitId:first.commit.id,from:'PENDING',to:'UNCERTAIN',detail:'SHEETS_TIMEOUT'});
+assert.equal((await b.read(request.auditId)).commits[0].state,'UNCERTAIN');
+await assert.rejects(()=>a.stage({...request,requestId:'req-8'}),/PLANNING_PROJECTION_PENDING/);
+await b.transition({auditId:request.auditId,commitId:first.commit.id,from:'UNCERTAIN',to:'PROJECTED'});
+assert.equal((await a.read(request.auditId)).commits[0].state,'PROJECTED');
+const next=await b.stage({...request,requestId:'req-8'});
+assert.equal(next.commit.state,'PENDING');
+await a.transition({auditId:request.auditId,commitId:next.commit.id,from:'PENDING',to:'REJECTED'});
+assert.equal((await b.read(request.auditId)).commits[1].state,'REJECTED');
+const race=await Promise.allSettled([a.stage({...request,requestId:'req-9'}),b.stage({...request,requestId:'req-10'})]);
+assert.equal(race.filter(x=>x.status==='fulfilled').length,1);
+assert.equal(race.filter(x=>x.status==='rejected').length,1);
+console.log('Firestore planning authority CAS, replay, recovery and concurrency passed');

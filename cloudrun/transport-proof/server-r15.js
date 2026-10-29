@@ -920,8 +920,9 @@ http.createServer(async(req,res)=>{
    if(actor?.role!=='auditor'){res.writeHead(403);res.end(JSON.stringify({success:false,error:'AUDITOR_REQUIRED'}));return;}
    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192)throw Error('AUDITOR_ATOMIC_BODY_TOO_LARGE');}
    let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('AUDITOR_ATOMIC_BODY_INVALID');}
-   if(String(body.action||'').toUpperCase()!=='ACCEPT')throw Error('AUDITOR_ATOMIC_ACTION_NOT_MIGRATED');
-   const result=await planningAtomicLifecycle.commit({actor:{...actor,cookie:String(req.headers.cookie||'')},body,action:'ACCEPT'});
+   const action=String(body.action||'').toUpperCase();
+   if(!['ACCEPT','CANCEL','COMPLETE'].includes(action))throw Error('AUDITOR_ATOMIC_ACTION_NOT_MIGRATED');
+   const result=await planningAtomicLifecycle.commit({actor:{...actor,cookie:String(req.headers.cookie||'')},body,action});
    planningCache.invalidate();
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
   }

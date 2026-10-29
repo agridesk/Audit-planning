@@ -19,9 +19,10 @@ const gate={
  async release(){activeGate=null;},
  async uncertain(){uncertain++;activeGate.state='UNCERTAIN';}
 };
-const preview={success:true,authorityPreflight:true,auditId:'audit-1',expectedSourceRevision:'r1',canonicalSnapshot:{auditId:'audit-1',sourceRevision:'r2'},projectionWrites:[{range:'Audit planning!A2:B2',values:[['a','b']]}],projectionPreconditions:[{range:'Audit planning!A2:B2',before:['a','a']}],notificationIntents:[]};
+const preview={success:true,authorityPreflight:true,auditId:'audit-1',expectedSourceRevision:'r1',canonicalSnapshot:{auditId:'audit-1',sourceRevision:'r2'},projectionWrites:[{range:'Audit planning!A2:B2',values:[['a','b']]}],projectionPreconditions:[{range:'Audit planning!A2:B2',before:['a','a']}],notificationIntents:[['2026-10-29','PENDING','PLANNED','','audit-1']]};
 const projector={async apply(){if(failAt==='projection')throw Error('TIMEOUT');return {projected:true};},async inspect(){return {state:'MATCH',detail:[{range:'Audit planning!A2:B2',target:true}]};}};
-const service=createPlanningAtomicCommandService({atomicStore:store,gate,availabilityService:availability,hardGate:()=>{},preflight:async()=>{preflightCalls++;return preview;},projector,roster:async()=>[{role:'auditor',email:'auditor@example.test',auditorId:'uid-1'}]});
+const appendProjector={async apply(){if(failAt==='append')throw Error('APPEND_TIMEOUT');return {confirmed:true};},async inspect(){return {state:'MATCH',count:1};}};
+const service=createPlanningAtomicCommandService({atomicStore:store,gate,availabilityService:availability,hardGate:()=>{},preflight:async()=>{preflightCalls++;return preview;},projector,appendProjector,roster:async()=>[{role:'auditor',email:'auditor@example.test',auditorId:'uid-1'}]});
 const actor={role:'manager',auditorId:'manager-1'},body={auditId:'audit-1',auditorEmail:'auditor@example.test',sourceRevision:'r1',blocks};
 const receipt=await service.commit({actor,body});
 assert.equal(receipt.success,true);assert.equal(receipt.projection,'PROJECTED');

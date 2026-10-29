@@ -1011,7 +1011,7 @@ http.createServer(async(req,res)=>{
    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)throw Error('PLANNING_BACKFILL_REQUEST_TOO_LARGE');}
    let input={};try{input=JSON.parse(raw||'{}');}catch{throw Error('PLANNING_BACKFILL_REQUEST_INVALID');}
    const dryRun=input.dryRun!==false;
-   if(!dryRun&&(!planningAtomicPrepEnabled||process.env.AMS_DEV_ATOMIC_BACKFILL_WRITE_ENABLED!=='true'))throw Error('PLANNING_DEV_BACKFILL_WRITE_NOT_AUTHORIZED');
+   if(!dryRun&&(planningAtomicEnabled||!planningAtomicPrepEnabled||process.env.AMS_DEV_ATOMIC_BACKFILL_WRITE_ENABLED!=='true'))throw Error('PLANNING_DEV_BACKFILL_WRITE_NOT_AUTHORIZED');
    const result=await planningAtomicBackfill.run({dryRun,startRow:input.startRow??2,limit:input.limit??100,sourceManifest:input.sourceManifest??null});
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,...result}));return;
   }

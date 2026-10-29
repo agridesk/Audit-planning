@@ -1055,6 +1055,7 @@ http.createServer(async(req,res)=>{
    res.end(JSON.stringify({success:true,auditorId,version:doc.version,locked:!!lease,state:lease?.state|| (lease?'ACTIVE':'NONE'),auditId:lease?.auditId||null,acquiredAt:lease?.acquiredAt||null,uncertainAt:lease?.uncertainAt||null}));return;
   }
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/reconcile-uncertain-lease'){
+   if(planningAtomicEnabled)throw Error('PLANNING_LEGACY_RECONCILIATION_DISABLED_UNDER_ATOMIC_AUTHORITY');
    if(!runtime.isDev){res.writeHead(404);res.end();return;}
    const actor=await session(req);
    if(actor?.role!=='manager'){res.writeHead(403);res.end();return;}

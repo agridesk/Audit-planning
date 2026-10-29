@@ -3,7 +3,6 @@ import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20} from './
 const blocked=[
  '/api/v1/manager/extension-direct',
  '/api/v1/internal/auditor/complete-direct',
- '/api/v1/manager/auditor-management/audit/transfer',
  '/api/v1/manager/company-management/scopes/hours',
  '/api/v1/manager/company-management/scopes/assign',
  '/api/v1/manager/company-management/scopes/save',
@@ -21,7 +20,7 @@ for(const path of blocked){
  assert.doesNotThrow(()=>enforcePlanningAtomicCutover20({enabled:false,method:'POST',path}));
  assert.doesNotThrow(()=>enforcePlanningAtomicCutover20({enabled:true,method:'GET',path}));
 }
-for(const path of ['/api/v1/planning/direct-commit','/api/v1/manager/approve-direct','/api/v1/manager/cancel-direct','/api/v1/auditor/action','/api/v1/planning/atomic-recover']){
+for(const path of ['/api/v1/planning/direct-commit','/api/v1/manager/approve-direct','/api/v1/manager/cancel-direct','/api/v1/auditor/action','/api/v1/manager/auditor-management/audit/transfer','/api/v1/planning/atomic-recover']){
  assert.doesNotThrow(()=>enforcePlanningAtomicCutover20({enabled:true,method:'POST',path}));
 }
 assert.equal(validatePlanningAtomicRuntime20({enabled:false}),true);

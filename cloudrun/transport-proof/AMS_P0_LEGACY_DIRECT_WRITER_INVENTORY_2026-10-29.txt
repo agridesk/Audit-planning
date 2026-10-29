@@ -1,0 +1,35 @@
+AMS 2.0 — P0 DIRECT SHEETS WRITER INVENTORY
+2026-10-29 | feature/ams-2-remediation-2026-10-28 | code review only
+STATUS: OPEN / NOT PROOF OF RETIREMENT
+SOURCE: exact file contents of named branch, inspected 2026-10-29. Line references may move.
+
+Confirmed direct legacy writers and review targets:
+1. CoreStatusMachine.js
+   L579: full Audit planning row setValues (PLAN)
+   L605: status setValue (simple actions)
+   L646: status setValue (reopen)
+   L695: status setValue (complete fallback)
+   Required: check top-level routing and reject all these paths after atomic cutover unless explicitly covered by the shared gate.
+2. AuditPlanningEngine.js
+   L147: canonical planning row setValues
+   L315/L317: auditor availability row setValues
+   L386: bulk availability setValues
+   Required: distinguish pre-cutover legacy behavior from post-cutover bypass; block old planning/availability writes at authoritative dispatch boundary.
+3. AuditorV5Backend.js
+   L1740: Log realized audits appendRow
+   L1878: auditor status setValue
+   L1979/L1983: auditor availability batch overwrite and potential row deletion
+   L2200: notification queue appendRow
+   Required: verify Accept/Deny/Cancel lifecycle routing and notify/realized-audit projection; forbid unguarded direct writes in atomic mode.
+4. RejectedAuditsV5.js
+   L281: Rejected audits appendRow
+   L290: archive rollback deletes row
+   L315: Audit planning deleteRow
+   Required: enforce one atomic reject/archive transaction and recoverable rollback; the older multi-step Sheets sequence is not an atomic equivalent.
+
+Review limitations:
+- This is a verified positive list, not a complete repository-wide negative search.
+- The relevant callable dispatch paths, deployed GAS revision, and global atomic cutover guard must be verified before retiring writers.
+- No GAS changes, deployment, backfill, merge or production actions were performed.
+- Cutover must fail closed unless all direct writer ingress paths are inventoried, guarded and tested.
+Next: trace each dispatcher and add guard tests; then DEV runtime validation with explicit approval.

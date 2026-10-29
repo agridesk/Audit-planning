@@ -10,29 +10,36 @@ const hash=s=>createHash('sha256').update(s).digest('hex');
 const normalize=x=>trim(x).toLowerCase().replace(/[^a-z0-9]+/g,'');
 const dateTime=x=>{if(!/^\d{2}:\d{2}$/.test(x))throw Error('BACKFILL_TIME_INVALID');const [h,m]=x.split(':').map(Number);if(h>23||m>59||m%15)throw Error('BACKFILL_TIME_INVALID');return h*60+m;};
 const activeStatuses=new Set(['PENDING_APPROVAL','APPROVED','ACCEPTED']);
-export function preparePlanningBackfill({rows,roster}){
+export function preparePlanningBackfill({rows,roster,asOfDate=new Date().toISOString().slice(0,10)}){
  if(!Array.isArray(rows)||rows.length<1||rows.length>=2000||!Array.isArray(roster))throw Error('BACKFILL_SOURCE_INVALID');
  const headers=rows[0].map(trim),keys=headers.map(normalize);
  const ix=(...names)=>names.map(n=>keys.indexOf(normalize(n))).find(i=>i>=0)??-1;
  const idCol=ix('Audit ID'),statusCol=ix('Status'),assignedCol=ix('Assigned to'),jsonCol=ix('Planning JSON'),decisionCol=ix('Last decision timestamp'),sinceCol=ix('Status since');
  if([idCol,statusCol,assignedCol,jsonCol,decisionCol,sinceCol].some(i=>i<0))throw Error('BACKFILL_CANONICAL_HEADERS_MISSING');
  const byEmail=new Map(roster.filter(x=>x.role==='auditor'&&x.active!==false).map(x=>[trim(x.email).toLowerCase(),trim(x.auditorId)]));
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(asOfDate))throw Error('BACKFILL_AS_OF_DATE_INVALID');
+ const plannedCol=ix('Date - Planned');
+ if(plannedCol<0)throw Error('BACKFILL_PLANNED_DATE_HEADER_MISSING');
  const seenAudits=new Set(),seenClaims=new Map(),items=[];
  for(let i=1;i<rows.length;i++){
   const row=rows[i],auditId=trim(row[idCol]);if(!auditId)continue;
   if(seenAudits.has(auditId))throw Error('BACKFILL_AUDIT_ID_DUPLICATE');seenAudits.add(auditId);
   const status=cleanStatus(row[statusCol]),email=trim(row[assignedCol]).toLowerCase(),planned=trim(row[jsonCol]);
   const sourceRevision=hash([auditId,trim(row[statusCol]),trim(row[assignedCol]),planned,trim(row[decisionCol]),trim(row[sinceCol])].join('|')).slice(0,24);
-  let blocks=[];
+  let blocks=[],legacyUnverified=false;
   // An unassigned Pending Approval is still a proposal, not a committed
   // auditor reservation. Preserve its row snapshot without claiming slots.
   const committedAssignment=activeStatuses.has(status)&&!(status==='PENDING_APPROVAL'&&!email);
   if(committedAssignment){
    if(!email||!byEmail.has(email))throw Error('BACKFILL_ACTIVE_AUDITOR_UID_UNRESOLVED');
-   if(!planned)throw Error('BACKFILL_ACTIVE_PLANNING_MISSING');
-   let parsed;try{parsed=JSON.parse(planned);}catch{throw Error('BACKFILL_PLANNING_JSON_INVALID');}
+   // Historical Accepted records without JSON cannot safely claim slots.
+   // Backfill their original row, explicitly flag it non-editable, never infer
+   // hours or availability from an old Date - Planned string.
+   if(!planned&&status==='ACCEPTED'&&trim(row[plannedCol])<asOfDate&&/^\d{4}-\d{2}-\d{2}$/.test(trim(row[plannedCol])))legacyUnverified=true;
+   else if(!planned)throw Error('BACKFILL_ACTIVE_PLANNING_MISSING');
+   let parsed;try{parsed=legacyUnverified?{blocks:[]}:JSON.parse(planned);}catch{throw Error('BACKFILL_PLANNING_JSON_INVALID');}
    const raw=Array.isArray(parsed)?parsed:parsed?.blocks;
-   if(!Array.isArray(raw)||!raw.length)throw Error('BACKFILL_ACTIVE_BLOCKS_MISSING');
+   if(!Array.isArray(raw)||!raw.length&&!legacyUnverified)throw Error('BACKFILL_ACTIVE_BLOCKS_MISSING');
    blocks=raw.map(b=>({date:trim(b.date),start:trim(b.start),end:trim(b.end)}));
    if(blocks.length>50)throw Error('BACKFILL_TOO_MANY_BLOCKS');
    const auditorId=byEmail.get(email);
@@ -47,10 +54,10 @@ export function preparePlanningBackfill({rows,roster}){
     }
    }
   }
-  const snapshot={auditId,sourceRow:i+1,headers,row:row.slice(),status:trim(row[statusCol]),assignedTo:email,sourceRevision};
-  items.push({auditId,snapshot,auditorId:committedAssignment?byEmail.get(email):null,blocks});
+  const snapshot={auditId,sourceRow:i+1,headers,row:row.slice(),status:trim(row[statusCol]),assignedTo:email,sourceRevision,...(legacyUnverified?{legacyUnverified:true}:{})};
+  items.push({auditId,snapshot,auditorId:committedAssignment&&!legacyUnverified?byEmail.get(email):null,blocks});
  }
- return {items,stats:{audits:items.length,active:items.filter(x=>x.blocks.length).length,claimedSlots:seenClaims.size}};
+ return {items,stats:{audits:items.length,active:items.filter(x=>x.blocks.length).length,legacyUnverified:items.filter(x=>x.snapshot.legacyUnverified).length,claimedSlots:seenClaims.size}};
 }
 export function createPlanningBackfillRunner({atomicStore,readPlanningRows,getRoster}={}){
  if(typeof atomicStore?.seed!=='function'||typeof readPlanningRows!=='function'||typeof getRoster!=='function')throw Error('BACKFILL_RUNNER_CONFIG_INVALID');

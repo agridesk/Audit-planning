@@ -85,38 +85,38 @@ assert.equal((await authority.markProjected({auditId:parent,operationId:'multi-c
 assert.equal((await authority.readAudit(successor)).pendingOperationId,null);
 assert.equal((await authority.readAudit(parent)).pendingOperationId,null);
 
-const successor='A3';
+const multiSuccessor='A3';
 const multi=await authority.commitMulti({
  operationId:'multi-one',actorId:'manager',action:'COMPLETE',
  entities:[
   {auditId,expectedRevision:2,nextSnapshot:{auditId,status:'Completed'},auditorId:null,blocks:[],remove:true},
-  {auditId:successor,expectedRevision:null,nextSnapshot:{auditId:successor,status:'Pending Planning'},auditorId:null,blocks:[]}
+  {auditId:multiSuccessor,expectedRevision:null,nextSnapshot:{auditId:multiSuccessor,status:'Pending Planning'},auditorId:null,blocks:[]}
  ],projectionPlan:{projectionWrites:[{range:'Audit planning!A2:B2',values:[['A1','Completed']]}],projectionPreconditions:[{range:'Audit planning!A2:B2',before:['A1','Accepted']}],appendIntents:[]}
 });
 assert.equal(multi.state,'PENDING');
 assert.equal(multi.entities.length,2);
-assert.equal((await authority.readAudit(successor)).pendingOperationId,'multi-one');
+assert.equal((await authority.readAudit(multiSuccessor)).pendingOperationId,'multi-one');
 assert.equal((await authority.readAudit(auditId)).removed,true);
 assert.equal((await authority.commitMulti({
  operationId:'multi-one',actorId:'manager',action:'COMPLETE',
  entities:[
   {auditId,expectedRevision:2,nextSnapshot:{auditId,status:'Completed'},auditorId:null,blocks:[],remove:true},
-  {auditId:successor,expectedRevision:null,nextSnapshot:{auditId:successor,status:'Pending Planning'},auditorId:null,blocks:[]}
+  {auditId:multiSuccessor,expectedRevision:null,nextSnapshot:{auditId:multiSuccessor,status:'Pending Planning'},auditorId:null,blocks:[]}
  ],projectionPlan:{projectionWrites:[{range:'Audit planning!A2:B2',values:[['A1','Completed']]}],projectionPreconditions:[{range:'Audit planning!A2:B2',before:['A1','Accepted']}],appendIntents:[]}
 })).replayed,true);
 assert.equal((await authority.markProjected({auditId,operationId:'multi-one',proof:{verified:true,auditId,rowHash:'b'.repeat(64)}})).state,'PROJECTED');
-assert.equal((await authority.readAudit(successor)).pendingOperationId,null);
+assert.equal((await authority.readAudit(multiSuccessor)).pendingOperationId,null);
 assert.equal((await authority.readAudit(auditId)).pendingOperationId,null);
 const transfer=await authority.commitMulti({
  operationId:'transfer-one',actorId:'manager',action:'TRANSFER',
- entities:[{auditId:successor,expectedRevision:0,nextSnapshot:{auditId:successor,status:'Approved'},auditorId:'aud-2',blocks:[{date:'2027-04-01',start:'10:00',end:'11:00'}]}],
+ entities:[{auditId:multiSuccessor,expectedRevision:0,nextSnapshot:{auditId:multiSuccessor,status:'Approved'},auditorId:'aud-2',blocks:[{date:'2027-04-01',start:'10:00',end:'11:00'}]}],
  projectionPlan:{projectionWrites:[],projectionPreconditions:[],appendIntents:[]}
 });
 assert.equal(transfer.state,'PENDING');
-assert.equal((await authority.readAudit(successor)).auditorId,'aud-2');
+assert.equal((await authority.readAudit(multiSuccessor)).auditorId,'aud-2');
 await assert.rejects(()=>authority.commitMulti({
  operationId:'transfer-two',actorId:'manager',action:'TRANSFER',
- entities:[{auditId:successor,expectedRevision:1,nextSnapshot:{auditId:successor,status:'Approved'},auditorId:'aud-3',blocks:[{date:'2027-04-01',start:'10:00',end:'11:00'}]}],
+ entities:[{auditId:multiSuccessor,expectedRevision:1,nextSnapshot:{auditId:multiSuccessor,status:'Approved'},auditorId:'aud-3',blocks:[{date:'2027-04-01',start:'10:00',end:'11:00'}]}],
  projectionPlan:{projectionWrites:[],projectionPreconditions:[],appendIntents:[]}
 }),/PLANNING_MULTI_REVISION_CONFLICT/);
 console.log('Multi-document Firestore transaction, replay, occupancy, crash ambiguity and settlement OK');

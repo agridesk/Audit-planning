@@ -37,6 +37,7 @@ assert.match(r15,/const planningMultiLifecycle=planningAtomicEnabled\?/);
 assert.match(r15,/const planningAtomicTransfer=planningAtomicEnabled\?/);
 assert.match(r15,/PLANNING_DEV_BACKFILL_WRITE_NOT_AUTHORIZED/);
 assert.match(r15,/AMS_DEV_ATOMIC_BACKFILL_WRITE_ENABLED/);
+assert.match(r15,/AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED/);
 assert.match(r15,/if\(!dryRun&&\(planningAtomicEnabled\|\|!planningAtomicPrepEnabled/);
 assert.doesNotMatch(r4,/if\(transferPreflight\)await sheetsValuesAppend/);
 console.log('Multi-audit Complete, Reject and auditor transfer DEV-only wiring contract passed');

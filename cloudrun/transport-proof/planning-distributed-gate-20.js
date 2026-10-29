@@ -29,6 +29,23 @@ export function createPlanningDistributedGate(adapter){
   if(await adapter.compareAndSwap(initial.auditorId,current.version,next)!==true)throw Error('PLANNING_GATE_CONFLICT');
   return clone(next.holder);
  }
+ /** An operator-verified crashed writer can be quarantined, not unlocked.
+  * This must not be exposed as a general timeout override. The operator
+  * supplies external Cloud Run evidence that the process/request ended.
+  */
+ async function quarantineOrphan({operationId,actorId,evidenceRef}){
+  if(!operationId||!actorId||typeof evidenceRef!=='string'||evidenceRef.trim().length<24||evidenceRef.length>512)throw Error('PLANNING_ORPHAN_ATTESTATION_REQUIRED');
+  const current=await read(),holder=current.holder;
+  if(!holder||holder.operationId!==operationId||holder.state!=='ACTIVE')throw Error('PLANNING_ORPHAN_GATE_MISMATCH');
+  const age=Date.now()-Date.parse(holder.acquiredAt||'');
+  if(!Number.isFinite(age)||age<30*60*1000)throw Error('PLANNING_ORPHAN_TOO_RECENT');
+  const next={...current,version:current.version+1,
+   holder:{...holder,state:'UNCERTAIN',uncertainAt:new Date().toISOString(),
+    operatorAttestation:{actorId:String(actorId).slice(0,180),evidenceRef:evidenceRef.trim(),at:new Date().toISOString()},
+    reason:'MANUALLY_VERIFIED_TERMINATED_WRITER'}};
+  if(await adapter.compareAndSwap(initial.auditorId,current.version,next)!==true)throw Error('PLANNING_GATE_CONFLICT');
+  return clone(next.holder);
+ }
  async function release({token,verified,proof}){
   if(verified!==true||typeof proof!=='string'||proof.length<8)throw Error('PLANNING_GATE_RELEASE_EVIDENCE_REQUIRED');
   const current=await read();
@@ -37,5 +54,5 @@ export function createPlanningDistributedGate(adapter){
   if(await adapter.compareAndSwap(initial.auditorId,current.version,next)!==true)throw Error('PLANNING_GATE_CONFLICT');
   return clone(next.lastCompleted);
  }
- return Object.freeze({read,acquire,uncertain,release});
+ return Object.freeze({read,acquire,uncertain,quarantineOrphan,release});
 }

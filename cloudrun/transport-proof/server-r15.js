@@ -779,8 +779,10 @@ async function proxy(req,res){
   enforceAvailabilityHardGate20({document:doc,blocks:body.blocks});
   if(planningAuthorityEnabled){
    const requestId=createHash('sha256').update(JSON.stringify({auditId:body.auditId,auditorId:candidates[0].auditorId,sourceRevision:body.sourceRevision,blocks:body.blocks,actorId:planningLeaseActor.id})).digest('hex');
-   const staged=await planningAuthority.stage({auditId:String(body.auditId||'').trim(),auditorId:candidates[0].auditorId,actorId:planningLeaseActor.id,sourceRevision:body.sourceRevision,blocks:body.blocks,requestId});
-   if(staged.replayed&&staged.commit.state!=='PROJECTED')throw Error('PLANNING_PROJECTION_PENDING');
+   const staged=await planningAuthority.stage({auditId:String(body.auditId||'').trim(),auditorId:candidates[0].auditorId,actorId:planningLeaseActor.id,sourceRevision:body.sourceRevision,blocks:body.blocks,requestId,projectionPayload:body});
+   // Replays must not call the legacy Sheets writer a second time. A projected replay
+   // needs a read/receipt path, not a duplicate mutation; unresolved intents fail closed.
+   if(staged.replayed)throw Error(staged.commit.state==='PROJECTED'?'PLANNING_ALREADY_PROJECTED':'PLANNING_PROJECTION_PENDING');
    planningIntent=staged.commit;
   }
  }

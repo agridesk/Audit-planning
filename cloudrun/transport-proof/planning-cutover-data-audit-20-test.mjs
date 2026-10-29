@@ -84,4 +84,11 @@ const missingClaimFingerprint=createPlanningCutoverDataAudit({
 });
 await assert.rejects(()=>missingClaimFingerprint.verify(),/CUTOVER_CLAIMS_FINGERPRINT_REQUIRED/);
 
+
+const emptyOutboxPage=createPlanningCutoverDataAudit({
+ auditParity:source.auditParity,claimsParity:source.claimsParity,
+ store:{async listOutbox(){return {entries:[],nextPageToken:'more'};}}
+});
+await assert.rejects(()=>emptyOutboxPage.verify(),/CUTOVER_OUTBOX_PAGINATION_STALLED/);
+
 console.log('Cutover readiness: full row/claim parity and no unresolved outbox needed before switch');

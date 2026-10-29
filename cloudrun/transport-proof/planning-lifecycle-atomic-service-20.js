@@ -13,7 +13,7 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
  if(typeof atomicStore?.commit!=='function'||typeof atomicStore?.readAudit!=='function'||typeof atomicStore?.markProjected!=='function'||typeof atomicStore?.readOutbox!=='function'||typeof gate?.acquire!=='function'||typeof gate?.release!=='function'||typeof gate?.uncertain!=='function'||typeof projector?.apply!=='function'||typeof projector?.inspect!=='function'||typeof appendProjector?.apply!=='function'||typeof appendProjector?.inspect!=='function'||typeof preflight!=='function'||typeof roster!=='function')throw Error('LIFECYCLE_ATOMIC_CONFIG_INVALID');
  async function commit({actor,body,action}){
   action=norm(action);
-  if(!['manager','auditor'].includes(actor?.role)||!str(actor?.auditorId)||!actions.has(action)||!body||!str(body.auditId)||actor.role==='auditor'&&action!=='ACCEPT')throw Error('LIFECYCLE_ATOMIC_FORBIDDEN');
+  if(!['manager','auditor'].includes(actor?.role)||!str(actor?.auditorId)||!actions.has(action)||!body||!str(body.auditId)||actor.role==='auditor'&&!['ACCEPT','CANCEL','COMPLETE'].includes(action))throw Error('LIFECYCLE_ATOMIC_FORBIDDEN');
   const auditId=str(body.auditId),operationId=hash({auditId,actorId:actor.auditorId,action,body});
   const replay=await atomicStore.readOutbox(operationId);
   if(replay){
@@ -31,6 +31,11 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
    const old=await atomicStore.readAudit(auditId);
    if(!old||!Number.isSafeInteger(old.revision)||old.pendingOperationId||old.snapshot?.sourceRevision!==preview.expectedSourceRevision)throw Error('LIFECYCLE_ATOMIC_CANONICAL_PARITY_CONFLICT');
    if(old.snapshot?.legacyUnverified===true)throw Error('LIFECYCLE_LEGACY_UNVERIFIED_BLOCKED');
+   if(actor.role==='auditor'){
+    const before=norm(old.snapshot?.status);
+    const required={ACCEPT:'APPROVED',CANCEL:'PENDING_APPROVAL',COMPLETE:'ACCEPTED'}[action];
+    if(!required||before!==required||old.auditorId!==actor.auditorId)throw Error('LIFECYCLE_ATOMIC_AUDITOR_OWNERSHIP_DENIED');
+   }
    const snapshot={...preview.canonicalSnapshot,projectionWrites:preview.projectionWrites,projectionPreconditions:preview.projectionPreconditions,appendIntents:preview.appendIntents};
    const status=norm(snapshot.status);
    let auditorId=null,blocks=[];
@@ -47,7 +52,7 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
     if(!Array.isArray(raw)||!raw.length)throw Error('LIFECYCLE_ATOMIC_PLANNING_BLOCKS_MISSING');
     blocks=raw.map(x=>({date:str(x.date),start:str(x.start),end:str(x.end)}));
    }
-   if(actor.role==='auditor'&&auditorId!==actor.auditorId)throw Error('LIFECYCLE_ATOMIC_AUDITOR_OWNERSHIP_DENIED');
+   if(actor.role==='auditor'&&action==='ACCEPT'&&auditorId!==actor.auditorId)throw Error('LIFECYCLE_ATOMIC_AUDITOR_OWNERSHIP_DENIED');
    attempted=true;
    const receipt=await atomicStore.commit({auditId,operationId,actorId:actor.auditorId,action,expectedRevision:old.revision,nextSnapshot:snapshot,auditorId,blocks});
    committed=true;

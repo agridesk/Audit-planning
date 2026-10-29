@@ -25,6 +25,7 @@ import {createPlanningAtomicFirestoreStore} from './planning-atomic-firestore-st
 import {createPlanningAtomicCommandService} from './planning-atomic-command-service-20.js';
 import {createPlanningLifecycleAtomicService} from './planning-lifecycle-atomic-service-20.js';
 import {createPlanningMultiLifecycleService} from './planning-multi-lifecycle-service-20.js';
+import {createPlanningAtomicTransferService} from './planning-atomic-transfer-service-20.js';
 import {createPlanningAtomicRecovery} from './planning-atomic-recovery-20.js';
 import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20} from './planning-atomic-cutover-guard-20.js';
 import {createPlanningSheetsWritesetProjector} from './planning-sheets-writeset-projector-20.js';
@@ -222,6 +223,17 @@ const planningMultiLifecycle=planningAtomicStore?createPlanningMultiLifecycleSer
    body:JSON.stringify(payload)});
   const data=await r.json().catch(()=>null);
   if(!r.ok||data?.authorityPreflight!==true||data?.success!==true)throw Error('PLANNING_MULTI_PREFLIGHT_FAILED_'+String(data?.error||r.status).slice(0,100));
+  return data;
+ }
+}):null;
+const planningAtomicTransfer=planningAtomicStore?createPlanningAtomicTransferService({
+ store:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,appendProjector:planningAtomicAppendProjector,
+ preflight:async({actor,body})=>{
+  const r=await fetch('http://127.0.0.1:'+innerPort+'/api/v1/manager/auditor-management/audit/transfer',
+   {method:'POST',redirect:'manual',headers:{'content-type':'application/json',cookie:String(actor.cookie||'')},
+    body:JSON.stringify(body)});
+  const data=await r.json().catch(()=>null);
+  if(!r.ok||data?.authorityPreflight!==true||data?.success!==true)throw Error('TRANSFER_ATOMIC_PREFLIGHT_FAILED_'+String(data?.error||r.status).slice(0,100));
   return data;
  }
 }):null;
@@ -954,6 +966,15 @@ http.createServer(async(req,res)=>{
    if(!['APPROVE','ACCEPT','REJECT','CANCEL','COMPLETE'].includes(action))throw Error('LIFECYCLE_ATOMIC_ACTION_NOT_MIGRATED');
    const actorCtx={...actor,cookie:String(req.headers.cookie||'')};
    const result=['COMPLETE','REJECT'].includes(action)?await planningMultiLifecycle.commit({actor:actorCtx,body,action}):await planningAtomicLifecycle.commit({actor:actorCtx,body,action});
+   planningCache.invalidate();
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
+  }
+  if(req.method==='POST'&&planningAtomicTransfer&&u.pathname==='/api/v1/manager/auditor-management/audit/transfer'){
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403);res.end(JSON.stringify({success:false,error:'MANAGER_REQUIRED'}));return;}
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192)throw Error('TRANSFER_ATOMIC_BODY_TOO_LARGE');}
+   let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('TRANSFER_ATOMIC_BODY_INVALID');}
+   const result=await planningAtomicTransfer.commit({actor:{...actor,cookie:String(req.headers.cookie||'')},body});
    planningCache.invalidate();
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
   }

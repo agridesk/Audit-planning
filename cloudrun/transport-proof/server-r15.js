@@ -823,7 +823,7 @@ http.createServer(async(req,res)=>{
    const signature=blocks=>blocks.map(x=>[String(x.date||''),String(x.start||''),String(x.end||'')].join('|')).sort();
    if(JSON.stringify(signature(intervals))!==JSON.stringify(signature(lease.plannedBlocks)))throw Error('PLANNING_RECOVERY_INTERVAL_MISMATCH');
    if(!await verifyUncertainPlanningLeaseInSheets(lease))throw Error('PLANNING_RECOVERY_AVAILABILITY_NOT_VERIFIED');
-   const result=await service.releasePlanningLease({actor:verifiedActor,auditorId,token:lease.token});
+   const result=await service.reconcilePlanningLease({actor:verifiedActor,auditorId,token:lease.token,verifiedAuditId:auditId});
    planningCache.invalidate();
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,reconciled:true,auditId,auditorId,version:result.version}));return;
   }

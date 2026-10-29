@@ -102,4 +102,10 @@ await test('simultaneous cross-instance planning lease acquisition has exactly o
  await other.releasePlanningLease({actor,auditorId:id,token:winner.token});
  store.delete(id);
 });
+await test('malformed persisted planning lease fails closed',async()=>{
+ const id='aud-corrupt-lease',actor={id,role:'auditor'};
+ store.set(id,{auditorId:id,version:2,baselineExceptions:[],baselineReleases:[],blocks:[],recurring:[],overrides:[],metadata:{changes:[]},planningLease:{token:'x'}});
+ await fails(()=>service.read(actor,id),'CANONICAL_AVAILABILITY_DOCUMENT_INVALID');
+ store.delete(id);
+});
 console.log(n,'storage service checks passed');

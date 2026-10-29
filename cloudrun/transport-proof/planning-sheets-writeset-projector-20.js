@@ -54,7 +54,7 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   const changes=rows(plan);
   await verifyFence({operationId,gateToken});
   const first=await inspect(plan);
-  if(first.state==='MATCH')return {operationId,idempotent:true,projected:true,replayed:true};
+  if(first.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,idempotent:true,projected:true,replayed:true};}
   if(first.state!=='READY')throw Error('SHEETS_PROJECTION_PRECONDITION_CONFLICT');
   const meta=await metadata(),requests=[];
   for(const sheet of new Set(changes.map(x=>x.sheet))){
@@ -66,7 +66,7 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   if(requests.length)await request(base+':batchUpdate','POST',{requests});
   await verifyFence({operationId,gateToken});
   const second=await inspect(plan);
-  if(second.state==='MATCH')return {operationId,idempotent:true,projected:true,replayed:true};
+  if(second.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,idempotent:true,projected:true,replayed:true};}
   if(second.state!=='READY')throw Error('SHEETS_PROJECTION_CHANGED_DURING_WRITE');
   const payload={valueInputOption:'USER_ENTERED',data:changes.map(x=>({range:x.range,values:[x.values]})),includeValuesInResponse:false};
   await request(base+'/values:batchUpdate','POST',payload);

@@ -16,4 +16,24 @@ assert.equal((await recovery.scan()).recovered,1);
 assert.equal(settled,1);assert.equal(released,1);assert.equal(leaseReleased,1);
 assert.equal(gateState,null);
 await assert.rejects(()=>recovery.scan({limit:0}),/ATOMIC_RECOVERY_LIMIT_INVALID/);
+// Crash after Firestore PROJECTED but before gate.release must not freeze all
+// later writes, nor should it mutate an already settled receipt again.
+let postAckRelease=0,postAckSettle=0;
+const projected={...e,state:'PROJECTED'};
+let projectedGate={token:'settled-gate',operationId:'op1',state:'UNCERTAIN',acquiredAt:new Date(Date.now()-3600000).toISOString()};
+const settledRecovery=createPlanningAtomicRecovery({
+ store:{
+  async listOutbox(){return {entries:[projected],nextPageToken:null};},
+  async readAudit(){return {revision:1,pendingOperationId:null,lastProjectedOperationId:'op1'};},
+  async markProjected(){postAckSettle++;throw Error('NO_DOUBLE_SETTLEMENT');}
+ },
+ projector,appendProjector,
+ gate:{
+  async read(){return {holder:projectedGate};},
+  async release({verified}){assert.equal(verified,true);postAckRelease++;projectedGate=null;}
+ }
+});
+assert.equal((await settledRecovery.scan()).recovered,1);
+assert.equal(postAckRelease,1);assert.equal(postAckSettle,0);
+assert.equal((await settledRecovery.scan()).recovered,0);
 console.log('Atomic recovery: no blind retries, verified projection and uncertain fence release passed');

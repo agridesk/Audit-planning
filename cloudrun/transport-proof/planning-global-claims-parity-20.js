@@ -11,6 +11,7 @@ export function createPlanningGlobalClaimsParity({store,readPlanningRows,getRost
  async function verify({asOfDate=new Date().toISOString().slice(0,10),maxPages=50}={}){
   if(!Number.isSafeInteger(maxPages)||maxPages<1||maxPages>100)throw Error('CLAIMS_PARITY_PAGE_LIMIT_INVALID');
   const source=preparePlanningBackfill({rows:await readPlanningRows(),roster:await getRoster(),asOfDate});
+  const sourceManifest=sha(JSON.stringify([asOfDate,source.items.map(x=>[x.auditId,x.snapshot.sourceRow,x.snapshot.headers,x.snapshot.row,x.auditorId,x.blocks])]));
   const expected=new Map();
   for(const item of source.items)for(const block of item.blocks){
    const [startHour,startMinute]=block.start.split(':').map(Number),[endHour,endMinute]=block.end.split(':').map(Number);
@@ -39,7 +40,7 @@ export function createPlanningGlobalClaimsParity({store,readPlanningRows,getRost
    token=response.nextPageToken||'';
   }while(token);
   if(!truncated)for(const id of expected.keys())if(!seen.has(id))problems.push({reason:'MISSING_FIRESTORE_CLAIM',claimId:id});
-  return {ready:!truncated&&!problems.length,asOfDate,expected:expected.size,checked,pages,truncated,problems:problems.slice(0,100),totalProblems:problems.length};
+  return {ready:!truncated&&!problems.length,sourceManifest,asOfDate,expected:expected.size,checked,pages,truncated,problems:problems.slice(0,100),totalProblems:problems.length};
  }
  return Object.freeze({verify});
 }

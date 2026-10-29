@@ -962,6 +962,21 @@ http.createServer(async(req,res)=>{
    if(!operation){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}
    await swap20AuditorRequest(req,res,operation);return;
   }
+  if(runtime.isDev&&req.method==='POST'&&u.pathname==='/api/v1/internal/planning/reconcile-uncertain'){
+   const actor=await session(req);
+   if(!actor){res.writeHead(401,{'cache-control':'no-store'});res.end('Unauthorized');return;}
+   if(actor.role!=='manager'){res.writeHead(403,{'cache-control':'no-store'});res.end('Forbidden');return;}
+   let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>4096)throw Error('PLANNING_RECONCILIATION_REQUEST_TOO_LARGE');}
+   let body;try{body=JSON.parse(raw);}catch{throw Error('PLANNING_RECONCILIATION_INVALID_JSON');}
+   const auditorId=String(body?.auditorId||'').trim(),manager={role:'manager',id:actor.auditorId};
+   if(!auditorId||auditorId.length>200)throw Error('PLANNING_RECONCILIATION_AUDITOR_REQUIRED');
+   const snapshot=await service.read(manager,auditorId),lease=snapshot.planningLease;
+   if(lease?.state!=='UNCERTAIN'){res.writeHead(409,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:false,error:'NO_UNCERTAIN_PLANNING_LEASE'}));return;}
+   const verified=await verifyUncertainPlanningLeaseInSheets(lease);
+   if(!verified){res.writeHead(409,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:false,error:'PLANNING_RECONCILIATION_NOT_PROVEN'}));return;}
+   const result=await service.releasePlanningLease({actor:manager,auditorId,token:lease.token});planningCache.invalidate();
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,auditorId,version:result.version,reconciled:true}));return;
+  }
   if(await availability(req,res))return;
   await proxy(req,res);
  }catch(e){const path=String(req.url||'/').split('?')[0];const subsystem=path.includes('notification')?'NOTIFICATIONS':path.includes('rotation')?'ROTATION':path.includes('availability')?'AVAILABILITY':'PORTAL';const isSwap=runtime.isDev&&path.includes('/swap20/');const code=isSwap?'SWAP20_INTEGRATION_FAILED':subsystem+'_INTEGRATION_FAILED';console.error('[AMS_ROUTE_ERROR]',JSON.stringify({subsystem,path,errorCode:String(e?.message||'UNKNOWN').slice(0,160)}));if(!res.headersSent){const planningConflict=runtime.isDev&&path==='/api/v1/planning/direct-commit'&&['PLANNING_LEASE_ACTIVE','VERSION_CONFLICT','AVAILABILITY_HARD_BLOCK'].some(x=>String(e?.message||'').startsWith(x));res.writeHead(planningConflict?409:503,{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify({success:false,error:planningConflict?String(e.message).slice(0,100):runtime.isDev&&path==='/api/v1/planning/direct-commit'&&String(e?.message||'').includes('PLANNING_COMMIT_OUTCOME_UNCERTAIN')?'PLANNING_COMMIT_OUTCOME_UNCERTAIN':isSwap?String(e?.message||'SWAP20_INTEGRATION_FAILED').replace(/[^A-Za-z0-9_]/g,'_').slice(0,100):code,diagnostic:subsystem==='NOTIFICATIONS'?String(e?.message||'UNKNOWN').slice(0,100):undefined}));}else res.destroy();}

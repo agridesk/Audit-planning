@@ -217,7 +217,9 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
    }
    for(const id of oldIds)if(!newIds.has(id))tx.remove('claim',id);
    for(const e of sorted)for(const c of newClaimGroups.get(e.auditId))tx.set('claim',c.claimId,{...c,auditId:e.auditId,revision:receipts.find(x=>x.auditId===e.auditId).revision,operationId});
-   tx.set('outbox',operationId,{operationId,auditId:sorted[0].auditId,auditIds,entities:receipts,actorId,action,requestDigest:digest,snapshot:clone(projectionPlan),state:'PENDING',createdAt:now,multi:true});
+   // The public operation identity is the initiating audit, not the lexically
+   // first sorted audit. Sorting is only a deadlock-prevention detail.
+   tx.set('outbox',operationId,{operationId,auditId:entities[0].auditId,auditIds,entities:receipts,actorId,action,requestDigest:digest,snapshot:clone(projectionPlan),state:'PENDING',createdAt:now,multi:true});
    return {operationId,replayed:false,state:'PENDING',entities:receipts};
   });
  }

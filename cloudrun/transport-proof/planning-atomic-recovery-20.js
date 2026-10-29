@@ -31,6 +31,9 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
   if(rowCheck.state!=='MATCH'||appendCheck.state!=='MATCH')return {state:'UNRESOLVED',rowState:rowCheck.state,appendState:appendCheck.state};
   const global=await gate.read();
   if(global.holder&&global.holder.operationId!==entry.operationId)throw Error('ATOMIC_RECOVERY_GATE_OWNERSHIP_MISMATCH');
+  // A PENDING operation without an owned fence cannot be independently
+  // proven quiescent. Do not settle it merely because Sheets happens to match.
+  if(!settled&&!global.holder)throw Error('ATOMIC_RECOVERY_MISSING_DISTRIBUTED_FENCE');
   if(global.holder){
    // UNCONFIRMED request termination is not proof that Sheets can no longer
    // complete an in-flight HTTP mutation. Quarantine the fence for at least

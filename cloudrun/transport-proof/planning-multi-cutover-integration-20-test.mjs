@@ -30,6 +30,11 @@ assert.match(r15,/createPlanningAtomicTransferService\(/);
 assert.match(r15,/planningAtomicTransfer\.commit\(/);
 assert.match(r15,/\['COMPLETE','REJECT'\]\.includes\(action\)\?await planningMultiLifecycle\.commit/);
 assert.match(r15,/validatePlanningAtomicRuntime20\(/);
+assert.match(r15,/\/api\/v1\/planning\/atomic-claims-parity/);
+assert.match(r15,/\/api\/v1\/planning\/atomic-cutover-evidence/);
+assert.match(r15,/createPlanningGlobalClaimsParity\(/);
+assert.match(r15,/createPlanningCutoverDataAudit\(/);
+
 assert.match(r15,/PLANNING_LEGACY_RECONCILIATION_DISABLED_UNDER_ATOMIC_AUTHORITY/);
 assert.match(r15,/\/api\/v1\/planning\/atomic-quarantine-orphan/);
 assert.match(r15,/planningGlobalGate\.quarantineOrphan\(/);

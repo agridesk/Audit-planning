@@ -7,14 +7,16 @@ const hash=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 export function createPlanningAtomicRecovery({store,projector,appendProjector,gate,availabilityService}={}){
  if(typeof store?.listOutbox!=='function'||typeof store?.readAudit!=='function'||typeof store?.markProjected!=='function'||typeof projector?.inspect!=='function'||typeof appendProjector?.inspect!=='function'||typeof gate?.read!=='function')throw Error('ATOMIC_RECOVERY_DEPENDENCY_INVALID');
  async function recoverOne(entry){
-  if(!entry||!['PENDING','UNCERTAIN'].includes(entry.state)||!entry.auditId||!entry.operationId||!entry.snapshot)return {state:'SKIPPED'};
+  if(!entry||!['PENDING','UNCERTAIN','PROJECTED'].includes(entry.state)||!entry.auditId||!entry.operationId||!entry.snapshot)return {state:'SKIPPED'};
+  const settled=entry.state==='PROJECTED';
+  if(settled){const gateBefore=await gate.read();if(gateBefore.holder?.operationId!==entry.operationId)return {state:'SKIPPED'};}
   const audit=await store.readAudit(entry.auditId);
-  if(!audit||audit.pendingOperationId!==entry.operationId||entry.multi!==true&&audit.revision!==entry.revision)throw Error('ATOMIC_RECOVERY_CANONICAL_MISMATCH');
+  if(!audit||(settled?audit.lastProjectedOperationId!==entry.operationId:audit.pendingOperationId!==entry.operationId)||entry.multi!==true&&audit.revision!==entry.revision)throw Error('ATOMIC_RECOVERY_CANONICAL_MISMATCH');
   if(entry.multi===true){
    if(!Array.isArray(entry.entities)||!entry.entities.length||!entry.entities.some(e=>e.auditId===entry.auditId))throw Error('ATOMIC_RECOVERY_MULTI_INDEX_INVALID');
    for(const entity of entry.entities){
     const related=await store.readAudit(entity.auditId);
-    if(!related||related.pendingOperationId!==entry.operationId||related.revision!==entity.revision)throw Error('ATOMIC_RECOVERY_MULTI_ENTITY_MISMATCH');
+    if(!related||(settled?related.lastProjectedOperationId!==entry.operationId:related.pendingOperationId!==entry.operationId)||related.revision!==entity.revision)throw Error('ATOMIC_RECOVERY_MULTI_ENTITY_MISMATCH');
    }
   }
   const snapshot=entry.snapshot;
@@ -29,7 +31,7 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
    if(global.holder.state!=='ACTIVE'||!Number.isFinite(acquired)||Date.now()-acquired<30*60*1000)throw Error('ATOMIC_RECOVERY_ACTIVE_WRITER_MUST_FINISH');
   }
   const proof={verified:true,auditId:entry.auditId,rowHash:hash({rows:rowCheck.detail,appends:appendCheck.count})};
-  await store.markProjected({auditId:entry.auditId,operationId:entry.operationId,proof});
+  if(!settled)await store.markProjected({auditId:entry.auditId,operationId:entry.operationId,proof});
   // A verified outbox is enough to unlock the global gate. An availability lease
   // is released only if the exact auditor/audit pair and token are observed.
   if(global.holder&&global.holder.operationId===entry.operationId){
@@ -56,7 +58,7 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
    pages++;if(!Array.isArray(result.entries)||pages>limit+1)throw Error('ATOMIC_RECOVERY_SCAN_INVALID');
    for(const entry of result.entries){
     scanned++;
-    if(!['PENDING','UNCERTAIN'].includes(entry.state))continue;
+    if(!['PENDING','UNCERTAIN','PROJECTED'].includes(entry.state))continue;
     try{const outcome=await recoverOne(entry);if(outcome.state==='PROJECTED')recovered++;else unresolved++;}
     catch{errors++;unresolved++;}
    }

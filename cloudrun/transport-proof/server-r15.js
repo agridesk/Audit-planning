@@ -19,6 +19,7 @@ import {createAvailabilityService} from './availability-storage-service-20.js';
 import {enforceAvailabilityHardGate20} from './availability-planning-hard-gate-20.js';
 import {createFirestoreAvailabilityAdapter} from './availability-firestore-adapter-20.js';
 import {createPlanningFirestoreAuthority} from './planning-firestore-authority-20.js';
+import {createPlanningDistributedGate} from './planning-distributed-gate-20.js';
 import {createHash} from 'node:crypto';
 import {createPlanningOverlayService} from './availability-planning-overlay-service-20.js';
 import {createPlanningReadCache} from './availability-planning-read-cache-20.js';
@@ -109,6 +110,7 @@ const adapter=createFirestoreAvailabilityAdapter({projectId:project,getToken,col
 const service=createAvailabilityService(adapter);
 const planningAuthority=runtime.isDev?createPlanningFirestoreAuthority(createFirestoreAvailabilityAdapter({projectId:project,getToken,collection:'ams_planning_authority_20_dev'})):null;
 const planningAuthorityEnabled=runtime.isDev&&process.env.AMS_DEV_FIRESTORE_PLANNING_AUTHORITY_ENABLED==='true';
+const planningGlobalGate=planningAuthorityEnabled?createPlanningDistributedGate(createFirestoreAvailabilityAdapter({projectId:project,getToken,collection:'ams_planning_write_gate_20_dev'})):null;
 async function readPlanningRows(){
  // Existing DEV Audit planning tab; bounded read, never a full-sheet hot-path scan.
  // Fail closed if configured maximum is reached: a truncated source is unsafe.
@@ -761,7 +763,7 @@ async function proxy(req,res){
  if(!['GET','HEAD'].includes(req.method)){const chunks=[];for await(const c of req)chunks.push(c);init.body=Buffer.concat(chunks);}
  const writerPath=new URL(req.url||'/','http://localhost').pathname;
  if(planningAuthorityEnabled&&req.method==='POST'&&/^\/api\/v1\/(?:manager\/(?:approve-direct|accept-direct|reject-direct|cancel-direct|complete-direct|action|auditor-management\/audit\/transfer)|internal\/auditor\/complete-direct|auditor\/action)$/.test(writerPath))throw Error('PLANNING_AUTHORITY_WRITER_NOT_MIGRATED');
- let planningLease=null,planningLeaseActor=null,planningForwarded=false,planningWriteConfirmed=false,planningIntent=null,planningProjectionVerified=false;
+ let planningLease=null,planningLeaseActor=null,planningForwarded=false,planningWriteConfirmed=false,planningIntent=null,planningProjectionVerified=false,planningGlobalLock=null;
  try{
  if(runtime.isDev&&req.method==='POST'&&new URL(req.url||'/','http://localhost').pathname==='/api/v1/planning/direct-commit'){
   const actor=await session(req);
@@ -773,6 +775,10 @@ async function proxy(req,res){
   if(candidates.length!==1)throw Error('PLANNING_AUDITOR_UID_UNRESOLVED');
   if(actor.role==='auditor'&&actor.auditorId!==candidates[0].auditorId)throw Error('PLANNING_AUDITOR_IDENTITY_MISMATCH');
   planningLeaseActor={role:actor.role,id:actor.auditorId};
+  if(planningAuthorityEnabled){
+   const operationId=createHash('sha256').update(JSON.stringify({auditId:body.auditId,auditorId:candidates[0].auditorId,sourceRevision:body.sourceRevision,blocks:body.blocks,actorId:planningLeaseActor.id})).digest('hex');
+   planningGlobalLock=await planningGlobalGate.acquire({operationId,actorId:planningLeaseActor.id,kind:'DIRECT_PLANNING'});
+  }
   planningLease=await service.acquirePlanningLease({actor:planningLeaseActor,auditorId:candidates[0].auditorId,auditId:String(body.auditId||'').trim(),auditorEmail:email,plannedBlocks:body.blocks});
   const doc=planningLease.document;
   if(!Number.isSafeInteger(doc.version)||doc.version<0)throw Error('PLANNING_AVAILABILITY_VERSION_INVALID');
@@ -804,7 +810,21 @@ async function proxy(req,res){
   }
  if(planningLease){await service.releasePlanningLease({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token});planningLease=null;}
  res.writeHead(r.status,h);res.end(responseBody);
- }finally{if(planningLease){if(planningIntent&&planningForwarded&&!planningProjectionVerified)await planningAuthority.transition({auditId:planningIntent.auditId,commitId:planningIntent.id,from:'PENDING',to:'UNCERTAIN',detail:'SHEETS_WRITE_UNCONFIRMED'});if(!planningForwarded)await service.releasePlanningLease({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token});else await service.markPlanningLeaseUncertain({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token,reason:planningWriteConfirmed?'LEASE_RELEASE_FAILED':'SHEETS_WRITE_UNCONFIRMED'});}}
+ }finally{
+ try{
+  if(planningLease){
+   if(planningIntent&&planningForwarded&&!planningProjectionVerified)await planningAuthority.transition({auditId:planningIntent.auditId,commitId:planningIntent.id,from:'PENDING',to:'UNCERTAIN',detail:'SHEETS_WRITE_UNCONFIRMED'});
+   if(!planningForwarded)await service.releasePlanningLease({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token});
+   else await service.markPlanningLeaseUncertain({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token,reason:planningWriteConfirmed?'LEASE_RELEASE_FAILED':'SHEETS_WRITE_UNCONFIRMED'});
+  }
+ }finally{
+  if(planningGlobalLock){
+   if(!planningForwarded)await planningGlobalGate.release({token:planningGlobalLock.token,verified:true,proof:'NO_WRITE_ATTEMPT'});
+   else if(planningProjectionVerified)await planningGlobalGate.release({token:planningGlobalLock.token,verified:true,proof:'FIRESTORE_AND_SHEETS_VERIFIED'});
+   else await planningGlobalGate.uncertain({token:planningGlobalLock.token,reason:'WRITE_OUTCOME_UNCERTAIN'});
+  }
+ }
+}}
 }
 http.createServer(async(req,res)=>{
  try{

@@ -25,8 +25,8 @@ const appendProjector={async apply(){},async inspect(){return {state:'MATCH',cou
 const service=createPlanningAtomicTransferService({store,gate,projector,appendProjector,preflight:async()=>preview});
 const actor={role:'manager',auditorId:'manager-1'},body={auditId:'A1',fromEmail:'old@example.test',toEmail:'new@example.test'};
 const result=await service.commit({actor,body});
-assert.equal(result.success,true);assert.equal(result.status,'Pending Approval');assert.equal(holder,null);assert.equal(projected,1);
-assert.equal((await service.commit({actor,body})).idempotent,true);assert.equal(writes,1);
+assert.equal(result.success,true);assert.equal(result.ok,true);assert.equal(result.status,'Pending Approval');assert.equal(holder,null);assert.equal(projected,1);
+const replay=await service.commit({actor,body});assert.equal(replay.ok,true);assert.equal(replay.idempotent,true);assert.equal(writes,1);
 previous.snapshot.sourceRevision='new-parent-revision';preview.expectedSourceRevision='new-parent-revision';fail=true;
 await assert.rejects(()=>service.commit({actor,body:{...body,reason:'another transfer'}}),/SHEETS_TIMEOUT/);
 assert.equal(fence.state,'UNCERTAIN');assert.ok(uncertain>=2);

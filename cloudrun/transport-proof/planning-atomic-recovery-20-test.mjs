@@ -5,7 +5,7 @@ let matched=true,gateState='UNCERTAIN',settled=0,released=0,leaseReleased=0;
 const store={async listOutbox(){return {entries:[e],nextPageToken:null}},async readAudit(){return {revision:1,pendingOperationId:'op1'}},async markProjected(){settled++;}};
 const projector={async inspect(){return {state:matched?'MATCH':'READY',detail:[{target:matched}]}}},appendProjector={async inspect(){return {state:'MATCH',count:1}}};
 const gate={async read(){return {holder:gateState?{token:'t1',operationId:'op1',state:gateState,acquiredAt:new Date(Date.now()-(gateState==='ACTIVE'?5:31)*60*1000).toISOString(),uncertainAt:new Date(Date.now()-31*60*1000).toISOString()}:null}},async release(){released++;gateState=null;}};
-const availabilityService={async read(){return {planningLease:{token:'lease1',state:'UNCERTAIN',auditId:'a1'}}},async reconcilePlanningLease(){leaseReleased++}};
+const availabilityService={async read(){return {planningLease:{token:'lease1',state:'UNCERTAIN',auditId:'a1',uncertainAt:new Date(Date.now()-31*60*1000).toISOString()}}},async reconcilePlanningLease(){leaseReleased++}};
 const recovery=createPlanningAtomicRecovery({store,projector,appendProjector,gate,availabilityService});
 matched=false;
 assert.equal((await recovery.scan()).unresolved,1);assert.equal(settled,0);
@@ -59,4 +59,22 @@ assert.equal((await fairness.scan({limit:1})).truncated,true);
 assert.equal((await fairness.scan({limit:1})).truncated,false);
 assert.deepEqual(seenTokens,['','page-2']);
 assert.equal(scannedBatches.length,1);
+// After Firestore settlement and global-fence release, a failed auditor lease
+// cleanup must still be discoverable and retried without re-projecting writes.
+let orphanReconciled=0;
+const orphanRecovery=createPlanningAtomicRecovery({
+ store:{
+  async listOutbox(){return {entries:[projected],nextPageToken:null};},
+  async readAudit(){return {revision:1,lastProjectedOperationId:'op1',pendingOperationId:null};},
+  async markProjected(){throw Error('NO_SECOND_SETTLEMENT');}
+ },
+ projector,appendProjector,
+ gate:{async read(){return {holder:null};}},
+ availabilityService:{
+  async read(){return {planningLease:{token:'orphan',auditId:'a1',state:'UNCERTAIN',uncertainAt:new Date(Date.now()-31*60*1000).toISOString()}};},
+  async reconcilePlanningLease({verifiedProjectionProof}){assert.match(verifiedProjectionProof,/^[0-9a-f]{64}$/);orphanReconciled++;}
+ }
+});
+assert.equal((await orphanRecovery.scan()).recovered,1);
+assert.equal(orphanReconciled,1);
 console.log('Atomic recovery: no blind retries, verified projection and uncertain fence release passed');

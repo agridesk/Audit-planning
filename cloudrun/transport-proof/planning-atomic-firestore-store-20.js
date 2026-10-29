@@ -42,6 +42,9 @@ function claimsFor(blocks,auditorId){
  for(const block of blocks){
   const date=str(block?.date);if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||new Date(date+'T00:00:00Z').toISOString().slice(0,10)!==date)throw Error('PLANNING_DATE_INVALID');
   const start=time(block.start),end=time(block.end);if(end<=start)throw Error('PLANNING_INTERVAL_INVALID');
+  // Past appointments remain in the canonical snapshot, not the live capacity index.
+  // This also prevents historical cross-company overlaps from blocking DEV backfill.
+  if(date<new Date().toISOString().slice(0,10))continue;
   for(let minute=start;minute<end;minute+=15){
    const key=hex(auditorId+'|'+date+'|'+minute);
    if(result.has(key))throw Error('PLANNING_SELF_OVERLAP');

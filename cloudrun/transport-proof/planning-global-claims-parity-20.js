@@ -21,9 +21,11 @@ export function createPlanningGlobalClaimsParity({store,readPlanningRows,getRost
     expected.set(claimId,{auditId:item.auditId,auditorId:item.auditorId,date:block.date,minute});
    }
   }
-  const seen=new Set(),observed=[],problems=[];let token='',pages=0,checked=0,truncated=false;
+  const seen=new Set(),observed=[],problems=[],pageTokens=new Set();let token='',pages=0,checked=0,truncated=false;
   do{
    if(pages>=maxPages){truncated=true;break;}
+   if(pageTokens.has(token))throw Error('CLAIMS_PARITY_PAGINATION_LOOP');
+   pageTokens.add(token);
    const response=await store.listClaims({pageSize:200,pageToken:token});
    pages++;
    if(!Array.isArray(response?.claims)||response.claims.length>200)throw Error('CLAIMS_PARITY_INVALID_PAGE');
@@ -38,7 +40,9 @@ export function createPlanningGlobalClaimsParity({store,readPlanningRows,getRost
     if(!target){problems.push({reason:'ORPHAN_OR_UNEXPECTED_CLAIM',claimId:id});continue;}
     if(target.auditId!==claim.auditId||target.auditorId!==claim.auditorId||target.date!==claim.date||target.minute!==claim.minute)problems.push({reason:'CLAIM_IDENTITY_MISMATCH',claimId:id});
    }
-   token=response.nextPageToken||'';
+   const next=response.nextPageToken||'';
+   if(next&&(!response.claims.length||next===token))throw Error('CLAIMS_PARITY_PAGINATION_STALLED');
+   token=next;
   }while(token);
   if(!truncated)for(const id of expected.keys())if(!seen.has(id))problems.push({reason:'MISSING_FIRESTORE_CLAIM',claimId:id});
   observed.sort((a,b)=>a[0].localeCompare(b[0]));

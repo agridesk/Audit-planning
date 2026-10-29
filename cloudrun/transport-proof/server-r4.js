@@ -1633,8 +1633,17 @@ set(['Date - Planned'],requested[0].date);if(actorRole==='MANAGER')set(['Date - 
       return {success:true,authorityPreflight:true,auditId,
         expectedSourceRevision:clean(audit.sourceRevision),
         canonicalSnapshot:{auditId,sourceRow:found.sourceRow,headers:h,row,status:afterStatus,
-          assignedTo:auditorEmail,blocks:requested,planningJson,sourceRevision:clean(audit.sourceRevision)},
-        projectionWrites:writes,notificationIntents:[trailRow,plannedRow],
+          assignedTo:auditorEmail,blocks:requested,planningJson,sourceRevision:directRowRevision(h,row)},
+        projectionWrites:writes,
+        projectionPreconditions:writes.map(w=>{
+          const match=/^(.+)!A(\\d+):/.exec(w.range);
+          if(!match)throw Error('PLANNING_PREFLIGHT_RANGE_INVALID');
+          const sources={'Audit planning':ap,'Auditor Availability':vr[2]?.values||[],'Concept Reservations':cr};
+          const source=sources[match[1]];
+          if(!source)throw Error('PLANNING_PREFLIGHT_TAB_INVALID');
+          return {range:w.range,before:source[Number(match[2])-1]?.slice()||[]};
+        }),
+        notificationIntents:[trailRow,plannedRow],
         plannedHours:Math.round(total*100)/100,
         owner:'CLOUD_RUN_DEV_AUTHORITY_PREFLIGHT'};
     }

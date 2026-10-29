@@ -86,25 +86,25 @@ assert.equal((await authority.readAudit(successor)).pendingOperationId,null);
 assert.equal((await authority.readAudit(parent)).pendingOperationId,null);
 
 const multiSuccessor='A3';
-const multi=await authority.commitMulti({
- operationId:'multi-one',actorId:'manager',action:'COMPLETE',
+const multiReceiptFixture=await authority.commitMulti({
+ operationId:'multiReceiptFixture-one',actorId:'manager',action:'COMPLETE',
  entities:[
   {auditId,expectedRevision:2,nextSnapshot:{auditId,status:'Completed'},auditorId:null,blocks:[],remove:true},
   {auditId:multiSuccessor,expectedRevision:null,nextSnapshot:{auditId:multiSuccessor,status:'Pending Planning'},auditorId:null,blocks:[]}
  ],projectionPlan:{projectionWrites:[{range:'Audit planning!A2:B2',values:[['A1','Completed']]}],projectionPreconditions:[{range:'Audit planning!A2:B2',before:['A1','Accepted']}],appendIntents:[]}
 });
-assert.equal(multi.state,'PENDING');
-assert.equal(multi.entities.length,2);
-assert.equal((await authority.readAudit(multiSuccessor)).pendingOperationId,'multi-one');
+assert.equal(multiReceiptFixture.state,'PENDING');
+assert.equal(multiReceiptFixture.entities.length,2);
+assert.equal((await authority.readAudit(multiSuccessor)).pendingOperationId,'multiReceiptFixture-one');
 assert.equal((await authority.readAudit(auditId)).removed,true);
 assert.equal((await authority.commitMulti({
- operationId:'multi-one',actorId:'manager',action:'COMPLETE',
+ operationId:'multiReceiptFixture-one',actorId:'manager',action:'COMPLETE',
  entities:[
   {auditId,expectedRevision:2,nextSnapshot:{auditId,status:'Completed'},auditorId:null,blocks:[],remove:true},
   {auditId:multiSuccessor,expectedRevision:null,nextSnapshot:{auditId:multiSuccessor,status:'Pending Planning'},auditorId:null,blocks:[]}
  ],projectionPlan:{projectionWrites:[{range:'Audit planning!A2:B2',values:[['A1','Completed']]}],projectionPreconditions:[{range:'Audit planning!A2:B2',before:['A1','Accepted']}],appendIntents:[]}
 })).replayed,true);
-assert.equal((await authority.markProjected({auditId,operationId:'multi-one',proof:{verified:true,auditId,rowHash:'b'.repeat(64)}})).state,'PROJECTED');
+assert.equal((await authority.markProjected({auditId,operationId:'multiReceiptFixture-one',proof:{verified:true,auditId,rowHash:'b'.repeat(64)}})).state,'PROJECTED');
 assert.equal((await authority.readAudit(multiSuccessor)).pendingOperationId,null);
 assert.equal((await authority.readAudit(auditId)).pendingOperationId,null);
 const transfer=await authority.commitMulti({

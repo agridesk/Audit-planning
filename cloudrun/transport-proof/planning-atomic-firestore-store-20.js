@@ -142,5 +142,32 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
    return {operationId,replayed:false,state:'PENDING',revision:nextRevision,claimCount:newIds.length};
   });
  }
- return Object.freeze({readAudit,readOutbox,commit});
+ async function markProjected({auditId,operationId,proof}){
+  if(!validId(auditId)||!validId(operationId)||proof?.verified!==true||proof?.auditId!==auditId||typeof proof?.rowHash!=='string'||!/^[a-f0-9]{64}$/.test(proof.rowHash))throw Error('PLANNING_PROJECTION_EVIDENCE_REQUIRED');
+  return transaction(async tx=>{
+   const audit=await tx.get('audit',auditId),outbox=await tx.get('outbox',operationId);
+   if(!audit||!outbox||outbox.value.auditId!==auditId)throw Error('PLANNING_PROJECTION_RECORD_MISSING');
+   if(outbox.value.state==='PROJECTED'){
+    if(outbox.value.proof?.rowHash!==proof.rowHash)throw Error('PLANNING_PROJECTION_PROOF_CONFLICT');
+    return {state:'PROJECTED',replayed:true};
+   }
+   if(!['PENDING','UNCERTAIN'].includes(outbox.value.state)||audit.value.pendingOperationId!==operationId||audit.value.revision!==outbox.value.revision)throw Error('PLANNING_PROJECTION_STATE_CONFLICT');
+   const now=new Date().toISOString();
+   tx.set('audit',auditId,{...audit.value,pendingOperationId:null,lastProjectedOperationId:operationId,lastProjectedAt:now});
+   tx.set('outbox',operationId,{...outbox.value,state:'PROJECTED',projectedAt:now,proof:clone(proof)});
+   return {state:'PROJECTED',replayed:false};
+  });
+ }
+ async function markUncertain({auditId,operationId,reason}){
+  if(!validId(auditId)||!validId(operationId))throw Error('PLANNING_OUTBOX_ID_REQUIRED');
+  return transaction(async tx=>{
+   const audit=await tx.get('audit',auditId),outbox=await tx.get('outbox',operationId);
+   if(!audit||!outbox||outbox.value.auditId!==auditId||audit.value.pendingOperationId!==operationId)throw Error('PLANNING_OUTBOX_STATE_CONFLICT');
+   if(outbox.value.state==='UNCERTAIN')return {state:'UNCERTAIN',replayed:true};
+   if(outbox.value.state!=='PENDING')throw Error('PLANNING_OUTBOX_STATE_CONFLICT');
+   tx.set('outbox',operationId,{...outbox.value,state:'UNCERTAIN',uncertainAt:new Date().toISOString(),reason:String(reason??'UNKNOWN').slice(0,120)});
+   return {state:'UNCERTAIN',replayed:false};
+  });
+ }
+ return Object.freeze({readAudit,readOutbox,commit,markProjected,markUncertain});
 }

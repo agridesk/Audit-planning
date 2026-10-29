@@ -94,4 +94,17 @@ const orphanRecovery=createPlanningAtomicRecovery({
 });
 assert.equal((await orphanRecovery.scan()).recovered,1);
 assert.equal(orphanReconciled,1);
+
+for(const [listOutbox,expected] of [
+ [async()=>({entries:Array.from({length:2},()=>e),nextPageToken:null}),'ATOMIC_RECOVERY_SCAN_INVALID'],
+ [async()=>({entries:[],nextPageToken:'next'}),'ATOMIC_RECOVERY_EMPTY_PAGE'],
+ [async()=>({entries:[e],nextPageToken:'same'}), 'ATOMIC_RECOVERY_PAGINATION_LOOP']
+]){
+ const invalid=createPlanningAtomicRecovery({
+  store:{...store,listOutbox},
+  projector,appendProjector,gate
+ });
+ await assert.rejects(()=>invalid.scan({limit:1}),new RegExp(expected));
+}
+
 console.log('Atomic recovery: no blind retries, verified projection and uncertain fence release passed');

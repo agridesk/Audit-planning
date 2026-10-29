@@ -61,7 +61,7 @@ export function createAvailabilityService(adapter){
  async function acquirePlanningLease({actor,auditorId,auditId,plannedBlocks,auditorEmail,now=new Date().toISOString()}){
   const id=str(auditorId);authorize(actor,id);
   if(!str(auditId))throw Error('PLANNING_AUDIT_ID_REQUIRED');
-  if(!Array.isArray(plannedBlocks)||plannedBlocks.length<1||plannedBlocks.length>5||plannedBlocks.some(x=>!/^\d{4}-\d{2}-\d{2}$/.test(x?.date||'')||!/^\d{2}:\d{2}$/.test(x?.start||'')||!/^\d{2}:\d{2}$/.test(x?.end||''))||!str(auditorEmail))throw Error('PLANNING_LEASE_EVIDENCE_INVALID');
+  if(!Array.isArray(plannedBlocks)||plannedBlocks.length<1||plannedBlocks.length>50||plannedBlocks.some(x=>!/^\d{4}-\d{2}-\d{2}$/.test(x?.date||'')||!/^\d{2}:\d{2}$/.test(x?.start||'')||!/^\d{2}:\d{2}$/.test(x?.end||''))||!str(auditorEmail))throw Error('PLANNING_LEASE_EVIDENCE_INVALID');
   const current=await read(actor,id);
   if(current.planningLease)throw Error('PLANNING_LEASE_ACTIVE');
   if(current.version>=Number.MAX_SAFE_INTEGER-1)throw Error('VERSION_CONFLICT');

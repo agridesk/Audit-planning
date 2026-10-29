@@ -50,4 +50,11 @@ await assert.rejects(()=>projector.apply({operationId:'operation-9',gateToken:'t
 assert.equal(writeCount,2);
 assert.equal((await projector.inspect(plan)).state,'MATCH');
 await assert.rejects(()=>projector.inspect({projectionWrites:[plan.projectionWrites[0],plan.projectionWrites[0]],projectionPreconditions:[plan.projectionPreconditions[0],plan.projectionPreconditions[0]]}),/SHEETS_PROJECTION_DUPLICATE_TARGET/);
+let replayChecks=0;
+const lostReplay=createPlanningSheetsWritesetProjector({
+ spreadsheetId:'dev-sheet',getToken:async()=> 'dev-token',fetchImpl,
+ verifyFence:async()=>{if(++replayChecks===2)throw Error('REPLAY_FENCE_LOST');}
+});
+await assert.rejects(()=>lostReplay.apply({operationId:'late',gateToken:'token',plan}),/REPLAY_FENCE_LOST/);
+assert.equal(writeCount,2);
 console.log('Sheets writeset projection: raw idempotence, row expansion, replay, conflict and fencing passed');

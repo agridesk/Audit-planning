@@ -764,7 +764,7 @@ async function proxy(req,res){
  if(planningLease&&planningForwarded&&!planningWriteConfirmed)throw Error('PLANNING_COMMIT_OUTCOME_UNCERTAIN');
  if(planningLease){await service.releasePlanningLease({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token});planningLease=null;}
  res.writeHead(r.status,h);res.end(responseBody);
- }finally{if(planningLease&&!planningForwarded)await service.releasePlanningLease({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token});}
+ }finally{if(planningLease){if(!planningForwarded)await service.releasePlanningLease({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token});else await service.markPlanningLeaseUncertain({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token,reason:planningWriteConfirmed?'LEASE_RELEASE_FAILED':'SHEETS_WRITE_UNCONFIRMED'});}}
 }
 http.createServer(async(req,res)=>{
  try{

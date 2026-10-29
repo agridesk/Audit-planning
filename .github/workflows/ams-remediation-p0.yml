@@ -27,3 +27,4 @@ jobs:
         with:
           node-version: '22'
       - run: npm run test:planning-authority-p0
+      - run: npm test

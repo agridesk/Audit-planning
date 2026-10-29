@@ -61,16 +61,20 @@ export function preparePlanningBackfill({rows,roster,asOfDate=new Date().toISOSt
 }
 export function createPlanningBackfillRunner({atomicStore,readPlanningRows,getRoster}={}){
  if(typeof atomicStore?.seed!=='function'||typeof readPlanningRows!=='function'||typeof getRoster!=='function')throw Error('BACKFILL_RUNNER_CONFIG_INVALID');
- async function run({dryRun=true,startRow=2,limit=100}={}){
+ async function run({dryRun=true,startRow=2,limit=100,sourceManifest=null}={}){
   if(!Number.isSafeInteger(startRow)||startRow<2||!Number.isSafeInteger(limit)||limit<1||limit>200)throw Error('BACKFILL_BATCH_INVALID');
   const prepared=preparePlanningBackfill({rows:await readPlanningRows(),roster:await getRoster()});
+  // One manifest covers every source audit and every canonical row, not only
+  // the current batch. Cross-batch drift cannot be mistaken for clean backfill.
+  const manifest=hash(JSON.stringify(prepared.items.map(x=>[x.auditId,x.snapshot.sourceRow,x.snapshot.row,x.auditorId,x.blocks])));
   const targets=prepared.items.filter(x=>x.snapshot.sourceRow>=startRow).slice(0,limit);
-  if(dryRun)return {dryRun:true,...prepared.stats,batch:targets.length,nextRow:targets.at(-1)?.snapshot.sourceRow+1||null};
+  if(dryRun)return {dryRun:true,sourceManifest:manifest,...prepared.stats,batch:targets.length,nextRow:targets.at(-1)?.snapshot.sourceRow+1||null};
+  if(!/^[0-9a-f]{64}$/.test(sourceManifest||'')||sourceManifest!==manifest)throw Error('BACKFILL_SOURCE_MANIFEST_CHANGED');
   let seeded=0,replayed=0;for(const item of targets){
    const result=await atomicStore.seed(item);
    if(result.seeded)seeded++;else replayed++;
   }
-  return {dryRun:false,...prepared.stats,batch:targets.length,seeded,replayed,nextRow:targets.at(-1)?.snapshot.sourceRow+1||null};
+  return {dryRun:false,sourceManifest:manifest,...prepared.stats,batch:targets.length,seeded,replayed,nextRow:targets.at(-1)?.snapshot.sourceRow+1||null};
  }
  return Object.freeze({run});
 }

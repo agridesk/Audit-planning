@@ -36,7 +36,7 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
    // complete an in-flight HTTP mutation. Quarantine the fence for at least
    // 30 minutes from its transition to UNCERTAIN, not only its acquisition.
    const since=Date.parse(global.holder.state==='UNCERTAIN'
-    ?global.holder.uncertainAt||global.holder.acquiredAt||''
+    ?global.holder.uncertainAt||''
     :global.holder.acquiredAt||'');
    // Even a very old ACTIVE gate could belong to an in-flight writer.
    // Only the writer may release ACTIVE, or a verified manual intervention may

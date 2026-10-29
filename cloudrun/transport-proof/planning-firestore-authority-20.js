@@ -11,7 +11,7 @@ export function createPlanningFirestoreAuthority(adapter){
  async function read(auditId){
   if(!valid(auditId))throw Error('PLANNING_AUDIT_ID_REQUIRED');
   const doc=await adapter.read(auditId)??initial(auditId);
-  if(doc.auditorId!==auditId||!Number.isSafeInteger(doc.version)||doc.version<0||!Array.isArray(doc.commits))throw Error('PLANNING_CANONICAL_CORRUPT');
+  if(doc.auditorId!==auditId||!Number.isSafeInteger(doc.version)||doc.version<0||!Array.isArray(doc.commits)||doc.commits.some(x=>!x||typeof x!=='object'||!valid(x.id)||!valid(x.requestId)||x.auditId!==auditId||!['PENDING','UNCERTAIN','PROJECTED','REJECTED'].includes(x.state)||!Array.isArray(x.blocks)))throw Error('PLANNING_CANONICAL_CORRUPT');
   return copy(doc);
  }
  async function stage({auditId,auditorId,actorId,sourceRevision,blocks,requestId}){

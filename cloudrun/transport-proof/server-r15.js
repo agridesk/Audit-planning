@@ -766,6 +766,7 @@ async function proxy(req,res){
  if(runtime.isDev&&req.method==='POST'&&new URL(req.url||'/','http://localhost').pathname==='/api/v1/planning/direct-commit'){
   const actor=await session(req);
   if(!actor)throw Error('PLANNING_SESSION_REQUIRED');
+  if((init.body?.length||0)>65536)throw Error('PLANNING_BODY_TOO_LARGE');
   let body;try{body=JSON.parse(init.body?.toString('utf8')||'{}');}catch{throw Error('PLANNING_BODY_INVALID');}
   const email=String(body.auditorEmail||'').trim().toLowerCase();
   const candidates=(await getRoster()).filter(x=>x.role==='auditor'&&x.email===email);

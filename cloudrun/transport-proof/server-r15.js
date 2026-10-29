@@ -27,6 +27,7 @@ import {createPlanningLifecycleAtomicService} from './planning-lifecycle-atomic-
 import {createPlanningMultiLifecycleService} from './planning-multi-lifecycle-service-20.js';
 import {createPlanningAtomicTransferService} from './planning-atomic-transfer-service-20.js';
 import {createPlanningAtomicRecovery} from './planning-atomic-recovery-20.js';
+import {createPlanningAtomicParityVerifier} from './planning-atomic-parity-verifier-20.js';
 import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20} from './planning-atomic-cutover-guard-20.js';
 import {createPlanningSheetsWritesetProjector} from './planning-sheets-writeset-projector-20.js';
 import {createPlanningSheetsAppendProjector} from './planning-sheets-append-projector-20.js';
@@ -164,6 +165,9 @@ const planningOutboxReconciler=planningAuthorityEnabled?createPlanningOutboxReco
   const matching=await verifyUncertainPlanningLeaseInSheets({state:'UNCERTAIN',auditId:commit.auditId,auditorEmail:email,plannedBlocks:commit.blocks});
   return {state:matching?'MATCH':'UNKNOWN'};
  }
+}):null;
+const planningAtomicParity=planningAtomicStore?createPlanningAtomicParityVerifier({
+ store:planningAtomicStore,readPlanningRows,getRoster
 }):null;
 const planningAtomicBackfill=planningAtomicStore?createPlanningBackfillRunner({
  atomicStore:planningAtomicStore,readPlanningRows,getRoster
@@ -986,6 +990,15 @@ http.createServer(async(req,res)=>{
    let input={};try{input=JSON.parse(raw||'{}');}catch{throw Error('ATOMIC_RECOVERY_REQUEST_INVALID');}
    const result=await planningAtomicRecovery.scan({limit:input.limit??100});
    planningCache.invalidate();
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,...result}));return;
+  }
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-parity'){
+   if(!planningAtomicParity){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403);res.end();return;}
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)throw Error('ATOMIC_PARITY_BODY_TOO_LARGE');}
+   let options={};try{options=JSON.parse(raw||'{}');}catch{throw Error('ATOMIC_PARITY_BODY_INVALID');}
+   const result=await planningAtomicParity.verify({startRow:options.startRow??2,limit:options.limit??200});
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,...result}));return;
   }
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-backfill'){

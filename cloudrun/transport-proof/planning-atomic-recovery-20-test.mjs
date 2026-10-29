@@ -74,7 +74,8 @@ const fairness=createPlanningAtomicRecovery({
 assert.equal((await fairness.scan({limit:1})).truncated,true);
 assert.equal((await fairness.scan({limit:1})).truncated,false);
 assert.deepEqual(seenTokens,['','page-2']);
-assert.equal(scannedBatches.length,1);
+assert.equal(scannedBatches.length,0); // missing fence forbids settling PENDING
+assert.equal((await fairness.scan({limit:1})).truncated,true);
 // After Firestore settlement and global-fence release, a failed auditor lease
 // cleanup must still be discoverable and retried without re-projecting writes.
 let orphanReconciled=0;

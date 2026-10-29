@@ -108,4 +108,18 @@ await test('malformed persisted planning lease fails closed',async()=>{
  await fails(()=>service.read(actor,id),'CANONICAL_AVAILABILITY_DOCUMENT_INVALID');
  store.delete(id);
 });
+await test('uncertain Planning Save is durable and blocks future mutations until verified recovery',async()=>{
+ const id='aud-uncertain',actor={id:'manager1',role:'manager'};
+ const lease=await service.acquirePlanningLease({actor,auditorId:id,auditId:'audit-uncertain',auditorEmail:'a@example.com',plannedBlocks:[{date:'2027-01-12',start:'09:00',end:'12:00'}]});
+ const marked=await service.markPlanningLeaseUncertain({actor,auditorId:id,token:lease.token,now:'2027-01-12T12:00:00Z'});
+ assert.equal(marked.state,'UNCERTAIN');
+ const snapshot=await createAvailabilityService(adapter).read(actor,id);
+ assert.equal(snapshot.planningLease.state,'UNCERTAIN');
+ assert.equal(snapshot.planningLease.auditId,'audit-uncertain');
+ assert.equal(snapshot.planningLease.plannedBlocks[0].start,'09:00');
+ await fails(()=>service.mutate({actor,auditorId:id,expectedVersion:marked.version,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}}),'PLANNING_LEASE_ACTIVE');
+ await fails(()=>service.markPlanningLeaseUncertain({actor,auditorId:id,token:'wrong'}),'PLANNING_LEASE_TOKEN_MISMATCH');
+ await service.releasePlanningLease({actor,auditorId:id,token:lease.token});
+ store.delete(id);
+});
 console.log(n,'storage service checks passed');

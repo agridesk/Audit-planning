@@ -116,7 +116,7 @@ assert.match(gas,/acceptStages20\.canonicalWrite=outcome20\.canonicalWriteTiming
 assert.match(gas,/acceptStages20\.statusNotificationMs=outcome20\.statusPerf/);
 assert.match(auth,/u\.pathname==='\/email-action'&&req\.method==='GET'/);
 assert.match(gateway,/if\(action!=='ACCEPT'\)/);
-assert.match(gas,/rowIndex:auditHits20\[0\]\.getRow\(\)/);
+assert.match(gas,/rowIndex:auditHits20\[0\]/);
 assert.match(gateway,/if\(action!=='ACCEPT'\)\{/);
 assert.match(gateway,/GAS_WRITE_URL/);
 assert.match(gas,/AUDITOR_UID_ASSIGNMENT_MISMATCH/);

@@ -32,6 +32,11 @@ const fetchImpl=async(url,init={})=>{
   }
   return response(200,{commitTime:'2026-10-29T12:00:00Z',writeResults:writes.map(()=>({updateTime:'t'+clock}))});
  }
+ if(method==='GET'&&path.endsWith('/documents/ams_planning_20_dev_claims')){
+  const all=[...store.entries()].filter(([key])=>key.startsWith('ams_planning_20_dev_claims/')).map(([,doc])=>doc);
+  const offset=u.searchParams.get('pageToken')?Number(u.searchParams.get('pageToken')):0,size=Number(u.searchParams.get('pageSize')||100);
+  return response(200,{documents:all.slice(offset,offset+size),...(offset+size<all.length?{nextPageToken:String(offset+size)}:{})});
+ }
  if(method==='GET'){
   const key=path.split('/documents/')[1],existing=store.get(key);
   return existing?response(200,existing):response(404,{});
@@ -56,6 +61,13 @@ const proof={verified:true,auditId,rowHash:'a'.repeat(64)};
 assert.equal((await authority.markProjected({auditId,operationId:'op-one',proof})).state,'PROJECTED');
 assert.equal((await authority.markProjected({auditId,operationId:'op-one',proof})).replayed,true);
 await assert.rejects(()=>authority.markProjected({auditId,operationId:'op-one',proof:{...proof,rowHash:'b'.repeat(64)}}),/PLANNING_PROJECTION_PROOF_CONFLICT/);
+const scanned=await authority.listClaims({pageSize:2});
+assert.equal(scanned.claims.length,2);
+assert.ok(scanned.nextPageToken);
+const nextClaims=await authority.listClaims({pageSize:2,pageToken:scanned.nextPageToken});
+assert.equal(nextClaims.claims.length,2);
+assert.equal(nextClaims.nextPageToken,null);
+assert.equal((await authority.inspectAuditClaimIndex(auditId)).ok,true);
 const other='A2';store.set('ams_planning_20_dev_audits/'+other,{name:db+'/ams_planning_20_dev_audits/'+other,updateTime:'t0',fields:{payload:encode({auditId:other,revision:0,snapshot:{auditId:other},claimIds:[],pendingOperationId:null})}});
 await assert.rejects(()=>authority.commit({...body,auditId:other,operationId:'op-other',nextSnapshot:{auditId:other},expectedRevision:0}),/PLANNING_SLOT_ALREADY_CLAIMED/);
 conflict=true;

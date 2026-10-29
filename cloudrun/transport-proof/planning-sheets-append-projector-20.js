@@ -62,7 +62,7 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   if(!operationId||!gateToken)throw Error('APPEND_PROJECTION_FENCE_REQUIRED');
   await verifyFence({operationId,gateToken});
   const before=await inspect(intents);
-  if(before.state==='MATCH')return {operationId,confirmed:true,replayed:true};
+  if(before.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,confirmed:true,replayed:true};}
   await verifyFence({operationId,gateToken});
   for(const missing of before.missing){
    await verifyFence({operationId,gateToken});

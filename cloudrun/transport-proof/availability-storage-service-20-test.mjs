@@ -76,10 +76,10 @@ await test('durable planning lease serializes planning and availability across s
  const id='aud-lease',actor={id:'manager1',role:'manager'};
  const second=createAvailabilityService(adapter);
  const confirmed=await service.mutate({actor:{id,role:'auditor'},auditorId:id,expectedVersion:0,mutation:{action:'CONFIRM_AVAILABILITY',fromDate:'2027-01-01',toDate:'2027-01-31'}});
- const lease=await service.acquirePlanningLease({actor,auditorId:id,auditId:'audit-1'});
+ const lease=await service.acquirePlanningLease({actor,auditorId:id,auditId:'audit-1',auditorEmail:'a@example.com',plannedBlocks:[{date:'2027-01-12',start:'09:00',end:'12:00'}]});
  assert.equal(lease.document.metadata.confirmation.availabilityVersion,lease.version);
  assert.equal((await second.read(actor,id)).planningLease.token,lease.token);
- await fails(()=>second.acquirePlanningLease({actor,auditorId:id,auditId:'audit-2'}),'PLANNING_LEASE_ACTIVE');
+ await fails(()=>second.acquirePlanningLease({actor,auditorId:id,auditId:'audit-2',auditorEmail:'a@example.com',plannedBlocks:[{date:'2027-01-12',start:'09:00',end:'12:00'}]}),'PLANNING_LEASE_ACTIVE');
  await fails(()=>second.mutate({actor,auditorId:id,expectedVersion:lease.version,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}}),'PLANNING_LEASE_ACTIVE');
  await fails(()=>second.releasePlanningLease({actor,auditorId:id,token:'incorrect'}),'PLANNING_LEASE_TOKEN_MISMATCH');
  const released=await second.releasePlanningLease({actor,auditorId:id,token:lease.token});
@@ -93,8 +93,8 @@ await test('simultaneous cross-instance planning lease acquisition has exactly o
  const id='aud-lease-race',actor={id:'manager1',role:'manager'};
  const other=createAvailabilityService(adapter);
  const results=await Promise.allSettled([
-  service.acquirePlanningLease({actor,auditorId:id,auditId:'audit-left'}),
-  other.acquirePlanningLease({actor,auditorId:id,auditId:'audit-right'})
+  service.acquirePlanningLease({actor,auditorId:id,auditId:'audit-left',auditorEmail:'a@example.com',plannedBlocks:[{date:'2027-01-12',start:'09:00',end:'12:00'}]}),
+  other.acquirePlanningLease({actor,auditorId:id,auditId:'audit-right',auditorEmail:'a@example.com',plannedBlocks:[{date:'2027-01-12',start:'09:00',end:'12:00'}]})
  ]);
  assert.equal(results.filter(x=>x.status==='fulfilled').length,1);
  assert.equal(results.filter(x=>x.status==='rejected').length,1);

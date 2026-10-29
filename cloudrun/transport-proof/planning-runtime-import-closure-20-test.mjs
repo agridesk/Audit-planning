@@ -20,4 +20,8 @@ function scan(file){
 for(const module of root)scan(module);
 assert.deepEqual(missing,[],'Missing module imports in DEV Cloud Run and P0 authority graph');
 assert.ok(visited.size>=20,'Dependency closure too small: missing P0 references?');
+// Local import resolution is insufficient when Docker omits source modules.
+const dockerfile=readFileSync(resolve(here,'Dockerfile'),'utf8');
+assert.match(dockerfile,/^COPY planning-\*\.js \.\/$/m,'Container must package atomic planning runtime modules');
+for(const module of root.filter(x=>x.startsWith('planning-')))assert.ok(visited.has(module),'Missing planning module in runtime closure: '+module);
 console.log('DEV transport + P0 import graph: '+visited.size+' local module files resolved');

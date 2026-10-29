@@ -24,6 +24,7 @@ import {createPlanningOutboxReconciler} from './planning-outbox-reconciler-20.js
 import {createPlanningAtomicFirestoreStore} from './planning-atomic-firestore-store-20.js';
 import {createPlanningAtomicCommandService} from './planning-atomic-command-service-20.js';
 import {createPlanningLifecycleAtomicService} from './planning-lifecycle-atomic-service-20.js';
+import {createPlanningAtomicRecovery} from './planning-atomic-recovery-20.js';
 import {createPlanningSheetsWritesetProjector} from './planning-sheets-writeset-projector-20.js';
 import {createPlanningSheetsAppendProjector} from './planning-sheets-append-projector-20.js';
 import {createPlanningBackfillRunner} from './planning-atomic-backfill-20.js';
@@ -206,6 +207,10 @@ const planningAtomicLifecycle=planningAtomicStore?createPlanningLifecycleAtomicS
   if(!r.ok||data?.success!==true||data?.authorityPreflight!==true)throw Error('LIFECYCLE_ATOMIC_PREFLIGHT_FAILED_'+String(data?.error||r.status).slice(0,80));
   return data;
  }
+}):null;
+const planningAtomicRecovery=planningAtomicStore?createPlanningAtomicRecovery({
+ store:planningAtomicStore,projector:planningAtomicProjector,appendProjector:planningAtomicAppendProjector,
+ gate:planningGlobalGate,availabilityService:service
 }):null;
 const planningCache=createPlanningReadCache({load:readPlanningRows,ttlMs:10000});
 const scopeNamesCache=createPlanningReadCache({load:async()=>{
@@ -904,6 +909,16 @@ http.createServer(async(req,res)=>{
    const result=await planningAtomicLifecycle.commit({actor:{...actor,cookie:String(req.headers.cookie||'')},body,action});
    planningCache.invalidate();
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
+  }
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-recover'){
+   if(!planningAtomicRecovery){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403);res.end();return;}
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)throw Error('ATOMIC_RECOVERY_REQUEST_TOO_LARGE');}
+   let input={};try{input=JSON.parse(raw||'{}');}catch{throw Error('ATOMIC_RECOVERY_REQUEST_INVALID');}
+   const result=await planningAtomicRecovery.scan({limit:input.limit??100});
+   planningCache.invalidate();
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,...result}));return;
   }
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-backfill'){
    if(!planningAtomicBackfill){res.writeHead(404);res.end();return;}

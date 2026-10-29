@@ -17,3 +17,12 @@ export function enforcePlanningAtomicCutover20({enabled,method,path}){
  if(typeof path!=='string'||!path.startsWith('/'))throw Error('PLANNING_ATOMIC_PATH_INVALID');
  if(blocked.some(re=>re.test(path)))throw Error('PLANNING_ATOMIC_WRITER_NOT_MIGRATED');
 }
+
+/** Never activate a new Firestore owner beside live GAS/Sheets canonical writers. */
+export function validatePlanningAtomicRuntime20({enabled,legacyWriterRetired,managerOwnerShared,backfillParityVerified,otherAuthorityEnabled}={}){
+ if(!enabled)return true;
+ if(otherAuthorityEnabled)throw Error('PLANNING_ATOMIC_DUAL_AUTHORITY_ENABLED');
+ if(legacyWriterRetired!==true||managerOwnerShared!==true)throw Error('PLANNING_ATOMIC_LEGACY_WRITER_NOT_RETIRED');
+ if(backfillParityVerified!==true)throw Error('PLANNING_ATOMIC_BACKFILL_PARITY_REQUIRED');
+ return true;
+}

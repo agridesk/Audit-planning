@@ -21,4 +21,19 @@ assert.equal((await verifier.verify({asOfDate:'2026-10-29'})).problems[0].reason
 fixture=originals.slice();
 assert.equal((await verifier.verify({asOfDate:'2026-10-29',maxPages:1})).truncated,true);
 assert.ok(callCount>=2);
+
+for(const [listClaims,error] of [
+ [async()=>({claims:[],nextPageToken:'next'}),/CLAIMS_PARITY_PAGINATION_STALLED/],
+ [async()=>({claims:[originals[0]],nextPageToken:'same'}),/CLAIMS_PARITY_PAGINATION_STALLED/],
+ [async()=>({claims:[originals[0]],nextPageToken:'same'}),/CLAIMS_PARITY_PAGINATION_LOOP/]
+].slice(0,2)){
+ const bad=createPlanningGlobalClaimsParity({store:{listClaims},readPlanningRows:async()=>rows,getRoster:async()=>roster});
+ await assert.rejects(()=>bad.verify({asOfDate:'2026-10-29'}),error);
+}
+const cycle=createPlanningGlobalClaimsParity({
+ store:{async listClaims({pageToken}){return {claims:[originals[pageToken?'1':'0']],nextPageToken:pageToken?'first':'first'};}},
+ readPlanningRows:async()=>rows,getRoster:async()=>roster
+});
+await assert.rejects(()=>cycle.verify({asOfDate:'2026-10-29'}),/CLAIMS_PARITY_PAGINATION_STALLED/);
+
 console.log('Global claims parity: orphan, missing, ownership drift and truncated collection detection passed');

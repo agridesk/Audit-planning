@@ -777,8 +777,9 @@ http.createServer(async(req,res)=>{
    const input=JSON.parse(raw),auditorId=String(input?.auditorId||'').trim(),auditId=String(input?.auditId||'').trim();
    if(!auditorId||!auditId)throw Error('PLANNING_RECOVERY_TARGET_REQUIRED');
    const verifiedActor={role:'manager',id:actor.auditorId},doc=await service.read(verifiedActor,auditorId),lease=doc.planningLease;
-   if(lease?.state!=='UNCERTAIN'||lease.auditId!==auditId||!Array.isArray(lease.plannedBlocks)||!lease.auditorEmail)throw Error('PLANNING_RECOVERY_EVIDENCE_MISSING');
-   if(!Number.isFinite(Date.parse(lease.uncertainAt))||Date.now()-Date.parse(lease.uncertainAt)<1800000)throw Error('PLANNING_RECOVERY_COOLDOWN');
+   if(!lease||!['UNCERTAIN',undefined].includes(lease.state)||lease.auditId!==auditId||!Array.isArray(lease.plannedBlocks)||!lease.auditorEmail)throw Error('PLANNING_RECOVERY_EVIDENCE_MISSING');
+   const recoverySince=lease.uncertainAt||lease.acquiredAt;
+   if(!Number.isFinite(Date.parse(recoverySince))||Date.now()-Date.parse(recoverySince)<1800000)throw Error('PLANNING_RECOVERY_COOLDOWN');
    const rows=await readPlanningRows(),headers=(rows[0]||[]).map(x=>String(x||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,''));
    const column=(...names)=>names.map(n=>headers.indexOf(n.toLowerCase().replace(/[^a-z0-9]+/g,''))).find(i=>i>=0)??-1;
    const idCol=column('Audit ID','Audit_ID'),statusCol=column('Status'),assignedCol=column('Assigned to'),planningCol=column('Planning JSON');

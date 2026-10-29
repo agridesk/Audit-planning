@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createPlanningSheetsWritesetProjector} from './planning-sheets-writeset-projector-20.js';
 const values=new Map([['Audit planning!A2:C2',['Company','','Pending Planning']],['Auditor Availability!A2:C2',[]]]);
-let writeCount=0,expanded=0,checks=0,deny=false,rows=1;
+let writeCount=0,expanded=0,checks=0,deny=false,loseFenceAfterWrite=false,rows=1;
 const fetchImpl=async(url,init={})=>{
  const method=init.method||'GET',u=new URL(url),p=u.pathname;
  const ok=x=>({ok:true,status:200,async json(){return structuredClone(x)}});
@@ -19,6 +19,7 @@ const fetchImpl=async(url,init={})=>{
  if(method==='POST'&&p.endsWith('/values:batchUpdate')){
   writeCount++;
   for(const item of JSON.parse(init.body).data)values.set(item.range,item.values[0]);
+  if(loseFenceAfterWrite)deny=true;
   return ok({totalUpdatedRows:2});
  }
  throw Error('UNEXPECTED_PROJECTOR_HTTP '+method+' '+p);
@@ -44,4 +45,8 @@ await assert.rejects(()=>projector.apply({operationId:'operation-8',gateToken:'t
 values.set('Audit planning!A2:C2',['Company','','Pending Planning']);deny=true;
 await assert.rejects(()=>projector.apply({operationId:'operation-8',gateToken:'token-7',plan}),/FENCE_LOST/);
 assert.equal(writeCount,1);assert.ok(checks>=4);
+deny=false;loseFenceAfterWrite=true;
+await assert.rejects(()=>projector.apply({operationId:'operation-9',gateToken:'token-9',plan}),/FENCE_LOST/);
+assert.equal(writeCount,2);
+assert.equal((await projector.inspect(plan)).state,'MATCH');
 console.log('Sheets writeset projection: raw idempotence, row expansion, replay, conflict and fencing passed');

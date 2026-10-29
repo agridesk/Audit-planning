@@ -5,8 +5,8 @@
 import {preparePlanningBackfill} from './planning-atomic-backfill-20.js';
 export function createPlanningAtomicParityVerifier({store,readPlanningRows,getRoster}={}){
  if(typeof store?.readAudit!=='function'||typeof store?.inspectAuditClaimIndex!=='function'||typeof readPlanningRows!=='function'||typeof getRoster!=='function')throw Error('PLANNING_PARITY_CONFIG_INVALID');
- async function verify({startRow=2,limit=50,asOfDate=new Date().toISOString().slice(0,10)}={}){
-  if(!Number.isSafeInteger(startRow)||startRow<2||!Number.isSafeInteger(limit)||limit<1||limit>100)throw Error('PLANNING_PARITY_BATCH_INVALID');
+ async function verify({startRow=2,limit=200,asOfDate=new Date().toISOString().slice(0,10)}={}){
+  if(!Number.isSafeInteger(startRow)||startRow<2||!Number.isSafeInteger(limit)||limit<1||limit>250)throw Error('PLANNING_PARITY_BATCH_INVALID');
   const prepared=preparePlanningBackfill({rows:await readPlanningRows(),roster:await getRoster(),asOfDate});
   const items=prepared.items.filter(x=>x.snapshot.sourceRow>=startRow).slice(0,limit);
   const problems=[];let verified=0,claims=0;

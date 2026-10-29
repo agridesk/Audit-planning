@@ -985,6 +985,22 @@ http.createServer(async(req,res)=>{
    planningCache.invalidate();
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
   }
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-quarantine-orphan'){
+   if(!planningAtomicEnabled){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403);res.end();return;}
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)throw Error('PLANNING_ORPHAN_BODY_TOO_LARGE');}
+   let input;try{input=JSON.parse(raw||'{}');}catch{throw Error('PLANNING_ORPHAN_BODY_INVALID');}
+   const operationId=String(input?.operationId||''),evidenceRef=String(input?.evidenceRef||'');
+   const outbox=await planningAtomicStore.readOutbox(operationId);
+   const holder=(await planningGlobalGate.read()).holder;
+   if(!outbox||!['PENDING','UNCERTAIN'].includes(outbox.state)||holder?.operationId!==operationId)
+    throw Error('PLANNING_ORPHAN_OUTBOX_GATE_MISMATCH');
+   const changed=await planningGlobalGate.quarantineOrphan({operationId,actorId:actor.auditorId,evidenceRef});
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify({success:true,state:changed.state,operationId,quarantinedAt:changed.uncertainAt,
+    note:'No unlock performed. Independent Sheets evidence and 30-minute UNCERTAIN quarantine still required.'}));return;
+  }
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-recover'){
    if(!planningAtomicRecovery){res.writeHead(404);res.end();return;}
    const actor=await session(req);

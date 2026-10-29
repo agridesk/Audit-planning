@@ -91,4 +91,11 @@ const emptyOutboxPage=createPlanningCutoverDataAudit({
 });
 await assert.rejects(()=>emptyOutboxPage.verify(),/CUTOVER_OUTBOX_PAGINATION_STALLED/);
 
+
+const cyclicOutbox=createPlanningCutoverDataAudit({
+ auditParity:source.auditParity,claimsParity:source.claimsParity,
+ store:{async listOutbox({pageToken}){return pageToken==='one'?{entries:[{operationId:'b',state:'PROJECTED'}],nextPageToken:'two'}:pageToken==='two'?{entries:[{operationId:'c',state:'PROJECTED'}],nextPageToken:'one'}:{entries:[{operationId:'a',state:'PROJECTED'}],nextPageToken:'one'};}}
+});
+await assert.rejects(()=>cyclicOutbox.verify(),/CUTOVER_OUTBOX_PAGINATION_LOOP/);
+
 console.log('Cutover readiness: full row/claim parity and no unresolved outbox needed before switch');

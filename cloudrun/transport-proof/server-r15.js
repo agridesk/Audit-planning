@@ -18,6 +18,8 @@ import {createAvailabilityHttpRouter} from './availability-http-api-20.js';
 import {createAvailabilityService} from './availability-storage-service-20.js';
 import {enforceAvailabilityHardGate20} from './availability-planning-hard-gate-20.js';
 import {createFirestoreAvailabilityAdapter} from './availability-firestore-adapter-20.js';
+import {createPlanningFirestoreAuthority} from './planning-firestore-authority-20.js';
+import {createHash} from 'node:crypto';
 import {createPlanningOverlayService} from './availability-planning-overlay-service-20.js';
 import {createPlanningReadCache} from './availability-planning-read-cache-20.js';
 import {planLegacyHardMigration} from './availability-legacy-hard-migration-plan-20.js';
@@ -105,6 +107,8 @@ async function session(req){
 }
 const adapter=createFirestoreAvailabilityAdapter({projectId:project,getToken,collection:runtime.isDev?'ams_availability_20_dev':runtime.availabilityCollection});
 const service=createAvailabilityService(adapter);
+const planningAuthority=runtime.isDev?createPlanningFirestoreAuthority(createFirestoreAvailabilityAdapter({projectId:project,getToken,collection:'ams_planning_authority_20_dev'})):null;
+const planningAuthorityEnabled=runtime.isDev&&process.env.AMS_DEV_FIRESTORE_PLANNING_AUTHORITY_ENABLED==='true';
 async function readPlanningRows(){
  // Existing DEV Audit planning tab; bounded read, never a full-sheet hot-path scan.
  // Fail closed if configured maximum is reached: a truncated source is unsafe.
@@ -755,7 +759,7 @@ async function proxy(req,res){
  const headers={...req.headers};delete headers.host;delete headers.connection;delete headers['content-length'];
  const init={method:req.method,headers,redirect:'manual'};
  if(!['GET','HEAD'].includes(req.method)){const chunks=[];for await(const c of req)chunks.push(c);init.body=Buffer.concat(chunks);}
- let planningLease=null,planningLeaseActor=null,planningForwarded=false,planningWriteConfirmed=false;
+ let planningLease=null,planningLeaseActor=null,planningForwarded=false,planningWriteConfirmed=false,planningIntent=null;
  try{
  if(runtime.isDev&&req.method==='POST'&&new URL(req.url||'/','http://localhost').pathname==='/api/v1/planning/direct-commit'){
   const actor=await session(req);
@@ -770,6 +774,12 @@ async function proxy(req,res){
   const doc=planningLease.document;
   if(!Number.isSafeInteger(doc.version)||doc.version<0)throw Error('PLANNING_AVAILABILITY_VERSION_INVALID');
   enforceAvailabilityHardGate20({document:doc,blocks:body.blocks});
+  if(planningAuthorityEnabled){
+   const requestId=createHash('sha256').update(JSON.stringify({auditId:body.auditId,auditorId:candidates[0].auditorId,sourceRevision:body.sourceRevision,blocks:body.blocks,actorId:planningLeaseActor.id})).digest('hex');
+   const staged=await planningAuthority.stage({auditId:String(body.auditId||'').trim(),auditorId:candidates[0].auditorId,actorId:planningLeaseActor.id,sourceRevision:body.sourceRevision,blocks:body.blocks,requestId});
+   if(staged.replayed&&staged.commit.state!=='PROJECTED')throw Error('PLANNING_PROJECTION_PENDING');
+   planningIntent=staged.commit;
+  }
  }
  if(planningLease)planningForwarded=true;
  const r=await fetch(url,init);const h={};r.headers.forEach((v,k)=>{if(k!=='set-cookie'&&!['content-length','connection','transfer-encoding'].includes(k))h[k]=v;});const multiCookies=r.headers.getSetCookie();if(multiCookies.length)h['set-cookie']=multiCookies;
@@ -781,9 +791,10 @@ async function proxy(req,res){
   try{const outcome=JSON.parse(responseBody.toString('utf8'));if(outcome?.success!==false&&outcome?.ok!==false)planningCache.invalidate();}catch{}
  }
  if(planningLease&&planningForwarded&&!planningWriteConfirmed)throw Error('PLANNING_COMMIT_OUTCOME_UNCERTAIN');
+ if(planningIntent)await planningAuthority.transition({auditId:planningIntent.auditId,commitId:planningIntent.id,from:'PENDING',to:'PROJECTED'});
  if(planningLease){await service.releasePlanningLease({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token});planningLease=null;}
  res.writeHead(r.status,h);res.end(responseBody);
- }finally{if(planningLease){if(!planningForwarded)await service.releasePlanningLease({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token});else await service.markPlanningLeaseUncertain({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token,reason:planningWriteConfirmed?'LEASE_RELEASE_FAILED':'SHEETS_WRITE_UNCONFIRMED'});}}
+ }finally{if(planningLease){if(planningIntent&&planningForwarded&&!planningWriteConfirmed)await planningAuthority.transition({auditId:planningIntent.auditId,commitId:planningIntent.id,from:'PENDING',to:'UNCERTAIN',detail:'SHEETS_WRITE_UNCONFIRMED'});if(!planningForwarded)await service.releasePlanningLease({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token});else await service.markPlanningLeaseUncertain({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token,reason:planningWriteConfirmed?'LEASE_RELEASE_FAILED':'SHEETS_WRITE_UNCONFIRMED'});}}
 }
 http.createServer(async(req,res)=>{
  try{

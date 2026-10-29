@@ -76,4 +76,12 @@ const fingerprintDrift=createPlanningCutoverDataAudit({
 });
 await assert.rejects(()=>fingerprintDrift.verify(),/CUTOVER_CLAIMS_CHANGED_DURING_SCAN/);
 
+
+const missingClaimFingerprint=createPlanningCutoverDataAudit({
+ auditParity:{async verify(){return {sourceManifest:'a'.repeat(64),sourceAudits:1,batch:1,verified:1,remaining:false,problems:[]};}},
+ claimsParity:{async verify(){return {sourceManifest:'a'.repeat(64),ready:true,expected:1,checked:1,totalProblems:0,problems:[]};}},
+ store:{async listOutbox(){return {entries:[],nextPageToken:null};}}
+});
+await assert.rejects(()=>missingClaimFingerprint.verify(),/CUTOVER_CLAIMS_FINGERPRINT_REQUIRED/);
+
 console.log('Cutover readiness: full row/claim parity and no unresolved outbox needed before switch');

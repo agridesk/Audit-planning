@@ -85,6 +85,7 @@ assert.equal((await authority.markProjected({auditId:parent,operationId:'multi-c
 assert.equal((await authority.readAudit(successor)).pendingOperationId,null);
 assert.equal((await authority.readAudit(parent)).pendingOperationId,null);
 
+await authority.markProjected({auditId,operationId:'op-two',proof:{verified:true,auditId,rowHash:'d'.repeat(64)}});
 const multiSuccessor='A3';
 const multiReceiptFixture=await authority.commitMulti({
  operationId:'multiReceiptFixture-one',actorId:'manager',action:'COMPLETE',

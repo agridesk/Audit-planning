@@ -24,6 +24,7 @@ import {createPlanningOutboxReconciler} from './planning-outbox-reconciler-20.js
 import {createPlanningAtomicFirestoreStore} from './planning-atomic-firestore-store-20.js';
 import {createPlanningAtomicCommandService} from './planning-atomic-command-service-20.js';
 import {createPlanningLifecycleAtomicService} from './planning-lifecycle-atomic-service-20.js';
+import {createPlanningMultiLifecycleService} from './planning-multi-lifecycle-service-20.js';
 import {createPlanningAtomicRecovery} from './planning-atomic-recovery-20.js';
 import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20} from './planning-atomic-cutover-guard-20.js';
 import {createPlanningSheetsWritesetProjector} from './planning-sheets-writeset-projector-20.js';
@@ -207,6 +208,20 @@ const planningAtomicLifecycle=planningAtomicStore?createPlanningLifecycleAtomicS
    headers:{'content-type':'application/json',cookie:String(actor.cookie||''),...(actor.role==='auditor'?{origin:runtime.origin}: {})},body:JSON.stringify(body)});
   const data=await r.json().catch(()=>null);
   if(!r.ok||data?.success!==true||data?.authorityPreflight!==true)throw Error('LIFECYCLE_ATOMIC_PREFLIGHT_FAILED_'+String(data?.error||r.status).slice(0,80));
+  return data;
+ }
+}):null;
+const planningMultiLifecycle=planningAtomicStore?createPlanningMultiLifecycleService({
+ atomicStore:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,
+ appendProjector:planningAtomicAppendProjector,
+ preflight:async({actor,body,action})=>{
+  const path=actor.role==='auditor'&&action==='COMPLETE'?'/api/v1/auditor/action':action==='REJECT'?'/api/v1/manager/reject-direct':'/api/v1/manager/complete-direct';
+  const payload=path==='/api/v1/auditor/action'?{...body,action:'COMPLETE'}:body;
+  const r=await fetch('http://127.0.0.1:'+innerPort+path,{method:'POST',redirect:'manual',
+   headers:{'content-type':'application/json',cookie:String(actor.cookie||''),...(actor.role==='auditor'?{origin:runtime.origin}:{})},
+   body:JSON.stringify(payload)});
+  const data=await r.json().catch(()=>null);
+  if(!r.ok||data?.authorityPreflight!==true||data?.success!==true)throw Error('PLANNING_MULTI_PREFLIGHT_FAILED_'+String(data?.error||r.status).slice(0,100));
   return data;
  }
 }):null;
@@ -925,7 +940,8 @@ http.createServer(async(req,res)=>{
    let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('AUDITOR_ATOMIC_BODY_INVALID');}
    const action=String(body.action||'').toUpperCase();
    if(!['ACCEPT','CANCEL','COMPLETE'].includes(action))throw Error('AUDITOR_ATOMIC_ACTION_NOT_MIGRATED');
-   const result=await planningAtomicLifecycle.commit({actor:{...actor,cookie:String(req.headers.cookie||'')},body,action});
+   const actorCtx={...actor,cookie:String(req.headers.cookie||'')};
+   const result=['COMPLETE','REJECT'].includes(action)?await planningMultiLifecycle.commit({actor:actorCtx,body,action}):await planningAtomicLifecycle.commit({actor:actorCtx,body,action});
    planningCache.invalidate();
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
   }
@@ -936,7 +952,8 @@ http.createServer(async(req,res)=>{
    let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('LIFECYCLE_BODY_INVALID');}
    const action=atomicLifecyclePaths[u.pathname]||(u.pathname==='/api/v1/manager/action'?String(body?.action||'').trim().toUpperCase():null);
    if(!['APPROVE','ACCEPT','REJECT','CANCEL','COMPLETE'].includes(action))throw Error('LIFECYCLE_ATOMIC_ACTION_NOT_MIGRATED');
-   const result=await planningAtomicLifecycle.commit({actor:{...actor,cookie:String(req.headers.cookie||'')},body,action});
+   const actorCtx={...actor,cookie:String(req.headers.cookie||'')};
+   const result=['COMPLETE','REJECT'].includes(action)?await planningMultiLifecycle.commit({actor:actorCtx,body,action}):await planningAtomicLifecycle.commit({actor:actorCtx,body,action});
    planningCache.invalidate();
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
   }

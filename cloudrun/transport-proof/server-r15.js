@@ -747,7 +747,7 @@ async function proxy(req,res){
   if(candidates.length!==1)throw Error('PLANNING_AUDITOR_UID_UNRESOLVED');
   if(actor.role==='auditor'&&actor.auditorId!==candidates[0].auditorId)throw Error('PLANNING_AUDITOR_IDENTITY_MISMATCH');
   planningLeaseActor={role:actor.role,id:actor.auditorId};
-  planningLease=await service.acquirePlanningLease({actor:planningLeaseActor,auditorId:candidates[0].auditorId,auditId:String(body.auditId||'').trim()});
+  planningLease=await service.acquirePlanningLease({actor:planningLeaseActor,auditorId:candidates[0].auditorId,auditId:String(body.auditId||'').trim(),auditorEmail:email,plannedBlocks:body.blocks});
   const doc=planningLease.document;
   if(!Number.isSafeInteger(doc.version)||doc.version<0)throw Error('PLANNING_AVAILABILITY_VERSION_INVALID');
   enforceAvailabilityHardGate20({document:doc,blocks:body.blocks});

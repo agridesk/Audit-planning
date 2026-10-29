@@ -58,16 +58,17 @@ export function createAvailabilityService(adapter){
   const auditors=await Promise.all(auditorIds.map(async id=>{const d=await read(actor,id);return {auditorId:id,displayName:displayNames[id]??id,availability:d,metadata:{...d.metadata,availabilityVersion:d.version}};}));
   return buildManagerAvailabilityOverview({fromDate,toDate,auditors});
  }
- async function acquirePlanningLease({actor,auditorId,auditId,now=new Date().toISOString()}){
+ async function acquirePlanningLease({actor,auditorId,auditId,plannedBlocks,auditorEmail,now=new Date().toISOString()}){
   const id=str(auditorId);authorize(actor,id);
   if(!str(auditId))throw Error('PLANNING_AUDIT_ID_REQUIRED');
+  if(!Array.isArray(plannedBlocks)||plannedBlocks.length<1||plannedBlocks.length>5||plannedBlocks.some(x=>!/^\d{4}-\d{2}-\d{2}$/.test(x?.date||'')||!/^\d{2}:\d{2}$/.test(x?.start||'')||!/^\d{2}:\d{2}$/.test(x?.end||''))||!str(auditorEmail))throw Error('PLANNING_LEASE_EVIDENCE_INVALID');
   const current=await read(actor,id);
   if(current.planningLease)throw Error('PLANNING_LEASE_ACTIVE');
   if(current.version>=Number.MAX_SAFE_INTEGER-1)throw Error('VERSION_CONFLICT');
   const token=randomUUID(),next=clone(current);
   next.version=current.version+1;
   if(next.metadata?.confirmation)next.metadata.confirmation.availabilityVersion=next.version;
-  next.planningLease={token,auditId:str(auditId),acquiredAt:now,actorId:str(actor.id)};
+  next.planningLease={token,auditId:str(auditId),acquiredAt:now,actorId:str(actor.id),auditorEmail:str(auditorEmail).toLowerCase(),plannedBlocks:plannedBlocks.map(x=>({date:x.date,start:x.start,end:x.end}))};
   if(await adapter.compareAndSwap(id,current.version,next)!==true)throw Error('VERSION_CONFLICT');
   return {token,auditorId:id,auditId:str(auditId),version:next.version,document:next};
  }

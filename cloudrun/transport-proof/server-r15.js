@@ -755,7 +755,7 @@ async function proxy(req,res){
  if(planningLease)planningForwarded=true;
  const r=await fetch(url,init);const h={};r.headers.forEach((v,k)=>{if(k!=='set-cookie'&&!['content-length','connection','transfer-encoding'].includes(k))h[k]=v;});const multiCookies=r.headers.getSetCookie();if(multiCookies.length)h['set-cookie']=multiCookies;
  const responseBody=Buffer.from(await r.arrayBuffer());
- if(planningLease){let outcome=null;try{outcome=JSON.parse(responseBody.toString('utf8'));}catch{}planningWriteConfirmed=r.ok&&outcome?.success===true&&outcome?.directCommit===true;}
+ if(planningLease){let outcome=null;try{outcome=JSON.parse(responseBody.toString('utf8'));}catch{}planningWriteConfirmed=r.ok&&outcome?.success===true&&(outcome?.directCommit===true||(outcome?.idempotent===true&&String(outcome?.owner||'').startsWith('CLOUD_RUN_DIRECT_SHEETS_')));}
  const mutationPath=new URL(req.url||'/','http://localhost').pathname;
  const planningWriter=/^\/api\/v1\/(?:manager\/(?:approve-direct|accept-direct|reject-direct|cancel-direct|complete-direct|action|auditor-management\/audit\/transfer)|internal\/auditor\/complete-direct|planning\/direct-commit|auditor\/action)$/;
  if(req.method==='POST'&&r.ok&&planningWriter.test(mutationPath)){

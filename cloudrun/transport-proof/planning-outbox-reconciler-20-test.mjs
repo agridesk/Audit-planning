@@ -9,5 +9,5 @@ assert.deepEqual(await recon.scan(),{count:2,verified:1,unresolved:1,errors:0,tr
 assert.equal(transitions.length,1);
 assert.equal(transitions[0].from,'UNCERTAIN');
 assert.equal(transitions[0].to,'PROJECTED');
-await assert.rejects(()=>createPlanningOutboxReconciler({adapter,authority,verify:async()=>{},limit:0}).scan(),/OUTBOX_RECONCILER_CONFIG_INVALID/);
+assert.throws(()=>createPlanningOutboxReconciler({adapter,authority,verify:async()=>{},limit:0}),/OUTBOX_RECONCILER_CONFIG_INVALID/);
 console.log('Outbox reconciler pages, verified recovery and fail-closed absence OK');

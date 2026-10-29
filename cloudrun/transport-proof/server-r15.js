@@ -214,8 +214,19 @@ const planningAtomicRecovery=planningAtomicStore?createPlanningAtomicRecovery({
 }):null;
 // Start one bounded recovery scan on DEV startup; it never guesses missing writes.
 if(planningAtomicRecovery&&process.env.AMS_DEV_ATOMIC_RECOVERY_STARTUP_ENABLED==='true'){
- planningAtomicRecovery.scan({limit:100}).then(result=>console.info('[AMS_ATOMIC_RECOVERY_STARTUP]',JSON.stringify(result)))
- .catch(error=>console.error('[AMS_ATOMIC_RECOVERY_STARTUP_ERROR]',String(error?.message||error).slice(0,160)));
+ let inFlight=false;
+ async function reconcileAtomicOutbox(){
+  if(inFlight)return;
+  inFlight=true;
+  try{
+   const result=await planningAtomicRecovery.scan({limit:100});
+   console.info('[AMS_ATOMIC_RECOVERY_SCAN]',JSON.stringify(result));
+  }catch(error){console.error('[AMS_ATOMIC_RECOVERY_SCAN_ERROR]',String(error?.message||error).slice(0,160));}
+  finally{inFlight=false;}
+ }
+ void reconcileAtomicOutbox();
+ const interval=setInterval(()=>{void reconcileAtomicOutbox();},300000);
+ interval.unref();
 }
 const planningCache=createPlanningReadCache({load:readPlanningRows,ttlMs:10000});
 const scopeNamesCache=createPlanningReadCache({load:async()=>{

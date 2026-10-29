@@ -87,7 +87,9 @@ async function getRoster(){
  const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent("'Auditors'!A1:AZ500");
  const r=await fetch(url,{headers:{authorization:'Bearer '+await getToken()}});
  if(!r.ok)throw Error('AUDITOR_ROSTER_READ_'+r.status);
- const rows=(await r.json()).values||[],headers=(rows[0]||[]).map(v=>String(v).trim().toLowerCase().replace(/[\s_-]+/g,''));
+ const rows=(await r.json()).values||[];
+ if(!Array.isArray(rows)||rows.length>=500)throw Error('AUDITOR_ROSTER_SOURCE_TRUNCATED');
+ const headers=(rows[0]||[]).map(v=>String(v).trim().toLowerCase().replace(/[\s_-]+/g,''));
  const idx=(...names)=>names.map(n=>headers.indexOf(n.toLowerCase().replace(/[\s_-]+/g,''))).find(i=>i>=0)??-1;
  const email=idx('Email','E-mail'),uid=idx('Auditor UID','AuditorUID','UID','Auditor ID','AuditorID'),name=idx('Auditor Name','Full Name','Name','Display Name'),role=idx('Role'),active=idx('Active');
  if(email<0||uid<0||role<0)throw Error('AUDITOR_ROSTER_CANONICAL_COLUMNS_MISSING');

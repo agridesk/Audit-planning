@@ -124,8 +124,11 @@ const planningAdapter=runtime.isDev?createFirestoreAvailabilityAdapter({projectI
 const planningAuthority=planningAdapter?createPlanningFirestoreAuthority(planningAdapter):null;
 const planningAuthorityEnabled=runtime.isDev&&process.env.AMS_DEV_FIRESTORE_PLANNING_AUTHORITY_ENABLED==='true';
 const planningAtomicEnabled=runtime.isDev&&process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true';
+// Preparation creates only the bounded backfill/parity readers. It does not
+// activate Firestore authority, global write fencing or lifecycle dispatch.
+const planningAtomicPrepEnabled=runtime.isDev&&process.env.AMS_DEV_ATOMIC_PREFLIGHT_ENABLED==='true';
 validatePlanningAtomicRuntime20({enabled:planningAtomicEnabled,legacyWriterRetired:process.env.AMS_GAS_LIFECYCLE_WRITER_RETIRED_VERIFIED==='true',managerOwnerShared:process.env.AMS_MANAGER_LIFECYCLE_OWNER_SHARED_VERIFIED==='true',backfillParityVerified:process.env.AMS_DEV_ATOMIC_BACKFILL_PARITY_VERIFIED==='true',otherAuthorityEnabled:planningAuthorityEnabled});
-const planningAtomicStore=planningAtomicEnabled?createPlanningAtomicFirestoreStore({projectId:project,getToken}):null;
+const planningAtomicStore=(planningAtomicEnabled||planningAtomicPrepEnabled)?createPlanningAtomicFirestoreStore({projectId:project,getToken}):null;
 const planningGlobalGate=(planningAuthorityEnabled||planningAtomicEnabled)?createPlanningDistributedGate(createFirestoreAvailabilityAdapter({projectId:project,getToken,collection:'ams_planning_write_gate_20_dev'})):null;
 async function readPlanningRows(){
  // Existing DEV Audit planning tab; bounded read, never a full-sheet hot-path scan.
@@ -172,19 +175,19 @@ const planningAtomicParity=planningAtomicStore?createPlanningAtomicParityVerifie
 const planningAtomicBackfill=planningAtomicStore?createPlanningBackfillRunner({
  atomicStore:planningAtomicStore,readPlanningRows,getRoster
 }):null;
-const planningAtomicProjector=planningAtomicStore?createPlanningSheetsWritesetProjector({
+const planningAtomicProjector=planningAtomicEnabled?createPlanningSheetsWritesetProjector({
  spreadsheetId:spreadsheet,getToken,verifyFence:async({operationId,gateToken})=>{
   const gate=await planningGlobalGate.read();
   if(gate.holder?.token!==gateToken||gate.holder.operationId!==operationId||gate.holder.state!=='ACTIVE')throw Error('PLANNING_ATOMIC_DISTRIBUTED_FENCE_LOST');
  }
 }):null;
-const planningAtomicAppendProjector=planningAtomicStore?createPlanningSheetsAppendProjector({
+const planningAtomicAppendProjector=planningAtomicEnabled?createPlanningSheetsAppendProjector({
  spreadsheetId:spreadsheet,getToken,verifyFence:async({operationId,gateToken})=>{
   const gate=await planningGlobalGate.read();
   if(gate.holder?.token!==gateToken||gate.holder.operationId!==operationId||gate.holder.state!=='ACTIVE')throw Error('PLANNING_ATOMIC_APPEND_FENCE_LOST');
  }
 }):null;
-const planningAtomicCommands=planningAtomicStore?createPlanningAtomicCommandService({
+const planningAtomicCommands=planningAtomicEnabled?createPlanningAtomicCommandService({
  atomicStore:planningAtomicStore,gate:planningGlobalGate,availabilityService:service,
  hardGate:enforceAvailabilityHardGate20,projector:planningAtomicProjector,appendProjector:planningAtomicAppendProjector,roster:getRoster,
  preflight:async({actor,body})=>{
@@ -203,7 +206,7 @@ const atomicLifecyclePaths={
  '/api/v1/manager/cancel-direct':'CANCEL',
  '/api/v1/manager/complete-direct':'COMPLETE'
 };
-const planningAtomicLifecycle=planningAtomicStore?createPlanningLifecycleAtomicService({
+const planningAtomicLifecycle=planningAtomicEnabled?createPlanningLifecycleAtomicService({
  atomicStore:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,
  appendProjector:planningAtomicAppendProjector,roster:getRoster,
  preflight:async({actor,body,action})=>{
@@ -216,7 +219,7 @@ const planningAtomicLifecycle=planningAtomicStore?createPlanningLifecycleAtomicS
   return data;
  }
 }):null;
-const planningMultiLifecycle=planningAtomicStore?createPlanningMultiLifecycleService({
+const planningMultiLifecycle=planningAtomicEnabled?createPlanningMultiLifecycleService({
  atomicStore:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,
  appendProjector:planningAtomicAppendProjector,
  preflight:async({actor,body,action})=>{
@@ -230,7 +233,7 @@ const planningMultiLifecycle=planningAtomicStore?createPlanningMultiLifecycleSer
   return data;
  }
 }):null;
-const planningAtomicTransfer=planningAtomicStore?createPlanningAtomicTransferService({
+const planningAtomicTransfer=planningAtomicEnabled?createPlanningAtomicTransferService({
  store:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,appendProjector:planningAtomicAppendProjector,
  preflight:async({actor,body})=>{
   const r=await fetch('http://127.0.0.1:'+innerPort+'/api/v1/manager/auditor-management/audit/transfer',
@@ -241,7 +244,7 @@ const planningAtomicTransfer=planningAtomicStore?createPlanningAtomicTransferSer
   return data;
  }
 }):null;
-const planningAtomicRecovery=planningAtomicStore?createPlanningAtomicRecovery({
+const planningAtomicRecovery=planningAtomicEnabled?createPlanningAtomicRecovery({
  store:planningAtomicStore,projector:planningAtomicProjector,appendProjector:planningAtomicAppendProjector,
  gate:planningGlobalGate,availabilityService:service
 }):null;

@@ -212,6 +212,11 @@ const planningAtomicRecovery=planningAtomicStore?createPlanningAtomicRecovery({
  store:planningAtomicStore,projector:planningAtomicProjector,appendProjector:planningAtomicAppendProjector,
  gate:planningGlobalGate,availabilityService:service
 }):null;
+// Start one bounded recovery scan on DEV startup; it never guesses missing writes.
+if(planningAtomicRecovery&&process.env.AMS_DEV_ATOMIC_RECOVERY_STARTUP_ENABLED==='true'){
+ planningAtomicRecovery.scan({limit:100}).then(result=>console.info('[AMS_ATOMIC_RECOVERY_STARTUP]',JSON.stringify(result)))
+ .catch(error=>console.error('[AMS_ATOMIC_RECOVERY_STARTUP_ERROR]',String(error?.message||error).slice(0,160)));
+}
 const planningCache=createPlanningReadCache({load:readPlanningRows,ttlMs:10000});
 const scopeNamesCache=createPlanningReadCache({load:async()=>{
  const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent("'Config_Scopes'!A1:AZ250");

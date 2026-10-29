@@ -83,6 +83,18 @@ export function createAvailabilityService(adapter){
   if(await adapter.compareAndSwap(id,current.version,next)!==true)throw Error('VERSION_CONFLICT');
   return {auditorId:id,version:next.version,state:'UNCERTAIN'};
  }
+ async function reconcilePlanningLease({actor,auditorId,token,verifiedAuditId}){
+  const id=str(auditorId);authorize(actor,id);
+  if(str(actor?.role).toLowerCase()!=='manager')throw Error('NOT_AUTHORIZED');
+  const current=await read(actor,id);
+  if(!token||current.planningLease?.token!==token||current.planningLease?.state!=='UNCERTAIN'||!str(verifiedAuditId)||current.planningLease.auditId!==str(verifiedAuditId))throw Error('PLANNING_RECONCILIATION_EVIDENCE_INVALID');
+  if(current.version>=Number.MAX_SAFE_INTEGER-1)throw Error('VERSION_CONFLICT');
+  const next=clone(current);next.version=current.version+1;
+  if(next.metadata?.confirmation)next.metadata.confirmation.availabilityVersion=next.version;
+  next.planningLease=null;
+  if(await adapter.compareAndSwap(id,current.version,next)!==true)throw Error('VERSION_CONFLICT');
+  return {auditorId:id,version:next.version};
+ }
  async function releasePlanningLease({actor,auditorId,token}){
   const id=str(auditorId);authorize(actor,id);
   const current=await read(actor,id);
@@ -93,5 +105,5 @@ export function createAvailabilityService(adapter){
   if(await adapter.compareAndSwap(id,current.version,next)!==true)throw Error('VERSION_CONFLICT');
   return {auditorId:id,version:next.version};
  }
- return Object.freeze({read,mutate,period,managerOverview,acquirePlanningLease,markPlanningLeaseUncertain,releasePlanningLease});
+ return Object.freeze({read,mutate,period,managerOverview,acquirePlanningLease,markPlanningLeaseUncertain,reconcilePlanningLease,releasePlanningLease});
 }

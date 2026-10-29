@@ -78,6 +78,7 @@ const args={operationId:'multi-complete-1',actorId:'manager',action:'COMPLETE',e
 const multi=await authority.commitMulti(args);
 assert.equal(multi.entities.length,2);assert.equal((await authority.readAudit(parent)).removed,true);
 assert.equal((await authority.readAudit(successor)).revision,0);
+assert.equal((await authority.readOutbox('multi-complete-1')).auditId,parent);
 assert.equal((await authority.commitMulti(args)).replayed,true);
 await assert.rejects(()=>authority.commitMulti({...args,operationId:'multi-overlap',entities:[{...entities[1],auditId:'other-successor',nextSnapshot:{auditId:'other-successor'}},{...entities[1],auditId:'another-successor',nextSnapshot:{auditId:'another-successor'}}]}),/PLANNING_MULTI_INTERNAL_SLOT_CONFLICT/);
 await authority.markUncertain({auditId:parent,operationId:'multi-complete-1',reason:'SHEETS_TIMEOUT'});
@@ -121,4 +122,15 @@ await assert.rejects(()=>authority.commitMulti({
  entities:[{auditId:multiSuccessor,expectedRevision:1,nextSnapshot:{auditId:multiSuccessor,status:'Approved'},auditorId:'aud-3',blocks:[{date:'2027-04-01',start:'10:00',end:'11:00'}]}],
  projectionPlan:{projectionWrites:[],projectionPreconditions:[],appendIntents:[]}
 }),/PLANNING_MULTI_REVISION_CONFLICT/);
+// A successor that sorts before its parent cannot hijack the outbox root.
+const lateParent='ZZZ_PARENT',earlySuccessor='AAA_SUCCESSOR';
+store.set('ams_planning_20_dev_audits/'+lateParent,{name:db+'/ams_planning_20_dev_audits/'+lateParent,updateTime:'t0',fields:{payload:encode({auditId:lateParent,revision:0,snapshot:{auditId:lateParent,status:'Accepted'},claimIds:[],pendingOperationId:null})}});
+const lexical=await authority.commitMulti({operationId:'lexical-root',actorId:'manager',action:'COMPLETE',
+ entities:[{auditId:lateParent,expectedRevision:0,remove:true,nextSnapshot:{auditId:lateParent,status:'Completed'}},
+ {auditId:earlySuccessor,expectedRevision:null,nextSnapshot:{auditId:earlySuccessor,status:'Pending Planning'}}],
+ projectionPlan:{projectionWrites:[],projectionPreconditions:[],appendIntents:[]}});
+assert.equal(lexical.state,'PENDING');
+assert.equal((await authority.readOutbox('lexical-root')).auditId,lateParent);
+assert.equal((await authority.markProjected({auditId:lateParent,operationId:'lexical-root',proof:{verified:true,auditId:lateParent,rowHash:'e'.repeat(64)}})).state,'PROJECTED');
+assert.equal((await authority.readAudit(earlySuccessor)).pendingOperationId,null);
 console.log('Multi-document Firestore transaction, replay, occupancy, crash ambiguity and settlement OK');

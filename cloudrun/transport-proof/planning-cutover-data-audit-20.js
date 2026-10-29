@@ -25,6 +25,7 @@ export function createPlanningCutoverDataAudit({auditParity,claimsParity,store}=
   if(verified!==total||errors.length)ready=false;
   const audits={ready,sourceManifest:manifest,sourceAudits:total??0,verified,pages,problems:errors.slice(0,100)};
   const claims=await claimsParity.verify({asOfDate,maxPages});
+  if(typeof audits.sourceManifest!=='string'||!/^[0-9a-f]{64}$/.test(audits.sourceManifest)||typeof claims.sourceManifest!=='string'||!/^[0-9a-f]{64}$/.test(claims.sourceManifest))throw Error('CUTOVER_SOURCE_MANIFEST_MISSING');
   if(audits.sourceManifest&&claims.sourceManifest&&audits.sourceManifest!==claims.sourceManifest)throw Error('CUTOVER_SOURCE_CHANGED_BETWEEN_AUDIT_AND_CLAIMS');
   let token='',outboxPages=0,count=0,unresolved=0,truncated=false;const problems=[];
   do{

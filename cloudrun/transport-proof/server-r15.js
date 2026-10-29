@@ -775,14 +775,14 @@ async function proxy(req,res){
   if(candidates.length!==1)throw Error('PLANNING_AUDITOR_UID_UNRESOLVED');
   if(actor.role==='auditor'&&actor.auditorId!==candidates[0].auditorId)throw Error('PLANNING_AUDITOR_IDENTITY_MISMATCH');
   planningLeaseActor={role:actor.role,id:actor.auditorId};
-  if(planningAuthorityEnabled){
-   const operationId=createHash('sha256').update(JSON.stringify({auditId:body.auditId,auditorId:candidates[0].auditorId,sourceRevision:body.sourceRevision,blocks:body.blocks,actorId:planningLeaseActor.id})).digest('hex');
-   planningGlobalLock=await planningGlobalGate.acquire({operationId,actorId:planningLeaseActor.id,kind:'DIRECT_PLANNING'});
-  }
   planningLease=await service.acquirePlanningLease({actor:planningLeaseActor,auditorId:candidates[0].auditorId,auditId:String(body.auditId||'').trim(),auditorEmail:email,plannedBlocks:body.blocks});
   const doc=planningLease.document;
   if(!Number.isSafeInteger(doc.version)||doc.version<0)throw Error('PLANNING_AVAILABILITY_VERSION_INVALID');
   enforceAvailabilityHardGate20({document:doc,blocks:body.blocks});
+  if(planningAuthorityEnabled){
+   const operationId=createHash('sha256').update(JSON.stringify({auditId:body.auditId,auditorId:candidates[0].auditorId,sourceRevision:body.sourceRevision,blocks:body.blocks,actorId:planningLeaseActor.id})).digest('hex');
+   planningGlobalLock=await planningGlobalGate.acquire({operationId,actorId:planningLeaseActor.id,kind:'DIRECT_PLANNING'});
+  }
   if(planningAuthorityEnabled){
    const requestId=createHash('sha256').update(JSON.stringify({auditId:body.auditId,auditorId:candidates[0].auditorId,sourceRevision:body.sourceRevision,blocks:body.blocks,actorId:planningLeaseActor.id})).digest('hex');
    const staged=await planningAuthority.stage({auditId:String(body.auditId||'').trim(),auditorId:candidates[0].auditorId,actorId:planningLeaseActor.id,sourceRevision:body.sourceRevision,blocks:body.blocks,requestId,projectionPayload:body});

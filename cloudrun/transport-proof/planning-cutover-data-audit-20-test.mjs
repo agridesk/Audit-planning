@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import {createPlanningCutoverDataAudit} from './planning-cutover-data-audit-20.js';
 let auditOK=true,claimOK=true,outbox=[{operationId:'already',state:'PROJECTED'}];
 const source={
- auditParity:{async verify(args){assert.equal(args.startRow,2);return {ready:auditOK,sourceAudits:115,batch:115,remaining:false,verified:auditOK?115:114,problems:auditOK?[]:[{reason:'ROW_DRIFT'}]};}},
- claimsParity:{async verify(){return {ready:claimOK,expected:1048,checked:claimOK?1048:1047,totalProblems:claimOK?0:1,problems:claimOK?[]:[{reason:'MISSING_FIRESTORE_CLAIM'}]};}},
+ auditParity:{async verify(args){assert.equal(args.startRow,2);return {ready:auditOK,sourceManifest:'a'.repeat(64),sourceAudits:115,batch:115,remaining:false,verified:auditOK?115:114,problems:auditOK?[]:[{reason:'ROW_DRIFT'}]};}},
+ claimsParity:{async verify(){return {sourceManifest:'a'.repeat(64),ready:claimOK,expected:1048,checked:claimOK?1048:1047,totalProblems:claimOK?0:1,problems:claimOK?[]:[{reason:'MISSING_FIRESTORE_CLAIM'}]};}},
  store:{async listOutbox({pageToken}){return pageToken?{entries:outbox.slice(1),nextPageToken:null}:{entries:outbox.slice(0,1),nextPageToken:outbox.length>1?'page2':null};}}
 };
 const auditor=createPlanningCutoverDataAudit(source);
@@ -17,10 +17,10 @@ assert.equal(blocked.outbox.unresolved,1);
 assert.equal(blocked.outbox.problems[0].operationId,'uncertain');
 assert.equal((await auditor.verify({asOfDate:'2026-10-29',maxPages:1})).outbox.truncated,true);
 await assert.rejects(()=>auditor.verify({maxPages:101}),/CUTOVER_DATA_AUDIT_PAGE_LIMIT_INVALID/);
-let pageManifest='stable';
+let pageManifest='a'.repeat(64);
 const paged=createPlanningCutoverDataAudit({
  auditParity:{async verify({startRow}){
-  if(startRow===2)return {sourceManifest:'stable',sourceAudits:300,batch:250,verified:250,remaining:true,nextRow:252,problems:[]};
+  if(startRow===2)return {sourceManifest:'a'.repeat(64),sourceAudits:300,batch:250,verified:250,remaining:true,nextRow:252,problems:[]};
   return {sourceManifest:pageManifest,sourceAudits:300,batch:50,verified:50,remaining:false,problems:[]};
  }},
  claimsParity:source.claimsParity,
@@ -28,11 +28,11 @@ const paged=createPlanningCutoverDataAudit({
 });
 outbox=[];
 assert.equal((await paged.verify({asOfDate:'2026-10-29'})).ready,true);
-pageManifest='modified';
+pageManifest='b'.repeat(64);
 await assert.rejects(()=>paged.verify({asOfDate:'2026-10-29'}),/CUTOVER_AUDIT_SOURCE_CHANGED_DURING_SCAN/);
 const mismatch=createPlanningCutoverDataAudit({
- auditParity:{async verify(){return {sourceManifest:'before',sourceAudits:1,batch:1,verified:1,remaining:false,problems:[]};}},
- claimsParity:{async verify(){return {sourceManifest:'after',ready:true,expected:0,checked:0,totalProblems:0,problems:[]};}},
+ auditParity:{async verify(){return {sourceManifest:'a'.repeat(64),sourceAudits:1,batch:1,verified:1,remaining:false,problems:[]};}},
+ claimsParity:{async verify(){return {sourceManifest:'b'.repeat(64),ready:true,expected:0,checked:0,totalProblems:0,problems:[]};}},
  store:{async listOutbox(){return {entries:[],nextPageToken:null};}}
 });
 await assert.rejects(()=>mismatch.verify(),/CUTOVER_SOURCE_CHANGED_BETWEEN_AUDIT_AND_CLAIMS/);

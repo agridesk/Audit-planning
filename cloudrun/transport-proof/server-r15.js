@@ -21,6 +21,10 @@ import {createFirestoreAvailabilityAdapter} from './availability-firestore-adapt
 import {createPlanningFirestoreAuthority} from './planning-firestore-authority-20.js';
 import {createPlanningDistributedGate} from './planning-distributed-gate-20.js';
 import {createPlanningOutboxReconciler} from './planning-outbox-reconciler-20.js';
+import {createPlanningAtomicFirestoreStore} from './planning-atomic-firestore-store-20.js';
+import {createPlanningAtomicCommandService} from './planning-atomic-command-service-20.js';
+import {createPlanningSheetsWritesetProjector} from './planning-sheets-writeset-projector-20.js';
+import {createPlanningBackfillRunner} from './planning-atomic-backfill-20.js';
 import {createHash} from 'node:crypto';
 import {createPlanningOverlayService} from './availability-planning-overlay-service-20.js';
 import {createPlanningReadCache} from './availability-planning-read-cache-20.js';
@@ -112,7 +116,9 @@ const service=createAvailabilityService(adapter);
 const planningAdapter=runtime.isDev?createFirestoreAvailabilityAdapter({projectId:project,getToken,collection:'ams_planning_authority_20_dev'}):null;
 const planningAuthority=planningAdapter?createPlanningFirestoreAuthority(planningAdapter):null;
 const planningAuthorityEnabled=runtime.isDev&&process.env.AMS_DEV_FIRESTORE_PLANNING_AUTHORITY_ENABLED==='true';
-const planningGlobalGate=planningAuthorityEnabled?createPlanningDistributedGate(createFirestoreAvailabilityAdapter({projectId:project,getToken,collection:'ams_planning_write_gate_20_dev'})):null;
+const planningAtomicEnabled=runtime.isDev&&process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true';
+const planningAtomicStore=planningAtomicEnabled?createPlanningAtomicFirestoreStore({projectId:project,getToken}):null;
+const planningGlobalGate=(planningAuthorityEnabled||planningAtomicEnabled)?createPlanningDistributedGate(createFirestoreAvailabilityAdapter({projectId:project,getToken,collection:'ams_planning_write_gate_20_dev'})):null;
 async function readPlanningRows(){
  // Existing DEV Audit planning tab; bounded read, never a full-sheet hot-path scan.
  // Fail closed if configured maximum is reached: a truncated source is unsafe.
@@ -150,6 +156,27 @@ const planningOutboxReconciler=planningAuthorityEnabled?createPlanningOutboxReco
   if(!email)return {state:'UNKNOWN'};
   const matching=await verifyUncertainPlanningLeaseInSheets({state:'UNCERTAIN',auditId:commit.auditId,auditorEmail:email,plannedBlocks:commit.blocks});
   return {state:matching?'MATCH':'UNKNOWN'};
+ }
+}):null;
+const planningAtomicBackfill=planningAtomicStore?createPlanningBackfillRunner({
+ atomicStore:planningAtomicStore,readPlanningRows,getRoster
+}):null;
+const planningAtomicProjector=planningAtomicStore?createPlanningSheetsWritesetProjector({
+ spreadsheetId:spreadsheet,getToken,verifyFence:async({operationId,gateToken})=>{
+  const gate=await planningGlobalGate.read();
+  if(gate.holder?.token!==gateToken||gate.holder.operationId!==operationId||gate.holder.state!=='ACTIVE')throw Error('PLANNING_ATOMIC_DISTRIBUTED_FENCE_LOST');
+ }
+}):null;
+const planningAtomicCommands=planningAtomicStore?createPlanningAtomicCommandService({
+ atomicStore:planningAtomicStore,gate:planningGlobalGate,availabilityService:service,
+ hardGate:enforceAvailabilityHardGate20,projector:planningAtomicProjector,roster:getRoster,
+ preflight:async({actor,body})=>{
+  const r=await fetch('http://127.0.0.1:'+innerPort+'/api/v1/planning/direct-commit',{
+   method:'POST',headers:{'content-type':'application/json',cookie:String(actor.cookie||'')},
+   body:JSON.stringify({...body,authorityPreflight:true}),redirect:'manual'});
+  const j=await r.json().catch(()=>null);
+  if(!r.ok||j?.success!==true||j?.authorityPreflight!==true)throw Error('PLANNING_ATOMIC_BUSINESS_PREFLIGHT_FAILED_'+String(j?.error||r.status).slice(0,80));
+  return j;
  }
 }):null;
 const planningCache=createPlanningReadCache({load:readPlanningRows,ttlMs:10000});
@@ -839,6 +866,25 @@ async function proxy(req,res){
 http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url||'/','http://localhost');
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-backfill'){
+   if(!planningAtomicBackfill){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403);res.end();return;}
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)throw Error('PLANNING_BACKFILL_REQUEST_TOO_LARGE');}
+   let input={};try{input=JSON.parse(raw||'{}');}catch{throw Error('PLANNING_BACKFILL_REQUEST_INVALID');}
+   const result=await planningAtomicBackfill.run({dryRun:input.dryRun!==false,startRow:input.startRow??2,limit:input.limit??100});
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,...result}));return;
+  }
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/direct-commit'&&planningAtomicCommands){
+   const actor=await session(req);
+   if(!actor){res.writeHead(401,{'content-type':'application/json'});res.end(JSON.stringify({success:false,error:'PLANNING_SESSION_REQUIRED'}));return;}
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>65536)throw Error('PLANNING_BODY_TOO_LARGE');}
+   let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('PLANNING_BODY_INVALID');}
+   const result=await planningAtomicCommands.commit({actor:{...actor,cookie:String(req.headers.cookie||'')},body});
+   planningCache.invalidate();
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify({...result,directCommit:true}));return;
+  }
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/reconcile-outbox'){
    if(!planningOutboxReconciler){res.writeHead(404);res.end();return;}
    const actor=await session(req);

@@ -58,4 +58,13 @@ const duplicated=createPlanningCutoverDataAudit({
 });
 await assert.rejects(()=>duplicated.verify(),/CUTOVER_OUTBOX_DUPLICATE_OR_INVALID_ID/);
 
+
+let claimSweeps=0;
+const driftingClaims=createPlanningCutoverDataAudit({
+ auditParity:{async verify(){return {sourceManifest:'a'.repeat(64),sourceAudits:1,batch:1,verified:1,remaining:false,problems:[]};}},
+ claimsParity:{async verify(){claimSweeps++;return {sourceManifest:'a'.repeat(64),ready:true,expected:1,checked:claimSweeps, totalProblems:0,problems:[]};}},
+ store:{async listOutbox(){return {entries:[],nextPageToken:null};}}
+});
+await assert.rejects(()=>driftingClaims.verify(),/CUTOVER_CLAIMS_CHANGED_DURING_SCAN/);
+
 console.log('Cutover readiness: full row/claim parity and no unresolved outbox needed before switch');

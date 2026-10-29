@@ -30,4 +30,14 @@ assert.match(preview.sourceManifest,/^[0-9a-f]{64}$/);
 await assert.rejects(()=>runner.run({dryRun:false,limit:2}),/BACKFILL_SOURCE_MANIFEST_CHANGED/);
 await assert.rejects(()=>runner.run({dryRun:false,limit:2,sourceManifest:'f'.repeat(64)}),/BACKFILL_SOURCE_MANIFEST_CHANGED/);
 const result=await runner.run({dryRun:false,limit:2,sourceManifest:preview.sourceManifest});assert.equal(result.seeded,2);assert.equal(result.nextRow,4);
+// An out-of-band Sheets modification during a seeded batch invalidates its
+// authorization manifest even when the original pre-write manifest matched.
+let readCount=0;
+const changingRunner=createPlanningBackfillRunner({
+ atomicStore:{async seed(){return {seeded:true};}},
+ readPlanningRows:async()=>{readCount++;const data=structuredClone(valid);if(readCount>=3)data[1][1]='Accepted';return data;},
+ getRoster:async()=>roster
+});
+const authorized=await changingRunner.run({dryRun:true,limit:2});
+await assert.rejects(()=>changingRunner.run({dryRun:false,limit:2,sourceManifest:authorized.sourceManifest}),/BACKFILL_SOURCE_DRIFT_DURING_WRITE/);
 console.log('Backfill: canonical parity, collisions, identity, dry run and bounded seed passed');

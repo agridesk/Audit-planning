@@ -11,12 +11,17 @@ const oneRow=write=>Array.isArray(write?.values)&&write.values.length===1&&Array
 function rows(plan){
  const writes=plan?.projectionWrites,pre=plan?.projectionPreconditions;
  if(!Array.isArray(writes)||!writes.length||writes.length>80||!Array.isArray(pre)||pre.length!==writes.length)throw Error('SHEETS_PROJECTION_PLAN_INVALID');
- const seenRanges=new Set();
+ const seenRanges=new Set(),occupied=[];
+ const columnIndex=letters=>[...letters].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0);
  return writes.map((write,i)=>{
   const m=/^([^!]+)!([A-Z]+)(\d+):([A-Z]+)(\d+)$/.exec(write.range||'');
   if(!m||m[3]!==m[5]||!oneRow(write)||pre[i]?.range!==write.range||!Array.isArray(pre[i]?.before)||!['Audit planning','Auditor Availability','Concept Reservations','Audit_Obligations','Audit_Visit_Obligations','Company_Scopes','Companies','Rejected audits','Log realized audits','Notification Queue'].includes(m[1]))throw Error('SHEETS_PROJECTION_RANGE_INVALID');
   if(seenRanges.has(write.range))throw Error('SHEETS_PROJECTION_DUPLICATE_TARGET');
   seenRanges.add(write.range);
+  const start=columnIndex(m[2]),end=columnIndex(m[4]),row=Number(m[3]);
+  if(row<2||start>end)throw Error('SHEETS_PROJECTION_RANGE_INVALID');
+  if(occupied.some(x=>x.sheet===m[1]&&x.row===row&&start<=x.end&&end>=x.start))throw Error('SHEETS_PROJECTION_OVERLAPPING_TARGET');
+  occupied.push({sheet:m[1],row,start,end});
   return {range:write.range,sheet:m[1],row:Number(m[3]),values:write.values[0],before:pre[i].before};
  });
 }

@@ -14,7 +14,7 @@ const blocked=[
  /^\/api\/v1\/internal\/dev-auditor-uid$/
 ];
 export function enforcePlanningAtomicCutover20({enabled,method,path}){
- if(!enabled||String(method).toUpperCase()!=='POST')return;
+ if(!enabled||!['POST','PUT','PATCH','DELETE'].includes(String(method).toUpperCase()))return;
  if(typeof path!=='string'||!path.startsWith('/'))throw Error('PLANNING_ATOMIC_PATH_INVALID');
  if(blocked.some(re=>re.test(path)))throw Error('PLANNING_ATOMIC_WRITER_NOT_MIGRATED');
 }

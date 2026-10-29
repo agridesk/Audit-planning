@@ -20,6 +20,7 @@ import {enforceAvailabilityHardGate20} from './availability-planning-hard-gate-2
 import {createFirestoreAvailabilityAdapter} from './availability-firestore-adapter-20.js';
 import {createPlanningFirestoreAuthority} from './planning-firestore-authority-20.js';
 import {createPlanningDistributedGate} from './planning-distributed-gate-20.js';
+import {createPlanningOutboxReconciler} from './planning-outbox-reconciler-20.js';
 import {createHash} from 'node:crypto';
 import {createPlanningOverlayService} from './availability-planning-overlay-service-20.js';
 import {createPlanningReadCache} from './availability-planning-read-cache-20.js';
@@ -108,7 +109,8 @@ async function session(req){
 }
 const adapter=createFirestoreAvailabilityAdapter({projectId:project,getToken,collection:runtime.isDev?'ams_availability_20_dev':runtime.availabilityCollection});
 const service=createAvailabilityService(adapter);
-const planningAuthority=runtime.isDev?createPlanningFirestoreAuthority(createFirestoreAvailabilityAdapter({projectId:project,getToken,collection:'ams_planning_authority_20_dev'})):null;
+const planningAdapter=runtime.isDev?createFirestoreAvailabilityAdapter({projectId:project,getToken,collection:'ams_planning_authority_20_dev'}):null;
+const planningAuthority=planningAdapter?createPlanningFirestoreAuthority(planningAdapter):null;
 const planningAuthorityEnabled=runtime.isDev&&process.env.AMS_DEV_FIRESTORE_PLANNING_AUTHORITY_ENABLED==='true';
 const planningGlobalGate=planningAuthorityEnabled?createPlanningDistributedGate(createFirestoreAvailabilityAdapter({projectId:project,getToken,collection:'ams_planning_write_gate_20_dev'})):null;
 async function readPlanningRows(){
@@ -141,6 +143,15 @@ async function verifyUncertainPlanningLeaseInSheets(lease){
  if(indices.some(x=>x<0)||values.length>=2000)throw Error('PLANNING_RECONCILIATION_AVAILABILITY_INCOMPLETE');
  return lease.plannedBlocks.every(b=>values.slice(1).some(row=>String(row[indices[0]]||'').slice(0,10)===b.date&&String(row[indices[1]]||'').trim().toLowerCase()===lease.auditorEmail&&([[indices[2],indices[3],indices[4]],[indices[5],indices[6],indices[7]]].some(([start,end,id])=>String(row[start]||'').trim()===b.start&&String(row[end]||'').trim()===b.end&&String(row[id]||'').trim()===lease.auditId))));
 }
+const planningOutboxReconciler=planningAuthorityEnabled?createPlanningOutboxReconciler({
+ adapter:planningAdapter,authority:planningAuthority,
+ verify:async commit=>{
+  const email=String(commit.projectionPayload?.auditorEmail||'').trim().toLowerCase();
+  if(!email)return {state:'UNKNOWN'};
+  const matching=await verifyUncertainPlanningLeaseInSheets({state:'UNCERTAIN',auditId:commit.auditId,auditorEmail:email,plannedBlocks:commit.blocks});
+  return {state:matching?'MATCH':'UNKNOWN'};
+ }
+}):null;
 const planningCache=createPlanningReadCache({load:readPlanningRows,ttlMs:10000});
 const scopeNamesCache=createPlanningReadCache({load:async()=>{
  const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent("'Config_Scopes'!A1:AZ250");
@@ -829,6 +840,14 @@ async function proxy(req,res){
 http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url||'/','http://localhost');
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/reconcile-outbox'){
+   if(!planningOutboxReconciler){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403);res.end();return;}
+   const result=await planningOutboxReconciler.scan();
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify({success:true,...result}));return;
+  }
   if(req.method==='GET'&&u.pathname==='/api/v1/planning/firestore-authority-status'){
    if(!planningAuthorityEnabled){res.writeHead(404);res.end();return;}
    const actor=await session(req);

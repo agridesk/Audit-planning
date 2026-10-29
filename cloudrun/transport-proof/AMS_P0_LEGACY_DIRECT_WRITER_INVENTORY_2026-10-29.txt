@@ -29,6 +29,13 @@ Confirmed direct legacy writers and review targets:
    L315: Audit planning deleteRow
    Required: enforce one atomic reject/archive transaction and recoverable rollback; the older multi-step Sheets sequence is not an atomic equivalent.
 
+Additional confirmed writer surfaces (exact feature branch):
+5. LogRealizedAuditService.js — L74 writes realized audit row; L134 updates logged hours.
+6. ManagerPlanningBackend_CORE_SPLIT.js — L1320-L1323 direct planning metadata updates; L1418-L1420 full row + planned date writes.
+7. AvailabilityService.js — multiple direct availability row writes and deletions, including L449/L452, L794/L819/L823, L1013/L1016, L1711-L1738, L2011-L2044 and L2207-L2221.
+8. AuditManagerAvailabilityBridge.js — L120/L124 availability setValues and deleteRow.
+These are positive matches only. Callsites and guards still require tracing before any atomic-owner activation.
+
 Review limitations:
 - This is a verified positive list, not a complete repository-wide negative search.
 - The relevant callable dispatch paths, deployed GAS revision, and global atomic cutover guard must be verified before retiring writers.

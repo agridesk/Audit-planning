@@ -142,6 +142,24 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
    return {operationId,replayed:false,state:'PENDING',revision:nextRevision,claimCount:newIds.length};
   });
  }
+ async function seed({auditId,snapshot,auditorId,blocks=[]}){
+  if(!validId(auditId)||!snapshot||typeof snapshot!=='object'||snapshot.auditId!==auditId||!/^([a-f0-9]{24})$/.test(str(snapshot.sourceRevision)))throw Error('PLANNING_BACKFILL_SOURCE_INVALID');
+  const newClaims=claimsFor(blocks,auditorId),ids=newClaims.map(x=>x.claimId);
+  return transaction(async tx=>{
+   const old=await tx.get('audit',auditId);
+   if(old){
+    if(old.value.revision===0&&old.value.snapshot?.sourceRevision===snapshot.sourceRevision&&JSON.stringify(old.value.claimIds||[])===JSON.stringify(ids))return {seeded:false,idempotent:true};
+    throw Error('PLANNING_BACKFILL_EXISTING_CANONICAL');
+   }
+   for(const claim of newClaims){
+    if(await tx.get('claim',claim.claimId))throw Error('PLANNING_BACKFILL_SLOT_COLLISION');
+   }
+   const canonical={auditId,revision:0,snapshot:clone(snapshot),auditorId:auditorId||null,blocks:clone(blocks),claimIds:ids,pendingOperationId:null,backfilledAt:new Date().toISOString(),lastOperationId:null};
+   tx.set('audit',auditId,canonical);
+   for(const claim of newClaims)tx.set('claim',claim.claimId,{...claim,auditId,revision:0,operationId:'BACKFILL'});
+   return {seeded:true,idempotent:false,claimCount:ids.length};
+  });
+ }
  async function markProjected({auditId,operationId,proof}){
   if(!validId(auditId)||!validId(operationId)||proof?.verified!==true||proof?.auditId!==auditId||typeof proof?.rowHash!=='string'||!/^[a-f0-9]{64}$/.test(proof.rowHash))throw Error('PLANNING_PROJECTION_EVIDENCE_REQUIRED');
   return transaction(async tx=>{
@@ -169,5 +187,5 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
    return {state:'UNCERTAIN',replayed:false};
   });
  }
- return Object.freeze({readAudit,readOutbox,commit,markProjected,markUncertain});
+ return Object.freeze({readAudit,readOutbox,commit,seed,markProjected,markUncertain});
 }

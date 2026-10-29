@@ -1891,6 +1891,14 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(!auditId||auditId.length>256||!['ACCEPT','CANCEL','COMPLETE'].includes(action)||!(/^[a-f0-9]{24}$/.test(expectedRevision)))return send(res,400,{success:false,error:'INVALID_AUDITOR_ACTION_REQUEST'});
     if(action==='CANCEL'&&!comment)return send(res,400,{success:false,error:'CANCEL_REASON_REQUIRED'});
     if(process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true'&&body.authorityPreflight===true){
+      if(action==='CANCEL'||action==='COMPLETE'){
+       try{
+        const effectiveBody={auditId,authorityPreflight:true,options:{...options,expectedRevision}};
+        const out=await lifecycleAuthorityPreflight20(actor,effectiveBody,action,()=>
+          action==='CANCEL'?directManagerCancel(actor,effectiveBody,true):directAuditorComplete(actor,effectiveBody));
+        return send(res,out?.success===true?200:409,out);
+       }catch(error){return send(res,409,{success:false,error:clean(error?.message||error)});}
+      }
       if(action!=='ACCEPT')return send(res,409,{success:false,error:'AUDITOR_LIFECYCLE_ATOMIC_PREFLIGHT_NOT_MIGRATED'});
       try{
        const vr=await sheetsBatchGet(['Audit planning!A1:BW2000','Auditors!A1:Z256']),ap=vr[0]?.values||[],av=vr[1]?.values||[];

@@ -21,7 +21,7 @@ export function createPlanningGlobalClaimsParity({store,readPlanningRows,getRost
     expected.set(claimId,{auditId:item.auditId,auditorId:item.auditorId,date:block.date,minute});
    }
   }
-  const seen=new Set(),problems=[];let token='',pages=0,checked=0,truncated=false;
+  const seen=new Set(),observed=[],problems=[];let token='',pages=0,checked=0,truncated=false;
   do{
    if(pages>=maxPages){truncated=true;break;}
    const response=await store.listClaims({pageSize:200,pageToken:token});
@@ -33,6 +33,7 @@ export function createPlanningGlobalClaimsParity({store,readPlanningRows,getRost
     if(typeof id!=='string'||!id){problems.push({reason:'INVALID_CLAIM_ID'});continue;}
     if(seen.has(id)){problems.push({reason:'DUPLICATE_FIRESTORE_CLAIM',claimId:id});continue;}
     seen.add(id);
+    observed.push([id,claim.auditId,claim.auditorId,claim.date,claim.minute]);
     const target=expected.get(id);
     if(!target){problems.push({reason:'ORPHAN_OR_UNEXPECTED_CLAIM',claimId:id});continue;}
     if(target.auditId!==claim.auditId||target.auditorId!==claim.auditorId||target.date!==claim.date||target.minute!==claim.minute)problems.push({reason:'CLAIM_IDENTITY_MISMATCH',claimId:id});
@@ -40,7 +41,9 @@ export function createPlanningGlobalClaimsParity({store,readPlanningRows,getRost
    token=response.nextPageToken||'';
   }while(token);
   if(!truncated)for(const id of expected.keys())if(!seen.has(id))problems.push({reason:'MISSING_FIRESTORE_CLAIM',claimId:id});
-  return {ready:!truncated&&!problems.length,sourceManifest,asOfDate,expected:expected.size,checked,pages,truncated,problems:problems.slice(0,100),totalProblems:problems.length};
+  observed.sort((a,b)=>a[0].localeCompare(b[0]));
+  const claimsFingerprint=sha(JSON.stringify(observed));
+  return {ready:!truncated&&!problems.length,claimsFingerprint,sourceManifest,asOfDate,expected:expected.size,checked,pages,truncated,problems:problems.slice(0,100),totalProblems:problems.length};
  }
  return Object.freeze({verify});
 }

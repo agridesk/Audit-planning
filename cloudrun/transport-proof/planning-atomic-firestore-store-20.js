@@ -86,6 +86,19 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
   return {entries:docs,nextPageToken:data.nextPageToken||null};
  }
  async function readAudit(auditId){return clone((await get('audit',auditId))?.value??null);}
+ async function inspectAuditClaimIndex(auditId){
+  const audit=await readAudit(auditId);
+  if(!audit)return {ok:false,reason:'AUDIT_MISSING',checked:0};
+  const ids=audit.claimIds;
+  if(!Array.isArray(ids)||new Set(ids).size!==ids.length||ids.some(id=>!validId(id)))return {ok:false,reason:'INVALID_CLAIM_INDEX',checked:0};
+  for(const id of ids){
+   const document=(await get('claim',id))?.value;
+   if(!document||document.claimId!==id||document.auditId!==auditId||document.auditorId!==audit.auditorId||document.revision!==audit.revision&&document.operationId!==audit.lastOperationId&&document.operationId!=='BACKFILL'){
+    return {ok:false,reason:'CLAIM_INTEGRITY_MISMATCH',checked:ids.indexOf(id)};
+   }
+  }
+  return {ok:true,checked:ids.length};
+ }
  async function readOutbox(operationId){return clone((await get('outbox',operationId))?.value??null);}
  async function transaction(fn){
   const started=await request(base+':beginTransaction','POST',{options:{readWrite:{}}});
@@ -279,5 +292,5 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
    return {state:'UNCERTAIN',replayed:false};
   });
  }
- return Object.freeze({readAudit,readOutbox,listOutbox,commit,commitMulti,seed,markProjected,markUncertain});
+ return Object.freeze({readAudit,readOutbox,listOutbox,inspectAuditClaimIndex,commit,commitMulti,seed,markProjected,markUncertain});
 }

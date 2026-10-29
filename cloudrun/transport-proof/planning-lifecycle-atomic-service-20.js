@@ -14,6 +14,7 @@ export function createPlanningLifecycleAtomicService({atomicStore,gate,projector
  async function commit({actor,body,action}){
   action=norm(action);
   if(!['manager','auditor'].includes(actor?.role)||!str(actor?.auditorId)||!actions.has(action)||!body||!str(body.auditId)||actor.role==='auditor'&&!['ACCEPT','CANCEL','COMPLETE'].includes(action))throw Error('LIFECYCLE_ATOMIC_FORBIDDEN');
+  if(['REJECT','COMPLETE'].includes(action))throw Error('LIFECYCLE_ATOMIC_MULTI_ENTITY_DELETE_NOT_MIGRATED');
   const auditId=str(body.auditId),operationId=hash({auditId,actorId:actor.auditorId,action,body});
   const replay=await atomicStore.readOutbox(operationId);
   if(replay){

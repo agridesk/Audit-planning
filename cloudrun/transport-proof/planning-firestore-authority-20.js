@@ -24,6 +24,10 @@ export function createPlanningFirestoreAuthority(adapter){
   const previous=current.commits.find(x=>x.requestId===requestId);
   if(previous){if(previous.auditorId!==auditorId||previous.actorId!==actorId||previous.sourceRevision!==String(sourceRevision??'')||JSON.stringify(previous.blocks)!==JSON.stringify(blocks)||(projectionPayload!==undefined&&previous.projectionDigest!==digest(projectionPayload)))throw Error('PLANNING_IDEMPOTENCY_KEY_REUSED');return {commit:copy(previous),replayed:true,version:current.version};}
   if(current.commits.some(x=>x.state==='PENDING'||x.state==='UNCERTAIN'))throw Error('PLANNING_PROJECTION_PENDING');
+  // Only one projected revision may be advanced at a time; stale source
+  // revisions must not silently overwrite an intervening projection.
+  const last=current.commits.filter(x=>x.state==='PROJECTED').at(-1);
+  if(last&&last.sourceRevision===String(sourceRevision??'')&&last.requestId!==requestId)throw Error('PLANNING_STALE_SOURCE_REVISION');
   if(current.commits.length>=200)throw Error('PLANNING_LEDGER_ARCHIVE_REQUIRED');
   if(current.version>=Number.MAX_SAFE_INTEGER-1)throw Error('PLANNING_VERSION_EXHAUSTED');
   const commit={id:randomUUID(),requestId,auditId,auditorId,actorId,sourceRevision:String(sourceRevision??''),blocks:copy(blocks),...(projectionPayload===undefined?{}:{projectionPayload:copy(projectionPayload),projectionDigest:digest(projectionPayload)}),state:'PENDING',createdAt:new Date().toISOString()};

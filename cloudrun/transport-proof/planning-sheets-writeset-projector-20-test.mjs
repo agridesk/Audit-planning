@@ -65,4 +65,8 @@ await assert.rejects(()=>projector.inspect({
  projectionWrites:[{range:'Audit planning!A1:C1',values:[['x','y','z']]}],
  projectionPreconditions:[{range:'Audit planning!A1:C1',before:['a','b','c']}]
 }),/SHEETS_PROJECTION_RANGE_INVALID/);
+await assert.rejects(()=>projector.inspect({
+ projectionWrites:[{range:'Audit planning!A2:C2',values:[['1','2','3','4']]}],
+ projectionPreconditions:[{range:'Audit planning!A2:C2',before:['1','2','3']}]
+}),/SHEETS_PROJECTION_RANGE_INVALID/);
 console.log('Sheets writeset projection: raw idempotence, row expansion, replay, conflict and fencing passed');

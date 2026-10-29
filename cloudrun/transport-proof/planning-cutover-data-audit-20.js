@@ -6,12 +6,14 @@ export function createPlanningCutoverDataAudit({auditParity,claimsParity,store}=
  if(typeof auditParity?.verify!=='function'||typeof claimsParity?.verify!=='function'||typeof store?.listOutbox!=='function')throw Error('CUTOVER_DATA_AUDIT_DEPENDENCIES_INVALID');
  async function verify({asOfDate=new Date().toISOString().slice(0,10),maxPages=50}={}){
   if(!Number.isSafeInteger(maxPages)||maxPages<1||maxPages>100)throw Error('CUTOVER_DATA_AUDIT_PAGE_LIMIT_INVALID');
-  let row=2,pages=0,verified=0,total=null,ready=true;
+  let row=2,pages=0,verified=0,total=null,ready=true,manifest=null;
   const errors=[];
   do{
    if(pages>=maxPages){ready=false;errors.push({reason:'AUDIT_PAGINATION_TRUNCATED'});break;}
    const part=await auditParity.verify({startRow:row,limit:250,asOfDate});
    pages++;
+   if(manifest===null)manifest=part.sourceManifest||null;
+   else if(manifest!==part.sourceManifest)throw Error('CUTOVER_AUDIT_SOURCE_CHANGED_DURING_SCAN');
    if(total===null)total=part.sourceAudits;
    if(total!==part.sourceAudits||!Number.isSafeInteger(part.verified)||!Number.isSafeInteger(part.batch)||part.batch<0||part.batch>250)throw Error('CUTOVER_AUDIT_PAGE_INVALID');
    verified+=part.verified;
@@ -21,7 +23,7 @@ export function createPlanningCutoverDataAudit({auditParity,claimsParity,store}=
    row=part.nextRow;
   }while(true);
   if(verified!==total||errors.length)ready=false;
-  const audits={ready,sourceAudits:total??0,verified,pages,problems:errors.slice(0,100)};
+  const audits={ready,sourceManifest:manifest,sourceAudits:total??0,verified,pages,problems:errors.slice(0,100)};
   const claims=await claimsParity.verify({asOfDate,maxPages});
   let token='',pages=0,count=0,unresolved=0,truncated=false;const problems=[];
   do{

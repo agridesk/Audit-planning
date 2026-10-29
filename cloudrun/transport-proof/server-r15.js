@@ -761,7 +761,7 @@ async function proxy(req,res){
  if(!['GET','HEAD'].includes(req.method)){const chunks=[];for await(const c of req)chunks.push(c);init.body=Buffer.concat(chunks);}
  const writerPath=new URL(req.url||'/','http://localhost').pathname;
  if(planningAuthorityEnabled&&req.method==='POST'&&/^\/api\/v1\/(?:manager\/(?:approve-direct|accept-direct|reject-direct|cancel-direct|complete-direct|action|auditor-management\/audit\/transfer)|internal\/auditor\/complete-direct|auditor\/action)$/.test(writerPath))throw Error('PLANNING_AUTHORITY_WRITER_NOT_MIGRATED');
- let planningLease=null,planningLeaseActor=null,planningForwarded=false,planningWriteConfirmed=false,planningIntent=null;
+ let planningLease=null,planningLeaseActor=null,planningForwarded=false,planningWriteConfirmed=false,planningIntent=null,planningProjectionVerified=false;
  try{
  if(runtime.isDev&&req.method==='POST'&&new URL(req.url||'/','http://localhost').pathname==='/api/v1/planning/direct-commit'){
   const actor=await session(req);
@@ -800,10 +800,11 @@ async function proxy(req,res){
    const verified=await verifyUncertainPlanningLeaseInSheets({...planningLease.document.planningLease,state:'UNCERTAIN'});
    if(!verified)throw Error('PLANNING_PROJECTION_NOT_VERIFIED');
    await planningAuthority.transition({auditId:planningIntent.auditId,commitId:planningIntent.id,from:'PENDING',to:'PROJECTED',detail:'VERIFIED_SHEETS_PROJECTION'});
+   planningProjectionVerified=true;
   }
  if(planningLease){await service.releasePlanningLease({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token});planningLease=null;}
  res.writeHead(r.status,h);res.end(responseBody);
- }finally{if(planningLease){if(planningIntent&&planningForwarded&&(!planningWriteConfirmed||planningIntent))await planningAuthority.transition({auditId:planningIntent.auditId,commitId:planningIntent.id,from:'PENDING',to:'UNCERTAIN',detail:'SHEETS_WRITE_UNCONFIRMED'});if(!planningForwarded)await service.releasePlanningLease({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token});else await service.markPlanningLeaseUncertain({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token,reason:planningWriteConfirmed?'LEASE_RELEASE_FAILED':'SHEETS_WRITE_UNCONFIRMED'});}}
+ }finally{if(planningLease){if(planningIntent&&planningForwarded&&!planningProjectionVerified)await planningAuthority.transition({auditId:planningIntent.auditId,commitId:planningIntent.id,from:'PENDING',to:'UNCERTAIN',detail:'SHEETS_WRITE_UNCONFIRMED'});if(!planningForwarded)await service.releasePlanningLease({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token});else await service.markPlanningLeaseUncertain({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token,reason:planningWriteConfirmed?'LEASE_RELEASE_FAILED':'SHEETS_WRITE_UNCONFIRMED'});}}
 }
 http.createServer(async(req,res)=>{
  try{

@@ -22,6 +22,9 @@ for(const path of blocked){
  assert.doesNotThrow(()=>enforcePlanningAtomicCutover20({enabled:false,method:'POST',path}));
  assert.doesNotThrow(()=>enforcePlanningAtomicCutover20({enabled:true,method:'GET',path}));
 }
+for(const method of ['PUT','PATCH','DELETE']){
+ assert.throws(()=>enforcePlanningAtomicCutover20({enabled:true,method,path:'/api/v1/manager/company-management/save'}),/PLANNING_ATOMIC_WRITER_NOT_MIGRATED/);
+}
 for(const path of ['/api/v1/planning/direct-commit','/api/v1/manager/approve-direct','/api/v1/manager/cancel-direct','/api/v1/auditor/action','/api/v1/manager/auditor-management/audit/transfer','/api/v1/planning/atomic-recover']){
  assert.doesNotThrow(()=>enforcePlanningAtomicCutover20({enabled:true,method:'POST',path}));
 }

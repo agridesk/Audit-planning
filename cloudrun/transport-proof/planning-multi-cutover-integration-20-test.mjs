@@ -24,6 +24,7 @@ assert.match(r4,/const transferPreflight=process\.env\.AMS_RUNTIME_ENV==='DEV'/)
 assert.match(r4,/TRANSFER_AUDITOR_UID_COLUMN_MISSING/);
 assert.match(r4,/if\(transferPreflight\)\{/);
 assert.match(r4,/authorityPreflight:true,auditId,action:'TRANSFER'/);
+assert.match(r4,/appendIntents:\[\{range:'Diagnostics_Log!A:K',values:\[\[stamp,'AUDITOR_MANAGEMENT_2_0','AUDIT_TRANSFER',auditId,'CHANGE_INTENT'/);
 assert.match(r15,/createPlanningMultiLifecycleService\(/);
 assert.match(r15,/createPlanningAtomicTransferService\(/);
 assert.match(r15,/planningAtomicTransfer\.commit\(/);

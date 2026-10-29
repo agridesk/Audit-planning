@@ -55,7 +55,7 @@ assert.equal(storedOperation.action,'CANCEL');assert.equal(storedOperation.audit
 auditorState.snapshot={sourceRevision:'oldrev3',status:'Accepted'};
 auditorPreview.expectedSourceRevision='oldrev3';
 auditorPreview.canonicalSnapshot={...snapshot,status:'Completed',assignedTo:'',sourceRevision:'newrev3'};
-assert.equal((await auditorService.commit({actor:{role:'auditor',auditorId:'uid1'},body:{auditId:'a1',action:'COMPLETE'},action:'COMPLETE'})).success,true);
-assert.equal(storedOperation.action,'COMPLETE');assert.equal(storedOperation.auditorId,null);
-assert.equal(auditorWrites,3);
+await assert.rejects(()=>auditorService.commit({actor:{role:'auditor',auditorId:'uid1'},body:{auditId:'a1',action:'COMPLETE'},action:'COMPLETE'}),/LIFECYCLE_ATOMIC_MULTI_ENTITY_DELETE_NOT_MIGRATED/);
+await assert.rejects(()=>auditorService.commit({actor:{role:'manager',auditorId:'manager1'},body:{auditId:'a1'},action:'REJECT'}),/LIFECYCLE_ATOMIC_MULTI_ENTITY_DELETE_NOT_MIGRATED/);
+assert.equal(auditorWrites,2);
 console.log('Lifecycle atomic service: source parity, Firestore commit, projection, replay and uncertainty passed');

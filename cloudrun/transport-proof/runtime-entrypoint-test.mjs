@@ -21,6 +21,7 @@ const checks=[
   ['DEV Planning Save holds lease until Sheets proxy returns',planningProxy.indexOf('service.releasePlanningLease(')>planningProxy.indexOf('const r=await fetch(url,init)')],
   ['DEV Planning Save preserves uncertain write for reconciliation',planningProxy.includes('service.markPlanningLeaseUncertain(')&&planningProxy.includes('PLANNING_COMMIT_OUTCOME_UNCERTAIN')],
   ['DEV manager recovery verifies canonical Sheets and cooldown',r15.includes("'/api/v1/planning/reconcile-uncertain-lease'")&&r15.includes('PLANNING_RECOVERY_COOLDOWN')&&r15.includes('PLANNING_RECOVERY_INTERVAL_MISMATCH')],
+  ['DEV manager recovery verifies both canonical Sheets before releasing Firestore lease',r15.includes('verifyUncertainPlanningLeaseInSheets(lease)')&&r15.includes("'Auditor Availability!A1:M2000'")&&r15.includes('PLANNING_RECOVERY_AVAILABILITY_NOT_VERIFIED')],
   ['DEV manager lease status is read-only and does not expose token',r15.includes("'/api/v1/planning/lease-status'")&&r15.includes('locked:!!lease')],
   ['Unknown Sheets outcome cannot automatically release lease',planningProxy.includes('if(planningLease&&planningForwarded&&!planningWriteConfirmed)throw Error(')],
   ['Docker starts npm start',docker.includes('CMD ["npm","start"]')]

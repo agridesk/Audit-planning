@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 for(const action of ['approve','reject']){
- assert.ok(r4.includes("try{b.action='"+action+"';const out=await canonicalManagerAction(s,b);"),'direct '+action+' must use canonical dispatcher');
+ assert.ok(r4.includes("try{b.action='"+action+"';const out=await lifecycleAuthorityPreflight20(s,b,")&&r4.includes("canonicalManagerAction(s,b)"),'direct '+action+' must use canonical dispatcher');
 }
 assert.match(r4,/b\.action='cancel';\s*const out=await canonicalManagerAction\(s,b\)/);
 assert.match(r4,/if\(u\.pathname==='\/api\/v1\/manager\/action'/);

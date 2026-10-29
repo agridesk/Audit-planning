@@ -836,7 +836,6 @@ async function proxy(req,res){
   }
  }
 }}
-}
 http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url||'/','http://localhost');

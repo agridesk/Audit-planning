@@ -36,4 +36,20 @@ const settledRecovery=createPlanningAtomicRecovery({
 assert.equal((await settledRecovery.scan()).recovered,1);
 assert.equal(postAckRelease,1);assert.equal(postAckSettle,0);
 assert.equal((await settledRecovery.scan()).recovered,0);
+// Fairness: 100 already settled receipts in the first page must not starve
+// an uncertain operation on the following page across periodic scans.
+const seenTokens=[],scannedBatches=[];
+const fairness=createPlanningAtomicRecovery({
+ store:{
+  async listOutbox({pageToken}){seenTokens.push(pageToken);return pageToken?{entries:[e],nextPageToken:null}:{entries:[{...e,operationId:'already',state:'PROJECTED'}],nextPageToken:'page-2'};},
+  async readAudit(){return {revision:1,pendingOperationId:'op1'};},
+  async markProjected(){scannedBatches.push('SETTLED');}
+ },
+ projector,appendProjector,
+ gate:{async read(){return {holder:null}}}
+});
+assert.equal((await fairness.scan({limit:1})).truncated,true);
+assert.equal((await fairness.scan({limit:1})).truncated,false);
+assert.deepEqual(seenTokens,['','page-2']);
+assert.equal(scannedBatches.length,1);
 console.log('Atomic recovery: no blind retries, verified projection and uncertain fence release passed');

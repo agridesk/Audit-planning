@@ -54,7 +54,9 @@ jobs:
           DETAIL="$(tail -n 8 /tmp/scope20-qualification-ci.log 2>/dev/null | grep -E 'Error|Assertion|not ok|failed|ERR_' | tail -n 1 | cut -c 1-75)"
           DESCRIPTION="DEV Scope20 regression tests"
           if [ "$STATE" = failure ] && [ -n "$DETAIL" ]; then DESCRIPTION="FAILED: $DETAIL"; fi
-          PAYLOAD="$(jq -nc --arg state "$STATE" --arg description "$DESCRIPTION" '{state:$state,context:"scope20/qualifications",description:$description}')"
+          CONTEXT="scope20/qualifications"
+          if [ "$STATE" = failure ] && [ -n "$DETAIL" ]; then CONTEXT="scope20/fail/$(echo "$DETAIL" | tr -cs '[:alnum:]_' '_' | cut -c 1-85)"; fi
+          PAYLOAD="$(jq -nc --arg state "$STATE" --arg description "$DESCRIPTION" --arg context "$CONTEXT" '{state:$state,context:$context,description:$description}')"
           curl --fail-with-body --silent --show-error -X POST \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \

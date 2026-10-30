@@ -1,0 +1,55 @@
+AMS 2.0 — FASE 2 PLANNING TOOLKIT — SNAPSHOT / HANDOFF AAN GAP-ANALYSISCHAT
+Datum: 2026-10-30
+Status: onderzoeks- en testvoorbereiding afgerond; oorspronkelijke bug OPEN / niet gereproduceerd
+
+1. MELDING EN VERWACHT GEDRAG
+Een bedrijf heeft afzonderlijke audits met uiteenlopende planningwindows, bijv. een audit in 2026 en een andere in 2027. Bij afzonderlijke planning mag de niet-geselecteerde audit geen planningwindow-blokkade veroorzaken. Bij een bewust gecombineerd Visit moeten alle geselecteerde leden wél aan hun toepasselijke windows en overige canonieke constraints voldoen.
+
+2. UITGEVOERD — READ-ONLY GITHUB DEV
+Repository: agridesk/Audit-planning; bronbranch dev.
+- Toolkit UI onderzocht in cloudrun/transport-proof/server-r5.js.
+- Single direct commit onderzocht in server-r4.js.
+- Combined direct commit onderzocht in server-r6.js.
+- Selectie-/handoffroutering onderzocht in server-r8.js en server-r9.js.
+- Model C planningwindowprojectie onderzocht in server-r10.js.
+- Runtime-entrypointketen op broncodeniveau gevolgd: package.json start server-r15.js; R15 proxyt R12 en de tussenliggende serverlagen.
+
+Bevindingen op BRONCODENIVEAU:
+- Toolkit initieert visitAuditIds met alleen primaire audit (isPrimary).
+- Andere audit-ID's worden via checkboxwijziging toegevoegd/verwijderd.
+- Save-payload bevat visitAuditIds en visitMembers uit deze selectie.
+- Combined commitroutering wordt geactiveerd bij >1 unieke audit-ID.
+- De controle VISIT_RELATED_PLANNING_WINDOW_BLOCKED is aanwezig voor gecombineerde audits; guard NIET verwijderd.
+- Model C windowprojectie in server-r10.js filtert actieve links op de aangevraagde audit-ID.
+
+Deze bevindingen weerleggen NIET de gebruikerswaarneming. De exacte fout kan nog zitten in live runtime/deployverschil, daadwerkelijke request, een andere validatie of gegevens-/Visit-compositie. Root cause NIET aangetoond.
+
+3. REGRESSIETEST IN GEISOLEERDE BRANCH
+Branch: feature/ams-toolkit-window-regression-tests-2026-10-30
+Commit: 71d5b114c0d24569b095e2113c1115da203d6dd9
+Nieuw bestand: cloudrun/transport-proof/planning-toolkit-selection-window-regression-20.mjs
+URL: https://github.com/agridesk/Audit-planning/blob/feature/ams-toolkit-window-regression-tests-2026-10-30/cloudrun/transport-proof/planning-toolkit-selection-window-regression-20.mjs
+
+De test bevat 9 statische broncontractchecks: primaire audit default, expliciete checkboxselectie, selected-ID-payload, selected-members-payload, single-vs-combined handoffgrens, gecombineerde directe commitgrens, behoud related-windowguards in R4/R6 en Model C filter op specifieke audit-ID.
+Alle 9 gezochte bronfragmenten zijn daarna via de GitHub-connector in de branch teruggevonden (9/9). Dit is GEEN bewijs dat het Node-testbestand zelf uitgevoerd en geslaagd is.
+GitHub gecombineerde commitstatus: geen statuses. GitHub PR-gerelateerde workflowruns voor deze commit: geen resultaten. Geen CI-succes claimen.
+Het testbestand is niet in package.json testscript geregistreerd. Geen PR geopend, geen merge en geen deploy.
+
+4. NIET GEDAAN / BEWUST BEHOUDEN
+- Geen broncodebugfix, geen bestaande functionaliteit verwijderd of herbouwd.
+- Geen wijziging aan server-side guards, StatusMachine, Availability, Model C ownership of SSOT.
+- Geen runtime-reproductie, omdat gebruiker op dat moment niet achter pc zat; snapshots van incidenten zijn mogelijk later beschikbaar.
+- Geen bewezen live DEV-deploymentinspectie of request/response-trace.
+- Geen mutaties in gedeelde dev/main, feature/ams-2-remediation-2026-10-28 of PR #47.
+- Geen Cloud Run- of GAS-deploy, geen PROD-mutaties.
+
+5. OPEN PUNT / VERVOLGGATE
+BUG OPEN: planningwindow van andere audit lijkt afzonderlijke planning soms te blokkeren.
+Bij beschikbaarheid van runtimebewijs: controleer werkelijke gedeployde revisie, reproduceer met 2026/2027-audits, leg selectie, daadwerkelijke payload, gebruikte serverroute en exacte foutcode vast. Zoek vervolgens gerichte minimale correctie met regressietests; laat gecombineerde Visit-validaties intact.
+De toegevoegde statische regressietest moet nog werkelijk onder Node uitgevoerd worden en zo nodig via aparte PR worden aangeboden na afstemming. Niet verwarren met een functionele E2E-test.
+
+6. AFSTEMMING MET GAP-ANALYSIS / INTEGRATIECHAT
+Deze fase-2-onderzoekswerkstroom kan worden gepauzeerd; de functionele bug is NIET opgelost. Vraag gap-analysischat de volgende prioriteit te kiezen op basis van actuele 2.0-status, PR #47 en niet-afgeronde gaps. Vermijd overlap en dubbel werk; onderzoek bestaande implementatie vóór nieuwe ontwikkeling.
+
+WERKGRENZEN
+Geen herbouw, consolidatie of functionele regressies onder het mom van verbetering. Scope, Rotation, Company en Auditor Management zijn volgens werkgrenzen buiten deze bugwerkstroom. PR #47 en integratiebranch blijven afgeschermd. PROD uitsluitend na expliciete autorisatie. Roadmap V2.12 van 14-10-2026 heeft status PROPOSED, niet automatisch canoniek; V2.7 en ouder niet als huidige waarheid gebruiken.

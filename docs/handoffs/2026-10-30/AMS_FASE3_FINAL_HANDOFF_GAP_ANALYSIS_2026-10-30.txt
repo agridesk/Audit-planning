@@ -1,0 +1,43 @@
+AMS 2.0 — FASE 3 FINAL HANDOFF NAAR GAP ANALYSIS
+Datum: 2026-10-30
+Status: READ-ONLY INVENTARISATIE AFGEROND; GEEN PRODUCTFIX GECLAIMD
+Repository: agridesk/Audit-planning | onderzochte bron: branch dev
+
+DOEL EN BESLUIT
+Fase 3 was bug-first onderzoek, geen ontwikkel- of herbouwopdracht. De eerste veilige kandidaten (Grid-export, read-only Grid-UI, notificatieoverzicht) zijn op broncodeniveau onderzocht. Er is geen voldoende aangetoonde, niet-overlappende bug gevonden om productcode te wijzigen. Onderzoekswerk sluiten; functionele acceptatiepunten blijven apart OPEN/ONBEKEND.
+
+1. AFGEROND — CODE-INVENTARISATIE
+- Shared Grid-client: cloudrun/transport-proof/manager-portal.js.
+- Excel- en PDF-export voor geselecteerde audits aanwezig, met verschillende sets voor Open en Completed.
+- Export neemt scopesText uit Grid-readmodel over; 20-scope end-to-end runtimewerking niet geverifieerd.
+- GPS-maplinks, HTML-escaping en bescherming tegen Excel-formuleprefixen aanwezig in code.
+- Grid-selectie, selectie alle zichtbare rijen, wissen selectie, zoeken/filteren en lege-resultaatmelding aanwezig.
+- Bij Open/Completed-wissel roept de client selectionClear aan.
+- Notificatieoverview (notification-overview-20.mjs) expliciet read-only; notification-manager-20.html heeft presentatie voor filters, previews en status.
+- Geen aparte test:export of test:grid npm-script aangetroffen; dit bewijst niet dat er nergens tests bestaan.
+
+2. OPEN VERIFICATIEPUNTEN — GEEN BEWEZEN BUGS
+- Excel-uitvoer is HTML met .xls-extensie, geen native .xlsx: daadwerkelijke gebruikersvereiste/compatibiliteit niet bevestigd.
+- Open PDF-export laat 'Self planning' weg, terwijl Excel deze kolom wel heeft: kan bewuste compacte printkeuze zijn.
+- Selecties kunnen tijdens filters verborgen blijven; gewenste semantiek en real-world gebruikersimpact niet vastgesteld.
+- 20 scopes, speciale tekens, browser-popup/print en Manager/Auditor-pariteit zijn nog niet end-to-end gecontroleerd.
+- De werkelijke Cloud Run runtimecode/revisie is in dit pakket NIET geverifieerd; code aanwezig betekent niet automatisch gedeployed.
+
+3. EXPLICIET OPEN BUITEN FASE 3
+- Fase 2 Planning Toolkit-2026/2027-planningwindow-bug: OPEN, runtime-reproductie vereist. Afzonderlijke testbranch feature/ams-toolkit-window-regression-tests-2026-10-30, commit 71d5b114c0d24569b095e2113c1115da203d6dd9; statische controles, geen bewezen CI-run.
+- Fase 1 eigenaar: integratiebranch feature/ams-2-remediation-2026-10-28, PR #47, runtime, auth/IAM, SWAP/Firestore, status/lifecycle, release/deploy.
+- Scope/Rotation/Company/Auditor Management blijft afgerond en uit scope tenzij expliciet een concrete bug wordt aangewezen.
+
+4. WIJZIGINGEN EN BEWIJSGRENS
+- Fase 3 heeft GEEN productcode gewijzigd, GEEN eigen branch/PR/commit gemaakt, GEEN tests of runtime E2E uitgevoerd, GEEN gedeelde DEV/PROD-data gewijzigd en GEEN deploy uitgevoerd.
+- Claims beperkt tot read-only GitHub-broninspectie. Geen fixes, live-acceptatie of bugreproductie geclaimd.
+
+5. AANBEVOLEN VOLGENDE PRIORITEIT VOOR GAP ANALYSIS
+- Eerst actuele fase-1-integratievoortgang en release-gates (PR #47) als aparte werkstroom laten bevestigen door de integratiechat; fase 3 raakt die niet aan.
+- Kies vervolgens uitsluitend de hoogste bewezen, nog openstaande functionele GAP die niet overlapt met fase 1 of fase 2.
+- Zonder bewezen defect geen herbouw, refactoring of cosmetisch werk starten.
+- Bij eerstvolgende echte gebruikerssessie drie korte acceptaties: selectie-export, PDF-kolomverwachting, selectie bij filter-/view-wissel.
+- Behoud alle bestaande werkende AMS 2.0-functionaliteiten, geen gedeelde DEV/PROD wijzigingen zonder afzonderlijke autorisatie.
+
+OVERDRACHT
+Upload deze TXT in de Gap Analysis-chat en laat daar de nieuwe prioriteiten bepalen. Fase 3 read-only werkpakket kan als afgesloten worden gemarkeerd; verificatiepunten blijven genoteerd, niet opgelost verklaard.

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {resolveAuditorScopeQualifications20 as resolve} from './auditor-scope-qualifications-20.js';
-const catalog=[['SlotKey','ScopeCode'],...Array.from({length:20},(_,i)=>['SCOPE_'+String(i+1).padStart(2,'0'),'CODE_'+(i+1)])];
+const catalog=[['SlotKey','ScopeCode'],...Array.from({length:20},(_,i)=>['SCOPE_'+String(i+1).padStart(2,'0'),'CODE_'+String(i+1).padStart(2,'0')])];
 const auditors=[['Auditor_UID','E-mail'],['UID-1','a@example.com'],['UID-2','b@example.com']];
 const relations=[['Auditor_UID','ScopeCode','Qualified'],['UID-1','CODE_09','YES'],['UID-1','CODE_20','x'],['UID-2','CODE_01','YES']];
 const args={auditors,catalog,relations,auditorUid:'UID-1',auditorEmail:'a@example.com'};

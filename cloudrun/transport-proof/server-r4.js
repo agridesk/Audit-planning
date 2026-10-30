@@ -2359,6 +2359,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     try{
       const batches=await sheetsBatchGet(['Auditors!A1:AZ1000','Config_Scopes!A1:Z200'],true);
       const preview=previewAuditorQualificationMigration20({auditors:batches[0]?.values||[],catalog:batches[1]?.values||[]});
+      // Canonical relation parity is evaluated by the standalone read-only checker.
       return send(res,preview.ok?200:409,preview);
     }catch(e){return send(res,503,{ok:false,readOnly:true,error:'QUALIFICATION_MIGRATION_PREVIEW_FAILED',detail:clean(e?.message||e)})}
   }

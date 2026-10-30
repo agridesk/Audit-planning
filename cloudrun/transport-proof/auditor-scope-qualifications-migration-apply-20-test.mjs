@@ -26,4 +26,6 @@ relations=[headers];
 await assert.rejects(apply({...args,appendRows:async rows=>{for(const r of rows)relations.push(['NO',r.ScopeCode,r.Auditor_UID]);}}),/UNCONFIRMED_RECONCILE/);
 relations=[headers];
 await assert.rejects(apply({...args,appendRows:async rows=>{for(const r of rows)relations.push([r.Qualified,r.ScopeCode,r.Auditor_UID]);relations.push(['YES','NEW','U1']);}}),/UNCONFIRMED_RECONCILE/);
+relations=[headers];
+await assert.rejects(apply({...args,appendRows:async()=>{relations=[['Invalid','Headers','Now']];}}),/UNCONFIRMED_RECONCILE/);
 console.log('Scope20 guarded qualification migration: lock, stale prevention, verification');

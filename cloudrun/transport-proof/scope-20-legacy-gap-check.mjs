@@ -17,6 +17,13 @@ const checks = [
     severity: 'BLOCKER'
   },
   {
+    id: 'CLOUD_RUN_AUDITOR_QUALIFICATION_COLUMN_DEPENDENCY',
+    file: 'cloudrun/transport-proof/server-r4.js',
+    pattern: /AUDITOR_QUALIFICATION_COLUMN_MISSING/,
+    issue: 'Manager Auditor qualification writer is still dependent on physical Auditors sheet columns.',
+    severity: 'BLOCKER'
+  },
+  {
     id: 'PREASSIGNMENT_COLUMN_DEPENDENCY',
     file: 'AuditManagerToolsScopes.js',
     pattern: /SCOPE_QUALIFICATION_COLUMN_UNAVAILABLE/,

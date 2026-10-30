@@ -34,5 +34,8 @@ export function previewAuditorQualificationMigration20({auditors,catalog}={}){
   }
  }
  const unrepresentedScopes=scopes.filter(s=>s.column<0).map(s=>s.slot);
- return {ok:errors.length===0&&unrepresentedScopes.length===0,readOnly:true,writesPerformed:false,rows,qualifiedCount:rows.length,errors,unrepresentedScopes,scopeCount:scopes.length,auditorCount:seenUids.size};
+ // Newly configured scopes have no historical column by design. Only the
+ // original eight legacy slots require a migration source column.
+ const missingLegacyScopes=unrepresentedScopes.filter(s=>Number(s.slice(6))<=8);
+ return {ok:errors.length===0&&missingLegacyScopes.length===0,readOnly:true,writesPerformed:false,rows,qualifiedCount:rows.length,errors,unrepresentedScopes,missingLegacyScopes,scopeCount:scopes.length,auditorCount:seenUids.size};
 }

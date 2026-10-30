@@ -1,3 +1,4 @@
+import {resolveAuditorScopeQualifications20} from './auditor-scope-qualifications-20.js';
 // BUILD: 2026-10-04_ASSIGNMENT_VALIDATION_V211_R1
 // Pure shared assignment/eligibility rules for Planning 2.0.
 // No sheet/network access; callers provide current canonical row sets.
@@ -86,7 +87,7 @@ export function v211QualificationWithdrawalConstraint({auditorValues,catalog,sco
  return{ok:reasons.length===0,reasons};
 }
 
-export function v211AuditorQualified(audValues,catalog,scopeCodes,auditorEmail,requestedDates){
+export function v211AuditorQualified(audValues,catalog,scopeCodes,auditorEmail,requestedDates,qualificationRelations){
   if(!Array.isArray(audValues)||!audValues.length)return false;
   const h=audValues[0],e=col(h,['E-mail','Email','E-mail address','Mail']),a=col(h,['Active','Is active']),r=col(h,['Role','Function']);
   const aliases=new Map();
@@ -101,6 +102,18 @@ export function v211AuditorQualified(audValues,catalog,scopeCodes,auditorEmail,r
   if((a>=0&&!yes(target[a]))||(r>=0&&val(target,r).toLowerCase()!=='auditor'))return false;
   if(!target)return false;
   if(!v211QualificationWithdrawalConstraint({auditorValues:audValues,catalog,scopeCodes,auditorEmail,requestedDates}).ok)return false;
+  // Canonical UID+ScopeCode path is opt-in until all callers and GAS guards migrate.
+  // Never fall back to legacy columns when canonical relations were explicitly supplied.
+  if (qualificationRelations !== undefined) {
+    const uidColumn=col(h,['Auditor_UID','Auditor UID']);
+    if(uidColumn<0)return false;
+    const relationsCatalog=[['SlotKey','ScopeCode'],...(catalog||[]).map(x=>[x.slotKey,x.scopeCode])];
+    try {
+      const resolved=resolveAuditorScopeQualifications20({auditors:audValues,catalog:relationsCatalog,relations:qualificationRelations,auditorUid:val(target,uidColumn),auditorEmail});
+      const actual=new Set(resolved.qualifiedScopeCodes.map(key));
+      return scopeCodes.every(sc=>actual.has(aliases.get(key(sc))||key(sc)));
+    } catch (_) { return false; }
+  }
   return (scopeCodes||[]).every(sc=>{
     const canon=aliases.get(key(sc))||key(sc);
     for(let i=0;i<h.length;i++){

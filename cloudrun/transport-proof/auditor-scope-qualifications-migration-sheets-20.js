@@ -16,8 +16,9 @@ export async function migrateAuditorQualificationsSheets20({
   if(!Array.isArray(data)||data.length!==3)throw Error('QUALIFICATION_MIGRATION_SNAPSHOT_INCOMPLETE');
   return {auditors:data[0]?.values||[],catalog:data[1]?.values||[],relations:data[2]?.values||[]};
  };
- const appendRows=async rows=>{
+ const appendRows=async(rows,verifiedSnapshot)=>{
   const snapshot=await readSnapshot();
+  if(JSON.stringify(snapshot)!==JSON.stringify(verifiedSnapshot))throw Error('QUALIFICATION_MIGRATION_STALE_BEFORE_APPEND');
   const h=snapshot.relations[0]||[];
   if(!Array.isArray(h)||h.length<3)throw Error('QUALIFICATION_MIGRATION_RELATION_HEADERS_MISSING');
   const find=n=>h.findIndex(v=>key(v)===key(n));

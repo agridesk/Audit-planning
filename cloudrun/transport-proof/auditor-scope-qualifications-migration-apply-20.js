@@ -13,7 +13,12 @@ export async function applyAuditorQualificationMigration20({
   const before=await readSnapshot();
   const plan=planAuditorQualificationMigration20(before);
   if(!plan.ok)throw Error('QUALIFICATION_MIGRATION_PRECHECK_'+(plan.error||'FAILED'));
-  if(!plan.appendCount)return {ok:true,written:0,verified:true,unchanged:true};
+  if(!plan.appendCount){
+   const checked=await readSnapshot();
+   const current=planAuditorQualificationMigration20(checked);
+   if(!current.ok||current.appendCount!==0||JSON.stringify(checked)!==JSON.stringify(before))throw Error('QUALIFICATION_MIGRATION_STALE_PLAN');
+   return {ok:true,written:0,verified:true,unchanged:true};
+  }
   const expected=plan.rowsToAppend.map(r=>r.Auditor_UID+'|'+key(r.ScopeCode));
   if(new Set(expected).size!==expected.length)throw Error('QUALIFICATION_MIGRATION_DUPLICATE_PLAN');
   // Re-read while lock is held. Changes since the first read block the write.

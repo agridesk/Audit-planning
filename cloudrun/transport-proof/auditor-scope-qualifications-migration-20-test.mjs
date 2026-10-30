@@ -10,6 +10,7 @@ assert.deepEqual(p.rows.map(r=>r.ScopeCode),['ABC','NEW09','NEW20']);
 assert.equal(preview({auditors:auditors.map(r=>r.slice(0,4)),catalog}).ok,false);
 assert.deepEqual(preview({auditors:auditors.map(r=>r.slice(0,4)),catalog}).unrepresentedScopes,['SCOPE_20']);
 assert.equal(preview({auditors:[...auditors,['uid-a','different@example.com','x','','']],catalog}).ok,false);
+assert.equal(preview({auditors:[...auditors,['uid-c','a@example.com','x','','']],catalog}).ok,false,'Duplicate email must fail closed');
 assert.equal(preview({auditors,catalog:[...catalog,['SCOPE_09','ANOTHER','Another']]}).ok,false);
 assert.equal(preview({auditors:[...auditors,['uid-c','c@example.com','maybe','','']],catalog}).ok,false);
 console.log('auditor-scope-qualifications migration preview: read-only, fail-closed');

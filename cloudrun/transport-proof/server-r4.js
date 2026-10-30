@@ -2108,7 +2108,8 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       await sheetsValuesAppend('Diagnostics_Log!A:K',[[now,'AUDITOR_MANAGEMENT_2_0','QUALIFICATION_EDIT',email,'CHANGE_INTENT',clean(actor.email),'','',false,'No linked open audits; verified before write',payload]]);
       await sheetsValuesBatchUpdateRaw([{range:'Auditors!'+letter+record.line,values:[[qualified?'x':'']]}]);
       const verification=(await sheetsBatchGet(['Auditors!'+letter+record.line],true))[0]?.values||[];
-      if(verification.length!==1||verification[0].length!==1||(/^(x|yes|true|1)$/i.test(clean(verification[0][0])))!==qualified)throw Error('QUALIFICATION_WRITE_UNCONFIRMED_RECONCILE');
+      const verifiedValue=clean(verification[0]?.[0]??'');
+      if((/^(x|yes|true|1)$/i.test(verifiedValue))!==qualified||(!qualified&&verifiedValue!==''))throw Error('QUALIFICATION_WRITE_UNCONFIRMED_RECONCILE');
       await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'AUDITOR_MANAGEMENT_2_0','QUALIFICATION_EDIT',email,'CHANGE_APPLIED',clean(actor.email),'','',false,'Qualification updated and verified',payload]]);
       return send(res,200,{ok:true,updated:1,trailId});
     }catch(e){return send(res,503,{ok:false,error:'QUALIFICATION_SAVE_UNCONFIRMED',detail:clean(e?.message||e)})}

@@ -23,7 +23,12 @@ export async function applyAuditorQualificationMigration20({
   await appendRows(plan.rowsToAppend);
   const after=await readSnapshot();
   const verification=planAuditorQualificationMigration20(after);
-  if(!verification.ok||verification.appendCount!==0||!verification.parity?.ok)throw Error('QUALIFICATION_MIGRATION_UNCONFIRMED_RECONCILE');
+  const beforeRelations=second.relations||[],afterRelations=after.relations||[];
+  const expectedAdded=plan.rowsToAppend.map(r=>[r.Auditor_UID,key(r.ScopeCode),r.Qualified]);
+  const h=afterRelations[0]||[],column=name=>h.findIndex(v=>key(v)===key(name));
+  const ui=column('Auditor_UID'),si=column('ScopeCode'),qi=column('Qualified');
+  const actualAdded=afterRelations.slice(beforeRelations.length).map(r=>[r[ui],key(r[si]),r[qi]]);
+  if(!verification.ok||verification.appendCount!==0||!verification.parity?.ok||JSON.stringify(after.auditors)!==JSON.stringify(second.auditors)||JSON.stringify(after.catalog)!==JSON.stringify(second.catalog)||JSON.stringify(afterRelations.slice(0,beforeRelations.length))!==JSON.stringify(beforeRelations)||JSON.stringify(actualAdded)!==JSON.stringify(expectedAdded))throw Error('QUALIFICATION_MIGRATION_UNCONFIRMED_RECONCILE');
   return {ok:true,written:plan.appendCount,verified:true,unchanged:false};
  });
 }

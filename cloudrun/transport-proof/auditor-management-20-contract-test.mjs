@@ -4,6 +4,9 @@ const server=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const ui=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const html=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
 assert.ok(server.includes("'/api/v1/manager/auditor-management'"),'Manager-only Auditor read route');
+assert.ok(server.includes("'/api/v1/manager/auditor-management/qualifications/migration-preview'"),'Scope20 migration preview must be manager-only route');
+assert.ok(server.includes('previewAuditorQualificationMigration20({auditors:'),'Scope20 migration preview must invoke the read-only canonical preview');
+
 assert.ok(server.includes('QUALIFICATION_WRITE_UNCONFIRMED_RECONCILE'),'Qualification Save must verify canonical write before reporting success');
 assert.ok(server.includes("sheetsBatchGet(['Auditors!'+letter+record.line],true)"),'Qualification verification must read only the changed cell');
 assert.ok(server.includes("const verifiedValue=clean(verification[0]?.[0]??'')"),'Qualification withdrawal must accept empty Sheets cell responses');

@@ -15,6 +15,7 @@ export function planAuditorQualificationMigration20({auditors,catalog,relations}
  const headers=relations[0]||[],idx=n=>headers.findIndex(h=>norm(h)===norm(n));
  const u=idx('Auditor_UID'),s=idx('ScopeCode'),q=idx('Qualified');
  if(u<0||s<0||q<0)return check('RELATION_SCHEMA_INCOMPLETE');
+ const wanted=new Set(preview.rows.map(x=>x.Auditor_UID+'|'+norm(x.ScopeCode)));
  const known=new Set(),knownUids=new Set(auditors.slice(1).map(r=>str(r[(auditors[0]||[]).findIndex(h=>norm(h)==='auditor_uid')])).filter(Boolean));
  const knownCodes=new Set(catalog.slice(1).map(r=>norm(r[(catalog[0]||[]).findIndex(h=>norm(h)==='scopecode')])).filter(Boolean));
  for(let i=1;i<relations.length;i++){
@@ -23,7 +24,7 @@ export function planAuditorQualificationMigration20({auditors,catalog,relations}
   const uid=str(r[u]),code=norm(r[s]),state=norm(r[q]),pair=uid+'|'+code;
   if(!uid||!code||!knownUids.has(uid)||!knownCodes.has(code)||!['x','yes','true','1','no','false','0',''].includes(state))return check('INVALID_EXISTING_RELATION',{row:i+1});
   if(known.has(pair))return check('DUPLICATE_EXISTING_RELATION',{row:i+1});
-  if(preview.rows.some(x=>x.Auditor_UID===uid&&norm(x.ScopeCode)===code)&&!['x','yes','true','1'].includes(state))return check('EXISTING_RELATION_CONFLICT',{row:i+1});
+  if(wanted.has(pair)&&!['x','yes','true','1'].includes(state))return check('EXISTING_RELATION_CONFLICT',{row:i+1});
   known.add(pair);
  }
  const append=preview.rows.filter(r=>!known.has(r.Auditor_UID+'|'+norm(r.ScopeCode)));

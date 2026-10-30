@@ -19,4 +19,5 @@ assert.equal(preview({auditors,catalog:[...catalog,['SCOPE_09','ANOTHER','Anothe
 assert.equal(preview({auditors:[...auditors,['uid-c','c@example.com','maybe','','']],catalog}).ok,false);
 const sharedColumnCatalog=[['SlotKey','ScopeCode','DisplayName'],['SCOPE_01','ABC','ABC'],['SCOPE_02','OTHER','ABC']];
 assert.equal(preview({auditors,catalog:sharedColumnCatalog}).ok,false,'Two scopes cannot share one legacy qualification column');
+assert.equal(preview({auditors,catalog:[catalog[0]]}).ok,false,'Empty scope catalog blocks migration');
 console.log('auditor-scope-qualifications migration preview: read-only, fail-closed');

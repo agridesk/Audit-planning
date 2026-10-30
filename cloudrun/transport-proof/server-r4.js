@@ -2355,6 +2355,21 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       return send(res,200,{ok:true,updated:updates.length,trailId:id});
     }catch(e){return send(res,503,{ok:false,error:'AUDITOR_PROFILE_SAVE_UNCONFIRMED',detail:clean(e?.message||e)})}
   }
+  if(u.pathname==='/api/v1/manager/auditor-management/qualifications/migration-lock-probe'&&req.method==='POST'){
+    const actor=await sessionFromRequestValidated(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    if(process.env.AMS_RUNTIME_ENV!=='DEV'||SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')return send(res,403,{ok:false,error:'QUALIFICATION_LOCK_DEV_ONLY'});
+    try{
+      const project=await verifiedAuditorLockDevProject();
+      const token=await accessToken();
+      const result=await withQualificationMigrationFirestoreLock20({
+        project,spreadsheetId:SID,token,fetchFn:fetch,randomId:randomUUID,
+        work:async()=>({ok:true,probe:'SCOPE20_LOCK_ACQUIRED'})
+      });
+      return send(res,200,{...result,released:true,writeToSheets:false});
+    }catch(e){return send(res,409,{ok:false,error:'QUALIFICATION_LOCK_PROBE_FAILED',detail:clean(e?.message||e)})}
+  }
   if(u.pathname==='/api/v1/manager/auditor-management/qualifications/migration-apply'&&req.method==='POST'){
     const actor=await sessionFromRequestValidated(req);
     if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});

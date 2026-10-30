@@ -15,6 +15,7 @@ assert.equal(result.ok,true);
 assert.equal(result.appendCount,0);
 assert.equal(result.alreadyPresentCount,1);
 assert.equal(plan({auditors,catalog,relations:[empty[0],['YES','ABC','U2']]}).ok,false);
+assert.equal(plan({auditors,catalog,relations:[empty[0],['NO','ABC','U1']]}).error,'EXISTING_RELATION_CONFLICT');
 assert.equal(plan({auditors,catalog,relations:[empty[0],['YES','ABC','U1'],['YES','ABC','U1']]}).ok,false);
 assert.equal(plan({auditors,catalog,relations:[empty[0],['YES','UNKNOWN','U1']]}).ok,false);
 assert.equal(plan({auditors,catalog,relations:[]}).ok,false);

@@ -23,11 +23,18 @@ export function resolveAuditorScopeQualifications20({auditors,catalog,relations,
   scopeCodes.set(code,norm(r[cs]));slots.add(slot);
  }
  if(scopeCodes.size>20)throw Error('SCOPE_CAPACITY_20_EXCEEDED');
+ const knownUids=new Set();
+ for(const row of auditors.slice(1)){
+  if(row.every(x=>!norm(x)))continue;
+  const recordUid=norm(row[au]);
+  if(!recordUid||knownUids.has(recordUid))throw Error('AUDITOR_IDENTITY_AMBIGUOUS');
+  knownUids.add(recordUid);
+ }
  const qualified=new Set(),seen=new Set();
  for(const r of relations.slice(1)){
   if(r.every(x=>!norm(x)))continue;
   const id=norm(r[ru]),code=key(r[rs]);
-  if(!id||!scopeCodes.has(code))throw Error('QUALIFICATION_ORPHAN_RELATION');
+  if(!id||!knownUids.has(id)||!scopeCodes.has(code))throw Error('QUALIFICATION_ORPHAN_RELATION');
   const pair=id+'|'+code;
   if(seen.has(pair))throw Error('QUALIFICATION_DUPLICATE_RELATION');
   seen.add(pair);

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {resolveAuditorScopeQualifications20 as resolve} from './auditor-scope-qualifications-20.js';
 const catalog=[['SlotKey','ScopeCode'],...Array.from({length:20},(_,i)=>['SCOPE_'+String(i+1).padStart(2,'0'),'CODE_'+(i+1)])];
-const auditors=[['Auditor_UID','E-mail'],['UID-1','a@example.com']];
+const auditors=[['Auditor_UID','E-mail'],['UID-1','a@example.com'],['UID-2','b@example.com']];
 const relations=[['Auditor_UID','ScopeCode','Qualified'],['UID-1','CODE_09','YES'],['UID-1','CODE_20','x'],['UID-2','CODE_01','YES']];
 const args={auditors,catalog,relations,auditorUid:'UID-1',auditorEmail:'a@example.com'};
 const result=resolve(args);
@@ -11,6 +11,7 @@ assert.equal(result.source,'Auditor_Scope_Qualifications');
 assert.throws(()=>resolve({...args,auditorEmail:'other@example.com'}),/AUDITOR_IDENTITY_MISMATCH|AUDITOR_IDENTITY_AMBIGUOUS/);
 assert.throws(()=>resolve({...args,relations:[...relations,relations[1]]}),/QUALIFICATION_DUPLICATE_RELATION/);
 assert.throws(()=>resolve({...args,relations:[...relations,['UID-1','CODE_21','YES']]}),/QUALIFICATION_ORPHAN_RELATION/);
+assert.throws(()=>resolve({...args,relations:[...relations,['UNKNOWN-UID','CODE_01','YES']]}),/QUALIFICATION_ORPHAN_RELATION/);
 assert.throws(()=>resolve({...args,relations:[...relations,['UID-1','CODE_01','MAYBE']]}),/QUALIFICATION_INVALID_STATE/);
 assert.throws(()=>resolve({...args,catalog:[...catalog,['SCOPE_20','CODE_21']]}),/SCOPE_CATALOG_AMBIGUOUS/);
 assert.throws(()=>resolve({...args,catalog:[...catalog,['SCOPE_21','CODE_21']]}),/SCOPE_CATALOG_AMBIGUOUS/);

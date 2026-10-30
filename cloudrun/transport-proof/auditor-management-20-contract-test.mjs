@@ -17,6 +17,11 @@ for(const endpoint of ['migration-plan','parity-preview','migration-preview']){
  assert.doesNotMatch(block,/sheetsValuesAppend|sheetsValuesBatchUpdateRaw|appendRows\(/,'No writes permitted in '+endpoint);
 }
 
+assert.ok(server.includes("'/api/v1/manager/auditor-management/qualifications/migration-apply'&&req.method==='POST'"),'Scope20 DEV migration requires POST');
+assert.ok(server.includes("process.env.AMS_SCOPE20_QUALIFICATION_MIGRATION_WRITE_ENABLED!=='true'"),'Scope20 migration is disabled by default');
+assert.ok(server.includes("withQualificationMigrationFirestoreLock20({"),'Scope20 migration requires dedicated Firestore lock');
+assert.ok(server.includes("migrateAuditorQualificationsSheets20({"),'Scope20 migration uses guarded Sheets adapter');
+assert.ok(server.includes("body?.confirmation!=='MIGRATE_DEV_AUDITOR_QUALIFICATIONS'"),'Scope20 migration requires explicit confirmation');
 assert.ok(server.includes('planAuditorQualificationMigration20({auditors:'),'Scope20 migration plan uses non-mutating planner');
 assert.equal((server.match(/Auditor_Scope_Qualifications!A1:Z5000/g)||[]).length,2,'Parity and migration must read all canonical relation columns');
 assert.ok(server.includes('compareAuditorQualificationParity20({auditors:'),'Scope20 parity must use canonical read-only check');

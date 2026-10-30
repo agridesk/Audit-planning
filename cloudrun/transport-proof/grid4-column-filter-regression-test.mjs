@@ -29,4 +29,7 @@ assert.equal(names(g.apply(data)),'Gamma,Alfa,Beta,Delta','numeric ascending kee
 g.state.open.sorts=[{key:'requiredHours',dir:'desc'}];
 assert.equal(names(g.apply(data)),'Beta,Alfa,Gamma,Delta','numeric descending keeps blanks last');
 assert.equal(data[0].company,'Alfa','source remains unchanged');
-console.log('Grid 4 column-filter regression: 8 checks passed');
+assert.ok(src.includes('var blocks=planningBlocks(row);return blocks.length?blocks[0].date:row.datePlanned||""'),'planned-date column reads planning blocks');
+assert.ok(src.includes('displayStatus(row.status)'),'status column uses visible wording');
+
+console.log('Grid 4 column-filter regression: 10 checks passed');

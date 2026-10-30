@@ -2352,6 +2352,16 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       return send(res,200,{ok:true,updated:updates.length,trailId:id});
     }catch(e){return send(res,503,{ok:false,error:'AUDITOR_PROFILE_SAVE_UNCONFIRMED',detail:clean(e?.message||e)})}
   }
+  if(u.pathname==='/api/v1/manager/auditor-management/qualifications/parity-preview'&&req.method==='GET'){
+    const actor=await sessionFromRequestValidated(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    try{
+      const batches=await sheetsBatchGet(['Auditors!A1:AZ1000','Config_Scopes!A1:Z200','Auditor_Scope_Qualifications!A1:C5000'],true);
+      const parity=compareAuditorQualificationParity20({auditors:batches[0]?.values||[],catalog:batches[1]?.values||[],relations:batches[2]?.values||[]});
+      return send(res,parity.ok?200:409,parity);
+    }catch(e){return send(res,503,{ok:false,readOnly:true,error:'QUALIFICATION_PARITY_PREVIEW_FAILED',detail:clean(e?.message||e)})}
+  }
   if(u.pathname==='/api/v1/manager/auditor-management/qualifications/migration-preview'&&req.method==='GET'){
     const actor=await sessionFromRequestValidated(req);
     if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});

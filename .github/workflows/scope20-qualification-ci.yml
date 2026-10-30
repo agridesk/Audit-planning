@@ -39,7 +39,10 @@ jobs:
           node --check auditor-scope-qualifications-firestore-lock-20.js
           node --check assignment-validation-v211.js
           node --check server-r4.js
-          npm run test:scope20-qualifications
+          for test in auditor-scope-qualifications-20-test.mjs auditor-scope-qualifications-migration-20-test.mjs auditor-scope-qualifications-parity-20-test.mjs auditor-scope-qualifications-migration-plan-20-test.mjs auditor-scope-qualifications-migration-apply-20-test.mjs auditor-scope-qualifications-migration-sheets-20-test.mjs auditor-scope-qualifications-firestore-lock-20-test.mjs; do
+            echo "RUNNING_TEST:$test"
+            node "$test" || exit 1
+          done
           node assignment-validation-v211-test.mjs
             node auditor-management-20-contract-test.mjs
           } 2>&1 | tee /tmp/scope20-qualification-ci.log
@@ -52,7 +55,7 @@ jobs:
           STATE=failure
           if [ "$TEST_OUTCOME" = success ]; then STATE=success; fi
           DETAIL="$(grep -m 1 -E 'AssertionError|^Error:|^TypeError:|^SyntaxError:' /tmp/scope20-qualification-ci.log 2>/dev/null | cut -c 1-65)"
-          FILE="$(grep -m 1 -oE '[a-zA-Z0-9_-]+-test\\.mjs:[0-9]+' /tmp/scope20-qualification-ci.log 2>/dev/null | head -n 1 | cut -c 1-64)"
+          FILE="$(grep 'RUNNING_TEST:' /tmp/scope20-qualification-ci.log 2>/dev/null | tail -n 1 | cut -d: -f2 | cut -c 1-65)"
           if [ -n "$FILE" ]; then DETAIL="$FILE $DETAIL"; fi
           DESCRIPTION="DEV Scope20 regression tests"
           if [ "$STATE" = failure ] && [ -n "$DETAIL" ]; then DESCRIPTION="FAILED: $DETAIL"; fi

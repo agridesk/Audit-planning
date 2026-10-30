@@ -43,8 +43,10 @@ jobs:
             echo "RUNNING_TEST:$test"
             node "$test" || exit 1
           done
+          echo RUNNING_TEST:assignment-validation-v211-test.mjs
           node assignment-validation-v211-test.mjs
-            node auditor-management-20-contract-test.mjs
+          echo RUNNING_TEST:auditor-management-20-contract-test.mjs
+          node auditor-management-20-contract-test.mjs
           } 2>&1 | tee /tmp/scope20-qualification-ci.log
       - name: Publish scoped commit test status
         if: always()

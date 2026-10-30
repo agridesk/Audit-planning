@@ -16,5 +16,7 @@ assert.throws(()=>resolve({...args,relations:[...relations,['UID-1','CODE_01','M
 assert.throws(()=>resolve({...args,catalog:[...catalog,['SCOPE_20','CODE_21']]}),/SCOPE_CATALOG_AMBIGUOUS/);
 assert.throws(()=>resolve({...args,catalog:[...catalog,['SCOPE_21','CODE_21']]}),/SCOPE_CATALOG_AMBIGUOUS/);
 assert.throws(()=>resolve({...args,relations:[]}),/QUALIFICATION_SCHEMA_UNAVAILABLE/);
+assert.throws(()=>resolve({...args,auditors:[...auditors,['UID-3','a@example.com']]}),/AUDITOR_IDENTITY_AMBIGUOUS/);
+assert.throws(()=>resolve({...args,auditors:[...auditors,['UID-2','c@example.com']]}),/AUDITOR_IDENTITY_AMBIGUOUS/);
 assert.equal(resolve({...args,relations:[relations[0]]}).qualificationCount,0,'No implicit qualifications');
 console.log('auditor-scope-qualifications-20: canonical UID / ScopeCode 1..20');

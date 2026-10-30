@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {previewAuditorQualificationMigration20 as preview} from './auditor-scope-qualifications-migration-20.js';
+const catalog=[['SlotKey','ScopeCode','DisplayName'],['SCOPE_01','ABC','ABC'],['SCOPE_09','NEW09','New 09'],['SCOPE_20','NEW20','New 20']];
+const auditors=[['Auditor_UID','E-mail','ABC','NEW09','NEW20'],['uid-a','a@example.com','x','YES',''],['uid-b','b@example.com','','','true']];
+const p=preview({auditors,catalog});
+assert.equal(p.ok,true);
+assert.equal(p.qualifiedCount,3);
+assert.equal(p.writesPerformed,false);
+assert.deepEqual(p.rows.map(r=>r.ScopeCode),['ABC','NEW09','NEW20']);
+assert.equal(preview({auditors:auditors.map(r=>r.slice(0,4)),catalog}).ok,false);
+assert.deepEqual(preview({auditors:auditors.map(r=>r.slice(0,4)),catalog}).unrepresentedScopes,['SCOPE_20']);
+assert.equal(preview({auditors:[...auditors,['uid-a','different@example.com','x','','']],catalog}).ok,false);
+assert.equal(preview({auditors,catalog:[...catalog,['SCOPE_09','ANOTHER','Another']]}).ok,false);
+assert.equal(preview({auditors:[...auditors,['uid-c','c@example.com','maybe','','']],catalog}).ok,false);
+console.log('auditor-scope-qualifications migration preview: read-only, fail-closed');

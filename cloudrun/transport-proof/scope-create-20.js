@@ -10,6 +10,9 @@ export async function createScope20({body,actor,SID,sheetsBatchGet,accessToken,c
  if(slots.some(s=>!/^SCOPE_(?:0[1-9]|1[0-9]|20)$/.test(s)))throw Error('INVALID_EXISTING_SLOT');
  if(new Set(slots).size!==slots.length)throw Error('DUPLICATE_EXISTING_SLOT');
  if(existing.some(r=>!clean(r[headers.indexOf('ScopeCode')])||!clean(r[headers.indexOf('DisplayName')])))throw Error('INCOMPLETE_EXISTING_SCOPE_IDENTITY');
+ const existingCodes=existing.map(r=>clean(r[headers.indexOf('ScopeCode')]).toUpperCase());
+ const existingNames=existing.map(r=>clean(r[headers.indexOf('DisplayName')]).toLowerCase());
+ if(new Set(existingCodes).size!==existingCodes.length||new Set(existingNames).size!==existingNames.length)throw Error('DUPLICATE_EXISTING_SCOPE_IDENTITY');
  const free=Array.from({length:20},(_,i)=>'SCOPE_'+String(i+1).padStart(2,'0')).find(s=>!slots.includes(s));
  if(!free)throw Error('SCOPE_CAPACITY_20_REACHED');
  const occupied=rows.slice(1).filter(r=>clean(r[headers.indexOf('SlotKey')])===free);

@@ -12,4 +12,6 @@ assert.deepEqual(compare({auditors,catalog,relations:[relations[0],...relations.
 assert.equal(compare({auditors,catalog,relations:[...relations,relations[1]]}).ok,false);
 assert.equal(compare({auditors,catalog,relations:[relations[0],['U1','ABC','MAYBE']]}).ok,false);
 assert.equal(compare({auditors,catalog,relations:[]}).ok,false);
+assert.equal(compare({auditors,catalog,relations:[...relations,['UNKNOWN','ABC','YES']]}).ok,false,'Unknown auditor UID must block parity');
+assert.equal(compare({auditors,catalog,relations:[...relations,['U1','UNREGISTERED','YES']]}).ok,false,'Unknown scope identity must block parity');
 console.log('auditor-scope-qualifications parity: legacy vs canonical read-only');

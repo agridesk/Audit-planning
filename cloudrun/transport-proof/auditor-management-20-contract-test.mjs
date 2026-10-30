@@ -18,6 +18,7 @@ for(const endpoint of ['migration-plan','parity-preview','migration-preview']){
 }
 
 assert.ok(server.includes('planAuditorQualificationMigration20({auditors:'),'Scope20 migration plan uses non-mutating planner');
+assert.equal((server.match(/Auditor_Scope_Qualifications!A1:Z5000/g)||[]).length,2,'Parity and migration must read all canonical relation columns');
 assert.ok(server.includes('compareAuditorQualificationParity20({auditors:'),'Scope20 parity must use canonical read-only check');
 assert.ok(server.includes('previewAuditorQualificationMigration20({auditors:'),'Scope20 migration preview must invoke the read-only canonical preview');
 

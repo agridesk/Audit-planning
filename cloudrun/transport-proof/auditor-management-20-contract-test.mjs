@@ -7,6 +7,16 @@ assert.ok(server.includes("'/api/v1/manager/auditor-management'"),'Manager-only 
 assert.ok(server.includes("'/api/v1/manager/auditor-management/qualifications/migration-preview'"),'Scope20 migration preview must be manager-only route');
 assert.ok(server.includes("'/api/v1/manager/auditor-management/qualifications/parity-preview'"),'Scope20 parity preview route must exist');
 assert.ok(server.includes("'/api/v1/manager/auditor-management/qualifications/migration-plan'"),'Scope20 manager-only migration plan route');
+for(const endpoint of ['migration-plan','parity-preview','migration-preview']){
+ const route="if(u.pathname==='/api/v1/manager/auditor-management/qualifications/"+endpoint+"'&&req.method==='GET')";
+ const start=server.indexOf(route);
+ assert.ok(start>=0,'Missing read-only qualification endpoint: '+endpoint);
+ const block=server.slice(start,server.indexOf('\n  }',start)+4);
+ assert.match(block,/sessionFromRequestValidated\(req\)/,'Authentication required for '+endpoint);
+ assert.match(block,/MANAGER_REQUIRED/,'Manager role required for '+endpoint);
+ assert.doesNotMatch(block,/sheetsValuesAppend|sheetsValuesBatchUpdateRaw|appendRows\(/,'No writes permitted in '+endpoint);
+}
+
 assert.ok(server.includes('planAuditorQualificationMigration20({auditors:'),'Scope20 migration plan uses non-mutating planner');
 assert.ok(server.includes('compareAuditorQualificationParity20({auditors:'),'Scope20 parity must use canonical read-only check');
 assert.ok(server.includes('previewAuditorQualificationMigration20({auditors:'),'Scope20 migration preview must invoke the read-only canonical preview');

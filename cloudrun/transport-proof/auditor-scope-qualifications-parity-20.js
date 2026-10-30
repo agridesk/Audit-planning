@@ -12,12 +12,17 @@ export function compareAuditorQualificationParity20({auditors,catalog,relations}
  const uc=idx('Auditor_UID'),sc=idx('ScopeCode'),qc=idx('Qualified');
  if([uc,sc,qc].some(x=>x<0))return {ok:false,readOnly:true,errors:['CANONICAL_RELATIONS_SCHEMA_MISSING']};
  const known=new Set(),duplicates=[],bad=[];
+ const auditorHeader=auditors[0]||[],uidColumn=auditorHeader.findIndex(x=>lower(x)==='auditor_uid');
+ const scopeHeader=catalog[0]||[],codeColumn=scopeHeader.findIndex(x=>lower(x)==='scopecode');
+ if(uidColumn<0||codeColumn<0)return {ok:false,readOnly:true,errors:['QUALIFICATION_PARITY_IDENTITY_SCHEMA_MISSING']};
+ const knownUids=new Set(auditors.slice(1).map(x=>clean(x[uidColumn])).filter(Boolean));
+ const knownCodes=new Set(catalog.slice(1).map(x=>lower(x[codeColumn])).filter(Boolean));
  const canonical=new Set();
  for(let i=1;i<relations.length;i++){
   const row=relations[i]||[];
   if(row.every(x=>!clean(x)))continue;
   const uid=clean(row[uc]),code=lower(row[sc]),state=lower(row[qc]),pair=uid+'|'+code;
-  if(!uid||!code||!['x','yes','true','1','no','false','0',''].includes(state)){bad.push(i+1);continue;}
+  if(!uid||!code||!knownUids.has(uid)||!knownCodes.has(code)||!['x','yes','true','1','no','false','0',''].includes(state)){bad.push(i+1);continue;}
   if(known.has(pair))duplicates.push(pair);
   known.add(pair);
   if(qualified(state))canonical.add(pair);

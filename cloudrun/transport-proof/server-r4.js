@@ -13,6 +13,7 @@ import {activateScopeHoursVersion20} from './scope-hours-version-20.js';
 import {updateScopePolicy20} from './scope-policy-20.js';
 import {scopeSchemeVersion20} from './scope-scheme-version-20.js';
 import {createScope20} from './scope-create-20.js';
+import {previewAuditorQualificationMigration20} from './auditor-scope-qualifications-migration-20.js';
 import {companyHoursStorage20} from './company-scope-hours-storage-20.js';
 import {previewCompanyHoursMigration20} from './company-scope-hours-migration-20.js';
 import {backfillCompanyHours20} from './company-scope-hours-backfill-20.js';
@@ -2349,6 +2350,16 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'AUDITOR_MANAGEMENT_2_0','PROFILE_EDIT',email,'CHANGE_APPLIED',clean(actor.email),'','',false,'Canonical Auditors row updated',details]]);
       return send(res,200,{ok:true,updated:updates.length,trailId:id});
     }catch(e){return send(res,503,{ok:false,error:'AUDITOR_PROFILE_SAVE_UNCONFIRMED',detail:clean(e?.message||e)})}
+  }
+  if(u.pathname==='/api/v1/manager/auditor-management/qualifications/migration-preview'&&req.method==='GET'){
+    const actor=await sessionFromRequestValidated(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    try{
+      const batches=await sheetsBatchGet(['Auditors!A1:AZ1000','Config_Scopes!A1:Z200'],true);
+      const preview=previewAuditorQualificationMigration20({auditors:batches[0]?.values||[],catalog:batches[1]?.values||[]});
+      return send(res,preview.ok?200:409,preview);
+    }catch(e){return send(res,503,{ok:false,readOnly:true,error:'QUALIFICATION_MIGRATION_PREVIEW_FAILED',detail:clean(e?.message||e)})}
   }
   if(u.pathname==='/api/v1/manager/auditor-management'&&req.method==='GET'){
     const actor=await sessionFromRequestValidated(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});

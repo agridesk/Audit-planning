@@ -1,0 +1,50 @@
+AMS 2.0 — FASE 6 — AANVULLENDE READ-ONLY CONTROLE EN EINDSTATUS R6
+Datum: 2026-10-30
+Basis: voorgaande Fase 6 R1–R5; aanvullende GitHub-inspectie van agridesk/Audit-planning, ref=dev.
+
+UITKOMST
+De maximaal verantwoorde statische inventarisatie is uitgevoerd. Geen aangetoonde nieuwe productiebug en geen onafhankelijk bewezen implementatieopdracht. Operationele/E2E-acceptatie blijft open. R6 is een onderzoeksafsluiting, geen functionele vrijgave.
+
+A. BATCH / WORKWEEK
+BEWEZEN CODEKETEN:
+- Manager-portal: selectieknoppen 'Batch plan' en 'Concept planning'; submitSelectionHandoff() draagt geselecteerde audit-IDs over.
+- server-r10.js: POST /api/v1/manager/selection-handoff; controleert managersessie/rol; maakt gesigneerde GAS-overdracht met 60 seconden geldigheid; afhankelijk van ingestelde GAS_WRITE_URL en WRITE_KEY.
+- PlanningWorkspaceRpc.js: generateBatchConcept, saveConceptsBatch, batchPreflight, batchCommit.
+- PlanningWorkspaceService.js: facade naar bestaande concept-, canonical-, preflight- en batchservices.
+- PlanningBatchPreflightService.js: maximaal 20, revision reread, per-item canonical preview, read-only.
+- PlanningBatchCommitService.js: maximaal 20, seriële canonical commits, geïsoleerde foutafhandeling en per-item resultaat; expliciet geen globale batch-lock.
+BEOORDELING: code aanwezig, geen live bewezen keten. Niet-atomische batch is BEWUST CODEONTWERP, geen bewezen afwijking van eisen. Geen redesign zonder vastgestelde functionele verwachting.
+
+B. PROVISIONAL / CAPACITY
+- ConceptReservationCommandService.js kent upsert/batch/release met revisiebewaking; concept is niet gelijk aan definitieve planning.
+- PlanningWorkspaceOverlayBundle.js projecteert Availability en Concept Reservations in één adviserend leesmodel.
+BEOORDELING: code aanwezig. Real-time overlays, auditorzichtbaarheid en eindstatus niet E2E bewezen. Wijzigen is buiten Fase 6 en raakt bestaande authority/writers.
+
+C. KLANTBEVESTIGING
+- customer-confirmation-policy-20.mjs noemt zichzelf expliciet 'DEV-only isolated' en 'NOT wired to routes or PROD'.
+- evaluateCustomerResponse / evaluateFinalSlot behandelen versie, herkomst, acceptatie/flexibiliteit/alternatief en nieuwe bevestiging bij afwijkend slot. commitsPlanning:false.
+- customer-confirmation-policy-20-test.mjs en npm-script test:customer-confirmation bestaan. De tests zijn tijdens deze inspectie niet uitgevoerd.
+BEOORDELING: geïsoleerde beleidslogica bewezen, volledige klantenworkflow niet bewezen. Geen claims dat andere, afzonderlijke klantfunctionaliteit ontbreekt.
+
+D. REISLOGICA
+- PlanningWorkspaceRpc.js geeft inboundPoint, outboundPoint, forceFreshRoutes en noApiCall door naar getBatchPlanningConceptV5().
+- De implementatie van getBatchPlanningConceptV5 is in deze inspectie niet volledig gelokaliseerd; GitHub-codezoekactie leverde geen bruikbaar implementatiebestand op. Dit is een BEWIJSGRENS, geen bewijs dat functie ontbreekt.
+BEOORDELING: route-ingang aanwezig; clustering, reistijd, overnachting, routekwaliteit en werkweek-reflow niet onafhankelijk bewezen.
+
+E. ANNUAL PLANNER
+- PlanningDemandService.js verwerkt planningvraag, vensters en bedrijfspreferenties.
+- ConceptPlanningService.js maakt adviserende kandidaten; PlanningWorkspaceDecisionReadModel.js projecteert selectie.
+BEOORDELING: basis aanwezig; compleet interactief jaaroverzicht en live gedrag niet E2E bewezen.
+
+GRENZEN / OPEN PUNTEN
+1. Geen authentieke DEV-browser-E2E-run met managersessie, testdata, GAS-overdracht en Batch/Workweek uitgevoerd.
+2. Geen volledige testuitvoer / green CI-status voor de hiervoor genoemde ketens vastgesteld.
+3. Geen gecontroleerde klantlink-respons-opslag-reminder-final-confirmation E2E-run.
+4. Geen concrete foutreproductie of geaccepteerd criterium dat een codewijziging rechtvaardigt.
+5. Handoff naar andere fasechats en wijzigingen aan gedeelde branches/PR's zijn nadrukkelijk NIET uitgevoerd.
+
+BESLUIT
+Fase 6 kan als READ-ONLY CODE-GAP-INVENTARISATIE worden afgesloten. Niet afsluiten als operationeel geaccepteerde functionaliteit. Voor een volgend bewijsniveau is toegang tot veilige DEV-runtime met geschikte testaccounts/testdata en een afgebakende, toegestane testprocedure noodzakelijk. Dat werk hoort pas plaats te vinden als de eigenaar het als aparte testopdracht autoriseert. Geen implementatieadvies of wijzigingsverzoek aan Fase 1.
+
+BRONNEN
+GitHub agridesk/Audit-planning (ref dev): PlanningDemandService.js; ConceptPlanningService.js; PlanningWorkspaceDecisionReadModel.js; PlanningWorkspaceOverlayBundle.js; PlanningWorkspaceRpc.js; PlanningWorkspaceService.js; PlanningBatchPreflightService.js; PlanningBatchCommitService.js; ConceptReservationCommandService.js; cloudrun/transport-proof/manager-portal.js; manager-portal.html; server-r10.js; customer-confirmation-policy-20.mjs; customer-confirmation-policy-20-test.mjs; package.json.

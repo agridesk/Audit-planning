@@ -15,6 +15,10 @@ export function compareAuditorQualificationParity20({auditors,catalog,relations}
  const auditorHeader=auditors[0]||[],uidColumn=auditorHeader.findIndex(x=>lower(x)==='auditor_uid');
  const scopeHeader=catalog[0]||[],codeColumn=scopeHeader.findIndex(x=>lower(x)==='scopecode');
  if(uidColumn<0||codeColumn<0)return {ok:false,readOnly:true,errors:['QUALIFICATION_PARITY_IDENTITY_SCHEMA_MISSING']};
+ const emailColumn=auditorHeader.findIndex(x=>lower(x)==='e-mail');
+ if(emailColumn<0)return {ok:false,readOnly:true,errors:['AUDITOR_EMAIL_SCHEMA_MISSING']};
+ const knownEmails=new Set(auditors.slice(1).map(x=>lower(x[emailColumn])).filter(Boolean));
+ if(knownEmails.size!==auditors.slice(1).filter(r=>r.some(v=>clean(v))).length)return {ok:false,readOnly:true,errors:['AUDITOR_EMAIL_DUPLICATED']};
  const knownUids=new Set(auditors.slice(1).map(x=>clean(x[uidColumn])).filter(Boolean));
  if(knownUids.size!==auditors.slice(1).filter(r=>r.some(v=>clean(v))).length)return {ok:false,readOnly:true,errors:['AUDITOR_UID_DUPLICATED']};
  const knownCodes=new Set(catalog.slice(1).map(x=>lower(x[codeColumn])).filter(Boolean));

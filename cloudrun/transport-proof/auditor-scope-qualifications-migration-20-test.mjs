@@ -13,4 +13,6 @@ assert.equal(preview({auditors:[...auditors,['uid-a','different@example.com','x'
 assert.equal(preview({auditors:[...auditors,['uid-c','a@example.com','x','','']],catalog}).ok,false,'Duplicate email must fail closed');
 assert.equal(preview({auditors,catalog:[...catalog,['SCOPE_09','ANOTHER','Another']]}).ok,false);
 assert.equal(preview({auditors:[...auditors,['uid-c','c@example.com','maybe','','']],catalog}).ok,false);
+const sharedColumnCatalog=[['SlotKey','ScopeCode','DisplayName'],['SCOPE_01','ABC','ABC'],['SCOPE_02','OTHER','ABC']];
+assert.equal(preview({auditors,catalog:sharedColumnCatalog}).ok,false,'Two scopes cannot share one legacy qualification column');
 console.log('auditor-scope-qualifications migration preview: read-only, fail-closed');

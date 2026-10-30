@@ -28,5 +28,5 @@ const formulaAuditors=[['Auditor_UID','E-mail','=SUSPICIOUS'],['U1','one@example
 await assert.rejects(migrate({...base,...io,batchGet:async()=>[{values:formulaAuditors},{values:formulaCatalog},{values:relations.map(r=>r.slice())}]}),/FORMULA_LIKE_CELL_BLOCKED/);
 relations=[['ScopeCode','Qualified','Auditor_UID']];
 let reads=0;
-await assert.rejects(migrate({...base,...io,batchGet:async()=>{reads++;return [{values:auditors},{values:catalog},{values:(reads===4?[relations[0],['ABC','NO','U1']]:relations).map(r=>r.slice())}];}}),/STALE_BEFORE_APPEND/);
+await assert.rejects(migrate({...base,...io,batchGet:async()=>{reads++;return [{values:auditors},{values:catalog},{values:(reads===3?[relations[0],['ABC','NO','U1']]:relations).map(r=>r.slice())}];}}),/STALE_BEFORE_APPEND/);
 console.log('Scope20 DEV Sheets qualification adapter guards and column mapping');

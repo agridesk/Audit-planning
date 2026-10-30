@@ -25,7 +25,10 @@ export function compareAuditorQualificationParity20({auditors,catalog,relations}
  if(bad.length||duplicates.length)return {ok:false,readOnly:true,errors:['CANONICAL_RELATIONS_INVALID'],invalidRows:bad,duplicates};
  const legacy=new Set(preview.rows.map(x=>x.Auditor_UID+'|'+lower(x.ScopeCode)));
  // Newly introduced scopes have no legacy source column and are excluded from comparison.
- const comparableCodes=new Set(catalog.slice(1).filter(x=>!preview.unrepresentedScopes.includes(clean(x[0]))).map(x=>lower(x[1])));
+ const ci=(catalog[0]||[]).findIndex(x=>lower(x)==='scopecode');
+ const si=(catalog[0]||[]).findIndex(x=>lower(x)==='slotkey');
+ if(ci<0||si<0)return {ok:false,readOnly:true,errors:['SCOPE_CATALOG_SCHEMA_MISSING']};
+ const comparableCodes=new Set(catalog.slice(1).filter(x=>!preview.unrepresentedScopes.includes(clean(x[si]))).map(x=>lower(x[ci])));
  const missing=[...legacy].filter(x=>!canonical.has(x));
  const unexpected=[...canonical].filter(x=>comparableCodes.has(x.slice(x.indexOf('|')+1))&&!legacy.has(x));
  return {ok:missing.length===0&&unexpected.length===0,readOnly:true,legacyCount:legacy.size,canonicalComparableCount:[...canonical].filter(x=>comparableCodes.has(x.slice(x.indexOf('|')+1))).length,missing,unexpected,unrepresentedScopes:preview.unrepresentedScopes};

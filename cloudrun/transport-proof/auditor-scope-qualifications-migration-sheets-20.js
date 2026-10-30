@@ -24,8 +24,10 @@ export async function migrateAuditorQualificationsSheets20({
   const u=find('Auditor_UID'),s=find('ScopeCode'),q=find('Qualified');
   if(u<0||s<0||q<0||new Set([u,s,q]).size!==3)throw Error('QUALIFICATION_MIGRATION_RELATION_HEADERS_INVALID');
   if(h.some((v,i)=>clean(v)&&![u,s,q].includes(i)))throw Error('QUALIFICATION_MIGRATION_EXTRA_COLUMNS_UNSUPPORTED');
+  if(new Set(h.map(key).filter(Boolean)).size!==h.map(key).filter(Boolean).length)throw Error('QUALIFICATION_MIGRATION_DUPLICATE_HEADERS');
   const values=rows.map(r=>{const cells=Array(h.length).fill('');cells[u]=r.Auditor_UID;cells[s]=r.ScopeCode;cells[q]=r.Qualified;return cells;});
   if(!values.length)throw Error('QUALIFICATION_MIGRATION_EMPTY_APPEND');
+  if(values.some(r=>r.some(v=>/^[=+\-@]/.test(clean(v)))))throw Error('QUALIFICATION_MIGRATION_FORMULA_LIKE_CELL_BLOCKED');
   return append('Auditor_Scope_Qualifications!A:Z',values);
  };
  return applyAuditorQualificationMigration20({enabled,confirmation,withExclusiveLock,readSnapshot,appendRows});

@@ -15,7 +15,7 @@ assert.equal((await apply(args)).written,0);
 assert.equal(writes,1);
 let noOpReads=0;
 await assert.rejects(apply({...args,readSnapshot:async()=>{noOpReads++;return {auditors,catalog,relations:noOpReads===1?relations.map(r=>r.slice()):[headers]};}}),/STALE_PLAN/);
-assert.equal(locks,2);
+assert.equal(locks,3);
 relations=[headers];
 let count=0;
 await assert.rejects(apply({...args,readSnapshot:async()=>{count++;return {auditors,catalog,relations:count===1?[headers]:[headers,['YES','ABC','U1']]};}}),/STALE_PLAN/);

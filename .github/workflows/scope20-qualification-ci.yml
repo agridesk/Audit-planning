@@ -1,0 +1,30 @@
+name: Scope 20 qualification DEV tests
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'cloudrun/transport-proof/auditor-scope-qualifications-*.js'
+      - 'cloudrun/transport-proof/auditor-scope-qualifications-*.mjs'
+      - 'cloudrun/transport-proof/package.json'
+      - '.github/workflows/scope20-qualification-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qualifications:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax and qualification migration regression tests
+        working-directory: cloudrun/transport-proof
+        run: |
+          node --check auditor-scope-qualifications-20.js
+          node --check auditor-scope-qualifications-migration-20.js
+          node --check auditor-scope-qualifications-parity-20.js
+          node --check auditor-scope-qualifications-migration-plan-20.js
+          node --check auditor-scope-qualifications-migration-apply-20.js
+          npm run test:scope20-qualifications

@@ -23,6 +23,7 @@ export function planAuditorQualificationMigration20({auditors,catalog,relations}
   const uid=str(r[u]),code=norm(r[s]),state=norm(r[q]),pair=uid+'|'+code;
   if(!uid||!code||!knownUids.has(uid)||!knownCodes.has(code)||!['x','yes','true','1','no','false','0',''].includes(state))return check('INVALID_EXISTING_RELATION',{row:i+1});
   if(known.has(pair))return check('DUPLICATE_EXISTING_RELATION',{row:i+1});
+  if(preview.rows.some(x=>x.Auditor_UID===uid&&norm(x.ScopeCode)===code)&&!['x','yes','true','1'].includes(state))return check('EXISTING_RELATION_CONFLICT',{row:i+1});
   known.add(pair);
  }
  const append=preview.rows.filter(r=>!known.has(r.Auditor_UID+'|'+norm(r.ScopeCode)));

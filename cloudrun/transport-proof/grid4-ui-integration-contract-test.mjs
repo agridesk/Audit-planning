@@ -8,7 +8,7 @@ const required=[
  ['clear column filters is available','Clear column filters'],
  ['multi-column sorting uses Shift','if(!e.shiftKey)state.sorts=[]'],
  ['sorting is stable','return a.i-b.i'],
- ['filter change clears hidden selections','gridSelected.clear();filter()'],
+ ['filter change removes hidden selections only','if(gridVisibleIds.indexOf(selectedId)<0)gridSelected.delete(selectedId)'],
  ['original search function retained','function searchable(r)'],
  ['original auditor status filtering retained','auditorCardStatusFilter20'],
  ['original open and completed renderers intact','function renderOpenRow(r)'],

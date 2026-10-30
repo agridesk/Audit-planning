@@ -4,6 +4,9 @@ const server=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const ui=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const html=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
 assert.ok(server.includes("'/api/v1/manager/auditor-management'"),'Manager-only Auditor read route');
+assert.ok(server.includes('QUALIFICATION_WRITE_UNCONFIRMED_RECONCILE'),'Qualification Save must verify canonical write before reporting success');
+assert.ok(server.includes('Qualification updated and verified'),'Qualification audit trail must follow the verified persisted state');
+
 assert.ok(server.includes('auditorUid:clean(identity.auditorUid)'),'Session cookies bind immutable auditor UID');
 assert.ok(server.includes("if(process.env.AMS_AUDITOR_EMAIL_CHANGE_WRITE_ENABLED!=='true')throw Error('AUDITOR_EMAIL_WRITE_DISABLED')"),'Email ledger cutover is gated off by default');
 assert.ok(server.includes("throw Error('AUDITOR_EMAIL_CHANGE_REQUIRES_UID_LOGIN')"),'Email write flag cannot bypass UID login enforcement');

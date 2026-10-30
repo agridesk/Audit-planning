@@ -15,6 +15,7 @@ import {scopeSchemeVersion20} from './scope-scheme-version-20.js';
 import {createScope20} from './scope-create-20.js';
 import {previewAuditorQualificationMigration20} from './auditor-scope-qualifications-migration-20.js';
 import {compareAuditorQualificationParity20} from './auditor-scope-qualifications-parity-20.js';
+import {planAuditorQualificationMigration20} from './auditor-scope-qualifications-migration-plan-20.js';
 import {companyHoursStorage20} from './company-scope-hours-storage-20.js';
 import {previewCompanyHoursMigration20} from './company-scope-hours-migration-20.js';
 import {backfillCompanyHours20} from './company-scope-hours-backfill-20.js';

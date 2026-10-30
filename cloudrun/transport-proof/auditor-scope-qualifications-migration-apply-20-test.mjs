@@ -18,5 +18,8 @@ relations=[headers];
 let count=0;
 await assert.rejects(apply({...args,readSnapshot:async()=>{count++;return {auditors,catalog,relations:count===1?[headers]:[headers,['YES','ABC','U1']]};}}),/STALE_PLAN/);
 relations=[headers];
+let changingReads=0;
+await assert.rejects(apply({...args,readSnapshot:async()=>{changingReads++;return {auditors:changingReads===1?auditors:[auditors[0],['a@example.com','x','U1'],['b@example.com','','U2']],catalog,relations:[headers]};}}),/STALE_PLAN/);
+relations=[headers];
 await assert.rejects(apply({...args,appendRows:async()=>{}}),/UNCONFIRMED_RECONCILE/);
 console.log('Scope20 guarded qualification migration: lock, stale prevention, verification');

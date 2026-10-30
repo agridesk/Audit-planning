@@ -2358,7 +2358,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
     try{
-      const v=await sheetsBatchGet(['Auditors!A1:AZ1000','Config_Scopes!A1:Z200','Auditor_Scope_Qualifications!A1:C5000'],true);
+      const v=await sheetsBatchGet(['Auditors!A1:AZ1000','Config_Scopes!A1:Z200','Auditor_Scope_Qualifications!A1:Z5000'],true);
       const plan=planAuditorQualificationMigration20({auditors:v[0]?.values||[],catalog:v[1]?.values||[],relations:v[2]?.values||[]});
       return send(res,plan.ok?200:409,plan);
     }catch(e){return send(res,503,{ok:false,readOnly:true,error:'QUALIFICATION_MIGRATION_PLAN_UNAVAILABLE',detail:clean(e?.message||e)})}
@@ -2368,7 +2368,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
     try{
-      const batches=await sheetsBatchGet(['Auditors!A1:AZ1000','Config_Scopes!A1:Z200','Auditor_Scope_Qualifications!A1:C5000'],true);
+      const batches=await sheetsBatchGet(['Auditors!A1:AZ1000','Config_Scopes!A1:Z200','Auditor_Scope_Qualifications!A1:Z5000'],true);
       const parity=compareAuditorQualificationParity20({auditors:batches[0]?.values||[],catalog:batches[1]?.values||[],relations:batches[2]?.values||[]});
       return send(res,parity.ok?200:409,parity);
     }catch(e){return send(res,503,{ok:false,readOnly:true,error:'QUALIFICATION_PARITY_PREVIEW_FAILED',detail:clean(e?.message||e)})}

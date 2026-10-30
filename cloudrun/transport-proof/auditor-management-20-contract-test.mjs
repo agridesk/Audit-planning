@@ -18,6 +18,8 @@ for(const endpoint of ['migration-plan','parity-preview','migration-preview']){
 }
 
 assert.ok(server.includes("'/api/v1/manager/auditor-management/qualifications/migration-apply'&&req.method==='POST'"),'Scope20 DEV migration requires POST');
+assert.ok(server.includes("'/api/v1/manager/auditor-management/qualifications/migration-lock-probe'&&req.method==='POST'"),'DEV lock probe requires manager POST');
+assert.ok(server.includes("writeToSheets:false"),'Lock probe confirms it does not write Sheets');
 assert.ok(server.includes("process.env.AMS_SCOPE20_QUALIFICATION_MIGRATION_WRITE_ENABLED!=='true'"),'Scope20 migration is disabled by default');
 assert.ok(server.includes("withQualificationMigrationFirestoreLock20({"),'Scope20 migration requires dedicated Firestore lock');
 assert.ok(server.includes("migrateAuditorQualificationsSheets20({"),'Scope20 migration uses guarded Sheets adapter');

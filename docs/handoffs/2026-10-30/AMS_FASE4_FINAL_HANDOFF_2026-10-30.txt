@@ -1,0 +1,35 @@
+AMS FASE 4 — FINAL HANDOFF
+Datum: 2026-10-30
+Repository: agridesk/Audit-planning
+Branch: feature/ams-grid4-filter-sort-isolated-2026-10-30
+Laatste applicatiecommit: 3bf80ad4b04304a524741427093fc796ca9ba158
+
+STATUS: IMPLEMENTATIE OP GEISOLEERDE BRANCH GEREED VOOR INTEGRATIETEST. NIET GEMERGED OF GEDEPLOYD.
+
+Geleverd:
+- Kolomfilters in Open en Completed Grid; tekstfilters met OR (|) binnen een kolom en AND tussen kolommen.
+- Numerieke filters inclusief operatoren; exacte ISO-datumfilters.
+- Oplopend/aflopend sorteren; Shift-meervoudige sortering; resetknop.
+- Behoud bestaande globale zoekfunctie, auditor-statusfilter en Grid-selectie.
+- Scopebadges met veilige neutral-fallback en optionele Color/TextColor metadata.
+- Actieve sortering/filtering opnieuw toepassen bij lokale auditrijwijziging.
+- Alleen client-side/Grid-presentatie aangepast. Geen backend-, autorisatie- of datawrites.
+
+LAATSTE TESTRONDE (GitHub-bron opgehaald en JavaScript-contracten ge-evalueerd; geen echte browser/Node CI):
+- Open Audits: 47/47 PASS.
+- Auditor Grid: 16/16 PASS (alle referentiebestanden bij hercontrole aanwezig).
+- Grid 4 UI integration: 12/12 PASS.
+- Grid 4 column filter: 10/10 PASS.
+- Grid 4 behavior: 7/7 PASS.
+- Grid 4 scope badges: 5/5 PASS.
+- JavaScript syntax manager-portal.js: PASS.
+- Historische Grid 2 selectiecontracttest eerder PASS op branch; niet opnieuw in laatste ronde.
+
+RESTEREND VOOR FASE 1 / CENTRALE INTEGRATIE:
+1. Browseracceptatie met Manager én Auditor (Open/Completed, filtering, sorting, selection, bulkacties, statusupdates, refresh en performance).
+2. Volledige native Node/CI regressiesuite uitvoeren.
+3. Werkelijke Color/TextColor via gedeeld rolveilig readmodel ontsluiten; scopebadges tonen tot die tijd neutrale fallback.
+4. Review/merge/deploy uitsluitend door Fase 1 op de door hen bepaalde route. PR #47, dev/main, DEV/PROD zijn niet aangepast.
+5. Vervolgwensen (audit-UUID's verbergen, technische meldingen verduidelijken) buiten deze fase houden.
+
+LET OP: GESLAAGDE BRONCODECONTRACTEN ZIJN GEEN BEWIJS VAN BROWSERWERKING OF DEPLOYMENTGESCHIKTHEID.

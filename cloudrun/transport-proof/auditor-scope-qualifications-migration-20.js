@@ -19,6 +19,7 @@ export function previewAuditorQualificationMigration20({auditors,catalog}={}){
   if(column>=0){if(seenColumns.has(column))errors.push('SHARED_QUALIFICATION_COLUMN_'+s);else seenColumns.set(column,s);}
   scopes.push({code:c,slot:s,column});
  }
+ if(scopes.length===0)errors.push('SCOPE_CATALOG_EMPTY');
  if(scopes.length>20)errors.push('SCOPE_CAPACITY_EXCEEDED');
  const rows=[];
  for(let i=1;i<auditors.length;i++){

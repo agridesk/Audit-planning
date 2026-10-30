@@ -25,7 +25,7 @@ export async function applyAuditorQualificationMigration20({
   const second=await readSnapshot();
   const again=planAuditorQualificationMigration20(second);
   if(!again.ok||JSON.stringify(again.rowsToAppend)!==JSON.stringify(plan.rowsToAppend)||JSON.stringify(second)!==JSON.stringify(before))throw Error('QUALIFICATION_MIGRATION_STALE_PLAN');
-  await appendRows(plan.rowsToAppend);
+  await appendRows(plan.rowsToAppend,second);
   const after=await readSnapshot();
   const verification=planAuditorQualificationMigration20(after);
   const beforeRelations=second.relations||[],afterRelations=after.relations||[];

@@ -8,7 +8,7 @@ export function previewAuditorQualificationMigration20({auditors,catalog}={}){
  const ah=auditors[0],ch=catalog[0],col=(h,n)=>h.findIndex(x=>key(x)===key(n));
  const uid=col(ah,'Auditor_UID'),mail=col(ah,'E-mail'),code=col(ch,'ScopeCode'),slot=col(ch,'SlotKey'),name=col(ch,'DisplayName');
  if([uid,mail,code,slot,name].some(i=>i<0))throw Error('QUALIFICATION_MIGRATION_SCHEMA_MISSING');
- const errors=[],scopes=[],seenCodes=new Set(),seenSlots=new Set(),seenUids=new Set();
+ const errors=[],scopes=[],seenCodes=new Set(),seenSlots=new Set(),seenUids=new Set(),seenEmails=new Set();
  for(let i=1;i<catalog.length;i++){
   const r=catalog[i],c=clean(r[code]),s=clean(r[slot]),n=clean(r[name]);
   if(!c||!n||!/^SCOPE_(?:0[1-9]|1[0-9]|20)$/.test(s)||seenCodes.has(key(c))||seenSlots.has(key(s)))errors.push('INVALID_CATALOG_ROW_'+(i+1));
@@ -22,8 +22,8 @@ export function previewAuditorQualificationMigration20({auditors,catalog}={}){
  for(let i=1;i<auditors.length;i++){
   const r=auditors[i];if(r.every(x=>!clean(x)))continue;
   const id=clean(r[uid]),email=key(r[mail]);
-  if(!id||!email||seenUids.has(id))errors.push('INVALID_AUDITOR_IDENTITY_ROW_'+(i+1));
-  seenUids.add(id);
+  if(!id||!email||seenUids.has(id)||seenEmails.has(email))errors.push('INVALID_AUDITOR_IDENTITY_ROW_'+(i+1));
+  seenUids.add(id);seenEmails.add(email);
   for(const scope of scopes){
    if(scope.column<0)continue;
    const value=key(r[scope.column]);

@@ -23,12 +23,13 @@ export function resolveAuditorScopeQualifications20({auditors,catalog,relations,
   scopeCodes.set(code,norm(r[cs]));slots.add(slot);
  }
  if(scopeCodes.size>20)throw Error('SCOPE_CAPACITY_20_EXCEEDED');
- const knownUids=new Set();
+ const knownUids=new Set(),knownEmails=new Set();
  for(const row of auditors.slice(1)){
   if(row.every(x=>!norm(x)))continue;
   const recordUid=norm(row[au]);
-  if(!recordUid||knownUids.has(recordUid))throw Error('AUDITOR_IDENTITY_AMBIGUOUS');
-  knownUids.add(recordUid);
+  const recordEmail=key(row[ae]);
+  if(!recordUid||!recordEmail||knownUids.has(recordUid)||knownEmails.has(recordEmail))throw Error('AUDITOR_IDENTITY_AMBIGUOUS');
+  knownUids.add(recordUid);knownEmails.add(recordEmail);
  }
  const qualified=new Set(),seen=new Set();
  for(const r of relations.slice(1)){

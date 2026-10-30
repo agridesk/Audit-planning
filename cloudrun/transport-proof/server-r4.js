@@ -2355,6 +2355,29 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       return send(res,200,{ok:true,updated:updates.length,trailId:id});
     }catch(e){return send(res,503,{ok:false,error:'AUDITOR_PROFILE_SAVE_UNCONFIRMED',detail:clean(e?.message||e)})}
   }
+  if(u.pathname==='/api/v1/manager/auditor-management/qualifications/migration-apply'&&req.method==='POST'){
+    const actor=await sessionFromRequestValidated(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    if(process.env.AMS_SCOPE20_QUALIFICATION_MIGRATION_WRITE_ENABLED!=='true')return send(res,403,{ok:false,error:'QUALIFICATION_MIGRATION_WRITE_DISABLED'});
+    if(process.env.AMS_RUNTIME_ENV!=='DEV'||SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')return send(res,403,{ok:false,error:'QUALIFICATION_MIGRATION_DEV_BOUNDARY'});
+    let body;
+    try{body=await readJson(req)}catch(e){return send(res,400,{ok:false,error:'INVALID_REQUEST'})}
+    if(body?.confirmation!=='MIGRATE_DEV_AUDITOR_QUALIFICATIONS')return send(res,400,{ok:false,error:'QUALIFICATION_MIGRATION_CONFIRMATION_REQUIRED'});
+    try{
+      const project=await verifiedAuditorLockDevProject();
+      const token=await accessToken();
+      const result=await migrateAuditorQualificationsSheets20({
+        runtimeEnv:process.env.AMS_RUNTIME_ENV,spreadsheetId:SID,verifiedProject:project,
+        enabled:true,confirmation:body.confirmation,
+        batchGet:sheetsBatchGet,append:sheetsValuesAppend,
+        withExclusiveLock:work=>withQualificationMigrationFirestoreLock20({
+          project,spreadsheetId:SID,token,fetchFn:fetch,randomId:randomUUID,work
+        })
+      });
+      return send(res,200,result);
+    }catch(e){return send(res,409,{ok:false,error:'QUALIFICATION_MIGRATION_NOT_VERIFIED',detail:clean(e?.message||e)})}
+  }
   if(u.pathname==='/api/v1/manager/auditor-management/qualifications/migration-plan'&&req.method==='GET'){
     const actor=await sessionFromRequestValidated(req);
     if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});

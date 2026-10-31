@@ -1,3 +1,4 @@
+import {resolveAuditorScopeQualifications20} from './auditor-scope-qualifications-20.js';
 // BUILD: 2026-10-04_ASSIGNMENT_VALIDATION_V211_R1
 // Pure shared assignment/eligibility rules for Planning 2.0.
 // No sheet/network access; callers provide current canonical row sets.
@@ -86,7 +87,7 @@ export function v211QualificationWithdrawalConstraint({auditorValues,catalog,sco
  return{ok:reasons.length===0,reasons};
 }
 
-export function v211AuditorQualified(audValues,catalog,scopeCodes,auditorEmail,requestedDates){
+export function v211AuditorQualified(audValues,catalog,scopeCodes,auditorEmail,requestedDates,qualificationRelations){
   if(!Array.isArray(audValues)||!audValues.length)return false;
   const h=audValues[0],e=col(h,['E-mail','Email','E-mail address','Mail']),a=col(h,['Active','Is active']),r=col(h,['Role','Function']);
   const aliases=new Map();
@@ -101,6 +102,16 @@ export function v211AuditorQualified(audValues,catalog,scopeCodes,auditorEmail,r
   if((a>=0&&!yes(target[a]))||(r>=0&&val(target,r).toLowerCase()!=='auditor'))return false;
   if(!target)return false;
   if(!v211QualificationWithdrawalConstraint({auditorValues:audValues,catalog,scopeCodes,auditorEmail,requestedDates}).ok)return false;
+  if(qualificationRelations!==undefined){
+    const uidColumn=col(h,['Auditor_UID','Auditor UID']);
+    if(uidColumn<0)return false;
+    const relationsCatalog=[['SlotKey','ScopeCode'],...(catalog||[]).map(x=>[x.slotKey,x.scopeCode])];
+    try{
+      const resolved=resolveAuditorScopeQualifications20({auditors:audValues,catalog:relationsCatalog,relations:qualificationRelations,auditorUid:val(target,uidColumn),auditorEmail});
+      const qualified=new Set(resolved.qualifiedScopeCodes.map(key));
+      return scopeCodes.every(sc=>qualified.has(aliases.get(key(sc))||key(sc)));
+    }catch{return false;}
+  }
   return (scopeCodes||[]).every(sc=>{
     const canon=aliases.get(key(sc))||key(sc);
     for(let i=0;i<h.length;i++){
@@ -170,11 +181,12 @@ export function v211AssignmentHardCheck({
   companyUid,
   companyName,
   logValues,
-  requestedDates
+  requestedDates,
+  qualificationRelations
 }={}){
   const reasons=[];
   if(v211CompanyIdentityAmbiguous(companyValues||[],companyUid,companyName))reasons.push('COMPANY_IDENTITY_AMBIGUOUS');
-  if(!v211AuditorQualified(auditorValues||[],catalog||[],scopeCodes||[],auditorEmail,requestedDates||[]))reasons.push('AUDITOR_NOT_HARD_QUALIFIED');
+  if(!v211AuditorQualified(auditorValues||[],catalog||[],scopeCodes||[],auditorEmail,requestedDates||[],qualificationRelations))reasons.push('AUDITOR_NOT_HARD_QUALIFIED');
   const exclusions=v211CompanyAuditorExclusions(companyValues||[],companyUid,companyName);
   const identityRow=v211AuditorRowByIdentity(auditorValues||[],auditorEmail);
   const identityHeader=(auditorValues||[])[0]||[];

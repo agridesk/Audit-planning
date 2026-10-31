@@ -47,8 +47,12 @@ function m5t_scopeSlotDefs_(ss) {
     // Legacy hours column is positional only for original eight scope slots.
     if (slotNumber <= 8 && flag === undefined) flag = flagCols[slotNumber - 1];
     if (slotNumber <= 8 && hours === undefined) hours = hourCols[slotNumber - 1];
+    // Scopes 09-20 exist canonically without requiring new physical Audit planning columns.
+    // Legacy writer consumers must still reject a selected scope without a flag column.
+    // Never map later slots positionally onto legacy 1-8 fields.
     if (slotNumber > 8 && (flag === undefined || hours === undefined)) {
-      throw new Error('AUDIT_PLANNING_SCOPE_COLUMNS_MISSING_' + slotKey);
+      flag = undefined;
+      hours = undefined;
     }
     return {
       slotKey: slotKey,

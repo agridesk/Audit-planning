@@ -24,4 +24,6 @@ assert.ok(server.includes('currentAuditorUid20(aud,actorEmail,{required:uidAuthE
 assert.ok(server.includes('currentAuditorUid20(vr[1]?.values||[],actorEmail,{required:uidAuthEnabled})'));
 assert.ok(server.includes('assignedUid20(f.h,f.row,{required:uidAuthEnabled,assignedEmail:assigned})'));
 assert.ok(server.includes('assignedUid20(ap[0]||[],auditUidById.get(row.auditId)||[],{required:uidAuthEnabled,assignedEmail:assigned})'));
+assert.ok(server.includes("g(['Status since'])].join('|')+(g(['Auditor_UID','Assigned_Auditor_UID'])?"),'Planning revision must incorporate owner UID when present');
+assert.ok(server.includes("val(row,css)].join('|')+(val(row,col(h,['Auditor_UID','Assigned_Auditor_UID']))?"),'Manager grid revision must incorporate owner UID when present');
 console.log('Canonical UID read authorization passes email change, collision, missing owner, roles and two view wiring guards');

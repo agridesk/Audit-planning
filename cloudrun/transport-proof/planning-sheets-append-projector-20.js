@@ -73,7 +73,7 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   await verifyFence({operationId,gateToken});
   for(const missing of before.missing){
    await verifyFence({operationId,gateToken});
-   const url=base+'/values/'+encodeURIComponent(missing.range)+':append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS';
+   const url=base+'/values/'+encodeURIComponent(missing.range)+':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS';
    await request(url,'POST',{values:[missing.row]});
    await verifyFence({operationId,gateToken});
   }

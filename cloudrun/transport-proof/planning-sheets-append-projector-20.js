@@ -52,6 +52,7 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
    const u=base+'/values/'+encodeURIComponent(range)+'?valueRenderOption=FORMATTED_VALUE';
    const data=await request(u),rows=data.values||[];
    if(!Array.isArray(rows)||rows.length>=5000)throw Error('APPEND_PROJECTION_SOURCE_TRUNCATED');
+   if(!rows.length||rows.some(row=>!Array.isArray(row)))throw Error('APPEND_PROJECTION_SOURCE_MALFORMED');
    sources.set(sheet,rows);
   }
   const missing=[];

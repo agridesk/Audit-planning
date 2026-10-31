@@ -212,6 +212,11 @@ function MoveAuditToRejected(auditId, payload) {
   if (!auditId) {
     return { success: false, message: 'MoveAuditToRejected: missing auditId' };
   }
+  // Archive/deletion is a multi-step Sheets mutation: guard before any side effects.
+  if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function')
+    return { success: false, error: 'SYSTEM_WRITE_GUARD_MISSING' };
+  try { SYS_ENFORCE_WRITE_ALLOWED('REJECT_ARCHIVE', auditId); }
+  catch (writeFenceError) { return { success: false, error: 'DEV_LEGACY_REJECT_WRITE_BLOCKED', message: String(writeFenceError && writeFenceError.message || writeFenceError) }; }
 
   var reason = _raResolveReason(payload);
   if (!reason) {

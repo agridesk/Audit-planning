@@ -98,3 +98,10 @@ AUTONOMOUS SESSION 5 — VERIFIED
 - Sheets API HTTP 200 with missing values property is now rejected as APPEND_PROJECTION_SOURCE_MALFORMED; no optimistic empty-sheet interpretation or append replay allowed.
 - Synthetic regression covers inspect and apply under this response. CI workflow 41183427475 at 787adbdb34b48e5056ec61e160164e2dd9be9ed4 completed SUCCESS (isolated branch).
 - This is NOT evidence of full runtime integration. Scope2.5 qualification migration, UID callsite adoption, Model C obligation writer provenance and DEV E2E remain blocked pending dedicated cross-phase integration and runtime approval.
+
+AUTONOMOUS SESSION 6 — F2.5 REUSABLE CODE STAGING
+- Auditor Scope 20 qualifications pure resolver and its own test copied byte-for-byte from current dev to isolated Fase1 PR48 branch (not merged), no changes to shared dev.
+- Target files: cloudrun/transport-proof/auditor-scope-qualifications-20.js and auditor-scope-qualifications-20-test.mjs.
+- Review-only CI workflow now executes dev Scope20 qualification test alongside F1 UID ownership, provenance, projector, full npm, P0, auth and SWAP regressions.
+- NOTE: this is library-level integration only; route/manager auth, consumer call-site assignment, migration from legacy, Firestore lock and 20-scope E2E unverified. No canonical qualification cutover.
+- Projector inspection now excludes header row from replay match and reads UNFORMATTED_VALUE; malformed/unsupported outbox cells reject before any write.

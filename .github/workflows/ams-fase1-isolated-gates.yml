@@ -7,6 +7,8 @@ on:
       - 'cloudrun/transport-proof/actor-capabilities-v211.js'
       - 'cloudrun/transport-proof/fase1-integration-known-gaps-20-test.mjs'
       - 'cloudrun/transport-proof/company-scope-hours-snapshot-20.js'
+      - 'cloudrun/transport-proof/auditor-scope-qualifications-20.js'
+      - 'cloudrun/transport-proof/auditor-scope-qualifications-20-test.mjs'
       - 'cloudrun/transport-proof/planning-sheets-append-projector-20-test.mjs'
       - '.github/workflows/ams-fase1-isolated-gates.yml'
   pull_request:
@@ -30,6 +32,7 @@ jobs:
           node --check fase1-integration-known-gaps-20-test.mjs
           node actor-capabilities-v211-test.mjs
           node fase1-integration-known-gaps-20-test.mjs
+          node auditor-scope-qualifications-20-test.mjs
           node planning-sheets-append-projector-20-test.mjs
       - name: Full P0 planning authority regression
         working-directory: cloudrun/transport-proof

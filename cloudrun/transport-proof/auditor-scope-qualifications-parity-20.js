@@ -8,7 +8,9 @@ export function compareAuditorQualificationParity20({auditors,catalog,relations}
  const preview=previewAuditorQualificationMigration20({auditors,catalog});
  if(!preview.ok)return {ok:false,readOnly:true,errors:preview.errors,missingLegacyScopes:preview.missingLegacyScopes,unrepresentedScopes:preview.unrepresentedScopes};
  if(!Array.isArray(relations)||!relations.length)return {ok:false,readOnly:true,errors:['CANONICAL_RELATIONS_MISSING']};
- const header=relations[0],idx=name=>header.findIndex(x=>lower(x)===lower(name));
+ const header=relations[0];
+ if(!Array.isArray(header)||header.some((h,i)=>!lower(h)||header.findIndex(x=>lower(x)===lower(h))!==i))return {ok:false,readOnly:true,errors:['CANONICAL_RELATIONS_SCHEMA_DUPLICATE_OR_EMPTY_HEADER']};
+ const idx=name=>header.findIndex(x=>lower(x)===lower(name));
  const uc=idx('Auditor_UID'),sc=idx('ScopeCode'),qc=idx('Qualified');
  if([uc,sc,qc].some(x=>x<0))return {ok:false,readOnly:true,errors:['CANONICAL_RELATIONS_SCHEMA_MISSING']};
  const known=new Set(),duplicates=[],bad=[];

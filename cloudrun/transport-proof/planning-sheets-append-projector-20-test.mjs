@@ -68,8 +68,9 @@ const validHeader=rows['Audit_Obligations'][0];
 rows['Audit_Obligations'][0]=null;
 await assert.rejects(()=>service.inspect(provenanceIntent),/APPEND_PROJECTION_SOURCE_MALFORMED/);
 rows['Audit_Obligations'][0]=validHeader;
-rows['Audit_Obligations'].splice(0,1);
-await assert.rejects(()=>service.inspect(provenanceIntent),/APPEND_PROJECTION_SOURCE_MALFORMED|APPEND_PROJECTION_DUPLICATE_ALREADY_PRESENT/);
-rows['Audit_Obligations'].unshift(validHeader);
+const savedRows=rows['Audit_Obligations'];
+rows['Audit_Obligations']=[];
+await assert.rejects(()=>service.inspect(provenanceIntent),/APPEND_PROJECTION_SOURCE_MALFORMED/);
+rows['Audit_Obligations']=savedRows;
 
 console.log('Append projector: dedupe, replay, fence and unsupported-target guards passed');

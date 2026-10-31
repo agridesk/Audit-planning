@@ -1177,7 +1177,7 @@ http.createServer(async(req,res)=>{
   }
   if(req.method==='GET'&&['/rotation','/rotation-manager-20'].includes(u.pathname)){
    const actor=await session(req);
-   if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
+   if(!actor||!['manager','auditor'].includes(actor.role)){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
    const {readFile}=await import('node:fs/promises');
    const html=await readFile(new URL('./rotation-manager-20.html',import.meta.url));
    res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});
@@ -1185,7 +1185,7 @@ http.createServer(async(req,res)=>{
   }
   if(req.method==='GET'&&['/rotation.js','/rotation-manager-20.js'].includes(u.pathname)){
    const actor=await session(req);
-   if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
+   if(!actor||!['manager','auditor'].includes(actor.role)){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
    const {readFile}=await import('node:fs/promises');
    const script=await readFile(new URL('./rotation-manager-20.js',import.meta.url));
    res.writeHead(200,{'content-type':'text/javascript; charset=utf-8','cache-control':'no-store'});
@@ -1193,7 +1193,7 @@ http.createServer(async(req,res)=>{
   }
   if(req.method==='GET'&&['/api/v1/rotation','/api/v1/rotation-manager-20'].includes(u.pathname)){
    const actor=await session(req);
-   if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
+   if(!actor||!['manager','auditor'].includes(actor.role)){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
    const data=[];
    for(const range of ["'Config_Scopes'!A1:AZ100","'Auditors'!A1:AZ500","'Log realized audits'!A1:AZ10000"]){
     const endpoint='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range);
@@ -1201,11 +1201,18 @@ http.createServer(async(req,res)=>{
     if(!response.ok)throw Error('ROTATION_SOURCE_READ_'+response.status);
     data.push((await response.json()).values||[]);
    }
-   const includeTestData=runtime.isDev&&u.searchParams.get('includeTestData')==='1';
+   const personal=actor.role==='auditor';
+   const includeTestData=runtime.isDev&&!personal&&u.searchParams.get('includeTestData')==='1';
    const result=buildRotationManager20(...data,{includeTestData});
-   result.testDataAvailable=runtime.isDev;
+   if(personal){
+    const uid=String(actor.auditorId||actor.uid||actor.id||'').trim();
+    if(!uid)throw Error('ROTATION_AUDITOR_UID_REQUIRED');
+    result.rows=result.rows.filter(row=>row.auditorUid===uid).map(row=>({...row,history:(row.history||[]).filter(event=>event.auditorUid===uid||event.auditor===row.auditor)}));
+    result.issues=[];
+   }
+   result.testDataAvailable=!personal&&runtime.isDev;
    result.includeTestData=includeTestData;
-   result.role='manager';
+   result.role=personal?'auditor':'manager';
    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
    res.end(JSON.stringify(result));return;
   }

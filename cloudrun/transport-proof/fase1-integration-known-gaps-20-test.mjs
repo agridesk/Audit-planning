@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {buildObligationHoursSnapshot20,validateObligationHoursSchema20,HOURS_PROVENANCE_FIELDS} from './company-scope-hours-snapshot-20.js';
 import {v211ActorCapabilities} from './actor-capabilities-v211.js';
+import {resolveCompanyScopeHours20} from './company-scope-hours-resolver-20.js';
 // Phase-1 discovery regression: separate verified snapshot contract from known UID gap.
 const timestamp='2026-10-31T12:00:00.000Z';
 const baseline=buildObligationHoursSnapshot20({resolution:{source:'SCOPE_DEFAULT',formalHours:8,scopeVersionId:'SV-1'},now:timestamp});
@@ -13,6 +14,30 @@ assert.throws(()=>validateObligationHoursSchema20(['Formal_Hours']),/OBLIGATION_
 assert.throws(()=>buildObligationHoursSnapshot20({resolution:{source:'COMPANY_OVERRIDE',formalHours:6,scopeVersionId:'SV-2'},now:timestamp}),/OVERRIDE_PROVENANCE_REQUIRED/);
 assert.throws(()=>buildObligationHoursSnapshot20({resolution:{source:'SCOPE_DEFAULT',formalHours:8,scopeVersionId:'SV-1',overrideId:'OV-1'},now:timestamp}),/BASELINE_PROVENANCE_CONFLICT/);
 assert.throws(()=>buildObligationHoursSnapshot20({resolution:{source:'SCOPE_DEFAULT',formalHours:8},now:timestamp}),/INVALID_RESOLVED_HOURS/);
+
+// Deterministic version/override snapshot chain; no production writer access.
+const context={
+  companyId:'COMP-1',scopeCode:'ABC',effectiveDate:'2026-10-31',
+  companyScopes:[{Company_UID:'COMP-1',ScopeCode:'ABC',Active:'YES'}],
+  overrides:[],
+  scopeVersions:[{ScopeCode:'ABC',Status:'CURRENT',Effective_From:'2026-01-01',Hours_to_plan:'7.5',VersionId:'SV-2026'}]
+};
+const resolution=resolveCompanyScopeHours20(context);
+assert.equal(resolution.formalHours,7.5);
+const resolvedSnapshot=buildObligationHoursSnapshot20({resolution,now:timestamp});
+assert.equal(resolvedSnapshot.Scope_Version_ID,'SV-2026');
+assert.equal(resolvedSnapshot.Formal_Hours_Source,'SCOPE_DEFAULT');
+assert.equal(resolvedSnapshot.Company_Hours_Override_ID,'');
+const overrideContext={...context,overrides:[{Company_UID:'COMP-1',ScopeCode:'ABC',Status:'ACTIVE',OverrideId:'OV-2026',Revision:'2',Hours:'5',EffectiveFrom:'2026-01-01'}]};
+const overrideResolution=resolveCompanyScopeHours20(overrideContext);
+assert.equal(overrideResolution.formalHours,5);
+const overrideSnapshot=buildObligationHoursSnapshot20({resolution:overrideResolution,now:timestamp});
+assert.equal(overrideSnapshot.Scope_Version_ID,'SV-2026');
+assert.equal(overrideSnapshot.Company_Hours_Override_ID,'OV-2026');
+assert.equal(overrideSnapshot.Company_Hours_Override_Revision,'2');
+assert.throws(()=>resolveCompanyScopeHours20({...context,overrides:[overrideContext.overrides[0],{...overrideContext.overrides[0],OverrideId:'OV-2027'}]}),/OVERLAPPING_COMPANY_OVERRIDES/);
+assert.throws(()=>resolveCompanyScopeHours20({...context,scopeVersions:[]}),/SCOPE_VERSION_MISSING/);
+
 // Staged pure-function UID ownership tests. Call-site wiring and data cutover remain OPEN.
 const visibility=v211ActorCapabilities({actorRole:'AUDITOR',actorEmail:'auditor@example.com',assignedToEmail:'auditor@example.com',status:'APPROVED'});
 assert.equal(visibility.visible,true);

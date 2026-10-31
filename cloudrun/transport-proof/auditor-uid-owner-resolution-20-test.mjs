@@ -12,6 +12,7 @@ assert.equal(v211ActorCapabilities({actorRole:'Auditor',actorEmail:'new@example.
 assert.equal(v211ActorCapabilities({actorRole:'Auditor',actorEmail:'new@example.com',actorUid:'AUD-2',assignedToEmail:'new@example.com',assignedToUid:target,status:'APPROVED'}).visible,false,'Email equality cannot defeat UID conflict');
 assert.equal(currentAuditorUid20(auditorRows,'new@example.com'),'', 'Existing default-off callers unchanged');
 assert.equal(assignedUid20(h,r),'', 'Existing default-off assignment paths unchanged');
+assert.throws(()=>currentAuditorUid20([auditorRows[0],...auditorRows.slice(1),['AUD-3','new@example.com','NO','Auditor']],'new@example.com',{required:true}),/ACTOR_UID_AMBIGUOUS_OR_MISSING|ACTOR_EMAIL_DUPLICATE/);
 assert.throws(()=>currentAuditorUid20([auditorRows[0],...auditorRows.slice(1),['AUD-1','dup@example.com','YES','Auditor']],'new@example.com',{required:true}),/ACTOR_UID_DUPLICATE/);
 assert.throws(()=>currentAuditorUid20([auditorRows[0],['AUD-1','new@example.com','NO','Auditor']],'new@example.com',{required:true}),/ACTOR_UID_INACTIVE/);
 assert.throws(()=>currentAuditorUid20([auditorRows[0],['AUD-1','new@example.com','YES','Manager']],'new@example.com',{required:true}),/ACTOR_UID_ROLE_INVALID/);

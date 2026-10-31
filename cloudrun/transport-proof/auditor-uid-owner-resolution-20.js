@@ -26,6 +26,8 @@ export function assignedUid20(auditHeader,auditRow,{required=false,assignedEmail
  const u=idx(auditHeader,['Auditor_UID','Assigned_Auditor_UID']);
  if(u<0)throw Error('ASSIGNMENT_UID_SCHEMA_MISSING');
  const uid=str(auditRow[u]);
+ const alternate=idx(auditHeader,['Assigned_Auditor_UID']);
+ if(alternate>=0&&alternate!==u&&str(auditRow[alternate])&&str(auditRow[alternate])!==uid)throw Error('ASSIGNMENT_UID_ALIASES_CONFLICT');
  if(str(assignedEmail)&&!uid)throw Error('ASSIGNMENT_UID_MISSING');
  return uid;
 }

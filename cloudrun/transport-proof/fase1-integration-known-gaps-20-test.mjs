@@ -13,12 +13,19 @@ assert.throws(()=>validateObligationHoursSchema20(['Formal_Hours']),/OBLIGATION_
 assert.throws(()=>buildObligationHoursSnapshot20({resolution:{source:'COMPANY_OVERRIDE',formalHours:6,scopeVersionId:'SV-2'},now:timestamp}),/OVERRIDE_PROVENANCE_REQUIRED/);
 assert.throws(()=>buildObligationHoursSnapshot20({resolution:{source:'SCOPE_DEFAULT',formalHours:8,scopeVersionId:'SV-1',overrideId:'OV-1'},now:timestamp}),/BASELINE_PROVENANCE_CONFLICT/);
 assert.throws(()=>buildObligationHoursSnapshot20({resolution:{source:'SCOPE_DEFAULT',formalHours:8},now:timestamp}),/INVALID_RESOLVED_HOURS/);
-// Recorded known GAP: this legacy permissions function is still email-driven.
-// DO NOT equate a passing discovery test with successful UID cutover.
+// Staged pure-function UID ownership tests. Call-site wiring and data cutover remain OPEN.
 const visibility=v211ActorCapabilities({actorRole:'AUDITOR',actorEmail:'auditor@example.com',assignedToEmail:'auditor@example.com',status:'APPROVED'});
 assert.equal(visibility.visible,true);
 assert.equal(visibility.isOwnAssigned,true);
 assert.equal(visibility.capabilities.canAccept,true);
 const noEmail=v211ActorCapabilities({actorRole:'AUDITOR',actorUid:'AUD-1',assignedToUid:'AUD-1',status:'APPROVED'});
-assert.equal(noEmail.visible,false,'Document known gap: UID-only permissions not yet supported by v211ActorCapabilities');
-console.log('Fase 1 provenance contract: 8 checks; UID-only permission gap retained as explicit pending cutover');
+assert.equal(noEmail.visible,true,'UID-only assignments must be supported in the staged helper');
+assert.equal(noEmail.capabilities.canAccept,true);
+const uidConflict=v211ActorCapabilities({actorRole:'AUDITOR',actorUid:'AUD-1',assignedToUid:'AUD-2',actorEmail:'a@example.com',assignedToEmail:'a@example.com',status:'APPROVED'});
+assert.equal(uidConflict.visible,false,'Immutable UID mismatch overrides equal legacy email');
+assert.equal(uidConflict.capabilities.canAccept,false);
+const unresolvable=v211ActorCapabilities({actorRole:'AUDITOR',actorEmail:'a@example.com',assignedToUid:'AUD-1',status:'APPROVED'});
+assert.equal(unresolvable.visible,false,'Missing actor UID fails closed for UID-scoped owner');
+const historical=v211ActorCapabilities({actorRole:'AUDITOR',actorUid:'AUD-1',actorEmail:'current@example.com',assignedToEmail:'historical@example.com',status:'APPROVED'});
+assert.equal(historical.visible,false,'No unverified historical email alias inference');
+console.log('Fase 1 provenance contract and staged UID identity policy checks passed; runtime UID cutover NOT claimed');

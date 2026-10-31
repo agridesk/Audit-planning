@@ -909,6 +909,7 @@ async function proxy(req,res){
   const email=String(body.auditorEmail||'').trim().toLowerCase();
   const candidates=(await getRoster()).filter(x=>x.role==='auditor'&&x.email===email);
   if(candidates.length!==1)throw Error('PLANNING_AUDITOR_UID_UNRESOLVED');
+  if((body.auditorUid!==undefined||body.auditorId!==undefined)&&String(body.auditorUid??body.auditorId).trim()!==candidates[0].auditorId)throw Error('PLANNING_AUDITOR_UID_MISMATCH');
   if(actor.role==='auditor'&&actor.auditorId!==candidates[0].auditorId)throw Error('PLANNING_AUDITOR_IDENTITY_MISMATCH');
   planningLeaseActor={role:actor.role,id:actor.auditorId};
   planningLease=await service.acquirePlanningLease({actor:planningLeaseActor,auditorId:candidates[0].auditorId,auditId:String(body.auditId||'').trim(),auditorEmail:email,plannedBlocks:body.blocks});

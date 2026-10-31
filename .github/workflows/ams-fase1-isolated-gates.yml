@@ -23,6 +23,8 @@ on:
       - 'cloudrun/transport-proof/grid4-*.mjs'
       - 'cloudrun/transport-proof/manager-portal.js'
       - 'cloudrun/transport-proof/planning-toolkit-selection-window-regression-20.mjs'
+      - 'cloudrun/transport-proof/planning-toolkit-selected-visit-window-20-test.mjs'
+      - 'cloudrun/transport-proof/server-r5.js'
       - 'cloudrun/transport-proof/fase1-scope20-migration-routes-contract-test.mjs'
       - 'cloudrun/transport-proof/auditor-management-scope20-dev-contract-test.mjs'
       - 'cloudrun/transport-proof/server-r4.js'
@@ -97,6 +99,7 @@ jobs:
           node grid4-ui-integration-contract-test.mjs
           node --check manager-portal.js
           node planning-toolkit-selection-window-regression-20.mjs
+          node planning-toolkit-selected-visit-window-20-test.mjs
           node fase1-scope20-migration-routes-contract-test.mjs
           node auditor-management-scope20-dev-contract-test.mjs
           node planning-sheets-append-projector-20-test.mjs

@@ -27,7 +27,13 @@ export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDa
   if(!['APPROVED','ACCEPTED','PENDINGAPPROVAL'].includes(state))continue;
   if(!auditId)throw Error('AUDIT_PLANNING_COMMITTED_ID_MISSING');
   if(seenAuditIds.has(auditId))throw Error('AUDIT_PLANNING_COMMITTED_ID_DUPLICATE');seenAuditIds.add(auditId);
-  const raw=norm(row[json]);if(!raw)throw Error('AUDIT_PLANNING_COMMITTED_PLAN_MISSING');
+  const raw=norm(row[json]);
+  // Legacy rows may retain an active-looking status after their planning payload was removed.
+  // Such rows have no verifiable occupied slots; do not invent reservations.
+  if(!raw){
+   if(state==='PENDINGAPPROVAL')continue;
+   throw Error('AUDIT_PLANNING_COMMITTED_PLAN_MISSING');
+  }
   let parsed;try{parsed=JSON.parse(raw);}catch{throw Error('AUDIT_PLANNING_JSON_INVALID');}
   const email=assigned<0?'':norm(row[assigned]).toLowerCase(),explicitUid=assignedUid<0?'':norm(row[assignedUid]);
   const payloadEmail=Array.isArray(parsed)?'':norm(parsed?.auditorEmail).toLowerCase();

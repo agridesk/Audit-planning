@@ -46,7 +46,7 @@ assert.equal(partialDefs[0].flagCol0,1,'Legacy scope physical columns remain unc
 const scopeManager=readFileSync(new URL('../../AuditManagerToolsScopes.js',import.meta.url),'utf8');
 const preflightAt=scopeManager.indexOf('var defsForPreflight = m5t_scopeSlotDefs_(ss) || []');
 const createAt=scopeManager.indexOf('m5t_createAuditRowFromCompaniesPool_(companyUid, companyName)');
-assert.ok(preflightAt>0&&createAt>preflightAt,'Preassigned 09-20 unsupported legacy column must block BEFORE audit-row creation');
+assert.ok(preflightAt>0&&createAt>preflightAt,'Canonical 09-20 qualification must be verified BEFORE audit-row creation');
 assert.match(scopeManager,/selectedNames\[String\(d.scope \|\| ''\).trim\(\).toLowerCase\(\)\] && d.flagCol0 == null/,'No silent legacy qualification fallback');
 
 assert.match(scopeManager,/if \(missingQualificationScope\) return \{success:false,error:'SCOPE_QUALIFICATION_COLUMN_UNAVAILABLE'/);

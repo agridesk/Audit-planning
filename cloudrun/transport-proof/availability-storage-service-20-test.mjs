@@ -29,4 +29,102 @@ await test('HARD exception edit is one atomic CAS and preserves ID',async()=>{
  assert.equal(after.baselineExceptions[0].start,'08:00');
  assert.equal(after.baselineExceptions[0].fromDate,'2027-05-02');
 });
+await test('release and removal return persisted record identifiers',async()=>{
+ const id='aud-release-id',actor={id,role:'auditor'};
+ const first=await service.mutate({actor,auditorId:id,expectedVersion:0,mutation:{action:'BLOCK_PERIOD',date:'2027-06-01',wholeDay:true}});
+ const release=await service.mutate({actor,auditorId:id,expectedVersion:1,mutation:{action:'RELEASE_BASELINE',targetExceptionId:first.recordId,date:'2027-06-01',start:'09:00',end:'10:00'}});
+ const remove=await service.mutate({actor,auditorId:id,expectedVersion:2,mutation:{action:'REMOVE_HARD_BLOCK',targetExceptionId:first.recordId,date:'2027-06-01',start:'10:00',end:'11:00'}});
+ const doc=await service.read(actor,id);
+ assert.equal(doc.baselineReleases.length,2);
+ assert.equal(release.recordId,doc.baselineReleases[0].id);
+ assert.equal(remove.recordId,doc.baselineReleases[1].id);
+ assert.equal(doc.baselineReleases[1].start,'10:00');
+});
+await test('malformed persisted availability cannot silently resolve as FREE',async()=>{
+ store.set('aud-corrupt',{auditorId:'aud-corrupt',version:3,blocks:[],recurring:[],overrides:[],metadata:{}});
+ const actor={id:'aud-corrupt',role:'auditor'};
+ await fails(()=>service.read(actor,'aud-corrupt'),'CANONICAL_AVAILABILITY_DOCUMENT_INVALID');
+ await fails(()=>service.period({actor,auditorId:'aud-corrupt',fromDate:'2027-01-01',toDate:'2027-01-01'}),'CANONICAL_AVAILABILITY_DOCUMENT_INVALID');
+ store.delete('aud-corrupt');
+});
+await test('non-object Firestore payload rejected',async()=>{
+ store.set('aud-primitive',0);
+ await fails(()=>service.read({id:'aud-primitive',role:'auditor'},'aud-primitive'),'CANONICAL_AVAILABILITY_DOCUMENT_INVALID');
+ store.delete('aud-primitive');
+});
+await test('malformed persisted availability blocks mutations before CAS',async()=>{
+ const id='aud-corrupt-write',actor={id,role:'auditor'};
+ store.set(id,{auditorId:id,version:1,baselineExceptions:[],blocks:[],recurring:[],overrides:[],metadata:{changes:[]}});
+ await fails(()=>service.mutate({actor,auditorId:id,expectedVersion:1,mutation:{action:'BLOCK_PERIOD',date:'2027-07-01',wholeDay:true}}),'CANONICAL_AVAILABILITY_DOCUMENT_INVALID');
+ assert.equal(store.get(id).version,1);
+ store.delete(id);
+});
+await test('malformed change-history array rejected before CAS',async()=>{
+ const id='aud-corrupt-history',actor={id,role:'auditor'};
+ store.set(id,{auditorId:id,version:1,baselineExceptions:[],baselineReleases:[],blocks:[],recurring:[],overrides:[],metadata:{changes:'not-an-array'}});
+ await fails(()=>service.mutate({actor,auditorId:id,expectedVersion:1,mutation:{action:'BLOCK_PERIOD',date:'2027-07-01',wholeDay:true}}),'CANONICAL_AVAILABILITY_DOCUMENT_INVALID');
+ assert.equal(store.get(id).version,1);
+ store.delete(id);
+});
+await test('exhausted availability version rejected on read',async()=>{
+ const id='aud-version-max',actor={id,role:'auditor'};
+ store.set(id,{auditorId:id,version:Number.MAX_SAFE_INTEGER,baselineExceptions:[],baselineReleases:[],blocks:[],recurring:[],overrides:[],metadata:{changes:[]}});
+ await fails(()=>service.read(actor,id),'CANONICAL_AVAILABILITY_DOCUMENT_INVALID');
+ store.delete(id);
+});
+await test('durable planning lease serializes planning and availability across service instances',async()=>{
+ const id='aud-lease',actor={id:'manager1',role:'manager'};
+ const second=createAvailabilityService(adapter);
+ const confirmed=await service.mutate({actor:{id,role:'auditor'},auditorId:id,expectedVersion:0,mutation:{action:'CONFIRM_AVAILABILITY',fromDate:'2027-01-01',toDate:'2027-01-31'}});
+ const lease=await service.acquirePlanningLease({actor,auditorId:id,auditId:'audit-1',auditorEmail:'a@example.com',plannedBlocks:[{date:'2027-01-12',start:'09:00',end:'12:00'}]});
+ assert.equal(lease.document.metadata.confirmation.availabilityVersion,lease.version);
+ assert.equal((await second.read(actor,id)).planningLease.token,lease.token);
+ await fails(()=>second.acquirePlanningLease({actor,auditorId:id,auditId:'audit-2',auditorEmail:'a@example.com',plannedBlocks:[{date:'2027-01-12',start:'09:00',end:'12:00'}]}),'PLANNING_LEASE_ACTIVE');
+ await fails(()=>second.mutate({actor,auditorId:id,expectedVersion:lease.version,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}}),'PLANNING_LEASE_ACTIVE');
+ await fails(()=>second.releasePlanningLease({actor,auditorId:id,token:'incorrect'}),'PLANNING_LEASE_TOKEN_MISMATCH');
+ const released=await second.releasePlanningLease({actor,auditorId:id,token:lease.token});
+ assert.equal(released.version,lease.version+1);
+ assert.equal((await second.read(actor,id)).metadata.confirmation.availabilityVersion,released.version);
+ const blocked=await service.mutate({actor,auditorId:id,expectedVersion:released.version,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}});
+ assert.equal(blocked.version,released.version+1);
+ store.delete(id);
+});
+await test('simultaneous cross-instance planning lease acquisition has exactly one winner',async()=>{
+ const id='aud-lease-race',actor={id:'manager1',role:'manager'};
+ const other=createAvailabilityService(adapter);
+ const results=await Promise.allSettled([
+  service.acquirePlanningLease({actor,auditorId:id,auditId:'audit-left',auditorEmail:'a@example.com',plannedBlocks:[{date:'2027-01-12',start:'09:00',end:'12:00'}]}),
+  other.acquirePlanningLease({actor,auditorId:id,auditId:'audit-right',auditorEmail:'a@example.com',plannedBlocks:[{date:'2027-01-12',start:'09:00',end:'12:00'}]})
+ ]);
+ assert.equal(results.filter(x=>x.status==='fulfilled').length,1);
+ assert.equal(results.filter(x=>x.status==='rejected').length,1);
+ const winner=results.find(x=>x.status==='fulfilled').value;
+ await other.releasePlanningLease({actor,auditorId:id,token:winner.token});
+ store.delete(id);
+});
+await test('malformed persisted planning lease fails closed',async()=>{
+ const id='aud-corrupt-lease',actor={id,role:'auditor'};
+ store.set(id,{auditorId:id,version:2,baselineExceptions:[],baselineReleases:[],blocks:[],recurring:[],overrides:[],metadata:{changes:[]},planningLease:{token:'x'}});
+ await fails(()=>service.read(actor,id),'CANONICAL_AVAILABILITY_DOCUMENT_INVALID');
+ store.delete(id);
+});
+await test('uncertain Planning Save is durable and blocks future mutations until verified recovery',async()=>{
+ const id='aud-uncertain',actor={id:'manager1',role:'manager'};
+ const lease=await service.acquirePlanningLease({actor,auditorId:id,auditId:'audit-uncertain',auditorEmail:'a@example.com',plannedBlocks:[{date:'2027-01-12',start:'09:00',end:'12:00'}]});
+ const marked=await service.markPlanningLeaseUncertain({actor,auditorId:id,token:lease.token,now:'2027-01-12T12:00:00Z'});
+ assert.equal(marked.state,'UNCERTAIN');
+ const snapshot=await createAvailabilityService(adapter).read(actor,id);
+ assert.equal(snapshot.planningLease.state,'UNCERTAIN');
+ assert.equal(snapshot.planningLease.auditId,'audit-uncertain');
+ assert.equal(snapshot.planningLease.plannedBlocks[0].start,'09:00');
+ await fails(()=>service.mutate({actor,auditorId:id,expectedVersion:marked.version,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}}),'PLANNING_LEASE_ACTIVE');
+ await fails(()=>service.markPlanningLeaseUncertain({actor,auditorId:id,token:'wrong'}),'PLANNING_LEASE_TOKEN_MISMATCH');
+ await fails(()=>service.releasePlanningLease({actor,auditorId:id,token:lease.token}),'PLANNING_RECONCILIATION_REQUIRED');
+ await fails(()=>service.reconcilePlanningLease({actor:{id,role:'auditor'},auditorId:id,token:lease.token,verifiedAuditId:'audit-uncertain'}),'NOT_AUTHORIZED');
+ await fails(()=>service.reconcilePlanningLease({actor,auditorId:id,token:lease.token,verifiedAuditId:'wrong'}),'PLANNING_RECONCILIATION_EVIDENCE_INVALID');
+ const recovered=await service.reconcilePlanningLease({actor,auditorId:id,token:lease.token,verifiedAuditId:'audit-uncertain'});
+ assert.equal(recovered.version,marked.version+1);
+ assert.equal((await service.read(actor,id)).planningLease,null);
+ store.delete(id);
+});
 console.log(n,'storage service checks passed');

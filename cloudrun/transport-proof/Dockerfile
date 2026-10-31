@@ -2,7 +2,11 @@ FROM node:22-alpine
 WORKDIR /app
 COPY package.json ./
 COPY assignment-validation-v211.js ./
+COPY auditor-scope-qualifications-*.js ./
+COPY company-scope-hours-snapshot-20.js ./
+COPY model-c-new-obligation-provenance-20.js ./
 COPY actor-capabilities-v211.js ./
+COPY auditor-uid-owner-resolution-20.js ./
 COPY scope-hours-version-20.js ./
 COPY scope-policy-20.js ./
 COPY scope-scheme-version-20.js ./
@@ -41,6 +45,8 @@ COPY prod-runtime-identity-20.mjs ./
 COPY swap-*.mjs ./
 COPY server-r15.js ./
 COPY availability-*.js ./
+COPY planning-firestore-authority-20.js ./
+COPY planning-*.js ./
 COPY availability-manager-calendar-20.html ./
 COPY availability-my-calendar-20.html ./
 COPY scheduling-delta-test.mjs ./

@@ -1,0 +1,40 @@
+AMS 2.0 — AUTONOME INTEGRATIEWERKSESSIE 2026-10-31
+DOCUMENTSTATUS: geïsoleerde ontwikkelbranch, GEEN deployment/merge/PROD
+STARTCOMMIT: ff0b05629b6ce770013be91578e03f8a1df4daf3
+CI-BEWEZEN COMMIT: 6895f528835242478d81830849e64e983bad69d3
+BRANCH: feature/ams-fase1-integration-audit-2026-10-31
+REVIEW: https://github.com/agridesk/Audit-planning/pull/48
+
+UITGEVOERD
+1. Auditor_UID: een herbruikbare fail-closed UID-resolver gemaakt; gekoppeld aan auditoroverzicht, Planning Toolkit en directComplete (ook idempotente historiecontrole), uitsluitend opt-in DEV. Veranderde auditor-e-mail met vaste UID kan correct worden geautoriseerd. Conflicterende/missende UID, inactieve actor, verkeerde rol of dubbele actoridentiteit blokkeren. Bestaande email-only weg blijft beschikbaar wanneer de flag UIT staat.
+2. Optimistic concurrency: bronrevisies van Manager Grid, Planning Toolkit en directRowRevision consistent uitgebreid met de Assigned Auditor_UID. De oude revisiehash blijft ongewijzigd voor lege UID. UID-eigenaarswissel maakt oude revisie ongeldig.
+3. GAS Scope09-20: canonieke kwalificatievoorcontrole op Auditor_UID × ScopeCode bij preassignment, ongeacht of optionele fysieke kolommen in Audit planning aanwezig zijn; voorkomt ongekwalificeerde toewijzing vóór creatie van een auditrij. Controles op actieve auditor, rol, dubbele identiteit, onbekende scopes, dubbele kwalificaties, NO en geregistreerde intrekkingen.
+4. Model C Cloud Run: fout gecorrigeerd waarbij de opt-in uren-snapshot-flag buiten directComplete stond. PROD-lifecycleblokkade behouden. Alle nieuwe obligations worden uitsluitend bij expliciet ingeschakelde DEV-flag tegen canonieke uren-/versiebronnen gecontroleerd.
+5. Model C GAS jaarcyclus: DEV-only, standaard UIT, uren-snapshot-resolver toegevoegd voor NIEUWE jaarlijkse obligations. Controle op bedrijf-scope, scopeversie, effectieve datums, overrides, urenovereenkomst en echte Audit_Obligations-headers. Bronnen worden vóór eventuele writes gecontroleerd. Historische obligations blijven onaangetast.
+6. Cloud Run image: ontbrekende Auditor_Scope_Qualifications- en Model C-importmodules toegevoegd aan Dockerfile. Automatische transitive import-closure test toegevoegd.
+7. Integratie: 'npm test' behoudt de volledige Fase 1 P0-suite én voegt de actuele DEV Fase 2.5-kwalificatietests toe. Read-only Scope20 legacy-gap-scanner toegevoegd.
+8. Tests: nieuwe tests voor auditor eigendom bij e-mailwijziging, completion-history, UID-revisies, fysieke én kolomloze Scope09-20, GAS jaarlijkse snapshot en Docker-importclosure. Alle testdata synthetisch; geen test schreef naar live SSOT.
+
+VERIFICATIE
+GitHub Actions commit 6895f528835242478d81830849e64e983bad69d3:
+- Geïsoleerde Fase 1-integratietests: SUCCESS, run 41187624302.
+- Authenticatie 2.0: SUCCESS, run 41187624315.
+- SWAP 2.0: SUCCESS, run 41187624380.
+De resultaten bewijzen CI op PR48-code, NIET een werkende DEV-deployment of acceptatietest.
+
+GEVERIFIEERDE DEV-SSOT-BEGINSITUATIE UIT EERDERE READ-ONLY CONTROLE
+- 6 auditors met unieke UID; 23 bestaande legacy scopekwalificaties.
+- Auditor_Scope_Qualifications: 0 canonieke datarecords (alleen header).
+- Audit_Obligations: 199 bestaande records zonder ingevulde urenherkomst-, scopeversie- en resolve-tijd-snapshot.
+- Fysieke Audit planning kolommen Scope09–Scope20 bestaan in DEV, maar zijn niet langer verplicht als ontwerpvoorwaarde.
+
+OPEN RELEASEBLOKKADES
+- PR47, PR48 en huidige dev zijn nog niet conflictbewust samengebracht. Geen merge zonder toestemming.
+- Canonieke kwalificatiemigratie en parity-check op echte DEV-data nog uit te voeren na toestemming voor de benodigde mutatie.
+- Server-r15/Firestore lease, sessie- en actor-UID end-to-end cutover nog niet volledig bewezen.
+- GAS jaarcyclus en Cloud Run Model C writers moeten in geïsoleerde DEV-runtime worden gevalideerd, met effectiviteit/rollback en historische snapshotstrategie.
+- Browser E2E voor Manager/Auditor Grid, Toolkit (2026/2027), preassignment, beschikbaarheid en batchprocessen ontbreekt.
+- Geen PROD-releasetoestemming of deployment.
+
+VEILIGHEID
+Geen merge. Geen deployment. Geen Firestore/Google Sheets schrijfactie. Geen migratie. Geen feature flags ingeschakeld. PROD niet gewijzigd.

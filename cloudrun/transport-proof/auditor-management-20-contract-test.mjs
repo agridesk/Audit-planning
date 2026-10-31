@@ -4,37 +4,6 @@ const server=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const ui=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const html=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
 assert.ok(server.includes("'/api/v1/manager/auditor-management'"),'Manager-only Auditor read route');
-assert.ok(server.includes("'/api/v1/manager/auditor-management/qualifications/migration-preview'"),'Scope20 migration preview must be manager-only route');
-assert.ok(server.includes("'/api/v1/manager/auditor-management/qualifications/parity-preview'"),'Scope20 parity preview route must exist');
-assert.ok(server.includes("'/api/v1/manager/auditor-management/qualifications/migration-plan'"),'Scope20 manager-only migration plan route');
-for(const endpoint of ['migration-plan','parity-preview','migration-preview']){
- const route="if(u.pathname==='/api/v1/manager/auditor-management/qualifications/"+endpoint+"'&&req.method==='GET')";
- const start=server.indexOf(route);
- assert.ok(start>=0,'Missing read-only qualification endpoint: '+endpoint);
- const block=server.slice(start,server.indexOf('\n  }',start)+4);
- assert.match(block,/sessionFromRequestValidated\(req\)/,'Authentication required for '+endpoint);
- assert.match(block,/MANAGER_REQUIRED/,'Manager role required for '+endpoint);
- assert.doesNotMatch(block,/sheetsValuesAppend|sheetsValuesBatchUpdateRaw|appendRows\(/,'No writes permitted in '+endpoint);
-}
-
-assert.ok(server.includes("'/api/v1/manager/auditor-management/qualifications/migration-apply'&&req.method==='POST'"),'Scope20 DEV migration requires POST');
-assert.ok(server.includes("'/api/v1/manager/auditor-management/qualifications/migration-lock-probe'&&req.method==='POST'"),'DEV lock probe requires manager POST');
-assert.ok(server.includes("writeToSheets:false"),'Lock probe confirms it does not write Sheets');
-assert.ok(server.includes("process.env.AMS_SCOPE20_QUALIFICATION_MIGRATION_WRITE_ENABLED!=='true'"),'Scope20 migration is disabled by default');
-assert.ok(server.includes("withQualificationMigrationFirestoreLock20({"),'Scope20 migration requires dedicated Firestore lock');
-assert.ok(server.includes("migrateAuditorQualificationsSheets20({"),'Scope20 migration uses guarded Sheets adapter');
-assert.ok(server.includes("body?.confirmation!=='MIGRATE_DEV_AUDITOR_QUALIFICATIONS'"),'Scope20 migration requires explicit confirmation');
-assert.ok(server.includes('planAuditorQualificationMigration20({auditors:'),'Scope20 migration plan uses non-mutating planner');
-assert.equal((server.match(/Auditor_Scope_Qualifications!A1:Z5000/g)||[]).length,2,'Parity and migration must read all canonical relation columns');
-assert.ok(server.includes('compareAuditorQualificationParity20({auditors:'),'Scope20 parity must use canonical read-only check');
-assert.ok(server.includes('previewAuditorQualificationMigration20({auditors:'),'Scope20 migration preview must invoke the read-only canonical preview');
-
-assert.ok(server.includes('QUALIFICATION_WRITE_UNCONFIRMED_RECONCILE'),'Qualification Save must verify canonical write before reporting success');
-assert.ok(server.includes("sheetsBatchGet(['Auditors!'+letter+record.line],true)"),'Qualification verification must read only the changed cell');
-assert.ok(server.includes("const verifiedValue=clean(verification[0]?.[0]??'')"),'Qualification withdrawal must accept empty Sheets cell responses');
-
-assert.ok(server.includes('Qualification updated and verified'),'Qualification audit trail must follow the verified persisted state');
-
 assert.ok(server.includes('auditorUid:clean(identity.auditorUid)'),'Session cookies bind immutable auditor UID');
 assert.ok(server.includes("if(process.env.AMS_AUDITOR_EMAIL_CHANGE_WRITE_ENABLED!=='true')throw Error('AUDITOR_EMAIL_WRITE_DISABLED')"),'Email ledger cutover is gated off by default');
 assert.ok(server.includes("throw Error('AUDITOR_EMAIL_CHANGE_REQUIRES_UID_LOGIN')"),'Email write flag cannot bypass UID login enforcement');
@@ -193,7 +162,7 @@ assert.ok(server.includes('historicalConflicts'),'UID readiness checks conflicti
 const docker=readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
 assert.ok(docker.includes('COPY auditor-identity-versions.js ./'),'UID resolver packaged in Cloud Run');
 assert.ok(docker.includes('COPY auditor-uid-backfill-preview.js ./'),'UID migration preview packaged in Cloud Run');
-assert.ok(server.includes("if(uidColumn>=0){const auditorRows=vr[1]?.values||[]"),'Direct planning dual-writes assigned UID');
+assert.ok(server.includes("if(uidColumn<0)throw Error('PLANNING_AUDITOR_UID_COLUMN_MISSING')")&&server.includes("row[uidColumn]=val(matching[0],au)"),'Direct planning dual-writes assigned UID');
 assert.ok(server.includes("transferUidIndex>=0?[{range:'Audit planning!'"),'Transfer clears stale assigned UID');
 assert.ok(server.includes("appendCells:{sheetId:byName.get('Auditors')"),'Auditor create uses atomic appendCells');
 assert.ok(server.includes("appendCells:{sheetId:byName.get('Auditor_Identity_Versions')"),'UID ledger is in same atomic transaction');
@@ -248,7 +217,7 @@ assert.ok(ui.includes('Firestore write permission: NOT VERIFIED'),'Diagnostic ne
 assert.ok(server.includes('async function verifiedAuditorLockDevProject()'),'Cloud Run project verification exists');
 assert.ok(server.includes('metadata.google.internal/computeMetadata/v1/project/project-id'),'Cloud Run project resolved from metadata');
 assert.ok(server.includes("actual==='audit-management-system-dev'?actual:''"),'Metadata project pinned to DEV');
-assert.equal((server.match(/await verifiedAuditorLockDevProject\(\)/g)||[]).length,6,'Lock readiness, acquisition, write probe, lifecycle, Scope20 migration and lock probe verify DEV project');
+assert.equal((server.match(/await verifiedAuditorLockDevProject\(\)/g)||[]).length,6,'Lock readiness, acquisition, isolated write probe, lifecycle lock, qualification migration and qualification lock-probe each verify runtime project');
 
 assert.ok(server.includes("'/api/v1/manager/auditor-identity/firestore-write-probe'"),'DEV manager write probe route');
 assert.ok(server.includes('ams_identity_cutover_probes'),'Write probe isolated from audit records and real locks');

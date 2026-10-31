@@ -1,0 +1,37 @@
+AMS 2.0 — PLANNING SAVE / FIRESTORE HARD CONSISTENCY GATE
+Status: DESIGN BLOCKER — not release-approved
+Recorded: 2026-10-28
+Repo: agridesk/Audit-planning
+Branch: feature/ams-2-remediation-2026-10-28
+
+CURRENT IMPLEMENTATION
+- Cloud Run outer proxy: cloudrun/transport-proof/server-r15.js
+- DEV POST /api/v1/planning/direct-commit: authenticated session, canonical roster UID lookup, Firestore availability document read, version check, pure HARD interval gate, then forwarding to R12.
+- Pure gate: availability-planning-hard-gate-20.js
+- Underlying Sheets mutation: server-r4.js directPlanningCommit, guarded by in-process per-audit lock.
+- Availability writes: availability-storage-service-20.js via Firestore compareAndSwap(version).
+- Canonical committed planning rows: Google Sheets 'Audit planning'.
+- Tests: availability-planning-hard-gate-20-test.mjs and other package.json npm test scripts.
+
+UNRESOLVED RACE
+T1: Planning Save reads Firestore availability version N, no HARD overlap.
+T2: Another request commits a HARD block, Firestore version N+1.
+T3: Planning Save writes a conflicting row to Google Sheets.
+The outer proxy preflight does not provide an atomic transaction across Firestore and Sheets. The in-process per-audit lock cannot protect a different Cloud Run instance or a concurrent HARD mutation. A post-write recheck alone cannot undo already-published side effects and must not be advertised as atomic.
+
+RELEASE CRITERIA
+1. One consistent, cross-instance serialization protocol covering BOTH planning commits and HARD mutations for the SAME canonical auditor UID, with documented lease/fencing, expiry and crash recovery, OR a redesigned single authoritative transactional write model.
+2. Verify the lock/version at the actual write boundary, not only at proxy entry.
+3. Do not return success when a conflicting HARD block can win between validation and persistence.
+4. All planning mutation entrypoints must be enumerated and assessed, not only direct-commit.
+5. Tests must cover concurrent HARD-vs-Planning Save interleavings, stale versions, multi-instance requests, timeout/crash recovery, and partial failure across Sheets/Firestore.
+6. Validate canonical roster identity, DEV data-source isolation, audit history, notification and status behavior.
+7. Execute tests and record actual results; code inspection alone is insufficient.
+
+NON-GOALS / SAFETY
+- No PROD changes, deployment, merge or destructive restore without user approval.
+- SWAP frozen/out of scope.
+- No claims of transactionality or release readiness until the criteria above are met.
+- See docs/AMS_DEV_BACKUP_RECOVERY_REGISTER_2026-10-28.txt for backup identifiers and restore precautions.
+
+This file is an implementation handoff, not a deployed fix.

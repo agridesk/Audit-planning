@@ -25,4 +25,5 @@ assert.equal((await a.read('aud-1')).version,3);
 assert.ok(requests.some(r=>r.url.includes('currentDocument.updateTime=t2')));
 assert.ok(requests.some(r=>r.url.includes('currentDocument.exists=false')));
 await assert.rejects(()=>a.compareAndSwap('bad/id',0,{auditorId:'bad/id',version:1}),/INVALID_CAS_REQUEST/);
-console.log('11 Firestore adapter checks passed');
+await assert.rejects(()=>a.compareAndSwap('aud-1',Number.MAX_SAFE_INTEGER,{auditorId:'aud-1',version:Number.MAX_SAFE_INTEGER+1}),/INVALID_CAS_REQUEST/);
+console.log('12 Firestore adapter checks passed');

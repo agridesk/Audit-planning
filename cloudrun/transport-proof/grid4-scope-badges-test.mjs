@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const src=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+const start=src.indexOf('function grid4ScopeBadges(r){');
+const end=src.indexOf('function renderOpenRow(r){',start);
+assert.ok(start>=0&&end>start,'badge renderer exists');
+const badge=new Function('esc','text',src.slice(start,end)+';return grid4ScopeBadges;')(x=>String(x).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'),x=>String(x??''));
+let neutral=badge({scopesText:'ABC, GAP'});
+assert.ok(neutral.includes('ABC')&&neutral.includes('GAP'),'two scopes');
+assert.ok(neutral.includes('background:#f1f5f9'),'neutral fallback');
+let themed=badge({scopes:['ABC'],scopeStyles:{ABC:{Color:'#123456',TextColor:'#ffffff'}}});
+assert.ok(themed.includes('background:#123456')&&themed.includes('color:#ffffff'),'policy colors');
+let unsafe=badge({scopes:['<script>'],scopeStyles:{'<script>':{Color:'red;bad',TextColor:'transparent'}}});
+assert.ok(!unsafe.includes('<script>')&&!unsafe.includes('red;bad'),'escape and style validation');
+assert.ok(src.includes('grid4ScopeBadges(r)'), 'both grid cells use badge renderer');
+console.log('Grid 4 scope badges: 5 checks passed');

@@ -1,0 +1,88 @@
+AMS 2.0 — AUTONOME INTEGRATIEWERKSESSIE 2026-10-31 R2
+BASELINE: f7ecf97ba73b6091facb3b93ec92d34d9e8d54dc
+LAATSTE CODE COMMIT MET GROENE CI: 78940bdc40490518e7758e9a7f6e8758b34c8ada
+BRANCH: feature/ams-fase1-integration-audit-2026-10-31
+DRAFT REVIEW PR: https://github.com/agridesk/Audit-planning/pull/48
+WERKPAKKET: 33 commits en 16 gewijzigde bestanden ten opzichte van baseline.
+
+GEREALISEERD
+1. FASE 2.5 / CANONIEKE KWALIFICATIES
+- Shared Assignment Validation weigert ambigue scope-aliases en ontbrekende actieve/rolkolommen als canonieke kwalificatiebron verplicht is.
+- GAS scopebeheer controleert de volledige geselecteerde scope-identiteit vóór aanleg van nieuwe auditrijen: onbekende scope, dubbele selectie, conflicterende displaynaam/ScopeCode/SlotKey, inactieve/archived scope geven afwijzing.
+- Voor Scope 01-08 met legacy-voortoewijzing gebeurt de kwalificatiecontrole vóór de eerste auditrijcreatie. Eerder kon een afwijzing pas na rijcreatie ontstaan.
+- Scope metadata Active/Archived gaat door ConfigScopes-bridge en bedrijfs-UI-projection, zodat inactieve scopes als zodanig herkenbaar zijn.
+- Live DEV read-only inspectie: 6 auditors met UID, 23 geldige legacy YES-kwalificaties, 23 unieke kandidaat Auditor_UID × ScopeCode-paren; 0 relaties in canonieke doeltab. Config SCOPE_09 TESTSCOPE-2 is INACTIEF. Geen migratie uitgevoerd.
+
+2. MODEL C / URENHERKOMST
+- Cloud Run nieuwe obligation/repair-writer leest canonieke urenbronnen fail-closed en weigert onvolledige Sheets-bronbereiken, ambigue of dubbele headers.
+- Bij nieuwe niet-recurrerende Company_Scopes uit completion-repair kan de urenherkomst met de nieuwe, nog niet weggeschreven canonieke relatie worden vastgesteld. Geen onbedoelde historische overschrijving.
+- GAS jaarlijkse opvolgcycle ondersteunt native Google Sheets datumcellen, valide kalenderdagen en strikte effective dating, inclusief afwijzing van onmogelijke 2027-data.
+- Dubbele/malformeerde bronheaders of rijen blokkeren uren-snapshot vóór schrijfacties.
+- Bestaande 199 DEV obligations blijven zonder historische herkomstsnapshot; dat is bewust geen retroactieve migratie.
+
+3. PLANNING TOOLKIT — 2026/2027 EN COMBINED VISIT
+- Reële UI-logica in server-r5 aangepast: geselecteerde audits bepalen nu samen het doorsnede-planningsvenster, niet alleen de primaire audit.
+- Niet-overlappende vensters 2026/2027 blokkeren planning; deeloverlap beperkt kalender, save en prev/next/today-navigatie tot de gezamenlijke periode.
+- Wisselen van geselecteerde audits vernieuwt venster, kalenders en waarschuwingen. Een ontbrekend canoniek venster bij een combined visit blokkeert fail-closed.
+- Een afzonderlijke non-recurring audit zonder beide canonieke vensters behoudt de bestaande beperkte operationele periode.
+- Bijbehorende Toolkit-, portal- en algemene kalendercontracttests zijn bijgewerkt, met dynamische regressies voor standalone 2026, 2026+2027, overlappende perioden en ontbrekende vensters.
+
+TESTS / BEWIJS
+CI commit 78940bdc40490518e7758e9a7f6e8758b34c8ada:
+  AMS Fase 1 isolated identity and hours gates — SUCCESS, run 41196606251.
+  Authentication 2.0 Fast OTP Tests — SUCCESS, run 41196606596.
+  Swap 2.0 DEV Tests — SUCCESS, run 41196606565.
+De testdata en functionele proeven zijn geïsoleerd/synthetisch; live browser- en DEV-runtime-acceptatie zijn NIET uitgevoerd.
+
+BLOKKADES
+- PR47/PR48 tegenover actuele dev: conflictbewuste integratie, geen blinde merge.
+- Expliciet akkoord nodig voor een afzonderlijke DEV deployment en eventuele daadwerkelijke data-migratie.
+- 23 legacy kwalificatie-YES-relaties nog niet geconverteerd, canonieke read-flag uit laten tot gecontroleerde pariteit.
+- 199 historische obligations zonder provenance: beleidskeuze nodig vóór eventuele historische herwaardering.
+- Auditor_UID end-to-end inclusief multi-instance lease en sessie-rotatie, Browser E2E Grid/Toolkit/Availability en GAS annual scheduler runtime nog te accepteren.
+- Geen PROD-cutover zonder expliciete toestemming.
+
+VEILIGHEID
+Geen branch merge, geen deployment, geen wijziging aan DEV/PROD Sheets, Firestore, flags of PROD. Alle codewijzigingen op een geïsoleerde reviewbranch.
+
+
+AANVULLING R3 — 31 OKTOBER 2026, ZELFSTANDIGE FASE-1 HARDENING
+- Vier gerichte commits: 84b919e, 5d64ab7, ffc5921, 39f03d4.
+- Root cause: JavaScript Date.parse accepteert sommige niet-bestaande kalenderdagen (zoals 2026-02-30) door normalisatie. Daardoor konden nieuwe Model C obligations en hun urenbron-versie/override een onmogelijke datum als geldige effective date beschouwen.
+- Kleinste ingreep: bestaande ISO-date parsing aangevuld met strikte UTC-kalenderdag-roundtrip, zonder refactor of wijziging van bestaande writer-/lifecyclepaden.
+- Gerichte regressies: onmogelijke effectiveDate, jaarcyclus met onmogelijke Base_Expiry_Date, onmogelijke scope-version Effective_From, onmogelijke override EffectiveFrom; geldige schrikkeldag 2028-02-29 blijft werken.
+- CI HEAD 39f03d420c6030b1d9400c5303452aa26de4b4ae: AMS Fase 1 isolated identity and hours gates SUCCESS (41198267080), Authentication 2.0 Fast OTP Tests SUCCESS (41198267123), Swap 2.0 DEV Tests SUCCESS (41198267104).
+- Afbakening ongewijzigd: synthetische/source-tests, geen DEV/PROD runtime-acceptatie; geen deployment, merge, Sheet/Firestore write, PROD actie of featureflagwijziging.
+- Integratiebevinding: actuele dev HEAD b67a760c8c73e030b63f0a5f4005f1b7744442de en featurebranch zijn DIVERGED (GitHub compare: 747 ahead, 108 behind t.o.v. mergebase 900cbbb05db96d3b5ed6d14e35596a42025cbf0b). Geen blinde rebase/merge; PR47/PR48 conflictbewust reviewen.
+
+
+AANVULLING R4 — FASE 1 AUTONOME SESSIE (31-10-2026)
+Geteste code HEAD: ae4c0b2629be07bb238c9fd62a8152619ebc6a3a.
+Gerichte changes, geen refactors:
+- Model C obligation schema wijst dubbele headers nu vóór snapshot/rijmapping af (f99d23e, be2d907).
+- Qualificatiemigratieplan en read-only parity weigeren dubbele/lege relation-headernamen (5ca1d7c, 45fcb6b) met bijbehorende testuitbreiding (29753cf, af0a955).
+- DEV Sheets migratieadapter-regressie aangepast aan nieuwe eerdere fail-closed afwijzing: 11f3303. Tussentijdse rode CI 41198634487 was uitsluitend oude testverwachting en is hersteld; deze was niet live-runtime evidence.
+- Auditor_UID actor- en assignment-projections weigeren dubbele headers (3abf3da, b7bae0e, eb416f2); tegenstrijdige Auditor_UID en Assigned_Auditor_UID worden geblokkeerd (c0aca0a, ae4c0b2). Dit is flaggebonden aan bestaande required-gates; geen activering.
+- Fase-1 CI paden dekken nu hours-resolver source wijzigingen (2f16fbb).
+CI HEAD ae4c0b2: AMS Fase 1 isolated identity and hours gates SUCCESS run 41198824796 (inclusief planning authority, auth/SWAP compatibility smoke en volledige npm test); Authentication 2.0 SUCCESS run 41198824748; Swap 2.0 SUCCESS run 41198824761.
+Bewijsgrens: GitHub-source/CI en synthetische contracttests, niet DEV Cloud Run/GAS deployment of browser-E2E. Geen merge/deployment, geen DEV/PROD datawrites, geen PROD wijziging, geen migratie en geen featureflagactivatie.
+Open: conflictbewuste PR47/48-integratie tegen dev, afzonderlijke DEV deployment-autorisatie, 23 kwalificatierelaties nog te migreren, 199 historische urenherkomsten beleidsmatig onbeslist, browser/runtime E2E en UID multi-instance cutover.
+
+
+R5 — RELEASE-FOCUSED INTEGRATION CHECK 31-10-2026
+- Verified PR48 source branch is a direct descendant of the remediation feature branch (246 commits ahead, 0 behind), but diverged from dev (766 ahead / 108 behind, 144 aggregate files): PR48 must be reviewed/integrated against its intended remediation base first, not blindly merged into dev.
+- New Model C resolver fix: all matching scope-version rows now validate their effective calendar dates and valid From<=To before selecting CURRENT. Invalid retired versions and inverted date intervals fail closed instead of being silently ignored. Regression cases include duplicate CURRENT, invalid retired date and inverted effective interval. Commits 0c240b5, f6abb3e.
+- CI code commit f6abb3e: AMS Fase 1 isolated identity/hours SUCCESS 41199897721 (including full npm test), Authentication 2.0 SUCCESS 41199897807, SWAP 2.0 SUCCESS 41199897847.
+- Release decision boundary: no authorized DEV deployment, no DEV qualification data migration, no code merge; therefore no runtime cutover claim. 23 legacy qualification YES rows require authorized controlled conversion, 199 historical obligations require separate policy decision, production forbidden.
+- No release-blocker clearance from CI alone. Source tests and functional runtime E2E are separate proof layers.
+
+
+R6 — LIVE DEV MIGRATION PRE-FLIGHT — 31-10-2026
+Source: connected Google Sheets metadata and bounded range reads of the actual spreadsheet 'Audit Management System DEV', Spreadsheet ID 1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs. Read-only. Tabs verified by native metadata before reads.
+- Auditors: 6 nonempty rows; Auditor_UID and E-mail present; no duplicate case-insensitive header labels.
+- Config_Scopes: 9 nonempty catalog rows, unique valid scope slots mapped to legacy qualification columns; all eight historical slots accounted for.
+- Auditor_Scope_Qualifications: exact header [Auditor_UID,ScopeCode,Qualified], 0 canonical relation rows.
+- Deterministic live qualification source preview: 23 YES combinations, 23 unique canonical UID x ScopeCode keys; no invalid source status, duplicate auditor identities, incomplete legacy slot, or ambiguous mapping detected. No rows were appended.
+- Authorization granted for controlled DEV deployment and migration, with strict no-regressions condition and PROD excluded.
+- EXECUTION GATE UNRESOLVED: available Google Sheets connector can read and write cell ranges, but cannot enter the application migration adapter's mandatory distributed exclusive lock and guarded snapshot/append/reconciliation transaction. No Cloud Run/GCP deployment or GitHub workflow-dispatch action is exposed by the connected tools. Direct Sheets append bypassing that contract is prohibited. Consequently migration NOT executed, DEV deployment NOT executed, no flags toggled, no merge.
+- Safe path: run the existing guarded DEV-only migration executor using actual application credentials with distributed lock; verify written=23 and postread parity under the same lock, then isolated DEV deployment and runtime/E2E. Run again idempotently expecting written=0. Stop if source snapshot changes. Keep feature branch separate until conflict-aware integration, no PROD.

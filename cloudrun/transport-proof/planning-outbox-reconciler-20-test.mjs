@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {createPlanningOutboxReconciler} from './planning-outbox-reconciler-20.js';
+const docs=new Map([['a',{auditorId:'a',version:1,commits:[{id:'one',state:'UNCERTAIN',projectionPayload:{auditId:'a'},projectionDigest:'digest'}]}],['b',{auditorId:'b',version:1,commits:[{id:'two',state:'PENDING',projectionPayload:{auditId:'b'},projectionDigest:'digest'}]}]]);
+const adapter={async listPage({pageToken}){if(!pageToken)return {documents:[{id:'a',document:docs.get('a')}],nextPageToken:'next'};return {documents:[{id:'b',document:docs.get('b')}],nextPageToken:null};}};
+const transitions=[];
+const authority={async read(id){return docs.get(id);},async transition(x){transitions.push(x);return x;}};
+const recon=createPlanningOutboxReconciler({adapter,authority,verify:async c=>({state:c.id==='one'?'MATCH':'ABSENT'})});
+assert.deepEqual(await recon.scan(),{count:2,verified:1,unresolved:1,errors:0,truncated:false});
+assert.equal(transitions.length,1);
+assert.equal(transitions[0].from,'UNCERTAIN');
+assert.equal(transitions[0].to,'PROJECTED');
+assert.throws(()=>createPlanningOutboxReconciler({adapter,authority,verify:async()=>{},limit:0}),/OUTBOX_RECONCILER_CONFIG_INVALID/);
+console.log('Outbox reconciler pages, verified recovery and fail-closed absence OK');

@@ -4,7 +4,7 @@ export function createPlanningReadCache({load,ttlMs=10000,clock=()=>Date.now()}=
  let rows=null,until=0,inFlight=null,generation=0;
  function invalidate(){generation++;rows=null;until=0;inFlight=null;}
  async function read({fresh=false}={}){
-  if(fresh)return load();
+  if(fresh){const value=await load();if(!Array.isArray(value)||!value.length)throw Error('CANONICAL_PLANNING_INCOMPLETE');return value;}
   if(rows&&clock()<until)return rows;
   if(inFlight)return inFlight;
   const currentGeneration=generation;

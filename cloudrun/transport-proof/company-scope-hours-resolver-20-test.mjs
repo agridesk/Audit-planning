@@ -17,4 +17,7 @@ assert.throws(()=>run({overrides:null}),/HOURS_SOURCE_NOT_READY/);
 assert.equal(run({overrides:[{...ov,EffectiveFrom:'2028-01-01'}]}).formalHours,5);
 assert.throws(()=>run({scopeVersions:[{...base.scopeVersions[0],Effective_From:'2028-01-01'}]}),/SCOPE_VERSION_MISSING/);
 assert.equal(run({scopeVersions:[{...base.scopeVersions[0],Effective_From:'2026-01-01',Effective_To:'2027-12-31'}]}).formalHours,5);
+assert.throws(()=>run({scopeVersions:[{...base.scopeVersions[0],Effective_From:'2028-01-01',Effective_To:'2027-01-01'}]}),/SCOPE_VERSION_DATE_RANGE_INVALID/);
+assert.throws(()=>run({scopeVersions:[{...base.scopeVersions[0],Status:'RETIRED',Effective_From:'2027-02-30'},base.scopeVersions[0]]}),/INVALID_EFFECTIVE_DATE/);
+assert.throws(()=>run({scopeVersions:[base.scopeVersions[0],{...base.scopeVersions[0],VersionId:'V2'}]}),/SCOPE_VERSION_AMBIGUOUS/);
 console.log('company-scope-hours-resolver-20: 14 checks passed');

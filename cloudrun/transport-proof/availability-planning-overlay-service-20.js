@@ -7,6 +7,10 @@ import {committedBlocksFromCanonicalSlots,withCommittedOverlay} from './availabi
 import {resolveAvailabilityPeriod} from './availability-resolver-20.js';
 import {buildManagerAvailabilityOverview} from './availability-manager-overview-20.js';
 const clean=x=>String(x??'').trim();
+function validateReadRange(fromDate,toDate){
+ const parse=s=>{if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s)||!Number.isFinite(Date.parse(s+'T00:00:00Z'))||new Date(s+'T00:00:00Z').toISOString().slice(0,10)!==s)throw Error('INVALID_DATE');return Date.parse(s+'T00:00:00Z')/86400000;};
+ const from=parse(fromDate),to=parse(toDate);if(to<from||to-from>92)throw Error('QUERY_RANGE_OUT_OF_BOUNDS');
+}
 export function createPlanningOverlayService({service,readPlanningRows,listCanonicalAuditors,readScopeNames,readCanonicalSwaps}={}){
  if(!service||typeof service.read!=='function'||typeof service.mutate!=='function'||typeof readPlanningRows!=='function'||typeof listCanonicalAuditors!=='function')throw Error('INVALID_OVERLAY_CONFIGURATION');
  async function slotsFor(fromDate,toDate,{fresh=false}={}){
@@ -32,14 +36,16 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
   return legacy.filter(x=>!replaceIds.has(x.auditId)&&x.date>=fromDate&&x.date<=toDate).concat(canonical.filter(x=>x.date>=fromDate&&x.date<=toDate));
  }
  async function period({actor,auditorId,fromDate,toDate}){
+  validateReadRange(fromDate,toDate);
   const doc=await service.read(actor,auditorId);
   const slots=await slotsFor(fromDate,toDate);
   const blocks=committedBlocksFromCanonicalSlots({auditorId,slots});
   const merged=withCommittedOverlay(doc,blocks);
   const auditDetails={};for(const slot of slots){if(slot.auditorId!==auditorId)continue;const id='audit:'+slot.auditId+'|'+slot.date+'|'+slot.start+'|'+slot.end;auditDetails[id]={auditId:slot.auditId,company:slot.company||'',scopes:slot.scopes||'',location:slot.location||'',date:slot.date,start:slot.start,end:slot.end,state:slot.state};}
-  return {auditorId,version:doc.version,days:resolveAvailabilityPeriod({fromDate,toDate,...merged}),auditDetails,metadata:{...structuredClone(doc.metadata),baselineIds:(doc.baselineExceptions||[]).map(x=>x.id),baselineExceptions:structuredClone(doc.baselineExceptions||[]),recurring:structuredClone(doc.recurring||[])}};
+  return {auditorId,version:doc.version,days:resolveAvailabilityPeriod({...merged,fromDate,toDate}),auditDetails,metadata:{...structuredClone(doc.metadata),baselineIds:(doc.baselineExceptions||[]).map(x=>x.id),baselineExceptions:structuredClone(doc.baselineExceptions||[]),recurring:structuredClone(doc.recurring||[])}};
  }
  async function managerOverview({actor,auditorIds,fromDate,toDate,displayNames={}}){
+  validateReadRange(fromDate,toDate);
   if(clean(actor?.role).toLowerCase()!=='manager'||!clean(actor?.id))throw Error('NOT_AUTHORIZED');
   if(!Array.isArray(auditorIds)||auditorIds.length>250||new Set(auditorIds).size!==auditorIds.length)throw Error('INVALID_AUDITOR_SET');
   const slots=await slotsFor(fromDate,toDate);
@@ -53,10 +59,21 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
   return {...overview,auditDetailsByAuditor};
  }
  async function mutate({actor,auditorId,expectedVersion,mutation,now}){
+  const role=clean(actor?.role).toLowerCase(),actorId=clean(actor?.id),target=clean(auditorId);
+  if(!actorId||!target||!(role==='manager'||role==='auditor'&&actorId===target))throw Error('NOT_AUTHORIZED');
+  if(!Number.isSafeInteger(expectedVersion)||expectedVersion<0||expectedVersion>=Number.MAX_SAFE_INTEGER)throw Error('VERSION_CONFLICT');
+  if(!mutation||typeof mutation!=='object'||Array.isArray(mutation))throw Error('INVALID_MUTATION');
   let affectedAudits=[];
   if(['BLOCK_PERIOD','EDIT_HARD_BLOCK','SET_FREE_OVERRIDE'].includes(mutation?.action)){
    const fromDate=clean(mutation.fromDate||mutation.date);
    const toDate=clean(mutation.toDate||mutation.fromDate||mutation.date);
+   const dateValid=s=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&Number.isFinite(Date.parse(s+'T00:00:00Z'))&&new Date(s+'T00:00:00Z').toISOString().slice(0,10)===s;
+   if(!dateValid(fromDate)||!dateValid(toDate)||fromDate>toDate)throw Error('INVALID_DATE_RANGE');
+   if((Date.parse(toDate+'T00:00:00Z')-Date.parse(fromDate+'T00:00:00Z'))/86400000>3660)throw Error('PERIOD_TOO_LONG');
+   const validStart=s=>/^([01]\d|2[0-3]):[0-5]\d$/.test(s);
+   const validEnd=s=>validStart(s)||s==='24:00';
+   const startTime=mutation.wholeDay===true?'00:00':mutation.start,endTime=mutation.wholeDay===true?'24:00':mutation.end;
+   if(!validStart(startTime)||!validEnd(endTime)||startTime>=endTime)throw Error('INVALID_TIME_RANGE');
    // Validate against authoritative planning before changing the baseline.
    // A baseline is not permitted to overwrite a committed audit.
    const slots=await slotsFor(fromDate,toDate,{fresh:true});
@@ -64,8 +81,9 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
    const start=mutation.wholeDay===true?'00:00':clean(mutation.start);
    const end=mutation.wholeDay===true?'24:00':clean(mutation.end);
    affectedAudits=slots.filter(slot=>slot.auditorId===auditorId&&slot.date>=fromDate&&slot.date<=toDate&&start<slot.end&&slot.start<end).map(slot=>({auditId:slot.auditId,date:slot.date,start:slot.start,end:slot.end,company:slot.company,state:slot.state}));
+   if((mutation.action==='BLOCK_PERIOD'||mutation.action==='EDIT_HARD_BLOCK')&&affectedAudits.some(a=>a.state==='COMMITTED'))throw Error('COMMITTED_CONFLICT');
    if(mutation.action==='SET_FREE_OVERRIDE'&&blocks.some(b=>(b.state==='COMMITTED'||b.state==='PROVISIONAL')&&b.date>=fromDate&&b.date<=toDate&&start<b.end&&b.start<end))throw Error('AUDIT_CONFLICT');
-   // A HARD exception may cover an already planned audit: the overlay keeps the audit protected.
+   // COMMITTED occupancy is authoritative; overlapping HARD writes fail closed.
    // Provisional intervals are revalidated by their canonical planning owner; never delete them here.
   }
   const result=await service.mutate({actor,auditorId,expectedVersion,mutation,...(now?{now}:{})});

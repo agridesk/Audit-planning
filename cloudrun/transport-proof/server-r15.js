@@ -16,7 +16,25 @@ import {createSwapDirectProposalStore} from './swap-direct-proposal-store-20.mjs
 import {URL} from 'node:url';
 import {createAvailabilityHttpRouter} from './availability-http-api-20.js';
 import {createAvailabilityService} from './availability-storage-service-20.js';
+import {enforceAvailabilityHardGate20} from './availability-planning-hard-gate-20.js';
 import {createFirestoreAvailabilityAdapter} from './availability-firestore-adapter-20.js';
+import {createPlanningFirestoreAuthority} from './planning-firestore-authority-20.js';
+import {createPlanningDistributedGate} from './planning-distributed-gate-20.js';
+import {createPlanningOutboxReconciler} from './planning-outbox-reconciler-20.js';
+import {createPlanningAtomicFirestoreStore} from './planning-atomic-firestore-store-20.js';
+import {createPlanningAtomicCommandService} from './planning-atomic-command-service-20.js';
+import {createPlanningLifecycleAtomicService} from './planning-lifecycle-atomic-service-20.js';
+import {createPlanningMultiLifecycleService} from './planning-multi-lifecycle-service-20.js';
+import {createPlanningAtomicTransferService} from './planning-atomic-transfer-service-20.js';
+import {createPlanningAtomicRecovery} from './planning-atomic-recovery-20.js';
+import {createPlanningAtomicParityVerifier} from './planning-atomic-parity-verifier-20.js';
+import {createPlanningGlobalClaimsParity} from './planning-global-claims-parity-20.js';
+import {createPlanningCutoverDataAudit} from './planning-cutover-data-audit-20.js';
+import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20} from './planning-atomic-cutover-guard-20.js';
+import {createPlanningSheetsWritesetProjector} from './planning-sheets-writeset-projector-20.js';
+import {createPlanningSheetsAppendProjector} from './planning-sheets-append-projector-20.js';
+import {createPlanningBackfillRunner} from './planning-atomic-backfill-20.js';
+import {createHash} from 'node:crypto';
 import {createPlanningOverlayService} from './availability-planning-overlay-service-20.js';
 import {createPlanningReadCache} from './availability-planning-read-cache-20.js';
 import {planLegacyHardMigration} from './availability-legacy-hard-migration-plan-20.js';
@@ -69,12 +87,16 @@ async function getRoster(){
  const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent("'Auditors'!A1:AZ500");
  const r=await fetch(url,{headers:{authorization:'Bearer '+await getToken()}});
  if(!r.ok)throw Error('AUDITOR_ROSTER_READ_'+r.status);
- const rows=(await r.json()).values||[],headers=(rows[0]||[]).map(v=>String(v).trim().toLowerCase().replace(/[\s_-]+/g,''));
+ const rows=(await r.json()).values||[];
+ if(!Array.isArray(rows)||rows.length>=500)throw Error('AUDITOR_ROSTER_SOURCE_TRUNCATED');
+ const headers=(rows[0]||[]).map(v=>String(v).trim().toLowerCase().replace(/[\s_-]+/g,''));
  const idx=(...names)=>names.map(n=>headers.indexOf(n.toLowerCase().replace(/[\s_-]+/g,''))).find(i=>i>=0)??-1;
  const email=idx('Email','E-mail'),uid=idx('Auditor UID','AuditorUID','UID','Auditor ID','AuditorID'),name=idx('Auditor Name','Full Name','Name','Display Name'),role=idx('Role'),active=idx('Active');
  if(email<0||uid<0||role<0)throw Error('AUDITOR_ROSTER_CANONICAL_COLUMNS_MISSING');
- const records=rows.slice(1).map(r=>({auditorId:String(r[uid]||'').trim(),email:String(r[email]||'').trim().toLowerCase(),displayName:String(r[name]||r[email]||'').trim(),role:String(r[role]||'').trim().toLowerCase(),active:active<0||['yes','true','1','active','x'].includes(String(r[active]||'').trim().toLowerCase())})).filter(x=>x.auditorId&&x.email&&x.active);
- if(new Set(records.map(x=>x.auditorId)).size!==records.length||new Set(records.map(x=>x.email)).size!==records.length)throw Error('AUDITOR_ROSTER_DUPLICATE_IDENTITY');
+ const allRecords=rows.slice(1).filter(r=>r.some(v=>String(v??'').trim())).map(r=>({auditorId:String(r[uid]||'').trim(),email:String(r[email]||'').trim().toLowerCase(),displayName:String((name>=0?r[name]:null)||r[email]||'').trim(),role:String(r[role]||'').trim().toLowerCase(),active:active<0||['yes','true','1','active','x'].includes(String(r[active]||'').trim().toLowerCase())}));
+ if(allRecords.some(r=>!r.auditorId||!r.email||!r.role))throw Error('AUDITOR_ROSTER_INCOMPLETE_IDENTITY');
+ if(new Set(allRecords.map(x=>x.auditorId)).size!==allRecords.length||new Set(allRecords.map(x=>x.email)).size!==allRecords.length)throw Error('AUDITOR_ROSTER_DUPLICATE_IDENTITY');
+ const records=allRecords.filter(x=>x.active);
  return records;
 }
 // Reuse the canonical roster briefly; session still comes from the signed local identity endpoint.
@@ -104,6 +126,16 @@ async function session(req){
 }
 const adapter=createFirestoreAvailabilityAdapter({projectId:project,getToken,collection:runtime.isDev?'ams_availability_20_dev':runtime.availabilityCollection});
 const service=createAvailabilityService(adapter);
+const planningAdapter=runtime.isDev?createFirestoreAvailabilityAdapter({projectId:project,getToken,collection:'ams_planning_authority_20_dev'}):null;
+const planningAuthority=planningAdapter?createPlanningFirestoreAuthority(planningAdapter):null;
+const planningAuthorityEnabled=runtime.isDev&&process.env.AMS_DEV_FIRESTORE_PLANNING_AUTHORITY_ENABLED==='true';
+const planningAtomicEnabled=runtime.isDev&&process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true';
+// Preparation creates only the bounded backfill/parity readers. It does not
+// activate Firestore authority, global write fencing or lifecycle dispatch.
+const planningAtomicPrepEnabled=runtime.isDev&&process.env.AMS_DEV_ATOMIC_PREFLIGHT_ENABLED==='true';
+validatePlanningAtomicRuntime20({enabled:planningAtomicEnabled,legacyWriterRetired:process.env.AMS_GAS_LIFECYCLE_WRITER_RETIRED_VERIFIED==='true',managerOwnerShared:process.env.AMS_MANAGER_LIFECYCLE_OWNER_SHARED_VERIFIED==='true',backfillParityVerified:process.env.AMS_DEV_ATOMIC_BACKFILL_PARITY_VERIFIED==='true',otherAuthorityEnabled:planningAuthorityEnabled});
+const planningAtomicStore=(planningAtomicEnabled||planningAtomicPrepEnabled)?createPlanningAtomicFirestoreStore({projectId:project,getToken}):null;
+const planningGlobalGate=(planningAuthorityEnabled||planningAtomicEnabled)?createPlanningDistributedGate(createFirestoreAvailabilityAdapter({projectId:project,getToken,collection:'ams_planning_write_gate_20_dev'})):null;
 async function readPlanningRows(){
  // Existing DEV Audit planning tab; bounded read, never a full-sheet hot-path scan.
  // Fail closed if configured maximum is reached: a truncated source is unsafe.
@@ -114,6 +146,135 @@ async function readPlanningRows(){
  const rows=(await response.json()).values;
  if(!Array.isArray(rows)||rows.length===0||rows.length>=2000)throw Error('CANONICAL_PLANNING_INCOMPLETE');
  return rows;
+}
+async function verifyUncertainPlanningLeaseInSheets(lease){
+ if(!lease||!['UNCERTAIN',undefined,'ACTIVE'].includes(lease.state)||!lease.auditId||!lease.auditorEmail||!Array.isArray(lease.plannedBlocks)||!lease.plannedBlocks.length)return false;
+ const planning=await readPlanningRows(),head=planning[0].map(x=>String(x||'').trim());
+ const idCol=head.indexOf('Audit ID'),emailCol=head.indexOf('Assigned to'),jsonCol=head.indexOf('Planning JSON');
+ if([idCol,emailCol,jsonCol].some(x=>x<0))throw Error('PLANNING_RECONCILIATION_SCHEMA_INVALID');
+ const matches=planning.slice(1).filter(row=>String(row[idCol]||'').trim()===lease.auditId);
+ if(matches.length!==1||String(matches[0][emailCol]||'').trim().toLowerCase()!==lease.auditorEmail)return false;
+ let parsed;try{parsed=JSON.parse(matches[0][jsonCol]||'{}');}catch{return false;}
+ const key=x=>String(x.date||'')+'|'+String(x.start||'')+'|'+String(x.end||'');
+ const expected=lease.plannedBlocks.map(key).sort(),actual=(Array.isArray(parsed)?parsed:Array.isArray(parsed.blocks)?parsed.blocks:[]).map(key).sort();
+ if(expected.length!==actual.length||expected.some((x,i)=>x!==actual[i]))return false;
+ const range='Auditor Availability!A1:M2000',url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range);
+ const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()}});
+ if(!response.ok)throw Error('PLANNING_RECONCILIATION_AVAILABILITY_READ_'+response.status);
+ const values=(await response.json()).values||[],headers=(values[0]||[]).map(x=>String(x||'').trim());
+ const indices=['Date','Auditor_Email','First_Audit_Start_Time','First_Audit_End_Time','Audit_ID_1','Second_Audit_Start_Time','Second_Audit_End_Time','Audit_ID_2'].map(x=>headers.indexOf(x));
+ if(indices.some(x=>x<0)||values.length>=2000)throw Error('PLANNING_RECONCILIATION_AVAILABILITY_INCOMPLETE');
+ return lease.plannedBlocks.every(b=>values.slice(1).some(row=>String(row[indices[0]]||'').slice(0,10)===b.date&&String(row[indices[1]]||'').trim().toLowerCase()===lease.auditorEmail&&([[indices[2],indices[3],indices[4]],[indices[5],indices[6],indices[7]]].some(([start,end,id])=>String(row[start]||'').trim()===b.start&&String(row[end]||'').trim()===b.end&&String(row[id]||'').trim()===lease.auditId))));
+}
+const planningOutboxReconciler=planningAuthorityEnabled?createPlanningOutboxReconciler({
+ adapter:planningAdapter,authority:planningAuthority,
+ verify:async commit=>{
+  const email=String(commit.projectionPayload?.auditorEmail||'').trim().toLowerCase();
+  if(!email)return {state:'UNKNOWN'};
+  const matching=await verifyUncertainPlanningLeaseInSheets({state:'UNCERTAIN',auditId:commit.auditId,auditorEmail:email,plannedBlocks:commit.blocks});
+  return {state:matching?'MATCH':'UNKNOWN'};
+ }
+}):null;
+const planningGlobalClaimsParity=planningAtomicStore?createPlanningGlobalClaimsParity({
+ store:planningAtomicStore,readPlanningRows,getRoster
+}):null;
+const planningAtomicParity=planningAtomicStore?createPlanningAtomicParityVerifier({
+ store:planningAtomicStore,readPlanningRows,getRoster
+}):null;
+const planningCutoverDataAudit=planningAtomicStore?createPlanningCutoverDataAudit({
+ store:planningAtomicStore,auditParity:planningAtomicParity,claimsParity:planningGlobalClaimsParity
+}):null;
+const planningAtomicBackfill=planningAtomicStore?createPlanningBackfillRunner({
+ atomicStore:planningAtomicStore,readPlanningRows,getRoster
+}):null;
+const planningAtomicProjector=planningAtomicEnabled?createPlanningSheetsWritesetProjector({
+ spreadsheetId:spreadsheet,getToken,verifyFence:async({operationId,gateToken})=>{
+  const gate=await planningGlobalGate.read();
+  if(gate.holder?.token!==gateToken||gate.holder.operationId!==operationId||gate.holder.state!=='ACTIVE')throw Error('PLANNING_ATOMIC_DISTRIBUTED_FENCE_LOST');
+ }
+}):null;
+const planningAtomicAppendProjector=planningAtomicEnabled?createPlanningSheetsAppendProjector({
+ spreadsheetId:spreadsheet,getToken,verifyFence:async({operationId,gateToken})=>{
+  const gate=await planningGlobalGate.read();
+  if(gate.holder?.token!==gateToken||gate.holder.operationId!==operationId||gate.holder.state!=='ACTIVE')throw Error('PLANNING_ATOMIC_APPEND_FENCE_LOST');
+ }
+}):null;
+const planningAtomicCommands=planningAtomicEnabled?createPlanningAtomicCommandService({
+ atomicStore:planningAtomicStore,gate:planningGlobalGate,availabilityService:service,
+ hardGate:enforceAvailabilityHardGate20,projector:planningAtomicProjector,appendProjector:planningAtomicAppendProjector,roster:getRoster,
+ preflight:async({actor,body})=>{
+  const r=await fetch('http://127.0.0.1:'+innerPort+'/api/v1/planning/direct-commit',{
+   method:'POST',headers:{'content-type':'application/json',cookie:String(actor.cookie||'')},
+   body:JSON.stringify({...body,authorityPreflight:true}),redirect:'manual'});
+  const j=await r.json().catch(()=>null);
+  if(!r.ok||j?.success!==true||j?.authorityPreflight!==true)throw Error('PLANNING_ATOMIC_BUSINESS_PREFLIGHT_FAILED_'+String(j?.error||r.status).slice(0,80));
+  return j;
+ }
+}):null;
+const atomicLifecyclePaths={
+ '/api/v1/manager/approve-direct':'APPROVE',
+ '/api/v1/manager/accept-direct':'ACCEPT',
+ '/api/v1/manager/reject-direct':'REJECT',
+ '/api/v1/manager/cancel-direct':'CANCEL',
+ '/api/v1/manager/complete-direct':'COMPLETE'
+};
+const planningAtomicLifecycle=planningAtomicEnabled?createPlanningLifecycleAtomicService({
+ atomicStore:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,
+ appendProjector:planningAtomicAppendProjector,roster:getRoster,
+ preflight:async({actor,body,action})=>{
+  const route=actor.role==='auditor'&&action==='ACCEPT'?'/api/v1/auditor/action':Object.keys(atomicLifecyclePaths).find(k=>atomicLifecyclePaths[k]===action);
+  if(!route)throw Error('LIFECYCLE_ATOMIC_ROUTE_UNSUPPORTED');
+  const r=await fetch('http://127.0.0.1:'+innerPort+route,{method:'POST',redirect:'manual',
+   headers:{'content-type':'application/json',cookie:String(actor.cookie||''),...(actor.role==='auditor'?{origin:runtime.origin}: {})},body:JSON.stringify(body)});
+  const data=await r.json().catch(()=>null);
+  if(!r.ok||data?.success!==true||data?.authorityPreflight!==true)throw Error('LIFECYCLE_ATOMIC_PREFLIGHT_FAILED_'+String(data?.error||r.status).slice(0,80));
+  return data;
+ }
+}):null;
+const planningMultiLifecycle=planningAtomicEnabled?createPlanningMultiLifecycleService({
+ atomicStore:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,
+ appendProjector:planningAtomicAppendProjector,
+ preflight:async({actor,body,action})=>{
+  const path=actor.role==='auditor'&&action==='COMPLETE'?'/api/v1/auditor/action':action==='REJECT'?'/api/v1/manager/reject-direct':'/api/v1/manager/complete-direct';
+  const payload=path==='/api/v1/auditor/action'?{...body,action:'COMPLETE'}:body;
+  const r=await fetch('http://127.0.0.1:'+innerPort+path,{method:'POST',redirect:'manual',
+   headers:{'content-type':'application/json',cookie:String(actor.cookie||''),...(actor.role==='auditor'?{origin:runtime.origin}:{})},
+   body:JSON.stringify(payload)});
+  const data=await r.json().catch(()=>null);
+  if(!r.ok||data?.authorityPreflight!==true||data?.success!==true)throw Error('PLANNING_MULTI_PREFLIGHT_FAILED_'+String(data?.error||r.status).slice(0,100));
+  return data;
+ }
+}):null;
+const planningAtomicTransfer=planningAtomicEnabled?createPlanningAtomicTransferService({
+ store:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,appendProjector:planningAtomicAppendProjector,
+ preflight:async({actor,body})=>{
+  const r=await fetch('http://127.0.0.1:'+innerPort+'/api/v1/manager/auditor-management/audit/transfer',
+   {method:'POST',redirect:'manual',headers:{'content-type':'application/json',cookie:String(actor.cookie||'')},
+    body:JSON.stringify(body)});
+  const data=await r.json().catch(()=>null);
+  if(!r.ok||data?.authorityPreflight!==true||data?.success!==true)throw Error('TRANSFER_ATOMIC_PREFLIGHT_FAILED_'+String(data?.error||r.status).slice(0,100));
+  return data;
+ }
+}):null;
+const planningAtomicRecovery=planningAtomicEnabled?createPlanningAtomicRecovery({
+ store:planningAtomicStore,projector:planningAtomicProjector,appendProjector:planningAtomicAppendProjector,
+ gate:planningGlobalGate,availabilityService:service
+}):null;
+// Start one bounded recovery scan on DEV startup; it never guesses missing writes.
+if(planningAtomicRecovery&&process.env.AMS_DEV_ATOMIC_RECOVERY_STARTUP_ENABLED==='true'){
+ let inFlight=false;
+ async function reconcileAtomicOutbox(){
+  if(inFlight)return;
+  inFlight=true;
+  try{
+   const result=await planningAtomicRecovery.scan({limit:100});
+   console.info('[AMS_ATOMIC_RECOVERY_SCAN]',JSON.stringify(result));
+  }catch(error){console.error('[AMS_ATOMIC_RECOVERY_SCAN_ERROR]',String(error?.message||error).slice(0,160));}
+  finally{inFlight=false;}
+ }
+ void reconcileAtomicOutbox();
+ const interval=setInterval(()=>{void reconcileAtomicOutbox();},300000);
+ interval.unref();
 }
 const planningCache=createPlanningReadCache({load:readPlanningRows,ttlMs:10000});
 const scopeNamesCache=createPlanningReadCache({load:async()=>{
@@ -735,18 +896,254 @@ async function proxy(req,res){
  const headers={...req.headers};delete headers.host;delete headers.connection;delete headers['content-length'];
  const init={method:req.method,headers,redirect:'manual'};
  if(!['GET','HEAD'].includes(req.method)){const chunks=[];for await(const c of req)chunks.push(c);init.body=Buffer.concat(chunks);}
+ const writerPath=new URL(req.url||'/','http://localhost').pathname;
+ enforcePlanningAtomicCutover20({enabled:planningAtomicEnabled,method:req.method,path:writerPath});
+ if((planningAuthorityEnabled||planningAtomicEnabled)&&req.method==='POST'&&/^\/api\/v1\/(?:manager\/(?:approve-direct|accept-direct|reject-direct|cancel-direct|complete-direct|action|auditor-management\/audit\/transfer)|internal\/auditor\/complete-direct|auditor\/action)$/.test(writerPath))throw Error('PLANNING_AUTHORITY_WRITER_NOT_MIGRATED');
+ let planningLease=null,planningLeaseActor=null,planningForwarded=false,planningWriteConfirmed=false,planningIntent=null,planningProjectionVerified=false,planningGlobalLock=null;
+ try{
+ if(runtime.isDev&&req.method==='POST'&&new URL(req.url||'/','http://localhost').pathname==='/api/v1/planning/direct-commit'){
+  const actor=await session(req);
+  if(!actor)throw Error('PLANNING_SESSION_REQUIRED');
+  if((init.body?.length||0)>65536)throw Error('PLANNING_BODY_TOO_LARGE');
+  let body;try{body=JSON.parse(init.body?.toString('utf8')||'{}');}catch{throw Error('PLANNING_BODY_INVALID');}
+  const email=String(body.auditorEmail||'').trim().toLowerCase();
+  const candidates=(await getRoster()).filter(x=>x.role==='auditor'&&x.email===email);
+  if(candidates.length!==1)throw Error('PLANNING_AUDITOR_UID_UNRESOLVED');
+  if((body.auditorUid!==undefined||body.auditorId!==undefined)&&String(body.auditorUid??body.auditorId).trim()!==candidates[0].auditorId)throw Error('PLANNING_AUDITOR_UID_MISMATCH');
+  if(actor.role==='auditor'&&actor.auditorId!==candidates[0].auditorId)throw Error('PLANNING_AUDITOR_IDENTITY_MISMATCH');
+  planningLeaseActor={role:actor.role,id:actor.auditorId};
+  planningLease=await service.acquirePlanningLease({actor:planningLeaseActor,auditorId:candidates[0].auditorId,auditId:String(body.auditId||'').trim(),auditorEmail:email,plannedBlocks:body.blocks});
+  const doc=planningLease.document;
+  if(!Number.isSafeInteger(doc.version)||doc.version<0)throw Error('PLANNING_AVAILABILITY_VERSION_INVALID');
+  enforceAvailabilityHardGate20({document:doc,blocks:body.blocks});
+  if(planningAuthorityEnabled){
+   const operationId=createHash('sha256').update(JSON.stringify({auditId:body.auditId,auditorId:candidates[0].auditorId,sourceRevision:body.sourceRevision,blocks:body.blocks,actorId:planningLeaseActor.id})).digest('hex');
+   planningGlobalLock=await planningGlobalGate.acquire({operationId,actorId:planningLeaseActor.id,kind:'DIRECT_PLANNING'});
+  }
+  if(planningAuthorityEnabled){
+   const requestId=createHash('sha256').update(JSON.stringify({auditId:body.auditId,auditorId:candidates[0].auditorId,sourceRevision:body.sourceRevision,blocks:body.blocks,actorId:planningLeaseActor.id})).digest('hex');
+   const staged=await planningAuthority.stage({auditId:String(body.auditId||'').trim(),auditorId:candidates[0].auditorId,actorId:planningLeaseActor.id,sourceRevision:body.sourceRevision,blocks:body.blocks,requestId,projectionPayload:body});
+   // Replays must not call the legacy Sheets writer a second time. A projected replay
+   // needs a read/receipt path, not a duplicate mutation; unresolved intents fail closed.
+   if(staged.replayed)throw Error(staged.commit.state==='PROJECTED'?'PLANNING_ALREADY_PROJECTED':'PLANNING_PROJECTION_PENDING');
+   planningIntent=staged.commit;
+  }
+ }
+ if(planningLease)planningForwarded=true;
  const r=await fetch(url,init);const h={};r.headers.forEach((v,k)=>{if(k!=='set-cookie'&&!['content-length','connection','transfer-encoding'].includes(k))h[k]=v;});const multiCookies=r.headers.getSetCookie();if(multiCookies.length)h['set-cookie']=multiCookies;
  const responseBody=Buffer.from(await r.arrayBuffer());
+ if(planningLease){let outcome=null;try{outcome=JSON.parse(responseBody.toString('utf8'));}catch{}planningWriteConfirmed=r.ok&&outcome?.success===true&&(outcome?.directCommit===true||(outcome?.idempotent===true&&String(outcome?.owner||'').startsWith('CLOUD_RUN_DIRECT_SHEETS_')));}
  const mutationPath=new URL(req.url||'/','http://localhost').pathname;
  const planningWriter=/^\/api\/v1\/(?:manager\/(?:approve-direct|accept-direct|reject-direct|cancel-direct|complete-direct|action|auditor-management\/audit\/transfer)|internal\/auditor\/complete-direct|planning\/direct-commit|auditor\/action)$/;
  if(req.method==='POST'&&r.ok&&planningWriter.test(mutationPath)){
   try{const outcome=JSON.parse(responseBody.toString('utf8'));if(outcome?.success!==false&&outcome?.ok!==false)planningCache.invalidate();}catch{}
  }
+ if(planningLease&&planningForwarded&&!planningWriteConfirmed)throw Error('PLANNING_COMMIT_OUTCOME_UNCERTAIN');
+ if(planningIntent){
+   const verified=await verifyUncertainPlanningLeaseInSheets({...planningLease.document.planningLease,state:'UNCERTAIN'});
+   if(!verified)throw Error('PLANNING_PROJECTION_NOT_VERIFIED');
+   await planningAuthority.transition({auditId:planningIntent.auditId,commitId:planningIntent.id,from:'PENDING',to:'PROJECTED',detail:'VERIFIED_SHEETS_PROJECTION'});
+   planningProjectionVerified=true;
+  }
+ if(planningLease){await service.releasePlanningLease({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token});planningLease=null;}
  res.writeHead(r.status,h);res.end(responseBody);
-}
+ }finally{
+ try{
+  if(planningLease){
+   if(planningIntent&&planningForwarded&&!planningProjectionVerified)await planningAuthority.transition({auditId:planningIntent.auditId,commitId:planningIntent.id,from:'PENDING',to:'UNCERTAIN',detail:'SHEETS_WRITE_UNCONFIRMED'});
+   if(!planningForwarded)await service.releasePlanningLease({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token});
+   else await service.markPlanningLeaseUncertain({actor:planningLeaseActor,auditorId:planningLease.auditorId,token:planningLease.token,reason:planningWriteConfirmed?'LEASE_RELEASE_FAILED':'SHEETS_WRITE_UNCONFIRMED'});
+  }
+ }finally{
+  if(planningGlobalLock){
+   if(!planningForwarded)await planningGlobalGate.release({token:planningGlobalLock.token,verified:true,proof:'NO_WRITE_ATTEMPT'});
+   else if(planningProjectionVerified)await planningGlobalGate.release({token:planningGlobalLock.token,verified:true,proof:'FIRESTORE_AND_SHEETS_VERIFIED'});
+   else await planningGlobalGate.uncertain({token:planningGlobalLock.token,reason:'WRITE_OUTCOME_UNCERTAIN'});
+  }
+ }
+}}
 http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url||'/','http://localhost');
+  if(req.method==='POST'&&planningAtomicLifecycle&&u.pathname==='/api/v1/auditor/action'){
+   const actor=await session(req);
+   if(actor?.role!=='auditor'){res.writeHead(403);res.end(JSON.stringify({success:false,error:'AUDITOR_REQUIRED'}));return;}
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192)throw Error('AUDITOR_ATOMIC_BODY_TOO_LARGE');}
+   let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('AUDITOR_ATOMIC_BODY_INVALID');}
+   const action=String(body.action||'').toUpperCase();
+   if(!['ACCEPT','CANCEL','COMPLETE'].includes(action))throw Error('AUDITOR_ATOMIC_ACTION_NOT_MIGRATED');
+   const actorCtx={...actor,cookie:String(req.headers.cookie||'')};
+   const result=['COMPLETE','REJECT'].includes(action)?await planningMultiLifecycle.commit({actor:actorCtx,body,action}):await planningAtomicLifecycle.commit({actor:actorCtx,body,action});
+   planningCache.invalidate();
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
+  }
+  if(req.method==='POST'&&planningAtomicLifecycle&&(atomicLifecyclePaths[u.pathname]||u.pathname==='/api/v1/manager/action')){
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403,{'content-type':'application/json'});res.end(JSON.stringify({success:false,error:'MANAGER_REQUIRED'}));return;}
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>16384)throw Error('LIFECYCLE_BODY_TOO_LARGE');}
+   let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('LIFECYCLE_BODY_INVALID');}
+   const action=atomicLifecyclePaths[u.pathname]||(u.pathname==='/api/v1/manager/action'?String(body?.action||'').trim().toUpperCase():null);
+   if(!['APPROVE','ACCEPT','REJECT','CANCEL','COMPLETE'].includes(action))throw Error('LIFECYCLE_ATOMIC_ACTION_NOT_MIGRATED');
+   const actorCtx={...actor,cookie:String(req.headers.cookie||'')};
+   const result=['COMPLETE','REJECT'].includes(action)?await planningMultiLifecycle.commit({actor:actorCtx,body,action}):await planningAtomicLifecycle.commit({actor:actorCtx,body,action});
+   planningCache.invalidate();
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
+  }
+  if(req.method==='POST'&&planningAtomicTransfer&&u.pathname==='/api/v1/manager/auditor-management/audit/transfer'){
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403);res.end(JSON.stringify({success:false,error:'MANAGER_REQUIRED'}));return;}
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192)throw Error('TRANSFER_ATOMIC_BODY_TOO_LARGE');}
+   let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('TRANSFER_ATOMIC_BODY_INVALID');}
+   const result=await planningAtomicTransfer.commit({actor:{...actor,cookie:String(req.headers.cookie||'')},body});
+   planningCache.invalidate();
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
+  }
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-quarantine-orphan'){
+   if(!planningAtomicEnabled){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403);res.end();return;}
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)throw Error('PLANNING_ORPHAN_BODY_TOO_LARGE');}
+   let input;try{input=JSON.parse(raw||'{}');}catch{throw Error('PLANNING_ORPHAN_BODY_INVALID');}
+   const operationId=String(input?.operationId||''),evidenceRef=String(input?.evidenceRef||'');
+   const outbox=await planningAtomicStore.readOutbox(operationId);
+   const holder=(await planningGlobalGate.read()).holder;
+   if(!outbox||!['PENDING','UNCERTAIN'].includes(outbox.state)||holder?.operationId!==operationId)
+    throw Error('PLANNING_ORPHAN_OUTBOX_GATE_MISMATCH');
+   const changed=await planningGlobalGate.quarantineOrphan({operationId,actorId:actor.auditorId,evidenceRef});
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify({success:true,state:changed.state,operationId,quarantinedAt:changed.uncertainAt,
+    note:'No unlock performed. Independent Sheets evidence and 30-minute UNCERTAIN quarantine still required.'}));return;
+  }
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-recover'){
+   if(!planningAtomicRecovery){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403);res.end();return;}
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)throw Error('ATOMIC_RECOVERY_REQUEST_TOO_LARGE');}
+   let input={};try{input=JSON.parse(raw||'{}');}catch{throw Error('ATOMIC_RECOVERY_REQUEST_INVALID');}
+   const result=await planningAtomicRecovery.scan({limit:input.limit??100});
+   planningCache.invalidate();
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,...result}));return;
+  }
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-cutover-evidence'){
+   if(!planningCutoverDataAudit){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403);res.end();return;}
+   const result=await planningCutoverDataAudit.verify({maxPages:50});
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify({success:true,...result}));return;
+  }
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-claims-parity'){
+   if(!planningGlobalClaimsParity){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403);res.end();return;}
+   const result=await planningGlobalClaimsParity.verify({maxPages:50});
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,...result}));return;
+  }
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-parity'){
+   if(!planningAtomicParity){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403);res.end();return;}
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)throw Error('ATOMIC_PARITY_BODY_TOO_LARGE');}
+   let options={};try{options=JSON.parse(raw||'{}');}catch{throw Error('ATOMIC_PARITY_BODY_INVALID');}
+   const result=await planningAtomicParity.verify({startRow:options.startRow??2,limit:options.limit??200});
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,...result}));return;
+  }
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-backfill'){
+   if(!planningAtomicBackfill){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403);res.end();return;}
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)throw Error('PLANNING_BACKFILL_REQUEST_TOO_LARGE');}
+   let input={};try{input=JSON.parse(raw||'{}');}catch{throw Error('PLANNING_BACKFILL_REQUEST_INVALID');}
+   const dryRun=input.dryRun!==false;
+   if(!dryRun&&(planningAtomicEnabled||!planningAtomicPrepEnabled||process.env.AMS_DEV_ATOMIC_BACKFILL_WRITE_ENABLED!=='true'||process.env.AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED!=='true'))throw Error('PLANNING_DEV_BACKFILL_WRITE_NOT_AUTHORIZED');
+   const result=await planningAtomicBackfill.run({dryRun,startRow:input.startRow??2,limit:input.limit??100,sourceManifest:input.sourceManifest??null});
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,...result}));return;
+  }
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/direct-commit'&&planningAtomicCommands){
+   const actor=await session(req);
+   if(!actor){res.writeHead(401,{'content-type':'application/json'});res.end(JSON.stringify({success:false,error:'PLANNING_SESSION_REQUIRED'}));return;}
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>65536)throw Error('PLANNING_BODY_TOO_LARGE');}
+   let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('PLANNING_BODY_INVALID');}
+   const result=await planningAtomicCommands.commit({actor:{...actor,cookie:String(req.headers.cookie||'')},body});
+   planningCache.invalidate();
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify({...result,directCommit:true}));return;
+  }
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/reconcile-outbox'){
+   if(!planningOutboxReconciler){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403);res.end();return;}
+   const result=await planningOutboxReconciler.scan();
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify({success:true,...result}));return;
+  }
+  if(req.method==='GET'&&u.pathname==='/api/v1/planning/firestore-authority-status'){
+   if(!planningAuthorityEnabled){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403);res.end();return;}
+   const auditId=String(u.searchParams.get('auditId')||'').trim();
+   if(!auditId)throw Error('PLANNING_AUDIT_ID_REQUIRED');
+   const ledger=await planningAuthority.read(auditId);
+   const latest=ledger.commits.at(-1)||null;
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify({success:true,authority:'FIRESTORE',projection:'GOOGLE_SHEETS',auditId,version:ledger.version,latestCommit:latest?{id:latest.id,state:latest.state,createdAt:latest.createdAt,updatedAt:latest.updatedAt||null}:null}));return;
+  }
+  if(req.method==='GET'&&u.pathname==='/api/v1/planning/lease-status'){
+   if(!runtime.isDev){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403);res.end();return;}
+   const auditorId=String(u.searchParams.get('auditorId')||'').trim();
+   if(!auditorId)throw Error('PLANNING_LEASE_AUDITOR_REQUIRED');
+   const doc=await service.read({role:'manager',id:actor.auditorId},auditorId),lease=doc.planningLease;
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify({success:true,auditorId,version:doc.version,locked:!!lease,state:lease?.state|| (lease?'ACTIVE':'NONE'),auditId:lease?.auditId||null,acquiredAt:lease?.acquiredAt||null,uncertainAt:lease?.uncertainAt||null}));return;
+  }
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/reconcile-uncertain-lease'){
+   if(planningAtomicEnabled)throw Error('PLANNING_LEGACY_RECONCILIATION_DISABLED_UNDER_ATOMIC_AUTHORITY');
+   if(!runtime.isDev){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403);res.end();return;}
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)throw Error('PLANNING_RECOVERY_REQUEST_TOO_LARGE');}
+   const input=JSON.parse(raw),auditorId=String(input?.auditorId||'').trim(),auditId=String(input?.auditId||'').trim();
+   if(!auditorId||!auditId)throw Error('PLANNING_RECOVERY_TARGET_REQUIRED');
+   const verifiedActor={role:'manager',id:actor.auditorId},doc=await service.read(verifiedActor,auditorId),lease=doc.planningLease;
+   if(!lease||lease.state!=='UNCERTAIN'||lease.auditId!==auditId||!Array.isArray(lease.plannedBlocks)||!lease.auditorEmail)throw Error('PLANNING_RECOVERY_EVIDENCE_MISSING');
+   const recoverySince=lease.uncertainAt||lease.acquiredAt;
+   if(!Number.isFinite(Date.parse(recoverySince))||Date.now()-Date.parse(recoverySince)<1800000)throw Error('PLANNING_RECOVERY_COOLDOWN');
+   const rows=await readPlanningRows(),headers=(rows[0]||[]).map(x=>String(x||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,''));
+   const column=(...names)=>names.map(n=>headers.indexOf(n.toLowerCase().replace(/[^a-z0-9]+/g,''))).find(i=>i>=0)??-1;
+   const idCol=column('Audit ID','Audit_ID'),statusCol=column('Status'),assignedCol=column('Assigned to'),planningCol=column('Planning JSON');
+   if([idCol,statusCol,assignedCol,planningCol].some(i=>i<0))throw Error('PLANNING_RECOVERY_SCHEMA_INVALID');
+   const matches=rows.slice(1).filter(row=>String(row[idCol]||'').trim()===auditId);
+   if(matches.length!==1)throw Error('PLANNING_RECOVERY_AUDIT_NOT_UNIQUE');
+   const row=matches[0],status=String(row[statusCol]||'').trim().toUpperCase().replace(/[^A-Z0-9]+/g,'_');
+   if(!['APPROVED','PENDING_APPROVAL'].includes(status)||String(row[assignedCol]||'').trim().toLowerCase()!==lease.auditorEmail)throw Error('PLANNING_RECOVERY_NOT_COMMITTED');
+   let stored;try{stored=JSON.parse(String(row[planningCol]||''));}catch{throw Error('PLANNING_RECOVERY_PLANNING_INVALID');}
+   const intervals=Array.isArray(stored)?stored:stored?.blocks;
+   if(!Array.isArray(intervals))throw Error('PLANNING_RECOVERY_PLANNING_INVALID');
+   const signature=blocks=>blocks.map(x=>[String(x.date||''),String(x.start||''),String(x.end||'')].join('|')).sort();
+   if(JSON.stringify(signature(intervals))!==JSON.stringify(signature(lease.plannedBlocks)))throw Error('PLANNING_RECOVERY_INTERVAL_MISMATCH');
+   if(!await verifyUncertainPlanningLeaseInSheets(lease))throw Error('PLANNING_RECOVERY_AVAILABILITY_NOT_VERIFIED');
+   let recoveryCommit=null;
+   if(planningAuthorityEnabled){
+    const ledger=await planningAuthority.read(auditId);
+    const unresolved=ledger.commits.filter(x=>x.auditorId===auditorId&&['PENDING','UNCERTAIN'].includes(x.state));
+    const candidates=unresolved.length?unresolved:ledger.commits.filter(x=>x.auditorId===auditorId&&x.state==='PROJECTED').slice(-1);
+    if(candidates.length!==1||JSON.stringify(candidates[0].blocks.map(x=>[x.date,x.start,x.end]).sort())!==JSON.stringify(lease.plannedBlocks.map(x=>[x.date,x.start,x.end]).sort()))throw Error('PLANNING_RECOVERY_LEDGER_MISMATCH');
+    recoveryCommit=candidates[0];
+    if(recoveryCommit.state!=='PROJECTED')await planningAuthority.transition({auditId,commitId:recoveryCommit.id,from:recoveryCommit.state,to:'PROJECTED',detail:'VERIFIED_SHEETS_PROJECTION'});
+   }
+   const result=await service.reconcilePlanningLease({actor:verifiedActor,auditorId,token:lease.token,verifiedAuditId:auditId});
+   if(planningAuthorityEnabled){
+    const gate=await planningGlobalGate.read();
+    if(gate.holder){
+     if(gate.holder.state!=='UNCERTAIN'||gate.holder.operationId!==recoveryCommit.requestId)throw Error('PLANNING_RECOVERY_GATE_MISMATCH');
+     await planningGlobalGate.release({token:gate.holder.token,verified:true,proof:'VERIFIED_SHEETS_AND_FIRESTORE'});
+    }
+   }
+   planningCache.invalidate();
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,reconciled:true,auditId,auditorId,version:result.version}));return;
+  }
   if(req.method==='POST'&&u.pathname==='/api/v1/internal/swap20/reconcile'){
    if(!runtime.isDev||!swap20Scheduler){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}
    if(!await swap20Scheduler.verify(req.headers.authorization)){res.writeHead(403,{'cache-control':'no-store'});res.end('Forbidden');return;}
@@ -885,5 +1282,5 @@ http.createServer(async(req,res)=>{
   }
   if(await availability(req,res))return;
   await proxy(req,res);
- }catch(e){const path=String(req.url||'/').split('?')[0];const subsystem=path.includes('notification')?'NOTIFICATIONS':path.includes('rotation')?'ROTATION':path.includes('availability')?'AVAILABILITY':'PORTAL';const isSwap=runtime.isDev&&path.includes('/swap20/');const code=isSwap?'SWAP20_INTEGRATION_FAILED':subsystem+'_INTEGRATION_FAILED';console.error('[AMS_ROUTE_ERROR]',JSON.stringify({subsystem,path,errorCode:String(e?.message||'UNKNOWN').slice(0,160)}));if(!res.headersSent){res.writeHead(503,{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify({success:false,error:isSwap?String(e?.message||'SWAP20_INTEGRATION_FAILED').replace(/[^A-Za-z0-9_]/g,'_').slice(0,100):code,diagnostic:subsystem==='NOTIFICATIONS'?String(e?.message||'UNKNOWN').slice(0,100):undefined}));}else res.destroy();}
+ }catch(e){const path=String(req.url||'/').split('?')[0];const subsystem=path.includes('notification')?'NOTIFICATIONS':path.includes('rotation')?'ROTATION':path.includes('availability')?'AVAILABILITY':'PORTAL';const isSwap=runtime.isDev&&path.includes('/swap20/');const code=isSwap?'SWAP20_INTEGRATION_FAILED':subsystem+'_INTEGRATION_FAILED';console.error('[AMS_ROUTE_ERROR]',JSON.stringify({subsystem,path,errorCode:String(e?.message||'UNKNOWN').slice(0,160)}));if(!res.headersSent){const planningConflict=runtime.isDev&&path==='/api/v1/planning/direct-commit'&&['PLANNING_LEASE_ACTIVE','VERSION_CONFLICT','AVAILABILITY_HARD_BLOCK'].some(x=>String(e?.message||'').startsWith(x));res.writeHead(planningConflict?409:503,{'content-type':'application/json','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify({success:false,error:planningConflict?String(e.message).slice(0,100):runtime.isDev&&path==='/api/v1/planning/direct-commit'&&String(e?.message||'').includes('PLANNING_COMMIT_OUTCOME_UNCERTAIN')?'PLANNING_COMMIT_OUTCOME_UNCERTAIN':isSwap?String(e?.message||'SWAP20_INTEGRATION_FAILED').replace(/[^A-Za-z0-9_]/g,'_').slice(0,100):code,diagnostic:subsystem==='NOTIFICATIONS'?String(e?.message||'UNKNOWN').slice(0,100):undefined}));}else res.destroy();}
 }).listen(port,'0.0.0.0');

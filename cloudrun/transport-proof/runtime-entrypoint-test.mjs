@@ -3,18 +3,31 @@ import fs from 'node:fs';
 const pkg=JSON.parse(fs.readFileSync(new URL('./package.json',import.meta.url),'utf8'));
 const docker=fs.readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
 
+const r15=fs.readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
+const planningProxy=r15.slice(r15.indexOf('async function proxy(req,res){'),r15.indexOf('http.createServer(async(req,res)=>'));
 const checks=[
   ['package starts canonical Availability R15 runtime',pkg?.scripts?.start==='node server-r15.js'],
   ['Docker image contains R12',docker.includes('COPY server-r12.js ./')],
   ['Docker image contains R15',docker.includes('COPY server-r15.js ./')],
   ['Docker contains runtime environment resolver',docker.includes('COPY runtime-environment-20.mjs ./')],
   ['Docker image contains Availability modules',docker.includes('COPY availability-*.js ./')],
+  ['Docker image includes Firestore planning authority',docker.includes('COPY planning-firestore-authority-20.js ./')],
+  ['DEV Planning Save stages Firestore intent before Sheets proxy',r15.indexOf('planningAuthority.stage(')>=0&&r15.indexOf('planningAuthority.stage(')<r15.indexOf('const r=await fetch(url,init)')],
+  ['DEV Planning Save persists projection outcome',r15.includes("to:'PROJECTED'")&&r15.includes("to:'UNCERTAIN'")],
   ['Docker image contains shared assignment validator',docker.includes('COPY assignment-validation-v211.js ./')],
   ['Docker image contains shared actor capabilities',docker.includes('COPY actor-capabilities-v211.js ./')],
   ['Docker image contains scope hours version service',docker.includes('COPY scope-hours-version-20.js ./')],
   ['Docker image contains scope policy service',docker.includes('COPY scope-policy-20.js ./')],
   ['Docker image contains scheme version service',docker.includes('COPY scope-scheme-version-20.js ./')],
   ['Docker image contains Add scope service',docker.includes('COPY scope-create-20.js ./')],
+  ['DEV Planning Save obtains durable CAS lease before HARD gate',planningProxy.indexOf('service.acquirePlanningLease(')>=0&&planningProxy.indexOf('service.acquirePlanningLease(')<planningProxy.indexOf('enforceAvailabilityHardGate20(')],
+  ['DEV Planning Save holds lease until Sheets proxy returns',planningProxy.indexOf('service.releasePlanningLease(')>planningProxy.indexOf('const r=await fetch(url,init)')],
+  ['DEV Planning Save preserves uncertain write for reconciliation',planningProxy.includes('service.markPlanningLeaseUncertain(')&&planningProxy.includes('PLANNING_COMMIT_OUTCOME_UNCERTAIN')],
+  ['DEV manager recovery verifies canonical Sheets and cooldown',r15.includes("'/api/v1/planning/reconcile-uncertain-lease'")&&r15.includes('PLANNING_RECOVERY_COOLDOWN')&&r15.includes('PLANNING_RECOVERY_INTERVAL_MISMATCH')],
+  ['DEV manager recovery verifies both canonical Sheets before releasing Firestore lease',r15.includes('verifyUncertainPlanningLeaseInSheets(lease)')&&r15.includes("'Auditor Availability!A1:M2000'")&&r15.includes('PLANNING_RECOVERY_AVAILABILITY_NOT_VERIFIED')],
+  ['UNCERTAIN recovery uses separate manager-only CAS transition',r15.includes('service.reconcilePlanningLease({actor:verifiedActor')&&!r15.includes('service.releasePlanningLease({actor:verifiedActor,auditorId,token:lease.token}')],
+  ['DEV manager lease status is read-only and does not expose token',r15.includes("'/api/v1/planning/lease-status'")&&r15.includes('locked:!!lease')],
+  ['Unknown Sheets outcome cannot automatically release lease',planningProxy.includes('if(planningLease&&planningForwarded&&!planningWriteConfirmed)throw Error(')],
   ['Docker starts npm start',docker.includes('CMD ["npm","start"]')]
 ];
 

@@ -17,7 +17,7 @@ assert.match(manager,/match\[1\] \+ '\/planning\?auditId='/);
 assert.match(generic,/planning\?auditId=/);
 assert.match(grid,/function focusEmailAudit20\(/);
 assert.match(grid,/new URLSearchParams\(window\.location\.search\)/);
-assert.match(grid,/focusEmailAudit20\(\);return loadOpenEnrichment/);
+assert.match(grid,/focusEmailAudit20\(\);var enrichment=loadOpenEnrichment/);
 assert.match(builder,/SYS_getConfig_\(\)/);
 assert.doesNotMatch(auditor,/cta\.acceptUrl\s*\|\|/);
 assert.doesNotMatch(manager,/cta\.approvalUrl\s*\|\|/);

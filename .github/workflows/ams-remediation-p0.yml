@@ -1,0 +1,30 @@
+name: AMS remediation P0 tests
+on:
+  push:
+    branches:
+      - feature/ams-2-remediation-2026-10-28
+    paths:
+      - 'cloudrun/transport-proof/planning-*.js'
+      - 'cloudrun/transport-proof/planning-*-test.mjs'
+      - 'cloudrun/transport-proof/server-r15.js'
+      - 'cloudrun/transport-proof/package.json'
+      - '.github/workflows/ams-remediation-p0.yml'
+  pull_request:
+    branches:
+      - dev
+  workflow_dispatch:
+jobs:
+  planning-authority:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: cloudrun/transport-proof
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm run test:planning-authority-p0
+      - run: npm test

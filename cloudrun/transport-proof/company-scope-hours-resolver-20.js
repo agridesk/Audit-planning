@@ -2,7 +2,7 @@
 // The adapter must provide verified canonical rows. This module does NOT assume
 // Company_Scope_Hours has already been created in DEV.
 const str=x=>String(x??'').trim();
-const date=x=>{const s=str(x);if(!/^\d{4}-\d{2}-\d{2}$/.test(s)||Number.isNaN(Date.parse(s+'T00:00:00Z')))throw Error('INVALID_EFFECTIVE_DATE');return s};
+const date=x=>{const s=str(x);if(!/^\d{4}-\d{2}-\d{2}$/.test(s)||Number.isNaN(Date.parse(s+'T00:00:00Z'))||new Date(s+'T00:00:00Z').toISOString().slice(0,10)!==s)throw Error('INVALID_EFFECTIVE_DATE');return s};
 const hours=x=>{const s=str(x).replace(',','.');if(!/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(s)||!(Number(s)>0)||Number(s)>10000)throw Error('INVALID_FORMAL_HOURS');return Number(s)};
 const one=(rows,missing,duplicate)=>{if(rows.length>1)throw Error(duplicate);if(!rows.length)throw Error(missing);return rows[0]};
 export function resolveCompanyScopeHours20({companyId,scopeCode,effectiveDate,companyScopes,overrides,scopeVersions}){
@@ -17,7 +17,13 @@ export function resolveCompanyScopeHours20({companyId,scopeCode,effectiveDate,co
  for(const r of candidates){if(!str(r.OverrideId)||!str(r.Status)||!str(r.Revision))throw Error('OVERRIDE_RECORD_INCOMPLETE');if(str(r.EffectiveFrom))date(r.EffectiveFrom);if(str(r.EffectiveTo))date(r.EffectiveTo);if(str(r.EffectiveFrom)&&str(r.EffectiveTo)&&r.EffectiveFrom>r.EffectiveTo)throw Error('OVERRIDE_DATE_RANGE_INVALID');}
  const active=candidates.filter(r=>str(r.Status).toUpperCase()==='ACTIVE'&&applicable(r));
  if(active.length>1)throw Error('OVERLAPPING_COMPANY_OVERRIDES');
- const baseline=one(scopeVersions.filter(r=>str(r.ScopeCode)===scope&&str(r.Status).toUpperCase()==='CURRENT'&&(!str(r.Effective_From)||date(r.Effective_From)<=day)&&(!str(r.Effective_To)||date(r.Effective_To)>=day)),'SCOPE_VERSION_MISSING','SCOPE_VERSION_AMBIGUOUS');
+ const versions=scopeVersions.filter(r=>str(r.ScopeCode)===scope);
+ for(const r of versions){
+   if(str(r.Effective_From))date(r.Effective_From);
+   if(str(r.Effective_To))date(r.Effective_To);
+   if(str(r.Effective_From)&&str(r.Effective_To)&&r.Effective_From>r.Effective_To)throw Error('SCOPE_VERSION_DATE_RANGE_INVALID');
+ }
+ const baseline=one(versions.filter(r=>str(r.Status).toUpperCase()==='CURRENT'&&(!str(r.Effective_From)||r.Effective_From<=day)&&(!str(r.Effective_To)||r.Effective_To>=day)),'SCOPE_VERSION_MISSING','SCOPE_VERSION_AMBIGUOUS');
  const baselineHours=hours(baseline.Hours_to_plan);
  if(!str(baseline.VersionId))throw Error('SCOPE_VERSION_ID_MISSING');
  if(active.length){

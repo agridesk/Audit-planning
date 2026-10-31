@@ -35,4 +35,10 @@ assert.equal((await request('/api/v1/availability/mutate','POST',mutation)).stat
 assert.equal((await request('/api/v1/availability/mutate','POST',{...mutation,expectedVersion:'0'},{'content-type':'application/json'})).status,422);
 identity={role:'Auditor',id:'a'};
 assert.equal((await request('/api/v1/availability/mutate','POST',mutation,{'content-type':'application/json'})).status,403);
-console.log('15 HTTP API contract assertions passed');
+for(const invalidDirectory of [[{auditorId:'a'},{auditorId:'a'}],[null],[{auditorId:''}],[{auditorId:42}]]){
+ const badRouter=createAvailabilityHttpRouter({service,resolveIdentity:async()=>({role:'manager',id:'m'}),listAuditors:async()=>invalidDirectory});
+ let status=0;
+ await badRouter({url:q,method:'GET',headers:{}},{writeHead:s=>{status=s;},end:()=>{}});
+ assert.equal(status,422,'Malformed canonical directory must fail closed');
+}
+console.log('19 HTTP API contract assertions passed');

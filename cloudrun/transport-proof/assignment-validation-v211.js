@@ -90,10 +90,11 @@ export function v211QualificationWithdrawalConstraint({auditorValues,catalog,sco
 export function v211AuditorQualified(audValues,catalog,scopeCodes,auditorEmail,requestedDates,qualificationRelations){
   if(!Array.isArray(audValues)||!audValues.length)return false;
   const h=audValues[0],e=col(h,['E-mail','Email','E-mail address','Mail']),a=col(h,['Active','Is active']),r=col(h,['Role','Function']);
-  const aliases=new Map();
+  const aliases=new Map();let aliasConflict=false;
   for(const s of catalog||[]){
     const canonical=key(s.scopeCode||s.displayName||s.slotKey);
-    for(const x of [s.scopeCode,s.displayName,s.slotKey])if(x)aliases.set(key(x),canonical);
+    for(const x of [s.scopeCode,s.displayName,s.slotKey])if(x){const k=key(x);if(aliases.has(k)&&aliases.get(k)!==canonical)aliasConflict=true;else aliases.set(k,canonical);}
+
   }
   const email=clean(auditorEmail).toLowerCase();
   if(!Array.isArray(scopeCodes)||scopeCodes.length===0)return false;
@@ -102,17 +103,16 @@ export function v211AuditorQualified(audValues,catalog,scopeCodes,auditorEmail,r
   if((a>=0&&!yes(target[a]))||(r>=0&&val(target,r).toLowerCase()!=='auditor'))return false;
   if(!target)return false;
   if(!v211QualificationWithdrawalConstraint({auditorValues:audValues,catalog,scopeCodes,auditorEmail,requestedDates}).ok)return false;
-  // Canonical UID+ScopeCode path is opt-in until all callers and GAS guards migrate.
-  // Never fall back to legacy columns when canonical relations were explicitly supplied.
-  if (qualificationRelations !== undefined) {
+  if(qualificationRelations!==undefined){
+    if(a<0||r<0||e<0||aliasConflict)return false;
     const uidColumn=col(h,['Auditor_UID','Auditor UID']);
     if(uidColumn<0)return false;
     const relationsCatalog=[['SlotKey','ScopeCode'],...(catalog||[]).map(x=>[x.slotKey,x.scopeCode])];
-    try {
+    try{
       const resolved=resolveAuditorScopeQualifications20({auditors:audValues,catalog:relationsCatalog,relations:qualificationRelations,auditorUid:val(target,uidColumn),auditorEmail});
-      const actual=new Set(resolved.qualifiedScopeCodes.map(key));
-      return scopeCodes.every(sc=>actual.has(aliases.get(key(sc))||key(sc)));
-    } catch (_) { return false; }
+      const qualified=new Set(resolved.qualifiedScopeCodes.map(key));
+      return scopeCodes.every(sc=>qualified.has(aliases.get(key(sc))||key(sc)));
+    }catch{return false;}
   }
   return (scopeCodes||[]).every(sc=>{
     const canon=aliases.get(key(sc))||key(sc);
@@ -183,11 +183,14 @@ export function v211AssignmentHardCheck({
   companyUid,
   companyName,
   logValues,
-  requestedDates
+  requestedDates,
+  qualificationRelations,
+  requireCanonicalQualifications=false
 }={}){
   const reasons=[];
+  if(requireCanonicalQualifications===true&&!Array.isArray(qualificationRelations))reasons.push('CANONICAL_QUALIFICATIONS_NOT_LOADED');
   if(v211CompanyIdentityAmbiguous(companyValues||[],companyUid,companyName))reasons.push('COMPANY_IDENTITY_AMBIGUOUS');
-  if(!v211AuditorQualified(auditorValues||[],catalog||[],scopeCodes||[],auditorEmail,requestedDates||[]))reasons.push('AUDITOR_NOT_HARD_QUALIFIED');
+  if(!v211AuditorQualified(auditorValues||[],catalog||[],scopeCodes||[],auditorEmail,requestedDates||[],requireCanonicalQualifications===true&&!Array.isArray(qualificationRelations)?[]:qualificationRelations))reasons.push('AUDITOR_NOT_HARD_QUALIFIED');
   const exclusions=v211CompanyAuditorExclusions(companyValues||[],companyUid,companyName);
   const identityRow=v211AuditorRowByIdentity(auditorValues||[],auditorEmail);
   const identityHeader=(auditorValues||[])[0]||[];

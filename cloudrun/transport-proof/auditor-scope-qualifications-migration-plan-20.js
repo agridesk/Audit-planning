@@ -13,6 +13,7 @@ export function planAuditorQualificationMigration20({auditors,catalog,relations}
  if(!preview.ok)return check('MIGRATION_PRECHECK_BLOCKED',{errors:preview.errors,missingLegacyScopes:preview.missingLegacyScopes});
  if(!Array.isArray(relations)||relations.length<1)return check('RELATION_SCHEMA_MISSING');
  const headers=relations[0]||[],idx=n=>headers.findIndex(h=>norm(h)===norm(n));
+ if(headers.some((h,i)=>!norm(h)||headers.findIndex(x=>norm(x)===norm(h))!==i))return check('RELATION_SCHEMA_DUPLICATE_OR_EMPTY_HEADER');
  const u=idx('Auditor_UID'),s=idx('ScopeCode'),q=idx('Qualified');
  if(u<0||s<0||q<0)return check('RELATION_SCHEMA_INCOMPLETE');
  const wanted=new Set(preview.rows.map(x=>x.Auditor_UID+'|'+norm(x.ScopeCode)));

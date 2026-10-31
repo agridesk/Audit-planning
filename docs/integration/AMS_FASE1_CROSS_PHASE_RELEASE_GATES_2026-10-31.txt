@@ -1,0 +1,166 @@
+AMS 2.0 | FASE 1 INTEGRATIE-REGISTER | 2026-10-31
+Scope: read-only bron- en overdrachtsaudit. Geen deploy, merge, datamutatie, PROD of writeractivatie.
+Bronnen: PR #47 (head 138f9f10205a5c204b6006c11bc2d92ad6297a73); actuele dev; handoffs F2, F2.5, F3, F4, F5, F6.
+Werkbranch: feature/ams-fase1-integration-audit-2026-10-31. Niet de release- of DEV-runtimebranch.
+
+BRANCH INTEGRATIE — HARDE BLOKKADE
+- dev en PR #47 zijn divergent; 108 dev-commits ontbreken ten opzichte van feature bij vergelijking 2026-10-31.
+- Overlap met server-r4.js, package.json, assignment-validation-v211.js, auditor-management-20-contract-test.mjs, scope-create-20.js en scope-gerelateerde tests.
+- Merge/rebase/cherry-pick in releasebranch verboden totdat per-file conflict/gedragsoverlap beoordeeld en test-gates vastgelegd zijn.
+- Cloud Run ams-20-preparation is eerder op 138f9f10 geïsoleerd gedeployd; dit is GEEN bewijs van huidige dev-code, scope migration, volledige auth of E2E werking.
+- Geen nieuwe scope migration-apply vóór code-/runtimeparity, lock probe, data-readiness en expliciete autorisatie.
+
+F1: P0 FIRESTORE PLANNING TRANSACTIES
+Owner: Fase 1. PR #47 draft, geen merge of cutover.
+Bewijs: offline CI voor PR-head; isolated DEV R15 startte; authority/writer/backfill flags uit.
+Open: legacy direct writer retirement, read-only data backfill evidence, multi-entity flows, cutover rehearsals, actual E2E and rollback; separate release go/no-go.
+
+F1: AUDITOR_UID CANONICAL CUTOVER
+Handoff: AMS_FASE1_HANDOFF_AUDITOR_UID_STATUS_2026-10-30.txt.
+Code: auditor-identity-versions.js, auditor-uid-backfill-preview.js, server-r4.js, assignment-validation-v211.js, actor-capabilities-v211.js.
+Open: UID is niet bewezen enige permanente auditoridentifier; e-mailvergelijkingen aanwezig in permission, assignment and planning paths.
+Gate: per writer/reader inventory, actual DEV identity readiness, data coverage, UID email-change/multiinstance regression, no loss of historical identities.
+E-mail blijft toegestaan voor login, contact en projectie; NIET blind bulkvervangen.
+
+F2: PLANNING TOOLKIT
+Handoff op docs/ams-phase-2-3-4-handoffs-2026-10-30.
+2026/2027 planningwindow incident niet gereproduceerd; branch feature/ams-toolkit-window-regression-tests-2026-10-30 commit 71d5b114 bevat statische checks (geen aangetoond CI/runtime bewijs).
+Gate: reproduceer single versus combined Visit met werkelijke payload, runtime-revisie, audit IDs en foutcode; behoud gecombineerde windowguards.
+
+F2.5: CATALOGUS 20 SCOPE-ID'S
+Handoff docs/Fase 2.5 Scope uitbreiding.txt op dev; 2026-10-31 upload.
+Dev bevat qualifications resolver, plan/apply, parity, distributed Firestore lock; Auditor_Scope_Qualifications DEV was header-only (snapshot); 23 legacy YES rows niet gemigreerd.
+Gate WP01 runtime gelijk aan geteste bron; WP02 lock probe; WP03 migratie alleen na aparte toestemming; WP04 qualifications via Auditor_UID x ScopeCode, fail-closed; WP05 09-20 consumers, geen silent truncation.
+SCOPE_01..08 identities onveranderlijk. SCOPE_09 testdata nooit automatisch promoten. Scopeversie is geen nieuwe identiteit.
+Overlapping dev changes with F1: server-r4, package, assignment validator; integratie vóór PROD of cutover.
+
+F3: GRID EXPORT / NOTIFICATIONS
+Read-only onderzoek afgerond, geen bewezen bug. Browser acceptatie Open/Completed, selection, PDF vs .xls, 20 scopes, notification overview nog open; geen nieuw codewerk zonder foutreproductie.
+
+F4: GRID FILTER/SORT
+Implementation branch feature/ams-grid4-filter-sort-isolated-2026-10-30 commit 3bf80ad.
+Geen browser/Node CI acceptatie; UI client-only. Eerst diff met F1 manager-portal.js / manager-portal.html inspecteren; behoud Open/Completed switching, selection and status visibility. Niet blind cherry-picken.
+
+F5: MODEL C HOURS PROVENANCE
+Handoff AMS_FASE5_NAAR_FASE1_HANDOFF_2026-10-30.txt.
+DEV snapshot: 199/199 Audit_Obligations zonder Scope_Version_ID, Formal_Hours_Source, Hours_Resolved_At. Override-ID mag bij default leeg zijn.
+Bestaande snapshot contract: company-scope-hours-snapshot-20.js. Create paths directSuccessorGroups/directRepairMissingCompleteLinks in server-r4; ModelCAnnualCycleRuntime.js (GAS).
+Gate: source/authority selection; append-only new obligations snapshot on creation; projector/writeset preserve all fields; historical closed audits unchanged; existing data remediation separate decision. Geen bulk backfill.
+
+F6: BATCH/WORKWEEK/ANNUAL
+Read-only R6 on docs/ams-fase6-readonly-eindrapport-2026-10-30.
+Codeketens aanwezig, geen aangetoonde bug of browser E2E; batch is bewust niet globaal atomisch. Customer confirmation policy DEV-only isolated; no rollout assumption.
+
+UITVOERVOLGORDE
+1. Read-only volledige touched-file en writer matrix, convergentie PR #47 versus recente dev.
+2. Canonieke autoriteit, UID en hours provenance regressie-gates in geïsoleerde branch; geen data-write.
+3. Integreer scope qualifications uitsluitend na conflictcontrole, inclusief veilige legacy history/20-scope dekking.
+4. Bouw geïsoleerde auth/runtime testbeschikbaarheid op, zonder gedeelde service aan te passen.
+5. Volg E2E testcases: identity, create/complete/successor, auditor availability, toolkit, grid, batch, export, scope qualification.
+6. Pas na groene integratie, gecontroleerde DEV-data, rollback en eigenaarstoestemming: deployment/merge/cutover. PROD afzonderlijk.
+
+BEWIJSHYGIENE
+Code aanwezig != CI groen != in DEV gedeployd != migratie uitgevoerd != E2E geaccepteerd.
+Bestaande werkende functionaliteit niet herontwerpen. Oudere roadmaps <=2.7 geen actualiteit; V2.12 proposed.
+
+WERKSESSIE ADDENDUM (GEISOLEERD; NIET GEDEPLOYD)
+- Staged branch contains extension of actor-capabilities-v211 to prefer immutable actor/assignment UID when both supplied; explicit UID mismatch fails closed despite matching emails.
+- A pure Node regression file covers SCOPE_DEFAULT, COMPANY_OVERRIDE, invalid provenance, UID-only assignment, mismatch rejection and unverified aliases.
+- This is ONLY staged helper behavior; upstream callers currently may still pass email. Historical alias resolution and full UID migration remain release blockers.
+- No CI workflow has yet been evidenced for isolated branch. Do not promote before full prior actor-capabilities regressions and runtime contract test.
+- Conflict inspection confirmed dev adds canonical qualification import in assignment-validation-v211 and changes scope-create, server-r4, package/test manifests; PR #47 lacks these. Avoid copying feature versions over dev.
+
+AUTONOMOUS SESSION 2 — 2026-10-31
+- Pure resolver/snapshot chain regression extended for baseline, company override, missing version and overlap; test not proven run in CI.
+- Existing append-projector regression extended with a synthetic Audit_Obligations provenance row and idempotent replay assertion; does NOT write to DEV Sheets.
+- Isolated GitHub workflow now includes projector regression; GitHub PR-filtered workflow lookup returned no executions, so do not call it green.
+- Change ownership remains isolated audit branch; PR #47, dev, Cloud Run DEV, PROD and SSOT unchanged.
+- F4 diff: manager-portal.js change set was identified; client acceptance remains open.
+
+AUTONOMOUS SESSION 3 — VERIFIED 2026-10-31
+- Draft PR #48 created from isolated audit branch into feature/ams-2-remediation-2026-10-28 (NOT dev; no merge): https://github.com/agridesk/Audit-planning/pull/48
+- PR #48 remains review-only and must not be merged until downstream owner approval.
+- Head 0cbc2ebcadd08d9d7c0dc02af9d6d715662aaf36 triggered GitHub Actions run 41181920560.
+- Run completed SUCCESS, including actor-capabilities baseline, UID/provenance staged test, append projector provenance replay, P0 planning authority, auth-fast, SWAP and full npm test.
+- Earlier isolated run 41181862276 SUCCESS and expanded run 41181890080 SUCCESS.
+- GREEN RESULT SCOPE: test suite on isolated PR branch, not latest dev, not merged PR #47, not Cloud Run or real DEV Sheets.
+- F2.5 qualification migration, UID callsite cutover, Model C live writer provenance, cross-branch conflict resolution and browser E2E remain OPEN.
+- No Cloud Run, Sheets, Firestore, PROD, merge, writer flag, or live runtime modifications performed.
+
+AUTONOMOUS SESSION 4 — VERIFIED
+- Projector append guard now rejects rows wider than destination range AND non-A-based append ranges. This prevents truncated Model C provenance and invalid full-row replay comparisons.
+- Added regression cases for overflow into A:B, A:AA and non-A B:G range.
+- CI run 41182089762 at 84af784b75f4c7f72dac560412de6acd221c11a6: SUCCESS, including full npm test, planning P0, auth-fast and SWAP.
+- Earlier width-only run 41182033316 at 059d355c2f0d965d100ec11f019c40fb9b0491d1: SUCCESS.
+- All fixes remain isolated in draft PR #48, not merged/deployed. Existing DEV 2 preparation remains unchanged and writer flags remain off.
+
+AUTONOMOUS SESSION 5 — VERIFIED
+- Sheets API HTTP 200 with missing values property is now rejected as APPEND_PROJECTION_SOURCE_MALFORMED; no optimistic empty-sheet interpretation or append replay allowed.
+- Synthetic regression covers inspect and apply under this response. CI workflow 41183427475 at 787adbdb34b48e5056ec61e160164e2dd9be9ed4 completed SUCCESS (isolated branch).
+- This is NOT evidence of full runtime integration. Scope2.5 qualification migration, UID callsite adoption, Model C obligation writer provenance and DEV E2E remain blocked pending dedicated cross-phase integration and runtime approval.
+
+AUTONOMOUS SESSION 6 — F2.5 REUSABLE CODE STAGING
+- Auditor Scope 20 qualifications pure resolver and its own test copied byte-for-byte from current dev to isolated Fase1 PR48 branch (not merged), no changes to shared dev.
+- Target files: cloudrun/transport-proof/auditor-scope-qualifications-20.js and auditor-scope-qualifications-20-test.mjs.
+- Review-only CI workflow now executes dev Scope20 qualification test alongside F1 UID ownership, provenance, projector, full npm, P0, auth and SWAP regressions.
+- NOTE: this is library-level integration only; route/manager auth, consumer call-site assignment, migration from legacy, Firestore lock and 20-scope E2E unverified. No canonical qualification cutover.
+- Projector inspection now excludes header row from replay match and reads UNFORMATTED_VALUE; malformed/unsupported outbox cells reject before any write.
+
+VERIFIED CI 2026-10-31
+- GitHub workflow 41183658356: SUCCESS, raw value comparison and header match filtering.
+- GitHub workflow 41183729542: SUCCESS, copied dev Scope20 qualifier tests, UID/provenance/projector and full existing regression suite.
+- CI is limited to isolated draft PR #48; no evidence that Cloud Run runs this commit. No release/go-live claim.
+
+SESSION 7 — ISOLATED SCOPE 2.5 READ-ONLY CONSUMER FOUNDATION
+- Staged unchanged pure migration preview, parity comparator and deterministic migration plan modules from dev with three matching tests. These modules are READ-ONLY; no write/migration apply/lock probe/GAS or Cloud Run change included.
+- CI workflow extended to execute all three tests plus pure qualifier alongside full F1/P0 suites. Do not equate library-level tests to live migration or consumer cutover.
+- Outbox append validator rejects NaN/Infinity to avoid JSON serialization as null and loss of provenance. Regression added.
+- Canonical Fase 2.5 migration apply remains gated and absent from this isolated integration. DEV qualification sheet remains unmodified.
+
+VERIFIED SESSION 7 CI: GitHub Actions run 41184074921 completed SUCCESS on 50b3675a40c636a2c25cd930f810edc85c8b082f, including read-only Fase2.5 migration preview/parity/plan tests and existing full AMS/P0/auth/SWAP suite. Previous non-finite outbox regression run 41184016339 SUCCESS on b6a79e8ba836244f2b571f63d7b5979e7e90300c. No live DEV runtime/deployment/migration evidence.
+
+SESSION 7 FOLLOW-ON — GATED F2.5 DEV MIGRATION MODULES
+- Staged exact dev copies of migration-apply and isolated Firestore lock helper with their tests. No API routing, enablement flags, Sheets writes, lock acquisition or deployment performed.
+- Isolated CI 41184161158 on c01ab6c34c8817cc09c344dee31cdfcb98fca9f5: SUCCESS. Tests cover gated executor/lock behavior, alongside other F1/F2.5 and full AMS checks.
+- Integrator still must resolve overlapping dev/PR47 server-r4, assignment-validation, package and test manifest edits, verify DEV runtime lock service account and obtain separate cutover permissions.
+
+SESSION 7 — OPTIONAL CANONICAL SCOPE ASSIGNMENT GATE
+- Stage-only assignment-validation-v211 gained optional qualificationRelations input to v211AuditorQualified and v211AssignmentHardCheck. When explicitly supplied, canonical Auditor_UID × ScopeCode relation takes precedence over legacy per-scope columns. Canonical NO blocks even when old column says YES; unknown UID/orphan relations fail closed.
+- Legacy callers without qualificationRelations retain old behavior during controlled transition. This is not complete or default-on consumer cutover.
+- Regression contains direct and hard-gate assertions for scope09, canonical NO, absent relations and legacy support.
+- GitHub Actions 41184291627 SUCCESS on 54e2045cb1d94c698bb09384fc99e7ca2748fc0b, including full npm test. Scope20 Sheets adapter synthetic tests also passed previously in 41184233237.
+- Current DEV/Cloud Run path remains untouched. Scope qualification data migration has NOT been performed. Validate all actual call-sites, security readiness and runtime identity before enabling canonical relation input on any writer.
+
+SESSION 8 — CANONICAL SCOPE HARD-GATE
+- v211AssignmentHardCheck now accepts requireCanonicalQualifications=true opt-in. When enabled, absent/non-array qualificationRelations fail closed even if legacy eight-column flags say eligible; no automatic cutover.
+- Synthetic tests cover missing/null canonical source, loaded relations, canonical NO overriding legacy YES. CI 41184492063 SUCCESS on 7bcc00ad; CI 41184551659 SUCCESS on 9e5b2776 including full AMS/P0/auth/SWAP.
+- No assignment caller actively wired, no migration or Cloud Run deployment performed. Runtime identity and read source gating still mandatory.
+
+AUTONOMOUS SESSION 9 — MAJOR MODEL C WIRING (ISOLATED, DEFAULT OFF)
+- New pure module model-c-new-obligation-provenance-20.js builds NEW obligations using canonical Company_Scopes + Company_Scope_Hours + ScopeVersions and refuses missing version/schema/override provenance or inherited hours conflict; never changes historic obligation rows.
+- New synthetic end-to-end test checks override provenance survives fenced Sheets RAW outbox append and exactly-once replay without API/network.
+- server-r4 directComplete successor creation now has DEV-only flag AMS_DEV_MODEL_C_NEW_HOURS_SNAPSHOT_ENABLED=true; disabled by default. When enabled it reads two canonical sources before lifecycle writes and uses new builder for new successor obligations, otherwise unchanged legacy path.
+- Gate is intentionally fail-closed if canonical sources, schema or inherited hours disagree. This does not repair pre-existing 199 DEV obligations, does not touch directRepairMissingCompleteLinks or ModelCAnnualCycleRuntime.js, and no Cloud Run deployment or flag enablement occurred.
+- Release requires live DEV header verification, source consistency/read isolation, complete legacy repair/GAS parity, separate data-readiness and permission before enabling writer mode. PROD remains explicitly rejected by directComplete.
+
+AUTONOMOUS SESSION 9 — FASE2/4 INTEGRATION
+- Merged NO BRANCHES; copied Fase4 exact isolated Grid UI manager-portal.js (source equals dev base before F4 changes), so no conflict with PR48's previously unchanged portal code. Integrated seven F4 source/test files and six Grid4 regression test commands into isolated CI.
+- Completed GitHub Actions 41185053650 SUCCESS on 2364ed33e4338f16fe215978d85230727aa0307f, with F4 column filters, sorting, badge tests plus F1/2.5/Model C/P0/full npm; SWAP 41185053588 SUCCESS; auth 41185053585 SUCCESS.
+- Added Fase2 isolated planning-toolkit-selection-window-regression-20.mjs source-contract check and CI command; this does not reproduce or fix observed 2026/2027 runtime window bug.
+- No browser acceptance, Cloud Run update, data changes, merge or PROD activity. Scope20 role-safe readmodels and Grid4 live colors still require runtime integration.
+
+AUTONOMOUS SESSION 9 FINAL HANDOFF — 2026-10-31
+INTEGRATION BRANCH: feature/ams-fase1-integration-audit-2026-10-31; Draft PR #48, targeting PR #47 feature branch, NEVER MERGED.
+INTEGRATED ON ISOLATED BRANCH:
+1. Model C: new-obligation canonical hours/provenance row factory; baseline/override/version/error regression; synthetic fenced outbox append replay. DEV-only default-OFF AMS_DEV_MODEL_C_NEW_HOURS_SNAPSHOT_ENABLED provides integration in server-r4 directComplete new successor and legacy completion-repair obligation writers. Real-source headers/semantics not runtime verified. GAS annual writer still separate.
+2. Fase 2.5: copied dev canonical qualification resolver, preview, parity, migration planner, guarded migration executor, lock and Sheets adapter; all corresponding test suites. Added manager-only five Cloud Run routes for migration preview/parity/plan/apply/lock probe; apply default OFF and fixed DEV project/spreadsheet gate. Assignment supports opt-in requireCanonicalQualifications fail-closed; no automatic cutover or data writes.
+3. Fase 2.5 stable Scope20: integrated dev scope-create, scope-slot bridge tests, GAS AuditManagerToolsConfigScopes.js duplicate identity checks. DESIGN CONFLICT REMAINS: GAS m5t_scopeSlotDefs_ still requires physical columns for slots 09-20, contradictory to handoff's no-new-physical-columns rule; needs canonical Model C consumer rewrite/acceptance before 09–20 go-live.
+4. Fase 4: complete client-only Grid4 filters/sorts/badges merged into isolated branch via exact F4 manager-portal.js (dev base and current F1 manager-portal source identical before import). All seven F4 support/test source files staged; six UI contracts executed in CI. Live Manager/Auditor browser acceptance NOT done.
+5. Fase 2: Toolkit primary-only vs explicit combined-visit selection/window source regression integrated; original incident remains unproven and open for runtime reproduction.
+6. Fase 1 identity: staged UID-own permissions and qualification readback; writer success now requires persisted Sheets qualification verification before CHANGE_APPLIED. PR #47 mandatory UID column behavior retained (stricter than dev).
+VALIDATION:
+- GitHub Actions SHA ac99b16931328edcb06534674eaac8923de3e815: AMS Fase1 isolated full test workflow run 41185373248 SUCCESS, Authentication 2.0 41185373283 SUCCESS, SWAP 2.0 41185373413 SUCCESS.
+- Earlier full F1+Model C+F4 CI SHA 2364ed33e4338f16fe215978d85230727aa0307f SUCCESS: 41185053650 / 41185053585 / 41185053588.
+- Staged source contract test is not equivalent to runtime E2E. No production readiness, no safe writer activation yet.
+RELEASE GATES OPEN: dev ↔ PR47 divergent; source branch server-r4/assignment/package collision; F2.5 source sheets and lock IAM readiness, qualification migration parity on live DEV; Auditor_UID full consumer cutover; GAS Model C annual writer and historical provenance treatment; full Model C DEV schema and real-data E2E; 20-scope headerless support; Toolkit runtime bug repro; Grid browser acceptance; controlled rollback; explicit separate approval for merge/deployment/PROD.
+SAFETY: No DEV/PROD deployments, no merge, no Firestore/Sheets data writes or migration, no flags enabled. PROD untouched.

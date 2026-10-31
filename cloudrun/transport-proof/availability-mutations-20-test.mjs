@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {prepareAvailabilityMutation as prepare} from './availability-mutations-20.js';
-const base={actor:{id:'manager1',role:'Manager'},targetAuditorId:'auditor1',expectedVersion:2,now:'2026-10-14T10:00:00Z',snapshot:{version:2,baselineExceptions:[],blocks:[]}};
+const base={actor:{id:'manager1',role:'Manager'},targetAuditorId:'auditor1',expectedVersion:2,now:'2026-10-14T10:00:00Z',snapshot:{version:2,baselineExceptions:[],baselineReleases:[],blocks:[]}};
 let n=0;
 function ok(args,expected){const r=prepare({...base,...args});assert.equal(r.action,expected);assert.equal(r.nextVersion,3);n++;}
 function fail(args,msg){assert.throws(()=>prepare({...base,...args}),{message:msg});n++;}
@@ -30,11 +30,43 @@ fail({mutation:{action:'SET_RECURRING',recurring:[{weekday:2,start:'08:01',end:'
 ok({mutation:{action:'SET_FREE_OVERRIDE',fromDate:'2026-10-17',toDate:'2026-10-17',wholeDay:true}},'SET_FREE_OVERRIDE');
 fail({mutation:{action:'SET_FREE_OVERRIDE',fromDate:'2026-10-18',toDate:'2026-10-17',wholeDay:true}},'INVALID_DATE_RANGE');
 ok({snapshot:snap,mutation:{action:'REMOVE_HARD_BLOCK',targetExceptionId:'b1',fromDate:'2027-01-11',toDate:'2027-01-11',wholeDay:true}},'REMOVE_HARD_BLOCK');
-console.log(`${n} mutation policy checks passed`);
 
 const existingHard={id:'hard-existing',fromDate:'2027-01-01',toDate:'2027-01-10',wholeDay:true};
-const edited=prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],blocks:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'hard-existing',fromDate:'2027-01-03',toDate:'2027-01-09',wholeDay:false,start:'08:00',end:'18:00'}});
+const edited=prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],baselineReleases:[],blocks:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'hard-existing',fromDate:'2027-01-03',toDate:'2027-01-09',wholeDay:false,start:'08:00',end:'18:00'}});
 assert.equal(edited.payload.id,'hard-existing','HARD edit retains canonical exception ID');
 assert.equal(edited.payload.fromDate,'2027-01-03');
 assert.equal(edited.payload.wholeDay,false);
-assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],blocks:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'absent',fromDate:'2027-01-03',toDate:'2027-01-09',wholeDay:true}}),/BASELINE_NOT_FOUND/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],baselineReleases:[],blocks:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'absent',fromDate:'2027-01-03',toDate:'2027-01-09',wholeDay:true}}),/BASELINE_NOT_FOUND/);
+
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],baselineReleases:[],blocks:[{state:'COMMITTED',date:'2027-01-05',start:'09:00',end:'12:00'}]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'hard-existing',fromDate:'2027-01-03',toDate:'2027-01-09',start:'08:00',end:'18:00'}}),/COMMITTED_CONFLICT/);
+
+const releasedHard={...existingHard};
+const existingRelease={targetExceptionId:'hard-existing',fromDate:'2027-01-02',toDate:'2027-01-02',wholeDay:true};
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[releasedHard],baselineReleases:[existingRelease],blocks:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'hard-existing',fromDate:'2027-01-03',toDate:'2027-01-09',wholeDay:true}}),/EXISTING_RELEASE_OUTSIDE_EDITED_BASELINE/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],baselineReleases:[],blocks:null},mutation:block}),/CANONICAL_BLOCKS_REQUIRED/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],blocks:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'hard-existing',fromDate:'2027-01-03',toDate:'2027-01-09',wholeDay:true}}),/CANONICAL_HARD_SOURCE_REQUIRED/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],blocks:null},mutation:{action:'SET_FREE_OVERRIDE',date:'2027-01-12',wholeDay:true}}),/CANONICAL_BLOCKS_REQUIRED/);
+assert.equal(prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],baselineReleases:[{targetExceptionId:'hard-existing',date:'2027-01-05',start:'09:00',end:'12:00'}],blocks:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'hard-existing',fromDate:'2027-01-03',toDate:'2027-01-09',start:'08:00',end:'18:00'}}).action,'EDIT_HARD_BLOCK');
+const singleDateBlock=prepare({...base,mutation:{action:'BLOCK_PERIOD',id:'single-date',date:'2027-01-05',wholeDay:true}});
+assert.equal(singleDateBlock.payload.fromDate,'2027-01-05');
+assert.equal(singleDateBlock.payload.toDate,'2027-01-05');
+const partialRemoval=prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],baselineReleases:[],blocks:[]},mutation:{action:'REMOVE_HARD_BLOCK',targetExceptionId:'hard-existing',date:'2027-01-05',start:'09:00',end:'12:00'}});
+assert.equal(partialRemoval.payload.wholeDay,false);
+assert.equal(partialRemoval.payload.start,'09:00');
+assert.equal(partialRemoval.payload.end,'12:00');
+assert.throws(()=>prepare({...base,snapshot:{version:2,blocks:[]},mutation:block}),/CANONICAL_BASELINES_REQUIRED/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,blocks:[],baselineReleases:[]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'missing',date:'2027-01-05',wholeDay:true}}),/CANONICAL_BASELINES_REQUIRED/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,blocks:[]},mutation:{action:'RELEASE_BASELINE',targetExceptionId:'missing',date:'2027-01-05',wholeDay:true}}),/CANONICAL_RELEASE_SOURCE_REQUIRED/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,blocks:[]},mutation:{action:'REMOVE_HARD_BLOCK',targetExceptionId:'missing',date:'2027-01-05',wholeDay:true}}),/CANONICAL_RELEASE_SOURCE_REQUIRED/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],baselineReleases:[],blocks:[]},mutation:{action:'REMOVE_HARD_BLOCK',targetExceptionId:'hard-existing',date:'2027-01-05',start:'14:00',end:'10:00'}}),/INVALID_TIME_RANGE/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],blocks:[null]},mutation:block}),/CANONICAL_BLOCKS_INVALID/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],baselineReleases:[],blocks:[{state:'UNKNOWN'}]},mutation:{action:'EDIT_HARD_BLOCK',targetExceptionId:'hard-existing',date:'2027-01-05',wholeDay:true}}),/CANONICAL_BLOCKS_INVALID/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],blocks:[{state:'UNKNOWN'}]},mutation:{action:'SET_FREE_OVERRIDE',date:'2027-01-05',wholeDay:true}}),/CANONICAL_BLOCKS_INVALID/);
+assert.throws(()=>prepare({...base,now:'2026-10-14T10:00:00',mutation:block}),/INVALID_TIMESTAMP/);
+assert.throws(()=>prepare({...base,now:'not-a-timestamp',mutation:block}),/INVALID_TIMESTAMP/);
+assert.throws(()=>prepare({...base,expectedVersion:Number.MAX_SAFE_INTEGER,snapshot:{...base.snapshot,version:Number.MAX_SAFE_INTEGER},mutation:block}),/VERSION_CONFLICT/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[],blocks:[{state:'COMMITTED',date:'2027-01-02',start:'09:00',end:'10:00'}]},mutation:{action:'BLOCK_PERIOD',id:'multiday',fromDate:'2027-01-01',toDate:'2027-01-03',start:'09:30',end:'11:00'}}),/COMMITTED_CONFLICT/);
+assert.equal(prepare({...base,snapshot:{version:2,baselineExceptions:[],blocks:[{state:'COMMITTED',date:'2027-01-02',start:'09:00',end:'10:00'}]},mutation:{action:'BLOCK_PERIOD',id:'multiday-nonoverlap',fromDate:'2027-01-01',toDate:'2027-01-03',start:'10:00',end:'11:00'}}).action,'BLOCK_PERIOD');
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],blocks:[]},mutation:{action:'RELEASE_BASELINE',targetExceptionId:'hard-existing',date:'2027-01-05',wholeDay:true}}),/CANONICAL_RELEASE_SOURCE_REQUIRED/);
+assert.throws(()=>prepare({...base,snapshot:{version:2,baselineExceptions:[existingHard],blocks:[]},mutation:{action:'REMOVE_HARD_BLOCK',targetExceptionId:'hard-existing',date:'2027-01-05',wholeDay:true}}),/CANONICAL_RELEASE_SOURCE_REQUIRED/);
+console.log(`${n} mutation policy checks and HARD edit regressions passed`);

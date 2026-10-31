@@ -5,7 +5,7 @@
 const reply=(res,status,body)=>{res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(body));};
 const clean=v=>String(v??'').trim();
 const isoDate=v=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&!Number.isNaN(Date.parse(v+'T00:00:00Z'))&&new Date(v+'T00:00:00Z').toISOString().slice(0,10)===v;
-const errorStatus=message=>/NOT_AUTHORIZED|ROLE_FORBIDDEN/.test(message)?403:/VERSION_CONFLICT|CAS_REQUIRES_FRESH_READ/.test(message)?409:/NOT_FOUND/.test(message)?404:/INVALID|UNSUPPORTED|OUTSIDE|CONFLICT|PERIOD_TOO_LONG|DUPLICATE|MISSING|QUERY_RANGE/.test(message)?422:500;
+const errorStatus=message=>/NOT_AUTHORIZED|ROLE_FORBIDDEN/.test(message)?403:/VERSION_CONFLICT|CAS_REQUIRES_FRESH_READ|PLANNING_LEASE_ACTIVE|PLANNING_LEASE_TOKEN_MISMATCH/.test(message)?409:/NOT_FOUND/.test(message)?404:/INVALID|UNSUPPORTED|OUTSIDE|CONFLICT|PERIOD_TOO_LONG|DUPLICATE|MISSING|QUERY_RANGE/.test(message)?422:500;
 async function jsonBody(req,limit=16384){let s='';for await(const chunk of req){s+=chunk;if(Buffer.byteLength(s)>limit)throw Error('REQUEST_TOO_LARGE');}try{return JSON.parse(s);}catch{throw Error('INVALID_JSON');}}
 function verifiedActor(identity){const role=clean(identity?.role).toLowerCase();const id=clean(identity?.auditorId||identity?.uid||identity?.id);if(!id||!['auditor','manager'].includes(role))throw Error('NOT_AUTHORIZED');return {id,role};}
 export function createAvailabilityHttpRouter({service,resolveIdentity,listAuditors}={}){
@@ -27,8 +27,9 @@ export function createAvailabilityHttpRouter({service,resolveIdentity,listAudito
    // A validated auditor session is the authoritative grant for its own UID.
    // Directory lookups are needed only for managers selecting other auditors.
    const directory=actor.role==='manager'?await listAuditors(actor):[{auditorId:actor.id,displayName:actor.id}];
-   if(!Array.isArray(directory)||directory.length>2500)throw Error('INVALID_AUDITOR_DIRECTORY');
+   if(!Array.isArray(directory)||directory.length>2500||directory.some(x=>!x||typeof x!=='object'||Array.isArray(x)||typeof x.auditorId!=='string'||!x.auditorId.trim()))throw Error('INVALID_AUDITOR_DIRECTORY');
    const allowed=new Map(directory.map(x=>[clean(x.auditorId),clean(x.displayName)||clean(x.auditorId)]));
+   if(allowed.size!==directory.length)throw Error('INVALID_AUDITOR_DIRECTORY');
    const authorizedId=id=>{const target=clean(id);if(!target||(actor.role==='auditor'?target!==actor.id:!allowed.has(target)))throw Error('NOT_AUTHORIZED');return target;};
    let result;
    if(route==='calendar'){

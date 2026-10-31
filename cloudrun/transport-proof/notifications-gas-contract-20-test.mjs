@@ -206,7 +206,7 @@ assert.doesNotMatch(selfPlanManagerMail,/if \(!url\) url = NB_clean_\(cta\.porta
 const sharedGrid=read('cloudrun/transport-proof/manager-portal.js');
 assert.match(sharedGrid,/function focusEmailAudit20\(/);
 assert.match(sharedGrid,/new URLSearchParams\(window\.location\.search\)/);
-assert.match(sharedGrid,/focusEmailAudit20\(\);return loadOpenEnrichment/);
+assert.match(sharedGrid,/focusEmailAudit20\(\);var enrichment=loadOpenEnrichment/);
 
 // Email never promises inline acceptance or carries a non-functional fake button.
 assert.match(auditorMail,/Open pending acceptances in Auditor Portal/);

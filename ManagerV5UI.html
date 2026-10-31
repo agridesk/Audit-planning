@@ -3609,11 +3609,20 @@ function m5_rowAuditorText_(r) {
   r = r || {};
   return [
     r.auditor,
+    r.auditorName,
+    r.auditorDisplayName,
+    r.assignedAuditorName,
+    r.assignedToName,
+    r.assignedToDisplayName,
+    r.preassignedAuditorDisplayName,
     r.assignedToEmail,
     r.assignedTo,
     r.assigned,
     r.preassignedAuditor,
-    r.auditorEmailOrName
+    r.auditorEmailOrName,
+    r.auditorUid,
+    r.auditorUID,
+    r.Auditor_UID
   ].map(function(x){ return String(x == null ? '' : x).trim(); })
    .filter(function(x){ return !!x; })
    .join(' ')

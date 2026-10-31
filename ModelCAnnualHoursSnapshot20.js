@@ -9,7 +9,10 @@ function ModelCAnnualHoursSnapshot20_enabled_(ss){
 }
 function ModelCAnnualHoursSnapshot20_rows_(values,required){
   if(!Array.isArray(values)||!values.length)throw Error('MODEL_C_HOURS_SOURCE_MISSING');
+  if(!Array.isArray(values[0]))throw Error('MODEL_C_HOURS_SOURCE_HEADER_INVALID');
   var headers=values[0].map(function(x){return String(x==null?'':x).trim();});
+  var unique={};headers.forEach(function(h){var k=h.toLowerCase();if(!h||unique[k])throw Error('MODEL_C_HOURS_SOURCE_HEADER_AMBIGUOUS');unique[k]=true;});
+  if(values.slice(1).some(function(row){return !Array.isArray(row);}))throw Error('MODEL_C_HOURS_SOURCE_ROW_MALFORMED');
   required.forEach(function(k){if(headers.indexOf(k)<0)throw Error('MODEL_C_HOURS_HEADER_MISSING_'+k);});
   return values.slice(1).filter(function(r){return r.some(function(x){return String(x==null?'':x).trim()!=='';});}).map(function(r){
     var obj={};headers.forEach(function(h,i){obj[h]=r[i]==null?'':r[i];});return obj;

@@ -1,0 +1,52 @@
+AMS FASE1 | CANONICAL WRITER AND CONFLICT MATRIX | 2026-10-31
+READ ONLY STATIC SOURCE INVESTIGATION — follow-up evidence for cross-phase portfolio
+Base: dev versus feature/ams-2-remediation-2026-10-28.
+
+CONFLICT ZONE 1 — server-r4.js
+dev length 2741 lines; PR47 feature length 2824 lines. Both changed.
+PR47: AsyncLocalStorage lifecycle write-preview/atomic writeset route; directSuccessorGroups around L1117; directRepairMissingCompleteLinks around L1175; succeeding obligation insert around L1367; repair writes around L1311; append intent around L1386.
+dev: scope qualification migration / lock probe routes; new migration controls; needs integration with R4 lifecycle guards, not replacement.
+Consequence: do not overwrite dev server-r4 with older PR47 copy, do not bypass atomic lifecycle preview with new migration paths.
+
+CONFLICT ZONE 2 — assignment-validation-v211.js
+dev begins with resolveAuditorScopeQualifications20 import; feature lacks that import and uses legacy qualification strategy.
+Assignment / preassignment must eventually consume canonical (Auditor_UID,ScopeCode) relation, preserving eligibility and revocation checks. Scope 09-20 cannot be declared supported solely from a resolver existing on dev.
+
+CONFLICT ZONE 3 — scope-create-20.js
+dev validates physical nonempty rows and stable slot identities; feature differs in slot gathering. Must preserve no-reuse/archival behavior and first 8 IDs, not blindly promote feature.
+
+CONFLICT ZONE 4 — package.json and contract tests
+dev adds scope qualification CI commands and new tests; PR47 adds planning authority P0 regression commands and lifecycle tests. Both suites must remain in eventual integrated manifest. Existing tests have different expectations and must be reconciled.
+
+CONFLICT ZONE 5 — auditor-management-20-contract-test.mjs
+dev adds scope migration endpoint checks, PR47 adds UID/email-session contracts. Keep both; a green single suite cannot substitute joint E2E verification.
+
+MODEL C NEW OBLIGATION WRITERS
+- server-r4.js directRepairMissingCompleteLinks: creates/writes obligations from L1175 and L1311.
+- server-r4.js directSuccessorGroups and continuation: groups L1117 and new obligation object L1367, adds obligation rows L1386.
+- ModelCAnnualCycleRuntime.js: annual successor create row uses Formal_Hours around L124; appends to obligations at L148.
+Current discovered write paths do not integrate buildObligationHoursSnapshot20 on these creation routes. Need verify column positions, authoritative hours source, historical snapshots before any code change.
+Provider contract company-scope-hours-resolver-20.js validates scope version and override dates/IDs. company-scope-hours-snapshot-20.js requires Formal_Hours_Source, Scope_Version_ID and Hours_Resolved_At, with override provenance conditional.
+No migration of historical 199 obligations without explicit decision on snapshots and statuses.
+
+AUDITOR IDENTITY / OWNERSHIP
+- actor-capabilities-v211.js in PR47 operates email-only for own assigned and preassigned.
+- server-r15.js contains auditorEmail state for pending leases and recovery/projection comparisons, so UID cutover also affects concurrency and recovery, not just UI identity.
+- New isolated branch staged pure helper (UID preferred, UID conflict reject) with regression tests; not wired to runtime, not approved for promotion.
+- session and legacy identity-version resolution must remain consistent across email change and historic assignments.
+
+F2.5 MIGRATION RISK
+- dev migration-apply module is gated and requires exclusive lock, fresh reads, explicit confirmation.
+- Existing DEV sheet Auditor_Scope_Qualifications was header-only; 23 YES snapshot is not current truth without reread.
+- Do not run lock probe or write migration until deployment version, manager auth, proper IAM and read-only migration-plan proven.
+- No automatic migration of TESTSCOPE-2 to PROD.
+
+REQUIRED PROOF BEFORE RELEASE
+1. Git diff three-way merge plus no lost routes/scripts/guards.
+2. Independently green identity/provenance/scope/atomic suites on same consolidated SHA.
+3. Direct runtime checks and authenticated read-only readiness, no action endpoints invoked.
+4. Isolated controlled DEV mutation tests only after separate approval and rollback.
+5. Re-read all affected Sheets tabs; snapshots preserved and 0 unexplained parity changes.
+6. Explicit merge and deployment authorization; separate PROD decision.
+
+This is evidence and a safety checklist, not validation of deployed runtime behavior.

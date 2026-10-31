@@ -10,6 +10,7 @@ const fetchImpl=async(url,init={})=>{
   return ok({values:rows[sheet]});
  }
  if(method==='POST'&&path.endsWith(':append')){
+  assert.equal(u.searchParams.get('valueInputOption'),'RAW','Outbox append must preserve identifiers, dates and formula-like literals');
   const sheet=path.split('/values/')[1].split('!')[0];
   rows[sheet].push(...JSON.parse(init.body).values);appended++;
   if(loseFenceAfterAppend)deny=true;
@@ -83,4 +84,8 @@ const missingValues=createPlanningSheetsAppendProjector({
 await assert.rejects(()=>missingValues.inspect(provenanceIntent),/APPEND_PROJECTION_SOURCE_MALFORMED/);
 await assert.rejects(()=>missingValues.apply({operationId:'op-missing-values',gateToken:'token',intents:provenanceIntent}),/APPEND_PROJECTION_SOURCE_MALFORMED/);
 
+// Formula-looking content must remain literal, not interpreted as a Sheets formula.
+const formulaIntent=[{range:'Audit_Obligations!A:G',values:[['OB-FORMULA','=1+1','SCOPE_DEFAULT','SV-2026','','','2026-10-31T12:00:00.000Z']]}];
+assert.equal((await service.apply({operationId:'op-formula',gateToken:'token',intents:formulaIntent})).confirmed,true);
+assert.equal(rows['Audit_Obligations'].at(-1)[1],'=1+1');
 console.log('Append projector: dedupe, replay, fence and unsupported-target guards passed');

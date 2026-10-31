@@ -17,4 +17,7 @@ assert.equal(v211AssignmentHardCheck({...base}).ok,true,'Flag off: legacy grant 
 assert.equal(v211AssignmentHardCheck({...base,requireCanonicalQualifications:true,qualificationRelations:[relationHeader]}).ok,false,'Flag on: missing relation must block');
 assert.equal(v211AssignmentHardCheck({...base,requireCanonicalQualifications:true,qualificationRelations:[relationHeader,['UID-1','MPS-ABC','YES']]}).ok,true,'Canonical YES authorizes');
 assert.equal(v211AssignmentHardCheck({...base,requireCanonicalQualifications:true,qualificationRelations:[relationHeader,['UID-1','MPS-ABC','NO']]}).ok,false,'Canonical NO overrides legacy grant');
+const qualificationRoute=code.slice(code.indexOf("'/api/v1/manager/auditor-management/qualification/save'"),code.indexOf("'/api/v1/manager/auditor-management/qualification/save'")+700);
+assert.ok(qualificationRoute.includes("CANONICAL_QUALIFICATION_WRITE_NOT_MIGRATED"),'Legacy qualification writer must be blocked when canonical reads activate');
+assert.ok(qualificationRoute.indexOf("CANONICAL_QUALIFICATION_WRITE_NOT_MIGRATED")<qualificationRoute.indexOf("for await(const c of req)"),'Unsafe legacy writer must fail before body parsing or mutation');
 console.log('Scope20 auditor list and Toolkit canonical qualification cutover: OFF compatibility, ON missing/NO fail-closed and YES qualified');

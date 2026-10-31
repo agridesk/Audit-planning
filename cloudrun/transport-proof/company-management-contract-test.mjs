@@ -6,7 +6,7 @@ const html=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8')
 for(const route of ['/api/v1/manager/company-management/save','/api/v1/manager/company-management/scopes/save','/api/v1/manager/company-management/scopes/assign','/api/v1/manager/company-management/scopes/hours'])assert.ok(server.includes(route),route);
 for(const feature of ['STALE_COMPANY_FIELD','STALE_COMPANY_SCOPE','STALE_COMPANY_HOURS','EXACTLY_ONE_ACTIVE_HQ_REQUIRED','Company_Scope_Hours!A:M'])assert.ok(server.includes(feature),feature);
 for(const feature of ['Show inactive company scopes','Default hours','Custom hours','Effective hours','companyManagement20Save','google.com/maps/search','Preferred audit months','type=\'checkbox\''])assert.ok(ui.includes(feature),feature);
-assert.ok(html.includes('max-height:195px'),'Compact company selector');
+assert.ok(html.includes('overflow-y:visible;max-height:none'),'Company selector must avoid tiny nested scroll area');
 assert.ok(ui.includes("'assign:'")&&ui.includes("'hours:'"),'Scope staged changes');
 assert.ok(server.includes('Number.isInteger(Number(value)*4)'),'Quarter-hour custom hours validation');
 assert.ok(server.includes('const m=/^([01]\\d|2[0-3]):[0-5]\\d-'),'Planning time validator uses numeric digit class');

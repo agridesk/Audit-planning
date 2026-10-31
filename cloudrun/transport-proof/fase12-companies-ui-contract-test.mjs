@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+const html=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
+const js=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+assert(html.includes('id="companyManagement20Close"'),'Close stays in embedded panel');
+assert(html.includes('overflow-y:visible;max-height:none'),'No nested tiny vertical scroller');
+assert(html.includes('.company-name-link'),'Link-style company names');
+assert(js.includes("btn.className='company-name-link'"));
+assert(html.includes('companyManagement20Search')&&html.includes('companyManagement20Filter'));
+new vm.Script(js);
+console.log('PASS companies panel UX and embedded Close');

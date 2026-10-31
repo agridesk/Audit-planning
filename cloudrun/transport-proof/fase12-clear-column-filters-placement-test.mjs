@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+const html=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
+const js=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+assert(html.includes('id="clearColumnFilters"'));
+assert(html.indexOf('id="clearColumnFilters"')<html.indexOf('id="reset"'));
+assert(!js.includes('tail.appendChild(clear)'));
+assert(js.includes('grid4State[currentView]={filters:{},sorts:[]};filter()'));
+assert(js.includes('document.getElementById("clearColumnFilters").addEventListener'));
+new vm.Script(js);
+console.log('PASS: column filter reset outside table header');

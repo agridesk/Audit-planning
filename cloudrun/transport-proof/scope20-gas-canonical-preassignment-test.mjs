@@ -8,6 +8,12 @@ const defs=[
  {slotKey:'SCOPE_01',scope:'MPS-ABC',scopeCode:'MPS-ABC',flagCol0:2},
  {slotKey:'SCOPE_09',scope:'New Scheme',scopeCode:'NEW-09',flagCol0:null}
 ];
+context.m5t_scopeSlotDefs_=()=>defs;
+context.m5t_toNumberOrZero_=x=>Number(x)||0;
+context.m5t_toIntOrNull_=x=>x==null?null:Number(x);
+const catalogUi=context.m5t_listScopeCatalog_({});
+assert.equal(catalogUi[1].scopeCode,'NEW-09');
+assert.equal(catalogUi[1].slotKey,'SCOPE_09');
 const auditors=[['Auditor_UID','E-mail','Active','Role'],['UID-1','a@example.com','YES','Auditor'],['UID-2','b@example.com','YES','Auditor']];
 const header=['Auditor_UID','ScopeCode','Qualified'];
 let relationRows=[header,['UID-1','NEW-09','YES'],['UID-1','MPS-ABC','YES']];

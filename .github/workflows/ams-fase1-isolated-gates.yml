@@ -1,0 +1,28 @@
+name: AMS Fase 1 isolated identity and hours gates
+on:
+  push:
+    branches:
+      - feature/ams-fase1-integration-audit-2026-10-31
+    paths:
+      - 'cloudrun/transport-proof/actor-capabilities-v211.js'
+      - 'cloudrun/transport-proof/fase1-integration-known-gaps-20-test.mjs'
+      - 'cloudrun/transport-proof/company-scope-hours-snapshot-20.js'
+      - '.github/workflows/ams-fase1-isolated-gates.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  identity-hours:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Provenance and identity assertions
+        working-directory: cloudrun/transport-proof
+        run: |
+          node --check actor-capabilities-v211.js
+          node --check fase1-integration-known-gaps-20-test.mjs
+          node actor-capabilities-v211-test.mjs
+          node fase1-integration-known-gaps-20-test.mjs

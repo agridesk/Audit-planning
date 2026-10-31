@@ -59,3 +59,6 @@ APPEND PROJECTOR WIDTH HARDENING — 2026-10-31
 - Regression covers both A:B and A:AA overflow plus prior Model C replay and global fence behavior.
 - GitHub Actions run 41182033316 completed SUCCESS on 059d355c2f0d965d100ec11f019c40fb9b0491d1, including full npm test, planning P0, fast auth and SWAP tests.
 - Not released or deployed; no observed real-data output.
+
+2026-10-31 NEXT PASS — APPEND RECOVERY
+Read-only recovery must refuse malformed Sheets responses and empty rowsets rather than treating a missing header as a definitely absent intent. The isolated projector now throws APPEND_PROJECTION_SOURCE_MALFORMED for zero rows or non-array rows. Fixture tests cover both cases; GitHub Actions run 41182613061 succeeded for d0eef6700eb436ea584a628b87bb3bb3fd036b78. This is isolated synthetic evidence only; not a DEV data inspection or cutover clearance.

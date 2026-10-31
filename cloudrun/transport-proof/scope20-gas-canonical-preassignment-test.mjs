@@ -48,4 +48,11 @@ assert.equal(check().error,'CANONICAL_QUALIFICATION_SCHEMA_INCOMPLETE','Active r
 auditorRows=auditors;
 const ambiguousDefs=[...defs,{slotKey:'SCOPE_10',scope:'New Scheme',scopeCode:'ANOTHER-10',flagCol0:null}];
 assert.equal(context.m5t_scope20CanonicalPreassignmentCheck_(ss,'a@example.com',selected,ambiguousDefs).error,'CANONICAL_SCOPE_ALIAS_AMBIGUOUS');
+auditorRows=[['Auditor_UID','E-mail','Active','Role','Qualification_Withdrawals_JSON'],
+ ['UID-1','a@example.com','YES','Auditor',JSON.stringify([{scopeCode:'NEW-09',effectiveDate:'2026-11-01',grandfatheredAuditIds:[]}])],
+ ['UID-2','b@example.com','YES','Auditor','']];
+assert.equal(check().error,'CANONICAL_QUALIFICATION_WITHDRAWN','No grandfathering for new preassignment');
+auditorRows[1][4]='not-json';
+assert.equal(check().error,'CANONICAL_QUALIFICATION_WITHDRAWAL_SCHEMA_INVALID');
+auditorRows=auditors;
 console.log('GAS Scope20 preassignment: canonical UID+ScopeCode YES, NO, missing, orphan, duplicate, invalid and missing source fail closed');

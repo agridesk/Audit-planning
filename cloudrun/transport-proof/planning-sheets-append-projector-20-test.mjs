@@ -6,6 +6,7 @@ const ok=result=>({ok:true,status:200,async json(){return structuredClone(result
 const fetchImpl=async(url,init={})=>{
  const u=new URL(url),path=decodeURIComponent(u.pathname),method=init.method||'GET';
  if(method==='GET'&&path.includes('/values/')){
+  assert.equal(u.searchParams.get('valueRenderOption'),'UNFORMATTED_VALUE');
   const range=path.split('/values/')[1],sheet=range.split('!')[0];
   return ok({values:rows[sheet]});
  }
@@ -88,4 +89,7 @@ await assert.rejects(()=>missingValues.apply({operationId:'op-missing-values',ga
 const formulaIntent=[{range:'Audit_Obligations!A:G',values:[['OB-FORMULA','=1+1','SCOPE_DEFAULT','SV-2026','','','2026-10-31T12:00:00.000Z']]}];
 assert.equal((await service.apply({operationId:'op-formula',gateToken:'token',intents:formulaIntent})).confirmed,true);
 assert.equal(rows['Audit_Obligations'].at(-1)[1],'=1+1');
+// Header text is not evidence of a previously appended data row.
+const headerLike=[['Obligation_ID','Formal_Hours','Formal_Hours_Source','Scope_Version_ID','Company_Hours_Override_ID','Company_Hours_Override_Revision','Hours_Resolved_At']];
+assert.equal((await service.inspect([{range:'Audit_Obligations!A:G',values:headerLike}])).state,'MISSING');
 console.log('Append projector: dedupe, replay, fence and unsupported-target guards passed');

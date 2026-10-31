@@ -27,23 +27,34 @@ function ModelCAnnualHoursSnapshot20_sources_(ss,companyScopeValues,obligationHe
     versions:ModelCAnnualHoursSnapshot20_rows_(sv.getDataRange().getValues(),['ScopeCode','VersionId','Hours_to_plan','Status','Effective_From','Effective_To'])
   };
 }
+function ModelCAnnualHoursSnapshot20_day_(value){
+  if(value instanceof Date){
+    if(isNaN(value.getTime()))throw Error('MODEL_C_HOURS_DATE_INVALID');
+    return String(value.getFullYear()).padStart(4,'0')+'-'+String(value.getMonth()+1).padStart(2,'0')+'-'+String(value.getDate()).padStart(2,'0');
+  }
+  var day=String(value==null?'':value).trim();
+  if(!day)return '';
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(day))throw Error('MODEL_C_HOURS_DATE_INVALID');
+  var d=new Date(day+'T00:00:00.000Z');
+  if(isNaN(d.getTime())||d.toISOString().slice(0,10)!==day)throw Error('MODEL_C_HOURS_DATE_INVALID');
+  return day;
+}
 function ModelCAnnualHoursSnapshot20_buildNew_(sources,item,companyUid,stamp){
   var str=function(x){return String(x==null?'':x).trim();};
   var cycle=str(item.cycleKey),day=cycle;
   if(/^[0-9]{4}$/.test(cycle)){
-    var expiry=str(item.baseExpiry);
-    if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(expiry)||expiry.slice(0,4)!==cycle)throw Error('MODEL_C_HOURS_YEAR_CYCLE_EXPIRY_REQUIRED');
+    var expiry=ModelCAnnualHoursSnapshot20_day_(item.baseExpiry);
+    if(!expiry||expiry.slice(0,4)!==cycle)throw Error('MODEL_C_HOURS_YEAR_CYCLE_EXPIRY_REQUIRED');
     day=expiry;
   }
-  if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(day)||isNaN(Date.parse(day+'T00:00:00Z')))throw Error('MODEL_C_HOURS_CYCLE_DATE_INVALID');
+  try{day=ModelCAnnualHoursSnapshot20_day_(day);}catch{throw Error('MODEL_C_HOURS_CYCLE_DATE_INVALID');}
+  if(!day)throw Error('MODEL_C_HOURS_CYCLE_DATE_INVALID');
   var code=str(item.scopeCode),company=str(companyUid),id=str(item.companyScopeId);
   if(!code||!company||!id||!sources)throw Error('MODEL_C_HOURS_IDENTITY_MISSING');
   var relation=sources.companyScopes.filter(function(r){return str(r.Company_Scope_ID)===id&&str(r.Company_UID)===company&&str(r.ScopeCode)===code;});
   if(relation.length!==1||!/^(yes|true|active|1)$/i.test(str(relation[0].Active)))throw Error('MODEL_C_HOURS_COMPANY_SCOPE_INVALID');
   function effective(start,end){
-    start=str(start);end=str(end);
-    if(start&&!/^\d{4}-\d{2}-\d{2}$/.test(start))throw Error('MODEL_C_HOURS_DATE_INVALID');
-    if(end&&!/^\d{4}-\d{2}-\d{2}$/.test(end))throw Error('MODEL_C_HOURS_DATE_INVALID');
+    start=ModelCAnnualHoursSnapshot20_day_(start);end=ModelCAnnualHoursSnapshot20_day_(end);
     if(start&&end&&start>end)throw Error('MODEL_C_HOURS_DATE_RANGE_INVALID');
     return (!start||start<=day)&&(!end||end>=day);
   }

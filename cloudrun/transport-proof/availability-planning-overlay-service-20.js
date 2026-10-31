@@ -43,7 +43,7 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
   const blocks=committedBlocksFromCanonicalSlots({auditorId,slots});
   const merged=withCommittedOverlay(doc,blocks);
   const auditDetails={};for(const slot of slots){if(slot.auditorId!==auditorId)continue;const id='audit:'+slot.auditId+'|'+slot.date+'|'+slot.start+'|'+slot.end;auditDetails[id]={auditId:slot.auditId,company:slot.company||'',scopes:slot.scopes||'',location:slot.location||'',date:slot.date,start:slot.start,end:slot.end,state:slot.state};}
-  return {auditorId,version:doc.version,days:resolveAvailabilityPeriod({...merged,fromDate,toDate}),auditDetails,incompleteAuditDiagnostics,metadata:{...structuredClone(doc.metadata),baselineIds:(doc.baselineExceptions||[]).map(x=>x.id),baselineExceptions:structuredClone(doc.baselineExceptions||[]),recurring:structuredClone(doc.recurring||[])}};
+  return {auditorId,version:doc.version,days:resolveAvailabilityPeriod({...merged,fromDate,toDate}),auditDetails,incompleteAuditDiagnostics:incompleteAuditDiagnostics.map(({auditId,status,code})=>({auditId,status,code})),metadata:{...structuredClone(doc.metadata),baselineIds:(doc.baselineExceptions||[]).map(x=>x.id),baselineExceptions:structuredClone(doc.baselineExceptions||[]),recurring:structuredClone(doc.recurring||[])}};
  }
  async function managerOverview({actor,auditorIds,fromDate,toDate,displayNames={}}){
   validateReadRange(fromDate,toDate);
@@ -58,7 +58,7 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
   }));
   const overview=buildManagerAvailabilityOverview({fromDate,toDate,auditors});
   const auditDetailsByAuditor={};for(const slot of slots){if(!auditorIds.includes(slot.auditorId))continue;(auditDetailsByAuditor[slot.auditorId]??=[]).push({auditId:slot.auditId,date:slot.date,start:slot.start,end:slot.end,state:slot.state,company:slot.company||'',scopes:slot.scopes||'',location:slot.location||''});}
-  return {...overview,auditDetailsByAuditor,incompleteAuditDiagnostics};
+  return {...overview,auditDetailsByAuditor,incompleteAuditDiagnostics:incompleteAuditDiagnostics.map(({auditId,status,code})=>({auditId,status,code}))};
  }
  async function mutate({actor,auditorId,expectedVersion,mutation,now}){
   const role=clean(actor?.role).toLowerCase(),actorId=clean(actor?.id),target=clean(auditorId);
@@ -85,11 +85,13 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
     // Unknown owner of an actually dated/accepted audit still fails closed.
     const canonicalAuditors=await listCanonicalAuditors();
     const emailOwners=new Map(canonicalAuditors.map(a=>[clean(a.email).toLowerCase(),clean(a.auditorId)]));
+    const validAuditorIds=new Set(canonicalAuditors.map(a=>clean(a.auditorId)));
     for(const audit of incompleteAuditDiagnostics){
      const state=clean(audit.status).toLowerCase().replace(/[\s_-]+/g,'');
      const knownUid=clean(audit.auditorUid);
      const email=clean(audit.assignedEmail).toLowerCase();
      const emailUid=emailOwners.get(email)||'';
+     if(knownUid&&!validAuditorIds.has(knownUid))throw Error('AUDIT_PLANNING_AUDITOR_UID_UNKNOWN');
      if(knownUid&&emailUid&&knownUid!==emailUid)throw Error('AUDIT_PLANNING_AUDITOR_IDENTITY_CONFLICT');
      const resolved=knownUid||emailUid;
      if(!resolved){

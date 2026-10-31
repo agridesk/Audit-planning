@@ -105,3 +105,8 @@ AUTONOMOUS SESSION 6 — F2.5 REUSABLE CODE STAGING
 - Review-only CI workflow now executes dev Scope20 qualification test alongside F1 UID ownership, provenance, projector, full npm, P0, auth and SWAP regressions.
 - NOTE: this is library-level integration only; route/manager auth, consumer call-site assignment, migration from legacy, Firestore lock and 20-scope E2E unverified. No canonical qualification cutover.
 - Projector inspection now excludes header row from replay match and reads UNFORMATTED_VALUE; malformed/unsupported outbox cells reject before any write.
+
+VERIFIED CI 2026-10-31
+- GitHub workflow 41183658356: SUCCESS, raw value comparison and header match filtering.
+- GitHub workflow 41183729542: SUCCESS, copied dev Scope20 qualifier tests, UID/provenance/projector and full existing regression suite.
+- CI is limited to isolated draft PR #48; no evidence that Cloud Run runs this commit. No release/go-live claim.

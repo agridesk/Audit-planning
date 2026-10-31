@@ -8,7 +8,7 @@ const key=x=>norm(x).toLowerCase().replace(/[\s_-]+/g,'');
 const date=x=>/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(x+'T00:00:00Z'))&&new Date(x+'T00:00:00Z').toISOString().slice(0,10)===x;
 const clock=(x,end=false)=>/^([01]\d|2[0-3]):[0-5]\d$/.test(x)||(end&&x==='24:00');
 function index(headers,aliases){for(const alias of aliases){const i=headers.findIndex(x=>key(x)===key(alias));if(i>=0)return i;}return -1;}
-export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDate,scopeNamesBySlot={}}={}){
+export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDate,scopeNamesBySlot={},incompleteAuditDiagnostics}={}){
  if(!Array.isArray(rows)||!Array.isArray(auditors)||!date(fromDate)||!date(toDate)||fromDate>toDate)throw Error('INVALID_AUDIT_BRIDGE_INPUT');
  if(!rows.length||!Array.isArray(rows[0]))throw Error('AUDIT_PLANNING_HEADERS_MISSING');
  const normalizedHeaders=rows[0].map(key).filter(Boolean);if(new Set(normalizedHeaders).size!==normalizedHeaders.length)throw Error('AUDIT_PLANNING_HEADERS_DUPLICATE');
@@ -27,12 +27,27 @@ export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDa
   if(!['APPROVED','ACCEPTED','PENDINGAPPROVAL'].includes(state))continue;
   if(!auditId)throw Error('AUDIT_PLANNING_COMMITTED_ID_MISSING');
   if(seenAuditIds.has(auditId))throw Error('AUDIT_PLANNING_COMMITTED_ID_DUPLICATE');seenAuditIds.add(auditId);
-  const raw=norm(row[json]);if(!raw)throw Error('AUDIT_PLANNING_COMMITTED_PLAN_MISSING');
-  const email=assigned<0?'':norm(row[assigned]).toLowerCase(),explicitUid=assignedUid<0?'':norm(row[assignedUid]);
-  if(explicitUid&&!uidLookup.has(explicitUid))throw Error('AUDIT_PLANNING_AUDITOR_UID_UNKNOWN');
-  if(explicitUid&&email&&lookup.has(email)&&lookup.get(email)!==explicitUid)throw Error('AUDIT_PLANNING_AUDITOR_IDENTITY_CONFLICT');
-  if(!explicitUid&&(!email||!lookup.has(email)))throw Error('AUDIT_PLANNING_AUDITOR_IDENTITY_UNRESOLVED'); // A committed audit must never disappear from availability because its legacy email no longer resolves.
+  const raw=norm(row[json]);
+  // An incomplete legacy row cannot create occupied slots. The manager overview
+  // can explicitly request diagnostics; strict callers retain fail-closed behavior.
+  if(!raw){
+   if(Array.isArray(incompleteAuditDiagnostics)){
+    incompleteAuditDiagnostics.push({auditId,status:norm(row[status]),code:'AUDIT_PLANNING_COMMITTED_PLAN_MISSING'});
+    continue;
+   }
+   throw Error('AUDIT_PLANNING_COMMITTED_PLAN_MISSING');
+  }
   let parsed;try{parsed=JSON.parse(raw);}catch{throw Error('AUDIT_PLANNING_JSON_INVALID');}
+  const email=assigned<0?'':norm(row[assigned]).toLowerCase(),explicitUid=assignedUid<0?'':norm(row[assignedUid]);
+  const payloadEmail=Array.isArray(parsed)?'':norm(parsed?.auditorEmail).toLowerCase();
+  if(explicitUid&&!uidLookup.has(explicitUid))throw Error('AUDIT_PLANNING_AUDITOR_UID_UNKNOWN');
+  const canonicalFromEmail=email?lookup.get(email):undefined;
+  const canonicalFromPayload=payloadEmail?lookup.get(payloadEmail):undefined;
+  if(explicitUid&&canonicalFromEmail&&canonicalFromEmail!==explicitUid)throw Error('AUDIT_PLANNING_AUDITOR_IDENTITY_CONFLICT');
+  if(explicitUid&&canonicalFromPayload&&canonicalFromPayload!==explicitUid)throw Error('AUDIT_PLANNING_AUDITOR_IDENTITY_CONFLICT');
+  if(canonicalFromEmail&&canonicalFromPayload&&canonicalFromEmail!==canonicalFromPayload)throw Error('AUDIT_PLANNING_AUDITOR_IDENTITY_CONFLICT');
+  const auditorId=explicitUid||canonicalFromEmail||canonicalFromPayload;
+  if(!auditorId)throw Error('AUDIT_PLANNING_AUDITOR_IDENTITY_UNRESOLVED');
   const blocks=Array.isArray(parsed)?parsed:parsed?.blocks;
   if(!Array.isArray(blocks))throw Error('AUDIT_PLANNING_COMMITTED_BLOCKS_INVALID');
   if(!blocks.length)throw Error('AUDIT_PLANNING_COMMITTED_BLOCKS_EMPTY');
@@ -40,7 +55,7 @@ export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDa
    const d=norm(b?.date),start=norm(b?.start),end=norm(b?.end);
    if(!date(d)||!clock(start)||!clock(end,true)||start>=end)throw Error('AUDIT_PLANNING_SLOT_INVALID');
    if(d<fromDate||d>toDate)continue;
-   const auditorId=explicitUid||lookup.get(email),signature=[auditId,d,start,end].join('|');
+   const signature=[auditId,d,start,end].join('|');
    if(seen.has(signature))throw Error('AUDIT_PLANNING_SLOT_DUPLICATE');seen.add(signature);
    const markedScopes=scopeSlotColumns.filter(x=>['x','yes','true','1'].includes(norm(row[x.i]).toLowerCase())).map(x=>norm(scopeNamesBySlot[x.slot])||x.slot);
    const scopeLabel=markedScopes.length?markedScopes.join(', '):scopesColumn<0?'':norm(row[scopesColumn]);

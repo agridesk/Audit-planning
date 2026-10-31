@@ -113,6 +113,12 @@ await assert.rejects(()=>conflictingOwner.mutate({actor:{id:'a',role:'auditor'},
 assert.equal(av003Writes,1);
 const report=await av003.period({actor,auditorId:'a',fromDate:'2027-01-12',toDate:'2027-01-12'});
 assert.equal(report.incompleteAuditDiagnostics.length,2,'Existing review warnings retained');
+assert(!('assignedEmail' in report.incompleteAuditDiagnostics[0]),'Auditor-facing diagnostics must not leak other auditor email');
+assert(!('auditorUid' in report.incompleteAuditDiagnostics[0]),'Auditor-facing diagnostics must not leak another auditor UID');
+const privateManager=await av003.managerOverview({actor,auditorIds:['a','b'],fromDate:'2027-01-12',toDate:'2027-01-12'});
+assert(!('assignedEmail' in privateManager.incompleteAuditDiagnostics[0]),'Manager warnings retain existing public schema');
+const unknownUid=createPlanningOverlayService({service:av003Storage,readPlanningRows:async()=>[av003Rows[0],['MISSING','ACCEPTED','','','rogue-uid','2027-01-12']],listCanonicalAuditors:async()=>auditors});
+await assert.rejects(()=>unknownUid.mutate({actor:{id:'a',role:'auditor'},auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}}),/AUDIT_PLANNING_AUDITOR_UID_UNKNOWN/);
 console.log('PASS AV-003 auditor-scoped incomplete planning isolation and fail-closed cases');
 
 console.log('PASS: planning overlay period, manager overview, authorization, fail closed');

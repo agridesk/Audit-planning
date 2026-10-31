@@ -53,4 +53,19 @@ const unresolvable=v211ActorCapabilities({actorRole:'AUDITOR',actorEmail:'a@exam
 assert.equal(unresolvable.visible,false,'Missing actor UID fails closed for UID-scoped owner');
 const historical=v211ActorCapabilities({actorRole:'AUDITOR',actorUid:'AUD-1',actorEmail:'current@example.com',assignedToEmail:'historical@example.com',status:'APPROVED'});
 assert.equal(historical.visible,false,'No unverified historical email alias inference');
+
+const renamed=v211ActorCapabilities({actorRole:'AUDITOR',actorUid:'AUD-1',assignedToUid:'AUD-1',actorEmail:'new@example.com',assignedToEmail:'old@example.com',status:'APPROVED'});
+assert.equal(renamed.visible,true,'Stable UID must survive email change');
+assert.equal(renamed.capabilities.canAccept,true);
+const preassignment=v211ActorCapabilities({actorRole:'AUDITOR',actorUid:'AUD-1',preassignedToUid:'AUD-1',status:'PENDING_PLANNING',allowSelfPlanning:true,hardEligible:true});
+assert.equal(preassignment.visible,true);
+assert.equal(preassignment.capabilities.canPlan,true);
+const mismatchedPreassignment=v211ActorCapabilities({actorRole:'AUDITOR',actorUid:'AUD-1',preassignedToUid:'AUD-2',actorEmail:'same@example.com',preassignedToEmail:'same@example.com',status:'PENDING_PLANNING',allowSelfPlanning:true,hardEligible:true});
+assert.equal(mismatchedPreassignment.visible,false);
+assert.equal(mismatchedPreassignment.capabilities.canPlan,false);
+const occupiedByUid=v211ActorCapabilities({actorRole:'AUDITOR',actorUid:'AUD-1',assignedToUid:'AUD-2',status:'PENDING_PLANNING',allowSelfPlanning:true,hardEligible:true});
+assert.equal(occupiedByUid.selfPlanningPool,false,'Assigned UID alone must mark planning slot occupied');
+const manager=v211ActorCapabilities({actorRole:'MANAGER',status:'APPROVED',actorUid:'MGR-1',assignedToUid:'AUD-2'});
+assert.equal(manager.capabilities.canAcceptOnBehalf,true,'Manager roles must not be constrained by auditor ownership');
+
 console.log('Fase 1 provenance contract and staged UID identity policy checks passed; runtime UID cutover NOT claimed');

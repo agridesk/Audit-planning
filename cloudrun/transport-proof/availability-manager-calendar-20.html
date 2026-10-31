@@ -25,6 +25,8 @@ function renderAuditorOptions(){
 }
 function renderOverview(data){
  S.auditors=data.auditors||[];S.auditDetailsByAuditor=data.auditDetailsByAuditor||{};renderAuditorOptions();
+ const incomplete=data.incompleteAuditDiagnostics||[];
+ if(incomplete.length)$('success').textContent='Data review required: '+incomplete.length+' audits have missing planning details ('+incomplete.map(x=>x.auditId).join(', ')+'). They are not shown as reserved slots.';
  const days=monthDays(data.fromDate,data.toDate),filter=$('availabilityFilter').value;
  const target=$('filterDate').value,term=$('searchTerm').value.trim().toLocaleLowerCase(),selected=S.selectedAuditors||new Set();const shown=S.auditors.filter(a=>(filter==='all'||(a.days||[]).some(d=>d.date===target&&freeWork(d.segments)>0))&&(!selected.size||selected.has(a.auditorId))&&(!term||a.displayName.toLocaleLowerCase().includes(term)||(S.auditDetailsByAuditor[a.auditorId]||[]).some(x=>x.company.toLocaleLowerCase().includes(term))));
  const head='<thead><tr><th>Date</th>'+shown.map(a=>'<th>'+esc(a.displayName)+'</th>').join('')+'</tr></thead>';

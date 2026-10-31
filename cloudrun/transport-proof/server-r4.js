@@ -1174,7 +1174,7 @@ function directExistingSuccessorRows(ap,auditId,actorEmail,cfgValues,companies){
 // Do not nest that same lock: nested acquisition deadlocks the audit.
 async function directManagerComplete(identity,body){return directComplete(identity,body,'MANAGER');}
 async function directAuditorComplete(identity,body){return directComplete(identity,body,'AUDITOR');}
-function directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companyScopes,companyUid,stamp){
+function directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companyScopes,companyUid,stamp,{enabled=false,sources=null}={}){
   const h=found.h,row=found.row,oh=obs[0]||[],lh=links[0]||[],csH=companyScopes[0]||[];
   const oi=col(oh,['Obligation_ID','Obligation ID']),ocs=col(oh,['Company_Scope_ID','Company Scope ID']),ocu=col(oh,['Company_UID','Company UID']),osc=col(oh,['ScopeCode','Scope Code']),ock=col(oh,['Cycle_Key','Cycle Key']),ots=col(oh,['Trigger_Source','Trigger Source']),ost=col(oh,['Obligation_State','Obligation State']),obe=col(oh,['Base_Expiry_Date','Base Expiry Date']),oee=col(oh,['Effective_Expiry_Date','Effective Expiry Date']),opf=col(oh,['Planning_Window_From','Planning Window From']),opt=col(oh,['Planning_Window_To','Planning Window To']),ofh=col(oh,['Formal_Hours','Formal Hours']),opa=col(oh,['Preassigned_Auditor_Email']),oas=col(oh,['Allow_Self_Planning']),oup=col(oh,['Updated_At','Updated At']),osrc=col(oh,['Source_Audit_ID']);
   const la=col(lh,['Audit_ID','Audit ID']),lo=col(lh,['Obligation_ID','Obligation ID']),ls=col(lh,['Link_State','Link State']),lli=col(lh,['Linked_At','Linked At']);
@@ -1221,6 +1221,15 @@ function directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companySco
       obId='OBL_'+createHash('sha256').update('LEGACY_COMPLETE|'+auditId+'|'+companyScopeId+'|'+code).digest('hex').slice(0,32);
       obRow=obs.length+out.filter(x=>x.syntheticOb).length+1;obValues=new Array(oh.length).fill('');
       obValues[oi]=obId;obValues[ocs]=companyScopeId;obValues[ocu]=companyUid;obValues[osc]=code;if(ock>=0)obValues[ock]=baseExpiry||plannedDate.slice(0,4);if(ots>=0)obValues[ots]=def.recurring===true?'CERTIFICATE_LIFECYCLE':'LEGACY_COMPLETION_REPAIR';obValues[ost]='OPEN';if(obe>=0)obValues[obe]=baseExpiry;if(oee>=0)obValues[oee]=effectiveExpiry;if(opf>=0)obValues[opf]=windowFrom;if(opt>=0)obValues[opt]=windowTo;if(ofh>=0){const scopeHours=directAuditPlanningScopeHours(h,row,def,code);obValues[ofh]=scopeHours!==null?scopeHours:Number(def.formalHours||0);}if(opa>=0)obValues[opa]=preassigned;if(oas>=0)obValues[oas]=allowSelfPlanning;if(oup>=0)obValues[oup]=stamp;if(osrc>=0)obValues[osrc]=auditId;
+    }
+    if(!existing&&enabled){
+      const obj=Object.fromEntries(oh.map((header,i)=>[header,obValues[i]??'']));
+      const resolved=buildNewModelCObligationWithHours20({
+        headers:oh,obligation:obj,companyId:companyUid,scopeCode:code,
+        effectiveDate:baseExpiry||plannedDate,companyScopes:sources.companyScopes,
+        overrides:sources.overrides,scopeVersions:sources.scopeVersions,now:stamp
+      });
+      obValues=resolved.row;
     }
     used.add(obId);
     let linkPack=null;
@@ -1301,7 +1310,7 @@ async function directComplete(identity,body,actorRole){
         const recoveredHours=actorRole==='AUDITOR'&&existingCommittedHours>0?existingCommittedHours:hoursDedicated;
         return{success:true,idempotent:true,recovered:true,auditId,action:'COMPLETE',hoursDedicated:recoveredHours,directCommit:true,owner,successorRows:recoveredSuccessorRows,successorAuditIds:recoveredSuccessorRows.map(r=>r.auditId),readMs,writeMs:existingLogCorrectionMs,deleteMs,totalMs:Date.now()-started};
       }
-      const repair=directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companyScopes,companyUid,stamp);activeLinks=repair.activeLinks||[];var legacyCompanyScopeWrites=repair.companyScopeWrites||[];
+      const repair=directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companyScopes,companyUid,stamp,{enabled:newObligationSnapshotEnabled,sources:newHoursSources});activeLinks=repair.activeLinks||[];var legacyCompanyScopeWrites=repair.companyScopeWrites||[];
     }
     const obById=new Map();for(let i=1;i<obs.length;i++)obById.set(val(obs[i],oi),{row:i+1,values:obs[i].slice()});for(const link of activeLinks)if(link.obValues)obById.set(link.obId,{row:link.obRow,values:link.obValues.slice()});for(const link of activeLinks)if(link.obValues)obById.set(link.obId,{row:link.obRow,values:link.obValues});
 

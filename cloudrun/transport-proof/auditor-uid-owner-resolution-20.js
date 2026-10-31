@@ -5,7 +5,9 @@ const idx=(headers,names)=>headers.findIndex(h=>names.some(n=>key(h)===key(n)));
 export function currentAuditorUid20(auditorValues,email,{required=false}={}){
  if(!required)return '';
  if(!Array.isArray(auditorValues)||!auditorValues.length||!Array.isArray(auditorValues[0]))throw Error('ACTOR_UID_SOURCE_NOT_READY');
- const h=auditorValues[0],e=idx(h,['E-mail','Email']),u=idx(h,['Auditor_UID','Auditor UID']),active=idx(h,['Active']),role=idx(h,['Role']);
+ const h=auditorValues[0];
+ if(h.some((v,i)=>!key(v)||h.findIndex(x=>key(x)===key(v))!==i))throw Error('ACTOR_UID_SCHEMA_AMBIGUOUS');
+ const e=idx(h,['E-mail','Email']),u=idx(h,['Auditor_UID','Auditor UID']),active=idx(h,['Active']),role=idx(h,['Role']);
  if([e,u,active,role].some(i=>i<0))throw Error('ACTOR_UID_SCHEMA_INCOMPLETE');
  const matches=auditorValues.slice(1).filter(row=>key(row[e])===key(email));
  if(matches.length!==1||!str(matches[0][u]))throw Error('ACTOR_UID_AMBIGUOUS_OR_MISSING');

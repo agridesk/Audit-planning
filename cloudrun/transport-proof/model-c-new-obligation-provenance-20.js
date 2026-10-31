@@ -8,7 +8,7 @@ export function resolveNewObligationEffectiveDate20(effectiveDate,obligation){
  const normalized=String(obligation?.Base_Expiry_Date??'').trim();
  const date=/^[0-9]{4}$/.test(cycle)?normalized:cycle;
  if(/^[0-9]{4}$/.test(cycle)&&(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(normalized)||normalized.slice(0,4)!==cycle))throw Error('NEW_OBLIGATION_YEAR_CYCLE_EXPIRY_REQUIRED');
- if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(date)||Number.isNaN(Date.parse(date+'T00:00:00Z')))throw Error('NEW_OBLIGATION_EFFECTIVE_DATE_INVALID');
+ if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(date)||Number.isNaN(Date.parse(date+'T00:00:00Z'))||new Date(date+'T00:00:00Z').toISOString().slice(0,10)!==date)throw Error('NEW_OBLIGATION_EFFECTIVE_DATE_INVALID');
  return date;
 }
 

@@ -13,6 +13,8 @@ on:
       - 'cloudrun/transport-proof/scope-create-20.js'
       - 'cloudrun/transport-proof/scope-create-20-test.mjs'
       - 'cloudrun/transport-proof/scope-slot-bridge-v211-test.mjs'
+      - 'cloudrun/transport-proof/grid4-*.mjs'
+      - 'cloudrun/transport-proof/manager-portal.js'
       - 'cloudrun/transport-proof/server-r4.js'
       - 'cloudrun/transport-proof/fase1-scope20-assignment-cutover-20-test.mjs'
       - 'cloudrun/transport-proof/fase1-integration-known-gaps-20-test.mjs'
@@ -61,6 +63,13 @@ jobs:
           node fase1-scope20-assignment-cutover-20-test.mjs
           node scope-create-20-test.mjs
           node scope-slot-bridge-v211-test.mjs
+          node grid4-column-filter-regression-test.mjs
+          node grid4-existing-ui-safety-contract-test.mjs
+          node grid4-readonly-filter-sort-test.mjs
+          node grid4-scope-badges-test.mjs
+          node grid4-ui-behavior-test.mjs
+          node grid4-ui-integration-contract-test.mjs
+          node --check manager-portal.js
           node planning-sheets-append-projector-20-test.mjs
       - name: Full P0 planning authority regression
         working-directory: cloudrun/transport-proof

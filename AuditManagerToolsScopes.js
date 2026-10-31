@@ -258,6 +258,13 @@ function m5t_upsertScopes(payload) {
     if(!submittedScope||!knownScopeAliases[submittedScope])return {success:false,error:'SCOPE_IDENTITY_UNRESOLVED',scope:submittedScope};
     if(ambiguousAliases[submittedScope])return {success:false,error:'SCOPE_IDENTITY_AMBIGUOUS',scope:submittedScope};
     var resolvedScopeCode=knownScopeAliases[submittedScope];
+    var identityFields=[scopeItem.scope,scopeItem.scopeCode,scopeItem.code,scopeItem.slotKey];
+    for(var fieldIndex=0;fieldIndex<identityFields.length;fieldIndex++){
+      var fieldValue=String(identityFields[fieldIndex]||'').trim().toLowerCase();
+      if(!fieldValue)continue;
+      if(!knownScopeAliases[fieldValue]||ambiguousAliases[fieldValue]||knownScopeAliases[fieldValue]!==resolvedScopeCode)
+        return {success:false,error:'SCOPE_IDENTITY_CONFLICT',scope:submittedScope};
+    }
     if(selectedScopeKeys[resolvedScopeCode])return {success:false,error:'DUPLICATE_SELECTED_SCOPE',scope:resolvedScopeCode};
     selectedScopeKeys[resolvedScopeCode]=true;
   }

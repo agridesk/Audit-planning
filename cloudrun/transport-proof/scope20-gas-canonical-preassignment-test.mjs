@@ -71,4 +71,14 @@ const denied=context.m5t_upsertScopes({
 assert.equal(denied.success,false);
 assert.equal(denied.error,'AUDITOR_NOT_HARD_QUALIFIED');
 assert.equal(createdAuditRows,0,'Denied Scope09 preassignment must not create an orphan audit row');
+// DEV currently has optional physical 09+ columns, but these must not bypass canonical qualifications.
+context.m5t_scopeSlotDefs_=()=>[{...defs[0]},{...defs[1],flagCol0:18,hourCol0:19}];
+const deniedPhysical=context.m5t_upsertScopes({
+ companyUid:'C-1',companyName:'Company 1',selectedScopes:[{scope:'New Scheme',enabled:true}],
+ preassignedAuditorEmail:'a@example.com'
+});
+assert.equal(deniedPhysical.success,false);
+assert.equal(deniedPhysical.error,'AUDITOR_NOT_HARD_QUALIFIED');
+assert.equal(createdAuditRows,0,'Optional physical Scope09 column must not allow unauthorized audit creation');
+context.m5t_scopeSlotDefs_=()=>defs;
 console.log('GAS Scope20 preassignment: canonical UID+ScopeCode YES, NO, missing, orphan, duplicate, invalid and missing source fail closed');

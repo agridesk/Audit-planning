@@ -23,5 +23,26 @@
 <textarea id="pwServerSeed" style="display:none" aria-hidden="true"><?= __seedJson ?></textarea>
 <?!= HtmlService.createHtmlOutputFromFile('PlanningWorkspaceClient.js').getContent(); ?>
 <?!= HtmlService.createHtmlOutputFromFile('PlanningWorkspaceBatchCommit.js').getContent(); ?>
+<script>
+(function(){
+ const pairs=[["pwFrom","pwTo"],["batchPlanFrom","batchPlanTo"]];
+ function sync(startId,endId){
+  const start=document.getElementById(startId),end=document.getElementById(endId);
+  if(!start||!end)return;
+  end.min=start.value||'';
+  if(start.value&&(!end.value||end.value<start.value)){
+   end.value=start.value;
+   end.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+ }
+ function handle(e){
+  for(const [start,end] of pairs)if(e.target?.id===start){sync(start,end);break;}
+ }
+ document.addEventListener('change',handle);
+ document.addEventListener('input',handle);
+ function init(){for(const [start,end] of pairs)sync(start,end)}
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+})();
+</script>
 </body>
 </html>

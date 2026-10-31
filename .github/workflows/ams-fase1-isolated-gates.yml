@@ -30,6 +30,7 @@ on:
       - 'cloudrun/transport-proof/runtime-docker-import-closure-20-test.mjs'
       - 'cloudrun/transport-proof/auditor-uid-owner-resolution-20.js'
       - 'cloudrun/transport-proof/auditor-uid-owner-resolution-20-test.mjs'
+      - 'cloudrun/transport-proof/auditor-uid-revision-fingerprint-20-test.mjs'
       - 'cloudrun/transport-proof/fase1-scope20-assignment-cutover-20-test.mjs'
       - 'cloudrun/transport-proof/fase1-integration-known-gaps-20-test.mjs'
       - 'cloudrun/transport-proof/company-scope-hours-snapshot-20.js'
@@ -68,6 +69,7 @@ jobs:
           node --check server-r4.js
           node runtime-docker-import-closure-20-test.mjs
           node auditor-uid-owner-resolution-20-test.mjs
+          node auditor-uid-revision-fingerprint-20-test.mjs
           node auditor-scope-qualifications-20-test.mjs
           node auditor-scope-qualifications-migration-20-test.mjs
           node auditor-scope-qualifications-parity-20-test.mjs

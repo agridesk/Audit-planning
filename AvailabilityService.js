@@ -423,6 +423,8 @@ var AvailabilityService = (function () {
   }
 
   function fixDuplicateAvailabilityRows_() {
+    if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') throw Error('SYSTEM_WRITE_GUARD_MISSING');
+    SYS_ENFORCE_WRITE_ALLOWED('PLANNING_AVAILABILITY_LEGACY', '');
     var sh = getSheet_();
     var meta = readHeaders_(sh);
     var cm = colMap_(meta.headers);
@@ -828,6 +830,8 @@ var AvailabilityService = (function () {
   }
 
   function writeBack(auditId, auditorEmail, auditorName, blocks, mode) {
+    if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') throw Error('SYSTEM_WRITE_GUARD_MISSING');
+    SYS_ENFORCE_WRITE_ALLOWED('PLANNING_AVAILABILITY_LEGACY', auditId);
     var __wbT0 = Date.now();
     var __wbPerf = { rowLookupMs:0, rowReadMs:0, rowWriteMs:0, summaryInvalidationMs:0, blocks:0 };
     auditId = cleanText(auditId);
@@ -951,6 +955,8 @@ var AvailabilityService = (function () {
 
 
   function clearAuditId(auditId) {
+    if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') throw Error('SYSTEM_WRITE_GUARD_MISSING');
+    SYS_ENFORCE_WRITE_ALLOWED('PLANNING_AVAILABILITY_LEGACY', auditId);
     auditId = cleanText(auditId);
     if (!auditId) return { success: true, changed: 0, rows: 0, deletedRows: 0, message: 'No auditId' };
 
@@ -1025,6 +1031,8 @@ var AvailabilityService = (function () {
   }
 
   function repairDefaultTimeCells(req) {
+    if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') throw Error('SYSTEM_WRITE_GUARD_MISSING');
+    SYS_ENFORCE_WRITE_ALLOWED('PLANNING_AVAILABILITY_LEGACY', '');
     req = req || {};
     var auditorFilter = req.auditorEmail ? auditorUidForEmail_(req.auditorEmail) : '';
     var sh = getSheet_();
@@ -1245,6 +1253,8 @@ var AvailabilityService = (function () {
   }
 
   function toggleManualSoftDay(req) {
+    if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') throw Error('SYSTEM_WRITE_GUARD_MISSING');
+    SYS_ENFORCE_WRITE_ALLOWED('PLANNING_AVAILABILITY_LEGACY', '');
     req = req || {};
     var auditorEmail = normalizeEmail(req.auditorEmail);
     var dateISO = cleanText(req.dateISO);
@@ -1340,6 +1350,8 @@ var AvailabilityService = (function () {
 
 
   function applyRangeManualSoftDays(req) {
+    if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') throw Error('SYSTEM_WRITE_GUARD_MISSING');
+    SYS_ENFORCE_WRITE_ALLOWED('PLANNING_AVAILABILITY_LEGACY', '');
     req = req || {};
     var auditorEmail = normalizeEmail(req.auditorEmail);
     var fromISO = cleanText(req.fromISO);
@@ -1451,6 +1463,8 @@ var AvailabilityService = (function () {
   }
 
   function applyDefaultWeekdaysAndRebuild12m(req) {
+    if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') throw Error('SYSTEM_WRITE_GUARD_MISSING');
+    SYS_ENFORCE_WRITE_ALLOWED('PLANNING_AVAILABILITY_LEGACY', '');
     req = req || {};
     var auditorEmail = normalizeEmail(req.auditorEmail);
     var weekdays = Array.isArray(req.weekdays) ? req.weekdays : [];
@@ -1816,6 +1830,8 @@ var AvailabilityService = (function () {
   }
 
   function sortAuditorAvailability() {
+    if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') throw Error('SYSTEM_WRITE_GUARD_MISSING');
+    SYS_ENFORCE_WRITE_ALLOWED('PLANNING_AVAILABILITY_LEGACY', '');
     var sh = getSheet_();
     var meta = readHeaders_(sh);
     var cm = colMap_(meta.headers);
@@ -1824,6 +1840,8 @@ var AvailabilityService = (function () {
   }
 
   function ensureDefaults12m(opts) {
+    if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') throw Error('SYSTEM_WRITE_GUARD_MISSING');
+    SYS_ENFORCE_WRITE_ALLOWED('PLANNING_AVAILABILITY_LEGACY', '');
     opts = opts || {};
     var alsoFillMissing = (opts.alsoFillMissingMetadataOnExistingDefaultRows !== false);
     var doSort = (opts.doSort !== false);
@@ -2052,6 +2070,8 @@ var AvailabilityService = (function () {
   }
 
   function regenerateDefaults12m() {
+    if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') throw Error('SYSTEM_WRITE_GUARD_MISSING');
+    SYS_ENFORCE_WRITE_ALLOWED('PLANNING_AVAILABILITY_LEGACY', '');
     return ensureDefaults12m({ alsoFillMissingMetadataOnExistingDefaultRows: true, doSort: true });
   }
 
@@ -2068,6 +2088,8 @@ var AvailabilityService = (function () {
   }
 
   function runDefaultsAuto() {
+    if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') throw Error('SYSTEM_WRITE_GUARD_MISSING');
+    SYS_ENFORCE_WRITE_ALLOWED('PLANNING_AVAILABILITY_LEGACY', '');
     try {
       ensureDefaults12m({ alsoFillMissingMetadataOnExistingDefaultRows: true, doSort: true });
     } catch (e) {

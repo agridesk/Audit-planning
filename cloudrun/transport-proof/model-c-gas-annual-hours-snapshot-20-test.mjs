@@ -31,8 +31,9 @@ assert.equal(env.ModelCAnnualHoursSnapshot20_enabled_(spreadsheet),false,'No imp
 env.PropertiesService={getScriptProperties:()=>({getProperty:()=> 'true'})};
 assert.equal(env.ModelCAnnualHoursSnapshot20_enabled_(spreadsheet),true);
 assert.throws(()=>env.ModelCAnnualHoursSnapshot20_enabled_({getId:()=> 'PROD-SHEET'}),/DEV_ONLY/);
-assert.ok(annual.includes('ModelCAnnualHoursSnapshot20_sources_(ss,csValues,MODEL_C_SCHEMA.Audit_Obligations)'));
+assert.ok(annual.includes('ModelCAnnualHoursSnapshot20_sources_(ss,csValues,obValues[0]||[])'));
 assert.ok(annual.includes('Object.assign(newOb,ModelCAnnualHoursSnapshot20_buildNew_(annualHoursSources,item,newOb.Company_UID,stamp))'));
 assert.ok(annual.indexOf('Object.assign(newOb,ModelCAnnualHoursSnapshot20_buildNew_')<annual.indexOf('newObligations.push(newOb)'));
+assert.ok(annual.includes('annualHoursSnapshotEnabled?(obValues[0]||[]):MODEL_C_SCHEMA.Audit_Obligations'),'Enabled writer must use actual canonical Sheet header, not a stale schema array');
 assert.ok(annual.indexOf('var annualHoursSources=')<annual.indexOf('newPlanningRows.push(newRow)'),'Provenance source must be loaded before annual writer mutation');
 console.log('Model C GAS annual snapshot: DEV gate, canonical overrides/versions and prewrite fail-closed proofs pass');

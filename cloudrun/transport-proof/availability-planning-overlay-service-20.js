@@ -86,7 +86,7 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
     const canonicalAuditors=await listCanonicalAuditors();
     const emailOwners=new Map(canonicalAuditors.map(a=>[clean(a.email).toLowerCase(),clean(a.auditorId)]));
     for(const audit of incompleteAuditDiagnostics){
-     const state=clean(audit.status).toLowerCase().replace(/[\\s_-]+/g,'');
+     const state=clean(audit.status).toLowerCase().replace(/[\s_-]+/g,'');
      const knownUid=clean(audit.auditorUid);
      const email=clean(audit.assignedEmail).toLowerCase();
      const emailUid=emailOwners.get(email)||'';

@@ -193,7 +193,7 @@ assert.ok(server.includes('historicalConflicts'),'UID readiness checks conflicti
 const docker=readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
 assert.ok(docker.includes('COPY auditor-identity-versions.js ./'),'UID resolver packaged in Cloud Run');
 assert.ok(docker.includes('COPY auditor-uid-backfill-preview.js ./'),'UID migration preview packaged in Cloud Run');
-assert.ok(server.includes("if(uidColumn>=0){const auditorRows=vr[1]?.values||[]"),'Direct planning dual-writes assigned UID');
+assert.ok(server.includes("if(uidColumn>=0){const auditorRows=vr[1]?.values||[]")||server.includes("if(uidColumn<0)throw Error('PLANNING_AUDITOR_UID_COLUMN_MISSING');{const auditorRows=vr[1]?.values||[]"),'Direct planning writes assigned UID or fails closed when UID column missing');
 assert.ok(server.includes("transferUidIndex>=0?[{range:'Audit planning!'"),'Transfer clears stale assigned UID');
 assert.ok(server.includes("appendCells:{sheetId:byName.get('Auditors')"),'Auditor create uses atomic appendCells');
 assert.ok(server.includes("appendCells:{sheetId:byName.get('Auditor_Identity_Versions')"),'UID ledger is in same atomic transaction');

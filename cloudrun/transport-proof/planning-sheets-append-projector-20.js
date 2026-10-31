@@ -49,7 +49,7 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   const sources=new Map();
   for(const sheet of new Set(items.map(x=>x.sheet))){
    const width=items.find(x=>x.sheet===sheet).range.split(':')[1],range=sheet+'!A1:'+width+'5000';
-   const u=base+'/values/'+encodeURIComponent(range)+'?valueRenderOption=FORMATTED_VALUE';
+   const u=base+'/values/'+encodeURIComponent(range)+'?valueRenderOption=UNFORMATTED_VALUE';
    const data=await request(u);
    if(!data||!Object.prototype.hasOwnProperty.call(data,'values'))throw Error('APPEND_PROJECTION_SOURCE_MALFORMED');
    const rows=data.values;
@@ -59,7 +59,7 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   }
   const missing=[];
   for(const item of items){
-   const matches=sources.get(item.sheet).filter(row=>same(row,item.row));
+   const matches=sources.get(item.sheet).slice(1).filter(row=>same(row,item.row));
    if(matches.length>1)throw Error('APPEND_PROJECTION_DUPLICATE_ALREADY_PRESENT');
    if(!matches.length)missing.push(item);
   }

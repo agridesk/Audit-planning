@@ -62,3 +62,6 @@ APPEND PROJECTOR WIDTH HARDENING — 2026-10-31
 
 2026-10-31 NEXT PASS — APPEND RECOVERY
 Read-only recovery must refuse malformed Sheets responses and empty rowsets rather than treating a missing header as a definitely absent intent. The isolated projector now throws APPEND_PROJECTION_SOURCE_MALFORMED for zero rows or non-array rows. Fixture tests cover both cases; GitHub Actions run 41182613061 succeeded for d0eef6700eb436ea584a628b87bb3bb3fd036b78. This is isolated synthetic evidence only; not a DEV data inspection or cutover clearance.
+
+APPEND IDENTITY SAFETY — 2026-10-31
+Sheets append projector uses valueInputOption=RAW instead of USER_ENTERED to avoid interpreting outbox fields as formulas/numbers and changing stable identity strings before post-write equality check. Synthetic regression asserts RAW request and formula-looking payload preservation. GitHub Actions run 41183501711 SUCCESS at 5995105a4985a95cad16c4d5d951b18051c1d56f. Existing intended formula semantics on these outbox targets must be assessed before deployment. No production or DEV writer activation.

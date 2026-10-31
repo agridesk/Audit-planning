@@ -128,4 +128,16 @@ function shift(n){const d=new Date(monthStart($('from').value)+'T00:00:00Z');d.s
 $('prev').addEventListener('click',()=>shift(-1));$('next').addEventListener('click',()=>shift(1));
 const now=new Date(),today=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');$('from').value=monthStart(today);$('through').value=monthEnd(today);$('jumpMonth').value=today.slice(0,7);$('jumpMonth').addEventListener('change',()=>goMonth($('jumpMonth').value));$('currentMonth').addEventListener('click',()=>goMonth(today.slice(0,7)));
 (async()=>{try{const me=await api('me');if(me.role!=='auditor')throw Error('Auditor role required');S.auditorId=me.auditorId;await load()}catch(e){failure(e)}})();
+function bindCoherentDateRange(fromId,toId){
+ const from=document.getElementById(fromId),to=document.getElementById(toId);
+ if(!from||!to)return;
+ const sync=()=>{
+  to.min=from.value||'';
+  if(from.value&&(!to.value||to.value<from.value))to.value=from.value;
+ };
+ from.addEventListener('change',sync);
+ from.addEventListener('input',sync);
+ sync();
+}
+for(const [start,end] of [['from','through'],['editFrom','editThrough']])bindCoherentDateRange(start,end);
 </script></body></html>

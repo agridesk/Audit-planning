@@ -120,3 +120,17 @@ document.addEventListener('click',function(ev){var b=ev.target&&ev.target.closes
 
 <!-- UI ownership note: © Project owner: René Rombouts -->
 <!-- © René Rombouts. Licensed for use by Agri Quality Assurance until further notice. -->
+
+<script>
+(function(){
+ function sync(){
+  var a=document.getElementById('m5tBatchFrom'),b=document.getElementById('m5tBatchTo');
+  if(!a||!b)return;
+  b.min=a.value||'';
+  if(a.value&&(!b.value||b.value<a.value)){b.value=a.value;b.dispatchEvent(new Event('change',{bubbles:true}));}
+ }
+ document.addEventListener('change',function(e){if(e.target&&e.target.id==='m5tBatchFrom')sync()});
+ document.addEventListener('input',function(e){if(e.target&&e.target.id==='m5tBatchFrom')sync()});
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',sync,{once:true});else sync();
+})();
+</script>

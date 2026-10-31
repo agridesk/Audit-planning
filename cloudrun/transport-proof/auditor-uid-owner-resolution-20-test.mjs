@@ -8,6 +8,8 @@ const uid=currentAuditorUid20(auditorRows,'new@example.com',{required:true});
 assert.equal(uid,'AUD-1');
 const target=assignedUid20(h,r,{required:true,assignedEmail:'new@example.com'});
 assert.equal(target,'AUD-1');
+assert.throws(()=>currentAuditorUid20([[...auditorRows[0],' e-mail '],...auditorRows.slice(1)],'new@example.com',{required:true}),/ACTOR_UID_SCHEMA_AMBIGUOUS/);
+assert.throws(()=>assignedUid20([...h,'Auditor_UID'],r,{required:true,assignedEmail:'new@example.com'}),/ASSIGNMENT_UID_SCHEMA_AMBIGUOUS/);
 assert.equal(v211ActorCapabilities({actorRole:'Auditor',actorEmail:'new@example.com',actorUid:uid,assignedToEmail:'old@example.com',assignedToUid:target,status:'APPROVED'}).capabilities.canAccept,true,'Stable owner survives email rename');
 assert.equal(v211ActorCapabilities({actorRole:'Auditor',actorEmail:'new@example.com',actorUid:'AUD-2',assignedToEmail:'new@example.com',assignedToUid:target,status:'APPROVED'}).visible,false,'Email equality cannot defeat UID conflict');
 assert.equal(currentAuditorUid20(auditorRows,'new@example.com'),'', 'Existing default-off callers unchanged');

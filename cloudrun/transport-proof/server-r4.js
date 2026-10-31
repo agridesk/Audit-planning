@@ -1247,8 +1247,8 @@ function directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companySco
 }
 
 async function directComplete(identity,body,actorRole){
-  const newObligationSnapshotEnabled=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_MODEL_C_NEW_HOURS_SNAPSHOT_ENABLED==='true';
   if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
+  const newObligationSnapshotEnabled=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_MODEL_C_NEW_HOURS_SNAPSHOT_ENABLED==='true';
   actorRole=clean(actorRole).toUpperCase();
   if(actorRole!=='MANAGER'&&actorRole!=='AUDITOR')throw new Error('COMPLETE_ACTOR_ROLE_INVALID');
   const started=Date.now(),auditId=clean(body?.auditId),options=body?.options&&typeof body.options==='object'?body.options:{},hoursDedicated=Number(options.hoursDedicated),expectedRevision=clean(options.expectedRevision||body?.expectedRevision);

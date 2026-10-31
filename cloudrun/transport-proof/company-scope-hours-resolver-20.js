@@ -2,7 +2,7 @@
 // The adapter must provide verified canonical rows. This module does NOT assume
 // Company_Scope_Hours has already been created in DEV.
 const str=x=>String(x??'').trim();
-const date=x=>{const s=str(x);if(!/^\d{4}-\d{2}-\d{2}$/.test(s)||Number.isNaN(Date.parse(s+'T00:00:00Z')))throw Error('INVALID_EFFECTIVE_DATE');return s};
+const date=x=>{const s=str(x);if(!/^\d{4}-\d{2}-\d{2}$/.test(s)||Number.isNaN(Date.parse(s+'T00:00:00Z'))||new Date(s+'T00:00:00Z').toISOString().slice(0,10)!==s)throw Error('INVALID_EFFECTIVE_DATE');return s};
 const hours=x=>{const s=str(x).replace(',','.');if(!/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(s)||!(Number(s)>0)||Number(s)>10000)throw Error('INVALID_FORMAL_HOURS');return Number(s)};
 const one=(rows,missing,duplicate)=>{if(rows.length>1)throw Error(duplicate);if(!rows.length)throw Error(missing);return rows[0]};
 export function resolveCompanyScopeHours20({companyId,scopeCode,effectiveDate,companyScopes,overrides,scopeVersions}){

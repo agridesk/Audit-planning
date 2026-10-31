@@ -142,3 +142,9 @@ AUTONOMOUS SESSION 9 — MAJOR MODEL C WIRING (ISOLATED, DEFAULT OFF)
 - server-r4 directComplete successor creation now has DEV-only flag AMS_DEV_MODEL_C_NEW_HOURS_SNAPSHOT_ENABLED=true; disabled by default. When enabled it reads two canonical sources before lifecycle writes and uses new builder for new successor obligations, otherwise unchanged legacy path.
 - Gate is intentionally fail-closed if canonical sources, schema or inherited hours disagree. This does not repair pre-existing 199 DEV obligations, does not touch directRepairMissingCompleteLinks or ModelCAnnualCycleRuntime.js, and no Cloud Run deployment or flag enablement occurred.
 - Release requires live DEV header verification, source consistency/read isolation, complete legacy repair/GAS parity, separate data-readiness and permission before enabling writer mode. PROD remains explicitly rejected by directComplete.
+
+AUTONOMOUS SESSION 9 — FASE2/4 INTEGRATION
+- Merged NO BRANCHES; copied Fase4 exact isolated Grid UI manager-portal.js (source equals dev base before F4 changes), so no conflict with PR48's previously unchanged portal code. Integrated seven F4 source/test files and six Grid4 regression test commands into isolated CI.
+- Completed GitHub Actions 41185053650 SUCCESS on 2364ed33e4338f16fe215978d85230727aa0307f, with F4 column filters, sorting, badge tests plus F1/2.5/Model C/P0/full npm; SWAP 41185053588 SUCCESS; auth 41185053585 SUCCESS.
+- Added Fase2 isolated planning-toolkit-selection-window-regression-20.mjs source-contract check and CI command; this does not reproduce or fix observed 2026/2027 runtime window bug.
+- No browser acceptance, Cloud Run update, data changes, merge or PROD activity. Scope20 role-safe readmodels and Grid4 live colors still require runtime integration.

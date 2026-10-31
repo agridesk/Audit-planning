@@ -16,6 +16,7 @@ export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDa
  if([id,status,json].some(x=>x<0)||(assigned<0&&index(h,['Auditor_UID','Auditor UID','Assigned_Auditor_UID','Assigned Auditor UID'])<0))throw Error('AUDIT_PLANNING_HEADERS_MISSING');
  const assignedUid=index(h,['Auditor_UID','Auditor UID','Assigned_Auditor_UID','Assigned Auditor UID']);
  const plannedDateColumn=index(h,['Date - Planned','Date Planned','Date planned']);
+ const decisionColumn=index(h,['Last manager decision']);
  const companyColumn=index(h,['Company','Company name','Company Name','Company_Name','Company name (display)']),scopesColumn=index(h,['Scopes','Scope','Scope(s)','Scope names','Scope Names','Audit scopes']);
  const scopeSlotColumns=h.map((header,i)=>({slot:norm(header).toUpperCase(),i})).filter(x=>/^SCOPE_\d+$/.test(x.slot));
  const locationColumn=index(h,['Execution location','Execution Location','Location','Audit location','Site','Visit location']);
@@ -35,6 +36,8 @@ export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDa
    if(Array.isArray(incompleteAuditDiagnostics)){
     incompleteAuditDiagnostics.push({
      auditId,status:norm(row[status]),code:'AUDIT_PLANNING_COMMITTED_PLAN_MISSING',
+     company:companyColumn<0?'':norm(row[companyColumn]),
+     unplannedTransfer:state==='PENDINGAPPROVAL'&&decisionColumn>=0&&key(row[decisionColumn])==='transfer'&&!(plannedDateColumn>=0&&norm(row[plannedDateColumn]))&&!(assigned>=0&&norm(row[assigned]))&&!(assignedUid>=0&&norm(row[assignedUid])),
      // For mutation preflight only: a source-declared planned date is evidence of
      // one planning day, not evidence of a complete multi-day schedule.
      plannedDate:plannedDateColumn<0?'':norm(row[plannedDateColumn]),

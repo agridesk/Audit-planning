@@ -29,6 +29,8 @@ deny=true;
 await assert.rejects(()=>service.apply({operationId:'op2',gateToken:'token',intents:[{range:'Rejected audits!A:Z',values:[['audit-2','Rejected']]}]}),/FENCE_LOST/);
 assert.equal(appended,1);
 await assert.rejects(()=>service.inspect([{range:'Unsafe!A:Z',values:[['x']]}]),/APPEND_INTENT_UNSUPPORTED/);
+await assert.rejects(()=>service.inspect([{range:'Audit_Obligations!A:B',values:[['OB-1','5','SCOPE_DEFAULT']]}]),/APPEND_INTENT_WIDTH_INVALID/);
+await assert.rejects(()=>service.inspect([{range:'Audit_Obligations!A:AA',values:[Array(28).fill('x')]}]),/APPEND_INTENT_WIDTH_INVALID/);
 assert.ok(fenceChecks>=3);
 deny=false;loseFenceAfterAppend=true;
 await assert.rejects(()=>service.apply({operationId:'op3',gateToken:'token',intents:[{range:'Rejected audits!A:Z',values:[['audit-3','Rejected']]}]}),/FENCE_LOST/);

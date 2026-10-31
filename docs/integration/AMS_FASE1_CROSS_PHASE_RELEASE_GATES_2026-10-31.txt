@@ -93,3 +93,8 @@ AUTONOMOUS SESSION 4 — VERIFIED
 - CI run 41182089762 at 84af784b75f4c7f72dac560412de6acd221c11a6: SUCCESS, including full npm test, planning P0, auth-fast and SWAP.
 - Earlier width-only run 41182033316 at 059d355c2f0d965d100ec11f019c40fb9b0491d1: SUCCESS.
 - All fixes remain isolated in draft PR #48, not merged/deployed. Existing DEV 2 preparation remains unchanged and writer flags remain off.
+
+AUTONOMOUS SESSION 5 — VERIFIED
+- Sheets API HTTP 200 with missing values property is now rejected as APPEND_PROJECTION_SOURCE_MALFORMED; no optimistic empty-sheet interpretation or append replay allowed.
+- Synthetic regression covers inspect and apply under this response. CI workflow 41183427475 at 787adbdb34b48e5056ec61e160164e2dd9be9ed4 completed SUCCESS (isolated branch).
+- This is NOT evidence of full runtime integration. Scope2.5 qualification migration, UID callsite adoption, Model C obligation writer provenance and DEV E2E remain blocked pending dedicated cross-phase integration and runtime approval.

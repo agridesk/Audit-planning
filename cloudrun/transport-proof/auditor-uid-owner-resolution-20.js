@@ -22,6 +22,7 @@ export function currentAuditorUid20(auditorValues,email,{required=false}={}){
 export function assignedUid20(auditHeader,auditRow,{required=false,assignedEmail=''}={}){
  if(!required)return '';
  if(!Array.isArray(auditHeader)||!Array.isArray(auditRow))throw Error('ASSIGNMENT_UID_SOURCE_MISSING');
+ if(auditHeader.some((v,i)=>!key(v)||auditHeader.findIndex(x=>key(x)===key(v))!==i))throw Error('ASSIGNMENT_UID_SCHEMA_AMBIGUOUS');
  const u=idx(auditHeader,['Auditor_UID','Assigned_Auditor_UID']);
  if(u<0)throw Error('ASSIGNMENT_UID_SCHEMA_MISSING');
  const uid=str(auditRow[u]);

@@ -8,6 +8,7 @@ on:
       - 'cloudrun/transport-proof/assignment-validation-v211.js'
       - 'cloudrun/transport-proof/model-c-new-obligation-provenance-20.js'
       - 'cloudrun/transport-proof/model-c-new-obligation-provenance-20-test.mjs'
+      - 'cloudrun/transport-proof/model-c-provenance-projector-e2e-synthetic-20-test.mjs'
       - 'cloudrun/transport-proof/fase1-scope20-assignment-cutover-20-test.mjs'
       - 'cloudrun/transport-proof/fase1-integration-known-gaps-20-test.mjs'
       - 'cloudrun/transport-proof/company-scope-hours-snapshot-20.js'
@@ -41,6 +42,7 @@ jobs:
           node actor-capabilities-v211-test.mjs
           node fase1-integration-known-gaps-20-test.mjs
           node model-c-new-obligation-provenance-20-test.mjs
+          node model-c-provenance-projector-e2e-synthetic-20-test.mjs
           node auditor-scope-qualifications-20-test.mjs
           node auditor-scope-qualifications-migration-20-test.mjs
           node auditor-scope-qualifications-parity-20-test.mjs

@@ -600,7 +600,8 @@ async function auditorOpenRead(email){
     const resolveAssignment=raw=>{if(!identityMap)return directResolveAuditorEmail(aud,raw);if(!clean(raw))return'';const uid=rotationResolveAuditor(identityMap,raw);const current=identityMap.byUid.get(uid)?.email;if(!current)throw Error('AUDITOR_ASSIGNMENT_IDENTITY_UNRESOLVED');return current;};
     const assigned=resolveAssignment(row.assignedTo),preassigned=resolveAssignment(row.preassignedAuditor);
     let hardEligible=false,eligibilityConflictReason='';
-    const pending=row.statusKey==='PENDING_PLANNING',selfPlanningAllowed=yes(row.allowSelfPlanning),ownAssigned=!!assigned&&assigned===actorEmail,ownPreassigned=!!preassigned&&preassigned===actorEmail,selfPoolCandidate=pending&&selfPlanningAllowed&&!assigned&&!preassigned;
+    const assignedCanonicalUid=assignedUid20(ap[0]||[],auditUidById.get(row.auditId)||[],{required:uidAuthEnabled,assignedEmail:assigned});
+    const pending=row.statusKey==='PENDING_PLANNING',selfPlanningAllowed=yes(row.allowSelfPlanning),ownAssigned=uidAuthEnabled?(!!assignedCanonicalUid&&assignedCanonicalUid===canonicalActorUid):!!assigned&&assigned===actorEmail,ownPreassigned=!!preassigned&&preassigned===actorEmail,selfPoolCandidate=pending&&selfPlanningAllowed&&!assigned&&!preassigned;
     if(pending&&selfPlanningAllowed&&(ownAssigned||ownPreassigned||selfPoolCandidate)){
       const hard=v211AssignmentHardCheck({auditorEmail:actorEmail,auditorValues:aud,catalog,scopeCodes:row.scopes||[],companyValues:companies,companyUid:row.companyUid,companyName:row.company,logValues:log,requestedDates:[]});
       const minDate=hard.minInterval?.minPlanningDate||'',windowTo=dateOnly(row.planningWindowTo);
@@ -612,7 +613,6 @@ async function auditorOpenRead(email){
         if(!rotation.ok)eligibilityConflictReason=(rotation.reasons||[]).join('; ')||'ROTATION_BLOCKED';
       }
     }
-    const assignedCanonicalUid=assignedUid20(ap[0]||[],auditUidById.get(row.auditId)||[],{required:uidAuthEnabled,assignedEmail:assigned});
     const actor=v211ActorCapabilities({actorRole:'Auditor',actorEmail,actorUid:canonicalActorUid,assignedToUid:assignedCanonicalUid,status:row.status,assignedToEmail:assigned,preassignedToEmail:preassigned,allowSelfPlanning:yes(row.allowSelfPlanning),hardEligible});
     if(!actor.visible)continue;
     rows.push({...row,actorMode:'AUDITOR',selfPlanningPool:actor.selfPlanningPool,preassignmentConflict:actor.preassignmentConflict,eligibilityConflictReason:actor.preassignmentConflict?eligibilityConflictReason:'',capabilities:actor.capabilities,allowedActions:actorAllowedActions(actor.capabilities),assignedToEmail:assigned||'',preassignedToEmail:preassigned||''});

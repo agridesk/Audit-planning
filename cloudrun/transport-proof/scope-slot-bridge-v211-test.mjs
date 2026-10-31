@@ -46,6 +46,9 @@ assert.equal(partialDefs[0].flagCol0,1,'Legacy scope physical columns remain unc
 const scopeManager=readFileSync(new URL('../../AuditManagerToolsScopes.js',import.meta.url),'utf8');
 const preflightAt=scopeManager.indexOf('var defsForPreflight = m5t_scopeSlotDefs_(ss) || []');
 const createAt=scopeManager.indexOf('m5t_createAuditRowFromCompaniesPool_(companyUid, companyName)');
+const upsertAt=scopeManager.indexOf('function m5t_upsertScopes(payload)');
+assert.ok(upsertAt>0&&preflightAt>upsertAt,'Canonical preflight must be located in the WRITE handler, never the read-only scope loader');
+assert.equal(scopeManager.slice(0,upsertAt).includes('canonicalQualificationVerified'),false,'Scope read path must not depend on write preflight variables');
 assert.ok(preflightAt>0&&createAt>preflightAt,'Canonical 09-20 qualification must be verified BEFORE audit-row creation');
 assert.ok(scopeManager.includes('m5t_scope20CanonicalPreassignmentCheck_(ss,preassignedAuditor,selectedScopes,defsForPreflight)'), 'Headerless preassignment uses canonical qualification before creating audit row');
 

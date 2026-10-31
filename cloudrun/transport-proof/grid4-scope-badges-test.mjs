@@ -13,4 +13,9 @@ assert.ok(themed.includes('background:#123456')&&themed.includes('color:#ffffff'
 let unsafe=badge({scopes:['<script>'],scopeStyles:{'<script>':{Color:'red;bad',TextColor:'transparent'}}});
 assert.ok(!unsafe.includes('<script>')&&!unsafe.includes('red;bad'),'escape and style validation');
 assert.ok(src.includes('grid4ScopeBadges(r)'), 'both grid cells use badge renderer');
+const server=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+assert(server.includes('function gridScopeStyles20(configRows)'),'Canonical scope palette constructed from Config_Scopes');
+assert(server.includes('row.scopeStyles=styles'),'Manager rows receive canonical scope colors');
+assert(server.includes("rows.push({...row,scopeStyles,actorMode:'AUDITOR'"),'Auditor rows receive canonical scope colors');
+assert(server.includes("['Color']")&&server.includes("['TextColor']"),'Both canonical color columns read');
 console.log('Grid 4 scope badges: 5 checks passed');

@@ -258,6 +258,9 @@ function m5t_upsertScopes(payload) {
     if(!submittedScope||!knownScopeAliases[submittedScope])return {success:false,error:'SCOPE_IDENTITY_UNRESOLVED',scope:submittedScope};
     if(ambiguousAliases[submittedScope])return {success:false,error:'SCOPE_IDENTITY_AMBIGUOUS',scope:submittedScope};
     var resolvedScopeCode=knownScopeAliases[submittedScope];
+    var configuredScope=scopeDefsPreflight.filter(function(d){return String(d.scopeCode||'').trim().toLowerCase()===resolvedScopeCode;});
+    if(configuredScope.length!==1)return {success:false,error:'SCOPE_CATALOG_AMBIGUOUS',scope:resolvedScopeCode};
+    if(configuredScope[0].active===false||configuredScope[0].archived===true)return {success:false,error:'SCOPE_INACTIVE_OR_ARCHIVED',scope:resolvedScopeCode};
     var identityFields=[scopeItem.scope,scopeItem.scopeCode,scopeItem.code,scopeItem.slotKey];
     for(var fieldIndex=0;fieldIndex<identityFields.length;fieldIndex++){
       var fieldValue=String(identityFields[fieldIndex]||'').trim().toLowerCase();

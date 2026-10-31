@@ -701,6 +701,15 @@ async function swap20GridFetch(role,operation,body){
 }
 // Manager grid SWAP attention is derived from the role-authorized canonical inbox.
 var swap20ManagerGridCases=new Map();
+var swap20PairDisplayNumbers=new Map();
+function swap20PairKey(p){
+ var a=String(p.auditA||'').trim(),b=String(p.auditB||'').trim();
+ return a&&b&&a!==b?[a,b].sort().join('|'):'';
+}
+function swap20AssignPairNumbers(items){
+ var keys=[...new Set((Array.isArray(items)?items:[]).map(swap20PairKey).filter(Boolean))].sort();
+ swap20PairDisplayNumbers=new Map(keys.map(function(k,i){return[k,i+1]}));
+}
 function swap20PaintManagerGridAlerts(){
   document.querySelectorAll('#rows tr[data-audit-id]').forEach(function(tr){
     var id=String(tr.getAttribute('data-audit-id')||'');
@@ -713,8 +722,14 @@ function swap20PaintManagerGridAlerts(){
     if(!target)return;
     var alert=document.createElement('button');
     alert.type='button';alert.className='swap20-grid-alert';
-    alert.textContent='SWAP '+cases.length;
-    alert.title=cases.map(function(p){return String(p.status||'SWAP')+' — '+String(p.operationId||'')}).join('; ');
+    var seenPairs=new Set();
+    var pairs=cases.filter(function(p){var key=swap20PairKey(p);if(!key||seenPairs.has(key))return false;seenPairs.add(key);return true});
+    alert.textContent=pairs.map(function(p){return '⇄ '+swap20PairDisplayNumbers.get(swap20PairKey(p))}).join(', ');
+    alert.title=pairs.map(function(p){
+      var first=all.find(function(r){return String(r.auditId)===String(p.auditA)})||{};
+      var second=all.find(function(r){return String(r.auditId)===String(p.auditB)})||{};
+      return '⇄ '+swap20PairDisplayNumbers.get(swap20PairKey(p))+' · '+String(first.company||'Company not in current grid')+' ↔ '+String(second.company||'Company not in current grid')+' · '+String(p.status||'');
+    }).join('; ');
     alert.setAttribute('aria-label','Open SWAP case for this audit');
     alert.style.cssText='margin-left:6px;padding:2px 6px;border:1px solid #b91c1c;border-radius:5px;background:#fee2e2;color:#991b1b;font-size:11px;font-weight:700;cursor:pointer';
     alert.onclick=function(){document.getElementById('managerSwapInbox20')?.click()};
@@ -731,6 +746,7 @@ function swap20SetManagerGridCases(items){
       next.get(id).push(p);
     });
   });
+  swap20AssignPairNumbers((Array.isArray(items)?items:[]).filter(function(p){return ['AWAITING_ACKNOWLEDGEMENT','ESCALATED','CONFIRMED','DECLINED'].includes(String(p.status||'').toUpperCase())}));
   swap20ManagerGridCases=next;
   swap20PaintManagerGridAlerts();
 }

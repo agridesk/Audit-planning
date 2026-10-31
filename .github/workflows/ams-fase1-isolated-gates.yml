@@ -40,6 +40,8 @@ jobs:
           node auditor-scope-qualifications-migration-20-test.mjs
           node auditor-scope-qualifications-parity-20-test.mjs
           node auditor-scope-qualifications-migration-plan-20-test.mjs
+          node auditor-scope-qualifications-migration-apply-20-test.mjs
+          node auditor-scope-qualifications-firestore-lock-20-test.mjs
           node planning-sheets-append-projector-20-test.mjs
       - name: Full P0 planning authority regression
         working-directory: cloudrun/transport-proof

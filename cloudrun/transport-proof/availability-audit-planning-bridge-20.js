@@ -28,11 +28,17 @@ export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDa
   if(!auditId)throw Error('AUDIT_PLANNING_COMMITTED_ID_MISSING');
   if(seenAuditIds.has(auditId))throw Error('AUDIT_PLANNING_COMMITTED_ID_DUPLICATE');seenAuditIds.add(auditId);
   const raw=norm(row[json]);if(!raw)throw Error('AUDIT_PLANNING_COMMITTED_PLAN_MISSING');
-  const email=assigned<0?'':norm(row[assigned]).toLowerCase(),explicitUid=assignedUid<0?'':norm(row[assignedUid]);
-  if(explicitUid&&!uidLookup.has(explicitUid))throw Error('AUDIT_PLANNING_AUDITOR_UID_UNKNOWN');
-  if(explicitUid&&email&&lookup.has(email)&&lookup.get(email)!==explicitUid)throw Error('AUDIT_PLANNING_AUDITOR_IDENTITY_CONFLICT');
-  if(!explicitUid&&(!email||!lookup.has(email)))throw Error('AUDIT_PLANNING_AUDITOR_IDENTITY_UNRESOLVED'); // A committed audit must never disappear from availability because its legacy email no longer resolves.
   let parsed;try{parsed=JSON.parse(raw);}catch{throw Error('AUDIT_PLANNING_JSON_INVALID');}
+  const email=assigned<0?'':norm(row[assigned]).toLowerCase(),explicitUid=assignedUid<0?'':norm(row[assignedUid]);
+  const payloadEmail=Array.isArray(parsed)?'':norm(parsed?.auditorEmail).toLowerCase();
+  if(explicitUid&&!uidLookup.has(explicitUid))throw Error('AUDIT_PLANNING_AUDITOR_UID_UNKNOWN');
+  const canonicalFromEmail=email?lookup.get(email):undefined;
+  const canonicalFromPayload=payloadEmail?lookup.get(payloadEmail):undefined;
+  if(explicitUid&&canonicalFromEmail&&canonicalFromEmail!==explicitUid)throw Error('AUDIT_PLANNING_AUDITOR_IDENTITY_CONFLICT');
+  if(explicitUid&&canonicalFromPayload&&canonicalFromPayload!==explicitUid)throw Error('AUDIT_PLANNING_AUDITOR_IDENTITY_CONFLICT');
+  if(canonicalFromEmail&&canonicalFromPayload&&canonicalFromEmail!==canonicalFromPayload)throw Error('AUDIT_PLANNING_AUDITOR_IDENTITY_CONFLICT');
+  const auditorId=explicitUid||canonicalFromEmail||canonicalFromPayload;
+  if(!auditorId)throw Error('AUDIT_PLANNING_AUDITOR_IDENTITY_UNRESOLVED');
   const blocks=Array.isArray(parsed)?parsed:parsed?.blocks;
   if(!Array.isArray(blocks))throw Error('AUDIT_PLANNING_COMMITTED_BLOCKS_INVALID');
   if(!blocks.length)throw Error('AUDIT_PLANNING_COMMITTED_BLOCKS_EMPTY');
@@ -40,7 +46,7 @@ export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDa
    const d=norm(b?.date),start=norm(b?.start),end=norm(b?.end);
    if(!date(d)||!clock(start)||!clock(end,true)||start>=end)throw Error('AUDIT_PLANNING_SLOT_INVALID');
    if(d<fromDate||d>toDate)continue;
-   const auditorId=explicitUid||lookup.get(email),signature=[auditId,d,start,end].join('|');
+   const signature=[auditId,d,start,end].join('|');
    if(seen.has(signature))throw Error('AUDIT_PLANNING_SLOT_DUPLICATE');seen.add(signature);
    const markedScopes=scopeSlotColumns.filter(x=>['x','yes','true','1'].includes(norm(row[x.i]).toLowerCase())).map(x=>norm(scopeNamesBySlot[x.slot])||x.slot);
    const scopeLabel=markedScopes.length?markedScopes.join(', '):scopesColumn<0?'':norm(row[scopesColumn]);

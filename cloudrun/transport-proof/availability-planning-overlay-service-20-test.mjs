@@ -90,4 +90,35 @@ const boundedOverlay=createPlanningOverlayService({service:adversarialService,re
 const boundedPeriod=await boundedOverlay.period({actor,auditorId:'a',fromDate:'2027-01-12',toDate:'2027-01-12'});
 assert.equal(boundedPeriod.days.length,1,'Stored availability cannot expand requested period');
 assert.equal(boundedPeriod.days[0].date,'2027-01-12');
+
+/* AV-003: incomplete legacy audits cannot globally disable unrelated auditors. */
+let av003Writes=0;
+const av003Storage={read:async(a,id)=>base(id),mutate:async()=>({success:true,version:++av003Writes+3})};
+const av003Rows=[
+ ['Audit ID','Status','Assigned to','Planning JSON','Auditor_UID','Date - Planned'],
+ ['MISSING-A','ACCEPTED','b@example.com','','b','2026-03-08'],
+ ['MISSING-P','PENDING_APPROVAL','','','',''],
+ ['VALID-C','ACCEPTED','b@example.com',JSON.stringify([{date:'2027-01-12',start:'09:00',end:'11:00'}]),'b','2027-01-12']
+];
+const av003=createPlanningOverlayService({service:av003Storage,readPlanningRows:async()=>av003Rows,listCanonicalAuditors:async()=>auditors});
+const av003Result=await av003.mutate({actor:{id:'a',role:'auditor'},auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}});
+assert.equal(av003Result.success,true,'Unrelated accepted audit and unassigned undated provisional must not block auditor A');
+assert.equal(av003Writes,1);
+await assert.rejects(()=>av003.mutate({actor:{id:'b',role:'auditor'},auditorId:'b',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-15',wholeDay:true}}),/AUDIT_PLANNING_INCOMPLETE_RESERVATION_UNCERTAIN/);
+assert.equal(av003Writes,1,'An auditor with incomplete accepted plans must not reach storage');
+const unknownOwner=createPlanningOverlayService({service:av003Storage,readPlanningRows:async()=>[av003Rows[0],['MISSING','ACCEPTED','','','','']],listCanonicalAuditors:async()=>auditors});
+await assert.rejects(()=>unknownOwner.mutate({actor:{id:'a',role:'auditor'},auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}}),/AUDIT_PLANNING_INCOMPLETE_RESERVATION_UNCERTAIN/);
+const conflictingOwner=createPlanningOverlayService({service:av003Storage,readPlanningRows:async()=>[av003Rows[0],['MISSING','ACCEPTED','a@example.com','','b','2027-01-12']],listCanonicalAuditors:async()=>auditors});
+await assert.rejects(()=>conflictingOwner.mutate({actor:{id:'a',role:'auditor'},auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}}),/AUDIT_PLANNING_AUDITOR_IDENTITY_CONFLICT/);
+assert.equal(av003Writes,1);
+const report=await av003.period({actor,auditorId:'a',fromDate:'2027-01-12',toDate:'2027-01-12'});
+assert.equal(report.incompleteAuditDiagnostics.length,2,'Existing review warnings retained');
+assert(!('assignedEmail' in report.incompleteAuditDiagnostics[0]),'Auditor-facing diagnostics must not leak other auditor email');
+assert(!('auditorUid' in report.incompleteAuditDiagnostics[0]),'Auditor-facing diagnostics must not leak another auditor UID');
+const privateManager=await av003.managerOverview({actor,auditorIds:['a','b'],fromDate:'2027-01-12',toDate:'2027-01-12'});
+assert(!('assignedEmail' in privateManager.incompleteAuditDiagnostics[0]),'Manager warnings retain existing public schema');
+const unknownUid=createPlanningOverlayService({service:av003Storage,readPlanningRows:async()=>[av003Rows[0],['MISSING','ACCEPTED','','','rogue-uid','2027-01-12']],listCanonicalAuditors:async()=>auditors});
+await assert.rejects(()=>unknownUid.mutate({actor:{id:'a',role:'auditor'},auditorId:'a',expectedVersion:3,mutation:{action:'BLOCK_PERIOD',date:'2027-01-12',wholeDay:true}}),/AUDIT_PLANNING_AUDITOR_UID_UNKNOWN/);
+console.log('PASS AV-003 auditor-scoped incomplete planning isolation and fail-closed cases');
+
 console.log('PASS: planning overlay period, manager overview, authorization, fail closed');

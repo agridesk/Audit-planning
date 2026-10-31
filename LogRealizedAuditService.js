@@ -68,6 +68,11 @@ function LogRealizedAuditService_GetCompletedAudit(auditId) {
 }
 
 function LogRealizedAuditService_AppendFromAuditPlanning(rowObj, meta) {
+  // A completed-audit append is a lifecycle write, including direct callers.
+  var __auditId = LogRealizedAuditService_clean_(rowObj && (rowObj['Audit ID'] || rowObj.auditId || rowObj.Audit_ID) || meta && meta.auditId);
+  if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') return {success:false,error:'SYSTEM_WRITE_GUARD_MISSING'};
+  try { SYS_ENFORCE_WRITE_ALLOWED('STATUS_COMPLETE', __auditId); }
+  catch (e) { return {success:false,error:'DEV_LEGACY_COMPLETE_WRITE_BLOCKED',message:String(e && e.message || e)}; }
   var prepared = LogRealizedAuditService_prepareAppend_(rowObj, meta || {}, false);
   if (!prepared || prepared.success === false) return prepared;
 
@@ -100,6 +105,9 @@ function LogRealizedAuditService_AppendFromAuditPlanning(rowObj, meta) {
 }
 
 function LogRealizedAuditService_UpdateCompletedHours(auditId, hoursDedicated, meta) {
+  if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') return {success:false,error:'SYSTEM_WRITE_GUARD_MISSING'};
+  try { SYS_ENFORCE_WRITE_ALLOWED('STATUS_COMPLETE_HOURS', auditId); }
+  catch (e) { return {success:false,error:'DEV_LEGACY_COMPLETE_WRITE_BLOCKED',message:String(e && e.message || e)}; }
   meta = meta || {};
   auditId = LogRealizedAuditService_clean_(auditId);
   var n = Number(hoursDedicated);

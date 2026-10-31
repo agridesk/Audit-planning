@@ -24,4 +24,16 @@ const planningDirect=code.slice(code.indexOf('const assignmentHard=v211Assignmen
 assert.ok(planningDirect.includes('const requireCanonicalQualifications='),'Planning writer must have canonical readiness mode');
 assert.ok(planningDirect.includes('Auditor_Scope_Qualifications!A1:C5000'),'Planning writer must read relation source');
 assert.ok(planningDirect.includes('qualificationRelations,requireCanonicalQualifications}'),'Planning writer must apply same hard gate as reader');
+const candidateStart=code.indexOf("'/api/v1/manager/auditor-management/audit/transfer-candidates'");
+const transferStart=code.indexOf("'/api/v1/manager/auditor-management/audit/transfer'&&req.method==='POST'");
+assert.ok(candidateStart>0&&transferStart>candidateStart);
+const candidates=code.slice(candidateStart,transferStart);
+const transfer=code.slice(transferStart,transferStart+8500);
+assert.ok(candidates.includes('canonicalQualificationRead')&&candidates.includes('qualificationRelations'),'Transfer candidate preview must use canonical relations');
+assert.ok(candidates.includes('requireCanonicalQualifications:canonicalQualificationRead'),'Candidate preview must honor canonical hard gate');
+assert.ok(candidates.includes("v211AuditorQualified(av,catalog,[scope]"),'Candidate missingScopes uses canonical scope qualification');
+assert.ok(transfer.includes('const transferRanges=')&&transfer.includes("Auditor_Scope_Qualifications!A1:C5000"),'Transfer mutation must read canonical grants');
+assert.ok(transfer.includes('required=catalog.filter(x=>canonicalQualificationRead?'),'Transfer mutation must derive dynamic scopes without physical columns');
+assert.ok(transfer.includes('requireCanonicalQualifications:canonicalQualificationRead'),'Transfer mutation must honor canonical hard gate');
+assert.ok(transfer.indexOf('CANONICAL_QUALIFICATIONS_NOT_LOADED')<transfer.indexOf('CHANGE_INTENT'),'Transfer must fail closed before logging write intent');
 console.log('Scope20 auditor list and Toolkit canonical qualification cutover: OFF compatibility, ON missing/NO fail-closed and YES qualified');

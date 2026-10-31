@@ -17,7 +17,13 @@ export function resolveCompanyScopeHours20({companyId,scopeCode,effectiveDate,co
  for(const r of candidates){if(!str(r.OverrideId)||!str(r.Status)||!str(r.Revision))throw Error('OVERRIDE_RECORD_INCOMPLETE');if(str(r.EffectiveFrom))date(r.EffectiveFrom);if(str(r.EffectiveTo))date(r.EffectiveTo);if(str(r.EffectiveFrom)&&str(r.EffectiveTo)&&r.EffectiveFrom>r.EffectiveTo)throw Error('OVERRIDE_DATE_RANGE_INVALID');}
  const active=candidates.filter(r=>str(r.Status).toUpperCase()==='ACTIVE'&&applicable(r));
  if(active.length>1)throw Error('OVERLAPPING_COMPANY_OVERRIDES');
- const baseline=one(scopeVersions.filter(r=>str(r.ScopeCode)===scope&&str(r.Status).toUpperCase()==='CURRENT'&&(!str(r.Effective_From)||date(r.Effective_From)<=day)&&(!str(r.Effective_To)||date(r.Effective_To)>=day)),'SCOPE_VERSION_MISSING','SCOPE_VERSION_AMBIGUOUS');
+ const versions=scopeVersions.filter(r=>str(r.ScopeCode)===scope);
+ for(const r of versions){
+   if(str(r.Effective_From))date(r.Effective_From);
+   if(str(r.Effective_To))date(r.Effective_To);
+   if(str(r.Effective_From)&&str(r.Effective_To)&&r.Effective_From>r.Effective_To)throw Error('SCOPE_VERSION_DATE_RANGE_INVALID');
+ }
+ const baseline=one(versions.filter(r=>str(r.Status).toUpperCase()==='CURRENT'&&(!str(r.Effective_From)||r.Effective_From<=day)&&(!str(r.Effective_To)||r.Effective_To>=day)),'SCOPE_VERSION_MISSING','SCOPE_VERSION_AMBIGUOUS');
  const baselineHours=hours(baseline.Hours_to_plan);
  if(!str(baseline.VersionId))throw Error('SCOPE_VERSION_ID_MISSING');
  if(active.length){

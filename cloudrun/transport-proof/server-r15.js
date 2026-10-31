@@ -93,8 +93,10 @@ async function getRoster(){
  const idx=(...names)=>names.map(n=>headers.indexOf(n.toLowerCase().replace(/[\s_-]+/g,''))).find(i=>i>=0)??-1;
  const email=idx('Email','E-mail'),uid=idx('Auditor UID','AuditorUID','UID','Auditor ID','AuditorID'),name=idx('Auditor Name','Full Name','Name','Display Name'),role=idx('Role'),active=idx('Active');
  if(email<0||uid<0||role<0)throw Error('AUDITOR_ROSTER_CANONICAL_COLUMNS_MISSING');
- const records=rows.slice(1).map(r=>({auditorId:String(r[uid]||'').trim(),email:String(r[email]||'').trim().toLowerCase(),displayName:String(r[name]||r[email]||'').trim(),role:String(r[role]||'').trim().toLowerCase(),active:active<0||['yes','true','1','active','x'].includes(String(r[active]||'').trim().toLowerCase())})).filter(x=>x.auditorId&&x.email&&x.active);
- if(new Set(records.map(x=>x.auditorId)).size!==records.length||new Set(records.map(x=>x.email)).size!==records.length)throw Error('AUDITOR_ROSTER_DUPLICATE_IDENTITY');
+ const allRecords=rows.slice(1).filter(r=>r.some(v=>String(v??'').trim())).map(r=>({auditorId:String(r[uid]||'').trim(),email:String(r[email]||'').trim().toLowerCase(),displayName:String((name>=0?r[name]:null)||r[email]||'').trim(),role:String(r[role]||'').trim().toLowerCase(),active:active<0||['yes','true','1','active','x'].includes(String(r[active]||'').trim().toLowerCase())}));
+ if(allRecords.some(r=>!r.auditorId||!r.email||!r.role))throw Error('AUDITOR_ROSTER_INCOMPLETE_IDENTITY');
+ if(new Set(allRecords.map(x=>x.auditorId)).size!==allRecords.length||new Set(allRecords.map(x=>x.email)).size!==allRecords.length)throw Error('AUDITOR_ROSTER_DUPLICATE_IDENTITY');
+ const records=allRecords.filter(x=>x.active);
  return records;
 }
 // Reuse the canonical roster briefly; session still comes from the signed local identity endpoint.

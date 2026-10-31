@@ -580,7 +580,20 @@ function managerOpen(apValues,email,scopeValues,companyValues,audValues){
   const count=k=>rows.filter(x=>x.statusKey===k).length;
   return{success:true,view:'open',fastFirstPaint:false,enrichmentAvailable:true,managerEmail:email,rows,counts:{total:rows.length,pendingPlanning:count('PENDING_PLANNING'),pendingApproval:count('PENDING_APPROVAL'),approved:count('APPROVED'),accepted:count('ACCEPTED')}};
 }
-async function managerOpenRead(email){const t=Date.now(),actorEmail=clean(email).toLowerCase(),vr=await sheetsBatchGet(['Audit planning!A1:BW2000','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256']),aud=vr[3]?.values||[],catalog=scopeCatalog(vr[1]?.values||[]);const out=managerOpen(vr[0]?.values||[],actorEmail,vr[1]?.values||[],vr[2]?.values||[],aud);for(const row of out.rows||[]){const months=extensionMonthsForScopes(catalog,row.scopes||[]);row.extensionMonths=months;row.extMonths=months;row.canExtend=null;}out.fastFirstPaint=true;out.actorDisplayName=directAuditorDisplayName(aud,actorEmail);out.build=BUILD;out.serverMs=Date.now()-t;return out;}
+function gridScopeStyles20(configRows){
+ const h=configRows?.[0]||[],slot=col(h,['SlotKey']),code=col(h,['ScopeCode']),name=col(h,['DisplayName']),bg=col(h,['Color']),fg=col(h,['TextColor']);
+ const valid=v=>/^#[0-9a-fA-F]{6}$/.test(clean(v));
+ const result={};
+ if(bg<0||fg<0)return result;
+ for(const row of (configRows||[]).slice(1)){
+  const color=clean(row[bg]),textColor=clean(row[fg]);
+  if(!valid(color)||!valid(textColor))continue;
+  const theme={Color:color,TextColor:textColor};
+  for(const i of [slot,code,name])if(i>=0&&clean(row[i]))result[clean(row[i])]=theme;
+ }
+ return result;
+}
+async function managerOpenRead(email){const t=Date.now(),actorEmail=clean(email).toLowerCase(),vr=await sheetsBatchGet(['Audit planning!A1:BW2000','Config_Scopes!A1:Z128','Companies!A1:AZ1024','Auditors!A1:Z256']),aud=vr[3]?.values||[],catalog=scopeCatalog(vr[1]?.values||[]);const out=managerOpen(vr[0]?.values||[],actorEmail,vr[1]?.values||[],vr[2]?.values||[],aud);const styles=gridScopeStyles20(vr[1]?.values||[]);for(const row of out.rows||[]){row.scopeStyles=styles;const months=extensionMonthsForScopes(catalog,row.scopes||[]);row.extensionMonths=months;row.extMonths=months;row.canExtend=null;}out.fastFirstPaint=true;out.actorDisplayName=directAuditorDisplayName(aud,actorEmail);out.build=BUILD;out.serverMs=Date.now()-t;return out;}
 
 function actorAllowedActions(c){
   const out=[];if(c?.canPlan)out.push('PLAN');if(c?.canApprove)out.push('APPROVE');if(c?.canAccept||c?.canAcceptOnBehalf)out.push('ACCEPT');if(c?.canComplete)out.push('COMPLETE');if(c?.canCancel)out.push('CANCEL');return out;
@@ -619,7 +632,7 @@ async function auditorOpenRead(email){
     }
     const actor=v211ActorCapabilities({actorRole:'Auditor',actorEmail,actorUid:canonicalActorUid,assignedToUid:assignedCanonicalUid,status:row.status,assignedToEmail:assigned,preassignedToEmail:preassigned,allowSelfPlanning:yes(row.allowSelfPlanning),hardEligible});
     if(!actor.visible)continue;
-    rows.push({...row,actorMode:'AUDITOR',selfPlanningPool:actor.selfPlanningPool,preassignmentConflict:actor.preassignmentConflict,eligibilityConflictReason:actor.preassignmentConflict?eligibilityConflictReason:'',capabilities:actor.capabilities,allowedActions:actorAllowedActions(actor.capabilities),assignedToEmail:assigned||'',preassignedToEmail:preassigned||''});
+    rows.push({...row,scopeStyles:gridScopeStyles20(scv),actorMode:'AUDITOR',selfPlanningPool:actor.selfPlanningPool,preassignmentConflict:actor.preassignmentConflict,eligibilityConflictReason:actor.preassignmentConflict?eligibilityConflictReason:'',capabilities:actor.capabilities,allowedActions:actorAllowedActions(actor.capabilities),assignedToEmail:assigned||'',preassignedToEmail:preassigned||''});
   }
   const count=k=>rows.filter(x=>x.statusKey===k).length;
   return{success:true,view:'open',actorRole:'Auditor',actorEmail,actorDisplayName:directAuditorDisplayName(aud,actorEmail),rows,counts:{total:rows.length,pendingPlanning:count('PENDING_PLANNING'),pendingApproval:count('PENDING_APPROVAL'),approved:count('APPROVED'),accepted:count('ACCEPTED')},build:BUILD,serverMs:Date.now()-t};

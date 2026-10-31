@@ -63,6 +63,10 @@ function ModelCAnnualCycle_HandleCompletionRow_(planningRowObj) {
     var obligations = ModelCMigration_rowsToObjects_(obValues);
     var links = ModelCMigration_rowsToObjects_(lkValues);
     var companyScopes = ModelCMigration_rowsToObjects_(csValues);
+    if(typeof ModelCAnnualHoursSnapshot20_enabled_!=='function')throw new Error('MODEL_C_ANNUAL_HOURS_GUARD_MISSING');
+    var annualHoursSnapshotEnabled=ModelCAnnualHoursSnapshot20_enabled_(ss);
+    var annualHoursSources=annualHoursSnapshotEnabled
+      ?ModelCAnnualHoursSnapshot20_sources_(ss,csValues,MODEL_C_SCHEMA.Audit_Obligations):null;
     perf.readMs=Date.now()-readT;
 
     var existingByNatural = {};
@@ -130,6 +134,10 @@ function ModelCAnnualCycle_HandleCompletionRow_(planningRowObj) {
           Updated_At:stamp,
           Closed_At:''
         };
+        if(annualHoursSnapshotEnabled){
+          if(typeof ModelCAnnualHoursSnapshot20_buildNew_!=='function')throw new Error('MODEL_C_ANNUAL_HOURS_RESOLVER_MISSING');
+          Object.assign(newOb,ModelCAnnualHoursSnapshot20_buildNew_(annualHoursSources,item,newOb.Company_UID,stamp));
+        }
         newObligations.push(newOb);
         newLinks.push({Audit_ID:newAuditId,Obligation_ID:newOb.Obligation_ID,Link_State:'ACTIVE',Migration_Batch_ID:'',Linked_At:stamp,Unlinked_At:''});
         existingByNatural[ModelCAnnualCycle_naturalKey_(newOb.Company_Scope_ID,newOb.Cycle_Key,newOb.Trigger_Source)] = newOb;

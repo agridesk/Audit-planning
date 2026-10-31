@@ -15,7 +15,7 @@ const monthStart=s=>s.slice(0,7)+'-01';
 const monthEnd=s=>add(add(monthStart(s),32).slice(0,7)+'-01',-1);
 const daysBetween=(a,b)=>Math.round((Date.parse(b)-Date.parse(a))/86400000);
 async function api(path,options={}){const r=await fetch('/api/v1/availability/'+path,{credentials:'same-origin',cache:'no-store',...options});const j=await r.json();if(!r.ok||j.success===false)throw Error(j.error||'HTTP '+r.status);return j}
-function failure(e){$('error').textContent=e.message||String(e);$('status').textContent=''}
+function failure(e){const code=e?.message||String(e);$('error').textContent=code==='AUDIT_PLANNING_COMMITTED_PLAN_MISSING'?'Availability change blocked: 5 existing audit records have missing planning details. A manager must repair these records before changes can safely be saved. (AV-002 / AV-003)':code;$('status').textContent=''}
 function range(){const a=$('from').value,b=$('through').value;if(!a||!b||b<a||daysBetween(a,b)>92)throw Error('Choose a valid period of at most 93 days');return{a,b}}
 function humanState(state){return ({FREE:'Available',SOFT:'Normally unavailable',HARD:'Unavailable',PROVISIONAL:'Tentative audit',COMMITTED:'Scheduled audit'})[state]||'Availability';}
 function timeline(segs){

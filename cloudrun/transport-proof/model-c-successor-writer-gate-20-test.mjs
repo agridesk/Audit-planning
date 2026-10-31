@@ -19,4 +19,7 @@ assert.ok(managerExtensionStart>=0&&snapshotFlag>managerExtensionStart,'Flag mus
 assert.equal((code.match(/const newObligationSnapshotEnabled=/g)||[]).length,1);
 assert.match(code,/companyScopes:sources\.companyScopes\.some\(x=>clean\(x\.Company_Scope_ID\)===companyScopeId\)/,'Repair may need synthetic company scope before persisted write');
 assert.match(code,/Company_Scope_ID:companyScopeId,Company_UID:companyUid,ScopeCode:code,Active:'YES'/,'Synthetic source identity is explicit and bounded');
+assert.match(code,/if\(values\.length>=limit\)throw Error\('NEW_OBLIGATION_HOURS_SOURCE_TRUNCATED'\)/,'No partial hours table can be treated as complete');
+assert.ok(code.includes('toObjects(companyScopes,1500)')&&code.includes('toObjects(sources[0]?.values,2000)')&&code.includes('toObjects(sources[1]?.values,256)'));
+assert.ok(code.includes('NEW_OBLIGATION_HOURS_SOURCE_HEADER_AMBIGUOUS'),'No duplicate or blank canonical source headers');
 console.log('Opt-in DEV-only Model C successor writer provenance gate is present; runtime mutation tests remain release-gated');

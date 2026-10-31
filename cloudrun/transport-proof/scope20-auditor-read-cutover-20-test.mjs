@@ -20,4 +20,8 @@ assert.equal(v211AssignmentHardCheck({...base,requireCanonicalQualifications:tru
 const qualificationRoute=code.slice(code.indexOf("'/api/v1/manager/auditor-management/qualification/save'"),code.indexOf("'/api/v1/manager/auditor-management/qualification/save'")+700);
 assert.ok(qualificationRoute.includes("CANONICAL_QUALIFICATION_WRITE_NOT_MIGRATED"),'Legacy qualification writer must be blocked when canonical reads activate');
 assert.ok(qualificationRoute.indexOf("CANONICAL_QUALIFICATION_WRITE_NOT_MIGRATED")<qualificationRoute.indexOf("for await(const c of req)"),'Unsafe legacy writer must fail before body parsing or mutation');
+const planningDirect=code.slice(code.indexOf('const assignmentHard=v211AssignmentHardCheck(')-550,code.indexOf('const assignmentHard=v211AssignmentHardCheck(')+500);
+assert.ok(planningDirect.includes('const requireCanonicalQualifications='),'Planning writer must have canonical readiness mode');
+assert.ok(planningDirect.includes('Auditor_Scope_Qualifications!A1:C5000'),'Planning writer must read relation source');
+assert.ok(planningDirect.includes('qualificationRelations,requireCanonicalQualifications}'),'Planning writer must apply same hard gate as reader');
 console.log('Scope20 auditor list and Toolkit canonical qualification cutover: OFF compatibility, ON missing/NO fail-closed and YES qualified');

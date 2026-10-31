@@ -35,6 +35,8 @@ assert.throws(()=>env.ModelCAnnualHoursSnapshot20_buildNew_({...source,overrides
 assert.throws(()=>env.ModelCAnnualHoursSnapshot20_buildNew_({...source,versions:[]},item,'COMP-1','2026-10-31T10:00:00.000Z'),/VERSION_UNRESOLVED/);
 assert.throws(()=>env.ModelCAnnualHoursSnapshot20_buildNew_({...source,companyScopes:[]},item,'COMP-1','2026-10-31T10:00:00.000Z'),/COMPANY_SCOPE_INVALID/);
 assert.throws(()=>env.ModelCAnnualHoursSnapshot20_sources_(spreadsheet,company,headers.filter(x=>x!=='Hours_Resolved_At')),/OBLIGATION_HOURS_HEADER_MISSING/);
+assert.throws(()=>env.ModelCAnnualHoursSnapshot20_rows_([['ScopeCode','ScopeCode'],['A','B']],['ScopeCode']),/SOURCE_HEADER_AMBIGUOUS/);
+assert.throws(()=>env.ModelCAnnualHoursSnapshot20_rows_([['ScopeCode'],null],['ScopeCode']),/SOURCE_ROW_MALFORMED/);
 assert.equal(env.ModelCAnnualHoursSnapshot20_enabled_(spreadsheet),false,'No implicit activation');
 env.PropertiesService={getScriptProperties:()=>({getProperty:()=> 'true'})};
 assert.equal(env.ModelCAnnualHoursSnapshot20_enabled_(spreadsheet),true);

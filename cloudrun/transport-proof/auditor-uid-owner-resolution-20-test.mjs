@@ -26,4 +26,11 @@ assert.ok(server.includes('assignedUid20(f.h,f.row,{required:uidAuthEnabled,assi
 assert.ok(server.includes('assignedUid20(ap[0]||[],auditUidById.get(row.auditId)||[],{required:uidAuthEnabled,assignedEmail:assigned})'));
 assert.ok(server.includes("g(['Status since'])].join('|')+(g(['Auditor_UID','Assigned_Auditor_UID'])?"),'Planning revision must incorporate owner UID when present');
 assert.ok(server.includes("val(row,css)].join('|')+(val(row,col(h,['Auditor_UID','Assigned_Auditor_UID']))?"),'Manager grid revision must incorporate owner UID when present');
+const complete=server.slice(server.indexOf('async function directComplete(identity,body,actorRole)'),server.indexOf('async function directComplete(identity,body,actorRole)')+13000);
+assert.ok(complete.includes("uidCompleteAuthEnabled=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_AUDITOR_UID_AUTHORIZATION_ENABLED==='true'"));
+assert.ok(complete.includes("historicalUidIx=col(logH,['Auditor_UID','Assigned_Auditor_UID'])"));
+assert.ok(complete.includes("AUDITOR_COMPLETE_HISTORY_UID_UNVERIFIED"),'Idempotent completed audit must not be claimable without matching historical UID');
+assert.ok(complete.includes("ownedUid=assignedUid20(h,row,{required:true,assignedEmail:assignedTo})"));
+assert.ok(complete.includes("AUDITOR_NOT_ASSIGNED_UID"),'Assigned UID prevents takeover after email rename or email reuse');
+assert.ok(complete.includes("else if(!assignedTo||assignedTo!==actorEmail)"),'Legacy writer policy unchanged while flag disabled');
 console.log('Canonical UID read authorization passes email change, collision, missing owner, roles and two view wiring guards');

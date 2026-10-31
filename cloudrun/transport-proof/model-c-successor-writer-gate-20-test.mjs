@@ -8,4 +8,7 @@ assert.match(code,/effectiveDate:item\.cycleKey/);
 assert.match(code,/newObRows\.push\(resolved\.row\)/);
 assert.match(code,/else newObRows\.push\(directAppendObjectRow\(oh,obj\)\)/);
 assert.match(code,/PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED/);
+assert.match(code,/function directRepairMissingCompleteLinks\([\s\S]*?\{enabled=false,sources=null\}/);
+assert.match(code,/if\(!existing&&enabled\)\{[\s\S]*?buildNewModelCObligationWithHours20/);
+assert.match(code,/directRepairMissingCompleteLinks\(auditId,found,cfg,obs,links,companyScopes,companyUid,stamp,\{enabled:newObligationSnapshotEnabled,sources:newHoursSources\}\)/);
 console.log('Opt-in DEV-only Model C successor writer provenance gate is present; runtime mutation tests remain release-gated');

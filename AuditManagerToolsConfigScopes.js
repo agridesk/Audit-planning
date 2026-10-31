@@ -56,6 +56,7 @@ function m5t_scopeSlotDefs_(ss) {
     }
     return {
       slotKey: slotKey,
+      scopeCode: String(item.scopeCode || '').trim(),
       scope: String(item.displayName || '').trim(),
       defaultHours: m5t_toNumberOrZero_(item.defaultHours),
       sortOrder: m5t_toNumberOrZero_(item.sortOrder),

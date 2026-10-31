@@ -25,5 +25,6 @@ context.model.data.audit.companyPlanningSet[2].planningWindowTo='';
 assert.equal(context.selectedVisitWindow().valid,false,'Missing canonical window is not silently ignored');
 assert.ok(source.includes('selectedWindow=selectedVisitWindow(),allowedFrom='),'Calendar derives selected intersection');
 assert.ok(source.includes('windowValid=selectedWindow.valid&&draftBlocks.every'),'Save validation checks selected intersection');
+assert.ok(source.includes("renderPlanningConstraints();const visitWindow=selectedVisitWindow()"),'Changing membership refreshes window warning and calendar');
 assert.ok(source.includes("renderAvailability();validate()}));renderVisitComposition()"),'Changing combined membership refreshes calendar');
 console.log('Toolkit selected 2026/2027 visit windows: standalone, disjoint, overlap and missing-window checks passed');

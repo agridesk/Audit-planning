@@ -2,6 +2,11 @@ import http from 'node:http';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {normalizeLifecycleWriteset} from './planning-lifecycle-writeset-20.js';
 import {buildNewModelCObligationWithHours20} from './model-c-new-obligation-provenance-20.js';
+import {withQualificationMigrationFirestoreLock20} from './auditor-scope-qualifications-firestore-lock-20.js';
+import {migrateAuditorQualificationsSheets20} from './auditor-scope-qualifications-migration-sheets-20.js';
+import {planAuditorQualificationMigration20} from './auditor-scope-qualifications-migration-plan-20.js';
+import {compareAuditorQualificationParity20} from './auditor-scope-qualifications-parity-20.js';
+import {previewAuditorQualificationMigration20} from './auditor-scope-qualifications-migration-20.js';
 const lifecyclePreviewContext20=new AsyncLocalStorage();
 import {managerCanonicalWriteBridge20} from './manager-canonical-write-bridge-20.mjs';
 import {buildDirectAuditorAcceptSheets20} from './auditor-accept-direct-sheets-20.mjs';
@@ -2534,6 +2539,75 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       await sheetsValuesAppend('Diagnostics_Log!A:K',[[new Date().toISOString(),'AUDITOR_MANAGEMENT_2_0','PROFILE_EDIT',email,'CHANGE_APPLIED',clean(actor.email),'','',false,'Canonical Auditors row updated',details]]);
       return send(res,200,{ok:true,updated:updates.length,trailId:id});
     }catch(e){return send(res,503,{ok:false,error:'AUDITOR_PROFILE_SAVE_UNCONFIRMED',detail:clean(e?.message||e)})}
+  }
+  if(u.pathname==='/api/v1/manager/auditor-management/qualifications/migration-lock-probe'&&req.method==='POST'){
+    const actor=await sessionFromRequestValidated(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    if(process.env.AMS_RUNTIME_ENV!=='DEV'||SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')return send(res,403,{ok:false,error:'QUALIFICATION_LOCK_DEV_ONLY'});
+    try{
+      const project=await verifiedAuditorLockDevProject();
+      const token=await accessToken();
+      const result=await withQualificationMigrationFirestoreLock20({
+        project,spreadsheetId:SID,token,fetchFn:fetch,randomId:randomUUID,
+        work:async()=>({ok:true,probe:'SCOPE20_LOCK_ACQUIRED'})
+      });
+      return send(res,200,{...result,released:true,writeToSheets:false});
+    }catch(e){return send(res,409,{ok:false,error:'QUALIFICATION_LOCK_PROBE_FAILED',detail:clean(e?.message||e)})}
+  }
+  if(u.pathname==='/api/v1/manager/auditor-management/qualifications/migration-apply'&&req.method==='POST'){
+    const actor=await sessionFromRequestValidated(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    if(process.env.AMS_SCOPE20_QUALIFICATION_MIGRATION_WRITE_ENABLED!=='true')return send(res,403,{ok:false,error:'QUALIFICATION_MIGRATION_WRITE_DISABLED'});
+    if(process.env.AMS_RUNTIME_ENV!=='DEV'||SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')return send(res,403,{ok:false,error:'QUALIFICATION_MIGRATION_DEV_BOUNDARY'});
+    let body;
+    try{let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});}body=JSON.parse(raw)}catch(e){return send(res,400,{ok:false,error:'INVALID_REQUEST'})}
+    if(body?.confirmation!=='MIGRATE_DEV_AUDITOR_QUALIFICATIONS')return send(res,400,{ok:false,error:'QUALIFICATION_MIGRATION_CONFIRMATION_REQUIRED'});
+    try{
+      const project=await verifiedAuditorLockDevProject();
+      const token=await accessToken();
+      const result=await migrateAuditorQualificationsSheets20({
+        runtimeEnv:process.env.AMS_RUNTIME_ENV,spreadsheetId:SID,verifiedProject:project,
+        enabled:true,confirmation:body.confirmation,
+        batchGet:sheetsBatchGet,append:sheetsValuesAppend,
+        withExclusiveLock:work=>withQualificationMigrationFirestoreLock20({
+          project,spreadsheetId:SID,token,fetchFn:fetch,randomId:randomUUID,work
+        })
+      });
+      return send(res,200,result);
+    }catch(e){return send(res,409,{ok:false,error:'QUALIFICATION_MIGRATION_NOT_VERIFIED',detail:clean(e?.message||e)})}
+  }
+  if(u.pathname==='/api/v1/manager/auditor-management/qualifications/migration-plan'&&req.method==='GET'){
+    const actor=await sessionFromRequestValidated(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    try{
+      const v=await sheetsBatchGet(['Auditors!A1:AZ1000','Config_Scopes!A1:Z200','Auditor_Scope_Qualifications!A1:Z5000'],true);
+      const plan=planAuditorQualificationMigration20({auditors:v[0]?.values||[],catalog:v[1]?.values||[],relations:v[2]?.values||[]});
+      return send(res,plan.ok?200:409,plan);
+    }catch(e){return send(res,503,{ok:false,readOnly:true,error:'QUALIFICATION_MIGRATION_PLAN_UNAVAILABLE',detail:clean(e?.message||e)})}
+  }
+  if(u.pathname==='/api/v1/manager/auditor-management/qualifications/parity-preview'&&req.method==='GET'){
+    const actor=await sessionFromRequestValidated(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    try{
+      const batches=await sheetsBatchGet(['Auditors!A1:AZ1000','Config_Scopes!A1:Z200','Auditor_Scope_Qualifications!A1:Z5000'],true);
+      const parity=compareAuditorQualificationParity20({auditors:batches[0]?.values||[],catalog:batches[1]?.values||[],relations:batches[2]?.values||[]});
+      return send(res,parity.ok?200:409,parity);
+    }catch(e){return send(res,503,{ok:false,readOnly:true,error:'QUALIFICATION_PARITY_PREVIEW_FAILED',detail:clean(e?.message||e)})}
+  }
+  if(u.pathname==='/api/v1/manager/auditor-management/qualifications/migration-preview'&&req.method==='GET'){
+    const actor=await sessionFromRequestValidated(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    try{
+      const batches=await sheetsBatchGet(['Auditors!A1:AZ1000','Config_Scopes!A1:Z200'],true);
+      const preview=previewAuditorQualificationMigration20({auditors:batches[0]?.values||[],catalog:batches[1]?.values||[]});
+      // Canonical relation parity is evaluated by the standalone read-only checker.
+      return send(res,preview.ok?200:409,preview);
+    }catch(e){return send(res,503,{ok:false,readOnly:true,error:'QUALIFICATION_MIGRATION_PREVIEW_FAILED',detail:clean(e?.message||e)})}
   }
   if(u.pathname==='/api/v1/manager/auditor-management'&&req.method==='GET'){
     const actor=await sessionFromRequestValidated(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});

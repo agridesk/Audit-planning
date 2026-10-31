@@ -118,3 +118,8 @@ SESSION 7 — ISOLATED SCOPE 2.5 READ-ONLY CONSUMER FOUNDATION
 - Canonical Fase 2.5 migration apply remains gated and absent from this isolated integration. DEV qualification sheet remains unmodified.
 
 VERIFIED SESSION 7 CI: GitHub Actions run 41184074921 completed SUCCESS on 50b3675a40c636a2c25cd930f810edc85c8b082f, including read-only Fase2.5 migration preview/parity/plan tests and existing full AMS/P0/auth/SWAP suite. Previous non-finite outbox regression run 41184016339 SUCCESS on b6a79e8ba836244f2b571f63d7b5979e7e90300c. No live DEV runtime/deployment/migration evidence.
+
+SESSION 7 FOLLOW-ON — GATED F2.5 DEV MIGRATION MODULES
+- Staged exact dev copies of migration-apply and isolated Firestore lock helper with their tests. No API routing, enablement flags, Sheets writes, lock acquisition or deployment performed.
+- Isolated CI 41184161158 on c01ab6c34c8817cc09c344dee31cdfcb98fca9f5: SUCCESS. Tests cover gated executor/lock behavior, alongside other F1/F2.5 and full AMS checks.
+- Integrator still must resolve overlapping dev/PR47 server-r4, assignment-validation, package and test manifest edits, verify DEV runtime lock service account and obtain separate cutover permissions.

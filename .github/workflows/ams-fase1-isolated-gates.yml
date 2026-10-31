@@ -10,6 +10,9 @@ on:
       - 'cloudrun/transport-proof/model-c-new-obligation-provenance-20-test.mjs'
       - 'cloudrun/transport-proof/model-c-provenance-projector-e2e-synthetic-20-test.mjs'
       - 'cloudrun/transport-proof/model-c-successor-writer-gate-20-test.mjs'
+      - 'cloudrun/transport-proof/scope-create-20.js'
+      - 'cloudrun/transport-proof/scope-create-20-test.mjs'
+      - 'cloudrun/transport-proof/scope-slot-bridge-v211-test.mjs'
       - 'cloudrun/transport-proof/server-r4.js'
       - 'cloudrun/transport-proof/fase1-scope20-assignment-cutover-20-test.mjs'
       - 'cloudrun/transport-proof/fase1-integration-known-gaps-20-test.mjs'
@@ -56,6 +59,8 @@ jobs:
           node auditor-scope-qualifications-migration-sheets-20-test.mjs
           node assignment-validation-v211-test.mjs
           node fase1-scope20-assignment-cutover-20-test.mjs
+          node scope-create-20-test.mjs
+          node scope-slot-bridge-v211-test.mjs
           node planning-sheets-append-projector-20-test.mjs
       - name: Full P0 planning authority regression
         working-directory: cloudrun/transport-proof

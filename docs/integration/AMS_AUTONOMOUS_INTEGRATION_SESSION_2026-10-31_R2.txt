@@ -67,3 +67,11 @@ Gerichte changes, geen refactors:
 CI HEAD ae4c0b2: AMS Fase 1 isolated identity and hours gates SUCCESS run 41198824796 (inclusief planning authority, auth/SWAP compatibility smoke en volledige npm test); Authentication 2.0 SUCCESS run 41198824748; Swap 2.0 SUCCESS run 41198824761.
 Bewijsgrens: GitHub-source/CI en synthetische contracttests, niet DEV Cloud Run/GAS deployment of browser-E2E. Geen merge/deployment, geen DEV/PROD datawrites, geen PROD wijziging, geen migratie en geen featureflagactivatie.
 Open: conflictbewuste PR47/48-integratie tegen dev, afzonderlijke DEV deployment-autorisatie, 23 kwalificatierelaties nog te migreren, 199 historische urenherkomsten beleidsmatig onbeslist, browser/runtime E2E en UID multi-instance cutover.
+
+
+R5 — RELEASE-FOCUSED INTEGRATION CHECK 31-10-2026
+- Verified PR48 source branch is a direct descendant of the remediation feature branch (246 commits ahead, 0 behind), but diverged from dev (766 ahead / 108 behind, 144 aggregate files): PR48 must be reviewed/integrated against its intended remediation base first, not blindly merged into dev.
+- New Model C resolver fix: all matching scope-version rows now validate their effective calendar dates and valid From<=To before selecting CURRENT. Invalid retired versions and inverted date intervals fail closed instead of being silently ignored. Regression cases include duplicate CURRENT, invalid retired date and inverted effective interval. Commits 0c240b5, f6abb3e.
+- CI code commit f6abb3e: AMS Fase 1 isolated identity/hours SUCCESS 41199897721 (including full npm test), Authentication 2.0 SUCCESS 41199897807, SWAP 2.0 SUCCESS 41199897847.
+- Release decision boundary: no authorized DEV deployment, no DEV qualification data migration, no code merge; therefore no runtime cutover claim. 23 legacy qualification YES rows require authorized controlled conversion, 199 historical obligations require separate policy decision, production forbidden.
+- No release-blocker clearance from CI alone. Source tests and functional runtime E2E are separate proof layers.

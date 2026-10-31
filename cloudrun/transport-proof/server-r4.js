@@ -607,7 +607,7 @@ async function auditorOpenRead(email){
   const vr=await sheetsBatchGet(ranges);
   const qualificationRelations=canonicalQualificationRead?vr[versioned?6:5]?.values:undefined;
   if(canonicalQualificationRead&&(!Array.isArray(qualificationRelations)||!qualificationRelations.length))throw Error('CANONICAL_QUALIFICATIONS_NOT_LOADED');
-  const ap=vr[0]?.values||[],scv=vr[1]?.values||[],companies=vr[2]?.values||[],aud=vr[3]?.values||[],log=vr[4]?.values||[],catalog=scopeCatalog(scv),versions=versioned?rotationIdentityVersions(vr[5]?.values||[]):null,identityMap=versioned?rotationAuditorMap(aud,versions):null,actorUid=identityMap?rotationResolveAuditor(identityMap,actorEmail):null;
+  const ap=vr[0]?.values||[],scv=vr[1]?.values||[],scopeStyles=gridScopeStyles20(scv),companies=vr[2]?.values||[],aud=vr[3]?.values||[],log=vr[4]?.values||[],catalog=scopeCatalog(scv),versions=versioned?rotationIdentityVersions(vr[5]?.values||[]):null,identityMap=versioned?rotationAuditorMap(aud,versions):null,actorUid=identityMap?rotationResolveAuditor(identityMap,actorEmail):null;
   const uidAuthEnabled=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_AUDITOR_UID_AUTHORIZATION_ENABLED==='true';
   const canonicalActorUid=currentAuditorUid20(aud,actorEmail,{required:uidAuthEnabled});
   const auditUidIndex=col(ap[0]||[],['Auditor_UID','Assigned_Auditor_UID']);
@@ -632,7 +632,7 @@ async function auditorOpenRead(email){
     }
     const actor=v211ActorCapabilities({actorRole:'Auditor',actorEmail,actorUid:canonicalActorUid,assignedToUid:assignedCanonicalUid,status:row.status,assignedToEmail:assigned,preassignedToEmail:preassigned,allowSelfPlanning:yes(row.allowSelfPlanning),hardEligible});
     if(!actor.visible)continue;
-    rows.push({...row,scopeStyles:gridScopeStyles20(scv),actorMode:'AUDITOR',selfPlanningPool:actor.selfPlanningPool,preassignmentConflict:actor.preassignmentConflict,eligibilityConflictReason:actor.preassignmentConflict?eligibilityConflictReason:'',capabilities:actor.capabilities,allowedActions:actorAllowedActions(actor.capabilities),assignedToEmail:assigned||'',preassignedToEmail:preassigned||''});
+    rows.push({...row,scopeStyles,actorMode:'AUDITOR',selfPlanningPool:actor.selfPlanningPool,preassignmentConflict:actor.preassignmentConflict,eligibilityConflictReason:actor.preassignmentConflict?eligibilityConflictReason:'',capabilities:actor.capabilities,allowedActions:actorAllowedActions(actor.capabilities),assignedToEmail:assigned||'',preassignedToEmail:preassigned||''});
   }
   const count=k=>rows.filter(x=>x.statusKey===k).length;
   return{success:true,view:'open',actorRole:'Auditor',actorEmail,actorDisplayName:directAuditorDisplayName(aud,actorEmail),rows,counts:{total:rows.length,pendingPlanning:count('PENDING_PLANNING'),pendingApproval:count('PENDING_APPROVAL'),approved:count('APPROVED'),accepted:count('ACCEPTED')},build:BUILD,serverMs:Date.now()-t};

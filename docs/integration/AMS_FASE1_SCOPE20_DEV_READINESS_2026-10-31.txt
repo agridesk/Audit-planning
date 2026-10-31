@@ -38,3 +38,8 @@ RELEASE BLOCKERS / REQUIRED NEXT ACTION
 6. Obtain separate explicit permissions for branch merge, DEV deployment/mutation and PROD release. PROD changes forbidden unless expressly authorized.
 
 STATUS: isolated source/tests advanced; no approved release or production readiness claimed.
+
+UPDATE — LIVE DEV AUDIT PLANNING SCHEMA (READ ONLY)
+A1:DA1 contains 71 named/occupied header positions; physical SCOPE_09..SCOPE_20 and all matching Duration SCOPE_09..SCOPE_20 columns currently exist in the DEV sheet.
+This is an observed DEV convenience, NOT a requirement to introduce or retain these physical columns for future 20-scope canonical support. All 12 new scope identities must also work without these columns. Synthetic headerless tests explicitly cover this.
+GAS hardening on isolated branch: missing physical scope columns now return null sentinels instead of hiding a configured scope identity; when a headerless scope is preassigned, canonical Auditor_UID x ScopeCode qualification must be checked BEFORE any new audit row creation. The read-only scope-loader path was restored after finding and correcting an initial misplaced preflight. Additional tests assert preflight resides in the write handler and denied preassignment creates zero audit rows. Withdrawal JSON, role/active, alias, duplicate, orphan and YES/NO fail-closed checks are included.

@@ -135,3 +135,10 @@ SESSION 8 — CANONICAL SCOPE HARD-GATE
 - v211AssignmentHardCheck now accepts requireCanonicalQualifications=true opt-in. When enabled, absent/non-array qualificationRelations fail closed even if legacy eight-column flags say eligible; no automatic cutover.
 - Synthetic tests cover missing/null canonical source, loaded relations, canonical NO overriding legacy YES. CI 41184492063 SUCCESS on 7bcc00ad; CI 41184551659 SUCCESS on 9e5b2776 including full AMS/P0/auth/SWAP.
 - No assignment caller actively wired, no migration or Cloud Run deployment performed. Runtime identity and read source gating still mandatory.
+
+AUTONOMOUS SESSION 9 — MAJOR MODEL C WIRING (ISOLATED, DEFAULT OFF)
+- New pure module model-c-new-obligation-provenance-20.js builds NEW obligations using canonical Company_Scopes + Company_Scope_Hours + ScopeVersions and refuses missing version/schema/override provenance or inherited hours conflict; never changes historic obligation rows.
+- New synthetic end-to-end test checks override provenance survives fenced Sheets RAW outbox append and exactly-once replay without API/network.
+- server-r4 directComplete successor creation now has DEV-only flag AMS_DEV_MODEL_C_NEW_HOURS_SNAPSHOT_ENABLED=true; disabled by default. When enabled it reads two canonical sources before lifecycle writes and uses new builder for new successor obligations, otherwise unchanged legacy path.
+- Gate is intentionally fail-closed if canonical sources, schema or inherited hours disagree. This does not repair pre-existing 199 DEV obligations, does not touch directRepairMissingCompleteLinks or ModelCAnnualCycleRuntime.js, and no Cloud Run deployment or flag enablement occurred.
+- Release requires live DEV header verification, source consistency/read isolation, complete legacy repair/GAS parity, separate data-readiness and permission before enabling writer mode. PROD remains explicitly rejected by directComplete.

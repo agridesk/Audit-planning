@@ -73,3 +73,9 @@ MODEL C DEV-ONLY WRITER WORKPACKAGE 2026-10-31
 - Flag OFF preserves the pre-existing writer path. Flag ON fails closed on missing header/source/version, mismatch of inherited Formal_Hours and resolved current hours, or conflicting existing provenance. This is intentionally NOT a cutover-ready default.
 - No modification to GAS ModelCAnnualCycleRuntime.js; annual GAS parity not yet established. No runtime activation, deployment, merge, DEV/PROD data change.
 - Critical runtime gates: verify actual column headers in Audit_Obligations, Company_Scopes, Company_Scope_Hours, ScopeVersions; check effective-date semantics and overrides, historic audit retention, idempotency, atomic lifecycle recovery and full user E2E before enabling writer.
+
+F2.5 SCOPE 20 LEGACY GAS BRIDGE DESIGN CONFLICT — 2026-10-31
+- dev AuditManagerToolsConfigScopes.js now integrated on isolated branch and duplicate SlotKey/ScopeCode validation restored; matching dev scope-slot-bridge tests run under separate CI.
+- HOWEVER dev m5t_scopeSlotDefs_ still throws AUDIT_PLANNING_SCOPE_COLUMNS_MISSING_SCOPE_XX for scope slots 09-20 when physical Audit planning scope/duration columns are absent. This conflicts with 2026-10-31 F2.5 handoff requiring NO mandatory new physical columns in Audit planning, Auditors or similar tabs.
+- Keep as explicit open canonical-consumer gap; do not declare 20-scope end-to-end support or silently remove the hard guard without identifying all GAS readers/writers. Correct destination is Model C canonical dynamic scope relations and role-safe read projections, with no truncation of 9-20.
+- Current source/tests intentionally preserve pre-existing dev behavior; release must require new headerless-scope unit and browser E2E proof before scope09-20 go-live.

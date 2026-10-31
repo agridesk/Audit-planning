@@ -11,6 +11,7 @@ assert.equal(override.Company_Hours_Override_ID,'OV-2');
 assert.equal(override.Company_Hours_Override_Revision,'R3');
 assert.equal(validateObligationHoursSchema20(['Formal_Hours',...HOURS_PROVENANCE_FIELDS]),true);
 assert.throws(()=>validateObligationHoursSchema20(['Formal_Hours']),/OBLIGATION_HOURS_SCHEMA_MISSING/);
+assert.throws(()=>validateObligationHoursSchema20(['Formal_Hours',...HOURS_PROVENANCE_FIELDS,'Formal_Hours']),/OBLIGATION_HOURS_SCHEMA_DUPLICATE_HEADER/);
 assert.throws(()=>buildObligationHoursSnapshot20({resolution:{source:'COMPANY_OVERRIDE',formalHours:6,scopeVersionId:'SV-2'},now:timestamp}),/OVERRIDE_PROVENANCE_REQUIRED/);
 assert.throws(()=>buildObligationHoursSnapshot20({resolution:{source:'SCOPE_DEFAULT',formalHours:8,scopeVersionId:'SV-1',overrideId:'OV-1'},now:timestamp}),/BASELINE_PROVENANCE_CONFLICT/);
 assert.throws(()=>buildObligationHoursSnapshot20({resolution:{source:'SCOPE_DEFAULT',formalHours:8},now:timestamp}),/INVALID_RESOLVED_HOURS/);

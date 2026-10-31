@@ -65,3 +65,11 @@ Read-only recovery must refuse malformed Sheets responses and empty rowsets rath
 
 APPEND IDENTITY SAFETY — 2026-10-31
 Sheets append projector uses valueInputOption=RAW instead of USER_ENTERED to avoid interpreting outbox fields as formulas/numbers and changing stable identity strings before post-write equality check. Synthetic regression asserts RAW request and formula-looking payload preservation. GitHub Actions run 41183501711 SUCCESS at 5995105a4985a95cad16c4d5d951b18051c1d56f. Existing intended formula semantics on these outbox targets must be assessed before deployment. No production or DEV writer activation.
+
+MODEL C DEV-ONLY WRITER WORKPACKAGE 2026-10-31
+- Added model-c-new-obligation-provenance-20.js pure, canonical, fail-closed creator of NEW obligation row snapshots from Company_Scopes, Company_Scope_Hours, ScopeVersions. It requires Formal_Hours_Source, Scope_Version_ID, Hours_Resolved_At and optional override metadata when applicable.
+- Added model-c-new-obligation-provenance-20-test.mjs and model-c-provenance-projector-e2e-synthetic-20-test.mjs. The latter exercises canonical resolver -> durable obligation row -> RAW Sheets outbox -> idempotent replay with mock HTTP (no external writes).
+- server-r4.js directComplete gets DEV-only, default-disabled AMS_DEV_MODEL_C_NEW_HOURS_SNAPSHOT_ENABLED opt-in. Under the flag canonical sources are loaded before lifecycle changes. Both successor directComplete and synthetic legacy-complete repair obligations go through the factory. Existing obligations are not rewritten.
+- Flag OFF preserves the pre-existing writer path. Flag ON fails closed on missing header/source/version, mismatch of inherited Formal_Hours and resolved current hours, or conflicting existing provenance. This is intentionally NOT a cutover-ready default.
+- No modification to GAS ModelCAnnualCycleRuntime.js; annual GAS parity not yet established. No runtime activation, deployment, merge, DEV/PROD data change.
+- Critical runtime gates: verify actual column headers in Audit_Obligations, Company_Scopes, Company_Scope_Hours, ScopeVersions; check effective-date semantics and overrides, historic audit retention, idempotency, atomic lifecycle recovery and full user E2E before enabling writer.

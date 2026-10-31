@@ -238,6 +238,30 @@ function m5t_upsertScopes(payload) {
     return s && (s.enabled === true || String(s.enabled) === 'true');
   }).length;
 
+  // Validate the full selection against the canonical catalog before any audit row is created.
+  // Unknown, duplicate or ambiguously named scopes must never create orphan rows.
+  var scopeDefsPreflight=m5t_scopeSlotDefs_(ss)||[];
+  var selectedScopeKeys={},knownScopeAliases={},ambiguousAliases={};
+  scopeDefsPreflight.forEach(function(def){
+    var canonical=String(def.scopeCode||'').trim().toLowerCase();
+    [def.scopeCode,def.scope,def.slotKey].forEach(function(alias){
+      var k=String(alias||'').trim().toLowerCase();
+      if(!k)return;
+      if(knownScopeAliases[k]&&knownScopeAliases[k]!==canonical)ambiguousAliases[k]=true;
+      else knownScopeAliases[k]=canonical;
+    });
+  });
+  for(var checkedScope=0;checkedScope<selectedScopes.length;checkedScope++){
+    var scopeItem=selectedScopes[checkedScope];
+    if(!scopeItem||!(scopeItem.enabled===true||String(scopeItem.enabled).toLowerCase()==='true'))continue;
+    var submittedScope=String(scopeItem.scope||scopeItem.scopeCode||scopeItem.code||scopeItem.slotKey||'').trim().toLowerCase();
+    if(!submittedScope||!knownScopeAliases[submittedScope])return {success:false,error:'SCOPE_IDENTITY_UNRESOLVED',scope:submittedScope};
+    if(ambiguousAliases[submittedScope])return {success:false,error:'SCOPE_IDENTITY_AMBIGUOUS',scope:submittedScope};
+    var resolvedScopeCode=knownScopeAliases[submittedScope];
+    if(selectedScopeKeys[resolvedScopeCode])return {success:false,error:'DUPLICATE_SELECTED_SCOPE',scope:resolvedScopeCode};
+    selectedScopeKeys[resolvedScopeCode]=true;
+  }
+
   // Fail before m5t_createAuditRowFromCompaniesPool_: unsupported physical
   // qualification checks must not leave a newly created audit row behind.
   var canonicalQualificationVerified = false;

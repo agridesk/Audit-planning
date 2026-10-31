@@ -58,6 +58,8 @@ function m5t_scopeSlotDefs_(ss) {
       slotKey: slotKey,
       scopeCode: String(item.scopeCode || '').trim(),
       scope: String(item.displayName || '').trim(),
+      active: item.active === undefined ? null : (item.active === true || /^(yes|true|1|x)$/i.test(String(item.active))),
+      archived: item.archived === undefined ? null : (item.archived === true || /^(yes|true|1|x)$/i.test(String(item.archived))),
       defaultHours: m5t_toNumberOrZero_(item.defaultHours),
       sortOrder: m5t_toNumberOrZero_(item.sortOrder),
       maxConsecutive: m5t_toIntOrNull_(item.maxNumberAudits),

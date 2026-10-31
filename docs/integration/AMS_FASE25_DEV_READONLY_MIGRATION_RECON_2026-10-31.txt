@@ -1,0 +1,24 @@
+AMS 2.0 — FASE 2.5 LIVE DEV READ-ONLY MIGRATION RECONCILIATION
+Date: 2026-10-31
+Mode: direct native Sheets connector read ONLY, zero writes.
+Spreadsheet: Audit Management System DEV (1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs).
+Tabs inspected: Auditors (sheetId 1084654016), Config_Scopes (216857227), Auditor_Scope_Qualifications (877719725).
+
+RECONCILIATION (A1:AF100, A1:Z40, A1:C120)
+- Auditors: 6 populated identities; all 6 have an Auditor_UID.
+- Config_Scopes: 9 configured slot identities. SCOPE_09 is TESTSCOPE-2, Active=No. It must NOT be enabled, granted or promoted as part of migration.
+- Auditor_Scope_Qualifications: 0 data rows, headers exactly Auditor_UID, ScopeCode, Qualified.
+- Legacy scope qualification columns: 23 nonblank values; all 23 recognized affirmative values (x/yes/true/1). No unknown populated qualification symbols encountered.
+- Reconciled immutable Auditor_UID × ScopeCode keys: 23 prospective YES pairs. No duplicate pairs in read-only preview, no missing UID.
+- This shows a migration candidate set, NOT an approved production migration. No records were inserted. Current canonical table remains empty.
+
+STRICT RELEASE DECISIONS / GATES
+1. Independent approval is required before any DEV migration write.
+2. Verify exact headers, lock project, fixed DEV spreadsheet id, managerial session, dry-run parity, stale-input lock and explicit rollback.
+3. Run migration under gated DEV path, confirm 23 exact pairs and zero extra/missing grants, then postwrite verification of per-auditor and per-scope parity. No implicit grant for the inactive TESTSCOPE-2.
+4. Only AFTER parity succeeds may the canonical read/assignment flags be considered for isolated DEV activation (deployment itself also needs permission).
+5. No PROD migration or deployment is authorized.
+
+SCOPE / INTERPRETATION
+Snapshot size limited to configured 6 auditors/9 scopes and first 100/40/120 rows. Structural header/identity checks passed. Current source includes no >100-row auditor set; re-read metadata and counts at time of actual migration.
+No feature flag changed, no deployment, no merge, no PROD mutation.

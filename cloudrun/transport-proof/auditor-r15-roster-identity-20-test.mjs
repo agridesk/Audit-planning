@@ -22,4 +22,5 @@ data=[...rows,['Roleless','c@example.com','YES','','UID-C']];
 await assert.rejects(()=>scope.getRoster(),/AUDITOR_ROSTER_INCOMPLETE_IDENTITY/);
 data=rows;
 assert.equal((await scope.getRoster())[0].email,'a@example.com');
+assert.ok(source.includes("if((body.auditorUid!==undefined||body.auditorId!==undefined)&&String(body.auditorUid??body.auditorId).trim()!==candidates[0].auditorId)throw Error('PLANNING_AUDITOR_UID_MISMATCH')"),'Direct lease must reject mismatch between caller-provided UID and current canonical roster');
 console.log('R15 canonical roster: active selection, inactive email/UID collision and incomplete identity gates passed');

@@ -9,6 +9,9 @@ on:
       - 'cloudrun/transport-proof/company-scope-hours-snapshot-20.js'
       - 'cloudrun/transport-proof/planning-sheets-append-projector-20-test.mjs'
       - '.github/workflows/ams-fase1-isolated-gates.yml'
+  pull_request:
+    branches:
+      - feature/ams-2-remediation-2026-10-28
   workflow_dispatch:
 permissions:
   contents: read

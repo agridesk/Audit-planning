@@ -7,6 +7,7 @@ on:
       - 'cloudrun/transport-proof/actor-capabilities-v211.js'
       - 'cloudrun/transport-proof/fase1-integration-known-gaps-20-test.mjs'
       - 'cloudrun/transport-proof/company-scope-hours-snapshot-20.js'
+      - 'cloudrun/transport-proof/planning-sheets-append-projector-20-test.mjs'
       - '.github/workflows/ams-fase1-isolated-gates.yml'
   workflow_dispatch:
 permissions:
@@ -26,3 +27,4 @@ jobs:
           node --check fase1-integration-known-gaps-20-test.mjs
           node actor-capabilities-v211-test.mjs
           node fase1-integration-known-gaps-20-test.mjs
+          node planning-sheets-append-projector-20-test.mjs

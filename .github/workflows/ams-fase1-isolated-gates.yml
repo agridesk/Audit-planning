@@ -16,6 +16,8 @@ on:
       - 'cloudrun/transport-proof/model-c-annual-scope20-headerless-test.mjs'
       - 'cloudrun/transport-proof/scope20-gas-canonical-preassignment-test.mjs'
       - 'ModelCAnnualCycleRuntime.js'
+      - 'ModelCAnnualHoursSnapshot20.js'
+      - 'cloudrun/transport-proof/model-c-gas-annual-hours-snapshot-20-test.mjs'
       - 'AuditManagerToolsScopes.js'
       - 'AuditManagerToolsConfigScopes.js'
       - 'cloudrun/transport-proof/grid4-*.mjs'
@@ -75,6 +77,7 @@ jobs:
           node scope-create-20-test.mjs
           node scope-slot-bridge-v211-test.mjs
           node model-c-annual-scope20-headerless-test.mjs
+          node model-c-gas-annual-hours-snapshot-20-test.mjs
           node scope20-gas-canonical-preassignment-test.mjs
           node grid4-column-filter-regression-test.mjs
           node grid4-existing-ui-safety-contract-test.mjs

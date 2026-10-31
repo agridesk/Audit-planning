@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+const html=readFileSync(new URL('./availability-my-calendar-20.html',import.meta.url),'utf8');
+assert(!html.includes('id="confirmAvailability"'));
+assert(!html.includes("confirmAvailability').addEventListener"));
+assert(!html.includes('Audit ID: '));
+assert(html.includes("function timeline(segs,date)"));
+assert(html.includes("a.company||'Company not recorded'"));
+assert(html.includes("a.start+'–'+a.end"));
+assert(html.includes('timeline(segs,d)'));
+assert(html.includes("x.company||'Company not recorded'"));
+const body=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+assert(body,'Expected inline calendar script');
+new vm.Script(body,{filename:'availability-my-calendar-20.html'});
+console.log('PASS Fase 1.2 My Availability hover/UID/confirmation contract');

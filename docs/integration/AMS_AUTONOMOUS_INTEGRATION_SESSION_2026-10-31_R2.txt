@@ -1,0 +1,46 @@
+AMS 2.0 — AUTONOME INTEGRATIEWERKSESSIE 2026-10-31 R2
+BASELINE: f7ecf97ba73b6091facb3b93ec92d34d9e8d54dc
+LAATSTE CODE COMMIT MET GROENE CI: 78940bdc40490518e7758e9a7f6e8758b34c8ada
+BRANCH: feature/ams-fase1-integration-audit-2026-10-31
+DRAFT REVIEW PR: https://github.com/agridesk/Audit-planning/pull/48
+WERKPAKKET: 33 commits en 16 gewijzigde bestanden ten opzichte van baseline.
+
+GEREALISEERD
+1. FASE 2.5 / CANONIEKE KWALIFICATIES
+- Shared Assignment Validation weigert ambigue scope-aliases en ontbrekende actieve/rolkolommen als canonieke kwalificatiebron verplicht is.
+- GAS scopebeheer controleert de volledige geselecteerde scope-identiteit vóór aanleg van nieuwe auditrijen: onbekende scope, dubbele selectie, conflicterende displaynaam/ScopeCode/SlotKey, inactieve/archived scope geven afwijzing.
+- Voor Scope 01-08 met legacy-voortoewijzing gebeurt de kwalificatiecontrole vóór de eerste auditrijcreatie. Eerder kon een afwijzing pas na rijcreatie ontstaan.
+- Scope metadata Active/Archived gaat door ConfigScopes-bridge en bedrijfs-UI-projection, zodat inactieve scopes als zodanig herkenbaar zijn.
+- Live DEV read-only inspectie: 6 auditors met UID, 23 geldige legacy YES-kwalificaties, 23 unieke kandidaat Auditor_UID × ScopeCode-paren; 0 relaties in canonieke doeltab. Config SCOPE_09 TESTSCOPE-2 is INACTIEF. Geen migratie uitgevoerd.
+
+2. MODEL C / URENHERKOMST
+- Cloud Run nieuwe obligation/repair-writer leest canonieke urenbronnen fail-closed en weigert onvolledige Sheets-bronbereiken, ambigue of dubbele headers.
+- Bij nieuwe niet-recurrerende Company_Scopes uit completion-repair kan de urenherkomst met de nieuwe, nog niet weggeschreven canonieke relatie worden vastgesteld. Geen onbedoelde historische overschrijving.
+- GAS jaarlijkse opvolgcycle ondersteunt native Google Sheets datumcellen, valide kalenderdagen en strikte effective dating, inclusief afwijzing van onmogelijke 2027-data.
+- Dubbele/malformeerde bronheaders of rijen blokkeren uren-snapshot vóór schrijfacties.
+- Bestaande 199 DEV obligations blijven zonder historische herkomstsnapshot; dat is bewust geen retroactieve migratie.
+
+3. PLANNING TOOLKIT — 2026/2027 EN COMBINED VISIT
+- Reële UI-logica in server-r5 aangepast: geselecteerde audits bepalen nu samen het doorsnede-planningsvenster, niet alleen de primaire audit.
+- Niet-overlappende vensters 2026/2027 blokkeren planning; deeloverlap beperkt kalender, save en prev/next/today-navigatie tot de gezamenlijke periode.
+- Wisselen van geselecteerde audits vernieuwt venster, kalenders en waarschuwingen. Een ontbrekend canoniek venster bij een combined visit blokkeert fail-closed.
+- Een afzonderlijke non-recurring audit zonder beide canonieke vensters behoudt de bestaande beperkte operationele periode.
+- Bijbehorende Toolkit-, portal- en algemene kalendercontracttests zijn bijgewerkt, met dynamische regressies voor standalone 2026, 2026+2027, overlappende perioden en ontbrekende vensters.
+
+TESTS / BEWIJS
+CI commit 78940bdc40490518e7758e9a7f6e8758b34c8ada:
+  AMS Fase 1 isolated identity and hours gates — SUCCESS, run 41196606251.
+  Authentication 2.0 Fast OTP Tests — SUCCESS, run 41196606596.
+  Swap 2.0 DEV Tests — SUCCESS, run 41196606565.
+De testdata en functionele proeven zijn geïsoleerd/synthetisch; live browser- en DEV-runtime-acceptatie zijn NIET uitgevoerd.
+
+BLOKKADES
+- PR47/PR48 tegenover actuele dev: conflictbewuste integratie, geen blinde merge.
+- Expliciet akkoord nodig voor een afzonderlijke DEV deployment en eventuele daadwerkelijke data-migratie.
+- 23 legacy kwalificatie-YES-relaties nog niet geconverteerd, canonieke read-flag uit laten tot gecontroleerde pariteit.
+- 199 historische obligations zonder provenance: beleidskeuze nodig vóór eventuele historische herwaardering.
+- Auditor_UID end-to-end inclusief multi-instance lease en sessie-rotatie, Browser E2E Grid/Toolkit/Availability en GAS annual scheduler runtime nog te accepteren.
+- Geen PROD-cutover zonder expliciete toestemming.
+
+VEILIGHEID
+Geen branch merge, geen deployment, geen wijziging aan DEV/PROD Sheets, Firestore, flags of PROD. Alle codewijzigingen op een geïsoleerde reviewbranch.

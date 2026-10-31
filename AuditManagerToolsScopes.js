@@ -298,6 +298,26 @@ function m5t_upsertScopes(payload) {
 
   if (!matches.length) {
     if (enabledCount === 0) return { success: false, error: 'MIN_1_SCOPE_REQUIRED' };
+    // Legacy 01-08 preassignment must be validated before creating the row.
+    // A rejected candidate cannot leave an orphaned Audit planning record.
+    if(preassignedAuditor&&!canonicalQualificationVerified){
+      if(typeof _mp_assertAuditorQualifiedForPlanning_!=='function')
+        return {success:false,error:'PREASSIGNMENT_QUALIFICATION_VALIDATOR_UNAVAILABLE'};
+      var preflightHeader=ap.getRange(1,1,1,ap.getLastColumn()).getValues()[0];
+      var preflightRow=new Array(preflightHeader.length).fill('');
+      var preflightMissing='';
+      scopeDefsPreflight.forEach(function(def){
+        if(!selectedScopeKeys[String(def.scopeCode||'').trim().toLowerCase()])return;
+        if(def.flagCol0==null)preflightMissing=String(def.slotKey||'');
+        else preflightRow[def.flagCol0]='x';
+      });
+      if(preflightMissing)return {success:false,error:'SCOPE_QUALIFICATION_COLUMN_UNAVAILABLE',scope:preflightMissing};
+      var preflightResult;
+      try{preflightResult=_mp_assertAuditorQualifiedForPlanning_(ss,preflightHeader,preflightRow,preassignedAuditor,'');}
+      catch(ePreflight){return {success:false,error:'PREASSIGNMENT_QUALIFICATION_READ_FAILED',detail:String(ePreflight&&ePreflight.message||ePreflight)};}
+      if(!preflightResult||preflightResult.success!==true)
+        return {success:false,error:'AUDITOR_NOT_HARD_QUALIFIED',message:(preflightResult&&preflightResult.message)||'Preassigned auditor is not qualified for selected scopes.'};
+    }
 
     var created = m5t_createAuditRowFromCompaniesPool_(companyUid, companyName);
     if (!created.success) return created;

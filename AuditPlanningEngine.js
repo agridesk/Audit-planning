@@ -104,6 +104,10 @@ function Planning_applyReschedule_(statusCtx, transition, payload) {
 
 function Planning_executeWrite_(rowInfo, transition, opts) {
   opts = opts || {};
+  // Enforce the shared DEV cutover fence before any availability or audit write.
+  if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') return fail_('SYSTEM_WRITE_GUARD_MISSING');
+  try { SYS_ENFORCE_WRITE_ALLOWED('PLANNING_WRITE', opts.auditId); }
+  catch (writeFenceError) { return fail_(String(writeFenceError && writeFenceError.message || writeFenceError)); }
 
   var nb = normalizeBlocks_(opts.blocks || []);
   if (nb.hard.length) return failHard_(nb.hard);

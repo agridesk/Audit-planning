@@ -241,9 +241,9 @@ function Status_applyAction(actor, action, auditId, payload) {
     }
 
     var __guardT0 = Date.now();
-    var writeGuard = (action === ACTION.PLAN && payload.writeGuardAlreadyPassed === true)
-      ? { success:true, ok:true, code:'CANONICAL_PLANNING_WRITER_GUARD' }
-      : Status_checkDevWriteGuard_(action, auditId);
+    // Every status action must consult the authoritative guard. A client-provided
+    // writeGuardAlreadyPassed flag is not security evidence.
+    var writeGuard = Status_checkDevWriteGuard_(action, auditId);
     __statusPerf.writeGuardMs = Date.now() - __guardT0;
     if (!writeGuard.ok) return writeGuard;
 

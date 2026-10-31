@@ -27,4 +27,5 @@ jobs:
         with:
           node-version: '22'
       - run: npm run test:planning-authority-p0
+      - run: node p0-dev-legacy-writer-fence-test.mjs
       - run: npm test

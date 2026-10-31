@@ -86,3 +86,10 @@ AUTONOMOUS SESSION 3 — VERIFIED 2026-10-31
 - GREEN RESULT SCOPE: test suite on isolated PR branch, not latest dev, not merged PR #47, not Cloud Run or real DEV Sheets.
 - F2.5 qualification migration, UID callsite cutover, Model C live writer provenance, cross-branch conflict resolution and browser E2E remain OPEN.
 - No Cloud Run, Sheets, Firestore, PROD, merge, writer flag, or live runtime modifications performed.
+
+AUTONOMOUS SESSION 4 — VERIFIED
+- Projector append guard now rejects rows wider than destination range AND non-A-based append ranges. This prevents truncated Model C provenance and invalid full-row replay comparisons.
+- Added regression cases for overflow into A:B, A:AA and non-A B:G range.
+- CI run 41182089762 at 84af784b75f4c7f72dac560412de6acd221c11a6: SUCCESS, including full npm test, planning P0, auth-fast and SWAP.
+- Earlier width-only run 41182033316 at 059d355c2f0d965d100ec11f019c40fb9b0491d1: SUCCESS.
+- All fixes remain isolated in draft PR #48, not merged/deployed. Existing DEV 2 preparation remains unchanged and writer flags remain off.

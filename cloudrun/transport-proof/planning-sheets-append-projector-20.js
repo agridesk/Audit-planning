@@ -17,6 +17,7 @@ function validate(intents){
   if(!match||!allowed.has(match[1])||!Array.isArray(item.values)||item.values.length<1||item.values.length>100||item.values.some(x=>!Array.isArray(x)||x.length<1||x.length>100))throw Error('APPEND_INTENT_UNSUPPORTED');
   const width=widthOf(item.range);
   if(!width||item.values.some(row=>row.length>width))throw Error('APPEND_INTENT_WIDTH_INVALID');
+  if(item.values.some(row=>row.some(v=>v!==null&&typeof v!=='string'&&typeof v!=='number'&&typeof v!=='boolean')))throw Error('APPEND_INTENT_CELL_INVALID');
   for(const row of item.values)result.push({range:item.range,sheet:match[1],row});
  }
  if(result.length>200)throw Error('APPEND_INTENTS_TOO_MANY');

@@ -123,3 +123,10 @@ SESSION 7 FOLLOW-ON — GATED F2.5 DEV MIGRATION MODULES
 - Staged exact dev copies of migration-apply and isolated Firestore lock helper with their tests. No API routing, enablement flags, Sheets writes, lock acquisition or deployment performed.
 - Isolated CI 41184161158 on c01ab6c34c8817cc09c344dee31cdfcb98fca9f5: SUCCESS. Tests cover gated executor/lock behavior, alongside other F1/F2.5 and full AMS checks.
 - Integrator still must resolve overlapping dev/PR47 server-r4, assignment-validation, package and test manifest edits, verify DEV runtime lock service account and obtain separate cutover permissions.
+
+SESSION 7 — OPTIONAL CANONICAL SCOPE ASSIGNMENT GATE
+- Stage-only assignment-validation-v211 gained optional qualificationRelations input to v211AuditorQualified and v211AssignmentHardCheck. When explicitly supplied, canonical Auditor_UID × ScopeCode relation takes precedence over legacy per-scope columns. Canonical NO blocks even when old column says YES; unknown UID/orphan relations fail closed.
+- Legacy callers without qualificationRelations retain old behavior during controlled transition. This is not complete or default-on consumer cutover.
+- Regression contains direct and hard-gate assertions for scope09, canonical NO, absent relations and legacy support.
+- GitHub Actions 41184291627 SUCCESS on 54e2045cb1d94c698bb09384fc99e7ca2748fc0b, including full npm test. Scope20 Sheets adapter synthetic tests also passed previously in 41184233237.
+- Current DEV/Cloud Run path remains untouched. Scope qualification data migration has NOT been performed. Validate all actual call-sites, security readiness and runtime identity before enabling canonical relation input on any writer.

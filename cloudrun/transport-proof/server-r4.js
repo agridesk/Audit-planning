@@ -2270,6 +2270,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
   if(u.pathname==='/api/v1/manager/auditor-management/qualification/save'&&req.method==='POST'){
     const actor=await sessionFromRequestValidated(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    if(process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_SCOPE20_CANONICAL_QUALIFICATIONS_READ_ENABLED==='true')return send(res,409,{ok:false,error:'CANONICAL_QUALIFICATION_WRITE_NOT_MIGRATED'});
     let raw='';for await(const c of req){raw+=c;if(raw.length>8192)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
     let input;try{input=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
     const email=clean(input?.email).toLowerCase(),scopeCode=clean(input?.scopeCode),expected=input?.expected,qualified=input?.qualified;

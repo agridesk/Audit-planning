@@ -47,7 +47,7 @@ const scopeManager=readFileSync(new URL('../../AuditManagerToolsScopes.js',impor
 const preflightAt=scopeManager.indexOf('var defsForPreflight = m5t_scopeSlotDefs_(ss) || []');
 const createAt=scopeManager.indexOf('m5t_createAuditRowFromCompaniesPool_(companyUid, companyName)');
 assert.ok(preflightAt>0&&createAt>preflightAt,'Canonical 09-20 qualification must be verified BEFORE audit-row creation');
-assert.match(scopeManager,/selectedNames\[String\(d.scope \|\| ''\).trim\(\).toLowerCase\(\)\] && d.flagCol0 == null/,'No silent legacy qualification fallback');
+assert.match(scopeManager,/m5t_scope20CanonicalPreassignmentCheck_\\(ss,preassignedAuditor,selectedScopes,defsForPreflight\\)/,'Headerless preassignment requires canonical qualification before creating audit row');
 
 assert.match(scopeManager,/if \(missingQualificationScope\) return \{success:false,error:'SCOPE_QUALIFICATION_COLUMN_UNAVAILABLE'/);
 const configSource=readFileSync(new URL('../../ConfigScopesService.js',import.meta.url),'utf8');

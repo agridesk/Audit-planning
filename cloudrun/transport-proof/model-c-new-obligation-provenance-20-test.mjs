@@ -30,5 +30,7 @@ assert.throws(()=>build({...args,obligation:{...obligation,Formal_Hours:10}}),/N
 assert.throws(()=>build({...args,obligation:{...obligation,Scope_Version_ID:'OLD'}}),/NEW_OBLIGATION_PROVENANCE_CONFLICT/);
 assert.throws(()=>build({...args,overrides:[ov,{...ov,OverrideId:'OV2'}]}),/OVERLAPPING_COMPANY_OVERRIDES/);
 assert.throws(()=>build({...args,scopeVersions:[]}),/SCOPE_VERSION_MISSING/);
+assert.throws(()=>build({...args,scopeVersions:[{...args.scopeVersions[0],Effective_From:'2026-02-30'}]}),/INVALID_EFFECTIVE_DATE/);
+assert.throws(()=>build({...args,overrides:[{...ov,EffectiveFrom:'2026-02-30'}]}),/INVALID_EFFECTIVE_DATE/);
 assert.throws(()=>build({...args,companyScopes:[]}),/COMPANY_SCOPE_RELATION_MISSING/);
 console.log('Model C new obligation provenance factory: baseline, override, schemas, identity, history and conflict gates passed');

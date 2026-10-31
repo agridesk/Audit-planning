@@ -6,6 +6,8 @@
 const str=x=>String(x??'');
 const norm=x=>{const a=(x||[]).map(str);while(a.length&&a.at(-1)==='')a.pop();return a;};
 const same=(a,b)=>JSON.stringify(norm(a))===JSON.stringify(norm(b));
+const columnNumber=s=>[...s].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0);
+const widthOf=range=>{const m=/![A-Z]+:([A-Z]+)$/.exec(range);return m?columnNumber(m[1]):0;};
 const allowed=new Set(['Notification Queue','Rejected audits','Log realized audits','Audit planning','Audit_Obligations','Audit_Visit_Obligations','Diagnostics_Log']);
 function validate(intents){
  if(!Array.isArray(intents)||intents.length>24)throw Error('APPEND_INTENTS_INVALID');
@@ -13,6 +15,8 @@ function validate(intents){
  for(const item of intents){
   const match=/^([^!]+)![A-Z]+:[A-Z]+$/.exec(item?.range||'');
   if(!match||!allowed.has(match[1])||!Array.isArray(item.values)||item.values.length<1||item.values.length>100||item.values.some(x=>!Array.isArray(x)||x.length<1||x.length>100))throw Error('APPEND_INTENT_UNSUPPORTED');
+  const width=widthOf(item.range);
+  if(!width||item.values.some(row=>row.length>width))throw Error('APPEND_INTENT_WIDTH_INVALID');
   for(const row of item.values)result.push({range:item.range,sheet:match[1],row});
  }
  if(result.length>200)throw Error('APPEND_INTENTS_TOO_MANY');

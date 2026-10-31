@@ -1,0 +1,64 @@
+AMS 2.0 | FASE 1 INTEGRATIE-REGISTER | 2026-10-31
+Scope: read-only bron- en overdrachtsaudit. Geen deploy, merge, datamutatie, PROD of writeractivatie.
+Bronnen: PR #47 (head 138f9f10205a5c204b6006c11bc2d92ad6297a73); actuele dev; handoffs F2, F2.5, F3, F4, F5, F6.
+Werkbranch: feature/ams-fase1-integration-audit-2026-10-31. Niet de release- of DEV-runtimebranch.
+
+BRANCH INTEGRATIE — HARDE BLOKKADE
+- dev en PR #47 zijn divergent; 108 dev-commits ontbreken ten opzichte van feature bij vergelijking 2026-10-31.
+- Overlap met server-r4.js, package.json, assignment-validation-v211.js, auditor-management-20-contract-test.mjs, scope-create-20.js en scope-gerelateerde tests.
+- Merge/rebase/cherry-pick in releasebranch verboden totdat per-file conflict/gedragsoverlap beoordeeld en test-gates vastgelegd zijn.
+- Cloud Run ams-20-preparation is eerder op 138f9f10 geïsoleerd gedeployd; dit is GEEN bewijs van huidige dev-code, scope migration, volledige auth of E2E werking.
+- Geen nieuwe scope migration-apply vóór code-/runtimeparity, lock probe, data-readiness en expliciete autorisatie.
+
+F1: P0 FIRESTORE PLANNING TRANSACTIES
+Owner: Fase 1. PR #47 draft, geen merge of cutover.
+Bewijs: offline CI voor PR-head; isolated DEV R15 startte; authority/writer/backfill flags uit.
+Open: legacy direct writer retirement, read-only data backfill evidence, multi-entity flows, cutover rehearsals, actual E2E and rollback; separate release go/no-go.
+
+F1: AUDITOR_UID CANONICAL CUTOVER
+Handoff: AMS_FASE1_HANDOFF_AUDITOR_UID_STATUS_2026-10-30.txt.
+Code: auditor-identity-versions.js, auditor-uid-backfill-preview.js, server-r4.js, assignment-validation-v211.js, actor-capabilities-v211.js.
+Open: UID is niet bewezen enige permanente auditoridentifier; e-mailvergelijkingen aanwezig in permission, assignment and planning paths.
+Gate: per writer/reader inventory, actual DEV identity readiness, data coverage, UID email-change/multiinstance regression, no loss of historical identities.
+E-mail blijft toegestaan voor login, contact en projectie; NIET blind bulkvervangen.
+
+F2: PLANNING TOOLKIT
+Handoff op docs/ams-phase-2-3-4-handoffs-2026-10-30.
+2026/2027 planningwindow incident niet gereproduceerd; branch feature/ams-toolkit-window-regression-tests-2026-10-30 commit 71d5b114 bevat statische checks (geen aangetoond CI/runtime bewijs).
+Gate: reproduceer single versus combined Visit met werkelijke payload, runtime-revisie, audit IDs en foutcode; behoud gecombineerde windowguards.
+
+F2.5: CATALOGUS 20 SCOPE-ID'S
+Handoff docs/Fase 2.5 Scope uitbreiding.txt op dev; 2026-10-31 upload.
+Dev bevat qualifications resolver, plan/apply, parity, distributed Firestore lock; Auditor_Scope_Qualifications DEV was header-only (snapshot); 23 legacy YES rows niet gemigreerd.
+Gate WP01 runtime gelijk aan geteste bron; WP02 lock probe; WP03 migratie alleen na aparte toestemming; WP04 qualifications via Auditor_UID x ScopeCode, fail-closed; WP05 09-20 consumers, geen silent truncation.
+SCOPE_01..08 identities onveranderlijk. SCOPE_09 testdata nooit automatisch promoten. Scopeversie is geen nieuwe identiteit.
+Overlapping dev changes with F1: server-r4, package, assignment validator; integratie vóór PROD of cutover.
+
+F3: GRID EXPORT / NOTIFICATIONS
+Read-only onderzoek afgerond, geen bewezen bug. Browser acceptatie Open/Completed, selection, PDF vs .xls, 20 scopes, notification overview nog open; geen nieuw codewerk zonder foutreproductie.
+
+F4: GRID FILTER/SORT
+Implementation branch feature/ams-grid4-filter-sort-isolated-2026-10-30 commit 3bf80ad.
+Geen browser/Node CI acceptatie; UI client-only. Eerst diff met F1 manager-portal.js / manager-portal.html inspecteren; behoud Open/Completed switching, selection and status visibility. Niet blind cherry-picken.
+
+F5: MODEL C HOURS PROVENANCE
+Handoff AMS_FASE5_NAAR_FASE1_HANDOFF_2026-10-30.txt.
+DEV snapshot: 199/199 Audit_Obligations zonder Scope_Version_ID, Formal_Hours_Source, Hours_Resolved_At. Override-ID mag bij default leeg zijn.
+Bestaande snapshot contract: company-scope-hours-snapshot-20.js. Create paths directSuccessorGroups/directRepairMissingCompleteLinks in server-r4; ModelCAnnualCycleRuntime.js (GAS).
+Gate: source/authority selection; append-only new obligations snapshot on creation; projector/writeset preserve all fields; historical closed audits unchanged; existing data remediation separate decision. Geen bulk backfill.
+
+F6: BATCH/WORKWEEK/ANNUAL
+Read-only R6 on docs/ams-fase6-readonly-eindrapport-2026-10-30.
+Codeketens aanwezig, geen aangetoonde bug of browser E2E; batch is bewust niet globaal atomisch. Customer confirmation policy DEV-only isolated; no rollout assumption.
+
+UITVOERVOLGORDE
+1. Read-only volledige touched-file en writer matrix, convergentie PR #47 versus recente dev.
+2. Canonieke autoriteit, UID en hours provenance regressie-gates in geïsoleerde branch; geen data-write.
+3. Integreer scope qualifications uitsluitend na conflictcontrole, inclusief veilige legacy history/20-scope dekking.
+4. Bouw geïsoleerde auth/runtime testbeschikbaarheid op, zonder gedeelde service aan te passen.
+5. Volg E2E testcases: identity, create/complete/successor, auditor availability, toolkit, grid, batch, export, scope qualification.
+6. Pas na groene integratie, gecontroleerde DEV-data, rollback en eigenaarstoestemming: deployment/merge/cutover. PROD afzonderlijk.
+
+BEWIJSHYGIENE
+Code aanwezig != CI groen != in DEV gedeployd != migratie uitgevoerd != E2E geaccepteerd.
+Bestaande werkende functionaliteit niet herontwerpen. Oudere roadmaps <=2.7 geen actualiteit; V2.12 proposed.

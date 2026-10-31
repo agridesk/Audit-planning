@@ -250,7 +250,7 @@ function m5t_upsertScopes(payload) {
     });
     var defsForPreflight = m5t_scopeSlotDefs_(ss) || [];
     var needsCanonical = defsForPreflight.some(function(d){
-      return d.flagCol0 == null && [d.scope,d.scopeCode,d.slotKey].some(function(x){return selectedNames[String(x||'').toLowerCase()];});
+      return (d.flagCol0 == null || /^SCOPE_(?:0[9]|1[0-9]|20)$/.test(String(d.slotKey||'').toUpperCase())) && [d.scope,d.scopeCode,d.slotKey].some(function(x){return selectedNames[String(x||'').toLowerCase()];});
     });
     if(needsCanonical){
       var canonicalCheck;

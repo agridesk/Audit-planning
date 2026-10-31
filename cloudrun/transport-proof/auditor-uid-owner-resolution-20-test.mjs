@@ -19,7 +19,7 @@ assert.throws(()=>currentAuditorUid20([auditorRows[0],['','new@example.com','YES
 assert.throws(()=>assignedUid20(h,['A-1','new@example.com',''],{required:true,assignedEmail:'new@example.com'}),/ASSIGNMENT_UID_MISSING/);
 assert.throws(()=>assignedUid20(['Audit ID','Assigned to'],['A-1','new@example.com'],{required:true,assignedEmail:'new@example.com'}),/ASSIGNMENT_UID_SCHEMA_MISSING/);
 const server=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
-assert.equal((server.match(/AMS_AUDITOR_UID_AUTHORIZATION_ENABLED/g)||[]).length,2,'List and toolkit must use same guarded cutover');
+assert.equal((server.match(/AMS_AUDITOR_UID_AUTHORIZATION_ENABLED/g)||[]).length,3,'List, Toolkit and completion writer must use the same guarded cutover');
 assert.ok(server.includes('currentAuditorUid20(aud,actorEmail,{required:uidAuthEnabled})'));
 assert.ok(server.includes('currentAuditorUid20(vr[1]?.values||[],actorEmail,{required:uidAuthEnabled})'));
 assert.ok(server.includes('assignedUid20(f.h,f.row,{required:uidAuthEnabled,assignedEmail:assigned})'));
@@ -33,4 +33,6 @@ assert.ok(complete.includes("AUDITOR_COMPLETE_HISTORY_UID_UNVERIFIED"),'Idempote
 assert.ok(complete.includes("ownedUid=assignedUid20(h,row,{required:true,assignedEmail:assignedTo})"));
 assert.ok(complete.includes("AUDITOR_NOT_ASSIGNED_UID"),'Assigned UID prevents takeover after email rename or email reuse');
 assert.ok(complete.includes("else if(!assignedTo||assignedTo!==actorEmail)"),'Legacy writer policy unchanged while flag disabled');
+assert.ok(server.includes("ownAssigned=uidAuthEnabled?(!!assignedCanonicalUid&&assignedCanonicalUid===canonicalActorUid)"),'Auditor list and Toolkit must use stable UID for preflight self-planning ownership');
+assert.ok(server.indexOf("ownAssigned=uidAuthEnabled?(!!assignedCanonicalUid&&assignedCanonicalUid===canonicalActorUid)")>=0);
 console.log('Canonical UID read authorization passes email change, collision, missing owner, roles and two view wiring guards');

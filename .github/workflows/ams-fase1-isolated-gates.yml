@@ -5,6 +5,8 @@ on:
       - feature/ams-fase1-integration-audit-2026-10-31
     paths:
       - 'cloudrun/transport-proof/actor-capabilities-v211.js'
+      - 'cloudrun/transport-proof/assignment-validation-v211.js'
+      - 'cloudrun/transport-proof/fase1-scope20-assignment-cutover-20-test.mjs'
       - 'cloudrun/transport-proof/fase1-integration-known-gaps-20-test.mjs'
       - 'cloudrun/transport-proof/company-scope-hours-snapshot-20.js'
       - 'cloudrun/transport-proof/auditor-scope-qualifications-20.js'
@@ -43,6 +45,8 @@ jobs:
           node auditor-scope-qualifications-migration-apply-20-test.mjs
           node auditor-scope-qualifications-firestore-lock-20-test.mjs
           node auditor-scope-qualifications-migration-sheets-20-test.mjs
+          node assignment-validation-v211-test.mjs
+          node fase1-scope20-assignment-cutover-20-test.mjs
           node planning-sheets-append-projector-20-test.mjs
       - name: Full P0 planning authority regression
         working-directory: cloudrun/transport-proof

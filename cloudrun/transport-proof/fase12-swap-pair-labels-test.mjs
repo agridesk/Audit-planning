@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+const src=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+const first=src.indexOf('var swap20PairDisplayNumbers=new Map();');
+const last=src.indexOf('function swap20PaintManagerGridAlerts()',first);
+assert(first>=0&&last>first);
+const sandbox={Map,Set};
+vm.runInNewContext(src.slice(first,last)+'\nthis.inspect=function(items){swap20AssignPairNumbers(items);return items.map(p=>swap20PairDisplayNumbers.get(swap20PairKey(p)))}',sandbox);
+const items=[{auditA:'A',auditB:'B'},{auditA:'D',auditB:'C'},{auditA:'B',auditB:'A'}];
+assert.deepEqual(Array.from(sandbox.inspect(items)),[1,2,1]);
+assert.deepEqual(Array.from(sandbox.inspect([items[2],items[1],items[0]])),[1,2,1]);
+assert(src.includes("return '⇄ '+swap20PairDisplayNumbers.get"),'Per-pair indicator');
+assert(src.includes("String(first.company||'Company not in current grid')"),'Hover identifies first company');
+assert(src.includes("String(second.company||'Company not in current grid')"),'Hover identifies second company');
+assert(!src.includes("alert.textContent='SWAP '+cases.length"),'Old per-audit count removed');
+console.log('PASS paired swap markers remain stable under sorting/filtering');

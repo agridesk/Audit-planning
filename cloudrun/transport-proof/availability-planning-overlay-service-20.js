@@ -60,6 +60,26 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
   const auditDetailsByAuditor={};for(const slot of slots){if(!auditorIds.includes(slot.auditorId))continue;(auditDetailsByAuditor[slot.auditorId]??=[]).push({auditId:slot.auditId,date:slot.date,start:slot.start,end:slot.end,state:slot.state,company:slot.company||'',scopes:slot.scopes||'',location:slot.location||''});}
   return {...overview,auditDetailsByAuditor,incompleteAuditDiagnostics:incompleteAuditDiagnostics.map(({auditId,status,code})=>({auditId,status,code}))};
  }
+ async function searchAudits({actor,auditorId,term}){
+  const role=clean(actor?.role).toLowerCase(),actorId=clean(actor?.id),target=clean(auditorId);
+  if(!actorId||!target||role!=='auditor'||actorId!==target)throw Error('NOT_AUTHORIZED');
+  const query=clean(term);
+  if(query.length<2||query.length>100)throw Error('INVALID_SEARCH_TERM');
+  // Query canonical audit slots for all months, never only the visible calendar.
+  // Incomplete historical plans cannot yield a dated search hit.
+  const incompleteAuditDiagnostics=[];
+  const slots=await slotsFor('1900-01-01','2100-12-31',{incompleteAuditDiagnostics});
+  const seen=new Set(),matches=[];
+  for(const slot of slots){
+   if(slot.auditorId!==target||!slot.company.toLocaleLowerCase().includes(query.toLocaleLowerCase()))continue;
+   const id=[slot.auditId,slot.date,slot.start,slot.end].join('|');
+   if(seen.has(id))continue;
+   seen.add(id);
+   matches.push({company:slot.company,date:slot.date,start:slot.start,end:slot.end,state:slot.state});
+  }
+  matches.sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start)||a.company.localeCompare(b.company));
+  return {results:matches.slice(0,100),truncated:matches.length>100};
+ }
  async function mutate({actor,auditorId,expectedVersion,mutation,now}){
   const role=clean(actor?.role).toLowerCase(),actorId=clean(actor?.id),target=clean(auditorId);
   if(!actorId||!target||!(role==='manager'||role==='auditor'&&actorId===target))throw Error('NOT_AUTHORIZED');
@@ -119,5 +139,5 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
   const result=await service.mutate({actor,auditorId,expectedVersion,mutation,...(now?{now}:{})});
   return {...result,protectedAudits:affectedAudits.filter(x=>x.state==='COMMITTED'),provisionalConflicts:mutation?.action==='SET_FREE_OVERRIDE'?[]:affectedAudits.filter(x=>x.state==='PROVISIONAL')};
  }
- return Object.freeze({period,managerOverview,mutate,read:service.read});
+ return Object.freeze({period,managerOverview,searchAudits,mutate,read:service.read});
 }

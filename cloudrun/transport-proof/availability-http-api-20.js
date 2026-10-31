@@ -14,7 +14,7 @@ export function createAvailabilityHttpRouter({service,resolveIdentity,listAudito
   const url=new URL(req.url||'/','http://localhost');
   if(!url.pathname.startsWith('/api/v1/availability/'))return false;
   const route=url.pathname.slice('/api/v1/availability/'.length);
-  if(!['calendar','mutate','manager-overview','me'].includes(route)){reply(res,404,{success:false,error:'NOT_FOUND'});return true;}
+  if(!['calendar','mutate','manager-overview','search-audits','me'].includes(route)){reply(res,404,{success:false,error:'NOT_FOUND'});return true;}
   if(req.method!==(route==='mutate'?'POST':'GET')){reply(res,405,{success:false,error:'METHOD_NOT_ALLOWED'});return true;}
   let stage='SESSION';
   try{
@@ -39,6 +39,15 @@ export function createAvailabilityHttpRouter({service,resolveIdentity,listAudito
     if(!isoDate(fromDate)||!isoDate(toDate))throw Error('INVALID_DATE');
     stage='PERIOD_SERVICE';
     result=await service.period({actor,auditorId,fromDate,toDate});
+   }else if(route==='search-audits'){
+    stage='TARGET_AUTHORIZATION';
+    const auditorId=authorizedId(url.searchParams.get('auditorId'));
+    if(actor.role!=='auditor')throw Error('ROLE_FORBIDDEN');
+    const term=clean(url.searchParams.get('q'));
+    if(term.length<2||term.length>100)throw Error('INVALID_SEARCH_TERM');
+    stage='SEARCH_SERVICE';
+    if(typeof service.searchAudits!=='function')throw Error('SEARCH_SERVICE_UNAVAILABLE');
+    result=await service.searchAudits({actor,auditorId,term});
    }else if(route==='mutate'){
     if(!/^application\/json(?:;|$)/i.test(clean(req.headers['content-type'])))throw Error('INVALID_CONTENT_TYPE');
     stage='TARGET_AUTHORIZATION';

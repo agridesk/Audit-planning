@@ -7,6 +7,8 @@ function m5t_listScopeCatalog_(ss) {
   return defs.map(function(d){
     return {
       scope: String(d.scope || '').trim(),
+      scopeCode: String(d.scopeCode || '').trim(),
+      slotKey: String(d.slotKey || '').trim(),
       defaultHours: m5t_toNumberOrZero_(d.defaultHours),
       maxConsecutive: m5t_toIntOrNull_(d.maxConsecutive),
       flagCol0: d.flagCol0,
@@ -84,6 +86,8 @@ function m5t_getAuditPlanningConfig(companyUid) {
       scopes: scopesCatalog.map(function(s){
         return {
           scope: s.scope,
+          scopeCode: s.scopeCode,
+          slotKey: s.slotKey,
           enabled: false,
           defaultHours: s.defaultHours,
           customHours: '',
@@ -108,6 +112,8 @@ function m5t_getAuditPlanningConfig(companyUid) {
     var used = enabled ? ((customNum != null) ? customNum : s.defaultHours) : s.defaultHours;
     return {
       scope: s.scope,
+      scopeCode: s.scopeCode,
+      slotKey: s.slotKey,
       enabled: enabled,
       defaultHours: s.defaultHours,
       customHours: (customNum != null ? customNum : ''),

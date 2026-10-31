@@ -1,0 +1,37 @@
+AMS — FASE 2.5 SCOPE UITBREIDING
+OVERDRACHT NAAR FASE 1 / CENTRALE COÖRDINATIE
+Datum: 2026-10-31 | Repo: agridesk/Audit-planning | Branch: dev
+Status: DEELS GEÏMPLEMENTEERD; DEV MIGRATIE EN VOLLEDIGE CONSUMER-CUTOVER OPEN
+
+DOEL
+FASE 1 coördineert alle resterende trajecten voor maximaal 20 stabiele scope-identiteiten in AMS 2.0. Geen automatische PROD-actie. De eerste acht identiteiten blijven behouden; nieuwe versies tellen niet als aparte scopes. ScopeCode en Auditor_UID zijn stabiele sleutels, niet display labels of fysieke kolomposities.
+
+BRONNEN EN HIËRARCHIE
+AMS_SCOPE_CAPACITY_20_INTEGRATED_DESIGN_2026-10-09.txt; actuele Master Project Governance SSOT, STATUS_MACHINE_CANONICAL_2026, Model C en Scope Management 2.0 handoffs. Roadmap V2.12 is PROPOSED; V2.7 en ouder nooit als actuele waarheid gebruiken. Dit document is een FASE 1-overdracht en geen vervangende SSOT.
+
+BEWEZEN DEV-STATUS
+GitHub DEV: canonieke qualification resolver, read-only legacy migration preview, parity, append-plan, guarded executor, DEV Sheets-adapter, aparte Firestore-lock en manager-only routes zijn gecommit. Modules onder cloudrun/transport-proof/: auditor-scope-qualifications-20.js, auditor-scope-qualifications-migration-20.js, auditor-scope-qualifications-parity-20.js, auditor-scope-qualifications-migration-plan-20.js, auditor-scope-qualifications-migration-apply-20.js, auditor-scope-qualifications-migration-sheets-20.js, auditor-scope-qualifications-firestore-lock-20.js, server-r4.js, regressietests en .github/workflows/scope20-qualification-ci.yml.
+Groene CI is bevestigd voor commit 55449db1410c3f87c5498c4fe9ea813d21ca23d1, context scope20/qualifications=success. Dit is GEEN bewijs van Cloud Run DEV-deployment of end-to-end businessacceptatie.
+Google Sheets DEV: spreadsheet Audit Management System DEV, ID 1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs. Tab Auditor_Scope_Qualifications aangemaakt, sheetId 877719725, header Auditor_UID | ScopeCode | Qualified. Op laatste verificatie nog 0 kwalificatieregels.
+DEV-bron: 6 auditors, 9 scopes (SCOPE_09 = TESTSCOPE-2), 23 positieve legacy-kwalificaties; geen ontbrekende/dubbele auditor-ID of e-mail, geen ongeldige qualification-states of ambigue mappings. Deze aantallen opnieuw verifiëren vóór migratie.
+
+NIET AFGEROND
+- Actuele code niet aantoonbaar gedeployed naar Cloud Run DEV; feitelijke runtime/revisie en project/service account controleren.
+- Exclusieve Scope20 Firestore-lock is alleen in code getest; runtime lock-probe niet geverifieerd.
+- 23 kwalificaties nog NIET gemigreerd; real-data parity, no-op/idempotentie en post-write verificatie ontbreken.
+- Geen volledige dynamische consumer-cutover voor scopes 09–20 in Manager Auditor Management, Company Management, Model C, Grid, Toolkit, Availability, Annual Planner, Rotation/Eligibility, planning, exports, notificaties en rapportage.
+- Niet PROD-gereed; geen PROD-vrijgave.
+
+WERKPAKKETTEN / GATES
+WP01 — DEV DEPLOY: bepaal feitelijke Cloud Run service, regio, deploy-pipeline en actieve revisie. Verifieer groene commit en target audit-management-system-dev. Geen onbevestigde CMD-paden of servicenaam gebruiken. Gate: draaiende DEV-revisie en regressies bewezen.
+WP02 — LOCK PROBE: manager-only POST /api/v1/manager/auditor-management/qualifications/migration-lock-probe. Bewijs Firestore-lock acquire/release in DEV zonder Sheets-datawrite. Onzekere/stale lock NOOIT blind verwijderen. Gate: exclusiviteit en release bevestigd.
+WP03 — QUALIFICATION MIGRATIE: GET migration-preview en migration-plan, verifieer herlezen data en 23 verwachte positieve relaties. Alleen na WP01/02, expliciete runtime write-flag, managerrechten en confirmation, POST /api/v1/manager/auditor-management/qualifications/migration-apply op DEV. Controleren: geen gewijzigde bronkolommen, parity 0 mismatches, precies bedoelde append-rijen, herhaalrun 0 nieuwe regels. Onzekere write: STOP en reconciliatie, niet blind opnieuw uitvoeren.
+WP04 — KWALIFICATIECONSUMERS: werk alle read/write- en hard eligibility-mutatiepaden om naar Auditor_UID × ScopeCode; geen silent fallback naar legacy 8-kolommen. Extra scopes mogen geen automatische auditor-qualification krijgen. Gate: Scope 09 én 20, revoked qualifications, assignment/preassignment blokkeringen en managerrechten end-to-end bewezen.
+WP05 — OVERIGE 20-SCOPE CONSUMERS: Scope Management 2.0 UI/versies/uren/kleur, Companies, Model C obligations/dependencies, auditplanning, Grid, Toolkit, availability, planner, rotation, notifications/exports/reporting, performance. Controleer identiteit, volledige scopeweergave, historiek, immutabiliteit, cache, meerdere scopes per Visit en geen 8-scope truncatie. Gate: scope 1–20 regressiematrix.
+WP06 — RELEASE GOVERNANCE: log eigenaars en voortgang per WP, audittrail, schema DEV/PROD mismatch, rollbackrepetitie, businessacceptatie en expliciet afzonderlijk PROD-go/no-go.
+
+KRITIEKE RANDVOORWAARDEN
+PROD nooit aanpassen zonder expliciete aparte toestemming. De migratieroute heeft managerauth, DEV project- en spreadsheetcontrole, write-flag default OFF, expliciete confirmation en dedicated Firestore-lock. Firestore-lock voorkomt niet dat handmatige Sheets-schrijvers buiten de lock wijzigingen doen; bron vlak voor append herlezen. Scope 9 is DEV-testcatalogus, niet automatisch een PROD-scope. Behoud bestaande eerste 8, statuses, historiek, version/hours snapshots, obligations en dependencies.
+
+OPDRACHT AAN FASE 1
+Registreer Fase 2.5 als portfolio-werkstroom. Houd WP01/02/03 als kritieke gatevolgorde en inventariseer WP04/05 parallel, zonder cutover. Rapporteer per WP: eigenaar, concrete commit, actuele DEV-revisie, teststatus, blockers, volgende veilige actie en alleen wanneer noodzakelijk gevraagde gebruikersactie. CMD rechtstreeks kopieerbaar op het scherm; complete bronbestanden als TXT wanneer gevraagd. Niet stoppen zonder reële blokkade.

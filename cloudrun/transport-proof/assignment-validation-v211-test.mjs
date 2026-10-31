@@ -52,6 +52,17 @@ assert.equal(v211ResolveAuditorEmail([...auditors,['David','duplicate@example.co
 assert.equal(v211ResolveAuditorEmail([['Name','Active'],['David','YES']],'David'),'');
 assert.equal(v211AuditorQualified(auditors,catalog,['MPS-ABC','MPS-GAP'],v211ResolveAuditorEmail(auditors,'David')),true);
 assert.equal(v211AuditorQualified(auditors,catalog,['MPS-ABC','MPS-GAP'],'david@example.com'),true);
+
+// Scope 09–20 canonical relation validation does not need physical qualification columns.
+const auditor20=[['Name','E-mail','Active','Role','Auditor_UID'],['New Auditor','new@example.com','YES','Auditor','UID-20']];
+const catalog20=[...catalog,{slotKey:'SCOPE_09',scopeCode:'NEW-09',displayName:'New 09'},{slotKey:'SCOPE_20',scopeCode:'NEW-20',displayName:'New 20'}];
+const relations20=[['Auditor_UID','ScopeCode','Qualified'],['UID-20','NEW-09','YES'],['UID-20','NEW-20','TRUE']];
+assert.equal(v211AuditorQualified(auditor20,catalog20,['NEW-09','NEW-20'],'new@example.com',[],relations20),true);
+assert.equal(v211AuditorQualified(auditor20,catalog20,['SCOPE_09','New 20'],'new@example.com',[],relations20),true);
+assert.equal(v211AuditorQualified(auditor20,catalog20,['NEW-09'],'new@example.com'),false,'Legacy path must not synthesize qualification');
+assert.equal(v211AuditorQualified(auditor20,catalog20,['NEW-09'],'new@example.com',[],[['Auditor_UID','ScopeCode','Qualified']]),false,'No implicit qualification');
+assert.equal(v211AuditorQualified(auditor20,catalog20,['NEW-09'],'new@example.com',[],[...relations20,relations20[1]]),false,'No fallback after duplicate canonical relation');
+
 assert.equal(v211AuditorQualified(auditors,catalog,['MPS-ABC','MPS-GAP'],'other@example.com'),false);
 assert.equal(v211AuditorQualified(auditors,catalog,['MPS-ABC'],' '),false);
 assert.equal(v211AuditorQualified(auditors,catalog,[],'david@example.com'),false, 'Missing required scopes must fail closed');

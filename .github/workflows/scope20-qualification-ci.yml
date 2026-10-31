@@ -1,0 +1,73 @@
+name: Scope 20 qualification DEV tests
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'cloudrun/transport-proof/auditor-scope-qualifications-*.js'
+      - 'cloudrun/transport-proof/auditor-scope-qualifications-*.mjs'
+      - 'cloudrun/transport-proof/package.json'
+      - 'cloudrun/transport-proof/assignment-validation-v211.js'
+      - 'cloudrun/transport-proof/assignment-validation-v211-test.mjs'
+      - 'cloudrun/transport-proof/server-r4.js'
+      - 'cloudrun/transport-proof/auditor-management-20-contract-test.mjs'
+      - '.github/workflows/scope20-qualification-ci.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  statuses: write
+jobs:
+  qualifications:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax and qualification migration regression tests
+        id: tests
+        working-directory: cloudrun/transport-proof
+        run: |
+          set -o pipefail
+          {
+            node --check auditor-scope-qualifications-20.js
+          node --check auditor-scope-qualifications-migration-20.js
+          node --check auditor-scope-qualifications-parity-20.js
+          node --check auditor-scope-qualifications-migration-plan-20.js
+          node --check auditor-scope-qualifications-migration-apply-20.js
+          node --check auditor-scope-qualifications-migration-sheets-20.js
+          node --check auditor-scope-qualifications-firestore-lock-20.js
+          node --check assignment-validation-v211.js
+          node --check server-r4.js
+          for test in auditor-scope-qualifications-20-test.mjs auditor-scope-qualifications-migration-20-test.mjs auditor-scope-qualifications-parity-20-test.mjs auditor-scope-qualifications-migration-plan-20-test.mjs auditor-scope-qualifications-migration-apply-20-test.mjs auditor-scope-qualifications-migration-sheets-20-test.mjs auditor-scope-qualifications-firestore-lock-20-test.mjs; do
+            echo "RUNNING_TEST:$test"
+            node "$test" || exit 1
+          done
+          echo RUNNING_TEST:assignment-validation-v211-test.mjs
+          node assignment-validation-v211-test.mjs
+          echo RUNNING_TEST:auditor-management-20-contract-test.mjs
+          node auditor-management-20-contract-test.mjs
+          } 2>&1 | tee /tmp/scope20-qualification-ci.log
+      - name: Publish scoped commit test status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TEST_OUTCOME: ${{ steps.tests.outcome }}
+        run: |
+          STATE=failure
+          if [ "$TEST_OUTCOME" = success ]; then STATE=success; fi
+          DETAIL="$(grep -m 1 -E 'AssertionError|^Error:|^TypeError:|^SyntaxError:' /tmp/scope20-qualification-ci.log 2>/dev/null | cut -c 1-65)"
+          FILE="$(grep 'RUNNING_TEST:' /tmp/scope20-qualification-ci.log 2>/dev/null | tail -n 1 | cut -d: -f2 | cut -c 1-65)"
+          LINE="$(grep -oE 'test\\.mjs:[0-9]+:[0-9]+' /tmp/scope20-qualification-ci.log 2>/dev/null | head -n 1 | cut -c 1-25)"
+          if [ -n "$LINE" ]; then DETAIL="$LINE $FILE $DETAIL"; elif [ -n "$FILE" ]; then DETAIL="$FILE $DETAIL"; fi
+          DESCRIPTION="DEV Scope20 regression tests"
+          if [ "$STATE" = failure ] && [ -n "$DETAIL" ]; then DESCRIPTION="FAILED: $DETAIL"; fi
+          CONTEXT="scope20/qualifications"
+          if [ "$STATE" = failure ] && [ -n "$DETAIL" ]; then CONTEXT="scope20/fail/$(echo "$DETAIL" | tr -cs '[:alnum:]_' '_' | cut -c 1-85)"; fi
+          PAYLOAD="$(jq -nc --arg state "$STATE" --arg description "$DESCRIPTION" --arg context "$CONTEXT" '{state:$state,context:$context,description:$description}')"
+          curl --fail-with-body --silent --show-error -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
+            -d "$PAYLOAD"

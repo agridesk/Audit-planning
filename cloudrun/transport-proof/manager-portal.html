@@ -63,23 +63,27 @@ body.actor-auditor .actions-cell .act{max-width:100%;white-space:normal;padding:
   .actions-cell{width:17%}
   body.actor-auditor .required-head,body.actor-auditor .required-cell{display:table-cell}
 }
-#companyManagement20Panel{max-width:100%;box-sizing:border-box}#companyManagement20Panel #companyManagement20Close{font-size:12px;padding:6px 11px;border:1px solid #cbd5e1;background:#f1f5f9;color:#1e4066;border-radius:6px}#companyManagement20Panel #companyManagement20Search{min-width:250px;flex:1;max-width:520px;border:1px solid #cbd5e1;border-radius:999px;padding:8px 12px}#companyManagement20Panel #companyManagement20Filter{border:1px solid #cbd5e1;border-radius:999px;padding:8px 12px;background:white}#companyManagement20Table{table-layout:auto!important}#companyManagement20Table th,#companyManagement20Table td{padding:9px 12px;white-space:normal}#companyManagement20Table .company-name-link{display:inline;border:0;padding:0;background:transparent;color:#15588b;font-weight:650;text-decoration:none;text-align:left;line-height:1.4;cursor:pointer}#companyManagement20Table .company-name-link:hover{text-decoration:underline}#companyManagement20Table .company-name-link:focus-visible{outline:2px solid #2563eb;outline-offset:2px}</style>
+#companyManagement20Panel{max-width:100%;box-sizing:border-box}#companyManagement20Panel #companyManagement20Close{font-size:12px;padding:6px 11px;border:1px solid #cbd5e1;background:#f1f5f9;color:#1e4066;border-radius:6px}#companyManagement20Panel #companyManagement20Search{min-width:250px;flex:1;max-width:520px;border:1px solid #cbd5e1;border-radius:999px;padding:8px 12px}#companyManagement20Panel #companyManagement20Filter{border:1px solid #cbd5e1;border-radius:999px;padding:8px 12px;background:white}#companyManagement20Table{table-layout:auto!important}#companyManagement20Table th,#companyManagement20Table td{padding:9px 12px;white-space:normal}#companyManagement20Table .company-name-link{display:inline;border:0;padding:0;background:transparent;color:#15588b;font-weight:650;text-decoration:none;text-align:left;line-height:1.4;cursor:pointer}#companyManagement20Table .company-name-link:hover{text-decoration:underline}#companyManagement20Table .company-name-link:focus-visible{outline:2px solid #2563eb;outline-offset:2px}.statusNavRow{display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-between}.statusNavRow .cards{margin:10px 0;flex:1 1 580px}.gridPrimaryNav{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end;align-items:center;margin-left:auto}.gridPrimaryNav .workspace-btn{font-size:12px;padding:8px 12px;min-height:34px;box-sizing:border-box;border:1px solid #bcd6f3;border-radius:7px;background:#e7f2ff;color:#183e66;text-decoration:none;font-weight:600;white-space:nowrap}.gridPrimaryNav .workspace-btn:hover{background:#d5e9ff}.gridPrimaryNav .workspace-btn[aria-current="page"],.gridPrimaryNav .workspace-btn[aria-pressed="true"]{background:#174879;color:#fff;border-color:#174879}@media(max-width:960px){.gridPrimaryNav{width:100%;justify-content:flex-start;margin-left:0}}</style>
 </head>
 <body>
 <header style="display:flex;justify-content:space-between;align-items:center"><div><strong id="portalTitle">Audit Grid 2.0</strong><div class="meta" id="identity"></div></div><form method="post" action="/auth/logout"><button type="submit" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:7px;background:white;cursor:pointer">Log out</button></form></header>
 <main>
-<div id="status">Loading audit data…</div><div class="cards" id="cards"></div>
+<div id="status">Loading audit data…</div><div class="statusNavRow"><div class="cards" id="cards"></div><nav class="gridPrimaryNav" aria-label="Audit workspace navigation"><button id="auditorSwapInbox20" class="workspace-btn" type="button" hidden>Audit date changes <span id="auditorSwapBadge20" hidden aria-label="Unanswered Audit date changes"></span></button>
+
+<button id="managerSwapInbox20" class="workspace-btn" type="button" hidden>Audit date changes <span id="managerSwapBadge20" hidden aria-label="Audit date changes needing manager attention"></span></button>
+
+<a id="rotationManager20" class="workspace-btn" href="/rotation" style="text-decoration:none">Rotation</a>
+
+<button id="companyManagement20" class="workspace-btn" type="button" hidden>Companies</button>
+
+<a id="availabilityManager20" class="workspace-btn" href="/availability-manager-20" style="text-decoration:none">Availability</a>
+</nav></div>
 <div class="grid-toolbar" style="display:flex;gap:8px;margin:10px 0;flex-wrap:wrap;min-width:0;max-width:100%">
 <button id="openView" style="padding:7px 11px;border:1px solid #2563eb;border-radius:999px;background:#dbeafe">Open audits</button>
 <button id="completedView" style="padding:7px 11px;border:1px solid #d1d5db;border-radius:999px;background:white">Completed</button>
-<button id="auditorSwapInbox20" class="workspace-btn" type="button" hidden>Audit date changes <span id="auditorSwapBadge20" hidden aria-label="Unanswered Audit date changes"></span></button>
-<button id="managerSwapInbox20" class="workspace-btn" type="button" hidden>Audit date changes <span id="managerSwapBadge20" hidden aria-label="Audit date changes needing manager attention"></span></button>
 <button id="scopeManagement20" class="workspace-btn" type="button">Scopes</button>
-<a id="rotationManager20" class="workspace-btn" href="/rotation" style="text-decoration:none">Rotation</a>
-<button id="companyManagement20" class="workspace-btn" type="button" hidden>Companies</button>
 <button id="auditorManagement20" class="workspace-btn" type="button" hidden>Auditors</button>
 <a id="notificationsManager20" class="workspace-btn" href="/notifications-manager-20" hidden style="text-decoration:none">Notifications</a>
-<a id="availabilityManager20" class="workspace-btn" href="/availability-manager-20" style="text-decoration:none">Availability</a>
 <input id="q" placeholder="Company, location, scope, auditor, planning…" style="padding:7px 11px;border:1px solid #d1d5db;border-radius:999px;min-width:340px">
 <button id="clearColumnFilters" type="button" title="Clear only column filters and sorting">Clear column filters</button>
 <button id="reset" style="padding:7px 11px;border:1px solid #d1d5db;border-radius:999px;background:white">Reset</button>

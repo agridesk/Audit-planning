@@ -90,10 +90,11 @@ export function v211QualificationWithdrawalConstraint({auditorValues,catalog,sco
 export function v211AuditorQualified(audValues,catalog,scopeCodes,auditorEmail,requestedDates,qualificationRelations){
   if(!Array.isArray(audValues)||!audValues.length)return false;
   const h=audValues[0],e=col(h,['E-mail','Email','E-mail address','Mail']),a=col(h,['Active','Is active']),r=col(h,['Role','Function']);
-  const aliases=new Map();
+  const aliases=new Map();let aliasConflict=false;
   for(const s of catalog||[]){
     const canonical=key(s.scopeCode||s.displayName||s.slotKey);
-    for(const x of [s.scopeCode,s.displayName,s.slotKey])if(x)aliases.set(key(x),canonical);
+    for(const x of [s.scopeCode,s.displayName,s.slotKey])if(x){const k=key(x);if(aliases.has(k)&&aliases.get(k)!==canonical)aliasConflict=true;else aliases.set(k,canonical);}
+
   }
   const email=clean(auditorEmail).toLowerCase();
   if(!Array.isArray(scopeCodes)||scopeCodes.length===0)return false;
@@ -103,6 +104,7 @@ export function v211AuditorQualified(audValues,catalog,scopeCodes,auditorEmail,r
   if(!target)return false;
   if(!v211QualificationWithdrawalConstraint({auditorValues:audValues,catalog,scopeCodes,auditorEmail,requestedDates}).ok)return false;
   if(qualificationRelations!==undefined){
+    if(a<0||r<0||e<0||aliasConflict)return false;
     const uidColumn=col(h,['Auditor_UID','Auditor UID']);
     if(uidColumn<0)return false;
     const relationsCatalog=[['SlotKey','ScopeCode'],...(catalog||[]).map(x=>[x.slotKey,x.scopeCode])];

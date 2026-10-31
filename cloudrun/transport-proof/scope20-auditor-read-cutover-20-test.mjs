@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {v211AssignmentHardCheck} from './assignment-validation-v211.js';
 const code=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
-assert.equal((code.match(/AMS_SCOPE20_CANONICAL_QUALIFICATIONS_READ_ENABLED/g)||[]).length,2,'Both auditor views gate canonical qualification source');
+assert.equal((code.match(/AMS_SCOPE20_CANONICAL_QUALIFICATIONS_READ_ENABLED/g)||[]).length,3,'Auditor views and qualification edit writer share the canonical cutover flag');
 assert.ok(code.includes("if(canonicalQualificationRead)ranges.push('Auditor_Scope_Qualifications!A1:C5000')"));
 assert.ok(code.includes("if(canonicalQualificationRead)detailRanges.push('Auditor_Scope_Qualifications!A1:C5000')"));
 assert.ok(code.includes("vr[versioned?6:5]?.values"),'List source index must account for identity versions');

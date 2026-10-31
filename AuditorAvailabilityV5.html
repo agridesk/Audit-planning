@@ -1720,6 +1720,27 @@ state.auditorEmail = unquote_(AV5_EMAIL_INJ || '').trim().toLowerCase();
     AV5_consoleLog_('AV5 UI (date-only aligned + fast month load) loaded', { build:AV5_BUILD_TS_INJ, email:AV5_EMAIL_INJ, mk:AV5_MONTHKEY_INJ, exec:AV5_EXEC_URL_INJ });
     init();
   </script>
+<script>
+(function(){
+ const pairs=[["rng_fromDate","rng_toDate"]];
+ function sync(startId,endId){
+  const start=document.getElementById(startId),end=document.getElementById(endId);
+  if(!start||!end)return;
+  end.min=start.value||'';
+  if(start.value&&(!end.value||end.value<start.value)){
+   end.value=start.value;
+   end.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+ }
+ function handle(e){
+  for(const [start,end] of pairs)if(e.target?.id===start){sync(start,end);break;}
+ }
+ document.addEventListener('change',handle);
+ document.addEventListener('input',handle);
+ function init(){for(const [start,end] of pairs)sync(start,end)}
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+})();
+</script>
 </body>
 <!-- BUILD: AuditorAvailabilityV5_d6_OPTIMISTIC_TICK_CONFIRM_FIX_20260517 -->
 </html>

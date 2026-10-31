@@ -38,7 +38,7 @@ const checks=[
 ['auditor UI uses display-name projection',manager.includes('assignedToDisplayName||r.auditorDisplayName')&&r10.includes('managerAuditorDisplayMap')],
 ['extension apply undo controls',manager.includes('Undo applied extension')&&manager.includes('Apply extension (+')],
 ['undo remains available after canonical apply',manager.includes('if(applied&&can)return')&&manager.includes('data-extension=\\"undo\\"')],
-['extension uses canonical endpoint',runExtensionBody.includes("fetch('/api/v1/manager/extension'")],
+['extension uses canonical endpoint',runExtensionBody.includes("fetch('/api/v1/manager/extension-direct'")],
 ['extension same row patch',manager.includes('mergeRowInPlace(auditId,x.patch)')],
 ['extension ambiguous response recovery',manager.includes('recoverExtension')&&manager.includes('rereadEnrichedAudit(auditId)')&&manager.includes('CANONICAL_EXTENSION_NOT_COMMITTED')],
 ['extension recovery never repeats write',recoverExtensionBody.length>0&&!recoverExtensionBody.includes('/api/v1/manager/extension')],

@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+const ui=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+const backend=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+const start=ui.indexOf('function extensionControls(r){'),end=ui.indexOf('function grid4ScopeBadges(r){',start);
+assert(start>=0&&end>start);
+const fn=vm.runInNewContext(ui.slice(start,end)+'\nextensionControls',{actorRole:'Manager',esc:String});
+assert(fn({statusKey:'PENDING_PLANNING',extensionMonths:3,extensionApplied:false,canExtend:true,auditId:'A'}).includes('ext-apply'));
+assert(fn({statusKey:'PENDING_PLANNING',extensionMonths:3,extensionApplied:true,canExtend:true,auditId:'A'}).includes('ext-undo'));
+assert.equal(fn({statusKey:'ACCEPTED',extensionMonths:3,canExtend:null,auditId:'A'}),'');
+assert.equal(vm.runInNewContext(ui.slice(start,end)+'\nextensionControls',{actorRole:'Auditor',esc:String})({statusKey:'PENDING_PLANNING',extensionMonths:3,auditId:'A'}),'');
+assert(ui.includes("fetch('/api/v1/manager/extension-direct'"));
+assert(backend.includes("u.pathname==='/api/v1/manager/extension-direct'"));
+assert(backend.includes("if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED')"));
+console.log('PASS Fase 1.2 manager Extension/Undo visibility and safe DEV endpoint');

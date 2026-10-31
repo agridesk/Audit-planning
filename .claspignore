@@ -1,9 +1,16 @@
-# Google Apps Script deployment exclusions
-# Cloud Run and repository-only assets must never be pushed into GAS.
+# Fail-closed clasp upload allowlist: root-level GAS sources and manifest only.
+# Subdirectory sources and repository artifacts must never enter Apps Script.
+**/*
+!*.js
+!*.gs
+!*.html
+!appsscript.json
+
+# Explicit repository exclusions (also exclude matching source extensions).
+.git/**
+.github/**
 cloudrun/**
 docs/**
-cloudbuild*.yaml
-Dockerfile
-**/Dockerfile
-README*
-**/README*
+scripts/**
+tests/**
+node_modules/**

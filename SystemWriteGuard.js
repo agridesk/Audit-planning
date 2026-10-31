@@ -83,6 +83,30 @@ function SYS_WRITE_GUARD_DECIDE_(actionName, auditId) {
   var cfg = SYS_getConfig_();
   var env = String(SYS_getEnv_() || '').trim().toUpperCase();
 
+  // DEV-only cutover fence. The legacy GAS script property must be set to
+  // CLOUD_RUN only after independent exclusive-writer verification. Missing
+  // property preserves existing legacy DEV behavior.
+  if (env === 'DEV') {
+    try {
+      if (PropertiesService.getScriptProperties().getProperty('AMS_DEV_PLANNING_CANONICAL_OWNER_20') === 'CLOUD_RUN' &&
+          /^(STATUS_|PLANNING_|REJECT_)/.test(action)) {
+        return {
+          allowed: false, env: env, action: action, auditId: id,
+          mode: 'CLOUD_RUN_CANONICAL_OWNER',
+          code: 'DEV_LEGACY_PLANNING_WRITER_RETIRED',
+          message: 'DEV legacy planning/status write retired; Cloud Run is the canonical owner.'
+        };
+      }
+    } catch (fenceError) {
+      return {
+        allowed: false, env: env, action: action, auditId: id,
+        mode: 'CANONICAL_OWNER_UNVERIFIED',
+        code: 'DEV_CANONICAL_OWNER_FENCE_UNAVAILABLE',
+        message: 'DEV canonical owner fence could not be verified.'
+      };
+    }
+  }
+
   if (env === 'PROD') {
     return {
       allowed: true,

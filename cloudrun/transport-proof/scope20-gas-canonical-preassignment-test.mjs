@@ -86,4 +86,19 @@ assert.equal(unknownBeforeWrite.error,'SCOPE_IDENTITY_UNRESOLVED');
 const doubleBeforeWrite=context.m5t_upsertScopes({companyUid:'C-1',companyName:'Company 1',selectedScopes:[{scope:'New Scheme',enabled:true},{scopeCode:'NEW-09',enabled:true}]});
 assert.equal(doubleBeforeWrite.error,'DUPLICATE_SELECTED_SCOPE');
 assert.equal(createdAuditRows,0,'Rejected unknown and duplicate scopes may not create audit rows');
+// Legacy scope rejection must be checked before creating a missing audit row.
+let legacyValidatorCalls=0;
+context.m5t_getSheet_=()=>({
+  getLastColumn:()=>4,
+  getRange:()=>({getValues:()=>[['Company_UID','Company','SCOPE_01','Duration SCOPE_01']]})
+});
+context._mp_assertAuditorQualifiedForPlanning_=()=>{legacyValidatorCalls++;return {success:false,message:'Not qualified'};};
+const rejectedLegacy=context.m5t_upsertScopes({
+ companyUid:'C-1',companyName:'Company 1',
+ selectedScopes:[{scope:'MPS-ABC',enabled:true}],
+ preassignedAuditorEmail:'a@example.com'
+});
+assert.equal(rejectedLegacy.error,'AUDITOR_NOT_HARD_QUALIFIED');
+assert.equal(legacyValidatorCalls,1);
+assert.equal(createdAuditRows,0,'Legacy qualification failure must happen before row creation');
 console.log('GAS Scope20 preassignment: canonical UID+ScopeCode YES, NO, missing, orphan, duplicate, invalid and missing source fail closed');

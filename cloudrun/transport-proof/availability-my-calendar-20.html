@@ -85,8 +85,16 @@ function showDay(day){
  for(const detail of Object.values(S.auditDetails||{})){if(detail.date!==day.date)continue;const key=[detail.auditId,detail.date,detail.start,detail.end].join('|');if(!audits.has(key))audits.set(key,{auditId:detail.auditId,company:detail.company||'',scopes:detail.scopes||'',location:detail.location||'',start:detail.start,end:detail.end,state:detail.state});}
  const entries=[...audits.values()].sort((a,b)=>a.start.localeCompare(b.start)||a.end.localeCompare(b.end));
  const auditHtml=entries.map((x,i)=>'<div class="auditDetail"><strong>'+esc(x.state==='PROVISIONAL'?'Provisional audit':'Planned audit')+' '+(i+1)+' · '+esc(x.start)+'–'+esc(x.end)+'</strong><div>'+esc(x.company||'Company not recorded')+'</div><div class="muted">'+esc(x.scopes||'Scopes not recorded')+'</div><div class="muted">'+esc(x.location||'')+'</div></div>').join('');
- const unavailable=(day.segments||[]).filter(x=>x.state==='HARD'||x.state==='SOFT');
- const other=unavailable.length?unavailable.map(x=>'<div class="segment"><span class="pill '+esc(x.state)+'">'+esc(humanState(x.state))+'</span><span>'+esc(x.start+'–'+x.end)+'</span></div>').join(''):entries.length?'':'<div class="muted">Available during working hours</div>';
+ // Display source-level preferences and explicit blocks, not FREE residual
+ // segments inferred around audits. A green gap is not a bookable audit slot.
+ const weekday=(new Date(day.date+'T00:00:00Z').getUTCDay()+6)%7;
+ const recurring=(S.metadata?.recurring||[]).filter(x=>Number(x.weekday)===weekday);
+ const defaultWeekend=weekday>=5&&!recurring.length;
+ const preferences=recurring.map(x=>'<div class="segment"><span>Normally unavailable (weekly)</span><span>'+esc(x.start+'–'+x.end)+'</span></div>').join('');
+ const weekend=defaultWeekend?'<div class="segment"><span>Normally unavailable (weekend default)</span></div>':'';
+ const hardSources=(S.metadata?.baselineExceptions||[]).filter(x=>(x.fromDate||x.date)<=day.date&&(x.toDate||x.fromDate||x.date)>=day.date);
+ const hard=hardSources.map(x=>'<div class="segment"><span>Unavailable (HARD)</span><span>'+esc(x.wholeDay?'Whole day':(x.start+'–'+x.end))+'</span></div>').join('');
+ const other=hard+preferences+weekend;
  $('selectedInfo').innerHTML='<strong>'+esc(day.date)+'</strong>'+auditHtml+(other?'<div class="muted" style="margin-top:8px">Availability</div>'+other:'');
 
 }

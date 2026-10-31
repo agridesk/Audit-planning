@@ -17,6 +17,7 @@ on:
       - 'cloudrun/transport-proof/manager-portal.js'
       - 'cloudrun/transport-proof/planning-toolkit-selection-window-regression-20.mjs'
       - 'cloudrun/transport-proof/fase1-scope20-migration-routes-contract-test.mjs'
+      - 'cloudrun/transport-proof/auditor-management-scope20-dev-contract-test.mjs'
       - 'cloudrun/transport-proof/server-r4.js'
       - 'cloudrun/transport-proof/fase1-scope20-assignment-cutover-20-test.mjs'
       - 'cloudrun/transport-proof/fase1-integration-known-gaps-20-test.mjs'
@@ -74,6 +75,7 @@ jobs:
           node --check manager-portal.js
           node planning-toolkit-selection-window-regression-20.mjs
           node fase1-scope20-migration-routes-contract-test.mjs
+          node auditor-management-scope20-dev-contract-test.mjs
           node planning-sheets-append-projector-20-test.mjs
       - name: Full P0 planning authority regression
         working-directory: cloudrun/transport-proof

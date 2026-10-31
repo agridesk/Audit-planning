@@ -14,6 +14,19 @@ function m5t_scopeSlotDefs_(ss) {
     throw new Error('CONFIG_SCOPES_SERVICE_REQUIRED');
   }
   if (rows.length > 20) throw new Error('CONFIG_SCOPES_MAX_20_EXCEEDED');
+  var seenSlots = {};
+  var seenCodes = {};
+  for (var si = 0; si < rows.length; si++) {
+    var slotId = String(rows[si].slotKey || '').trim().toUpperCase();
+    var scopeCode = String(rows[si].scopeCode || '').trim().toUpperCase();
+    if (!/^SCOPE_(?:0[1-9]|1[0-9]|20)$/.test(slotId)) throw new Error('CONFIG_SCOPES_INVALID_SLOT_' + slotId);
+    if (seenSlots[slotId]) throw new Error('CONFIG_SCOPES_DUPLICATE_SLOT_' + slotId);
+    seenSlots[slotId] = true;
+    if (scopeCode) {
+      if (seenCodes[scopeCode]) throw new Error('CONFIG_SCOPES_DUPLICATE_CODE_' + scopeCode);
+      seenCodes[scopeCode] = true;
+    }
+  }
   var ap = ss.getSheetByName('Audit planning');
   if (!ap) throw new Error('AUDIT_PLANNING_SHEET_MISSING');
   var headers = ap.getRange(1, 1, 1, ap.getLastColumn()).getValues()[0] || [];

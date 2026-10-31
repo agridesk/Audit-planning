@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+const html=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
+const script=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+assert(html.includes('class="statusNavRow"'));
+assert(html.includes('class="gridPrimaryNav"'));
+const nav=html.slice(html.indexOf('class="gridPrimaryNav"'),html.indexOf('</nav>'));
+for(const id of ['rotationManager20','companyManagement20','availabilityManager20','managerSwapInbox20','auditorSwapInbox20'])assert(nav.includes('id="'+id+'"'),id+' must be alongside status cards');
+const toolbar=html.slice(html.indexOf('class="grid-toolbar"'),html.indexOf('id="selectionBar"'));
+for(const id of ['openView','completedView','q','reset','clearColumnFilters'])assert(toolbar.includes('id="'+id+'"'),id+' must remain over table');
+assert(html.includes('max-width:960px'));
+assert(script.includes('syncGridPrimaryNav20()'));
+new vm.Script(script);
+console.log('PASS Fase 1.2 nav grouping and grid-toolbar invariants');

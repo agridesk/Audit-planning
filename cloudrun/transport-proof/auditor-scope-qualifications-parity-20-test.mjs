@@ -12,6 +12,8 @@ assert.deepEqual(compare({auditors,catalog,relations:[relations[0],...relations.
 assert.equal(compare({auditors,catalog,relations:[...relations,relations[1]]}).ok,false);
 assert.equal(compare({auditors,catalog,relations:[relations[0],['U1','ABC','MAYBE']]}).ok,false);
 assert.equal(compare({auditors,catalog,relations:[]}).ok,false);
+assert.deepEqual(compare({auditors,catalog,relations:[['Auditor_UID','ScopeCode','Qualified','SCOPECODE']]}).errors,['CANONICAL_RELATIONS_SCHEMA_DUPLICATE_OR_EMPTY_HEADER']);
+assert.equal(compare({auditors,catalog,relations:[['Auditor_UID','ScopeCode','Qualified','']]}).ok,false);
 assert.equal(compare({auditors:[...auditors,['U3','one@example.com','']],catalog,relations}).ok,false,'Duplicate auditor emails must fail parity');
 assert.equal(compare({auditors:[...auditors,['U1','duplicate@example.com','']],catalog,relations}).ok,false,'Duplicated UID blocks parity');
 

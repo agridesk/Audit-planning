@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const code=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+assert.match(code,/AMS_RUNTIME_ENV==='DEV'&&process\.env\.AMS_DEV_MODEL_C_NEW_HOURS_SNAPSHOT_ENABLED==='true'/);
+assert.match(code,/if\(newObligationSnapshotEnabled\)\{[\s\S]*?Company_Scope_Hours!A1:Z2000[\s\S]*?ScopeVersions!A1:Z256/);
+assert.match(code,/buildNewModelCObligationWithHours20\(\{/);
+assert.match(code,/effectiveDate:item\.cycleKey/);
+assert.match(code,/newObRows\.push\(resolved\.row\)/);
+assert.match(code,/else newObRows\.push\(directAppendObjectRow\(oh,obj\)\)/);
+assert.match(code,/PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED/);
+console.log('Opt-in DEV-only Model C successor writer provenance gate is present; runtime mutation tests remain release-gated');

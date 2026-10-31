@@ -1708,6 +1708,8 @@ function auditorV5_getLogRealizedSheet_() {
   return sh;
 }
 function auditorV5_appendLogRealizedFromPlanningRow_(auditId, planningHeaders, planningRow, hoursDedicated, auditorEmail) {
+  if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') throw Error('SYSTEM_WRITE_GUARD_MISSING');
+  SYS_ENFORCE_WRITE_ALLOWED('STATUS_COMPLETE', auditId);
   var sh = auditorV5_getLogRealizedSheet_();
   var hdr = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0].map(function(x){ return String(x||"").trim(); });
   var H = auditorV5_headerIndex_(hdr);
@@ -1824,6 +1826,9 @@ function auditorV5_buildActionUiPatch_(auditId, action, newStatus, removeRow) {
 }
 
 function AuditorV5_Action_U20260410(auditId, action, payload) {
+  // Guard before idempotent recovery or legacy status/availability mutations.
+  if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') throw Error('SYSTEM_WRITE_GUARD_MISSING');
+  SYS_ENFORCE_WRITE_ALLOWED('STATUS_' + String(action || '').trim().toUpperCase(), auditId);
   payload = payload || {};
   auditId = String(auditId || "").trim();
   action = String(action || "").trim().toLowerCase();

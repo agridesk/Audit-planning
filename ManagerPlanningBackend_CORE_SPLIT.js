@@ -1308,6 +1308,8 @@ function V5_snapshotAuditPlanningRow_(auditId) {
 }
 
 function V5_restoreAuditPlanningRowSnapshot_(snap) {
+  if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') throw Error('SYSTEM_WRITE_GUARD_MISSING');
+  SYS_ENFORCE_WRITE_ALLOWED('PLANNING_RESTORE', snap && snap.auditId || '');
   if (!snap || !snap.success) return;
   var ss = SpreadsheetApp.getActive();
   var sh = ss.getSheetByName('Audit planning');
@@ -1327,6 +1329,9 @@ function V5_restoreAuditPlanningRowSnapshot_(snap) {
 }
 
 function V5_reconcileAuditPlanningAfterSave_(auditId, auditorEmail, auditorName, blocks, actionResult) {
+  if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') return {success:false,error:'SYSTEM_WRITE_GUARD_MISSING'};
+  try { SYS_ENFORCE_WRITE_ALLOWED('PLANNING_RECONCILE', auditId); }
+  catch (e) { return {success:false,error:'DEV_LEGACY_PLANNING_WRITE_BLOCKED',message:String(e&&e.message||e)}; }
   try {
     auditId = String(auditId || '').trim();
     auditorEmail = V5_normalizeEmail_(auditorEmail);

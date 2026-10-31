@@ -130,3 +130,8 @@ SESSION 7 — OPTIONAL CANONICAL SCOPE ASSIGNMENT GATE
 - Regression contains direct and hard-gate assertions for scope09, canonical NO, absent relations and legacy support.
 - GitHub Actions 41184291627 SUCCESS on 54e2045cb1d94c698bb09384fc99e7ca2748fc0b, including full npm test. Scope20 Sheets adapter synthetic tests also passed previously in 41184233237.
 - Current DEV/Cloud Run path remains untouched. Scope qualification data migration has NOT been performed. Validate all actual call-sites, security readiness and runtime identity before enabling canonical relation input on any writer.
+
+SESSION 8 — CANONICAL SCOPE HARD-GATE
+- v211AssignmentHardCheck now accepts requireCanonicalQualifications=true opt-in. When enabled, absent/non-array qualificationRelations fail closed even if legacy eight-column flags say eligible; no automatic cutover.
+- Synthetic tests cover missing/null canonical source, loaded relations, canonical NO overriding legacy YES. CI 41184492063 SUCCESS on 7bcc00ad; CI 41184551659 SUCCESS on 9e5b2776 including full AMS/P0/auth/SWAP.
+- No assignment caller actively wired, no migration or Cloud Run deployment performed. Runtime identity and read source gating still mandatory.

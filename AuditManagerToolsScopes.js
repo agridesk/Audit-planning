@@ -41,6 +41,7 @@ function m5t_getAuditPlanningConfig(companyUid) {
 
   // Fail before m5t_createAuditRowFromCompaniesPool_: unsupported physical
   // qualification checks must not leave a newly created audit row behind.
+  var canonicalQualificationVerified = false;
   if (preassignedAuditor) {
     var selectedNames = {};
     selectedScopes.forEach(function(item) {
@@ -49,10 +50,15 @@ function m5t_getAuditPlanningConfig(companyUid) {
       if (k) selectedNames[k] = true;
     });
     var defsForPreflight = m5t_scopeSlotDefs_(ss) || [];
-    for (var si = 0; si < defsForPreflight.length; si++) {
-      var d = defsForPreflight[si];
-      if (selectedNames[String(d.scope || '').trim().toLowerCase()] && d.flagCol0 == null)
-        return {success:false,error:'SCOPE_QUALIFICATION_COLUMN_UNAVAILABLE',scope:String(d.slotKey || '')};
+    var needsCanonical = defsForPreflight.some(function(d){
+      return d.flagCol0 == null && [d.scope,d.scopeCode,d.slotKey].some(function(x){return selectedNames[String(x||'').toLowerCase()];});
+    });
+    if(needsCanonical){
+      var canonicalCheck;
+      try{canonicalCheck=m5t_scope20CanonicalPreassignmentCheck_(ss,preassignedAuditor,selectedScopes,defsForPreflight);}
+      catch(eCanonical){return {success:false,error:'CANONICAL_QUALIFICATION_READ_FAILED',detail:String(eCanonical&&eCanonical.message||eCanonical)};}
+      if(!canonicalCheck||canonicalCheck.success!==true)return canonicalCheck||{success:false,error:'CANONICAL_QUALIFICATION_UNCONFIRMED'};
+      canonicalQualificationVerified=true;
     }
   }
 
@@ -127,6 +133,66 @@ function m5t_getAuditPlanningConfig(companyUid) {
     dateWillExpire: expCol >= 0 ? m5t_normDateText_(arow[expCol]) : '',
     scopes: scopes
   };
+}
+
+
+// Canonical Scope09-20 preassignment path. No mutation: all identity and relation
+// checks complete before creating the audit row or calling ModelC scope owner.
+function m5t_scope20CanonicalPreassignmentCheck_(ss, email, selectedScopes, defs) {
+  function norm(v) { return String(v == null ? '' : v).trim(); }
+  function key(v) { return norm(v).toLowerCase(); }
+  function yes20(v) { return /^(x|yes|true|1)$/i.test(norm(v)); }
+  function index(headers,name) { for(var i=0;i<headers.length;i++)if(key(headers[i])===key(name))return i;return -1; }
+  var auditorSheet=ss.getSheetByName('Auditors');
+  var relationSheet=ss.getSheetByName('Auditor_Scope_Qualifications');
+  if(!auditorSheet||!relationSheet)return {success:false,error:'CANONICAL_QUALIFICATION_SOURCE_UNAVAILABLE'};
+  var auditors=auditorSheet.getDataRange().getValues();
+  var relations=relationSheet.getDataRange().getValues();
+  if(!auditors.length||!relations.length)return {success:false,error:'CANONICAL_QUALIFICATION_SCHEMA_UNAVAILABLE'};
+  var ah=auditors[0],rh=relations[0],ae=index(ah,'E-mail'),au=index(ah,'Auditor_UID'),active=index(ah,'Active'),role=index(ah,'Role');
+  var ru=index(rh,'Auditor_UID'),rs=index(rh,'ScopeCode'),rq=index(rh,'Qualified');
+  if([ae,au,ru,rs,rq].some(function(x){return x<0;}))return {success:false,error:'CANONICAL_QUALIFICATION_SCHEMA_INCOMPLETE'};
+  var matches=auditors.slice(1).filter(function(row){return key(row[ae])===key(email);});
+  if(matches.length!==1||!norm(matches[0][au]))return {success:false,error:'CANONICAL_AUDITOR_UID_AMBIGUOUS'};
+  var target=matches[0],uid=norm(target[au]);
+  if(active>=0&&!yes20(target[active]))return {success:false,error:'CANONICAL_AUDITOR_INACTIVE'};
+  if(role>=0&&key(target[role])!=='auditor')return {success:false,error:'CANONICAL_AUDITOR_ROLE_INVALID'};
+  var knownUid={},knownEmail={};
+  for(var a=1;a<auditors.length;a++) {
+    var ar=auditors[a],id=norm(ar[au]),mail=key(ar[ae]);
+    if(!id&&!mail)continue;
+    if(!id||!mail||knownUid[id]||knownEmail[mail])return {success:false,error:'CANONICAL_AUDITOR_IDENTITY_DUPLICATE'};
+    knownUid[id]=true;knownEmail[mail]=true;
+  }
+  var aliases={},validCodes={};
+  (defs||[]).forEach(function(def){
+    var code=key(def.scopeCode);
+    if(!code)return;
+    validCodes[code]=true;
+    [def.scopeCode,def.scope,def.slotKey].forEach(function(alias){if(key(alias))aliases[key(alias)]=code;});
+  });
+  var selected={};
+  (selectedScopes||[]).forEach(function(item){
+    if(!item||!(item.enabled===true||key(item.enabled)==='true'))return;
+    var code=aliases[key(item.scope||item.scopeCode||item.code)];
+    if(!code)selected.__unknown=true;
+    else selected[code]=true;
+  });
+  if(selected.__unknown)return {success:false,error:'CANONICAL_SCOPE_IDENTITY_UNRESOLVED'};
+  var relationByKey={};
+  for(var r=1;r<relations.length;r++) {
+    var rec=relations[r],id=norm(rec[ru]),code=key(rec[rs]),value=key(rec[rq]);
+    if(!id&&!code&&!value)continue;
+    if(!id||!knownUid[id]||!validCodes[code])return {success:false,error:'CANONICAL_QUALIFICATION_ORPHAN'};
+    if(!/^(yes|no|true|false|1|0|x)?$/.test(value))return {success:false,error:'CANONICAL_QUALIFICATION_STATE_INVALID'};
+    var pair=id+'|'+code;
+    if(Object.prototype.hasOwnProperty.call(relationByKey,pair))return {success:false,error:'CANONICAL_QUALIFICATION_DUPLICATE'};
+    relationByKey[pair]=yes20(value);
+  }
+  var codes=Object.keys(selected);
+  if(!codes.length)return {success:false,error:'CANONICAL_SCOPE_SELECTION_EMPTY'};
+  for(var c=0;c<codes.length;c++)if(relationByKey[uid+'|'+codes[c]]!==true)return {success:false,error:'AUDITOR_NOT_HARD_QUALIFIED',scopeCode:codes[c]};
+  return {success:true,auditorUid:uid,qualificationSource:'Auditor_Scope_Qualifications'};
 }
 
 function m5t_upsertScopes(payload) {
@@ -205,7 +271,7 @@ function m5t_upsertScopes(payload) {
   var auditId = auditIdCol >= 0 ? String(rowValues[auditIdCol] || '').trim() : '';
   if (!auditId) return { success:false, error:'AUDIT_ID_REQUIRED_FOR_SCOPE_OWNER' };
 
-  if (preassignedAuditor) {
+  if (preassignedAuditor && !canonicalQualificationVerified) {
     if (typeof _mp_assertAuditorQualifiedForPlanning_ !== 'function') {
       return { success:false, error:'PREASSIGNMENT_QUALIFICATION_VALIDATOR_UNAVAILABLE' };
     }

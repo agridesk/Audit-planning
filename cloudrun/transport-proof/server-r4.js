@@ -1,6 +1,7 @@
 import http from 'node:http';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {normalizeLifecycleWriteset} from './planning-lifecycle-writeset-20.js';
+import {buildNewModelCObligationWithHours20} from './model-c-new-obligation-provenance-20.js';
 const lifecyclePreviewContext20=new AsyncLocalStorage();
 import {managerCanonicalWriteBridge20} from './manager-canonical-write-bridge-20.mjs';
 import {buildDirectAuditorAcceptSheets20} from './auditor-accept-direct-sheets-20.mjs';
@@ -732,6 +733,7 @@ async function saveScopeCosmetic20(body){
 }
 async function directManagerExtension(identity,body){
   if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
+  const newObligationSnapshotEnabled=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_MODEL_C_NEW_HOURS_SNAPSHOT_ENABLED==='true';
   const t0=Date.now(),auditId=clean(body?.auditId),command=clean(body?.command).toLowerCase();
   if(!auditId)throw new Error('AUDIT_ID_REQUIRED');
   if(!['apply','undo'].includes(command))throw new Error('EXTENSION_COMMAND_NOT_ALLOWED');
@@ -1246,6 +1248,17 @@ async function directComplete(identity,body,actorRole){
       'Company_Scopes!A1:Z1500','Companies!A1:AZ1200','Auditors!A1:Z256'
     ]),readMs=Date.now()-readStarted;
     const ap=vr[0]?.values||[];if(!ap.length||ap.length>=2000)throw Error('CANONICAL_PLANNING_INCOMPLETE');const log=vr[1]?.values||[],av=vr[2]?.values||[],cfgValues=vr[3]?.values||[],obs=vr[4]?.values||[],links=vr[5]?.values||[],companyScopes=vr[6]?.values||[],companies=vr[7]?.values||[],auditors=vr[8]?.values||[];
+    // Read authoritative hours sources before any lifecycle mutations; mode off by default.
+    let newHoursSources=null;
+    if(newObligationSnapshotEnabled){
+      const sources=await sheetsBatchGet(['Company_Scope_Hours!A1:Z2000','ScopeVersions!A1:Z256']);
+      const toObjects=values=>{
+        if(!values?.length||!Array.isArray(values[0]))throw Error('NEW_OBLIGATION_HOURS_SOURCE_SCHEMA_MISSING');
+        const [headers,...rows]=values;
+        return rows.filter(r=>r.some(v=>clean(v))).map(r=>Object.fromEntries(headers.map((h,i)=>[clean(h),r[i]??''])));
+      };
+      newHoursSources={companyScopes:toObjects(companyScopes),overrides:toObjects(sources[0]?.values),scopeVersions:toObjects(sources[1]?.values)};
+    }
     const found=findAudit(ap,auditId),logH=log[0]||[],logAuditIx=col(logH,['Audit ID','Audit_ID','AuditId']),logHoursIx=col(logH,['Hours dedicated']);
     let existingLogRow=0;
     if(logAuditIx>=0)for(let i=1;i<log.length;i++)if(val(log[i],logAuditIx)===auditId){existingLogRow=i+1;break;}
@@ -1365,7 +1378,13 @@ async function directComplete(identity,body,actorRole){
         if(!existingOb){
           const obj={};for(const hh of oh)obj[hh]='';
           Object.assign(obj,{Obligation_ID:obId,Company_Scope_ID:item.companyScopeId,Company_UID:companyUid,ScopeCode:item.scopeCode,Cycle_Key:item.cycleKey,Trigger_Source:'CERTIFICATE_LIFECYCLE',Obligation_State:'OPEN',Base_Expiry_Date:item.baseExpiry,Effective_Expiry_Date:item.baseExpiry,Planning_Window_From:item.from,Planning_Window_To:item.to,Formal_Hours:item.formalHours,Preassigned_Auditor_Email:item.preassigned,Allow_Self_Planning:item.allowSelfPlanning,Source_Audit_ID:newId,Created_At:stamp,Updated_At:stamp,Closed_At:''});
-          newObRows.push(directAppendObjectRow(oh,obj));
+          if(newObligationSnapshotEnabled){
+            const resolved=buildNewModelCObligationWithHours20({
+              headers:oh,obligation:obj,companyId:companyUid,scopeCode:item.scopeCode,effectiveDate:item.cycleKey,
+              companyScopes:newHoursSources.companyScopes,overrides:newHoursSources.overrides,scopeVersions:newHoursSources.scopeVersions,now:stamp
+            });
+            newObRows.push(resolved.row);
+          }else newObRows.push(directAppendObjectRow(oh,obj));
         }
         const activeLinkExists=links.slice(1).some(r=>val(r,la)===newId&&val(r,lo)===obId&&val(r,ls).toUpperCase()==='ACTIVE');
         if(!activeLinkExists){

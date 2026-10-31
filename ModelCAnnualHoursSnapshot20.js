@@ -29,8 +29,13 @@ function ModelCAnnualHoursSnapshot20_sources_(ss,companyScopeValues,obligationHe
 }
 function ModelCAnnualHoursSnapshot20_buildNew_(sources,item,companyUid,stamp){
   var str=function(x){return String(x==null?'':x).trim();};
-  var day=str(item.cycleKey);
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(day)||isNaN(Date.parse(day+'T00:00:00Z')))throw Error('MODEL_C_HOURS_CYCLE_DATE_INVALID');
+  var cycle=str(item.cycleKey),day=cycle;
+  if(/^[0-9]{4}$/.test(cycle)){
+    var expiry=str(item.baseExpiry);
+    if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(expiry)||expiry.slice(0,4)!==cycle)throw Error('MODEL_C_HOURS_YEAR_CYCLE_EXPIRY_REQUIRED');
+    day=expiry;
+  }
+  if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(day)||isNaN(Date.parse(day+'T00:00:00Z')))throw Error('MODEL_C_HOURS_CYCLE_DATE_INVALID');
   var code=str(item.scopeCode),company=str(companyUid),id=str(item.companyScopeId);
   if(!code||!company||!id||!sources)throw Error('MODEL_C_HOURS_IDENTITY_MISSING');
   var relation=sources.companyScopes.filter(function(r){return str(r.Company_Scope_ID)===id&&str(r.Company_UID)===company&&str(r.ScopeCode)===code;});

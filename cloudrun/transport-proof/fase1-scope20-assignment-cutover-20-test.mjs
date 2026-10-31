@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {v211AuditorQualified,v211AssignmentHardCheck} from './assignment-validation-v211.js';
+const auditors=[['Auditor_UID','E-mail','Active','Role','MPS-ABC'],['UID-1','a@example.com','YES','Auditor','x']];
+const catalog=[{slotKey:'SCOPE_01',scopeCode:'MPS-ABC',displayName:'MPS-ABC'},{slotKey:'SCOPE_09',scopeCode:'MPS-NEW',displayName:'MPS-NEW'}];
+const h=['Auditor_UID','ScopeCode','Qualified'];
+const relations=[h,['UID-1','MPS-NEW','YES'],['UID-1','MPS-ABC','NO']];
+assert.equal(v211AuditorQualified(auditors,catalog,['MPS-NEW'],'a@example.com',[],relations),true);
+assert.equal(v211AuditorQualified(auditors,catalog,['MPS-ABC'],'a@example.com',[],relations),false,'Canonical NO must override legacy YES');
+assert.equal(v211AuditorQualified(auditors,catalog,['MPS-NEW'],'a@example.com',[],[h]),false,'No implicit qualified grants');
+assert.equal(v211AuditorQualified(auditors,catalog,['MPS-NEW'],'a@example.com',[],[h,['UNKNOWN','MPS-NEW','YES']]),false,'Unknown UID relation must fail closed');
+assert.equal(v211AuditorQualified(auditors,catalog,['MPS-ABC'],'a@example.com',[]),true,'Legacy unchanged where migration relation is not yet provided');
+const hard=v211AssignmentHardCheck({auditorEmail:'a@example.com',auditorValues:auditors,catalog,scopeCodes:['MPS-ABC'],companyValues:[],requestedDates:[],qualificationRelations:relations});
+assert.equal(hard.ok,false);
+assert.ok(hard.reasons.includes('AUDITOR_NOT_HARD_QUALIFIED'));
+console.log('Fase 2.5 canonical relation overrides legacy qualifications and hard-assignment gate');

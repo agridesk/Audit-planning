@@ -87,4 +87,16 @@ $('save').addEventListener('click',save);
 $('action').addEventListener('change',updateAction);$('whole').addEventListener('change',updateAction);
 const now=new Date(),today=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
 $('from').value=today;$('through').value=addDays(today,27);$('filterDate').value=today;updateAction();applyFilter();load();
+function bindCoherentDateRange(fromId,toId){
+ const from=document.getElementById(fromId),to=document.getElementById(toId);
+ if(!from||!to)return;
+ const sync=()=>{
+  to.min=from.value||'';
+  if(from.value&&(!to.value||to.value<from.value))to.value=from.value;
+ };
+ from.addEventListener('change',sync);
+ from.addEventListener('input',sync);
+ sync();
+}
+for(const [start,end] of [['from','through'],['editFrom','editThrough']])bindCoherentDateRange(start,end);
 </script></body></html>

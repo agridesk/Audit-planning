@@ -17,4 +17,6 @@ const snapshotFlag=code.indexOf('const newObligationSnapshotEnabled=');
 assert.ok(completeStart>=0&&snapshotFlag>completeStart&&snapshotFlag<completeStart+300,'Flag must be local to directComplete');
 assert.ok(managerExtensionStart>=0&&snapshotFlag>managerExtensionStart,'Flag must not be shadowed by manager extension');
 assert.equal((code.match(/const newObligationSnapshotEnabled=/g)||[]).length,1);
+assert.match(code,/companyScopes:sources\.companyScopes\.some\(x=>clean\(x\.Company_Scope_ID\)===companyScopeId\)/,'Repair may need synthetic company scope before persisted write');
+assert.match(code,/Company_Scope_ID:companyScopeId,Company_UID:companyUid,ScopeCode:code,Active:'YES'/,'Synthetic source identity is explicit and bounded');
 console.log('Opt-in DEV-only Model C successor writer provenance gate is present; runtime mutation tests remain release-gated');

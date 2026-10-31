@@ -53,3 +53,9 @@ This is evidence and a safety checklist, not validation of deployed runtime beha
 
 F4 ISOLATED GRID DIFF CHECK — 2026-10-31
 Comparison of integration-audit branch against feature/ams-grid4-filter-sort-isolated-2026-10-30 found a 23-change delta in cloudrun/transport-proof/manager-portal.js. It is not authorized for blind merge; review interaction with existing Grid selection/status/export tests, then use browser acceptance on matching deployment.
+
+APPEND PROJECTOR WIDTH HARDENING — 2026-10-31
+- Isolated integration branch now rejects an append row wider than declared destination A:Z/AA range, before any API call.
+- Regression covers both A:B and A:AA overflow plus prior Model C replay and global fence behavior.
+- GitHub Actions run 41182033316 completed SUCCESS on 059d355c2f0d965d100ec11f019c40fb9b0491d1, including full npm test, planning P0, fast auth and SWAP tests.
+- Not released or deployed; no observed real-data output.

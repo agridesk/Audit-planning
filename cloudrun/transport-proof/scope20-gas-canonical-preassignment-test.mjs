@@ -107,4 +107,12 @@ const contradictory=context.m5t_upsertScopes({
 });
 assert.equal(contradictory.error,'SCOPE_IDENTITY_CONFLICT','Mismatched name and code must never be interpreted as another scheme');
 assert.equal(createdAuditRows,0,'Conflicting identities must not create audit rows');
+context.m5t_scopeSlotDefs_=()=>[{...defs[0]},{...defs[1],active:false}];
+const deniedInactive=context.m5t_upsertScopes({companyUid:'C-1',companyName:'Company 1',selectedScopes:[{scope:'New Scheme',enabled:true}]});
+assert.equal(deniedInactive.error,'SCOPE_INACTIVE_OR_ARCHIVED');
+context.m5t_scopeSlotDefs_=()=>[{...defs[0]},{...defs[1],archived:true}];
+const deniedArchived=context.m5t_upsertScopes({companyUid:'C-1',companyName:'Company 1',selectedScopes:[{scope:'New Scheme',enabled:true}]});
+assert.equal(deniedArchived.error,'SCOPE_INACTIVE_OR_ARCHIVED');
+assert.equal(createdAuditRows,0,'Inactive/archived configured Scope09 cannot create a row');
+context.m5t_scopeSlotDefs_=()=>defs;
 console.log('GAS Scope20 preassignment: canonical UID+ScopeCode YES, NO, missing, orphan, duplicate, invalid and missing source fail closed');

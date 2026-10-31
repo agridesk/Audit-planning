@@ -738,7 +738,6 @@ async function saveScopeCosmetic20(body){
 }
 async function directManagerExtension(identity,body){
   if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
-  const newObligationSnapshotEnabled=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_MODEL_C_NEW_HOURS_SNAPSHOT_ENABLED==='true';
   const t0=Date.now(),auditId=clean(body?.auditId),command=clean(body?.command).toLowerCase();
   if(!auditId)throw new Error('AUDIT_ID_REQUIRED');
   if(!['apply','undo'].includes(command))throw new Error('EXTENSION_COMMAND_NOT_ALLOWED');
@@ -1248,6 +1247,7 @@ function directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companySco
 }
 
 async function directComplete(identity,body,actorRole){
+  const newObligationSnapshotEnabled=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_MODEL_C_NEW_HOURS_SNAPSHOT_ENABLED==='true';
   if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
   actorRole=clean(actorRole).toUpperCase();
   if(actorRole!=='MANAGER'&&actorRole!=='AUDITOR')throw new Error('COMPLETE_ACTOR_ROLE_INVALID');

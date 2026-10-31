@@ -62,3 +62,10 @@ UITVOERVOLGORDE
 BEWIJSHYGIENE
 Code aanwezig != CI groen != in DEV gedeployd != migratie uitgevoerd != E2E geaccepteerd.
 Bestaande werkende functionaliteit niet herontwerpen. Oudere roadmaps <=2.7 geen actualiteit; V2.12 proposed.
+
+WERKSESSIE ADDENDUM (GEISOLEERD; NIET GEDEPLOYD)
+- Staged branch contains extension of actor-capabilities-v211 to prefer immutable actor/assignment UID when both supplied; explicit UID mismatch fails closed despite matching emails.
+- A pure Node regression file covers SCOPE_DEFAULT, COMPANY_OVERRIDE, invalid provenance, UID-only assignment, mismatch rejection and unverified aliases.
+- This is ONLY staged helper behavior; upstream callers currently may still pass email. Historical alias resolution and full UID migration remain release blockers.
+- No CI workflow has yet been evidenced for isolated branch. Do not promote before full prior actor-capabilities regressions and runtime contract test.
+- Conflict inspection confirmed dev adds canonical qualification import in assignment-validation-v211 and changes scope-create, server-r4, package/test manifests; PR #47 lacks these. Avoid copying feature versions over dev.

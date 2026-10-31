@@ -50,7 +50,9 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   for(const sheet of new Set(items.map(x=>x.sheet))){
    const width=items.find(x=>x.sheet===sheet).range.split(':')[1],range=sheet+'!A1:'+width+'5000';
    const u=base+'/values/'+encodeURIComponent(range)+'?valueRenderOption=FORMATTED_VALUE';
-   const data=await request(u),rows=data.values||[];
+   const data=await request(u);
+   if(!data||!Object.prototype.hasOwnProperty.call(data,'values'))throw Error('APPEND_PROJECTION_SOURCE_MALFORMED');
+   const rows=data.values;
    if(!Array.isArray(rows)||rows.length>=5000)throw Error('APPEND_PROJECTION_SOURCE_TRUNCATED');
    if(!rows.length||rows.some(row=>!Array.isArray(row)))throw Error('APPEND_PROJECTION_SOURCE_MALFORMED');
    sources.set(sheet,rows);

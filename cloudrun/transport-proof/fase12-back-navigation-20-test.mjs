@@ -9,7 +9,7 @@ for(const name of ['availability-my-calendar-20.html','availability-manager-cale
 for(const name of ['notification-manager-20.html','rotation-manager-20.html']){
  const html=readFileSync(new URL('./'+name,import.meta.url),'utf8');
  assert(html.includes('class="backToGrid"'),name+' must use standard back button');
- assert(html.includes('href="/">← Back to grid</a>'),name+' must return to grid');
+ assert(/href="\/"(?:[^>]*)>← Back to grid<\/a>/.test(html),name+' must return to grid');
 }
 const script=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 new vm.Script(script);

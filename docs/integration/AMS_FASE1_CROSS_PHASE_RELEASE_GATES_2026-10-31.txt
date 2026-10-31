@@ -69,3 +69,10 @@ WERKSESSIE ADDENDUM (GEISOLEERD; NIET GEDEPLOYD)
 - This is ONLY staged helper behavior; upstream callers currently may still pass email. Historical alias resolution and full UID migration remain release blockers.
 - No CI workflow has yet been evidenced for isolated branch. Do not promote before full prior actor-capabilities regressions and runtime contract test.
 - Conflict inspection confirmed dev adds canonical qualification import in assignment-validation-v211 and changes scope-create, server-r4, package/test manifests; PR #47 lacks these. Avoid copying feature versions over dev.
+
+AUTONOMOUS SESSION 2 — 2026-10-31
+- Pure resolver/snapshot chain regression extended for baseline, company override, missing version and overlap; test not proven run in CI.
+- Existing append-projector regression extended with a synthetic Audit_Obligations provenance row and idempotent replay assertion; does NOT write to DEV Sheets.
+- Isolated GitHub workflow now includes projector regression; GitHub PR-filtered workflow lookup returned no executions, so do not call it green.
+- Change ownership remains isolated audit branch; PR #47, dev, Cloud Run DEV, PROD and SSOT unchanged.
+- F4 diff: manager-portal.js change set was identified; client acceptance remains open.

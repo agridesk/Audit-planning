@@ -110,3 +110,9 @@ VERIFIED CI 2026-10-31
 - GitHub workflow 41183658356: SUCCESS, raw value comparison and header match filtering.
 - GitHub workflow 41183729542: SUCCESS, copied dev Scope20 qualifier tests, UID/provenance/projector and full existing regression suite.
 - CI is limited to isolated draft PR #48; no evidence that Cloud Run runs this commit. No release/go-live claim.
+
+SESSION 7 — ISOLATED SCOPE 2.5 READ-ONLY CONSUMER FOUNDATION
+- Staged unchanged pure migration preview, parity comparator and deterministic migration plan modules from dev with three matching tests. These modules are READ-ONLY; no write/migration apply/lock probe/GAS or Cloud Run change included.
+- CI workflow extended to execute all three tests plus pure qualifier alongside full F1/P0 suites. Do not equate library-level tests to live migration or consumer cutover.
+- Outbox append validator rejects NaN/Infinity to avoid JSON serialization as null and loss of provenance. Regression added.
+- Canonical Fase 2.5 migration apply remains gated and absent from this isolated integration. DEV qualification sheet remains unmodified.

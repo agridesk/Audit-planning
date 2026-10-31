@@ -73,4 +73,14 @@ rows['Audit_Obligations']=[];
 await assert.rejects(()=>service.inspect(provenanceIntent),/APPEND_PROJECTION_SOURCE_MALFORMED/);
 rows['Audit_Obligations']=savedRows;
 
+
+// A successful HTTP response without values must never be interpreted as an empty sheet.
+const missingValues=createPlanningSheetsAppendProjector({
+ spreadsheetId:'dev-sheet',getToken:async()=> 'token',
+ fetchImpl:async()=>ok({range:'Audit_Obligations!A1:G5000'}),
+ verifyFence:async()=>{}
+});
+await assert.rejects(()=>missingValues.inspect(provenanceIntent),/APPEND_PROJECTION_SOURCE_MALFORMED/);
+await assert.rejects(()=>missingValues.apply({operationId:'op-missing-values',gateToken:'token',intents:provenanceIntent}),/APPEND_PROJECTION_SOURCE_MALFORMED/);
+
 console.log('Append projector: dedupe, replay, fence and unsupported-target guards passed');

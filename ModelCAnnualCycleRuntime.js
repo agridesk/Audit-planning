@@ -66,7 +66,7 @@ function ModelCAnnualCycle_HandleCompletionRow_(planningRowObj) {
     if(typeof ModelCAnnualHoursSnapshot20_enabled_!=='function')throw new Error('MODEL_C_ANNUAL_HOURS_GUARD_MISSING');
     var annualHoursSnapshotEnabled=ModelCAnnualHoursSnapshot20_enabled_(ss);
     var annualHoursSources=annualHoursSnapshotEnabled
-      ?ModelCAnnualHoursSnapshot20_sources_(ss,csValues,MODEL_C_SCHEMA.Audit_Obligations):null;
+      ?ModelCAnnualHoursSnapshot20_sources_(ss,csValues,obValues[0]||[]):null;
     perf.readMs=Date.now()-readT;
 
     var existingByNatural = {};
@@ -153,7 +153,7 @@ function ModelCAnnualCycle_HandleCompletionRow_(planningRowObj) {
       for(var pr=0;pr<newPlanningRows.length;pr++) ModelCAnnualCycle_forceLegacyDatesText_(ap,headers,apStart+pr,newPlanningRows[pr]);
     }
     if(newObligations.length){
-      ModelCAnnualCycle_appendObjects_(obSheet,MODEL_C_SCHEMA.Audit_Obligations,newObligations,['Cycle_Key','Base_Expiry_Date','Effective_Expiry_Date','Planning_Window_From','Planning_Window_To']);
+      ModelCAnnualCycle_appendObjects_(obSheet,annualHoursSnapshotEnabled?(obValues[0]||[]):MODEL_C_SCHEMA.Audit_Obligations,newObligations,['Cycle_Key','Base_Expiry_Date','Effective_Expiry_Date','Planning_Window_From','Planning_Window_To']);
       appended.ob=newObligations.length;
     }
     if(newLinks.length){

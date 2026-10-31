@@ -925,7 +925,7 @@ function directRowRevision(h,row){
     g(['Planning JSON','Planning_JSON']),
     g(['Last decision timestamp']),
     g(['Status since'])
-  ].join('|')).digest('hex').slice(0,24);
+  ].join('|')+(g(['Auditor_UID','Assigned_Auditor_UID'])?'|'+g(['Auditor_UID','Assigned_Auditor_UID']):'')).digest('hex').slice(0,24);
 }
 function directResolveAuditorEmail(audValues,assigned){
   const a=clean(assigned).toLowerCase();if(!a)return'';

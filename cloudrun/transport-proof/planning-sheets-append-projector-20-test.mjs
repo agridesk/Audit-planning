@@ -63,4 +63,13 @@ assert.deepEqual(rows['Audit_Obligations'][1],provenanceRow);
 assert.equal((await service.apply({operationId:'op-obligation',gateToken:'token',intents:provenanceIntent})).replayed,true);
 assert.equal(appended,beforeProvenance+1);
 
+
+const validHeader=rows['Audit_Obligations'][0];
+rows['Audit_Obligations'][0]=null;
+await assert.rejects(()=>service.inspect(provenanceIntent),/APPEND_PROJECTION_SOURCE_MALFORMED/);
+rows['Audit_Obligations'][0]=validHeader;
+rows['Audit_Obligations'].splice(0,1);
+await assert.rejects(()=>service.inspect(provenanceIntent),/APPEND_PROJECTION_SOURCE_MALFORMED|APPEND_PROJECTION_DUPLICATE_ALREADY_PRESENT/);
+rows['Audit_Obligations'].unshift(validHeader);
+
 console.log('Append projector: dedupe, replay, fence and unsupported-target guards passed');

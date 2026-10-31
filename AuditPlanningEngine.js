@@ -223,6 +223,9 @@ function Planning_callAvailabilityRelease_(auditId) {
 }
 
 function Planning_directReserveAvailability_(auditId, blocks, auditorOwner, statusDisplay) {
+  if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') return fail_('SYSTEM_WRITE_GUARD_MISSING');
+  try { SYS_ENFORCE_WRITE_ALLOWED('PLANNING_DIRECT_RESERVE', auditId); }
+  catch (e) { return fail_(String(e && e.message || e)); }
   var ss = SpreadsheetApp.getActive();
   var sh = ss.getSheetByName('Auditor Availability') || ss.getSheetByName('Auditor availability');
   if (!sh) return fail_('Auditor Availability sheet not found');
@@ -328,6 +331,8 @@ function Planning_directReserveAvailability_(auditId, blocks, auditorOwner, stat
 }
 
 function Planning_directClearAuditId_(sh, auditId) {
+  if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') throw Error('SYSTEM_WRITE_GUARD_MISSING');
+  SYS_ENFORCE_WRITE_ALLOWED('PLANNING_DIRECT_CLEAR', auditId);
   if (!auditId) return;
   var lastRow = sh.getLastRow();
   var lastCol = sh.getLastColumn();

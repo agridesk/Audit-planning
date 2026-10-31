@@ -39,3 +39,6 @@ jobs:
         run: |
           npm run test:auth-fast
           npm run test:swap
+      - name: Full current AMS source regression suite
+        working-directory: cloudrun/transport-proof
+        run: npm test

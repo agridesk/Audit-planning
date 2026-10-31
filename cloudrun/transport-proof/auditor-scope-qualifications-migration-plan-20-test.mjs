@@ -19,6 +19,8 @@ assert.equal(plan({auditors,catalog,relations:[empty[0],['NO','ABC','U1']]}).err
 assert.equal(plan({auditors,catalog,relations:[empty[0],['YES','ABC','U1'],['YES','ABC','U1']]}).ok,false);
 assert.equal(plan({auditors,catalog,relations:[empty[0],['YES','UNKNOWN','U1']]}).ok,false);
 assert.equal(plan({auditors,catalog,relations:[]}).ok,false);
+assert.equal(plan({auditors,catalog,relations:[['Qualified','ScopeCode','Auditor_UID',' qualified ']]}).error,'RELATION_SCHEMA_DUPLICATE_OR_EMPTY_HEADER');
+assert.equal(plan({auditors,catalog,relations:[['Qualified','ScopeCode','Auditor_UID','']]}).ok,false);
 const noLegacy=[['E-mail','Auditor_UID'],['a@example.com','U1']];
 assert.equal(plan({auditors:noLegacy,catalog,relations:empty}).ok,false);
 console.log('Scope20 qualification migration plan: safe append, parity, no writes');

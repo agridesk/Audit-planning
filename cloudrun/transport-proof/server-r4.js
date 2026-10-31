@@ -18,6 +18,7 @@ import rotationDirectPlanGate20 from './rotation-direct-plan-gate-20.cjs';
 import {createHmac,createHash,timingSafeEqual,randomUUID} from 'node:crypto';
 import {v211AssignmentHardCheck,v211RotationHardCheck,v211AuditorQualified,v211ResolveAuditorEmail} from './assignment-validation-v211.js';
 import {v211ActorCapabilities} from './actor-capabilities-v211.js';
+import {currentAuditorUid20,assignedUid20} from './auditor-uid-owner-resolution-20.js';
 import {activateScopeHoursVersion20} from './scope-hours-version-20.js';
 import {updateScopePolicy20} from './scope-policy-20.js';
 import {scopeSchemeVersion20} from './scope-scheme-version-20.js';
@@ -458,6 +459,7 @@ function project(f,catalog,audValues){
     country:g(['Country']),
     region:g(['Region']),
     assignedTo:g(['Assigned to','Assigned auditor','Auditor']),
+    assignedToUid:g(['Auditor_UID','Assigned_Auditor_UID']),
     assignedToDisplayName:directAuditorDisplayName(audValues,g(['Assigned to','Assigned auditor','Auditor'])),
     preassignedAuditor:pre,
     preassignedAuditorDisplayName:directAuditorDisplayName(audValues,pre),
@@ -572,7 +574,7 @@ function managerOpen(apValues,email,scopeValues,companyValues,audValues){
     const id=val(row,ci);if(!id)continue;const raw=val(row,cs),statusKey=clean(raw).toUpperCase().replace(/[\s-]+/g,'_');if(!allowed.has(statusKey))continue;
     const rowMgr=val(row,cm).toLowerCase();if(email&&rowMgr&&rowMgr!==email)continue;
     const company=val(row,cc),location=val(row,cl),uid=val(row,cu),companyMeta=companyIndex.get(key(uid))||companyIndex.get(key(company+'|'+location))||companyIndex.get(key(company))||{},region=companyMeta.region||'',from=dateOnly(row[cf]),to=dateOnly(row[ct]),pw=from&&to?from+' → '+to:(from||to||''),required=Number(row[ch]),scopes=scopesForAudit({h,row},catalog),expiry=dateOnly(row[cee])||dateOnly(row[ce]),ext=val(row,cex),activeLocations=Number(companyMeta.activeLocations||1),hqGps=clean(companyMeta.hqGps);
-    const actions=statusKey==='PENDING_PLANNING'?['PLAN','REJECT']:statusKey==='PENDING_APPROVAL'?['APPROVE','CANCEL','REJECT']:statusKey==='APPROVED'?['ACCEPT','CANCEL','REJECT']:statusKey==='ACCEPTED'?['COMPLETE','CANCEL','REJECT']:[];rows.push({auditId:id,source:'Audit planning',company,companyLocation:location,location,locs:activeLocations,locationsToPlan:activeLocations,locationCount:activeLocations,gps:hqGps,gpsData:hqGps,region,companyRegion:region,scopes,scopesText:scopes.join(', '),status:raw,statusKey,planningWindow:pw,planningWindowText:pw,planningWindowFrom:from,planningWindowTo:to,planningDisplay:statusKey==='PENDING_PLANNING'?pw:dateOnly(row[cd]),plannedHours:val(row,cph),hoursPlanned:val(row,cph),requiredHours:Number.isFinite(required)?required:0,formalHours:Number.isFinite(required)?required:0,maxOffsiteHours:maxOffsiteHoursForScopes(catalog,scopes),offsitePolicy:offsitePolicyForScopes(catalog,scopes),toBePlanned:Number.isFinite(required)?required:0,auditor:val(row,ca),assignedTo:val(row,ca),assignedToEmail:val(row,ca),assignedToDisplayName:directAuditorDisplayName(audValues,val(row,ca)),preassignedAuditor:val(row,cp),preassignedAuditorDisplayName:directAuditorDisplayName(audValues,val(row,cp)),allowSelfPlanning:yes(val(row,cself)),datePlanned:dateOnly(row[cd]),planningJson:val(row,cpj),expirationDate:expiry,extensionApplied:yes(ext),companyUid:uid,managerEmail:rowMgr,sourceRevision:createHash('sha256').update([id,raw,val(row,ca),val(row,cpj),val(row,cldt),val(row,css)].join('|')).digest('hex').slice(0,24),latestComment:val(row,ccomment),latestCommentActor:'Manager',latestCommentAction:val(row,cdecision),latestCommentTimestamp:val(row,cldt),sourceRow:apValues.indexOf(row)+1,allowedActions:actions,readOnly:false,needsEnrichment:false});
+    const actions=statusKey==='PENDING_PLANNING'?['PLAN','REJECT']:statusKey==='PENDING_APPROVAL'?['APPROVE','CANCEL','REJECT']:statusKey==='APPROVED'?['ACCEPT','CANCEL','REJECT']:statusKey==='ACCEPTED'?['COMPLETE','CANCEL','REJECT']:[];rows.push({auditId:id,source:'Audit planning',company,companyLocation:location,location,locs:activeLocations,locationsToPlan:activeLocations,locationCount:activeLocations,gps:hqGps,gpsData:hqGps,region,companyRegion:region,scopes,scopesText:scopes.join(', '),status:raw,statusKey,planningWindow:pw,planningWindowText:pw,planningWindowFrom:from,planningWindowTo:to,planningDisplay:statusKey==='PENDING_PLANNING'?pw:dateOnly(row[cd]),plannedHours:val(row,cph),hoursPlanned:val(row,cph),requiredHours:Number.isFinite(required)?required:0,formalHours:Number.isFinite(required)?required:0,maxOffsiteHours:maxOffsiteHoursForScopes(catalog,scopes),offsitePolicy:offsitePolicyForScopes(catalog,scopes),toBePlanned:Number.isFinite(required)?required:0,auditor:val(row,ca),assignedTo:val(row,ca),assignedToEmail:val(row,ca),assignedToUid:val(row,col(h,['Auditor_UID','Assigned_Auditor_UID'])),assignedToDisplayName:directAuditorDisplayName(audValues,val(row,ca)),preassignedAuditor:val(row,cp),preassignedAuditorDisplayName:directAuditorDisplayName(audValues,val(row,cp)),allowSelfPlanning:yes(val(row,cself)),datePlanned:dateOnly(row[cd]),planningJson:val(row,cpj),expirationDate:expiry,extensionApplied:yes(ext),companyUid:uid,managerEmail:rowMgr,sourceRevision:createHash('sha256').update([id,raw,val(row,ca),val(row,cpj),val(row,cldt),val(row,css)].join('|')).digest('hex').slice(0,24),latestComment:val(row,ccomment),latestCommentActor:'Manager',latestCommentAction:val(row,cdecision),latestCommentTimestamp:val(row,cldt),sourceRow:apValues.indexOf(row)+1,allowedActions:actions,readOnly:false,needsEnrichment:false});
   }
   const order={PENDING_PLANNING:0,PENDING_APPROVAL:1,APPROVED:2,ACCEPTED:3};rows.sort((a,b)=>(order[a.statusKey]-order[b.statusKey])||a.planningWindow.localeCompare(b.planningWindow)||a.company.localeCompare(b.company)||a.auditId.localeCompare(b.auditId));
   const count=k=>rows.filter(x=>x.statusKey===k).length;
@@ -589,6 +591,10 @@ async function auditorOpenRead(email){
   if(versioned)ranges.push('Auditor_Identity_Versions!A1:P2000');
   const vr=await sheetsBatchGet(ranges);
   const ap=vr[0]?.values||[],scv=vr[1]?.values||[],companies=vr[2]?.values||[],aud=vr[3]?.values||[],log=vr[4]?.values||[],catalog=scopeCatalog(scv),versions=versioned?rotationIdentityVersions(vr[5]?.values||[]):null,identityMap=versioned?rotationAuditorMap(aud,versions):null,actorUid=identityMap?rotationResolveAuditor(identityMap,actorEmail):null;
+  const uidAuthEnabled=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_AUDITOR_UID_AUTHORIZATION_ENABLED==='true';
+  const canonicalActorUid=currentAuditorUid20(aud,actorEmail,{required:uidAuthEnabled});
+  const auditUidIndex=col(ap[0]||[],['Auditor_UID','Assigned_Auditor_UID']);
+  const auditUidById=new Map(ap.slice(1).map(r=>[val(r,col(ap[0]||[],['Audit ID','Audit_ID','AuditId'])),r]));
   const base=managerOpen(ap,'',scv,companies,aud),rows=[];
   for(const row of base.rows||[]){
     const resolveAssignment=raw=>{if(!identityMap)return directResolveAuditorEmail(aud,raw);if(!clean(raw))return'';const uid=rotationResolveAuditor(identityMap,raw);const current=identityMap.byUid.get(uid)?.email;if(!current)throw Error('AUDITOR_ASSIGNMENT_IDENTITY_UNRESOLVED');return current;};
@@ -606,7 +612,8 @@ async function auditorOpenRead(email){
         if(!rotation.ok)eligibilityConflictReason=(rotation.reasons||[]).join('; ')||'ROTATION_BLOCKED';
       }
     }
-    const actor=v211ActorCapabilities({actorRole:'Auditor',actorEmail,status:row.status,assignedToEmail:assigned,preassignedToEmail:preassigned,allowSelfPlanning:yes(row.allowSelfPlanning),hardEligible});
+    const assignedCanonicalUid=assignedUid20(ap[0]||[],auditUidById.get(row.auditId)||[],{required:uidAuthEnabled,assignedEmail:assigned});
+    const actor=v211ActorCapabilities({actorRole:'Auditor',actorEmail,actorUid:canonicalActorUid,assignedToUid:assignedCanonicalUid,status:row.status,assignedToEmail:assigned,preassignedToEmail:preassigned,allowSelfPlanning:yes(row.allowSelfPlanning),hardEligible});
     if(!actor.visible)continue;
     rows.push({...row,actorMode:'AUDITOR',selfPlanningPool:actor.selfPlanningPool,preassignmentConflict:actor.preassignmentConflict,eligibilityConflictReason:actor.preassignmentConflict?eligibilityConflictReason:'',capabilities:actor.capabilities,allowedActions:actorAllowedActions(actor.capabilities),assignedToEmail:assigned||'',preassignedToEmail:preassigned||''});
   }

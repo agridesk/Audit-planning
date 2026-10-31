@@ -1,0 +1,45 @@
+AMS 2.0 | FASE 1 - SCOPE20, UID AND MODEL C INTEGRATION READINESS
+Date: 2026-10-31
+Evidence: direct read-only inspection of Audit Management System DEV spreadsheet plus isolated PR #48 CI.
+Location: https://github.com/agridesk/Audit-planning/pull/48
+Safety: NO merge, NO deployment, NO DEV/PROD data write, NO migration apply, NO feature flag activation.
+
+LIVE DEV SSOT VERIFICATION (READ-ONLY)
+DEV spreadsheet: Audit Management System DEV, id 1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs.
+Auditors: 6 records; 6 unique nonblank Auditor_UID values.
+Legacy positive scope qualifications: 23; canonical Auditor_Scope_Qualifications has header ONLY and 0 relation records.
+Config_Scopes: 9 identities. Slots 01-08 intact; SCOPE_09 is inactive TESTSCOPE-2 test data; do not promote to PROD.
+Audit_Obligations: 199 records, states LINKED_TO_VISIT=45, COMPLETED=30, OPEN=115, CANCELLED=8, REJECTED=1.
+ALL 199 Audit_Obligations missing Formal_Hours_Source, Scope_Version_ID and Hours_Resolved_At. Empty Company_Hours_Override_ID may be legitimate for defaults; do not indiscriminately backfill.
+Company_Scopes: 179 rows. ScopeVersions: 11 rows. Company_Scope_Hours: 138 rows.
+Read-only relation audit: zero missing Company_UID x ScopeCode relation for 199 obligations; zero duplicate CompanyScope identities; zero missing/ambiguous current scope version among obligation scopes; zero duplicate obligation natural keys; zero duplicate active override candidate relationship keys. This is a limited structural scan, NOT effective-date policy parity or approval for write.
+Audit planning DEV currently includes physical 09+ columns. Design does NOT allow making those mandatory for future Scope09-20 rollout.
+
+ISOLATED IMPLEMENTATION ADVANCES IN PR48
+- GAS m5t_scopeSlotDefs_: 01-08 preserve legacy positional fallbacks; 09-20 exist as canonical identities even when physical Audit planning scope/duration columns are absent, with null physical sentinel (no invented positional columns).
+- GAS Scope Management catalog and company UI now preserve ScopeCode and SlotKey alongside display name, avoiding unnecessary identity loss.
+- GAS Model C annual-cycle successor: synthetic regression proves Scope09 is kept in Scopes_List and formal total without overwriting legacy slots.
+- GAS preassigned Scope09-20: when legacy flag column missing, early preflight validates canonical Auditor_UID x ScopeCode relations, ACTIVE auditor and AUDITOR role, duplicates/orphans/NO/missing grants, conflicting aliases and recorded withdrawals before creating a new Audit planning row. Existing 01-08 legacy path retained. Missing source or invalid state fails closed.
+- Manager Cloud Run migration preview, plan, parity, gated DEV apply and lock-probe routes staged; migration write disabled by default. Do not run until checked DEV runtime, manager session, exclusive lock and explicit go/no-go.
+- Model C new-obligation provenance factory and DEV-only default-OFF successor/repair integration staged; requires canonical version, overrides and hours agreement. No historical backfill. GAS annual writer provenance parity remains OPEN.
+- Fase4 Grid filters/sort/badges and Fase2 Toolkit selection regression integrated in isolated source with synthetic/static tests; not runtime accepted.
+
+REGRESSION EVIDENCE
+GitHub Actions isolated full Fase1 integration run 41186159293 completed SUCCESS on 59c10f79fc479cc16607d606694b06ffc1c7ca04.
+On same SHA authentication run 41186159261 SUCCESS; SWAP run 41186159269 SUCCESS.
+More recent source changes should only be classified green after workflow confirmation on their actual SHA.
+
+RELEASE BLOCKERS / REQUIRED NEXT ACTION
+1. Reconcile PR47 feature with current dev and all branch changes (large divergence); do not blind merge.
+2. F2.5: after verified deploy approval and exact running SHA, authenticated manager-only read-only migration preview/plan and lock probe; then separate controlled DEV migration decision, postwrite parity and rollback checks. No implicit 09-20 grants.
+3. Auditor_UID cutover: resolve remaining actor/session/assignment/history email-only paths and verify actual multi-instance and email-change invariants.
+4. Model C: verify complete writer matrix, GAS annual-cycle snapshot parity, effective-dated overrides, idempotency/outbox recovery and historic snapshots policy. Do not reinterpret 199 old records.
+5. Run browser E2E for manager/auditor Grid4, Toolkit 2026/2027 single/combined visit, availability, batch and 20-scope no-new-column mode.
+6. Obtain separate explicit permissions for branch merge, DEV deployment/mutation and PROD release. PROD changes forbidden unless expressly authorized.
+
+STATUS: isolated source/tests advanced; no approved release or production readiness claimed.
+
+UPDATE — LIVE DEV AUDIT PLANNING SCHEMA (READ ONLY)
+A1:DA1 contains 71 named/occupied header positions; physical SCOPE_09..SCOPE_20 and all matching Duration SCOPE_09..SCOPE_20 columns currently exist in the DEV sheet.
+This is an observed DEV convenience, NOT a requirement to introduce or retain these physical columns for future 20-scope canonical support. All 12 new scope identities must also work without these columns. Synthetic headerless tests explicitly cover this.
+GAS hardening on isolated branch: missing physical scope columns now return null sentinels instead of hiding a configured scope identity; when a headerless scope is preassigned, canonical Auditor_UID x ScopeCode qualification must be checked BEFORE any new audit row creation. The read-only scope-loader path was restored after finding and correcting an initial misplaced preflight. Additional tests assert preflight resides in the write handler and denied preassignment creates zero audit rows. Withdrawal JSON, role/active, alias, duplicate, orphan and YES/NO fail-closed checks are included.

@@ -4,8 +4,11 @@
  * Recovery scans the unchanged intent for exact stored rows.
  */
 const str=x=>String(x??'');
+const scalar=x=>x===null||typeof x==='string'||typeof x==='boolean'||typeof x==='number'&&Number.isFinite(x);
 const norm=x=>{const a=(x||[]).map(str);while(a.length&&a.at(-1)==='')a.pop();return a;};
 const same=(a,b)=>JSON.stringify(norm(a))===JSON.stringify(norm(b));
+const columnNumber=s=>[...s].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0);
+const widthOf=range=>{const m=/!A:([A-Z]+)$/.exec(range);return m?columnNumber(m[1]):0;};
 const allowed=new Set(['Notification Queue','Rejected audits','Log realized audits','Audit planning','Audit_Obligations','Audit_Visit_Obligations','Diagnostics_Log']);
 function validate(intents){
  if(!Array.isArray(intents)||intents.length>24)throw Error('APPEND_INTENTS_INVALID');
@@ -13,6 +16,9 @@ function validate(intents){
  for(const item of intents){
   const match=/^([^!]+)![A-Z]+:[A-Z]+$/.exec(item?.range||'');
   if(!match||!allowed.has(match[1])||!Array.isArray(item.values)||item.values.length<1||item.values.length>100||item.values.some(x=>!Array.isArray(x)||x.length<1||x.length>100))throw Error('APPEND_INTENT_UNSUPPORTED');
+  const width=widthOf(item.range);
+  if(!width||item.values.some(row=>row.length>width))throw Error('APPEND_INTENT_WIDTH_INVALID');
+  if(item.values.some(row=>row.some(v=>!scalar(v))))throw Error('APPEND_INTENT_CELL_INVALID');
   for(const row of item.values)result.push({range:item.range,sheet:match[1],row});
  }
  if(result.length>200)throw Error('APPEND_INTENTS_TOO_MANY');
@@ -45,14 +51,17 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   const sources=new Map();
   for(const sheet of new Set(items.map(x=>x.sheet))){
    const width=items.find(x=>x.sheet===sheet).range.split(':')[1],range=sheet+'!A1:'+width+'5000';
-   const u=base+'/values/'+encodeURIComponent(range)+'?valueRenderOption=FORMATTED_VALUE';
-   const data=await request(u),rows=data.values||[];
+   const u=base+'/values/'+encodeURIComponent(range)+'?valueRenderOption=UNFORMATTED_VALUE';
+   const data=await request(u);
+   if(!data||!Object.prototype.hasOwnProperty.call(data,'values'))throw Error('APPEND_PROJECTION_SOURCE_MALFORMED');
+   const rows=data.values;
    if(!Array.isArray(rows)||rows.length>=5000)throw Error('APPEND_PROJECTION_SOURCE_TRUNCATED');
+   if(!rows.length||rows.some(row=>!Array.isArray(row)))throw Error('APPEND_PROJECTION_SOURCE_MALFORMED');
    sources.set(sheet,rows);
   }
   const missing=[];
   for(const item of items){
-   const matches=sources.get(item.sheet).filter(row=>same(row,item.row));
+   const matches=sources.get(item.sheet).slice(1).filter(row=>same(row,item.row));
    if(matches.length>1)throw Error('APPEND_PROJECTION_DUPLICATE_ALREADY_PRESENT');
    if(!matches.length)missing.push(item);
   }
@@ -66,7 +75,7 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   await verifyFence({operationId,gateToken});
   for(const missing of before.missing){
    await verifyFence({operationId,gateToken});
-   const url=base+'/values/'+encodeURIComponent(missing.range)+':append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS';
+   const url=base+'/values/'+encodeURIComponent(missing.range)+':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS';
    await request(url,'POST',{values:[missing.row]});
    await verifyFence({operationId,gateToken});
   }

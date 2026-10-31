@@ -1,15 +1,17 @@
 import assert from 'node:assert/strict';
 import {createPlanningSheetsAppendProjector} from './planning-sheets-append-projector-20.js';
-const rows={'Notification Queue':[['Stamp','State','Event']], 'Rejected audits':[['Audit ID','Status']]};
+const rows={'Notification Queue':[['Stamp','State','Event']], 'Rejected audits':[['Audit ID','Status']], 'Audit_Obligations':[['Obligation_ID','Formal_Hours','Formal_Hours_Source','Scope_Version_ID','Company_Hours_Override_ID','Company_Hours_Override_Revision','Hours_Resolved_At']]};
 let appended=0,fenceChecks=0,deny=false,loseFenceAfterAppend=false;
 const ok=result=>({ok:true,status:200,async json(){return structuredClone(result)}});
 const fetchImpl=async(url,init={})=>{
  const u=new URL(url),path=decodeURIComponent(u.pathname),method=init.method||'GET';
  if(method==='GET'&&path.includes('/values/')){
+  assert.equal(u.searchParams.get('valueRenderOption'),'UNFORMATTED_VALUE');
   const range=path.split('/values/')[1],sheet=range.split('!')[0];
   return ok({values:rows[sheet]});
  }
  if(method==='POST'&&path.endsWith(':append')){
+  assert.equal(u.searchParams.get('valueInputOption'),'RAW','Outbox append must preserve identifiers, dates and formula-like literals');
   const sheet=path.split('/values/')[1].split('!')[0];
   rows[sheet].push(...JSON.parse(init.body).values);appended++;
   if(loseFenceAfterAppend)deny=true;
@@ -29,6 +31,13 @@ deny=true;
 await assert.rejects(()=>service.apply({operationId:'op2',gateToken:'token',intents:[{range:'Rejected audits!A:Z',values:[['audit-2','Rejected']]}]}),/FENCE_LOST/);
 assert.equal(appended,1);
 await assert.rejects(()=>service.inspect([{range:'Unsafe!A:Z',values:[['x']]}]),/APPEND_INTENT_UNSUPPORTED/);
+await assert.rejects(()=>service.inspect([{range:'Audit_Obligations!A:B',values:[['OB-1','5','SCOPE_DEFAULT']]}]),/APPEND_INTENT_WIDTH_INVALID/);
+await assert.rejects(()=>service.inspect([{range:'Audit_Obligations!B:G',values:[['OB-1','5']]}]),/APPEND_INTENT_WIDTH_INVALID/);
+await assert.rejects(()=>service.inspect([{range:'Audit_Obligations!A:G',values:[['OB-1',{formula:'=NOW()'}]]}]),/APPEND_INTENT_CELL_INVALID/);
+await assert.rejects(()=>service.inspect([{range:'Audit_Obligations!A:G',values:[['OB-1',['mixed']]]}]),/APPEND_INTENT_CELL_INVALID/);
+await assert.rejects(()=>service.inspect([{range:'Audit_Obligations!A:G',values:[['OB-1',NaN]]}]),/APPEND_INTENT_CELL_INVALID/);
+await assert.rejects(()=>service.inspect([{range:'Audit_Obligations!A:G',values:[['OB-1',Infinity]]}]),/APPEND_INTENT_CELL_INVALID/);
+await assert.rejects(()=>service.inspect([{range:'Audit_Obligations!A:AA',values:[Array(28).fill('x')]}]),/APPEND_INTENT_WIDTH_INVALID/);
 assert.ok(fenceChecks>=3);
 deny=false;loseFenceAfterAppend=true;
 await assert.rejects(()=>service.apply({operationId:'op3',gateToken:'token',intents:[{range:'Rejected audits!A:Z',values:[['audit-3','Rejected']]}]}),/FENCE_LOST/);
@@ -47,4 +56,44 @@ const replayFence=createPlanningSheetsAppendProjector({
 });
 await assert.rejects(()=>replayFence.apply({operationId:'op-replay',gateToken:'token',intents}),/REPLAY_FENCE_LOST/);
 assert.equal(appended,2);
+
+// New obligation append replay must preserve formal-hour provenance byte-for-byte.
+loseFenceAfterAppend=false;
+deny=false;
+const provenanceRow=['OB-01','5','COMPANY_OVERRIDE','SV-2026','OV-2026','R2','2026-10-31T12:00:00.000Z'];
+const provenanceIntent=[{range:'Audit_Obligations!A:G',values:[provenanceRow]}];
+const beforeProvenance=appended;
+assert.equal((await service.apply({operationId:'op-obligation',gateToken:'token',intents:provenanceIntent})).confirmed,true);
+assert.equal(appended,beforeProvenance+1);
+assert.deepEqual(rows['Audit_Obligations'][1],provenanceRow);
+assert.equal((await service.apply({operationId:'op-obligation',gateToken:'token',intents:provenanceIntent})).replayed,true);
+assert.equal(appended,beforeProvenance+1);
+
+
+const validHeader=rows['Audit_Obligations'][0];
+rows['Audit_Obligations'][0]=null;
+await assert.rejects(()=>service.inspect(provenanceIntent),/APPEND_PROJECTION_SOURCE_MALFORMED/);
+rows['Audit_Obligations'][0]=validHeader;
+const savedRows=rows['Audit_Obligations'];
+rows['Audit_Obligations']=[];
+await assert.rejects(()=>service.inspect(provenanceIntent),/APPEND_PROJECTION_SOURCE_MALFORMED/);
+rows['Audit_Obligations']=savedRows;
+
+
+// A successful HTTP response without values must never be interpreted as an empty sheet.
+const missingValues=createPlanningSheetsAppendProjector({
+ spreadsheetId:'dev-sheet',getToken:async()=> 'token',
+ fetchImpl:async()=>ok({range:'Audit_Obligations!A1:G5000'}),
+ verifyFence:async()=>{}
+});
+await assert.rejects(()=>missingValues.inspect(provenanceIntent),/APPEND_PROJECTION_SOURCE_MALFORMED/);
+await assert.rejects(()=>missingValues.apply({operationId:'op-missing-values',gateToken:'token',intents:provenanceIntent}),/APPEND_PROJECTION_SOURCE_MALFORMED/);
+
+// Formula-looking content must remain literal, not interpreted as a Sheets formula.
+const formulaIntent=[{range:'Audit_Obligations!A:G',values:[['OB-FORMULA','=1+1','SCOPE_DEFAULT','SV-2026','','','2026-10-31T12:00:00.000Z']]}];
+assert.equal((await service.apply({operationId:'op-formula',gateToken:'token',intents:formulaIntent})).confirmed,true);
+assert.equal(rows['Audit_Obligations'].at(-1)[1],'=1+1');
+// Header text is not evidence of a previously appended data row.
+const headerLike=[['Obligation_ID','Formal_Hours','Formal_Hours_Source','Scope_Version_ID','Company_Hours_Override_ID','Company_Hours_Override_Revision','Hours_Resolved_At']];
+assert.equal((await service.inspect([{range:'Audit_Obligations!A:G',values:headerLike}])).state,'MISSING');
 console.log('Append projector: dedupe, replay, fence and unsupported-target guards passed');

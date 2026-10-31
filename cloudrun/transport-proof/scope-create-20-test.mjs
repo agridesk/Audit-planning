@@ -16,4 +16,14 @@ await assert.rejects(createScope20({...deps,body:{...body,confirmation:'NO'}}),/
 const noLegacyColumns=await createScope20({...deps,sheetsBatchGet:async()=>[{values:rows}],body});assert.equal(noLegacyColumns.slotKey,'SCOPE_09');
 const full=[headers,...Array.from({length:20},(_,i)=>['SCOPE_'+String(i+1).padStart(2,'0'),'CODE'+i,'Name '+i])];
 await assert.rejects(createScope20({...deps,sheetsBatchGet:async()=>[{values:full},{values:[audit]}],body}),/SCOPE_CAPACITY_20_REACHED/);
+const duplicatedSlots=[headers,rows[1],rows[1].slice()];
+await assert.rejects(createScope20({...deps,sheetsBatchGet:async()=>[{values:duplicatedSlots}],body}),/DUPLICATE_EXISTING_SLOT/);
+const missingIdentity=[headers,['SCOPE_01','','Scope 1']];
+await assert.rejects(createScope20({...deps,sheetsBatchGet:async()=>[{values:missingIdentity}],body}),/INCOMPLETE_EXISTING_SCOPE_IDENTITY/);
+const orphanRow=[headers,['','CODE','Orphan scope']];
+await assert.rejects(createScope20({...deps,sheetsBatchGet:async()=>[{values:orphanRow}],body}),/INVALID_EXISTING_SLOT/);
+const repeatedCodes=[headers,['SCOPE_01','MPS-ABC','ABC'],['SCOPE_02','mps-abc','ABC Other']];
+await assert.rejects(createScope20({...deps,sheetsBatchGet:async()=>[{values:repeatedCodes}],body}),/DUPLICATE_EXISTING_SCOPE_IDENTITY/);
+const repeatedNames=[headers,['SCOPE_01','ABC','My Scheme'],['SCOPE_02','GAP','my scheme']];
+await assert.rejects(createScope20({...deps,sheetsBatchGet:async()=>[{values:repeatedNames}],body}),/DUPLICATE_EXISTING_SCOPE_IDENTITY/);
 console.log('scope-create-20: no legacy Audit planning columns required');

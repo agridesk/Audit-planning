@@ -5,14 +5,20 @@ function email(v){return clean(v).toLowerCase();}
 export function v211ActorCapabilities(input={}){
   const role=clean(input.actorRole).toUpperCase();
   const actorEmail=email(input.actorEmail);
+  const actorUid=clean(input.actorUid||input.auditorUid);
+  const assignedUid=clean(input.assignedToUid||input.assignedAuditorUid);
+  const preassignedUid=clean(input.preassignedToUid||input.preassignedAuditorUid);
   const status=statusKey(input.status);
   const assigned=email(input.assignedToEmail||input.assignedTo);
   const preassigned=email(input.preassignedToEmail||input.preassignedAuditor);
   const allowSelfPlanning=input.allowSelfPlanning===true;
   const hardEligible=input.hardEligible===true;
-  const isOwnAssigned=!!actorEmail&&assigned===actorEmail;
-  const isOwnPreassigned=!!actorEmail&&preassigned===actorEmail;
-  const noAssignment=!assigned&&!preassigned;
+  // Prefer immutable UID whenever both sides supply one. An explicit UID mismatch
+  // must never be overridden by equal legacy email addresses.
+  const uidOwnership=(targetUid,targetEmail)=>targetUid?(!!actorUid&&actorUid===targetUid):(!actorUid||!targetUid)&&!!actorEmail&&targetEmail===actorEmail;
+  const isOwnAssigned=uidOwnership(assignedUid,assigned);
+  const isOwnPreassigned=uidOwnership(preassignedUid,preassigned);
+  const noAssignment=!assigned&&!preassigned&&!assignedUid&&!preassignedUid;
   const pending=status==='PENDING_PLANNING';
   const selfPool=pending&&allowSelfPlanning&&noAssignment&&hardEligible;
   const auditorVisible=pending?(isOwnAssigned||isOwnPreassigned||selfPool):isOwnAssigned;
@@ -42,7 +48,7 @@ export function v211ActorCapabilities(input={}){
   }
 
   return{
-    role,status,actorEmail,assignedToEmail:assigned,preassignedToEmail:preassigned,
+    role,status,actorEmail,actorUid,assignedToUid:assignedUid,preassignedToUid:preassignedUid,assignedToEmail:assigned,preassignedToEmail:preassigned,
     isOwnAssigned,isOwnPreassigned,selfPlanningPool:selfPool,preassignmentConflict:role==='AUDITOR'&&pending&&allowSelfPlanning&&isOwnPreassigned&&!hardEligible,visible:role==='MANAGER'?true:role==='AUDITOR'?auditorVisible:false,
     capabilities:c
   };

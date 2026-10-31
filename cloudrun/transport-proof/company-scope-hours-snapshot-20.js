@@ -16,5 +16,6 @@ export function validateObligationHoursSchema20(headers){
  const required=['Formal_Hours',...HOURS_PROVENANCE_FIELDS];
  const missing=required.filter(h=>!headers.includes(h));
  if(missing.length)throw Error('OBLIGATION_HOURS_SCHEMA_MISSING_'+missing.join('_'));
+ if(headers.some((h,i)=>headers.indexOf(h)!==i))throw Error('OBLIGATION_HOURS_SCHEMA_DUPLICATE_HEADER');
  return true;
 }

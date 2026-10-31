@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {withQualificationMigrationFirestoreLock20 as lock} from './auditor-scope-qualifications-firestore-lock-20.js';
+let held=false,create=0,deleted=0;
+const fetchFn=async(url,opt)=>{if(!opt?.method)return {ok:held,status:held?200:404};if(opt.method==='POST'){create++;held=true;return {ok:true,status:200,json:async()=>({name:'projects/audit-management-system-dev/databases/(default)/documents/ams_scope20_migration_locks/scope20_auditor_qualifications',updateTime:'2026-10-30T10:00:00Z'})};}if(opt.method==='DELETE'){deleted++;held=false;return {ok:true,status:200};}throw Error('unknown');};
+const base={project:'audit-management-system-dev',spreadsheetId:'1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs',token:'test',randomId:()=> 'test-holder',fetchFn};
+assert.equal(await lock({...base,work:async()=>42}),42);
+assert.equal(create,1);assert.equal(deleted,1);
+await assert.rejects(lock({...base,project:'prod',work:async()=>1}),/DEV_BOUNDARY/);
+held=true;await assert.rejects(lock({...base,work:async()=>1}),/LOCK_PRESENT/);held=false;
+await assert.rejects(lock({...base,work:async()=>{throw Error('QUALIFICATION_MIGRATION_UNCONFIRMED_RECONCILE');}}),/RECONCILIATION_REQUIRED/);
+assert.equal(held,true,'Uncertain write must retain lock');
+console.log('Scope20 dedicated DEV Firestore migration lock: tested');

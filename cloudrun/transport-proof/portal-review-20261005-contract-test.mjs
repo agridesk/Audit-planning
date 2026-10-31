@@ -75,7 +75,7 @@ assert.ok(html.includes('.table-wrap{overflow-x:auto;overflow-y:visible')&&html.
 for(const forbidden of ["'FULLY UNAVAILABLE'","'PARTLY OCCUPIED'","'SOFT WARNING'","'YES')+'</div>'"]){
   assert.equal(r5.includes(forbidden),false,'Legacy calendar label remains: '+forbidden);tests++;
 }
-for(const required of ["'Unavailable'","'Partly unavailable'","'Auditor less available'","'Company less available'","'Auditor + company less available'","s.start+'–'+s.end","'Earliest execution date: '+a.minPlanningDate+' (minimum interval)'","'Planning window expired: '+a.planningWindowTo"]){
+for(const required of ["'Unavailable'","'Partly unavailable'","'Auditor less available'","'Company less available'","'Auditor + company less available'","s.start+'–'+s.end","'Earliest execution date: '+a.minPlanningDate+' (minimum interval)'","'Planning window expired: '+selectedWindow.to"]){
   assert.ok(r5.includes(required),'Missing calendar UX token: '+required);tests++;
 }
 

@@ -49,6 +49,8 @@ await assert.rejects(()=>replayFence.apply({operationId:'op-replay',gateToken:'t
 assert.equal(appended,2);
 
 // New obligation append replay must preserve formal-hour provenance byte-for-byte.
+loseFenceAfterAppend=false;
+deny=false;
 const provenanceRow=['OB-01','5','COMPANY_OVERRIDE','SV-2026','OV-2026','R2','2026-10-31T12:00:00.000Z'];
 const provenanceIntent=[{range:'Audit_Obligations!A:G',values:[provenanceRow]}];
 const beforeProvenance=appended;

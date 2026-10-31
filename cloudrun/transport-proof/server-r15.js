@@ -1202,7 +1202,7 @@ http.createServer(async(req,res)=>{
     data.push((await response.json()).values||[]);
    }
    const personal=actor.role==='auditor';
-   const includeTestData=!personal&&runtime.isDev&&u.searchParams.get('includeTestData')==='1';
+   const includeTestData=runtime.isDev&&!personal&&u.searchParams.get('includeTestData')==='1';
    const result=buildRotationManager20(...data,{includeTestData});
    if(personal){
     const uid=String(actor.auditorId||actor.uid||actor.id||'').trim();

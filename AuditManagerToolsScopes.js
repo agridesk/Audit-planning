@@ -198,6 +198,21 @@ function m5t_scope20CanonicalPreassignmentCheck_(ss, email, selectedScopes, defs
   }
   var codes=Object.keys(selected);
   if(!codes.length)return {success:false,error:'CANONICAL_SCOPE_SELECTION_EMPTY'};
+  var withdrawalIndex=index(ah,'Qualification_Withdrawals_JSON');
+  if(withdrawalIndex>=0&&norm(target[withdrawalIndex])){
+    var withdrawals;
+    try{withdrawals=JSON.parse(norm(target[withdrawalIndex]));}
+    catch(e){return {success:false,error:'CANONICAL_QUALIFICATION_WITHDRAWAL_SCHEMA_INVALID'};}
+    if(!Array.isArray(withdrawals))return {success:false,error:'CANONICAL_QUALIFICATION_WITHDRAWAL_SCHEMA_INVALID'};
+    for(var wi=0;wi<withdrawals.length;wi++){
+      var item=withdrawals[wi];
+      if(!item||typeof item!=='object'||!norm(item.scopeCode)||!norm(item.effectiveDate))
+        return {success:false,error:'CANONICAL_QUALIFICATION_WITHDRAWAL_SCHEMA_INVALID'};
+      // New preassignment has no grandfathering: treat any recorded withdrawal
+      // for a selected scope as a hard gate until an explicit policy cutover.
+      if(codes.indexOf(key(item.scopeCode))>=0)return {success:false,error:'CANONICAL_QUALIFICATION_WITHDRAWN',scopeCode:key(item.scopeCode)};
+    }
+  }
   for(var c=0;c<codes.length;c++)if(relationByKey[uid+'|'+codes[c]]!==true)return {success:false,error:'AUDITOR_NOT_HARD_QUALIFIED',scopeCode:codes[c]};
   return {success:true,auditorUid:uid,qualificationSource:'Auditor_Scope_Qualifications'};
 }

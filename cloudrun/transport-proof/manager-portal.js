@@ -1368,5 +1368,34 @@ close.onclick=function(){panel.hidden=true};search.oninput=render;filter.onchang
 })();
 
 try{var mailActionEvents20=new BroadcastChannel("ams-auditor-actions-20");mailActionEvents20.onmessage=function(e){if(e.data&&e.data.type==="AUDIT_ACTION_CONFIRMED"&&currentView==="open")loadOpen()}}catch(e){console.warn("[AUDITOR_ACTION_SYNC]",e)}
-fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("scopeManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("auditorManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("notificationsManager20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("companyManagement20").hidden=!['manager','auditor'].includes(String(actorRole).toLowerCase());document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();swap20RefreshAttention();if(String(actorRole).toLowerCase()==="manager")initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)});return loadOpen().then(function(){document.addEventListener("visibilitychange",function(){if(!document.hidden)swap20RefreshAttention()});window.addEventListener("focus",swap20RefreshAttention);window.setInterval(function(){if(!document.hidden)swap20RefreshAttention()},45000);})}).catch(fail);
+const GRID_RETURN_STATE_KEY20='ams-fase12-grid-return';
+window.addEventListener('pagehide',function(){
+ try{sessionStorage.setItem(GRID_RETURN_STATE_KEY20,JSON.stringify({
+  at:Date.now(),view:currentView,query:document.getElementById('q')?.value||'',
+  grid4:JSON.parse(JSON.stringify(grid4State)),auditorStatus:auditorCardStatusFilter20,
+  selected:selectionIds()
+ }));}catch(e){console.warn('[GRID_RETURN_SAVE]',e)}
+});
+function takeGridReturnState20(){
+ try{
+  var raw=sessionStorage.getItem(GRID_RETURN_STATE_KEY20);
+  sessionStorage.removeItem(GRID_RETURN_STATE_KEY20);
+  if(!raw)return null;
+  var value=JSON.parse(raw);
+  if(!value||!Number.isFinite(value.at)||Date.now()-value.at>3600000||!['open','completed'].includes(value.view))return null;
+  return value;
+ }catch(e){return null}
+}
+async function restoreGridReturnState20(state){
+ if(!state)return;
+ if(state.view==='completed')await loadCompleted();
+ if(state.grid4&&typeof state.grid4==='object'&&state.grid4.open&&state.grid4.completed)grid4State=state.grid4;
+ document.getElementById('q').value=String(state.query||'').slice(0,250);
+ auditorCardStatusFilter20=String(state.auditorStatus||'');
+ gridSelected=new Set(Array.isArray(state.selected)?state.selected.filter(x=>typeof x==='string').slice(0,250):[]);
+ filter();
+ updateSelectionUi();
+}
+const gridReturnState20=takeGridReturnState20();
+fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("scopeManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("auditorManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("notificationsManager20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("companyManagement20").hidden=!['manager','auditor'].includes(String(actorRole).toLowerCase());document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();swap20RefreshAttention();if(String(actorRole).toLowerCase()==="manager")initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)});return loadOpen().then(async function(){await restoreGridReturnState20(gridReturnState20);document.addEventListener("visibilitychange",function(){if(!document.hidden)swap20RefreshAttention()});window.addEventListener("focus",swap20RefreshAttention);window.setInterval(function(){if(!document.hidden)swap20RefreshAttention()},45000);})}).catch(fail);
 })();

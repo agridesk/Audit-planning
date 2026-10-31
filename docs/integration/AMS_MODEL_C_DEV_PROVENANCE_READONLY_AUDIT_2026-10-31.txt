@@ -1,0 +1,18 @@
+AMS 2.0 — MODEL C DEV URENHERKOMST, READ-ONLY AUDIT
+2026-10-31 | SSOT: Audit Management System DEV (1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs)
+Bronnen: Audit_Obligations A:Z, Company_Scopes A:L, ScopeVersions A:I, Company_Scope_Hours A:M. Uitsluitend lezen, geen data-mutaties.
+199 Audit_Obligations. 179 Company_Scopes. 11 ScopeVersions. 138 Company_Scope_Hours records.
+ALLE 199 obligations missen momenteel Formal_Hours_Source, Scope_Version_ID en Hours_Resolved_At.
+Cycle_Key: 141 records met YYYY-MM-DD, 58 records met jaar-only YYYY (57 jaar 2026, 1 jaar 2027; trigger ECAS). Jaar-only is een geldige cyclusidentiteit maar geen eenduidige datum voor historische urenregeling.
+Bij een vereenvoudigde, read-only vergelijking van records met exacte cycle-datum:
+- 135 konden naar 1 actieve company-scope en 1 huidige effectieve scopeversie worden herleid.
+- 1 had geen overeenkomstige actieve company-scope-relatie.
+- 5 hadden geen eenduidige CURRENT-versie geldig op de cycle-datum.
+- 0 overlappende actieve company-urenoverrides in de records die verder konden worden opgelost.
+- In de 135 herleidbare gevallen weken 17 geregistreerde urenwaarden af van de huidige scope-/override-uren (waaronder niet ingevulde waarden). Deze 17 zijn GEEN automatisch bewezen fout in historische auditgegevens.
+- 58 jaar-only records zijn NIET vergeleken op effectieve datum; hiervoor ontbreekt een automatisch gerechtvaardigde concrete peildatum. Niet aanvullen met willekeurige 1 januari.
+- In alle 199 records: 20 lege Formal_Hours en 2 expliciete nullen.
+Staatsoverzicht (alle 199): LINKED_TO_VISIT 45, COMPLETED 30, OPEN 115, CANCELLED 8, REJECTED 1.
+De bovenstaande vergelijking is een structurele DIAGNOSTIEK, niet de volledige canonieke resolver/pariteitsgarantie. De effectieve peildatum, historische scopeversie, urenbron en auditstatus moeten voor individuele correcties apart worden beoordeeld.
+IMPLEMENTATIE op geïsoleerde branch: DEV-only standaard uitgeschakelde urenherkomst-snapshots voor NIEUWE Cloud Run successor-/repair-obligations en GAS jaarlijkse successor-obligations. Jaar-only ECAS moet een expliciete in hetzelfde jaar liggende Base_Expiry_Date hebben om een urenpeildatum af te leiden. Ontbreekt deze, dan BLOKKEREN.
+RELEASEBLOKKADES: eerst de historische 199 records classificeren zonder historische overschrijving, ontbrekende relaties en versies onderzoeken, en DEV runtime/schema en jaarlijkse GAS-pariteit bewijzen. Geen datamigratie zonder expliciete gebruikersgoedkeuring. PROD niet wijzigen.

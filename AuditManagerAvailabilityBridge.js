@@ -8,6 +8,10 @@
  * Auditor Availability sheet merely to release one audit.
  */
 function managerV5_releaseAvailability_(auditId, opts) {
+  // Release of a legacy audit reservation mutates planning ownership.
+  if (typeof SYS_ENFORCE_WRITE_ALLOWED !== 'function') return {success:false,error:'SYSTEM_WRITE_GUARD_MISSING'};
+  try { SYS_ENFORCE_WRITE_ALLOWED('PLANNING_AVAILABILITY_RELEASE', auditId); }
+  catch (e) { return {success:false,error:'DEV_LEGACY_AVAILABILITY_WRITE_BLOCKED',message:String(e && e.message || e)}; }
   var t0 = Date.now();
   opts = opts || {};
   auditId = v5_normAuditId_(auditId);

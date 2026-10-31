@@ -12,4 +12,10 @@ assert.equal(v211AuditorQualified(auditors,catalog,['MPS-ABC'],'a@example.com',[
 const hard=v211AssignmentHardCheck({auditorEmail:'a@example.com',auditorValues:auditors,catalog,scopeCodes:['MPS-ABC'],companyValues:[],requestedDates:[],qualificationRelations:relations});
 assert.equal(hard.ok,false);
 assert.ok(hard.reasons.includes('AUDITOR_NOT_HARD_QUALIFIED'));
+const guarded=v211AssignmentHardCheck({auditorEmail:'a@example.com',auditorValues:auditors,catalog,scopeCodes:['MPS-ABC'],companyValues:[],requestedDates:[],requireCanonicalQualifications:true});
+assert.equal(guarded.ok,false);
+assert.ok(guarded.reasons.includes('CANONICAL_QUALIFICATIONS_NOT_LOADED'));
+assert.ok(guarded.reasons.includes('AUDITOR_NOT_HARD_QUALIFIED'));
+const guardedReady=v211AssignmentHardCheck({auditorEmail:'a@example.com',auditorValues:auditors,catalog,scopeCodes:['MPS-NEW'],companyValues:[],requestedDates:[],qualificationRelations:relations,requireCanonicalQualifications:true});
+assert.equal(guardedReady.ok,true);
 console.log('Fase 2.5 canonical relation overrides legacy qualifications and hard-assignment gate');

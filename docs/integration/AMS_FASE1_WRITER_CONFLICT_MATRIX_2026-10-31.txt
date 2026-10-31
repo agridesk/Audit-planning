@@ -50,3 +50,6 @@ REQUIRED PROOF BEFORE RELEASE
 6. Explicit merge and deployment authorization; separate PROD decision.
 
 This is evidence and a safety checklist, not validation of deployed runtime behavior.
+
+F4 ISOLATED GRID DIFF CHECK — 2026-10-31
+Comparison of integration-audit branch against feature/ams-grid4-filter-sort-isolated-2026-10-30 found a 23-change delta in cloudrun/transport-proof/manager-portal.js. It is not authorized for blind merge; review interaction with existing Grid selection/status/export tests, then use browser acceptance on matching deployment.

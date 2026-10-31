@@ -33,6 +33,8 @@ assert.equal(appended,1);
 await assert.rejects(()=>service.inspect([{range:'Unsafe!A:Z',values:[['x']]}]),/APPEND_INTENT_UNSUPPORTED/);
 await assert.rejects(()=>service.inspect([{range:'Audit_Obligations!A:B',values:[['OB-1','5','SCOPE_DEFAULT']]}]),/APPEND_INTENT_WIDTH_INVALID/);
 await assert.rejects(()=>service.inspect([{range:'Audit_Obligations!B:G',values:[['OB-1','5']]}]),/APPEND_INTENT_WIDTH_INVALID/);
+await assert.rejects(()=>service.inspect([{range:'Audit_Obligations!A:G',values:[['OB-1',{formula:'=NOW()'}]]}]),/APPEND_INTENT_CELL_INVALID/);
+await assert.rejects(()=>service.inspect([{range:'Audit_Obligations!A:G',values:[['OB-1',['mixed']]]}]),/APPEND_INTENT_CELL_INVALID/);
 await assert.rejects(()=>service.inspect([{range:'Audit_Obligations!A:AA',values:[Array(28).fill('x')]}]),/APPEND_INTENT_WIDTH_INVALID/);
 assert.ok(fenceChecks>=3);
 deny=false;loseFenceAfterAppend=true;

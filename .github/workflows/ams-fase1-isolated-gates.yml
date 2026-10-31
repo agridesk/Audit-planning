@@ -13,6 +13,10 @@ on:
       - 'cloudrun/transport-proof/scope-create-20.js'
       - 'cloudrun/transport-proof/scope-create-20-test.mjs'
       - 'cloudrun/transport-proof/scope-slot-bridge-v211-test.mjs'
+      - 'cloudrun/transport-proof/model-c-annual-scope20-headerless-test.mjs'
+      - 'ModelCAnnualCycleRuntime.js'
+      - 'AuditManagerToolsScopes.js'
+      - 'AuditManagerToolsConfigScopes.js'
       - 'cloudrun/transport-proof/grid4-*.mjs'
       - 'cloudrun/transport-proof/manager-portal.js'
       - 'cloudrun/transport-proof/planning-toolkit-selection-window-regression-20.mjs'
@@ -66,6 +70,7 @@ jobs:
           node fase1-scope20-assignment-cutover-20-test.mjs
           node scope-create-20-test.mjs
           node scope-slot-bridge-v211-test.mjs
+          node model-c-annual-scope20-headerless-test.mjs
           node grid4-column-filter-regression-test.mjs
           node grid4-existing-ui-safety-contract-test.mjs
           node grid4-readonly-filter-sort-test.mjs

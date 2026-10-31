@@ -39,6 +39,23 @@ function m5t_getAuditPlanningConfig(companyUid) {
   var expCol = m5t_pickHeader_(hdr, ['Date - Will Expire','Date Will Expire','Will Expire']);
   if (uidCol < 0 || companyCol < 0) return { success: false, error: 'AUDIT_PLANNING_MISSING_REQUIRED_HEADERS' };
 
+  // Fail before m5t_createAuditRowFromCompaniesPool_: unsupported physical
+  // qualification checks must not leave a newly created audit row behind.
+  if (preassignedAuditor) {
+    var selectedNames = {};
+    selectedScopes.forEach(function(item) {
+      if (!item || !(item.enabled === true || String(item.enabled).toLowerCase() === 'true')) return;
+      var k = String(item.scope || item.scopeCode || item.code || '').trim().toLowerCase();
+      if (k) selectedNames[k] = true;
+    });
+    var defsForPreflight = m5t_scopeSlotDefs_(ss) || [];
+    for (var si = 0; si < defsForPreflight.length; si++) {
+      var d = defsForPreflight[si];
+      if (selectedNames[String(d.scope || '').trim().toLowerCase()] && d.flagCol0 == null)
+        return {success:false,error:'SCOPE_QUALIFICATION_COLUMN_UNAVAILABLE',scope:String(d.slotKey || '')};
+    }
+  }
+
   var matches = [];
   for (var i = 0; i < apData.rows.length; i++) {
     var row = apData.rows[i];

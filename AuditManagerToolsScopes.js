@@ -41,29 +41,6 @@ function m5t_getAuditPlanningConfig(companyUid) {
   var expCol = m5t_pickHeader_(hdr, ['Date - Will Expire','Date Will Expire','Will Expire']);
   if (uidCol < 0 || companyCol < 0) return { success: false, error: 'AUDIT_PLANNING_MISSING_REQUIRED_HEADERS' };
 
-  // Fail before m5t_createAuditRowFromCompaniesPool_: unsupported physical
-  // qualification checks must not leave a newly created audit row behind.
-  var canonicalQualificationVerified = false;
-  if (preassignedAuditor) {
-    var selectedNames = {};
-    selectedScopes.forEach(function(item) {
-      if (!item || !(item.enabled === true || String(item.enabled).toLowerCase() === 'true')) return;
-      var k = String(item.scope || item.scopeCode || item.code || '').trim().toLowerCase();
-      if (k) selectedNames[k] = true;
-    });
-    var defsForPreflight = m5t_scopeSlotDefs_(ss) || [];
-    var needsCanonical = defsForPreflight.some(function(d){
-      return d.flagCol0 == null && [d.scope,d.scopeCode,d.slotKey].some(function(x){return selectedNames[String(x||'').toLowerCase()];});
-    });
-    if(needsCanonical){
-      var canonicalCheck;
-      try{canonicalCheck=m5t_scope20CanonicalPreassignmentCheck_(ss,preassignedAuditor,selectedScopes,defsForPreflight);}
-      catch(eCanonical){return {success:false,error:'CANONICAL_QUALIFICATION_READ_FAILED',detail:String(eCanonical&&eCanonical.message||eCanonical)};}
-      if(!canonicalCheck||canonicalCheck.success!==true)return canonicalCheck||{success:false,error:'CANONICAL_QUALIFICATION_UNCONFIRMED'};
-      canonicalQualificationVerified=true;
-    }
-  }
-
   var matches = [];
   for (var i = 0; i < apData.rows.length; i++) {
     var row = apData.rows[i];
@@ -260,6 +237,29 @@ function m5t_upsertScopes(payload) {
   var enabledCount = selectedScopes.filter(function(s) {
     return s && (s.enabled === true || String(s.enabled) === 'true');
   }).length;
+
+  // Fail before m5t_createAuditRowFromCompaniesPool_: unsupported physical
+  // qualification checks must not leave a newly created audit row behind.
+  var canonicalQualificationVerified = false;
+  if (preassignedAuditor) {
+    var selectedNames = {};
+    selectedScopes.forEach(function(item) {
+      if (!item || !(item.enabled === true || String(item.enabled).toLowerCase() === 'true')) return;
+      var k = String(item.scope || item.scopeCode || item.code || '').trim().toLowerCase();
+      if (k) selectedNames[k] = true;
+    });
+    var defsForPreflight = m5t_scopeSlotDefs_(ss) || [];
+    var needsCanonical = defsForPreflight.some(function(d){
+      return d.flagCol0 == null && [d.scope,d.scopeCode,d.slotKey].some(function(x){return selectedNames[String(x||'').toLowerCase()];});
+    });
+    if(needsCanonical){
+      var canonicalCheck;
+      try{canonicalCheck=m5t_scope20CanonicalPreassignmentCheck_(ss,preassignedAuditor,selectedScopes,defsForPreflight);}
+      catch(eCanonical){return {success:false,error:'CANONICAL_QUALIFICATION_READ_FAILED',detail:String(eCanonical&&eCanonical.message||eCanonical)};}
+      if(!canonicalCheck||canonicalCheck.success!==true)return canonicalCheck||{success:false,error:'CANONICAL_QUALIFICATION_UNCONFIRMED'};
+      canonicalQualificationVerified=true;
+    }
+  }
 
   var matches = [];
   for (var i = 0; i < apData.rows.length; i++) {

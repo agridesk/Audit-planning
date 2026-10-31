@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {createPlanningSheetsAppendProjector} from './planning-sheets-append-projector-20.js';
-const rows={'Notification Queue':[['Stamp','State','Event']], 'Rejected audits':[['Audit ID','Status']]};
+const rows={'Notification Queue':[['Stamp','State','Event']], 'Rejected audits':[['Audit ID','Status']], 'Audit_Obligations':[['Obligation_ID','Formal_Hours','Formal_Hours_Source','Scope_Version_ID','Company_Hours_Override_ID','Company_Hours_Override_Revision','Hours_Resolved_At']]};
 let appended=0,fenceChecks=0,deny=false,loseFenceAfterAppend=false;
 const ok=result=>({ok:true,status:200,async json(){return structuredClone(result)}});
 const fetchImpl=async(url,init={})=>{
@@ -47,4 +47,15 @@ const replayFence=createPlanningSheetsAppendProjector({
 });
 await assert.rejects(()=>replayFence.apply({operationId:'op-replay',gateToken:'token',intents}),/REPLAY_FENCE_LOST/);
 assert.equal(appended,2);
+
+// New obligation append replay must preserve formal-hour provenance byte-for-byte.
+const provenanceRow=['OB-01','5','COMPANY_OVERRIDE','SV-2026','OV-2026','R2','2026-10-31T12:00:00.000Z'];
+const provenanceIntent=[{range:'Audit_Obligations!A:G',values:[provenanceRow]}];
+const beforeProvenance=appended;
+assert.equal((await service.apply({operationId:'op-obligation',gateToken:'token',intents:provenanceIntent})).confirmed,true);
+assert.equal(appended,beforeProvenance+1);
+assert.deepEqual(rows['Audit_Obligations'][1],provenanceRow);
+assert.equal((await service.apply({operationId:'op-obligation',gateToken:'token',intents:provenanceIntent})).replayed,true);
+assert.equal(appended,beforeProvenance+1);
+
 console.log('Append projector: dedupe, replay, fence and unsupported-target guards passed');

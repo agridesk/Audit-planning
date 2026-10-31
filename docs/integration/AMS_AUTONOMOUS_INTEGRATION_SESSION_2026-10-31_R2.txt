@@ -44,3 +44,13 @@ BLOKKADES
 
 VEILIGHEID
 Geen branch merge, geen deployment, geen wijziging aan DEV/PROD Sheets, Firestore, flags of PROD. Alle codewijzigingen op een geïsoleerde reviewbranch.
+
+
+AANVULLING R3 — 31 OKTOBER 2026, ZELFSTANDIGE FASE-1 HARDENING
+- Vier gerichte commits: 84b919e, 5d64ab7, ffc5921, 39f03d4.
+- Root cause: JavaScript Date.parse accepteert sommige niet-bestaande kalenderdagen (zoals 2026-02-30) door normalisatie. Daardoor konden nieuwe Model C obligations en hun urenbron-versie/override een onmogelijke datum als geldige effective date beschouwen.
+- Kleinste ingreep: bestaande ISO-date parsing aangevuld met strikte UTC-kalenderdag-roundtrip, zonder refactor of wijziging van bestaande writer-/lifecyclepaden.
+- Gerichte regressies: onmogelijke effectiveDate, jaarcyclus met onmogelijke Base_Expiry_Date, onmogelijke scope-version Effective_From, onmogelijke override EffectiveFrom; geldige schrikkeldag 2028-02-29 blijft werken.
+- CI HEAD 39f03d420c6030b1d9400c5303452aa26de4b4ae: AMS Fase 1 isolated identity and hours gates SUCCESS (41198267080), Authentication 2.0 Fast OTP Tests SUCCESS (41198267123), Swap 2.0 DEV Tests SUCCESS (41198267104).
+- Afbakening ongewijzigd: synthetische/source-tests, geen DEV/PROD runtime-acceptatie; geen deployment, merge, Sheet/Firestore write, PROD actie of featureflagwijziging.
+- Integratiebevinding: actuele dev HEAD b67a760c8c73e030b63f0a5f4005f1b7744442de en featurebranch zijn DIVERGED (GitHub compare: 747 ahead, 108 behind t.o.v. mergebase 900cbbb05db96d3b5ed6d14e35596a42025cbf0b). Geen blinde rebase/merge; PR47/PR48 conflictbewust reviewen.

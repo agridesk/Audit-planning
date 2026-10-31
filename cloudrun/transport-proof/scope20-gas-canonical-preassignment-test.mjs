@@ -101,4 +101,10 @@ const rejectedLegacy=context.m5t_upsertScopes({
 assert.equal(rejectedLegacy.error,'AUDITOR_NOT_HARD_QUALIFIED');
 assert.equal(legacyValidatorCalls,1);
 assert.equal(createdAuditRows,0,'Legacy qualification failure must happen before row creation');
+const contradictory=context.m5t_upsertScopes({
+ companyUid:'C-1',companyName:'Company 1',
+ selectedScopes:[{scope:'MPS-ABC',scopeCode:'NEW-09',enabled:true}]
+});
+assert.equal(contradictory.error,'SCOPE_IDENTITY_CONFLICT','Mismatched name and code must never be interpreted as another scheme');
+assert.equal(createdAuditRows,0,'Conflicting identities must not create audit rows');
 console.log('GAS Scope20 preassignment: canonical UID+ScopeCode YES, NO, missing, orphan, duplicate, invalid and missing source fail closed');

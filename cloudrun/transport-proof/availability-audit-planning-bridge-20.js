@@ -8,7 +8,7 @@ const key=x=>norm(x).toLowerCase().replace(/[\s_-]+/g,'');
 const date=x=>/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(x+'T00:00:00Z'))&&new Date(x+'T00:00:00Z').toISOString().slice(0,10)===x;
 const clock=(x,end=false)=>/^([01]\d|2[0-3]):[0-5]\d$/.test(x)||(end&&x==='24:00');
 function index(headers,aliases){for(const alias of aliases){const i=headers.findIndex(x=>key(x)===key(alias));if(i>=0)return i;}return -1;}
-export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDate,scopeNamesBySlot={}}={}){
+export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDate,scopeNamesBySlot={},incompleteAuditDiagnostics}={}){
  if(!Array.isArray(rows)||!Array.isArray(auditors)||!date(fromDate)||!date(toDate)||fromDate>toDate)throw Error('INVALID_AUDIT_BRIDGE_INPUT');
  if(!rows.length||!Array.isArray(rows[0]))throw Error('AUDIT_PLANNING_HEADERS_MISSING');
  const normalizedHeaders=rows[0].map(key).filter(Boolean);if(new Set(normalizedHeaders).size!==normalizedHeaders.length)throw Error('AUDIT_PLANNING_HEADERS_DUPLICATE');
@@ -28,10 +28,13 @@ export function canonicalAuditSlotsFromPlanningRows({rows,auditors,fromDate,toDa
   if(!auditId)throw Error('AUDIT_PLANNING_COMMITTED_ID_MISSING');
   if(seenAuditIds.has(auditId))throw Error('AUDIT_PLANNING_COMMITTED_ID_DUPLICATE');seenAuditIds.add(auditId);
   const raw=norm(row[json]);
-  // Legacy rows may retain an active-looking status after their planning payload was removed.
-  // Such rows have no verifiable occupied slots; do not invent reservations.
+  // An incomplete legacy row cannot create occupied slots. The manager overview
+  // can explicitly request diagnostics; strict callers retain fail-closed behavior.
   if(!raw){
-   if(state==='PENDINGAPPROVAL')continue;
+   if(Array.isArray(incompleteAuditDiagnostics)){
+    incompleteAuditDiagnostics.push({auditId,status:norm(row[status]),code:'AUDIT_PLANNING_COMMITTED_PLAN_MISSING'});
+    continue;
+   }
    throw Error('AUDIT_PLANNING_COMMITTED_PLAN_MISSING');
   }
   let parsed;try{parsed=JSON.parse(raw);}catch{throw Error('AUDIT_PLANNING_JSON_INVALID');}

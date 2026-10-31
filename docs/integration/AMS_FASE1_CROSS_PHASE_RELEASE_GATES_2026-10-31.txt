@@ -148,3 +148,19 @@ AUTONOMOUS SESSION 9 — FASE2/4 INTEGRATION
 - Completed GitHub Actions 41185053650 SUCCESS on 2364ed33e4338f16fe215978d85230727aa0307f, with F4 column filters, sorting, badge tests plus F1/2.5/Model C/P0/full npm; SWAP 41185053588 SUCCESS; auth 41185053585 SUCCESS.
 - Added Fase2 isolated planning-toolkit-selection-window-regression-20.mjs source-contract check and CI command; this does not reproduce or fix observed 2026/2027 runtime window bug.
 - No browser acceptance, Cloud Run update, data changes, merge or PROD activity. Scope20 role-safe readmodels and Grid4 live colors still require runtime integration.
+
+AUTONOMOUS SESSION 9 FINAL HANDOFF — 2026-10-31
+INTEGRATION BRANCH: feature/ams-fase1-integration-audit-2026-10-31; Draft PR #48, targeting PR #47 feature branch, NEVER MERGED.
+INTEGRATED ON ISOLATED BRANCH:
+1. Model C: new-obligation canonical hours/provenance row factory; baseline/override/version/error regression; synthetic fenced outbox append replay. DEV-only default-OFF AMS_DEV_MODEL_C_NEW_HOURS_SNAPSHOT_ENABLED provides integration in server-r4 directComplete new successor and legacy completion-repair obligation writers. Real-source headers/semantics not runtime verified. GAS annual writer still separate.
+2. Fase 2.5: copied dev canonical qualification resolver, preview, parity, migration planner, guarded migration executor, lock and Sheets adapter; all corresponding test suites. Added manager-only five Cloud Run routes for migration preview/parity/plan/apply/lock probe; apply default OFF and fixed DEV project/spreadsheet gate. Assignment supports opt-in requireCanonicalQualifications fail-closed; no automatic cutover or data writes.
+3. Fase 2.5 stable Scope20: integrated dev scope-create, scope-slot bridge tests, GAS AuditManagerToolsConfigScopes.js duplicate identity checks. DESIGN CONFLICT REMAINS: GAS m5t_scopeSlotDefs_ still requires physical columns for slots 09-20, contradictory to handoff's no-new-physical-columns rule; needs canonical Model C consumer rewrite/acceptance before 09–20 go-live.
+4. Fase 4: complete client-only Grid4 filters/sorts/badges merged into isolated branch via exact F4 manager-portal.js (dev base and current F1 manager-portal source identical before import). All seven F4 support/test source files staged; six UI contracts executed in CI. Live Manager/Auditor browser acceptance NOT done.
+5. Fase 2: Toolkit primary-only vs explicit combined-visit selection/window source regression integrated; original incident remains unproven and open for runtime reproduction.
+6. Fase 1 identity: staged UID-own permissions and qualification readback; writer success now requires persisted Sheets qualification verification before CHANGE_APPLIED. PR #47 mandatory UID column behavior retained (stricter than dev).
+VALIDATION:
+- GitHub Actions SHA ac99b16931328edcb06534674eaac8923de3e815: AMS Fase1 isolated full test workflow run 41185373248 SUCCESS, Authentication 2.0 41185373283 SUCCESS, SWAP 2.0 41185373413 SUCCESS.
+- Earlier full F1+Model C+F4 CI SHA 2364ed33e4338f16fe215978d85230727aa0307f SUCCESS: 41185053650 / 41185053585 / 41185053588.
+- Staged source contract test is not equivalent to runtime E2E. No production readiness, no safe writer activation yet.
+RELEASE GATES OPEN: dev ↔ PR47 divergent; source branch server-r4/assignment/package collision; F2.5 source sheets and lock IAM readiness, qualification migration parity on live DEV; Auditor_UID full consumer cutover; GAS Model C annual writer and historical provenance treatment; full Model C DEV schema and real-data E2E; 20-scope headerless support; Toolkit runtime bug repro; Grid browser acceptance; controlled rollback; explicit separate approval for merge/deployment/PROD.
+SAFETY: No DEV/PROD deployments, no merge, no Firestore/Sheets data writes or migration, no flags enabled. PROD untouched.

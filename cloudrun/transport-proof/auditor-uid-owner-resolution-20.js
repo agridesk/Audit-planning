@@ -14,6 +14,7 @@ export function currentAuditorUid20(auditorValues,email,{required=false}={}){
  if(key(actor[role])!=='auditor')throw Error('ACTOR_UID_ROLE_INVALID');
  const uid=str(actor[u]);
  if(auditorValues.slice(1).some(row=>row!==actor&&str(row[u])===uid))throw Error('ACTOR_UID_DUPLICATE');
+ if(auditorValues.slice(1).some(row=>row!==actor&&key(row[e])===key(email)))throw Error('ACTOR_EMAIL_DUPLICATE');
  return uid;
 }
 export function assignedUid20(auditHeader,auditRow,{required=false,assignedEmail=''}={}){

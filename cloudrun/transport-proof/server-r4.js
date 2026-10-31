@@ -1255,6 +1255,7 @@ function directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companySco
 
 async function directComplete(identity,body,actorRole){
   if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
+  const uidCompleteAuthEnabled=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_AUDITOR_UID_AUTHORIZATION_ENABLED==='true';
   const newObligationSnapshotEnabled=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_MODEL_C_NEW_HOURS_SNAPSHOT_ENABLED==='true';
   actorRole=clean(actorRole).toUpperCase();
   if(actorRole!=='MANAGER'&&actorRole!=='AUDITOR')throw new Error('COMPLETE_ACTOR_ROLE_INVALID');
@@ -1285,6 +1286,12 @@ async function directComplete(identity,body,actorRole){
     if(logAuditIx>=0)for(let i=1;i<log.length;i++)if(val(log[i],logAuditIx)===auditId){existingLogRow=i+1;break;}
     if(!found){
       if(!existingLogRow)throw new Error('AUDIT_NOT_FOUND');
+      if(actorRole==='AUDITOR'&&uidCompleteAuthEnabled){
+        const actorUid=currentAuditorUid20(auditors,clean(identity?.email).toLowerCase(),{required:true});
+        const historicalUidIx=col(logH,['Auditor_UID','Assigned_Auditor_UID']);
+        if(historicalUidIx<0||val(log[existingLogRow-1],historicalUidIx)!==actorUid)
+          throw Error('AUDITOR_COMPLETE_HISTORY_UID_UNVERIFIED');
+      }
       let correctionMs=0,managerOverride=false,managerCorrection=null;
       const existingHours=logHoursIx>=0?Number(log[existingLogRow-1][logHoursIx]):0;
       if(actorRole==='MANAGER'&&logHoursIx>=0&&existingHours!==hoursDedicated){
@@ -1307,7 +1314,13 @@ async function directComplete(identity,body,actorRole){
 
     const company=val(row,col(h,['Company'])),location=val(row,col(h,['Location'])),companyUid=val(row,col(h,['Company_UID','Company UID','CompanyUid'])),actorEmail=clean(identity?.email).toLowerCase(),now=isoLocalStamp(),stamp=new Date().toISOString();
     const assignedTo=val(row,col(h,['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned'])).toLowerCase();
-    if(actorRole==='AUDITOR'&&(!assignedTo||assignedTo!==actorEmail))throw new Error('AUDITOR_NOT_ASSIGNED');
+    if(actorRole==='AUDITOR'){
+      if(uidCompleteAuthEnabled){
+        const actorUid=currentAuditorUid20(auditors,actorEmail,{required:true});
+        const ownedUid=assignedUid20(h,row,{required:true,assignedEmail:assignedTo});
+        if(!ownedUid||ownedUid!==actorUid)throw Error('AUDITOR_NOT_ASSIGNED_UID');
+      }else if(!assignedTo||assignedTo!==actorEmail)throw new Error('AUDITOR_NOT_ASSIGNED');
+    }
     if(!companyUid)throw new Error('COMPANY_UID_REQUIRED');
 
     const cfg=scopeCatalog(cfgValues),cfgByCode=new Map(cfg.map(x=>[clean(x.scopeCode),x]));

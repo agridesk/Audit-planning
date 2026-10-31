@@ -54,3 +54,16 @@ AANVULLING R3 — 31 OKTOBER 2026, ZELFSTANDIGE FASE-1 HARDENING
 - CI HEAD 39f03d420c6030b1d9400c5303452aa26de4b4ae: AMS Fase 1 isolated identity and hours gates SUCCESS (41198267080), Authentication 2.0 Fast OTP Tests SUCCESS (41198267123), Swap 2.0 DEV Tests SUCCESS (41198267104).
 - Afbakening ongewijzigd: synthetische/source-tests, geen DEV/PROD runtime-acceptatie; geen deployment, merge, Sheet/Firestore write, PROD actie of featureflagwijziging.
 - Integratiebevinding: actuele dev HEAD b67a760c8c73e030b63f0a5f4005f1b7744442de en featurebranch zijn DIVERGED (GitHub compare: 747 ahead, 108 behind t.o.v. mergebase 900cbbb05db96d3b5ed6d14e35596a42025cbf0b). Geen blinde rebase/merge; PR47/PR48 conflictbewust reviewen.
+
+
+AANVULLING R4 — FASE 1 AUTONOME SESSIE (31-10-2026)
+Geteste code HEAD: ae4c0b2629be07bb238c9fd62a8152619ebc6a3a.
+Gerichte changes, geen refactors:
+- Model C obligation schema wijst dubbele headers nu vóór snapshot/rijmapping af (f99d23e, be2d907).
+- Qualificatiemigratieplan en read-only parity weigeren dubbele/lege relation-headernamen (5ca1d7c, 45fcb6b) met bijbehorende testuitbreiding (29753cf, af0a955).
+- DEV Sheets migratieadapter-regressie aangepast aan nieuwe eerdere fail-closed afwijzing: 11f3303. Tussentijdse rode CI 41198634487 was uitsluitend oude testverwachting en is hersteld; deze was niet live-runtime evidence.
+- Auditor_UID actor- en assignment-projections weigeren dubbele headers (3abf3da, b7bae0e, eb416f2); tegenstrijdige Auditor_UID en Assigned_Auditor_UID worden geblokkeerd (c0aca0a, ae4c0b2). Dit is flaggebonden aan bestaande required-gates; geen activering.
+- Fase-1 CI paden dekken nu hours-resolver source wijzigingen (2f16fbb).
+CI HEAD ae4c0b2: AMS Fase 1 isolated identity and hours gates SUCCESS run 41198824796 (inclusief planning authority, auth/SWAP compatibility smoke en volledige npm test); Authentication 2.0 SUCCESS run 41198824748; Swap 2.0 SUCCESS run 41198824761.
+Bewijsgrens: GitHub-source/CI en synthetische contracttests, niet DEV Cloud Run/GAS deployment of browser-E2E. Geen merge/deployment, geen DEV/PROD datawrites, geen PROD wijziging, geen migratie en geen featureflagactivatie.
+Open: conflictbewuste PR47/48-integratie tegen dev, afzonderlijke DEV deployment-autorisatie, 23 kwalificatierelaties nog te migreren, 199 historische urenherkomsten beleidsmatig onbeslist, browser/runtime E2E en UID multi-instance cutover.

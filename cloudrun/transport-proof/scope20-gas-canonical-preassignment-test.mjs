@@ -55,4 +55,20 @@ assert.equal(check().error,'CANONICAL_QUALIFICATION_WITHDRAWN','No grandfatherin
 auditorRows[1][4]='not-json';
 assert.equal(check().error,'CANONICAL_QUALIFICATION_WITHDRAWAL_SCHEMA_INVALID');
 auditorRows=auditors;
+// Integration smoke: a missing qualification must fail BEFORE creating an audit row.
+let createdAuditRows=0;
+context.SpreadsheetApp={getActiveSpreadsheet:()=>ss};
+context.m5t_const_=()=>({SHEETS:{AUDIT_PLANNING:'Audit planning'}});
+context.m5t_getSheet_=()=>({name:'mock-planning'});
+context.m5t_readSheet_=()=>({headerMap:{},rows:[]});
+context.m5t_pickHeader_=(headers,candidates)=>candidates.includes('Company_UID')?0:candidates.includes('Company')?1:-1;
+context.m5t_createAuditRowFromCompaniesPool_=()=>{createdAuditRows++;return {success:true,rowIndex:2};};
+relationRows=[header,['UID-1','NEW-09','NO'],['UID-1','MPS-ABC','YES']];
+const denied=context.m5t_upsertScopes({
+ companyUid:'C-1',companyName:'Company 1',selectedScopes:[{scope:'New Scheme',enabled:true}],
+ preassignedAuditorEmail:'a@example.com'
+});
+assert.equal(denied.success,false);
+assert.equal(denied.error,'AUDITOR_NOT_HARD_QUALIFIED');
+assert.equal(createdAuditRows,0,'Denied Scope09 preassignment must not create an orphan audit row');
 console.log('GAS Scope20 preassignment: canonical UID+ScopeCode YES, NO, missing, orphan, duplicate, invalid and missing source fail closed');

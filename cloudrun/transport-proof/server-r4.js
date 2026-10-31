@@ -1281,12 +1281,14 @@ async function directComplete(identity,body,actorRole){
     let newHoursSources=null;
     if(newObligationSnapshotEnabled){
       const sources=await sheetsBatchGet(['Company_Scope_Hours!A1:Z2000','ScopeVersions!A1:Z256']);
-      const toObjects=values=>{
+      const toObjects=(values,limit)=>{
         if(!values?.length||!Array.isArray(values[0]))throw Error('NEW_OBLIGATION_HOURS_SOURCE_SCHEMA_MISSING');
+        if(values.length>=limit)throw Error('NEW_OBLIGATION_HOURS_SOURCE_TRUNCATED');
         const [headers,...rows]=values;
+        if(headers.some(h=>!clean(h))||new Set(headers.map(h=>clean(h).toLowerCase())).size!==headers.length)throw Error('NEW_OBLIGATION_HOURS_SOURCE_HEADER_AMBIGUOUS');
         return rows.filter(r=>r.some(v=>clean(v))).map(r=>Object.fromEntries(headers.map((h,i)=>[clean(h),r[i]??''])));
       };
-      newHoursSources={companyScopes:toObjects(companyScopes),overrides:toObjects(sources[0]?.values),scopeVersions:toObjects(sources[1]?.values)};
+      newHoursSources={companyScopes:toObjects(companyScopes,1500),overrides:toObjects(sources[0]?.values,2000),scopeVersions:toObjects(sources[1]?.values,256)};
     }
     const found=findAudit(ap,auditId),logH=log[0]||[],logAuditIx=col(logH,['Audit ID','Audit_ID','AuditId']),logHoursIx=col(logH,['Hours dedicated']);
     let existingLogRow=0;

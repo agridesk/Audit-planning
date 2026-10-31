@@ -21,7 +21,7 @@ assert.equal(locks,2);
 relations=[['Auditor_UID','ScopeCode','Qualified','Other']];
 await assert.rejects(migrate({...base,...io}),/EXTRA_COLUMNS_UNSUPPORTED/);
 relations=[['ScopeCode','Qualified','Auditor_UID','ScopeCode']];
-await assert.rejects(migrate({...base,...io}),/EXTRA_COLUMNS_UNSUPPORTED|DUPLICATE_HEADERS/);
+await assert.rejects(migrate({...base,...io}),/RELATION_SCHEMA_DUPLICATE_OR_EMPTY_HEADER|EXTRA_COLUMNS_UNSUPPORTED|DUPLICATE_HEADERS/);
 relations=[['ScopeCode','Qualified','Auditor_UID']];
 const formulaCatalog=[catalog[0],['=SUSPICIOUS','=SUSPICIOUS','SCOPE_01']];
 const formulaAuditors=[['Auditor_UID','E-mail','=SUSPICIOUS'],['U1','one@example.com','x']];

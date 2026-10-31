@@ -1241,7 +1241,10 @@ function directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companySco
       const obj=Object.fromEntries(oh.map((header,i)=>[header,obValues[i]??'']));
       const resolved=buildNewModelCObligationWithHours20({
         headers:oh,obligation:obj,companyId:companyUid,scopeCode:code,
-        effectiveDate:baseExpiry||plannedDate,companyScopes:sources.companyScopes,
+        effectiveDate:baseExpiry||plannedDate,
+        companyScopes:sources.companyScopes.some(x=>clean(x.Company_Scope_ID)===companyScopeId)
+          ?sources.companyScopes
+          :[...sources.companyScopes,{Company_Scope_ID:companyScopeId,Company_UID:companyUid,ScopeCode:code,Active:'YES'}],
         overrides:sources.overrides,scopeVersions:sources.scopeVersions,now:stamp
       });
       obValues=resolved.row;

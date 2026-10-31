@@ -75,3 +75,14 @@ R5 — RELEASE-FOCUSED INTEGRATION CHECK 31-10-2026
 - CI code commit f6abb3e: AMS Fase 1 isolated identity/hours SUCCESS 41199897721 (including full npm test), Authentication 2.0 SUCCESS 41199897807, SWAP 2.0 SUCCESS 41199897847.
 - Release decision boundary: no authorized DEV deployment, no DEV qualification data migration, no code merge; therefore no runtime cutover claim. 23 legacy qualification YES rows require authorized controlled conversion, 199 historical obligations require separate policy decision, production forbidden.
 - No release-blocker clearance from CI alone. Source tests and functional runtime E2E are separate proof layers.
+
+
+R6 — LIVE DEV MIGRATION PRE-FLIGHT — 31-10-2026
+Source: connected Google Sheets metadata and bounded range reads of the actual spreadsheet 'Audit Management System DEV', Spreadsheet ID 1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs. Read-only. Tabs verified by native metadata before reads.
+- Auditors: 6 nonempty rows; Auditor_UID and E-mail present; no duplicate case-insensitive header labels.
+- Config_Scopes: 9 nonempty catalog rows, unique valid scope slots mapped to legacy qualification columns; all eight historical slots accounted for.
+- Auditor_Scope_Qualifications: exact header [Auditor_UID,ScopeCode,Qualified], 0 canonical relation rows.
+- Deterministic live qualification source preview: 23 YES combinations, 23 unique canonical UID x ScopeCode keys; no invalid source status, duplicate auditor identities, incomplete legacy slot, or ambiguous mapping detected. No rows were appended.
+- Authorization granted for controlled DEV deployment and migration, with strict no-regressions condition and PROD excluded.
+- EXECUTION GATE UNRESOLVED: available Google Sheets connector can read and write cell ranges, but cannot enter the application migration adapter's mandatory distributed exclusive lock and guarded snapshot/append/reconciliation transaction. No Cloud Run/GCP deployment or GitHub workflow-dispatch action is exposed by the connected tools. Direct Sheets append bypassing that contract is prohibited. Consequently migration NOT executed, DEV deployment NOT executed, no flags toggled, no merge.
+- Safe path: run the existing guarded DEV-only migration executor using actual application credentials with distributed lock; verify written=23 and postread parity under the same lock, then isolated DEV deployment and runtime/E2E. Run again idempotently expecting written=0. Stop if source snapshot changes. Keep feature branch separate until conflict-aware integration, no PROD.

@@ -78,7 +78,29 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
    if(!validStart(startTime)||!validEnd(endTime)||startTime>=endTime)throw Error('INVALID_TIME_RANGE');
    // Validate against authoritative planning before changing the baseline.
    // A baseline is not permitted to overwrite a committed audit.
-   const slots=await slotsFor(fromDate,toDate,{fresh:true});
+   const incompleteAuditDiagnostics=[];
+   const slots=await slotsFor(fromDate,toDate,{fresh:true,incompleteAuditDiagnostics});
+   if(incompleteAuditDiagnostics.length){
+    // Missing plan payload must not globally block unrelated auditors.
+    // Unknown owner of an actually dated/accepted audit still fails closed.
+    const canonicalAuditors=await listCanonicalAuditors();
+    const emailOwners=new Map(canonicalAuditors.map(a=>[clean(a.email).toLowerCase(),clean(a.auditorId)]));
+    for(const audit of incompleteAuditDiagnostics){
+     const state=clean(audit.status).toLowerCase().replace(/[\\s_-]+/g,'');
+     const knownUid=clean(audit.auditorUid);
+     const email=clean(audit.assignedEmail).toLowerCase();
+     const emailUid=emailOwners.get(email)||'';
+     if(knownUid&&emailUid&&knownUid!==emailUid)throw Error('AUDIT_PLANNING_AUDITOR_IDENTITY_CONFLICT');
+     const resolved=knownUid||emailUid;
+     if(!resolved){
+      // An unassigned, undated Pending Approval has no auditor reservation
+      // to protect. It remains a separate data-quality diagnostic.
+      if(state==='pendingapproval'&&!clean(audit.plannedDate)&&!email)continue;
+      throw Error('AUDIT_PLANNING_INCOMPLETE_RESERVATION_UNCERTAIN');
+     }
+     if(resolved===auditorId)throw Error('AUDIT_PLANNING_INCOMPLETE_RESERVATION_UNCERTAIN');
+    }
+   }
    const blocks=committedBlocksFromCanonicalSlots({auditorId,slots});
    const start=mutation.wholeDay===true?'00:00':clean(mutation.start);
    const end=mutation.wholeDay===true?'24:00':clean(mutation.end);

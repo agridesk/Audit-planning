@@ -5,6 +5,10 @@ const obligation={Obligation_ID:'OB-001',Company_UID:'C1',ScopeCode:'S-09',Oblig
 const args={headers,obligation,companyId:'C1',scopeCode:'S-09',effectiveDate:'2026-10-31',now:'2026-10-31T13:00:00.000Z',companyScopes:[{Company_UID:'C1',ScopeCode:'S-09',Active:'YES'}],overrides:[],scopeVersions:[{ScopeCode:'S-09',Status:'CURRENT',VersionId:'V1',Hours_to_plan:'7.5'}]};
 const base=build(args);
 assert.equal(base.snapshot.Formal_Hours,7.5);
+const yearCycle=build({...args,effectiveDate:'2026',obligation:{...obligation,Base_Expiry_Date:'2026-08-28'}});
+assert.equal(yearCycle.snapshot.Formal_Hours,7.5);
+assert.throws(()=>build({...args,effectiveDate:'2026',obligation}),/NEW_OBLIGATION_YEAR_CYCLE_EXPIRY_REQUIRED/);
+assert.throws(()=>build({...args,effectiveDate:'2026',obligation:{...obligation,Base_Expiry_Date:'2027-08-28'}}),/NEW_OBLIGATION_YEAR_CYCLE_EXPIRY_REQUIRED/);
 assert.equal(base.snapshot.Formal_Hours_Source,'SCOPE_DEFAULT');
 assert.equal(base.snapshot.Scope_Version_ID,'V1');
 assert.equal(base.row.length,headers.length);

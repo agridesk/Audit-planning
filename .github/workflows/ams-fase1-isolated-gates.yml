@@ -39,6 +39,7 @@ on:
       - 'cloudrun/transport-proof/fase1-scope20-assignment-cutover-20-test.mjs'
       - 'cloudrun/transport-proof/fase1-integration-known-gaps-20-test.mjs'
       - 'cloudrun/transport-proof/company-scope-hours-snapshot-20.js'
+      - 'cloudrun/transport-proof/company-scope-hours-resolver-20.js'
       - 'cloudrun/transport-proof/auditor-scope-qualifications-20.js'
       - 'cloudrun/transport-proof/auditor-scope-qualifications-20-test.mjs'
       - 'cloudrun/transport-proof/auditor-scope-qualifications-migration-20.js'

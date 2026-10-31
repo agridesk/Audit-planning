@@ -37,4 +37,9 @@ assert.equal(context.m5t_scope20CanonicalPreassignmentCheck_(ss,'b@example.com',
 assert.equal(context.m5t_scope20CanonicalPreassignmentCheck_(ss,'a@example.com',[{scope:'UNKNOWN',enabled:true}],defs).error,'CANONICAL_SCOPE_IDENTITY_UNRESOLVED');
 const missing={getSheetByName:()=>null};
 assert.equal(context.m5t_scope20CanonicalPreassignmentCheck_(missing,'a@example.com',selected,defs).error,'CANONICAL_QUALIFICATION_SOURCE_UNAVAILABLE');
+auditorRows=[['Auditor_UID','E-mail','Role'],['UID-1','a@example.com','Auditor']];
+assert.equal(check().error,'CANONICAL_QUALIFICATION_SCHEMA_INCOMPLETE','Active role schema cannot be silently omitted');
+auditorRows=auditors;
+const ambiguousDefs=[...defs,{slotKey:'SCOPE_10',scope:'New Scheme',scopeCode:'ANOTHER-10',flagCol0:null}];
+assert.equal(context.m5t_scope20CanonicalPreassignmentCheck_(ss,'a@example.com',selected,ambiguousDefs).error,'CANONICAL_SCOPE_ALIAS_AMBIGUOUS');
 console.log('GAS Scope20 preassignment: canonical UID+ScopeCode YES, NO, missing, orphan, duplicate, invalid and missing source fail closed');

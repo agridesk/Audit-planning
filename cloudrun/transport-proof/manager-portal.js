@@ -1368,6 +1368,14 @@ close.onclick=function(){panel.hidden=true};search.oninput=render;filter.onchang
 })();
 
 try{var mailActionEvents20=new BroadcastChannel("ams-auditor-actions-20");mailActionEvents20.onmessage=function(e){if(e.data&&e.data.type==="AUDIT_ACTION_CONFIRMED"&&currentView==="open")loadOpen()}}catch(e){console.warn("[AUDITOR_ACTION_SYNC]",e)}
+function syncGridPrimaryNav20(){
+ const companies=document.getElementById('companyManagement20Panel');
+ const companyButton=document.getElementById('companyManagement20');
+ if(companyButton)companyButton.setAttribute('aria-pressed',companies&&!companies.hidden?'true':'false');
+}
+const companiesPanel20=document.getElementById('companyManagement20Panel');
+if(companiesPanel20)new MutationObserver(syncGridPrimaryNav20).observe(companiesPanel20,{attributes:true,attributeFilter:['hidden']});
+syncGridPrimaryNav20();
 const GRID_RETURN_STATE_KEY20='ams-fase12-grid-return';
 window.addEventListener('pagehide',function(){
  try{sessionStorage.setItem(GRID_RETURN_STATE_KEY20,JSON.stringify({

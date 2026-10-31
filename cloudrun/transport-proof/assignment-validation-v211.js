@@ -186,9 +186,9 @@ export function v211AssignmentHardCheck({
   requireCanonicalQualifications=false
 }={}){
   const reasons=[];
-  if(requireCanonicalQualifications===true&&qualificationRelations===undefined)reasons.push('CANONICAL_QUALIFICATIONS_NOT_LOADED');
+  if(requireCanonicalQualifications===true&&!Array.isArray(qualificationRelations))reasons.push('CANONICAL_QUALIFICATIONS_NOT_LOADED');
   if(v211CompanyIdentityAmbiguous(companyValues||[],companyUid,companyName))reasons.push('COMPANY_IDENTITY_AMBIGUOUS');
-  if(!v211AuditorQualified(auditorValues||[],catalog||[],scopeCodes||[],auditorEmail,requestedDates||[],requireCanonicalQualifications===true&&qualificationRelations===undefined?[]:qualificationRelations))reasons.push('AUDITOR_NOT_HARD_QUALIFIED');
+  if(!v211AuditorQualified(auditorValues||[],catalog||[],scopeCodes||[],auditorEmail,requestedDates||[],requireCanonicalQualifications===true&&!Array.isArray(qualificationRelations)?[]:qualificationRelations))reasons.push('AUDITOR_NOT_HARD_QUALIFIED');
   const exclusions=v211CompanyAuditorExclusions(companyValues||[],companyUid,companyName);
   const identityRow=v211AuditorRowByIdentity(auditorValues||[],auditorEmail);
   const identityHeader=(auditorValues||[])[0]||[];

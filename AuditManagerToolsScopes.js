@@ -151,7 +151,7 @@ function m5t_scope20CanonicalPreassignmentCheck_(ss, email, selectedScopes, defs
   if(!auditors.length||!relations.length)return {success:false,error:'CANONICAL_QUALIFICATION_SCHEMA_UNAVAILABLE'};
   var ah=auditors[0],rh=relations[0],ae=index(ah,'E-mail'),au=index(ah,'Auditor_UID'),active=index(ah,'Active'),role=index(ah,'Role');
   var ru=index(rh,'Auditor_UID'),rs=index(rh,'ScopeCode'),rq=index(rh,'Qualified');
-  if([ae,au,ru,rs,rq].some(function(x){return x<0;}))return {success:false,error:'CANONICAL_QUALIFICATION_SCHEMA_INCOMPLETE'};
+  if([ae,au,active,role,ru,rs,rq].some(function(x){return x<0;}))return {success:false,error:'CANONICAL_QUALIFICATION_SCHEMA_INCOMPLETE'};
   var matches=auditors.slice(1).filter(function(row){return key(row[ae])===key(email);});
   if(matches.length!==1||!norm(matches[0][au]))return {success:false,error:'CANONICAL_AUDITOR_UID_AMBIGUOUS'};
   var target=matches[0],uid=norm(target[au]);
@@ -164,13 +164,14 @@ function m5t_scope20CanonicalPreassignmentCheck_(ss, email, selectedScopes, defs
     if(!id||!mail||knownUid[id]||knownEmail[mail])return {success:false,error:'CANONICAL_AUDITOR_IDENTITY_DUPLICATE'};
     knownUid[id]=true;knownEmail[mail]=true;
   }
-  var aliases={},validCodes={};
+  var aliases={},validCodes={},aliasConflict=false;
   (defs||[]).forEach(function(def){
     var code=key(def.scopeCode);
     if(!code)return;
     validCodes[code]=true;
-    [def.scopeCode,def.scope,def.slotKey].forEach(function(alias){if(key(alias))aliases[key(alias)]=code;});
+    [def.scopeCode,def.scope,def.slotKey].forEach(function(alias){var k=key(alias);if(!k)return;if(aliases[k]&&aliases[k]!==code)aliasConflict=true;else aliases[k]=code;});
   });
+  if(aliasConflict)return {success:false,error:'CANONICAL_SCOPE_ALIAS_AMBIGUOUS'};
   var selected={};
   (selectedScopes||[]).forEach(function(item){
     if(!item||!(item.enabled===true||key(item.enabled)==='true'))return;

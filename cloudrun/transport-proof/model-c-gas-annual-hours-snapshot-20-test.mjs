@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 const code=readFileSync(new URL('../../ModelCAnnualHoursSnapshot20.js',import.meta.url),'utf8');
 const annual=readFileSync(new URL('../../ModelCAnnualCycleRuntime.js',import.meta.url),'utf8');
-const env={PropertiesService:{getScriptProperties:()=>({getProperty:()=>null})}};
+const env={Date,PropertiesService:{getScriptProperties:()=>({getProperty:()=>null})}};
 runInNewContext(code,env);
 const spreadsheet={getId:()=> '1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs',getSheetByName:name=>{
  const values=name==='Company_Scope_Hours'?overrides:name==='ScopeVersions'?versions:null;
@@ -16,6 +16,10 @@ const headers=['Formal_Hours','Formal_Hours_Source','Scope_Version_ID','Company_
 const source=env.ModelCAnnualHoursSnapshot20_sources_(spreadsheet,company,headers);
 const item={companyScopeId:'CS-1',scopeCode:'MPS-GAP',cycleKey:'2027-01-01',formalHours:6};
 const snap=env.ModelCAnnualHoursSnapshot20_buildNew_(source,item,'COMP-1','2026-10-31T10:00:00.000Z');
+const sourceWithDates={...source,overrides:[{...source.overrides[0],EffectiveFrom:new Date(2026,0,1),EffectiveTo:new Date(2027,11,31)}],versions:[{...source.versions[0],Effective_From:new Date(2026,0,1)}]};
+assert.equal(env.ModelCAnnualHoursSnapshot20_buildNew_(sourceWithDates,item,'COMP-1','2026-10-31T10:00:00.000Z').Formal_Hours,6,'Native Sheets Date cells remain valid');
+assert.throws(()=>env.ModelCAnnualHoursSnapshot20_buildNew_(source,{...item,cycleKey:'2027-02-30'},'COMP-1','2026-10-31T10:00:00.000Z'),/CYCLE_DATE_INVALID/);
+assert.throws(()=>env.ModelCAnnualHoursSnapshot20_buildNew_({...source,versions:[{...source.versions[0],Effective_From:'2027-02-30'}]},item,'COMP-1','2026-10-31T10:00:00.000Z'),/DATE_INVALID/);
 assert.equal(snap.Formal_Hours,6);
 assert.equal(snap.Scope_Version_ID,'SV1');
 assert.equal(snap.Formal_Hours_Source,'COMPANY_OVERRIDE');

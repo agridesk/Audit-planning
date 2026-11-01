@@ -32,7 +32,7 @@ function ECAS20_QueueCommittedLifecycle_(action,ctx,payload,result){
   var record=prior[0],p=record.payload;
   var before={auditId:auditId,communicatedToEcas:true,communicationId:record.receipt,company:p.company,mpsNumber:p.mpsNumber,auditorUid:p.auditorUid,auditorName:p.auditorName||'',auditorEmail:p.auditorEmail||'',scopes:p.scopes,blocks:p.blocks,plannedDates:p.plannedDates||[],planningJson:p.planningJson||'',plannedHours:p.plannedHours,version:record.receipt};
   var after={auditId:auditId,version:String(result.transitionId||result.sourceRevision||result.afterStatus||result.newStatus||'COMMITTED')};
-  if(after.version===before.version)after.version='COMMITTED_'+action;
+  if(!after.version||after.version===before.version)return {ok:false,queued:false,reason:'COMMITTED_VERSION_NOT_DISTINCT'};
   // Dedup before writing; same prior receipt + action may never be queued twice.
   for(var j=1;j<values.length;j++){
     var row=values[j];if(String(row[c.audit]||'').trim()!==auditId||String(row[c.type]||'').trim()!==eventKey)continue;

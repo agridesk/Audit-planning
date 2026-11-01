@@ -38,3 +38,4 @@ jobs:
           node model-c-scope-extension-data-audit-20-test.mjs
           node model-c-scope-extension-backup-evidence-20-test.mjs
           node model-c-scope-extension-dossier-route-test.mjs
+          node model-c-scope-extension-sheets-projector-20-test.mjs

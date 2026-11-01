@@ -21,7 +21,7 @@ export function createScopeExtensionCommand20({store,policyResolver,contextResol
   const ctx=await contextResolver({auditId:body.auditId,companyUid:body.companyUid,obligationId:body.obligationId});
   if(!ctx||ctx.companyUid!==body.companyUid||ctx.auditId!==body.auditId||ctx.lifecycleStatus!=='PENDING_PLANNING'||!Array.isArray(ctx.obligations)||!ctx.obligations.length||ctx.obligations.length>1000)throw Error('EXT_CONTEXT_NOT_ELIGIBLE');
   const selected=ctx.obligations.filter(o=>o.obligationId===body.obligationId);
-  if(selected.length!==1||selected[0].linkState!=='ACTIVE'||selected[0].triggerSource==='ECAS'||selected[0].companyUid!==body.companyUid)throw Error('EXT_OBLIGATION_NOT_ELIGIBLE');
+  if(selected.length!==1||selected[0].linkState!=='ACTIVE'||(selected[0].triggerSource==='ECAS'||selected[0].expiryManaged===false)||selected[0].companyUid!==body.companyUid)throw Error('EXT_OBLIGATION_NOT_ELIGIBLE');
   const policy=body.command==='apply'?await policyResolver({scopeCode:selected[0].scopeCode,companyUid:body.companyUid,obligationId:body.obligationId}):null;
   const requestDigest=digest({action:body.command,auditId:body.auditId,companyUid:body.companyUid,obligationId:body.obligationId,extensionTransactionId:body.extensionTransactionId||'',expectedRevision:body.expectedRevision,actorUid:actor.uid});
   return store.runAtomic({

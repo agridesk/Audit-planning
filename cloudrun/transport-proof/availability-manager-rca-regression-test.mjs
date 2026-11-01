@@ -22,7 +22,7 @@ el('filterDate').value='2027-01-01';vm.runInContext('renderOverview(data)',ctx);
 data.uncertainAuditorIds=['a'];data.outsidePeriodAuditDiagnostics=[{company:'Old <Company>',plannedDate:'2026-03-31',auditId:'NEVER_RENDER_UID'}];
 vm.runInContext('renderOverview(data)',ctx);
 assert.match(el('comparison').innerHTML,/No auditors match these filters on 2026-11-04/);assert.doesNotMatch(el('comparison').innerHTML,/<tr><th>2026-/);
-assert.match(el('review').innerHTML,/outside this period/);assert.match(el('review').innerHTML,/Old &lt;Company&gt;/);assert.doesNotMatch(el('review').innerHTML,/NEVER_RENDER_UID/);
+assert.match(el('review').innerHTML,/outside selected period/);assert.match(el('review').innerHTML,/Old &lt;Company&gt;/);assert.doesNotMatch(el('review').innerHTML,/NEVER_RENDER_UID/);
 el('availabilityFilter').value='all';vm.runInContext('renderOverview(data)',ctx);assert.match(el('comparison').innerHTML,/Availability uncertain/);assert.doesNotMatch(el('comparison').innerHTML,/Free 10/);
 data.outsidePeriodAuditDiagnostics=[];data.uncertainAuditorIds=[];vm.runInContext('renderOverview(data)',ctx);assert.equal(el('review').innerHTML,'');
 // Re-render uses the loaded data, including diagnostics, rather than edited range inputs.

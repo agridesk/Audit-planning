@@ -37,15 +37,14 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
  }
  async function reviewDiagnostics(items,auditorIds,fromDate,toDate,{manager=false}={}){
   const roster=await listCanonicalAuditors(),allowed=new Set(auditorIds);
-  const emailOwners=new Map(roster.map(a=>[clean(a.email).toLowerCase(),clean(a.auditorId)]));
   const known=new Set(roster.map(a=>clean(a.auditorId)));
   const current=[],historical=[],uncertain=new Set();let unknownOwner=false;
   for(const item of items){
    // An explicit undated transfer is a workflow task, not a calendar reservation.
    if(item.unplannedTransfer)continue;
-   const uid=clean(item.auditorUid),emailUid=emailOwners.get(clean(item.assignedEmail).toLowerCase())||'';
-   const conflict=uid&&(!known.has(uid)||(emailUid&&uid!==emailUid));
-   const owner=conflict?'':uid||emailUid;
+   const uid=clean(item.auditorUid);
+   // Auditor_UID is the only canonical owner. Email must never reassign history.
+   const owner=uid&&known.has(uid)?uid:'';
    // This mirrors the existing mutation guard: undated, unassigned provisional
    // work has no occupied slot to protect. Do not invent a reservation.
    const state=clean(item.status).toLowerCase().replace(/[\s_-]+/g,'');

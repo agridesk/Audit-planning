@@ -10,4 +10,8 @@ const server=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 assert.ok(server.includes('/api/v1/manager/model-c-visit-preview'));
 assert.ok(server.includes('previewModelCVisitComposition20({auditId'));
 assert.ok(server.includes('if(actor?.role!==\'manager\')'));
+const grid=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+assert.ok(grid.includes('scope-preview20'));
+assert.ok(grid.includes('showScopePreview20(button)'));
+assert.ok(grid.includes('Together/separately planning is not yet enabled.'));
 console.log('Model C scope preview OK');

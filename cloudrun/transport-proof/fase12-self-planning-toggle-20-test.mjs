@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const backend=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+const grid=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+for(const marker of ['directManagerSelfPlanning20','/api/v1/manager/self-planning-direct','SELF_PLANNING_ONLY_PENDING_PLANNING','STALE_AUDIT_REVISION','SELF_PLANNING_COLUMN_MISSING','withDirectManagerActionLock(auditId'])assert.ok(backend.includes(marker),marker);
+assert.ok(backend.includes("typeof value!=='boolean'"));
+assert.ok(grid.includes('self-planning-toggle20'));
+assert.ok(grid.includes('toggleSelfPlanning20(button)'));
+assert.ok(grid.includes('sourceRevision:result.sourceRevision'));
+console.log('Manager self planning source contracts OK');

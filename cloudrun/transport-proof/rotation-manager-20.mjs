@@ -11,7 +11,7 @@ export function buildRotationManager20(scopes,auditors,log,{includeTestData=fals
  const configured=new Map(),columns=new Map();
  for(const r of scopes.slice(1)){const s=clean(r[slot]);if(!s)continue;if(!/^SCOPE_(?:0[1-9]|1[0-9]|20)$/.test(s)||configured.has(s))throw Error('ROTATION_MANAGER_SCOPE_INVALID');const enabled=truth(r[active])&&!truth(r[archived]);const applicable=truth(r[applies]);const n=Number(r[max]);if(enabled&&applicable&&(!Number.isSafeInteger(n)||n<1))throw Error('ROTATION_MANAGER_POLICY_INVALID');configured.set(s,{slot:s,scope:clean(r[name]),code:clean(r[code]),maximum:enabled&&applicable?n:null,active:enabled});}
  for(const [s,v] of configured){const i=index(lh,s);if(i>=0)columns.set(s,i);}
- const people=new Map();for(const r of auditors.slice(1)){const uid=clean(r[ai.uid]);if(uid)people.set(uid,{name:clean(r[ai.name])||clean(r[ai.email]),email:clean(r[ai.email])});}
+ const people=new Map();for(const r of auditors.slice(1)){const uid=clean(r[ai.uid]);if(uid)people.set(uid,{name:clean(r[ai.name])||(ai.email>=0?clean(r[ai.email]):'')||uid,email:ai.email>=0?clean(r[ai.email]):''});}
  const groups=new Map(),issues=[];const currentYear=new Date().getUTCFullYear();
  for(let rowNumber=1;rowNumber<log.length;rowNumber++){
   const r=log[rowNumber];if(!/^(completed|realized)$/i.test(clean(r[li.status])))continue;

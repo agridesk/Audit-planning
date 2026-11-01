@@ -4,6 +4,9 @@ on:
     branches: [dev]
     paths:
       - "cloudrun/transport-proof/model-c-scope-extension-*.mjs"
+      - "cloudrun/transport-proof/server-r4.js"
+      - "cloudrun/transport-proof/manager-portal.js"
+      - "ModelCAnnualCycleRuntime.js"
       - "cloudrun/transport-proof/package.json"
       - ".github/workflows/ams-fase7-dev-validation.yml"
   workflow_dispatch:

@@ -1525,6 +1525,11 @@ function directEcasRecipientFromConfig20(event,configRows,auditorRows){
  const m=clean(rows[0][mode]).toUpperCase(),t=clean(rows[0][target]);
  if(['EMAIL','FIXED','STATIC','SPECIFIC_EMAIL'].includes(m)&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t))return t.toLowerCase();
  if((m==='MANAGER'||m==='ROLE'||m==='ROLE_MANAGER')&&(!t||t.toUpperCase()==='MANAGER'))return canonicalManagerRecipient(auditorRows||[]);
+ if(m==='EXTERNAL_ECAS'&&t.toUpperCase()==='EXTERNAL_ECAS'){
+  const configured=clean(process.env.ECAS_DEFAULT_EMAIL);
+  if(configured&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(configured))return configured.toLowerCase();
+  return canonicalManagerRecipient(auditorRows||[]);
+ }
  return '';
 }
 function directPrepareEcasLifecycle20({auditId,action,reason,queueRows,auditorRows,configRows,transitionId}){

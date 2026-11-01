@@ -764,7 +764,7 @@ async function saveScopeCosmetic20(body){
 async function directManagerSelfPlanning20(identity,body){
  if(process.env.AMS_RUNTIME_ENV==='PROD')throw Error('PROD_SELF_PLANNING_WRITER_NOT_ENABLED');
  const auditId=clean(body?.auditId),expectedRevision=clean(body?.expectedRevision),value=body?.allowSelfPlanning,expectedValue=body?.expectedAllowSelfPlanning;
- if(!auditId||!expectedRevision||typeof value!=='boolean')throw Error('SELF_PLANNING_INPUT_INVALID');
+ if(!auditId||!expectedRevision||(typeof value!=='boolean'||typeof expectedValue!=='boolean'))throw Error('SELF_PLANNING_INPUT_INVALID');
  return withDirectManagerActionLock(auditId,async()=>{
   const result=await sheetsBatchGet(['Audit planning!A1:BW2000']);
   const values=result[0]?.values||[];

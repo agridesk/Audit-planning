@@ -1607,7 +1607,7 @@ async function directManagerCancel(identity,body,auditorMode=false){
       const bodyText=[auditorMode?'Audit cancelled by auditor':'Audit cancelled by manager','Company: '+company,'Audit ID: '+auditId,'Comment: '+reason].join('\\n'),hash=createHash('md5').update(notificationEmail+'|'+(auditorMode?'AUDIT_CANCELLED_BY_AUDITOR':'AUDIT_CANCELLED_BY_MANAGER')+'|'+auditId+'|'+now).digest('hex');
       queueRows.push([minuteStamp,'PENDING',auditorMode?'AUDIT_CANCELLED_BY_AUDITOR':'AUDIT_CANCELLED_BY_MANAGER',notificationEmail,auditId,company,(auditorMode?'Audit cancelled by auditor – ':'Audit cancelled by manager – ')+company+' – '+auditId,bodyText,0,'',hash,'',JSON.stringify({payload:cancelPayload})]);
     }
-    const ecasQueueRow=directEcasLifecycleQueueRow20(ecasLifecycle,{auditId,action:'CANCEL',company,now});if(ecasQueueRow)queueRows.push(ecasQueueRow);
+    const ecasQueueRow=directEcasLifecycleQueueRow20(ecasLifecycle,{auditId,action:'CANCEL',company,now,configRows:vr[4]?.values||[]});if(ecasQueueRow)queueRows.push(ecasQueueRow);
     let sideEffectQueue={success:true};const sideStarted=Date.now();try{await sheetsValuesAppend('Notification Queue!A:M',queueRows);}catch(e){sideEffectQueue={success:false,error:clean(e?.message||e)}}
     const sideEffectMs=Date.now()-sideStarted;
     return{success:true,auditId,action:'CANCEL',beforeStatus,newStatus:'Pending Planning',afterStatus:'PENDING_PLANNING',afterStatusDisplay:'Pending Planning',assignedTo:'',planningJson:'',hoursPlanned:0,sourceRevision:directRowRevision(h,row),directCommit:true,owner:auditorMode?'CLOUD_RUN_DIRECT_AUDITOR_CANCEL':'CLOUD_RUN_DIRECT_MANAGER_CANCEL',readMs,writeMs,writeCount:writes.length,availabilityRows,sideEffectMs,sideEffectQueue,ecasLifecycle:{eligible:ecasLifecycle.eligible===true,reason:ecasLifecycle.reason||'',queued:!!ecasQueueRow&&sideEffectQueue.success===true},totalMs:Date.now()-started};
@@ -1642,7 +1642,7 @@ async function directManagerReject(identity,body){
       if(already){
         const archived=rejected.slice(1).find(r=>val(r,rAuditId)===auditId),archiveReason=val(archived,col(rh,['Reason / Comment'])),archiveDate=val(archived,col(rh,['Date - Rejected'])),archiveCompany=val(archived,col(rh,['Company']));
         const ecasLifecycle=archiveReason?directPrepareEcasLifecycle20({auditId,action:'REJECT',reason:archiveReason,queueRows:vr[9]?.values||[],auditorRows:vr[2]?.values||[],transitionId:auditId+'|REJECT|'+archiveDate}):{eligible:false,reason:'ARCHIVED_REJECT_REASON_MISSING'};
-        const recoveryRow=directEcasLifecycleQueueRow20(ecasLifecycle,{auditId,action:'REJECT',company:archiveCompany,now:isoLocalStamp()});
+        const recoveryRow=directEcasLifecycleQueueRow20(ecasLifecycle,{auditId,action:'REJECT',company:archiveCompany,now:isoLocalStamp(),configRows:vr[10]?.values||[]});
         if(recoveryRow)await sheetsValuesAppend('Notification Queue!A:M',[recoveryRow]);
         return{success:true,idempotent:true,auditId,action:'REJECT',newStatus:'Rejected',afterStatus:'REJECTED',afterStatusDisplay:'Rejected',directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_REJECT',ecasLifecycle:{eligible:ecasLifecycle.eligible===true,recovered:!!recoveryRow,reason:ecasLifecycle.reason||''},readMs,totalMs:Date.now()-started};
       }
@@ -1744,7 +1744,7 @@ async function directManagerReject(identity,body){
       const bodyText=['Audit rejected by manager','Company: '+company,'Audit ID: '+auditId,'Scopes: '+[...rejectedScopeCodes].join(', '),'Comment: '+reason].join('\\n'),hash=createHash('md5').update(recipientEmail+'|AUDIT_REJECTED_BY_MANAGER|'+auditId+'|'+now).digest('hex');
       queueRows.push([minuteStamp,'PENDING','AUDIT_REJECTED_BY_MANAGER',recipientEmail,auditId,company,'Audit rejected by manager – '+company+' – '+auditId,bodyText,0,'',hash,'',JSON.stringify({payload})]);
     }
-    const ecasQueueRow=directEcasLifecycleQueueRow20(ecasLifecycle,{auditId,action:'REJECT',company,now});if(ecasQueueRow)queueRows.push(ecasQueueRow);
+    const ecasQueueRow=directEcasLifecycleQueueRow20(ecasLifecycle,{auditId,action:'REJECT',company,now,configRows:vr[10]?.values||[]});if(ecasQueueRow)queueRows.push(ecasQueueRow);
     let sideEffectQueue={success:true};const sideStarted=Date.now();try{await sheetsValuesAppend('Notification Queue!A:M',queueRows);}catch(e){sideEffectQueue={success:false,error:clean(e?.message||e)}}const sideEffectMs=Date.now()-sideStarted;
 
     return{success:true,auditId,action:'REJECT',beforeStatus,newStatus:'Rejected',afterStatus:'REJECTED',afterStatusDisplay:'Rejected',reason,directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_REJECT',scopesRejected:[...rejectedScopeCodes],companyScopesDeactivated:companyScopeWrites.length,obligationsRejected:obligationWrites.length,availabilityRows,archiveMs,archiveAlready,writeMs,deleteMs,sideEffectMs,sideEffectQueue,ecasLifecycle:{eligible:ecasLifecycle.eligible===true,reason:ecasLifecycle.reason||'',queued:!!ecasQueueRow&&sideEffectQueue.success===true},readMs,totalMs:Date.now()-started};

@@ -1929,6 +1929,8 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
   }
   if(u.pathname==='/api/v1/planning/rotation-direct'&&req.method==='GET'){const sess=await sessionFromRequestValidated(req);if(!sess)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});if(!['manager','auditor'].includes(clean(sess.role).toLowerCase()))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});const auditId=clean(u.searchParams.get('auditId')),auditorEmail=clean(u.searchParams.get('auditorEmail')).toLowerCase();if(!auditId||!auditorEmail)return send(res,400,{ok:false,error:'ROTATION_REQUIRED_FIELDS_MISSING'});if(clean(sess.role).toLowerCase()==='auditor'&&auditorEmail!==clean(sess.email).toLowerCase())return send(res,403,{ok:false,error:'AUDITOR_CANNOT_CHECK_OTHER_AUDITOR'});try{return send(res,200,await directRotationRead(auditId,auditorEmail));}catch(e){return send(res,500,{ok:false,error:'DIRECT_ROTATION_READ_FAILED',detail:clean(e?.message||e)});}}
   if(u.pathname==='/api/v1/manager/self-planning-direct'&&req.method==='POST'){
+    if(process.env.AMS_RUNTIME_ENV!=='DEV')return send(res,404,{ok:false,error:'DEV_ONLY'});
+    const requestOrigin=clean(req.headers.origin);if(requestOrigin){let origin;try{origin=new URL(requestOrigin)}catch{return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'})}if(origin.host!==clean(req.headers.host))return send(res,403,{ok:false,error:'ORIGIN_FORBIDDEN'});}
     const s=await sessionFromRequestValidated(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(s.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
     let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>4096)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});

@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {findVerifiedEcasReceipt20} from './ecas-delivery-receipt-20.mjs';
 import {buildEcasLifecycleOutbox20} from './ecas-lifecycle-outbox-20.mjs';
 const source=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
-const start=source.indexOf('function directPrepareEcasLifecycle20('),end=source.indexOf('async function directManagerCancel(',start);
+const start=source.indexOf('function directEcasRecipientFromConfig20('),end=source.indexOf('async function directManagerCancel(',start);
 assert.ok(start>=0&&end>start);
 const fragment=source.slice(start,end);
 const col=(h,n)=>h.findIndex(x=>n.includes(x));

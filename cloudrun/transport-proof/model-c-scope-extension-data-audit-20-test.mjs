@@ -12,4 +12,10 @@ const bad=audit({obligations,links:[...links,{Audit_ID:'A1',Obligation_ID:'MISSI
 assert(bad.issues.some(x=>x.code==='LINK_MISSING_OBLIGATION'));
 assert(bad.issues.some(x=>x.code==='DUPLICATE_ACTIVE_LINK'));
 assert.throws(()=>audit({obligations,links:null,planningRows:[]}),/EXT_DATA_AUDIT_INPUT_REQUIRED/);
+const dmy=obligations.map(x=>({...x,Base_Expiry_Date:'31/01/2027',Effective_Expiry_Date:'31/01/2027',Planning_Window_From:'01/12/2026',Planning_Window_To:'31/01/2027'}));
+const dmyResult=audit({obligations:dmy,links,planningRows:[{'Audit ID':'A1'}]});
+assert.equal(dmyResult.status,'STRUCTURALLY_ELIGIBLE_FOR_FURTHER_VERIFICATION');
+assert.equal(dmyResult.issues.length,0);
+const invalidDmy=dmy.map((x,i)=>i?x:{...x,Base_Expiry_Date:'31/02/2027'});
+assert(audit({obligations:invalidDmy,links,planningRows:[{'Audit ID':'A1'}]}).issues.some(x=>x.code==='OBLIGATION_DATE_INVALID'));
 console.log('PASS Model C read-only audit: 20 scopes, history quarantine, lineage validation');

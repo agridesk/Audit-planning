@@ -50,13 +50,13 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
    const state=clean(item.status).toLowerCase().replace(/[\s_-]+/g,'');
    if(state==='pendingapproval'&&!clean(item.plannedDate)&&!clean(item.assignedEmail)&&!uid)continue;
    if(owner&&!allowed.has(owner))continue;
-   if(!owner&&!manager){unknownOwner=true;continue;} // Flag uncertainty without disclosing audit details.
    const plannedDate=clean(item.plannedDate);
    const validDate=/^\d{4}-\d{2}-\d{2}$/.test(plannedDate)&&Number.isFinite(Date.parse(plannedDate+'T00:00:00Z'))&&new Date(plannedDate+'T00:00:00Z').toISOString().slice(0,10)===plannedDate;
    const entry={auditId:item.auditId,status:item.status,code:item.code,company:clean(item.company)||'Company not recorded',plannedDate:validDate?plannedDate:'',auditorId:owner};
    // A declared date outside the requested period is not a missing slot in that
    // period. Keep it separately visible: it cannot prove a full multi-day plan.
    const outside=validDate&&(plannedDate<fromDate||plannedDate>toDate);
+   if(!owner&&!manager){if(!outside)unknownOwner=true;continue;} // Never disclose other auditors' audits.
    // Historical dated records remain reviewable but do not taint this period's
    // read-only selection. Mutation validation remains fail-closed globally.
    if(!outside){if(owner)uncertain.add(owner);else unknownOwner=true;}

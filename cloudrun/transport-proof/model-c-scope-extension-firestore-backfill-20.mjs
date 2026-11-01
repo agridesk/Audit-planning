@@ -20,7 +20,7 @@ export function planScopeExtensionFirestoreBackfill20({obligations,visitLinks,pl
  }
  for(const [auditId,ids] of linksByAudit){const a=audits.get(auditId),companyUid=str(a.Company_UID),status=normalStatus(a.Status);
   if(!companyUid){fatal.push({code:'AUDIT_COMPANY_UID_MISSING',auditId});continue}
-  const localPolicy={};let valid=true;
+  const localPolicy={},stagedDocs=[],stagedWarnings=[];let valid=true;
   for(const id of ids){const o=obs.get(id),scopeCode=str(o.ScopeCode),triggerSource=str(o.Trigger_Source),external=triggerSource.toUpperCase()==='ECAS';
    if(str(o.Company_UID)!==companyUid||!scopeCode){fatal.push({code:'OBLIGATION_LINEAGE_CONFLICT',auditId,obligationId:id});valid=false;continue}
    const base=date(o.Base_Expiry_Date),effective=date(o.Effective_Expiry_Date),from=date(o.Planning_Window_From),to=date(o.Planning_Window_To);
@@ -28,10 +28,10 @@ export function planScopeExtensionFirestoreBackfill20({obligations,visitLinks,pl
    if(!external&&policy[scopeCode]===undefined){fatal.push({code:'SCOPE_POLICY_MISSING',auditId,scopeCode});valid=false;continue}
    if(policy[scopeCode])localPolicy[scopeCode]=policy[scopeCode];
    const applied=yes(o.Extension_Applied),metadata=str(o.Extension_Metadata_JSON);
-   if(applied)warnings.push({code:'LEGACY_EXTENSION_UNDO_QUARANTINED',auditId,obligationId:id});
-   docs.push({obligationId:id,auditId,companyUid,scopeCode,triggerSource,linkState:'ACTIVE',revision:0,pendingProjectionId:'',baseExpiry:base,effectiveExpiry:effective,windowFrom:from,windowTo:to,extensionApplied:applied,extensionMetadata:metadata,legacyUndoQuarantined:applied,source:'SHEETS_MODEL_C_DEV_BACKFILL'});
+   if(applied)stagedWarnings.push({code:'LEGACY_EXTENSION_UNDO_QUARANTINED',auditId,obligationId:id});
+   stagedDocs.push({obligationId:id,auditId,companyUid,scopeCode,triggerSource,linkState:'ACTIVE',revision:0,pendingProjectionId:'',baseExpiry:base,effectiveExpiry:effective,windowFrom:from,windowTo:to,extensionApplied:applied,extensionMetadata:metadata,legacyUndoQuarantined:applied,source:'SHEETS_MODEL_C_DEV_BACKFILL'});
   }
-  if(valid)contexts.push({auditId,companyUid,lifecycleStatus:status,obligationIds:ids,policyByScope:localPolicy,writerFenceVerified:false,revision:0});
+  if(valid){docs.push(...stagedDocs);warnings.push(...stagedWarnings);contexts.push({auditId,companyUid,lifecycleStatus:status,obligationIds:ids,policyByScope:localPolicy,writerFenceVerified:false,revision:0});}
  }
  const duplicateDocs=docs.length-new Set(docs.map(x=>x.obligationId)).size;if(duplicateDocs)fatal.push({code:'DUPLICATE_BACKFILL_DOCUMENT',count:duplicateDocs});
  return{readOnly:true,cutoverApproved:false,seedPermitted:false,readyForManualReconciliation:fatal.length===0,counts:{auditContexts:contexts.length,obligations:docs.length,legacyUndoQuarantined:warnings.length},fatal,warnings,documents:docs,auditContexts:contexts};

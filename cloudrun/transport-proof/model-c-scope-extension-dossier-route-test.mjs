@@ -27,6 +27,8 @@ assert(server.includes("u.pathname==='/api/v1/manager/extension-reconcile-projec
 assert(server.includes('createScopeExtensionSheetsAdapter20({batchGet:sheetsBatchGet,batchWrite:sheetsValuesBatchUpdateRaw,cutoverVerified:true})'));
 assert(server.includes('createScopeExtensionSheetsProjector20({store,sheets,cutoverVerified:true})'));
 assert(server.includes('EXT_PROJECTION_RECOVERY_FAILED'));
+assert.equal(server.split("error:'EXT_ORIGIN_REQUIRED'").length-1,2);
+assert.equal(server.split("error:'EXT_ORIGIN_FORBIDDEN'").length-1,4);
 assert(server.includes('verifiedAuditorLockDevProject()'));
 assert(server.includes("process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true'"));
 assert.equal(server.split('LEGACY_OBLIGATION_LIFECYCLE_WRITER_FENCED').length-1,2);

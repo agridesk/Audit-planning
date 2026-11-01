@@ -1523,6 +1523,10 @@ function directPrepareEcasLifecycle20({auditId,action,reason,queueRows,auditorRo
  let verified;try{verified=findVerifiedEcasReceipt20({auditId,queueRows,expectedRecipient:recipient});}
  catch(e){return{eligible:false,reason:clean(e?.message||e)}}
  if(!verified.verified)return{eligible:false,reason:verified.reason};
+ const event=action==='REJECT'?'ECAS_AUDIT_REJECTED_DIGEST':'ECAS_AUDIT_CANCELLED_DIGEST';
+ const qh=queueRows?.[0]||[],qt=col(qh,['Type']),qa=col(qh,['Audit ID']),qm=col(qh,['Reserved']);
+ if(qt>=0&&qa>=0&&qm>=0)for(const qr of queueRows.slice(1)){if(clean(qr[qt])!==event||clean(qr[qa])!==auditId)continue;let old;try{const raw=JSON.parse(clean(qr[qm]));old=raw.payload||raw;}catch{continue}if(clean(old.originalEcasCommunicationId||old.priorDeliveryReceipt)===verified.receipt)return{eligible:false,reason:'ECAS_LIFECYCLE_ALREADY_QUEUED'};}
+
  const outbox=buildEcasLifecycleOutbox20({auditId,action,reason,transitionId,committedTransition:{committed:true,auditId,action},previousCommunication:{verified:true,receipt:verified.receipt,recipientEmail:recipient,schedule:verified.schedule}});
  return{eligible:outbox.required===true,receipt:verified.receipt,sourceRow:verified.sourceRow,outbox};
 }

@@ -20,6 +20,6 @@ assert(ui.includes('var swap20PairDisplayNumbers=new Map()')&&ui.includes("retur
 assert(ui.includes('function extensionControls(r)')&&r10.includes("process.env.AMS_RUNTIME_ENV==='DEV'")&&r10.includes("'/api/v1/manager/open'"),'EXT enriched from direct DEV read');
 assert(r4.includes('exts.every(n=>n>0)')&&r10.includes('months.every(n=>n>0)'),'EXT strictest scope policy');
 assert(ui.includes('selectionExcel()')&&ui.includes('selectionPdf()'),'Grid exports');
-assert(ui.includes('Executed on')&&ui.includes('Completed date'),'Two completed dates');
+assert(ui.includes('Audit date')&&ui.includes('Completed date'),'Two completed dates');
 new vm.Script(ui);
 console.log('PASS Fase 1.2 integrated source contracts: rotation, companies, badges, nav, filter/reset, swaps, EXT/UNDO, export, completed dates');

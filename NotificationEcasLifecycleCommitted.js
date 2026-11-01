@@ -2,9 +2,9 @@
 // Never trusts a caller-supplied prior schedule; reads a persisted SENT digest.
 function ECAS20_SentEpoch_(value){
  if(value instanceof Date)return value.getTime();
- var s=String(value||'').trim(),m=s.match(/^(\\d{2})[-/](\\d{2})[-/](\\d{4})(?:[ T](\\d{2}):(\\d{2})(?::(\\d{2}))?)?$/);
+ var s=String(value||'').trim(),m=s.match(/^(\d{2})[-/](\d{2})[-/](\d{4})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/);
  if(m)return Date.UTC(+m[3],+m[2]-1,+m[1],+(m[4]||0),+(m[5]||0),+(m[6]||0));
- if(/^\\d{4}-\\d{2}-\\d{2}/.test(s)||/^[A-Za-z]{3} /.test(s))return Date.parse(s);
+ if(/^\d{4}-\d{2}-\d{2}/.test(s)||/^[A-Za-z]{3} /.test(s))return Date.parse(s);
  return NaN;
 }
 function ECAS20_QueueCommittedLifecycle_(action,ctx,payload,result){

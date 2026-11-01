@@ -94,7 +94,9 @@ function showDay(day){
  const preferences=recurring.map(x=>'<div class="segment"><span>Normally unavailable (weekly)</span><span>'+esc(x.start+'–'+x.end)+'</span></div>').join('');
  const weekend=defaultWeekend?'<div class="segment"><span>Normally unavailable (weekend default)</span></div>':'';
  const hardSources=(S.metadata?.baselineExceptions||[]).filter(x=>(x.fromDate||x.date)<=day.date&&(x.toDate||x.fromDate||x.date)>=day.date);
- const hard=hardSources.map(x=>'<div class="segment"><span>Unavailable (HARD)</span><span>'+esc(x.wholeDay?'Whole day':(x.start+'–'+x.end))+'</span></div>').join('');
+ const fullDayHard=hardSources.some(x=>x.wholeDay===true||(x.start==='00:00'&&x.end==='24:00'));
+ const hardDisplay=fullDayHard?[{wholeDay:true}]:hardSources.filter((x,i,arr)=>arr.findIndex(y=>x.start===y.start&&x.end===y.end)===i);
+ const hard=hardDisplay.map(x=>'<div class="segment"><span>Unavailable (HARD)</span><span>'+esc(x.wholeDay?'Whole day':(x.start+'–'+x.end))+'</span></div>').join('');
  // A full-day HARD exception supersedes the weekly SOFT preference in
  // the presentation only. Both records remain intact in canonical storage.
  const hardCoversWholeDay=hardSources.some(x=>x.wholeDay===true||(x.start==='00:00'&&x.end==='24:00'));

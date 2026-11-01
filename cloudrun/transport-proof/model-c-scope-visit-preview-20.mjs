@@ -1,5 +1,5 @@
 const clean=x=>String(x??'').trim();
-const norm=x=>clean(x).toLowerCase().replace(/[\\s_-]+/g,'');
+const norm=x=>clean(x).toLowerCase().replace(/[^a-z0-9]+/g,'');
 const col=(h,...names)=>names.map(n=>h.findIndex(x=>norm(x)===norm(n))).find(x=>x>=0)??-1;
 const field=(row,i)=>i<0?'':clean(row[i]);
 export function previewModelCVisitComposition20({auditId,obligations,links}){

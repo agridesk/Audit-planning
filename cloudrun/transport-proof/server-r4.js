@@ -1718,6 +1718,7 @@ async function directManagerReject(identity,body){
 
     const deleteStarted=Date.now();await sheetsDeleteRow('Audit planning',found.sourceRow);const deleteMs=Date.now()-deleteStarted;
 
+    const ecasLifecycle=directPrepareEcasLifecycle20({auditId,action:'REJECT',reason,queueRows:vr[9]?.values||[],auditorRows:vr[2]?.values||[],transitionId:auditId+'|REJECT|'+now});
     const trailPayload={type:'LIFECYCLE_STATUS_CHANGED',auditId,company,actorEmail,actorRole:'MANAGER',beforeStatus,afterStatus:'Rejected',reason,source:'CLOUD_RUN_DIRECT_MANAGER_REJECT',timestamp:now,action:'REJECT',scopes:[...rejectedScopeCodes]};
     const trailBody=JSON.stringify(trailPayload),trailHash=createHash('md5').update('LIFECYCLE_STATUS_CHANGED|'+auditId+'|'+now+'|Rejected').digest('hex');
     const queueRows=[[minuteStamp,'AUDIT_TRAIL','LIFECYCLE_STATUS_CHANGED','',auditId,company,'[TRAIL] LIFECYCLE_STATUS_CHANGED :: '+auditId,trailBody,0,'',trailHash,'',JSON.stringify({payload:trailPayload})]];

@@ -2,10 +2,10 @@ const clean=x=>String(x??'').trim();
 const key=x=>clean(x).toLowerCase().replace(/[^a-z0-9]/g,'');
 const col=(h,n)=>h.findIndex(x=>n.some(y=>key(x)===key(y)));
 function sentEpoch(x){
- const s=clean(x);if(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:?\\d{2})$/.test(s))return Date.parse(s);
- let m=s.match(/^(\\d{4})-(\\d{2})-(\\d{2})(?:[T ](\\d{2}):(\\d{2})(?::(\\d{2}))?)?$/);
+ const s=clean(x);if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\\.\d+)?(?:Z|[+-]\d{2}:?\d{2})$/.test(s))return Date.parse(s);
+ let m=s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?$/);
  if(m)return Date.UTC(+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0),+(m[6]||0));
- m=s.match(/^(\\d{2})[-/](\\d{2})[-/](\\d{4})(?:[ T](\\d{2}):(\\d{2})(?::(\\d{2}))?)?$/);
+ m=s.match(/^(\d{2})[-/](\d{2})[-/](\d{4})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/);
  if(m)return Date.UTC(+m[3],+m[2]-1,+m[1],+(m[4]||0),+(m[5]||0),+(m[6]||0));
  return Number.NaN;
 }

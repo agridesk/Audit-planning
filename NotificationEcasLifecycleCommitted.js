@@ -37,5 +37,5 @@ function ECAS20_QueueCommittedLifecycle_(action,ctx,payload,result){
     var e=existing&&existing.payload||existing||{};
     if(String(e.originalEcasCommunicationId||'').trim()===record.receipt)return {ok:true,queued:false,reason:'ALREADY_QUEUED_FOR_PRIOR_RECEIPT'};
   }
-  return ECAS20_SubmitVerifiedChangeCancel_({eventKey:eventKey,before:before,after:after,ecasComment:reason});
+  return ECAS20_SubmitVerifiedChangeCancel_({eventKey:eventKey,before:before,after:after,ecasComment:reason,idempotencyKey:'ECAS20|'+eventKey+'|'+auditId+'|'+record.receipt});
 }

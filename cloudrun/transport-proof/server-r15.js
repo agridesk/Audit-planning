@@ -226,7 +226,7 @@ const planningAtomicLifecycle=planningAtomicEnabled?createPlanningLifecycleAtomi
   const route=actor.role==='auditor'&&action==='ACCEPT'?'/api/v1/auditor/action':Object.keys(atomicLifecyclePaths).find(k=>atomicLifecyclePaths[k]===action);
   if(!route)throw Error('LIFECYCLE_ATOMIC_ROUTE_UNSUPPORTED');
   const r=await fetch('http://127.0.0.1:'+innerPort+route,{method:'POST',redirect:'manual',
-   headers:{'content-type':'application/json',cookie:String(actor.cookie||''),...(actor.role==='auditor'?{origin:runtime.origin}: {})},body:JSON.stringify(body)});
+   headers:{'content-type':'application/json',cookie:String(actor.cookie||''),...(actor.role==='auditor'?{origin:runtime.origin,host:new URL(runtime.origin).host}: {})},body:JSON.stringify(body)});
   const data=await r.json().catch(()=>null);
   if(!r.ok||data?.success!==true||data?.authorityPreflight!==true)throw Error('LIFECYCLE_ATOMIC_PREFLIGHT_FAILED_'+String(data?.error||r.status).slice(0,80));
   return data;
@@ -239,7 +239,7 @@ const planningMultiLifecycle=planningAtomicEnabled?createPlanningMultiLifecycleS
   const path=actor.role==='auditor'&&action==='COMPLETE'?'/api/v1/auditor/action':action==='REJECT'?'/api/v1/manager/reject-direct':'/api/v1/manager/complete-direct';
   const payload=path==='/api/v1/auditor/action'?{...body,action:'COMPLETE'}:body;
   const r=await fetch('http://127.0.0.1:'+innerPort+path,{method:'POST',redirect:'manual',
-   headers:{'content-type':'application/json',cookie:String(actor.cookie||''),...(actor.role==='auditor'?{origin:runtime.origin}:{})},
+   headers:{'content-type':'application/json',cookie:String(actor.cookie||''),...(actor.role==='auditor'?{origin:runtime.origin,host:new URL(runtime.origin).host}:{})},
    body:JSON.stringify(payload)});
   const data=await r.json().catch(()=>null);
   if(!r.ok||data?.authorityPreflight!==true||data?.success!==true)throw Error('PLANNING_MULTI_PREFLIGHT_FAILED_'+String(data?.error||r.status).slice(0,100));

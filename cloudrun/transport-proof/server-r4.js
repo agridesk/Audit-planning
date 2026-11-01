@@ -1026,7 +1026,17 @@ async function directManagerApprove(identity,body){
     if(beforeKey!=='PENDING_APPROVAL')throw new Error('STATUS_TRANSITION_BLOCKED');
     const revision=directRowRevision(h,row);if(expectedRevision&&revision!==expectedRevision)throw new Error('MANAGER_ACTION_SOURCE_REVISION_CONFLICT');
 
-    const assigned=val(row,col(h,['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned'])),recipientEmail=directResolveAuditorEmail(vr[1]?.values||[],assigned);
+    const assigned=val(row,col(h,['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned']));
+    const auditorValues=vr[1]?.values||[],auditorHeaders=auditorValues[0]||[];
+    const assignedUid=val(row,col(h,['Auditor_UID','Auditor UID','Assigned_Auditor_UID']));
+    let recipientEmail=directResolveAuditorEmail(auditorValues,assigned);
+    if(!recipientEmail&&assignedUid){
+      const uidIndex=col(auditorHeaders,['Auditor_UID','Auditor UID']),emailIndex=col(auditorHeaders,['Email','E-mail','Auditor Email','Auditor email']);
+      if(uidIndex>=0&&emailIndex>=0){
+        const matches=auditorValues.slice(1).filter(r=>val(r,uidIndex)===assignedUid);
+        if(matches.length===1)recipientEmail=clean(val(matches[0],emailIndex)).toLowerCase();
+      }
+    }
     if(!recipientEmail)throw new Error('APPROVE_AUDITOR_RECIPIENT_REQUIRED');
     const company=val(row,col(h,['Company'])),companyUid=val(row,col(h,['Company_UID','Company UID','CompanyUid'])),now=isoLocalStamp(),minuteStamp=now.slice(0,16),actorEmail=clean(identity?.email).toLowerCase();
     const set=(names,value)=>{const i=col(h,names);if(i>=0)row[i]=value;};

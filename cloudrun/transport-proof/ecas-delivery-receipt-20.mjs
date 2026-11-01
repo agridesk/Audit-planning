@@ -5,7 +5,7 @@ const sent=new Set(['SENT','DELIVERED']);
 const events=new Set(['ECAS_AUDIT_APPROVAL_DIGEST','ECAS_AUDIT_CHANGED_DIGEST']);
 export function findVerifiedEcasReceipt20({auditId,queueRows,expectedRecipient}){
  if(!clean(auditId)||!clean(expectedRecipient)||!Array.isArray(queueRows)||!queueRows.length)throw Error('ECAS_RECEIPT_INPUT_INVALID');
- const h=queueRows[0],idx={status:col(h,['Status','State']),event:col(h,['Event Type','Event','EventType']),recipient:col(h,['Recipient','Recipient Email','Email']),audit:col(h,['Audit ID','Audit_ID']),hash:col(h,['Hash','Dedup Hash','Idempotency Key']),payload:col(h,['Payload JSON','Payload','Metadata'])};
+ const h=queueRows[0],idx={status:col(h,['Status','State']),event:col(h,['Type','Event Type','Event','EventType']),recipient:col(h,['Recipient','Recipient Email','Email']),audit:col(h,['Audit ID','Audit_ID']),hash:col(h,['PayloadHash','Hash','Dedup Hash','Idempotency Key']),payload:col(h,['Reserved','Payload JSON','Payload','Metadata'])};
  if(Object.values(idx).some(v=>v<0))throw Error('ECAS_RECEIPT_SCHEMA_UNVERIFIED');
  const matches=[];
  for(let i=1;i<queueRows.length;i++){

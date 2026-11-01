@@ -335,7 +335,7 @@ function NB_externalScheduleRows_(n) {
   var event=NB_clean_(n.eventCode || n.eventType || n.type).toUpperCase();
   // A canonical CANCEL clears live scheduling. Its external digest must
   // identify the *previously communicated* slot, never an unrelated new slot.
-  if(event==='ECAS_AUDIT_CANCELLED_DIGEST' && !((n.blocks||[]).length || (n.plannedDates||[]).length)) {
+  if((event==='ECAS_AUDIT_CANCELLED_DIGEST'||event==='ECAS_AUDIT_REJECTED_DIGEST') && !((n.blocks||[]).length || (n.plannedDates||[]).length)) {
     n={blocks:n.previousBlocks||[],plannedDates:n.previousPlannedDates||[]};
   }
   if(event==='ECAS_AUDIT_CHANGED_DIGEST') {
@@ -419,7 +419,7 @@ function NB_externalMissingRequiredFields_(n) {
   n = n || {};
   var missing = [];
   var externalCode=NB_clean_(n.eventCode || n.eventType || n.type).toUpperCase();
-  if (externalCode==='ECAS_AUDIT_CANCELLED_DIGEST' || externalCode==='ECAS_AUDIT_CHANGED_DIGEST') {
+  if (externalCode==='ECAS_AUDIT_CANCELLED_DIGEST' || externalCode==='ECAS_AUDIT_CHANGED_DIGEST' || externalCode==='ECAS_AUDIT_REJECTED_DIGEST') {
     if (!NB_clean_(n.ecasComment)) missing.push('ecasComment');
   }
   if (!NB_clean_(n.company)) missing.push('company');

@@ -1231,6 +1231,7 @@ http.createServer(async(req,res)=>{
     result.rows=result.rows.filter(row=>row.auditorUid===uid).map(row=>({...row,history:(row.history||[]).filter(event=>event.auditorUid===uid)}));
     result.issues=[];
    }
+   if(!personal&&runtime.isDev)result.uidReconciliation=diagnoseRotationUid20(data[1],data[2]);
    result.testDataAvailable=!personal&&runtime.isDev;
    result.includeTestData=includeTestData;
    result.role=personal?'auditor':'manager';

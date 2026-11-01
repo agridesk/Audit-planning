@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+const root=new URL('../../',import.meta.url);
+const bridge=readFileSync(new URL('StatusNotificationBridge.js',root),'utf8');
+const adapter=readFileSync(new URL('NotificationEcasLifecycleCommitted.js',root),'utf8');
+const gate=readFileSync(new URL('NotificationEcasChangeCancelGate.js',root),'utf8');
+const receipt=readFileSync(new URL('NotificationEcasPersistedReceipt.js',root),'utf8');
+const renderer=readFileSync(new URL('NotificationRenderer_PlanningToClientDigest.js',root),'utf8');
+assert.ok(bridge.includes('ECAS20_QueueCommittedLifecycle_(action,ctx,payload,result)'));
+assert.ok(adapter.includes("result.success!==true"));
+assert.ok(adapter.includes("status!=='SENT'"));
+assert.ok(adapter.includes("'AMBIGUOUS_PRIOR_ECAS_COMMUNICATION'"));
+assert.ok(adapter.includes('ALREADY_QUEUED_FOR_PRIOR_RECEIPT'));
+assert.ok(gate.includes("'ECAS_AUDIT_REJECTED_DIGEST'"));
+assert.ok(renderer.includes("event==='ECAS_AUDIT_REJECTED_DIGEST'"));
+assert.ok(receipt.includes("found===1"));
+const headers=['TimestampCreated','Status','Type','Recipient','Audit ID','Company','Subject','Body','Attempts','LastError','PayloadHash','TimestampSent','Reserved'];
+const prior={auditId:'A',company:'Farm',mpsNumber:'123',auditorUid:'U',auditorName:'Auditor',scopes:['ABC'],plannedHours:8,blocks:[{date:'2026-11-05',start:'08:00',end:'16:00'}]};
+const row=(state,receiptHash)=>['',state,'ECAS_AUDIT_APPROVAL_DIGEST','ecas@example.invalid','A','','','','','',receiptHash,'2026-11-05',JSON.stringify({payload:prior})];
+function run(rows){
+ const ss={getSheetByName:()=>({getLastRow:()=>rows.length,getDataRange:()=>({getValues:()=>rows})})};
+ const calls=[];
+ const sandbox={SpreadsheetApp:{getActiveSpreadsheet:()=>ss},StatusNotificationBridge_GetEcasRecipientEmail_:()=> 'ecas@example.invalid',ECAS20_SubmitVerifiedChangeCancel_:x=>{calls.push(x);return{ok:true,queued:true}},JSON,String,Array,Object,Number};
+ vm.createContext(sandbox);vm.runInContext(adapter,sandbox);
+ const out=sandbox.ECAS20_QueueCommittedLifecycle_('REJECT',{auditId:'A'},{reason:'Client refused'},{success:true,afterStatus:'REJECTED'});
+ return{out,calls};
+}
+assert.equal(run([headers,row('PENDING','R')]).calls.length,0);
+assert.equal(run([headers,row('SENT','R'),row('SENT','R2')]).out.reason,'AMBIGUOUS_PRIOR_ECAS_COMMUNICATION');
+const ok=run([headers,row('SENT','R')]);assert.equal(ok.calls.length,1);assert.equal(ok.calls[0].eventKey,'ECAS_AUDIT_REJECTED_DIGEST');assert.equal(ok.calls[0].ecasComment,'Client refused');
+assert.equal(run([headers,row('SENT','R')]).out.queued,true);
+console.log('ECAS committed lifecycle bridge source and mock execution OK');

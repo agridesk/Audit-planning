@@ -23,5 +23,7 @@ const disabled=get(findVerifiedEcasReceipt20,buildEcasLifecycleOutbox20,()=> 'ec
 assert.equal(disabled.row(context,args),null);
 const externalConfig=[config[0],[...config[1].slice(0,6),'EXTERNAL_ECAS','EXTERNAL_ECAS']];
 assert.equal(api.prepare({auditId:'A',action:'CANCEL',reason:'Reason',queueRows:q,auditorRows:[],configRows:externalConfig,transitionId:'T'}).eligible,true);
+const duplicate=[...q,['','PENDING','ECAS_AUDIT_CANCELLED_DIGEST','ecas@example.invalid','A','','','','','','X','',JSON.stringify({payload:{originalEcasCommunicationId:'R'}})]];
+assert.equal(api.prepare({auditId:'A',action:'CANCEL',reason:'Reason',queueRows:duplicate,auditorRows:[],configRows:config,transitionId:'T'}).reason,'ECAS_LIFECYCLE_ALREADY_QUEUED');
 const noReceipt=api.prepare({auditId:'A',action:'CANCEL',reason:'Reason',queueRows:[q[0]],auditorRows:[],configRows:config,transitionId:'T'});assert.equal(noReceipt.eligible,false);
 console.log('ECAS direct outbox receipt, reason and event config gate OK');

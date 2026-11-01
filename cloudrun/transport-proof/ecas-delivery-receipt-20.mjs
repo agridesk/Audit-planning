@@ -21,7 +21,7 @@ export function findVerifiedEcasReceipt20({auditId,queueRows,expectedRecipient})
   const receipt=clean(r[idx.hash]),sentAt=clean(r[idx.sentAt]);if(!receipt||!sentAt||!Number.isFinite(sentEpoch(sentAt)))continue;
   let raw;try{raw=JSON.parse(clean(r[idx.payload]));}catch{continue}
   const p=raw?.payload||raw;
-  if(clean(p.auditId)!==auditId||!clean(p.company)||!clean(p.mpsNumber)||!clean(p.auditorUid)||!Array.isArray(p.scopes)||!p.scopes.length||!Array.isArray(p.blocks)||!p.blocks.length||!Number.isFinite(Number(p.plannedHours))||Number(p.plannedHours)<=0)continue;
+  if(clean(p.auditId)!==auditId||!clean(p.company)||!clean(p.mpsNumber)||!clean(p.auditorUid)||!(clean(p.auditorName)||clean(p.auditorEmail))||!Array.isArray(p.scopes)||!p.scopes.length||!Array.isArray(p.blocks)||!p.blocks.length||!Number.isFinite(Number(p.plannedHours))||Number(p.plannedHours)<=0)continue;
   matches.push({receipt,sentAt,sourceRow:i+1,eventType:clean(r[idx.event]),recipientEmail:clean(r[idx.recipient]),schedule:{auditId,date:clean(p.blocks[0].date),auditorUid:clean(p.auditorUid),auditorName:clean(p.auditorName),auditorEmail:clean(p.auditorEmail),company:clean(p.company),mpsNumber:clean(p.mpsNumber),scopes:p.scopes.map(clean),hours:Number(p.plannedHours),blocks:p.blocks}});
  }
  if(!matches.length)return{verified:false,reason:'NO_SENT_ECAS_RECEIPT',matches:0};

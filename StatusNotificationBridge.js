@@ -292,7 +292,8 @@ function StatusNotificationBridge_Dispatch_(action, actor, ctx, payload, result)
       return {
         success: true,
         skipped: true,
-        reason: 'NO_RECIPIENT'
+        reason: 'NO_RECIPIENT',
+        externalQueueResult: lifecycleEcasResult
       };
     }
 

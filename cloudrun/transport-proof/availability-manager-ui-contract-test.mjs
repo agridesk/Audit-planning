@@ -11,7 +11,7 @@ assert.ok(html.includes(".map(date=>'<tr><th>'")&&html.includes('(shown.length?d
 assert.ok(html.includes('shown.map((a,i)=>'),'Columns must represent auditors');
 assert.ok(html.includes('S.hasHard&&!S.activeBlock'),'Unknown or overlapping HARD blocks fail closed instead of reporting false availability');
 assert.ok(html.includes('id="filterDate"'),'Available auditors filter requires a date');
-assert.ok(html.includes('d.date===target&&fullyFreeWorkDay(d.segments)'),'Availability filter uses the selected date');
+assert.ok(html.includes('d.date===target&&freeWork(d.segments)>0'),'Availability filter uses the selected date');
 assert.ok(html.includes('HARD · blocked by auditor/manager'),'Hard unavailability is clearly identified');
 assert.ok(html.includes('SOFT · normally unavailable'),'Soft unavailability is clearly identified');
 assert.ok(html.includes('id="searchTerm"'),'Company and auditor search is present');

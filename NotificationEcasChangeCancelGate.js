@@ -37,6 +37,7 @@ function ECAS20_SubmitVerifiedChangeCancel_(input) {
   if(!recipient)return {ok:false,queued:false,reason:'ECAS_RECIPIENT_MISSING'};
   // No direct sending. The existing Notification Queue controls delivery.
   var payload=prepared.payload;
+  payload.idempotencyKey=String(input.idempotencyKey||'');
   payload.recipientRole='PLANNING';
   payload.recipientEmail=recipient;
   var result=StatusNotificationBridge_QueueWithLock_(recipient,key,payload,String(after.auditId));

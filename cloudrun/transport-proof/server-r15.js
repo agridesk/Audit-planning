@@ -5,6 +5,7 @@ import {createSwapLegacyJournalArchive,classifySwapLegacyJournal} from './swap-l
 import http from 'node:http';
 import {resolveAmsRuntimeConfig} from './runtime-environment-20.mjs';
 import {verifyProdRuntimeIdentity} from './prod-runtime-identity-20.mjs';
+import {runtimeBundleProof20} from './runtime-bundle-proof-20.mjs';
 import {notificationOverview} from './notification-overview-20.mjs';
 import {buildRotationManager20} from './rotation-manager-20.mjs';
 import {createSwapFirestoreReadmodel} from './swap-firestore-readmodel-20.mjs';
@@ -1172,7 +1173,7 @@ http.createServer(async(req,res)=>{
    const identity=await session(req);
    if(!identity||identity.role!=='manager'){res.writeHead(identity?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
-   res.end(JSON.stringify({ok:true,entrypoint:'R15',environment:runtime.mode,revision:process.env.K_REVISION||'UNAVAILABLE',buildSha:process.env.AMS_BUILD_SHA||'UNAVAILABLE',ssotConfigured:Boolean(spreadsheet),gasWriterConfigured:Boolean(process.env.AMS_GAS_WRITE_URL||process.env.GAS_DEV_WRITE_URL),availabilityBackend:'FIRESTORE',productionReleaseEnabled:!runtime.isDev}));
+   res.end(JSON.stringify({ok:true,entrypoint:'R15',environment:runtime.mode,revision:process.env.K_REVISION||'UNAVAILABLE',buildSha:process.env.AMS_BUILD_SHA||'UNAVAILABLE',bundleProof:await runtimeBundleProof20(new URL('./',import.meta.url)),ssotConfigured:Boolean(spreadsheet),gasWriterConfigured:Boolean(process.env.AMS_GAS_WRITE_URL||process.env.GAS_DEV_WRITE_URL),availabilityBackend:'FIRESTORE',productionReleaseEnabled:!runtime.isDev}));
    return;
   }
   if(req.method==='GET'&&['/rotation','/rotation-manager-20'].includes(u.pathname)){

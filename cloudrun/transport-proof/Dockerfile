@@ -42,6 +42,7 @@ COPY notification-overview-20.mjs ./
 COPY notification-manager-20.html ./
 COPY runtime-environment-20.mjs ./
 COPY prod-runtime-identity-20.mjs ./
+COPY runtime-bundle-proof-20.mjs ./
 COPY swap-*.mjs ./
 COPY server-r15.js ./
 COPY availability-*.js ./

@@ -1572,7 +1572,7 @@ async function directManagerCancel(identity,body,auditorMode=false){
       const priorTimestamp=val(row,col(h,['Last decision timestamp']));
       const ownerUid=val(row,col(h,['Auditor_UID','Auditor UID'])),actorUid=clean(identity?.auditorUid||identity?.auditorId);
       if(clean(priorDecision).toUpperCase()==='CANCEL'&&priorReason===reason&&priorTimestamp&&(!auditorMode||(ownerUid&&ownerUid===actorUid))){
-        const ecasLifecycle=directPrepareEcasLifecycle20({auditId,action:'CANCEL',reason:priorReason,queueRows:vr[3]?.values||[],auditorRows:vr[2]?.values||[],transitionId:auditId+'|CANCEL|'+priorTimestamp});
+        const ecasLifecycle=directPrepareEcasLifecycle20({auditId,action:'CANCEL',reason:priorReason,queueRows:vr[3]?.values||[],auditorRows:vr[2]?.values||[],configRows:vr[4]?.values||[],transitionId:auditId+'|CANCEL|'+priorTimestamp});
         const recoveryRow=directEcasLifecycleQueueRow20(ecasLifecycle,{auditId,action:'CANCEL',company:val(row,col(h,['Company'])),now:isoLocalStamp(),configRows:vr[4]?.values||[]});
         if(recoveryRow)await sheetsValuesAppend('Notification Queue!A:M',[recoveryRow]);
         return{success:true,idempotent:true,auditId,action:'CANCEL',afterStatus:'PENDING_PLANNING',afterStatusDisplay:'Pending Planning',ecasLifecycle:{eligible:ecasLifecycle.eligible===true,recovered:!!recoveryRow,reason:ecasLifecycle.reason||''}};
@@ -1617,7 +1617,7 @@ async function directManagerCancel(identity,body,auditorMode=false){
 
     const writeStarted=Date.now();await sheetsValuesBatchUpdate(writes);const writeMs=Date.now()-writeStarted;
     const actorEmail=clean(identity?.email).toLowerCase(),minuteStamp=now.slice(0,16),afterStatus='Pending Planning';
-    const ecasLifecycle=directPrepareEcasLifecycle20({auditId,action:'CANCEL',reason,queueRows:vr[3]?.values||[],auditorRows:vr[2]?.values||[],transitionId:auditId+'|CANCEL|'+now});
+    const ecasLifecycle=directPrepareEcasLifecycle20({auditId,action:'CANCEL',reason,queueRows:vr[3]?.values||[],auditorRows:vr[2]?.values||[],configRows:vr[4]?.values||[],transitionId:auditId+'|CANCEL|'+now});
     const trailPayload={type:'LIFECYCLE_STATUS_CHANGED',auditId,company,actorEmail,actorRole:auditorMode?'AUDITOR':'MANAGER',beforeStatus,afterStatus,reason,source:auditorMode?'CLOUD_RUN_DIRECT_AUDITOR_CANCEL':'CLOUD_RUN_DIRECT_MANAGER_CANCEL',timestamp:now,action:'CANCEL',ecasLifecycleIntent:ecasLifecycle.eligible?ecasLifecycle.outbox.queueWrites[0]:null,ecasEvidenceStatus:ecasLifecycle.eligible?'VERIFIED':ecasLifecycle.reason};
     const trailBody=JSON.stringify(trailPayload),trailHash=createHash('md5').update('LIFECYCLE_STATUS_CHANGED|'+auditId+'|'+now+'|'+afterStatus).digest('hex');
     const queueRows=[[minuteStamp,'AUDIT_TRAIL','LIFECYCLE_STATUS_CHANGED','',auditId,company,'[TRAIL] LIFECYCLE_STATUS_CHANGED :: '+auditId,trailBody,0,'',trailHash,'',JSON.stringify({payload:trailPayload})]];
@@ -1662,7 +1662,7 @@ async function directManagerReject(identity,body){
       const already=rAuditId>=0&&rejected.slice(1).some(r=>val(r,rAuditId)===auditId);
       if(already){
         const archived=rejected.slice(1).find(r=>val(r,rAuditId)===auditId),archiveReason=val(archived,col(rh,['Reason / Comment'])),archiveDate=val(archived,col(rh,['Date - Rejected'])),archiveCompany=val(archived,col(rh,['Company']));
-        const ecasLifecycle=archiveReason?directPrepareEcasLifecycle20({auditId,action:'REJECT',reason:archiveReason,queueRows:vr[9]?.values||[],auditorRows:vr[2]?.values||[],transitionId:auditId+'|REJECT|'+archiveDate}):{eligible:false,reason:'ARCHIVED_REJECT_REASON_MISSING'};
+        const ecasLifecycle=archiveReason?directPrepareEcasLifecycle20({auditId,action:'REJECT',reason:archiveReason,queueRows:vr[9]?.values||[],auditorRows:vr[2]?.values||[],configRows:vr[10]?.values||[],transitionId:auditId+'|REJECT|'+archiveDate}):{eligible:false,reason:'ARCHIVED_REJECT_REASON_MISSING'};
         const recoveryRow=directEcasLifecycleQueueRow20(ecasLifecycle,{auditId,action:'REJECT',company:archiveCompany,now:isoLocalStamp(),configRows:vr[10]?.values||[]});
         if(recoveryRow)await sheetsValuesAppend('Notification Queue!A:M',[recoveryRow]);
         return{success:true,idempotent:true,auditId,action:'REJECT',newStatus:'Rejected',afterStatus:'REJECTED',afterStatusDisplay:'Rejected',directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_REJECT',ecasLifecycle:{eligible:ecasLifecycle.eligible===true,recovered:!!recoveryRow,reason:ecasLifecycle.reason||''},readMs,totalMs:Date.now()-started};
@@ -1756,7 +1756,7 @@ async function directManagerReject(identity,body){
 
     const deleteStarted=Date.now();await sheetsDeleteRow('Audit planning',found.sourceRow);const deleteMs=Date.now()-deleteStarted;
 
-    const ecasLifecycle=directPrepareEcasLifecycle20({auditId,action:'REJECT',reason,queueRows:vr[9]?.values||[],auditorRows:vr[2]?.values||[],transitionId:auditId+'|REJECT|'+now});
+    const ecasLifecycle=directPrepareEcasLifecycle20({auditId,action:'REJECT',reason,queueRows:vr[9]?.values||[],auditorRows:vr[2]?.values||[],configRows:vr[10]?.values||[],transitionId:auditId+'|REJECT|'+now});
     const trailPayload={type:'LIFECYCLE_STATUS_CHANGED',auditId,company,actorEmail,actorRole:'MANAGER',beforeStatus,afterStatus:'Rejected',reason,source:'CLOUD_RUN_DIRECT_MANAGER_REJECT',timestamp:now,action:'REJECT',scopes:[...rejectedScopeCodes],ecasLifecycleIntent:ecasLifecycle.eligible?ecasLifecycle.outbox.queueWrites[0]:null,ecasEvidenceStatus:ecasLifecycle.eligible?'VERIFIED':ecasLifecycle.reason};
     const trailBody=JSON.stringify(trailPayload),trailHash=createHash('md5').update('LIFECYCLE_STATUS_CHANGED|'+auditId+'|'+now+'|Rejected').digest('hex');
     const queueRows=[[minuteStamp,'AUDIT_TRAIL','LIFECYCLE_STATUS_CHANGED','',auditId,company,'[TRAIL] LIFECYCLE_STATUS_CHANGED :: '+auditId,trailBody,0,'',trailHash,'',JSON.stringify({payload:trailPayload})]];

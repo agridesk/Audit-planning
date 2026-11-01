@@ -2852,6 +2852,28 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       result.readOnly=true;result.actorRole='AUDITOR';result.activeAuditors=[];result.membershipDiagnostics={visibleCompanies:result.companies.length,openCompanyUidCount:openCompanyUids.size,completedCompanyUidCount:completedCompanyUids.size,combinedUniqueCompanyUids:uids.size,legacyNameFallbackCount:names.size,identityMode:'UID_FIRST'};return send(res,200,result);
     }catch(e){return send(res,409,{ok:false,error:'AUDITOR_COMPANY_READ_FAILED',detail:clean(e?.message||e)})}
   }
+  if(u.pathname==='/api/v1/manager/company-management/extension-obligations'&&req.method==='GET'){
+    const actor=await sessionFromRequestValidated(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    const uid=clean(u.searchParams.get('companyUid'));if(!uid||uid.length>180)return send(res,400,{ok:false,error:'COMPANY_UID_REQUIRED'});
+    try{
+      const all=await sheetsBatchGet(['Audit_Obligations!A1:Z2500','Audit_Visit_Obligations!A1:F2500','Audit planning!A1:CN2500']);
+      const ob=all[0]?.values||[],links=all[1]?.values||[],planning=all[2]?.values||[],oh=ob[0]||[],lh=links[0]||[],ph=planning[0]||[];
+      const oi=n=>oh.indexOf(n),li=n=>lh.indexOf(n),pi=n=>ph.indexOf(n);
+      for(const n of ['Obligation_ID','Company_UID','ScopeCode','Trigger_Source','Base_Expiry_Date','Effective_Expiry_Date','Planning_Window_From','Planning_Window_To','Extension_Applied','Extension_Metadata_JSON'])if(oi(n)<0)throw Error('EXT_READ_SCHEMA_MISSING_'+n);
+      for(const n of ['Audit_ID','Obligation_ID','Link_State'])if(li(n)<0)throw Error('EXT_LINK_SCHEMA_MISSING_'+n);
+      const auditIdIndex=pi('Audit ID')>=0?pi('Audit ID'):pi('Audit_ID'),statusIndex=pi('Status');
+      if(auditIdIndex<0||statusIndex<0)throw Error('EXT_AUDIT_SCHEMA_MISSING');
+      const statuses=new Map(planning.slice(1).filter(row=>clean(row[auditIdIndex])).map(row=>[clean(row[auditIdIndex]),clean(row[statusIndex])]));
+      const byOb=new Map();for(const row of links.slice(1)){if(clean(row[li('Link_State')]).toUpperCase()!=='ACTIVE')continue;const oid=clean(row[li('Obligation_ID')]);if(!oid)continue;const existing=byOb.get(oid)||[];existing.push(clean(row[li('Audit_ID')]));byOb.set(oid,existing)}
+      const records=ob.slice(1).filter(row=>clean(row[oi('Company_UID')])===uid&&clean(row[oi('Obligation_ID')])).map(row=>{
+        const obligationId=clean(row[oi('Obligation_ID')]),auditIds=byOb.get(obligationId)||[];
+        return{obligationId,scopeCode:clean(row[oi('ScopeCode')]),triggerSource:clean(row[oi('Trigger_Source')]),state:clean(row[oi('Obligation_State')]),baseExpiry:clean(row[oi('Base_Expiry_Date')]),effectiveExpiry:clean(row[oi('Effective_Expiry_Date')]),windowFrom:clean(row[oi('Planning_Window_From')]),windowTo:clean(row[oi('Planning_Window_To')]),extensionApplied:yes(row[oi('Extension_Applied')]),auditIds,auditStatuses:auditIds.map(id=>({auditId:id,status:statuses.get(id)||'UNKNOWN'})),extensionSource:(()=>{try{return JSON.parse(clean(row[oi('Extension_Metadata_JSON')])||'null')?.source||''}catch{return'INVALID_METADATA'}})(),canMutate:false};
+      });
+      if(records.length>1000)return send(res,409,{ok:false,error:'EXT_READ_TOO_MANY_COMPANY_OBLIGATIONS'});
+      return send(res,200,{ok:true,companyUid:uid,records,mode:'READ_ONLY_CUTOVER_REQUIRED',canMutate:false});
+    }catch(e){return send(res,409,{ok:false,error:'EXT_SCOPE_DOSSIER_READ_FAILED',detail:clean(e?.message||e)})}
+  }
   if(u.pathname==='/api/v1/manager/company-management'&&req.method==='GET'){
     const actor=await sessionFromRequestValidated(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});

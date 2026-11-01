@@ -1527,14 +1527,14 @@ function directEcasRecipientFromConfig20(event,configRows,auditorRows){
  if((m==='MANAGER'||m==='ROLE'||m==='ROLE_MANAGER')&&(!t||t.toUpperCase()==='MANAGER'))return canonicalManagerRecipient(auditorRows||[]);
  return '';
 }
-function directPrepareEcasLifecycle20({auditId,action,reason,queueRows,auditorRows,transitionId}){
+function directPrepareEcasLifecycle20({auditId,action,reason,queueRows,auditorRows,configRows,transitionId}){
  if(!Array.isArray(queueRows)||queueRows.length>=5000)return{eligible:false,reason:'ECAS_QUEUE_SOURCE_TRUNCATED'};
- const recipient=canonicalManagerRecipient(auditorRows||[]);
+ const event=action==='REJECT'?'ECAS_AUDIT_REJECTED_DIGEST':'ECAS_AUDIT_CANCELLED_DIGEST';
+ const recipient=directEcasRecipientFromConfig20(event,configRows,auditorRows);
  if(!recipient)return{eligible:false,reason:'ECAS_CANONICAL_RECIPIENT_MISSING'};
  let verified;try{verified=findVerifiedEcasReceipt20({auditId,queueRows,expectedRecipient:recipient});}
  catch(e){return{eligible:false,reason:clean(e?.message||e)}}
  if(!verified.verified)return{eligible:false,reason:verified.reason};
- const event=action==='REJECT'?'ECAS_AUDIT_REJECTED_DIGEST':'ECAS_AUDIT_CANCELLED_DIGEST';
  const qh=queueRows?.[0]||[],qt=col(qh,['Type']),qa=col(qh,['Audit ID']),qm=col(qh,['Reserved']);
  if(qt>=0&&qa>=0&&qm>=0)for(const qr of queueRows.slice(1)){if(clean(qr[qt])!==event||clean(qr[qa])!==auditId)continue;let old;try{const raw=JSON.parse(clean(qr[qm]));old=raw.payload||raw;}catch{continue}if(clean(old.originalEcasCommunicationId||old.priorDeliveryReceipt)===verified.receipt)return{eligible:false,reason:'ECAS_LIFECYCLE_ALREADY_QUEUED'};}
 

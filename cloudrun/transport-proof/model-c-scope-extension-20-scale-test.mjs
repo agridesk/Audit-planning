@@ -4,20 +4,20 @@ const build=(n)=>Array.from({length:n},(_,i)=>{const scope='SCOPE_'+String(i+1).
 const policies=Object.fromEntries(Array.from({length:20},(_,i)=>['SCOPE_'+String(i+1).padStart(2,'0'),{extensionMonths:i%2?6:3,planningFromMonths:-2,planningToMonths:0}]));
 for(const count of [1,8,20]){
  const obligations=build(count),target=obligations[count-1].obligationId,untouched=JSON.stringify(obligations.slice(0,-1));
- const applied=plan({auditId:'A20',command:'apply',targets:[target],obligations,policyByScope:policies,actorUid:'M',transactionId:'TX-'+count});
+ const applied=plan({auditId:'A20',lifecycleStatus:'Pending Planning',command:'apply',targets:[target],obligations,policyByScope:policies,actorUid:'M',transactionId:'TX-'+count});
  assert.equal(applied.changes.length,1);
  assert.equal(applied.changes[0].obligationId,target);
  assert.equal(JSON.stringify(obligations.slice(0,-1)),untouched);
  const modified=obligations.map(x=>x.obligationId===target?{...x,...applied.changes[0].after}:x);
- const undo=plan({auditId:'A20',command:'undo',targets:[target],obligations:modified,policyByScope:{},actorUid:'M',transactionId:'UNDO-'+count,priorTransaction:applied});
+ const undo=plan({auditId:'A20',lifecycleStatus:'Pending Planning',command:'undo',targets:[target],obligations:modified,policyByScope:{},actorUid:'M',transactionId:'UNDO-'+count,priorTransaction:applied});
  assert.deepEqual(undo.changes[0].after,applied.changes[0].before);
  assert.equal(undo.changes.length,1);
  assert.equal(modified.filter(x=>x.extensionApplied).length,1);
- assert.throws(()=>plan({auditId:'A20',command:'apply',targets:[target],obligations:modified,policyByScope:policies,actorUid:'M',transactionId:'AGAIN'}),/EXT_ALREADY_APPLIED/);
+ assert.throws(()=>plan({auditId:'A20',lifecycleStatus:'Pending Planning',command:'apply',targets:[target],obligations:modified,policyByScope:policies,actorUid:'M',transactionId:'AGAIN'}),/EXT_ALREADY_APPLIED/);
 }
 const base=build(20);
-assert.throws(()=>plan({auditId:'A20',command:'apply',targets:['O0','O0'],obligations:base,policyByScope:policies,actorUid:'M',transactionId:'DUP'}),/EXT_TARGETS_INVALID/);
-assert.throws(()=>plan({auditId:'A20',command:'apply',targets:['O0'],obligations:base.map((o,i)=>i?o:{...o,baseExpiry:'2027-02-30'}),policyByScope:policies,actorUid:'M',transactionId:'DATE'}),/EXT_SNAPSHOT_DATE_INVALID/);
-assert.throws(()=>plan({auditId:'A20',command:'apply',targets:['O0'],obligations:base.map((o,i)=>i?o:{...o,windowFrom:'2027-03-01',windowTo:'2027-02-01'}),policyByScope:policies,actorUid:'M',transactionId:'WINDOW'}),/EXT_SNAPSHOT_DATE_INVALID/);
-assert.throws(()=>plan({auditId:'A20',command:'apply',targets:['O0'],obligations:base,policyByScope:policies,actorUid:'M',transactionId:'STATUS',lifecycleStatus:'Completed'}),/EXTENSION_ALLOWED_ONLY_PENDING_PLANNING/);
+assert.throws(()=>plan({auditId:'A20',lifecycleStatus:'Pending Planning',command:'apply',targets:['O0','O0'],obligations:base,policyByScope:policies,actorUid:'M',transactionId:'DUP'}),/EXT_TARGETS_INVALID/);
+assert.throws(()=>plan({auditId:'A20',lifecycleStatus:'Pending Planning',command:'apply',targets:['O0'],obligations:base.map((o,i)=>i?o:{...o,baseExpiry:'2027-02-30'}),policyByScope:policies,actorUid:'M',transactionId:'DATE'}),/EXT_SNAPSHOT_DATE_INVALID/);
+assert.throws(()=>plan({auditId:'A20',lifecycleStatus:'Pending Planning',command:'apply',targets:['O0'],obligations:base.map((o,i)=>i?o:{...o,windowFrom:'2027-03-01',windowTo:'2027-02-01'}),policyByScope:policies,actorUid:'M',transactionId:'WINDOW'}),/EXT_SNAPSHOT_DATE_INVALID/);
+assert.throws(()=>plan({auditId:'A20',command:'apply',auditId:'A20',targets:['O0'],obligations:base,policyByScope:policies,actorUid:'M',transactionId:'STATUS',lifecycleStatus:'Completed'}),/EXTENSION_ALLOWED_ONLY_PENDING_PLANNING/);
 console.log('PASS Model C scope EXT/UNDO 1, 8, 20; isolated changes, undo, guards');

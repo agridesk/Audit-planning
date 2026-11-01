@@ -26,4 +26,7 @@ assert.equal(api.prepare({auditId:'A',action:'CANCEL',reason:'Reason',queueRows:
 const duplicate=[...q,['','PENDING','ECAS_AUDIT_CANCELLED_DIGEST','ecas@example.invalid','A','','','','','','X','',JSON.stringify({payload:{originalEcasCommunicationId:'R'}})]];
 assert.equal(api.prepare({auditId:'A',action:'CANCEL',reason:'Reason',queueRows:duplicate,auditorRows:[],configRows:config,transitionId:'T'}).reason,'ECAS_LIFECYCLE_ALREADY_QUEUED');
 const noReceipt=api.prepare({auditId:'A',action:'CANCEL',reason:'Reason',queueRows:[q[0]],auditorRows:[],configRows:config,transitionId:'T'});assert.equal(noReceipt.eligible,false);
+const rejectedConfig=[config[0],[...config[1].slice()]];rejectedConfig[1][0]='ECAS_AUDIT_REJECTED_DIGEST';
+const rejected=api.prepare({auditId:'A',action:'REJECT',reason:'Rejected',queueRows:q,auditorRows:[],configRows:rejectedConfig,transitionId:'TR'});
+assert.equal(rejected.eligible,true);assert.equal(api.row(rejected,{...args,action:'REJECT',configRows:rejectedConfig})[2],'ECAS_AUDIT_REJECTED_DIGEST');
 console.log('ECAS direct outbox receipt, reason and event config gate OK');

@@ -28,6 +28,7 @@ export function createScopeExtensionFirestoreStore20({projectId,getToken,fetchIm
   for(let i=0;i<linkedRows.length;i++){const item=linkedRows[i],linkedId=canonical.value.obligationIds[i];if(!item||item.value.auditId!==auditId||item.value.companyUid!==canonical.value.companyUid||item.value.obligationId!==linkedId||item.value.linkState!=='ACTIVE'||item.value.pendingProjectionId)throw Error('EXT_TRANSACTIONAL_LINKED_SCOPE_CONFLICT');linked.push(item.value)}
   const current=linkedRows[canonical.value.obligationIds.indexOf(obligationId)];
   if(!current)throw Error('EXT_OBLIGATION_NOT_MIGRATED');
+  if(current.value.companyUid!==canonical.value.companyUid||current.value.obligationId!==obligationId)throw Error('EXT_OBLIGATION_CANONICAL_LINEAGE_CONFLICT');
   if(current.value.auditId!==auditId||current.value.scopeCode!==scopeCode||current.value.revision!==expectedRevision||current.value.pendingProjectionId)throw Error('EXT_REVISION_OR_PROJECTION_CONFLICT');
   let priorTransaction=null;
   if(action==='undo'){const meta=JSON.parse(str(current.value.extensionMetadata)||'null');if(!id(meta?.transactionId))throw Error('EXT_UNDO_PROVENANCE_MISSING');const before=await read('event',meta.transactionId);if(!before||before.value.action!=='apply'||before.value.obligationId!==obligationId||before.value.auditId!==auditId)throw Error('EXT_UNDO_PROVENANCE_INVALID');priorTransaction=before.value.planTransaction}

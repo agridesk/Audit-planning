@@ -14,8 +14,8 @@ const get=new Function('findVerifiedEcasReceipt20','buildEcasLifecycleOutbox20',
 const api=get(findVerifiedEcasReceipt20,buildEcasLifecycleOutbox20,()=> 'ecas@example.invalid',col,yes,clean,{env:{AMS_RUNTIME_ENV:'DEV',AMS_DEV_ECAS_LIFECYCLE_QUEUE_ENABLED:'YES'}});
 const payload={payload:{auditId:'A',company:'Farm',mpsNumber:'123',auditorUid:'U',auditorName:'Auditor',scopes:['ABC'],plannedHours:8,blocks:[{date:'2026-11-05',start:'08:00',end:'16:00'}]}};
 const q=[['TimestampCreated','Status','Type','Recipient','Audit ID','Company','Subject','Body','Attempts','LastError','PayloadHash','TimestampSent','Reserved'],['','SENT','ECAS_AUDIT_APPROVAL_DIGEST','ecas@example.invalid','A','','','','','','R','2026-11-05',JSON.stringify(payload)]];
-const config=[['EVENT_KEY','ACTIVE','SEND_EMAIL','LOG_ONLY','REQUIRE_REASON','TEMPLATE_FAMILY'],['ECAS_AUDIT_CANCELLED_DIGEST','YES','YES','NO','YES','EXTERNAL_OPERATIONAL']];
-const context=api.prepare({auditId:'A',action:'CANCEL',reason:'Client cancelled',queueRows:q,auditorRows:[],transitionId:'T'});assert.equal(context.eligible,true);
+const config=[['EVENT_KEY','ACTIVE','SEND_EMAIL','LOG_ONLY','REQUIRE_REASON','TEMPLATE_FAMILY','RECIPIENT_MODE','RECIPIENT_TARGET'],['ECAS_AUDIT_CANCELLED_DIGEST','YES','YES','NO','YES','EXTERNAL_OPERATIONAL','EMAIL','ecas@example.invalid']];
+const context=api.prepare({auditId:'A',action:'CANCEL',reason:'Client cancelled',queueRows:q,auditorRows:[],configRows:config,transitionId:'T'});assert.equal(context.eligible,true);
 const args={auditId:'A',action:'CANCEL',company:'Farm',now:'2026-11-01T10:00:00',configRows:config};
 const row=api.row(context,args);assert.equal(row[2],'ECAS_AUDIT_CANCELLED_DIGEST');assert.equal(JSON.parse(row[12]).payload.ecasComment,'Client cancelled');
 assert.equal(api.row(context,{...args,configRows:[config[0],[...config[1].slice(0,1),'NO',...config[1].slice(2)]]}),null);

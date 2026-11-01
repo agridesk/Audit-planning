@@ -480,7 +480,7 @@ function passiveRefreshOpen(){
 window.addEventListener("focus",function(){passiveRefreshOpen()});
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")passiveRefreshOpen()});
 document.getElementById("selectionAcceptAuditor").onclick=acceptSelectedAudits20;
-document.getElementById("clearColumnFilters").addEventListener("click",function(){grid4State[currentView]={filters:{},sorts:[]};filter()});document.getElementById("q").addEventListener("input",filter);document.getElementById("reset").onclick=function(){document.getElementById("q").value="";render(all)};document.getElementById("openView").onclick=loadOpen;document.getElementById("completedView").onclick=loadCompleted;
+document.getElementById("clearColumnFilters").addEventListener("click",function(){grid4State[currentView]={filters:{},sorts:[]};filter()});document.getElementById("q").addEventListener("input",filter);document.getElementById("reset").onclick=function(){document.getElementById("q").value="";grid4State[currentView]={filters:{},sorts:[]};filter()};document.getElementById("openView").onclick=loadOpen;document.getElementById("completedView").onclick=loadCompleted;
 document.getElementById("selectionSwap20").onclick=async function(){
   if(String(actorRole).toLowerCase()!=="manager"||currentView!=="open")return;
   var selected=selectionRows();

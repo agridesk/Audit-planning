@@ -1727,6 +1727,7 @@ async function directManagerReject(identity,body){
       const bodyText=['Audit rejected by manager','Company: '+company,'Audit ID: '+auditId,'Scopes: '+[...rejectedScopeCodes].join(', '),'Comment: '+reason].join('\\n'),hash=createHash('md5').update(recipientEmail+'|AUDIT_REJECTED_BY_MANAGER|'+auditId+'|'+now).digest('hex');
       queueRows.push([minuteStamp,'PENDING','AUDIT_REJECTED_BY_MANAGER',recipientEmail,auditId,company,'Audit rejected by manager – '+company+' – '+auditId,bodyText,0,'',hash,'',JSON.stringify({payload})]);
     }
+    const ecasQueueRow=directEcasLifecycleQueueRow20(ecasLifecycle,{auditId,action:'REJECT',company,now});if(ecasQueueRow)queueRows.push(ecasQueueRow);
     let sideEffectQueue={success:true};const sideStarted=Date.now();try{await sheetsValuesAppend('Notification Queue!A:M',queueRows);}catch(e){sideEffectQueue={success:false,error:clean(e?.message||e)}}const sideEffectMs=Date.now()-sideStarted;
 
     return{success:true,auditId,action:'REJECT',beforeStatus,newStatus:'Rejected',afterStatus:'REJECTED',afterStatusDisplay:'Rejected',reason,directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_REJECT',scopesRejected:[...rejectedScopeCodes],companyScopesDeactivated:companyScopeWrites.length,obligationsRejected:obligationWrites.length,availabilityRows,archiveMs,archiveAlready,writeMs,deleteMs,sideEffectMs,sideEffectQueue,readMs,totalMs:Date.now()-started};

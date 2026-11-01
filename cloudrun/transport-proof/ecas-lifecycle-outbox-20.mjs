@@ -6,7 +6,8 @@ export function buildEcasLifecycleOutbox20({transitionId,committedTransition,pre
  const prior=previousCommunication||{};
  const intent=previewEcasLifecycleIntent20({...input,priorScheduleVerified:prior.verified===true,priorDeliveryReceipt:prior.receipt,priorCommunicatedSchedule:prior.schedule,recipientEmail:prior.recipientEmail});
  if(!intent.eligible)return{required:false,reason:intent.decision,queueWrites:[],noExternalMail:true};
+ if(!['CANCEL','REJECT'].includes(str(input.action).toUpperCase()))throw Error('ECAS_ACTION_UNSUPPORTED');
  const idempotencyKey=createHash('sha256').update(['ECAS_LIFECYCLE_V1',transitionId,input.auditId,str(input.action).toUpperCase(),prior.receipt].join('|')).digest('hex');
- const payload={eventType:str(input.action).toUpperCase()==='CANCEL'?'ECAS_AUDIT_CANCELLED':'ECAS_AUDIT_REJECTED',auditId:input.auditId,reason:intent.reason,recipientEmail:intent.recipientEmail,priorSchedule:intent.priorSchedule,priorDeliveryReceipt:prior.receipt,transitionId,idempotencyKey};
+ const payload={eventKey:'ECAS_AUDIT_CANCELLED_DIGEST',ecasComment:intent.reason,comment:intent.reason,externalReasonText:intent.reason,deliveryProfile:'EXTERNAL_OPERATIONAL',eventType:str(input.action).toUpperCase()==='CANCEL'?'ECAS_AUDIT_CANCELLED':'ECAS_AUDIT_REJECTED',auditId:input.auditId,reason:intent.reason,recipientEmail:intent.recipientEmail,priorSchedule:intent.priorSchedule,priorDeliveryReceipt:prior.receipt,transitionId,idempotencyKey};
  return{required:true,queueWrites:[{idempotencyKey,payload,state:'PREPARED',deliveryEnabled:false}],noExternalMail:true,requiresDurableAtomicOutbox:true};
 }

@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {inspectLegacyScopeExtensions20 as audit} from './model-c-scope-extension-migration-audit-20.mjs';
+const make=i=>({obligationId:'O'+i,companyUid:'C',scopeCode:'SCOPE_'+String(i+1).padStart(2,'0'),triggerSource:'CERTIFICATE',baseExpiry:'2027-01-31',effectiveExpiry:'2027-01-31',windowFrom:'2026-12-01',windowTo:'2027-01-31',extensionApplied:false,extensionMetadata:''});
+const all=Array.from({length:20},(_,i)=>make(i));
+all[0].extensionApplied=true;all[0].extensionMetadata=JSON.stringify({months:3,source:'CLOUD_RUN_DIRECT_MANAGER_EXTENSION'});
+all[1].extensionApplied=true;all[1].extensionMetadata=JSON.stringify({transactionId:'T1',actorUid:'M',prior:{baseExpiry:'2027-01-31',effectiveExpiry:'2027-01-31',windowFrom:'2026-12-01',windowTo:'2027-01-31'}});
+all[2].triggerSource='ECAS';
+all[3].effectiveExpiry='2027-02-30';
+const report=audit({obligations:all});
+assert.equal(report.total,20);
+assert.equal(report.summary.MIGRATION_REVIEW_REQUIRED,2);
+assert.equal(report.summary.REQUIRES_TRANSACTION_RECONCILIATION,1);
+assert.equal(report.summary.EXTERNAL_SOURCE_READ_ONLY,1);
+assert.equal(report.summary.READY_UNEXTENDED,16);
+assert(report.records.every(x=>x.automaticUndoAllowed===false));
+assert.throws(()=>audit({obligations:[make(0),make(0)]}),/EXT_MIGRATION_LINEAGE_INVALID/);
+console.log('PASS legacy EXT migration: 20-scope quarantine, no fabricated undo');

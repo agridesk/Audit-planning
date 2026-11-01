@@ -14,6 +14,7 @@ assert.ok(adapter.includes("'AMBIGUOUS_PRIOR_ECAS_COMMUNICATION'"));
 assert.ok(adapter.includes('ALREADY_QUEUED_FOR_PRIOR_RECEIPT'));
 assert.ok(gate.includes("'ECAS_AUDIT_REJECTED_DIGEST'"));
 assert.ok(renderer.includes("event==='ECAS_AUDIT_REJECTED_DIGEST'"));
+assert.ok(renderer.includes('ingepland, gewijzigd, geannuleerd of afgewezen'));
 assert.ok(receipt.includes("found===1"));
 const headers=['TimestampCreated','Status','Type','Recipient','Audit ID','Company','Subject','Body','Attempts','LastError','PayloadHash','TimestampSent','Reserved'];
 const prior={auditId:'A',company:'Farm',mpsNumber:'123',auditorUid:'U',auditorName:'Auditor',scopes:['ABC'],plannedHours:8,blocks:[{date:'2026-11-05',start:'08:00',end:'16:00'}]};

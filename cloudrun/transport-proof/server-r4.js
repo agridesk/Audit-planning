@@ -1700,6 +1700,9 @@ async function directManagerReject(identity,body){
     const activeObIds=new Set();
     for(let i=1;i<links.length;i++)if(val(links[i],la)===auditId&&val(links[i],ls).toUpperCase()==='ACTIVE')activeObIds.add(val(links[i],lo));
     if(!activeObIds.size)throw new Error('MODEL_C_NO_ACTIVE_OBLIGATIONS_FOR_REJECT');
+    const unlinkedAtIndex=col(lh,['Unlinked_At','Unlinked At']);if(unlinkedAtIndex<0)throw new Error('MODEL_C_REJECT_UNLINKED_AT_SCHEMA_MISSING');
+    const linkWrites=[];for(let i=1;i<links.length;i++){const link=links[i];if(val(link,la)!==auditId||val(link,ls).toUpperCase()!=='ACTIVE')continue;const row=link.slice();while(row.length<lh.length)row.push('');row[ls]='INACTIVE';row[unlinkedAtIndex]=now;linkWrites.push({range:'Audit_Visit_Obligations!A'+(i+1)+':'+a1col(lh.length)+(i+1),values:[row]});}
+    if(linkWrites.length!==activeObIds.size)throw new Error('MODEL_C_REJECT_LINK_CARDINALITY_INVALID');
 
     const obligationWrites=[],companyScopeIds=new Set(),rejectedScopeCodes=new Set(),terminalStates=new Set(['COMPLETED','CANCELLED','REJECTED']);
     for(let i=1;i<obs.length;i++){
@@ -1765,7 +1768,7 @@ async function directManagerReject(identity,body){
     }
     const archiveMs=Date.now()-archiveStarted;
 
-    const writeData=[...obligationWrites,...companyScopeWrites,...availabilityWrites];if(companyWrite)writeData.push(companyWrite);
+    const writeData=[...obligationWrites,...linkWrites,...companyScopeWrites,...availabilityWrites];if(companyWrite)writeData.push(companyWrite);
     const writeStarted=Date.now();if(writeData.length)await sheetsValuesBatchUpdate(writeData);const writeMs=Date.now()-writeStarted;
 
     const deleteStarted=Date.now();await sheetsDeleteRow('Audit planning',found.sourceRow);const deleteMs=Date.now()-deleteStarted;

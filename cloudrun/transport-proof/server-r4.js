@@ -787,6 +787,7 @@ async function directManagerSelfPlanning20(identity,body){
  });
 }
 async function directManagerExtension(identity,body){
+  if(process.env.AMS_SCOPE_EXTENSION_AUTHORITY==='FIRESTORE')throw new Error('LEGACY_EXTENSION_WRITER_FENCED');
   if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
   const t0=Date.now(),auditId=clean(body?.auditId),command=clean(body?.command).toLowerCase();
   if(!auditId)throw new Error('AUDIT_ID_REQUIRED');

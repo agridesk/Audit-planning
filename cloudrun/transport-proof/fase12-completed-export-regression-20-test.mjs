@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const grid=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+assert.ok(grid.includes('"executedOn","Audit date"'));
+assert.ok(grid.includes('"completedDate","Completed date"'));
+assert.ok(grid.includes('function selectionExcel()'));
+assert.ok(grid.includes('function selectionPdf()'));
+assert.ok(grid.includes('selectionExportHeaders()'));
+assert.ok(grid.includes('selectionExportRows()'));
+assert.ok(grid.includes('grid4ScopeBadges(r)'));
+console.log('Completed dates and selection exports source contract OK');

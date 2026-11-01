@@ -11,6 +11,7 @@ assert.ok(server.includes("process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_
 assert.ok(server.includes("reason:'ECAS_QUEUE_SOURCE_TRUNCATED'"));
 assert.ok(server.includes('directEcasEventConfigReady20(event,configRows)'));
 assert.ok(server.includes('directEcasRecipientFromConfig20(event,configRows,auditorRows)'));
+assert.ok(server.includes("m==='EXTERNAL_ECAS'&&t.toUpperCase()==='EXTERNAL_ECAS'"));
 assert.ok(server.includes('Notification_Config!A1:AF200'));
 const cancel=server.slice(server.indexOf('async function directManagerCancel('),server.indexOf('async function directManagerReject('));
 const reject=server.slice(server.indexOf('async function directManagerReject('),server.indexOf('const DIRECT_PLAN_LOCKS'));

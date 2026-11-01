@@ -200,7 +200,7 @@ async function toggleSelfPlanning20(button){
  }catch(e){window.alert('Self planning not changed: '+e.message);button.disabled=false}
  finally{busyAudits.delete(auditId)}
 }
-function bindActionButtons(root){(root||document).querySelectorAll(".act").forEach(function(button){button.addEventListener("click",function(){runAction(button)})});(root||document).querySelectorAll(".ext-act").forEach(function(button){button.addEventListener("click",function(){runExtension(button)})})}
+function bindActionButtons(root){(root||document).querySelectorAll(".self-planning-toggle20").forEach(function(button){button.addEventListener("click",function(){toggleSelfPlanning20(button)})});(root||document).querySelectorAll(".act").forEach(function(button){button.addEventListener("click",function(){runAction(button)})});(root||document).querySelectorAll(".ext-act").forEach(function(button){button.addEventListener("click",function(){runExtension(button)})})}
 function diagnoseGridOverflow(){
   if(window.innerWidth>1500)return;
   var wrap=document.querySelector('.table-wrap'),table=wrap&&wrap.querySelector('table');

@@ -561,8 +561,9 @@ function extensionLinkedAuditIds(obValues,linkValues){
 }
 function extensionMonthsForScopes(catalog,scopes){
   const wanted=new Set((scopes||[]).map(key)),values=[];
-  for(const def of catalog||[])if([def.displayName,def.scopeCode,def.slotKey].some(x=>wanted.has(key(x)))&&Number(def.extensionMonths||0)>0)values.push(Number(def.extensionMonths));
-  return values.length?Math.min(...values):0;
+  if(!wanted.size)return 0;
+  for(const target of wanted){const matches=(catalog||[]).filter(def=>[def.displayName,def.scopeCode,def.slotKey].some(x=>key(x)===target));if(matches.length!==1)return 0;const months=Number(matches[0].extensionMonths||0);if(!(months>0))return 0;values.push(months);}
+  return Math.min(...values);
 }
 
 function managerOpen(apValues,email,scopeValues,companyValues,audValues){
@@ -772,7 +773,7 @@ async function directManagerExtension(identity,body){
     if(!found)throw new Error('AUDIT_NOT_FOUND');
     if(directStatusKey(val(found.row,col(found.h,['Status'])))!=='PENDING_PLANNING')throw new Error('EXTENSION_ALLOWED_ONLY_PENDING_PLANNING');
     const scopes=extScopes(found,scopeCatalog(vr[1]?.values||[]));
-    const exts=scopes.map(s=>Number(s.extensionMonths||0)).filter(n=>n>0),months=exts.length?Math.min(...exts):0;
+    const exts=scopes.map(s=>Number(s.extensionMonths||0)),months=exts.length&&exts.every(n=>n>0)?Math.min(...exts):0;
     if(!months)throw new Error('NO_EXTENSION_CONFIGURED_FOR_ACTIVE_SCOPES');
     const expiryY=val(found.row,col(found.h,['Date - Will Expire','Date – Will Expire','Will Expire']));
     if(!extAddMonths(expiryY,0))throw new Error('MISSING_OR_INVALID_ORIGINAL_EXPIRY');

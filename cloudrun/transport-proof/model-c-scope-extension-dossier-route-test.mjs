@@ -17,4 +17,6 @@ assert(portal.includes('Read-only until Model C writer migration is verified'));
 assert.match(portal,/extContent\.replaceChildren\(\)/);
 assert(!portal.includes("fetch('/api/v1/manager/company-management/extension-obligations', {method:'POST'"));
 assert(server.includes('EXTENSION_MULTI_SCOPE_BLOCKED_PENDING_MODEL_C_SCOPE_SAFE_REMEDIATION_ISSUE_96'));
+assert(server.includes("process.env.AMS_SCOPE_EXTENSION_AUTHORITY==='FIRESTORE'"));
+assert(server.includes('LEGACY_EXTENSION_WRITER_FENCED'));
 console.log('PASS extension dossier: manager auth, read-only link, fail-closed writer');

@@ -2775,7 +2775,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       for(const row of log.slice(1)){if(actorUid&&lau>=0&&clean(val(row,lau))){if(clean(val(row,lau))!==actorUid)continue;}else if(directResolveAuditorEmail(aud,val(row,la))!==email)continue;if(lci>=0&&clean(row[lci])){uids.add(clean(row[lci]));completedCompanyUids.add(clean(row[lci]));}else if(lcn>=0&&clean(row[lcn]))names.add(clean(row[lcn]).toLowerCase())}
       const result=buildCompanyManagementReadModel20({companies:values[0]?.values||[],companyScopes:values[1]?.values||[],configScopes:values[2]?.values||[],scopeVersions:values[3]?.values||[],companyHours:values[4]?.values||[]});
       result.companies=result.companies.filter(c=>uids.has(c.companyUid)||(names.has(clean(c.name).toLowerCase())&&result.companies.filter(y=>clean(y.name).toLowerCase()===clean(c.name).toLowerCase()).length===1));
-      result.readOnly=true;result.actorRole='AUDITOR';result.activeAuditors=[];return send(res,200,result);
+      result.readOnly=true;result.actorRole='AUDITOR';result.activeAuditors=[];result.membershipDiagnostics={visibleCompanies:result.companies.length,openCompanyUidCount:openCompanyUids.size,completedCompanyUidCount:completedCompanyUids.size,combinedUniqueCompanyUids:uids.size,legacyNameFallbackCount:names.size,identityMode:'UID_FIRST'};return send(res,200,result);
     }catch(e){return send(res,409,{ok:false,error:'AUDITOR_COMPANY_READ_FAILED',detail:clean(e?.message||e)})}
   }
   if(u.pathname==='/api/v1/manager/company-management'&&req.method==='GET'){

@@ -773,6 +773,7 @@ async function directManagerExtension(identity,body){
     if(!found)throw new Error('AUDIT_NOT_FOUND');
     if(directStatusKey(val(found.row,col(found.h,['Status'])))!=='PENDING_PLANNING')throw new Error('EXTENSION_ALLOWED_ONLY_PENDING_PLANNING');
     const scopes=extScopes(found,scopeCatalog(vr[1]?.values||[]));
+    if(scopes.length>1)throw new Error('EXTENSION_MULTI_SCOPE_BLOCKED_PENDING_MODEL_C_SCOPE_SAFE_REMEDIATION_ISSUE_96');
     const exts=scopes.map(s=>Number(s.extensionMonths||0)),months=exts.length&&exts.every(n=>n>0)?Math.min(...exts):0;
     if(!months)throw new Error('NO_EXTENSION_CONFIGURED_FOR_ACTIVE_SCOPES');
     const expiryY=val(found.row,col(found.h,['Date - Will Expire','Date – Will Expire','Will Expire']));

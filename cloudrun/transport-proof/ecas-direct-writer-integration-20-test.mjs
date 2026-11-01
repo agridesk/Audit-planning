@@ -20,4 +20,7 @@ for(const [name,source,action,index] of [['Cancel',cancel,'CANCEL',3],['Reject',
  assert.ok(source.includes('sideEffectQueue'),name+' side-effect result');
 }
 assert.ok(reject.includes("reason:archiveReason"));
+assert.ok(cancel.includes("priorReason===reason&&priorTimestamp"));
+assert.ok(cancel.includes('if(recoveryRow)await sheetsValuesAppend'));
+assert.ok(reject.includes('if(recoveryRow)await sheetsValuesAppend'));
 console.log('Cloud Run DEV Cancel/Reject ECAS source integration OK');

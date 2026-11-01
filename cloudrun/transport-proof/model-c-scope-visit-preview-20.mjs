@@ -9,6 +9,7 @@ export function previewModelCVisitComposition20({auditId,obligations,links}){
  const la=col(lh,'Audit_ID'),lo=col(lh,'Obligation_ID'),ls=col(lh,'Link_State');
  if([oi,os,oc,la,lo,ls].some(x=>x<0))throw Error('MODEL_C_PREVIEW_SCHEMA_INCOMPLETE');
  const ids=new Set(links.slice(1).filter(r=>field(r,la)===id&&norm(field(r,ls))==='active').map(r=>field(r,lo)));
+ if(!ids.size)throw Error('MODEL_C_PREVIEW_NO_ACTIVE_LINKS');
  const rows=obligations.slice(1).filter(r=>ids.has(field(r,oi))).map(r=>({obligationId:field(r,oi),scopeCode:field(r,os),companyUid:field(r,oc),requiredHours:field(r,of),plannedHours:null,remainingHours:null,allocationStatus:'UNKNOWN_NOT_INFERRED',effectiveExpiry:field(r,oe),windowFrom:field(r,owf),windowTo:field(r,owt),state:field(r,ost)}));
  if(rows.length!==ids.size)throw Error('MODEL_C_PREVIEW_LINK_UNRESOLVED');
  if(rows.some(r=>!r.obligationId||!r.scopeCode||!r.companyUid)||new Set(rows.map(r=>r.companyUid)).size>1)throw Error('MODEL_C_PREVIEW_IDENTITY_INCOMPLETE');

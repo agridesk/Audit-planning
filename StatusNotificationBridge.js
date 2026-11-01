@@ -749,6 +749,7 @@ function StatusNotificationBridge_LoadEcasAuditBriefing_(auditId) {
       'Company', 'Company name', 'Client', 'Customer', 'Organisation', 'Organization'
     ]);
 
+    out.auditorUid = StatusNotificationBridge_CellLoose_(rowDisplay, idx, ['Auditor_UID','Auditor UID']);
     out.companyUid = StatusNotificationBridge_CellLoose_(rowDisplay, idx, [
       'Company_UID', 'Company UID', 'CompanyUID', 'UID', 'Company Id', 'Company ID'
     ]);

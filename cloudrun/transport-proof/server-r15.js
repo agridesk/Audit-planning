@@ -1193,7 +1193,7 @@ http.createServer(async(req,res)=>{
    res.writeHead(200,{'content-type':'text/javascript; charset=utf-8','cache-control':'no-store'});
    res.end(script);return;
   }
-  if(req.method==='GET'&&u.pathname==='/api/v1/manager/model-c-visit-preview'){
+  if(runtime.isDev&&req.method==='GET'&&u.pathname==='/api/v1/manager/model-c-visit-preview'){
    const actor=await session(req);
    if(actor?.role!=='manager'){res.writeHead(403);res.end('Manager required');return;}
    const auditId=String(u.searchParams.get('auditId')||'').trim();

@@ -761,6 +761,27 @@ async function saveScopeCosmetic20(body){
   await sheetsValuesBatchUpdateRaw([{range:'Config_Scopes!'+letter+(item.i+1),values:[[field==='SortOrder'?Number(value):value]]}]);
   return{ok:true,scopeCode:code,field,value,previous:old};
 }
+async function directManagerSelfPlanning20(identity,body){
+ if(process.env.AMS_RUNTIME_ENV==='PROD')throw Error('PROD_SELF_PLANNING_WRITER_NOT_ENABLED');
+ const auditId=clean(body?.auditId),expectedRevision=clean(body?.expectedRevision),value=body?.allowSelfPlanning;
+ if(!auditId||!expectedRevision||typeof value!=='boolean')throw Error('SELF_PLANNING_INPUT_INVALID');
+ return withDirectManagerActionLock(auditId,async()=>{
+  const result=await sheetsBatchGet(['Audit planning!A1:BW2000']);
+  const values=result[0]?.values||[];
+  if(values.length>=2000)throw Error('SELF_PLANNING_SOURCE_TRUNCATED');
+  const found=findAudit(values,auditId);
+  if(!found)throw Error('AUDIT_NOT_FOUND');
+  if(directStatusKey(val(found.row,col(found.h,['Status'])))!=='PENDING_PLANNING')throw Error('SELF_PLANNING_ONLY_PENDING_PLANNING');
+  if(directRowRevision(found.h,found.row)!==expectedRevision)throw Error('STALE_AUDIT_REVISION');
+  const index=col(found.h,['Allow self planning','Allow Self Planning','Self planning','Self Planning']);
+  if(index<0)throw Error('SELF_PLANNING_COLUMN_MISSING');
+  const previous=yes(found.row[index]);
+  if(previous===value)return{success:true,auditId,allowSelfPlanning:value,unchanged:true,sourceRevision:expectedRevision};
+  await sheetsValuesBatchUpdateRaw([{range:'Audit planning!'+a1col(index+1)+found.sourceRow,values:[[value?'Yes':'No']]}]);
+  const updated=found.row.slice();updated[index]=value?'Yes':'No';
+  return{success:true,auditId,allowSelfPlanning:value,sourceRevision:directRowRevision(found.h,updated)};
+ });
+}
 async function directManagerExtension(identity,body){
   if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
   const t0=Date.now(),auditId=clean(body?.auditId),command=clean(body?.command).toLowerCase();

@@ -29,7 +29,7 @@ function ECAS20_QueueCommittedLifecycle_(action,ctx,payload,result){
     var receipt=String(r[c.hash]||'').trim();if(!receipt)continue;
     var raw;try{raw=JSON.parse(String(r[c.reserved]||''));}catch(e){continue;}
     var p=raw&&raw.payload||raw||{};
-    if(String(p.auditId||'').trim()!==auditId||!String(p.company||'').trim()||!String(p.mpsNumber||'').trim()||!String(p.auditorUid||'').trim()||!Array.isArray(p.scopes)||!p.scopes.length||!Array.isArray(p.blocks)||!p.blocks.length||!(Number(p.plannedHours)>0))continue;
+    if(String(p.auditId||'').trim()!==auditId||!String(p.company||'').trim()||!String(p.mpsNumber||'').trim()||!String(p.auditorUid||'').trim()||!(String(p.auditorName||'').trim()||String(p.auditorEmail||'').trim())||!Array.isArray(p.scopes)||!p.scopes.length||!Array.isArray(p.blocks)||!p.blocks.length||!(Number(p.plannedHours)>0))continue;
     prior.push({receipt:receipt,payload:p,sentAt:String(r[c.sent])});
   }
   if(!prior.length)return {ok:false,queued:false,reason:'NO_VERIFIED_PRIOR_ECAS_COMMUNICATION'};

@@ -28,11 +28,14 @@ export function createScopeExtensionCommand20({store,policyResolver,contextResol
    obligationId:body.obligationId,auditId:body.auditId,scopeCode:selected[0].scopeCode,
    expectedRevision:body.expectedRevision,idempotencyKey:body.requestId,requestDigest,
    action:body.command,actorId:actor.uid,
-   execute:({obligation,priorTransaction})=>{
+   execute:({obligation,priorTransaction,atomicContext})=>{
+    if(!atomicContext||atomicContext.auditId!==body.auditId||atomicContext.companyUid!==body.companyUid||atomicContext.lifecycleStatus!=='PENDING_PLANNING'||atomicContext.fencedAndReadInTransaction!==true||!Array.isArray(atomicContext.obligations))throw Error('EXT_TRANSACTIONAL_CONTEXT_REQUIRED');
     if(!obligation||obligation.obligationId!==body.obligationId||obligation.companyUid!==body.companyUid||obligation.auditId!==body.auditId||obligation.scopeCode!==selected[0].scopeCode||!Number.isSafeInteger(obligation.revision)||obligation.revision!==body.expectedRevision)throw Error('EXT_STALE_OR_MISMATCHED_OBLIGATION');
     if(body.command==='undo'&&priorTransaction?.transactionId!==body.extensionTransactionId)throw Error('EXT_UNDO_TRANSACTION_CONFLICT');
-    const snapshot=ctx.obligations.map(o=>o.obligationId===body.obligationId?{...o,...obligation}:o);
-    const plan=planScopeExtension20({auditId:body.auditId,lifecycleStatus:ctx.lifecycleStatus,command:body.command,targets:[body.obligationId],obligations:snapshot,policyByScope:policy?{[selected[0].scopeCode]:policy}:{},actorUid:actor.uid,transactionId:body.requestId,priorTransaction});
+    const selectedLive=atomicContext.obligations.filter(o=>o.obligationId===body.obligationId);
+    if(selectedLive.length!==1||selectedLive[0].companyUid!==body.companyUid||selectedLive[0].scopeCode!==obligation.scopeCode||selectedLive[0].linkState!=='ACTIVE'||selectedLive[0].triggerSource==='ECAS')throw Error('EXT_TRANSACTIONAL_LINEAGE_CONFLICT');
+    const snapshot=atomicContext.obligations.map(o=>o.obligationId===body.obligationId?{...o,...obligation}:o);
+    const plan=planScopeExtension20({auditId:body.auditId,lifecycleStatus:atomicContext.lifecycleStatus,command:body.command,targets:[body.obligationId],obligations:snapshot,policyByScope:policy?{[selected[0].scopeCode]:policy}:{},actorUid:actor.uid,transactionId:body.requestId,priorTransaction});
     const change=plan.changes[0];
     return {obligationId:body.obligationId,expectedRevision:body.expectedRevision,nextRevision:body.expectedRevision+1,after:change.after,before:change.before,transaction:{transactionId:body.requestId,requestDigest,action:body.command,auditId:body.auditId,companyUid:body.companyUid,scopeCode:selected[0].scopeCode,obligationId:body.obligationId,actorUid:actor.uid,before:change.before,after:change.after,priorTransactionId:body.extensionTransactionId||null},outbox:{type:'SCOPE_EXTENSION_PROJECTION',obligationId:body.obligationId,auditId:body.auditId,revision:body.expectedRevision+1,aggregate:plan.aggregate}};
    }

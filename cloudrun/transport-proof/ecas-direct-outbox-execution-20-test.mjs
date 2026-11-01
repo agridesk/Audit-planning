@@ -19,5 +19,7 @@ const context=api.prepare({auditId:'A',action:'CANCEL',reason:'Client cancelled'
 const args={auditId:'A',action:'CANCEL',company:'Farm',now:'2026-11-01T10:00:00',configRows:config};
 const row=api.row(context,args);assert.equal(row[2],'ECAS_AUDIT_CANCELLED_DIGEST');assert.equal(JSON.parse(row[12]).payload.ecasComment,'Client cancelled');
 assert.equal(api.row(context,{...args,configRows:[config[0],[...config[1].slice(0,1),'NO',...config[1].slice(2)]]}),null);
+const disabled=get(findVerifiedEcasReceipt20,buildEcasLifecycleOutbox20,()=> 'ecas@example.invalid',col,yes,clean,{env:{AMS_RUNTIME_ENV:'DEV'}});
+assert.equal(disabled.row(context,args),null);
 const noReceipt=api.prepare({auditId:'A',action:'CANCEL',reason:'Reason',queueRows:[q[0]],auditorRows:[],transitionId:'T'});assert.equal(noReceipt.eligible,false);
 console.log('ECAS direct outbox receipt, reason and event config gate OK');

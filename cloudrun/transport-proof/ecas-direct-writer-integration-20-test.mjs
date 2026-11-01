@@ -20,6 +20,7 @@ for(const [name,source,action,index] of [['Cancel',cancel,'CANCEL',3],['Reject',
  assert.ok(source.includes('ecasLifecycleIntent:ecasLifecycle.eligible'),name+' durable trail');
  assert.ok(source.includes('directEcasLifecycleQueueRow20(ecasLifecycle'),name+' outbox row');
  assert.ok(source.includes('sideEffectQueue'),name+' side-effect result');
+ assert.ok(source.indexOf("if(!reason)throw new Error('ACTION_REASON_REQUIRED')")<source.indexOf('await sheetsValuesBatchUpdate'),name+' reason guard before writes');
 }
 assert.ok(reject.includes("reason:archiveReason"));
 assert.ok(cancel.includes("priorReason===reason&&priorTimestamp"));

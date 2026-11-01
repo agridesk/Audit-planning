@@ -592,6 +592,7 @@ function StatusNotificationBridge_QueueAcceptedExternalDigest_(recipientEmail, q
     externalPayload.plannedDates = briefing.plannedDates || [];
     externalPayload.plannedHours = briefing.plannedHours;
     externalPayload.planningJson = briefing.planningJson || '';
+    externalPayload.auditorUid = briefing.auditorUid || '';
     externalPayload.auditorEmail = briefing.auditorEmail || '';
     externalPayload.auditorName = briefing.auditorName || '';
     externalPayload.recipientRole = 'PLANNING';

@@ -776,6 +776,7 @@ async function directManagerSelfPlanning20(identity,body){
   const index=col(found.h,['Allow self planning','Allow Self Planning','Self planning','Self Planning']);
   if(index<0)throw Error('SELF_PLANNING_COLUMN_MISSING');
   const previous=yes(found.row[index]);
+  if(previous!==expectedValue)throw Error('STALE_SELF_PLANNING_VALUE');
   if(previous===value)return{success:true,auditId,allowSelfPlanning:value,unchanged:true,sourceRevision:expectedRevision};
   await sheetsValuesBatchUpdateRaw([{range:'Audit planning!'+a1col(index+1)+found.sourceRow,values:[[value?'Yes':'No']]}]);
   const updated=found.row.slice();updated[index]=value?'Yes':'No';

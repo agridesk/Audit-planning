@@ -1600,7 +1600,7 @@ async function directManagerCancel(identity,body,auditorMode=false){
     const ecasQueueRow=directEcasLifecycleQueueRow20(ecasLifecycle,{auditId,action:'CANCEL',company,now});if(ecasQueueRow)queueRows.push(ecasQueueRow);
     let sideEffectQueue={success:true};const sideStarted=Date.now();try{await sheetsValuesAppend('Notification Queue!A:M',queueRows);}catch(e){sideEffectQueue={success:false,error:clean(e?.message||e)}}
     const sideEffectMs=Date.now()-sideStarted;
-    return{success:true,auditId,action:'CANCEL',beforeStatus,newStatus:'Pending Planning',afterStatus:'PENDING_PLANNING',afterStatusDisplay:'Pending Planning',assignedTo:'',planningJson:'',hoursPlanned:0,sourceRevision:directRowRevision(h,row),directCommit:true,owner:auditorMode?'CLOUD_RUN_DIRECT_AUDITOR_CANCEL':'CLOUD_RUN_DIRECT_MANAGER_CANCEL',readMs,writeMs,writeCount:writes.length,availabilityRows,sideEffectMs,sideEffectQueue,totalMs:Date.now()-started};
+    return{success:true,auditId,action:'CANCEL',beforeStatus,newStatus:'Pending Planning',afterStatus:'PENDING_PLANNING',afterStatusDisplay:'Pending Planning',assignedTo:'',planningJson:'',hoursPlanned:0,sourceRevision:directRowRevision(h,row),directCommit:true,owner:auditorMode?'CLOUD_RUN_DIRECT_AUDITOR_CANCEL':'CLOUD_RUN_DIRECT_MANAGER_CANCEL',readMs,writeMs,writeCount:writes.length,availabilityRows,sideEffectMs,sideEffectQueue,ecasLifecycle:{eligible:ecasLifecycle.eligible===true,reason:ecasLifecycle.reason||'',queued:!!ecasQueueRow&&sideEffectQueue.success===true},totalMs:Date.now()-started};
   });
 }
 

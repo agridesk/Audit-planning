@@ -1532,6 +1532,14 @@ function directPrepareEcasLifecycle20({auditId,action,reason,queueRows,auditorRo
  return{eligible:outbox.required===true,receipt:verified.receipt,sourceRow:verified.sourceRow,outbox};}
  catch(e){return{eligible:false,reason:clean(e?.message||e)||'ECAS_OUTBOX_PREPARATION_FAILED'};}
 }
+function directEcasEventConfigReady20(event,configRows){
+ if(!Array.isArray(configRows)||!configRows.length||configRows.length>=200)return false;
+ const h=configRows[0],key=col(h,['EVENT_KEY']),active=col(h,['ACTIVE']),send=col(h,['SEND_EMAIL']),log=col(h,['LOG_ONLY']),reason=col(h,['REQUIRE_REASON']),family=col(h,['TEMPLATE_FAMILY']);
+ if([key,active,send,log,reason,family].some(x=>x<0))return false;
+ const matching=configRows.slice(1).filter(r=>clean(r[key])===event);
+ if(matching.length!==1)return false;
+ const r=matching[0];return yes(r[active])&&yes(r[send])&&!yes(r[log])&&yes(r[reason])&&clean(r[family])==='EXTERNAL_OPERATIONAL';
+}
 function directEcasLifecycleQueueRow20(context,{auditId,action,company,now}){
  if(!context?.eligible||context.outbox?.queueWrites?.length!==1)return null;
  const payload=context.outbox.queueWrites[0].payload,event=payload.eventKey,recipient=payload.recipientEmail;

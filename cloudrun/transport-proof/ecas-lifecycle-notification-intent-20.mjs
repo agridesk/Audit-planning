@@ -10,5 +10,5 @@ export function previewEcasLifecycleIntent20(input){
  if(!recipient)return{auditId,action,reason,eligible:false,decision:'ECAS_RECIPIENT_MISSING',queueAllowed:false};
  const scheduleId=clean(schedule.auditId),date=clean(schedule.date),auditorUid=clean(schedule.auditorUid),company=clean(schedule.company),mpsNumber=clean(schedule.mpsNumber),scopes=Array.isArray(schedule.scopes)?schedule.scopes.map(clean).filter(Boolean):[],hours=Number(schedule.hours);
  if(scheduleId!==auditId||!date||!auditorUid||!company||!mpsNumber||!scopes.length||!Number.isFinite(hours)||hours<=0)return{auditId,action,reason,eligible:false,decision:'PRIOR_SCHEDULE_INCOMPLETE',queueAllowed:false};
- return{auditId,action,reason,eligible:true,decision:'PREVIEW_ONLY_REQUIRES_DURABLE_QUEUE_AND_IDEMPOTENCY',queueAllowed:false,recipientEmail:recipient,receipt,priorSchedule:{auditId:scheduleId,date,auditorUid,company:clean(schedule.company),scopes:Array.isArray(schedule.scopes)?schedule.scopes.map(clean):[],hours:schedule.hours??null}};
+ return{auditId,action,reason,eligible:true,decision:'PREVIEW_ONLY_REQUIRES_DURABLE_QUEUE_AND_IDEMPOTENCY',queueAllowed:false,recipientEmail:recipient,receipt,priorSchedule:{auditId:scheduleId,date,auditorUid,company,mpsNumber,scopes,hours}};
 }

@@ -5,4 +5,9 @@ const links=[['Audit_ID','Obligation_ID','Link_State'],['AUDIT1','OB1','ACTIVE']
 const r=previewModelCVisitComposition20({auditId:'AUDIT1',obligations,links});
 assert.equal(r.scopeCount,2);assert.deepEqual(r.compositionOptions,['TOGETHER','SEPARATELY']);assert.deepEqual(r.obligations.map(x=>x.requiredHours),['8','3']);assert.equal(r.canCommit,false);
 assert.throws(()=>previewModelCVisitComposition20({auditId:'AUDIT1',obligations,links:[...links,['AUDIT1','MISSING','ACTIVE']]}),/MODEL_C_PREVIEW_LINK_UNRESOLVED/);
+import {readFileSync} from 'node:fs';
+const server=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
+assert.ok(server.includes('/api/v1/manager/model-c-visit-preview'));
+assert.ok(server.includes('previewModelCVisitComposition20({auditId'));
+assert.ok(server.includes('if(actor?.role!==\'manager\')'));
 console.log('Model C scope preview OK');

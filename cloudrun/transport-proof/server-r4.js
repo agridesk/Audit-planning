@@ -2769,7 +2769,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       const ap=values[5]?.values||[],ah=ap[0]||[],ci=col(ah,['Company_UID','Company UID']),cn=col(ah,['Company']),ca=col(ah,['Assigned to','Assigned auditor','Auditor']),cp=col(ah,['Preassigned Auditor']),cau=col(ah,['Auditor_UID','Assigned_Auditor_UID']),aud=values[7]?.values||[],email=clean(actor.email).toLowerCase(),actorUid=clean(actor.auditorUid||actor.auditorId),uids=new Set(),names=new Set(),openCompanyUids=new Set(),completedCompanyUids=new Set();
       for(const row of ap.slice(1)){
         if(actorUid&&cau>=0&&clean(val(row,cau))){if(clean(val(row,cau))!==actorUid)continue;}else if(directResolveAuditorEmail(aud,val(row,ca))!==email&&directResolveAuditorEmail(aud,val(row,cp))!==email)continue;
-        if(ci>=0&&clean(row[ci]))uids.add(clean(row[ci]));else if(cn>=0&&clean(row[cn]))names.add(clean(row[cn]).toLowerCase());
+        if(ci>=0&&clean(row[ci])){uids.add(clean(row[ci]));openCompanyUids.add(clean(row[ci]));}else if(cn>=0&&clean(row[cn]))names.add(clean(row[cn]).toLowerCase());
       }
       const log=values[6]?.values||[],lh=log[0]||[],lci=col(lh,['Company_UID','Company UID']),lcn=col(lh,['Company']),la=col(lh,['Auditor','Auditor Email','Email']),lau=col(lh,['Auditor_UID','Assigned_Auditor_UID']);
       for(const row of log.slice(1)){if(actorUid&&lau>=0&&clean(val(row,lau))){if(clean(val(row,lau))!==actorUid)continue;}else if(directResolveAuditorEmail(aud,val(row,la))!==email)continue;if(lci>=0&&clean(row[lci]))uids.add(clean(row[lci]));else if(lcn>=0&&clean(row[lcn]))names.add(clean(row[lcn]).toLowerCase())}

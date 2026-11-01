@@ -18,4 +18,8 @@ assert.equal(dmyResult.status,'STRUCTURALLY_ELIGIBLE_FOR_FURTHER_VERIFICATION');
 assert.equal(dmyResult.issues.length,0);
 const invalidDmy=dmy.map((x,i)=>i?x:{...x,Base_Expiry_Date:'31/02/2027'});
 assert(audit({obligations:invalidDmy,links,planningRows:[{'Audit ID':'A1'}]}).issues.some(x=>x.code==='OBLIGATION_DATE_INVALID'));
+const ecas=[{...obligations[0],Trigger_Source:'ECAS',Base_Expiry_Date:'',Effective_Expiry_Date:'',Planning_Window_From:'',Planning_Window_To:''}];
+const ecasResult=audit({obligations:ecas,links:[links[0]],planningRows:[{'Audit ID':'A1'}]});
+assert.equal(ecasResult.status,'STRUCTURALLY_ELIGIBLE_FOR_FURTHER_VERIFICATION');
+assert.equal(ecasResult.records[0].status,'EXTERNAL_SOURCE_READ_ONLY');
 console.log('PASS Model C read-only audit: 20 scopes, history quarantine, lineage validation');

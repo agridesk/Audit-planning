@@ -10,4 +10,5 @@ assert.match(frontend,/incomplete\.length\?'<div>Uncertain auditors/,'Only curre
 assert.match(frontend,/freeWork\(d\.segments\)>0/,'Partial free-day filtering retained');
 assert.ok(!backend.includes('knownUid||emailUid'),'UID fallback forbidden');
 assert.match(backend,/const resolved=knownUid;/,'Mutation guard must use UID');
+assert.ok(backend.includes('if(!owner&&!manager){if(!outside)unknownOwner=true;continue;}'));
 console.log('Availability historical UID / warning source contracts OK');

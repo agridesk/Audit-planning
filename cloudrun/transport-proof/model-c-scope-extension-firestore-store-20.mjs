@@ -12,7 +12,7 @@ export function createScopeExtensionFirestoreStore20({projectId,getToken,fetchIm
  if(migrationVerified!==true||writerFenceVerified!==true)throw Error('EXT_FIRESTORE_CUTOVER_UNVERIFIED');
  if(!/^[a-z][a-z0-9-]{4,62}$/.test(projectId||'')||typeof getToken!=='function'||!id(prefix)||!databaseId)throw Error('EXT_FIRESTORE_CONFIG_INVALID');
  const base='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(projectId)+'/databases/'+encodeURIComponent(databaseId)+'/documents';
- const doc=(kind,key)=>{if(!['obligation','event','outbox'].includes(kind)||!id(key))throw Error('EXT_FIRESTORE_DOCUMENT_ID_INVALID');return base+'/'+prefix+'_'+kind+'/'+encodeURIComponent(key)};
+ const doc=(kind,key)=>{if(!['obligation','event','outbox','auditcontext'].includes(kind)||!id(key))throw Error('EXT_FIRESTORE_DOCUMENT_ID_INVALID');return base+'/'+prefix+'_'+kind+'/'+encodeURIComponent(key)};
  async function request(url,method='GET',body){const token=await getToken();if(!token)throw Error('EXT_FIRESTORE_TOKEN_MISSING');return fetchImpl(url,{method,headers:{authorization:'Bearer '+token,...(body?{'content-type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})})}
  async function runAtomic({obligationId,auditId,scopeCode,expectedRevision,idempotencyKey,requestDigest,action,actorId,execute}={}){
   if(![obligationId,auditId,scopeCode,idempotencyKey,requestDigest,actorId].every(id)||!Number.isSafeInteger(expectedRevision)||expectedRevision<0||!['apply','undo'].includes(action)||typeof execute!=='function')throw Error('EXT_FIRESTORE_COMMAND_INVALID');
@@ -21,12 +21,16 @@ export function createScopeExtensionFirestoreStore20({projectId,getToken,fetchIm
   const read=async(kind,key)=>{const url=new URL(doc(kind,key));url.searchParams.set('transaction',transaction);const response=await request(url.toString());if(response.status===404)return null;if(!response.ok)throw Error('EXT_FIRESTORE_READ_'+response.status);const v=await response.json();if(!v.updateTime||!v.fields?.payload)throw Error('EXT_FIRESTORE_CORRUPT');return{value:decode(v.fields.payload),updateTime:v.updateTime}};
   const existing=await read('event',idempotencyKey);
   if(existing){if(existing.value.requestDigest!==requestDigest||existing.value.actorUid!==actorId||existing.value.obligationId!==obligationId||existing.value.action!==action||existing.value.auditId!==auditId||existing.value.scopeCode!==scopeCode)throw Error('EXT_IDEMPOTENCY_REUSE_CONFLICT');return{...copy(existing.value.receipt),replayed:true}}
+  const canonical=await read('auditcontext',auditId);
+  if(!canonical||canonical.value.auditId!==auditId||canonical.value.lifecycleStatus!=='PENDING_PLANNING'||canonical.value.writerFenceVerified!==true||!id(canonical.value.companyUid)||!Array.isArray(canonical.value.obligationIds)||!canonical.value.obligationIds.length||canonical.value.obligationIds.length>100||new Set(canonical.value.obligationIds).size!==canonical.value.obligationIds.length||!canonical.value.obligationIds.every(id)||!canonical.value.obligationIds.includes(obligationId))throw Error('EXT_TRANSACTIONAL_AUDIT_CONTEXT_MISSING');
+  const linked=[];
+  for(const linkedId of canonical.value.obligationIds){const item=await read('obligation',linkedId);if(!item||item.value.auditId!==auditId||item.value.companyUid!==canonical.value.companyUid||item.value.obligationId!==linkedId||item.value.linkState!=='ACTIVE'||item.value.pendingProjectionId)throw Error('EXT_TRANSACTIONAL_LINKED_SCOPE_CONFLICT');linked.push(item.value)}
   const current=await read('obligation',obligationId);
   if(!current)throw Error('EXT_OBLIGATION_NOT_MIGRATED');
   if(current.value.auditId!==auditId||current.value.scopeCode!==scopeCode||current.value.revision!==expectedRevision||current.value.pendingProjectionId)throw Error('EXT_REVISION_OR_PROJECTION_CONFLICT');
   let priorTransaction=null;
   if(action==='undo'){const meta=JSON.parse(str(current.value.extensionMetadata)||'null');if(!id(meta?.transactionId))throw Error('EXT_UNDO_PROVENANCE_MISSING');const before=await read('event',meta.transactionId);if(!before||before.value.action!=='apply'||before.value.obligationId!==obligationId||before.value.auditId!==auditId)throw Error('EXT_UNDO_PROVENANCE_INVALID');priorTransaction=before.value.planTransaction}
-  const prepared=execute({obligation:copy(current.value),priorTransaction});
+  const prepared=execute({obligation:copy(current.value),priorTransaction,atomicContext:{auditId,companyUid:canonical.value.companyUid,lifecycleStatus:canonical.value.lifecycleStatus,fencedAndReadInTransaction:true,obligations:copy(linked)}});
   if(prepared.obligationId!==obligationId||prepared.expectedRevision!==expectedRevision||prepared.nextRevision!==expectedRevision+1||prepared.transaction?.transactionId!==idempotencyKey||prepared.transaction?.requestDigest!==requestDigest||prepared.transaction?.obligationId!==obligationId||prepared.outbox?.obligationId!==obligationId)throw Error('EXT_FIRESTORE_PLAN_INVALID');
   const receipt={success:true,obligationId,revision:prepared.nextRevision,operationId:idempotencyKey,projection:'PENDING'};
   const value={...current.value,...copy(prepared.after),revision:prepared.nextRevision,pendingProjectionId:idempotencyKey};

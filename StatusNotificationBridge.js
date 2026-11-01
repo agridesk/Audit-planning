@@ -418,7 +418,7 @@ function StatusNotificationBridge_Dispatch_(action, actor, ctx, payload, result)
       eventCode: eventCode,
       recipient: recipient.email,
       queueResult: queueResult,
-      externalEventCode: externalQueueResult && externalQueueResult.queued ? (action===ACTION.REJECT?'ECAS_AUDIT_REJECTED_DIGEST':action===ACTION.CANCEL?'ECAS_AUDIT_CANCELLED_DIGEST':'ECAS_AUDIT_APPROVAL_DIGEST') : '',
+      externalEventCode: externalQueueResult && (externalQueueResult.queued===true||(externalQueueResult.success===true&&!externalQueueResult.skipped)) ? (action===ACTION.REJECT?'ECAS_AUDIT_REJECTED_DIGEST':action===ACTION.CANCEL?'ECAS_AUDIT_CANCELLED_DIGEST':'ECAS_AUDIT_APPROVAL_DIGEST') : '',
       externalQueueResult: externalQueueResult
     }));
 

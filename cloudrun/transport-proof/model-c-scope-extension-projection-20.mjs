@@ -3,7 +3,7 @@ const value=x=>String(x??'').trim();
 const date=x=>{const s=value(x);if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return'';const [y,m,d]=s.split('-').map(Number);return m>=1&&m<=12&&d>=1&&d<=new Date(Date.UTC(y,m,0)).getUTCDate()?s:'';};
 export function projectScopeExtensions20({auditId,obligations,companyUid}={}){
  if(!value(auditId)||!value(companyUid)||!Array.isArray(obligations)||!obligations.length)throw Error('EXT_PROJECTION_INPUT_INVALID');
- const relevant=obligations.filter(x=>x?.auditId===auditId&&x.linkState==='ACTIVE'&&x.triggerSource!=='ECAS');
+ const relevant=obligations.filter(x=>x?.auditId===auditId&&x.linkState==='ACTIVE'&&x.triggerSource!=='ECAS'&&x.expiryManaged!==false);
  if(!relevant.length)throw Error('EXT_PROJECTION_NO_OBLIGATIONS');
  const ids=new Set(),scopes=[];
  for(const o of relevant){

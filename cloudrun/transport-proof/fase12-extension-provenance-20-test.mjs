@@ -6,4 +6,6 @@ for(const guard of guards)assert.ok(source.includes(guard),guard);
 const grid=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 assert.ok(grid.includes('extensionAppliedState(r)?r.expiryZ:r.expiryY'));
 assert.ok(grid.includes('applied=extensionAppliedState(r)'));
+assert.ok(grid.includes('Array.isArray(r.scopes)&&r.scopes.length>1'));
+
 console.log('Extension provenance guards present');

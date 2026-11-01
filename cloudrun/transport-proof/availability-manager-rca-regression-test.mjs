@@ -16,7 +16,7 @@ vm.runInContext('renderOverview(data)',ctx);
 assert.equal(el('filterDate').value,'2026-11-04');assert.equal(el('filterDate').min,'2026-11-04');assert.equal(el('filterDate').max,'2026-11-06');
 assert.match(el('comparison').innerHTML,/1 of 1 auditors/);
 el('filterDate').value='2026-11-05';vm.runInContext('renderOverview(data)',ctx);assert.equal(el('filterDate').value,'2026-11-05');
-const previousDay=data.auditors[0].days[1].segments;data.auditors[0].days[1].segments=[{state:'FREE',start:'08:00',end:'09:00'},{state:'COMMITTED',start:'09:00',end:'14:00'},{state:'FREE',start:'14:00',end:'18:00'}];vm.runInContext('renderOverview(data)',ctx);assert.match(el('comparison').innerHTML,/No auditors match these filters on 2026-11-05/);data.auditors[0].days[1].segments=previousDay;
+const previousDay=data.auditors[0].days[1].segments;data.auditors[0].days[1].segments=[{state:'FREE',start:'08:00',end:'09:00'},{state:'COMMITTED',start:'09:00',end:'14:00'},{state:'FREE',start:'14:00',end:'18:00'}];vm.runInContext('renderOverview(data)',ctx);assert.match(el('comparison').innerHTML,/5\.0h free on 2026-11-05/,'partial availability remains selectable');data.auditors[0].days[1].segments=[{state:'COMMITTED',start:'08:00',end:'18:00'}];vm.runInContext('renderOverview(data)',ctx);assert.match(el('comparison').innerHTML,/No auditors match these filters on 2026-11-05/,'zero availability is excluded');data.auditors[0].days[1].segments=previousDay;
 
 el('filterDate').value='2027-01-01';vm.runInContext('renderOverview(data)',ctx);assert.equal(el('filterDate').value,'2026-11-04');
 data.uncertainAuditorIds=['a'];data.outsidePeriodAuditDiagnostics=[{company:'Old <Company>',plannedDate:'2026-03-31',auditId:'NEVER_RENDER_UID'}];

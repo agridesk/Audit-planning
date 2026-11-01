@@ -1227,7 +1227,7 @@ http.createServer(async(req,res)=>{
    if(personal){
     const uid=String(actor.auditorId||actor.uid||actor.id||'').trim();
     if(!uid)throw Error('ROTATION_AUDITOR_UID_REQUIRED');
-    result.rows=result.rows.filter(row=>row.auditorUid===uid).map(row=>({...row,history:(row.history||[]).filter(event=>event.auditorUid===uid||event.auditor===row.auditor)}));
+    result.rows=result.rows.filter(row=>row.auditorUid===uid).map(row=>({...row,history:(row.history||[]).filter(event=>event.auditorUid===uid)}));
     result.issues=[];
    }
    result.testDataAvailable=!personal&&runtime.isDev;

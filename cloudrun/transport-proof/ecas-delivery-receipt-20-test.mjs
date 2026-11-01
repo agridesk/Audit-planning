@@ -8,6 +8,7 @@ assert.equal(verify({...args,queueRows:[head,row('PENDING','R')]}).verified,fals
 assert.equal(verify({...args,queueRows:[head,row('SENT','R')]}).receipt,'R');
 assert.equal(verify({...args,queueRows:[head,[...row('SENT','R').slice(0,-1),'']]}).verified,false);
 assert.equal(verify({...args,queueRows:[head,row('SENT','R'),row('SENT','R2')]}).reason,'ECAS_RECEIPT_AMBIGUOUS');
+const newer=[...row('SENT','R2')];newer[6]='2026-11-02T09:00:00Z';assert.equal(verify({...args,queueRows:[head,row('SENT','R'),newer]}).receipt,'R2');
 assert.equal(verify({...args,queueRows:[head,row('SENT','R',{payload:{...payload.payload,blocks:[]}})]}).verified,false);
 assert.throws(()=>verify({...args,queueRows:[['Status'],['SENT']]}),/ECAS_RECEIPT_SCHEMA_UNVERIFIED/);
 console.log('ECAS persisted receipt verification OK');

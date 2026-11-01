@@ -9,4 +9,11 @@ const modified=obligations.map(o=>({...o,...applied.changes.find(x=>x.obligation
 const undo=plan({auditId:'A',command:'undo',targets:['O1','O2'],obligations:modified,policyByScope,actorUid:'U',transactionId:'T2',priorTransaction:applied});
 assert.deepEqual(undo.changes.map(x=>x.after.effectiveExpiry),['2026-03-31','2026-05-31']);
 assert.throws(()=>plan({auditId:'A',command:'apply',targets:['O1'],obligations:modified,policyByScope,actorUid:'U',transactionId:'T3'}),/EXT_ALREADY_APPLIED/);
+assert.throws(()=>plan({auditId:'A',command:'apply',targets:['O1'],obligations,policyByScope,actorUid:'U',transactionId:'T4',lifecycleStatus:'Approved'}),/EXTENSION_ALLOWED_ONLY_PENDING_PLANNING/);
+assert.throws(()=>plan({auditId:'A',command:'undo',targets:['O1'],obligations:modified,policyByScope,actorUid:'U',transactionId:'T5',priorTransaction:applied,lifecycleStatus:'Accepted'}),/EXTENSION_ALLOWED_ONLY_PENDING_PLANNING/);
+const changedPolicy={...policyByScope,ABC:{extensionMonths:0,planningFromMonths:0,planningToMonths:0}};
+const undoAfterPolicyChange=plan({auditId:'A',command:'undo',targets:['O1'],obligations:modified,policyByScope:changedPolicy,actorUid:'U',transactionId:'T6',priorTransaction:applied});
+assert.equal(undoAfterPolicyChange.changes[0].after.effectiveExpiry,'2026-03-31');
+assert.equal(undoAfterPolicyChange.changes.length,1);
+assert.throws(()=>plan({auditId:'A',command:'undo',targets:['O1'],obligations:modified,policyByScope,actorUid:'U',transactionId:'T7',priorTransaction:{...applied,auditId:'OTHER'}}),/EXT_UNDO_PROVENANCE_INVALID/);
 console.log('Model C scope extension planning OK');

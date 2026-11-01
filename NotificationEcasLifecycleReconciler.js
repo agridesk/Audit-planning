@@ -12,7 +12,7 @@ function RUN_ECAS20_RECONCILE_DEV_(){
  var ah=ap.getDataRange().getValues(),rh=rej.getDataRange().getValues();
  function index(h,name){return h[0].map(function(x){return String(x||'').toLowerCase().replace(/[^a-z0-9]/g,'');}).indexOf(name);}
  var ai=index(ah,'auditid'),as=index(ah,'status'),ri=index(rh,'auditid');if(ai<0||as<0||ri<0)throw Error('ECAS_RECONCILE_CANONICAL_SCHEMA_INVALID');
- var pending=new Map(),skipped=0;
+ var pending=new Map(),ambiguous=new Set(),skipped=0;
  for(var i=1;i<rows.length;i++){
   var r=rows[i];if(String(r[type]||'')!=='LIFECYCLE_STATUS_CHANGED'||String(r[status]||'')!=='AUDIT_TRAIL')continue;
   var p;try{var raw=JSON.parse(String(r[reserved]||''));p=raw.payload||raw;}catch(e){skipped++;continue;}
@@ -22,7 +22,8 @@ function RUN_ECAS20_RECONCILE_DEV_(){
   if(action==='CANCEL'&&(live.length!==1||String(live[0][as]||'').toLowerCase().replace(/[ _-]/g,'')!=='pendingplanning')){skipped++;continue;}
   if(action==='REJECT'&&(live.length||!archived)){skipped++;continue;}
   var key=id+'|'+action;
-  if(pending.has(key)){pending.delete(key);skipped++;continue;} // Ambiguous multiple transitions; never guess.
+  if(ambiguous.has(key)){skipped++;continue;}
+  if(pending.has(key)){pending.delete(key);ambiguous.add(key);skipped++;continue;} // Ambiguous multiple transitions; never guess.
   pending.set(key,{action:action,auditId:id,reason:reason,afterStatus:action==='CANCEL'?'PENDING_PLANNING':'REJECTED'});
  }
  var attempted=0,queued=0,failures=[];

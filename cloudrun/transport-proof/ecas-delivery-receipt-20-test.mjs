@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {findVerifiedEcasReceipt20 as verify} from './ecas-delivery-receipt-20.mjs';
-const head=['Status','Event Type','Recipient','Audit ID','Hash','Payload JSON'];
+const head=['Status','Type','Recipient','Audit ID','PayloadHash','Reserved'];
 const payload={payload:{auditId:'A',company:'Farm',mpsNumber:'123',auditorUid:'U',auditorName:'Auditor',scopes:['ABC'],plannedHours:8,blocks:[{date:'2026-11-10',start:'08:00',end:'16:00'}]}};
 const row=(status,hash,body=payload)=>[status,'ECAS_AUDIT_APPROVAL_DIGEST','ecas@example.invalid','A',hash,JSON.stringify(body)];
 const args={auditId:'A',expectedRecipient:'ecas@example.invalid'};

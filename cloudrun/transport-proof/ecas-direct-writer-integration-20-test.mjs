@@ -7,10 +7,13 @@ assert.ok(server.includes("import {findVerifiedEcasReceipt20}"));
 assert.ok(server.includes("import {buildEcasLifecycleOutbox20}"));
 assert.ok(server.includes("process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_ECAS_LIFECYCLE_QUEUE_ENABLED==='YES'"));
 assert.ok(server.includes("reason:'ECAS_QUEUE_SOURCE_TRUNCATED'"));
+assert.ok(server.includes('directEcasEventConfigReady20(event,configRows)'));
+assert.ok(server.includes('Notification_Config!A1:AF200'));
 const cancel=server.slice(server.indexOf('async function directManagerCancel('),server.indexOf('async function directManagerReject('));
 const reject=server.slice(server.indexOf('async function directManagerReject('),server.indexOf('const DIRECT_PLAN_LOCKS'));
 for(const [name,source,action,index] of [['Cancel',cancel,'CANCEL',3],['Reject',reject,'REJECT',9]]){
  assert.ok(source.includes("'Notification Queue!A1:M5000'"),name+' source');
+ assert.ok(source.includes("'Notification_Config!A1:AF200'"),name+' config');
  assert.ok(source.includes("action:'"+action+"',reason,queueRows:vr["+index+"]?.values"),name+' provenance');
  assert.ok(source.includes('ecasLifecycleIntent:ecasLifecycle.eligible'),name+' durable trail');
  assert.ok(source.includes('directEcasLifecycleQueueRow20(ecasLifecycle'),name+' outbox row');

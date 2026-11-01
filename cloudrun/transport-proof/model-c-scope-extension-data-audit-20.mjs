@@ -23,6 +23,7 @@ export function auditModelCExtensionSnapshot20({obligations,links,planningRows}=
   const ob=byId.get(oid);if(ob.auditId&&ob.auditId!==aid)issues.push({code:'LINK_AUDIT_LINEAGE_CONFLICT',auditId:aid,obligationId:oid});
  }
  for(const ob of normalized){
+  if(ob.triggerSource.toUpperCase()==='ECAS')continue;
   if(!validDate(ob.baseExpiry)||!validDate(ob.effectiveExpiry)||!validDate(ob.windowFrom)||!validDate(ob.windowTo))issues.push({code:'OBLIGATION_DATE_INVALID',auditId:ob.auditId,obligationId:ob.obligationId});
   if(validDate(ob.windowFrom)&&validDate(ob.windowTo)&&ob.windowFrom>ob.windowTo)issues.push({code:'OBLIGATION_WINDOW_REVERSED',auditId:ob.auditId,obligationId:ob.obligationId});
  }

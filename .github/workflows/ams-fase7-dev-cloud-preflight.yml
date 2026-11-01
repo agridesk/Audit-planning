@@ -1,0 +1,37 @@
+name: AMS Fase 7 DEV Cloud preflight (read only)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  dev-readonly-preflight:
+    runs-on: ubuntu-latest
+    environment: ams-dev
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify cloud credentials configuration
+        env:
+          WIF_PROVIDER: ${{ secrets.AMS_DEV_WIF_PROVIDER }}
+          SERVICE_ACCOUNT: ${{ secrets.AMS_DEV_PREFLIGHT_SERVICE_ACCOUNT }}
+        run: |
+          test -n "$WIF_PROVIDER" || { echo "::error::AMS_DEV_WIF_PROVIDER missing"; exit 1; }
+          test -n "$SERVICE_ACCOUNT" || { echo "::error::AMS_DEV_PREFLIGHT_SERVICE_ACCOUNT missing"; exit 1; }
+      - name: Authenticate DEV identity only
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.AMS_DEV_WIF_PROVIDER }}
+          service_account: ${{ secrets.AMS_DEV_PREFLIGHT_SERVICE_ACCOUNT }}
+          project_id: audit-management-system-dev
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Verify active GCP project
+        run: |
+          test "$(gcloud config get-value project)" = "audit-management-system-dev"
+          gcloud auth list --filter=status:ACTIVE --format="value(account)"
+      - name: Read Firestore database metadata and Cloud Run revision, no writes
+        run: |
+          gcloud firestore databases describe --database="(default)" --project="audit-management-system-dev" --format="json(name,locationId,type)"
+          gcloud run services describe ams-transport-proof --project="audit-management-system-dev" --region="europe-west1" --format="json(status.latestReadyRevisionName,status.traffic)"
+      - name: Explicit no-write completion
+        run: echo "DEV read-only preflight complete; no cutover or deployment was performed"

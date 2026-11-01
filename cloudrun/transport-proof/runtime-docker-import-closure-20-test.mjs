@@ -8,8 +8,8 @@ const entries=readdirSync(root).filter(name=>/^(?:server-r(?:4|5|6|7|8|9|10|11|1
 const docker=readFileSync(resolve(root,'Dockerfile'),'utf8');
 const patterns=docker.split('\n').map(x=>/^COPY\s+(\S+)\s+\.\/$/.exec(x)?.[1]).filter(Boolean);
 function matches(name,pattern){
- const regex=new RegExp('^'+pattern.replace(/[.+?^${}()|[\]\\]/g,'\\$&').replace(/\*/g,'.*')+'$');
- return regex.test(name);
+ const escaped=pattern.split('*').map(part=>part.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('.*');
+ return new RegExp('^'+escaped+'$').test(name);
 }
 const sourceFiles=readdirSync(root);
 const packaged=new Set(sourceFiles.filter(name=>patterns.some(p=>matches(name,p))));

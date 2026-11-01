@@ -794,6 +794,15 @@ async function directManagerExtension(identity,body){
     if(command==='apply'&&yes(currentApplied))throw new Error('EXTENSION_ALREADY_APPLIED');
     if(command==='undo'&&!yes(currentApplied))throw new Error('EXTENSION_NOT_APPLIED');
     if(command==='undo'&&!currentMeta)throw new Error('EXTENSION_UNDO_PROVENANCE_MISSING');
+    const currentEffective=val(currentOb,col(oh,['Effective_Expiry_Date']));
+    const currentBase=val(currentOb,col(oh,['Base_Expiry_Date']));
+    if(currentBase&&extAddMonths(currentBase,0)!==extAddMonths(expiryY,0))throw new Error('EXTENSION_BASE_EXPIRY_MODEL_C_MISMATCH');
+    if(command==='apply'&&currentEffective&&extAddMonths(currentEffective,0)!==extAddMonths(expiryY,0))throw new Error('EXTENSION_EXISTING_EFFECTIVE_EXPIRY_CONFLICT');
+    if(command==='undo'){
+      let previous;try{previous=JSON.parse(currentMeta);}catch{throw new Error('EXTENSION_UNDO_PROVENANCE_INVALID');}
+      if(previous?.source!=='CLOUD_RUN_DIRECT_MANAGER_EXTENSION'||previous?.undo===true||Number(previous?.months)!==months)throw new Error('EXTENSION_UNDO_PROVENANCE_UNTRUSTED');
+      if(extAddMonths(currentEffective,0)!==extAddMonths(expiryY,months))throw new Error('EXTENSION_UNDO_EFFECTIVE_EXPIRY_CONFLICT');
+    }
     const data=[],put=(sheet,h,row,names,v)=>{const i=col(h,names);if(i<0)throw new Error('EXTENSION_COLUMN_MISSING_'+names[0]);data.push({range:sheet+'!'+a1col(i+1)+row,values:[[v]]});};
     const meta=JSON.stringify({months,undo:command==='undo',source:'CLOUD_RUN_DIRECT_MANAGER_EXTENSION',actorEmail:clean(identity?.email).toLowerCase(),timestamp:now});
     for(const rowNo of targets){

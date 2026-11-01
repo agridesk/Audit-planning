@@ -42,3 +42,4 @@ jobs:
           node model-c-scope-extension-sheets-adapter-20-test.mjs
           node model-c-scope-extension-firestore-backfill-20-test.mjs
           node model-c-scope-extension-firestore-seed-20-test.mjs
+          node model-c-reject-link-fence-20-test.mjs

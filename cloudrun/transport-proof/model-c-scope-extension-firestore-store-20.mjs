@@ -23,9 +23,10 @@ export function createScopeExtensionFirestoreStore20({projectId,getToken,fetchIm
   if(existing){if(existing.value.requestDigest!==requestDigest||existing.value.actorUid!==actorId||existing.value.obligationId!==obligationId||existing.value.action!==action||existing.value.auditId!==auditId||existing.value.scopeCode!==scopeCode)throw Error('EXT_IDEMPOTENCY_REUSE_CONFLICT');return{...copy(existing.value.receipt),replayed:true}}
   const canonical=await read('auditcontext',auditId);
   if(!canonical||canonical.value.auditId!==auditId||canonical.value.lifecycleStatus!=='PENDING_PLANNING'||canonical.value.writerFenceVerified!==true||!id(canonical.value.companyUid)||!Array.isArray(canonical.value.obligationIds)||!canonical.value.obligationIds.length||canonical.value.obligationIds.length>100||new Set(canonical.value.obligationIds).size!==canonical.value.obligationIds.length||!canonical.value.obligationIds.every(id)||!canonical.value.obligationIds.includes(obligationId))throw Error('EXT_TRANSACTIONAL_AUDIT_CONTEXT_MISSING');
+  const linkedRows=await Promise.all(canonical.value.obligationIds.map(linkedId=>read('obligation',linkedId)));
   const linked=[];
-  for(const linkedId of canonical.value.obligationIds){const item=await read('obligation',linkedId);if(!item||item.value.auditId!==auditId||item.value.companyUid!==canonical.value.companyUid||item.value.obligationId!==linkedId||item.value.linkState!=='ACTIVE'||item.value.pendingProjectionId)throw Error('EXT_TRANSACTIONAL_LINKED_SCOPE_CONFLICT');linked.push(item.value)}
-  const current=await read('obligation',obligationId);
+  for(let i=0;i<linkedRows.length;i++){const item=linkedRows[i],linkedId=canonical.value.obligationIds[i];if(!item||item.value.auditId!==auditId||item.value.companyUid!==canonical.value.companyUid||item.value.obligationId!==linkedId||item.value.linkState!=='ACTIVE'||item.value.pendingProjectionId)throw Error('EXT_TRANSACTIONAL_LINKED_SCOPE_CONFLICT');linked.push(item.value)}
+  const current=linkedRows[canonical.value.obligationIds.indexOf(obligationId)];
   if(!current)throw Error('EXT_OBLIGATION_NOT_MIGRATED');
   if(current.value.auditId!==auditId||current.value.scopeCode!==scopeCode||current.value.revision!==expectedRevision||current.value.pendingProjectionId)throw Error('EXT_REVISION_OR_PROJECTION_CONFLICT');
   let priorTransaction=null;

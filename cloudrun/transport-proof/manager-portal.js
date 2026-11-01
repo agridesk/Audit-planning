@@ -195,7 +195,7 @@ async function showScopePreview20(button){
   var response=await fetch('/api/v1/manager/model-c-visit-preview?auditId='+encodeURIComponent(auditId),{credentials:'same-origin'});
   var data=await response.json();if(!response.ok||!Array.isArray(data.obligations))throw Error(data.error||'Scope details unavailable');
   var lines=data.obligations.map(function(o){return [o.scopeCode,'Required: '+(o.requiredHours||'unknown')+' h','Planned: not allocated','Expiry: '+(o.effectiveExpiry||'unknown'),'Window: '+(o.windowFrom||'?')+' to '+(o.windowTo||'?')].join(' | ')});
-  window.alert('Model C scopes for '+auditId+' (read-only)\\n'+lines.join('\\n')+'\\nTogether/separately planning is not yet enabled.');
+  window.alert('Model C scopes for '+auditId+' (read-only)\n'+lines.join('\n')+'\nTogether/separately planning is not yet enabled.');
  }catch(e){window.alert('Scope preview failed: '+e.message)}finally{button.disabled=false}
 }
 async function toggleSelfPlanning20(button){

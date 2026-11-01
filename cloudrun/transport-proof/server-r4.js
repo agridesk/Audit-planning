@@ -1,5 +1,7 @@
 import http from 'node:http';
 import {resolveManagerApprovalRecipient20} from './manager-approve-recipient-20.mjs';
+import {createScopeExtensionCommand20} from './model-c-scope-extension-command-20.mjs';
+import {createScopeExtensionFirestoreStore20} from './model-c-scope-extension-firestore-store-20.mjs';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {normalizeLifecycleWriteset} from './planning-lifecycle-writeset-20.js';
 import {findVerifiedEcasReceipt20} from './ecas-delivery-receipt-20.mjs';
@@ -2014,6 +2016,26 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
     try{return send(res,200,await directManagerSelfPlanning20(s,b))}
     catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'SELF_PLANNING_BLOCKED'})}
+  }
+  if(u.pathname==='/api/v1/manager/extension-obligation-command'&&req.method==='POST'){
+    const session=await sessionFromRequestValidated(req);if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(session.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    if(process.env.AMS_RUNTIME_ENV!=='DEV'||process.env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE'||process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true'||process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true')return send(res,409,{ok:false,error:'EXT_FIRESTORE_CUTOVER_NOT_VERIFIED'});
+    const actualDev=await verifiedAuditorLockDevProject();if(!actualDev)return send(res,409,{ok:false,error:'EXT_DEV_PROJECT_IDENTITY_UNVERIFIED'});
+    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
+    let body;try{body=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+    try{
+      const store=createScopeExtensionFirestoreStore20({projectId:actualDev,getToken:accessToken,migrationVerified:true,writerFenceVerified:true});
+      const contextResolver=({auditId,companyUid})=>store.readAuditContext({auditId,companyUid});
+      const policyResolver=async({scopeCode,companyUid,obligationId})=>{
+        const context=await store.readAuditContext({auditId:clean(body.auditId),companyUid});
+        if(!context.obligations.some(x=>x.obligationId===obligationId&&x.scopeCode===scopeCode))throw Error('EXT_SCOPE_POLICY_LINEAGE_INVALID');
+        return context.policyByScope?.[scopeCode]||null;
+      };
+      const execute=createScopeExtensionCommand20({store,contextResolver,policyResolver});
+      const actor={role:'manager',uid:clean(session.uid||session.auditorUid||session.email)};
+      return send(res,200,await execute({actor,body}));
+    }catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'EXT_SCOPE_COMMAND_BLOCKED'})}
   }
   if(u.pathname==='/api/v1/manager/extension-direct'&&req.method==='POST'){
     const s=await sessionFromRequestValidated(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});

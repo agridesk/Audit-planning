@@ -189,6 +189,17 @@ function renderOpenRow(r){var raw=r.allowedActions||[],ui=[];if(String(actorRole
 function renderOpen(rows){return rows.map(renderOpenRow).join("")}
 function renderCompleted(rows){return rows.map(function(r){var action=String(actorRole).toLowerCase()==="auditor"?"<span class=\"muted\">—</span>":"<button class=\"realized-act\" data-audit-id=\""+esc(r.auditId)+"\">Edit realized hours</button>";return "<tr data-audit-id=\""+esc(r.auditId)+"\"><td class=\"select-cell\"><input type=\"checkbox\" class=\"grid-select-row\" data-audit-id=\""+esc(r.auditId)+"\" "+(gridSelected.has(String(r.auditId||""))?"checked":"")+"></td><td>"+esc(text(r.company))+"</td><td>"+esc(text(r.region))+"</td><td>"+grid4ScopeBadges(r)+"</td><td>"+esc(text(r.executedOn))+"</td><td class=\"auditor-cell\">"+esc(text(r.auditorDisplayName||r.auditorName||r.auditor))+"</td><td>"+esc(text(r.hoursPlanned))+"</td><td>"+esc(text(r.hoursDedicated))+"</td><td>"+esc(text(r.completedDate))+"</td><td>"+esc(text(r.status||"Completed"))+"</td><td>"+action+"</td></tr>"}).join("")}
 function bindCompletedButtons(root){(root||document).querySelectorAll(".realized-act").forEach(function(button){button.addEventListener("click",function(){openRealizedDialog(button.getAttribute("data-audit-id"))})})}
+async function toggleSelfPlanning20(button){
+ var auditId=button.getAttribute('data-audit-id'),row=all.find(function(r){return r.auditId===auditId});
+ if(!row||busyAudits.has(auditId)||!row.sourceRevision)return;
+ busyAudits.add(auditId);button.disabled=true;
+ try{
+  var response=await fetch('/api/v1/manager/self-planning-direct',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({auditId:auditId,expectedRevision:row.sourceRevision,allowSelfPlanning:button.getAttribute('data-next')==='true'})});
+  var result=await response.json();if(!response.ok||result.success!==true)throw Error(result.error||'Self planning update failed');
+  mergeRowInPlace(auditId,{allowSelfPlanning:result.allowSelfPlanning,sourceRevision:result.sourceRevision});
+ }catch(e){window.alert('Self planning not changed: '+e.message);button.disabled=false}
+ finally{busyAudits.delete(auditId)}
+}
 function bindActionButtons(root){(root||document).querySelectorAll(".act").forEach(function(button){button.addEventListener("click",function(){runAction(button)})});(root||document).querySelectorAll(".ext-act").forEach(function(button){button.addEventListener("click",function(){runExtension(button)})})}
 function diagnoseGridOverflow(){
   if(window.innerWidth>1500)return;

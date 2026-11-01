@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import {findVerifiedEcasReceipt20 as verify} from './ecas-delivery-receipt-20.mjs';
-const head=['Status','Type','Recipient','Audit ID','PayloadHash','Reserved'];
+const head=['Status','Type','Recipient','Audit ID','PayloadHash','Reserved','TimestampSent'];
 const payload={payload:{auditId:'A',company:'Farm',mpsNumber:'123',auditorUid:'U',auditorName:'Auditor',scopes:['ABC'],plannedHours:8,blocks:[{date:'2026-11-10',start:'08:00',end:'16:00'}]}};
-const row=(status,hash,body=payload)=>[status,'ECAS_AUDIT_APPROVAL_DIGEST','ecas@example.invalid','A',hash,JSON.stringify(body)];
+const row=(status,hash,body=payload)=>[status,'ECAS_AUDIT_APPROVAL_DIGEST','ecas@example.invalid','A',hash,JSON.stringify(body),'2026-11-01T09:00:00'];
 const args={auditId:'A',expectedRecipient:'ecas@example.invalid'};
 assert.equal(verify({...args,queueRows:[head,row('PENDING','R')]}).verified,false);
 assert.equal(verify({...args,queueRows:[head,row('SENT','R')]}).receipt,'R');
+assert.equal(verify({...args,queueRows:[head,[...row('SENT','R').slice(0,-1),'']]}).verified,false);
 assert.equal(verify({...args,queueRows:[head,row('SENT','R'),row('SENT','R2')]}).reason,'ECAS_RECEIPT_AMBIGUOUS');
 assert.equal(verify({...args,queueRows:[head,row('SENT','R',{payload:{...payload.payload,blocks:[]}})]}).verified,false);
 assert.throws(()=>verify({...args,queueRows:[['Status'],['SENT']]}),/ECAS_RECEIPT_SCHEMA_UNVERIFIED/);

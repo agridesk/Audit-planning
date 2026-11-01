@@ -31,6 +31,8 @@ function run(rows){
 }
 assert.equal(run([headers,row('PENDING','R')]).calls.length,0);
 assert.equal(run([headers,row('SENT','R'),row('SENT','R2')]).out.reason,'AMBIGUOUS_PRIOR_ECAS_COMMUNICATION');
+const older=row('SENT','R'),newer=row('SENT','R2');newer[11]='2026-11-06';
+const latest=run([headers,older,newer]);assert.equal(latest.calls.length,1);assert.equal(latest.calls[0].before.communicationId,'R2');
 const ok=run([headers,row('SENT','R')]);assert.equal(ok.calls.length,1);assert.equal(ok.calls[0].eventKey,'ECAS_AUDIT_REJECTED_DIGEST');assert.equal(ok.calls[0].ecasComment,'Client refused');
 assert.equal(run([headers,row('SENT','R')]).out.queued,true);
 console.log('ECAS committed lifecycle bridge source and mock execution OK');

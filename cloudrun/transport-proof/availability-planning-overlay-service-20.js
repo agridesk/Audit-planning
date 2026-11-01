@@ -139,6 +139,9 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
     for(const audit of incompleteAuditDiagnostics){
      const state=clean(audit.status).toLowerCase().replace(/[\s_-]+/g,'');
      const knownUid=clean(audit.auditorUid);
+     const legacyEmail=clean(audit.assignedEmail).toLowerCase();
+     const emailOwner=legacyEmail?canonicalAuditors.find(a=>clean(a.email).toLowerCase()===legacyEmail):null;
+     if(knownUid&&emailOwner&&clean(emailOwner.auditorId)!==knownUid)throw Error('AUDIT_PLANNING_AUDITOR_IDENTITY_CONFLICT');
      if(knownUid&&!validAuditorIds.has(knownUid))throw Error('AUDIT_PLANNING_AUDITOR_UID_UNKNOWN');
      const resolved=knownUid;
      if(!resolved){

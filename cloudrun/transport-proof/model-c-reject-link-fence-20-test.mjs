@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const server=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+const a=server.indexOf('async function directManagerReject(');
+const b=server.indexOf('async function ',a+20);
+assert(a>=0&&b>a);
+const reject=server.slice(a,b);
+assert(reject.includes("MODEL_C_REJECT_UNLINKED_AT_SCHEMA_MISSING"));
+assert(reject.includes("row[ls]='INACTIVE'"));
+assert(reject.includes("row[unlinkedAtIndex]=now"));
+assert(reject.includes('MODEL_C_REJECT_LINK_CARDINALITY_INVALID'));
+assert(reject.includes('...obligationWrites,...linkWrites,...companyScopeWrites'));
+assert(reject.indexOf('...obligationWrites,...linkWrites')<reject.indexOf("sheetsDeleteRow('Audit planning'"));
+assert(reject.includes('LEGACY_OBLIGATION_LIFECYCLE_WRITER_FENCED'));
+console.log('PASS model C reject inactivates every linked obligation before audit deletion');

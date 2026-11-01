@@ -19,4 +19,5 @@ assert(!portal.includes("fetch('/api/v1/manager/company-management/extension-obl
 assert(server.includes('EXTENSION_MULTI_SCOPE_BLOCKED_PENDING_MODEL_C_SCOPE_SAFE_REMEDIATION_ISSUE_96'));
 assert(server.includes("process.env.AMS_SCOPE_EXTENSION_AUTHORITY==='FIRESTORE'"));
 assert(server.includes('LEGACY_EXTENSION_WRITER_FENCED'));
+assert.equal(server.split('LEGACY_OBLIGATION_LIFECYCLE_WRITER_FENCED').length-1,2);
 console.log('PASS extension dossier: manager auth, read-only link, fail-closed writer');

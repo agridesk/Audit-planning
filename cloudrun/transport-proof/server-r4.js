@@ -1517,6 +1517,16 @@ async function directComplete(identity,body,actorRole){
   });
 }
 
+function directEcasRecipientFromConfig20(event,configRows,auditorRows){
+ if(!Array.isArray(configRows)||!configRows.length||configRows.length>=200)return '';
+ const h=configRows[0],key=col(h,['EVENT_KEY']),mode=col(h,['RECIPIENT_MODE']),target=col(h,['RECIPIENT_TARGET']);
+ if([key,mode,target].some(x=>x<0))return '';
+ const rows=configRows.slice(1).filter(r=>clean(r[key])===event);if(rows.length!==1)return '';
+ const m=clean(rows[0][mode]).toUpperCase(),t=clean(rows[0][target]);
+ if(['EMAIL','FIXED','STATIC','SPECIFIC_EMAIL'].includes(m)&&/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(t))return t.toLowerCase();
+ if((m==='MANAGER'||m==='ROLE'||m==='ROLE_MANAGER')&&(!t||t.toUpperCase()==='MANAGER'))return canonicalManagerRecipient(auditorRows||[]);
+ return '';
+}
 function directPrepareEcasLifecycle20({auditId,action,reason,queueRows,auditorRows,transitionId}){
  if(!Array.isArray(queueRows)||queueRows.length>=5000)return{eligible:false,reason:'ECAS_QUEUE_SOURCE_TRUNCATED'};
  const recipient=canonicalManagerRecipient(auditorRows||[]);

@@ -6,7 +6,7 @@
 function ECAS20_SubmitVerifiedChangeCancel_(input) {
   input=input||{};
   var key=String(input.eventKey||'').trim();
-  if(key!=='ECAS_AUDIT_CHANGED_DIGEST'&&key!=='ECAS_AUDIT_CANCELLED_DIGEST')
+  if(!['ECAS_AUDIT_CHANGED_DIGEST','ECAS_AUDIT_CANCELLED_DIGEST','ECAS_AUDIT_REJECTED_DIGEST'].includes(key))
     return {ok:false,queued:false,reason:'UNSUPPORTED_EVENT'};
   var prepared=StatusNotificationBridge_PrepareEcasChangeCancel_(key,input.before,input.after,input.ecasComment);
   if(!prepared.ok)return {ok:false,queued:false,reason:'INVALID_ECAS_CONTEXT',errors:prepared.errors};

@@ -40,3 +40,5 @@ jobs:
           node model-c-scope-extension-dossier-route-test.mjs
           node model-c-scope-extension-sheets-projector-20-test.mjs
           node model-c-scope-extension-sheets-adapter-20-test.mjs
+          node model-c-scope-extension-firestore-backfill-20-test.mjs
+          node model-c-scope-extension-firestore-seed-20-test.mjs

@@ -9,6 +9,7 @@ assert.equal(verify({...args,queueRows:[head,row('SENT','R')]}).receipt,'R');
 assert.equal(verify({...args,queueRows:[head,[...row('SENT','R').slice(0,-1),'']]}).verified,false);
 assert.equal(verify({...args,queueRows:[head,row('SENT','R'),row('SENT','R2')]}).reason,'ECAS_RECEIPT_AMBIGUOUS');
 const newer=[...row('SENT','R2')];newer[6]='2026-11-02T09:00:00Z';assert.equal(verify({...args,queueRows:[head,row('SENT','R'),newer]}).receipt,'R2');
+const euOld=[...row('SENT','EU1')],euNew=[...row('SENT','EU2')];euOld[6]='31-10-2026 09:00';euNew[6]='01-11-2026 09:00';assert.equal(verify({...args,queueRows:[head,euOld,euNew]}).receipt,'EU2');
 assert.equal(verify({...args,queueRows:[head,row('SENT','R',{payload:{...payload.payload,blocks:[]}})]}).verified,false);
 assert.throws(()=>verify({...args,queueRows:[['Status'],['SENT']]}),/ECAS_RECEIPT_SCHEMA_UNVERIFIED/);
 console.log('ECAS persisted receipt verification OK');

@@ -2020,6 +2020,9 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'SELF_PLANNING_BLOCKED'})}
   }
   if(u.pathname==='/api/v1/manager/extension-obligation-command'&&req.method==='POST'){
+    const requestOrigin=clean(req.headers.origin);if(!requestOrigin)return send(res,403,{ok:false,error:'EXT_ORIGIN_REQUIRED'});
+    let parsedOrigin;try{parsedOrigin=new URL(requestOrigin)}catch{return send(res,403,{ok:false,error:'EXT_ORIGIN_FORBIDDEN'})}
+    if(parsedOrigin.host!==clean(req.headers.host)||!['http:','https:'].includes(parsedOrigin.protocol))return send(res,403,{ok:false,error:'EXT_ORIGIN_FORBIDDEN'});
     const session=await sessionFromRequestValidated(req);if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(session.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
     if(process.env.AMS_RUNTIME_ENV!=='DEV'||process.env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE'||process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true'||process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true')return send(res,409,{ok:false,error:'EXT_FIRESTORE_CUTOVER_NOT_VERIFIED'});
@@ -2040,6 +2043,9 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     }catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'EXT_SCOPE_COMMAND_BLOCKED'})}
   }
   if(u.pathname==='/api/v1/manager/extension-reconcile-projection'&&req.method==='POST'){
+    const requestOrigin=clean(req.headers.origin);if(!requestOrigin)return send(res,403,{ok:false,error:'EXT_ORIGIN_REQUIRED'});
+    let parsedOrigin;try{parsedOrigin=new URL(requestOrigin)}catch{return send(res,403,{ok:false,error:'EXT_ORIGIN_FORBIDDEN'})}
+    if(parsedOrigin.host!==clean(req.headers.host)||!['http:','https:'].includes(parsedOrigin.protocol))return send(res,403,{ok:false,error:'EXT_ORIGIN_FORBIDDEN'});
     const session=await sessionFromRequestValidated(req);if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(session.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
     if(process.env.AMS_RUNTIME_ENV!=='DEV'||process.env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE'||process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true'||process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true')return send(res,409,{ok:false,error:'EXT_FIRESTORE_CUTOVER_NOT_VERIFIED'});

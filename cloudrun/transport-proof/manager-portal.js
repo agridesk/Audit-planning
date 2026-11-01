@@ -951,6 +951,7 @@ document.getElementById("selectionClear").onclick=selectionClear;
 document.getElementById("selectionBatch").onclick=function(){submitSelectionHandoff("batch")};
 document.getElementById("selectionConcept").onclick=function(){submitSelectionHandoff("concept")};
 document.getElementById("selectionExport").onclick=function(){var f=document.getElementById("selectionExportFormat").value;f==="pdf"?selectionPdf():selectionExcel()};
+document.getElementById("gridExportVisible20").onclick=function(){document.getElementById("gridExportFormat20").value==="pdf"?selectionPdf():selectionExcel()};
 // Legacy overview Planning Workspace control removed; use audit-specific or batch planning.
 (function(){
 var button=document.getElementById('scopeManagement20'),panel=document.getElementById('scopeManagement20Panel'),close=document.getElementById('scopeManagement20Close'),body=document.getElementById('scopeManagement20Rows'),status=document.getElementById('scopeManagement20Status'),search=document.getElementById('scopeManagement20Search'),filter=document.getElementById('scopeManagement20Filter'),dossier=document.getElementById('scopeManagement20Dossier'),details=document.getElementById('scopeManagement20Details'),records=[],selected=null,tab='general',pendingEdits=[];

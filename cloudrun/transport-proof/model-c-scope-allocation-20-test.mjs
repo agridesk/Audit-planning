@@ -5,4 +5,5 @@ const good=validate({...base,allocations:[{blockId:'B',obligationId:'O1',minutes
 assert.deepEqual(good.scopes.map(x=>x.remainingMinutes),[60,0]);assert.equal(good.validForCommit,false);
 assert.throws(()=>validate({...base,allocations:[{blockId:'B',obligationId:'O1',minutes:480},{blockId:'B',obligationId:'O2',minutes:180}]}),/SCOPE_DOUBLE_COUNTED_BLOCK/);
 const separate=validate({...base,composition:'SEPARATE',allocations:[]});assert.equal(separate.requiresIdentityMaterialization,true);
+assert.throws(()=>validate({...base,blocks:[...base.blocks,{blockId:'B2',date:'2026-11-05',start:'17:00',end:'19:00'}],allocations:[]}),/SCOPE_OVERLAPPING_BLOCKS/);
 console.log('Model C allocation validation OK');

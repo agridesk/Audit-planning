@@ -1518,7 +1518,7 @@ async function directComplete(identity,body,actorRole){
 }
 
 function directPrepareEcasLifecycle20({auditId,action,reason,queueRows,auditorRows,transitionId}){
- if(!Array.isArray(queueRows)||queueRows.length>=2000)return{eligible:false,reason:'ECAS_QUEUE_SOURCE_TRUNCATED'};
+ if(!Array.isArray(queueRows)||queueRows.length>=5000)return{eligible:false,reason:'ECAS_QUEUE_SOURCE_TRUNCATED'};
  const recipient=canonicalManagerRecipient(auditorRows||[]);
  if(!recipient)return{eligible:false,reason:'ECAS_CANONICAL_RECIPIENT_MISSING'};
  let verified;try{verified=findVerifiedEcasReceipt20({auditId,queueRows,expectedRecipient:recipient});}
@@ -1545,7 +1545,7 @@ async function directManagerCancel(identity,body,auditorMode=false){
   if(!auditId)throw new Error('AUDIT_ID_REQUIRED');
   if(!reason)throw new Error('ACTION_REASON_REQUIRED');
   return withDirectManagerActionLock(auditId,async()=>{
-    const readStarted=Date.now(),vr=await sheetsBatchGet(['Audit planning!A1:BW2000','Auditor Availability!A:P','Auditors!A1:Z256','Notification Queue!A1:M2000']),readMs=Date.now()-readStarted;
+    const readStarted=Date.now(),vr=await sheetsBatchGet(['Audit planning!A1:BW2000','Auditor Availability!A:P','Auditors!A1:Z256','Notification Queue!A1:M5000']),readMs=Date.now()-readStarted;
     const ap=vr[0]?.values||[];if(!ap.length||ap.length>=2000)throw Error('CANONICAL_PLANNING_INCOMPLETE');const found=findAudit(ap,auditId);if(!found)throw new Error('AUDIT_NOT_FOUND');
     const h=found.h,row=found.row.slice(),statusCol=col(h,['Status']),beforeStatus=statusCol>=0?clean(row[statusCol]):'',beforeKey=directStatusKey(beforeStatus);
     if(!(auditorMode?beforeKey==='PENDING_APPROVAL':['PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(beforeKey)))throw new Error('STATUS_TRANSITION_BLOCKED');
@@ -1623,7 +1623,7 @@ async function directManagerReject(identity,body){
       'Company_Scopes!A1:Z1000',
       'Audit_Obligations!A1:Z2000',
       'Audit_Visit_Obligations!A1:H2000',
-      'Notification Queue!A1:M2000'
+      'Notification Queue!A1:M5000'
     ]);
     const readMs=Date.now()-readStarted,ap=vr[0]?.values||[];if(!ap.length||ap.length>=2000)throw Error('CANONICAL_PLANNING_INCOMPLETE');const found=findAudit(ap,auditId);
     const rejected=vr[3]?.values||[],rh=rejected[0]||[],rAuditId=col(rh,['Audit ID']);

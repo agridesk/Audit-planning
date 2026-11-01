@@ -10,12 +10,14 @@ export function findVerifiedEcasReceipt20({auditId,queueRows,expectedRecipient})
  const matches=[];
  for(let i=1;i<queueRows.length;i++){
   const r=queueRows[i];if(!sent.has(clean(r[idx.status]).toUpperCase())||!events.has(clean(r[idx.event]).toUpperCase())||clean(r[idx.audit])!==auditId||clean(r[idx.recipient]).toLowerCase()!==clean(expectedRecipient).toLowerCase())continue;
-  const receipt=clean(r[idx.hash]),sentAt=clean(r[idx.sentAt]);if(!receipt||!sentAt)continue;
+  const receipt=clean(r[idx.hash]),sentAt=clean(r[idx.sentAt]);if(!receipt||!sentAt||!Number.isFinite(Date.parse(sentAt)))continue;
   let raw;try{raw=JSON.parse(clean(r[idx.payload]));}catch{continue}
   const p=raw?.payload||raw;
   if(clean(p.auditId)!==auditId||!clean(p.company)||!clean(p.mpsNumber)||!clean(p.auditorUid)||!Array.isArray(p.scopes)||!p.scopes.length||!Array.isArray(p.blocks)||!p.blocks.length||!Number.isFinite(Number(p.plannedHours))||Number(p.plannedHours)<=0)continue;
   matches.push({receipt,sentAt,sourceRow:i+1,eventType:clean(r[idx.event]),recipientEmail:clean(r[idx.recipient]),schedule:{auditId,date:clean(p.blocks[0].date),auditorUid:clean(p.auditorUid),auditorName:clean(p.auditorName),auditorEmail:clean(p.auditorEmail),company:clean(p.company),mpsNumber:clean(p.mpsNumber),scopes:p.scopes.map(clean),hours:Number(p.plannedHours),blocks:p.blocks}});
  }
- if(matches.length!==1)return{verified:false,reason:matches.length?'ECAS_RECEIPT_AMBIGUOUS':'NO_SENT_ECAS_RECEIPT',matches:matches.length};
- return{verified:true,...matches[0]};
+ if(!matches.length)return{verified:false,reason:'NO_SENT_ECAS_RECEIPT',matches:0};
+ matches.sort((a,b)=>Date.parse(b.sentAt)-Date.parse(a.sentAt));
+ if(matches.length>1&&Date.parse(matches[0].sentAt)===Date.parse(matches[1].sentAt))return{verified:false,reason:'ECAS_RECEIPT_AMBIGUOUS',matches:matches.length};
+ return{verified:true,...matches[0],historyCount:matches.length};
 }

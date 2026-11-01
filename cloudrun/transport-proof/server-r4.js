@@ -1029,15 +1029,20 @@ async function directManagerApprove(identity,body){
     const assigned=val(row,col(h,['Assigned to','Assigned To','Assigned auditor','Assigned Auditor','Assigned']));
     const auditorValues=vr[1]?.values||[],auditorHeaders=auditorValues[0]||[];
     const assignedUid=val(row,col(h,['Auditor_UID','Auditor UID','Assigned_Auditor_UID']));
-    let recipientEmail=directResolveAuditorEmail(auditorValues,assigned);
-    if(!recipientEmail&&assignedUid){
+    // The stable UID is authoritative when present: a stale Assigned to email must
+    // never send approval to a different auditor after an identity/email change.
+    let recipientEmail='';
+    if(assignedUid){
       const uidIndex=col(auditorHeaders,['Auditor_UID','Auditor UID']),emailIndex=col(auditorHeaders,['Email','E-mail','Auditor Email','Auditor email']);
-      if(uidIndex>=0&&emailIndex>=0){
-        const matches=auditorValues.slice(1).filter(r=>val(r,uidIndex)===assignedUid);
-        if(matches.length===1)recipientEmail=clean(val(matches[0],emailIndex)).toLowerCase();
-      }
+      if(uidIndex<0||emailIndex<0)throw new Error('APPROVE_AUDITOR_IDENTITY_SCHEMA_MISSING');
+      const matches=auditorValues.slice(1).filter(r=>val(r,uidIndex)===assignedUid);
+      if(matches.length!==1)throw new Error('APPROVE_AUDITOR_UID_NOT_UNIQUE_OR_MISSING');
+      recipientEmail=clean(val(matches[0],emailIndex)).toLowerCase();
+      if(!recipientEmail||!recipientEmail.includes('@'))throw new Error('APPROVE_AUDITOR_RECIPIENT_REQUIRED');
+    }else{
+      recipientEmail=directResolveAuditorEmail(auditorValues,assigned);
+      if(!recipientEmail)throw new Error('APPROVE_AUDITOR_RECIPIENT_REQUIRED');
     }
-    if(!recipientEmail)throw new Error('APPROVE_AUDITOR_RECIPIENT_REQUIRED');
     const company=val(row,col(h,['Company'])),companyUid=val(row,col(h,['Company_UID','Company UID','CompanyUid'])),now=isoLocalStamp(),minuteStamp=now.slice(0,16),actorEmail=clean(identity?.email).toLowerCase();
     const set=(names,value)=>{const i=col(h,names);if(i>=0)row[i]=value;};
     set(['Status'],'Accepted');

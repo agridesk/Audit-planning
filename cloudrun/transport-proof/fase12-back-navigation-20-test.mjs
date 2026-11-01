@@ -17,3 +17,7 @@ for(const term of ['ams-fase12-grid-return','sessionStorage.setItem(GRID_RETURN_
  assert(script.includes(term),'Missing grid state persistence: '+term);
 }
 console.log('PASS Fase 1.2 uniform back navigation and grid-state restoration contract');
+
+const rotationJs=readFileSync(new URL('./rotation-manager-20.js',import.meta.url),'utf8');
+assert(!rotationJs.includes("back.removeAttribute('href')"),'Auditor Rotation must retain the grid link');
+assert(!rotationJs.includes('Close My Rotation'),'Role initialization must not replace standard back label');

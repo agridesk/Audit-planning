@@ -8,6 +8,8 @@ assert(start>=0&&end>start);
 const fn=vm.runInNewContext(ui.slice(start,end)+'\nextensionControls',{actorRole:'Manager',esc:String,extensionAppliedState:r=>!!(r.extensionApplied||r.extApplied)});
 assert(fn({statusKey:'PENDING_PLANNING',extensionMonths:3,extensionApplied:false,canExtend:true,auditId:'A'}).includes('ext-apply'));
 assert(fn({statusKey:'PENDING_PLANNING',extensionMonths:3,extensionApplied:true,canExtend:true,auditId:'A'}).includes('ext-undo'));
+assert(fn({statusKey:'PENDING_PLANNING',extensionMonths:3,extensionApplied:true,canExtend:false,auditId:'A'}).includes('ext-undo'),'Undo remains available when Apply eligibility is no longer true');
+assert(fn({statusKey:'PENDING_PLANNING',extensionMonths:3,extensionApplied:true,canExtend:null,auditId:'A'}).includes('ext-undo'),'Undo remains available while eligibility is unresolved');
 assert.equal(fn({statusKey:'ACCEPTED',extensionMonths:3,canExtend:null,auditId:'A'}),'');
 assert.equal(vm.runInNewContext(ui.slice(start,end)+'\nextensionControls',{actorRole:'Auditor',esc:String,extensionAppliedState:r=>!!(r.extensionApplied||r.extApplied)})({statusKey:'PENDING_PLANNING',extensionMonths:3,auditId:'A'}),'');
 assert(ui.includes("fetch('/api/v1/manager/extension-direct'"));

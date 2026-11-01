@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const backend=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+const start=backend.indexOf("if(u.pathname==='/api/v1/auditor/company-management'&&req.method==='GET')");
+const end=backend.indexOf("if(u.pathname==='/api/v1/manager/company-management'&&req.method==='GET')",start);
+assert.ok(start>=0&&end>start);
+const route=backend.slice(start,end);
+for(const marker of ['actorUid=clean(actor.auditorUid||actor.auditorId)','cau=col(ah','lau=col(lh','openCompanyUids','completedCompanyUids','membershipDiagnostics','visibleCompanies:result.companies.length'])assert.ok(route.includes(marker),marker);
+assert.ok(route.includes("actor.role).toLowerCase()!=='auditor'"));
+console.log('Auditor Companies UID and count provenance source contracts OK');

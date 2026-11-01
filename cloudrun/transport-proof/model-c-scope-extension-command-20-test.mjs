@@ -3,7 +3,7 @@ import {createScopeExtensionCommand20} from './model-c-scope-extension-command-2
 const obligation={obligationId:'OB1',auditId:'A1',companyUid:'C1',scopeCode:'ABC',linkState:'ACTIVE',triggerSource:'CERTIFICATE',revision:2,baseExpiry:'2027-01-31',effectiveExpiry:'2027-01-31',windowFrom:'2026-12-01',windowTo:'2027-01-31',extensionApplied:false,extensionMetadata:''};
 const other={...obligation,obligationId:'OB2',scopeCode:'GAP',baseExpiry:'2027-02-28',effectiveExpiry:'2027-02-28'};
 let captured=null;
-const store={runAtomic:async x=>{captured=x;return x.execute({obligation,priorTransaction:null})}};
+const store={runAtomic:async x=>{captured=x;return x.execute({obligation,priorTransaction:null,atomicContext:{companyUid:'C1',auditId:'A1',lifecycleStatus:'PENDING_PLANNING',fencedAndReadInTransaction:true,obligations:[obligation,other]}})}};
 const contextResolver=async()=>({companyUid:'C1',auditId:'A1',lifecycleStatus:'PENDING_PLANNING',obligations:[obligation,other]});
 const policyResolver=async()=>({extensionMonths:3,planningFromMonths:-2,planningToMonths:0});
 const command=createScopeExtensionCommand20({store,contextResolver,policyResolver});

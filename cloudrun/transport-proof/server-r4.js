@@ -2766,7 +2766,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(clean(actor.role).toLowerCase()!=='auditor')return send(res,403,{ok:false,error:'AUDITOR_REQUIRED'});
     try{
       const values=await sheetsBatchGet(['Companies!A1:Y2500','Company_Scopes!A1:L3000','Config_Scopes!A1:Z128','ScopeVersions!A1:I1000','Company_Scope_Hours!A1:M3000','Audit planning!A1:BW2500','Log realized audits!A1:AZ2500','Auditors!A1:R256']);
-      const ap=values[5]?.values||[],ah=ap[0]||[],ci=col(ah,['Company_UID','Company UID']),cn=col(ah,['Company']),ca=col(ah,['Assigned to','Assigned auditor','Auditor']),cp=col(ah,['Preassigned Auditor']),cau=col(ah,['Auditor_UID','Assigned_Auditor_UID']),aud=values[7]?.values||[],email=clean(actor.email).toLowerCase(),actorUid=clean(actor.auditorUid||actor.auditorId),uids=new Set(),names=new Set();
+      const ap=values[5]?.values||[],ah=ap[0]||[],ci=col(ah,['Company_UID','Company UID']),cn=col(ah,['Company']),ca=col(ah,['Assigned to','Assigned auditor','Auditor']),cp=col(ah,['Preassigned Auditor']),cau=col(ah,['Auditor_UID','Assigned_Auditor_UID']),aud=values[7]?.values||[],email=clean(actor.email).toLowerCase(),actorUid=clean(actor.auditorUid||actor.auditorId),uids=new Set(),names=new Set(),openCompanyUids=new Set(),completedCompanyUids=new Set();
       for(const row of ap.slice(1)){
         if(actorUid&&cau>=0&&clean(val(row,cau))){if(clean(val(row,cau))!==actorUid)continue;}else if(directResolveAuditorEmail(aud,val(row,ca))!==email&&directResolveAuditorEmail(aud,val(row,cp))!==email)continue;
         if(ci>=0&&clean(row[ci]))uids.add(clean(row[ci]));else if(cn>=0&&clean(row[cn]))names.add(clean(row[cn]).toLowerCase());

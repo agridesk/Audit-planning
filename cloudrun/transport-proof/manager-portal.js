@@ -720,7 +720,7 @@ function swap20PairKey(p){
 }
 function swap20AssignPairNumbers(items){
  var keys=[...new Set((Array.isArray(items)?items:[]).map(swap20PairKey).filter(Boolean))].sort();
- swap20PairDisplayNumbers=new Map(keys.map(function(k,i){return[k,i+1]}));
+ keys.forEach(function(k){if(!swap20PairDisplayNumbers.has(k))swap20PairDisplayNumbers.set(k,swap20PairDisplayNumbers.size+1)});
 }
 function swap20PaintManagerGridAlerts(){
   document.querySelectorAll('#rows tr[data-audit-id]').forEach(function(tr){

@@ -1517,6 +1517,23 @@ async function directComplete(identity,body,actorRole){
   });
 }
 
+function directPrepareEcasLifecycle20({auditId,action,reason,queueRows,auditorRows,transitionId}){
+ const recipient=canonicalManagerRecipient(auditorRows||[]);
+ if(!recipient)return{eligible:false,reason:'ECAS_CANONICAL_RECIPIENT_MISSING'};
+ let verified;try{verified=findVerifiedEcasReceipt20({auditId,queueRows,expectedRecipient:recipient});}
+ catch(e){return{eligible:false,reason:clean(e?.message||e)}}
+ if(!verified.verified)return{eligible:false,reason:verified.reason};
+ const outbox=buildEcasLifecycleOutbox20({auditId,action,reason,transitionId,committedTransition:{committed:true,auditId,action},previousCommunication:{verified:true,receipt:verified.receipt,recipientEmail:recipient,schedule:verified.schedule}});
+ return{eligible:outbox.required===true,receipt:verified.receipt,sourceRow:verified.sourceRow,outbox};
+}
+function directEcasLifecycleQueueRow20(context,{auditId,action,company,now}){
+ if(!context?.eligible||context.outbox?.queueWrites?.length!==1)return null;
+ const payload=context.outbox.queueWrites[0].payload,event=payload.eventKey,recipient=payload.recipientEmail;
+ const enabled=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_ECAS_LIFECYCLE_QUEUE_ENABLED==='YES';
+ if(!enabled)return null;
+ const key=context.outbox.queueWrites[0].idempotencyKey;
+ return[now.slice(0,16),'PENDING',event,recipient,auditId,company,(action==='REJECT'?'ECAS audit rejected – ':'ECAS audit cancelled – ')+company+' – '+auditId,['Company: '+company,'Audit ID: '+auditId,'Reason: '+payload.ecasComment].join('\\n'),0,'',key,'',JSON.stringify({payload:{...payload,eventFamily:'EXTERNAL_OPERATIONAL',rendererProfile:'EXTERNAL_OPERATIONAL',deliveryProfile:'BUFFERED_EXTERNAL',config:{consolidate:true,bufferMinutes:10,digestGroup:'ECAS_OPERATIONAL',templateFamily:'EXTERNAL_OPERATIONAL'}}})];
+}
 async function directManagerCancel(identity,body,auditorMode=false){
   if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
   const started=Date.now(),auditId=clean(body?.auditId),options=body?.options&&typeof body.options==='object'?body.options:{},reason=clean(options.reason||options.comment),expectedRevision=clean(options.expectedRevision||body?.expectedRevision);

@@ -1193,6 +1193,24 @@ http.createServer(async(req,res)=>{
    res.writeHead(200,{'content-type':'text/javascript; charset=utf-8','cache-control':'no-store'});
    res.end(script);return;
   }
+  if(req.method==='GET'&&u.pathname==='/api/v1/manager/model-c-visit-preview'){
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(403);res.end('Manager required');return;}
+   const auditId=String(u.searchParams.get('auditId')||'').trim();
+   if(!auditId||auditId.length>256){res.writeHead(400);res.end('Audit ID required');return;}
+   const data=[];
+   for(const name of ['Audit_Obligations','Audit_Visit_Obligations']){
+    const range="'"+name+"'!A1:AZ2000";
+    const endpoint='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range);
+    const response=await fetch(endpoint,{headers:{authorization:'Bearer '+await getToken()}});
+    if(!response.ok)throw Error('MODEL_C_PREVIEW_READ_'+response.status);
+    const rows=(await response.json()).values||[];
+    if(rows.length>=2000)throw Error('MODEL_C_PREVIEW_TRUNCATED');
+    data.push(rows);
+   }
+   const result=previewModelCVisitComposition20({auditId,obligations:data[0],links:data[1]});
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
+  }
   if(req.method==='GET'&&['/api/v1/rotation','/api/v1/rotation-manager-20'].includes(u.pathname)){
    const actor=await session(req);
    if(!actor||!['manager','auditor'].includes(actor.role)){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}

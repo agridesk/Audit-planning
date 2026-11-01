@@ -9,4 +9,7 @@ assert.ok(grid.includes('expectedAllowSelfPlanning:'));
 assert.ok(grid.includes('self-planning-toggle20'));
 assert.ok(grid.includes('toggleSelfPlanning20(button)'));
 assert.ok(grid.includes('sourceRevision:result.sourceRevision'));
+const proxy=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
+assert.ok(proxy.includes("writerPath==='/api/v1/manager/self-planning-direct'"));
+assert.ok(proxy.includes("headers.host=String(req.headers.host||'')"));
 console.log('Manager self planning source contracts OK');

@@ -5,7 +5,7 @@ assert.throws(()=>createScopeExtensionFirestoreStore20({migrationVerified:true})
 assert.throws(()=>createScopeExtensionFirestoreStore20({writerFenceVerified:true}),/EXT_FIRESTORE_CUTOVER_UNVERIFIED/);
 let reads=0,commits=0;
 const payload=v=>({mapValue:{fields:Object.fromEntries(Object.entries(v).map(([key,val])=>[key,typeof val==='number'?{integerValue:String(val)}:typeof val==='string'?{stringValue:val}:{booleanValue:val}]))}});
-const current={obligationId:'O1',companyUid:'C1',auditId:'A1',scopeCode:'ABC',revision:1,pendingProjectionId:'',baseExpiry:'2027-01-31',effectiveExpiry:'2027-01-31',windowFrom:'2026-12-01',windowTo:'2027-01-31',extensionApplied:false,extensionMetadata:''};
+const current={obligationId:'O1',companyUid:'C1',auditId:'A1',scopeCode:'ABC',linkState:'ACTIVE',revision:1,pendingProjectionId:'',baseExpiry:'2027-01-31',effectiveExpiry:'2027-01-31',windowFrom:'2026-12-01',windowTo:'2027-01-31',extensionApplied:false,extensionMetadata:''};
 const fetchImpl=async(url,options={})=>{
  if(url.endsWith(':beginTransaction'))return{ok:true,json:async()=>({transaction:'TX'})};
  if(url.includes('/event/'))return{status:404,ok:false};

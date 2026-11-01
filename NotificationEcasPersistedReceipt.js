@@ -25,6 +25,8 @@ function ECAS20_VerifyPersistedCommunication_(auditId,communicationId,before){
     if(JSON.stringify(before.scopes||[])!==JSON.stringify(p.scopes||[]))continue;
     if(Number(before.plannedHours)!==Number(p.plannedHours))continue;
     if(JSON.stringify(before.blocks||[])!==JSON.stringify(p.blocks||[]))continue;
+    if(JSON.stringify(before.plannedDates||[])!==JSON.stringify(p.plannedDates||[]))continue;
+    if(String(before.planningJson||'')!==String(p.planningJson||''))continue;
     found++;
   }
   return found===1;

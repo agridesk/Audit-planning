@@ -8,6 +8,8 @@ const gate=readFileSync(new URL('NotificationEcasChangeCancelGate.js',root),'utf
 const receipt=readFileSync(new URL('NotificationEcasPersistedReceipt.js',root),'utf8');
 const renderer=readFileSync(new URL('NotificationRenderer_PlanningToClientDigest.js',root),'utf8');
 assert.ok(bridge.includes('ECAS20_QueueCommittedLifecycle_(action,ctx,payload,result)'));
+assert.ok(bridge.indexOf('ECAS20_QueueCommittedLifecycle_(action,ctx,payload,result)')<bridge.indexOf('StatusNotificationBridge_ResolveRecipient_(action, actor, ctx, payload)'));
+assert.ok(bridge.includes('externalQueueResult: lifecycleEcasResult'));
 assert.ok(adapter.includes("result.success!==true"));
 assert.ok(adapter.includes("status!=='SENT'"));
 assert.ok(adapter.includes("'AMBIGUOUS_PRIOR_ECAS_COMMUNICATION'"));

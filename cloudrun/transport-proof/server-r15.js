@@ -8,6 +8,7 @@ import {verifyProdRuntimeIdentity} from './prod-runtime-identity-20.mjs';
 import {runtimeBundleProof20} from './runtime-bundle-proof-20.mjs';
 import {notificationOverview} from './notification-overview-20.mjs';
 import {buildRotationManager20} from './rotation-manager-20.mjs';
+import {diagnoseRotationUid20} from './rotation-uid-reconciliation-20.mjs';
 import {previewModelCVisitComposition20} from './model-c-scope-visit-preview-20.mjs';
 import {createSwapFirestoreReadmodel} from './swap-firestore-readmodel-20.mjs';
 import {createSwapProposalIndex} from './swap-proposal-index-20.mjs';

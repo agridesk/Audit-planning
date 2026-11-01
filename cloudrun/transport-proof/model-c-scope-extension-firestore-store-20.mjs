@@ -43,6 +43,22 @@ export function createScopeExtensionFirestoreStore20({projectId,getToken,fetchIm
   const committed=await request(base+':commit','POST',{transaction,writes});if(!committed.ok)throw Error('EXT_FIRESTORE_COMMIT_'+committed.status);
   return receipt;
  }
+ async function readAuditContext({auditId,companyUid}={}){
+  if(!id(auditId)||!id(companyUid))throw Error('EXT_CONTEXT_READ_ID_INVALID');
+  const read=async(kind,key)=>{
+   const response=await request(doc(kind,key));
+   if(response.status===404)return null;
+   if(!response.ok)throw Error('EXT_CONTEXT_READ_'+response.status);
+   const raw=await response.json();
+   if(!raw.fields?.payload)throw Error('EXT_CONTEXT_CORRUPT');
+   return decode(raw.fields.payload);
+  };
+  const context=await read('auditcontext',auditId);
+  if(!context||context.auditId!==auditId||context.companyUid!==companyUid||context.writerFenceVerified!==true||!Array.isArray(context.obligationIds)||context.obligationIds.length<1||context.obligationIds.length>100||new Set(context.obligationIds).size!==context.obligationIds.length||context.obligationIds.some(x=>!id(x)))throw Error('EXT_CONTEXT_NOT_MIGRATED');
+  const obligations=await Promise.all(context.obligationIds.map(x=>read('obligation',x)));
+  for(let i=0;i<obligations.length;i++)if(!obligations[i]||obligations[i].obligationId!==context.obligationIds[i]||obligations[i].auditId!==auditId||obligations[i].companyUid!==companyUid)throw Error('EXT_CONTEXT_LINEAGE_INVALID');
+  return{auditId,companyUid,lifecycleStatus:context.lifecycleStatus,obligations,policyByScope:context.policyByScope||{}};
+ }
  async function readOutbox(operationId){
   if(!id(operationId))throw Error('EXT_OUTBOX_ID_INVALID');
   const response=await request(doc('outbox',operationId));
@@ -98,5 +114,5 @@ export function createScopeExtensionFirestoreStore20({projectId,getToken,fetchIm
   if(!response.ok)throw Error('EXT_FIRESTORE_COMMIT_'+response.status);
   return{state:'PROJECTED',replayed:false};
  }
- return Object.freeze({runAtomic,readOutbox,listOutbox,markProjected});
+ return Object.freeze({runAtomic,readAuditContext,readOutbox,listOutbox,markProjected});
 }

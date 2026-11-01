@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const html=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
+const script=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+const toolbar=html.slice(html.indexOf('<div class="grid-toolbar"'),html.indexOf('<div id="selectionBar"'));
+for(const id of ['openView','completedView','scopeManagement20','auditorManagement20','notificationsManager20','q','reset','clearColumnFilters'])assert(toolbar.includes('id="'+id+'"'),id);
+assert(toolbar.indexOf('id="reset"')<toolbar.indexOf('id="clearColumnFilters"'),'Reset must precede column clear');
+assert(toolbar.indexOf('class="grid-view-group"')<toolbar.indexOf('class="grid-tools-group"')&&toolbar.indexOf('class="grid-tools-group"')<toolbar.indexOf('class="grid-search-group"'),'Logical grouping');
+assert(html.includes('class="gridPrimaryNav"'),'Workspace navigation remains beside status cards');
+assert(html.includes('id="q" type="search"')&&html.includes('Search all audits'),'Global search retained, compact');
+assert(html.includes('.grid-tool-btn{'),'Unified toolbar button style');
+assert(script.includes("document.getElementById('q')")||script.includes('getElementById("q")'),'Global search wired');
+console.log('PASS grid toolbar groups, global search and reset ordering');

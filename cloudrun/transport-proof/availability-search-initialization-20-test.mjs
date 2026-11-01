@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const html=readFileSync(new URL('./availability-my-calendar-20.html',import.meta.url),'utf8');
+const a=html.indexOf('async function searchOwnAudits(){'),b=html.indexOf("\n$('runAuditSearch').addEventListener",a);
+assert(a>0&&b>a);
+assert(html.includes('id="runAuditSearch" type="button" disabled'));
+const target={textContent:''},S={auditorId:null};let calls=0;
+const search=new Function('S','$','api','failure','esc','goMonth',html.slice(a,b)+';return searchOwnAudits;')(S,id=>id==='auditSearch'?{value:'Beta'}:target,async()=>{calls++;throw Error('Must not request');},e=>{throw e;},String,()=>{});
+await search();assert.equal(calls,0);assert.equal(target.textContent,'Loading your audit access…');
+assert(html.includes("S.auditorId=me.auditorId;if(!S.auditorId)throw Error('Auditor identity missing');$('runAuditSearch').disabled=false"));
+console.log('PASS own-audit search waits for verified auditor initialization');

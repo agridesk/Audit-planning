@@ -5,6 +5,8 @@ const docker=readFileSync(new URL('./Dockerfile',import.meta.url),'utf8');
 for(const file of ['ecas-delivery-receipt-20.mjs','ecas-lifecycle-outbox-20.mjs','ecas-lifecycle-notification-intent-20.mjs'])assert.ok(docker.includes('COPY '+file+' ./'),file);
 assert.ok(server.includes("import {findVerifiedEcasReceipt20}"));
 assert.ok(server.includes("import {buildEcasLifecycleOutbox20}"));
+assert.ok(server.includes("auditorName:assigned,auditorUid:val(row,col(h,['Auditor_UID','Auditor UID']))"));
+assert.ok(server.includes("auditorName:representedAuditor,auditorUid:val(row,col(h,['Auditor_UID','Auditor UID']))"));
 assert.ok(server.includes("process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_ECAS_LIFECYCLE_QUEUE_ENABLED==='YES'"));
 assert.ok(server.includes("reason:'ECAS_QUEUE_SOURCE_TRUNCATED'"));
 assert.ok(server.includes('directEcasEventConfigReady20(event,configRows)'));

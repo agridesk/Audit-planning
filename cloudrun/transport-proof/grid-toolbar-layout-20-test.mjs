@@ -11,4 +11,6 @@ assert(html.includes('class="gridPrimaryNav"'),'Workspace navigation remains bes
 assert(html.includes('id="q" type="search"')&&html.includes('Search all audits'),'Global search retained, compact');
 assert(html.includes('.grid-tool-btn{'),'Unified toolbar button style');
 assert(script.includes("document.getElementById('q')")||script.includes('getElementById("q")'),'Global search wired');
+assert(script.includes('document.getElementById("reset").onclick=function(){document.getElementById("q").value="";grid4State[currentView]={filters:{},sorts:[]};filter()}'),'Reset clears ALL filters and sort state');
+assert(script.includes('document.getElementById("clearColumnFilters").addEventListener("click",function(){grid4State[currentView]={filters:{},sorts:[]};filter()}'),'Column-only reset leaves global search intact');
 console.log('PASS grid toolbar groups, global search and reset ordering');

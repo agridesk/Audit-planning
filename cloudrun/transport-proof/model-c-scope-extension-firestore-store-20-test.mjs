@@ -8,9 +8,9 @@ const payload=v=>({mapValue:{fields:Object.fromEntries(Object.entries(v).map(([k
 const current={obligationId:'O1',companyUid:'C1',auditId:'A1',scopeCode:'ABC',linkState:'ACTIVE',revision:1,pendingProjectionId:'',baseExpiry:'2027-01-31',effectiveExpiry:'2027-01-31',windowFrom:'2026-12-01',windowTo:'2027-01-31',extensionApplied:false,extensionMetadata:''};
 const fetchImpl=async(url,options={})=>{
  if(url.endsWith(':beginTransaction'))return{ok:true,json:async()=>({transaction:'TX'})};
- if(url.includes('/event/'))return{status:404,ok:false};
- if(url.includes('/auditcontext/'))return{ok:true,json:async()=>({updateTime:'2026-11-01T00:00:00Z',fields:{payload:{mapValue:{fields:{auditId:{stringValue:'A1'},companyUid:{stringValue:'C1'},lifecycleStatus:{stringValue:'PENDING_PLANNING'},writerFenceVerified:{booleanValue:true},obligationIds:{arrayValue:{values:[{stringValue:'O1'}]}}}}}}})};
- if(url.includes('/obligation/')){reads++;return{ok:true,json:async()=>({updateTime:'2026-11-01T00:00:00Z',fields:{payload:payload(current)}})}}
+ if(url.includes('_event/'))return{status:404,ok:false};
+ if(url.includes('_auditcontext/'))return{ok:true,json:async()=>({updateTime:'2026-11-01T00:00:00Z',fields:{payload:{mapValue:{fields:{auditId:{stringValue:'A1'},companyUid:{stringValue:'C1'},lifecycleStatus:{stringValue:'PENDING_PLANNING'},writerFenceVerified:{booleanValue:true},obligationIds:{arrayValue:{values:[{stringValue:'O1'}]}}}}}}})};
+ if(url.includes('_obligation/')){reads++;return{ok:true,json:async()=>({updateTime:'2026-11-01T00:00:00Z',fields:{payload:payload(current)}})}}
  if(url.endsWith(':commit')){commits++;const body=JSON.parse(options.body);assert.equal(body.writes.length,3);assert(body.writes.every(w=>w.update&&w.currentDocument));return{ok:true,json:async()=>({writeResults:[{},{},{}]})}}
  throw Error('unexpected mock request '+url);
 };

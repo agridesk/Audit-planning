@@ -20,7 +20,7 @@ export function createScopeExtensionFirestoreStore20({projectId,getToken,fetchIm
   const {transaction}=await started.json();if(!transaction)throw Error('EXT_FIRESTORE_TRANSACTION_MISSING');
   const read=async(kind,key)=>{const url=new URL(doc(kind,key));url.searchParams.set('transaction',transaction);const response=await request(url.toString());if(response.status===404)return null;if(!response.ok)throw Error('EXT_FIRESTORE_READ_'+response.status);const v=await response.json();if(!v.updateTime||!v.fields?.payload)throw Error('EXT_FIRESTORE_CORRUPT');return{value:decode(v.fields.payload),updateTime:v.updateTime}};
   const existing=await read('event',idempotencyKey);
-  if(existing){if(existing.value.requestDigest!==requestDigest||existing.value.actorUid!==actorId||existing.value.obligationId!==obligationId||existing.value.action!==action)throw Error('EXT_IDEMPOTENCY_REUSE_CONFLICT');return{...copy(existing.value.receipt),replayed:true}}
+  if(existing){if(existing.value.requestDigest!==requestDigest||existing.value.actorUid!==actorId||existing.value.obligationId!==obligationId||existing.value.action!==action||existing.value.auditId!==auditId||existing.value.scopeCode!==scopeCode)throw Error('EXT_IDEMPOTENCY_REUSE_CONFLICT');return{...copy(existing.value.receipt),replayed:true}}
   const current=await read('obligation',obligationId);
   if(!current)throw Error('EXT_OBLIGATION_NOT_MIGRATED');
   if(current.value.auditId!==auditId||current.value.scopeCode!==scopeCode||current.value.revision!==expectedRevision||current.value.pendingProjectionId)throw Error('EXT_REVISION_OR_PROJECTION_CONFLICT');

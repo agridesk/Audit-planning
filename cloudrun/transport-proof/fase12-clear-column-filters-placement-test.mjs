@@ -4,7 +4,7 @@ import vm from 'node:vm';
 const html=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
 const js=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 assert(html.includes('id="clearColumnFilters"'));
-assert(html.indexOf('id="clearColumnFilters"')<html.indexOf('id="reset"'));
+assert(html.indexOf('id="reset"')<html.indexOf('id="clearColumnFilters"'));
 assert(!js.includes('tail.appendChild(clear)'));
 assert(js.includes('grid4State[currentView]={filters:{},sorts:[]};filter()'));
 assert(js.includes('document.getElementById("clearColumnFilters").addEventListener'));

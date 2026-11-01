@@ -1319,6 +1319,7 @@ function directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companySco
 }
 
 async function directComplete(identity,body,actorRole){
+  if(process.env.AMS_SCOPE_EXTENSION_AUTHORITY==='FIRESTORE')throw new Error('LEGACY_OBLIGATION_LIFECYCLE_WRITER_FENCED');
   if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
   const uidCompleteAuthEnabled=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_AUDITOR_UID_AUTHORIZATION_ENABLED==='true';
   const newObligationSnapshotEnabled=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_MODEL_C_NEW_HOURS_SNAPSHOT_ENABLED==='true';
@@ -1645,6 +1646,7 @@ async function directManagerCancel(identity,body,auditorMode=false){
 
 
 async function directManagerReject(identity,body){
+  if(process.env.AMS_SCOPE_EXTENSION_AUTHORITY==='FIRESTORE')throw new Error('LEGACY_OBLIGATION_LIFECYCLE_WRITER_FENCED');
   if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
   const started=Date.now(),auditId=clean(body?.auditId),options=body?.options&&typeof body.options==='object'?body.options:{},reason=clean(options.reason||options.comment),expectedRevision=clean(options.expectedRevision||body?.expectedRevision);
   if(!auditId)throw new Error('AUDIT_ID_REQUIRED');

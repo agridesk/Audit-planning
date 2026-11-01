@@ -1523,7 +1523,7 @@ function directEcasRecipientFromConfig20(event,configRows,auditorRows){
  if([key,mode,target].some(x=>x<0))return '';
  const rows=configRows.slice(1).filter(r=>clean(r[key])===event);if(rows.length!==1)return '';
  const m=clean(rows[0][mode]).toUpperCase(),t=clean(rows[0][target]);
- if(['EMAIL','FIXED','STATIC','SPECIFIC_EMAIL'].includes(m)&&/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(t))return t.toLowerCase();
+ if(['EMAIL','FIXED','STATIC','SPECIFIC_EMAIL'].includes(m)&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t))return t.toLowerCase();
  if((m==='MANAGER'||m==='ROLE'||m==='ROLE_MANAGER')&&(!t||t.toUpperCase()==='MANAGER'))return canonicalManagerRecipient(auditorRows||[]);
  return '';
 }

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 assert.ok(source.includes('s==="accepted"?"Ready"'));
+assert.ok(source.includes('["Ready",c.accepted]'));
 assert.ok(source.includes('function grid4ScopeBadges(r)'));
 assert.ok(source.includes('grid4ScopeBadges(r)'));
 assert.ok(source.includes('meta.TextColor'));

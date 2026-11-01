@@ -135,20 +135,16 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
     // Missing plan payload must not globally block unrelated auditors.
     // Unknown owner of an actually dated/accepted audit still fails closed.
     const canonicalAuditors=await listCanonicalAuditors();
-    const emailOwners=new Map(canonicalAuditors.map(a=>[clean(a.email).toLowerCase(),clean(a.auditorId)]));
     const validAuditorIds=new Set(canonicalAuditors.map(a=>clean(a.auditorId)));
     for(const audit of incompleteAuditDiagnostics){
      const state=clean(audit.status).toLowerCase().replace(/[\s_-]+/g,'');
      const knownUid=clean(audit.auditorUid);
-     const email=clean(audit.assignedEmail).toLowerCase();
-     const emailUid=emailOwners.get(email)||'';
      if(knownUid&&!validAuditorIds.has(knownUid))throw Error('AUDIT_PLANNING_AUDITOR_UID_UNKNOWN');
-     if(knownUid&&emailUid&&knownUid!==emailUid)throw Error('AUDIT_PLANNING_AUDITOR_IDENTITY_CONFLICT');
-     const resolved=knownUid||emailUid;
+     const resolved=knownUid;
      if(!resolved){
       // An unassigned, undated Pending Approval has no auditor reservation
       // to protect. It remains a separate data-quality diagnostic.
-      if(state==='pendingapproval'&&!clean(audit.plannedDate)&&!email)continue;
+      if(state==='pendingapproval'&&!clean(audit.plannedDate)&&!knownUid)continue;
       throw Error('AUDIT_PLANNING_INCOMPLETE_RESERVATION_UNCERTAIN');
      }
      if(resolved===auditorId)throw Error('AUDIT_PLANNING_INCOMPLETE_RESERVATION_UNCERTAIN');

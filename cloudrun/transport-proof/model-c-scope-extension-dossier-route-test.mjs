@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const server=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const portal=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+const annualCycle=readFileSync(new URL('../../ModelCAnnualCycleRuntime.js',import.meta.url),'utf8');
 const start=server.indexOf("if(u.pathname==='/api/v1/manager/company-management/extension-obligations'&&req.method==='GET')");
 assert(start>0,'manager dossier route missing');
 const endpoint=server.slice(start,server.indexOf("if(u.pathname==='/api/v1/manager/company-management'&&req.method==='GET')",start));
@@ -20,4 +21,6 @@ assert(server.includes('EXTENSION_MULTI_SCOPE_BLOCKED_PENDING_MODEL_C_SCOPE_SAFE
 assert(server.includes("process.env.AMS_SCOPE_EXTENSION_AUTHORITY==='FIRESTORE'"));
 assert(server.includes('LEGACY_EXTENSION_WRITER_FENCED'));
 assert.equal(server.split('LEGACY_OBLIGATION_LIFECYCLE_WRITER_FENCED').length-1,2);
+assert(annualCycle.includes('LEGACY_GAS_ANNUAL_CYCLE_WRITER_FENCED'));
+assert(annualCycle.includes("getProperty('AMS_SCOPE_EXTENSION_AUTHORITY')"));
 console.log('PASS extension dossier: manager auth, read-only link, fail-closed writer');

@@ -22,4 +22,8 @@ assert.throws(()=>plan({auditId:'A20',lifecycleStatus:'Pending Planning',command
 assert.throws(()=>plan({auditId:'A20',command:'apply',auditId:'A20',targets:['O0'],obligations:base,policyByScope:policies,actorUid:'M',transactionId:'STATUS',lifecycleStatus:'Completed'}),/EXTENSION_ALLOWED_ONLY_PENDING_PLANNING/);
 assert.throws(()=>plan({auditId:'A20',command:'apply',targets:['O0'],obligations:base,policyByScope:policies,actorUid:'M',transactionId:'NO-STATUS'}),/EXTENSION_ALLOWED_ONLY_PENDING_PLANNING/);
 assert.throws(()=>plan({auditId:'A20',lifecycleStatus:'Pending Planning',command:'apply',targets:['O0'],obligations:base.map((o,i)=>i===19?{...o,effectiveExpiry:''}:o),policyByScope:policies,actorUid:'M',transactionId:'PARTIAL'}),/EXT_AGGREGATE_SNAPSHOT_INCOMPLETE/);
+const mixed=build(20).map((o,i)=>i===19?{...o,expiryManaged:false,baseExpiry:'',effectiveExpiry:'',windowFrom:'',windowTo:''}:o);
+const mixedApply=plan({auditId:'A20',lifecycleStatus:'Pending Planning',command:'apply',targets:['O0'],obligations:mixed,policyByScope:policies,actorUid:'M',transactionId:'MIXED'});
+assert.equal(mixedApply.changes.length,1);
+assert.throws(()=>plan({auditId:'A20',lifecycleStatus:'Pending Planning',command:'apply',targets:['O19'],obligations:mixed,policyByScope:policies,actorUid:'M',transactionId:'BLOCK'}),/EXT_TARGET_NOT_ELIGIBLE/);
 console.log('PASS Model C scope EXT/UNDO 1, 8, 20; isolated changes, undo, guards');

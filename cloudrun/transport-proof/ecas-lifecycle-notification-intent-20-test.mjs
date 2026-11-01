@@ -7,4 +7,5 @@ assert.equal(previewEcasLifecycleIntent20({...base,priorScheduleVerified:true,pr
 const r=previewEcasLifecycleIntent20({...base,recipientEmail:'test@example.invalid',priorScheduleVerified:true,priorDeliveryReceipt:'R1',priorCommunicatedSchedule:{auditId:'A1',date:'2026-11-05',auditorUid:'U1',company:'Farm',mpsNumber:'913518',hours:8,scopes:['ABC']}});
 assert.equal(r.eligible,true);assert.equal(r.queueAllowed,false);assert.equal(r.priorSchedule.scopes[0],'ABC');
 assert.equal(previewEcasLifecycleIntent20({...base,action:'REJECT'}).queueAllowed,false);
+assert.equal(previewEcasLifecycleIntent20({...base,recipientEmail:'test@example.invalid',priorScheduleVerified:true,priorDeliveryReceipt:'R1',priorCommunicatedSchedule:{auditId:'A1',date:'2026-11-05',auditorUid:'U1'}}).decision,'PRIOR_SCHEDULE_INCOMPLETE');
 console.log('ECAS lifecycle notification intent preview OK');

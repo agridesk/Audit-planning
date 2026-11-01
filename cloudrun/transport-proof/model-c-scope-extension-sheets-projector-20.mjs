@@ -21,7 +21,7 @@ export function createScopeExtensionSheetsProjector20({store,sheets,cutoverVerif
   if(own.length!==1||own[0].revision!==out.revision||own[0].pendingProjectionId!==operationId||own[0].companyUid!==out.companyUid)throw Error('EXT_PROJECTOR_REVISION_CONFLICT');
   const obligation=own[0];
   if(!validDate(obligation.effectiveExpiry)||!validDate(obligation.windowFrom)||!validDate(obligation.windowTo)||obligation.windowFrom>obligation.windowTo)throw Error('EXT_PROJECTOR_CANONICAL_DATES_INVALID');
-  const active=ctx.obligations.filter(x=>x.linkState==='ACTIVE'&&x.triggerSource!=='ECAS');
+  const active=ctx.obligations.filter(x=>x.linkState==='ACTIVE'&&x.triggerSource!=='ECAS'&&x.expiryManaged!==false);
   if(!active.length||active.some(x=>!validDate(x.effectiveExpiry)))throw Error('EXT_PROJECTOR_AGGREGATE_INVALID');
   const earliestExpiry=active.map(x=>x.effectiveExpiry).sort()[0],anyApplied=active.some(x=>x.extensionApplied===true);
   if(out.aggregate?.earliestExpiry!==earliestExpiry)throw Error('EXT_PROJECTOR_AGGREGATE_STALE');

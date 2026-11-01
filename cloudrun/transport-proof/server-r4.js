@@ -2,6 +2,8 @@ import http from 'node:http';
 import {resolveManagerApprovalRecipient20} from './manager-approve-recipient-20.mjs';
 import {createScopeExtensionCommand20} from './model-c-scope-extension-command-20.mjs';
 import {createScopeExtensionFirestoreStore20} from './model-c-scope-extension-firestore-store-20.mjs';
+import {createScopeExtensionSheetsProjector20} from './model-c-scope-extension-sheets-projector-20.mjs';
+import {createScopeExtensionSheetsAdapter20} from './model-c-scope-extension-sheets-adapter-20.mjs';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {normalizeLifecycleWriteset} from './planning-lifecycle-writeset-20.js';
 import {findVerifiedEcasReceipt20} from './ecas-delivery-receipt-20.mjs';
@@ -2036,6 +2038,21 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       const actor={role:'manager',uid:clean(session.uid||session.auditorUid||session.email)};
       return send(res,200,await execute({actor,body}));
     }catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'EXT_SCOPE_COMMAND_BLOCKED'})}
+  }
+  if(u.pathname==='/api/v1/manager/extension-reconcile-projection'&&req.method==='POST'){
+    const session=await sessionFromRequestValidated(req);if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(session.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    if(process.env.AMS_RUNTIME_ENV!=='DEV'||process.env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE'||process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true'||process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true')return send(res,409,{ok:false,error:'EXT_FIRESTORE_CUTOVER_NOT_VERIFIED'});
+    const devProject=await verifiedAuditorLockDevProject();if(!devProject)return send(res,409,{ok:false,error:'EXT_DEV_PROJECT_IDENTITY_UNVERIFIED'});
+    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
+    let body;try{body=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+    const operationId=clean(body?.operationId);if(!operationId||operationId.length>180)return send(res,400,{ok:false,error:'EXT_PROJECTION_OPERATION_ID_REQUIRED'});
+    try{
+      const store=createScopeExtensionFirestoreStore20({projectId:devProject,getToken:accessToken,migrationVerified:true,writerFenceVerified:true});
+      const sheets=createScopeExtensionSheetsAdapter20({batchGet:sheetsBatchGet,batchWrite:sheetsValuesBatchUpdateRaw,cutoverVerified:true});
+      const projector=createScopeExtensionSheetsProjector20({store,sheets,cutoverVerified:true});
+      return send(res,200,await projector(operationId));
+    }catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'EXT_PROJECTION_RECOVERY_FAILED'})}
   }
   if(u.pathname==='/api/v1/manager/extension-direct'&&req.method==='POST'){
     const s=await sessionFromRequestValidated(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});

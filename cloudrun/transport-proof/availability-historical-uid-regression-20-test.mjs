@@ -8,4 +8,6 @@ assert.match(backend,/if\(!outside\)\{if\(owner\)uncertain\.add\(owner\);else un
 assert.match(frontend,/Historical planning diagnostics/,'Historical records remain accessible');
 assert.match(frontend,/incomplete\.length\?'<div>Uncertain auditors/,'Only current incomplete diagnostics display blocking warning');
 assert.match(frontend,/freeWork\(d\.segments\)>0/,'Partial free-day filtering retained');
+assert.doesNotMatch(backend,/const resolved=knownUid\\|\\|emailUid/,'Mutation guard must not fall back to email');
+assert.match(backend,/const resolved=knownUid;/,'Mutation guard must use UID');
 console.log('Availability historical UID / warning source contracts OK');

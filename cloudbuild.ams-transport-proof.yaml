@@ -22,6 +22,12 @@ steps:
       - ams-transport-proof
       - --image
       - europe-west1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/ams-transport-proof:$COMMIT_SHA
+      - --project
+      - $PROJECT_ID
+      - --no-traffic
+      - --tag
+      - av001-test
+      - --quiet
       - --region
       - europe-west1
       - --service-account

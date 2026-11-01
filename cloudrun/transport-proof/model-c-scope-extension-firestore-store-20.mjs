@@ -37,5 +37,43 @@ export function createScopeExtensionFirestoreStore20({projectId,getToken,fetchIm
   const committed=await request(base+':commit','POST',{transaction,writes});if(!committed.ok)throw Error('EXT_FIRESTORE_COMMIT_'+committed.status);
   return receipt;
  }
- return Object.freeze({runAtomic});
+ async function readOutbox(operationId){
+  if(!id(operationId))throw Error('EXT_OUTBOX_ID_INVALID');
+  const response=await request(doc('outbox',operationId));
+  if(response.status===404)return null;
+  if(!response.ok)throw Error('EXT_OUTBOX_READ_'+response.status);
+  const raw=await response.json();
+  if(!raw.fields?.payload)throw Error('EXT_OUTBOX_CORRUPT');
+  const value=decode(raw.fields.payload);
+  if(value.operationId!==operationId||!['PENDING','PROJECTED','UNCERTAIN'].includes(value.state))throw Error('EXT_OUTBOX_CORRUPT');
+  return copy(value);
+ }
+ async function markProjected({obligationId,operationId,proof}={}){
+  if(!id(obligationId)||!id(operationId)||proof?.verified!==true||proof?.obligationId!==obligationId||proof?.operationId!==operationId||typeof proof?.rowHash!=='string'||!/^[a-f0-9]{64}$/.test(proof.rowHash))throw Error('EXT_PROJECTION_PROOF_INVALID');
+  const started=await request(base+':beginTransaction','POST',{options:{readWrite:{}}});
+  if(!started.ok)throw Error('EXT_FIRESTORE_BEGIN_'+started.status);
+  const {transaction}=await started.json();
+  if(!transaction)throw Error('EXT_FIRESTORE_TRANSACTION_MISSING');
+  const read=async(kind,key)=>{
+   const url=new URL(doc(kind,key));url.searchParams.set('transaction',transaction);
+   const res=await request(url.toString());if(res.status===404)return null;
+   if(!res.ok)throw Error('EXT_FIRESTORE_READ_'+res.status);
+   const raw=await res.json();if(!raw.updateTime||!raw.fields?.payload)throw Error('EXT_FIRESTORE_CORRUPT');
+   return{value:decode(raw.fields.payload),updateTime:raw.updateTime};
+  };
+  const ob=await read('obligation',obligationId),out=await read('outbox',operationId);
+  if(!ob||!out||out.value.operationId!==operationId||out.value.obligationId!==obligationId)throw Error('EXT_PROJECTION_STATE_MISSING');
+  if(out.value.state==='PROJECTED'){
+   if(out.value.proof?.rowHash!==proof.rowHash)throw Error('EXT_PROJECTION_PROOF_CONFLICT');
+   return{state:'PROJECTED',replayed:true};
+  }
+  if(out.value.state!=='PENDING'||ob.value.pendingProjectionId!==operationId||ob.value.revision!==out.value.revision)throw Error('EXT_PROJECTION_REVISION_CONFLICT');
+  const changed={...ob.value,pendingProjectionId:'',lastProjectedOperationId:operationId};
+  const projected={...out.value,state:'PROJECTED',proof:copy(proof),projectedAt:new Date().toISOString()};
+  const write=(kind,key,value,time)=>({update:{name:doc(kind,key),fields:{payload:encode(value)}},currentDocument:{updateTime:time}});
+  const response=await request(base+':commit','POST',{transaction,writes:[write('obligation',obligationId,changed,ob.updateTime),write('outbox',operationId,projected,out.updateTime)]});
+  if(!response.ok)throw Error('EXT_FIRESTORE_COMMIT_'+response.status);
+  return{state:'PROJECTED',replayed:false};
+ }
+ return Object.freeze({runAtomic,readOutbox,markProjected});
 }

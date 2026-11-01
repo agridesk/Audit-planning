@@ -1518,6 +1518,7 @@ async function directComplete(identity,body,actorRole){
 }
 
 function directPrepareEcasLifecycle20({auditId,action,reason,queueRows,auditorRows,transitionId}){
+ if(!Array.isArray(queueRows)||queueRows.length>=2000)return{eligible:false,reason:'ECAS_QUEUE_SOURCE_TRUNCATED'};
  const recipient=canonicalManagerRecipient(auditorRows||[]);
  if(!recipient)return{eligible:false,reason:'ECAS_CANONICAL_RECIPIENT_MISSING'};
  let verified;try{verified=findVerifiedEcasReceipt20({auditId,queueRows,expectedRecipient:recipient});}

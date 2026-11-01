@@ -1,0 +1,36 @@
+name: AMS Fase 7 DEV validation
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "cloudrun/transport-proof/model-c-scope-extension-*.mjs"
+      - "cloudrun/transport-proof/package.json"
+      - ".github/workflows/ams-fase7-dev-validation.yml"
+  workflow_dispatch:
+jobs:
+  extension-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: cloudrun/transport-proof
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate extension code syntax
+        run: |
+          for f in model-c-scope-extension-*.mjs; do node --check "$f"; done
+      - name: Run isolated Model C extension regressions
+        run: |
+          node model-c-scope-extension-plan-20-test.mjs
+          node model-c-scope-extension-20-scale-test.mjs
+          node model-c-scope-extension-command-20-test.mjs
+          node model-c-scope-extension-firestore-store-20-test.mjs
+          node model-c-scope-extension-projection-20-test.mjs
+          node model-c-scope-extension-migration-audit-20-test.mjs
+          node model-c-scope-extension-data-audit-20-test.mjs
+          node model-c-scope-extension-backup-evidence-20-test.mjs

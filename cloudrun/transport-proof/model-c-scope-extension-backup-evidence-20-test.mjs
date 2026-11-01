@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {compareScopeExtensionBackupEvidence20 as compare} from './model-c-scope-extension-backup-evidence-20.mjs';
+const make=(i,applied)=>({Obligation_ID:'OB'+i,Company_UID:'C',ScopeCode:'SCOPE_'+i,Extension_Applied:applied?'Yes':'',Base_Expiry_Date:'19/11/2027',Effective_Expiry_Date:applied?'2028-03-19':'19/11/2027',Planning_Window_From:'19/09/2027',Planning_Window_To:'19/11/2027'});
+const current=Array.from({length:20},(_,i)=>make(i,true)),backup=Array.from({length:20},(_,i)=>make(i,i<3));
+const result=compare({current,backup,backupLabel:'DEV-2026-10-28'});
+assert.equal(result.records.length,20);
+assert.equal(result.counts.PREEXISTING_EXTENSION_NO_ORIGINAL,3);
+assert.equal(result.counts.BACKUP_COMPARISON_AVAILABLE_NOT_AUTHORIZED,17);
+assert(result.records.every(x=>x.automaticUndoAllowed===false));
+assert.equal(result.records[3].evidence.backupEffectiveExpiry,'2027-11-19');
+assert.throws(()=>compare({current,backup:[backup[0],backup[0]],backupLabel:'DEV'}),/EXT_BACKUP_EVIDENCE_DUPLICATE_ID/);
+assert.throws(()=>compare({current,backup,backupLabel:''}),/EXT_BACKUP_EVIDENCE_INPUT_INVALID/);
+console.log('PASS extension backup evidence comparison: 20 scopes, no automatic Undo');

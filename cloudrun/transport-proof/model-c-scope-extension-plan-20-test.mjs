@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {planScopeExtension20 as plan} from './model-c-scope-extension-plan-20.mjs';
+const make=(id,scope,expiry)=>({obligationId:id,auditId:'A',scopeCode:scope,linkState:'ACTIVE',triggerSource:'CERTIFICATE',baseExpiry:expiry,effectiveExpiry:expiry,windowFrom:'2026-01-01',windowTo:'2026-12-31',extensionApplied:false,extensionMetadata:''});
+const obligations=[make('O1','ABC','2026-03-31'),make('O2','GAP','2026-05-31')];
+const policyByScope={ABC:{extensionMonths:3,planningFromMonths:-2,planningToMonths:0},GAP:{extensionMonths:6,planningFromMonths:-2,planningToMonths:0}};
+const applied=plan({auditId:'A',command:'apply',targets:['O1','O2'],obligations,policyByScope,actorUid:'U',transactionId:'T'});
+assert.deepEqual(applied.changes.map(x=>x.after.effectiveExpiry),['2026-06-30','2026-11-30']);
+const modified=obligations.map(o=>({...o,...applied.changes.find(x=>x.obligationId===o.obligationId).after}));
+const undo=plan({auditId:'A',command:'undo',targets:['O1','O2'],obligations:modified,policyByScope,actorUid:'U',transactionId:'T2',priorTransaction:applied});
+assert.deepEqual(undo.changes.map(x=>x.after.effectiveExpiry),['2026-03-31','2026-05-31']);
+assert.throws(()=>plan({auditId:'A',command:'apply',targets:['O1'],obligations:modified,policyByScope,actorUid:'U',transactionId:'T3'}),/EXT_ALREADY_APPLIED/);
+console.log('Model C scope extension planning OK');

@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {auditModelCExtensionSnapshot20 as audit} from './model-c-scope-extension-data-audit-20.mjs';
+const obligations=Array.from({length:20},(_,i)=>({Obligation_ID:'O'+i,Company_UID:'C1',ScopeCode:'SCOPE_'+String(i+1).padStart(2,'0'),Audit_ID:'A1',Trigger_Source:'CERTIFICATE',Base_Expiry_Date:'2027-01-31',Effective_Expiry_Date:'2027-01-31',Planning_Window_From:'2026-12-01',Planning_Window_To:'2027-01-31',Extension_Applied:'',Extension_Metadata_JSON:''}));
+const links=obligations.map(x=>({Audit_ID:'A1',Obligation_ID:x.Obligation_ID,Link_State:'ACTIVE'}));
+const valid=audit({obligations,links,planningRows:[{'Audit ID':'A1'}]});
+assert.equal(valid.status,'STRUCTURALLY_ELIGIBLE_FOR_FURTHER_VERIFICATION');
+assert.equal(valid.counts.obligations,20);assert.equal(valid.counts.activeLinks,20);assert.equal(valid.authoritativeCutoverApproved,false);
+const history=obligations.map(x=>({...x}));history[1].Extension_Applied='Yes';history[1].Extension_Metadata_JSON=JSON.stringify({months:3,source:'CLOUD_RUN_DIRECT_MANAGER_EXTENSION'});
+const review=audit({obligations:history,links,planningRows:[{'Audit ID':'A1'}]});
+assert.equal(review.status,'REVIEW_REQUIRED');assert.equal(review.migrationSummary.MIGRATION_REVIEW_REQUIRED,1);assert.equal(review.automaticUndoAllowed,false);
+const bad=audit({obligations,links:[...links,{Audit_ID:'A1',Obligation_ID:'MISSING',Link_State:'ACTIVE'},links[0]],planningRows:[{'Audit ID':'A1'}]});
+assert(bad.issues.some(x=>x.code==='LINK_MISSING_OBLIGATION'));
+assert(bad.issues.some(x=>x.code==='DUPLICATE_ACTIVE_LINK'));
+assert.throws(()=>audit({obligations,links:null,planningRows:[]}),/EXT_DATA_AUDIT_INPUT_REQUIRED/);
+console.log('PASS Model C read-only audit: 20 scopes, history quarantine, lineage validation');

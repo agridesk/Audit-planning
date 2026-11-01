@@ -274,6 +274,17 @@ function StatusNotificationBridge_Dispatch_(action, actor, ctx, payload, result)
       };
     }
 
+    // ECAS is independent of the internal recipient and queue result.
+    var lifecycleEcasResult = null;
+    if ((action === ACTION.CANCEL || action === ACTION.REJECT) &&
+        typeof ECAS20_QueueCommittedLifecycle_ === 'function') {
+      try { lifecycleEcasResult = ECAS20_QueueCommittedLifecycle_(action,ctx,payload,result); }
+      catch (eLifecycle) {
+        lifecycleEcasResult = {ok:false,queued:false,reason:'ECAS_LIFECYCLE_SIDE_EFFECT_ERROR'};
+        Logger.log('[STATUS_NOTIFY][ECAS_LIFECYCLE] ' + String(eLifecycle));
+      }
+    }
+
     var recipient = StatusNotificationBridge_ResolveRecipient_(action, actor, ctx, payload);
     __dp('recipientResolvedMs');
     if (!recipient || !recipient.email) {

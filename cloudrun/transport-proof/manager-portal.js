@@ -151,7 +151,7 @@ function submitSelectionHandoff(mode){
 }
 
 function text(v){return v==null||v===""?"-":String(v)}
-function displayStatus(v){var s=String(v==null?"":v).trim().toLowerCase();return s==="approved"?"Pending acceptance":text(v)}
+function displayStatus(v){var s=String(v==null?"":v).trim().toLowerCase();return s==="approved"?"Pending acceptance":s==="accepted"?"Ready":text(v)}
 function hoursClass(expected,actual){var e=Number(expected),a=Number(actual);if(!isFinite(e)||!isFinite(a))return "";if(Math.abs(a-e)<0.001)return "hours-match";return a<e?"hours-under":"hours-over"}
 function hoursPlannedCell(r){return esc(text(r.hoursPlanned))}
 function planningBlocks(r){var raw=r&&r.planningJson,j=raw;if(!raw)return[];if(typeof raw==="string"){try{j=JSON.parse(raw)}catch(e){return[]}}var a=Array.isArray(j)?j:(j&&Array.isArray(j.blocks)?j.blocks:[]);return a.filter(function(b){return b&&b.date&&b.start&&b.end}).map(function(b){return{date:String(b.date).slice(0,10),start:String(b.start),end:String(b.end),slotComment:String(b.slotComment||b.comment||"").trim(),executionType:String(b.executionType||b.workType||"ONSITE").toUpperCase(),execLoc:String(b.execLoc||b.executionLocation||b.location||"").trim()}})}

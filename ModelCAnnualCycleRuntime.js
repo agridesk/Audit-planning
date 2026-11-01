@@ -19,6 +19,7 @@ function ModelCAnnualCycle_applyAuditPlanningHoursToPlan_(ss,headers,sourceRow,p
 }
 
 function ModelCAnnualCycle_HandleCompletionRow_(planningRowObj) {
+  if (PropertiesService.getScriptProperties().getProperty('AMS_SCOPE_EXTENSION_AUTHORITY') === 'FIRESTORE') throw new Error('LEGACY_GAS_ANNUAL_CYCLE_WRITER_FENCED');
   var ss = SpreadsheetApp.getActive();
   var auditId = ModelCAnnualCycle_rowValue_(planningRowObj, ['Audit ID']);
   if (!auditId) return {success:false,message:'Missing Audit ID for Model C annual cycle',build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD};

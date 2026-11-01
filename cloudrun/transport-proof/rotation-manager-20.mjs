@@ -7,7 +7,7 @@ export function buildRotationManager20(scopes,auditors,log,{includeTestData=fals
  const slot=index(sh,'SlotKey'),code=index(sh,'ScopeCode'),name=index(sh,'DisplayName'),active=index(sh,'Active'),archived=index(sh,'Archived'),applies=index(sh,'Rotation_Applies'),max=index(sh,'Rotation_Normal_Maximum');
  const li={company:index(lh,'Company'),companyUid:index(lh,'Company_UID'),auditor:index(lh,'Auditor'),auditorUid:index(lh,'Auditor_UID'),status:index(lh,'Status'),year:index(lh,'Year'),completed:index(lh,'Date completed')};
  const ai={email:index(ah,'E-mail','Email'),uid:index(ah,'Auditor_UID'),name:index(ah,'Name')};
- if([slot,code,name,active,archived,applies,max,li.company,li.companyUid,li.auditorUid,li.status,li.year,ai.email,ai.uid].some(x=>x<0))throw Error('ROTATION_MANAGER_SCHEMA_INCOMPLETE');
+ if([slot,code,name,active,archived,applies,max,li.company,li.companyUid,li.auditorUid,li.status,li.year,ai.uid].some(x=>x<0))throw Error('ROTATION_MANAGER_SCHEMA_INCOMPLETE');
  const configured=new Map(),columns=new Map();
  for(const r of scopes.slice(1)){const s=clean(r[slot]);if(!s)continue;if(!/^SCOPE_(?:0[1-9]|1[0-9]|20)$/.test(s)||configured.has(s))throw Error('ROTATION_MANAGER_SCOPE_INVALID');const enabled=truth(r[active])&&!truth(r[archived]);const applicable=truth(r[applies]);const n=Number(r[max]);if(enabled&&applicable&&(!Number.isSafeInteger(n)||n<1))throw Error('ROTATION_MANAGER_POLICY_INVALID');configured.set(s,{slot:s,scope:clean(r[name]),code:clean(r[code]),maximum:enabled&&applicable?n:null,active:enabled});}
  for(const [s,v] of configured){const i=index(lh,s);if(i>=0)columns.set(s,i);}

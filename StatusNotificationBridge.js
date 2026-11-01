@@ -439,7 +439,7 @@ function StatusNotificationBridge_Dispatch_(action, actor, ctx, payload, result)
 function StatusNotificationBridge_ValidateEcasChangeCancel_(eventKey, before, after, reason) {
   var key=String(eventKey||'').trim();
   var errors=[];
-  if(key!=='ECAS_AUDIT_CHANGED_DIGEST'&&key!=='ECAS_AUDIT_CANCELLED_DIGEST')errors.push('UNSUPPORTED_ECAS_EVENT');
+  if(!['ECAS_AUDIT_CHANGED_DIGEST','ECAS_AUDIT_CANCELLED_DIGEST','ECAS_AUDIT_REJECTED_DIGEST'].includes(key))errors.push('UNSUPPORTED_ECAS_EVENT');
   if(!before||!before.auditId||!before.communicatedToEcas)errors.push('PRIOR_ECAS_COMMUNICATION_NOT_PROVEN');
   if(!before||!before.planningJson&&!before.blocks&&!before.plannedDates)errors.push('PRIOR_SCHEDULE_MISSING');
   if(!reason||!String(reason).trim())errors.push('EXPLICIT_ECAS_REASON_REQUIRED');

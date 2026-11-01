@@ -20,6 +20,11 @@ assert(!portal.includes("fetch('/api/v1/manager/company-management/extension-obl
 assert(server.includes('EXTENSION_MULTI_SCOPE_BLOCKED_PENDING_MODEL_C_SCOPE_SAFE_REMEDIATION_ISSUE_96'));
 assert(server.includes("process.env.AMS_SCOPE_EXTENSION_AUTHORITY==='FIRESTORE'"));
 assert(server.includes('LEGACY_EXTENSION_WRITER_FENCED'));
+assert(server.includes("u.pathname==='/api/v1/manager/extension-obligation-command'"));
+assert(server.includes('EXT_FIRESTORE_CUTOVER_NOT_VERIFIED'));
+assert(server.includes('createScopeExtensionCommand20({store,contextResolver,policyResolver})'));
+assert(server.includes('verifiedAuditorLockDevProject()'));
+assert(server.includes("process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true'"));
 assert.equal(server.split('LEGACY_OBLIGATION_LIFECYCLE_WRITER_FENCED').length-1,2);
 assert(annualCycle.includes('LEGACY_GAS_ANNUAL_CYCLE_WRITER_FENCED'));
 assert(annualCycle.includes("getProperty('AMS_SCOPE_EXTENSION_AUTHORITY')"));

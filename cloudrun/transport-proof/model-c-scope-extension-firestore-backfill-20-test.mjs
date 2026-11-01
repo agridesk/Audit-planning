@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {planScopeExtensionFirestoreBackfill20 as plan} from './model-c-scope-extension-firestore-backfill-20.mjs';
+const obligations=[['Obligation_ID','Company_UID','ScopeCode','Trigger_Source','Base_Expiry_Date','Effective_Expiry_Date','Planning_Window_From','Planning_Window_To','Extension_Applied','Extension_Metadata_JSON']];
+const links=[['Audit_ID','Obligation_ID','Link_State']];
+const planning=[['Audit ID','Status','Company_UID'],['A','Pending Planning','C']];
+const cfg=[['ScopeCode','Extension','Planning from','Planning to']];
+for(let i=0;i<20;i++){let id='O'+i,scope='S'+i;obligations.push([id,'C',scope,'CERTIFICATE_LIFECYCLE','31/01/2027','31/01/2027','01/12/2026','31/01/2027',i===0?'Yes':'',i===0?'{"source":"legacy"}':'']);links.push(['A',id,'ACTIVE']);cfg.push([scope,'3','-2','0'])}
+let result=plan({obligations,visitLinks:links,planning,configScopes:cfg});
+assert.equal(result.counts.obligations,20);assert.equal(result.counts.auditContexts,1);assert.equal(result.counts.legacyUndoQuarantined,1);
+assert.equal(result.documents[0].baseExpiry,'2027-01-31');assert.equal(result.auditContexts[0].writerFenceVerified,false);assert.equal(result.seedPermitted,false);
+assert.equal(result.fatal.length,0);
+const external=obligations.map(x=>x.slice());external[1][3]='ECAS';external[1][4]='';external[1][5]='';external[1][6]='';external[1][7]='';
+let e=plan({obligations:external,visitLinks:links,planning,configScopes:cfg});assert.equal(e.fatal.length,0);
+const broken=obligations.map(x=>x.slice());broken[2][5]='';
+let b=plan({obligations:broken,visitLinks:links,planning,configScopes:cfg});
+assert(b.fatal.some(x=>x.code==='CERTIFICATE_DATES_MISSING'));assert.equal(b.readyForManualReconciliation,false);
+console.log('PASS Firestore 20-scope migration backfill planning; no seed without reconciliation');

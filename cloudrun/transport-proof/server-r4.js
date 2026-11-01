@@ -1730,7 +1730,7 @@ async function directManagerReject(identity,body){
     const ecasQueueRow=directEcasLifecycleQueueRow20(ecasLifecycle,{auditId,action:'REJECT',company,now});if(ecasQueueRow)queueRows.push(ecasQueueRow);
     let sideEffectQueue={success:true};const sideStarted=Date.now();try{await sheetsValuesAppend('Notification Queue!A:M',queueRows);}catch(e){sideEffectQueue={success:false,error:clean(e?.message||e)}}const sideEffectMs=Date.now()-sideStarted;
 
-    return{success:true,auditId,action:'REJECT',beforeStatus,newStatus:'Rejected',afterStatus:'REJECTED',afterStatusDisplay:'Rejected',reason,directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_REJECT',scopesRejected:[...rejectedScopeCodes],companyScopesDeactivated:companyScopeWrites.length,obligationsRejected:obligationWrites.length,availabilityRows,archiveMs,archiveAlready,writeMs,deleteMs,sideEffectMs,sideEffectQueue,readMs,totalMs:Date.now()-started};
+    return{success:true,auditId,action:'REJECT',beforeStatus,newStatus:'Rejected',afterStatus:'REJECTED',afterStatusDisplay:'Rejected',reason,directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_REJECT',scopesRejected:[...rejectedScopeCodes],companyScopesDeactivated:companyScopeWrites.length,obligationsRejected:obligationWrites.length,availabilityRows,archiveMs,archiveAlready,writeMs,deleteMs,sideEffectMs,sideEffectQueue,ecasLifecycle:{eligible:ecasLifecycle.eligible===true,reason:ecasLifecycle.reason||'',queued:!!ecasQueueRow&&sideEffectQueue.success===true},readMs,totalMs:Date.now()-started};
   });
 }
 

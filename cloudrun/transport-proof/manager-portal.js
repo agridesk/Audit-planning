@@ -203,7 +203,7 @@ async function toggleSelfPlanning20(button){
  if(!row||busyAudits.has(auditId)||!row.sourceRevision)return;
  busyAudits.add(auditId);button.disabled=true;
  try{
-  var response=await fetch('/api/v1/manager/self-planning-direct',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({auditId:auditId,expectedRevision:row.sourceRevision,allowSelfPlanning:button.getAttribute('data-next')==='true'})});
+  var response=await fetch('/api/v1/manager/self-planning-direct',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({auditId:auditId,expectedRevision:row.sourceRevision,expectedAllowSelfPlanning:/^(true|yes|1)$/i.test(String(row.allowSelfPlanning||'')),allowSelfPlanning:button.getAttribute('data-next')==='true'})});
   var result=await response.json();if(!response.ok||result.success!==true)throw Error(result.error||'Self planning update failed');
   mergeRowInPlace(auditId,{allowSelfPlanning:result.allowSelfPlanning,sourceRevision:result.sourceRevision});
  }catch(e){window.alert('Self planning not changed: '+e.message);button.disabled=false}

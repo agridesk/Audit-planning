@@ -25,7 +25,10 @@ function ECAS20_QueueCommittedLifecycle_(action,ctx,payload,result){
     if(String(p.auditId||'').trim()!==auditId||!String(p.company||'').trim()||!String(p.mpsNumber||'').trim()||!String(p.auditorUid||'').trim()||!Array.isArray(p.scopes)||!p.scopes.length||!Array.isArray(p.blocks)||!p.blocks.length||!(Number(p.plannedHours)>0))continue;
     prior.push({receipt:receipt,payload:p,sentAt:String(r[c.sent])});
   }
-  if(prior.length!==1)return {ok:false,queued:false,reason:prior.length?'AMBIGUOUS_PRIOR_ECAS_COMMUNICATION':'NO_VERIFIED_PRIOR_ECAS_COMMUNICATION'};
+  if(!prior.length)return {ok:false,queued:false,reason:'NO_VERIFIED_PRIOR_ECAS_COMMUNICATION'};
+  prior=prior.filter(function(x){return !isNaN(Date.parse(x.sentAt));}).sort(function(a,b){return Date.parse(b.sentAt)-Date.parse(a.sentAt);});
+  if(!prior.length)return {ok:false,queued:false,reason:'ECAS_SENT_TIMESTAMP_INVALID'};
+  if(prior.length>1&&Date.parse(prior[0].sentAt)===Date.parse(prior[1].sentAt))return {ok:false,queued:false,reason:'AMBIGUOUS_PRIOR_ECAS_COMMUNICATION'};
   var record=prior[0],p=record.payload;
   var before={auditId:auditId,communicatedToEcas:true,communicationId:record.receipt,company:p.company,mpsNumber:p.mpsNumber,auditorUid:p.auditorUid,auditorName:p.auditorName||'',auditorEmail:p.auditorEmail||'',scopes:p.scopes,blocks:p.blocks,plannedDates:p.plannedDates||[],planningJson:p.planningJson||'',plannedHours:p.plannedHours,version:record.receipt};
   var after={auditId:auditId,version:String(result.transitionId||result.sourceRevision||result.afterStatus||result.newStatus||'COMMITTED')};

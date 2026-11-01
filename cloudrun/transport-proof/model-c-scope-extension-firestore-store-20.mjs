@@ -48,6 +48,23 @@ export function createScopeExtensionFirestoreStore20({projectId,getToken,fetchIm
   if(value.operationId!==operationId||!['PENDING','PROJECTED','UNCERTAIN'].includes(value.state))throw Error('EXT_OUTBOX_CORRUPT');
   return copy(value);
  }
+ async function listOutbox({pageSize=100,pageToken=''}={}){
+  if(!Number.isSafeInteger(pageSize)||pageSize<1||pageSize>200||typeof pageToken!=='string')throw Error('EXT_OUTBOX_SCAN_INVALID');
+  const url=new URL(base+'/'+prefix+'_outbox');
+  url.searchParams.set('pageSize',String(pageSize));
+  if(pageToken)url.searchParams.set('pageToken',pageToken);
+  const response=await request(url.toString());
+  if(!response.ok)throw Error('EXT_OUTBOX_SCAN_'+response.status);
+  const raw=await response.json();
+  const entries=(raw.documents||[]).map(item=>{
+   const operationId=decodeURIComponent(str(item.name).split('/').at(-1)||'');
+   if(!id(operationId)||!item.fields?.payload)throw Error('EXT_OUTBOX_SCAN_CORRUPT');
+   const value=decode(item.fields.payload);
+   if(value.operationId!==operationId||!id(value.obligationId)||!['PENDING','PROJECTED','UNCERTAIN'].includes(value.state))throw Error('EXT_OUTBOX_SCAN_CORRUPT');
+   return value;
+  });
+  return{entries:copy(entries),nextPageToken:str(raw.nextPageToken)||null};
+ }
  async function markProjected({obligationId,operationId,proof}={}){
   if(!id(obligationId)||!id(operationId)||proof?.verified!==true||proof?.obligationId!==obligationId||proof?.operationId!==operationId||typeof proof?.rowHash!=='string'||!/^[a-f0-9]{64}$/.test(proof.rowHash))throw Error('EXT_PROJECTION_PROOF_INVALID');
   const started=await request(base+':beginTransaction','POST',{options:{readWrite:{}}});
@@ -75,5 +92,5 @@ export function createScopeExtensionFirestoreStore20({projectId,getToken,fetchIm
   if(!response.ok)throw Error('EXT_FIRESTORE_COMMIT_'+response.status);
   return{state:'PROJECTED',replayed:false};
  }
- return Object.freeze({runAtomic,readOutbox,markProjected});
+ return Object.freeze({runAtomic,readOutbox,listOutbox,markProjected});
 }

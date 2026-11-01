@@ -20,4 +20,7 @@ await assert.rejects(()=>store.markProjected({obligationId:'O1',operationId:'REQ
 await assert.rejects(()=>store.markProjected({obligationId:'O1',operationId:'REQ1',proof:{verified:true,obligationId:'O1',operationId:'REQ1',rowHash:'bad'}}),/EXT_PROJECTION_PROOF_INVALID/);
 assert.equal(typeof store.readOutbox,'function');
 assert.equal(typeof store.markProjected,'function');
+assert.equal(typeof store.listOutbox,'function');
+await assert.rejects(()=>store.listOutbox({pageSize:201}),/EXT_OUTBOX_SCAN_INVALID/);
+await assert.rejects(()=>store.listOutbox({pageSize:0}),/EXT_OUTBOX_SCAN_INVALID/);
 console.log('PASS Firestore extension gate and three-write transaction contract');

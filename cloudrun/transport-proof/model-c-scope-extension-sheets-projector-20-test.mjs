@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {createScopeExtensionSheetsProjector20} from './model-c-scope-extension-sheets-projector-20.mjs';
+assert.throws(()=>createScopeExtensionSheetsProjector20({}),/EXT_PROJECTOR_CUTOVER_UNVERIFIED/);
+let writes=0,proofs=0,after=null;
+const target={obligationId:'O1',companyUid:'C1',auditId:'A1',scopeCode:'GAP',linkState:'ACTIVE',triggerSource:'CERTIFICATE_LIFECYCLE',revision:2,pendingProjectionId:'TX1',effectiveExpiry:'2027-04-30',windowFrom:'2027-02-28',windowTo:'2027-04-30',extensionApplied:true,extensionMetadata:'{"transactionId":"TX1"}'};
+const other={...target,obligationId:'O2',scopeCode:'GRASP',revision:1,pendingProjectionId:'',effectiveExpiry:'2027-03-31',windowFrom:'2027-01-31',windowTo:'2027-03-31',extensionApplied:false,extensionMetadata:''};
+const store={readOutbox:async()=>({operationId:'TX1',type:'SCOPE_EXTENSION_PROJECTION',state:'PENDING',auditId:'A1',companyUid:'C1',obligationId:'O1',revision:2,aggregate:{earliestExpiry:'2027-03-31'}}),readAuditContext:async()=>({auditId:'A1',companyUid:'C1',lifecycleStatus:'PENDING_PLANNING',obligations:[target,other]}),markProjected:async args=>{assert.equal(args.proof.verified,true);assert.match(args.proof.rowHash,/^[a-f0-9]{64}$/);proofs++;return{state:'PROJECTED'}}};
+const original={companyUid:'C1',auditId:'A1',obligationId:'O1',linkState:'ACTIVE',auditStatus:'PENDING_PLANNING',obligationRowCount:1,auditRowCount:1};
+const sheets={readRows:async()=>after||original,writeCells:async({expected})=>{writes++;after={...original,...expected}}};
+const project=createScopeExtensionSheetsProjector20({store,sheets,cutoverVerified:true});
+const success=await project('TX1');assert.equal(success.state,'PROJECTED');assert.equal(writes,1);assert.equal(proofs,1);
+assert.equal(after.aggregateExpiry,'2027-03-31');assert.equal(after.aggregateApplied,true);
+const broken=createScopeExtensionSheetsProjector20({store,sheets:{readRows:async()=>original,writeCells:async()=>{}},cutoverVerified:true});
+await assert.rejects(()=>broken('TX1'),/EXT_PROJECTOR_READBACK_MISMATCH/);
+assert.equal(proofs,1);
+const noCutover=()=>createScopeExtensionSheetsProjector20({store,sheets,cutoverVerified:false});
+assert.throws(noCutover,/EXT_PROJECTOR_CUTOVER_UNVERIFIED/);
+console.log('PASS scope extension projector: verified readback, scope aggregate and no false acknowledgment');

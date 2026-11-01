@@ -50,7 +50,7 @@ for(const needle of [
 ]){assert.ok(r4.includes(needle),needle);tests++;}
 assert.ok(r10.includes("r.canExtend=r.statusKey==='PENDING_PLANNING'&&extMonths>0&&extensionLinked.has(clean(r.auditId))"),'Extension capability must be resolved in async enrichment');tests++;
 
-assert.ok(ui.includes('var months=Number(r.extensionMonths||r.extMonths||0),applied=!!(r.extensionApplied||r.extApplied),pending=r.statusKey==="PENDING_PLANNING",can=!!r.canExtend'), 'Extension UI must trust canonical capability only');tests++;
+assert.ok(ui.includes('var months=Number(r.extensionMonths||r.extMonths||0),applied=extensionAppliedState(r),pending=r.statusKey==="PENDING_PLANNING",can=!!r.canExtend'), 'Extension UI must trust canonical capability only');tests++;
 assert.ok(ui.includes('displayName+" · "+actorRole'), 'Portal identity must prefer display name');tests++;
 assert.ok(ui.includes('Planning window expired · ended '),'Expired planning window must be user-facing');tests++;
 assert.ok(ui.includes('No valid execution date in this planning window · minimum interval'),'Minimum interval conflict must be user-facing');tests++;

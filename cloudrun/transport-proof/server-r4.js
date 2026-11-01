@@ -2771,7 +2771,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
         if(actorUid&&cau>=0&&clean(val(row,cau))){if(clean(val(row,cau))!==actorUid)continue;}else if(directResolveAuditorEmail(aud,val(row,ca))!==email&&directResolveAuditorEmail(aud,val(row,cp))!==email)continue;
         if(ci>=0&&clean(row[ci]))uids.add(clean(row[ci]));else if(cn>=0&&clean(row[cn]))names.add(clean(row[cn]).toLowerCase());
       }
-      const log=values[6]?.values||[],lh=log[0]||[],lci=col(lh,['Company_UID','Company UID']),lcn=col(lh,['Company']),la=col(lh,['Auditor','Auditor Email','Email']);
+      const log=values[6]?.values||[],lh=log[0]||[],lci=col(lh,['Company_UID','Company UID']),lcn=col(lh,['Company']),la=col(lh,['Auditor','Auditor Email','Email']),lau=col(lh,['Auditor_UID','Assigned_Auditor_UID']);
       for(const row of log.slice(1)){if(directResolveAuditorEmail(aud,val(row,la))!==email)continue;if(lci>=0&&clean(row[lci]))uids.add(clean(row[lci]));else if(lcn>=0&&clean(row[lcn]))names.add(clean(row[lcn]).toLowerCase())}
       const result=buildCompanyManagementReadModel20({companies:values[0]?.values||[],companyScopes:values[1]?.values||[],configScopes:values[2]?.values||[],scopeVersions:values[3]?.values||[],companyHours:values[4]?.values||[]});
       result.companies=result.companies.filter(c=>uids.has(c.companyUid)||(names.has(clean(c.name).toLowerCase())&&result.companies.filter(y=>clean(y.name).toLowerCase()===clean(c.name).toLowerCase()).length===1));

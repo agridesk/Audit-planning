@@ -2,7 +2,7 @@ const str=x=>String(x??'').trim();
 const iso=x=>{const v=str(x);if(!/^\d{4}-\d{2}-\d{2}$/.test(v))return'';const [y,m,d]=v.split('-').map(Number);if(y<1||m<1||m>12||d<1)return'';const last=new Date(Date.UTC(y,m,0)).getUTCDate();return d<=last?v:'';};
 function addMonths(date,n){const s=iso(date);if(!s||!Number.isInteger(n))throw Error('EXT_DATE_OR_MONTHS_INVALID');const [y,m,d]=s.split('-').map(Number);const z=new Date(Date.UTC(y,m-1+n,1));const end=new Date(Date.UTC(z.getUTCFullYear(),z.getUTCMonth()+1,0)).getUTCDate();z.setUTCDate(Math.min(d,end));return z.toISOString().slice(0,10)}
 const own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
-export function planScopeExtension20({auditId,command,targets,obligations,policyByScope,priorTransaction,actorUid,transactionId,lifecycleStatus='Pending Planning'}){
+export function planScopeExtension20({auditId,command,targets,obligations,policyByScope,priorTransaction,actorUid,transactionId,lifecycleStatus}){
  if(!str(auditId)||!str(actorUid)||!str(transactionId))throw Error('EXT_IDENTITY_REQUIRED');
  if(!['apply','undo'].includes(command))throw Error('EXT_COMMAND_INVALID');
  if(str(lifecycleStatus).toUpperCase().replace(/[_\s]+/g,' ')!=='PENDING PLANNING')throw Error('EXTENSION_ALLOWED_ONLY_PENDING_PLANNING');
@@ -35,8 +35,9 @@ export function planScopeExtension20({auditId,command,targets,obligations,policy
  }
  const all=obligations.map(o=>{const change=changes.find(c=>c.obligationId===o.obligationId);return change?{...o,...change.after}:o});
  const active=all.filter(o=>str(o.auditId)===str(auditId)&&str(o.linkState).toUpperCase()==='ACTIVE'&&str(o.triggerSource).toUpperCase()!=='ECAS');
- const expiries=active.map(o=>iso(o.effectiveExpiry)||iso(o.baseExpiry)).filter(Boolean);
+ if(!active.length||active.some(o=>!iso(o.effectiveExpiry)||!iso(o.windowFrom)||!iso(o.windowTo)||o.windowFrom>o.windowTo))throw Error('EXT_AGGREGATE_SNAPSHOT_INCOMPLETE');
+ const expiries=active.map(o=>iso(o.effectiveExpiry));
  const starts=active.map(o=>iso(o.windowFrom)).filter(Boolean),ends=active.map(o=>iso(o.windowTo)).filter(Boolean);
- const intersection=starts.length===active.length&&ends.length===active.length?{from:starts.sort().at(-1),to:ends.sort()[0]}:null;
+ const intersection={from:starts.sort().at(-1),to:ends.sort()[0]};
  return{auditId,command,transactionId,actorUid,changes,aggregate:{earliestExpiry:expiries.sort()[0]||'',jointWindow:intersection&&intersection.from<=intersection.to?intersection:null,requiresSeparatePlanning:!intersection||intersection.from>intersection.to},readOnly:true,requiresAtomicCommit:true};
 }

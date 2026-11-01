@@ -1540,7 +1540,7 @@ async function directManagerCancel(identity,body,auditorMode=false){
   if(!auditId)throw new Error('AUDIT_ID_REQUIRED');
   if(!reason)throw new Error('ACTION_REASON_REQUIRED');
   return withDirectManagerActionLock(auditId,async()=>{
-    const readStarted=Date.now(),vr=await sheetsBatchGet(['Audit planning!A1:BW2000','Auditor Availability!A:P','Auditors!A1:Z256']),readMs=Date.now()-readStarted;
+    const readStarted=Date.now(),vr=await sheetsBatchGet(['Audit planning!A1:BW2000','Auditor Availability!A:P','Auditors!A1:Z256','Notification Queue!A1:M2000']),readMs=Date.now()-readStarted;
     const ap=vr[0]?.values||[];if(!ap.length||ap.length>=2000)throw Error('CANONICAL_PLANNING_INCOMPLETE');const found=findAudit(ap,auditId);if(!found)throw new Error('AUDIT_NOT_FOUND');
     const h=found.h,row=found.row.slice(),statusCol=col(h,['Status']),beforeStatus=statusCol>=0?clean(row[statusCol]):'',beforeKey=directStatusKey(beforeStatus);
     if(!(auditorMode?beforeKey==='PENDING_APPROVAL':['PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(beforeKey)))throw new Error('STATUS_TRANSITION_BLOCKED');

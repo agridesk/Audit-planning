@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const backend=readFileSync(new URL('./availability-planning-overlay-service-20.js',import.meta.url),'utf8');
+const frontend=readFileSync(new URL('./availability-manager-calendar-20.html',import.meta.url),'utf8');
+assert.match(backend,/const owner=uid&&known\.has\(uid\)\?uid:''/,'Historical diagnostic ownership must use Auditor_UID');
+assert.doesNotMatch(backend,/owner=conflict\?'':uid\|\|emailUid/,'Email fallback must not assign ownership');
+assert.match(backend,/if\(!outside\)\{if\(owner\)uncertain\.add\(owner\);else unknownOwner=true;\}/,'Out-of-period historical diagnostics must not taint availability');
+assert.match(frontend,/Historical planning diagnostics/,'Historical records remain accessible');
+assert.match(frontend,/incomplete\.length\?'<div>Uncertain auditors/,'Only current incomplete diagnostics display blocking warning');
+assert.match(frontend,/freeWork\(d\.segments\)>0/,'Partial free-day filtering retained');
+console.log('Availability historical UID / warning source contracts OK');

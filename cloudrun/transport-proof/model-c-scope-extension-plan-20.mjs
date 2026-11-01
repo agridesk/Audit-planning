@@ -11,7 +11,7 @@ export function planScopeExtension20({auditId,command,targets,obligations,policy
  const ids=new Set(targets);if(ids.size!==targets.length)throw Error('EXT_TARGETS_INVALID');
  const byId=new Map();for(const o of obligations){if(!str(o.obligationId)||byId.has(str(o.obligationId)))throw Error('EXT_DUPLICATE_OBLIGATION');byId.set(str(o.obligationId),o)}
  const changes=[];
- for(const id of ids){const o=byId.get(id);if(!o||str(o.auditId)!==str(auditId)||str(o.linkState).toUpperCase()!=='ACTIVE'||str(o.triggerSource).toUpperCase()==='ECAS')throw Error('EXT_TARGET_NOT_ELIGIBLE');
+ for(const id of ids){const o=byId.get(id);if(!o||str(o.auditId)!==str(auditId)||str(o.linkState).toUpperCase()!=='ACTIVE'||(str(o.triggerSource).toUpperCase()==='ECAS'||o.expiryManaged===false))throw Error('EXT_TARGET_NOT_ELIGIBLE');
   const scope=str(o.scopeCode),policy=policyByScope?.[scope];if(command==='apply'&&(!policy||!Number.isInteger(policy.extensionMonths)||policy.extensionMonths<=0||!Number.isInteger(policy.planningFromMonths)||!Number.isInteger(policy.planningToMonths)))throw Error('EXT_SCOPE_POLICY_MISSING');
   const fields=['baseExpiry','effectiveExpiry','windowFrom','windowTo','extensionApplied','extensionMetadata'];
   if(fields.some(f=>!own(o,f)))throw Error('EXT_SNAPSHOT_INCOMPLETE');
@@ -34,7 +34,7 @@ export function planScopeExtension20({auditId,command,targets,obligations,policy
   changes.push({obligationId:id,scopeCode:scope,before,after});
  }
  const all=obligations.map(o=>{const change=changes.find(c=>c.obligationId===o.obligationId);return change?{...o,...change.after}:o});
- const active=all.filter(o=>str(o.auditId)===str(auditId)&&str(o.linkState).toUpperCase()==='ACTIVE'&&str(o.triggerSource).toUpperCase()!=='ECAS');
+ const active=all.filter(o=>str(o.auditId)===str(auditId)&&str(o.linkState).toUpperCase()==='ACTIVE'&&str(o.triggerSource).toUpperCase()!=='ECAS'&&o.expiryManaged!==false);
  if(!active.length||active.some(o=>!iso(o.effectiveExpiry)||!iso(o.windowFrom)||!iso(o.windowTo)||o.windowFrom>o.windowTo))throw Error('EXT_AGGREGATE_SNAPSHOT_INCOMPLETE');
  const expiries=active.map(o=>iso(o.effectiveExpiry));
  const starts=active.map(o=>iso(o.windowFrom)).filter(Boolean),ends=active.map(o=>iso(o.windowTo)).filter(Boolean);

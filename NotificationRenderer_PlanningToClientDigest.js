@@ -74,7 +74,7 @@ function NB_renderExternalOperationalDigest_(recipientEmail, normalizedItems) {
   var tableText = NB_renderExternalOperationalTableText_(validItems);
 
   var body = 'Hallo,\n\n' +
-    'Hierbij een overzicht van de audits die zijn ingepland of geannuleerd, gegroepeerd per auditor.\n' +
+    'Hierbij een overzicht van de audits die zijn ingepland, gewijzigd, geannuleerd of afgewezen, gegroepeerd per auditor.\n' +
     'Zouden jullie deze in Ecert willen verwerken en formeel aan de betreffende bedrijven willen bevestigen?\n\n' +
     tableText +
     '\n\nBedankt,\n\nRené Rombouts';
@@ -82,7 +82,7 @@ function NB_renderExternalOperationalDigest_(recipientEmail, normalizedItems) {
   var html = [];
   html.push(NB_externalShellStart_());
   html.push('<div style="font-size:13px;line-height:1.45;color:#111827;margin:0 0 14px 0">Hallo,<br><br>');
-  html.push('Hierbij een overzicht van de audits die zijn ingepland of geannuleerd, gegroepeerd per auditor.<br>');
+  html.push('Hierbij een overzicht van de audits die zijn ingepland, gewijzigd, geannuleerd of afgewezen, gegroepeerd per auditor.<br>');
   html.push('Zouden jullie deze in Ecert willen verwerken en formeel aan de betreffende bedrijven willen bevestigen?</div>');
   html.push('<div style="border-top:1px solid #111827;margin:12px 0 14px 0"></div>');
   html.push(tableHtml);

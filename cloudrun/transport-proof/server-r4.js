@@ -1583,7 +1583,7 @@ async function directManagerCancel(identity,body,auditorMode=false){
     const writeStarted=Date.now();await sheetsValuesBatchUpdate(writes);const writeMs=Date.now()-writeStarted;
     const actorEmail=clean(identity?.email).toLowerCase(),minuteStamp=now.slice(0,16),afterStatus='Pending Planning';
     const ecasLifecycle=directPrepareEcasLifecycle20({auditId,action:'CANCEL',reason,queueRows:vr[3]?.values||[],auditorRows:vr[2]?.values||[],transitionId:auditId+'|CANCEL|'+now});
-    const trailPayload={type:'LIFECYCLE_STATUS_CHANGED',auditId,company,actorEmail,actorRole:auditorMode?'AUDITOR':'MANAGER',beforeStatus,afterStatus,reason,source:auditorMode?'CLOUD_RUN_DIRECT_AUDITOR_CANCEL':'CLOUD_RUN_DIRECT_MANAGER_CANCEL',timestamp:now,action:'CANCEL'};
+    const trailPayload={type:'LIFECYCLE_STATUS_CHANGED',auditId,company,actorEmail,actorRole:auditorMode?'AUDITOR':'MANAGER',beforeStatus,afterStatus,reason,source:auditorMode?'CLOUD_RUN_DIRECT_AUDITOR_CANCEL':'CLOUD_RUN_DIRECT_MANAGER_CANCEL',timestamp:now,action:'CANCEL',ecasLifecycleIntent:ecasLifecycle.eligible?ecasLifecycle.outbox.queueWrites[0]:null,ecasEvidenceStatus:ecasLifecycle.eligible?'VERIFIED':ecasLifecycle.reason};
     const trailBody=JSON.stringify(trailPayload),trailHash=createHash('md5').update('LIFECYCLE_STATUS_CHANGED|'+auditId+'|'+now+'|'+afterStatus).digest('hex');
     const queueRows=[[minuteStamp,'AUDIT_TRAIL','LIFECYCLE_STATUS_CHANGED','',auditId,company,'[TRAIL] LIFECYCLE_STATUS_CHANGED :: '+auditId,trailBody,0,'',trailHash,'',JSON.stringify({payload:trailPayload})]];
     const notificationEmail=auditorMode?canonicalManagerRecipient(vr[2]?.values||[]):recipientEmail;

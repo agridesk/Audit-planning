@@ -1557,6 +1557,17 @@ async function directManagerCancel(identity,body,auditorMode=false){
     const readStarted=Date.now(),vr=await sheetsBatchGet(['Audit planning!A1:BW2000','Auditor Availability!A:P','Auditors!A1:Z256','Notification Queue!A1:M5000','Notification_Config!A1:AF200']),readMs=Date.now()-readStarted;
     const ap=vr[0]?.values||[];if(!ap.length||ap.length>=2000)throw Error('CANONICAL_PLANNING_INCOMPLETE');const found=findAudit(ap,auditId);if(!found)throw new Error('AUDIT_NOT_FOUND');
     const h=found.h,row=found.row.slice(),statusCol=col(h,['Status']),beforeStatus=statusCol>=0?clean(row[statusCol]):'',beforeKey=directStatusKey(beforeStatus);
+    if(beforeKey==='PENDING_PLANNING'){
+      const priorDecision=val(row,col(h,auditorMode?['Last auditor decision','Auditor decision']:['Last manager decision'])),priorReason=val(row,col(h,auditorMode?['Auditor comment (last)']:['Manager comment (last)']));
+      const priorTimestamp=val(row,col(h,['Last decision timestamp']));
+      const ownerUid=val(row,col(h,['Auditor_UID','Auditor UID'])),actorUid=clean(identity?.auditorUid||identity?.auditorId);
+      if(clean(priorDecision).toUpperCase()==='CANCEL'&&priorReason===reason&&priorTimestamp&&(!auditorMode||(ownerUid&&ownerUid===actorUid))){
+        const ecasLifecycle=directPrepareEcasLifecycle20({auditId,action:'CANCEL',reason:priorReason,queueRows:vr[3]?.values||[],auditorRows:vr[2]?.values||[],transitionId:auditId+'|CANCEL|'+priorTimestamp});
+        const recoveryRow=directEcasLifecycleQueueRow20(ecasLifecycle,{auditId,action:'CANCEL',company:val(row,col(h,['Company'])),now:isoLocalStamp(),configRows:vr[4]?.values||[]});
+        if(recoveryRow)await sheetsValuesAppend('Notification Queue!A:M',[recoveryRow]);
+        return{success:true,idempotent:true,auditId,action:'CANCEL',afterStatus:'PENDING_PLANNING',afterStatusDisplay:'Pending Planning',ecasLifecycle:{eligible:ecasLifecycle.eligible===true,recovered:!!recoveryRow,reason:ecasLifecycle.reason||''}};
+      }
+    }
     if(!(auditorMode?beforeKey==='PENDING_APPROVAL':['PENDING_APPROVAL','APPROVED','ACCEPTED'].includes(beforeKey)))throw new Error('STATUS_TRANSITION_BLOCKED');
     if(auditorMode){
      const owner=clean(val(row,col(h,['Auditor_UID','Auditor UID']))),actorUid=clean(identity?.auditorUid||identity?.auditorId);

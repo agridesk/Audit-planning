@@ -787,6 +787,7 @@ async function directManagerExtension(identity,body){
     const targets=[];
     for(let i=1;i<ob.length;i++)if(linked.has(val(ob[i],oid))&&val(ob[i],ots).toUpperCase()!=='ECAS')targets.push(i+1);
     if(!targets.length)throw new Error('NO_ACTIVE_CERTIFICATE_OBLIGATION_LINKED');
+    if(targets.length!==1)throw new Error('EXTENSION_MULTI_OBLIGATION_BLOCKED_PENDING_SCOPE_SAFE_REMEDIATION_ISSUE_96');
     const data=[],put=(sheet,h,row,names,v)=>{const i=col(h,names);if(i<0)throw new Error('EXTENSION_COLUMN_MISSING_'+names[0]);data.push({range:sheet+'!'+a1col(i+1)+row,values:[[v]]});};
     const meta=JSON.stringify({months,undo:command==='undo',source:'CLOUD_RUN_DIRECT_MANAGER_EXTENSION',actorEmail:clean(identity?.email).toLowerCase(),timestamp:now});
     for(const rowNo of targets){

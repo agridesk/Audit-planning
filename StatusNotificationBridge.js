@@ -409,15 +409,7 @@ function StatusNotificationBridge_Dispatch_(action, actor, ctx, payload, result)
       });
     }
 
-    if ((action === ACTION.CANCEL || action === ACTION.REJECT) &&
-        typeof ECAS20_QueueCommittedLifecycle_ === 'function') {
-      try {
-        externalQueueResult = ECAS20_QueueCommittedLifecycle_(action,ctx,payload,result);
-      } catch (eEcasLifecycle) {
-        externalQueueResult = {ok:false,queued:false,reason:'ECAS_LIFECYCLE_SIDE_EFFECT_ERROR'};
-        Logger.log('[STATUS_NOTIFY][ECAS_LIFECYCLE] ' + String(eEcasLifecycle));
-      }
-    }
+    if (lifecycleEcasResult) externalQueueResult = lifecycleEcasResult;
 
     Logger.log(JSON.stringify({
       ok: true,

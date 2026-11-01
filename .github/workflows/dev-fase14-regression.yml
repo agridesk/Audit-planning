@@ -1,0 +1,28 @@
+name: DEV fase 1.4 regression (no deploy)
+on:
+  push:
+    branches: [dev]
+    paths:
+      - '.github/workflows/dev-fase14-regression.yml'
+      - 'cloudrun/transport-proof/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: cloudrun/transport-proof
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Node syntax
+        run: node --check server-r4.js && node --check server-r15.js && node --check manager-approve-recipient-20.mjs
+      - name: Manager approval recipient tests
+        run: node manager-approve-recipient-20-test.mjs
+      - name: Complete source regression suite
+        run: npm test

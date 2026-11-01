@@ -1629,7 +1629,13 @@ async function directManagerReject(identity,body){
     const rejected=vr[3]?.values||[],rh=rejected[0]||[],rAuditId=col(rh,['Audit ID']);
     if(!found){
       const already=rAuditId>=0&&rejected.slice(1).some(r=>val(r,rAuditId)===auditId);
-      if(already)return{success:true,idempotent:true,auditId,action:'REJECT',newStatus:'Rejected',afterStatus:'REJECTED',afterStatusDisplay:'Rejected',directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_REJECT',readMs,totalMs:Date.now()-started};
+      if(already){
+        const archived=rejected.slice(1).find(r=>val(r,rAuditId)===auditId),archiveReason=val(archived,col(rh,['Reason / Comment'])),archiveDate=val(archived,col(rh,['Date - Rejected'])),archiveCompany=val(archived,col(rh,['Company']));
+        const ecasLifecycle=archiveReason?directPrepareEcasLifecycle20({auditId,action:'REJECT',reason:archiveReason,queueRows:vr[9]?.values||[],auditorRows:vr[2]?.values||[],transitionId:auditId+'|REJECT|'+archiveDate}):{eligible:false,reason:'ARCHIVED_REJECT_REASON_MISSING'};
+        const recoveryRow=directEcasLifecycleQueueRow20(ecasLifecycle,{auditId,action:'REJECT',company:archiveCompany,now:isoLocalStamp()});
+        if(recoveryRow)await sheetsValuesAppend('Notification Queue!A:M',[recoveryRow]);
+        return{success:true,idempotent:true,auditId,action:'REJECT',newStatus:'Rejected',afterStatus:'REJECTED',afterStatusDisplay:'Rejected',directCommit:true,owner:'CLOUD_RUN_DIRECT_MANAGER_REJECT',ecasLifecycle:{eligible:ecasLifecycle.eligible===true,recovered:!!recoveryRow,reason:ecasLifecycle.reason||''},readMs,totalMs:Date.now()-started};
+      }
       throw new Error('AUDIT_NOT_FOUND');
     }
     const h=found.h,row=found.row.slice(),beforeStatus=val(row,col(h,['Status'])),beforeKey=directStatusKey(beforeStatus);

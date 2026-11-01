@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {buildRotationManager20} from './rotation-manager-20.mjs';
+const scopes=[['SlotKey','ScopeCode','DisplayName','Active','Archived','Rotation_Applies','Rotation_Normal_Maximum'],['SCOPE_01','ABC','MPS-ABC','Yes','No','Yes','3']];
+const auditors=[['Auditor_UID','Name'],['AUD-001','Auditor Current Name']];
+const log=[['Company','Company_UID','Auditor_UID','Status','Year','Date completed','SCOPE_01'],['Farm','COMP-1','AUD-001','Completed','2025','2025-05-10','Yes']];
+const out=buildRotationManager20(scopes,auditors,log);
+assert.equal(out.rows.length,1);
+assert.equal(out.rows[0].auditorUid,'AUD-001');
+assert.equal(out.rows[0].auditor,'Auditor Current Name');
+assert.equal(out.rows[0].years,'2025');
+console.log('Rotation UID-only historical test OK');

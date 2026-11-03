@@ -5,6 +5,7 @@ import {createScopeExtensionFirestoreStore20} from './model-c-scope-extension-fi
 import {createScopeExtensionSheetsProjector20} from './model-c-scope-extension-sheets-projector-20.mjs';
 import {createScopeExtensionSheetsAdapter20} from './model-c-scope-extension-sheets-adapter-20.mjs';
 import {AsyncLocalStorage} from 'node:async_hooks';
+import {assertScopeExtensionLegacyWriteFenced20,assertScopeExtensionLegacyDeleteFenced20} from './model-c-scope-extension-writer-fence-20.mjs';
 import {normalizeLifecycleWriteset} from './planning-lifecycle-writeset-20.js';
 import {findVerifiedEcasReceipt20} from './ecas-delivery-receipt-20.mjs';
 import {buildEcasLifecycleOutbox20} from './ecas-lifecycle-outbox-20.mjs';
@@ -15,6 +16,7 @@ import {planAuditorQualificationMigration20} from './auditor-scope-qualification
 import {compareAuditorQualificationParity20} from './auditor-scope-qualifications-parity-20.js';
 import {previewAuditorQualificationMigration20} from './auditor-scope-qualifications-migration-20.js';
 const lifecyclePreviewContext20=new AsyncLocalStorage();
+const scopeExtensionProjectionWrites20=new AsyncLocalStorage();
 import {managerCanonicalWriteBridge20} from './manager-canonical-write-bridge-20.mjs';
 import {buildDirectAuditorAcceptSheets20} from './auditor-accept-direct-sheets-20.mjs';
 import {boundedSessionExpiry} from './auth-session-policy.mjs';
@@ -66,6 +68,7 @@ async function sheetsBatchGet(ranges,serialDates=false){
   if(!r.ok)throw new Error('SHEETS_API_'+r.status+': '+JSON.stringify(body));return body.valueRanges||[];
 }
 async function sheetsValuesBatchUpdate(data){
+  assertScopeExtensionLegacyWriteFenced20({authority:process.env.AMS_SCOPE_EXTENSION_AUTHORITY,writes:data});
   const preview=lifecyclePreviewContext20.getStore();
   if(preview){preview.writes.push(...structuredClone(data));return {totalUpdatedCells:0,authorityPreflight:true};}
   const token=await accessToken(),u='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'/values:batchUpdate';
@@ -73,6 +76,7 @@ async function sheetsValuesBatchUpdate(data){
   if(!r.ok)throw new Error('SHEETS_BATCH_UPDATE_'+r.status+': '+JSON.stringify(body));return body;
 }
 async function sheetsValuesAppend(range,values){
+  assertScopeExtensionLegacyWriteFenced20({authority:process.env.AMS_SCOPE_EXTENSION_AUTHORITY,writes:[{range,values}],operation:'append'});
   const preview=lifecyclePreviewContext20.getStore();
   if(preview){preview.appends.push({range,values:structuredClone(values)});return {updates:{updatedRows:values.length},authorityPreflight:true};}
   const token=await accessToken(),u='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'/values/'+encodeURIComponent(range)+':append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS';
@@ -245,6 +249,7 @@ async function sheetsAtomicAuditorEmailTransition({auditorRow,auditorEmailCol,ol
   });
 }
 async function sheetsDeleteRow(sheetTitle,rowNumber){
+  assertScopeExtensionLegacyDeleteFenced20({authority:process.env.AMS_SCOPE_EXTENSION_AUTHORITY,sheetTitle});
   const preview=lifecyclePreviewContext20.getStore();
   if(preview){preview.deletes.push({sheetTitle,rowNumber});return {authorityPreflight:true};}
   const token=await accessToken(),metaUrl='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'?fields=sheets.properties';
@@ -736,7 +741,7 @@ async function directRotationRead(auditId,auditorEmail){
 function extAddMonths(iso,n){const m=clean(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return'';let t=Number(m[1])*12+Number(m[2])-1+Number(n||0),y=Math.floor(t/12),mo=t-y*12+1,d=Math.min(Number(m[3]),new Date(Date.UTC(y,mo,0)).getUTCDate());return String(y).padStart(4,'0')+'-'+String(mo).padStart(2,'0')+'-'+String(d).padStart(2,'0');}
 function extScopes(found,catalog){return(catalog||[]).filter(s=>[s.slotKey,s.scopeCode,s.displayName].some(a=>{const i=col(found.h,[a]);return i>=0&&yes(found.row[i]);}));}
 function extWindow(expiry,scopes){let from='',to='';for(const s of scopes){let x=extAddMonths(expiry,s.planningFrom),y=extAddMonths(expiry,s.planningTo);if(!x||!y)continue;if(x>y)[x,y]=[y,x];if(!from||x>from)from=x;if(!to||y<to)to=y;}if(!from||!to||from>to)throw new Error('EXTENSION_PLANNING_WINDOW_INVALID');return{from,to};}
-async function sheetsValuesBatchUpdateRaw(data){const preview=lifecyclePreviewContext20.getStore();if(preview){preview.writes.push(...structuredClone(data));return {totalUpdatedCells:0,authorityPreflight:true};}const token=await accessToken(),u='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'/values:batchUpdate',r=await fetch(u,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({valueInputOption:'RAW',data})}),body=await r.json();if(!r.ok)throw new Error('SHEETS_BATCH_UPDATE_RAW_'+r.status);return body;}
+async function sheetsValuesBatchUpdateRaw(data){assertScopeExtensionLegacyWriteFenced20({authority:process.env.AMS_SCOPE_EXTENSION_AUTHORITY,writes:data,projectionRanges:scopeExtensionProjectionWrites20.getStore()?.ranges||null,operation:'raw-projection'});const preview=lifecyclePreviewContext20.getStore();if(preview){preview.writes.push(...structuredClone(data));return {totalUpdatedCells:0,authorityPreflight:true};}const token=await accessToken(),u='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+'/values:batchUpdate',r=await fetch(u,{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({valueInputOption:'RAW',data})}),body=await r.json();if(!r.ok)throw new Error('SHEETS_BATCH_UPDATE_RAW_'+r.status);return body;}
 
 async function saveScopeCosmetic20(body){
   const field=clean(body?.field),code=clean(body?.scopeCode),value=clean(body?.value);
@@ -2058,7 +2063,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     const operationId=clean(body?.operationId);if(!operationId||operationId.length>180)return send(res,400,{ok:false,error:'EXT_PROJECTION_OPERATION_ID_REQUIRED'});
     try{
       const store=createScopeExtensionFirestoreStore20({projectId:devProject,getToken:accessToken,migrationVerified:true,writerFenceVerified:true});
-      const sheets=createScopeExtensionSheetsAdapter20({batchGet:sheetsBatchGet,batchWrite:sheetsValuesBatchUpdateRaw,cutoverVerified:true});
+      const sheets=createScopeExtensionSheetsAdapter20({batchGet:sheetsBatchGet,batchWrite:(data)=>scopeExtensionProjectionWrites20.run({ranges:data.map(x=>x.range)},()=>sheetsValuesBatchUpdateRaw(data)),cutoverVerified:true});
       const projector=createScopeExtensionSheetsProjector20({store,sheets,cutoverVerified:true});
       return send(res,200,await projector(operationId));
     }catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'EXT_PROJECTION_RECOVERY_FAILED'})}

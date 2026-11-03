@@ -1,6 +1,10 @@
 name: AMS Fase 7 DEV Cloud preflight (read only)
 on:
   workflow_dispatch:
+  push:
+    branches: [dev]
+    paths:
+      - '.github/workflows/ams-fase7-dev-cloud-preflight.yml'
 permissions:
   contents: read
   id-token: write

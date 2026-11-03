@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 const server=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
-assert.match(source,/class=\\"ext-act ext-manage\\"/);
+assert.ok(source.includes('class="ext-act ext-manage"'));
 assert.match(source,/ams:open-company-scopes/);
 assert.match(source,/tab='scopes'/);
 assert.match(source,/matches\.length!==1/);

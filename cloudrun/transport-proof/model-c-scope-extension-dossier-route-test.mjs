@@ -24,7 +24,9 @@ assert(server.includes("u.pathname==='/api/v1/manager/extension-obligation-comma
 assert(server.includes('EXT_FIRESTORE_CUTOVER_NOT_VERIFIED'));
 assert(server.includes('createScopeExtensionCommand20({store,contextResolver,policyResolver})'));
 assert(server.includes("u.pathname==='/api/v1/manager/extension-reconcile-projection'"));
-assert(server.includes('createScopeExtensionSheetsAdapter20({batchGet:sheetsBatchGet,batchWrite:sheetsValuesBatchUpdateRaw,cutoverVerified:true})'));
+assert(server.includes('createScopeExtensionSheetsAdapter20({batchGet:sheetsBatchGet,batchWrite:(data)=>scopeExtensionProjectionWrites20.run('));
+assert(server.includes('assertScopeExtensionLegacyWriteFenced20'));
+assert(server.includes('assertScopeExtensionLegacyDeleteFenced20'));
 assert(server.includes('createScopeExtensionSheetsProjector20({store,sheets,cutoverVerified:true})'));
 assert(server.includes('EXT_PROJECTION_RECOVERY_FAILED'));
 assert.equal(server.split("error:'EXT_ORIGIN_REQUIRED'").length-1,2);

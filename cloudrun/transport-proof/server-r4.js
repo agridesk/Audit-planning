@@ -796,8 +796,8 @@ async function directManagerSelfPlanning20(identity,body){
  });
 }
 async function directManagerExtension(identity,body){
-  if(process.env.AMS_SCOPE_EXTENSION_AUTHORITY==='FIRESTORE')throw new Error('LEGACY_EXTENSION_WRITER_FENCED');
   if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
+  if(process.env.AMS_SCOPE_EXTENSION_AUTHORITY==='FIRESTORE')throw new Error('LEGACY_EXTENSION_WRITER_FENCED');
   const t0=Date.now(),auditId=clean(body?.auditId),command=clean(body?.command).toLowerCase();
   if(!auditId)throw new Error('AUDIT_ID_REQUIRED');
   if(!['apply','undo'].includes(command))throw new Error('EXTENSION_COMMAND_NOT_ALLOWED');
@@ -1328,10 +1328,10 @@ function directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companySco
 }
 
 async function directComplete(identity,body,actorRole){
-  if(process.env.AMS_SCOPE_EXTENSION_AUTHORITY==='FIRESTORE')throw new Error('LEGACY_OBLIGATION_LIFECYCLE_WRITER_FENCED');
   if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
   const uidCompleteAuthEnabled=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_AUDITOR_UID_AUTHORIZATION_ENABLED==='true';
   const newObligationSnapshotEnabled=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_MODEL_C_NEW_HOURS_SNAPSHOT_ENABLED==='true';
+  if(process.env.AMS_SCOPE_EXTENSION_AUTHORITY==='FIRESTORE')throw new Error('LEGACY_OBLIGATION_LIFECYCLE_WRITER_FENCED');
   actorRole=clean(actorRole).toUpperCase();
   if(actorRole!=='MANAGER'&&actorRole!=='AUDITOR')throw new Error('COMPLETE_ACTOR_ROLE_INVALID');
   const started=Date.now(),auditId=clean(body?.auditId),options=body?.options&&typeof body.options==='object'?body.options:{},hoursDedicated=Number(options.hoursDedicated),expectedRevision=clean(options.expectedRevision||body?.expectedRevision);
@@ -1655,8 +1655,8 @@ async function directManagerCancel(identity,body,auditorMode=false){
 
 
 async function directManagerReject(identity,body){
-  if(process.env.AMS_SCOPE_EXTENSION_AUTHORITY==='FIRESTORE')throw new Error('LEGACY_OBLIGATION_LIFECYCLE_WRITER_FENCED');
   if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
+  if(process.env.AMS_SCOPE_EXTENSION_AUTHORITY==='FIRESTORE')throw new Error('LEGACY_OBLIGATION_LIFECYCLE_WRITER_FENCED');
   const started=Date.now(),auditId=clean(body?.auditId),options=body?.options&&typeof body.options==='object'?body.options:{},reason=clean(options.reason||options.comment),expectedRevision=clean(options.expectedRevision||body?.expectedRevision);
   if(!auditId)throw new Error('AUDIT_ID_REQUIRED');
   if(!reason)throw new Error('ACTION_REASON_REQUIRED');

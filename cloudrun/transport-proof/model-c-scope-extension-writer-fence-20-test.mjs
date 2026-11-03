@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {assertScopeExtensionLegacyWriteFenced20 as fence,assertScopeExtensionLegacyDeleteFenced20 as deletion} from './model-c-scope-extension-writer-fence-20.mjs';
+const write=range=>({range,values:[['x']]});
+fence({authority:'SHEETS',writes:[write("'Audit_Obligations'!K2")]});
+fence({authority:'FIRESTORE',writes:[write("'Companies'!D2")]});
+for(const range of ["'Audit_Obligations'!K2","Audit_Visit_Obligations!C2","'Audit planning'!AC2"])assert.throws(()=>fence({authority:'FIRESTORE',writes:[write(range)]}),/EXT_LEGACY_MODEL_C_WRITER_FENCED/);
+assert.throws(()=>fence({authority:'FIRESTORE',operation:'append',writes:[write("Audit_Obligations!A2")]}),/EXT_LEGACY_MODEL_C_WRITER_FENCED/);
+assert.throws(()=>deletion({authority:'FIRESTORE',sheetTitle:'Audit planning'}),/EXT_LEGACY_MODEL_C_DELETE_FENCED/);
+deletion({authority:'FIRESTORE',sheetTitle:'Companies'});
+const approved=["'Audit_Obligations'!I2","'Audit_Obligations'!J2","'Audit_Obligations'!K2","'Audit_Obligations'!L2","'Audit_Obligations'!M2","'Audit planning'!AC2","'Audit planning'!BH2"].map(write);
+fence({authority:'FIRESTORE',writes:approved,operation:'raw-projection',projectionRanges:approved.map(x=>x.range)});
+assert.throws(()=>fence({authority:'FIRESTORE',writes:[write("'Audit_Obligations'!K3")],operation:'raw-projection',projectionRanges:approved.map(x=>x.range)}),/EXT_LEGACY_MODEL_C_WRITER_FENCED/);
+assert.throws(()=>fence({authority:'FIRESTORE',writes:approved.slice(0,6),operation:'raw-projection',projectionRanges:approved.map(x=>x.range)}),/EXT_LEGACY_MODEL_C_WRITER_FENCED/);
+console.log('PASS canonical Firestore writer fence, exact 7-cell projection and deletion guard');

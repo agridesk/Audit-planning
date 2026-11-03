@@ -5,6 +5,7 @@ COPY assignment-validation-v211.js ./
 COPY auditor-scope-qualifications-*.js ./
 COPY company-scope-hours-snapshot-20.js ./
 COPY model-c-new-obligation-provenance-20.js ./
+COPY model-c-scope-extension-*.mjs ./
 COPY actor-capabilities-v211.js ./
 COPY auditor-uid-owner-resolution-20.js ./
 COPY scope-hours-version-20.js ./

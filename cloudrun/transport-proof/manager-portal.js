@@ -1190,18 +1190,61 @@ if(tab==='scopes'){
  var extSection=el('section');extSection.style.cssText='margin-top:18px;padding:12px;border:1px solid #cbd5e1;border-radius:8px';
  var extHeading=el('h3','Audit obligations — extensions');extSection.appendChild(extHeading);
  var extContent=el('div','Loading scope obligations…');extSection.appendChild(extContent);details.appendChild(extSection);
- var extSelectedUid=selected.companyUid;
- fetch('/api/v1/manager/company-management/extension-obligations?companyUid='+encodeURIComponent(extSelectedUid),{credentials:'same-origin'}).then(function(r){if(!r.ok)throw Error('HTTP '+r.status);return r.json()}).then(function(data){
-  if(!selected||selected.companyUid!==extSelectedUid||tab!=='scopes'||!extContent.isConnected)return;
+ var extSelectedUid=selected.companyUid,extBusy=false;
+ function extCurrent(){return selected&&selected.companyUid===extSelectedUid&&tab==='scopes'&&extContent.isConnected}
+ async function extPost(url,body){
+  var response=await fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  var data=await response.json().catch(function(){return null});
+  if(!response.ok||!data||data.ok===false)throw Error((data&&data.error)||'HTTP '+response.status);
+  return data;
+ }
+ async function extAction(o,command){
+  if(extBusy||!extCurrent()||!o||!o.auditId||!o.obligationId||!Number.isSafeInteger(o.revision)||!(command==='apply'?o.canApply:o.canUndo))return;
+  if(command==='undo'&&!window.confirm('Undo the verified extension for '+o.scopeCode+'?'))return;
+  if(!window.crypto||typeof window.crypto.randomUUID!=='function'){extContent.textContent='Secure request IDs unavailable. No change performed.';return}
+  var requestId=window.crypto.randomUUID();extBusy=true;extContent.querySelectorAll('button').forEach(function(x){x.disabled=true});
+  var info=extContent.querySelector('[data-ext-feedback]');if(info)info.textContent='Committing verified '+command+'…';
+  var committed=false;
+  try{
+   var body={command:command,auditId:o.auditId,companyUid:extSelectedUid,obligationId:o.obligationId,expectedRevision:o.revision,requestId:requestId};
+   if(command==='undo')body.extensionTransactionId=o.extensionTransactionId;
+   var receipt=await extPost('/api/v1/manager/extension-obligation-command',body);committed=true;
+   if(!receipt.operationId)throw Error('EXT_OPERATION_RECEIPT_MISSING');
+   if(info)info.textContent='Committed to Firestore; verifying Sheets projection…';
+   var projected=await extPost('/api/v1/manager/extension-reconcile-projection',{operationId:receipt.operationId});
+   if(projected.state!=='PROJECTED')throw Error('EXT_PROJECTION_NOT_CONFIRMED');
+   if(extCurrent())await loadExtObligations();
+  }catch(e){
+   if(extCurrent()){extContent.querySelectorAll('button').forEach(function(x){x.disabled=false});var feedback=extContent.querySelector('[data-ext-feedback]')||el('p');feedback.dataset.extFeedback='yes';feedback.textContent=(committed?'Firestore commit succeeded; projection requires recovery. Do not resubmit. ':'No scope change confirmed. ')+String(e.message||e);extContent.prepend(feedback)}
+  }finally{extBusy=false}
+ }
+ function showExtObligations(data){
+  if(!extCurrent())return;
   extContent.replaceChildren();
   if(!data.ok||!Array.isArray(data.records)){extContent.textContent='Scope obligations unavailable';return}
-  var info=el('p','Read-only until Model C writer migration is verified. Apply/Undo unavailable.');extContent.appendChild(info);
+  var info=el('p',data.mode==='FIRESTORE_VERIFIED'?'Verified Firestore scope actions.':'Read-only until Model C writer migration is verified. Apply/Undo unavailable.');
+  info.dataset.extFeedback='yes';extContent.appendChild(info);
   if(!data.records.length){extContent.appendChild(el('p','No obligations found'));return}
   var table=el('table');table.style.cssText='width:100%;border-collapse:collapse;font-size:13px';
-  var head=el('tr');['Scope','Obligation','Effective expiry','Planning window','Extension','Audit status'].forEach(function(k){var th=el('th',k);th.style.cssText='text-align:left;padding:6px;border-bottom:1px solid #cbd5e1';head.appendChild(th)});table.appendChild(head);
-  data.records.forEach(function(o){var tr=el('tr');var cols=[o.scopeCode,o.obligationId,o.effectiveExpiry,(o.windowFrom||'—')+' — '+(o.windowTo||'—'),o.extensionApplied?'Applied (review only)':'Not applied',(o.auditStatuses||[]).map(function(x){return x.status}).join(', ')||'Not linked'];cols.forEach(function(v){var td=el('td',String(v||'—'));td.style.cssText='padding:6px;border-bottom:1px solid #e2e8f0';tr.appendChild(td)});table.appendChild(tr)});
+  var head=el('tr');['Scope','Obligation','Effective expiry','Planning window','Extension','Audit status','Actions'].forEach(function(k){var th=el('th',k);th.style.cssText='text-align:left;padding:6px;border-bottom:1px solid #cbd5e1';head.appendChild(th)});table.appendChild(head);
+  data.records.forEach(function(o){
+   var tr=el('tr');var cols=[o.scopeCode,o.obligationId,o.effectiveExpiry,(o.windowFrom||'—')+' — '+(o.windowTo||'—'),o.extensionApplied?'Applied':'Not applied',(o.auditStatuses||[]).map(function(x){return x.status}).join(', ')||'Not linked'];
+   cols.forEach(function(v){var td=el('td',String(v||'—'));td.style.cssText='padding:6px;border-bottom:1px solid #e2e8f0';tr.appendChild(td)});
+   var actions=el('td');actions.style.cssText='padding:6px;border-bottom:1px solid #e2e8f0';
+   if(o.canApply===true||o.canUndo===true){var command=o.canUndo===true?'undo':'apply';var button=el('button',command==='undo'?'Undo extension':'Apply extension');button.type='button';button.onclick=function(){extAction(o,command)};actions.appendChild(button)}
+   else actions.textContent='—';
+   tr.appendChild(actions);table.appendChild(tr)
+  });
   extContent.appendChild(table);
- }).catch(function(){if(extContent.isConnected)extContent.textContent='Extension obligations could not be loaded; no changes were made.'});
+ }
+ async function loadExtObligations(){
+  if(!extCurrent())return;
+  var response=await fetch('/api/v1/manager/company-management/extension-obligations?companyUid='+encodeURIComponent(extSelectedUid),{credentials:'same-origin'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  var data=await response.json();
+  showExtObligations(data);
+ }
+ loadExtObligations().catch(function(){if(extCurrent())extContent.textContent='Extension obligations could not be loaded; no changes were made.'});
  var note=el('p','Activate a scope and enter optional custom hours in one Save all. Without an override the current scope default applies. Existing legacy overrides require governed cutover before removal.');note.style.color='#64748b';details.appendChild(note);
 }
 if(tab==='locations'){

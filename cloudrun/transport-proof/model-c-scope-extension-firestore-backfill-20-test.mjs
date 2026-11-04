@@ -18,4 +18,8 @@ const compact=obligations.map(x=>x.slice());compact[1][3]='CERTIFICATE_LIFECYCLE
 const nonRecurring=plan({obligations:compact,visitLinks:links,planning,configScopes:cfgCompact});
 assert.equal(nonRecurring.fatal.length,0);
 assert.equal(nonRecurring.documents[0].expiryManaged,false);
+const unknown=obligations.map(x=>x.slice());unknown[1][2]='UNREGISTERED_SCOPE';unknown[1][4]='';unknown[1][5]='';unknown[1][6]='';unknown[1][7]='';
+const unknownResult=plan({obligations:unknown,visitLinks:links,planning,configScopes:cfg});
+assert(unknownResult.fatal.some(x=>x.code==='SCOPE_NOT_IN_CANONICAL_CATALOG'));
+assert.equal(unknownResult.auditContexts.length,0);
 console.log('PASS Firestore 20-scope migration backfill planning; no seed without reconciliation');

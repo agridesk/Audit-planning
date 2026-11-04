@@ -4,6 +4,7 @@
 const str=x=>String(x??'').trim();
 const status=x=>str(x).toUpperCase().replace(/[\s-]+/g,'_');
 const positiveInt=x=>Number.isSafeInteger(x)&&x>=0;
+const date=x=>{const s=str(x);let y,m,d;if(/^\d{4}-\d{2}-\d{2}$/.test(s))[y,m,d]=s.split('-').map(Number);else if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s))[d,m,y]=s.split('/').map(Number);else return'';return y>0&&m>0&&m<=12&&d>0&&d<=new Date(Date.UTC(y,m,0)).getUTCDate()?String(y).padStart(4,'0')+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0'):''};
 export function reconcileScopeExtensionDossierAuthority20({companyUid,records,activeLinks,contexts,cutoverVerified=false}={}){
  if(!str(companyUid)||!Array.isArray(records)||!Array.isArray(activeLinks)||!Array.isArray(contexts))throw Error('EXT_DOSSIER_AUTHORITY_INPUT_INVALID');
  const byAudit=new Map();
@@ -31,6 +32,7 @@ export function reconcileScopeExtensionDossierAuthority20({companyUid,records,ac
   const ob=selected[0];
   if(ob.scopeCode!==row.scopeCode||!positiveInt(ob.revision)||ob.triggerSource==='ECAS'||ob.expiryManaged===false)return inactive;
   if(!/^\d{4}-\d{2}-\d{2}$/.test(str(ob.effectiveExpiry))||!/^\d{4}-\d{2}-\d{2}$/.test(str(ob.windowFrom))||!/^\d{4}-\d{2}-\d{2}$/.test(str(ob.windowTo)))return inactive;
+  if(date(row.effectiveExpiry)!==ob.effectiveExpiry||date(row.windowFrom)!==ob.windowFrom||date(row.windowTo)!==ob.windowTo||row.extensionApplied!==(ob.extensionApplied===true))return inactive;
   const applied=ob.extensionApplied===true;
   let transactionId='';
   try{transactionId=str(JSON.parse(str(ob.extensionMetadata)||'null')?.transactionId)}catch{return inactive}

@@ -1,6 +1,11 @@
 name: AMS Fase 7 DEV migration data preflight (read only)
 on:
   workflow_dispatch:
+    inputs:
+      dev_sheet_id:
+        description: 'Existing AMS DEV Google Sheet ID (read-only)'
+        required: true
+        type: string
 permissions:
   contents: read
   id-token: write
@@ -10,7 +15,7 @@ jobs:
     environment: ams-dev
     timeout-minutes: 12
     env:
-      AMS_DEV_SHEET_ID: ${{ vars.AMS_DEV_SHEET_ID }}
+      AMS_DEV_SHEET_ID: ${{ inputs.dev_sheet_id }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

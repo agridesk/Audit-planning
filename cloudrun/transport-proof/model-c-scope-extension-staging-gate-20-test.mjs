@@ -16,4 +16,5 @@ const global={...plan,fatal:[...plan.fatal,{code:'SCHEMA_MISSING'}]};
 assert.equal(stage({plan:global,quarantineAuditIds:['TEST_MULTIDAY_APPROVED_01']}).eligibleForControlledStaging,false);
 const incorrect={...plan,documents:[doc('O1')]};
 assert.throws(()=>stage({plan:incorrect,quarantineAuditIds:['TEST_MULTIDAY_APPROVED_01']}),/EXT_STAGE_CONTEXT_LINEAGE_MISMATCH/);
+assert.throws(()=>stage({plan:{...plan,auditContexts:[context,context]},quarantineAuditIds:['TEST_MULTIDAY_APPROVED_01']}),/EXT_STAGE_DUPLICATE_AUDIT_CONTEXT/);
 console.log('PASS Model C staging gate: explicit quarantine, no silent cutover, strict lineage');

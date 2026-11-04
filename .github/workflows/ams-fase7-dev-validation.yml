@@ -44,3 +44,4 @@ jobs:
           node model-c-scope-extension-firestore-seed-20-test.mjs
           node model-c-reject-link-fence-20-test.mjs
           node model-c-scope-extension-writer-fence-20-test.mjs
+          node model-c-scope-extension-link-remediation-20-test.mjs

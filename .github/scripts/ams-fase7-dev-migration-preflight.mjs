@@ -11,7 +11,7 @@ const token=execFileSync('gcloud',['auth','print-access-token'],{encoding:'utf8'
 if(!token)throw Error('EXT_PREFLIGHT_GOOGLE_TOKEN_MISSING');
 const get=async url=>{
  const response=await fetch(url,{headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(30000)});
- if(!response.ok)throw Error('EXT_PREFLIGHT_READ_HTTP_'+response.status);
+ if(!response.ok){const problem=await response.json().catch(()=>null);const code=String(problem?.error?.status||'UNKNOWN');const reason=String(problem?.error?.errors?.[0]?.reason||'UNKNOWN');const message=String(problem?.error?.message||'').slice(0,300).replace(/[\r\n]/g,' ');throw Error('EXT_PREFLIGHT_READ_HTTP_'+response.status+'_STATUS_'+code+'_REASON_'+reason+'_MESSAGE_'+message)}
  return response.json();
 };
 const sheetMetadata=await get('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(sheetId)+'?fields=spreadsheetId,properties(title)');

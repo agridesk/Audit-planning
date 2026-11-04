@@ -14,6 +14,8 @@ const get=async url=>{
  if(!response.ok)throw Error('EXT_PREFLIGHT_READ_HTTP_'+response.status);
  return response.json();
 };
+const sheetMetadata=await get('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(sheetId)+'?fields=spreadsheetId,properties(title)');
+if(sheetMetadata.spreadsheetId!==sheetId||sheetMetadata.properties?.title!=='Audit Management System DEV')throw Error('EXT_PREFLIGHT_WRONG_SPREADSHEET');
 const spec=[
  {range:"'Audit_Obligations'!A1:Z1002",label:'obligations'},
  {range:"'Audit_Visit_Obligations'!A1:F1002",label:'visitLinks'},

@@ -25,11 +25,14 @@ jobs:
           test -n "$WIF_PROVIDER" || { echo "::error::AMS_DEV_WIF_PROVIDER missing"; exit 1; }
           test -n "$SERVICE_ACCOUNT" || { echo "::error::AMS_DEV_PREFLIGHT_SERVICE_ACCOUNT missing"; exit 1; }
       - name: Authenticate DEV identity only
+        id: google_auth
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.AMS_DEV_WIF_PROVIDER }}
           service_account: ${{ secrets.AMS_DEV_PREFLIGHT_SERVICE_ACCOUNT }}
           project_id: audit-management-system-dev
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/spreadsheets.readonly
       - uses: google-github-actions/setup-gcloud@v2
       - name: Verify active GCP project
         run: |
@@ -43,6 +46,7 @@ jobs:
         run: node .github/scripts/ams-fase7-firestore-inventory.mjs
       - name: Read-only live DEV Model C migration preflight
         env:
+          GOOGLE_ACCESS_TOKEN: ${{ steps.google_auth.outputs.access_token }}
           AMS_DEV_SHEET_ID: 1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs
         run: node .github/scripts/ams-fase7-dev-migration-preflight.mjs
       - name: Explicit no-write completion

@@ -1,5 +1,4 @@
 /** Read-only, no-payload logging DEV migration preflight. No writes or deployments. */
-import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {planScopeExtensionFirestoreBackfill20} from '../../cloudrun/transport-proof/model-c-scope-extension-firestore-backfill-20.mjs';
 import {stageScopeExtensionMigration20} from '../../cloudrun/transport-proof/model-c-scope-extension-staging-gate-20.mjs';
@@ -7,7 +6,7 @@ const project='audit-management-system-dev',sheetId=process.env.AMS_DEV_SHEET_ID
 const expected='TEST_MULTIDAY_APPROVED_01';
 if(!/^[-_A-Za-z0-9]{20,100}$/.test(sheetId))throw Error('EXT_PREFLIGHT_SHEET_ID_REQUIRED');
 if(![process.env.CLOUDSDK_CORE_PROJECT,process.env.GCLOUD_PROJECT,process.env.GOOGLE_CLOUD_PROJECT].includes(project))throw Error('EXT_PREFLIGHT_PROJECT_ID_MISMATCH');
-const token=execFileSync('gcloud',['auth','print-access-token'],{encoding:'utf8',timeout:30000}).trim();
+const token=String(process.env.GOOGLE_ACCESS_TOKEN||'').trim();
 if(!token)throw Error('EXT_PREFLIGHT_GOOGLE_TOKEN_MISSING');
 const get=async url=>{
  const response=await fetch(url,{headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(30000)});

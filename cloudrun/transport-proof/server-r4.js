@@ -4,6 +4,7 @@ import {createScopeExtensionCommand20} from './model-c-scope-extension-command-2
 import {createScopeExtensionFirestoreStore20} from './model-c-scope-extension-firestore-store-20.mjs';
 import {createScopeExtensionSheetsProjector20} from './model-c-scope-extension-sheets-projector-20.mjs';
 import {createScopeExtensionSheetsAdapter20} from './model-c-scope-extension-sheets-adapter-20.mjs';
+import {reconcileScopeExtensionDossierAuthority20} from './model-c-scope-extension-dossier-authority-20.mjs';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {assertScopeExtensionLegacyWriteFenced20,assertScopeExtensionLegacyDeleteFenced20} from './model-c-scope-extension-writer-fence-20.mjs';
 import {normalizeLifecycleWriteset} from './planning-lifecycle-writeset-20.js';
@@ -2922,11 +2923,24 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       if(auditIdIndex<0||statusIndex<0)throw Error('EXT_AUDIT_SCHEMA_MISSING');
       const statuses=new Map(planning.slice(1).filter(row=>clean(row[auditIdIndex])).map(row=>[clean(row[auditIdIndex]),clean(row[statusIndex])]));
       const byOb=new Map();for(const row of links.slice(1)){if(clean(row[li('Link_State')]).toUpperCase()!=='ACTIVE')continue;const oid=clean(row[li('Obligation_ID')]);if(!oid)continue;const existing=byOb.get(oid)||[];existing.push(clean(row[li('Audit_ID')]));byOb.set(oid,existing)}
-      const records=ob.slice(1).filter(row=>clean(row[oi('Company_UID')])===uid&&clean(row[oi('Obligation_ID')])).map(row=>{
+      let records=ob.slice(1).filter(row=>clean(row[oi('Company_UID')])===uid&&clean(row[oi('Obligation_ID')])).map(row=>{
         const obligationId=clean(row[oi('Obligation_ID')]),auditIds=byOb.get(obligationId)||[];
         return{obligationId,scopeCode:clean(row[oi('ScopeCode')]),triggerSource:clean(row[oi('Trigger_Source')]),state:clean(row[oi('Obligation_State')]),baseExpiry:clean(row[oi('Base_Expiry_Date')]),effectiveExpiry:clean(row[oi('Effective_Expiry_Date')]),windowFrom:clean(row[oi('Planning_Window_From')]),windowTo:clean(row[oi('Planning_Window_To')]),extensionApplied:yes(row[oi('Extension_Applied')]),auditIds,auditStatuses:auditIds.map(id=>({auditId:id,status:statuses.get(id)||'UNKNOWN'})),extensionSource:(()=>{try{return JSON.parse(clean(row[oi('Extension_Metadata_JSON')])||'null')?.source||''}catch{return'INVALID_METADATA'}})(),canMutate:false};
       });
       if(records.length>1000)return send(res,409,{ok:false,error:'EXT_READ_TOO_MANY_COMPANY_OBLIGATIONS'});
+      const scopeCutoverVerified=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_SCOPE_EXTENSION_AUTHORITY==='FIRESTORE'&&process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED==='true'&&process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED==='true';
+      if(scopeCutoverVerified){
+        const verifiedProject=await verifiedAuditorLockDevProject();
+        if(!verifiedProject)return send(res,409,{ok:false,error:'EXT_DEV_PROJECT_IDENTITY_UNVERIFIED'});
+        const store=createScopeExtensionFirestoreStore20({projectId:verifiedProject,getToken:accessToken,migrationVerified:true,writerFenceVerified:true});
+        const eligibleAudits=[...new Set(records.flatMap(x=>x.auditIds).filter(id=>clean(statuses.get(id)).toUpperCase().replace(/[\\s-]+/g,'_')==='PENDING_PLANNING'))];
+        if(eligibleAudits.length>100)return send(res,409,{ok:false,error:'EXT_COMPANY_DOSSIER_TOO_MANY_AUDITS'});
+        const contexts=(await Promise.all(eligibleAudits.map(async auditId=>{try{return await store.readAuditContext({auditId,companyUid:uid})}catch{return null}}))).filter(Boolean);
+        const activeLinks=links.slice(1).filter(row=>clean(row[li('Link_State')]).toUpperCase()==='ACTIVE').map(row=>({auditId:clean(row[li('Audit_ID')]),obligationId:clean(row[li('Obligation_ID')])}));
+        const result=reconcileScopeExtensionDossierAuthority20({companyUid:uid,records,activeLinks,contexts,cutoverVerified:true});
+        records=result.records;
+        return send(res,200,{ok:true,companyUid:uid,...result});
+      }
       return send(res,200,{ok:true,companyUid:uid,records,mode:'READ_ONLY_CUTOVER_REQUIRED',canMutate:false});
     }catch(e){return send(res,409,{ok:false,error:'EXT_SCOPE_DOSSIER_READ_FAILED',detail:clean(e?.message||e)})}
   }

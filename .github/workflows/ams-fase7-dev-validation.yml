@@ -9,6 +9,8 @@ on:
       - "ModelCAnnualCycleRuntime.js"
       - "cloudrun/transport-proof/package.json"
       - ".github/workflows/ams-fase7-dev-validation.yml"
+      - ".github/scripts/ams-fase7-dev-migration-preflight.mjs"
+      - "cloudrun/transport-proof/model-c-scope-extension-staging-gate-20.mjs"
   workflow_dispatch:
 jobs:
   extension-tests:
@@ -24,6 +26,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Validate DEV migration preflight script syntax
+        run: node --check ../../.github/scripts/ams-fase7-dev-migration-preflight.mjs
       - name: Validate extension code syntax
         run: |
           for f in model-c-scope-extension-*.mjs; do node --check "$f"; done

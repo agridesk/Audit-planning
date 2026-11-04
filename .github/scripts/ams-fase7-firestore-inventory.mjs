@@ -14,7 +14,7 @@ for(const collection of collections){
  do{
   const url=new URL(root+'/'+collection);
   url.searchParams.set('pageSize','100');
-  url.searchParams.set('mask.fieldPaths','__name__');
+  url.searchParams.set('mask.fieldPaths','ams_inventory_field_never_present');
   if(pageToken)url.searchParams.set('pageToken',pageToken);
   const res=await fetch(url,{headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(25000)});
   if(res.status===404){if(pages>0)throw Error('EXT_INVENTORY_COLLECTION_VANISHED');total=0;break}

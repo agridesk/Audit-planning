@@ -5,6 +5,7 @@ on:
     branches: [dev]
     paths:
       - '.github/workflows/ams-fase7-dev-cloud-preflight.yml'
+      - '.github/scripts/ams-fase7-firestore-inventory.mjs'
 permissions:
   contents: read
   id-token: write
@@ -37,5 +38,7 @@ jobs:
         run: |
           gcloud firestore databases describe --database="(default)" --project="audit-management-system-dev" --format="json(name,locationId,type)"
           gcloud run services describe ams-transport-proof --project="audit-management-system-dev" --region="europe-west1" --format="json(status.latestReadyRevisionName,status.traffic)"
+      - name: Read-only Model C extension Firestore collection inventory
+        run: node .github/scripts/ams-fase7-firestore-inventory.mjs
       - name: Explicit no-write completion
         run: echo "DEV read-only preflight complete; no cutover or deployment was performed"

@@ -23,6 +23,7 @@ export function planScopeExtensionFirestoreBackfill20({obligations,visitLinks,pl
   const localPolicy={},stagedDocs=[],stagedWarnings=[];let valid=true;
   for(const id of ids){const o=obs.get(id),scopeCode=str(o.ScopeCode),triggerSource=str(o.Trigger_Source),external=triggerSource.toUpperCase()==='ECAS',expiryManaged=!external&&recurringByScope[scopeCode]===true;
    if(str(o.Company_UID)!==companyUid||!scopeCode){fatal.push({code:'OBLIGATION_LINEAGE_CONFLICT',auditId,obligationId:id});valid=false;continue}
+   if(!Object.hasOwn(recurringByScope,scopeCode)){fatal.push({code:'SCOPE_NOT_IN_CANONICAL_CATALOG',auditId,obligationId:id,scopeCode});valid=false;continue}
    const base=date(o.Base_Expiry_Date),effective=date(o.Effective_Expiry_Date),from=date(o.Planning_Window_From),to=date(o.Planning_Window_To);
    if(expiryManaged&&(!base||!effective||!from||!to||from>to)){fatal.push({code:'CERTIFICATE_DATES_MISSING',auditId,obligationId:id,scopeCode});valid=false;continue}
    if(expiryManaged&&policy[scopeCode]===undefined){fatal.push({code:'SCOPE_POLICY_MISSING',auditId,scopeCode});valid=false;continue}

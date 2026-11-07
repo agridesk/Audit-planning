@@ -6,9 +6,10 @@ import {fileURLToPath} from 'node:url';
 const root=dirname(fileURLToPath(import.meta.url));
 const entries=readdirSync(root).filter(name=>/^(?:server-r(?:4|5|6|7|8|9|10|11|12|15)\.js|assignment-validation-v211\.js|model-c-new-obligation-provenance-20\.js)$/.test(name));
 const docker=readFileSync(resolve(root,'Dockerfile'),'utf8');
-const patterns=docker.split('\n').map(x=>/^COPY\s+(\S+)\s+\.\/$/.exec(x)?.[1]).filter(Boolean);
+const patterns=docker.split(/\r?\n/).map(line=>line.trim().split(/\s+/)).filter(parts=>parts.length===3&&parts[0]==='COPY'&&parts[2]==='./').map(parts=>parts[1]);
+assert.ok(patterns.length>0,'Dockerfile must contain COPY instructions');
 function matches(name,pattern){
- const escaped=pattern.split('*').map(part=>part.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('.*');
+ const escaped=pattern.split('*').map(part=>part.replace(/[^A-Za-z0-9_-]/g,char=>'\\'+char)).join('.*');
  return new RegExp('^'+escaped+'$').test(name);
 }
 const sourceFiles=readdirSync(root);

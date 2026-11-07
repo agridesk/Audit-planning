@@ -703,6 +703,7 @@ async function swap20ManagerRequest(req,res,operation){
  if(!runtime.isDev){res.writeHead(404,{'cache-control':'no-store'});res.end('Not found');return;}
  const actor=await session(req);
  if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
+ if(operation==='canonicalGridDates'&&!swap20DirectRouteEnabled){res.writeHead(409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify({ok:false,code:'SWAP_DIRECT_GRID_DISABLED'}));return;}
  let originOk=false;
  try{const origin=new URL(String(req.headers.origin||''));originOk=origin.protocol==='https:'&&origin.host===String(req.headers.host||'');}catch{}
  if(!originOk){res.writeHead(403,{'cache-control':'no-store'});res.end('ORIGIN_REJECTED');return;}
@@ -1273,6 +1274,7 @@ http.createServer(async(req,res)=>{
    if(!runtime.isDev){res.writeHead(404);res.end('Not found');return;}
    const actor=await session(req);
    if(!actor||actor.role!=='auditor'){res.writeHead(actor?403:401);res.end('Auditor session required');return;}
+   if(!swap20DirectRouteEnabled){res.writeHead(409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify({ok:false,code:'SWAP_DIRECT_GRID_DISABLED'}));return;}
    let originOk=false;try{const origin=new URL(String(req.headers.origin||''));originOk=origin.protocol==='https:'&&origin.host===String(req.headers.host||'');}catch{}
    if(!originOk){res.writeHead(403);res.end('ORIGIN_REJECTED');return;}
    if(!swap20DirectRouteEnabled){res.writeHead(409,{'content-type':'application/json'});res.end(JSON.stringify({ok:false,code:'SWAP_DIRECT_GRID_DISABLED'}));return;}

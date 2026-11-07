@@ -1,0 +1,60 @@
+name: AMS Fase 7 DEV Model C stage (explicit approval; no cutover)
+on:
+  workflow_dispatch:
+    inputs:
+      expected_snapshot_sha256:
+        description: '64-character SHA-256 from successful read-only live DEV Model C preflight'
+        required: true
+        type: string
+      approval:
+        description: 'Must be CONFIRM_DEV_STAGE_ONLY'
+        required: true
+        type: string
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: ams-dev-model-c-stage-only
+  cancel-in-progress: false
+jobs:
+  stage-model-c-obligations:
+    if: github.ref == 'refs/heads/dev' && github.repository == 'agridesk/Audit-planning' && inputs.approval == 'CONFIRM_DEV_STAGE_ONLY'
+    runs-on: ubuntu-latest
+    environment: ams-dev-migration
+    timeout-minutes: 30
+    env:
+      GCLOUD_PROJECT: audit-management-system-dev
+      AMS_EXPECTED_SOURCE_SHA256: ${{ inputs.expected_snapshot_sha256 }}
+      AMS_APPROVAL: ${{ inputs.approval }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Authenticate isolated DEV Sheets read-only identity
+        id: source_auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.AMS_DEV_WIF_PROVIDER }}
+          service_account: ${{ secrets.AMS_DEV_PREFLIGHT_SERVICE_ACCOUNT }}
+          project_id: audit-management-system-dev
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/spreadsheets.readonly
+      - name: Authenticate separate DEV migration identity
+        id: migration_auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.AMS_DEV_WIF_PROVIDER }}
+          service_account: ${{ secrets.AMS_DEV_MIGRATION_SERVICE_ACCOUNT }}
+          project_id: audit-management-system-dev
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/datastore
+      - name: Verify independent writer-freeze evidence and stage only
+        env:
+          AMS_SOURCE_READ_TOKEN: ${{ steps.source_auth.outputs.access_token }}
+          AMS_MIGRATION_TOKEN: ${{ steps.migration_auth.outputs.access_token }}
+          AMS_DEV_FREEZE_ATTESTATION_JSON: ${{ secrets.AMS_DEV_MODEL_C_WRITER_FREEZE_ATTESTATION_JSON }}
+        run: node .github/scripts/ams-fase7-dev-extension-stage.mjs
+      - name: State boundaries
+        if: success()
+        run: echo 'DEV Firestore stage only; canonical writer authority unchanged; no GAS, Sheets or PROD writes'

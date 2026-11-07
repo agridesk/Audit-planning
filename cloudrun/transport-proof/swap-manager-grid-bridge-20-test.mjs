@@ -67,7 +67,7 @@ assert.match(server,/gasAction==='externalswap20'/);
 assert.match(entry,/rawAction==='externalswap20'/);
 assert.match(entry,/V5_ENTRY_externalBridgeBody_\(e\)/);
 assert.match(entry,/Swap20Bridge20_handle_/);
-let env='DEV',roles=['Manager'],created=null;
+let env='DEV',roles=['Manager'],created=null,freezeWrites=false;
 const props={getProperty:k=>k==='AMS_ENV'?env:k==='V5_SSOT_SPREADSHEET_ID'?'1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs':'NO',getProperties:()=>Object.fromEntries(Object.keys(stored).map(k=>['AMS_SWAP20_PROPOSAL_'+k,JSON.stringify(stored[k])]))};
 const auditors=[['Email','Role','Active'],['manager@example.test','Manager','YES']];
 const pair={eligible:true,
@@ -76,6 +76,7 @@ const pair={eligible:true,
 const stored={};
 const ctx={String,JSON,Date,Error,Array,Object,
  PropertiesService:{getScriptProperties:()=>props},
+ SYS_ENFORCE_WRITE_ALLOWED:(action)=>{assert.equal(action,'PLANNING_SWAP20_LEGACY');if(freezeWrites)throw Error('DEV_WRITE_BLOCKED');},
  SpreadsheetApp:{openById:()=>({getSheetByName:()=>({getDataRange:()=>({getValues:()=>auditors})})})},
  Swap20_readCanonicalPair:()=>pair,
  Swap20_scheduleExchange_:()=>({blocksA:pair.auditB.blocks,blocksB:pair.auditA.blocks,dateChanged:true,requiresAcknowledgement:true}),
@@ -98,6 +99,10 @@ assert.equal(preview.eligible,true);
 assert.equal(preview.requiresAcknowledgement,true);
 assert.equal(preview.readOnly,true);
 assert.equal(created,null);
+freezeWrites=true;
+assert.throws(()=>ctx.Swap20Bridge20_handle_({actorEmail:'manager@example.test',operation:'propose',operationId:'SWAP20_test123'}),/DEV_WRITE_BLOCKED/);
+assert.equal(ctx.Swap20Bridge20_handle_({actorEmail:'manager@example.test',operation:'preview',auditA:'A',auditB:'B'}).readOnly,true);
+freezeWrites=false;
 const req={actorEmail:'manager@example.test',operation:'propose',auditA:'A',auditB:'B',
  operationId:'SWAP20_test123',internalReason:'Planning shift',ecasComment:'ECAS updated slots'};
 assert.equal(ctx.Swap20Bridge20_handle_({...req,ecasComment:''}).error,'SWAP_REASONS_REQUIRED');

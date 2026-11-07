@@ -1,6 +1,18 @@
 // Cloud Run authenticated manager bridge for SWAP 2.0.
 // DEV only. The shared bridge key is verified by EntryV5 before this service.
 // Preview and proposal creation do not alter canonical audit planning.
+// Operational errors go to execution logs; per-operation Script Properties exhausted
+// the editable properties interface and must never become an unbounded journal.
+// Existing historical properties are preserved for audit/recovery review.
+function Swap20Bridge20_recordCommitError_(operationId,phase,message) {
+ var entry={at:new Date().toISOString(),operationId:String(operationId||'').slice(0,100),
+  phase:String(phase||'').slice(0,60),error:String(message||'').slice(0,600)};
+ try{if(typeof console!=='undefined'&&console&&typeof console.error==='function')
+  console.error('[SWAP20_COMMIT_DIAGNOSTIC] '+JSON.stringify(entry));}catch(ignore){}
+ try{if(typeof Logger!=='undefined'&&Logger&&typeof Logger.log==='function')
+  Logger.log('[SWAP20_COMMIT_DIAGNOSTIC] '+JSON.stringify(entry));}catch(ignore){}
+ return entry;
+}
 function Swap20Bridge20_actor_(email,expectedRole) {
  var authPerfStarted=Date.now();
  function authPhase(phase){if(expectedRole==='manager'&&typeof console!=='undefined'&&console&&typeof console.info==='function')console.info('[SWAP20_AUTH_PHASE_PERF] '+JSON.stringify({phase:phase,ms:Date.now()-authPerfStarted}));}
@@ -102,7 +114,7 @@ function Swap20Bridge20_handle_(body) {
   if(operation==='commit'){
    var msg=String(e&&e.message||e).slice(0,500);
    if(typeof Logger!=='undefined'&&Logger&&typeof Logger.log==='function')Logger.log('[SWAP20_MANAGER_AUTH_ERROR] '+msg);
-   try{PropertiesService.getScriptProperties().setProperty('AMS_SWAP20_LAST_COMMIT_ERROR_'+String(body.operationId||''),JSON.stringify({at:new Date().toISOString(),phase:'managerIdentity',error:msg}))}catch(diagnosticError){/* Diagnostics must never mask the original failure. */}
+   Swap20Bridge20_recordCommitError_(body.operationId,'managerIdentity',msg);
   }
   throw e;
  }
@@ -163,7 +175,7 @@ function Swap20Bridge20_handle_(body) {
   }catch(err){
    var msg=String(err&&err.message||err).slice(0,600);
    if(typeof Logger!=='undefined'&&Logger&&typeof Logger.log==='function')Logger.log('[SWAP20_MANAGER_COMMIT_ERROR] '+JSON.stringify({operationId:body.operationId,error:msg,stack:String(err&&err.stack||'').slice(0,1200)}));
-   try{PropertiesService.getScriptProperties().setProperty('AMS_SWAP20_LAST_COMMIT_ERROR_'+String(body.operationId),JSON.stringify({at:new Date().toISOString(),error:msg}))}catch(diagnosticError){/* Diagnostics must never mask the original failure. */}
+   Swap20Bridge20_recordCommitError_(body.operationId,'commit',msg);
    throw err;
   }
   return Swap20Bridge20_mirrorEvent_({ok:committed.success===true,error:committed.success===true?undefined:String(committed.code||'SWAP_COMMIT_NOT_AVAILABLE'),operationId:committed.operationId,

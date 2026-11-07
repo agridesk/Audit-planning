@@ -352,6 +352,7 @@ function lifecycle_addCellUpdate_(updates, target, candidates, value) {
 
 function lifecycle_writeUpdates_(sheet, rowIndex, updates, label) {
   updates = updates || [];
+  if (updates.length) SYS_ENFORCE_WRITE_ALLOWED('STATUS_LIFECYCLE_METADATA', '');
   if (!sheet || !rowIndex) return { success:false, written:false, warning:'Missing sheet target for ' + label };
   if (!updates.length) return { success:true, written:false, warning:'No matching columns for ' + label };
 

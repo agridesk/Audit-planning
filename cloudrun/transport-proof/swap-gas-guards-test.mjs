@@ -6,6 +6,7 @@ const props=new Map();
 const mock={
  PropertiesService:{getScriptProperties:()=>({getProperty:k=>props.get(k)||null,setProperty:(k,v)=>props.set(k,v)})},
  LockService:{getScriptLock:()=>({tryLock:()=>true,releaseLock:()=>{}})},
+ Logger:{log:()=>{}},
  Set,JSON,Error,Date,String,Array
 };
 for(const file of ['Swap20WriteAuthorityDev20261026.js','Swap20ProposalValidation.js','Swap20ProposalTransitionGuard.js','Swap20ProposalStore.js']){

@@ -11,6 +11,7 @@ on:
       - 'cloudrun/transport-proof/model-c-scope-extension-firestore-backfill-20.mjs'
       - 'cloudrun/transport-proof/model-c-scope-extension-staging-gate-20.mjs'
       - 'cloudrun/transport-proof/model-c-scope-extension-data-audit-20.mjs'
+      - '.github/scripts/ams-fase7-dev-maintenance-proof.mjs'
 permissions:
   contents: read
   id-token: write
@@ -42,6 +43,8 @@ jobs:
         run: |
           test "$(gcloud config get-value project)" = "audit-management-system-dev"
           gcloud auth list --filter=status:ACTIVE --format="value(account)"
+      - name: Read-only proof of maintenance on both DEV Cloud Run services
+        run: node .github/scripts/ams-fase7-dev-maintenance-proof.mjs
       - name: Read Firestore database metadata and Cloud Run revision, no writes
         run: |
           gcloud firestore databases describe --database="(default)" --project="audit-management-system-dev" --format="json(name,locationId,type)"

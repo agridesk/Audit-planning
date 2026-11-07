@@ -9,7 +9,9 @@ function gcloud(args){
  const raw=execFileSync('gcloud',args,{encoding:'utf8',timeout:30000,maxBuffer:4*1024*1024});
  return JSON.parse(raw);
 }
-const svc=gcloud(['run','services','describe',service,'--project='+project,'--region='+region,'--format=json(status.traffic,status.latestReadyRevisionName)']);
+const svc=gcloud(['run','services','describe',service,'--project='+project,'--region='+region,'--format=json(metadata.annotations,status.traffic,status.latestReadyRevisionName)']);
+const ingress=String(svc?.metadata?.annotations?.['run.googleapis.com/ingress']||'UNKNOWN');
+const ingressInternal=ingress==='internal';
 const routes=svc?.status?.traffic;
 if(!Array.isArray(routes)||routes.length===0||routes.length>25)throw Error('EXT_FENCE_SURVEY_TRAFFIC_INVALID');
 const all=routes.map(r=>({revision:String(r.revisionName||''),percent:Number(r.percent||0),tagged:Boolean(r.tag)}));
@@ -29,5 +31,5 @@ for(const r of all){
 }
 const legacyOrUnknownRoutes=inspected.filter(r=>!r.authorityFirestore||!r.migrationVerified||!r.writerFenceFlag).length;
 const attested=false; // No revision environment flag alone can prove all legacy writers globally fenced.
-console.log('AMS_DEV_WRITER_FENCE_SURVEY '+JSON.stringify({project,routeCount:inspected.length,liveRoutes:inspected.filter(x=>x.receivesTraffic).length,taggedRoutes:inspected.filter(x=>x.tagged).length,legacyOrUnknownRoutes,independentWriterFreezeVerified:attested,cutoverAuthorized:false}));
+console.log('AMS_DEV_WRITER_FENCE_SURVEY '+JSON.stringify({project,externalIngressRestricted:ingressInternal,routeCount:inspected.length,liveRoutes:inspected.filter(x=>x.receivesTraffic).length,taggedRoutes:inspected.filter(x=>x.tagged).length,legacyOrUnknownRoutes,independentWriterFreezeVerified:attested,cutoverAuthorized:false}));
 console.log('NO_RUNTIME_OR_DATA_CHANGES');

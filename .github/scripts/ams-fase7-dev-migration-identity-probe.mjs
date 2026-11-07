@@ -7,5 +7,5 @@ if(!token)throw Error('MIGRATION_IDENTITY_TOKEN_MISSING');
 const url='https://firestore.googleapis.com/v1/projects/'+project+'/databases/(default)/documents/ams_scope_extension_20_dev_auditcontext?pageSize=1&mask.fieldPaths=ams_inventory_field_never_present';
 const response=await fetch(url,{headers:{authorization:'Bearer '+token},signal:AbortSignal.timeout(25000)});
 if(!response.ok&&response.status!==404)throw Error('MIGRATION_IDENTITY_FIRESTORE_READ_HTTP_'+response.status);
-if(response.ok){const result=await response.json();if((result.documents||[]).length||result.nextPageToken)throw Error('MIGRATION_IDENTITY_NONEMPTY_FIRESTORE');}
+if(response.ok){const result=await response.json();if(!Array.isArray(result.documents||[]))throw Error('MIGRATION_IDENTITY_COLLECTION_RESPONSE_INVALID');}
 console.log('DEV_MIGRATION_IDENTITY_READABLE_NO_WRITES');

@@ -7,6 +7,7 @@ on:
       - '.github/workflows/ams-fase7-dev-cloud-preflight.yml'
       - '.github/scripts/ams-fase7-firestore-inventory.mjs'
       - '.github/scripts/ams-fase7-dev-migration-preflight.mjs'
+      - '.github/scripts/ams-fase7-dev-writer-fence-survey.mjs'
 permissions:
   contents: read
   id-token: write
@@ -42,6 +43,8 @@ jobs:
         run: |
           gcloud firestore databases describe --database="(default)" --project="audit-management-system-dev" --format="json(name,locationId,type)"
           gcloud run services describe ams-transport-proof --project="audit-management-system-dev" --region="europe-west1" --format="json(status.latestReadyRevisionName,status.traffic)"
+      - name: Survey DEV Cloud Run writer-fence status and tagged revision routes (read-only)
+        run: node .github/scripts/ams-fase7-dev-writer-fence-survey.mjs
       - name: Read-only Model C extension Firestore collection inventory
         run: node .github/scripts/ams-fase7-firestore-inventory.mjs
       - name: Read-only live DEV Model C migration preflight

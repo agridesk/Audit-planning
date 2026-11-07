@@ -10,6 +10,8 @@ on:
       - "cloudrun/transport-proof/package.json"
       - ".github/workflows/ams-fase7-dev-validation.yml"
       - ".github/scripts/ams-fase7-dev-migration-preflight.mjs"
+      - ".github/scripts/ams-fase7-dev-extension-stage.mjs"
+      - ".github/workflows/ams-fase7-dev-model-c-stage.yml"
       - "cloudrun/transport-proof/model-c-scope-extension-staging-gate-20.mjs"
   workflow_dispatch:
 jobs:
@@ -26,8 +28,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Validate DEV migration preflight script syntax
-        run: node --check ../../.github/scripts/ams-fase7-dev-migration-preflight.mjs
+      - name: Validate DEV migration preflight and controlled stage syntax
+        run: |
+          node --check ../../.github/scripts/ams-fase7-dev-migration-preflight.mjs
+          node --check ../../.github/scripts/ams-fase7-dev-extension-stage.mjs
       - name: Validate extension code syntax
         run: |
           for f in model-c-scope-extension-*.mjs; do node --check "$f"; done
@@ -48,6 +52,8 @@ jobs:
           node model-c-scope-extension-firestore-backfill-20-test.mjs
           node model-c-scope-extension-staging-gate-20-test.mjs
           node model-c-scope-extension-import-gate-20-test.mjs
+          node model-c-scope-extension-context-promotion-20-test.mjs
+          node model-c-scope-extension-context-promoter-20-test.mjs
           node model-c-gas-dev-writer-freeze-20-test.mjs
           node model-c-scope-extension-firestore-seed-20-test.mjs
           node model-c-reject-link-fence-20-test.mjs

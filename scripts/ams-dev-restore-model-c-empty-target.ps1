@@ -31,17 +31,17 @@ if($active -ne $project){throw 'ACTIVE_GCP_PROJECT_NOT_DEV'}
 $token=(& gcloud.cmd auth print-access-token|Out-String).Trim();CheckExit 'GCP token'
 $root="https://firestore.googleapis.com/v1/projects/$project/databases/(default)/documents"
 foreach($collection in @('obligation','auditcontext','event','outbox')){
- $url="$root/ams_scope_extension_20_dev_$collection?pageSize=1"
+ $url="${root}/ams_scope_extension_20_dev_${collection}?pageSize=1"
  try{$r=Invoke-RestMethod -Uri $url -Headers @{Authorization=('Bearer '+$token)} -Method Get -TimeoutSec 30}
  catch{if([int]$_.Exception.Response.StatusCode -eq 404){continue};throw}
- if(@($r.documents).Count -gt 0 -or $r.nextPageToken){throw 'RESTORE_FORBIDDEN_MODEL_C_FIRESTORE_TARGET_NOT_EMPTY'}
+ if(@($r.documents|Where-Object {$_}).Count -gt 0 -or $r.nextPageToken){throw 'RESTORE_FORBIDDEN_MODEL_C_FIRESTORE_TARGET_NOT_EMPTY'}
 }
 AssertMaintenance $main
 AssertMaintenance $accept
 foreach($service in @($main,$accept)){
  $originalImage=if($service -eq $main){[string]$s.mainOriginalImage}else{[string]$s.acceptOriginalImage}
  if($originalImage -notmatch '^europe-west1-docker\.pkg\.dev/audit-management-system-dev/'){throw 'ORIGINAL_IMAGE_NOT_DEV'}
- & gcloud.cmd run deploy $service "--project=$project" "--region=$region" "--image=$originalImage" '--no-traffic' '--tag=ams-restore' '--update-env-vars=AMS_DEV_MAINTENANCE_MODE=false' '--quiet'
+ & gcloud.cmd run deploy $service "--project=$project" "--region=$region" "--image=$originalImage" '--no-traffic' '--update-env-vars=AMS_DEV_MAINTENANCE_MODE=false' '--quiet'
  CheckExit "Restore non-maintenance template $service"
 }
 foreach($service in @($main,$accept)){
@@ -51,8 +51,12 @@ foreach($service in @($main,$accept)){
  else {& gcloud.cmd run services update-traffic $service "--project=$project" "--region=$region" "--to-revisions=$($args.revision)" '--clear-tags' '--quiet'}
  CheckExit "Restore original DEV routing $service"
 }
-if([string](TrafficArgs (Service $main).status.traffic).revision -ne [string](TrafficArgs $s.mainTraffic).revision){throw 'MAIN_ROUTE_RESTORE_NOT_VERIFIED'}
-if([string](TrafficArgs (Service $accept).status.traffic).revision -ne [string](TrafficArgs $s.acceptTraffic).revision){throw 'ACCEPTANCE_ROUTE_RESTORE_NOT_VERIFIED'}
+$mainRestored=TrafficArgs ((Service $main).status.traffic)
+$acceptRestored=TrafficArgs ((Service $accept).status.traffic)
+$mainExpected=TrafficArgs $s.mainTraffic
+$acceptExpected=TrafficArgs $s.acceptTraffic
+if($mainRestored.revision -ne $mainExpected.revision -or $mainRestored.tags -ne $mainExpected.tags){throw 'MAIN_ROUTE_RESTORE_NOT_VERIFIED'}
+if($acceptRestored.revision -ne $acceptExpected.revision -or $acceptRestored.tags -ne $acceptExpected.tags){throw 'ACCEPTANCE_ROUTE_RESTORE_NOT_VERIFIED'}
 $s | Add-Member -NotePropertyName restoredUtc -NotePropertyValue ([DateTime]::UtcNow.ToString('o')) -Force
 $s | ConvertTo-Json -Depth 15 | Set-Content -LiteralPath ($stateFile+'.restored') -Encoding UTF8
 Remove-Item -LiteralPath $stateFile -Force

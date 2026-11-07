@@ -41,11 +41,10 @@ jobs:
           token_format: access_token
           access_token_scopes: https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/spreadsheets.readonly
       - uses: google-github-actions/setup-gcloud@v2
-      - name: Require all DEV Cloud Run extension routes to be writer-fenced
+      - name: Verify maintenance blocks all DEV Cloud Run routes
         env:
-          AMS_REQUIRE_SCOPE_EXTENSION_ROUTES_FENCED: 'true'
           CLOUDSDK_CORE_PROJECT: audit-management-system-dev
-        run: node .github/scripts/ams-fase7-dev-writer-fence-survey.mjs
+        run: node .github/scripts/ams-fase7-dev-maintenance-proof.mjs
       - name: Authenticate separate DEV migration identity
         id: migration_auth
         uses: google-github-actions/auth@v2

@@ -4,6 +4,7 @@ import {planScopeExtensionFirestoreBackfill20} from '../../cloudrun/transport-pr
 import {stageScopeExtensionMigration20} from '../../cloudrun/transport-proof/model-c-scope-extension-staging-gate-20.mjs';
 const project='audit-management-system-dev',sheetId=process.env.AMS_DEV_SHEET_ID||'';
 const expected='TEST_MULTIDAY_APPROVED_01';
+const quarantinedObligations=new Set(['OBL_0dd739efe8a644889e8b8363bef71701','OBL_d579887c1c78403896d13f436acd0f1a']);
 if(!/^[-_A-Za-z0-9]{20,100}$/.test(sheetId))throw Error('EXT_PREFLIGHT_SHEET_ID_REQUIRED');
 if(![process.env.CLOUDSDK_CORE_PROJECT,process.env.GCLOUD_PROJECT,process.env.GOOGLE_CLOUD_PROJECT].includes(project))throw Error('EXT_PREFLIGHT_PROJECT_ID_MISMATCH');
 const token=String(process.env.GOOGLE_ACCESS_TOKEN||'').trim();
@@ -29,9 +30,9 @@ if(!Array.isArray(sheetData.valueRanges)||sheetData.valueRanges.length!==spec.le
 const input=Object.fromEntries(spec.map((x,i)=>[x.label,sheetData.valueRanges[i]?.values||[]]));
 const plan=planScopeExtensionFirestoreBackfill20(input);
 const two=plan.fatal.filter(x=>x.code==='OBLIGATION_LINEAGE_CONFLICT'&&x.auditId===expected);
-if(plan.fatal.length!==2||two.length!==2||new Set(two.map(x=>x.obligationId)).size!==2)throw Error('EXT_PREFLIGHT_UNEXPECTED_SOURCE_CONFLICTS');
+if(plan.fatal.length!==2||two.length!==2||new Set(two.map(x=>x.obligationId)).size!==2||two.some(x=>!quarantinedObligations.has(x.obligationId)))throw Error('EXT_PREFLIGHT_UNEXPECTED_SOURCE_CONFLICTS');
 const stage=stageScopeExtensionMigration20({plan,quarantineAuditIds:[expected]});
-if(!stage.eligibleForControlledStaging||stage.counts.contexts<1||stage.counts.obligations<1||stage.seedPermitted!==false||stage.cutoverApproved!==false)throw Error('EXT_PREFLIGHT_STAGE_NOT_ELIGIBLE');
+if(!stage.eligibleForControlledStaging||stage.counts.contexts!==104||stage.counts.obligations!==153||stage.counts.quarantinedAudits!==1||stage.seedPermitted!==false||stage.cutoverApproved!==false)throw Error('EXT_PREFLIGHT_STAGE_NOT_ELIGIBLE');
 const root='https://firestore.googleapis.com/v1/projects/'+project+'/databases/(default)/documents';
 const collections=['obligation','auditcontext','event','outbox'];
 for(const name of collections){

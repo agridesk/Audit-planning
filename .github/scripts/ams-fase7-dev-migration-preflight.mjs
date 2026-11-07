@@ -20,7 +20,8 @@ const spec=[
  {range:"'Audit_Obligations'!A1:Z1002",label:'obligations'},
  {range:"'Audit_Visit_Obligations'!A1:F1002",label:'visitLinks'},
  {range:"'Audit planning'!A1:CN442",label:'planning'},
- {range:"'Config_Scopes'!A1:Y1000",label:'configScopes'}
+ {range:"'Config_Scopes'!A1:Y1000",label:'configScopes'},
+ {range:"'System_Config'!A1:C100",label:'systemConfig'}
 ];
 const sheetsURL=new URL('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(sheetId)+'/values:batchGet');
 sheetsURL.searchParams.set('valueRenderOption','FORMATTED_VALUE');
@@ -28,6 +29,18 @@ spec.forEach(x=>sheetsURL.searchParams.append('ranges',x.range));
 const sheetData=await get(sheetsURL.toString());
 if(!Array.isArray(sheetData.valueRanges)||sheetData.valueRanges.length!==spec.length)throw Error('EXT_PREFLIGHT_SHEETS_RANGE_COUNT_MISMATCH');
 const input=Object.fromEntries(spec.map((x,i)=>[x.label,sheetData.valueRanges[i]?.values||[]]));
+const configRows=input.systemConfig;
+if(!Array.isArray(configRows)||configRows[0]?.[0]!=='KEY'||configRows[0]?.[1]!=='DEV'||configRows[0]?.[2]!=='PROD')
+ throw Error('EXT_PREFLIGHT_CONFIG_LAYOUT_UNEXPECTED');
+const configured=new Map();
+for(const row of configRows.slice(1)){
+ const key=String(row?.[0]||'').trim();
+ if(!key)continue;
+ if(configured.has(key))throw Error('EXT_PREFLIGHT_DUPLICATE_SYSTEM_CONFIG_KEY');
+ configured.set(key,row);
+}
+if(String(configured.get('ENV')?.[1]||'').trim()!=='DEV'||String(configured.get('ALLOW_DEV_WRITES')?.[1]||'').trim().toUpperCase()!=='FALSE'||String(configured.get('DEV_WRITE_MODE')?.[1]||'').trim().toUpperCase()!=='BLOCK')
+ throw Error('EXT_PREFLIGHT_DEV_WRITE_CONFIG_NOT_FROZEN');
 const plan=planScopeExtensionFirestoreBackfill20(input);
 const two=plan.fatal.filter(x=>x.code==='OBLIGATION_LINEAGE_CONFLICT'&&x.auditId===expected);
 if(plan.fatal.length!==2||two.length!==2||new Set(two.map(x=>x.obligationId)).size!==2||two.some(x=>!quarantinedObligations.has(x.obligationId)))throw Error('EXT_PREFLIGHT_UNEXPECTED_SOURCE_CONFLICTS');
@@ -49,6 +62,6 @@ const digest=createHash('sha256').update(JSON.stringify({contexts:stage.auditCon
 console.log('AMS_DEV_MODEL_C_MIGRATION_PREFLIGHT '+JSON.stringify({
  project,source:'LIVE_DEV_GOOGLE_SHEETS',snapshotSha256:digest,contexts:stage.counts.contexts,
  obligations:stage.counts.obligations,quarantinedAudits:stage.counts.quarantinedAudits,
- firestoreCollectionsEmpty:true,writeAuthorized:false,cutoverApproved:false
+ firestoreCollectionsEmpty:true,devCentralWriteGuardBlocked:true,writeAuthorized:false,cutoverApproved:false
 }));
 console.log('NO_SHEETS_WRITES_NO_FIRESTORE_WRITES_NO_DEPLOYMENTS');

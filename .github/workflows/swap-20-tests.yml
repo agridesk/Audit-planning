@@ -31,3 +31,4 @@ jobs:
         with:
           node-version: '22'
       - run: npm run test:swap
+      - run: node swap-gas-error-diagnostics-bounded-20-test.mjs

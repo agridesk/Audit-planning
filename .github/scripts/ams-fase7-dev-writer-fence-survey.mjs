@@ -32,4 +32,5 @@ for(const r of all){
 const legacyOrUnknownRoutes=inspected.filter(r=>!r.authorityFirestore||!r.migrationVerified||!r.writerFenceFlag).length;
 const attested=false; // No revision environment flag alone can prove all legacy writers globally fenced.
 console.log('AMS_DEV_WRITER_FENCE_SURVEY '+JSON.stringify({project,externalIngressRestricted:ingressInternal,routeCount:inspected.length,liveRoutes:inspected.filter(x=>x.receivesTraffic).length,taggedRoutes:inspected.filter(x=>x.tagged).length,legacyOrUnknownRoutes,independentWriterFreezeVerified:attested,cutoverAuthorized:false}));
+if(process.env.AMS_REQUIRE_SCOPE_EXTENSION_ROUTES_FENCED==='true'&&legacyOrUnknownRoutes!==0)throw Error('EXT_STAGE_ALL_CLOUD_RUN_ROUTES_NOT_FENCED');
 console.log('NO_RUNTIME_OR_DATA_CHANGES');

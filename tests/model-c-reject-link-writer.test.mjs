@@ -8,11 +8,11 @@ function makeSheet(rows,shouldFail=()=>false){
     getRange(r,c,n,m){return{getValues:()=>[rows[r-1].slice(c-1,c-1+m)],setValues:(v)=>{if(shouldFail(r))throw Error('TEST_WRITE_FAIL');rows[r-1]=v[0].slice();}}}
   };
 }
-function scenario(fail=()=>false){
+function scenario(fail=()=>false,block=false){
  const links=makeSheet([['Audit_ID','Obligation_ID','Link_State','Migration_Batch_ID','Linked_At','Unlinked_At'],['A1','O1','ACTIVE','','',''],['A1','O2','ACTIVE','','',''],['A2','O3','ACTIVE','','','']],fail);
  const obs=makeSheet([['Obligation_ID','Obligation_State'],['O1','OPEN'],['O2','REJECTED'],['O3','OPEN']]);
  const ss={getSheetByName:n=>n==='Audit_Visit_Obligations'?links:n==='Audit_Obligations'?obs:null};
- const ctx=vm.createContext({SpreadsheetApp:{getActiveSpreadsheet:()=>ss},Date});
+ const ctx=vm.createContext({SpreadsheetApp:{getActiveSpreadsheet:()=>ss},Date,SYS_ENFORCE_WRITE_ALLOWED:(action)=>{assert.equal(action,'REJECT_MODEL_C_LINK_CLOSE');if(block)throw Error('DEV_WRITE_BLOCKED')}});
  vm.runInContext(planner,ctx);vm.runInContext(writer,ctx);
  return{links,obs,ss,ctx};
 }
@@ -22,4 +22,5 @@ assert.equal(closed.success,true);assert.equal(closed.changed,2);assert.equal(x.
 const replay=x.ctx.ModelCRejectLinkWriter_close_('A1',x.ss);assert.equal(replay.idempotent,true);
 assert.equal(x.ctx.ModelCRejectLinkWriter_rollback_(closed,x.links),true);assert.equal(x.links.rows[1][2],'ACTIVE');
 x=scenario(r=>r===3);const failure=x.ctx.ModelCRejectLinkWriter_close_('A1',x.ss);assert.equal(failure.success,false);assert.equal(failure.repairRequired,true);assert.equal(x.links.rows[1][2],'ACTIVE');
+x=scenario(()=>false,true);const frozen=JSON.stringify(x.links.rows);assert.throws(()=>x.ctx.ModelCRejectLinkWriter_close_('A1',x.ss),/DEV_WRITE_BLOCKED/);assert.equal(JSON.stringify(x.links.rows),frozen);
 console.log('MODEL_C_REJECT_LINK_WRITER: PASS');

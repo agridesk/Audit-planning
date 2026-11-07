@@ -17,6 +17,11 @@ assert.match(server,/canonical\.rows\.filter\(row=>allowed\.has/);
 assert.match(portal,/role==="auditor"\?"\/api\/v1\/auditor\/swap20\/canonical-grid-dates"/);
 assert.match(portal,/row\.planningJson=JSON\.stringify\(original\)/);
 assert.match(portal,/row\.datePlanned=blocks\[0\]\.date/);
+assert.match(portal,/SWAP_CANONICAL_GRID_ORIGIN_REJECTED/);
+assert.match(portal,/Firestore SWAP overlay inactive; Sheets dates displayed/);
+assert.match(portal,/SWAP_DIRECT_GRID_DISABLED/);
+assert.match(portal,/r\.text\(\)\.then/);
+
 const overlay=readFileSync(new URL('./availability-planning-overlay-service-20.js',import.meta.url),'utf8');
 assert.match(overlay,/readCanonicalSwaps/);
 assert.match(overlay,/replaceIds\.has\(x\.auditId\)/);

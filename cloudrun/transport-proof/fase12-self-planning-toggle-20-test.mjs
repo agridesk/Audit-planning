@@ -16,7 +16,7 @@ assert.ok(grid.includes('sourceRevision:result.sourceRevision'));
 const proxy=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 assert.ok(proxy.includes("writerPath==='/api/v1/manager/self-planning-direct'"));
 assert.ok(proxy.includes("headers.host=String(req.headers.host||'')"));
-assert.ok(!grid.includes("hasUnsavedAuditorChanges()"),'Scopes Close must not reference Auditor state');
+assert.ok(grid.includes("close.onclick=function(){var dirty=pendingEdits.some("),'Scopes Close must use scope-specific pending edits');
 assert.ok(grid.includes("Discard unsaved scope changes?"),'Scopes Close must protect unsaved scope edits');
 assert.ok(grid.includes('panel.hidden=true};search.oninput=render;filter.onchange=render;document.querySelectorAll(\'[data-scope-tab]\')'),'Scopes Close must close its panel');
 assert.ok(grid.includes('aria-label="Manage extensions for this company"'),'Extension control should be compact and accessible');

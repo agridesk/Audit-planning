@@ -83,6 +83,7 @@ function ModelCExtension_dateInTz_(value, tz) {
 
 function ModelCExtension_commit(command) {
   command = ModelCExtension_validateCommand_(command);
+  SYS_ENFORCE_WRITE_ALLOWED('PLANNING_MODEL_C_EXTENSION', command.auditId);
   var ss = SpreadsheetApp.getActive();
   var lock = LockService.getScriptLock();
   lock.waitLock(15000);

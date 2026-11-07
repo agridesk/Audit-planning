@@ -25,7 +25,7 @@ assert.ok(!grid.includes('>Scope details</button>'),'Unfinished Scope details ac
 assert.ok(grid.includes('class=\\\"audit-date-head\\\"'),'Completed date header must be explicit');
 assert.ok(grid.includes('function completedAuditDateCell20(r)'),'Completed date cell must support multi-day display');
 assert.ok(grid.includes('completedAuditDateCell20(r)'),'Completed date cell must use date renderer');
-assert.ok(grid.includes('panel.scrollIntoView({block:\'start\',behavior:\'auto\'})'),'Extensions navigation must reveal company panel');
-assert.ok(grid.includes('if(matches.length!==1&&d.companyName)matches='),'Company UID fallback to exact company name required');
+assert.ok(grid.includes("(extensions||dossier).scrollIntoView({block:'start',behavior:'auto'})"),'Extensions navigation must reveal the selected company Scopes action section');
+assert.ok(grid.includes("matches=companies.filter(function(c){return String(c.companyUid||'').trim()===uid})"),'Extensions must match exact Company UID, never fall back to ambiguous company names');
 assert.ok(grid.includes('querySelectorAll(".ext-act:not(.ext-manage)")'),'Extensions navigation must not execute legacy write');
 console.log('Manager self planning source contracts OK');

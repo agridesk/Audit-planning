@@ -23,6 +23,7 @@ function ModelCAnnualCycle_HandleCompletionRow_(planningRowObj) {
   var ss = SpreadsheetApp.getActive();
   var auditId = ModelCAnnualCycle_rowValue_(planningRowObj, ['Audit ID']);
   if (!auditId) return {success:false,message:'Missing Audit ID for Model C annual cycle',build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD};
+  SYS_ENFORCE_WRITE_ALLOWED('PLANNING_MODEL_C_ANNUAL_CYCLE', auditId);
 
   var t0=Date.now(),perf={};
   var planT=Date.now();
@@ -188,6 +189,7 @@ function ModelCAnnualCycle_HandleCompletionRow_(planningRowObj) {
 function ModelCAnnualCycle_finalizeCompletedVisit_(auditId) {
   auditId=String(auditId||'').trim();
   if (!auditId) return {success:false,message:'Missing auditId',build:MODEL_C_ANNUAL_CYCLE_RUNTIME_BUILD};
+  SYS_ENFORCE_WRITE_ALLOWED('PLANNING_MODEL_C_FINALIZE', auditId);
   var ss=SpreadsheetApp.getActive(),t0=Date.now(),perf={};
   var obSheet=ss.getSheetByName(MODEL_C_SHEETS.AUDIT_OBLIGATIONS);
   var lkSheet=ss.getSheetByName(MODEL_C_SHEETS.VISIT_OBLIGATIONS);

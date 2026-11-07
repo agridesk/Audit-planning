@@ -1,0 +1,39 @@
+AMS DEV WRITER FREEZE — CONTROLLED MIGRATION GATE
+Date: 2026-11-07
+Project: audit-management-system-dev ONLY
+DEV Sheet: Audit Management System DEV (1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs)
+Stage-only migration: 104 audit contexts, 153 obligations; TEST_MULTIDAY_APPROVED_01 quarantined.
+No PROD operations authorized.
+
+VERIFIED LIVE EVIDENCE
+GitHub Actions read-only Cloud preflight run 42356490599, rerun on 2026-11-07:
+- Cloud Run ingress: Internal (externalIngressRestricted=true).
+- Cloud Run 3 tagged revisions; 1 receives traffic. All 3 are legacy or writer-fence-unverified.
+- Firestore four Model C extension collections contain zero documents.
+- Model C snapshot SHA256 7ee43c6329adbd4546e5fa35b8590b11930ed37baa251c4f67a0a2daba02bafa.
+- Source reconciliation: 104 contexts/153 obligations; exactly 2 quarantined lineage conflicts in test audit.
+This verifies external Cloud Run ingress restriction, NOT global writer freeze.
+
+ADDITIONAL INDEPENDENT WRITERS IN GITHUB DEV SOURCE
+- AuditPlanningModelCExtensionService.js: ModelCExtension_commit and ModelCExtension_projectLegacy_ use SpreadsheetApp setters.
+- ModelCRejectLinkWriter.js: ModelCRejectLinkWriter_close_ updates Audit_Visit_Obligations.
+- ModelCAnnualCycleRuntime.js: ModelCAnnualCycle_HandleCompletionRow_ and ModelCAnnualCycle_finalizeCompletedVisit_ update Audit planning, obligations and visit links, including row deletions and append operations.
+- AuditLifecycleService.js: lifecycle_writeUpdates_ and Lifecycle_restoreProtectedPlanningFields_ write directly to spreadsheet rows.
+Additional indirect writers, installable Apps Script triggers, time-based automation, manual script execution, external API credentials and Google Sheet editors have NOT been fully enumerated and cannot be declared frozen on the basis of repository source inspection.
+Cloud Run Internal ingress does not revoke SpreadsheetApp or Sheets API writes.
+
+GLOBAL FREEZE ACCEPTANCE — ALL REQUIRED
+1. Determine active Apps Script project deployments, installable triggers, script executions, manual entrypoints and credentialed bridge/service identities for this DEV Sheet.
+2. Disable or fence all direct Model C writers from Apps Script / time-based triggers / external producers; preserve a reversible inventory and clear owner/date/time/evidence of the change. Avoid broad deletions.
+3. Ensure all reachable Cloud Run revisions and any internal callers cannot mutate Model C canonical Sheets for duration of import.
+4. Verify access policy of DEV Sheet including direct API writers, plus test with source snapshot and Cloud Run audit logs.
+5. Capture independent writer-freeze evidence and immutable source snapshot in same verified window. Stage-only seed must not imply any live authority cutover.
+6. Confirm Firestore import gate; actual importer requires separately approved writer action. Import rollback must preserve audit trail and must not silently delete partial data.
+7. Re-validate before re-enabling legacy DEV sources; Firestore vs Sheets writer authority must be coherent.
+
+PRESENT STATE
+NO INDEPENDENT WRITER FREEZE ATTESTATION.
+NO FIRESTORE DATA IMPORT.
+NO CLOUD RUN DEPLOYMENT FROM GITHUB.
+PROD UNTOUCHED.
+Network ingress revert should use the saved original network setting when explicitly authorized; never infer it from this document.

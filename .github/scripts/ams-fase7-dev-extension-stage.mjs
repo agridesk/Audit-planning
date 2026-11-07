@@ -26,14 +26,18 @@ async function get(url,token){
  return r.json();
 }
 const root='https://firestore.googleapis.com/v1/projects/'+project+'/databases/(default)/documents';
-const ranges=["'Audit_Obligations'!A1:Z1002","'Audit_Visit_Obligations'!A1:F1002","'Audit planning'!A1:CN442","'Config_Scopes'!A1:Y1000"];
+const ranges=["'Audit_Obligations'!A1:Z1002","'Audit_Visit_Obligations'!A1:F1002","'Audit planning'!A1:CN442","'Config_Scopes'!A1:Y1000","'System_Config'!A1:C100"];
 async function readSource(){
  const meta=await get('https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+'?fields=spreadsheetId,properties(title)',sourceToken);
  if(meta.spreadsheetId!==sheetId||meta.properties?.title!=='Audit Management System DEV')throw Error('EXT_STAGE_SOURCE_SPREADSHEET_UNVERIFIED');
  const url=new URL('https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+'/values:batchGet');
  url.searchParams.set('valueRenderOption','FORMATTED_VALUE');for(const range of ranges)url.searchParams.append('ranges',range);
  const result=await get(url,sourceToken);
- if(!Array.isArray(result.valueRanges)||result.valueRanges.length!==4)throw Error('EXT_STAGE_SOURCE_RANGE_MISMATCH');
+ if(!Array.isArray(result.valueRanges)||result.valueRanges.length!==5)throw Error('EXT_STAGE_SOURCE_RANGE_MISMATCH');
+ const configValues=result.valueRanges[4]?.values||[];
+ if(configValues[0]?.[0]!=='KEY'||configValues[0]?.[1]!=='DEV'||configValues[0]?.[2]!=='PROD')throw Error('EXT_STAGE_SYSTEM_CONFIG_SCHEMA_UNVERIFIED');
+ const configured=new Map(configValues.slice(1).map(row=>[String(row[0]||'').trim(),String(row[1]||'').trim().toUpperCase()]));
+ if(configured.get('ENV')!=='DEV'||configured.get('ALLOW_DEV_WRITES')!=='FALSE'||configured.get('DEV_WRITE_MODE')!=='BLOCK')throw Error('EXT_STAGE_SOURCE_MUTATION_GUARD_NOT_FROZEN');
  const fields=['obligations','visitLinks','planning','configScopes'];
  const input=Object.fromEntries(fields.map((k,i)=>[k,result.valueRanges[i]?.values||[]]));
  const plan=planScopeExtensionFirestoreBackfill20(input);

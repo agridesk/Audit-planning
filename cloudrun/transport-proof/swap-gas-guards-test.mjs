@@ -4,12 +4,11 @@ import {runInNewContext} from 'node:vm';
 const root=new URL('../../',import.meta.url);
 const props=new Map();
 const mock={
- Swap20_assertGasWriteAuthority_:()=>{},
  PropertiesService:{getScriptProperties:()=>({getProperty:k=>props.get(k)||null,setProperty:(k,v)=>props.set(k,v)})},
  LockService:{getScriptLock:()=>({tryLock:()=>true,releaseLock:()=>{}})},
  Set,JSON,Error,Date,String,Array
 };
-for(const file of ['Swap20ProposalValidation.js','Swap20ProposalTransitionGuard.js','Swap20ProposalStore.js']){
+for(const file of ['Swap20WriteAuthorityDev20261026.js','Swap20ProposalValidation.js','Swap20ProposalTransitionGuard.js','Swap20ProposalStore.js']){
  runInNewContext(readFileSync(new URL(file,root),'utf8'),mock,{filename:file});
 }
 const proposal={operationId:'swap-test-1',auditA:'A',auditB:'B',status:'AWAITING_ACKNOWLEDGEMENT',originalRevisions:{A:'1',B:'2'},requiredAuditorUids:['uid-one','uid-two'],acknowledgedAuditorUids:[]};
@@ -24,4 +23,18 @@ assert.throws(()=>mock.Swap20Store_transition_(proposal.operationId,proposal.sta
 const complete={...first,acknowledgedAuditorUids:['uid-one','uid-two'],status:'CONFIRMED'};
 assert.equal(mock.Swap20Store_transition_(proposal.operationId,proposal.status,complete).status,'CONFIRMED');
 assert.throws(()=>mock.Swap20Store_transition_(proposal.operationId,'CONFIRMED',{...complete,status:'APPLIED'}),/Canonical commit proof required/);
+// Exercise the real DEV write-authority guard; do not mock it away.
+props.set('AMS_SWAP20_WRITE_AUTHORITY','FIRESTORE');
+assert.equal(mock.RUN_SWAP20_READ_WRITE_AUTHORITY_DEV_20261026().writeAuthority,'FIRESTORE');
+assert.throws(()=>mock.Swap20Store_create_({...proposal,operationId:'swap-frozen-test'}),/SWAP_GAS_WRITES_DISABLED_FIRESTORE_AUTHORITY/);
+assert.throws(()=>mock.Swap20Store_transition_(proposal.operationId,'CONFIRMED',complete),/SWAP_GAS_WRITES_DISABLED_FIRESTORE_AUTHORITY/);
+props.delete('AMS_SWAP20_WRITE_AUTHORITY');
+assert.equal(mock.RUN_SWAP20_READ_WRITE_AUTHORITY_DEV_20261026().writeAuthority,'GAS');
+props.set('AMS_ENV','PROD');
+assert.throws(()=>mock.RUN_SWAP20_SET_FIRESTORE_AUTHORITY_DEV_20261026(),/SWAP_FIRESTORE_CUTOVER_NON_DEV_REJECTED/);
+assert.equal(props.has('AMS_SWAP20_WRITE_AUTHORITY'),false);
+props.set('AMS_ENV','DEV');
+props.set('V5_SSOT_SPREADSHEET_ID','1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs');
+assert.equal(mock.RUN_SWAP20_SET_FIRESTORE_AUTHORITY_DEV_20261026().writeAuthority,'FIRESTORE');
+assert.equal(props.get('AMS_SWAP20_WRITE_AUTHORITY'),'FIRESTORE');
 console.log('Swap GAS guards tests passed');

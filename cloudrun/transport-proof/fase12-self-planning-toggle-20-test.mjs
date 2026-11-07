@@ -22,4 +22,9 @@ assert.ok(grid.includes('panel.hidden=true};search.oninput=render;filter.onchang
 assert.ok(grid.includes('aria-label="Manage extensions for this company"'),'Extension control should be compact and accessible');
 assert.ok(!grid.includes('>Manage Extensions</button>'),'Oversized extension label must not return');
 assert.ok(!grid.includes('>Scope details</button>'),'Unfinished Scope details action must be hidden');
+assert.ok(grid.includes('class=\\\"audit-date-head\\\"'),'Completed date header must be explicit');
+assert.ok(grid.includes('function completedAuditDateCell20(r)'),'Completed date cell must support multi-day display');
+assert.ok(grid.includes('completedAuditDateCell20(r)'),'Completed date cell must use date renderer');
+assert.ok(grid.includes('panel.scrollIntoView({block:\'start\',behavior:\'auto\'})'),'Extensions navigation must reveal company panel');
+assert.ok(grid.includes('if(matches.length!==1&&d.companyName)matches='),'Company UID fallback to exact company name required');
 console.log('Manager self planning source contracts OK');

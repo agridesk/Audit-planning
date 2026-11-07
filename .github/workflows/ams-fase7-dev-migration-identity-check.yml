@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@v4
       - name: Validate isolated migration credentials exist
         env:
           MIGRATION_SERVICE_ACCOUNT: ${{ secrets.AMS_DEV_MIGRATION_SERVICE_ACCOUNT }}
@@ -29,9 +30,9 @@ jobs:
           service_account: ${{ secrets.AMS_DEV_MIGRATION_SERVICE_ACCOUNT }}
           project_id: audit-management-system-dev
       - uses: google-github-actions/setup-gcloud@v2
-      - name: Read-only verify Firestore database metadata
+      - name: Verify scoped DEV Firestore document read
         run: |
           test "$(gcloud config get-value project)" = "audit-management-system-dev"
-          gcloud firestore databases describe --database="(default)" --project="audit-management-system-dev" --format="json(name,locationId,type)"
+          node .github/scripts/ams-fase7-dev-migration-identity-probe.mjs
       - name: Confirm no migration or deployment
         run: echo "MIGRATION_IDENTITY_AUTHENTICATED; no Firestore writes, Google Sheets changes or Cloud Run deployments"

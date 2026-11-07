@@ -970,6 +970,12 @@ async function proxy(req,res){
 http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url||'/','http://localhost');
+  // DEV maintenance closes every HTTP entry point, including legacy GET mutations.
+  // No path, session or method may bypass this writer freeze.
+  if(process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_MAINTENANCE_MODE==='true'){
+   res.writeHead(503,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','retry-after':'300'});
+   res.end(JSON.stringify({ok:false,code:'AMS_DEV_MAINTENANCE',message:'DEV maintenance: all requests are temporarily unavailable'}));return;
+  }
   if(req.method==='POST'&&planningAtomicLifecycle&&u.pathname==='/api/v1/auditor/action'){
    const actor=await session(req);
    if(actor?.role!=='auditor'){res.writeHead(403);res.end(JSON.stringify({success:false,error:'AUDITOR_REQUIRED'}));return;}

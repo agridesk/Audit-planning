@@ -23,7 +23,7 @@ reject({sourceParity:{...sourceParity,mismatchedDocuments:1}},/SOURCE_PARITY/);
 reject({sourceParity:{...sourceParity,complete:false}},/SOURCE_PARITY/);
 reject({seedReadback:{...seedReadback,missingDocuments:1}},/SEEDED_PARITY/);
 reject({seedReadback:{...seedReadback,contextCount:0}},/SEEDED_PARITY/);
-reject({stage:{...stage,documents:[doc('OBL_A')]}},/LINEAGE_MISMATCH/);
+reject({stage:{...stage,documents:[doc('OBL_A')]}},/SEEDED_PARITY/);
 reject({stage:{...stage,auditContexts:[{...ctx,writerFenceVerified:true}]}},/CONTEXT_INVALID/);
 reject({stage:{...stage,quarantinedAudits:[{auditId:'AUD_TEST',automaticRepairAllowed:false}]}},/DOCUMENT_INVALID/);
 reject({stage:{...stage,documents:[doc('OBL_A'),{...doc('OBL_B'),pendingProjectionId:'PENDING'}]}},/DOCUMENT_INVALID/);

@@ -1,0 +1,37 @@
+name: AMS Fase 7 DEV migration identity check (no writes)
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev]
+    paths:
+      - '.github/workflows/ams-fase7-dev-migration-identity-check.yml'
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  identity-readonly:
+    if: github.ref == 'refs/heads/dev' && github.repository == 'agridesk/Audit-planning'
+    environment: ams-dev-migration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Validate isolated migration credentials exist
+        env:
+          MIGRATION_SERVICE_ACCOUNT: ${{ secrets.AMS_DEV_MIGRATION_SERVICE_ACCOUNT }}
+          WIF_PROVIDER: ${{ secrets.AMS_DEV_WIF_PROVIDER }}
+        run: |
+          test "$MIGRATION_SERVICE_ACCOUNT" = "ams-github-dev-migration@audit-management-system-dev.iam.gserviceaccount.com"
+          test "$WIF_PROVIDER" = "projects/510075419067/locations/global/workloadIdentityPools/ams-github-dev/providers/ams-github-dev"
+      - name: Authenticate DEV migration identity without keys
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.AMS_DEV_WIF_PROVIDER }}
+          service_account: ${{ secrets.AMS_DEV_MIGRATION_SERVICE_ACCOUNT }}
+          project_id: audit-management-system-dev
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Read-only verify Firestore database metadata
+        run: |
+          test "$(gcloud config get-value project)" = "audit-management-system-dev"
+          gcloud firestore databases describe --database="(default)" --project="audit-management-system-dev" --format="json(name,locationId,type)"
+      - name: Confirm no migration or deployment
+        run: echo "MIGRATION_IDENTITY_AUTHENTICATED; no Firestore writes, Google Sheets changes or Cloud Run deployments"

@@ -27,4 +27,5 @@ assert.ok(grid.includes('function completedAuditDateCell20(r)'),'Completed date 
 assert.ok(grid.includes('completedAuditDateCell20(r)'),'Completed date cell must use date renderer');
 assert.ok(grid.includes('panel.scrollIntoView({block:\'start\',behavior:\'auto\'})'),'Extensions navigation must reveal company panel');
 assert.ok(grid.includes('if(matches.length!==1&&d.companyName)matches='),'Company UID fallback to exact company name required');
+assert.ok(grid.includes('querySelectorAll(".ext-act:not(.ext-manage)")'),'Extensions navigation must not execute legacy write');
 console.log('Manager self planning source contracts OK');

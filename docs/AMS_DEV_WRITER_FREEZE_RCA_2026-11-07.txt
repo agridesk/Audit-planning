@@ -77,3 +77,14 @@ GitHub source commits do not change already deployed Apps Script web app version
 RESTORE CONFIG ONLY AFTER CONTROLLED CUTOVER:
   DEV System_Config B8 = TRUE and B9 = ALLOW_ALL were the original values.
   Restoration must be explicitly approved after checking canonical writer ownership; never restore automatically if Firestore is authoritative.
+
+ 
+SWAP SCRIPT PROPERTY PRESSURE — 2026-11-07
+- User reported Script Properties UI cannot add a new property because the editable properties maximum was reached.
+- Historical keys with prefixes AMS_SWAP20_LAST_COMMIT_ENTRY_ and AMS_SWAP20_LAST_COMMIT_ERROR_ observed. No historical deletion authorized or performed.
+- GitHub dev source Swap20Bridge20.js formerly set one new AMS_SWAP20_LAST_COMMIT_ERROR_<operationId> key on each failed commit; now writes a bounded, redacted operation diagnostic to execution logs, preserving existing Script Property history. Source-only change commit 95c3ad6; focused test 2e512d2 and swap CI af4b54f PASS.
+- Manager and auditor SWAP mutating web-bridge operations now call SYS_ENFORCE_WRITE_ALLOWED('PLANNING_SWAP20_LEGACY', operationId); nonmutating reads remain available. Source-only change a428c6e; manager test 7773a48; auditor test 4431da9. Tests must stay green.
+- SWAP proposal business state uses AMS_SWAP20_PROPOSAL_<operationId> Script Properties and cannot be auto-deleted as a cosmetic cleanup; investigation required before eventual Firestore-backed state storage and bounded retention.
+- Apps Script deployed version(s) have not been synced with the GitHub dev source; protections added on dev do NOT prove that old deployed webapps are fenced.
+- Live DEV System_Config remains the primary observed central guard and Cloud Run Internal ingress remains active. Independent full writer freeze is still unproven.
+- Live read-only DEV preflight now fails closed on deviation of System_Config rows ENV=DEV, ALLOW_DEV_WRITES=FALSE, DEV_WRITE_MODE=BLOCK; run 42368823917 PASS and snapshot unchanged.

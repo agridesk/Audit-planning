@@ -4,6 +4,7 @@
 var MODEL_C_REJECT_LINK_WRITER_BUILD='2026-10-22_ISSUE45_R1';
 function ModelCRejectLinkWriter_close_(auditId,ss){
   auditId=String(auditId||'').trim();if(!auditId)throw Error('MODEL_C_REJECT_AUDIT_ID_REQUIRED');
+  SYS_ENFORCE_WRITE_ALLOWED('REJECT_MODEL_C_LINK_CLOSE', auditId);
   ss=ss||SpreadsheetApp.getActiveSpreadsheet();
   var linkSheet=ss&&ss.getSheetByName('Audit_Visit_Obligations'),obSheet=ss&&ss.getSheetByName('Audit_Obligations');
   if(!linkSheet||!obSheet)return{success:false,error:'MODEL_C_REJECT_SHEETS_MISSING',repairRequired:false};

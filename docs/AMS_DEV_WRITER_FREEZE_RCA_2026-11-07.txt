@@ -37,3 +37,20 @@ NO FIRESTORE DATA IMPORT.
 NO CLOUD RUN DEPLOYMENT FROM GITHUB.
 PROD UNTOUCHED.
 Network ingress revert should use the saved original network setting when explicitly authorized; never infer it from this document.
+
+
+TRIGGER INVENTORY (SCREENSHOT 2026-11-07)
+Originally 10 Apps Script installable triggers owned by the user:
+- AnnualCycleEngineV5_OnEdit, spreadsheet on-edit — CONFIRMED REMOVED by user on 2026-11-07; direct Audit planning recalculation writer.
+- runAuditorWeeklyAlertSwap20, weekly — notification/Swap side effects require proof.
+- V5_runAuditorAvailabilityDefaultsAuto, daily — writes Auditor Availability, not demonstrated Model C core mutation.
+- NotificationSender_RunDigest10M — notification queue processor; may call Swap20_reconcileEcasIntentsLocked_, unknown indirect side effects.
+- AUDITOR_SCOPE_ON_EDIT — only Auditors/Config_Scopes cache refresh in source.
+- V5_warmAllPendingPlanning — planning caches, possible indirect cache-sheet updates but no verified Model C canonical edits.
+- AcceptedNotificationReliability_Trigger1M — notification reliability queue processing.
+- runManagerWeeklyAlert — reads Audit planning, generates notifications.
+- AcceptedNotificationReconciler_Trigger1M — notification queue reconciliation.
+- CACHEMAINT_RunDailyWarmup — cache warming.
+The on-edit trigger deletion does not disable manual Apps Script functions, other editors, external writers, or the server's internal ingress.
+The source names and classifications reflect repository dev code, not independently verified deployed GAS source.
+Do not delete the nine remaining triggers without checking their indirect call chains and operational implications.

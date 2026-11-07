@@ -54,3 +54,26 @@ Originally 10 Apps Script installable triggers owned by the user:
 The on-edit trigger deletion does not disable manual Apps Script functions, other editors, external writers, or the server's internal ingress.
 The source names and classifications reflect repository dev code, not independently verified deployed GAS source.
 Do not delete the nine remaining triggers without checking their indirect call chains and operational implications.
+
+
+CENTRAL DEV CONFIG FENCE APPLIED 2026-11-07
+User previously approved temporarily halting old DEV write routes.
+Google Sheets System_Config row 8 (ALLOW_DEV_WRITES, DEV column B):
+  BEFORE TRUE -> AFTER FALSE
+Google Sheets System_Config row 9 (DEV_WRITE_MODE, DEV column B):
+  BEFORE ALLOW_ALL -> AFTER BLOCK
+Verified by immediate independent get_spreadsheet_range. PROD column C unchanged.
+This blocks entrypoints which actually invoke SystemWriteGuard in deployed Apps Script source.
+It DOES NOT block raw SpreadsheetApp calls that bypass SystemWriteGuard, other actors or pre-existing script versions not including guard.
+
+GITHUB DEV SOURCE HARDENING (NOT DEPLOYED TO APPS SCRIPT)
+Applied explicit SYS_ENFORCE_WRITE_ALLOWED guards before direct Model C mutations:
+- AuditPlanningModelCExtensionService.js ModelCExtension_commit
+- ModelCRejectLinkWriter.js ModelCRejectLinkWriter_close_
+- ModelCAnnualCycleRuntime.js ModelCAnnualCycle_HandleCompletionRow_ / ModelCAnnualCycle_finalizeCompletedVisit_
+- AuditLifecycleService.js lifecycle_writeUpdates_
+Added isolated regression cloudrun/transport-proof/model-c-gas-dev-writer-freeze-20-test.mjs and updated lifecycle test mock.
+GitHub source commits do not change already deployed Apps Script web app versions. Live web app writer freeze unverified.
+RESTORE CONFIG ONLY AFTER CONTROLLED CUTOVER:
+  DEV System_Config B8 = TRUE and B9 = ALLOW_ALL were the original values.
+  Restoration must be explicitly approved after checking canonical writer ownership; never restore automatically if Firestore is authoritative.

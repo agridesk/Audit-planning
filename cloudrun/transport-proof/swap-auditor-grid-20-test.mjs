@@ -27,9 +27,10 @@ const proposal={operationId:'SWAP20_test123',auditA:'A',auditB:'B',
  blocksB:[{date:'2026-10-24',start:'09:00',end:'11:00'}],
  ecasComment:'Move audits',internalReason:'Manager private reason',dateChanged:true};
 prop['AMS_SWAP20_PROPOSAL_'+proposal.operationId]=JSON.stringify(proposal);
-let calls=0,commitCalls=0;
+let calls=0,commitCalls=0,freezeWrites=false;
 const ctx={String,Number,Array,Object,JSON,Date,Error,
  PropertiesService:{getScriptProperties:()=>({getProperty:k=>prop[k]||'',getProperties:()=>({...prop})})},
+ SYS_ENFORCE_WRITE_ALLOWED:(action)=>{assert.equal(action,'PLANNING_SWAP20_LEGACY');if(freezeWrites)throw Error('DEV_WRITE_BLOCKED');},
  SpreadsheetApp:{openById:()=>({getSheetByName:()=>({getDataRange:()=>({getValues:()=>actors})})})},
  Swap20_resolveAuditorUidByEmail_:email=>email==='auditor@example.test'?'uid-auditor':null,
  Swap20_recoveryStatus_:id=>({operationId:id,stage:'NOT_STARTED',sequence:0,requiresManualReview:false}),
@@ -47,6 +48,10 @@ assert.equal(pending.ok,true);
 assert.equal(pending.items.length,1);
 assert.equal(pending.items[0].auditA,'A');
 assert.equal('internalReason' in pending.items[0],false);
+freezeWrites=true;
+assert.throws(()=>ctx.Swap20Bridge20_handleAuditor_({actorEmail:'auditor@example.test',operation:'respond',operationId:proposal.operationId,decision:'ACKNOWLEDGE'}),/DEV_WRITE_BLOCKED/);
+assert.equal(calls,0);
+freezeWrites=false;
 assert.equal(ctx.Swap20Bridge20_handleAuditor_({actorEmail:'auditor@example.test',operation:'respond',
  operationId:proposal.operationId,decision:'ACKNOWLEDGE'}).status,'CONFIRMED');
 assert.equal(calls,1);

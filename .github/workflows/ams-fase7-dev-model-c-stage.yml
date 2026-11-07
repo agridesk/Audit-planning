@@ -39,7 +39,13 @@ jobs:
           service_account: ${{ secrets.AMS_DEV_PREFLIGHT_SERVICE_ACCOUNT }}
           project_id: audit-management-system-dev
           token_format: access_token
-          access_token_scopes: https://www.googleapis.com/auth/spreadsheets.readonly
+          access_token_scopes: https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/spreadsheets.readonly
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Require all DEV Cloud Run extension routes to be writer-fenced
+        env:
+          AMS_REQUIRE_SCOPE_EXTENSION_ROUTES_FENCED: 'true'
+          CLOUDSDK_CORE_PROJECT: audit-management-system-dev
+        run: node .github/scripts/ams-fase7-dev-writer-fence-survey.mjs
       - name: Authenticate separate DEV migration identity
         id: migration_auth
         uses: google-github-actions/auth@v2

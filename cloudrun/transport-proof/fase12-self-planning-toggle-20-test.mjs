@@ -28,4 +28,7 @@ assert.ok(grid.includes('completedAuditDateCell20(r)'),'Completed date cell must
 assert.ok(grid.includes("(extensions||dossier).scrollIntoView({block:'start',behavior:'auto'})"),'Extensions navigation must reveal the selected company Scopes action section');
 assert.ok(grid.includes("matches=companies.filter(function(c){return String(c.companyUid||'').trim()===uid})"),'Extensions must match exact Company UID, never fall back to ambiguous company names');
 assert.ok(grid.includes('querySelectorAll(".ext-act:not(.ext-manage)")'),'Extensions navigation must not execute legacy write');
+assert.ok(grid.includes("if(!extensionTargetAuditId20){"),'Direct Extensions dossier must suppress unrelated company scope management controls');
+assert.ok(grid.includes("extensionTargetAuditId20='';document.getElementById('scopeManagement20Panel')"),'Normal Company Management entry must clear prior audit-scoped extension context');
+assert.ok(!grid.includes('eligibleExtensionScopes||[]).length>0||extensionAppliedState(r)'),'Multi-scope Extensions entry must remain accessible even if no extension is currently eligible');
 console.log('Manager self planning source contracts OK');

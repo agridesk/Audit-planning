@@ -23,7 +23,7 @@ const fetchImpl=async(url,options={})=>{
  assert.equal(String(url),root+':commit');
  const writes=JSON.parse(options.body).writes;
  assert.equal(writes.length,4);
- assert(writes[0].update.name.endsWith('/ams_scope_extension_20_dev_auditcontext/AUD_TEST'));
+ assert(writes[0].update.name.startsWith('projects/audit-management-system-dev/databases/(default)/documents/ams_scope_extension_20_dev_auditcontext/'));
  assert(writes[1].update.name.includes('ams_scope_extension_20_dev_event/EXT_WRITER_PROMOTION_'));
  assert.deepEqual(writes.slice(2).map(x=>x.verify.split('/').at(-1)),['OBL_A','OBL_B']);
  for(const write of writes){const path=documentUrl(write.verify||write.update?.name);const previous=docs.get(path);

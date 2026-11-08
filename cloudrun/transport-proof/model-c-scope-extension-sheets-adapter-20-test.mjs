@@ -19,4 +19,14 @@ const duplicate=createScopeExtensionSheetsAdapter20({batchGet:async()=>[{values:
 await assert.rejects(()=>duplicate.readRows({auditId:'A1',companyUid:'C1',obligationId:'O1'}),/EXT_SHEETS_RELATION_NOT_UNIQUE/);
 const badStatus=createScopeExtensionSheetsAdapter20({batchGet:async()=>[{values:obs},{values:links},{values:[planning[0],['A1','Approved','','']]}],batchWrite:async()=>{},cutoverVerified:true});
 assert.equal((await badStatus.readRows({auditId:'A1',companyUid:'C1',obligationId:'O1'})).auditStatus,'APPROVED');
-console.log('PASS EXT Sheets projection adapter: unique linkage and seven-column batch');
+const localizedObs=[obs[0],['O1','C1','','','31/01/2027','01/12/2026','31/01/2027']];
+const localizedPlanning=[planning[0],['A1','Pending Planning','31/01/2027','']];
+const localized=createScopeExtensionSheetsAdapter20({batchGet:async()=>[{values:localizedObs},{values:links},{values:localizedPlanning}],batchWrite:async()=>{},cutoverVerified:true});
+const canonical=await localized.readRows({auditId:'A1',companyUid:'C1',obligationId:'O1'});
+assert.equal(canonical.effectiveExpiry,'2027-01-31');
+assert.equal(canonical.windowFrom,'2026-12-01');
+assert.equal(canonical.windowTo,'2027-01-31');
+assert.equal(canonical.aggregateExpiry,'2027-01-31');
+const impossible=createScopeExtensionSheetsAdapter20({batchGet:async()=>[{values:[obs[0],['O1','C1','','','31/02/2027','01/12/2026','31/01/2027']]},{values:links},{values:localizedPlanning}],batchWrite:async()=>{},cutoverVerified:true});
+await assert.rejects(()=>impossible.readRows({auditId:'A1',companyUid:'C1',obligationId:'O1'}),/EXT_SHEETS_DATE_INVALID/);
+console.log('PASS EXT Sheets projection adapter: unique linkage, seven-column batch and localized-date readback parity');

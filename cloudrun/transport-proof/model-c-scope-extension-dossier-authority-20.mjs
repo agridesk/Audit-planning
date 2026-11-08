@@ -36,7 +36,7 @@ export function reconcileScopeExtensionDossierAuthority20({companyUid,records,ac
   const applied=ob.extensionApplied===true;
   let transactionId='';
   try{transactionId=str(JSON.parse(str(ob.extensionMetadata)||'null')?.transactionId)}catch{return inactive}
-  const canApply=!applied&&!!ctx.policyByScope?.[ob.scopeCode];
+  const canApply=!applied&&!ob.legacyApplyQuarantined&&!str(ob.extensionMetadata)&&!!ctx.policyByScope?.[ob.scopeCode];
   const canUndo=applied&&!ob.legacyUndoQuarantined&&!!transactionId;
   const usable=canApply||canUndo;
   return{...row,canMutate:usable,canApply,canUndo,revision:ob.revision,auditId,extensionTransactionId:canUndo?transactionId:null,effectiveExpiry:ob.effectiveExpiry,windowFrom:ob.windowFrom,windowTo:ob.windowTo,extensionApplied:applied,authority:usable?'FIRESTORE':'READ_ONLY'};

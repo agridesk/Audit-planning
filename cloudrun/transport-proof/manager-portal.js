@@ -1274,7 +1274,7 @@ if(tab==='scopes'){
    cols.forEach(function(v){var td=el('td',String(v||'—'));td.style.cssText='padding:6px;border-bottom:1px solid #e2e8f0';tr.appendChild(td)});
    var actions=el('td');actions.style.cssText='padding:6px;border-bottom:1px solid #e2e8f0';
    if(o.canApply===true||o.canUndo===true){var command=o.canUndo===true?'undo':'apply';var button=el('button',command==='undo'?'Undo extension':'Apply extension');button.type='button';button.onclick=function(){extAction(o,command)};actions.appendChild(button)}
-   else if(data.mode!=='FIRESTORE_VERIFIED'&&o.triggerSource!=='ECAS'&&(o.extensionApplied||o.extensionMonths>0)&&(o.auditStatuses||[]).some(function(x){return String(x.status).toUpperCase().replace(/\s+/g,'_')==='PENDING_PLANNING'})){var pendingAction=o.extensionApplied?'Undo':'EXT';var note=el('span',pendingAction+' — migration not verified');note.title='Per-scope changes remain read-only until the canonical writer migration and provenance checks pass';actions.appendChild(note)}else actions.textContent='—';
+   else if(data.mode!=='FIRESTORE_VERIFIED'&&o.triggerSource!=='ECAS'&&(o.extensionApplied||o.extensionMonths>0)&&(o.auditStatuses||[]).some(function(x){return String(x.status).toUpperCase().replace(/\s+/g,'_')==='PENDING_PLANNING'})){var pendingAction=o.extensionApplied?'Undo':'EXT';var note=el('button',pendingAction);note.type='button';note.disabled=true;note.title='Blocked: Model C migration, writer fencing and scope provenance must be verified';note.setAttribute('aria-label',pendingAction+' unavailable: migration not verified');actions.appendChild(note)}else actions.textContent='—';
    tr.appendChild(actions);table.appendChild(tr)
   });
   extContent.appendChild(table);

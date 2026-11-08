@@ -1585,10 +1585,10 @@ function initExtStageWorkspace20(){
    source=result[0];target=result[1];
    const stats=source.backfillDryRun?.statistics||{},sha=String(source.backfillDryRun?.sourceManifestSha256||'');
    const counts=target.counts||{},empty=counts.obligation===0&&counts.auditcontext===0&&counts.event===0&&counts.outbox===0;
-   const pass=source.checks?.devSourceFrozen===true&&stats.sourceObligations===199&&stats.activeAudits===105&&stats.activeLinks===155&&sha.length===64&&sha===target.sourceManifestSha256;
+   const pass=source.checks?.devSourceFrozen===true&&source.writerFlags?.stageEnabled===true&&source.writerFlags?.commandsEnabled!==true&&stats.sourceObligations===199&&stats.activeAudits===105&&stats.activeLinks===155&&sha.length===64&&sha===target.sourceManifestSha256;
    const staged=target.parity===true&&counts.obligation===199&&counts.auditcontext===105;
    btn.disabled=!pass||!empty;
-   status.textContent=staged?'Stage verified: 304 documents match; writers remain disabled.':pass&&empty?'Source verified; target empty. One-time stage may be requested.':'Not eligible for stage; no writes allowed.';
+   status.textContent=staged?'Stage verified: 304 documents match; writers remain disabled.':source.writerFlags?.stageEnabled!==true?'Stage disabled by configuration; read-only verification only.':pass&&empty?'Source verified; target empty. One-time stage may be requested.':'Not eligible for stage; no writes allowed.';
    detail.textContent=JSON.stringify({sourceManifestSha256:sha,sourceCounts:{obligations:stats.sourceObligations,contexts:stats.activeAudits,activeLinks:stats.activeLinks},firestore:counts,sourceFrozen:source.checks?.devSourceFrozen,stageComplete:staged,writerEnabled:false},null,2);
   }catch(e){source=null;target=null;status.textContent='Stage preflight unavailable: '+String(e.message||e)}
   finally{busy=false;refresh.disabled=false}

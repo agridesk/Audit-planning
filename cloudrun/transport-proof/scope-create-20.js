@@ -1,7 +1,11 @@
 export async function createScope20({body,actor,SID,sheetsBatchGet,accessToken,clean}){
- const code=clean(body?.scopeCode).toUpperCase(),name=clean(body?.displayName),reason=clean(body?.reason);
- if(!/^[A-Z][A-Z0-9_-]{1,39}$/.test(code)||!name||name.length>100||!reason||reason.length>500||body?.confirmation!=='CREATE_INACTIVE_SCOPE')throw Error('INVALID_SCOPE_CREATE');
- const vr=await sheetsBatchGet(['Config_Scopes!A1:U128']),rows=vr[0]?.values||[],headers=(rows[0]||[]).map(clean);
+ const code=clean(body?.scopeCode).toUpperCase(),name=clean(body?.displayName),reason=clean(body?.reason),certificationBodyId=clean(body?.certificationBodyId).toUpperCase();
+ if(!/^[A-Z][A-Z0-9_-]{1,39}$/.test(code)||!name||name.length>100||!reason||reason.length>500||!certificationBodyId||body?.confirmation!=='CREATE_INACTIVE_SCOPE')throw Error('INVALID_SCOPE_CREATE');
+ const vr=await sheetsBatchGet(['Config_Scopes!A1:Z128','Certification_Bodies!A1:H200']),rows=vr[0]?.values||[],headers=(rows[0]||[]).map(clean);
+ const cbRows=vr[1]?.values||[],cbHeaders=(cbRows[0]||[]).map(clean);
+ if(!headers.includes('Certification_Body_ID')||!['Certification_Body_ID','Active'].every(h=>cbHeaders.includes(h)))throw Error('CERTIFICATION_BODY_SCHEMA_MISSING');
+ const matches=cbRows.slice(1).filter(r=>clean(r[cbHeaders.indexOf('Certification_Body_ID')]).toUpperCase()===certificationBodyId);
+ if(matches.length!==1||!['YES','TRUE','1'].includes(clean(matches[0][cbHeaders.indexOf('Active')]).toUpperCase()))throw Error('CERTIFICATION_BODY_NOT_ACTIVE_OR_UNKNOWN');
  const required=['SlotKey','ScopeCode','DisplayName','Color','TextColor','Active','Archived','SortOrder','Default_hours','Max number audits','Planning from','Planning to','Extension','Recurring','Obligation cycle','Complete by','Provisioning source','Trigger source','Source service','Max_Offsite_Hours','Min_Interval_Months'];
  if(required.some(h=>!headers.includes(h)))throw Error('SCOPE_SCHEMA_INCOMPLETE');
  if(rows.slice(1).some(r=>clean(r[headers.indexOf('ScopeCode')]).toUpperCase()===code||clean(r[headers.indexOf('DisplayName')]).toLowerCase()===name.toLowerCase()))throw Error('DUPLICATE_SCOPE_IDENTITY');
@@ -21,7 +25,7 @@ export async function createScope20({body,actor,SID,sheetsBatchGet,accessToken,c
  const set=(h,v)=>{newRow[headers.indexOf(h)]=v};
  set('SlotKey',free);set('ScopeCode',code);set('DisplayName',name);set('Color','#64748B');set('TextColor','#FFFFFF');
  set('Active','No');set('Archived','No');set('SortOrder',String(Math.max(0,...rows.slice(1).map(r=>Number(r[headers.indexOf('SortOrder')])||0))+1));
- set('Recurring','NO');
+ set('Recurring','NO');set('Certification_Body_ID',certificationBodyId);
  const token=await accessToken(),base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID);
  const meta=await fetch(base+'?fields=sheets.properties(title,sheetId)',{headers:{authorization:'Bearer '+token}});
  if(!meta.ok)throw Error('SCOPE_METADATA_UNAVAILABLE');
@@ -31,5 +35,5 @@ export async function createScope20({body,actor,SID,sheetsBatchGet,accessToken,c
  const response=await fetch(base+':batchUpdate',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({requests:[{appendCells:{sheetId:sheet.sheetId,rows:[{values}],fields:'userEnteredValue'}}]})});
  if(!response.ok)throw Error('SCOPE_CREATE_WRITE_FAILED_'+response.status);
  console.info(JSON.stringify({event:'SCOPE_CREATED_INACTIVE',scopeCode:code,slotKey:free,reason,actor:clean(actor.email||actor.sub),timestamp:new Date().toISOString()}));
- return{ok:true,scopeCode:code,slotKey:free,active:false,requiresConfiguration:true};
+ return{ok:true,scopeCode:code,slotKey:free,certificationBodyId,active:false,requiresConfiguration:true};
 }

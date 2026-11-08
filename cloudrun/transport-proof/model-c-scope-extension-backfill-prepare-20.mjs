@@ -57,7 +57,7 @@ export function prepareScopeExtensionBackfill20({obligationRows,linkRows,plannin
   group.push(obligationId);byAudit.set(auditId,group);
  }
  const manifestObligations=[],manifestContexts=[];
- let blockedLegacyApply=0,blockedLegacyUndo=0,missingHistoricalDates=0,pendingEligibleUntouched=0,isoNormalized=0;
+ let blockedLegacyApply=0,blockedDateApply=0,blockedLegacyUndo=0,missingHistoricalDates=0,pendingEligibleUntouched=0,isoNormalized=0;
  for(const [obligationId,row] of originals){
   const auditId=activeByOb.get(obligationId)||get(row,oc.Source_Audit_ID);
   const active=activeByOb.has(obligationId),scopeCode=get(row,oc.ScopeCode),triggerSource=get(row,oc.Trigger_Source),companyUid=get(row,oc.Company_UID);
@@ -73,10 +73,11 @@ export function prepareScopeExtensionBackfill20({obligationRows,linkRows,plannin
   if(legacyExtensionMetadata){try{JSON.parse(legacyExtensionMetadata)}catch{throw Error('EXT_BACKFILL_LEGACY_METADATA_INVALID')}}
   const legacyApplyQuarantined=!extensionApplied&&(!!legacyExtensionMetadata||datesIncomplete);
   const legacyUndoQuarantined=extensionApplied;
-  if(legacyApplyQuarantined&&active&&audits.get(auditId)==='PENDING_PLANNING')blockedLegacyApply++;
+  if(active&&isPending&&!extensionApplied&&!!legacyExtensionMetadata)blockedLegacyApply++;
+  if(active&&isPending&&!extensionApplied&&datesIncomplete)blockedDateApply++;
   if(legacyUndoQuarantined&&active&&audits.get(auditId)==='PENDING_PLANNING')blockedLegacyUndo++;
   if(active&&audits.get(auditId)==='PENDING_PLANNING'&&!extensionApplied&&!legacyExtensionMetadata&&triggerSource!=='ECAS'&&scopePolicies.get(scopeCode))pendingEligibleUntouched++;
-  manifestObligations.push({obligationId,auditId,companyUid,scopeCode,linkState:active?'ACTIVE':'UNLINKED',triggerSource,expiryManaged:triggerSource!=='ECAS',revision:0,pendingProjectionId:'',
+  manifestObligations.push({obligationId,auditId,companyUid,scopeCode,linkState:active?'ACTIVE':'UNLINKED',triggerSource,expiryManaged:triggerSource!=='ECAS'&&!datesIncomplete,revision:0,pendingProjectionId:'',
    baseExpiry,effectiveExpiry,windowFrom,windowTo,extensionApplied,extensionMetadata:legacyExtensionMetadata,legacyExtensionMetadata,
    legacyApplyQuarantined,legacyUndoQuarantined,legacyDateQuarantined:datesIncomplete,stagingWriterFenceVerified:false});
  }
@@ -93,7 +94,7 @@ export function prepareScopeExtensionBackfill20({obligationRows,linkRows,plannin
  manifestContexts.sort((a,b)=>a.auditId.localeCompare(b.auditId));
  const stats={sourceObligations:originals.size,sourceAudits:audits.size,activeLinks:activeByOb.size,activeAudits:byAudit.size,
    pendingPlanningAudits:manifestContexts.filter(x=>x.lifecycleStatus==='PENDING_PLANNING').length,
-   pendingEligibleUntouched,blockedLegacyApply,blockedLegacyUndo,missingHistoricalDates,isoNormalized,
+   pendingEligibleUntouched,blockedLegacyApply,blockedDateApply,blockedLegacyUndo,missingHistoricalDates,isoNormalized,
    historicalUnlinked:manifestObligations.filter(x=>x.linkState!=='ACTIVE').length,multiScopeAudits:manifestContexts.filter(x=>x.obligationIds.length>1).length,
    activeDateQuarantined:manifestObligations.filter(x=>x.linkState==='ACTIVE'&&x.legacyDateQuarantined).length};
  const sourceManifest=hash({obligations:manifestObligations,contexts:manifestContexts});

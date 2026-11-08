@@ -64,7 +64,7 @@ export function inspectDevScopeExtension20({obligationRows,linkRows,planningRows
   const validDates=!!rec.baseExpiry&&!!rec.effectiveExpiry&&!!rec.windowFrom&&!!rec.windowTo&&rec.windowFrom<=rec.windowTo;
   const base=auditId&&status.get(auditId)==='PENDING_PLANNING'&&rec.triggerSource.toUpperCase()!=='ECAS'&&validDates&&!!validPolicy;
   const legacyUndone=!!(base&&!rec.extensionApplied&&meta?.source==='CLOUD_RUN_DIRECT_MANAGER_EXTENSION'
-    &&meta?.undo===true&&Number(meta.months)===rec.policy.months&&rec.effectiveExpiry===rec.baseExpiry
+    &&meta?.undo===true&&Number.isSafeInteger(Number(meta.months))&&Number(meta.months)>0&&Number(meta.months)<=24&&rec.effectiveExpiry===rec.baseExpiry
     &&legacyWindowOffsets20(rec.baseExpiry,rec.windowFrom,rec.windowTo)!==null);
   rec.canApply=!!(base&&!rec.extensionApplied&&(!rec.extensionMetadata||legacyUndone));
   const legacyUndo=base&&rec.extensionApplied&&meta?.source==='CLOUD_RUN_DIRECT_MANAGER_EXTENSION'

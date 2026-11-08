@@ -5,7 +5,7 @@
  */
 import {resolveCertificationBody20} from './certification-body-routing-20.mjs';
 const str=x=>String(x??'').trim();
-const allowed=new Set(['BUFFERED','SUPERSEDED','SUPPRESSED','SENT','FAILED','BLOCKED']);
+const allowed=new Set(['BUFFERED','SUPERSEDED','SUPPRESSED','QUEUED','SENT','TESTED','FAILED','BLOCKED']);
 export const CB_EXTENSION_OUTBOX_HEADERS_20=Object.freeze([
  'Event_ID','Operation_ID','Audit_ID','Obligation_ID','Company_UID','ScopeCode',
  'Certification_Body_ID','Action','State_After','Created_At','Not_Before','Status',
@@ -71,7 +71,7 @@ export function reduceCbExtensionOutbox20({outboxRows,obligationId,currentExtens
  if(!latest)return{action:'NONE',reason:'NO_EXT_EVENTS',deliveredState,currentState};
  if(ordered.some(r=>r.Certification_Body_ID!==latest.Certification_Body_ID||r.ScopeCode!==latest.ScopeCode))
   throw Error('CB_OUTBOX_SCOPE_OR_BODY_CHANGED');
- const pending=ordered.filter(r=>['BUFFERED','FAILED','BLOCKED'].includes(r.Status));
+ const pending=ordered.filter(r=>['BUFFERED','FAILED','BLOCKED','QUEUED'].includes(r.Status));
  if(!pending.length)return{action:'NONE',reason:'NO_UNPROCESSED_EVENTS',deliveredState,currentState};
  if(currentState===deliveredState)return{action:'SUPPRESS',eventIds:pending.map(r=>r.Event_ID),reason:'NO_NET_STATE_CHANGE',deliveredState,currentState};
  if(latest.Status==='SENT')throw Error('CB_OUTBOX_LATEST_STATE_UNRECORDED');

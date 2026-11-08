@@ -16,7 +16,7 @@ assert(ui.includes('window.dispatchEvent(new CustomEvent("ams:open-company-scope
 assert(ui.includes('runSingleScopeExtension20(button)'),'single-scope click must execute direct verified scope command');
 assert(ui.includes("data.mode!=='FIRESTORE_VERIFIED'"),'single-scope action must not bypass migration guard');
 assert(!ui.includes("fetch('/api/v1/manager/extension-direct'"),'grid may not invoke the unsafe legacy writer');
-assert(ui.includes("fetch('/api/v1/manager/extension-obligation-command'")===false,'legacy direct call must be removed; scope dossier owns commands');
+assert(ui.includes("fetch('/api/v1/manager/extension-obligation-command'"),'single-scope action must use the canonical per-obligation command directly');
 assert(ui.includes("extPost('/api/v1/manager/extension-obligation-command'"),'scope dossier must send canonical per-obligation command');
 assert(backend.includes("u.pathname==='/api/v1/manager/extension-direct'"),'legacy backend route remains independently fenced');
 assert(backend.includes("if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED')"));

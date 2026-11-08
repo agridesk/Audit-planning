@@ -8,6 +8,7 @@ const decode=v=>'stringValue'in v?v.stringValue:'booleanValue'in v?v.booleanValu
 const context={auditId:'AUD_TEST',companyUid:'COMPANY',sourceSnapshotHash:sha,obligationIds:['OBL_A','OBL_B'],lifecycleStatus:'PENDING_PLANNING',writerFenceVerified:false,revision:0};
 const obligation=id=>({obligationId:id,auditId:'AUD_TEST',companyUid:'COMPANY',sourceSnapshotHash:sha,scopeCode:id==='OBL_A'?'MPS-GAP':'GRASP',linkState:'ACTIVE',revision:0,pendingProjectionId:'',extensionApplied:false,legacyUndoQuarantined:false});
 const root='https://firestore.googleapis.com/v1/projects/'+projectId+'/databases/(default)/documents';
+const documentUrl=name=>name.startsWith('projects/')?'https://firestore.googleapis.com/v1/'+name:name;
 const docs=new Map();
 function put(kind,key,value,revision=1){const path=root+'/ams_scope_extension_20_dev_'+kind+'/'+key;docs.set(path,{value,updateTime:'2026-11-07T00:00:0'+revision+'Z'})}
 put('auditcontext','AUD_TEST',context);

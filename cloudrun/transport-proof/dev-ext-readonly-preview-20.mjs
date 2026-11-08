@@ -8,6 +8,7 @@ const allowedGet = new Set([
   '/api/v1/manager/company-management/extension-obligations',
   '/api/v1/manager/ext-model-c-source-preflight',
   '/api/v1/manager/ext-model-c-pilot-preflight',
+  '/api/v1/manager/ext-model-c-pilot-status',
   '/api/v1/manager/ext-model-c-stage-status',
   '/api/v1/manager/maps-config'
 ]);

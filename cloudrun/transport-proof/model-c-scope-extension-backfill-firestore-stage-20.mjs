@@ -33,7 +33,7 @@ export function createScopeExtensionFirestoreStager20({projectId,getToken,fetchI
  if(projectId!=='audit-management-system-dev'||prefix!=='ams_scope_extension_20_dev'||databaseId!=='(default)'||typeof getToken!=='function'||typeof fetchImpl!=='function')throw Error('EXT_STAGE_TARGET_NOT_DEV');
  const base='https://firestore.googleapis.com/v1/projects/'+projectId+'/databases/(default)/documents';
  const collection=kind=>{if(!kinds.includes(kind))throw Error('EXT_STAGE_KIND_INVALID');return base+'/'+prefix+'_'+kind};
- const location=(kind,key)=>{if(!validId(key))throw Error('EXT_STAGE_DOC_ID_INVALID');return collection(kind)+'/'+encodeURIComponent(key)};
+ const location=(kind,key)=>{if(!validId(key))throw Error('EXT_STAGE_DOC_ID_INVALID');return 'projects/'+projectId+'/databases/'+databaseId+'/documents/'+prefix+'_'+kind+'/'+encodeURIComponent(key)};
  async function request(url,method='GET',body){
   const token=await getToken();if(!token)throw Error('EXT_STAGE_TOKEN_MISSING');
   return fetchImpl(url,{method,headers:{authorization:'Bearer '+token,...(body?{'content-type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});

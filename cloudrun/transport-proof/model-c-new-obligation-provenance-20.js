@@ -31,7 +31,20 @@ export function buildNewModelCObligationWithHours20({headers,obligation,companyI
     const existing=obligation[key];
     if(existing!==undefined&&existing!==null&&String(existing)!==''&&String(existing)!==String(snapshot[key]))throw Error('NEW_OBLIGATION_PROVENANCE_CONFLICT_'+key);
   }
-  const result={...obligation,...snapshot};
+  // Capture the immutable CB from the company-scope enrolment, never infer
+  // it from a scheme name or an email/manager default.
+  let certificationBodyId='';
+  if(headers.includes('Certification_Body_ID')){
+    const linked=(Array.isArray(companyScopes)?companyScopes:[]).filter(item=>
+      String(item.Company_UID??'').trim()===String(companyId??'').trim()
+      &&String(item.ScopeCode??'').trim()===String(scopeCode??'').trim());
+    const bodies=[...new Set(linked.map(item=>String(item.Certification_Body_ID??'').trim()).filter(Boolean))];
+    if(linked.length!==1||bodies.length!==1)throw Error('NEW_OBLIGATION_CERTIFICATION_BODY_MISSING_OR_AMBIGUOUS');
+    certificationBodyId=bodies[0];
+    if(obligation.Certification_Body_ID&&String(obligation.Certification_Body_ID).trim()!==certificationBodyId)
+      throw Error('NEW_OBLIGATION_CERTIFICATION_BODY_CONFLICT');
+  }
+  const result={...obligation,...snapshot,...(certificationBodyId?{Certification_Body_ID:certificationBodyId}:{})};
   const row=headers.map(h=>result[h]??'');
   if(row.length!==headers.length)throw Error('NEW_OBLIGATION_ROW_WIDTH_INVALID');
   return {obligation:result,row,snapshot,resolution};

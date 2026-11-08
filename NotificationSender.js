@@ -45,6 +45,12 @@ function NotificationSender_RunDigest() {
   try {
     lock.waitLock(25000); // Apps Script expects milliseconds: 25 seconds, not 250 ms.
 
+    // Certification Body extension events are reconciled under this existing
+    // periodic sender lock. No direct EXT/Undo email is allowed.
+    if(typeof CB_Extension_Outbox_ReconcileLocked_==='function'){
+      try{var cbResult=CB_Extension_Outbox_ReconcileLocked_();if(cbResult&&cbResult.ok!==true)Logger.log('CB_EXTENSION_RECONCILE: '+JSON.stringify(cbResult))}
+      catch(cbError){Logger.log('CB_EXTENSION_RECONCILE_FAILED: '+String(cbError))}
+    }
     if(typeof Swap20_reconcileEcasIntentsLocked_==='function'){
       try{
         var swapOutbox=Swap20_reconcileEcasIntentsLocked_();
@@ -823,6 +829,11 @@ function ns_sendDueReserved_(nqSheet, values) {
     var delivery = null;
 
     try {
+      var isCbExtension=group.items.some(function(it){return /^CB_EXTENSION_(APPLIED|UNDONE)$/.test(String(it.eventCode||''))});
+      if(isCbExtension){
+        if(typeof CB_Extension_Outbox_PreflightSend_!=='function')throw Error('CB_EXTENSION_SENDER_GUARD_MISSING');
+        CB_Extension_Outbox_PreflightSend_(group.items,group.recipient);
+      }
       // IMPORTANT:
       // Rendering is inside the try block. If a renderer fails, the group must
       // become FAILED instead of remaining silently stuck on RESERVED.
@@ -896,6 +907,12 @@ function ns_sendDueReserved_(nqSheet, values) {
         nqSheet.getRange(rr, 10).setValue(deliveryNote);
         nqSheet.getRange(rr, 13).setValue('');
         sentRows++;
+      }
+      // Receipt failures must not undo a successful provider delivery or
+      // trigger an accidental duplicate on a subsequent digest run.
+      if(isCbExtension && typeof CB_Extension_Outbox_RecordDelivery_==='function'){
+        try{CB_Extension_Outbox_RecordDelivery_(group.items,finalStatus,sentStamp)}
+        catch(cbReceiptError){Logger.log('CB_EXTENSION_RECEIPT_REPAIR_REQUIRED: '+String(cbReceiptError))}
       }
       // Optional provenance hook: only actual ECAS delivery counts, never DEV
       // TEST_TO_SELF, DRY_RUN or suppressed emails. Receipt failures must not
@@ -979,6 +996,15 @@ function ns_resetStaleReserved_(nqSheet, values) {
  * ============================================================ */
 
 function ns_buildDigestEmail_(recipientEmail, items) {
+  // New CB extensions use validated, configurable Notification_Templates
+  // rendered by their own reconciler. Never pass them to legacy ECAS/Ecert
+  // renderer, even if a generic family name matches.
+  if(Array.isArray(items)&&items.length===1
+    &&/^CB_EXTENSION_(APPLIED|UNDONE)$/.test(String(items[0].eventCode||''))
+    &&String((items[0].payload||{}).cbEventId||'').trim()){
+    return{subject:String(items[0].subject||''),body:String(items[0].body||''),
+      htmlBody:'',attachments:[],fromEmail:NS_DEFAULT_FROM_EMAIL,fromName:NS_DEFAULT_FROM_NAME};
+  }
   var attachments = ns_collectAttachments_(items);
   var rendered = null;
   var fromEmail = '';

@@ -2451,13 +2451,21 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
     let b;try{b=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
     const uid=clean(b?.companyUid),code=clean(b?.scopeCode);if(!uid||!code)return send(res,400,{ok:false,error:'REQUIRED_FIELDS_MISSING'});
-    try{const v=await sheetsBatchGet(['Companies!A1:X2500','Company_Scopes!A1:L3000','Config_Scopes!A1:Z128']);const [companies,relations,scopes]=v.map(x=>x?.values||[]);
-      const ch=companies[0]||[],rh=relations[0]||[],sh=scopes[0]||[];if(!['Company_UID'].every(x=>ch.includes(x))||!['Company_UID','ScopeCode','Company_Scope_ID','Active'].every(x=>rh.includes(x))||!['ScopeCode','Active','Archived'].every(x=>sh.includes(x)))throw Error('SCHEMA_MISSING');
+    try{const v=await sheetsBatchGet(['Companies!A1:X2500','Company_Scopes!A1:M3000','Config_Scopes!A1:Z128']);const [companies,relations,scopes]=v.map(x=>x?.values||[]);
+      const ch=companies[0]||[],rh=relations[0]||[],sh=scopes[0]||[];if(!['Company_UID'].every(x=>ch.includes(x))||!['Company_UID','ScopeCode','Company_Scope_ID','Active','Certification_Body_ID'].every(x=>rh.includes(x))||!['ScopeCode','Active','Archived','Certification_Body_ID'].every(x=>sh.includes(x)))throw Error('SCHEMA_MISSING');
       if(companies.slice(1).filter(r=>clean(r[ch.indexOf('Company_UID')])===uid).length!==1)return send(res,409,{ok:false,error:'COMPANY_NOT_UNIQUE'});
       const match=scopes.slice(1).filter(r=>clean(r[sh.indexOf('ScopeCode')])===code);if(match.length!==1||!['YES','TRUE','1'].includes(clean(match[0][sh.indexOf('Active')]).toUpperCase())||['YES','TRUE','1'].includes(clean(match[0][sh.indexOf('Archived')]).toUpperCase()))return send(res,409,{ok:false,error:'SCOPE_NOT_AVAILABLE'});
       if(relations.slice(1).some(r=>clean(r[rh.indexOf('Company_UID')])===uid&&clean(r[rh.indexOf('ScopeCode')])===code))return send(res,409,{ok:false,error:'COMPANY_SCOPE_ALREADY_EXISTS'});
-      const record=Object.fromEntries(rh.map(h=>[h,'']));record.Company_Scope_ID='CS_'+randomUUID().replace(/-/g,'');record.Company_UID=uid;record.ScopeCode=code;record.Active='YES';record.Lifecycle_Type='CERTIFICATE_RECURRING';record.Created_At=new Date().toISOString();record.Updated_At=record.Created_At;
-      await sheetsValuesAppend('Company_Scopes!A:L',[rh.map(h=>record[h]??'')]);return send(res,200,{ok:true,scopeCode:code,companyUid:uid,created:true});
+      const cbId=clean(match[0][sh.indexOf('Certification_Body_ID')]);
+      if(!cbId)throw Error('COMPANY_SCOPE_CB_MISSING');
+      const cbRows=(await sheetsBatchGet(['Certification_Bodies!A1:H200']))[0]?.values||[];
+      const cbh=cbRows[0]||[];
+      if(!['Certification_Body_ID','Active'].every(k=>cbh.includes(k)))throw Error('CB_REGISTRY_SCHEMA_MISSING');
+      const registered=cbRows.slice(1).filter(row=>clean(row[cbh.indexOf('Certification_Body_ID')])===cbId
+        &&['YES','TRUE','1'].includes(clean(row[cbh.indexOf('Active')]).toUpperCase()));
+      if(registered.length!==1)throw Error('COMPANY_SCOPE_CB_NOT_ACTIVE');
+      const record=Object.fromEntries(rh.map(h=>[h,'']));record.Company_Scope_ID='CS_'+randomUUID().replace(/-/g,'');record.Company_UID=uid;record.ScopeCode=code;record.Certification_Body_ID=cbId;record.Active='YES';record.Lifecycle_Type='CERTIFICATE_RECURRING';record.Created_At=new Date().toISOString();record.Updated_At=record.Created_At;
+      await sheetsValuesAppend('Company_Scopes!A:M',[rh.map(h=>record[h]??'')]);return send(res,200,{ok:true,scopeCode:code,companyUid:uid,created:true});
     }catch(e){return send(res,409,{ok:false,error:'COMPANY_SCOPE_ASSIGN_FAILED',detail:clean(e.message||e)})}
   }
   if(u.pathname==='/api/v1/manager/company-management/scopes/save'&&req.method==='POST'){

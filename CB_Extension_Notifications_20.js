@@ -147,7 +147,9 @@ function CB_Extension_Outbox_ReconcileLocked_(){
    if(found.length===1){
     var st=ctx.queue.get(found[0].values,'Status');
     if(['PENDING','RESERVED','SENT','SENT_DEV_REDIRECT','SENT_SIMULATED'].indexOf(st)>=0){
-     CBN20_set_(ctx.outbox,last.rowNumber,'Status',st==='SENT'?'SENT':'QUEUED');result.skipped++;continue;
+     CBN20_set_(ctx.outbox,last.rowNumber,'Status',st==='SENT'?'SENT':(st==='SENT_DEV_REDIRECT'||st==='SENT_SIMULATED'?'TESTED':'QUEUED'));
+     if(st==='SENT')CBN20_set_(ctx.outbox,last.rowNumber,'Delivered_At',CBN20_text_(found[0].values[11])||new Date().toISOString());
+     result.skipped++;continue;
     }
     if(st==='FAILED')throw Error('CB_NOTIFICATION_QUEUE_FAILED');
    }

@@ -1566,6 +1566,50 @@ async function restoreGridReturnState20(state){
  filter();
  updateSelectionUi();
 }
+function initExtStageWorkspace20(){
+ if(String(actorRole).toLowerCase()!=='manager'||new URLSearchParams(window.location.search).get('ext-stage')!=='1')return;
+ const panel=document.createElement('section');panel.id='extModelCStageWorkspace20';
+ panel.style.cssText='padding:18px;border:2px solid #9ca3af;border-radius:9px;background:#f8fafc;margin-bottom:16px;max-width:1040px';
+ const title=document.createElement('h2');title.textContent='DEV Model C EXT — staging only (no cutover)';title.style.marginTop='0';
+ const status=document.createElement('p');status.textContent='Checking DEV source manifest and Firestore target…';status.setAttribute('role','status');
+ const btn=document.createElement('button');btn.type='button';btn.disabled=true;btn.textContent='Stage 199 obligations + 105 audit contexts';btn.style.cssText='padding:10px 14px;margin-right:10px';
+ const refresh=document.createElement('button');refresh.type='button';refresh.textContent='Refresh checks';
+ const detail=document.createElement('pre');detail.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.5 monospace';
+ panel.append(title,status,btn,refresh,detail);document.querySelector('main')?.prepend(panel);
+ let source=null,target=null,busy=false;
+ async function getJson(path,options){const reply=await fetch(path,{credentials:'same-origin',...options});const body=await reply.json().catch(()=>({}));if(!reply.ok||body.ok!==true)throw Error(String(body.error||'HTTP '+reply.status));return body}
+ async function load(){
+  if(busy)return;busy=true;btn.disabled=true;refresh.disabled=true;
+  try{
+   const result=await Promise.all([getJson('/api/v1/manager/ext-model-c-source-preflight'),getJson('/api/v1/manager/ext-model-c-stage-status')]);
+   source=result[0];target=result[1];
+   const stats=source.backfillDryRun?.statistics||{},sha=String(source.backfillDryRun?.sourceManifestSha256||'');
+   const counts=target.counts||{},empty=counts.obligation===0&&counts.auditcontext===0&&counts.event===0&&counts.outbox===0;
+   const pass=source.checks?.devSourceFrozen===true&&stats.sourceObligations===199&&stats.activeAudits===105&&stats.activeLinks===155&&sha.length===64&&sha===target.sourceManifestSha256;
+   const staged=target.parity===true&&counts.obligation===199&&counts.auditcontext===105;
+   btn.disabled=!pass||!empty;
+   status.textContent=staged?'Stage verified: 304 documents match; writers remain disabled.':pass&&empty?'Source verified; target empty. One-time stage may be requested.':'Not eligible for stage; no writes allowed.';
+   detail.textContent=JSON.stringify({sourceManifestSha256:sha,sourceCounts:{obligations:stats.sourceObligations,contexts:stats.activeAudits,activeLinks:stats.activeLinks},firestore:counts,sourceFrozen:source.checks?.devSourceFrozen,stageComplete:staged,writerEnabled:false},null,2);
+  }catch(e){source=null;target=null;status.textContent='Stage preflight unavailable: '+String(e.message||e)}
+  finally{busy=false;refresh.disabled=false}
+ }
+ refresh.onclick=load;
+ btn.onclick=async function(){
+  if(busy||btn.disabled||!source||!target)return;
+  const sha=String(source.backfillDryRun?.sourceManifestSha256||'');
+  if(sha!==target.sourceManifestSha256||sha.length!==64)return;
+  const typed=window.prompt('DEV-only CREATE-ONLY migration. 304 documents, no writer cutover. Type STAGE 199 DEV to authorize:');
+  if(typed!=='STAGE 199 DEV')return;
+  if(!window.confirm('Confirm create-only staging in audit-management-system-dev? This cannot overwrite documents. EXT/Undo remains disabled.'))return;
+  busy=true;btn.disabled=true;refresh.disabled=true;status.textContent='Submitting guarded DEV stage. Do not retry if the response is uncertain; refresh parity instead.';
+  try{
+   const result=await getJson('/api/v1/manager/ext-model-c-stage',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({approval:'I_APPROVE_DEV_EXT_STAGE_199_105',expectedSourceManifestSha256:sha})});
+   status.textContent=result.parity===true?'Stage committed and verified; writers still disabled.':'Stage outcome needs readback; refresh checks.';
+  }catch(e){status.textContent='Stage not confirmed: '+String(e.message||e)+'. Use Refresh checks before retry.'}
+  finally{busy=false;refresh.disabled=false}
+ };
+ load();
+}
 const gridReturnState20=takeGridReturnState20();
-fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("scopeManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("auditorManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("notificationsManager20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("companyManagement20").hidden=!['manager','auditor'].includes(String(actorRole).toLowerCase());document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();swap20RefreshAttention();if(String(actorRole).toLowerCase()==="manager")initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)});return loadOpen().then(async function(){await restoreGridReturnState20(gridReturnState20);document.addEventListener("visibilitychange",function(){if(!document.hidden)swap20RefreshAttention()});window.addEventListener("focus",swap20RefreshAttention);window.setInterval(function(){if(!document.hidden)swap20RefreshAttention()},45000);})}).catch(fail);
+fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("scopeManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("auditorManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("notificationsManager20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("companyManagement20").hidden=!['manager','auditor'].includes(String(actorRole).toLowerCase());document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();swap20RefreshAttention();if(String(actorRole).toLowerCase()==="manager"){initExtStageWorkspace20();initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)})}return loadOpen().then(async function(){await restoreGridReturnState20(gridReturnState20);document.addEventListener("visibilitychange",function(){if(!document.hidden)swap20RefreshAttention()});window.addEventListener("focus",swap20RefreshAttention);window.setInterval(function(){if(!document.hidden)swap20RefreshAttention()},45000);})}).catch(fail);
 })();

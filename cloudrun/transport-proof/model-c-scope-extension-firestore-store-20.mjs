@@ -39,7 +39,7 @@ export function createScopeExtensionFirestoreStore20({projectId,getToken,fetchIm
   const value={...current.value,...copy(prepared.after),revision:prepared.nextRevision,pendingProjectionId:idempotencyKey};
   const event={...copy(prepared.transaction),planTransaction:{auditId,transactionId:idempotencyKey,actorUid:actorId,changes:[{obligationId,scopeCode,before:prepared.before,after:prepared.after}]},receipt,createdAt:new Date().toISOString()};
   const outbox={...copy(prepared.outbox),operationId:idempotencyKey,state:'PENDING',createdAt:event.createdAt};
-  const write=(kind,key,payload,precondition)=>({update:{name:doc(kind,key),fields:{payload:encode(payload)}},currentDocument:precondition});
+  const write=(kind,key,payload,precondition)=>({update:{name:documentName(kind,key),fields:{payload:encode(payload)}},currentDocument:precondition});
   const writes=[write('obligation',obligationId,value,{updateTime:current.updateTime}),write('event',idempotencyKey,event,{exists:false}),write('outbox',idempotencyKey,outbox,{exists:false})];
   const committed=await request(base+':commit','POST',{transaction,writes});if(!committed.ok)throw Error('EXT_FIRESTORE_COMMIT_'+committed.status);
   return receipt;

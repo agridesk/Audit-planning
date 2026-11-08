@@ -6,6 +6,7 @@ const allowedGet = new Set([
   '/', '/health', '/manager-portal.js', '/api/v1/session',
   '/api/v1/manager/open', '/api/v1/manager/company-management',
   '/api/v1/manager/company-management/extension-obligations',
+  '/api/v1/manager/ext-model-c-source-preflight',
   '/api/v1/manager/maps-config'
 ]);
 const allowedPost = new Set([

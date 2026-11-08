@@ -14,7 +14,7 @@ assert.match(endpoint,/READ_ONLY_CUTOVER_REQUIRED/);
 assert.match(endpoint,/canMutate:false/);
 assert(!endpoint.includes('sheetsValuesBatchUpdateRaw('),'read route writes sheets');
 assert(portal.includes('company-management/extension-obligations?companyUid='));
-assert(portal.includes('Model C migration not verified — EXT/Undo blocked. No changes can be saved.'));
+assert(portal.includes('EXT/Undo currently unavailable for this audit.')&&portal.includes("['FIRESTORE_VERIFIED','DEV_MODEL_C_DIRECT'].includes(data.mode)"));
 assert(portal.includes("extPost('/api/v1/manager/extension-obligation-command',body)"));
 assert(portal.includes("extPost('/api/v1/manager/extension-reconcile-projection'"));
 assert(portal.includes('Firestore commit succeeded; projection requires recovery'));
@@ -38,7 +38,7 @@ assert(server.includes('createScopeExtensionSheetsProjector20({store,sheets,cuto
 assert(server.includes('EXT_PROJECTION_RECOVERY_FAILED'));
 assert.equal(server.split("error:'EXT_ORIGIN_REQUIRED'").length-1,2);
 assert.equal(server.split("error:'EXT_ORIGIN_FORBIDDEN'").length-1,4);
-assert.equal(server.split("parsedOrigin.origin!=='https://ams-fase12-dev-510075419067.europe-west1.run.app'").length-1,3,'stage, command and projector must share exact public DEV origin');
+assert.equal(server.split("['https://ams-fase12-dev-510075419067.europe-west1.run.app','https://ams-fase12-dev-zwtcar7xpa-ew.a.run.app'].includes(parsedOrigin.origin)").length-1,3,'stage, command and projector must share exact public DEV origin');
 assert(!server.includes("parsedOrigin.host!==clean(req.headers.host)"),'R15 proxy strips Host; EXT must not compare against internal Host');
 assert(server.includes('verifiedAuditorLockDevProject()'));
 assert(server.includes("process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true'"));

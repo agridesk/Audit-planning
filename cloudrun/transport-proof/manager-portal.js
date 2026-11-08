@@ -218,7 +218,7 @@ async function runSingleScopeExtension20(button){
    patch.planningWindowText=patch.planningWindowFrom&&patch.planningWindowTo?patch.planningWindowFrom+' → '+patch.planningWindowTo:'Separate planning required';
    patch.planningWindow=patch.planningWindowText;
    patch.extApplied=patch.extensionApplied;
-   mergeRowInPlace(auditId,patch);
+   mergeRowInPlace(auditId,patch);updateExtendedScopeCodes20(auditId,obligation.scopeCode,command==='apply');
    document.getElementById('status').textContent='EXT '+(command==='undo'?'undone':'applied')+' · '+String(obligation.scopeCode||'')+' · verified in DEV';
    return;
   }
@@ -228,12 +228,31 @@ async function runSingleScopeExtension20(button){
    window.alert('Firestore change committed. Sheets projection not confirmed. Do not retry; operation: '+receipt.operationId);
    return;
   }
-  mergeRowInPlace(auditId,{extensionApplied:command==='apply',extApplied:command==='apply'});
+  mergeRowInPlace(auditId,{extensionApplied:command==='apply',extApplied:command==='apply'});updateExtendedScopeCodes20(auditId,obligation.scopeCode,command==='apply');
   document.getElementById('status').textContent='EXT '+(command==='undo'?'undone':'applied')+' · projection confirmed';
  }catch(e){window.alert('EXT/Undo not performed: '+String(e.message||e))}
  finally{busyAudits.delete(auditId);button.disabled=false}
 }
-function grid4ScopeBadges(r){var raw=String(r.scopesText||"").trim()?String(r.scopesText).split(","):(Array.isArray(r.scopes)?r.scopes:[]);var lookup=r.scopeStyles&&typeof r.scopeStyles==="object"?r.scopeStyles:{};return raw.map(function(item){var code=String(typeof item==="string"?item:(item.scopeCode||item.displayName||item.slotKey||"")).trim();if(!code)return"";var meta=lookup[code]||{},bg=/^#[0-9a-f]{6}$/i.test(String(meta.Color||""))?meta.Color:"#f1f5f9",fg=/^#[0-9a-f]{6}$/i.test(String(meta.TextColor||""))?meta.TextColor:"#334155";return '<span class="grid4-scope-badge" style="display:inline-block;margin:1px 3px 1px 0;padding:2px 6px;border-radius:4px;background:'+bg+';color:'+fg+'">'+esc(code)+'</span>'}).join("")||esc(text(r.scopesText))}
+function grid4ScopeBadges(r){
+ var raw=String(r.scopesText||"").trim()?String(r.scopesText).split(","):(Array.isArray(r.scopes)?r.scopes:[]);
+ var lookup=r.scopeStyles&&typeof r.scopeStyles==="object"?r.scopeStyles:{};
+ var extended=new Set(Array.isArray(r.extendedScopeCodes)?r.extendedScopeCodes.map(function(s){return String(s).trim().toUpperCase()}):[]);
+ return raw.map(function(item){
+  var code=String(typeof item==="string"?item:(item.scopeCode||item.displayName||item.slotKey||"")).trim();
+  if(!code)return"";
+  var meta=lookup[code]||{},bg=/^#[0-9a-f]{6}$/i.test(String(meta.Color||""))?meta.Color:"#f1f5f9",fg=/^#[0-9a-f]{6}$/i.test(String(meta.TextColor||""))?meta.TextColor:"#334155";
+  var applied=extended.has(code.toUpperCase()),suffix=applied?' <span aria-hidden="true" style="font-weight:800">+EXT</span>':'';
+  var title=applied?' title="'+esc(code+' — Extension applied')+'"':'';
+  return '<span class="grid4-scope-badge"'+title+' style="display:inline-block;margin:1px 3px 1px 0;padding:2px 6px;border-radius:4px;background:'+bg+';color:'+fg+'">'+esc(code)+suffix+'</span>';
+ }).join("")||esc(text(r.scopesText))
+}
+function updateExtendedScopeCodes20(auditId,scopeCode,applied){
+ var row=all.find(function(x){return String(x.auditId)===String(auditId)});
+ if(!row||!scopeCode)return;
+ var codes=new Set(Array.isArray(row.extendedScopeCodes)?row.extendedScopeCodes.map(function(x){return String(x).trim()}):[]);
+ if(applied)codes.add(String(scopeCode).trim());else codes.delete(String(scopeCode).trim());
+ mergeRowInPlace(auditId,{extendedScopeCodes:Array.from(codes)});
+}
 function renderOpenRow(r){var raw=r.allowedActions||[],ui=[];if(String(actorRole).toLowerCase()==="auditor")raw=raw.filter(function(x){return x==="PLAN"||x==="ACCEPT"||x==="CANCEL"||x==="COMPLETE"});if(raw.indexOf("PLAN")>=0)ui.push({key:"plan",label:"Plan"});if(raw.indexOf("APPROVE")>=0)ui.push({key:"approve",label:"Approve"});if(raw.indexOf("ACCEPT")>=0)ui.push({key:"accept",label:"Accept"});if(raw.indexOf("COMPLETE")>=0)ui.push({key:"complete",label:"Complete"});if(raw.indexOf("CANCEL")>=0)ui.push({key:"cancel",label:"Cancel"});if(raw.indexOf("REJECT")>=0)ui.push({key:"reject",label:"Reject"});var actions=ui.map(function(a){return "<button class=\"act\" data-audit-id=\""+esc(r.auditId)+"\" data-action=\""+esc(a.key)+"\">"+esc(a.label)+"</button>"}).join(""),formalClass=hoursClass(r.requiredHours,r.hoursPlanned),loc=locationText(r),self=r.allowSelfPlanning===true||/^(true|yes|1)$/i.test(String(r.allowSelfPlanning||""))?"Yes":"No",windowText=r.planningWindowText||([r.planningWindowFrom,r.planningWindowTo].filter(Boolean).join(" → "));if(String(actorRole).toLowerCase()==='manager'&&r.statusKey==='PENDING_PLANNING')self='<button type="button" class="self-planning-toggle20" data-audit-id="'+esc(r.auditId)+'" data-next="'+(self==='Yes'?'false':'true')+'" title="Change self planning permission">'+self+'</button>';return "<tr data-audit-id=\""+esc(r.auditId)+"\"><td class=\"select-cell\"><input type=\"checkbox\" class=\"grid-select-row\" data-audit-id=\""+esc(r.auditId)+"\" "+(gridSelected.has(String(r.auditId||""))?"checked":"")+"></td><td class=\"company-cell\">"+esc(text(r.company))+"</td><td class=\"locations-cell\" title=\""+esc(loc)+"\">"+esc(text(loc))+"</td><td class=\"region-cell\">"+esc(text(r.region))+"</td>"+mapCell(r)+"<td class=\"scopes-cell\">"+grid4ScopeBadges(r)+"</td><td>"+esc(displayStatus(r.status))+"</td><td class=\"expiry-cell\">"+esc(text(compactDate(effectiveExpiry(r))))+"</td><td class=\"window-cell\"><span>"+esc(text(windowText))+"</span></td><td class=\"self-cell\">"+self+"</td><td>"+plannedDateCell(r)+"</td><td class=\"required-cell\">"+esc(text(r.requiredHours))+"</td><td class=\""+formalClass+"\">"+hoursPlannedCell(r)+"</td><td class=\"auditor-cell\">"+esc(text(r.assignedToDisplayName||r.auditorDisplayName||r.assignedTo||r.auditor))+"</td>"+alertCell(r)+"<td class=\"actions-cell\">"+actions+extensionControls(r)+"</td></tr>"}
 function renderOpen(rows){return rows.map(renderOpenRow).join("")}
 function completedAuditDateCell20(r){var recorded=String(r.executedOn||"").trim(),blocks=planningBlocks(r),days=blocks.map(function(b){return b.date+" "+b.start+"–"+b.end}).filter(Boolean);if(!recorded&&days.length)recorded=blocks[0].date;if(!recorded)return esc(text(""));var tip=days.join("\n"),extra=days.length>1?' <span class="multi-day-icon" title="'+esc(tip)+'" aria-label="All audit days">▦</span>':'';return '<span class="planned-date"'+(tip?' title="'+esc(tip)+'"':'')+'>'+esc(recorded)+'</span>'+extra}
@@ -1266,7 +1285,7 @@ if(tab==='scopes'){
     patch.extApplied=patch.extensionApplied;
     patch.planningWindowText=patch.planningWindowFrom&&patch.planningWindowTo?patch.planningWindowFrom+' → '+patch.planningWindowTo:'Separate planning required';
     patch.planningWindow=patch.planningWindowText;
-    mergeRowInPlace(o.auditId,patch);
+    mergeRowInPlace(o.auditId,patch);updateExtendedScopeCodes20(o.auditId,o.scopeCode,command==='apply');
     if(extCurrent())await loadExtObligations();
    }else{
     if(info)info.textContent='Committed to Firestore; verifying Sheets projection…';

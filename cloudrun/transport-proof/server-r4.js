@@ -2928,7 +2928,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       const ids=new Set(sourceRows.map(row=>clean(row[oi])));
       const active=links.slice(1).filter(row=>clean(row[ls]).toUpperCase()==='ACTIVE'&&clean(row[li]));
       const orphan=active.filter(row=>!ids.has(clean(row[li]))).length;
-      const statuses=new Map(planning.slice(1).filter(row=>clean(row[pa])).map(row=>[clean(row[pa]),clean(row[ps]).toUpperCase().replace(/[\\s-]+/g,'_')]));
+      const statuses=new Map(planning.slice(1).filter(row=>clean(row[pa])).map(row=>[clean(row[pa]),clean(row[ps]).toUpperCase().replace(/[\s-]+/g,'_')]));
       const pending=active.filter(row=>statuses.get(clean(row[la]))==='PENDING_PLANNING');
       const configured=new Map(config.slice(1).filter(row=>clean(row[0])).map(row=>[clean(row[0]),clean(row[1])]));
       const output={ok:true,mode:'READ_ONLY',service:'ams-fase12-dev',sourceBy:'CLOUD_RUN_SERVICE_IDENTITY',sourceConfigured:true,counts:{

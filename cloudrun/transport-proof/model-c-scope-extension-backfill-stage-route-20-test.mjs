@@ -33,6 +33,9 @@ for(const item of [
  "writerEnabled:false"
 ])assert(route.includes(item),'missing safety condition: '+item);
 for(const item of ['AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED','AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED','AMS_DEV_EXT_COMMANDS_ENABLED'])assert(route.includes(item),'writer cutover must be forbidden: '+item);
+assert(!route.includes("parsedOrigin.host!==clean(req.headers.host)"),'stage Origin may not compare against internal proxy Host');
+const proxy=read('./server-r15.js');
+assert(proxy.includes('delete headers.host'),'R15 proxy explicitly drops Host; public DEV origin must be compared to a fixed allowlist');
 assert(gate.includes("path==='/api/v1/manager/ext-model-c-stage'"),'preview must gate POST stage separately');
 assert(gate.includes("env.AMS_DEV_EXT_STAGE_ENABLED==='true'"),'default disabled');
 assert(docker.includes('COPY model-c-scope-extension-*.mjs ./'),'stage module must be included in runtime Dockerfile');

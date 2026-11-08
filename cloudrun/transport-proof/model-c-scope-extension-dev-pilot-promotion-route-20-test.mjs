@@ -35,5 +35,5 @@ assert(gate.includes("env.AMS_DEV_EXT_PILOT_PROMOTION_ENABLED==='true'"),'pilot 
 assert(ui.includes("get('ext-pilot')!=='1'"),'pilot UI must remain hidden by default');
 assert(ui.includes("typed=window.prompt('DEV only."),'UI must demand typed consent');
 assert(ui.includes("operatorWriterFreezeAttested:true"),'pilot must record explicit operator attestation');
-assert(ui.includes("initExtPilotWorkspace20();"),'Manager session must activate pilot workspace');
+assert(!ui.includes("initExtPilotWorkspace20();"),'normal Manager Grid must no longer activate a pilot promotion workspace');
 console.log('PASS guarded isolated DEV pilot promotion route and typed one-audit Manager UI');

@@ -1,0 +1,57 @@
+AMS — SCOPE-CAPACITEIT 20 EN CI-SPECIFIEKE SCOPEVARIANTEN
+Onderzoek en ontwerpbesluit | 08-11-2026
+Status: READ-ONLY REVIEW — GEEN IMPLEMENTATIE / GEEN UITBREIDING
+Bronnen: actuele AMS DEV Google Sheet, GitHub agridesk/Audit-planning (dev), AMS_SCOPE_CAPACITY_20_INTEGRATED_DESIGN_2026-10-09, AMS_CI_SCOPE_VARIANTS_RCA_2026-11-08.
+
+1. CONCLUSIE
+De limiet van 20 is een expliciete AMS 2.0-product- én programmacontrole, niet slechts een aantal zichtbare spreadsheetregels. Een CI-specifieke scopevariant met eigen ScopeCode neemt één van de 20 catalogusposities in. Een 21e distincte scope wordt bewust geweigerd. Uitbreiding naar meer dan 20 is uitgesteld naar AMS 3.0. Niets wijzigen in capaciteit, code, sheet of productieomgeving.
+
+2. ACTUELE DEV-CAPACITEIT (LIVE GECONTROLEERD 08-11-2026)
+- Config_Scopes: 9 bezette slotposities / 20 toegestaan.
+- 8 actieve scopeposities; 1 inactieve testpositie (SCOPE_09 / TESTSCOPE-2).
+- 11 onbezette posities: SCOPE_10 tot en met SCOPE_20.
+- Bestaande actieve posities SCOPE_01 t/m SCOPE_08 blijven behouden.
+- Inactieve of gearchiveerde catalogusitems tellen mee voor bezette capaciteit. SCOPE_09 mag niet automatisch worden hergebruikt. Ruimte vrijmaken vergt separaat gecontroleerd governancebesluit, geen impliciete delete.
+
+3. BEVESTIGDE TECHNISCHE AFDWINGING
+- cloudrun/transport-proof/scope-create-20.js maakt een stabiele ScopeCode en kiest de eerste vrije SCOPE_01..SCOPE_20. Bij vol: SCOPE_CAPACITY_20_REACHED. Nieuwe scope wordt INACTIEF aangemaakt en moet eerst worden geconfigureerd.
+- ScopeCreate-tests toetsen SCOPE_09, volle capaciteit 20, dubbele SlotKey/ScopeCode/DisplayName en ontbrekende kolommen.
+- Audit planning-tab heeft fysieke paren 'SCOPE_01'..'SCOPE_20' en 'Duration SCOPE_01'..'Duration SCOPE_20'. Voor 09..20 staan de kolommen aan het einde van de tab (compatibiliteitsstructuur).
+- Auditors-tab bevat ook SCOPE_09..SCOPE_20; genormaliseerde Auditor_Scope_Qualifications gebruikt Auditor_UID + ScopeCode.
+- De GAS-scope-slotbridgetest controleert 20 dynamische slotdefinities, afwijzing van 21, en afhandeling van ontbrekende fysieke legacy-kolommen. Dit ondersteunt 20, maar is geen bewijs dat elke huidige klantflow 09..20 end-to-end in productie heeft doorlopen.
+- Model C Company_Scopes, Audit_Obligations en Audit_Visit_Obligations verwijzen naar ScopeCode / Company_Scope_ID / Obligation_ID, dus de genormaliseerde laag vereist conceptueel geen extra kolom per CI.
+
+4. BETEKENIS VOOR CI-VARIANTEN
+- 'GLOBALG.A.P. — CI A' en 'GLOBALG.A.P. — CI B' krijgen elk een aparte ScopeCode, eigen regels, eigen kwalificaties/verplichtingen/EXT/ontvangers en nemen ieder een van de 20 slots in.
+- Basis-certificatieschema en scopeversie zijn conceptueel aparte metadata. Een nieuwe versie (bijv. v5 -> v6) verbruikt volgens het eerder vastgelegde ontwerp GEEN nieuw slot.
+- De CI mag nooit alleen uit de naam 'GLOBALG.A.P.' of uit een globale default-notificatie worden afgeleid. Koppel per scopevariant een gecontroleerde CI-identiteit en bevries bij verplichtingscreatie de toepasselijke beleidsversie/CI.
+- Eenzelfde bedrijf kan meer dan één CI-variant hebben. Die verplichtingen blijven onafhankelijk ook als zij fysiek in een bezoek worden uitgevoerd.
+- Het nieuwe CI-datamodel/registratieproces is nog ontwerp, niet uitgevoerd. Bestaande ScopeCodes niet hernoemen en bestaande Company_Scopes/Audit_Obligations niet automatisch van CI voorzien op basis van aannames.
+
+5. RESTERENDE CONTROLES VOOR GEBRUIK VAN NIEUWE 2.0-SLOTS
+- End-to-end bewijs per beoogde CI-variant: inactieve scope registreren -> beleid / versie -> auditor-kwalificatie -> bedrijfskoppeling -> obligation provisioning -> visit/planning -> grid/export -> EXT/Undo -> notificatie.
+- Geen automatische auditor-kwalificatie bij registratie; geen automatische company enrolment.
+- Controleer dat alle operationele paden SCOPE_09..20 lezen; aanwezigheid van kolommen en unit-tests alleen is niet genoeg.
+- Bestaande acht actieve scopes en historische audits behouden exact hun identiteit/beleid.
+- CI-specifieke notificaties zijn nog niet geïmplementeerd. Bestaande Notification_Config heeft EXTENSION_APPLIED en EXTENSION_UNDONE, maar de huidige EXT-writer maakt geen externe notificatie-intents. Beheer van ontvanger, buffer en annulering vereist aparte ontwikkeling.
+
+6. BESLUIT 2.0 VS 3.0
+AMS 2.0:
+- Harde cap 20 handhaven, inclusief CI-varianten.
+- Geen capaciteit toevoegen, geen 21e scope toelaten.
+- Alleen binnen vrije posities nieuwe scopevarianten na volledige veiligheids-/kwaliteitstoets.
+- Eerst CI-identiteit en notificatie-architectuur uitwerken; geen automatische retroactieve toewijzing.
+
+AMS 3.0 (UITGESTELD):
+- Evaluatie van limiet >20, migratie van slot/legacy kolomafhankelijkheden naar volledig genormaliseerd dynamisch schema.
+- Performance- en regresstesten voor tientallen/meer varianten en per-CI configuratie/rapportage.
+- Eventueel herzien van capaciteitsmodel, UI en licentiebeleid, via afzonderlijk besluit.
+
+7. RISICO'S / STATUS
+- 20 is een feitelijk in code afgedwongen maximum en een productafspraak.
+- 11 vrije slots is de feitelijke DEV-stand per 08-11-2026, geen garantie voor PROD.
+- De CI-variantarchitectuur consumeert 20-slots maar is nog niet geïmplementeerd.
+- 09..20 zijn structureel voorbereid; voor volledige operationalisering blijft end-to-end acceptatie per feature vereist.
+- Geen wijziging aangebracht in DEV/PROD of gegevens.
+
+BESLUIT: capaciteit 20 blijft ongewijzigd; uitbreiding is een afzonderlijk AMS 3.0-onderwerp.

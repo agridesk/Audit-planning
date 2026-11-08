@@ -26,7 +26,7 @@ const fetchImpl=async(url,options={})=>{
  assert(writes[0].update.name.endsWith('/ams_scope_extension_20_dev_auditcontext/AUD_TEST'));
  assert(writes[1].update.name.includes('ams_scope_extension_20_dev_event/EXT_WRITER_PROMOTION_'));
  assert.deepEqual(writes.slice(2).map(x=>x.verify.split('/').at(-1)),['OBL_A','OBL_B']);
- for(const write of writes){const path=write.verify||write.update?.name;const previous=docs.get(path);
+ for(const write of writes){const path=documentUrl(write.verify||write.update?.name);const previous=docs.get(path);
   if(write.currentDocument.exists===false)assert(!previous,'event must not be overwritten');
   if(write.currentDocument.updateTime)assert.equal(previous?.updateTime,write.currentDocument.updateTime,'atomic precondition');
  }

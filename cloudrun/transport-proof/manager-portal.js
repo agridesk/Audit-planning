@@ -534,7 +534,7 @@ function setTabs(){document.getElementById("completedView").style.background=cur
 function loadSwap20CanonicalGridDates(seq){
  var role=String(actorRole).toLowerCase();if(role!=="manager"&&role!=="auditor")return Promise.resolve();
  return fetch(role==="auditor"?"/api/v1/auditor/swap20/canonical-grid-dates":"/api/v1/manager/swap20/canonical-grid-dates",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:"{}"})
- .then(function(r){return r.text().then(function(raw){var x;try{x=JSON.parse(raw)}catch{throw Error(r.status===403&&raw.trim()==="ORIGIN_REJECTED"?"SWAP_CANONICAL_GRID_ORIGIN_REJECTED":"SWAP_CANONICAL_GRID_HTTP_"+r.status)}if(!r.ok||x.ok!==true||!Array.isArray(x.rows))throw Error(String(x.code||"SWAP_CANONICAL_GRID_UNAVAILABLE"));return x;})})
+ .then(function(r){return r.text().then(function(raw){var x;try{x=JSON.parse(raw)}catch{throw Error(r.status===403&&raw.trim()==="ORIGIN_REJECTED"?"SWAP_CANONICAL_GRID_ORIGIN_REJECTED":"SWAP_CANONICAL_GRID_HTTP_"+r.status)}if(r.status===423&&x.code==="AMS_EXT_PREVIEW_READ_ONLY")throw Error("AMS_EXT_PREVIEW_READ_ONLY");if(!r.ok||x.ok!==true||!Array.isArray(x.rows))throw Error(String(x.code||"SWAP_CANONICAL_GRID_UNAVAILABLE"));return x;})})
  .then(function(result){
   if(seq!==enrichmentSeq||currentView!=="open")return;
   var by=new Map(result.rows.map(function(x){return [String(x.auditId),x];}));

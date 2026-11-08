@@ -52,7 +52,7 @@ function CBN20_context_(ss){
  var queue=CBN20_table_(ss.getSheetByName('Notification Queue'),['Status','Type','Recipient','PayloadHash','Reserved']);
  return{outbox:outbox,obligations:obligations,scopes:scopes,bodies:bodies,config:config,templates:templates,queue:queue};
 }
-function CBN20_validateRecipient_(context,event){
+function CBN20_validateRecipient_(context,event,requireDelivery){
  var obligation=CBN20_row_(context.obligations,'Obligation_ID',event.Obligation_ID).row;
  var scope=CBN20_row_(context.scopes,'ScopeCode',event.ScopeCode).row;
  var cid=event.Certification_Body_ID;
@@ -64,9 +64,10 @@ function CBN20_validateRecipient_(context,event){
  if(!CBN20_yes_(context.scopes.get(scope,'Active')))throw Error('CB_NOTIFICATION_SCOPE_INACTIVE');
  var body=CBN20_row_(context.bodies,'Certification_Body_ID',cid).row;
  var email=context.bodies.get(body,'Notification_Email').toLowerCase();
- if(!CBN20_yes_(context.bodies.get(body,'Active'))||!CBN20_yes_(context.bodies.get(body,'Email_Verified'))
+ if(!CBN20_yes_(context.bodies.get(body,'Active')))throw Error('CB_NOTIFICATION_BODY_INACTIVE');
+ if(requireDelivery!==false&&(!CBN20_yes_(context.bodies.get(body,'Email_Verified'))
    ||!CBN20_yes_(context.bodies.get(body,'Notification_Enabled'))
-   ||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('CB_NOTIFICATION_RECIPIENT_DISABLED_OR_UNVERIFIED');
+   ||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)))throw Error('CB_NOTIFICATION_RECIPIENT_DISABLED_OR_UNVERIFIED');
  return{email:email,name:context.bodies.get(body,'Display_Name'),
   state:CBN20_yes_(context.obligations.get(obligation,'Extension_Applied'))?'APPLIED':'NOT_APPLIED'};
 }
@@ -110,7 +111,7 @@ function CB_Extension_Outbox_ReconcileLocked_(){
   var activeEvents=events.filter(function(e){return ['BUFFERED','BLOCKED','FAILED','QUEUED'].indexOf(ctx.outbox.get(e.row,'Status'))>=0;});
   if(!activeEvents.length)continue;
   try{
-   var validated=CBN20_validateRecipient_(ctx,latest);
+   var validated=CBN20_validateRecipient_(ctx,latest,false);
    var state=validated.state;
    if(state===delivered){
     for(var j=0;j<activeEvents.length;j++){
@@ -133,6 +134,7 @@ function CB_Extension_Outbox_ReconcileLocked_(){
     }
    }
    if(Date.now()<due){result.buffered++;continue;}
+   validated=CBN20_validateRecipient_(ctx,latest,true);
    var eventKey=CBN20_noticeKey_(state),cfg=CBN20_row_(ctx.config,'EVENT_KEY',eventKey).row;
    var buffer=Number(ctx.config.get(cfg,'BUFFER_MINUTES'));
    if(!isFinite(buffer)||buffer<10||buffer>1440)throw Error('CB_NOTIFICATION_MIN_BUFFER_10_REQUIRED');

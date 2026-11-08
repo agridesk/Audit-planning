@@ -13,7 +13,7 @@ const pending={auditId:'A',statusKey:'PENDING_PLANNING',scopes:['MPS-GAP'],exten
 assert.match(render(pending),/ext-single[^>]*>\+<\/button>/,'one eligible scope: direct action, not dossier navigation');
 assert.match(render({...pending,extensionApplied:true}),/ext-single[^>]*>↶<\/button>/,'one applied scope: direct Undo action');
 assert.equal(render({...pending,extDirectActionAvailable:false}),'','unauthorized single-scope command must not be offered');
-assert.match(render({...pending,extendedScopeCodes:['MPS-GAP'],extensionApplied:false}),/ext-single[^>]*>↶<\\/button>/,'canonical extension state drives Undo, not stale planning summary');
+assert.match(render({...pending,extendedScopeCodes:['MPS-GAP'],extensionApplied:false}),/ext-single[^>]*>↶<\/button>/,'canonical extension state drives Undo, not stale planning summary');
 const multi={...pending,scopes:['MPS-GAP','GRASP'],eligibleExtensionScopes:['GRASP']};
 assert.match(render(multi),/ext-manage/,'multiple eligible scopes: Manage Extensions');
 assert.equal(render({...multi,extDossierAvailable:false}),'','multi-scope dossier without Model C links must not be offered');

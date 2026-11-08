@@ -971,10 +971,11 @@ async function proxy(req,res){
 http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url||'/','http://localhost');
-  // Isolated IAP-secured copy: read-only navigation while canonical DEV stays frozen.
+  // DEV maintenance closes every HTTP entry point unless the isolated copy has a strict read-only gate.
+  // No mutation, session or method may bypass the writer freeze on the canonical service.
   // The existing maintenance switch remains enabled in both services.
   const extPreview=extReadOnlyPreview20(process.env);
-  if(runtime.isDev&&process.env.AMS_DEV_MAINTENANCE_MODE==='true'&&!extPreview){
+  if(process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_MAINTENANCE_MODE==='true'&&!extPreview){
    res.writeHead(503,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','retry-after':'300'});
    res.end(JSON.stringify({ok:false,code:'AMS_DEV_MAINTENANCE',message:'DEV maintenance: all requests are temporarily unavailable'}));return;
   }

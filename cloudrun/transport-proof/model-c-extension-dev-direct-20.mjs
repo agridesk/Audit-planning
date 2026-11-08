@@ -50,7 +50,8 @@ export function inspectDevScopeExtension20({obligationRows,linkRows,planningRows
   const validDates=!!rec.baseExpiry&&!!rec.effectiveExpiry&&!!rec.windowFrom&&!!rec.windowTo&&rec.windowFrom<=rec.windowTo;
   const base=auditId&&status.get(auditId)==='PENDING_PLANNING'&&rec.triggerSource.toUpperCase()!=='ECAS'&&validDates&&!!validPolicy;
   const legacyUndone=!!(base&&!rec.extensionApplied&&meta?.source==='CLOUD_RUN_DIRECT_MANAGER_EXTENSION'
-    &&meta?.undo===true&&Number(meta.months)===rec.policy.months&&rec.effectiveExpiry===rec.baseExpiry);
+    &&meta?.undo===true&&Number(meta.months)===rec.policy.months&&rec.effectiveExpiry===rec.baseExpiry
+    &&rec.windowFrom===addMonths(rec.baseExpiry,rec.policy.from)&&rec.windowTo===addMonths(rec.baseExpiry,rec.policy.to));
   rec.canApply=!!(base&&!rec.extensionApplied&&(!rec.extensionMetadata||legacyUndone));
   const legacyUndo=base&&rec.extensionApplied&&meta?.source==='CLOUD_RUN_DIRECT_MANAGER_EXTENSION'
     &&meta?.undo!==true&&Number(meta.months)===rec.policy.months&&!!rec.baseExpiry
@@ -70,12 +71,12 @@ export function planDevScopeExtension20({snapshot,auditId,companyUid,obligationI
  if(!snapshot||!['apply','undo'].includes(command)||!t(auditId)||!t(companyUid)||!t(obligationId)||!t(requestId)||!t(actorUid)||t(requestId).length>180)throw Error('EXT_DEV_COMMAND_INVALID');
  const id=t(obligationId),rec=snapshot.obligations.get(id),ids=snapshot.byAudit.get(t(auditId))||[];
  if(!rec||rec.companyUid!==companyUid||rec.auditId!==auditId||!ids.includes(id)||ids.length>100||!(command==='apply'?rec.canApply:rec.canUndo))throw Error('EXT_DEV_SCOPE_NOT_ELIGIBLE');
- const before={effectiveExpiry:rec.effectiveExpiry,windowFrom:rec.windowFrom,windowTo:rec.windowTo,extensionApplied:rec.extensionApplied,extensionMetadata:rec.extensionMetadata};
+ const before={effectiveExpiry:rec.effectiveExpiry,windowFrom:rec.windowFrom,windowTo:rec.windowTo,extensionApplied:rec.extensionApplied,extensionMetadata:command==='apply'&&rec.extensionMetadata?'':rec.extensionMetadata};
  let after;
  if(command==='apply'){
   const effectiveExpiry=addMonths(rec.effectiveExpiry,rec.policy.months),windowFrom=addMonths(effectiveExpiry,rec.policy.from),windowTo=addMonths(effectiveExpiry,rec.policy.to);
   if(windowFrom>windowTo)throw Error('EXT_DEV_POLICY_WINDOW_INVALID');
-  after={effectiveExpiry,windowFrom,windowTo,extensionApplied:true,extensionMetadata:JSON.stringify({source:'AMS_DEV_MODEL_C_SCOPE_EXTENSION_20',transactionId:requestId,actorUid,scopeCode:rec.scopeCode,months:rec.policy.months,before})};
+  after={effectiveExpiry,windowFrom,windowTo,extensionApplied:true,extensionMetadata:JSON.stringify({source:'AMS_DEV_MODEL_C_SCOPE_EXTENSION_20',transactionId:requestId,actorUid,scopeCode:rec.scopeCode,months:rec.policy.months,before,...(rec.extensionMetadata?{priorLegacyUndoMetadata:rec.extensionMetadata}:{})})};
  }else{
   const meta=JSON.parse(rec.extensionMetadata);
   if(meta.source==='CLOUD_RUN_DIRECT_MANAGER_EXTENSION'){

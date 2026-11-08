@@ -28,6 +28,13 @@ for(const path of commandRoutes){
  assert.equal(allowed({method:'POST',path,env:base}),false,'current preview remains read-only');
 }
 assert.equal(allowed({method:'POST',path:'/api/v1/manager/extension-direct',env:verified}),false,'legacy extension direct writer is never opened');
+const stagePath='/api/v1/manager/ext-model-c-stage';
+assert.equal(allowed({method:'POST',path:stagePath,env:base}),false,'stage disabled by default');
+assert.equal(allowed({method:'POST',path:stagePath,env:{...base,AMS_DEV_EXT_STAGE_ENABLED:'true'}}),true,'explicit isolated DEV stage gate is distinct from extension writer gate');
+assert.equal(allowed({method:'POST',path:stagePath,env:{...base,AMS_DEV_EXT_STAGE_ENABLED:'true',AMS_DEV_EXT_COMMANDS_ENABLED:'true'}}),false,'never stage once EXT writers are active');
+assert.equal(allowed({method:'POST',path:stagePath,env:{...base,AMS_DEV_EXT_STAGE_ENABLED:'true',AMS_SCOPE_EXTENSION_AUTHORITY:'FIRESTORE'}}),false,'never stage over active Firestore authority');
+assert.equal(allowed({method:'POST',path:stagePath,env:{...base,AMS_DEV_EXT_STAGE_ENABLED:'true',K_SERVICE:'ams-transport-proof'}}),false,'never stage on canonical DEV service');
+
 const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const sourceRoute=r4.slice(r4.indexOf("if(u.pathname==='/api/v1/manager/ext-model-c-source-preflight'"),r4.indexOf("if(u.pathname==='/api/v1/manager/company-management/extension-obligations'"));
 assert(sourceRoute.includes("process.env.K_SERVICE!=='ams-fase12-dev'"),'only isolated DEV service may read aggregates');

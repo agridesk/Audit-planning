@@ -85,6 +85,16 @@ assert.equal(driftUndo.expected.windowTo,'2026-10-02','Undo must not reinstate o
 assert.equal(driftUndo.expected.extensionMetadata,'','stale legacy Undo marker no longer blocks future application');
 for(const [key,value] of Object.entries({Extension_Applied:'',Extension_Metadata_JSON:'',Effective_Expiry_Date:driftUndo.expected.effectiveExpiry,Planning_Window_From:driftUndo.expected.windowFrom,Planning_Window_To:driftUndo.expected.windowTo}))driftRows[2][oh.indexOf(key)]=value;
 assert.equal(inspect(driftInput()).obligations.get('CHILD').canApply,true,'repeated apply must remain possible');
+const changedMonthsMeta=JSON.stringify({source:'CLOUD_RUN_DIRECT_MANAGER_EXTENSION',months:3,undo:true,actorEmail:'legacy.manager@example.test'});
+const changedMonthsRows=[oh,['NEWPOL','C7','GRASP','CERTIFICATE_LIFECYCLE','2026-12-02','2026-12-02','2026-08-02','2026-11-02','',changedMonthsMeta]];
+const changedMonthsInput={obligationRows:changedMonthsRows,linkRows:[lh,['CHANGED_AUDIT','NEWPOL','ACTIVE']],planningRows:[ph,['CHANGED_AUDIT','Pending Planning','2026-12-02','','2026-08-02','2026-11-02']],scopeRows:driftScopeRows,companyUid:'C7'};
+const changedMonths=inspect(changedMonthsInput);
+assert.equal(changedMonths.records[0].canApply,true,'historical EXT duration may differ from current governed scope policy after Undo');
+const changedPlan=plan({snapshot:changedMonths,auditId:'CHANGED_AUDIT',companyUid:'C7',obligationId:'NEWPOL',command:'apply',requestId:'POLICY_NEW_MONTHS',actorUid:'M1'});
+assert.equal(changedPlan.expected.effectiveExpiry,'2027-04-02','new Apply must use current policy months, not historical EXT duration');
+const invalidDurationRows=[oh,['BAD_DURATION','C8','GRASP','CERTIFICATE_LIFECYCLE','2026-12-02','2026-12-02','2026-08-02','2026-11-02','',JSON.stringify({source:'CLOUD_RUN_DIRECT_MANAGER_EXTENSION',months:99,undo:true})]];
+assert.equal(inspect({obligationRows:invalidDurationRows,linkRows:[lh,['BAD_DUR_A','BAD_DURATION','ACTIVE']],planningRows:[ph,['BAD_DUR_A','Pending Planning','2026-12-02','','2026-08-02','2026-11-02']],scopeRows:driftScopeRows,companyUid:'C8'}).records[0].canApply,false,'unbounded legacy months must not grant EXT authorization');
+
 const staleWindow=[oh,['BAD2','C6','GRASP','CERTIFICATE_LIFECYCLE','2026-12-02','2026-12-02','2026-07-15','2026-11-02','',driftLegacyMeta]];
 assert.equal(inspect({obligationRows:staleWindow,linkRows:[lh,['BAD_A2','BAD2','ACTIVE']],planningRows:[ph,['BAD_A2','Pending Planning','2026-12-02','','2026-07-15','2026-11-02']],scopeRows:driftScopeRows,companyUid:'C6'}).records[0].canApply,false,'arbitrary historic dates are not accepted as policy-aligned Undo');
 

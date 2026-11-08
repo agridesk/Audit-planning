@@ -12,7 +12,8 @@ export function createScopeExtensionFirestoreStore20({projectId,getToken,fetchIm
  if(migrationVerified!==true||writerFenceVerified!==true)throw Error('EXT_FIRESTORE_CUTOVER_UNVERIFIED');
  if(!/^[a-z][a-z0-9-]{4,62}$/.test(projectId||'')||typeof getToken!=='function'||!id(prefix)||!databaseId)throw Error('EXT_FIRESTORE_CONFIG_INVALID');
  const base='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(projectId)+'/databases/'+encodeURIComponent(databaseId)+'/documents';
- const doc=(kind,key)=>{if(!['obligation','event','outbox','auditcontext'].includes(kind)||!id(key))throw Error('EXT_FIRESTORE_DOCUMENT_ID_INVALID');return base+'/'+prefix+'_'+kind+'/'+encodeURIComponent(key)};
+ const documentName=(kind,key)=>{if(!['obligation','event','outbox','auditcontext'].includes(kind)||!id(key))throw Error('EXT_FIRESTORE_DOCUMENT_ID_INVALID');return 'projects/'+projectId+'/databases/'+databaseId+'/documents/'+prefix+'_'+kind+'/'+encodeURIComponent(key)};
+ const doc=(kind,key)=>'https://firestore.googleapis.com/v1/'+documentName(kind,key);
  async function request(url,method='GET',body){const token=await getToken();if(!token)throw Error('EXT_FIRESTORE_TOKEN_MISSING');return fetchImpl(url,{method,headers:{authorization:'Bearer '+token,...(body?{'content-type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})})}
  async function runAtomic({obligationId,auditId,scopeCode,expectedRevision,idempotencyKey,requestDigest,action,actorId,execute}={}){
   if(![obligationId,auditId,scopeCode,idempotencyKey,requestDigest,actorId].every(id)||!Number.isSafeInteger(expectedRevision)||expectedRevision<0||!['apply','undo'].includes(action)||typeof execute!=='function')throw Error('EXT_FIRESTORE_COMMAND_INVALID');

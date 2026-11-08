@@ -4,10 +4,12 @@ const html=fs.readFileSync(new URL('./manager-portal.html',import.meta.url),'utf
 const r10=fs.readFileSync(new URL('./server-r10.js',import.meta.url),'utf8');
 const r12=fs.readFileSync(new URL('./server-r12.js',import.meta.url),'utf8');
 const r4=fs.readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
-const recoverExtensionStart=manager.indexOf('function recoverExtension');
-const runExtensionStart=manager.indexOf('function runExtension');
-const recoverExtensionBody=(recoverExtensionStart>=0&&runExtensionStart>recoverExtensionStart)?manager.slice(recoverExtensionStart,runExtensionStart):'';
-const runExtensionBody=runExtensionStart>=0?manager.slice(runExtensionStart):'';
+const singleStart=manager.indexOf('async function runSingleScopeExtension20(button){');
+const singleEnd=manager.indexOf('function grid4ScopeBadges(r){',singleStart);
+const singleExtensionBody=singleStart>=0&&singleEnd>singleStart?manager.slice(singleStart,singleEnd):'';
+const multiStart=manager.indexOf('async function extAction(o,command){');
+const multiEnd=manager.indexOf('function showExtObligations(data){',multiStart);
+const multiExtensionBody=multiStart>=0&&multiEnd>multiStart?manager.slice(multiStart,multiEnd):'';
 const checks=[
 ['1.0 parity columns', ['Company','Locations','Region','GPS / Map','Scopes','Status','Expiration date','Planning window','Self planning','Date planned','To be planned','Hours planned','Auditor','Actions'].every(x=>manager.includes(x))],
 ['single planning entry only',!manager.includes('<th>Planning 2.0</th>')&&!manager.includes('class=\"planning2-cell\"')&&manager.includes('ui.push({key:"plan",label:"Plan"})')&&manager.includes('if(action==="plan"){var w=window.open("/planning?auditId="')],
@@ -36,13 +38,13 @@ const checks=[
 
 ['multi-day icon shares full planning tooltip',manager.includes("class=\"multi-day-icon\"'+(tip?' title=\"'+esc(tip)+'\"':'')")],['non-recurring annual planning window comes from Model C plus Config_Scopes',r10.includes('function managerAnnualWindowCatalog')&&r10.includes('managerResolvedVisitWindow')&&r10.includes("sheetValues('Audit_Obligations!A1:Z1024')")&&r10.includes("sheetValues('Audit_Visit_Obligations!A1:Z1024')")&&r10.includes("cfg.obligationCycle!=='ANNUAL'")],
 ['auditor UI uses display-name projection',manager.includes('assignedToDisplayName||r.auditorDisplayName')&&r10.includes('managerAuditorDisplayMap')],
-['extension apply undo controls',manager.includes('Undo applied extension')&&manager.includes('Apply extension (+')],
-['undo remains available after canonical apply',manager.includes('if(applied)return')&&manager.includes('data-extension=\\"undo\\"')],
-['extension uses canonical endpoint',runExtensionBody.includes("fetch('/api/v1/manager/extension-direct'")],
-['extension same row patch',manager.includes('mergeRowInPlace(auditId,x.patch)')],
-['extension ambiguous response recovery',manager.includes('recoverExtension')&&manager.includes('rereadEnrichedAudit(auditId)')&&manager.includes('CANONICAL_EXTENSION_NOT_COMMITTED')],
-['extension recovery never repeats write',recoverExtensionBody.length>0&&!recoverExtensionBody.includes('/api/v1/manager/extension')],
-['extension no full reload',!manager.includes('location.reload(')],
+['extension apply undo controls',manager.includes('function extensionControls(r){')&&manager.includes('ext-single')&&manager.includes('ext-manage')&&manager.includes("command==='undo'?'Undo':'EXT")],
+['undo remains available after canonical apply',manager.includes("applied?'↶':'+'")&&singleExtensionBody.includes("obligation.extensionApplied===true?'undo':'apply'")&&multiExtensionBody.includes("if(command==='undo')body.extensionTransactionId=o.extensionTransactionId")],
+['extension uses canonical endpoint',singleExtensionBody.includes("fetch('/api/v1/manager/extension-obligation-command'")&&multiExtensionBody.includes("extPost('/api/v1/manager/extension-obligation-command'")&&!singleExtensionBody.includes("fetch('/api/v1/manager/extension-direct'")],
+['extension scope-specific refresh',multiExtensionBody.includes('await loadExtObligations()')&&singleExtensionBody.includes('window.location.reload()')],
+['extension ambiguous response recovery',multiExtensionBody.includes('var committed=false')&&multiExtensionBody.includes('Do not resubmit')&&singleExtensionBody.includes('Do not retry before reconciliation')],
+['extension recovery never repeats write',!singleExtensionBody.includes('recoverExtension(')&&multiExtensionBody.includes("var requestId=window.crypto.randomUUID()")&&multiExtensionBody.includes('projection requires recovery')],
+['extension reload only after verified projection',singleExtensionBody.indexOf("projected?.state!=='PROJECTED'")>=0&&singleExtensionBody.indexOf('window.location.reload()')>singleExtensionBody.indexOf("projected?.state!=='PROJECTED'")],
 ['server bulk enrichment endpoint',r10.includes("u.pathname==='/api/v1/manager/open-enrichment'")],
 ['server extension endpoint',r10.includes("u.pathname==='/api/v1/manager/extension'")],
 ['server enrichment bridge',r10.includes("'externalmanageropenenriched'")],

@@ -7,7 +7,7 @@ const badgeStart=ui.indexOf('function grid4ScopeBadges(r){');
 const badgeEnd=ui.indexOf('function renderOpenRow(r){',badgeStart);
 assert(badgeStart>=0&&badgeEnd>badgeStart,'grid scope badge renderer');
 const code=ui.slice(badgeStart,badgeEnd);
-const ctx={esc:x=>String(x),text:x=>String(x??''),all:[],mergeRowInPlace(auditId,patch){const row=this.all.find(r=>r.auditId===auditId);Object.assign(row,patch)}};
+const ctx={esc:x=>String(x),text:x=>String(x??''),all:[],mergeRowInPlace(auditId,patch){const row=ctx.all.find(r=>r.auditId===auditId);Object.assign(row,patch)}};
 vm.runInNewContext(code,ctx);
 const row={auditId:'A',scopes:['MPS-GAP','GRASP','MPS-ABC'],extendedScopeCodes:['MPS-GAP']};
 ctx.all.push(row);

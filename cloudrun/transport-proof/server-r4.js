@@ -2909,6 +2909,38 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       result.readOnly=true;result.actorRole='AUDITOR';result.activeAuditors=[];result.membershipDiagnostics={visibleCompanies:result.companies.length,openCompanyUidCount:openCompanyUids.size,completedCompanyUidCount:completedCompanyUids.size,combinedUniqueCompanyUids:uids.size,legacyNameFallbackCount:names.size,identityMode:'UID_FIRST'};return send(res,200,result);
     }catch(e){return send(res,409,{ok:false,error:'AUDITOR_COMPANY_READ_FAILED',detail:clean(e?.message||e)})}
   }
+  if(u.pathname==='/api/v1/manager/ext-model-c-source-preflight'&&req.method==='GET'){
+    // Isolated DEV preview only: bounded aggregate source evidence, no identifiers or mutations.
+    if(process.env.AMS_RUNTIME_ENV!=='DEV'||process.env.K_SERVICE!=='ams-fase12-dev')return send(res,404,{ok:false,error:'NOT_FOUND'});
+    const actor=await sessionFromRequestValidated(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    try{
+      if(!SID)return send(res,409,{ok:false,error:'DEV_SOURCE_NOT_CONFIGURED'});
+      const vr=await sheetsBatchGet(['Audit_Obligations!A1:Z2500','Audit_Visit_Obligations!A1:F2500','Audit planning!A1:CN2500','Config_Scopes!A1:Z128','System_Config!A1:C100']);
+      if(vr.length!==5)throw Error('EXT_SOURCE_RANGES_INCOMPLETE');
+      const ob=vr[0]?.values||[],links=vr[1]?.values||[],planning=vr[2]?.values||[],scopes=vr[3]?.values||[],config=vr[4]?.values||[];
+      const oh=ob[0]||[],lh=links[0]||[],ph=planning[0]||[];
+      const oi=oh.indexOf('Obligation_ID'),oc=oh.indexOf('Company_UID'),li=lh.indexOf('Obligation_ID'),la=lh.indexOf('Audit_ID'),ls=lh.indexOf('Link_State');
+      const pa=ph.indexOf('Audit ID')>=0?ph.indexOf('Audit ID'):ph.indexOf('Audit_ID'),ps=ph.indexOf('Status');
+      const columnsValid=[oi,oc,li,la,ls,pa,ps].every(i=>i>=0);
+      if(!columnsValid)return send(res,409,{ok:false,error:'EXT_SOURCE_HEADERS_INVALID',checks:{obligationId:oi>=0,companyUid:oc>=0,linkObligation:li>=0,linkAudit:la>=0,linkState:ls>=0,auditId:pa>=0,auditStatus:ps>=0}});
+      const sourceRows=ob.slice(1).filter(row=>clean(row[oi]));
+      const ids=new Set(sourceRows.map(row=>clean(row[oi])));
+      const active=links.slice(1).filter(row=>clean(row[ls]).toUpperCase()==='ACTIVE'&&clean(row[li]));
+      const orphan=active.filter(row=>!ids.has(clean(row[li]))).length;
+      const statuses=new Map(planning.slice(1).filter(row=>clean(row[pa])).map(row=>[clean(row[pa]),clean(row[ps]).toUpperCase().replace(/[\\s-]+/g,'_')]));
+      const pending=active.filter(row=>statuses.get(clean(row[la]))==='PENDING_PLANNING');
+      const configured=new Map(config.slice(1).filter(row=>clean(row[0])).map(row=>[clean(row[0]),clean(row[1])]));
+      const output={ok:true,mode:'READ_ONLY',service:'ams-fase12-dev',sourceBy:'CLOUD_RUN_SERVICE_IDENTITY',sourceConfigured:true,counts:{
+       obligations:sourceRows.length,uniqueObligations:ids.size,activeLinks:active.length,orphanActiveLinks:orphan,pendingPlanningActiveLinks:pending.length,
+       auditRows:planning.slice(1).filter(row=>clean(row[pa])).length,scopeDefinitions:scopes.slice(1).filter(row=>row.some(value=>clean(value))).length
+      },checks:{sourceUniqueObligations:sourceRows.length===ids.size,activeLinksResolve:orphan===0,
+       devSourceFrozen:configured.get('ENV')==='DEV'&&configured.get('ALLOW_DEV_WRITES')==='FALSE'&&configured.get('DEV_WRITE_MODE')==='BLOCK'},
+       writerFlags:{migrationVerified:process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED==='true',writerFenceVerified:process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED==='true',commandsEnabled:process.env.AMS_DEV_EXT_COMMANDS_ENABLED==='true'},
+       canEnableWriters:false,unverified:['Firestore migration parity','GAS legacy writer fencing','Writer cutover']};
+      return send(res,200,output);
+    }catch(e){console.error('EXT_SOURCE_PREFLIGHT_FAILED',clean(e?.message||e).slice(0,150));return send(res,409,{ok:false,error:'EXT_SOURCE_PREFLIGHT_UNAVAILABLE'});}
+  }
   if(u.pathname==='/api/v1/manager/company-management/extension-obligations'&&req.method==='GET'){
     const actor=await sessionFromRequestValidated(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});

@@ -7,13 +7,7 @@ const b=server.indexOf("if(u.pathname==='/api/v1/manager/ext-model-c-pilot-prefl
 assert(a>0&&b>a,'single-audit pilot promotion route missing');
 const route=server.slice(a,b);
 for(const clause of [
- "process.env.K_SERVICE!=='ams-fase12-dev'",
- "process.env.AMS_RUNTIME_ENV!=='DEV'",
- "process.env.AMS_DEV_EXT_PILOT_PROMOTION_ENABLED!=='true'",
- "process.env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE'",
- "process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true'",
- "process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true'",
- "process.env.AMS_DEV_EXT_COMMANDS_ENABLED!=='true'",
+ "isolatedExtPilot20()",
  "origin!=='https://ams-fase12-dev-510075419067.europe-west1.run.app'",
  "sessionFromRequestValidated(req)",
  "clean(actor.role).toLowerCase()!=='manager'",
@@ -31,6 +25,10 @@ for(const clause of [
  "after.sourceManifest!==expectedHash",
  "otherAuditContextsRemainUnverified:true"
 ])assert(route.includes(clause),'missing guarded DEV pilot contract: '+clause);
+const pilotGate=server.slice(server.indexOf('function isolatedExtPilot20(){'),server.indexOf('async function verifiedAuditorLockDevProject()',server.indexOf('function isolatedExtPilot20(){')));
+for(const clause of ["process.env.K_SERVICE==='ams-fase12-dev'","process.env.AMS_RUNTIME_ENV==='DEV'","process.env.AMS_DEV_EXT_PILOT_PROMOTION_ENABLED==='true'","process.env.AMS_DEV_EXT_COMMANDS_ENABLED==='true'","process.env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE'","process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true'","process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true'"]){
+ assert(pilotGate.includes(clause),'isolated pilot runtime guard missing '+clause);
+}
 assert(!route.includes('store.stage(')&&!route.includes('process.env.AMS_SCOPE_EXTENSION_AUTHORITY='),'pilot must neither restage nor modify runtime cutover flags');
 assert(gate.includes("path==='/api/v1/manager/ext-model-c-pilot-promote'"),'pilot action must be preview gated');
 assert(gate.includes("env.AMS_DEV_EXT_PILOT_PROMOTION_ENABLED==='true'"),'pilot action requires explicit env flag');

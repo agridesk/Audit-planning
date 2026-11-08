@@ -42,7 +42,7 @@ const checks=[
 ['undo remains available after canonical apply',manager.includes("applied?'↶':'+'")&&singleExtensionBody.includes("obligation.extensionApplied===true?'undo':'apply'")&&multiExtensionBody.includes("if(command==='undo')body.extensionTransactionId=o.extensionTransactionId")],
 ['extension uses canonical endpoint',singleExtensionBody.includes("fetch('/api/v1/manager/extension-obligation-command'")&&multiExtensionBody.includes("extPost('/api/v1/manager/extension-obligation-command'")&&!singleExtensionBody.includes("fetch('/api/v1/manager/extension-direct'")],
 ['extension scope-specific refresh',multiExtensionBody.includes('await loadExtObligations()')&&singleExtensionBody.includes('window.location.reload()')],
-['extension ambiguous response recovery',multiExtensionBody.includes('var committed=false')&&multiExtensionBody.includes('Do not resubmit')&&singleExtensionBody.includes('Do not retry before reconciliation')],
+['extension ambiguous response recovery',multiExtensionBody.includes('var committed=false')&&multiExtensionBody.includes('Do not resubmit')&&singleExtensionBody.includes('do not retry before reconciliation')],
 ['extension recovery never repeats write',!singleExtensionBody.includes('recoverExtension(')&&multiExtensionBody.includes("var requestId=window.crypto.randomUUID()")&&multiExtensionBody.includes('projection requires recovery')],
 ['extension reload only after verified projection',singleExtensionBody.indexOf("projected?.state!=='PROJECTED'")>=0&&singleExtensionBody.indexOf('window.location.reload()')>singleExtensionBody.indexOf("projected?.state!=='PROJECTED'")],
 ['server bulk enrichment endpoint',r10.includes("u.pathname==='/api/v1/manager/open-enrichment'")],

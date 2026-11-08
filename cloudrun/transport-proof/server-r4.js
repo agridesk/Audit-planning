@@ -112,6 +112,37 @@ function isolatedExtPilot20(){
    &&process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true'
    &&process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true';
 }
+async function assertDevExtPilotSourceFrozen20(){
+ if(!isolatedExtPilot20())return;
+ if(SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')throw Error('EXT_PILOT_SOURCE_ID_CHANGED');
+ const result=await sheetsBatchGet(['System_Config!A1:C100']);
+ const rows=result[0]?.values||[];
+ if(rows[0]?.[0]!=='KEY'||rows[0]?.[1]!=='DEV'||rows[0]?.[2]!=='PROD')throw Error('EXT_PILOT_CONFIG_SCHEMA_CHANGED');
+ const cfg=new Map(rows.slice(1).filter(x=>clean(x[0])).map(x=>[clean(x[0]),clean(x[1])]));
+ if(cfg.get('ENV')!=='DEV'||cfg.get('ALLOW_DEV_WRITES')!=='FALSE'||cfg.get('DEV_WRITE_MODE')!=='BLOCK')throw Error('EXT_PILOT_GAS_WRITER_FREEZE_LOST');
+}
+async function assertDevExtPilotAuditEvidence20(auditId){
+ if(!isolatedExtPilot20())return;
+ auditId=clean(auditId);
+ if(!auditId||auditId.length>180||/[\\/]/.test(auditId))throw Error('EXT_PILOT_AUDIT_ID_INVALID');
+ const project=await verifiedAuditorLockDevProject();
+ if(project!=='audit-management-system-dev')throw Error('EXT_PILOT_PROJECT_NOT_DEV');
+ const root='https://firestore.googleapis.com/v1/projects/'+project+'/databases/(default)/documents/ams_scope_extension_20_dev_';
+ const headers={authorization:'Bearer '+await accessToken()};
+ const read=async(kind,key)=>{
+  const response=await fetch(root+kind+'/'+encodeURIComponent(key),{headers});
+  if(!response.ok)throw Error('EXT_PILOT_EVIDENCE_HTTP_'+response.status);
+  const fields=(await response.json()).fields?.payload?.mapValue?.fields;
+  if(!fields)throw Error('EXT_PILOT_EVIDENCE_CORRUPT');
+  return fields;
+ };
+ const ctx=await read('auditcontext',auditId);
+ const event=await read('event','EXT_WRITER_PROMOTION_'+createHash('sha256').update(auditId).digest('hex'));
+ if(ctx.writerFenceVerified?.booleanValue!==true||ctx.migrationState?.stringValue!=='WRITER_VERIFIED'
+  ||ctx.auditId?.stringValue!==auditId||!ctx.writerFreezeEvidenceRef?.stringValue?.endsWith('__PILOT_ONLY')
+  ||event.kind?.stringValue!=='MODEL_C_WRITER_PROMOTION'||event.auditId?.stringValue!==auditId
+  ||event.sourceSnapshotSha256?.stringValue!==ctx.sourceSnapshotHash?.stringValue)throw Error('EXT_PILOT_PROMOTION_EVIDENCE_MISSING');
+}
 async function verifiedAuditorLockDevProject(){
   const configured=clean(process.env.GOOGLE_CLOUD_PROJECT||process.env.GCLOUD_PROJECT||'');
   if(configured&&configured!=='audit-management-system-dev')return '';

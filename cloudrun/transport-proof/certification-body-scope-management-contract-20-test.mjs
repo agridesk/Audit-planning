@@ -16,6 +16,7 @@ assert(route.includes('certificationBodyNotificationEmail:'), 'CB email must be 
 assert(route.includes('certificationBodyNotificationReady:'), 'CB send readiness must be manager-visible');
 assert(ui.includes("['CB notification email',selected.certificationBodyNotificationEmail||'Not configured']"));
 assert(ui.includes("['CB external notifications',selected.certificationBodyNotificationReady?'Enabled':'Disabled']"));
+assert(ui.includes("button.hidden=String(actorRole).toLowerCase()!=='manager';button.onclick"),'Scope Management must be accessible to managers only');
 assert(!route.includes('recipientEmail:'),'Scope Management listing should never expose a legacy recipient fallback');
 assert(ui.includes("['Certification Body',selected.certificationBodyName||selected.certificationBodyId||'Not assigned']"));
 assert(ui.includes("var availableBodies=certificationBodies.filter(function(cb){return cb.active})"));

@@ -50,7 +50,11 @@ export function inspectDevScopeExtension20({obligationRows,linkRows,planningRows
   const validDates=!!rec.baseExpiry&&!!rec.effectiveExpiry&&!!rec.windowFrom&&!!rec.windowTo&&rec.windowFrom<=rec.windowTo;
   const base=auditId&&status.get(auditId)==='PENDING_PLANNING'&&rec.triggerSource.toUpperCase()!=='ECAS'&&validDates&&!!validPolicy;
   rec.canApply=!!(base&&!rec.extensionApplied&&!rec.extensionMetadata);
-  rec.canUndo=!!(base&&rec.extensionApplied&&meta?.source==='AMS_DEV_MODEL_C_SCOPE_EXTENSION_20'&&rec.extensionTransactionId&&meta?.before);
+  const legacyUndo=base&&rec.extensionApplied&&meta?.source==='CLOUD_RUN_DIRECT_MANAGER_EXTENSION'
+    &&meta?.undo!==true&&Number(meta.months)===rec.policy.months&&!!rec.baseExpiry
+    &&rec.effectiveExpiry===addMonths(rec.baseExpiry,rec.policy.months)
+    &&(byAudit.get(auditId)||[]).length===1;
+  rec.canUndo=!!(base&&rec.extensionApplied&&((meta?.source==='AMS_DEV_MODEL_C_SCOPE_EXTENSION_20'&&rec.extensionTransactionId&&meta?.before)||legacyUndo));
   rec.canMutate=!!(rec.canApply||rec.canUndo);
   rec.extensionMonths=validPolicy?rec.policy.months:0;
   rec.authority=rec.canMutate?'DEV_MODEL_C_SHEETS':'READ_ONLY';
@@ -72,9 +76,16 @@ export function planDevScopeExtension20({snapshot,auditId,companyUid,obligationI
   after={effectiveExpiry,windowFrom,windowTo,extensionApplied:true,extensionMetadata:JSON.stringify({source:'AMS_DEV_MODEL_C_SCOPE_EXTENSION_20',transactionId:requestId,actorUid,scopeCode:rec.scopeCode,months:rec.policy.months,before})};
  }else{
   const meta=JSON.parse(rec.extensionMetadata);
-  if(meta.source!=='AMS_DEV_MODEL_C_SCOPE_EXTENSION_20'||meta.scopeCode!==rec.scopeCode||!t(meta.transactionId)||!meta.before)throw Error('EXT_DEV_UNDO_PROVENANCE_INVALID');
-  after=meta.before;
-  if(!after||!iso(after.effectiveExpiry)||!iso(after.windowFrom)||!iso(after.windowTo)||after.extensionApplied!==false||t(after.extensionMetadata))throw Error('EXT_DEV_UNDO_SNAPSHOT_INVALID');
+  if(meta.source==='CLOUD_RUN_DIRECT_MANAGER_EXTENSION'){
+   if(meta.undo===true||Number(meta.months)!==rec.policy.months||ids.length!==1
+     ||rec.effectiveExpiry!==addMonths(rec.baseExpiry,rec.policy.months))throw Error('EXT_DEV_LEGACY_UNDO_PROVENANCE_INVALID');
+   after={effectiveExpiry:rec.baseExpiry,windowFrom:addMonths(rec.baseExpiry,rec.policy.from),
+     windowTo:addMonths(rec.baseExpiry,rec.policy.to),extensionApplied:false,extensionMetadata:''};
+  }else{
+   if(meta.source!=='AMS_DEV_MODEL_C_SCOPE_EXTENSION_20'||meta.scopeCode!==rec.scopeCode||!t(meta.transactionId)||!meta.before)throw Error('EXT_DEV_UNDO_PROVENANCE_INVALID');
+   after=meta.before;
+   if(!after||!iso(after.effectiveExpiry)||!iso(after.windowFrom)||!iso(after.windowTo)||after.extensionApplied!==false||t(after.extensionMetadata))throw Error('EXT_DEV_UNDO_SNAPSHOT_INVALID');
+  }
  }
  const changed={...rec,...after};
  const all=ids.map(k=>k===id?changed:snapshot.obligations.get(k));

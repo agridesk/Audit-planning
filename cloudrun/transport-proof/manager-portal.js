@@ -1210,7 +1210,7 @@ var addScope=el('button','+ Add scope');addScope.type='button';addScope.style.ma
 };
 status.parentNode.insertBefore(addScope,status.nextSibling);
 async function load(){status.textContent='Loading scopes…';try{var response=await fetch('/api/v1/manager/scopes',{credentials:'same-origin'}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'SCOPE_READ_FAILED');records=result.rows||[];certificationBodies=result.certificationBodies||[];status.textContent=records.length+' scopes · '+certificationBodies.length+' Certification Bodies · material changes protected';render()}catch(e){status.textContent='Scope catalog unavailable: '+e.message}}
-button.hidden=true;button.onclick=function(){if(String(actorRole).toLowerCase()!=='manager')return;panel.hidden=false;load()};
+button.hidden=String(actorRole).toLowerCase()!=='manager';button.onclick=function(){if(String(actorRole).toLowerCase()!=='manager')return;panel.hidden=false;load()};
 close.onclick=function(){var dirty=pendingEdits.some(function(e){return String(e.input.value).trim()!==String(e.initial).trim()});if(dirty&&!window.confirm('Discard unsaved scope changes?'))return;pendingEdits=[];panel.hidden=true;extensionTargetAuditId20='';extensionTargetCompanyUid20=''};search.oninput=render;filter.onchange=render;document.querySelectorAll('[data-scope-tab]').forEach(function(b){b.onclick=function(){tab=b.dataset.scopeTab;showDetails()}});
 })();
 (function(){

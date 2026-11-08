@@ -31,6 +31,12 @@ export function extPreviewRequestAllowed20({method,path,env}={}) {
   if(method==='GET' || method==='HEAD') return allowedGet.has(path);
   if(method==='POST') {
     if(allowedPost.has(path)) return true;
+    if(path==='/api/v1/manager/extension-obligation-command'
+      &&extReadOnlyPreview20(env)
+      &&env.AMS_DEV_EXT_DIRECT_ENABLED==='true'
+      &&env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE'
+      &&env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true'
+      &&env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true')return true;
     if(path==='/api/v1/manager/ext-model-c-stage')return extReadOnlyPreview20(env)&&env.AMS_DEV_EXT_STAGE_ENABLED==='true'&&env.AMS_DEV_EXT_COMMANDS_ENABLED!=='true'&&env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE';
     if(path==='/api/v1/manager/ext-model-c-pilot-promote')return extReadOnlyPreview20(env)&&env.AMS_DEV_EXT_PILOT_PROMOTION_ENABLED==='true'&&env.AMS_DEV_EXT_COMMANDS_ENABLED==='true'&&env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE'&&env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true'&&env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true';
     const pilot=extReadOnlyPreview20(env)

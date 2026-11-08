@@ -29,6 +29,7 @@ const fakeFetch=async(url,options)=>{
   assert.equal(body.writes.length,3);
   assert(body.writes.every(x=>x.currentDocument?.exists===false));
   assert(body.writes.every(x=>x.update?.fields?.payload));
+  assert(body.writes.every(x=>x.update.name.startsWith('projects/audit-management-system-dev/databases/(default)/documents/ams_scope_extension_20_dev_')),'Firestore Write.update.name must be a resource path, never an HTTPS URL');
   const names=body.writes.map(x=>x.update.name.split('/documents/')[1]);
   if(names.some(x=>documents.has(x)))return response(409,{error:'already exists'});
   for(let i=0;i<names.length;i++){

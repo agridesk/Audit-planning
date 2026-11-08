@@ -2,6 +2,7 @@
  * Seeded Firestore obligations remain read-only until an independently verified
  * source freeze and fresh complete parity proof exist. Pure: never writes.
  */
+import {createHash} from 'node:crypto';
 const text=x=>String(x??'').trim();
 const digest=x=>/^[0-9a-f]{64}$/.test(text(x));
 const uniq=x=>new Set(x).size===x.length;
@@ -15,7 +16,8 @@ export function adaptScopeExtensionStagedManifestForPromotion20(manifest){
  if(!manifest||manifest.readOnly!==true||manifest.writeAuthorized!==false||!digest(manifest.sourceManifest)
    ||!Array.isArray(manifest.obligations)||!Array.isArray(manifest.contexts)
    ||manifest.obligations.length!==199||manifest.contexts.length!==105
-   ||manifest.stats?.activeLinks!==155||manifest.stats?.historicalUnlinked!==44)throw Error('EXT_PROMOTION_STAGED_MANIFEST_INVALID');
+   ||manifest.stats?.activeLinks!==155||manifest.stats?.historicalUnlinked!==44
+   ||createHash('sha256').update(JSON.stringify({obligations:manifest.obligations,contexts:manifest.contexts})).digest('hex')!==manifest.sourceManifest)throw Error('EXT_PROMOTION_STAGED_MANIFEST_INVALID');
  const documents=manifest.obligations.map(x=>({...x}));
  const auditContexts=manifest.contexts.map(x=>({...x,obligationIds:Array.isArray(x.obligationIds)?[...x.obligationIds]:null}));
  const linked=documents.filter(x=>x.linkState==='ACTIVE');

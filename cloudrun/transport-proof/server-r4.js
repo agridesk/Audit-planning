@@ -5,6 +5,7 @@ import {createScopeExtensionFirestoreStore20} from './model-c-scope-extension-fi
 import {createScopeExtensionSheetsProjector20} from './model-c-scope-extension-sheets-projector-20.mjs';
 import {createScopeExtensionSheetsAdapter20} from './model-c-scope-extension-sheets-adapter-20.mjs';
 import {reconcileScopeExtensionDossierAuthority20} from './model-c-scope-extension-dossier-authority-20.mjs';
+import {prepareScopeExtensionBackfill20} from './model-c-scope-extension-backfill-prepare-20.mjs';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {assertScopeExtensionLegacyWriteFenced20,assertScopeExtensionLegacyDeleteFenced20} from './model-c-scope-extension-writer-fence-20.mjs';
 import {normalizeLifecycleWriteset} from './planning-lifecycle-writeset-20.js';
@@ -2931,7 +2932,8 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       const statuses=new Map(planning.slice(1).filter(row=>clean(row[pa])).map(row=>[clean(row[pa]),clean(row[ps]).toUpperCase().replace(/[\s-]+/g,'_')]));
       const pending=active.filter(row=>statuses.get(clean(row[la]))==='PENDING_PLANNING');
       const configured=new Map(config.slice(1).filter(row=>clean(row[0])).map(row=>[clean(row[0]),clean(row[1])]));
-      const output={ok:true,mode:'READ_ONLY',service:'ams-fase12-dev',sourceBy:'CLOUD_RUN_SERVICE_IDENTITY',sourceConfigured:true,counts:{
+      const dryRun=prepareScopeExtensionBackfill20({obligationRows:ob,linkRows:links,planningRows:planning,scopeRows:scopes});
+      const output={ok:true,mode:'READ_ONLY',service:'ams-fase12-dev',sourceBy:'CLOUD_RUN_SERVICE_IDENTITY',sourceConfigured:true,backfillDryRun:{sourceManifestSha256:dryRun.sourceManifest,statistics:dryRun.stats,obligationDocuments:dryRun.obligations.length,auditContextDocuments:dryRun.contexts.length,writeAuthorized:false},counts:{
        obligations:sourceRows.length,uniqueObligations:ids.size,activeLinks:active.length,orphanActiveLinks:orphan,pendingPlanningActiveLinks:pending.length,
        auditRows:planning.slice(1).filter(row=>clean(row[pa])).length,scopeDefinitions:scopes.slice(1).filter(row=>row.some(value=>clean(value))).length
       },checks:{sourceUniqueObligations:sourceRows.length===ids.size,activeLinksResolve:orphan===0,

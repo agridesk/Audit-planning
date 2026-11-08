@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+const js=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+const html=readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
+new vm.Script(js);
+const gridPart=js.slice(js.indexOf('function grid4Columns(){'),js.indexOf('function extensionControls(r){'));
+assert(gridPart.includes('["gps","GPS / Map","text"]'),'Open audits retain the GPS / Map column');
+assert(gridPart.includes('if(c[0]==="gps"){th.className="map-filter-spacer";delete state.filters.gps;line.appendChild(th);return}'),'GPS map cell has no nonfunctional text filter');
+assert(gridPart.includes('if(c[0]==="gps"){th.classList.add("map-head");'),'GPS column heading keeps the pin as an indicator');
+assert(gridPart.includes('th.setAttribute("aria-sort","none");return'),'GPS column should not offer misleading sorting');
+assert(gridPart.includes('<th class=\\\"map-head\\\">GPS / Map</th>'),'Open audit column header exists');
+const completeHead=gridPart.slice(gridPart.indexOf('if(currentView==="completed")h.innerHTML='),gridPart.indexOf(';else h.innerHTML='));
+assert(!completeHead.includes('map-head')&&!completeHead.includes('GPS / Map'),'Completed does not have a GPS map column to clean');
+assert(html.includes("#gridHead .map-head:before{content:'📍'"),'pin exists only on the map header');
+assert(!html.includes('#gridHead th:nth-child(5):before'),'stray pin cannot appear in the map filter row');
+assert(html.includes(".map-link:before{content:'📍'"),'per-row Google Maps pin is retained');
+console.log('PASS map header and row pins remain, redundant map filter and stray filter-row pin removed, Completed unaffected');

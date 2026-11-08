@@ -42,6 +42,22 @@ STRICT EXECUTION PRECONDITIONS — DO NOT SKIP
 11. For each pending legacy EXT or Undo quarantine, require a separate, verifiable provenance remediation. Never create synthetic prior transaction IDs.
 12. Only after separately authorized cutover, test a single eligible EXT and Undo with verified Firestore transaction + Sheets projector readback, then expand gradually.
 
+CURRENT IMPLEMENTATION (STILL NO DEV DATA WRITES)
+- Atomic create-only stage module: cloudrun/transport-proof/model-c-scope-extension-backfill-firestore-stage-20.mjs.
+- Unit/failure tests: cloudrun/transport-proof/model-c-scope-extension-backfill-firestore-stage-20-test.mjs.
+- HTTP stage endpoint: POST /api/v1/manager/ext-model-c-stage.
+- Readback: GET /api/v1/manager/ext-model-c-stage-status.
+- Isolated Manager staging UI (hidden by default): /?ext-stage=1.
+- All live stage writes require AMS_DEV_EXT_STAGE_ENABLED=true, Manager AMS session, IAP, same-origin POST, a typed UI approval, exact 64-char fresh source manifest and a strict fixed 199/105/155/41 source count gate.
+- Source is read twice before commit and once after. Both pre-commit manifests must match.
+- A single Firestore commit creates exactly 199 obligation + 105 auditcontext documents, using currentDocument.exists=false on every document. No overwrite and no partial batches. event/outbox must be empty.
+- On success the stage verification rereads all stored payloads and checks equality with the source manifest. Stage uncertainties are investigated by the GET parity endpoint, NOT by blind retry.
+- Staged auditcontext.writerFenceVerified remains false and migrationState remains STAGED_UNVERIFIED.
+- This stage never enables EXT writer authority, the migration-verified flag or EXT commands.
+- An independent GAS triggers/script properties/legacy writer audit is still required BEFORE the eventual WRITER CUTOVER.
+- No deployment or stage write has occurred yet.
+
 CURRENT DECISION
-The preparation and source-level dry run are complete. The stage WRITE implementation and independent GAS/legacy writer fence audit are still required before any data migration is authorized.
-DO NOT interpret the checked-in manifest builder as authorization to write. Do not execute a backfill by manually setting environment variables.
+The implementation and static/simulated checks are complete, but local full-suite testing and deployment remain to be done.
+For actual staging, an authorized Manager must explicitly enable the temporary DEV stage flag and confirm on the hidden staging page after full preflight succeeds. Disable that flag immediately following confirmed readback.
+DO NOT interpret this plan as authorization to activate EXT/Undo writers; do not set FIRESTORE authority or verified writer flags without independent evidence.

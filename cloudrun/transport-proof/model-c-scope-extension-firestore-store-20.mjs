@@ -110,7 +110,7 @@ export function createScopeExtensionFirestoreStore20({projectId,getToken,fetchIm
   if(out.value.state!=='PENDING'||ob.value.pendingProjectionId!==operationId||ob.value.revision!==out.value.revision)throw Error('EXT_PROJECTION_REVISION_CONFLICT');
   const changed={...ob.value,pendingProjectionId:'',lastProjectedOperationId:operationId};
   const projected={...out.value,state:'PROJECTED',proof:copy(proof),projectedAt:new Date().toISOString()};
-  const write=(kind,key,value,time)=>({update:{name:doc(kind,key),fields:{payload:encode(value)}},currentDocument:{updateTime:time}});
+  const write=(kind,key,value,time)=>({update:{name:documentName(kind,key),fields:{payload:encode(value)}},currentDocument:{updateTime:time}});
   const response=await request(base+':commit','POST',{transaction,writes:[write('obligation',obligationId,changed,ob.updateTime),write('outbox',operationId,projected,out.updateTime)]});
   if(!response.ok)throw Error('EXT_FIRESTORE_COMMIT_'+response.status);
   return{state:'PROJECTED',replayed:false};

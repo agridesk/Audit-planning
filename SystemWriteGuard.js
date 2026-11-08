@@ -89,7 +89,10 @@ function SYS_WRITE_GUARD_DECIDE_(actionName, auditId) {
   if (env === 'DEV') {
     try {
       if (PropertiesService.getScriptProperties().getProperty('AMS_DEV_PLANNING_CANONICAL_OWNER_20') === 'CLOUD_RUN' &&
-          /^(STATUS_|PLANNING_|REJECT_)/.test(action)) {
+          /^(STATUS_|PLANNING_|REJECT_)/.test(action) &&
+          !(action === 'PLANNING_SWAP20_LEGACY' &&
+            PropertiesService.getScriptProperties().getProperty('AMS_SWAP20_COMMIT_ENABLED') === 'true' &&
+            PropertiesService.getScriptProperties().getProperty('AMS_SWAP20_WRITE_AUTHORITY') !== 'FIRESTORE')) {
         return {
           allowed: false, env: env, action: action, auditId: id,
           mode: 'CLOUD_RUN_CANONICAL_OWNER',

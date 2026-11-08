@@ -26,6 +26,13 @@ assert(portal.includes('visibleRecords=extTargetAuditId?data.records.filter'),'d
 assert(portal.includes('extensionTargetCompanyUid20=uid;extensionTargetAuditId20=auditId'),'audit routing must set both company and audit scope');
 assert(portal.includes("!extensionTargetCompanyUid20||String(c.companyUid||'').trim()===extensionTargetCompanyUid20"),'company grid must show only selected company in EXT context');
 assert(portal.includes("extensionTargetCompanyUid20='';extensionTargetAuditId20=''"),'normal company navigation must clear EXT-only focus');
+assert(portal.includes("function extCompanyFocus20()"),'EXT must have an isolated company-only display');
+assert(portal.includes("node.style.display=focused?'none':''"),'EXT focus must hide the company list and search toolbar, not just filter rows');
+assert(portal.includes("companyName.toLowerCase()"),'single scope without a company UID must resolve by unique exact company name');
+assert(portal.includes("matches.length!==1||!String(matches[0].companyUid||'').trim()"),'ambiguous company identity must fail closed');
+assert(portal.includes("extensionTargetCompanyUid20=String(matches[0].companyUid).trim()"),'selected dossier must retain canonical UID after unique match');
+assert(portal.includes("extCompanyFocus20();document.getElementById('scopeManagement20Panel')"),'normal Companies navigation must restore full list');
+assert(portal.includes("extensionTargetCompanyUid20='';extCompanyFocus20()"),'Close must restore normal company presentation');
 assert(portal.includes('migration not verified'),'blocked per-scope actions must be explained');
 assert(server.includes('eligibleExtensionScopes='),'manager read must expose per-scope eligibility');
 assert(server.includes('extensionMonths:scopeExtensionMonths.get'),'dossier must expose per-scope extension months');

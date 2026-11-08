@@ -979,7 +979,14 @@ http.createServer(async(req,res)=>{
    res.writeHead(503,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','retry-after':'300'});
    res.end(JSON.stringify({ok:false,code:'AMS_DEV_MAINTENANCE',message:'DEV maintenance: all requests are temporarily unavailable'}));return;
   }
-  if(runtime.isDev&&process.env.K_SERVICE==='ams-fase12-dev'&&!extPreview){
+  // The canonical Fase 1.2 DEV service may leave the isolated EXT preview only
+  // after an explicit normal-grid opt-in. Existing deployments remain fail-closed.
+  const normalDevGrid=runtime.isDev
+   &&process.env.K_SERVICE==='ams-fase12-dev'
+   &&process.env.AMS_DEV_NORMAL_GRID_ENABLED==='true'
+   &&process.env.AMS_DEV_MAINTENANCE_MODE!=='true'
+   &&process.env.AMS_DEV_EXT_READONLY_PREVIEW!=='true';
+  if(runtime.isDev&&process.env.K_SERVICE==='ams-fase12-dev'&&!extPreview&&!normalDevGrid){
    res.writeHead(503,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
    res.end(JSON.stringify({ok:false,code:'EXT_PREVIEW_CONFIG_INCOMPLETE'}));return;
   }

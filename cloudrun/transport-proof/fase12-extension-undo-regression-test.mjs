@@ -14,7 +14,7 @@ assert.equal(fn({statusKey:'ACCEPTED',extensionMonths:3,canExtend:null,auditId:'
 assert.equal(vm.runInNewContext(ui.slice(start,end)+'\nextensionControls',{actorRole:'Auditor',esc:String,extensionAppliedState:r=>!!(r.extensionApplied||r.extApplied)})({statusKey:'PENDING_PLANNING',extensionMonths:3,auditId:'A'}),'');
 assert(ui.includes('window.dispatchEvent(new CustomEvent("ams:open-company-scopes"'),'Multi-scope action must navigate to the selected company scopes');
 assert(ui.includes('runSingleScopeExtension20(button)'),'single-scope click must execute direct verified scope command');
-assert(ui.includes("data.mode!=='FIRESTORE_VERIFIED'"),'single-scope action must not bypass migration guard');
+assert(ui.includes("['FIRESTORE_VERIFIED','DEV_MODEL_C_DIRECT'].includes(data.mode)"),'single-scope action must explicitly accept only verified Firestore or isolated direct DEV authority');
 assert(!ui.includes("fetch('/api/v1/manager/extension-direct'"),'grid may not invoke the unsafe legacy writer');
 assert(ui.includes("fetch('/api/v1/manager/extension-obligation-command'"),'single-scope action must use the canonical per-obligation command directly');
 assert(ui.includes("extPost('/api/v1/manager/extension-obligation-command'"),'scope dossier must send canonical per-obligation command');

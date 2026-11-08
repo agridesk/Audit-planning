@@ -1620,7 +1620,8 @@ function initExtPilotWorkspace20(){
  const select=document.createElement('select');select.setAttribute('aria-label','Select clean DEV pilot audit');select.style.cssText='padding:9px;max-width:460px;margin-right:10px';
  const button=document.createElement('button');button.type='button';button.disabled=true;button.textContent='Promote selected DEV audit for EXT/Undo';button.style.cssText='padding:9px 14px;margin-right:10px';
  const refresh=document.createElement('button');refresh.type='button';refresh.textContent='Check pilot readiness';
- panel.append(title,status,details,select,button,refresh);document.querySelector('main')?.prepend(panel);
+ const verify=document.createElement('button');verify.type='button';verify.textContent='Verify promotion status';verify.style.cssText='margin-left:10px;padding:9px';
+ panel.append(title,status,details,select,button,refresh,verify);document.querySelector('main')?.prepend(panel);
  let candidates=[],manifestHash='',busy=false,complete=false;
  async function api(path,options){
   const res=await fetch(path,{credentials:'same-origin',...options});
@@ -1640,10 +1641,24 @@ function initExtPilotWorkspace20(){
   }catch(e){status.textContent='Pilot preflight blocked: '+String(e.message||e);details.textContent='No changes made.'}
   finally{busy=false;refresh.disabled=false}
  }
+ verify.onclick=async function(){
+  if(busy)return;
+  const aid=select.value||String(new URLSearchParams(window.location.search).get('ext-pilot-audit')||'').trim();
+  if(!aid){status.textContent='No audit selected for verification.';return}
+  busy=true;verify.disabled=true;button.disabled=true;
+  try{
+   const result=await api('/api/v1/manager/ext-model-c-pilot-status?auditId='+encodeURIComponent(aid));
+   complete=result.promoted===true&&result.writerEnabledForPilot===true;
+   status.textContent=complete?'Pilot '+aid+' is verified in Firestore. You can now test EXT and Undo in Manager Grid.':'Pilot '+aid+' is not verified or still blocked; no new promotion request submitted.';
+   details.textContent=JSON.stringify(result,null,2);
+  }catch(e){status.textContent='Pilot readback unavailable: '+String(e.message||e)}
+  finally{busy=false;verify.disabled=false}
+ };
  button.onclick=async function(){
   if(busy||complete||button.disabled)return;
   const c=candidates.find(x=>x.auditId===select.value);
   if(!c||c.sourceManifestSha256!==manifestHash)return;
+  const permalink=new URL(window.location.href);permalink.searchParams.set('ext-pilot-audit',c.auditId);window.history.replaceState(null,'',permalink.toString());
   const typed=window.prompt('DEV only. This permanently promotes ONE auditcontext; other 104 remain unchanged. Type PROMOTE '+c.auditId+' DEV EXT to continue:');
   if(typed!=='PROMOTE '+c.auditId+' DEV EXT')return;
   if(!window.confirm('Confirm that DEV GAS writes remain BLOCKED and no other DEV writer is active for '+c.auditId+'? Only this DEV audit will be enabled.'))return;

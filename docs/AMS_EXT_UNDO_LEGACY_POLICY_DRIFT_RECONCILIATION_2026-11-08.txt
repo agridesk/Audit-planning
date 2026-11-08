@@ -1,0 +1,29 @@
+AMS EXT/UNDO 2.0 — HISTORICAL UNDO / POLICY DRIFT RECONCILIATION
+Date: 2026-11-08
+Scope: isolated DEV model C direct writer only (ams-fase12-dev); PROD untouched
+Owner: cloudrun/transport-proof/model-c-extension-dev-direct-20.mjs
+
+RCA
+Historic DEV EXT Undo events written by CLOUD_RUN_DIRECT_MANAGER_EXTENSION may leave Extension_Metadata_JSON with undo:true and prior policy-derived Planning_Window dates. If Config_Scopes changes (e.g. GRASP Planning to -1 to -2), requiring exact equality with the current Config_Scopes window permanently blocks a legitimate subsequent EXT. An existing MPS-GAP extension on the same audit is independent.
+
+CONTROLLED BEHAVIOUR
+- Require ACTIVE canonical Audit_Visit_Obligations linkage, current Pending Planning audit, non-ECAS obligation, valid current scope EXT policy and verified source identity/Manager role/DEV isolation.
+- For old metadata, require exact legacy source, undo:true, positive bounded historical EXT duration (1-24 months), Extension_Applied false and effective expiry equal base expiry.
+- Historical pre-expiry planning window must be valid, month-aligned relative to base expiry, within -24..0 months, at most 12 months wide; arbitrary dates are not treated as a verified historical policy.
+- On Apply, use CURRENT Config_Scopes duration and planning window. Preserve the legacy metadata and old window as priorLegacyUndoMetadata/priorLegacyUndoWindow for provenance.
+- The new transaction's Undo preimage is the CURRENT canonical unextended policy window. After Undo, future EXT can be applied normally; no repeated stale legacy condition.
+- No automatic mother/daughter propagation; only the selected obligation changes. Manager grid aggregate is recalculated from active linked obligations; verify effective expiry and readback.
+- Never bulk-migrate, overwrite user data automatically, infer extension from grid state, or disable writer fencing.
+
+REPRODUCED DEV CASE
+Plantec Canary S.L., MPS-GAP already extended, GRASP formerly extended then undone.
+GRASP base/effective expiry: 2026-12-02.
+Historical undone window: 2026-08-02 through 2026-11-02 (former -4 / -1).
+Current GRASP Config_Scopes planning window: -4 through -2; extension: +4 months.
+Expected GRASP Apply: expiry 2027-04-02, window 2026-12-02 through 2027-02-02.
+Expected GRASP Undo: expiry 2026-12-02, window 2026-08-02 through 2026-10-02.
+Existing MPS-GAP extension must remain unchanged.
+
+VERIFICATION
+Focused module tests cover the actual DEV GRASP drift scenario; independently extended MPS-GAP, repeated Apply after Undo, policy-duration changes and forged/misaligned evidence. Focused tests executed in a V8 isolate on the current GitHub DEV module: 46/46 assertions passed.
+Complete npm test and Cloud Run deployment remain to be performed before operational UI acceptance.

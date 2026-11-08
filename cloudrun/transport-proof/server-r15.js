@@ -983,7 +983,7 @@ http.createServer(async(req,res)=>{
    res.writeHead(503,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
    res.end(JSON.stringify({ok:false,code:'EXT_PREVIEW_CONFIG_INCOMPLETE'}));return;
   }
-  if(extPreview&&!extPreviewRequestAllowed20({method:req.method,path:u.pathname})){
+  if(extPreview&&!extPreviewRequestAllowed20({method:req.method,path:u.pathname,env:process.env})){
    res.writeHead(423,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-ams-preview':'READ_ONLY'});
    res.end(JSON.stringify({ok:false,code:'AMS_EXT_PREVIEW_READ_ONLY',message:'EXT preview: write and unverified routes are disabled'}));return;
   }

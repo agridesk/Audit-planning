@@ -578,7 +578,7 @@ document.getElementById("selectionSwap20").onclick=async function(){
   if(selected.length!==2||gridSelected.size!==2||selected.some(function(r){return String(r.statusKey||"").toUpperCase()!=="ACCEPTED"})){
     document.getElementById("status").textContent="Select exactly two accepted audits to propose a date exchange.";return;
   }
-  if(!swap20CanonicalGasMode&&(!swap20EligibleAuditIds||selected.some(function(r){return !swap20EligibleAuditIds.has(String(r.auditId))))){
+  if(!swap20CanonicalGasMode&&(!swap20EligibleAuditIds||selected.some(function(r){return !swap20EligibleAuditIds.has(String(r.auditId))}))){
     document.getElementById("status").textContent="Selected audit is not in the canonical Firestore SWAP dataset.";return;
   }
   var pair={auditA:String(selected[0].auditId),auditB:String(selected[1].auditId)};

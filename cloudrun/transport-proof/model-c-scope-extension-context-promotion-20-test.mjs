@@ -30,6 +30,6 @@ reject({stage:{...stage,documents:[doc('OBL_A'),doc('OBL_B'),{...historic,stagin
 reject({stage:{...stage,auditContexts:[{...ctx,migrationState:'WRITER_VERIFIED'}]}},/CONTEXT_INVALID/);
 reject({stage:{...stage,auditContexts:[{...ctx,writerFenceVerified:true}]}},/CONTEXT_INVALID/);
 reject({stage:{...stage,quarantinedAudits:[{auditId:'AUD_TEST',automaticRepairAllowed:false}]}},/DOCUMENT_INVALID/);
-reject({stage:{...stage,documents:[doc('OBL_A'),{...doc('OBL_B'),pendingProjectionId:'PENDING'}]}},/DOCUMENT_INVALID/);
+reject({stage:{...stage,documents:[doc('OBL_A'),{...doc('OBL_B'),pendingProjectionId:'PENDING'},historic]}},/DOCUMENT_INVALID/);
 assert.equal(stage.auditContexts[0].writerFenceVerified,false,'pure planner must not mutate source');
 console.log('PASS Model C writer promotion: DEV-only, explicit approval, source and Firestore parity, freeze and quarantine');

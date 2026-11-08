@@ -50,7 +50,7 @@ for(const needle of [
 ]){assert.ok(r4.includes(needle),needle);tests++;}
 assert.ok(r10.includes("r.canExtend=r.statusKey==='PENDING_PLANNING'&&extMonths>0&&extensionLinked.has(clean(r.auditId))"),'Extension capability must be resolved in async enrichment');tests++;
 
-assert.ok(ui.includes('var months=Number(r.extensionMonths||r.extMonths||0),applied=extensionAppliedState(r),pending=r.statusKey==="PENDING_PLANNING",can=!!r.canExtend'), 'Extension UI must trust canonical capability only');tests++;
+assert.ok(ui.includes("r.statusKey!=='PENDING_PLANNING'")&&ui.includes('class="ext-act ext-manage"')&&ui.includes('ams:open-company-scopes'), 'Extension navigation must be Manager-only, Pending Planning and use the per-scope dossier');tests++;
 assert.ok(ui.includes('displayName+" · "+actorRole'), 'Portal identity must prefer display name');tests++;
 assert.ok(ui.includes('Planning window expired · ended '),'Expired planning window must be user-facing');tests++;
 assert.ok(ui.includes('No valid execution date in this planning window · minimum interval'),'Minimum interval conflict must be user-facing');tests++;
@@ -93,5 +93,5 @@ assert.ok(ui.includes('var g=gpsValue(r)'),'Export must resolve GPS from canonic
 assert.ok(pdfExport.includes('headers[i]==="GPS / Map"&&v')&&pdfExport.includes('>Open map</a>'),'PDF GPS values must render as clickable map links');tests++;
 assert.ok(ui.includes('headers[i]==="GPS / Map"&&/^https:')&&ui.includes('>Open map</a>'),'Excel export must provide compact HTTPS GPS hyperlinks');tests++;
 assert.ok(r4.includes('row.extensionMonths=months;row.extMonths=months;row.eligibleExtensionScopes=')&&r4.includes('row.canExtend=null;'),'Fast first paint must distinguish unknown extension eligibility from canonical denial');tests++;
-assert.ok(ui.includes('months>0&&r.canExtend==null'),'Grid should present pending extension eligibility deterministically');tests++;
+assert.ok(ui.includes('var multi=Array.isArray(r.scopes)&&r.scopes.length>1')&&ui.includes("var label=multi?'Extensions':applied?'↶':'+'")&&ui.includes('extPost(\'/api/v1/manager/extension-obligation-command\''),'Single/multi extension buttons must navigate; only the verified scope dossier may commit');tests++;
 console.log(JSON.stringify({ok:true,build:'2026-10-10_PORTAL_REVIEW_HARDENING_CONTRACT_R8',tests,writesPerformed:false}));

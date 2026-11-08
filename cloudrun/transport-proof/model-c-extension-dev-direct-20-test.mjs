@@ -36,4 +36,24 @@ const oldUndo=plan({snapshot:oldSingle,auditId:'OLD_A',companyUid:'C2',obligatio
 assert.equal(oldUndo.expected.effectiveExpiry,'2027-01-31');
 assert.equal(oldUndo.expected.extensionApplied,false);
 assert.equal(oldUndo.expected.extensionMetadata,'');
+const legacyRevertedMeta=JSON.stringify({source:'CLOUD_RUN_DIRECT_MANAGER_EXTENSION',months:4,undo:true,actorEmail:'manager@example.test'});
+const revertedRows=[oh,['REVERTED1','C3','MPS-GAP','CERTIFICATE_LIFECYCLE','2027-01-31','2027-01-31','2026-09-30','2026-12-31','',legacyRevertedMeta]];
+const revertedLinks=[lh,['REVERTED_A','REVERTED1','ACTIVE']];
+const revertedPlanning=[ph,['REVERTED_A','Pending Planning','2027-01-31','','2026-09-30','2026-12-31']];
+const revertedInput=()=>({obligationRows:revertedRows,linkRows:revertedLinks,planningRows:revertedPlanning,scopeRows:scopes,companyUid:'C3'});
+const reverted=inspect(revertedInput());
+assert.equal(reverted.records[0].canApply,true,'verified legacy undone flag does not permanently block EXT');
+const reapplied=plan({snapshot:reverted,auditId:'REVERTED_A',companyUid:'C3',obligationId:'REVERTED1',command:'apply',requestId:'REAPPLY1',actorUid:'M1'});
+const newMeta=JSON.parse(reapplied.expected.extensionMetadata);
+assert.equal(newMeta.priorLegacyUndoMetadata,legacyRevertedMeta,'legacy source evidence retained in transaction');
+assert.equal(newMeta.before.extensionMetadata,'','new Undo must restore a clean non-extended canonical state');
+const rec=revertedRows[1];
+for(const [k,v] of Object.entries({Extension_Applied:'Yes',Extension_Metadata_JSON:reapplied.expected.extensionMetadata,Effective_Expiry_Date:reapplied.expected.effectiveExpiry,Planning_Window_From:reapplied.expected.windowFrom,Planning_Window_To:reapplied.expected.windowTo}))rec[oh.indexOf(k)]=v;
+const reapplyUndo=plan({snapshot:inspect(revertedInput()),auditId:'REVERTED_A',companyUid:'C3',obligationId:'REVERTED1',command:'undo',requestId:'REUNDO1',actorUid:'M1'});
+assert.equal(reapplyUndo.expected.effectiveExpiry,'2027-01-31');
+assert.equal(reapplyUndo.expected.extensionMetadata,'');
+const incompatible=[oh,['BAD1','C4','MPS-GAP','CERTIFICATE_LIFECYCLE','2027-01-31','2027-01-31','2026-10-01','2027-01-31','',legacyRevertedMeta]];
+const blocked=inspect({obligationRows:incompatible,linkRows:[lh,['BAD_A','BAD1','ACTIVE']],planningRows:[ph,['BAD_A','Pending Planning','2027-01-31','','2026-10-01','2027-01-31']],scopeRows:scopes,companyUid:'C4'});
+assert.equal(blocked.records[0].canApply,false,'mismatched legacy provenance cannot bypass policy');
+
 console.log('PASS DEV Model C direct per-obligation multi-scope Apply and Undo, readback dates, individual extension policy and aggregated expiry');

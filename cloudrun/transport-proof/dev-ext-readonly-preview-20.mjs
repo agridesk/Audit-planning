@@ -1,6 +1,7 @@
-/** Allowlist for the isolated IAP-secured AMS Fase 1.2 DEV preview.
- * This gate never authorizes a Model C or lifecycle write.
- * Only the named copied Cloud Run service can enter the preview.
+/** Allowlist for the isolated AMS Fase 1.2 DEV preview.
+ * Read-only by default; narrowly permits authenticated, verified Model C EXT/Undo
+ * on the named isolated DEV service when its dedicated direct-write gate is set.
+ * No generic lifecycle, GAS or PROD write is authorized by this allowlist.
  */
 const allowedGet = new Set([
   '/', '/health', '/manager-portal.js', '/api/v1/session',

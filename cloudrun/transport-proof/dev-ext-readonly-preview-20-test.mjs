@@ -10,6 +10,7 @@ for(const path of ['/','/health','/manager-portal.js','/api/v1/session','/api/v1
  assert.equal(allowed({method:'GET',path}),true,'expected read-only route '+path);
 }
 assert.equal(allowed({method:'POST',path:'/auth/legacy-handoff'}),true,'session exchange remains possible');
+assert.equal(allowed({method:'POST',path:'/api/v1/session/exchange'}),true,'verified token exchange remains possible');
 assert.equal(allowed({method:'POST',path:'/api/v1/manager/open-enrichment'}),true,'enrichment is read-only');
 for(const path of ['/api/v1/manager/extension-direct','/api/v1/manager/extension-obligation-command','/api/v1/manager/extension-reconcile-projection','/api/v1/manager/self-planning-direct','/api/v1/manager/action','/api/v1/planning/direct-commit','/api/v1/manager/company-management/scopes/save']){
  assert.equal(allowed({method:'POST',path}),false,'writes must be denied '+path);

@@ -1,0 +1,47 @@
+AMS EXT / UNDO — MODEL C DEV BACKFILL EXECUTION GATE
+Date: 2026-11-08
+Status: PREPARED AND LIVE SOURCE VALIDATED; NOT EXECUTED
+Scope: project audit-management-system-dev, Firestore (default), isolated service ams-fase12-dev
+PROD: NO CHANGE. Source DEV Sheets: READ-ONLY.
+
+LIVE SOURCE SNAPSHOT / 2026-11-08
+- 199 distinct Model C obligation records
+- 155 active audit–obligation links
+- 105 distinct linked audit contexts; 41 multi-scope audits
+- 111 distinct source audit records (six without an active obligation)
+- 34 Pending Planning audit contexts
+- 41 clean Pending Planning obligations potentially eligible for EXT after governed cutover
+- 16 Pending Planning non-applied obligations with legacy extension metadata: quarantine Apply
+- 3 Pending Planning applied obligations without trustworthy Firestore Undo lineage: quarantine Undo
+- 5 Pending Planning ECAS-linked obligations with incomplete scope expiry dates: quarantine Apply
+- 44 actively linked obligations with incomplete dates, predominantly ECAS/historical: preserve, quarantine as required
+- 44 unlinked historical obligations: preserve but never infer current active visit ownership
+- 420 date fields normalized by the manifest builder to ISO 8601
+- 0 observed orphan active links and 0 observed multi-audit active obligation links
+These are source-observation counts, NOT permission to commit a cutover.
+
+IMPLEMENTED PREPARATION
+- Source: cloudrun/transport-proof/model-c-scope-extension-backfill-prepare-20.mjs
+- Unit tests: cloudrun/transport-proof/model-c-scope-extension-backfill-prepare-20-test.mjs
+- Integrated diagnostic: GET /api/v1/manager/ext-model-c-source-preflight (IAP + Manager AMS session, isolated service only).
+- Manifest is deterministic; its SHA-256 is derived from all normalized obligations and contexts.
+- Writer flags on all staged audit contexts remain FALSE; returned manifest writeAuthorized is FALSE.
+- No Firestore stage writes or production writes have been executed.
+
+STRICT EXECUTION PRECONDITIONS — DO NOT SKIP
+1. Confirm Cloud Run DEV identity, IAP, runtime service and source spreadsheet ID.
+2. Obtain independently verified, immutable DEV Sheets source snapshot and SHA-256 manifest.
+3. Validate all source obligations, links and statuses as one consistent snapshot.
+4. Confirm only the isolated DEV source is targeted and all legacy writer paths to Model C data are frozen (including GAS triggers, script properties, direct Sheets writers, Cloud Run revisions and previously tagged URLs).
+5. Verify the dedicated Firestore collections obligation/auditcontext/event/outbox are empty or match exactly the same idempotent staged source manifest. Never overwrite a nonempty or divergent target.
+6. Back up the source and record a recoverable stage operation manifest before any Firestore creation.
+7. Request explicit approval for the STAGE WRITE operation separately from the approval to prepare this plan.
+8. Create obligation and auditcontext documents with create-only preconditions. Stage in a fail-closed configuration; do not set writerFenceVerified=true on any auditcontext.
+9. Re-read and compare all 199 obligation payloads and all 105 contexts against the frozen manifest. Re-run referential integrity, scope-policy and date/provenance quarantine checks.
+10. Do not activate AMS_SCOPE_EXTENSION_AUTHORITY=FIRESTORE, AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED=true, AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED=true or AMS_DEV_EXT_COMMANDS_ENABLED=true without independent evidence and explicit final authorization.
+11. For each pending legacy EXT or Undo quarantine, require a separate, verifiable provenance remediation. Never create synthetic prior transaction IDs.
+12. Only after separately authorized cutover, test a single eligible EXT and Undo with verified Firestore transaction + Sheets projector readback, then expand gradually.
+
+CURRENT DECISION
+The preparation and source-level dry run are complete. The stage WRITE implementation and independent GAS/legacy writer fence audit are still required before any data migration is authorized.
+DO NOT interpret the checked-in manifest builder as authorization to write. Do not execute a backfill by manually setting environment variables.

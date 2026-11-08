@@ -29,7 +29,7 @@ for(const term of [
  "expectedSourceManifestSha256:sha",
  "writerEnabled:false"
 ])assert(ui.includes(term),'missing visible staging safeguard: '+term);
-assert(js.includes('initExtStageWorkspace20();'),'manager session must initialize staging only when selected');
+assert(!js.includes('initExtStageWorkspace20();'),'legacy staging must not auto-initialize during normal Manager session');
 const s=server.slice(server.indexOf("if(u.pathname==='/api/v1/manager/ext-model-c-stage-status'"),server.indexOf("if(u.pathname==='/api/v1/manager/ext-model-c-stage'"));
 assert(s.includes("req.method==='GET'")&&s.includes("sessionFromRequestValidated(req)")&&s.includes("clean(actor.role).toLowerCase()!=='manager'"));
 assert(s.includes('store.verify(manifest)'),'status may inspect parity only');

@@ -60,6 +60,21 @@ for(const patch of [{K_SERVICE:'ams-transport-proof'},{AMS_RUNTIME_ENV:'PROD'},{
 }
 const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const sourceRoute=r4.slice(r4.indexOf("if(u.pathname==='/api/v1/manager/ext-model-c-source-preflight'"),r4.indexOf("if(u.pathname==='/api/v1/manager/company-management/extension-obligations'"));
+const selfStart=r4.indexOf('async function directManagerSelfPlanning20(identity,body){');
+const selfEnd=r4.indexOf('async function directManagerExtension(',selfStart);
+assert(selfStart>=0&&selfEnd>selfStart,'self planning write owner exists');
+const selfOwner=r4.slice(selfStart,selfEnd);
+for(const required of [
+ 'isolatedExtDirect20()', "SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs'",
+ "verifiedAuditorLockDevProject()", "cfg.get('ALLOW_DEV_WRITES')!=='FALSE'",
+ "cfg.get('DEV_WRITE_MODE')!=='BLOCK'", 'withDirectManagerActionLock(auditId',
+ "'PENDING_PLANNING'", 'STALE_AUDIT_REVISION', 'STALE_SELF_PLANNING_VALUE',
+ 'sheetsValuesBatchUpdateRaw(', "const readback=await sheetsBatchGet([targetRange]);",
+ 'SELF_PLANNING_READBACK_UNVERIFIED'
+])assert(selfOwner.includes(required),'self planning isolation/revision/readback contract missing: '+required);
+const selfRoute=r4.slice(r4.indexOf("if(u.pathname==='/api/v1/manager/self-planning-direct'"),r4.indexOf("if(u.pathname==='/api/v1/manager/extension-obligation-command'"));
+assert(selfRoute.includes('sessionFromRequestValidated(req)')&&selfRoute.includes("clean(s.role).toLowerCase()!=='manager'"),'self-planning Manager session authorization must remain');
+
 assert(sourceRoute.includes("process.env.K_SERVICE!=='ams-fase12-dev'"),'only isolated DEV service may read aggregates');
 assert(sourceRoute.includes("sessionFromRequestValidated(req)"),'session required');
 assert(sourceRoute.includes("clean(actor.role).toLowerCase()!=='manager'"),'manager only');

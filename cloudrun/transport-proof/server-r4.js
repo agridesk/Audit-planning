@@ -844,7 +844,13 @@ async function saveScopeCosmetic20(body){
   return{ok:true,scopeCode:code,field,value,previous:old};
 }
 async function directManagerSelfPlanning20(identity,body){
- if(process.env.AMS_RUNTIME_ENV==='PROD')throw Error('PROD_SELF_PLANNING_WRITER_NOT_ENABLED');
+ if(!isolatedExtDirect20()||SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs'
+    ||await verifiedAuditorLockDevProject()!=='audit-management-system-dev')throw Error('SELF_PLANNING_DEV_ISOLATION_REQUIRED');
+ const config=await sheetsBatchGet(['System_Config!A1:C100']);
+ const rows=config[0]?.values||[];
+ if(rows[0]?.[0]!=='KEY'||rows[0]?.[1]!=='DEV'||rows[0]?.[2]!=='PROD')throw Error('SELF_PLANNING_DEV_CONFIG_SCHEMA_CHANGED');
+ const cfg=new Map(rows.slice(1).filter(x=>clean(x[0])).map(x=>[clean(x[0]),clean(x[1])]));
+ if(cfg.get('ENV')!=='DEV'||cfg.get('ALLOW_DEV_WRITES')!=='FALSE'||cfg.get('DEV_WRITE_MODE')!=='BLOCK')throw Error('SELF_PLANNING_DEV_GAS_FENCE_LOST');
  const auditId=clean(body?.auditId),expectedRevision=clean(body?.expectedRevision),value=body?.allowSelfPlanning,expectedValue=body?.expectedAllowSelfPlanning;
  if(!auditId||!expectedRevision||(typeof value!=='boolean'||typeof expectedValue!=='boolean'))throw Error('SELF_PLANNING_INPUT_INVALID');
  return withDirectManagerActionLock(auditId,async()=>{
@@ -860,7 +866,10 @@ async function directManagerSelfPlanning20(identity,body){
   const previous=yes(found.row[index]);
   if(previous!==expectedValue)throw Error('STALE_SELF_PLANNING_VALUE');
   if(previous===value)return{success:true,auditId,allowSelfPlanning:value,unchanged:true,sourceRevision:expectedRevision};
-  await sheetsValuesBatchUpdateRaw([{range:'Audit planning!'+a1col(index+1)+found.sourceRow,values:[[value?'Yes':'No']]}]);
+  const targetRange='Audit planning!'+a1col(index+1)+found.sourceRow;
+  await sheetsValuesBatchUpdateRaw([{range:targetRange,values:[[value?'Yes':'No']]}]);
+  const readback=await sheetsBatchGet([targetRange]);
+  if(!Array.isArray(readback[0]?.values)||yes(readback[0].values[0]?.[0])!==value)throw Error('SELF_PLANNING_READBACK_UNVERIFIED');
   const updated=found.row.slice();updated[index]=value?'Yes':'No';
   return{success:true,auditId,allowSelfPlanning:value,sourceRevision:directRowRevision(found.h,updated)};
  });

@@ -106,6 +106,18 @@ function managerResolvedVisitWindow(auditId,cfgByScope,obValues,linkValues){
 
 function managerExtensionMonthsForAudit(h,row,catalog){const months=[];for(const s of catalog||[]){let on=false;for(const a of s.aliases){const i=col(h,[a]);if(i>=0&&['x','yes','true','1'].includes(val(row,i).toLowerCase())){on=true;break;}}if(on)months.push(Number(s.months||0));}return months.length&&months.every(n=>n>0)?Math.min(...months):0;}
 function managerExtensionLinkedAuditIds(obValues,linkValues){const out=new Set();if(!Array.isArray(obValues)||obValues.length<2||!Array.isArray(linkValues)||linkValues.length<2)return out;const oh=obValues[0]||[],lh=linkValues[0]||[],oi=col(oh,['Obligation_ID','Obligation ID']),ots=col(oh,['Trigger_Source','Trigger Source']),ost=col(oh,['Obligation_State','Obligation State']),la=col(lh,['Audit_ID','Audit ID']),lo=col(lh,['Obligation_ID','Obligation ID']),ls=col(lh,['Link_State','Link State']);if([oi,la,lo,ls].some(i=>i<0))return out;const eligible=new Set();for(let i=1;i<obValues.length;i++){const id=val(obValues[i],oi),trigger=ots>=0?val(obValues[i],ots).toUpperCase():'',state=ost>=0?val(obValues[i],ost).toUpperCase():'';if(id&&trigger!=='ECAS'&&!['COMPLETED','CANCELLED','REJECTED'].includes(state))eligible.add(id);}for(let i=1;i<linkValues.length;i++){if(val(linkValues[i],ls).toUpperCase()!=='ACTIVE')continue;const obId=val(linkValues[i],lo),auditId=val(linkValues[i],la);if(auditId&&eligible.has(obId))out.add(auditId);}return out;}
+function managerScopeAliasCatalog20(scopeValues){
+ const aliases=new Map();
+ if(Array.isArray(scopeValues)&&scopeValues.length){
+  const head=scopeValues[0],sc=col(head,['ScopeCode']),dn=col(head,['DisplayName']),sk=col(head,['SlotKey']);
+  for(const sr of scopeValues.slice(1)){
+   const code=sc>=0?val(sr,sc):'';
+   if(!code)continue;
+   aliases.set(code,[...new Set([code,dn>=0?val(sr,dn):'',sk>=0?val(sr,sk):''].filter(Boolean))]);
+  }
+ }
+ return aliases;
+}
 function managerExtendedScopeCodes20(obValues,linkValues,scopeValues){
  const result=new Map();
  if(!Array.isArray(obValues)||obValues.length<2||!Array.isArray(linkValues)||linkValues.length<2)return result;
@@ -121,23 +133,16 @@ function managerExtendedScopeCodes20(obValues,linkValues,scopeValues){
   const auditId=val(row,la),code=applied.get(val(row,lo));
   if(auditId&&code){const codes=result.get(auditId)||new Set();codes.add(code);result.set(auditId,codes);}
  }
- const aliases=new Map();
- if(Array.isArray(scopeValues)&&scopeValues.length){
-  const head=scopeValues[0],sc=col(head,['ScopeCode']),dn=col(head,['DisplayName']),sk=col(head,['SlotKey']);
-  for(const sr of scopeValues.slice(1)){
-   const code=sc>=0?val(sr,sc):'';
-   if(!code)continue;
-   aliases.set(code,[code,dn>=0?val(sr,dn):'',sk>=0?val(sr,sk):''].filter(Boolean));
-  }
- }
+ const aliases=managerScopeAliasCatalog20(scopeValues);
  return new Map([...result].map(([id,codes])=>[id,[...new Set([...codes].flatMap(code=>aliases.get(code)||[code]))]]));
 }
-async function enrichManagerOpen(obj){const rows=obj?.rows;if(!Array.isArray(rows)||!rows.length)return obj;const [values,scopeValues,audValues,obValues,linkValues]=await Promise.all([sheetValues('Audit planning!A1:BW483'),sheetValues('Config_Scopes!A1:Z128'),sheetValues('Auditors!A1:Z256'),sheetValues('Audit_Obligations!A1:Z1024'),sheetValues('Audit_Visit_Obligations!A1:Z1024')]);if(values.length<2)return obj;const h=values[0],ci=col(h,['Audit ID','Audit_ID','AuditId','Audit Id']),cp=col(h,['Planning JSON','Planning_JSON']),byId=new Map(),auditorNames=managerAuditorDisplayMap(audValues),extensionCatalog=managerExtensionCatalog(scopeValues),annualWindowCatalog=managerAnnualWindowCatalog(scopeValues),extensionLinked=managerExtensionLinkedAuditIds(obValues,linkValues),extendedScopes=managerExtendedScopeCodes20(obValues,linkValues,scopeValues);
+async function enrichManagerOpen(obj){const rows=obj?.rows;if(!Array.isArray(rows)||!rows.length)return obj;const [values,scopeValues,audValues,obValues,linkValues]=await Promise.all([sheetValues('Audit planning!A1:BW483'),sheetValues('Config_Scopes!A1:Z128'),sheetValues('Auditors!A1:Z256'),sheetValues('Audit_Obligations!A1:Z1024'),sheetValues('Audit_Visit_Obligations!A1:Z1024')]);if(values.length<2)return obj;const h=values[0],ci=col(h,['Audit ID','Audit_ID','AuditId','Audit Id']),cp=col(h,['Planning JSON','Planning_JSON']),byId=new Map(),auditorNames=managerAuditorDisplayMap(audValues),extensionCatalog=managerExtensionCatalog(scopeValues),annualWindowCatalog=managerAnnualWindowCatalog(scopeValues),extensionLinked=managerExtensionLinkedAuditIds(obValues,linkValues),extendedScopes=managerExtendedScopeCodes20(obValues,linkValues,scopeValues),extensionAliases=Object.fromEntries(managerScopeAliasCatalog20(scopeValues));
  let extensionAuthority=null;
  if(process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.K_SERVICE==='ams-fase12-dev'&&process.env.AMS_DEV_EXT_DIRECT_ENABLED==='true'){
   try{extensionAuthority=inspectDevScopeExtension20({obligationRows:obValues,linkRows:linkValues,planningRows:values,scopeRows:scopeValues});}
   catch(e){console.warn('[EXT_GRID_AUTHORITY]',clean(e?.message||e));}
  }for(let i=1;i<values.length;i++){const id=val(values[i],ci);if(id)byId.set(id,{row:values[i],sourceRow:i+1});}let hoursEnriched=0,commentsEnriched=0;const auditorMode=clean(obj?.actorRole).toLowerCase()==='auditor';for(const r of rows){if(!r)continue;if(!auditorMode)r.allowedActions=allowedActions(clean(r.statusKey||r.status).toUpperCase().replace(/[\s-]+/g,'_'));const source=byId.get(clean(r.auditId));if(!source)continue;Object.assign(r,commentsFrom(h,source.row),{sourceRow:source.sourceRow});commentsEnriched++;const assigned=clean(r.assignedTo||r.auditor).toLowerCase();r.assignedToDisplayName=auditorNames.get(assigned)||clean(r.assignedTo||r.auditor);r.auditorDisplayName=r.assignedToDisplayName;const canonicalWindow=managerResolvedVisitWindow(clean(r.auditId),annualWindowCatalog,obValues,linkValues);if(canonicalWindow){r.planningWindowFrom=canonicalWindow.from;r.planningWindowTo=canonicalWindow.to;r.planningWindowText=canonicalWindow.from+' → '+canonicalWindow.to;r.planningWindowState=canonicalWindow.source;}r.extendedScopeCodes=extendedScopes.get(clean(r.auditId))||[];
+  r.extScopeAliases=extensionAliases;
   if(extensionAuthority){
    const linked=extensionAuthority.byAudit.get(clean(r.auditId))||[];
    const records=linked.map(id=>extensionAuthority.obligations.get(id)).filter(Boolean);

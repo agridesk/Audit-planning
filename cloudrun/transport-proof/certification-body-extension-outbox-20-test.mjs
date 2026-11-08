@@ -21,8 +21,9 @@ assert.deepEqual(reduce({outboxRows:queue,obligationId:'O1',currentExtensionAppl
 assert.equal(reduce({outboxRows:[headers,apply.values],obligationId:'O1',currentExtensionApplied:true,now:'2026-11-08T10:09:59Z'}).action,'WAIT');
 assert.equal(reduce({outboxRows:[headers,apply.values],obligationId:'O1',currentExtensionApplied:true,now:'2026-11-08T10:10:00Z'}).eventType,'CB_EXTENSION_APPLIED');
 const sentApply=apply.values.slice();sentApply[11]='SENT';sentApply[13]='2026-11-08T10:20:00.000Z';
-assert.equal(reduce({outboxRows:[headers,sentApply,undo.values],obligationId:'O1',currentExtensionApplied:false,now:'2026-11-08T10:13:00Z'}).eventType,'CB_EXTENSION_UNDONE');
-assert.equal(reduce({outboxRows:[headers,sentApply,undo.values],obligationId:'O1',currentExtensionApplied:false,now:'2026-11-08T10:12:00Z'}).action,'WAIT');
+const undoAfterSent=prepare({...common,obligationId:'O1',operationId:'op_after',command:'undo',expected:{extensionApplied:false,effectiveExpiry:'2026-12-01'},createdAt:'2026-11-08T10:21:00Z'});
+assert.equal(reduce({outboxRows:[headers,sentApply,undoAfterSent.values],obligationId:'O1',currentExtensionApplied:false,now:'2026-11-08T10:31:00Z'}).eventType,'CB_EXTENSION_UNDONE');
+assert.equal(reduce({outboxRows:[headers,sentApply,undoAfterSent.values],obligationId:'O1',currentExtensionApplied:false,now:'2026-11-08T10:30:00Z'}).action,'WAIT');
 const other=prepare({...common,obligationId:'O2',operationId:'op3',command:'apply',expected:{extensionApplied:true,effectiveExpiry:'2027-03-01'},createdAt:'2026-11-08T10:00:00Z'});
 assert.equal(other.certificationBodyId,'OTHER');
 assert.equal(other.notificationReady,true);

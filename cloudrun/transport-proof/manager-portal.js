@@ -1270,13 +1270,13 @@ if(tab==='scopes'){
  var visibleRecords=extTargetAuditId?data.records.filter(function(o){return (o.auditIds||[]).includes(extTargetAuditId)}):data.records;
  if(!visibleRecords.length){extContent.appendChild(el('p',extTargetAuditId?'No scope obligations linked to the selected audit.':'No obligations found'));return}
  var outer=el('div');outer.style.cssText='overflow-x:auto;width:100%;max-width:1100px';
- var table=el('table');table.className='ams-ext-obligations20';table.style.cssText='width:100%;max-width:1100px;table-layout:fixed;border-collapse:collapse;font-size:13px';
+ var table=el('table');table.className='ams-ext-obligations20';table.style.cssText='width:100%;max-width:1100px;min-width:0;table-layout:fixed;border-collapse:collapse;font-size:13px';
  var headings=[['Scope','17%'],['Effective expiry','16%'],['Planning window','25%'],['Extension','15%'],['Audit status','15%'],['Actions','12%']];
  var head=el('tr');headings.forEach(function(k){var th=el('th',k[0]);th.style.cssText='text-align:left;padding:8px 9px;border-bottom:2px solid #cbd5e1;width:'+k[1];head.appendChild(th)});table.appendChild(head);
  visibleRecords.forEach(function(o){
   var tr=el('tr');var statuses=(o.auditStatuses||[]).filter(function(x){return !extTargetAuditId||x.auditId===extTargetAuditId}).map(function(x){return x.status}).join(', ')||'Not linked';
   var cols=[o.scopeCode,o.effectiveExpiry,(o.windowFrom||'—')+' – '+(o.windowTo||'—'),o.extensionApplied?'Applied':'Not applied',statuses];
-  cols.forEach(function(v,i){var td=el('td',String(v||'—'));td.style.cssText='padding:9px;border-bottom:1px solid #e2e8f0;overflow-wrap:anywhere;vertical-align:middle';if(i===0){td.style.fontWeight='650';td.title='Obligation '+String(o.obligationId||'')}tr.appendChild(td)});
+  cols.forEach(function(v,i){var td=el('td',String(v||'—'));td.style.cssText='padding:9px;border-bottom:1px solid #e2e8f0;overflow-wrap:anywhere;white-space:normal;vertical-align:middle';if(i===0){td.style.fontWeight='650';td.title='Obligation '+String(o.obligationId||'')}tr.appendChild(td)});
   var actions=el('td');actions.style.cssText='padding:9px;border-bottom:1px solid #e2e8f0;vertical-align:middle;white-space:nowrap';
   var command=o.canUndo===true?'undo':'apply',eligible=command==='undo'?o.canUndo===true:o.canApply===true,canShow=o.extensionApplied||Number(o.extensionMonths)>0;
   if(eligible){var button=el('button',command==='undo'?'Undo':'EXT');button.type='button';button.title=command==='undo'?'Undo this scope extension':'Apply extension for this scope';button.onclick=function(){extAction(o,command)};actions.appendChild(button)}

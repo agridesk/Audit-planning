@@ -28,5 +28,8 @@ assert(server.includes('r.extendedScopeCodes=extendedScopes.get(clean(r.auditId)
 assert(ui.includes("updateExtendedScopeCodes20(o.auditId,o.scopeCode,command==='apply')"),'multi scope immediate refresh');
 assert(ui.includes("updateExtendedScopeCodes20(auditId,obligation.scopeCode,command==='apply')"),'single scope immediate refresh');
 assert(!output.includes('+EXT'),'indicator must not consume badge width');
+assert(output.includes('>E</span>'),'the same compact E emblem marks extended scope badges in single- and multi-scope rows');
+const single={auditId:'S',scopes:['MPS-GAP'],extendedScopeCodes:['MPS-GAP']};
+assert(ctx.grid4ScopeBadges(single).includes('grid4-ext-dot')&&ctx.grid4ScopeBadges(single).includes('>E</span>'),'single-scope status uses the identical emblem');
 assert(output.includes('position:absolute')&&output.includes('white-space:nowrap'),'indicator overlays badge without taking layout width');
 console.log('PASS compact scope-specific EXT dot, independent Undo and canonical active-link projection');

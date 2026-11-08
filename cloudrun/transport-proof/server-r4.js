@@ -2997,7 +2997,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
        auditRows:planning.slice(1).filter(row=>clean(row[pa])).length,scopeDefinitions:scopes.slice(1).filter(row=>row.some(value=>clean(value))).length
       },checks:{sourceUniqueObligations:sourceRows.length===ids.size,activeLinksResolve:orphan===0,
        devSourceFrozen:configured.get('ENV')==='DEV'&&configured.get('ALLOW_DEV_WRITES')==='FALSE'&&configured.get('DEV_WRITE_MODE')==='BLOCK'},
-       writerFlags:{migrationVerified:process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED==='true',writerFenceVerified:process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED==='true',commandsEnabled:process.env.AMS_DEV_EXT_COMMANDS_ENABLED==='true'},
+       writerFlags:{migrationVerified:process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED==='true',writerFenceVerified:process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED==='true',commandsEnabled:process.env.AMS_DEV_EXT_COMMANDS_ENABLED==='true',stageEnabled:process.env.AMS_DEV_EXT_STAGE_ENABLED==='true'},
        canEnableWriters:false,unverified:['Firestore migration parity','GAS legacy writer fencing','Writer cutover']};
       return send(res,200,output);
     }catch(e){console.error('EXT_SOURCE_PREFLIGHT_FAILED',clean(e?.message||e).slice(0,150));return send(res,409,{ok:false,error:'EXT_SOURCE_PREFLIGHT_UNAVAILABLE'});}

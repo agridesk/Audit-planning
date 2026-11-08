@@ -6,6 +6,30 @@ const text=x=>String(x??'').trim();
 const digest=x=>/^[0-9a-f]{64}$/.test(text(x));
 const uniq=x=>new Set(x).size===x.length;
 const status=x=>text(x).toUpperCase().replace(/[\s-]+/g,'_');
+/**
+ * Pure adapter for the actual 304-document DEV stage-1 manifest.
+ * It DOES NOT prove a writer freeze or grant cutover; those remain independent
+ * mandatory inputs to prepareScopeExtensionContextPromotion20.
+ */
+export function adaptScopeExtensionStagedManifestForPromotion20(manifest){
+ if(!manifest||manifest.readOnly!==true||manifest.writeAuthorized!==false||!digest(manifest.sourceManifest)
+   ||!Array.isArray(manifest.obligations)||!Array.isArray(manifest.contexts)
+   ||manifest.obligations.length!==199||manifest.contexts.length!==105
+   ||manifest.stats?.activeLinks!==155||manifest.stats?.historicalUnlinked!==44)throw Error('EXT_PROMOTION_STAGED_MANIFEST_INVALID');
+ const documents=manifest.obligations.map(x=>({...x}));
+ const auditContexts=manifest.contexts.map(x=>({...x,obligationIds:Array.isArray(x.obligationIds)?[...x.obligationIds]:null}));
+ const linked=documents.filter(x=>x.linkState==='ACTIVE');
+ const unlinked=documents.filter(x=>x.linkState==='UNLINKED');
+ const map=new Map(documents.map(x=>[x.obligationId,x]));
+ if(map.size!==199||linked.length!==155||unlinked.length!==44
+   ||auditContexts.some(c=>!Array.isArray(c.obligationIds)||c.obligationIds.length<1||c.writerFenceVerified!==false||c.migrationState!=='STAGED_UNVERIFIED')
+   ||linked.some(d=>!text(d.auditId)||!auditContexts.some(c=>c.auditId===d.auditId&&c.companyUid===d.companyUid&&c.obligationIds.includes(d.obligationId)))
+   ||unlinked.some(d=>d.pendingProjectionId!==''||d.revision!==0))throw Error('EXT_PROMOTION_STAGED_LINEAGE_INVALID');
+ return Object.freeze({readOnly:true,seedPermitted:false,cutoverApproved:false,eligibleForControlledStaging:true,
+   unresolvedFailures:[],quarantinedAudits:[],documents,auditContexts,
+   counts:{contexts:auditContexts.length,obligations:documents.length,activeLinks:linked.length,historicalUnlinked:unlinked.length},
+   sourceManifestSha256:manifest.sourceManifest});
+}
 export function prepareScopeExtensionContextPromotion20({
  projectId,stage,sourceSnapshotSha256,seedReadback,sourceParity,
  writerFreeze,approval,runtime

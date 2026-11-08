@@ -17,6 +17,7 @@ for(const item of [
  "sessionFromRequestValidated(req)",
  "clean(actor.role).toLowerCase()!=='manager'",
  "requestOrigin=clean(req.headers.origin)",
+ "parsedOrigin.origin!=='https://ams-fase12-dev-510075419067.europe-west1.run.app'",
  "body?.approval!=='I_APPROVE_DEV_EXT_STAGE_199_105'",
  "expectedSourceManifestSha256",
  "cfg.get('ALLOW_DEV_WRITES')!=='FALSE'",

@@ -2086,6 +2086,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
     let body;try{body=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
     try{
+      if(isolatedExtPilot20()){await assertDevExtPilotSourceFrozen20();await assertDevExtPilotAuditEvidence20(clean(body.auditId));}
       const store=createScopeExtensionFirestoreStore20({projectId:actualDev,getToken:accessToken,migrationVerified:true,writerFenceVerified:true});
       const contextResolver=({auditId,companyUid})=>store.readAuditContext({auditId,companyUid});
       const policyResolver=async({scopeCode,companyUid,obligationId})=>{
@@ -2111,6 +2112,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     const operationId=clean(body?.operationId);if(!operationId||operationId.length>180)return send(res,400,{ok:false,error:'EXT_PROJECTION_OPERATION_ID_REQUIRED'});
     try{
       const store=createScopeExtensionFirestoreStore20({projectId:devProject,getToken:accessToken,migrationVerified:true,writerFenceVerified:true});
+      if(isolatedExtPilot20()){await assertDevExtPilotSourceFrozen20();const pending=await store.readOutbox(operationId);if(!pending)throw Error('EXT_PILOT_OUTBOX_MISSING');await assertDevExtPilotAuditEvidence20(pending.auditId);}
       const sheets=createScopeExtensionSheetsAdapter20({batchGet:sheetsBatchGet,batchWrite:(data)=>scopeExtensionProjectionWrites20.run({ranges:data.map(x=>x.range)},()=>sheetsValuesBatchUpdateRaw(data)),cutoverVerified:true});
       const projector=createScopeExtensionSheetsProjector20({store,sheets,cutoverVerified:true});
       return send(res,200,await projector(operationId));
@@ -3169,7 +3171,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
         const store=createScopeExtensionFirestoreStore20({projectId:verifiedProject,getToken:accessToken,migrationVerified:true,writerFenceVerified:true});
         const eligibleAudits=[...new Set(records.flatMap(x=>x.auditIds).filter(id=>clean(statuses.get(id)).toUpperCase().replace(/[\\s-]+/g,'_')==='PENDING_PLANNING'))];
         if(eligibleAudits.length>100)return send(res,409,{ok:false,error:'EXT_COMPANY_DOSSIER_TOO_MANY_AUDITS'});
-        const contexts=(await Promise.all(eligibleAudits.map(async auditId=>{try{return await store.readAuditContext({auditId,companyUid:uid})}catch{return null}}))).filter(Boolean);
+        const contexts=(await Promise.all(eligibleAudits.map(async auditId=>{try{const ctx=await store.readAuditContext({auditId,companyUid:uid});return isolatedExtPilot20()&&!ctx.pilotOnly?null:ctx}catch{return null}}))).filter(Boolean);
         const activeLinks=links.slice(1).filter(row=>clean(row[li('Link_State')]).toUpperCase()==='ACTIVE').map(row=>({auditId:clean(row[li('Audit_ID')]),obligationId:clean(row[li('Obligation_ID')])}));
         const result=reconcileScopeExtensionDossierAuthority20({companyUid:uid,records,activeLinks,contexts,cutoverVerified:true});
         records=result.records;

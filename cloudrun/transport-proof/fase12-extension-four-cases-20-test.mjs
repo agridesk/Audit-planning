@@ -23,7 +23,7 @@ assert(portal.includes('querySelectorAll(".ext-manage")'),'multi-scope opens the
 assert(portal.includes('querySelectorAll(".ext-single")'),'single-scope triggers its own direct action');
 assert(portal.includes('runSingleScopeExtension20(button)'),'single-scope does not open the company dossier');
 assert(portal.includes('linked.length!==1'),'single-scope must validate exactly one active obligation before writes');
-assert(portal.includes("data.mode!=='FIRESTORE_VERIFIED'"),'direct EXT must fail closed before migration');
+assert(portal.includes("['FIRESTORE_VERIFIED','DEV_MODEL_C_DIRECT'].includes(data.mode)"),'direct EXT must use an explicitly selected canonical DEV scope authority');
 assert(portal.includes("extPost('/api/v1/manager/extension-obligation-command'")&&portal.includes("fetch('/api/v1/manager/extension-obligation-command'"),'both flows must use canonical per-scope command');
 assert(!portal.includes('querySelectorAll(".ext-act:not(.ext-manage)").forEach(function(button){button.addEventListener("click",function(){runExtension(button)})'), 'legacy extension handler must not be bound to grid buttons');
 assert(portal.includes('auditId:row.auditId||""'),'navigation must pass selected Audit ID');
@@ -38,7 +38,7 @@ assert(portal.includes("matches.length!==1||!String(matches[0].companyUid||'').t
 assert(portal.includes("extensionTargetCompanyUid20=String(matches[0].companyUid).trim()"),'selected dossier must retain canonical UID after unique match');
 assert(portal.includes("extCompanyFocus20();document.getElementById('scopeManagement20Panel')"),'normal Companies navigation must restore full list');
 assert(portal.includes("extensionTargetCompanyUid20='';extCompanyFocus20()"),'Close must restore normal company presentation');
-assert(portal.includes('migration not verified'),'blocked per-scope actions must be explained');
+assert(portal.includes('EXT/Undo currently unavailable'),'blocked per-scope actions must be explained');
 assert(server.includes('eligibleExtensionScopes='),'manager read must expose per-scope eligibility');
 assert(server.includes('extensionMonths:scopeExtensionMonths.get'),'dossier must expose per-scope extension months');
 console.log('PASS four Extensions behaviors, scoped navigation, migration-safe read-only states');

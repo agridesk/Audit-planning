@@ -82,6 +82,7 @@ function ModelCExtension_dateInTz_(value, tz) {
 }
 
 function ModelCExtension_commit(command) {
+  if (PropertiesService.getScriptProperties().getProperty('AMS_SCOPE_EXTENSION_AUTHORITY') === 'FIRESTORE') throw new Error('LEGACY_GAS_MODEL_C_EXTENSION_WRITER_FENCED');
   command = ModelCExtension_validateCommand_(command);
   SYS_ENFORCE_WRITE_ALLOWED('PLANNING_MODEL_C_EXTENSION', command.auditId);
   var ss = SpreadsheetApp.getActive();

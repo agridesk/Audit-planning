@@ -19,8 +19,20 @@ export function extReadOnlyPreview20(env) {
     && env?.AMS_DEV_EXT_READONLY_PREVIEW === 'true'
     && env?.AMS_DEV_MAINTENANCE_MODE === 'true';
 }
-export function extPreviewRequestAllowed20({method,path}={}) {
+const verifiedExtensionPosts = new Set([
+  '/api/v1/manager/extension-obligation-command',
+  '/api/v1/manager/extension-reconcile-projection'
+]);
+export function extPreviewRequestAllowed20({method,path,env}={}) {
   if(method==='GET' || method==='HEAD') return allowedGet.has(path);
-  if(method==='POST') return allowedPost.has(path);
+  if(method==='POST') {
+    if(allowedPost.has(path)) return true;
+    return verifiedExtensionPosts.has(path)
+      && extReadOnlyPreview20(env)
+      && env.AMS_DEV_EXT_COMMANDS_ENABLED === 'true'
+      && env.AMS_SCOPE_EXTENSION_AUTHORITY === 'FIRESTORE'
+      && env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED === 'true'
+      && env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED === 'true';
+  }
   return false;
 }

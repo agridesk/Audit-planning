@@ -20,7 +20,8 @@ assert(portal.includes("extPost('/api/v1/manager/extension-reconcile-projection'
 assert(portal.includes('Firestore commit succeeded; projection requires recovery'));
 assert(server.includes('reconcileScopeExtensionDossierAuthority20({companyUid:uid,records,activeLinks,contexts,cutoverVerified:true})'));
 assert(server.includes('eligibleAudits.length>100'));
-assert(portal.includes("o.canApply===true||o.canUndo===true"));
+assert(portal.includes("eligible=command==='undo'?o.canUndo===true:o.canApply===true"),'per-scope action must require canonical Apply/Undo eligibility');
+assert(portal.includes('button.disabled=true'),'read-only or ineligible scope actions must be disabled');
 assert.match(portal,/extContent\.replaceChildren\(\)/);
 assert(!portal.includes("fetch('/api/v1/manager/company-management/extension-obligations', {method:'POST'"));
 assert(server.includes('EXTENSION_MULTI_SCOPE_BLOCKED_PENDING_MODEL_C_SCOPE_SAFE_REMEDIATION_ISSUE_96'));

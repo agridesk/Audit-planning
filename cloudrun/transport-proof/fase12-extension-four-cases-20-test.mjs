@@ -10,8 +10,8 @@ const sandbox={actorRole:'Manager',extensionAppliedState:r=>r.extensionApplied==
 vm.runInNewContext(portal.slice(first,last),sandbox);
 const render=sandbox.extensionControls;
 const pending={auditId:'A',statusKey:'PENDING_PLANNING',scopes:['MPS-GAP'],extensionMonths:4,canExtend:true};
-assert.match(render(pending),/data-extension="apply"/,'one eligible scope: EXT');
-assert.match(render({...pending,extensionApplied:true}),/data-extension="undo"/,'applied extension: Undo');
+assert.match(render(pending),/ext-manage[^>]*>\+<\/button>/,'one eligible scope: small EXT opens scoped dossier');
+assert.match(render({...pending,extensionApplied:true}),/ext-manage[^>]*>↶<\/button>/,'applied single scope: small Undo opens scoped dossier');
 const multi={...pending,scopes:['MPS-GAP','GRASP'],eligibleExtensionScopes:['GRASP']};
 assert.match(render(multi),/ext-manage/,'multiple eligible scopes: Manage Extensions');
 assert.match(render({...multi,eligibleExtensionScopes:[]}),/ext-manage/,'multi-scope audit must retain direct navigation to its scope dossier even without currently eligible EXT');
@@ -19,9 +19,13 @@ assert.equal(render({...pending,extensionMonths:0,canExtend:false}),'' ,'single 
 assert.equal(render({...multi,statusKey:'ACCEPTED'}),'' ,'non-Pending Planning: no extension action');
 sandbox.actorRole='Auditor';
 assert.equal(render(multi),'','Auditor cannot mutate extensions');
-assert(portal.includes('querySelectorAll(".ext-act:not(.ext-manage)")'),'navigation cannot invoke legacy extension writer');
+assert(portal.includes('querySelectorAll(".ext-manage")'),'both single and multi-scope buttons use canonical dossier navigation');
+assert(!portal.includes('querySelectorAll(".ext-act:not(.ext-manage)").forEach(function(button){button.addEventListener("click",function(){runExtension(button)})'), 'legacy extension handler must not be bound to grid buttons');
 assert(portal.includes('auditId:row.auditId||""'),'navigation must pass selected Audit ID');
 assert(portal.includes('visibleRecords=extTargetAuditId?data.records.filter'),'dossier must focus clicked audit');
+assert(portal.includes('extensionTargetCompanyUid20=uid;extensionTargetAuditId20=auditId'),'audit routing must set both company and audit scope');
+assert(portal.includes("!extensionTargetCompanyUid20||String(c.companyUid||'').trim()===extensionTargetCompanyUid20"),'company grid must show only selected company in EXT context');
+assert(portal.includes("extensionTargetCompanyUid20='';extensionTargetAuditId20=''"),'normal company navigation must clear EXT-only focus');
 assert(portal.includes('migration not verified'),'blocked per-scope actions must be explained');
 assert(server.includes('eligibleExtensionScopes='),'manager read must expose per-scope eligibility');
 assert(server.includes('extensionMonths:scopeExtensionMonths.get'),'dossier must expose per-scope extension months');

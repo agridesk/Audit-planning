@@ -5,7 +5,7 @@ const guards=['EXTENSION_ALREADY_APPLIED','EXTENSION_NOT_APPLIED','EXTENSION_UND
 for(const guard of guards)assert.ok(source.includes(guard),guard);
 const grid=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 assert.ok(grid.includes('extensionAppliedState(r)?r.expiryZ:r.expiryY'));
-assert.ok(grid.includes('applied=extensionAppliedState(r)'));
+assert.ok(grid.includes("applied=Array.isArray(r.extendedScopeCodes)?r.extendedScopeCodes.length>0:extensionAppliedState(r)"),'single-scope action reflects the canonical per-scope EXT status when enriched, with legacy fallback');
 assert.ok(grid.includes('Array.isArray(r.scopes)&&r.scopes.length>1'));
 
 console.log('Extension provenance guards present');

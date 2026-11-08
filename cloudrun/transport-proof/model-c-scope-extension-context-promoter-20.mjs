@@ -36,7 +36,7 @@ export function createScopeExtensionContextPromoter20({projectId,getToken,fetchI
   const at=new Date().toISOString();
   const value={...current.value,writerFenceVerified:true,revision:1,writerFreezeEvidenceRef:approvedPlan.writerFreezeEvidenceRef,sourceParityEvidenceRef:approvedPlan.sourceParityEvidenceRef,seedParityEvidenceRef:approvedPlan.seedParityEvidenceRef,writerPromotedAt:at};
   const event={kind:'MODEL_C_WRITER_PROMOTION',auditId,companyUid:expected.companyUid,sourceSnapshotSha256:sourceHash,writerFreezeEvidenceRef:approvedPlan.writerFreezeEvidenceRef,sourceParityEvidenceRef:approvedPlan.sourceParityEvidenceRef,seedParityEvidenceRef:approvedPlan.seedParityEvidenceRef,at,obligationIds:[...expected.obligationIds]};
-  const writes=[{update:{name:resource('auditcontext',auditId),fields:{payload:encode(value)}},currentDocument:{updateTime:current.updateTime}},{update:{name:resource('event',eventId),fields:{payload:encode(event)}},currentDocument:{exists:false}},...linked.map((ob,i)=>({verify:path('obligation',expected.obligationIds[i]),currentDocument:{updateTime:ob.updateTime}}))];
+  const writes=[{update:{name:resource('auditcontext',auditId),fields:{payload:encode(value)}},currentDocument:{updateTime:current.updateTime}},{update:{name:resource('event',eventId),fields:{payload:encode(event)}},currentDocument:{exists:false}},...linked.map((ob,i)=>({verify:resource('obligation',expected.obligationIds[i]),currentDocument:{updateTime:ob.updateTime}}))];
   const result=await request(root+':commit','POST',{writes});
   if(!result.ok)throw Error('EXT_PROMOTE_ATOMIC_COMMIT_'+result.status);
   const verified=await read('auditcontext',auditId),evidence=await read('event',eventId);

@@ -62,7 +62,7 @@ CURRENT IMPLEMENTATION (STILL NO DEV DATA WRITES)
 - Do not repeat create-only stage; nonempty target must be verified, never overwritten.
 
 CURRENT DECISION
-The implementation and static/simulated checks are complete, but local full-suite testing and deployment remain to be done.
+As of 2026-11-08, isolated DEV revision ams-fase12-dev-00009-scz was deployed after passing the local full-suite tests. Subsequent promotion-manifest adapter code in GitHub dev is not yet tested or deployed.
 For actual staging, an authorized Manager must explicitly enable the temporary DEV stage flag and confirm on the hidden staging page after full preflight succeeds. Disable that flag immediately following confirmed readback.
 DO NOT interpret this plan as authorization to activate EXT/Undo writers; do not set FIRESTORE authority or verified writer flags without independent evidence.
 
@@ -73,3 +73,11 @@ SCRIPT PROPERTIES CAPACITY — 2026-11-08
 - SystemWriteGuard.js already rejects guarded DEV planning/status/EXT actions under this configuration; additional script properties are not prerequisites to prove that specific guard.
 - A flag-free cutover is NOT thereby approved: independently verify all unguarded GAS code, other accounts' triggers, legacy deployed revisions, direct Sheets writer paths, and concurrent mutation risk before enabling Cloud Run authority.
 - The optional GAS authority-property checks in source must not be represented as deployed or required. No GAS code synchronization or GAS configuration changes have been confirmed.
+
+INDEPENDENT GAS RUNTIME EVIDENCE — 2026-11-08
+- Function SYS_WRITE_GUARD_DIAGNOSTICS in live DEV Apps Script file SystemWriteGuard.js was executed by the operator.
+- Verified build 2026-09-22_SYSTEM_WRITE_GUARD_ALLOW_ALL_COMPAT, env DEV, ALLOW_DEV_WRITES FALSE, DEV_WRITE_MODE BLOCK; real and test audit writes both denied with DEV_WRITE_BLOCKED; errors [].
+- Operator screenshot shows nine Apps Script triggers, but does not constitute an exhaustive inventory of unguarded writers, alternate script owners, Cloud Run revisions, or deployment endpoints.
+- Script Properties AMS_SCOPE_EXTENSION_AUTHORITY and AMS_DEV_PLANNING_CANONICAL_OWNER_20 are absent; additional properties cannot be created because SWAP data fills the store. No SWAP properties may be removed.
+- Latest GitHub dev fixes include operational Firestore resource paths, context promoter stage compatibility, fixed public DEV Origin validation, and 304-document promotion adapter. None authorizes a global writer cutover.
+- No user action needed to create Script Properties. Do not repeat stage.

@@ -18,19 +18,20 @@ function selectionClear(){gridSelected.clear();updateSelectionUi()}
 function selectionToggle(id,on){id=String(id||"").trim();if(!id)return;if(on)gridSelected.add(id);else gridSelected.delete(id);updateSelectionUi()}
 function selectionSelectVisible(on){gridVisibleIds.forEach(function(id){if(on)gridSelected.add(id);else gridSelected.delete(id)});updateSelectionUi()}
 var swap20EligibleAuditIds=null,swap20EligibleAt=0,swap20EligibleLoading=false,swap20EligibleError="";
+var swap20IsolatedPreviewBlocked20=false;
 function swap20LoadEligibleAuditIds(){
- if(swap20EligibleLoading||(swap20EligibleAt&&Date.now()-swap20EligibleAt<60000))return;
+ if(swap20IsolatedPreviewBlocked20||swap20EligibleLoading||(swap20EligibleAt&&Date.now()-swap20EligibleAt<60000))return;
  if(String(actorRole).toLowerCase()!=="manager")return;
  swap20EligibleLoading=true;
  fetch("/api/v1/manager/swap20/eligible",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json"},body:"{}"})
- .then(function(r){return r.json().then(function(v){if(!r.ok||v.ok!==true||!Array.isArray(v.auditIds))throw Error("SWAP_ELIGIBILITY_UNAVAILABLE");return v.auditIds;})})
+ .then(function(r){return r.json().then(function(v){if(r.status===423&&v.code==="AMS_EXT_PREVIEW_READ_ONLY"){swap20IsolatedPreviewBlocked20=true;throw Error(v.code);}if(!r.ok||v.ok!==true||!Array.isArray(v.auditIds))throw Error("SWAP_ELIGIBILITY_UNAVAILABLE");return v.auditIds;})})
  .then(function(ids){swap20EligibleAuditIds=new Set(ids);swap20EligibleAt=Date.now();swap20EligibleError="";})
  .catch(function(error){swap20EligibleAuditIds=null;swap20EligibleAt=Date.now();swap20EligibleError=String(error&&error.message||"SWAP_ELIGIBILITY_UNAVAILABLE");})
  .finally(function(){swap20EligibleLoading=false;updateSelectionUi();});
 }
 var swap20PairDiagnosis20={key:"",status:"",at:0,loading:false};
 function swap20DiagnoseSelection20(chosen){
- if(!Array.isArray(chosen)||chosen.length!==2)return;
+ if(swap20IsolatedPreviewBlocked20||!Array.isArray(chosen)||chosen.length!==2)return;
  var pair={auditA:String(chosen[0].auditId),auditB:String(chosen[1].auditId)},key=[pair.auditA,pair.auditB].sort().join("|");
  if(swap20PairDiagnosis20.loading||(swap20PairDiagnosis20.key===key&&Date.now()-swap20PairDiagnosis20.at<60000))return;
  swap20PairDiagnosis20={key:key,status:"Checking canonical Firestore documents...",at:Date.now(),loading:true};
@@ -72,7 +73,7 @@ function updateSelectionUi(){
     var chosen=selectionRows(),accepted=chosen.length===2&&chosen.every(function(r){return String(r.statusKey||"").toUpperCase()==="ACCEPTED"});
     if(!auditorMode&&currentView==="open"&&n>0)swap20LoadEligibleAuditIds();
     var eligible=accepted&&swap20EligibleAuditIds!==null&&chosen.every(function(r){return swap20EligibleAuditIds.has(String(r.auditId))});
-    swap.hidden=auditorMode||currentView!=="open"||n===0;
+    swap.hidden=swap20IsolatedPreviewBlocked20||auditorMode||currentView!=="open"||n===0;
     swap.disabled=!eligible;
     if(eligible&&!auditorMode&&currentView==="open")swap20WarmPreview(chosen);
     if(accepted&&!eligible&&!swap20EligibleLoading)swap20DiagnoseSelection20(chosen);
@@ -80,7 +81,7 @@ function updateSelectionUi(){
     swap.title=!accepted?"Select exactly two Accepted audits":swap20EligibleError?"Firestore SWAP eligibility check failed: "+swap20EligibleError:swap20EligibleAuditIds===null?"Verifying Firestore SWAP availability":eligible?"Preview exchange of two Accepted audit time slots":"Not migrated to Firestore SWAP: "+excluded.join(", ");
     var notice=document.getElementById("swap20SelectionEligibilityNotice");
     if(!notice){notice=document.createElement("span");notice.id="swap20SelectionEligibilityNotice";notice.setAttribute("role","status");notice.style.cssText="margin-left:12px;font-size:12px;color:#a34813";swap.insertAdjacentElement("afterend",notice);}
-    notice.textContent=accepted&&!eligible?(swap20PairDiagnosis20.status&&swap20PairDiagnosis20.key===[String(chosen[0].auditId),String(chosen[1].auditId)].sort().join("|")?swap20PairDiagnosis20.status:swap20EligibleError?"SWAP eligibility check failed ("+swap20EligibleError+").":swap20EligibleAuditIds===null?"Checking Firestore SWAP eligibility...":"SWAP unavailable: "+excluded.join(" / ")+" not migrated to Firestore."): "";
+    notice.textContent=swap20IsolatedPreviewBlocked20?"SWAP is not available in this isolated DEV preview.":accepted&&!eligible?(swap20PairDiagnosis20.status&&swap20PairDiagnosis20.key===[String(chosen[0].auditId),String(chosen[1].auditId)].sort().join("|")?swap20PairDiagnosis20.status:swap20EligibleError?"SWAP eligibility check failed ("+swap20EligibleError+").":swap20EligibleAuditIds===null?"Checking Firestore SWAP eligibility...":"SWAP unavailable: "+excluded.join(" / ")+" not migrated to Firestore."): "";
   }
   var bulkAccept=document.getElementById("selectionAcceptAuditor");if(bulkAccept){var elig=selectionRows().filter(function(r){return r.statusKey==="APPROVED"&&(r.allowedActions||[]).includes("ACCEPT")});bulkAccept.hidden=!(auditorMode&&currentView==="open"&&elig.length>0);bulkAccept.textContent="Accept selected ("+elig.length+")";bulkAccept.disabled=bulkAcceptRunning20;}
 }
@@ -550,7 +551,7 @@ function loadSwap20CanonicalGridDates(seq){
   });
   filter();
   var st=document.getElementById("status");if(st)st.textContent=all.length+" open audits · Firestore SWAP dates verified for "+result.rows.length+" audits";
- }).catch(function(e){console.warn("[SWAP_CANONICAL_GRID_READ]",e);var st=document.getElementById("status");if(st&&seq===enrichmentSeq){var message=String(e.message||"UNKNOWN"),disabled=message==="SWAP_DIRECT_GRID_DISABLED";st.className=disabled?"":"err";st.textContent=all.length+" open audits · "+(disabled?"Firestore SWAP overlay inactive; Sheets dates displayed":"Firestore SWAP date overlay unavailable: "+message);}});
+ }).catch(function(e){console.warn("[SWAP_CANONICAL_GRID_READ]",e);var st=document.getElementById("status");if(st&&seq===enrichmentSeq){var message=String(e.message||"UNKNOWN"),isolated=message==="AMS_EXT_PREVIEW_READ_ONLY",disabled=message==="SWAP_DIRECT_GRID_DISABLED"||isolated;if(isolated){swap20IsolatedPreviewBlocked20=true;updateSelectionUi();}st.className=disabled?"":"err";st.textContent=all.length+" open audits · "+(isolated?"Isolated DEV preview: SWAP disabled; original planning dates displayed":disabled?"Firestore SWAP overlay inactive; Sheets dates displayed":"Firestore SWAP date overlay unavailable: "+message);}});
 }
 function loadOpenEnrichment(seq){if(String(actorRole).toLowerCase()==="auditor")return Promise.resolve();var ids=all.map(function(r){return r.auditId}).filter(Boolean),sx=window.scrollX,sy=window.scrollY;if(!ids.length)return Promise.resolve();var started=performance.now();return fetch('/api/v1/manager/open-enrichment',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({auditIds:ids})}).then(function(r){return r.json().then(function(x){if(!r.ok||x.success===false)throw new Error(x.error||x.message||'Open audit enrichment failed');return x})}).then(function(x){if(seq!==enrichmentSeq||currentView!=="open")return;var by={};(x.rows||[]).forEach(function(r){if(r&&r.auditId)by[r.auditId]=r});all.forEach(function(r,i){if(by[r.auditId]){var p=Object.assign({},by[r.auditId]);delete p.locationsToPlan;delete p.locs;delete p.locations;delete p.locationCount;delete p.gps;delete p.gpsData;delete p.coordinates;all[i]=Object.assign({},r,p)}});filter();window.scrollTo(sx,sy);var ms=Math.round(performance.now()-started);document.getElementById("status").textContent=all.length+" open audits · decision-ready "+ms+" ms enrichment"}).catch(function(e){if(seq!==enrichmentSeq)return;console.warn('[OPEN_AUDITS_ENRICHMENT]',e);document.getElementById("status").textContent=all.length+" open audits · base loaded; enrichment unavailable"})}
 function loadOpen(){if(currentView!=="open")selectionClear();currentView="open";lastPassiveRefreshAt=Date.now();var seq=++enrichmentSeq;return fetch("/api/v1/manager/open",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(x){if(!x.success)throw new Error([x.error,x.detail].filter(Boolean).join(": ")||x.message||"Read failed");all=x.rows.slice();openCounts=Object.assign({total:all.length,pendingPlanning:0,pendingApproval:0,approved:0,accepted:0},x.counts||{});var identity=document.getElementById("identity"),displayName=String(x.actorDisplayName||"").trim();if(identity&&displayName)identity.textContent=displayName+" · "+actorRole;document.getElementById("status").className="";document.getElementById("status").textContent=all.length+" open audits · "+x.serverMs+" ms base";renderCards();setTabs();filter();focusEmailAudit20();var enrichment=loadOpenEnrichment(seq);var canonical=loadSwap20CanonicalGridDates(seq);enrichment.then(function(){return loadSwap20CanonicalGridDates(seq)});return canonical}).catch(fail)}

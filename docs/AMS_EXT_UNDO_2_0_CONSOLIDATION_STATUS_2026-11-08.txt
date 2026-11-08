@@ -1,0 +1,43 @@
+AMS EXT/UNDO 2.0 — CONSOLIDATIESTATUS (2026-11-08)
+SOURCE OF TRUTH: agridesk/Audit-planning, branch dev.
+SCOPE: isolated Cloud Run DEV service ams-fase12-dev; NO PROD changes.
+
+CONCLUSION
+No major architectural consolidation or rewrite is necessary now. The single- and multi-scope UI already share the same Model C obligation command endpoint. The isolated DEV feature has been user-tested successfully for Apply and Undo. Freeze the working flow, retain regression coverage and separate planned 3.0 design.
+
+FUNCTIONAL BASELINE — CONFIRMED BY USER
+* Single scope: Salm Portugal Sociedade, EXT Apply + Undo work.
+* Multi scope: Cultius Lloveras S.L., per-scope EXT Apply + Undo work.
+* Per-scope E indicators added in Manager Grid; subsequent user feedback led to display-name alias and row-wrap refinements.
+* MPS-GAP / GRASP extension remains independent; NO automatic mother/daughter propagation.
+
+ARCHITECTURE — RETAIN
+* Canonical DEV writer: cloudrun/transport-proof/model-c-extension-dev-direct-20.mjs.
+* Read / command owner: server-r4.js, endpoints company-management/extension-obligations and extension-obligation-command.
+* Manager grid enrichment: server-r10.js, active Model C obligation links and Config_Scopes aliases.
+* UI: manager-portal.js and manager-portal.html.
+* Isolated preview ingress guard: dev-ext-readonly-preview-20.mjs.
+* DEV-only identity, spreadsheet, role, origin, source freeze and serialization guards remain mandatory.
+
+CONSOLIDATION REVIEW
+1. Keep scope-specific extension state in Audit_Obligations, joined via ACTIVE Audit_Visit_Obligations. Do not infer extension status from a grid-only flag or manually duplicate it in other tables as authoritative state.
+2. Maintain a single canonical Apply/Undo command path. There is older '/api/v1/manager/extension-direct' legacy transport code; do NOT delete it without a separate call-site/contract inventory.
+3. Do not merge the isolated DEV release with general Cloud Run DEV/PROD. The 2026-11-08 accepted proof is confined to ams-fase12-dev.
+4. A previous test fixture TEST_PENDING_PLANNING_01 had no active Model C links; repair governed test provisioning separately, not by bypassing authorization.
+5. The earlier acceptance document records revision ams-fase12-dev-00013-dd5. Latest revision explicitly reported later by user was 00015-6zb. Code changes after that include canonical eligibility, alias and legacy-Undo fixes; a subsequent preflight failure was repaired in git. No later successful deploy has been explicitly confirmed in this conversation. Therefore GitHub dev HEAD and deployed revision must not be called identical until verified.
+6. There is no evidence that PROD received EXT/Undo changes; deployment and PROD promotion require separate authorization.
+
+OPEN ITEMS — DO NOT SILENTLY CHANGE
+A. Verify latest GitHub dev HEAD with npm test and deploy only after the user explicitly elects to release remaining fixes to isolated DEV.
+B. Confirm the Manager Grid shows all scopes (including 3+) with independent E indicators and no clipping.
+C. Per-scope EFFECTIVE EXPIRY dates in the Manager Grid are an APPROVED 2.0 DESIGN, not yet implemented. Audit-level earliest expiry still cannot replace each scope's date.
+D. 3.0: governed multi-visit splitting when scope windows do not overlap or combined planning is practically infeasible; no new company record and no automatic split.
+E. Optional: later remove superseded legacy extension route only following proven zero call sites, parity, and a bounded separate refactor.
+
+ACTION COMPLETED NOW
+* Reviewed EXT UI, canonical direct writer, DEV origin/request gates, open-grid enrichment, test suite and two 2026-11-08 decisions.
+* Corrected an outdated source comment describing the isolated preview as never allowing EXT writes. This is documentation-only.
+* No new business logic, PROD changes, database writes or Cloud Run deployment.
+
+DECISION
+CONSOLIDATE DOCUMENTATION AND RELEASE BASELINE; DO NOT REFACTOR THE WORKING EXT/UNDO CORE.

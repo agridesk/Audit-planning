@@ -28,7 +28,7 @@ assert(portal.includes("extPost('/api/v1/manager/extension-obligation-command'")
 assert(!portal.includes('querySelectorAll(".ext-act:not(.ext-manage)").forEach(function(button){button.addEventListener("click",function(){runExtension(button)})'), 'legacy extension handler must not be bound to grid buttons');
 assert(portal.includes('auditId:row.auditId||""'),'navigation must pass selected Audit ID');
 assert(portal.includes('visibleRecords=extTargetAuditId?data.records.filter'),'dossier must focus clicked audit');
-assert(portal.includes('extensionTargetCompanyUid20=uid;extensionTargetAuditId20=auditId'),'audit routing must set both company and audit scope');
+assert(portal.includes('extensionTargetCompanyUid20=String(matches[0].companyUid).trim()')&&portal.includes('extensionTargetAuditId20=auditId'),'audit routing must resolve the canonical company UID and selected audit');
 assert(portal.includes("!extensionTargetCompanyUid20||String(c.companyUid||'').trim()===extensionTargetCompanyUid20"),'company grid must show only selected company in EXT context');
 assert(portal.includes("extensionTargetCompanyUid20='';extensionTargetAuditId20=''"),'normal company navigation must clear EXT-only focus');
 assert(portal.includes("function extCompanyFocus20()"),'EXT must have an isolated company-only display');

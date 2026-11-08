@@ -33,7 +33,7 @@ assert(portal.includes("!extensionTargetCompanyUid20||String(c.companyUid||'').t
 assert(portal.includes("extensionTargetCompanyUid20='';extensionTargetAuditId20=''"),'normal company navigation must clear EXT-only focus');
 assert(portal.includes("function extCompanyFocus20()"),'EXT must have an isolated company-only display');
 assert(portal.includes("node.style.display=focused?'none':''"),'EXT focus must hide the company list and search toolbar, not just filter rows');
-assert(portal.includes("companyName.toLowerCase()"),'single scope without a company UID must resolve by unique exact company name');
+assert(portal.includes("if(!auditId||!uid){")&&portal.includes("matches=companies.filter(function(c){return String(c.companyUid||'').trim()===uid})"),'multi-scope navigation must fail closed without exact canonical Company UID; no ambiguous name fallback');
 assert(portal.includes("matches.length!==1||!String(matches[0].companyUid||'').trim()"),'ambiguous company identity must fail closed');
 assert(portal.includes("extensionTargetCompanyUid20=String(matches[0].companyUid).trim()"),'selected dossier must retain canonical UID after unique match');
 assert(portal.includes("extCompanyFocus20();document.getElementById('scopeManagement20Panel')"),'normal Companies navigation must restore full list');

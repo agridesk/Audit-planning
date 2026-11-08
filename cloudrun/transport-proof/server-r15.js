@@ -17,6 +17,7 @@ import {createSwapFirestoreDevTransport} from './swap-firestore-dev-transport-20
 import {createSwapDirectProposalStore} from './swap-direct-proposal-store-20.mjs';
 
 import {URL} from 'node:url';
+import {extReadOnlyPreview20,extPreviewRequestAllowed20} from './dev-ext-readonly-preview-20.mjs';
 import {createAvailabilityHttpRouter} from './availability-http-api-20.js';
 import {createAvailabilityService} from './availability-storage-service-20.js';
 import {enforceAvailabilityHardGate20} from './availability-planning-hard-gate-20.js';
@@ -970,11 +971,20 @@ async function proxy(req,res){
 http.createServer(async(req,res)=>{
  try{
   const u=new URL(req.url||'/','http://localhost');
-  // DEV maintenance closes every HTTP entry point, including legacy GET mutations.
-  // No path, session or method may bypass this writer freeze.
-  if(process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_DEV_MAINTENANCE_MODE==='true'){
+  // Isolated IAP-secured copy: read-only navigation while canonical DEV stays frozen.
+  // The existing maintenance switch remains enabled in both services.
+  const extPreview=extReadOnlyPreview20(process.env);
+  if(runtime.isDev&&process.env.AMS_DEV_MAINTENANCE_MODE==='true'&&!extPreview){
    res.writeHead(503,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','retry-after':'300'});
    res.end(JSON.stringify({ok:false,code:'AMS_DEV_MAINTENANCE',message:'DEV maintenance: all requests are temporarily unavailable'}));return;
+  }
+  if(runtime.isDev&&process.env.K_SERVICE==='ams-fase12-dev'&&!extPreview){
+   res.writeHead(503,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+   res.end(JSON.stringify({ok:false,code:'EXT_PREVIEW_CONFIG_INCOMPLETE'}));return;
+  }
+  if(extPreview&&!extPreviewRequestAllowed20({method:req.method,path:u.pathname})){
+   res.writeHead(423,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-ams-preview':'READ_ONLY'});
+   res.end(JSON.stringify({ok:false,code:'AMS_EXT_PREVIEW_READ_ONLY',message:'EXT preview: write and unverified routes are disabled'}));return;
   }
   if(req.method==='POST'&&planningAtomicLifecycle&&u.pathname==='/api/v1/auditor/action'){
    const actor=await session(req);

@@ -46,17 +46,24 @@ P4: durable delayed EXT/Undo outbox, suppression + correction en Notification da
 P5: DEV acceptance multi-CB combined visit, cross-CB leak prevention, disabled/unknown recipient, policy drift, retries, old ECAS parity.
 P6: PROD uitsluitend na afzonderlijke autorisatie. No expansion >20.
 
-CB-BINDING REVIEW NODIG VAN OWNER
-SCOPE_01 MPS-ABC: CI_ID nog onbekend.
-SCOPE_02 MPS-GAP: CI_ID nog onbekend.
-SCOPE_03 MPS-SQ: CI_ID nog onbekend.
-SCOPE_04 GRASP: CI_ID nog onbekend.
-SCOPE_05 FLORIMARK_TRACE: CI_ID nog onbekend.
-SCOPE_06 FLORIMARK_GTP: CI_ID nog onbekend.
-SCOPE_07 MPS-Compact: CI_ID nog onbekend.
-SCOPE_08 SCOPE_8: CI_ID nog onbekend.
-SCOPE_09 TESTSCOPE-2: inactief, geen CB toewijzen.
-CB kan NIET betrouwbaar uit schemanaam, bestaande ECAS-events of Manager-email worden afgeleid. Betrouwbare CB identityen en geverifieerde mailcontacten moeten expliciet worden aangeleverd/bevestigd.
+CERTIFICATION BODY MAPPING — USER-CONFIRMED 2026-11-08
+All eight existing active operational scope slots are currently performed for ECAS.
+ScopeSlot | ScopeCode | Certification body
+SCOPE_01 | MPS-ABC | ECAS
+SCOPE_02 | MPS-GAP | ECAS
+SCOPE_03 | MPS-SQ | ECAS
+SCOPE_04 | GRASP | ECAS
+SCOPE_05 | FLORIMARK_TRACE | ECAS
+SCOPE_06 | FLORIMARK_GTP | ECAS
+SCOPE_07 | MPS-Compact | ECAS
+SCOPE_08 | SCOPE_8 | ECAS
+SCOPE_09 | TESTSCOPE-2 | INACTIVE: unassigned
+
+Mapping authority: explicit user confirmation, 2026-11-08. This authorizes the design mapping but does not authorize an email destination or live delivery.
+Proposed immutable Certification_Body_ID / CB_ID: ECAS (to be created in the Certification_Bodies registry).
+The CB recipient email address, authorised mailbox, legal details, notification permission, and scope-specific recipient exceptions have NOT been verified. Do not infer them from ECAS_DEFAULT_EMAIL, manager email, schema name or past queue records.
+Legacy and historic obligations must be reconciled against this confirmed mapping with preview/dry-run, scope lineage checks and an explicit controlled write step. Never silently rewrite past CB provenance.
+For all newly created scopes, require explicit CB selection. For future GLOBALG.A.P. or other scheme variants, issue a distinct ScopeCode for every CB; do not exceed 20 AMS 2.0 slots.
 
 ACCEPTANCE
 Scopevariant -> exact één CB, immutable obligation snapshot, separate policy, no cross-CB leakage; no send before 10 minutes; Apply+Undo suppression; correction after prior send; no 'ECAS'/'Ecert' generic hardcode; no recipient fallback; old EXT/Undo and 20-slot cap intact.

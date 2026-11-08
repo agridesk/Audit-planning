@@ -8,7 +8,7 @@ const stage={readOnly:true,cutoverApproved:false,seedPermitted:false,eligibleFor
 const runtime={repository:'agridesk/Audit-planning',ref:'refs/heads/dev',environment:'ams-dev-migration',projectId,eventName:'workflow_dispatch'};
 const writerFreeze={verified:true,projectId,sourceSnapshotSha256:hash,evidenceRef:'independent-writer-inventory',allLegacyGASWritersFenced:true,allCloudRunRoutesFenced:true,sourceMutationGuardVerified:true};
 const sourceParity={verified:true,projectId,snapshotSha256:hash,complete:true,unexpectedDocuments:0,missingDocuments:0,mismatchedDocuments:0,evidenceRef:'source-parity-digest'};
-const seedReadback={verified:true,projectId,snapshotSha256:hash,contextCount:1,obligationCount:2,unexpectedDocuments:0,missingDocuments:0,mismatchedDocuments:0,evidenceRef:'Firestore-full-parity'};
+const seedReadback={verified:true,projectId,snapshotSha256:hash,contextCount:1,obligationCount:3,unexpectedDocuments:0,missingDocuments:0,mismatchedDocuments:0,evidenceRef:'Firestore-full-parity'};
 const args={projectId,stage,sourceSnapshotSha256:hash,writerFreeze,sourceParity,seedReadback,runtime,approval:'CONFIRM_DEV_MODEL_C_WRITER_PROMOTION'};
 const good=promote(args);
 assert.equal(good.readOnly,true);

@@ -83,7 +83,12 @@ function CBN20_suppressQueue_(ctx,eventId,reason){
  }
 }
 function CBN20_inDev_(){
- var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('System_Config');
+ var active=SpreadsheetApp.getActiveSpreadsheet();
+ // DEV isolation is based on the actual spreadsheet ID, not on a
+ // generic DEV column which may also exist in a PROD workbook.
+ if(!active||typeof active.getId!=='function'
+   ||active.getId()!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')return false;
+ var sh=active.getSheetByName('System_Config');
  if(!sh)return false;
  var rows=sh.getDataRange().getValues(),h=rows[0]||[],c=h.indexOf('DEV');
  if(c<0)return false;

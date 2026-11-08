@@ -4,6 +4,16 @@
  */
 const str=x=>String(x??'').trim();
 const key=x=>str(x).toUpperCase().replace(/[\s-]+/g,'_');
+const normalizedDate=x=>{
+ const raw=str(x);if(!raw)return'';
+ let y,m,d;
+ if(/^\d{4}-\d{2}-\d{2}$/.test(raw))[y,m,d]=raw.split('-').map(Number);
+ else if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(raw))[d,m,y]=raw.split('/').map(Number);
+ else throw Error('EXT_SHEETS_DATE_UNRECOGNIZED');
+ if(y<1||m<1||m>12||d<1||d>new Date(Date.UTC(y,m,0)).getUTCDate())throw Error('EXT_SHEETS_DATE_INVALID');
+ return String(y).padStart(4,'0')+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+};
+
 const column=index=>{let n=index+1,s='';while(n){n--;s=String.fromCharCode(65+n%26)+s;n=Math.floor(n/26)}return s;};
 export function createScopeExtensionSheetsAdapter20({batchGet,batchWrite,cutoverVerified=false}={}){
  if(cutoverVerified!==true||typeof batchGet!=='function'||typeof batchWrite!=='function')throw Error('EXT_SHEETS_ADAPTER_CUTOVER_UNVERIFIED');
@@ -24,7 +34,7 @@ export function createScopeExtensionSheetsAdapter20({batchGet,batchWrite,cutover
   if(matching.length!==1||active.length!==1||audits.length!==1)throw Error('EXT_SHEETS_RELATION_NOT_UNIQUE');
   const source=matching[0].row,audit=audits[0].row;
   return{companyUid,auditId,obligationId,linkState:'ACTIVE',auditStatus:key(audit[pc.status]),obligationRowCount:matching.length,auditRowCount:audits.length,
-    extensionApplied:/^(yes|true|1|x)$/i.test(str(source[oc.applied])),extensionMetadata:str(source[oc.meta]),effectiveExpiry:str(source[oc.effective]),windowFrom:str(source[oc.from]),windowTo:str(source[oc.to]),aggregateExpiry:str(audit[pc.expiry]),aggregateApplied:/^(yes|true|1|x)$/i.test(str(audit[pc.applied])),
+    extensionApplied:/^(yes|true|1|x)$/i.test(str(source[oc.applied])),extensionMetadata:str(source[oc.meta]),effectiveExpiry:normalizedDate(source[oc.effective]),windowFrom:normalizedDate(source[oc.from]),windowTo:normalizedDate(source[oc.to]),aggregateExpiry:normalizedDate(audit[pc.expiry]),aggregateApplied:/^(yes|true|1|x)$/i.test(str(audit[pc.applied])),
     locations:{obligationRow:matching[0].rowNumber,auditRow:audits[0].rowNumber,obligationColumns:oc,auditColumns:pc}};
  }
  async function writeCells({rows,expected,operationId}={}){

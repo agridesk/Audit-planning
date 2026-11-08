@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import {buildCbNotificationOverview20 as build} from './certification-body-notification-overview-20.mjs';
+const bodies=[['Certification_Body_ID','Display_Name','Active','Notification_Email','Email_Verified','Notification_Enabled'],
+['CB-A','Body A','TRUE','notification@body-a.example','TRUE','TRUE'],['CB-B','Body B','TRUE','','FALSE','FALSE']];
+const scopes=[['ScopeCode','Certification_Body_ID','Active'],['GAP-A','CB-A','TRUE'],['GAP-B','CB-B','TRUE'],['TEST','CB-B','FALSE']];
+const outbox=[['Event_ID','Certification_Body_ID','Status'],['E1','CB-A','BUFFERED'],['E2','CB-A','SENT'],['E3','CB-B','SUPPRESSED']];
+const config=[['EVENT_KEY','ACTIVE','SEND_EMAIL','BUFFER_MINUTES'],['CB_EXTENSION_APPLIED','YES','YES','10'],['CB_EXTENSION_UNDONE','YES','YES','10']];
+const model=build({bodies,scopes,outbox,config});
+assert.equal(model.certificationBodies.length,2);
+assert.equal(model.certificationBodies[0].scopeCount,1);
+assert.equal(model.certificationBodies[0].readyForExternalDelivery,true);
+assert.equal(model.certificationBodies[0].statusCounts.BUFFERED,1);
+assert.equal(model.certificationBodies[1].readyForExternalDelivery,false);
+assert.equal(model.unknownActiveScopeCount,0);
+assert.equal(model.unknownEventBodyCount,0);
+assert.equal(model.eventPolicies[0].bufferMinutes,10);
+assert.equal(model.readOnly,true);
+assert.equal(build({bodies,scopes,outbox,config:[config[0],['CB_EXTENSION_APPLIED','NO','YES','10'],config[2]]}).certificationBodies[0].readyForExternalDelivery,false);
+assert.equal(build({bodies,scopes,outbox,config:[config[0],['CB_EXTENSION_APPLIED','YES','YES','9'],config[2]]}).eventPolicies[0].validBuffer,false);
+assert.throws(()=>build({bodies:[...bodies,bodies[1]],scopes,outbox,config}),/DUPLICATE_BODY/);
+assert.throws(()=>build({bodies,scopes,outbox,config:[config[0],config[1]]}),/CONFIG_MISSING_OR_DUPLICATE/);
+console.log('certification-body-notification-overview-20 PASS');

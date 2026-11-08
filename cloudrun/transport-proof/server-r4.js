@@ -10,6 +10,7 @@ import {createScopeExtensionFirestoreStager20} from './model-c-scope-extension-b
 import {selectScopeExtensionDevPilot20} from './model-c-scope-extension-dev-pilot-20.mjs';
 import {prepareScopeExtensionDevPilotPromotion20} from './model-c-scope-extension-dev-pilot-promotion-20.mjs';
 import {createScopeExtensionContextPromoter20} from './model-c-scope-extension-context-promoter-20.mjs';
+import {inspectDevScopeExtension20,planDevScopeExtension20} from './model-c-extension-dev-direct-20.mjs';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {assertScopeExtensionLegacyWriteFenced20,assertScopeExtensionLegacyDeleteFenced20} from './model-c-scope-extension-writer-fence-20.mjs';
 import {normalizeLifecycleWriteset} from './planning-lifecycle-writeset-20.js';
@@ -100,6 +101,27 @@ async function sheetsAtomicAuditorCreate(auditorRow,versionRow){
   const response=await fetch(base+':batchUpdate',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({requests})});
   if(!response.ok)throw Error('AUDITOR_CREATE_ATOMIC_APPEND_FAILED_'+response.status);
   return response.json();
+}
+function isolatedExtDirect20(){
+ return process.env.AMS_RUNTIME_ENV==='DEV'
+  &&process.env.K_SERVICE==='ams-fase12-dev'
+  &&process.env.AMS_DEV_EXT_READONLY_PREVIEW==='true'
+  &&process.env.AMS_DEV_MAINTENANCE_MODE==='true'
+  &&process.env.AMS_DEV_EXT_DIRECT_ENABLED==='true'
+  &&process.env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE'
+  &&process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true'
+  &&process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true';
+}
+async function readIsolatedDevModelCExt20(){
+ if(!isolatedExtDirect20()||SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs'
+    ||await verifiedAuditorLockDevProject()!=='audit-management-system-dev')throw Error('EXT_DEV_DIRECT_ISOLATION_REQUIRED');
+ const r=await sheetsBatchGet(['Audit_Obligations!A1:Z2500','Audit_Visit_Obligations!A1:F2500','Audit planning!A1:CN2500','Config_Scopes!A1:Z128','System_Config!A1:C100']);
+ if(r.length!==5)throw Error('EXT_DEV_DIRECT_SOURCE_RANGES_UNAVAILABLE');
+ const rows=r[4]?.values||[];
+ if(rows[0]?.[0]!=='KEY'||rows[0]?.[1]!=='DEV'||rows[0]?.[2]!=='PROD')throw Error('EXT_DEV_DIRECT_CONFIG_SCHEMA_CHANGED');
+ const cfg=new Map(rows.slice(1).filter(x=>clean(x[0])).map(x=>[clean(x[0]),clean(x[1])]));
+ if(cfg.get('ENV')!=='DEV'||cfg.get('ALLOW_DEV_WRITES')!=='FALSE'||cfg.get('DEV_WRITE_MODE')!=='BLOCK')throw Error('EXT_DEV_DIRECT_GAS_FENCE_LOST');
+ return {obligationRows:r[0]?.values||[],linkRows:r[1]?.values||[],planningRows:r[2]?.values||[],scopeRows:r[3]?.values||[]};
 }
 function isolatedExtPilot20(){
  return process.env.AMS_RUNTIME_ENV==='DEV'
@@ -2081,6 +2103,33 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(parsedOrigin.origin!=='https://ams-fase12-dev-510075419067.europe-west1.run.app')return send(res,403,{ok:false,error:'EXT_ORIGIN_FORBIDDEN'});
     const session=await sessionFromRequestValidated(req);if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(session.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    if(isolatedExtDirect20()){
+      let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)return send(res,413,{ok:false,error:'EXT_DEV_DIRECT_REQUEST_TOO_LARGE'})}
+      let body;try{body=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+      const auditId=clean(body.auditId),companyUid=clean(body.companyUid),obligationId=clean(body.obligationId);
+      if(!auditId||!companyUid||!obligationId||!['apply','undo'].includes(body.command)
+        ||!clean(body.requestId)||clean(body.requestId).length>180)return send(res,400,{ok:false,error:'EXT_DEV_DIRECT_INPUT_INVALID'});
+      try{
+        const result=await withDirectManagerActionLock(auditId,async()=>{
+          const source=await readIsolatedDevModelCExt20();
+          const before=inspectDevScopeExtension20({...source,companyUid});
+          const plan=planDevScopeExtension20({snapshot:before,auditId,companyUid,obligationId,command:body.command,requestId:clean(body.requestId),actorUid:clean(session.uid||session.auditorUid||session.email)});
+          await sheetsValuesBatchUpdateRaw(plan.updates);
+          const verify=inspectDevScopeExtension20({...await readIsolatedDevModelCExt20(),companyUid});
+          const actual=verify.obligations.get(obligationId),expected=plan.expected;
+          const audit=verify.auditRows.get(auditId),ph=verify.planningHead;
+          const idx=k=>ph.indexOf(k);
+          if(!actual||actual.effectiveExpiry!==expected.effectiveExpiry||actual.windowFrom!==expected.windowFrom||actual.windowTo!==expected.windowTo
+            ||actual.extensionApplied!==expected.extensionApplied||actual.extensionMetadata!==expected.extensionMetadata
+            ||!audit||clean(audit.row[idx('Extended Expiration Date')])!==expected.aggregateExpiry
+            ||clean(audit.row[idx('Planning window from')])!==expected.planningWindowFrom
+            ||clean(audit.row[idx('Planning window to')])!==expected.planningWindowTo)throw Error('EXT_DEV_DIRECT_READBACK_UNVERIFIED');
+          return{success:true,ok:true,direct:true,projection:'PROJECTED',operationId:plan.operationId,
+            auditId,obligationId,command:body.command,patch:plan.patch,authority:'DEV_MODEL_C_SHEETS'};
+        });
+        return send(res,200,result);
+      }catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'EXT_DEV_DIRECT_FAILED'});}
+    }
     if(!((process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_SCOPE_EXTENSION_AUTHORITY==='FIRESTORE'&&process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED==='true'&&process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED==='true')||isolatedExtPilot20()))return send(res,409,{ok:false,error:'EXT_FIRESTORE_CUTOVER_NOT_VERIFIED'});
     const actualDev=await verifiedAuditorLockDevProject();if(!actualDev)return send(res,409,{ok:false,error:'EXT_DEV_PROJECT_IDENTITY_UNVERIFIED'});
     let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
@@ -3149,6 +3198,15 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     const actor=await sessionFromRequestValidated(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
     const uid=clean(u.searchParams.get('companyUid'));if(!uid||uid.length>180)return send(res,400,{ok:false,error:'COMPANY_UID_REQUIRED'});
+    if(isolatedExtDirect20()){
+      try{
+        const source=await readIsolatedDevModelCExt20();
+        const out=inspectDevScopeExtension20({...source,companyUid:uid});
+        return send(res,200,{ok:true,companyUid:uid,records:out.records.map(({sourceRow,policy,rowNumber,...record})=>({
+          ...record,revision:0
+        })),mode:'DEV_MODEL_C_DIRECT',canMutate:out.canMutate});
+      }catch(e){return send(res,409,{ok:false,error:'EXT_DEV_DIRECT_DOSSIER_FAILED',detail:clean(e?.message||e)})}
+    }
     try{
       const all=await sheetsBatchGet(['Audit_Obligations!A1:Z2500','Audit_Visit_Obligations!A1:F2500','Audit planning!A1:CN2500','Config_Scopes!A1:Z128']);
       const ob=all[0]?.values||[],links=all[1]?.values||[],planning=all[2]?.values||[],config=all[3]?.values||[],oh=ob[0]||[],lh=links[0]||[],ph=planning[0]||[],ch=config[0]||[];const scopeExtensionMonths=new Map(config.slice(1).map(row=>[clean(row[ch.indexOf('ScopeCode')]),Number(row[ch.indexOf('Extension')]||0)||0]));

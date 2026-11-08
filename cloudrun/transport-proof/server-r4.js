@@ -3449,25 +3449,38 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(session.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
     try{
-      const vr=await sheetsBatchGet(['Config_Scopes!A1:Z128','ScopeVersions!A1:I1000']);
+      const vr=await sheetsBatchGet(['Config_Scopes!A1:Z128','ScopeVersions!A1:I1000','Certification_Bodies!A1:H200']);
       const values=vr[0]?.values||[],headers=(values[0]||[]).map(v=>clean(v));
       const versionRows=vr[1]?.values||[],vh=(versionRows[0]||[]).map(v=>clean(v));
+      const cbRows=vr[2]?.values||[],cbHeaders=(cbRows[0]||[]).map(v=>clean(v));
+      if(!['Certification_Body_ID','Display_Name','Active','Notification_Email','Email_Verified','Notification_Enabled'].every(k=>cbHeaders.includes(k)))return send(res,409,{ok:false,error:'CERTIFICATION_BODY_SCHEMA_MISSING'});
+      const cbVal=(r,h)=>clean(r[cbHeaders.indexOf(h)]);
+      const certificationBodies=cbRows.slice(1).filter(r=>cbVal(r,'Certification_Body_ID')).map(r=>({
+        certificationBodyId:cbVal(r,'Certification_Body_ID'),displayName:cbVal(r,'Display_Name'),
+        active:['true','yes','1'].includes(cbVal(r,'Active').toLowerCase()),
+        emailVerified:['true','yes','1'].includes(cbVal(r,'Email_Verified').toLowerCase()),
+        notificationsEnabled:['true','yes','1'].includes(cbVal(r,'Notification_Enabled').toLowerCase()),
+        hasNotificationEmail:!!cbVal(r,'Notification_Email')
+      }));
+      if(new Set(certificationBodies.map(x=>x.certificationBodyId)).size!==certificationBodies.length)return send(res,409,{ok:false,error:'DUPLICATE_CERTIFICATION_BODY_ID'});
+      const certificationBodyById=new Map(certificationBodies.map(x=>[x.certificationBodyId,x]));
       const vCode=vh.indexOf('ScopeCode'),vId=vh.indexOf('VersionId'),vStatus=vh.indexOf('Status');
       if(vCode<0||vId<0||vStatus<0)return send(res,409,{ok:false,error:'SCOPE_VERSION_SCHEMA_MISSING'});
       const currentVersions=new Map();for(const row of versionRows.slice(1)){if(clean(row[vStatus]).toUpperCase()!=='CURRENT')continue;const code=clean(row[vCode]);if(currentVersions.has(code))return send(res,409,{ok:false,error:'MULTIPLE_CURRENT_VERSIONS',scopeCode:code});currentVersions.set(code,clean(row[vId]));}
-      const required=['SlotKey','ScopeCode','DisplayName','Active','Archived','Default_hours','Max number audits','Min_Interval_Months','Planning from','Planning to'];
+      const required=['SlotKey','ScopeCode','DisplayName','Active','Archived','Default_hours','Max number audits','Min_Interval_Months','Planning from','Planning to','Certification_Body_ID'];
       const missing=required.filter(h=>!headers.includes(h));
       if(missing.length)return send(res,409,{ok:false,error:'SCOPE_SCHEMA_MISSING',missing});
       const get=(r,h)=>r[headers.indexOf(h)]??'';
       const rows=values.slice(1).filter(r=>clean(get(r,'ScopeCode'))).map(r=>({
-        slotKey:get(r,'SlotKey'),scopeCode:get(r,'ScopeCode'),displayName:get(r,'DisplayName'),currentVersion:currentVersions.get(clean(get(r,'ScopeCode')))||'',
+        slotKey:get(r,'SlotKey'),scopeCode:get(r,'ScopeCode'),displayName:get(r,'DisplayName'),certificationBodyId:get(r,'Certification_Body_ID'),certificationBodyName:certificationBodyById.get(clean(get(r,'Certification_Body_ID')))?.displayName||'',currentVersion:currentVersions.get(clean(get(r,'ScopeCode')))||'',
         active:['yes','true','1'].includes(clean(get(r,'Active')).toLowerCase()),
         archived:['yes','true','1'].includes(clean(get(r,'Archived')).toLowerCase()),
         hoursToPlan:get(r,'Default_hours'),rotationLimit:get(r,'Max number audits'),
         minimumIntervalMonths:get(r,'Min_Interval_Months'),planningFrom:get(r,'Planning from'),planningTo:get(r,'Planning to'),
         policy:Object.fromEntries(headers.map((h,i)=>[h,r[i]??'']))
       }));
-      return send(res,200,{ok:true,readOnly:true,rows,versionStorageInitialized:false});
+      if(rows.some(x=>x.active&&(!x.certificationBodyId||!certificationBodyById.get(x.certificationBodyId)?.active)))return send(res,409,{ok:false,error:'ACTIVE_SCOPE_CERTIFICATION_BODY_MISSING_OR_INACTIVE'});
+      return send(res,200,{ok:true,readOnly:true,rows,certificationBodies,versionStorageInitialized:false});
     }catch(e){return send(res,500,{ok:false,error:'SCOPE_READ_FAILED',detail:clean(e?.message||e)});}
   }
   if(u.pathname==='/api/v1/manager/open'&&req.method==='GET'){const s=await sessionFromRequestValidated(req);if(!s)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});const role=clean(s.role).toLowerCase();if(!['manager','auditor'].includes(role))return send(res,403,{ok:false,error:'ROLE_FORBIDDEN'});try{return send(res,200,role==='auditor'?await auditorOpenRead(clean(s.email).toLowerCase()):await managerOpenRead(clean(s.email).toLowerCase()));}catch(e){return send(res,500,{ok:false,error:'OPEN_GRID_READ_FAILED',detail:clean(e?.message||e)});}}

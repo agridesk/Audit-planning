@@ -3460,6 +3460,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
         active:['true','yes','1'].includes(cbVal(r,'Active').toLowerCase()),
         emailVerified:['true','yes','1'].includes(cbVal(r,'Email_Verified').toLowerCase()),
         notificationsEnabled:['true','yes','1'].includes(cbVal(r,'Notification_Enabled').toLowerCase()),
+        notificationEmail:cbVal(r,'Notification_Email'),
         hasNotificationEmail:!!cbVal(r,'Notification_Email')
       }));
       if(new Set(certificationBodies.map(x=>x.certificationBodyId)).size!==certificationBodies.length)return send(res,409,{ok:false,error:'DUPLICATE_CERTIFICATION_BODY_ID'});
@@ -3472,7 +3473,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       if(missing.length)return send(res,409,{ok:false,error:'SCOPE_SCHEMA_MISSING',missing});
       const get=(r,h)=>r[headers.indexOf(h)]??'';
       const rows=values.slice(1).filter(r=>clean(get(r,'ScopeCode'))).map(r=>({
-        slotKey:get(r,'SlotKey'),scopeCode:get(r,'ScopeCode'),displayName:get(r,'DisplayName'),certificationBodyId:get(r,'Certification_Body_ID'),certificationBodyName:certificationBodyById.get(clean(get(r,'Certification_Body_ID')))?.displayName||'',currentVersion:currentVersions.get(clean(get(r,'ScopeCode')))||'',
+        slotKey:get(r,'SlotKey'),scopeCode:get(r,'ScopeCode'),displayName:get(r,'DisplayName'),certificationBodyId:get(r,'Certification_Body_ID'),certificationBodyName:certificationBodyById.get(clean(get(r,'Certification_Body_ID')))?.displayName||'',certificationBodyNotificationEmail:certificationBodyById.get(clean(get(r,'Certification_Body_ID')))?.notificationEmail||'',certificationBodyNotificationReady:!!(certificationBodyById.get(clean(get(r,'Certification_Body_ID')))?.emailVerified&&certificationBodyById.get(clean(get(r,'Certification_Body_ID')))?.notificationsEnabled&&certificationBodyById.get(clean(get(r,'Certification_Body_ID')))?.hasNotificationEmail),currentVersion:currentVersions.get(clean(get(r,'ScopeCode')))||'',
         active:['yes','true','1'].includes(clean(get(r,'Active')).toLowerCase()),
         archived:['yes','true','1'].includes(clean(get(r,'Archived')).toLowerCase()),
         hoursToPlan:get(r,'Default_hours'),rotationLimit:get(r,'Max number audits'),

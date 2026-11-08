@@ -1261,25 +1261,32 @@ if(tab==='scopes'){
   }finally{extBusy=false}
  }
  function showExtObligations(data){
-  if(!extCurrent())return;
-  extContent.replaceChildren();
-  if(!data.ok||!Array.isArray(data.records)){extContent.textContent='Scope obligations unavailable';return}
-  var info=el('p',data.mode==='FIRESTORE_VERIFIED'?'Verified Firestore scope actions.':'Read-only until Model C writer migration is verified. Apply/Undo unavailable.');
-  info.dataset.extFeedback='yes';extContent.appendChild(info);
-  var visibleRecords=extTargetAuditId?data.records.filter(function(o){return (o.auditIds||[]).includes(extTargetAuditId)}):data.records;if(extTargetAuditId){var auditInfo=el('p','Selected audit: '+extTargetAuditId);auditInfo.style.fontSize='12px';extContent.appendChild(auditInfo)}if(!visibleRecords.length){extContent.appendChild(el('p',extTargetAuditId?'No scope obligations linked to the selected audit. No extension action is available.':'No obligations found'));return}
-  var table=el('table');table.style.cssText='width:100%;border-collapse:collapse;font-size:13px';
-  var head=el('tr');['Scope','Obligation','Effective expiry','Planning window','Extension','Audit status','Actions'].forEach(function(k){var th=el('th',k);th.style.cssText='text-align:left;padding:6px;border-bottom:1px solid #cbd5e1';head.appendChild(th)});table.appendChild(head);
-  visibleRecords.forEach(function(o){
-   var tr=el('tr');var cols=[o.scopeCode,o.obligationId,o.effectiveExpiry,(o.windowFrom||'—')+' — '+(o.windowTo||'—'),o.extensionApplied?'Applied':'Not applied',(o.auditStatuses||[]).map(function(x){return x.status}).join(', ')||'Not linked'];
-   cols.forEach(function(v){var td=el('td',String(v||'—'));td.style.cssText='padding:6px;border-bottom:1px solid #e2e8f0';tr.appendChild(td)});
-   var actions=el('td');actions.style.cssText='padding:6px;border-bottom:1px solid #e2e8f0';
-   if(o.canApply===true||o.canUndo===true){var command=o.canUndo===true?'undo':'apply';var button=el('button',command==='undo'?'Undo extension':'Apply extension');button.type='button';button.onclick=function(){extAction(o,command)};actions.appendChild(button)}
-   else if(data.mode!=='FIRESTORE_VERIFIED'&&o.triggerSource!=='ECAS'&&(o.extensionApplied||o.extensionMonths>0)&&(o.auditStatuses||[]).some(function(x){return String(x.status).toUpperCase().replace(/\s+/g,'_')==='PENDING_PLANNING'})){var pendingAction=o.extensionApplied?'Undo':'EXT';var note=el('button',pendingAction);note.type='button';note.disabled=true;note.title='Blocked: Model C migration, writer fencing and scope provenance must be verified';note.setAttribute('aria-label',pendingAction+' unavailable: migration not verified');actions.appendChild(note)}else actions.textContent='—';
-   tr.appendChild(actions);table.appendChild(tr)
-  });
-  extContent.appendChild(table);
- }
- async function loadExtObligations(){
+ if(!extCurrent())return;
+ extContent.replaceChildren();
+ if(!data.ok||!Array.isArray(data.records)){extContent.textContent='Scope obligations unavailable';return}
+ var allowed=data.mode==='FIRESTORE_VERIFIED';
+ var info=el('p',allowed?'Verified Model C: scope-specific EXT/Undo available.':'Model C migration not verified — EXT/Undo blocked. No changes can be saved.');
+ info.dataset.extFeedback='yes';info.style.cssText='font-size:13px;margin:4px 0 10px;color:'+(allowed?'#166534':'#92400e');extContent.appendChild(info);
+ var visibleRecords=extTargetAuditId?data.records.filter(function(o){return (o.auditIds||[]).includes(extTargetAuditId)}):data.records;
+ if(!visibleRecords.length){extContent.appendChild(el('p',extTargetAuditId?'No scope obligations linked to the selected audit.':'No obligations found'));return}
+ var outer=el('div');outer.style.cssText='overflow-x:auto;width:100%;max-width:1100px';
+ var table=el('table');table.className='ams-ext-obligations20';table.style.cssText='width:100%;max-width:1100px;table-layout:fixed;border-collapse:collapse;font-size:13px';
+ var headings=[['Scope','17%'],['Effective expiry','16%'],['Planning window','25%'],['Extension','15%'],['Audit status','15%'],['Actions','12%']];
+ var head=el('tr');headings.forEach(function(k){var th=el('th',k[0]);th.style.cssText='text-align:left;padding:8px 9px;border-bottom:2px solid #cbd5e1;width:'+k[1];head.appendChild(th)});table.appendChild(head);
+ visibleRecords.forEach(function(o){
+  var tr=el('tr');var statuses=(o.auditStatuses||[]).filter(function(x){return !extTargetAuditId||x.auditId===extTargetAuditId}).map(function(x){return x.status}).join(', ')||'Not linked';
+  var cols=[o.scopeCode,o.effectiveExpiry,(o.windowFrom||'—')+' – '+(o.windowTo||'—'),o.extensionApplied?'Applied':'Not applied',statuses];
+  cols.forEach(function(v,i){var td=el('td',String(v||'—'));td.style.cssText='padding:9px;border-bottom:1px solid #e2e8f0;overflow-wrap:anywhere;vertical-align:middle';if(i===0){td.style.fontWeight='650';td.title='Obligation '+String(o.obligationId||'')}tr.appendChild(td)});
+  var actions=el('td');actions.style.cssText='padding:9px;border-bottom:1px solid #e2e8f0;vertical-align:middle;white-space:nowrap';
+  var command=o.canUndo===true?'undo':'apply',eligible=command==='undo'?o.canUndo===true:o.canApply===true,canShow=o.extensionApplied||Number(o.extensionMonths)>0;
+  if(eligible){var button=el('button',command==='undo'?'Undo':'EXT');button.type='button';button.title=command==='undo'?'Undo this scope extension':'Apply extension for this scope';button.onclick=function(){extAction(o,command)};actions.appendChild(button)}
+  else if(canShow){var button=el('button',o.extensionApplied?'Undo':'EXT');button.type='button';button.disabled=true;button.title=allowed?'Scope action is ineligible; check status, provenance and revision':'Unavailable until verified Model C migration and writer fencing';button.setAttribute('aria-label',(o.extensionApplied?'Undo':'EXT')+' unavailable: '+button.title);actions.appendChild(button)}
+  else actions.textContent='—';
+  tr.appendChild(actions);table.appendChild(tr);
+ });
+ outer.appendChild(table);extContent.appendChild(outer);
+}
+async function loadExtObligations(){
   if(!extCurrent())return;
   var response=await fetch('/api/v1/manager/company-management/extension-obligations?companyUid='+encodeURIComponent(extSelectedUid),{credentials:'same-origin'});
   if(!response.ok)throw Error('HTTP '+response.status);

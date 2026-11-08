@@ -48,6 +48,12 @@ for(const patch of [
 assert.equal(allowed({method:'POST',path:'/api/v1/manager/extension-direct',env:pilot}),false,'legacy direct EXT writer remains blocked in pilot');
 const direct={...base,AMS_DEV_EXT_DIRECT_ENABLED:'true',AMS_DEV_EXT_PILOT_PROMOTION_ENABLED:'false',AMS_DEV_EXT_COMMANDS_ENABLED:'false'};
 assert.equal(allowed({method:'POST',path:'/api/v1/manager/extension-obligation-command',env:direct}),true,'normal DEV direct scoped Model C EXT must be available without pilot');
+assert.equal(allowed({method:'POST',path:'/api/v1/manager/self-planning-direct',env:direct}),true,'verified isolated DEV Manager self-planning toggle is narrowly enabled');
+for(const patch of [{K_SERVICE:'ams-transport-proof'},{AMS_RUNTIME_ENV:'PROD'},{AMS_DEV_EXT_DIRECT_ENABLED:'false'},{AMS_SCOPE_EXTENSION_AUTHORITY:'FIRESTORE'},{AMS_DEV_MAINTENANCE_MODE:'false'},{AMS_DEV_EXT_READONLY_PREVIEW:'false'},{AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED:'true'},{AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED:'true'}]){
+ assert.equal(allowed({method:'POST',path:'/api/v1/manager/self-planning-direct',env:{...direct,...patch}}),false,'self planning must fail closed outside isolated DEV direct mode');
+}
+assert.equal(allowed({method:'POST',path:'/api/v1/manager/self-planning-direct',env:verified}),false,'Firestore cutover mode does not grant legacy self planning writer');
+
 assert.equal(allowed({method:'POST',path:'/api/v1/manager/extension-reconcile-projection',env:direct}),false,'direct Model C mode has no Firestore projector');
 for(const patch of [{K_SERVICE:'ams-transport-proof'},{AMS_RUNTIME_ENV:'PROD'},{AMS_DEV_EXT_DIRECT_ENABLED:'false'},{AMS_SCOPE_EXTENSION_AUTHORITY:'FIRESTORE'},{AMS_DEV_MAINTENANCE_MODE:'false'}]){
  assert.equal(allowed({method:'POST',path:'/api/v1/manager/extension-obligation-command',env:{...direct,...patch}}),false,'DEV direct EXT must fail closed outside isolated test copy');

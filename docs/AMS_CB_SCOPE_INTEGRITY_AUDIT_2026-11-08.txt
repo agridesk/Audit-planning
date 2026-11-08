@@ -1,0 +1,74 @@
+AMS 2.0 — CERTIFICATION BODY INTEGRATION VERIFICATION
+Comprehensive DEV review and corrective changes
+Date: 2026-11-08
+Scope: isolated DEV Google Sheet and GitHub dev branch. PROD not modified.
+Reported operator deployment: Cloud Run ams-fase12-dev revision ams-fase12-dev-00024-leb, 100% traffic.
+Runtime endpoint not independently inspected: authenticated live access / container outbound DNS unavailable. All assertions below are data, source or locally executed focused test assertions; not invented runtime E2E evidence.
+
+VERIFICATION — GOOGLE SHEET
+Spreadsheet: Audit Management System DEV (1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs)
+Certification_Bodies!A1:H2:
+- Certification_Body_ID = ECAS
+- Display_Name = ECAS
+- Active = TRUE
+- Notification_Email = planning@ecas.nl, as supplied by project owner
+- Email_Verified = TRUE (owner-confirmed address)
+- Notification_Enabled = FALSE. New CB-aware email sending must remain OFF.
+Config_Scopes!Z1:Z10:
+- New column Certification_Body_ID present.
+- SCOPE_01...SCOPE_08 = ECAS (8/8 active operational scopes).
+- SCOPE_09 TESTSCOPE-2 = inactive and unassigned; no accidental auto-assignment.
+- 9 of 20 slots occupied; 11 unoccupied. No expansion above 20.
+ScopeVersions: existing V1/V2/V3 history remains present, current versions identifiable; no version rows edited by CB changes.
+Referential integrity:
+- 179 Company_Scopes rows: 0 unknown scope codes, 0 duplicate Company_Scope_IDs.
+- 199 Audit_Obligations rows: 0 unknown scope codes, 0 duplicate Obligation_IDs.
+- 201 Audit_Visit_Obligations link rows: 0 links to missing obligations.
+- Audit_Obligations -> Company_Scopes: 0 missing relations, 0 company UID / ScopeCode mismatches.
+- ScopeCode -> registered CB: 0 missing/unknown CB for current obligation scopes.
+- Multiple Audit_Visit_Obligations with same Audit_ID are legitimate multi-scope links, not duplicate primary keys.
+Existing Company_Scopes and Audit_Obligations were intentionally NOT backfilled with immutable CB_ID snapshots; this remains a prerequisite for future safe notifications.
+
+GITHUB DEV — REVIEWED
+- cloudrun/transport-proof/scope-create-20.js checks registered active CB and persists Certification_Body_ID for every newly created operational scope.
+- cloudrun/transport-proof/server-r4.js manager-only scopes GET resolves CB registration, validates active scope mapping, exposes CB display name, configured recipient email and notification readiness; no manager/actor fallback in new read model.
+- cloudrun/transport-proof/manager-portal.js shows CB name and status, requires explicit CB selection when creating a scope; existing UI was setting Scope Management button.hidden=true, now corrected to manager-only visibility.
+- cloudrun/transport-proof/certification-body-routing-20.mjs is a pure fail-closed CB resolver and a >=10 minute EXT/Undo planning function.
+- New tests cover two CBs for the same base scheme, invalid/inactive/missing CB, CB/obligation mismatch, no fallback, 10-minute wait, apply/undo net-state cancellation.
+- 48 focused source/function assertions passed after corrective changes, plus frontend JavaScript syntax validation.
+- User previously ran full npm test successfully before the new incremental fixes. Full npm suite and deployment must be rerun after the corrections.
+
+NOTIFICATION FLOW — CRITICAL LIMITATION
+- New CB resolver and 10-minute reducer are NOT connected to a durable notification outbox or live sender.
+- Existing Notification_Config: EXTENSION_APPLIED Active NO, MANAGER_DEFAULT; EXTENSION_UNDONE Active YES, MANAGER_DEFAULT; ECAS_AUDIT_APPROVAL_DIGEST Active YES, ECAS_DEFAULT. Their configured buffers are 10 minutes but existing emission semantics vary.
+- Existing NotificationBuilder.js contains hardcoded 'Ecert' message copy; StatusNotificationBridge.js contains legacy ECAS event names / ECAS_DEFAULT_EMAIL resolution with fallback to manager; NotificationConfigCanonicalizer.js and NotificationAcceptedReconciler.js also encode ECAS-specific behavior.
+- Certification_Bodies.Notification_Enabled=FALSE is a gate for the NEW CB-aware resolver. It DOES NOT automatically disable those legacy ECAS notifications. Do not claim the legacy route is CB-safe.
+- The isolated direct EXT/Undo writer currently commits Model C changes but does NOT enqueue a new CB notification.
+- Existing Notification_Templates has only three generic TPL_* templates; event-key defaults in Notification_Config are not equivalent to materialized per-event template rows.
+- Notification Queue (read-only): 746 rows; 438 SENT_DEV_REDIRECT; 299 AUDIT_TRAIL; 2 SENT; 2 SENT_SIMULATED; 5 FAILED. Filtered: 89 ECAS_AUDIT_APPROVAL_DIGEST SENT_DEV_REDIRECT; 5 FAILED; 3 EXTENSION_APPLIED SENT_DEV_REDIRECT; 3 EXTENSION_UNDONE SENT_DEV_REDIRECT. Historical rows do not demonstrate current direct EXT writer emission.
+- All five failed ECAS approval rows belong to ONE test audit on 2026-10-25 13:32 and share missing 'mpsNumber' renderer validation. They are not five separate affected clients. Reconciliation should avoid repeated retries of invalid test notifications.
+
+CORRECTIONS AFTER USER-REPORTED DEPLOYMENT
+1. Server scope GET now returns manager-visible certificationBodyNotificationEmail and certificationBodyNotificationReady from Certification_Bodies.
+2. Scope Management now displays 'CB notification email' and 'CB external notifications' (read-only).
+3. Scope Management button is no longer unconditionally hidden; it is visible to Manager only.
+4. Regression tests updated for the new fields and visibility gate.
+No new email sending or configuration enablement. No change to existing audits, operational policies, queue rows or PROD.
+
+OPEN BLOCKERS BEFORE CLAIMING COMPLETE CB INTEGRATION
+P0. Durable immutable CB snapshot on Audit_Obligations or equivalent versioned ownership; controlled historical backfill with review and conflict reconciliation. Scope metadata may change later, so current mapping alone is insufficient provenance for historic obligations.
+P0. Fail-closed CB-aware event routing (approval, cancellation/rejection, EXT/Undo), no fallback to Manager, ECAS_DEFAULT_EMAIL or actor.
+P0. Transactional outbox / reconciler and >=10 min latest-state suppression, correction messages after notification already sent; no duplicate queue rows or wrong recipient on retry.
+P0. Migrate hardcoded ECAS/Ecert and templates; preserve lifecycle semantics. Do not blindly mass-replace legacy event keys in existing queue.
+P1. Notifications Dashboard management (CB email verification, enabled state, buffer setting, delivery visibility).
+P1. Remove or explicitly classify five old TEST failures before new notification go-live.
+P1. End-to-end authenticated DEV browser + API verification after corrected deployment. Verify nonmanager cannot open Scope Management, new scope active CB guard, and no unintended legacy send.
+P2. PROD only after separate approval; scope cap remains 20, any larger expansion postponed to AMS 3.0.
+
+STATUS
+CB registration and active scope mapping: PASS (live DEV data).
+Model C relationship integrity: PASS (read-only live data).
+New CB-aware scope creation code: PASS (focused tests).
+Manager UI display: FIXED ON GITHUB DEV; awaiting redeploy and live check.
+New generic CB notifications: NOT IMPLEMENTED; legacy ECAS path remains.
+Full runtime integration: NOT YET VERIFIED.

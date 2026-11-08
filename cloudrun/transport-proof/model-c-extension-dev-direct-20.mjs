@@ -21,6 +21,20 @@ const addMonths=(value,months)=>{
  const z=new Date(Date.UTC(y,m-1+months,1)),last=new Date(Date.UTC(z.getUTCFullYear(),z.getUTCMonth()+1,0)).getUTCDate();
  return String(z.getUTCFullYear()).padStart(4,'0')+'-'+String(z.getUTCMonth()+1).padStart(2,'0')+'-'+String(Math.min(d,last)).padStart(2,'0');
 };
+// Historical legacy Undo windows may reflect an older Config_Scopes planning policy.
+// Accept only month-aligned, pre-expiry windows with bounded duration; do not
+// infer eligibility from arbitrary dates or discard provenance.
+const legacyWindowOffsets20=(base,from,to)=>{
+ if(!base||!from||!to||from>to||to>base)return null;
+ const offsets=value=>{
+  const matches=[];
+  for(let months=-24;months<=0;months++)if(addMonths(base,months)===value)matches.push(months);
+  return matches;
+ };
+ const a=offsets(from),b=offsets(to);
+ for(const x of a)for(const y of b)if(y>=x&&y-x<=12)return{from:x,to:y};
+ return null;
+};
 const col=i=>{let n=i+1,s='';while(n>0){n--;s=String.fromCharCode(65+n%26)+s;n=Math.floor(n/26)}return s};
 const index=(headers,name)=>{const i=headers.indexOf(name);if(i<0)throw Error('EXT_DEV_SCHEMA_MISSING_'+name);return i};
 const get=(row,head,name)=>row[index(head,name)];
@@ -51,7 +65,7 @@ export function inspectDevScopeExtension20({obligationRows,linkRows,planningRows
   const base=auditId&&status.get(auditId)==='PENDING_PLANNING'&&rec.triggerSource.toUpperCase()!=='ECAS'&&validDates&&!!validPolicy;
   const legacyUndone=!!(base&&!rec.extensionApplied&&meta?.source==='CLOUD_RUN_DIRECT_MANAGER_EXTENSION'
     &&meta?.undo===true&&Number(meta.months)===rec.policy.months&&rec.effectiveExpiry===rec.baseExpiry
-    &&rec.windowFrom===addMonths(rec.baseExpiry,rec.policy.from)&&rec.windowTo===addMonths(rec.baseExpiry,rec.policy.to));
+    &&legacyWindowOffsets20(rec.baseExpiry,rec.windowFrom,rec.windowTo)!==null);
   rec.canApply=!!(base&&!rec.extensionApplied&&(!rec.extensionMetadata||legacyUndone));
   const legacyUndo=base&&rec.extensionApplied&&meta?.source==='CLOUD_RUN_DIRECT_MANAGER_EXTENSION'
     &&meta?.undo!==true&&Number(meta.months)===rec.policy.months&&!!rec.baseExpiry
@@ -71,12 +85,18 @@ export function planDevScopeExtension20({snapshot,auditId,companyUid,obligationI
  if(!snapshot||!['apply','undo'].includes(command)||!t(auditId)||!t(companyUid)||!t(obligationId)||!t(requestId)||!t(actorUid)||t(requestId).length>180)throw Error('EXT_DEV_COMMAND_INVALID');
  const id=t(obligationId),rec=snapshot.obligations.get(id),ids=snapshot.byAudit.get(t(auditId))||[];
  if(!rec||rec.companyUid!==companyUid||rec.auditId!==auditId||!ids.includes(id)||ids.length>100||!(command==='apply'?rec.canApply:rec.canUndo))throw Error('EXT_DEV_SCOPE_NOT_ELIGIBLE');
- const before={effectiveExpiry:rec.effectiveExpiry,windowFrom:rec.windowFrom,windowTo:rec.windowTo,extensionApplied:rec.extensionApplied,extensionMetadata:command==='apply'&&rec.extensionMetadata?'':rec.extensionMetadata};
+ const reconciledLegacyUndo=command==='apply'&&rec.extensionMetadata
+  &&rec.effectiveExpiry===rec.baseExpiry
+  &&legacyWindowOffsets20(rec.baseExpiry,rec.windowFrom,rec.windowTo)!==null;
+ const before={effectiveExpiry:rec.effectiveExpiry,
+  windowFrom:reconciledLegacyUndo?addMonths(rec.baseExpiry,rec.policy.from):rec.windowFrom,
+  windowTo:reconciledLegacyUndo?addMonths(rec.baseExpiry,rec.policy.to):rec.windowTo,
+  extensionApplied:rec.extensionApplied,extensionMetadata:command==='apply'&&rec.extensionMetadata?'':rec.extensionMetadata};
  let after;
  if(command==='apply'){
   const effectiveExpiry=addMonths(rec.effectiveExpiry,rec.policy.months),windowFrom=addMonths(effectiveExpiry,rec.policy.from),windowTo=addMonths(effectiveExpiry,rec.policy.to);
   if(windowFrom>windowTo)throw Error('EXT_DEV_POLICY_WINDOW_INVALID');
-  after={effectiveExpiry,windowFrom,windowTo,extensionApplied:true,extensionMetadata:JSON.stringify({source:'AMS_DEV_MODEL_C_SCOPE_EXTENSION_20',transactionId:requestId,actorUid,scopeCode:rec.scopeCode,months:rec.policy.months,before,...(rec.extensionMetadata?{priorLegacyUndoMetadata:rec.extensionMetadata}:{})})};
+  after={effectiveExpiry,windowFrom,windowTo,extensionApplied:true,extensionMetadata:JSON.stringify({source:'AMS_DEV_MODEL_C_SCOPE_EXTENSION_20',transactionId:requestId,actorUid,scopeCode:rec.scopeCode,months:rec.policy.months,before,...(rec.extensionMetadata?{priorLegacyUndoMetadata:rec.extensionMetadata,priorLegacyUndoWindow:{from:rec.windowFrom,to:rec.windowTo}}:{})})};
  }else{
   const meta=JSON.parse(rec.extensionMetadata);
   if(meta.source==='CLOUD_RUN_DIRECT_MANAGER_EXTENSION'){

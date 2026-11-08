@@ -1,0 +1,57 @@
+AMS 2.0 — CERTIFICATION BODY PER OPERATIONAL SCOPE
+DEV IMPLEMENTATION / HANDOFF — 2026-11-08
+Language: English. Status: staged on GitHub dev; isolated DEV Cloud Run deployment pending.
+
+1. CONFIRMED SOURCE OF TRUTH
+Google Sheet: Audit Management System DEV, id 1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs.
+New tab: Certification_Bodies.
+Columns: Certification_Body_ID, Display_Name, Active, Notification_Email, Email_Verified, Notification_Enabled, Updated_At, Notes.
+ECAS: active TRUE; notification email planning@ecas.nl (owner-confirmed 2026-11-08); Email_Verified TRUE; Notification_Enabled FALSE.
+The notification gate is intentionally disabled until new CB-aware sender, debounce and dashboard workflows are accepted.
+
+Config_Scopes new column Z: Certification_Body_ID.
+SCOPE_01 (MPS-ABC) -> ECAS
+SCOPE_02 (MPS-GAP) -> ECAS
+SCOPE_03 (MPS-SQ) -> ECAS
+SCOPE_04 (GRASP) -> ECAS
+SCOPE_05 (FLORIMARK_TRACE) -> ECAS
+SCOPE_06 (FLORIMARK_GTP) -> ECAS
+SCOPE_07 (MPS-Compact) -> ECAS
+SCOPE_08 (SCOPE_8) -> ECAS
+SCOPE_09 (TESTSCOPE-2) remains inactive and unassigned.
+All 199 existing DEV Audit_Obligations checked: ScopeCode belongs to the known ECAS scope set; no unmatched scope codes.
+Existing Audit_Obligations rows were NOT modified or retrospectively labelled. Existing source-of-truth, extension and history are preserved.
+
+2. CODE IMPLEMENTATION (GitHub dev)
+cloudrun/transport-proof/scope-create-20.js:
+New scopes require an existing active Certification_Body_ID; fail closed on missing or unknown/inactive CB. Current 20-slot cap remains enforced.
+cloudrun/transport-proof/server-r4.js:
+Manager scope read endpoint now loads Certification_Bodies, checks schema/duplicate CB IDs and rejects active scopes without an active registered CB. Returns CB name and notification readiness flags; not the destination email.
+cloudrun/transport-proof/manager-portal.js:
+Scope Management details display Certification Body; new scope creation asks for the registered CB ID and validates selection client-side before sending to server.
+cloudrun/transport-proof/certification-body-routing-20.mjs:
+Dedicated pure fail-closed CB resolver, supports distinct CBs sharing an underlying scheme through separate operational ScopeCodes. Guards against mismatched obligation CB identity and disabled/unverified destinations. Also includes >=10-minute extension notification latest-state planner; no sending side effects.
+Unit and source contract tests added and included in npm test.
+
+3. VALIDATION
+Verified native Google Sheet readback: Certification_Bodies!A1:H2 and Config_Scopes!Z1:Z10.
+Focused V8 tests executed against current GitHub source: 18 scope-create assertions, 16 CB routing/debounce assertions, 13 Scope Management source/UI assertions; all passed.
+Entire npm test suite and isolated DEV deployment must still be run by operator. No production deployment.
+
+4. NOT IMPLEMENTED YET (DO NOT CLAIM NOTIFICATIONS WORK)
+Legacy ECAS-specific Notification_Config / NotificationBuilder / StatusNotificationBridge / NotificationAcceptedReconciler code remains in place to avoid unreviewed regression.
+The isolated DEV extension command commits verified Model C updates but DOES NOT create CB notifications yet.
+No persistent CB extension event outbox, delayed latest-state reducer, configurable CB template, notification dashboard management, retry/reconciliation or real send tests yet.
+The CB resolver/planner is an isolated tested building block and is NOT wired to the sender.
+Do not enable Notification_Enabled or change legacy events until the complete CB-aware, buffered, idempotent sender and suppress/correction tests pass.
+
+5. NEXT WORK
+1. Deploy staged branch to isolated ams-fase12-dev after npm test passes.
+2. Confirm Scope Management displays ECAS for 8 active scopes, test scope remains unassigned; no existing scope recreation.
+3. Implement durable CB EXT/Undo event/outbox with readback, double-send prevention and strict latest-state recheck.
+4. Replace external hardcoding in new generic notification templates and routing; preserve old ECAS side effects until cutover parity evidence.
+5. Extend Notifications dashboard for CB readiness / 10-minute buffer / send, blocked and suppressed status.
+6. DEV tests covering EXT -> Undo within buffer; Undo after sent; mixed-CB visit; changed policy and retry; no cross-CB recipient leakage.
+7. PROD promotion remains an independent approval step. No expansion beyond 20 in AMS 2.0.
+
+No hardcoded ECAS recipient or CB name added in the new code; the ECAS row resides only in DEV configuration data.

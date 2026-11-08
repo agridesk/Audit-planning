@@ -30,7 +30,7 @@ const fetchImpl=async(url,options={})=>{
   if(write.currentDocument.exists===false)assert(!previous,'event must not be overwritten');
   if(write.currentDocument.updateTime)assert.equal(previous?.updateTime,write.currentDocument.updateTime,'atomic precondition');
  }
- for(const write of writes){if(write.verify){verifiedWrites++;continue}docs.set(write.update.name,{value:decode(write.update.fields.payload),updateTime:'2026-11-07T00:00:02Z'})}
+ for(const write of writes){if(write.verify){verifiedWrites++;continue}docs.set(documentUrl(write.update.name),{value:decode(write.update.fields.payload),updateTime:'2026-11-07T00:00:02Z'})}
  commits++;return response(200,{writeResults:writes.map(()=>({}))});
 };
 assert.throws(()=>createScopeExtensionContextPromoter20({projectId,getToken:async()=>'token',fetchImpl,writeEnabled:false,approvedPlan}),/INDEPENDENT_GATE/);

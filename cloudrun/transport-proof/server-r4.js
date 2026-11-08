@@ -2935,7 +2935,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(actualProject!=='audit-management-system-dev')return send(res,409,{ok:false,error:'EXT_STAGE_PROJECT_NOT_DEV'});
     const requestOrigin=clean(req.headers.origin);
     let parsedOrigin;try{parsedOrigin=new URL(requestOrigin)}catch{return send(res,403,{ok:false,error:'EXT_STAGE_ORIGIN_REQUIRED'})}
-    if(!['http:','https:'].includes(parsedOrigin.protocol)||parsedOrigin.host!==clean(req.headers.host))return send(res,403,{ok:false,error:'EXT_STAGE_ORIGIN_FORBIDDEN'});
+    if(parsedOrigin.origin!=='https://ams-fase12-dev-510075419067.europe-west1.run.app')return send(res,403,{ok:false,error:'EXT_STAGE_ORIGIN_FORBIDDEN'});
     const actor=await sessionFromRequestValidated(req);
     if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});

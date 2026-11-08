@@ -7,6 +7,8 @@
 import {createHash} from 'node:crypto';
 const str=x=>String(x??'').trim();
 const sha=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
+const canonical=x=>Array.isArray(x)?x.map(canonical):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,canonical(x[k])])):x;
+const stableSha=x=>sha(canonical(x));
 const validId=x=>typeof x==='string'&&x.length>0&&x.length<=180&&!/[\\/]/.test(x)&&x!=='.'&&x!=='..';
 const kinds=['obligation','auditcontext','event','outbox'];
 function encode(v){
@@ -83,7 +85,7 @@ export function createScopeExtensionFirestoreStager20({projectId,getToken,fetchI
   const compare=(actual,expected,idField)=>actual.count===expected.length
     &&actual.items.every(row=>{
       const item=expected.find(x=>x[idField]===row.id);
-      return item&&sha(item)===sha(row.payload);
+      return item&&stableSha(item)===stableSha(row.payload);
     });
   const parity=compare(obligations,manifest.obligations,'obligationId')&&compare(contexts,manifest.contexts,'auditId');
   return{parity,counts:{obligation:obligations.count,auditcontext:contexts.count,event:events.count,outbox:outbox.count},sourceManifest:manifest.sourceManifest,writerEnabled:false};

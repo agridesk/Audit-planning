@@ -26,7 +26,7 @@ async function api(url,token,{notFoundEmpty=false}={}){
 const envValue=(rev,key)=>(rev?.spec?.containers?.[0]?.env||[]).find(x=>x.name===key)?.value||'';
 const lookupHeader=(header,...names)=>names.map(n=>header.indexOf(n)).find(x=>x>=0)??-1;
 const clean=x=>String(x??'').trim();
-const stop=(msg)=>{notes.push(msg);result.notes=notes;console.log(JSON.stringify(result,null,2));process.exitCode=2;};
+const stop=(msg)=>{notes.push(msg);result.notes=notes;process.exitCode=2;};
 try{
  const raw=gcloud(['run','services','describe',service,'--project='+project,'--region='+region,'--format=json']);
  const svc=JSON.parse(raw);

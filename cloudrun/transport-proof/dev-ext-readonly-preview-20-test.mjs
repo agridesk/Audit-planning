@@ -9,6 +9,7 @@ for(const [field,value] of [['AMS_RUNTIME_ENV','PROD'],['K_SERVICE','ams-transpo
 for(const path of ['/','/health','/manager-portal.js','/api/v1/session','/api/v1/manager/open','/api/v1/manager/company-management','/api/v1/manager/company-management/extension-obligations']){
  assert.equal(allowed({method:'GET',path}),true,'expected read-only route '+path);
 }
+assert.equal(allowed({method:'POST',path:'/auth/dev-login'}),true,'DEV portal manager login must create a signed session without enabling business writers');
 assert.equal(allowed({method:'POST',path:'/auth/legacy-handoff'}),true,'session exchange remains possible');
 assert.equal(allowed({method:'POST',path:'/api/v1/session/exchange'}),true,'verified token exchange remains possible');
 assert.equal(allowed({method:'POST',path:'/api/v1/manager/open-enrichment'}),true,'enrichment is read-only');

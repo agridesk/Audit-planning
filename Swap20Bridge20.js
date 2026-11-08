@@ -84,7 +84,7 @@ function Swap20Bridge20_preview_(a,b) {
   beforeA:display(pair.auditA),beforeB:display(pair.auditB),
   afterA:proposed.blocksA,afterB:proposed.blocksB,
   dateChanged:proposed.dateChanged,requiresAcknowledgement:proposed.requiresAcknowledgement,
-  commitEnabled:String(PropertiesService.getScriptProperties().getProperty('AMS_SWAP20_COMMIT_ENABLED')||'')==='true'};
+  commitEnabled:String(PropertiesService.getScriptProperties().getProperty('AMS_SWAP20_COMMIT_ENABLED')||'')==='true'&&PropertiesService.getScriptProperties().getProperty('AMS_SWAP20_WRITE_AUTHORITY')!=='FIRESTORE'};
 }
 function Swap20Bridge20_mirrorEvent_(result,id){
  if(!result||result.ok!==true)return result;
@@ -150,7 +150,7 @@ function Swap20Bridge20_handle_(body) {
     createdAt:p.createdAt||'',createdBy:p.createdBy||'',blocksA:p.blocksA||[],blocksB:p.blocksB||[],
     acknowledgedCount:ack.length,requiredCount:needed.length,acknowledgedAuditorUids:ack,
     requiredAuditorUids:needed,internalReason:p.internalReason||'',ecasComment:p.ecasComment||'',
-    commitEnabled:String(PropertiesService.getScriptProperties().getProperty('AMS_SWAP20_COMMIT_ENABLED')||'')==='true'});
+    commitEnabled:String(PropertiesService.getScriptProperties().getProperty('AMS_SWAP20_COMMIT_ENABLED')||'')==='true'&&PropertiesService.getScriptProperties().getProperty('AMS_SWAP20_WRITE_AUTHORITY')!=='FIRESTORE'});
   });
   items.sort(function(a,b){return String(b.createdAt).localeCompare(String(a.createdAt));});
   return {ok:true,readOnly:true,items:items.slice(0,100),
@@ -165,7 +165,7 @@ function Swap20Bridge20_handle_(body) {
    auditA:p.auditA,auditB:p.auditB,dateChanged:p.dateChanged,
    acknowledgedCount:(p.acknowledgedAuditorUids||[]).length,
    requiredCount:(p.requiredAuditorUids||[]).length,
-   commitEnabled:p.status==='CONFIRMED'&&!journal.requiresManualReview&&journal.stage==='NOT_STARTED'&&String(PropertiesService.getScriptProperties().getProperty('AMS_SWAP20_COMMIT_ENABLED')||'')==='true'};
+   commitEnabled:p.status==='CONFIRMED'&&!journal.requiresManualReview&&journal.stage==='NOT_STARTED'&&String(PropertiesService.getScriptProperties().getProperty('AMS_SWAP20_COMMIT_ENABLED')||'')==='true'&&PropertiesService.getScriptProperties().getProperty('AMS_SWAP20_WRITE_AUTHORITY')!=='FIRESTORE'};
  }
  if(operation==='withdraw') {
   var withdrawn=Swap20ManagerWithdrawProposalAuthorized_({operationId:body.operationId},manager);

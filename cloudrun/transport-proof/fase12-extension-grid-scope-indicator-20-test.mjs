@@ -21,7 +21,7 @@ ctx.updateExtendedScopeCodes20('A','MPS-GAP',false);
 output=ctx.grid4ScopeBadges(row);
 assert.equal((output.match(/grid4-ext-dot/g)||[]).length,1,'undo removes only its own marker');
 assert(output.includes('GRASP')&&output.includes('grid4-ext-dot'));
-assert(server.includes('function managerExtendedScopeCodes20(obValues,linkValues)'),'canonical bulk source');
+assert(server.includes('function managerExtendedScopeCodes20(obValues,linkValues,scopeValues)'),'canonical bulk source');
 assert(server.includes("val(row,ls).toUpperCase()!=='ACTIVE'"),'never mark inactive visit links');
 assert(server.includes("['yes','true','1','x'].includes(flag)"),'only confirmed extension flags');
 assert(server.includes('r.extendedScopeCodes=extendedScopes.get(clean(r.auditId))||[]'),'row projection');
@@ -32,4 +32,16 @@ assert(output.includes('>E</span>'),'the same compact E emblem marks extended sc
 const single={auditId:'S',scopes:['MPS-GAP'],extendedScopeCodes:['MPS-GAP']};
 assert(ctx.grid4ScopeBadges(single).includes('grid4-ext-dot')&&ctx.grid4ScopeBadges(single).includes('>E</span>'),'single-scope status uses the identical emblem');
 assert(output.includes('position:absolute')&&output.includes('white-space:nowrap'),'indicator overlays badge without taking layout width');
+const named={auditId:'N',scopesText:'Florimark Tracecert',extScopeAliases:{FLORIMARK_TRACE:['FLORIMARK_TRACE','Florimark Tracecert','SCOPE_05']},extendedScopeCodes:['FLORIMARK_TRACE','Florimark Tracecert','SCOPE_05']};
+ctx.all.push(named);
+assert.match(ctx.grid4ScopeBadges(named),/Florimark Tracecert.*?grid4-ext-dot/,'display name must show E for canonical code');
+ctx.updateExtendedScopeCodes20('N','FLORIMARK_TRACE',false);
+assert.equal((ctx.grid4ScopeBadges(named).match(/grid4-ext-dot/g)||[]).length,0,'Undo removes every alias marker immediately');
+ctx.updateExtendedScopeCodes20('N','FLORIMARK_TRACE',true);
+assert.equal((ctx.grid4ScopeBadges(named).match(/grid4-ext-dot/g)||[]).length,1,'Apply restores display-name marker');
+assert(server.includes('function managerScopeAliasCatalog20(scopeValues)'),'Config_Scopes display aliases must be recognized');
+const html=fs.readFileSync(new URL('./manager-portal.html',import.meta.url),'utf8');
+assert(html.includes('.scopes-cell{max-width:none;min-width:0;overflow:visible!important'),'multi-scope cell must not crop badges');
+assert(html.includes('white-space:normal!important;vertical-align:middle'),'multi-scope cell must grow vertically');
+
 console.log('PASS compact scope-specific EXT dot, independent Undo and canonical active-link projection');

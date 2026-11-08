@@ -26,9 +26,9 @@ assert.ok(grid.includes('class=\\\"audit-date-head\\\"'),'Completed date header 
 assert.ok(grid.includes('function completedAuditDateCell20(r)'),'Completed date cell must support multi-day display');
 assert.ok(grid.includes('completedAuditDateCell20(r)'),'Completed date cell must use date renderer');
 assert.ok(grid.includes("(extensions||dossier).scrollIntoView({block:'start',behavior:'auto'})"),'Extensions navigation must reveal the selected company Scopes action section');
-assert.ok(grid.includes("matches=companies.filter(function(c){return String(c.companyUid||'').trim()===uid})"),'Extensions must match exact Company UID, never fall back to ambiguous company names');
-assert.ok(grid.includes('querySelectorAll(".ext-act:not(.ext-manage)")'),'Extensions navigation must not execute legacy write');
+assert.ok(grid.includes("matches=companies.filter(function(c){return String(c.companyUid||'').trim()===uid})")&&grid.includes("if(!auditId||!uid){"),'Extensions must require exact canonical Company UID and never fall back to ambiguous company names');
+assert.ok(grid.includes('runSingleScopeExtension20(button)'),'Single-scope Extensions must use the guarded canonical action; no legacy writer');
 assert.ok(grid.includes("if(!extensionTargetAuditId20){"),'Direct Extensions dossier must suppress unrelated company scope management controls');
-assert.ok(grid.includes("extensionTargetAuditId20='';document.getElementById('scopeManagement20Panel')"),'Normal Company Management entry must clear prior audit-scoped extension context');
+assert.ok(grid.includes("extensionTargetCompanyUid20='';extensionTargetAuditId20='';extCompanyFocus20()"),'Normal Company Management entry must clear prior audit-scoped extension context');
 assert.ok(!grid.includes('eligibleExtensionScopes||[]).length>0||extensionAppliedState(r)'),'Multi-scope Extensions entry must remain accessible even if no extension is currently eligible');
 console.log('Manager self planning source contracts OK');

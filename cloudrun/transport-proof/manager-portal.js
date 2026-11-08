@@ -1610,6 +1610,57 @@ function initExtStageWorkspace20(){
  };
  load();
 }
+function initExtPilotWorkspace20(){
+ if(String(actorRole).toLowerCase()!=='manager'||new URLSearchParams(window.location.search).get('ext-pilot')!=='1')return;
+ const panel=document.createElement('section');panel.id='extModelCDevPilotWorkspace20';
+ panel.style.cssText='padding:18px;border:2px solid #9ca3af;border-radius:9px;background:#f8fafc;margin-bottom:16px;max-width:960px';
+ const title=document.createElement('h2');title.textContent='DEV EXT/Undo — one-audit pilot';title.style.marginTop='0';
+ const status=document.createElement('p');status.setAttribute('role','status');status.textContent='Checking frozen source and 304 staged documents…';
+ const details=document.createElement('pre');details.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.6 monospace';
+ const select=document.createElement('select');select.setAttribute('aria-label','Select clean DEV pilot audit');select.style.cssText='padding:9px;max-width:460px;margin-right:10px';
+ const button=document.createElement('button');button.type='button';button.disabled=true;button.textContent='Promote selected DEV audit for EXT/Undo';button.style.cssText='padding:9px 14px;margin-right:10px';
+ const refresh=document.createElement('button');refresh.type='button';refresh.textContent='Check pilot readiness';
+ panel.append(title,status,details,select,button,refresh);document.querySelector('main')?.prepend(panel);
+ let candidates=[],manifestHash='',busy=false,complete=false;
+ async function api(path,options){
+  const res=await fetch(path,{credentials:'same-origin',...options});
+  const body=await res.json().catch(()=>({}));
+  if(!res.ok||body.ok!==true)throw Error(String(body.detail||body.error||'HTTP '+res.status));
+  return body;
+ }
+ async function check(){
+  if(busy||complete)return;busy=true;button.disabled=true;refresh.disabled=true;
+  try{
+   const out=await api('/api/v1/manager/ext-model-c-pilot-preflight');
+   candidates=out.pilot?.candidates||[];manifestHash=String(out.sourceManifestSha256||'');
+   select.replaceChildren();
+   for(const c of candidates){const option=document.createElement('option');option.value=c.auditId;option.textContent=c.auditId+' · '+c.scopeCode;select.appendChild(option)}
+   button.disabled=!candidates.length;status.textContent=candidates.length?'Source and Firestore verified. Choose one Pending Planning DEV audit for EXT/Undo pilot.':'No clean single-scope DEV pilot candidate found; no writer authorization.';
+   details.textContent=JSON.stringify({sourceManifestSha256:manifestHash,firestore:out.firestore,eligibleSingleScopeAudits:candidates.length,readOnly:true,globalCutoverAuthorized:false},null,2);
+  }catch(e){status.textContent='Pilot preflight blocked: '+String(e.message||e);details.textContent='No changes made.'}
+  finally{busy=false;refresh.disabled=false}
+ }
+ button.onclick=async function(){
+  if(busy||complete||button.disabled)return;
+  const c=candidates.find(x=>x.auditId===select.value);
+  if(!c||c.sourceManifestSha256!==manifestHash)return;
+  const typed=window.prompt('DEV only. This permanently promotes ONE auditcontext; other 104 remain unchanged. Type PROMOTE '+c.auditId+' DEV EXT to continue:');
+  if(typed!=='PROMOTE '+c.auditId+' DEV EXT')return;
+  if(!window.confirm('Confirm that DEV GAS writes remain BLOCKED and no other DEV writer is active for '+c.auditId+'? Only this DEV audit will be enabled.'))return;
+  busy=true;button.disabled=true;select.disabled=true;refresh.disabled=true;
+  status.textContent='Submitting one-audit DEV promotion. Never retry if the outcome is uncertain.';
+  try{
+   const result=await api('/api/v1/manager/ext-model-c-pilot-promote',{method:'POST',
+    headers:{'content-type':'application/json'},body:JSON.stringify({auditId:c.auditId,expectedSourceManifestSha256:manifestHash,
+      typedApproval:typed,operatorWriterFreezeAttested:true})});
+   complete=result.writerEnabledForPilot===true;
+   status.textContent=complete?'Pilot audit '+c.auditId+' promoted. Open Manager Grid and test EXT, then Undo.':'Promotion outcome uncertain; do not repeat.';
+   details.textContent=JSON.stringify({auditId:c.auditId,scopeCode:c.scopeCode,...result},null,2);
+  }catch(e){status.textContent='Pilot promotion not confirmed: '+String(e.message||e)+'. Do not retry without reconciliation.'}
+  finally{busy=false;refresh.disabled=false}
+ };
+ check();
+}
 const gridReturnState20=takeGridReturnState20();
-fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("scopeManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("auditorManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("notificationsManager20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("companyManagement20").hidden=!['manager','auditor'].includes(String(actorRole).toLowerCase());document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();swap20RefreshAttention();if(String(actorRole).toLowerCase()==="manager"){initExtStageWorkspace20();initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)})}return loadOpen().then(async function(){await restoreGridReturnState20(gridReturnState20);document.addEventListener("visibilitychange",function(){if(!document.hidden)swap20RefreshAttention()});window.addEventListener("focus",swap20RefreshAttention);window.setInterval(function(){if(!document.hidden)swap20RefreshAttention()},45000);})}).catch(fail);
+fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("scopeManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("auditorManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("notificationsManager20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("companyManagement20").hidden=!['manager','auditor'].includes(String(actorRole).toLowerCase());document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();swap20RefreshAttention();if(String(actorRole).toLowerCase()==="manager"){initExtStageWorkspace20();initExtPilotWorkspace20();initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)})}return loadOpen().then(async function(){await restoreGridReturnState20(gridReturnState20);document.addEventListener("visibilitychange",function(){if(!document.hidden)swap20RefreshAttention()});window.addEventListener("focus",swap20RefreshAttention);window.setInterval(function(){if(!document.hidden)swap20RefreshAttention()},45000);})}).catch(fail);
 })();

@@ -65,3 +65,11 @@ CURRENT DECISION
 The implementation and static/simulated checks are complete, but local full-suite testing and deployment remain to be done.
 For actual staging, an authorized Manager must explicitly enable the temporary DEV stage flag and confirm on the hidden staging page after full preflight succeeds. Disable that flag immediately following confirmed readback.
 DO NOT interpret this plan as authorization to activate EXT/Undo writers; do not set FIRESTORE authority or verified writer flags without independent evidence.
+
+SCRIPT PROPERTIES CAPACITY — 2026-11-08
+- Apps Script Properties are at capacity with SWAP20 journal/commit entries. Never ask the operator to create AMS_SCOPE_EXTENSION_AUTHORITY or AMS_DEV_PLANNING_CANONICAL_OWNER_20 properties.
+- Do not delete, overwrite, or repurpose SWAP20 properties; they may be operational recovery evidence.
+- Existing DEV System_Config ENV=DEV, ALLOW_DEV_WRITES=FALSE, DEV_WRITE_MODE=BLOCK is the current fail-closed GAS mutation fence. Keep all three values unchanged during staging and writer verification.
+- SystemWriteGuard.js already rejects guarded DEV planning/status/EXT actions under this configuration; additional script properties are not prerequisites to prove that specific guard.
+- A flag-free cutover is NOT thereby approved: independently verify all unguarded GAS code, other accounts' triggers, legacy deployed revisions, direct Sheets writer paths, and concurrent mutation risk before enabling Cloud Run authority.
+- The optional GAS authority-property checks in source must not be represented as deployed or required. No GAS code synchronization or GAS configuration changes have been confirmed.

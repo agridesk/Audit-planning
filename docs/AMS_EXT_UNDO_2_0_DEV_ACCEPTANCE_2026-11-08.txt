@@ -1,0 +1,30 @@
+AMS EXT/UNDO 2.0 — DEV FUNCTIONAL ACCEPTANCE
+Date: 2026-11-08
+Repository: agridesk/Audit-planning
+Code branch: dev
+Cloud Run project: audit-management-system-dev
+Cloud Run service: ams-fase12-dev
+Verified revision: ams-fase12-dev-00013-dd5
+Verified URL: https://ams-fase12-dev-510075419067.europe-west1.run.app
+
+RESULT: PASS, USER-VALIDATED IN DEPLOYED DEV RUNTIME
+1. Single-scope: Salm Portugal Sociedade — EXT Apply and Undo work.
+2. Multi-scope: Cultius Lloveras S.L. — MPS-GAP EXT Apply and Undo work; user screenshot also shows scope-specific Undo for MPS-GAP and GRASP.
+3. Both modes use the canonical Manager extension-obligation-command path in DEV_MODEL_C_DIRECT mode, backed by DEV Audit_Obligations, Audit_Visit_Obligations and Audit planning, with write/readback validation.
+
+WHY THE EARLIER TEST RECORD FAILED
+The DEV Audit planning row TEST_PENDING_PLANNING_01 exists, but the same Audit ID and its Company_UID have no matching active Model C obligation/link. This is missing test-data provisioning, not a reason to bypass canonical lineage safeguards. Do not infer linked scopes merely from the grid Scopes_List.
+
+SCOPE OF ACCEPTANCE
+- ACCEPTED: isolated DEV Cloud Run service only, verified by actual Manager UI interactions.
+- NOT ACCEPTED OR DEPLOYED: regular canonical Cloud Run DEV service; its independent maintenance/write gates remain unchanged.
+- NOT ACCEPTED OR DEPLOYED: PROD. Do not activate, migrate, or deploy PROD without separate explicit authorization.
+- The source code resides in the GitHub dev branch. Runtime release and source commit are distinct.
+- For extension actions, require exact Model C obligation lineage, manager authorization, active linked audit, status/policy eligibility, DEV-only source and project checks, and explicit isolated runtime gate.
+- No Firestore cutover or GAS writer-fence weakening is implied by this acceptance.
+
+FOLLOW-UP (SEPARATE FROM FEATURE ACCEPTANCE)
+- Repair/create properly governed Model C obligations and VisitLinks for TEST_ fixture records if those are to be used for EXT regression.
+- Any promotion from the isolated service to the canonical service requires a separately scoped gate change and release, with existing maintenance and write controls respected.
+
+Evidence: User confirmation 2026-11-08: 'Single scope: Salm Portugal Sociedade ... WERKT PRIMA. Multi scope: Cultius Lloveras S.L. ... WERKT OOK!!!'

@@ -14,7 +14,7 @@ assert.match(endpoint,/READ_ONLY_CUTOVER_REQUIRED/);
 assert.match(endpoint,/canMutate:false/);
 assert(!endpoint.includes('sheetsValuesBatchUpdateRaw('),'read route writes sheets');
 assert(portal.includes('company-management/extension-obligations?companyUid='));
-assert(portal.includes('Read-only until Model C writer migration is verified'));
+assert(portal.includes('Model C migration not verified — EXT/Undo blocked. No changes can be saved.'));
 assert(portal.includes("extPost('/api/v1/manager/extension-obligation-command',body)"));
 assert(portal.includes("extPost('/api/v1/manager/extension-reconcile-projection'"));
 assert(portal.includes('Firestore commit succeeded; projection requires recovery'));

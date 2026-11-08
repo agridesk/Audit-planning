@@ -28,6 +28,7 @@ export function extPreviewRequestAllowed20({method,path,env}={}) {
   if(method==='GET' || method==='HEAD') return allowedGet.has(path);
   if(method==='POST') {
     if(allowedPost.has(path)) return true;
+    if(path==='/api/v1/manager/ext-model-c-stage')return extReadOnlyPreview20(env)&&env.AMS_DEV_EXT_STAGE_ENABLED==='true'&&env.AMS_DEV_EXT_COMMANDS_ENABLED!=='true'&&env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE';
     return verifiedExtensionPosts.has(path)
       && extReadOnlyPreview20(env)
       && env.AMS_DEV_EXT_COMMANDS_ENABLED === 'true'

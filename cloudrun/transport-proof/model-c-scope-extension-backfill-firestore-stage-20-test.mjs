@@ -12,7 +12,7 @@ const manifest=prepareScopeExtensionBackfill20({
 const documents=new Map();
 let writes=0,breakReadback=false;
 const response=(status,body)=>({status,ok:status>=200&&status<300,async json(){return body}});
-function jsonEncode(v){if(v===null)return{nullValue:null};if(typeof v==='string')return{stringValue:v};if(typeof v==='boolean')return{booleanValue:v};if(typeof v==='number')return{integerValue:String(v)};if(Array.isArray(v))return{arrayValue:{values:v.map(jsonEncode)}};return{mapValue:{fields:Object.fromEntries(Object.entries(v).map(([k,x])=>[k,jsonEncode(x)]))}}}
+function jsonEncode(v){if(v===null)return{nullValue:null};if(typeof v==='string')return{stringValue:v};if(typeof v==='boolean')return{booleanValue:v};if(typeof v==='number')return{integerValue:String(v)};if(Array.isArray(v))return{arrayValue:{values:v.map(jsonEncode)}};return{mapValue:{fields:Object.fromEntries(Object.entries(v).reverse().map(([k,x])=>[k,jsonEncode(x)]))}}}
 const fakeFetch=async(url,options)=>{
  const parsed=new URL(url),method=options.method;
  assert.equal(parsed.hostname,'firestore.googleapis.com');
@@ -63,6 +63,7 @@ await assert.rejects(store.stage({manifest,expectedSha256:manifest.sourceManifes
 assert.equal(writes,1,'no second commit');
 const rechecked=await store.verify(manifest);
 assert.equal(rechecked.parity,true);
+assert.equal(rechecked.writerEnabled,false,'readback must never infer writer cutover');
 breakReadback=true;
 const corrupt=await store.verify(manifest);
 assert.equal(corrupt.parity,false,'readback drift must fail parity');

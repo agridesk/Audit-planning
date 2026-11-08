@@ -52,6 +52,42 @@ for(const [k,v] of Object.entries({Extension_Applied:'Yes',Extension_Metadata_JS
 const reapplyUndo=plan({snapshot:inspect(revertedInput()),auditId:'REVERTED_A',companyUid:'C3',obligationId:'REVERTED1',command:'undo',requestId:'REUNDO1',actorUid:'M1'});
 assert.equal(reapplyUndo.expected.effectiveExpiry,'2027-01-31');
 assert.equal(reapplyUndo.expected.extensionMetadata,'');
+assert.equal(reapplyUndo.expected.windowFrom,'2026-09-30','legacy revert must normalize its planning-from baseline');
+assert.equal(reapplyUndo.expected.windowTo,'2026-12-31','policy-matching legacy window remains unchanged');
+assert.equal(newMeta.priorLegacyUndoWindow.from,'2026-09-30','original legacy window preserved for governance');
+assert.equal(newMeta.priorLegacyUndoWindow.to,'2026-12-31','original historical window end preserved');
+const driftLegacyMeta=JSON.stringify({source:'CLOUD_RUN_DIRECT_MANAGER_EXTENSION',months:4,undo:true,actorEmail:'legacy.manager@example.test',timestamp:'2026-10-05 05:44:06'});
+const driftRows=[oh,
+ ['MOTHER','C5','MPS-GAP','CERTIFICATE_LIFECYCLE','2026-12-02','2027-04-02','2026-12-02','2027-03-02','Yes',JSON.stringify({source:'AMS_DEV_MODEL_C_SCOPE_EXTENSION_20',transactionId:'EXISTING_MOTHER',scopeCode:'MPS-GAP',months:4,before:{effectiveExpiry:'2026-12-02',windowFrom:'2026-08-02',windowTo:'2026-11-02',extensionApplied:false,extensionMetadata:''}})],
+ ['CHILD','C5','GRASP','CERTIFICATE_LIFECYCLE','2026-12-02','2026-12-02','2026-08-02','2026-11-02','',driftLegacyMeta]
+];
+const driftScopeRows=[sh,['MPS-GAP',4,-4,-1],['GRASP',4,-4,-2]];
+const driftLinks=[lh,['DRIFT_AUDIT','MOTHER','ACTIVE'],['DRIFT_AUDIT','CHILD','ACTIVE']];
+const driftPlanning=[ph,['DRIFT_AUDIT','Pending Planning','2026-12-02','Yes','','']];
+const driftInput=()=>({obligationRows:driftRows,linkRows:driftLinks,planningRows:driftPlanning,scopeRows:driftScopeRows,companyUid:'C5'});
+const drift=inspect(driftInput());
+assert.equal(drift.obligations.get('CHILD').canApply,true,'GRASP historical Undo with -4/-1 window may reapply under current -4/-2 policy');
+assert.equal(drift.obligations.get('MOTHER').canUndo,true,'applied mother scope remains independently reversible');
+const driftApply=plan({snapshot:drift,auditId:'DRIFT_AUDIT',companyUid:'C5',obligationId:'CHILD',command:'apply',requestId:'DRIFT_APPLY',actorUid:'M1'});
+assert.equal(driftApply.expected.effectiveExpiry,'2027-04-02');
+assert.equal(driftApply.expected.windowFrom,'2026-12-02');
+assert.equal(driftApply.expected.windowTo,'2027-02-02','new EXT uses current scope planning policy');
+assert.equal(driftApply.expected.aggregateExpiry,'2027-04-02','aggregate no longer controlled by unextended GRASP');
+const driftMeta=JSON.parse(driftApply.expected.extensionMetadata);
+assert.deepEqual(driftMeta.priorLegacyUndoWindow,{from:'2026-08-02',to:'2026-11-02'},'previous historic window retained explicitly');
+assert.deepEqual({from:driftMeta.before.windowFrom,to:driftMeta.before.windowTo},{from:'2026-08-02',to:'2026-10-02'},'post-Undo baseline normalized to current policy');
+for(const [key,value] of Object.entries({Extension_Applied:'Yes',Extension_Metadata_JSON:driftApply.expected.extensionMetadata,Effective_Expiry_Date:driftApply.expected.effectiveExpiry,Planning_Window_From:driftApply.expected.windowFrom,Planning_Window_To:driftApply.expected.windowTo}))driftRows[2][oh.indexOf(key)]=value;
+const driftAfter=inspect(driftInput());
+const driftUndo=plan({snapshot:driftAfter,auditId:'DRIFT_AUDIT',companyUid:'C5',obligationId:'CHILD',command:'undo',requestId:'DRIFT_UNDO',actorUid:'M1'});
+assert.equal(driftUndo.expected.effectiveExpiry,'2026-12-02');
+assert.equal(driftUndo.expected.windowFrom,'2026-08-02');
+assert.equal(driftUndo.expected.windowTo,'2026-10-02','Undo must not reinstate outdated planning window');
+assert.equal(driftUndo.expected.extensionMetadata,'','stale legacy Undo marker no longer blocks future application');
+for(const [key,value] of Object.entries({Extension_Applied:'',Extension_Metadata_JSON:'',Effective_Expiry_Date:driftUndo.expected.effectiveExpiry,Planning_Window_From:driftUndo.expected.windowFrom,Planning_Window_To:driftUndo.expected.windowTo}))driftRows[2][oh.indexOf(key)]=value;
+assert.equal(inspect(driftInput()).obligations.get('CHILD').canApply,true,'repeated apply must remain possible');
+const staleWindow=[oh,['BAD2','C6','GRASP','CERTIFICATE_LIFECYCLE','2026-12-02','2026-12-02','2026-07-15','2026-11-02','',driftLegacyMeta]];
+assert.equal(inspect({obligationRows:staleWindow,linkRows:[lh,['BAD_A2','BAD2','ACTIVE']],planningRows:[ph,['BAD_A2','Pending Planning','2026-12-02','','2026-07-15','2026-11-02']],scopeRows:driftScopeRows,companyUid:'C6'}).records[0].canApply,false,'arbitrary historic dates are not accepted as policy-aligned Undo');
+
 const incompatible=[oh,['BAD1','C4','MPS-GAP','CERTIFICATE_LIFECYCLE','2027-01-31','2027-01-31','2026-10-01','2027-01-31','',legacyRevertedMeta]];
 const blocked=inspect({obligationRows:incompatible,linkRows:[lh,['BAD_A','BAD1','ACTIVE']],planningRows:[ph,['BAD_A','Pending Planning','2027-01-31','','2026-10-01','2027-01-31']],scopeRows:scopes,companyUid:'C4'});
 assert.equal(blocked.records[0].canApply,false,'mismatched legacy provenance cannot bypass policy');

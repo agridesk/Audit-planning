@@ -1,52 +1,52 @@
-AMS 2.0 — CI-IDENTITEIT PER OPERATIONELE SCOPE + NOTIFICATIES
+AMS 2.0 — CB-IDENTITEIT PER OPERATIONELE SCOPE + NOTIFICATIES
 SOURCE REVIEW / ROOT CAUSE ANALYSIS / IMPLEMENTATIECONTRACT
 08-11-2026 | dev branch | geen code- of databewerking
 
 BESLUIT
-Elke operationele ScopeCode verwijst naar exact een Certification_Body_ID en is zelfstandig voor uren, planning windows, EXT, auditor qualification en notificaties. GLOBALG.A.P. bij twee CI's betekent twee ScopeCodes en twee van de 20 slots. AMS 2.0 houdt de limiet 20; >20 uitsluitend AMS 3.0. Eén Audit_ID kan obligations van verschillende CI's bevatten; notificaties per obligation en CI.
+Elke operationele ScopeCode verwijst naar exact een Certification_Body_ID en is zelfstandig voor uren, planning windows, EXT, auditor qualification en notificaties. GLOBALG.A.P. bij twee CBs betekent twee ScopeCodes en twee van de 20 slots. AMS 2.0 houdt de limiet 20; >20 uitsluitend AMS 3.0. Eén Audit_ID kan obligations van verschillende CBs bevatten; notificaties per obligation en CB.
 
 VERIFIED LIVE DEV (2026-11-08)
 Config_Scopes: SCOPE_01 MPS-ABC, 02 MPS-GAP, 03 MPS-SQ, 04 GRASP, 05 FLORIMARK_TRACE, 06 FLORIMARK_GTP, 07 MPS-Compact, 08 SCOPE_8, 09 TESTSCOPE-2 (inactief). Acht actief, negen bezet, elf vrije slotposities.
 Config_Scopes, Company_Scopes en Audit_Obligations hebben nu geen canoniek Certification_Body_ID. Audit_Visit_Obligations groepeert scope-obligations onder Audit_ID.
-Notification_Config: EXTENSION_APPLIED ACTIVE NO / MANAGER_DEFAULT / buffer 10; EXTENSION_UNDONE ACTIVE YES / MANAGER_DEFAULT / buffer 10. ECAS_AUDIT_APPROVAL_DIGEST gebruikt ECAS_DEFAULT. Geen CI-ontvangerresolutie.
+Notification_Config: EXTENSION_APPLIED ACTIVE NO / MANAGER_DEFAULT / buffer 10; EXTENSION_UNDONE ACTIVE YES / MANAGER_DEFAULT / buffer 10. ECAS_AUDIT_APPROVAL_DIGEST gebruikt ECAS_DEFAULT. Geen CB recipientresolutie.
 Notification_Templates heeft slechts drie generieke TPL_* rijen; event-specifieke content deels in Apps Script. Geen garantie dat TEMPLATE_KEY_DEFAULT naar een werkelijk aanwezige template-rij verwijst.
-Isolated DEV EXT/Undo writer (cloudrun/transport-proof/server-r4.js) commit Model C + readback; legt geen CI notification intent vast.
+Isolated DEV EXT/Undo writer (cloudrun/transport-proof/server-r4.js) commit Model C + readback; legt geen CB notification intent vast.
 
 HARDCODE INVENTORY (GitHub dev)
-- StatusNotificationBridge.js: ECAS_AUDIT_APPROVAL_DIGEST, Script Property ECAS_DEFAULT_EMAIL, fallback naar actieve Manager; ongeldig voor multi-CI.
+- StatusNotificationBridge.js: ECAS_AUDIT_APPROVAL_DIGEST, Script Property ECAS_DEFAULT_EMAIL, fallback naar actieve Manager; ongeldig voor multi-CB.
 - NotificationAcceptedReconciler.js: vereist AUDIT_ACCEPTED + ECAS_AUDIT_APPROVAL_DIGEST (event-specific reconciler).
 - NotificationConfigCanonicalizer.js: herintroduceert bij canonicalisatie ECAS_DEFAULT / ECAS_OPERATIONAL / ECAS events en Manager-default EXT events.
 - NotificationBuilder.js: hardcoded Nederlandse teksten 'Overzicht auditopdracht Ecert' en 'Overzicht auditopdrachten Ecert'; ECAS_-prefix bepaalt onderwerp.
-- cloudrun/transport-proof/server-r4.js: ECAS_DEFAULT_EMAIL, ECAS digest payload en ECAS-operationele queue helpers. Geen CI lookup via obligation.
-- notification-overview-20.mjs: read-only configuratie en queue status, geen CI-binding, recipient integrity of delayed latest-state reducer.
+- cloudrun/transport-proof/server-r4.js: ECAS_DEFAULT_EMAIL, ECAS digest payload en ECAS-operationele queue helpers. Geen CB lookup via obligation.
+- notification-overview-20.mjs: read-only configuratie en queue status, geen CB-binding, recipient integrity of delayed latest-state reducer.
 
 DOELMODEL
 1. Certification_Bodies register: Certification_Body_ID immutable, legal/display name, active status, email contact(s), verified by/at, language/timezone, effective dates, separate notification gate. Addresses niet hardcoderen.
 2. Config_Scopes: additieve Certification_Body_ID en Base_Scheme_ID; unieke ScopeCode blijft operationele sleutel. Geen stilzwijgende hernoeming of automatische fallback.
-3. Company_Scopes: enrolment in specifieke ScopeCode; niet generiek schema. Verandering van CI vereist gecontroleerde transfer, geen bewerking van historische relatie.
-4. Audit_Obligations: immutable CI_ID + Scope_Version_ID snapshot bij provisioning, gecontroleerde dry-run backfill voor bestaande obligations. Ontbrekende of ambigue CI = MIGRATION_REVIEW_REQUIRED; externe notificatie geblokkeerd.
-5. Audit_Visit_Obligations: één fysiek bezoek kan meerdere CIs hebben, ontvangers blijven gescheiden.
-6. Dependencies en kwalificaties verwijzen naar exacte scopevarianten; geen cross-CI impliciete synchronisatie.
+3. Company_Scopes: enrolment in specifieke ScopeCode; niet generiek schema. Verandering van CB vereist gecontroleerde transfer, geen bewerking van historische relatie.
+4. Audit_Obligations: immutable CI_ID + Scope_Version_ID snapshot bij provisioning, gecontroleerde dry-run backfill voor bestaande obligations. Ontbrekende of ambigue CB = MIGRATION_REVIEW_REQUIRED; externe notificatie geblokkeerd.
+5. Audit_Visit_Obligations: één fysiek bezoek kan meerdere CBs hebben, ontvangers blijven gescheiden.
+6. Dependencies en kwalificaties verwijzen naar exacte scopevarianten; geen cross-CB impliciete synchronisatie.
 
 NOTIFICATIES
 - Generieke CERTIFICATION_BODY_SCOPE_EXTENSION-eventfamilie met Apply/Undo, per obligation + CI_ID.
 - Commit en bevestigde readback -> durable domain event/outbox. Nooit direct mailen vanuit EXT handler.
 - Buffer >=10 min gemeten vanaf laatste relevante state change. Apply gevolgd door Undo vóór verzending -> suppress beide externe mails, intern audit trail blijft. Undo na verzonden Apply -> vertraagd correctiebericht.
-- Queue/outbox statuses COMMITTED, BUFFERING, SUPERSEDED/SUPPRESSED, READY, SENT, FAILED, BLOCKED. Idempotency op operation+obligation+CI+versie; verzendmoment recheck canonical latest state en recipient verification.
-- Geen fallback naar ECAS, Manager of actor-email. Fail closed bij CI mismatch, ontbrekend adres of disabled CI.
+- Queue/outbox statuses COMMITTED, BUFFERING, SUPERSEDED/SUPPRESSED, READY, SENT, FAILED, BLOCKED. Idempotency op operation+obligation+CB+versie; verzendmoment recheck canonical latest state en recipient verification.
+- Geen fallback naar ECAS, Manager of actor-email. Fail closed bij CB mismatch, ontbrekend adres of disabled CB.
 - Generieke templates met placeholders CERTIFICATION_BODY_NAME, COMPANY_NAME, SCOPE, OLD_EXPIRY, NEW_EXPIRY en CHANGE_TYPE; Audit UID uitsluitend backend. Geen 'ECAS' of 'Ecert' in generieke copy.
-- Dashboard: CI recipient verification, configuration, default/minimum buffer, suppressed/failed status en testpreview. Live send alleen na expliciete releasegate.
+- Dashboard: CB recipient verification, configuration, default/minimum buffer, suppressed/failed status en testpreview. Live send alleen na expliciete releasegate.
 
 FASERING
 P0: inventaris/RCA (dit document, read only).
-P1: CI register en CI binding in Config_Scopes, DEV-only, additief; scope beheer en validatie. Buiten de geïsoleerde EXT writer.
+P1: CB register en CB binding in Config_Scopes, DEV-only, additief; scope beheer en validatie. Buiten de geïsoleerde EXT writer.
 P2: gecontroleerde company-scope/obligation backfill na expliciete identiteitsvalidatie en dry-run; audit trail.
 P3: generieke recipient resolver, template renderer en migration-safe legacy ECAS event reducer; geen dubbele queue routes.
 P4: durable delayed EXT/Undo outbox, suppression + correction en Notification dashboard.
-P5: DEV acceptance multi-CI combined visit, cross-CI leak prevention, disabled/unknown recipient, policy drift, retries, old ECAS parity.
+P5: DEV acceptance multi-CB combined visit, cross-CB leak prevention, disabled/unknown recipient, policy drift, retries, old ECAS parity.
 P6: PROD uitsluitend na afzonderlijke autorisatie. No expansion >20.
 
-CI-BINDING REVIEW NODIG VAN OWNER
+CB-BINDING REVIEW NODIG VAN OWNER
 SCOPE_01 MPS-ABC: CI_ID nog onbekend.
 SCOPE_02 MPS-GAP: CI_ID nog onbekend.
 SCOPE_03 MPS-SQ: CI_ID nog onbekend.
@@ -55,8 +55,8 @@ SCOPE_05 FLORIMARK_TRACE: CI_ID nog onbekend.
 SCOPE_06 FLORIMARK_GTP: CI_ID nog onbekend.
 SCOPE_07 MPS-Compact: CI_ID nog onbekend.
 SCOPE_08 SCOPE_8: CI_ID nog onbekend.
-SCOPE_09 TESTSCOPE-2: inactief, geen CI toewijzen.
-CI kan NIET betrouwbaar uit schemanaam, bestaande ECAS-events of Manager-email worden afgeleid. Betrouwbare CI-identiteiten en geverifieerde mailcontacten moeten expliciet worden aangeleverd/bevestigd.
+SCOPE_09 TESTSCOPE-2: inactief, geen CB toewijzen.
+CB kan NIET betrouwbaar uit schemanaam, bestaande ECAS-events of Manager-email worden afgeleid. Betrouwbare CB identityen en geverifieerde mailcontacten moeten expliciet worden aangeleverd/bevestigd.
 
 ACCEPTANCE
-Scopevariant -> exact één CI, immutable obligation snapshot, separate policy, no cross-CI leakage; no send before 10 minutes; Apply+Undo suppression; correction after prior send; no 'ECAS'/'Ecert' generic hardcode; no recipient fallback; old EXT/Undo and 20-slot cap intact.
+Scopevariant -> exact één CB, immutable obligation snapshot, separate policy, no cross-CB leakage; no send before 10 minutes; Apply+Undo suppression; correction after prior send; no 'ECAS'/'Ecert' generic hardcode; no recipient fallback; old EXT/Undo and 20-slot cap intact.

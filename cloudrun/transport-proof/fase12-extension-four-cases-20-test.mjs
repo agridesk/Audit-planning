@@ -14,7 +14,7 @@ assert.match(render(pending),/data-extension="apply"/,'one eligible scope: EXT')
 assert.match(render({...pending,extensionApplied:true}),/data-extension="undo"/,'applied extension: Undo');
 const multi={...pending,scopes:['MPS-GAP','GRASP'],eligibleExtensionScopes:['GRASP']};
 assert.match(render(multi),/ext-manage/,'multiple eligible scopes: Manage Extensions');
-assert.equal(render({...multi,eligibleExtensionScopes:[]}),'' ,'no eligible scope: no button');
+assert.match(render({...multi,eligibleExtensionScopes:[]}),/ext-manage/,'multi-scope audit must retain direct navigation to its scope dossier even without currently eligible EXT');
 assert.equal(render({...pending,extensionMonths:0,canExtend:false}),'' ,'single scope without extension: no button');
 assert.equal(render({...multi,statusKey:'ACCEPTED'}),'' ,'non-Pending Planning: no extension action');
 sandbox.actorRole='Auditor';

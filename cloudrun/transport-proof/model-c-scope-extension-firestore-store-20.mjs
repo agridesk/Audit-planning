@@ -58,7 +58,7 @@ export function createScopeExtensionFirestoreStore20({projectId,getToken,fetchIm
   if(!context||context.auditId!==auditId||context.companyUid!==companyUid||context.writerFenceVerified!==true||!Array.isArray(context.obligationIds)||context.obligationIds.length<1||context.obligationIds.length>100||new Set(context.obligationIds).size!==context.obligationIds.length||context.obligationIds.some(x=>!id(x)))throw Error('EXT_CONTEXT_NOT_MIGRATED');
   const obligations=await Promise.all(context.obligationIds.map(x=>read('obligation',x)));
   for(let i=0;i<obligations.length;i++)if(!obligations[i]||obligations[i].obligationId!==context.obligationIds[i]||obligations[i].auditId!==auditId||obligations[i].companyUid!==companyUid)throw Error('EXT_CONTEXT_LINEAGE_INVALID');
-  return{auditId,companyUid,lifecycleStatus:context.lifecycleStatus,obligations,policyByScope:context.policyByScope||{}};
+  return{auditId,companyUid,lifecycleStatus:context.lifecycleStatus,obligations,policyByScope:context.policyByScope||{},pilotOnly:context.writerFreezeEvidenceRef?.endsWith('__PILOT_ONLY')===true};
  }
  async function readOutbox(operationId){
   if(!id(operationId))throw Error('EXT_OUTBOX_ID_INVALID');

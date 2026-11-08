@@ -10,7 +10,7 @@ function encode(v){if(v===null)return{nullValue:null};if(typeof v==='string')ret
 function decode(v){if('nullValue'in v)return null;if('stringValue'in v)return v.stringValue;if('booleanValue'in v)return v.booleanValue;if('integerValue'in v)return Number(v.integerValue);if('arrayValue'in v)return(v.arrayValue.values||[]).map(decode);if('mapValue'in v)return Object.fromEntries(Object.entries(v.mapValue.fields||{}).map(([k,x])=>[k,decode(x)]));throw Error('EXT_FIRESTORE_VALUE_CORRUPT')}
 export function createScopeExtensionFirestoreStore20({projectId,getToken,fetchImpl=fetch,databaseId='(default)',prefix='ams_scope_extension_20_dev',migrationVerified=false,writerFenceVerified=false}={}){
  if(migrationVerified!==true||writerFenceVerified!==true)throw Error('EXT_FIRESTORE_CUTOVER_UNVERIFIED');
- if(!/^[a-z][a-z0-9-]{4,62}$/.test(projectId||'')||typeof getToken!=='function'||!id(prefix)||!databaseId)throw Error('EXT_FIRESTORE_CONFIG_INVALID');
+ if(projectId!=='audit-management-system-dev'||databaseId!=='(default)'||prefix!=='ams_scope_extension_20_dev'||typeof getToken!=='function')throw Error('EXT_FIRESTORE_DEV_ONLY');
  const base='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(projectId)+'/databases/'+encodeURIComponent(databaseId)+'/documents';
  const documentName=(kind,key)=>{if(!['obligation','event','outbox','auditcontext'].includes(kind)||!id(key))throw Error('EXT_FIRESTORE_DOCUMENT_ID_INVALID');return 'projects/'+projectId+'/databases/'+databaseId+'/documents/'+prefix+'_'+kind+'/'+encodeURIComponent(key)};
  const doc=(kind,key)=>'https://firestore.googleapis.com/v1/'+documentName(kind,key);

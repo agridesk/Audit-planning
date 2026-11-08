@@ -241,7 +241,7 @@ function grid4ScopeBadges(r){
   var code=String(typeof item==="string"?item:(item.scopeCode||item.displayName||item.slotKey||"")).trim();
   if(!code)return"";
   var meta=lookup[code]||{},bg=/^#[0-9a-f]{6}$/i.test(String(meta.Color||""))?meta.Color:"#f1f5f9",fg=/^#[0-9a-f]{6}$/i.test(String(meta.TextColor||""))?meta.TextColor:"#334155";
-  var applied=extended.has(code.toUpperCase()),marker=applied?'<span aria-hidden="true" class="grid4-ext-dot" style="position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:50%;background:#16a34a;border:1px solid #fff;box-sizing:content-box"></span>':'';
+  var applied=extended.has(code.toUpperCase()),marker=applied?'<span aria-hidden="true" class="grid4-ext-dot" style="position:absolute;top:-5px;right:-5px;width:11px;height:11px;line-height:11px;text-align:center;font-size:8px;font-weight:800;border-radius:50%;background:#15803d;color:#fff;border:1px solid #fff;box-sizing:content-box">E</span>':'';
   var title=applied?' title="'+esc(code+' — Extension applied')+'"':'';
   return '<span class="grid4-scope-badge"'+title+' style="position:relative;display:inline-block;white-space:nowrap;margin:1px 3px 1px 0;padding:2px 6px;border-radius:4px;background:'+bg+';color:'+fg+'">'+esc(code)+marker+'</span>';
  }).join("")||esc(text(r.scopesText))

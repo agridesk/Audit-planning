@@ -58,7 +58,8 @@ const setup=(events,applied,enabled)=>{
 }
 {
  const x=setup([apply],true,true);
- x.SpreadsheetApp.getActiveSpreadsheet=()=>({...x.SpreadsheetApp.getActiveSpreadsheet(),getId:()=> 'PROD_SPREADSHEET'});
+ const devSheet=x.SpreadsheetApp.getActiveSpreadsheet();
+ x.SpreadsheetApp.getActiveSpreadsheet=()=>({...devSheet,getId:()=> 'PROD_SPREADSHEET'});
  assert.equal(x.CB_Extension_Outbox_ReconcileLocked_().skipped,'NON_DEV');
  assert.equal(x.sheets['Notification Queue'].rows.length,1);
 }

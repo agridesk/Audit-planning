@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {adaptScopeExtensionStagedManifestForPromotion20 as adapt} from './model-c-scope-extension-context-promotion-20.mjs';
+import {adaptScopeExtensionStagedManifestForPromotion20 as adapt,prepareScopeExtensionContextPromotion20 as prepare} from './model-c-scope-extension-context-promotion-20.mjs';
 const project='audit-management-system-dev';
 const sha=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const contexts=Array.from({length:105},(_,i)=>({auditId:'A'+(i+1),companyUid:'C'+(i+1),lifecycleStatus:'PENDING_PLANNING',obligationIds:['O'+(i+1)],writerFenceVerified:false,policyByScope:{},migrationState:'STAGED_UNVERIFIED'}));
@@ -23,6 +23,20 @@ assert.equal(stage.auditContexts.length,105);
 assert.equal(stage.documents.length,199);
 assert.equal(stage.sourceManifestSha256,manifest.sourceManifest);
 assert.deepEqual(stage.quarantinedAudits,[]);
+
+const runtime={repository:'agridesk/Audit-planning',ref:'refs/heads/dev',environment:'ams-dev-migration',projectId:project,eventName:'workflow_dispatch'};
+const freeze={verified:true,projectId:project,sourceSnapshotSha256:manifest.sourceManifest,evidenceRef:'TEST_ONLY_FREEZE',allLegacyGASWritersFenced:true,allCloudRunRoutesFenced:true,sourceMutationGuardVerified:true};
+const sourceParity={verified:true,projectId:project,snapshotSha256:manifest.sourceManifest,complete:true,unexpectedDocuments:0,missingDocuments:0,mismatchedDocuments:0,evidenceRef:'TEST_ONLY_SOURCE_PARITY'};
+const seedReadback={verified:true,projectId:project,snapshotSha256:manifest.sourceManifest,contextCount:105,obligationCount:199,unexpectedDocuments:0,missingDocuments:0,mismatchedDocuments:0,evidenceRef:'TEST_ONLY_SEED_READBACK'};
+const proposed={projectId:project,stage,sourceSnapshotSha256:manifest.sourceManifest,writerFreeze:freeze,sourceParity,seedReadback,runtime,approval:'CONFIRM_DEV_MODEL_C_WRITER_PROMOTION'};
+const plan=prepare(proposed);
+assert.equal(plan.counts.contexts,105);
+assert.equal(plan.counts.obligations,155);
+assert.equal(plan.counts.unlinkedPreserved,44);
+assert.equal(plan.promotions.length,105);
+assert.equal(plan.cutoverApproved,false);
+assert.throws(()=>prepare({...proposed,writerFreeze:{...freeze,allLegacyGASWritersFenced:false}}),/WRITER_FREEZE_UNVERIFIED/);
+assert.throws(()=>prepare({...proposed,approval:''}),/EXPLICIT_APPROVAL_REQUIRED/);
 assert.throws(()=>adapt({...manifest,sourceManifest:'0'.repeat(64)}),/STAGED_MANIFEST_INVALID/);
 const changed=structuredClone(manifest);changed.obligations[0].companyUid='WRONG';
 assert.throws(()=>adapt(changed),/STAGED_MANIFEST_INVALID/);

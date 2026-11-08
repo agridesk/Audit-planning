@@ -18,19 +18,21 @@ export function prepareScopeExtensionContextPromotion20({
  if(!seedReadback||seedReadback.verified!==true||seedReadback.projectId!==projectId||seedReadback.snapshotSha256!==sourceSnapshotSha256||seedReadback.contextCount!==stage.auditContexts.length||seedReadback.obligationCount!==stage.documents.length||seedReadback.unexpectedDocuments!==0||seedReadback.missingDocuments!==0||seedReadback.mismatchedDocuments!==0||!text(seedReadback.evidenceRef))throw Error('EXT_PROMOTION_SEEDED_PARITY_UNVERIFIED');
  const quarantine=new Set(stage.quarantinedAudits.map(x=>text(x.auditId)));
  if(quarantine.size!==stage.quarantinedAudits.length||stage.quarantinedAudits.some(x=>x.automaticRepairAllowed!==false))throw Error('EXT_PROMOTION_QUARANTINE_INVALID');
- const byObligation=new Map();
+ const byObligation=new Map(),unlinked=new Set();
  for(const d of stage.documents){
-  if(!text(d.obligationId)||byObligation.has(d.obligationId)||!text(d.auditId)||!text(d.companyUid)||!text(d.scopeCode)||d.revision!==0||d.pendingProjectionId!==''||d.linkState!=='ACTIVE'||d.writerFenceVerified===true||quarantine.has(d.auditId))throw Error('EXT_PROMOTION_DOCUMENT_INVALID');
+  if(!text(d.obligationId)||byObligation.has(d.obligationId)||unlinked.has(d.obligationId)||!text(d.companyUid)||!text(d.scopeCode)||d.revision!==0||d.pendingProjectionId!==''||d.stagingWriterFenceVerified!==false||d.writerFenceVerified===true)throw Error('EXT_PROMOTION_DOCUMENT_INVALID');
+  if(d.linkState==='UNLINKED'){unlinked.add(d.obligationId);continue}
+  if(d.linkState!=='ACTIVE'||!text(d.auditId)||quarantine.has(d.auditId))throw Error('EXT_PROMOTION_DOCUMENT_INVALID');
   byObligation.set(d.obligationId,d);
  }
  const promoted=[],seen=new Set(),mapped=new Set();
  for(const ctx of stage.auditContexts){
-  if(!text(ctx.auditId)||seen.has(ctx.auditId)||quarantine.has(ctx.auditId)||!text(ctx.companyUid)||ctx.writerFenceVerified!==false||ctx.revision!==0||!Array.isArray(ctx.obligationIds)||ctx.obligationIds.length<1||ctx.obligationIds.length>100||!uniq(ctx.obligationIds))throw Error('EXT_PROMOTION_CONTEXT_INVALID');
+  if(!text(ctx.auditId)||seen.has(ctx.auditId)||quarantine.has(ctx.auditId)||!text(ctx.companyUid)||ctx.writerFenceVerified!==false||ctx.migrationState!=='STAGED_UNVERIFIED'||(ctx.revision!==undefined&&ctx.revision!==0)||!Array.isArray(ctx.obligationIds)||ctx.obligationIds.length<1||ctx.obligationIds.length>100||!uniq(ctx.obligationIds))throw Error('EXT_PROMOTION_CONTEXT_INVALID');
   seen.add(ctx.auditId);
   if(!['PENDING_PLANNING','PENDING_APPROVAL','APPROVED','ACCEPTED','READY','COMPLETED','REJECTED'].includes(status(ctx.lifecycleStatus)))throw Error('EXT_PROMOTION_LIFECYCLE_UNKNOWN');
   for(const id of ctx.obligationIds){const d=byObligation.get(id);if(!d||mapped.has(id)||d.auditId!==ctx.auditId||d.companyUid!==ctx.companyUid)throw Error('EXT_PROMOTION_LINEAGE_MISMATCH');mapped.add(id)}
   promoted.push({auditId:ctx.auditId,companyUid:ctx.companyUid,obligationIds:[...ctx.obligationIds],expectedRevision:0,sourceSnapshotSha256,writerFenceVerified:true});
  }
- if(mapped.size!==byObligation.size||promoted.length!==stage.counts?.contexts||mapped.size!==stage.counts?.obligations)throw Error('EXT_PROMOTION_COVERAGE_MISMATCH');
- return Object.freeze({readOnly:true,cutoverApproved:false,promotionPrepared:true,projectId,sourceSnapshotSha256,writerFreezeEvidenceRef:writerFreeze.evidenceRef,sourceParityEvidenceRef:sourceParity.evidenceRef,seedParityEvidenceRef:seedReadback.evidenceRef,counts:{contexts:promoted.length,obligations:mapped.size,quarantined:quarantine.size},promotions:promoted});
+ if(mapped.size!==byObligation.size||promoted.length!==stage.counts?.contexts||mapped.size+unlinked.size!==stage.counts?.obligations)throw Error('EXT_PROMOTION_COVERAGE_MISMATCH');
+ return Object.freeze({readOnly:true,cutoverApproved:false,promotionPrepared:true,projectId,sourceSnapshotSha256,writerFreezeEvidenceRef:writerFreeze.evidenceRef,sourceParityEvidenceRef:sourceParity.evidenceRef,seedParityEvidenceRef:seedReadback.evidenceRef,counts:{contexts:promoted.length,obligations:mapped.size,unlinkedPreserved:unlinked.size,quarantined:quarantine.size},promotions:promoted});
 }

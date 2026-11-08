@@ -7,7 +7,15 @@ assert.ok(backend.includes("typeof value!=='boolean'"));
 assert.ok(backend.includes('STALE_SELF_PLANNING_VALUE'));
 assert.ok(backend.includes("process.env.AMS_DEV_SELF_PLANNING_PROXY_ORIGIN"));
 assert.ok(backend.includes("process.env.AMS_RUNTIME_ENV==='DEV'&&/^http:\\/\\/127\\.0\\.0\\.1:[0-9]{2,5}$/.test(trustedProxyOrigin)"));
-assert.ok(backend.includes("origin.host!==clean(req.headers.host)&&!devProxyAllowed"));
+assert.ok(backend.includes("origin.host!==clean(req.headers.host)&&!devProxyAllowed&&!isolatedOriginAllowed"),'only explicitly trusted isolated origins may survive Cloud Run internal Host rewrite');
+assert.ok(backend.includes("isolatedExtDirect20()&&['https://ams-fase12-dev-510075419067.europe-west1.run.app','https://ams-fase12-dev-zwtcar7xpa-ew.a.run.app'].includes(origin.origin)"),'exact DEV origin allowlist');
+const originGuard=(origin,host,isolated)=>origin.host===host||isolated&&['https://ams-fase12-dev-510075419067.europe-west1.run.app','https://ams-fase12-dev-zwtcar7xpa-ew.a.run.app'].includes(origin.origin);
+assert.equal(originGuard(new URL('https://ams-fase12-dev-510075419067.europe-west1.run.app'),'127.0.0.1:8081',true),true,'isolated DEV browser origin works after proxy Host rewrite');
+assert.equal(originGuard(new URL('https://ams-fase12-dev-zwtcar7xpa-ew.a.run.app'),'127.0.0.1:8081',true),true,'alternate verified isolated DEV URL');
+assert.equal(originGuard(new URL('https://ams-transport-proof-510075419067.europe-west1.run.app'),'127.0.0.1:8081',true),false,'canonical DEV Cloud Run service blocked');
+assert.equal(originGuard(new URL('https://unknown.example'),'127.0.0.1:8081',true),false,'arbitrary origin blocked');
+assert.equal(originGuard(new URL('https://ams-fase12-dev-510075419067.europe-west1.run.app'),'127.0.0.1:8081',false),false,'allowlist requires isolated direct mode');
+
 
 assert.ok(grid.includes('expectedAllowSelfPlanning:'));
 assert.ok(grid.includes('self-planning-toggle20'));

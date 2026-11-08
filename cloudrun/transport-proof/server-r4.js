@@ -101,6 +101,17 @@ async function sheetsAtomicAuditorCreate(auditorRow,versionRow){
   if(!response.ok)throw Error('AUDITOR_CREATE_ATOMIC_APPEND_FAILED_'+response.status);
   return response.json();
 }
+function isolatedExtPilot20(){
+ return process.env.AMS_RUNTIME_ENV==='DEV'
+   &&process.env.K_SERVICE==='ams-fase12-dev'
+   &&process.env.AMS_DEV_EXT_READONLY_PREVIEW==='true'
+   &&process.env.AMS_DEV_MAINTENANCE_MODE==='true'
+   &&process.env.AMS_DEV_EXT_PILOT_PROMOTION_ENABLED==='true'
+   &&process.env.AMS_DEV_EXT_COMMANDS_ENABLED==='true'
+   &&process.env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE'
+   &&process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true'
+   &&process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true';
+}
 async function verifiedAuditorLockDevProject(){
   const configured=clean(process.env.GOOGLE_CLOUD_PROJECT||process.env.GCLOUD_PROJECT||'');
   if(configured&&configured!=='audit-management-system-dev')return '';
@@ -2039,7 +2050,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(parsedOrigin.origin!=='https://ams-fase12-dev-510075419067.europe-west1.run.app')return send(res,403,{ok:false,error:'EXT_ORIGIN_FORBIDDEN'});
     const session=await sessionFromRequestValidated(req);if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(session.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
-    if(process.env.AMS_RUNTIME_ENV!=='DEV'||process.env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE'||process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true'||process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true')return send(res,409,{ok:false,error:'EXT_FIRESTORE_CUTOVER_NOT_VERIFIED'});
+    if(!((process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_SCOPE_EXTENSION_AUTHORITY==='FIRESTORE'&&process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED==='true'&&process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED==='true')||isolatedExtPilot20()))return send(res,409,{ok:false,error:'EXT_FIRESTORE_CUTOVER_NOT_VERIFIED'});
     const actualDev=await verifiedAuditorLockDevProject();if(!actualDev)return send(res,409,{ok:false,error:'EXT_DEV_PROJECT_IDENTITY_UNVERIFIED'});
     let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
     let body;try{body=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
@@ -2062,7 +2073,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(parsedOrigin.origin!=='https://ams-fase12-dev-510075419067.europe-west1.run.app')return send(res,403,{ok:false,error:'EXT_ORIGIN_FORBIDDEN'});
     const session=await sessionFromRequestValidated(req);if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(session.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
-    if(process.env.AMS_RUNTIME_ENV!=='DEV'||process.env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE'||process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true'||process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true')return send(res,409,{ok:false,error:'EXT_FIRESTORE_CUTOVER_NOT_VERIFIED'});
+    if(!((process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_SCOPE_EXTENSION_AUTHORITY==='FIRESTORE'&&process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED==='true'&&process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED==='true')||isolatedExtPilot20()))return send(res,409,{ok:false,error:'EXT_FIRESTORE_CUTOVER_NOT_VERIFIED'});
     const devProject=await verifiedAuditorLockDevProject();if(!devProject)return send(res,409,{ok:false,error:'EXT_DEV_PROJECT_IDENTITY_UNVERIFIED'});
     let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'})}
     let body;try{body=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
@@ -2915,12 +2926,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     }catch(e){return send(res,409,{ok:false,error:'AUDITOR_COMPANY_READ_FAILED',detail:clean(e?.message||e)})}
   }
   if(u.pathname==='/api/v1/manager/ext-model-c-pilot-promote'&&req.method==='POST'){
-    if(process.env.AMS_RUNTIME_ENV!=='DEV'||process.env.K_SERVICE!=='ams-fase12-dev'
-      ||process.env.AMS_DEV_EXT_PILOT_PROMOTION_ENABLED!=='true'
-      ||process.env.AMS_DEV_EXT_COMMANDS_ENABLED!=='true'
-      ||process.env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE'
-      ||process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true'
-      ||process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true')return send(res,423,{ok:false,error:'EXT_DEV_PILOT_DISABLED'});
+    if(!isolatedExtPilot20())return send(res,423,{ok:false,error:'EXT_DEV_PILOT_DISABLED'});
     const origin=clean(req.headers.origin);
     if(origin!=='https://ams-fase12-dev-510075419067.europe-west1.run.app')return send(res,403,{ok:false,error:'EXT_PILOT_ORIGIN_FORBIDDEN'});
     const actor=await sessionFromRequestValidated(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
@@ -3093,7 +3099,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
         return{obligationId,scopeCode:clean(row[oi('ScopeCode')]),extensionMonths:scopeExtensionMonths.get(clean(row[oi('ScopeCode')]))||0,triggerSource:clean(row[oi('Trigger_Source')]),state:clean(row[oi('Obligation_State')]),baseExpiry:clean(row[oi('Base_Expiry_Date')]),effectiveExpiry:clean(row[oi('Effective_Expiry_Date')]),windowFrom:clean(row[oi('Planning_Window_From')]),windowTo:clean(row[oi('Planning_Window_To')]),extensionApplied:yes(row[oi('Extension_Applied')]),auditIds,auditStatuses:auditIds.map(id=>({auditId:id,status:statuses.get(id)||'UNKNOWN'})),extensionSource:(()=>{try{return JSON.parse(clean(row[oi('Extension_Metadata_JSON')])||'null')?.source||''}catch{return'INVALID_METADATA'}})(),canMutate:false};
       });
       if(records.length>1000)return send(res,409,{ok:false,error:'EXT_READ_TOO_MANY_COMPANY_OBLIGATIONS'});
-      const scopeCutoverVerified=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_SCOPE_EXTENSION_AUTHORITY==='FIRESTORE'&&process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED==='true'&&process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED==='true';
+      const scopeCutoverVerified=(process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_SCOPE_EXTENSION_AUTHORITY==='FIRESTORE'&&process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED==='true'&&process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED==='true')||isolatedExtPilot20();
       if(scopeCutoverVerified){
         const verifiedProject=await verifiedAuditorLockDevProject();
         if(!verifiedProject)return send(res,409,{ok:false,error:'EXT_DEV_PROJECT_IDENTITY_UNVERIFIED'});

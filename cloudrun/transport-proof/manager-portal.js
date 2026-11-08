@@ -202,7 +202,7 @@ async function runSingleScopeExtension20(button){
   var linked=data.records.filter(function(x){return Array.isArray(x.auditIds)&&x.auditIds.includes(auditId)});
   if(linked.length!==1)throw Error('Audit must have exactly one verified linked scope; no extension performed');
   var obligation=linked[0],command=obligation.extensionApplied===true?'undo':'apply';
-  if(data.mode!=='FIRESTORE_VERIFIED'||(command==='apply'?obligation.canApply!==true:obligation.canUndo!==true)){
+  if(!['FIRESTORE_VERIFIED','DEV_MODEL_C_DIRECT'].includes(data.mode)||(command==='apply'?obligation.canApply!==true:obligation.canUndo!==true)){
    throw Error('EXT/Undo is not yet authorized: Model C migration and writer verification required');
   }
   if(obligation.auditId!==auditId||!Number.isSafeInteger(obligation.revision)||(command==='undo'&&!obligation.extensionTransactionId))throw Error('Verified scope revision or provenance missing');
@@ -213,14 +213,24 @@ async function runSingleScopeExtension20(button){
   var write=await fetch('/api/v1/manager/extension-obligation-command',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   var receipt=await write.json().catch(function(){return null});
   if(!write.ok||!receipt||receipt.success!==true||!receipt.operationId)throw Error(receipt?.error||'Scope change not confirmed; do not retry before reconciliation');
+  if(receipt.direct===true&&receipt.projection==='PROJECTED'){
+   var patch=Object.assign({},receipt.patch||{});
+   patch.effectiveExpiry=patch.expiryZ;
+   patch.planningWindowText=patch.planningWindowFrom&&patch.planningWindowTo?patch.planningWindowFrom+' → '+patch.planningWindowTo:'Separate planning required';
+   patch.planningWindow=patch.planningWindowText;
+   patch.extApplied=patch.extensionApplied;
+   mergeRowInPlace(auditId,patch);
+   document.getElementById('status').textContent='EXT '+(command==='undo'?'undone':'applied')+' · '+String(obligation.scopeCode||'')+' · verified in DEV';
+   return;
+  }
   var projection=await fetch('/api/v1/manager/extension-reconcile-projection',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({operationId:receipt.operationId})});
   var projected=await projection.json().catch(function(){return null});
   if(!projection.ok||projected?.state!=='PROJECTED'){
    window.alert('Firestore change committed. Sheets projection not confirmed. Do not retry; operation: '+receipt.operationId);
    return;
   }
-  window.alert('Scope extension '+(command==='undo'?'undone':'applied')+' and projection confirmed. Refreshing audit grid.');
-  window.location.reload();
+  mergeRowInPlace(auditId,{extensionApplied:command==='apply',extApplied:command==='apply'});
+  document.getElementById('status').textContent='EXT '+(command==='undo'?'undone':'applied')+' · projection confirmed';
  }catch(e){window.alert('EXT/Undo not performed: '+String(e.message||e))}
  finally{busyAudits.delete(auditId);button.disabled=false}
 }
@@ -1252,10 +1262,20 @@ if(tab==='scopes'){
    if(command==='undo')body.extensionTransactionId=o.extensionTransactionId;
    var receipt=await extPost('/api/v1/manager/extension-obligation-command',body);committed=true;
    if(!receipt.operationId)throw Error('EXT_OPERATION_RECEIPT_MISSING');
-   if(info)info.textContent='Committed to Firestore; verifying Sheets projection…';
-   var projected=await extPost('/api/v1/manager/extension-reconcile-projection',{operationId:receipt.operationId});
-   if(projected.state!=='PROJECTED')throw Error('EXT_PROJECTION_NOT_CONFIRMED');
-   if(extCurrent())await loadExtObligations();
+   if(receipt.direct===true&&receipt.projection==='PROJECTED'){
+    var patch=Object.assign({},receipt.patch||{});
+    patch.effectiveExpiry=patch.expiryZ;
+    patch.extApplied=patch.extensionApplied;
+    patch.planningWindowText=patch.planningWindowFrom&&patch.planningWindowTo?patch.planningWindowFrom+' → '+patch.planningWindowTo:'Separate planning required';
+    patch.planningWindow=patch.planningWindowText;
+    mergeRowInPlace(o.auditId,patch);
+    if(extCurrent())await loadExtObligations();
+   }else{
+    if(info)info.textContent='Committed to Firestore; verifying Sheets projection…';
+    var projected=await extPost('/api/v1/manager/extension-reconcile-projection',{operationId:receipt.operationId});
+    if(projected.state!=='PROJECTED')throw Error('EXT_PROJECTION_NOT_CONFIRMED');
+    if(extCurrent())await loadExtObligations();
+   }
   }catch(e){
    if(extCurrent()){extContent.querySelectorAll('button').forEach(function(x){x.disabled=false});var feedback=extContent.querySelector('[data-ext-feedback]')||el('p');feedback.dataset.extFeedback='yes';feedback.textContent=(committed?'Firestore commit succeeded; projection requires recovery. Do not resubmit. ':'No scope change confirmed. ')+String(e.message||e);extContent.prepend(feedback)}
   }finally{extBusy=false}
@@ -1264,8 +1284,8 @@ if(tab==='scopes'){
  if(!extCurrent())return;
  extContent.replaceChildren();
  if(!data.ok||!Array.isArray(data.records)){extContent.textContent='Scope obligations unavailable';return}
- var allowed=data.mode==='FIRESTORE_VERIFIED';
- var info=el('p',allowed?'Verified Model C: scope-specific EXT/Undo available.':'Model C migration not verified — EXT/Undo blocked. No changes can be saved.');
+ var allowed=['FIRESTORE_VERIFIED','DEV_MODEL_C_DIRECT'].includes(data.mode);
+ var info=el('p',allowed?'Scope-specific EXT/Undo available in DEV.':'EXT/Undo currently unavailable for this audit.');
  info.dataset.extFeedback='yes';info.style.cssText='font-size:13px;margin:4px 0 10px;color:'+(allowed?'#166534':'#92400e');extContent.appendChild(info);
  var visibleRecords=extTargetAuditId?data.records.filter(function(o){return (o.auditIds||[]).includes(extTargetAuditId)}):data.records;
  if(!visibleRecords.length){extContent.appendChild(el('p',extTargetAuditId?'No scope obligations linked to the selected audit.':'No obligations found'));return}
@@ -1677,5 +1697,5 @@ function initExtPilotWorkspace20(){
  check();
 }
 const gridReturnState20=takeGridReturnState20();
-fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("scopeManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("auditorManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("notificationsManager20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("companyManagement20").hidden=!['manager','auditor'].includes(String(actorRole).toLowerCase());document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();swap20RefreshAttention();if(String(actorRole).toLowerCase()==="manager"){initExtStageWorkspace20();initExtPilotWorkspace20();initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)})}return loadOpen().then(async function(){await restoreGridReturnState20(gridReturnState20);document.addEventListener("visibilitychange",function(){if(!document.hidden)swap20RefreshAttention()});window.addEventListener("focus",swap20RefreshAttention);window.setInterval(function(){if(!document.hidden)swap20RefreshAttention()},45000);})}).catch(fail);
+fetch("/api/v1/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(sess){if(!sess.ok||!sess.identity)throw new Error("SESSION_REQUIRED");actorRole=String(sess.identity.role||"Manager");document.getElementById("scopeManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("auditorManagement20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("notificationsManager20").hidden=String(actorRole).toLowerCase()!=="manager";document.getElementById("companyManagement20").hidden=!['manager','auditor'].includes(String(actorRole).toLowerCase());document.getElementById("identity").textContent=sess.identity.email+" · "+actorRole;applyActorUi();swap20RefreshAttention();if(String(actorRole).toLowerCase()==="manager"){initRelay().catch(function(e){console.warn("[WARM_GAS_WORKER_INIT]",e)})}return loadOpen().then(async function(){await restoreGridReturnState20(gridReturnState20);document.addEventListener("visibilitychange",function(){if(!document.hidden)swap20RefreshAttention()});window.addEventListener("focus",swap20RefreshAttention);window.setInterval(function(){if(!document.hidden)swap20RefreshAttention()},45000);})}).catch(fail);
 })();

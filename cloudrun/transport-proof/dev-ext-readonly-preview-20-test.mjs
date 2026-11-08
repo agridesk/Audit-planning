@@ -46,6 +46,12 @@ for(const patch of [
  {AMS_DEV_MAINTENANCE_MODE:'false'}
 ])assert.equal(allowed({method:'POST',path:'/api/v1/manager/ext-model-c-pilot-promote',env:{...pilot,...patch}}),false,'fail closed pilot promotion');
 assert.equal(allowed({method:'POST',path:'/api/v1/manager/extension-direct',env:pilot}),false,'legacy direct EXT writer remains blocked in pilot');
+const direct={...base,AMS_DEV_EXT_DIRECT_ENABLED:'true',AMS_DEV_EXT_PILOT_PROMOTION_ENABLED:'false',AMS_DEV_EXT_COMMANDS_ENABLED:'false'};
+assert.equal(allowed({method:'POST',path:'/api/v1/manager/extension-obligation-command',env:direct}),true,'normal DEV direct scoped Model C EXT must be available without pilot');
+assert.equal(allowed({method:'POST',path:'/api/v1/manager/extension-reconcile-projection',env:direct}),false,'direct Model C mode has no Firestore projector');
+for(const patch of [{K_SERVICE:'ams-transport-proof'},{AMS_RUNTIME_ENV:'PROD'},{AMS_DEV_EXT_DIRECT_ENABLED:'false'},{AMS_SCOPE_EXTENSION_AUTHORITY:'FIRESTORE'},{AMS_DEV_MAINTENANCE_MODE:'false'}]){
+ assert.equal(allowed({method:'POST',path:'/api/v1/manager/extension-obligation-command',env:{...direct,...patch}}),false,'DEV direct EXT must fail closed outside isolated test copy');
+}
 const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const sourceRoute=r4.slice(r4.indexOf("if(u.pathname==='/api/v1/manager/ext-model-c-source-preflight'"),r4.indexOf("if(u.pathname==='/api/v1/manager/company-management/extension-obligations'"));
 assert(sourceRoute.includes("process.env.K_SERVICE!=='ams-fase12-dev'"),'only isolated DEV service may read aggregates');

@@ -27,6 +27,7 @@ export function prepareCbExtensionEvent20({
  if(found.length!==1)throw Error('CB_OUTBOX_OBLIGATION_NOT_UNIQUE');
  const obligation=rowObject(head,found[0]);
  if(obligation.Company_UID!==companyUid)throw Error('CB_OUTBOX_COMPANY_MISMATCH');
+ if(!obligation.Certification_Body_ID)throw Error('CB_OUTBOX_CERTIFICATION_BODY_SNAPSHOT_REQUIRED');
  const body=resolveCertificationBody20({scopeCode:obligation.ScopeCode,
   obligationCbId:obligation.Certification_Body_ID,configScopes:scopeRows,certificationBodies,
   requireDelivery:false});

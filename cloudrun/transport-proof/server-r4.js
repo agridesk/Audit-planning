@@ -2925,6 +2925,38 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       result.readOnly=true;result.actorRole='AUDITOR';result.activeAuditors=[];result.membershipDiagnostics={visibleCompanies:result.companies.length,openCompanyUidCount:openCompanyUids.size,completedCompanyUidCount:completedCompanyUids.size,combinedUniqueCompanyUids:uids.size,legacyNameFallbackCount:names.size,identityMode:'UID_FIRST'};return send(res,200,result);
     }catch(e){return send(res,409,{ok:false,error:'AUDITOR_COMPANY_READ_FAILED',detail:clean(e?.message||e)})}
   }
+  if(u.pathname==='/api/v1/manager/ext-model-c-pilot-status'&&req.method==='GET'){
+    if(process.env.AMS_RUNTIME_ENV!=='DEV'||process.env.K_SERVICE!=='ams-fase12-dev')return send(res,404,{ok:false,error:'NOT_FOUND'});
+    const actor=await sessionFromRequestValidated(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    const auditId=clean(u.searchParams.get('auditId'));
+    if(!auditId||auditId.length>180||/[\\/]/.test(auditId))return send(res,400,{ok:false,error:'EXT_PILOT_AUDIT_ID_INVALID'});
+    try{
+      const project=await verifiedAuditorLockDevProject();
+      if(project!=='audit-management-system-dev')throw Error('EXT_PILOT_PROJECT_NOT_DEV');
+      const root='https://firestore.googleapis.com/v1/projects/'+project+'/databases/(default)/documents/ams_scope_extension_20_dev_';
+      const auth={authorization:'Bearer '+await accessToken()};
+      const read=async(kind,key)=>{
+        const response=await fetch(root+kind+'/'+encodeURIComponent(key),{headers:auth});
+        if(response.status===404)return null;
+        if(!response.ok)throw Error('EXT_PILOT_STATUS_HTTP_'+response.status);
+        const document=await response.json(),fields=document.fields?.payload?.mapValue?.fields;
+        if(!fields)throw Error('EXT_PILOT_STATUS_DOCUMENT_INVALID');
+        return fields;
+      };
+      const ctx=await read('auditcontext',auditId);
+      const eventId='EXT_WRITER_PROMOTION_'+createHash('sha256').update(auditId).digest('hex');
+      const evidence=await read('event',eventId);
+      const promoted=ctx?.writerFenceVerified?.booleanValue===true
+        &&ctx?.migrationState?.stringValue==='WRITER_VERIFIED'
+        &&ctx?.auditId?.stringValue===auditId
+        &&evidence?.auditId?.stringValue===auditId
+        &&evidence?.kind?.stringValue==='MODEL_C_WRITER_PROMOTION'
+        &&evidence?.sourceSnapshotSha256?.stringValue===ctx?.sourceSnapshotHash?.stringValue
+        &&ctx?.writerFreezeEvidenceRef?.stringValue?.startsWith('DEV_GAS_DIAGNOSTIC_2026-11-08T15:43:12Z_SYSTEM_CONFIG_BLOCK__PILOT_ONLY');
+      return send(res,200,{ok:true,pilotOnly:true,auditId,promoted,writerEnabledForPilot:promoted&&isolatedExtPilot20(),otherAuditsAuthorized:false});
+    }catch(e){console.error('EXT_PILOT_STATUS_FAILED',clean(e?.message||e).slice(0,180));return send(res,409,{ok:false,error:'EXT_PILOT_STATUS_UNAVAILABLE',detail:clean(e?.message||e).slice(0,150)})}
+  }
   if(u.pathname==='/api/v1/manager/ext-model-c-pilot-promote'&&req.method==='POST'){
     if(!isolatedExtPilot20())return send(res,423,{ok:false,error:'EXT_DEV_PILOT_DISABLED'});
     const origin=clean(req.headers.origin);

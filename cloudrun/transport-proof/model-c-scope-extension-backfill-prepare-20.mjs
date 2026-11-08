@@ -63,17 +63,22 @@ export function prepareScopeExtensionBackfill20({obligationRows,linkRows,plannin
   const active=activeByOb.has(obligationId),scopeCode=get(row,oc.ScopeCode),triggerSource=get(row,oc.Trigger_Source),companyUid=get(row,oc.Company_UID);
   const date=(key)=>{const raw=get(row,oc[key]);const value=iso(raw);if(raw&&value!==raw)isoNormalized++;if(!value)missingHistoricalDates++;return value};
   const baseExpiry=date('Base_Expiry_Date'),effectiveExpiry=date('Effective_Expiry_Date'),windowFrom=date('Planning_Window_From'),windowTo=date('Planning_Window_To');
-  if(active&&(!baseExpiry||!effectiveExpiry||!windowFrom||!windowTo||windowFrom>windowTo))throw Error('EXT_BACKFILL_ACTIVE_DATES_INCOMPLETE');
+  const datesIncomplete=!baseExpiry||!effectiveExpiry||!windowFrom||!windowTo||windowFrom>windowTo;
+  const isPending=audits.get(auditId)==='PENDING_PLANNING';
+  const isEcas=triggerSource==='ECAS';
+  // ECAS has no scope-managed extension expiry. Historical non-pending rows can
+  // remain staged with incomplete dates, but never become extension eligible.
+  if(active&&datesIncomplete&&isPending&&!isEcas)throw Error('EXT_BACKFILL_ACTIVE_DATES_INCOMPLETE');
   const extensionApplied=yes(get(row,oc.Extension_Applied)),legacyExtensionMetadata=get(row,oc.Extension_Metadata_JSON);
   if(legacyExtensionMetadata){try{JSON.parse(legacyExtensionMetadata)}catch{throw Error('EXT_BACKFILL_LEGACY_METADATA_INVALID')}}
-  const legacyApplyQuarantined=!extensionApplied&&!!legacyExtensionMetadata;
+  const legacyApplyQuarantined=!extensionApplied&&(!!legacyExtensionMetadata||datesIncomplete);
   const legacyUndoQuarantined=extensionApplied;
   if(legacyApplyQuarantined&&active&&audits.get(auditId)==='PENDING_PLANNING')blockedLegacyApply++;
   if(legacyUndoQuarantined&&active&&audits.get(auditId)==='PENDING_PLANNING')blockedLegacyUndo++;
   if(active&&audits.get(auditId)==='PENDING_PLANNING'&&!extensionApplied&&!legacyExtensionMetadata&&triggerSource!=='ECAS'&&scopePolicies.get(scopeCode))pendingEligibleUntouched++;
   manifestObligations.push({obligationId,auditId,companyUid,scopeCode,linkState:active?'ACTIVE':'UNLINKED',triggerSource,expiryManaged:triggerSource!=='ECAS',revision:0,pendingProjectionId:'',
    baseExpiry,effectiveExpiry,windowFrom,windowTo,extensionApplied,extensionMetadata:legacyExtensionMetadata,legacyExtensionMetadata,
-   legacyApplyQuarantined,legacyUndoQuarantined,stagingWriterFenceVerified:false});
+   legacyApplyQuarantined,legacyUndoQuarantined,legacyDateQuarantined:datesIncomplete,stagingWriterFenceVerified:false});
  }
  const canonicalById=new Map(manifestObligations.map(o=>[o.obligationId,o]));
  for(const [auditId,obligationIds] of byAudit){
@@ -89,7 +94,8 @@ export function prepareScopeExtensionBackfill20({obligationRows,linkRows,plannin
  const stats={sourceObligations:originals.size,sourceAudits:audits.size,activeLinks:activeByOb.size,activeAudits:byAudit.size,
    pendingPlanningAudits:manifestContexts.filter(x=>x.lifecycleStatus==='PENDING_PLANNING').length,
    pendingEligibleUntouched,blockedLegacyApply,blockedLegacyUndo,missingHistoricalDates,isoNormalized,
-   historicalUnlinked:manifestObligations.filter(x=>x.linkState!=='ACTIVE').length,multiScopeAudits:manifestContexts.filter(x=>x.obligationIds.length>1).length};
+   historicalUnlinked:manifestObligations.filter(x=>x.linkState!=='ACTIVE').length,multiScopeAudits:manifestContexts.filter(x=>x.obligationIds.length>1).length,
+   activeDateQuarantined:manifestObligations.filter(x=>x.linkState==='ACTIVE'&&x.legacyDateQuarantined).length};
  const sourceManifest=hash({obligations:manifestObligations,contexts:manifestContexts});
  return Object.freeze({readOnly:true,writeAuthorized:false,sourceManifest,stats,obligations:manifestObligations,contexts:manifestContexts});
 }

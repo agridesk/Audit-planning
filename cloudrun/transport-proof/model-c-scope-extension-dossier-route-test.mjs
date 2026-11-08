@@ -38,6 +38,8 @@ assert(server.includes('createScopeExtensionSheetsProjector20({store,sheets,cuto
 assert(server.includes('EXT_PROJECTION_RECOVERY_FAILED'));
 assert.equal(server.split("error:'EXT_ORIGIN_REQUIRED'").length-1,2);
 assert.equal(server.split("error:'EXT_ORIGIN_FORBIDDEN'").length-1,4);
+assert.equal(server.split("parsedOrigin.origin!=='https://ams-fase12-dev-510075419067.europe-west1.run.app'").length-1,3,'stage, command and projector must share exact public DEV origin');
+assert(!server.includes("parsedOrigin.host!==clean(req.headers.host)"),'R15 proxy strips Host; EXT must not compare against internal Host');
 assert(server.includes('verifiedAuditorLockDevProject()'));
 assert(server.includes("process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true'"));
 assert.equal(server.split('LEGACY_OBLIGATION_LIFECYCLE_WRITER_FENCED').length-1,2);

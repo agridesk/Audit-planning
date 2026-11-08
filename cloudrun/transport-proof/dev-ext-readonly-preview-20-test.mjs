@@ -18,8 +18,18 @@ for(const path of ['/api/v1/manager/extension-direct','/api/v1/manager/extension
 }
 for(const path of ['/planning','/api/v1/internal/fast-otp-session','/api/v1/manager/auditor-identity/firestore-write-probe'])assert.equal(allowed({method:'GET',path}),false,'unverified GET must be denied');
 assert.equal(allowed({method:'OPTIONS',path:'/'}),false);
+const commandRoutes=['/api/v1/manager/extension-obligation-command','/api/v1/manager/extension-reconcile-projection'];
+const verified={...base,AMS_DEV_EXT_COMMANDS_ENABLED:'true',AMS_SCOPE_EXTENSION_AUTHORITY:'FIRESTORE',AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED:'true',AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED:'true'};
+for(const path of commandRoutes){
+ assert.equal(allowed({method:'POST',path,env:verified}),true,'exact EXT canonical route may open only after independently verified cutover');
+ for(const field of ['AMS_DEV_EXT_COMMANDS_ENABLED','AMS_SCOPE_EXTENSION_AUTHORITY','AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED','AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED','AMS_DEV_MAINTENANCE_MODE','K_SERVICE']){
+  assert.equal(allowed({method:'POST',path,env:{...verified,[field]:'false'}}),false,'gate must fail closed on '+field);
+ }
+ assert.equal(allowed({method:'POST',path,env:base}),false,'current preview remains read-only');
+}
+assert.equal(allowed({method:'POST',path:'/api/v1/manager/extension-direct',env:verified}),false,'legacy extension direct writer is never opened');
 const server=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 assert(server.includes('const extPreview=extReadOnlyPreview20(process.env)'),'preview gate missing from runtime');
 assert(server.includes("process.env.K_SERVICE==='ams-fase12-dev'&&!extPreview"),'copied service must be fail-closed');
-assert(server.includes("extPreview&&!extPreviewRequestAllowed20({method:req.method,path:u.pathname})"),'deny-by-default missing');
+assert(server.includes("extPreview&&!extPreviewRequestAllowed20({method:req.method,path:u.pathname,env:process.env})"),'deny-by-default missing');
 console.log('PASS isolated Fase 1.2 DEV preview: copy-only, maintenance-on, read-only route fence');

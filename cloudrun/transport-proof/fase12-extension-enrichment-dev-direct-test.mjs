@@ -19,6 +19,7 @@ assert.match(ui,/loadOpenEnrichment\(seq\)/);
 const ext=r10.slice(r10.indexOf('async function enrichManagerOpen'),r10.indexOf('async function readAuditPatch'));
 assert.match(ext,/r\.canExtend=r\.statusKey==='PENDING_PLANNING'/);
 assert.match(ext,/managerExtensionLinkedAuditIds\(obValues,linkValues\)/);
-assert.match(ui,/r\.canExtend/);
+assert.match(ui,/function extensionControls\(r\)/);
+assert.match(ui,/ext-manage/,'EXT navigation uses the canonical scope dossier rather than visit-level eligibility');
 new vm.Script(ui);
 console.log('PASS DEV-only manager enrichment does not rely on GAS; extension gating preserved');

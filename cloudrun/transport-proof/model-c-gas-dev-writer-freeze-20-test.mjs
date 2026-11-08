@@ -20,6 +20,11 @@ for(const action of actions){
 cfg.ALLOW_DEV_WRITES='TRUE';cfg.DEV_WRITE_MODE='ALLOW_ALL';
 for(const action of actions)assert.equal(ctx.SYS_WRITE_GUARD_DECIDE_(action,'TEST_FROZEN').allowed,true,action);
 env='PROD';for(const action of actions)assert.equal(ctx.SYS_WRITE_GUARD_DECIDE_(action,'TEST_FROZEN').allowed,true,action);
+const extSource=read('AuditPlanningModelCExtensionService.js');
+const extEntry=extSource.indexOf('function ModelCExtension_commit(command) {');
+const extExplicitFence=extSource.indexOf("getProperty('AMS_SCOPE_EXTENSION_AUTHORITY') === 'FIRESTORE'",extEntry);
+const extGuard=extSource.indexOf("SYS_ENFORCE_WRITE_ALLOWED('PLANNING_MODEL_C_EXTENSION'",extEntry);
+assert(extEntry>=0&&extExplicitFence>extEntry&&extGuard>extExplicitFence,'Model C legacy extension must be fenced by Firestore ownership before executing legacy guard or mutation');
 const checks=[
  ['AuditPlanningModelCExtensionService.js','ModelCExtension_commit',"SYS_ENFORCE_WRITE_ALLOWED('PLANNING_MODEL_C_EXTENSION'",'range.setValues([next])'],
  ['ModelCRejectLinkWriter.js','ModelCRejectLinkWriter_close_',"SYS_ENFORCE_WRITE_ALLOWED('REJECT_MODEL_C_LINK_CLOSE'",'linkSheet.getRange(edit.rowNumber,1,1,h.length).setValues([next])'],

@@ -6,7 +6,7 @@ assert.equal(active(base),true);
 for(const [field,value] of [['AMS_RUNTIME_ENV','PROD'],['K_SERVICE','ams-transport-proof'],['AMS_DEV_MAINTENANCE_MODE','false'],['AMS_DEV_EXT_READONLY_PREVIEW','false']]){
  assert.equal(active({...base,[field]:value}),false,field+' must fail closed');
 }
-for(const path of ['/','/health','/manager-portal.js','/api/v1/session','/api/v1/manager/open','/api/v1/manager/company-management','/api/v1/manager/company-management/extension-obligations']){
+for(const path of ['/','/health','/manager-portal.js','/api/v1/session','/api/v1/manager/open','/api/v1/manager/company-management','/api/v1/manager/company-management/extension-obligations','/api/v1/manager/ext-model-c-source-preflight']){
  assert.equal(allowed({method:'GET',path}),true,'expected read-only route '+path);
 }
 assert.equal(allowed({method:'POST',path:'/auth/dev-login'}),true,'DEV portal manager login must create a signed session without enabling business writers');
@@ -28,6 +28,16 @@ for(const path of commandRoutes){
  assert.equal(allowed({method:'POST',path,env:base}),false,'current preview remains read-only');
 }
 assert.equal(allowed({method:'POST',path:'/api/v1/manager/extension-direct',env:verified}),false,'legacy extension direct writer is never opened');
+const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+const sourceRoute=r4.slice(r4.indexOf("if(u.pathname==='/api/v1/manager/ext-model-c-source-preflight'"),r4.indexOf("if(u.pathname==='/api/v1/manager/company-management/extension-obligations'"));
+assert(sourceRoute.includes("process.env.K_SERVICE!=='ams-fase12-dev'"),'only isolated DEV service may read aggregates');
+assert(sourceRoute.includes("sessionFromRequestValidated(req)"),'session required');
+assert(sourceRoute.includes("clean(actor.role).toLowerCase()!=='manager'"),'manager only');
+assert(sourceRoute.includes("await sheetsBatchGet("),'read must reuse Cloud Run service identity');
+assert(sourceRoute.includes("method==='GET'"),'diagnostic accepts only reads');
+assert(sourceRoute.includes('canEnableWriters:false'),'diagnostic cannot claim cutover verified');
+for(const prohibited of ['sheetsValuesBatchUpdate','sheetsValuesAppend','createScopeExtensionFirestoreStore20(',':commit','writeHead(201)'])assert(!sourceRoute.includes(prohibited),'source diagnostic must not mutate: '+prohibited);
+assert.equal(allowed({method:'POST',path:'/api/v1/manager/ext-model-c-source-preflight',env:verified}),false,'diagnostic remains GET-only after cutover');
 const server=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 assert(server.includes('const extPreview=extReadOnlyPreview20(process.env)'),'preview gate missing from runtime');
 assert(server.includes("process.env.K_SERVICE==='ams-fase12-dev'&&!extPreview"),'copied service must be fail-closed');

@@ -6,6 +6,7 @@ import {createScopeExtensionSheetsProjector20} from './model-c-scope-extension-s
 import {createScopeExtensionSheetsAdapter20} from './model-c-scope-extension-sheets-adapter-20.mjs';
 import {reconcileScopeExtensionDossierAuthority20} from './model-c-scope-extension-dossier-authority-20.mjs';
 import {prepareScopeExtensionBackfill20} from './model-c-scope-extension-backfill-prepare-20.mjs';
+import {createScopeExtensionFirestoreStager20} from './model-c-scope-extension-backfill-firestore-stage-20.mjs';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {assertScopeExtensionLegacyWriteFenced20,assertScopeExtensionLegacyDeleteFenced20} from './model-c-scope-extension-writer-fence-20.mjs';
 import {normalizeLifecycleWriteset} from './planning-lifecycle-writeset-20.js';
@@ -2909,6 +2910,47 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       result.companies=result.companies.filter(c=>uids.has(c.companyUid)||(names.has(clean(c.name).toLowerCase())&&result.companies.filter(y=>clean(y.name).toLowerCase()===clean(c.name).toLowerCase()).length===1));
       result.readOnly=true;result.actorRole='AUDITOR';result.activeAuditors=[];result.membershipDiagnostics={visibleCompanies:result.companies.length,openCompanyUidCount:openCompanyUids.size,completedCompanyUidCount:completedCompanyUids.size,combinedUniqueCompanyUids:uids.size,legacyNameFallbackCount:names.size,identityMode:'UID_FIRST'};return send(res,200,result);
     }catch(e){return send(res,409,{ok:false,error:'AUDITOR_COMPANY_READ_FAILED',detail:clean(e?.message||e)})}
+  }
+  if(u.pathname==='/api/v1/manager/ext-model-c-stage'&&req.method==='POST'){
+    // DISABLED by default. A one-time DEV-only stage operation; NEVER a writer cutover.
+    if(process.env.AMS_RUNTIME_ENV!=='DEV'||process.env.K_SERVICE!=='ams-fase12-dev'||process.env.AMS_DEV_EXT_STAGE_ENABLED!=='true')return send(res,423,{ok:false,error:'EXT_STAGE_DISABLED'});
+    const actualProject=await verifiedAuditorLockDevProject();
+    if(actualProject!=='audit-management-system-dev')return send(res,409,{ok:false,error:'EXT_STAGE_PROJECT_NOT_DEV'});
+    const requestOrigin=clean(req.headers.origin);
+    let parsedOrigin;try{parsedOrigin=new URL(requestOrigin)}catch{return send(res,403,{ok:false,error:'EXT_STAGE_ORIGIN_REQUIRED'})}
+    if(!['http:','https:'].includes(parsedOrigin.protocol)||parsedOrigin.host!==clean(req.headers.host))return send(res,403,{ok:false,error:'EXT_STAGE_ORIGIN_FORBIDDEN'});
+    const actor=await sessionFromRequestValidated(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    if(process.env.AMS_SCOPE_EXTENSION_AUTHORITY==='FIRESTORE'||process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED==='true'||process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED==='true'||process.env.AMS_DEV_EXT_COMMANDS_ENABLED==='true')return send(res,423,{ok:false,error:'EXT_STAGE_CUTOVER_FLAGS_FORBIDDEN'});
+    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)return send(res,413,{ok:false,error:'EXT_STAGE_BODY_TOO_LARGE'})}
+    let body;try{body=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+    if(body?.approval!=='I_APPROVE_DEV_EXT_STAGE_199_105'||!/^([a-f0-9]{64})$/.test(clean(body?.expectedSourceManifestSha256)))return send(res,403,{ok:false,error:'EXT_STAGE_APPROVAL_AND_HASH_REQUIRED'});
+    try{
+      const ranges=['Audit_Obligations!A1:Z2500','Audit_Visit_Obligations!A1:F2500','Audit planning!A1:CN2500','Config_Scopes!A1:Z128','System_Config!A1:C100'];
+      async function source(){
+        const rows=await sheetsBatchGet(ranges);
+        if(rows.length!==5)throw Error('EXT_STAGE_SOURCE_RANGES_MISSING');
+        const config=rows[4]?.values||[];
+        if(!Array.isArray(config[0])||config[0][0]!=='KEY'||config[0][1]!=='DEV'||config[0][2]!=='PROD')throw Error('EXT_STAGE_CONFIG_HEADER_INVALID');
+        const cfg=new Map(config.slice(1).filter(row=>clean(row[0])).map(row=>[clean(row[0]),clean(row[1])]));
+        if(cfg.get('ENV')!=='DEV'||cfg.get('ALLOW_DEV_WRITES')!=='FALSE'||cfg.get('DEV_WRITE_MODE')!=='BLOCK')throw Error('EXT_STAGE_SOURCE_NOT_FROZEN');
+        return prepareScopeExtensionBackfill20({obligationRows:rows[0].values||[],linkRows:rows[1].values||[],planningRows:rows[2].values||[],scopeRows:rows[3].values||[]});
+      }
+      const manifest=await source();
+      if(manifest.obligations.length!==199||manifest.contexts.length!==105||manifest.stats.activeLinks!==155||manifest.stats.pendingEligibleUntouched!==41)throw Error('EXT_STAGE_SOURCE_COUNTS_CHANGED');
+      if(manifest.sourceManifest!==body.expectedSourceManifestSha256)throw Error('EXT_STAGE_SOURCE_MANIFEST_CHANGED');
+      const reread=await source();
+      if(reread.sourceManifest!==manifest.sourceManifest)throw Error('EXT_STAGE_SOURCE_DRIFT');
+      const store=createScopeExtensionFirestoreStager20({projectId:actualProject,getToken:accessToken});
+      const done=await store.stage({manifest,expectedSha256:body.expectedSourceManifestSha256,approved:true,cutoverVerified:false});
+      const after=await source();
+      if(after.sourceManifest!==manifest.sourceManifest)throw Error('EXT_STAGE_SOURCE_DRIFT_AFTER_COMMIT');
+      return send(res,200,{ok:true,stage:'STAGED_UNVERIFIED',sourceManifestSha256:manifest.sourceManifest,counts:done.counts,parity:done.parity,writerEnabled:false,appliedQuarantined:true});
+    }catch(e){
+      console.error('EXT_STAGE_BLOCKED',clean(e?.message||e).slice(0,180));
+      return send(res,409,{ok:false,error:'EXT_STAGE_FAILED_OR_INCOMPLETE',detail:clean(e?.message||e).slice(0,150),writerEnabled:false});
+    }
   }
   if(u.pathname==='/api/v1/manager/ext-model-c-source-preflight'&&req.method==='GET'){
     // Isolated DEV preview only: bounded aggregate source evidence, no identifiers or mutations.

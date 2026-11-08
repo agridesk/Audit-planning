@@ -17,6 +17,19 @@ for(const action of actions){
  assert.equal(result.allowed,false,action);
  assert.equal(result.code,'DEV_WRITE_BLOCKED',action);
 }
+// Script Properties may be full with SWAP entries; EXT freeze must not depend on adding any properties.
+const noPropertyCtx=vm.createContext({
+ SYS_getConfig_:()=>({ENV:'DEV',ALLOW_DEV_WRITES:'FALSE',DEV_WRITE_MODE:'BLOCK'}),
+ SYS_getEnv_:()=> 'DEV',
+ PropertiesService:{getScriptProperties:()=>({getProperty:()=>null})},
+ Logger:{log:()=>{}}
+});
+vm.runInContext(read('SystemWriteGuard.js'),noPropertyCtx);
+for(const action of actions){
+ const decision=noPropertyCtx.SYS_WRITE_GUARD_DECIDE_(action,'AUD_REAL_SAMPLE');
+ assert.equal(decision.allowed,false,'missing authority properties must not reopen DEV '+action);
+ assert.equal(decision.code,'DEV_WRITE_BLOCKED');
+}
 cfg.ALLOW_DEV_WRITES='TRUE';cfg.DEV_WRITE_MODE='ALLOW_ALL';
 for(const action of actions)assert.equal(ctx.SYS_WRITE_GUARD_DECIDE_(action,'TEST_FROZEN').allowed,true,action);
 env='PROD';for(const action of actions)assert.equal(ctx.SYS_WRITE_GUARD_DECIDE_(action,'TEST_FROZEN').allowed,true,action);

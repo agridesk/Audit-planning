@@ -49,7 +49,9 @@ export function inspectDevScopeExtension20({obligationRows,linkRows,planningRows
   const validPolicy=rec.policy&&Number.isSafeInteger(rec.policy.months)&&rec.policy.months>0&&Number.isSafeInteger(rec.policy.from)&&Number.isSafeInteger(rec.policy.to);
   const validDates=!!rec.baseExpiry&&!!rec.effectiveExpiry&&!!rec.windowFrom&&!!rec.windowTo&&rec.windowFrom<=rec.windowTo;
   const base=auditId&&status.get(auditId)==='PENDING_PLANNING'&&rec.triggerSource.toUpperCase()!=='ECAS'&&validDates&&!!validPolicy;
-  rec.canApply=!!(base&&!rec.extensionApplied&&!rec.extensionMetadata);
+  const legacyUndone=!!(base&&!rec.extensionApplied&&meta?.source==='CLOUD_RUN_DIRECT_MANAGER_EXTENSION'
+    &&meta?.undo===true&&Number(meta.months)===rec.policy.months&&rec.effectiveExpiry===rec.baseExpiry);
+  rec.canApply=!!(base&&!rec.extensionApplied&&(!rec.extensionMetadata||legacyUndone));
   const legacyUndo=base&&rec.extensionApplied&&meta?.source==='CLOUD_RUN_DIRECT_MANAGER_EXTENSION'
     &&meta?.undo!==true&&Number(meta.months)===rec.policy.months&&!!rec.baseExpiry
     &&rec.effectiveExpiry===addMonths(rec.baseExpiry,rec.policy.months)

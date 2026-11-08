@@ -8,6 +8,8 @@ import {reconcileScopeExtensionDossierAuthority20} from './model-c-scope-extensi
 import {prepareScopeExtensionBackfill20} from './model-c-scope-extension-backfill-prepare-20.mjs';
 import {createScopeExtensionFirestoreStager20} from './model-c-scope-extension-backfill-firestore-stage-20.mjs';
 import {selectScopeExtensionDevPilot20} from './model-c-scope-extension-dev-pilot-20.mjs';
+import {prepareScopeExtensionDevPilotPromotion20} from './model-c-scope-extension-dev-pilot-promotion-20.mjs';
+import {createScopeExtensionContextPromoter20} from './model-c-scope-extension-context-promoter-20.mjs';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {assertScopeExtensionLegacyWriteFenced20,assertScopeExtensionLegacyDeleteFenced20} from './model-c-scope-extension-writer-fence-20.mjs';
 import {normalizeLifecycleWriteset} from './planning-lifecycle-writeset-20.js';
@@ -2911,6 +2913,54 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       result.companies=result.companies.filter(c=>uids.has(c.companyUid)||(names.has(clean(c.name).toLowerCase())&&result.companies.filter(y=>clean(y.name).toLowerCase()===clean(c.name).toLowerCase()).length===1));
       result.readOnly=true;result.actorRole='AUDITOR';result.activeAuditors=[];result.membershipDiagnostics={visibleCompanies:result.companies.length,openCompanyUidCount:openCompanyUids.size,completedCompanyUidCount:completedCompanyUids.size,combinedUniqueCompanyUids:uids.size,legacyNameFallbackCount:names.size,identityMode:'UID_FIRST'};return send(res,200,result);
     }catch(e){return send(res,409,{ok:false,error:'AUDITOR_COMPANY_READ_FAILED',detail:clean(e?.message||e)})}
+  }
+  if(u.pathname==='/api/v1/manager/ext-model-c-pilot-promote'&&req.method==='POST'){
+    if(process.env.AMS_RUNTIME_ENV!=='DEV'||process.env.K_SERVICE!=='ams-fase12-dev'
+      ||process.env.AMS_DEV_EXT_PILOT_PROMOTION_ENABLED!=='true'
+      ||process.env.AMS_DEV_EXT_COMMANDS_ENABLED!=='true'
+      ||process.env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE'
+      ||process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true'
+      ||process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true')return send(res,423,{ok:false,error:'EXT_DEV_PILOT_DISABLED'});
+    const origin=clean(req.headers.origin);
+    if(origin!=='https://ams-fase12-dev-510075419067.europe-west1.run.app')return send(res,403,{ok:false,error:'EXT_PILOT_ORIGIN_FORBIDDEN'});
+    const actor=await sessionFromRequestValidated(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)return send(res,413,{ok:false,error:'EXT_PILOT_BODY_TOO_LARGE'})}
+    let body;try{body=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+    const auditId=clean(body.auditId),expectedHash=clean(body.expectedSourceManifestSha256);
+    if(!auditId||auditId.length>180||!(/^[a-f0-9]{64}$/.test(expectedHash))
+      ||body.typedApproval!=='PROMOTE '+auditId+' DEV EXT'
+      ||body.operatorWriterFreezeAttested!==true)return send(res,403,{ok:false,error:'EXT_PILOT_APPROVAL_REQUIRED'});
+    try{
+      if(SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')throw Error('EXT_PILOT_DEV_SHEET_MISMATCH');
+      const project=await verifiedAuditorLockDevProject();
+      if(project!=='audit-management-system-dev')throw Error('EXT_PILOT_PROJECT_NOT_DEV');
+      const ranges=['Audit_Obligations!A1:Z2500','Audit_Visit_Obligations!A1:F2500','Audit planning!A1:CN2500','Config_Scopes!A1:Z128','System_Config!A1:C100'];
+      const source=async()=>{
+        const rows=await sheetsBatchGet(ranges),config=rows[4]?.values||[];
+        if(rows.length!==5||config[0]?.[0]!=='KEY'||config[0]?.[1]!=='DEV'||config[0]?.[2]!=='PROD')throw Error('EXT_PILOT_CONFIG_SCHEMA');
+        const cfg=new Map(config.slice(1).filter(x=>clean(x[0])).map(x=>[clean(x[0]),clean(x[1])]));
+        if(cfg.get('ENV')!=='DEV'||cfg.get('ALLOW_DEV_WRITES')!=='FALSE'||cfg.get('DEV_WRITE_MODE')!=='BLOCK')throw Error('EXT_PILOT_GAS_WRITES_NOT_BLOCKED');
+        return prepareScopeExtensionBackfill20({obligationRows:rows[0]?.values||[],linkRows:rows[1]?.values||[],planningRows:rows[2]?.values||[],scopeRows:rows[3]?.values||[]});
+      };
+      const manifest=await source();
+      if(manifest.sourceManifest!==expectedHash)throw Error('EXT_PILOT_SOURCE_MANIFEST_CHANGED');
+      const stager=createScopeExtensionFirestoreStager20({projectId:project,getToken:accessToken});
+      const verifiedParity=await stager.verify(manifest);
+      const approvedPlan=prepareScopeExtensionDevPilotPromotion20({
+        manifest,verifiedParity,sourceFrozen:true,selectedAuditId:auditId,
+        typedApproval:body.typedApproval,operatorWriterFreezeAttested:body.operatorWriterFreezeAttested,
+        liveDevGuardEvidenceRef:'DEV_GAS_DIAGNOSTIC_2026-11-08T15:43:12Z_SYSTEM_CONFIG_BLOCK'
+      });
+      const latest=await source();
+      if(latest.sourceManifest!==expectedHash)throw Error('EXT_PILOT_SOURCE_DRIFT_BEFORE_COMMIT');
+      const promoter=createScopeExtensionContextPromoter20({projectId:project,getToken:accessToken,writeEnabled:true,approvedPlan});
+      const result=await promoter.promoteAudit(auditId);
+      const after=await source();
+      if(after.sourceManifest!==expectedHash)throw Error('EXT_PILOT_SOURCE_DRIFT_AFTER_COMMIT');
+      return send(res,200,{ok:true,pilotOnly:true,globalCutoverApproved:false,auditId,promoted:result.promoted,
+        sourceManifestSha256:expectedHash,writerEnabledForPilot:true,otherAuditContextsRemainUnverified:true});
+    }catch(e){console.error('EXT_DEV_PILOT_PROMOTE_BLOCKED',clean(e?.message||e).slice(0,180));return send(res,409,{ok:false,error:'EXT_DEV_PILOT_PROMOTE_FAILED',detail:clean(e?.message||e).slice(0,160)});}
   }
   if(u.pathname==='/api/v1/manager/ext-model-c-pilot-preflight'&&req.method==='GET'){
     if(process.env.AMS_RUNTIME_ENV!=='DEV'||process.env.K_SERVICE!=='ams-fase12-dev')return send(res,404,{ok:false,error:'NOT_FOUND'});

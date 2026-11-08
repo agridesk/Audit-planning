@@ -244,7 +244,7 @@ function grid4ScopeBadges(r){
   var applied=extended.has(code.toUpperCase()),marker=applied?'<span aria-hidden="true" class="grid4-ext-dot" style="position:absolute;top:-4px;right:-4px;width:11px;height:11px;line-height:11px;text-align:center;font-size:8px;font-weight:800;border-radius:50%;background:#15803d;color:#fff;border:1px solid #fff;box-sizing:content-box">E</span>':'';
   var title=applied?' title="'+esc(code+' — Extension applied')+'"':'';
   return '<span class="grid4-scope-badge"'+title+' style="position:relative;display:inline-block;white-space:nowrap;margin:5px 6px 4px 0;padding:2px 6px;border-radius:4px;background:'+bg+';color:'+fg+'">'+esc(code)+marker+'</span>';
- }).join("")||esc(text(r.scopesText))
+ }).join(" ")||esc(text(r.scopesText))
 }
 function updateExtendedScopeCodes20(auditId,scopeCode,applied){
  var row=all.find(function(x){return String(x.auditId)===String(auditId)});

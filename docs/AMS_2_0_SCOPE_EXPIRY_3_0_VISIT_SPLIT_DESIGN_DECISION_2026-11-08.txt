@@ -1,0 +1,25 @@
+AMS 2.0 / 3.0 — DESIGN DECISION: SCOPE EXPIRY DATES AND VISIT SPLITTING
+Date: 2026-11-08
+Status: APPROVED DESIGN DIRECTION; NOT IMPLEMENTED
+Authority: Current Model C canonical obligations and active visit links. AMS roadmaps V2.7 and older are superseded.
+
+AMS 2.0 — MANAGER GRID
+- A multi-scope audit may contain scopes with different effective expiry dates, notably after EXT on one scope.
+- Show the effective expiry for EACH scope clearly, aligned with the scope label, rather than passing one audit-level earliest expiry off as each scope expiry. Final placement within Scopes cell vs multiple lines in Expiration date column is still a UI design choice.
+- Keep one company/audit row, with sufficient automatic height for all scope badges and dates; never clip a scope.
+- Scope-specific E extension status must be consistently visible for single- and multi-scope audits.
+- If an audit-level controlling date is displayed or used for sorting, identify it as the earliest applicable effective expiry; it is not a substitute for per-scope expiry.
+- Show a common planning window only when the intersection of relevant scope windows is valid. Where no common window exists, show 'Separate planning required' and do not imply a shared slot.
+- EXT/Undo remains per scope. No automatic MPS-GAP-to-GRASP propagation in 2.0.
+
+AMS 3.0 — PROPOSED MULTI-VISIT COMPOSITION (DEFERRED)
+- Different effective expiry dates alone do NOT require two audit rows or visits.
+- Propose separate visits when (1) scope windows do not overlap; or (2) the overlap exists technically but is not practically schedulable, given required durations, auditor availability/qualifications, location/travel constraints and required buffers; or (3) scheme/governance rules require separate execution.
+- Keep company and its scopes together at the company/dossier level. The planning entities should be explicit VISITS with a governed subset of linked scope obligations; do not duplicate or overwrite the underlying scope obligations.
+- The planning tool should first offer a combined visit when feasible. If not feasible, propose two or more visit groups, each with its own date/window, auditor, duration and status.
+- Manager explicitly approves visit grouping and any relink; no silent automatic split based only on a calculated date or negative feasibility hint.
+- Both distinct visit rows remain linked to the same company, with scope-to-visit mapping and audit IDs transparent to the Manager, consistent with Model C active-link invariants.
+- Shared visit feasibility needs an agreed operational policy and an explainable reason ('No window overlap', 'No available qualified auditor', 'Location constraint', 'Scheme requires separate visit', etc.). The operational feasibility threshold is a 3.0 design question, not a 2.0 coding assumption.
+- The 3.0 change is about visit composition and scheduling, NOT creating extra company records.
+
+Decision taken from user discussion; no runtime or PROD behavior changed by this document.

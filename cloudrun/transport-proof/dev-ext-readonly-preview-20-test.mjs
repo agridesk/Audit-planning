@@ -6,7 +6,7 @@ assert.equal(active(base),true);
 for(const [field,value] of [['AMS_RUNTIME_ENV','PROD'],['K_SERVICE','ams-transport-proof'],['AMS_DEV_MAINTENANCE_MODE','false'],['AMS_DEV_EXT_READONLY_PREVIEW','false']]){
  assert.equal(active({...base,[field]:value}),false,field+' must fail closed');
 }
-for(const path of ['/','/health','/manager-portal.js','/api/v1/session','/api/v1/manager/open','/api/v1/manager/company-management','/api/v1/manager/company-management/extension-obligations','/api/v1/manager/ext-model-c-source-preflight']){
+for(const path of ['/','/health','/manager-portal.js','/api/v1/session','/api/v1/manager/open','/api/v1/manager/company-management','/api/v1/manager/company-management/extension-obligations','/api/v1/manager/ext-model-c-source-preflight','/api/v1/manager/ext-model-c-stage-status']){
  assert.equal(allowed({method:'GET',path}),true,'expected read-only route '+path);
 }
 assert.equal(allowed({method:'POST',path:'/auth/dev-login'}),true,'DEV portal manager login must create a signed session without enabling business writers');

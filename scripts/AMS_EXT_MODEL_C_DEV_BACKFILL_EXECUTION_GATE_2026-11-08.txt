@@ -1,6 +1,6 @@
 AMS EXT / UNDO — MODEL C DEV BACKFILL EXECUTION GATE
 Date: 2026-11-08
-Status: PREPARED AND LIVE SOURCE VALIDATED; NOT EXECUTED
+Status: STAGE COMPLETE AND VERIFIED; OPERATIONAL WRITER STILL BLOCKED
 Scope: project audit-management-system-dev, Firestore (default), isolated service ams-fase12-dev
 PROD: NO CHANGE. Source DEV Sheets: READ-ONLY.
 
@@ -26,7 +26,7 @@ IMPLEMENTED PREPARATION
 - Integrated diagnostic: GET /api/v1/manager/ext-model-c-source-preflight (IAP + Manager AMS session, isolated service only).
 - Manifest is deterministic; its SHA-256 is derived from all normalized obligations and contexts.
 - Writer flags on all staged audit contexts remain FALSE; returned manifest writeAuthorized is FALSE.
-- No Firestore stage writes or production writes have been executed.
+- Firestore stage executed in isolated DEV. All 304 documents (199 obligations and 105 contexts) read back with exact manifest parity. PROD unchanged.
 
 STRICT EXECUTION PRECONDITIONS — DO NOT SKIP
 1. Confirm Cloud Run DEV identity, IAP, runtime service and source spreadsheet ID.
@@ -55,7 +55,11 @@ CURRENT IMPLEMENTATION (STILL NO DEV DATA WRITES)
 - Staged auditcontext.writerFenceVerified remains false and migrationState remains STAGED_UNVERIFIED.
 - This stage never enables EXT writer authority, the migration-verified flag or EXT commands.
 - An independent GAS triggers/script properties/legacy writer audit is still required BEFORE the eventual WRITER CUTOVER.
-- No deployment or stage write has occurred yet.
+- Confirmed 2026-11-08: ams-fase12-dev revision 00008-cqm. Stage complete, manifest SHA-256 16d8a409168a126edd990aae01c48f58a343113ad4e605c1c40db3e7d88fe618, 199 obligations, 105 contexts, 0 event, 0 outbox.
+- Canonical Firestore operational transaction names and context promoter names patched in GitHub dev after staging. These code changes require local tests and a new DEV deployment.
+- Writer flags are OFF. No operational EXT/Undo mutation has been executed.
+- Remaining hard prerequisites: independently verified GAS trigger/script-property/legacy revision writer freeze, source-vs-Firestore cutover parity, audited per-audit context promotion, then explicit authorized DEV-only writer cutover, controlled Apply/Undo + projector tests.
+- Do not repeat create-only stage; nonempty target must be verified, never overwritten.
 
 CURRENT DECISION
 The implementation and static/simulated checks are complete, but local full-suite testing and deployment remain to be done.

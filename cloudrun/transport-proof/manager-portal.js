@@ -1366,13 +1366,13 @@ open.onclick=function(){if(!['manager','auditor'].includes(String(actorRole).toL
 window.addEventListener('ams:open-company-scopes',async function(event){
  if(String(actorRole).toLowerCase()!=='manager')return;
  var d=event.detail||{},uid=String(d.companyUid||'').trim(),companyName=String(d.companyName||'').trim(),auditId=String(d.auditId||'').trim();
- if(!auditId||(!uid&&!companyName)){panel.hidden=false;status.textContent='Extensions requires the selected audit and an unambiguous company identity.';return}
+ if(!auditId||!uid){panel.hidden=false;status.textContent='Extensions requires the selected audit and canonical Company UID. No scope actions were opened.';return}
  if(Object.keys(pending).length){status.textContent='Save Company changes before opening another company';panel.hidden=false;return}
  document.getElementById('scopeManagement20Panel').hidden=true;panel.hidden=false;selected=null;tab='scopes';extensionTargetCompanyUid20='';extensionTargetAuditId20=auditId;extCompanyFocus20();
  status.textContent='Opening Extensions · '+auditId+'…';
  try{
   await load();
-  var matches=companies.filter(function(c){return uid?String(c.companyUid||'').trim()===uid:String(c.name||'').trim().toLowerCase()===companyName.toLowerCase()});
+  var matches=companies.filter(function(c){return String(c.companyUid||'').trim()===uid});
   if(matches.length!==1||!String(matches[0].companyUid||'').trim()){status.textContent='The audit company cannot be resolved uniquely. No scope actions were opened.';return}
   extensionTargetCompanyUid20=String(matches[0].companyUid).trim();
   selected=matches[0];render();renderDossier();

@@ -11,6 +11,7 @@ import {selectScopeExtensionDevPilot20} from './model-c-scope-extension-dev-pilo
 import {prepareScopeExtensionDevPilotPromotion20} from './model-c-scope-extension-dev-pilot-promotion-20.mjs';
 import {createScopeExtensionContextPromoter20} from './model-c-scope-extension-context-promoter-20.mjs';
 import {inspectDevScopeExtension20,planDevScopeExtension20} from './model-c-extension-dev-direct-20.mjs';
+import {prepareCbExtensionEvent20} from './certification-body-extension-outbox-20.mjs';
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {assertScopeExtensionLegacyWriteFenced20,assertScopeExtensionLegacyDeleteFenced20} from './model-c-scope-extension-writer-fence-20.mjs';
 import {normalizeLifecycleWriteset} from './planning-lifecycle-writeset-20.js';
@@ -115,7 +116,7 @@ function isolatedExtDirect20(){
 async function readIsolatedDevModelCExt20(){
  if(!isolatedExtDirect20()||SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs'
     ||await verifiedAuditorLockDevProject()!=='audit-management-system-dev')throw Error('EXT_DEV_DIRECT_ISOLATION_REQUIRED');
- const r=await sheetsBatchGet(['Audit_Obligations!A1:Z2500','Audit_Visit_Obligations!A1:F2500','Audit planning!A1:CN2500','Config_Scopes!A1:Z128','System_Config!A1:C100']);
+ const r=await sheetsBatchGet(['Audit_Obligations!A1:AA2500','Audit_Visit_Obligations!A1:F2500','Audit planning!A1:CN2500','Config_Scopes!A1:Z128','System_Config!A1:C100']);
  if(r.length!==5)throw Error('EXT_DEV_DIRECT_SOURCE_RANGES_UNAVAILABLE');
  const rows=r[4]?.values||[];
  if(rows[0]?.[0]!=='KEY'||rows[0]?.[1]!=='DEV'||rows[0]?.[2]!=='PROD')throw Error('EXT_DEV_DIRECT_CONFIG_SCHEMA_CHANGED');
@@ -2123,6 +2124,18 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
           const source=await readIsolatedDevModelCExt20();
           const before=inspectDevScopeExtension20({...source,companyUid});
           const plan=planDevScopeExtension20({snapshot:before,auditId,companyUid,obligationId,command:body.command,requestId:clean(body.requestId),actorUid:clean(session.uid||session.auditorUid||session.email)});
+          // Resolve CB from the immutable obligation snapshot, not from an ECAS default.
+          // Prepare before mutation so missing or mismatched provenance cannot silently proceed.
+          const cbSource=await sheetsBatchGet(['Certification_Bodies!A1:H200']);
+          const planningAudit=before.auditRows.get(auditId);
+          const companyIndex=before.planningHead.indexOf('Company');
+          const cbEvent=prepareCbExtensionEvent20({
+            obligationRows:source.obligationRows,scopeRows:source.scopeRows,
+            certificationBodies:cbSource[0]?.values||[],
+            auditId,companyUid,obligationId,operationId:plan.operationId,
+            command:body.command,expected:plan.expected,
+            company:companyIndex>=0?clean(planningAudit?.row?.[companyIndex]):''
+          });
           await sheetsValuesBatchUpdateRaw(plan.updates);
           const verify=inspectDevScopeExtension20({...await readIsolatedDevModelCExt20(),companyUid});
           const actual=verify.obligations.get(obligationId),expected=plan.expected;
@@ -2133,8 +2146,22 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
             ||!audit||clean(audit.row[idx('Extended Expiration Date')])!==expected.aggregateExpiry
             ||clean(audit.row[idx('Planning window from')])!==expected.planningWindowFrom
             ||clean(audit.row[idx('Planning window to')])!==expected.planningWindowTo)throw Error('EXT_DEV_DIRECT_READBACK_UNVERIFIED');
+          // The scope change has committed. An outbox failure must not falsely
+          // report an unsuccessful EXT/Undo or invite a duplicate user action.
+          let notificationOutbox='BUFFERED';
+          try{
+            await sheetsValuesAppend("'CB_Extension_Outbox'!A:P",[cbEvent.values]);
+            const ledger=(await sheetsBatchGet(["'CB_Extension_Outbox'!A1:P2500"]))[0]?.values||[];
+            const matching=ledger.slice(1).filter(row=>clean(row[0])===cbEvent.eventId);
+            if(matching.length!==1||clean(matching[0][3])!==obligationId||clean(matching[0][6])!==cbEvent.certificationBodyId)throw Error('CB_OUTBOX_READBACK_UNVERIFIED');
+          }catch(outboxError){
+            notificationOutbox='RECOVERY_REQUIRED';
+            console.error('[CB_EXTENSION_OUTBOX_RECOVERY_REQUIRED]',JSON.stringify({auditId,obligationId,operationId:plan.operationId,error:clean(outboxError?.message||outboxError)}));
+          }
           return{success:true,ok:true,direct:true,projection:'PROJECTED',operationId:plan.operationId,
-            auditId,obligationId,command:body.command,patch:plan.patch,authority:'DEV_MODEL_C_SHEETS'};
+            auditId,obligationId,command:body.command,patch:plan.patch,authority:'DEV_MODEL_C_SHEETS',
+            cbNotification:{certificationBodyId:cbEvent.certificationBodyId,status:notificationOutbox,
+              notBefore:cbEvent.notBefore,deliveryEnabled:false}};
         });
         return send(res,200,result);
       }catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'EXT_DEV_DIRECT_FAILED'});}

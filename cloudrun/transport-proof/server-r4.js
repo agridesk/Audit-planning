@@ -2911,6 +2911,23 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
       result.readOnly=true;result.actorRole='AUDITOR';result.activeAuditors=[];result.membershipDiagnostics={visibleCompanies:result.companies.length,openCompanyUidCount:openCompanyUids.size,completedCompanyUidCount:completedCompanyUids.size,combinedUniqueCompanyUids:uids.size,legacyNameFallbackCount:names.size,identityMode:'UID_FIRST'};return send(res,200,result);
     }catch(e){return send(res,409,{ok:false,error:'AUDITOR_COMPANY_READ_FAILED',detail:clean(e?.message||e)})}
   }
+  if(u.pathname==='/api/v1/manager/ext-model-c-stage-status'&&req.method==='GET'){
+    // Manager-only readback. Operates even while staging is disabled.
+    if(process.env.AMS_RUNTIME_ENV!=='DEV'||process.env.K_SERVICE!=='ams-fase12-dev')return send(res,404,{ok:false,error:'NOT_FOUND'});
+    const actor=await sessionFromRequestValidated(req);if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    try{
+      const ranges=['Audit_Obligations!A1:Z2500','Audit_Visit_Obligations!A1:F2500','Audit planning!A1:CN2500','Config_Scopes!A1:Z128','System_Config!A1:C100'];
+      const rows=await sheetsBatchGet(ranges);
+      if(rows.length!==5)throw Error('EXT_STAGE_READBACK_SOURCE_UNAVAILABLE');
+      const config=rows[4]?.values||[],cfg=new Map(config.slice(1).filter(row=>clean(row[0])).map(row=>[clean(row[0]),clean(row[1])]));
+      if(cfg.get('ENV')!=='DEV'||cfg.get('ALLOW_DEV_WRITES')!=='FALSE'||cfg.get('DEV_WRITE_MODE')!=='BLOCK')throw Error('EXT_STAGE_SOURCE_NOT_FROZEN');
+      const manifest=prepareScopeExtensionBackfill20({obligationRows:rows[0].values||[],linkRows:rows[1].values||[],planningRows:rows[2].values||[],scopeRows:rows[3].values||[]});
+      const store=createScopeExtensionFirestoreStager20({projectId:await verifiedAuditorLockDevProject(),getToken:accessToken});
+      const result=await store.verify(manifest);
+      return send(res,200,{ok:true,readOnly:true,sourceManifestSha256:manifest.sourceManifest,counts:result.counts,parity:result.parity,stageComplete:result.parity,writerEnabled:false});
+    }catch(e){console.error('EXT_STAGE_READBACK_FAILED',clean(e?.message||e).slice(0,180));return send(res,409,{ok:false,error:'EXT_STAGE_READBACK_FAILED',writerEnabled:false});}
+  }
   if(u.pathname==='/api/v1/manager/ext-model-c-stage'&&req.method==='POST'){
     // DISABLED by default. A one-time DEV-only stage operation; NEVER a writer cutover.
     if(process.env.AMS_RUNTIME_ENV!=='DEV'||process.env.K_SERVICE!=='ams-fase12-dev'||process.env.AMS_DEV_EXT_STAGE_ENABLED!=='true')return send(res,423,{ok:false,error:'EXT_STAGE_DISABLED'});

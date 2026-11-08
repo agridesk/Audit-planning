@@ -409,8 +409,8 @@ function yes(v){const s=clean(v).toLowerCase();return s==='x'||s==='yes'||s==='t
 
 function scopeCatalog(values){
   if(!values.length)return[];
-  const h=values[0],cs=col(h,['SlotKey','Slot key','Slot']),cc=col(h,['ScopeCode','Scope code','Code']),cn=col(h,['DisplayName','Display name','Name','ScopeName','Scope']),ca=col(h,['Active']),car=col(h,['Archived']),cr=col(h,['Recurring']),coc=col(h,['Obligation cycle','Obligation_cycle','Cycle']),ccb=col(h,['Complete by','Complete_by','Must be completed by']),cfh=col(h,['Formal_hours','Formal hours','Formal Hours','Default_hours','Default hours']),cmoh=col(h,['Max_Offsite_Hours','Max Offsite Hours','Max offsite hours','Maximum offsite hours']),cmi=col(h,['Min_Interval_Months','Min Interval Months','Minimum interval months']),cpf=col(h,['Planning from','Planning_from','PlanningFrom']),cpt=col(h,['Planning to','Planning_to','PlanningTo']),cex=col(h,['Extension','Extension months','Extension_months']);
-  return values.slice(1).map(r=>({slotKey:val(r,cs),scopeCode:val(r,cc),displayName:val(r,cn),active:ca<0||yes(r[ca]),archived:car>=0&&yes(r[car]),recurring:cr<0?null:yes(r[cr]),obligationCycle:val(r,coc).toUpperCase(),completeBy:val(r,ccb),formalHours:Number(String(val(r,cfh)||'').replace(',','.'))||0,maxOffsiteHours:Math.max(0,Number(String(val(r,cmoh)||'0').replace(',','.'))||0),minIntervalMonths:Math.max(0,Number(String(val(r,cmi)||'0').replace(',','.'))||0),planningFrom:Number(String(val(r,cpf)||'0').replace(',','.'))||0,planningTo:Number(String(val(r,cpt)||'0').replace(',','.'))||0,extensionMonths:Number(String(val(r,cex)||'0').replace(',','.'))||0})).filter(x=>x.displayName&&x.active&&!x.archived);
+  const h=values[0],cs=col(h,['SlotKey','Slot key','Slot']),cc=col(h,['ScopeCode','Scope code','Code']),cn=col(h,['DisplayName','Display name','Name','ScopeName','Scope']),ca=col(h,['Active']),car=col(h,['Archived']),cr=col(h,['Recurring']),coc=col(h,['Obligation cycle','Obligation_cycle','Cycle']),ccb=col(h,['Complete by','Complete_by','Must be completed by']),cfh=col(h,['Formal_hours','Formal hours','Formal Hours','Default_hours','Default hours']),cmoh=col(h,['Max_Offsite_Hours','Max Offsite Hours','Max offsite hours','Maximum offsite hours']),cmi=col(h,['Min_Interval_Months','Min Interval Months','Minimum interval months']),cpf=col(h,['Planning from','Planning_from','PlanningFrom']),cpt=col(h,['Planning to','Planning_to','PlanningTo']),cex=col(h,['Extension','Extension months','Extension_months']),ccbId=col(h,['Certification_Body_ID']);
+  return values.slice(1).map(r=>({slotKey:val(r,cs),scopeCode:val(r,cc),displayName:val(r,cn),active:ca<0||yes(r[ca]),archived:car>=0&&yes(r[car]),recurring:cr<0?null:yes(r[cr]),obligationCycle:val(r,coc).toUpperCase(),completeBy:val(r,ccb),formalHours:Number(String(val(r,cfh)||'').replace(',','.'))||0,maxOffsiteHours:Math.max(0,Number(String(val(r,cmoh)||'0').replace(',','.'))||0),minIntervalMonths:Math.max(0,Number(String(val(r,cmi)||'0').replace(',','.'))||0),planningFrom:Number(String(val(r,cpf)||'0').replace(',','.'))||0,planningTo:Number(String(val(r,cpt)||'0').replace(',','.'))||0,extensionMonths:Number(String(val(r,cex)||'0').replace(',','.'))||0,certificationBodyId:val(r,ccbId)})).filter(x=>x.displayName&&x.active&&!x.archived);
 }
 
 function scopesForAudit(f,catalog){
@@ -1347,13 +1347,14 @@ function directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companySco
   const baseExpiry=directIsoDate(val(row,col(h,['Date - Will Expire','Date – Will Expire','Will Expire']))),effectiveExpiry=directIsoDate(val(row,col(h,['Extended Expiration Date'])))||baseExpiry,windowFrom=directIsoDate(val(row,col(h,['Planning window from','Planning Window From']))),windowTo=directIsoDate(val(row,col(h,['Planning window to','Planning Window To']))),plannedDate=directIsoDate(val(row,col(h,['Date - Planned','Date planned','Date Planned']))),preassigned=val(row,col(h,['Preassigned Auditor','Preassigned auditor'])),allowSelfPlanning=val(row,col(h,['Allow self planning','Allow Self Planning','Self planning','Self Planning']));
   const out=[],used=new Set(),companyScopeWrites=[];
   for(const def of activeDefs){
+    const cbId=clean(def.certificationBodyId);if(!cbId||!csH.includes('Certification_Body_ID')||!oh.includes('Certification_Body_ID'))throw Error('MODEL_C_REPAIR_CB_PROVENANCE_MISSING');
     const code=clean(def.scopeCode||def.displayName||def.slotKey),aliases=new Set([def.scopeCode,def.displayName,def.slotKey].map(key).filter(Boolean));
     let csRow=null,companyScopeId='';
     for(let i=1;i<companyScopes.length;i++){
       const rr=companyScopes[i],active=csActive<0||yes(rr[csActive]);
       if(active&&val(rr,csUid)===companyUid&&aliases.has(key(val(rr,csCode)))){csRow=rr;break;}
     }
-    if(csRow)companyScopeId=val(csRow,csId);
+    if(csRow){companyScopeId=val(csRow,csId);if(val(csRow,csH.indexOf('Certification_Body_ID'))!==cbId)throw Error('MODEL_C_REPAIR_CB_CONFLICT');}
     else if(def.recurring===true)throw new Error('MODEL_C_COMPANY_SCOPE_NOT_FOUND_'+code);
     else{
       companyScopeId='CS_'+createHash('sha256').update('LEGACY_COMPLETE|'+companyUid+'|'+code).digest('hex').slice(0,32);
@@ -1361,6 +1362,7 @@ function directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companySco
       directSetByHeader(csH,nr,['Company_Scope_ID','Company Scope ID'],companyScopeId);
       directSetByHeader(csH,nr,['Company_UID','Company UID'],companyUid);
       directSetByHeader(csH,nr,['ScopeCode','Scope Code'],code);
+      directSetByHeader(csH,nr,['Certification_Body_ID'],cbId);
       directSetByHeader(csH,nr,['Active'],'YES');
       directSetByHeader(csH,nr,['Lifecycle_Type','Lifecycle Type'],'NON_RECURRING');
       directSetByHeader(csH,nr,['Source_Audit_ID'],auditId);
@@ -1382,7 +1384,7 @@ function directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companySco
     else{
       obId='OBL_'+createHash('sha256').update('LEGACY_COMPLETE|'+auditId+'|'+companyScopeId+'|'+code).digest('hex').slice(0,32);
       obRow=obs.length+out.filter(x=>x.syntheticOb).length+1;obValues=new Array(oh.length).fill('');
-      obValues[oi]=obId;obValues[ocs]=companyScopeId;obValues[ocu]=companyUid;obValues[osc]=code;if(ock>=0)obValues[ock]=baseExpiry||plannedDate.slice(0,4);if(ots>=0)obValues[ots]=def.recurring===true?'CERTIFICATE_LIFECYCLE':'LEGACY_COMPLETION_REPAIR';obValues[ost]='OPEN';if(obe>=0)obValues[obe]=baseExpiry;if(oee>=0)obValues[oee]=effectiveExpiry;if(opf>=0)obValues[opf]=windowFrom;if(opt>=0)obValues[opt]=windowTo;if(ofh>=0){const scopeHours=directAuditPlanningScopeHours(h,row,def,code);obValues[ofh]=scopeHours!==null?scopeHours:Number(def.formalHours||0);}if(opa>=0)obValues[opa]=preassigned;if(oas>=0)obValues[oas]=allowSelfPlanning;if(oup>=0)obValues[oup]=stamp;if(osrc>=0)obValues[osrc]=auditId;
+      obValues[oi]=obId;obValues[ocs]=companyScopeId;obValues[ocu]=companyUid;obValues[osc]=code;obValues[oh.indexOf('Certification_Body_ID')]=cbId;if(ock>=0)obValues[ock]=baseExpiry||plannedDate.slice(0,4);if(ots>=0)obValues[ots]=def.recurring===true?'CERTIFICATE_LIFECYCLE':'LEGACY_COMPLETION_REPAIR';obValues[ost]='OPEN';if(obe>=0)obValues[obe]=baseExpiry;if(oee>=0)obValues[oee]=effectiveExpiry;if(opf>=0)obValues[opf]=windowFrom;if(opt>=0)obValues[opt]=windowTo;if(ofh>=0){const scopeHours=directAuditPlanningScopeHours(h,row,def,code);obValues[ofh]=scopeHours!==null?scopeHours:Number(def.formalHours||0);}if(opa>=0)obValues[opa]=preassigned;if(oas>=0)obValues[oas]=allowSelfPlanning;if(oup>=0)obValues[oup]=stamp;if(osrc>=0)obValues[osrc]=auditId;
     }
     if(!existing&&enabled){
       const obj=Object.fromEntries(oh.map((header,i)=>[header,obValues[i]??'']));
@@ -1391,7 +1393,7 @@ function directRepairMissingCompleteLinks(auditId,found,cfg,obs,links,companySco
         effectiveDate:baseExpiry||plannedDate,
         companyScopes:sources.companyScopes.some(x=>clean(x.Company_Scope_ID)===companyScopeId)
           ?sources.companyScopes
-          :[...sources.companyScopes,{Company_Scope_ID:companyScopeId,Company_UID:companyUid,ScopeCode:code,Active:'YES'}],
+          :[...sources.companyScopes,{Company_Scope_ID:companyScopeId,Company_UID:companyUid,ScopeCode:code,Certification_Body_ID:cbId,Active:'YES'}],
         overrides:sources.overrides,scopeVersions:sources.scopeVersions,now:stamp
       });
       obValues=resolved.row;

@@ -24,7 +24,7 @@ const setup=(events,applied,enabled)=>{
  'Notification_Templates':createSheet([['TEMPLATE_KEY','ACTIVE','SUBJECT_TEMPLATE','TEXT_BODY'],['CB_EXTENSION_APPLIED','YES','Extension applied — {{COMPANY_NAME}}','Dear {{CERTIFICATION_BODY_NAME}}, {{SCOPE_NAME}} expires {{EFFECTIVE_EXPIRY}}'],['CB_EXTENSION_UNDONE','YES','Extension withdrawn — {{COMPANY_NAME}}','Dear {{CERTIFICATION_BODY_NAME}}, expiry {{EFFECTIVE_EXPIRY}}']]),
  'Notification Queue':createSheet([['TimestampCreated','Status','Type','Recipient','Audit ID','Company','Subject','Body','Attempts','LastError','PayloadHash','TimestampSent','Reserved']])
  };
- const ss={getSheetByName:name=>sheets[name]||null,getSpreadsheetTimeZone:()=>'Europe/Amsterdam'};
+ const ss={getId:()=> '1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs',getSheetByName:name=>sheets[name]||null,getSpreadsheetTimeZone:()=>'Europe/Amsterdam'};
  const runtime={SpreadsheetApp:{getActiveSpreadsheet:()=>ss},Utilities:{
   formatDate:()=> '2026-11-08 21:00',DigestAlgorithm:{MD5:1},computeDigest:()=>Array(16).fill(1)
  }};
@@ -55,6 +55,12 @@ const setup=(events,applied,enabled)=>{
  const result2=x.CB_Extension_Outbox_ReconcileLocked_();
  assert.equal(result2.queued,1);
  assert.equal(x.sheets['Notification Queue'].rows[2][2],'CB_EXTENSION_UNDONE');
+}
+{
+ const x=setup([apply],true,true);
+ x.SpreadsheetApp.getActiveSpreadsheet=()=>({...x.SpreadsheetApp.getActiveSpreadsheet(),getId:()=> 'PROD_SPREADSHEET'});
+ assert.equal(x.CB_Extension_Outbox_ReconcileLocked_().skipped,'NON_DEV');
+ assert.equal(x.sheets['Notification Queue'].rows.length,1);
 }
 assert(sender.includes('CB_Extension_Outbox_ReconcileLocked_'),'GAS sender must invoke the reconciler');
 assert(sender.includes('CB_Extension_Outbox_PreflightSend_'),'GAS sender must verify CB immediately before email');

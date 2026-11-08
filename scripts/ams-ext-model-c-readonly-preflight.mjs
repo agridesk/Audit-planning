@@ -64,7 +64,7 @@ if(token){
    const active=links.slice(1).filter(x=>clean(x[ls]).toUpperCase()==='ACTIVE'&&clean(x[li]));
    const orphan=active.filter(x=>!obSet.has(clean(x[li]))).length;
    const dup=allOb.length-obSet.size;
-   const statusMap=new Map(planning.slice(1).filter(x=>clean(x[pAudit])).map(x=>[clean(x[pAudit]),clean(x[pStatus]).toUpperCase().replace(/[\\s-]+/g,'_')]));
+   const statusMap=new Map(planning.slice(1).filter(x=>clean(x[pAudit])).map(x=>[clean(x[pAudit]),clean(x[pStatus]).toUpperCase().replace(/[\s-]+/g,'_')]));
    const pending=active.filter(x=>statusMap.get(clean(x[la]))==='PENDING_PLANNING');
    result.source={obligations:allOb.length,uniqueObligations:obSet.size,activeLinks:active.length,linkedPendingPlanning:pending.length,orphanActiveLinks:orphan,duplicateObligationIds:dup,scopeDefinitions:scopes.slice(1).filter(x=>x.some(v=>clean(v))).length};
    check('source_referential_integrity',orphan===0&&dup===0);

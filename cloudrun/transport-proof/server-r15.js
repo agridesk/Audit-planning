@@ -7,6 +7,7 @@ import {resolveAmsRuntimeConfig} from './runtime-environment-20.mjs';
 import {verifyProdRuntimeIdentity} from './prod-runtime-identity-20.mjs';
 import {runtimeBundleProof20} from './runtime-bundle-proof-20.mjs';
 import {notificationOverview} from './notification-overview-20.mjs';
+import {buildCbNotificationOverview20} from './certification-body-notification-overview-20.mjs';
 import {buildRotationManager20} from './rotation-manager-20.mjs';
 import {diagnoseRotationUid20} from './rotation-uid-reconciliation-20.mjs';
 import {previewModelCVisitComposition20} from './model-c-scope-visit-preview-20.mjs';
@@ -400,6 +401,20 @@ async function notificationsManagerOverview(req,res){
  if(queue.length>=5000)throw Error('NOTIFICATION_QUEUE_SOURCE_TRUNCATED');
  const sysRowsForCount=data.System_Config||[];const sysHeadersForCount=(sysRowsForCount[0]||[]).map(v=>String(v||'').trim().toUpperCase());const devColForCount=sysHeadersForCount.indexOf(runtime.mode);const systemSettingsForCount=[['SETTING_KEY','SETTING_VALUE']];if(devColForCount>=0)for(const row of sysRowsForCount.slice(1)){const key=String(row[0]||'').trim().toUpperCase();if(key)systemSettingsForCount.push([key,'CONFIGURED']);}
  const result=notificationOverview({config:data.Notification_Config,rules:data.Notification_Rules,settings:systemSettingsForCount,queue});
+ if(runtime.isDev){
+  const cbInputs={};
+  for(const [name,limit] of [['Certification_Bodies',200],['Config_Scopes',128],['CB_Extension_Outbox',2500]]){
+   const range="'"+name+"'!A1:AZ"+limit;
+   const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range);
+   const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()}});
+   if(!response.ok)throw Error('CB_DASHBOARD_SOURCE_UNAVAILABLE_'+name);
+   const rows=(await response.json()).values||[];
+   if(rows.length>=limit)throw Error('CB_DASHBOARD_SOURCE_TRUNCATED_'+name);
+   cbInputs[name]=rows;
+  }
+  result.cbNotifications=buildCbNotificationOverview20({bodies:cbInputs.Certification_Bodies,
+   scopes:cbInputs.Config_Scopes,outbox:cbInputs.CB_Extension_Outbox,config:data.Notification_Config});
+ }
  const sys=data.System_Config||[];const envHeaders=(sys[0]||[]).map(v=>String(v||'').trim().toUpperCase());const envCol=envHeaders.indexOf(runtime.mode);const systemMap={};for(const row of sys.slice(1)){const key=String(row[0]||'').trim().toUpperCase();if(key&&envCol>=0)systemMap[key]=String(row[envCol]||'').trim();}
  // Environment-specific notification settings are owned exclusively by System_Config; do not read legacy Notification_Settings.
  const settingMap=systemMap;

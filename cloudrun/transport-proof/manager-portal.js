@@ -207,7 +207,6 @@ async function runSingleScopeExtension20(button){
   }
   if(obligation.auditId!==auditId||!Number.isSafeInteger(obligation.revision)||(command==='undo'&&!obligation.extensionTransactionId))throw Error('Verified scope revision or provenance missing');
   if(!window.crypto||typeof window.crypto.randomUUID!=='function')throw Error('Secure request ID unavailable');
-  if(!window.confirm((command==='undo'?'Undo':'Apply')+' extension for '+String(obligation.scopeCode||'scope')+'?'))return;
   var body={command:command,auditId:auditId,companyUid:uid,obligationId:obligation.obligationId,expectedRevision:obligation.revision,requestId:window.crypto.randomUUID()};
   if(command==='undo')body.extensionTransactionId=obligation.extensionTransactionId;
   var write=await fetch('/api/v1/manager/extension-obligation-command',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -1252,7 +1251,6 @@ if(tab==='scopes'){
  }
  async function extAction(o,command){
   if(extBusy||!extCurrent()||!o||!o.auditId||!o.obligationId||!Number.isSafeInteger(o.revision)||!(command==='apply'?o.canApply:o.canUndo))return;
-  if(command==='undo'&&!window.confirm('Undo the verified extension for '+o.scopeCode+'?'))return;
   if(!window.crypto||typeof window.crypto.randomUUID!=='function'){extContent.textContent='Secure request IDs unavailable. No change performed.';return}
   var requestId=window.crypto.randomUUID();extBusy=true;extContent.querySelectorAll('button').forEach(function(x){x.disabled=true});
   var info=extContent.querySelector('[data-ext-feedback]');if(info)info.textContent='Committing verified '+command+'…';

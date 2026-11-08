@@ -6,7 +6,7 @@ assert.equal(active(base),true);
 for(const [field,value] of [['AMS_RUNTIME_ENV','PROD'],['K_SERVICE','ams-transport-proof'],['AMS_DEV_MAINTENANCE_MODE','false'],['AMS_DEV_EXT_READONLY_PREVIEW','false']]){
  assert.equal(active({...base,[field]:value}),false,field+' must fail closed');
 }
-for(const path of ['/','/health','/manager-portal.js','/api/v1/session','/api/v1/manager/open','/api/v1/manager/company-management','/api/v1/manager/company-management/extension-obligations','/api/v1/manager/ext-model-c-source-preflight','/api/v1/manager/ext-model-c-stage-status']){
+for(const path of ['/','/health','/manager-portal.js','/api/v1/session','/api/v1/manager/open','/api/v1/manager/company-management','/api/v1/manager/company-management/extension-obligations','/api/v1/manager/ext-model-c-source-preflight','/api/v1/manager/ext-model-c-stage-status','/api/v1/manager/ext-model-c-pilot-preflight']){
  assert.equal(allowed({method:'GET',path}),true,'expected read-only route '+path);
 }
 assert.equal(allowed({method:'POST',path:'/auth/dev-login'}),true,'DEV portal manager login must create a signed session without enabling business writers');
@@ -35,6 +35,17 @@ assert.equal(allowed({method:'POST',path:stagePath,env:{...base,AMS_DEV_EXT_STAG
 assert.equal(allowed({method:'POST',path:stagePath,env:{...base,AMS_DEV_EXT_STAGE_ENABLED:'true',AMS_SCOPE_EXTENSION_AUTHORITY:'FIRESTORE'}}),false,'never stage over active Firestore authority');
 assert.equal(allowed({method:'POST',path:stagePath,env:{...base,AMS_DEV_EXT_STAGE_ENABLED:'true',K_SERVICE:'ams-transport-proof'}}),false,'never stage on canonical DEV service');
 
+const pilot={...base,AMS_DEV_EXT_PILOT_PROMOTION_ENABLED:'true',AMS_DEV_EXT_COMMANDS_ENABLED:'true'};
+assert.equal(allowed({method:'POST',path:'/api/v1/manager/ext-model-c-pilot-promote',env:pilot}),true,'pilot promotion opens only for isolated DEV with explicit pilot flags');
+for(const path of commandRoutes)assert.equal(allowed({method:'POST',path,env:pilot}),true,'pilot Apply/Undo available only behind per-context Firestore fence');
+for(const patch of [
+ {AMS_DEV_EXT_PILOT_PROMOTION_ENABLED:'false'},
+ {AMS_DEV_EXT_COMMANDS_ENABLED:'false'},
+ {AMS_SCOPE_EXTENSION_AUTHORITY:'FIRESTORE'},
+ {K_SERVICE:'ams-transport-proof'},
+ {AMS_DEV_MAINTENANCE_MODE:'false'}
+])assert.equal(allowed({method:'POST',path:'/api/v1/manager/ext-model-c-pilot-promote',env:{...pilot,...patch}}),false,'fail closed pilot promotion');
+assert.equal(allowed({method:'POST',path:'/api/v1/manager/extension-direct',env:pilot}),false,'legacy direct EXT writer remains blocked in pilot');
 const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const sourceRoute=r4.slice(r4.indexOf("if(u.pathname==='/api/v1/manager/ext-model-c-source-preflight'"),r4.indexOf("if(u.pathname==='/api/v1/manager/company-management/extension-obligations'"));
 assert(sourceRoute.includes("process.env.K_SERVICE!=='ams-fase12-dev'"),'only isolated DEV service may read aggregates');

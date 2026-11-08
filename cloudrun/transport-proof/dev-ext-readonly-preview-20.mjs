@@ -9,7 +9,8 @@ const allowedGet = new Set([
   '/api/v1/manager/maps-config'
 ]);
 const allowedPost = new Set([
-  '/auth/legacy-handoff', '/api/v1/session/exchange',
+  // DEV shortcut creates a signed session cookie; it does not mutate audit data.
+  '/auth/dev-login', '/auth/legacy-handoff', '/api/v1/session/exchange',
   '/api/v1/manager/open-enrichment'
 ]);
 export function extReadOnlyPreview20(env) {

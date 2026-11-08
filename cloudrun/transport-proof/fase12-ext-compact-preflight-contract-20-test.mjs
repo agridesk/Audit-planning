@@ -10,6 +10,8 @@ assert(a>0&&b>a);
 const view=ui.slice(a,b);
 assert(view.includes('max-width:1100px'),'EXT dossier should not stretch across the full screen');
 assert(view.includes('table-layout:fixed'),'scope columns need controlled relative widths');
+assert(view.includes('min-width:0;table-layout:fixed'),'EXT table must override the global 1900px minimum');
+assert(view.includes('white-space:normal;vertical-align:middle'),'EXT cells must override global nowrap');
 assert(view.includes("['Scope','17%']")&&view.includes("['Actions','12%']"),'scope and action must be visually grouped');
 assert(view.includes("td.title='Obligation '"),'technical obligation ID should be a tooltip, not a broad visible column');
 assert(!view.includes("['Obligation'"),'technical IDs must not consume a table column');

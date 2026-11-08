@@ -7,6 +7,8 @@ const ob=(id,applied=false)=>({obligationId:id,auditId,companyUid,scopeCode:id==
 const ctx={auditId,companyUid,lifecycleStatus:'PENDING_PLANNING',obligations:[ob('O1'),ob('O2')],policyByScope:{GAP:{extensionMonths:3}}};
 const check=(ctxs=[ctx],extra={})=>reconcile({companyUid,records:[row],activeLinks:links,contexts:ctxs,cutoverVerified:true,...extra});
 assert.equal(check().records[0].canApply,true);
+assert.equal(check([{...ctx,obligations:[{...ob('O1'),legacyApplyQuarantined:true},ob('O2')]}]).records[0].canApply,false,'legacy unapplied provenance remains quarantined');
+assert.equal(check([{...ctx,obligations:[{...ob('O1'),extensionMetadata:'{\"source\":\"legacy\"}'},ob('O2')]}]).records[0].canApply,false,'nonempty legacy metadata cannot be treated as fresh extension');
 assert.equal(check([ctx],{records:[{...row,effectiveExpiry:'2027-05-01'}]}).canMutate,false);
 assert.equal(check([ctx],{records:[{...row,extensionApplied:true}]}).canMutate,false);
 assert.equal(check().records[0].canUndo,false);

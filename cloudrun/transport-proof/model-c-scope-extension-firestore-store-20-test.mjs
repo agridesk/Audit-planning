@@ -11,7 +11,7 @@ const fetchImpl=async(url,options={})=>{
  if(url.includes('_event/'))return{status:404,ok:false};
  if(url.includes('_auditcontext/'))return{ok:true,json:async()=>({updateTime:'2026-11-01T00:00:00Z',fields:{payload:{mapValue:{fields:{auditId:{stringValue:'A1'},companyUid:{stringValue:'C1'},lifecycleStatus:{stringValue:'PENDING_PLANNING'},writerFenceVerified:{booleanValue:true},obligationIds:{arrayValue:{values:[{stringValue:'O1'}]}}}}}}})};
  if(url.includes('_obligation/')){reads++;return{ok:true,json:async()=>({updateTime:'2026-11-01T00:00:00Z',fields:{payload:payload(current)}})}}
- if(url.endsWith(':commit')){commits++;const body=JSON.parse(options.body);assert.equal(body.writes.length,3);assert(body.writes.every(w=>w.update&&w.currentDocument));return{ok:true,json:async()=>({writeResults:[{},{},{}]})}}
+ if(url.endsWith(':commit')){commits++;const body=JSON.parse(options.body);assert.equal(body.writes.length,3);assert(body.writes.every(w=>w.update&&w.currentDocument));assert(body.writes.every(w=>w.update.name.startsWith('projects/audit-management-system-dev/databases/(default)/documents/ams_scope_extension_20_dev_')),'Firestore operational writes must use resource paths, not HTTP URLs');return{ok:true,json:async()=>({writeResults:[{},{},{}]})}}
  throw Error('unexpected mock request '+url);
 };
 const store=createScopeExtensionFirestoreStore20({projectId:'audit-management-system-dev',getToken:async()=> 'fake',fetchImpl,migrationVerified:true,writerFenceVerified:true});

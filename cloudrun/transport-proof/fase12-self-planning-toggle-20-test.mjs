@@ -19,7 +19,7 @@ assert.ok(proxy.includes("headers.host=String(req.headers.host||'')"));
 assert.ok(grid.includes("close.onclick=function(){var dirty=pendingEdits.some("),'Scopes Close must use scope-specific pending edits');
 assert.ok(grid.includes("Discard unsaved scope changes?"),'Scopes Close must protect unsaved scope edits');
 assert.ok(grid.includes("panel.hidden=true;extensionTargetAuditId20='';extensionTargetCompanyUid20=''"),'Scopes Close must close and clear EXT-only company and audit context');
-assert.ok(grid.includes('aria-label="Manage extensions for this company"'),'Extension control should be compact and accessible');
+assert.ok(grid.includes("multi?'Manage extensions for this audit':'Apply or undo extension for this audit'"),'Extension controls must be accessible for both multi-scope and single-scope audits');
 assert.ok(!grid.includes('>Manage Extensions</button>'),'Oversized extension label must not return');
 assert.ok(!grid.includes('>Scope details</button>'),'Unfinished Scope details action must be hidden');
 assert.ok(grid.includes('class=\\\"audit-date-head\\\"'),'Completed date header must be explicit');

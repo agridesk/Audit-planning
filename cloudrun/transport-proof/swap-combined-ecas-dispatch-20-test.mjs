@@ -11,6 +11,7 @@ const ctx={String,JSON,Date,Error,Array,Object,
  Swap20Journal_history_:()=>[{stage:'PREPARED',payload:{canonical:{headers:['Audit ID','Planning JSON'],rows:[{auditId:'A',values:['A','{}']},{auditId:'B',values:['B','{}']}]}}},{stage:'WRITING'},{stage:'COMMITTED'}],
  SpreadsheetApp:{openById:()=>({getSheetByName:()=>({getLastRow:()=>1})})},
  NotificationConfig_GetQueueSheetName:()=> 'Notification Queue',
+ NotificationConfig_GetAllEvents:()=>({'ECAS_AUDIT_CHANGED_DIGEST':{active:true}}),
  NotificationConfig_GetEvent:()=>({active:false}),
  StatusNotificationBridge_GetEcasRecipientEmail_:()=>{attempts++;return 'x@example.com'}
 };

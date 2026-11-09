@@ -1,0 +1,51 @@
+AMS 2.0 — CERTIFICATION BODY (CB) NOTIFICATIONS — DEV ACCEPTANCE / STATUS
+Date: 2026-11-09
+Language: English
+Scope: DEV only. No PROD deployment.
+
+CONFIRMED SOURCE OF TRUTH
+Spreadsheet: Audit Management System DEV
+- Config_Scopes: 8 active operational scopes mapped to Certification_Body_ID = ECAS; inactive test scope remains without a CB.
+- Company_Scopes: 179 existing records with immutable Certification_Body_ID = ECAS.
+- Audit_Obligations: 199 existing records with immutable Certification_Body_ID = ECAS.
+- Certification_Bodies: ECAS, Notification_Email = admin@agriqa.es, Email_Verified = TRUE, Notification_Enabled = TRUE.
+- The user explicitly acts as an intermediary filter before forwarding notices to the CB. The official ECAS contact planning@ecas.nl remains in the notes only, NOT the routing address.
+- Notification_Config: CB_EXTENSION_APPLIED and CB_EXTENSION_UNDONE ACTIVE=YES, SEND_EMAIL=YES, BUFFER_MINUTES=10, RECIPIENT_TARGET=SCOPE_CERTIFICATION_BODY.
+- Notification_Templates: two generic English templates registered. CB_Extension_Outbox tab has an immutable event schema.
+- System_Config DEV: DEV_NOTIFICATION_MODE=TEST_TO_SELF; SEND_NOTIFICATIONS=TRUE; DEV_TEST_EMAIL configured.
+- System_Config PROD: notifications OFF. TEST_TO_SELF sends real email to the configured DEV test recipient, not to the configured CB destination.
+
+GITHUB SOURCE
+- server-r4.js: manager EXT/Undo verifies changes, appends CB-specific outbox intent, reads it back; reports RECOVERY_REQUIRED if append fails after commit. Directly sends no mail.
+- model-c-new-obligation-provenance-20.js: captures the Certification_Body_ID on new obligations from Company_Scopes, fails closed if missing or conflicting.
+- New company-scope assignment persists Certification_Body_ID from registered active CB, no hardcoding.
+- All Company_Scopes and Audit_Obligations source reads in server-r4.js include new columns M and AA.
+- CB_Extension_Notifications_20.js: Apps Script queue reconciler, 10-minute delay from latest state, Apply/Undo net-state suppression, stale/superseded queue suppression, dynamic verified recipient, pre-send fail-closed guard and status receipts. Exact DEV spreadsheet ID required.
+- NotificationSender.js: invokes CB reconciler under its existing lock, executes guard before any actual send, routes new template messages without legacy ECAS/Ecert renderer and records receipts.
+- certification-body-extension-outbox-20.mjs: pure immutable outbox planner and reducer; tests include different CBs and scope leakage.
+- certification-body-notification-overview-20.mjs and server-r15.js: manager-only dashboard read model, CB readiness, outbox counts.
+- notification-manager-20.html: new Certification Bodies tab. Recipient and status are dynamically displayed.
+- NotificationConfigCanonicalizer.js: generic CB events added as disabled-by-default canonical entries to preserve current user-configured values without silently enabling unknown environments.
+
+FOCUSED CHECKS
+- CB routing test: 16 assertions passed.
+- CB outbox test: 15 assertions passed.
+- GAS mock send / Apply-Undo / recipient guard / PROD spreadsheet isolation: 18 assertions passed after update.
+- CB notification overview model: 13 assertions passed.
+- Earlier scope-create and scope management tests passed; user previously reported full npm test green before these changes.
+- Full npm test must run against latest commit before isolated DEV deployment.
+
+IMPORTANT DEPLOYMENT LIMITATION
+GitHub commits do NOT automatically publish Google Apps Script files into the running Apps Script project. The CB GAS module and NotificationSender.js must be published using the project's normal verified DEV GAS release workflow. Updating Cloud Run alone does NOT make the reconciler active. An Apps Script release cannot be truthfully claimed without an external script deployment.
+New CB event settings are ON in the DEV workbook, but the outbox is empty and no CB-notification delivery has occurred. There is no evidence of a live external CB send.
+Existing ECAS approval/cancellation/changed notification families still contain ECAS-specific routing and template code; they have not been migrated by this EXT/Undo change and are not to be claimed CB-generic.
+Before enabling real direct CB delivery, retain TEST_TO_SELF and verify user inbox, prior communication receipts, mixed-CB visit, Ecas legacy parity, and no duplicate notification path.
+No CB address is hardcoded into new notification routing code or generic email templates.
+
+REMAINING ACCEPTANCE
+1. Run full npm test and deploy latest GitHub dev branch ONLY to isolated ams-fase12-dev.
+2. Publish the two GAS source files using authenticated DEV GAS project workflow, without touching PROD.
+3. Execute end-to-end DEV Apply, Undo within 10 minutes, Undo after confirmed SENT, TEST_TO_SELF receipt and no cross-CB leakage.
+4. Validate dashboard, templates and queue statuses from authenticated manager session.
+5. Separately plan migration of older ECAS-specific approval/cancel routes; do not silently change historical queues or actual CB communication.
+6. Keep >20 capacity changes solely in AMS 3.0.

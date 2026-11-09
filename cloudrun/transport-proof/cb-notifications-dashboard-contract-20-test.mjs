@@ -8,10 +8,8 @@ const builder=read('./certification-body-extension-outbox-20.mjs');
 const script=ui.match(/<script>([\s\S]*?)<\/script>/)?.[1];assert(script);
 new vm.Script(script);
 new vm.Script(cb);new vm.Script(sender);
-for(const key of ['CB_EXTENSION_APPLIED','CB_EXTENSION_UNDONE']){
- assert(server.includes(key),'Server must enforce CB buffer constraints');
- assert(ui.includes(key),'Manager dashboard must expose the CB extension event');
-}
+assert(server.includes('/^CB_EXTENSION_(APPLIED|UNDONE)$/'),'Server must recognize both CB events');
+assert(ui.includes('/^CB_EXTENSION_(APPLIED|UNDONE)$/'),'Manager dashboard must enforce event-specific minimum');
 assert(server.includes("minutes<10"),'API must reject CB delay under 10 minutes');
 assert(ui.includes("minimum=isCb?10:0"),'UI must show CB minimum delay');
 assert(server.includes("u.pathname==='/api/v1/notifications-manager-20/cb-settings'"));

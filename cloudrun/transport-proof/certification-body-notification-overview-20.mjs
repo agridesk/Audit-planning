@@ -9,7 +9,7 @@ const table=(values,required,name)=>{
 export function buildCbNotificationOverview20({bodies=[],scopes=[],outbox=[],config=[]}={}){
  const b=table(bodies,['Certification_Body_ID','Display_Name','Active','Notification_Email','Email_Verified','Notification_Enabled'],'BODIES');
  const s=table(scopes,['ScopeCode','Certification_Body_ID','Active'],'SCOPES');
- const o=table(outbox,['Event_ID','Certification_Body_ID','Status'],'OUTBOX');
+ const o=table(outbox,['Event_ID','Certification_Body_ID','Status','Not_Before','Created_At','Last_Error'],'OUTBOX');
  const c=table(config,['EVENT_KEY','ACTIVE','SEND_EMAIL','BUFFER_MINUTES'],'CONFIG');
  const cbCodes=new Set(),items=[],eventKeys=['CB_EXTENSION_APPLIED','CB_EXTENSION_UNDONE'];
  const policy=eventKeys.map(key=>{
@@ -32,7 +32,12 @@ export function buildCbNotificationOverview20({bodies=[],scopes=[],outbox=[],con
     notificationsEnabled=yes(b.get(r,'Notification_Enabled')),notificationEmail=b.get(r,'Notification_Email');
   const ready=active&&emailVerified&&notificationsEnabled&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(notificationEmail)
     &&policy.every(e=>e.active&&e.sendEmail&&e.validBuffer);
-  items.push({certificationBodyId:id,displayName:b.get(r,'Display_Name'),active,notificationEmail,emailVerified,
+  const pending=o.rows.filter(x=>o.get(x,'Certification_Body_ID')===id&&o.get(x,'Event_ID')&&['BUFFERED','QUEUED','BLOCKED','FAILED'].includes(o.get(x,'Status')));
+  const nextDue=pending.map(x=>o.get(x,'Not_Before')).filter(Boolean).sort()[0]||'';
+  const recentErrors=pending.filter(x=>o.get(x,'Last_Error')).slice(-3).map(x=>({
+   eventId:o.get(x,'Event_ID'),status:o.get(x,'Status'),reason:o.get(x,'Last_Error').slice(0,180)
+  }));
+  items.push({nextDue,recentErrors,certificationBodyId:id,displayName:b.get(r,'Display_Name'),active,notificationEmail,emailVerified,
    notificationsEnabled,scopeCount:associated.length,activeScopeCount:associated.filter(x=>yes(s.get(x,'Active'))).length,
    statusCounts,readyForExternalDelivery:ready});
  }

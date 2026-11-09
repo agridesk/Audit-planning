@@ -82,7 +82,7 @@ assert(!combinedSection.includes('Hallo,')&&!combinedSection.includes('Bedankt,'
 assert(testContext.NB_ecasExtensionsSectionText_([{eventCode:'CB_EXTENSION_APPLIED',payload:extensionPayload}]).includes('31-03-2027'));
 assert(sender.includes('Opportunistic inclusion only'),'Only already-due ECAS groups may combine');
 assert(sender.includes("CB_Extension_Outbox_RecordDelivery_(group.items.filter"),'Mixed delivery receipt must only record extension rows');
-assert(sender.includes("CB_Extension_Outbox_PreflightSend_(group.items.filter"),'Mixed preflight must only validate extension rows');
+assert(sender.includes('CB_Extension_Outbox_PreflightSend_([ext],group.recipient)'),'Each extension requires individual current-state preflight');
 
 
 const withMps=testContext.NB_renderEcasExtensionDigest_('',{eventCode:'CB_EXTENSION_APPLIED',payload:{...extensionPayload,extensionDetails:{...extensionPayload.extensionDetails,MPS_NUMBER:'913496'}}});
@@ -137,7 +137,10 @@ const builderCtx={
   NB_ecasExtensionsSectionHtml_:testContext.NB_ecasExtensionsSectionHtml_,
   NB_ecasExtensionsSectionText_:testContext.NB_ecasExtensionsSectionText_
 };
-vm.runInNewContext(notificationBuilder,builderCtx);
+const digestStart=notificationBuilder.indexOf('function NB_renderDigestEmail_(');
+const digestEnd=notificationBuilder.indexOf('/* ============================================================\\n * PUBLIC: payload builder',digestStart);
+assert(digestStart>=0&&digestEnd>digestStart,'Digest function source must exist');
+vm.runInNewContext(notificationBuilder.slice(digestStart,digestEnd),builderCtx);
 const mixedRendered=builderCtx.NB_renderDigestEmail_('ecas@example.invalid',[
  {eventCode:'ECAS_AUDIT_APPROVAL_DIGEST',payload:{company:'Test grower'}},
  {eventCode:'CB_EXTENSION_APPLIED',payload:extensionPayload}

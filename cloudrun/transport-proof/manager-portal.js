@@ -1143,7 +1143,9 @@ if(tab!=='versions'){
    for(var j=0;j<changes.length;j++){var e=changes[j];if(e.kind!=='policy')continue;
     var pre=await fetch('/api/v1/manager/scopes/impact?scopeCode='+encodeURIComponent(scopeCode)+'&field='+encodeURIComponent(e.field),{credentials:'same-origin'}),impact=await pre.json();
     if(!pre.ok||!impact.ok)throw Error(impact.error||'IMPACT_UNAVAILABLE');
-    if((['YES','TRUE'].includes(String(impact.current).trim().toUpperCase())?'TRUE':['NO','FALSE'].includes(String(impact.current).trim().toUpperCase())?'FALSE':String(impact.current).trim().toUpperCase())!==String(e.initial).trim().toUpperCase())throw Error('STALE_SCOPE_POLICY: '+e.field);
+    var currentValue=String(impact.current??'').trim().toUpperCase(),initialValue=String(e.initial??'').trim().toUpperCase();
+    if(['Active','Archived'].includes(e.field)){currentValue=['YES','TRUE','1'].includes(currentValue)?'TRUE':['NO','FALSE','0'].includes(currentValue)?'FALSE':currentValue;}
+    if(currentValue!==initialValue)throw Error('STALE_SCOPE_POLICY: '+e.field);
     impacts.push({field:e.field,impact:impact});
    }
    

@@ -17,6 +17,11 @@ assert.equal(first.notificationStatus,'AWAITING_PRIOR_ECAS_RECEIPTS');
 const retry=ctx.Swap20_stageNotificationAfterCommitLocked_(proposal.operationId);
 assert.equal(retry.idempotent,true);
 assert.equal(Object.keys(memory).filter(k=>k.startsWith('AMS_SWAP20_ECAS_INTENT_')).length,1);
+const intentKey=Object.keys(memory).find(k=>k.startsWith('AMS_SWAP20_ECAS_INTENT_'));
+const queuedIntent=JSON.parse(memory[intentKey]);queuedIntent.status='QUEUED';
+memory[intentKey]=JSON.stringify(queuedIntent);
+assert.equal(ctx.Swap20_stageNotificationAfterCommitLocked_(proposal.operationId).queued,true,
+ 'Idempotent retry must preserve recorded queue status');
 proposal.ecasComment='Edited reason after sending intent';
 assert.throws(()=>ctx.Swap20_stageNotificationAfterCommitLocked_(proposal.operationId),/intent conflict/);
 proposal.ecasComment='Combined schedule update';

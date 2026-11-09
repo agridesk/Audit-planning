@@ -403,7 +403,7 @@ async function notificationsManagerOverview(req,res){
  const result=notificationOverview({config:data.Notification_Config,rules:data.Notification_Rules,settings:systemSettingsForCount,queue});
  if(runtime.isDev){
   const cbInputs={};
-  for(const [name,limit] of [['Certification_Bodies',200],['Config_Scopes',128],['CB_Extension_Outbox',2500]]){
+  for(const [name,limit] of [['Certification_Bodies',200],['Config_Scopes',128],['CB_Extension_Outbox',2500],['Notification_Templates',200]]){
    const range="'"+name+"'!A1:AZ"+limit;
    const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range);
    const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()}});
@@ -414,6 +414,13 @@ async function notificationsManagerOverview(req,res){
   }
   result.cbNotifications=buildCbNotificationOverview20({bodies:cbInputs.Certification_Bodies,
    scopes:cbInputs.Config_Scopes,outbox:cbInputs.CB_Extension_Outbox,config:data.Notification_Config});
+  const templateRows=cbInputs.Notification_Templates,templateHeaders=(templateRows[0]||[]).map(x=>String(x||'').trim());
+  const idx=k=>templateHeaders.indexOf(k);
+  if(['TEMPLATE_KEY','SUBJECT_TEMPLATE','TEXT_BODY','ACTIVE'].some(k=>idx(k)<0))throw Error('CB_TEMPLATE_SCHEMA_INVALID');
+  result.cbNotificationTemplates=templateRows.slice(1).filter(r=>/^CB_EXTENSION_(APPLIED|UNDONE)$/.test(String(r[idx('TEMPLATE_KEY')]||''))).map(r=>({
+   templateKey:String(r[idx('TEMPLATE_KEY')]),subject:String(r[idx('SUBJECT_TEMPLATE')]||''),
+   body:String(r[idx('TEXT_BODY')]||''),active:String(r[idx('ACTIVE')]||'').toUpperCase()==='YES'
+  }));
  }
  const sys=data.System_Config||[];const envHeaders=(sys[0]||[]).map(v=>String(v||'').trim().toUpperCase());const envCol=envHeaders.indexOf(runtime.mode);const systemMap={};for(const row of sys.slice(1)){const key=String(row[0]||'').trim().toUpperCase();if(key&&envCol>=0)systemMap[key]=String(row[envCol]||'').trim();}
  // Environment-specific notification settings are owned exclusively by System_Config; do not read legacy Notification_Settings.

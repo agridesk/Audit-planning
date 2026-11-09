@@ -60,6 +60,8 @@ const extensionPayload={certificationBodyId:'ECAS',rendererProfile:'ECAS_AUDIT_A
 const apply=testContext.NB_renderEcasExtensionDigest_('',{eventCode:'CB_EXTENSION_APPLIED',payload:extensionPayload});
 assert(apply.htmlBody.includes('ecas-shell')&&apply.htmlBody.includes('Extensions / Undo'));
 assert(apply.body.includes('Verlenging toegepast'));
+const withMps=testContext.NB_renderEcasExtensionDigest_('',{eventCode:'CB_EXTENSION_APPLIED',payload:{...extensionPayload,extensionDetails:{...extensionPayload.extensionDetails,MPS_NUMBER:'913496'}}});
+assert(withMps.htmlBody.includes('MPS No.')&&withMps.body.includes('913496'),'ECAS renderer shows canonical MPS number when present');
 const undo=testContext.NB_renderEcasExtensionDigest_('',{eventCode:'CB_EXTENSION_UNDONE',payload:extensionPayload});
 assert(undo.body.includes('Verlenging ingetrokken'));
 assert.throws(()=>testContext.NB_renderEcasExtensionDigest_('',{eventCode:'CB_EXTENSION_APPLIED',

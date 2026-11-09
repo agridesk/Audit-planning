@@ -71,6 +71,7 @@ const extensionPayload={certificationBodyId:'ECAS',rendererProfile:'ECAS_AUDIT_A
  COMPANY_NAME:'Test grower',MPS_NUMBER:'913496',SCOPE_NAME:'ABC',
  PREVIOUS_EXPIRY:'2026-12-31',EFFECTIVE_EXPIRY:'2027-03-31',CHANGED_AT:'2026-11-09'}};
 const apply=testContext.NB_renderEcasExtensionDigest_('',{eventCode:'CB_EXTENSION_APPLIED',payload:extensionPayload});
+assert(apply.htmlBody.includes('background:#ddeeff'),'Standalone ECAS EXT must show colored scope badge');
 const scopeMock=[
  ['SlotKey','ScopeCode','DisplayName','Certification_Body_ID'],
  ['SCOPE_01','MPS-ABC','MPS-ABC','ECAS'],

@@ -38,6 +38,9 @@ assert(sender.includes('NB_renderEcasExtensionDigest_'),'ECAS extension must reu
 const legacyEcas=read('../../NotificationRenderer_PlanningToClientDigest.js');
 assert(legacyEcas.includes('function NB_renderEcasExtensionDigest_'),'ECAS extension renderer must exist within the established digest file');
 assert(legacyEcas.includes('NB_externalShellStart_()')&&legacyEcas.includes("NB_externalTh_('MPS No.'"),'ECAS extension renderer must use the existing six-column horizontal digest table');
+assert(legacyEcas.includes('NB_assertCommittedSwapJournal_(swapOperationId)'),'Atomic SWAP must verify journal COMMITTED at render time');
+assert(legacyEcas.includes('NB_assertEcasSwapScopeOwnership_(normalizedSwapChild.scopes)'),'Each SWAP child must validate its live scope CB');
+assert(ui.includes('SWAP (ECAS)'),'SWAP configuration must be visible in Notifications Dashboard');
 assert(ui.includes("cb.recentErrors"));
 assert(ui.includes("cb.nextDue"));
 assert(sender.includes("cfg={...cfg,consolidate:false,bufferMinutes:0,digestGroup:'CB_EXTENSION_SINGLE'}"),'Do not wait twice');

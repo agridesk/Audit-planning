@@ -643,12 +643,12 @@ function NB_renderEcasSwapRows_(items) {
 }
 function NB_renderEcasSwapsSectionText_(items) {
   var rows=NB_renderEcasSwapRows_(items);
-  return ['SWAP','MPS No. | Bedrijf | Scope | Auditor | Vorige planning | Nieuwe planning']
+  return ['SWAP – Gewijzigde auditplanning','MPS No. | Bedrijf | Scope | Auditor | Vorige planning | Nieuwe planning']
     .concat(rows.map(function(r){return r.join(' | ');})).join('\n');
 }
 function NB_renderEcasSwapsSectionHtml_(items) {
   var rows=NB_renderEcasSwapRows_(items),html=[];
-  html.push('<div style="font-size:13px;font-weight:700;color:#111827;margin:12px 0 5px 0">SWAP</div>');
+  html.push('<div style="font-size:13px;font-weight:700;color:#111827;margin:12px 0 5px 0">SWAP – Gewijzigde auditplanning</div>');
   html.push('<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;font-size:11px;line-height:1.25;table-layout:auto;margin:0 0 9px 0;color:#111827"><thead><tr>');
   [['MPS No.','width:82px'],['Bedrijf','width:175px'],['Scope','width:138px'],
    ['Auditor','width:155px'],['Vorige planning','width:185px'],['Nieuwe planning','width:185px']]

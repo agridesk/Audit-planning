@@ -17,6 +17,7 @@ for(const flag of ['Active','Archived']){
  assert.deepEqual(value,{boolValue:false},flag+' must be a native Sheets boolean');
 }
 assert.deepEqual(requests[0].appendCells.rows[0].values[headers.indexOf('Recurring')].userEnteredValue,{stringValue:'NO'},'Recurring must preserve canonical YES/NO convention');
+assert.deepEqual(requests[0].appendCells.rows[0].values[headers.indexOf('Max number audits')].userEnteredValue,{numberValue:3},'Legacy J rotation maximum must match W');
 assert.deepEqual(requests[0].appendCells.rows[0].values[headers.indexOf('Rotation_Normal_Maximum')].userEnteredValue,{numberValue:3});
 assert.deepEqual(requests[0].appendCells.rows[0].values[headers.indexOf('Rotation_Applies')].userEnteredValue,{boolValue:true});
 assert.deepEqual(requests[0].appendCells.rows[0].values[headers.indexOf('Rotation_Plus_One_Permitted')].userEnteredValue,{boolValue:false});

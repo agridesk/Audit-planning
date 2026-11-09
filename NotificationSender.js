@@ -805,6 +805,30 @@ function ns_sendDueReserved_(nqSheet, values) {
   });
 
   if (!keys.length) return { processedGroups:0, sentGroups:0, failedGroups:0, sentRows:0, failedRows:0 };
+  // Opportunistic inclusion only: combine already-due ECAS extension and audit
+  // groups for the same recipient. No extra hold, new digest group, or new route.
+  // Do not absorb atomic SWAP groups: their existing 2-audit envelope is protected.
+  var extensionKeys=keys.filter(function(key){
+    var g=allGroups[key];
+    return g.items.length===1
+      &&/^CB_EXTENSION_(APPLIED|UNDONE)$/.test(String(g.items[0].eventCode||''))
+      &&String((g.items[0].payload||{}).certificationBodyId||'')==='ECAS';
+  });
+  extensionKeys.forEach(function(extKey){
+    var eg=allGroups[extKey];
+    var targetKey=keys.find(function(key){
+      if(key===extKey)return false;
+      var g=allGroups[key];
+      return g.recipient.trim().toLowerCase()===eg.recipient.trim().toLowerCase()
+        &&g.items.some(function(it){return /^ECAS_AUDIT_(APPROVAL|CANCELLED|CHANGED|REJECTED)_DIGEST$/.test(String(it.eventCode||''));})
+        &&!g.items.some(function(it){return String(it.auditId||'').indexOf('SWAP_')===0;});
+    });
+    if(!targetKey)return;
+    allGroups[targetKey].items=allGroups[targetKey].items.concat(eg.items);
+    allGroups[targetKey].rows=allGroups[targetKey].rows.concat(eg.rows);
+    keys=keys.filter(function(k){return k!==extKey;});
+  });
+
 
   var sentGroups = 0;
   var failedGroups = 0;
@@ -838,7 +862,7 @@ function ns_sendDueReserved_(nqSheet, values) {
       var isCbExtension=group.items.some(function(it){return /^CB_EXTENSION_(APPLIED|UNDONE)$/.test(String(it.eventCode||''))});
       if(isCbExtension){
         if(typeof CB_Extension_Outbox_PreflightSend_!=='function')throw Error('CB_EXTENSION_SENDER_GUARD_MISSING');
-        CB_Extension_Outbox_PreflightSend_(group.items,group.recipient);
+        CB_Extension_Outbox_PreflightSend_(group.items.filter(function(it){return /^CB_EXTENSION_(APPLIED|UNDONE)$/.test(String(it.eventCode||''));}),group.recipient);
       }
       // IMPORTANT:
       // Rendering is inside the try block. If a renderer fails, the group must

@@ -1049,7 +1049,7 @@ function el(tag,value){var x=document.createElement(tag);x.textContent=value==nu
 function showDetails(){if(!selected)return;pendingEdits=[];dossier.hidden=false;document.getElementById('scopeManagement20Name').textContent=selected.displayName+' ('+selected.scopeCode+')';var p=selected.policy||{},fields=[];
 if(tab==='general')fields=[['Scope name',selected.displayName],['Scope code',selected.scopeCode],['Certification Body',selected.certificationBodyName||selected.certificationBodyId||'Not assigned'],['CB notification email',selected.certificationBodyNotificationEmail||'Not configured'],['CB external notifications',selected.certificationBodyNotificationReady?'Enabled':'Disabled'],['Slot',selected.slotKey],['Active',selected.active],['Archived',selected.archived],['Color',p.Color],['Text color',p.TextColor],['Sort order',p.SortOrder]];
 if(tab==='versions')fields=[];
-if(tab==='rules')fields=[['Rotation limit',selected.rotationLimit],['Minimum interval',selected.minimumIntervalMonths],['Max off-site hours',p.Max_Offsite_Hours],['Planning from',selected.planningFrom],['Planning to',selected.planningTo],['Recurring',p.Recurring],['Cycle',p['Obligation cycle']],['Complete by',p['Complete by']]];
+if(tab==='rules')fields=[['Rotation limit',selected.rotationLimit],['Rotation applies',p.Rotation_Applies],['Plus-one permitted',p.Rotation_Plus_One_Permitted],['Minimum interval',selected.minimumIntervalMonths],['Max off-site hours',p.Max_Offsite_Hours],['Planning from',selected.planningFrom],['Planning to',selected.planningTo],['Recurring',p.Recurring],['Cycle',p['Obligation cycle']],['Complete by',p['Complete by']]];
 if(tab==='sources')fields=[['Extension',p.Extension],['Provisioning source',p['Provisioning source']],['Trigger source',p['Trigger source']],['Source service',p['Source service']]];
 details.replaceChildren();
 if(tab==='versions'){
@@ -1116,13 +1116,13 @@ var history=document.createElement('details');history.style.marginTop='8px';var 
 fields.forEach(function(f){
  details.appendChild(el('dt',f[0]));
  var dd=el('dd',''),cosmeticMap={'Scope name':'DisplayName','Color':'Color','Text color':'TextColor','Sort order':'SortOrder'},field=cosmeticMap[f[0]];
- var policyMap={'Rotation limit':'Max number audits','Minimum interval':'Min_Interval_Months','Max off-site hours':'Max_Offsite_Hours','Planning from':'Planning from','Planning to':'Planning to','Active':'Active','Archived':'Archived','Extension':'Extension','Recurring':'Recurring','Cycle':'Obligation cycle','Complete by':'Complete by','Provisioning source':'Provisioning source','Trigger source':'Trigger source','Source service':'Source service'};
+ var policyMap={'Rotation limit':'Rotation_Normal_Maximum','Rotation applies':'Rotation_Applies','Plus-one permitted':'Rotation_Plus_One_Permitted','Minimum interval':'Min_Interval_Months','Max off-site hours':'Max_Offsite_Hours','Planning from':'Planning from','Planning to':'Planning to','Active':'Active','Archived':'Archived','Extension':'Extension','Recurring':'Recurring','Cycle':'Obligation cycle','Complete by':'Complete by','Provisioning source':'Provisioning source','Trigger source':'Trigger source','Source service':'Source service'};
  var policyField=policyMap[f[0]],canPolicy=(tab==='rules'||tab==='sources')&&!!policyField||tab==='general'&&['Active','Archived'].includes(f[0]);
  if(canPolicy||field&&field!=='Color'&&field!=='TextColor'){
   var input=document.createElement(policyField==='Recurring'?'select':'input');
   if(policyField==='Recurring'){['YES','NO'].forEach(function(v){var option=document.createElement('option');option.value=v;option.textContent=v;input.appendChild(option)})}
   var initial=canPolicy?String(selected.policy[policyField]??''):String(selected.policy[field]??'');
-  if(canPolicy&&['Active','Archived'].includes(policyField)){initial=['TRUE','YES','1'].includes(initial.trim().toUpperCase())?'TRUE':'FALSE';input=document.createElement('select');['TRUE','FALSE'].forEach(function(v){var option=document.createElement('option');option.value=v;option.textContent=v==='TRUE'?'Yes':'No';input.appendChild(option)})}
+  if(canPolicy&&['Active','Archived','Rotation_Applies','Rotation_Plus_One_Permitted'].includes(policyField)){initial=['TRUE','YES','1'].includes(initial.trim().toUpperCase())?'TRUE':'FALSE';input=document.createElement('select');['TRUE','FALSE'].forEach(function(v){var option=document.createElement('option');option.value=v;option.textContent=v==='TRUE'?'Yes':'No';input.appendChild(option)})}
   input.value=initial;input.style.maxWidth='200px';input.setAttribute('aria-label',f[0]);dd.appendChild(input);
   pendingEdits.push({field:canPolicy?policyField:field,kind:canPolicy?'policy':'cosmetic',input:input,initial:initial});
  }else{var val=f[1]==null?'':String(f[1]);dd.textContent=field==='Color'||field==='TextColor'?'Edit in scope overview':val||'Not configured';if(!val)dd.style.opacity='0.65'}
@@ -1144,7 +1144,7 @@ if(tab!=='versions'){
     var pre=await fetch('/api/v1/manager/scopes/impact?scopeCode='+encodeURIComponent(scopeCode)+'&field='+encodeURIComponent(e.field),{credentials:'same-origin'}),impact=await pre.json();
     if(!pre.ok||!impact.ok)throw Error(impact.error||'IMPACT_UNAVAILABLE');
     var currentValue=String(impact.current??'').trim().toUpperCase(),initialValue=String(e.initial??'').trim().toUpperCase();
-    if(['Active','Archived'].includes(e.field)){currentValue=['YES','TRUE','1'].includes(currentValue)?'TRUE':['NO','FALSE','0'].includes(currentValue)?'FALSE':currentValue;}
+    if(['Active','Archived','Rotation_Applies','Rotation_Plus_One_Permitted'].includes(e.field)){currentValue=['YES','TRUE','1'].includes(currentValue)?'TRUE':['NO','FALSE','0'].includes(currentValue)?'FALSE':currentValue;}
     if(currentValue!==initialValue)throw Error('STALE_SCOPE_POLICY: '+e.field);
     impacts.push({field:e.field,impact:impact});
    }

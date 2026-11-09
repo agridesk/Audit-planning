@@ -33,12 +33,12 @@ for(const [field,current,caption,explain] of [['ACTIVE',active,'Notification ena
 const line=element('div','setting-row'),copy=element('div');copy.append(element('strong','',caption),element('p','',explain));const btn=element('button','setting-switch',current?'ON':'OFF');btn.type='button';btn.setAttribute('role','switch');btn.setAttribute('aria-checked',String(current));btn.setAttribute('aria-label',caption);btn.title='Prepare change; confirmation is required before saving';line.append(copy,btn);root.append(line);
 btn.addEventListener('click',()=>{const previous=root.querySelector('.pending');if(previous)previous.remove();const nextActive=field==='ACTIVE'?!current:active,nextEmail=field==='SEND_EMAIL'?!current:email;const panel=element('div','pending');panel.append(element('h3','','Confirm change'),element('p','',caption+' for '+label(e.eventKey)+' will change from '+(current?'ON':'OFF')+' to '+(!current?'ON':'OFF')+'.'));const newImpact=element('div','impact');newImpact.append(element('strong','','Effect after change'),element('p','',effectiveState(nextActive,nextEmail,logOnly)),element('p','muted','Recipient target: '+label(e.recipientTarget||'Not configured')+'. Other notification events are unchanged. PENDING and RESERVED queue entries are not automatically cancelled by this setting change.'));panel.append(newImpact);const actions=element('div','detail-actions');const save=element('button','','Confirm change'),cancel=element('button','','Cancel');actions.append(save,cancel);panel.append(actions);root.append(panel);cancel.addEventListener('click',()=>panel.remove());save.addEventListener('click',async()=>{save.disabled=true;cancel.disabled=true;try{await apiPost('/api/v1/notifications-manager-20/events',{eventKey:e.eventKey,field,value:!current,expected:current});await load();const updated=model.events.find(x=>x.eventKey===e.eventKey);if(updated)showDetail(updated)}catch(err){const msg=element('p','error',err.message);panel.append(msg);save.disabled=false;cancel.disabled=false}});panel.scrollIntoView({behavior:'smooth',block:'nearest'})})}
 if(e.bufferMinutes!==undefined&&e.bufferMinutes!==null&&String(e.bufferMinutes).trim()!==''){
- const prior=Number(e.bufferMinutes),valid=n=>Number.isInteger(n)&&n>=0&&n<=1440;
+ const prior=Number(e.bufferMinutes),isCb=/^CB_EXTENSION_(APPLIED|UNDONE)$/.test(e.eventKey),minimum=isCb?10:0,valid=n=>Number.isInteger(n)&&n>=minimum&&n<=1440;
  if(valid(prior)){
   const line=element('div','setting-row'),copy=element('div');copy.append(element('strong','','Digest buffer (minutes)'),element('p','','Time to collect new notifications before sending. Existing RESERVED digests retain their original due time; sender processing frequency is separate.'));
-  const input=element('input');input.type='number';input.min='0';input.max='1440';input.step='1';input.value=String(prior);input.setAttribute('aria-label','Digest buffer minutes');
+  const input=element('input');input.type='number';input.min=String(minimum);input.max='1440';input.step='1';input.value=String(prior);input.setAttribute('aria-label','Digest buffer minutes');
   const save=element('button','','Save buffer');save.type='button';line.append(copy,input,save);root.append(line);
-  save.addEventListener('click',async()=>{const next=Number(input.value);if(!valid(next)||String(input.value).trim()===''){alert('Enter whole minutes between 0 and 1440');return;}if(next===prior)return;save.disabled=true;try{await apiPost('/api/v1/notifications-manager-20/digest-buffer',{eventKey:e.eventKey,minutes:next,expected:prior});await load();const updated=model.events.find(x=>x.eventKey===e.eventKey);if(updated){showDetail(updated);const detail=$('eventDetail');const ok=element('p','muted','Saved: digest buffer is now '+String(updated.bufferMinutes)+' minutes.');ok.setAttribute('role','status');detail.append(ok);}else{const ok=element('p','muted','Digest buffer saved.');ok.setAttribute('role','status');$('eventDetail').append(ok);}}catch(err){const msg=element('p','error',err.message);root.append(msg);save.disabled=false;}});
+  save.addEventListener('click',async()=>{const next=Number(input.value);if(!valid(next)||String(input.value).trim()===''){alert('Enter whole minutes between '+minimum+' and 1440');return;}if(next===prior)return;save.disabled=true;try{await apiPost('/api/v1/notifications-manager-20/digest-buffer',{eventKey:e.eventKey,minutes:next,expected:prior});await load();const updated=model.events.find(x=>x.eventKey===e.eventKey);if(updated){showDetail(updated);const detail=$('eventDetail');const ok=element('p','muted','Saved: digest buffer is now '+String(updated.bufferMinutes)+' minutes.');ok.setAttribute('role','status');detail.append(ok);}else{const ok=element('p','muted','Digest buffer saved.');ok.setAttribute('role','status');$('eventDetail').append(ok);}}catch(err){const msg=element('p','error',err.message);root.append(msg);save.disabled=false;}});
  }
 }
 root.classList.remove('hidden');root.scrollIntoView({behavior:'smooth',block:'nearest'})}
@@ -75,6 +75,12 @@ function renderRules(){
  }
  if(!root.children.length)root.append(element('p','empty','No editable rules found.'));
 }
+async function updateCbSettings(kind,id,field,value,expected){
+ if(value===expected)return;
+ if(!confirm('Save '+field.replaceAll('_',' ')+' for '+id+' in DEV?'))return;
+ await apiPost('/api/v1/notifications-manager-20/cb-settings',{kind,id,field,value,expected});
+ await load();
+}
 function renderCertificationBodies(){
  const m=model?.cbNotifications,health=$('cbHealth'),policies=$('cbEventPolicies'),root=$('cbBodyList');
  health.replaceChildren();policies.replaceChildren();root.replaceChildren();
@@ -82,20 +88,68 @@ function renderCertificationBodies(){
  card(health,'Registered CBs',m.certificationBodies.length);
  card(health,'Unknown active scope assignments',m.unknownActiveScopeCount);
  card(health,'Unknown outbox CB identities',m.unknownEventBodyCount);
- const policyBox=element('div','panel'),policyTitle=element('h3','','Extension notification policies');policyBox.append(policyTitle);
- for(const item of m.eventPolicies||[]){const p=element('p','muted',label(item.eventKey)+': '+(item.active?'Enabled':'Disabled')+' · minimum buffer '+item.bufferMinutes+' min'+(item.validBuffer?'':' · INVALID BUFFER'));policyBox.append(p)}
+ const policyBox=element('div','panel');policyBox.append(element('h3','','EXT / Undo notification settings'),
+  element('p','muted','Each event can be enabled or disabled independently. The delay must be at least 10 minutes after the last change. Existing pending messages are checked again before delivery.'));
+ for(const policy of m.eventPolicies||[]){
+  const row=element('div','setting-row'),left=element('div');
+  left.append(element('strong','',label(policy.eventKey)),
+   element('p','muted',(policy.active?'Enabled':'Disabled')+' · Email '+(policy.sendEmail?'enabled':'disabled')+' · '+policy.bufferMinutes+' min delay'));
+  const button=element('button','close','Configure event');button.type='button';
+  button.addEventListener('click',()=>{
+   const event=model.events.find(x=>x.eventKey===policy.eventKey);
+   if(!event)return alert('Event configuration missing');
+   const tab=document.querySelector('[data-tab="events"]');if(tab)tab.click();showDetail(event);
+  });
+  row.append(left,button);policyBox.append(row);
+ }
  policies.append(policyBox);
  for(const cb of m.certificationBodies||[]){
   const item=element('section','event');item.append(element('h3','',cb.displayName+' ('+cb.certificationBodyId+')'));
-  for(const [k,v] of [['Notification email',cb.notificationEmail||'Not configured'],['Email verified',cb.emailVerified?'Yes':'No'],
-   ['CB enabled',cb.notificationsEnabled?'Yes':'No'],['Scope variants',cb.scopeCount],
-   ['Active scopes',cb.activeScopeCount],['External delivery',cb.readyForExternalDelivery?'Ready':'Disabled / not ready']]){
-   const line=element('p','muted');line.append(element('strong','',k+': '),document.createTextNode(String(v)));item.append(line);
+  const info=element('p','muted','Assigned scopes: '+cb.activeScopeCount+' active / '+cb.scopeCount+' total');item.append(info);
+  const mailLabel=element('label','','Notification recipient email');mailLabel.setAttribute('for','cb-email-'+cb.certificationBodyId);
+  const mail=element('input');mail.id='cb-email-'+cb.certificationBodyId;mail.type='email';mail.value=cb.notificationEmail||'';mail.autocomplete='off';
+  const mailSave=element('button','','Save email');mailSave.type='button';
+  mailSave.addEventListener('click',async()=>{
+   mailSave.disabled=true;
+   try{await updateCbSettings('body',cb.certificationBodyId,'Notification_Email',mail.value.trim(),cb.notificationEmail||'')}
+   catch(e){alert('Not saved: '+e.message)}
+   finally{mailSave.disabled=false}
+  });
+  item.append(mailLabel,mail,mailSave);
+  const explanation=element('p','muted','The recipient is resolved from Certification_Bodies. Changing an email automatically clears verification until it is reviewed. DEV TEST_TO_SELF redirects delivery to the configured test recipient.');item.append(explanation);
+  for(const [field,current,caption] of [['Email_Verified',cb.emailVerified,'Email verified'],['Notification_Enabled',cb.notificationsEnabled,'CB notifications enabled']]){
+   const line=element('div','setting-row'),labelEl=element('strong','',caption),button=element('button','setting-switch',current?'ON':'OFF');
+   button.type='button';button.setAttribute('role','switch');button.setAttribute('aria-checked',String(current));
+   button.addEventListener('click',async()=>{
+    button.disabled=true;
+    try{await updateCbSettings('body',cb.certificationBodyId,field,current?'FALSE':'TRUE',current?'TRUE':'FALSE')}
+    catch(e){alert('Not saved: '+e.message)}
+    finally{button.disabled=false}
+   });
+   line.append(labelEl,button);item.append(line);
   }
-  const count=element('p','muted','Outbox: '+(Object.entries(cb.statusCounts||{}).map(([k,v])=>k+' '+v).join(' · ')||'No events yet'));item.append(count);
+  const ready=element('p','muted','External delivery readiness: '+(cb.readyForExternalDelivery?'READY':'NOT READY')+
+   ' · Next due: '+(cb.nextDue||'None'));item.append(ready);
+  const counts=element('p','muted','Outbox: '+(Object.entries(cb.statusCounts||{}).map(([k,v])=>k+' '+v).join(' · ')||'No events yet'));item.append(counts);
+  for(const failure of cb.recentErrors||[])item.append(element('p','error',failure.status+' · '+failure.eventId+' · '+failure.reason));
   root.append(item);
  }
  if(!m.certificationBodies?.length)root.append(element('p','empty','No Certification Bodies registered.'));
+ const templatePanel=element('div','panel');templatePanel.append(element('h3','','EXT / Undo email templates'),
+  element('p','muted','Edit generic English templates. Placeholders: {{CERTIFICATION_BODY_NAME}}, {{COMPANY_NAME}}, {{SCOPE_NAME}}, {{BASE_EXPIRY}}, {{EFFECTIVE_EXPIRY}}. No CB address is hardcoded into a template.'));
+ for(const tpl of model?.cbNotificationTemplates||[]){
+  const box=element('div','event'),label=element('h3','',label(tpl.templateKey));box.append(label);
+  const subjectLabel=element('label','','Subject');const subject=element('input');subject.value=tpl.subject;subject.maxLength=200;
+  const bodyLabel=element('label','','Message body');const body=element('textarea');body.value=tpl.body;body.rows=8;body.style.width='100%';
+  const actions=element('div','detail-actions');
+  const saveSubject=element('button','','Save subject'),saveBody=element('button','','Save body');
+  saveSubject.type='button';saveBody.type='button';
+  saveSubject.addEventListener('click',async()=>{saveSubject.disabled=true;try{await updateCbSettings('template',tpl.templateKey,'SUBJECT_TEMPLATE',subject.value,tpl.subject)}catch(e){alert('Not saved: '+e.message)}finally{saveSubject.disabled=false}});
+  saveBody.addEventListener('click',async()=>{saveBody.disabled=true;try{await updateCbSettings('template',tpl.templateKey,'TEXT_BODY',body.value,tpl.body)}catch(e){alert('Not saved: '+e.message)}finally{saveBody.disabled=false}});
+  actions.append(saveSubject,saveBody);box.append(subjectLabel,subject,bodyLabel,body,actions);templatePanel.append(box);
+ }
+ if(!(model?.cbNotificationTemplates||[]).length)templatePanel.append(element('p','empty','No EXT / Undo templates found.'));
+ policies.append(templatePanel);
 }
 function render(){const m=model;renderRules();renderCertificationBodies();const templates=$('testTemplate');const selected=templates.value;templates.replaceChildren();const blank=element('option','','Choose a template');blank.value='';templates.append(blank);const seen=new Set();for(const e of m.events){const key=String(e.templateFamily||e.eventKey||'').trim();if(!key||seen.has(key))continue;seen.add(key);const opt=element('option','',label(key));opt.value=key;templates.append(opt)}templates.value=seen.has(selected)?selected:'';renderTestPreview();$('testRecipient').textContent=m.deliveryPolicy?.testRecipientConfigured?'Configured (address hidden)':'Not configured';$('testMode').textContent=m.deliveryPolicy?.mode||'Unknown';const policy=m.deliveryPolicy||{};const devOnly=policy.environment==='DEV';const testTab=document.querySelector('[data-tab="testmail"]');if(testTab)testTab.classList.toggle('hidden',!devOnly);$('testmail').classList.toggle('hidden',!devOnly);$('devMailSafety').classList.toggle('hidden',!devOnly);const p=$('policy');p.replaceChildren();for(const [k,v] of [['Environment',policy.environment||'Unknown'],['DEV delivery mode',policy.mode||'Unknown'],['SEND_NOTIFICATIONS',policy.sendNotifications||'Unknown'],['Test recipient',policy.testRecipientConfigured?'Configured':'Not configured'],['Reply-to',policy.replyToConfigured?'Configured':'Not configured']])card(p,k,v);$('devModeSelect').value=['OFF','DRY_RUN','TEST_TO_SELF'].includes(policy.mode)?policy.mode:'DRY_RUN';$('devModeSelect').disabled=!policy.configurationVerified;$('saveDevMode').disabled=!policy.configurationVerified;const overlap=$('overlaps');overlap.replaceChildren();for(const key of policy.overlapKeys||[])overlap.append(element('span','pill warn',key));if(!(policy.overlapKeys||[]).length)overlap.append(element('p','muted','No known legacy keys found.'));const duplicateRoot=$('duplicates');duplicateRoot.replaceChildren();for(const d of m.configurationDiagnostics?.duplicates||[]){duplicateRoot.append(element('p','muted',d.tab+' · '+(d.key||d.issue)+' · '+(d.rows?.join(', ')||'Header missing')))}if(!(m.configurationDiagnostics?.duplicates||[]).length)duplicateRoot.append(element('p','muted','No duplicate keys detected in the scanned ranges.'));$('summary').replaceChildren();card($('summary'),'Configured notifications',m.configuration.eventCount);card($('summary'),'Enabled notifications',m.events.filter(e=>isYes(e.active)).length);card($('summary'),'Queue records',m.queue.total);card($('summary'),'Failed records',m.queue.statusCounts.FAILED||0);for(const id of ['statuses','deliveryStatuses']){const root=$(id);root.replaceChildren();for(const [name,count] of Object.entries(m.queue.statusCounts))card(root,label(name),count);if(!Object.keys(m.queue.statusCounts).length)root.append(element('p','empty','No queue records.'))}const tbody=$('failures');tbody.replaceChildren();for(const f of m.queue.recentFailures){const tr=element('tr');for(const v of [f.timestamp,f.type,f.error])tr.append(element('td','',v));tbody.append(tr)}$('failureEmpty').classList.toggle('hidden',m.queue.recentFailures.length>0);renderEvents()}
 async function load(){ $('status').textContent='Refreshing…';$('error').classList.add('hidden');try{const r=await fetch('/api/v1/notifications-manager-20/overview',{credentials:'same-origin',cache:'no-store'});const d=await r.json();if(!r.ok||!d.success||!d.readOnly)throw Error('Notification overview unavailable ('+r.status+')');model=d;render();$('status').textContent='Updated '+new Date().toLocaleTimeString()}catch(e){$('error').textContent=e.message;$('error').classList.remove('hidden');$('status').textContent='Update failed'}}

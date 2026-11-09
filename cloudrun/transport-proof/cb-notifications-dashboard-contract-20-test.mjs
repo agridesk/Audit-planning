@@ -41,6 +41,7 @@ assert(legacyEcas.includes('NB_externalShellStart_()')&&legacyEcas.includes("NB_
 assert(legacyEcas.includes('NB_assertCommittedSwapJournal_(swapOperationId)'),'Atomic SWAP must verify journal COMMITTED at render time');
 assert(legacyEcas.includes('NB_assertEcasSwapScopeOwnership_(normalizedSwapChild.scopes)'),'Each SWAP child must validate its live scope CB');
 assert(ui.includes('SWAP (ECAS)'),'SWAP configuration must be visible in Notifications Dashboard');
+assert(ui.includes("'Not configured'")&&ui.includes('ECAS_AUDIT_CHANGED_DIGEST is missing from Notification_Config'),'Dashboard must expose absent SWAP event configuration instead of silently hiding card');
 assert(ui.includes("cb.recentErrors"));
 assert(ui.includes("cb.nextDue"));
 assert(sender.includes("cfg={...cfg,consolidate:false,bufferMinutes:0,digestGroup:'CB_EXTENSION_SINGLE'}"),'Do not wait twice');
@@ -189,6 +190,12 @@ assert.equal(generic.subject,'Other CB subject');
 const notificationBuilder=read('../../NotificationBuilder.js');
 new vm.Script(notificationBuilder);
 const builderCtx={
+  NB_extractPayload_:item=>item.payload||{},
+  NB_eventCode_:code=>String(code||'').toUpperCase(),
+  NB_mergeObjects_:(a,b)=>({...a,...b}),
+  NB_clean_:value=>String(value||'').trim(),
+  NB_isExternalDigestProfile_:()=>true,
+  NB_requireRenderer_:()=>true,
   NB_getEventConfig_:()=>({digestGroup:'ECAS_OPERATIONAL',templateFamily:'EXTERNAL_OPERATIONAL'}),
   NB_normalizePayload_:(code,payload)=>({...payload,eventFamily:'EXTERNAL_OPERATIONAL'}),
   NB_resolveRendererProfile_:()=> 'EXTERNAL_OPERATIONAL',

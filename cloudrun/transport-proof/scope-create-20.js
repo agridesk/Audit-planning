@@ -31,7 +31,7 @@ export async function createScope20({body,actor,SID,sheetsBatchGet,accessToken,c
  if(!meta.ok)throw Error('SCOPE_METADATA_UNAVAILABLE');
  const sheet=(await meta.json()).sheets?.map(x=>x.properties).find(x=>x.title==='Config_Scopes');
  if(!sheet)throw Error('SCOPE_SHEET_MISSING');
- const values=newRow.map(v=>({userEnteredValue:typeof v==='boolean'?{boolValue:v}:{stringValue:String(v)}}));
+ const values=newRow.map(v=>({userEnteredValue:typeof v==='boolean'?{boolValue:v}:typeof v==='number'?{numberValue:v}:{stringValue:String(v)}}));
  const response=await fetch(base+':batchUpdate',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({requests:[{appendCells:{sheetId:sheet.sheetId,rows:[{values}],fields:'userEnteredValue'}}]})});
  if(!response.ok)throw Error('SCOPE_CREATE_WRITE_FAILED_'+response.status);
  console.info(JSON.stringify({event:'SCOPE_CREATED_INACTIVE',scopeCode:code,slotKey:free,reason,actor:clean(actor.email||actor.sub),timestamp:new Date().toISOString()}));

@@ -3389,7 +3389,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
     const code=clean(u.searchParams.get('scopeCode')),field=clean(u.searchParams.get('field'));
-    if(!code||!['Default_hours','Active','Archived','Max number audits','Min_Interval_Months','Planning from','Planning to','Extension','Recurring','Obligation cycle','Complete by','Provisioning source','Trigger source','Source service','Max_Offsite_Hours'].includes(field))return send(res,400,{ok:false,error:'IMPACT_FIELD_NOT_ALLOWED'});
+    if(!code||!['Default_hours','Active','Archived','Max number audits','Rotation_Normal_Maximum','Rotation_Applies','Rotation_Plus_One_Permitted','Min_Interval_Months','Planning from','Planning to','Extension','Recurring','Obligation cycle','Complete by','Provisioning source','Trigger source','Source service','Max_Offsite_Hours'].includes(field))return send(res,400,{ok:false,error:'IMPACT_FIELD_NOT_ALLOWED'});
     try{
       const vr=await sheetsBatchGet(['Config_Scopes!A1:Z128','Audit planning!A1:BW2500','Audit_Obligations!A1:AA2500','Audit_Visit_Obligations!A1:Z2500']);
       const catalog=vr[0]?.values||[],head=(catalog[0]||[]).map(clean),ci=head.indexOf('ScopeCode'),fi=head.indexOf(field);
@@ -3513,7 +3513,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
         slotKey:get(r,'SlotKey'),scopeCode:get(r,'ScopeCode'),displayName:get(r,'DisplayName'),certificationBodyId:get(r,'Certification_Body_ID'),certificationBodyName:certificationBodyById.get(clean(get(r,'Certification_Body_ID')))?.displayName||'',certificationBodyNotificationEmail:certificationBodyById.get(clean(get(r,'Certification_Body_ID')))?.notificationEmail||'',certificationBodyNotificationReady:!!(certificationBodyById.get(clean(get(r,'Certification_Body_ID')))?.emailVerified&&certificationBodyById.get(clean(get(r,'Certification_Body_ID')))?.notificationsEnabled&&certificationBodyById.get(clean(get(r,'Certification_Body_ID')))?.hasNotificationEmail),currentVersion:currentVersions.get(clean(get(r,'ScopeCode')))||'',
         active:['yes','true','1'].includes(clean(get(r,'Active')).toLowerCase()),
         archived:['yes','true','1'].includes(clean(get(r,'Archived')).toLowerCase()),
-        hoursToPlan:get(r,'Default_hours'),rotationLimit:get(r,'Max number audits'),
+        hoursToPlan:get(r,'Default_hours'),rotationLimit:get(r,'Rotation_Normal_Maximum')!==''?get(r,'Rotation_Normal_Maximum'):get(r,'Max number audits'),
         minimumIntervalMonths:get(r,'Min_Interval_Months'),planningFrom:get(r,'Planning from'),planningTo:get(r,'Planning to'),
         policy:Object.fromEntries(headers.map((h,i)=>[h,r[i]??'']))
       }));

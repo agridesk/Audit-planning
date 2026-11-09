@@ -62,6 +62,34 @@ const extensionPayload={certificationBodyId:'ECAS',rendererProfile:'ECAS_AUDIT_A
  COMPANY_NAME:'Test grower',MPS_NUMBER:'913496',SCOPE_NAME:'ABC',
  PREVIOUS_EXPIRY:'2026-12-31',EFFECTIVE_EXPIRY:'2027-03-31',CHANGED_AT:'2026-11-09'}};
 const apply=testContext.NB_renderEcasExtensionDigest_('',{eventCode:'CB_EXTENSION_APPLIED',payload:extensionPayload});
+const scopeMock=[
+ ['SlotKey','ScopeCode','DisplayName','Certification_Body_ID'],
+ ['SCOPE_01','MPS-ABC','MPS-ABC','ECAS'],
+ ['SCOPE_02','MPS-GAP','MPS-GAP','ECAS'],
+ ['SCOPE_03','OTHER','Other CB scope','OTHER']
+];
+testContext.SpreadsheetApp={getActiveSpreadsheet:()=>({getSheetByName:name=>
+ name==='Config_Scopes'?{getDataRange:()=>({getValues:()=>scopeMock})}:null})};
+assert.equal(testContext.NB_assertEcasSwapScopeOwnership_(['MPS-ABC','MPS-GAP']),true);
+assert.throws(()=>testContext.NB_assertEcasSwapScopeOwnership_(['OTHER']),/ECAS_SWAP_SCOPE_CB_MISMATCH/);
+assert.throws(()=>testContext.NB_assertEcasSwapScopeOwnership_(['UNKNOWN']),/ECAS_SWAP_SCOPE_CB_MISMATCH/);
+const swapRows=testContext.NB_renderEcasSwapRows_([
+ {eventType:'ECAS_AUDIT_CHANGED_DIGEST',mpsNumber:'913496',company:'A',scopes:['MPS-ABC'],
+  auditorEmail:'a@example.invalid',previousBlocks:[{date:'2026-11-10',start:'09:00',end:'13:00'}],
+  blocks:[{date:'2026-11-11',start:'09:00',end:'13:00'}]},
+ {eventType:'ECAS_AUDIT_CHANGED_DIGEST',mpsNumber:'913497',company:'B',scopes:['MPS-GAP'],
+  auditorEmail:'b@example.invalid',previousBlocks:[{date:'2026-11-11',start:'09:00',end:'17:00'}],
+  blocks:[{date:'2026-11-10',start:'09:00',end:'17:00'}]}
+]);
+assert.equal(swapRows.length,2,'SWAP represents two audit rows');
+assert.equal((testContext.NB_renderEcasSwapsSectionHtml_([
+ {eventType:'ECAS_AUDIT_CHANGED_DIGEST',mpsNumber:'913496',company:'A',scopes:['MPS-ABC'],
+  auditorEmail:'a@example.invalid',previousBlocks:[{date:'2026-11-10',start:'09:00',end:'13:00'}],
+  blocks:[{date:'2026-11-11',start:'09:00',end:'13:00'}]},
+ {eventType:'ECAS_AUDIT_CHANGED_DIGEST',mpsNumber:'913497',company:'B',scopes:['MPS-GAP'],
+  auditorEmail:'b@example.invalid',previousBlocks:[{date:'2026-11-11',start:'09:00',end:'17:00'}],
+  blocks:[{date:'2026-11-10',start:'09:00',end:'17:00'}]}
+]).match(/<th>/g)||[]).length,6);
 assert(apply.htmlBody.includes('ecas-shell')&&apply.htmlBody.includes('Verlengingen'));
 assert(apply.body.includes('Verlenging toegepast'));
 assert.equal((apply.htmlBody.match(/<th>/g)||[]).length,6,'Six horizontal headers expected');

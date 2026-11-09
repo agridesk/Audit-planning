@@ -159,8 +159,10 @@ function CB_Extension_Outbox_ReconcileLocked_(){
     if(st==='FAILED')throw Error('CB_NOTIFICATION_QUEUE_FAILED');
    }
    var details;try{details=JSON.parse(latest.Details_JSON||'{}')}catch(err){throw Error('CB_NOTIFICATION_DETAILS_JSON_INVALID')}
-   var render=CBN20_template_(ctx.templates,eventKey,{
+   var render=CBN20_template_(ctx.templates,'CB_EXTENSION_NOTIFICATION',{
     CERTIFICATION_BODY_NAME:validated.name,COMPANY_NAME:details.company,
+    ACTION_LABEL:state==='APPLIED'?'Applied':'Withdrawn',
+    ACTION_DESCRIPTION:state==='APPLIED'?'An audit extension has been applied.':'A previously communicated audit extension has been withdrawn.',
     SCOPE_NAME:latest.ScopeCode,BASE_EXPIRY:details.baseExpiry,
     EFFECTIVE_EXPIRY:details.effectiveExpiry,
     PREVIOUS_EXPIRY:details.previousExpiry,

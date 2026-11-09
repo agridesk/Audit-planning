@@ -138,7 +138,7 @@ const builderCtx={
   NB_ecasExtensionsSectionText_:testContext.NB_ecasExtensionsSectionText_
 };
 const digestStart=notificationBuilder.indexOf('function NB_renderDigestEmail_(');
-const digestEnd=notificationBuilder.indexOf('/* ============================================================\\n * PUBLIC: payload builder',digestStart);
+const digestEnd=notificationBuilder.indexOf('function NB_buildPayloadForQueue_(',digestStart);
 assert(digestStart>=0&&digestEnd>digestStart,'Digest function source must exist');
 vm.runInNewContext(notificationBuilder.slice(digestStart,digestEnd),builderCtx);
 const mixedRendered=builderCtx.NB_renderDigestEmail_('ecas@example.invalid',[

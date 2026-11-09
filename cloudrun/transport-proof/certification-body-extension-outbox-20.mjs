@@ -18,7 +18,7 @@ const required=(rows,headers,label)=>{
 const rowObject=(head,row)=>Object.fromEntries(head.map((k,i)=>[k,str(row[i])]));
 export function prepareCbExtensionEvent20({
  obligationRows,scopeRows,certificationBodies,auditId,companyUid,obligationId,
- operationId,command,expected,company,createdAt
+ operationId,command,expected,previous,company,createdAt
 }={}){
  if(!['apply','undo'].includes(command)||![auditId,companyUid,obligationId,operationId].every(str))
   throw Error('CB_OUTBOX_EVENT_IDENTITY_INVALID');
@@ -39,7 +39,12 @@ export function prepareCbExtensionEvent20({
  const eventId='CB_EXT_'+str(operationId);
  const details={company:str(company),baseExpiry:obligation.Base_Expiry_Date,
   effectiveExpiry:str(expected.effectiveExpiry),scopeCode:obligation.ScopeCode,
-  certificationBodyId:body.certificationBodyId};
+  certificationBodyId:body.certificationBodyId,
+  previousExpiry:str(previous?.effectiveExpiry||obligation.Effective_Expiry_Date||obligation.Base_Expiry_Date),
+  previousWindowFrom:str(previous?.windowFrom||obligation.Planning_Window_From),
+  previousWindowTo:str(previous?.windowTo||obligation.Planning_Window_To),
+  newWindowFrom:str(expected.windowFrom),newWindowTo:str(expected.windowTo),
+  changedAt:iso};
  const values=[eventId,str(operationId),str(auditId),str(obligationId),str(companyUid),
   obligation.ScopeCode,body.certificationBodyId,command.toUpperCase(),expectedState,
   iso,notBefore,'BUFFERED','','','',JSON.stringify(details)];
@@ -64,7 +69,7 @@ export function reduceCbExtensionOutbox20({outboxRows,obligationId,currentExtens
  const clock=Date.parse(now||new Date().toISOString());
  if(!Number.isFinite(clock))throw Error('CB_OUTBOX_CLOCK_INVALID');
  const ordered=rows.slice().sort((a,b)=>Date.parse(a.Created_At)-Date.parse(b.Created_At)||a.sheetRow-b.sheetRow);
- const lastDelivered=ordered.filter(r=>r.Status==='SENT'&&r.Delivered_At)
+ const lastDelivered=ordered.filter(r=>['SENT','TESTED'].includes(r.Status)&&r.Delivered_At)
   .sort((a,b)=>Date.parse(a.Delivered_At)-Date.parse(b.Delivered_At)).at(-1);
  const deliveredState=lastDelivered?lastDelivered.State_After:'NOT_APPLIED';
  const currentState=currentExtensionApplied?'APPLIED':'NOT_APPLIED';

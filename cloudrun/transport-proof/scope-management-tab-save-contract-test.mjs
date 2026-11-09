@@ -13,4 +13,6 @@ assert.doesNotMatch(ui,/prompt\('Reason for setting official scheme version:'\)/
 assert.doesNotMatch(ui,/confirm\('Set official scheme version /);
 assert.match(ui,/reason='Manager updated official scheme version'/);
 assert.match(ui,/\['TRUE','YES','1'\]\.includes\(initial\.trim\(\)\.toUpperCase\(\)\)/);
+assert.match(ui,/value:item\.input\.value\.trim\(\)/,'Scope editor must submit canonical TRUE/FALSE rather than Yes/No');
+assert.doesNotMatch(ui,/item\.input\.value==='TRUE'\?'Yes':'No'/,'Scope editor must not serialize booleans as Yes/No strings');
 console.log('scope-management-tab-save-contract: 12 checks passed');

@@ -12,10 +12,11 @@ const body={scopeCode:'MPS-NEW',displayName:'New MPS Scope',reason:'New scheme',
 const result=await createScope20({...deps,body});
 assert.equal(result.slotKey,'SCOPE_09');assert.equal(result.active,false);assert.equal(result.certificationBodyId,'ECAS');
 assert.equal(requests.length,1);assert.equal(requests[0].appendCells.rows[0].values[headers.indexOf('Certification_Body_ID')].userEnteredValue.stringValue,'ECAS');
-for(const flag of ['Active','Archived','Recurring']){
+for(const flag of ['Active','Archived']){
  const value=requests[0].appendCells.rows[0].values[headers.indexOf(flag)].userEnteredValue;
- assert.deepEqual(value,{boolValue:false},flag+' must be a native Sheets boolean, not Yes/No text');
+ assert.deepEqual(value,{boolValue:false},flag+' must be a native Sheets boolean');
 }
+assert.deepEqual(requests[0].appendCells.rows[0].values[headers.indexOf('Recurring')].userEnteredValue,{stringValue:'NO'},'Recurring must preserve canonical YES/NO convention');
 await assert.rejects(createScope20({...deps,body:{...body,scopeCode:'SCOPE1'}}),/DUPLICATE_SCOPE_IDENTITY/);
 await assert.rejects(createScope20({...deps,body:{...body,confirmation:'NO'}}),/INVALID_SCOPE_CREATE/);
 const noLegacyColumns=await createScope20({...deps,sheetsBatchGet:async()=>[{values:rows},{values:cbRows}],body});assert.equal(noLegacyColumns.slotKey,'SCOPE_09');

@@ -1129,7 +1129,15 @@ fields.forEach(function(f){
  var dd=el('dd',''),cosmeticMap={'Scope name':'DisplayName','Color':'Color','Text color':'TextColor','Sort order':'SortOrder'},field=cosmeticMap[f[0]];
  var policyMap={'Rotation limit':'Rotation_Normal_Maximum','Rotation applies':'Rotation_Applies','Plus-one permitted':'Rotation_Plus_One_Permitted','Minimum interval':'Min_Interval_Months','Max off-site hours':'Max_Offsite_Hours','Planning from':'Planning from','Planning to':'Planning to','Active':'Active','Archived':'Archived','Extension':'Extension','Recurring':'Recurring','Cycle':'Obligation cycle','Complete by':'Complete by','Provisioning source':'Provisioning source','Trigger source':'Trigger source','Source service':'Source service'};
  var policyField=policyMap[f[0]],canPolicy=(tab==='rules'||tab==='sources')&&!!policyField||tab==='general'&&['Active','Archived'].includes(f[0]);
- if(canPolicy||field&&field!=='Color'&&field!=='TextColor'){
+ if(tab==='general'&&f[0]==='Certification Body'){
+  var cbSelect=document.createElement('select'),currentCb=String(selected.certificationBodyId||'').toUpperCase();
+  var options=certificationBodies.filter(function(cb){return cb.active||cb.certificationBodyId===currentCb});
+  if(!options.some(function(cb){return cb.certificationBodyId===currentCb})){var empty=document.createElement('option');empty.value=currentCb;empty.textContent=currentCb||'Not assigned';cbSelect.appendChild(empty)}
+  options.forEach(function(cb){var option=document.createElement('option');option.value=cb.certificationBodyId;option.textContent=cb.displayName+' ('+cb.certificationBodyId+')'+(cb.active?'':' — inactive');option.disabled=!cb.active;cbSelect.appendChild(option)});
+  cbSelect.value=currentCb;cbSelect.style.maxWidth='300px';cbSelect.setAttribute('aria-label','Certification Body');
+  cbSelect.title='Changes are blocked if this scope is linked to companies, obligations or audits';
+  dd.appendChild(cbSelect);pendingEdits.push({field:'Certification_Body_ID',kind:'cb',input:cbSelect,initial:currentCb});
+ }else if(canPolicy||field&&field!=='Color'&&field!=='TextColor'){
   var input=document.createElement(policyField==='Recurring'?'select':'input');
   if(policyField==='Recurring'){['YES','NO'].forEach(function(v){var option=document.createElement('option');option.value=v;option.textContent=v;input.appendChild(option)})}
   var initial=canPolicy?String(selected.policy[policyField]??''):String(selected.policy[field]??'');
@@ -1162,8 +1170,11 @@ if(tab!=='versions'){
    
    saveAll.disabled=true;saved.textContent='Saving…';
    for(var k=0;k<changes.length;k++){
-    var item=changes[k],isPolicy=item.kind==='policy',payload=isPolicy?{scopeCode:scopeCode,field:item.field,expected:impacts.find(function(x){return x.field===item.field}).impact.current,value:item.input.value.trim(),reason:reason,impactConfirmed:true}:{scopeCode:scopeCode,field:item.field,expected:item.initial,value:item.input.value.trim()};
-    var endpoint=isPolicy?'/api/v1/manager/scopes/policy':'/api/v1/manager/scopes/cosmetic';
+    var item=changes[k],isPolicy=item.kind==='policy',isCb=item.kind==='cb',
+      payload=isCb?{scopeCode:scopeCode,expected:item.initial,certificationBodyId:item.input.value.trim(),confirmation:'CHANGE_UNUSED_SCOPE_CB'}:
+      isPolicy?{scopeCode:scopeCode,field:item.field,expected:impacts.find(function(x){return x.field===item.field}).impact.current,value:item.input.value.trim(),reason:reason,impactConfirmed:true}:
+      {scopeCode:scopeCode,field:item.field,expected:item.initial,value:item.input.value.trim()};
+    var endpoint=isCb?'/api/v1/manager/scopes/certification-body':isPolicy?'/api/v1/manager/scopes/policy':'/api/v1/manager/scopes/cosmetic';
     var response=await fetch(endpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),result=await response.json();
     if(!response.ok||!result.ok)throw Error(item.field+': '+(result.error||'SAVE_FAILED'));
     item.initial=item.input.value.trim();completed++;

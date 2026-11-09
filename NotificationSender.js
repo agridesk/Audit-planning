@@ -862,7 +862,9 @@ function ns_sendDueReserved_(nqSheet, values) {
       var isCbExtension=group.items.some(function(it){return /^CB_EXTENSION_(APPLIED|UNDONE)$/.test(String(it.eventCode||''))});
       if(isCbExtension){
         if(typeof CB_Extension_Outbox_PreflightSend_!=='function')throw Error('CB_EXTENSION_SENDER_GUARD_MISSING');
-        CB_Extension_Outbox_PreflightSend_(group.items.filter(function(it){return /^CB_EXTENSION_(APPLIED|UNDONE)$/.test(String(it.eventCode||''));}),group.recipient);
+        group.items.filter(function(it){return /^CB_EXTENSION_(APPLIED|UNDONE)$/.test(String(it.eventCode||''));}).forEach(function(ext){
+          CB_Extension_Outbox_PreflightSend_([ext],group.recipient);
+        });
       }
       // IMPORTANT:
       // Rendering is inside the try block. If a renderer fails, the group must

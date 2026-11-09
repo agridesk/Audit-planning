@@ -122,11 +122,11 @@ function NB_renderDigestEmail_(recipientEmail, items) {
     var signoffHtml='<div style="border-top:1px solid #111827;margin:18px 0 14px 0"></div>';
     var signoffIndex=normalRendered.htmlBody.lastIndexOf(signoffHtml);
     if(signoffIndex<0)throw Error('ECAS_DIGEST_SIGNOFF_ANCHOR_MISSING');
-    var signoffText='\\n\\nBedankt,';
+    var signoffText='\n\nBedankt,';
     var textIndex=normalRendered.body.lastIndexOf(signoffText);
     if(textIndex<0)throw Error('ECAS_DIGEST_TEXT_SIGNOFF_ANCHOR_MISSING');
     return {subject:normalRendered.subject,
-      body:normalRendered.body.slice(0,textIndex)+'\\n\\n'+extText+normalRendered.body.slice(textIndex),
+      body:normalRendered.body.slice(0,textIndex)+'\n\n'+extText+normalRendered.body.slice(textIndex),
       htmlBody:normalRendered.htmlBody.slice(0,signoffIndex)+extHtml+normalRendered.htmlBody.slice(signoffIndex)};
   }
   var normalizedItems = [];

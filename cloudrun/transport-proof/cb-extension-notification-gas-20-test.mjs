@@ -21,7 +21,7 @@ const setup=(events,applied,enabled)=>{
  'Config_Scopes':createSheet([['ScopeCode','Certification_Body_ID','Active'],['GG-CB-A','CB-A','TRUE']]),
  'Certification_Bodies':createSheet([['Certification_Body_ID','Display_Name','Active','Notification_Email','Email_Verified','Notification_Enabled'],['CB-A','Body A','TRUE','notify@cb-a.example','TRUE',enabled?'TRUE':'FALSE']]),
  'Notification_Config':createSheet([['EVENT_KEY','ACTIVE','SEND_EMAIL','LOG_ONLY','BUFFER_MINUTES'],['CB_EXTENSION_APPLIED','YES','YES','NO','10'],['CB_EXTENSION_UNDONE','YES','YES','NO','10']]),
- 'Notification_Templates':createSheet([['TEMPLATE_KEY','ACTIVE','SUBJECT_TEMPLATE','TEXT_BODY'],['CB_EXTENSION_APPLIED','YES','Extension applied — {{COMPANY_NAME}}','Dear {{CERTIFICATION_BODY_NAME}}, {{SCOPE_NAME}} expires {{EFFECTIVE_EXPIRY}}'],['CB_EXTENSION_UNDONE','YES','Extension withdrawn — {{COMPANY_NAME}}','Dear {{CERTIFICATION_BODY_NAME}}, expiry {{EFFECTIVE_EXPIRY}}']]),
+ 'Notification_Templates':createSheet([['TEMPLATE_KEY','ACTIVE','SUBJECT_TEMPLATE','TEXT_BODY'],['CB_EXTENSION_NOTIFICATION','YES','Extension {{ACTION_LABEL}} — {{COMPANY_NAME}}','Dear {{CERTIFICATION_BODY_NAME}}, {{ACTION_DESCRIPTION}} {{SCOPE_NAME}} expires {{EFFECTIVE_EXPIRY}}']]),
  'Notification Queue':createSheet([['TimestampCreated','Status','Type','Recipient','Audit ID','Company','Subject','Body','Attempts','LastError','PayloadHash','TimestampSent','Reserved']])
  };
  const ss={getId:()=> '1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs',getSheetByName:name=>sheets[name]||null,getSpreadsheetTimeZone:()=>'Europe/Amsterdam'};
@@ -43,7 +43,7 @@ const setup=(events,applied,enabled)=>{
  assert.equal(result.queued,1);
  const row=x.sheets['Notification Queue'].rows[1];
  assert.equal(row[3],'notify@cb-a.example');
- assert.equal(row[6],'Extension applied — Example Company');
+ assert.equal(row[6],'Extension Applied — Example Company');
  assert(!row[7].includes('ECAS'));
  const payload=JSON.parse(row[12]).payload;
  assert.equal(x.CB_Extension_Outbox_PreflightSend_([{eventCode:row[2],payload}],row[3]).ok,true);

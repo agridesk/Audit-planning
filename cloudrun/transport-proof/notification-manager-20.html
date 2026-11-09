@@ -106,6 +106,8 @@ function renderCertificationBodies(){
  for(const cb of m.certificationBodies||[]){
   const item=element('section','event');item.append(element('h3','',cb.displayName+' ('+cb.certificationBodyId+')'));
   const info=element('p','muted','Assigned scopes: '+cb.activeScopeCount+' active / '+cb.scopeCount+' total');item.append(info);
+  const cbTemplate=cb.certificationBodyId==='ECAS'?'ECAS_AUDIT_APPROVAL_DIGEST':'CB_EXTENSION_NOTIFICATION';
+  item.append(element('p','muted','Extension / Undo email template: '+label(cbTemplate)));
   const mailLabel=element('label','','Notification recipient email');mailLabel.setAttribute('for','cb-email-'+cb.certificationBodyId);
   const mail=element('input');mail.id='cb-email-'+cb.certificationBodyId;mail.type='email';mail.value=cb.notificationEmail||'';mail.autocomplete='off';
   const mailSave=element('button','','Save email');mailSave.type='button';

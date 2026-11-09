@@ -939,7 +939,7 @@ async function notificationCbSettingMutation(req,res){
  }else{
   if(!value.trim()||(field==='SUBJECT_TEMPLATE'&&value.length>200)||value.includes('<script')){res.writeHead(400);res.end('CB_TEMPLATE_INVALID');return;}
   const placeholders=[...value.matchAll(/\{\{([A-Z_]+)\}\}/g)].map(x=>x[1]);
-  if(placeholders.some(x=>!['CERTIFICATION_BODY_NAME','COMPANY_NAME','SCOPE_NAME','BASE_EXPIRY','EFFECTIVE_EXPIRY'].includes(x))){
+  if(placeholders.some(x=>!['CERTIFICATION_BODY_NAME','COMPANY_NAME','SCOPE_NAME','BASE_EXPIRY','EFFECTIVE_EXPIRY','PREVIOUS_EXPIRY','PREVIOUS_WINDOW_FROM','PREVIOUS_WINDOW_TO','NEW_WINDOW_FROM','NEW_WINDOW_TO','CHANGED_AT'].includes(x))){
    res.writeHead(400);res.end('CB_TEMPLATE_PLACEHOLDER_INVALID');return;
   }
  }

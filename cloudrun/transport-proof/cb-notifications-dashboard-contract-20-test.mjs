@@ -68,6 +68,10 @@ const scopeMock=[
  ['SCOPE_02','MPS-GAP','MPS-GAP','ECAS'],
  ['SCOPE_03','OTHER','Other CB scope','OTHER']
 ];
+testContext.NB_mpsNumber_=it=>it.mpsNumber||'';
+testContext.NB_scopeDisplayList_=scopes=>scopes;
+testContext.NB_externalAuditorText_=it=>it.auditorEmail||'';
+testContext.NB_externalScheduleRows_=it=>(it.blocks||[]).map(x=>({date:x.date,time:x.start+' – '+x.end}));
 testContext.SpreadsheetApp={getActiveSpreadsheet:()=>({getSheetByName:name=>
  name==='Config_Scopes'?{getDataRange:()=>({getValues:()=>scopeMock})}:null})};
 assert.equal(testContext.NB_assertEcasSwapScopeOwnership_(['MPS-ABC','MPS-GAP']),true);

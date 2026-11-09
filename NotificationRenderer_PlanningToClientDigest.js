@@ -44,6 +44,7 @@ function NB_renderExternalOperationalDigest_(recipientEmail, normalizedItems, ec
   // One persisted SWAP queue item contains exactly two audit updates.
   // Expand only in the renderer, keeping a single atomic ECAS email.
   var expanded=[];
+  var swapChildren=[];
   for(var sw=0;sw<normalizedItems.length;sw++){
     var entry=normalizedItems[sw]||{};
     if(!Array.isArray(entry.swapItems)||!entry.swapItems.length){expanded.push(entry);continue;}
@@ -55,7 +56,9 @@ function NB_renderExternalOperationalDigest_(recipientEmail, normalizedItems, ec
       var child=entry.swapItems[si]||{};
       if(String(child.eventType||child.type)!=='ECAS_AUDIT_CHANGED_DIGEST')throw Error('SWAP child event invalid');
       if(Array.isArray(child.swapItems)&&child.swapItems.length)throw Error('Nested SWAP digest prohibited');
-      expanded.push(NB_normalizePayload_('ECAS_AUDIT_CHANGED_DIGEST',child,NB_getEventConfig_('ECAS_AUDIT_CHANGED_DIGEST')));
+      var normalizedSwapChild=NB_normalizePayload_('ECAS_AUDIT_CHANGED_DIGEST',child,NB_getEventConfig_('ECAS_AUDIT_CHANGED_DIGEST'));
+      expanded.push(normalizedSwapChild);
+      swapChildren.push(normalizedSwapChild);
     }
   }
   normalizedItems=expanded;
@@ -71,13 +74,17 @@ function NB_renderExternalOperationalDigest_(recipientEmail, normalizedItems, ec
   }
 
   var subject = NB_externalOperationalSubject_();
-  var tableHtml = NB_renderExternalOperationalTableHtml_(validItems);
-  var tableText = NB_renderExternalOperationalTableText_(validItems);
+  var regularItems=validItems.filter(function(it){return swapChildren.indexOf(it)<0;});
+  var tableHtml = regularItems.length ? NB_renderExternalOperationalTableHtml_(regularItems) : '';
+  var tableText = regularItems.length ? NB_renderExternalOperationalTableText_(regularItems) : '';
+  var swapsHtml=swapChildren.length ? NB_renderEcasSwapsSectionHtml_(swapChildren) : '';
+  var swapsText=swapChildren.length ? NB_renderEcasSwapsSectionText_(swapChildren) : '';
 
   var body = 'Hallo,\n\n' +
     'Hierbij een overzicht van de audits die zijn ingepland, gewijzigd, geannuleerd of afgewezen, gegroepeerd per auditor.\n' +
     'Zouden jullie deze in Ecert willen verwerken en formeel aan de betreffende bedrijven willen bevestigen?\n\n' +
     tableText +
+    (swapsText ? '\n\n' + swapsText : '') +
     (ecasExtensionItems.length ? '\n\n' + NB_ecasExtensionsSectionText_(ecasExtensionItems) : '') +
     '\n\nBedankt,\n\nRené Rombouts';
 
@@ -87,7 +94,8 @@ function NB_renderExternalOperationalDigest_(recipientEmail, normalizedItems, ec
   html.push('Hierbij een overzicht van de audits die zijn ingepland, gewijzigd, geannuleerd of afgewezen, gegroepeerd per auditor.<br>');
   html.push('Zouden jullie deze in Ecert willen verwerken en formeel aan de betreffende bedrijven willen bevestigen?</div>');
   html.push('<div style="border-top:1px solid #111827;margin:12px 0 14px 0"></div>');
-  html.push(tableHtml);
+  if (tableHtml) html.push(tableHtml);
+  if (swapsHtml) html.push(swapsHtml);
   if (ecasExtensionItems.length) html.push(NB_ecasExtensionsSectionHtml_(ecasExtensionItems));
   if (validation.invalid.length) html.push(NB_externalSkippedRowsHtml_(validation.invalid));
   html.push('<div style="border-top:1px solid #111827;margin:18px 0 14px 0"></div>');
@@ -607,4 +615,45 @@ function NB_ecasExtensionsSectionHtml_(items) {
   });
   h.push('</tbody></table>');
   return h.join('');
+}
+
+/**
+ * Compact ECAS SWAP section. Input comes exclusively from the existing,
+ * atomic ECAS_AUDIT_CHANGED_DIGEST queue envelope (two validated audit rows).
+ * The underlying SWAP commit/journal remains the source of execution truth.
+ */
+function NB_renderEcasSwapRows_(items) {
+  if (!Array.isArray(items)||items.length===0||items.length%2!==0)
+    throw Error('ECAS_SWAP_DIGEST_PAIR_REQUIRED');
+  return items.map(function(it) {
+    if (String(it.eventType||it.eventCode)!=='ECAS_AUDIT_CHANGED_DIGEST')
+      throw Error('ECAS_SWAP_DIGEST_EVENT_INVALID');
+    var previous=NB_externalScheduleRows_({blocks:it.previousBlocks||[],plannedDates:it.previousPlannedDates||[]});
+    var current=NB_externalScheduleRows_({blocks:it.blocks||[],plannedDates:it.plannedDates||[]});
+    if(!previous.length||!current.length)throw Error('ECAS_SWAP_DIGEST_PLANNING_MISSING');
+    var fmt=function(rows){return rows.map(function(x){return [x.date,x.time].filter(Boolean).join(' ');}).join('; ');};
+    return [NB_mpsNumber_(it),it.company,NB_scopeDisplayList_(it.scopes||[]).join(', '),
+      NB_externalAuditorText_(it),fmt(previous),fmt(current)];
+  });
+}
+function NB_renderEcasSwapsSectionText_(items) {
+  var rows=NB_renderEcasSwapRows_(items);
+  return ['SWAP','MPS No. | Bedrijf | Scope | Auditor | Vorige planning | Nieuwe planning']
+    .concat(rows.map(function(r){return r.join(' | ');})).join('\n');
+}
+function NB_renderEcasSwapsSectionHtml_(items) {
+  var rows=NB_renderEcasSwapRows_(items),html=[];
+  html.push('<div style="font-size:13px;font-weight:700;color:#111827;margin:12px 0 5px 0">SWAP</div>');
+  html.push('<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;font-size:11px;line-height:1.25;table-layout:auto;margin:0 0 9px 0;color:#111827"><thead><tr>');
+  [['MPS No.','width:82px'],['Bedrijf','width:175px'],['Scope','width:138px'],
+   ['Auditor','width:155px'],['Vorige planning','width:185px'],['Nieuwe planning','width:185px']]
+    .forEach(function(x){html.push(NB_externalTh_(x[0],x[1]));});
+  html.push('</tr></thead><tbody>');
+  rows.forEach(function(row){
+    html.push('<tr>');
+    row.forEach(function(value,i){html.push(NB_externalTd_(value,i===0?'text-align:center;white-space:nowrap':''));});
+    html.push('</tr>');
+  });
+  html.push('</tbody></table>');
+  return html.join('');
 }

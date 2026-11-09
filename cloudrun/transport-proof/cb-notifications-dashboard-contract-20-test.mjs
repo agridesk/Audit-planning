@@ -59,7 +59,7 @@ const extensionPayload={certificationBodyId:'ECAS',rendererProfile:'ECAS_AUDIT_A
  COMPANY_NAME:'Test grower',MPS_NUMBER:'913496',SCOPE_NAME:'ABC',
  PREVIOUS_EXPIRY:'2026-12-31',EFFECTIVE_EXPIRY:'2027-03-31',CHANGED_AT:'2026-11-09'}};
 const apply=testContext.NB_renderEcasExtensionDigest_('',{eventCode:'CB_EXTENSION_APPLIED',payload:extensionPayload});
-assert(apply.htmlBody.includes('ecas-shell')&&apply.htmlBody.includes('Extensions / Undo'));
+assert(apply.htmlBody.includes('ecas-shell')&&apply.htmlBody.includes('Verlengingen'));
 assert(apply.body.includes('Verlenging toegepast'));
 assert.equal((apply.htmlBody.match(/<th>/g)||[]).length,6,'Six horizontal headers expected');
 assert.equal((apply.htmlBody.match(/<td>/g)||[]).length,6,'One horizontal row and six cells expected');

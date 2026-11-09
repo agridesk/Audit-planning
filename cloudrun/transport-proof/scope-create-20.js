@@ -6,7 +6,7 @@ export async function createScope20({body,actor,SID,sheetsBatchGet,accessToken,c
  if(!headers.includes('Certification_Body_ID')||!['Certification_Body_ID','Active'].every(h=>cbHeaders.includes(h)))throw Error('CERTIFICATION_BODY_SCHEMA_MISSING');
  const matches=cbRows.slice(1).filter(r=>clean(r[cbHeaders.indexOf('Certification_Body_ID')]).toUpperCase()===certificationBodyId);
  if(matches.length!==1||!['YES','TRUE','1'].includes(clean(matches[0][cbHeaders.indexOf('Active')]).toUpperCase()))throw Error('CERTIFICATION_BODY_NOT_ACTIVE_OR_UNKNOWN');
- const required=['SlotKey','ScopeCode','DisplayName','Color','TextColor','Active','Archived','SortOrder','Default_hours','Max number audits','Planning from','Planning to','Extension','Recurring','Obligation cycle','Complete by','Provisioning source','Trigger source','Source service','Max_Offsite_Hours','Min_Interval_Months'];
+ const required=['SlotKey','ScopeCode','DisplayName','Color','TextColor','Active','Archived','SortOrder','Default_hours','Max number audits','Planning from','Planning to','Extension','Recurring','Obligation cycle','Complete by','Provisioning source','Trigger source','Source service','Max_Offsite_Hours','Min_Interval_Months','Rotation_Normal_Maximum','Rotation_Applies','Rotation_Plus_One_Permitted'];
  if(required.some(h=>!headers.includes(h)))throw Error('SCOPE_SCHEMA_INCOMPLETE');
  if(rows.slice(1).some(r=>clean(r[headers.indexOf('ScopeCode')]).toUpperCase()===code||clean(r[headers.indexOf('DisplayName')]).toLowerCase()===name.toLowerCase()))throw Error('DUPLICATE_SCOPE_IDENTITY');
  const existing=rows.slice(1).filter(r=>r.some(v=>clean(v)));

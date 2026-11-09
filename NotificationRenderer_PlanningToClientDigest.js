@@ -569,7 +569,7 @@ function NB_renderEcasExtensionDigest_(recipientEmail, item) {
   html.push('</tr></thead><tbody><tr>');
   html.push(NB_externalTd_(values[0],'text-align:center;white-space:nowrap'));
   html.push(NB_externalTd_(values[1],''));
-  html.push(NB_externalTd_(values[2],''));
+  html.push(NB_externalTdHtml_(NB_scopeBadgesHtml_([values[2]]),''));
   html.push(NB_externalTd_(values[3],'text-align:center;white-space:nowrap'));
   html.push(NB_externalTd_(values[4],'text-align:center;white-space:nowrap'));
   html.push(NB_externalTd_(values[5],''));

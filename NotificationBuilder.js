@@ -105,6 +105,30 @@ function NB_buildNotification_(eventType, data) {
 
 function NB_renderDigestEmail_(recipientEmail, items) {
   items = items || [];
+  // A ready ECAS extension may share an already-due ECAS operational digest.
+  // Do not normalize it as a planned audit: expiry changes have no audit blocks.
+  var extensions = items.filter(function(it){return /^CB_EXTENSION_(APPLIED|UNDONE)$/.test(String(it.eventCode||''));});
+  if (extensions.length) {
+    var normalItems=items.filter(function(it){return !/^CB_EXTENSION_(APPLIED|UNDONE)$/.test(String(it.eventCode||''));});
+    if (!normalItems.length) {
+      if (extensions.length!==1) throw Error('ECAS_EXTENSION_STANDALONE_EXPECTS_ONE_EVENT');
+      return NB_renderEcasExtensionDigest_(recipientEmail,extensions[0]);
+    }
+    // Validate regular audit rows through the canonical digest renderer below,
+    // then append only the extension table: one greeting and one sign-off.
+    var normalRendered=NB_renderDigestEmail_(recipientEmail,normalItems);
+    var extHtml=NB_ecasExtensionsSectionHtml_(extensions);
+    var extText=NB_ecasExtensionsSectionText_(extensions);
+    var signoffHtml='<div style="border-top:1px solid #111827;margin:18px 0 14px 0"></div>';
+    var signoffIndex=normalRendered.htmlBody.lastIndexOf(signoffHtml);
+    if(signoffIndex<0)throw Error('ECAS_DIGEST_SIGNOFF_ANCHOR_MISSING');
+    var signoffText='\\n\\nBedankt,';
+    var textIndex=normalRendered.body.lastIndexOf(signoffText);
+    if(textIndex<0)throw Error('ECAS_DIGEST_TEXT_SIGNOFF_ANCHOR_MISSING');
+    return {subject:normalRendered.subject,
+      body:normalRendered.body.slice(0,textIndex)+'\\n\\n'+extText+normalRendered.body.slice(textIndex),
+      htmlBody:normalRendered.htmlBody.slice(0,signoffIndex)+extHtml+normalRendered.htmlBody.slice(signoffIndex)};
+  }
   var normalizedItems = [];
   var firstPayload = null;
   var profile = '';

@@ -56,6 +56,10 @@ function NotificationSender_RunDigest() {
         var swapOutbox=Swap20_reconcileEcasIntentsLocked_();
         if(swapOutbox&&swapOutbox.errors)Logger.log('SWAP20_ECAS_OUTBOX '+JSON.stringify(swapOutbox));
       }catch(swapOutboxErr){Logger.log('SWAP20_ECAS_OUTBOX_ERROR '+String(swapOutboxErr));}
+    }else{
+      // The SWAP journal does not enqueue messages by itself. Make the missing
+      // reconciliation hook observable without affecting other notifications.
+      Logger.log('SWAP20_ECAS_RECONCILER_MISSING: committed SWAPs are not being enqueued');
     }
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var nq = ss.getSheetByName(ns_getQueueSheetName_());

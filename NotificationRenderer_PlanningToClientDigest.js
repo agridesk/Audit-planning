@@ -508,37 +508,56 @@ function NB_renderEcasExtensionDigest_(recipientEmail, item) {
       ||p.templateKey!=='ECAS_AUDIT_APPROVAL_DIGEST'
       ||!/^CB_EXTENSION_(APPLIED|UNDONE)$/.test(String(item&&item.eventCode||'')))
     throw Error('ECAS_EXTENSION_RENDERER_IDENTITY_MISMATCH');
-  var required=['COMPANY_NAME','SCOPE_NAME','CHANGED_AT'];
+
+  // Like the established Ecert audit table, an operational row must have
+  // a company identity, an MPS number and complete actionable date values.
+  var required=['COMPANY_NAME','MPS_NUMBER','SCOPE_NAME','PREVIOUS_EXPIRY','EFFECTIVE_EXPIRY'];
   for(var i=0;i<required.length;i++)
     if(!String(d[required[i]]||'').trim())throw Error('ECAS_EXTENSION_RENDERER_MISSING_'+required[i]);
-  var applied=item.eventCode==='CB_EXTENSION_APPLIED';
-  var status=applied?'Verlenging toegepast':'Verlenging ingetrokken';
-  var fields=[
-    ['Status',status],
-    ['Bedrijf',d.COMPANY_NAME],
-    ['Scope',d.SCOPE_NAME],
-    ['Oorspronkelijke vervaldatum',d.BASE_EXPIRY||'-'],
-    ['Vorige effectieve vervaldatum',d.PREVIOUS_EXPIRY||'-'],
-    ['Nieuwe effectieve vervaldatum',d.EFFECTIVE_EXPIRY||'-'],
-    ['Vorige planningperiode',(d.PREVIOUS_WINDOW_FROM||'-')+' – '+(d.PREVIOUS_WINDOW_TO||'-')],
-    ['Nieuwe planningperiode',(d.NEW_WINDOW_FROM||'-')+' – '+(d.NEW_WINDOW_TO||'-')],
-    ['Gewijzigd op',d.CHANGED_AT]
+
+  var status=item.eventCode==='CB_EXTENSION_APPLIED'?'Verlenging toegepast':'Verlenging ingetrokken';
+  var compactDate=function(value) {
+    var v=String(value||'').trim();
+    var iso=v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return iso?iso[3]+'-'+iso[2]+'-'+iso[1]:v;
+  };
+  var previous=compactDate(d.PREVIOUS_EXPIRY);
+  var current=compactDate(d.EFFECTIVE_EXPIRY);
+  var values=[
+    String(d.MPS_NUMBER),String(d.COMPANY_NAME),String(d.SCOPE_NAME),
+    previous,current,status
   ];
-  if(String(d.MPS_NUMBER||'').trim())fields.splice(2,0,['MPS No.',d.MPS_NUMBER]);
+  var headings=['MPS No.','Bedrijf','Scope','Vorige vervaldatum','Nieuwe vervaldatum','Wijziging'];
+
   var txt=['Hallo,','','Hierbij een wijziging in de auditverlenging voor verwerking in Ecert.',
-    '', 'Extensions / Undo'];
-  for(var j=0;j<fields.length;j++)txt.push(fields[j][0]+': '+fields[j][1]);
+    '', 'Verlengingen'];
+  txt.push(headings.join(' | '));
+  txt.push(values.join(' | '));
   txt.push('','','Bedankt,','','René Rombouts');
+
+  // Use precisely the existing ECAS operational digest shell, heading, border,
+  // table sizing, header and cell helpers; one company per horizontal row.
   var html=[];
   html.push(NB_externalShellStart_());
   html.push('<div style="font-size:13px;line-height:1.45;color:#111827;margin:0 0 14px 0">Hallo,<br><br>Hierbij een wijziging in de auditverlenging voor verwerking in Ecert.</div>');
   html.push('<div style="border-top:1px solid #111827;margin:12px 0 14px 0"></div>');
-  html.push('<div style="font-size:13px;font-weight:700;color:#111827;margin:12px 0 5px 0">Extensions / Undo</div>');
+  html.push('<div style="font-size:13px;font-weight:700;color:#111827;margin:12px 0 5px 0">Verlengingen</div>');
   html.push('<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;font-size:11px;line-height:1.25;table-layout:auto;margin:0 0 9px 0;color:#111827">');
-  html.push('<thead><tr>'+NB_externalTh_('Onderdeel','width:190px')+NB_externalTh_('Gegevens','')+'</tr></thead><tbody>');
-  for(var k=0;k<fields.length;k++)
-    html.push('<tr>'+NB_externalTd_(fields[k][0],'font-weight:600')+NB_externalTd_(fields[k][1],'')+'</tr>');
-  html.push('</tbody></table>');
+  html.push('<thead><tr>');
+  html.push(NB_externalTh_('MPS No.','width:82px'));
+  html.push(NB_externalTh_('Bedrijf','width:175px'));
+  html.push(NB_externalTh_('Scope','width:138px'));
+  html.push(NB_externalTh_('Vorige vervaldatum','width:112px'));
+  html.push(NB_externalTh_('Nieuwe vervaldatum','width:112px'));
+  html.push(NB_externalTh_('Wijziging','width:145px'));
+  html.push('</tr></thead><tbody><tr>');
+  html.push(NB_externalTd_(values[0],'text-align:center;white-space:nowrap'));
+  html.push(NB_externalTd_(values[1],''));
+  html.push(NB_externalTd_(values[2],''));
+  html.push(NB_externalTd_(values[3],'text-align:center;white-space:nowrap'));
+  html.push(NB_externalTd_(values[4],'text-align:center;white-space:nowrap'));
+  html.push(NB_externalTd_(values[5],''));
+  html.push('</tr></tbody></table>');
   html.push('<div style="border-top:1px solid #111827;margin:18px 0 14px 0"></div>');
   html.push('<div style="font-size:13px;line-height:1.5;color:#111827">Bedankt,<br><br>René Rombouts</div>');
   html.push(NB_externalShellEnd_());

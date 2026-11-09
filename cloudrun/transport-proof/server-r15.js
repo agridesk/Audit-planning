@@ -911,6 +911,64 @@ async function notificationEventMutation(req,res){
  const data=await notificationGasCall(actor,'updateEvent',{eventKey:key,changes:{[field]:body.value},expected:{[field]:body.expected}});
  res.writeHead(data.ok?200:409,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(data));
 }
+async function notificationCbSettingMutation(req,res){
+ if(!runtime.isDev){res.writeHead(404);res.end('Not found');return;}
+ const actor=await session(req);
+ if(!actor||actor.role!=='manager'){res.writeHead(actor?403:401);res.end('Manager session required');return;}
+ let authorized=false;
+ try{const origin=new URL(String(req.headers.origin||''));authorized=origin.protocol==='https:'&&origin.host===String(req.headers.host||'');}catch{}
+ if(!authorized){res.writeHead(403);res.end('ORIGIN_REJECTED');return;}
+ let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>16384){res.writeHead(413);res.end('REQUEST_TOO_LARGE');return;}}
+ let body;try{body=JSON.parse(raw)}catch{res.writeHead(400);res.end('INVALID_JSON');return;}
+ const kind=String(body.kind||''),id=String(body.id||'').trim(),field=String(body.field||''),value=body.value,expected=body.expected;
+ const allowed=kind==='body'?['Notification_Email','Email_Verified','Notification_Enabled']:kind==='template'?['SUBJECT_TEMPLATE','TEXT_BODY']:[];
+ const idPattern=kind==='body'?/^[A-Z][A-Z0-9_-]{1,60}$/:/^CB_EXTENSION_(APPLIED|UNDONE)$/;
+ if(!allowed.includes(field)||!idPattern.test(id)||typeof value!=='string'||typeof expected!=='string'||value.length>8000||expected.length>8000){
+  res.writeHead(400);res.end('CB_SETTING_INPUT_INVALID');return;
+ }
+ if(kind==='body'){
+  if(field==='Notification_Email'&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value.trim())){res.writeHead(400);res.end('CB_EMAIL_INVALID');return;}
+  if(field!=='Notification_Email'&&!['TRUE','FALSE'].includes(value)){res.writeHead(400);res.end('CB_BOOLEAN_INVALID');return;}
+ }else{
+  if(!value.trim()||(field==='SUBJECT_TEMPLATE'&&value.length>200)||value.includes('<script')){res.writeHead(400);res.end('CB_TEMPLATE_INVALID');return;}
+  const placeholders=[...value.matchAll(/\\{\\{([A-Z_]+)\\}\\}/g)].map(x=>x[1]);
+  if(placeholders.some(x=>!['CERTIFICATION_BODY_NAME','COMPANY_NAME','SCOPE_NAME','BASE_EXPIRY','EFFECTIVE_EXPIRY'].includes(x))){
+   res.writeHead(400);res.end('CB_TEMPLATE_PLACEHOLDER_INVALID');return;
+  }
+ }
+ const sheet=kind==='body'?'Certification_Bodies':'Notification_Templates',key=kind==='body'?'Certification_Body_ID':'TEMPLATE_KEY';
+ const base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/';
+ const authorization='Bearer '+await getToken(),url=base+encodeURIComponent("'"+sheet+"'!A1:AZ1000");
+ const fetched=await fetch(url,{headers:{authorization},signal:AbortSignal.timeout(12000)});
+ if(!fetched.ok)throw Error('CB_SETTING_SOURCE_UNAVAILABLE');
+ const rows=(await fetched.json()).values||[],h=(rows[0]||[]).map(x=>String(x||'').trim());
+ const index=h.indexOf(field),identity=h.indexOf(key);
+ if(index<0||identity<0)throw Error('CB_SETTING_SCHEMA_MISSING');
+ const matched=rows.slice(1).map((r,i)=>({r,row:i+2})).filter(x=>String(x.r[identity]||'').trim()===id);
+ if(matched.length!==1){res.writeHead(409);res.end('CB_SETTING_RECORD_NOT_UNIQUE');return;}
+ const current=String(matched[0].r[index]??'');
+ if(current!==expected){res.writeHead(409);res.end('CB_SETTING_STALE_RELOAD_REQUIRED');return;}
+ const col=n=>{let out='';for(n++;n;n=Math.floor((n-1)/26))out=String.fromCharCode(65+(n-1)%26)+out;return out;};
+ const updates=[{range:"'"+sheet+"'!"+col(index)+matched[0].row,values:[[value]]}];
+ if(kind==='body'&&field==='Notification_Email'&&value!==expected){
+  const verifiedIndex=h.indexOf('Email_Verified');
+  if(verifiedIndex<0)throw Error('CB_VERIFICATION_SCHEMA_MISSING');
+  updates.push({range:"'"+sheet+"'!"+col(verifiedIndex)+matched[0].row,values:[['FALSE']]});
+ }
+ if(kind==='body'){
+  const updatedIndex=h.indexOf('Updated_At');
+  if(updatedIndex>=0)updates.push({range:"'"+sheet+"'!"+col(updatedIndex)+matched[0].row,values:[[new Date().toISOString()]]});
+ }
+ const endpoint='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values:batchUpdate';
+ const committed=await fetch(endpoint,{method:'POST',headers:{authorization,'content-type':'application/json'},
+  body:JSON.stringify({valueInputOption:'RAW',data:updates}),signal:AbortSignal.timeout(12000)});
+ if(!committed.ok)throw Error('CB_SETTING_WRITE_FAILED');
+ const checked=await fetch(base+encodeURIComponent("'"+sheet+"'!"+col(index)+matched[0].row),{headers:{authorization},signal:AbortSignal.timeout(12000)});
+ if(!checked.ok||String(((await checked.json()).values||[])[0]?.[0]??'')!==value)throw Error('CB_SETTING_READBACK_NOT_CONFIRMED');
+ console.info('[CB_NOTIFICATION_CONFIG_CHANGED]',JSON.stringify({kind,id,field,actor:actor.auditorId||actor.email,changed:value!==expected}));
+ res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+ res.end(JSON.stringify({ok:true,kind,id,field,emailRequiresReverification:kind==='body'&&field==='Notification_Email'&&value!==expected}));
+}
 async function proxy(req,res){
  const url='http://127.0.0.1:'+innerPort+(req.url||'/');
  const headers={...req.headers};delete headers.host;delete headers.connection;delete headers['content-length'];
@@ -1301,6 +1359,7 @@ http.createServer(async(req,res)=>{
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/rules'){await notificationRuleMutation(req,res);return;}
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/digest-buffer'){await notificationDigestBufferMutation(req,res);return;}
   if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/events'){await notificationEventMutation(req,res);return;}
+  if(req.method==='POST'&&u.pathname==='/api/v1/notifications-manager-20/cb-settings'){await notificationCbSettingMutation(req,res);return;}
   if(req.method==='GET'&&u.pathname==='/api/v1/notifications-manager-20/overview'){await notificationsManagerOverview(req,res);return;}
   if(req.method==='GET'&&u.pathname==='/notifications-manager-20'){
    const actor=await session(req);

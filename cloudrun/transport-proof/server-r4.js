@@ -38,6 +38,7 @@ import {v211ActorCapabilities} from './actor-capabilities-v211.js';
 import {currentAuditorUid20,assignedUid20} from './auditor-uid-owner-resolution-20.js';
 import {activateScopeHoursVersion20} from './scope-hours-version-20.js';
 import {updateScopePolicy20} from './scope-policy-20.js';
+import {updateScopeCertificationBody20} from './scope-certification-body-20.js';
 import {scopeSchemeVersion20} from './scope-scheme-version-20.js';
 import {createScope20} from './scope-create-20.js';
 import {companyHoursStorage20} from './company-scope-hours-storage-20.js';
@@ -3373,6 +3374,16 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     let body={scopeCode:u.searchParams.get('scopeCode')};
     if(req.method==='POST'){let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});}try{body=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}}
     try{return send(res,200,await scopeSchemeVersion20({method:req.method,body,actor,SID,sheetsBatchGet,accessToken,clean}));}
+    catch(e){return send(res,409,{ok:false,error:clean(e.message||e)});}
+  }
+  if(u.pathname==='/api/v1/manager/scopes/certification-body'&&req.method==='POST'){
+    const actor=await sessionFromRequestValidated(req);
+    if(!actor)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
+    if(clean(actor.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
+    if(process.env.AMS_RUNTIME_ENV!=='DEV')return send(res,403,{ok:false,error:'DEV_ONLY'});
+    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});}
+    let body;try{body=JSON.parse(raw)}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+    try{return send(res,200,await updateScopeCertificationBody20({body,actor,SID,sheetsBatchGet,accessToken,clean}));}
     catch(e){return send(res,409,{ok:false,error:clean(e.message||e)});}
   }
   if(u.pathname==='/api/v1/manager/scopes/policy'&&req.method==='POST'){

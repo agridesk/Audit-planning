@@ -128,7 +128,7 @@ const builderCtx={
   NB_resolveRendererProfile_:()=> 'EXTERNAL_OPERATIONAL',
   NB_renderExternalOperationalDigest_:()=>({
     subject:'Combined test',
-    body:'Hallo,\\n\\nAudit rows\\n\\nBedankt,\\n\\nRené Rombouts',
+    body:'Hallo,\n\nAudit rows\n\nBedankt,\n\nRené Rombouts',
     htmlBody:'<div>Hallo, Audit rows<div style="border-top:1px solid #111827;margin:18px 0 14px 0"></div>Bedankt</div>'
   }),
   NB_ecasExtensionsSectionHtml_:testContext.NB_ecasExtensionsSectionHtml_,

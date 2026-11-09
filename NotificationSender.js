@@ -623,6 +623,12 @@ function ns_reservePending_(nqSheet, values) {
     }
 
     if (cfg.sendEmail === false || cfg.logOnly === true) continue;
+    // CB extensions have already completed their configurable >=10 minute
+    // latest-state hold in CB_Extension_Outbox. Do not impose a second
+    // Notification Queue digest buffer after that hold has elapsed.
+    if(/^CB_EXTENSION_(APPLIED|UNDONE)$/.test(String(values[r][2]||''))){
+      cfg={...cfg,consolidate:false,bufferMinutes:0,digestGroup:'CB_EXTENSION_SINGLE'};
+    }
 
     var createdAtMs = ns_toMs_(values[r][0]);
     if (!createdAtMs) createdAtMs = Date.now();

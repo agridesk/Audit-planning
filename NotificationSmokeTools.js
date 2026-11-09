@@ -178,7 +178,11 @@ function RUN_NF_CLIENT_DIGEST() {
 }
 
 function RUN_NF_EXT() {
-  return RUN_NF_CLIENT_DIGEST();
+  // The former alias sent a normal audit digest, not an EXT/Undo preview.
+  // Explicitly route testers to the isolated synthetic ECAS EXT/SWAP proof.
+  if (typeof RUN_ECAS_EXT_SWAP_PREVIEW_DEV_20261109 !== 'function')
+    throw Error('ECAS_EXT_SWAP_PREVIEW_MODULE_MISSING');
+  return RUN_ECAS_EXT_SWAP_PREVIEW_DEV_20261109();
 }
 
 function RUN_NF_LIFECYCLE() {

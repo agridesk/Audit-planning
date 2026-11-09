@@ -271,15 +271,33 @@ async function showScopePreview20(button){
  }catch(e){window.alert('Scope preview failed: '+e.message)}finally{button.disabled=false}
 }
 async function toggleSelfPlanning20(button){
- var auditId=button.getAttribute('data-audit-id'),row=all.find(function(r){return r.auditId===auditId});
- if(!row||busyAudits.has(auditId)||!row.sourceRevision)return;
+ var auditId=String(button.getAttribute('data-audit-id')||''),row=all.find(function(r){return String(r.auditId)===auditId});
+ if(!row||busyAudits.has(auditId))return;
  busyAudits.add(auditId);button.disabled=true;
  try{
-  var response=await fetch('/api/v1/manager/self-planning-direct',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({auditId:auditId,expectedRevision:row.sourceRevision,expectedAllowSelfPlanning:/^(true|yes|1)$/i.test(String(row.allowSelfPlanning||'')),allowSelfPlanning:button.getAttribute('data-next')==='true'})});
-  var result=await response.json();if(!response.ok||result.success!==true)throw Error(result.error||result.code||result.message||'Self planning update failed');
+  // EXT/Undo can change the canonical audit revision after the grid was loaded.
+  // Always obtain the current revision and self-planning state before a CAS write.
+  var freshResponse=await fetch('/api/v1/manager/open',{credentials:'same-origin',cache:'no-store'});
+  var fresh=await freshResponse.json();
+  if(!freshResponse.ok||fresh.success!==true||!Array.isArray(fresh.rows))
+   throw Error(fresh.error||fresh.message||'Fresh audit state unavailable');
+  var matched=fresh.rows.filter(function(r){return String(r.auditId)===auditId});
+  if(matched.length!==1)throw Error('Current audit not found uniquely; reload grid');
+  var current=matched[0];
+  if(current.statusKey!=='PENDING_PLANNING')throw Error('Audit is no longer Pending Planning');
+  if(!current.sourceRevision)throw Error('Canonical source revision missing; self planning was not changed');
+  var expected=/^(true|yes|1)$/i.test(String(current.allowSelfPlanning||''));
+  var next=button.getAttribute('data-next')==='true';
+  if(expected===next){
+   mergeRowInPlace(auditId,{allowSelfPlanning:current.allowSelfPlanning,sourceRevision:current.sourceRevision});
+   return;
+  }
+  var response=await fetch('/api/v1/manager/self-planning-direct',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({auditId:auditId,expectedRevision:current.sourceRevision,expectedAllowSelfPlanning:expected,allowSelfPlanning:next})});
+  var result=await response.json();
+  if(!response.ok||result.success!==true)throw Error(result.error||result.code||result.message||'Self planning update failed');
   mergeRowInPlace(auditId,{allowSelfPlanning:result.allowSelfPlanning,sourceRevision:result.sourceRevision});
- }catch(e){window.alert('Self planning not changed: '+e.message);button.disabled=false}
- finally{busyAudits.delete(auditId)}
+ }catch(e){window.alert('Self planning not changed: '+String(e.message||e))}
+ finally{busyAudits.delete(auditId);button.disabled=false}
 }
 function bindActionButtons(root){(root||document).querySelectorAll(".ext-manage").forEach(function(button){button.addEventListener("click",function(){var row=all.find(function(x){return String(x.auditId)===String(button.dataset.auditId)});if(!row){window.alert('Selected audit not found. Reload the audit grid.');return}window.dispatchEvent(new CustomEvent("ams:open-company-scopes",{detail:{companyUid:row.companyUid||row.companyUID||"",companyName:row.company||"",auditId:row.auditId||""}}))})});(root||document).querySelectorAll(".ext-single").forEach(function(button){button.addEventListener("click",function(){runSingleScopeExtension20(button)})});(root||document).querySelectorAll(".scope-preview20").forEach(function(button){button.addEventListener("click",function(){showScopePreview20(button)})});(root||document).querySelectorAll(".self-planning-toggle20").forEach(function(button){button.addEventListener("click",function(){toggleSelfPlanning20(button)})});(root||document).querySelectorAll(".act").forEach(function(button){button.addEventListener("click",function(){runAction(button)})});}
 function diagnoseGridOverflow(){

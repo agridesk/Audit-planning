@@ -25,7 +25,7 @@ export async function createScope20({body,actor,SID,sheetsBatchGet,accessToken,c
  const set=(h,v)=>{newRow[headers.indexOf(h)]=v};
  set('SlotKey',free);set('ScopeCode',code);set('DisplayName',name);set('Color','#64748B');set('TextColor','#FFFFFF');
  set('Active',false);set('Archived',false);set('SortOrder',String(Math.max(0,...rows.slice(1).map(r=>Number(r[headers.indexOf('SortOrder')])||0))+1));
- set('Recurring',false);set('Certification_Body_ID',certificationBodyId);
+ set('Recurring','NO');set('Certification_Body_ID',certificationBodyId);
  const token=await accessToken(),base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID);
  const meta=await fetch(base+'?fields=sheets.properties(title,sheetId)',{headers:{authorization:'Bearer '+token}});
  if(!meta.ok)throw Error('SCOPE_METADATA_UNAVAILABLE');

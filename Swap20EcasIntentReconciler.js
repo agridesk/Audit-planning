@@ -1,6 +1,7 @@
-// SWAP ECAS outbox reconciler. Caller holds script lock; never sends mail.
-// Existing NotificationSender periodic trigger invokes it before reserving rows.
-function Swap20_reconcileEcasIntentsLocked_() {
+// RETIRED legacy SWAP notification reconciler, retained for historical diagnostics.
+// Runtime owner: Swap20EcasNotificationReconciler.js.
+// Do not route NotificationSender to this legacy function.
+function Swap20_reconcileEcasIntentsLegacyLocked_() {
  var p=PropertiesService.getScriptProperties();
  if(String(p.getProperty('AMS_ENV')||'').toUpperCase()!=='DEV'||
     String(p.getProperty('ECAS20_CHANGE_CANCEL_ENABLED')||'').toUpperCase()!=='YES')

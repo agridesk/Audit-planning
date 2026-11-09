@@ -38,7 +38,8 @@ function NB_renderExternalOperationalSingle_(n) {
   };
 }
 
-function NB_renderExternalOperationalDigest_(recipientEmail, normalizedItems) {
+function NB_renderExternalOperationalDigest_(recipientEmail, normalizedItems, ecasExtensionItems) {
+  ecasExtensionItems = ecasExtensionItems || [];
   normalizedItems = normalizedItems || [];
   // One persisted SWAP queue item contains exactly two audit updates.
   // Expand only in the renderer, keeping a single atomic ECAS email.
@@ -77,6 +78,7 @@ function NB_renderExternalOperationalDigest_(recipientEmail, normalizedItems) {
     'Hierbij een overzicht van de audits die zijn ingepland, gewijzigd, geannuleerd of afgewezen, gegroepeerd per auditor.\n' +
     'Zouden jullie deze in Ecert willen verwerken en formeel aan de betreffende bedrijven willen bevestigen?\n\n' +
     tableText +
+    (ecasExtensionItems.length ? '\n\n' + NB_ecasExtensionsSectionText_(ecasExtensionItems) : '') +
     '\n\nBedankt,\n\nRené Rombouts';
 
   var html = [];
@@ -86,6 +88,7 @@ function NB_renderExternalOperationalDigest_(recipientEmail, normalizedItems) {
   html.push('Zouden jullie deze in Ecert willen verwerken en formeel aan de betreffende bedrijven willen bevestigen?</div>');
   html.push('<div style="border-top:1px solid #111827;margin:12px 0 14px 0"></div>');
   html.push(tableHtml);
+  if (ecasExtensionItems.length) html.push(NB_ecasExtensionsSectionHtml_(ecasExtensionItems));
   if (validation.invalid.length) html.push(NB_externalSkippedRowsHtml_(validation.invalid));
   html.push('<div style="border-top:1px solid #111827;margin:18px 0 14px 0"></div>');
   html.push('<div style="font-size:13px;line-height:1.5;color:#111827">Bedankt,<br><br>René Rombouts</div>');
@@ -562,4 +565,46 @@ function NB_renderEcasExtensionDigest_(recipientEmail, item) {
   html.push('<div style="font-size:13px;line-height:1.5;color:#111827">Bedankt,<br><br>René Rombouts</div>');
   html.push(NB_externalShellEnd_());
   return {subject:NB_externalOperationalSubject_(),body:txt.join('\n'),htmlBody:html.join('')};
+}
+
+/**
+ * Shared ECAS extension/Undo table used inside a complete operational digest.
+ * The standalone test/delivery renderer remains separate with its own greeting.
+ */
+function NB_ecasExtensionsData_(items) {
+  return (items || []).map(function(item) {
+    var p=(item&&item.payload)||{},d=p.extensionDetails||{};
+    if(p.certificationBodyId!=='ECAS'||p.rendererProfile!=='ECAS_AUDIT_APPROVAL_DIGEST'
+       ||p.templateKey!=='ECAS_AUDIT_APPROVAL_DIGEST'
+       ||!/^CB_EXTENSION_(APPLIED|UNDONE)$/.test(String(item&&item.eventCode||'')))
+      throw Error('ECAS_EXTENSION_RENDERER_IDENTITY_MISMATCH');
+    ['COMPANY_NAME','MPS_NUMBER','SCOPE_NAME','PREVIOUS_EXPIRY','EFFECTIVE_EXPIRY'].forEach(function(key){
+      if(!String(d[key]||'').trim())throw Error('ECAS_EXTENSION_RENDERER_MISSING_'+key);
+    });
+    var fmt=function(x){var v=String(x||'').trim(),m=v.match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?m[3]+'-'+m[2]+'-'+m[1]:v;};
+    return [String(d.MPS_NUMBER),String(d.COMPANY_NAME),String(d.SCOPE_NAME),
+      fmt(d.PREVIOUS_EXPIRY),fmt(d.EFFECTIVE_EXPIRY),
+      item.eventCode==='CB_EXTENSION_APPLIED'?'Verlenging toegepast':'Verlenging ingetrokken'];
+  });
+}
+function NB_ecasExtensionsSectionText_(items) {
+  var rows=NB_ecasExtensionsData_(items);
+  return ['Verlengingen','MPS No. | Bedrijf | Scope | Vorige vervaldatum | Nieuwe vervaldatum | Wijziging']
+    .concat(rows.map(function(row){return row.join(' | ');})).join('\n');
+}
+function NB_ecasExtensionsSectionHtml_(items) {
+  var rows=NB_ecasExtensionsData_(items),h=[];
+  h.push('<div style="font-size:13px;font-weight:700;color:#111827;margin:12px 0 5px 0">Verlengingen</div>');
+  h.push('<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;font-size:11px;line-height:1.25;table-layout:auto;margin:0 0 9px 0;color:#111827"><thead><tr>');
+  [['MPS No.','width:82px'],['Bedrijf','width:175px'],['Scope','width:138px'],
+   ['Vorige vervaldatum','width:112px'],['Nieuwe vervaldatum','width:112px'],
+   ['Wijziging','width:145px']].forEach(function(x){h.push(NB_externalTh_(x[0],x[1]));});
+  h.push('</tr></thead><tbody>');
+  rows.forEach(function(row){
+    h.push('<tr>');
+    row.forEach(function(value,i){h.push(NB_externalTd_(value,i===0||i===3||i===4?'text-align:center;white-space:nowrap':''));});
+    h.push('</tr>');
+  });
+  h.push('</tbody></table>');
+  return h.join('');
 }

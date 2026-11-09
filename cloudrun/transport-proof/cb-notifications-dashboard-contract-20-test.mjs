@@ -34,7 +34,7 @@ assert(sender.includes("ep.certificationBodyId==='ECAS'"),'Sender must route by 
 assert(sender.includes('NB_renderEcasExtensionDigest_'),'ECAS extension must reuse the Ecert digest HTML renderer');
 const legacyEcas=read('../../NotificationRenderer_PlanningToClientDigest.js');
 assert(legacyEcas.includes('function NB_renderEcasExtensionDigest_'),'ECAS extension renderer must exist within the established digest file');
-assert(legacyEcas.includes('NB_externalShellStart_()')&&legacyEcas.includes("NB_externalTh_('Onderdeel'"),'ECAS extension renderer must retain existing shell and table helpers');
+assert(legacyEcas.includes('NB_externalShellStart_()')&&legacyEcas.includes("NB_externalTh_('MPS No.'"),'ECAS extension renderer must use the existing six-column horizontal digest table');
 assert(ui.includes("cb.recentErrors"));
 assert(ui.includes("cb.nextDue"));
 assert(sender.includes("cfg={...cfg,consolidate:false,bufferMinutes:0,digestGroup:'CB_EXTENSION_SINGLE'}"),'Do not wait twice');
@@ -56,14 +56,28 @@ const testContext={
 vm.runInNewContext(legacyEcas.slice(start),testContext);
 const extensionPayload={certificationBodyId:'ECAS',rendererProfile:'ECAS_AUDIT_APPROVAL_DIGEST',
  templateKey:'ECAS_AUDIT_APPROVAL_DIGEST',extensionDetails:{
- COMPANY_NAME:'Test grower',SCOPE_NAME:'ABC',CHANGED_AT:'2026-11-09'}};
+ COMPANY_NAME:'Test grower',MPS_NUMBER:'913496',SCOPE_NAME:'ABC',
+ PREVIOUS_EXPIRY:'2026-12-31',EFFECTIVE_EXPIRY:'2027-03-31',CHANGED_AT:'2026-11-09'}};
 const apply=testContext.NB_renderEcasExtensionDigest_('',{eventCode:'CB_EXTENSION_APPLIED',payload:extensionPayload});
 assert(apply.htmlBody.includes('ecas-shell')&&apply.htmlBody.includes('Extensions / Undo'));
 assert(apply.body.includes('Verlenging toegepast'));
+assert.equal((apply.htmlBody.match(/<th>/g)||[]).length,6,'Six horizontal headers expected');
+assert.equal((apply.htmlBody.match(/<td>/g)||[]).length,6,'One horizontal row and six cells expected');
+assert(apply.body.includes('31-12-2026')&&apply.body.includes('31-03-2027'),'Show before and after expiry dates');
+assert(!/planningperiode|gewijzigd op|oorspronkelijke vervaldatum|extensions \/ undo/i.test(apply.htmlBody),'Remove extra operational fields');
+for(const h of ['MPS No.','Bedrijf','Scope','Vorige vervaldatum','Nieuwe vervaldatum','Wijziging']){
+ assert(apply.htmlBody.includes('<th>'+h+'</th>'),'Missing compact header '+h);
+}
+assert(apply.htmlBody.includes('Verlengingen'),'Use Dutch section title');
+
 const withMps=testContext.NB_renderEcasExtensionDigest_('',{eventCode:'CB_EXTENSION_APPLIED',payload:{...extensionPayload,extensionDetails:{...extensionPayload.extensionDetails,MPS_NUMBER:'913496'}}});
 assert(withMps.htmlBody.includes('MPS No.')&&withMps.body.includes('913496'),'ECAS renderer shows canonical MPS number when present');
 const undo=testContext.NB_renderEcasExtensionDigest_('',{eventCode:'CB_EXTENSION_UNDONE',payload:extensionPayload});
 assert(undo.body.includes('Verlenging ingetrokken'));
+assert(undo.body.includes('31-12-2026')&&undo.body.includes('31-03-2027'),'Undo still shows previous and current dates');
+assert.throws(()=>testContext.NB_renderEcasExtensionDigest_('',{eventCode:'CB_EXTENSION_APPLIED',
+ payload:{...extensionPayload,extensionDetails:{...extensionPayload.extensionDetails,MPS_NUMBER:''}}}),/MISSING_MPS_NUMBER/);
+
 assert.throws(()=>testContext.NB_renderEcasExtensionDigest_('',{eventCode:'CB_EXTENSION_APPLIED',
  payload:{...extensionPayload,certificationBodyId:'OTHER'}}),/IDENTITY_MISMATCH/);
 

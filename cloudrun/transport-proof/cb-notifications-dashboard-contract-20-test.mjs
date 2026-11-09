@@ -91,7 +91,7 @@ let journalMock=[
 ];
 testContext.SpreadsheetApp={getActiveSpreadsheet:()=>({getSheetByName:name=>
  name==='Config_Scopes'?{getDataRange:()=>({getValues:()=>scopeMock})}:
- name==='AMS_Swap_20_Journal'?{getDataRange:()=>({getValues:()=>journalMock})}:null})};
+ name==='AMS_Swap_20_Journal'?{getLastRow:()=>journalMock.length,getRange:(row,col,height,width)=>({getValues:()=>journalMock.slice(row-1,row-1+height).map(x=>x.slice(col-1,col-1+width))})}:null})};
 assert.equal(testContext.NB_assertCommittedSwapJournal_(committedOperation),true);
 journalMock=[journalHeader,[committedOperation,1,'PREPARED','','']];
 assert.throws(()=>testContext.NB_assertCommittedSwapJournal_(committedOperation),/ECAS_SWAP_NOT_COMMITTED/);

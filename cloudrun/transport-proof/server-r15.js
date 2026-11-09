@@ -927,11 +927,11 @@ async function notificationCbSettingMutation(req,res){
   res.writeHead(400);res.end('CB_SETTING_INPUT_INVALID');return;
  }
  if(kind==='body'){
-  if(field==='Notification_Email'&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value.trim())){res.writeHead(400);res.end('CB_EMAIL_INVALID');return;}
+  if(field==='Notification_Email'&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())){res.writeHead(400);res.end('CB_EMAIL_INVALID');return;}
   if(field!=='Notification_Email'&&!['TRUE','FALSE'].includes(value)){res.writeHead(400);res.end('CB_BOOLEAN_INVALID');return;}
  }else{
   if(!value.trim()||(field==='SUBJECT_TEMPLATE'&&value.length>200)||value.includes('<script')){res.writeHead(400);res.end('CB_TEMPLATE_INVALID');return;}
-  const placeholders=[...value.matchAll(/\\{\\{([A-Z_]+)\\}\\}/g)].map(x=>x[1]);
+  const placeholders=[...value.matchAll(/\{\{([A-Z_]+)\}\}/g)].map(x=>x[1]);
   if(placeholders.some(x=>!['CERTIFICATION_BODY_NAME','COMPANY_NAME','SCOPE_NAME','BASE_EXPIRY','EFFECTIVE_EXPIRY'].includes(x))){
    res.writeHead(400);res.end('CB_TEMPLATE_PLACEHOLDER_INVALID');return;
   }

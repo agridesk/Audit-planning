@@ -24,7 +24,7 @@ export async function createScope20({body,actor,SID,sheetsBatchGet,accessToken,c
  const newRow=Array(Math.max(headers.length,21)).fill('');
  const set=(h,v)=>{newRow[headers.indexOf(h)]=v};
  set('SlotKey',free);set('ScopeCode',code);set('DisplayName',name);set('Color','#64748B');set('TextColor','#FFFFFF');
- set('Active',false);set('Archived',false);set('SortOrder',String(Math.max(0,...rows.slice(1).map(r=>Number(r[headers.indexOf('SortOrder')])||0))+1));
+ set('Active',false);set('Archived',false);set('Max number audits',3);set('SortOrder',String(Math.max(0,...rows.slice(1).map(r=>Number(r[headers.indexOf('SortOrder')])||0))+1));
  set('Recurring','NO');set('Rotation_Normal_Maximum',3);set('Rotation_Applies',true);set('Rotation_Plus_One_Permitted',false);set('Certification_Body_ID',certificationBodyId);
  const token=await accessToken(),base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID);
  const meta=await fetch(base+'?fields=sheets.properties(title,sheetId)',{headers:{authorization:'Bearer '+token}});

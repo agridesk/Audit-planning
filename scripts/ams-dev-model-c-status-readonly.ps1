@@ -14,13 +14,13 @@ $active = (& gcloud.cmd config get-value project 2>$null | Out-String).Trim()
 CheckLast 'gcloud project'
 if ($active -ne $project) { throw "ACTIVE_PROJECT_NOT_DEV: $active" }
 foreach ($service in @('ams-transport-proof','ams-acceptance-20261107')) {
-  $svc = JsonFromGcloud @('run','services','describe',$service,"--project=$project","--region=$region",'--format=json')
+  $svc = JsonFromGcloud -argv @('run','services','describe',$service,"--project=$project","--region=$region",'--format=json')
   $ingress = [string]$svc.metadata.annotations.'run.googleapis.com/ingress'
   Write-Output "SERVICE: $service | ingress=$ingress"
   foreach ($route in @($svc.status.traffic)) {
     $revision = [string]$route.revisionName
     if (-not $revision) { continue }
-    $rev = JsonFromGcloud @('run','revisions','describe',$revision,"--project=$project","--region=$region",'--format=json')
+    $rev = JsonFromGcloud -argv @('run','revisions','describe',$revision,"--project=$project","--region=$region",'--format=json')
     $env = @{}
     foreach ($variable in @($rev.spec.containers[0].env)) {
       if ($null -ne $variable.value) { $env[[string]$variable.name] = [string]$variable.value }

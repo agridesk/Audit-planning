@@ -1,5 +1,28 @@
 // Combined ECAS notification for one verified SWAP operation. Caller holds script lock.
 // No direct email; Notification Queue remains the single delivery owner.
+// SWAP-specific authoritative receipt verifier. Avoid colliding global
+// ECAS20_VerifyPersistedCommunication_ implementations with different
+// contracts; a queue SENT row alone is NOT confirmed external delivery.
+function Swap20_verifyEcasDeliveredReceipt_(auditId,communicationId,planningDigest){
+ var id=String(PropertiesService.getScriptProperties().getProperty('V5_SSOT_SPREADSHEET_ID')||'').trim();
+ if(!id||!auditId||!communicationId||!planningDigest)return false;
+ var ss=SpreadsheetApp.openById(id),sh=ss&&ss.getSheetByName('AMS_ECAS_Communication_Receipts');
+ if(!sh||sh.getLastRow()<2)return false;
+ var rows=sh.getDataRange().getValues(),headers=rows[0]||[];
+ var expected=['Audit_ID','Communication_ID','Planning_Digest','Delivery_Status','Delivered_At'];
+ var cols=expected.map(function(k){return headers.indexOf(k)});
+ if(cols.some(function(c){return c<0}))return false;
+ var matches=0;
+ for(var i=1;i<rows.length;i++){
+  var row=rows[i];
+  if(String(row[cols[0]]||'')!==String(auditId)
+    ||String(row[cols[1]]||'')!==String(communicationId)
+    ||String(row[cols[2]]||'')!==String(planningDigest))continue;
+  if(String(row[cols[3]]||'').trim().toUpperCase()!=='SENT'||!row[cols[4]])continue;
+  matches++;
+ }
+ return matches===1;
+}
 function Swap20_digestPlanning_(planningJson) {
  var raw=String(planningJson||'');
  if(!raw)throw Error('Previous ECAS planning unavailable');
@@ -55,8 +78,8 @@ function Swap20_tryQueueCombinedEcasLocked_(operationId){
  var cfg=NotificationConfig_GetEvent('ECAS_AUDIT_CHANGED_DIGEST');
  if(!cfg||cfg.active!==true||cfg.sendEmail!==true||cfg.logOnly===true)
   return {ok:false,queued:false,reason:'EVENT_NOT_ENABLED_FOR_DELIVERY'};
- if(typeof ECAS20_VerifyPersistedCommunication_!=='function')
-  return {ok:false,queued:false,reason:'RECEIPT_VERIFIER_MISSING'};
+ if(typeof ECAS20_findConfirmedReceipt_!=='function'||typeof ECAS20_receiptDigest_!=='function')
+  return {ok:false,queued:false,reason:'RECEIPT_FINDER_MISSING'};
  var recipient=StatusNotificationBridge_GetEcasRecipientEmail_();
  if(!recipient)return {ok:false,queued:false,reason:'ECAS_RECIPIENT_MISSING'};
  var norm=previous.headers.map(function(x){return String(x||'').toLowerCase().replace(/[ _-]/g,'');});
@@ -73,8 +96,7 @@ function Swap20_tryQueueCombinedEcasLocked_(operationId){
   var communicated=ECAS20_findConfirmedReceipt_(auditId,actualDigest);
   if(!communicated)
    return {ok:false,queued:false,reason:'PREVIOUS_DELIVERY_PROOF_MISSING',auditId:auditId};
-  if(ECAS20_VerifyPersistedCommunication_(auditId,communicated.communicationId,
-      {planningDigest:actualDigest})!==true)
+  if(!Swap20_verifyEcasDeliveredReceipt_(auditId,communicated.communicationId,actualDigest))
    return {ok:false,queued:false,reason:'PREVIOUS_DELIVERY_NOT_VERIFIED',auditId:auditId};
   var detail=NB_loadAuditBriefing_(auditId,{});
   if(!detail||String(detail.auditId)!==String(auditId))

@@ -46,6 +46,8 @@ assert(ui.includes("cb.recentErrors"));
 assert(ui.includes("cb.nextDue"));
 assert(sender.includes("cfg={...cfg,consolidate:false,bufferMinutes:0,digestGroup:'CB_EXTENSION_SINGLE'}"),'Do not wait twice');
 assert(sender.includes('CB_Extension_Outbox_PreflightSend_'),'Sender must check current CB recipient');
+assert(sender.includes('SWAP20_ECAS_RECONCILER_MISSING'),'Sender must log absence of the SWAP outbox reconciler');
+assert(legacyEcas.includes('sh.getRange(1,1,lastRow,3).getValues()'),'Journal guard must avoid loading compressed transaction payloads');
 assert(cb.includes("active.getId()!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs'"),'DEV-only GAS fence');
 assert(cb.includes("['SENT','TESTED']"),'DEV test messages must count as communicated');
 assert(builder.includes('previousWindowFrom')&&builder.includes('newWindowTo'),'Proof must include before/after window');

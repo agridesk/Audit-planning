@@ -100,6 +100,10 @@ function NCC_run_(applyChanges) {
       var rowUpdates = [];
       Object.keys(t).forEach(function(k) {
         if (k === 'EVENT_KEY') return;
+        // Preserve explicitly managed CB notification activation and buffers.
+        // Canonical defaults are used only when initially appending a missing row.
+        if (eventKey.indexOf('CB_EXTENSION_')===0 &&
+            (k==='ACTIVE'||k==='SEND_EMAIL'||k==='BUFFER_MINUTES')) return;
         if (!idx.hasOwnProperty(k)) {
           skippedColumns[k] = true;
           return;

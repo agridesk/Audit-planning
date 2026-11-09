@@ -24,14 +24,14 @@ export async function createScope20({body,actor,SID,sheetsBatchGet,accessToken,c
  const newRow=Array(Math.max(headers.length,21)).fill('');
  const set=(h,v)=>{newRow[headers.indexOf(h)]=v};
  set('SlotKey',free);set('ScopeCode',code);set('DisplayName',name);set('Color','#64748B');set('TextColor','#FFFFFF');
- set('Active','No');set('Archived','No');set('SortOrder',String(Math.max(0,...rows.slice(1).map(r=>Number(r[headers.indexOf('SortOrder')])||0))+1));
- set('Recurring','NO');set('Certification_Body_ID',certificationBodyId);
+ set('Active',false);set('Archived',false);set('SortOrder',String(Math.max(0,...rows.slice(1).map(r=>Number(r[headers.indexOf('SortOrder')])||0))+1));
+ set('Recurring',false);set('Certification_Body_ID',certificationBodyId);
  const token=await accessToken(),base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID);
  const meta=await fetch(base+'?fields=sheets.properties(title,sheetId)',{headers:{authorization:'Bearer '+token}});
  if(!meta.ok)throw Error('SCOPE_METADATA_UNAVAILABLE');
  const sheet=(await meta.json()).sheets?.map(x=>x.properties).find(x=>x.title==='Config_Scopes');
  if(!sheet)throw Error('SCOPE_SHEET_MISSING');
- const values=newRow.map(v=>({userEnteredValue:{stringValue:String(v)}}));
+ const values=newRow.map(v=>({userEnteredValue:typeof v==='boolean'?{boolValue:v}:{stringValue:String(v)}}));
  const response=await fetch(base+':batchUpdate',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({requests:[{appendCells:{sheetId:sheet.sheetId,rows:[{values}],fields:'userEnteredValue'}}]})});
  if(!response.ok)throw Error('SCOPE_CREATE_WRITE_FAILED_'+response.status);
  console.info(JSON.stringify({event:'SCOPE_CREATED_INACTIVE',scopeCode:code,slotKey:free,reason,actor:clean(actor.email||actor.sub),timestamp:new Date().toISOString()}));

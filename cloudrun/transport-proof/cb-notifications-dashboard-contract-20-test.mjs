@@ -24,6 +24,7 @@ assert(ui.includes("['Email_Verified',cb.emailVerified"));
 assert(ui.includes("['Notification_Enabled',cb.notificationsEnabled"));
 assert(ui.includes("Save email"));
 assert(ui.includes('For ECAS, Extension / Undo uses the existing Dutch ECAS_AUDIT_APPROVAL_DIGEST email layout'));
+assert(ui.includes("cb.certificationBodyId==='ECAS'?'ECAS_AUDIT_APPROVAL_DIGEST':'CB_EXTENSION_NOTIFICATION'"),'CB card must display the selected template per CB');
 assert(!ui.includes('Preview message'),'Existing dashboard must not show email examples');
 assert(!ui.includes('Save subject')&&!ui.includes('Save body'),'No separate template editor');
 assert(cb.includes("latest.Certification_Body_ID==='ECAS'"),'Only the ECAS CB may select its Dutch digest');

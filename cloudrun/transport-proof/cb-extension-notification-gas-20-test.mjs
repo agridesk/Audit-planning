@@ -76,6 +76,31 @@ const setup=(events,applied,enabled)=>{
  assert.equal(result.queued,1,'A TEST_TO_SELF delivery counts as communicated in DEV');
  assert.equal(x.sheets['Notification Queue'].rows[2][2],'CB_EXTENSION_UNDONE');
 }
+
+// ECAS is the single Dutch-language CB; verify the exact ECAS renderer
+// selection without relying on a generic Notification_Templates entry.
+{
+ const x=setup([apply],true,true);
+ x.sheets.Audit_Obligations.rows[1][3]='ECAS';
+ x.sheets.Config_Scopes.rows[1][1]='ECAS';
+ x.sheets.Certification_Bodies.rows[1][0]='ECAS';
+ x.sheets.Certification_Bodies.rows[1][1]='ECAS';
+ x.sheets.CB_Extension_Outbox.rows[1][6]='ECAS';
+ // The generic template can be inactive: ECAS does not use it.
+ x.sheets.Notification_Templates.rows[1][1]='NO';
+ const queued=x.CB_Extension_Outbox_ReconcileLocked_();
+ assert.equal(queued.queued,1);
+ const row=x.sheets['Notification Queue'].rows[1];
+ const payload=JSON.parse(row[12]).payload;
+ assert.equal(payload.certificationBodyId,'ECAS');
+ assert.equal(payload.rendererProfile,'ECAS_AUDIT_APPROVAL_DIGEST');
+ assert.equal(payload.templateKey,'ECAS_AUDIT_APPROVAL_DIGEST');
+ assert.equal(payload.extensionDetails.COMPANY_NAME,'Example Company');
+ assert.equal(payload.extensionDetails.SCOPE_NAME,'GG-CB-A');
+ assert.equal(x.CB_Extension_Outbox_PreflightSend_([{eventCode:row[2],payload}],row[3]).ok,true);
+ assert.notEqual(payload.templateKey,'CB_EXTENSION_NOTIFICATION');
+}
+
 assert(sender.includes('CB_Extension_Outbox_ReconcileLocked_'),'GAS sender must invoke the reconciler');
 assert(sender.includes('CB_Extension_Outbox_PreflightSend_'),'GAS sender must verify CB immediately before email');
 assert(sender.includes('CB_Extension_Outbox_RecordDelivery_'),'GAS sender must record actual delivery');

@@ -495,3 +495,52 @@ function NB_externalTdHtml_(html, extraStyle) {
   return '<td style="border:1px solid #111827;padding:5px 7px;vertical-align:middle;color:#111827;' + (extraStyle || '') + '">' + (html || '') + '</td>';
 }
 
+
+/**
+ * ECAS-only extension section using the established Ecert external digest shell,
+ * table helpers, typography and subject. No new email template or visual system.
+ * This path is intentionally separate from generic approval item validation:
+ * an extension is tied to one obligation and has no required audit-date blocks.
+ */
+function NB_renderEcasExtensionDigest_(recipientEmail, item) {
+  var p=(item&&item.payload)||{},d=p.extensionDetails||{};
+  if(p.certificationBodyId!=='ECAS'||p.rendererProfile!=='ECAS_AUDIT_APPROVAL_DIGEST'
+      ||p.templateKey!=='ECAS_AUDIT_APPROVAL_DIGEST'
+      ||!/^CB_EXTENSION_(APPLIED|UNDONE)$/.test(String(item&&item.eventCode||'')))
+    throw Error('ECAS_EXTENSION_RENDERER_IDENTITY_MISMATCH');
+  var required=['COMPANY_NAME','SCOPE_NAME','CHANGED_AT'];
+  for(var i=0;i<required.length;i++)
+    if(!String(d[required[i]]||'').trim())throw Error('ECAS_EXTENSION_RENDERER_MISSING_'+required[i]);
+  var applied=item.eventCode==='CB_EXTENSION_APPLIED';
+  var status=applied?'Verlenging toegepast':'Verlenging ingetrokken';
+  var fields=[
+    ['Status',status],
+    ['Bedrijf',d.COMPANY_NAME],
+    ['Scope',d.SCOPE_NAME],
+    ['Oorspronkelijke vervaldatum',d.BASE_EXPIRY||'-'],
+    ['Vorige effectieve vervaldatum',d.PREVIOUS_EXPIRY||'-'],
+    ['Nieuwe effectieve vervaldatum',d.EFFECTIVE_EXPIRY||'-'],
+    ['Vorige planningperiode',(d.PREVIOUS_WINDOW_FROM||'-')+' – '+(d.PREVIOUS_WINDOW_TO||'-')],
+    ['Nieuwe planningperiode',(d.NEW_WINDOW_FROM||'-')+' – '+(d.NEW_WINDOW_TO||'-')],
+    ['Gewijzigd op',d.CHANGED_AT]
+  ];
+  if(String(d.MPS_NUMBER||'').trim())fields.splice(2,0,['MPS No.',d.MPS_NUMBER]);
+  var txt=['Hallo,','','Hierbij een wijziging in de auditverlenging voor verwerking in Ecert.',
+    '', 'Extensions / Undo'];
+  for(var j=0;j<fields.length;j++)txt.push(fields[j][0]+': '+fields[j][1]);
+  txt.push('','','Bedankt,','','René Rombouts');
+  var html=[];
+  html.push(NB_externalShellStart_());
+  html.push('<div style="font-size:13px;line-height:1.45;color:#111827;margin:0 0 14px 0">Hallo,<br><br>Hierbij een wijziging in de auditverlenging voor verwerking in Ecert.</div>');
+  html.push('<div style="border-top:1px solid #111827;margin:12px 0 14px 0"></div>');
+  html.push('<div style="font-size:13px;font-weight:700;color:#111827;margin:12px 0 5px 0">Extensions / Undo</div>');
+  html.push('<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;font-size:11px;line-height:1.25;table-layout:auto;margin:0 0 9px 0;color:#111827">');
+  html.push('<thead><tr>'+NB_externalTh_('Onderdeel','width:190px')+NB_externalTh_('Gegevens','')+'</tr></thead><tbody>');
+  for(var k=0;k<fields.length;k++)
+    html.push('<tr>'+NB_externalTd_(fields[k][0],'font-weight:600')+NB_externalTd_(fields[k][1],'')+'</tr>');
+  html.push('</tbody></table>');
+  html.push('<div style="border-top:1px solid #111827;margin:18px 0 14px 0"></div>');
+  html.push('<div style="font-size:13px;line-height:1.5;color:#111827">Bedankt,<br><br>René Rombouts</div>');
+  html.push(NB_externalShellEnd_());
+  return {subject:NB_externalOperationalSubject_(),body:txt.join('\n'),htmlBody:html.join('')};
+}

@@ -159,7 +159,7 @@ function CB_Extension_Outbox_ReconcileLocked_(){
     if(st==='FAILED')throw Error('CB_NOTIFICATION_QUEUE_FAILED');
    }
    var details;try{details=JSON.parse(latest.Details_JSON||'{}')}catch(err){throw Error('CB_NOTIFICATION_DETAILS_JSON_INVALID')}
-   var render=CBN20_template_(ctx.templates,'CB_EXTENSION_NOTIFICATION',{
+   var templateFields={
     CERTIFICATION_BODY_NAME:validated.name,COMPANY_NAME:details.company,
     ACTION_LABEL:state==='APPLIED'?'Applied':'Withdrawn',
     ACTION_DESCRIPTION:state==='APPLIED'?'An audit extension has been applied.':'A previously communicated audit extension has been withdrawn.',
@@ -170,14 +170,26 @@ function CB_Extension_Outbox_ReconcileLocked_(){
     PREVIOUS_WINDOW_TO:details.previousWindowTo,
     NEW_WINDOW_FROM:details.newWindowFrom,NEW_WINDOW_TO:details.newWindowTo,
     CHANGED_AT:details.changedAt
-   });
+   };
+   // ECAS is the only Dutch-language CB. Render through its established
+   // ECAS_AUDIT_APPROVAL_DIGEST HTML family, never through a separate CB template.
+   // Other CBs retain their language-neutral configurable template.
+   var isEcas=latest.Certification_Body_ID==='ECAS';
+   if(isEcas&&typeof StatusNotificationBridge_LoadMpsNumberFromCompaniesByUid_==='function'){
+    // Canonical Companies.Number lookup; do not use recipient-address inference.
+    templateFields.MPS_NUMBER=CBN20_text_(StatusNotificationBridge_LoadMpsNumberFromCompaniesByUid_(ss,latest.Company_UID));
+   }
+   var render=isEcas?{subject:'',body:''}:CBN20_template_(ctx.templates,'CB_EXTENSION_NOTIFICATION',templateFields);
    var now=new Date(),tz=ss.getSpreadsheetTimeZone();
    var stamp=Utilities.formatDate(now,tz,'yyyy-MM-dd HH:mm');
-   var payload={eventType:eventKey,eventFamily:'EXTERNAL_OPERATIONAL',rendererProfile:'CB_EXTENSION_TEMPLATE',
+   var payload={eventType:eventKey,eventFamily:'EXTERNAL_OPERATIONAL',
+    rendererProfile:isEcas?'ECAS_AUDIT_APPROVAL_DIGEST':'CB_EXTENSION_TEMPLATE',
+    templateKey:isEcas?'ECAS_AUDIT_APPROVAL_DIGEST':'CB_EXTENSION_NOTIFICATION',
+    extensionDetails:isEcas?templateFields:null,
     cbEventId:latest.Event_ID,obligationId:oid,scopeCode:latest.ScopeCode,
     certificationBodyId:latest.Certification_Body_ID,stateAfter:state,
     config:{active:true,sendEmail:true,logOnly:false,consolidate:false,bufferMinutes:0,
-     templateFamily:'CB_EXTENSION_TEMPLATE',digestGroup:'CB_EXTENSION'}};
+     templateFamily:isEcas?'EXTERNAL_OPERATIONAL':'CB_EXTENSION_TEMPLATE',digestGroup:'CB_EXTENSION'}};
    var hash=Utilities.computeDigest(Utilities.DigestAlgorithm.MD5,latest.Event_ID+'|'+validated.email)
     .map(function(x){var z=(x+256)%256;return ('0'+z.toString(16)).slice(-2)}).join('');
    // The queue is append-only. Sender performs a second latest-state and

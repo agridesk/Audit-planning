@@ -23,10 +23,18 @@ assert(server.includes("'Notification_Templates',200"));
 assert(ui.includes("['Email_Verified',cb.emailVerified"));
 assert(ui.includes("['Notification_Enabled',cb.notificationsEnabled"));
 assert(ui.includes("Save email"));
-assert(ui.includes('Both events use one shared email template: CB_EXTENSION_NOTIFICATION'));
+assert(ui.includes('For ECAS, Extension / Undo uses the existing Dutch ECAS_AUDIT_APPROVAL_DIGEST email layout'));
+assert(ui.includes("cb.certificationBodyId==='ECAS'?'ECAS_AUDIT_APPROVAL_DIGEST':'CB_EXTENSION_NOTIFICATION'"),'CB card must display the selected template per CB');
 assert(!ui.includes('Preview message'),'Existing dashboard must not show email examples');
 assert(!ui.includes('Save subject')&&!ui.includes('Save body'),'No separate template editor');
-assert(cb.includes("'CB_EXTENSION_NOTIFICATION'"),'Both events must use one template');
+assert(cb.includes("latest.Certification_Body_ID==='ECAS'"),'Only the ECAS CB may select its Dutch digest');
+assert(cb.includes("'ECAS_AUDIT_APPROVAL_DIGEST':'CB_EXTENSION_NOTIFICATION'"),'Each CB must use the intended existing template');
+assert(cb.includes("'CB_EXTENSION_NOTIFICATION'"),'Other CBs retain their own template');
+assert(sender.includes("ep.certificationBodyId==='ECAS'"),'Sender must route by canonical CB identity');
+assert(sender.includes('NB_renderEcasExtensionDigest_'),'ECAS extension must reuse the Ecert digest HTML renderer');
+const legacyEcas=read('../../NotificationRenderer_PlanningToClientDigest.js');
+assert(legacyEcas.includes('function NB_renderEcasExtensionDigest_'),'ECAS extension renderer must exist within the established digest file');
+assert(legacyEcas.includes('NB_externalShellStart_()')&&legacyEcas.includes("NB_externalTh_('Onderdeel'"),'ECAS extension renderer must retain existing shell and table helpers');
 assert(ui.includes("cb.recentErrors"));
 assert(ui.includes("cb.nextDue"));
 assert(sender.includes("cfg={...cfg,consolidate:false,bufferMinutes:0,digestGroup:'CB_EXTENSION_SINGLE'}"),'Do not wait twice');
@@ -35,4 +43,54 @@ assert(cb.includes("active.getId()!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJ
 assert(cb.includes("['SENT','TESTED']"),'DEV test messages must count as communicated');
 assert(builder.includes('previousWindowFrom')&&builder.includes('newWindowTo'),'Proof must include before/after window');
 assert(!builder.includes('planning@ecas.nl'),'No hardcoded CB email');
+// Smoke the actual ECAS HTML rendering with the established Ecert helpers.
+const start=legacyEcas.indexOf('function NB_renderEcasExtensionDigest_(');
+assert(start>=0);
+const testContext={
+ NB_externalShellStart_:()=>'<div class="ecas-shell">',
+ NB_externalShellEnd_:()=>'</div>',
+ NB_externalTh_:v=>'<th>'+v+'</th>',
+ NB_externalTd_:v=>'<td>'+v+'</td>',
+ NB_externalOperationalSubject_:()=> 'Overzicht auditopdrachten Ecert — test'
+};
+vm.runInNewContext(legacyEcas.slice(start),testContext);
+const extensionPayload={certificationBodyId:'ECAS',rendererProfile:'ECAS_AUDIT_APPROVAL_DIGEST',
+ templateKey:'ECAS_AUDIT_APPROVAL_DIGEST',extensionDetails:{
+ COMPANY_NAME:'Test grower',SCOPE_NAME:'ABC',CHANGED_AT:'2026-11-09'}};
+const apply=testContext.NB_renderEcasExtensionDigest_('',{eventCode:'CB_EXTENSION_APPLIED',payload:extensionPayload});
+assert(apply.htmlBody.includes('ecas-shell')&&apply.htmlBody.includes('Extensions / Undo'));
+assert(apply.body.includes('Verlenging toegepast'));
+const withMps=testContext.NB_renderEcasExtensionDigest_('',{eventCode:'CB_EXTENSION_APPLIED',payload:{...extensionPayload,extensionDetails:{...extensionPayload.extensionDetails,MPS_NUMBER:'913496'}}});
+assert(withMps.htmlBody.includes('MPS No.')&&withMps.body.includes('913496'),'ECAS renderer shows canonical MPS number when present');
+const undo=testContext.NB_renderEcasExtensionDigest_('',{eventCode:'CB_EXTENSION_UNDONE',payload:extensionPayload});
+assert(undo.body.includes('Verlenging ingetrokken'));
+assert.throws(()=>testContext.NB_renderEcasExtensionDigest_('',{eventCode:'CB_EXTENSION_APPLIED',
+ payload:{...extensionPayload,certificationBodyId:'OTHER'}}),/IDENTITY_MISMATCH/);
+
+
+// Verify the actual NotificationSender dispatch selects the ECAS HTML renderer.
+const sendStart=sender.indexOf('function ns_buildDigestEmail_(');
+const sendEnd=sender.indexOf('function ns_buildDigestEmailFallback_(',sendStart);
+assert(sendStart>=0&&sendEnd>sendStart);
+const senderContext={
+ NB_renderEcasExtensionDigest_:testContext.NB_renderEcasExtensionDigest_,
+ NS_DEFAULT_FROM_EMAIL:'',NS_DEFAULT_FROM_NAME:'AMS',String,Array,Error
+};
+vm.runInNewContext(sender.slice(sendStart,sendEnd),senderContext);
+const ecMail=senderContext.ns_buildDigestEmail_('test@example.invalid',[{
+ eventCode:'CB_EXTENSION_APPLIED',subject:'',body:'',
+ payload:{...extensionPayload,cbEventId:'CB_EXT_TEST'}
+}]);
+assert(ecMail.htmlBody.includes('ecas-shell'),'ECAS must send HTML using existing Ecert shell');
+assert(ecMail.body.includes('Verlenging toegepast'));
+assert.throws(()=>senderContext.ns_buildDigestEmail_('test@example.invalid',[{
+ eventCode:'CB_EXTENSION_UNDONE',payload:{...extensionPayload,templateKey:'CB_EXTENSION_NOTIFICATION',cbEventId:'CB_EXT_TEST'}
+}]),/ECAS_EXTENSION_TEMPLATE_UNAVAILABLE/);
+const generic=senderContext.ns_buildDigestEmail_('other@example.invalid',[{
+ eventCode:'CB_EXTENSION_APPLIED',subject:'Other CB subject',body:'Other CB body',
+ payload:{certificationBodyId:'CB-OTHER',templateKey:'CB_EXTENSION_NOTIFICATION',cbEventId:'CB_EXT_OTHER'}
+}]);
+assert.equal(generic.htmlBody,'');
+assert.equal(generic.subject,'Other CB subject');
+
 console.log('CB EXT/Undo dashboard configuration contract PASS');

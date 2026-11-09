@@ -1,5 +1,14 @@
 name: Notifications 2.0 security tests
 on:
+  pull_request:
+    branches: [dev]
+    paths:
+      - 'CB_Extension_Notifications_20.js'
+      - 'NotificationSender.js'
+      - 'NotificationRenderer_PlanningToClientDigest.js'
+      - 'cloudrun/transport-proof/notification-manager-20.html'
+      - 'cloudrun/transport-proof/*notification*test.mjs'
+      - '.github/workflows/notifications-20-tests.yml'
   workflow_dispatch:
 jobs:
   security:
@@ -20,3 +29,21 @@ jobs:
       - run: node --check cloudrun/transport-proof/server-r15.js
       - run: npm test
         working-directory: cloudrun/transport-proof
+
+  cb-extension-contracts:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify existing dashboard and ECAS extension delivery contracts
+        working-directory: cloudrun/transport-proof
+        run: |
+          node cb-notifications-dashboard-contract-20-test.mjs
+          node cb-extension-notification-gas-20-test.mjs
+          node notification-external-digest-integrity-20-test.mjs
+          node certification-body-notification-overview-20-test.mjs
+          node certification-body-extension-outbox-20-test.mjs

@@ -2135,7 +2135,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
             obligationRows:source.obligationRows,scopeRows:source.scopeRows,
             certificationBodies:cbSource[0]?.values||[],
             auditId,companyUid,obligationId,operationId:plan.operationId,
-            command:body.command,expected:plan.expected,
+            command:body.command,expected:plan.expected,previous:before.obligations.get(obligationId),
             company:companyIndex>=0?clean(planningAudit?.row?.[companyIndex]):''
           });
           await sheetsValuesBatchUpdateRaw(plan.updates);

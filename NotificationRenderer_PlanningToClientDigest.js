@@ -615,7 +615,10 @@ function NB_ecasExtensionsSectionHtml_(items) {
   h.push('</tr></thead><tbody>');
   rows.forEach(function(row){
     h.push('<tr>');
-    row.forEach(function(value,i){h.push(NB_externalTd_(value,i===0||i===3||i===4?'text-align:center;white-space:nowrap':''));});
+    row.forEach(function(value,i){
+      if(i===2)h.push(NB_externalTdHtml_(NB_scopeBadgesHtml_([value]),''));
+      else h.push(NB_externalTd_(value,i===0||i===3||i===4?'text-align:center;white-space:nowrap':''));
+    });
     h.push('</tr>');
   });
   h.push('</tbody></table>');
@@ -656,7 +659,10 @@ function NB_renderEcasSwapsSectionHtml_(items) {
   html.push('</tr></thead><tbody>');
   rows.forEach(function(row){
     html.push('<tr>');
-    row.forEach(function(value,i){html.push(NB_externalTd_(value,i===0?'text-align:center;white-space:nowrap':''));});
+    row.forEach(function(value,i){
+      if(i===2)html.push(NB_externalTdHtml_(NB_scopeBadgesHtml_(String(value||'').split(',').map(function(x){return x.trim();}).filter(Boolean)),''));
+      else html.push(NB_externalTd_(value,i===0?'text-align:center;white-space:nowrap':''));
+    });
     html.push('</tr>');
   });
   html.push('</tbody></table>');

@@ -20,7 +20,7 @@ function Swap20_reconcileEcasIntentsLocked_(){
   if(String(props.getProperty('AMS_SWAP20_ECAS_OUTBOX_ENABLED')||'').trim().toUpperCase()!=='YES')
     return {ok:true,readOnly:true,reason:'DISABLED',attempted:0,queued:0};
   var cutoff=String(props.getProperty('AMS_SWAP20_ECAS_OUTBOX_NOT_BEFORE')||'').trim();
-  if(!/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$/.test(cutoff)
+  if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(cutoff)
       ||!Number.isFinite(Date.parse(cutoff)))
     throw Error('SWAP_ECAS_RECONCILE_CUTOFF_REQUIRED');
   if(String(props.getProperty('ECAS20_CHANGE_CANCEL_ENABLED')||'').toUpperCase()!=='YES')

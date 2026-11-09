@@ -941,7 +941,7 @@ function ns_sendDueReserved_(nqSheet, values) {
       // Receipt failures must not undo a successful provider delivery or
       // trigger an accidental duplicate on a subsequent digest run.
       if(isCbExtension && typeof CB_Extension_Outbox_RecordDelivery_==='function'){
-        try{CB_Extension_Outbox_RecordDelivery_(group.items,finalStatus,sentStamp)}
+        try{CB_Extension_Outbox_RecordDelivery_(group.items.filter(function(it){return /^CB_EXTENSION_(APPLIED|UNDONE)$/.test(String(it.eventCode||''));}),finalStatus,sentStamp)}
         catch(cbReceiptError){Logger.log('CB_EXTENSION_RECEIPT_REPAIR_REQUIRED: '+String(cbReceiptError))}
       }
       // Optional provenance hook: only actual ECAS delivery counts, never DEV

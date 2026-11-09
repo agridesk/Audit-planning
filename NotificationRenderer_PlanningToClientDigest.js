@@ -52,6 +52,10 @@ function NB_renderExternalOperationalDigest_(recipientEmail, normalizedItems, ec
     if(String(entry.eventType||entry.eventCode)!=='ECAS_AUDIT_CHANGED_DIGEST')throw Error('SWAP digest event mismatch');
     if(!String(entry.auditId||'').startsWith('SWAP_'))throw Error('SWAP digest identity missing');
     if(String(entry.swapItems[0].auditId||'')===String(entry.swapItems[1].auditId||''))throw Error('SWAP digest audit identity collision');
+    var swapOperationId=String(entry.operationId||'').trim();
+    if(!swapOperationId||String(entry.auditId)!=='SWAP_'+swapOperationId)
+      throw Error('ECAS_SWAP_OPERATION_ID_MISMATCH');
+    NB_assertCommittedSwapJournal_(swapOperationId);
     for(var si=0;si<entry.swapItems.length;si++){
       var child=entry.swapItems[si]||{};
       if(String(child.eventType||child.type)!=='ECAS_AUDIT_CHANGED_DIGEST')throw Error('SWAP child event invalid');
@@ -688,5 +692,39 @@ function NB_assertEcasSwapScopeOwnership_(scopes) {
     var owner=byKey[norm(scope)];
     if(owner!=='ECAS')throw Error('ECAS_SWAP_SCOPE_CB_MISMATCH');
   });
+  return true;
+}
+
+/**
+ * A SWAP may be communicated only if its LAST journal stage is COMMITTED.
+ * Fail closed on missing, incomplete or stale transactions. Do not infer
+ * completion from proposal acknowledgements or queue reservation alone.
+ */
+function NB_assertCommittedSwapJournal_(operationId) {
+  var id=String(operationId||'').trim();
+  if(!/^SWAP20_[A-Za-z0-9_-]{8,100}$/.test(id))
+    throw Error('ECAS_SWAP_JOURNAL_OPERATION_INVALID');
+  var ss=SpreadsheetApp.getActiveSpreadsheet();
+  var sh=ss&&ss.getSheetByName('AMS_Swap_20_Journal');
+  if(!sh)throw Error('ECAS_SWAP_JOURNAL_MISSING');
+  var values=sh.getDataRange().getValues();
+  if(values.length<2)throw Error('ECAS_SWAP_JOURNAL_EMPTY');
+  var headers=values[0].map(function(x){return String(x||'').trim().toUpperCase();});
+  var operationCol=headers.indexOf('OPERATION_ID'),
+    sequenceCol=headers.indexOf('SEQUENCE'),stageCol=headers.indexOf('STAGE');
+  if(operationCol<0||sequenceCol<0||stageCol<0)
+    throw Error('ECAS_SWAP_JOURNAL_SCHEMA_INVALID');
+  var stage='',lastSequence=-1,found=false;
+  for(var i=1;i<values.length;i++){
+    var row=values[i];
+    if(String(row[operationCol]||'').trim()!==id)continue;
+    found=true;
+    var sequence=Number(row[sequenceCol]);
+    if(!Number.isInteger(sequence)||sequence<1||sequence<=lastSequence)
+      throw Error('ECAS_SWAP_JOURNAL_SEQUENCE_INVALID');
+    lastSequence=sequence;
+    stage=String(row[stageCol]||'').trim().toUpperCase();
+  }
+  if(!found||stage!=='COMMITTED')throw Error('ECAS_SWAP_NOT_COMMITTED');
   return true;
 }

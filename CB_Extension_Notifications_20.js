@@ -111,7 +111,7 @@ function CB_Extension_Outbox_ReconcileLocked_(){
    return Date.parse(ctx.outbox.get(a.row,'Created_At'))-Date.parse(ctx.outbox.get(b.row,'Created_At'))||a.rowNumber-b.rowNumber;
   });
   var last=events[events.length-1],latest=Object.fromEntries(h.map(function(key,i){return[key,CBN20_text_(last.row[i])] ;}));
-  var sent=events.filter(function(e){return ctx.outbox.get(e.row,'Status')==='SENT'&&ctx.outbox.get(e.row,'Delivered_At');});
+  var sent=events.filter(function(e){return ['SENT','TESTED'].indexOf(ctx.outbox.get(e.row,'Status'))>=0&&ctx.outbox.get(e.row,'Delivered_At');});
   var delivered=sent.length?ctx.outbox.get(sent[sent.length-1].row,'State_After'):'NOT_APPLIED';
   var activeEvents=events.filter(function(e){return ['BUFFERED','BLOCKED','FAILED','QUEUED'].indexOf(ctx.outbox.get(e.row,'Status'))>=0;});
   if(!activeEvents.length)continue;
@@ -153,7 +153,7 @@ function CB_Extension_Outbox_ReconcileLocked_(){
     var st=ctx.queue.get(found[0].values,'Status');
     if(['PENDING','RESERVED','SENT','SENT_DEV_REDIRECT','SENT_SIMULATED'].indexOf(st)>=0){
      CBN20_set_(ctx.outbox,last.rowNumber,'Status',st==='SENT'?'SENT':(st==='SENT_DEV_REDIRECT'||st==='SENT_SIMULATED'?'TESTED':'QUEUED'));
-     if(st==='SENT')CBN20_set_(ctx.outbox,last.rowNumber,'Delivered_At',CBN20_text_(found[0].values[11])||new Date().toISOString());
+     if(['SENT','SENT_DEV_REDIRECT','SENT_SIMULATED'].indexOf(st)>=0)CBN20_set_(ctx.outbox,last.rowNumber,'Delivered_At',CBN20_text_(found[0].values[11])||new Date().toISOString());
      result.skipped++;continue;
     }
     if(st==='FAILED')throw Error('CB_NOTIFICATION_QUEUE_FAILED');
@@ -223,7 +223,9 @@ function CB_Extension_Outbox_RecordDelivery_(items,deliveryStatus,sentAt){
  for(var i=0;i<items.length;i++){
   var key=CBN20_text_((items[i].payload||{}).cbEventId);if(!key)continue;
   var found=CBN20_row_(ctx,'Event_ID',key);
-  CBN20_set_(ctx,found.number,'Status',deliveryStatus==='SENT'?'SENT':'TESTED');
-  if(deliveryStatus==='SENT')CBN20_set_(ctx,found.number,'Delivered_At',sentAt||new Date().toISOString());
+  var confirmed=deliveryStatus==='SENT',tested=deliveryStatus==='SENT_DEV_REDIRECT'||deliveryStatus==='SENT_SIMULATED';
+  if(!confirmed&&!tested)continue;
+  CBN20_set_(ctx,found.number,'Status',confirmed?'SENT':'TESTED');
+  CBN20_set_(ctx,found.number,'Delivered_At',sentAt||new Date().toISOString());
  }
 }

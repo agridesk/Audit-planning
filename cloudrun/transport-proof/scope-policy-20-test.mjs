@@ -26,4 +26,22 @@ for(const field of ['Obligation cycle','Complete by','Provisioning source','Trig
  const result=await updateScopePolicy20({...fullDeps,body:{scopeCode:'MPS-GAP',field,expected:'',value:'Configured',reason:'Policy configuration',impactConfirmed:true}});
  assert.equal(result.ok,true);
 }
+// Native boolean round-trips: legacy Yes/No and native boolean both compare canonically.
+const booleanHeaders=['ScopeCode','Active','Archived'];
+const cases=[
+ {existing:'No',expected:'FALSE',next:'TRUE',flag:'Active',bool:true},
+ {existing:'Yes',expected:'TRUE',next:'FALSE',flag:'Active',bool:false},
+ {existing:false,expected:'No',next:'Yes',flag:'Archived',bool:true},
+ {existing:true,expected:'Yes',next:'No',flag:'Archived',bool:false}
+];
+for(const c of cases){
+ const header=booleanHeaders.indexOf(c.flag);
+ const sample=[booleanHeaders,['TESTSCOPE-2',c.flag==='Active'?c.existing:false,c.flag==='Archived'?c.existing:false]];
+ await updateScopePolicy20({...deps,sheetsBatchGet:async()=>[{values:sample}],body:{scopeCode:'TESTSCOPE-2',field:c.flag,expected:c.expected,value:c.next,reason:'Native boolean regression',impactConfirmed:true}});
+ assert.deepEqual(writes.requests[0].updateCells.rows[0].values[0].userEnteredValue,{boolValue:c.bool});
+ assert.equal(writes.requests[0].updateCells.start.columnIndex,header);
+}
+const nativeUnchanged=await updateScopePolicy20({...deps,sheetsBatchGet:async()=>[{values:[booleanHeaders,['TESTSCOPE-2',false,false]]}],body:{scopeCode:'TESTSCOPE-2',field:'Active',expected:'FALSE',value:'NO',reason:'Native boolean regression',impactConfirmed:true}});
+assert.equal(nativeUnchanged.unchanged,true);
+await assert.rejects(updateScopePolicy20({...deps,sheetsBatchGet:async()=>[{values:[booleanHeaders,['TESTSCOPE-2',true,false]]}],body:{scopeCode:'TESTSCOPE-2',field:'Active',expected:'FALSE',value:'YES',reason:'Native boolean regression',impactConfirmed:true}}),/STALE_SCOPE_POLICY/);
 console.log('scope-policy-20: 15 checks passed');

@@ -77,6 +77,34 @@ testContext.SpreadsheetApp={getActiveSpreadsheet:()=>({getSheetByName:name=>
 assert.equal(testContext.NB_assertEcasSwapScopeOwnership_(['MPS-ABC','MPS-GAP']),true);
 assert.throws(()=>testContext.NB_assertEcasSwapScopeOwnership_(['OTHER']),/ECAS_SWAP_SCOPE_CB_MISMATCH/);
 assert.throws(()=>testContext.NB_assertEcasSwapScopeOwnership_(['UNKNOWN']),/ECAS_SWAP_SCOPE_CB_MISMATCH/);
+const committedOperation='SWAP20_75c82baa8f8248dc93690667df7a6c07';
+const journalHeader=['Operation_ID','Sequence','Stage','Recorded_At','Payload_JSON'];
+let journalMock=[
+ journalHeader,
+ [committedOperation,1,'PREPARED','2026-11-08T11:00:00Z',''],
+ [committedOperation,2,'WRITING','2026-11-08T11:00:01Z',''],
+ [committedOperation,3,'COMMITTED','2026-11-08T11:00:02Z','']
+];
+testContext.SpreadsheetApp={getActiveSpreadsheet:()=>({getSheetByName:name=>
+ name==='Config_Scopes'?{getDataRange:()=>({getValues:()=>scopeMock})}:
+ name==='AMS_Swap_20_Journal'?{getDataRange:()=>({getValues:()=>journalMock})}:null})};
+assert.equal(testContext.NB_assertCommittedSwapJournal_(committedOperation),true);
+journalMock=[journalHeader,[committedOperation,1,'PREPARED','','']];
+assert.throws(()=>testContext.NB_assertCommittedSwapJournal_(committedOperation),/ECAS_SWAP_NOT_COMMITTED/);
+journalMock=[journalHeader,[committedOperation,1,'PREPARED','',''],
+ [committedOperation,2,'CONFLICT','','']];
+assert.throws(()=>testContext.NB_assertCommittedSwapJournal_(committedOperation),/ECAS_SWAP_NOT_COMMITTED/);
+journalMock=[journalHeader,[committedOperation,1,'COMMITTED','',''],
+ [committedOperation,2,'CONFLICT','','']];
+assert.throws(()=>testContext.NB_assertCommittedSwapJournal_(committedOperation),/ECAS_SWAP_NOT_COMMITTED/);
+journalMock=[journalHeader,[committedOperation,1,'WRITING','',''],
+ [committedOperation,2,'COMMITTED','','']];
+assert.equal(testContext.NB_assertCommittedSwapJournal_(committedOperation),true);
+journalMock=[journalHeader,[committedOperation,1,'COMMITTED','',''],
+ [committedOperation,1,'COMMITTED','','']];
+assert.throws(()=>testContext.NB_assertCommittedSwapJournal_(committedOperation),/ECAS_SWAP_JOURNAL_SEQUENCE_INVALID/);
+assert.throws(()=>testContext.NB_assertCommittedSwapJournal_('SWAP20_missing_operation'),/ECAS_SWAP_NOT_COMMITTED/);
+
 const swapRows=testContext.NB_renderEcasSwapRows_([
  {eventType:'ECAS_AUDIT_CHANGED_DIGEST',mpsNumber:'913496',company:'A',scopes:['MPS-ABC'],
   auditorEmail:'a@example.invalid',previousBlocks:[{date:'2026-11-10',start:'09:00',end:'13:00'}],

@@ -836,7 +836,8 @@ function ns_sendDueReserved_(nqSheet, values) {
   });
   // Opportunistic inclusion only: combine already-due ECAS extension and audit
   // groups for the same recipient. No extra hold, new digest group, or new route.
-  // An atomic SWAP can share the resulting mail, but remains one queue item.
+  // A valid atomic SWAP can be the digest host when no regular audit is due.
+  // Every envelope remains an independent queue item; no delivery is expedited.
   var extensionKeys=keys.filter(function(key){
     var g=allGroups[key];
     return g.items.length===1
@@ -850,7 +851,13 @@ function ns_sendDueReserved_(nqSheet, values) {
       var g=allGroups[key];
       return g.recipient.trim().toLowerCase()===eg.recipient.trim().toLowerCase()
         &&g.items.some(function(it){return /^ECAS_AUDIT_(APPROVAL|CANCELLED|CHANGED|REJECTED)_DIGEST$/.test(String(it.eventCode||''));})
-        &&g.items.some(function(it){return String(it.auditId||'').indexOf('SWAP_')!==0;});
+        &&g.items.some(function(it){
+          var event=String(it.eventCode||'');
+          var atomic=String(it.auditId||'').indexOf('SWAP_')===0;
+          return !atomic || (event==='ECAS_AUDIT_CHANGED_DIGEST'
+            &&Array.isArray((it.payload||{}).swapItems)
+            &&it.payload.swapItems.length===2);
+        });
     });
     if(!targetKey)return;
     allGroups[targetKey].items=allGroups[targetKey].items.concat(eg.items);

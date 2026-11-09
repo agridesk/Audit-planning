@@ -42,4 +42,26 @@ assert(cb.includes("active.getId()!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJ
 assert(cb.includes("['SENT','TESTED']"),'DEV test messages must count as communicated');
 assert(builder.includes('previousWindowFrom')&&builder.includes('newWindowTo'),'Proof must include before/after window');
 assert(!builder.includes('planning@ecas.nl'),'No hardcoded CB email');
+// Smoke the actual ECAS HTML rendering with the established Ecert helpers.
+const start=legacyEcas.indexOf('function NB_renderEcasExtensionDigest_(');
+assert(start>=0);
+const testContext={
+ NB_externalShellStart_:()=>'<div class="ecas-shell">',
+ NB_externalShellEnd_:()=>'</div>',
+ NB_externalTh_:v=>'<th>'+v+'</th>',
+ NB_externalTd_:v=>'<td>'+v+'</td>',
+ NB_externalOperationalSubject_:()=> 'Overzicht auditopdrachten Ecert — test'
+};
+vm.runInNewContext(legacyEcas.slice(start),testContext);
+const extensionPayload={certificationBodyId:'ECAS',rendererProfile:'ECAS_AUDIT_APPROVAL_DIGEST',
+ templateKey:'ECAS_AUDIT_APPROVAL_DIGEST',extensionDetails:{
+ COMPANY_NAME:'Test grower',SCOPE_NAME:'ABC',CHANGED_AT:'2026-11-09'}};
+const apply=testContext.NB_renderEcasExtensionDigest_('',{eventCode:'CB_EXTENSION_APPLIED',payload:extensionPayload});
+assert(apply.htmlBody.includes('ecas-shell')&&apply.htmlBody.includes('Extensions / Undo'));
+assert(apply.body.includes('Verlenging toegepast'));
+const undo=testContext.NB_renderEcasExtensionDigest_('',{eventCode:'CB_EXTENSION_UNDONE',payload:extensionPayload});
+assert(undo.body.includes('Verlenging ingetrokken'));
+assert.throws(()=>testContext.NB_renderEcasExtensionDigest_('',{eventCode:'CB_EXTENSION_APPLIED',
+ payload:{...extensionPayload,certificationBodyId:'OTHER'}}),/IDENTITY_MISMATCH/);
+
 console.log('CB EXT/Undo dashboard configuration contract PASS');

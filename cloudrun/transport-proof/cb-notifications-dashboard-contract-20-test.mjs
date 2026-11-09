@@ -69,6 +69,18 @@ for(const h of ['MPS No.','Bedrijf','Scope','Vorige vervaldatum','Nieuwe vervald
  assert(apply.htmlBody.includes('<th>'+h+'</th>'),'Missing compact header '+h);
 }
 assert(apply.htmlBody.includes('Verlengingen'),'Use Dutch section title');
+const combinedSection=testContext.NB_ecasExtensionsSectionHtml_([
+ {eventCode:'CB_EXTENSION_APPLIED',payload:extensionPayload},
+ {eventCode:'CB_EXTENSION_UNDONE',payload:extensionPayload}
+]);
+assert.equal((combinedSection.match(/<th>/g)||[]).length,6,'Combined ECAS section has exactly six headers');
+assert.equal((combinedSection.match(/<td>/g)||[]).length,12,'Combined ECAS section has both extension rows');
+assert(!combinedSection.includes('Hallo,')&&!combinedSection.includes('Bedankt,'),'Embedded section must have no standalone greeting/footer');
+assert(testContext.NB_ecasExtensionsSectionText_([{eventCode:'CB_EXTENSION_APPLIED',payload:extensionPayload}]).includes('31-03-2027'));
+assert(sender.includes('Opportunistic inclusion only'),'Only already-due ECAS groups may combine');
+assert(sender.includes("CB_Extension_Outbox_RecordDelivery_(group.items.filter"),'Mixed delivery receipt must only record extension rows');
+assert(sender.includes("CB_Extension_Outbox_PreflightSend_(group.items.filter"),'Mixed preflight must only validate extension rows');
+
 
 const withMps=testContext.NB_renderEcasExtensionDigest_('',{eventCode:'CB_EXTENSION_APPLIED',payload:{...extensionPayload,extensionDetails:{...extensionPayload.extensionDetails,MPS_NUMBER:'913496'}}});
 assert(withMps.htmlBody.includes('MPS No.')&&withMps.body.includes('913496'),'ECAS renderer shows canonical MPS number when present');

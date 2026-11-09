@@ -13,6 +13,7 @@ COPY actor-capabilities-v211.js ./
 COPY auditor-uid-owner-resolution-20.js ./
 COPY scope-hours-version-20.js ./
 COPY scope-policy-20.js ./
+COPY scope-certification-body-20.js ./
 COPY scope-scheme-version-20.js ./
 COPY scope-create-20.js ./
 COPY company-scope-hours-storage-20.js ./

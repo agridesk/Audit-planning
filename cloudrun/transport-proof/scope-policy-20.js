@@ -1,12 +1,13 @@
 export async function updateScopePolicy20({body,actor,SID,sheetsBatchGet,accessToken,clean}){
  const field=clean(body?.field),scopeCode=clean(body?.scopeCode),expected=String(body?.expected??''),value=String(body?.value??'').trim(),reason=clean(body?.reason);
- const numeric={'Max number audits':{min:0,max:10000,integer:true},'Min_Interval_Months':{min:0,max:1200,integer:true},'Max_Offsite_Hours':{min:0,max:1000},'Extension':{min:0,max:120,integer:true}};
+ const numeric={'Max number audits':{min:0,max:10000,integer:true},'Min_Interval_Months':{min:0,max:1200,integer:true},'Max_Offsite_Hours':{min:0,max:1000},'Rotation_Normal_Maximum':{min:1,max:100,integer:true},'Extension':{min:0,max:120,integer:true}};
  const windowFields=['Planning from','Planning to'];
  const textFields=['Obligation cycle','Complete by','Provisioning source','Trigger source','Source service'];
- const allowed=[...Object.keys(numeric),...windowFields,'Active','Archived','Recurring',...textFields];
+ const booleanFields=['Active','Archived','Rotation_Applies','Rotation_Plus_One_Permitted'];
+ const allowed=[...Object.keys(numeric),...windowFields,...booleanFields,'Recurring',...textFields];
  if(!allowed.includes(field)||!scopeCode||!reason||reason.length>500||body?.impactConfirmed!==true)throw Error('INVALID_POLICY_CHANGE');
  if(numeric[field]){const rule=numeric[field];if(!/^\d+(?:\.\d{1,2})?$/.test(value)||Number(value)<rule.min||Number(value)>rule.max||(rule.integer&&!Number.isInteger(Number(value))))throw Error('INVALID_POLICY_VALUE');}
- if(['Active','Archived'].includes(field)&&!['TRUE','FALSE','YES','NO'].includes(value.toUpperCase()))throw Error('INVALID_BOOLEAN_POLICY');
+ if(booleanFields.includes(field)&&!['TRUE','FALSE','YES','NO'].includes(value.toUpperCase()))throw Error('INVALID_BOOLEAN_POLICY');
  if(windowFields.includes(field)&&value&&!/^-?\d{1,3}$/.test(value))throw Error('INVALID_PLANNING_OFFSET');
  if(textFields.includes(field)&&(value.length>120||/[<>\r\n]/.test(value)))throw Error('INVALID_POLICY_TEXT');
  if(field==='Recurring'&&!['YES','NO'].includes(value.toUpperCase()))throw Error('INVALID_RECURRING_VALUE');
@@ -15,7 +16,7 @@ export async function updateScopePolicy20({body,actor,SID,sheetsBatchGet,accessT
  const matches=rows.map((r,i)=>({r,i})).filter(x=>x.i>0&&clean(x.r[ci])===scopeCode);
  if(matches.length!==1)throw Error('SCOPE_AMBIGUOUS');
  const item=matches[0],before=String(item.r[fi]??'').trim();
- const booleanField=field==='Active'||field==='Archived';
+ const booleanField=booleanFields.includes(field);
  const normalizedBoolean=x=>{const v=String(x??'').trim().toUpperCase();return ['TRUE','YES','1'].includes(v)?'TRUE':['FALSE','NO','0'].includes(v)?'FALSE':null};
  if(booleanField&&(!normalizedBoolean(expected)||!normalizedBoolean(value)))throw Error('INVALID_BOOLEAN_POLICY');
  if(booleanField?normalizedBoolean(before)!==normalizedBoolean(expected):before!==expected)throw Error('STALE_SCOPE_POLICY');
@@ -26,9 +27,15 @@ export async function updateScopePolicy20({body,actor,SID,sheetsBatchGet,accessT
  const sheet=(await meta.json()).sheets?.map(s=>s.properties).find(p=>p.title==='Config_Scopes');
  if(!sheet)throw Error('SCOPE_SHEET_MISSING');
  const canonicalValue=booleanField?normalizedBoolean(value):value;
- const cell={userEnteredValue:booleanField?{boolValue:canonicalValue==='TRUE'}:numeric[field]?{numberValue:Number(value)}:{stringValue:value}};
- const request={updateCells:{start:{sheetId:sheet.sheetId,rowIndex:item.i,columnIndex:fi},rows:[{values:[cell]}],fields:'userEnteredValue'}};
- const response=await fetch(base+':batchUpdate',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({requests:[request]})});
+ const cell={userEnteredValue:booleanField?{boolValue:canonicalValue==='TRUE'}:numeric[field]?{numberValue:Number(value)}:windowFields.includes(field)&&value?{numberValue:Number(value)}:{stringValue:value}};
+ const requests=[{updateCells:{start:{sheetId:sheet.sheetId,rowIndex:item.i,columnIndex:fi},rows:[{values:[cell]}],fields:'userEnteredValue'}}];
+ // Legacy grid rotation calculations still read J; keep it aligned with canonical W.
+ if(field==='Rotation_Normal_Maximum'){
+  const legacyIndex=headers.indexOf('Max number audits');
+  if(legacyIndex<0)throw Error('ROTATION_LEGACY_SCHEMA_MISSING');
+  requests.push({updateCells:{start:{sheetId:sheet.sheetId,rowIndex:item.i,columnIndex:legacyIndex},rows:[{values:[{userEnteredValue:{numberValue:Number(value)}}]}],fields:'userEnteredValue'}});
+ }
+ const response=await fetch(base+':batchUpdate',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({requests})});
  if(!response.ok)throw Error('POLICY_WRITE_FAILED_'+response.status);
  console.info(JSON.stringify({event:'SCOPE_POLICY_CHANGE',scopeCode,field,before,after:canonicalValue,reason,actor:clean(actor.email||actor.sub),impactConfirmed:true,timestamp:new Date().toISOString()}));
  return{ok:true,scopeCode,field,previous:before,value:canonicalValue};

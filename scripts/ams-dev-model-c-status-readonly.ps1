@@ -53,4 +53,69 @@ foreach ($suffix in @('obligation','auditcontext','event','outbox')) {
     else { Write-Output "FIRESTORE: $collection = CHECK_FAILED_HTTP_$status" }
   }
 }
-Write-Output 'DIAGNOSIS COMPLETE — NO CHANGES MADE'
+# Independently inspect the isolated Fase 1.2 service if it exists.
+try {
+  $isolated = JsonFromGcloud -argv @('run','services','describe','ams-fase12-dev',"--project=$project","--region=$region",'--format=json')
+  Write-Output ("ISOLATED_SERVICE: ams-fase12-dev | ingress=" + [string]$isolated.metadata.annotations.'run.googleapis.com/ingress')
+  foreach ($rt in @($isolated.status.traffic)) {
+    if (-not $rt.revisionName) { continue }
+    $rv = JsonFromGcloud -argv @('run','revisions','describe',([string]$rt.revisionName),"--project=$project","--region=$region",'--format=json')
+    $environment = @{}
+    foreach ($v in @($rv.spec.containers[0].env)) {
+      if ($null -ne $v.value) { $environment[[string]$v.name] = [string]$v.value }
+    }
+    $flag = { param($key) if ($environment.ContainsKey($key)) { $environment[$key] } else { 'UNSET' } }
+    Write-Output ("ISOLATED_REVISION: " + $rt.revisionName + " | traffic=" + $rt.percent + "% | maintenance=" + (& $flag 'AMS_DEV_MAINTENANCE_MODE') + " | preview=" + (& $flag 'AMS_DEV_EXT_READONLY_PREVIEW') + " | normalGrid=" + (& $flag 'AMS_DEV_NORMAL_GRID_ENABLED'))
+  }
+} catch {
+  Write-Output 'ISOLATED_SERVICE: NOT_AVAILABLE_OR_NOT_ACCESSIBLE'
+}
+# Bounded migration inventory: never print business records, document IDs or personal data.
+foreach ($suffix in @('obligation','auditcontext','event','outbox')) {
+  $collection = 'ams_scope_extension_20_dev_' + $suffix
+  $next = ''; $count = 0; $pages = 0
+  $statuses = @{}; $fences = @{ true = 0; false = 0; unknown = 0 }
+  do {
+    $uri = $root + $collection + '?pageSize=250'
+    if ($next) { $uri += '&pageToken=' + [uri]::EscapeDataString($next) }
+    try {
+      $resp = Invoke-RestMethod -Method Get -Uri $uri -Headers $headers -TimeoutSec 45
+    } catch {
+      $status = 0
+      if ($_.Exception.Response) { $status = [int]$_.Exception.Response.StatusCode }
+      if ($status -eq 404) { break }
+      Write-Output ("INVENTORY: " + $collection + " | ERROR_HTTP_" + $status)
+      break
+    }
+    foreach ($doc in @($resp.documents | Where-Object { $null -ne $_ })) {
+      $count++
+      $fields = $doc.fields.payload.mapValue.fields
+      if ($null -eq $fields) { $statuses['NO_PAYLOAD'] = 1 + [int]$statuses['NO_PAYLOAD']; continue }
+      if ($suffix -eq 'auditcontext') {
+        $state = [string]$fields.migrationState.stringValue
+        if (-not $state) { $state = 'UNSET' }
+        $statuses[$state] = 1 + [int]$statuses[$state]
+        if ($null -eq $fields.writerFenceVerified) { $fences['unknown']++ }
+        elseif ($fields.writerFenceVerified.booleanValue -eq $true) { $fences['true']++ }
+        else { $fences['false']++ }
+      }
+      if ($suffix -eq 'obligation') {
+        $state = [string]$fields.linkState.stringValue
+        if (-not $state) { $state = 'UNSET' }
+        $statuses[$state] = 1 + [int]$statuses[$state]
+      }
+      if ($suffix -eq 'outbox') {
+        $state = [string]$fields.state.stringValue
+        if (-not $state) { $state = 'UNSET' }
+        $statuses[$state] = 1 + [int]$statuses[$state]
+      }
+    }
+    $next = [string]$resp.nextPageToken
+    $pages++
+  } while ($next -and $pages -lt 2)
+  $summary = ($statuses.Keys | Sort-Object | ForEach-Object { $_ + ':' + $statuses[$_] }) -join ','
+  $bounded = if ($next) { 'TRUNCATED_AT_500' } else { 'COMPLETE' }
+  Write-Output ("INVENTORY: " + $collection + " | records=" + $count + " | " + $bounded + " | status=[" + $summary + "]")
+  if ($suffix -eq 'auditcontext') { Write-Output ("CONTEXT_FENCES: verified=" + $fences['true'] + " unverified=" + $fences['false'] + " unknown=" + $fences['unknown']) }
+}
+Write-Output 'DIAGNOSIS COMPLETE - NO CHANGES MADE'

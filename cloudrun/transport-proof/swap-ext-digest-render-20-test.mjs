@@ -13,6 +13,7 @@ const context={
  NB_clean_:v=>String(v??'').trim(),
  NB_mpsNumber_:v=>String(v.mpsNumber||''),
  NB_scopeDisplayList_:v=>v,
+ NB_scopeBadgesHtml_:v=>v.map(x=>'<span style="background:#dbeafe">'+x+'</span>').join(''),
  NB_html_:v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;'),
  NB_getTz_:()=> 'Europe/Amsterdam',
  Utilities:{formatDate:()=> '09-11-2026 20:00'},
@@ -60,6 +61,7 @@ const extension={eventCode:'CB_EXTENSION_APPLIED',payload:{
 const mail=context.NB_renderDigestEmail_('ecas@example.invalid',[swap,extension]);
 assert(mail.htmlBody.includes('SWAP – Gewijzigde auditplanning'));
 assert(mail.htmlBody.includes('Verlengingen'));
+assert.equal((mail.htmlBody.match(/background:#dbeafe/g)||[]).length,3,'Colored scope badge in each SWAP and extension row');
 assert.equal((mail.htmlBody.match(/<td /g)||[]).length,18,'Two SWAP rows + one extension row');
 assert.equal((mail.htmlBody.match(/Hallo,/g)||[]).length,1);
 assert.equal((mail.htmlBody.match(/Bedankt,/g)||[]).length,1);

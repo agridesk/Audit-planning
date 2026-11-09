@@ -880,7 +880,7 @@ async function notificationDigestBufferMutation(req,res){
  let body;try{body=JSON.parse(raw);}catch{res.writeHead(400);res.end('INVALID_JSON');return;}
  const key=String(body.eventKey||'').trim().toUpperCase(),minutes=body.minutes,expected=body.expected;
  const valid=v=>typeof v==='number'&&Number.isInteger(v)&&v>=0&&v<=1440;
- if(!/^[A-Z][A-Z0-9_]{1,100}$/.test(key)||!valid(minutes)||!valid(expected)){res.writeHead(400);res.end('INVALID_BUFFER_MUTATION');return;}
+ if(!/^[A-Z][A-Z0-9_]{1,100}$/.test(key)||!valid(minutes)||!valid(expected)||(/^CB_EXTENSION_(APPLIED|UNDONE)$/.test(key)&&minutes<10)){res.writeHead(400);res.end('INVALID_BUFFER_MUTATION');return;}
  const data=await notificationGasCall(actor,'updateDigestBuffer',{eventKey:key,minutes,expected});
  res.writeHead(data.ok?200:409,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(data));
 }

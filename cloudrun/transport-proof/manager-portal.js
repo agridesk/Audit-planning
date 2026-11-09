@@ -1149,7 +1149,7 @@ if(tab!=='versions'){
    
    saveAll.disabled=true;saved.textContent='Saving…';
    for(var k=0;k<changes.length;k++){
-    var item=changes[k],isPolicy=item.kind==='policy',payload=isPolicy?{scopeCode:scopeCode,field:item.field,expected:impacts.find(function(x){return x.field===item.field}).impact.current,value:['Active','Archived'].includes(item.field)?(item.input.value==='TRUE'?'Yes':'No'):item.input.value.trim(),reason:reason,impactConfirmed:true}:{scopeCode:scopeCode,field:item.field,expected:item.initial,value:item.input.value.trim()};
+    var item=changes[k],isPolicy=item.kind==='policy',payload=isPolicy?{scopeCode:scopeCode,field:item.field,expected:impacts.find(function(x){return x.field===item.field}).impact.current,value:item.input.value.trim(),reason:reason,impactConfirmed:true}:{scopeCode:scopeCode,field:item.field,expected:item.initial,value:item.input.value.trim()};
     var endpoint=isPolicy?'/api/v1/manager/scopes/policy':'/api/v1/manager/scopes/cosmetic';
     var response=await fetch(endpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),result=await response.json();
     if(!response.ok||!result.ok)throw Error(item.field+': '+(result.error||'SAVE_FAILED'));

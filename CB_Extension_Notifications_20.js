@@ -175,6 +175,10 @@ function CB_Extension_Outbox_ReconcileLocked_(){
    // ECAS_AUDIT_APPROVAL_DIGEST HTML family, never through a separate CB template.
    // Other CBs retain their language-neutral configurable template.
    var isEcas=latest.Certification_Body_ID==='ECAS';
+   if(isEcas&&typeof StatusNotificationBridge_LoadMpsNumberFromCompaniesByUid_==='function'){
+    // Canonical Companies.Number lookup; do not use recipient-address inference.
+    templateFields.MPS_NUMBER=CBN20_text_(StatusNotificationBridge_LoadMpsNumberFromCompaniesByUid_(ss,latest.Company_UID));
+   }
    var render=isEcas?{subject:'',body:''}:CBN20_template_(ctx.templates,'CB_EXTENSION_NOTIFICATION',templateFields);
    var now=new Date(),tz=ss.getSpreadsheetTimeZone();
    var stamp=Utilities.formatDate(now,tz,'yyyy-MM-dd HH:mm');

@@ -44,7 +44,21 @@ if(e.bufferMinutes!==undefined&&e.bufferMinutes!==null&&String(e.bufferMinutes).
  }
 }
 root.classList.remove('hidden');root.scrollIntoView({behavior:'smooth',block:'nearest'})}
-function renderEvents(){if(!model)return;const query=$('search').value.trim().toLowerCase(),g=$('group').value,filter=$('enabled').value;const rows=model.events.filter(e=>(g==='all'||group(e)===g)&&(filter==='all'||isYes(e.active)===(filter==='enabled'))&&[e.eventKey,notificationName(e),e.recipientTarget,e.templateFamily,notificationTemplate(e)].join(' ').toLowerCase().includes(query));$('eventCount').textContent=rows.length+' of '+model.events.length+' notifications';const root=$('eventGrid');root.replaceChildren();for(const e of rows){const x=element('article','event');x.tabIndex=0;x.setAttribute('role','button');x.setAttribute('aria-label','View '+notificationName(e)+' details');x.addEventListener('click',()=>showDetail(e));x.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();showDetail(e)}});x.append(element('h3','',notificationName(e)));pill(x,isYes(e.active)?'Enabled':'Disabled',isYes(e.active));pill(x,isYes(e.sendEmail)?'Email':'No email',isYes(e.sendEmail));x.append(element('div','meta','Recipient: '+label(e.recipientTarget||'Not set')));x.append(element('div','meta','Template: '+notificationTemplate(e)));root.append(x)}if(!rows.length)root.append(element('p','empty','No notifications match your filters.'))}
+function renderEvents(){if(!model)return;const query=$('search').value.trim().toLowerCase(),g=$('group').value,filter=$('enabled').value;const rows=model.events.filter(e=>(g==='all'||group(e)===g)&&(filter==='all'||isYes(e.active)===(filter==='enabled'))&&[e.eventKey,notificationName(e),e.recipientTarget,e.templateFamily,notificationTemplate(e)].join(' ').toLowerCase().includes(query));$('eventCount').textContent=rows.length+' of '+model.events.length+' notifications';const root=$('eventGrid');root.replaceChildren();for(const e of rows){const x=element('article','event');x.tabIndex=0;x.setAttribute('role','button');x.setAttribute('aria-label','View '+notificationName(e)+' details');x.addEventListener('click',()=>showDetail(e));x.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();showDetail(e)}});x.append(element('h3','',notificationName(e)));pill(x,isYes(e.active)?'Enabled':'Disabled',isYes(e.active));pill(x,isYes(e.sendEmail)?'Email':'No email',isYes(e.sendEmail));x.append(element('div','meta','Recipient: '+label(e.recipientTarget||'Not set')));x.append(element('div','meta','Template: '+notificationTemplate(e)));root.append(x)}const swapEvent=model.events.find(e=>e.eventKey==='ECAS_AUDIT_CHANGED_DIGEST');
+if(swapEvent&&(g==='all'||g==='audit')&&(filter==='all'||isYes(swapEvent.active)===(filter==='enabled'))&&
+  ['swap','ecas','audit changed','notification'].some(q=>q.includes(query)||query.includes(q))){
+ const x=element('article','event');x.tabIndex=0;x.setAttribute('role','button');
+ x.setAttribute('aria-label','View SWAP (ECAS) notification settings');
+ x.addEventListener('click',()=>showDetail(swapEvent));
+ x.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();showDetail(swapEvent)}});
+ x.append(element('h3','','SWAP (ECAS)'));
+ pill(x,isYes(swapEvent.active)?'Enabled':'Disabled',isYes(swapEvent.active));
+ pill(x,isYes(swapEvent.sendEmail)?'Email':'No email',isYes(swapEvent.sendEmail));
+ x.append(element('div','meta','Two-audit atomic change · existing ECAS digest event'));
+ x.append(element('div','meta','Template: ECAS_AUDIT_APPROVAL_DIGEST · Configured via ECAS Audit Changed'));
+ root.append(x);
+}
+if(!root.children.length)root.append(element('p','empty','No notifications match your filters.'))}
 async function apiPost(url,body){const response=await fetch(url,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const data=await response.json();if(!response.ok||!data.ok)throw Error([data.error||'Request failed',data.diagnostic].filter(Boolean).join(' — '));return data}
 async function renderTestPreview(){const key=$('testTemplate').value;const root=$('testPreviewRows');root.replaceChildren();$('testPreview').classList.toggle('hidden',!key);if(!key||!model)return;const matches=model.events.filter(e=>String(e.templateFamily||e.eventKey||'').trim()===key);for(const e of matches){const item=element('div','event');item.append(element('h3','',notificationName(e)),element('p','muted','Recipient: '+label(e.recipientTarget||'Not set')+' · Email: '+(isYes(e.sendEmail)?'Enabled':'Disabled')));root.append(item)}$('testDescription').textContent=matches.length+' notification event(s) use this template.';const event=matches[0];if(event){try{const data=await apiPost('/api/v1/notifications-manager-20/preview',{eventKey:event.eventKey});if($('testTemplate').value!==key)return;root.append(element('h3','','Rendered subject'),element('pre','',data.preview.subject),element('h3','','Rendered body'),element('pre','',data.preview.body))}catch(err){root.append(element('p','error',err.message))}}}
 function renderRules(){
@@ -104,7 +118,18 @@ function renderCertificationBodies(){
   });
   row.append(left,button);policyBox.append(row);
  }
- policies.append(policyBox);
+ const swapCfg=model.events.find(e=>e.eventKey==='ECAS_AUDIT_CHANGED_DIGEST');
+  const swapRow=element('div','setting-row'),swapLeft=element('div');
+  swapLeft.append(element('strong','','SWAP (ECAS)'),
+    element('p','muted','Uses the existing ECAS Audit Changed notification. One committed SWAP updates two audit rows; the compact SWAP section is included in the ECAS digest. There is no separate SWAP send switch.'));
+  swapRow.append(swapLeft);
+  if(swapCfg){
+    const configure=element('button','close','Configure event');configure.type='button';
+    configure.addEventListener('click',()=>{const tab=document.querySelector('[data-tab="events"]');if(tab)tab.click();showDetail(swapCfg)});
+    swapRow.append(configure);
+  }
+  policyBox.append(swapRow);
+  policies.append(policyBox);
  for(const cb of m.certificationBodies||[]){
   const item=element('section','event');item.append(element('h3','',cb.displayName+' ('+cb.certificationBodyId+')'));
   const info=element('p','muted','Assigned scopes: '+cb.activeScopeCount+' active / '+cb.scopeCount+' total');item.append(info);

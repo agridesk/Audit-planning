@@ -524,6 +524,7 @@ function NB_renderEcasExtensionDigest_(recipientEmail, item) {
     ['Nieuwe planningperiode',(d.NEW_WINDOW_FROM||'-')+' – '+(d.NEW_WINDOW_TO||'-')],
     ['Gewijzigd op',d.CHANGED_AT]
   ];
+  if(String(d.MPS_NUMBER||'').trim())fields.splice(2,0,['MPS No.',d.MPS_NUMBER]);
   var txt=['Hallo,','','Hierbij een wijziging in de auditverlenging voor verwerking in Ecert.',
     '', 'Extensions / Undo'];
   for(var j=0;j<fields.length;j++)txt.push(fields[j][0]+': '+fields[j][1]);

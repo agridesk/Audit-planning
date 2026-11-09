@@ -19,7 +19,7 @@ const ctx={
  NB_externalScheduleRows_:v=>(v.blocks||[]).map(b=>({date:b.date,time:b.start+' – '+b.end})),
  NB_externalTh_:t=>'<th>'+t+'</th>',
  NB_externalTd_:t=>'<td style="">'+t+'</td>',
-  NB_externalTdHtml_:(v)=>'<td>'+v+'</td>',
+  NB_externalTdHtml_:(v)=>'<td style="">'+v+'</td>',
   NB_scopeBadgesHtml_:(arr)=>arr.map(v=>'<span style="background:#ddeeff">'+v+'</span>').join(''),
  NB_externalShellStart_:()=>'<html><body>',
  NB_externalShellEnd_:()=>'</body></html>',

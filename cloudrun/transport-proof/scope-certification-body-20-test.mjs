@@ -49,8 +49,17 @@ await assert.rejects(updateScopeCertificationBody20({...deps,body:{...body,certi
 await assert.rejects(updateScopeCertificationBody20({...deps,body:{...body,confirmation:''}}),/SCOPE_CB_CHANGE_INVALID/);
 const unchanged=await updateScopeCertificationBody20({...deps,body:{...body,certificationBodyId:'ECAS'}});
 assert.equal(unchanged.unchanged,true);
+// An empty table without even its schema header is incomplete and must fail closed.
 for(let i=0;i<6;i++){
- const incomplete=base.map((values,j)=>({values:j===i?[values[0]]:values}));
- await assert.rejects(updateScopeCertificationBody20({...deps,body,sheetsBatchGet:async()=>incomplete}),/SCOPE_CB_ASSOCIATION_SCAN_INCOMPLETE|SCOPE_CB_IDENTITY_AMBIGUOUS/);
+ updates=[];
+ const incomplete=base.map((values,j)=>({values:j===i?[]:values}));
+ await assert.rejects(updateScopeCertificationBody20({...deps,body,sheetsBatchGet:async()=>incomplete}),/SCOPE_CB_ASSOCIATION_SCAN_INCOMPLETE/);
+ assert.equal(updates.length,0,'incomplete scan must never write');
 }
+// A valid association table with its header only is empty, not an incomplete scan.
+const emptyAssociationTables=base.map((values,i)=>({values:i>=2?[values[0]]:values}));
+updates=[];
+const emptyResult=await updateScopeCertificationBody20({...deps,body,sheetsBatchGet:async()=>emptyAssociationTables});
+assert.equal(emptyResult.certificationBodyId,'OTHER');
+assert.equal(updates.length,1);
 console.log('scope-certification-body-20: guarded edit and association tests passed');

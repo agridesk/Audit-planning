@@ -44,4 +44,31 @@ for(const c of cases){
 const nativeUnchanged=await updateScopePolicy20({...deps,sheetsBatchGet:async()=>[{values:[booleanHeaders,['TESTSCOPE-2',false,false]]}],body:{scopeCode:'TESTSCOPE-2',field:'Active',expected:'FALSE',value:'NO',reason:'Native boolean regression',impactConfirmed:true}});
 assert.equal(nativeUnchanged.unchanged,true);
 await assert.rejects(updateScopePolicy20({...deps,sheetsBatchGet:async()=>[{values:[booleanHeaders,['TESTSCOPE-2',true,false]]}],body:{scopeCode:'TESTSCOPE-2',field:'Active',expected:'FALSE',value:'YES',reason:'Native boolean regression',impactConfirmed:true}}),/STALE_SCOPE_POLICY/);
+
+// Rotation rules use canonical W/X/Y, preserving legacy J in the same atomic batch.
+const rotationHeaders=['ScopeCode','Max number audits','Rotation_Normal_Maximum','Rotation_Applies','Rotation_Plus_One_Permitted','Planning from','Planning to','Recurring'];
+const rotationRows=[rotationHeaders,['TESTSCOPE-2',3,3,true,false,-4,-1,'NO']];
+const rotationDeps={...deps,sheetsBatchGet:async()=>[{values:rotationRows}]};
+await updateScopePolicy20({...rotationDeps,body:{scopeCode:'TESTSCOPE-2',field:'Rotation_Normal_Maximum',expected:'3',value:'4',reason:'Rotation policy',impactConfirmed:true}});
+assert.equal(writes.requests.length,2,'Canonical W and legacy J must be written atomically');
+assert.equal(writes.requests[0].updateCells.start.columnIndex,2);
+assert.deepEqual(writes.requests[0].updateCells.rows[0].values[0].userEnteredValue,{numberValue:4});
+assert.equal(writes.requests[1].updateCells.start.columnIndex,1);
+assert.deepEqual(writes.requests[1].updateCells.rows[0].values[0].userEnteredValue,{numberValue:4});
+for(const [field,expected,value,bool] of [
+ ['Rotation_Applies','TRUE','FALSE',false],
+ ['Rotation_Plus_One_Permitted','FALSE','TRUE',true]
+]){
+ await updateScopePolicy20({...rotationDeps,body:{scopeCode:'TESTSCOPE-2',field,expected,value,reason:'Rotation policy',impactConfirmed:true}});
+ assert.deepEqual(writes.requests[0].updateCells.rows[0].values[0].userEnteredValue,{boolValue:bool},field);
+}
+for(const [field,expected,value,asNumber] of [
+ ['Planning from','-4','-5',-5],
+ ['Planning to','-1','0',0]
+]){
+ await updateScopePolicy20({...rotationDeps,body:{scopeCode:'TESTSCOPE-2',field,expected,value,reason:'Planning offset',impactConfirmed:true}});
+ assert.deepEqual(writes.requests[0].updateCells.rows[0].values[0].userEnteredValue,{numberValue:asNumber},field);
+}
+await updateScopePolicy20({...rotationDeps,body:{scopeCode:'TESTSCOPE-2',field:'Recurring',expected:'NO',value:'YES',reason:'Recurring toggle',impactConfirmed:true}});
+assert.deepEqual(writes.requests[0].updateCells.rows[0].values[0].userEnteredValue,{stringValue:'YES'});
 console.log('scope-policy-20: 15 checks passed');

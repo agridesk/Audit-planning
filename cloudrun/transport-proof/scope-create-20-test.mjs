@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {createScope20} from './scope-create-20.js';
-const headers=['SlotKey','ScopeCode','DisplayName','Color','TextColor','Active','Archived','SortOrder','Default_hours','Max number audits','Planning from','Planning to','Extension','Recurring','Obligation cycle','Complete by','Provisioning source','Trigger source','Source service','Max_Offsite_Hours','Min_Interval_Months','Certification_Body_ID'];
+const headers=['SlotKey','ScopeCode','DisplayName','Color','TextColor','Active','Archived','SortOrder','Default_hours','Max number audits','Planning from','Planning to','Extension','Recurring','Obligation cycle','Complete by','Provisioning source','Trigger source','Source service','Max_Offsite_Hours','Min_Interval_Months','Official_Scheme_Version','Rotation_Normal_Maximum','Rotation_Applies','Rotation_Plus_One_Permitted','Certification_Body_ID'];
 const cbRows=[['Certification_Body_ID','Display_Name','Active'],['ECAS','ECAS','TRUE']];
 const rows=[headers,...Array.from({length:8},(_,i)=>['SCOPE_'+String(i+1).padStart(2,'0'),'SCOPE'+(i+1),'Scope '+(i+1)])];
 const audit=['Audit ID',...Array.from({length:20},(_,i)=>['SCOPE_'+String(i+1).padStart(2,'0'),'Duration SCOPE_'+String(i+1).padStart(2,'0')]).flat()];
@@ -17,6 +17,9 @@ for(const flag of ['Active','Archived']){
  assert.deepEqual(value,{boolValue:false},flag+' must be a native Sheets boolean');
 }
 assert.deepEqual(requests[0].appendCells.rows[0].values[headers.indexOf('Recurring')].userEnteredValue,{stringValue:'NO'},'Recurring must preserve canonical YES/NO convention');
+assert.deepEqual(requests[0].appendCells.rows[0].values[headers.indexOf('Rotation_Normal_Maximum')].userEnteredValue,{numberValue:3});
+assert.deepEqual(requests[0].appendCells.rows[0].values[headers.indexOf('Rotation_Applies')].userEnteredValue,{boolValue:true});
+assert.deepEqual(requests[0].appendCells.rows[0].values[headers.indexOf('Rotation_Plus_One_Permitted')].userEnteredValue,{boolValue:false});
 await assert.rejects(createScope20({...deps,body:{...body,scopeCode:'SCOPE1'}}),/DUPLICATE_SCOPE_IDENTITY/);
 await assert.rejects(createScope20({...deps,body:{...body,confirmation:'NO'}}),/INVALID_SCOPE_CREATE/);
 const noLegacyColumns=await createScope20({...deps,sheetsBatchGet:async()=>[{values:rows},{values:cbRows}],body});assert.equal(noLegacyColumns.slotKey,'SCOPE_09');

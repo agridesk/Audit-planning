@@ -1002,13 +1002,25 @@ function ns_resetStaleReserved_(nqSheet, values) {
  * ============================================================ */
 
 function ns_buildDigestEmail_(recipientEmail, items) {
-  // New CB extensions use validated, configurable Notification_Templates
-  // rendered by their own reconciler. Never pass them to legacy ECAS/Ecert
-  // renderer, even if a generic family name matches.
+  // CB extension events are single, preflight-validated queue items. ECAS
+  // alone reuses the established Ecert HTML digest presentation; other CBs
+  // continue to use their own configurable CB extension template.
   if(Array.isArray(items)&&items.length===1
     &&/^CB_EXTENSION_(APPLIED|UNDONE)$/.test(String(items[0].eventCode||''))
     &&String((items[0].payload||{}).cbEventId||'').trim()){
-    return{subject:String(items[0].subject||''),body:String(items[0].body||''),
+    var ext=items[0],ep=ext.payload||{};
+    if(ep.certificationBodyId==='ECAS'){
+      if(ep.templateKey!=='ECAS_AUDIT_APPROVAL_DIGEST'
+          ||typeof NB_renderEcasExtensionDigest_!=='function')
+        throw Error('ECAS_EXTENSION_TEMPLATE_UNAVAILABLE');
+      var ecasRendered=NB_renderEcasExtensionDigest_(recipientEmail,ext);
+      return{subject:ecasRendered.subject,body:ecasRendered.body,
+        htmlBody:ecasRendered.htmlBody,attachments:[],
+        fromEmail:NS_DEFAULT_FROM_EMAIL,fromName:NS_DEFAULT_FROM_NAME};
+    }
+    if(ep.templateKey!=='CB_EXTENSION_NOTIFICATION')
+      throw Error('CB_EXTENSION_TEMPLATE_MISMATCH');
+    return{subject:String(ext.subject||''),body:String(ext.body||''),
       htmlBody:'',attachments:[],fromEmail:NS_DEFAULT_FROM_EMAIL,fromName:NS_DEFAULT_FROM_NAME};
   }
   var attachments = ns_collectAttachments_(items);

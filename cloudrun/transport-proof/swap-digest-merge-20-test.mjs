@@ -30,4 +30,12 @@ g={base:base(),swap:swap(),ext:{...ext(),items:[{eventCode:'CB_EXTENSION_APPLIED
 out=merge(g,['base','swap','ext']);
 assert.deepEqual(out.keys,['base','ext'],'Non-ECAS extensions never combined');
 assert.equal(out.allGroups.base.items.length,2);
+g={base:base(),swap:swap(),ext:ext()};
+out=merge(g,['base','swap']);
+assert.deepEqual(out.keys,['base'],'Not-yet-due extension cannot be included');
+assert.equal(out.allGroups.base.items.length,2);
+g={base:base(),swap:swap(),ext:ext()};
+out=merge(g,['base','ext']);
+assert.deepEqual(out.keys,['base'],'Not-yet-due SWAP cannot be included');
+assert.equal(out.allGroups.base.items.length,2);
 console.log('SWAP/EXT/ECAS due-digest atomic coalescing PASS');

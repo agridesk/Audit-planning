@@ -119,4 +119,29 @@ const generic=senderContext.ns_buildDigestEmail_('other@example.invalid',[{
 assert.equal(generic.htmlBody,'');
 assert.equal(generic.subject,'Other CB subject');
 
+
+const notificationBuilder=read('../../NotificationBuilder.js');
+new vm.Script(notificationBuilder);
+const builderCtx={
+  NB_getEventConfig_:()=>({digestGroup:'ECAS_OPERATIONAL',templateFamily:'EXTERNAL_OPERATIONAL'}),
+  NB_normalizePayload_:(code,payload)=>({...payload,eventFamily:'EXTERNAL_OPERATIONAL'}),
+  NB_resolveRendererProfile_:()=> 'EXTERNAL_OPERATIONAL',
+  NB_renderExternalOperationalDigest_:()=>({
+    subject:'Combined test',
+    body:'Hallo,\\n\\nAudit rows\\n\\nBedankt,\\n\\nRené Rombouts',
+    htmlBody:'<div>Hallo, Audit rows<div style="border-top:1px solid #111827;margin:18px 0 14px 0"></div>Bedankt</div>'
+  }),
+  NB_ecasExtensionsSectionHtml_:testContext.NB_ecasExtensionsSectionHtml_,
+  NB_ecasExtensionsSectionText_:testContext.NB_ecasExtensionsSectionText_
+};
+vm.runInNewContext(notificationBuilder,builderCtx);
+const mixedRendered=builderCtx.NB_renderDigestEmail_('ecas@example.invalid',[
+ {eventCode:'ECAS_AUDIT_APPROVAL_DIGEST',payload:{company:'Test grower'}},
+ {eventCode:'CB_EXTENSION_APPLIED',payload:extensionPayload}
+]);
+assert.equal((mixedRendered.htmlBody.match(/Verlengingen/g)||[]).length,1);
+assert(mixedRendered.htmlBody.indexOf('Verlengingen')<mixedRendered.htmlBody.indexOf('Bedankt'));
+assert(mixedRendered.body.includes('31-03-2027'));
+assert.equal((mixedRendered.body.match(/Bedankt,/g)||[]).length,1,'One shared sign-off');
+
 console.log('CB EXT/Undo dashboard configuration contract PASS');

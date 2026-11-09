@@ -941,7 +941,19 @@ function ns_sendDueReserved_(nqSheet, values) {
         nqSheet.getRange(rr, 2).setValue(finalStatus);
         nqSheet.getRange(rr, 12).setValue(sentStamp);
         nqSheet.getRange(rr, 10).setValue(deliveryNote);
-        nqSheet.getRange(rr, 13).setValue('');
+        // Keep the immutable source snapshot for genuinely delivered ECAS audit
+        // approvals/changes. ECAS20_VerifyPersistedCommunication_ requires this
+        // provenance; clearing Reserved made later SWAP verification impossible.
+        // DEV redirects and simulated sends are never valid external receipts.
+        var deliveredItem=group.items[i]||{};
+        if(finalStatus==='SENT'&&/^ECAS_AUDIT_(APPROVAL|CHANGED)_DIGEST$/.test(String(deliveredItem.eventCode||''))){
+          var provenanceJson=JSON.stringify({payload:deliveredItem.payload||{}});
+          if(provenanceJson.length<=49000)nqSheet.getRange(rr,13).setValue(provenanceJson);
+          else{
+            nqSheet.getRange(rr,13).setValue('');
+            Logger.log('ECAS20_PROVENANCE_TOO_LARGE '+String(deliveredItem.auditId||''));
+          }
+        }else nqSheet.getRange(rr,13).setValue('');
         sentRows++;
       }
       // Receipt failures must not undo a successful provider delivery or

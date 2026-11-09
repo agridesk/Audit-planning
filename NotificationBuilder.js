@@ -117,6 +117,10 @@ function NB_renderDigestEmail_(recipientEmail, items) {
     // Validate regular audit rows through the canonical digest renderer below,
     // then append only the extension table: one greeting and one sign-off.
     var normalRendered=NB_renderDigestEmail_(recipientEmail,normalItems);
+    var oldIntro='Hierbij een overzicht van de audits die zijn ingepland, gewijzigd, geannuleerd of afgewezen, gegroepeerd per auditor.';
+    var combinedIntro='Hierbij een overzicht van auditopdrachten en wijzigingen, inclusief verlengingen, voor verwerking in Ecert.';
+    normalRendered.body=normalRendered.body.replace(oldIntro,combinedIntro);
+    normalRendered.htmlBody=normalRendered.htmlBody.replace(oldIntro,combinedIntro);
     var extHtml=NB_ecasExtensionsSectionHtml_(extensions);
     var extText=NB_ecasExtensionsSectionText_(extensions);
     var signoffHtml='<div style="border-top:1px solid #111827;margin:18px 0 14px 0"></div>';

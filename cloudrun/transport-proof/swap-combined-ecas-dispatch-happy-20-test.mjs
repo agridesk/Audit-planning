@@ -11,13 +11,19 @@ const mem={AMS_ENV:'DEV',ECAS20_CHANGE_CANCEL_ENABLED:'YES',V5_SSOT_SPREADSHEET_
 const headers=['Audit ID','Planning JSON'];
 const rows=['A','B'].map(id=>({auditId:id,values:[id,JSON.stringify(old)]}));
 let row=null,appends=0;
+const receiptProof=[
+ ['Audit_ID','Communication_ID','Planning_Digest','Delivery_Status','Delivered_At'],
+ ['A','receipt-1','hash','SENT','2026-10-22T12:00:00Z'],
+ ['B','receipt-1','hash','SENT','2026-10-22T12:00:00Z']
+];
+const receiptSheet={getLastRow:()=>receiptProof.length,getDataRange:()=>({getValues:()=>receiptProof})};
 const sheet={getLastRow:()=>row?2:1,getRange:()=>({createTextFinder:()=>({
  matchEntireCell:()=>({findAll:()=>row?[{getRow:()=>2}]:[]})}),
  getValues:()=>[[null,row?.status,'ECAS_AUDIT_CHANGED_DIGEST',null,'SWAP_'+op,
  null,null,null,null,null,null,null,JSON.stringify({payload:row?.payload})]]})};
 const ctx={String,JSON,Date,Number,Array,Object,Error,
  PropertiesService:{getScriptProperties:()=>({getProperty:k=>mem[k]||'',setProperty:(k,v)=>{mem[k]=v;}})},
- SpreadsheetApp:{openById:()=>({getSheetByName:()=>sheet})},
+ SpreadsheetApp:{openById:()=>({getSheetByName:name=>name==='AMS_ECAS_Communication_Receipts'?receiptSheet:sheet})},
  NotificationConfig_GetQueueSheetName:()=> 'Notification Queue',
  NotificationConfig_GetAllEvents:()=>({'ECAS_AUDIT_CHANGED_DIGEST':{active:true}}),
  NotificationConfig_GetEvent:()=>({active:true,sendEmail:true,logOnly:false}),
@@ -40,6 +46,11 @@ const ctx={String,JSON,Date,Number,Array,Object,Error,
 };
 mem.INTENT=JSON.stringify({status:'AWAITING_PRIOR_ECAS_RECEIPTS'});
 runInNewContext(src,ctx);
+assert.equal(ctx.Swap20_verifyEcasDeliveredReceipt_('A','receipt-1','hash'),true);
+assert.equal(ctx.Swap20_verifyEcasDeliveredReceipt_('A','receipt-1','wrong'),false);
+receiptProof[1][3]='TESTED';
+assert.equal(ctx.Swap20_verifyEcasDeliveredReceipt_('A','receipt-1','hash'),false);
+receiptProof[1][3]='SENT';
 assert.equal(ctx.Swap20_tryQueueCombinedEcasLocked_(op).queued,true);
 assert.equal(appends,1);
 assert.equal(row.payload.swapItems.length,2);

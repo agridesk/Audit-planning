@@ -142,11 +142,13 @@ function renderCertificationBodies(){
   const subjectLabel=element('label','','Subject');const subject=element('input');subject.value=tpl.subject;subject.maxLength=200;
   const bodyLabel=element('label','','Message body');const body=element('textarea');body.value=tpl.body;body.rows=8;body.style.width='100%';
   const actions=element('div','detail-actions');
-  const saveSubject=element('button','','Save subject'),saveBody=element('button','','Save body');
+  const preview=element('button','close','Preview message'),saveSubject=element('button','','Save subject'),saveBody=element('button','','Save body');
+  const previewPanel=element('pre','muted');previewPanel.style.whiteSpace='pre-wrap';previewPanel.style.overflowWrap='anywhere';
+  preview.type='button';preview.addEventListener('click',()=>{const sample={CERTIFICATION_BODY_NAME:'Example Certification Body',COMPANY_NAME:'Example Company',SCOPE_NAME:'Example certification scope',BASE_EXPIRY:'2026-12-01',EFFECTIVE_EXPIRY:'2027-03-01',PREVIOUS_EXPIRY:'2026-12-01',PREVIOUS_WINDOW_FROM:'2026-09-01',PREVIOUS_WINDOW_TO:'2026-11-30',NEW_WINDOW_FROM:'2026-12-01',NEW_WINDOW_TO:'2027-02-28',CHANGED_AT:'2026-11-09T08:00:00Z'};const render=x=>String(x).replace(/\{\{([A-Z_]+)\}\}/g,(full,key)=>Object.hasOwn(sample,key)?sample[key]:full);previewPanel.textContent=render(subject.value)+'\n\n'+render(body.value)});
   saveSubject.type='button';saveBody.type='button';
   saveSubject.addEventListener('click',async()=>{saveSubject.disabled=true;try{await updateCbSettings('template',tpl.templateKey,'SUBJECT_TEMPLATE',subject.value,tpl.subject)}catch(e){alert('Not saved: '+e.message)}finally{saveSubject.disabled=false}});
   saveBody.addEventListener('click',async()=>{saveBody.disabled=true;try{await updateCbSettings('template',tpl.templateKey,'TEXT_BODY',body.value,tpl.body)}catch(e){alert('Not saved: '+e.message)}finally{saveBody.disabled=false}});
-  actions.append(saveSubject,saveBody);box.append(subjectLabel,subject,bodyLabel,body,actions);templatePanel.append(box);
+  actions.append(preview,saveSubject,saveBody);box.append(subjectLabel,subject,bodyLabel,body,actions,previewPanel);templatePanel.append(box);
  }
  if(!(model?.cbNotificationTemplates||[]).length)templatePanel.append(element('p','empty','No EXT / Undo templates found.'));
  policies.append(templatePanel);

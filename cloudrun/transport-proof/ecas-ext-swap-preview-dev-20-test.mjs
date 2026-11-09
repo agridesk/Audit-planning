@@ -43,6 +43,7 @@ assert.equal((render.htmlBody.match(/Bedankt,/g)||[]).length,1);
 assert(render.htmlBody.includes('SWAP – Gewijzigde auditplanning'));
 assert(render.htmlBody.includes('Verlenging toegepast'));
 assert(render.htmlBody.includes('Verlenging ingetrokken'));
+assert.equal((render.htmlBody.match(/background:#ddeeff/g)||[]).length,4,'Scope badges appear for all SWAP and extension rows');
 assert.equal(outbound,0,'Preview must never send mail');
 environment='PROD';
 assert.throws(()=>ctx.RUN_ECAS_EXT_SWAP_PREVIEW_DEV_20261109(),/DEV_ONLY/);

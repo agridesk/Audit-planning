@@ -809,9 +809,34 @@ function ns_sendDueReserved_(nqSheet, values) {
   });
 
   if (!keys.length) return { processedGroups:0, sentGroups:0, failedGroups:0, sentRows:0, failedRows:0 };
+  // Combine only ALREADY-DUE SWAP envelopes with an ALREADY-DUE
+  // regular ECAS digest, retaining a single queue record per atomic pair.
+  var swapKeys=keys.filter(function(key){
+    var g=allGroups[key];
+    return g.items.length===1&&String(g.items[0].auditId||'').indexOf('SWAP_')===0
+      &&String(g.items[0].eventCode||'')==='ECAS_AUDIT_CHANGED_DIGEST'
+      &&Array.isArray((g.items[0].payload||{}).swapItems)
+      &&g.items[0].payload.swapItems.length===2;
+  });
+  swapKeys.forEach(function(swapKey){
+    var sg=allGroups[swapKey];
+    var target=keys.find(function(key){
+      if(key===swapKey)return false;
+      var g=allGroups[key];
+      return g.recipient.trim().toLowerCase()===sg.recipient.trim().toLowerCase()
+        &&g.items.some(function(it){
+          return /^ECAS_AUDIT_(APPROVAL|CANCELLED|CHANGED|REJECTED)_DIGEST$/.test(String(it.eventCode||''))
+            &&String(it.auditId||'').indexOf('SWAP_')!==0;
+        });
+    });
+    if(!target)return;
+    allGroups[target].items=allGroups[target].items.concat(sg.items);
+    allGroups[target].rows=allGroups[target].rows.concat(sg.rows);
+    keys=keys.filter(function(key){return key!==swapKey;});
+  });
   // Opportunistic inclusion only: combine already-due ECAS extension and audit
   // groups for the same recipient. No extra hold, new digest group, or new route.
-  // Do not absorb atomic SWAP groups: their existing 2-audit envelope is protected.
+  // An atomic SWAP can share the resulting mail, but remains one queue item.
   var extensionKeys=keys.filter(function(key){
     var g=allGroups[key];
     return g.items.length===1
@@ -825,7 +850,7 @@ function ns_sendDueReserved_(nqSheet, values) {
       var g=allGroups[key];
       return g.recipient.trim().toLowerCase()===eg.recipient.trim().toLowerCase()
         &&g.items.some(function(it){return /^ECAS_AUDIT_(APPROVAL|CANCELLED|CHANGED|REJECTED)_DIGEST$/.test(String(it.eventCode||''));})
-        &&!g.items.some(function(it){return String(it.auditId||'').indexOf('SWAP_')===0;});
+        &&g.items.some(function(it){return String(it.auditId||'').indexOf('SWAP_')!==0;});
     });
     if(!targetKey)return;
     allGroups[targetKey].items=allGroups[targetKey].items.concat(eg.items);

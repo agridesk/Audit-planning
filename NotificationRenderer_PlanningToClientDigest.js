@@ -57,6 +57,7 @@ function NB_renderExternalOperationalDigest_(recipientEmail, normalizedItems, ec
       if(String(child.eventType||child.type)!=='ECAS_AUDIT_CHANGED_DIGEST')throw Error('SWAP child event invalid');
       if(Array.isArray(child.swapItems)&&child.swapItems.length)throw Error('Nested SWAP digest prohibited');
       var normalizedSwapChild=NB_normalizePayload_('ECAS_AUDIT_CHANGED_DIGEST',child,NB_getEventConfig_('ECAS_AUDIT_CHANGED_DIGEST'));
+      NB_assertEcasSwapScopeOwnership_(normalizedSwapChild.scopes);
       expanded.push(normalizedSwapChild);
       swapChildren.push(normalizedSwapChild);
     }
@@ -656,4 +657,36 @@ function NB_renderEcasSwapsSectionHtml_(items) {
   });
   html.push('</tbody></table>');
   return html.join('');
+}
+
+/**
+ * Fail closed: Config_Scopes.Certification_Body_ID (currently column Z) is
+ * canonical for the scheme-level owner. Never infer ECAS from a scope name.
+ */
+function NB_assertEcasSwapScopeOwnership_(scopes) {
+  if(!Array.isArray(scopes)||!scopes.length)throw Error('ECAS_SWAP_SCOPES_REQUIRED');
+  var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.getSheetByName('Config_Scopes');
+  if(!sh)throw Error('ECAS_SWAP_CONFIG_SCOPES_MISSING');
+  var values=sh.getDataRange().getValues();
+  if(values.length<2)throw Error('ECAS_SWAP_CONFIG_SCOPES_EMPTY');
+  var headers=values[0].map(function(x){return String(x||'').trim().toUpperCase();});
+  var codeCol=headers.indexOf('SCOPECODE'),nameCol=headers.indexOf('DISPLAYNAME'),
+    slotCol=headers.indexOf('SLOTKEY'),ownerCol=headers.indexOf('CERTIFICATION_BODY_ID');
+  if(codeCol<0||ownerCol<0)throw Error('ECAS_SWAP_CB_MAPPING_MISSING');
+  var norm=function(x){return String(x||'').trim().toUpperCase();};
+  var byKey={};
+  values.slice(1).forEach(function(row){
+    var cb=norm(row[ownerCol]);
+    [codeCol,nameCol,slotCol].forEach(function(col){
+      if(col<0)return;
+      var key=norm(row[col]);if(!key)return;
+      if(byKey[key]&&byKey[key]!==cb)byKey[key]='AMBIGUOUS';
+      else if(!byKey[key])byKey[key]=cb||'UNASSIGNED';
+    });
+  });
+  scopes.forEach(function(scope){
+    var owner=byKey[norm(scope)];
+    if(owner!=='ECAS')throw Error('ECAS_SWAP_SCOPE_CB_MISMATCH');
+  });
+  return true;
 }

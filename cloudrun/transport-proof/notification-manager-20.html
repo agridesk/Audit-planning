@@ -45,17 +45,24 @@ if(e.bufferMinutes!==undefined&&e.bufferMinutes!==null&&String(e.bufferMinutes).
 }
 root.classList.remove('hidden');root.scrollIntoView({behavior:'smooth',block:'nearest'})}
 function renderEvents(){if(!model)return;const query=$('search').value.trim().toLowerCase(),g=$('group').value,filter=$('enabled').value;const rows=model.events.filter(e=>(g==='all'||group(e)===g)&&(filter==='all'||isYes(e.active)===(filter==='enabled'))&&[e.eventKey,notificationName(e),e.recipientTarget,e.templateFamily,notificationTemplate(e)].join(' ').toLowerCase().includes(query));$('eventCount').textContent=rows.length+' of '+model.events.length+' notifications';const root=$('eventGrid');root.replaceChildren();for(const e of rows){const x=element('article','event');x.tabIndex=0;x.setAttribute('role','button');x.setAttribute('aria-label','View '+notificationName(e)+' details');x.addEventListener('click',()=>showDetail(e));x.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();showDetail(e)}});x.append(element('h3','',notificationName(e)));pill(x,isYes(e.active)?'Enabled':'Disabled',isYes(e.active));pill(x,isYes(e.sendEmail)?'Email':'No email',isYes(e.sendEmail));x.append(element('div','meta','Recipient: '+label(e.recipientTarget||'Not set')));x.append(element('div','meta','Template: '+notificationTemplate(e)));root.append(x)}const swapEvent=model.events.find(e=>e.eventKey==='ECAS_AUDIT_CHANGED_DIGEST');
-if(swapEvent&&(g==='all'||g==='audit')&&(filter==='all'||isYes(swapEvent.active)===(filter==='enabled'))&&
+const swapConfigured=!!swapEvent,swapActive=swapConfigured&&isYes(swapEvent.active);
+if((g==='all'||g==='audit')&&(filter==='all'||(filter==='enabled'?swapActive:!swapActive))&&
   ['swap','ecas','audit changed','notification'].some(q=>q.includes(query)||query.includes(q))){
- const x=element('article','event');x.tabIndex=0;x.setAttribute('role','button');
- x.setAttribute('aria-label','View SWAP (ECAS) notification settings');
- x.addEventListener('click',()=>showDetail(swapEvent));
- x.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();showDetail(swapEvent)}});
- x.append(element('h3','','SWAP (ECAS)'));
- pill(x,isYes(swapEvent.active)?'Enabled':'Disabled',isYes(swapEvent.active));
- pill(x,isYes(swapEvent.sendEmail)?'Email':'No email',isYes(swapEvent.sendEmail));
- x.append(element('div','meta','Two-audit atomic change · existing ECAS digest event'));
- x.append(element('div','meta','Template: ECAS_AUDIT_APPROVAL_DIGEST · Configured via ECAS Audit Changed'));
+ const x=element('article','event');x.tabIndex=0;
+ x.append(element('h3','','SWAP – audit planning changes'));
+ pill(x,swapConfigured?(swapActive?'Enabled':'Disabled'):'Not configured',swapActive);
+ if(swapConfigured){
+  x.setAttribute('role','button');x.setAttribute('aria-label','View SWAP notification settings');
+  x.addEventListener('click',()=>showDetail(swapEvent));
+  x.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();showDetail(swapEvent)}});
+  pill(x,isYes(swapEvent.sendEmail)?'Email':'No email',isYes(swapEvent.sendEmail));
+ } else {
+  x.setAttribute('aria-label','SWAP notification not configured');
+ }
+ x.append(element('div','meta','Committed two-audit transaction · CB determined from Config_Scopes'));
+ x.append(element('div','meta',swapConfigured?
+  'ECAS scope: existing audit changed event / operational digest':
+  'Missing ECAS_AUDIT_CHANGED_DIGEST event configuration · no delivery'));
  root.append(x);
 }
 if(!root.children.length)root.append(element('p','empty','No notifications match your filters.'))}
@@ -121,7 +128,7 @@ function renderCertificationBodies(){
  const swapCfg=model.events.find(e=>e.eventKey==='ECAS_AUDIT_CHANGED_DIGEST');
   const swapRow=element('div','setting-row'),swapLeft=element('div');
   swapLeft.append(element('strong','','SWAP (ECAS)'),
-    element('p','muted','Uses the existing ECAS Audit Changed notification. One committed SWAP updates two audit rows; the compact SWAP section is included in the ECAS digest. There is no separate SWAP send switch.'));
+    element('p','muted',swapCfg?'Uses the existing ECAS Audit Changed event. Only committed swaps qualify; delivery depends on CB mapping and existing queue safeguards.':'ECAS_AUDIT_CHANGED_DIGEST is missing from Notification_Config. SWAP delivery is disabled until the canonical event and reconciler are configured.'));
   swapRow.append(swapLeft);
   if(swapCfg){
     const configure=element('button','close','Configure event');configure.type='button';

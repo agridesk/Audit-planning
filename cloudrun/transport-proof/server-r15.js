@@ -417,7 +417,7 @@ async function notificationsManagerOverview(req,res){
   const templateRows=cbInputs.Notification_Templates,templateHeaders=(templateRows[0]||[]).map(x=>String(x||'').trim());
   const idx=k=>templateHeaders.indexOf(k);
   if(['TEMPLATE_KEY','SUBJECT_TEMPLATE','TEXT_BODY','ACTIVE'].some(k=>idx(k)<0))throw Error('CB_TEMPLATE_SCHEMA_INVALID');
-  result.cbNotificationTemplates=templateRows.slice(1).filter(r=>/^CB_EXTENSION_(APPLIED|UNDONE)$/.test(String(r[idx('TEMPLATE_KEY')]||''))).map(r=>({
+  result.cbNotificationTemplates=templateRows.slice(1).filter(r=>/^CB_EXTENSION_NOTIFICATION$/.test(String(r[idx('TEMPLATE_KEY')]||''))).map(r=>({
    templateKey:String(r[idx('TEMPLATE_KEY')]),subject:String(r[idx('SUBJECT_TEMPLATE')]||''),
    body:String(r[idx('TEXT_BODY')]||''),active:String(r[idx('ACTIVE')]||'').toUpperCase()==='YES'
   }));
@@ -929,7 +929,7 @@ async function notificationCbSettingMutation(req,res){
  let body;try{body=JSON.parse(raw)}catch{res.writeHead(400);res.end('INVALID_JSON');return;}
  const kind=String(body.kind||''),id=String(body.id||'').trim(),field=String(body.field||''),value=body.value,expected=body.expected;
  const allowed=kind==='body'?['Notification_Email','Email_Verified','Notification_Enabled']:kind==='template'?['SUBJECT_TEMPLATE','TEXT_BODY']:[];
- const idPattern=kind==='body'?/^[A-Z][A-Z0-9_-]{1,60}$/:/^CB_EXTENSION_(APPLIED|UNDONE)$/;
+ const idPattern=kind==='body'?/^[A-Z][A-Z0-9_-]{1,60}$/:/^CB_EXTENSION_NOTIFICATION$/;
  if(!allowed.includes(field)||!idPattern.test(id)||typeof value!=='string'||typeof expected!=='string'||value.length>8000||expected.length>8000){
   res.writeHead(400);res.end('CB_SETTING_INPUT_INVALID');return;
  }
@@ -939,7 +939,7 @@ async function notificationCbSettingMutation(req,res){
  }else{
   if(!value.trim()||(field==='SUBJECT_TEMPLATE'&&value.length>200)||value.includes('<script')){res.writeHead(400);res.end('CB_TEMPLATE_INVALID');return;}
   const placeholders=[...value.matchAll(/\{\{([A-Z_]+)\}\}/g)].map(x=>x[1]);
-  if(placeholders.some(x=>!['CERTIFICATION_BODY_NAME','COMPANY_NAME','SCOPE_NAME','BASE_EXPIRY','EFFECTIVE_EXPIRY','PREVIOUS_EXPIRY','PREVIOUS_WINDOW_FROM','PREVIOUS_WINDOW_TO','NEW_WINDOW_FROM','NEW_WINDOW_TO','CHANGED_AT'].includes(x))){
+  if(placeholders.some(x=>!['CERTIFICATION_BODY_NAME','COMPANY_NAME','SCOPE_NAME','BASE_EXPIRY','EFFECTIVE_EXPIRY','PREVIOUS_EXPIRY','PREVIOUS_WINDOW_FROM','PREVIOUS_WINDOW_TO','NEW_WINDOW_FROM','NEW_WINDOW_TO','CHANGED_AT','ACTION_LABEL','ACTION_DESCRIPTION'].includes(x))){
    res.writeHead(400);res.end('CB_TEMPLATE_PLACEHOLDER_INVALID');return;
   }
  }

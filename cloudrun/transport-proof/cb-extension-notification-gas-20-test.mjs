@@ -63,6 +63,19 @@ const setup=(events,applied,enabled)=>{
  assert.equal(x.CB_Extension_Outbox_ReconcileLocked_().skipped,'NON_DEV');
  assert.equal(x.sheets['Notification Queue'].rows.length,1);
 }
+{
+ const x=setup([apply],true,true);
+ assert.equal(x.CB_Extension_Outbox_ReconcileLocked_().queued,1);
+ const queueRow=x.sheets['Notification Queue'].rows[1],payload=JSON.parse(queueRow[12]).payload;
+ x.CB_Extension_Outbox_RecordDelivery_([{payload}],'SENT_DEV_REDIRECT','2026-11-08T21:00:00Z');
+ assert.equal(x.sheets.CB_Extension_Outbox.rows[1][11],'TESTED');
+ assert.equal(x.sheets.CB_Extension_Outbox.rows[1][13],'2026-11-08T21:00:00Z');
+ x.sheets.Audit_Obligations.rows[1][4]='';
+ x.sheets.CB_Extension_Outbox.rows.push(undo.slice());
+ const result=x.CB_Extension_Outbox_ReconcileLocked_();
+ assert.equal(result.queued,1,'A TEST_TO_SELF delivery counts as communicated in DEV');
+ assert.equal(x.sheets['Notification Queue'].rows[2][2],'CB_EXTENSION_UNDONE');
+}
 assert(sender.includes('CB_Extension_Outbox_ReconcileLocked_'),'GAS sender must invoke the reconciler');
 assert(sender.includes('CB_Extension_Outbox_PreflightSend_'),'GAS sender must verify CB immediately before email');
 assert(sender.includes('CB_Extension_Outbox_RecordDelivery_'),'GAS sender must record actual delivery');

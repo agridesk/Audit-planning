@@ -89,7 +89,7 @@ function renderCertificationBodies(){
  card(health,'Unknown active scope assignments',m.unknownActiveScopeCount);
  card(health,'Unknown outbox CB identities',m.unknownEventBodyCount);
  const policyBox=element('div','panel');policyBox.append(element('h3','','EXT / Undo notification settings'),
-  element('p','muted','Both events use one shared email template: CB_EXTENSION_NOTIFICATION. Manage the events and minimum 10-minute buffer through the existing notification settings. Pending messages are rechecked before delivery.'));
+  element('p','muted','For ECAS, Extension / Undo uses the existing Dutch ECAS_AUDIT_APPROVAL_DIGEST email layout. Other Certification Bodies use their own CB_EXTENSION_NOTIFICATION template. Configure both events and the minimum 10-minute buffer here; pending messages are rechecked before delivery.'));
  for(const policy of m.eventPolicies||[]){
   const row=element('div','setting-row'),left=element('div');
   left.append(element('strong','',label(policy.eventKey)),

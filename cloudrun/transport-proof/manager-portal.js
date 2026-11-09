@@ -1046,6 +1046,17 @@ document.getElementById("gridExportVisible20").onclick=function(){document.getEl
 (function(){
 var button=document.getElementById('scopeManagement20'),panel=document.getElementById('scopeManagement20Panel'),close=document.getElementById('scopeManagement20Close'),body=document.getElementById('scopeManagement20Rows'),status=document.getElementById('scopeManagement20Status'),search=document.getElementById('scopeManagement20Search'),filter=document.getElementById('scopeManagement20Filter'),dossier=document.getElementById('scopeManagement20Dossier'),details=document.getElementById('scopeManagement20Details'),records=[],certificationBodies=[],selected=null,tab='general',pendingEdits=[];
 function el(tag,value){var x=document.createElement(tag);x.textContent=value==null?'':String(value);return x}
+function scopeSavedValueMatches(field,stored,requested){
+ var actual=String(stored??'').trim(),wanted=String(requested??'').trim();
+ if(['Active','Archived','Rotation_Applies','Rotation_Plus_One_Permitted'].includes(field)){
+  var normalize=function(v){var x=String(v).toUpperCase();return ['TRUE','YES','1'].includes(x)?'TRUE':['FALSE','NO','0'].includes(x)?'FALSE':'INVALID'};
+  return normalize(actual)===normalize(wanted)&&normalize(actual)!=='INVALID';
+ }
+ if(['Rotation_Normal_Maximum','Max number audits','Min_Interval_Months','Max_Offsite_Hours','Planning from','Planning to','Extension','SortOrder'].includes(field)&&wanted!==''&&actual!==''){
+  return Number.isFinite(Number(actual))&&Number(actual)===Number(wanted);
+ }
+ return actual===wanted;
+}
 function showDetails(){if(!selected)return;pendingEdits=[];dossier.hidden=false;document.getElementById('scopeManagement20Name').textContent=selected.displayName+' ('+selected.scopeCode+')';var p=selected.policy||{},fields=[];
 if(tab==='general')fields=[['Scope name',selected.displayName],['Scope code',selected.scopeCode],['Certification Body',selected.certificationBodyName||selected.certificationBodyId||'Not assigned'],['CB notification email',selected.certificationBodyNotificationEmail||'Not configured'],['CB external notifications',selected.certificationBodyNotificationReady?'Enabled':'Disabled'],['Slot',selected.slotKey],['Active',selected.active],['Archived',selected.archived],['Color',p.Color],['Text color',p.TextColor],['Sort order',p.SortOrder]];
 if(tab==='versions')fields=[];
@@ -1157,7 +1168,10 @@ if(tab!=='versions'){
     if(!response.ok||!result.ok)throw Error(item.field+': '+(result.error||'SAVE_FAILED'));
     item.initial=item.input.value.trim();completed++;
    }
-   await load();selected=records.find(function(r){return r.scopeCode===scopeCode})||selected;showDetails();
+   await load();selected=records.find(function(r){return r.scopeCode===scopeCode})||null;
+   if(!selected)throw Error('SCOPE_SAVE_READBACK_MISSING');
+   for(var n=0;n<changes.length;n++){var check=changes[n];if(!scopeSavedValueMatches(check.field,selected.policy[check.field],check.input.value))throw Error('SCOPE_SAVE_READBACK_MISMATCH: '+check.field);}
+   showDetails();
    status.textContent='All changes saved · '+scopeCode;saved.textContent='All changes saved';
   }catch(e){saved.textContent='Save incomplete ('+completed+'/'+changes.length+'): '+e.message;status.textContent=saved.textContent}
   finally{saveAll.disabled=false}
@@ -1172,7 +1186,9 @@ var result=await response.json();
 if(!response.ok||!result.ok)throw Error(result.error||'SAVE_FAILED');
 status.textContent='Saved '+field+' for '+r.scopeCode;
 await load();
-if(selected&&selected.scopeCode===r.scopeCode){selected=records.find(function(x){return x.scopeCode===r.scopeCode})||selected;showDetails()}
+var verified=records.find(function(x){return x.scopeCode===r.scopeCode});
+if(!verified||!scopeSavedValueMatches(field,verified.policy[field],value))throw Error('SCOPE_SAVE_READBACK_MISMATCH: '+field);
+if(selected&&selected.scopeCode===r.scopeCode){selected=verified;showDetails()}
 }catch(e){status.textContent='Save blocked: '+e.message;control.value=String(r.policy[field]??'')}
 finally{control.disabled=false}
 }
@@ -1211,8 +1227,8 @@ var addScope=el('button','+ Add scope');addScope.type='button';addScope.style.ma
  }catch(e){status.textContent='Add scope blocked: '+e.message}finally{addScope.disabled=false}
 };
 status.parentNode.insertBefore(addScope,status.nextSibling);
-async function load(){status.textContent='Loading scopes…';try{var response=await fetch('/api/v1/manager/scopes',{credentials:'same-origin'}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'SCOPE_READ_FAILED');records=result.rows||[];certificationBodies=result.certificationBodies||[];status.textContent=records.length+' scopes · '+certificationBodies.length+' Certification Bodies · material changes protected';render()}catch(e){status.textContent='Scope catalog unavailable: '+e.message}}
-button.hidden=String(actorRole).toLowerCase()!=='manager';button.onclick=function(){if(String(actorRole).toLowerCase()!=='manager')return;panel.hidden=false;load()};
+async function load(){status.textContent='Loading scopes…';try{var response=await fetch('/api/v1/manager/scopes',{credentials:'same-origin'}),result=await response.json();if(!response.ok||!result.ok)throw Error(result.error||'SCOPE_READ_FAILED');records=result.rows||[];certificationBodies=result.certificationBodies||[];status.textContent=records.length+' scopes · '+certificationBodies.length+' Certification Bodies · material changes protected';render()}catch(e){status.textContent='Scope catalog unavailable: '+e.message;throw e}}
+button.hidden=String(actorRole).toLowerCase()!=='manager';button.onclick=function(){if(String(actorRole).toLowerCase()!=='manager')return;panel.hidden=false;load().catch(function(e){status.textContent='Scope catalog unavailable: '+e.message})};
 close.onclick=function(){var dirty=pendingEdits.some(function(e){return String(e.input.value).trim()!==String(e.initial).trim()});if(dirty&&!window.confirm('Discard unsaved scope changes?'))return;pendingEdits=[];panel.hidden=true;extensionTargetAuditId20='';extensionTargetCompanyUid20=''};search.oninput=render;filter.onchange=render;document.querySelectorAll('[data-scope-tab]').forEach(function(b){b.onclick=function(){tab=b.dataset.scopeTab;showDetails()}});
 })();
 (function(){

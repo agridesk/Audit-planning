@@ -61,6 +61,8 @@ const testContext={
  NB_externalShellEnd_:()=>'</div>',
  NB_externalTh_:v=>'<th>'+v+'</th>',
  NB_externalTd_:v=>'<td>'+v+'</td>',
+  NB_externalTdHtml_:(v)=>'<td>'+v+'</td>',
+  NB_scopeBadgesHtml_:(arr)=>arr.map(v=>'<span style="background:#ddeeff">'+v+'</span>').join(''),
  NB_externalOperationalSubject_:()=> 'Overzicht auditopdrachten Ecert — test'
 };
 vm.runInNewContext(legacyEcas.slice(start),testContext);

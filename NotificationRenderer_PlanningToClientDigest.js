@@ -707,8 +707,11 @@ function NB_assertCommittedSwapJournal_(operationId) {
   var ss=SpreadsheetApp.getActiveSpreadsheet();
   var sh=ss&&ss.getSheetByName('AMS_Swap_20_Journal');
   if(!sh)throw Error('ECAS_SWAP_JOURNAL_MISSING');
-  var values=sh.getDataRange().getValues();
-  if(values.length<2)throw Error('ECAS_SWAP_JOURNAL_EMPTY');
+  // Journal payloads are compressed and can be large; read only A:C.
+  // These are the canonical identity, sequence and stage columns.
+  var lastRow=sh.getLastRow();
+  if(lastRow<2)throw Error('ECAS_SWAP_JOURNAL_EMPTY');
+  var values=sh.getRange(1,1,lastRow,3).getValues();
   var headers=values[0].map(function(x){return String(x||'').trim().toUpperCase();});
   var operationCol=headers.indexOf('OPERATION_ID'),
     sequenceCol=headers.indexOf('SEQUENCE'),stageCol=headers.indexOf('STAGE');

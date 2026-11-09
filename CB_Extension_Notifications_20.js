@@ -162,7 +162,12 @@ function CB_Extension_Outbox_ReconcileLocked_(){
    var render=CBN20_template_(ctx.templates,eventKey,{
     CERTIFICATION_BODY_NAME:validated.name,COMPANY_NAME:details.company,
     SCOPE_NAME:latest.ScopeCode,BASE_EXPIRY:details.baseExpiry,
-    EFFECTIVE_EXPIRY:details.effectiveExpiry
+    EFFECTIVE_EXPIRY:details.effectiveExpiry,
+    PREVIOUS_EXPIRY:details.previousExpiry,
+    PREVIOUS_WINDOW_FROM:details.previousWindowFrom,
+    PREVIOUS_WINDOW_TO:details.previousWindowTo,
+    NEW_WINDOW_FROM:details.newWindowFrom,NEW_WINDOW_TO:details.newWindowTo,
+    CHANGED_AT:details.changedAt
    });
    var now=new Date(),tz=ss.getSpreadsheetTimeZone();
    var stamp=Utilities.formatDate(now,tz,'yyyy-MM-dd HH:mm');

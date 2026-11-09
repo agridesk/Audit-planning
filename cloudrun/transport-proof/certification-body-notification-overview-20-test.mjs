@@ -3,13 +3,14 @@ import {buildCbNotificationOverview20 as build} from './certification-body-notif
 const bodies=[['Certification_Body_ID','Display_Name','Active','Notification_Email','Email_Verified','Notification_Enabled'],
 ['CB-A','Body A','TRUE','notification@body-a.example','TRUE','TRUE'],['CB-B','Body B','TRUE','','FALSE','FALSE']];
 const scopes=[['ScopeCode','Certification_Body_ID','Active'],['GAP-A','CB-A','TRUE'],['GAP-B','CB-B','TRUE'],['TEST','CB-B','FALSE']];
-const outbox=[['Event_ID','Certification_Body_ID','Status'],['E1','CB-A','BUFFERED'],['E2','CB-A','SENT'],['E3','CB-B','SUPPRESSED']];
+const outbox=[['Event_ID','Certification_Body_ID','Status','Not_Before','Created_At','Last_Error'],['E1','CB-A','BUFFERED','2026-11-09T08:10:00Z','2026-11-09T08:00:00Z',''],['E2','CB-A','SENT','2026-11-09T08:10:00Z','2026-11-09T08:00:00Z',''],['E3','CB-B','SUPPRESSED','2026-11-09T08:10:00Z','2026-11-09T08:00:00Z','']];
 const config=[['EVENT_KEY','ACTIVE','SEND_EMAIL','BUFFER_MINUTES'],['CB_EXTENSION_APPLIED','YES','YES','10'],['CB_EXTENSION_UNDONE','YES','YES','10']];
 const model=build({bodies,scopes,outbox,config});
 assert.equal(model.certificationBodies.length,2);
 assert.equal(model.certificationBodies[0].scopeCount,1);
 assert.equal(model.certificationBodies[0].readyForExternalDelivery,true);
 assert.equal(model.certificationBodies[0].statusCounts.BUFFERED,1);
+assert.equal(model.certificationBodies[0].nextDue,'2026-11-09T08:10:00Z');
 assert.equal(model.certificationBodies[1].readyForExternalDelivery,false);
 assert.equal(model.unknownActiveScopeCount,0);
 assert.equal(model.unknownEventBodyCount,0);

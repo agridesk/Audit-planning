@@ -30,6 +30,9 @@ COPY model-c-scope-visit-preview-20.mjs ./
 COPY ecas-delivery-receipt-20.mjs ./
 COPY ecas-lifecycle-outbox-20.mjs ./
 COPY ecas-lifecycle-notification-intent-20.mjs ./
+COPY certification-body-extension-outbox-20.mjs ./
+COPY certification-body-routing-20.mjs ./
+COPY certification-body-notification-overview-20.mjs ./
 COPY rotation-manager-20.html ./
 COPY rotation-manager-20.js ./
 COPY auth-session-policy.mjs ./

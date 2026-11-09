@@ -47,6 +47,11 @@ function Swap20_tryQueueCombinedEcasLocked_(operationId){
    return {ok:false,queued:false,reason:'QUEUE_REQUIRES_REVIEW',queueStatus:existing.status};
   return {ok:true,queued:true,idempotent:true,status:existing.status};
  }
+ // An absent config row must never inherit NotificationConfig's permissive default.
+ if(typeof NotificationConfig_GetAllEvents!=='function')return {ok:false,queued:false,reason:'EVENT_CONFIG_MAP_UNAVAILABLE'};
+ var allConfig=NotificationConfig_GetAllEvents();
+ if(!allConfig||!Object.prototype.hasOwnProperty.call(allConfig,'ECAS_AUDIT_CHANGED_DIGEST'))
+  return {ok:false,queued:false,reason:'EVENT_CONFIG_MISSING'};
  var cfg=NotificationConfig_GetEvent('ECAS_AUDIT_CHANGED_DIGEST');
  if(!cfg||cfg.active!==true||cfg.sendEmail!==true||cfg.logOnly===true)
   return {ok:false,queued:false,reason:'EVENT_NOT_ENABLED_FOR_DELIVERY'};
@@ -79,6 +84,10 @@ function Swap20_tryQueueCombinedEcasLocked_(operationId){
   if(!detail.company||!(detail.auditNumber||detail.mpsNumber)||!detail.auditorEmail||
       !Array.isArray(detail.scopes)||!detail.scopes.length)
    return {ok:false,queued:false,reason:'INCOMPLETE_ECAS_BRIEFING',auditId:auditId};
+  // The scope -> CB mapping is resolved at runtime, not assumed from ECAS UI.
+  if(typeof NB_assertEcasSwapScopeOwnership_!=='function')
+   return {ok:false,queued:false,reason:'SWAP_CB_OWNER_GUARD_MISSING'};
+  NB_assertEcasSwapScopeOwnership_(detail.scopes);
   items.push({auditId:auditId,eventType:'ECAS_AUDIT_CHANGED_DIGEST',
    company:detail.company,mpsNumber:detail.mpsNumber||detail.auditNumber,
    auditorEmail:detail.auditorEmail,auditorName:detail.auditorName||detail.auditorEmail,

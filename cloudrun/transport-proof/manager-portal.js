@@ -1357,6 +1357,14 @@ if(tab==='scopes'){
  var allowed=['FIRESTORE_VERIFIED','DEV_MODEL_C_DIRECT'].includes(data.mode);
  var info=el('p',allowed?'Scope-specific EXT/Undo available in DEV.':'EXT/Undo currently unavailable for this audit.');
  info.dataset.extFeedback='yes';info.style.cssText='font-size:13px;margin:4px 0 10px;color:'+(allowed?'#166534':'#92400e');extContent.appendChild(info);
+ if(!allowed&&data.diagnostics&&data.diagnostics.directWriterGates){
+  var failing=Object.entries(data.diagnostics.directWriterGates).filter(function(entry){return entry[1]!==true}).map(function(entry){return entry[0]});
+  if(failing.length){
+   var diagnostic=el('p','DEV configuration gates blocking EXT: '+failing.join(', '));
+   diagnostic.style.cssText='font-size:11px;color:#92400e;margin:0 0 10px 0;overflow-wrap:anywhere';
+   extContent.appendChild(diagnostic);
+  }
+ }
  var visibleRecords=extTargetAuditId?data.records.filter(function(o){return (o.auditIds||[]).includes(extTargetAuditId)}):data.records;
  if(!visibleRecords.length){extContent.appendChild(el('p',extTargetAuditId?'No scope obligations linked to the selected audit.':'No obligations found'));return}
  var outer=el('div');outer.style.cssText='overflow-x:auto;width:100%;max-width:1100px';

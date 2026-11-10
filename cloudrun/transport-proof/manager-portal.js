@@ -981,7 +981,8 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
                 :"Date exchange committed. The audit grid has been refreshed.";
               if(commitPerformance){
                 var metrics=["total","availabilityWrite","canonicalWrite","verification"].map(function(k){return k+"="+String(commitPerformance[k]??"?")+"ms";});
-                status.textContent+=" SWAP DEV timings: "+metrics.join(", ")+ ".";
+                var swapLiveStatus=document.getElementById("status");
+                if(swapLiveStatus)swapLiveStatus.textContent="SWAP DEV timings: "+metrics.join(", ")+ ".";
               }
               swap20RefreshAttention().catch(function(){});
             }

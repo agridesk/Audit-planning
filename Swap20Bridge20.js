@@ -184,7 +184,8 @@ function Swap20Bridge20_handle_(body) {
   return Swap20Bridge20_mirrorEvent_({ok:committed.success===true,error:committed.success===true?undefined:String(committed.code||'SWAP_COMMIT_NOT_AVAILABLE'),operationId:committed.operationId,
    status:committed.status||committed.code||'',committed:committed.committed===true,
    notificationPending:committed.notificationPending===true,
-   notificationQueued:committed.notificationQueued===true,readOnly:committed.readOnly===true},committed.operationId);
+   notificationQueued:committed.notificationQueued===true,readOnly:committed.readOnly===true,
+   performanceMs:committed.performanceMs||null},committed.operationId);
  }
  if(operation!=='preview'&&operation!=='propose')
   return {ok:false,error:'SWAP_OPERATION_NOT_SUPPORTED'};

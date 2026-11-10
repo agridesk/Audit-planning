@@ -7,7 +7,7 @@ const r4=fs.readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const singleStart=manager.indexOf('async function runSingleScopeExtension20(button){');
 const singleEnd=manager.indexOf('function grid4ScopeBadges(r){',singleStart);
 const singleExtensionBody=singleStart>=0&&singleEnd>singleStart?manager.slice(singleStart,singleEnd):'';
-const multiStart=manager.indexOf('async function extAction(o,command){');
+const multiStart=manager.indexOf('async function extAction(o,command,button){');
 const multiEnd=manager.indexOf('function showExtObligations(data){',multiStart);
 const multiExtensionBody=multiStart>=0&&multiEnd>multiStart?manager.slice(multiStart,multiEnd):'';
 const checks=[

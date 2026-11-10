@@ -16,10 +16,11 @@ assert(proxy.includes("runtime.isDev&&req.method==='POST'"),'Only DEV authentica
 assert(proxy.includes("origin.protocol!=='https:'||origin.host!==externalHost"),'The public Origin/Host pair must be checked');
 assert(proxy.includes('headers.host=externalHost')&&proxy.includes('headers.origin=origin.origin'));
 assert(!proxy.includes("x-forwarded-host"),'Never trust client-supplied forwarded Host');
-for(let n=12;n>=5;n--){
+for(let n=12;n>=6;n--){
  const source=read('./server-r'+n+'.js');
- assert(source.includes("delete")||source.includes("!['host','content-length','connection'].includes"),'Expected proxy chain for R'+n);
+ assert(source.includes("!['host','content-length','connection'].includes"),'Expected Host-stripping proxy for R'+n);
 }
+assert(read('./server-r5.js').includes("host:'127.0.0.1:'+INNER_PORT"),'R5 rewrites the Host to localhost');
 const originHelper=inner.slice(inner.indexOf('function devScopeTestOriginAllowed20('),inner.indexOf('function isolatedExtDirect20()'));
 assert(originHelper.includes("process.env.AMS_RUNTIME_ENV==='DEV'"));
 assert(originHelper.includes("process.env.K_SERVICE==='ams-fase12-dev'"));

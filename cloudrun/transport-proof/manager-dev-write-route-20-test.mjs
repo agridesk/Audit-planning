@@ -37,4 +37,5 @@ assert(self.includes("SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs'"));
 assert(self.includes("directRowRevision(found.h,found.row)!==expectedRevision"),'CAS revision stays mandatory');
 assert(self.includes("SELF_PLANNING_READBACK_UNVERIFIED"),'Sheets readback stays mandatory');
 assert(grid.includes('DEV configuration gates blocking EXT:'));
+assert(grid.includes("EXT/Undo is not yet authorized: '+(failedGates.length"),'Single EXT must expose same DEV gate diagnostics');
 console.log('DEV Self planning / Single EXT / Multi EXT routed write and gate diagnostics PASS');

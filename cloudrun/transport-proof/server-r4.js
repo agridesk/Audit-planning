@@ -118,13 +118,13 @@ function devManagerDirectWritesConfigAllowed20(cfg){
   &&process.env.AMS_DEV_NORMAL_GRID_ENABLED==='true'
   &&process.env.AMS_DEV_MAINTENANCE_MODE!=='true'
   &&process.env.AMS_DEV_EXT_READONLY_PREVIEW!=='true'
-  &&cfg.get('ALLOW_DEV_WRITES')==='TRUE'
+  &&String(cfg.get('ALLOW_DEV_WRITES')).toUpperCase()==='TRUE'
   &&cfg.get('DEV_WRITE_MODE')==='ALLOW_ALL';
  const preview=process.env.AMS_RUNTIME_ENV==='DEV'
   &&process.env.K_SERVICE==='ams-fase12-dev'
   &&process.env.AMS_DEV_MAINTENANCE_MODE==='true'
   &&process.env.AMS_DEV_EXT_READONLY_PREVIEW==='true'
-  &&cfg.get('ALLOW_DEV_WRITES')==='FALSE'
+  &&String(cfg.get('ALLOW_DEV_WRITES')).toUpperCase()==='FALSE'
   &&cfg.get('DEV_WRITE_MODE')==='BLOCK';
  return normal||preview;
 }

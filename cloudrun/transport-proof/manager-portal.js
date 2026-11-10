@@ -945,12 +945,40 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
             if(!window.confirm("Apply this approved date change in DEV? Both audit schedules will change."))return;
             swap20CommitAttempted20.add(String(p.operationId));
             apply.disabled=true;status.textContent="Applying confirmed audit date exchange...";
+            var committed=false,commitProblem="";
             try{
               var outcome=await swap20GridRequest("manager","commit",{operationId:p.operationId});
               if(outcome.committed!==true)throw Error("SWAP_COMMIT_NOT_CONFIRMED");
-              await reload();selectionClear();await loadOpen();
-            }catch(e){var code=String(e&&e.message||e||"SWAP_REQUEST_FAILED").slice(0,120);status.textContent=code==="SWAP_ATOMIC_WRITE_DISABLED"?"The final date change is not yet enabled. The confirmed request remains saved.":"The date exchange could not be confirmed (diagnostic: "+code+"). Check the request status before retrying.";console.error("[SWAP20_MANAGER_COMMIT_FAILED]",{operationId:p.operationId,code:code});try{var verified=await swap20GridRequest("manager","status",{operationId:p.operationId});status.textContent+=" Canonical request: "+String(verified.status||"UNKNOWN")+". Journal: "+String(verified.journalStage||"UNAVAILABLE (GAS bridge not updated)")+" (sequence "+String(verified.journalSequence??"unavailable")+"). Manual review: "+String(verified.journalRequiresManualReview==null?"unknown":verified.journalRequiresManualReview===true)+". Commit enabled: "+String(verified.commitEnabled===true)+". No automatic retry.";}catch(verifyError){status.textContent+=" Read-only status verification failed: "+String(verifyError&&verifyError.message||verifyError).slice(0,80)+".";} }
-            finally{apply.disabled=true;apply.title="Commit attempted. Refresh and inspect the journal before any further action.";}
+              committed=true;
+            }catch(e){
+              commitProblem=String(e&&e.message||e||"SWAP_REQUEST_FAILED").slice(0,120);
+              console.error("[SWAP20_MANAGER_COMMIT_UNCERTAIN]",{operationId:p.operationId,code:commitProblem});
+              // Read-only recovery: a successful write must never be retried on a transport error.
+              try{
+                var verified=await swap20GridRequest("manager","status",{operationId:p.operationId});
+                if(verified.status==="APPLIED"||verified.committed===true)committed=true;
+                if(!committed&&String(verified.journalStage||"").toUpperCase()==="COMMITTED"){
+                  status.textContent="SWAP journal is COMMITTED, but the request status has not caught up. Check the two audit dates; do not retry.";
+                }else if(!committed){
+                  status.textContent="SWAP outcome not confirmed ("+commitProblem+"). Canonical request: "+String(verified.status||"UNKNOWN")+", journal: "+String(verified.journalStage||"UNKNOWN")+". Do not retry until reconciled.";
+                }
+              }catch(verifyError){
+                status.textContent="SWAP outcome uncertain ("+commitProblem+"). Read-only verification failed: "+String(verifyError&&verifyError.message||verifyError).slice(0,80)+". Do not retry.";
+              }
+            }
+            if(committed){
+              status.textContent="Date exchange committed. Refreshing the overview…";
+              selectionClear();
+              // A failed view refresh is not a failed SWAP; never resend the commit.
+              var refreshProblems=[];
+              try{await reload();}catch(refreshError){refreshProblems.push("request list");console.warn("[SWAP20_POST_COMMIT_LIST_REFRESH]",String(refreshError&&refreshError.message||refreshError))}
+              try{await loadOpen();}catch(gridError){refreshProblems.push("audit grid");console.warn("[SWAP20_POST_COMMIT_GRID_REFRESH]",String(gridError&&gridError.message||gridError))}
+              status.textContent=refreshProblems.length
+                ?"Date exchange committed. Refresh unavailable ("+refreshProblems.join(", ")+"); reload the overview. Do not repeat the exchange."
+                :"Date exchange committed. The audit grid has been refreshed.";
+              swap20RefreshAttention().catch(function(){});
+            }
+            apply.disabled=true;apply.title="Commit attempted. Check the canonical status before any further action.";
           };
           card.appendChild(apply);
         }

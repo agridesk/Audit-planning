@@ -12,6 +12,7 @@ const ctx={
  SYS_getEnv_:()=>environment,
  SpreadsheetApp:{getActiveSpreadsheet:()=>({getId:()=>sheetId})},
  PropertiesService:{getScriptProperties:()=>({getProperty:key=>key==='V5_SSOT_SPREADSHEET_ID'?liveId:''})},
+ NB_clean_:s=>String(s??'').trim(),
  NB_html_:s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;'),
  NB_scopeDisplayList_:v=>v,
  NB_mpsNumber_:v=>v.mpsNumber,

@@ -204,7 +204,8 @@ async function runSingleScopeExtension20(button){
   if(linked.length!==1)throw Error('Audit must have exactly one verified linked scope; no extension performed');
   var obligation=linked[0],command=obligation.extensionApplied===true?'undo':'apply';
   if(!['FIRESTORE_VERIFIED','DEV_MODEL_C_DIRECT'].includes(data.mode)||(command==='apply'?obligation.canApply!==true:obligation.canUndo!==true)){
-   throw Error('EXT/Undo is not yet authorized: Model C migration and writer verification required');
+   var failedGates=data.diagnostics&&data.diagnostics.directWriterGates?Object.entries(data.diagnostics.directWriterGates).filter(function(k){return k[1]!==true}).map(function(k){return k[0]}):[];
+   throw Error('EXT/Undo is not yet authorized: '+(failedGates.length?'DEV gates: '+failedGates.join(', '):'Model C migration and writer verification required'));
   }
   if(obligation.auditId!==auditId||!Number.isSafeInteger(obligation.revision)||(command==='undo'&&!obligation.extensionTransactionId&&data.mode!=='DEV_MODEL_C_DIRECT'))throw Error('Verified scope revision or provenance missing');
   if(!window.crypto||typeof window.crypto.randomUUID!=='function')throw Error('Secure request ID unavailable');

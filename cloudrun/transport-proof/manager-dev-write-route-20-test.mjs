@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+const read=n=>readFileSync(new URL(n,import.meta.url),'utf8');
+const outer=read('./server-r15.js');
+const inner=read('./server-r4.js');
+const grid=read('./manager-portal.js');
+for(const src of [outer,inner,grid])new vm.Script(src.replace(/^import .*?;\s*$/gm,''),{filename:'contract-source'});
+const proxyStart=outer.indexOf('async function proxy(req,res){'),proxyEnd=outer.indexOf('enforcePlanningAtomicCutover20(',proxyStart);
+assert(proxyStart>=0&&proxyEnd>proxyStart);
+const proxy=outer.slice(proxyStart,proxyEnd);
+assert(proxy.includes("writerPath==='/api/v1/manager/self-planning-direct'"));
+assert(proxy.includes("writerPath==='/api/v1/manager/extension-obligation-command'"));
+assert(proxy.includes("directDevManagerWrite?port+9:innerPort"),'DEV manager writes must reach R4 without lossy R12..R5 Host rewrites');
+assert(proxy.includes("runtime.isDev&&req.method==='POST'"),'Only DEV authenticated POST calls may bypass proxy layers');
+assert(proxy.includes("origin.protocol!=='https:'||origin.host!==externalHost"),'The public Origin/Host pair must be checked');
+assert(proxy.includes('headers.host=externalHost')&&proxy.includes('headers.origin=origin.origin'));
+assert(!proxy.includes("x-forwarded-host"),'Never trust client-supplied forwarded Host');
+for(let n=12;n>=5;n--){
+ const source=read('./server-r'+n+'.js');
+ assert(source.includes("delete")||source.includes("!['host','content-length','connection'].includes"),'Expected proxy chain for R'+n);
+}
+const originHelper=inner.slice(inner.indexOf('function devScopeTestOriginAllowed20('),inner.indexOf('function isolatedExtDirect20()'));
+assert(originHelper.includes("process.env.AMS_RUNTIME_ENV==='DEV'"));
+assert(originHelper.includes("process.env.K_SERVICE==='ams-fase12-dev'"));
+assert(originHelper.includes("'https://scope-test---ams-fase12-dev-zwtcar7xpa-ew.a.run.app'"));
+assert.equal(inner.split('!devScopeTestOriginAllowed20(parsedOrigin.origin)').length-1,2,'EXT and EXT projection must accept isolated tag');
+assert(inner.includes("return send(res,200,{ok:true,companyUid:uid,records,mode:'READ_ONLY_CUTOVER_REQUIRED',canMutate:false,"));
+assert(inner.includes('directWriterGates:{'),'Read-only EXT must provide safe gate diagnostics');
+assert(grid.includes('DEV configuration gates blocking EXT:'));
+console.log('DEV Self planning / Single EXT / Multi EXT routed write and gate diagnostics PASS');

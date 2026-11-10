@@ -85,8 +85,11 @@ function allowedConfig(env,values){
 const writable={ENV:'DEV',ALLOW_DEV_WRITES:'TRUE',DEV_WRITE_MODE:'ALLOW_ALL'};
 const frozen={ENV:'DEV',ALLOW_DEV_WRITES:'FALSE',DEV_WRITE_MODE:'BLOCK'};
 assert.equal(allowedConfig(enabled,writable),true,'Actual canonical writable DEV must authorize normal-grid operations');
+assert.equal(allowedConfig(enabled,{...writable,ALLOW_DEV_WRITES:true}),true,'UNFORMATTED_VALUE boolean TRUE from live Google Sheets must allow normal DEV');
+assert.equal(allowedConfig(enabled,{...writable,ALLOW_DEV_WRITES:false}),false,'UNFORMATTED_VALUE boolean FALSE must deny normal DEV');
 assert.equal(allowedConfig(enabled,frozen),false,'Frozen mode cannot be used with the normal grid');
 assert.equal(allowedConfig({...enabled,AMS_DEV_NORMAL_GRID_ENABLED:'false',AMS_DEV_MAINTENANCE_MODE:'true',AMS_DEV_EXT_READONLY_PREVIEW:'true'},frozen),true,'Legacy preview retains freeze');
+assert.equal(allowedConfig({...enabled,AMS_DEV_NORMAL_GRID_ENABLED:'false',AMS_DEV_MAINTENANCE_MODE:'true',AMS_DEV_EXT_READONLY_PREVIEW:'true'},{...frozen,ALLOW_DEV_WRITES:false}),true,'UNFORMATTED_VALUE boolean FALSE must preserve isolated preview freeze');
 assert.equal(allowedConfig({...enabled,AMS_RUNTIME_ENV:'PROD'},writable),false,'PROD is never authorized');
 assert.equal(allowedConfig(enabled,{...writable,ENV:'PROD'}),false,'DEV service must not write to PROD SSOT');
 assert.equal(allowedConfig(enabled,{...writable,DEV_WRITE_MODE:'BLOCK'}),false,'Contradictory config must fail closed');

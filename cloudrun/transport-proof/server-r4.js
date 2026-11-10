@@ -3287,7 +3287,22 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
         records=result.records;
         return send(res,200,{ok:true,companyUid:uid,...result});
       }
-      return send(res,200,{ok:true,companyUid:uid,records,mode:'READ_ONLY_CUTOVER_REQUIRED',canMutate:false});
+      return send(res,200,{ok:true,companyUid:uid,records,mode:'READ_ONLY_CUTOVER_REQUIRED',canMutate:false,
+        diagnostics:process.env.AMS_RUNTIME_ENV==='DEV'?{
+          devOnly:true,
+          directWriterEligible:isolatedExtDirect20(),
+          pilotWriterEligible:isolatedExtPilot20(),
+          directWriterGates:{
+           devEnvironment:process.env.AMS_RUNTIME_ENV==='DEV',
+           expectedService:process.env.K_SERVICE==='ams-fase12-dev',
+           readOnlyPreview:process.env.AMS_DEV_EXT_READONLY_PREVIEW==='true',
+           maintenanceMode:process.env.AMS_DEV_MAINTENANCE_MODE==='true',
+           directWriterEnabled:process.env.AMS_DEV_EXT_DIRECT_ENABLED==='true',
+           authorityNotFirestore:process.env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE',
+           migrationNotPromoted:process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true',
+           writerFenceNotPromoted:process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true'
+          }
+        }:undefined});
     }catch(e){return send(res,409,{ok:false,error:'EXT_SCOPE_DOSSIER_READ_FAILED',detail:clean(e?.message||e)})}
   }
   if(u.pathname==='/api/v1/manager/company-management'&&req.method==='GET'){

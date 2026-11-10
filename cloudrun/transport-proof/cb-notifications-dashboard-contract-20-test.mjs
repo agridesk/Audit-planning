@@ -78,6 +78,7 @@ const scopeMock=[
  ['SCOPE_02','MPS-GAP','MPS-GAP','ECAS'],
  ['SCOPE_03','OTHER','Other CB scope','OTHER']
 ];
+testContext.NB_clean_=v=>String(v??'').trim();
 testContext.NB_mpsNumber_=it=>it.mpsNumber||'';
 testContext.NB_scopeDisplayList_=scopes=>scopes;
 testContext.NB_externalAuditorText_=it=>it.auditorEmail||'';
@@ -117,21 +118,22 @@ assert.throws(()=>testContext.NB_assertCommittedSwapJournal_('SWAP20_missing_ope
 
 const swapRows=testContext.NB_renderEcasSwapRows_([
  {eventType:'ECAS_AUDIT_CHANGED_DIGEST',mpsNumber:'913496',company:'A',scopes:['MPS-ABC'],
-  auditorEmail:'a@example.invalid',previousBlocks:[{date:'2026-11-10',start:'09:00',end:'13:00'}],
+  auditorEmail:'a@example.invalid',ecasComment:'Externe reden A',previousBlocks:[{date:'2026-11-10',start:'09:00',end:'13:00'}],
   blocks:[{date:'2026-11-11',start:'09:00',end:'13:00'}]},
  {eventType:'ECAS_AUDIT_CHANGED_DIGEST',mpsNumber:'913497',company:'B',scopes:['MPS-GAP'],
-  auditorEmail:'b@example.invalid',previousBlocks:[{date:'2026-11-11',start:'09:00',end:'17:00'}],
+  auditorEmail:'b@example.invalid',ecasComment:'Externe reden B',previousBlocks:[{date:'2026-11-11',start:'09:00',end:'17:00'}],
   blocks:[{date:'2026-11-10',start:'09:00',end:'17:00'}]}
 ]);
 assert.equal(swapRows.length,2,'SWAP represents two audit rows');
 assert.equal((testContext.NB_renderEcasSwapsSectionHtml_([
  {eventType:'ECAS_AUDIT_CHANGED_DIGEST',mpsNumber:'913496',company:'A',scopes:['MPS-ABC'],
-  auditorEmail:'a@example.invalid',previousBlocks:[{date:'2026-11-10',start:'09:00',end:'13:00'}],
+  auditorEmail:'a@example.invalid',ecasComment:'Externe reden A',previousBlocks:[{date:'2026-11-10',start:'09:00',end:'13:00'}],
   blocks:[{date:'2026-11-11',start:'09:00',end:'13:00'}]},
  {eventType:'ECAS_AUDIT_CHANGED_DIGEST',mpsNumber:'913497',company:'B',scopes:['MPS-GAP'],
-  auditorEmail:'b@example.invalid',previousBlocks:[{date:'2026-11-11',start:'09:00',end:'17:00'}],
+  auditorEmail:'b@example.invalid',ecasComment:'Externe reden B',previousBlocks:[{date:'2026-11-11',start:'09:00',end:'17:00'}],
   blocks:[{date:'2026-11-10',start:'09:00',end:'17:00'}]}
-]).match(/<th>/g)||[]).length,6);
+]).match(/<th>/g)||[]).length,7);
+assert(swapRows[0][6]==='Externe reden A'&&swapRows[1][6]==='Externe reden B','SWAP external reason must be in row');
 assert(apply.htmlBody.includes('ecas-shell')&&apply.htmlBody.includes('Verlengingen'));
 assert(apply.body.includes('Verlenging toegepast'));
 assert.equal((apply.htmlBody.match(/<th>/g)||[]).length,6,'Six horizontal headers expected');

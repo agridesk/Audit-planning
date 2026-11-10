@@ -851,7 +851,11 @@ async function saveScopeCosmetic20(body){
   return{ok:true,scopeCode:code,field,value,previous:old};
 }
 async function directManagerSelfPlanning20(identity,body){
- if(!isolatedExtDirect20()||SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs'
+ // Self planning is a core Manager Grid action; it must not depend on
+ // the separate, optionally disabled EXT/Undo maintenance pilot.
+ // DEV identity, canonical spreadsheet, readback and CAS remain mandatory.
+ if(process.env.AMS_RUNTIME_ENV!=='DEV'||process.env.K_SERVICE!=='ams-fase12-dev'
+    ||SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs'
     ||await verifiedAuditorLockDevProject()!=='audit-management-system-dev')throw Error('SELF_PLANNING_DEV_ISOLATION_REQUIRED');
  const config=await sheetsBatchGet(['System_Config!A1:C100']);
  const rows=config[0]?.values||[];

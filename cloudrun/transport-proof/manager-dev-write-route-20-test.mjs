@@ -5,7 +5,7 @@ const read=n=>readFileSync(new URL(n,import.meta.url),'utf8');
 const outer=read('./server-r15.js');
 const inner=read('./server-r4.js');
 const grid=read('./manager-portal.js');
-for(const src of [outer,inner,grid])new vm.Script(src.replace(/^import .*?;\s*$/gm,''),{filename:'contract-source'});
+new vm.Script(grid,{filename:'manager-portal.js'});
 const proxyStart=outer.indexOf('async function proxy(req,res){'),proxyEnd=outer.indexOf('enforcePlanningAtomicCutover20(',proxyStart);
 assert(proxyStart>=0&&proxyEnd>proxyStart);
 const proxy=outer.slice(proxyStart,proxyEnd);

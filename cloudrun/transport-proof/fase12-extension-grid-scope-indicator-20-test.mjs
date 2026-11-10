@@ -25,7 +25,7 @@ assert(server.includes('function managerExtendedScopeCodes20(obValues,linkValues
 assert(server.includes("val(row,ls).toUpperCase()!=='ACTIVE'"),'never mark inactive visit links');
 assert(server.includes("['yes','true','1','x'].includes(flag)"),'only confirmed extension flags');
 assert(server.includes('r.extendedScopeCodes=extendedScopes.get(clean(r.auditId))||[]'),'row projection');
-assert(ui.includes("updateExtendedScopeCodes20(o.auditId,o.scopeCode,command==='apply')"),'multi scope immediate refresh');
+assert(ui.includes("updateExtendedScopeCodes20(o.auditId,o.scopeCode,predictedApplied)"),'multi scope immediate refresh');
 assert(ui.includes("updateExtendedScopeCodes20(auditId,obligation.scopeCode,command==='apply')"),'single scope immediate refresh');
 assert(!output.includes('+EXT'),'indicator must not consume badge width');
 assert(output.includes('>E</span>'),'the same compact E emblem marks extended scope badges in single- and multi-scope rows');

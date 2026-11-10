@@ -104,6 +104,11 @@ async function sheetsAtomicAuditorCreate(auditorRow,versionRow){
   if(!response.ok)throw Error('AUDITOR_CREATE_ATOMIC_APPEND_FAILED_'+response.status);
   return response.json();
 }
+function devScopeTestOriginAllowed20(origin){
+ return process.env.AMS_RUNTIME_ENV==='DEV'
+  &&process.env.K_SERVICE==='ams-fase12-dev'
+  &&origin==='https://scope-test---ams-fase12-dev-zwtcar7xpa-ew.a.run.app';
+}
 function isolatedExtDirect20(){
  return process.env.AMS_RUNTIME_ENV==='DEV'
   &&process.env.K_SERVICE==='ams-fase12-dev'
@@ -2113,7 +2118,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
   if(u.pathname==='/api/v1/manager/extension-obligation-command'&&req.method==='POST'){
     const requestOrigin=clean(req.headers.origin);if(!requestOrigin)return send(res,403,{ok:false,error:'EXT_ORIGIN_REQUIRED'});
     let parsedOrigin;try{parsedOrigin=new URL(requestOrigin)}catch{return send(res,403,{ok:false,error:'EXT_ORIGIN_FORBIDDEN'})}
-    if(!['https://ams-fase12-dev-510075419067.europe-west1.run.app','https://ams-fase12-dev-zwtcar7xpa-ew.a.run.app'].includes(parsedOrigin.origin))return send(res,403,{ok:false,error:'EXT_ORIGIN_FORBIDDEN'});
+    if(!['https://ams-fase12-dev-510075419067.europe-west1.run.app','https://ams-fase12-dev-zwtcar7xpa-ew.a.run.app'].includes(parsedOrigin.origin)&&!devScopeTestOriginAllowed20(parsedOrigin.origin))return send(res,403,{ok:false,error:'EXT_ORIGIN_FORBIDDEN'});
     const session=await sessionFromRequestValidated(req);if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(session.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
     if(isolatedExtDirect20()){
@@ -2190,7 +2195,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
   if(u.pathname==='/api/v1/manager/extension-reconcile-projection'&&req.method==='POST'){
     const requestOrigin=clean(req.headers.origin);if(!requestOrigin)return send(res,403,{ok:false,error:'EXT_ORIGIN_REQUIRED'});
     let parsedOrigin;try{parsedOrigin=new URL(requestOrigin)}catch{return send(res,403,{ok:false,error:'EXT_ORIGIN_FORBIDDEN'})}
-    if(!['https://ams-fase12-dev-510075419067.europe-west1.run.app','https://ams-fase12-dev-zwtcar7xpa-ew.a.run.app'].includes(parsedOrigin.origin))return send(res,403,{ok:false,error:'EXT_ORIGIN_FORBIDDEN'});
+    if(!['https://ams-fase12-dev-510075419067.europe-west1.run.app','https://ams-fase12-dev-zwtcar7xpa-ew.a.run.app'].includes(parsedOrigin.origin)&&!devScopeTestOriginAllowed20(parsedOrigin.origin))return send(res,403,{ok:false,error:'EXT_ORIGIN_FORBIDDEN'});
     const session=await sessionFromRequestValidated(req);if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(session.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
     if(!((process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_SCOPE_EXTENSION_AUTHORITY==='FIRESTORE'&&process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED==='true'&&process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED==='true')||isolatedExtPilot20()))return send(res,409,{ok:false,error:'EXT_FIRESTORE_CUTOVER_NOT_VERIFIED'});

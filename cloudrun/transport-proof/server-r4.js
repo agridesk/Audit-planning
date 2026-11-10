@@ -109,6 +109,25 @@ function devScopeTestOriginAllowed20(origin){
   &&process.env.K_SERVICE==='ams-fase12-dev'
   &&origin==='https://scope-test---ams-fase12-dev-zwtcar7xpa-ew.a.run.app';
 }
+function devManagerDirectWritesConfigAllowed20(cfg){
+ // Normal Manager Grid DEV is a real writable DEV environment; isolated EXT
+ // maintenance preview preserves its original freeze. Neither grants PROD.
+ if(cfg.get('ENV')!=='DEV')return false;
+ const normal=process.env.AMS_RUNTIME_ENV==='DEV'
+  &&process.env.K_SERVICE==='ams-fase12-dev'
+  &&process.env.AMS_DEV_NORMAL_GRID_ENABLED==='true'
+  &&process.env.AMS_DEV_MAINTENANCE_MODE!=='true'
+  &&process.env.AMS_DEV_EXT_READONLY_PREVIEW!=='true'
+  &&cfg.get('ALLOW_DEV_WRITES')==='TRUE'
+  &&cfg.get('DEV_WRITE_MODE')==='ALLOW_ALL';
+ const preview=process.env.AMS_RUNTIME_ENV==='DEV'
+  &&process.env.K_SERVICE==='ams-fase12-dev'
+  &&process.env.AMS_DEV_MAINTENANCE_MODE==='true'
+  &&process.env.AMS_DEV_EXT_READONLY_PREVIEW==='true'
+  &&cfg.get('ALLOW_DEV_WRITES')==='FALSE'
+  &&cfg.get('DEV_WRITE_MODE')==='BLOCK';
+ return normal||preview;
+}
 function isolatedExtDirect20(){
  // One DEV service supports both the ordinary grid and verified Model C EXT.
  // Keep the older maintenance-preview mode only for backwards-compatible
@@ -134,7 +153,7 @@ async function readIsolatedDevModelCExt20(){
  const rows=r[4]?.values||[];
  if(rows[0]?.[0]!=='KEY'||rows[0]?.[1]!=='DEV'||rows[0]?.[2]!=='PROD')throw Error('EXT_DEV_DIRECT_CONFIG_SCHEMA_CHANGED');
  const cfg=new Map(rows.slice(1).filter(x=>clean(x[0])).map(x=>[clean(x[0]),clean(x[1])]));
- if(cfg.get('ENV')!=='DEV'||cfg.get('ALLOW_DEV_WRITES')!=='FALSE'||cfg.get('DEV_WRITE_MODE')!=='BLOCK')throw Error('EXT_DEV_DIRECT_GAS_FENCE_LOST');
+ if(!devManagerDirectWritesConfigAllowed20(cfg))throw Error('EXT_DEV_DIRECT_SSOT_MODE_MISMATCH');
  return {obligationRows:r[0]?.values||[],linkRows:r[1]?.values||[],planningRows:r[2]?.values||[],scopeRows:r[3]?.values||[]};
 }
 function isolatedExtPilot20(){
@@ -868,7 +887,7 @@ async function directManagerSelfPlanning20(identity,body){
  const rows=config[0]?.values||[];
  if(rows[0]?.[0]!=='KEY'||rows[0]?.[1]!=='DEV'||rows[0]?.[2]!=='PROD')throw Error('SELF_PLANNING_DEV_CONFIG_SCHEMA_CHANGED');
  const cfg=new Map(rows.slice(1).filter(x=>clean(x[0])).map(x=>[clean(x[0]),clean(x[1])]));
- if(cfg.get('ENV')!=='DEV'||cfg.get('ALLOW_DEV_WRITES')!=='FALSE'||cfg.get('DEV_WRITE_MODE')!=='BLOCK')throw Error('SELF_PLANNING_DEV_GAS_FENCE_LOST');
+ if(!devManagerDirectWritesConfigAllowed20(cfg))throw Error('SELF_PLANNING_DEV_SSOT_MODE_MISMATCH');
  const auditId=clean(body?.auditId),expectedRevision=clean(body?.expectedRevision),value=body?.allowSelfPlanning,expectedValue=body?.expectedAllowSelfPlanning;
  if(!auditId||!expectedRevision||(typeof value!=='boolean'||typeof expectedValue!=='boolean'))throw Error('SELF_PLANNING_INPUT_INVALID');
  return withDirectManagerActionLock(auditId,async()=>{

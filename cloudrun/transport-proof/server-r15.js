@@ -982,7 +982,19 @@ async function proxy(req,res){
  const init={method:req.method,headers,redirect:'manual'};
  if(!['GET','HEAD'].includes(req.method)){const chunks=[];for await(const c of req)chunks.push(c);init.body=Buffer.concat(chunks);}
  const writerPath=new URL(req.url||'/','http://localhost').pathname;
- if(writerPath==='/api/v1/manager/self-planning-direct')headers.host=String(req.headers.host||'');
+ if(writerPath==='/api/v1/manager/self-planning-direct'){
+  // Validate the browser's same-origin pair at the public entrypoint, then
+  // forward that exact pair to the R4 self-planning guard via localhost.
+  let origin;
+  try{origin=new URL(String(req.headers.origin||''));}catch{}
+  const externalHost=String(req.headers.host||'').trim();
+  if(req.method!=='POST'||!origin||origin.protocol!=='https:'||origin.host!==externalHost){
+   res.writeHead(403,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+   res.end(JSON.stringify({ok:false,error:'ORIGIN_FORBIDDEN'}));return;
+  }
+  headers.host=externalHost;
+  headers.origin=origin.origin;
+ }
  enforcePlanningAtomicCutover20({enabled:planningAtomicEnabled,method:req.method,path:writerPath});
  if((planningAuthorityEnabled||planningAtomicEnabled)&&req.method==='POST'&&/^\/api\/v1\/(?:manager\/(?:approve-direct|accept-direct|reject-direct|cancel-direct|complete-direct|action|auditor-management\/audit\/transfer)|internal\/auditor\/complete-direct|auditor\/action)$/.test(writerPath))throw Error('PLANNING_AUTHORITY_WRITER_NOT_MIGRATED');
  let planningLease=null,planningLeaseActor=null,planningForwarded=false,planningWriteConfirmed=false,planningIntent=null,planningProjectionVerified=false,planningGlobalLock=null;

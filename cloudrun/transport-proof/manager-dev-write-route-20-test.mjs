@@ -13,7 +13,10 @@ assert(proxy.includes("writerPath==='/api/v1/manager/self-planning-direct'"));
 assert(proxy.includes("writerPath==='/api/v1/manager/extension-obligation-command'"));
 assert(proxy.includes("directDevManagerWrite?port+9:innerPort"),'DEV manager writes must reach R4 without lossy R12..R5 Host rewrites');
 assert(proxy.includes("runtime.isDev&&req.method==='POST'"),'Only DEV authenticated POST calls may bypass proxy layers');
-assert(proxy.includes("origin.protocol!=='https:'||origin.host!==externalHost"),'The public Origin/Host pair must be checked');
+assert(proxy.includes("origin.protocol!=='https:'"),'The public request must require HTTPS');
+assert(proxy.includes("origin.host!==externalHost&&!knownDevOrigin"),'Only exact trusted DEV origins may bypass Cloud Run rewritten Host');
+assert(proxy.includes("'https://scope-test---ams-fase12-dev-zwtcar7xpa-ew.a.run.app'"),'Existing DEV tag origin must be supported');
+assert(proxy.includes("process.env.K_SERVICE==='ams-fase12-dev'"),'Known-origin exception must be DEV-service-specific');
 assert(proxy.includes('headers.host=externalHost')&&proxy.includes('headers.origin=origin.origin'));
 assert(!proxy.includes("x-forwarded-host"),'Never trust client-supplied forwarded Host');
 for(let n=12;n>=6;n--){

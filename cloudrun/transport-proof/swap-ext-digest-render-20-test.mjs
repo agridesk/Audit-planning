@@ -62,11 +62,13 @@ const mail=context.NB_renderDigestEmail_('ecas@example.invalid',[swap,extension]
 assert(mail.htmlBody.includes('SWAP – Gewijzigde auditplanning'));
 assert(mail.htmlBody.includes('Verlengingen'));
 assert.equal((mail.htmlBody.match(/background:#dbeafe/g)||[]).length,3,'Colored scope badge in each SWAP and extension row');
-assert.equal((mail.htmlBody.match(/<td /g)||[]).length,18,'Two SWAP rows + one extension row');
+assert.equal((mail.htmlBody.match(/<td /g)||[]).length,20,'Two seven-column SWAP rows + one extension row');
 assert.equal((mail.htmlBody.match(/Hallo,/g)||[]).length,1);
 assert.equal((mail.htmlBody.match(/Bedankt,/g)||[]).length,1);
 assert.equal((mail.htmlBody.match(/<table /g)||[]).length,2);
-assert(mail.body.includes('Vorige planning | Nieuwe planning'));
+assert(mail.body.includes('Vorige planning | Nieuwe planning | Reden'));
+assert(mail.htmlBody.includes('Planning changed'),'External reason must be present in ECAS digest');
+assert(!mail.htmlBody.includes('Internal manager-only reason'),'Internal-only reason must not leak');
 assert(mail.body.includes('Nieuwe vervaldatum'));
 journalStage='WRITING';
 assert.throws(()=>context.NB_renderDigestEmail_('ecas@example.invalid',[swap,extension]),/ECAS_SWAP_NOT_COMMITTED/);

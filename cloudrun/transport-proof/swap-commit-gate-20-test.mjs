@@ -36,7 +36,7 @@ ctx.LockService={getScriptLock:()=>({tryLock:()=>{if(locked)return false;locked=
 ctx.Swap20Store_read_=()=>JSON.parse(stored);
 ctx.Swap20Store_key_=()=> 'AMS_SWAP20_PROPOSAL_swap-commit-1';
 ctx.Swap20Journal_history_=()=>records;
-ctx.Swap20_executeLocked_=()=>{writes++;records.push({stage:'COMMITTED'});return {committed:true};};
+ctx.Swap20_executeLocked_=()=>{writes++;records.push({stage:'COMMITTED'});return {committed:true,performanceMs:{total:123,availabilityWrite:52,canonicalWrite:31,verification:27}};};
 ctx.Swap20_validateTransition_=()=>true;
 assert.equal(ctx.Swap20ManagerCommit({token:'valid',operationId:live.operationId}).status,'APPLIED');
 assert.equal(writes,1);

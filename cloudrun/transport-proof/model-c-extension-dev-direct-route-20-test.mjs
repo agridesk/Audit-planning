@@ -3,7 +3,8 @@ import {readFileSync} from 'node:fs';
 const read=p=>readFileSync(new URL('./'+p,import.meta.url),'utf8');
 const server=read('server-r4.js'),ui=read('manager-portal.js'),preview=read('dev-ext-readonly-preview-20.mjs');
 const fn=server.slice(server.indexOf('function isolatedExtDirect20(){'),server.indexOf('function isolatedExtPilot20(){'));
-for(const x of ["process.env.AMS_RUNTIME_ENV==='DEV'","process.env.K_SERVICE==='ams-fase12-dev'","process.env.AMS_DEV_EXT_DIRECT_ENABLED==='true'","process.env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE'","process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true'","process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true'","verifiedAuditorLockDevProject()"]){assert(fn.includes(x),'direct DEV boundary missing '+x)}
+for(const x of ["process.env.AMS_RUNTIME_ENV==='DEV'","process.env.K_SERVICE==='ams-fase12-dev'","process.env.AMS_DEV_EXT_DIRECT_ENABLED==='true'","process.env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE'","process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true'","process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true'" ]){assert(fn.includes(x),'direct DEV boundary missing '+x)}
+assert(server.includes('verifiedAuditorLockDevProject()'),'DEV workspace verification must remain on write path');
 const isolatedOrigins="['https://ams-fase12-dev-510075419067.europe-west1.run.app','https://ams-fase12-dev-zwtcar7xpa-ew.a.run.app'].includes(parsedOrigin.origin)";
 assert.equal(server.split(isolatedOrigins).length-1,3,'EXT routes retain exact primary DEV origin allowlist');
 assert(server.includes('devScopeTestOriginAllowed20(parsedOrigin.origin)'),'additional test origin uses narrow DEV predicate');

@@ -69,6 +69,15 @@ assert(self.includes("process.env.AMS_RUNTIME_ENV!=='DEV'")&&self.includes("proc
 assert(self.includes("SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs'"));
 assert(self.includes("directRowRevision(found.h,found.row)!==expectedRevision"),'CAS revision stays mandatory');
 assert(self.includes("SELF_PLANNING_READBACK_UNVERIFIED"),'Sheets readback stays mandatory');
+assert(self.includes("sheetsBatchGet(['Audit planning!A1:BW2000','System_Config!A1:C100'])"),'Self planning must read audit+DEV config in one Sheets request');
+assert.equal((self.match(/sheetsBatchGet\(/g)||[]).length,2,'Self planning should perform one batch read and one cell readback');
+assert(self.indexOf('devManagerDirectWritesConfigAllowed20(cfg)')<self.indexOf("const found=findAudit"),'DEV config checked before any audit mutation');
+const extStart=inner.indexOf('async function readIsolatedDevModelCExt20(){');
+const extEnd=inner.indexOf('function isolatedExtPilot20(){',extStart);
+const ext=inner.slice(extStart,extEnd);
+assert(ext.includes('const [project,r]=await Promise.all(['),'EXT independent read-only checks can overlap');
+assert(ext.includes("if(project!=='audit-management-system-dev')throw Error('EXT_DEV_DIRECT_ISOLATION_REQUIRED')"),'EXT retains project identity hard gate');
+assert(ext.includes("if(!devManagerDirectWritesConfigAllowed20(cfg))"),'EXT retains DEV writer-mode hard gate');
 assert(grid.includes('DEV configuration gates blocking EXT:'));
 assert(grid.includes("EXT/Undo is not yet authorized: '+(failedGates.length"),'Single EXT must expose same DEV gate diagnostics');
 // Real DEV System_Config allows writes; the legacy preview deliberately froze them.

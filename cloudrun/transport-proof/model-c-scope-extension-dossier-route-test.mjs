@@ -17,7 +17,7 @@ assert(portal.includes('company-management/extension-obligations?companyUid='));
 assert(portal.includes('EXT/Undo currently unavailable for this audit.')&&portal.includes("['FIRESTORE_VERIFIED','DEV_MODEL_C_DIRECT'].includes(data.mode)"));
 assert(portal.includes("extPost('/api/v1/manager/extension-obligation-command',body)"));
 assert(portal.includes("extPost('/api/v1/manager/extension-reconcile-projection'"));
-assert(portal.includes('Firestore commit succeeded; projection requires recovery'));
+assert(portal.includes('Scope commit succeeded; projection requires recovery'));
 assert(server.includes('reconcileScopeExtensionDossierAuthority20({companyUid:uid,records,activeLinks,contexts,cutoverVerified:true})'));
 assert(server.includes('eligibleAudits.length>100'));
 assert(portal.includes("eligible=command==='undo'?o.canUndo===true:o.canApply===true"),'per-scope action must require canonical Apply/Undo eligibility');

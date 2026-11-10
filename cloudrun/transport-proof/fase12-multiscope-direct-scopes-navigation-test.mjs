@@ -13,11 +13,11 @@ assert(!handler.includes("norm(c.name)"),'no fallback to ambiguous company names
 assert(handler.includes("renderDossier()"),'scopes dossier is rendered on arrival');
 assert(handler.includes("querySelector('[data-extension-audit-scopes]')"),'scroll to the scope actions directly');
 assert(portal.includes("extSection.dataset.extensionAuditScopes='yes'"));
-const apply=portal.indexOf("async function extAction(o,command)");
+const apply=portal.indexOf("async function extAction(o,command,button)");
 const view=portal.slice(apply,apply+4400);
 assert(view.includes("'/api/v1/manager/extension-obligation-command'"),'per-scope command must use Firestore authority');
 assert(view.includes("'/api/v1/manager/extension-reconcile-projection'"),'projection must be confirmed');
 assert(view.includes("body.extensionTransactionId=o.extensionTransactionId"),'Undo must carry proven transaction ID');
 assert(view.includes("data.records.filter(function(o){return (o.auditIds||[]).includes(extTargetAuditId)}"),'only selected audit obligations visible');
-assert(portal.includes('button.onclick=function(){extAction(o,command)}'),'each row must receive its own EXT/Undo action');
+assert(portal.includes('button.onclick=function(){extAction(o,command,button)}'),'each row must receive its own EXT/Undo action');
 console.log('PASS multi-scope Extensions: one click exact Company UID > Scopes > audit-specific EXT/Undo, guarded Firestore commit and projection');

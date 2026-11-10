@@ -27,5 +27,14 @@ assert(originHelper.includes("'https://scope-test---ams-fase12-dev-zwtcar7xpa-ew
 assert.equal(inner.split('!devScopeTestOriginAllowed20(parsedOrigin.origin)').length-1,2,'EXT and EXT projection must accept isolated tag');
 assert(inner.includes("return send(res,200,{ok:true,companyUid:uid,records,mode:'READ_ONLY_CUTOVER_REQUIRED',canMutate:false,"));
 assert(inner.includes('directWriterGates:{'),'Read-only EXT must provide safe gate diagnostics');
+const selfStart=inner.indexOf('async function directManagerSelfPlanning20(identity,body){');
+const selfEnd=inner.indexOf('async function directManagerExtension(',selfStart);
+assert(selfStart>=0&&selfEnd>selfStart);
+const self=inner.slice(selfStart,selfEnd);
+assert(!self.includes('isolatedExtDirect20()'),'Self planning may not depend on optional EXT pilot flags');
+assert(self.includes("process.env.AMS_RUNTIME_ENV!=='DEV'")&&self.includes("process.env.K_SERVICE!=='ams-fase12-dev'"));
+assert(self.includes("SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs'"));
+assert(self.includes("directRowRevision(found.h,found.row)!==expectedRevision"),'CAS revision stays mandatory');
+assert(self.includes("SELF_PLANNING_READBACK_UNVERIFIED"),'Sheets readback stays mandatory');
 assert(grid.includes('DEV configuration gates blocking EXT:'));
 console.log('DEV Self planning / Single EXT / Multi EXT routed write and gate diagnostics PASS');

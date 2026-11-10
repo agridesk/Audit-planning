@@ -1322,11 +1322,17 @@ if(tab==='scopes'){
   if(!response.ok||!data||data.ok===false)throw Error((data&&data.error)||'HTTP '+response.status);
   return data;
  }
- async function extAction(o,command){
+ async function extAction(o,command,button){
   if(extBusy||!extCurrent()||!o||!o.auditId||!o.obligationId||!Number.isSafeInteger(o.revision)||!(command==='apply'?o.canApply:o.canUndo))return;
   if(!window.crypto||typeof window.crypto.randomUUID!=='function'){extContent.textContent='Secure request IDs unavailable. No change performed.';return}
-  var requestId=window.crypto.randomUUID();extBusy=true;extContent.querySelectorAll('button').forEach(function(x){x.disabled=true});
-  var info=extContent.querySelector('[data-ext-feedback]');if(info)info.textContent='Committing verified '+command+'…';
+  var requestId=window.crypto.randomUUID();extBusy=true;
+  // Only the selected scope changes visually; other scope buttons retain their normal appearance.
+  var tr=button&&button.closest('tr'),extensionCell=tr&&tr.cells[3];
+  var oldCellText=extensionCell&&extensionCell.textContent,oldButtonText=button&&button.textContent;
+  var predictedApplied=command==='apply';
+  if(extensionCell){extensionCell.textContent=predictedApplied?'Applied':'Not applied';extensionCell.style.fontWeight='650'}
+  if(button){button.textContent=(predictedApplied?'Undo':'EXT')+' · saving…';button.disabled=true;button.setAttribute('aria-busy','true')}
+  var info=extContent.querySelector('[data-ext-feedback]');if(info)info.textContent='Updating '+String(o.scopeCode||'scope')+'…';
   var committed=false;
   try{
    var body={command:command,auditId:o.auditId,companyUid:extSelectedUid,obligationId:o.obligationId,expectedRevision:o.revision,requestId:requestId};
@@ -1339,7 +1345,7 @@ if(tab==='scopes'){
     patch.extApplied=patch.extensionApplied;
     patch.planningWindowText=patch.planningWindowFrom&&patch.planningWindowTo?patch.planningWindowFrom+' → '+patch.planningWindowTo:'Separate planning required';
     patch.planningWindow=patch.planningWindowText;
-    mergeRowInPlace(o.auditId,patch);updateExtendedScopeCodes20(o.auditId,o.scopeCode,command==='apply');
+    mergeRowInPlace(o.auditId,patch);updateExtendedScopeCodes20(o.auditId,o.scopeCode,predictedApplied);
     if(extCurrent())await loadExtObligations();
    }else{
     if(info)info.textContent='Committed to Firestore; verifying Sheets projection…';
@@ -1348,8 +1354,17 @@ if(tab==='scopes'){
     if(extCurrent())await loadExtObligations();
    }
   }catch(e){
-   if(extCurrent()){extContent.querySelectorAll('button').forEach(function(x){x.disabled=false});var feedback=extContent.querySelector('[data-ext-feedback]')||el('p');feedback.dataset.extFeedback='yes';feedback.textContent=(committed?'Firestore commit succeeded; projection requires recovery. Do not resubmit. ':'No scope change confirmed. ')+String(e.message||e);extContent.prepend(feedback)}
-  }finally{extBusy=false}
+   if(extCurrent()){
+    if(!committed&&extensionCell){extensionCell.textContent=oldCellText;extensionCell.style.fontWeight=''}
+    if(button&&button.isConnected){button.textContent=committed?'Pending verification':oldButtonText;button.disabled=committed;button.removeAttribute('aria-busy')}
+    var feedback=extContent.querySelector('[data-ext-feedback]')||el('p');feedback.dataset.extFeedback='yes';
+    feedback.textContent=(committed?'Scope commit succeeded; projection requires recovery. Do not resubmit. ':'No scope change confirmed. ')+String(e.message||e);
+    extContent.prepend(feedback);
+   }
+  }finally{
+   extBusy=false;
+   if(button&&button.isConnected)button.removeAttribute('aria-busy');
+  }
  }
  function showExtObligations(data){
  if(!extCurrent())return;
@@ -1378,7 +1393,7 @@ if(tab==='scopes'){
   cols.forEach(function(v,i){var td=el('td',String(v||'—'));td.style.cssText='padding:9px;border-bottom:1px solid #e2e8f0;overflow-wrap:anywhere;white-space:normal;vertical-align:middle';if(i===0){td.style.fontWeight='650';td.title='Obligation '+String(o.obligationId||'')}tr.appendChild(td)});
   var actions=el('td');actions.style.cssText='padding:9px;border-bottom:1px solid #e2e8f0;vertical-align:middle;white-space:nowrap';
   var command=o.canUndo===true?'undo':'apply',eligible=command==='undo'?o.canUndo===true:o.canApply===true,canShow=o.extensionApplied||Number(o.extensionMonths)>0;
-  if(eligible){var button=el('button',command==='undo'?'Undo':'EXT');button.type='button';button.title=command==='undo'?'Undo this scope extension':'Apply extension for this scope';button.onclick=function(){extAction(o,command)};actions.appendChild(button)}
+  if(eligible){var button=el('button',command==='undo'?'Undo':'EXT');button.type='button';button.title=command==='undo'?'Undo this scope extension':'Apply extension for this scope';button.onclick=function(){extAction(o,command,button)};actions.appendChild(button)}
   else if(canShow){var button=el('button',o.extensionApplied?'Undo':'EXT');button.type='button';button.disabled=true;button.title=allowed?'Scope action is ineligible; check status, provenance and revision':'Unavailable until verified Model C migration and writer fencing';button.setAttribute('aria-label',(o.extensionApplied?'Undo':'EXT')+' unavailable: '+button.title);actions.appendChild(button)}
   else actions.textContent='—';
   tr.appendChild(actions);table.appendChild(tr);

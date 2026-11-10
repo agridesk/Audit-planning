@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const outer=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
+const inner=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+const grid=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+const part=outer.slice(outer.indexOf("if(writerPath==='/api/v1/manager/self-planning-direct')"),outer.indexOf("enforcePlanningAtomicCutover20",outer.indexOf("if(writerPath==='/api/v1/manager/self-planning-direct')")));
+assert(part.includes("origin.protocol!=='https:'||origin.host!==externalHost"),'R15 must validate exact browser same-origin');
+assert(part.includes('headers.host=externalHost')&&part.includes('headers.origin=origin.origin'),'Proxy must forward trusted original Host and Origin together');
+assert(!part.includes('x-forwarded-host')&&!part.includes('AMS_DEV_SELF_PLANNING_PROXY_ORIGIN'),'Never trust caller-forwarded proxy exemption');
+assert(inner.includes("u.pathname==='/api/v1/manager/self-planning-direct'")&&inner.includes("origin.host!==clean(req.headers.host)"),'R4 enforces independent origin check');
+assert(grid.includes("cache:'no-store'")&&grid.includes("Canonical source revision missing"),'Self planning refreshes source after EXT/Undo');
+console.log('Self planning R15->R4 same-origin and fresh-EXT-state contract PASS');

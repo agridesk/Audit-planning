@@ -46,7 +46,7 @@ vm.runInContext(builder.slice(begin,end),context);
 const audit=id=>({
  eventType:'ECAS_AUDIT_CHANGED_DIGEST',auditId:'AUD_'+id,
  company:'Company '+id,mpsNumber:'913496',auditorEmail:id+'@example.invalid',
- scopes:['MPS-ABC'],plannedHours:4,ecasComment:'Planning changed',
+ scopes:['MPS-ABC'],plannedHours:4,ecasComment:'Planning changed',internalReason:'Internal manager-only reason',
  previousBlocks:[{date:'2026-11-10',start:'09:00',end:'13:00'}],
  blocks:[{date:'2026-11-11',start:'09:00',end:'13:00'}]
 });
@@ -68,7 +68,7 @@ assert.equal((mail.htmlBody.match(/Bedankt,/g)||[]).length,1);
 assert.equal((mail.htmlBody.match(/<table /g)||[]).length,2);
 assert(mail.body.includes('Vorige planning | Nieuwe planning | Reden'));
 assert(mail.htmlBody.includes('Planning changed'),'External reason must be present in ECAS digest');
-assert(!mail.htmlBody.includes('Internal manager-only reason'),'Internal-only reason must not leak');
+assert(!mail.htmlBody.includes('Internal manager-only reason')&&!mail.body.includes('Internal manager-only reason'),'Internal-only reason must not leak into HTML or plain-text ECAS mail');
 assert(mail.body.includes('Nieuwe vervaldatum'));
 journalStage='WRITING';
 assert.throws(()=>context.NB_renderDigestEmail_('ecas@example.invalid',[swap,extension]),/ECAS_SWAP_NOT_COMMITTED/);

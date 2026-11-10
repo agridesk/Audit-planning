@@ -17,7 +17,7 @@ assert(view.includes("td.title='Obligation '"),'technical obligation ID should b
 assert(!view.includes("['Obligation'"),'technical IDs must not consume a table column');
 assert(view.includes('button.disabled=true'),'unverified writer must never look enabled');
 assert(view.includes("['FIRESTORE_VERIFIED','DEV_MODEL_C_DIRECT'].includes(data.mode)"),'scope actions should depend on reconciled canonical authority');
-assert(view.includes("button.onclick=function(){extAction(o,command)}"),'eligible scope actions must retain real command callback');
+assert(view.includes("button.onclick=function(){extAction(o,command,button)}"),'eligible scope actions must retain real command callback');
 assert(ui.includes('runSingleScopeExtension20(button)'),'single-scope uses direct canonical action');
 assert(preflight.includes('READ-ONLY')&&preflight.includes("method:'GET'"),'diagnostic must be read only');
 assert(preflight.includes('print-access-token')&&preflight.includes('values:batchGet'),'diagnostic checks authoritative DEV sources');

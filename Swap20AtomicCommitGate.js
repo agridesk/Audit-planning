@@ -61,7 +61,7 @@ function Swap20ManagerCommitAuthorized_(input,auth){
   if(!raw||raw!==JSON.stringify(proposal))throw Error('Committed swap proposal changed; reconciliation required');
   Swap20_validateTransition_(proposal,next);
   props.setProperty(key,JSON.stringify(next));
-  return Swap20_finishCommitWithNotificationLocked_({success:true,operationId:proposal.operationId,committed:true,status:'APPLIED'});
+  return Swap20_finishCommitWithNotificationLocked_({success:true,operationId:proposal.operationId,committed:true,status:'APPLIED',performanceMs:result.performanceMs||null});
  }finally{lock.releaseLock();}
 }
 

@@ -946,11 +946,12 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
             if(!window.confirm("Apply this approved date change in DEV? Both audit schedules will change."))return;
             swap20CommitAttempted20.add(String(p.operationId));
             apply.disabled=true;status.textContent="Applying confirmed audit date exchange...";
-            var committed=false,commitProblem="";
+            var committed=false,commitProblem="",commitPerformance=null;
             try{
               var outcome=await swap20GridRequest("manager","commit",{operationId:p.operationId});
               if(outcome.committed!==true)throw Error("SWAP_COMMIT_NOT_CONFIRMED");
               committed=true;
+              if(outcome.performanceMs&&Number.isFinite(outcome.performanceMs.total))commitPerformance=outcome.performanceMs;
             }catch(e){
               commitProblem=String(e&&e.message||e||"SWAP_REQUEST_FAILED").slice(0,120);
               console.error("[SWAP20_MANAGER_COMMIT_UNCERTAIN]",{operationId:p.operationId,code:commitProblem});
@@ -978,6 +979,10 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
               status.textContent=refreshProblems.length
                 ?"Date exchange committed. Refresh unavailable ("+refreshProblems.join(", ")+"); reload the overview. Do not repeat the exchange."
                 :"Date exchange committed. The audit grid has been refreshed.";
+              if(commitPerformance){
+                var metrics=["total","availabilityWrite","canonicalWrite","verification"].map(function(k){return k+"="+String(commitPerformance[k]??"?")+"ms";});
+                status.textContent+=" SWAP DEV timings: "+metrics.join(", ")+ ".";
+              }
               swap20RefreshAttention().catch(function(){});
             }
             apply.disabled=true;apply.title="Commit attempted. Check the canonical status before any further action.";

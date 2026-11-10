@@ -639,14 +639,15 @@ function NB_renderEcasSwapRows_(items) {
     var previous=NB_externalScheduleRows_({blocks:it.previousBlocks||[],plannedDates:it.previousPlannedDates||[]});
     var current=NB_externalScheduleRows_({blocks:it.blocks||[],plannedDates:it.plannedDates||[]});
     if(!previous.length||!current.length)throw Error('ECAS_SWAP_DIGEST_PLANNING_MISSING');
+    if(!NB_clean_(it.ecasComment))throw Error('ECAS_SWAP_EXTERNAL_REASON_REQUIRED');
     var fmt=function(rows){return rows.map(function(x){return [x.date,x.time].filter(Boolean).join(' ');}).join('; ');};
     return [NB_mpsNumber_(it),it.company,NB_scopeDisplayList_(it.scopes||[]).join(', '),
-      NB_externalAuditorText_(it),fmt(previous),fmt(current)];
+      NB_externalAuditorText_(it),fmt(previous),fmt(current),NB_clean_(it.ecasComment)];
   });
 }
 function NB_renderEcasSwapsSectionText_(items) {
   var rows=NB_renderEcasSwapRows_(items);
-  return ['SWAP – Gewijzigde auditplanning','MPS No. | Bedrijf | Scope | Auditor | Vorige planning | Nieuwe planning']
+  return ['SWAP – Gewijzigde auditplanning','MPS No. | Bedrijf | Scope | Auditor | Vorige planning | Nieuwe planning | Reden']
     .concat(rows.map(function(r){return r.join(' | ');})).join('\n');
 }
 function NB_renderEcasSwapsSectionHtml_(items) {
@@ -654,7 +655,7 @@ function NB_renderEcasSwapsSectionHtml_(items) {
   html.push('<div style="font-size:13px;font-weight:700;color:#111827;margin:12px 0 5px 0">SWAP – Gewijzigde auditplanning</div>');
   html.push('<table cellspacing="0" cellpadding="0" style="border-collapse:collapse;width:100%;font-size:11px;line-height:1.25;table-layout:auto;margin:0 0 9px 0;color:#111827"><thead><tr>');
   [['MPS No.','width:82px'],['Bedrijf','width:175px'],['Scope','width:138px'],
-   ['Auditor','width:155px'],['Vorige planning','width:185px'],['Nieuwe planning','width:185px']]
+   ['Auditor','width:155px'],['Vorige planning','width:185px'],['Nieuwe planning','width:185px'],['Reden','width:165px']]
     .forEach(function(x){html.push(NB_externalTh_(x[0],x[1]));});
   html.push('</tr></thead><tbody>');
   rows.forEach(function(row){

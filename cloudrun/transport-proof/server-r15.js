@@ -995,7 +995,12 @@ async function proxy(req,res){
   let origin;
   try{origin=new URL(String(req.headers.origin||''));}catch{}
   const externalHost=String(req.headers.host||'').trim();
-  if(req.method!=='POST'||!origin||origin.protocol!=='https:'||origin.host!==externalHost){
+  const knownDevOrigin=runtime.isDev&&process.env.K_SERVICE==='ams-fase12-dev'
+    &&['https://ams-fase12-dev-zwtcar7xpa-ew.a.run.app',
+        'https://ams-fase12-dev-510075419067.europe-west1.run.app',
+        'https://scope-test---ams-fase12-dev-zwtcar7xpa-ew.a.run.app'].includes(origin?.origin);
+   if(req.method!=='POST'||!origin||origin.protocol!=='https:'||
+      (origin.host!==externalHost&&!knownDevOrigin)){
    res.writeHead(403,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
    res.end(JSON.stringify({ok:false,error:'ORIGIN_FORBIDDEN'}));return;
   }

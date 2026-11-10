@@ -28,6 +28,35 @@ assert(originHelper.includes("'https://scope-test---ams-fase12-dev-zwtcar7xpa-ew
 assert.equal(inner.split('!devScopeTestOriginAllowed20(parsedOrigin.origin)').length-1,2,'EXT and EXT projection must accept isolated tag');
 assert(inner.includes("return send(res,200,{ok:true,companyUid:uid,records,mode:'READ_ONLY_CUTOVER_REQUIRED',canMutate:false,"));
 assert(inner.includes('directWriterGates:{'),'Read-only EXT must provide safe gate diagnostics');
+
+// Execute the exact DEV writer predicate with normal-grid and preview configurations.
+const gateStart=inner.indexOf('function isolatedExtDirect20(){');
+const gateEnd=inner.indexOf('async function readIsolatedDevModelCExt20()',gateStart);
+assert(gateStart>=0&&gateEnd>gateStart);
+const predicate=inner.slice(gateStart,gateEnd);
+const enabled={
+ AMS_RUNTIME_ENV:'DEV',K_SERVICE:'ams-fase12-dev',
+ AMS_DEV_NORMAL_GRID_ENABLED:'true',
+ AMS_DEV_MAINTENANCE_MODE:'false',AMS_DEV_EXT_READONLY_PREVIEW:'false',
+ AMS_DEV_EXT_DIRECT_ENABLED:'true',AMS_SCOPE_EXTENSION_AUTHORITY:'SHEETS',
+ AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED:'false',AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED:'false'
+};
+function gate(env){
+ const context={process:{env}};
+ vm.createContext(context);
+ vm.runInContext(predicate,context);
+ return context.isolatedExtDirect20();
+}
+assert.equal(gate(enabled),true,'Normal DEV grid must support EXT when explicit writer gate is on');
+assert.equal(gate({...enabled,AMS_DEV_EXT_DIRECT_ENABLED:'false'}),false,'EXT stays disabled without opt-in');
+assert.equal(gate({...enabled,AMS_RUNTIME_ENV:'PROD'}),false,'Never enable on PROD');
+assert.equal(gate({...enabled,K_SERVICE:'other-dev-service'}),false,'No other DEV service');
+assert.equal(gate({...enabled,AMS_SCOPE_EXTENSION_AUTHORITY:'FIRESTORE'}),false,'Do not bypass migrated writer');
+assert.equal(gate({...enabled,AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED:'true'}),false,'No mixed writer cutover');
+assert.equal(gate({...enabled,AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED:'true'}),false,'No mixed fence');
+assert.equal(gate({...enabled,AMS_DEV_MAINTENANCE_MODE:'true'}),false,'Invalid grid mode remains blocked');
+assert.equal(gate({...enabled,AMS_DEV_NORMAL_GRID_ENABLED:'false',AMS_DEV_MAINTENANCE_MODE:'true',AMS_DEV_EXT_READONLY_PREVIEW:'true'}),true,'Legacy preview remains supported with explicit gate');
+
 const selfStart=inner.indexOf('async function directManagerSelfPlanning20(identity,body){');
 const selfEnd=inner.indexOf('async function directManagerExtension(',selfStart);
 assert(selfStart>=0&&selfEnd>selfStart);

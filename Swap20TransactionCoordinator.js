@@ -60,6 +60,7 @@ function Swap20_executeLocked_(proposal,lockedHistory){
  try{
   Swap20_verifyCanonicalBeforeImages_(canonical);
   if(JSON.stringify(Swap20Store_read_(proposal.operationId))!==JSON.stringify(proposal))throw Error('Proposal changed before writing');
+  var writingStartedAt=Date.now();
   Swap20Journal_appendLocked_(proposal.operationId,history.length+1,'WRITING',{auditA:proposal.auditA,auditB:proposal.auditB});
   writingStarted=true;
   var writesStarted=Date.now();
@@ -68,10 +69,26 @@ function Swap20_executeLocked_(proposal,lockedHistory){
   Swap20_writeCanonicalPairLocked_(canonical,proposal);
   var canonicalWriteMs=Date.now()-writesStarted-availabilityWriteMs;
   Swap20_verifyAppliedPairLocked_(canonical,proposal,plan);
-  console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:proposal.operationId,phase:'writeAndVerify',availabilityWriteMs:availabilityWriteMs,canonicalWriteMs:canonicalWriteMs,verificationMs:Date.now()-writesStarted-availabilityWriteMs-canonicalWriteMs}));
+  var verificationMs=Date.now()-writesStarted-availabilityWriteMs-canonicalWriteMs;
+  console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:proposal.operationId,phase:'writeAndVerify',availabilityWriteMs:availabilityWriteMs,canonicalWriteMs:canonicalWriteMs,verificationMs:verificationMs}));
+  var commitJournalStarted=Date.now();
   Swap20Journal_appendLocked_(proposal.operationId,history.length+2,'COMMITTED',{auditA:proposal.auditA,auditB:proposal.auditB});
   console.info('[SWAP20_COMMIT_PHASE_PERF] '+JSON.stringify({operationId:proposal.operationId,phase:'committed',totalMs:Date.now()-perfStarted}));
-  return {success:true,operationId:proposal.operationId,committed:true};
+  // DEV: return bounded phase timings with the authenticated manager commit response.
+  // Never store telemetry in Script Properties or append extra journal rows.
+  return {success:true,operationId:proposal.operationId,committed:true,performanceMs:{
+   total:Date.now()-entryStarted,
+   entryReads:persistedReadMs+journalHistoryMs,
+   canonicalGuard:perfGuardMs,
+   canonicalSnapshot:perfCanonicalMs,
+   availabilitySnapshot:perfAvailabilityMs,
+   planAndPreparation:journalStarted-(perfStarted+perfGuardMs+perfCanonicalMs+perfAvailabilityMs),
+   preparedJournal:writingStartedAt-journalStarted,
+   availabilityWrite:availabilityWriteMs,
+   canonicalWrite:canonicalWriteMs,
+   verification:verificationMs,
+   committedJournal:Date.now()-commitJournalStarted
+  }};
  }catch(err){
   if(!writingStarted){Swap20Journal_appendLocked_(proposal.operationId,Swap20Journal_history_(proposal.operationId).length,'CONFLICT',{reason:String(err),noWrites:true,revisionConflict:err&&err.swapConflict||null});throw Error('Swap stopped before data writes: '+String(err));}
   var failures=[];

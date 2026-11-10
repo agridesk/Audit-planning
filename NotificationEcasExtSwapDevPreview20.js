@@ -17,11 +17,11 @@ function RUN_ECAS_EXT_SWAP_PREVIEW_DEV_20261109(){
   ECAS20_devCombinedPreviewGuard_();
   var sw=[
     {eventType:'ECAS_AUDIT_CHANGED_DIGEST',company:'DEV Synthetic Company A',mpsNumber:'MPS-DEV-001',
-     auditorName:'DEV Example Auditor',scopes:['DEV SCOPE'],
+     auditorName:'DEV Example Auditor',scopes:['DEV SCOPE'],ecasComment:'Auditdatum gewijzigd op verzoek van opdrachtgever',
      previousBlocks:[{date:'2026-11-16',start:'09:00',end:'13:00'}],
      blocks:[{date:'2026-11-17',start:'09:00',end:'13:00'}]},
     {eventType:'ECAS_AUDIT_CHANGED_DIGEST',company:'DEV Synthetic Company B',mpsNumber:'MPS-DEV-002',
-     auditorName:'DEV Example Auditor',scopes:['DEV SCOPE'],
+     auditorName:'DEV Example Auditor',scopes:['DEV SCOPE'],ecasComment:'Auditdatum gewijzigd op verzoek van opdrachtgever',
      previousBlocks:[{date:'2026-11-17',start:'09:00',end:'13:00'}],
      blocks:[{date:'2026-11-16',start:'09:00',end:'13:00'}]}
   ];
@@ -54,7 +54,7 @@ function RUN_ECAS_EXT_SWAP_PREVIEW_DEV_20261109(){
     NB_renderEcasSwapsSectionText_(sw),'',
     NB_ecasExtensionsSectionText_(extensions),'','Bedankt,','','René Rombouts'].join('\n');
   if((html.match(/<table /g)||[]).length!==2||
-     (html.match(/<td /g)||[]).length!==24||
+     (html.match(/<td /g)||[]).length!==26||
      (html.match(/Hallo,/g)||[]).length!==1||
      (html.match(/Bedankt,/g)||[]).length!==1)
     throw Error('ECAS_NOTIFICATION_PREVIEW_LAYOUT_CONTRACT_FAILED');

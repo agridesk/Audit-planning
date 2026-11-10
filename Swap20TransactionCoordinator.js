@@ -83,7 +83,7 @@ function Swap20_executeLocked_(proposal,lockedHistory){
    canonicalSnapshot:perfCanonicalMs,
    availabilitySnapshot:perfAvailabilityMs,
    planAndPreparation:journalStarted-(perfStarted+perfGuardMs+perfCanonicalMs+perfAvailabilityMs),
-   preparedJournal:writingStartedAt-journalStarted,
+   preparedAndPreWriteChecks:writingStartedAt-journalStarted,
    availabilityWrite:availabilityWriteMs,
    canonicalWrite:canonicalWriteMs,
    verification:verificationMs,

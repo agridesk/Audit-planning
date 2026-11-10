@@ -867,6 +867,7 @@ function swap20BadgeUpdate(role,count){
   badge.style.cssText="display:"+(count>0?"inline-flex":"none")+";align-items:center;justify-content:center;margin-left:4px;min-width:19px;height:19px;border-radius:12px;padding:0 5px;background:#dc2626;color:#fff;font-weight:700;font-size:11px";
 }
 var swap20CommitAttempted20=new Set();
+var swap20CommitConfirmed20=new Set();
 var swap20AttentionPending=null;
 async function swap20RefreshAttention(){
   if(swap20AttentionPending)return swap20AttentionPending;
@@ -908,7 +909,7 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
     status.textContent="Loading audit date change requests...";items.replaceChildren();
     try{
       var result=await swap20GridRequest("manager","list",{});
-      var proposals=Array.isArray(result.items)?result.items:[];
+      var proposals=(Array.isArray(result.items)?result.items:[]).filter(function(p){return !swap20CommitConfirmed20.has(String(p.operationId||''))});
       swap20SetManagerGridCases(proposals);
       swap20BadgeUpdate("manager",result.attentionCount||0);
       var managerActions=proposals.filter(function(p){return p.status==="CONFIRMED"&&p.commitEnabled!==false;}).length;
@@ -967,11 +968,12 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
               }
             }
             if(committed){
+              swap20CommitConfirmed20.add(String(p.operationId));
               status.textContent="Date exchange committed. Refreshing the overview…";
               selectionClear();
               // A failed view refresh is not a failed SWAP; never resend the commit.
               var refreshProblems=[];
-              try{await reload();}catch(refreshError){refreshProblems.push("request list");console.warn("[SWAP20_POST_COMMIT_LIST_REFRESH]",String(refreshError&&refreshError.message||refreshError))}
+              try{if(await reload()!==true)refreshProblems.push('request list');}catch(refreshError){refreshProblems.push("request list");console.warn("[SWAP20_POST_COMMIT_LIST_REFRESH]",String(refreshError&&refreshError.message||refreshError))}
               try{await loadOpen();}catch(gridError){refreshProblems.push("audit grid");console.warn("[SWAP20_POST_COMMIT_GRID_REFRESH]",String(gridError&&gridError.message||gridError))}
               status.textContent=refreshProblems.length
                 ?"Date exchange committed. Refresh unavailable ("+refreshProblems.join(", ")+"); reload the overview. Do not repeat the exchange."
@@ -995,7 +997,8 @@ document.getElementById("managerSwapInbox20").onclick=async function(){
         }
         items.appendChild(card);
       });
-    }catch(error){status.textContent=String(error.message||error);}
+    return true;
+    }catch(error){status.textContent=String(error.message||error);return false;}
   }
   panel.querySelector("#managerSwap20Reload").onclick=function(){swap20InvalidateBrowserLists();reload();};
   if(typeof panel.showModal==="function"){if(!panel.open)panel.showModal();}else panel.setAttribute("open","");

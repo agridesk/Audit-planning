@@ -171,9 +171,13 @@ function normalizeDevModelCDateCells20(valueRanges){
  };
 }
 async function readIsolatedDevModelCExt20(){
- if(!isolatedExtDirect20()||SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs'
-    ||await verifiedAuditorLockDevProject()!=='audit-management-system-dev')throw Error('EXT_DEV_DIRECT_ISOLATION_REQUIRED');
- const r=await sheetsBatchGet(['Audit_Obligations!A1:AA2500','Audit_Visit_Obligations!A1:F2500','Audit planning!A1:CN2500','Config_Scopes!A1:Z128','System_Config!A1:C100']);
+ if(!isolatedExtDirect20()||SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')throw Error('EXT_DEV_DIRECT_ISOLATION_REQUIRED');
+ // Independent read-only checks overlap; identity still must pass before any write.
+ const [project,r]=await Promise.all([
+  verifiedAuditorLockDevProject(),
+  sheetsBatchGet(['Audit_Obligations!A1:AA2500','Audit_Visit_Obligations!A1:F2500','Audit planning!A1:CN2500','Config_Scopes!A1:Z128','System_Config!A1:C100'])
+ ]);
+ if(project!=='audit-management-system-dev')throw Error('EXT_DEV_DIRECT_ISOLATION_REQUIRED');
  if(r.length!==5)throw Error('EXT_DEV_DIRECT_SOURCE_RANGES_UNAVAILABLE');
  const rows=r[4]?.values||[];
  if(rows[0]?.[0]!=='KEY'||rows[0]?.[1]!=='DEV'||rows[0]?.[2]!=='PROD')throw Error('EXT_DEV_DIRECT_CONFIG_SCHEMA_CHANGED');
@@ -909,15 +913,15 @@ async function directManagerSelfPlanning20(identity,body){
  if(process.env.AMS_RUNTIME_ENV!=='DEV'||process.env.K_SERVICE!=='ams-fase12-dev'
     ||SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs'
     ||await verifiedAuditorLockDevProject()!=='audit-management-system-dev')throw Error('SELF_PLANNING_DEV_ISOLATION_REQUIRED');
- const config=await sheetsBatchGet(['System_Config!A1:C100']);
- const rows=config[0]?.values||[];
- if(rows[0]?.[0]!=='KEY'||rows[0]?.[1]!=='DEV'||rows[0]?.[2]!=='PROD')throw Error('SELF_PLANNING_DEV_CONFIG_SCHEMA_CHANGED');
- const cfg=new Map(rows.slice(1).filter(x=>clean(x[0])).map(x=>[clean(x[0]),clean(x[1])]));
- if(!devManagerDirectWritesConfigAllowed20(cfg))throw Error('SELF_PLANNING_DEV_SSOT_MODE_MISMATCH');
  const auditId=clean(body?.auditId),expectedRevision=clean(body?.expectedRevision),value=body?.allowSelfPlanning,expectedValue=body?.expectedAllowSelfPlanning;
  if(!auditId||!expectedRevision||(typeof value!=='boolean'||typeof expectedValue!=='boolean'))throw Error('SELF_PLANNING_INPUT_INVALID');
  return withDirectManagerActionLock(auditId,async()=>{
-  const result=await sheetsBatchGet(['Audit planning!A1:BW2000']);
+  // Read canonical audit state and DEV writer fence in one consistent Sheets round trip.
+  const result=await sheetsBatchGet(['Audit planning!A1:BW2000','System_Config!A1:C100']);
+  const rows=result[1]?.values||[];
+  if(rows[0]?.[0]!=='KEY'||rows[0]?.[1]!=='DEV'||rows[0]?.[2]!=='PROD')throw Error('SELF_PLANNING_DEV_CONFIG_SCHEMA_CHANGED');
+  const cfg=new Map(rows.slice(1).filter(x=>clean(x[0])).map(x=>[clean(x[0]),clean(x[1])]));
+  if(!devManagerDirectWritesConfigAllowed20(cfg))throw Error('SELF_PLANNING_DEV_SSOT_MODE_MISMATCH');
   const values=result[0]?.values||[];
   if(values.length>=2000)throw Error('SELF_PLANNING_SOURCE_TRUNCATED');
   const found=findAudit(values,auditId);

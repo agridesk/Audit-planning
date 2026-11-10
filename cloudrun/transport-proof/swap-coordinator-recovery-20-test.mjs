@@ -24,7 +24,10 @@ function fixture(failure){
  for(const file of ['Swap20TransactionCoordinator.js','Swap20TransactionRecovery.js'])runInNewContext(readFileSync(new URL(file,root),'utf8'),ctx);
  return {ctx,journal,events};
 }
-const ok=fixture();assert.equal(ok.ctx.Swap20_executeLocked_(p).committed,true);assert.equal(ok.journal.at(-1).stage,'COMMITTED');
+const ok=fixture();const successful=ok.ctx.Swap20_executeLocked_(p);assert.equal(successful.committed,true);assert.equal(ok.journal.at(-1).stage,'COMMITTED');
+assert.equal(typeof successful.performanceMs.total,'number');
+for(const phase of ['entryReads','canonicalGuard','canonicalSnapshot','availabilitySnapshot','planAndPreparation','preparedAndPreWriteChecks','availabilityWrite','canonicalWrite','verification','committedJournal'])assert.ok(Number.isFinite(successful.performanceMs[phase])&&successful.performanceMs[phase]>=0,'Bounded successful SWAP timing '+phase);
+assert(!ok.journal.some(e=>e.stage==='PERFORMANCE'),'Telemetry must not create journal stages');
 for(const stage of ['availability','canonical','verification']){
  const f=fixture(stage);assert.throws(()=>f.ctx.Swap20_executeLocked_(p),/Swap transaction aborted/);
  assert.equal(f.journal.at(-1).stage,'ROLLED_BACK');

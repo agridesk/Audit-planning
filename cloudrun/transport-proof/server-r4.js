@@ -110,10 +110,17 @@ function devScopeTestOriginAllowed20(origin){
   &&origin==='https://scope-test---ams-fase12-dev-zwtcar7xpa-ew.a.run.app';
 }
 function isolatedExtDirect20(){
+ // One DEV service supports both the ordinary grid and verified Model C EXT.
+ // Keep the older maintenance-preview mode only for backwards-compatible
+ // read-only inspection; an explicit direct-writer gate is required in both.
+ var normalGrid=process.env.AMS_DEV_NORMAL_GRID_ENABLED==='true'
+  &&process.env.AMS_DEV_MAINTENANCE_MODE!=='true'
+  &&process.env.AMS_DEV_EXT_READONLY_PREVIEW!=='true';
+ var maintenancePreview=process.env.AMS_DEV_EXT_READONLY_PREVIEW==='true'
+  &&process.env.AMS_DEV_MAINTENANCE_MODE==='true';
  return process.env.AMS_RUNTIME_ENV==='DEV'
   &&process.env.K_SERVICE==='ams-fase12-dev'
-  &&process.env.AMS_DEV_EXT_READONLY_PREVIEW==='true'
-  &&process.env.AMS_DEV_MAINTENANCE_MODE==='true'
+  &&(normalGrid||maintenancePreview)
   &&process.env.AMS_DEV_EXT_DIRECT_ENABLED==='true'
   &&process.env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE'
   &&process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true'

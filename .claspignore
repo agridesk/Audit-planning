@@ -14,3 +14,9 @@ docs/**
 scripts/**
 tests/**
 node_modules/**
+
+# SWAP cleanup batch 1: retired legacy implementations and empty scaffold.
+# KEEP these files in GitHub for rollback/tests; exclude only from Apps Script upload.
+Swap20EcasIntentReconciler.js
+Swap20EcasQueueDispatch.js
+Swap20FirestoreReadModel20.js

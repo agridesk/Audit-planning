@@ -977,12 +977,19 @@ async function notificationCbSettingMutation(req,res){
  res.end(JSON.stringify({ok:true,kind,id,field,emailRequiresReverification:kind==='body'&&field==='Notification_Email'&&value!==expected}));
 }
 async function proxy(req,res){
- const url='http://127.0.0.1:'+innerPort+(req.url||'/');
+ const writerPath=new URL(req.url||'/','http://localhost').pathname;
+ // The R12..R5 localhost proxies replace Host, breaking the strict R4
+ // same-origin guards on these two DEV-only manager actions. Route only
+ // these verified, authenticated-in-R4 actions directly to R4 (port+9).
+ // No other API path skips the existing proxy chain.
+ const directDevManagerWrite=runtime.isDev&&req.method==='POST'&&
+  (writerPath==='/api/v1/manager/self-planning-direct'||
+   writerPath==='/api/v1/manager/extension-obligation-command');
+ const url='http://127.0.0.1:'+(directDevManagerWrite?port+9:innerPort)+(req.url||'/');
  const headers={...req.headers};delete headers.host;delete headers.connection;delete headers['content-length'];
  const init={method:req.method,headers,redirect:'manual'};
  if(!['GET','HEAD'].includes(req.method)){const chunks=[];for await(const c of req)chunks.push(c);init.body=Buffer.concat(chunks);}
- const writerPath=new URL(req.url||'/','http://localhost').pathname;
- if(writerPath==='/api/v1/manager/self-planning-direct'){
+ if(directDevManagerWrite){
   // Validate the browser's same-origin pair at the public entrypoint, then
   // forward that exact pair to the R4 self-planning guard via localhost.
   let origin;

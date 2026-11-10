@@ -64,10 +64,11 @@ const selfStart=r4.indexOf('async function directManagerSelfPlanning20(identity,
 const selfEnd=r4.indexOf('async function directManagerExtension(',selfStart);
 assert(selfStart>=0&&selfEnd>selfStart,'self planning write owner exists');
 const selfOwner=r4.slice(selfStart,selfEnd);
+assert(r4.includes('function devManagerDirectWritesConfigAllowed20(cfg){')&&r4.includes('ALLOW_ALL'),'shared DEV writer safety gate');
 for(const required of [
- 'isolatedExtDirect20()', "SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs'",
- "verifiedAuditorLockDevProject()", "cfg.get('ALLOW_DEV_WRITES')!=='FALSE'",
- "cfg.get('DEV_WRITE_MODE')!=='BLOCK'", 'withDirectManagerActionLock(auditId',
+ "SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs'",
+ "verifiedAuditorLockDevProject()", 'devManagerDirectWritesConfigAllowed20(cfg)',
+  'withDirectManagerActionLock(auditId',
  "'PENDING_PLANNING'", 'STALE_AUDIT_REVISION', 'STALE_SELF_PLANNING_VALUE',
  'sheetsValuesBatchUpdateRaw(', "const readback=await sheetsBatchGet([targetRange]);",
  'SELF_PLANNING_READBACK_UNVERIFIED'

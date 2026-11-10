@@ -29,29 +29,6 @@ assert.equal(inner.split('!devScopeTestOriginAllowed20(parsedOrigin.origin)').le
 assert(inner.includes("return send(res,200,{ok:true,companyUid:uid,records,mode:'READ_ONLY_CUTOVER_REQUIRED',canMutate:false,"));
 assert(inner.includes('directWriterGates:{'),'Read-only EXT must provide safe gate diagnostics');
 
-// Real DEV System_Config allows writes; the legacy preview deliberately froze them.
-const configStart=inner.indexOf('function devManagerDirectWritesConfigAllowed20(');
-const configEnd=inner.indexOf('function isolatedExtDirect20()',configStart);
-assert(configStart>=0&&configEnd>configStart);
-const configSource=inner.slice(configStart,configEnd);
-function allowedConfig(env,values){
- const context={process:{env}};
- vm.createContext(context);
- vm.runInContext(configSource,context);
- return context.devManagerDirectWritesConfigAllowed20(new Map(Object.entries(values)));
-}
-const writable={ENV:'DEV',ALLOW_DEV_WRITES:'TRUE',DEV_WRITE_MODE:'ALLOW_ALL'};
-const frozen={ENV:'DEV',ALLOW_DEV_WRITES:'FALSE',DEV_WRITE_MODE:'BLOCK'};
-assert.equal(allowedConfig(enabled,writable),true,'Actual canonical writable DEV must authorize normal-grid operations');
-assert.equal(allowedConfig(enabled,frozen),false,'Frozen mode cannot be used with the normal grid');
-assert.equal(allowedConfig({...enabled,AMS_DEV_NORMAL_GRID_ENABLED:'false',AMS_DEV_MAINTENANCE_MODE:'true',AMS_DEV_EXT_READONLY_PREVIEW:'true'},frozen),true,'Legacy preview retains freeze');
-assert.equal(allowedConfig({...enabled,AMS_RUNTIME_ENV:'PROD'},writable),false,'PROD is never authorized');
-assert.equal(allowedConfig(enabled,{...writable,ENV:'PROD'}),false,'DEV service must not write to PROD SSOT');
-assert.equal(allowedConfig(enabled,{...writable,DEV_WRITE_MODE:'BLOCK'}),false,'Contradictory config must fail closed');
-assert(inner.includes("if(!devManagerDirectWritesConfigAllowed20(cfg))throw Error('SELF_PLANNING_DEV_SSOT_MODE_MISMATCH')"));
-assert(inner.includes("if(!devManagerDirectWritesConfigAllowed20(cfg))throw Error('EXT_DEV_DIRECT_SSOT_MODE_MISMATCH')"));
-
-
 // Execute the exact DEV writer predicate with normal-grid and preview configurations.
 const gateStart=inner.indexOf('function isolatedExtDirect20(){');
 const gateEnd=inner.indexOf('async function readIsolatedDevModelCExt20()',gateStart);
@@ -91,4 +68,28 @@ assert(self.includes("directRowRevision(found.h,found.row)!==expectedRevision"),
 assert(self.includes("SELF_PLANNING_READBACK_UNVERIFIED"),'Sheets readback stays mandatory');
 assert(grid.includes('DEV configuration gates blocking EXT:'));
 assert(grid.includes("EXT/Undo is not yet authorized: '+(failedGates.length"),'Single EXT must expose same DEV gate diagnostics');
+// Real DEV System_Config allows writes; the legacy preview deliberately froze them.
+const configStart=inner.indexOf('function devManagerDirectWritesConfigAllowed20(');
+const configEnd=inner.indexOf('function isolatedExtDirect20()',configStart);
+assert(configStart>=0&&configEnd>configStart);
+const configSource=inner.slice(configStart,configEnd);
+function allowedConfig(env,values){
+ const context={process:{env}};
+ vm.createContext(context);
+ vm.runInContext(configSource,context);
+ return context.devManagerDirectWritesConfigAllowed20(new Map(Object.entries(values)));
+}
+const writable={ENV:'DEV',ALLOW_DEV_WRITES:'TRUE',DEV_WRITE_MODE:'ALLOW_ALL'};
+const frozen={ENV:'DEV',ALLOW_DEV_WRITES:'FALSE',DEV_WRITE_MODE:'BLOCK'};
+assert.equal(allowedConfig(enabled,writable),true,'Actual canonical writable DEV must authorize normal-grid operations');
+assert.equal(allowedConfig(enabled,frozen),false,'Frozen mode cannot be used with the normal grid');
+assert.equal(allowedConfig({...enabled,AMS_DEV_NORMAL_GRID_ENABLED:'false',AMS_DEV_MAINTENANCE_MODE:'true',AMS_DEV_EXT_READONLY_PREVIEW:'true'},frozen),true,'Legacy preview retains freeze');
+assert.equal(allowedConfig({...enabled,AMS_RUNTIME_ENV:'PROD'},writable),false,'PROD is never authorized');
+assert.equal(allowedConfig(enabled,{...writable,ENV:'PROD'}),false,'DEV service must not write to PROD SSOT');
+assert.equal(allowedConfig(enabled,{...writable,DEV_WRITE_MODE:'BLOCK'}),false,'Contradictory config must fail closed');
+assert(inner.includes("if(!devManagerDirectWritesConfigAllowed20(cfg))throw Error('SELF_PLANNING_DEV_SSOT_MODE_MISMATCH')"));
+assert(inner.includes("if(!devManagerDirectWritesConfigAllowed20(cfg))throw Error('EXT_DEV_DIRECT_SSOT_MODE_MISMATCH')"));
+
+
+
 console.log('DEV Self planning / Single EXT / Multi EXT routed write and gate diagnostics PASS');

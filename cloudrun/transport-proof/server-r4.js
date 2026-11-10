@@ -145,6 +145,30 @@ function isolatedExtDirect20(){
   &&process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true'
   &&process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true';
 }
+function normalizeDevModelCDateCells20(valueRanges){
+ // Sheets values:batchGet with UNFORMATTED_VALUE returns Google serial dates
+ // even when dateTimeRenderOption is FORMATTED_STRING. Normalize only the
+ // four Model C date columns, never blanket-convert numeric audit fields.
+ const arrays=Array.isArray(valueRanges)?valueRanges:[];
+ const obligationRows=arrays[0]?.values||[];
+ const header=obligationRows[0]||[];
+ const targets=['Base_Expiry_Date','Effective_Expiry_Date','Planning_Window_From','Planning_Window_To'];
+ const columns=targets.map(name=>header.indexOf(name)).filter(index=>index>=0);
+ const converted=obligationRows.map((row,i)=>{
+  if(i===0)return row;
+  const copy=row.slice();
+  for(const col of columns){
+   const value=copy[col];
+   if(typeof value!=='number')continue;
+   if(!Number.isInteger(value)||value<1||value>109574)throw Error('EXT_DEV_DATE_SERIAL_INVALID');
+   const date=new Date(Date.UTC(1899,11,30)+value*86400000);
+   if(!Number.isFinite(date.getTime()))throw Error('EXT_DEV_DATE_SERIAL_INVALID');
+   copy[col]=date.toISOString().slice(0,10);
+  }
+  return copy;
+ });
+ return converted;
+}
 async function readIsolatedDevModelCExt20(){
  if(!isolatedExtDirect20()||SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs'
     ||await verifiedAuditorLockDevProject()!=='audit-management-system-dev')throw Error('EXT_DEV_DIRECT_ISOLATION_REQUIRED');
@@ -154,7 +178,7 @@ async function readIsolatedDevModelCExt20(){
  if(rows[0]?.[0]!=='KEY'||rows[0]?.[1]!=='DEV'||rows[0]?.[2]!=='PROD')throw Error('EXT_DEV_DIRECT_CONFIG_SCHEMA_CHANGED');
  const cfg=new Map(rows.slice(1).filter(x=>clean(x[0])).map(x=>[clean(x[0]),clean(x[1])]));
  if(!devManagerDirectWritesConfigAllowed20(cfg))throw Error('EXT_DEV_DIRECT_SSOT_MODE_MISMATCH');
- return {obligationRows:r[0]?.values||[],linkRows:r[1]?.values||[],planningRows:r[2]?.values||[],scopeRows:r[3]?.values||[]};
+ return {obligationRows:normalizeDevModelCDateCells20(r),linkRows:r[1]?.values||[],planningRows:r[2]?.values||[],scopeRows:r[3]?.values||[]};
 }
 function isolatedExtPilot20(){
  return process.env.AMS_RUNTIME_ENV==='DEV'

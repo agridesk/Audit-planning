@@ -3299,12 +3299,12 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
           directWriterGates:{
            devEnvironment:process.env.AMS_RUNTIME_ENV==='DEV',
            expectedService:process.env.K_SERVICE==='ams-fase12-dev',
-           readOnlyPreview:process.env.AMS_DEV_EXT_READONLY_PREVIEW==='true',
-           maintenanceMode:process.env.AMS_DEV_MAINTENANCE_MODE==='true',
-           directWriterEnabled:process.env.AMS_DEV_EXT_DIRECT_ENABLED==='true',
-           authorityNotFirestore:process.env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE',
-           migrationNotPromoted:process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true',
-           writerFenceNotPromoted:process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true'
+           'AMS_DEV_EXT_READONLY_PREVIEW':process.env.AMS_DEV_EXT_READONLY_PREVIEW==='true',
+           'AMS_DEV_MAINTENANCE_MODE':process.env.AMS_DEV_MAINTENANCE_MODE==='true',
+           'AMS_DEV_EXT_DIRECT_ENABLED':process.env.AMS_DEV_EXT_DIRECT_ENABLED==='true',
+           'AMS_SCOPE_EXTENSION_AUTHORITY_NOT_FIRESTORE':process.env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE',
+           'AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED_NOT_TRUE':process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true',
+           'AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED_NOT_TRUE':process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true'
           }
         }:undefined});
     }catch(e){return send(res,409,{ok:false,error:'EXT_SCOPE_DOSSIER_READ_FAILED',detail:clean(e?.message||e)})}

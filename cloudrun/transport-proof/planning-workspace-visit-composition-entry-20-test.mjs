@@ -26,6 +26,7 @@ const context={
  V5_ENTRY_isDevEnv_:()=>true,
  V5_AUTH:{validateTrustedTokenByRole:(token,role,device)=>({
   ok:token==='signed-manager'&&role==='Manager'&&device==='device-1',email:'manager@example.test'})},
+ PropertiesService:{getScriptProperties:()=>({getProperty:k=>k==='AMS_DEV_CLOUD_RUN_ORIGIN'?'https://ams-test.a.run.app':''})},
  SpreadsheetApp:{getActiveSpreadsheet:()=>({getSheetByName:name=>
   tables[name]?{getDataRange:()=>({getValues:()=>tables[name]})}:null})},
  PlanningRevisionTokenService_get:()=>({revision:'PRT1-'+''.padStart(40,'a')}),
@@ -37,6 +38,7 @@ const input={auditId:'A1',actorEmail:'manager@example.test',
  trustedToken:'signed-manager',deviceFingerprint:'device-1'};
 let good=context.PlanningWorkspaceVisitComposition20_preview(input);
 assert.equal(good.readOnly,true);
+assert.equal(good.cloudOrigin,'https://ams-test.a.run.app');
 assert.equal(good.canCommit,false);
 assert.deepEqual(Array.from(good.compositionOptions),['TOGETHER','SEPARATELY']);
 assert.equal(good.totalFormalHours,11);

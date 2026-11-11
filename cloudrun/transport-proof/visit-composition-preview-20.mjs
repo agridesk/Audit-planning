@@ -30,9 +30,9 @@ export function previewVisitComposition20({auditId, companyUid, obligations, mod
   }
   const compositionRequired=normalized.length>1;
   const selectedMode=str(mode).toUpperCase();
-  if(compositionRequired&&!['TOGETHER','SEPARATELY'].includes(selectedMode))fail('COMPOSITION_EXPLICIT_CHOICE_REQUIRED');
-  if(!compositionRequired&&selectedMode==='SEPARATELY')fail('COMPOSITION_SINGLE_OBLIGATION_CANNOT_SPLIT');
   if(selectedMode&&!['TOGETHER','SEPARATELY'].includes(selectedMode))fail('COMPOSITION_UNSUPPORTED_MODE');
+  if(compositionRequired&&!selectedMode)fail('COMPOSITION_EXPLICIT_CHOICE_REQUIRED');
+  if(!compositionRequired&&selectedMode==='SEPARATELY')fail('COMPOSITION_SINGLE_OBLIGATION_CANNOT_SPLIT');
   return{
     sourceAuditId,companyUid:sourceCompanyUid,
     compositionRequired,mode:selectedMode||'SINGLE',

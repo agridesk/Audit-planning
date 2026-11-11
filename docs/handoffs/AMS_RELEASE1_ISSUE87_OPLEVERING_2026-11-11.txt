@@ -94,3 +94,15 @@ AANVULLING — 11-11-2026 — GEBRUIKERSTEST + CANONICAL CAS + RECONCILIATIE
 - Package test:issue87-allocation en Release1 source-gate uitgebreid met nieuwe revision- en diagnosticcontroles.
 - Relevante commits: 3b1f7cad, 24537883, 759beec2, 484e3f8f, 185792a2, 777fd9dc, ffc96876, e4b62b66, fe45eb38, da2370c2, 4b6ab9ed, 479df8ed, b1f6fa74.
 - VOLGENDE: volledige Node-run op huidige commit en desgewenst veilige DEV read-only runtimevalidatie; writer-route is niet actief, PROD NO-GO. Geen deployment of mutaties uitgevoerd.
+
+AANVULLING — 11-11-2026 — GECONTROLEERDE MANAGER-PLANNING EN AVAILABILITY
+- Nagegaan tegen de live DEV Audit planning-headers en R4 directPlanningCommit: Manager planning zet Status=Approved, Assigned to, Auditor_UID, Planning JSON, Date - Planned, Date - Approved, Last manager decision, Last decision timestamp en Status since.
+- Nieuwe pure scheduled projectors:
+  visit-composition-scheduled-split-20.mjs (per Visit, aparte qualified auditor)
+  visit-composition-scheduled-together-20.mjs (gecombineerd Visit met volledige scopeallocatie).
+- Atomic composition service vereist dat onafhankelijke reprojectie exact overeenkomt met alle voorgenomen Audit planning-rijen; Firestore-snapshots moeten bij beide modi overeenkomen met status, assignedTo, Planning JSON en post-planning sourceRevision.
+- Aparte regressies toegevoegd: scheduled Together/Split PASS; negative snapshot/status/revision/cell-parity gevallen PASS in geïsoleerd V8.
+- Kritisch in de bestaande Availability-service gevonden: slechts ÉÉN planningLease per auditor mogelijk. Capacity gate aangepast: aggregatie van alle Visits per auditor onder één source-Audit-ID-lease, met onafhankelijke scope-kwalificaties en overlapcontrole. Verschillende auditors behouden afzonderlijke leases. Geïsoleerde regresstests PASS.
+- Package test:issue87-allocation en Release 1 source gate uitgebreid.
+- Nog NIET geverifieerd: volledige Node-run en GitHub Actions CI op laatste branchcommit; live DEV E2E en muterende writer-preflight. Geen deployment. PROD NO-GO.
+- Relevante commits: 5dc1a86f, 15f99f45, c03d0375, af9ee507, c64345c2, 06b4fcac, c22e34d2, 387840d3, 5c71fddb, 759e9935, 3dca6424, 27000369, f8dd2603, 2f38f6cc, bb8bf010, 656e1a58, 7f87d172, 1cf82905, 7a150ece.

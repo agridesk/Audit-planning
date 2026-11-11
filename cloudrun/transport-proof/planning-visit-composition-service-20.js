@@ -16,6 +16,7 @@ import {deriveCompositionSourceRevision20} from './visit-composition-source-revi
 import {prepareScheduledCompositionSplitRows20} from './visit-composition-scheduled-split-20.mjs';
 import {prepareScheduledCompositionTogetherRow20} from './visit-composition-scheduled-together-20.mjs';
 import {verifyCompositionAuditorQualifications20} from './visit-composition-qualification-20.mjs';
+import {prepareCompositionManagerNotifications20} from './visit-composition-manager-notifications-20.mjs';
 
 const str = x => String(x ?? '').trim();
 const fail = code => {const error=new Error(code);error.code=code;throw error;};
@@ -153,11 +154,12 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
    const permittedEventAudits=new Set(command.mode==='SEPARATELY'?
       command.visits.map(v=>v.auditId):[command.auditId]);
    if(queueIntents.some(row=>!permittedEventAudits.has(str(row[4]))||
-      str(row[1]).toUpperCase()!=='PENDING'||
-      str(row[2]).toUpperCase()!=='COMPOSE_VISIT'||
+      !(['PENDING','AUDIT_TRAIL'].includes(str(row[1]).toUpperCase()))||
+      !(['AUDIT_PLANNED_BY_MANAGER','LIFECYCLE_STATUS_CHANGED'].includes(str(row[2]).toUpperCase()))||
       Number(row[8])!==0||str(row[11])))
      fail('COMPOSITION_SERVICE_NOTIFICATION_AUDIT_OR_STATE_MISMATCH');
    const audits=proof.entities;
+   let notificationVisits=null;
    if(proof.mode==='SEPARATELY'){
     const modelC=prepareModelCVisitLinkSplit20({
       command,linkValues:canonicalRows.readLinkRows,appendRowNumbers:sourceEvidence.reservedAppendRows,now:proof.now
@@ -197,6 +199,11 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
       configScopeValues:canonicalRows.readConfigScopeRows,
       newRowNumbers:canonicalRows.emptyPlanningRows.map(x=>x.row),
       assignments,now:proof.now
+    });
+    notificationVisits=planningSplit.visits.map(v=>{
+      const assignment=assignments.find(a=>a.auditId===v.auditId);
+      if(!assignment)fail('COMPOSITION_SERVICE_NOTIFICATION_AUDITOR_MAPPING_MISSING');
+      return {...v,auditorEmail:assignment.auditorEmail,auditorName:assignment.auditorName};
     });
     if(planningSplit.visits.some(v=>{
       const entity=audits.find(e=>e.auditId===v.auditId);
@@ -254,6 +261,10 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
         auditorEmail:qualified.auditorEmail,auditorName:str(person[nameCol])},
       now:proof.now
     });
+    notificationVisits=[{
+      auditId:command.auditId,planningJson:together.planningJson,
+      auditorEmail:qualified.auditorEmail,auditorName:str(person[nameCol])
+    }];
     const planned=together.projectionWrites[0];
     const pre=together.projectionPreconditions[0];
     const at=proof.projectionWrites.findIndex(x=>x.range===planned.range);
@@ -267,6 +278,20 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
        str(proof.canonicalSnapshot?.sourceRevision)!==together.sourceRevision)
       fail('COMPOSITION_SERVICE_TOGETHER_SCHEDULED_SNAPSHOT_DRIFT');
    }
+   const planningHeader=canonicalRows.readAuditRows[0]||[];
+   const companyColumn=planningHeader.findIndex(h=>str(h).toUpperCase().replace(/[\s_-]+/g,'_')==='COMPANY');
+   const auditColumn=planningHeader.findIndex(h=>str(h).toUpperCase().replace(/[\s_-]+/g,'_')==='AUDIT_ID');
+   const companyRows=canonicalRows.readAuditRows.slice(1).filter(row=>str(row[auditColumn])===command.auditId);
+   if(companyColumn<0||auditColumn<0||companyRows.length!==1||!str(companyRows[0][companyColumn])||
+      !str(actor?.email)||typeof canonicalReader.readNotificationConfig!=='function')
+     fail('COMPOSITION_SERVICE_NOTIFICATION_CANONICAL_SOURCE_REQUIRED');
+   const notificationConfigRows=await canonicalReader.readNotificationConfig();
+   const notifications=prepareCompositionManagerNotifications20({
+     command,visits:notificationVisits,company:str(companyRows[0][companyColumn]),
+     actorEmail:actor.email,notificationConfigRows,now:proof.now
+   });
+   if(!jsonEq(proof.appendIntents,notifications.appendIntents))
+     fail('COMPOSITION_SERVICE_NOTIFICATION_CANONICAL_INTENTS_MISMATCH');
    if(audits[0]?.auditId!==command.auditId||
       new Set(audits.map(x=>x.auditId)).size!==audits.length||
       audits.some(x=>!x?.nextSnapshot||x.nextSnapshot.auditId!==x.auditId))

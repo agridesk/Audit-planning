@@ -30,6 +30,12 @@ assert.deepEqual((await reader.read({appendRowNumbers:[5]})).emptyAppendRows,[{r
 assert.equal(readings.at(-1),'Audit_Visit_Obligations!A5:AZ5');
 assert.deepEqual((await reader.read({planningAppendRowNumbers:[5]})).emptyPlanningRows,[{row:5,before:[]}]);
 assert.equal(readings.at(-1),'Audit planning!A5:CN5');
+await assert.rejects(()=>reader.read({appendRowNumbers:[10]}),
+ /COMPOSITION_READER_LINK_NONCANONICAL_APPEND_POSITION/);
+await assert.rejects(()=>reader.read({planningAppendRowNumbers:[10]}),
+ /COMPOSITION_READER_PLANNING_NONCANONICAL_APPEND_POSITION/);
+await assert.rejects(()=>reader.read({appendRowNumbers:[5,7]}),
+ /COMPOSITION_READER_LINK_NONCANONICAL_APPEND_POSITION/);
 const qualifications=await reader.readQualifications();
 assert.equal(qualifications.auditorRows.length,2);
 assert.equal(qualifications.qualificationRows.length,3);

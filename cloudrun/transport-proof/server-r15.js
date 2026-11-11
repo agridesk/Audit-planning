@@ -29,6 +29,8 @@ import {createPlanningDistributedGate} from './planning-distributed-gate-20.js';
 import {createPlanningOutboxReconciler} from './planning-outbox-reconciler-20.js';
 import {createPlanningAtomicFirestoreStore} from './planning-atomic-firestore-store-20.js';
 import {createPlanningAtomicCommandService} from './planning-atomic-command-service-20.js';
+import {createVisitCompositionAtomicService20} from './visit-composition-atomic-service-20.js';
+import {prepareSeparateCompositionAuthority20} from './visit-composition-separate-authority-preflight-20.mjs';
 import {createPlanningLifecycleAtomicService} from './planning-lifecycle-atomic-service-20.js';
 import {createPlanningMultiLifecycleService} from './planning-multi-lifecycle-service-20.js';
 import {createPlanningAtomicTransferService} from './planning-atomic-transfer-service-20.js';
@@ -136,6 +138,10 @@ const planningAdapter=runtime.isDev?createFirestoreAvailabilityAdapter({projectI
 const planningAuthority=planningAdapter?createPlanningFirestoreAuthority(planningAdapter):null;
 const planningAuthorityEnabled=runtime.isDev&&process.env.AMS_DEV_FIRESTORE_PLANNING_AUTHORITY_ENABLED==='true';
 const planningAtomicEnabled=runtime.isDev&&process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true';
+const compositionWriteRequested=process.env.AMS_DEV_VISIT_COMPOSITION_WRITE_ENABLED==='true';
+if(compositionWriteRequested&&(!runtime.isDev||!planningAtomicEnabled||
+ process.env.AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED!=='true'))
+ throw Error('VISIT_COMPOSITION_WRITE_AUTHORITY_NOT_READY');
 // Preparation creates only the bounded backfill/parity readers. It does not
 // activate Firestore authority, global write fencing or lifecycle dispatch.
 const planningAtomicPrepEnabled=runtime.isDev&&process.env.AMS_DEV_ATOMIC_PREFLIGHT_ENABLED==='true';
@@ -215,6 +221,63 @@ const planningAtomicCommands=planningAtomicEnabled?createPlanningAtomicCommandSe
   const j=await r.json().catch(()=>null);
   if(!r.ok||j?.success!==true||j?.authorityPreflight!==true)throw Error('PLANNING_ATOMIC_BUSINESS_PREFLIGHT_FAILED_'+String(j?.error||r.status).slice(0,80));
   return j;
+ }
+}):null;
+const planningAtomicComposition=compositionWriteRequested?createVisitCompositionAtomicService20({
+ store:planningAtomicStore,gate:planningGlobalGate,availabilityService:service,
+ hardGate:enforceAvailabilityHardGate20,projector:planningAtomicProjector,
+ appendProjector:planningAtomicAppendProjector,
+ preflight:async({actor,body})=>{
+  if(actor?.role!=='manager'||body?.composition!=='SEPARATELY')
+   throw Error('VISIT_COMPOSITION_MANAGER_SPLIT_REQUIRED');
+  const sources=[
+   ['Audit_Obligations','AA',2000],['Audit_Visit_Obligations','F',2000],
+   ['Config_Scopes','Z',250],['Auditors','AF',500],
+   ['Auditor_Scope_Qualifications','C',5000],['Companies','AZ',1200],
+   ['Log realized audits','AZ',2500],['Concept Reservations','P',2000],
+   ['Auditor Availability','AB',2500]
+  ];
+  const endpoint=new URL('https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values:batchGet');
+  endpoint.searchParams.set('valueRenderOption','FORMATTED_VALUE');
+  for(const [name,width,limit] of sources)
+   endpoint.searchParams.append('ranges',"'"+name+"'!A1:"+width+limit);
+  const response=await fetch(endpoint.toString(),{headers:{authorization:'Bearer '+await getToken()},cache:'no-store'});
+  if(!response.ok)throw Error('VISIT_COMPOSITION_SOURCE_READ_'+response.status);
+  const data=(await response.json()).valueRanges;
+  if(!Array.isArray(data)||data.length!==sources.length)
+   throw Error('VISIT_COMPOSITION_SOURCE_BATCH_INCOMPLETE');
+  const tables={};
+  for(let i=0;i<sources.length;i++){
+   const rows=data[i]?.values||[];
+   if(!Array.isArray(rows)||!rows.length||rows.length>=sources[i][2])
+    throw Error('VISIT_COMPOSITION_SOURCE_TRUNCATED_'+sources[i][0]);
+   tables[sources[i][0]]=rows;
+  }
+  const planningRows=await readPlanningRows(),
+   sourceCanonical=await planningAtomicStore.readAudit(body.auditId);
+  const people=tables['Auditors'],header=people[0]||[],
+   emailColumn=header.indexOf('E-mail'),uidColumn=header.indexOf('Auditor_UID');
+  if(emailColumn<0||uidColumn<0)throw Error('VISIT_COMPOSITION_AUDITOR_SCHEMA_MISSING');
+  const availabilityVersions={};
+  for(const visit of body.visits||[]){
+   const email=String(visit?.auditorEmail||'').trim().toLowerCase(),
+    matches=people.slice(1).filter(row=>String(row[emailColumn]||'').trim().toLowerCase()===email);
+   if(matches.length!==1||!String(matches[0][uidColumn]||'').trim())
+    throw Error('VISIT_COMPOSITION_AUDITOR_IDENTITY_INVALID');
+   const uid=String(matches[0][uidColumn]).trim();
+   if(availabilityVersions[uid]===undefined){
+    const document=await service.read({role:'manager',id:actor.auditorId},uid);
+    availabilityVersions[uid]=document.version;
+   }
+  }
+  return prepareSeparateCompositionAuthority20({
+   actor,body,sourceCanonical,planningRows,availabilityVersions,
+   obligationRows:tables['Audit_Obligations'],linkRows:tables['Audit_Visit_Obligations'],
+   scopeRows:tables['Config_Scopes'],auditorRows:tables['Auditors'],
+   qualificationRows:tables['Auditor_Scope_Qualifications'],
+   companyRows:tables['Companies'],realizedRows:tables['Log realized audits'],
+   reservationRows:tables['Concept Reservations'],availabilityRows:tables['Auditor Availability']
+  });
  }
 }):null;
 const atomicLifecyclePaths={
@@ -1192,6 +1255,18 @@ http.createServer(async(req,res)=>{
    if(!dryRun&&(planningAtomicEnabled||!planningAtomicPrepEnabled||process.env.AMS_DEV_ATOMIC_BACKFILL_WRITE_ENABLED!=='true'||process.env.AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED!=='true'))throw Error('PLANNING_DEV_BACKFILL_WRITE_NOT_AUTHORIZED');
    const result=await planningAtomicBackfill.run({dryRun,startRow:input.startRow??2,limit:input.limit??100,sourceManifest:input.sourceManifest??null});
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,...result}));return;
+  }
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/visit-composition-atomic'){
+   if(!planningAtomicComposition){res.writeHead(404,{'cache-control':'no-store'});res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401);res.end('Manager required');return;}
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>65536)throw Error('VISIT_COMPOSITION_BODY_TOO_LARGE');}
+   let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('VISIT_COMPOSITION_BODY_INVALID');}
+   if(body?.composition!=='SEPARATELY')throw Error('VISIT_COMPOSITION_SPLIT_REQUIRED');
+   const result=await planningAtomicComposition.commit({actor,body});
+   planningCache.invalidate();
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify(result));return;
   }
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/direct-commit'&&planningAtomicCommands){
    const actor=await session(req);

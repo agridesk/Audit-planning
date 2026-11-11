@@ -123,7 +123,7 @@ const canonicalReader={
   qualificationRows:[['Auditor_UID','ScopeCode','Qualified'],['aud-1','GAP','YES'],['aud-1','GRASP','YES']]
  }}
 };
-let capacityAcquisitions=0,capacityReleased=0,hardChecks=0;
+let capacityAcquisitions=0,capacityReleased=0,hardChecks=0,denyCapacity=false;
 const realAvailability={
  async acquirePlanningLease({auditorId,auditId,plannedBlocks,auditorEmail}){
   capacityAcquisitions++;
@@ -141,7 +141,7 @@ const realAvailability={
 };
 const capacityGate=createCompositionCapacityGate20({
  availabilityService:realAvailability,canonicalReader,
- roster:async()=>[{auditorId:'aud-1',email:'auditor@example.com',role:'auditor',active:true}],
+ roster:async()=>denyCapacity?[]:[{auditorId:'aud-1',email:'auditor@example.com',role:'auditor',active:true}],
  hardGate:({document,blocks})=>{
   hardChecks++;
   assert.equal(document.version,4);
@@ -176,6 +176,12 @@ wrongPostRevision=true;
 await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SERVICE_SCHEDULED_POST_REVISION_DRIFT/);
 assert.equal(writes,0);assert.equal(lock,null);
 wrongPostRevision=false;
+denyCapacity=true;
+await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_CAPACITY_ROSTER_REQUIRED/);
+assert.equal(writes,0);
+assert.equal(capacityAcquisitions,0);
+assert.equal(lock,null);
+denyCapacity=false;
 const receipt=await service.commit({actor,body});
 assert.equal(receipt.success,true);
 assert.equal(receipt.mode,'SEPARATELY');

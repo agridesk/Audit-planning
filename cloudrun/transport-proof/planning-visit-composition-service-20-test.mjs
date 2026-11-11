@@ -64,7 +64,9 @@ const appendProjector={
  async inspect(){return {state:'MATCH',count:1}}
 };
 const preflight=async({operationId})=>{preflights++;return {...structuredClone(proof),...overrideProof,gateOperationId:operationId}};
-const args={store,gate,projector,appendProjector,preflight};
+let sourceRowsOverride=null;
+const canonicalReader={async read(){return structuredClone(sourceRowsOverride||sourceEvidence)}};
+const args={store,gate,projector,appendProjector,preflight,canonicalReader};
 const disabled=createPlanningVisitCompositionService20(args);
 await assert.rejects(()=>disabled.commit({actor,body}),/COMPOSITION_SERVICE_NOT_ENABLED/);
 assert.equal(commits,0);
@@ -72,10 +74,11 @@ const service=createPlanningVisitCompositionService20({...args,enabled:true});
 overrideProof={requiredProofs:[]};
 await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SERVICE_PROOF_INCOMPLETE/);
 assert.equal(commits,0);assert.equal(token,null);
-overrideProof={sourceEvidence:{...sourceEvidence,
- readAuditRows:[['Audit ID','Company_UID','Status'],['A-1','OTHER','Pending Planning']]}};
+sourceRowsOverride={...sourceEvidence,
+ readAuditRows:[['Audit ID','Company_UID','Status'],['A-1','OTHER','Pending Planning']]};
 await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SOURCE_COMPANY_MISMATCH/);
 assert.equal(commits,0);assert.equal(token,null);
+sourceRowsOverride=null;
 overrideProof={};
 const first=await service.commit({actor,body});
 assert.equal(first.success,true);assert.equal(first.mode,'TOGETHER');

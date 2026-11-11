@@ -20,14 +20,21 @@ function testFixture(mode='TOGETHER'){
   [{auditId,expectedRevision:1,remove:true,auditorId:null,blocks:[],nextSnapshot:sourceTombstone},
    ...visits.map(x=>({auditId:x.auditId,expectedRevision:null,remove:false,
      auditorId:x.auditorId,blocks:x.blocks,nextSnapshot:x.snapshot}))];
+ const sourceRow=Array(35).fill('');
+ sourceRow[28]='Pending Planning';sourceRow[32]=JSON.stringify(sourceTombstone);
+ sourceRow[34]=auditId;
  const preview={success:true,authorityPreflight:true,composition:mode,sourceAuditId:auditId,expectedSourceRevision:'rev-1',
   freshAvailabilityProvenance:true,qualificationsVerified:true,availabilityVersions:{'aud-1':0},
   modelCLinkTransferVerified:true,
   notificationIntentsVerified:true,sourceIdentityCollisionChecked:true,sourceRevisionChecked:true,
-  projectionWrites:[{range:'Audit planning!A2:B2',values:[['x','y']]}].concat(mode==='SEPARATELY'?
+  projectionWrites:[mode==='SEPARATELY'?
+   {range:'Audit planning!A2:CN2',values:[sourceRow]}:
+   {range:'Audit planning!A2:B2',values:[['x','y']]}].concat(mode==='SEPARATELY'?
    [{range:'Audit_Visit_Obligations!A2:F2',values:[['source-1','ob-1','INACTIVE','','',''] ]},
     {range:'Audit_Visit_Obligations!A3:F3',values:[['source-1','ob-2','INACTIVE','','',''] ]}]:[]),
-  projectionPreconditions:[{range:'Audit planning!A2:B2',before:['a','b']}].concat(mode==='SEPARATELY'?
+  projectionPreconditions:[mode==='SEPARATELY'?
+   {range:'Audit planning!A2:CN2',before:Array(35).fill('')}:
+   {range:'Audit planning!A2:B2',before:['a','b']}].concat(mode==='SEPARATELY'?
    [{range:'Audit_Visit_Obligations!A2:F2',before:['source-1','ob-1','ACTIVE','','','']},
     {range:'Audit_Visit_Obligations!A3:F3',before:['source-1','ob-2','ACTIVE','','','']}]:[]),
   appendIntents:[{range:'Notification Queue!A:M',values:visits.map(x=>[
@@ -36,7 +43,7 @@ function testFixture(mode='TOGETHER'){
      [x.auditId,x.obligationIds[0],'ACTIVE','','',''])},
     {range:'Audit planning!A:CN',values:visits.map(x=>{
      const row=Array(35).fill('');row[34]=x.auditId;return row;})}]:[]),
-  planningAuditIdColumnIndex:34,
+  planningAuditIdColumnIndex:34,planningStatusColumnIndex:28,planningJsonColumnIndex:32,
   visits,entities,activeObligationIds:['ob-1','ob-2'],sourceTombstone,projectionPlan:{auditId},
   scopeAllocation:mode==='TOGETHER'?{
    auditId,composition:'TOGETHER',

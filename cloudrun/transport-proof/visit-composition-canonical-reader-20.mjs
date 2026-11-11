@@ -35,7 +35,7 @@ export function createVisitCompositionCanonicalReader20({readRange}={}){
   // consistent canonical ownership; never rely on in-process caching.
   const readAuditRows=required(await readRange('Audit planning!A1:BW'+MAX.planning),MAX.planning,'PLANNING');
   const readObligationRows=required(await readRange('Audit_Obligations!A1:AA'+MAX.obligations),MAX.obligations,'OBLIGATIONS');
-  const readLinkRows=required(await readRange('Audit_Visit_Obligations!A1:H'+MAX.links),MAX.links,'LINKS');
+  const readLinkRows=required(await readRange('Audit_Visit_Obligations!A1:AZ'+MAX.links),MAX.links,'LINKS');
   assertHeader(readAuditRows,'planning');
   assertHeader(readObligationRows,'obligations');
   assertHeader(readLinkRows,'links');
@@ -43,7 +43,7 @@ export function createVisitCompositionCanonicalReader20({readRange}={}){
   for(const row of appendRowNumbers){
    if(row<=readLinkRows.length||row>=MAX.links)
     fail('COMPOSITION_READER_APPEND_ROW_POSITION_INVALID');
-   const values=await readRange('Audit_Visit_Obligations!A'+row+':H'+row);
+   const values=await readRange('Audit_Visit_Obligations!A'+row+':AZ'+row);
    if(!Array.isArray(values)||values.length>1||values.some(x=>!Array.isArray(x))||
       values.length>0&&!blank(values[0]))
     fail('COMPOSITION_READER_APPEND_ROW_OCCUPIED');

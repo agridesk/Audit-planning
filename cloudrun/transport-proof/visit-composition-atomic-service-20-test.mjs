@@ -75,6 +75,7 @@ for(const mode of ['TOGETHER','SEPARATELY']){
  if(mode==='SEPARATELY'){
   const malformed=testFixture(mode);
   malformed.preview.visits[0].auditId='client-controlled-id';
+  malformed.preview.visits[0].snapshot.auditId='client-controlled-id';
   await assert.rejects(()=>malformed.service.commit(args),/SPLIT_IDENTITY_NOT_DETERMINISTIC/);
   assert.equal(malformed.stats().applied,0);
  }

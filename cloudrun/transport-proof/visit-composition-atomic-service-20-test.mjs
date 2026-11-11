@@ -31,7 +31,10 @@ function testFixture(mode='TOGETHER'){
   appendIntents:[{range:'Notification Queue!A:M',values:visits.map(x=>[
     '2026-11-11','PENDING','AUDIT_PLANNED',x.auditorEmail,x.auditId])}].concat(mode==='SEPARATELY'?
    [{range:'Audit_Visit_Obligations!A:F',values:visits.map(x=>
-     [x.auditId,x.obligationIds[0],'ACTIVE','','',''])}]:[]),
+     [x.auditId,x.obligationIds[0],'ACTIVE','','',''])},
+    {range:'Audit planning!A:CN',values:visits.map(x=>{
+     const row=Array(35).fill('');row[34]=x.auditId;return row;})}]:[]),
+  planningAuditIdColumnIndex:34,
   visits,entities,activeObligationIds:['ob-1','ob-2'],sourceTombstone:{auditId},projectionPlan:{auditId},
   scopeAllocation:mode==='TOGETHER'?{
    auditId,composition:'TOGETHER',
@@ -80,6 +83,11 @@ for(const mode of ['TOGETHER','SEPARATELY']){
  await assert.rejects(()=>rejected.service.commit(args),/AUTHORITY_PREFLIGHT_INCOMPLETE/);
  assert.equal(rejected.stats().applied,0);
  if(mode==='SEPARATELY'){
+  const missingPlanning=testFixture(mode);
+  missingPlanning.preview.appendIntents=missingPlanning.preview.appendIntents.filter(x=>
+   !x.range.startsWith('Audit planning!'));
+  await assert.rejects(()=>missingPlanning.service.commit(args),/SUCCESSOR_PLANNING_ROWS_MISSING/);
+  assert.equal(missingPlanning.stats().applied,0);
   const missingLink=testFixture(mode);
   missingLink.preview.appendIntents=missingLink.preview.appendIntents.filter(x=>
    !x.range.startsWith('Audit_Visit_Obligations!'));

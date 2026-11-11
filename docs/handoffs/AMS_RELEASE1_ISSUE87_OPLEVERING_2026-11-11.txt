@@ -73,3 +73,13 @@ AANVULLING — 11-11-2026: TRANSACTIONAL WRITESET INTEGRITY
 - Regression negatives toegevoegd (misdirected notification; unsolicited Model C writes). Isolated V8 atomic Together/Separately: PASS. Full Node CI latest commits NOT CONFIRMED.
 - Latest source-gate scope expanded; PROD NO-GO; HTTP commit writer disabled; no deployment or data mutation.
 - Relevante commits: 3b3d4461, 22833b2e, 49eaf0c4, 20c7d6ae, 8046227f.
+
+AANVULLING — 11-11-2026 — VERWERKING LOKALE REGRESSIE-UITVOER
+- Gebruiker draaide volledige Node-suite; onderliggende #87-tests tot en met VISIT_COMPOSITION_RUNTIME_READ_20_PASS.
+- De suite stopte op een VEROUDE TESTASSERTIE in visit-composition-runtime-contract-20-test.mjs, die nog CANONICAL_VISIT_IDENTITY_AND_LINK_TRANSFER_REQUIRED verwachtte, terwijl de nieuwe read-only split-flow SPLIT_VISIT_BLOCKS_REQUIRED en FIRESTORE_IDENTITY_CAS_CAPACITY_AND_PROJECTION_REQUIRED gebruikt.
+- Gecorrigeerd in GitHub commit e9fbba40; runtime-contract geverifieerd tegen actuele GitHub-bron in V8: PASS.
+- Extra transactieguard: als Availability-lease release mislukt na Firestore/Sheets-projectie, mag de globale gate NIET als VERIFIED worden vrijgegeven. Deze moet UNCERTAIN blijven. Commit 7988e10e.
+- Toegevoegde negatieve regressie voor mislukte lease-release: geïsoleerde atomic service test PASS (commit e8cad6e2).
+- Source gate uitgebreid met expliciete check voor UNCERTAIN global gate (commit 1e4528ee).
+- Volledige Node-suite op de nieuwste commits moet nog opnieuw worden uitgevoerd; niet claimen dat alle regressies PASS zijn tot dat bewijs er is.
+- Geen deployment, geen mutaties in DEV of PROD, writer-route blijft ongeactiveerd; PROD NO-GO.

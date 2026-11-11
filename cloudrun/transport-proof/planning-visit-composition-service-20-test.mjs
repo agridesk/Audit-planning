@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {createPlanningVisitCompositionService20} from './planning-visit-composition-service-20.js';
 
-const revision='a'.repeat(24);
+const revision=createHash('sha256').update('A-1|Pending Planning||||').digest('hex').slice(0,24);
 const obligations=[
  {auditId:'A-1',companyUid:'C-1',obligationId:'O-1',scopeCode:'GAP',formalHours:8,linkState:'ACTIVE'},
  {auditId:'A-1',companyUid:'C-1',obligationId:'O-2',scopeCode:'GRASP',formalHours:3,linkState:'ACTIVE'}

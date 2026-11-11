@@ -18,6 +18,7 @@ import {prepareScheduledCompositionTogetherRow20} from './visit-composition-sche
 import {verifyCompositionAuditorQualifications20} from './visit-composition-qualification-20.mjs';
 import {prepareCompositionManagerNotifications20} from './visit-composition-manager-notifications-20.mjs';
 import {validateCompositionClientProposal20} from './visit-composition-client-proposal-20.mjs';
+import {prepareCompositionAvailabilityInvalidation20} from './visit-composition-availability-invalidation-20.mjs';
 
 const str = x => String(x ?? '').trim();
 const fail = code => {const error=new Error(code);error.code=code;throw error;};
@@ -25,14 +26,14 @@ const hash = x => createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const jsonEq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const normalizedId=x=>str(x);
 
-export function createPlanningVisitCompositionService20({store,gate,projector,appendProjector,preflight,canonicalReader,capacityGate,enabled=false}={}){
+export function createPlanningVisitCompositionService20({store,gate,projector,appendProjector,preflight,canonicalReader,capacityGate,invalidateAvailability,enabled=false}={}){
  if(typeof store?.readAudit!=='function'||typeof store?.readOutbox!=='function'||typeof store?.commitMulti!=='function'||
     typeof store?.markProjected!=='function'||typeof store?.markUncertain!=='function'||
     typeof gate?.acquire!=='function'||typeof gate?.release!=='function'||typeof gate?.uncertain!=='function'||
     typeof projector?.apply!=='function'||typeof projector?.inspect!=='function'||
     typeof appendProjector?.apply!=='function'||typeof appendProjector?.inspect!=='function'||
     typeof preflight!=='function'||typeof canonicalReader?.read!=='function'||
-    (enabled&&typeof capacityGate?.acquire!=='function'))fail('COMPOSITION_SERVICE_DEPENDENCY_INVALID');
+    (enabled&&(typeof capacityGate?.acquire!=='function'||typeof invalidateAvailability!=='function')))fail('COMPOSITION_SERVICE_DEPENDENCY_INVALID');
  async function commit({actor,body}={}){
   if(!enabled)fail('COMPOSITION_SERVICE_NOT_ENABLED');
   if(actor?.role!=='manager'||!normalizedId(actor?.auditorId))fail('COMPOSITION_SERVICE_MANAGER_ONLY');
@@ -358,8 +359,24 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
    const sheet=await projector.inspect(plan),notification=await appendProjector.inspect(plan.appendIntents);
    if(sheet.state!=='MATCH'||notification.state!=='MATCH')
     fail('COMPOSITION_SERVICE_PROJECTION_UNVERIFIED');
+   // Only the resolved Availability cache is invalidated; the committed
+   // Planning JSON owns occupancy, so NO Auditor Availability row writes.
+   // This must succeed before the Firestore outbox can be marked PROJECTED.
+   const invalidation=prepareCompositionAvailabilityInvalidation20({
+    command,entities:audits,operationId
+   });
+   const invalidationResult=await invalidateAvailability(invalidation);
+   if(invalidationResult?.ok!==true||
+      invalidationResult?.operationId!==operationId||
+      invalidationResult?.scope!==invalidation.scope||
+      invalidationResult?.readModelOnly!==true||
+      invalidationResult?.affectedAuditors!==invalidation.affectedAuditors)
+    fail('COMPOSITION_SERVICE_AVAILABILITY_INVALIDATION_UNVERIFIED');
    await store.markProjected({auditId:command.auditId,operationId,
-    proof:{verified:true,auditId:command.auditId,rowHash:hash({sheet:sheet.detail,appendCount:notification.count})}});
+    proof:{verified:true,auditId:command.auditId,
+     availabilityInvalidation:'TARGETED_RESOLVED_CACHE',
+     affectedAuditors:invalidation.affectedAuditors,
+     rowHash:hash({sheet:sheet.detail,appendCount:notification.count})}});
    verified=true;
    try{await capacity.release();capacity=null;}
    catch(e){capacityReleaseFailed=true;throw e;}

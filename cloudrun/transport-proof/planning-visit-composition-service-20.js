@@ -44,7 +44,7 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
    if(previousOutbox.state==='PROJECTED')return {success:true,replayed:true,operationId,auditId:body.auditId};
    fail('COMPOSITION_SERVICE_RECOVERY_REQUIRED');
   }
-  let lock=null,capacity=null,attempted=false,committed=false,verified=false,capacityReleaseFailed=false;
+  let lock=null,capacity=null,attempted=false,committed=false,verified=false,capacityReleaseFailed=false,capacityAcquisitionUncertain=false;
   try{
    lock=await gate.acquire({operationId,actorId:actor.auditorId,kind:'ATOMIC_COMPOSE_VISIT'});
    // The canonical owner returns a complete fresh SSoT snapshot. It may
@@ -329,9 +329,19 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
    };
    if(proof.canonicalSnapshot?.auditId!==command.auditId)
     fail('COMPOSITION_SERVICE_SNAPSHOT_IDENTITY_INVALID');
-   capacity=await capacityGate.acquire({actor,command,entities:audits});
-   if(typeof capacity?.release!=='function'||typeof capacity?.uncertain!=='function')
+   try{
+    capacity=await capacityGate.acquire({actor,command,entities:audits});
+   }catch(e){
+    // If a lease could not be released or quarantined during acquisition,
+    // never declare the shared global fence safely released.
+    if(e?.code==='COMPOSITION_CAPACITY_UNCERTAIN_RECOVERY_REQUIRED')
+      capacityAcquisitionUncertain=true;
+    throw e;
+   }
+   if(typeof capacity?.release!=='function'||typeof capacity?.uncertain!=='function'){
+    capacityAcquisitionUncertain=true;
     fail('COMPOSITION_SERVICE_CAPACITY_EVIDENCE_INVALID');
+   }
    attempted=true;
    const result=await store.commitMulti({
     operationId,actorId:actor.auditorId,action:'COMPOSE_VISIT',
@@ -356,12 +366,15 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
   }finally{
    try{
     if(capacity){
-     if(!attempted)await capacity.release();
-     else await capacity.uncertain(verified?'COMPOSITION_CAPACITY_LEASE_RELEASE_UNCERTAIN':'COMPOSITION_CAPACITY_TRANSACTION_OUTCOME_UNCERTAIN');
+     if(!attempted&&!capacityAcquisitionUncertain)await capacity.release();
+     else if(typeof capacity.uncertain==='function')
+      await capacity.uncertain(verified?'COMPOSITION_CAPACITY_LEASE_RELEASE_UNCERTAIN':'COMPOSITION_CAPACITY_TRANSACTION_OUTCOME_UNCERTAIN');
     }
    }finally{
    if(lock){
-    if(!attempted)await gate.release({token:lock.token,verified:true,proof:'COMPOSITION_PREFLIGHT_REJECTED'});
+    if(capacityAcquisitionUncertain)
+      await gate.uncertain({token:lock.token,reason:'COMPOSITION_CAPACITY_ACQUISITION_RECOVERY_UNKNOWN'});
+    else if(!attempted)await gate.release({token:lock.token,verified:true,proof:'COMPOSITION_PREFLIGHT_REJECTED'});
     else if(verified&&!capacityReleaseFailed)await gate.release({token:lock.token,verified:true,proof:'COMPOSITION_PROJECTED_LEASES_RELEASED'});
     else if(verified)await gate.uncertain({token:lock.token,reason:'COMPOSITION_CAPACITY_LEASE_RELEASE_UNKNOWN'});
     else{

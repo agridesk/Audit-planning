@@ -71,6 +71,21 @@ export function prepareCompositionManagerNotifications20({
     templateFamily:'RICH_OPERATIONAL',templateKeyDefault:plannedEvent,
     fromEmail:'planning@agriqa.es',fromName:'Agri Quality Assurance – Audit Planning',
     replyTo:'',includeComment:true,requireReason:false}};
+  // R4 planning emits an AUDIT_TRAIL record as well as the planned-mail
+  // row; both are derived from the same immutable visit snapshot.
+  const trailPayload={
+   type:'LIFECYCLE_STATUS_CHANGED',auditId:visit.auditId,
+   auditNumber:'',company,actorEmail:str(actorEmail).toLowerCase(),
+   actorRole:'MANAGER',beforeStatus:'Pending Planning',afterStatus:'Approved',
+   reason:'',hours:null,source:'CLOUD_RUN_CANONICAL_COMPOSITION_MANAGER_PLAN',
+   timestamp:now,action:'PLAN'
+  };
+  const trailHash=createHash('md5').update(
+   'LIFECYCLE_STATUS_CHANGED|'+visit.auditId+'|'+now+'|Approved'
+  ).digest('hex');
+  rows.push([str(now).slice(0,16),'AUDIT_TRAIL','LIFECYCLE_STATUS_CHANGED','',
+   visit.auditId,company,'[TRAIL] LIFECYCLE_STATUS_CHANGED :: '+visit.auditId,
+   JSON.stringify(trailPayload),0,'',trailHash,'',JSON.stringify({payload:trailPayload})]);
   const hash=createHash('md5').update(recipient+'|'+plannedEvent+'|'+visit.auditId+'|'+visit.planningJson).digest('hex');
   rows.push([str(now).slice(0,16),'PENDING',plannedEvent,recipient,visit.auditId,
    company,subject,body,0,'',hash,'',JSON.stringify({payload})]);

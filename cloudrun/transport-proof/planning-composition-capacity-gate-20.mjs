@@ -81,6 +81,7 @@ export function createCompositionCapacityGate20({availabilityService,hardGate,ro
       fail('COMPOSITION_CAPACITY_AUDITOR_DIRECTORY_DRIFT');
     group.blocks.push(...entity.blocks.map(b=>({...b})));
    }
+   const validatedGroups=[];
    for(const group of [...auditorGroups.values()].sort((a,b)=>a.auditorId.localeCompare(b.auditorId))){
     if(group.blocks.length>50)fail('COMPOSITION_CAPACITY_COMBINED_BLOCKS_LIMIT');
     const intervals=group.blocks.map(b=>{
@@ -93,6 +94,11 @@ export function createCompositionCapacityGate20({availabilityService,hardGate,ro
     for(let i=1;i<intervals.length;i++)
       if(intervals[i].date===intervals[i-1].date&&intervals[i].start<intervals[i-1].end)
         fail('COMPOSITION_CAPACITY_SAME_AUDITOR_OVERLAP');
+    validatedGroups.push(group);
+   }
+   // All Visit groups must be validated before any external lease is acquired.
+   // Otherwise an invalid second group can create a short-lived first lease.
+   for(const group of validatedGroups){
     const lease=await availabilityService.acquirePlanningLease({
       actor:leaseActor,auditorId:group.auditorId,auditId:command.auditId,
       auditorEmail:group.auditorEmail,plannedBlocks:group.blocks

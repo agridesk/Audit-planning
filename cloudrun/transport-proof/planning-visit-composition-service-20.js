@@ -141,6 +141,13 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
     }
    }
    if(!queueIntents.length)fail('COMPOSITION_SERVICE_NOTIFICATION_REQUIRED');
+   const permittedEventAudits=new Set(command.mode==='SEPARATELY'?
+      command.visits.map(v=>v.auditId):[command.auditId]);
+   if(queueIntents.some(row=>!permittedEventAudits.has(str(row[4]))||
+      str(row[1]).toUpperCase()!=='PENDING'||
+      str(row[2]).toUpperCase()!=='COMPOSE_VISIT'||
+      Number(row[8])!==0||str(row[11])))
+     fail('COMPOSITION_SERVICE_NOTIFICATION_AUDIT_OR_STATE_MISMATCH');
    if(proof.mode==='SEPARATELY'){
     const modelC=prepareModelCVisitLinkSplit20({
       command,linkValues:canonicalRows.readLinkRows,appendRowNumbers:sourceEvidence.reservedAppendRows,now:proof.now

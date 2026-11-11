@@ -6,6 +6,7 @@ import {createHash} from 'node:crypto';
 import {previewVisitComposition20} from './visit-composition-preview-20.mjs';
 import {prepareVisitCompositionCommand20} from './visit-composition-command-20.mjs';
 import {verifyVisitCompositionSource20} from './visit-composition-source-evidence-20.mjs';
+import {verifyCompositionAuditorQualifications20} from './visit-composition-qualification-20.mjs';
 const str=x=>String(x??'').trim();
 const fail=code=>{const e=new Error(code);e.code=code;throw e;};
 const key=x=>str(x).toLowerCase().replace(/\s+/g,'_');
@@ -13,7 +14,7 @@ const idx=(headers,...aliases)=>aliases.map(a=>headers.findIndex(h=>key(h)===key
 const val=(row,i)=>i>=0?str(row[i]):'';
 export function createVisitCompositionCanonicalPreflight20({reader}={}){
  if(typeof reader?.read!=='function')fail('COMPOSITION_PREFLIGHT_READER_MISSING');
- async function preview({auditId,mode,sourceRevision,blocks,allocations}={}){
+ async function preview({auditId,mode,sourceRevision,blocks,allocations,auditorUid}={}){
   auditId=str(auditId);if(!auditId)fail('COMPOSITION_PREFLIGHT_AUDIT_ID_REQUIRED');
   if(mode!=='TOGETHER'&&mode!=='SEPARATELY')fail('COMPOSITION_PREFLIGHT_MODE_REQUIRED');
   const evidence=await reader.read();
@@ -55,6 +56,16 @@ export function createVisitCompositionCanonicalPreflight20({reader}={}){
    return {obligationId,auditId,companyUid:val(r,ouid),scopeCode:val(r,scope),
     formalHours,linkState:'ACTIVE',obligationState:val(r,ostate)};
   });
+  let qualifications=null;
+  if(auditorUid!==undefined){
+   if(!str(auditorUid)||typeof reader.readQualifications!=='function')
+    fail('COMPOSITION_PREFLIGHT_QUALIFICATIONS_READER_REQUIRED');
+   const directory=await reader.readQualifications();
+   qualifications=verifyCompositionAuditorQualifications20({
+    auditorUid,scopeCodes:[...new Set(obligations.map(o=>o.scopeCode))],
+    auditorRows:directory.auditorRows,qualificationRows:directory.qualificationRows
+   });
+  }
   const base={auditId,companyUid,obligations,mode};
   if(mode==='SEPARATELY'){
    if(str(row[status]).toUpperCase().replace(/[\s_-]+/g,'_')!=='PENDING_PLANNING')
@@ -63,7 +74,7 @@ export function createVisitCompositionCanonicalPreflight20({reader}={}){
    // No fabricated Visit IDs or implied calendars. The canonical writer
    // must issue identities within its authenticated transaction preflight.
    return {success:true,readOnly:true,writeEnabled:false,auditId,companyUid,
-    sourceRevision:actualRevision,mode:'SEPARATELY',obligations:result.obligations,
+    sourceRevision:actualRevision,mode:'SEPARATELY',qualifications,obligations:result.obligations,
     totalRequiredMinutes:result.totalRequiredMinutes,requiredVisitCount:obligations.length,
     canCommit:false,reason:'CANONICAL_VISIT_IDENTITY_AND_LINK_TRANSFER_REQUIRED'};
   }
@@ -74,7 +85,7 @@ export function createVisitCompositionCanonicalPreflight20({reader}={}){
    command,readAuditRows:ap,readObligationRows:obs,readLinkRows:links,emptyAppendRows:[]
   });
   return {success:true,readOnly:true,writeEnabled:false,auditId,companyUid,
-   sourceRevision:actualRevision,mode:'TOGETHER',obligations:source.obligations,
+   sourceRevision:actualRevision,mode:'TOGETHER',qualifications,obligations:source.obligations,
    totalRequiredMinutes:command.totalMinutes,totalHours:command.totalHours,
    allocations:command.allocations,blocks:command.blocks,canCommit:false,
    reason:'CANONICAL_COMPOSITION_WRITER_AND_AVAILABILITY_PARITY_REQUIRED'};

@@ -1339,7 +1339,14 @@ http.createServer(async(req,res)=>{
     if(rows.length>=2000)throw Error('MODEL_C_PREVIEW_TRUNCATED');
     data.push(rows);
    }
-   const result=previewModelCVisitComposition20({auditId,obligations:data[0],links:data[1]});
+   const planningRows=await readPlanningRows();
+   const scopeRange="'Config_Scopes'!A1:AZ100";
+   const scopeEndpoint='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(scopeRange);
+   const scopeResponse=await fetch(scopeEndpoint,{headers:{authorization:'Bearer '+await getToken()}});
+   if(!scopeResponse.ok)throw Error('MODEL_C_SCOPE_CATALOG_READ_'+scopeResponse.status);
+   const configScopes=(await scopeResponse.json()).values||[];
+   if(!configScopes.length||configScopes.length>=100)throw Error('MODEL_C_SCOPE_CATALOG_INCOMPLETE');
+   const result=previewModelCVisitComposition20({auditId,obligations:data[0],links:data[1],planningRows,configScopes});
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
   }
   if(req.method==='GET'&&['/api/v1/rotation','/api/v1/rotation-manager-20'].includes(u.pathname)){

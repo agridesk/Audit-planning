@@ -20,6 +20,10 @@ function validate(preview,sourceAuditId,mode,requestedRevision){
   throw Error('VISIT_COMPOSITION_AUTHORITY_PREFLIGHT_INCOMPLETE');
  const visits=preview.visits;
  const auditIds=visits.map(v=>str(v.auditId)),obligationIds=visits.flatMap(v=>v.obligationIds||[]);
+ const active=preview.activeObligationIds;
+ if(!Array.isArray(active)||active.length<2||!distinct(active)||active.some(x=>!str(x))||
+   active.length!==obligationIds.length||active.some(x=>!obligationIds.includes(x)))
+  throw Error('VISIT_COMPOSITION_ACTIVE_LINK_MEMBERSHIP_MISMATCH');
  if(auditIds.some(x=>!x)||!distinct(auditIds)||obligationIds.some(x=>!x)||!distinct(obligationIds)||
     visits.some(v=>!Array.isArray(v.obligationIds)||!v.obligationIds.length||
       !v.snapshot||v.snapshot.auditId!==v.auditId||
@@ -56,11 +60,10 @@ function validate(preview,sourceAuditId,mode,requestedRevision){
      allocated.scopes.some(x=>x.remainingMinutes!==0||x.plannedMinutes!==x.requiredMinutes)||
      allocated.blocks.some(x=>x.unallocatedMinutes!==0))
    throw Error('VISIT_COMPOSITION_SCOPE_ALLOCATION_INCOMPLETE');
-  const expected=new Map(preview.scopeAllocation.allocations.map(x=>
-   [str(x.obligationId),Number(x.minutes)]));
-  const actual=new Map(visits[0].snapshot.allocations.map(x=>
-   [str(x.obligationId),Number(x.minutes)]));
-  if(expected.size!==actual.size||[...expected].some(([id,n])=>actual.get(id)!==n))
+  const key=x=>[str(x.blockId),str(x.obligationId),Number(x.minutes)].join('|');
+  const expected=preview.scopeAllocation.allocations.map(key).sort();
+  const actual=visits[0].snapshot.allocations.map(key).sort();
+  if(expected.length!==actual.length||expected.some((x,i)=>x!==actual[i]))
    throw Error('VISIT_COMPOSITION_SCOPE_ALLOCATION_DIVERGED');
   if(auditIds.length!==1||auditIds[0]!==sourceAuditId||
      visits[0].obligationIds.length<2||state(visits[0].snapshot.status)!=='APPROVED')
@@ -69,20 +72,22 @@ function validate(preview,sourceAuditId,mode,requestedRevision){
   // Do not manufacture a second audit ID or double-count physical blocks.
   if(preview.entities?.length!==1||preview.entities[0].auditId!==sourceAuditId||
      preview.entities[0].remove===true||
+     JSON.stringify(preview.entities[0].nextSnapshot)!==JSON.stringify(visits[0].snapshot)||
      !Array.isArray(visits[0].snapshot.allocations)||
      new Set(visits[0].snapshot.allocations.map(x=>str(x.obligationId))).size!==visits[0].obligationIds.length||
      visits[0].snapshot.allocations.some(x=>!visits[0].obligationIds.includes(str(x.obligationId))||
       !Number.isSafeInteger(x.minutes)||x.minutes<=0))
    throw Error('VISIT_COMPOSITION_TOGETHER_ENTITY_INVALID');
  }else{
-  if(auditIds.includes(sourceAuditId)||visits.some(v=>state(v.snapshot.status)!=='APPROVED')||
+  if(auditIds.includes(sourceAuditId)||visits.some(v=>state(v.snapshot.status)!=='APPROVED'||v.obligationIds.length!==1)||
      !preview.sourceTombstone||preview.sourceTombstone.auditId!==sourceAuditId||
      !Array.isArray(preview.entities)||preview.entities.length!==visits.length+1)
    throw Error('VISIT_COMPOSITION_SPLIT_ENTITY_INVALID');
   const entityIds=preview.entities.map(e=>str(e.auditId));
   if(!distinct(entityIds)||!entityIds.includes(sourceAuditId)||auditIds.some(id=>!entityIds.includes(id))||
      preview.entities.find(e=>e.auditId===sourceAuditId)?.remove!==true||
-     visits.some(v=>preview.entities.find(e=>e.auditId===v.auditId)?.expectedRevision!==null))
+     visits.some(v=>preview.entities.find(e=>e.auditId===v.auditId)?.expectedRevision!==null||
+      JSON.stringify(preview.entities.find(e=>e.auditId===v.auditId)?.nextSnapshot)!==JSON.stringify(v.snapshot)))
    throw Error('VISIT_COMPOSITION_SPLIT_ENTITY_INTEGRITY');
  }
  if(!preview.modelCLinkTransferVerified||!preview.notificationIntentsVerified||

@@ -2,8 +2,8 @@
 // Pure only; the caller must read these complete tables under the held global gate.
 const str=x=>String(x??'').trim();
 const fail=code=>{const e=new Error(code);e.code=code;throw e;};
-const column=(h,...names)=>h.findIndex(x=>names.includes(str(x).toUpperCase().replace(/[\\s-]/g,'_')));
-const normalized=x=>str(x).toUpperCase().replace(/[\\s-]/g,'_');
+const column=(h,...names)=>h.findIndex(x=>names.includes(str(x).toUpperCase().replace(/[\s-]/g,'_')));
+const normalized=x=>str(x).toUpperCase().replace(/[\s-]/g,'_');
 const requiredTable=(value,name)=>{
  if(!Array.isArray(value)||value.length<2||!Array.isArray(value[0])||value.some(x=>!Array.isArray(x)))fail(name+'_SOURCE_MISSING');
  return value;

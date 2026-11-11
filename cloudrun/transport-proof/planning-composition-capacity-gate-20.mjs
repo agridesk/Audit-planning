@@ -44,6 +44,10 @@ export function createCompositionCapacityGate20({availabilityService,hardGate,ro
    }
   };
   try{
+   // Availability stores exactly one active lease per auditor. Combine all
+   // distinct Visits assigned to the same auditor under one source-audit lease,
+   // keeping the per-Visit qualification checks independent.
+   const auditorGroups=new Map();
    for(const entity of entities.slice().sort((a,b)=>a.auditId.localeCompare(b.auditId))){
     const candidates=rosterRows.filter(row=>row.role==='auditor'&&row.active!==false&&
       row.auditorId===entity.auditorId&&str(row.email));
@@ -58,17 +62,39 @@ export function createCompositionCapacityGate20({availabilityService,hardGate,ro
     });
     if(result.auditorEmail!==str(candidates[0].email).toLowerCase())
       fail('COMPOSITION_CAPACITY_AUDITOR_IDENTITY_MISMATCH');
+    let group=auditorGroups.get(entity.auditorId);
+    if(!group){
+      group={auditorId:entity.auditorId,auditorEmail:result.auditorEmail,blocks:[]};
+      auditorGroups.set(entity.auditorId,group);
+    }else if(group.auditorEmail!==result.auditorEmail)
+      fail('COMPOSITION_CAPACITY_AUDITOR_DIRECTORY_DRIFT');
+    group.blocks.push(...entity.blocks.map(b=>({...b})));
+   }
+   for(const group of [...auditorGroups.values()].sort((a,b)=>a.auditorId.localeCompare(b.auditorId))){
+    if(group.blocks.length>50)fail('COMPOSITION_CAPACITY_COMBINED_BLOCKS_LIMIT');
+    const intervals=group.blocks.map(b=>{
+      const date=str(b.date),start=str(b.start),end=str(b.end);
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^\d{2}:\d{2}$/.test(start)||
+         !/^\d{2}:\d{2}$/.test(end)||start>=end)
+        fail('COMPOSITION_CAPACITY_COMBINED_TIME_INVALID');
+      return {date,start,end};
+    });
+    intervals.sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
+    for(let i=1;i<intervals.length;i++)
+      if(intervals[i].date===intervals[i-1].date&&intervals[i].start<intervals[i-1].end)
+        fail('COMPOSITION_CAPACITY_SAME_AUDITOR_OVERLAP');
     const lease=await availabilityService.acquirePlanningLease({
-      actor:leaseActor,auditorId:entity.auditorId,auditId:entity.auditId,
-      auditorEmail:result.auditorEmail,plannedBlocks:entity.blocks
+      actor:leaseActor,auditorId:group.auditorId,auditId:command.auditId,
+      auditorEmail:group.auditorEmail,plannedBlocks:group.blocks
     });
     if(!str(lease?.token)||!lease.document)
       fail('COMPOSITION_CAPACITY_LEASE_INVALID');
-    const ref={actor:leaseActor,auditorId:entity.auditorId,token:lease.token};
+    const ref={actor:leaseActor,auditorId:group.auditorId,token:lease.token};
     pending.push(ref);
-    hardGate({document:lease.document,blocks:entity.blocks});
-  }
-  return Object.freeze({release,uncertain:markUncertain,leaseCount:pending.length});
+    hardGate({document:lease.document,blocks:group.blocks});
+   }
+   return Object.freeze({release,uncertain:markUncertain,
+     leaseCount:pending.length,visitCount:entities.length});
   }catch(e){
    try{await release();}catch{
     await markUncertain('COMPOSITION_CAPACITY_PREFLIGHT_RELEASE_UNKNOWN');

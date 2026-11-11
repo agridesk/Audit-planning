@@ -50,7 +50,13 @@ const appendProjector={
  async apply(){appends++},
  async inspect(){return {state:'MATCH',count:1}}
 };
-const proof={
+const sourceEvidence={
+ readAuditRows:[['Audit ID','Company_UID','Status'],['A-1','C-1','Pending Planning']],
+ readObligationRows:[['Obligation_ID','Company_UID','ScopeCode','Formal_Hours','Obligation_State'],['O-1','C-1','GAP',8,'OPEN'],['O-2','C-1','GRASP',3,'LINKED_TO_VISIT']],
+ readLinkRows:[header,['A-1','O-1','ACTIVE','2026-01-01',''],before],
+ emptyAppendRows:[{row:5,before:[]}]
+};
+const proof={sourceEvidence,
  success:true,authorityPreflight:true,auditId:'A-1',companyUid:'C-1',
  sourceRevision:rev,expectedSourceRevision:rev,writerVerified:true,
  obligations,obligationIds:['O-1','O-2'],mode:'SEPARATELY',

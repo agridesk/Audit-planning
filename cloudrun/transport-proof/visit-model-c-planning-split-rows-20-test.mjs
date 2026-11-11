@@ -37,6 +37,7 @@ err(x=>{x.planningValues[1][4]='aud@example.com'},'COMPOSITION_PLANNING_EXISTING
 err(x=>{x.planningValues[1][14]='4'},'COMPOSITION_PLANNING_SOURCE_SCOPE_MISMATCH');
 err(x=>{x.planningValues[1][6]='12'},'COMPOSITION_PLANNING_SOURCE_TOTAL_MISMATCH');
 err(x=>{x.planningValues[1][15]='x'},'COMPOSITION_PLANNING_EXTRA_SOURCE_SCOPE');
+err(x=>{x.planningValues[0][17]='SCOPE_19';x.planningValues[1][17]='x'},'COMPOSITION_PLANNING_UNKNOWN_ACTIVE_SCOPE');
 err(x=>{x.configScopeValues[2][1]='MPS-GAP'},'COMPOSITION_PLANNING_SCOPE_MAPPING_DUPLICATE');
 err(x=>{x.configScopeValues[2][1]='OTHER'},'COMPOSITION_PLANNING_SCOPE_NOT_IN_CONFIG');
 err(x=>{x.planningValues.push([...row().slice(0,2),'A2'])},'COMPOSITION_PLANNING_NEW_ID_COLLISION');

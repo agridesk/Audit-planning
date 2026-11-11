@@ -96,6 +96,26 @@ export function createVisitCompositionCanonicalPreflight20({reader}={}){
    const command=prepareVisitCompositionCommand20({
     ...base,sourceRevision:actualRevision,visits:prepared
    });
+   // A split may assign distinct qualified auditors to its individual Visits.
+   // A read-only preview does not acquire Availability leases.
+   const requestedAuditors=visits.map(v=>str(v?.auditorUid));
+   const anyAuditor=requestedAuditors.some(Boolean);
+   if(anyAuditor&&(!requestedAuditors.every(Boolean)||auditorUid!==undefined))
+     fail('COMPOSITION_PREFLIGHT_SPLIT_AUDITOR_SET_INCOMPLETE');
+   let visitQualifications=null;
+   if(anyAuditor){
+    if(typeof reader.readQualifications!=='function')
+     fail('COMPOSITION_PREFLIGHT_QUALIFICATIONS_READER_REQUIRED');
+    const directory=await reader.readQualifications();
+    visitQualifications=command.visits.map((visit,i)=>({
+      auditId:visit.auditId,obligationId:visit.obligationId,
+      ...verifyCompositionAuditorQualifications20({
+        auditorUid:requestedAuditors[i],
+        scopeCodes:[result.obligations.find(o=>o.obligationId===visit.obligationId)?.scopeCode],
+        auditorRows:directory.auditorRows,qualificationRows:directory.qualificationRows
+      })
+    }));
+   }
    const windows=verifyVisitCompositionWindows20({command,obligationRows:obs});
    // No append-row claims in a read-only preview: those can only be
    // verified and reserved by the fenced writer against fresh SSoT reads.
@@ -103,8 +123,9 @@ export function createVisitCompositionCanonicalPreflight20({reader}={}){
    return {success:true,readOnly:true,writeEnabled:false,auditId,companyUid,
     sourceRevision:actualRevision,mode:'SEPARATELY',qualifications,
     obligations:result.obligations,totalRequiredMinutes:command.totalMinutes,
-    proposedVisits:command.visits,windows:windows.obligations,
-    requiredVisitCount:command.visits.length,canCommit:false,
+    proposedVisits:command.visits,visitQualifications,
+    qualificationsVerified:visitQualifications!==null,
+    windows:windows.obligations,requiredVisitCount:command.visits.length,canCommit:false,
     newIdsAreOnlyProposals:true,
     reason:'FIRESTORE_IDENTITY_CAS_CAPACITY_AND_PROJECTION_REQUIRED'};
   }

@@ -154,3 +154,13 @@ AANVULLING — 11-11-2026 — VOLLEDIGE LOKALE NODE-VALIDATIE 43/43
 - De gebruiker heeft de volledige CMD-uitvoer in deze chat geleverd. Deze versie is het laatst bekende VOLLEDIG bevestigde Node-regressiebewijs.
 - Open blockers ongewijzigd: PROD legacy manager lifecycle writers, PROD direct legacy lifecycle writer, realized hours canonical parity, infrastructure IAM/Firestore/SSoT runtime proof, Manager/Auditor E2E, Issue87 canonical Together/Separately writer plus Model C transfer.
 - Dit is géén live DEV end-to-end bewijs en geen write/cutover toestemming. PROD NO-GO.
+
+AANVULLING — 11-11-2026 — 43/43 TESTBEWIJS EN CAPACITY-RECOVERY FENCING
+- Gebruiker bevestigt alle gerichte Issue87 Node-tests PASS, inclusief Atomic Split x echte Capacity Gate; SINGLE_PLANNING_RELEASE_1_SOURCE_PASS 43 checks. Dit is het laatste volledige lokale Node-bewijs vóór de onderstaande commits.
+- Capaciteitsherstelrisico geïdentificeerd: als een Availability-lease bij mislukte acquire niet kon worden vrijgegeven en ook UNCERTAIN-herstel mislukte, mocht de globale Firestore-gate niet als VERIFIED/REJECTED worden vrijgegeven.
+- Atomic service registreert nu capacityAcquisitionUncertain en zet de GLOBAL gate op UNCERTAIN bij COMPOSITION_CAPACITY_UNCERTAIN_RECOVERY_REQUIRED, bij ontbrekend lease-recoverbewijs, of als pre-commit lease cleanup onverwacht faalt.
+- Negatieve regressie toegevoegd: onopgeloste capacity acquisition cleanup => global UNCERTAIN en nul Firestore commits.
+- Geïsoleerde V8-regressies voor atomic Together en Separately: PASS na wijziging; release source gate uitgebreid.
+- Relevant commits: 3a8f4b65 (43/43 checkpoint), 084d6702, a79c55c0, dcefbd3a, 658cbeed.
+- De VOLLEDIGE Node-suite op de nieuwste commits is nog niet opnieuw door gebruiker bevestigd.
+- NO writer HTTP route, no DEV/PROD-datawijziging, no deployment. PROD NO-GO.

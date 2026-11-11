@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {createPlanningAtomicCommandService} from './planning-atomic-command-service-20.js';
 const src=(file)=>readFileSync(new URL(file,import.meta.url),'utf8');
 const r4=src('./server-r4.js'),r5=src('./server-r5.js'),r6=src('./server-r6.js');
 const preview=src('./visit-composition-preview-20.mjs');
@@ -25,4 +26,24 @@ assert.match(preview,/canCommit:false/);
 assert.match(allocation,/SCOPE_ALLOCATION_OVERLAP/);
 assert.match(atomic,/MODEL_C_SCOPE_COMPOSITION_CANONICAL_WRITER_REQUIRED/);
 assert.match(atomic,/body\?\.scopeAllocations!==undefined\|\|body\?\.compositionMode!==undefined/);
+let sideEffects=0;
+const touch=()=>{sideEffects++;throw Error('UNEXPECTED_SIDE_EFFECT');};
+const atomicService=createPlanningAtomicCommandService({
+ atomicStore:{commit:touch,readAudit:touch,readOutbox:touch,markProjected:touch},
+ gate:{acquire:touch,release:touch,uncertain:touch},
+ availabilityService:{acquirePlanningLease:touch,releasePlanningLease:touch,markPlanningLeaseUncertain:touch},
+ hardGate:touch,preflight:touch,
+ projector:{apply:touch,inspect:touch},
+ appendProjector:{apply:touch,inspect:touch},
+ roster:touch
+});
+await assert.rejects(
+ atomicService.commit({actor:{role:'manager',auditorId:'M-1'},body:{compositionMode:'TOGETHER'}}),
+ /MODEL_C_SCOPE_COMPOSITION_CANONICAL_WRITER_REQUIRED/
+);
+await assert.rejects(
+ atomicService.commit({actor:{role:'manager',auditorId:'M-1'},body:{scopeAllocations:[]}}),
+ /MODEL_C_SCOPE_COMPOSITION_CANONICAL_WRITER_REQUIRED/
+);
+assert.equal(sideEffects,0,'Explicit composition rejected before storage or locks');
 console.log('ISSUE87_WORKSPACE_READONLY_CONTRACT_PASS: canonical preview, UI disclosure, fail-closed legacy writes');

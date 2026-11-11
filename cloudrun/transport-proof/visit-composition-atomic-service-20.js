@@ -30,6 +30,22 @@ function validate(preview,sourceAuditId,mode,requestedRevision){
  if(allBlocks.some(b=>!/^\d{4}-\d{2}-\d{2}$/.test(str(b.date))||
     !/^\d{2}:\d{2}$/.test(str(b.start))||!/^\d{2}:\d{2}$/.test(str(b.end))))
   throw Error('VISIT_COMPOSITION_BLOCK_INVALID');
+ const minute=t=>{const m=/^(\\d{2}):(\\d{2})$/.exec(str(t));if(!m)return NaN;const h=Number(m[1]),n=Number(m[2]);return h<24&&n<60?h*60+n:NaN;};
+ const intervals=allBlocks.map(b=>({...b,from:minute(b.start),to:minute(b.end)}));
+ if(intervals.some(b=>!Number.isFinite(b.from)||!Number.isFinite(b.to)||b.to<=b.from))
+  throw Error('VISIT_COMPOSITION_INTERVAL_INVALID');
+ for(const v of visits){
+  const minutes=intervals.filter(b=>b.visitId===v.auditId).reduce((sum,b)=>sum+b.to-b.from,0);
+  if(Math.abs(minutes-v.requiredMinutes)>15)throw Error('VISIT_COMPOSITION_FORMAL_HOURS_MISMATCH');
+  if(mode==='TOGETHER'&&v.snapshot.allocations?.reduce((sum,a)=>sum+a.minutes,0)!==minutes)
+   throw Error('VISIT_COMPOSITION_ALLOCATION_MINUTES_MISMATCH');
+ }
+ const ordered=intervals.slice().sort((a,b)=>a.auditorId.localeCompare(b.auditorId)||a.date.localeCompare(b.date)||a.from-b.from);
+ for(let i=1;i<ordered.length;i++){
+  const a=ordered[i-1],b=ordered[i];
+  if(a.auditorId===b.auditorId&&a.date===b.date&&a.to>b.from)
+   throw Error('VISIT_COMPOSITION_CAPACITY_SELF_OVERLAP');
+ }
  if(mode==='TOGETHER'){
   if(auditIds.length!==1||auditIds[0]!==sourceAuditId||
      visits[0].obligationIds.length<2||state(visits[0].snapshot.status)!=='APPROVED')

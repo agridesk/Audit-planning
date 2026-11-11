@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import {createPlanningVisitCompositionService20} from './planning-visit-composition-service-20.js';
+import {prepareVisitCompositionCommand20} from './visit-composition-command-20.mjs';
+import {prepareModelCPlanningVisitSplitRows20} from './visit-model-c-planning-split-rows-20.mjs';
 
 const rev='a'.repeat(24),issuer='b'.repeat(24);
 const actor={role:'manager',auditorId:'M-1'};
@@ -33,7 +35,7 @@ let writes=0,projections=0,appends=0,uncertain=0,lock=null,wrong=false;
 const store={
  async readOutbox(){return null},
  async readAudit(){return {revision:2,pendingOperationId:null,snapshot:{sourceRevision:rev}}},
- async commitMulti({entities,projectionPlan,action}){writes++;assert.equal(action,'COMPOSE_VISIT');assert.equal(entities.length,2);assert.equal(projectionPlan.projectionWrites.length,2);return {replayed:false,entities:[]}},
+ async commitMulti({entities,projectionPlan,action}){writes++;assert.equal(action,'COMPOSE_VISIT');assert.equal(entities.length,2);assert.equal(projectionPlan.projectionWrites.length,4);return {replayed:false,entities:[]}},
  async markProjected({proof}){assert.equal(proof.verified,true)},
  async markUncertain(){uncertain++}
 };
@@ -50,18 +52,25 @@ const appendProjector={
  async apply(){appends++},
  async inspect(){return {state:'MATCH',count:1}}
 };
+const planningHeaders=['Company','Company_UID','Audit ID','Status','Assigned to','Planning JSON',
+ 'Total audit time in hours','Total audit time in days','Date - Planned','Date - Approved',
+ 'Scopes_List','SCOPE_01','Duration SCOPE_01','SCOPE_02','Duration SCOPE_02',...Array.from({length:26},(_,i)=>'Other_'+i)];
+const planningSource=['A company','C-1','A-1','Pending Planning','','','11.00','','','','','x','8','x','3',...Array(26).fill('')];
+const scopeConfig=[['SlotKey','ScopeCode'],['SCOPE_01','GAP'],['SCOPE_02','GRASP']];
 const sourceEvidence={
- readAuditRows:[['Audit ID','Company_UID','Status'],['A-1','C-1','Pending Planning']],
+ readAuditRows:[planningHeaders,planningSource],
  readObligationRows:[['Obligation_ID','Company_UID','ScopeCode','Formal_Hours','Obligation_State'],['O-1','C-1','GAP',8,'OPEN'],['O-2','C-1','GRASP',3,'LINKED_TO_VISIT']],
  readLinkRows:[header,['A-1','O-1','ACTIVE','2026-01-01',''],before],
- emptyAppendRows:[{row:5,before:[]}]
+ readConfigScopeRows:scopeConfig,
+ emptyAppendRows:[{row:5,before:[]}],
+ emptyPlanningRows:[{row:4,before:[]}]
 };
 const proof={sourceEvidence,
  success:true,authorityPreflight:true,auditId:'A-1',companyUid:'C-1',
  sourceRevision:rev,expectedSourceRevision:rev,writerVerified:true,
  obligations,obligationIds:['O-1','O-2'],mode:'SEPARATELY',
  visits,linkValues:[header,['A-1','O-1','ACTIVE','2026-01-01',''],before],
- appendRowNumbers:[5],now:'2026-11-11T17:10:00',verifiedEmptyAppendRows:true,
+ appendRowNumbers:[5],planningAppendRowNumbers:[4],now:'2026-11-11T17:10:00',verifiedEmptyAppendRows:true,verifiedEmptyPlanningRows:true,
  requiredProofs:['SOURCE_REVISION_CAS','CANONICAL_MODEL_C_LINKS','CANONICAL_VISIT_IDENTITIES','AVAILABILITY_CLAIM_PARITY','SHEETS_PREIMAGE_PARITY','NOTIFICATION_OUTBOX_INTENTS'],
  projectionWrites:planRows,projectionPreconditions:prerequisites,
  appendIntents:[{range:'Notification Queue!A:M',values:[['now','COMPOSE_VISIT','A-1','A-2']]}],
@@ -71,6 +80,12 @@ const proof={sourceEvidence,
  {auditId:'A-2',expectedRevision:null,remove:false,auditorId:'aud-1',blocks:visits[1].blocks,nextSnapshot:successor}
  ]
 };
+const prepared=prepareVisitCompositionCommand20({auditId:'A-1',companyUid:'C-1',sourceRevision:rev,
+ obligations,mode:'SEPARATELY',visits});
+const planningSplit=prepareModelCPlanningVisitSplitRows20({command:prepared,
+ planningValues:sourceEvidence.readAuditRows,configScopeValues:scopeConfig,newRowNumbers:[4]});
+proof.projectionWrites.push(...planningSplit.projectionWrites);
+proof.projectionPreconditions.push(...planningSplit.projectionPreconditions);
 const canonicalReader={async read(){return structuredClone(sourceEvidence)}};
 const service=createPlanningVisitCompositionService20({enabled:true,store,gate,projector,appendProjector,canonicalReader,
  preflight:async({operationId})=>({...structuredClone(proof),verifiedEmptyAppendRows:!wrong,gateOperationId:operationId})});

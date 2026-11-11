@@ -1,4 +1,5 @@
 import http from 'node:http';
+import {validateTogetherCompositionPreflight20} from './visit-composition-together-r4-preflight-20.mjs';
 import {resolveManagerApprovalRecipient20} from './manager-approve-recipient-20.mjs';
 import {createScopeExtensionCommand20} from './model-c-scope-extension-command-20.mjs';
 import {createScopeExtensionFirestoreStore20} from './model-c-scope-extension-firestore-store-20.mjs';
@@ -1967,6 +1968,11 @@ function directPlanningCommit(identity,body){
   if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
   const actorRole=clean(identity?.role).toUpperCase(),actorEmail=clean(identity?.email).toLowerCase(),started=Date.now(),auditId=clean(body?.auditId),auditorEmail=clean(body?.auditorEmail).toLowerCase(),auditorName=clean(body?.auditorName),sourceRevision=clean(body?.sourceRevision);
   const authorityPreflight=process.env.AMS_RUNTIME_ENV==='DEV'&&(process.env.AMS_DEV_FIRESTORE_PLANNING_AUTHORITY_ENABLED==='true'||process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true')&&body?.authorityPreflight===true;
+  const compositionMode=clean(body?.composition||'SINGLE').toUpperCase();
+  if(compositionMode==='SEPARATELY')throw Error('VISIT_COMPOSITION_SPLIT_ATOMIC_ROUTE_REQUIRED');
+  if(compositionMode==='TOGETHER'&&(!authorityPreflight||actorRole!=='MANAGER'||process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED!=='true'))
+   throw Error('VISIT_COMPOSITION_TOGETHER_ATOMIC_AUTHORITY_REQUIRED');
+  if(!['SINGLE','TOGETHER'].includes(compositionMode))throw Error('VISIT_COMPOSITION_MODE_INVALID');
   if(actorRole!=='MANAGER'&&actorRole!=='AUDITOR')throw new Error('PLANNING_ACTOR_ROLE_INVALID');
   if(actorRole==='AUDITOR'&&auditorEmail!==actorEmail)throw new Error('AUDITOR_CANNOT_PLAN_FOR_OTHER_AUDITOR');
   if(!auditId||!auditorEmail)throw new Error('PLANNING_REQUIRED_FIELDS_MISSING');
@@ -1980,7 +1986,7 @@ function directPlanningCommit(identity,body){
     if(((actorRole==='MANAGER'&&currentStatus==='APPROVED')||(actorRole==='AUDITOR'&&currentStatus==='PENDING_APPROVAL'))&&currentAssigned===auditorEmail&&sameBlocks)return{success:true,idempotent:true,auditId,newStatus:actorRole==='MANAGER'?'Approved':'Pending Approval',assignedTo:auditorEmail,planningJson:clean(found.row[col(found.h,['Planning JSON','PlanningJSON','Planning'])]),totalMs:Date.now()-started,readMs,writeMs:0,sideEffectMs:0,sideEffectQueue:{success:true,skipped:true,reason:'IDEMPOTENT_REPLAY'},owner:actorRole==='MANAGER'?'CLOUD_RUN_DIRECT_SHEETS_MANAGER_PLAN':'CLOUD_RUN_DIRECT_SHEETS_AUDITOR_SELF_PLAN'};
     if(sourceRevision&&sourceRevision!==clean(audit.sourceRevision))throw new Error('PLANNING_SOURCE_REVISION_CONFLICT');
     if(currentStatus!=='PENDING_PLANNING')throw new Error('STATUS_TRANSITION_BLOCKED');
-    const requireCanonicalQualifications=process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_SCOPE20_CANONICAL_QUALIFICATIONS_READ_ENABLED==='true';
+    const requireCanonicalQualifications=compositionMode==='TOGETHER'||process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_SCOPE20_CANONICAL_QUALIFICATIONS_READ_ENABLED==='true';
     const qualificationRelations=requireCanonicalQualifications?(await sheetsBatchGet(['Auditor_Scope_Qualifications!A1:C5000']))[0]?.values:undefined;
     if(requireCanonicalQualifications&&(!Array.isArray(qualificationRelations)||!qualificationRelations.length))throw Error('CANONICAL_QUALIFICATIONS_NOT_LOADED');
     const assignmentHard=v211AssignmentHardCheck({auditorEmail,auditorValues:vr[1]?.values||[],catalog,scopeCodes:audit.scopes||[],companyValues:vr[5]?.values||[],companyUid:audit.companyUid,companyName:audit.company,logValues:vr[8]?.values||[],requestedDates:requested.map(b=>b.date),qualificationRelations,requireCanonicalQualifications});if(!assignmentHard.ok)throw new Error(assignmentHard.reasons[0]);
@@ -2037,8 +2043,13 @@ function directPlanningCommit(identity,body){
       x.row[z.s]=b.start;x.row[z.e]=b.end;x.row[z.id]=auditId;x.row[z.st]=actorRole==='MANAGER'?'Manager Planned':'Auditor Planned';x.row[ca]='NO';if(lu>=0)x.row[lu]=isoLocalStamp();touched.set(x.sheetRow,x);
     }
 
+    const together=compositionMode==='TOGETHER'?validateTogetherCompositionPreflight20({
+      auditId,companyUid:audit.companyUid,obligations:vr[6]?.values||[],
+      links:vr[7]?.values||[],blocks:requested,allocations:body?.scopeAllocations,
+      formalTargetMinutes
+    }):null;
     const h=ap[0]||[],row=found.row.slice(),set=(names,value)=>{const i=col(h,names);if(i>=0)row[i]=value;};
-    const now=isoLocalStamp(),formalHours=Math.round(Number(audit.formalHours||audit.requiredHours||0)*100)/100,planningJson=JSON.stringify({blocks:requested,formalHours,totalPlannedHours:Math.round(total*100)/100,offsiteHours,maxOffsiteHours:Number(offsitePolicy.maxOffsiteHours||0),auditorEmail,auditorName});
+    const now=isoLocalStamp(),formalHours=Math.round(Number(audit.formalHours||audit.requiredHours||0)*100)/100,planningJson=JSON.stringify({blocks:requested,formalHours,totalPlannedHours:Math.round(total*100)/100,offsiteHours,maxOffsiteHours:Number(offsitePolicy.maxOffsiteHours||0),auditorEmail,auditorName,...(together?{composition:'TOGETHER',scopeAllocations:together.scopeAllocations}:{})});
     const afterStatus=actorRole==='MANAGER'?'Approved':'Pending Approval';set(['Assigned to'],auditorEmail);
     const uidColumn=col(h,['Auditor_UID','Auditor UID']);
     if(uidColumn<0)throw Error('PLANNING_AUDITOR_UID_COLUMN_MISSING');{const auditorRows=vr[1]?.values||[],ah=auditorRows[0]||[],ae=col(ah,['E-mail','Email']),au=col(ah,['Auditor_UID','Auditor UID']);if(ae<0||au<0)throw Error('PLANNING_AUDITOR_UID_SCHEMA_MISSING');const matching=auditorRows.slice(1).filter(x=>val(x,ae).toLowerCase()===auditorEmail);if(matching.length!==1||!val(matching[0],au))throw Error('PLANNING_AUDITOR_UID_UNRESOLVED');row[uidColumn]=val(matching[0],au);}
@@ -2063,7 +2074,8 @@ set(['Date - Planned'],requested[0].date);if(actorRole==='MANAGER')set(['Date - 
       return {success:true,authorityPreflight:true,auditId,
         expectedSourceRevision:clean(audit.sourceRevision),
         canonicalSnapshot:{auditId,sourceRow:found.sourceRow,headers:h,row,status:afterStatus,
-          assignedTo:auditorEmail,blocks:requested,planningJson,sourceRevision:directRowRevision(h,row)},
+          assignedTo:auditorEmail,blocks:requested,planningJson,sourceRevision:directRowRevision(h,row),
+          ...(together?{composition:'TOGETHER',scopeAllocations:together.scopeAllocations}:{})},
         projectionWrites:writes,
         projectionPreconditions:writes.map(w=>{
           const match=/^(.+)!A(\\d+):/.exec(w.range);
@@ -2074,6 +2086,7 @@ set(['Date - Planned'],requested[0].date);if(actorRole==='MANAGER')set(['Date - 
           return {range:w.range,before:match[1]==='Auditor Availability'&&Number(match[2])>initialAvailabilityRowCount?[]:source[Number(match[2])-1]?.slice()||[]};
         }),
         notificationIntents:[trailRow,plannedRow],
+        ...(together?{visitCompositionCanonical:true,scopeAllocation:together.scopeAllocation}:{}),
         plannedHours:Math.round(total*100)/100,
         owner:'CLOUD_RUN_DEV_AUTHORITY_PREFLIGHT'};
     }

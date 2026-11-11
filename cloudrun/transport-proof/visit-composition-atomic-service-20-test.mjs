@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {createVisitCompositionAtomicService20} from './visit-composition-atomic-service-20.js';
 const blocks=[{date:'2027-03-12',start:'09:00',end:'12:00'}];
+const splitId=obligationId=>'VIS-'+createHash('sha256').update(
+ ['AMS_SPLIT_V1','source-1','company-1',obligationId].join('|')
+).digest('hex').slice(0,20).toUpperCase();
 const v=(id,ob,minutes=180)=>({auditId:id,obligationIds:ob,snapshot:{auditId:id,status:'Approved',
  allocations:ob.map(obligationId=>({blockId:'block-1',obligationId,minutes:minutes/ob.length}))},
  auditorId:'aud-1',auditorEmail:'auditor@example.test',companyUid:'company-1',
@@ -8,7 +12,7 @@ const v=(id,ob,minutes=180)=>({auditId:id,obligationIds:ob,snapshot:{auditId:id,
 function testFixture(mode='TOGETHER'){
  const auditId='source-1';
  const visits=mode==='TOGETHER'?[v(auditId,['ob-1','ob-2'],180)]:
-  [v('new-1',['ob-1']),{...v('new-2',['ob-2']),blocks:[{date:'2027-03-12',start:'12:00',end:'15:00'}]}];
+  [v(splitId('ob-1'),['ob-1']),{...v(splitId('ob-2'),['ob-2']),blocks:[{date:'2027-03-12',start:'12:00',end:'15:00'}]}];
  const entities=mode==='TOGETHER'?
   [{auditId,expectedRevision:1,remove:false,auditorId:'aud-1',blocks,nextSnapshot:visits[0].snapshot}]:
   [{auditId,expectedRevision:1,remove:true,auditorId:null,blocks:[],nextSnapshot:{auditId,status:'Completed'}},
@@ -68,6 +72,12 @@ for(const mode of ['TOGETHER','SEPARATELY']){
  rejected.preview.freshAvailabilityProvenance=false;
  await assert.rejects(()=>rejected.service.commit(args),/AUTHORITY_PREFLIGHT_INCOMPLETE/);
  assert.equal(rejected.stats().applied,0);
+ if(mode==='SEPARATELY'){
+  const malformed=testFixture(mode);
+  malformed.preview.visits[0].auditId='client-controlled-id';
+  await assert.rejects(()=>malformed.service.commit(args),/SPLIT_IDENTITY_NOT_DETERMINISTIC/);
+  assert.equal(malformed.stats().applied,0);
+ }
  const drift=testFixture(mode);drift.preview.availabilityVersions['aud-1']=9;
  await assert.rejects(()=>drift.service.commit(args),/AVAILABILITY_VERSION_DRIFT/);
  assert.equal(drift.stats().leases,0);assert.equal(drift.stats().locked,false);

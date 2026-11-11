@@ -30,6 +30,21 @@ export function createCompositionCapacityGate20({availabilityService,hardGate,ro
      !Array.isArray(entities)||!entities.length||
      entities.some(x=>!str(x?.auditId)||!str(x.auditorId)||!Array.isArray(x.blocks)||!x.blocks.length))
    fail('COMPOSITION_CAPACITY_INPUT_INVALID');
+  const expectedVisits=command.mode==='TOGETHER'
+   ?[{auditId:command.auditId,blocks:command.blocks}]
+   :command.visits;
+  if(!Array.isArray(expectedVisits)||expectedVisits.length!==entities.length||
+     new Set(entities.map(e=>e.auditId)).size!==entities.length||
+     expectedVisits.some(visit=>{
+      const matches=entities.filter(e=>e.auditId===visit.auditId);
+      if(matches.length!==1)return true;
+      const entity=matches[0];
+      return JSON.stringify(entity.blocks)!==JSON.stringify(visit.blocks)||
+       (command.mode==='SEPARATELY'&&
+        (str(entity.nextSnapshot?.obligationId)!==str(visit.obligationId)||
+         !str(visit.obligationId)));
+     }))
+   fail('COMPOSITION_CAPACITY_VISIT_MEMBERSHIP_MISMATCH');
   const directory=await canonicalReader.readQualifications();
   const rosterRows=await roster();
   if(!Array.isArray(rosterRows)||!rosterRows.length)

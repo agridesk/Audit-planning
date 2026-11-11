@@ -20,6 +20,7 @@ const identity=read('./visit-composition-identity-20.mjs');
 const qualifications=read('./visit-composition-qualification-20.mjs');
 const capacityGate=read('./planning-composition-capacity-gate-20.mjs');
 const windows=read('./visit-composition-window-20.mjs');
+const sourceRevision=read('./visit-composition-source-revision-20.mjs');
 const compositionOverview=read('./visit-composition-overview-20.mjs');
 const handoff=managerPortal.split('function submitSelectionHandoff(mode){')[1]?.split('\nfunction text(v)')[0]||'';
 const checks={
@@ -52,6 +53,7 @@ const checks={
   'Issue87 qualifications are verified from canonical directory':qualifications.includes('COMPOSITION_QUALIFICATIONS_SCOPE_NOT_QUALIFIED')&&canonicalPreflight.includes('verifyCompositionAuditorQualifications20(')&&canonicalReader.includes('readQualifications()')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-qualification-20-test.mjs')===true,
   'Issue87 availability leases are mandatory per visit':capacityGate.includes('availabilityService.acquirePlanningLease(')&&capacityGate.includes('markPlanningLeaseUncertain(')&&atomicComposition.includes('capacityGate.acquire(')&&packageJson.scripts['test:issue87-allocation']?.includes('planning-composition-capacity-gate-20-test.mjs')===true,
   'Issue87 failed capacity release never unlocks the global gate as verified':atomicComposition.includes('COMPOSITION_CAPACITY_LEASE_RELEASE_UNKNOWN')&&atomicComposition.includes('capacityReleaseFailed=true'),
+  'Issue87 atomic writer checks Sheets source revision independently of preflight':sourceRevision.includes('deriveCompositionSourceRevision20')&&atomicComposition.includes('COMPOSITION_SERVICE_SHEETS_SOURCE_REVISION_CONFLICT')&&atomicComposition.includes('deriveCompositionSourceRevision20(')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-source-revision-20-test.mjs')===true,
   'Issue87 planning windows are verified per canonical obligation':windows.includes('COMPOSITION_WINDOW_OUTSIDE_ALLOWED_PERIOD')&&atomicComposition.includes('verifyVisitCompositionWindows20(')&&canonicalPreflight.includes('verifyVisitCompositionWindows20(')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-window-20-test.mjs')===true,
   'Issue87 Separate proposal validates blocks and individual auditors without writes':canonicalPreflight.includes('COMPOSITION_PREFLIGHT_SEPARATE_VISIT_UNTRUSTED_IDENTITY')&&canonicalPreflight.includes('visitQualifications=command.visits.map(')&&canonicalPreflight.includes('FIRESTORE_IDENTITY_CAS_CAPACITY_AND_PROJECTION_REQUIRED')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-canonical-preflight-20-test.mjs')===true,
   'Issue87 Separate preflight rejects existing canonical target Audit IDs':canonicalPreflight.includes('COMPOSITION_PREFLIGHT_NEW_AUDIT_ID_ALREADY_EXISTS')&&canonicalPreflight.includes('allAuditIds.has(visit.auditId)')

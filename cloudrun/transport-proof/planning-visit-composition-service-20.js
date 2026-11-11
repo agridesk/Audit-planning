@@ -126,10 +126,12 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
       proof.projectionPreconditions.map(x=>x.range))||
       !proof.projectionWrites.length||!proof.appendIntents.length)
     fail('COMPOSITION_SERVICE_PROJECTOR_PLAN_INVALID');
-   // Scope the writeset to the three canonical planning targets. No legacy
-   // log, company, notification template or unrelated sheet may be updated.
-   // Availability mutations require a separate independently validated canonical
-   // writeset. Until that contract exists, no Availability row may be changed.
+   // Canonical committed Planning JSON owns audit occupancy. Availability is
+   // a resolver/read model, never a second occupancy SSoT. Do not materialize
+   // planning changes as Auditor Availability Sheet writes (Availability 2.0,
+   // sections 13, 15, 17 and 19). Only planning and Model C link projections
+   // are permitted; resolver freshness and targeted invalidation are separate
+   // required integration contracts.
    const allowedSheets=new Set(['Audit planning','Audit_Visit_Obligations']);
    const writeRanges=new Set();
    for(const write of proof.projectionWrites){

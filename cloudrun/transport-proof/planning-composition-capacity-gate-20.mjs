@@ -27,9 +27,12 @@ export function createCompositionCapacityGate20({availabilityService,hardGate,ro
   const leaseActor={role:'manager',id:actor.auditorId};
   const markUncertain=async(reason)=>{
    const failures=[];
-   for(const lease of pending.splice(0).reverse()){
-    try{await availabilityService.markPlanningLeaseUncertain({...lease,reason});}
-    catch(e){failures.push(e);}
+   for(let i=pending.length-1;i>=0;i--){
+    const lease=pending[i];
+    try{
+      await availabilityService.markPlanningLeaseUncertain({...lease,reason});
+      pending.splice(i,1);
+    }catch(e){failures.push(e);}
    }
    if(failures.length)fail('COMPOSITION_CAPACITY_UNCERTAIN_RECOVERY_REQUIRED');
   };

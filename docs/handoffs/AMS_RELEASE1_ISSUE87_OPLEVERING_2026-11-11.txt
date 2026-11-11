@@ -1,0 +1,42 @@
+AMS RELEASE 1 — ISSUE #87
+OPLEVERING / OVERDRACHT — 11-11-2026
+
+Repository: agridesk/Audit-planning
+Branch: release1-p0-45-46-87
+Laatst in deze sessie bevestigde commit: d5359621770fe006663c4a3ee608ab85a0ea86d9
+
+OPGELEVERD IN GITHUB
+- Canonical Model C-bronlezing: Audit planning, Audit_Obligations, Audit_Visit_Obligations, Config_Scopes.
+- Afgeschermde read-only DEV-routes voor composition overview en preflight; standaard uitgeschakeld.
+- Together: expliciete scope/minuutverdeling en validatie.
+- Separately: voorbereide Model C-linkoverdracht plus volledige Audit planning-rijprojecties.
+- Deterministische nieuwe Audit ID-voorstellen met hercontrole in de geïsoleerde atomic service.
+- Canonical auditorqualificaties per scope.
+- Per-visit Availability-leases via afzonderlijke capaciteitspoort, inclusief release en UNCERTAIN-afhandeling.
+- Begrenzing van Sheets-write targets en notificaties tot de canonical Notification Queue-indeling (13 kolommen).
+- Geïsoleerde regressietests en GitHub Actions-workflow: .github/workflows/ams-issue87-composition.yml.
+
+BEVESTIGD
+- Laatste door gebruiker uitgevoerde volledige gerichte regressie: PASS; toenmalige Release 1-sourcegate: 22/22.
+- Nadien geïsoleerd uitgevoerde tests: canonical identity, qualifications, preflight, capacity lease en atomic Together/Separately: PASS in V8-testharnas.
+- De volledige Node-regressie en GitHub Actions-status van de nieuwste commits zijn nog NIET bevestigd.
+- Live DEV SSoT read-only: 155 ACTIVE, 46 INACTIVE Model C-links; geen dubbele ACTIVE obligation-links.
+- 41 multi-scope Audit ID's; daarvan 25 Pending Planning, 6 Pending Approval, 5 Approved, 5 Accepted.
+- Van de 25 Pending Planning multi-scope cases waren 23 consistent; 2 met afwijkende uren/scopevelden.
+- Representatieve live DEV read-only split-dry-run: 660 minuten, 2 planningrijprojecties, 2 Model C-linkprojecties; geen writes.
+
+NOG NIET OPGELEVERD / BLOKKADES
+- Geen geactiveerde HTTP-commitroute voor #87 en geen live DEV-mutatieproef.
+- Canonical writer-preflight (inclusief volledige bron-, status-, Availability-, notification- en transaction-CAS-evidence) is nog niet end-to-end aangesloten.
+- Live DEV E2E-tests voor Manager/Auditor ontbreken.
+- Andere Release 1 PROD-blokkades: legacy directe lifecycle-writers, realized-hours pariteit, IAM/Firestore/runtime-bewijs.
+
+VEILIGHEID
+- Geen deployment uitgevoerd.
+- Geen DEV- of PROD-data gemuteerd.
+- PROD blijft NO-GO.
+
+VOLGENDE GATE
+- Volledige Node-regressie op nieuwste featurebranch bevestigen.
+- Daarna uitsluitend gecontroleerde read-only DEV-validatie/deployment, vooraf de runtimeconfiguratie en deploymentparameters expliciet toetsen.
+- Geen writer-cutover zonder aantoonbare transactionele en functionele E2E-pariteit.

@@ -103,8 +103,13 @@ const canonicalReader={
   qualificationRows:[['Auditor_UID','ScopeCode','Qualified'],['auditor-uid','GAP','YES'],['auditor-uid','GRASP','YES']]
  }}
 };
-let capacityLeases=0,capacityReleased=0,capacityUncertain=0,failCapacityRelease=false;
+let capacityLeases=0,capacityReleased=0,capacityUncertain=0,failCapacityRelease=false,failCapacityAcquireCleanup=false;
 const capacityGate={async acquire(){
+ if(failCapacityAcquireCleanup){
+  const e=new Error('COMPOSITION_CAPACITY_UNCERTAIN_RECOVERY_REQUIRED');
+  e.code='COMPOSITION_CAPACITY_UNCERTAIN_RECOVERY_REQUIRED';
+  throw e;
+ }
  capacityLeases++;
  return {async release(){if(failCapacityRelease)throw Error('SIMULATED_LEASE_RELEASE_FAILURE');capacityReleased++},async uncertain(){capacityUncertain++}};
 }};
@@ -159,6 +164,12 @@ overrideProof={obligations:obligations.map((x,i)=>({...x,scopeCode:i===0?'GRASP'
 await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SERVICE_SOURCE_EVIDENCE_MISMATCH/);
 assert.equal(commits,0);assert.equal(token,null);
 overrideProof={};
+failCapacityAcquireCleanup=true;
+await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_CAPACITY_UNCERTAIN_RECOVERY_REQUIRED/);
+assert.equal(token?.uncertain,true);
+assert.equal(commits,0);
+failCapacityAcquireCleanup=false;
+token=null; // Simulated verified operator recovery before the next independent scenario.
 const first=await service.commit({actor,body});
 assert.equal(first.success,true);assert.equal(first.mode,'TOGETHER');
 assert.equal(commits,1);assert.equal(applies,1);assert.equal(notifications,1);assert.equal(marked,1);

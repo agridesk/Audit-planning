@@ -187,3 +187,14 @@ AANVULLING — 11-11-2026 — USER GATE 44/44, CLIENT-AUTHORITY EN DESTINATION F
 - Release source gate extended with both source checks; on latest code full local Node suite has not been re-run; previous 44/44 cannot be presented as proof for new commits.
 - Relevant latest commits: f7918fa1, 9b12cb61, 7bcff6c4, 99f99a51, 420468d4, 758f67b2, e8089523, 2acbda4e, 8f159a22, d3997ac5.
 - Real writer preflight, independent Availability writeset parity and live DEV E2E remain OPEN. No writer HTTP route, no deployment or DEV/PROD data changes. PROD NO-GO.
+
+AANVULLING — 11-11-2026 — GOVERNANCE-CORRECTIE AVAILABILITY OWNERSHIP
+Bron: AMS_MY_AVAILABILITY_2_0_HANDOFF_SPEC_2026-10-04_FINAL.txt, secties 2, 13, 15, 17, 19 en 24.
+- Availability is resolver/read model voor FREE/SOFT/HARD/COMMITTED/PROVISIONAL, GEEN tweede planning-SSoT.
+- Canonical committed Planning JSON is de enige eigenaar van auditbezetting. Het plannen van Together/Separately mag daarom GEEN nieuwe occupied/Available-records in Auditor Availability materialiseren.
+- De composer weigert terecht elke projectie naar Auditor Availability. Dit is niet tijdelijk om op een nieuwe Availability-schrijver te wachten, maar de bedoelde canonical ownership.
+- Bij elke planning Save: fresh, server-side canonical resolved Availability revalideren onder dezelfde governance/gate, met HARD absoluut onplanbaar voor nieuwe planning, COMMITTED-conflicten en PROVISIONAL-reserveringen. SOFT is waarschuwing, geen blokkade. Intervalsemantiek [start,end).
+- Na geslaagde canonical planning commit: uitsluitend gerichte Availability read-model/cache invalidation van de betreffende auditoren en perioden; geen Availability-rijwijzigingen of handmatige cleanup.
+- CORRECTIE OP EERDERE HANDOFF-TEKST: uitspraken dat een 'Availability-writeset/projector' verplicht ontbreekt voor Issue87 zijn VERVALD. Actueel open: bewijs voor verse canonical RESOLVED Availability-pariteit, interval-/conflictvalidatie en targeted invalidation na commit.
+- Nog open: echte authoritative preflight-implementatie en E2E runtimebewijs. Tests 44/44 uit gebruikerscherm gelden voor eerdere branchversie; nieuwste commits niet volledig lokaal bevestigd.
+- Geen deployment, geen DEV/PROD mutaties; PROD blijft NO-GO.

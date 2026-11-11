@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {createPlanningVisitCompositionService20} from './planning-visit-composition-service-20.js';
+import {prepareVisitCompositionCommand20} from './visit-composition-command-20.mjs';
+import {prepareScheduledCompositionTogetherRow20} from './visit-composition-scheduled-together-20.mjs';
 
 const revision=createHash('sha256').update('A-1|Pending Planning||||').digest('hex').slice(0,24);
 const obligations=[
@@ -22,15 +24,19 @@ const requiredProofs=['SOURCE_REVISION_CAS','CANONICAL_MODEL_C_LINKS','CANONICAL
 let token=null,commits=0,applies=0,notifications=0,marked=0,uncertain=0,preflights=0;
 const outbox=new Map();
 const snapshot={auditId:'A-1',companyUid:'C-1',sourceRevision:revision,status:'Approved',scopeAllocations:allocations};
+const planningHeaders=['Audit ID','Company_UID','Status','Assigned to','Planning JSON',
+ 'Total audit time in hours','Date - Planned','Date - Approved','Auditor_UID',
+ 'Last manager decision','Last decision timestamp','Status since',...Array.from({length:29},(_,i)=>'Other_'+i)];
+const sourceRow=['A-1','C-1','Pending Planning','','','11','','','','','','',...Array(29).fill('')];
 const sourceEvidence={
- readAuditRows:[['Audit ID','Company_UID','Status'],['A-1','C-1','Pending Planning']],
+ readAuditRows:[planningHeaders,sourceRow],
  readObligationRows:[['Obligation_ID','Company_UID','ScopeCode','Formal_Hours','Obligation_State','Planning_Window_From','Planning_Window_To'],['O-1','C-1','GAP',8,'OPEN','2026-11-01','2026-12-01'],['O-2','C-1','GRASP',3,'OPEN','01/11/2026','30/11/2026']],
  readLinkRows:[['Audit_ID','Obligation_ID','Link_State'],['A-1','O-1','ACTIVE'],['A-1','O-2','ACTIVE']],
  emptyAppendRows:[]
 };
 const proof={sourceEvidence,authorityPreflight:true,success:true,auditId:'A-1',companyUid:'C-1',
  sourceRevision:revision,expectedSourceRevision:revision,obligations,
- obligationIds:['O-1','O-2'],mode:'TOGETHER',writerVerified:true,
+ obligationIds:['O-1','O-2'],mode:'TOGETHER',writerVerified:true,now:'2026-11-11T17:10:00',
  requiredProofs,canonicalSnapshot:snapshot,
  projectionWrites:[{range:'Audit planning!A2:B2',values:[['A-1','Approved']]}],
  projectionPreconditions:[{range:'Audit planning!A2:B2',before:['A-1','Pending Planning']}],
@@ -64,9 +70,29 @@ const appendProjector={
  async apply(){notifications++},
  async inspect(){return {state:'MATCH',count:1}}
 };
+const command=prepareVisitCompositionCommand20({
+ auditId:'A-1',companyUid:'C-1',sourceRevision:revision,
+ obligations,mode:'TOGETHER',blocks,allocations:body.allocations
+});
+const scheduled=prepareScheduledCompositionTogetherRow20({
+ command,planningValues:sourceEvidence.readAuditRows,
+ assignment:{auditorUid:'auditor-uid',auditorEmail:'auditor@example.com',auditorName:'Auditor Example'},
+ now:proof.now
+});
+proof.projectionWrites=scheduled.projectionWrites;
+proof.projectionPreconditions=scheduled.projectionPreconditions;
+snapshot.assignedTo=scheduled.assignedTo;
+snapshot.planningJson=scheduled.planningJson;
+snapshot.sourceRevision=scheduled.sourceRevision;
 const preflight=async({operationId})=>{preflights++;return {...structuredClone(proof),...overrideProof,gateOperationId:operationId}};
 let sourceRowsOverride=null;
-const canonicalReader={async read(){return structuredClone(sourceRowsOverride||sourceEvidence)}};
+const canonicalReader={
+ async read(){return structuredClone(sourceRowsOverride||sourceEvidence)},
+ async readQualifications(){return {
+  auditorRows:[['Name','E-mail','Role','Active','Auditor_UID'],['Auditor Example','auditor@example.com','Auditor','YES','auditor-uid']],
+  qualificationRows:[['Auditor_UID','ScopeCode','Qualified'],['auditor-uid','GAP','YES'],['auditor-uid','GRASP','YES']]
+ }}
+};
 let capacityLeases=0,capacityReleased=0,capacityUncertain=0,failCapacityRelease=false;
 const capacityGate={async acquire(){
  capacityLeases++;
@@ -101,13 +127,13 @@ overrideProof={projectionWrites:[
 await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SERVICE_TOGETHER_BUSINESS_PROJECTION_INVALID/);
 assert.equal(commits,0);assert.equal(token,null);
 overrideProof={};
-sourceRowsOverride={...sourceEvidence,
- readAuditRows:[['Audit ID','Company_UID','Status'],['A-1','OTHER','Pending Planning']]};
+sourceRowsOverride=structuredClone(sourceEvidence);
+sourceRowsOverride.readAuditRows[1][1]='OTHER';
 await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SOURCE_COMPANY_MISMATCH/);
 assert.equal(commits,0);assert.equal(token,null);
 sourceRowsOverride=null;
-sourceRowsOverride={...sourceEvidence,
- readAuditRows:[['Audit ID','Company_UID','Status'],['A-1','C-1','Approved']]};
+sourceRowsOverride=structuredClone(sourceEvidence);
+sourceRowsOverride.readAuditRows[1][2]='Approved';
 await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SERVICE_SHEETS_SOURCE_REVISION_CONFLICT/);
 assert.equal(commits,0);assert.equal(token,null);
 sourceRowsOverride=null;

@@ -2,7 +2,7 @@ const clean=x=>String(x??'').trim();
 const norm=x=>clean(x).toLowerCase().replace(/[^a-z0-9]+/g,'');
 const col=(h,...names)=>names.map(n=>h.findIndex(x=>norm(x)===norm(n))).find(x=>x>=0)??-1;
 const field=(row,i)=>i<0?'':clean(row[i]);
-export function previewModelCVisitComposition20({auditId,obligations,links}){
+export function previewModelCVisitComposition20({auditId,obligations,links,planningRows=null,configScopes=null}){
  const id=clean(auditId),oh=obligations?.[0]||[],lh=links?.[0]||[];
  if(!id)throw Error('AUDIT_ID_REQUIRED');
  const oi=col(oh,'Obligation_ID'),os=col(oh,'ScopeCode'),oc=col(oh,'Company_UID'),of=col(oh,'Formal_Hours','Required_Hours','Audit_Hours'),oe=col(oh,'Effective_Expiry_Date'),owf=col(oh,'Planning_Window_From'),owt=col(oh,'Planning_Window_To'),ost=col(oh,'Obligation_State');
@@ -14,5 +14,31 @@ export function previewModelCVisitComposition20({auditId,obligations,links}){
  if(rows.length!==ids.size)throw Error('MODEL_C_PREVIEW_LINK_UNRESOLVED');
  if(rows.some(r=>!r.obligationId||!r.scopeCode||!r.companyUid)||new Set(rows.map(r=>r.companyUid)).size>1)throw Error('MODEL_C_PREVIEW_IDENTITY_INCOMPLETE');
  if(new Set(rows.map(r=>r.obligationId)).size!==rows.length)throw Error('MODEL_C_PREVIEW_DUPLICATE_OBLIGATION');
- return {auditId:id,companyUid:rows[0]?.companyUid||'',scopeCount:rows.length,obligations:rows,compositionOptions:rows.length>1?['TOGETHER','SEPARATELY']:['SINGLE'],readOnly:true,canCommit:false,allocationStatus:'NOT_PROVIDED'};
+ const source={checked:false,sourceRows:null,status:null,companyUid:null,revision:'NOT_VERIFIED'};
+ if(planningRows!==null){
+  const ph=planningRows?.[0]||[],pa=col(ph,'Audit ID','Audit_ID'),ps=col(ph,'Status'),
+   pc=col(ph,'Company_UID','Company UID');
+  if(pa<0||ps<0)throw Error('MODEL_C_PREVIEW_PLANNING_SCHEMA_INCOMPLETE');
+  const matching=planningRows.slice(1).filter(r=>field(r,pa)===id);
+  if(matching.length!==1)throw Error('MODEL_C_PREVIEW_SOURCE_IDENTITY_CONFLICT');
+  source.checked=true;source.sourceRows=1;source.status=field(matching[0],ps);
+  source.companyUid=field(matching[0],pc)||null;
+  if(source.companyUid&&source.companyUid!==rows[0].companyUid)
+   throw Error('MODEL_C_PREVIEW_COMPANY_UID_CONFLICT');
+ }
+ let catalog={checked:false,missingScopeCodes:[],duplicateScopeCodes:[]};
+ if(configScopes!==null){
+  const ch=configScopes?.[0]||[],ci=col(ch,'ScopeCode');
+  if(ci<0)throw Error('MODEL_C_PREVIEW_SCOPE_CATALOG_SCHEMA_INCOMPLETE');
+  const counts=new Map();
+  for(const r of configScopes.slice(1)){const key=field(r,ci);if(key)counts.set(key,(counts.get(key)||0)+1);}
+  catalog={checked:true,missingScopeCodes:rows.filter(r=>!counts.has(r.scopeCode)).map(r=>r.scopeCode),
+   duplicateScopeCodes:rows.filter(r=>(counts.get(r.scopeCode)||0)>1).map(r=>r.scopeCode)};
+  if(catalog.missingScopeCodes.length||catalog.duplicateScopeCodes.length)
+   throw Error('MODEL_C_PREVIEW_SCOPE_CATALOG_IDENTITY_CONFLICT');
+ }
+ const missingRequiredHours=rows.filter(r=>!(Number(r.requiredHours)>0)).map(r=>r.obligationId);
+ const sourceEvidenceReady=source.checked&&catalog.checked&&!missingRequiredHours.length;
+
+ return {auditId:id,companyUid:rows[0]?.companyUid||'',scopeCount:rows.length,obligations:rows,compositionOptions:rows.length>1?['TOGETHER','SEPARATELY']:['SINGLE'],source,catalog,missingRequiredHours,sourceEvidenceReady,readOnly:true,canCommit:false,allocationStatus:'NOT_PROVIDED'};
 }

@@ -97,15 +97,12 @@ export function createVisitCompositionCanonicalPreflight20({reader}={}){
     ...base,sourceRevision:actualRevision,visits:prepared
    });
    const windows=verifyVisitCompositionWindows20({command,obligationRows:obs});
-   const source=verifyVisitCompositionSource20({
-    command,readAuditRows:ap,readObligationRows:obs,readLinkRows:links,
-    emptyAppendRows:prepared.slice(1).map((_,i)=>({row:ap.length+i+1,before:[]}))
-   });
-   if(source.obligationCount!==obligations.length||!windows.verified)
-    fail('COMPOSITION_PREFLIGHT_SEPARATE_CANONICAL_PROOF_INVALID');
+   // No append-row claims in a read-only preview: those can only be
+   // verified and reserved by the fenced writer against fresh SSoT reads.
+   if(!windows.verified)fail('COMPOSITION_PREFLIGHT_SEPARATE_WINDOW_INVALID');
    return {success:true,readOnly:true,writeEnabled:false,auditId,companyUid,
     sourceRevision:actualRevision,mode:'SEPARATELY',qualifications,
-    obligations:source.obligations,totalRequiredMinutes:command.totalMinutes,
+    obligations:result.obligations,totalRequiredMinutes:command.totalMinutes,
     proposedVisits:command.visits,windows:windows.obligations,
     requiredVisitCount:command.visits.length,canCommit:false,
     newIdsAreOnlyProposals:true,

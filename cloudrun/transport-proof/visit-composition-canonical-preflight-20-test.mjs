@@ -32,7 +32,7 @@ assert.match(separate.reason,/CANONICAL_VISIT_IDENTITY/);
 await assert.rejects(()=>service.preview({...together,sourceRevision:'b'.repeat(24)}),/COMPOSITION_PREFLIGHT_SOURCE_REVISION_CONFLICT/);
 await assert.rejects(()=>service.preview({...together,blocks:[together.blocks[0]],allocations:[together.allocations[0]]}),/SCOPE_ALLOCATION_REQUIRED_HOURS_MISMATCH|SCOPE_ALLOCATION_TOTAL_HOURS_MISMATCH/);
 rows.readAuditRows[1][2]='Accepted';
-await assert.rejects(()=>service.preview(together),/COMPOSITION_SOURCE_NOT_PENDING_PLANNING/);
+await assert.rejects(()=>service.preview({...together,sourceRevision:undefined}),/COMPOSITION_SOURCE_NOT_PENDING_PLANNING/);
 rows.readAuditRows[1][2]='Pending Planning';
 rows.readLinkRows.push(['A3','O2','ACTIVE','MIG','2026-01-01','']);
 await assert.rejects(()=>service.preview(together),/COMPOSITION_SOURCE_ACTIVE_LINK_CONFLICT/);

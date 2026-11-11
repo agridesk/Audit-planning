@@ -84,6 +84,17 @@ function validate(preview,sourceAuditId,mode,requestedRevision){
      !preview.sourceTombstone||preview.sourceTombstone.auditId!==sourceAuditId||
      !Array.isArray(preview.entities)||preview.entities.length!==visits.length+1)
    throw Error('VISIT_COMPOSITION_SPLIT_ENTITY_INVALID');
+  // Materialized split IDs must be derived from the source Audit + Company
+  // + Obligation identity, never supplied freely by the client.
+  for(const visit of visits){
+   if(visit.companyUid!==visits[0].companyUid)
+    throw Error('VISIT_COMPOSITION_CROSS_COMPANY_SPLIT_DENIED');
+   const expected='VIS-'+createHash('sha256').update(
+    ['AMS_SPLIT_V1',sourceAuditId,visit.companyUid,visit.obligationIds[0]].join('|')
+   ).digest('hex').slice(0,20).toUpperCase();
+   if(visit.auditId!==expected)
+    throw Error('VISIT_COMPOSITION_SPLIT_IDENTITY_NOT_DETERMINISTIC');
+  }
   const entityIds=preview.entities.map(e=>str(e.auditId));
   if(!distinct(entityIds)||!entityIds.includes(sourceAuditId)||auditIds.some(id=>!entityIds.includes(id))||
      preview.entities.find(e=>e.auditId===sourceAuditId)?.remove!==true||

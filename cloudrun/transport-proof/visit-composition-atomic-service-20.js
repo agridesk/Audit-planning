@@ -30,7 +30,7 @@ function validate(preview,sourceAuditId,mode,requestedRevision){
  if(allBlocks.some(b=>!/^\d{4}-\d{2}-\d{2}$/.test(str(b.date))||
     !/^\d{2}:\d{2}$/.test(str(b.start))||!/^\d{2}:\d{2}$/.test(str(b.end))))
   throw Error('VISIT_COMPOSITION_BLOCK_INVALID');
- const minute=t=>{const m=/^(\\d{2}):(\\d{2})$/.exec(str(t));if(!m)return NaN;const h=Number(m[1]),n=Number(m[2]);return h<24&&n<60?h*60+n:NaN;};
+ const minute=t=>{const m=/^(\d{2}):(\d{2})$/.exec(str(t));if(!m)return NaN;const h=Number(m[1]),n=Number(m[2]);return h<24&&n<60?h*60+n:NaN;};
  const intervals=allBlocks.map(b=>({...b,from:minute(b.start),to:minute(b.end)}));
  if(intervals.some(b=>!Number.isFinite(b.from)||!Number.isFinite(b.to)||b.to<=b.from))
   throw Error('VISIT_COMPOSITION_INTERVAL_INVALID');

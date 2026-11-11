@@ -66,6 +66,12 @@ assert.equal(split.totalRequiredMinutes,660);
 assert.equal(split.newIdsAreOnlyProposals,true);
 assert.equal(split.proposedVisits[0].auditId,'A1');
 assert.match(split.proposedVisits[1].auditId,/^A1_SPLIT_/);
+rows.readAuditRows.push([split.proposedVisits[1].auditId,'C1','Pending Planning','','','','','']);
+await assert.rejects(()=>service.preview({auditId:'A1',mode:'SEPARATELY',visits:[
+ {obligationId:'O1',blocks:[{date:'2026-11-18',start:'08:00',end:'16:00'}]},
+ {obligationId:'O2',blocks:[{date:'2026-11-19',start:'09:00',end:'12:00'}]}
+]}),/COMPOSITION_PREFLIGHT_NEW_AUDIT_ID_ALREADY_EXISTS/);
+rows.readAuditRows.pop();
 await assert.rejects(()=>service.preview({auditId:'A1',mode:'SEPARATELY',visits:[
  {obligationId:'O1',blocks:[{date:'2026-11-18',start:'08:00',end:'16:00'}]},
  {obligationId:'O2',auditId:'CLIENT_SELECTED',blocks:[{date:'2026-11-19',start:'09:00',end:'12:00'}]}
@@ -86,5 +92,5 @@ rows.readAuditRows[1][2]='Pending Planning';
 rows.readLinkRows.push(['A3','O2','ACTIVE','MIG','2026-01-01','']);
 await assert.rejects(()=>service.preview(together),/COMPOSITION_SOURCE_ACTIVE_LINK_CONFLICT/);
 rows.readLinkRows.pop();
-assert.equal(reads>=13,true);
+assert.equal(reads>=14,true);
 console.log('VISIT_COMPOSITION_CANONICAL_PREFLIGHT_20_PASS: actual revision, Together minute allocation, split preview, terminal and link drift, no writes');

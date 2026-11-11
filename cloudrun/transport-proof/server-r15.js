@@ -11,6 +11,7 @@ import {buildCbNotificationOverview20} from './certification-body-notification-o
 import {buildRotationManager20} from './rotation-manager-20.mjs';
 import {diagnoseRotationUid20} from './rotation-uid-reconciliation-20.mjs';
 import {previewModelCVisitComposition20} from './model-c-scope-visit-preview-20.mjs';
+import {resolveAuditorScopeQualifications20} from './auditor-scope-qualifications-20.js';
 import {createSwapFirestoreReadmodel} from './swap-firestore-readmodel-20.mjs';
 import {createSwapProposalIndex} from './swap-proposal-index-20.mjs';
 import {createSwapIndexScheduler} from './swap-index-scheduler-20.mjs';
@@ -1347,6 +1348,38 @@ http.createServer(async(req,res)=>{
    const configScopes=(await scopeResponse.json()).values||[];
    if(!configScopes.length||configScopes.length>=100)throw Error('MODEL_C_SCOPE_CATALOG_INCOMPLETE');
    const result=previewModelCVisitComposition20({auditId,obligations:data[0],links:data[1],planningRows,configScopes});
+   const requestedAuditorUid=String(u.searchParams.get('auditorUid')||'').trim();
+   result.qualification={checked:false,qualifiedForAllScopes:false,source:'NOT_REQUESTED'};
+   if(requestedAuditorUid){
+    if(requestedAuditorUid.length>180||/[\\/]/.test(requestedAuditorUid))
+     throw Error('MODEL_C_PREVIEW_AUDITOR_UID_INVALID');
+    const tables=[];
+    for(const [name,limit] of [['Auditors',500],['Auditor_Scope_Qualifications',5000]]){
+     const range="'"+name+"'!A1:AZ"+limit;
+     const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range);
+     const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()}});
+     if(!response.ok)throw Error('MODEL_C_QUALIFICATION_READ_'+response.status);
+     const rows=(await response.json()).values||[];
+     if(!rows.length||rows.length>=limit)throw Error('MODEL_C_QUALIFICATION_SOURCE_INCOMPLETE');
+     tables.push(rows);
+    }
+    const resolution=resolveAuditorScopeQualifications20({
+     auditors:tables[0],catalog:configScopes,relations:tables[1],auditorUid:requestedAuditorUid
+    });
+    const h=tables[0][0],uidIndex=h.indexOf('Auditor_UID'),
+     activeIndex=h.indexOf('Active'),roleIndex=h.indexOf('Role');
+    if(uidIndex<0||activeIndex<0||roleIndex<0)throw Error('MODEL_C_AUDITOR_STATUS_SCHEMA_INCOMPLETE');
+    const matches=tables[0].slice(1).filter(row=>String(row[uidIndex]||'').trim()===requestedAuditorUid);
+    if(matches.length!==1)throw Error('MODEL_C_AUDITOR_IDENTITY_AMBIGUOUS');
+    const active=['YES','TRUE','X','1'].includes(String(matches[0][activeIndex]||'').trim().toUpperCase());
+    const role=String(matches[0][roleIndex]||'').trim().toUpperCase();
+    const qualified=new Set(resolution.qualifiedScopeCodes.map(x=>String(x).toLowerCase()));
+    const missingScopeCodes=result.obligations.map(x=>x.scopeCode)
+     .filter(x=>!qualified.has(x.toLowerCase()));
+    result.qualification={checked:true,auditorUid:requestedAuditorUid,
+     qualifiedForAllScopes:active&&role==='AUDITOR'&&!missingScopeCodes.length,
+     active,role,missingScopeCodes,source:resolution.source};
+   }
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
   }
   if(req.method==='GET'&&['/api/v1/rotation','/api/v1/rotation-manager-20'].includes(u.pathname)){

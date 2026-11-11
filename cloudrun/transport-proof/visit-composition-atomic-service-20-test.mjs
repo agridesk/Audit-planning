@@ -20,7 +20,15 @@ function testFixture(mode='TOGETHER'){
   projectionWrites:[{range:'Audit planning!A2:B2',values:[['x','y']]}],
   projectionPreconditions:[{range:'Audit planning!A2:B2',before:['a','b']}],
   appendIntents:[{range:'Notification Queue!A:M',values:[['PLAN']]}],
-  visits,entities,sourceTombstone:{auditId},projectionPlan:{auditId}};
+  visits,entities,sourceTombstone:{auditId},projectionPlan:{auditId},
+  scopeAllocation:mode==='TOGETHER'?{
+   auditId,composition:'TOGETHER',
+   obligations:[{auditId,obligationId:'ob-1',scopeCode:'GAP',linkState:'ACTIVE',requiredMinutes:90},
+    {auditId,obligationId:'ob-2',scopeCode:'GRASP',linkState:'ACTIVE',requiredMinutes:90}],
+   blocks:[{...blocks[0],blockId:'block-1'}],
+   allocations:[{blockId:'block-1',obligationId:'ob-1',minutes:90},
+    {blockId:'block-1',obligationId:'ob-2',minutes:90}]
+  }:null};
  let applied=0,leases=0,uncertain=0,locked=false,mark=0,fail='';
  const outbox=new Map();
  const store={

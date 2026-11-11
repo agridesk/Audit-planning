@@ -41,7 +41,7 @@ error(x=>{x.command={...x.command,canCommit:true}},'MODEL_C_LINK_SPLIT_COMMAND_I
 error(x=>{x.linkValues=[]},'MODEL_C_LINK_SPLIT_SNAPSHOT_REQUIRED');
 error(x=>{x.now='bad'},'MODEL_C_LINK_SPLIT_TIMESTAMP_INVALID');
 error(x=>{x.linkValues[0][2]='different'},'MODEL_C_LINK_SPLIT_SCHEMA_INVALID');
-error(x=>{x.linkValues[0][5]='Link_ID'},'MODEL_C_LINK_SPLIT_LINK_IDENTITY_WRITER_REQUIRED');
+error(x=>{x.linkValues[0][3]='Link_ID'},'MODEL_C_LINK_SPLIT_LINK_IDENTITY_WRITER_REQUIRED');
 error(x=>{x.linkValues.push(['A-4','O-2','ACTIVE'])},'MODEL_C_LINK_SPLIT_ACTIVE_CONFLICT');
 error(x=>{x.linkValues[2][2]='INACTIVE'},'MODEL_C_LINK_SPLIT_SOURCE_LINK_DRIFT');
 error(x=>{x.linkValues.push(['A-1','O-4','ACTIVE'])},'MODEL_C_LINK_SPLIT_SOURCE_LINK_DRIFT');

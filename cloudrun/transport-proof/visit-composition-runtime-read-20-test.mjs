@@ -11,6 +11,12 @@ const data={
 const readRange=async range=>{readings.push(range);if(!(range in data))throw Error('UNEXPECTED_RANGE');return structuredClone(data[range]);};
 const reader=createVisitCompositionCanonicalReader20({readRange});
 const overview=createVisitCompositionOverview20({reader});
+data['Audit_Visit_Obligations!A1:H5000'][0][4]='';
+await assert.rejects(()=>reader.read(),/COMPOSITION_READER_LINKS_SCHEMA_MISSING/);
+data['Audit_Visit_Obligations!A1:H5000'][0][4]='Unlinked_At';
+data['Audit_Obligations!A1:AA5000'][0][1]='Obligation_ID';
+await assert.rejects(()=>reader.read(),/COMPOSITION_READER_OBLIGATIONS_SCHEMA_MISSING|COMPOSITION_READER_OBLIGATIONS_DUPLICATE_HEADERS/);
+data['Audit_Obligations!A1:AA5000'][0][1]='Company_UID';
 const r=await overview.inspect({auditId:'A1'});
 assert.equal(r.ok,true);assert.equal(r.totalRequiredMinutes,660);
 assert.equal(r.compositionRequired,true);assert.equal(r.writeEnabled,false);

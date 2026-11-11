@@ -106,6 +106,11 @@ sourceRowsOverride={...sourceEvidence,
 await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SOURCE_COMPANY_MISMATCH/);
 assert.equal(commits,0);assert.equal(token,null);
 sourceRowsOverride=null;
+sourceRowsOverride={...sourceEvidence,
+ readAuditRows:[['Audit ID','Company_UID','Status'],['A-1','C-1','Approved']]};
+await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SERVICE_SHEETS_SOURCE_REVISION_CONFLICT/);
+assert.equal(commits,0);assert.equal(token,null);
+sourceRowsOverride=null;
 overrideProof={obligations:obligations.map((x,i)=>({...x,scopeCode:i===0?'GRASP':'GAP'}))};
 await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SERVICE_SOURCE_EVIDENCE_MISMATCH/);
 assert.equal(commits,0);assert.equal(token,null);

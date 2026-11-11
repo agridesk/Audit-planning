@@ -75,14 +75,12 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
    });
    if(!sourceEvidence.verified||sourceEvidence.obligationCount!==command.obligationIds.length||
       !jsonEq(sourceEvidence.obligations.map(x=>x.obligationId),command.obligationIds)||
-      !jsonEq(sourceEvidence.obligations,command.mode==='TOGETHER'?
-        proof.obligations.map(x=>({
-          obligationId:String(x.obligationId),scopeCode:String(x.scopeCode),
-          requiredMinutes:Math.round(Number(x.formalHours)*60)
-        })):proof.obligations.map(x=>({
-          obligationId:String(x.obligationId),scopeCode:String(x.scopeCode),
-          requiredMinutes:Math.round(Number(x.formalHours)*60)
-        }))))
+      !jsonEq(sourceEvidence.obligations,command.obligationIds.map(id=>{
+        const current=command.mode==='TOGETHER'?command.obligationIds.indexOf(id):command.obligationIds.indexOf(id);
+        const obligation=proof.obligations[current];
+        return {obligationId:String(obligation.obligationId),scopeCode:String(obligation.scopeCode),
+          requiredMinutes:Math.round(Number(obligation.formalHours)*60)};
+      })))
      fail('COMPOSITION_SERVICE_SOURCE_EVIDENCE_MISMATCH');
    if(proof.mode==='SEPARATELY'&&
       !jsonEq(sourceEvidence.reservedAppendRows,proof.appendRowNumbers))

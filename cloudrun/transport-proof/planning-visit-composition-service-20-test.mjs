@@ -113,9 +113,10 @@ const capacityGate={async acquire(){
  capacityLeases++;
  return {async release(){if(failCapacityRelease)throw Error('SIMULATED_LEASE_RELEASE_FAILURE');capacityReleased++},async uncertain(){capacityUncertain++}};
 }};
-let invalidations=0;
+let invalidations=0,failInvalidation=false;
 const invalidateAvailability=async plan=>{
  invalidations++;
+ if(failInvalidation)throw Error('SIMULATED_INVALIDATION_FAILURE');
  assert.equal(plan.scope,'RESOLVED_AVAILABILITY_CACHE');
  assert.equal(plan.writeEnabled,false);
  assert.equal(plan.affectedAuditors,1);
@@ -212,4 +213,17 @@ assert.equal(commits,3);assert.equal(uncertain>=2,true);
 assert.equal(token.uncertain,true);
 assert.equal(capacityUncertain,2);
 await assert.rejects(()=>service.commit({actor,body:different}),/COMPOSITION_SERVICE_RECOVERY_REQUIRED/);
+token=null; // Simulated verified operator recovery before separate cache-outage case.
+failProjection=false;
+failInvalidation=true;
+const beforeMarked=marked;
+const invalidationCase={...body,requestNonce:'availability-cache-case'};
+await assert.rejects(()=>service.commit({actor,body:invalidationCase}),
+ /SIMULATED_INVALIDATION_FAILURE/);
+assert.equal(marked,beforeMarked); // No PROJECTED outbox acknowledgment after cache failure.
+assert.equal(token.uncertain,true);
+assert.equal(capacityUncertain,3);
+await assert.rejects(()=>service.commit({actor,body:invalidationCase}),
+ /COMPOSITION_SERVICE_RECOVERY_REQUIRED/);
+failInvalidation=false;
 console.log('VISIT_COMPOSITION_ATOMIC_SERVICE_20_PASS: disabled, proof rejection, commit, verified outbox, replay, uncertainty; no HTTP route');

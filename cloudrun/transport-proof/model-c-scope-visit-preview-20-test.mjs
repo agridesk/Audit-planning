@@ -21,6 +21,7 @@ assert.equal(missingHours.sourceEvidenceReady,false);
 assert.deepEqual(missingHours.missingRequiredHours,['OB2']);
 assert.throws(()=>previewModelCVisitComposition20({auditId:'AUDIT1',obligations,links:[...links,['AUDIT1','MISSING','ACTIVE']]}),/MODEL_C_PREVIEW_LINK_UNRESOLVED/);
 assert.throws(()=>previewModelCVisitComposition20({auditId:'AUDIT1',obligations,links:[...links,['AUDIT1','OB1','ACTIVE']]}),/MODEL_C_PREVIEW_DUPLICATE_ACTIVE_LINK/);
+assert.throws(()=>previewModelCVisitComposition20({auditId:'AUDIT1',obligations,links:[...links,['OTHER_AUDIT','OB1','ACTIVE']]}),/MODEL_C_PREVIEW_ACTIVE_OBLIGATION_LINKED_ELSEWHERE/);
 import {readFileSync} from 'node:fs';
 const server=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 assert.ok(server.includes('/api/v1/manager/model-c-visit-preview'));

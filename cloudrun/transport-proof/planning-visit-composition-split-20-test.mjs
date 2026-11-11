@@ -71,7 +71,8 @@ const proof={sourceEvidence,
  {auditId:'A-2',expectedRevision:null,remove:false,auditorId:'aud-1',blocks:visits[1].blocks,nextSnapshot:successor}
  ]
 };
-const service=createPlanningVisitCompositionService20({enabled:true,store,gate,projector,appendProjector,
+const canonicalReader={async read(){return structuredClone(sourceEvidence)}};
+const service=createPlanningVisitCompositionService20({enabled:true,store,gate,projector,appendProjector,canonicalReader,
  preflight:async({operationId})=>({...structuredClone(proof),verifiedEmptyAppendRows:!wrong,gateOperationId:operationId})});
 const body={auditId:'A-1',companyUid:'C-1',sourceRevision:rev,mode:'SEPARATELY'};
 wrong=true;

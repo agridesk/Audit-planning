@@ -5,13 +5,13 @@
  */
 var AMS_VISIT_COMPOSITION_WORKSPACE_BUILD='2026-11-11_ISSUE87_FOCUSED_READONLY_R1';
 function PWVC20_clean_(x){return String(x==null?'':x).trim();}
-function PWVC20_norm_(x){return PWVC20_clean_(x).toUpperCase().replace(/[\\s-]+/g,'_');}
+function PWVC20_norm_(x){return PWVC20_clean_(x).toUpperCase().replace(/[\s-]+/g,'_');}
 function PWVC20_header_(headers,name){return headers.findIndex(function(x){return PWVC20_clean_(x).toLowerCase()===name.toLowerCase();});}
 function PWVC20_col_(headers,name){var i=PWVC20_header_(headers,name);if(i<0)throw Error('VISIT_COMPOSITION_SOURCE_SCHEMA_MISSING_'+name);return i;}
 function PWVC20_date_(value){
  if(Object.prototype.toString.call(value)==='[object Date]'&&!isNaN(value.getTime()))
   return Utilities.formatDate(value,Session.getScriptTimeZone(),'yyyy-MM-dd');
- var s=PWVC20_clean_(value);return /^\\d{4}-\\d{2}-\\d{2}/.test(s)?s.slice(0,10):s;
+ var s=PWVC20_clean_(value);return /^\d{4}-\d{2}-\d{2}/.test(s)?s.slice(0,10):s;
 }
 function PWVC20_tab_(ss,name){
  var sheet=ss.getSheetByName(name);if(!sheet)throw Error('VISIT_COMPOSITION_TAB_MISSING_'+name);
@@ -36,7 +36,7 @@ function PlanningWorkspaceVisitComposition20_preview(input){
  if(claimed&&claimed!==PWVC20_clean_(auth.email).toLowerCase())
   throw Error('VISIT_COMPOSITION_MANAGER_IDENTITY_MISMATCH');
  var auditId=PWVC20_clean_(input.auditId);
- if(!auditId||auditId.length>180||/[\\/]/.test(auditId))
+ if(!auditId||auditId.length>180||/[\/]/.test(auditId))
   throw Error('VISIT_COMPOSITION_AUDIT_ID_INVALID');
  var ss=SpreadsheetApp.getActiveSpreadsheet();
  var planning=PWVC20_tab_(ss,'Audit planning'),

@@ -42,6 +42,23 @@ qualificationRows[2][2]='NO';
 await assert.rejects(()=>service.preview({...together,auditorUid:'AUD-1'}),/COMPOSITION_QUALIFICATIONS_SCOPE_NOT_QUALIFIED/);
 qualificationRows[2][2]='YES';
 const separate=await service.preview({auditId:'A1',mode:'SEPARATELY'});
+const split=await service.preview({auditId:'A1',mode:'SEPARATELY',visits:[
+ {obligationId:'O1',blocks:[{date:'2026-11-18',start:'08:00',end:'16:00'}]},
+ {obligationId:'O2',blocks:[{date:'2026-11-19',start:'09:00',end:'12:00'}]}
+]});
+assert.equal(split.proposedVisits.length,2);
+assert.equal(split.totalRequiredMinutes,660);
+assert.equal(split.newIdsAreOnlyProposals,true);
+assert.equal(split.proposedVisits[0].auditId,'A1');
+assert.match(split.proposedVisits[1].auditId,/^A1_SPLIT_/);
+await assert.rejects(()=>service.preview({auditId:'A1',mode:'SEPARATELY',visits:[
+ {obligationId:'O1',blocks:[{date:'2026-11-18',start:'08:00',end:'16:00'}]},
+ {obligationId:'O2',auditId:'CLIENT_SELECTED',blocks:[{date:'2026-11-19',start:'09:00',end:'12:00'}]}
+]}),/COMPOSITION_PREFLIGHT_SEPARATE_VISIT_UNTRUSTED_IDENTITY/);
+await assert.rejects(()=>service.preview({auditId:'A1',mode:'SEPARATELY',visits:[
+ {obligationId:'O1',blocks:[{date:'2026-11-18',start:'08:00',end:'16:00'}]},
+ {obligationId:'O2',blocks:[{date:'2027-01-19',start:'09:00',end:'12:00'}]}
+]}),/COMPOSITION_WINDOW_OUTSIDE_ALLOWED_PERIOD/);
 assert.equal(separate.requiredVisitCount,2);
 assert.equal(separate.canCommit,false);
 assert.match(separate.reason,/CANONICAL_VISIT_IDENTITY/);
@@ -54,5 +71,5 @@ rows.readAuditRows[1][2]='Pending Planning';
 rows.readLinkRows.push(['A3','O2','ACTIVE','MIG','2026-01-01','']);
 await assert.rejects(()=>service.preview(together),/COMPOSITION_SOURCE_ACTIVE_LINK_CONFLICT/);
 rows.readLinkRows.pop();
-assert.equal(reads>=7,true);
+assert.equal(reads>=10,true);
 console.log('VISIT_COMPOSITION_CANONICAL_PREFLIGHT_20_PASS: actual revision, Together minute allocation, split preview, terminal and link drift, no writes');

@@ -29,6 +29,7 @@ err(together,x=>{x.allocations=[]},'SCOPE_ALLOCATION_EXPLICIT_REQUIRED');
 err(together,x=>{x.visits=[]},'COMPOSITION_COMMAND_UNEXPECTED_VISITS');
 err(together,x=>{x.blocks[0].start='08:10'},'COMPOSITION_COMMAND_BLOCK_QUARTER_HOUR_REQUIRED');
 err(together,x=>{x.blocks[0].date='invalid'},'COMPOSITION_COMMAND_DATE_INVALID');
+err(together,x=>{x.blocks[0].date='2026-02-30'},'COMPOSITION_COMMAND_DATE_INVALID');
 err(together,x=>{x.blocks[1].date='2026-11-18';x.blocks[1].start='15:00';x.blocks[1].end='18:00'},'COMPOSITION_COMMAND_BLOCK_OVERLAP');
 err(together,x=>{x.mode='together'},'COMPOSITION_COMMAND_MODE_NOT_CANONICAL');
 err(separate,x=>{x.visits.pop()},'COMPOSITION_COMMAND_VISITS_REQUIRED');

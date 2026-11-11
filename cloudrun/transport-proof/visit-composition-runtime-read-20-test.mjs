@@ -8,7 +8,9 @@ const data={
  'Audit_Visit_Obligations!A1:AZ5000':[['Audit_ID','Obligation_ID','Link_State','Linked_At','Unlinked_At'],['A1','O1','ACTIVE','2026-01-01',''],['A1','O2','ACTIVE','2026-01-01','']],
  'Audit_Visit_Obligations!A5:AZ5':[],
  'Config_Scopes!A1:Z200':[['SlotKey','ScopeCode'],['SCOPE_01','MPS-GAP'],['SCOPE_02','GRASP']],
- 'Audit planning!A5:CN5':[]
+ 'Audit planning!A5:CN5':[],
+ 'Auditors!A1:AF500':[['Name','E-mail','Role','Active','Auditor_UID'],['Auditor','auditor@example.com','Auditor','Yes','AUD-1']],
+ 'Auditor_Scope_Qualifications!A1:C5000':[['Auditor_UID','ScopeCode','Qualified'],['AUD-1','MPS-GAP','YES'],['AUD-1','GRASP','YES']]
 };
 const readRange=async range=>{readings.push(range);if(!(range in data))throw Error('UNEXPECTED_RANGE');return structuredClone(data[range]);};
 const reader=createVisitCompositionCanonicalReader20({readRange});
@@ -28,6 +30,13 @@ assert.deepEqual((await reader.read({appendRowNumbers:[5]})).emptyAppendRows,[{r
 assert.equal(readings.at(-1),'Audit_Visit_Obligations!A5:AZ5');
 assert.deepEqual((await reader.read({planningAppendRowNumbers:[5]})).emptyPlanningRows,[{row:5,before:[]}]);
 assert.equal(readings.at(-1),'Audit planning!A5:CN5');
+const qualifications=await reader.readQualifications();
+assert.equal(qualifications.auditorRows.length,2);
+assert.equal(qualifications.qualificationRows.length,3);
+data['Auditor_Scope_Qualifications!A1:C5000'][0][2]='missing';
+await assert.rejects(()=>reader.readQualifications(),/COMPOSITION_READER_QUALIFICATIONS_SCHEMA_MISSING/);
+data['Auditor_Scope_Qualifications!A1:C5000'][0][2]='Qualified';
+
 const expectedError=async (f,code)=>await assert.rejects(f,e=>e.code===code,code);
 data['Audit_Visit_Obligations!A5:AZ5']=[['occupied']];
 await expectedError(()=>reader.read({appendRowNumbers:[5]}),'COMPOSITION_READER_APPEND_ROW_OCCUPIED');

@@ -52,6 +52,13 @@ assert.equal(splitAuditors.leaseCount,2);assert.equal(acquired,5);
 await splitAuditors.release();assert.equal(released,4);
 await assert.rejects(()=>gate.acquire({actor,command:separated,entities:[two[0],{...two[1],blocks:[{date:'2026-11-18',start:'12:00',end:'15:00'}]}]}),/COMPOSITION_CAPACITY_SAME_AUDITOR_OVERLAP/);
 assert.equal(acquired,5);
+await assert.rejects(()=>gate.acquire({
+ actor,command:separated,entities:[
+  two[0],
+  {...two[1],auditorId:uid2,blocks:[{date:'2026-02-30',start:'09:00',end:'12:00'}]}
+ ]
+}),/COMPOSITION_CAPACITY_COMBINED_TIME_INVALID/);
+assert.equal(acquired,5); // Invalid second auditor must not lease the first auditor.
 for(const [date,start,end] of [
  ['2026-02-30','08:00','16:00'],
  ['2026-11-18','24:00','25:00'],

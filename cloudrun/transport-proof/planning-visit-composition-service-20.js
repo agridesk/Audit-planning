@@ -14,6 +14,7 @@ import {deriveVisitSplitIdentity20} from './visit-composition-identity-20.mjs';
 import {verifyVisitCompositionWindows20} from './visit-composition-window-20.mjs';
 import {deriveCompositionSourceRevision20} from './visit-composition-source-revision-20.mjs';
 import {prepareScheduledCompositionSplitRows20} from './visit-composition-scheduled-split-20.mjs';
+import {prepareScheduledCompositionTogetherRow20} from './visit-composition-scheduled-together-20.mjs';
 import {verifyCompositionAuditorQualifications20} from './visit-composition-qualification-20.mjs';
 
 const str = x => String(x ?? '').trim();
@@ -230,6 +231,41 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
     if(planningWrites.length!==1||
        proof.projectionWrites.some(x=>x.range.startsWith('Audit_Visit_Obligations!')))
       fail('COMPOSITION_SERVICE_TOGETHER_BUSINESS_PROJECTION_INVALID');
+    if(typeof canonicalReader.readQualifications!=='function')
+      fail('COMPOSITION_SERVICE_SCHEDULED_QUALIFICATION_READER_REQUIRED');
+    const directory=await canonicalReader.readQualifications();
+    const header=directory.auditorRows?.[0]||[];
+    const col=x=>header.findIndex(h=>str(h).toUpperCase().replace(/[\s_-]+/g,'_')===x);
+    const uidCol=col('AUDITOR_UID'),nameCol=col('NAME');
+    if(uidCol<0||nameCol<0)fail('COMPOSITION_SERVICE_SCHEDULED_AUDITOR_DIRECTORY_INVALID');
+    const entity=audits[0];
+    if(!entity||entity.auditId!==command.auditId)
+      fail('COMPOSITION_SERVICE_TOGETHER_ENTITY_MISSING');
+    const qualified=verifyCompositionAuditorQualifications20({
+      auditorUid:entity.auditorId,
+      scopeCodes:[...new Set(command.obligations.map(x=>x.scopeCode))],
+      auditorRows:directory.auditorRows,qualificationRows:directory.qualificationRows
+    });
+    const person=directory.auditorRows.slice(1).find(r=>str(r[uidCol])===entity.auditorId);
+    if(!str(person?.[nameCol]))fail('COMPOSITION_SERVICE_SCHEDULED_AUDITOR_NAME_MISSING');
+    const together=prepareScheduledCompositionTogetherRow20({
+      command,planningValues:canonicalRows.readAuditRows,
+      assignment:{auditorUid:qualified.auditorUid,
+        auditorEmail:qualified.auditorEmail,auditorName:str(person[nameCol])},
+      now:proof.now
+    });
+    const planned=together.projectionWrites[0];
+    const pre=together.projectionPreconditions[0];
+    const at=proof.projectionWrites.findIndex(x=>x.range===planned.range);
+    if(at<0||!jsonEq(proof.projectionWrites[at],planned)||
+       !jsonEq(proof.projectionPreconditions[at],pre))
+      fail('COMPOSITION_SERVICE_TOGETHER_SCHEDULED_PROJECTION_MISMATCH');
+    if(str(entity.nextSnapshot?.status)!=='Approved'||
+       str(entity.nextSnapshot?.planningJson)!==together.planningJson||
+       str(entity.nextSnapshot?.assignedTo)!==together.assignedTo||
+       str(entity.nextSnapshot?.sourceRevision)!==together.sourceRevision||
+       str(proof.canonicalSnapshot?.sourceRevision)!==together.sourceRevision)
+      fail('COMPOSITION_SERVICE_TOGETHER_SCHEDULED_SNAPSHOT_DRIFT');
    }
    if(audits[0]?.auditId!==command.auditId||
       new Set(audits.map(x=>x.auditId)).size!==audits.length||

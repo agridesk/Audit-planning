@@ -21,7 +21,7 @@ const r=await overview.inspect({auditId:'A1'});
 assert.equal(r.ok,true);assert.equal(r.totalRequiredMinutes,660);
 assert.equal(r.compositionRequired,true);assert.equal(r.writeEnabled,false);
 assert.deepEqual(r.availableModes,['TOGETHER','SEPARATELY']);
-assert.equal(readings.length,3);
+assert.equal(readings.length,9);
 assert.deepEqual((await reader.read({appendRowNumbers:[5]})).emptyAppendRows,[{row:5,before:[]}]);
 assert.equal(readings.at(-1),'Audit_Visit_Obligations!A5:H5');
 const expectedError=async (f,code)=>await assert.rejects(f,e=>e.code===code,code);

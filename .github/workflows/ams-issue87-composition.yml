@@ -8,6 +8,8 @@ on:
       - 'cloudrun/transport-proof/visit-model-c-*.mjs'
       - 'cloudrun/transport-proof/planning-visit-composition-*.js'
       - 'cloudrun/transport-proof/planning-visit-composition-*.mjs'
+      - 'cloudrun/transport-proof/planning-composition-capacity-gate-20.mjs'
+      - 'cloudrun/transport-proof/planning-composition-capacity-gate-20-test.mjs'
       - 'cloudrun/transport-proof/package.json'
       - 'cloudrun/transport-proof/single-planning-release-gate-20.mjs'
       - 'cloudrun/transport-proof/server-r15.js'

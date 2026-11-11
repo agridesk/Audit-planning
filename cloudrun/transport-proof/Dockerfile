@@ -30,6 +30,7 @@ COPY rotation-uid-reconciliation-20.mjs ./
 COPY model-c-scope-visit-preview-20.mjs ./
 COPY model-c-scope-allocation-20.mjs ./
 COPY visit-composition-together-r4-preflight-20.mjs ./
+COPY visit-composition-separate-authority-preflight-20.mjs ./
 COPY visit-composition-atomic-service-20.js ./
 COPY ecas-delivery-receipt-20.mjs ./
 COPY ecas-lifecycle-outbox-20.mjs ./

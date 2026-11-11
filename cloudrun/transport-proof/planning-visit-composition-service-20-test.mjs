@@ -66,7 +66,12 @@ const appendProjector={
 const preflight=async({operationId})=>{preflights++;return {...structuredClone(proof),...overrideProof,gateOperationId:operationId}};
 let sourceRowsOverride=null;
 const canonicalReader={async read(){return structuredClone(sourceRowsOverride||sourceEvidence)}};
-const args={store,gate,projector,appendProjector,preflight,canonicalReader};
+let capacityLeases=0,capacityReleased=0,capacityUncertain=0;
+const capacityGate={async acquire(){
+ capacityLeases++;
+ return {async release(){capacityReleased++},async uncertain(){capacityUncertain++}};
+}};
+const args={store,gate,projector,appendProjector,preflight,canonicalReader,capacityGate};
 const disabled=createPlanningVisitCompositionService20(args);
 await assert.rejects(()=>disabled.commit({actor,body}),/COMPOSITION_SERVICE_NOT_ENABLED/);
 assert.equal(commits,0);
@@ -94,6 +99,7 @@ overrideProof={};
 const first=await service.commit({actor,body});
 assert.equal(first.success,true);assert.equal(first.mode,'TOGETHER');
 assert.equal(commits,1);assert.equal(applies,1);assert.equal(notifications,1);assert.equal(marked,1);
+assert.equal(capacityLeases,1);assert.equal(capacityReleased,1);
 assert.equal(token,null);
 const replay=await service.commit({actor,body});
 assert.equal(replay.replayed,true);assert.equal(commits,1);assert.equal(applies,1);assert.equal(notifications,1);
@@ -103,5 +109,6 @@ failProjection=true;
 await assert.rejects(()=>service.commit({actor,body:different}),/SIMULATED_PROJECTOR_TIMEOUT/);
 assert.equal(commits,2);assert.equal(uncertain>=1,true);
 assert.equal(token.uncertain,true);
+assert.equal(capacityUncertain,1);
 await assert.rejects(()=>service.commit({actor,body:different}),/COMPOSITION_SERVICE_RECOVERY_REQUIRED/);
 console.log('VISIT_COMPOSITION_ATOMIC_SERVICE_20_PASS: disabled, proof rejection, commit, verified outbox, replay, uncertainty; no HTTP route');

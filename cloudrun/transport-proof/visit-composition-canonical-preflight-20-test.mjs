@@ -61,7 +61,7 @@ await assert.rejects(()=>service.preview({auditId:'A1',mode:'SEPARATELY',visits:
 ]}),/COMPOSITION_WINDOW_OUTSIDE_ALLOWED_PERIOD/);
 assert.equal(separate.requiredVisitCount,2);
 assert.equal(separate.canCommit,false);
-assert.match(separate.reason,/CANONICAL_VISIT_IDENTITY/);
+assert.match(separate.reason,/SPLIT_VISIT_BLOCKS_REQUIRED/);
 await assert.rejects(()=>service.preview({...together,sourceRevision:'b'.repeat(24)}),/COMPOSITION_PREFLIGHT_SOURCE_REVISION_CONFLICT/);
 await assert.rejects(()=>service.preview({...together,blocks:[together.blocks[0]],allocations:[together.allocations[0]]}),/SCOPE_ALLOCATION_REQUIRED_HOURS_MISMATCH|SCOPE_ALLOCATION_TOTAL_HOURS_MISMATCH/);
 rows.readAuditRows[1][2]='Accepted';

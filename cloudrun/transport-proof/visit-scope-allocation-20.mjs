@@ -44,6 +44,13 @@ export function validateVisitScopeAllocation20({ obligations, blocks, allocation
     if (!/^\d{4}-\d{2}-\d{2}$/.test(id(block?.date))) fail('SCOPE_ALLOCATION_INVALID_DATE');
     return duration(block);
   });
+  for (let i = 0; i < blocks.length; i++) {
+    for (let j = i + 1; j < blocks.length; j++) {
+      if (id(blocks[i].date) === id(blocks[j].date) &&
+          blockWindows[i].start < blockWindows[j].end &&
+          blockWindows[j].start < blockWindows[i].end) fail('SCOPE_ALLOCATION_BLOCKS_OVERLAP');
+    }
+  }
   const perBlock = blocks.map(() => []);
   for (const item of allocations) {
     const index = item?.blockIndex;

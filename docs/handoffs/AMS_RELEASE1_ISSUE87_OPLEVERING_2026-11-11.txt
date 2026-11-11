@@ -179,3 +179,11 @@ AANVULLING — 11-11-2026 — CLIENT INPUT-AUTHORITY BOUNDARY
 - Package npm run test:issue87-allocation en Single Planning releasegate uitgebreid met input-boundarycheck.
 - Nieuwe commits: f7918fa1, 9b12cb61, 7bcff6c4, 99f99a51, 420468d4, 758f67b2.
 - Nog NIET volledig door Node lokaal getest op laatste commits; geen writer-route, deployment of data-mutatie. PROD NO-GO.
+
+AANVULLING — 11-11-2026 — USER GATE 44/44, CLIENT-AUTHORITY EN DESTINATION FENCING
+- User verified complete Node focused Issue87 suite PASS and SINGLE_PLANNING_RELEASE_1_SOURCE_PASS 44 checks. This evidence predates the below commits.
+- Full unauthorized client request boundary: visit-composition-client-proposal-20.mjs, invoked at the very start of isolated atomic service BEFORE Firestore outbox read/global gate. Rejects canonical proof injections, row numbers, target Visit Audit IDs, arbitrary Sheets writes and unknown fields. Dedicated pure tests PASS and atomic Together/Separately isolated regressions PASS.
+- Canonical reader now refuses arbitrary distant or noncontiguous physical destinations for new Audit planning/Model C rows. New append positions must be ordered contiguous and within two blank intervening rows after latest observed table content. Read-only negative reader regression PASS.
+- Release source gate extended with both source checks; on latest code full local Node suite has not been re-run; previous 44/44 cannot be presented as proof for new commits.
+- Relevant latest commits: f7918fa1, 9b12cb61, 7bcff6c4, 99f99a51, 420468d4, 758f67b2, e8089523, 2acbda4e, 8f159a22, d3997ac5.
+- Real writer preflight, independent Availability writeset parity and live DEV E2E remain OPEN. No writer HTTP route, no deployment or DEV/PROD data changes. PROD NO-GO.

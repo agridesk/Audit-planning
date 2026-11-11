@@ -26,6 +26,7 @@ const sourceRevision=read('./visit-composition-source-revision-20.mjs');
 const reconciliation=read('./visit-composition-reconciliation-20.mjs');
 const managerNotifications=read('./visit-composition-manager-notifications-20.mjs');
 const clientProposal=read('./visit-composition-client-proposal-20.mjs');
+const availabilityInvalidation=read('./visit-composition-availability-invalidation-20.mjs');
 const compositionOverview=read('./visit-composition-overview-20.mjs');
 const handoff=managerPortal.split('function submitSelectionHandoff(mode){')[1]?.split('\nfunction text(v)')[0]||'';
 const checks={
@@ -56,6 +57,8 @@ const checks={
   'Issue87 composition notifications match intended visit audit identities':atomicComposition.includes('COMPOSITION_SERVICE_NOTIFICATION_AUDIT_OR_STATE_MISMATCH')&&atomicComposition.includes('permittedEventAudits.has(str(row[4]))'),
   'Issue87 notifications require canonical config and audit trail plus manager mail':atomicComposition.includes('prepareCompositionManagerNotifications20(')&&atomicComposition.includes('COMPOSITION_SERVICE_NOTIFICATION_CANONICAL_INTENTS_MISMATCH')&&canonicalReader.includes('readNotificationConfig()')&&managerNotifications.includes("'AUDIT_PLANNED_BY_MANAGER'")&&managerNotifications.includes("'LIFECYCLE_STATUS_CHANGED'")&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-manager-notifications-20-test.mjs')===true,
   'Issue87 client cannot inject authority or canonical writes':clientProposal.includes('COMPOSITION_CLIENT_AUTHORITY_FIELDS_FORBIDDEN')&&clientProposal.includes('COMPOSITION_CLIENT_VISIT_AUTHORITY_FORBIDDEN')&&atomicComposition.includes('validateCompositionClientProposal20(body)')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-client-proposal-20-test.mjs')===true,
+  'Issue87 committed occupancy stays in Planning JSON and only cache is targeted':atomicComposition.includes("new Set(['Audit planning','Audit_Visit_Obligations'])")&&availabilityInvalidation.includes("scope:'RESOLVED_AVAILABILITY_CACHE'")&&availabilityInvalidation.includes('readModelOnly:true')&&atomicComposition.includes('prepareCompositionAvailabilityInvalidation20(')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-availability-invalidation-20-test.mjs')===true,
+  'Issue87 cache refresh must be verified before Projected outbox':atomicComposition.indexOf('await invalidateAvailability(invalidation)')<atomicComposition.indexOf('await store.markProjected(')&&atomicComposition.includes('COMPOSITION_SERVICE_AVAILABILITY_INVALIDATION_UNVERIFIED'),
   'Issue87 no distant or noncontiguous append destinations':canonicalReader.includes('COMPOSITION_READER_')&&canonicalReader.includes('NONCANONICAL_APPEND_POSITION')&&canonicalReader.includes('checkAppendSuffix(readAuditRows')&&canonicalReader.includes('checkAppendSuffix(readLinkRows'),
   'Issue87 no unrequested planning or Model C business writes':atomicComposition.includes('COMPOSITION_SERVICE_EXTRA_BUSINESS_PROJECTION_FORBIDDEN')&&atomicComposition.includes('COMPOSITION_SERVICE_TOGETHER_BUSINESS_PROJECTION_INVALID'),
   'Issue87 unverified Availability sheet writes remain blocked':atomicComposition.includes("new Set(['Audit planning','Audit_Visit_Obligations'])")&&atomicComposition.includes('COMPOSITION_SERVICE_PROJECTION_SCOPE_FORBIDDEN'),

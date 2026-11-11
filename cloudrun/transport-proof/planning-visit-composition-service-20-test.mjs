@@ -3,6 +3,7 @@ import {createHash} from 'node:crypto';
 import {createPlanningVisitCompositionService20} from './planning-visit-composition-service-20.js';
 import {prepareVisitCompositionCommand20} from './visit-composition-command-20.mjs';
 import {prepareScheduledCompositionTogetherRow20} from './visit-composition-scheduled-together-20.mjs';
+import {prepareCompositionManagerNotifications20} from './visit-composition-manager-notifications-20.mjs';
 
 const revision=createHash('sha256').update('A-1|Pending Planning||||').digest('hex').slice(0,24);
 const obligations=[
@@ -17,7 +18,7 @@ const allocations=[
  {blockIndex:0,obligationId:'O-1',start:'08:00',end:'16:00',minutes:480},
  {blockIndex:1,obligationId:'O-2',start:'09:00',end:'12:00',minutes:180}
 ];
-const actor={role:'manager',auditorId:'manager-uid'};
+const actor={role:'manager',auditorId:'manager-uid',email:'manager@example.com'};
 const body={auditId:'A-1',companyUid:'C-1',sourceRevision:revision,mode:'TOGETHER',blocks,allocations:allocations.map(({minutes,...a})=>a)};
 const requiredProofs=['SOURCE_REVISION_CAS','CANONICAL_MODEL_C_LINKS','CANONICAL_VISIT_IDENTITIES',
  'AVAILABILITY_CLAIM_PARITY','SHEETS_PREIMAGE_PARITY','NOTIFICATION_OUTBOX_INTENTS'];
@@ -28,6 +29,9 @@ const planningHeaders=['Audit ID','Company_UID','Status','Assigned to','Planning
  'Total audit time in hours','Date - Planned','Date - Approved','Auditor_UID',
  'Last manager decision','Last decision timestamp','Status since',...Array.from({length:29},(_,i)=>'Other_'+i)];
 const sourceRow=['A-1','C-1','Pending Planning','','','11','','','','','','',...Array(29).fill('')];
+planningHeaders.push('Company');sourceRow.push('Company');
+const notificationConfig=[['EVENT_KEY','ACTIVE','SEND_EMAIL','TEMPLATE_FAMILY','TEMPLATE_KEY_DEFAULT'],
+ ['AUDIT_PLANNED_BY_MANAGER','YES','YES','RICH_OPERATIONAL','AUDIT_PLANNED_BY_MANAGER']];
 const sourceEvidence={
  readAuditRows:[planningHeaders,sourceRow],
  readObligationRows:[['Obligation_ID','Company_UID','ScopeCode','Formal_Hours','Obligation_State','Planning_Window_From','Planning_Window_To'],['O-1','C-1','GAP',8,'OPEN','2026-11-01','2026-12-01'],['O-2','C-1','GRASP',3,'OPEN','01/11/2026','30/11/2026']],
@@ -84,10 +88,16 @@ proof.projectionPreconditions=scheduled.projectionPreconditions;
 snapshot.assignedTo=scheduled.assignedTo;
 snapshot.planningJson=scheduled.planningJson;
 snapshot.sourceRevision=scheduled.sourceRevision;
+proof.appendIntents=prepareCompositionManagerNotifications20({
+ command,visits:[{auditId:'A-1',auditorEmail:'auditor@example.com',
+ auditorName:'Auditor Example',planningJson:scheduled.planningJson}],
+ company:'Company',actorEmail:actor.email,notificationConfigRows:notificationConfig,now:proof.now
+}).appendIntents;
 const preflight=async({operationId})=>{preflights++;return {...structuredClone(proof),...overrideProof,gateOperationId:operationId}};
 let sourceRowsOverride=null;
 const canonicalReader={
  async read(){return structuredClone(sourceRowsOverride||sourceEvidence)},
+ async readNotificationConfig(){return structuredClone(notificationConfig)},
  async readQualifications(){return {
   auditorRows:[['Name','E-mail','Role','Active','Auditor_UID'],['Auditor Example','auditor@example.com','Auditor','YES','auditor-uid']],
   qualificationRows:[['Auditor_UID','ScopeCode','Qualified'],['auditor-uid','GAP','YES'],['auditor-uid','GRASP','YES']]
@@ -114,7 +124,8 @@ overrideProof={projectionWrites:[{range:'Companies!A2:B2',values:[['A-1','Approv
 await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SERVICE_PROJECTION_SCOPE_FORBIDDEN/);
 assert.equal(commits,0);assert.equal(token,null);
 overrideProof={appendIntents:[{range:'Notification Queue!A:M',
- values:[[...proof.appendIntents[0].values[0].slice(0,4),'NOT_THE_SOURCE_AUDIT',...proof.appendIntents[0].values[0].slice(5)]]}]};
+ values:proof.appendIntents[0].values.map((row,i)=>i===1?
+  [...row.slice(0,4),'NOT_THE_SOURCE_AUDIT',...row.slice(5)]:row)}]};
 await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SERVICE_NOTIFICATION_AUDIT_OR_STATE_MISMATCH/);
 assert.equal(commits,0);assert.equal(token,null);
 overrideProof={projectionWrites:[

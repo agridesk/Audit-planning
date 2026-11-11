@@ -22,9 +22,15 @@ function testFixture(mode='TOGETHER'){
   freshAvailabilityProvenance:true,qualificationsVerified:true,availabilityVersions:{'aud-1':0},
   modelCLinkTransferVerified:true,
   notificationIntentsVerified:true,sourceIdentityCollisionChecked:true,sourceRevisionChecked:true,
-  projectionWrites:[{range:'Audit planning!A2:B2',values:[['x','y']]}],
-  projectionPreconditions:[{range:'Audit planning!A2:B2',before:['a','b']}],
-  appendIntents:[{range:'Notification Queue!A:M',values:[['PLAN']]}],
+  projectionWrites:[{range:'Audit planning!A2:B2',values:[['x','y']]}].concat(mode==='SEPARATELY'?
+   [{range:'Audit_Visit_Obligations!A2:F2',values:[['source-1','ob-1','INACTIVE','','',''] ]},
+    {range:'Audit_Visit_Obligations!A3:F3',values:[['source-1','ob-2','INACTIVE','','',''] ]}]:[]),
+  projectionPreconditions:[{range:'Audit planning!A2:B2',before:['a','b']}].concat(mode==='SEPARATELY'?
+   [{range:'Audit_Visit_Obligations!A2:F2',before:['source-1','ob-1','ACTIVE','','','']},
+    {range:'Audit_Visit_Obligations!A3:F3',before:['source-1','ob-2','ACTIVE','','','']}]:[]),
+  appendIntents:[{range:'Notification Queue!A:M',values:[['PLAN']]}].concat(mode==='SEPARATELY'?
+   [{range:'Audit_Visit_Obligations!A:F',values:visits.map(x=>
+     [x.auditId,x.obligationIds[0],'ACTIVE','','',''])}]:[]),
   visits,entities,activeObligationIds:['ob-1','ob-2'],sourceTombstone:{auditId},projectionPlan:{auditId},
   scopeAllocation:mode==='TOGETHER'?{
    auditId,composition:'TOGETHER',
@@ -73,6 +79,11 @@ for(const mode of ['TOGETHER','SEPARATELY']){
  await assert.rejects(()=>rejected.service.commit(args),/AUTHORITY_PREFLIGHT_INCOMPLETE/);
  assert.equal(rejected.stats().applied,0);
  if(mode==='SEPARATELY'){
+  const missingLink=testFixture(mode);
+  missingLink.preview.appendIntents=missingLink.preview.appendIntents.filter(x=>
+   !x.range.startsWith('Audit_Visit_Obligations!'));
+  await assert.rejects(()=>missingLink.service.commit(args),/MODEL_C_LINK_TRANSFER_INCOMPLETE/);
+  assert.equal(missingLink.stats().applied,0);
   const malformed=testFixture(mode);
   malformed.preview.visits[0].auditId='client-controlled-id';
   malformed.preview.visits[0].snapshot.auditId='client-controlled-id';

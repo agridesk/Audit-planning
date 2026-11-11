@@ -61,7 +61,7 @@ const planningSource=['A company','C-1','A-1','Pending Planning','','','11.00','
 const scopeConfig=[['SlotKey','ScopeCode'],['SCOPE_01','GAP'],['SCOPE_02','GRASP']];
 const sourceEvidence={
  readAuditRows:[planningHeaders,planningSource],
- readObligationRows:[['Obligation_ID','Company_UID','ScopeCode','Formal_Hours','Obligation_State'],['O-1','C-1','GAP',8,'OPEN'],['O-2','C-1','GRASP',3,'LINKED_TO_VISIT']],
+ readObligationRows:[['Obligation_ID','Company_UID','ScopeCode','Formal_Hours','Obligation_State','Planning_Window_From','Planning_Window_To'],['O-1','C-1','GAP',8,'OPEN','2026-11-01','2026-12-01'],['O-2','C-1','GRASP',3,'LINKED_TO_VISIT','01/11/2026','30/11/2026']],
  readLinkRows:[header,['A-1','O-1','ACTIVE','BATCH-ORIGIN','2026-01-01',''],before],
  readConfigScopeRows:scopeConfig,
  emptyAppendRows:[{row:5,before:[]}],

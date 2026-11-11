@@ -126,7 +126,9 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
     fail('COMPOSITION_SERVICE_PROJECTOR_PLAN_INVALID');
    // Scope the writeset to the three canonical planning targets. No legacy
    // log, company, notification template or unrelated sheet may be updated.
-   const allowedSheets=new Set(['Audit planning','Audit_Visit_Obligations','Auditor Availability']);
+   // Availability mutations require a separate independently validated canonical
+   // writeset. Until that contract exists, no Availability row may be changed.
+   const allowedSheets=new Set(['Audit planning','Audit_Visit_Obligations']);
    const writeRanges=new Set();
    for(const write of proof.projectionWrites){
     const range=str(write?.range),sheet=range.split('!')[0];

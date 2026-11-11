@@ -19,13 +19,13 @@ const snapshot={
  obligationId:'O-1'
 };
 const successor={auditId:'A-2',companyUid:'C-1',sourceRevision:'c'.repeat(24),status:'Approved',obligationId:'O-2'};
-const header=['Audit_ID','Obligation_ID','Link_State','Linked_At','Unlinked_At'];
-const before=['A-1','O-2','ACTIVE','2026-01-01',''];
-const inactive=['A-1','O-2','INACTIVE','2026-01-01','2026-11-11T17:10:00'];
-const active=['A-2','O-2','ACTIVE','2026-11-11T17:10:00',''];
+const header=['Audit_ID','Obligation_ID','Link_State','Migration_Batch_ID','Linked_At','Unlinked_At'];
+const before=['A-1','O-2','ACTIVE','BATCH-ORIGIN','2026-01-01',''];
+const inactive=['A-1','O-2','INACTIVE','BATCH-ORIGIN','2026-01-01','2026-11-11T17:10:00'];
+const active=['A-2','O-2','ACTIVE','BATCH-ORIGIN','2026-11-11T17:10:00',''];
 const planRows=[
- {range:'Audit_Visit_Obligations!A3:E3',values:[inactive]},
- {range:'Audit_Visit_Obligations!A5:E5',values:[active]}
+ {range:'Audit_Visit_Obligations!A3:F3',values:[inactive]},
+ {range:'Audit_Visit_Obligations!A5:F5',values:[active]}
 ];
 const prerequisites=[
  {range:planRows[0].range,before},
@@ -60,7 +60,7 @@ const scopeConfig=[['SlotKey','ScopeCode'],['SCOPE_01','GAP'],['SCOPE_02','GRASP
 const sourceEvidence={
  readAuditRows:[planningHeaders,planningSource],
  readObligationRows:[['Obligation_ID','Company_UID','ScopeCode','Formal_Hours','Obligation_State'],['O-1','C-1','GAP',8,'OPEN'],['O-2','C-1','GRASP',3,'LINKED_TO_VISIT']],
- readLinkRows:[header,['A-1','O-1','ACTIVE','2026-01-01',''],before],
+ readLinkRows:[header,['A-1','O-1','ACTIVE','BATCH-ORIGIN','2026-01-01',''],before],
  readConfigScopeRows:scopeConfig,
  emptyAppendRows:[{row:5,before:[]}],
  emptyPlanningRows:[{row:4,before:[]}]
@@ -69,7 +69,7 @@ const proof={sourceEvidence,
  success:true,authorityPreflight:true,auditId:'A-1',companyUid:'C-1',
  sourceRevision:rev,expectedSourceRevision:rev,writerVerified:true,
  obligations,obligationIds:['O-1','O-2'],mode:'SEPARATELY',
- visits,linkValues:[header,['A-1','O-1','ACTIVE','2026-01-01',''],before],
+ visits,linkValues:[header,['A-1','O-1','ACTIVE','BATCH-ORIGIN','2026-01-01',''],before],
  appendRowNumbers:[5],planningAppendRowNumbers:[4],now:'2026-11-11T17:10:00',verifiedEmptyAppendRows:true,verifiedEmptyPlanningRows:true,
  requiredProofs:['SOURCE_REVISION_CAS','CANONICAL_MODEL_C_LINKS','CANONICAL_VISIT_IDENTITIES','AVAILABILITY_CLAIM_PARITY','SHEETS_PREIMAGE_PARITY','NOTIFICATION_OUTBOX_INTENTS'],
  projectionWrites:planRows,projectionPreconditions:prerequisites,

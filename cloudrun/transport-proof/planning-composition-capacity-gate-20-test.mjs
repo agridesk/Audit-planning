@@ -11,8 +11,17 @@ const availabilityService={
  async releasePlanningLease(){released++},
  async markPlanningLeaseUncertain(){uncertain++}
 };
+let resolvedReads=0,resolvedState='FREE',staleResolved=false;
+const readResolvedAvailability=async({auditorId,fromDate,toDate,fresh})=>{
+ resolvedReads++;
+ assert.equal(fresh,true);
+ assert.equal(fromDate,toDate);
+ return {auditorId,canonicalFresh:!staleResolved,version:7,
+  unknownReservationOwner:false,uncertainAuditorIds:[],incompleteAuditDiagnostics:[],
+  days:[{date:fromDate,segments:[{start:'00:00',end:'24:00',state:resolvedState}]}]};
+};
 const gate=createCompositionCapacityGate20({
- canonicalReader:reader,availabilityService,
+ canonicalReader:reader,availabilityService,readResolvedAvailability,
  hardGate:({blocks})=>{if(blocked||!blocks.length)throw Error('BLOCKED')},
  roster:async()=>[{auditorId:uid,email,role:'auditor',active:true},{auditorId:uid2,email:email2,role:'auditor',active:true}]
 });
@@ -88,4 +97,23 @@ await assert.rejects(()=>gate.acquire({actor,command:separated,
  entities:[two[0],{...two[1],blocks:[{date:'2026-11-20',start:'09:00',end:'12:00'}]}]
 }),/COMPOSITION_CAPACITY_VISIT_MEMBERSHIP_MISMATCH/);
 assert.equal(acquired,5);
+for(const [state,expected] of [
+ ['COMMITTED','COMPOSITION_RESOLVED_COMMITTED_CONFLICT'],
+ ['HARD','COMPOSITION_RESOLVED_HARD_CONFLICT'],
+ ['PROVISIONAL','COMPOSITION_RESOLVED_PROVISIONAL_CONFLICT']
+]){
+ resolvedState=state;
+ await assert.rejects(()=>gate.acquire({actor,command,entities}),new RegExp(expected));
+ assert.equal(acquired,5);
+}
+resolvedState='SOFT';
+const warningPlan=await gate.acquire({actor,command,entities});
+assert.equal(warningPlan.resolvedReadCount,1);
+await warningPlan.release();
+assert.equal(acquired,6);
+resolvedState='FREE';staleResolved=true;
+await assert.rejects(()=>gate.acquire({actor,command,entities}),
+ /COMPOSITION_RESOLVED_FRESH_EVIDENCE_REQUIRED/);
+assert.equal(acquired,6);
+staleResolved=false;
 console.log('VISIT_COMPOSITION_CAPACITY_GATE_20_PASS: canonical qualifications, one combined lease per auditor, distinct auditors, overlap guard, release and uncertain recovery');

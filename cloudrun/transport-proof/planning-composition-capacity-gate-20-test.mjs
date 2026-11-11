@@ -19,7 +19,8 @@ const gate=createCompositionCapacityGate20({
 const actor={role:'manager',auditorId:'M-1'};
 const blocks=[{date:'2026-11-18',start:'08:00',end:'16:00'}];
 const command={
- auditId:'A-1',mode:'TOGETHER',obligations:[
+ auditId:'A-1',mode:'TOGETHER',blocks,
+ obligations:[
  {obligationId:'O1',scopeCode:'MPS-GAP'},{obligationId:'O2',scopeCode:'GRASP'}
  ]};
 const entities=[{auditId:'A-1',auditorId:uid,blocks,nextSnapshot:{auditId:'A-1'}}];
@@ -31,7 +32,10 @@ blocked=true;
 await assert.rejects(()=>gate.acquire({actor,command,entities}),/BLOCKED/);
 assert.equal(acquired,2);assert.equal(released,2);
 blocked=false;
-const separated={...command,mode:'SEPARATELY'};
+const separated={...command,mode:'SEPARATELY',visits:[
+ {auditId:'A-1',obligationId:'O1',blocks},
+ {auditId:'A-2',obligationId:'O2',blocks:[{date:'2026-11-19',start:'09:00',end:'12:00'}]}
+]};
 const two=[
  {...entities[0],nextSnapshot:{obligationId:'O1'}},
  {auditId:'A-2',auditorId:uid,blocks:[{date:'2026-11-19',start:'09:00',end:'12:00'}],nextSnapshot:{obligationId:'O2'}}
@@ -50,10 +54,16 @@ const independent=[two[0],{...two[1],auditorId:uid2}];
 const splitAuditors=await gate.acquire({actor,command:separated,entities:independent});
 assert.equal(splitAuditors.leaseCount,2);assert.equal(acquired,5);
 await splitAuditors.release();assert.equal(released,4);
-await assert.rejects(()=>gate.acquire({actor,command:separated,entities:[two[0],{...two[1],blocks:[{date:'2026-11-18',start:'12:00',end:'15:00'}]}]}),/COMPOSITION_CAPACITY_SAME_AUDITOR_OVERLAP/);
+await assert.rejects(()=>gate.acquire({actor,command:{...separated,visits:[
+ separated.visits[0],
+ {...separated.visits[1],blocks:[{date:'2026-11-18',start:'12:00',end:'15:00'}]}
+]},entities:[two[0],{...two[1],blocks:[{date:'2026-11-18',start:'12:00',end:'15:00'}]}]}),/COMPOSITION_CAPACITY_SAME_AUDITOR_OVERLAP/);
 assert.equal(acquired,5);
 await assert.rejects(()=>gate.acquire({
- actor,command:separated,entities:[
+ actor,command:{...separated,visits:[
+ separated.visits[0],
+ {...separated.visits[1],blocks:[{date:'2026-02-30',start:'09:00',end:'12:00'}]}
+ ]},entities:[
   two[0],
   {...two[1],auditorId:uid2,blocks:[{date:'2026-02-30',start:'09:00',end:'12:00'}]}
  ]
@@ -66,9 +76,16 @@ for(const [date,start,end] of [
  ['2026-11-18','18:00','08:00']
 ]){
  await assert.rejects(()=>gate.acquire({
-  actor,command:separated,
+  actor,command:{...separated,visits:[{...separated.visits[0],blocks:[{date,start,end}]},separated.visits[1]]},
   entities:[{...two[0],blocks:[{date,start,end}]},two[1]]
  }),/COMPOSITION_CAPACITY_COMBINED_TIME_INVALID/);
  assert.equal(acquired,5);
 }
+await assert.rejects(()=>gate.acquire({actor,command:separated,
+ entities:[two[0],{...two[1],auditId:'FOREIGN'}]
+}),/COMPOSITION_CAPACITY_VISIT_MEMBERSHIP_MISMATCH/);
+await assert.rejects(()=>gate.acquire({actor,command:separated,
+ entities:[two[0],{...two[1],blocks:[{date:'2026-11-20',start:'09:00',end:'12:00'}]}]
+}),/COMPOSITION_CAPACITY_VISIT_MEMBERSHIP_MISMATCH/);
+assert.equal(acquired,5);
 console.log('VISIT_COMPOSITION_CAPACITY_GATE_20_PASS: canonical qualifications, one combined lease per auditor, distinct auditors, overlap guard, release and uncertain recovery');

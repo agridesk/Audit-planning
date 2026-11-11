@@ -18,6 +18,7 @@ const canonicalPreflight=read('./visit-composition-canonical-preflight-20.mjs');
 const planningSplitRows=read('./visit-model-c-planning-split-rows-20.mjs');
 const identity=read('./visit-composition-identity-20.mjs');
 const qualifications=read('./visit-composition-qualification-20.mjs');
+const capacityGate=read('./planning-composition-capacity-gate-20.mjs');
 const compositionOverview=read('./visit-composition-overview-20.mjs');
 const handoff=managerPortal.split('function submitSelectionHandoff(mode){')[1]?.split('\nfunction text(v)')[0]||'';
 const checks={
@@ -45,7 +46,8 @@ const checks={
   'Issue87 separate Visit requires both Model C and Audit planning projection':atomicComposition.includes('prepareModelCPlanningVisitSplitRows20(')&&planningSplitRows.includes('COMPOSITION_PLANNING_EXTRA_SOURCE_SCOPE')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-model-c-planning-split-rows-20-test.mjs')===true,
   'Issue87 new Visit identities are independently derived':identity.includes('deriveVisitSplitIdentity20')&&atomicComposition.includes('deriveVisitSplitIdentity20(')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-identity-20-test.mjs')===true,
   'Issue87 notification queue format and write targets are restricted':atomicComposition.includes('COMPOSITION_SERVICE_NOTIFICATION_INTENT_INVALID')&&atomicComposition.includes('COMPOSITION_SERVICE_PROJECTION_SCOPE_FORBIDDEN'),
-  'Issue87 qualifications are verified from canonical directory':qualifications.includes('COMPOSITION_QUALIFICATIONS_SCOPE_NOT_QUALIFIED')&&canonicalPreflight.includes('verifyCompositionAuditorQualifications20(')&&canonicalReader.includes('readQualifications()')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-qualification-20-test.mjs')===true
+  'Issue87 qualifications are verified from canonical directory':qualifications.includes('COMPOSITION_QUALIFICATIONS_SCOPE_NOT_QUALIFIED')&&canonicalPreflight.includes('verifyCompositionAuditorQualifications20(')&&canonicalReader.includes('readQualifications()')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-qualification-20-test.mjs')===true,
+  'Issue87 availability leases are mandatory per visit':capacityGate.includes('availabilityService.acquirePlanningLease(')&&capacityGate.includes('markPlanningLeaseUncertain(')&&atomicComposition.includes('capacityGate.acquire(')&&packageJson.scripts['test:issue87-allocation']?.includes('planning-composition-capacity-gate-20-test.mjs')===true
 };
 for(const [name,ok] of Object.entries(checks))assert.equal(ok,true,'Release 1 source gate: '+name);
 const blockers=['PROD_LEGACY_MANAGER_LIFECYCLE_WRITES','PROD_LEGACY_DIRECT_LIFECYCLE_WRITE','PROD_REALIZED_HOURS_CANONICAL_PARITY_UNPROVEN','PROD infrastructure IAM/Firestore/SSoT runtime proof','Manager/Auditor Single Planning E2E evidence','Issue87 canonical together/separately writer and Model C link transfer'];

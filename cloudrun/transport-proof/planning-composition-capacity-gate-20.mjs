@@ -6,6 +6,17 @@
 import {verifyCompositionAuditorQualifications20} from './visit-composition-qualification-20.mjs';
 const str=x=>String(x??'').trim();
 const fail=code=>{const e=new Error(code);e.code=code;throw e;};
+const validDate=x=>{
+ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(str(x));
+ if(!m)return false;
+ const year=Number(m[1]),month=Number(m[2]),day=Number(m[3]);
+ const parsed=new Date(Date.UTC(year,month-1,day));
+ return parsed.getUTCFullYear()===year&&parsed.getUTCMonth()===month-1&&parsed.getUTCDate()===day;
+};
+const validTime=x=>{
+ const m=/^([01]\d|2[0-3]):([0-5]\d)$/.exec(str(x));
+ return Boolean(m);
+};
 export function createCompositionCapacityGate20({availabilityService,hardGate,roster,canonicalReader}={}){
  if(typeof availabilityService?.acquirePlanningLease!=='function'||
     typeof availabilityService?.releasePlanningLease!=='function'||
@@ -74,8 +85,7 @@ export function createCompositionCapacityGate20({availabilityService,hardGate,ro
     if(group.blocks.length>50)fail('COMPOSITION_CAPACITY_COMBINED_BLOCKS_LIMIT');
     const intervals=group.blocks.map(b=>{
       const date=str(b.date),start=str(b.start),end=str(b.end);
-      if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^\d{2}:\d{2}$/.test(start)||
-         !/^\d{2}:\d{2}$/.test(end)||start>=end)
+      if(!validDate(date)||!validTime(start)||!validTime(end)||start>=end)
         fail('COMPOSITION_CAPACITY_COMBINED_TIME_INVALID');
       return {date,start,end};
     });

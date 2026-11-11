@@ -143,11 +143,13 @@ export function createVisitCompositionAtomicService20({store,gate,availabilitySe
     const lease=await availabilityService.acquirePlanningLease({
      actor:leaseActor,auditorId:group.auditorId,auditId:sourceAuditId,
      auditorEmail:group.auditorEmail,plannedBlocks:group.blocks});
+    // Track the acquired lease before any subsequent validation can fail:
+    // a mismatch must never strand a lease outside cleanup.
+    leases.push({auditorId:group.auditorId,token:lease.token});
     const expectedVersion=preview.availabilityVersions[group.auditorId];
     if(!Number.isSafeInteger(expectedVersion)||expectedVersion<0||
        lease.version!==expectedVersion+1||lease.document?.version!==lease.version)
      throw Error('VISIT_COMPOSITION_AVAILABILITY_VERSION_DRIFT');
-    leases.push({auditorId:group.auditorId,token:lease.token});
     hardGate({document:lease.document,blocks:group.blocks});
    }
    const plan={...preview.sourceTombstone,...preview.projectionPlan,

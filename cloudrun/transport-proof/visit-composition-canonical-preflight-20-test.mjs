@@ -4,8 +4,8 @@ import {createVisitCompositionCanonicalPreflight20} from './visit-composition-ca
 const rows={
  readAuditRows:[['Audit ID','Company_UID','Status','Assigned to','Planning JSON','Last decision timestamp','Status since','Auditor_UID'],
  ['A1','C1','Pending Planning','','','','','']],
- readObligationRows:[['Obligation_ID','Company_UID','ScopeCode','Formal_Hours','Obligation_State'],
- ['O1','C1','MPS-GAP',8,'OPEN'],['O2','C1','GRASP',3,'LINKED_TO_VISIT']],
+ readObligationRows:[['Obligation_ID','Company_UID','ScopeCode','Formal_Hours','Obligation_State','Planning_Window_From','Planning_Window_To'],
+ ['O1','C1','MPS-GAP',8,'OPEN','2026-11-01','2026-12-01'],['O2','C1','GRASP',3,'LINKED_TO_VISIT','01/11/2026','30/11/2026']],
  readLinkRows:[['Audit_ID','Obligation_ID','Link_State','Migration_Batch_ID','Linked_At','Unlinked_At'],
  ['A1','O1','ACTIVE','MIG','2026-01-01',''],['A1','O2','ACTIVE','MIG','2026-01-01','']],
  readConfigScopeRows:[['SlotKey','ScopeCode'],['SCOPE_02','MPS-GAP'],['SCOPE_04','GRASP']],
@@ -34,6 +34,7 @@ assert.equal(good.readOnly,true);assert.equal(good.writeEnabled,false);
 assert.equal(good.sourceRevision,sourceRevision);
 assert.equal(good.totalRequiredMinutes,660);
 assert.equal(good.allocations.length,2);
+assert.equal(good.windows.length,2);
 const qualified=await service.preview({...together,auditorUid:'AUD-1'});
 assert.equal(qualified.qualifications.qualified,true);
 assert.equal(qualified.qualifications.availabilityVerified,false);

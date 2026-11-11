@@ -28,7 +28,8 @@ function testFixture(mode='TOGETHER'){
   projectionPreconditions:[{range:'Audit planning!A2:B2',before:['a','b']}].concat(mode==='SEPARATELY'?
    [{range:'Audit_Visit_Obligations!A2:F2',before:['source-1','ob-1','ACTIVE','','','']},
     {range:'Audit_Visit_Obligations!A3:F3',before:['source-1','ob-2','ACTIVE','','','']}]:[]),
-  appendIntents:[{range:'Notification Queue!A:M',values:[['PLAN']]}].concat(mode==='SEPARATELY'?
+  appendIntents:[{range:'Notification Queue!A:M',values:visits.map(x=>[
+    '2026-11-11','PENDING','AUDIT_PLANNED',x.auditorEmail,x.auditId])}].concat(mode==='SEPARATELY'?
    [{range:'Audit_Visit_Obligations!A:F',values:visits.map(x=>
      [x.auditId,x.obligationIds[0],'ACTIVE','','',''])}]:[]),
   visits,entities,activeObligationIds:['ob-1','ob-2'],sourceTombstone:{auditId},projectionPlan:{auditId},
@@ -90,6 +91,10 @@ for(const mode of ['TOGETHER','SEPARATELY']){
   await assert.rejects(()=>malformed.service.commit(args),/SPLIT_IDENTITY_NOT_DETERMINISTIC/);
   assert.equal(malformed.stats().applied,0);
  }
+ const noRecipient=testFixture(mode);
+ noRecipient.preview.appendIntents[0].values[0][3]='';
+ await assert.rejects(()=>noRecipient.service.commit(args),/NOTIFICATION_RECIPIENT_MISSING/);
+ assert.equal(noRecipient.stats().applied,0);
  const drift=testFixture(mode);drift.preview.availabilityVersions['aud-1']=9;
  await assert.rejects(()=>drift.service.commit(args),/AVAILABILITY_VERSION_DRIFT/);
  assert.equal(drift.stats().leases,0);assert.equal(drift.stats().locked,false);

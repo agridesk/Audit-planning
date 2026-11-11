@@ -37,6 +37,14 @@ export function createVisitCompositionCanonicalPreflight20({reader}={}){
   const actualRevision=createHash('sha256').update(revisionFields.join('|')+(auditorUid?'|'+auditorUid:'')).digest('hex').slice(0,24);
   if(sourceRevision!==undefined&&str(sourceRevision)!==actualRevision)
    fail('COMPOSITION_PREFLIGHT_SOURCE_REVISION_CONFLICT');
+  const globalActive=new Set();
+  for(const link of links.slice(1)){
+   if(val(link,state).toUpperCase()!=='ACTIVE')continue;
+   const obligationId=val(link,oid);
+   if(!obligationId||globalActive.has(obligationId))
+    fail('COMPOSITION_SOURCE_ACTIVE_LINK_CONFLICT');
+   globalActive.add(obligationId);
+  }
   const activeIds=links.slice(1).filter(r=>val(r,aid)===auditId&&val(r,state).toUpperCase()==='ACTIVE').map(r=>val(r,oid));
   if(activeIds.length<2||new Set(activeIds).size!==activeIds.length)
    fail('COMPOSITION_PREFLIGHT_MULTISCOPE_ACTIVE_LINKS_REQUIRED');
@@ -49,6 +57,8 @@ export function createVisitCompositionCanonicalPreflight20({reader}={}){
   });
   const base={auditId,companyUid,obligations,mode};
   if(mode==='SEPARATELY'){
+   if(str(row[status]).toUpperCase().replace(/[\s_-]+/g,'_')!=='PENDING_PLANNING')
+    fail('COMPOSITION_SOURCE_NOT_PENDING_PLANNING');
    const result=previewVisitComposition20(base);
    // No fabricated Visit IDs or implied calendars. The canonical writer
    // must issue identities within its authenticated transaction preflight.

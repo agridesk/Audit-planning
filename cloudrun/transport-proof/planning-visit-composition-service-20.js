@@ -9,6 +9,7 @@
 import {createHash} from 'node:crypto';
 import {prepareVisitCompositionCommand20} from './visit-composition-command-20.mjs';
 import {prepareModelCVisitLinkSplit20} from './visit-model-c-link-split-plan-20.mjs';
+import {prepareModelCPlanningVisitSplitRows20} from './visit-model-c-planning-split-rows-20.mjs';
 import {verifyVisitCompositionSource20} from './visit-composition-source-evidence-20.mjs';
 
 const str = x => String(x ?? '').trim();
@@ -64,7 +65,8 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
    });
    // Canonical SSoT rows are revalidated; boolean proof flags alone are never enough.
    const canonicalRows=await canonicalReader.read({
-     appendRowNumbers:proof.mode==='SEPARATELY'?proof.appendRowNumbers:[]
+     appendRowNumbers:proof.mode==='SEPARATELY'?proof.appendRowNumbers:[],
+     planningAppendRowNumbers:proof.mode==='SEPARATELY'?proof.planningAppendRowNumbers:[]
    });
    const sourceEvidence=verifyVisitCompositionSource20({
      command,
@@ -101,6 +103,19 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
       jsonEq(proof.projectionPreconditions[i].before,modelC.projectionPreconditions.find(x=>x.range===range).before))))
       fail('COMPOSITION_SERVICE_MODEL_C_PROJECTION_MISMATCH');
     if(proof.verifiedEmptyAppendRows!==true)fail('COMPOSITION_SERVICE_APPEND_ROWS_NOT_VERIFIED');
+    if(proof.verifiedEmptyPlanningRows!==true||
+       !jsonEq(canonicalRows.emptyPlanningRows?.map(x=>x.row),proof.planningAppendRowNumbers))
+      fail('COMPOSITION_SERVICE_PLANNING_APPEND_ROWS_NOT_VERIFIED');
+    const planningSplit=prepareModelCPlanningVisitSplitRows20({
+      command,planningValues:canonicalRows.readAuditRows,
+      configScopeValues:canonicalRows.readConfigScopeRows,
+      newRowNumbers:canonicalRows.emptyPlanningRows.map(x=>x.row)
+    });
+    if(!planningSplit.projectionWrites.every((write,i)=>
+       proof.projectionWrites.some((target,j)=>
+         target.range===write.range&&jsonEq(target.values,write.values)&&
+         jsonEq(proof.projectionPreconditions[j],planningSplit.projectionPreconditions[i]))))
+      fail('COMPOSITION_SERVICE_PLANNING_PROJECTION_MISMATCH');
    }
    const audits=proof.entities;
    if(audits[0]?.auditId!==command.auditId||

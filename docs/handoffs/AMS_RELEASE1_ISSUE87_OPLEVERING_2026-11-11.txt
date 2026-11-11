@@ -58,3 +58,10 @@ AANVULLING — 11-11-2026: PER-VISIT AUDITOR PREFLIGHT
 - Een preview verstrekt geen Availability-claim, geen reservering en geen commit-autorisatie.
 - Nieuwe gerichte geïsoleerde V8-regressies: PASS. Node/GitHub Actions na laatste commits nog NIET bevestigd.
 - Relevante commits: 3465ac5e, e9d52fb4, 73d6bf5d.
+
+AANVULLING — 11-11-2026: SEPARATE VISIT IDENTITY COLLISION SAFETY
+- Read-only Separate preflight toetst deterministisch afgeleide Audit ID-voorstellen direct tegen alle bestaande Audit ID's uit Audit planning.
+- In geval van collision: COMPOSITION_PREFLIGHT_NEW_AUDIT_ID_ALREADY_EXISTS; geen reserveer- of schrijfoperatie.
+- Positieve en negatieve preflighttests, inclusief twee auditors, tijdvensters, client identity denial en ID-collision: geïsoleerd PASS.
+- Nieuwe source-gatecheck toegevoegd; actuele volledige Node-run op laatste branch nog niet bevestigd.
+- Relevante commits: a88a17bf, d568dcbd, 8d291ea9.

@@ -72,6 +72,10 @@ const service=createPlanningVisitCompositionService20({...args,enabled:true});
 overrideProof={requiredProofs:[]};
 await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SERVICE_PROOF_INCOMPLETE/);
 assert.equal(commits,0);assert.equal(token,null);
+overrideProof={sourceEvidence:{...sourceEvidence,
+ readAuditRows:[['Audit ID','Company_UID','Status'],['A-1','OTHER','Pending Planning']]}};
+await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SOURCE_COMPANY_MISMATCH/);
+assert.equal(commits,0);assert.equal(token,null);
 overrideProof={};
 const first=await service.commit({actor,body});
 assert.equal(first.success,true);assert.equal(first.mode,'TOGETHER');

@@ -15,7 +15,7 @@ const base=()=>prepareVisitCompositionCommand20({
 const headers=['Company','Company_UID','Audit ID','Status','Assigned to','Planning JSON','Total audit time in hours','Total audit time in days','Date - Planned','Date - Approved','Scopes_List','SCOPE_01','Duration SCOPE_01','SCOPE_02','Duration SCOPE_02','SCOPE_03','Duration SCOPE_03','Auditor_UID','Last manager decision','Last decision timestamp','Status since',...Array.from({length:21},(_,i)=>'Other_'+i)];
 const row=['Company A','C1','A1','Pending Planning','','','11.00','','','','','x','8','x','3','','','','','','',...Array(21).fill('')];
 const assignment=(auditId,obligationId,auditorUid,auditorEmail,auditorName)=>({auditId,obligationId,auditorUid,auditorEmail,auditorName});
-const input=()=>({command:base(),planningValues:[headers,row],configScopeValues:[['SlotKey','ScopeCode'],['SCOPE_01','MPS-GAP'],['SCOPE_02','GRASP'],['SCOPE_03','MPS-ABC']],
+const input=()=>({command:base(),planningValues:[structuredClone(headers),structuredClone(row)],configScopeValues:[['SlotKey','ScopeCode'],['SCOPE_01','MPS-GAP'],['SCOPE_02','GRASP'],['SCOPE_03','MPS-ABC']],
  newRowNumbers:[4],now:'2026-11-11T17:10:00',assignments:[
  assignment('A1','O1','U1','auditor1@example.com','Auditor One'),
  assignment('A2','O2','U2','auditor2@example.com','Auditor Two')]

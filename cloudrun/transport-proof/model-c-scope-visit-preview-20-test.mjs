@@ -4,6 +4,20 @@ const obligations=[['Obligation_ID','ScopeCode','Company_UID','Formal_Hours','Ef
 const links=[['Audit_ID','Obligation_ID','Link_State'],['AUDIT1','OB1','ACTIVE'],['AUDIT1','OB2','ACTIVE']];
 const r=previewModelCVisitComposition20({auditId:'AUDIT1',obligations,links});
 assert.equal(r.scopeCount,2);assert.deepEqual(r.compositionOptions,['TOGETHER','SEPARATELY']);assert.deepEqual(r.obligations.map(x=>x.requiredHours),['8','3']);assert.equal(r.canCommit,false);
+const planningRows=[['Audit ID','Company_UID','Status'],['AUDIT1','C1','Pending Planning']];
+const configScopes=[['ScopeCode','DisplayName'],['ABC','MPS-ABC'],['GRASP','GRASP']];
+const checked=previewModelCVisitComposition20({auditId:'AUDIT1',obligations,links,planningRows,configScopes});
+assert.equal(checked.sourceEvidenceReady,true);assert.equal(checked.source.sourceRows,1);
+assert.deepEqual(checked.missingRequiredHours,[]);assert.equal(checked.canCommit,false);
+assert.throws(()=>previewModelCVisitComposition20({auditId:'AUDIT1',obligations,links,
+ planningRows:[...planningRows,planningRows[1]],configScopes}),/SOURCE_IDENTITY_CONFLICT/);
+assert.throws(()=>previewModelCVisitComposition20({auditId:'AUDIT1',obligations,links,
+ planningRows,configScopes:[configScopes[0],configScopes[1]]}),/SCOPE_CATALOG_IDENTITY_CONFLICT/);
+const missingHours=previewModelCVisitComposition20({auditId:'AUDIT1',obligations:
+ [obligations[0],obligations[1],[...obligations[2].slice(0,3),'',...obligations[2].slice(4)]],
+ links,planningRows,configScopes});
+assert.equal(missingHours.sourceEvidenceReady,false);
+assert.deepEqual(missingHours.missingRequiredHours,['OB2']);
 assert.throws(()=>previewModelCVisitComposition20({auditId:'AUDIT1',obligations,links:[...links,['AUDIT1','MISSING','ACTIVE']]}),/MODEL_C_PREVIEW_LINK_UNRESOLVED/);
 import {readFileSync} from 'node:fs';
 const server=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');

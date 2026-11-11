@@ -1,3 +1,4 @@
+import {canonicalPlanningRevision20} from './combined-visit-canonical-gas-bridge-20.mjs';
 const clean=x=>String(x??'').trim();
 const norm=x=>clean(x).toLowerCase().replace(/[^a-z0-9]+/g,'');
 const col=(h,...names)=>names.map(n=>h.findIndex(x=>norm(x)===norm(n))).find(x=>x>=0)??-1;
@@ -8,7 +9,11 @@ export function previewModelCVisitComposition20({auditId,obligations,links,plann
  const oi=col(oh,'Obligation_ID'),os=col(oh,'ScopeCode'),oc=col(oh,'Company_UID'),of=col(oh,'Formal_Hours','Required_Hours','Audit_Hours'),oe=col(oh,'Effective_Expiry_Date'),owf=col(oh,'Planning_Window_From'),owt=col(oh,'Planning_Window_To'),ost=col(oh,'Obligation_State');
  const la=col(lh,'Audit_ID'),lo=col(lh,'Obligation_ID'),ls=col(lh,'Link_State');
  if([oi,os,oc,la,lo,ls].some(x=>x<0))throw Error('MODEL_C_PREVIEW_SCHEMA_INCOMPLETE');
- const ids=new Set(links.slice(1).filter(r=>field(r,la)===id&&norm(field(r,ls))==='active').map(r=>field(r,lo)));
+ const selectedLinks=links.slice(1).filter(r=>field(r,la)===id&&norm(field(r,ls))==='active');
+ const activeIds=selectedLinks.map(r=>field(r,lo));
+ if(activeIds.some(x=>!x)||new Set(activeIds).size!==activeIds.length)
+  throw Error('MODEL_C_PREVIEW_DUPLICATE_ACTIVE_LINK');
+ const ids=new Set(activeIds);
  if(!ids.size)throw Error('MODEL_C_PREVIEW_NO_ACTIVE_LINKS');
  const rows=obligations.slice(1).filter(r=>ids.has(field(r,oi))).map(r=>({obligationId:field(r,oi),scopeCode:field(r,os),companyUid:field(r,oc),requiredHours:field(r,of),plannedHours:null,remainingHours:null,allocationStatus:'UNKNOWN_NOT_INFERRED',effectiveExpiry:field(r,oe),windowFrom:field(r,owf),windowTo:field(r,owt),state:field(r,ost)}));
  if(rows.length!==ids.size)throw Error('MODEL_C_PREVIEW_LINK_UNRESOLVED');
@@ -23,6 +28,9 @@ export function previewModelCVisitComposition20({auditId,obligations,links,plann
   if(matching.length!==1)throw Error('MODEL_C_PREVIEW_SOURCE_IDENTITY_CONFLICT');
   source.checked=true;source.sourceRows=1;source.status=field(matching[0],ps);
   source.companyUid=field(matching[0],pc)||null;
+  // Reuse the DEV GAS combined-visit PRT1 source fingerprint for source
+  // evidence. This is a read-only candidate, NOT an authoritative commit CAS.
+  source.revision=canonicalPlanningRevision20(ph,matching[0]);
   if(source.companyUid&&source.companyUid!==rows[0].companyUid)
    throw Error('MODEL_C_PREVIEW_COMPANY_UID_CONFLICT');
  }

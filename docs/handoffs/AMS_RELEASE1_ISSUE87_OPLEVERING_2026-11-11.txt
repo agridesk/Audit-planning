@@ -83,3 +83,14 @@ AANVULLING — 11-11-2026 — VERWERKING LOKALE REGRESSIE-UITVOER
 - Source gate uitgebreid met expliciete check voor UNCERTAIN global gate (commit 1e4528ee).
 - Volledige Node-suite op de nieuwste commits moet nog opnieuw worden uitgevoerd; niet claimen dat alle regressies PASS zijn tot dat bewijs er is.
 - Geen deployment, geen mutaties in DEV of PROD, writer-route blijft ongeactiveerd; PROD NO-GO.
+
+AANVULLING — 11-11-2026 — GEBRUIKERSTEST + CANONICAL CAS + RECONCILIATIE
+- Gebruiker bevestigde volledige Issue87-allocation Node-regressie PASS en SINGLE_PLANNING_RELEASE_1_SOURCE_PASS 32 checks; dit bewijs geldt voor de geteste branchversie vóór onderstaande wijzigingen.
+- Atomic composition service leest nu opnieuw de actuele Audit planning-bronrij en berekent zelf sourceRevision volgens het bestaande R4 directRowRevision-contract. Afwijkende waarde t.o.v. request/preflight => COMPOSITION_SERVICE_SHEETS_SOURCE_REVISION_CONFLICT vóór Firestore-commit.
+- Read-only preflight gebruikt dezelfde gedeelde revision-helper; divergentie tussen preview en writer voorkomen.
+- Nieuwe pure revisietest met status-/auditor-drift en een negatieve atomic-Sheets-revisiedrifttest. Beide plus atomic Together/Separately geïsoleerd V8: PASS.
+- Read-only multi-scope reconciliatiediagnose toegevoegd: categoriseert ontbrekende Formal_Hours, ontbrekende scope-duur, afwijkende totaaltijd, onbekende scope en dubbele/strijdige links zonder identificeerbare auditdata uit te geven.
+- Nieuwe GET /api/v1/planning/composition-reconciliation; uitsluitend DEV + manager-session + AMS_DEV_COMPOSITION_RECONCILIATION_ENABLED=true; default disabled, geen writes. De runtime-contracttest is geïsoleerd PASS.
+- Package test:issue87-allocation en Release1 source-gate uitgebreid met nieuwe revision- en diagnosticcontroles.
+- Relevante commits: 3b1f7cad, 24537883, 759beec2, 484e3f8f, 185792a2, 777fd9dc, ffc96876, e4b62b66, fe45eb38, da2370c2, 4b6ab9ed, 479df8ed, b1f6fa74.
+- VOLGENDE: volledige Node-run op huidige commit en desgewenst veilige DEV read-only runtimevalidatie; writer-route is niet actief, PROD NO-GO. Geen deployment of mutaties uitgevoerd.

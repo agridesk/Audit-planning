@@ -25,6 +25,7 @@ const windows=read('./visit-composition-window-20.mjs');
 const sourceRevision=read('./visit-composition-source-revision-20.mjs');
 const reconciliation=read('./visit-composition-reconciliation-20.mjs');
 const managerNotifications=read('./visit-composition-manager-notifications-20.mjs');
+const clientProposal=read('./visit-composition-client-proposal-20.mjs');
 const compositionOverview=read('./visit-composition-overview-20.mjs');
 const handoff=managerPortal.split('function submitSelectionHandoff(mode){')[1]?.split('\nfunction text(v)')[0]||'';
 const checks={
@@ -54,6 +55,7 @@ const checks={
   'Issue87 notification queue format and write targets are restricted':atomicComposition.includes('COMPOSITION_SERVICE_NOTIFICATION_INTENT_INVALID')&&atomicComposition.includes('COMPOSITION_SERVICE_PROJECTION_SCOPE_FORBIDDEN'),
   'Issue87 composition notifications match intended visit audit identities':atomicComposition.includes('COMPOSITION_SERVICE_NOTIFICATION_AUDIT_OR_STATE_MISMATCH')&&atomicComposition.includes('permittedEventAudits.has(str(row[4]))'),
   'Issue87 notifications require canonical config and audit trail plus manager mail':atomicComposition.includes('prepareCompositionManagerNotifications20(')&&atomicComposition.includes('COMPOSITION_SERVICE_NOTIFICATION_CANONICAL_INTENTS_MISMATCH')&&canonicalReader.includes('readNotificationConfig()')&&managerNotifications.includes("'AUDIT_PLANNED_BY_MANAGER'")&&managerNotifications.includes("'LIFECYCLE_STATUS_CHANGED'")&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-manager-notifications-20-test.mjs')===true,
+  'Issue87 client cannot inject authority or canonical writes':clientProposal.includes('COMPOSITION_CLIENT_AUTHORITY_FIELDS_FORBIDDEN')&&clientProposal.includes('COMPOSITION_CLIENT_VISIT_AUTHORITY_FORBIDDEN')&&atomicComposition.includes('validateCompositionClientProposal20(body)')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-client-proposal-20-test.mjs')===true,
   'Issue87 no unrequested planning or Model C business writes':atomicComposition.includes('COMPOSITION_SERVICE_EXTRA_BUSINESS_PROJECTION_FORBIDDEN')&&atomicComposition.includes('COMPOSITION_SERVICE_TOGETHER_BUSINESS_PROJECTION_INVALID'),
   'Issue87 unverified Availability sheet writes remain blocked':atomicComposition.includes("new Set(['Audit planning','Audit_Visit_Obligations'])")&&atomicComposition.includes('COMPOSITION_SERVICE_PROJECTION_SCOPE_FORBIDDEN'),
   'Issue87 scheduled Separate snapshots match verified manager-approved rows':atomicComposition.includes('COMPOSITION_SERVICE_SCHEDULED_SNAPSHOT_DRIFT')&&atomicComposition.includes('verifyCompositionAuditorQualifications20(')&&scheduledSplitRows.includes("row[status]='Approved'"),

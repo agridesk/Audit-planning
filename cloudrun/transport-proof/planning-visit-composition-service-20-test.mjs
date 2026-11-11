@@ -90,6 +90,15 @@ overrideProof={appendIntents:[{range:'Notification Queue!A:M',
  values:[[...proof.appendIntents[0].values[0].slice(0,4),'NOT_THE_SOURCE_AUDIT',...proof.appendIntents[0].values[0].slice(5)]]}]};
 await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SERVICE_NOTIFICATION_AUDIT_OR_STATE_MISMATCH/);
 assert.equal(commits,0);assert.equal(token,null);
+overrideProof={projectionWrites:[
+ ...proof.projectionWrites,
+ {range:'Audit_Visit_Obligations!A8:B8',values:[['A-1','O-1']]}
+],projectionPreconditions:[
+ ...proof.projectionPreconditions,
+ {range:'Audit_Visit_Obligations!A8:B8',before:[]}
+]};
+await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SERVICE_TOGETHER_BUSINESS_PROJECTION_INVALID/);
+assert.equal(commits,0);assert.equal(token,null);
 overrideProof={};
 sourceRowsOverride={...sourceEvidence,
  readAuditRows:[['Audit ID','Company_UID','Status'],['A-1','OTHER','Pending Planning']]};

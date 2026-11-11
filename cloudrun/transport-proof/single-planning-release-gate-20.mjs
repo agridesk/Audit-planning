@@ -9,6 +9,7 @@ const managerPortal=read('./manager-portal.js');
 const compositionPreview=read('./visit-composition-preview-20.mjs');
 const compositionCommand=read('./visit-composition-command-20.mjs');
 const scopeAllocation=read('./visit-scope-allocation-20.mjs');
+const modelCLinkSplit=read('./visit-model-c-link-split-plan-20.mjs');
 const handoff=managerPortal.split('function submitSelectionHandoff(mode){')[1]?.split('\nfunction text(v)')[0]||'';
 const checks={
   'single planning direct endpoint present':r4.includes("'/api/v1/planning/direct-commit'"),
@@ -24,7 +25,8 @@ const checks={
   'failed handoff closes reserved window':handoff.includes('win.close()'),
   'existing regression targets available':!!packageJson.scripts['test:realized-hours']&&!!packageJson.scripts['test:prod-config'],
   'Issue87 Model C composition read-only and fail-closed':compositionPreview.includes('canCommit:false')&&compositionCommand.includes('canCommit:false')&&scopeAllocation.includes('SCOPE_ALLOCATION_REQUIRED_HOURS_MISMATCH'),
-  'Issue87 targeted regression command exists':packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-command-20-test.mjs')===true
+  'Issue87 targeted regression command exists':packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-command-20-test.mjs')===true,
+  'Issue87 link split projection stays read-only and fail-closed':modelCLinkSplit.includes('canCommit:false')&&modelCLinkSplit.includes('MODEL_C_LINK_SPLIT_SOURCE_LINK_DRIFT')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-model-c-link-split-plan-20-test.mjs')===true
 };
 for(const [name,ok] of Object.entries(checks))assert.equal(ok,true,'Release 1 source gate: '+name);
 const blockers=['PROD_LEGACY_MANAGER_LIFECYCLE_WRITES','PROD_LEGACY_DIRECT_LIFECYCLE_WRITE','PROD_REALIZED_HOURS_CANONICAL_PARITY_UNPROVEN','PROD infrastructure IAM/Firestore/SSoT runtime proof','Manager/Auditor Single Planning E2E evidence','Issue87 canonical together/separately writer and Model C link transfer'];

@@ -64,16 +64,16 @@ export function createPlanningOverlayService({service,readPlanningRows,listCanon
   }
   return {incompleteAuditDiagnostics:current,outsidePeriodAuditDiagnostics:historical,uncertainAuditorIds:[...uncertain],unknownReservationOwner:unknownOwner};
  }
- async function period({actor,auditorId,fromDate,toDate}){
+ async function period({actor,auditorId,fromDate,toDate,fresh=false}){
   validateReadRange(fromDate,toDate);
   const doc=await service.read(actor,auditorId);
   const incompleteAuditDiagnostics=[];
-  const slots=await slotsFor(fromDate,toDate,{incompleteAuditDiagnostics});
+  const slots=await slotsFor(fromDate,toDate,{fresh:fresh===true,incompleteAuditDiagnostics});
   const review=await reviewDiagnostics(incompleteAuditDiagnostics,[auditorId],fromDate,toDate,{manager:clean(actor?.role).toLowerCase()==='manager'});
   const blocks=committedBlocksFromCanonicalSlots({auditorId,slots});
   const merged=withCommittedOverlay(doc,blocks);
   const auditDetails={};for(const slot of slots){if(slot.auditorId!==auditorId)continue;const id='audit:'+slot.auditId+'|'+slot.date+'|'+slot.start+'|'+slot.end;auditDetails[id]={auditId:slot.auditId,company:slot.company||'',scopes:slot.scopes||'',location:slot.location||'',date:slot.date,start:slot.start,end:slot.end,state:slot.state};}
-  return {auditorId,version:doc.version,days:resolveAvailabilityPeriod({...merged,fromDate,toDate}),auditDetails,...review,metadata:{...structuredClone(doc.metadata),baselineIds:(doc.baselineExceptions||[]).map(x=>x.id),baselineExceptions:structuredClone(doc.baselineExceptions||[]),recurring:structuredClone(doc.recurring||[])}};
+  return {auditorId,version:doc.version,canonicalFresh:fresh===true,days:resolveAvailabilityPeriod({...merged,fromDate,toDate}),auditDetails,...review,metadata:{...structuredClone(doc.metadata),baselineIds:(doc.baselineExceptions||[]).map(x=>x.id),baselineExceptions:structuredClone(doc.baselineExceptions||[]),recurring:structuredClone(doc.recurring||[])}};
  }
  async function managerOverview({actor,auditorIds,fromDate,toDate,displayNames={}}){
   validateReadRange(fromDate,toDate);

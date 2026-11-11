@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {createPlanningVisitCompositionService20} from './planning-visit-composition-service-20.js';
 import {prepareVisitCompositionCommand20} from './visit-composition-command-20.mjs';
-import {prepareModelCPlanningVisitSplitRows20} from './visit-model-c-planning-split-rows-20.mjs';
+import {prepareScheduledCompositionSplitRows20} from './visit-composition-scheduled-split-20.mjs';
 import {deriveVisitSplitIdentity20} from './visit-composition-identity-20.mjs';
 
 const rev=createHash('sha256').update('A-1|Pending Planning||||').digest('hex').slice(0,24),issuer=rev;
@@ -57,7 +57,7 @@ const appendProjector={
 };
 const planningHeaders=['Company','Company_UID','Audit ID','Status','Assigned to','Planning JSON',
  'Total audit time in hours','Total audit time in days','Date - Planned','Date - Approved',
- 'Scopes_List','SCOPE_01','Duration SCOPE_01','SCOPE_02','Duration SCOPE_02',...Array.from({length:26},(_,i)=>'Other_'+i)];
+ 'Scopes_List','SCOPE_01','Duration SCOPE_01','SCOPE_02','Duration SCOPE_02','Auditor_UID','Last manager decision','Last decision timestamp','Status since',...Array.from({length:22},(_,i)=>'Other_'+i)];
 const planningSource=['A company','C-1','A-1','Pending Planning','','','11.00','','','','','x','8','x','3',...Array(26).fill('')];
 const scopeConfig=[['SlotKey','ScopeCode'],['SCOPE_01','GAP'],['SCOPE_02','GRASP']];
 const sourceEvidence={
@@ -85,11 +85,24 @@ const proof={sourceEvidence,
 };
 const prepared=prepareVisitCompositionCommand20({auditId:'A-1',companyUid:'C-1',sourceRevision:rev,
  obligations,mode:'SEPARATELY',visits});
-const planningSplit=prepareModelCPlanningVisitSplitRows20({command:prepared,
- planningValues:sourceEvidence.readAuditRows,configScopeValues:scopeConfig,newRowNumbers:[4]});
+const assignments=[
+ {auditId:'A-1',obligationId:'O-1',auditorUid:'aud-1',auditorEmail:'auditor@example.com',auditorName:'Auditor One'},
+ {auditId:successorAuditId,obligationId:'O-2',auditorUid:'aud-1',auditorEmail:'auditor@example.com',auditorName:'Auditor One'}
+];
+const planningSplit=prepareScheduledCompositionSplitRows20({command:prepared,
+ planningValues:sourceEvidence.readAuditRows,configScopeValues:scopeConfig,
+ newRowNumbers:[4],assignments,now:proof.now});
+snapshot.planningJson=planningSplit.visits[0].planningJson;
+successor.planningJson=planningSplit.visits[1].planningJson;
 proof.projectionWrites.push(...planningSplit.projectionWrites);
 proof.projectionPreconditions.push(...planningSplit.projectionPreconditions);
-const canonicalReader={async read(){return structuredClone(sourceEvidence)}};
+const canonicalReader={
+ async read(){return structuredClone(sourceEvidence)},
+ async readQualifications(){return {
+  auditorRows:[['Name','E-mail','Role','Active','Auditor_UID'],['Auditor One','auditor@example.com','Auditor','YES','aud-1']],
+  qualificationRows:[['Auditor_UID','ScopeCode','Qualified'],['aud-1','GAP','YES'],['aud-1','GRASP','YES']]
+ }}
+};
 let capacityAcquisitions=0,capacityReleased=0;
 const capacityGate={async acquire({entities}){capacityAcquisitions++;assert.equal(entities.length,2);
  return {async release(){capacityReleased++},async uncertain(){throw Error('UNEXPECTED_UNCERTAIN')}};

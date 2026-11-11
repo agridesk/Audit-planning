@@ -47,7 +47,7 @@
   if(chosen==='SEPARATELY'){
    if(data.cloudOrigin){
     var link=make('a','Continue to secure Cloud Run planning');
-    link.href=data.cloudOrigin.replace(/\\/$/,'')+'/visit-composition?auditId='+encodeURIComponent(data.auditId);
+    link.href=data.cloudOrigin.replace(/\/$/,'')+'/visit-composition?auditId='+encodeURIComponent(data.auditId);
     link.target='_blank';link.rel='noopener noreferrer';
     link.style.cssText='display:inline-block;padding:9px 14px;background:#21558d;color:white;border-radius:5px;text-decoration:none;font-weight:600;margin:6px 0';
     area.appendChild(link);

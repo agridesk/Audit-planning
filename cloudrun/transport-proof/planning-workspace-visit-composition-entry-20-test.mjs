@@ -45,6 +45,12 @@ assert.throws(()=>context.PlanningWorkspaceVisitComposition20_preview({...input,
  /MANAGER_AUTH_REQUIRED/);
 assert.throws(()=>context.PlanningWorkspaceVisitComposition20_preview({...input,actorEmail:'other@example.test'}),
  /MANAGER_IDENTITY_MISMATCH/);
+context.V5_ENTRY_isTestBypass_=(email,role,token,device)=>email==='manager@example.test'&&
+ role==='Manager'&&token==='dev-test-manager'&&device==='device-1';
+const bypass=context.PlanningWorkspaceVisitComposition20_preview({...input,trustedToken:'dev-test-manager'});
+assert.equal(bypass.readOnly,true);assert.equal(bypass.canCommit,false);
+assert.throws(()=>context.PlanningWorkspaceVisitComposition20_preview({...input,trustedToken:'dev-test-manager',
+ actorEmail:'other@example.test'}),/MANAGER_AUTH_REQUIRED/);
 links.push(['ANOTHER','OB1','ACTIVE']);
 assert.throws(()=>context.PlanningWorkspaceVisitComposition20_preview(input),/ACTIVE_LINK_CONFLICT/);
 links.pop();

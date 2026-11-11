@@ -66,10 +66,10 @@ const appendProjector={
 const preflight=async({operationId})=>{preflights++;return {...structuredClone(proof),...overrideProof,gateOperationId:operationId}};
 let sourceRowsOverride=null;
 const canonicalReader={async read(){return structuredClone(sourceRowsOverride||sourceEvidence)}};
-let capacityLeases=0,capacityReleased=0,capacityUncertain=0;
+let capacityLeases=0,capacityReleased=0,capacityUncertain=0,failCapacityRelease=false;
 const capacityGate={async acquire(){
  capacityLeases++;
- return {async release(){capacityReleased++},async uncertain(){capacityUncertain++}};
+ return {async release(){if(failCapacityRelease)throw Error('SIMULATED_LEASE_RELEASE_FAILURE');capacityReleased++},async uncertain(){capacityUncertain++}};
 }};
 const args={store,gate,projector,appendProjector,preflight,canonicalReader,capacityGate};
 const disabled=createPlanningVisitCompositionService20(args);
@@ -117,11 +117,17 @@ assert.equal(token,null);
 const replay=await service.commit({actor,body});
 assert.equal(replay.replayed,true);assert.equal(commits,1);assert.equal(applies,1);assert.equal(notifications,1);
 await assert.rejects(()=>service.commit({actor:{role:'auditor',auditorId:'auditor-uid'},body}),/COMPOSITION_SERVICE_MANAGER_ONLY/);
+failCapacityRelease=true;
+await assert.rejects(()=>service.commit({actor,body:{...body,requestNonce:'lease-release-case'}}),/SIMULATED_LEASE_RELEASE_FAILURE/);
+assert.equal(token.uncertain,true);
+assert.equal(capacityUncertain,1);
+failCapacityRelease=false;
+token=null; // Simulated out-of-band recovery of global gate before the next independent scenario.
 const different={...body,requestNonce:'timeout-case'};
 failProjection=true;
 await assert.rejects(()=>service.commit({actor,body:different}),/SIMULATED_PROJECTOR_TIMEOUT/);
-assert.equal(commits,2);assert.equal(uncertain>=1,true);
+assert.equal(commits,3);assert.equal(uncertain>=2,true);
 assert.equal(token.uncertain,true);
-assert.equal(capacityUncertain,1);
+assert.equal(capacityUncertain,2);
 await assert.rejects(()=>service.commit({actor,body:different}),/COMPOSITION_SERVICE_RECOVERY_REQUIRED/);
 console.log('VISIT_COMPOSITION_ATOMIC_SERVICE_20_PASS: disabled, proof rejection, commit, verified outbox, replay, uncertainty; no HTTP route');

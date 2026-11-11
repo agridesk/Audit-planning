@@ -2,13 +2,13 @@
  * Derives all obligations, scopes and source revision from live SSoT reads.
  * No identity issuance, state mutations, Availability writes or commit routes.
  */
-import {createHash} from 'node:crypto';
 import {previewVisitComposition20} from './visit-composition-preview-20.mjs';
 import {prepareVisitCompositionCommand20} from './visit-composition-command-20.mjs';
 import {verifyVisitCompositionSource20} from './visit-composition-source-evidence-20.mjs';
 import {verifyCompositionAuditorQualifications20} from './visit-composition-qualification-20.mjs';
 import {verifyVisitCompositionWindows20} from './visit-composition-window-20.mjs';
 import {deriveVisitSplitIdentity20} from './visit-composition-identity-20.mjs';
+import {deriveCompositionSourceRevision20} from './visit-composition-source-revision-20.mjs';
 const str=x=>String(x??'').trim();
 const fail=code=>{const e=new Error(code);e.code=code;throw e;};
 const key=x=>str(x).toLowerCase().replace(/\s+/g,'_');
@@ -31,13 +31,9 @@ export function createVisitCompositionCanonicalPreflight20({reader}={}){
   if(matches.length!==1)fail('COMPOSITION_PREFLIGHT_SOURCE_NOT_UNIQUE');
   const row=matches[0],companyUid=val(row,uid);
   if(!companyUid)fail('COMPOSITION_PREFLIGHT_COMPANY_UID_REQUIRED');
-  const revisionFields=[
-   val(row,idx(ah,'Audit ID')),val(row,idx(ah,'Status')),
-   val(row,idx(ah,'Assigned to')),val(row,idx(ah,'Planning JSON')),
-   val(row,idx(ah,'Last decision timestamp')),val(row,idx(ah,'Status since'))
-  ];
-  const storedAuditorUid=val(row,idx(ah,'Auditor_UID','Assigned_Auditor_UID'));
-  const actualRevision=createHash('sha256').update(revisionFields.join('|')+(storedAuditorUid?'|'+storedAuditorUid:'')).digest('hex').slice(0,24);
+  const actualRevision=deriveCompositionSourceRevision20({
+   auditId,planningRows:ap
+  }).sourceRevision;
   if(sourceRevision!==undefined&&str(sourceRevision)!==actualRevision)
    fail('COMPOSITION_PREFLIGHT_SOURCE_REVISION_CONFLICT');
   const globalActive=new Set();

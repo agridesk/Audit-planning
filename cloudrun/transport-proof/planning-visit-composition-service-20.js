@@ -175,7 +175,7 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
       fail('COMPOSITION_SERVICE_SCHEDULED_QUALIFICATION_READER_REQUIRED');
     const directory=await canonicalReader.readQualifications();
     const header=directory.auditorRows?.[0]||[];
-    const col=x=>header.findIndex(h=>str(h).toUpperCase().replace(/[\\s_-]+/g,'_')===x);
+    const col=x=>header.findIndex(h=>str(h).toUpperCase().replace(/[\s_-]+/g,'_')===x);
     const uidCol=col('AUDITOR_UID'),nameCol=col('NAME');
     if(uidCol<0||nameCol<0)fail('COMPOSITION_SERVICE_SCHEDULED_AUDITOR_DIRECTORY_INVALID');
     const assignments=command.visits.map(visit=>{

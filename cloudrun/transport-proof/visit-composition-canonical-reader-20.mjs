@@ -5,6 +5,20 @@
 const fail=code=>{const e=new Error(code);e.code=code;throw e;};
 const blank=row=>!row||row.every(cell=>String(cell??'').trim()==='');
 const MAX={planning:2000,obligations:5000,links:5000};
+const norm=x=>String(x??'').trim().toUpperCase().replace(/[\\s-]/g,'_');
+const mandatory={
+ planning:[['AUDIT_ID'],['COMPANY_UID'],['STATUS']],
+ obligations:[['OBLIGATION_ID'],['COMPANY_UID'],['SCOPECODE','SCOPE_CODE'],['FORMAL_HOURS'],['OBLIGATION_STATE']],
+ links:[['AUDIT_ID'],['OBLIGATION_ID'],['LINK_STATE'],['LINKED_AT'],['UNLINKED_AT']]
+};
+const assertHeader=(rows,tab)=>{
+ const headers=(rows[0]||[]).map(norm);
+ if(mandatory[tab].some(aliases=>!aliases.some(x=>headers.includes(x))))
+  fail('COMPOSITION_READER_'+tab.toUpperCase()+'_SCHEMA_MISSING');
+ const nonEmpty=headers.filter(Boolean);
+ if(new Set(nonEmpty).size!==nonEmpty.length)
+  fail('COMPOSITION_READER_'+tab.toUpperCase()+'_DUPLICATE_HEADERS');
+};
 export function createVisitCompositionCanonicalReader20({readRange}={}){
  if(typeof readRange!=='function')fail('COMPOSITION_READER_CONFIG_INVALID');
  const required=(rows,limit,label)=>{
@@ -22,6 +36,9 @@ export function createVisitCompositionCanonicalReader20({readRange}={}){
   const readAuditRows=required(await readRange('Audit planning!A1:BW'+MAX.planning),MAX.planning,'PLANNING');
   const readObligationRows=required(await readRange('Audit_Obligations!A1:AA'+MAX.obligations),MAX.obligations,'OBLIGATIONS');
   const readLinkRows=required(await readRange('Audit_Visit_Obligations!A1:H'+MAX.links),MAX.links,'LINKS');
+  assertHeader(readAuditRows,'planning');
+  assertHeader(readObligationRows,'obligations');
+  assertHeader(readLinkRows,'links');
   const emptyAppendRows=[];
   for(const row of appendRowNumbers){
    if(row<=readLinkRows.length||row>=MAX.links)

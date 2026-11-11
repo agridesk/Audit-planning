@@ -84,6 +84,17 @@ function validate(preview,sourceAuditId,mode,requestedRevision){
      !preview.sourceTombstone||preview.sourceTombstone.auditId!==sourceAuditId||
      !Array.isArray(preview.entities)||preview.entities.length!==visits.length+1)
    throw Error('VISIT_COMPOSITION_SPLIT_ENTITY_INVALID');
+  // Retire identity, not lifecycle status. The source Audit stays in
+  // history with an explicit successor lineage; no fake Completed/Rejected.
+  const retired=preview.sourceTombstone;
+  if(retired.identityRetired!==true||
+     retired.retirementReason!=='VISIT_COMPOSITION_SPLIT'||
+     !Array.isArray(retired.successorAuditIds)||
+     retired.successorAuditIds.length!==auditIds.length||
+     auditIds.some(id=>!retired.successorAuditIds.includes(id))||
+     JSON.stringify(preview.entities.find(e=>e.auditId===sourceAuditId)?.nextSnapshot)!==
+      JSON.stringify(retired))
+   throw Error('VISIT_COMPOSITION_SOURCE_RETIREMENT_LINEAGE_INVALID');
   // Materialized split IDs must be derived from the source Audit + Company
   // + Obligation identity, never supplied freely by the client.
   for(const visit of visits){
@@ -177,9 +188,12 @@ export function createVisitCompositionAtomicService20({store,gate,availabilitySe
    const preview=await preflight({actor,body:{...body,authorityPreflight:true}});
    const groups=validate(preview,sourceAuditId,mode,str(body.sourceRevision));
    const parent=await store.readAudit(sourceAuditId);
-   if(!parent||!Number.isSafeInteger(parent.revision)||parent.pendingOperationId||
+   if(!parent||!Number.isSafeInteger(parent.revision)||parent.pendingOperationId||parent.removed===true||
       parent.snapshot?.sourceRevision!==preview.expectedSourceRevision||parent.snapshot?.legacyUnverified)
     throw Error('VISIT_COMPOSITION_SOURCE_CAS_FAILED');
+   if(mode==='SEPARATELY'&&(state(parent.snapshot?.status)!=='PENDING_PLANNING'||
+      state(preview.sourceTombstone.status)!==state(parent.snapshot.status)))
+    throw Error('VISIT_COMPOSITION_SOURCE_STATUS_MUST_BE_PRESERVED');
    const entities=preview.entities;
    if(entities.find(e=>e.auditId===sourceAuditId)?.expectedRevision!==parent.revision)
     throw Error('VISIT_COMPOSITION_SOURCE_REVISION_MISMATCH');

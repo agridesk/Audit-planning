@@ -5,7 +5,7 @@
 const fail=code=>{const e=new Error(code);e.code=code;throw e;};
 const blank=row=>!row||row.every(cell=>String(cell??'').trim()==='');
 const MAX={planning:2000,obligations:5000,links:5000};
-const norm=x=>String(x??'').trim().toUpperCase().replace(/[\\s-]/g,'_');
+const norm=x=>String(x??'').trim().toUpperCase().replace(/[\s-]/g,'_');
 const mandatory={
  planning:[['AUDIT_ID'],['COMPANY_UID'],['STATUS']],
  obligations:[['OBLIGATION_ID'],['COMPANY_UID'],['SCOPECODE','SCOPE_CODE'],['FORMAL_HOURS'],['OBLIGATION_STATE']],

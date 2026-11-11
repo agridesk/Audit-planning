@@ -17,13 +17,13 @@ const hash = x => createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const jsonEq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const normalizedId=x=>str(x);
 
-export function createPlanningVisitCompositionService20({store,gate,projector,appendProjector,preflight,enabled=false}={}){
+export function createPlanningVisitCompositionService20({store,gate,projector,appendProjector,preflight,canonicalReader,enabled=false}={}){
  if(typeof store?.readAudit!=='function'||typeof store?.readOutbox!=='function'||typeof store?.commitMulti!=='function'||
     typeof store?.markProjected!=='function'||typeof store?.markUncertain!=='function'||
     typeof gate?.acquire!=='function'||typeof gate?.release!=='function'||typeof gate?.uncertain!=='function'||
     typeof projector?.apply!=='function'||typeof projector?.inspect!=='function'||
     typeof appendProjector?.apply!=='function'||typeof appendProjector?.inspect!=='function'||
-    typeof preflight!=='function')fail('COMPOSITION_SERVICE_DEPENDENCY_INVALID');
+    typeof preflight!=='function'||typeof canonicalReader?.read!=='function')fail('COMPOSITION_SERVICE_DEPENDENCY_INVALID');
  async function commit({actor,body}={}){
   if(!enabled)fail('COMPOSITION_SERVICE_NOT_ENABLED');
   if(actor?.role!=='manager'||!normalizedId(actor?.auditorId))fail('COMPOSITION_SERVICE_MANAGER_ONLY');
@@ -63,12 +63,15 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
     blocks:body.blocks,allocations:body.allocations,visits:proof.visits
    });
    // Canonical SSoT rows are revalidated; boolean proof flags alone are never enough.
+   const canonicalRows=await canonicalReader.read({
+     appendRowNumbers:proof.mode==='SEPARATELY'?proof.appendRowNumbers:[]
+   });
    const sourceEvidence=verifyVisitCompositionSource20({
      command,
-     readAuditRows:proof.sourceEvidence?.readAuditRows,
-     readObligationRows:proof.sourceEvidence?.readObligationRows,
-     readLinkRows:proof.sourceEvidence?.readLinkRows,
-     emptyAppendRows:proof.sourceEvidence?.emptyAppendRows
+     readAuditRows:canonicalRows.readAuditRows,
+     readObligationRows:canonicalRows.readObligationRows,
+     readLinkRows:canonicalRows.readLinkRows,
+     emptyAppendRows:canonicalRows.emptyAppendRows
    });
    if(!sourceEvidence.verified||sourceEvidence.obligationCount!==command.obligationIds.length||
       !jsonEq(sourceEvidence.obligations.map(x=>x.obligationId),command.obligationIds))
@@ -84,7 +87,7 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
     fail('COMPOSITION_SERVICE_PROJECTOR_PLAN_INVALID');
    if(proof.mode==='SEPARATELY'){
     const modelC=prepareModelCVisitLinkSplit20({
-      command,linkValues:proof.linkValues,appendRowNumbers:proof.appendRowNumbers,now:proof.now
+      command,linkValues:canonicalRows.readLinkRows,appendRowNumbers:sourceEvidence.reservedAppendRows,now:proof.now
     });
     const required=modelC.projectionWrites.map(x=>x.range);
     if(!required.every(range=>proof.projectionWrites.some((w,i)=>

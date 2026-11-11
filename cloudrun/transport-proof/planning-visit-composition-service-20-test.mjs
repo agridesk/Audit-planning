@@ -118,6 +118,16 @@ const disabled=createPlanningVisitCompositionService20(args);
 await assert.rejects(()=>disabled.commit({actor,body}),/COMPOSITION_SERVICE_NOT_ENABLED/);
 assert.equal(commits,0);
 const service=createPlanningVisitCompositionService20({...args,enabled:true});
+for(const bodyInjection of [
+ {...body,authorityPreflight:true},
+ {...body,projectionWrites:[{range:'Companies!A1:B1'}]},
+ {...body,visits:[{auditId:'CLIENT-FORGED',obligationId:'O-1',blocks}]}
+]){
+ await assert.rejects(()=>service.commit({actor,body:bodyInjection}),
+  /COMPOSITION_CLIENT_AUTHORITY_FIELDS_FORBIDDEN|COMPOSITION_CLIENT_VISIT_AUTHORITY_FORBIDDEN/);
+ assert.equal(commits,0);assert.equal(token,null);
+}
+
 overrideProof={requiredProofs:[]};
 await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SERVICE_PROOF_INCOMPLETE/);
 assert.equal(commits,0);assert.equal(token,null);

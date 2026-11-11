@@ -16,6 +16,7 @@ const r15=read('./server-r15.js');
 const canonicalReader=read('./visit-composition-canonical-reader-20.mjs');
 const canonicalPreflight=read('./visit-composition-canonical-preflight-20.mjs');
 const planningSplitRows=read('./visit-model-c-planning-split-rows-20.mjs');
+const scheduledSplitRows=read('./visit-composition-scheduled-split-20.mjs');
 const identity=read('./visit-composition-identity-20.mjs');
 const qualifications=read('./visit-composition-qualification-20.mjs');
 const capacityGate=read('./planning-composition-capacity-gate-20.mjs');
@@ -46,11 +47,12 @@ const checks={
   'Issue87 atomic composition rereads SSoT independently':atomicComposition.includes('canonicalReader.read(')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-runtime-contract-20-test.mjs')===true,
   'Issue87 Model C header contract rejects missing and duplicate columns':canonicalReader.includes('assertHeader(readLinkRows')&&canonicalReader.includes('DUPLICATE_HEADERS')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-runtime-read-20-test.mjs')===true,
   'Issue87 canonical read-only DEV preflight is manager gated':r15.includes('AMS_DEV_COMPOSITION_PREFLIGHT_ENABLED')&&r15.includes('visitCompositionPreflight20.preview(request)')&&canonicalPreflight.includes('COMPOSITION_PREFLIGHT_SOURCE_REVISION_CONFLICT'),
-  'Issue87 separate Visit requires both Model C and Audit planning projection':atomicComposition.includes('prepareModelCPlanningVisitSplitRows20(')&&planningSplitRows.includes('COMPOSITION_PLANNING_EXTRA_SOURCE_SCOPE')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-model-c-planning-split-rows-20-test.mjs')===true,
+  'Issue87 separate Visit requires both Model C and scheduled Audit planning projection':atomicComposition.includes('prepareScheduledCompositionSplitRows20(')&&planningSplitRows.includes('COMPOSITION_PLANNING_EXTRA_SOURCE_SCOPE')&&scheduledSplitRows.includes('COMPOSITION_SCHEDULED_LIFECYCLE_SCHEMA_REQUIRED')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-scheduled-split-20-test.mjs')===true,
   'Issue87 new Visit identities are independently derived':identity.includes('deriveVisitSplitIdentity20')&&atomicComposition.includes('deriveVisitSplitIdentity20(')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-identity-20-test.mjs')===true,
   'Issue87 notification queue format and write targets are restricted':atomicComposition.includes('COMPOSITION_SERVICE_NOTIFICATION_INTENT_INVALID')&&atomicComposition.includes('COMPOSITION_SERVICE_PROJECTION_SCOPE_FORBIDDEN'),
   'Issue87 composition notifications match intended visit audit identities':atomicComposition.includes('COMPOSITION_SERVICE_NOTIFICATION_AUDIT_OR_STATE_MISMATCH')&&atomicComposition.includes('permittedEventAudits.has(str(row[4]))'),
   'Issue87 no unrequested planning or Model C business writes':atomicComposition.includes('COMPOSITION_SERVICE_EXTRA_BUSINESS_PROJECTION_FORBIDDEN')&&atomicComposition.includes('COMPOSITION_SERVICE_TOGETHER_BUSINESS_PROJECTION_INVALID'),
+  'Issue87 scheduled Separate snapshots match verified manager-approved rows':atomicComposition.includes('COMPOSITION_SERVICE_SCHEDULED_SNAPSHOT_DRIFT')&&atomicComposition.includes('verifyCompositionAuditorQualifications20(')&&scheduledSplitRows.includes("row[status]='Approved'"),
   'Issue87 qualifications are verified from canonical directory':qualifications.includes('COMPOSITION_QUALIFICATIONS_SCOPE_NOT_QUALIFIED')&&canonicalPreflight.includes('verifyCompositionAuditorQualifications20(')&&canonicalReader.includes('readQualifications()')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-qualification-20-test.mjs')===true,
   'Issue87 availability leases are mandatory per visit':capacityGate.includes('availabilityService.acquirePlanningLease(')&&capacityGate.includes('markPlanningLeaseUncertain(')&&atomicComposition.includes('capacityGate.acquire(')&&packageJson.scripts['test:issue87-allocation']?.includes('planning-composition-capacity-gate-20-test.mjs')===true,
   'Issue87 failed capacity release never unlocks the global gate as verified':atomicComposition.includes('COMPOSITION_CAPACITY_LEASE_RELEASE_UNKNOWN')&&atomicComposition.includes('capacityReleaseFailed=true'),

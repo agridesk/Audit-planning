@@ -74,7 +74,7 @@ assert.equal(token,null);
 const replay=await service.commit({actor,body});
 assert.equal(replay.replayed,true);assert.equal(commits,1);assert.equal(applies,1);assert.equal(notifications,1);
 await assert.rejects(()=>service.commit({actor:{role:'auditor',auditorId:'auditor-uid'},body}),/COMPOSITION_SERVICE_MANAGER_ONLY/);
-const different={...body,blocks:blocks.map(x=>({...x,slotComment:'changed'}))};
+const different={...body,requestNonce:'timeout-case'};
 failProjection=true;
 await assert.rejects(()=>service.commit({actor,body:different}),/SIMULATED_PROJECTOR_TIMEOUT/);
 assert.equal(commits,2);assert.equal(uncertain>=1,true);

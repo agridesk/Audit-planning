@@ -11,6 +11,7 @@ import {prepareVisitCompositionCommand20} from './visit-composition-command-20.m
 import {prepareModelCVisitLinkSplit20} from './visit-model-c-link-split-plan-20.mjs';
 import {prepareModelCPlanningVisitSplitRows20} from './visit-model-c-planning-split-rows-20.mjs';
 import {verifyVisitCompositionSource20} from './visit-composition-source-evidence-20.mjs';
+import {deriveVisitSplitIdentity20} from './visit-composition-identity-20.mjs';
 
 const str = x => String(x ?? '').trim();
 const fail = code => {const error=new Error(code);error.code=code;throw error;};
@@ -63,6 +64,19 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
     obligations:proof.obligations,mode:body.mode,
     blocks:body.blocks,allocations:body.allocations,visits:proof.visits
    });
+   if(command.mode==='SEPARATELY'){
+    // No client or preflight-provided identity is accepted without computing
+    // the deterministic canonical value again inside the fenced service.
+    for(const visit of command.visits.filter(x=>x.auditId!==command.auditId)){
+      const expected=deriveVisitSplitIdentity20({
+        sourceAuditId:command.auditId,obligationId:visit.obligationId,sourceRevision:proof.sourceRevision
+      });
+      const claimed=proof.visits?.find(x=>x.obligationId===visit.obligationId);
+      if(visit.auditId!==expected.auditId||claimed?.identityIssuedBy!=='CANONICAL'||
+         claimed.identityIssueRevision!==expected.identityIssueRevision)
+        fail('COMPOSITION_SERVICE_VISIT_IDENTITY_NOT_CANONICAL');
+    }
+   }
    // Canonical SSoT rows are revalidated; boolean proof flags alone are never enough.
    const canonicalRows=await canonicalReader.read({
      appendRowNumbers:proof.mode==='SEPARATELY'?proof.appendRowNumbers:[],

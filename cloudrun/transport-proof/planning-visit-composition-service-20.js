@@ -74,7 +74,15 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
      emptyAppendRows:canonicalRows.emptyAppendRows
    });
    if(!sourceEvidence.verified||sourceEvidence.obligationCount!==command.obligationIds.length||
-      !jsonEq(sourceEvidence.obligations.map(x=>x.obligationId),command.obligationIds))
+      !jsonEq(sourceEvidence.obligations.map(x=>x.obligationId),command.obligationIds)||
+      !jsonEq(sourceEvidence.obligations,command.mode==='TOGETHER'?
+        proof.obligations.map(x=>({
+          obligationId:String(x.obligationId),scopeCode:String(x.scopeCode),
+          requiredMinutes:Math.round(Number(x.formalHours)*60)
+        })):proof.obligations.map(x=>({
+          obligationId:String(x.obligationId),scopeCode:String(x.scopeCode),
+          requiredMinutes:Math.round(Number(x.formalHours)*60)
+        }))))
      fail('COMPOSITION_SERVICE_SOURCE_EVIDENCE_MISMATCH');
    if(proof.mode==='SEPARATELY'&&
       !jsonEq(sourceEvidence.reservedAppendRows,proof.appendRowNumbers))

@@ -116,6 +116,13 @@ const service=createPlanningVisitCompositionService20({...args,enabled:true});
 overrideProof={requiredProofs:[]};
 await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SERVICE_PROOF_INCOMPLETE/);
 assert.equal(commits,0);assert.equal(token,null);
+overrideProof={projectionWrites:[...proof.projectionWrites,
+ {range:'Auditor Availability!A9:C9',values:[['2026-11-18','auditor@example.com','AVAILABLE']]}],
+ projectionPreconditions:[...proof.projectionPreconditions,
+ {range:'Auditor Availability!A9:C9',before:[]}]};
+await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SERVICE_PROJECTION_SCOPE_FORBIDDEN/);
+assert.equal(commits,0);assert.equal(token,null);
+overrideProof={};
 overrideProof={appendIntents:[{range:'Notification Queue!A:M',values:[['only','three','cells']]}]};
 await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SERVICE_NOTIFICATION_INTENT_INVALID/);
 assert.equal(commits,0);assert.equal(token,null);

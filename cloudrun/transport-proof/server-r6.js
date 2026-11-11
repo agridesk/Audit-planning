@@ -76,6 +76,10 @@ async function withCombinedLock(fn){
 }
 
 async function combinedCommit(identity,body,req){
+  // Issue #87: legacy writer must never silently ignore new Model C composition intent.
+  // Only the canonical atomic composition writer may accept explicit per-scope allocation.
+  if(body?.scopeAllocations!==undefined||body?.compositionMode!==undefined)
+    throw new Error('MODEL_C_SCOPE_COMPOSITION_CANONICAL_WRITER_REQUIRED');
   if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_COMBINED_VISIT_CANONICAL_WRITER_REQUIRED');
   if(!SID)throw new Error('DEV_SSOT_SPREADSHEET_ID_NOT_CONFIGURED');
   const started=Date.now(),targetAuditId=clean(body?.auditId),auditorEmail=clean(body?.auditorEmail).toLowerCase(),auditorName=clean(body?.auditorName),requested=directPlanNormBlocks(body?.blocks);

@@ -100,18 +100,31 @@ function validate(preview,sourceAuditId,mode,requestedRevision){
   // A boolean flag alone is not Model C evidence.
   const linkWrites=preview.projectionWrites.filter(x=>
    /^Audit_Visit_Obligations!/.test(str(x.range)));
-  const closed=new Set(linkWrites.flatMap(x=>x.values||[])
+  const closedRows=linkWrites.flatMap(x=>x.values||[])
    .filter(r=>Array.isArray(r)&&str(r[0])===sourceAuditId&&
-    state(r[2])==='INACTIVE').map(r=>str(r[1])));
+    state(r[2])==='INACTIVE');
+  const closed=new Set(closedRows.map(r=>str(r[1])));
   const linkAppends=preview.appendIntents.filter(x=>
    /^Audit_Visit_Obligations!A:F$/.test(str(x.range)));
   const opened=linkAppends.flatMap(x=>x.values||[])
    .filter(r=>Array.isArray(r)&&state(r[2])==='ACTIVE');
-  if(closed.size!==obligationIds.length||obligationIds.some(id=>!closed.has(id))||
-     opened.length!==visits.length||
+  if(closedRows.length!==obligationIds.length||closed.size!==obligationIds.length||
+     obligationIds.some(id=>!closed.has(id))||opened.length!==visits.length||
      visits.some(v=>opened.filter(r=>str(r[0])===v.auditId&&
       str(r[1])===v.obligationIds[0]).length!==1))
    throw Error('VISIT_COMPOSITION_MODEL_C_LINK_TRANSFER_INCOMPLETE');
+  // Distinct canonical successors must be represented in the projected
+  // Audit planning tab. Resolve the Audit ID column from the source header.
+  const planningIndex=preview.planningAuditIdColumnIndex;
+  if(!Number.isSafeInteger(planningIndex)||planningIndex<0||planningIndex>100)
+   throw Error('VISIT_COMPOSITION_PLANNING_ID_COLUMN_UNVERIFIED');
+  const newRows=preview.appendIntents.filter(x=>
+   /^Audit planning!A:[A-Z]+$/.test(str(x.range)))
+   .flatMap(x=>x.values||[]);
+  if(newRows.length!==visits.length||
+     visits.some(v=>newRows.filter(row=>Array.isArray(row)&&
+      str(row[planningIndex])===v.auditId).length!==1))
+   throw Error('VISIT_COMPOSITION_SUCCESSOR_PLANNING_ROWS_MISSING');
   const entityIds=preview.entities.map(e=>str(e.auditId));
   if(!distinct(entityIds)||!entityIds.includes(sourceAuditId)||auditIds.some(id=>!entityIds.includes(id))||
      preview.entities.find(e=>e.auditId===sourceAuditId)?.remove!==true||

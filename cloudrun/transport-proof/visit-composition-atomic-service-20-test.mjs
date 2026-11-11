@@ -13,9 +13,11 @@ function testFixture(mode='TOGETHER'){
  const auditId='source-1';
  const visits=mode==='TOGETHER'?[v(auditId,['ob-1','ob-2'],180)]:
   [v(splitId('ob-1'),['ob-1']),{...v(splitId('ob-2'),['ob-2']),blocks:[{date:'2027-03-12',start:'12:00',end:'15:00'}]}];
+ const sourceTombstone={auditId,status:'Pending Planning',identityRetired:true,
+  retirementReason:'VISIT_COMPOSITION_SPLIT',successorAuditIds:visits.map(x=>x.auditId)};
  const entities=mode==='TOGETHER'?
   [{auditId,expectedRevision:1,remove:false,auditorId:'aud-1',blocks,nextSnapshot:visits[0].snapshot}]:
-  [{auditId,expectedRevision:1,remove:true,auditorId:null,blocks:[],nextSnapshot:{auditId,status:'Completed'}},
+  [{auditId,expectedRevision:1,remove:true,auditorId:null,blocks:[],nextSnapshot:sourceTombstone},
    ...visits.map(x=>({auditId:x.auditId,expectedRevision:null,remove:false,
      auditorId:x.auditorId,blocks:x.blocks,nextSnapshot:x.snapshot}))];
  const preview={success:true,authorityPreflight:true,composition:mode,sourceAuditId:auditId,expectedSourceRevision:'rev-1',
@@ -35,7 +37,7 @@ function testFixture(mode='TOGETHER'){
     {range:'Audit planning!A:CN',values:visits.map(x=>{
      const row=Array(35).fill('');row[34]=x.auditId;return row;})}]:[]),
   planningAuditIdColumnIndex:34,
-  visits,entities,activeObligationIds:['ob-1','ob-2'],sourceTombstone:{auditId},projectionPlan:{auditId},
+  visits,entities,activeObligationIds:['ob-1','ob-2'],sourceTombstone,projectionPlan:{auditId},
   scopeAllocation:mode==='TOGETHER'?{
    auditId,composition:'TOGETHER',
    obligations:[{auditId,obligationId:'ob-1',scopeCode:'GAP',linkState:'ACTIVE',requiredMinutes:90},
@@ -47,7 +49,7 @@ function testFixture(mode='TOGETHER'){
  let applied=0,leases=0,uncertain=0,locked=false,mark=0,fail='';
  const outbox=new Map();
  const store={
-  async readAudit(id){if(id!==auditId)return null;return {revision:1,pendingOperationId:null,snapshot:{sourceRevision:'rev-1'}};},
+  async readAudit(id){if(id!==auditId)return null;return {revision:1,pendingOperationId:null,snapshot:{sourceRevision:'rev-1',status:'Pending Planning'}};},
   async readOutbox(id){return outbox.get(id)||null;},
   async commitMulti(x){if(fail==='commit')throw Error('WRITE_TIMEOUT');outbox.set(x.operationId,
     {auditId,actorId:'manager-1',action:'VISIT_COMPOSITION_'+mode,state:'PENDING'});
@@ -83,6 +85,10 @@ for(const mode of ['TOGETHER','SEPARATELY']){
  await assert.rejects(()=>rejected.service.commit(args),/AUTHORITY_PREFLIGHT_INCOMPLETE/);
  assert.equal(rejected.stats().applied,0);
  if(mode==='SEPARATELY'){
+  const invalidRetirement=testFixture(mode);
+  invalidRetirement.preview.sourceTombstone.status='Rejected';
+  await assert.rejects(()=>invalidRetirement.service.commit(args),/SOURCE_STATUS_MUST_BE_PRESERVED/);
+  assert.equal(invalidRetirement.stats().applied,0);
   const missingPlanning=testFixture(mode);
   missingPlanning.preview.appendIntents=missingPlanning.preview.appendIntents.filter(x=>
    !x.range.startsWith('Audit planning!'));

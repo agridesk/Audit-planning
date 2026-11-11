@@ -1,0 +1,82 @@
+<!-- Issue #87: focused manager composition selection; read-only until atomic route is enabled. -->
+<script>
+(function(){
+ 'use strict';
+ var panel,loaded=false,data=null,chosen='';
+ function id(x){return document.getElementById(x)}
+ function text(node,value){if(node)node.textContent=String(value==null?'':value)}
+ function make(tag,body){var n=document.createElement(tag);if(body!==undefined)text(n,body);return n}
+ function render(){
+  if(!panel||!data)return;
+  var area=id('pwVisitCompositionDetails20');if(!area)return;
+  area.replaceChildren();
+  if(!Array.isArray(data.scopes)||data.scopes.length<2){
+   area.appendChild(make('p','This Audit ID has no Together/Separately choice.'));return;
+  }
+  var summary=make('p','Model C: '+data.scopes.length+' obligations · formal hours '+(data.totalFormalHours==null?'incomplete':data.totalFormalHours+' h'));
+  area.appendChild(summary);
+  var table=make('table'),head=make('thead'),tr=make('tr');
+  ['Scope','Required hours','Expiry','Planning from','Planning to'].forEach(function(v){tr.appendChild(make('th',v))});
+  head.appendChild(tr);table.appendChild(head);
+  var tbody=make('tbody');
+  data.scopes.forEach(function(s){
+   var row=make('tr');
+   [s.scopeName||s.scopeCode,s.requiredHours==null?'MISSING':s.requiredHours+' h',
+    s.effectiveExpiry||'—',s.windowFrom||'—',s.windowTo||'—'].forEach(function(v){row.appendChild(make('td',v))});
+   tbody.appendChild(row);
+  });
+  table.appendChild(tbody);area.appendChild(table);
+  if(data.missingRequiredHours&&data.missingRequiredHours.length){
+   area.appendChild(make('p','Planning blocked: missing formal hours for '+data.missingRequiredHours.join(', ')+'.'));
+  }else{
+   var group=make('div');group.style.cssText='display:flex;gap:8px;margin:10px 0';
+   ['TOGETHER','SEPARATELY'].forEach(function(mode){
+    var button=make('button',mode==='TOGETHER'?'Together — one Visit':'Separately — one Visit per scope');
+    button.type='button';button.className='btn'+(chosen===mode?' primary':'');
+    button.addEventListener('click',function(){
+     chosen=mode;render();
+     window.dispatchEvent(new CustomEvent('ams:visit-composition-selected',{
+      detail:{auditId:data.auditId,composition:chosen,sourceRevision:data.sourceRevision,
+       obligationIds:data.scopes.map(function(s){return s.obligationId})}
+     }));
+    });
+    group.appendChild(button);
+   });
+   area.appendChild(group);
+  }
+  area.appendChild(make('p',chosen?'Selected: '+chosen+'. Atomic save is not yet connected.':'Read-only: select the desired composition. No audit is changed.'));
+ }
+ function open(){
+  if(!panel)return;
+  panel.hidden=false;
+  if(loaded){render();return}
+  loaded=true;
+  text(id('pwVisitCompositionStatus20'),'Loading canonical Model C obligations…');
+  var auth=window.__PW_ENTRY_AUTH||{};
+  google.script.run.withSuccessHandler(function(result){
+   if(!result||result.ok!==true||!result.data||result.data.success!==true){
+    text(id('pwVisitCompositionStatus20'),result&&result.error&&result.error.message||'Composition read unavailable');
+    loaded=false;return;
+   }
+   data=result.data;
+   text(id('pwVisitCompositionStatus20'),'Read-only Model C source · '+data.sourceStatus);
+   render();
+  }).withFailureHandler(function(err){
+   loaded=false;text(id('pwVisitCompositionStatus20'),String(err&&err.message||'Composition source unavailable'));
+  }).PlanningWorkspaceRpc_visitCompositionPreview({
+   auditId:String(auth.auditId||''),actorRole:'Manager',actorEmail:String(auth.email||''),
+   trustedToken:String(auth.token||''),deviceFingerprint:String(auth.deviceId||'')
+  });
+ }
+ function init(){
+  panel=id('pwVisitComposition20');
+  var auth=window.__PW_ENTRY_AUTH||{};
+  if(!panel||!auth.auditId||String(auth.role||'').toLowerCase()!=='manager')return;
+  panel.hidden=false;
+  var button=id('pwVisitCompositionOpen20');
+  if(button)button.addEventListener('click',open);
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});
+ else init();
+})();
+</script>

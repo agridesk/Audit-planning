@@ -44,7 +44,18 @@
    });
    area.appendChild(group);
   }
-  area.appendChild(make('p',chosen?'Selected: '+chosen+'. Atomic save is not yet connected.':'Read-only: select the desired composition. No audit is changed.'));
+  if(chosen==='SEPARATELY'){
+   if(data.cloudOrigin){
+    var link=make('a','Continue to secure Cloud Run planning');
+    link.href=data.cloudOrigin.replace(/\\/$/,'')+'/visit-composition?auditId='+encodeURIComponent(data.auditId);
+    link.target='_blank';link.rel='noopener noreferrer';
+    link.style.cssText='display:inline-block;padding:9px 14px;background:#21558d;color:white;border-radius:5px;text-decoration:none;font-weight:600;margin:6px 0';
+    area.appendChild(link);
+   }else area.appendChild(make('p','Cloud Run destination is not configured in DEV.'));
+  }
+  area.appendChild(make('p',chosen==='TOGETHER'?'Together uses existing canonical Planning save with explicit scope allocation.':
+   chosen==='SEPARATELY'?'Open the secure Cloud Run editor to enter each scope schedule. No audit is changed until atomic commit.':
+   'Read-only: select the desired composition. No audit is changed.'));
  }
  function open(){
   if(!panel)return;

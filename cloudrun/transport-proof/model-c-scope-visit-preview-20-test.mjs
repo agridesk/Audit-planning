@@ -8,6 +8,7 @@ const planningRows=[['Audit ID','Company_UID','Status'],['AUDIT1','C1','Pending 
 const configScopes=[['ScopeCode','DisplayName'],['ABC','MPS-ABC'],['GRASP','GRASP']];
 const checked=previewModelCVisitComposition20({auditId:'AUDIT1',obligations,links,planningRows,configScopes});
 assert.equal(checked.sourceEvidenceReady,true);assert.equal(checked.source.sourceRows,1);
+assert.match(checked.source.revision,/^PRT1-[0-9a-f]{40}$/);
 assert.deepEqual(checked.missingRequiredHours,[]);assert.equal(checked.canCommit,false);
 assert.throws(()=>previewModelCVisitComposition20({auditId:'AUDIT1',obligations,links,
  planningRows:[...planningRows,planningRows[1]],configScopes}),/SOURCE_IDENTITY_CONFLICT/);
@@ -19,6 +20,7 @@ const missingHours=previewModelCVisitComposition20({auditId:'AUDIT1',obligations
 assert.equal(missingHours.sourceEvidenceReady,false);
 assert.deepEqual(missingHours.missingRequiredHours,['OB2']);
 assert.throws(()=>previewModelCVisitComposition20({auditId:'AUDIT1',obligations,links:[...links,['AUDIT1','MISSING','ACTIVE']]}),/MODEL_C_PREVIEW_LINK_UNRESOLVED/);
+assert.throws(()=>previewModelCVisitComposition20({auditId:'AUDIT1',obligations,links:[...links,['AUDIT1','OB1','ACTIVE']]}),/MODEL_C_PREVIEW_DUPLICATE_ACTIVE_LINK/);
 import {readFileSync} from 'node:fs';
 const server=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 assert.ok(server.includes('/api/v1/manager/model-c-visit-preview'));

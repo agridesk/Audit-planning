@@ -201,8 +201,19 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
       const entity=audits.find(e=>e.auditId===v.auditId);
       return !entity||entity.auditorId!==v.auditorUid||
         str(entity.nextSnapshot?.status)!=='Approved'||
-        str(entity.nextSnapshot?.planningJson)!==v.planningJson;
+        str(entity.nextSnapshot?.planningJson)!==v.planningJson||
+        str(entity.nextSnapshot?.assignedTo)!==assignments.find(a=>a.auditId===v.auditId)?.auditorEmail;
     }))fail('COMPOSITION_SERVICE_SCHEDULED_SNAPSHOT_DRIFT');
+    const expectedPostRevisions=new Map(planningSplit.visits.map((visit,i)=>[
+      visit.auditId,
+      deriveCompositionSourceRevision20({
+        auditId:visit.auditId,
+        planningRows:[canonicalRows.readAuditRows[0],planningSplit.projectionWrites[i].values[0]]
+      }).sourceRevision
+    ]));
+    if(audits.some(e=>str(e.nextSnapshot?.sourceRevision)!==expectedPostRevisions.get(e.auditId))||
+       str(proof.canonicalSnapshot?.sourceRevision)!==expectedPostRevisions.get(command.auditId))
+      fail('COMPOSITION_SERVICE_SCHEDULED_POST_REVISION_DRIFT');
     if(!planningSplit.projectionWrites.every((write,i)=>
        proof.projectionWrites.some((target,j)=>
          target.range===write.range&&jsonEq(target.values,write.values)&&

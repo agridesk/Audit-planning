@@ -49,6 +49,17 @@ export function createVisitCompositionCanonicalReader20({readRange}={}){
   assertHeader(readObligationRows,'obligations');
   assertHeader(readLinkRows,'links');
   assertHeader(readConfigScopeRows,'config');
+  // Physical append targets must be a small, contiguous suffix after the
+  // observed populated table. A distant empty row is not a valid reservation.
+  const checkAppendSuffix=(rows,numbers,kind)=>{
+   if(!numbers.length)return;
+   const sorted=[...numbers].sort((a,b)=>a-b);
+   if(sorted[0]<=rows.length||sorted[0]>rows.length+3||
+      sorted.some((n,i)=>n!==sorted[0]+i))
+    fail('COMPOSITION_READER_'+kind+'_NONCANONICAL_APPEND_POSITION');
+  };
+  checkAppendSuffix(readLinkRows,appendRowNumbers,'LINK');
+  checkAppendSuffix(readAuditRows,planningAppendRowNumbers,'PLANNING');
   const emptyAppendRows=[];
   for(const row of appendRowNumbers){
    if(row<=readLinkRows.length||row>=MAX.links)

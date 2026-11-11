@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import {createPlanningVisitCompositionService20} from './planning-visit-composition-service-20.js';
 import {prepareVisitCompositionCommand20} from './visit-composition-command-20.mjs';
 import {prepareModelCPlanningVisitSplitRows20} from './visit-model-c-planning-split-rows-20.mjs';
+import {deriveVisitSplitIdentity20} from './visit-composition-identity-20.mjs';
 
-const rev='a'.repeat(24),issuer='b'.repeat(24);
+const rev='a'.repeat(24),issuer=rev;
+const successorAuditId=deriveVisitSplitIdentity20({sourceAuditId:'A-1',obligationId:'O-2',sourceRevision:rev}).auditId;
 const actor={role:'manager',auditorId:'M-1'};
 const obligations=[
  {auditId:'A-1',companyUid:'C-1',obligationId:'O-1',scopeCode:'GAP',formalHours:8,linkState:'ACTIVE'},
@@ -11,18 +13,18 @@ const obligations=[
 ];
 const visits=[
  {auditId:'A-1',obligationId:'O-1',blocks:[{date:'2026-11-18',start:'08:00',end:'16:00'}]},
- {auditId:'A-2',obligationId:'O-2',identityIssuedBy:'CANONICAL',identityIssueRevision:issuer,
+ {auditId:successorAuditId,obligationId:'O-2',identityIssuedBy:'CANONICAL',identityIssueRevision:issuer,
   blocks:[{date:'2026-11-19',start:'09:00',end:'12:00'}]}
 ];
 const snapshot={
  auditId:'A-1',companyUid:'C-1',sourceRevision:rev,status:'Approved',
  obligationId:'O-1'
 };
-const successor={auditId:'A-2',companyUid:'C-1',sourceRevision:'c'.repeat(24),status:'Approved',obligationId:'O-2'};
+const successor={auditId:successorAuditId,companyUid:'C-1',sourceRevision:'c'.repeat(24),status:'Approved',obligationId:'O-2'};
 const header=['Audit_ID','Obligation_ID','Link_State','Migration_Batch_ID','Linked_At','Unlinked_At'];
 const before=['A-1','O-2','ACTIVE','BATCH-ORIGIN','2026-01-01',''];
 const inactive=['A-1','O-2','INACTIVE','BATCH-ORIGIN','2026-01-01','2026-11-11T17:10:00'];
-const active=['A-2','O-2','ACTIVE','BATCH-ORIGIN','2026-11-11T17:10:00',''];
+const active=[successorAuditId,'O-2','ACTIVE','BATCH-ORIGIN','2026-11-11T17:10:00',''];
 const planRows=[
  {range:'Audit_Visit_Obligations!A3:F3',values:[inactive]},
  {range:'Audit_Visit_Obligations!A5:F5',values:[active]}
@@ -77,7 +79,7 @@ const proof={sourceEvidence,
  canonicalSnapshot:snapshot,
  entities:[
  {auditId:'A-1',expectedRevision:2,remove:false,auditorId:'aud-1',blocks:visits[0].blocks,nextSnapshot:snapshot},
- {auditId:'A-2',expectedRevision:null,remove:false,auditorId:'aud-1',blocks:visits[1].blocks,nextSnapshot:successor}
+ {auditId:successorAuditId,expectedRevision:null,remove:false,auditorId:'aud-1',blocks:visits[1].blocks,nextSnapshot:successor}
  ]
 };
 const prepared=prepareVisitCompositionCommand20({auditId:'A-1',companyUid:'C-1',sourceRevision:rev,
@@ -97,7 +99,7 @@ wrong=false;
 const receipt=await service.commit({actor,body});
 assert.equal(receipt.success,true);
 assert.equal(receipt.mode,'SEPARATELY');
-assert.deepEqual(receipt.visitAuditIds,['A-1','A-2']);
+assert.deepEqual(receipt.visitAuditIds,['A-1',successorAuditId]);
 assert.equal(writes,1);assert.equal(projections,1);assert.equal(appends,1);
 assert.equal(uncertain,0);
 assert.equal(lock,null);

@@ -84,17 +84,26 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
       audits.some(x=>!x?.nextSnapshot||x.nextSnapshot.auditId!==x.auditId))
      fail('COMPOSITION_SERVICE_ENTITY_SET_INVALID');
    const expectedVisitIds=command.mode==='SEPARATELY'?command.visits.map(x=>x.auditId):[command.auditId];
-   if(!jsonEq(new Set(audits.map(x=>x.auditId)),new Set(expectedVisitIds))||
-      audits.length!==expectedVisitIds.length||
+   if(audits.length!==expectedVisitIds.length||
       expectedVisitIds.some(id=>!audits.some(x=>x.auditId===id)))
      fail('COMPOSITION_SERVICE_VISIT_ENTITY_MISMATCH');
    if(audits.some(x=>x.remove===true))fail('COMPOSITION_SERVICE_SOURCE_TOMBSTONE_FORBIDDEN');
+   if(audits.some(x=>x.auditorId===undefined||!Array.isArray(x.blocks)||x.nextSnapshot?.companyUid!==command.companyUid))
+     fail('COMPOSITION_SERVICE_ENTITY_PROJECTION_INCOMPLETE');
    const source=await store.readAudit(command.auditId);
    if(!source||source.pendingOperationId||source.snapshot?.sourceRevision!==proof.sourceRevision||
       !Number.isSafeInteger(source.revision)||source.snapshot?.legacyUnverified||
       audits[0].expectedRevision!==source.revision)
      fail('COMPOSITION_SERVICE_SOURCE_CAS_CONFLICT');
    if(audits.slice(1).some(x=>x.expectedRevision!==null))fail('COMPOSITION_SERVICE_SUCCESSOR_MUST_BE_NEW');
+   if(command.mode==='SEPARATELY'&&command.visits.some(visit=>{
+     const entity=audits.find(e=>e.auditId===visit.auditId);
+     return !entity||!jsonEq(entity.blocks,visit.blocks)||
+       entity.nextSnapshot?.obligationId!==visit.obligationId;
+   }))fail('COMPOSITION_SERVICE_SPLIT_ENTITY_ALLOCATION_MISMATCH');
+   if(command.mode==='TOGETHER'&&(!jsonEq(audits[0].blocks,command.blocks)||
+     !jsonEq(audits[0].nextSnapshot?.scopeAllocations,command.allocations)))
+     fail('COMPOSITION_SERVICE_TOGETHER_ENTITY_ALLOCATION_MISMATCH');
    const plan={
     ...proof.canonicalSnapshot,auditId:command.auditId,
     projectionWrites:proof.projectionWrites,

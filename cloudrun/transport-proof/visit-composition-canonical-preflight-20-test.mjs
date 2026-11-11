@@ -13,12 +13,12 @@ const rows={
 };
 let reads=0;
 const qualificationRows=[
- ['Auditor_UID','ScopeCode','Qualified'],['AUD-1','MPS-GAP','YES'],['AUD-1','GRASP','YES']
+ ['Auditor_UID','ScopeCode','Qualified'],['AUD-1','MPS-GAP','YES'],['AUD-1','GRASP','YES'],['AUD-2','GRASP','YES']
 ];
 const reader={
  async read(){reads++;return structuredClone(rows)},
  async readQualifications(){return {
-  auditorRows:[['Name','E-mail','Role','Active','Auditor_UID'],['Auditor','auditor@example.com','Auditor','Yes','AUD-1']],
+  auditorRows:[['Name','E-mail','Role','Active','Auditor_UID'],['Auditor','auditor@example.com','Auditor','Yes','AUD-1'],['Auditor 2','auditor2@example.com','Auditor','Yes','AUD-2']],
   qualificationRows:structuredClone(qualificationRows)
  }}
 };
@@ -46,6 +46,21 @@ const split=await service.preview({auditId:'A1',mode:'SEPARATELY',visits:[
  {obligationId:'O1',blocks:[{date:'2026-11-18',start:'08:00',end:'16:00'}]},
  {obligationId:'O2',blocks:[{date:'2026-11-19',start:'09:00',end:'12:00'}]}
 ]});
+const perVisit=await service.preview({auditId:'A1',mode:'SEPARATELY',visits:[
+ {obligationId:'O1',auditorUid:'AUD-1',blocks:[{date:'2026-11-18',start:'08:00',end:'16:00'}]},
+ {obligationId:'O2',auditorUid:'AUD-2',blocks:[{date:'2026-11-19',start:'09:00',end:'12:00'}]}
+]});
+assert.equal(perVisit.qualificationsVerified,true);
+assert.equal(perVisit.visitQualifications.length,2);
+assert.equal(perVisit.visitQualifications[1].auditorEmail,'auditor2@example.com');
+await assert.rejects(()=>service.preview({auditId:'A1',mode:'SEPARATELY',visits:[
+ {obligationId:'O1',auditorUid:'AUD-1',blocks:[{date:'2026-11-18',start:'08:00',end:'16:00'}]},
+ {obligationId:'O2',auditorUid:'AUD-1',blocks:[{date:'2026-11-19',start:'09:00',end:'12:00'}]}
+],auditorUid:'AUD-1'}),/COMPOSITION_PREFLIGHT_SPLIT_AUDITOR_SET_INCOMPLETE/);
+await assert.rejects(()=>service.preview({auditId:'A1',mode:'SEPARATELY',visits:[
+ {obligationId:'O1',auditorUid:'AUD-2',blocks:[{date:'2026-11-18',start:'08:00',end:'16:00'}]},
+ {obligationId:'O2',auditorUid:'AUD-1',blocks:[{date:'2026-11-19',start:'09:00',end:'12:00'}]}
+]}),/COMPOSITION_QUALIFICATIONS_SCOPE_NOT_QUALIFIED/);
 assert.equal(split.proposedVisits.length,2);
 assert.equal(split.totalRequiredMinutes,660);
 assert.equal(split.newIdsAreOnlyProposals,true);
@@ -71,5 +86,5 @@ rows.readAuditRows[1][2]='Pending Planning';
 rows.readLinkRows.push(['A3','O2','ACTIVE','MIG','2026-01-01','']);
 await assert.rejects(()=>service.preview(together),/COMPOSITION_SOURCE_ACTIVE_LINK_CONFLICT/);
 rows.readLinkRows.pop();
-assert.equal(reads>=10,true);
+assert.equal(reads>=13,true);
 console.log('VISIT_COMPOSITION_CANONICAL_PREFLIGHT_20_PASS: actual revision, Together minute allocation, split preview, terminal and link drift, no writes');

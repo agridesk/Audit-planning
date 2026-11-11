@@ -124,6 +124,14 @@ const canonicalReader={
  }}
 };
 let capacityAcquisitions=0,capacityReleased=0,hardChecks=0,denyCapacity=false;
+let resolvedState='FREE',resolvedReads=0;
+const readResolvedAvailability=async({auditorId,fromDate,toDate,fresh})=>{
+ assert.equal(fresh,true);assert.equal(fromDate,toDate);
+ resolvedReads++;
+ return {auditorId,version:9,canonicalFresh:true,unknownReservationOwner:false,
+  uncertainAuditorIds:[],incompleteAuditDiagnostics:[],
+  days:[{date:fromDate,segments:[{start:'00:00',end:'24:00',state:resolvedState}]}]};
+};
 const realAvailability={
  async acquirePlanningLease({auditorId,auditId,plannedBlocks,auditorEmail}){
   capacityAcquisitions++;
@@ -140,7 +148,7 @@ const realAvailability={
  async markPlanningLeaseUncertain(){throw Error('UNEXPECTED_UNCERTAIN')}
 };
 const capacityGate=createCompositionCapacityGate20({
- availabilityService:realAvailability,canonicalReader,
+ availabilityService:realAvailability,canonicalReader,readResolvedAvailability,
  roster:async()=>denyCapacity?[]:[{auditorId:'aud-1',email:'auditor@example.com',role:'auditor',active:true}],
  hardGate:({document,blocks})=>{
   hardChecks++;
@@ -192,6 +200,10 @@ assert.equal(writes,0);
 assert.equal(capacityAcquisitions,0);
 assert.equal(lock,null);
 denyCapacity=false;
+resolvedState='COMMITTED';
+await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_RESOLVED_COMMITTED_CONFLICT/);
+assert.equal(writes,0);assert.equal(capacityAcquisitions,0);assert.equal(lock,null);
+resolvedState='FREE';
 const receipt=await service.commit({actor,body});
 assert.equal(receipt.success,true);
 assert.equal(receipt.mode,'SEPARATELY');
@@ -200,6 +212,7 @@ assert.equal(writes,1);assert.equal(projections,1);assert.equal(appends,1);
 assert.equal(invalidations,1);
 assert.equal(capacityAcquisitions,1);assert.equal(capacityReleased,1);
 assert.equal(hardChecks,1);
+assert.equal(resolvedReads,3);
 assert.equal(uncertain,0);
 assert.equal(lock,null);
 console.log('VISIT_COMPOSITION_ATOMIC_SPLIT_CAPACITY_INTEGRATION_20_PASS: real grouped per-auditor lease gate, qualified scopes, atomic Model C projection, outbox; isolated');

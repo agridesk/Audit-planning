@@ -3,7 +3,7 @@ import {createVisitCompositionCanonicalReader20} from './visit-composition-canon
 import {createVisitCompositionOverview20} from './visit-composition-overview-20.mjs';
 const readings=[];
 const data={
- 'Audit planning!A1:BW2000':[['Audit ID','Company_UID','Status'],['A1','C1','Pending Planning']],
+ 'Audit planning!A1:CN2000':[['Audit ID','Company_UID','Status'],['A1','C1','Pending Planning']],
  'Audit_Obligations!A1:AA5000':[['Obligation_ID','Company_UID','ScopeCode','Formal_Hours','Obligation_State'],['O1','C1','GAP',8,'OPEN'],['O2','C1','GRASP',3,'OPEN']],
  'Audit_Visit_Obligations!A1:AZ5000':[['Audit_ID','Obligation_ID','Link_State','Linked_At','Unlinked_At'],['A1','O1','ACTIVE','2026-01-01',''],['A1','O2','ACTIVE','2026-01-01','']],
  'Audit_Visit_Obligations!A5:AZ5':[]
@@ -31,9 +31,9 @@ data['Audit_Visit_Obligations!A5:AZ5']=[];
 data['Audit_Visit_Obligations!A1:AZ5000'].push(['OTHER','O2','ACTIVE','2026-01-01','']);
 await expectedError(()=>overview.inspect({auditId:'A1'}),'VISIT_OVERVIEW_DUPLICATE_ACTIVE_LINK');
 data['Audit_Visit_Obligations!A1:AZ5000'].pop();
-data['Audit planning!A1:BW2000'][1][1]='OTHER';
+data['Audit planning!A1:CN2000'][1][1]='OTHER';
 await expectedError(()=>overview.inspect({auditId:'A1'}),'VISIT_OVERVIEW_COMPANY_PARITY_CONFLICT');
-data['Audit planning!A1:BW2000'][1][1]='C1';
+data['Audit planning!A1:CN2000'][1][1]='C1';
 data['Audit_Visit_Obligations!A1:AZ5000'].pop();
 const single=await overview.inspect({auditId:'A1'});
 assert.deepEqual(single.availableModes,['SINGLE']);

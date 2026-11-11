@@ -164,6 +164,8 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
    }
    if(!old)throw Error('PLANNING_CANONICAL_BACKFILL_REQUIRED');
    if(!Number.isSafeInteger(old.value.revision)||old.value.revision!==expectedRevision)throw Error('PLANNING_CANONICAL_REVISION_CONFLICT');
+   if(old.value.removed===true||old.value.snapshot?.identityRetired===true)
+    throw Error('PLANNING_CANONICAL_IDENTITY_RETIRED');
    if(old.value.pendingOperationId)throw Error('PLANNING_PREVIOUS_PROJECTION_UNRESOLVED');
    const oldIds=old.value.claimIds||[];
    if(!Array.isArray(oldIds)||oldIds.some(id=>!validId(id)))throw Error('PLANNING_CLAIM_INDEX_CORRUPT');
@@ -213,6 +215,8 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
     const old=await tx.get('audit',e.auditId);
     if(e.expectedRevision===null){if(old)throw Error('PLANNING_MULTI_SUCCESSOR_ALREADY_EXISTS');}
     else if(!old||old.value.revision!==e.expectedRevision||old.value.pendingOperationId)throw Error('PLANNING_MULTI_REVISION_CONFLICT');
+   if(old&&(old.value.removed===true||old.value.snapshot?.identityRetired===true))
+    throw Error('PLANNING_MULTI_CANONICAL_IDENTITY_RETIRED');
     existing.set(e.auditId,old);
     if(e.remove&&e.blocks?.length)throw Error('PLANNING_MULTI_REMOVE_WITH_BLOCKS');
     const nextClaims=e.remove?[]:claimsFor(e.blocks||[],e.auditorId||null);

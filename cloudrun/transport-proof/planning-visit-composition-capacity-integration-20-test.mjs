@@ -148,7 +148,17 @@ const capacityGate=createCompositionCapacityGate20({
   assert.equal(blocks.length,2);
  }
 });
-const service=createPlanningVisitCompositionService20({enabled:true,store,gate,projector,appendProjector,canonicalReader,capacityGate,
+let invalidations=0;
+const invalidateAvailability=async plan=>{
+ invalidations++;
+ assert.equal(plan.scope,'RESOLVED_AVAILABILITY_CACHE');
+ assert.equal(plan.writeEnabled,false);
+ assert.equal(plan.affectedAuditors,1);
+ assert.deepEqual(plan.targets[0].dates,['2026-11-18','2026-11-19']);
+ return {ok:true,operationId:plan.operationId,scope:plan.scope,
+  readModelOnly:true,affectedAuditors:plan.affectedAuditors};
+};
+const service=createPlanningVisitCompositionService20({enabled:true,store,gate,projector,appendProjector,canonicalReader,capacityGate,invalidateAvailability,
  preflight:async({operationId})=>{
   const draft=structuredClone(proof);
   if(wrongStatus){
@@ -187,6 +197,7 @@ assert.equal(receipt.success,true);
 assert.equal(receipt.mode,'SEPARATELY');
 assert.deepEqual(receipt.visitAuditIds,['A-1',successorAuditId]);
 assert.equal(writes,1);assert.equal(projections,1);assert.equal(appends,1);
+assert.equal(invalidations,1);
 assert.equal(capacityAcquisitions,1);assert.equal(capacityReleased,1);
 assert.equal(hardChecks,1);
 assert.equal(uncertain,0);

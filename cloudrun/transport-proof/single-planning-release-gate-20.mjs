@@ -24,6 +24,7 @@ const capacityGate=read('./planning-composition-capacity-gate-20.mjs');
 const windows=read('./visit-composition-window-20.mjs');
 const sourceRevision=read('./visit-composition-source-revision-20.mjs');
 const reconciliation=read('./visit-composition-reconciliation-20.mjs');
+const managerNotifications=read('./visit-composition-manager-notifications-20.mjs');
 const compositionOverview=read('./visit-composition-overview-20.mjs');
 const handoff=managerPortal.split('function submitSelectionHandoff(mode){')[1]?.split('\nfunction text(v)')[0]||'';
 const checks={
@@ -52,6 +53,7 @@ const checks={
   'Issue87 new Visit identities are independently derived':identity.includes('deriveVisitSplitIdentity20')&&atomicComposition.includes('deriveVisitSplitIdentity20(')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-identity-20-test.mjs')===true,
   'Issue87 notification queue format and write targets are restricted':atomicComposition.includes('COMPOSITION_SERVICE_NOTIFICATION_INTENT_INVALID')&&atomicComposition.includes('COMPOSITION_SERVICE_PROJECTION_SCOPE_FORBIDDEN'),
   'Issue87 composition notifications match intended visit audit identities':atomicComposition.includes('COMPOSITION_SERVICE_NOTIFICATION_AUDIT_OR_STATE_MISMATCH')&&atomicComposition.includes('permittedEventAudits.has(str(row[4]))'),
+  'Issue87 notifications require canonical config and audit trail plus manager mail':atomicComposition.includes('prepareCompositionManagerNotifications20(')&&atomicComposition.includes('COMPOSITION_SERVICE_NOTIFICATION_CANONICAL_INTENTS_MISMATCH')&&canonicalReader.includes('readNotificationConfig()')&&managerNotifications.includes("'AUDIT_PLANNED_BY_MANAGER'")&&managerNotifications.includes("'LIFECYCLE_STATUS_CHANGED'")&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-manager-notifications-20-test.mjs')===true,
   'Issue87 no unrequested planning or Model C business writes':atomicComposition.includes('COMPOSITION_SERVICE_EXTRA_BUSINESS_PROJECTION_FORBIDDEN')&&atomicComposition.includes('COMPOSITION_SERVICE_TOGETHER_BUSINESS_PROJECTION_INVALID'),
   'Issue87 scheduled Separate snapshots match verified manager-approved rows':atomicComposition.includes('COMPOSITION_SERVICE_SCHEDULED_SNAPSHOT_DRIFT')&&atomicComposition.includes('verifyCompositionAuditorQualifications20(')&&scheduledSplitRows.includes("row[status]='Approved'"),
   'Issue87 Together rows are independently projected with R4 post-revision':atomicComposition.includes('prepareScheduledCompositionTogetherRow20(')&&atomicComposition.includes('COMPOSITION_SERVICE_TOGETHER_SCHEDULED_SNAPSHOT_DRIFT')&&scheduledTogetherRow.includes('deriveCompositionSourceRevision20(')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-scheduled-together-20-test.mjs')===true,

@@ -13,6 +13,7 @@ function validate(preview,sourceAuditId,mode,requestedRevision){
  if(preview?.success!==true||preview.authorityPreflight!==true||preview.composition!==mode||
     preview.sourceAuditId!==sourceAuditId||preview.expectedSourceRevision!==requestedRevision||
     preview.freshAvailabilityProvenance!==true||preview.qualificationsVerified!==true||
+    !preview.availabilityVersions||typeof preview.availabilityVersions!=='object'||
     !Array.isArray(preview.projectionWrites)||preview.projectionWrites.length===0||
     !Array.isArray(preview.projectionPreconditions)||preview.projectionPreconditions.length===0||
     !Array.isArray(preview.appendIntents)||preview.appendIntents.length===0||
@@ -142,6 +143,10 @@ export function createVisitCompositionAtomicService20({store,gate,availabilitySe
     const lease=await availabilityService.acquirePlanningLease({
      actor:leaseActor,auditorId:group.auditorId,auditId:sourceAuditId,
      auditorEmail:group.auditorEmail,plannedBlocks:group.blocks});
+    const expectedVersion=preview.availabilityVersions[group.auditorId];
+    if(!Number.isSafeInteger(expectedVersion)||expectedVersion<0||
+       lease.version!==expectedVersion+1||lease.document?.version!==lease.version)
+     throw Error('VISIT_COMPOSITION_AVAILABILITY_VERSION_DRIFT');
     leases.push({auditorId:group.auditorId,token:lease.token});
     hardGate({document:lease.document,blocks:group.blocks});
    }

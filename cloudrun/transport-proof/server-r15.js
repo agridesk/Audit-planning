@@ -27,6 +27,8 @@ import {createPlanningFirestoreAuthority} from './planning-firestore-authority-2
 import {createPlanningDistributedGate} from './planning-distributed-gate-20.js';
 import {createPlanningOutboxReconciler} from './planning-outbox-reconciler-20.js';
 import {createPlanningAtomicFirestoreStore} from './planning-atomic-firestore-store-20.js';
+import {createVisitCompositionCanonicalReader20} from './visit-composition-canonical-reader-20.mjs';
+import {createVisitCompositionOverview20} from './visit-composition-overview-20.mjs';
 import {createPlanningAtomicCommandService} from './planning-atomic-command-service-20.js';
 import {createPlanningLifecycleAtomicService} from './planning-lifecycle-atomic-service-20.js';
 import {createPlanningMultiLifecycleService} from './planning-multi-lifecycle-service-20.js';
@@ -152,6 +154,18 @@ async function readPlanningRows(){
  if(!Array.isArray(rows)||rows.length===0||rows.length>=2000)throw Error('CANONICAL_PLANNING_INCOMPLETE');
  return rows;
 }
+// Read-only DEV Model C diagnostic; never enables the composition writer.
+const visitCompositionReader20=runtime.isDev?createVisitCompositionCanonicalReader20({
+ readRange:async range=>{
+  const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range);
+  const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()},signal:AbortSignal.timeout(15000)});
+  if(!response.ok)throw Error('VISIT_COMPOSITION_CANONICAL_READ_'+response.status);
+  const body=await response.json();
+  if(!Array.isArray(body.values)&&body.values!==undefined)throw Error('VISIT_COMPOSITION_CANONICAL_RESPONSE_INVALID');
+  return body.values||[];
+ }
+}):null;
+const visitCompositionOverview20=visitCompositionReader20?createVisitCompositionOverview20({reader:visitCompositionReader20}):null;
 async function verifyUncertainPlanningLeaseInSheets(lease){
  if(!lease||!['UNCERTAIN',undefined,'ACTIVE'].includes(lease.state)||!lease.auditId||!lease.auditorEmail||!Array.isArray(lease.plannedBlocks)||!lease.plannedBlocks.length)return false;
  const planning=await readPlanningRows(),head=planning[0].map(x=>String(x||'').trim());
@@ -1097,6 +1111,24 @@ http.createServer(async(req,res)=>{
   if(extPreview&&!extPreviewRequestAllowed20({method:req.method,path:u.pathname,env:process.env})){
    res.writeHead(423,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-ams-preview':'READ_ONLY'});
    res.end(JSON.stringify({ok:false,code:'AMS_EXT_PREVIEW_READ_ONLY',message:'EXT preview: write and unverified routes are disabled'}));return;
+  }
+  // DEV-only, authenticated and read-only: verify live Model C composition
+  // without exercising any planning, Availability, status or notification writer.
+  if(u.pathname==='/api/v1/planning/composition-overview'){
+   if(req.method!=='GET'||!runtime.isDev||process.env.AMS_DEV_COMPOSITION_OVERVIEW_ENABLED!=='true'){
+    res.writeHead(404,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(JSON.stringify({ok:false,error:'NOT_FOUND'}));return;
+   }
+   const actor=await session(req);
+   if(actor?.role!=='manager'){
+    res.writeHead(403,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(JSON.stringify({ok:false,error:'MANAGER_REQUIRED'}));return;
+   }
+   const auditId=String(u.searchParams.get('auditId')||'').trim();
+   if(!/^[\\p{L}\\p{N}_,.-]{1,120}$/u.test(auditId))throw Error('VISIT_OVERVIEW_AUDIT_ID_INVALID');
+   const result=await visitCompositionOverview20.inspect({auditId});
+   res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+   res.end(JSON.stringify(result));return;
   }
   if(req.method==='POST'&&planningAtomicLifecycle&&u.pathname==='/api/v1/auditor/action'){
    const actor=await session(req);

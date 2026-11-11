@@ -19,13 +19,14 @@ const hash = x => createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const jsonEq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const normalizedId=x=>str(x);
 
-export function createPlanningVisitCompositionService20({store,gate,projector,appendProjector,preflight,canonicalReader,enabled=false}={}){
+export function createPlanningVisitCompositionService20({store,gate,projector,appendProjector,preflight,canonicalReader,capacityGate,enabled=false}={}){
  if(typeof store?.readAudit!=='function'||typeof store?.readOutbox!=='function'||typeof store?.commitMulti!=='function'||
     typeof store?.markProjected!=='function'||typeof store?.markUncertain!=='function'||
     typeof gate?.acquire!=='function'||typeof gate?.release!=='function'||typeof gate?.uncertain!=='function'||
     typeof projector?.apply!=='function'||typeof projector?.inspect!=='function'||
     typeof appendProjector?.apply!=='function'||typeof appendProjector?.inspect!=='function'||
-    typeof preflight!=='function'||typeof canonicalReader?.read!=='function')fail('COMPOSITION_SERVICE_DEPENDENCY_INVALID');
+    typeof preflight!=='function'||typeof canonicalReader?.read!=='function'||
+    (enabled&&typeof capacityGate?.acquire!=='function'))fail('COMPOSITION_SERVICE_DEPENDENCY_INVALID');
  async function commit({actor,body}={}){
   if(!enabled)fail('COMPOSITION_SERVICE_NOT_ENABLED');
   if(actor?.role!=='manager'||!normalizedId(actor?.auditorId))fail('COMPOSITION_SERVICE_MANAGER_ONLY');
@@ -38,7 +39,7 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
    if(previousOutbox.state==='PROJECTED')return {success:true,replayed:true,operationId,auditId:body.auditId};
    fail('COMPOSITION_SERVICE_RECOVERY_REQUIRED');
   }
-  let lock=null,attempted=false,committed=false,verified=false;
+  let lock=null,capacity=null,attempted=false,committed=false,verified=false;
   try{
    lock=await gate.acquire({operationId,actorId:actor.auditorId,kind:'ATOMIC_COMPOSE_VISIT'});
    // The canonical owner returns a complete fresh SSoT snapshot. It may
@@ -193,6 +194,9 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
    };
    if(proof.canonicalSnapshot?.auditId!==command.auditId)
     fail('COMPOSITION_SERVICE_SNAPSHOT_IDENTITY_INVALID');
+   capacity=await capacityGate.acquire({actor,command,entities:audits});
+   if(typeof capacity?.release!=='function'||typeof capacity?.uncertain!=='function')
+    fail('COMPOSITION_SERVICE_CAPACITY_EVIDENCE_INVALID');
    attempted=true;
    const result=await store.commitMulti({
     operationId,actorId:actor.auditorId,action:'COMPOSE_VISIT',
@@ -208,11 +212,18 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
    await store.markProjected({auditId:command.auditId,operationId,
     proof:{verified:true,auditId:command.auditId,rowHash:hash({sheet:sheet.detail,appendCount:notification.count})}});
    verified=true;
+   await capacity.release();capacity=null;
    await gate.release({token:lock.token,verified:true,proof:'MODEL_C_VISIT_COMPOSITION_PROJECTED'});
    lock=null;
    return {success:true,operationId,auditId:command.auditId,mode:command.mode,
     authority:'FIRESTORE',projection:'PROJECTED',visitAuditIds:expectedVisitIds};
   }finally{
+   try{
+    if(capacity){
+     if(!attempted)await capacity.release();
+     else await capacity.uncertain(verified?'COMPOSITION_CAPACITY_LEASE_RELEASE_UNCERTAIN':'COMPOSITION_CAPACITY_TRANSACTION_OUTCOME_UNCERTAIN');
+    }
+   }finally{
    if(lock){
     if(!attempted)await gate.release({token:lock.token,verified:true,proof:'COMPOSITION_PREFLIGHT_REJECTED'});
     else if(verified)await gate.release({token:lock.token,verified:true,proof:'COMPOSITION_PROJECTED_RELEASE_FAILED'});
@@ -220,6 +231,7 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
      if(committed)await store.markUncertain({auditId:body.auditId,operationId,reason:'COMPOSITION_PROJECTION_UNKNOWN'}).catch(()=>{});
      await gate.uncertain({token:lock.token,reason:'COMPOSITION_COMMIT_OR_PROJECTOR_UNKNOWN'});
     }
+   }
    }
   }
  }

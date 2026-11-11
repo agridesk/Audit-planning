@@ -113,7 +113,17 @@ const capacityGate={async acquire(){
  capacityLeases++;
  return {async release(){if(failCapacityRelease)throw Error('SIMULATED_LEASE_RELEASE_FAILURE');capacityReleased++},async uncertain(){capacityUncertain++}};
 }};
-const args={store,gate,projector,appendProjector,preflight,canonicalReader,capacityGate};
+let invalidations=0;
+const invalidateAvailability=async plan=>{
+ invalidations++;
+ assert.equal(plan.scope,'RESOLVED_AVAILABILITY_CACHE');
+ assert.equal(plan.writeEnabled,false);
+ assert.equal(plan.affectedAuditors,1);
+ assert.deepEqual(plan.targets[0].dates,['2026-11-18','2026-11-19']);
+ return {ok:true,operationId:plan.operationId,scope:plan.scope,
+  readModelOnly:true,affectedAuditors:plan.affectedAuditors};
+};
+const args={store,gate,projector,appendProjector,preflight,canonicalReader,capacityGate,invalidateAvailability};
 const disabled=createPlanningVisitCompositionService20(args);
 await assert.rejects(()=>disabled.commit({actor,body}),/COMPOSITION_SERVICE_NOT_ENABLED/);
 assert.equal(commits,0);
@@ -184,6 +194,7 @@ const first=await service.commit({actor,body});
 assert.equal(first.success,true);assert.equal(first.mode,'TOGETHER');
 assert.equal(commits,1);assert.equal(applies,1);assert.equal(notifications,1);assert.equal(marked,1);
 assert.equal(capacityLeases,1);assert.equal(capacityReleased,1);
+assert.equal(invalidations,1);
 assert.equal(token,null);
 const replay=await service.commit({actor,body});
 assert.equal(replay.replayed,true);assert.equal(commits,1);assert.equal(applies,1);assert.equal(notifications,1);

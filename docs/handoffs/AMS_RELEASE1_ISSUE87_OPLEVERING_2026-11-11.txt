@@ -49,3 +49,12 @@ AANVULLING — 11-11-2026, na eerder checkpoint
 - Relevante commits: ec69c1c2, 1ba3ced2, 0f6c772f, b991d80a.
 - Nieuwe volledige Node CI voor deze commits is nog NIET geverifieerd; geen deployment, geen DEV-mutatie, PROD NO-GO.
 - VOLGENDE: autoritatieve writer-preflight gekoppeld aan onafhankelijke volledige SSoT-fences, actor/availability/notifications; daarna E2E op DEV, geen ongeautoriseerde cutover.
+
+AANVULLING — 11-11-2026: PER-VISIT AUDITOR PREFLIGHT
+- Read-only Separately accepteert nu voorstellen met één onafhankelijke auditorUid per visit.
+- Elke auditor moet actief zijn en voor zijn specifieke scope Qualified=YES hebben in de canonical Auditor_Scope_Qualifications-relatie.
+- Bij gemengde/ontbrekende auditors of een onjuiste kwalificatie: fail-closed.
+- Samen met reeds bestaande validatie van per-obligation minuten, planningperiodes en deterministische Audit ID-voorstellen.
+- Een preview verstrekt geen Availability-claim, geen reservering en geen commit-autorisatie.
+- Nieuwe gerichte geïsoleerde V8-regressies: PASS. Node/GitHub Actions na laatste commits nog NIET bevestigd.
+- Relevante commits: 3465ac5e, e9d52fb4, 73d6bf5d.

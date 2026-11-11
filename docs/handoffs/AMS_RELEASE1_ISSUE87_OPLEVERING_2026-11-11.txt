@@ -113,3 +113,12 @@ AANVULLING — 11-11-2026 — LOKALE VOLLEDIGE TESTCYCLUS DOOR GEBRUIKER
 - Bevestigde resterende blokkades: PROD_LEGACY_MANAGER_LIFECYCLE_WRITES, PROD_LEGACY_DIRECT_LIFECYCLE_WRITE, PROD_REALIZED_HOURS_CANONICAL_PARITY_UNPROVEN, PROD IAM/Firestore/SSoT runtime proof, Manager/Auditor Single Planning E2E, Issue87 canonical Together/Separately writer + Model C transfer.
 - Belangrijk: testuitvoer is source/unit/isolated testbewijs, GEEN bewijs voor geactiveerde HTTP-writer, live DEV transacties of PROD-pariteit.
 - Geen DEV- of PROD-data wijzigen zonder aparte autorisatie.
+
+AANVULLING — 11-11-2026 — TESTBEVESTIGING EN AVAILABILITY PROJECTIEGATE
+- Gebruiker heeft de VOLLEDIGE gerichte Node-tests opnieuw lokaal uitgevoerd: alle 21 #87-tests PASS; SINGLE_PLANNING_RELEASE_1_SOURCE_PASS 39 checks. Dit is bevestigd testbewijs voor de toen opgehaalde branchversie, niet voor iedere latere commit.
+- Tijdens het vervolgaudit vastgesteld: de isolated composer kende 'Auditor Availability' als toegestaan writeset-doelblad, terwijl voor de specifieke rijmutaties nog geen onafhankelijke canonical preimage/projectie-pariteit bestaat.
+- Beveiliging aangescherpt: voorlopig uitsluitend 'Audit planning' en 'Audit_Visit_Obligations' als writeset-bladen toegestaan; ongevraagde of ongeverifieerde Availability-rijwijzigingen worden vóór Firestore commit afgewezen.
+- Negatieve regression toegevoegd; isolated atomic Together en Separately tests PASS op de huidige bron. Source gate expliciet uitgebreid.
+- Deze beveiliging is bewust FAIL-CLOSED en vervangt NIET de nog vereiste echte Availability-projector met onafhankelijke preimage/pariteitsverificatie.
+- Nieuwe commits: 8428192a, 9ffdb56d, 1dfe3a88. Full Node-run NA deze commits: nog niet bevestigd.
+- Geen HTTP-writer-activatie; geen DEV/PROD-deployment, data writes of cutover. PROD blijft NO-GO.

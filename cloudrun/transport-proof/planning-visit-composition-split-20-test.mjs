@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {createPlanningVisitCompositionService20} from './planning-visit-composition-service-20.js';
 import {prepareVisitCompositionCommand20} from './visit-composition-command-20.mjs';
 import {prepareModelCPlanningVisitSplitRows20} from './visit-model-c-planning-split-rows-20.mjs';
 import {deriveVisitSplitIdentity20} from './visit-composition-identity-20.mjs';
 
-const rev='a'.repeat(24),issuer=rev;
+const rev=createHash('sha256').update('A-1|Pending Planning||||').digest('hex').slice(0,24),issuer=rev;
 const successorAuditId=deriveVisitSplitIdentity20({sourceAuditId:'A-1',obligationId:'O-2',sourceRevision:rev}).auditId;
 const actor={role:'manager',auditorId:'M-1'};
 const obligations=[

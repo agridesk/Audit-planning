@@ -31,6 +31,7 @@ import {createPlanningAtomicFirestoreStore} from './planning-atomic-firestore-st
 import {createPlanningAtomicCommandService} from './planning-atomic-command-service-20.js';
 import {createVisitCompositionAtomicService20} from './visit-composition-atomic-service-20.js';
 import {prepareSeparateCompositionAuthority20} from './visit-composition-separate-authority-preflight-20.mjs';
+import {managerVisitCompositionPage20} from './visit-composition-manager-page-20.mjs';
 import {createPlanningLifecycleAtomicService} from './planning-lifecycle-atomic-service-20.js';
 import {createPlanningMultiLifecycleService} from './planning-multi-lifecycle-service-20.js';
 import {createPlanningAtomicTransferService} from './planning-atomic-transfer-service-20.js';
@@ -1256,6 +1257,23 @@ http.createServer(async(req,res)=>{
    const result=await planningAtomicBackfill.run({dryRun,startRow:input.startRow??2,limit:input.limit??100,sourceManifest:input.sourceManifest??null});
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,...result}));return;
   }
+  if(req.method==='GET'&&u.pathname==='/visit-composition'){
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager session required');return;}
+   res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store',
+    'x-content-type-options':'nosniff','x-frame-options':'DENY',
+    'content-security-policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"});
+   res.end(managerVisitCompositionPage20());return;
+  }
+  if(req.method==='GET'&&u.pathname==='/api/v1/planning/visit-composition-editor-context'){
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401);res.end();return;}
+   const roster=await getRoster();
+   const auditors=roster.filter(x=>x.role==='auditor').map(x=>({
+    auditorId:x.auditorId,email:x.email,name:x.displayName}));
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify({success:true,auditors,writeEnabled:Boolean(planningAtomicComposition)}));return;
+  }
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/visit-composition-atomic'){
    if(!planningAtomicComposition){res.writeHead(404,{'cache-control':'no-store'});res.end();return;}
    const actor=await session(req);
@@ -1423,6 +1441,15 @@ http.createServer(async(req,res)=>{
    const configScopes=(await scopeResponse.json()).values||[];
    if(!configScopes.length||configScopes.length>=100)throw Error('MODEL_C_SCOPE_CATALOG_INCOMPLETE');
    const result=previewModelCVisitComposition20({auditId,obligations:data[0],links:data[1],planningRows,configScopes});
+   const header=planningRows[0]||[],auditColumn=header.indexOf('Audit ID'),
+    matches=planningRows.slice(1).filter(row=>String(row[auditColumn]||'').trim()===auditId);
+   if(auditColumn<0||matches.length!==1)throw Error('VISIT_COMPOSITION_SOURCE_ROW_AMBIGUOUS');
+   const row=matches[0],pick=name=>String(row[header.indexOf(name)]||'').trim(),
+    fingerprint=[pick('Audit ID'),pick('Status'),pick('Assigned to'),pick('Planning JSON'),
+      pick('Last decision timestamp'),pick('Status since')].join('|');
+   const uid=pick('Auditor_UID');
+   result.sourceRevisionAtomic=createHash('sha256').update(fingerprint+(uid?'|'+uid:''))
+    .digest('hex').slice(0,24);
    const requestedAuditorUid=String(u.searchParams.get('auditorUid')||'').trim();
    result.qualification={checked:false,qualifiedForAllScopes:false,source:'NOT_REQUESTED'};
    if(requestedAuditorUid){

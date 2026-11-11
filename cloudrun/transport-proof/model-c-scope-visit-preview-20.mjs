@@ -14,6 +14,9 @@ export function previewModelCVisitComposition20({auditId,obligations,links,plann
  if(activeIds.some(x=>!x)||new Set(activeIds).size!==activeIds.length)
   throw Error('MODEL_C_PREVIEW_DUPLICATE_ACTIVE_LINK');
  const ids=new Set(activeIds);
+ if(links.slice(1).some(row=>norm(field(row,ls))==='active'&&
+   ids.has(field(row,lo))&&field(row,la)!==id))
+  throw Error('MODEL_C_PREVIEW_ACTIVE_OBLIGATION_LINKED_ELSEWHERE');
  if(!ids.size)throw Error('MODEL_C_PREVIEW_NO_ACTIVE_LINKS');
  const rows=obligations.slice(1).filter(r=>ids.has(field(r,oi))).map(r=>({obligationId:field(r,oi),scopeCode:field(r,os),companyUid:field(r,oc),requiredHours:field(r,of),plannedHours:null,remainingHours:null,allocationStatus:'UNKNOWN_NOT_INFERRED',effectiveExpiry:field(r,oe),windowFrom:field(r,owf),windowTo:field(r,owt),state:field(r,ost)}));
  if(rows.length!==ids.size)throw Error('MODEL_C_PREVIEW_LINK_UNRESOLVED');

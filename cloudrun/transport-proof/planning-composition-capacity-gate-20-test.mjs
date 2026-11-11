@@ -52,4 +52,16 @@ assert.equal(splitAuditors.leaseCount,2);assert.equal(acquired,5);
 await splitAuditors.release();assert.equal(released,4);
 await assert.rejects(()=>gate.acquire({actor,command:separated,entities:[two[0],{...two[1],blocks:[{date:'2026-11-18',start:'12:00',end:'15:00'}]}]}),/COMPOSITION_CAPACITY_SAME_AUDITOR_OVERLAP/);
 assert.equal(acquired,5);
+for(const [date,start,end] of [
+ ['2026-02-30','08:00','16:00'],
+ ['2026-11-18','24:00','25:00'],
+ ['2026-11-18','08:90','16:00'],
+ ['2026-11-18','18:00','08:00']
+]){
+ await assert.rejects(()=>gate.acquire({
+  actor,command:separated,
+  entities:[{...two[0],blocks:[{date,start,end}]},two[1]]
+ }),/COMPOSITION_CAPACITY_COMBINED_TIME_INVALID/);
+ assert.equal(acquired,5);
+}
 console.log('VISIT_COMPOSITION_CAPACITY_GATE_20_PASS: canonical qualifications, one combined lease per auditor, distinct auditors, overlap guard, release and uncertain recovery');

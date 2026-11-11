@@ -25,6 +25,11 @@ export function prepareModelCVisitLinkSplit20({command,linkValues,appendRowNumbe
  const columns=Object.fromEntries(required.map(k=>[k,column(h,k)]));
  if(required.some(k=>columns[k]<0))fail('MODEL_C_LINK_SPLIT_SCHEMA_INVALID');
  const [a,o,state,linked,unlinked]=required.map(k=>columns[k]);
+ // A link identity cannot be cloned; canonical issuance is required before
+ // any row write. Unknown identity columns must not be silently duplicated.
+ const normalizedHeader=h.map(x=>text(x).toUpperCase().replace(/[\s-]/g,'_'));
+ const identityColumns=normalizedHeader.filter(x=>['LINK_ID','LINK_UID','VISIT_LINK_ID','VISIT_LINK_UID','UID'].includes(x));
+ if(identityColumns.length)fail('MODEL_C_LINK_SPLIT_LINK_IDENTITY_WRITER_REQUIRED');
  const obligations=new Set(command.obligationIds||[]);
  if(obligations.size!==command.visits.length)fail('MODEL_C_LINK_SPLIT_PARTITION_INVALID');
  const byOb=new Map(),activeBySource=new Set(),allActive=new Set();
@@ -65,8 +70,10 @@ export function prepareModelCVisitLinkSplit20({command,linkValues,appendRowNumbe
   after[state]='INACTIVE';after[unlinked]=now;
   const range='Audit_Visit_Obligations!A'+current.sheetRow+':'+a1(h.length)+current.sheetRow;
   add(range,before,after);
-  const n=appendRowNumbers[i],newRow=new Array(h.length).fill('');
-  newRow[a]=move.auditId;newRow[o]=move.obligationId;newRow[state]='ACTIVE';newRow[linked]=now;
+  // Preserve non-identity link metadata/lineage rather than erasing it.
+  const n=appendRowNumbers[i],newRow=Array.from({length:h.length},(_,col)=>before[col]||'');
+  newRow[a]=move.auditId;newRow[o]=move.obligationId;newRow[state]='ACTIVE';
+  newRow[linked]=now;newRow[unlinked]='';
   const appendRange='Audit_Visit_Obligations!A'+n+':'+a1(h.length)+n;
   add(appendRange,[],newRow);
  }

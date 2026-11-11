@@ -76,7 +76,7 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
    if(!sourceEvidence.verified||sourceEvidence.obligationCount!==command.obligationIds.length||
       !jsonEq(sourceEvidence.obligations.map(x=>x.obligationId),command.obligationIds)||
       !jsonEq(sourceEvidence.obligations,command.obligationIds.map(id=>{
-        const current=command.mode==='TOGETHER'?command.obligationIds.indexOf(id):command.obligationIds.indexOf(id);
+        const current=command.obligationIds.indexOf(id);
         const obligation=proof.obligations[current];
         return {obligationId:String(obligation.obligationId),scopeCode:String(obligation.scopeCode),
           requiredMinutes:Math.round(Number(obligation.formalHours)*60)};

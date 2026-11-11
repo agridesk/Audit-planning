@@ -122,6 +122,13 @@ function validate(preview,sourceAuditId,mode,requestedRevision){
  if(!preview.modelCLinkTransferVerified||!preview.notificationIntentsVerified||
     !preview.sourceIdentityCollisionChecked||!preview.sourceRevisionChecked)
   throw Error('VISIT_COMPOSITION_CANONICAL_PROOF_MISSING');
+ // Queue schema A:M: D=Recipient, E=Audit ID. Every materialized Visit
+ // must have its own durable notification identity, including Separately.
+ const queue=preview.appendIntents.filter(x=>str(x.range)==='Notification Queue!A:M')
+  .flatMap(x=>x.values||[]);
+ if(visits.some(v=>!queue.some(row=>Array.isArray(row)&&
+    str(row[4])===v.auditId&&str(row[3]))))
+  throw Error('VISIT_COMPOSITION_NOTIFICATION_RECIPIENT_MISSING');
  const claimsByAuditor=new Map();
  for(const v of visits){
   const current=claimsByAuditor.get(v.auditorId)||{auditorId:v.auditorId,auditorEmail:v.auditorEmail,blocks:[]};

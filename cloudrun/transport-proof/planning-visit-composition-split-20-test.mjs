@@ -3,6 +3,7 @@ import {createHash} from 'node:crypto';
 import {createPlanningVisitCompositionService20} from './planning-visit-composition-service-20.js';
 import {prepareVisitCompositionCommand20} from './visit-composition-command-20.mjs';
 import {prepareScheduledCompositionSplitRows20} from './visit-composition-scheduled-split-20.mjs';
+import {deriveCompositionSourceRevision20} from './visit-composition-source-revision-20.mjs';
 import {deriveVisitSplitIdentity20} from './visit-composition-identity-20.mjs';
 
 const rev=createHash('sha256').update('A-1|Pending Planning||||').digest('hex').slice(0,24),issuer=rev;
@@ -34,7 +35,7 @@ const prerequisites=[
  {range:planRows[0].range,before},
  {range:planRows[1].range,before:[]}
 ];
-let writes=0,projections=0,appends=0,uncertain=0,lock=null,wrong=false,wrongStatus=false,wrongSnapshot=false;
+let writes=0,projections=0,appends=0,uncertain=0,lock=null,wrong=false,wrongStatus=false,wrongSnapshot=false,wrongPostRevision=false;
 const store={
  async readOutbox(){return null},
  async readAudit(){return {revision:2,pendingOperationId:null,snapshot:{sourceRevision:rev}}},
@@ -94,6 +95,14 @@ const planningSplit=prepareScheduledCompositionSplitRows20({command:prepared,
  newRowNumbers:[4],assignments,now:proof.now});
 snapshot.planningJson=planningSplit.visits[0].planningJson;
 successor.planningJson=planningSplit.visits[1].planningJson;
+snapshot.assignedTo='auditor@example.com';
+successor.assignedTo='auditor@example.com';
+snapshot.sourceRevision=deriveCompositionSourceRevision20({
+ auditId:'A-1',planningRows:[planningHeaders,planningSplit.projectionWrites[0].values[0]]
+}).sourceRevision;
+successor.sourceRevision=deriveCompositionSourceRevision20({
+ auditId:successorAuditId,planningRows:[planningHeaders,planningSplit.projectionWrites[1].values[0]]
+}).sourceRevision;
 proof.projectionWrites.push(...planningSplit.projectionWrites);
 proof.projectionPreconditions.push(...planningSplit.projectionPreconditions);
 const canonicalReader={
@@ -115,6 +124,7 @@ const service=createPlanningVisitCompositionService20({enabled:true,store,gate,p
    target.values[0][3]='Pending Planning';
   }
   if(wrongSnapshot)draft.entities[1].nextSnapshot.planningJson='tampered';
+  if(wrongPostRevision)draft.entities[1].nextSnapshot.sourceRevision='b'.repeat(24);
   return {...draft,verifiedEmptyAppendRows:!wrong,gateOperationId:operationId};
  }});
 const body={auditId:'A-1',companyUid:'C-1',sourceRevision:rev,mode:'SEPARATELY'};
@@ -130,6 +140,10 @@ wrongSnapshot=true;
 await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SERVICE_SCHEDULED_SNAPSHOT_DRIFT/);
 assert.equal(writes,0);assert.equal(lock,null);
 wrongSnapshot=false;
+wrongPostRevision=true;
+await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SERVICE_SCHEDULED_POST_REVISION_DRIFT/);
+assert.equal(writes,0);assert.equal(lock,null);
+wrongPostRevision=false;
 const receipt=await service.commit({actor,body});
 assert.equal(receipt.success,true);
 assert.equal(receipt.mode,'SEPARATELY');

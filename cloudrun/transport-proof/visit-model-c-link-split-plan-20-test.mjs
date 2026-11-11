@@ -16,7 +16,7 @@ const command=()=>prepareVisitCompositionCommand20({
 const sheet=()=>[
  ['Audit_ID','Obligation_ID','Link_State','Linked_At','Unlinked_At','Migration_Batch_ID'],
  ['A-1','O-1','ACTIVE','2026-01-01','',''],
- ['A-1','O-2','ACTIVE','2026-01-01','',''],
+ ['A-1','O-2','ACTIVE','2026-01-01','','BATCH-ORIGIN'],
  ['A-3','O-3','ACTIVE','2026-01-01','','']
 ];
 const input=()=>({command:command(),linkValues:sheet(),appendRowNumbers:[5],now:'2026-11-11T17:10:00'});
@@ -31,6 +31,9 @@ assert.equal(output.projectionWrites[0].values[0][2],'INACTIVE');
 assert.equal(output.projectionWrites[1].range,'Audit_Visit_Obligations!A5:F5');
 assert.equal(output.projectionWrites[1].values[0][0],'A-2');
 assert.equal(output.projectionWrites[1].values[0][1],'O-2');
+assert.equal(output.projectionWrites[1].values[0][5],'BATCH-ORIGIN');
+assert.equal(output.projectionWrites[1].values[0][4],'');
+assert.equal(output.projectionWrites[0].values[0][5],'BATCH-ORIGIN');
 assert.deepEqual(output.projectionPreconditions[1].before,[]);
 assert.equal(output.requiredProofs.includes('FIRESTORE_MULTI_TRANSACTION'),true);
 const error=(edit,code)=>{const x=input();edit(x);assert.throws(()=>plan(x),e=>e?.code===code,code);};
@@ -38,6 +41,7 @@ error(x=>{x.command={...x.command,canCommit:true}},'MODEL_C_LINK_SPLIT_COMMAND_I
 error(x=>{x.linkValues=[]},'MODEL_C_LINK_SPLIT_SNAPSHOT_REQUIRED');
 error(x=>{x.now='bad'},'MODEL_C_LINK_SPLIT_TIMESTAMP_INVALID');
 error(x=>{x.linkValues[0][2]='different'},'MODEL_C_LINK_SPLIT_SCHEMA_INVALID');
+error(x=>{x.linkValues[0][5]='Link_ID'},'MODEL_C_LINK_SPLIT_LINK_IDENTITY_WRITER_REQUIRED');
 error(x=>{x.linkValues.push(['A-4','O-2','ACTIVE'])},'MODEL_C_LINK_SPLIT_ACTIVE_CONFLICT');
 error(x=>{x.linkValues[2][2]='INACTIVE'},'MODEL_C_LINK_SPLIT_SOURCE_LINK_DRIFT');
 error(x=>{x.linkValues.push(['A-1','O-4','ACTIVE'])},'MODEL_C_LINK_SPLIT_SOURCE_LINK_DRIFT');

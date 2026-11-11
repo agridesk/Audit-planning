@@ -13,6 +13,11 @@
 <div class="pw-app" data-build="2026-09-19_ROADMAP_2_4_PLANNING_WORKSPACE_ROUTE_BOUNDARIES_R10_CRITICAL_ATTENTION">
   <header class="pw-header"><div><h1 class="pw-title">Planning Workspace</h1><div class="pw-subtitle">Demand → auditor × date planning → concept → optional detail → canonical planning</div></div><div id="pwStatus" class="pw-status">Ready</div></header>
   <section class="pw-filters"><div class="pw-filter small"><label for="pwFrom">From</label><input id="pwFrom" type="date" value="<?= __seedFrom ?>"></div><div class="pw-filter small"><label for="pwTo">To</label><input id="pwTo" type="date" value="<?= __seedTo ?>"></div><div class="pw-filter wide"><label for="pwCountry">Country</label><input id="pwCountry" type="text" autocomplete="off"></div><div class="pw-filter wide"><label for="pwScope">Scope</label><input id="pwScope" type="text" autocomplete="off"></div><button id="pwLoad" class="btn primary" type="button">Load</button><span class="pw-hint">Default: current month + 3 months</span></section>
+  <section id="pwVisitComposition20" class="panel" hidden aria-label="Together or Separately composition">
+    <div class="panel-head"><span>Visit composition · Model C</span><button type="button" class="btn" id="pwVisitCompositionOpen20">Review Together / Separately</button></div>
+    <div id="pwVisitCompositionStatus20" class="panel-meta" style="padding:7px 10px">Read-only until canonical transaction is connected</div>
+    <div id="pwVisitCompositionDetails20" style="padding:0 10px 8px"></div>
+  </section>
   <section class="pw-kpis"><div class="kpi"><div class="kpi-label">To plan</div><div class="kpi-value"><span id="kToPlan">0</span> <span class="kpi-unit" id="kToPlanHours">0.0 h</span></div></div><div class="kpi"><div class="kpi-label">Ready</div><div class="kpi-value"><span id="kReady">0</span> <span class="kpi-unit">canonical advisory</span></div></div><div class="kpi"><div class="kpi-label">Blocked / refresh</div><div class="kpi-value"><span id="kBlocked">0</span> <span class="kpi-unit">needs attention</span></div></div><div class="kpi"><div class="kpi-label">Concept</div><div class="kpi-value"><span id="kConcept">0</span> <span class="kpi-unit" id="kConceptHours">0.0 h</span></div></div><div class="kpi"><div class="kpi-label">Planned</div><div class="kpi-value"><span id="kPlanned">—</span> <span class="kpi-unit">canonical</span></div></div></section>
   <section class="panel"><div class="panel-head"><span>Planner attention</span><span class="panel-meta" id="attentionMeta">0 highest-priority audits</span></div><div id="attentionBody" class="attention"></div></section>
   <section class="panel"><div class="panel-head"><span>Auditor workload <span id="auditorCount" class="panel-meta"></span></span><span class="panel-meta">Focus: <b>All auditors</b></span></div><div id="workloadBody"></div></section>
@@ -22,6 +27,7 @@
 </div>
 <textarea id="pwServerSeed" style="display:none" aria-hidden="true"><?= __seedJson ?></textarea>
 <?!= HtmlService.createHtmlOutputFromFile('PlanningWorkspaceClient.js').getContent(); ?>
+<?!= HtmlService.createHtmlOutputFromFile('PlanningWorkspaceVisitComposition20.js').getContent(); ?>
 <?!= HtmlService.createHtmlOutputFromFile('PlanningWorkspaceBatchCommit.js').getContent(); ?>
 <script>
 (function(){

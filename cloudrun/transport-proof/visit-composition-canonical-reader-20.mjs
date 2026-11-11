@@ -33,7 +33,7 @@ export function createVisitCompositionCanonicalReader20({readRange}={}){
     fail('COMPOSITION_READER_APPEND_ROWS_INVALID');
   // Sequential reads are intentional. Under the write gate these must have
   // consistent canonical ownership; never rely on in-process caching.
-  const readAuditRows=required(await readRange('Audit planning!A1:BW'+MAX.planning),MAX.planning,'PLANNING');
+  const readAuditRows=required(await readRange('Audit planning!A1:CN'+MAX.planning),MAX.planning,'PLANNING');
   const readObligationRows=required(await readRange('Audit_Obligations!A1:AA'+MAX.obligations),MAX.obligations,'OBLIGATIONS');
   const readLinkRows=required(await readRange('Audit_Visit_Obligations!A1:AZ'+MAX.links),MAX.links,'LINKS');
   assertHeader(readAuditRows,'planning');

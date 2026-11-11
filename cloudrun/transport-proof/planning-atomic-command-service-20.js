@@ -4,6 +4,7 @@
  * Firestore commit preserves the durable outbox plus global fencing.
  */
 import {createHash} from 'node:crypto';
+import {validateScopeVisitAllocation20} from './model-c-scope-allocation-20.mjs';
 const hash=s=>createHash('sha256').update(s).digest('hex');
 const trim=x=>String(x??'').trim();
 export function createPlanningAtomicCommandService({atomicStore,gate,availabilityService,hardGate,preflight,projector,appendProjector,roster}={}){
@@ -31,6 +32,21 @@ export function createPlanningAtomicCommandService({atomicStore,gate,availabilit
    const preview=await preflight({actor,body:{...body,authorityPreflight:true}});
    if(preview?.authorityPreflight!==true||preview?.success!==true||preview.auditId!==auditId||!preview.canonicalSnapshot||!Array.isArray(preview.projectionWrites)||!Array.isArray(preview.projectionPreconditions))throw Error('PLANNING_ATOMIC_PREFLIGHT_NOT_AUTHORITATIVE');
    if(preview.expectedSourceRevision!==trim(body.sourceRevision))throw Error('PLANNING_ATOMIC_SOURCE_REVISION_CONFLICT');
+   if(body.composition==='SEPARATELY')throw Error('VISIT_COMPOSITION_SPLIT_ATOMIC_ROUTE_REQUIRED');
+   if(body.composition==='TOGETHER'){
+    if(preview.visitCompositionCanonical!==true||preview.scopeAllocation?.auditId!==auditId||
+       preview.scopeAllocation.composition!=='TOGETHER'||!Array.isArray(preview.canonicalSnapshot?.scopeAllocations))
+      throw Error('VISIT_COMPOSITION_TOGETHER_PREFLIGHT_REQUIRED');
+    const allocation=validateScopeVisitAllocation20(preview.scopeAllocation);
+    if(allocation.scopes.some(x=>x.remainingMinutes!==0||x.plannedMinutes!==x.requiredMinutes)||
+       allocation.blocks.some(x=>x.unallocatedMinutes!==0))
+      throw Error('VISIT_COMPOSITION_TOGETHER_HOURS_INVALID');
+    const normalized=a=>a.map(x=>[String(x.blockId),String(x.obligationId),Number(x.minutes)].join('|')).sort().join(';');
+    if(normalized(preview.scopeAllocation.allocations)!==normalized(preview.canonicalSnapshot.scopeAllocations))
+      throw Error('VISIT_COMPOSITION_TOGETHER_CANONICAL_ALLOCATION_MISMATCH');
+   }else if(body.composition!==undefined&&body.composition!==null&&body.composition!=='SINGLE')
+    throw Error('VISIT_COMPOSITION_MODE_INVALID');
+
    const previous=await atomicStore.readAudit(auditId);
    if(!previous||!Number.isSafeInteger(previous.revision)||previous.pendingOperationId)throw Error('PLANNING_ATOMIC_BACKFILL_OR_PROJECTION_REQUIRED');
    if(previous.snapshot?.sourceRevision!==preview.expectedSourceRevision)throw Error('PLANNING_ATOMIC_CANONICAL_PARITY_CONFLICT');

@@ -7,8 +7,8 @@ const v=(id,ob,minutes=180)=>({auditId:id,obligationIds:ob,snapshot:{auditId:id,
  requiredMinutes:minutes,blocks});
 function testFixture(mode='TOGETHER'){
  const auditId='source-1';
- const visits=mode==='TOGETHER'?[v(auditId,['ob-1','ob-2'],360)]:
-  [v('new-1',['ob-1']),v('new-2',['ob-2'])];
+ const visits=mode==='TOGETHER'?[v(auditId,['ob-1','ob-2'],180)]:
+  [v('new-1',['ob-1']),{...v('new-2',['ob-2']),blocks:[{date:'2027-03-12',start:'12:00',end:'15:00'}]}];
  const entities=mode==='TOGETHER'?
   [{auditId,expectedRevision:1,remove:false,auditorId:'aud-1',blocks,nextSnapshot:visits[0].snapshot}]:
   [{auditId,expectedRevision:1,remove:true,auditorId:null,blocks:[],nextSnapshot:{auditId,status:'Completed'}},

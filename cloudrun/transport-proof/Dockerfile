@@ -28,6 +28,8 @@ COPY rotation-*.cjs ./
 COPY rotation-manager-20.mjs ./
 COPY rotation-uid-reconciliation-20.mjs ./
 COPY model-c-scope-visit-preview-20.mjs ./
+COPY model-c-scope-allocation-20.mjs ./
+COPY visit-composition-atomic-service-20.js ./
 COPY ecas-delivery-receipt-20.mjs ./
 COPY ecas-lifecycle-outbox-20.mjs ./
 COPY ecas-lifecycle-notification-intent-20.mjs ./

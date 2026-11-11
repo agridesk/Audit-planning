@@ -11,7 +11,8 @@ assert.match(html,/PlanningWorkspaceVisitComposition20\.js/);
 assert.match(rpc,/function PlanningWorkspaceRpc_visitCompositionPreview/);
 assert.match(client,/PlanningWorkspaceRpc_visitCompositionPreview/);
 assert.match(client,/ams:visit-composition-selected/);
-assert.match(client,/Atomic save is not yet connected/);
+assert.match(client,/Continue to secure Cloud Run planning/);
+assert.match(client,/visit-composition\?auditId=/);
 assert.doesNotMatch(client,/fetch\s*\([^)]*commit|PlanningWorkspaceRpc_batchCommit/);
 const planning=[['Audit ID','Company_UID','Status'],['A1','C1','Pending Planning']];
 const obligations=[['Obligation_ID','Company_UID','ScopeCode','Formal_Hours','Effective_Expiry_Date','Planning_Window_From','Planning_Window_To'],

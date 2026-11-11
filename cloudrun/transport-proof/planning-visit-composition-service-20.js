@@ -17,6 +17,7 @@ import {prepareScheduledCompositionSplitRows20} from './visit-composition-schedu
 import {prepareScheduledCompositionTogetherRow20} from './visit-composition-scheduled-together-20.mjs';
 import {verifyCompositionAuditorQualifications20} from './visit-composition-qualification-20.mjs';
 import {prepareCompositionManagerNotifications20} from './visit-composition-manager-notifications-20.mjs';
+import {validateCompositionClientProposal20} from './visit-composition-client-proposal-20.mjs';
 
 const str = x => String(x ?? '').trim();
 const fail = code => {const error=new Error(code);error.code=code;throw error;};
@@ -36,6 +37,7 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
   if(!enabled)fail('COMPOSITION_SERVICE_NOT_ENABLED');
   if(actor?.role!=='manager'||!normalizedId(actor?.auditorId))fail('COMPOSITION_SERVICE_MANAGER_ONLY');
   if(!body||!normalizedId(body.auditId)||!normalizedId(body.companyUid))fail('COMPOSITION_SERVICE_REQUEST_INVALID');
+  validateCompositionClientProposal20(body);
   const operationId=hash({action:'COMPOSE_VISIT',actorId:actor.auditorId,body});
   const previousOutbox=await store.readOutbox(operationId);
   if(previousOutbox){

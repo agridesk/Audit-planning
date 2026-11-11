@@ -55,7 +55,7 @@ export function prepareVisitCompositionCommand20({
     return Object.freeze({
       type:'MODEL_C_COMPOSITION_PREFLIGHT',mode:'TOGETHER',auditId:preview.sourceAuditId,
       companyUid:preview.companyUid,sourceRevision:revision,
-      obligationIds:expectedIds,blocks:structuredClone(blocks),
+      obligationIds:expectedIds,obligations:preview.obligations,blocks:structuredClone(blocks),
       allocations:validated.allocations,totalMinutes:required,totalHours:hours(required),
       blockCount:windows.length,canCommit:false,writerRequired:'ATOMIC_MODEL_C_COMPOSITION'
     });
@@ -92,7 +92,7 @@ export function prepareVisitCompositionCommand20({
   return Object.freeze({
     type:'MODEL_C_COMPOSITION_PREFLIGHT',mode:'SEPARATELY',auditId:preview.sourceAuditId,
     companyUid:preview.companyUid,sourceRevision:revision,
-    obligationIds:expectedIds,visits:prepared,totalMinutes:preview.totalRequiredMinutes,
+    obligationIds:expectedIds,obligations:preview.obligations,visits:prepared,totalMinutes:preview.totalRequiredMinutes,
     totalHours:hours(preview.totalRequiredMinutes),
     canCommit:false,writerRequired:'ATOMIC_MODEL_C_SPLIT_AND_LINK_TRANSFER'
   });

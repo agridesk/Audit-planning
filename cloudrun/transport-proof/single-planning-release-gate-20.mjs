@@ -16,6 +16,8 @@ const r15=read('./server-r15.js');
 const canonicalReader=read('./visit-composition-canonical-reader-20.mjs');
 const canonicalPreflight=read('./visit-composition-canonical-preflight-20.mjs');
 const planningSplitRows=read('./visit-model-c-planning-split-rows-20.mjs');
+const identity=read('./visit-composition-identity-20.mjs');
+const qualifications=read('./visit-composition-qualification-20.mjs');
 const compositionOverview=read('./visit-composition-overview-20.mjs');
 const handoff=managerPortal.split('function submitSelectionHandoff(mode){')[1]?.split('\nfunction text(v)')[0]||'';
 const checks={
@@ -40,7 +42,10 @@ const checks={
   'Issue87 atomic composition rereads SSoT independently':atomicComposition.includes('canonicalReader.read(')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-runtime-contract-20-test.mjs')===true,
   'Issue87 Model C header contract rejects missing and duplicate columns':canonicalReader.includes('assertHeader(readLinkRows')&&canonicalReader.includes('DUPLICATE_HEADERS')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-runtime-read-20-test.mjs')===true,
   'Issue87 canonical read-only DEV preflight is manager gated':r15.includes('AMS_DEV_COMPOSITION_PREFLIGHT_ENABLED')&&r15.includes('visitCompositionPreflight20.preview(request)')&&canonicalPreflight.includes('COMPOSITION_PREFLIGHT_SOURCE_REVISION_CONFLICT'),
-  'Issue87 separate Visit requires both Model C and Audit planning projection':atomicComposition.includes('prepareModelCPlanningVisitSplitRows20(')&&planningSplitRows.includes('COMPOSITION_PLANNING_EXTRA_SOURCE_SCOPE')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-model-c-planning-split-rows-20-test.mjs')===true
+  'Issue87 separate Visit requires both Model C and Audit planning projection':atomicComposition.includes('prepareModelCPlanningVisitSplitRows20(')&&planningSplitRows.includes('COMPOSITION_PLANNING_EXTRA_SOURCE_SCOPE')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-model-c-planning-split-rows-20-test.mjs')===true,
+  'Issue87 new Visit identities are independently derived':identity.includes('deriveVisitSplitIdentity20')&&atomicComposition.includes('deriveVisitSplitIdentity20(')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-identity-20-test.mjs')===true,
+  'Issue87 notification queue format and write targets are restricted':atomicComposition.includes('COMPOSITION_SERVICE_NOTIFICATION_INTENT_INVALID')&&atomicComposition.includes('COMPOSITION_SERVICE_PROJECTION_SCOPE_FORBIDDEN'),
+  'Issue87 qualifications are verified from canonical directory':qualifications.includes('COMPOSITION_QUALIFICATIONS_SCOPE_NOT_QUALIFIED')&&canonicalPreflight.includes('verifyCompositionAuditorQualifications20(')&&canonicalReader.includes('readQualifications()')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-qualification-20-test.mjs')===true
 };
 for(const [name,ok] of Object.entries(checks))assert.equal(ok,true,'Release 1 source gate: '+name);
 const blockers=['PROD_LEGACY_MANAGER_LIFECYCLE_WRITES','PROD_LEGACY_DIRECT_LIFECYCLE_WRITE','PROD_REALIZED_HOURS_CANONICAL_PARITY_UNPROVEN','PROD infrastructure IAM/Firestore/SSoT runtime proof','Manager/Auditor Single Planning E2E evidence','Issue87 canonical together/separately writer and Model C link transfer'];

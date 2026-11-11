@@ -44,16 +44,16 @@
    });
    area.appendChild(group);
   }
-  if(chosen==='SEPARATELY'){
+  if(chosen==='SEPARATELY'||chosen==='TOGETHER'){
    if(data.cloudOrigin){
     var link=make('a','Continue to secure Cloud Run planning');
-    link.href=data.cloudOrigin.replace(/\/$/,'')+'/visit-composition?auditId='+encodeURIComponent(data.auditId);
+    link.href=data.cloudOrigin.replace(/\/$/,'')+'/visit-composition?auditId='+encodeURIComponent(data.auditId)+'&mode='+encodeURIComponent(chosen);
     link.target='_blank';link.rel='noopener noreferrer';
     link.style.cssText='display:inline-block;padding:9px 14px;background:#21558d;color:white;border-radius:5px;text-decoration:none;font-weight:600;margin:6px 0';
     area.appendChild(link);
    }else area.appendChild(make('p','Cloud Run destination is not configured in DEV.'));
   }
-  area.appendChild(make('p',chosen==='TOGETHER'?'Together uses existing canonical Planning save with explicit scope allocation.':
+  area.appendChild(make('p',chosen==='TOGETHER'?'Open the secure Cloud Run editor to allocate every time block to scopes and save atomically.':
    chosen==='SEPARATELY'?'Open the secure Cloud Run editor to enter each scope schedule. No audit is changed until atomic commit.':
    'Read-only: select the desired composition. No audit is changed.'));
  }

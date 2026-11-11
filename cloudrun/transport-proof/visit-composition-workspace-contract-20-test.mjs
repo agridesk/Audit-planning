@@ -4,6 +4,7 @@ const src=(file)=>readFileSync(new URL(file,import.meta.url),'utf8');
 const r4=src('./server-r4.js'),r5=src('./server-r5.js'),r6=src('./server-r6.js');
 const preview=src('./visit-composition-preview-20.mjs');
 const allocation=src('./visit-scope-allocation-20.mjs');
+const atomic=src('./planning-atomic-command-service-20.js');
 assert.match(r4,/import \{previewVisitComposition20\} from '\.\/visit-composition-preview-20\.mjs'/);
 assert.match(r4,/audit\.companyPlanningSet=companyPlanningSet/);
 assert.match(r4,/linked=companyPlanningSet\.find\(item=>item\.isPrimary\)\?\.obligations\|\|\[\]/);
@@ -22,4 +23,6 @@ for (const writer of [r4, r6]) {
 }
 assert.match(preview,/canCommit:false/);
 assert.match(allocation,/SCOPE_ALLOCATION_OVERLAP/);
+assert.match(atomic,/MODEL_C_SCOPE_COMPOSITION_CANONICAL_WRITER_REQUIRED/);
+assert.match(atomic,/body\?\.scopeAllocations!==undefined\|\|body\?\.compositionMode!==undefined/);
 console.log('ISSUE87_WORKSPACE_READONLY_CONTRACT_PASS: canonical preview, UI disclosure, fail-closed legacy writes');

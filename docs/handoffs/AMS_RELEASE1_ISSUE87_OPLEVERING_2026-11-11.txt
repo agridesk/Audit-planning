@@ -40,3 +40,12 @@ VOLGENDE GATE
 - Volledige Node-regressie op nieuwste featurebranch bevestigen.
 - Daarna uitsluitend gecontroleerde read-only DEV-validatie/deployment, vooraf de runtimeconfiguratie en deploymentparameters expliciet toetsen.
 - Geen writer-cutover zonder aantoonbare transactionele en functionele E2E-pariteit.
+
+AANVULLING — 11-11-2026, na eerder checkpoint
+- Separately read-only DEV preflight uitgebreid: accepteert nu expliciete voorstellen met één blocks[] per obligation en verplichte source-Audit-ID-behoud; valideert de volledige blokduur, onderlinge overlap, de per-obligation planning windows en een deterministisch nieuw Audit ID.
+- Nieuwe Audit ID's zijn uitsluitend voorstellen: geen uitgifte, lock/reservering of Firestore create-CAS. Client-selected Audit IDs/identity claims worden geweigerd.
+- Read-only preview fabriceert geen bewijs van lege of gereserveerde append-rijen. Deze worden alleen onafhankelijk onder de fenced writer gecontroleerd.
+- Canonical preflight regressies uitgebreid met positieve Separate scopeblokken, ongeldige client-ID's en out-of-window planning. Isolated V8 tests: PASS.
+- Relevante commits: ec69c1c2, 1ba3ced2, 0f6c772f, b991d80a.
+- Nieuwe volledige Node CI voor deze commits is nog NIET geverifieerd; geen deployment, geen DEV-mutatie, PROD NO-GO.
+- VOLGENDE: autoritatieve writer-preflight gekoppeld aan onafhankelijke volledige SSoT-fences, actor/availability/notifications; daarna E2E op DEV, geen ongeautoriseerde cutover.

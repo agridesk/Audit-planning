@@ -12,6 +12,7 @@ import {prepareModelCVisitLinkSplit20} from './visit-model-c-link-split-plan-20.
 import {prepareModelCPlanningVisitSplitRows20} from './visit-model-c-planning-split-rows-20.mjs';
 import {verifyVisitCompositionSource20} from './visit-composition-source-evidence-20.mjs';
 import {deriveVisitSplitIdentity20} from './visit-composition-identity-20.mjs';
+import {verifyVisitCompositionWindows20} from './visit-composition-window-20.mjs';
 
 const str = x => String(x ?? '').trim();
 const fail = code => {const error=new Error(code);error.code=code;throw error;};
@@ -90,6 +91,11 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
      readLinkRows:canonicalRows.readLinkRows,
      emptyAppendRows:canonicalRows.emptyAppendRows
    });
+   const windowEvidence=verifyVisitCompositionWindows20({
+     command,obligationRows:canonicalRows.readObligationRows
+   });
+   if(!windowEvidence.verified||windowEvidence.obligations.length!==command.obligationIds.length)
+     fail('COMPOSITION_SERVICE_WINDOW_PROOF_REQUIRED');
    if(!sourceEvidence.verified||sourceEvidence.obligationCount!==command.obligationIds.length||
       !jsonEq(sourceEvidence.obligations.map(x=>x.obligationId),command.obligationIds)||
       !jsonEq(sourceEvidence.obligations,command.obligationIds.map(id=>{

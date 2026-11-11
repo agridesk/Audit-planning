@@ -132,7 +132,7 @@ export function prepareSeparateCompositionAuthority20({
   const blocks=requested.map(b=>{
    const date=isoDate(b?.date),start=clean(b?.start),end=clean(b?.end),
     a=minute(start),z=minute(end);
-   if(a>=z||ob.from&&date<ob.from||ob.to&&date>ob.to)
+   if(a>=z||a<480||z>1080||ob.from&&date<ob.from||ob.to&&date>ob.to)
     throw Error('COMPOSITION_SPLIT_BLOCK_OUTSIDE_WINDOW');
    const executionType=clean(b.executionType||'ONSITE').toUpperCase();
    if(executionType!=='ONSITE')throw Error('COMPOSITION_SPLIT_OFFSITE_SCOPE_POLICY_NOT_VERIFIED');

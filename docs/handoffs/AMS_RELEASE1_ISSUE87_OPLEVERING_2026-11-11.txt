@@ -198,3 +198,12 @@ Bron: AMS_MY_AVAILABILITY_2_0_HANDOFF_SPEC_2026-10-04_FINAL.txt, secties 2, 13, 
 - CORRECTIE OP EERDERE HANDOFF-TEKST: uitspraken dat een 'Availability-writeset/projector' verplicht ontbreekt voor Issue87 zijn VERVALD. Actueel open: bewijs voor verse canonical RESOLVED Availability-pariteit, interval-/conflictvalidatie en targeted invalidation na commit.
 - Nog open: echte authoritative preflight-implementatie en E2E runtimebewijs. Tests 44/44 uit gebruikerscherm gelden voor eerdere branchversie; nieuwste commits niet volledig lokaal bevestigd.
 - Geen deployment, geen DEV/PROD mutaties; PROD blijft NO-GO.
+
+AANVULLING — 11-11-2026 — CANONICAL AVAILABILITY CACHE INVALIDATION NA COMMIT
+- Correcte ontwerpbron AMS_MY_AVAILABILITY_2_0_HANDOFF_SPEC_2026-10-04_FINAL.txt: committed occupancy wordt uitsluitend in canonical Planning JSON beheerd; Availability is resolver/cache en wordt NIET beschreven bij planning save.
+- Nieuwe pure visit-composition-availability-invalidation-20.mjs leidt uitsluitend concrete geraakte auditorUid + datum-keys af uit de canonical geprojecteerde Visits; bundelt meerdere Visits per auditor, sorteert en beperkt breedte (maximaal 90 verschillende datums per auditor). Geen Sheets/Firestore writes.
+- createPlanningVisitCompositionService20 vereist bij enabled=true een vertrouwde invalidateAvailability dependency. Na succesvolle verificatie van alle Sheets/Notification-projecties maar VOOR store.markProjected moet deze callback aantoonbaar een targeted RESOLVED_AVAILABILITY_CACHE invalidation bevestigen; anders blijft de operatie in recovery/UNCERTAIN en mag de outbox NIET PROJECTED worden.
+- Tests: pure planning invalidation positieve/negatieve V8 PASS; atomic Together, Separate en echte capaciteit-integratie V8 PASS met cachebewijs; negatieve atomic V8 test van mislukte cacheverversing PASS (outbox niet PROJECTED en global gate UNCERTAIN).
+- Package test:issue87-allocation + release gate uitgebreid met deze controles. Nieuwste volledige Node run nog NIET bevestigd; user 44/44 PASS geldt vóór deze commits.
+- Relevante commits: b1dcff8c, 9cb9da05, bf169c58, 0f660390, 3bf21d3b, 34366a6b, 5dfc8761, aaa04ef5, de3101a9.
+- OPEN: live runtime-implementatie van vertrouwde targeted invalidateAvailability adapter en fresh server-side resolved Availability verification in preflight, plus Manager/Auditor E2E. Geen writer HTTP route, geen deployment of datawijziging; PROD NO-GO.

@@ -23,7 +23,7 @@ const outbox=new Map();
 const snapshot={auditId:'A-1',companyUid:'C-1',sourceRevision:revision,status:'Approved',scopeAllocations:allocations};
 const sourceEvidence={
  readAuditRows:[['Audit ID','Company_UID','Status'],['A-1','C-1','Pending Planning']],
- readObligationRows:[['Obligation_ID','Company_UID','ScopeCode','Formal_Hours','Obligation_State'],['O-1','C-1','GAP',8,'OPEN'],['O-2','C-1','GRASP',3,'OPEN']],
+ readObligationRows:[['Obligation_ID','Company_UID','ScopeCode','Formal_Hours','Obligation_State','Planning_Window_From','Planning_Window_To'],['O-1','C-1','GAP',8,'OPEN','2026-11-01','2026-12-01'],['O-2','C-1','GRASP',3,'OPEN','01/11/2026','30/11/2026']],
  readLinkRows:[['Audit_ID','Obligation_ID','Link_State'],['A-1','O-1','ACTIVE'],['A-1','O-2','ACTIVE']],
  emptyAppendRows:[]
 };

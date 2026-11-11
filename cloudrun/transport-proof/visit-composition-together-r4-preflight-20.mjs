@@ -54,7 +54,7 @@ export function validateTogetherCompositionPreflight20({auditId,companyUid,oblig
   throw Error('TOGETHER_FORMAL_HOURS_SOURCE_MISMATCH');
  const keyedBlocks=blocks.map(b=>{
   const fromMin=min(b.start),toMin=min(b.end),on=date(b.date);
-  if(!on||fromMin>=toMin||fromMin%15||toMin%15)throw Error('TOGETHER_BLOCK_INVALID');
+  if(!on||fromMin>=toMin||fromMin<480||toMin>1080||fromMin%15||toMin%15)throw Error('TOGETHER_BLOCK_INVALID');
   for(const r of required)if(r.from&&on<r.from||r.to&&on>r.to)
    throw Error('TOGETHER_SCOPE_WINDOW_BLOCKED_'+r.scopeCode);
   return {...b,date:on,blockId:on+'|'+b.start+'|'+b.end};

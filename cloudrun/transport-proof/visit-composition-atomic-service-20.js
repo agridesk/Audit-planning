@@ -15,7 +15,7 @@ function validate(preview,sourceAuditId,mode,requestedRevision){
     !Array.isArray(preview.projectionWrites)||preview.projectionWrites.length===0||
     !Array.isArray(preview.projectionPreconditions)||preview.projectionPreconditions.length===0||
     !Array.isArray(preview.appendIntents)||preview.appendIntents.length===0||
-    !Array.isArray(preview.visits)||preview.visits.length<2)
+    !Array.isArray(preview.visits)||preview.visits.length<(mode==='TOGETHER'?1:2))
   throw Error('VISIT_COMPOSITION_AUTHORITY_PREFLIGHT_INCOMPLETE');
  const visits=preview.visits;
  const auditIds=visits.map(v=>str(v.auditId)),obligationIds=visits.flatMap(v=>v.obligationIds||[]);
@@ -31,13 +31,17 @@ function validate(preview,sourceAuditId,mode,requestedRevision){
     !/^\d{2}:\d{2}$/.test(str(b.start))||!/^\d{2}:\d{2}$/.test(str(b.end))))
   throw Error('VISIT_COMPOSITION_BLOCK_INVALID');
  if(mode==='TOGETHER'){
-  if(auditIds.length!==2||auditIds[0]!==sourceAuditId||auditIds[1]!==sourceAuditId+'#ALLOCATION'||
-     visits[0].auditorId!==visits[1].auditorId)
+  if(auditIds.length!==1||auditIds[0]!==sourceAuditId||
+     visits[0].obligationIds.length<2||state(visits[0].snapshot.status)!=='APPROVED')
    throw Error('VISIT_COMPOSITION_TOGETHER_IDENTITY_INVALID');
-  // Together is one physical Visit; the second record is allocation evidence,
-  // not a new audit. Commit the actual canonical audit only.
+  // Together is one physical Visit with explicit allocation for each Obligation.
+  // Do not manufacture a second audit ID or double-count physical blocks.
   if(preview.entities?.length!==1||preview.entities[0].auditId!==sourceAuditId||
-     preview.entities[0].remove===true)
+     preview.entities[0].remove===true||
+     !Array.isArray(visits[0].snapshot.allocations)||
+     new Set(visits[0].snapshot.allocations.map(x=>str(x.obligationId))).size!==visits[0].obligationIds.length||
+     visits[0].snapshot.allocations.some(x=>!visits[0].obligationIds.includes(str(x.obligationId))||
+      !Number.isSafeInteger(x.minutes)||x.minutes<=0))
    throw Error('VISIT_COMPOSITION_TOGETHER_ENTITY_INVALID');
  }else{
   if(auditIds.includes(sourceAuditId)||visits.some(v=>state(v.snapshot.status)!=='APPROVED')||

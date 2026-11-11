@@ -145,4 +145,13 @@ assert.equal(lexical.state,'PENDING');
 assert.equal((await authority.readOutbox('lexical-root')).auditId,lateParent);
 assert.equal((await authority.markProjected({auditId:lateParent,operationId:'lexical-root',proof:{verified:true,auditId:lateParent,rowHash:'e'.repeat(64)}})).state,'PROJECTED');
 assert.equal((await authority.readAudit(earlySuccessor)).pendingOperationId,null);
+await assert.rejects(()=>authority.commit({
+ auditId:parent,operationId:'retired-plan',actorId:'manager',expectedRevision:1,
+ nextSnapshot:{auditId:parent,status:'Approved'},auditorId:null,blocks:[],action:'PLAN'
+}),/PLANNING_CANONICAL_IDENTITY_RETIRED/);
+await assert.rejects(()=>authority.commitMulti({
+ operationId:'retired-multi',actorId:'manager',action:'TRANSFER',
+ entities:[{auditId:parent,expectedRevision:1,nextSnapshot:{auditId:parent,status:'Approved'}}],
+ projectionPlan:{projectionWrites:[],projectionPreconditions:[],appendIntents:[]}
+}),/PLANNING_MULTI_CANONICAL_IDENTITY_RETIRED/);
 console.log('Multi-document Firestore transaction, replay, occupancy, crash ambiguity and settlement OK');

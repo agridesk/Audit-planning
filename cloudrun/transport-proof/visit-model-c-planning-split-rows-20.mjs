@@ -2,7 +2,7 @@
 // Pure read-model writeset. Does not issue Audit IDs, reserve rows or write.
 const str=x=>String(x??'').trim();
 const fail=code=>{const e=new Error(code);e.code=code;throw e;};
-const norm=x=>str(x).toUpperCase().replace(/[\s-]/g,'_');
+const norm=x=>str(x).toUpperCase().replace(/[\s_-]+/g,'_');
 const letters=n=>{let s='';for(;n;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s;};
 const minutes=x=>{const value=Number(str(x).replace(',','.'));if(!Number.isFinite(value)||value<=0||Math.abs(value*60-Math.round(value*60))>1e-8)fail('COMPOSITION_PLANNING_HOURS_INVALID');return Math.round(value*60);};
 const optionalIndex=(headers,...aliases)=>headers.findIndex(h=>aliases.includes(norm(h)));

@@ -1125,7 +1125,7 @@ http.createServer(async(req,res)=>{
     res.end(JSON.stringify({ok:false,error:'MANAGER_REQUIRED'}));return;
    }
    const auditId=String(u.searchParams.get('auditId')||'').trim();
-   if(!/^[\\p{L}\\p{N}_,.-]{1,120}$/u.test(auditId))throw Error('VISIT_OVERVIEW_AUDIT_ID_INVALID');
+   if(!/^[\p{L}\p{N}_,.-]{1,120}$/u.test(auditId))throw Error('VISIT_OVERVIEW_AUDIT_ID_INVALID');
    const result=await visitCompositionOverview20.inspect({auditId});
    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
    res.end(JSON.stringify(result));return;

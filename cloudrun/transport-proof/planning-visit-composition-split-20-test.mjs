@@ -89,7 +89,11 @@ const planningSplit=prepareModelCPlanningVisitSplitRows20({command:prepared,
 proof.projectionWrites.push(...planningSplit.projectionWrites);
 proof.projectionPreconditions.push(...planningSplit.projectionPreconditions);
 const canonicalReader={async read(){return structuredClone(sourceEvidence)}};
-const service=createPlanningVisitCompositionService20({enabled:true,store,gate,projector,appendProjector,canonicalReader,
+let capacityAcquisitions=0,capacityReleased=0;
+const capacityGate={async acquire({entities}){capacityAcquisitions++;assert.equal(entities.length,2);
+ return {async release(){capacityReleased++},async uncertain(){throw Error('UNEXPECTED_UNCERTAIN')}};
+}};
+const service=createPlanningVisitCompositionService20({enabled:true,store,gate,projector,appendProjector,canonicalReader,capacityGate,
  preflight:async({operationId})=>({...structuredClone(proof),verifiedEmptyAppendRows:!wrong,gateOperationId:operationId})});
 const body={auditId:'A-1',companyUid:'C-1',sourceRevision:rev,mode:'SEPARATELY'};
 wrong=true;
@@ -101,6 +105,7 @@ assert.equal(receipt.success,true);
 assert.equal(receipt.mode,'SEPARATELY');
 assert.deepEqual(receipt.visitAuditIds,['A-1',successorAuditId]);
 assert.equal(writes,1);assert.equal(projections,1);assert.equal(appends,1);
+assert.equal(capacityAcquisitions,1);assert.equal(capacityReleased,1);
 assert.equal(uncertain,0);
 assert.equal(lock,null);
 console.log('VISIT_COMPOSITION_ATOMIC_SPLIT_20_PASS: complete Model C links, Firestore multi, outbox, verified projection; isolated');

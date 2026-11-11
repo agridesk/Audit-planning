@@ -5,7 +5,7 @@ const readings=[];
 const data={
  'Audit planning!A1:BW2000':[['Audit ID','Company_UID','Status'],['A1','C1','Pending Planning']],
  'Audit_Obligations!A1:AA5000':[['Obligation_ID','Company_UID','ScopeCode','Formal_Hours','Obligation_State'],['O1','C1','GAP',8,'OPEN'],['O2','C1','GRASP',3,'OPEN']],
- 'Audit_Visit_Obligations!A1:H5000':[['Audit_ID','Obligation_ID','Link_State'],['A1','O1','ACTIVE'],['A1','O2','ACTIVE']],
+ 'Audit_Visit_Obligations!A1:H5000':[['Audit_ID','Obligation_ID','Link_State','Linked_At','Unlinked_At'],['A1','O1','ACTIVE','2026-01-01',''],['A1','O2','ACTIVE','2026-01-01','']],
  'Audit_Visit_Obligations!A5:H5':[]
 };
 const readRange=async range=>{readings.push(range);if(!(range in data))throw Error('UNEXPECTED_RANGE');return structuredClone(data[range]);};
@@ -22,7 +22,7 @@ const expectedError=async (f,code)=>await assert.rejects(f,e=>e.code===code,code
 data['Audit_Visit_Obligations!A5:H5']=[['occupied']];
 await expectedError(()=>reader.read({appendRowNumbers:[5]}),'COMPOSITION_READER_APPEND_ROW_OCCUPIED');
 data['Audit_Visit_Obligations!A5:H5']=[];
-data['Audit_Visit_Obligations!A1:H5000'].push(['OTHER','O2','ACTIVE']);
+data['Audit_Visit_Obligations!A1:H5000'].push(['OTHER','O2','ACTIVE','2026-01-01','']);
 await expectedError(()=>overview.inspect({auditId:'A1'}),'VISIT_OVERVIEW_DUPLICATE_ACTIVE_LINK');
 data['Audit_Visit_Obligations!A1:H5000'].pop();
 data['Audit planning!A1:BW2000'][1][1]='OTHER';

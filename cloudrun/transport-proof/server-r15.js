@@ -1379,6 +1379,12 @@ http.createServer(async(req,res)=>{
     result.qualification={checked:true,auditorUid:requestedAuditorUid,
      qualifiedForAllScopes:active&&role==='AUDITOR'&&!missingScopeCodes.length,
      active,role,missingScopeCodes,source:resolution.source};
+    const availabilityDoc=await service.read({role:'manager',id:actor.auditorId},requestedAuditorUid);
+    result.availability={checked:true,auditorUid:requestedAuditorUid,
+     version:availabilityDoc.version,historyComplete:availabilityDoc.metadata?.historyComplete===true,
+     planningLeaseActive:Boolean(availabilityDoc.planningLease),
+     readAt:new Date().toISOString(),source:'DEV_FIRESTORE_AVAILABILITY_20',
+     readOnly:true,capacityVerified:false};
    }
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(result));return;
   }

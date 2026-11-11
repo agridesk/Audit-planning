@@ -59,6 +59,13 @@ export function prepareModelCPlanningVisitSplitRows20({command,planningValues,co
   required.set(obligation,{slot,flagCol,durationCol,minutes:mapping.requiredMinutes});
   activeSlots.push(slot);
  }
+ // Never silently carry unconfigured legacy scope slots into successor visits.
+ for(const [i,name] of headers.entries()){
+  const key=norm(name);
+  if(/^SCOPE_\d{2}$/.test(key)&&
+     !scopeBySlot.has(key)&&str(before[i]))
+   fail('COMPOSITION_PLANNING_UNKNOWN_ACTIVE_SCOPE');
+ }
  const slotColumns=[];
  for(const [slot] of scopeBySlot){
   const flagCol=find(slot),durationCol=find('DURATION_'+slot);

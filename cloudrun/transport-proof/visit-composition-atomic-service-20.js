@@ -129,6 +129,25 @@ function validate(preview,sourceAuditId,mode,requestedRevision){
   const planningIndex=preview.planningAuditIdColumnIndex;
   if(!Number.isSafeInteger(planningIndex)||planningIndex<0||planningIndex>100)
    throw Error('VISIT_COMPOSITION_PLANNING_ID_COLUMN_UNVERIFIED');
+  const statusIndex=preview.planningStatusColumnIndex,
+   planningJsonIndex=preview.planningJsonColumnIndex;
+  if(!Number.isSafeInteger(statusIndex)||statusIndex<0||statusIndex>100||
+     !Number.isSafeInteger(planningJsonIndex)||planningJsonIndex<0||planningJsonIndex>100)
+   throw Error('VISIT_COMPOSITION_SOURCE_PROJECTION_COLUMNS_UNVERIFIED');
+  const sourceRows=preview.projectionWrites.filter(x=>
+   /^Audit planning!/.test(str(x.range))).flatMap(x=>x.values||[])
+   .filter(row=>Array.isArray(row)&&str(row[planningIndex])===sourceAuditId);
+  if(sourceRows.length!==1||state(sourceRows[0][statusIndex])!==state(retired.status))
+   throw Error('VISIT_COMPOSITION_SOURCE_PROJECTION_INVALID');
+  let retiredJson;
+  try{retiredJson=JSON.parse(str(sourceRows[0][planningJsonIndex]));}
+  catch{throw Error('VISIT_COMPOSITION_SOURCE_RETIREMENT_JSON_MISSING');}
+  if(retiredJson?.identityRetired!==true||
+     retiredJson.retirementReason!=='VISIT_COMPOSITION_SPLIT'||
+     !Array.isArray(retiredJson.successorAuditIds)||
+     retiredJson.successorAuditIds.length!==auditIds.length||
+     auditIds.some(id=>!retiredJson.successorAuditIds.includes(id)))
+   throw Error('VISIT_COMPOSITION_SOURCE_RETIREMENT_JSON_MISMATCH');
   const newRows=preview.appendIntents.filter(x=>
    /^Audit planning!A:[A-Z]+$/.test(str(x.range)))
    .flatMap(x=>x.values||[]);

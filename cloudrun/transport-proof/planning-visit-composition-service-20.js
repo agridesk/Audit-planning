@@ -14,6 +14,8 @@ import {verifyVisitCompositionSource20} from './visit-composition-source-evidenc
 import {deriveVisitSplitIdentity20} from './visit-composition-identity-20.mjs';
 import {verifyVisitCompositionWindows20} from './visit-composition-window-20.mjs';
 import {deriveCompositionSourceRevision20} from './visit-composition-source-revision-20.mjs';
+import {prepareScheduledCompositionSplitRows20} from './visit-composition-scheduled-split-20.mjs';
+import {verifyCompositionAuditorQualifications20} from './visit-composition-qualification-20.mjs';
 
 const str = x => String(x ?? '').trim();
 const fail = code => {const error=new Error(code);error.code=code;throw error;};
@@ -155,6 +157,7 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
       str(row[2]).toUpperCase()!=='COMPOSE_VISIT'||
       Number(row[8])!==0||str(row[11])))
      fail('COMPOSITION_SERVICE_NOTIFICATION_AUDIT_OR_STATE_MISMATCH');
+   const audits=proof.entities;
    if(proof.mode==='SEPARATELY'){
     const modelC=prepareModelCVisitLinkSplit20({
       command,linkValues:canonicalRows.readLinkRows,appendRowNumbers:sourceEvidence.reservedAppendRows,now:proof.now
@@ -168,11 +171,39 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
     if(proof.verifiedEmptyPlanningRows!==true||
        !jsonEq(canonicalRows.emptyPlanningRows?.map(x=>x.row),proof.planningAppendRowNumbers))
       fail('COMPOSITION_SERVICE_PLANNING_APPEND_ROWS_NOT_VERIFIED');
-    const planningSplit=prepareModelCPlanningVisitSplitRows20({
+    if(typeof canonicalReader.readQualifications!=='function')
+      fail('COMPOSITION_SERVICE_SCHEDULED_QUALIFICATION_READER_REQUIRED');
+    const directory=await canonicalReader.readQualifications();
+    const header=directory.auditorRows?.[0]||[];
+    const col=x=>header.findIndex(h=>str(h).toUpperCase().replace(/[\\s_-]+/g,'_')===x);
+    const uidCol=col('AUDITOR_UID'),nameCol=col('NAME');
+    if(uidCol<0||nameCol<0)fail('COMPOSITION_SERVICE_SCHEDULED_AUDITOR_DIRECTORY_INVALID');
+    const assignments=command.visits.map(visit=>{
+      const entity=audits.find(e=>e.auditId===visit.auditId);
+      if(!entity)fail('COMPOSITION_SERVICE_SCHEDULED_VISIT_ENTITY_MISSING');
+      const scope=command.obligations.find(o=>o.obligationId===visit.obligationId)?.scopeCode;
+      const qualified=verifyCompositionAuditorQualifications20({
+        auditorUid:entity.auditorId,scopeCodes:[scope],
+        auditorRows:directory.auditorRows,qualificationRows:directory.qualificationRows
+      });
+      const person=directory.auditorRows.slice(1).find(r=>str(r[uidCol])===entity.auditorId);
+      if(!str(person?.[nameCol]))fail('COMPOSITION_SERVICE_SCHEDULED_AUDITOR_NAME_MISSING');
+      return {auditId:visit.auditId,obligationId:visit.obligationId,
+        auditorUid:qualified.auditorUid,auditorEmail:qualified.auditorEmail,
+        auditorName:str(person[nameCol]),maxOffsiteHours:0};
+    });
+    const planningSplit=prepareScheduledCompositionSplitRows20({
       command,planningValues:canonicalRows.readAuditRows,
       configScopeValues:canonicalRows.readConfigScopeRows,
-      newRowNumbers:canonicalRows.emptyPlanningRows.map(x=>x.row)
+      newRowNumbers:canonicalRows.emptyPlanningRows.map(x=>x.row),
+      assignments,now:proof.now
     });
+    if(planningSplit.visits.some(v=>{
+      const entity=audits.find(e=>e.auditId===v.auditId);
+      return !entity||entity.auditorId!==v.auditorUid||
+        str(entity.nextSnapshot?.status)!=='Approved'||
+        str(entity.nextSnapshot?.planningJson)!==v.planningJson;
+    }))fail('COMPOSITION_SERVICE_SCHEDULED_SNAPSHOT_DRIFT');
     if(!planningSplit.projectionWrites.every((write,i)=>
        proof.projectionWrites.some((target,j)=>
          target.range===write.range&&jsonEq(target.values,write.values)&&
@@ -190,7 +221,6 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
        proof.projectionWrites.some(x=>x.range.startsWith('Audit_Visit_Obligations!')))
       fail('COMPOSITION_SERVICE_TOGETHER_BUSINESS_PROJECTION_INVALID');
    }
-   const audits=proof.entities;
    if(audits[0]?.auditId!==command.auditId||
       new Set(audits.map(x=>x.auditId)).size!==audits.length||
       audits.some(x=>!x?.nextSnapshot||x.nextSnapshot.auditId!==x.auditId))

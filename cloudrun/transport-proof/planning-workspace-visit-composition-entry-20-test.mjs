@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {runInNewContext} from 'node:vm';
+import {runInNewContext,Script} from 'node:vm';
+import {managerVisitCompositionPage20} from './visit-composition-manager-page-20.mjs';
 const root=new URL('../../',import.meta.url);
 const server=readFileSync(new URL('PlanningWorkspaceVisitComposition20.js',root),'utf8');
 const rpc=readFileSync(new URL('PlanningWorkspaceRpc.js',root),'utf8');
@@ -21,6 +22,13 @@ assert.match(runtime,/AMS_DEV_VISIT_COMPOSITION_WRITE_ENABLED/);
 assert.match(editor,/visit-composition-atomic/);
 assert.match(editor,/credentials:'same-origin'/);
 assert.match(editor,/sourceRevisionAtomic/);
+assert.match(editor,/scopeAllocations/);
+assert.match(editor,/mode==='TOGETHER'\?'\/api\/v1\/planning\/direct-commit'/);
+const rendered=managerVisitCompositionPage20();
+const inline=/<script>([\s\S]*?)<\/script>/.exec(rendered);
+assert.ok(inline);
+new Script(inline[1],{filename:'visit-composition-editor-inline.js'});
+
 
 assert.match(client,/Continue to secure Cloud Run planning/);
 assert.match(client,/visit-composition\?auditId=/);

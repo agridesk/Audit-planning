@@ -9,6 +9,7 @@
 import {createHash} from 'node:crypto';
 import {prepareVisitCompositionCommand20} from './visit-composition-command-20.mjs';
 import {prepareModelCVisitLinkSplit20} from './visit-model-c-link-split-plan-20.mjs';
+import {verifyVisitCompositionSource20} from './visit-composition-source-evidence-20.mjs';
 
 const str = x => String(x ?? '').trim();
 const fail = code => {const error=new Error(code);error.code=code;throw error;};
@@ -61,6 +62,20 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
     obligations:proof.obligations,mode:body.mode,
     blocks:body.blocks,allocations:body.allocations,visits:proof.visits
    });
+   // Canonical SSoT rows are revalidated; boolean proof flags alone are never enough.
+   const sourceEvidence=verifyVisitCompositionSource20({
+     command,
+     readAuditRows:proof.sourceEvidence?.readAuditRows,
+     readObligationRows:proof.sourceEvidence?.readObligationRows,
+     readLinkRows:proof.sourceEvidence?.readLinkRows,
+     emptyAppendRows:proof.sourceEvidence?.emptyAppendRows
+   });
+   if(!sourceEvidence.verified||sourceEvidence.obligationCount!==command.obligationIds.length||
+      !jsonEq(sourceEvidence.obligations.map(x=>x.obligationId),command.obligationIds))
+     fail('COMPOSITION_SERVICE_SOURCE_EVIDENCE_MISMATCH');
+   if(proof.mode==='SEPARATELY'&&
+      !jsonEq(sourceEvidence.reservedAppendRows,proof.appendRowNumbers))
+     fail('COMPOSITION_SERVICE_APPEND_ROW_PROOF_MISMATCH');
    if(!jsonEq(proof.obligationIds,command.obligationIds))fail('COMPOSITION_SERVICE_OBLIGATION_PARITY');
    if(proof.mode!==command.mode)fail('COMPOSITION_SERVICE_MODE_CONFLICT');
    if(!jsonEq(proof.projectionWrites.map(x=>x.range),

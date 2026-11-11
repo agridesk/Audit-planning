@@ -12,7 +12,16 @@ const rows={
  emptyAppendRows:[],emptyPlanningRows:[]
 };
 let reads=0;
-const reader={async read(){reads++;return structuredClone(rows)}};
+const qualificationRows=[
+ ['Auditor_UID','ScopeCode','Qualified'],['AUD-1','MPS-GAP','YES'],['AUD-1','GRASP','YES']
+];
+const reader={
+ async read(){reads++;return structuredClone(rows)},
+ async readQualifications(){return {
+  auditorRows:[['Name','E-mail','Role','Active','Auditor_UID'],['Auditor','auditor@example.com','Auditor','Yes','AUD-1']],
+  qualificationRows:structuredClone(qualificationRows)
+ }}
+};
 const service=createVisitCompositionCanonicalPreflight20({reader});
 const sourceRevision=createHash('sha256').update('A1|Pending Planning||||').digest('hex').slice(0,24);
 const together={
@@ -25,6 +34,12 @@ assert.equal(good.readOnly,true);assert.equal(good.writeEnabled,false);
 assert.equal(good.sourceRevision,sourceRevision);
 assert.equal(good.totalRequiredMinutes,660);
 assert.equal(good.allocations.length,2);
+const qualified=await service.preview({...together,auditorUid:'AUD-1'});
+assert.equal(qualified.qualifications.qualified,true);
+assert.equal(qualified.qualifications.availabilityVerified,false);
+qualificationRows[2][2]='NO';
+await assert.rejects(()=>service.preview({...together,auditorUid:'AUD-1'}),/COMPOSITION_QUALIFICATIONS_SCOPE_NOT_QUALIFIED/);
+qualificationRows[2][2]='YES';
 const separate=await service.preview({auditId:'A1',mode:'SEPARATELY'});
 assert.equal(separate.requiredVisitCount,2);
 assert.equal(separate.canCommit,false);

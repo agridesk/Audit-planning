@@ -1,6 +1,6 @@
 /** Issue #87: authenticated same-origin Cloud Run Manager editor. */
 export function managerVisitCompositionPage20(){
-return \`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AMS — Separate Visits</title>
+return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AMS — Separate Visits</title>
 <style>body{font:14px system-ui;margin:20px auto;max-width:900px;padding:0 12px;background:#f4f6f9;color:#172033}section{background:#fff;padding:14px;margin:12px 0;border:1px solid #dbe3ee;border-radius:8px}h1{font-size:21px}h2{font-size:16px}.grid{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}.grid label{display:block;font-size:12px}.block{padding:8px;background:#f8fafc;margin:7px 0}input,select,button{padding:7px;font:inherit;border:1px solid #94a3b8;border-radius:4px}button{cursor:pointer}button:disabled{opacity:.45}.warn{color:#991b1b}.success{color:#166534}small{color:#64748b}</style></head><body>
 <h1>Model C — Separately planning</h1><small>DEV · one Visit per obligation · atomic Firestore transaction</small><section id="state">Loading canonical source…</section><div id="form" hidden><section id="scopes"></section><section><button id="save" disabled>Commit all separate Visits</button><p id="result" role="status">No changes have been made.</p></section></div>
 <script>(function(){'use strict';
@@ -56,5 +56,5 @@ el('save').onclick=async function(){
   render();
  }catch(e){fail(e.message||String(e));}
 })();
-})();</script></body></html>\`;
+})();</script></body></html>`;
 }

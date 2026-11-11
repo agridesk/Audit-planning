@@ -10,7 +10,7 @@ function fail(x){el('state').textContent=String(x);el('state').className='warn';
 async function get(path){var r=await fetch(path,{credentials:'same-origin',cache:'no-store'}),j=await r.json().catch(()=>null);if(!r.ok||!j)throw Error(j&&j.error||'Authenticated read failed');return j;}
 function block(together){
  var n=document.createElement('div');n.className='block';
- n.innerHTML='<div class="grid"><div><label>Date</label><input class="date" type="date"></div><div><label>Start</label><input class="start" type="time" step="900" value="08:00"></div><div><label>End</label><input class="end" type="time" step="900" value="12:00"></div><div><label>Location</label><input class="location" value="HQ"></div><button type="button" class="remove">Remove</button></div>';
+ n.innerHTML='<div class="grid"><div><label>Date</label><input class="date" type="date"></div><div><label>Start</label><input class="start" type="time" step="900" min="08:00" max="18:00" value="08:00"></div><div><label>End</label><input class="end" type="time" step="900" min="08:00" max="18:00" value="12:00"></div><div><label>Location</label><input class="location" value="HQ"></div><button type="button" class="remove">Remove</button></div>';
  if(together){
   var allocation=document.createElement('div');allocation.className='grid allocations';
   source.scopes.forEach(function(scope){

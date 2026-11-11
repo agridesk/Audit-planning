@@ -34,8 +34,8 @@ export function createVisitCompositionCanonicalPreflight20({reader}={}){
    val(row,idx(ah,'Assigned to')),val(row,idx(ah,'Planning JSON')),
    val(row,idx(ah,'Last decision timestamp')),val(row,idx(ah,'Status since'))
   ];
-  const auditorUid=val(row,idx(ah,'Auditor_UID','Assigned_Auditor_UID'));
-  const actualRevision=createHash('sha256').update(revisionFields.join('|')+(auditorUid?'|'+auditorUid:'')).digest('hex').slice(0,24);
+  const storedAuditorUid=val(row,idx(ah,'Auditor_UID','Assigned_Auditor_UID'));
+  const actualRevision=createHash('sha256').update(revisionFields.join('|')+(storedAuditorUid?'|'+storedAuditorUid:'')).digest('hex').slice(0,24);
   if(sourceRevision!==undefined&&str(sourceRevision)!==actualRevision)
    fail('COMPOSITION_PREFLIGHT_SOURCE_REVISION_CONFLICT');
   const globalActive=new Set();

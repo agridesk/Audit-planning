@@ -145,7 +145,8 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
       fail('COMPOSITION_SERVICE_NOTIFICATION_INTENT_INVALID');
     for(const row of intent.values){
       if(!str(row[0])||!str(row[1])||!str(row[2])||
-         !str(row[3])||!str(row[4])||!str(row[10]))
+         !str(row[4])||!str(row[10])||
+         (str(row[1]).toUpperCase()==='PENDING'&&!str(row[3])))
         fail('COMPOSITION_SERVICE_NOTIFICATION_INTENT_INCOMPLETE');
       queueIntents.push(row);
     }

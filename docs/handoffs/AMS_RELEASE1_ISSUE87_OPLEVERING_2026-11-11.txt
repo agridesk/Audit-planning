@@ -65,3 +65,11 @@ AANVULLING — 11-11-2026: SEPARATE VISIT IDENTITY COLLISION SAFETY
 - Positieve en negatieve preflighttests, inclusief twee auditors, tijdvensters, client identity denial en ID-collision: geïsoleerd PASS.
 - Nieuwe source-gatecheck toegevoegd; actuele volledige Node-run op laatste branch nog niet bevestigd.
 - Relevante commits: a88a17bf, d568dcbd, 8d291ea9.
+
+AANVULLING — 11-11-2026: TRANSACTIONAL WRITESET INTEGRITY
+- Notification Queue: composition event must refer to a Visit Audit ID in this operation, have expected pending status/event type, no sent timestamp and no retries.
+- Together: Model C linkrijen zijn geen toegestane projectietargets. Exactly one Audit planning business row.
+- Separately: Audit planning en Audit_Visit_Obligations business writes moeten exact overeenkomen met onafhankelijk berekende projecties; extra businessrijen zijn verboden.
+- Regression negatives toegevoegd (misdirected notification; unsolicited Model C writes). Isolated V8 atomic Together/Separately: PASS. Full Node CI latest commits NOT CONFIRMED.
+- Latest source-gate scope expanded; PROD NO-GO; HTTP commit writer disabled; no deployment or data mutation.
+- Relevante commits: 3b3d4461, 22833b2e, 49eaf0c4, 20c7d6ae, 8046227f.

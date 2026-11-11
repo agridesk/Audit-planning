@@ -4,6 +4,7 @@
  * Firestore is committed once, followed by fully verified Sheets projection.
  */
 import {createHash} from 'node:crypto';
+import {validateScopeVisitAllocation20} from './model-c-scope-allocation-20.mjs';
 const str=x=>String(x??'').trim();
 const digest=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const distinct=xs=>new Set(xs).size===xs.length;
@@ -47,6 +48,20 @@ function validate(preview,sourceAuditId,mode,requestedRevision){
    throw Error('VISIT_COMPOSITION_CAPACITY_SELF_OVERLAP');
  }
  if(mode==='TOGETHER'){
+  if(!preview.scopeAllocation||preview.scopeAllocation.auditId!==sourceAuditId||
+     preview.scopeAllocation.composition!=='TOGETHER')
+   throw Error('VISIT_COMPOSITION_SCOPE_ALLOCATION_PROOF_REQUIRED');
+  const allocated=validateScopeVisitAllocation20(preview.scopeAllocation);
+  if(allocated.scopes.length!==obligationIds.length||
+     allocated.scopes.some(x=>x.remainingMinutes!==0||x.plannedMinutes!==x.requiredMinutes)||
+     allocated.blocks.some(x=>x.unallocatedMinutes!==0))
+   throw Error('VISIT_COMPOSITION_SCOPE_ALLOCATION_INCOMPLETE');
+  const expected=new Map(preview.scopeAllocation.allocations.map(x=>
+   [str(x.obligationId),Number(x.minutes)]));
+  const actual=new Map(visits[0].snapshot.allocations.map(x=>
+   [str(x.obligationId),Number(x.minutes)]));
+  if(expected.size!==actual.size||[...expected].some(([id,n])=>actual.get(id)!==n))
+   throw Error('VISIT_COMPOSITION_SCOPE_ALLOCATION_DIVERGED');
   if(auditIds.length!==1||auditIds[0]!==sourceAuditId||
      visits[0].obligationIds.length<2||state(visits[0].snapshot.status)!=='APPROVED')
    throw Error('VISIT_COMPOSITION_TOGETHER_IDENTITY_INVALID');

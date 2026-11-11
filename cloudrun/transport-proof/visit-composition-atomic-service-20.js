@@ -146,7 +146,11 @@ export function createVisitCompositionAtomicService20({store,gate,availabilitySe
     hardGate({document:lease.document,blocks:group.blocks});
    }
    const plan={...preview.sourceTombstone,...preview.projectionPlan,
-    auditId:sourceAuditId,projectionWrites:preview.projectionWrites,
+    auditId:sourceAuditId,
+    // Durable auditor roster for multi-lease recovery after a process crash.
+    // Tokens stay in the canonical Availability documents; never in Sheets.
+    availabilityLeaseAuditors:groups.map(x=>x.auditorId),
+    projectionWrites:preview.projectionWrites,
     projectionPreconditions:preview.projectionPreconditions,appendIntents:preview.appendIntents};
    attempted=true;
    const receipt=await store.commitMulti({operationId,actorId:actor.auditorId,

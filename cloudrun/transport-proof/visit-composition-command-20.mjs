@@ -16,7 +16,7 @@ const checkBlocks = blocks => {
   const seen=[];
   for(const b of blocks){
     const date=str(b?.date);
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||new Date(date+'T00:00:00Z').toISOString().slice(0,10)!==date)
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||(!Number.isFinite(Date.parse(date+'T00:00:00Z')) || new Date(date+'T00:00:00Z').toISOString().slice(0,10)!==date))
       fail('COMPOSITION_COMMAND_DATE_INVALID');
     const start=minute(b.start),end=minute(b.end);
     if(end<=start||start%15||end%15)fail('COMPOSITION_COMMAND_BLOCK_QUARTER_HOUR_REQUIRED');

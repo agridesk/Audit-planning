@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {createVisitCompositionAtomicService20} from './visit-composition-atomic-service-20.js';
 const blocks=[{date:'2027-03-12',start:'09:00',end:'12:00'}];
 const v=(id,ob,minutes=180)=>({auditId:id,obligationIds:ob,snapshot:{auditId:id,status:'Approved',
- allocations:ob.map(obligationId=>({obligationId,minutes:minutes/ob.length}))},
+ allocations:ob.map(obligationId=>({blockId:'block-1',obligationId,minutes:minutes/ob.length}))},
  auditorId:'aud-1',auditorEmail:'auditor@example.test',companyUid:'company-1',
  requiredMinutes:minutes,blocks});
 function testFixture(mode='TOGETHER'){
@@ -20,7 +20,7 @@ function testFixture(mode='TOGETHER'){
   projectionWrites:[{range:'Audit planning!A2:B2',values:[['x','y']]}],
   projectionPreconditions:[{range:'Audit planning!A2:B2',before:['a','b']}],
   appendIntents:[{range:'Notification Queue!A:M',values:[['PLAN']]}],
-  visits,entities,sourceTombstone:{auditId},projectionPlan:{auditId},
+  visits,entities,activeObligationIds:['ob-1','ob-2'],sourceTombstone:{auditId},projectionPlan:{auditId},
   scopeAllocation:mode==='TOGETHER'?{
    auditId,composition:'TOGETHER',
    obligations:[{auditId,obligationId:'ob-1',scopeCode:'GAP',linkState:'ACTIVE',requiredMinutes:90},

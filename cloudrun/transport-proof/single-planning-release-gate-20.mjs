@@ -17,6 +17,7 @@ const canonicalReader=read('./visit-composition-canonical-reader-20.mjs');
 const canonicalPreflight=read('./visit-composition-canonical-preflight-20.mjs');
 const planningSplitRows=read('./visit-model-c-planning-split-rows-20.mjs');
 const scheduledSplitRows=read('./visit-composition-scheduled-split-20.mjs');
+const scheduledTogetherRow=read('./visit-composition-scheduled-together-20.mjs');
 const identity=read('./visit-composition-identity-20.mjs');
 const qualifications=read('./visit-composition-qualification-20.mjs');
 const capacityGate=read('./planning-composition-capacity-gate-20.mjs');
@@ -53,6 +54,8 @@ const checks={
   'Issue87 composition notifications match intended visit audit identities':atomicComposition.includes('COMPOSITION_SERVICE_NOTIFICATION_AUDIT_OR_STATE_MISMATCH')&&atomicComposition.includes('permittedEventAudits.has(str(row[4]))'),
   'Issue87 no unrequested planning or Model C business writes':atomicComposition.includes('COMPOSITION_SERVICE_EXTRA_BUSINESS_PROJECTION_FORBIDDEN')&&atomicComposition.includes('COMPOSITION_SERVICE_TOGETHER_BUSINESS_PROJECTION_INVALID'),
   'Issue87 scheduled Separate snapshots match verified manager-approved rows':atomicComposition.includes('COMPOSITION_SERVICE_SCHEDULED_SNAPSHOT_DRIFT')&&atomicComposition.includes('verifyCompositionAuditorQualifications20(')&&scheduledSplitRows.includes("row[status]='Approved'"),
+  'Issue87 Together rows are independently projected with R4 post-revision':atomicComposition.includes('prepareScheduledCompositionTogetherRow20(')&&atomicComposition.includes('COMPOSITION_SERVICE_TOGETHER_SCHEDULED_SNAPSHOT_DRIFT')&&scheduledTogetherRow.includes('deriveCompositionSourceRevision20(')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-scheduled-together-20-test.mjs')===true,
+  'Issue87 Split snapshots must use post-planned canonical revision':atomicComposition.includes('COMPOSITION_SERVICE_SCHEDULED_POST_REVISION_DRIFT')&&atomicComposition.includes('expectedPostRevisions')&&packageJson.scripts['test:issue87-allocation']?.includes('planning-visit-composition-split-20-test.mjs')===true,
   'Issue87 qualifications are verified from canonical directory':qualifications.includes('COMPOSITION_QUALIFICATIONS_SCOPE_NOT_QUALIFIED')&&canonicalPreflight.includes('verifyCompositionAuditorQualifications20(')&&canonicalReader.includes('readQualifications()')&&packageJson.scripts['test:issue87-allocation']?.includes('visit-composition-qualification-20-test.mjs')===true,
   'Issue87 availability leases are mandatory per visit':capacityGate.includes('availabilityService.acquirePlanningLease(')&&capacityGate.includes('markPlanningLeaseUncertain(')&&atomicComposition.includes('capacityGate.acquire(')&&packageJson.scripts['test:issue87-allocation']?.includes('planning-composition-capacity-gate-20-test.mjs')===true,
   'Issue87 failed capacity release never unlocks the global gate as verified':atomicComposition.includes('COMPOSITION_CAPACITY_LEASE_RELEASE_UNKNOWN')&&atomicComposition.includes('capacityReleaseFailed=true'),

@@ -370,6 +370,9 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
      else if(typeof capacity.uncertain==='function')
       await capacity.uncertain(verified?'COMPOSITION_CAPACITY_LEASE_RELEASE_UNCERTAIN':'COMPOSITION_CAPACITY_TRANSACTION_OUTCOME_UNCERTAIN');
     }
+   }catch(e){
+    capacityAcquisitionUncertain=true;
+    throw e;
    }finally{
    if(lock){
     if(capacityAcquisitionUncertain)

@@ -1,0 +1,32 @@
+name: AMS issue 87 Model C composition isolated regressions
+on:
+  push:
+    branches:
+      - release1-p0-45-46-87
+    paths:
+      - 'cloudrun/transport-proof/visit-composition-*.mjs'
+      - 'cloudrun/transport-proof/visit-model-c-*.mjs'
+      - 'cloudrun/transport-proof/planning-visit-composition-*.js'
+      - 'cloudrun/transport-proof/planning-visit-composition-*.mjs'
+      - 'cloudrun/transport-proof/package.json'
+      - 'cloudrun/transport-proof/single-planning-release-gate-20.mjs'
+      - 'cloudrun/transport-proof/server-r15.js'
+      - '.github/workflows/ams-issue87-composition.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-composition:
+    name: Canonical Model C and planning projection; no deployment
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Issue 87 isolated regressions and source gate
+        working-directory: cloudrun/transport-proof
+        run: |
+          npm run test:issue87-allocation
+          node single-planning-release-gate-20.mjs

@@ -1965,6 +1965,10 @@ async function visitCompositionPlan(targetAuditId,memberAuditIds,obValues,linkVa
 }
 
 function directPlanningCommit(identity,body){
+  // Issue #87: legacy writer must never silently ignore new Model C composition intent.
+  // Only the canonical atomic composition writer may accept explicit per-scope allocation.
+  if(body?.scopeAllocations!==undefined||body?.compositionMode!==undefined)
+    throw new Error('MODEL_C_SCOPE_COMPOSITION_CANONICAL_WRITER_REQUIRED');
   if(process.env.AMS_RUNTIME_ENV==='PROD')throw new Error('PROD_LIFECYCLE_CANONICAL_WRITER_REQUIRED');
   const actorRole=clean(identity?.role).toUpperCase(),actorEmail=clean(identity?.email).toLowerCase(),started=Date.now(),auditId=clean(body?.auditId),auditorEmail=clean(body?.auditorEmail).toLowerCase(),auditorName=clean(body?.auditorName),sourceRevision=clean(body?.sourceRevision);
   const authorityPreflight=process.env.AMS_RUNTIME_ENV==='DEV'&&(process.env.AMS_DEV_FIRESTORE_PLANNING_AUTHORITY_ENABLED==='true'||process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true')&&body?.authorityPreflight===true;

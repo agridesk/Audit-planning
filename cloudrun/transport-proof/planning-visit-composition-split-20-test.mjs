@@ -73,7 +73,7 @@ const proof={sourceEvidence,
  appendRowNumbers:[5],planningAppendRowNumbers:[4],now:'2026-11-11T17:10:00',verifiedEmptyAppendRows:true,verifiedEmptyPlanningRows:true,
  requiredProofs:['SOURCE_REVISION_CAS','CANONICAL_MODEL_C_LINKS','CANONICAL_VISIT_IDENTITIES','AVAILABILITY_CLAIM_PARITY','SHEETS_PREIMAGE_PARITY','NOTIFICATION_OUTBOX_INTENTS'],
  projectionWrites:planRows,projectionPreconditions:prerequisites,
- appendIntents:[{range:'Notification Queue!A:M',values:[['now','COMPOSE_VISIT','A-1','A-2']]}],
+ appendIntents:[{range:'Notification Queue!A:M',values:[['2026-11-11T17:10:00','PENDING','COMPOSE_VISIT','manager@example.com','A-1','Company','Composition planned','Audit composition recorded',0,'','sha256:event:composition','','']]}],
  canonicalSnapshot:snapshot,
  entities:[
  {auditId:'A-1',expectedRevision:2,remove:false,auditorId:'aud-1',blocks:visits[0].blocks,nextSnapshot:snapshot},

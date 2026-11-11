@@ -147,3 +147,10 @@ AANVULLING — 11-11-2026 — ATOMIC x CANONICAL CAPACITY INTEGRATIE
 - Bewijsniveau: geïsoleerde V8-regressies PASS; volledige Node-suite en daadwerkelijke GitHub Actions-run op nieuwste commits nog niet bevestigd.
 - Relevante commits: 0e1091c9, bd7c39b9, 3d3641e1, d10b2d9f, 6781ff0a, 8d3585dc, a220862d, 2567f6be, 0f058c42, 2c047f7c.
 - No operational change: isolated writer still disabled by default, no mutating HTTP route, no DEV or PROD data writes, no deployment. PROD NO-GO.
+
+AANVULLING — 11-11-2026 — VOLLEDIGE LOKALE NODE-VALIDATIE 43/43
+- Gebruiker bevestigt expliciet alle 23 gerichte Issue87-onderdelen PASS, inclusief real grouped per-auditor Availability capacity gate x atomic Split integration.
+- SINGLE_PLANNING_RELEASE_1_SOURCE_PASS 43 checks; NO PROD authorization.
+- De gebruiker heeft de volledige CMD-uitvoer in deze chat geleverd. Deze versie is het laatst bekende VOLLEDIG bevestigde Node-regressiebewijs.
+- Open blockers ongewijzigd: PROD legacy manager lifecycle writers, PROD direct legacy lifecycle writer, realized hours canonical parity, infrastructure IAM/Firestore/SSoT runtime proof, Manager/Auditor E2E, Issue87 canonical Together/Separately writer plus Model C transfer.
+- Dit is géén live DEV end-to-end bewijs en geen write/cutover toestemming. PROD NO-GO.

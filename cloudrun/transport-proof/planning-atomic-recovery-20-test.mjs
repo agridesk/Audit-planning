@@ -111,4 +111,42 @@ const loopRecovery=createPlanningAtomicRecovery({
  projector,appendProjector,gate
 });
 await assert.rejects(()=>loopRecovery.scan({limit:2}),/ATOMIC_RECOVERY_PAGINATION_LOOP/);
+// Issue #87: a split Visit may reserve more than one distinct Auditor.
+// Recovery must release neither the global fence nor one lease on incomplete proof.
+const twoAuditors={...e,action:'VISIT_COMPOSITION_SEPARATELY',multi:true,
+ entities:[{auditId:'a1',revision:1},{auditId:'new-1',revision:0}],
+ snapshot:{...e.snapshot,availabilityLeaseAuditors:['uid1','uid2']}};
+let twoFence=true,twoReleased=0,secondRecent=true,twoSettled=0;
+const old=new Date(Date.now()-31*60*1000).toISOString(),recent=new Date().toISOString();
+const multiRecovery=createPlanningAtomicRecovery({
+ store:{async listOutbox(){return {entries:[twoAuditors],nextPageToken:null};},
+  async readAudit(id){return {revision:id==='a1'?1:0,pendingOperationId:'op1'};},
+  async markProjected(){twoSettled++;}},
+ projector,appendProjector,
+ gate:{async read(){return {holder:twoFence?{token:'tg',operationId:'op1',state:'UNCERTAIN',
+  acquiredAt:old,uncertainAt:old}:null};},
+  async release(){twoFence=false;}},
+ availabilityService:{
+  async read(actor,id){return {planningLease:{token:id, auditId:'a1',state:'UNCERTAIN',
+   acquiredAt:old,uncertainAt:id==='uid2'&&secondRecent?recent:old}};},
+  async reconcilePlanningLease({auditorId,verifiedAuditId,verifiedProjectionProof}){
+   assert.equal(verifiedAuditId,'a1');assert.match(verifiedProjectionProof,/^[0-9a-f]{64}$/);
+   twoReleased++;assert.ok(['uid1','uid2'].includes(auditorId));}
+ }
+});
+assert.equal((await multiRecovery.scan()).unresolved,1);
+assert.equal(twoReleased,0);assert.equal(twoFence,true);
+secondRecent=false;
+assert.equal((await multiRecovery.scan()).recovered,1);
+assert.equal(twoReleased,2);assert.equal(twoFence,false);assert.equal(twoSettled,2);
+// No implicit fallback to a single-auditor recovery when roster is missing.
+const missingRoster=createPlanningAtomicRecovery({
+ store:{...store,async listOutbox(){return {entries:[{...twoAuditors,snapshot:e.snapshot}],nextPageToken:null};}},
+ projector,appendProjector,
+ gate:{async read(){return {holder:{token:'t',operationId:'op1',state:'UNCERTAIN',
+  acquiredAt:old,uncertainAt:old}};}},
+ availabilityService
+});
+assert.equal((await missingRoster.scan()).errors,1);
+
 console.log('Atomic recovery: no blind retries, verified projection and uncertain fence release passed');

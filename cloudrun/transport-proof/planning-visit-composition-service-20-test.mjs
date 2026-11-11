@@ -21,7 +21,13 @@ const requiredProofs=['SOURCE_REVISION_CAS','CANONICAL_MODEL_C_LINKS','CANONICAL
 let token=null,commits=0,applies=0,notifications=0,marked=0,uncertain=0,preflights=0;
 const outbox=new Map();
 const snapshot={auditId:'A-1',companyUid:'C-1',sourceRevision:revision,status:'Approved',scopeAllocations:allocations};
-const proof={authorityPreflight:true,success:true,auditId:'A-1',companyUid:'C-1',
+const sourceEvidence={
+ readAuditRows:[['Audit ID','Company_UID','Status'],['A-1','C-1','Pending Planning']],
+ readObligationRows:[['Obligation_ID','Company_UID','ScopeCode','Formal_Hours','Obligation_State'],['O-1','C-1','GAP',8,'OPEN'],['O-2','C-1','GRASP',3,'OPEN']],
+ readLinkRows:[['Audit_ID','Obligation_ID','Link_State'],['A-1','O-1','ACTIVE'],['A-1','O-2','ACTIVE']],
+ emptyAppendRows:[]
+};
+const proof={sourceEvidence,authorityPreflight:true,success:true,auditId:'A-1',companyUid:'C-1',
  sourceRevision:revision,expectedSourceRevision:revision,obligations,
  obligationIds:['O-1','O-2'],mode:'TOGETHER',writerVerified:true,
  requiredProofs,canonicalSnapshot:snapshot,

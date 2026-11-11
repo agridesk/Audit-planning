@@ -30,6 +30,7 @@ import {createPlanningAtomicFirestoreStore} from './planning-atomic-firestore-st
 import {createVisitCompositionCanonicalReader20} from './visit-composition-canonical-reader-20.mjs';
 import {createVisitCompositionOverview20} from './visit-composition-overview-20.mjs';
 import {createVisitCompositionCanonicalPreflight20} from './visit-composition-canonical-preflight-20.mjs';
+import {reconcileVisitCompositionSources20} from './visit-composition-reconciliation-20.mjs';
 import {createPlanningAtomicCommandService} from './planning-atomic-command-service-20.js';
 import {createPlanningLifecycleAtomicService} from './planning-lifecycle-atomic-service-20.js';
 import {createPlanningMultiLifecycleService} from './planning-multi-lifecycle-service-20.js';
@@ -1129,6 +1130,27 @@ http.createServer(async(req,res)=>{
    const auditId=String(u.searchParams.get('auditId')||'').trim();
    if(!/^[\p{L}\p{N}_,.-]{1,120}$/u.test(auditId))throw Error('VISIT_OVERVIEW_AUDIT_ID_INVALID');
    const result=await visitCompositionOverview20.inspect({auditId});
+   res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+   res.end(JSON.stringify(result));return;
+  }
+  // Read-only aggregated reconciliation of canonical Model C multi-scope
+  // visits. No client identifiers are returned or persisted.
+  if(u.pathname==='/api/v1/planning/composition-reconciliation'){
+   if(req.method!=='GET'||!runtime.isDev||
+      process.env.AMS_DEV_COMPOSITION_RECONCILIATION_ENABLED!=='true'){
+    res.writeHead(404,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(JSON.stringify({ok:false,error:'NOT_FOUND'}));return;
+   }
+   const actor=await session(req);
+   if(actor?.role!=='manager'){
+    res.writeHead(403,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(JSON.stringify({ok:false,error:'MANAGER_REQUIRED'}));return;
+   }
+   const source=await visitCompositionReader20.read();
+   const result=reconcileVisitCompositionSources20({
+    planningRows:source.readAuditRows,obligationRows:source.readObligationRows,
+    linkRows:source.readLinkRows,configScopeRows:source.readConfigScopeRows
+   });
    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
    res.end(JSON.stringify(result));return;
   }

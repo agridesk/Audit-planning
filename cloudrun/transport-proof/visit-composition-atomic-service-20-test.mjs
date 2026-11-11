@@ -15,7 +15,8 @@ function testFixture(mode='TOGETHER'){
    ...visits.map(x=>({auditId:x.auditId,expectedRevision:null,remove:false,
      auditorId:x.auditorId,blocks:x.blocks,nextSnapshot:x.snapshot}))];
  const preview={success:true,authorityPreflight:true,composition:mode,sourceAuditId:auditId,expectedSourceRevision:'rev-1',
-  freshAvailabilityProvenance:true,qualificationsVerified:true,modelCLinkTransferVerified:true,
+  freshAvailabilityProvenance:true,qualificationsVerified:true,availabilityVersions:{'aud-1':0},
+  modelCLinkTransferVerified:true,
   notificationIntentsVerified:true,sourceIdentityCollisionChecked:true,sourceRevisionChecked:true,
   projectionWrites:[{range:'Audit planning!A2:B2',values:[['x','y']]}],
   projectionPreconditions:[{range:'Audit planning!A2:B2',before:['a','b']}],
@@ -43,7 +44,7 @@ function testFixture(mode='TOGETHER'){
  const gate={async acquire(){locked=true;return {token:'gate-1'};},
   async release(){locked=false;},async uncertain(){uncertain++;}};
  const availabilityService={
-  async acquirePlanningLease(){leases++;return {token:'lease-1',document:{}};},
+  async acquirePlanningLease(){leases++;return {token:'lease-1',version:1,document:{version:1}};},
   async releasePlanningLease(){leases--;},
   async markPlanningLeaseUncertain(){uncertain++;}
  };
@@ -67,6 +68,9 @@ for(const mode of ['TOGETHER','SEPARATELY']){
  rejected.preview.freshAvailabilityProvenance=false;
  await assert.rejects(()=>rejected.service.commit(args),/AUTHORITY_PREFLIGHT_INCOMPLETE/);
  assert.equal(rejected.stats().applied,0);
+ const drift=testFixture(mode);drift.preview.availabilityVersions['aud-1']=9;
+ await assert.rejects(()=>drift.service.commit(args),/AVAILABILITY_VERSION_DRIFT/);
+ assert.equal(drift.stats().leases,0);assert.equal(drift.stats().locked,false);
  const projectionFailure=testFixture(mode);projectionFailure.setFail('project');
  await assert.rejects(()=>projectionFailure.service.commit(args),/PROJECT_TIMEOUT/);
  assert.ok(projectionFailure.stats().uncertain>=2);

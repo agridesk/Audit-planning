@@ -122,3 +122,15 @@ AANVULLING — 11-11-2026 — TESTBEVESTIGING EN AVAILABILITY PROJECTIEGATE
 - Deze beveiliging is bewust FAIL-CLOSED en vervangt NIET de nog vereiste echte Availability-projector met onafhankelijke preimage/pariteitsverificatie.
 - Nieuwe commits: 8428192a, 9ffdb56d, 1dfe3a88. Full Node-run NA deze commits: nog niet bevestigd.
 - Geen HTTP-writer-activatie; geen DEV/PROD-deployment, data writes of cutover. PROD blijft NO-GO.
+
+AANVULLING — 11-11-2026, na gebruiker 40/40 PASS
+- Gebruiker bevestigt via CMD: gerichte #87-suite PASS, SINGLE_PLANNING_RELEASE_1_SOURCE_PASS 40 checks; dat betreft bronstatus vóór onderstaande aanvullende commits.
+- Auditor Availability blijft bewust volledig UIT het #87 Sheets writeset gehouden zolang onafhankelijk canonical preimage/projectie-bewijs ontbreekt.
+- Capacity gate verdiept: valideert nu ALLE auditor-groepen (geldige datums, kloktijden en onderlinge overlap) VOORDAT de eerste externe Availability lease wordt aangevraagd. Daardoor creëert een fout in de tweede auditorplanning geen tijdelijk lease-effect bij de eerste.
+- Capacity gate vergelijkt nu exact de bronopdracht met de te leasen Visit-set: aantal, Audit IDs, per-Visit tijdblokken en bij Separately obligation-identiteit. Afwijkende of verzonnen Visits/blocks => COMPOSITION_CAPACITY_VISIT_MEMBERSHIP_MISMATCH.
+- Negatieve tests toegevoegd voor ongeldige tweede auditor, afwijkende Audit ID en gewijzigde blokken. Geïsoleerde V8-capacitytest: PASS.
+- Release 1 source gate bevat nu expliciete controles op voorafgaande volledige groepvalidatie en exacte Visit-membership.
+- Nieuwe commits: 0e1091c9, bd7c39b9, 3d3641e1, d10b2d9f, 6781ff0a.
+- Volledige Node-run op laatstgenoemde commits: nog NIET bevestigd.
+- Geen composer-writer-HTTP route, geen deployments, geen DEV/PROD-datawijzigingen. PROD NO-GO.
+- Volgende technische blokkade: onafhankelijke canonical Availability-writeset/claims voor gewijzigde planning, met transactionele commit/preimage en echte DEV-E2E. Legacy PROD-writers, realized hours en IAM-bewijs eveneens open.

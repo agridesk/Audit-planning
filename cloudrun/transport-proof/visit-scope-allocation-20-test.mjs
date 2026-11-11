@@ -50,6 +50,9 @@ expectCode(x => {
 expectCode(x => { x.blocks[0].end = '08:00'; }, 'SCOPE_ALLOCATION_INVALID_BLOCK');
 expectCode(x => { x.blocks[0].date = 'tomorrow'; }, 'SCOPE_ALLOCATION_INVALID_DATE');
 expectCode(x => { x.allocations[1].start = '09:70'; }, 'SCOPE_ALLOCATION_INVALID_TIME');
+expectCode(x => {
+  x.blocks.push({ date: '2026-11-18', start: '15:45', end: '16:30' });
+}, 'SCOPE_ALLOCATION_BLOCKS_OVERLAP');
 const split = input();
 split.blocks = [{ date: '2026-11-18', start: '08:00', end: '19:00' }];
 split.allocations = [
@@ -62,4 +65,4 @@ fifteen.obligations[0].requiredMinutes = 465;
 fifteen.blocks[0].end = '15:45';
 fifteen.allocations[0].end = '15:45';
 assert.equal(validate(fifteen).totalMinutes, 645);
-console.log('VISIT_SCOPE_ALLOCATION_20_PASS 17 positive/negative scenarios; NO mutation/cutover');
+console.log('VISIT_SCOPE_ALLOCATION_20_PASS 18 positive/negative scenarios; NO mutation/cutover');

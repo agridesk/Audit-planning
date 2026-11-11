@@ -40,7 +40,7 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
    if(previousOutbox.state==='PROJECTED')return {success:true,replayed:true,operationId,auditId:body.auditId};
    fail('COMPOSITION_SERVICE_RECOVERY_REQUIRED');
   }
-  let lock=null,capacity=null,attempted=false,committed=false,verified=false;
+  let lock=null,capacity=null,attempted=false,committed=false,verified=false,capacityReleaseFailed=false;
   try{
    lock=await gate.acquire({operationId,actorId:actor.auditorId,kind:'ATOMIC_COMPOSE_VISIT'});
    // The canonical owner returns a complete fresh SSoT snapshot. It may
@@ -236,7 +236,8 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
    await store.markProjected({auditId:command.auditId,operationId,
     proof:{verified:true,auditId:command.auditId,rowHash:hash({sheet:sheet.detail,appendCount:notification.count})}});
    verified=true;
-   await capacity.release();capacity=null;
+   try{await capacity.release();capacity=null;}
+   catch(e){capacityReleaseFailed=true;throw e;}
    await gate.release({token:lock.token,verified:true,proof:'MODEL_C_VISIT_COMPOSITION_PROJECTED'});
    lock=null;
    return {success:true,operationId,auditId:command.auditId,mode:command.mode,
@@ -250,7 +251,8 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
    }finally{
    if(lock){
     if(!attempted)await gate.release({token:lock.token,verified:true,proof:'COMPOSITION_PREFLIGHT_REJECTED'});
-    else if(verified)await gate.release({token:lock.token,verified:true,proof:'COMPOSITION_PROJECTED_RELEASE_FAILED'});
+    else if(verified&&!capacityReleaseFailed)await gate.release({token:lock.token,verified:true,proof:'COMPOSITION_PROJECTED_LEASES_RELEASED'});
+    else if(verified)await gate.uncertain({token:lock.token,reason:'COMPOSITION_CAPACITY_LEASE_RELEASE_UNKNOWN'});
     else{
      if(committed)await store.markUncertain({auditId:body.auditId,operationId,reason:'COMPOSITION_PROJECTION_UNKNOWN'}).catch(()=>{});
      await gate.uncertain({token:lock.token,reason:'COMPOSITION_COMMIT_OR_PROJECTOR_UNKNOWN'});

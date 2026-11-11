@@ -170,3 +170,12 @@ AANVULLING — 11-11-2026 — BEVESTIGDE VOLLEDIGE TESTGATE 44/44
 - SINGLE_PLANNING_RELEASE_1_SOURCE_PASS 44 checks; NO PROD authorization.
 - Nog open: definitieve canonical writer-preflight en Availability writeset/preimage/pariteit; echte DEV-runtime/E2E Manager & Auditor; PROD legacy-writers, realized-hours parity en IAM/Firestore/SSoT bewijs.
 - Testbevestiging impliceert uitdrukkelijk GEEN DEV mutatie, writer-route, deployment of PROD GO.
+
+AANVULLING — 11-11-2026 — CLIENT INPUT-AUTHORITY BOUNDARY
+- Gebruiker bevestigde VOLLEDIGE Node-suite PASS en Single Planning Source Gate 44/44; dit blijft het laatste volledige lokale bewijs.
+- Nieuwe visit-composition-client-proposal-20.mjs laat uitsluitend niet-autoritatieve user proposals toe: Audit ID, Company UID, revision, explicit mode, tijdblokken, scopeallocaties, optionele afzonderlijke Visit proposals (uitsluitend obligationId, blocks, auditorUid) en optionele veilige requestNonce.
+- Clientvelden met writerVerified, authorityPreflight, entities, proofs, canonical snapshot, Sheets-ranges, preimage, source- of append-rijen, client-selected target Audit IDs of identity issuance worden direct geweigerd vóór Firestore-outbox read of gate acquire.
+- Pure negatieve inputtest PASS in geïsoleerde V8-omgeving. Extra negatieve atomic Together-tests voor injecties toegevoegd.
+- Package npm run test:issue87-allocation en Single Planning releasegate uitgebreid met input-boundarycheck.
+- Nieuwe commits: f7918fa1, 9b12cb61, 7bcff6c4, 99f99a51, 420468d4, 758f67b2.
+- Nog NIET volledig door Node lokaal getest op laatste commits; geen writer-route, deployment of data-mutatie. PROD NO-GO.

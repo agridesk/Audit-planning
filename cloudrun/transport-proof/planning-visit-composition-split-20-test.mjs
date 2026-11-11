@@ -34,7 +34,7 @@ const prerequisites=[
  {range:planRows[0].range,before},
  {range:planRows[1].range,before:[]}
 ];
-let writes=0,projections=0,appends=0,uncertain=0,lock=null,wrong=false;
+let writes=0,projections=0,appends=0,uncertain=0,lock=null,wrong=false,wrongStatus=false,wrongSnapshot=false;
 const store={
  async readOutbox(){return null},
  async readAudit(){return {revision:2,pendingOperationId:null,snapshot:{sourceRevision:rev}}},
@@ -108,12 +108,28 @@ const capacityGate={async acquire({entities}){capacityAcquisitions++;assert.equa
  return {async release(){capacityReleased++},async uncertain(){throw Error('UNEXPECTED_UNCERTAIN')}};
 }};
 const service=createPlanningVisitCompositionService20({enabled:true,store,gate,projector,appendProjector,canonicalReader,capacityGate,
- preflight:async({operationId})=>({...structuredClone(proof),verifiedEmptyAppendRows:!wrong,gateOperationId:operationId})});
+ preflight:async({operationId})=>{
+  const draft=structuredClone(proof);
+  if(wrongStatus){
+   const target=draft.projectionWrites.find(x=>x.range.startsWith('Audit planning!'));
+   target.values[0][3]='Pending Planning';
+  }
+  if(wrongSnapshot)draft.entities[1].nextSnapshot.planningJson='tampered';
+  return {...draft,verifiedEmptyAppendRows:!wrong,gateOperationId:operationId};
+ }});
 const body={auditId:'A-1',companyUid:'C-1',sourceRevision:rev,mode:'SEPARATELY'};
 wrong=true;
 await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SERVICE_APPEND_ROWS_NOT_VERIFIED/);
 assert.equal(writes,0);assert.equal(lock,null);
 wrong=false;
+wrongStatus=true;
+await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SERVICE_PLANNING_PROJECTION_MISMATCH/);
+assert.equal(writes,0);assert.equal(lock,null);
+wrongStatus=false;
+wrongSnapshot=true;
+await assert.rejects(()=>service.commit({actor,body}),/COMPOSITION_SERVICE_SCHEDULED_SNAPSHOT_DRIFT/);
+assert.equal(writes,0);assert.equal(lock,null);
+wrongSnapshot=false;
 const receipt=await service.commit({actor,body});
 assert.equal(receipt.success,true);
 assert.equal(receipt.mode,'SEPARATELY');

@@ -106,3 +106,10 @@ AANVULLING — 11-11-2026 — GECONTROLEERDE MANAGER-PLANNING EN AVAILABILITY
 - Package test:issue87-allocation en Release 1 source gate uitgebreid.
 - Nog NIET geverifieerd: volledige Node-run en GitHub Actions CI op laatste branchcommit; live DEV E2E en muterende writer-preflight. Geen deployment. PROD NO-GO.
 - Relevante commits: 5dc1a86f, 15f99f45, c03d0375, af9ee507, c64345c2, 06b4fcac, c22e34d2, 387840d3, 5c71fddb, 759e9935, 3dca6424, 27000369, f8dd2603, 2f38f6cc, bb8bf010, 656e1a58, 7f87d172, 1cf82905, 7a150ece.
+
+AANVULLING — 11-11-2026 — LOKALE VOLLEDIGE TESTCYCLUS DOOR GEBRUIKER
+- Gebruiker bevestigt: VISIT_COMPOSITION_SCHEDULED_TOGETHER_20_PASS, VISIT_COMPOSITION_SCHEDULED_SPLIT_20_PASS, VISIT_COMPOSITION_MANAGER_NOTIFICATIONS_20_PASS, VISIT_COMPOSITION_CAPACITY_GATE_20_PASS, VISIT_COMPOSITION_ATOMIC_SERVICE_20_PASS, VISIT_COMPOSITION_ATOMIC_SPLIT_20_PASS en alle overige gerichte #87-tests PASS.
+- SINGLE_PLANNING_RELEASE_1_SOURCE_PASS 39 checks; NO PROD authorization.
+- Bevestigde resterende blokkades: PROD_LEGACY_MANAGER_LIFECYCLE_WRITES, PROD_LEGACY_DIRECT_LIFECYCLE_WRITE, PROD_REALIZED_HOURS_CANONICAL_PARITY_UNPROVEN, PROD IAM/Firestore/SSoT runtime proof, Manager/Auditor Single Planning E2E, Issue87 canonical Together/Separately writer + Model C transfer.
+- Belangrijk: testuitvoer is source/unit/isolated testbewijs, GEEN bewijs voor geactiveerde HTTP-writer, live DEV transacties of PROD-pariteit.
+- Geen DEV- of PROD-data wijzigen zonder aparte autorisatie.

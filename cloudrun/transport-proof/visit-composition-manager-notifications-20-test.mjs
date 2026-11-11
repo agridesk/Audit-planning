@@ -33,16 +33,19 @@ const input=(mode)=>({
  details('A-1','O1',8,[blocks[0]]),details('A-2','O2',3,[blocks[1]])]
 });
 const together=build(input('TOGETHER'));
-assert.equal(together.queueRows.length,1);
-assert.equal(together.queueRows[0][2],'AUDIT_PLANNED_BY_MANAGER');
-assert.equal(together.queueRows[0][3],'auditor@example.com');
-assert.equal(together.queueRows[0][4],'A-1');
-assert.equal(together.queueRows[0][10].length,32);
-assert.deepEqual(JSON.parse(together.queueRows[0][12]).payload.scopes,['GAP','GRASP']);
+assert.equal(together.queueRows.length,2);
+assert.equal(together.queueRows[0][1],'AUDIT_TRAIL');
+assert.equal(together.queueRows[0][2],'LIFECYCLE_STATUS_CHANGED');
+assert.equal(JSON.parse(together.queueRows[0][12]).payload.afterStatus,'Approved');
+assert.equal(together.queueRows[1][2],'AUDIT_PLANNED_BY_MANAGER');
+assert.equal(together.queueRows[1][3],'auditor@example.com');
+assert.equal(together.queueRows[1][4],'A-1');
+assert.equal(together.queueRows[1][10].length,32);
+assert.deepEqual(JSON.parse(together.queueRows[1][12]).payload.scopes,['GAP','GRASP']);
 const split=build(input('SEPARATELY'));
-assert.equal(split.queueRows.length,2);
-assert.deepEqual(split.queueRows.map(x=>x[4]),['A-1','A-2']);
-assert.deepEqual(split.queueRows.map(x=>JSON.parse(x[12]).payload.plannedHours),[8,3]);
+assert.equal(split.queueRows.length,4);
+assert.deepEqual(split.queueRows.map(x=>x[4]),['A-1','A-1','A-2','A-2']);
+assert.deepEqual([split.queueRows[1],split.queueRows[3]].map(x=>JSON.parse(x[12]).payload.plannedHours),[8,3]);
 assert.equal(split.appendIntents[0].range,'Notification Queue!A:M');
 assert.equal(split.canCommit,false);
 const err=(change,code)=>{const x=input('SEPARATELY');change(x);assert.throws(()=>build(x),e=>e?.code===code,code)};

@@ -100,7 +100,11 @@ function PlanningWorkspaceVisitComposition20_preview(input){
  var revised=PlanningRevisionTokenService_get({auditId:auditId});
  if(!PWVC20_clean_(revised&&revised.revision))
   throw Error('VISIT_COMPOSITION_SOURCE_REVISION_UNAVAILABLE');
+ var cloudOrigin=PWVC20_clean_(PropertiesService.getScriptProperties().getProperty('AMS_DEV_CLOUD_RUN_ORIGIN'));
+ if(cloudOrigin&&!/^https:\/\/[a-z0-9.-]+$/i.test(cloudOrigin))
+  throw Error('VISIT_COMPOSITION_CLOUD_ORIGIN_INVALID');
  return {success:true,readOnly:true,canCommit:false,auditId:auditId,
+  cloudOrigin:cloudOrigin,
   companyUid:companyUid,sourceRevision:PWVC20_clean_(revised.revision),
   sourceStatus:PWVC20_clean_(source[statusColumn]),
   compositionOptions:scopeRows.length>1?['TOGETHER','SEPARATELY']:['SINGLE'],

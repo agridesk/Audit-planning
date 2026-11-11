@@ -13,6 +13,7 @@ import {prepareModelCPlanningVisitSplitRows20} from './visit-model-c-planning-sp
 import {verifyVisitCompositionSource20} from './visit-composition-source-evidence-20.mjs';
 import {deriveVisitSplitIdentity20} from './visit-composition-identity-20.mjs';
 import {verifyVisitCompositionWindows20} from './visit-composition-window-20.mjs';
+import {deriveCompositionSourceRevision20} from './visit-composition-source-revision-20.mjs';
 
 const str = x => String(x ?? '').trim();
 const fail = code => {const error=new Error(code);error.code=code;throw error;};
@@ -84,6 +85,12 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
      appendRowNumbers:proof.mode==='SEPARATELY'?proof.appendRowNumbers:[],
      planningAppendRowNumbers:proof.mode==='SEPARATELY'?proof.planningAppendRowNumbers:[]
    });
+   const currentSourceRevision=deriveCompositionSourceRevision20({
+     auditId:command.auditId,planningRows:canonicalRows.readAuditRows
+   });
+   if(currentSourceRevision.sourceRevision!==proof.sourceRevision||
+      currentSourceRevision.sourceRevision!==body.sourceRevision)
+     fail('COMPOSITION_SERVICE_SHEETS_SOURCE_REVISION_CONFLICT');
    const sourceEvidence=verifyVisitCompositionSource20({
      command,
      readAuditRows:canonicalRows.readAuditRows,

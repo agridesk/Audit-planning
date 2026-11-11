@@ -134,3 +134,16 @@ AANVULLING — 11-11-2026, na gebruiker 40/40 PASS
 - Volledige Node-run op laatstgenoemde commits: nog NIET bevestigd.
 - Geen composer-writer-HTTP route, geen deployments, geen DEV/PROD-datawijzigingen. PROD NO-GO.
 - Volgende technische blokkade: onafhankelijke canonical Availability-writeset/claims voor gewijzigde planning, met transactionele commit/preimage en echte DEV-E2E. Legacy PROD-writers, realized hours en IAM-bewijs eveneens open.
+
+AANVULLING — 11-11-2026 — ATOMIC x CANONICAL CAPACITY INTEGRATIE
+- User-confirmed local Node test before this batch: Issue87 suite PASS, SINGLE_PLANNING_RELEASE_1_SOURCE_PASS 40 checks; geen PROD-autorisatie.
+- Separate per-auditor capacity gate verbetert: controleert alle auditor-groepen en geldigheid van datums/tijden volledig vóór enige lease-aanvraag.
+- Volledige membership-pariteit is verplicht: exact de canonieke Visit Audit IDs, obligation identities en planning blocks, zonder vervanging of extra Visit. Ongeldige leden of blokken => COMPOSITION_CAPACITY_VISIT_MEMBERSHIP_MISMATCH.
+- Geïsoleerde capacitytest (inclusief invalid second auditor, foreign Audit ID en afwijkende blocks): PASS.
+- Nieuw integration regression bestand: cloudrun/transport-proof/planning-visit-composition-capacity-integration-20-test.mjs. Dit injecteert de ECHTE createCompositionCapacityGate20 in de enabled maar volledig geïsoleerde atomic Separate service met gemockte Firestore/Availability, en verifieert kwalificatie, gecombineerde lease, Model C, notificatie-outbox en vrijgave.
+- Negatieve integratiecase: als de canonical roster ontbreekt, wordt vóór het verkrijgen van een lease en vóór Firestore commit geweigerd. Test PASS.
+- Test toegevoegd aan npm run test:issue87-allocation; release source gate uitgebreid met capacity membership + pre-lease validation + echte atomic capacity integratietest.
+- GitHub Actions-workflow .github/workflows/ams-issue87-composition.yml triggert nu ook bij wijziging van planning-composition-capacity-gate-20.mjs en de bijhorende test.
+- Bewijsniveau: geïsoleerde V8-regressies PASS; volledige Node-suite en daadwerkelijke GitHub Actions-run op nieuwste commits nog niet bevestigd.
+- Relevante commits: 0e1091c9, bd7c39b9, 3d3641e1, d10b2d9f, 6781ff0a, 8d3585dc, a220862d, 2567f6be, 0f058c42, 2c047f7c.
+- No operational change: isolated writer still disabled by default, no mutating HTTP route, no DEV or PROD data writes, no deployment. PROD NO-GO.

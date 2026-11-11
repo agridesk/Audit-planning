@@ -93,6 +93,9 @@ export function createVisitCompositionCanonicalPreflight20({reader}={}){
      :deriveVisitSplitIdentity20({sourceAuditId:auditId,obligationId,sourceRevision:actualRevision});
     return {...derived,obligationId,blocks:v.blocks};
    });
+   const allAuditIds=new Set(ap.slice(1).map(row=>val(row,id)).filter(Boolean));
+   if(prepared.some((visit,i)=>i>0&&allAuditIds.has(visit.auditId)))
+    fail('COMPOSITION_PREFLIGHT_NEW_AUDIT_ID_ALREADY_EXISTS');
    const command=prepareVisitCompositionCommand20({
     ...base,sourceRevision:actualRevision,visits:prepared
    });

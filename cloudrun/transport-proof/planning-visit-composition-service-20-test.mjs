@@ -33,7 +33,7 @@ const proof={sourceEvidence,authorityPreflight:true,success:true,auditId:'A-1',c
  requiredProofs,canonicalSnapshot:snapshot,
  projectionWrites:[{range:'Audit planning!A2:B2',values:[['A-1','Approved']]}],
  projectionPreconditions:[{range:'Audit planning!A2:B2',before:['A-1','Pending Planning']}],
- appendIntents:[{range:'Notification Queue!A:M',values:[['now','COMPOSE_VISIT','A-1']]}],
+ appendIntents:[{range:'Notification Queue!A:M',values:[['2026-11-11T17:10:00','PENDING','COMPOSE_VISIT','manager@example.com','A-1','Company','Composition planned','Audit composition recorded',0,'','sha256:event:composition','','']]}],
  entities:[{auditId:'A-1',expectedRevision:2,remove:false,auditorId:'auditor-uid',blocks,
   nextSnapshot:snapshot}]
 };

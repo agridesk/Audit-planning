@@ -8,6 +8,7 @@ import {prepareVisitCompositionCommand20} from './visit-composition-command-20.m
 import {verifyVisitCompositionSource20} from './visit-composition-source-evidence-20.mjs';
 import {verifyCompositionAuditorQualifications20} from './visit-composition-qualification-20.mjs';
 import {verifyVisitCompositionWindows20} from './visit-composition-window-20.mjs';
+import {deriveVisitSplitIdentity20} from './visit-composition-identity-20.mjs';
 const str=x=>String(x??'').trim();
 const fail=code=>{const e=new Error(code);e.code=code;throw e;};
 const key=x=>str(x).toLowerCase().replace(/\s+/g,'_');
@@ -15,7 +16,7 @@ const idx=(headers,...aliases)=>aliases.map(a=>headers.findIndex(h=>key(h)===key
 const val=(row,i)=>i>=0?str(row[i]):'';
 export function createVisitCompositionCanonicalPreflight20({reader}={}){
  if(typeof reader?.read!=='function')fail('COMPOSITION_PREFLIGHT_READER_MISSING');
- async function preview({auditId,mode,sourceRevision,blocks,allocations,auditorUid}={}){
+ async function preview({auditId,mode,sourceRevision,blocks,allocations,auditorUid,visits}={}){
   auditId=str(auditId);if(!auditId)fail('COMPOSITION_PREFLIGHT_AUDIT_ID_REQUIRED');
   if(mode!=='TOGETHER'&&mode!=='SEPARATELY')fail('COMPOSITION_PREFLIGHT_MODE_REQUIRED');
   const evidence=await reader.read();
@@ -72,12 +73,43 @@ export function createVisitCompositionCanonicalPreflight20({reader}={}){
    if(str(row[status]).toUpperCase().replace(/[\s_-]+/g,'_')!=='PENDING_PLANNING')
     fail('COMPOSITION_SOURCE_NOT_PENDING_PLANNING');
    const result=previewVisitComposition20(base);
-   // No fabricated Visit IDs or implied calendars. The canonical writer
-   // must issue identities within its authenticated transaction preflight.
+   if(visits===undefined){
+    return {success:true,readOnly:true,writeEnabled:false,auditId,companyUid,
+     sourceRevision:actualRevision,mode:'SEPARATELY',qualifications,obligations:result.obligations,
+     totalRequiredMinutes:result.totalRequiredMinutes,requiredVisitCount:obligations.length,
+     canCommit:false,reason:'SPLIT_VISIT_BLOCKS_REQUIRED'};
+   }
+   if(!Array.isArray(visits)||visits.length!==obligations.length)
+    fail('COMPOSITION_PREFLIGHT_SEPARATE_VISITS_INVALID');
+   const expected=new Set(activeIds),sourceObligation=str(visits[0]?.obligationId);
+   if(!expected.has(sourceObligation))fail('COMPOSITION_PREFLIGHT_SOURCE_OBLIGATION_INVALID');
+   const prepared=visits.map((v,i)=>{
+    const obligationId=str(v?.obligationId);
+    if(!expected.has(obligationId)||v?.auditId!==undefined||v?.identityIssuedBy!==undefined||
+       v?.identityIssueRevision!==undefined||!Array.isArray(v.blocks))
+     fail('COMPOSITION_PREFLIGHT_SEPARATE_VISIT_UNTRUSTED_IDENTITY');
+    const derived=i===0
+     ?{auditId}
+     :deriveVisitSplitIdentity20({sourceAuditId:auditId,obligationId,sourceRevision:actualRevision});
+    return {...derived,obligationId,blocks:v.blocks};
+   });
+   const command=prepareVisitCompositionCommand20({
+    ...base,sourceRevision:actualRevision,visits:prepared
+   });
+   const windows=verifyVisitCompositionWindows20({command,obligationRows:obs});
+   const source=verifyVisitCompositionSource20({
+    command,readAuditRows:ap,readObligationRows:obs,readLinkRows:links,
+    emptyAppendRows:prepared.slice(1).map((_,i)=>({row:ap.length+i+1,before:[]}))
+   });
+   if(source.obligationCount!==obligations.length||!windows.verified)
+    fail('COMPOSITION_PREFLIGHT_SEPARATE_CANONICAL_PROOF_INVALID');
    return {success:true,readOnly:true,writeEnabled:false,auditId,companyUid,
-    sourceRevision:actualRevision,mode:'SEPARATELY',qualifications,obligations:result.obligations,
-    totalRequiredMinutes:result.totalRequiredMinutes,requiredVisitCount:obligations.length,
-    canCommit:false,reason:'CANONICAL_VISIT_IDENTITY_AND_LINK_TRANSFER_REQUIRED'};
+    sourceRevision:actualRevision,mode:'SEPARATELY',qualifications,
+    obligations:source.obligations,totalRequiredMinutes:command.totalMinutes,
+    proposedVisits:command.visits,windows:windows.obligations,
+    requiredVisitCount:command.visits.length,canCommit:false,
+    newIdsAreOnlyProposals:true,
+    reason:'FIRESTORE_IDENTITY_CAS_CAPACITY_AND_PROJECTION_REQUIRED'};
   }
   const command=prepareVisitCompositionCommand20({
    ...base,sourceRevision:actualRevision,blocks,allocations

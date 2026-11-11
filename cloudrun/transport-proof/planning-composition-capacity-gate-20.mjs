@@ -4,6 +4,7 @@
  * mutation is performed by this module.
  */
 import {verifyCompositionAuditorQualifications20} from './visit-composition-qualification-20.mjs';
+import {verifyFreshResolvedCompositionAvailability20} from './visit-composition-resolved-availability-20.mjs';
 const str=x=>String(x??'').trim();
 const fail=code=>{const e=new Error(code);e.code=code;throw e;};
 const validDate=x=>{
@@ -17,12 +18,13 @@ const validTime=x=>{
  const m=/^([01]\d|2[0-3]):([0-5]\d)$/.exec(str(x));
  return Boolean(m);
 };
-export function createCompositionCapacityGate20({availabilityService,hardGate,roster,canonicalReader}={}){
+export function createCompositionCapacityGate20({availabilityService,hardGate,roster,canonicalReader,readResolvedAvailability}={}){
  if(typeof availabilityService?.acquirePlanningLease!=='function'||
     typeof availabilityService?.releasePlanningLease!=='function'||
     typeof availabilityService?.markPlanningLeaseUncertain!=='function'||
     typeof hardGate!=='function'||typeof roster!=='function'||
-    typeof canonicalReader?.readQualifications!=='function')
+    typeof canonicalReader?.readQualifications!=='function'||
+    typeof readResolvedAvailability!=='function')
   fail('COMPOSITION_CAPACITY_DEPENDENCIES_INVALID');
  async function acquire({actor,command,entities}={}){
   if(actor?.role!=='manager'||!str(actor.auditorId)||!str(command?.auditId)||
@@ -111,6 +113,25 @@ export function createCompositionCapacityGate20({availabilityService,hardGate,ro
         fail('COMPOSITION_CAPACITY_SAME_AUDITOR_OVERLAP');
     validatedGroups.push(group);
    }
+   // Save-time fresh canonical resolved Availability, not a cached month UI
+   // response. Check all participants before acquiring the first lease.
+   // The separate HARD gate below also catches any HARD obscured by a
+   // higher-priority COMMITTED display state.
+   let resolvedReadCount=0;
+   for(const group of validatedGroups){
+    const dates=[...new Set(group.blocks.map(b=>str(b.date)))].sort();
+    for(const date of dates){
+     const resolved=await readResolvedAvailability({
+      actor:leaseActor,auditorId:group.auditorId,
+      fromDate:date,toDate:date,fresh:true
+     });
+     verifyFreshResolvedCompositionAvailability20({
+      resolved,auditorId:group.auditorId,date,
+      blocks:group.blocks.filter(b=>str(b.date)===date)
+     });
+     resolvedReadCount++;
+    }
+   }
    // All Visit groups must be validated before any external lease is acquired.
    // Otherwise an invalid second group can create a short-lived first lease.
    for(const group of validatedGroups){
@@ -125,7 +146,7 @@ export function createCompositionCapacityGate20({availabilityService,hardGate,ro
     hardGate({document:lease.document,blocks:group.blocks});
    }
    return Object.freeze({release,uncertain:markUncertain,
-     leaseCount:pending.length,visitCount:entities.length});
+     leaseCount:pending.length,visitCount:entities.length,resolvedReadCount});
   }catch(e){
    try{await release();}catch{
     await markUncertain('COMPOSITION_CAPACITY_PREFLIGHT_RELEASE_UNKNOWN');

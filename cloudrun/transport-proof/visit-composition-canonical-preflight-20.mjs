@@ -7,6 +7,7 @@ import {previewVisitComposition20} from './visit-composition-preview-20.mjs';
 import {prepareVisitCompositionCommand20} from './visit-composition-command-20.mjs';
 import {verifyVisitCompositionSource20} from './visit-composition-source-evidence-20.mjs';
 import {verifyCompositionAuditorQualifications20} from './visit-composition-qualification-20.mjs';
+import {verifyVisitCompositionWindows20} from './visit-composition-window-20.mjs';
 const str=x=>String(x??'').trim();
 const fail=code=>{const e=new Error(code);e.code=code;throw e;};
 const key=x=>str(x).toLowerCase().replace(/\s+/g,'_');
@@ -81,13 +82,16 @@ export function createVisitCompositionCanonicalPreflight20({reader}={}){
   const command=prepareVisitCompositionCommand20({
    ...base,sourceRevision:actualRevision,blocks,allocations
   });
+  const windowEvidence=verifyVisitCompositionWindows20({
+   command,obligationRows:obs
+  });
   const source=verifyVisitCompositionSource20({
    command,readAuditRows:ap,readObligationRows:obs,readLinkRows:links,emptyAppendRows:[]
   });
   return {success:true,readOnly:true,writeEnabled:false,auditId,companyUid,
    sourceRevision:actualRevision,mode:'TOGETHER',qualifications,obligations:source.obligations,
    totalRequiredMinutes:command.totalMinutes,totalHours:command.totalHours,
-   allocations:command.allocations,blocks:command.blocks,canCommit:false,
+   allocations:command.allocations,blocks:command.blocks,windows:windowEvidence.obligations,canCommit:false,
    reason:'CANONICAL_COMPOSITION_WRITER_AND_AVAILABILITY_PARITY_REQUIRED'};
  }
  return Object.freeze({preview});

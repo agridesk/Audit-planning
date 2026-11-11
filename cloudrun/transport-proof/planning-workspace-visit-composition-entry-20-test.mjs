@@ -11,6 +11,17 @@ assert.match(html,/PlanningWorkspaceVisitComposition20\.js/);
 assert.match(rpc,/function PlanningWorkspaceRpc_visitCompositionPreview/);
 assert.match(client,/PlanningWorkspaceRpc_visitCompositionPreview/);
 assert.match(client,/ams:visit-composition-selected/);
+const runtime=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
+const editor=readFileSync(new URL('./visit-composition-manager-page-20.mjs',import.meta.url),'utf8');
+assert.match(runtime,/u\.pathname==='\/visit-composition'/);
+assert.match(runtime,/u\.pathname==='\/api\/v1\/planning\/visit-composition-editor-context'/);
+assert.match(runtime,/actor\?\.role!=='manager'/);
+assert.match(runtime,/compositionWriteRequested\?createVisitCompositionAtomicService20/);
+assert.match(runtime,/AMS_DEV_VISIT_COMPOSITION_WRITE_ENABLED/);
+assert.match(editor,/visit-composition-atomic/);
+assert.match(editor,/credentials:'same-origin'/);
+assert.match(editor,/sourceRevisionAtomic/);
+
 assert.match(client,/Continue to secure Cloud Run planning/);
 assert.match(client,/visit-composition\?auditId=/);
 assert.doesNotMatch(client,/fetch\s*\([^)]*commit|PlanningWorkspaceRpc_batchCommit/);

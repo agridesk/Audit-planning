@@ -171,6 +171,17 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
          target.range===write.range&&jsonEq(target.values,write.values)&&
          jsonEq(proof.projectionPreconditions[j],planningSplit.projectionPreconditions[i]))))
       fail('COMPOSITION_SERVICE_PLANNING_PROJECTION_MISMATCH');
+    const exactRequired=new Set([...modelC.projectionWrites,...planningSplit.projectionWrites].map(x=>x.range));
+    const actualBusiness=proof.projectionWrites.filter(x=>x.range.startsWith('Audit planning!')||
+      x.range.startsWith('Audit_Visit_Obligations!'));
+    if(actualBusiness.length!==exactRequired.size||
+       actualBusiness.some(x=>!exactRequired.has(x.range)))
+      fail('COMPOSITION_SERVICE_EXTRA_BUSINESS_PROJECTION_FORBIDDEN');
+   }else{
+    const planningWrites=proof.projectionWrites.filter(x=>x.range.startsWith('Audit planning!'));
+    if(planningWrites.length!==1||
+       proof.projectionWrites.some(x=>x.range.startsWith('Audit_Visit_Obligations!')))
+      fail('COMPOSITION_SERVICE_TOGETHER_BUSINESS_PROJECTION_INVALID');
    }
    const audits=proof.entities;
    if(audits[0]?.auditId!==command.auditId||

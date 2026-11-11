@@ -171,8 +171,6 @@ export function prepareSeparateCompositionAuthority20({
  // An active Concept Reservation is not transferred silently in the split.
  const rh=reservationRows[0],rId=required(rh,'Audit ID'),
   rState=required(rh,'State');
- if(reservationRows.slice(1).some(row=>val(row,rId)===auditId&&status(row[rState])==='ACTIVE'))
-  throw Error('COMPOSITION_SPLIT_SOURCE_CONCEPT_RESERVATION_RELEASE_REQUIRED');
  const avh=availabilityRows[0],vDate=required(avh,'Date'),
   vEmail=idx(avh,'Auditor_Email','Auditor Email','Email'),
   vAv=required(avh,'Available'),vId1=required(avh,'Audit_ID_1'),
@@ -196,7 +194,7 @@ export function prepareSeparateCompositionAuthority20({
     .filter(z=>val(z.row,vEmail).toLowerCase()===x.auditorEmail&&
      clean(z.row[vDate]).slice(0,10)===block.date);
    if(matches.length>1)throw Error('COMPOSITION_SPLIT_AVAILABILITY_DATE_ROW_DUPLICATE');
-   const rowNumber=matches.length?matches[0].rowNumber:initialLength+pending.size,
+   const rowNumber=matches.length?matches[0].rowNumber:initialLength+pending.size+1,
     prior=matches.length?padded(matches[0].row,avh.length):[],
     row=matches.length?padded(matches[0].row,avh.length):Array(avh.length).fill('');
    if(!matches.length){row[vDate]=block.date;row[vEmail]=x.auditorEmail;row[vAv]='YES';}
@@ -220,6 +218,20 @@ export function prepareSeparateCompositionAuthority20({
   if(vUpdated>=0)item.row[vUpdated]=now;
  }
  const write=rawWrites();
+ // Release only source-owned active concept reservations through the same
+ // outbox writeset. Other auditors' reservations are never silently removed.
+ const rUpdated=idx(rh,'Updated At'),rReleased=idx(rh,'Released At'),
+  rBy=idx(rh,'Released By'),rReason=idx(rh,'Release Reason');
+ for(let i=1;i<reservationRows.length;i++){
+  const row=reservationRows[i];
+  if(val(row,rId)!==auditId||status(row[rState])!=='ACTIVE')continue;
+  const after=padded(row,rh.length);after[rState]='RELEASED';
+  if(rUpdated>=0)after[rUpdated]=now;
+  if(rReleased>=0)after[rReleased]=now;
+  if(rBy>=0)after[rBy]=clean(actor.email);
+  if(rReason>=0)after[rReason]='VISIT_COMPOSITION_SPLIT';
+  write.add('Concept Reservations!A'+(i+1)+':'+endCol(rh.length)+(i+1),after,clone(row));
+ }
  const old=clone(before),sourceAfter=padded(before,ph.length);
  const lineage=assignments.map(x=>x.visitId);
  sourceAfter[pj]=JSON.stringify({identityRetired:true,retirementReason:'VISIT_COMPOSITION_SPLIT',
@@ -259,6 +271,15 @@ export function prepareSeparateCompositionAuthority20({
    auditorEmail:x.auditorEmail,auditorName:x.auditorName,
    composition:'SEPARATELY',sourceAuditId:auditId,obligationId:x.ob.id});
   row[pj]=planningJson;
+  const windowFrom=idx(ph,'Planning window from'),windowTo=idx(ph,'Planning window to');
+  if(windowFrom<0||windowTo<0)throw Error('COMPOSITION_SPLIT_CHILD_WINDOW_COLUMNS_MISSING');
+  row[windowFrom]=x.ob.from;row[windowTo]=x.ob.to;
+  const expiry=idx(ph,'Date - Will Expire'),extended=idx(ph,'Extended Expiration Date'),
+   extensionApplied=idx(ph,'Extension applied');
+  if(expiry<0||extended<0||extensionApplied<0)
+   throw Error('COMPOSITION_SPLIT_CHILD_EXPIRY_COLUMNS_MISSING');
+  row[expiry]=x.ob.expiry;
+  row[extended]='';row[extensionApplied]='';
   const nextRevision=fingerprint(ph,row);
   const snapshot={auditId:x.visitId,status:'Approved',sourceRevision:nextRevision,
    companyUid,sourceAuditId:auditId,obligationIds:[x.ob.id],

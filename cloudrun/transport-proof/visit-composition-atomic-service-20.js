@@ -95,6 +95,23 @@ function validate(preview,sourceAuditId,mode,requestedRevision){
    if(visit.auditId!==expected)
     throw Error('VISIT_COMPOSITION_SPLIT_IDENTITY_NOT_DETERMINISTIC');
   }
+  // Exact link transfer is mandatory for split: source links are tombstoned
+  // in the writeset and each successor receives precisely one ACTIVE link.
+  // A boolean flag alone is not Model C evidence.
+  const linkWrites=preview.projectionWrites.filter(x=>
+   /^Audit_Visit_Obligations!/.test(str(x.range)));
+  const closed=new Set(linkWrites.flatMap(x=>x.values||[])
+   .filter(r=>Array.isArray(r)&&str(r[0])===sourceAuditId&&
+    state(r[2])==='INACTIVE').map(r=>str(r[1])));
+  const linkAppends=preview.appendIntents.filter(x=>
+   /^Audit_Visit_Obligations!A:F$/.test(str(x.range)));
+  const opened=linkAppends.flatMap(x=>x.values||[])
+   .filter(r=>Array.isArray(r)&&state(r[2])==='ACTIVE');
+  if(closed.size!==obligationIds.length||obligationIds.some(id=>!closed.has(id))||
+     opened.length!==visits.length||
+     visits.some(v=>opened.filter(r=>str(r[0])===v.auditId&&
+      str(r[1])===v.obligationIds[0]).length!==1))
+   throw Error('VISIT_COMPOSITION_MODEL_C_LINK_TRANSFER_INCOMPLETE');
   const entityIds=preview.entities.map(e=>str(e.auditId));
   if(!distinct(entityIds)||!entityIds.includes(sourceAuditId)||auditIds.some(id=>!entityIds.includes(id))||
      preview.entities.find(e=>e.auditId===sourceAuditId)?.remove!==true||

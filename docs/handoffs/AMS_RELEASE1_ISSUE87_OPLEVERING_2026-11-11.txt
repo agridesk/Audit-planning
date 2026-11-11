@@ -164,3 +164,9 @@ AANVULLING — 11-11-2026 — 43/43 TESTBEWIJS EN CAPACITY-RECOVERY FENCING
 - Relevant commits: 3a8f4b65 (43/43 checkpoint), 084d6702, a79c55c0, dcefbd3a, 658cbeed.
 - De VOLLEDIGE Node-suite op de nieuwste commits is nog niet opnieuw door gebruiker bevestigd.
 - NO writer HTTP route, no DEV/PROD-datawijziging, no deployment. PROD NO-GO.
+
+AANVULLING — 11-11-2026 — BEVESTIGDE VOLLEDIGE TESTGATE 44/44
+- Gebruiker heeft de complete lokale Issue87 testuitvoer bevestigd. Alle gerichte tests PASS, inclusief nieuwe capacity integration, uncertain-recovery en model C projecties.
+- SINGLE_PLANNING_RELEASE_1_SOURCE_PASS 44 checks; NO PROD authorization.
+- Nog open: definitieve canonical writer-preflight en Availability writeset/preimage/pariteit; echte DEV-runtime/E2E Manager & Auditor; PROD legacy-writers, realized-hours parity en IAM/Firestore/SSoT bewijs.
+- Testbevestiging impliceert uitdrukkelijk GEEN DEV mutatie, writer-route, deployment of PROD GO.

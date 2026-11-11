@@ -93,6 +93,33 @@ export function createPlanningVisitCompositionService20({store,gate,projector,ap
       proof.projectionPreconditions.map(x=>x.range))||
       !proof.projectionWrites.length||!proof.appendIntents.length)
     fail('COMPOSITION_SERVICE_PROJECTOR_PLAN_INVALID');
+   // Scope the writeset to the three canonical planning targets. No legacy
+   // log, company, notification template or unrelated sheet may be updated.
+   const allowedSheets=new Set(['Audit planning','Audit_Visit_Obligations','Auditor Availability']);
+   const writeRanges=new Set();
+   for(const write of proof.projectionWrites){
+    const range=str(write?.range),sheet=range.split('!')[0];
+    if(!allowedSheets.has(sheet)||writeRanges.has(range)||
+       !/^([^!]+)![A-Z]+[0-9]+:[A-Z]+[0-9]+$/.test(range))
+      fail('COMPOSITION_SERVICE_PROJECTION_SCOPE_FORBIDDEN');
+    writeRanges.add(range);
+   }
+   // Notification Queue is the only append side effect for this operation.
+   // Its canonical 13-column schema requires a durable event, recipient and
+   // audit reference; short ad hoc rows are not acceptable as commit proof.
+   const queueIntents=[];
+   for(const intent of proof.appendIntents){
+    if(intent?.range!=='Notification Queue!A:M'||!Array.isArray(intent.values)||
+       !intent.values.length||intent.values.some(row=>!Array.isArray(row)||row.length!==13))
+      fail('COMPOSITION_SERVICE_NOTIFICATION_INTENT_INVALID');
+    for(const row of intent.values){
+      if(!str(row[0])||!str(row[1])||!str(row[2])||
+         !str(row[3])||!str(row[4])||!str(row[10]))
+        fail('COMPOSITION_SERVICE_NOTIFICATION_INTENT_INCOMPLETE');
+      queueIntents.push(row);
+    }
+   }
+   if(!queueIntents.length)fail('COMPOSITION_SERVICE_NOTIFICATION_REQUIRED');
    if(proof.mode==='SEPARATELY'){
     const modelC=prepareModelCVisitLinkSplit20({
       command,linkValues:canonicalRows.readLinkRows,appendRowNumbers:sourceEvidence.reservedAppendRows,now:proof.now

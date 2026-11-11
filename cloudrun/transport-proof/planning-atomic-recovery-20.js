@@ -49,6 +49,44 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
   }
   const proof={verified:true,auditId:entry.auditId,rowHash:hash({rows:rowCheck.detail,appends:appendCheck.count})};
   if(!settled)await store.markProjected({auditId:entry.auditId,operationId:entry.operationId,proof});
+  // Visit composition can lease multiple distinct auditors. The outbox
+  // includes their stable identities; never infer the set from one auditorId.
+  // Keep the global fence quarantined until every matching auditor lease is
+  // independently reconciled using the same verified projection proof.
+  if(String(entry.action||'').startsWith('VISIT_COMPOSITION_')){
+   const ids=snapshot.availabilityLeaseAuditors;
+   if(!Array.isArray(ids)||!ids.length||new Set(ids).size!==ids.length||
+      ids.some(x=>typeof x!=='string'||!x.trim())||
+      !availabilityService||typeof availabilityService.read!=='function'||
+      typeof availabilityService.reconcilePlanningLease!=='function')
+    throw Error('ATOMIC_RECOVERY_COMPOSITION_LEASE_METADATA_MISSING');
+   const actor={role:'manager',id:'atomic-recovery'};
+   const recoverable=[];
+   for(const auditorId of ids){
+    const document=await availabilityService.read(actor,auditorId);
+    const lease=document?.planningLease;
+    if(!lease)continue;
+    if(lease.auditId!==entry.auditId||!lease.token)
+     throw Error('ATOMIC_RECOVERY_COMPOSITION_LEASE_OWNER_CONFLICT');
+    const since=Date.parse(lease.state==='UNCERTAIN'
+     ?lease.uncertainAt||lease.acquiredAt||'':lease.acquiredAt||'');
+    if(!Number.isFinite(since)||Date.now()-since<30*60*1000)
+     return {state:'UNRESOLVED',reason:'COMPOSITION_AVAILABILITY_LEASE_QUARANTINE'};
+    recoverable.push({auditorId,token:lease.token});
+   }
+   for(const {auditorId,token} of recoverable)
+    await availabilityService.reconcilePlanningLease({
+     actor,auditorId,token,verifiedAuditId:entry.auditId,verifiedProjectionProof:proof.rowHash
+    });
+   if(global.holder&&global.holder.operationId===entry.operationId){
+    const current=await gate.read();
+    if(current.holder?.token!==global.holder.token)
+     throw Error('ATOMIC_RECOVERY_GATE_MOVED');
+    await gate.release({token:global.holder.token,verified:true,
+     proof:'VISIT_COMPOSITION_ALL_LEASES_AND_PROJECTION_VERIFIED'});
+   }
+   return {state:'PROJECTED',reconciledLeases:recoverable.length};
+  }
   // A verified outbox is enough to unlock the global gate. An availability lease
   // is released only if the exact auditor/audit pair and token are observed.
   if(global.holder&&global.holder.operationId===entry.operationId){

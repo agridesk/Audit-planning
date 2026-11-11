@@ -4,7 +4,7 @@
  */
 const fail=code=>{const e=new Error(code);e.code=code;throw e;};
 const blank=row=>!row||row.every(cell=>String(cell??'').trim()==='');
-const MAX={planning:2000,obligations:5000,links:5000,config:200,auditors:500,qualifications:5000};
+const MAX={planning:2000,obligations:5000,links:5000,config:200,auditors:500,qualifications:5000,notifications:200};
 const norm=x=>String(x??'').trim().toUpperCase().replace(/[\s-]/g,'_');
 const mandatory={
  planning:[['AUDIT_ID'],['COMPANY_UID'],['STATUS']],
@@ -12,7 +12,8 @@ const mandatory={
  links:[['AUDIT_ID'],['OBLIGATION_ID'],['LINK_STATE'],['LINKED_AT'],['UNLINKED_AT']],
  config:[['SLOTKEY','SLOT_KEY'],['SCOPECODE','SCOPE_CODE']],
  auditors:[['AUDITOR_UID'],['E_MAIL','EMAIL'],['ROLE'],['ACTIVE']],
- qualifications:[['AUDITOR_UID'],['SCOPECODE','SCOPE_CODE'],['QUALIFIED']]
+ qualifications:[['AUDITOR_UID'],['SCOPECODE','SCOPE_CODE'],['QUALIFIED']],
+ notifications:[['EVENT_KEY'],['ACTIVE'],['SEND_EMAIL']]
 };
 const assertHeader=(rows,tab)=>{
  const headers=(rows[0]||[]).map(norm);
@@ -77,5 +78,11 @@ export function createVisitCompositionCanonicalReader20({readRange}={}){
   assertHeader(qualificationRows,'qualifications');
   return {auditorRows,qualificationRows};
  }
- return Object.freeze({read,readQualifications});
+ async function readNotificationConfig(){
+  const rows=required(await readRange('Notification_Config!A1:AJ'+MAX.notifications),
+   MAX.notifications,'NOTIFICATIONS');
+  assertHeader(rows,'notifications');
+  return rows;
+ }
+ return Object.freeze({read,readQualifications,readNotificationConfig});
 }

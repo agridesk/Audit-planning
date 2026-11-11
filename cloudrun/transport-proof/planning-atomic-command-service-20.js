@@ -9,6 +9,10 @@ const trim=x=>String(x??'').trim();
 export function createPlanningAtomicCommandService({atomicStore,gate,availabilityService,hardGate,preflight,projector,appendProjector,roster}={}){
  if(!atomicStore||typeof atomicStore.commit!=='function'||typeof atomicStore.readAudit!=='function'||typeof atomicStore.readOutbox!=='function'||typeof atomicStore.markProjected!=='function'||typeof gate?.acquire!=='function'||typeof gate?.release!=='function'||typeof gate?.uncertain!=='function'||typeof availabilityService?.acquirePlanningLease!=='function'||typeof availabilityService?.releasePlanningLease!=='function'||typeof availabilityService?.markPlanningLeaseUncertain!=='function'||typeof hardGate!=='function'||typeof preflight!=='function'||typeof projector?.apply!=='function'||typeof projector?.inspect!=='function'||typeof appendProjector?.apply!=='function'||typeof appendProjector?.inspect!=='function'||typeof roster!=='function')throw Error('PLANNING_ATOMIC_SERVICE_CONFIG_INVALID');
  async function commit({actor,body}){
+  // Scope composition requires a dedicated transactional Model C write contract.
+  // Do not silently accept intent before per-obligation projection parity exists.
+  if(body?.scopeAllocations!==undefined||body?.compositionMode!==undefined)
+   throw Error('MODEL_C_SCOPE_COMPOSITION_CANONICAL_WRITER_REQUIRED');
   if(!['manager','auditor'].includes(actor?.role)||!trim(actor?.auditorId)||!body||typeof body!=='object'||!trim(body.auditId)||!trim(body.auditorEmail)||!trim(body.sourceRevision)||!Array.isArray(body.blocks)||!body.blocks.length)throw Error('PLANNING_ATOMIC_INPUT_INVALID');
   const auditId=trim(body.auditId),auditorEmail=trim(body.auditorEmail).toLowerCase();
   const matches=(await roster()).filter(x=>x.role==='auditor'&&x.email===auditorEmail&&x.active!==false);

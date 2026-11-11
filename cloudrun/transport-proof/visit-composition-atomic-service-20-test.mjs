@@ -94,6 +94,7 @@ for(const mode of ['TOGETHER','SEPARATELY']){
  if(mode==='SEPARATELY'){
   const invalidRetirement=testFixture(mode);
   invalidRetirement.preview.sourceTombstone.status='Rejected';
+  invalidRetirement.preview.projectionWrites[0].values[0][28]='Rejected';
   await assert.rejects(()=>invalidRetirement.service.commit(args),/SOURCE_STATUS_MUST_BE_PRESERVED/);
   assert.equal(invalidRetirement.stats().applied,0);
   const missingPlanning=testFixture(mode);
@@ -110,6 +111,7 @@ for(const mode of ['TOGETHER','SEPARATELY']){
   malformed.preview.visits[0].auditId='client-controlled-id';
   malformed.preview.visits[0].snapshot.auditId='client-controlled-id';
   malformed.preview.sourceTombstone.successorAuditIds[0]='client-controlled-id';
+  malformed.preview.projectionWrites[0].values[0][32]=JSON.stringify(malformed.preview.sourceTombstone);
   await assert.rejects(()=>malformed.service.commit(args),/SPLIT_IDENTITY_NOT_DETERMINISTIC/);
   assert.equal(malformed.stats().applied,0);
  }

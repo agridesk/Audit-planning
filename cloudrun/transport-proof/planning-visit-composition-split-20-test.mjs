@@ -3,12 +3,13 @@ import {createHash} from 'node:crypto';
 import {createPlanningVisitCompositionService20} from './planning-visit-composition-service-20.js';
 import {prepareVisitCompositionCommand20} from './visit-composition-command-20.mjs';
 import {prepareScheduledCompositionSplitRows20} from './visit-composition-scheduled-split-20.mjs';
+import {prepareCompositionManagerNotifications20} from './visit-composition-manager-notifications-20.mjs';
 import {deriveCompositionSourceRevision20} from './visit-composition-source-revision-20.mjs';
 import {deriveVisitSplitIdentity20} from './visit-composition-identity-20.mjs';
 
 const rev=createHash('sha256').update('A-1|Pending Planning||||').digest('hex').slice(0,24),issuer=rev;
 const successorAuditId=deriveVisitSplitIdentity20({sourceAuditId:'A-1',obligationId:'O-2',sourceRevision:rev}).auditId;
-const actor={role:'manager',auditorId:'M-1'};
+const actor={role:'manager',auditorId:'M-1',email:'manager@example.com'};
 const obligations=[
  {auditId:'A-1',companyUid:'C-1',obligationId:'O-1',scopeCode:'GAP',formalHours:8,linkState:'ACTIVE'},
  {auditId:'A-1',companyUid:'C-1',obligationId:'O-2',scopeCode:'GRASP',formalHours:3,linkState:'ACTIVE'}
@@ -61,6 +62,8 @@ const planningHeaders=['Company','Company_UID','Audit ID','Status','Assigned to'
  'Scopes_List','SCOPE_01','Duration SCOPE_01','SCOPE_02','Duration SCOPE_02','Auditor_UID','Last manager decision','Last decision timestamp','Status since',...Array.from({length:22},(_,i)=>'Other_'+i)];
 const planningSource=['A company','C-1','A-1','Pending Planning','','','11.00','','','','','x','8','x','3',...Array(26).fill('')];
 const scopeConfig=[['SlotKey','ScopeCode'],['SCOPE_01','GAP'],['SCOPE_02','GRASP']];
+const notificationConfig=[['EVENT_KEY','ACTIVE','SEND_EMAIL','TEMPLATE_FAMILY','TEMPLATE_KEY_DEFAULT'],
+ ['AUDIT_PLANNED_BY_MANAGER','YES','YES','RICH_OPERATIONAL','AUDIT_PLANNED_BY_MANAGER']];
 const sourceEvidence={
  readAuditRows:[planningHeaders,planningSource],
  readObligationRows:[['Obligation_ID','Company_UID','ScopeCode','Formal_Hours','Obligation_State','Planning_Window_From','Planning_Window_To'],['O-1','C-1','GAP',8,'OPEN','2026-11-01','2026-12-01'],['O-2','C-1','GRASP',3,'LINKED_TO_VISIT','01/11/2026','30/11/2026']],
@@ -103,10 +106,17 @@ snapshot.sourceRevision=deriveCompositionSourceRevision20({
 successor.sourceRevision=deriveCompositionSourceRevision20({
  auditId:successorAuditId,planningRows:[planningHeaders,planningSplit.projectionWrites[1].values[0]]
 }).sourceRevision;
+proof.appendIntents=prepareCompositionManagerNotifications20({
+ command:prepared,visits:planningSplit.visits.map(v=>({
+ ...v,auditorEmail:'auditor@example.com',auditorName:'Auditor One'})),
+ company:'A company',actorEmail:actor.email,
+ notificationConfigRows:notificationConfig,now:proof.now
+}).appendIntents;
 proof.projectionWrites.push(...planningSplit.projectionWrites);
 proof.projectionPreconditions.push(...planningSplit.projectionPreconditions);
 const canonicalReader={
  async read(){return structuredClone(sourceEvidence)},
+ async readNotificationConfig(){return structuredClone(notificationConfig)},
  async readQualifications(){return {
   auditorRows:[['Name','E-mail','Role','Active','Auditor_UID'],['Auditor One','auditor@example.com','Auditor','YES','aud-1']],
   qualificationRows:[['Auditor_UID','ScopeCode','Qualified'],['aud-1','GAP','YES'],['aud-1','GRASP','YES']]

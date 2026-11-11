@@ -14,7 +14,7 @@ export function createCompositionCapacityGate20({availabilityService,hardGate,ro
     typeof canonicalReader?.readQualifications!=='function')
   fail('COMPOSITION_CAPACITY_DEPENDENCIES_INVALID');
  async function acquire({actor,command,entities}={}){
-  if(actor?.role!=='manager'||!str(actor.auditorId)||
+  if(actor?.role!=='manager'||!str(actor.auditorId)||!str(command?.auditId)||
      !['TOGETHER','SEPARATELY'].includes(command?.mode)||
      !Array.isArray(entities)||!entities.length||
      entities.some(x=>!str(x?.auditId)||!str(x.auditorId)||!Array.isArray(x.blocks)||!x.blocks.length))

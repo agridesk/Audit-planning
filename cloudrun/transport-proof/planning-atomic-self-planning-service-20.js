@@ -33,14 +33,14 @@ export function createAtomicSelfPlanningService20({store,gate,preflight,projecto
    if(!previous||!Number.isSafeInteger(previous.revision)||previous.pendingOperationId||
       previous.removed||previous.snapshot?.status!=='Pending Planning'||
       previous.snapshot?.sourceRevision!==body.expectedRevision||
-      (previous.claimIds||[]).length|| (previous.blocks||[]).length)
+      !Array.isArray(previous.snapshot?.row)||!Array.isArray(previous.snapshot?.headers)||
+      !Array.isArray(previous.claimIds)||previous.claimIds.length||
+      !Array.isArray(previous.blocks)||previous.blocks.length)
     throw Error('SELF_PLANNING_ATOMIC_BACKFILL_OR_PARITY_REQUIRED');
    if(body.allowSelfPlanning===body.expectedAllowSelfPlanning){
-    if(previous.snapshot?.row){
-     const header=previous.snapshot.headers||[],index=header.findIndex(x=>/^allow self planning$/i.test(clean(x)));
-     if(index<0||!['yes','true','1'].includes(clean(previous.snapshot.row[index]).toLowerCase())!==!body.allowSelfPlanning)
-      throw Error('SELF_PLANNING_ATOMIC_NOOP_PARITY_UNVERIFIED');
-    }
+    const index=previous.snapshot.headers.findIndex(x=>/^allow self planning$/i.test(clean(x)));
+    if(index<0||!['yes','true','1'].includes(clean(previous.snapshot.row[index]).toLowerCase())!==!body.allowSelfPlanning)
+     throw Error('SELF_PLANNING_ATOMIC_NOOP_PARITY_UNVERIFIED');
     await gate.release({token:lock.token,verified:true,proof:'SELF_PLANNING_NO_CHANGE'});lock=null;
     return {success:true,auditId,allowSelfPlanning:body.allowSelfPlanning,unchanged:true,
      sourceRevision:body.expectedRevision,authority:'FIRESTORE'};
@@ -52,6 +52,8 @@ export function createAtomicSelfPlanningService20({store,gate,preflight,projecto
       proof.canonicalSnapshot?.auditId!==auditId||proof.canonicalSnapshot.status!=='Pending Planning'||
       !Array.isArray(proof.projectionWrites)||proof.projectionWrites.length!==1||
       !Array.isArray(proof.projectionPreconditions)||proof.projectionPreconditions.length!==1||
+      JSON.stringify(proof.projectionPreconditions[0].before)!==JSON.stringify(previous.snapshot.row)||
+      JSON.stringify(proof.canonicalSnapshot.headers)!==JSON.stringify(previous.snapshot.headers)||
       proof.appendIntents?.length)
     throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_NOT_AUTHORITATIVE');
    const snapshot={...proof.canonicalSnapshot,

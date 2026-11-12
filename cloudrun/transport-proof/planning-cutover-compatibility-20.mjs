@@ -7,6 +7,7 @@ export const compositionLiveWriterSurfaces20=Object.freeze([
  '/api/v1/manager/extension-obligation-command',
  '/api/v1/manager/extension-reconcile-projection',
  '/api/v1/manager/extension-direct',
+ '/api/v1/manager/extension',
  '/api/v1/planning/commit-handoff',
  '/api/v1/manager/approve-direct',
  '/api/v1/manager/cancel-direct',

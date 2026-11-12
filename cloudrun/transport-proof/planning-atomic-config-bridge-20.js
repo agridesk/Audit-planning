@@ -56,6 +56,14 @@ export function createAtomicConfigurationBridge20({gate,readRows,forward}={}){
    snapshot(await readRows(spec.tab),spec);
    forwarded=true;
    const outcome=await forward({path,body,cookie,origin});
+   // R4 rejects malformed/unauthorized requests before entering any Sheets
+   // mutation. Do not leave the global planning gate UNCERTAIN for such a
+   // confirmed non-write. 409/5xx and transport errors remain ambiguous.
+   if([400,401,403].includes(outcome?.status)&&outcome.payload?.ok===false){
+    await gate.release({token:lock.token,verified:true,proof:'CONFIG_VALIDATION_REJECTED_NO_WRITE'});
+    lock=null;
+    return {status:outcome.status,payload:outcome.payload};
+   }
    if(outcome?.status!==200||outcome.payload?.ok!==true)
     throw Error('ATOMIC_CONFIG_INNER_WRITE_UNCONFIRMED');
    const values=snapshot(await readRows(spec.tab),spec);
@@ -65,7 +73,7 @@ export function createAtomicConfigurationBridge20({gate,readRows,forward}={}){
    verified=true;
    await gate.release({token:lock.token,verified:true,proof:'CONFIG_SHEETS_READBACK_VERIFIED'});
    lock=null;
-   return outcome.payload;
+   return {status:200,payload:outcome.payload};
   }finally{
    if(lock){
     if(!forwarded)await gate.release({token:lock.token,verified:true,proof:'CONFIG_NO_WRITE_ATTEMPT'});

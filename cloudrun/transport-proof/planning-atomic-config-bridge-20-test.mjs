@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createAtomicConfigurationBridge20,atomicConfigurationRoutes20} from './planning-atomic-config-bridge-20.js';
 const route='/api/v1/manager/company-management/save';
-function fixture({failForward=false,mismatch=false,rejected=false,conflict=false,partialConflict=false}={}){
- const events=[];let value='Before';
+function fixture({failForward=false,mismatch=false,rejected=false,conflict=false,partialConflict=false,partialUnrelatedConflict=false}={}){
+ const events=[];let value='Before',region='North';
  const bridge=createAtomicConfigurationBridge20({
   gate:{
    acquire:async()=>{events.push('lock');return{token:'token'}},
@@ -12,12 +12,12 @@ function fixture({failForward=false,mismatch=false,rejected=false,conflict=false
   },
   readRows:async tab=>{
    events.push('read');assert.equal(tab,'Companies');
-   return [['Company_UID','Comments'],['company-1',mismatch?'Before':value]];
+   return [['Company_UID','Comments','Region'],['company-1',mismatch?'Before':value,region]];
   },
   forward:async()=>{
    events.push('forward');if(failForward)throw Error('TRANSPORT_UNCERTAIN');
    if(rejected)return {status:400,payload:{ok:false,error:'INVALID_CHANGE_VALUE'}};
-   if(conflict){if(partialConflict)value='Partial';return {status:409,payload:{ok:false,error:'STALE_COMPANY_FIELD'}};}
+   if(conflict){if(partialConflict)value='Partial';if(partialUnrelatedConflict)region='South';return {status:409,payload:{ok:false,error:'STALE_COMPANY_FIELD'}};}
    value='After';return {status:200,payload:{ok:true,updated:1}};
   }
  });
@@ -46,6 +46,12 @@ const body={companyUid:'company-1',changes:{Comments:{expected:'Before',value:'A
 }
 {
  const {bridge,events}=fixture({conflict:true,partialConflict:true});
+ await assert.rejects(bridge.commit({actor,path:route,body,cookie:'sid=abc',origin:'https://dev.example'}),
+ /INNER_WRITE_UNCONFIRMED/);
+ assert.deepEqual(events,['lock','read','forward','read','uncertain']);
+}
+{
+ const {bridge,events}=fixture({conflict:true,partialUnrelatedConflict:true});
  await assert.rejects(bridge.commit({actor,path:route,body,cookie:'sid=abc',origin:'https://dev.example'}),
  /INNER_WRITE_UNCONFIRMED/);
  assert.deepEqual(events,['lock','read','forward','read','uncertain']);

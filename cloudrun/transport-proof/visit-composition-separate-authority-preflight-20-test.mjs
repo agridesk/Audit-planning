@@ -32,14 +32,14 @@ const fixture={
  linkRows:[['Audit_ID','Obligation_ID','Link_State','Migration_Batch_ID','Linked_At','Unlinked_At'],
   ['A1','OB1','ACTIVE','','',''],['A1','OB2','ACTIVE','','','']],
  scopeRows:[['SlotKey','ScopeCode','DisplayName','Active','Archived',
-  'Min_Interval_Months','Rotation_Applies','Rotation_Normal_Maximum'],
-  ['SCOPE_01','ABC','MPS-ABC','Yes','No',0,'No',3],
-  ['SCOPE_02','GRASP','GRASP','Yes','No',0,'No',3]],
+  'Min_Interval_Months','Rotation_Applies','Rotation_Normal_Maximum','Max_Offsite_Hours'],
+  ['SCOPE_01','ABC','MPS-ABC','Yes','No',0,'No',3,1],
+  ['SCOPE_02','GRASP','GRASP','Yes','No',0,'No',3,1]],
  auditorRows:[['E-mail','Auditor_UID','Role','Active','Name'],
   ['auditor@example.test','AUD-1','Auditor','Yes','Auditor One']],
  qualificationRows:[['Auditor_UID','ScopeCode','Qualified'],
   ['AUD-1','ABC','YES'],['AUD-1','GRASP','YES']],
- companyRows:[['Company_UID','Company'],['company1','Example Farm']],
+ companyRows:[['Company_UID','Company','Locations_JSON'],['company1','Example Farm',JSON.stringify([{code:'HQ',active:true},{code:'S1',active:true},{code:'S2',active:false}])]],
  realizedRows:[['Company','Company_UID','Auditor_UID','Status','Year',
   'Date completed','SCOPE_01','SCOPE_02']],
  reservationRows:[['Audit ID','State','Released At','Released By','Release Reason',
@@ -70,6 +70,25 @@ assert.equal(result.appendIntents.find(x=>x.range==='Notification Queue!A:M').va
 assert.deepEqual(result.appendIntents.find(x=>x.range==='Audit planning!A:CN')
  .values.map(x=>x[24]),['2027-06-30','2027-09-30']);
 const prepare=overrides=>prepareSeparateCompositionAuthority20({...fixture,...overrides});
+const offsiteBlocks=[
+ {date:'2027-03-12',start:'08:00',end:'09:00',executionType:'OFFSITE',execLoc:''},
+ {date:'2027-03-12',start:'09:00',end:'16:00',executionType:'ONSITE',execLoc:'S1'}
+];
+const withOffsite=structuredClone(body);
+withOffsite.visits[0].blocks=offsiteBlocks;
+const scopedOffsite=prepareSeparateCompositionAuthority20({...fixture,body:withOffsite});
+assert.equal(scopedOffsite.visits[0].blocks[0].executionType,'OFFSITE');
+assert.equal(scopedOffsite.visits[0].blocks[1].execLoc,'S1');
+const overCap=structuredClone(body);
+overCap.visits[0].blocks=[
+ {date:'2027-03-12',start:'08:00',end:'10:00',executionType:'OFFSITE',execLoc:''},
+ {date:'2027-03-12',start:'10:00',end:'16:00',executionType:'ONSITE',execLoc:'HQ'}
+];
+assert.throws(()=>prepareSeparateCompositionAuthority20({...fixture,body:overCap}),/OFFSITE_SCOPE_MAX_EXCEEDED/);
+const badLocation=structuredClone(body);
+badLocation.visits[0].blocks[0].execLoc='S2';
+assert.throws(()=>prepareSeparateCompositionAuthority20({...fixture,body:badLocation}),/LOCATION_NOT_CANONICAL/);
+
 const localizedRows=structuredClone(fixture.obligationRows);
 localizedRows[1][4]='01/01/2027';localizedRows[1][5]='31/12/2027';localizedRows[1][7]='30/06/2027';
 const localized=prepare({obligationRows:localizedRows});

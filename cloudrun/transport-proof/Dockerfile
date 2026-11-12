@@ -29,6 +29,7 @@ COPY rotation-manager-20.mjs ./
 COPY rotation-uid-reconciliation-20.mjs ./
 COPY model-c-scope-visit-preview-20.mjs ./
 COPY model-c-scope-allocation-20.mjs ./
+COPY multi-scope-planning-parity-20.mjs ./
 COPY visit-composition-together-r4-preflight-20.mjs ./
 COPY visit-composition-separate-authority-preflight-20.mjs ./
 COPY visit-composition-manager-page-20.mjs ./

@@ -37,3 +37,20 @@ export function resolveAmsRuntimeConfig(env, projectId) {
  if(!/^https:\/\//.test(origin)||origin===String(env.DEV_ALLOWED_ORIGIN||'').trim())throw Error('AMS_PROD_ORIGIN_NOT_ISOLATED');
  return Object.freeze({mode,project,spreadsheet,isDev:false,origin,gasWriteUrl,runtimeServiceAccount,availabilityCollection});
 }
+
+/** A Cloud Run revision tag is never a second functional AMS DEV environment.
+ * Only the fixed public DEV hostname may serve interactive traffic.
+ */
+export function canonicalDevEntry20({isDev,service,host,method,url}={}){
+ if(isDev!==true||service!=='ams-fase12-dev')return {action:'PASS'};
+ const requestHost=String(host||'').toLowerCase().replace(/:443$/,'');
+ const canonical='ams-fase12-dev-zwtcar7xpa-ew.a.run.app';
+ const tagged=/^[a-z0-9-]+---ams-fase12-dev-zwtcar7xpa-ew\.a\.run\.app$/;
+ if(!tagged.test(requestHost))return {action:'PASS'};
+ if(!['GET','HEAD'].includes(String(method||'').toUpperCase()))
+  return {action:'REJECT',status:421};
+ const path=String(url||'/');
+ if(!path.startsWith('/')||path.startsWith('//'))
+  return {action:'REJECT',status:400};
+ return {action:'REDIRECT',status:302,location:'https://'+canonical+path};
+}

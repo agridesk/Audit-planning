@@ -14,8 +14,9 @@ assert.equal(noFlag.ready,false);
 assert.ok(noFlag.blockers.includes('FIRESTORE_ATOMIC_AUTHORITY_DISABLED'));
 const allFlags={
  environment:'DEV',atomicEnabled:true,compositionEnabled:true,legacyRetired:true,
- managerOwnerShared:true,backfillParity:true,legacyWritersFrozen:true
+ managerOwnerShared:true,backfillParity:true,legacyWritersFrozen:true,liveWriterRouteParityVerified:true
 };
+assert.ok(planningCutoverCompatibility20({...allFlags,liveWriterRouteParityVerified:false}).blockers.includes('LIVE_WRITER_ROUTE_PARITY_UNVERIFIED'));
 const flagsAlone=planningCutoverCompatibility20(allFlags);
 assert.equal(flagsAlone.ready,false,'Flags alone cannot demonstrate writer migration');
 assert.deepEqual(flagsAlone.blockers,['LIVE_WRITER_MIGRATION_INCOMPLETE']);

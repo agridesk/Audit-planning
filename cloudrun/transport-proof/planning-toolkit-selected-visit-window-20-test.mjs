@@ -10,7 +10,7 @@ const members=[
  {auditId:'AUD-2027',planningWindowFrom:'2027-01-01',planningWindowTo:'2027-04-30'},
  {auditId:'AUD-OVERLAP',planningWindowFrom:'2026-12-01',planningWindowTo:'2027-03-01'}
 ];
-const context={model:{data:{audit:{...members[0],companyPlanningSet:members}}},visitAuditIds:new Set(['AUD-2026'])};
+const context={composition20:null,model:{data:{audit:{...members[0],companyPlanningSet:members}}},visitAuditIds:new Set(['AUD-2026'])};
 runInNewContext(code,context);
 assert.equal(context.selectedVisitWindow().from,'2026-11-01');
 assert.equal(context.selectedVisitWindow().to,'2026-12-31');

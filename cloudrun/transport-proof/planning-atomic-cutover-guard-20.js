@@ -2,6 +2,8 @@
  * Any legacy HTTP writer able to change audit obligations, identity, assignment,
  * lifecycle or capacity must be migrated or blocked before enabling atomic mode.
  */
+import {compositionLiveWriterSurfaces20} from './planning-cutover-compatibility-20.mjs';
+
 const blocked=[
  /^\/api\/v1\/manager\/extension-direct$/,
  // Issue #87: these live DEV writers mutate the same planning/obligation
@@ -21,7 +23,8 @@ const blocked=[
 export function enforcePlanningAtomicCutover20({enabled,method,path}){
  if(!enabled||!['POST','PUT','PATCH','DELETE'].includes(String(method).toUpperCase()))return;
  if(typeof path!=='string'||!path.startsWith('/'))throw Error('PLANNING_ATOMIC_PATH_INVALID');
- if(blocked.some(re=>re.test(path)))throw Error('PLANNING_ATOMIC_WRITER_NOT_MIGRATED');
+ if(compositionLiveWriterSurfaces20.includes(path)||blocked.some(re=>re.test(path)))
+  throw Error('PLANNING_ATOMIC_WRITER_NOT_MIGRATED');
 }
 
 /** Never activate a new Firestore owner beside live GAS/Sheets canonical writers. */

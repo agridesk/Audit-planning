@@ -3,7 +3,7 @@ import {createSwapLegacyJournalArchive,classifySwapLegacyJournal} from './swap-l
  * Enable only after Firestore IAM/database preflight and DEV-only deployment approval.
  */
 import http from 'node:http';
-import {resolveAmsRuntimeConfig} from './runtime-environment-20.mjs';
+import {resolveAmsRuntimeConfig,canonicalDevEntry20} from './runtime-environment-20.mjs';
 import {verifyProdRuntimeIdentity} from './prod-runtime-identity-20.mjs';
 import {runtimeBundleProof20} from './runtime-bundle-proof-20.mjs';
 import {notificationOverview} from './notification-overview-20.mjs';
@@ -1140,6 +1140,16 @@ async function proxy(req,res){
 }}
 http.createServer(async(req,res)=>{
  try{
+  const entry=canonicalDevEntry20({isDev:runtime.isDev,service:process.env.K_SERVICE,
+   host:req.headers.host,method:req.method,url:req.url});
+  if(entry.action!=='PASS'){
+   const headers={'cache-control':'no-store','x-content-type-options':'nosniff'};
+   if(entry.action==='REDIRECT')headers.location=entry.location;
+   else headers['content-type']='application/json; charset=utf-8';
+   res.writeHead(entry.status,headers);
+   res.end(entry.action==='REDIRECT'?'':JSON.stringify({ok:false,error:'CANONICAL_DEV_URL_REQUIRED'}));
+   return;
+  }
   const u=new URL(req.url||'/','http://localhost');
   // DEV maintenance closes every HTTP entry point unless the isolated copy has a strict read-only gate.
   // No mutation, session or method may bypass the writer freeze on the canonical service.

@@ -36,9 +36,14 @@ for(const path of ['/api/v1/planning/direct-commit','/api/v1/manager/auditor-man
 for(const method of ['POST','PUT','PATCH','DELETE'])for(const path of compositionLiveWriterSurfaces20.filter(path=>!planningAtomicOwnedHttpRoutes20.includes(path)))
  assert.throws(()=>enforcePlanningAtomicCutover20({enabled:true,method,path}),
   /PLANNING_ATOMIC_WRITER_NOT_MIGRATED/,'Fail-closed canonical cutover fence: '+method+' '+path);
-for(const method of ['POST','PUT','PATCH','DELETE'])for(const path of planningAtomicOwnedHttpRoutes20)
- assert.doesNotThrow(()=>enforcePlanningAtomicCutover20({enabled:true,method,path}),
-  'Already-owned atomic HTTP route cannot be blocked at entry: '+method+' '+path);
+for(const path of planningAtomicOwnedHttpRoutes20){
+ assert.doesNotThrow(()=>enforcePlanningAtomicCutover20({enabled:true,method:'POST',path}),
+  'R15-owned atomic route must accept POST: '+path);
+ for(const method of ['PUT','PATCH','DELETE'])
+  assert.throws(()=>enforcePlanningAtomicCutover20({enabled:true,method,path}),
+   /PLANNING_ATOMIC_WRITER_NOT_MIGRATED/,
+   'R15-owned atomic route must reject unhandled mutation verb: '+method+' '+path);
+}
 const entrySource=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 for(const path of planningAtomicOwnedHttpRoutes20)
  assert.ok(entrySource.includes("'"+path+"'"),'Atomic route not recognized by R15: '+path);

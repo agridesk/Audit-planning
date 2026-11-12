@@ -240,6 +240,8 @@ const planningAtomicConfigBridge=planningAtomicEnabled?createAtomicConfiguration
   if(!response.ok)throw Error('ATOMIC_CONFIG_READ_'+response.status);
   const rows=(await response.json()).values;
   if(!Array.isArray(rows)||!rows.length)throw Error('ATOMIC_CONFIG_SOURCE_EMPTY');
+  const limit={Companies:2500,Auditors:1000,Config_Scopes:128}[tab];
+  if(rows.length>=limit)throw Error('ATOMIC_CONFIG_SOURCE_TRUNCATED');
   return rows;
  },
  forward:async({path,body,cookie,origin})=>{

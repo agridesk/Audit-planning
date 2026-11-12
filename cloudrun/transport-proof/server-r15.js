@@ -1151,6 +1151,9 @@ http.createServer(async(req,res)=>{
    return;
   }
   const u=new URL(req.url||'/','http://localhost');
+  // Single cutover fence at the public entrypoint, including routes handled
+  // directly in R15 before the legacy proxy chain can be reached.
+  enforcePlanningAtomicCutover20({enabled:planningAtomicEnabled,method:req.method,path:u.pathname});
   // DEV maintenance closes every HTTP entry point unless the isolated copy has a strict read-only gate.
   // No mutation, session or method may bypass the writer freeze on the canonical service.
   // The existing maintenance switch remains enabled in both services.

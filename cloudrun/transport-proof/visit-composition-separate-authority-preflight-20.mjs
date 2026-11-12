@@ -15,7 +15,7 @@ const md5=x=>createHash('md5').update(x).digest('hex');
 const idx=(h,...names)=>{const hs=(h||[]).map(norm);for(const n of names){const i=hs.indexOf(norm(n));if(i>=0)return i;}return -1;};
 const required=(h,name)=>{const i=idx(h,name);if(i<0)throw Error('COMPOSITION_SPLIT_SCHEMA_MISSING_'+name);return i;};
 const val=(r,i)=>i<0?'':clean(r?.[i]);
-const isoDate=x=>{const s=clean(x).slice(0,10);if(!/^\d{4}-\d{2}-\d{2}$/.test(s)||new Date(s+'T00:00:00Z').toISOString().slice(0,10)!==s)throw Error('COMPOSITION_SPLIT_DATE_INVALID');return s;};
+const isoDate=x=>{const raw=clean(x);let s=raw;if(/^\d{2}[.\/-]\d{2}[.\/-]\d{4}$/.test(raw)){const [d,m,y]=raw.split(/[.\/-]/);s=y+'-'+m+'-'+d;}if(!/^\d{4}-\d{2}-\d{2}$/.test(s))throw Error('COMPOSITION_SPLIT_DATE_INVALID');const dt=new Date(s+'T00:00:00Z');if(!Number.isFinite(dt.getTime())||dt.toISOString().slice(0,10)!==s)throw Error('COMPOSITION_SPLIT_DATE_INVALID');return s;};
 const minute=x=>{if(!/^([01]\d|2[0-3]):(?:00|15|30|45)$/.test(clean(x)))throw Error('COMPOSITION_SPLIT_TIME_QUARTER_INVALID');return Number(x.slice(0,2))*60+Number(x.slice(3));};
 const endCol=n=>{let out='';for(let x=n;x>0;x=Math.floor((x-1)/26))out=String.fromCharCode(65+(x-1)%26)+out;return out;};
 const clone=x=>structuredClone(x);
@@ -97,7 +97,7 @@ export function prepareSeparateCompositionAuthority20({
   obligations.set(id,{id,scopeCode:val(row,os),hours,minutes,
    from:val(row,oFrom)?isoDate(val(row,oFrom)):'',
    to:val(row,oTo)?isoDate(val(row,oTo)):'',
-   expiry:val(row,oExpiry)});
+   expiry:val(row,oExpiry)?isoDate(val(row,oExpiry)):''});
  }
  if(obligations.size!==ids.length)throw Error('COMPOSITION_SPLIT_OBLIGATIONS_INCOMPLETE');
  const sh=scopeRows[0],ss=required(sh,'SlotKey'),sc=required(sh,'ScopeCode'),

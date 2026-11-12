@@ -145,6 +145,9 @@ async function combinedCommit(identity,body,req){
 
 function patchPlanningHtml(html){
   let out=String(html||'');
+  // Planning 2.0 now owns both canonical scope-specific and legacy combined-hour targets.
+  // Never replace its functions using obsolete text markers from the old planner.
+  if(out.includes('function scopePlanningValid20()')&&out.includes('function planningTarget(){'))return out;
   const plannedMarker="function plannedHours(){return draftBlocks.reduce((n,b)=>n+blockHours(b),0)}";
   const planningTargetMarker="function planningTarget(){const a=model?.data?.audit||{},n=Number(a.formalHours??a.requiredHours??0);return Number.isFinite(n)&&n>=0?n:0}";
   const helper="function requiredVisitHours(){const set=model?.data?.audit?.companyPlanningSet||[],chosen=set.filter(r=>visitAuditIds.has(r.auditId)),sum=chosen.reduce((n,r)=>n+Number(r.formalHours||r.requiredHours||0),0);const primary=Number(model?.data?.audit?.formalHours||model?.data?.audit?.requiredHours||0);return sum||primary}";

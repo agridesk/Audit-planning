@@ -27,6 +27,13 @@ assert.deepEqual(oneMissing.pendingWriterRoutes,['/api/v1/manager/self-planning-
 const verified=planningCutoverCompatibility20({...allFlags,
  migratedWriterPaths:[...compositionLiveWriterSurfaces20]});
 assert.equal(verified.ready,true);
+const administrative=planningCutoverCompatibility20({...allFlags,
+ migratedWriterPaths:[...compositionLiveWriterSurfaces20],
+ deferredManagementRoutes:['/api/v1/manager/company-management/save']});
+assert.equal(administrative.ready,false);
+assert.ok(administrative.blockers.includes('MANAGEMENT_WRITER_MIGRATION_INCOMPLETE'));
+assert.deepEqual(administrative.deferredManagementRoutes,['/api/v1/manager/company-management/save']);
+
 assert.equal(planningCutoverCompatibility20({...allFlags,environment:'PROD',
  migratedWriterPaths:[...compositionLiveWriterSurfaces20]}).ready,false);
 console.log('Issue #87 cutover compatibility: flags cannot bypass live writer migration proof');

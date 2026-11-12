@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20} from './planning-atomic-cutover-guard-20.js';
+import {compositionLiveWriterSurfaces20} from './planning-cutover-compatibility-20.mjs';
 const blocked=[
  '/api/v1/manager/extension-direct',
  '/api/v1/manager/self-planning-direct',
@@ -20,7 +21,7 @@ const blocked=[
  '/api/v1/manager/scopes/policy',
  '/api/v1/internal/dev-auditor-uid'
 ];
-for(const path of blocked){
+for(const path of [...new Set([...blocked,...compositionLiveWriterSurfaces20])]){
  assert.throws(()=>enforcePlanningAtomicCutover20({enabled:true,method:'POST',path}),/PLANNING_ATOMIC_WRITER_NOT_MIGRATED/);
  assert.doesNotThrow(()=>enforcePlanningAtomicCutover20({enabled:false,method:'POST',path}));
  assert.doesNotThrow(()=>enforcePlanningAtomicCutover20({enabled:true,method:'GET',path}));
@@ -28,9 +29,12 @@ for(const path of blocked){
 for(const method of ['PUT','PATCH','DELETE']){
  assert.throws(()=>enforcePlanningAtomicCutover20({enabled:true,method,path:'/api/v1/manager/company-management/save'}),/PLANNING_ATOMIC_WRITER_NOT_MIGRATED/);
 }
-for(const path of ['/api/v1/planning/direct-commit','/api/v1/manager/approve-direct','/api/v1/manager/cancel-direct','/api/v1/auditor/action','/api/v1/manager/auditor-management/audit/transfer','/api/v1/planning/atomic-recover']){
+for(const path of ['/api/v1/planning/direct-commit','/api/v1/manager/auditor-management/audit/transfer','/api/v1/planning/atomic-recover']){
  assert.doesNotThrow(()=>enforcePlanningAtomicCutover20({enabled:true,method:'POST',path}));
 }
+for(const method of ['POST','PUT','PATCH','DELETE'])for(const path of compositionLiveWriterSurfaces20)
+ assert.throws(()=>enforcePlanningAtomicCutover20({enabled:true,method,path}),
+  /PLANNING_ATOMIC_WRITER_NOT_MIGRATED/,'Fail-closed canonical cutover fence: '+method+' '+path);
 assert.equal(validatePlanningAtomicRuntime20({enabled:false}),true);
 const validated={enabled:true,legacyWriterRetired:true,managerOwnerShared:true,backfillParityVerified:true,liveWriterRouteParityVerified:true,otherAuthorityEnabled:false};
 assert.equal(validatePlanningAtomicRuntime20(validated),true);

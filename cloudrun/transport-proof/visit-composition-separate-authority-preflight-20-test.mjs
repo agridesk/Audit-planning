@@ -69,6 +69,34 @@ assert.equal(result.appendIntents.find(x=>x.range==='Audit planning!A:CN').value
 assert.equal(result.appendIntents.find(x=>x.range==='Notification Queue!A:M').values.length,2);
 assert.deepEqual(result.appendIntents.find(x=>x.range==='Audit planning!A:CN')
  .values.map(x=>x[24]),['2027-06-30','2027-09-30']);
+const partialBody={...body,visits:[body.visits[0]]};
+const partial=prepareSeparateCompositionAuthority20({...fixture,body:partialBody});
+assert.equal(partial.visits.length,1);
+assert.equal(partial.sourceTombstone.identityRetired,undefined);
+assert.equal(partial.sourceTombstone.partialScopePlanning,true);
+assert.deepEqual(partial.remainingObligationIds,['OB2']);
+assert.equal(partial.entities[0].remove,false);
+const partialSource=partial.projectionWrites.find(x=>x.range.startsWith('Audit planning!')).values[0];
+assert.equal(partialSource[18],3);
+assert.equal(partialSource[2],'');
+assert.equal(partialSource[4],'X');
+const partialJson=JSON.parse(partialSource[32]);
+assert.equal(partialJson.partialScopePlanning,true);
+assert.deepEqual(partialJson.remainingObligationIds,['OB2']);
+assert.equal(partial.projectionWrites.filter(x=>x.range.startsWith('Audit_Visit_Obligations!')).length,1);
+const sequentialLinks=structuredClone(fixture.linkRows);
+sequentialLinks[1][2]='INACTIVE';
+sequentialLinks.push(['VIS-'+createHash('sha256').update('AMS_SPLIT_V1|A1|company1|OB1').digest('hex').slice(0,20).toUpperCase(),'OB1','ACTIVE','','','']);
+const secondSourceCanonical={...fixture.sourceCanonical,revision:2,
+ snapshot:{...fixture.sourceCanonical.snapshot,sourceRevision:partial.sourceTombstone.sourceRevision}};
+const secondBody={...body,sourceRevision:partial.sourceTombstone.sourceRevision,visits:[body.visits[1]]};
+const finalScope=prepareSeparateCompositionAuthority20({...fixture,body:secondBody,
+ planningRows:[h,partialSource],linkRows:sequentialLinks,sourceCanonical:secondSourceCanonical});
+assert.equal(finalScope.visits.length,1);
+assert.deepEqual(finalScope.remainingObligationIds,[]);
+assert.equal(finalScope.entities[0].remove,true);
+assert.equal(finalScope.sourceTombstone.identityRetired,true);
+assert.equal(finalScope.sourceTombstone.successorAuditIds.length,2);
 const prepare=overrides=>prepareSeparateCompositionAuthority20({...fixture,...overrides});
 const offsiteBlocks=[
  {date:'2027-03-12',start:'08:00',end:'09:00',executionType:'OFFSITE',execLoc:''},

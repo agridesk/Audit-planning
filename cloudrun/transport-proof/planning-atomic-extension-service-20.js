@@ -26,7 +26,7 @@ export function createAtomicExtensionService20({store,gate,preflight,projector,a
   if(old){
    if(old.auditId!==auditId||old.actorId!==actorId)throw Error('EXT_ATOMIC_REPLAY_IDENTITY_CONFLICT');
    if(old.state!=='PROJECTED')throw Error('EXT_ATOMIC_OUTBOX_RECOVERY_REQUIRED');
-   return {ok:true,success:true,auditId,obligationId,command,operationId,
+   return {ok:true,success:true,direct:true,auditId,obligationId,command,operationId,
     patch:old.snapshot?.scopeExtension?.patch,
     cbNotification:old.snapshot?.scopeExtension?.cbNotification,
     authority:'FIRESTORE',projection:'PROJECTED',idempotent:true};
@@ -75,7 +75,7 @@ export function createAtomicExtensionService20({store,gate,preflight,projector,a
     verified:true,auditId,rowHash:hash({rows:rows.detail,appendCount:appends.count})}});
    projected=true;
    await gate.release({token:lock.token,verified:true,proof:'EXT_FIRESTORE_MODEL_C_CB_OUTBOX_VERIFIED'});lock=null;
-   return {ok:true,success:true,auditId,obligationId,command,operationId,
+   return {ok:true,success:true,direct:true,auditId,obligationId,command,operationId,
     patch:proof.patch,cbNotification:proof.cbNotification,
     authority:'FIRESTORE',projection:'PROJECTED',revision:receipt.revision};
   }finally{

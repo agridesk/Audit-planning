@@ -5,7 +5,7 @@ const row=['audit-1','Pending Planning','No'];
 const headers=['Audit ID','Status','Allow self planning'];
 const before={auditId:'audit-1',revision:7,pendingOperationId:null,
  claimIds:[],blocks:[],snapshot:{auditId:'audit-1',status:'Pending Planning',
- sourceRevision:'rev-before',headers,row}};
+ sourceRevision:'rev-before',headers,row,managerCommentLast:'preserve this comment'}};
 const after=['audit-1','Pending Planning','Yes'];
 const proof={success:true,authorityPreflight:true,auditId:'audit-1',allowSelfPlanning:true,
  expectedSourceRevision:'rev-before',
@@ -23,7 +23,7 @@ function mock({preview=proof,old=before,inspection='MATCH',outbox=null}={}){
   store:{
    readAudit:async()=>{events.push('readAudit');return old},
    readOutbox:async()=>outbox,
-   commit:async args=>{events.push('firestoreCommit');assert.equal(args.action,'SELF_PLANNING');
+   commit:async args=>{events.push('firestoreCommit');assert.equal(args.nextSnapshot.managerCommentLast,'preserve this comment');assert.equal(args.action,'SELF_PLANNING');
     assert.deepEqual(args.blocks,[]);assert.equal(args.expectedRevision,7);return{revision:8}},
    markProjected:async()=>events.push('markProjected'),
    markUncertain:async()=>events.push('markUncertain')

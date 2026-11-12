@@ -144,7 +144,7 @@ for(const scenario of [
   cookie:'sid=abc',origin:'https://dev.example'});
  assert.equal(result.status,200);
  assert.deepEqual(events,['lock','read','forward','read','release']);
- const rejected={...scenario.body,expected:scenario.field==='Role'?'Manager':false};
+ const rejected={...scenario.body,expected:scenario.field==='Role'?'Manager':true};
  if(scenario.field==='Active'){
   await assert.rejects(bridge.commit({actor,path:scenario.path,body:rejected,
    cookie:'sid=abc',origin:'https://dev.example'}),/STALE_EXPECTED/);

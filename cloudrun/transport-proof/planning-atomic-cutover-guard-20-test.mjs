@@ -59,6 +59,19 @@ for(const contract of [
  "planningCache.invalidate()"
 ])assert.ok(handoffSource.includes(contract),'Atomic handoff compatibility missing '+contract);
 
+assert.ok(compositionLiveWriterSurfaces20.includes('/api/v1/manager/extension'),
+ 'R10 legacy Manager extension alias must be included in the atomic migration fence');
+assert.throws(()=>enforcePlanningAtomicCutover20({enabled:true,method:'POST',
+ path:'/api/v1/manager/extension'}),/PLANNING_ATOMIC_WRITER_NOT_MIGRATED/);
+const internalHandler=entrySource.indexOf("u.pathname==='/api/v1/internal/auditor/complete-direct'&&planningAtomicInternalComplete");
+assert.ok(internalHandler>0,'Internal auditor COMPLETE must dispatch to atomic multi lifecycle');
+const internalSource=entrySource.slice(internalHandler,internalHandler+2300);
+for(const evidence of ["timingSafeEqual(expected,supplied)","planningAtomicInternalComplete.commit({",
+ "getRoster()","matches[0].auditorId"])
+ assert.ok(internalSource.includes(evidence),'Atomic internal auditor COMPLETION missing '+evidence);
+const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+assert.ok(r4.includes("lifecycleAuthorityPreflight20(identity,b,'COMPLETE',()=>directAuditorComplete(identity,b))"),
+ 'Authenticated bridge must expose a read-only canonical completion preflight');
 assert.equal(validatePlanningAtomicRuntime20({enabled:false}),true);
 const validated={enabled:true,legacyWriterRetired:true,managerOwnerShared:true,backfillParityVerified:true,liveWriterRouteParityVerified:true,otherAuthorityEnabled:false};
 assert.equal(validatePlanningAtomicRuntime20(validated),true);

@@ -57,7 +57,8 @@ function comparable(field,a,b){
  return str(a)===str(b);
 }
 function preflight(type,body,tables){
- const code=str(body?.scopeCode),config=table(tables.Config_Scopes,'Config_Scopes');
+ const code=type==='create'?str(body?.scopeCode).toUpperCase():str(body?.scopeCode),
+  config=table(tables.Config_Scopes,'Config_Scopes');
  if(!code||code.length>80)throw Error('ATOMIC_SCOPE_CODE_INVALID');
  if(type==='create'){
   findScope(config,code,{missing:true});
@@ -96,7 +97,7 @@ function verify(type,body,before,after,outcome){
  if(type==='create'){
   if(!outcome?.slotKey||scopeValue(config,scope,'SlotKey')!==str(outcome.slotKey)||
    scopeValue(config,scope,'DisplayName')!==str(body.displayName)||
-   scopeValue(config,scope,'Certification_Body_ID')!==str(body.certificationBodyId)||
+   scopeValue(config,scope,'Certification_Body_ID')!==str(body.certificationBodyId).toUpperCase()||
    bool(scopeValue(config,scope,'Active'))!==false)
    throw Error('ATOMIC_SCOPE_CREATE_READBACK_MISMATCH');
   return;

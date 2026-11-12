@@ -1200,6 +1200,14 @@ http.createServer(async(req,res)=>{
    return;
   }
   const u=new URL(req.url||'/','http://localhost');
+  // Retired EXT endpoints must never reach legacy Sheets/Firestore owners.
+  // The active Manager Grid uses /manager/extension-obligation-command.
+  if(planningAtomicEnabled&&['POST','PUT','PATCH','DELETE'].includes(String(req.method||''))&&
+     ['/api/v1/manager/extension','/api/v1/manager/extension-direct',
+      '/api/v1/manager/extension-reconcile-projection'].includes(u.pathname)){
+   res.writeHead(410,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+   res.end(JSON.stringify({success:false,error:'LEGACY_EXT_ROUTE_RETIRED_USE_MODEL_C_COMMAND'}));return;
+  }
   // Single cutover fence at the public entrypoint, including routes handled
   // directly in R15 before the legacy proxy chain can be reached.
   enforcePlanningAtomicCutover20({enabled:planningAtomicEnabled,method:req.method,path:u.pathname});

@@ -26,7 +26,7 @@ has(r5,'composition20?.mode===\'TOGETHER\'?scopeSum','R5 plans combined Model C 
 has(r5,'class="compositionPanel20"','compact composition panel is part of existing planning panel');
 has(r5,'class="scopeMinutes20" type="number" step="0.25"','composition controls accept quarter hours');
 has(r5,'minutes:Math.round(Number(field.value)*60)','hour inputs convert only in canonical payload');
-has(r5,'de beveiligde DEV-schrijffunctie','writer guard is visibly explained to manager');
+has(r5,'Save is unavailable: the secure DEV atomic writer','writer guard is visibly explained to manager');
 
 has(r5,'chosen.reduce((n,r)=>n+Number(r.formalHours||r.requiredHours||0),0)',
  'R5 retains legacy combined company visit target');

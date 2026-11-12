@@ -11,8 +11,8 @@ function dateLabel(x){return x?String(x):'Not recorded in Model C';}
 function usableIsoDate(x){
  var value=String(x||'').trim();
  if(!value)return '';
- if(/^\d{4}-\d{2}-\d{2}$/.test(value))return value;
- var m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
+ if(/^\\d{4}-\\d{2}-\\d{2}$/.test(value))return value;
+ var m=/^(\\d{2})\\/(\\d{2})\\/(\\d{4})$/.exec(value);
  if(!m)return '';
  var iso=m[3]+'-'+m[2]+'-'+m[1];
  var d=new Date(iso+'T00:00:00Z');

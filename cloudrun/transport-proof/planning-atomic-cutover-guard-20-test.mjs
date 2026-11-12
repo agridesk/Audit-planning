@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20} from './planning-atomic-cutover-guard-20.js';
+import {readFileSync} from 'node:fs';
+import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,planningAtomicOwnedHttpRoutes20} from './planning-atomic-cutover-guard-20.js';
 import {compositionLiveWriterSurfaces20} from './planning-cutover-compatibility-20.mjs';
 const blocked=[
  '/api/v1/manager/extension-direct',
@@ -21,7 +22,7 @@ const blocked=[
  '/api/v1/manager/scopes/policy',
  '/api/v1/internal/dev-auditor-uid'
 ];
-for(const path of [...new Set([...blocked,...compositionLiveWriterSurfaces20])]){
+for(const path of [...new Set([...blocked,...compositionLiveWriterSurfaces20])].filter(path=>!planningAtomicOwnedHttpRoutes20.includes(path))){
  assert.throws(()=>enforcePlanningAtomicCutover20({enabled:true,method:'POST',path}),/PLANNING_ATOMIC_WRITER_NOT_MIGRATED/);
  assert.doesNotThrow(()=>enforcePlanningAtomicCutover20({enabled:false,method:'POST',path}));
  assert.doesNotThrow(()=>enforcePlanningAtomicCutover20({enabled:true,method:'GET',path}));
@@ -32,9 +33,15 @@ for(const method of ['PUT','PATCH','DELETE']){
 for(const path of ['/api/v1/planning/direct-commit','/api/v1/manager/auditor-management/audit/transfer','/api/v1/planning/atomic-recover']){
  assert.doesNotThrow(()=>enforcePlanningAtomicCutover20({enabled:true,method:'POST',path}));
 }
-for(const method of ['POST','PUT','PATCH','DELETE'])for(const path of compositionLiveWriterSurfaces20)
+for(const method of ['POST','PUT','PATCH','DELETE'])for(const path of compositionLiveWriterSurfaces20.filter(path=>!planningAtomicOwnedHttpRoutes20.includes(path)))
  assert.throws(()=>enforcePlanningAtomicCutover20({enabled:true,method,path}),
   /PLANNING_ATOMIC_WRITER_NOT_MIGRATED/,'Fail-closed canonical cutover fence: '+method+' '+path);
+for(const method of ['POST','PUT','PATCH','DELETE'])for(const path of planningAtomicOwnedHttpRoutes20)
+ assert.doesNotThrow(()=>enforcePlanningAtomicCutover20({enabled:true,method,path}),
+  'Already-owned atomic HTTP route cannot be blocked at entry: '+method+' '+path);
+const entrySource=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
+for(const path of planningAtomicOwnedHttpRoutes20)
+ assert.ok(entrySource.includes("'"+path+"'"),'Atomic route not recognized by R15: '+path);
 assert.equal(validatePlanningAtomicRuntime20({enabled:false}),true);
 const validated={enabled:true,legacyWriterRetired:true,managerOwnerShared:true,backfillParityVerified:true,liveWriterRouteParityVerified:true,otherAuthorityEnabled:false};
 assert.equal(validatePlanningAtomicRuntime20(validated),true);
@@ -42,7 +49,7 @@ assert.throws(()=>validatePlanningAtomicRuntime20({...validated,legacyWriterReti
 assert.throws(()=>validatePlanningAtomicRuntime20({...validated,backfillParityVerified:false}),/PLANNING_ATOMIC_BACKFILL_PARITY_REQUIRED/);
 assert.throws(()=>validatePlanningAtomicRuntime20({...validated,otherAuthorityEnabled:true}),/PLANNING_ATOMIC_DUAL_AUTHORITY_ENABLED/);
 assert.throws(()=>validatePlanningAtomicRuntime20({...validated,liveWriterRouteParityVerified:false}),/PLANNING_ATOMIC_LIVE_WRITER_ROUTE_PARITY_REQUIRED/);
-const {readFileSync}=await import('node:fs');
+
 const r15=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 const serverEntry=r15.indexOf("http.createServer(async(req,res)=>{");
 const canonicalEntry=r15.indexOf("enforcePlanningAtomicCutover20({enabled:planningAtomicEnabled,method:req.method,path:u.pathname});",serverEntry);

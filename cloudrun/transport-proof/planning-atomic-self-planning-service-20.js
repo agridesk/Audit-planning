@@ -56,7 +56,7 @@ export function createAtomicSelfPlanningService20({store,gate,preflight,projecto
       JSON.stringify(proof.canonicalSnapshot.headers)!==JSON.stringify(previous.snapshot.headers)||
       proof.appendIntents?.length)
     throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_NOT_AUTHORITATIVE');
-   const snapshot={...proof.canonicalSnapshot,
+   const snapshot={...previous.snapshot,...proof.canonicalSnapshot,
     projectionWrites:proof.projectionWrites,projectionPreconditions:proof.projectionPreconditions,
     appendIntents:[]};
    attempted=true;

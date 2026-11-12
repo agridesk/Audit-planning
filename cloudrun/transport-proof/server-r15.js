@@ -43,7 +43,7 @@ import {createPlanningAtomicRecovery} from './planning-atomic-recovery-20.js';
 import {createPlanningAtomicParityVerifier} from './planning-atomic-parity-verifier-20.js';
 import {createPlanningGlobalClaimsParity} from './planning-global-claims-parity-20.js';
 import {createPlanningCutoverDataAudit} from './planning-cutover-data-audit-20.js';
-import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,classifiedPlanningCutoverPaths20,planningAtomicRetiredHttpRoutes20,planningAtomicDeferredManagementRoutes20} from './planning-atomic-cutover-guard-20.js';
+import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,classifiedPlanningCutoverPaths20,planningAtomicRetiredHttpRoutes20,planningAtomicDeferredManagementRoutes20,planningAtomicRetiredManagementRoutes20} from './planning-atomic-cutover-guard-20.js';
 import {createPlanningSheetsWritesetProjector} from './planning-sheets-writeset-projector-20.js';
 import {createPlanningSheetsAppendProjector} from './planning-sheets-append-projector-20.js';
 import {createPlanningBackfillRunner} from './planning-atomic-backfill-20.js';
@@ -1222,6 +1222,11 @@ http.createServer(async(req,res)=>{
    return;
   }
   const u=new URL(req.url||'/','http://localhost');
+  if(planningAtomicEnabled&&['POST','PUT','PATCH','DELETE'].includes(String(req.method||''))&&
+     planningAtomicRetiredManagementRoutes20.includes(u.pathname)){
+   res.writeHead(410,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+   res.end(JSON.stringify({success:false,error:'LEGACY_MIGRATION_ROUTE_RETIRED_AFTER_ATOMIC_CUTOVER'}));return;
+  }
   // Retired EXT endpoints must never reach legacy Sheets/Firestore owners.
   // The active Manager Grid uses /manager/extension-obligation-command.
   if(planningAtomicEnabled&&['POST','PUT','PATCH','DELETE'].includes(String(req.method||''))&&

@@ -44,4 +44,10 @@ assert.equal(state.fetches,4);
 assert.ok(source.includes("verifyScopeAuditor20()"),'qualified source refresh is wired');
 assert.ok(source.includes('composition20.qualification?.key!==qualificationKey'),
  'Save requires qualification evidence for the current mode, scope, auditor and revision');
+assert.ok(source.includes("for(const person of payload[1].auditors||[])"),
+ 'Model C selection must include the full canonical roster, not the legacy all-scope candidate subset');
+assert.ok(source.includes("a.candidateAuditors.push(candidate)"),
+ 'Model C roster candidates must be accessible to the existing Planner validator');
+assert.ok(source.includes("renderDraft();verifyScopeAuditor20();loadRotation()"),
+ 'New Model C auditor candidates must undergo both qualification and rotation checks');
 console.log('Issue #87: canonical auditor qualification gates Together and each Separate scope PASS');

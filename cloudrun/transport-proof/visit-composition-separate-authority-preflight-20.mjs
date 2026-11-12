@@ -41,7 +41,7 @@ export function prepareSeparateCompositionAuthority20({
     !clean(body.auditId)||!clean(body.sourceRevision)||!Array.isArray(body.visits))
   throw Error('COMPOSITION_SPLIT_MANAGER_REQUEST_INVALID');
  const auditId=clean(body.auditId),proposals=body.visits;
- if(!Number.isFinite(Date.parse(now))||proposals.length<2||proposals.length>15)
+ if(!Number.isFinite(Date.parse(now))||proposals.length<1||proposals.length>15)
   throw Error('COMPOSITION_SPLIT_INPUT_INVALID');
  for(const [name,rows] of Object.entries({planningRows,obligationRows,linkRows,scopeRows,
    auditorRows,qualificationRows,companyRows,realizedRows,reservationRows,availabilityRows}))
@@ -73,6 +73,12 @@ export function prepareSeparateCompositionAuthority20({
  catch{throw Error('COMPOSITION_SPLIT_SOURCE_PLANNING_JSON_INVALID');}
  if(originalPlanning?.identityRetired===true||(originalPlanning?.blocks?.length||0)>0)
   throw Error('COMPOSITION_SPLIT_SOURCE_ALREADY_PLANNED_OR_RETIRED');
+ if(originalPlanning?.partialScopePlanning===true&&
+    (originalPlanning.composition!=='SEPARATELY'||
+     originalPlanning.sourceAuditId!==auditId||
+     !Array.isArray(originalPlanning.successorAuditIds)||
+     !Array.isArray(originalPlanning.remainingObligationIds)))
+  throw Error('COMPOSITION_SPLIT_SOURCE_PARTIAL_LINEAGE_INVALID');
  const companyHeaders=companyRows[0],companyUidCol=required(companyHeaders,'Company_UID'),
   locationsCol=required(companyHeaders,'Locations_JSON');
  const matchingCompanies=companyRows.slice(1).filter(row=>val(row,companyUidCol)===companyUid);
@@ -89,7 +95,7 @@ export function prepareSeparateCompositionAuthority20({
   ls=required(lh,'Link_State'),lun=required(lh,'Unlinked_At'),linked=required(lh,'Linked_At');
  const active=linkRows.slice(1).map((row,i)=>({row,rowNumber:i+2})).filter(x=>status(x.row[ls])==='ACTIVE');
  const sourceLinks=active.filter(x=>val(x.row,la)===auditId),ids=sourceLinks.map(x=>val(x.row,lo));
- if(ids.length!==proposals.length||ids.length<2||ids.some(x=>!x)||new Set(ids).size!==ids.length||
+ if(ids.length<1||proposals.length>ids.length||ids.some(x=>!x)||new Set(ids).size!==ids.length||
     active.some(x=>ids.includes(val(x.row,lo))&&val(x.row,la)!==auditId))
   throw Error('COMPOSITION_SPLIT_MODEL_C_ACTIVE_MEMBERSHIP_INVALID');
  const oh=obligationRows[0],oid=required(oh,'Obligation_ID'),oc=required(oh,'Company_UID'),
@@ -189,7 +195,12 @@ export function prepareSeparateCompositionAuthority20({
   assignments.push({ob,cfg,visitId,auditorId,auditorEmail:email,
    auditorName:val(auditors[0],idx(ah,'Name'))||email,blocks});
  }
- if(seenObligations.size!==ids.length)throw Error('COMPOSITION_SPLIT_UNASSIGNED_OBLIGATION');
+ if(seenObligations.size!==proposals.length)throw Error('COMPOSITION_SPLIT_UNASSIGNED_OBLIGATION');
+ const remainingIds=ids.filter(id=>!seenObligations.has(id)),partial=remainingIds.length>0;
+ if(originalPlanning?.partialScopePlanning===true&&
+    (originalPlanning.remainingObligationIds.length!==ids.length||
+     ids.some(id=>!originalPlanning.remainingObligationIds.includes(id))))
+  throw Error('COMPOSITION_SPLIT_REMAINING_SOURCE_MEMBERSHIP_CHANGED');
  // The canonical rotation manager includes historic consecutive-year rules.
  const rotation=buildRotationManager20(scopeRows,auditorRows,realizedRows);
  if(!rotation?.success||!Array.isArray(rotation.rows))throw Error('COMPOSITION_SPLIT_ROTATION_UNVERIFIED');
@@ -264,11 +275,28 @@ export function prepareSeparateCompositionAuthority20({
   write.add('Concept Reservations!A'+(i+1)+':'+endCol(rh.length)+(i+1),after,clone(row));
  }
  const old=clone(before),sourceAfter=padded(before,ph.length);
- const lineage=assignments.map(x=>x.visitId);
- sourceAfter[pj]=JSON.stringify({identityRetired:true,retirementReason:'VISIT_COMPOSITION_SPLIT',
-  sourceAuditId:auditId,successorAuditIds:lineage,retiredAt:now});
+ const lineage=[...(originalPlanning?.successorAuditIds||[]),...assignments.map(x=>x.visitId)];
+ const remaining=remainingIds.map(id=>obligations.get(id));
+ if(partial){
+  for(const x of assignments){
+   sourceAfter[required(ph,x.cfg.slotKey)]='';
+   sourceAfter[required(ph,'Duration '+x.cfg.slotKey)]='';
+  }
+  const remainingHours=remaining.reduce((n,o)=>n+o.hours,0);
+  sourceAfter[pHours]=remainingHours;sourceAfter[pDays]=remainingHours/8;
+  sourceAfter[pScopes]=remaining.map(o=>byScope.get(o.scopeCode.toLowerCase())?.displayName||o.scopeCode).join(', ');
+  const windowFrom=required(ph,'Planning window from'),windowTo=required(ph,'Planning window to');
+  sourceAfter[windowFrom]=remaining.map(o=>o.from).sort()[0];
+  sourceAfter[windowTo]=remaining.map(o=>o.to).sort().at(-1);
+  sourceAfter[pj]=JSON.stringify({composition:'SEPARATELY',partialScopePlanning:true,
+   sourceAuditId:auditId,successorAuditIds:lineage,remainingObligationIds:remainingIds,
+   lastPartialCommitAt:now});
+ }else{
+  sourceAfter[pj]=JSON.stringify({identityRetired:true,retirementReason:'VISIT_COMPOSITION_SPLIT',
+   sourceAuditId:auditId,successorAuditIds:lineage,retiredAt:now});
+ }
  write.add('Audit planning!A'+source.rowNumber+':'+endCol(ph.length)+source.rowNumber,sourceAfter,old);
- for(const link of sourceLinks){
+ for(const link of sourceLinks.filter(link=>seenObligations.has(val(link.row,lo)))){
   const next=padded(link.row,lh.length);next[ls]='INACTIVE';next[lun]=now;
   write.add('Audit_Visit_Obligations!A'+link.rowNumber+':'+endCol(lh.length)+link.rowNumber,
    next,clone(link.row));
@@ -278,10 +306,14 @@ export function prepareSeparateCompositionAuthority20({
    item.row,item.before);
  }
  const visits=[],entities=[],newPlanning=[],newLinks=[],notifications=[],stamp=now.slice(0,16);
- const parentSnapshot={auditId,status:'Pending Planning',sourceRevision:body.sourceRevision,
-  companyUid,identityRetired:true,retirementReason:'VISIT_COMPOSITION_SPLIT',
-  successorAuditIds:lineage,retiredAt:now};
- entities.push({auditId,expectedRevision:sourceCanonical.revision,remove:true,
+ const parentSnapshot=partial?
+  {auditId,status:'Pending Planning',sourceRevision:fingerprint(ph,sourceAfter),
+   companyUid,partialScopePlanning:true,composition:'SEPARATELY',
+   successorAuditIds:lineage,remainingObligationIds:remainingIds,updatedAt:now}:
+  {auditId,status:'Pending Planning',sourceRevision:body.sourceRevision,
+   companyUid,identityRetired:true,retirementReason:'VISIT_COMPOSITION_SPLIT',
+   successorAuditIds:lineage,retiredAt:now};
+ entities.push({auditId,expectedRevision:sourceCanonical.revision,remove:!partial,
   nextSnapshot:parentSnapshot,auditorId:null,blocks:[]});
  for(const x of assignments){
   const row=padded(before,ph.length);
@@ -357,7 +389,7 @@ export function prepareSeparateCompositionAuthority20({
  ];
  return {success:true,authorityPreflight:true,composition:'SEPARATELY',
   sourceAuditId:auditId,expectedSourceRevision:body.sourceRevision,
-  activeObligationIds:ids,visits,entities,sourceTombstone:parentSnapshot,
+  activeObligationIds:ids,remainingObligationIds:remainingIds,visits,entities,sourceTombstone:parentSnapshot,
   projectionWrites:write.writes,projectionPreconditions:write.preconditions,
   appendIntents,planningAuditIdColumnIndex:pi,
   planningStatusColumnIndex:ps,planningJsonColumnIndex:pj,

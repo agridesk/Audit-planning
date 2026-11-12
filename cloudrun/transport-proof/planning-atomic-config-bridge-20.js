@@ -45,7 +45,10 @@ function snapshot(rows,spec){
   (spec.tab==='Auditors'?str(row[keyIndex]).toLowerCase():str(row[keyIndex]))===spec.key);
  if(matches.length!==1)throw Error('ATOMIC_CONFIG_IDENTITY_NOT_UNIQUE');
  const row=matches[0];
- return Object.fromEntries(Object.entries(fieldIndices).map(([field,i])=>[field,str(row[i])]));
+ const selected=Object.fromEntries(Object.entries(fieldIndices).map(([field,i])=>[field,str(row[i])]));
+ // A rejected write is safe to unlock only if the complete row is unchanged,
+ // including coupled metadata and side-effects outside the requested fields.
+ return {...selected,__canonicalRowFingerprint:sha(row)};
 }
 export function createAtomicConfigurationBridge20({gate,readRows,forward}={}){
  if(!gate||typeof gate.acquire!=='function'||typeof gate.release!=='function'||
@@ -72,7 +75,7 @@ export function createAtomicConfigurationBridge20({gate,readRows,forward}={}){
    // proves the selected fields unchanged; status codes alone are not proof.
    if([400,401,403,409].includes(outcome?.status)&&outcome.payload?.ok===false){
     const afterRejection=snapshot(await readRows(spec.tab),spec);
-    const unchanged=Object.keys(spec.changes).every(field=>afterRejection[field]===before[field]);
+    const unchanged=afterRejection.__canonicalRowFingerprint===before.__canonicalRowFingerprint;
     if(unchanged){
      await gate.release({token:lock.token,verified:true,proof:'CONFIG_REJECTED_ROW_UNCHANGED'});
      lock=null;

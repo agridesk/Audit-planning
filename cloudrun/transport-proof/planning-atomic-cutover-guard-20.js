@@ -4,6 +4,11 @@
  */
 const blocked=[
  /^\/api\/v1\/manager\/extension-direct$/,
+ // Issue #87: these live DEV writers mutate the same planning/obligation
+ // authority and must be migrated under the shared gate before cutover.
+ /^\/api\/v1\/manager\/self-planning-direct$/,
+ /^\/api\/v1\/manager\/extension-obligation-command$/,
+ /^\/api\/v1\/manager\/extension-reconcile-projection$/,
  /^\/api\/v1\/manager\/scopes\/scheme-version$/,
  /^\/api\/v1\/manager\/auditor-identity\/firestore-write-probe$/,
  /^\/api\/v1\/internal\/auditor\/complete-direct$/,

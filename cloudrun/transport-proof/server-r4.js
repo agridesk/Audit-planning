@@ -167,6 +167,22 @@ function isolatedExtAtomicPreflight20(){
   process.env.AMS_GAS_LIFECYCLE_WRITER_RETIRED_VERIFIED==='true'&&
   process.env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE';
 }
+async function readCanonicalPlanningRowsForAtomic20(){
+ // Identical source boundary and render semantics to R15 backfill/parity.
+ // These values are compared as whole-row CAS snapshots in Firestore.
+ if(process.env.AMS_RUNTIME_ENV!=='DEV'||
+    process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED!=='true')
+  throw Error('ATOMIC_CANONICAL_ROW_READ_NOT_ENABLED');
+ const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(SID)+
+  '/values/'+encodeURIComponent('Audit planning!A1:BW2000');
+ const result=await fetch(url,{headers:{authorization:'Bearer '+await accessToken()}});
+ if(!result.ok)throw Error('ATOMIC_CANONICAL_ROW_READ_'+result.status);
+ const data=await result.json(),rows=data?.values;
+ if(!Array.isArray(rows)||!rows.length||rows.length>=2000||
+    rows.some(row=>!Array.isArray(row)))
+  throw Error('ATOMIC_CANONICAL_ROW_SOURCE_INVALID');
+ return rows;
+}
 function normalizeDevModelCDateCells20(valueRanges){
  // Google Sheets returns mixed ISO strings and numeric date serials under
  // UNFORMATTED_VALUE. Preserve all other numeric data and source cells.
@@ -212,7 +228,8 @@ async function readIsolatedDevModelCExt20(){
   }else if(!devManagerDirectWritesConfigAllowed20(cfg))
    throw Error('EXT_DEV_DIRECT_SSOT_MODE_MISMATCH');
  const dates=normalizeDevModelCDateCells20(r);
-  return {obligationRows:dates.obligations,linkRows:r[1]?.values||[],planningRows:dates.planning,scopeRows:r[3]?.values||[]};
+ const planningRows=isolatedExtAtomicPreflight20()?await readCanonicalPlanningRowsForAtomic20():dates.planning;
+ return {obligationRows:dates.obligations,linkRows:r[1]?.values||[],planningRows,scopeRows:r[3]?.values||[]};
 }
 function isolatedExtPilot20(){
  return process.env.AMS_RUNTIME_ENV==='DEV'
@@ -960,7 +977,7 @@ async function directManagerSelfPlanning20(identity,body){
   if(!atomicPreflight&&!devManagerDirectWritesConfigAllowed20(cfg))throw Error('SELF_PLANNING_DEV_SSOT_MODE_MISMATCH');
   if(process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true'&&!atomicPreflight)
    throw Error('SELF_PLANNING_LEGACY_WRITER_FROZEN');
-  const values=result[0]?.values||[];
+  const values=atomicPreflight?await readCanonicalPlanningRowsForAtomic20():result[0]?.values||[];
   if(values.length>=2000)throw Error('SELF_PLANNING_SOURCE_TRUNCATED');
   const found=findAudit(values,auditId);
   if(!found)throw Error('AUDIT_NOT_FOUND');

@@ -371,22 +371,21 @@ function switchScopeDraft20(obligationId){
  const saved=composition20.separateDrafts.get(obligationId)||{blocks:[],auditorEmail:''};
  draftBlocks=saved.blocks.map(b=>({...b}));
  const email=saved.auditorEmail;
- if(email&&[...q('#auditor').options].some(o=>o.value===email))q('#auditor').value=email;
+ q('#auditor').value=email&&[...q('#auditor').options].some(o=>o.value===email)?email:'';
  calendarAnchor='';q('#date').value='';q('#comment').value='';
  renderDraft();
 }
 function switchMode20(mode){
  if(!composition20||!['TOGETHER','SEPARATELY'].includes(mode)||composition20.mode===mode||mode==='TOGETHER'&&(composition20.scopes.length<2||composition20.partialLineage===true))return;
  if(composition20.mode==='SEPARATELY')saveActiveScopeDraft20();
- else composition20.togetherDraft=draftBlocks.map(b=>({...b}));
- composition20.mode=mode;composition20.manual=null;
+ else {composition20.togetherDraft=draftBlocks.map(b=>({...b}));composition20.togetherManual=composition20.manual?composition20.manual.map(a=>({...a})):null;composition20.togetherAuditorEmail=q('#auditor').value;}
+ composition20.mode=mode;composition20.manual=mode==='TOGETHER'?(composition20.togetherManual?composition20.togetherManual.map(a=>({...a})):null):null;
  if(mode==='SEPARATELY'){
   composition20.selectedScope=composition20.scopes[0].obligationId;
   const saved=composition20.separateDrafts.get(composition20.selectedScope)||{blocks:[],auditorEmail:q('#auditor').value};
   draftBlocks=saved.blocks.map(b=>({...b}));
-  if(saved.auditorEmail&&[...q('#auditor').options].some(o=>o.value===saved.auditorEmail))
-   q('#auditor').value=saved.auditorEmail;
- }else draftBlocks=composition20.togetherDraft.map(b=>({...b}));
+  q('#auditor').value=saved.auditorEmail&&[...q('#auditor').options].some(o=>o.value===saved.auditorEmail)?saved.auditorEmail:'';
+ }else {draftBlocks=composition20.togetherDraft.map(b=>({...b}));const email=composition20.togetherAuditorEmail;q('#auditor').value=email&&[...q('#auditor').options].some(o=>o.value===email)?email:'';}
  calendarAnchor='';q('#date').value='';q('#comment').value='';
  renderDraft();
 }

@@ -27,4 +27,22 @@ assert.throws(()=>validate({...base,allocations:allocations.slice(0,2)}),/SCOPE_
 assert.throws(()=>validate({...base,allocations:[...allocations,{...allocations[0]}]}),/SCOPE_ALLOCATION_INVALID/);
 assert.throws(()=>validate({...base,blocks:[{date:'2028-03-12',start:'08:00',end:'14:00'},blocks[1]]}),/SCOPE_WINDOW_BLOCKED/);
 assert.throws(()=>validate({...base,obligations:[obligations[0],[...obligations[1].slice(0,3),0,...obligations[1].slice(4)],obligations[2]]}),/HOURS_OR_IDENTITY_INVALID/);
+const scopeCatalog=[{scopeCode:'GAP',active:true,maxOffsiteHours:1},{scopeCode:'GRASP',active:true,maxOffsiteHours:1}];
+const offsiteBlocks=[
+ {date:'2027-03-12',start:'08:00',end:'09:00',executionType:'OFFSITE',execLoc:''},
+ {date:'2027-03-12',start:'09:00',end:'14:00',executionType:'ONSITE',execLoc:'HQ'},
+ {date:'2027-03-13',start:'08:00',end:'13:00',executionType:'ONSITE',execLoc:'HQ'}
+];
+const offsiteAllocations=[
+ {blockId:'2027-03-12|08:00|09:00',obligationId:'o1',minutes:60},
+ {blockId:'2027-03-12|09:00|14:00',obligationId:'o1',minutes:300},
+ {blockId:'2027-03-13|08:00|13:00',obligationId:'o1',minutes:120},
+ {blockId:'2027-03-13|08:00|13:00',obligationId:'o2',minutes:180}
+];
+const legitimate=validate({...base,scopeCatalog,blocks:offsiteBlocks,allocations:offsiteAllocations});
+assert.equal(legitimate.offsiteMinutesByObligation.o1,60);
+assert.throws(()=>validate({...base,blocks:offsiteBlocks,allocations:offsiteAllocations}),
+ /OFFSITE_SCOPE_POLICY_MISSING/);
+assert.throws(()=>validate({...base,scopeCatalog:scopeCatalog.map(x=>({...x,maxOffsiteHours:0})),blocks:offsiteBlocks,allocations:offsiteAllocations}),
+ /OFFSITE_SCOPE_MAX_EXCEEDED/);
 console.log('VISIT_COMPOSITION_TOGETHER_R4_PREFLIGHT_20_PASS: canonical obligations, scope hours, windows and per-block allocation');

@@ -942,6 +942,20 @@ async function directManagerSelfPlanning20(identity,body){
   if(previous!==expectedValue)throw Error('STALE_SELF_PLANNING_VALUE');
   if(previous===value)return{success:true,auditId,allowSelfPlanning:value,unchanged:true,sourceRevision:expectedRevision};
   const targetRange='Audit planning!'+a1col(index+1)+found.sourceRow;
+  // Atomic cutover preflight is a read-only projection proposal. It must
+  // never mutate Sheets or declare the legacy writer authoritative.
+  if(body?.authorityPreflight===true&&process.env.AMS_RUNTIME_ENV==='DEV'&&
+     process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true'){
+   const updated=found.row.slice();updated[index]=value?'Yes':'No';
+   const rowRange='Audit planning!A'+found.sourceRow+':'+a1col(found.h.length)+found.sourceRow;
+   return {success:true,authorityPreflight:true,auditId,allowSelfPlanning:value,
+    expectedSourceRevision:expectedRevision,
+    canonicalSnapshot:{auditId,sourceRow:found.sourceRow,headers:found.h,row:updated,
+     status:'Pending Planning',sourceRevision:directRowRevision(found.h,updated)},
+    projectionWrites:[{range:rowRange,values:[updated]}],
+    projectionPreconditions:[{range:rowRange,before:found.row.slice()}],
+    appendIntents:[],owner:'CLOUD_RUN_DEV_SELF_PLANNING_ATOMIC_PREFLIGHT'};
+  }
   await sheetsValuesBatchUpdateRaw([{range:targetRange,values:[[value?'Yes':'No']]}]);
   const readback=await sheetsBatchGet([targetRange]);
   if(!Array.isArray(readback[0]?.values)||yes(readback[0].values[0]?.[0])!==value)throw Error('SELF_PLANNING_READBACK_UNVERIFIED');

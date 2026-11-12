@@ -1272,7 +1272,7 @@ http.createServer(async(req,res)=>{
    const auditors=roster.filter(x=>x.role==='auditor').map(x=>({
     auditorId:x.auditorId,email:x.email,name:x.displayName}));
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
-   res.end(JSON.stringify({success:true,auditors,writeEnabled:Boolean(planningAtomicComposition)}));return;
+   res.end(JSON.stringify({success:true,auditors,writeEnabled:Boolean(planningAtomicComposition),togetherWriteEnabled:Boolean(planningAtomicCommands),separateWriteEnabled:Boolean(planningAtomicComposition)}));return;
   }
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/visit-composition-atomic'){
    if(!planningAtomicComposition){res.writeHead(404,{'cache-control':'no-store'});res.end();return;}

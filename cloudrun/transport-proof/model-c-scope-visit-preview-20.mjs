@@ -44,15 +44,18 @@ export function previewModelCVisitComposition20({auditId,obligations,links,plann
  if(configScopes!==null){
   const ch=configScopes?.[0]||[],ci=col(ch,'ScopeCode');
   if(ci<0)throw Error('MODEL_C_PREVIEW_SCOPE_CATALOG_SCHEMA_INCOMPLETE');
-  const counts=new Map(),policies=new Map(),recCol=col(ch,'Recurring');
+  const counts=new Map(),policies=new Map(),offsitePolicies=new Map(),recCol=col(ch,'Recurring'),offCol=col(ch,'Max_Offsite_Hours');
   for(const r of configScopes.slice(1)){
    const key=field(r,ci);if(!key)continue;
    counts.set(key,(counts.get(key)||0)+1);
    if(recCol>=0)policies.set(key,field(r,recCol));
+   if(offCol>=0)offsitePolicies.set(key,field(r,offCol));
   }
   for(const row of rows){
    const raw=String(policies.get(row.scopeCode)||'').trim().toUpperCase();
    row.recurring=['YES','TRUE','1','X'].includes(raw)?true:['NO','FALSE','0'].includes(raw)?false:null;
+   const maxRaw=offsitePolicies.get(row.scopeCode),maxOff=maxRaw===undefined||maxRaw===''?null:Number(String(maxRaw).replace(',','.'));
+   row.maxOffsiteHours=maxOff!==null&&Number.isFinite(maxOff)&&maxOff>=0?maxOff:null;
    row.windowSource='OBLIGATION_CANONICAL';
    if(row.recurring===false&&(!row.windowFrom||!row.windowTo)){
     if(!row.windowFrom)row.windowFrom=parentWindow.from;

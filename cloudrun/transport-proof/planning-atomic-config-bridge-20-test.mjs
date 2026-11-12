@@ -118,4 +118,21 @@ const r15=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 assert.ok(r15.includes('planningAtomicConfigBridge&&atomicConfigurationRoutes20.includes(u.pathname)'));
 assert.ok(r15.includes('planningAtomicConfigBridge.commit({actor,path:u.pathname,body'));
 assert.ok(r15.includes('res.writeHead(result.status,'),'HTTP error status must be preserved');
+// Guard that both additional manager configuration mutations are fenced
+// at the live R15 entrypoint, not just via helper-only tests.
+const eventStart=r15.indexOf('async function notificationEventMutation');
+const cbStart=r15.indexOf('async function notificationCbSettingMutation');
+const proxyStart=r15.indexOf('async function proxy');
+assert.ok(eventStart>0&&cbStart>eventStart&&proxyStart>cbStart);
+const eventSrc=r15.slice(eventStart,cbStart),cbSrc=r15.slice(cbStart,proxyStart);
+for(const source of [eventSrc,cbSrc]){
+ assert.match(source,/planningGlobalGate\.acquire/);
+ assert.match(source,/planningGlobalGate\.uncertain/);
+ assert.match(source,/planningGlobalGate\.release/);
+ assert.match(source,/ReadbackVerified=true/);
+ assert.ok(source.indexOf('planningGlobalGate.acquire')<source.indexOf("method:'POST'")||
+  source.indexOf('planningGlobalGate.acquire')<source.indexOf('notificationGasCall(actor,\'updateEvent\''));
+}
+assert.match(eventSrc,/NOTIFICATION_EVENT_READBACK_MISMATCH/);
+assert.match(cbSrc,/CB_SETTING_EMAIL_VERIFICATION_READBACK_FAILED/);
 console.log('Issue #87: 4 metadata routes serialized, stale CAS blocked, rejections verified PASS');

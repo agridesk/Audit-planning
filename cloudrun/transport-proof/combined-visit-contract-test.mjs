@@ -33,6 +33,8 @@ has(r5,"scopes.length<(previous?1:2)",
  'later final obligation can continue in the same canonical Planner');
 has(r4,'PARTIAL_COMPOSITION_CANONICAL_ATOMIC_ROUTE_REQUIRED',
  'residual Model C parent cannot be overwritten by a legacy direct Plan route');
+has(r5,'![true,false].includes(scope.recurring)','unknown recurring policy blocks selected-scope Save');
+has(r5,'![true,false].includes(active.recurring)','unknown recurring policy visibly warns in selected scope');
 has(r5,'partialLineage:previous',
  'a partly split source cannot accidentally switch back to Together');
 has(r5,"Save selected scope",

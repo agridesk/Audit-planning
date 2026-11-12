@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,planningAtomicOwnedHttpRoutes20} from './planning-atomic-cutover-guard-20.js';
+import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,planningAtomicOwnedHttpRoutes20,planningAtomicRetiredHttpRoutes20,classifiedPlanningCutoverPaths20} from './planning-atomic-cutover-guard-20.js';
 import {compositionLiveWriterSurfaces20} from './planning-cutover-compatibility-20.mjs';
 const blocked=[
  '/api/v1/manager/extension-direct',
@@ -67,10 +67,14 @@ const retired=entrySource.indexOf("LEGACY_EXT_ROUTE_RETIRED_USE_MODEL_C_COMMAND"
 const mainFence=entrySource.indexOf("enforcePlanningAtomicCutover20({enabled:planningAtomicEnabled,method:req.method,path:u.pathname});");
 assert.ok(retired>0&&retired<mainFence,
  'Legacy EXT and reconcile endpoints must return 410 before proxy fallback');
-for(const route of ['/api/v1/manager/extension','/api/v1/manager/extension-direct',
- '/api/v1/manager/extension-reconcile-projection'])
- assert.ok(entrySource.slice(retired-600,retired+100).includes("'"+route+"'"),
-  'Legacy EXT route is not explicitly retired: '+route);
+assert.ok(entrySource.includes('planningAtomicRetiredHttpRoutes20.includes(u.pathname)'),
+ 'Retired routes must be rejected by R15 through the classified route inventory');
+assert.deepEqual(planningAtomicRetiredHttpRoutes20,[
+ '/api/v1/manager/extension',
+ '/api/v1/manager/extension-direct',
+ '/api/v1/manager/extension-reconcile-projection'
+]);
+assert.deepEqual(classifiedPlanningCutoverPaths20(),[...compositionLiveWriterSurfaces20]);
 const internalHandler=entrySource.indexOf("u.pathname==='/api/v1/internal/auditor/complete-direct'&&planningAtomicInternalComplete");
 assert.ok(internalHandler>0,'Internal auditor COMPLETE must dispatch to atomic multi lifecycle');
 const internalSource=entrySource.slice(internalHandler,internalHandler+2300);

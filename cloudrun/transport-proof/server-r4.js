@@ -147,6 +147,18 @@ function isolatedExtDirect20(){
   &&process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true'
   &&process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true';
 }
+function selfPlanningAtomicReadOnlyPreflight20(cfg,body){
+ if(body?.authorityPreflight!==true||process.env.AMS_RUNTIME_ENV!=='DEV'||
+    process.env.K_SERVICE!=='ams-fase12-dev'||
+    process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED!=='true'||
+    process.env.AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED!=='true'||
+    process.env.AMS_GAS_LIFECYCLE_WRITER_RETIRED_VERIFIED!=='true')
+  return false;
+ if(cfg.get('ENV')!=='DEV'||String(cfg.get('ALLOW_DEV_WRITES')).toUpperCase()!=='FALSE'||
+    cfg.get('DEV_WRITE_MODE')!=='BLOCK')
+  throw Error('SELF_PLANNING_ATOMIC_LEGACY_WRITERS_NOT_FROZEN');
+ return true;
+}
 function isolatedExtAtomicPreflight20(){
  return process.env.AMS_RUNTIME_ENV==='DEV'&&
   process.env.K_SERVICE==='ams-fase12-dev'&&
@@ -944,7 +956,10 @@ async function directManagerSelfPlanning20(identity,body){
   const rows=result[1]?.values||[];
   if(rows[0]?.[0]!=='KEY'||rows[0]?.[1]!=='DEV'||rows[0]?.[2]!=='PROD')throw Error('SELF_PLANNING_DEV_CONFIG_SCHEMA_CHANGED');
   const cfg=new Map(rows.slice(1).filter(x=>clean(x[0])).map(x=>[clean(x[0]),clean(x[1])]));
-  if(!devManagerDirectWritesConfigAllowed20(cfg))throw Error('SELF_PLANNING_DEV_SSOT_MODE_MISMATCH');
+  const atomicPreflight=selfPlanningAtomicReadOnlyPreflight20(cfg,body);
+  if(!atomicPreflight&&!devManagerDirectWritesConfigAllowed20(cfg))throw Error('SELF_PLANNING_DEV_SSOT_MODE_MISMATCH');
+  if(process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true'&&!atomicPreflight)
+   throw Error('SELF_PLANNING_LEGACY_WRITER_FROZEN');
   const values=result[0]?.values||[];
   if(values.length>=2000)throw Error('SELF_PLANNING_SOURCE_TRUNCATED');
   const found=findAudit(values,auditId);
@@ -959,8 +974,7 @@ async function directManagerSelfPlanning20(identity,body){
   const targetRange='Audit planning!'+a1col(index+1)+found.sourceRow;
   // Atomic cutover preflight is a read-only projection proposal. It must
   // never mutate Sheets or declare the legacy writer authoritative.
-  if(body?.authorityPreflight===true&&process.env.AMS_RUNTIME_ENV==='DEV'&&
-     process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true'){
+  if(atomicPreflight){
    const updated=found.row.slice();updated[index]=value?'Yes':'No';
    const rowRange='Audit planning!A'+found.sourceRow+':'+a1col(found.h.length)+found.sourceRow;
    return {success:true,authorityPreflight:true,auditId,allowSelfPlanning:value,

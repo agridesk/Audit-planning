@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createAtomicConfigurationBridge20,atomicConfigurationRoutes20} from './planning-atomic-config-bridge-20.js';
 const route='/api/v1/manager/company-management/save';
-function fixture({failForward=false,mismatch=false}={}){
+function fixture({failForward=false,mismatch=false,rejected=false}={}){
  const events=[];let value='Before';
  const bridge=createAtomicConfigurationBridge20({
   gate:{
@@ -16,6 +16,7 @@ function fixture({failForward=false,mismatch=false}={}){
   },
   forward:async()=>{
    events.push('forward');if(failForward)throw Error('TRANSPORT_UNCERTAIN');
+   if(rejected)return {status:400,payload:{ok:false,error:'INVALID_CHANGE_VALUE'}};
    value='After';return {status:200,payload:{ok:true,updated:1}};
   }
  });
@@ -26,8 +27,15 @@ const body={companyUid:'company-1',changes:{Comments:{expected:'Before',value:'A
 {
  const {bridge,events}=fixture();
  const response=await bridge.commit({actor,path:route,body,cookie:'sid=abc',origin:'https://dev.example'});
- assert.equal(response.updated,1);
+ assert.equal(response.status,200);assert.equal(response.payload.updated,1);
  assert.deepEqual(events,['lock','read','forward','read','release']);
+}
+{
+ const {bridge,events}=fixture({rejected:true});
+ const outcome=await bridge.commit({actor,path:route,body,cookie:'sid=abc',origin:'https://dev.example'});
+ assert.equal(outcome.status,400);
+ assert.equal(outcome.payload.error,'INVALID_CHANGE_VALUE');
+ assert.deepEqual(events,['lock','read','forward','release']);
 }
 {
  const {bridge,events}=fixture({failForward:true});
@@ -56,4 +64,5 @@ assert.equal(atomicConfigurationRoutes20.length,3);
 const r15=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 assert.ok(r15.includes('planningAtomicConfigBridge&&atomicConfigurationRoutes20.includes(u.pathname)'));
 assert.ok(r15.includes('planningAtomicConfigBridge.commit({actor,path:u.pathname,body'));
+assert.ok(r15.includes('res.writeHead(result.status,'),'HTTP error status must be preserved');
 console.log('Issue #87: 3 metadata routes serialized with readback and fail-uncertain PASS');

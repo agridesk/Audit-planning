@@ -1999,10 +1999,18 @@ function directPlanningCommit(identity,body){
     if(((actorRole==='MANAGER'&&currentStatus==='APPROVED')||(actorRole==='AUDITOR'&&currentStatus==='PENDING_APPROVAL'))&&currentAssigned===auditorEmail&&sameBlocks)return{success:true,idempotent:true,auditId,newStatus:actorRole==='MANAGER'?'Approved':'Pending Approval',assignedTo:auditorEmail,planningJson:clean(found.row[col(found.h,['Planning JSON','PlanningJSON','Planning'])]),totalMs:Date.now()-started,readMs,writeMs:0,sideEffectMs:0,sideEffectQueue:{success:true,skipped:true,reason:'IDEMPOTENT_REPLAY'},owner:actorRole==='MANAGER'?'CLOUD_RUN_DIRECT_SHEETS_MANAGER_PLAN':'CLOUD_RUN_DIRECT_SHEETS_AUDITOR_SELF_PLAN'};
     if(sourceRevision&&sourceRevision!==clean(audit.sourceRevision))throw new Error('PLANNING_SOURCE_REVISION_CONFLICT');
     if(currentStatus!=='PENDING_PLANNING')throw new Error('STATUS_TRANSITION_BLOCKED');
+    // Model C scope membership and windows must be validated before
+    // qualification checks; legacy audit scopes are not authoritative.
+    const together=compositionMode==='TOGETHER'?validateTogetherCompositionPreflight20({
+      auditId,companyUid:audit.companyUid,obligations:vr[6]?.values||[],
+      links:vr[7]?.values||[],blocks:requested,allocations:body?.scopeAllocations,
+      scopeCatalog:catalog,
+      formalTargetMinutes:requested.reduce((minutes,block)=>minutes+Math.round(block.hours*60),0)
+    }):null;
     const requireCanonicalQualifications=compositionMode==='TOGETHER'||process.env.AMS_RUNTIME_ENV==='DEV'&&process.env.AMS_SCOPE20_CANONICAL_QUALIFICATIONS_READ_ENABLED==='true';
     const qualificationRelations=requireCanonicalQualifications?(await sheetsBatchGet(['Auditor_Scope_Qualifications!A1:C5000']))[0]?.values:undefined;
     if(requireCanonicalQualifications&&(!Array.isArray(qualificationRelations)||!qualificationRelations.length))throw Error('CANONICAL_QUALIFICATIONS_NOT_LOADED');
-    const assignmentHard=v211AssignmentHardCheck({auditorEmail,auditorValues:vr[1]?.values||[],catalog,scopeCodes:audit.scopes||[],companyValues:vr[5]?.values||[],companyUid:audit.companyUid,companyName:audit.company,logValues:vr[8]?.values||[],requestedDates:requested.map(b=>b.date),qualificationRelations,requireCanonicalQualifications});if(!assignmentHard.ok)throw new Error(assignmentHard.reasons[0]);
+    const assignmentHard=v211AssignmentHardCheck({auditorEmail,auditorValues:vr[1]?.values||[],catalog,scopeCodes:together?together.scopeAllocation.obligations.map(x=>x.scopeCode):audit.scopes||[],companyValues:vr[5]?.values||[],companyUid:audit.companyUid,companyName:audit.company,logValues:vr[8]?.values||[],requestedDates:requested.map(b=>b.date),qualificationRelations,requireCanonicalQualifications});if(!assignmentHard.ok)throw new Error(assignmentHard.reasons[0]);
     if(process.env.AMS_ROTATION_20_DIRECT_WRITER_ENABLED==='true'){
       const rotationAuditors=vr[1]?.values||[],rotationUidCol=col(rotationAuditors[0]||[],['Auditor_UID','Auditor UID']),rotationEmailCol=col(rotationAuditors[0]||[],['Email','E-mail']);
       if(rotationUidCol<0||rotationEmailCol<0)throw Error('ROTATION_DIRECT_AUDITOR_DIRECTORY_SCHEMA_MISSING');
@@ -2056,11 +2064,6 @@ function directPlanningCommit(identity,body){
       x.row[z.s]=b.start;x.row[z.e]=b.end;x.row[z.id]=auditId;x.row[z.st]=actorRole==='MANAGER'?'Manager Planned':'Auditor Planned';x.row[ca]='NO';if(lu>=0)x.row[lu]=isoLocalStamp();touched.set(x.sheetRow,x);
     }
 
-    const together=compositionMode==='TOGETHER'?validateTogetherCompositionPreflight20({
-      auditId,companyUid:audit.companyUid,obligations:vr[6]?.values||[],
-      links:vr[7]?.values||[],blocks:requested,allocations:body?.scopeAllocations,
-      scopeCatalog:catalog,formalTargetMinutes
-    }):null;
     const h=ap[0]||[],row=found.row.slice(),set=(names,value)=>{const i=col(h,names);if(i>=0)row[i]=value;};
     const now=isoLocalStamp(),formalHours=together?together.requiredMinutes/60:Math.round(Number(audit.formalHours||audit.requiredHours||0)*100)/100,planningJson=JSON.stringify({blocks:requested,formalHours,totalPlannedHours:Math.round(total*100)/100,offsiteHours,maxOffsiteHours:compositionMode==='TOGETHER'?offsitePolicy.byScope.reduce((n,x)=>n+Number(x.maxOffsiteHours||0),0):Number(offsitePolicy.maxOffsiteHours||0),auditorEmail,auditorName,...(together?{composition:'TOGETHER',scopeAllocations:together.scopeAllocations}:{})});
     const afterStatus=actorRole==='MANAGER'?'Approved':'Pending Approval';set(['Assigned to'],auditorEmail);

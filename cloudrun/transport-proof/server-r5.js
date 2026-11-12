@@ -464,7 +464,7 @@ async function loadScopePlanning20(){
    if(!response.ok)throw Error([data.error||'Model C read unavailable',data.diagnostic].filter(Boolean).join(' · '));
    return data;
   }));
-  const preview=payload[0],offsiteByScope=(a.offsitePolicy?.byScope||[]),scopes=(preview.obligations||[]).map(o=>({...o,requiredHours:Number(o.requiredHours),maxOffsiteHours:Number(offsiteByScope.find(x=>String(x.scopeCode).toLowerCase()===String(o.scopeCode).toLowerCase())?.maxOffsiteHours||0)}));
+  const preview=payload[0],scopes=(preview.obligations||[]).map(o=>({...o,requiredHours:Number(o.requiredHours),maxOffsiteHours:o.maxOffsiteHours!==null&&o.maxOffsiteHours!==undefined?Number(o.maxOffsiteHours):0}));
   if(!preview.sourceEvidenceReady||preview.source?.status!=='Pending Planning'||!preview.sourceRevisionAtomic||
    scopes.length<(previous?1:2)||scopes.some(o=>!o.obligationId||!o.scopeCode||!(o.requiredHours>0)))
    throw Error('Canonical obligation source incomplete');

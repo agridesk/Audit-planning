@@ -1039,6 +1039,13 @@ async function notificationEventMutation(req,res){
  let body;try{body=JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{res.writeHead(400);res.end('INVALID_JSON');return;}
  const key=String(body.eventKey||'').trim().toUpperCase(),field=String(body.field||'');
  if(!/^[A-Z][A-Z0-9_]{1,100}$/.test(key)||!['ACTIVE','SEND_EMAIL'].includes(field)||typeof body.value!=='boolean'||typeof body.expected!=='boolean'){res.writeHead(400);res.end('INVALID_MUTATION');return;}
+ let eventGateLock=null,eventWriteAttempted=false,eventReadbackVerified=false;
+ try{
+ if(planningAtomicEnabled){
+  if(!planningGlobalGate)throw Error('NOTIFICATION_EVENT_ATOMIC_GATE_MISSING');
+  const operationId=createHash('sha256').update(JSON.stringify({key,field,value:body.value,expected:body.expected,actorId:actor.auditorId})).digest('hex');
+  eventGateLock=await planningGlobalGate.acquire({operationId,actorId:String(actor.auditorId),kind:'ATOMIC_NOTIFICATION_EVENT_SERIALIZED'});
+ }
  const range="'Notification_Config'!A1:AZ500";
  const base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/';
  const headers={authorization:'Bearer '+await getToken()};
@@ -1052,8 +1059,44 @@ async function notificationEventMutation(req,res){
  if(matches.length!==1){res.writeHead(409);res.end('EVENT_NOT_UNIQUE');return;}
  const current=['YES','TRUE','1','ON'].includes(String(matches[0].r[col]||'').toUpperCase());
  if(current!==body.expected){res.writeHead(409);res.end('RELOAD_REQUIRED');return;}
+ eventWriteAttempted=true;
  const data=await notificationGasCall(actor,'updateEvent',{eventKey:key,changes:{[field]:body.value},expected:{[field]:body.expected}});
+ if(data.ok===true){
+  const afterResponse=await fetch(base+encodeURIComponent(range),{headers,signal:AbortSignal.timeout(12000)});
+  if(!afterResponse.ok)throw Error('NOTIFICATION_EVENT_READBACK_FAILED');
+  const afterRows=(await afterResponse.json()).values||[];
+  const afterHeader=(afterRows[0]||[]).map(x=>String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,''));
+  const afterKeyCol=afterHeader.indexOf('EVENTKEY'),afterCol=afterHeader.indexOf(field.replace(/[^A-Z0-9]/g,''));
+  if(afterKeyCol<0||afterCol<0)throw Error('NOTIFICATION_EVENT_READBACK_SCHEMA');
+  const afterMatches=afterRows.slice(1).filter(row=>String(row[afterKeyCol]||'').trim().toUpperCase()===key);
+  const actual=afterMatches.length===1&&['YES','TRUE','1','ON'].includes(String(afterMatches[0][afterCol]||'').toUpperCase());
+  if(afterMatches.length!==1||actual!==body.value)throw Error('NOTIFICATION_EVENT_READBACK_MISMATCH');
+  eventReadbackVerified=true;
+ }else{
+  // A rejected CAS can safely unlock only after an independent unchanged read.
+  const afterResponse=await fetch(base+encodeURIComponent(range),{headers,signal:AbortSignal.timeout(12000)});
+  if(!afterResponse.ok)throw Error('NOTIFICATION_EVENT_REJECTED_READBACK_FAILED');
+  const afterRows=(await afterResponse.json()).values||[];
+  const afterHeader=(afterRows[0]||[]).map(x=>String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,''));
+  const afterKeyCol=afterHeader.indexOf('EVENTKEY'),afterCol=afterHeader.indexOf(field.replace(/[^A-Z0-9]/g,''));
+  const afterMatches=afterRows.slice(1).filter(row=>String(row[afterKeyCol]||'').trim().toUpperCase()===key);
+  if(afterKeyCol<0||afterCol<0||afterMatches.length!==1||
+   ['YES','TRUE','1','ON'].includes(String(afterMatches[0][afterCol]||'').toUpperCase())!==current)
+   throw Error('NOTIFICATION_EVENT_REJECTED_WRITE_UNCERTAIN');
+  eventReadbackVerified=true;
+ }
+ if(eventGateLock){
+  await planningGlobalGate.release({token:eventGateLock.token,verified:true,proof:'NOTIFICATION_EVENT_READBACK_VERIFIED'});
+  eventGateLock=null;
+ }
  res.writeHead(data.ok?200:409,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(data));
+ }finally{
+  if(eventGateLock){
+   if(eventWriteAttempted&&!eventReadbackVerified)
+    await planningGlobalGate.uncertain({token:eventGateLock.token,reason:'NOTIFICATION_EVENT_WRITE_UNCONFIRMED'});
+   else await planningGlobalGate.release({token:eventGateLock.token,verified:true,proof:'NOTIFICATION_EVENT_NO_WRITE_ATTEMPT'});
+  }
+ }
 }
 async function notificationCbSettingMutation(req,res){
  if(!runtime.isDev){res.writeHead(404);res.end('Not found');return;}

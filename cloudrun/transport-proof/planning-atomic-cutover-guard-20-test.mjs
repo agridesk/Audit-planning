@@ -32,9 +32,10 @@ for(const path of ['/api/v1/planning/direct-commit','/api/v1/manager/approve-dir
  assert.doesNotThrow(()=>enforcePlanningAtomicCutover20({enabled:true,method:'POST',path}));
 }
 assert.equal(validatePlanningAtomicRuntime20({enabled:false}),true);
-const validated={enabled:true,legacyWriterRetired:true,managerOwnerShared:true,backfillParityVerified:true,otherAuthorityEnabled:false};
+const validated={enabled:true,legacyWriterRetired:true,managerOwnerShared:true,backfillParityVerified:true,liveWriterRouteParityVerified:true,otherAuthorityEnabled:false};
 assert.equal(validatePlanningAtomicRuntime20(validated),true);
 assert.throws(()=>validatePlanningAtomicRuntime20({...validated,legacyWriterRetired:false}),/PLANNING_ATOMIC_LEGACY_WRITER_NOT_RETIRED/);
 assert.throws(()=>validatePlanningAtomicRuntime20({...validated,backfillParityVerified:false}),/PLANNING_ATOMIC_BACKFILL_PARITY_REQUIRED/);
 assert.throws(()=>validatePlanningAtomicRuntime20({...validated,otherAuthorityEnabled:true}),/PLANNING_ATOMIC_DUAL_AUTHORITY_ENABLED/);
+assert.throws(()=>validatePlanningAtomicRuntime20({...validated,liveWriterRouteParityVerified:false}),/PLANNING_ATOMIC_LIVE_WRITER_ROUTE_PARITY_REQUIRED/);
 console.log('Atomic cutover write surface: migration fence and unaffected PROD paths OK');

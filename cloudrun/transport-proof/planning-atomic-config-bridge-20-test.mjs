@@ -36,7 +36,7 @@ const body={companyUid:'company-1',changes:{Comments:{expected:'Before',value:'A
  const outcome=await bridge.commit({actor,path:route,body,cookie:'sid=abc',origin:'https://dev.example'});
  assert.equal(outcome.status,400);
  assert.equal(outcome.payload.error,'INVALID_CHANGE_VALUE');
- assert.deepEqual(events,['lock','read','forward','release']);
+ assert.deepEqual(events,['lock','read','forward','read','release']);
 }
 {
  const {bridge,events}=fixture({conflict:true});
@@ -73,6 +73,24 @@ const body={companyUid:'company-1',changes:{Comments:{expected:'Before',value:'A
   cookie:'sid=abc',origin:'https://dev.example'}),/MANAGER_REQUIRED/);
  assert.equal(events.length,0);
 }
+{
+ const {bridge,events}=fixture();
+ await assert.rejects(bridge.commit({actor,path:route,
+  body:{companyUid:'company-1',changes:{Comments:{expected:'Stale',value:'After'}}},
+  cookie:'sid=abc',origin:'https://dev.example'}),/STALE_EXPECTED/);
+ assert.deepEqual(events,['lock','read','release']);
+}
+{
+ const events=[];let current='Before';
+ const bridge=createAtomicConfigurationBridge20({
+  gate:{acquire:async()=>{events.push('lock');return {token:'t'}},
+   release:async()=>events.push('release'),uncertain:async()=>events.push('uncertain')},
+  readRows:async()=>{events.push('read');return [['Company_UID','Comments'],['company-1',current]]},
+  forward:async()=>{events.push('forward');current='Partial';return {status:400,payload:{ok:false,error:'INVALID_CHANGE_VALUE'}}}
+ });
+ await assert.rejects(bridge.commit({actor,path:route,body,cookie:'sid=abc',origin:'https://dev.example'}),/INNER_WRITE_UNCONFIRMED/);
+ assert.deepEqual(events,['lock','read','forward','read','uncertain']);
+}
 assert.equal(atomicConfigurationRoutes20.length,4);
 assert.ok(atomicConfigurationRoutes20.includes('/api/v1/auditor/company-management/save'));
 {
@@ -100,4 +118,4 @@ const r15=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 assert.ok(r15.includes('planningAtomicConfigBridge&&atomicConfigurationRoutes20.includes(u.pathname)'));
 assert.ok(r15.includes('planningAtomicConfigBridge.commit({actor,path:u.pathname,body'));
 assert.ok(r15.includes('res.writeHead(result.status,'),'HTTP error status must be preserved');
-console.log('Issue #87: 3 metadata routes serialized with readback and fail-uncertain PASS');
+console.log('Issue #87: 4 metadata routes serialized, stale CAS blocked, rejections verified PASS');

@@ -28,6 +28,16 @@ const rendered=managerVisitCompositionPage20();
 const inline=/<script>([\s\S]*?)<\/script>/.exec(rendered);
 assert.ok(inline);
 new Script(inline[1],{filename:'visit-composition-editor-inline.js'});
+assert.match(rendered,/source\.scopes\.reduce/);
+assert.match(rendered,/Not recorded in Model C/);
+assert.doesNotMatch(rendered,/undefined formal hours/);
+const functionText=/function usableIsoDate\(x\)\{[\s\S]*?\n\}/.exec(inline[1])?.[0];
+assert.ok(functionText,'Date normalization function must be present in rendered editor');
+const dateVm={Date,Number,String};
+runInNewContext(functionText+';this.normalizeDate=usableIsoDate',dateVm);
+assert.equal(dateVm.normalizeDate('10/02/2027'),'2027-02-10');
+assert.equal(dateVm.normalizeDate('2027-02-10'),'2027-02-10');
+assert.equal(dateVm.normalizeDate('31/02/2027'),'');
 
 
 assert.match(client,/Continue to secure Cloud Run planning/);

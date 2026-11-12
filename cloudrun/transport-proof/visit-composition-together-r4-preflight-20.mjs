@@ -17,7 +17,7 @@ function date(value){
  return iso;
 }
 const min=t=>{if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(str(t)))throw Error('TOGETHER_BLOCK_TIME_INVALID');return Number(t.slice(0,2))*60+Number(t.slice(3));};
-export function validateTogetherCompositionPreflight20({auditId,companyUid,obligations,links,blocks,allocations,formalTargetMinutes}={}){
+export function validateTogetherCompositionPreflight20({auditId,companyUid,obligations,links,blocks,allocations,formalTargetMinutes,scopeCatalog=null}={}){
  auditId=str(auditId);companyUid=str(companyUid);
  if(!auditId||!companyUid||!Array.isArray(obligations)||!Array.isArray(links)||
     !Array.isArray(blocks)||!blocks.length||!Array.isArray(allocations)||
@@ -64,11 +64,28 @@ export function validateTogetherCompositionPreflight20({auditId,companyUid,oblig
  if(result.scopes.some(x=>x.remainingMinutes!==0||x.plannedMinutes!==x.requiredMinutes)||
     result.blocks.some(x=>x.unallocatedMinutes!==0))
   throw Error('TOGETHER_SCOPE_MINUTES_INCOMPLETE');
+ const offsiteBlocks=new Set(keyedBlocks.filter(b=>String(b.executionType||'ONSITE').toUpperCase()==='OFFSITE').map(b=>b.blockId));
+ const offsiteAllocated=new Map(required.map(o=>[o.obligationId,0]));
+ if(offsiteBlocks.size){
+  if(!Array.isArray(scopeCatalog)||!scopeCatalog.length)
+   throw Error('TOGETHER_OFFSITE_SCOPE_POLICY_MISSING');
+  for(const b of keyedBlocks.filter(b=>offsiteBlocks.has(b.blockId)))
+   if(str(b.execLoc)||str(b.executionLocation))throw Error('TOGETHER_OFFSITE_LOCATION_NOT_EMPTY');
+  for(const a of allocations)if(offsiteBlocks.has(str(a.blockId)))
+   offsiteAllocated.set(str(a.obligationId),offsiteAllocated.get(str(a.obligationId))+Number(a.minutes));
+  for(const o of required){
+   const matched=scopeCatalog.filter(c=>str(c.scopeCode).toLowerCase()===o.scopeCode.toLowerCase()&&c.active!==false&&c.archived!==true);
+   if(matched.length!==1)throw Error('TOGETHER_OFFSITE_SCOPE_POLICY_AMBIGUOUS_'+o.scopeCode);
+   const cap=Number(matched[0].maxOffsiteHours||0);
+   if(!Number.isFinite(cap)||cap<0||offsiteAllocated.get(o.obligationId)>Math.round(cap*60))
+    throw Error('TOGETHER_OFFSITE_SCOPE_MAX_EXCEEDED_'+o.scopeCode);
+  }
+ }
  const scopeAllocations=allocations.map(a=>({blockId:str(a.blockId),
   obligationId:str(a.obligationId),minutes:Number(a.minutes)}));
  return {composition:'TOGETHER',auditId,companyUid,
   scopeAllocation:{auditId,composition:'TOGETHER',
    obligations:required.map(({from,to,...x})=>x),blocks:keyedBlocks,allocations:scopeAllocations},
-  scopeAllocations,requiredMinutes:formalTargetMinutes,obligationIds:ids,
+  scopeAllocations,offsiteMinutesByObligation:Object.fromEntries(offsiteAllocated),requiredMinutes:formalTargetMinutes,obligationIds:ids,
   canCommitOnlyViaAtomicOwner:true};
 }

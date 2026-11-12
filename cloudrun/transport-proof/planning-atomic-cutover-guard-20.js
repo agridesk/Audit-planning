@@ -25,7 +25,11 @@ export const planningAtomicOwnedHttpRoutes20=Object.freeze([
  '/api/v1/manager/auditor-management/profile/save',
  '/api/v1/manager/scopes/cosmetic',
  '/api/v1/manager/auditor-management/role/save',
- '/api/v1/manager/auditor-management/active/save'
+ '/api/v1/manager/auditor-management/active/save',
+ '/api/v1/manager/scopes/scheme-version',
+ '/api/v1/manager/scopes/policy',
+ '/api/v1/manager/scopes/create',
+ '/api/v1/manager/scopes/hours-version'
 ]);
 
 // These administrative writers still share company, scope, auditor or
@@ -39,7 +43,6 @@ export const planningAtomicRetiredManagementRoutes20=Object.freeze([
 ]);
 // The above are one-off DEV diagnostics/bootstrap, not live business writes.
 export const planningAtomicDeferredManagementRoutes20=Object.freeze([
- '/api/v1/manager/scopes/scheme-version',
  '/api/v1/manager/company-management/scopes/hours',
  '/api/v1/manager/company-management/scopes/assign',
  '/api/v1/manager/company-management/scopes/save',
@@ -48,9 +51,6 @@ export const planningAtomicDeferredManagementRoutes20=Object.freeze([
  '/api/v1/manager/auditor-management/qualification/save',
  '/api/v1/manager/auditor-management/identity/save',
  '/api/v1/manager/auditor-management/create',
- '/api/v1/manager/scopes/create',
- '/api/v1/manager/scopes/policy',
- '/api/v1/manager/scopes/hours-version',
 ]);
 
 // Static source classification only. Operational release STILL requires

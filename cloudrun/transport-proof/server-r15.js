@@ -32,6 +32,7 @@ import {createPlanningAtomicCommandService} from './planning-atomic-command-serv
 import {createAtomicSelfPlanningService20} from './planning-atomic-self-planning-service-20.js';
 import {createAtomicExtensionService20} from './planning-atomic-extension-service-20.js';
 import {createAtomicConfigurationBridge20,atomicConfigurationRoutes20} from './planning-atomic-config-bridge-20.js';
+import {createAtomicNotificationScalarService20} from './planning-atomic-notification-scalar-20.js';
 import {createVisitCompositionAtomicService20} from './visit-composition-atomic-service-20.js';
 import {prepareSeparateCompositionAuthority20} from './visit-composition-separate-authority-preflight-20.mjs';
 import {managerVisitCompositionPage20} from './visit-composition-manager-page-20.mjs';
@@ -248,6 +249,21 @@ const planningAtomicConfigBridge=planningAtomicEnabled?createAtomicConfiguration
    body:JSON.stringify(body)});
   return {status:response.status,payload:await response.json().catch(()=>null)};
  }
+}):null;
+const planningAtomicNotificationScalar=planningAtomicEnabled?createAtomicNotificationScalarService20({
+ gate:planningGlobalGate,
+ readRows:async tab=>{
+  if(!['Notification_Rules','System_Config'].includes(tab))throw Error('ATOMIC_NOTIFICATION_TAB_FORBIDDEN');
+  const range="'"+tab+"'!A1:AZ500";
+  const endpoint='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+
+   '/values/'+encodeURIComponent(range);
+  const response=await fetch(endpoint,{headers:{authorization:'Bearer '+await getToken()},signal:AbortSignal.timeout(12000)});
+  if(!response.ok)throw Error('ATOMIC_NOTIFICATION_SOURCE_READ_'+response.status);
+  return (await response.json()).values||[];
+ },
+ forward:async({actor,kind,key,value,expected})=>kind==='rule'
+  ?notificationGasCall(actor,'updateRule',{ruleKey:key,value,expected})
+  :notificationGasCall(actor,'updateDevMode',{mode:value,expected})
 }):null;
 const planningAtomicExtension=planningAtomicEnabled?createAtomicExtensionService20({
  store:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,
@@ -998,7 +1014,7 @@ async function notificationDevModeMutation(req,res){
  let body;try{body=JSON.parse(raw);}catch{res.writeHead(400);res.end('INVALID_JSON');return;}
  const mode=String(body.mode||''),expected=String(body.expected||'');
  if(!['OFF','DRY_RUN','TEST_TO_SELF'].includes(mode)||!['OFF','DRY_RUN','TEST_TO_SELF'].includes(expected)){res.writeHead(400);res.end('INVALID_DEV_MODE');return;}
- const data=await notificationGasCall(actor,'updateDevMode',{mode,expected});
+ const data=planningAtomicNotificationScalar?await planningAtomicNotificationScalar.commit({actor,kind:'devMode',key:'DEV_NOTIFICATION_MODE',value:mode,expected}):await notificationGasCall(actor,'updateDevMode',{mode,expected});
  res.writeHead(data.ok?200:409,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(data));
 }
 async function notificationRuleMutation(req,res){
@@ -1012,7 +1028,7 @@ async function notificationRuleMutation(req,res){
  const key=String(body.ruleKey||'').trim().toUpperCase(),value=body.value,expected=body.expected;
  const editable=new Set(['COMING_UP_DAYS','PENDING_PLANNING_UPCOMING_DAYS','PENDING_PLANNING_URGENT_DAYS','PENDING_PLANNING_CRITICAL_DAYS','WEEKLY_MANAGER_SEND_DAY','WEEKLY_MANAGER_SEND_HOUR','WEEKLY_AUDITOR_SEND_DAY','WEEKLY_AUDITOR_SEND_HOUR','COMMENT_ALLOWED_AUDIT_APPROVED','COMMENT_ALLOWED_AUDIT_ACCEPTED','COMMENT_ALLOWED_AUDIT_COMPLETED','COMMENT_ALLOWED_AUDIT_CANCELLED_BY_AUDITOR']);
  if(!editable.has(key)||typeof value!=='string'||typeof expected!=='string'||value.length>30||expected.length>30){res.writeHead(400);res.end('INVALID_RULE_MUTATION');return;}
- const data=await notificationGasCall(actor,'updateRule',{ruleKey:key,value,expected});
+ const data=planningAtomicNotificationScalar?await planningAtomicNotificationScalar.commit({actor,kind:'rule',key,value,expected}):await notificationGasCall(actor,'updateRule',{ruleKey:key,value,expected});
  res.writeHead(data.ok?200:409,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(data));
 }
 async function notificationDigestBufferMutation(req,res){

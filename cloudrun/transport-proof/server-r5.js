@@ -371,16 +371,18 @@ function switchMode20(mode){
 function renderScopePlanning20(){
  const box=q('#visitCompositionLink');
  if(!composition20?.scopes?.length)return;
- const result=scopeAllocationDraft20();
+ const mode=composition20.mode,result=mode==='TOGETHER'?scopeAllocationDraft20():null;
+ const separate=mode==='SEPARATELY'?separateVisitsDraft20():[];
  const rows=composition20.scopes.map(scope=>{
-  const d=result?.scopes.find(x=>x.obligationId===scope.obligationId);
+  const planned=mode==='TOGETHER'?(result?.scopes.find(x=>x.obligationId===scope.obligationId)?.plannedMinutes||0):
+   (separate.find(v=>v.obligationId===scope.obligationId)?.blocks||[]).reduce((n,b)=>n+Math.max(0,hhmm(b.end)-hhmm(b.start)),0);
+  const required=Math.round(scope.requiredHours*60);
   return '<tr><td>'+escHtml(scope.scopeCode)+'</td><td>'+scope.requiredHours.toFixed(2)+' h</td>'+
-   '<td>'+((d?.plannedMinutes||0)/60).toFixed(2)+' h</td>'+
-   '<td>'+((d?.remainingMinutes||0)/60).toFixed(2)+' h</td></tr>';
+   '<td>'+(planned/60).toFixed(2)+' h</td><td>'+((required-planned)/60).toFixed(2)+' h</td></tr>';
  }).join('');
  let controls='';
- if(composition20.mode==='TOGETHER'){
-  controls='<p class="muted">The existing calendar automatically schedules hours; distribute each time block over its scopes.</p>';
+ if(mode==='TOGETHER'){
+  controls='<p class="muted">Click a calendar day to allocate remaining hours automatically. Allocate every block explicitly over the scopes below.</p>';
   for(const block of draftBlocks){
    const id=scopeBlockKey20(block);
    controls+='<div style="padding:8px;margin:6px 0;border:1px solid #dbe3ee">'+escHtml(id)+'<div style="display:flex;gap:10px;flex-wrap:wrap">';
@@ -390,15 +392,24 @@ function renderScopePlanning20(){
    }
    controls+='</div></div>';
   }
- }else controls='<p>Separate Visits must use canonical atomic identity materialization. This mode is not yet available through the existing calendar.</p>';
+ }else{
+  const active=composition20.scopes.find(o=>o.obligationId===composition20.selectedScope);
+  controls='<label>Scope now being planned <select id="compositionScope20">'+composition20.scopes.map(o=>
+   '<option value="'+escHtml(o.obligationId)+'"'+(o.obligationId===composition20.selectedScope?' selected':'')+'>'+
+   escHtml(o.scopeCode)+'</option>').join('')+'</select></label>'+
+   '<p class="muted">The same calendar, auditor selector, time blocks and location controls now apply to '+escHtml(active?.scopeCode||'the selected scope')+'. Switch scope to plan another Visit.</p>';
+  if(active&&(!compositionDate20(active.windowFrom)||!compositionDate20(active.windowTo)||!compositionDate20(active.effectiveExpiry)))
+   controls+='<p class="warningBox">Model C lacks complete expiry/window metadata for this obligation. Atomic split is blocked until its canonical cycle can be verified.</p>';
+ }
  box.innerHTML='<strong>Multi-scope planning · Model C</strong><div style="margin:7px 0">'+
-  '<label><input type="radio" name="compositionMode20" value="TOGETHER"'+(composition20.mode==='TOGETHER'?' checked':'')+'> Together — one Visit</label> '+
-  '<label><input type="radio" name="compositionMode20" value="SEPARATELY"'+(composition20.mode==='SEPARATELY'?' checked':'')+'> Separately — independent Visits</label></div>'+
+  '<label><input type="radio" name="compositionMode20" value="TOGETHER"'+(mode==='TOGETHER'?' checked':'')+'> Together — one Visit</label> '+
+  '<label><input type="radio" name="compositionMode20" value="SEPARATELY"'+(mode==='SEPARATELY'?' checked':'')+'> Separately — independent Visits</label></div>'+
   '<table style="width:100%;font-size:12px;text-align:left"><tr><th>Scope</th><th>Required</th><th>Planned</th><th>Remaining</th></tr>'+rows+'</table>'+
-  controls+(composition20.writeTogether?'':'<p class="muted">Atomic Together saving is not enabled on this DEV revision.</p>');
- box.querySelectorAll('[name="compositionMode20"]').forEach(input=>input.onchange=()=>{
-  composition20.mode=input.value;composition20.manual=null;renderScopePlanning20();validate();
- });
+  controls+((mode==='TOGETHER'?!composition20.writeTogether:!composition20.writeSeparate)?
+   '<p class="muted">Atomic '+escHtml(mode)+' saving is not enabled on this DEV revision.</p>':'');
+ box.querySelectorAll('[name="compositionMode20"]').forEach(input=>input.onchange=()=>switchMode20(input.value));
+ const scopeSelector=box.querySelector('#compositionScope20');
+ if(scopeSelector)scopeSelector.onchange=()=>switchScopeDraft20(scopeSelector.value);
  box.querySelectorAll('.scopeMinutes20').forEach(input=>input.onchange=()=>{
   const assignments=[...box.querySelectorAll('.scopeMinutes20')].map(field=>({
    blockId:field.dataset.block,obligationId:field.dataset.obligation,minutes:Number(field.value)

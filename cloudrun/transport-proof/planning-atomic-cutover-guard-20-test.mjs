@@ -95,6 +95,12 @@ assert.ok(r4.includes("lifecycleAuthorityPreflight20(identity,b,'COMPLETE',()=>d
 assert.equal(validatePlanningAtomicRuntime20({enabled:false}),true);
 const validated={enabled:true,legacyWriterRetired:true,managerOwnerShared:true,backfillParityVerified:true,liveWriterRouteParityVerified:true,otherAuthorityEnabled:false};
 assert.equal(validatePlanningAtomicRuntime20(validated),true);
+assert.throws(()=>validatePlanningAtomicRuntime20({...validated,
+ deferredManagementRoutes:planningAtomicDeferredManagementRoutes20}),
+ /PLANNING_ATOMIC_MANAGEMENT_WRITERS_NOT_MIGRATED/);
+assert.ok(entrySource.includes('deferredManagementRoutes:planningAtomicDeferredManagementRoutes20'),
+ 'Unsafe atomic runtime startup must be refused until admin writers are migrated');
+
 assert.throws(()=>validatePlanningAtomicRuntime20({...validated,legacyWriterRetired:false}),/PLANNING_ATOMIC_LEGACY_WRITER_NOT_RETIRED/);
 assert.throws(()=>validatePlanningAtomicRuntime20({...validated,backfillParityVerified:false}),/PLANNING_ATOMIC_BACKFILL_PARITY_REQUIRED/);
 assert.throws(()=>validatePlanningAtomicRuntime20({...validated,otherAuthorityEnabled:true}),/PLANNING_ATOMIC_DUAL_AUTHORITY_ENABLED/);

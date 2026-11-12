@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
 
 const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 const r5=readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
@@ -11,6 +12,19 @@ const r10=readFileSync(new URL('./server-r10.js',import.meta.url),'utf8');
 const r11=readFileSync(new URL('./server-r11.js',import.meta.url),'utf8');
 const r12=readFileSync(new URL('./server-r12.js',import.meta.url),'utf8');
 const portal=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+// R6's legacy combined-hour HTML patch must not break composition-aware R5 planning.
+const patchStart=r6.indexOf('function patchPlanningHtml(html){');
+const patchEnd=r6.indexOf('\nasync function proxy(',patchStart);
+assert.ok(patchStart>=0&&patchEnd>patchStart,'R6 planning proxy patch must exist');
+const sandbox={};
+runInNewContext(r6.slice(patchStart,patchEnd)+';this.patchPlanningHtml=patchPlanningHtml;',sandbox);
+const liveCompositionSource='function scopePlanningValid20(){}function planningTarget(){return 14}';
+assert.equal(sandbox.patchPlanningHtml(liveCompositionSource),liveCompositionSource,
+ 'R6 must forward the new scope-aware planning HTML unchanged');
+has(r5,'composition20?.mode===\'SEPARATELY\'','R5 has separate scope planning');
+has(r5,'composition20?.mode===\'TOGETHER\'?scopeSum','R5 plans combined Model C scope hours');
+has(r5,'chosen.reduce((n,r)=>n+Number(r.formalHours||r.requiredHours||0),0)',
+ 'R5 retains legacy combined company visit target');
 const resetHours=readFileSync(new URL('../../zzzz_StatusResetPlanningHours.js',import.meta.url),'utf8');
 const pkg=JSON.parse(readFileSync(new URL('./package.json',import.meta.url),'utf8'));
 

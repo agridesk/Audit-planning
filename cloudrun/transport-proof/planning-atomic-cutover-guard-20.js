@@ -37,8 +37,9 @@ const blocked=[
 export function enforcePlanningAtomicCutover20({enabled,method,path}){
  if(!enabled||!['POST','PUT','PATCH','DELETE'].includes(String(method).toUpperCase()))return;
  if(typeof path!=='string'||!path.startsWith('/'))throw Error('PLANNING_ATOMIC_PATH_INVALID');
- if(!planningAtomicOwnedHttpRoutes20.includes(path)&&
-  (compositionLiveWriterSurfaces20.includes(path)||blocked.some(re=>re.test(path))))
+ if((planningAtomicOwnedHttpRoutes20.includes(path)&&String(method).toUpperCase()!=='POST')||
+   (!planningAtomicOwnedHttpRoutes20.includes(path)&&
+    (compositionLiveWriterSurfaces20.includes(path)||blocked.some(re=>re.test(path)))))
   throw Error('PLANNING_ATOMIC_WRITER_NOT_MIGRATED');
 }
 

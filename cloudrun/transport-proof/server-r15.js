@@ -35,6 +35,7 @@ import {createAtomicConfigurationBridge20,atomicConfigurationRoutes20} from './p
 import {createAtomicScopeAdminService20,atomicScopeAdminRoutes20} from './planning-atomic-scope-admin-20.js';
 import {createAtomicCompanyScopesService20,atomicCompanyScopeRoutes20} from './planning-atomic-company-scopes-20.js';
 import {createAtomicAuditorGovernanceService20,atomicAuditorGovernanceRoutes20} from './planning-atomic-auditor-governance-20.js';
+import {createAtomicAuditorIdentityService20,atomicAuditorIdentityRoute20} from './planning-atomic-auditor-identity-20.js';
 import {createAtomicNotificationScalarService20} from './planning-atomic-notification-scalar-20.js';
 import {createVisitCompositionAtomicService20} from './visit-composition-atomic-service-20.js';
 import {prepareSeparateCompositionAuthority20} from './visit-composition-separate-authority-preflight-20.mjs';
@@ -304,6 +305,28 @@ const planningAtomicAuditorGovernance=planningAtomicEnabled?createAtomicAuditorG
    '/values/'+encodeURIComponent(range)+'?valueRenderOption=FORMATTED_VALUE';
   const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()},signal:AbortSignal.timeout(12000)});
   if(!response.ok)throw Error('ATOMIC_AUDITOR_GOVERNANCE_SOURCE_READ_'+response.status);
+  return (await response.json()).values||[];
+ },
+ forward:async({path,body,cookie,origin})=>{
+  const response=await fetch('http://127.0.0.1:'+(port+9)+path,{
+   method:'POST',redirect:'manual',
+   headers:{'content-type':'application/json',cookie,origin},
+   body:JSON.stringify(body)});
+  return {status:response.status,payload:await response.json().catch(()=>null)};
+ }
+}):null;
+const planningAtomicAuditorIdentity=planningAtomicEnabled?createAtomicAuditorIdentityService20({
+ gate:planningGlobalGate,
+ readRows:async tab=>{
+  const limits={Auditors:1000,Auditor_Identity_Versions:2000,'Audit planning':2500,Auditor_Tokens:1024};
+  const limit=limits[tab];
+  if(!limit)throw Error('ATOMIC_AUDITOR_IDENTITY_SOURCE_FORBIDDEN');
+  const maxCol=tab==='Auditor_Identity_Versions'?'P':tab==='Audit planning'?'BW':tab==='Auditor_Tokens'?'Z':'AZ';
+  const range="'"+tab+"'!A1:"+maxCol+limit;
+  const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+
+   '/values/'+encodeURIComponent(range)+'?valueRenderOption=FORMATTED_VALUE';
+  const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()},signal:AbortSignal.timeout(12000)});
+  if(!response.ok)throw Error('ATOMIC_AUDITOR_IDENTITY_READ_'+response.status);
   return (await response.json()).values||[];
  },
  forward:async({path,body,cookie,origin})=>{
@@ -1557,6 +1580,24 @@ http.createServer(async(req,res)=>{
   // The existing R5 Planner posts to commit-handoff. Once atomic mode
   // is enabled, keep its response contract but use the *same* Firestore
   // transaction/projector as direct-commit; never proxy to the Sheets writer.
+  if(req.method==='POST'&&planningAtomicAuditorIdentity&&u.pathname===atomicAuditorIdentityRoute20){
+   const origin=String(req.headers.origin||'').trim();
+   if(origin!==runtime.origin){
+    res.writeHead(403,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(JSON.stringify({ok:false,error:'ATOMIC_AUDITOR_IDENTITY_ORIGIN_FORBIDDEN'}));return;
+   }
+   const actor=await session(req);
+   if(actor?.role!=='manager'){
+    res.writeHead(actor?403:401,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(JSON.stringify({ok:false,error:'ATOMIC_AUDITOR_IDENTITY_MANAGER_REQUIRED'}));return;
+   }
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192)throw Error('ATOMIC_AUDITOR_IDENTITY_BODY_TOO_LARGE');}
+   let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('ATOMIC_AUDITOR_IDENTITY_BODY_INVALID');}
+   const result=await planningAtomicAuditorIdentity.commit({actor,path:u.pathname,body,
+    cookie:String(req.headers.cookie||''),origin});
+   res.writeHead(result.status,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify(result.payload));return;
+  }
   if(req.method==='POST'&&planningAtomicAuditorGovernance&&atomicAuditorGovernanceRoutes20.includes(u.pathname)){
    const origin=String(req.headers.origin||'').trim();
    if(origin!==runtime.origin){

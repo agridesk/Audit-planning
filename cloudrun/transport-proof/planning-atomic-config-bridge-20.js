@@ -10,6 +10,7 @@ const str=x=>String(x??'').trim();
 const sha=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 export const atomicConfigurationRoutes20=Object.freeze([
  '/api/v1/manager/company-management/save',
+ '/api/v1/auditor/company-management/save',
  '/api/v1/manager/auditor-management/profile/save',
  '/api/v1/manager/scopes/cosmetic'
 ]);
@@ -24,6 +25,13 @@ function input(path,body){
  const keyColumn=tab==='Companies'?'Company_UID':tab==='Auditors'?'E-mail':'ScopeCode';
  const key=tab==='Companies'?str(body.companyUid):tab==='Auditors'?str(body.email).toLowerCase():str(body.scopeCode);
  const allowed=tab==='Companies'?new Set(['Contactperson ','Contactperson e-mail','Contactperson phone','Number','Group','Region','Country','Time zone',' Language communication','Manager_Email','Comments','Audit planning limitations - days','Audit planning limitations - hours','Preferred_Audit_Months','Locations_JSON','Auditor_Exclusions','Auditor comments']):tab==='Auditors'?new Set(['Area','Default time zone','Blocked weekdays','Default departure from','Mobile telephone']):new Set(['DisplayName','Color','TextColor','SortOrder']);
+ if(path==='/api/v1/auditor/company-management/save'){
+  const auditorFields=new Set(['Contactperson ','Contactperson e-mail',
+   'Contactperson phone','Auditor comments','Preferred_Audit_Months',
+   'Audit planning limitations - days','Audit planning limitations - hours']);
+  if(Object.keys(changes).some(field=>!auditorFields.has(field)))
+   throw Error('ATOMIC_CONFIG_AUDITOR_FIELD_FORBIDDEN');
+ }
  if(!key||Object.keys(changes).some(field=>!allowed.has(field)))throw Error('ATOMIC_CONFIG_FIELD_UNSUPPORTED');
  return {tab,keyColumn,key,changes};
 }
@@ -44,7 +52,7 @@ export function createAtomicConfigurationBridge20({gate,readRows,forward}={}){
     typeof gate.uncertain!=='function'||typeof readRows!=='function'||typeof forward!=='function')
   throw Error('ATOMIC_CONFIG_BRIDGE_INVALID');
  async function commit({actor,path,body,cookie,origin}={}){
-  if(actor?.role!=='manager'||!str(actor.auditorId)||!str(cookie)||!str(origin))
+  if(actor?.role!==(path==='/api/v1/auditor/company-management/save'?'auditor':'manager')||!str(actor.auditorId)||!str(cookie)||!str(origin))
    throw Error('ATOMIC_CONFIG_MANAGER_REQUIRED');
   const spec=input(path,body);
   const actorId=str(actor.auditorId),operationId=sha({actorId,path,body});

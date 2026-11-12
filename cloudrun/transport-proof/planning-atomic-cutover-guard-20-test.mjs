@@ -114,6 +114,29 @@ for(const route of ['/api/v1/manager/company-management/save',
  assert.ok(!planningAtomicDeferredManagementRoutes20.includes(route),'Migrated metadata route still deferred');
 }
 
+const originallyDeferred14=[
+ '/api/v1/manager/scopes/scheme-version',
+ '/api/v1/manager/company-management/scopes/hours',
+ '/api/v1/manager/company-management/scopes/assign',
+ '/api/v1/manager/company-management/scopes/save',
+ '/api/v1/manager/auditor-management/qualification/withdraw',
+ '/api/v1/manager/auditor-management/qualification/withdraw/cancel',
+ '/api/v1/manager/auditor-management/qualification/save',
+ '/api/v1/manager/auditor-management/role/save',
+ '/api/v1/manager/auditor-management/identity/save',
+ '/api/v1/manager/auditor-management/active/save',
+ '/api/v1/manager/auditor-management/create',
+ '/api/v1/manager/scopes/create',
+ '/api/v1/manager/scopes/policy',
+ '/api/v1/manager/scopes/hours-version'
+];
+assert.equal(originallyDeferred14.length,14);
+for(const route of originallyDeferred14){
+ assert.ok(planningAtomicOwnedHttpRoutes20.includes(route),
+  'Originally deferred administrator mutation without atomic owner: '+route);
+ assert.ok(!planningAtomicDeferredManagementRoutes20.includes(route),
+  'Deferred administration writer not migrated: '+route);
+}
 assert.equal(planningAtomicDeferredManagementRoutes20.length,0,
  'All inventoried management writers have classified atomic owners');
 for(const route of planningAtomicDeferredManagementRoutes20)

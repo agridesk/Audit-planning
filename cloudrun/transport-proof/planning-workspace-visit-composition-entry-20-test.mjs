@@ -31,6 +31,15 @@ const htmlFromCurrentPlanner=standaloneHtml.planningHtmlResult;
 const plannerJs=/<script>([\s\S]*?)<\/script>/.exec(htmlFromCurrentPlanner);
 assert.ok(plannerJs);
 new Script(plannerJs[1],{filename:'existing-planner-composition-browser.js'});
+const date20=/function compositionDate20\(raw\)\{[\s\S]*?\n\}/.exec(plannerJs[1]);
+assert.ok(date20);
+const currentDates={Date,Number,String};
+runInNewContext(date20[0]+';this.toIso=compositionDate20;',currentDates);
+assert.equal(currentDates.toIso('10/10/2026'),'2026-10-10');
+assert.equal(currentDates.toIso('2027-01-10'),'2027-01-10');
+assert.equal(currentDates.toIso('31/02/2027'),'');
+assert.match(plannerJs[1],/PENDING_PLANNING/);
+
 assert.match(htmlFromCurrentPlanner,/Multi-scope planning/);
 assert.match(htmlFromCurrentPlanner,/function switchScopeDraft20/);
 assert.match(htmlFromCurrentPlanner,/function saveActiveScopeDraft20/);

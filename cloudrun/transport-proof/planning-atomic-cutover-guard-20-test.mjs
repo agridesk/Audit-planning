@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,planningAtomicOwnedHttpRoutes20,planningAtomicRetiredHttpRoutes20,classifiedPlanningCutoverPaths20,planningAtomicDeferredManagementRoutes20} from './planning-atomic-cutover-guard-20.js';
+import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,planningAtomicOwnedHttpRoutes20,planningAtomicRetiredHttpRoutes20,classifiedPlanningCutoverPaths20,planningAtomicDeferredManagementRoutes20,planningAtomicRetiredManagementRoutes20} from './planning-atomic-cutover-guard-20.js';
 import {compositionLiveWriterSurfaces20} from './planning-cutover-compatibility-20.mjs';
 import {atomicConfigurationRoutes20} from './planning-atomic-config-bridge-20.js';
 const blocked=[
@@ -72,6 +72,14 @@ const retired=entrySource.indexOf("LEGACY_EXT_ROUTE_RETIRED_USE_MODEL_C_COMMAND"
 const mainFence=entrySource.indexOf("enforcePlanningAtomicCutover20({enabled:planningAtomicEnabled,method:req.method,path:u.pathname});");
 assert.ok(retired>0&&retired<mainFence,
  'Legacy EXT and reconcile endpoints must return 410 before proxy fallback');
+assert.equal(planningAtomicRetiredManagementRoutes20.length,4);
+for(const path of planningAtomicRetiredManagementRoutes20){
+ assert.ok(!planningAtomicDeferredManagementRoutes20.includes(path),'Retired bootstrap route remains deferred');
+ assert.throws(()=>enforcePlanningAtomicCutover20({enabled:true,method:'POST',path}),
+  /PLANNING_ATOMIC_WRITER_NOT_MIGRATED/);
+}
+assert.ok(entrySource.includes('planningAtomicRetiredManagementRoutes20.includes(u.pathname)'),
+ 'R15 must retire migration-only endpoints before the cutover fence');
 assert.ok(entrySource.includes('planningAtomicRetiredHttpRoutes20.includes(u.pathname)'),
  'Retired routes must be rejected by R15 through the classified route inventory');
 assert.deepEqual(planningAtomicRetiredHttpRoutes20,[
@@ -87,7 +95,7 @@ for(const route of ['/api/v1/manager/company-management/save',
  assert.ok(!planningAtomicDeferredManagementRoutes20.includes(route),'Migrated metadata route still deferred');
 }
 
-assert.ok(planningAtomicDeferredManagementRoutes20.length>=18,
+assert.ok(planningAtomicDeferredManagementRoutes20.length>=14,
  'Unmigrated administrative writers must remain a release blocker');
 for(const route of planningAtomicDeferredManagementRoutes20)
  assert.throws(()=>enforcePlanningAtomicCutover20({enabled:true,method:'POST',path:route}),

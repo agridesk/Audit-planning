@@ -62,23 +62,21 @@ export function createAtomicConfigurationBridge20({gate,readRows,forward}={}){
    // Pre-flight identity and field schema. The R4 route performs its own
    // independent business validation and per-field expected-value CAS.
    const before=snapshot(await readRows(spec.tab),spec);
+   // Do not forward a stale mutation: the locked canonical snapshot must
+   // agree with every expected field before the legacy writer is entered.
+   for(const [field,change] of Object.entries(spec.changes))
+    if(before[field]!==str(change.expected))throw Error('ATOMIC_CONFIG_STALE_EXPECTED_'+field);
    forwarded=true;
    const outcome=await forward({path,body,cookie,origin});
-   // R4 rejects malformed/unauthorized requests before entering any Sheets
-   // mutation. Do not leave the global planning gate UNCERTAIN for such a
-   // confirmed non-write. 409/5xx and transport errors remain ambiguous.
-   if([400,401,403].includes(outcome?.status)&&outcome.payload?.ok===false){
-    await gate.release({token:lock.token,verified:true,proof:'CONFIG_VALIDATION_REJECTED_NO_WRITE'});
-    lock=null;
-    return {status:outcome.status,payload:outcome.payload};
-   }
-   if(outcome?.status===409&&outcome.payload?.ok===false){
+   // A rejection is safe to unlock only if an independent canonical read
+   // proves the selected fields unchanged; status codes alone are not proof.
+   if([400,401,403,409].includes(outcome?.status)&&outcome.payload?.ok===false){
     const afterRejection=snapshot(await readRows(spec.tab),spec);
     const unchanged=Object.keys(spec.changes).every(field=>afterRejection[field]===before[field]);
     if(unchanged){
-     await gate.release({token:lock.token,verified:true,proof:'CONFIG_CAS_REJECTED_ROW_UNCHANGED'});
+     await gate.release({token:lock.token,verified:true,proof:'CONFIG_REJECTED_ROW_UNCHANGED'});
      lock=null;
-     return {status:409,payload:outcome.payload};
+     return {status:outcome.status,payload:outcome.payload};
     }
    }
    if(outcome?.status!==200||outcome.payload?.ok!==true)

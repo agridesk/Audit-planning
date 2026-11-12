@@ -293,10 +293,80 @@ function scopeAllocationDraft20(){
  if(!composition20?.scopes)return null;
  return multiScopePlanningParity20({scopes:composition20.scopes,blocks:draftBlocks,allocations:composition20.manual});
 }
+function compositionDate20(raw){
+ const x=String(raw||'').trim(),eu=/^(\d{2})[./-](\d{2})[./-](\d{4})$/.exec(x);
+ const iso=eu?eu[3]+'-'+eu[2]+'-'+eu[1]:x;
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(iso))return '';
+ const d=new Date(iso+'T00:00:00Z');
+ return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===iso?iso:'';
+}
+function saveActiveScopeDraft20(){
+ if(composition20?.mode!=='SEPARATELY'||!composition20.selectedScope)return;
+ composition20.separateDrafts.set(composition20.selectedScope,{
+  blocks:draftBlocks.map(b=>({...b})),auditorEmail:q('#auditor').value
+ });
+}
+function separateVisitsDraft20(){
+ saveActiveScopeDraft20();
+ return composition20.scopes.map(o=>({
+  obligationId:o.obligationId,
+  auditorEmail:composition20.separateDrafts.get(o.obligationId)?.auditorEmail||'',
+  blocks:composition20.separateDrafts.get(o.obligationId)?.blocks||[]
+ }));
+}
 function scopePlanningValid20(){
  if(!composition20)return true;
- return composition20.mode==='TOGETHER'&&composition20.writeTogether===true&&
-  scopeAllocationDraft20()?.ok===true&&draftBlocks.every(b=>String(b.executionType||'ONSITE').toUpperCase()==='ONSITE');
+ if(!composition20.scopes?.length||!composition20.sourceRevision)return false;
+ if(composition20.mode==='TOGETHER')
+  return composition20.writeTogether===true&&scopeAllocationDraft20()?.ok===true&&
+   draftBlocks.every(b=>String(b.executionType||'ONSITE').toUpperCase()==='ONSITE');
+ if(composition20.mode!=='SEPARATELY'||composition20.writeSeparate!==true)return false;
+ const visits=separateVisitsDraft20(),locs=new Set((model?.data?.audit?.locations||[]).map(x=>String(x.code||x.name)));
+ const auditors=new Map((model?.data?.audit?.candidateAuditors||[]).map(a=>[a.email,a]));
+ const occupied=new Map();
+ for(const visit of visits){
+  const scope=composition20.scopes.find(x=>x.obligationId===visit.obligationId);
+  const from=compositionDate20(scope.windowFrom),to=compositionDate20(scope.windowTo);
+  if(!from||!to||from>to||!compositionDate20(scope.effectiveExpiry))return false;
+  const auditor=auditors.get(visit.auditorEmail);
+  if(!auditor||auditor.hardBlockQualification||auditor.ineligible||!visit.blocks.length)return false;
+  const minutes=visit.blocks.reduce((n,b)=>n+hhmm(b.end)-hhmm(b.start),0);
+  if(minutes!==Math.round(scope.requiredHours*60))return false;
+  for(const b of visit.blocks){
+   if(b.date<from||b.date>to||hhmm(b.start)<480||hhmm(b.end)>1080||
+     hhmm(b.end)<=hhmm(b.start)||String(b.executionType||'ONSITE')!=='ONSITE'||!locs.has(String(b.execLoc)))return false;
+   const key=visit.auditorEmail+'|'+b.date,prior=occupied.get(key)||[];
+   if(prior.some(p=>hhmm(b.start)<hhmm(p.end)&&hhmm(p.start)<hhmm(b.end)))return false;
+   prior.push(b);occupied.set(key,prior);
+  }
+ }
+ return true;
+}
+function switchScopeDraft20(obligationId){
+ if(!composition20||composition20.mode!=='SEPARATELY'||!composition20.scopes.some(o=>o.obligationId===obligationId))return;
+ saveActiveScopeDraft20();
+ composition20.selectedScope=obligationId;
+ const saved=composition20.separateDrafts.get(obligationId)||{blocks:[],auditorEmail:''};
+ draftBlocks=saved.blocks.map(b=>({...b}));
+ const email=saved.auditorEmail;
+ if(email&&[...q('#auditor').options].some(o=>o.value===email))q('#auditor').value=email;
+ calendarAnchor='';q('#date').value='';q('#comment').value='';
+ renderDraft();
+}
+function switchMode20(mode){
+ if(!composition20||!['TOGETHER','SEPARATELY'].includes(mode)||composition20.mode===mode)return;
+ if(composition20.mode==='SEPARATELY')saveActiveScopeDraft20();
+ else composition20.togetherDraft=draftBlocks.map(b=>({...b}));
+ composition20.mode=mode;composition20.manual=null;
+ if(mode==='SEPARATELY'){
+  composition20.selectedScope=composition20.scopes[0].obligationId;
+  const saved=composition20.separateDrafts.get(composition20.selectedScope)||{blocks:[],auditorEmail:q('#auditor').value};
+  draftBlocks=saved.blocks.map(b=>({...b}));
+  if(saved.auditorEmail&&[...q('#auditor').options].some(o=>o.value===saved.auditorEmail))
+   q('#auditor').value=saved.auditorEmail;
+ }else draftBlocks=composition20.togetherDraft.map(b=>({...b}));
+ calendarAnchor='';q('#date').value='';q('#comment').value='';
+ renderDraft();
 }
 function renderScopePlanning20(){
  const box=q('#visitCompositionLink');

@@ -22,6 +22,23 @@ export const planningAtomicOwnedHttpRoutes20=Object.freeze([
  '/api/v1/internal/auditor/complete-direct'
 ]);
 
+// Static source classification only. Operational release STILL requires
+// verified frozen legacy writers, backfill, live route parity and E2E evidence.
+export const planningAtomicRetiredHttpRoutes20=Object.freeze([
+ '/api/v1/manager/extension',
+ '/api/v1/manager/extension-direct',
+ '/api/v1/manager/extension-reconcile-projection'
+]);
+export function classifiedPlanningCutoverPaths20(){
+ const owned=new Set(planningAtomicOwnedHttpRoutes20);
+ const retired=new Set(planningAtomicRetiredHttpRoutes20);
+ if([...owned].some(path=>retired.has(path)))
+  throw Error('PLANNING_ATOMIC_ROUTE_OWNERSHIP_AMBIGUOUS');
+ const unclassified=compositionLiveWriterSurfaces20.filter(path=>!owned.has(path)&&!retired.has(path));
+ if(unclassified.length)throw Error('PLANNING_ATOMIC_UNCLASSIFIED_LEGACY_WRITERS');
+ return [...compositionLiveWriterSurfaces20];
+}
+
 const blocked=[
  /^\/api\/v1\/manager\/extension-direct$/,
  // Issue #87: these live DEV writers mutate the same planning/obligation

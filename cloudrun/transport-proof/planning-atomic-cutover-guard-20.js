@@ -21,6 +21,7 @@ export const planningAtomicOwnedHttpRoutes20=Object.freeze([
  '/api/v1/manager/extension-obligation-command',
  '/api/v1/internal/auditor/complete-direct',
  '/api/v1/manager/company-management/save',
+ '/api/v1/auditor/company-management/save',
  '/api/v1/manager/auditor-management/profile/save',
  '/api/v1/manager/scopes/cosmetic'
 ]);
@@ -31,7 +32,6 @@ export const planningAtomicOwnedHttpRoutes20=Object.freeze([
 export const planningAtomicDeferredManagementRoutes20=Object.freeze([
  '/api/v1/manager/scopes/scheme-version',
  '/api/v1/manager/auditor-identity/firestore-write-probe',
- '/api/v1/auditor/company-management/save',
  '/api/v1/manager/company-management/scopes/hours',
  '/api/v1/manager/company-management/scopes/assign',
  '/api/v1/manager/company-management/scopes/save',

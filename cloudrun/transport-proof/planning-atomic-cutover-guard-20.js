@@ -19,7 +19,10 @@ export const planningAtomicOwnedHttpRoutes20=Object.freeze([
  '/api/v1/planning/commit-handoff',
  '/api/v1/manager/self-planning-direct',
  '/api/v1/manager/extension-obligation-command',
- '/api/v1/internal/auditor/complete-direct'
+ '/api/v1/internal/auditor/complete-direct',
+ '/api/v1/manager/company-management/save',
+ '/api/v1/manager/auditor-management/profile/save',
+ '/api/v1/manager/scopes/cosmetic'
 ]);
 
 // These administrative writers still share company, scope, auditor or
@@ -28,7 +31,6 @@ export const planningAtomicOwnedHttpRoutes20=Object.freeze([
 export const planningAtomicDeferredManagementRoutes20=Object.freeze([
  '/api/v1/manager/scopes/scheme-version',
  '/api/v1/manager/auditor-identity/firestore-write-probe',
- '/api/v1/manager/company-management/save',
  '/api/v1/auditor/company-management/save',
  '/api/v1/manager/company-management/scopes/hours',
  '/api/v1/manager/company-management/scopes/assign',
@@ -41,9 +43,7 @@ export const planningAtomicDeferredManagementRoutes20=Object.freeze([
  '/api/v1/manager/auditor-management/identity/save',
  '/api/v1/manager/auditor-management/active/save',
  '/api/v1/manager/auditor-management/create',
- '/api/v1/manager/auditor-management/profile/save',
  '/api/v1/manager/scopes/create',
- '/api/v1/manager/scopes/cosmetic',
  '/api/v1/manager/scopes/policy',
  '/api/v1/manager/scopes/hours-version',
  '/api/v1/manager/scopes/bootstrap-v1',

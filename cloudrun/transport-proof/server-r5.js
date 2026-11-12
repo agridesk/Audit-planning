@@ -376,7 +376,7 @@ function switchScopeDraft20(obligationId){
  renderDraft();
 }
 function switchMode20(mode){
- if(!composition20||!['TOGETHER','SEPARATELY'].includes(mode)||composition20.mode===mode||mode==='TOGETHER'&&composition20.scopes.length<2)return;
+ if(!composition20||!['TOGETHER','SEPARATELY'].includes(mode)||composition20.mode===mode||mode==='TOGETHER'&&(composition20.scopes.length<2||composition20.partialLineage===true))return;
  if(composition20.mode==='SEPARATELY')saveActiveScopeDraft20();
  else composition20.togetherDraft=draftBlocks.map(b=>({...b}));
  composition20.mode=mode;composition20.manual=null;
@@ -431,7 +431,7 @@ function renderScopePlanning20(){
  const totalPlanned=mode==='TOGETHER'?draftBlocks.reduce((n,b)=>n+Math.max(0,hhmm(b.end)-hhmm(b.start)),0):
   separate.reduce((n,v)=>n+v.blocks.reduce((m,b)=>m+Math.max(0,hhmm(b.end)-hhmm(b.start)),0),0);
  box.innerHTML='<div class="compositionHead20"><strong>Scope planning</strong><span class="muted">'+hour(totalPlanned)+' / '+hour(totalRequired)+'</span></div>'+
-  '<div class="compositionModes20">'+(composition20.scopes.length>1?'<label><input type="radio" name="compositionMode20" value="TOGETHER"'+(mode==='TOGETHER'?' checked':'')+'> Together — one visit</label>':'')+
+  '<div class="compositionModes20">'+(composition20.scopes.length>1&&!composition20.partialLineage?'<label><input type="radio" name="compositionMode20" value="TOGETHER"'+(mode==='TOGETHER'?' checked':'')+'> Together — one visit</label>':'')+
   '<label><input type="radio" name="compositionMode20" value="SEPARATELY"'+(mode==='SEPARATELY'?' checked':'')+'> Separately — one visit per scope</label></div>'+
   '<table class="compositionTable20"><thead><tr><th>Scope</th><th>Required</th><th>Planned</th><th>Remaining</th></tr></thead><tbody>'+rows+'</tbody></table>'+
   controls+(writerEnabled?'':'<p class="compositionWriterNotice20">Save is unavailable: the secure DEV atomic writer has not yet been enabled. Planned hours can be reviewed as a draft.</p>');
@@ -469,7 +469,7 @@ async function loadScopePlanning20(){
   if(!preview.sourceEvidenceReady||preview.source?.status!=='Pending Planning'||!preview.sourceRevisionAtomic||
    scopes.length<(previous?1:2)||scopes.some(o=>!o.obligationId||!o.scopeCode||!(o.requiredHours>0)))
    throw Error('Canonical obligation source incomplete');
-  composition20={scopes,mode:scopes.length===1?'SEPARATELY':'TOGETHER',manual:null,sourceRevision:preview.sourceRevisionAtomic,
+  composition20={scopes,partialLineage:previous,mode:scopes.length===1||previous?'SEPARATELY':'TOGETHER',manual:null,sourceRevision:preview.sourceRevisionAtomic,
    writeTogether:payload[1].togetherWriteEnabled===true,writeSeparate:payload[1].separateWriteEnabled===true,
    selectedScope:scopes[0].obligationId,separateDrafts:new Map(),togetherDraft:draftBlocks.map(b=>({...b}))};
   renderDraft();

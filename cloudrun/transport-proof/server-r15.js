@@ -31,6 +31,7 @@ import {createPlanningAtomicFirestoreStore} from './planning-atomic-firestore-st
 import {createPlanningAtomicCommandService} from './planning-atomic-command-service-20.js';
 import {createAtomicSelfPlanningService20} from './planning-atomic-self-planning-service-20.js';
 import {createAtomicExtensionService20} from './planning-atomic-extension-service-20.js';
+import {createAtomicConfigurationBridge20,atomicConfigurationRoutes20} from './planning-atomic-config-bridge-20.js';
 import {createVisitCompositionAtomicService20} from './visit-composition-atomic-service-20.js';
 import {prepareSeparateCompositionAuthority20} from './visit-composition-separate-authority-preflight-20.mjs';
 import {managerVisitCompositionPage20} from './visit-composition-manager-page-20.mjs';
@@ -225,6 +226,27 @@ const planningAtomicCommands=planningAtomicEnabled?createPlanningAtomicCommandSe
   const j=await r.json().catch(()=>null);
   if(!r.ok||j?.success!==true||j?.authorityPreflight!==true)throw Error('PLANNING_ATOMIC_BUSINESS_PREFLIGHT_FAILED_'+String(j?.error||r.status).slice(0,80));
   return j;
+ }
+}):null;
+const planningAtomicConfigBridge=planningAtomicEnabled?createAtomicConfigurationBridge20({
+ gate:planningGlobalGate,
+ readRows:async tab=>{
+  const ranges={Companies:'Companies!A1:Y2500',Auditors:'Auditors!A1:AZ1000',Config_Scopes:'Config_Scopes!A1:Z128'};
+  const range=ranges[tab];if(!range)throw Error('ATOMIC_CONFIG_TAB_UNSUPPORTED');
+  const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+
+   '/values/'+encodeURIComponent(range)+'?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING';
+  const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()},redirect:'manual'});
+  if(!response.ok)throw Error('ATOMIC_CONFIG_READ_'+response.status);
+  const rows=(await response.json()).values;
+  if(!Array.isArray(rows)||!rows.length)throw Error('ATOMIC_CONFIG_SOURCE_EMPTY');
+  return rows;
+ },
+ forward:async({path,body,cookie,origin})=>{
+  const response=await fetch('http://127.0.0.1:'+(port+9)+path,{
+   method:'POST',redirect:'manual',
+   headers:{'content-type':'application/json',cookie,origin},
+   body:JSON.stringify(body)});
+  return {status:response.status,payload:await response.json().catch(()=>null)};
  }
 }):null;
 const planningAtomicExtension=planningAtomicEnabled?createAtomicExtensionService20({
@@ -1378,6 +1400,24 @@ http.createServer(async(req,res)=>{
   // The existing R5 Planner posts to commit-handoff. Once atomic mode
   // is enabled, keep its response contract but use the *same* Firestore
   // transaction/projector as direct-commit; never proxy to the Sheets writer.
+  if(req.method==='POST'&&planningAtomicConfigBridge&&atomicConfigurationRoutes20.includes(u.pathname)){
+   const origin=String(req.headers.origin||'').trim();
+   if(origin!==runtime.origin){
+    res.writeHead(403,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(JSON.stringify({ok:false,error:'ATOMIC_CONFIG_ORIGIN_FORBIDDEN'}));return;
+   }
+   const actor=await session(req);
+   if(actor?.role!=='manager'){
+    res.writeHead(actor?403:401,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(JSON.stringify({ok:false,error:'MANAGER_SESSION_REQUIRED'}));return;
+   }
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>65536)throw Error('ATOMIC_CONFIG_BODY_TOO_LARGE');}
+   let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('ATOMIC_CONFIG_BODY_INVALID');}
+   const result=await planningAtomicConfigBridge.commit({actor,path:u.pathname,body,
+    cookie:String(req.headers.cookie||''),origin});
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify(result));return;
+  }
   if(req.method==='POST'&&u.pathname==='/api/v1/internal/auditor/complete-direct'&&planningAtomicInternalComplete){
    const expected=Buffer.from(String(process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'')),
     supplied=Buffer.from(String(req.headers['x-ams-bridge-key']||''));

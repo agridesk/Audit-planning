@@ -4,6 +4,7 @@ import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,planningA
 import {compositionLiveWriterSurfaces20} from './planning-cutover-compatibility-20.mjs';
 import {atomicConfigurationRoutes20} from './planning-atomic-config-bridge-20.js';
 import {atomicScopeAdminRoutes20} from './planning-atomic-scope-admin-20.js';
+import {atomicCompanyScopeRoutes20} from './planning-atomic-company-scopes-20.js';
 const blocked=[
  '/api/v1/manager/extension-direct',
  '/api/v1/manager/self-planning-direct',
@@ -47,7 +48,7 @@ for(const path of planningAtomicOwnedHttpRoutes20){
    'R15-owned atomic route must reject unhandled mutation verb: '+method+' '+path);
 }
 const entrySource=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
-for(const path of planningAtomicOwnedHttpRoutes20.filter(path=>!atomicConfigurationRoutes20.includes(path)&&!atomicScopeAdminRoutes20.includes(path)))
+for(const path of planningAtomicOwnedHttpRoutes20.filter(path=>!atomicConfigurationRoutes20.includes(path)&&!atomicScopeAdminRoutes20.includes(path)&&!atomicCompanyScopeRoutes20.includes(path)))
  assert.ok(entrySource.includes("'"+path+"'"),'Atomic route not recognized by R15: '+path);
 assert.ok(entrySource.includes('planningAtomicConfigBridge&&atomicConfigurationRoutes20.includes(u.pathname)'),
  'R15 must dispatch the six verified metadata routes to their shared-gate bridge');
@@ -57,6 +58,10 @@ for(const path of atomicScopeAdminRoutes20)
  assert.ok(planningAtomicOwnedHttpRoutes20.includes(path),'Scope route not in public atomic owner inventory');
 assert.ok(entrySource.includes('planningAtomicScopeAdmin&&atomicScopeAdminRoutes20.includes(u.pathname)'),
  'R15 must dispatch Scope Management through the fenced service');
+for(const path of atomicCompanyScopeRoutes20)
+ assert.ok(planningAtomicOwnedHttpRoutes20.includes(path),'Company Scope not in public atomic owner inventory');
+assert.ok(entrySource.includes('planningAtomicCompanyScopes&&atomicCompanyScopeRoutes20.includes(u.pathname)'),
+ 'R15 must dispatch Company Scopes through the fenced service');
 const handoff=entrySource.indexOf("u.pathname==='/api/v1/planning/commit-handoff'&&planningAtomicCommands");
 const direct=entrySource.indexOf("u.pathname==='/api/v1/planning/direct-commit'&&planningAtomicCommands");
 assert.ok(handoff>0&&direct>handoff,'R5 Planner must be intercepted by the atomic owner before direct-commit');
@@ -100,8 +105,8 @@ for(const route of ['/api/v1/manager/company-management/save',
  assert.ok(!planningAtomicDeferredManagementRoutes20.includes(route),'Migrated metadata route still deferred');
 }
 
-assert.equal(planningAtomicDeferredManagementRoutes20.length,8,
- 'Eight still-unmigrated administrative writers must remain a release blocker');
+assert.equal(planningAtomicDeferredManagementRoutes20.length,5,
+ 'Five still-unmigrated administrative writers must remain a release blocker');
 for(const route of planningAtomicDeferredManagementRoutes20)
  assert.throws(()=>enforcePlanningAtomicCutover20({enabled:true,method:'POST',path:route}),
   /PLANNING_ATOMIC_WRITER_NOT_MIGRATED/,'Deferred route not actually fenced: '+route);

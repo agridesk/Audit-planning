@@ -35,7 +35,7 @@ export function createAtomicNotificationScalarService20({gate,readRows,forward}=
    const before=sourceSnapshot(await readRows(definition.tab),definition,key);
    if(before.value!==expected)throw Error('ATOMIC_NOTIFICATION_SCALAR_STALE_EXPECTED');
    attempted=true;
-   const data=await forward({kind,key,value,expected,operation:definition.operation});
+   const data=await forward({actor,kind,key,value,expected,operation:definition.operation});
    const after=sourceSnapshot(await readRows(definition.tab),definition,key);
    if(data?.ok===true){
     if(after.value!==value)throw Error('ATOMIC_NOTIFICATION_SCALAR_READBACK_MISMATCH');

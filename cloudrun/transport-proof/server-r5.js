@@ -502,11 +502,27 @@ async function loadScopePlanning20(){
   if(!preview.sourceEvidenceReady||preview.source?.status!=='Pending Planning'||!preview.sourceRevisionAtomic||
    scopes.length<(previous?1:2)||scopes.some(o=>!o.obligationId||!o.scopeCode||!(o.requiredHours>0)))
    throw Error('Canonical obligation source incomplete');
+  // The legacy candidate list filters for every audit scope. Model C
+  // Separately needs the full roster, then canonical per-scope qualification.
+  const knownEmails=new Set((a.candidateAuditors||[]).map(x=>String(x.email||'').trim().toLowerCase()));
+  if(!Array.isArray(a.candidateAuditors))a.candidateAuditors=[];
+  const auditorSelect=q('#auditor');
+  for(const person of payload[1].auditors||[]){
+   const email=String(person.email||'').trim().toLowerCase();
+   if(!email||knownEmails.has(email)||!person.auditorId)continue;
+   knownEmails.add(email);
+   const candidate={email,name:person.name||email,blockedWeekdays:'',
+    rotationState:'DEFERRED',hardBlockQualification:false,ineligible:false};
+   a.candidateAuditors.push(candidate);
+   const option=document.createElement('option');
+   option.value=email;option.textContent=candidate.name;
+   auditorSelect.appendChild(option);
+  }
   composition20={scopes,partialLineage:previous,mode:scopes.length===1||previous?'SEPARATELY':'TOGETHER',manual:null,sourceRevision:preview.sourceRevisionAtomic,
    writeTogether:payload[1].togetherWriteEnabled===true,writeSeparate:payload[1].separateWriteEnabled===true,
    selectedScope:scopes[0].obligationId,separateDrafts:new Map(),togetherDraft:draftBlocks.map(b=>({...b})),
    auditorIds:new Map((payload[1].auditors||[]).map(x=>[String(x.email||'').trim().toLowerCase(),x.auditorId]))};
-  renderDraft();verifyScopeAuditor20();
+  renderDraft();verifyScopeAuditor20();loadRotation();
  }catch(e){box.textContent='Scope planning blocked — Model C data could not be verified: '+String(e.message||e)+'. No planning changes have been saved.';setStatus('Scope planning unavailable. Canonical Model C verification failed; Save is blocked.','err');validate();}
 }
 async function saveScopePlanning20(){

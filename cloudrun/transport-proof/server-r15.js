@@ -1080,6 +1080,14 @@ async function notificationCbSettingMutation(req,res){
    res.writeHead(400);res.end('CB_TEMPLATE_PLACEHOLDER_INVALID');return;
   }
  }
+ // Atomic cutover: all configuration writes acquire the shared planning gate.
+ let configWriteGateLock=null,configWriteAttempted=false,configReadbackVerified=false;
+ try{
+ if(planningAtomicEnabled){
+  if(!planningGlobalGate)throw Error('CB_SETTING_ATOMIC_GATE_MISSING');
+  const operationId=createHash('sha256').update(JSON.stringify({kind,id,field,value,expected,actorId:actor.auditorId})).digest('hex');
+  configWriteGateLock=await planningGlobalGate.acquire({operationId,actorId:String(actor.auditorId),kind:'ATOMIC_CB_SETTING_SERIALIZED'});
+ }
  const sheet=kind==='body'?'Certification_Bodies':'Notification_Templates',key=kind==='body'?'Certification_Body_ID':'TEMPLATE_KEY';
  const base='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/';
  const authorization='Bearer '+await getToken(),url=base+encodeURIComponent("'"+sheet+"'!A1:AZ1000");
@@ -1104,14 +1112,31 @@ async function notificationCbSettingMutation(req,res){
   if(updatedIndex>=0)updates.push({range:"'"+sheet+"'!"+col(updatedIndex)+matched[0].row,values:[[new Date().toISOString()]]});
  }
  const endpoint='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values:batchUpdate';
+ configWriteAttempted=true;
  const committed=await fetch(endpoint,{method:'POST',headers:{authorization,'content-type':'application/json'},
   body:JSON.stringify({valueInputOption:'RAW',data:updates}),signal:AbortSignal.timeout(12000)});
  if(!committed.ok)throw Error('CB_SETTING_WRITE_FAILED');
  const checked=await fetch(base+encodeURIComponent("'"+sheet+"'!"+col(index)+matched[0].row),{headers:{authorization},signal:AbortSignal.timeout(12000)});
  if(!checked.ok||String(((await checked.json()).values||[])[0]?.[0]??'')!==value)throw Error('CB_SETTING_READBACK_NOT_CONFIRMED');
+ if(kind==='body'&&field==='Notification_Email'&&value!==expected){
+  const verifiedIndex=h.indexOf('Email_Verified');
+  const verify=await fetch(base+encodeURIComponent("'"+sheet+"'!"+col(verifiedIndex)+matched[0].row),{headers:{authorization},signal:AbortSignal.timeout(12000)});
+  if(!verify.ok||String(((await verify.json()).values||[])[0]?.[0]??'').toUpperCase()!=='FALSE')
+   throw Error('CB_SETTING_EMAIL_VERIFICATION_READBACK_FAILED');
+ }
+ configReadbackVerified=true;
  console.info('[CB_NOTIFICATION_CONFIG_CHANGED]',JSON.stringify({kind,id,field,actor:actor.auditorId||actor.email,changed:value!==expected}));
  res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
  res.end(JSON.stringify({ok:true,kind,id,field,emailRequiresReverification:kind==='body'&&field==='Notification_Email'&&value!==expected}));
+ }finally{
+  if(configWriteGateLock){
+   if(configWriteAttempted&&!configReadbackVerified)
+    await planningGlobalGate.uncertain({token:configWriteGateLock.token,reason:'CB_SETTING_SHEETS_WRITE_UNCONFIRMED'});
+   else
+    await planningGlobalGate.release({token:configWriteGateLock.token,verified:true,
+     proof:configReadbackVerified?'CB_SETTING_SHEETS_READBACK_VERIFIED':'CB_SETTING_NO_WRITE_ATTEMPT'});
+  }
+ }
 }
 async function proxy(req,res){
  const writerPath=new URL(req.url||'/','http://localhost').pathname;

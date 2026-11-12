@@ -100,6 +100,8 @@ export function prepareSeparateCompositionAuthority20({
    expiry:val(row,oExpiry)?isoDate(val(row,oExpiry)):''});
  }
  if(obligations.size!==ids.length)throw Error('COMPOSITION_SPLIT_OBLIGATIONS_INCOMPLETE');
+ if([...obligations.values()].some(ob=>!ob.from||!ob.to||!ob.expiry||ob.from>ob.to))
+  throw Error('COMPOSITION_SPLIT_OBLIGATION_CYCLE_DATES_MISSING');
  const sh=scopeRows[0],ss=required(sh,'SlotKey'),sc=required(sh,'ScopeCode'),
   sn=required(sh,'DisplayName'),sa=required(sh,'Active'),sx=required(sh,'Archived'),
   sm=required(sh,'Min_Interval_Months');

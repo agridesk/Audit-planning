@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,planningAtomicOwnedHttpRoutes20,planningAtomicRetiredHttpRoutes20,classifiedPlanningCutoverPaths20,planningAtomicDeferredManagementRoutes20} from './planning-atomic-cutover-guard-20.js';
 import {compositionLiveWriterSurfaces20} from './planning-cutover-compatibility-20.mjs';
+import {atomicConfigurationRoutes20} from './planning-atomic-config-bridge-20.js';
 const blocked=[
  '/api/v1/manager/extension-direct',
  '/api/v1/manager/self-planning-direct',
@@ -45,8 +46,12 @@ for(const path of planningAtomicOwnedHttpRoutes20){
    'R15-owned atomic route must reject unhandled mutation verb: '+method+' '+path);
 }
 const entrySource=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
-for(const path of planningAtomicOwnedHttpRoutes20)
+for(const path of planningAtomicOwnedHttpRoutes20.filter(path=>!atomicConfigurationRoutes20.includes(path)))
  assert.ok(entrySource.includes("'"+path+"'"),'Atomic route not recognized by R15: '+path);
+assert.ok(entrySource.includes('planningAtomicConfigBridge&&atomicConfigurationRoutes20.includes(u.pathname)'),
+ 'R15 must dispatch the three verified metadata routes to their shared-gate bridge');
+for(const path of atomicConfigurationRoutes20)
+ assert.ok(planningAtomicOwnedHttpRoutes20.includes(path),'Metadata route not in public atomic owner inventory');
 const handoff=entrySource.indexOf("u.pathname==='/api/v1/planning/commit-handoff'&&planningAtomicCommands");
 const direct=entrySource.indexOf("u.pathname==='/api/v1/planning/direct-commit'&&planningAtomicCommands");
 assert.ok(handoff>0&&direct>handoff,'R5 Planner must be intercepted by the atomic owner before direct-commit');

@@ -348,7 +348,7 @@ function scopePlanningValid20(){
  for(const visit of visits){
   const scope=composition20.scopes.find(x=>x.obligationId===visit.obligationId);
   const from=compositionDate20(scope.windowFrom),to=compositionDate20(scope.windowTo);
-  if(!from||!to||from>to||scope.recurring===null||scope.recurring===true&&!compositionDate20(scope.effectiveExpiry))return false;
+  if(!from||!to||from>to||![true,false].includes(scope.recurring)||scope.recurring===true&&!compositionDate20(scope.effectiveExpiry))return false;
   const auditor=auditors.get(visit.auditorEmail);
   if(!auditor||auditor.hardBlockQualification||auditor.ineligible||!visit.blocks.length)return false;
   const minutes=visit.blocks.reduce((n,b)=>n+hhmm(b.end)-hhmm(b.start),0);
@@ -421,7 +421,7 @@ function renderScopePlanning20(){
    '<option value="'+escHtml(o.obligationId)+'"'+(o.obligationId===composition20.selectedScope?' selected':'')+'>'+
    escHtml(o.scopeCode)+' · '+Number(o.requiredHours).toFixed(2)+' h</option>').join('')+'</select></label>'+
    '<p class="muted compositionHint20">Save only the selected scope. Other scopes remain Pending Planning and can be scheduled later, on different dates or with different auditors.</p>';
-  if(active&&(!compositionDate20(active.windowFrom)||!compositionDate20(active.windowTo)||active.recurring===null||active.recurring===true&&!compositionDate20(active.effectiveExpiry)))
+  if(active&&(!compositionDate20(active.windowFrom)||!compositionDate20(active.windowTo)||![true,false].includes(active.recurring)||active.recurring===true&&!compositionDate20(active.effectiveExpiry)))
    controls+='<p class="warningBox">The canonical Model C planning data for this scope is incomplete. Saving is blocked until verified.</p>';
  }
  if(!saveCompleted)q('#save').textContent=mode==='SEPARATELY'?'Save selected scope':'Save combined visit';

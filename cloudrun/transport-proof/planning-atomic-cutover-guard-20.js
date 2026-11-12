@@ -23,7 +23,9 @@ export const planningAtomicOwnedHttpRoutes20=Object.freeze([
  '/api/v1/manager/company-management/save',
  '/api/v1/auditor/company-management/save',
  '/api/v1/manager/auditor-management/profile/save',
- '/api/v1/manager/scopes/cosmetic'
+ '/api/v1/manager/scopes/cosmetic',
+ '/api/v1/manager/auditor-management/role/save',
+ '/api/v1/manager/auditor-management/active/save'
 ]);
 
 // These administrative writers still share company, scope, auditor or
@@ -44,9 +46,7 @@ export const planningAtomicDeferredManagementRoutes20=Object.freeze([
  '/api/v1/manager/auditor-management/qualification/withdraw',
  '/api/v1/manager/auditor-management/qualification/withdraw/cancel',
  '/api/v1/manager/auditor-management/qualification/save',
- '/api/v1/manager/auditor-management/role/save',
  '/api/v1/manager/auditor-management/identity/save',
- '/api/v1/manager/auditor-management/active/save',
  '/api/v1/manager/auditor-management/create',
  '/api/v1/manager/scopes/create',
  '/api/v1/manager/scopes/policy',

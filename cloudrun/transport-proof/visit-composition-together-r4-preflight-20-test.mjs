@@ -65,6 +65,8 @@ assert.ok(r4.includes("formalTargetMinutes=compositionMode==='TOGETHER'?totalMin
  'Together parent-row 3h must not block canonical 9h preflight');
 assert.ok(r4.includes("from=together?'':dateOnly(audit.planningWindowFrom),to=together?'':dateOnly(audit.planningWindowTo)"),
  'Together uses verified linked scope windows instead of potentially stale legacy parent window');
+assert.ok(r4.includes("row[formalColumn]=formalHours"),
+ 'Together must project verified formal hours into the canonical Audit planning row');
 assert.ok(r4.includes('formalHours=together?together.requiredMinutes/60:'),
  'Together must persist verified 9h, not stale legacy 3h');
 assert.ok(r4.includes('offsitePolicy=together?offsitePolicyForScopes(catalog,together.scopeAllocation.obligations.map(x=>x.scopeCode))'),

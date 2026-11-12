@@ -163,4 +163,32 @@ assert.equal(output.success,true);
 assert.equal(committed,1);assert.equal(projected,1);assert.equal(lease,0);
 assert.equal(gateHeld,false);
 assert.deepEqual(output.auditIds,result.visits.map(x=>x.auditId));
+const partialStore={
+ async readAudit(id){return id==='A1'?sourceCanonical:null;},
+ async readOutbox(){return null;},
+ async commitMulti(x){assert.equal(x.entities.length,2);assert.equal(x.entities[0].remove,false);return {replayed:false};},
+ async markProjected(){}
+};
+const partialService=createVisitCompositionAtomicService20({
+ store:partialStore,gate,availabilityService,hardGate:()=>true,
+ preflight:async()=>partial,projector:projection,appendProjector:appended
+});
+const partialOutcome=await partialService.commit({actor,body:partialBody});
+assert.equal(partialOutcome.success,true);
+assert.equal(partialOutcome.auditIds.length,1);
+assert.equal(lease,0);
+const finalStore={
+ async readAudit(id){return id==='A1'?secondSourceCanonical:null;},
+ async readOutbox(){return null;},
+ async commitMulti(x){assert.equal(x.entities.length,2);assert.equal(x.entities[0].remove,true);return {replayed:false};},
+ async markProjected(){}
+};
+const finalService=createVisitCompositionAtomicService20({
+ store:finalStore,gate,availabilityService,hardGate:()=>true,
+ preflight:async()=>finalScope,projector:projection,appendProjector:appended
+});
+const finalOutcome=await finalService.commit({actor,body:secondBody});
+assert.equal(finalOutcome.success,true);
+assert.equal(finalOutcome.auditIds.length,1);
+assert.equal(lease,0);
 console.log('VISIT_COMPOSITION_SEPARATE_AUTHORITY_20_PASS: full source-to-atomic outbox, Model C, 8+3 hour visits, availability and notifications');

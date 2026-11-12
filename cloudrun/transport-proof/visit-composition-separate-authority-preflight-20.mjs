@@ -104,13 +104,13 @@ export function prepareSeparateCompositionAuthority20({
   throw Error('COMPOSITION_SPLIT_OBLIGATION_CYCLE_DATES_MISSING');
  const sh=scopeRows[0],ss=required(sh,'SlotKey'),sc=required(sh,'ScopeCode'),
   sn=required(sh,'DisplayName'),sa=required(sh,'Active'),sx=required(sh,'Archived'),
-  sm=required(sh,'Min_Interval_Months');
+  sm=required(sh,'Min_Interval_Months'),sOff=idx(sh,'Max_Offsite_Hours');
  const catalog=[],byScope=new Map();
  for(const row of scopeRows.slice(1)){
   const code=val(row,sc).toLowerCase();if(!code)continue;
   if(byScope.has(code))throw Error('COMPOSITION_SPLIT_SCOPE_CATALOG_DUPLICATE');
   const cfg={slotKey:val(row,ss),scopeCode:val(row,sc),displayName:val(row,sn),
-   minIntervalMonths:Number(val(row,sm)||0),active:yes(row[sa])&&!yes(row[sx])};
+   minIntervalMonths:Number(val(row,sm)||0),maxOffsiteHours:Number(val(row,sOff)||0),active:yes(row[sa])&&!yes(row[sx])};
   byScope.set(code,cfg);catalog.push(cfg);
  }
  const ah=auditorRows[0],ae=required(ah,'E-mail'),au=required(ah,'Auditor_UID'),
@@ -122,7 +122,7 @@ export function prepareSeparateCompositionAuthority20({
   if(!ob||seenObligations.has(obId))throw Error('COMPOSITION_SPLIT_CHILD_MEMBERSHIP_INVALID');
   seenObligations.add(obId);
   const cfg=byScope.get(ob.scopeCode.toLowerCase());
-  if(!cfg?.active||!/^SCOPE_(?:0[1-9]|1[0-9]|20)$/.test(cfg.slotKey))
+  if(!cfg?.active||!Number.isFinite(cfg.maxOffsiteHours)||cfg.maxOffsiteHours<0||!/^SCOPE_(?:0[1-9]|1[0-9]|20)$/.test(cfg.slotKey))
    throw Error('COMPOSITION_SPLIT_SCOPE_NOT_ACTIVE');
   const email=clean(proposal.auditorEmail).toLowerCase();
   const auditors=auditorRows.slice(1).filter(row=>val(row,ae).toLowerCase()===email);
@@ -137,14 +137,17 @@ export function prepareSeparateCompositionAuthority20({
    if(a>=z||a<480||z>1080||ob.from&&date<ob.from||ob.to&&date>ob.to)
     throw Error('COMPOSITION_SPLIT_BLOCK_OUTSIDE_WINDOW');
    const executionType=clean(b.executionType||'ONSITE').toUpperCase();
-   if(executionType!=='ONSITE')throw Error('COMPOSITION_SPLIT_OFFSITE_SCOPE_POLICY_NOT_VERIFIED');
-   const execLoc=clean(b.execLoc||b.executionLocation||'HQ');
-   if(!execLoc)throw Error('COMPOSITION_SPLIT_LOCATION_REQUIRED');
+   if(!['ONSITE','OFFSITE'].includes(executionType))throw Error('COMPOSITION_SPLIT_EXECUTION_TYPE_INVALID');
+   const execLoc=clean(b.execLoc||b.executionLocation||'');
+   if(executionType==='ONSITE'&&!execLoc)throw Error('COMPOSITION_SPLIT_LOCATION_REQUIRED');
+   if(executionType==='OFFSITE'&&execLoc)throw Error('COMPOSITION_SPLIT_OFFSITE_LOCATION_MUST_BE_EMPTY');
    const dayKey=auditorId+'|'+date,prev=occupied.get(dayKey)||[];
    if(prev.some(x=>a<x.end&&z>x.start))throw Error('COMPOSITION_SPLIT_AUDITOR_SELF_OVERLAP');
    prev.push({start:a,end:z});occupied.set(dayKey,prev);
    return {date,start,end,hours:(z-a)/60,executionType,execLoc,slotComment:clean(b.slotComment)};
   }).sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
+  if(blocks.filter(b=>b.executionType==='OFFSITE').reduce((n,b)=>n+Math.round(b.hours*60),0)>Math.round(cfg.maxOffsiteHours*60))
+   throw Error('COMPOSITION_SPLIT_OFFSITE_SCOPE_MAX_EXCEEDED');
   if(new Set(blocks.map(x=>x.date)).size>5||blocks.reduce((n,b)=>n+Math.round(b.hours*60),0)!==ob.minutes)
    throw Error('COMPOSITION_SPLIT_FORMAL_MINUTES_MISMATCH');
   const hard=v211AssignmentHardCheck({auditorEmail:email,auditorValues:auditorRows,

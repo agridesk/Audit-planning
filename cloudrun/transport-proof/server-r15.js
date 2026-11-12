@@ -33,6 +33,7 @@ import {createAtomicSelfPlanningService20} from './planning-atomic-self-planning
 import {createAtomicExtensionService20} from './planning-atomic-extension-service-20.js';
 import {createAtomicConfigurationBridge20,atomicConfigurationRoutes20} from './planning-atomic-config-bridge-20.js';
 import {createAtomicScopeAdminService20,atomicScopeAdminRoutes20} from './planning-atomic-scope-admin-20.js';
+import {createAtomicCompanyScopesService20,atomicCompanyScopeRoutes20} from './planning-atomic-company-scopes-20.js';
 import {createAtomicNotificationScalarService20} from './planning-atomic-notification-scalar-20.js';
 import {createVisitCompositionAtomicService20} from './visit-composition-atomic-service-20.js';
 import {prepareSeparateCompositionAuthority20} from './visit-composition-separate-authority-preflight-20.mjs';
@@ -263,6 +264,25 @@ const planningAtomicScopeAdmin=planningAtomicEnabled?createAtomicScopeAdminServi
    '/values/'+encodeURIComponent(range)+'?valueRenderOption=FORMATTED_VALUE';
   const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()},signal:AbortSignal.timeout(12000)});
   if(!response.ok)throw Error('ATOMIC_SCOPE_SOURCE_READ_'+response.status);
+  return (await response.json()).values||[];
+ },
+ forward:async({path,body,cookie,origin})=>{
+  const response=await fetch('http://127.0.0.1:'+(port+9)+path,{
+   method:'POST',redirect:'manual',
+   headers:{'content-type':'application/json',cookie,origin},
+   body:JSON.stringify(body)});
+  return {status:response.status,payload:await response.json().catch(()=>null)};
+ }
+}):null;
+const planningAtomicCompanyScopes=planningAtomicEnabled?createAtomicCompanyScopesService20({
+ gate:planningGlobalGate,
+ readRows:async tab=>{
+  if(!['Company_Scopes','Company_Scope_Hours'].includes(tab))throw Error('ATOMIC_COMPANY_SCOPES_TAB_FORBIDDEN');
+  const range="'"+tab+"'!A1:M3000";
+  const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+
+   '/values/'+encodeURIComponent(range)+'?valueRenderOption=FORMATTED_VALUE';
+  const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()},signal:AbortSignal.timeout(12000)});
+  if(!response.ok)throw Error('ATOMIC_COMPANY_SCOPES_READ_'+response.status);
   return (await response.json()).values||[];
  },
  forward:async({path,body,cookie,origin})=>{
@@ -1516,6 +1536,24 @@ http.createServer(async(req,res)=>{
   // The existing R5 Planner posts to commit-handoff. Once atomic mode
   // is enabled, keep its response contract but use the *same* Firestore
   // transaction/projector as direct-commit; never proxy to the Sheets writer.
+  if(req.method==='POST'&&planningAtomicCompanyScopes&&atomicCompanyScopeRoutes20.includes(u.pathname)){
+   const origin=String(req.headers.origin||'').trim();
+   if(origin!==runtime.origin){
+    res.writeHead(403,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(JSON.stringify({ok:false,error:'ATOMIC_COMPANY_SCOPES_ORIGIN_FORBIDDEN'}));return;
+   }
+   const actor=await session(req);
+   if(actor?.role!=='manager'){
+    res.writeHead(actor?403:401,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(JSON.stringify({ok:false,error:'ATOMIC_COMPANY_SCOPES_MANAGER_REQUIRED'}));return;
+   }
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>16384)throw Error('ATOMIC_COMPANY_SCOPES_BODY_TOO_LARGE');}
+   let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('ATOMIC_COMPANY_SCOPES_BODY_INVALID');}
+   const result=await planningAtomicCompanyScopes.commit({actor,path:u.pathname,body,
+    cookie:String(req.headers.cookie||''),origin});
+   res.writeHead(result.status,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify(result.payload));return;
+  }
   if(req.method==='POST'&&planningAtomicScopeAdmin&&atomicScopeAdminRoutes20.includes(u.pathname)){
    const origin=String(req.headers.origin||'').trim();
    if(origin!==runtime.origin){

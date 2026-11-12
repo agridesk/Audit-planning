@@ -27,6 +27,7 @@ import {previewAuditorQualificationMigration20} from './auditor-scope-qualificat
 const lifecyclePreviewContext20=new AsyncLocalStorage();
 const scopeExtensionProjectionWrites20=new AsyncLocalStorage();
 import {managerCanonicalWriteBridge20} from './manager-canonical-write-bridge-20.mjs';
+import {buildAtomicExtensionWriteset20} from './planning-atomic-extension-writeset-20.mjs';
 import {buildDirectAuditorAcceptSheets20} from './auditor-accept-direct-sheets-20.mjs';
 import {boundedSessionExpiry} from './auth-session-policy.mjs';
 import {createSessionRevocationStore} from './auth-session-revocation-20.js';
@@ -2247,6 +2248,10 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
             command:body.command,expected:plan.expected,previous:before.obligations.get(obligationId),
             company:companyIndex>=0?clean(planningAudit?.row?.[companyIndex]):''
           });
+          if(body?.authorityPreflight===true&&
+             process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true'){
+           return buildAtomicExtensionWriteset20({plan,source,cbEvent,revisionOf:directRowRevision});
+          }
           await sheetsValuesBatchUpdateRaw(plan.updates);
           const verify=inspectDevScopeExtension20({...await readIsolatedDevModelCExt20(),companyUid});
           const actual=verify.obligations.get(obligationId),expected=plan.expected;

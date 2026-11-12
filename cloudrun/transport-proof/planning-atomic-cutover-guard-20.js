@@ -4,6 +4,20 @@
  */
 import {compositionLiveWriterSurfaces20} from './planning-cutover-compatibility-20.mjs';
 
+// These endpoints already dispatch to the atomic owner inside R15 when
+// atomic mode is enabled. They must remain operational, not fall through to
+// the legacy proxy. Other inventoried routes remain explicitly blocked.
+export const planningAtomicOwnedHttpRoutes20=Object.freeze([
+ '/api/v1/manager/approve-direct',
+ '/api/v1/manager/accept-direct',
+ '/api/v1/manager/reject-direct',
+ '/api/v1/manager/cancel-direct',
+ '/api/v1/manager/complete-direct',
+ '/api/v1/manager/action',
+ '/api/v1/auditor/action',
+ '/api/v1/manager/auditor-management/audit/transfer'
+]);
+
 const blocked=[
  /^\/api\/v1\/manager\/extension-direct$/,
  // Issue #87: these live DEV writers mutate the same planning/obligation
@@ -23,7 +37,8 @@ const blocked=[
 export function enforcePlanningAtomicCutover20({enabled,method,path}){
  if(!enabled||!['POST','PUT','PATCH','DELETE'].includes(String(method).toUpperCase()))return;
  if(typeof path!=='string'||!path.startsWith('/'))throw Error('PLANNING_ATOMIC_PATH_INVALID');
- if(compositionLiveWriterSurfaces20.includes(path)||blocked.some(re=>re.test(path)))
+ if(!planningAtomicOwnedHttpRoutes20.includes(path)&&
+  (compositionLiveWriterSurfaces20.includes(path)||blocked.some(re=>re.test(path))))
   throw Error('PLANNING_ATOMIC_WRITER_NOT_MIGRATED');
 }
 

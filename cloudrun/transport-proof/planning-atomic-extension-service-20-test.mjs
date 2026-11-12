@@ -66,7 +66,7 @@ function setup({preflight=proof,inspection='MATCH',appendInspection='MATCH',outb
 }
 {
  const {instance,events}=setup(),result=await instance.commit({actor,body});
- assert.equal(result.success,true);assert.equal(result.projection,'PROJECTED');
+ assert.equal(result.success,true);assert.equal(result.direct,true);assert.equal(result.projection,'PROJECTED');
  assert.equal(result.cbNotification.certificationBodyId,'CB-1');
  assert.deepEqual(events,['gateAcquire','readAudit','preflight','commit',
   'projectRows','appendOutbox','marked','gateRelease']);
@@ -86,7 +86,7 @@ function setup({preflight=proof,inspection='MATCH',appendInspection='MATCH',outb
  const {instance,events}=setup({outbox:{auditId:'audit-1',actorId:'manager-1',
   state:'PROJECTED',snapshot:{scopeExtension:{patch:plan.patch,cbNotification:proof.cbNotification}}}});
  const result=await instance.commit({actor,body});
- assert.equal(result.idempotent,true);assert.equal(events.length,0);
+ assert.equal(result.idempotent,true);assert.equal(result.direct,true);assert.equal(events.length,0);
 }
 {
  const {instance,events}=setup();
@@ -98,4 +98,7 @@ const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 assert.ok(server.includes("u.pathname==='/api/v1/manager/extension-obligation-command'&&planningAtomicExtension"));
 assert.ok(r4.includes("return buildAtomicExtensionWriteset20({plan,source,cbEvent,revisionOf:directRowRevision})"));
 assert.ok(r4.includes("EXT_ATOMIC_LEGACY_SHEETS_WRITERS_NOT_FROZEN"));
+const managerGrid=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
+assert.ok(managerGrid.includes("receipt.direct===true&&receipt.projection==='PROJECTED'"),
+ 'Manager Grid must accept the already projected atomic receipt without legacy reconcile');
 console.log('Issue #87 EXT/Undo atomic: 9-cell CAS + CB outbox + failure/replay PASS');

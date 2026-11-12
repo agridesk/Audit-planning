@@ -29,13 +29,18 @@ export const planningAtomicOwnedHttpRoutes20=Object.freeze([
 // These administrative writers still share company, scope, auditor or
 // audit identity authority. They are deliberately *not* declared migrated.
 // Atomic cutover would block them; the release gate must report that fact.
+export const planningAtomicRetiredManagementRoutes20=Object.freeze([
+ '/api/v1/manager/auditor-identity/firestore-write-probe',
+ '/api/v1/internal/dev-auditor-uid',
+ '/api/v1/manager/company-scope-hours/backfill',
+ '/api/v1/manager/scopes/bootstrap-v1'
+]);
+// The above are one-off DEV diagnostics/bootstrap, not live business writes.
 export const planningAtomicDeferredManagementRoutes20=Object.freeze([
  '/api/v1/manager/scopes/scheme-version',
- '/api/v1/manager/auditor-identity/firestore-write-probe',
  '/api/v1/manager/company-management/scopes/hours',
  '/api/v1/manager/company-management/scopes/assign',
  '/api/v1/manager/company-management/scopes/save',
- '/api/v1/manager/company-scope-hours/backfill',
  '/api/v1/manager/auditor-management/qualification/withdraw',
  '/api/v1/manager/auditor-management/qualification/withdraw/cancel',
  '/api/v1/manager/auditor-management/qualification/save',
@@ -46,8 +51,6 @@ export const planningAtomicDeferredManagementRoutes20=Object.freeze([
  '/api/v1/manager/scopes/create',
  '/api/v1/manager/scopes/policy',
  '/api/v1/manager/scopes/hours-version',
- '/api/v1/manager/scopes/bootstrap-v1',
- '/api/v1/internal/dev-auditor-uid'
 ]);
 
 // Static source classification only. Operational release STILL requires

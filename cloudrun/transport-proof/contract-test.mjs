@@ -49,7 +49,7 @@ const checks=[
  ['r5 preassigned UI',r5.includes('id="preassigned"')&&r5.includes('a.preassignedAuditor')],
  ['r5 warning surface',r5.includes('id="warnings"')&&r5.includes('warningMessages()')],
  ['r5 planning-window hard date guard',r5.includes("d>=selectedWindow.from&&d<=selectedWindow.to")&&r5.includes('windowValid=selectedWindow.valid&&draftBlocks.every')],
- ['r5 formal-hours hard save guard',r5.includes('hoursComplete=target<=0||Math.abs(Math.round(hours*60)-Math.round(target*60))<=15')&&r5.includes('Number(a.formalHours??a.requiredHours??0)')&&!r5.includes('a.schedulingHoursTarget')],
+ ['r5 formal-hours hard save guard',r5.includes('hoursComplete=target<=0||(composition20?.scopes?.length?Math.round(hours*60)===Math.round(target*60):Math.abs(Math.round(hours*60)-Math.round(target*60))<=15)')&&r5.includes('composition20?.mode===\'TOGETHER\'?scopeSum')&&!r5.includes('a.schedulingHoursTarget')],
  ['r5 multi-slot UI',!r5.includes('id="addSlot"')&&r5.includes('id="slotList"')&&r5.includes('draftBlocks=[]')&&r5.includes('function toggleCalendarDay(date,visualState)')],
  ['r5 multi-slot canonical payload',r5.includes('blocks:draftBlocks.slice()')],
  ['r5 duplicate-slot guard',r5.includes('draftBlocks.some((x,j)=>j!==i&&overlaps(x,next))')&&r5.includes('This slot overlaps another slot in the draft.')],

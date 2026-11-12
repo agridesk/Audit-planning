@@ -41,6 +41,8 @@ has(r5,"Other scopes remain Pending Planning",
  'other scope obligations are not silently auto-planned');
 has(r5,'.compositionPanel20 input[type="radio"]',
  'scope radio controls cannot inherit full width input layout');
+has(r5,"composition20?.mode==='TOGETHER'&&remaining<=10?10:8",'single-day 9 hour combined draft is possible without manually splitting scopes');
+has(r5,'.compositionModes20{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))','combined and separate modes display side by side');
 
 
 has(r5,'chosen.reduce((n,r)=>n+Number(r.formalHours||r.requiredHours||0),0)',

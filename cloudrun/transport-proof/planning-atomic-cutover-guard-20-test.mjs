@@ -42,4 +42,11 @@ assert.throws(()=>validatePlanningAtomicRuntime20({...validated,legacyWriterReti
 assert.throws(()=>validatePlanningAtomicRuntime20({...validated,backfillParityVerified:false}),/PLANNING_ATOMIC_BACKFILL_PARITY_REQUIRED/);
 assert.throws(()=>validatePlanningAtomicRuntime20({...validated,otherAuthorityEnabled:true}),/PLANNING_ATOMIC_DUAL_AUTHORITY_ENABLED/);
 assert.throws(()=>validatePlanningAtomicRuntime20({...validated,liveWriterRouteParityVerified:false}),/PLANNING_ATOMIC_LIVE_WRITER_ROUTE_PARITY_REQUIRED/);
+const {readFileSync}=await import('node:fs');
+const r15=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
+const serverEntry=r15.indexOf("http.createServer(async(req,res)=>{");
+const canonicalEntry=r15.indexOf("enforcePlanningAtomicCutover20({enabled:planningAtomicEnabled,method:req.method,path:u.pathname});",serverEntry);
+const proxyEntry=r15.indexOf("async function proxy(req,res)");
+assert.ok(serverEntry>=0&&canonicalEntry>serverEntry&&proxyEntry<serverEntry,
+ 'Public HTTP entrypoint must fail closed before directly handled or proxied endpoints');
 console.log('Atomic cutover write surface: migration fence and unaffected PROD paths OK');

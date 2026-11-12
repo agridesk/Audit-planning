@@ -10,7 +10,7 @@ const source={planningRows:[ph,before],obligationRows:[oh,obligation]};
 const values=['Yes','{"source":"AMS_DEV_MODEL_C_SCOPE_EXTENSION_20"}','2028-01-01','2027-12-01','2028-03-01'];
 const updates=[
  ...[1,2,3,4,5].map((col,i)=>({range:"'Audit_Obligations'!"+'ABCDEF'[col]+'2',values:[[values[i]]]})),
- ...[2,3,4,5].map((col,i)=>({range:"'Audit planning'!"+'ABCDEF'[col]+'2',values:[['Yes','2028-01-01','2027-12-01','2028-03-01'][i]]]}))
+ ...[2,3,4,5].map((col,i)=>({range:"'Audit planning'!"+'ABCDEF'[col]+'2',values:[['Yes','2028-01-01','2027-12-01','2028-03-01'][i]]}))
 ];
 const plan={auditId:'audit-1',obligationId:'ob-1',command:'apply',operationId:'request-1',
  updates,expected:{effectiveExpiry:'2028-01-01'},

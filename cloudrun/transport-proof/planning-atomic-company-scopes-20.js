@@ -43,7 +43,8 @@ function normalizedHours(x){
 }
 function preflight(type,body,sources){
  const uid=str(body?.companyUid),code=str(body?.scopeCode);
- if(!uid||!code||uid.length>180||code.length>100)throw Error('ATOMIC_COMPANY_SCOPE_ID_INVALID');
+ if(!uid||(type!=='save'&&!code)||uid.length>180||code.length>100)
+  throw Error('ATOMIC_COMPANY_SCOPE_ID_INVALID');
  const cs=dataTable(sources.Company_Scopes,'Company_Scopes');
  if(type==='assign'){
   if(relations(cs,uid,code).length)throw Error('ATOMIC_COMPANY_SCOPE_ALREADY_EXISTS');

@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import vm from 'node:vm';
+import {multiScopePlanningParity20} from './multi-scope-planning-parity-20.mjs';
 
 const source=fs.readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
 const start=source.indexOf('function planningHtml(auditId,identity){');
@@ -7,7 +8,7 @@ const end=source.indexOf('\nasync function handlePlanning(req,res,u)',start);
 if(start<0||end<0)throw new Error('planningHtml function not found');
 
 const fnSource=source.slice(start,end);
-const sandbox={clean:v=>String(v==null?'':v).trim()};
+const sandbox={clean:v=>String(v==null?'':v).trim(),multiScopePlanningParity20};
 vm.createContext(sandbox);
 vm.runInContext(fnSource,sandbox,{filename:'planningHtml-extracted.js'});
 const html=sandbox.planningHtml('AUD_TEST',{role:'Manager',email:'planning@agriqa.es'});

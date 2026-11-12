@@ -42,7 +42,7 @@ import {createPlanningAtomicRecovery} from './planning-atomic-recovery-20.js';
 import {createPlanningAtomicParityVerifier} from './planning-atomic-parity-verifier-20.js';
 import {createPlanningGlobalClaimsParity} from './planning-global-claims-parity-20.js';
 import {createPlanningCutoverDataAudit} from './planning-cutover-data-audit-20.js';
-import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20} from './planning-atomic-cutover-guard-20.js';
+import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,classifiedPlanningCutoverPaths20,planningAtomicRetiredHttpRoutes20} from './planning-atomic-cutover-guard-20.js';
 import {createPlanningSheetsWritesetProjector} from './planning-sheets-writeset-projector-20.js';
 import {createPlanningSheetsAppendProjector} from './planning-sheets-append-projector-20.js';
 import {createPlanningBackfillRunner} from './planning-atomic-backfill-20.js';
@@ -1203,8 +1203,7 @@ http.createServer(async(req,res)=>{
   // Retired EXT endpoints must never reach legacy Sheets/Firestore owners.
   // The active Manager Grid uses /manager/extension-obligation-command.
   if(planningAtomicEnabled&&['POST','PUT','PATCH','DELETE'].includes(String(req.method||''))&&
-     ['/api/v1/manager/extension','/api/v1/manager/extension-direct',
-      '/api/v1/manager/extension-reconcile-projection'].includes(u.pathname)){
+     planningAtomicRetiredHttpRoutes20.includes(u.pathname)){
    res.writeHead(410,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
    res.end(JSON.stringify({success:false,error:'LEGACY_EXT_ROUTE_RETIRED_USE_MODEL_C_COMMAND'}));return;
   }
@@ -1347,8 +1346,9 @@ http.createServer(async(req,res)=>{
     managerOwnerShared:process.env.AMS_MANAGER_LIFECYCLE_OWNER_SHARED_VERIFIED==='true',
     backfillParity:process.env.AMS_DEV_ATOMIC_BACKFILL_PARITY_VERIFIED==='true',
     legacyWritersFrozen:process.env.AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED==='true',
-    liveWriterRouteParityVerified:process.env.AMS_DEV_ATOMIC_LIVE_WRITER_ROUTE_PARITY_VERIFIED==='true'
-    // Intentionally never pass an environment-driven list as migration proof.
+    liveWriterRouteParityVerified:process.env.AMS_DEV_ATOMIC_LIVE_WRITER_ROUTE_PARITY_VERIFIED==='true',
+    migratedWriterPaths:classifiedPlanningCutoverPaths20()
+    // Compiled route classification only; runtime flags still require independent verification.
    });
    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
    res.end(JSON.stringify({success:true,...status}));return;

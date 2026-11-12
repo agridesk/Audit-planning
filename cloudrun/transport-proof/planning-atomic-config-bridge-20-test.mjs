@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createAtomicConfigurationBridge20,atomicConfigurationRoutes20} from './planning-atomic-config-bridge-20.js';
 const route='/api/v1/manager/company-management/save';
-function fixture({failForward=false,mismatch=false,rejected=false}={}){
+function fixture({failForward=false,mismatch=false,rejected=false,conflict=false,partialConflict=false}={}){
  const events=[];let value='Before';
  const bridge=createAtomicConfigurationBridge20({
   gate:{
@@ -17,6 +17,7 @@ function fixture({failForward=false,mismatch=false,rejected=false}={}){
   forward:async()=>{
    events.push('forward');if(failForward)throw Error('TRANSPORT_UNCERTAIN');
    if(rejected)return {status:400,payload:{ok:false,error:'INVALID_CHANGE_VALUE'}};
+   if(conflict){if(partialConflict)value='Partial';return {status:409,payload:{ok:false,error:'STALE_COMPANY_FIELD'}};}
    value='After';return {status:200,payload:{ok:true,updated:1}};
   }
  });
@@ -36,6 +37,18 @@ const body={companyUid:'company-1',changes:{Comments:{expected:'Before',value:'A
  assert.equal(outcome.status,400);
  assert.equal(outcome.payload.error,'INVALID_CHANGE_VALUE');
  assert.deepEqual(events,['lock','read','forward','release']);
+}
+{
+ const {bridge,events}=fixture({conflict:true});
+ const result=await bridge.commit({actor,path:route,body,cookie:'sid=abc',origin:'https://dev.example'});
+ assert.equal(result.status,409);
+ assert.deepEqual(events,['lock','read','forward','read','release']);
+}
+{
+ const {bridge,events}=fixture({conflict:true,partialConflict:true});
+ await assert.rejects(bridge.commit({actor,path:route,body,cookie:'sid=abc',origin:'https://dev.example'}),
+ /INNER_WRITE_UNCONFIRMED/);
+ assert.deepEqual(events,['lock','read','forward','read','uncertain']);
 }
 {
  const {bridge,events}=fixture({failForward:true});

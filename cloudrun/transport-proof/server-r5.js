@@ -294,9 +294,9 @@ function scopeAllocationDraft20(){
  return multiScopePlanningParity20({scopes:composition20.scopes,blocks:draftBlocks,allocations:composition20.manual});
 }
 function compositionDate20(raw){
- const x=String(raw||'').trim(),eu=/^(\d{2})[./-](\d{2})[./-](\d{4})$/.exec(x);
+ const x=String(raw||'').trim(),eu=/^(\\d{2})[./-](\\d{2})[./-](\\d{4})$/.exec(x);
  const iso=eu?eu[3]+'-'+eu[2]+'-'+eu[1]:x;
- if(!/^\d{4}-\d{2}-\d{2}$/.test(iso))return '';
+ if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(iso))return '';
  const d=new Date(iso+'T00:00:00Z');
  return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===iso?iso:'';
 }
@@ -421,7 +421,7 @@ function renderScopePlanning20(){
 async function loadScopePlanning20(){
  const a=model?.data?.audit||{};
  if(actorRole.toLowerCase()!=='manager'||(a.scopes||[]).length<2||
-   String(a.status||'').toUpperCase().replace(/[\s-]+/g,'_')!=='PENDING_PLANNING')return;
+   String(a.status||'').toUpperCase().replace(/[\\s-]+/g,'_')!=='PENDING_PLANNING')return;
  const box=q('#visitCompositionLink');box.style.display='block';box.textContent='Loading Model C scope hours…';composition20={mode:'LOADING'};validate();
  try{
   const urls=['/api/v1/manager/model-c-visit-preview?auditId='+encodeURIComponent(auditId),

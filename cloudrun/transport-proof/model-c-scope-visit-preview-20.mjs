@@ -23,6 +23,7 @@ export function previewModelCVisitComposition20({auditId,obligations,links,plann
  if(rows.some(r=>!r.obligationId||!r.scopeCode||!r.companyUid)||new Set(rows.map(r=>r.companyUid)).size>1)throw Error('MODEL_C_PREVIEW_IDENTITY_INCOMPLETE');
  if(new Set(rows.map(r=>r.obligationId)).size!==rows.length)throw Error('MODEL_C_PREVIEW_DUPLICATE_OBLIGATION');
  const source={checked:false,sourceRows:null,status:null,companyUid:null,revision:'NOT_VERIFIED'};
+ let parentWindow={from:'',to:''};
  if(planningRows!==null){
   const ph=planningRows?.[0]||[],pa=col(ph,'Audit ID','Audit_ID'),ps=col(ph,'Status'),
    pc=col(ph,'Company_UID','Company UID');
@@ -31,6 +32,8 @@ export function previewModelCVisitComposition20({auditId,obligations,links,plann
   if(matching.length!==1)throw Error('MODEL_C_PREVIEW_SOURCE_IDENTITY_CONFLICT');
   source.checked=true;source.sourceRows=1;source.status=field(matching[0],ps);
   source.companyUid=field(matching[0],pc)||null;
+  parentWindow={from:field(matching[0],col(ph,'Planning window from')),
+   to:field(matching[0],col(ph,'Planning window to'))};
   // Reuse the DEV GAS combined-visit PRT1 source fingerprint for source
   // evidence. This is a read-only candidate, NOT an authoritative commit CAS.
   source.revision=canonicalPlanningRevision20(ph,matching[0]);
@@ -41,8 +44,22 @@ export function previewModelCVisitComposition20({auditId,obligations,links,plann
  if(configScopes!==null){
   const ch=configScopes?.[0]||[],ci=col(ch,'ScopeCode');
   if(ci<0)throw Error('MODEL_C_PREVIEW_SCOPE_CATALOG_SCHEMA_INCOMPLETE');
-  const counts=new Map();
-  for(const r of configScopes.slice(1)){const key=field(r,ci);if(key)counts.set(key,(counts.get(key)||0)+1);}
+  const counts=new Map(),policies=new Map(),recCol=col(ch,'Recurring');
+  for(const r of configScopes.slice(1)){
+   const key=field(r,ci);if(!key)continue;
+   counts.set(key,(counts.get(key)||0)+1);
+   if(recCol>=0)policies.set(key,field(r,recCol));
+  }
+  for(const row of rows){
+   const raw=String(policies.get(row.scopeCode)||'').trim().toUpperCase();
+   row.recurring=['YES','TRUE','1','X'].includes(raw)?true:['NO','FALSE','0'].includes(raw)?false:null;
+   row.windowSource='OBLIGATION_CANONICAL';
+   if(row.recurring===false&&(!row.windowFrom||!row.windowTo)){
+    if(!row.windowFrom)row.windowFrom=parentWindow.from;
+    if(!row.windowTo)row.windowTo=parentWindow.to;
+    row.windowSource='SOURCE_AUDIT_PLANNING_NONRECURRING_FALLBACK';
+   }
+  }
   catalog={checked:true,missingScopeCodes:rows.filter(r=>!counts.has(r.scopeCode)).map(r=>r.scopeCode),
    duplicateScopeCodes:rows.filter(r=>(counts.get(r.scopeCode)||0)>1).map(r=>r.scopeCode)};
   if(catalog.missingScopeCodes.length||catalog.duplicateScopeCodes.length)

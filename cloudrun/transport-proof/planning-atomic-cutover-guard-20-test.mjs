@@ -47,6 +47,18 @@ for(const path of planningAtomicOwnedHttpRoutes20){
 const entrySource=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 for(const path of planningAtomicOwnedHttpRoutes20)
  assert.ok(entrySource.includes("'"+path+"'"),'Atomic route not recognized by R15: '+path);
+const handoff=entrySource.indexOf("u.pathname==='/api/v1/planning/commit-handoff'&&planningAtomicCommands");
+const direct=entrySource.indexOf("u.pathname==='/api/v1/planning/direct-commit'&&planningAtomicCommands");
+assert.ok(handoff>0&&direct>handoff,'R5 Planner must be intercepted by the atomic owner before direct-commit');
+const handoffSource=entrySource.slice(handoff,direct);
+for(const contract of [
+ "planningAtomicCommands.commit({actor:{...actor,cookie:String(req.headers.cookie||'')},body})",
+ "PLANNING_MULTI_AUDIT_HANDOFF_ATOMIC_NOT_MIGRATED",
+ "ok:true,result,writeOwner:'CLOUD_RUN_DEV_FIRESTORE_ATOMIC_PLANNING'",
+ "newStatus:actor.role==='manager'?'Approved':'Pending Approval'",
+ "planningCache.invalidate()"
+])assert.ok(handoffSource.includes(contract),'Atomic handoff compatibility missing '+contract);
+
 assert.equal(validatePlanningAtomicRuntime20({enabled:false}),true);
 const validated={enabled:true,legacyWriterRetired:true,managerOwnerShared:true,backfillParityVerified:true,liveWriterRouteParityVerified:true,otherAuthorityEnabled:false};
 assert.equal(validatePlanningAtomicRuntime20(validated),true);

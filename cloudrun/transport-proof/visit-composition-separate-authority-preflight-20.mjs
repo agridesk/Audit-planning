@@ -73,6 +73,18 @@ export function prepareSeparateCompositionAuthority20({
  catch{throw Error('COMPOSITION_SPLIT_SOURCE_PLANNING_JSON_INVALID');}
  if(originalPlanning?.identityRetired===true||(originalPlanning?.blocks?.length||0)>0)
   throw Error('COMPOSITION_SPLIT_SOURCE_ALREADY_PLANNED_OR_RETIRED');
+ const companyHeaders=companyRows[0],companyUidCol=required(companyHeaders,'Company_UID'),
+  locationsCol=required(companyHeaders,'Locations_JSON');
+ const matchingCompanies=companyRows.slice(1).filter(row=>val(row,companyUidCol)===companyUid);
+ if(matchingCompanies.length!==1)throw Error('COMPOSITION_SPLIT_COMPANY_IDENTITY_AMBIGUOUS');
+ let allowedLocations=new Set(['HQ']);
+ const rawLocations=val(matchingCompanies[0],locationsCol);
+ if(rawLocations){
+  let list;try{list=JSON.parse(rawLocations);}catch{throw Error('COMPOSITION_SPLIT_COMPANY_LOCATIONS_INVALID');}
+  if(!Array.isArray(list))throw Error('COMPOSITION_SPLIT_COMPANY_LOCATIONS_INVALID');
+  allowedLocations=new Set(list.filter(x=>x&&x.active===true&&clean(x.code)).map(x=>clean(x.code)));
+  if(!allowedLocations.size)throw Error('COMPOSITION_SPLIT_COMPANY_LOCATIONS_UNAVAILABLE');
+ }
  const lh=linkRows[0],la=required(lh,'Audit_ID'),lo=required(lh,'Obligation_ID'),
   ls=required(lh,'Link_State'),lun=required(lh,'Unlinked_At'),linked=required(lh,'Linked_At');
  const active=linkRows.slice(1).map((row,i)=>({row,rowNumber:i+2})).filter(x=>status(x.row[ls])==='ACTIVE');
@@ -139,7 +151,7 @@ export function prepareSeparateCompositionAuthority20({
    const executionType=clean(b.executionType||'ONSITE').toUpperCase();
    if(!['ONSITE','OFFSITE'].includes(executionType))throw Error('COMPOSITION_SPLIT_EXECUTION_TYPE_INVALID');
    const execLoc=clean(b.execLoc||b.executionLocation||'');
-   if(executionType==='ONSITE'&&!execLoc)throw Error('COMPOSITION_SPLIT_LOCATION_REQUIRED');
+   if(executionType==='ONSITE'&&(!execLoc||!allowedLocations.has(execLoc)))throw Error('COMPOSITION_SPLIT_LOCATION_NOT_CANONICAL');
    if(executionType==='OFFSITE'&&execLoc)throw Error('COMPOSITION_SPLIT_OFFSITE_LOCATION_MUST_BE_EMPTY');
    const dayKey=auditorId+'|'+date,prev=occupied.get(dayKey)||[];
    if(prev.some(x=>a<x.end&&z>x.start))throw Error('COMPOSITION_SPLIT_AUDITOR_SELF_OVERLAP');

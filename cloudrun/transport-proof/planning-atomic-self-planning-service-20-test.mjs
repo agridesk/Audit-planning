@@ -84,4 +84,9 @@ assert.ok(r4.includes("const atomicPreflight=selfPlanningAtomicReadOnlyPreflight
 assert.ok(r4.includes("SELF_PLANNING_ATOMIC_LEGACY_WRITERS_NOT_FROZEN"));
 assert.ok(r4.includes("SELF_PLANNING_LEGACY_WRITER_FROZEN"));
 assert.ok(r4.includes("if(atomicPreflight){"));
+assert.ok(r4.includes("const values=atomicPreflight?await readCanonicalPlanningRowsForAtomic20():result[0]?.values||[]"),
+ 'Self planning must compare the same formatted row and header as R15 backfill');
+assert.ok(r4.includes("encodeURIComponent('Audit planning!A1:BW2000')"),
+ 'Canonical atomic snapshot range must match R15');
+
 console.log('Issue #87 atomic Self planning: commit / CAS / uncertain / replay / no-op PASS');

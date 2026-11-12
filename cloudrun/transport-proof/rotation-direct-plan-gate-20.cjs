@@ -33,9 +33,21 @@ function canonicalAssignment({auditId,auditorUid,planningValues,auditorValues,sc
 }
 // Called ONLY inside the existing planning writer lock, using the same fresh
 // server-side Sheets snapshot as the actual planning mutation.
-async function enforceDirectPlanningRotation20({auditId,auditorUid,planningValues,auditorValues,scopeValues,logValues,approvedExceptions,resolveAuditorUid}={}){
+async function enforceDirectPlanningRotation20({auditId,auditorUid,planningValues,auditorValues,scopeValues,logValues,approvedExceptions,resolveAuditorUid,canonicalScopeKeys=null}={}){
  if(!Array.isArray(approvedExceptions))throw Error('ROTATION_DIRECT_APPROVAL_SOURCE_MISSING');
  const assignment=canonicalAssignment({auditId,auditorUid,planningValues,auditorValues,scopeValues,logValues});
+ if(canonicalScopeKeys!==null){
+  if(!Array.isArray(canonicalScopeKeys)||canonicalScopeKeys.length<1||
+     canonicalScopeKeys.some(key=>!clean(key))||
+     new Set(canonicalScopeKeys.map(clean)).size!==canonicalScopeKeys.length)
+   throw Error('ROTATION_MODEL_C_SCOPE_OVERRIDE_INVALID');
+  const h=scopeValues[0],codeIndex=uniqueIndex(h,'ScopeCode');
+  const allowed=new Set(scopeValues.slice(1).map(r=>clean(r[codeIndex])).filter(Boolean));
+  if(canonicalScopeKeys.some(key=>!allowed.has(clean(key))))
+   throw Error('ROTATION_MODEL_C_SCOPE_OVERRIDE_UNKNOWN');
+  assignment.scopeKeys=canonicalScopeKeys.map(clean);
+ }
+
  return enforceAmsRotationAtWrite20({...assignment,phase:'COMMIT',loadSheets:async()=>({
   scopeRows:scopeValues,completedRows:logValues,approvedExceptions,resolveAuditorUid,
   assignmentAuditId:assignment.auditId,assignmentCompanyUid:assignment.companyUid,

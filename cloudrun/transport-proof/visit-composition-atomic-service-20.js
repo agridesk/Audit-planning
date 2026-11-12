@@ -17,13 +17,21 @@ function validate(preview,sourceAuditId,mode,requestedRevision){
     !Array.isArray(preview.projectionWrites)||preview.projectionWrites.length===0||
     !Array.isArray(preview.projectionPreconditions)||preview.projectionPreconditions.length===0||
     !Array.isArray(preview.appendIntents)||preview.appendIntents.length===0||
-    !Array.isArray(preview.visits)||preview.visits.length<(mode==='TOGETHER'?1:2))
+    !Array.isArray(preview.visits)||preview.visits.length<1)
   throw Error('VISIT_COMPOSITION_AUTHORITY_PREFLIGHT_INCOMPLETE');
  const visits=preview.visits;
  const auditIds=visits.map(v=>str(v.auditId)),obligationIds=visits.flatMap(v=>v.obligationIds||[]);
  const active=preview.activeObligationIds;
- if(!Array.isArray(active)||active.length<2||!distinct(active)||active.some(x=>!str(x))||
-   active.length!==obligationIds.length||active.some(x=>!obligationIds.includes(x)))
+ if(!Array.isArray(active)||active.length<1||!distinct(active)||active.some(x=>!str(x)))
+  throw Error('VISIT_COMPOSITION_ACTIVE_LINK_MEMBERSHIP_MISMATCH');
+ const remaining=mode==='SEPARATELY'?preview.remainingObligationIds||[]:[];
+ if(mode==='SEPARATELY'&&(!Array.isArray(remaining)||!distinct(remaining)||
+    remaining.some(id=>!str(id)||obligationIds.includes(id))||
+    active.length!==obligationIds.length+remaining.length||
+    active.some(id=>!obligationIds.includes(id)&&!remaining.includes(id))))
+  throw Error('VISIT_COMPOSITION_PARTIAL_LINK_PARTITION_INVALID');
+ if(mode==='TOGETHER'&&
+    (active.length!==obligationIds.length||active.some(id=>!obligationIds.includes(id))))
   throw Error('VISIT_COMPOSITION_ACTIVE_LINK_MEMBERSHIP_MISMATCH');
  if(auditIds.some(x=>!x)||!distinct(auditIds)||obligationIds.some(x=>!x)||!distinct(obligationIds)||
     visits.some(v=>!Array.isArray(v.obligationIds)||!v.obligationIds.length||
@@ -86,11 +94,13 @@ function validate(preview,sourceAuditId,mode,requestedRevision){
    throw Error('VISIT_COMPOSITION_SPLIT_ENTITY_INVALID');
   // Retire identity, not lifecycle status. The source Audit stays in
   // history with an explicit successor lineage; no fake Completed/Rejected.
-  const retired=preview.sourceTombstone;
-  if(retired.identityRetired!==true||
-     retired.retirementReason!=='VISIT_COMPOSITION_SPLIT'||
+  const retired=preview.sourceTombstone,partial=remaining.length>0;
+  if((partial?
+      retired.partialScopePlanning!==true||retired.identityRetired===true||
+      retired.composition!=='SEPARATELY'||
+      JSON.stringify(retired.remainingObligationIds)!==JSON.stringify(remaining):
+      retired.identityRetired!==true||retired.retirementReason!=='VISIT_COMPOSITION_SPLIT')||
      !Array.isArray(retired.successorAuditIds)||
-     retired.successorAuditIds.length!==auditIds.length||
      auditIds.some(id=>!retired.successorAuditIds.includes(id))||
      JSON.stringify(preview.entities.find(e=>e.auditId===sourceAuditId)?.nextSnapshot)!==
       JSON.stringify(retired))
@@ -142,10 +152,13 @@ function validate(preview,sourceAuditId,mode,requestedRevision){
   let retiredJson;
   try{retiredJson=JSON.parse(str(sourceRows[0][planningJsonIndex]));}
   catch{throw Error('VISIT_COMPOSITION_SOURCE_RETIREMENT_JSON_MISSING');}
-  if(retiredJson?.identityRetired!==true||
-     retiredJson.retirementReason!=='VISIT_COMPOSITION_SPLIT'||
+  if((partial?
+      retiredJson?.partialScopePlanning!==true||
+      retiredJson.composition!=='SEPARATELY'||
+      JSON.stringify(retiredJson.remainingObligationIds)!==JSON.stringify(remaining):
+      retiredJson?.identityRetired!==true||
+      retiredJson.retirementReason!=='VISIT_COMPOSITION_SPLIT')||
      !Array.isArray(retiredJson.successorAuditIds)||
-     retiredJson.successorAuditIds.length!==auditIds.length||
      auditIds.some(id=>!retiredJson.successorAuditIds.includes(id)))
    throw Error('VISIT_COMPOSITION_SOURCE_RETIREMENT_JSON_MISMATCH');
   const newRows=preview.appendIntents.filter(x=>
@@ -157,7 +170,7 @@ function validate(preview,sourceAuditId,mode,requestedRevision){
    throw Error('VISIT_COMPOSITION_SUCCESSOR_PLANNING_ROWS_MISSING');
   const entityIds=preview.entities.map(e=>str(e.auditId));
   if(!distinct(entityIds)||!entityIds.includes(sourceAuditId)||auditIds.some(id=>!entityIds.includes(id))||
-     preview.entities.find(e=>e.auditId===sourceAuditId)?.remove!==true||
+     preview.entities.find(e=>e.auditId===sourceAuditId)?.remove===partial||
      visits.some(v=>preview.entities.find(e=>e.auditId===v.auditId)?.expectedRevision!==null||
       JSON.stringify(preview.entities.find(e=>e.auditId===v.auditId)?.nextSnapshot)!==JSON.stringify(v.snapshot)))
    throw Error('VISIT_COMPOSITION_SPLIT_ENTITY_INTEGRITY');

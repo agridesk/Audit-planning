@@ -27,6 +27,17 @@ has(r5,'class="compositionPanel20"','compact composition panel is part of existi
 has(r5,'class="scopeMinutes20" type="number" step="0.25"','composition controls accept quarter hours');
 has(r5,'minutes:Math.round(Number(field.value)*60)','hour inputs convert only in canonical payload');
 has(r5,'Save is unavailable: the secure DEV atomic writer','writer guard is visibly explained to manager');
+has(r5,"visits:[{...selected,blocks:selected.blocks.map(b=>({...b}))}]",
+ 'Separately commits only the selected scope, not all unsaved obligations');
+has(r5,"scopes.length<(previous?1:2)",
+ 'later final obligation can continue in the same canonical Planner');
+has(r5,"Save selected scope",
+ 'independent scope Save button is explicit');
+has(r5,"Other scopes remain Pending Planning",
+ 'other scope obligations are not silently auto-planned');
+has(r5,'.compositionPanel20 input[type="radio"]',
+ 'scope radio controls cannot inherit full width input layout');
+
 
 has(r5,'chosen.reduce((n,r)=>n+Number(r.formalHours||r.requiredHours||0),0)',
  'R5 retains legacy combined company visit target');

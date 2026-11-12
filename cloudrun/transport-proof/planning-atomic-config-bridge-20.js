@@ -12,19 +12,29 @@ export const atomicConfigurationRoutes20=Object.freeze([
  '/api/v1/manager/company-management/save',
  '/api/v1/auditor/company-management/save',
  '/api/v1/manager/auditor-management/profile/save',
- '/api/v1/manager/scopes/cosmetic'
+ '/api/v1/manager/scopes/cosmetic',
+ '/api/v1/manager/auditor-management/role/save',
+ '/api/v1/manager/auditor-management/active/save'
 ]);
 function input(path,body){
  if(!atomicConfigurationRoutes20.includes(path)||!body||typeof body!=='object'||Array.isArray(body))
   throw Error('ATOMIC_CONFIG_ROUTE_UNSUPPORTED');
- const changes=path.endsWith('/scopes/cosmetic')?{[body.field]:{value:body.value,expected:body.expected}}:body.changes;
+ const auditorRole=path.endsWith('/auditor-management/role/save'),
+  auditorActive=path.endsWith('/auditor-management/active/save');
+ const changes=auditorRole?{Role:{value:body.role,expected:body.expected}}:
+  auditorActive?{Active:{value:body.active?'Yes':'No',expected:body.expected?'Yes':'No'}}:
+  path.endsWith('/scopes/cosmetic')?{[body.field]:{value:body.value,expected:body.expected}}:body.changes;
+ if(auditorActive&&(typeof body.active!=='boolean'||typeof body.expected!=='boolean'))
+  throw Error('ATOMIC_CONFIG_ACTIVE_BOOLEAN_REQUIRED');
+ if(auditorRole&&(!['Auditor','Manager'].includes(body.role)||!['Auditor','Manager'].includes(body.expected)))
+  throw Error('ATOMIC_CONFIG_ROLE_INVALID');
  if(!changes||typeof changes!=='object'||Array.isArray(changes)||!Object.keys(changes).length||
     Object.values(changes).some(x=>!x||typeof x.value!=='string'||typeof x.expected!=='string'))
   throw Error('ATOMIC_CONFIG_CHANGES_INVALID');
  const tab=path.includes('company-management')?'Companies':path.includes('auditor-management')?'Auditors':'Config_Scopes';
  const keyColumn=tab==='Companies'?'Company_UID':tab==='Auditors'?'E-mail':'ScopeCode';
  const key=tab==='Companies'?str(body.companyUid):tab==='Auditors'?str(body.email).toLowerCase():str(body.scopeCode);
- const allowed=tab==='Companies'?new Set(['Contactperson ','Contactperson e-mail','Contactperson phone','Number','Group','Region','Country','Time zone',' Language communication','Manager_Email','Comments','Audit planning limitations - days','Audit planning limitations - hours','Preferred_Audit_Months','Locations_JSON','Auditor_Exclusions','Auditor comments']):tab==='Auditors'?new Set(['Area','Default time zone','Blocked weekdays','Default departure from','Mobile telephone']):new Set(['DisplayName','Color','TextColor','SortOrder']);
+ const allowed=tab==='Companies'?new Set(['Contactperson ','Contactperson e-mail','Contactperson phone','Number','Group','Region','Country','Time zone',' Language communication','Manager_Email','Comments','Audit planning limitations - days','Audit planning limitations - hours','Preferred_Audit_Months','Locations_JSON','Auditor_Exclusions','Auditor comments']):tab==='Auditors'?new Set(['Area','Default time zone','Blocked weekdays','Default departure from','Mobile telephone','Role','Active']):new Set(['DisplayName','Color','TextColor','SortOrder']);
  if(path==='/api/v1/auditor/company-management/save'){
   const auditorFields=new Set(['Contactperson ','Contactperson e-mail',
    'Contactperson phone','Auditor comments','Preferred_Audit_Months',
@@ -32,8 +42,22 @@ function input(path,body){
   if(Object.keys(changes).some(field=>!auditorFields.has(field)))
    throw Error('ATOMIC_CONFIG_AUDITOR_FIELD_FORBIDDEN');
  }
+ if(tab==='Auditors'&&Object.keys(changes).some(field=>['Role','Active'].includes(field))&&
+    !((auditorRole&&Object.keys(changes).length===1&&Object.hasOwn(changes,'Role'))||
+      (auditorActive&&Object.keys(changes).length===1&&Object.hasOwn(changes,'Active'))))
+  throw Error('ATOMIC_CONFIG_PRIVILEGED_AUDITOR_FIELD_FORBIDDEN');
  if(!key||Object.keys(changes).some(field=>!allowed.has(field)))throw Error('ATOMIC_CONFIG_FIELD_UNSUPPORTED');
  return {tab,keyColumn,key,changes};
+}
+function sameValue(field,current,expected){
+ if(field!=='Active')return str(current)===str(expected);
+ const parse=value=>{
+  const normalized=str(value).toUpperCase();
+  if(['YES','TRUE','1','X'].includes(normalized))return true;
+  if(['NO','FALSE','0',''].includes(normalized))return false;
+  throw Error('ATOMIC_CONFIG_ACTIVE_VALUE_INVALID');
+ };
+ return parse(current)===parse(expected);
 }
 function snapshot(rows,spec){
  if(!Array.isArray(rows)||!Array.isArray(rows[0])||!rows.length||rows.length>2500)
@@ -68,7 +92,7 @@ export function createAtomicConfigurationBridge20({gate,readRows,forward}={}){
    // Do not forward a stale mutation: the locked canonical snapshot must
    // agree with every expected field before the legacy writer is entered.
    for(const [field,change] of Object.entries(spec.changes))
-    if(before[field]!==str(change.expected))throw Error('ATOMIC_CONFIG_STALE_EXPECTED_'+field);
+    if(!sameValue(field,before[field],change.expected))throw Error('ATOMIC_CONFIG_STALE_EXPECTED_'+field);
    forwarded=true;
    const outcome=await forward({path,body,cookie,origin});
    // A rejection is safe to unlock only if an independent canonical read
@@ -86,7 +110,7 @@ export function createAtomicConfigurationBridge20({gate,readRows,forward}={}){
     throw Error('ATOMIC_CONFIG_INNER_WRITE_UNCONFIRMED');
    const values=snapshot(await readRows(spec.tab),spec);
    for(const [field,change]of Object.entries(spec.changes))
-    if(values[field]!==str(change.value))
+    if(!sameValue(field,values[field],change.value))
      throw Error('ATOMIC_CONFIG_READBACK_MISMATCH_'+field);
    verified=true;
    await gate.release({token:lock.token,verified:true,proof:'CONFIG_SHEETS_READBACK_VERIFIED'});

@@ -42,7 +42,7 @@ import {createPlanningAtomicRecovery} from './planning-atomic-recovery-20.js';
 import {createPlanningAtomicParityVerifier} from './planning-atomic-parity-verifier-20.js';
 import {createPlanningGlobalClaimsParity} from './planning-global-claims-parity-20.js';
 import {createPlanningCutoverDataAudit} from './planning-cutover-data-audit-20.js';
-import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,classifiedPlanningCutoverPaths20,planningAtomicRetiredHttpRoutes20} from './planning-atomic-cutover-guard-20.js';
+import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,classifiedPlanningCutoverPaths20,planningAtomicRetiredHttpRoutes20,planningAtomicDeferredManagementRoutes20} from './planning-atomic-cutover-guard-20.js';
 import {createPlanningSheetsWritesetProjector} from './planning-sheets-writeset-projector-20.js';
 import {createPlanningSheetsAppendProjector} from './planning-sheets-append-projector-20.js';
 import {createPlanningBackfillRunner} from './planning-atomic-backfill-20.js';
@@ -1347,7 +1347,8 @@ http.createServer(async(req,res)=>{
     backfillParity:process.env.AMS_DEV_ATOMIC_BACKFILL_PARITY_VERIFIED==='true',
     legacyWritersFrozen:process.env.AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED==='true',
     liveWriterRouteParityVerified:process.env.AMS_DEV_ATOMIC_LIVE_WRITER_ROUTE_PARITY_VERIFIED==='true',
-    migratedWriterPaths:classifiedPlanningCutoverPaths20()
+    migratedWriterPaths:classifiedPlanningCutoverPaths20(),
+    deferredManagementRoutes:planningAtomicDeferredManagementRoutes20
     // Compiled route classification only; runtime flags still require independent verification.
    });
    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});

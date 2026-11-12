@@ -61,7 +61,7 @@ export function createAtomicConfigurationBridge20({gate,readRows,forward}={}){
    lock=await gate.acquire({operationId,actorId,kind:'ATOMIC_CONFIG_SERIALIZED'});
    // Pre-flight identity and field schema. The R4 route performs its own
    // independent business validation and per-field expected-value CAS.
-   snapshot(await readRows(spec.tab),spec);
+   const before=snapshot(await readRows(spec.tab),spec);
    forwarded=true;
    const outcome=await forward({path,body,cookie,origin});
    // R4 rejects malformed/unauthorized requests before entering any Sheets
@@ -71,6 +71,15 @@ export function createAtomicConfigurationBridge20({gate,readRows,forward}={}){
     await gate.release({token:lock.token,verified:true,proof:'CONFIG_VALIDATION_REJECTED_NO_WRITE'});
     lock=null;
     return {status:outcome.status,payload:outcome.payload};
+   }
+   if(outcome?.status===409&&outcome.payload?.ok===false){
+    const afterRejection=snapshot(await readRows(spec.tab),spec);
+    const unchanged=Object.keys(spec.changes).every(field=>afterRejection[field]===before[field]);
+    if(unchanged){
+     await gate.release({token:lock.token,verified:true,proof:'CONFIG_CAS_REJECTED_ROW_UNCHANGED'});
+     lock=null;
+     return {status:409,payload:outcome.payload};
+    }
    }
    if(outcome?.status!==200||outcome.payload?.ok!==true)
     throw Error('ATOMIC_CONFIG_INNER_WRITE_UNCONFIRMED');

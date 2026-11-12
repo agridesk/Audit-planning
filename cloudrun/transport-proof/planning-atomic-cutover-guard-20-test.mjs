@@ -49,7 +49,7 @@ const entrySource=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8'
 for(const path of planningAtomicOwnedHttpRoutes20.filter(path=>!atomicConfigurationRoutes20.includes(path)))
  assert.ok(entrySource.includes("'"+path+"'"),'Atomic route not recognized by R15: '+path);
 assert.ok(entrySource.includes('planningAtomicConfigBridge&&atomicConfigurationRoutes20.includes(u.pathname)'),
- 'R15 must dispatch the three verified metadata routes to their shared-gate bridge');
+ 'R15 must dispatch the six verified metadata routes to their shared-gate bridge');
 for(const path of atomicConfigurationRoutes20)
  assert.ok(planningAtomicOwnedHttpRoutes20.includes(path),'Metadata route not in public atomic owner inventory');
 const handoff=entrySource.indexOf("u.pathname==='/api/v1/planning/commit-handoff'&&planningAtomicCommands");
@@ -95,8 +95,8 @@ for(const route of ['/api/v1/manager/company-management/save',
  assert.ok(!planningAtomicDeferredManagementRoutes20.includes(route),'Migrated metadata route still deferred');
 }
 
-assert.ok(planningAtomicDeferredManagementRoutes20.length>=14,
- 'Unmigrated administrative writers must remain a release blocker');
+assert.equal(planningAtomicDeferredManagementRoutes20.length,12,
+ 'Twelve still-unmigrated administrative writers must remain a release blocker');
 for(const route of planningAtomicDeferredManagementRoutes20)
  assert.throws(()=>enforcePlanningAtomicCutover20({enabled:true,method:'POST',path:route}),
   /PLANNING_ATOMIC_WRITER_NOT_MIGRATED/,'Deferred route not actually fenced: '+route);

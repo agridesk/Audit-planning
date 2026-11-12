@@ -443,23 +443,31 @@ async function loadScopePlanning20(){
  }catch(e){box.textContent='Model C preview not available: '+String(e.message||e);}
 }
 async function saveScopePlanning20(){
- if(!composition20||composition20.mode!=='TOGETHER'||!scopePlanningValid20())
+ if(!composition20||!scopePlanningValid20())
   return setStatus('Canonical multi-scope planning is not ready to save.','err');
- const candidate=selectedCandidate()||{},allocation=scopeAllocationDraft20();
- if(!allocation?.ok||!q('#auditor').value)return setStatus('Complete every scope allocation and select an auditor.','err');
- const body={auditId,composition:'TOGETHER',sourceRevision:composition20.sourceRevision,
-  auditorEmail:q('#auditor').value,auditorName:candidate.name||q('#auditor').value,
-  blocks:draftBlocks.map(x=>({...x})),scopeAllocations:allocation.allocations};
- if(!confirm('Commit one combined Visit with verified '+(allocation.totalRequiredMinutes/60)+' formal hours?'))return;
- q('#save').disabled=true;setStatus('Committing canonical Together visit…','warn');
+ let body,route;
+ if(composition20.mode==='TOGETHER'){
+  const candidate=selectedCandidate()||{},allocation=scopeAllocationDraft20();
+  if(!allocation?.ok||!q('#auditor').value)return setStatus('Complete every scope allocation and select an auditor.','err');
+  body={auditId,composition:'TOGETHER',sourceRevision:composition20.sourceRevision,
+   auditorEmail:q('#auditor').value,auditorName:candidate.name||q('#auditor').value,
+   blocks:draftBlocks.map(x=>({...x})),scopeAllocations:allocation.allocations};
+  route='/api/v1/planning/direct-commit';
+ }else if(composition20.mode==='SEPARATELY'){
+  body={auditId,composition:'SEPARATELY',sourceRevision:composition20.sourceRevision,
+   visits:separateVisitsDraft20().map(v=>({...v,blocks:v.blocks.map(b=>({...b}))}))};
+  route='/api/v1/planning/visit-composition-atomic';
+ }else return setStatus('Unknown composition mode','err');
+ if(!confirm('Commit '+(composition20.mode==='TOGETHER'?'one combined Visit':'independent Visits')+' with verified canonical scope hours?'))return;
+ q('#save').disabled=true;setStatus('Committing canonical visit composition…','warn');
  try{
-  const r=await fetch('/api/v1/planning/direct-commit',{method:'POST',credentials:'same-origin',
+  const r=await fetch(route,{method:'POST',credentials:'same-origin',
    headers:{'content-type':'application/json'},body:JSON.stringify(body)});
   const result=await r.json();
   if(!r.ok||result.success!==true)throw Error(result.error||'Atomic commit not verified');
-  saveCompleted=true;setStatus('Saved · '+(result.newStatus||'Approved'),'ok');
+  saveCompleted=true;setStatus('Saved · '+(result.auditIds||[auditId]).join(', '),'ok');
   if(window.opener&&!window.opener.closed)window.opener.postMessage({
-   type:'AMS_PLANNING_SAVED',auditId,newStatus:result.newStatus||'Approved'},location.origin);
+   type:'AMS_PLANNING_SAVED',auditId,newStatus:'Approved'},location.origin);
  }catch(e){setStatus(String(e?.message||e),'err');validate();}
 }
 function selectedCandidate(){const email=q('#auditor').value;return model?.data?.audit?.candidateAuditors?.find(x=>x.email===email)||null}function selectedDay(){const email=q('#auditor').value,date=q('#date').value;const rows=(((model?.data||{}).overlays||{}).availability||{}).byAuditorEmail?.[email]||[];return rows.find(r=>r.date===date)||null}function localToday(){const d=new Date(),y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+day}function weekday(iso){const n=new Date(iso+'T12:00:00').getDay();return['Su','Mo','Tu','We','Th','Fr','Sa'][n]}function selectedVisitWindow(){if(composition20?.mode==='SEPARATELY'){const o=composition20.scopes?.find(x=>x.obligationId===composition20.selectedScope),from=compositionDate20(o?.windowFrom),to=compositionDate20(o?.windowTo);return{from,to,valid:!!from&&!!to&&from<=to};}const a=model?.data?.audit||{},set=a.companyPlanningSet||[],chosen=set.filter(r=>visitAuditIds.has(r.auditId));const members=chosen.length?chosen:[a];const starts=members.map(r=>String(r.planningWindowFrom||'').trim()),ends=members.map(r=>String(r.planningWindowTo||'').trim());if(members.length===1&&!starts[0]&&!ends[0]){const period=model?.data?.period||{},from=String(period.from||'').trim(),to=String(period.to||'').trim();if(/^\\d{4}-\\d{2}-\\d{2}$/.test(from)&&/^\\d{4}-\\d{2}-\\d{2}$/.test(to))return{from,to,valid:from<=to,operationalFallback:true}}if(starts.some(x=>!/^\\d{4}-\\d{2}-\\d{2}$/.test(x))||ends.some(x=>!/^\\d{4}-\\d{2}-\\d{2}$/.test(x)))return{from:'',to:'',valid:false};const from=starts.sort().at(-1),to=ends.sort()[0];return{from,to,valid:from<=to}}

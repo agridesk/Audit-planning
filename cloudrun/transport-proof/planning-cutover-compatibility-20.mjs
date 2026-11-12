@@ -18,7 +18,7 @@ export const compositionLiveWriterSurfaces20=Object.freeze([
 ]);
 export function planningCutoverCompatibility20({environment,atomicEnabled,compositionEnabled,
  legacyRetired,managerOwnerShared,backfillParity,legacyWritersFrozen,liveWriterRouteParityVerified,
- migratedWriterPaths=[]}={}){
+ migratedWriterPaths=[],deferredManagementRoutes=[]}={}){
  const isDev=environment==='DEV';
  const migrated=new Set(Array.isArray(migratedWriterPaths)?migratedWriterPaths:[]);
  const pending=compositionLiveWriterSurfaces20.filter(path=>!migrated.has(path));
@@ -32,7 +32,9 @@ export function planningCutoverCompatibility20({environment,atomicEnabled,compos
  if(!legacyWritersFrozen)blockers.push('LEGACY_WRITER_FREEZE_UNVERIFIED');
  if(!liveWriterRouteParityVerified)blockers.push('LIVE_WRITER_ROUTE_PARITY_UNVERIFIED');
  if(pending.length)blockers.push('LIVE_WRITER_MIGRATION_INCOMPLETE');
+ if(deferredManagementRoutes.length)blockers.push('MANAGEMENT_WRITER_MIGRATION_INCOMPLETE');
  return {ready:blockers.length===0,blockers,pendingWriterRoutes:pending,
+  deferredManagementRoutes:deferredManagementRoutes.slice(),
   inspectedWriterRoutes:compositionLiveWriterSurfaces20.length,
   note:'Readiness inventory is not a substitute for transaction, parity and E2E evidence.'};
 }

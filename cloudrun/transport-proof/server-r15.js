@@ -32,6 +32,7 @@ import {createPlanningAtomicCommandService} from './planning-atomic-command-serv
 import {createVisitCompositionAtomicService20} from './visit-composition-atomic-service-20.js';
 import {prepareSeparateCompositionAuthority20} from './visit-composition-separate-authority-preflight-20.mjs';
 import {managerVisitCompositionPage20} from './visit-composition-manager-page-20.mjs';
+import {planningCutoverCompatibility20} from './planning-cutover-compatibility-20.mjs';
 import {createPlanningLifecycleAtomicService} from './planning-lifecycle-atomic-service-20.js';
 import {createPlanningMultiLifecycleService} from './planning-multi-lifecycle-service-20.js';
 import {createPlanningAtomicTransferService} from './planning-atomic-transfer-service-20.js';
@@ -1264,6 +1265,22 @@ http.createServer(async(req,res)=>{
     'x-content-type-options':'nosniff','x-frame-options':'DENY',
     'content-security-policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"});
    res.end(managerVisitCompositionPage20());return;
+  }
+  if(req.method==='GET'&&u.pathname==='/api/v1/planning/visit-composition-readiness'){
+   if(!runtime.isDev){res.writeHead(404,{'cache-control':'no-store'});res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager required');return;}
+   const status=planningCutoverCompatibility20({
+    environment:'DEV',atomicEnabled:planningAtomicEnabled,
+    compositionEnabled:compositionWriteRequested,
+    legacyRetired:process.env.AMS_GAS_LIFECYCLE_WRITER_RETIRED_VERIFIED==='true',
+    managerOwnerShared:process.env.AMS_MANAGER_LIFECYCLE_OWNER_SHARED_VERIFIED==='true',
+    backfillParity:process.env.AMS_DEV_ATOMIC_BACKFILL_PARITY_VERIFIED==='true',
+    legacyWritersFrozen:process.env.AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED==='true'
+    // Intentionally never pass an environment-driven list as migration proof.
+   });
+   res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
+   res.end(JSON.stringify({success:true,...status}));return;
   }
   if(req.method==='GET'&&u.pathname==='/api/v1/planning/visit-composition-editor-context'){
    const actor=await session(req);

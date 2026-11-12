@@ -2374,7 +2374,7 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     let raw='';for await(const chunk of req)raw+=chunk;if(raw.length>16384)return send(res,413,{ok:false,error:'REQUEST_TOO_LARGE'});
     let b={};try{b=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
     const actorEmail=clean(b.actorEmail).toLowerCase();if(!actorEmail)return send(res,400,{ok:false,error:'AUDITOR_EMAIL_REQUIRED'});
-    try{b.action='complete';const out=await directAuditorComplete({email:actorEmail,role:'Auditor'},b);return send(res,out&&out.success===false?409:200,out);}
+    try{b.action='complete';const identity={email:actorEmail,role:'Auditor'};const out=await lifecycleAuthorityPreflight20(identity,b,'COMPLETE',()=>directAuditorComplete(identity,b));return send(res,out&&out.success===false?409:200,out);}
     catch(e){return send(res,409,{ok:false,error:clean(e?.message||e)||'DIRECT_AUDITOR_COMPLETE_BLOCKED',detail:clean(e?.message||e)});}
   }
   if(u.pathname==='/api/v1/manager/complete-direct'&&req.method==='POST'){

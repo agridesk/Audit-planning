@@ -1317,6 +1317,28 @@ http.createServer(async(req,res)=>{
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
    res.end(JSON.stringify(result));return;
   }
+  // The existing R5 Planner posts to commit-handoff. Once atomic mode
+  // is enabled, keep its response contract but use the *same* Firestore
+  // transaction/projector as direct-commit; never proxy to the Sheets writer.
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/commit-handoff'&&planningAtomicCommands){
+   const actor=await session(req);
+   if(!actor||!['manager','auditor'].includes(actor.role)){
+    res.writeHead(actor?403:401,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(JSON.stringify({ok:false,error:actor?'ROLE_FORBIDDEN':'PLANNING_SESSION_REQUIRED'}));return;
+   }
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>65536)throw Error('PLANNING_BODY_TOO_LARGE');}
+   let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('PLANNING_BODY_INVALID');}
+   const members=Array.isArray(body.visitAuditIds)?body.visitAuditIds.map(String).filter(Boolean):[],
+    extra=members.filter(id=>id!==String(body.auditId||''));
+   if(extra.length||Array.isArray(body.visitMembers)&&body.visitMembers.some(x=>String(x?.auditId||'')!==String(body.auditId||'')))
+    throw Error('PLANNING_MULTI_AUDIT_HANDOFF_ATOMIC_NOT_MIGRATED');
+   const outcome=await planningAtomicCommands.commit({actor:{...actor,cookie:String(req.headers.cookie||'')},body});
+   planningCache.invalidate();
+   const result={...outcome,newStatus:actor.role==='manager'?'Approved':'Pending Approval',
+    directCommit:true,writeOwner:'CLOUD_RUN_DEV_FIRESTORE_ATOMIC_PLANNING'};
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify({ok:true,result,writeOwner:'CLOUD_RUN_DEV_FIRESTORE_ATOMIC_PLANNING'}));return;
+  }
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/direct-commit'&&planningAtomicCommands){
    const actor=await session(req);
    if(!actor){res.writeHead(401,{'content-type':'application/json'});res.end(JSON.stringify({success:false,error:'PLANNING_SESSION_REQUIRED'}));return;}

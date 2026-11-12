@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {multiScopePlanningParity20} from './multi-scope-planning-parity-20.mjs';
 const r5=readFileSync(new URL('./server-r5.js',import.meta.url),'utf8');
 const a=r5.indexOf('function planningHtml(auditId,identity){'),b=r5.indexOf('\nasync function handlePlanning(req,res,u)',a);
 assert(a>0&&b>a);
-const sandbox={clean:v=>String(v??'').trim()};vm.createContext(sandbox);vm.runInContext(r5.slice(a,b),sandbox);
+const sandbox={clean:v=>String(v??'').trim(),multiScopePlanningParity20};vm.createContext(sandbox);vm.runInContext(r5.slice(a,b),sandbox);
 for(const role of ['Manager','Auditor']){
  const html=sandbox.planningHtml('INTERNAL-AUDIT-UID',{role,email:'test@example.com'});
  const markup=html.slice(0,html.indexOf('</main>'));

@@ -1125,6 +1125,10 @@ async function notificationCbSettingMutation(req,res){
    throw Error('CB_SETTING_EMAIL_VERIFICATION_READBACK_FAILED');
  }
  configReadbackVerified=true;
+ if(configWriteGateLock){
+  await planningGlobalGate.release({token:configWriteGateLock.token,verified:true,proof:'CB_SETTING_SHEETS_READBACK_VERIFIED'});
+  configWriteGateLock=null;
+ }
  console.info('[CB_NOTIFICATION_CONFIG_CHANGED]',JSON.stringify({kind,id,field,actor:actor.auditorId||actor.email,changed:value!==expected}));
  res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
  res.end(JSON.stringify({ok:true,kind,id,field,emailRequiresReverification:kind==='body'&&field==='Notification_Email'&&value!==expected}));

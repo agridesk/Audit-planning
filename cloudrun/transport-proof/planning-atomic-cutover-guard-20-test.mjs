@@ -81,12 +81,13 @@ assert.deepEqual(planningAtomicRetiredHttpRoutes20,[
 ]);
 assert.deepEqual(classifiedPlanningCutoverPaths20(),[...compositionLiveWriterSurfaces20]);
 for(const route of ['/api/v1/manager/company-management/save',
+ '/api/v1/auditor/company-management/save',
  '/api/v1/manager/auditor-management/profile/save','/api/v1/manager/scopes/cosmetic']){
  assert.ok(planningAtomicOwnedHttpRoutes20.includes(route),'Verified metadata route owner missing');
  assert.ok(!planningAtomicDeferredManagementRoutes20.includes(route),'Migrated metadata route still deferred');
 }
 
-assert.ok(planningAtomicDeferredManagementRoutes20.length>=19,
+assert.ok(planningAtomicDeferredManagementRoutes20.length>=18,
  'Unmigrated administrative writers must remain a release blocker');
 for(const route of planningAtomicDeferredManagementRoutes20)
  assert.throws(()=>enforcePlanningAtomicCutover20({enabled:true,method:'POST',path:route}),

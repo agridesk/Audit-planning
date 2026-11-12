@@ -45,4 +45,24 @@ assert.throws(()=>validate({...base,blocks:offsiteBlocks,allocations:offsiteAllo
  /OFFSITE_SCOPE_POLICY_MISSING/);
 assert.throws(()=>validate({...base,scopeCatalog:scopeCatalog.map(x=>({...x,maxOffsiteHours:0})),blocks:offsiteBlocks,allocations:offsiteAllocations}),
  /OFFSITE_SCOPE_MAX_EXCEEDED/);
+
+// Regression #87: a legacy parent row may report 3h while Model C links
+// require GAP 6h + GRASP 3h; canonical obligations, never the parent,
+// determine the combined formal target.
+const nineHourObligations=obligations.map((row,i)=>i===1?[...row.slice(0,3),6,...row.slice(4)]:row);
+const nineHourBlocks=[{date:'2027-03-12',start:'09:00',end:'18:00'}];
+const nineHourAllocations=[
+ {blockId:'2027-03-12|09:00|18:00',obligationId:'o1',minutes:360},
+ {blockId:'2027-03-12|09:00|18:00',obligationId:'o2',minutes:180}
+];
+assert.equal(validate({...base,obligations:nineHourObligations,blocks:nineHourBlocks,
+ allocations:nineHourAllocations,formalTargetMinutes:540}).requiredMinutes,540);
+assert.throws(()=>validate({...base,obligations:nineHourObligations,blocks:nineHourBlocks,
+ allocations:nineHourAllocations,formalTargetMinutes:180}),/FORMAL_HOURS_SOURCE_MISMATCH/);
+const {readFileSync}=await import('node:fs');
+const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+assert.ok(r4.includes("formalTargetMinutes=compositionMode==='TOGETHER'?totalMinutes:Math.round(formalTarget*60)"),
+ 'Together parent-row 3h must not block canonical 9h preflight');
+assert.ok(r4.includes('formalHours=together?together.requiredMinutes/60:'),
+ 'Together must persist verified 9h, not stale legacy 3h');
 console.log('VISIT_COMPOSITION_TOGETHER_R4_PREFLIGHT_20_PASS: canonical obligations, scope hours, windows and per-block allocation');

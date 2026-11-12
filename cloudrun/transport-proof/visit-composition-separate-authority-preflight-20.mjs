@@ -112,18 +112,32 @@ export function prepareSeparateCompositionAuthority20({
    expiry:val(row,oExpiry)?isoDate(val(row,oExpiry)):''});
  }
  if(obligations.size!==ids.length)throw Error('COMPOSITION_SPLIT_OBLIGATIONS_INCOMPLETE');
- if([...obligations.values()].some(ob=>!ob.from||!ob.to||!ob.expiry||ob.from>ob.to))
-  throw Error('COMPOSITION_SPLIT_OBLIGATION_CYCLE_DATES_MISSING');
  const sh=scopeRows[0],ss=required(sh,'SlotKey'),sc=required(sh,'ScopeCode'),
   sn=required(sh,'DisplayName'),sa=required(sh,'Active'),sx=required(sh,'Archived'),
-  sm=required(sh,'Min_Interval_Months'),sOff=idx(sh,'Max_Offsite_Hours');
+  sm=required(sh,'Min_Interval_Months'),sOff=idx(sh,'Max_Offsite_Hours'),sRecurring=required(sh,'Recurring');
  const catalog=[],byScope=new Map();
  for(const row of scopeRows.slice(1)){
   const code=val(row,sc).toLowerCase();if(!code)continue;
   if(byScope.has(code))throw Error('COMPOSITION_SPLIT_SCOPE_CATALOG_DUPLICATE');
   const cfg={slotKey:val(row,ss),scopeCode:val(row,sc),displayName:val(row,sn),
-   minIntervalMonths:Number(val(row,sm)||0),maxOffsiteHours:Number(val(row,sOff)||0),active:yes(row[sa])&&!yes(row[sx])};
+   minIntervalMonths:Number(val(row,sm)||0),maxOffsiteHours:Number(val(row,sOff)||0),recurring:yes(row[sRecurring])?true:['NO','FALSE','0'].includes(status(row[sRecurring]))?false:null,active:yes(row[sa])&&!yes(row[sx])};
   byScope.set(code,cfg);catalog.push(cfg);
+ }
+ const parentFrom=val(before,required(ph,'Planning window from')),
+  parentTo=val(before,required(ph,'Planning window to'));
+ for(const ob of obligations.values()){
+  const cfg=byScope.get(ob.scopeCode.toLowerCase());
+  if(!cfg?.active||cfg.recurring===null)throw Error('COMPOSITION_SPLIT_SCOPE_CYCLE_POLICY_UNVERIFIED');
+  if(cfg.recurring===false){
+   if(!ob.from||!ob.to){
+    if(!parentFrom||!parentTo)throw Error('COMPOSITION_SPLIT_NONRECURRING_PARENT_WINDOW_MISSING');
+    if(!ob.from)ob.from=isoDate(parentFrom);
+    if(!ob.to)ob.to=isoDate(parentTo);
+    ob.windowSource='SOURCE_AUDIT_PLANNING_NONRECURRING_FALLBACK';
+   }
+  }else if(!ob.expiry||!ob.from||!ob.to)
+   throw Error('COMPOSITION_SPLIT_OBLIGATION_CYCLE_DATES_MISSING');
+  if(!ob.from||!ob.to||ob.from>ob.to)throw Error('COMPOSITION_SPLIT_OBLIGATION_WINDOW_INVALID');
  }
  const ah=auditorRows[0],ae=required(ah,'E-mail'),au=required(ah,'Auditor_UID'),
   ar=required(ah,'Role'),aa=required(ah,'Active');
@@ -286,7 +300,7 @@ export function prepareSeparateCompositionAuthority20({
   const planningJson=JSON.stringify({blocks:x.blocks,formalHours:x.ob.hours,
    totalPlannedHours:x.ob.hours,offsiteHours:0,maxOffsiteHours:0,
    auditorEmail:x.auditorEmail,auditorName:x.auditorName,
-   composition:'SEPARATELY',sourceAuditId:auditId,obligationId:x.ob.id});
+   composition:'SEPARATELY',sourceAuditId:auditId,obligationId:x.ob.id,windowSource:x.ob.windowSource||'OBLIGATION_CANONICAL'});
   row[pj]=planningJson;
   const windowFrom=idx(ph,'Planning window from'),windowTo=idx(ph,'Planning window to');
   if(windowFrom<0||windowTo<0)throw Error('COMPOSITION_SPLIT_CHILD_WINDOW_COLUMNS_MISSING');
@@ -299,7 +313,7 @@ export function prepareSeparateCompositionAuthority20({
   row[extended]='';row[extensionApplied]='';
   const nextRevision=fingerprint(ph,row);
   const snapshot={auditId:x.visitId,status:'Approved',sourceRevision:nextRevision,
-   companyUid,sourceAuditId:auditId,obligationIds:[x.ob.id],
+   companyUid,sourceAuditId:auditId,obligationIds:[x.ob.id],windowSource:x.ob.windowSource||'OBLIGATION_CANONICAL',
    auditorUid:x.auditorId,auditorEmail:x.auditorEmail,
    formalMinutes:x.ob.minutes,blocks:x.blocks,planningJson};
   visits.push({auditId:x.visitId,obligationIds:[x.ob.id],snapshot,

@@ -98,6 +98,9 @@ const r4=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
 assert.ok(server.includes("u.pathname==='/api/v1/manager/extension-obligation-command'&&planningAtomicExtension"));
 assert.ok(r4.includes("return buildAtomicExtensionWriteset20({plan,source,cbEvent,revisionOf:directRowRevision})"));
 assert.ok(r4.includes("EXT_ATOMIC_LEGACY_SHEETS_WRITERS_NOT_FROZEN"));
+assert.ok(r4.includes("const planningRows=isolatedExtAtomicPreflight20()?await readCanonicalPlanningRowsForAtomic20():dates.planning"),
+ 'EXT/Undo CAS must use the same canonical Sheets read as R15 backfill');
+
 const managerGrid=readFileSync(new URL('./manager-portal.js',import.meta.url),'utf8');
 assert.ok(managerGrid.includes("receipt.direct===true&&receipt.projection==='PROJECTED'"),
  'Manager Grid must accept the already projected atomic receipt without legacy reconcile');

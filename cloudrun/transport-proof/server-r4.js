@@ -147,6 +147,14 @@ function isolatedExtDirect20(){
   &&process.env.AMS_SCOPE_EXTENSION_MIGRATION_VERIFIED!=='true'
   &&process.env.AMS_SCOPE_EXTENSION_WRITER_FENCE_VERIFIED!=='true';
 }
+function isolatedExtAtomicPreflight20(){
+ return process.env.AMS_RUNTIME_ENV==='DEV'&&
+  process.env.K_SERVICE==='ams-fase12-dev'&&
+  process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true'&&
+  process.env.AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED==='true'&&
+  process.env.AMS_GAS_LIFECYCLE_WRITER_RETIRED_VERIFIED==='true'&&
+  process.env.AMS_SCOPE_EXTENSION_AUTHORITY!=='FIRESTORE';
+}
 function normalizeDevModelCDateCells20(valueRanges){
  // Google Sheets returns mixed ISO strings and numeric date serials under
  // UNFORMATTED_VALUE. Preserve all other numeric data and source cells.
@@ -173,7 +181,7 @@ function normalizeDevModelCDateCells20(valueRanges){
  };
 }
 async function readIsolatedDevModelCExt20(){
- if(!isolatedExtDirect20()||SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')throw Error('EXT_DEV_DIRECT_ISOLATION_REQUIRED');
+ if(!(isolatedExtDirect20()||isolatedExtAtomicPreflight20())||SID!=='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs')throw Error('EXT_DEV_DIRECT_ISOLATION_REQUIRED');
  // Independent read-only checks overlap; identity still must pass before any write.
  const [project,r]=await Promise.all([
   verifiedAuditorLockDevProject(),
@@ -184,7 +192,13 @@ async function readIsolatedDevModelCExt20(){
  const rows=r[4]?.values||[];
  if(rows[0]?.[0]!=='KEY'||rows[0]?.[1]!=='DEV'||rows[0]?.[2]!=='PROD')throw Error('EXT_DEV_DIRECT_CONFIG_SCHEMA_CHANGED');
  const cfg=new Map(rows.slice(1).filter(x=>clean(x[0])).map(x=>[clean(x[0]),clean(x[1])]));
- if(!devManagerDirectWritesConfigAllowed20(cfg))throw Error('EXT_DEV_DIRECT_SSOT_MODE_MISMATCH');
+ if(isolatedExtAtomicPreflight20()){
+   if(cfg.get('ENV')!=='DEV'||
+      String(cfg.get('ALLOW_DEV_WRITES')).toUpperCase()!=='FALSE'||
+      cfg.get('DEV_WRITE_MODE')!=='BLOCK')
+    throw Error('EXT_ATOMIC_LEGACY_SHEETS_WRITERS_NOT_FROZEN');
+  }else if(!devManagerDirectWritesConfigAllowed20(cfg))
+   throw Error('EXT_DEV_DIRECT_SSOT_MODE_MISMATCH');
  const dates=normalizeDevModelCDateCells20(r);
   return {obligationRows:dates.obligations,linkRows:r[1]?.values||[],planningRows:dates.planning,scopeRows:r[3]?.values||[]};
 }
@@ -2225,9 +2239,11 @@ http.createServer(async(req,res)=>{if(req.method==='OPTIONS'){if(!ORIGIN)return 
     if(!['https://ams-fase12-dev-510075419067.europe-west1.run.app','https://ams-fase12-dev-zwtcar7xpa-ew.a.run.app'].includes(parsedOrigin.origin)&&!devScopeTestOriginAllowed20(parsedOrigin.origin))return send(res,403,{ok:false,error:'EXT_ORIGIN_FORBIDDEN'});
     const session=await sessionFromRequestValidated(req);if(!session)return send(res,401,{ok:false,error:'SESSION_REQUIRED'});
     if(clean(session.role).toLowerCase()!=='manager')return send(res,403,{ok:false,error:'MANAGER_REQUIRED'});
-    if(isolatedExtDirect20()){
+    if(isolatedExtDirect20()||isolatedExtAtomicPreflight20()){
       let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)return send(res,413,{ok:false,error:'EXT_DEV_DIRECT_REQUEST_TOO_LARGE'})}
       let body;try{body=JSON.parse(raw||'{}')}catch{return send(res,400,{ok:false,error:'BAD_JSON'})}
+      if(isolatedExtAtomicPreflight20()&&body?.authorityPreflight!==true)
+       return send(res,409,{ok:false,error:'EXT_ATOMIC_LEGACY_DIRECT_WRITE_FROZEN'});
       const auditId=clean(body.auditId),companyUid=clean(body.companyUid),obligationId=clean(body.obligationId);
       if(!auditId||!companyUid||!obligationId||!['apply','undo'].includes(body.command)
         ||!clean(body.requestId)||clean(body.requestId).length>180)return send(res,400,{ok:false,error:'EXT_DEV_DIRECT_INPUT_INVALID'});

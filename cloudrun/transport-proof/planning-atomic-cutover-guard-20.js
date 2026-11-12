@@ -29,7 +29,10 @@ export const planningAtomicOwnedHttpRoutes20=Object.freeze([
  '/api/v1/manager/scopes/scheme-version',
  '/api/v1/manager/scopes/policy',
  '/api/v1/manager/scopes/create',
- '/api/v1/manager/scopes/hours-version'
+ '/api/v1/manager/scopes/hours-version',
+ '/api/v1/manager/company-management/scopes/hours',
+ '/api/v1/manager/company-management/scopes/assign',
+ '/api/v1/manager/company-management/scopes/save'
 ]);
 
 // These administrative writers still share company, scope, auditor or
@@ -43,9 +46,6 @@ export const planningAtomicRetiredManagementRoutes20=Object.freeze([
 ]);
 // The above are one-off DEV diagnostics/bootstrap, not live business writes.
 export const planningAtomicDeferredManagementRoutes20=Object.freeze([
- '/api/v1/manager/company-management/scopes/hours',
- '/api/v1/manager/company-management/scopes/assign',
- '/api/v1/manager/company-management/scopes/save',
  '/api/v1/manager/auditor-management/qualification/withdraw',
  '/api/v1/manager/auditor-management/qualification/withdraw/cancel',
  '/api/v1/manager/auditor-management/qualification/save',

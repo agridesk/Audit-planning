@@ -398,47 +398,47 @@ function renderScopePlanning20(){
   const planned=mode==='TOGETHER'?(result?.scopes.find(x=>x.obligationId===scope.obligationId)?.plannedMinutes||0):
    (separate.find(v=>v.obligationId===scope.obligationId)?.blocks||[]).reduce((n,b)=>n+Math.max(0,hhmm(b.end)-hhmm(b.start)),0);
   const required=Math.round(scope.requiredHours*60),remaining=required-planned;
-  return '<tr><td><strong>'+escHtml(scope.scopeCode)+'</strong></td><td>'+hour(required)+'</td><td>'+hour(planned)+'</td><td class="'+(remaining===0?'scopeComplete20':'scopePending20')+'">'+(remaining===0?'✓ Volledig':hour(remaining)+' resterend')+'</td></tr>';
+  return '<tr><td><strong>'+escHtml(scope.scopeCode)+'</strong></td><td>'+hour(required)+'</td><td>'+hour(planned)+'</td><td class="'+(remaining===0?'scopeComplete20':'scopePending20')+'">'+(remaining===0?'✓ Complete':hour(remaining)+' remaining')+'</td></tr>';
  }).join('');
  let controls='';
  if(mode==='TOGETHER'){
-  controls='<p class="muted compositionHint20">Selecteer dagen in de kalender. De uren worden automatisch verdeeld; pas ze hieronder aan als dat nodig is.</p>';
+  controls='<p class="muted compositionHint20">Select days in the calendar. Hours are allocated automatically; adjust the scope hours below if needed.</p>';
   for(const block of draftBlocks){
    const id=scopeBlockKey20(block),duration=Math.max(0,hhmm(block.end)-hhmm(block.start));
    const plannedForBlock=result?.allocations.filter(x=>x.blockId===id).reduce((n,x)=>n+x.minutes,0)||0;
-   controls+='<div class="compositionBlock20"><strong>'+escHtml(block.date)+' · '+escHtml(block.start)+'–'+escHtml(block.end)+'</strong><span class="muted">'+hour(duration)+' totaal</span>';
+   controls+='<div class="compositionBlock20"><strong>'+escHtml(block.date)+' · '+escHtml(block.start)+'–'+escHtml(block.end)+'</strong><span class="muted">'+hour(duration)+' total</span>';
    controls+='<div class="compositionHoursGrid20">';
    for(const scope of composition20.scopes){
     const n=result?.allocations.find(a=>a.blockId===id&&a.obligationId===scope.obligationId)?.minutes||0;
-    controls+='<label>'+escHtml(scope.scopeCode)+'<input aria-label="'+escHtml(scope.scopeCode)+' uren op '+escHtml(block.date)+'" class="scopeMinutes20" type="number" step="0.25" min="0" style="width:78px" value="'+(n/60).toFixed(2)+'" data-block="'+escHtml(id)+'" data-obligation="'+escHtml(scope.obligationId)+'"><span> uur</span></label>';
+    controls+='<label>'+escHtml(scope.scopeCode)+'<input aria-label="'+escHtml(scope.scopeCode)+' uren op '+escHtml(block.date)+'" class="scopeMinutes20" type="number" step="0.25" min="0" style="width:78px" value="'+(n/60).toFixed(2)+'" data-block="'+escHtml(id)+'" data-obligation="'+escHtml(scope.obligationId)+'"><span> h</span></label>';
    }
-   controls+='</div><div class="muted">'+hour(plannedForBlock)+' verdeeld van '+hour(duration)+'</div></div>';
+   controls+='</div><div class="muted">'+hour(plannedForBlock)+' allocated of '+hour(duration)+'</div></div>';
   }
  }else{
   const active=composition20.scopes.find(o=>o.obligationId===composition20.selectedScope);
-  controls='<label class="compositionScopeSelect20">Scope plannen <select id="compositionScope20">'+composition20.scopes.map(o=>
+  controls='<label class="compositionScopeSelect20">Plan scope <select id="compositionScope20">'+composition20.scopes.map(o=>
    '<option value="'+escHtml(o.obligationId)+'"'+(o.obligationId===composition20.selectedScope?' selected':'')+'>'+
    escHtml(o.scopeCode)+' · '+Number(o.requiredHours).toFixed(2)+' uur</option>').join('')+'</select></label>'+
-   '<p class="muted compositionHint20">Elke scope heeft eigen dagen, auditor en tijdblokken. Selecteer een scope en plan deze in de kalender.</p>';
+   '<p class="muted compositionHint20">Each scope has its own dates, auditor and time blocks. Select a scope, then use the calendar to plan it.</p>';
   if(active&&(!compositionDate20(active.windowFrom)||!compositionDate20(active.windowTo)||active.recurring===null||active.recurring===true&&!compositionDate20(active.effectiveExpiry)))
-   controls+='<p class="warningBox">De verplichte Model C-planninggegevens voor deze scope zijn niet volledig. Opslaan is geblokkeerd totdat deze gegevens zijn gecontroleerd.</p>';
+   controls+='<p class="warningBox">The canonical Model C planning data for this scope is incomplete. Saving is blocked until verified.</p>';
  }
  const writerEnabled=mode==='TOGETHER'?composition20.writeTogether:composition20.writeSeparate;
  const totalRequired=composition20.scopes.reduce((n,o)=>n+Math.round(Number(o.requiredHours)*60),0);
  const totalPlanned=mode==='TOGETHER'?draftBlocks.reduce((n,b)=>n+Math.max(0,hhmm(b.end)-hhmm(b.start)),0):
   separate.reduce((n,v)=>n+v.blocks.reduce((m,b)=>m+Math.max(0,hhmm(b.end)-hhmm(b.start)),0),0);
- box.innerHTML='<div class="compositionHead20"><strong>Planning per scope</strong><span class="muted">'+hour(totalPlanned)+' / '+hour(totalRequired)+'</span></div>'+
-  '<div class="compositionModes20"><label><input type="radio" name="compositionMode20" value="TOGETHER"'+(mode==='TOGETHER'?' checked':'')+'> Samen op één bezoek</label>'+
-  '<label><input type="radio" name="compositionMode20" value="SEPARATELY"'+(mode==='SEPARATELY'?' checked':'')+'> Afzonderlijk per scope</label></div>'+
-  '<table class="compositionTable20"><thead><tr><th>Scope</th><th>Vereist</th><th>Gepland</th><th>Resterend</th></tr></thead><tbody>'+rows+'</tbody></table>'+
-  controls+(writerEnabled?'':'<p class="compositionWriterNotice20">Opslaan is nog niet beschikbaar: de beveiligde DEV-schrijffunctie is niet geactiveerd. De ingeplande uren zijn wel als concept te controleren.</p>');
+ box.innerHTML='<div class="compositionHead20"><strong>Scope planning</strong><span class="muted">'+hour(totalPlanned)+' / '+hour(totalRequired)+'</span></div>'+
+  '<div class="compositionModes20"><label><input type="radio" name="compositionMode20" value="TOGETHER"'+(mode==='TOGETHER'?' checked':'')+'> Together — one visit</label>'+
+  '<label><input type="radio" name="compositionMode20" value="SEPARATELY"'+(mode==='SEPARATELY'?' checked':'')+'> Separately — one visit per scope</label></div>'+
+  '<table class="compositionTable20"><thead><tr><th>Scope</th><th>Required</th><th>Planned</th><th>Remaining</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+  controls+(writerEnabled?'':'<p class="compositionWriterNotice20">Save is unavailable: the secure DEV atomic writer has not yet been enabled. Planned hours can be reviewed as a draft.</p>');
  box.querySelectorAll('[name="compositionMode20"]').forEach(input=>input.onchange=()=>switchMode20(input.value));
  const scopeSelector=box.querySelector('#compositionScope20');
  if(scopeSelector)scopeSelector.onchange=()=>switchScopeDraft20(scopeSelector.value);
  box.querySelectorAll('.scopeMinutes20').forEach(input=>input.onchange=()=>{
   const fields=[...box.querySelectorAll('.scopeMinutes20')];
   if(fields.some(field=>!Number.isFinite(Number(field.value))||Number(field.value)<0||Math.abs(Number(field.value)*4-Math.round(Number(field.value)*4))>0.000001)){
-   setStatus('Gebruik uren in stappen van 0,25 uur (15 minuten).','err');return;
+   setStatus('Enter hours in increments of 0.25 (15 minutes).','err');return;
   }
   const assignments=fields.map(field=>({
    blockId:field.dataset.block,obligationId:field.dataset.obligation,minutes:Math.round(Number(field.value)*60)

@@ -314,12 +314,31 @@ function separateVisitsDraft20(){
   blocks:composition20.separateDrafts.get(o.obligationId)?.blocks||[]
  }));
 }
+function scopeOffsiteValid20(){
+ if(!composition20?.scopes?.length)return true;
+ if(composition20.mode==='TOGETHER'){
+  const allocation=scopeAllocationDraft20();
+  if(!allocation?.ok)return false;
+  const offsite=new Set(draftBlocks.filter(b=>String(b.executionType||'ONSITE').toUpperCase()==='OFFSITE').map(scopeBlockKey20));
+  if(draftBlocks.some(b=>offsite.has(scopeBlockKey20(b))&&String(b.execLoc||'').trim()))return false;
+  return composition20.scopes.every(scope=>{
+   const minutes=allocation.allocations.filter(a=>a.obligationId===scope.obligationId&&offsite.has(a.blockId))
+    .reduce((n,a)=>n+a.minutes,0);
+   return minutes<=Math.round(Number(scope.maxOffsiteHours||0)*60);
+  });
+ }
+ if(composition20.mode==='SEPARATELY')return separateVisitsDraft20().every(v=>{
+  const scope=composition20.scopes.find(x=>x.obligationId===v.obligationId);
+  return (v.blocks||[]).filter(b=>String(b.executionType||'ONSITE').toUpperCase()==='OFFSITE')
+   .reduce((n,b)=>n+hhmm(b.end)-hhmm(b.start),0)<=Math.round(Number(scope?.maxOffsiteHours||0)*60);
+ });
+ return false;
+}
 function scopePlanningValid20(){
  if(!composition20)return true;
  if(!composition20.scopes?.length||!composition20.sourceRevision)return false;
  if(composition20.mode==='TOGETHER')
-  return composition20.writeTogether===true&&scopeAllocationDraft20()?.ok===true&&
-   draftBlocks.every(b=>String(b.executionType||'ONSITE').toUpperCase()==='ONSITE');
+  return composition20.writeTogether===true&&scopeAllocationDraft20()?.ok===true&&scopeOffsiteValid20();
  if(composition20.mode!=='SEPARATELY'||composition20.writeSeparate!==true)return false;
  const visits=separateVisitsDraft20(),locs=new Set((model?.data?.audit?.locations||[]).map(x=>String(x.code||x.name)));
  const auditors=new Map((model?.data?.audit?.candidateAuditors||[]).map(a=>[a.email,a]));
@@ -331,10 +350,11 @@ function scopePlanningValid20(){
   const auditor=auditors.get(visit.auditorEmail);
   if(!auditor||auditor.hardBlockQualification||auditor.ineligible||!visit.blocks.length)return false;
   const minutes=visit.blocks.reduce((n,b)=>n+hhmm(b.end)-hhmm(b.start),0);
-  if(minutes!==Math.round(scope.requiredHours*60))return false;
+  if(minutes!==Math.round(scope.requiredHours*60)||!scopeOffsiteValid20())return false;
   for(const b of visit.blocks){
    if(b.date<from||b.date>to||hhmm(b.start)<480||hhmm(b.end)>1080||
-     hhmm(b.end)<=hhmm(b.start)||String(b.executionType||'ONSITE')!=='ONSITE'||!locs.has(String(b.execLoc)))return false;
+     hhmm(b.end)<=hhmm(b.start)||!['ONSITE','OFFSITE'].includes(String(b.executionType||'ONSITE'))||
+     (String(b.executionType||'ONSITE')==='ONSITE'?!locs.has(String(b.execLoc)):String(b.execLoc||'').trim()!==''))return false;
    const key=visit.auditorEmail+'|'+b.date,prior=occupied.get(key)||[];
    if(prior.some(p=>hhmm(b.start)<hhmm(p.end)&&hhmm(p.start)<hhmm(b.end)))return false;
    prior.push(b);occupied.set(key,prior);

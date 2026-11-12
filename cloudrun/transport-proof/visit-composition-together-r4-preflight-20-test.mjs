@@ -65,6 +65,11 @@ assert.ok(r4.includes("formalTargetMinutes=compositionMode==='TOGETHER'?totalMin
  'Together parent-row 3h must not block canonical 9h preflight');
 assert.ok(r4.includes('formalHours=together?together.requiredMinutes/60:'),
  'Together must persist verified 9h, not stale legacy 3h');
+assert.ok(r4.includes('offsitePolicy=together?offsitePolicyForScopes(catalog,together.scopeAllocation.obligations.map(x=>x.scopeCode))'),
+ 'Together off-site policy must be derived from canonical linked scopes');
+assert.ok(r4.includes('scopes:together?together.scopeAllocation.obligations.map(x=>x.scopeCode):Array.isArray(audit.scopes)'),
+ 'Together notification payload must include every linked Model C scope');
+
 assert.ok(r4.includes('scopeCodes:together?together.scopeAllocation.obligations.map(x=>x.scopeCode):audit.scopes||[]'),
  'Together must qualify auditor for all canonical linked scopes, not legacy scopes');
 const preflightIndex=r4.indexOf("const together=compositionMode==='TOGETHER'?validateTogetherCompositionPreflight20({");

@@ -1407,9 +1407,10 @@ http.createServer(async(req,res)=>{
     res.end(JSON.stringify({ok:false,error:'ATOMIC_CONFIG_ORIGIN_FORBIDDEN'}));return;
    }
    const actor=await session(req);
-   if(actor?.role!=='manager'){
+   const requiredRole=u.pathname==='/api/v1/auditor/company-management/save'?'auditor':'manager';
+   if(actor?.role!==requiredRole){
     res.writeHead(actor?403:401,{'content-type':'application/json','cache-control':'no-store'});
-    res.end(JSON.stringify({ok:false,error:'MANAGER_SESSION_REQUIRED'}));return;
+    res.end(JSON.stringify({ok:false,error:'ATOMIC_CONFIG_ROLE_REQUIRED'}));return;
    }
    let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>65536)throw Error('ATOMIC_CONFIG_BODY_TOO_LARGE');}
    let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('ATOMIC_CONFIG_BODY_INVALID');}

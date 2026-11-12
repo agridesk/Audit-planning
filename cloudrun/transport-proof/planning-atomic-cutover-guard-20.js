@@ -15,7 +15,8 @@ export const planningAtomicOwnedHttpRoutes20=Object.freeze([
  '/api/v1/manager/complete-direct',
  '/api/v1/manager/action',
  '/api/v1/auditor/action',
- '/api/v1/manager/auditor-management/audit/transfer'
+ '/api/v1/manager/auditor-management/audit/transfer',
+ '/api/v1/planning/commit-handoff'
 ]);
 
 const blocked=[

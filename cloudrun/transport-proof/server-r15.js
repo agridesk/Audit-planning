@@ -1415,8 +1415,8 @@ http.createServer(async(req,res)=>{
    let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('ATOMIC_CONFIG_BODY_INVALID');}
    const result=await planningAtomicConfigBridge.commit({actor,path:u.pathname,body,
     cookie:String(req.headers.cookie||''),origin});
-   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
-   res.end(JSON.stringify(result));return;
+   res.writeHead(result.status,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify(result.payload));return;
   }
   if(req.method==='POST'&&u.pathname==='/api/v1/internal/auditor/complete-direct'&&planningAtomicInternalComplete){
    const expected=Buffer.from(String(process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'')),

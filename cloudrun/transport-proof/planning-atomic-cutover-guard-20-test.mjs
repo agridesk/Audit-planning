@@ -63,6 +63,14 @@ assert.ok(compositionLiveWriterSurfaces20.includes('/api/v1/manager/extension'),
  'R10 legacy Manager extension alias must be included in the atomic migration fence');
 assert.throws(()=>enforcePlanningAtomicCutover20({enabled:true,method:'POST',
  path:'/api/v1/manager/extension'}),/PLANNING_ATOMIC_WRITER_NOT_MIGRATED/);
+const retired=entrySource.indexOf("LEGACY_EXT_ROUTE_RETIRED_USE_MODEL_C_COMMAND");
+const mainFence=entrySource.indexOf("enforcePlanningAtomicCutover20({enabled:planningAtomicEnabled,method:req.method,path:u.pathname});");
+assert.ok(retired>0&&retired<mainFence,
+ 'Legacy EXT and reconcile endpoints must return 410 before proxy fallback');
+for(const route of ['/api/v1/manager/extension','/api/v1/manager/extension-direct',
+ '/api/v1/manager/extension-reconcile-projection'])
+ assert.ok(entrySource.slice(retired-600,retired+100).includes("'"+route+"'"),
+  'Legacy EXT route is not explicitly retired: '+route);
 const internalHandler=entrySource.indexOf("u.pathname==='/api/v1/internal/auditor/complete-direct'&&planningAtomicInternalComplete");
 assert.ok(internalHandler>0,'Internal auditor COMPLETE must dispatch to atomic multi lifecycle');
 const internalSource=entrySource.slice(internalHandler,internalHandler+2300);

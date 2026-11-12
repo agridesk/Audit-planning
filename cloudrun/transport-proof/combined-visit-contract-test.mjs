@@ -31,6 +31,10 @@ has(r5,"visits:[{...selected,blocks:selected.blocks.map(b=>({...b}))}]",
  'Separately commits only the selected scope, not all unsaved obligations');
 has(r5,"scopes.length<(previous?1:2)",
  'later final obligation can continue in the same canonical Planner');
+has(r4,'PARTIAL_COMPOSITION_CANONICAL_ATOMIC_ROUTE_REQUIRED',
+ 'residual Model C parent cannot be overwritten by a legacy direct Plan route');
+has(r5,'partialLineage:previous',
+ 'a partly split source cannot accidentally switch back to Together');
 has(r5,"Save selected scope",
  'independent scope Save button is explicit');
 has(r5,"Other scopes remain Pending Planning",

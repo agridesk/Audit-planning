@@ -22,6 +22,34 @@ export const planningAtomicOwnedHttpRoutes20=Object.freeze([
  '/api/v1/internal/auditor/complete-direct'
 ]);
 
+// These administrative writers still share company, scope, auditor or
+// audit identity authority. They are deliberately *not* declared migrated.
+// Atomic cutover would block them; the release gate must report that fact.
+export const planningAtomicDeferredManagementRoutes20=Object.freeze([
+ '/api/v1/manager/scopes/scheme-version',
+ '/api/v1/manager/auditor-identity/firestore-write-probe',
+ '/api/v1/manager/company-management/save',
+ '/api/v1/auditor/company-management/save',
+ '/api/v1/manager/company-management/scopes/hours',
+ '/api/v1/manager/company-management/scopes/assign',
+ '/api/v1/manager/company-management/scopes/save',
+ '/api/v1/manager/company-scope-hours/backfill',
+ '/api/v1/manager/auditor-management/qualification/withdraw',
+ '/api/v1/manager/auditor-management/qualification/withdraw/cancel',
+ '/api/v1/manager/auditor-management/qualification/save',
+ '/api/v1/manager/auditor-management/role/save',
+ '/api/v1/manager/auditor-management/identity/save',
+ '/api/v1/manager/auditor-management/active/save',
+ '/api/v1/manager/auditor-management/create',
+ '/api/v1/manager/auditor-management/profile/save',
+ '/api/v1/manager/scopes/create',
+ '/api/v1/manager/scopes/cosmetic',
+ '/api/v1/manager/scopes/policy',
+ '/api/v1/manager/scopes/hours-version',
+ '/api/v1/manager/scopes/bootstrap-v1',
+ '/api/v1/internal/dev-auditor-uid'
+]);
+
 // Static source classification only. Operational release STILL requires
 // verified frozen legacy writers, backfill, live route parity and E2E evidence.
 export const planningAtomicRetiredHttpRoutes20=Object.freeze([

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,planningAtomicOwnedHttpRoutes20,planningAtomicRetiredHttpRoutes20,classifiedPlanningCutoverPaths20} from './planning-atomic-cutover-guard-20.js';
+import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20,planningAtomicOwnedHttpRoutes20,planningAtomicRetiredHttpRoutes20,classifiedPlanningCutoverPaths20,planningAtomicDeferredManagementRoutes20} from './planning-atomic-cutover-guard-20.js';
 import {compositionLiveWriterSurfaces20} from './planning-cutover-compatibility-20.mjs';
 const blocked=[
  '/api/v1/manager/extension-direct',
@@ -75,6 +75,14 @@ assert.deepEqual(planningAtomicRetiredHttpRoutes20,[
  '/api/v1/manager/extension-reconcile-projection'
 ]);
 assert.deepEqual(classifiedPlanningCutoverPaths20(),[...compositionLiveWriterSurfaces20]);
+assert.ok(planningAtomicDeferredManagementRoutes20.length>=20,
+ 'Unmigrated administrative writers must remain a release blocker');
+for(const route of planningAtomicDeferredManagementRoutes20)
+ assert.throws(()=>enforcePlanningAtomicCutover20({enabled:true,method:'POST',path:route}),
+  /PLANNING_ATOMIC_WRITER_NOT_MIGRATED/,'Deferred route not actually fenced: '+route);
+assert.ok(entrySource.includes('deferredManagementRoutes:planningAtomicDeferredManagementRoutes20'),
+ 'Runtime DEV readiness must report all deferred management writers');
+
 const internalHandler=entrySource.indexOf("u.pathname==='/api/v1/internal/auditor/complete-direct'&&planningAtomicInternalComplete");
 assert.ok(internalHandler>0,'Internal auditor COMPLETE must dispatch to atomic multi lifecycle');
 const internalSource=entrySource.slice(internalHandler,internalHandler+2300);

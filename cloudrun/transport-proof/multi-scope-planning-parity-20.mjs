@@ -15,9 +15,9 @@ export function multiScopePlanningParity20({scopes,blocks,allocations=null}={}){
  const durations=new Map(),seenBlock=new Set();
  for(const b of blocks){
   const date=String(b?.date||''),start=String(b?.start||''),end=String(b?.end||'');
-  const m=t=>{const v=/^([01]\\d|2[0-3]):(00|15|30|45)$/.exec(t);return v?Number(v[1])*60+Number(v[2]):NaN};
+  const m=t=>{const v=/^([01]\d|2[0-3]):(00|15|30|45)$/.exec(t);return v?Number(v[1])*60+Number(v[2]):NaN};
   const from=m(start),to=m(end),key=date+'|'+start+'|'+end;
-  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||!Number.isFinite(from)||!Number.isFinite(to)||to<=from||seenBlock.has(key))
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(from)||!Number.isFinite(to)||to<=from||seenBlock.has(key))
    return fail('COMPOSITION_DRAFT_BLOCK_INVALID');
   seenBlock.add(key);durations.set(key,to-from);
  }

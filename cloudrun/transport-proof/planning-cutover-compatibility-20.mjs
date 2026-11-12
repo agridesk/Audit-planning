@@ -16,7 +16,7 @@ export const compositionLiveWriterSurfaces20=Object.freeze([
  '/api/v1/internal/auditor/complete-direct'
 ]);
 export function planningCutoverCompatibility20({environment,atomicEnabled,compositionEnabled,
- legacyRetired,managerOwnerShared,backfillParity,legacyWritersFrozen,
+ legacyRetired,managerOwnerShared,backfillParity,legacyWritersFrozen,liveWriterRouteParityVerified,
  migratedWriterPaths=[]}={}){
  const isDev=environment==='DEV';
  const migrated=new Set(Array.isArray(migratedWriterPaths)?migratedWriterPaths:[]);
@@ -29,6 +29,7 @@ export function planningCutoverCompatibility20({environment,atomicEnabled,compos
  if(!managerOwnerShared)blockers.push('MANAGER_LIFECYCLE_OWNER_UNVERIFIED');
  if(!backfillParity)blockers.push('BACKFILL_PARITY_UNVERIFIED');
  if(!legacyWritersFrozen)blockers.push('LEGACY_WRITER_FREEZE_UNVERIFIED');
+ if(!liveWriterRouteParityVerified)blockers.push('LIVE_WRITER_ROUTE_PARITY_UNVERIFIED');
  if(pending.length)blockers.push('LIVE_WRITER_MIGRATION_INCOMPLETE');
  return {ready:blockers.length===0,blockers,pendingWriterRoutes:pending,
   inspectedWriterRoutes:compositionLiveWriterSurfaces20.length,

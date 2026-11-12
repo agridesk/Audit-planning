@@ -46,7 +46,7 @@ import {enforcePlanningAtomicCutover20,validatePlanningAtomicRuntime20} from './
 import {createPlanningSheetsWritesetProjector} from './planning-sheets-writeset-projector-20.js';
 import {createPlanningSheetsAppendProjector} from './planning-sheets-append-projector-20.js';
 import {createPlanningBackfillRunner} from './planning-atomic-backfill-20.js';
-import {createHash} from 'node:crypto';
+import {createHash,timingSafeEqual} from 'node:crypto';
 import {createPlanningOverlayService} from './availability-planning-overlay-service-20.js';
 import {createPlanningReadCache} from './availability-planning-read-cache-20.js';
 import {planLegacyHardMigration} from './availability-legacy-hard-migration-plan-20.js';
@@ -345,6 +345,23 @@ const planningMultiLifecycle=planningAtomicEnabled?createPlanningMultiLifecycleS
    body:JSON.stringify(payload)});
   const data=await r.json().catch(()=>null);
   if(!r.ok||data?.authorityPreflight!==true||data?.success!==true)throw Error('PLANNING_MULTI_PREFLIGHT_FAILED_'+String(data?.error||r.status).slice(0,100));
+  return data;
+ }
+}):null;
+const planningAtomicInternalComplete=planningAtomicEnabled?createPlanningMultiLifecycleService({
+ atomicStore:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,
+ appendProjector:planningAtomicAppendProjector,
+ preflight:async({body})=>{
+  const key=String(process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'');
+  if(!key)throw Error('AUDITOR_COMPLETE_ATOMIC_BRIDGE_UNCONFIGURED');
+  const r=await fetch('http://127.0.0.1:'+(port+9)+'/api/v1/internal/auditor/complete-direct',{
+   method:'POST',redirect:'manual',
+   headers:{'content-type':'application/json','x-ams-bridge-key':key},
+   body:JSON.stringify(body)
+  });
+  const data=await r.json().catch(()=>null);
+  if(!r.ok||data?.authorityPreflight!==true||data?.success!==true)
+   throw Error('AUDITOR_COMPLETE_ATOMIC_PREFLIGHT_FAILED_'+String(data?.error||r.status).slice(0,100));
   return data;
  }
 }):null;
@@ -1352,6 +1369,24 @@ http.createServer(async(req,res)=>{
   // The existing R5 Planner posts to commit-handoff. Once atomic mode
   // is enabled, keep its response contract but use the *same* Firestore
   // transaction/projector as direct-commit; never proxy to the Sheets writer.
+  if(req.method==='POST'&&u.pathname==='/api/v1/internal/auditor/complete-direct'&&planningAtomicInternalComplete){
+   const expected=Buffer.from(String(process.env.AMS_EXTERNAL_WRITE_BRIDGE_KEY||'')),
+    supplied=Buffer.from(String(req.headers['x-ams-bridge-key']||''));
+   if(expected.length<16||supplied.length!==expected.length||!timingSafeEqual(expected,supplied)){
+    res.writeHead(403,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(JSON.stringify({success:false,error:'BRIDGE_FORBIDDEN'}));return;
+   }
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>16384)throw Error('AUDITOR_COMPLETE_ATOMIC_BODY_TOO_LARGE');}
+   let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('AUDITOR_COMPLETE_ATOMIC_BODY_INVALID');}
+   const email=String(body?.actorEmail||'').trim().toLowerCase();
+   const matches=(await getRoster()).filter(x=>x.role==='auditor'&&x.active!==false&&x.email===email&&x.auditorId);
+   if(!email||matches.length!==1)throw Error('AUDITOR_COMPLETE_ATOMIC_IDENTITY_NOT_UNIQUE');
+   const result=await planningAtomicInternalComplete.commit({
+    actor:{role:'auditor',auditorId:matches[0].auditorId,email},body,action:'COMPLETE'});
+   planningCache.invalidate();
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify(result));return;
+  }
   if(req.method==='POST'&&u.pathname==='/api/v1/manager/extension-obligation-command'&&planningAtomicExtension){
    const origin=String(req.headers.origin||'').trim();
    if(origin!=='https://ams-fase12-dev-zwtcar7xpa-ew.a.run.app'){

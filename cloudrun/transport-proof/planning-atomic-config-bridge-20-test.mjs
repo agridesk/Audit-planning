@@ -60,7 +60,29 @@ const body={companyUid:'company-1',changes:{Comments:{expected:'Before',value:'A
   cookie:'sid=abc',origin:'https://dev.example'}),/MANAGER_REQUIRED/);
  assert.equal(events.length,0);
 }
-assert.equal(atomicConfigurationRoutes20.length,3);
+assert.equal(atomicConfigurationRoutes20.length,4);
+assert.ok(atomicConfigurationRoutes20.includes('/api/v1/auditor/company-management/save'));
+{
+ const events=[],auditorRoute='/api/v1/auditor/company-management/save';
+ const auditorBridge=createAtomicConfigurationBridge20({
+  gate:{acquire:async()=>({token:'a'}),release:async()=>events.push('release'),uncertain:async()=>events.push('uncertain')},
+  readRows:async()=>[['Company_UID','Auditor comments'],['company-1',events.includes('forward')?'Updated':'Original']],
+  forward:async()=>{events.push('forward');return {status:200,payload:{ok:true,updated:1}}}
+ });
+ const result=await auditorBridge.commit({
+  actor:{role:'auditor',auditorId:'auditor-1'},path:auditorRoute,
+  body:{companyUid:'company-1',changes:{'Auditor comments':{expected:'Original',value:'Updated'}}},
+  cookie:'sid=abc',origin:'https://dev.example'
+ });
+ assert.equal(result.status,200);
+ assert.deepEqual(events,['forward','release']);
+ await assert.rejects(auditorBridge.commit({
+  actor:{role:'auditor',auditorId:'auditor-1'},path:auditorRoute,
+  body:{companyUid:'company-1',changes:{Region:{expected:'old',value:'new'}}},
+  cookie:'sid=abc',origin:'https://dev.example'
+ }),/AUDITOR_FIELD_FORBIDDEN/);
+}
+
 const r15=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 assert.ok(r15.includes('planningAtomicConfigBridge&&atomicConfigurationRoutes20.includes(u.pathname)'));
 assert.ok(r15.includes('planningAtomicConfigBridge.commit({actor,path:u.pathname,body'));

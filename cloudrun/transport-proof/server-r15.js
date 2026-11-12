@@ -29,6 +29,7 @@ import {createPlanningDistributedGate} from './planning-distributed-gate-20.js';
 import {createPlanningOutboxReconciler} from './planning-outbox-reconciler-20.js';
 import {createPlanningAtomicFirestoreStore} from './planning-atomic-firestore-store-20.js';
 import {createPlanningAtomicCommandService} from './planning-atomic-command-service-20.js';
+import {createAtomicSelfPlanningService20} from './planning-atomic-self-planning-service-20.js';
 import {createVisitCompositionAtomicService20} from './visit-composition-atomic-service-20.js';
 import {prepareSeparateCompositionAuthority20} from './visit-composition-separate-authority-preflight-20.mjs';
 import {managerVisitCompositionPage20} from './visit-composition-manager-page-20.mjs';
@@ -223,6 +224,20 @@ const planningAtomicCommands=planningAtomicEnabled?createPlanningAtomicCommandSe
   const j=await r.json().catch(()=>null);
   if(!r.ok||j?.success!==true||j?.authorityPreflight!==true)throw Error('PLANNING_ATOMIC_BUSINESS_PREFLIGHT_FAILED_'+String(j?.error||r.status).slice(0,80));
   return j;
+ }
+}):null;
+const planningAtomicSelfPlanning=planningAtomicEnabled?createAtomicSelfPlanningService20({
+ store:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,
+ preflight:async({actor,body})=>{
+  const response=await fetch('http://127.0.0.1:'+(port+9)+'/api/v1/manager/self-planning-direct',{
+   method:'POST',redirect:'manual',
+   headers:{'content-type':'application/json',cookie:String(actor.cookie||'')},
+   body:JSON.stringify(body)
+  });
+  const payload=await response.json().catch(()=>null);
+  if(!response.ok||payload?.success!==true||payload?.authorityPreflight!==true)
+   throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_FAILED_'+String(payload?.error||response.status).slice(0,90));
+  return payload;
  }
 }):null;
 const planningAtomicComposition=compositionWriteRequested?createVisitCompositionAtomicService20({
@@ -1320,6 +1335,19 @@ http.createServer(async(req,res)=>{
   // The existing R5 Planner posts to commit-handoff. Once atomic mode
   // is enabled, keep its response contract but use the *same* Firestore
   // transaction/projector as direct-commit; never proxy to the Sheets writer.
+  if(req.method==='POST'&&u.pathname==='/api/v1/manager/self-planning-direct'&&planningAtomicSelfPlanning){
+   const actor=await session(req);
+   if(actor?.role!=='manager'){
+    res.writeHead(actor?403:401,{'content-type':'application/json','cache-control':'no-store'});
+    res.end(JSON.stringify({success:false,error:'MANAGER_SESSION_REQUIRED'}));return;
+   }
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>4096)throw Error('SELF_PLANNING_BODY_TOO_LARGE');}
+   let body;try{body=JSON.parse(raw||'{}');}catch{throw Error('SELF_PLANNING_BODY_INVALID');}
+   const result=await planningAtomicSelfPlanning.commit({actor:{...actor,cookie:String(req.headers.cookie||'')},body});
+   planningCache.invalidate();
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify(result));return;
+  }
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/commit-handoff'&&planningAtomicCommands){
    const actor=await session(req);
    if(!actor||!['manager','auditor'].includes(actor.role)){

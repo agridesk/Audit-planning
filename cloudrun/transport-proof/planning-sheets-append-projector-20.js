@@ -9,7 +9,7 @@ const norm=x=>{const a=(x||[]).map(str);while(a.length&&a.at(-1)==='')a.pop();re
 const same=(a,b)=>JSON.stringify(norm(a))===JSON.stringify(norm(b));
 const columnNumber=s=>[...s].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0);
 const widthOf=range=>{const m=/!A:([A-Z]+)$/.exec(range);return m?columnNumber(m[1]):0;};
-const allowed=new Set(['Notification Queue','Rejected audits','Log realized audits','Audit planning','Audit_Obligations','Audit_Visit_Obligations','Diagnostics_Log']);
+const allowed=new Set(['Notification Queue','Rejected audits','Log realized audits','Audit planning','Audit_Obligations','Audit_Visit_Obligations','Diagnostics_Log','CB_Extension_Outbox']);
 function validate(intents){
  if(!Array.isArray(intents)||intents.length>24)throw Error('APPEND_INTENTS_INVALID');
  const result=[];

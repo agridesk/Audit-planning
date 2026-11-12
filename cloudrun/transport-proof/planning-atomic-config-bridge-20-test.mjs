@@ -97,7 +97,7 @@ const body={companyUid:'company-1',changes:{Comments:{expected:'Before',value:'A
  await assert.rejects(bridge.commit({actor,path:route,body,cookie:'sid=abc',origin:'https://dev.example'}),/INNER_WRITE_UNCONFIRMED/);
  assert.deepEqual(events,['lock','read','forward','read','uncertain']);
 }
-assert.equal(atomicConfigurationRoutes20.length,4);
+assert.equal(atomicConfigurationRoutes20.length,6);
 assert.ok(atomicConfigurationRoutes20.includes('/api/v1/auditor/company-management/save'));
 {
  const events=[],auditorRoute='/api/v1/auditor/company-management/save';
@@ -120,6 +120,43 @@ assert.ok(atomicConfigurationRoutes20.includes('/api/v1/auditor/company-manageme
  }),/AUDITOR_FIELD_FORBIDDEN/);
 }
 
+// Both auditor governance mutations share the same fenced Auditors row owner.
+for(const scenario of [
+ {path:'/api/v1/manager/auditor-management/role/save',
+  body:{email:'auditor@example.com',role:'Auditor',expected:'Manager'},
+  field:'Role',start:'Manager',end:'Auditor'},
+ {path:'/api/v1/manager/auditor-management/active/save',
+  body:{email:'auditor@example.com',active:false,expected:true},
+  field:'Active',start:'Yes',end:'No'}
+]){
+ const events=[];let current=scenario.start;
+ const bridge=createAtomicConfigurationBridge20({
+  gate:{acquire:async()=>{events.push('lock');return {token:'t'}},
+   release:async()=>events.push('release'),uncertain:async()=>events.push('uncertain')},
+  readRows:async tab=>{
+   assert.equal(tab,'Auditors');events.push('read');
+   return [['E-mail',scenario.field],['auditor@example.com',current]];
+  },
+  forward:async()=>{events.push('forward');current=scenario.end;
+   return {status:200,payload:{ok:true,updated:1}}}
+ });
+ const result=await bridge.commit({actor,path:scenario.path,body:scenario.body,
+  cookie:'sid=abc',origin:'https://dev.example'});
+ assert.equal(result.status,200);
+ assert.deepEqual(events,['lock','read','forward','read','release']);
+ const rejected={...scenario.body,expected:scenario.field==='Role'?'Manager':false};
+ if(scenario.field==='Active'){
+  await assert.rejects(bridge.commit({actor,path:scenario.path,body:rejected,
+   cookie:'sid=abc',origin:'https://dev.example'}),/STALE_EXPECTED/);
+ }
+}
+{
+ const {bridge,events}=fixture();
+ await assert.rejects(bridge.commit({actor,path:'/api/v1/manager/auditor-management/profile/save',
+  body:{email:'auditor@example.com',changes:{Role:{expected:'Auditor',value:'Manager'}}},
+  cookie:'sid=abc',origin:'https://dev.example'}),/PRIVILEGED_AUDITOR_FIELD_FORBIDDEN/);
+ assert.deepEqual(events,[]);
+}
 const r15=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 assert.ok(r15.includes('planningAtomicConfigBridge&&atomicConfigurationRoutes20.includes(u.pathname)'));
 assert.ok(r15.includes('planningAtomicConfigBridge.commit({actor,path:u.pathname,body'));
@@ -141,4 +178,4 @@ for(const source of [eventSrc,cbSrc]){
 }
 assert.match(eventSrc,/NOTIFICATION_EVENT_READBACK_MISMATCH/);
 assert.match(cbSrc,/CB_SETTING_EMAIL_VERIFICATION_READBACK_FAILED/);
-console.log('Issue #87: 4 metadata routes serialized, stale CAS blocked, rejections verified PASS');
+console.log('Atomic metadata: 6 routes serialized, actor permissions, stale CAS and readback PASS');

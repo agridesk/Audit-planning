@@ -7,6 +7,17 @@ return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" c
 var q=new URLSearchParams(location.search),id=q.get('auditId')||'',mode=q.get('mode')==='TOGETHER'?'TOGETHER':'SEPARATELY',source=null,roster=[],enabled=false;
 var el=x=>document.getElementById(x),esc=x=>{var d=document.createElement('div');d.textContent=String(x==null?'':x);return d.innerHTML;};
 function fail(x){el('state').textContent=String(x);el('state').className='warn';}
+function dateLabel(x){return x?String(x):'Not recorded in Model C';}
+function usableIsoDate(x){
+ var value=String(x||'').trim();
+ if(!value)return '';
+ if(/^\d{4}-\d{2}-\d{2}$/.test(value))return value;
+ var m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
+ if(!m)return '';
+ var iso=m[3]+'-'+m[2]+'-'+m[1];
+ var d=new Date(iso+'T00:00:00Z');
+ return !Number.isNaN(d.getTime())&&d.toISOString().slice(0,10)===iso?iso:'';
+}
 async function get(path){var r=await fetch(path,{credentials:'same-origin',cache:'no-store'}),j=await r.json().catch(()=>null);if(!r.ok||!j)throw Error(j&&j.error||'Authenticated read failed');return j;}
 function block(together){
  var n=document.createElement('div');n.className='block';
@@ -22,7 +33,8 @@ function block(together){
  n.querySelector('.remove').onclick=()=>n.remove();return n;
 }
 function render(){
- el('state').textContent='Audit '+source.auditId+' · '+source.scopes.length+' obligations · '+source.totalFormalHours+' formal hours';
+ var totalMinutes=source.scopes.reduce((sum,scope)=>sum+Math.round(Number(scope.requiredHours)*60),0);
+ el('state').textContent='Audit '+source.auditId+' · '+source.scopes.length+' obligations · '+(totalMinutes/60)+' formal hours';
  el('form').hidden=false;var parent=el('scopes');parent.replaceChildren();
  el('modeTogether').checked=mode==='TOGETHER';el('modeSeparate').checked=mode==='SEPARATELY';
  if(mode==='TOGETHER'){
@@ -33,13 +45,17 @@ function render(){
   parent.appendChild(section);
  }else source.scopes.forEach(function(o){
   var section=document.createElement('section');section.className='scope';section.dataset.obligationId=o.obligationId;
-  section.innerHTML='<h2>'+esc(o.scopeName||o.scopeCode)+' — '+esc(o.requiredHours)+' hours</h2><small>Planning window '+esc(o.windowFrom||'?')+' – '+esc(o.windowTo||'?')+' · expiry '+esc(o.effectiveExpiry||'?')+'</small><p><label>Auditor</label><select class="auditor"><option value="">Choose auditor</option>'+roster.map(x=>'<option value="'+esc(x.email)+'">'+esc(x.name)+' ('+esc(x.email)+')</option>').join('')+'</select></p><div class="blocks"></div><button class="add" type="button">+ Time block</button>';
+  section.innerHTML='<h2>'+esc(o.scopeName||o.scopeCode)+' — '+esc(o.requiredHours)+' hours</h2><small>Planning window '+esc(dateLabel(o.windowFrom))+' – '+esc(dateLabel(o.windowTo))+' · expiry '+esc(dateLabel(o.effectiveExpiry))+'</small><p><label>Auditor</label><select class="auditor"><option value="">Choose auditor</option>'+roster.map(x=>'<option value="'+esc(x.email)+'">'+esc(x.name)+' ('+esc(x.email)+')</option>').join('')+'</select></p><div class="blocks"></div><button class="add" type="button">+ Time block</button>';
   var blocks=section.querySelector('.blocks');blocks.appendChild(block(false));
+  section.querySelectorAll('.date').forEach(function(input){
+    var from=usableIsoDate(o.windowFrom),to=usableIsoDate(o.windowTo);
+    if(from)input.min=from;if(to)input.max=to;
+  });
   section.querySelector('.add').onclick=()=>blocks.appendChild(block(false));
   parent.appendChild(section);
  });
  el('save').disabled=!enabled;
- if(!enabled)el('result').textContent='DEV atomic write is disabled; review only.';
+ if(!enabled)el('result').textContent='Atomic writer is not available on this DEV revision; review only.';
 }
 function payload(){
  if(mode==='TOGETHER'){
@@ -99,6 +115,7 @@ el('save').onclick=async function(){
   var result=await Promise.all([get('/api/v1/manager/model-c-visit-preview?auditId='+encodeURIComponent(id)),get('/api/v1/planning/visit-composition-editor-context')]);
   source=result[0];roster=result[1].auditors||[];enabled=result[1].writeEnabled===true;
   source.scopes=(source.obligations||[]).map(x=>({obligationId:x.obligationId,scopeCode:x.scopeCode,scopeName:x.scopeCode,requiredHours:Number(x.requiredHours),windowFrom:x.windowFrom,windowTo:x.windowTo,effectiveExpiry:x.effectiveExpiry}));
+  if(source.scopes.some(x=>!x.obligationId||!x.scopeCode||!Number.isFinite(x.requiredHours)||x.requiredHours<=0))throw Error('Canonical obligation identity or required hours are incomplete.');
   if(!source.sourceEvidenceReady||!source.scopes.length||source.scopes.length<2||!source.sourceRevisionAtomic||source.source?.status!=='Pending Planning')throw Error('Canonical source or formal hours not ready.');
   el('modeTogether').addEventListener('change',function(){mode='TOGETHER';render()});
   el('modeSeparate').addEventListener('change',function(){mode='SEPARATELY';render()});

@@ -6,6 +6,7 @@ import {atomicConfigurationRoutes20} from './planning-atomic-config-bridge-20.js
 import {atomicScopeAdminRoutes20} from './planning-atomic-scope-admin-20.js';
 import {atomicCompanyScopeRoutes20} from './planning-atomic-company-scopes-20.js';
 import {atomicAuditorGovernanceRoutes20} from './planning-atomic-auditor-governance-20.js';
+import {atomicAuditorIdentityRoute20} from './planning-atomic-auditor-identity-20.js';
 const blocked=[
  '/api/v1/manager/extension-direct',
  '/api/v1/manager/self-planning-direct',
@@ -49,7 +50,7 @@ for(const path of planningAtomicOwnedHttpRoutes20){
    'R15-owned atomic route must reject unhandled mutation verb: '+method+' '+path);
 }
 const entrySource=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
-for(const path of planningAtomicOwnedHttpRoutes20.filter(path=>!atomicConfigurationRoutes20.includes(path)&&!atomicScopeAdminRoutes20.includes(path)&&!atomicCompanyScopeRoutes20.includes(path)&&!atomicAuditorGovernanceRoutes20.includes(path)))
+for(const path of planningAtomicOwnedHttpRoutes20.filter(path=>!atomicConfigurationRoutes20.includes(path)&&!atomicScopeAdminRoutes20.includes(path)&&!atomicCompanyScopeRoutes20.includes(path)&&!atomicAuditorGovernanceRoutes20.includes(path)&&path!==atomicAuditorIdentityRoute20))
  assert.ok(entrySource.includes("'"+path+"'"),'Atomic route not recognized by R15: '+path);
 assert.ok(entrySource.includes('planningAtomicConfigBridge&&atomicConfigurationRoutes20.includes(u.pathname)'),
  'R15 must dispatch the six verified metadata routes to their shared-gate bridge');
@@ -67,6 +68,9 @@ for(const path of atomicAuditorGovernanceRoutes20)
  assert.ok(planningAtomicOwnedHttpRoutes20.includes(path),'Auditor Governance route not in atomic owner inventory');
 assert.ok(entrySource.includes('planningAtomicAuditorGovernance&&atomicAuditorGovernanceRoutes20.includes(u.pathname)'),
  'R15 must dispatch Auditor Governance through shared fence');
+assert.ok(planningAtomicOwnedHttpRoutes20.includes(atomicAuditorIdentityRoute20));
+assert.ok(entrySource.includes('planningAtomicAuditorIdentity&&u.pathname===atomicAuditorIdentityRoute20'));
+
 const handoff=entrySource.indexOf("u.pathname==='/api/v1/planning/commit-handoff'&&planningAtomicCommands");
 const direct=entrySource.indexOf("u.pathname==='/api/v1/planning/direct-commit'&&planningAtomicCommands");
 assert.ok(handoff>0&&direct>handoff,'R5 Planner must be intercepted by the atomic owner before direct-commit');
@@ -110,8 +114,8 @@ for(const route of ['/api/v1/manager/company-management/save',
  assert.ok(!planningAtomicDeferredManagementRoutes20.includes(route),'Migrated metadata route still deferred');
 }
 
-assert.equal(planningAtomicDeferredManagementRoutes20.length,1,
- 'Auditor identity mutation remains a release blocker');
+assert.equal(planningAtomicDeferredManagementRoutes20.length,0,
+ 'All inventoried management writers have classified atomic owners');
 for(const route of planningAtomicDeferredManagementRoutes20)
  assert.throws(()=>enforcePlanningAtomicCutover20({enabled:true,method:'POST',path:route}),
   /PLANNING_ATOMIC_WRITER_NOT_MIGRATED/,'Deferred route not actually fenced: '+route);
@@ -130,9 +134,10 @@ assert.ok(r4.includes("lifecycleAuthorityPreflight20(identity,b,'COMPLETE',()=>d
 assert.equal(validatePlanningAtomicRuntime20({enabled:false}),true);
 const validated={enabled:true,legacyWriterRetired:true,managerOwnerShared:true,backfillParityVerified:true,liveWriterRouteParityVerified:true,otherAuthorityEnabled:false};
 assert.equal(validatePlanningAtomicRuntime20(validated),true);
+assert.equal(validatePlanningAtomicRuntime20({...validated,
+ deferredManagementRoutes:planningAtomicDeferredManagementRoutes20}),true);
 assert.throws(()=>validatePlanningAtomicRuntime20({...validated,
- deferredManagementRoutes:planningAtomicDeferredManagementRoutes20}),
- /PLANNING_ATOMIC_MANAGEMENT_WRITERS_NOT_MIGRATED/);
+ deferredManagementRoutes:['/unmigrated']}),/PLANNING_ATOMIC_MANAGEMENT_WRITERS_NOT_MIGRATED/);
 assert.ok(entrySource.includes('deferredManagementRoutes:planningAtomicDeferredManagementRoutes20'),
  'Unsafe atomic runtime startup must be refused until admin writers are migrated');
 

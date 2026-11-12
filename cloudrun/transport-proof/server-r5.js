@@ -410,7 +410,7 @@ function renderScopePlanning20(){
    controls+='<div class="compositionHoursGrid20">';
    for(const scope of composition20.scopes){
     const n=result?.allocations.find(a=>a.blockId===id&&a.obligationId===scope.obligationId)?.minutes||0;
-    controls+='<label>'+escHtml(scope.scopeCode)+'<input aria-label="'+escHtml(scope.scopeCode)+' uren op '+escHtml(block.date)+'" class="scopeMinutes20" type="number" step="0.25" min="0" style="width:78px" value="'+(n/60).toFixed(2)+'" data-block="'+escHtml(id)+'" data-obligation="'+escHtml(scope.obligationId)+'"><span> h</span></label>';
+    controls+='<label>'+escHtml(scope.scopeCode)+'<input aria-label="'+escHtml(scope.scopeCode)+' hours on '+escHtml(block.date)+'" class="scopeMinutes20" type="number" step="0.25" min="0" style="width:78px" value="'+(n/60).toFixed(2)+'" data-block="'+escHtml(id)+'" data-obligation="'+escHtml(scope.obligationId)+'"><span> h</span></label>';
    }
    controls+='</div><div class="muted">'+hour(plannedForBlock)+' allocated of '+hour(duration)+'</div></div>';
   }
@@ -418,7 +418,7 @@ function renderScopePlanning20(){
   const active=composition20.scopes.find(o=>o.obligationId===composition20.selectedScope);
   controls='<label class="compositionScopeSelect20">Plan scope <select id="compositionScope20">'+composition20.scopes.map(o=>
    '<option value="'+escHtml(o.obligationId)+'"'+(o.obligationId===composition20.selectedScope?' selected':'')+'>'+
-   escHtml(o.scopeCode)+' · '+Number(o.requiredHours).toFixed(2)+' uur</option>').join('')+'</select></label>'+
+   escHtml(o.scopeCode)+' · '+Number(o.requiredHours).toFixed(2)+' h</option>').join('')+'</select></label>'+
    '<p class="muted compositionHint20">Each scope has its own dates, auditor and time blocks. Select a scope, then use the calendar to plan it.</p>';
   if(active&&(!compositionDate20(active.windowFrom)||!compositionDate20(active.windowTo)||active.recurring===null||active.recurring===true&&!compositionDate20(active.effectiveExpiry)))
    controls+='<p class="warningBox">The canonical Model C planning data for this scope is incomplete. Saving is blocked until verified.</p>';

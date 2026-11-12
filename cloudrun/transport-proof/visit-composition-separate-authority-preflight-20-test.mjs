@@ -70,6 +70,17 @@ assert.equal(result.appendIntents.find(x=>x.range==='Notification Queue!A:M').va
 assert.deepEqual(result.appendIntents.find(x=>x.range==='Audit planning!A:CN')
  .values.map(x=>x[24]),['2027-06-30','2027-09-30']);
 const prepare=overrides=>prepareSeparateCompositionAuthority20({...fixture,...overrides});
+const localizedRows=structuredClone(fixture.obligationRows);
+localizedRows[1][4]='01/01/2027';localizedRows[1][5]='31/12/2027';localizedRows[1][7]='30/06/2027';
+const localized=prepare({obligationRows:localizedRows});
+assert.deepEqual(localized.appendIntents.find(x=>x.range==='Audit planning!A:CN')
+ .values.map(x=>x[24]),['2027-06-30','2027-09-30']);
+const absentExpiry=structuredClone(fixture.obligationRows);
+absentExpiry[1][7]='';
+assert.throws(()=>prepare({obligationRows:absentExpiry}),/OBLIGATION_CYCLE_DATES_MISSING/);
+const malformedDate=structuredClone(fixture.obligationRows);
+malformedDate[1][7]='31/02/2027';
+assert.throws(()=>prepare({obligationRows:malformedDate}),/DATE_INVALID/);
 assert.throws(()=>prepare({body:{...body,sourceRevision:'stale'}}),/REVISION_STALE/);
 assert.throws(()=>prepare({linkRows:[...fixture.linkRows,['OTHER','OB1','ACTIVE','','','']]}),/ACTIVE_MEMBERSHIP_INVALID/);
 assert.throws(()=>prepare({body:{...body,visits:[

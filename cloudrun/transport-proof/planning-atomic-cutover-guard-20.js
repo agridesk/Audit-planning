@@ -36,7 +36,7 @@ export const planningAtomicOwnedHttpRoutes20=Object.freeze([
  '/api/v1/manager/auditor-management/qualification/withdraw',
  '/api/v1/manager/auditor-management/qualification/withdraw/cancel',
  '/api/v1/manager/auditor-management/qualification/save',
- '/api/v1/manager/auditor-management/create'
+ '/api/v1/manager/auditor-management/create',
  '/api/v1/manager/auditor-management/identity/save',
 ]);
 

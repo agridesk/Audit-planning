@@ -102,7 +102,8 @@ assert.equal(allowedConfig({...enabled,AMS_DEV_NORMAL_GRID_ENABLED:'false',AMS_D
 assert.equal(allowedConfig({...enabled,AMS_RUNTIME_ENV:'PROD'},writable),false,'PROD is never authorized');
 assert.equal(allowedConfig(enabled,{...writable,ENV:'PROD'}),false,'DEV service must not write to PROD SSOT');
 assert.equal(allowedConfig(enabled,{...writable,DEV_WRITE_MODE:'BLOCK'}),false,'Contradictory config must fail closed');
-assert(inner.includes("if(!devManagerDirectWritesConfigAllowed20(cfg))throw Error('SELF_PLANNING_DEV_SSOT_MODE_MISMATCH')"));
+assert(self.includes("if(!atomicPreflight&&!devManagerDirectWritesConfigAllowed20(cfg))throw Error('SELF_PLANNING_DEV_SSOT_MODE_MISMATCH')"),"Legacy DEV writes must pass the canonical writer configuration gate; atomic read-only preflight is separately permitted");
+assert(self.includes("process.env.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true'&&!atomicPreflight")&&self.includes("SELF_PLANNING_LEGACY_WRITER_FROZEN"),"Atomic mode must fence the legacy self-planning writer");
 assert(inner.includes("if(!devManagerDirectWritesConfigAllowed20(cfg))throw Error('EXT_DEV_DIRECT_SSOT_MODE_MISMATCH')"));
 
 

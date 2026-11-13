@@ -7,7 +7,7 @@ const str=x=>String(x??'').trim();
 const hash=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
 const contract=Object.freeze({
  rule:{tab:'Notification_Rules',keyColumn:'RULE_KEY',valueColumn:'VALUE',operation:'updateRule'},
- devMode:{tab:'System_Config',keyColumn:'SETTING_KEY',valueColumn:'DEV',operation:'updateDevMode'}
+ devMode:{tab:'System_Config',keyColumn:'KEY',valueColumn:'DEV',operation:'updateDevMode'}
 });
 const normalize=x=>str(x).toUpperCase().replace(/[^A-Z0-9]/g,'');
 function sourceSnapshot(rows,definition,key){

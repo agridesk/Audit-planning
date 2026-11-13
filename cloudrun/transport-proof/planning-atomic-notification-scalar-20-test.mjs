@@ -19,7 +19,7 @@ for(const kind of ['rule','devMode']){
    readRows:async sheet=>{
     assert.equal(sheet,tab);events.push('read');
     return kind==='rule'?[['Rule_Key','Value'],[key,current]]:
-      [['SETTING_KEY','DEV'],[key,current]];
+      [['KEY','DEV'],[key,current]];
    },
    forward:async({operation})=>{
     assert.equal(operation,kind==='rule'?'updateRule':'updateDevMode');

@@ -32,5 +32,5 @@ assert.equal(result.planning[1][3],iso(46139));
 assert.equal(result.planning[1][4],iso(46231));
 assert.deepEqual(data,clone,'Source reads must remain immutable');
 assert.throws(()=>f([{values:[['Base_Expiry_Date'],[46262.5]]},null,{values:[['Audit ID']]}]),/EXT_DEV_DATE_SERIAL_INVALID/);
-assert(server.includes('obligationRows:dates.obligations')&&server.includes('planningRows:dates.planning'),'Both normalized datasets must reach the Model C inspector and post-write readback');
+assert(server.includes('obligationRows:dates.obligations')&&server.includes('const planningRows=isolatedExtAtomicPreflight20()?await readCanonicalPlanningRowsForAtomic20():dates.planning')&&server.includes('return {obligationRows:dates.obligations,linkRows:r[1]?.values||[],planningRows,scopeRows:r[3]?.values||[]}')&&server.includes('inspectDevScopeExtension20({...source,companyUid})')&&server.includes('inspectDevScopeExtension20({...await readIsolatedDevModelCExt20(),companyUid})'),'Both normalized datasets must reach the Model C inspector and post-write readback; atomic preflight must use canonical planning rows');
 console.log('DEV Model C numeric Sheets serial date conversion and immutable readback PASS');

@@ -11,7 +11,7 @@ const ctx={
   selectedScope:'gap',separateDrafts:new Map(),togetherDraft:[a],partialLineage:false,
   manual:[{blockId:'block',obligationId:'gap',minutes:360}]},
  draftBlocks:[a],
- q:id=>fields[id],calendarAnchor:'2027-03-01',renderDraft:()=>{}
+ q:id=>fields[id],calendarAnchor:'2027-03-01',renderDraft:()=>{},verifyScopeAuditor20:()=>{}
 };
 runInNewContext(extract('saveActiveScopeDraft20','separateVisitsDraft20')+
  extract('switchScopeDraft20','switchMode20')+

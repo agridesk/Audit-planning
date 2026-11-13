@@ -9,7 +9,7 @@ const isolatedOrigins="['https://ams-fase12-dev-510075419067.europe-west1.run.ap
 assert.equal(server.split(isolatedOrigins).length-1,3,'EXT routes retain exact primary DEV origin allowlist');
 assert(server.includes('devScopeTestOriginAllowed20(parsedOrigin.origin)'),'additional test origin uses narrow DEV predicate');
 const post=server.slice(server.indexOf("if(u.pathname==='/api/v1/manager/extension-obligation-command'"),server.indexOf("if(u.pathname==='/api/v1/manager/extension-reconcile-projection'"));
-for(const x of ['if(isolatedExtDirect20())','withDirectManagerActionLock(auditId','readIsolatedDevModelCExt20()','inspectDevScopeExtension20','planDevScopeExtension20','sheetsValuesBatchUpdateRaw(plan.updates)','EXT_DEV_DIRECT_READBACK_UNVERIFIED'])assert(post.includes(x),'direct POST guard missing '+x);
+for(const x of ['if(isolatedExtDirect20()||isolatedExtAtomicPreflight20())','EXT_ATOMIC_LEGACY_DIRECT_WRITE_FROZEN','withDirectManagerActionLock(auditId','readIsolatedDevModelCExt20()','inspectDevScopeExtension20','planDevScopeExtension20','sheetsValuesBatchUpdateRaw(plan.updates)','EXT_DEV_DIRECT_READBACK_UNVERIFIED'])assert(post.includes(x),'direct POST guard missing '+x);
 const get=server.slice(server.indexOf("if(u.pathname==='/api/v1/manager/company-management/extension-obligations'"),server.indexOf("if(u.pathname==='/api/v1/manager/company-management'&&"));
 assert(get.includes("mode:'DEV_MODEL_C_DIRECT'"),'dossier needs direct metadata');
 assert(get.includes('inspectDevScopeExtension20'),'dossier must derive eligibility from canonical obligation source');

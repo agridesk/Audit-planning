@@ -39,7 +39,7 @@ function mock({rowState='READY',appendState='MISSING',rowError=false,auditorId=n
 {const x=mock({auditorId:'auditor-1',leaseMinutes:5});
  await assert.rejects(x.service.commit({operationId}),/LEASE_QUARANTINE_ACTIVE/);
  assert.equal(x.events.length,0);}
-{const x=mock({rowError:true});await assert.rejects(x.service.commit({operationId}),/OUTCOME_UNCERTAIN_MANUAL_RECONCILIATION/);
+{const x=mock({rowError:true});await assert.rejects(x.service.commit({operationId}),/ATOMIC_FORWARD_RECOVERY_OUTCOME_UNCERTAIN_APPLY_ROWS_SHEETS_TIMEOUT/);
  assert.equal(x.gate.state,'RECOVERING');assert.ok(x.events.includes('failure:APPLY_ROWS:SHEETS_TIMEOUT'));assert.ok(!x.events.includes('finish'));assert.ok(!x.events.includes('settle'));}
 {const x=mock();await assert.rejects(x.service.commit({operationId:'invalid'}),/ID_INVALID/);
  assert.equal(x.events.length,0);}

@@ -5,6 +5,8 @@
 import {createHash} from 'node:crypto';
 const clean=x=>String(x??'').trim();
 const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const normalizedRow=value=>{const row=(value||[]).map(x=>String(x??''));while(row.length&&row.at(-1)==='')row.pop();return row;};
+const sameRow=(a,b)=>JSON.stringify(normalizedRow(a))===JSON.stringify(normalizedRow(b));
 export function createAtomicSelfPlanningService20({store,gate,preflight,projector}={}){
  if(typeof store?.readAudit!=='function'||typeof store?.readOutbox!=='function'||
     typeof store?.commit!=='function'||typeof store?.markProjected!=='function'||
@@ -52,7 +54,7 @@ export function createAtomicSelfPlanningService20({store,gate,preflight,projecto
       proof.canonicalSnapshot?.auditId!==auditId||proof.canonicalSnapshot.status!=='Pending Planning'||
       !Array.isArray(proof.projectionWrites)||proof.projectionWrites.length!==1||
       !Array.isArray(proof.projectionPreconditions)||proof.projectionPreconditions.length!==1||
-      JSON.stringify(proof.projectionPreconditions[0].before)!==JSON.stringify(previous.snapshot.row)||
+      !sameRow(proof.projectionPreconditions[0].before,previous.snapshot.row)||
       JSON.stringify(proof.canonicalSnapshot.headers)!==JSON.stringify(previous.snapshot.headers)||
       proof.appendIntents?.length)
     throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_NOT_AUTHORITATIVE');

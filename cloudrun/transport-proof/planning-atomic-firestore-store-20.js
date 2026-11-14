@@ -146,7 +146,28 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
   try{committed=await request(base+':commit','POST',{transaction:tx,writes});}
   catch{throw Error('PLANNING_FIRESTORE_COMMIT_OUTCOME_UNKNOWN');}
   if([409,412].includes(committed.status))throw Error('PLANNING_TRANSACTION_CONFLICT');
-  if(!committed.ok)throw Error('PLANNING_FIRESTORE_COMMIT_'+committed.status);
+  if(!committed.ok){
+   // Structured metadata only: never emit audit IDs, token, payload or document paths.
+   const failure=await committed.json().catch(()=>({}));
+   const cloudError=failure?.error||{};
+   const cause=String(cloudError.message||'').toLowerCase();
+   const category=cause.includes('transaction')?'TRANSACTION':
+    cause.includes('document')?'DOCUMENT':
+    cause.includes('field')?'FIELD':
+    cause.includes('size')||cause.includes('large')?'SIZE':
+    cause.includes('write')?'WRITE':'OTHER';
+   console.error('[AMS_DEV_FIRESTORE_COMMIT_REJECTED]',JSON.stringify({
+    status:committed.status,
+    cloudCode:Number.isInteger(cloudError.code)?cloudError.code:null,
+    cloudStatus:String(cloudError.status||'').replace(/[^A-Z_]/g,'').slice(0,45),
+    category,
+    writeCount:writes.length,
+    mutationTypes:{audit:writes.filter(w=>w.update?.name?.includes('/'+coll.audit+'/')).length,
+     claim:writes.filter(w=>w.update?.name?.includes('/'+coll.claim+'/')).length,
+     outbox:writes.filter(w=>w.update?.name?.includes('/'+coll.outbox+'/')).length}
+   }));
+   throw Error('PLANNING_FIRESTORE_COMMIT_'+committed.status);
+  }
   const receipt=await committed.json();
   if(!receipt.commitTime||!Array.isArray(receipt.writeResults)||receipt.writeResults.length!==writes.length)throw Error('PLANNING_FIRESTORE_COMMIT_RECEIPT_UNKNOWN');
   return result;

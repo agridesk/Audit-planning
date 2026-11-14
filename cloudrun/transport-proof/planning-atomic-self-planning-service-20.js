@@ -58,7 +58,7 @@ export function createAtomicSelfPlanningService20({store,gate,preflight,projecto
     throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_WRITESET_INVALID');
    if(!sameRow(proof.projectionPreconditions[0].before,previous.snapshot.row))
     throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_SOURCE_ROW_MISMATCH');
-   if(JSON.stringify(proof.canonicalSnapshot.headers)!==JSON.stringify(previous.snapshot.headers))
+   if(JSON.stringify(proof.canonicalSnapshot.headers.map(clean))!==JSON.stringify(previous.snapshot.headers.map(clean)))
     throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_HEADER_MISMATCH');
    const snapshot={...previous.snapshot,...proof.canonicalSnapshot,
     projectionWrites:proof.projectionWrites,projectionPreconditions:proof.projectionPreconditions,

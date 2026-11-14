@@ -57,7 +57,25 @@ export function createAtomicSelfPlanningService20({store,gate,preflight,projecto
       !Array.isArray(proof.projectionPreconditions)||proof.projectionPreconditions.length!==1||
       proof.appendIntents?.length)
     throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_WRITESET_INVALID');
-   if(!sameRow(proof.projectionPreconditions[0].before,previous.snapshot.row))
+   // A Self planning mutation may write only its own toggle cell.
+   // Independently compare the entire source row to the canonical snapshot,
+   // without submitting unrelated hour/date fields to Sheets for rewriting.
+   const column=proof.canonicalSnapshot.headers.findIndex(x=>/^allow self planning$/i.test(clean(x)));
+   const sourceRow=Number(proof.canonicalSnapshot.sourceRow);
+   const cellRange='Audit planning!AD'+sourceRow;
+   const beforeCell=proof.projectionPreconditions[0];
+   const afterCell=proof.projectionWrites[0];
+   if(column!==29||!Number.isSafeInteger(sourceRow)||sourceRow<2||
+      beforeCell.range!==cellRange||afterCell.range!==cellRange||
+      beforeCell.before?.length!==1||afterCell.values?.length!==1||
+      afterCell.values[0]?.length!==1||
+      clean(beforeCell.before[0])!==clean(previous.snapshot.row[column])||
+      clean(afterCell.values[0][0])!==(body.allowSelfPlanning?'Yes':'No')||
+      !Array.isArray(proof.canonicalSnapshot.row))
+    throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_CELL_CONTRACT_INVALID');
+   const untouched=proof.canonicalSnapshot.row.slice();
+   untouched[column]=beforeCell.before[0];
+   if(!sameRow(untouched,previous.snapshot.row))
     throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_SOURCE_ROW_MISMATCH');
    if(JSON.stringify(normalizedHeaders(proof.canonicalSnapshot.headers))!==JSON.stringify(normalizedHeaders(previous.snapshot.headers)))
     throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_HEADER_MISMATCH');

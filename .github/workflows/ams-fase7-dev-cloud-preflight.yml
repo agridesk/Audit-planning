@@ -64,7 +64,9 @@ jobs:
           GOOGLE_ACCESS_TOKEN: ${{ steps.google_auth.outputs.access_token }}
           AMS_DEV_SHEET_ID: 1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs
         run: node .github/scripts/ams-dev-atomic-blocker-readonly.mjs
-      - name: Read-only live DEV Model C migration preflight
+      - name: Read-only legacy empty-target migration preflight (diagnostic only; not applicable after staging)
+        id: legacy_empty_target
+        continue-on-error: true
         env:
           GOOGLE_ACCESS_TOKEN: ${{ steps.google_auth.outputs.access_token }}
           AMS_DEV_SHEET_ID: 1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs
@@ -74,6 +76,10 @@ jobs:
         run: |
           test '${{ steps.maintenance_gate.outcome }}' = 'success' || { echo '::error::DEV maintenance traffic is not fenced; no deployment or cutover authorized'; exit 1; }
       - name: Explicit no-write completion
-        run: echo "DEV read-only preflight complete; no cutover or deployment was performed"
+        if: always()
+        run: |
+          echo "DEV read-only diagnostics complete; no cutover or deployment was performed"
+          echo "Legacy empty-target preflight outcome: ${{ steps.legacy_empty_target.outcome }} (diagnostic only; no re-backfill permitted)"
+          echo "Maintenance fence outcome: ${{ steps.maintenance_gate.outcome }}"
 
 # Read-only DEV cloud verification rerun after green atomic planning recovery CI.

@@ -36,7 +36,7 @@ export function createPlanningAtomicForwardRecovery20({store,gate,projector,appe
    }
   }
   const holder=await gate.beginRecovery({operationId});
-  let mutationStarted=false,proofVerified=false;
+  let mutationStarted=false,proofVerified=false,stage='CANONICAL_RECHECK';
   try{
    // Recheck the same durable Firestore identity AFTER taking exclusive CAS.
    const current=await store.readOutbox(operationId);
@@ -44,15 +44,21 @@ export function createPlanningAtomicForwardRecovery20({store,gate,projector,appe
    if(current?.operationId!==operationId||current?.state!==entry.state||
       currentAudit?.pendingOperationId!==operationId||currentAudit?.revision!==entry.revision)
     throw Error('ATOMIC_FORWARD_RECOVERY_CHANGED_DURING_FENCE');
+   stage='READ_ROWS_BEFORE';
    const first=await projector.inspect(entry.snapshot);
+   stage='READ_APPEND_BEFORE';
    const appendBefore=await appendProjector.inspect(entry.snapshot.appendIntents);
    if(!['READY','MATCH'].includes(first.state)||!['MISSING','MATCH'].includes(appendBefore.state))
     throw Error('ATOMIC_FORWARD_RECOVERY_SOURCE_CONFLICT');
    mutationStarted=true;
+   stage='APPLY_ROWS';
    await projector.apply({operationId,gateToken:holder.token,plan:entry.snapshot});
+   stage='VERIFY_ROWS';
    const rowProof=await projector.inspect(entry.snapshot);
    if(rowProof.state!=='MATCH')throw Error('ATOMIC_FORWARD_RECOVERY_ROW_UNVERIFIED');
+   stage='APPLY_NOTIFICATIONS';
    await appendProjector.apply({operationId,gateToken:holder.token,intents:entry.snapshot.appendIntents});
+   stage='VERIFY_NOTIFICATIONS';
    const appProof=await appendProjector.inspect(entry.snapshot.appendIntents);
    if(appProof.state!=='MATCH')throw Error('ATOMIC_FORWARD_RECOVERY_APPEND_UNVERIFIED');
    proofVerified=true;
@@ -61,8 +67,13 @@ export function createPlanningAtomicForwardRecovery20({store,gate,projector,appe
     await gate.finishRecovery({operationId,token:holder.token});
     throw error;
    }
-   // Do not unlock after a possibly in-flight Sheets request.
-   throw Error('ATOMIC_FORWARD_RECOVERY_OUTCOME_UNCERTAIN_MANUAL_RECONCILIATION_REQUIRED');
+   // No blind retry or unlock. Preserve the exact failure stage for operator
+   // diagnosis without persisting business values or network error bodies.
+   const errorCode=String(error?.message||'UNKNOWN').replace(/[^A-Za-z0-9_]/g,'_').slice(0,100);
+   console.error('[AMS_ATOMIC_FORWARD_RECOVERY_FAILURE]',JSON.stringify({stage,errorCode,operationId}));
+   try{await gate.recordRecoveryFailure({operationId,token:holder.token,stage,code:errorCode});}
+   catch(recordError){console.error('[AMS_ATOMIC_FORWARD_RECOVERY_FAILURE_RECORD_ERROR]',String(recordError?.message||'UNKNOWN').slice(0,100));}
+   throw Error('ATOMIC_FORWARD_RECOVERY_OUTCOME_UNCERTAIN_'+stage+'_'+errorCode);
   }
   if(!proofVerified)throw Error('ATOMIC_FORWARD_RECOVERY_PROOF_MISSING');
   await gate.finishRecovery({operationId,token:holder.token});

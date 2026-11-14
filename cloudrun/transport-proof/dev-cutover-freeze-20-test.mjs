@@ -23,4 +23,16 @@ assert.ok(gatePos>0);
 assert.ok(gatePos<r15.indexOf('if(planningAtomicEnabled&&'));
 assert.ok(r15.indexOf("if(!cutoverFreeze.allow){",gatePos)>gatePos);
 assert.match(r15,/if\(!dryRun&&\(planningAtomicEnabled\|\|!planningAtomicPrepEnabled\|\|process\.env\.AMS_DEV_CUTOVER_HTTP_WRITE_FREEZE_ENABLED/);
+// Post-cutover: retain freeze for every legacy POST, and permit explicitly
+// atomic-owned writes only. The backfill route must retire automatically.
+for(const path of ['/api/v1/planning/commit-handoff','/api/v1/manager/approve-direct',
+ '/api/v1/auditor/action','/api/v1/manager/company-management/save']){
+ assert.deepEqual(freeze('POST',path,{atomicPlanningEnabled:true}),{allow:true,atomicOwned:true});
+ for(const method of ['PUT','PATCH','DELETE'])assert.equal(freeze(method,path,{atomicPlanningEnabled:true}).allow,false);
+}
+for(const path of ['/api/v1/planning/atomic-backfill','/api/v1/manager/extension-direct',
+ '/api/v1/manager/swap20/propose','/api/v1/manager/scopes/bootstrap-v1']){
+ assert.equal(freeze('POST',path,{atomicPlanningEnabled:true,backfillWriteEnabled:true,legacyWritersFrozen:true}).allow,false);
+}
+assert.match(r15,/atomicPlanningEnabled:planningAtomicEnabled/);
 console.log('DEV cutover write freeze: fail closed on all business methods and guard backfill PASS');

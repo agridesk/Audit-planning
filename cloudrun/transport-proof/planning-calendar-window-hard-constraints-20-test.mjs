@@ -22,7 +22,7 @@ function renderCase({from,to,valid=true,today='2026-11-14',minPlanningDate=''}) 
   model:{data:{audit:{minPlanningDate},overlays:{availability:{byAuditorEmail:{}},reservations:{byAuditorEmail:{}}}}},
   calendarAnchor:'',CALENDAR_WINDOW_DAYS:70,
   localToday:()=>today,
-  selectedVisitWindow:()=>({from,to,valid}),
+  selectedVisitWindow:()=>({from,to,valid}),effectiveMinPlanningDate20:()=>minPlanningDate,
   addDaysIso:(date,days)=>{const x=new Date(date+'T12:00:00Z');x.setUTCDate(x.getUTCDate()+days);return x.toISOString().slice(0,10)},
   escHtml:x=>String(x)
  };

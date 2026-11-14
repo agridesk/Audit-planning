@@ -59,6 +59,10 @@ jobs:
         run: node .github/scripts/ams-fase7-dev-writer-fence-survey.mjs
       - name: Read-only Model C extension Firestore collection inventory
         run: node .github/scripts/ams-fase7-firestore-inventory.mjs
+      - name: Read-only DEV atomic Self planning blocker inspection
+        env:
+          GOOGLE_ACCESS_TOKEN: ${{ steps.google_auth.outputs.access_token }}
+        run: node .github/scripts/ams-dev-atomic-blocker-readonly.mjs
       - name: Read-only live DEV Model C migration preflight
         env:
           GOOGLE_ACCESS_TOKEN: ${{ steps.google_auth.outputs.access_token }}

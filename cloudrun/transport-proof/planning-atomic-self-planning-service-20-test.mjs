@@ -48,6 +48,13 @@ function mock({preview=proof,old=before,inspection='MATCH',outbox=null}={}){
   'projectorApply','projectorInspect','markProjected','gateRelease']);
 }
 {
+ const spacedHeader={...proof,canonicalSnapshot:{...proof.canonicalSnapshot,headers:[' Audit ID ','Status','Allow self planning ']}};
+ const {service,events}=mock({preview:spacedHeader});
+ const result=await service.commit({actor,body});
+ assert.equal(result.success,true);
+ assert.ok(events.includes('firestoreCommit'));
+}
+{
  const paddedOld={...before,snapshot:{...before.snapshot,row:[...row,'','','']}};
  const {service,events}=mock({old:paddedOld});
  const result=await service.commit({actor,body});

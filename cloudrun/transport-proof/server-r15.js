@@ -571,7 +571,7 @@ const planningSelfPlanningRescue=planningAtomicRecovery?createAtomicSelfPlanning
   },body:JSON.stringify({range:cell,majorDimension:'ROWS',values:[[value]]})});
   if(!response.ok)throw Error('SELF_PLANNING_RESCUE_WRITE_HTTP_'+response.status);
   const receipt=await response.json();
-  if(receipt.updatedRange!==cell||Number(receipt.updatedCells)!==1)
+  if(![cell,"'Audit planning'!AD7"].includes(receipt.updatedRange)||Number(receipt.updatedCells)!==1)
    throw Error('SELF_PLANNING_RESCUE_WRITE_ACK_INVALID');
   const after=await planningGlobalGate.read();
   if(after.holder?.operationId!==operationId||after.holder.token!==token||

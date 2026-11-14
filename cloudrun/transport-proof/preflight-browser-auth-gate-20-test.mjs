@@ -9,7 +9,9 @@ const adapter=Function('req','res','headers','runtime','process','writerPath',
  source.slice(start,end)+';return {headers,blocked:false};');
 const host='preflight---ams-fase12-dev-zwtcar7xpa-ew.a.run.app';
 const origin='https://'+host;
-function run({path='/auth/dev-login',requestOrigin=origin,fetchSite='',fetchMode='',fetchDest='',hostname=host,flag='true',dev=true}={}){
+function run(options={}){
+ const {path='/auth/dev-login',fetchSite='',fetchMode='',fetchDest='',hostname=host,flag='true',dev=true}=options;
+ const requestOrigin=Object.hasOwn(options,'requestOrigin')?options.requestOrigin:origin;
  const headers={host:hostname};
  if(requestOrigin!==undefined)headers.origin=requestOrigin;
  if(fetchSite)headers['sec-fetch-site']=fetchSite;

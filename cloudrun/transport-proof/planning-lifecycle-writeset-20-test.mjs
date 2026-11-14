@@ -24,6 +24,9 @@ assert.deepEqual(normalized.projectionPreconditions,[
  {range:'Audit planning!A11:C11',before:['','','']},
  {range:'Audit planning!A5:E5',before:['parent-id','aud-old','old-uid','Accepted','old-time']}
 ]);
+const trailing=await normalizeLifecycleWriteset({writes:[{range:'Audit planning!A9:E9',values:[['audit-9','Pending Planning']]}],readBefore:async()=>[{values:[['audit-9','Approved','old','','']]}]});
+assert.deepEqual(trailing.projectionWrites[0].values,[['audit-9','Pending Planning','','','']]);
+assert.deepEqual(trailing.projectionPreconditions[0].before,['audit-9','Approved','old','','']);
 await assert.rejects(()=>normalizeLifecycleWriteset({writes:[{range:'Audit planning!A2:B3',values:[['invalid']]}],readBefore:async()=>[]}),/LIFECYCLE_WRITESET_VALUES_INVALID/);
 await assert.rejects(()=>normalizeLifecycleWriteset({writes:[{range:'Audit planning!A0:C0',values:[['x','y','z']]}],readBefore:async()=>[]}),/LIFECYCLE_WRITESET_RANGE_UNSUPPORTED/);
 console.log('Lifecycle writeset: overlapping transfer updates, successor rows, original images and invalid rows passed');

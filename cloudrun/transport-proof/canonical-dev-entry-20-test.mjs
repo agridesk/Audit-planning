@@ -39,5 +39,6 @@ assert.ok(runtime.includes("String(req.headers.host||'').toLowerCase()===preflig
 assert.ok(runtime.includes("requestOrigin!==expectedPreflightOrigin&&!samePreflightForm"),'Preflight auth requires exact origin or verified same-origin form');
 assert.ok(runtime.includes("writerPath==='/auth/dev-login'&&")&&runtime.includes("(!requestOrigin||requestOrigin==='null')")&&runtime.includes("String(req.headers['sec-fetch-site']||'')==='same-origin'")&&runtime.includes("String(req.headers['sec-fetch-mode']||'')==='navigate'")&&runtime.includes("String(req.headers['sec-fetch-dest']||'')==='document'"),'Only a protected same-origin top-level browser DEV-login form may omit Origin or send null');
 assert.ok(runtime.includes("preflightAuthRoutes.has(writerPath)"),'Only login/logout requests receive the trusted auth bridge');
-assert.ok(runtime.includes("PREFLIGHT_AUTH_CANONICAL_ORIGIN_NOT_CONFIGURED"),'Missing canonical DEV auth origin must fail closed');
+assert.ok(runtime.includes("delete headers.origin;"),'Public proxy validates preflight Origin, then strips it only for authorized login routes');
+assert.ok(!runtime.includes("PREFLIGHT_AUTH_CANONICAL_ORIGIN_NOT_CONFIGURED"),'Preflight login must not depend on a possibly absent canonical DEV origin setting');
 console.log('Canonical AMS DEV URL: tagged previews redirect; writes fail closed; PROD unaffected');

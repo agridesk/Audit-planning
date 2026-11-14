@@ -2016,7 +2016,7 @@ http.createServer(async(req,res)=>{
    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
    res.end(JSON.stringify({success:true,dev:true,readonly:true,safeToPlan,
     gate:{locked:!!gate.holder,state:gate.holder?.state||'NONE',kind:gate.holder?.kind||null,
-     acquiredAt:gate.holder?.acquiredAt||null},outbox:{unresolved,pages,truncated},
+     acquiredAt:gate.holder?.acquiredAt||null,recoveryStartedAt:gate.holder?.recoveryStartedAt||null,lastRecoveryFailure:gate.holder?.lastRecoveryFailure||null},outbox:{unresolved,pages,truncated},
     activeOperation:matchingGate}));return;
   }
   if(req.method==='GET'&&u.pathname==='/api/v1/planning/availability-read-diagnostic'){

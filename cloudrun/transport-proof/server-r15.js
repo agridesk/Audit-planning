@@ -1905,12 +1905,32 @@ http.createServer(async(req,res)=>{
      if(entry.state!=='PROJECTED'){
       unresolved++;
       if(entry.operationId===gate.holder?.operationId)
-       matchingGate={state:entry.state,action:entry.action||null};
+       matchingGate={state:entry.state,action:entry.action||null,operationId:entry.operationId,snapshot:entry.snapshot};
      }
     }
     pageToken=page.nextPageToken||'';
     if(pages>=50&&pageToken){truncated=true;break;}
    }while(pageToken);
+   // Independently inspect the matching durable outbox without any writes,
+   // recovery attempt, lock release or exposure of business cell values.
+   if(matchingGate){
+    const snapshot=matchingGate.snapshot;
+    delete matchingGate.snapshot;
+    try{
+     if(!snapshot||!Array.isArray(snapshot.projectionWrites)||!Array.isArray(snapshot.projectionPreconditions)||!Array.isArray(snapshot.appendIntents))
+      throw Error('ATOMIC_HEALTH_OUTBOX_PLAN_INCOMPLETE');
+     const rows=await planningAtomicProjector.inspect(snapshot);
+     const append=await planningAtomicAppendProjector.inspect(snapshot.appendIntents);
+     matchingGate.projection={rows:rows.state,
+      targets:rows.detail.map(x=>({range:x.range,target:x.target,before:x.before})),
+      append:append.state,appendCount:append.count||0,
+      missingAppendCount:append.missing?.length||0};
+     matchingGate.recoveryEvidenceComplete=rows.state==='MATCH'&&append.state==='MATCH';
+    }catch(error){
+     matchingGate.projection={inspectionError:String(error?.message||'INSPECTION_FAILED').replace(/[^A-Za-z0-9_]/g,'_').slice(0,100)};
+     matchingGate.recoveryEvidenceComplete=false;
+    }
+   }
    const safeToPlan=!gate.holder&&unresolved===0&&!truncated;
    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
    res.end(JSON.stringify({success:true,dev:true,readonly:true,safeToPlan,

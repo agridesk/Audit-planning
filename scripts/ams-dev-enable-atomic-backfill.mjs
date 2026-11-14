@@ -22,7 +22,7 @@ function assertState(v,after=false){
  if(e.AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED==='true'||e.AMS_DEV_FIRESTORE_PLANNING_AUTHORITY_ENABLED==='true')abort('CANONICAL_OWNER_ALREADY_ENABLED');
  if(e.AMS_DEV_MAINTENANCE_MODE==='true')abort('ALREADY_IN_MAINTENANCE');
  if(after){
-  if(e.AMS_DEV_ATOMIC_BACKFILL_WRITE_ENABLED!=='true'||e.AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED!=='true')abort('BACKFILL_FLAGS_NOT_ACTIVE');
+  if(e.AMS_DEV_ATOMIC_BACKFILL_WRITE_ENABLED!=='true'||e.AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED==='true')abort('BACKFILL_FLAGS_NOT_ACTIVE');
  }else if(e.AMS_DEV_ATOMIC_BACKFILL_WRITE_ENABLED==='true'||e.AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED==='true')abort('BACKFILL_FLAGS_ALREADY_ENABLED');
  return {revision:routes[0].revisionName,flags:e};
 }
@@ -53,9 +53,9 @@ for(const suffix of ['audits','claims','outbox']){
 }
 const reread=service();if(assertState(reread).revision!==original.revision)abort('CLOUD_RUN_REVISION_CHANGED');
 console.log('DEV_BACKFILL_PREFLIGHT_PASS: 111 unique audits, Sheets guard BLOCK, 3 Firestore collections empty, canonical DEV service frozen.');
-console.log('ACTIVATING_BACKFILL_GATES_ON_CANONICAL_DEV_ONLY');
+console.log('PREPARING_BACKFILL_WRITE_GATE_ONLY; EXTERNAL_WRITER_VERIFICATION_REMAINS_REQUIRED');
 command(['run','services','update',SERVICE,'--project='+PROJECT,'--region='+REGION,
- '--update-env-vars=AMS_DEV_ATOMIC_BACKFILL_WRITE_ENABLED=true,AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED=true','--quiet'],180000);
+ '--update-env-vars=AMS_DEV_ATOMIC_BACKFILL_WRITE_ENABLED=true','--quiet'],180000);
 const latest=service();assertState(latest,true);
-console.log(JSON.stringify({success:true,service:SERVICE,project:PROJECT,revision:latest.status.latestReadyRevisionName,backfillWrite:true,legacyWriterFreezeFlag:true,atomicPlanningOwnerEnabled:false},null,2));
-console.log('DEV_BACKFILL_GATES_PASS');
+console.log(JSON.stringify({success:true,service:SERVICE,project:PROJECT,revision:latest.status.latestReadyRevisionName,backfillWrite:true,legacyWriterFreezeFlag:false,atomicPlanningOwnerEnabled:false},null,2));
+console.log('DEV_BACKFILL_WRITE_PREPARED_NOT_AUTHORIZED');

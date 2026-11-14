@@ -48,16 +48,18 @@ export function createAtomicSelfPlanningService20({store,gate,preflight,projecto
      sourceRevision:body.expectedRevision,authority:'FIRESTORE'};
    }
    const proof=await preflight({actor,body:{...body,authorityPreflight:true}});
-   if(proof?.success!==true||proof?.authorityPreflight!==true||
-      proof.auditId!==auditId||proof.expectedSourceRevision!==body.expectedRevision||
-      proof.allowSelfPlanning!==body.allowSelfPlanning||
-      proof.canonicalSnapshot?.auditId!==auditId||proof.canonicalSnapshot.status!=='Pending Planning'||
-      !Array.isArray(proof.projectionWrites)||proof.projectionWrites.length!==1||
+   if(proof?.success!==true||proof?.authorityPreflight!==true||proof.auditId!==auditId||
+      proof.expectedSourceRevision!==body.expectedRevision||proof.allowSelfPlanning!==body.allowSelfPlanning||
+      proof.canonicalSnapshot?.auditId!==auditId||proof.canonicalSnapshot.status!=='Pending Planning')
+    throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_IDENTITY_OR_STATUS_INVALID');
+   if(!Array.isArray(proof.projectionWrites)||proof.projectionWrites.length!==1||
       !Array.isArray(proof.projectionPreconditions)||proof.projectionPreconditions.length!==1||
-      !sameRow(proof.projectionPreconditions[0].before,previous.snapshot.row)||
-      JSON.stringify(proof.canonicalSnapshot.headers)!==JSON.stringify(previous.snapshot.headers)||
       proof.appendIntents?.length)
-    throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_NOT_AUTHORITATIVE');
+    throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_WRITESET_INVALID');
+   if(!sameRow(proof.projectionPreconditions[0].before,previous.snapshot.row))
+    throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_SOURCE_ROW_MISMATCH');
+   if(JSON.stringify(proof.canonicalSnapshot.headers)!==JSON.stringify(previous.snapshot.headers))
+    throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_HEADER_MISMATCH');
    const snapshot={...previous.snapshot,...proof.canonicalSnapshot,
     projectionWrites:proof.projectionWrites,projectionPreconditions:proof.projectionPreconditions,
     appendIntents:[]};

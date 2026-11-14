@@ -1943,6 +1943,17 @@ http.createServer(async(req,res)=>{
       const append=await planningAtomicAppendProjector.inspect(entry.snapshot.appendIntents);
       eligible=['READY','MATCH'].includes(rows.state)&&['MISSING','MATCH'].includes(append.state);
       condition=eligible?'READY_FOR_EXPLICIT_RECOVERY':'SOURCE_CONFLICT';
+      if(eligible&&entry.auditorId){
+       const doc=await service.read({role:'manager',id:'atomic-recovery'},entry.auditorId);
+       const lease=doc?.planningLease;
+       if(lease){
+        const leaseSince=Date.parse(lease.uncertainAt||'');
+        if(lease.auditId!==entry.auditId||lease.state!=='UNCERTAIN'||!lease.token||
+           !Number.isFinite(leaseSince)||Date.now()-leaseSince<30*60*1000){
+         eligible=false;condition='AUDITOR_LEASE_QUARANTINE_NOT_COMPLETE';
+        }
+       }
+      }
      }
     }
    }

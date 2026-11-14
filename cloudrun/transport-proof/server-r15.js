@@ -49,6 +49,7 @@ import {createPlanningMultiLifecycleService} from './planning-multi-lifecycle-se
 import {createPlanningAtomicTransferService} from './planning-atomic-transfer-service-20.js';
 import {createPlanningAtomicRecovery} from './planning-atomic-recovery-20.js';
 import {createPlanningAtomicForwardRecovery20} from './planning-atomic-forward-recovery-20.js';
+import {createAtomicSelfPlanningRescue20} from './planning-atomic-self-planning-rescue-20.js';
 import {createPartialTimestampRepair20} from './planning-atomic-partial-timestamp-repair-20.js';
 import {createPlanningAtomicParityVerifier} from './planning-atomic-parity-verifier-20.js';
 import {createPlanningGlobalClaimsParity} from './planning-global-claims-parity-20.js';
@@ -540,6 +541,42 @@ const planningAtomicForwardRecovery=planningAtomicRecovery?createPlanningAtomicF
    if(current.holder?.operationId!==operationId||current.holder.token!==gateToken||
       current.holder.state!=='RECOVERING')throw Error('ATOMIC_FORWARD_RECOVERY_APPEND_FENCE_LOST');
   }})
+}):null;
+const planningSelfPlanningRescue=planningAtomicRecovery?createAtomicSelfPlanningRescue20({
+ store:planningAtomicStore,gate:planningGlobalGate,projector:planningAtomicProjector,
+ readHeaders:async()=>{
+  const range='Audit planning!S1:AD1';
+  const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range);
+  const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()}});
+  if(!response.ok)throw Error('SELF_PLANNING_RESCUE_HEADER_HTTP_'+response.status);
+  const values=(await response.json()).values?.[0]||[];
+  return {S:String(values[0]||'').trim(),AD:String(values[11]||'').trim()};
+ },
+ readHour:async()=>{
+  const range='Audit planning!S7';
+  const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(range)+'?valueRenderOption=UNFORMATTED_VALUE';
+  const response=await fetch(url,{headers:{authorization:'Bearer '+await getToken()}});
+  if(!response.ok)throw Error('SELF_PLANNING_RESCUE_HOUR_HTTP_'+response.status);
+  return (await response.json()).values?.[0]?.[0];
+ },
+ writeToggle:async({operationId,token,cell,value})=>{
+  if(cell!=='Audit planning!AD7'||!['Yes','No'].includes(value))
+   throw Error('SELF_PLANNING_RESCUE_WRITE_SCOPE_INVALID');
+  const before=await planningGlobalGate.read();
+  if(before.holder?.operationId!==operationId||before.holder.token!==token||
+     before.holder.state!=='RECOVERING')throw Error('SELF_PLANNING_RESCUE_FENCE_LOST');
+  const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(cell)+'?valueInputOption=RAW';
+  const response=await fetch(url,{method:'PUT',headers:{
+   authorization:'Bearer '+await getToken(),'content-type':'application/json'
+  },body:JSON.stringify({range:cell,majorDimension:'ROWS',values:[[value]]})});
+  if(!response.ok)throw Error('SELF_PLANNING_RESCUE_WRITE_HTTP_'+response.status);
+  const receipt=await response.json();
+  if(receipt.updatedRange!==cell||Number(receipt.updatedCells)!==1)
+   throw Error('SELF_PLANNING_RESCUE_WRITE_ACK_INVALID');
+  const after=await planningGlobalGate.read();
+  if(after.holder?.operationId!==operationId||after.holder.token!==token||
+     after.holder.state!=='RECOVERING')throw Error('SELF_PLANNING_RESCUE_POST_FENCE_LOST');
+ }
 }):null;
 const planningPartialTimestampRepair=planningAtomicForwardRecovery?createPartialTimestampRepair20({
  store:planningAtomicStore,gate:planningGlobalGate,recovery:planningAtomicRecovery,
@@ -1614,6 +1651,24 @@ http.createServer(async(req,res)=>{
     Object.fromEntries(new URLSearchParams(raw)):JSON.parse(raw||'{}');
    if(input.confirm!=='REPAIR_ONLY_TWO_LAST_UPDATED_CELLS')throw Error('PARTIAL_REPAIR_CONFIRMATION_REQUIRED');
    const result=await planningPartialTimestampRepair.commit({operationId:String(input.operationId||'')});
+   planningCache.invalidate();
+   res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+   res.end(JSON.stringify(result));return;
+  }
+  // Manager-only explicit AD7 recovery, never a general repair endpoint.
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-self-planning-rescue'){
+   if(!runtime.isDev||!planningSelfPlanningRescue){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401);res.end('Manager required');return;}
+   const origin=String(req.headers.origin||'');
+   if(!origin||new URL(origin).host!==String(req.headers.host||'')||
+      new URL(origin).protocol!=='https:')throw Error('SELF_PLANNING_RESCUE_ORIGIN_DENIED');
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)throw Error('SELF_PLANNING_RESCUE_BODY_TOO_LARGE');}
+   const input=String(req.headers['content-type']||'').startsWith('application/x-www-form-urlencoded')?
+    Object.fromEntries(new URLSearchParams(raw)):JSON.parse(raw||'{}');
+   if(input.confirm!=='RECOVER_ONLY_SELF_PLANNING_AD7')
+    throw Error('SELF_PLANNING_RESCUE_CONFIRMATION_REQUIRED');
+   const result=await planningSelfPlanningRescue.commit({operationId:String(input.operationId||'')});
    planningCache.invalidate();
    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
    res.end(JSON.stringify(result));return;

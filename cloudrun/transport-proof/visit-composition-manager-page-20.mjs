@@ -37,6 +37,8 @@ function render(){
  el('state').textContent='Audit '+source.auditId+' · '+source.scopes.length+' obligations · '+(totalMinutes/60)+' formal hours';
  el('form').hidden=false;var parent=el('scopes');parent.replaceChildren();
  el('modeTogether').checked=mode==='TOGETHER';el('modeSeparate').checked=mode==='SEPARATELY';
+ el('modeSeparate').disabled=!!source.requiredTogetherPairs?.length;
+ if(source.requiredTogetherPairs?.length){var warning=document.createElement('p');warning.className='warn';warning.textContent='Separately forbidden: '+source.requiredTogetherPairs.map(x=>x.parentScopeCode+' + '+x.childScopeCode).join(', ')+' must be audited together (Config_Scope_Dependencies).';parent.appendChild(warning);}
  if(mode==='TOGETHER'){
   var section=document.createElement('section');section.className='together';
   section.innerHTML='<h2>One Visit · all scopes</h2><p>All scope windows must be respected. Allocate each time block by obligation in minutes.</p><label>Assigned auditor</label><select class="auditor"><option value="">Choose auditor</option>'+roster.map(x=>'<option value="'+esc(x.email)+'">'+esc(x.name)+' ('+esc(x.email)+')</option>').join('')+'</select><div class="blocks"></div><button class="add" type="button">+ Time block</button>';
@@ -89,6 +91,7 @@ function payload(){
   return {auditId:id,composition:'TOGETHER',sourceRevision:source.sourceRevisionAtomic,
    auditorEmail:email,auditorName:auditor?.name||email,blocks,scopeAllocations:allocations};
  }
+ if(source.requiredTogetherPairs?.length)throw Error('Must_Audit_Together: separate planning is not permitted.');
  var visits=Array.from(document.querySelectorAll('.scope')).map(function(n){
   var o=source.scopes.find(x=>x.obligationId===n.dataset.obligationId),email=n.querySelector('.auditor').value;
   var blocks=Array.from(n.querySelectorAll('.block')).map(x=>({date:x.querySelector('.date').value,start:x.querySelector('.start').value,end:x.querySelector('.end').value,execLoc:x.querySelector('.location').value,executionType:'ONSITE'}));
@@ -116,9 +119,11 @@ el('save').onclick=async function(){
   source=result[0];roster=result[1].auditors||[];enabled=result[1].writeEnabled===true;
   source.scopes=(source.obligations||[]).map(x=>({obligationId:x.obligationId,scopeCode:x.scopeCode,scopeName:x.scopeCode,requiredHours:Number(x.requiredHours),windowFrom:x.windowFrom,windowTo:x.windowTo,effectiveExpiry:x.effectiveExpiry}));
   if(source.scopes.some(x=>!x.obligationId||!x.scopeCode||!Number.isFinite(x.requiredHours)||x.requiredHours<=0))throw Error('Canonical obligation identity or required hours are incomplete.');
+  if(!Array.isArray(source.requiredTogetherPairs)||typeof source.separateAllowed!=='boolean')throw Error('Canonical scope dependency verification is missing.');
+  if(source.requiredTogetherPairs.length&&mode==='SEPARATELY')mode='TOGETHER';
   if(!source.sourceEvidenceReady||!source.scopes.length||source.scopes.length<2||!source.sourceRevisionAtomic||source.source?.status!=='Pending Planning')throw Error('Canonical source or formal hours not ready.');
   el('modeTogether').addEventListener('change',function(){mode='TOGETHER';render()});
-  el('modeSeparate').addEventListener('change',function(){mode='SEPARATELY';render()});
+  el('modeSeparate').addEventListener('change',function(){if(source.requiredTogetherPairs.length){mode='TOGETHER';render();return;}mode='SEPARATELY';render()});
   render();
  }catch(e){fail(e.message||String(e));}
 })();

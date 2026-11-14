@@ -12,7 +12,8 @@ function cmd(exe,args,{cwd,timeout=45000}={}){
  return String(p.stdout||'').trim();
 }
 function runService(){let x;try{x=JSON.parse(cmd('gcloud',['run','services','describe',service,'--project='+project,'--region='+region,'--format=json']));}catch(e){fail('SERVICE_DESCRIBE_INVALID '+String(e.message).slice(0,100));}
- if(x.metadata?.name!==service||x.status?.traffic?.filter(t=>Number(t.percent)>0).length!==1||Number(x.status.traffic[0].percent)!==100||x.status.traffic[0].revisionName!==x.status.latestReadyRevisionName)fail('CANONICAL_DEV_TRAFFIC_INVALID');return x;}
+ const live=(x.status?.traffic||[]).filter(t=>Number(t.percent)>0);
+ if(x.metadata?.name!==service||live.length!==1||Number(live[0].percent)!==100||live[0].revisionName!==x.status.latestReadyRevisionName)fail('CANONICAL_DEV_TRAFFIC_INVALID');return x;}
 function vars(s){return Object.fromEntries((s.spec?.template?.spec?.containers?.[0]?.env||[]).map(x=>[x.name,x.value]));}
 async function get(url,token){let r;try{r=await fetch(url,{headers:{authorization:'Bearer '+token},signal:AbortSignal.timeout(45000)});}catch{fail('SOURCE_OR_FIRESTORE_READ_NETWORK_FAILED');}
  if(!r.ok)fail('SOURCE_OR_FIRESTORE_HTTP_'+r.status);return r.json();}

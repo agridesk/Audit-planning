@@ -1655,6 +1655,27 @@ http.createServer(async(req,res)=>{
    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
    res.end(JSON.stringify(result));return;
   }
+  // Read-only Manager confirmation page for the one quarantined DEV Self planning operation.
+  if(req.method==='GET'&&u.pathname==='/manager/atomic-self-planning-rescue'){
+   if(!runtime.isDev||!planningSelfPlanningRescue){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401);res.end('Manager required');return;}
+   const operationId='fa914e8c46ad1ded6d364868f7154059b48af2c36ba51609a6cae1838f35dec4';
+   const gate=await planningGlobalGate.read();
+   const entry=await planningAtomicStore.readOutbox(operationId);
+   const since=Date.parse(gate.holder?.uncertainAt||'');
+   const eligible=gate.holder?.operationId===operationId&&gate.holder.state==='UNCERTAIN'&&
+    entry?.state==='UNCERTAIN'&&entry.action==='SELF_PLANNING'&&
+    Number.isFinite(since)&&Date.now()-since>=30*60*1000;
+   const condition=eligible?'READY_FOR_AD7_RESCUE':entry?.state==='PROJECTED'?'ALREADY_RECOVERED':'NOT_ELIGIBLE';
+   const form=eligible?`<form method="post" action="/api/v1/planning/atomic-self-planning-rescue">
+    <input type="hidden" name="operationId" value="${operationId}">
+    <input type="hidden" name="confirm" value="RECOVER_ONLY_SELF_PLANNING_AD7">
+    <button type="submit">Recover Self planning AD7 and unlock DEV planning</button></form>`:'';
+   const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AMS DEV Self planning recovery</title></head><body style="font:16px system-ui;max-width:760px;margin:30px auto;padding:0 15px"><h1>AMS DEV Self planning recovery</h1><p>Status: <strong>${condition}</strong></p><p>Only the existing Self planning operation and cell AD7 may be recovered. Other cells are verified unchanged.</p>${form}<p><a href="/api/v1/planning/atomic-write-health">Read-only planning health</a></p></body></html>`;
+   res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
+   res.end(html);return;
+  }
   // Manager-only explicit AD7 recovery, never a general repair endpoint.
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-self-planning-rescue'){
    if(!runtime.isDev||!planningSelfPlanningRescue){res.writeHead(404);res.end();return;}

@@ -57,7 +57,12 @@ export function canonicalDevEntry20({isDev,service,host,method,url,taggedPreflig
  if(taggedPreflightReadOnly===true&&requestHost==='preflight---'+canonical){
   if(['GET','HEAD'].includes(verb))return {action:'PASS'};
   const authPosts=new Set(['/auth/otp/request','/auth/otp/verify','/auth/dev-login','/auth/logout']);
-  if(verb==='POST'&&authPosts.has(path.split('?')[0]))return {action:'PASS'};
+  // These exact POST endpoints are authenticated, same-origin Firestore
+  // read models. The manager and auditor handlers perform no mutation.
+  // All SWAP proposals, commits, responses and other writes stay closed.
+  const readOnlyPosts=new Set(['/api/v1/manager/swap20/canonical-grid-dates',
+   '/api/v1/auditor/swap20/canonical-grid-dates']);
+  if(verb==='POST'&&(authPosts.has(path.split('?')[0])||readOnlyPosts.has(path.split('?')[0])))return {action:'PASS'};
   return {action:'REJECT',status:421};
  }
  if(!['GET','HEAD'].includes(verb))return {action:'REJECT',status:421};

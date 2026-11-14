@@ -5,7 +5,7 @@ const marker="if(!match)throw Error('PLANNING_PREFLIGHT_RANGE_INVALID')";
 const offset=source.indexOf(marker);
 assert.ok(offset>0,'canonical preflight range gate must exist');
 const before=source.slice(offset-110,offset);
-const expected='const match=/^(.+)!A('+String.raw`d+`+'):/.exec(w.range);';
+const expected='const match=/^(.+)!A('+String.fromCharCode(92)+'d+):/.exec(w.range);';
 assert.ok(before.includes(expected),'business preflight must use regex digit escape exactly once');
 assert.ok(!before.includes('A('+String.raw`\d+`+')'),'double-escaped preflight digit regex is invalid');
 const rx=/^(.+)!A(\d+):/;

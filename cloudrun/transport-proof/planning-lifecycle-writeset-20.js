@@ -17,12 +17,17 @@ export async function normalizeLifecycleWriteset({writes,readBefore}={}){
  const groups=new Map(),steps=[];
  for(const write of writes){
   const r=parseRange(write?.range),values=write?.values;
-  if(!Array.isArray(values)||values.length!==r.endRow-r.startRow+1||values.some(row=>!Array.isArray(row)||row.length!==r.endCol-r.startCol+1))throw Error('LIFECYCLE_WRITESET_VALUES_INVALID');
+  if(!Array.isArray(values)||values.length!==r.endRow-r.startRow+1||values.some(row=>!Array.isArray(row)||row.length<1||row.length>r.endCol-r.startCol+1))throw Error('LIFECYCLE_WRITESET_VALUES_INVALID');
+  // Sheets value updates permit omitted trailing empty cells in an A1 row range.
+  // Normalize only the missing tail; reject oversized/empty records and preserve
+  // every explicitly supplied cell before constructing the canonical writeset.
+  const width=r.endCol-r.startCol+1;
+  const fullRows=values.map(row=>row.concat(Array(width-row.length).fill('')));
   for(let i=0;i<values.length;i++){
    const row=r.startRow+i,key=r.sheet+'!'+row;
    if(!groups.has(key))groups.set(key,{sheet:r.sheet,row,first:r.startCol,last:r.endCol});
    const group=groups.get(key);group.first=Math.min(group.first,r.startCol);group.last=Math.max(group.last,r.endCol);
-   steps.push({key,startCol:r.startCol,endCol:r.endCol,values:values[i]});
+   steps.push({key,startCol:r.startCol,endCol:r.endCol,values:fullRows[i]});
   }
  }
  if(groups.size>120)throw Error('LIFECYCLE_WRITESET_TOO_MANY_ROWS');

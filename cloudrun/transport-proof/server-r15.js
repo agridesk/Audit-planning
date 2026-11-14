@@ -1891,6 +1891,33 @@ http.createServer(async(req,res)=>{
   }
   // DEV manager-only, strictly read-only: probe availability reads using the
   // actual Cloud Run service identity, not an operator's gcloud credentials.
+  // Manager-only DEV read-only status: never releases a fence or replays an outbox.
+  if(req.method==='GET'&&u.pathname==='/api/v1/planning/atomic-write-health'){
+   if(!runtime.isDev||!planningAtomicEnabled){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager required');return;}
+   const gate=await planningGlobalGate.read();
+   let pageToken='',pages=0,unresolved=0,truncated=false,matchingGate=null;
+   do{
+    const page=await planningAtomicStore.listOutbox({pageSize:100,pageToken});
+    pages++;
+    for(const entry of page.entries){
+     if(entry.state!=='PROJECTED'){
+      unresolved++;
+      if(entry.operationId===gate.holder?.operationId)
+       matchingGate={state:entry.state,action:entry.action||null};
+     }
+    }
+    pageToken=page.nextPageToken||'';
+    if(pages>=50&&pageToken){truncated=true;break;}
+   }while(pageToken);
+   const safeToPlan=!gate.holder&&unresolved===0&&!truncated;
+   res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
+   res.end(JSON.stringify({success:true,dev:true,readonly:true,safeToPlan,
+    gate:{locked:!!gate.holder,state:gate.holder?.state||'NONE',kind:gate.holder?.kind||null,
+     acquiredAt:gate.holder?.acquiredAt||null},outbox:{unresolved,pages,truncated},
+    activeOperation:matchingGate}));return;
+  }
   if(req.method==='GET'&&u.pathname==='/api/v1/planning/availability-read-diagnostic'){
    if(!runtime.isDev){res.writeHead(404);res.end();return;}
    const actor=await session(req);

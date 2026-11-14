@@ -1566,6 +1566,21 @@ http.createServer(async(req,res)=>{
    const result=await planningAtomicParity.verify({startRow:options.startRow??2,limit:options.limit??200});
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,...result}));return;
   }
+  // Post-backfill verification is a pure read of canonical Sheets, Firestore
+  // audit snapshots, slot claims and the outbox. Do not expose a mutation
+  // endpoint or use readiness flags as a substitute for this evidence.
+  if(req.method==='GET'&&u.pathname==='/api/v1/planning/atomic-cutover-evidence-readonly'){
+   if(!runtime.isDev){res.writeHead(404,{'cache-control':'no-store'});res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager required');return;}
+   if(!planningAtomicPrepEnabled||planningAtomicEnabled||!planningCutoverDataAudit){
+    res.writeHead(409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+    res.end(JSON.stringify({success:false,code:'ATOMIC_CUTOVER_READONLY_EVIDENCE_UNAVAILABLE'}));return;
+   }
+   const report=await planningCutoverDataAudit.verify({maxPages:50});
+   res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+   res.end(JSON.stringify({success:true,...report}));return;
+  }
   // Manager-only, genuinely read-only backfill preflight. The preflight tag
   // rejects all business POSTs; GET cannot trigger Firestore seed or cutover.
   if(req.method==='GET'&&u.pathname==='/api/v1/planning/atomic-backfill-dry-run'){

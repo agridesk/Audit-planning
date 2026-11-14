@@ -2154,7 +2154,7 @@ set(['Date - Planned'],requested[0].date);if(actorRole==='MANAGER')set(['Date - 
           ...(together?{composition:'TOGETHER',scopeAllocations:together.scopeAllocations}:{})},
         projectionWrites:writes,
         projectionPreconditions:writes.map(w=>{
-          const match=/^(.+)!A(\\d+):/.exec(w.range);
+          const match=/^(.+)!A(\d+):/.exec(w.range);
           if(!match)throw Error('PLANNING_PREFLIGHT_RANGE_INVALID');
           const sources={'Audit planning':ap,'Auditor Availability':vr[2]?.values||[],'Concept Reservations':cr};
           const source=sources[match[1]];

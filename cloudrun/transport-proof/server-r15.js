@@ -13,6 +13,7 @@ import {diagnoseRotationUid20} from './rotation-uid-reconciliation-20.mjs';
 import {previewModelCVisitComposition20} from './model-c-scope-visit-preview-20.mjs';
 import {requiredTogetherScopePairs20,assertScopeSplitAllowed20} from './scope-dependency-policy-20.mjs';
 import {devCutoverFreezeDecision20} from './dev-cutover-freeze-20.mjs';
+import {devCutoverConsole20} from './dev-cutover-console-20.mjs';
 import {resolveAuditorScopeQualifications20} from './auditor-scope-qualifications-20.js';
 import {createSwapFirestoreReadmodel} from './swap-firestore-readmodel-20.mjs';
 import {createSwapProposalIndex} from './swap-proposal-index-20.mjs';
@@ -1578,6 +1579,26 @@ http.createServer(async(req,res)=>{
    let options={};try{options=JSON.parse(raw||'{}');}catch{throw Error('ATOMIC_PARITY_BODY_INVALID');}
    const result=await planningAtomicParity.verify({startRow:options.startRow??2,limit:options.limit??200});
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,...result}));return;
+  }
+  // Canonical DEV-only migration console; cannot run from the tagged
+  // read-only preflight, or without confirmed independent writer freeze.
+  if(req.method==='GET'&&u.pathname==='/manager/dev-cutover-backfill'){
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager required');return;}
+   const canonicalHost='ams-fase12-dev-zwtcar7xpa-ew.a.run.app';
+   if(!runtime.isDev||String(req.headers.host||'').toLowerCase()!==canonicalHost||
+      process.env.AMS_DEV_CUTOVER_HTTP_WRITE_FREEZE_ENABLED!=='true'||
+      process.env.AMS_DEV_ATOMIC_PREFLIGHT_ENABLED!=='true'||
+      process.env.AMS_DEV_ATOMIC_BACKFILL_WRITE_ENABLED!=='true'||
+      process.env.AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED!=='true'||
+      planningAtomicEnabled){
+    res.writeHead(409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+    res.end(JSON.stringify({success:false,error:'DEV_CUTOVER_OPERATOR_GATE_NOT_READY'}));return;
+   }
+   res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store',
+    'x-content-type-options':'nosniff','x-frame-options':'DENY',
+    'content-security-policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"});
+   res.end(devCutoverConsole20());return;
   }
   // Post-backfill verification is a pure read of canonical Sheets, Firestore
   // audit snapshots, slot claims and the outbox. Do not expose a mutation

@@ -19,6 +19,7 @@ function fixture({gateState='UNCERTAIN',hour=8,wrongHeader=false,failWrite=false
  const gate={
   read:async()=>({holder}),
   beginRecovery:async()=>{calls.push('beginRecovery');holder={...holder,state:'RECOVERING'};return holder;},
+  resumeRecovery:async()=>{calls.push('resumeRecovery');holder={...holder,token:'fence'};return holder;},
   finishRecovery:async()=>{calls.push('finishRecovery');holder={...holder,state:'UNCERTAIN'};},
   release:async()=>{calls.push('release');holder=null;}
  };
@@ -47,7 +48,7 @@ function fixture({gateState='UNCERTAIN',hour=8,wrongHeader=false,failWrite=false
 }
 for(const [name,options,error] of [
  ['wrong header',{wrongHeader:true},/SCHEMA_CHANGED/],
- ['gate not uncertain',{gateState:'RECOVERING'},/GATE_NOT_UNCERTAIN/],
+ ['gate not uncertain',{gateState:'ACTIVE'},/GATE_NOT_QUARANTINED/],
  ['non numeric hour',{hour:'8'},/HOUR_NOT_NUMERIC/]
 ]){
  const f=fixture(options);await assert.rejects(f.service.commit({operationId:OP}),error,name);

@@ -111,6 +111,10 @@ el('save').onclick=async function(){
   var j=await r.json().catch(()=>null);if(!r.ok||j?.success!==true)throw Error('Save not confirmed (HTTP '+r.status+'): '+(j?.error||'Server returned no success receipt')+'. Do not retry until the previous operation has been checked.');
   el('result').className='success';el('result').textContent='Saved and verified: '+(j.auditIds||[j.auditId||id]).join(', ')+'. Firestore and Sheets projection confirmed.';
   el('save').disabled=true;
+  // Confirmed projection only: refresh the originating grid, then dismiss popup;
+  // a regular browser tab returns to the Manager portal instead.
+  try{if(window.opener&&!window.opener.closed){window.opener.location.reload();window.close();}}catch(_e){}
+  if(!window.closed)el('result').textContent+=' Return to the Manager portal when ready.';
  }catch(e){el('result').className='warn';el('result').textContent='SAVE NOT CONFIRMED: '+(e.message||String(e))+'\nDo not retry until the previous operation is checked.';el('save').disabled=true;el('result').scrollIntoView({block:'nearest',behavior:'smooth'});}
 };
 (async()=>{

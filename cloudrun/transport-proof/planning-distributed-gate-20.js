@@ -89,5 +89,20 @@ export function createPlanningDistributedGate(adapter){
    throw Error('PLANNING_RECOVERY_FAILURE_CAS_CONFLICT');
   return {recorded:true};
  }
- return Object.freeze({read,acquire,uncertain,quarantineOrphan,release,beginRecovery,finishRecovery,recordRecoveryFailure});
+ // Take over an abandoned RECOVERING holder only after its own 30-minute
+ // isolation. Rotating the token fences any late request from the old owner.
+ async function resumeRecovery({operationId}={}){
+  const current=await read(),holder=current.holder;
+  if(!holder||holder.operationId!==operationId||holder.state!=='RECOVERING')
+   throw Error('PLANNING_RECOVERY_RESUME_OWNER_MISMATCH');
+  const since=Date.parse(holder.recoveryStartedAt||'');
+  if(!Number.isFinite(since)||Date.now()-since<30*60*1000)
+   throw Error('PLANNING_RECOVERY_RESUME_QUARANTINE_ACTIVE');
+  const token=randomUUID(),next={...current,version:current.version+1,
+   holder:{...holder,token,recoveryStartedAt:new Date().toISOString(),lastRecoveryFailure:null}};
+  if(await adapter.compareAndSwap(initial.auditorId,current.version,next)!==true)
+   throw Error('PLANNING_RECOVERY_RESUME_CAS_RACE');
+  return clone(next.holder);
+ }
+ return Object.freeze({read,acquire,uncertain,quarantineOrphan,release,beginRecovery,finishRecovery,recordRecoveryFailure,resumeRecovery});
 }

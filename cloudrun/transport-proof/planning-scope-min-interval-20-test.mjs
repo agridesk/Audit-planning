@@ -27,6 +27,10 @@ ctx.composition20.selectedScope='OB-GRASP';
 assert.equal(ctx.resolveMinimum(),'2027-01-15','Separate GRASP must not inherit the other scope maximum');
 ctx.model.data.audit.minIntervalByScope=[{scopeCode:'MPS-GAP',minPlanningDate:'2027-05-03'}];
 assert.equal(ctx.resolveMinimum(),'','Selected scope without a minimum interval must not inherit unrelated scope restriction');
+ctx.model.data.audit.minIntervalByScope=undefined;
+assert.equal(ctx.resolveMinimum(),'2027-05-03','Missing per-scope evidence must retain the conservative audit-level interval');
+ctx.model.data.audit.minIntervalByScope=[];
+assert.equal(ctx.resolveMinimum(),'2027-05-03','Empty evidence must not bypass a known audit-level interval');
 ctx.composition20.mode='TOGETHER';
 assert.equal(ctx.resolveMinimum(),'2027-05-03','Together continues enforcing the aggregate maximum');
 for(const part of [

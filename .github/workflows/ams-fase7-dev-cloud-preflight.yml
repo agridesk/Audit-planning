@@ -48,6 +48,8 @@ jobs:
           gcloud run services describe ams-transport-proof --project=audit-management-system-dev --region=europe-west1 --format='json(status.latestReadyRevisionName,status.traffic)'
           gcloud run services describe ams-fase12-dev --project=audit-management-system-dev --region=europe-west1 --format='json(status.latestReadyRevisionName,status.traffic)'
       - name: Read-only proof of maintenance on both DEV Cloud Run services
+        id: maintenance_gate
+        continue-on-error: true
         run: node .github/scripts/ams-fase7-dev-maintenance-proof.mjs
       - name: Read Firestore database metadata and Cloud Run revision, no writes
         run: |
@@ -62,6 +64,10 @@ jobs:
           GOOGLE_ACCESS_TOKEN: ${{ steps.google_auth.outputs.access_token }}
           AMS_DEV_SHEET_ID: 1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs
         run: node .github/scripts/ams-fase7-dev-migration-preflight.mjs
+      - name: Enforce maintenance gate after all read-only diagnostics
+        if: always()
+        run: |
+          test '${{ steps.maintenance_gate.outcome }}' = 'success' || { echo '::error::DEV maintenance traffic is not fenced; no deployment or cutover authorized'; exit 1; }
       - name: Explicit no-write completion
         run: echo "DEV read-only preflight complete; no cutover or deployment was performed"
 

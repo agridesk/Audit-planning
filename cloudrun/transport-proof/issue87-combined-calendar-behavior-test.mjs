@@ -43,4 +43,6 @@ assert.ok(source.includes("Cannot combine these audits: the planning windows do 
  'incompatible combined visits must explain the missing calendar instead of silently clearing it');
 assert.ok(source.includes("const effectiveWindow=selectedVisitWindow();q('#date').min=effectiveWindow.valid?effectiveWindow.from:''"),
  'calendar must restore the original valid primary planning window after an invalid combination');
+assert.ok(source.includes("earlyWarning=r.isPrimary?'':!canonical?")&&source.includes('Cannot combine: planning windows do not overlap. Plan separately.')&&source.includes('Cannot combine: canonical planning window missing; deadline alone is insufficient. Plan separately.'),'second audit must warn before selection');
+assert.ok(source.includes("earlyWarning?'<input type=")&&source.includes('disabled title='),'incompatible second audit choice must be disabled');
 console.log('Issue #87 combined calendar: 9h in one click, 8+1 across two clicks: PASS');

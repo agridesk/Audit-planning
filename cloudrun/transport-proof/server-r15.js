@@ -560,7 +560,7 @@ const planningPartialTimestampRepair=planningAtomicForwardRecovery?createPartial
  writeRaw:async({operationId,token,replacement})=>{
   if(!Array.isArray(replacement)||replacement.length!==2||
      replacement.some(x=>!/^Auditor Availability!L(1067|1068)$/.test(x.range)||
-      !/^\\d{4}-\\d\\d-\\d\\d[ T]\\d\\d:\\d\\d:\\d\\d$/.test(x.value))||
+      !/^\d{4}-\d\d-\d\d[ T]\d\d:\d\d:\d\d$/.test(x.value))||
      new Set(replacement.map(x=>x.range)).size!==2)
    throw Error('PARTIAL_REPAIR_RAW_SCOPE_INVALID');
   const current=await planningGlobalGate.read();

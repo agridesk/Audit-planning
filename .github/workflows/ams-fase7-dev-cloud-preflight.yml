@@ -48,6 +48,10 @@ jobs:
         run: |
           gcloud run services describe ams-transport-proof --project=audit-management-system-dev --region=europe-west1 --format='json(status.latestReadyRevisionName,status.traffic)'
           gcloud run services describe ams-fase12-dev --project=audit-management-system-dev --region=europe-west1 --format='json(status.latestReadyRevisionName,status.traffic)'
+      - name: Read-only canonical DEV runtime ownership flags (no secrets)
+        run: |
+          gcloud run services describe ams-fase12-dev --project=audit-management-system-dev --region=europe-west1 --format=json > /tmp/ams-dev-service.json
+          node -e 'const x=require("/tmp/ams-dev-service.json");const e=Object.fromEntries((x.spec?.template?.spec?.containers?.[0]?.env||[]).filter(v=>typeof v.value==="string").map(v=>[v.name,v.value]));const keys=["AMS_RUNTIME_ENV","AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED","AMS_DEV_FIRESTORE_PLANNING_AUTHORITY_ENABLED","AMS_DEV_CUTOVER_HTTP_WRITE_FREEZE_ENABLED","AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED","AMS_GAS_LIFECYCLE_WRITER_RETIRED_VERIFIED","AMS_DEV_ATOMIC_BACKFILL_PARITY_VERIFIED","AMS_DEV_ATOMIC_LIVE_WRITER_ROUTE_PARITY_VERIFIED"];console.log("AMS_CANONICAL_DEV_RUNTIME_FLAGS",JSON.stringify({revision:x.status?.latestReadyRevisionName,flags:Object.fromEntries(keys.map(k=>[k,e[k]??"UNSET"]))}));'
       - name: Read-only proof of maintenance on both DEV Cloud Run services
         id: maintenance_gate
         continue-on-error: true

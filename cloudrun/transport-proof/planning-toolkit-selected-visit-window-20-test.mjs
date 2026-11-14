@@ -34,6 +34,7 @@ context.visitAuditIds.add('AUD-2027');
 assert.equal(context.selectedVisitWindow().valid,false,'Combined visit never inherits operational horizon when canonical window is missing');
 assert.ok(source.includes('selectedWindow=selectedVisitWindow(),allowedFrom='),'Calendar derives selected intersection');
 assert.ok(source.includes('windowValid=selectedWindow.valid&&draftBlocks.every'),'Save validation checks selected intersection');
-assert.ok(source.includes("renderPlanningConstraints();const visitWindow=selectedVisitWindow()"),'Changing membership refreshes window warning and calendar');
+assert.ok(source.includes("const visitWindow=selectedVisitWindow();if(!visitWindow.valid){visitAuditIds.delete(auditId);el.checked=false"),'Invalid membership is rolled back before the calendar is updated');
+assert.ok(source.includes("renderVisitComposition();renderPlanningConstraints();const effectiveWindow=selectedVisitWindow()"),'Changing membership refreshes window warning and calendar using the effective valid selection');
 assert.ok(source.includes("renderAvailability();validate()}));renderVisitComposition()"),'Changing combined membership refreshes calendar');
 console.log('Toolkit selected 2026/2027 visit windows: standalone, disjoint, overlap and missing-window checks passed');

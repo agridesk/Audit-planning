@@ -79,6 +79,7 @@ assert.ok(!JSON.stringify(diagnostic).includes('alternate-auditor'));
 assert.ok(!JSON.stringify(diagnostic).includes('auditor@example.test'));
 
 // Single-cell AD7 recovery is a valid fenced write set, including replay.
+deny=false;loseFenceAfterWrite=false;
 values.set('Audit planning!AD7',['No']);
 const toggle={projectionWrites:[{range:'Audit planning!AD7',values:[['Yes']]}],
  projectionPreconditions:[{range:'Audit planning!AD7',before:['No']}]};

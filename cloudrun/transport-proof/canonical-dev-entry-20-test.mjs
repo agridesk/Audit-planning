@@ -24,6 +24,12 @@ const preflight='preflight---'+canonical;
 for(const method of ['GET','HEAD'])assert.deepEqual(canonicalDevEntry20({...base,host:preflight,method,url:'/planning?auditId=one',taggedPreflightReadOnly:true}),{action:'PASS'});
 for(const path of ['/auth/otp/request','/auth/otp/verify','/auth/dev-login','/auth/logout'])assert.deepEqual(
  canonicalDevEntry20({...base,host:preflight,method:'POST',url:path,taggedPreflightReadOnly:true}),{action:'PASS'});
+for(const path of ['/api/v1/manager/swap20/canonical-grid-dates',
+ '/api/v1/auditor/swap20/canonical-grid-dates'])assert.deepEqual(
+ canonicalDevEntry20({...base,host:preflight,method:'POST',url:path,taggedPreflightReadOnly:true}),{action:'PASS'});
+for(const path of ['/api/v1/manager/swap20/propose','/api/v1/manager/swap20/commit',
+ '/api/v1/auditor/swap20/respond'])assert.deepEqual(
+ canonicalDevEntry20({...base,host:preflight,method:'POST',url:path,taggedPreflightReadOnly:true}),{action:'REJECT',status:421});
 for(const path of ['/api/v1/planning/direct-commit','/api/v1/manager/company-management/save','/api/v1/planning/commit-handoff','/auth/signed-handoff'])assert.deepEqual(
  canonicalDevEntry20({...base,host:preflight,method:'POST',url:path,taggedPreflightReadOnly:true}),{action:'REJECT',status:421});
 assert.deepEqual(canonicalDevEntry20({...base,host:preflight,method:'GET',url:'//foreign.example',taggedPreflightReadOnly:true}),{action:'REJECT',status:400});

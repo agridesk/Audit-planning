@@ -1566,6 +1566,29 @@ http.createServer(async(req,res)=>{
    const result=await planningAtomicParity.verify({startRow:options.startRow??2,limit:options.limit??200});
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({success:true,...result}));return;
   }
+  // Manager-only, genuinely read-only backfill preflight. The preflight tag
+  // rejects all business POSTs; GET cannot trigger Firestore seed or cutover.
+  if(req.method==='GET'&&u.pathname==='/api/v1/planning/atomic-backfill-dry-run'){
+   if(!runtime.isDev){res.writeHead(404,{'cache-control':'no-store'});res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager required');return;}
+   if(!planningAtomicPrepEnabled||planningAtomicEnabled||!planningAtomicBackfill){
+    res.writeHead(409,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+    res.end(JSON.stringify({success:false,code:'ATOMIC_PREFLIGHT_PREPARATION_NOT_READ_ONLY'}));return;
+   }
+   const rawLimit=u.searchParams.get('limit')||'200';
+   const rawStart=u.searchParams.get('startRow')||'2';
+   if(!/^\\d{1,3}$/.test(rawLimit)||!/^\\d{1,4}$/.test(rawStart)){
+    res.writeHead(400,{'content-type':'application/json'});res.end(JSON.stringify({success:false,code:'BACKFILL_DRY_RUN_PARAMS_INVALID'}));return;
+   }
+   const limit=Number(rawLimit),startRow=Number(rawStart);
+   if(limit<1||limit>200||startRow<2||startRow>2000){
+    res.writeHead(400,{'content-type':'application/json'});res.end(JSON.stringify({success:false,code:'BACKFILL_DRY_RUN_PARAMS_OUT_OF_RANGE'}));return;
+   }
+   const report=await planningAtomicBackfill.run({dryRun:true,startRow,limit});
+   res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+   res.end(JSON.stringify({success:true,...report}));return;
+  }
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-backfill'){
    if(!planningAtomicBackfill){res.writeHead(404);res.end();return;}
    const actor=await session(req);

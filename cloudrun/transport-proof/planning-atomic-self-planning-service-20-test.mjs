@@ -57,7 +57,7 @@ function mock({preview=proof,old=before,inspection='MATCH',outbox=null}={}){
 {
  const {service,events}=mock({preview:{...proof,projectionPreconditions:[{
   range:'Audit planning!A2:C2',before:['audit-1','Pending Planning','Yes']}]}});
- await assert.rejects(service.commit({actor,body}),/PREFLIGHT_NOT_AUTHORITATIVE/);
+ await assert.rejects(service.commit({actor,body}),/PREFLIGHT_SOURCE_ROW_MISMATCH/);
  assert.ok(!events.includes('firestoreCommit'));assert.ok(events.includes('gateRelease'));
 }
 {

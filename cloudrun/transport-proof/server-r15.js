@@ -1310,18 +1310,15 @@ async function proxy(req,res){
     req.method==='POST'&&preflightAuthRoutes.has(writerPath)){
   const expectedPreflightOrigin='https://'+preflightHost;
   const requestOrigin=String(req.headers.origin||'');
-  // Browser-native HTML form submissions can omit Origin. Accept that case
-  // only for the DEV login form when both Referer and Fetch Metadata attest
-  // to the exact tagged host. API login requests still require Origin.
-  let samePreflightForm=false;
-  if(writerPath==='/auth/dev-login'&&!requestOrigin){
-   try{
-    const referer=new URL(String(req.headers.referer||''));
-    samePreflightForm=referer.origin===expectedPreflightOrigin&&
-     String(req.headers['sec-fetch-site']||'')==='same-origin'&&
-     String(req.headers['sec-fetch-mode']||'')==='navigate';
-   }catch{}
-  }
+  // The login HTML deliberately uses Referrer-Policy: no-referrer.
+  // Native HTML forms can consequently submit Origin: null or omit Origin.
+  // Protected Fetch Metadata proves a same-origin top-level browser form
+  // navigation; only the DEV login route can use this narrow exception.
+  const samePreflightForm=writerPath==='/auth/dev-login'&&
+   (!requestOrigin||requestOrigin==='null')&&
+   String(req.headers['sec-fetch-site']||'')==='same-origin'&&
+   String(req.headers['sec-fetch-mode']||'')==='navigate'&&
+   String(req.headers['sec-fetch-dest']||'')==='document';
   if(requestOrigin!==expectedPreflightOrigin&&!samePreflightForm){
    res.writeHead(403,{'cache-control':'no-store'});res.end('PREFLIGHT_AUTH_ORIGIN_FORBIDDEN');return;
   }

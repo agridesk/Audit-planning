@@ -76,5 +76,18 @@ export function createPlanningDistributedGate(adapter){
   if(await adapter.compareAndSwap(initial.auditorId,current.version,next)!==true)throw Error('PLANNING_RECOVERY_FINISH_RACE');
   return clone(next.holder);
  }
- return Object.freeze({read,acquire,uncertain,quarantineOrphan,release,beginRecovery,finishRecovery});
+ // Persist sanitized failure stage in the held gate. This never releases
+ // the gate and is safe after an uncertain Sheets network outcome.
+ async function recordRecoveryFailure({operationId,token,stage,code}={}){
+  const current=await read(),holder=current.holder;
+  if(!holder||holder.operationId!==operationId||holder.token!==token||holder.state!=='RECOVERING')
+   throw Error('PLANNING_RECOVERY_FAILURE_OWNERSHIP_MISMATCH');
+  const safe=x=>String(x||'UNKNOWN').replace(/[^A-Za-z0-9_]/g,'_').slice(0,110);
+  const next={...current,version:current.version+1,holder:{...holder,
+   lastRecoveryFailure:{stage:safe(stage),code:safe(code),at:new Date().toISOString()}}};
+  if(await adapter.compareAndSwap(initial.auditorId,current.version,next)!==true)
+   throw Error('PLANNING_RECOVERY_FAILURE_CAS_CONFLICT');
+  return {recorded:true};
+ }
+ return Object.freeze({read,acquire,uncertain,quarantineOrphan,release,beginRecovery,finishRecovery,recordRecoveryFailure});
 }

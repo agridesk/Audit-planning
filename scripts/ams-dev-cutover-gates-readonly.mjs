@@ -27,4 +27,33 @@ for(const k of selected){
 const traffic=(config.status?.traffic||[]).map(x=>({revision:x.revisionName,percent:x.percent,tag:x.tag||null}));
 console.log(JSON.stringify({service,project,region,readyRevision:config.status?.latestReadyRevisionName,traffic,flags:values},null,2));
 if(config.status?.latestReadyRevisionName!==traffic.find(x=>x.percent===100)?.revision){console.error('DEV_TRAFFIC_NOT_SINGLE_REVISION');process.exit(2);}
-console.log('DEV_RUNTIME_READONLY_PASS');
+// DEV-only, read-only Firestore inventory. Never print tokens or document payloads.
+const auth=spawnSync(tool,['auth','print-access-token'],{encoding:'utf8',timeout:30000,windowsHide:true,shell:process.platform==='win32'});
+const token=String(auth.stdout||'').trim();
+if(auth.error||auth.status!==0||!token){
+ console.error('DEV_FIRESTORE_AUTH_READ_FAIL');process.exit(3);
+}
+const database='(default)',collections=['ams_planning_20_dev_audits','ams_planning_20_dev_claims','ams_planning_20_dev_outbox'];
+const inventory={};
+for(const collection of collections){
+ let pageToken='',count=0,pages=0;
+ do{
+  if(pages>=30){console.error('DEV_FIRESTORE_PAGINATION_LIMIT');process.exit(4);}
+  const url=new URL('https://firestore.googleapis.com/v1/projects/'+project+'/databases/'+database+'/documents/'+collection);
+  url.searchParams.set('pageSize','200');
+  if(pageToken)url.searchParams.set('pageToken',pageToken);
+  let response;
+  try{response=await fetch(url,{headers:{authorization:'Bearer '+token},signal:AbortSignal.timeout(30000)});}
+  catch{console.error('DEV_FIRESTORE_READ_FAILED '+collection);process.exit(4);}
+  if(!response.ok){console.error('DEV_FIRESTORE_HTTP_'+response.status+' '+collection);process.exit(4);}
+  const body=await response.json();
+  if(!Array.isArray(body.documents||[])||body.documents?.length>200){console.error('DEV_FIRESTORE_PAGE_INVALID');process.exit(4);}
+  count+=(body.documents||[]).length;pages++;
+  const next=String(body.nextPageToken||'');
+  if(next&&(!body.documents?.length||next===pageToken)){console.error('DEV_FIRESTORE_PAGINATION_INVALID');process.exit(4);}
+  pageToken=next;
+ }while(pageToken);
+ inventory[collection]={count,pages};
+}
+console.log(JSON.stringify({firestore:inventory},null,2));
+console.log('DEV_CUTOVER_READONLY_PASS');

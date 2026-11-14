@@ -115,7 +115,7 @@ el('save').onclick=async function(){
   // a regular browser tab returns to the Manager portal instead.
   try{if(window.opener&&!window.opener.closed){window.opener.location.reload();window.close();}}catch(_e){}
   if(!window.closed)el('result').textContent+=' Return to the Manager portal when ready.';
- }catch(e){el('result').className='warn';el('result').textContent='SAVE NOT CONFIRMED: '+(e.message||String(e))+'\nDo not retry until the previous operation is checked.';el('save').disabled=true;el('result').scrollIntoView({block:'nearest',behavior:'smooth'});}
+ }catch(e){el('result').className='warn';el('result').textContent='SAVE NOT CONFIRMED: '+(e.message||String(e))+'\\nDo not retry until the previous operation is checked.';el('save').disabled=true;el('result').scrollIntoView({block:'nearest',behavior:'smooth'});}
 };
 (async()=>{
  try{

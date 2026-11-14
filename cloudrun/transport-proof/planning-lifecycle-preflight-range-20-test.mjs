@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const src=readFileSync(new URL('./server-r4.js',import.meta.url),'utf8');
+const from=src.indexOf('async function lifecycleAuthorityPreflight20');
+const to=src.indexOf('async function canonicalManagerAction',from);
+assert.ok(from>=0&&to>from);
+const part=src.slice(from,to);
+const slash=String.fromCharCode(92);
+assert.ok(!part.includes(slash+slash+'d+'),'Double-escaped lifecycle row digits remain');
+assert.equal(part.split(slash+'d+').length-1,5,'Expected five corrected lifecycle row captures');
+const rx=new RegExp('^Audit planning!([A-Z]+)('+slash+'d+):([A-Z]+)('+slash+'d+)$');
+for(const x of ['Audit planning!A2:BY2','Audit planning!A111:BY111'])assert.ok(rx.test(x));
+assert.equal(rx.test('Audit planning!Afoo:BYfoo'),false);
+console.log('PLANNING_LIFECYCLE_PREFLIGHT_RANGE_PASS');

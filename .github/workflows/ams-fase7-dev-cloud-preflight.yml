@@ -62,6 +62,7 @@ jobs:
       - name: Read-only DEV atomic Self planning blocker inspection
         env:
           GOOGLE_ACCESS_TOKEN: ${{ steps.google_auth.outputs.access_token }}
+          AMS_DEV_SHEET_ID: 1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs
         run: node .github/scripts/ams-dev-atomic-blocker-readonly.mjs
       - name: Read-only live DEV Model C migration preflight
         env:

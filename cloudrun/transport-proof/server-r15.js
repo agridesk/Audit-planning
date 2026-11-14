@@ -1578,7 +1578,7 @@ http.createServer(async(req,res)=>{
    }
    const rawLimit=u.searchParams.get('limit')||'200';
    const rawStart=u.searchParams.get('startRow')||'2';
-   if(!/^\\d{1,3}$/.test(rawLimit)||!/^\\d{1,4}$/.test(rawStart)){
+   if(!/^\d{1,3}$/.test(rawLimit)||!/^\d{1,4}$/.test(rawStart)){
     res.writeHead(400,{'content-type':'application/json'});res.end(JSON.stringify({success:false,code:'BACKFILL_DRY_RUN_PARAMS_INVALID'}));return;
    }
    const limit=Number(rawLimit),startRow=Number(rawStart);

@@ -15,6 +15,7 @@ function mock({rowState='READY',appendState='MISSING',rowError=false,auditorId=n
   async read(){return {holder:gate.holder};},
   async beginRecovery({operationId:id}){assert.equal(id,operationId);assert.equal(gate.state,'UNCERTAIN');
    gate.state='RECOVERING';gate.holder.state='RECOVERING';events.push('begin');return {...gate.holder};},
+  async recordRecoveryFailure({stage,code}){events.push('failure:'+stage+':'+code);},
   async finishRecovery({operationId:id,token}){assert.equal(id,operationId);assert.equal(token,'t');assert.equal(gate.state,'RECOVERING');
    gate.state='UNCERTAIN';gate.holder.state='UNCERTAIN';events.push('finish');}
  };
@@ -39,7 +40,7 @@ function mock({rowState='READY',appendState='MISSING',rowError=false,auditorId=n
  await assert.rejects(x.service.commit({operationId}),/LEASE_QUARANTINE_ACTIVE/);
  assert.equal(x.events.length,0);}
 {const x=mock({rowError:true});await assert.rejects(x.service.commit({operationId}),/OUTCOME_UNCERTAIN_MANUAL_RECONCILIATION/);
- assert.equal(x.gate.state,'RECOVERING');assert.ok(!x.events.includes('finish'));assert.ok(!x.events.includes('settle'));}
+ assert.equal(x.gate.state,'RECOVERING');assert.ok(x.events.includes('failure:APPLY_ROWS:SHEETS_TIMEOUT'));assert.ok(!x.events.includes('finish'));assert.ok(!x.events.includes('settle'));}
 {const x=mock();await assert.rejects(x.service.commit({operationId:'invalid'}),/ID_INVALID/);
  assert.equal(x.events.length,0);}
 const r15=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');

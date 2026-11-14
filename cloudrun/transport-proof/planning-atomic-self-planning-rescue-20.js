@@ -9,7 +9,7 @@ const clean=x=>String(x??'').trim();
 const errorCode=e=>String(e?.message||'UNKNOWN').replace(/[^A-Za-z0-9_]/g,'_').slice(0,90);
 export function createAtomicSelfPlanningRescue20({store,gate,projector,readHeaders,readHour,writeToggle}={}){
  if([store?.readOutbox,store?.readAudit,store?.markProjected,gate?.beginRecovery,
- gate?.finishRecovery,gate?.release,gate?.read,projector?.inspect,
+ gate?.finishRecovery,gate?.release,gate?.read,gate?.resumeRecovery,projector?.inspect,
  projector?.inspectDiff,readHeaders,readHour,writeToggle].some(fn=>typeof fn!=='function'))
   throw Error('SELF_PLANNING_RESCUE_CONFIG_INVALID');
  const expectedRow='Audit planning!A7:BS7';
@@ -37,35 +37,36 @@ export function createAtomicSelfPlanningRescue20({store,gate,projector,readHeade
   const h=await readHeaders();
   if(h?.S!=='Total audit time in hours'||h.AD!=='Allow self planning')
    throw Error('SELF_PLANNING_RESCUE_SCHEMA_CHANGED');
+  const gateBefore=await gate.read();
+  const resumed=gateBefore.holder?.operationId===operationId&&gateBefore.holder.state==='RECOVERING';
+  if(!resumed&&!(gateBefore.holder?.operationId===operationId&&gateBefore.holder.state==='UNCERTAIN'))
+   throw Error('SELF_PLANNING_RESCUE_GATE_NOT_QUARANTINED');
   const first=await projector.inspectDiff(snapshot);
   if(first.length!==1||first[0].range!==expectedRow||
-     first[0].differingCount!==2||
-     first[0].differing?.length!==2||
+     first[0].differingCount!==(resumed?1:2)||
+     first[0].differing?.length!==(resumed?1:2)||
      first[0].differing[0].column!==19||
      first[0].differing[0].actualType!=='number'||
-     first[0].differing[1].column!==30||
-     first[0].differing[1].matchesBefore!==true)
+     (!resumed&&(first[0].differing[1].column!==30||
+     first[0].differing[1].matchesBefore!==true)))
    throw Error('SELF_PLANNING_RESCUE_UNEXPECTED_ROW_DIFFERENCE');
   const narrow={projectionWrites:[{range:cell,values:[[target[29]]]}],
    projectionPreconditions:[{range:cell,before:[before[29]]}]};
-  if((await projector.inspect(narrow)).state!=='READY')
+  if((await projector.inspect(narrow)).state!==(resumed?'MATCH':'READY'))
    throw Error('SELF_PLANNING_RESCUE_TOGGLE_CHANGED');
   const hour=await readHour();
   if(typeof hour!=='number'||!Number.isFinite(hour))
    throw Error('SELF_PLANNING_RESCUE_HOUR_NOT_NUMERIC');
-  const gateBefore=await gate.read();
-  if(gateBefore.holder?.operationId!==operationId||gateBefore.holder.state!=='UNCERTAIN')
-   throw Error('SELF_PLANNING_RESCUE_GATE_NOT_UNCERTAIN');
-  const holder=await gate.beginRecovery({operationId});
+  const holder=resumed?await gate.resumeRecovery({operationId}):await gate.beginRecovery({operationId});
   let stage='RECHECK';
   try{
    const recent=await store.readOutbox(operationId),current=await store.readAudit(entry.auditId);
    if(recent?.state!=='UNCERTAIN'||current?.pendingOperationId!==operationId||
       current.revision!==entry.revision)throw Error('SELF_PLANNING_RESCUE_CAS_CHANGED');
-   if((await projector.inspect(narrow)).state!=='READY'||(await readHour())!==hour)
+   if((await projector.inspect(narrow)).state!==(resumed?'MATCH':'READY')||(await readHour())!==hour)
     throw Error('SELF_PLANNING_RESCUE_SOURCE_CHANGED');
    stage='WRITE_TOGGLE';
-   await writeToggle({operationId,token:holder.token,cell,value:target[29]});
+   if(!resumed)await writeToggle({operationId,token:holder.token,cell,value:target[29]});
    stage='VERIFY';
    if((await projector.inspect(narrow)).state!=='MATCH'||(await readHour())!==hour)
     throw Error('SELF_PLANNING_RESCUE_VERIFY_FAILED');

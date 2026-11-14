@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createPlanningDistributedGate} from './planning-distributed-gate-20.js';
 const docs=new Map();
-const adapter={async read(id){return structuredClone(docs.get(id)??null);},async compareAndSwap(id,expected,next){if((docs.get(id)?.version??0)!==expected)return false;docs.set(id,structuredClone(next));return true;}};
+const adapter={async read(id){assert.ok(!/^__.*__$/.test(id),'Firestore-reserved ID rejected');return structuredClone(docs.get(id)??null);},async compareAndSwap(id,expected,next){assert.ok(!/^__.*__$/.test(id),'Firestore-reserved ID rejected');if((docs.get(id)?.version??0)!==expected)return false;docs.set(id,structuredClone(next));return true;}};
 const a=createPlanningDistributedGate(adapter),b=createPlanningDistributedGate(adapter);
 const req={operationId:'operation-a',actorId:'manager-a',kind:'PLANNING_DIRECT'};
 const race=await Promise.allSettled([a.acquire(req),b.acquire({...req,operationId:'operation-b'})]);
@@ -18,9 +18,9 @@ assert.equal((await a.read()).holder,null);
 assert.equal((await b.acquire({...req,operationId:'operation-c'})).operationId,'operation-c');
 // A crashed ACTIVE owner is never unlocked based solely on elapsed age.
 await assert.rejects(()=>a.quarantineOrphan({operationId:'operation-c',actorId:'manager-a',evidenceRef:'verified Cloud Run instance terminated 2026-10-29'}),/PLANNING_ORPHAN_TOO_RECENT/);
-const stale=docs.get('__planning_write_gate__');
+const stale=docs.get('planning-write-gate-v2');
 stale.holder.acquiredAt=new Date(Date.now()-31*60*1000).toISOString();
-docs.set('__planning_write_gate__',stale);
+docs.set('planning-write-gate-v2',stale);
 await assert.rejects(()=>a.quarantineOrphan({operationId:'operation-c',actorId:'manager-a',evidenceRef:'short'}),/PLANNING_ORPHAN_ATTESTATION_REQUIRED/);
 await assert.rejects(()=>a.quarantineOrphan({operationId:'wrong-operation',actorId:'manager-a',evidenceRef:'verified Cloud Run instance terminated 2026-10-29'}),/PLANNING_ORPHAN_GATE_MISMATCH/);
 const quarantined=await a.quarantineOrphan({operationId:'operation-c',actorId:'manager-a',evidenceRef:'Cloud Run request ended; traceID-483782; independent operator checked logs'});

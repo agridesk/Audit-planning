@@ -25,7 +25,12 @@ export function preparePlanningBackfill({rows,roster,asOfDate=new Date().toISOSt
   const row=rows[i],auditId=trim(row[idCol]);if(!auditId)continue;
   if(seenAudits.has(auditId))throw Error('BACKFILL_AUDIT_ID_DUPLICATE');seenAudits.add(auditId);
   const status=cleanStatus(row[statusCol]),email=trim(row[assignedCol]).toLowerCase(),planned=trim(row[jsonCol]);
-  const sourceRevision=hash([auditId,trim(row[statusCol]),trim(row[assignedCol]),planned,trim(row[decisionCol]),trim(row[sinceCol])].join('|')).slice(0,24);
+  // Match the canonical Planning 2.0 source fingerprint exactly. Auditor_UID
+  // is appended when present, as in the R15 Model C preview and split CAS.
+  const auditorUidCol=ix('Auditor_UID');
+  const sourceFields=[auditId,trim(row[statusCol]),trim(row[assignedCol]),planned,trim(row[decisionCol]),trim(row[sinceCol])];
+  const persistedAuditorUid=auditorUidCol>=0?trim(row[auditorUidCol]):'';
+  const sourceRevision=hash(sourceFields.join('|')+(persistedAuditorUid?'|'+persistedAuditorUid:'')).slice(0,24);
   let blocks=[],legacyUnverified=false;
   // An unassigned Pending Approval is still a proposal, not a committed
   // auditor reservation. Preserve its row snapshot without claiming slots.

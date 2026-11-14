@@ -7,7 +7,7 @@ assert.ok(offset>0,'canonical preflight range gate must exist');
 const before=source.slice(offset-110,offset);
 const expected='const match=/^(.+)!A('+String.fromCharCode(92)+'d+):/.exec(w.range);';
 assert.ok(before.includes(expected),'business preflight must use regex digit escape exactly once');
-assert.ok(!before.includes('A('+String.raw`\d+`+')'),'double-escaped preflight digit regex is invalid');
+assert.ok(!before.includes('A('+String.fromCharCode(92).repeat(2)+'d+)'),'double-escaped preflight digit regex is invalid');
 const rx=/^(.+)!A(\d+):/;
 for(const [range,tab,row] of [['Audit planning!A5:AI5','Audit planning','5'],['Auditor Availability!A20:AN20','Auditor Availability','20'],['Concept Reservations!A104:Z104','Concept Reservations','104']]){
  const match=rx.exec(range);assert.ok(match,range);assert.equal(match[1],tab);assert.equal(match[2],row);

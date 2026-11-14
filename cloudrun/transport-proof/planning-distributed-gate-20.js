@@ -55,5 +55,26 @@ export function createPlanningDistributedGate(adapter){
   if(await adapter.compareAndSwap(initial.auditorId,current.version,next)!==true)throw Error('PLANNING_GATE_CONFLICT');
   return clone(next.lastCompleted);
  }
- return Object.freeze({read,acquire,uncertain,quarantineOrphan,release});
+ /** Single-operation, fenced recovery ownership: a quarantined writer can be
+  * resumed only after independent 30-minute isolation. A second recovery
+  * attempt cannot acquire the RECOVERING gate concurrently.
+  */
+ async function beginRecovery({operationId}){
+  const current=await read(),holder=current.holder;
+  if(!holder||holder.operationId!==operationId||holder.state!=='UNCERTAIN')throw Error('PLANNING_RECOVERY_GATE_NOT_QUARANTINED');
+  const since=Date.parse(holder.uncertainAt||'');
+  if(!Number.isFinite(since)||Date.now()-since<30*60*1000)throw Error('PLANNING_RECOVERY_QUARANTINE_ACTIVE');
+  const next={...current,version:current.version+1,holder:{...holder,state:'RECOVERING',recoveryStartedAt:new Date().toISOString()}};
+  if(await adapter.compareAndSwap(initial.auditorId,current.version,next)!==true)throw Error('PLANNING_RECOVERY_GATE_RACE');
+  return clone(next.holder);
+ }
+ async function finishRecovery({operationId,token}){
+  const current=await read(),holder=current.holder;
+  if(!holder||holder.operationId!==operationId||holder.token!==token||holder.state!=='RECOVERING')throw Error('PLANNING_RECOVERY_FINISH_GATE_MISMATCH');
+  const {recoveryStartedAt,...rest}=holder;
+  const next={...current,version:current.version+1,holder:{...rest,state:'UNCERTAIN'}};
+  if(await adapter.compareAndSwap(initial.auditorId,current.version,next)!==true)throw Error('PLANNING_RECOVERY_FINISH_RACE');
+  return clone(next.holder);
+ }
+ return Object.freeze({read,acquire,uncertain,quarantineOrphan,release,beginRecovery,finishRecovery});
 }

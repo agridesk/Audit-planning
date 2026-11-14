@@ -1953,6 +1953,7 @@ http.createServer(async(req,res)=>{
    const result=previewModelCVisitComposition20({auditId,obligations:data[0],links:data[1],planningRows,configScopes});
    result.requiredTogetherPairs=requiredTogetherScopePairs20({dependencies:dependencyRows,scopeCodes:result.obligations.map(o=>o.scopeCode)});
    result.separateAllowed=result.requiredTogetherPairs.length===0;
+   if(!result.separateAllowed)result.compositionOptions=['TOGETHER'];
    const header=planningRows[0]||[],auditColumn=header.indexOf('Audit ID'),
     matches=planningRows.slice(1).filter(row=>String(row[auditColumn]||'').trim()===auditId);
    if(auditColumn<0||matches.length!==1)throw Error('VISIT_COMPOSITION_SOURCE_ROW_AMBIGUOUS');

@@ -1979,6 +1979,33 @@ http.createServer(async(req,res)=>{
   }
   // DEV manager-only, strictly read-only: probe availability reads using the
   // actual Cloud Run service identity, not an operator's gcloud credentials.
+  // Manager-only confirmation page for this one DEV recovery record.
+  if(req.method==='GET'&&u.pathname==='/manager/atomic-partial-repair'){
+   if(!runtime.isDev||!planningPartialTimestampRepair){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401);res.end('Manager required');return;}
+   const state=(await planningGlobalGate.read()).holder;
+   const targetOperation='b7e8afcd18ca5c98fdd8c494924c1b79db28daffcfb4afc7daffaf4d6977416e';
+   const since=Date.parse(state?.recoveryStartedAt||'');
+   const eligible=state?.operationId===targetOperation&&state?.state==='RECOVERING'&&
+     Number.isFinite(since)&&Date.now()-since>=30*60*1000;
+   const condition=eligible?'READY_FOR_TWO_CELL_REPAIR':state?.state==='RECOVERING'?
+     'RECOVERY_QUARANTINE_NOT_COMPLETE':'RECOVERY_NOT_ELIGIBLE';
+   const form=eligible?`<form method="post" action="/api/v1/planning/atomic-partial-repair">
+    <input type="hidden" name="operationId" value="${targetOperation}">
+    <input type="hidden" name="confirm" value="REPAIR_ONLY_TWO_LAST_UPDATED_CELLS">
+    <button type="submit">Repair two DEV timestamp cells and complete recovery</button></form>`:'';
+   const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AMS DEV precise recovery</title></head>
+    <body style="font:16px system-ui;max-width:780px;margin:30px auto;padding:0 15px">
+    <h1>AMS DEV precise recovery</h1><p>Status: <strong>${condition}</strong></p>
+    <p>Operation: <code>${targetOperation}</code></p>
+    <p>This action repairs only L1067 and L1068 after verifying the other cells,
+    then projects the two existing notification intents and reconciles the Firestore outbox.
+    No new audit or planning save is created.</p>${form}
+    <p><a href="/api/v1/planning/atomic-write-health">Read-only write health</a></p></body></html>`;
+   res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
+   res.end(html);return;
+  }
   // Manual recovery approval page. GET remains read-only; only the explicit
   // same-origin Manager form POST can start the fenced forward recovery.
   if(req.method==='GET'&&u.pathname==='/manager/atomic-forward-recovery'){

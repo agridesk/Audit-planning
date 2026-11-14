@@ -8,7 +8,7 @@ const before=Array(71).fill('');before[18]='8,00';before[29]='No';
 const after=[...before];after[29]='Yes';
 const snapshot={projectionWrites:[{range:row,values:[after]}],
  projectionPreconditions:[{range:row,before}],appendIntents:[]};
-function fixture({diffChanged=false,gateState='UNCERTAIN',hour=8,wrongHeader=false,wrongOperation=false}={}){
+function fixture({gateState='UNCERTAIN',hour=8,wrongHeader=false,failWrite=false,failVerify=false,unexpectedDiff=false}={}){
  const calls=[];let toggle='No',outbox='UNCERTAIN',pending=OP,revision=12;
  let holder={operationId:OP,token:'fence',state:gateState};
  const store={
@@ -23,8 +23,8 @@ function fixture({diffChanged=false,gateState='UNCERTAIN',hour=8,wrongHeader=fal
   release:async()=>{calls.push('release');holder=null;}
  };
  const projector={
-  inspect:async narrow=>({state:toggle===narrow.projectionWrites[0].values[0][0]?'MATCH':'READY'}),
-  inspectDiff:async()=>[{range:row,differingCount:toggle==='No'?2:1,differing:toggle==='No'?
+  inspect:async narrow=>({state:failVerify&&toggle==='Yes'?'CONFLICT':toggle===narrow.projectionWrites[0].values[0][0]?'MATCH':'READY'}),
+  inspectDiff:async()=>[{range:row,differingCount:unexpectedDiff?3:toggle==='No'?2:1,differing:toggle==='No'?
    [{column:19,actualType:'number'},{column:30,matchesBefore:true}]:
    [{column:19,actualType:'number'}]}]
  };
@@ -32,7 +32,7 @@ function fixture({diffChanged=false,gateState='UNCERTAIN',hour=8,wrongHeader=fal
   readHeaders:async()=>({S:wrongHeader?'Different':'Total audit time in hours',AD:'Allow self planning'}),
   readHour:async()=>hour,
   writeToggle:async({cell:target,value,operationId,token})=>{
-   calls.push('writeToggle');assert.equal(target,cell);assert.equal(value,'Yes');
+   calls.push('writeToggle');if(failWrite)throw Error('SIMULATED_SHEETS_FAILURE');assert.equal(target,cell);assert.equal(value,'Yes');
    assert.equal(operationId,OP);assert.equal(token,'fence');toggle=value;
   }
  });
@@ -57,6 +57,19 @@ for(const [name,options,error] of [
  const f=fixture();
  await assert.rejects(f.service.commit({operationId:'another-operation'}),/OPERATION_DENIED/);
  assert.deepEqual(f.calls,[]);
+}
+for(const [name,options,expected] of [
+ ['unexpected projection conflict',{unexpectedDiff:true},/UNEXPECTED_ROW_DIFFERENCE/],
+ ['write fails after recovery ownership',{failWrite:true},/STOPPED_WRITE_TOGGLE/],
+ ['readback fails after write',{failVerify:true},/STOPPED_VERIFY/]
+]){
+ const f=fixture(options);
+ await assert.rejects(f.service.commit({operationId:OP}),expected,name);
+ const state=f.getState();
+ assert.equal(state.outbox,'UNCERTAIN',name+' must not settle outbox');
+ assert.notEqual(state.holder,null,name+' must preserve global gate');
+ assert.ok(!f.calls.includes('release'),name+' must never unlock');
+ assert.ok(!f.calls.includes('markProjected'),name+' must never mark projected');
 }
 const server=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 for(const marker of [

@@ -560,7 +560,8 @@ function effectiveMinPlanningDate20(){
  const a=model?.data?.audit||{};
  if(composition20?.mode!=='SEPARATELY')return String(a.minPlanningDate||'');
  const scope=composition20.scopes?.find(x=>x.obligationId===composition20.selectedScope);
- if(!scope)return '';
+ if(!scope)return String(a.minPlanningDate||'');
+ if(!Array.isArray(a.minIntervalByScope)||(!a.minIntervalByScope.length&&a.minPlanningDate))return String(a.minPlanningDate||'');
  const normalize=x=>String(x||'').trim().toUpperCase().replace(/[\\s_-]+/g,'');
  const matched=(a.minIntervalByScope||[]).find(x=>normalize(x.scopeCode)===normalize(scope.scopeCode));
  return String(matched?.minPlanningDate||'');

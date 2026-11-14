@@ -59,6 +59,8 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
  const base='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(projectId)+'/databases/'+encodeURIComponent(databaseId)+'/documents';
  const coll={audit:prefix+'_audits',claim:prefix+'_claims',outbox:prefix+'_outbox'};
  const doc=(type,id)=>{if(!coll[type]||!validId(id))throw Error('PLANNING_FIRESTORE_ID_INVALID');return base+'/'+coll[type]+'/'+encodeURIComponent(id)};
+ // Firestore Write.update.name / Write.delete require a resource name, not an HTTP URL.
+ const writeName=(type,id)=>doc(type,id).slice('https://firestore.googleapis.com/v1/'.length);
  async function request(url,method='GET',body){
   const token=await getToken();if(!token)throw Error('PLANNING_FIRESTORE_TOKEN_REQUIRED');
   return fetchImpl(url,{method,headers:{authorization:'Bearer '+token,...(body?{'content-type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});
@@ -127,13 +129,13 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
   };
   const writes=[];
   const set=(type,id,value)=>{
-   const target=doc(type,id),seen=reads.get(type+':'+id);
+   const target=writeName(type,id),seen=reads.get(type+':'+id);
    if(seen===undefined)throw Error('PLANNING_TX_WRITE_WITHOUT_READ');
    const update={name:target,fields:{payload:encode(value)}};
    writes.push({update,currentDocument:seen?{updateTime:seen.updateTime}:{exists:false}});
   };
   const remove=(type,id)=>{
-   const target=doc(type,id),seen=reads.get(type+':'+id);
+   const target=writeName(type,id),seen=reads.get(type+':'+id);
    if(seen===undefined)throw Error('PLANNING_TX_DELETE_WITHOUT_READ');
    if(seen)writes.push({delete:target,currentDocument:{updateTime:seen.updateTime}});
   };

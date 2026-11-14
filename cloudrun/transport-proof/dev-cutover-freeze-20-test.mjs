@@ -22,4 +22,5 @@ const gatePos=r15.indexOf('const cutoverFreeze=devCutoverFreezeDecision20(');
 assert.ok(gatePos>0);
 assert.ok(gatePos<r15.indexOf('if(planningAtomicEnabled&&'));
 assert.ok(r15.indexOf("if(!cutoverFreeze.allow){",gatePos)>gatePos);
+assert.match(r15,/if\(!dryRun&&\(planningAtomicEnabled\|\|!planningAtomicPrepEnabled\|\|process\.env\.AMS_DEV_CUTOVER_HTTP_WRITE_FREEZE_ENABLED/);
 console.log('DEV cutover write freeze: fail closed on all business methods and guard backfill PASS');

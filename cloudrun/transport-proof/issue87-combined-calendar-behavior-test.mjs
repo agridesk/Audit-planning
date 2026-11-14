@@ -16,7 +16,7 @@ const ctx={
  planningTarget:()=>9,
  plannedHours:()=>ctx.draftBlocks.reduce((sum,b)=>sum+ctx.blockHours(b),0),
  externalConflicts:()=>[],provisionalConflicts:()=>[],
- setStatus:(text)=>notices.push(text),renderDraft:()=>{},validate:()=>{},renderAvailability:()=>{}
+ setStatus:(text)=>notices.push(text),renderDraft:()=>{},validate:()=>{},renderAvailability:()=>{},effectiveMinPlanningDate20:()=>ctx.model.data.audit.minPlanningDate
 };
 runInNewContext(match[0]+';this.clickDay=toggleCalendarDay;',ctx);
 ctx.clickDay('2026-12-01','yes');
@@ -41,7 +41,7 @@ assert.equal(ctx.draftBlocks.length,before,'Earliest execution date must block e
 assert.ok(notices.some(s=>s.includes('Minimum audit interval: planning cannot start before 2027-05-03')));
 assert.ok(source.includes("No planning days available: the planning window ended on "), 'Expired windows must show an explicit calendar explanation');
 assert.ok(source.includes("beforeMinimum?'no':visualState"),'Calendar must render early dates as blocked');
-assert.ok(source.includes('No selectable dates: the earliest permitted execution date ')&&source.includes('a.minPlanningDate>selectedWindow.to'),'Infeasible window must be explained before showing selectable dates');
+assert.ok(source.includes('No selectable dates: the earliest permitted execution date ')&&source.includes('minExecutionDate>selectedWindow.to'),'Infeasible window must be explained before showing selectable dates');
 assert.ok(source.includes('blocks:draftBlocks.map(({_autoCombined20,...x})=>({...x}))'),
  'UI-only auto-allocation marker must not be sent to canonical writer');
 

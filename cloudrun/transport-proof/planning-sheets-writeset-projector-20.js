@@ -82,10 +82,10 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   // Preserve the canonical timestamp as literal text, without changing the
   // existing numeric/date/formula behavior of all other cells.
   const lastUpdated=changes.filter(change=>change.sheet==='Auditor Availability'&&
-   /^Auditor Availability!A\\d+:M\\d+$/.test(change.range)&&
+   /^Auditor Availability!A\d+:M\d+$/.test(change.range)&&
    typeof change.values[11]==='string'&&
-   /^\\d{4}-\\d\\d-\\d\\d[ T]\\d\\d:\\d\\d:\\d\\d$/.test(change.values[11]))
-   .map(change=>({range:change.range.replace(/^Auditor Availability!A(\\d+):M\\d+$/,'Auditor Availability!L$1'),
+   /^\d{4}-\d\d-\d\d[ T]\d\d:\d\d:\d\d$/.test(change.values[11]))
+   .map(change=>({range:change.range.replace(/^Auditor Availability!A(\d+):M\d+$/,'Auditor Availability!L$1'),
     values:[[change.values[11]]]}));
   if(lastUpdated.length){
    await verifyFence({operationId,gateToken});

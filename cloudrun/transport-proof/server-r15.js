@@ -1663,11 +1663,12 @@ http.createServer(async(req,res)=>{
    const operationId='fa914e8c46ad1ded6d364868f7154059b48af2c36ba51609a6cae1838f35dec4';
    const gate=await planningGlobalGate.read();
    const entry=await planningAtomicStore.readOutbox(operationId);
-   const since=Date.parse(gate.holder?.uncertainAt||'');
-   const eligible=gate.holder?.operationId===operationId&&gate.holder.state==='UNCERTAIN'&&
+   const state=gate.holder?.state;
+   const since=Date.parse(state==='RECOVERING'?gate.holder?.recoveryStartedAt:gate.holder?.uncertainAt||'');
+   const eligible=gate.holder?.operationId===operationId&&['UNCERTAIN','RECOVERING'].includes(state)&&
     entry?.state==='UNCERTAIN'&&entry.action==='SELF_PLANNING'&&
     Number.isFinite(since)&&Date.now()-since>=30*60*1000;
-   const condition=eligible?'READY_FOR_AD7_RESCUE':entry?.state==='PROJECTED'?'ALREADY_RECOVERED':'NOT_ELIGIBLE';
+   const condition=eligible?(state==='RECOVERING'?'READY_TO_VERIFY_AD7_AND_SETTLE':'READY_FOR_AD7_RESCUE'):entry?.state==='PROJECTED'?'ALREADY_RECOVERED':state==='RECOVERING'?'RECOVERY_QUARANTINE_ACTIVE':'NOT_ELIGIBLE';
    const form=eligible?`<form method="post" action="/api/v1/planning/atomic-self-planning-rescue">
     <input type="hidden" name="operationId" value="${operationId}">
     <input type="hidden" name="confirm" value="RECOVER_ONLY_SELF_PLANNING_AD7">

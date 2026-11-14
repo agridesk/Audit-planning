@@ -526,7 +526,7 @@ const planningAtomicRecovery=planningAtomicEnabled?createPlanningAtomicRecovery(
  gate:planningGlobalGate,availabilityService:service
 }):null;
 const planningAtomicForwardRecovery=planningAtomicRecovery?createPlanningAtomicForwardRecovery20({
- store:planningAtomicStore,gate:planningGlobalGate,recovery:planningAtomicRecovery,
+ store:planningAtomicStore,gate:planningGlobalGate,recovery:planningAtomicRecovery,availabilityService:service,
  projector:createPlanningSheetsWritesetProjector({spreadsheetId:spreadsheet,getToken,
   verifyFence:async({operationId,gateToken})=>{
    const current=await planningGlobalGate.read();

@@ -41,6 +41,7 @@ assert.equal(ctx.draftBlocks.length,before,'Earliest execution date must block e
 assert.ok(notices.some(s=>s.includes('Minimum audit interval: planning cannot start before 2027-05-03')));
 assert.ok(source.includes("No planning days available: the planning window ended on "), 'Expired windows must show an explicit calendar explanation');
 assert.ok(source.includes("beforeMinimum?'no':visualState"),'Calendar must render early dates as blocked');
+assert.ok(source.includes('No selectable dates: the earliest permitted execution date ')&&source.includes('a.minPlanningDate>selectedWindow.to'),'Infeasible window must be explained before showing selectable dates');
 assert.ok(source.includes('blocks:draftBlocks.map(({_autoCombined20,...x})=>({...x}))'),
  'UI-only auto-allocation marker must not be sent to canonical writer');
 

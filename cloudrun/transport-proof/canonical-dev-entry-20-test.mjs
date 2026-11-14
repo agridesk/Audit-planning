@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {canonicalDevEntry20} from './runtime-environment-20.mjs';
+import {readFileSync} from 'node:fs';
 const base={isDev:true,service:'ams-fase12-dev'};
 const canonical='ams-fase12-dev-zwtcar7xpa-ew.a.run.app';
 const review='issue87-review---'+canonical;
@@ -32,4 +33,10 @@ assert.deepEqual(canonicalDevEntry20({...base,host:review,method:'GET',url:'/',t
 assert.deepEqual(canonicalDevEntry20({...base,host:preflight,method:'GET',url:'/',taggedPreflightReadOnly:false}),{
  action:'REDIRECT',status:302,location:'https://'+canonical+'/'
 });
+const runtime=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
+assert.ok(runtime.includes("taggedPreflightReadOnly:process.env.AMS_DEV_PREFLIGHT_READONLY_BROWSER_ENABLED==='true'"),'R15 must explicitly opt into preflight read-only gate');
+assert.ok(runtime.includes("String(req.headers.host||'').toLowerCase()===preflightHost"),'Preflight authorization requires the exact tagged host');
+assert.ok(runtime.includes("req.headers.origin!=='https://'+preflightHost"),'Preflight authentication requires an exact same-origin browser request');
+assert.ok(runtime.includes("preflightAuthRoutes.has(writerPath)"),'Only login/logout requests receive the trusted auth bridge');
+assert.ok(runtime.includes("PREFLIGHT_AUTH_CANONICAL_ORIGIN_NOT_CONFIGURED"),'Missing canonical DEV auth origin must fail closed');
 console.log('Canonical AMS DEV URL: tagged previews redirect; writes fail closed; PROD unaffected');

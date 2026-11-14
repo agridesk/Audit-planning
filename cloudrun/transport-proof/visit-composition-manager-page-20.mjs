@@ -1,7 +1,7 @@
 /** Issue #87: authenticated same-origin Cloud Run Manager editor. */
 export function managerVisitCompositionPage20(){
 return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AMS — Visit Composition</title>
-<style>body{font:14px system-ui;margin:20px auto;max-width:900px;padding:0 12px;background:#f4f6f9;color:#172033}section{background:#fff;padding:14px;margin:12px 0;border:1px solid #dbe3ee;border-radius:8px}h1{font-size:21px}h2{font-size:16px}.grid{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}.grid label{display:block;font-size:12px}.block{padding:8px;background:#f8fafc;margin:7px 0}input,select,button{padding:7px;font:inherit;border:1px solid #94a3b8;border-radius:4px}button{cursor:pointer}button:disabled{opacity:.45}.warn{color:#991b1b}.success{color:#166534}small{color:#64748b}</style></head><body>
+<style>body{font:14px system-ui;margin:20px auto;max-width:900px;padding:0 12px;background:#f4f6f9;color:#172033}section{background:#fff;padding:14px;margin:12px 0;border:1px solid #dbe3ee;border-radius:8px}h1{font-size:21px}h2{font-size:16px}.grid{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}.grid label{display:block;font-size:12px}.block{padding:8px;background:#f8fafc;margin:7px 0}input,select,button{padding:7px;font:inherit;border:1px solid #94a3b8;border-radius:4px}button{cursor:pointer}button:disabled{opacity:.45}.warn{color:#991b1b}.success{color:#166534}small{color:#64748b}#result{position:sticky;bottom:12px;z-index:20;background:#fff;border:2px solid #64748b;border-radius:6px;padding:12px;min-height:22px;white-space:pre-wrap;box-shadow:0 3px 12px #0002}#result.warn{border-color:#991b1b;background:#fff4f4}#result.success{border-color:#166534;background:#f0fff4}#result.pending{border-color:#9a6700;background:#fffbe6}</style></head><body>
 <h1>Model C — Together / Separately</h1><small>DEV · authoritative atomic planning</small><section id="state">Loading canonical source…</section><div id="form" hidden><section><label><input id="modeTogether" type="radio" name="mode" value="TOGETHER"> Together — shared Visit with explicit scope allocation</label><label><input id="modeSeparate" type="radio" name="mode" value="SEPARATELY"> Separately — one Visit per scope</label></section><section id="scopes"></section><section><button id="save" disabled>Commit planning atomically</button><p id="result" role="status">No changes have been made.</p></section></div>
 <script>(function(){'use strict';
 var q=new URLSearchParams(location.search),id=q.get('auditId')||'',mode=q.get('mode')==='TOGETHER'?'TOGETHER':'SEPARATELY',source=null,roster=[],enabled=false;
@@ -105,12 +105,13 @@ function payload(){
 el('save').onclick=async function(){
  try{
   var body=payload();if(!confirm(mode==='TOGETHER'?'Commit one combined Visit with verified scope hours?':'Commit '+body.visits.length+' separate Visits atomically?'))return;
-  el('save').disabled=true;el('result').textContent='Validating authoritative source and writing…';
+  el('save').disabled=true;el('result').className='pending';el('result').textContent='Saving… Do not press Save again until the outcome is confirmed.';
   var route=mode==='TOGETHER'?'/api/v1/planning/direct-commit':'/api/v1/planning/visit-composition-atomic';
   var r=await fetch(route,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
-  var j=await r.json().catch(()=>null);if(!r.ok||j?.success!==true)throw Error(j?.error||'Atomic commit failed: '+r.status);
-  el('result').className='success';el('result').textContent='Verified: '+(j.auditIds||[j.auditId||id]).join(', ');
- }catch(e){el('result').className='warn';el('result').textContent=e.message||String(e);el('save').disabled=!enabled;}
+  var j=await r.json().catch(()=>null);if(!r.ok||j?.success!==true)throw Error('Save not confirmed (HTTP '+r.status+'): '+(j?.error||'Server returned no success receipt')+'. Do not retry until the previous operation has been checked.');
+  el('result').className='success';el('result').textContent='Saved and verified: '+(j.auditIds||[j.auditId||id]).join(', ')+'. Firestore and Sheets projection confirmed.';
+  el('save').disabled=true;
+ }catch(e){el('result').className='warn';el('result').textContent='SAVE NOT CONFIRMED: '+(e.message||String(e))+'\nDo not retry until the previous operation is checked.';el('save').disabled=true;el('result').scrollIntoView({block:'nearest',behavior:'smooth'});}
 };
 (async()=>{
  try{

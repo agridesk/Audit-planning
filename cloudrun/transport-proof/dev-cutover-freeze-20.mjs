@@ -12,7 +12,9 @@ export function devCutoverFreezeDecision20({isDev,freezeEnabled,method,path,back
   return {allow:true};
  // In atomic mode, only explicitly owned R15 POST routes can write.
  // Fail closed on the legacy proxy, unclassified operations and other verbs.
- if(atomicPlanningEnabled===true&&verb==='POST'&&planningAtomicOwnedHttpRoutes20.includes(path))
+ if(atomicPlanningEnabled===true&&verb==='POST'&&
+    (planningAtomicOwnedHttpRoutes20.includes(path)||
+     ['/api/v1/planning/direct-commit','/api/v1/planning/atomic-recover'].includes(path)))
   return {allow:true,atomicOwned:true};
  if(verb==='POST'&&path==='/api/v1/planning/atomic-backfill'&&atomicPlanningEnabled!==true&&backfillWriteEnabled===true&&legacyWritersFrozen===true)
   return {allow:true,backfillOnly:true};

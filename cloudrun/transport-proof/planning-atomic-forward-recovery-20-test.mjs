@@ -7,9 +7,10 @@ const entry={operationId,auditId,action:'PLAN',state:'UNCERTAIN',revision:2,snap
  projectionPreconditions:[{range:'Audit planning!A65:B65',before:['audit-safe-1','Pending Planning']}],
  appendIntents:[{range:'Notification Queue!A:M',values:[['one'],['two']]}]
 }};
-function mock({rowState='READY',appendState='MISSING',rowError=false}={}){
+function mock({rowState='READY',appendState='MISSING',rowError=false,auditorId=null,leaseMinutes=31}={}){
  const events=[],gate={state:'UNCERTAIN',holder:{operationId,token:'t',state:'UNCERTAIN'}};
- const store={readOutbox:async()=>entry,readAudit:async()=>({revision:2,pendingOperationId:operationId})};
+ const candidate={...entry,auditorId};
+ const store={readOutbox:async()=>candidate,readAudit:async()=>({revision:2,pendingOperationId:operationId})};
  const gateApi={
   async read(){return {holder:gate.holder};},
   async beginRecovery({operationId:id}){assert.equal(id,operationId);assert.equal(gate.state,'UNCERTAIN');
@@ -25,14 +26,18 @@ function mock({rowState='READY',appendState='MISSING',rowError=false}={}){
   async inspect(){events.push('appendInspect');return {state:appendState};},
   async apply(){events.push('appendApply');appendState='MATCH';}
  };
- const recovery={async recoverOne(input){assert.equal(input,entry);assert.equal(gate.state,'UNCERTAIN');
+ const recovery={async recoverOne(input){assert.equal(input,candidate);assert.equal(gate.state,'UNCERTAIN');
   assert.equal(rowState,'MATCH');assert.equal(appendState,'MATCH');events.push('settle');return {state:'PROJECTED'};}};
- return {service:createPlanningAtomicForwardRecovery20({store,gate:gateApi,projector,appendProjector,recovery}),events,gate};
+ const availabilityService={async read(){return {planningLease:{auditId,token:'lease',state:'UNCERTAIN',uncertainAt:new Date(Date.now()-leaseMinutes*60000).toISOString()}};}};
+ return {service:createPlanningAtomicForwardRecovery20({store,gate:gateApi,projector,appendProjector,recovery,availabilityService}),events,gate};
 }
 {const x=mock();const outcome=await x.service.commit({operationId});assert.equal(outcome.state,'PROJECTED');
  assert.deepEqual(x.events,['begin','rowInspect','appendInspect','rowApply','rowInspect','appendApply','appendInspect','finish','settle']);}
 {const x=mock({rowState:'CONFLICT'});await assert.rejects(x.service.commit({operationId}),/SOURCE_CONFLICT/);
  assert.equal(x.gate.state,'UNCERTAIN');assert.ok(!x.events.includes('rowApply'));assert.ok(!x.events.includes('settle'));}
+{const x=mock({auditorId:'auditor-1',leaseMinutes:5});
+ await assert.rejects(x.service.commit({operationId}),/LEASE_QUARANTINE_ACTIVE/);
+ assert.equal(x.events.length,0);}
 {const x=mock({rowError:true});await assert.rejects(x.service.commit({operationId}),/OUTCOME_UNCERTAIN_MANUAL_RECONCILIATION/);
  assert.equal(x.gate.state,'RECOVERING');assert.ok(!x.events.includes('finish'));assert.ok(!x.events.includes('settle'));}
 {const x=mock();await assert.rejects(x.service.commit({operationId:'invalid'}),/ID_INVALID/);

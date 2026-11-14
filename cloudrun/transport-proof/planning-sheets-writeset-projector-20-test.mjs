@@ -69,4 +69,12 @@ await assert.rejects(()=>projector.inspect({
  projectionWrites:[{range:'Audit planning!A2:C2',values:[['1','2','3','4']]}],
  projectionPreconditions:[{range:'Audit planning!A2:C2',before:['1','2','3']}]
 }),/SHEETS_PROJECTION_RANGE_INVALID/);
+// Read-only forensic comparison returns column positions, never cell contents.
+values.set('Audit planning!A2:C2',['Company','alternate-auditor','Approved']);
+const diagnostic=await projector.inspectDiff(plan);
+assert.equal(diagnostic[0].range,'Audit planning!A2:C2');
+assert.equal(diagnostic[0].differingCount,1);
+assert.equal(diagnostic[0].differing[0].column,2);
+assert.ok(!JSON.stringify(diagnostic).includes('alternate-auditor'));
+assert.ok(!JSON.stringify(diagnostic).includes('auditor@example.test'));
 console.log('Sheets writeset projection: raw idempotence, row expansion, replay, conflict and fencing passed');

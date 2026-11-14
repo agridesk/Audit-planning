@@ -55,7 +55,7 @@ function mock({preview=proof,old=before,inspection='MATCH',outbox=null}={}){
  assert.ok(events.includes('firestoreCommit'));
 }
 {
- const spacedHeader={...proof,canonicalSnapshot:{...proof.canonicalSnapshot,headers:[' Audit ID ','Status','Allow self planning ']}};
+ const spacedHeader={...proof,canonicalSnapshot:{...proof.canonicalSnapshot,headers:proof.canonicalSnapshot.headers.map((x,i)=>i===0?' Audit ID ':i===29?'Allow self planning ':x)}};
  const {service,events}=mock({preview:spacedHeader});
  const result=await service.commit({actor,body});
  assert.equal(result.success,true);

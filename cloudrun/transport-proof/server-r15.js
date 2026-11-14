@@ -1299,6 +1299,24 @@ async function proxy(req,res){
    writerPath==='/api/v1/manager/extension-obligation-command');
  const url='http://127.0.0.1:'+(directDevManagerWrite?port+9:innerPort)+(req.url||'/');
  const headers={...req.headers};delete headers.host;delete headers.connection;delete headers['content-length'];
+ // Narrow preflight browser authentication adapter. The public tag Origin
+ // must exactly match Host; only login/logout POST is forwarded with the
+ // canonical DEV Origin required by the R5 authentication bridge. No business
+ // writer, API mutation or cross-origin request receives this exception.
+ const preflightHost='preflight---ams-fase12-dev-zwtcar7xpa-ew.a.run.app';
+ const preflightAuthRoutes=new Set(['/auth/otp/request','/auth/otp/verify','/auth/dev-login','/auth/logout']);
+ if(runtime.isDev&&process.env.AMS_DEV_PREFLIGHT_READONLY_BROWSER_ENABLED==='true'&&
+    String(req.headers.host||'').toLowerCase()===preflightHost&&
+    req.method==='POST'&&preflightAuthRoutes.has(writerPath)){
+  if(req.headers.origin!=='https://'+preflightHost){
+   res.writeHead(403,{'cache-control':'no-store'});res.end('PREFLIGHT_AUTH_ORIGIN_FORBIDDEN');return;
+  }
+  headers.origin=String(process.env.AMS_ALLOWED_ORIGIN||process.env.DEV_ALLOWED_ORIGIN||'');
+  if(!['https://ams-fase12-dev-zwtcar7xpa-ew.a.run.app',
+        'https://ams-fase12-dev-510075419067.europe-west1.run.app'].includes(headers.origin)){
+   res.writeHead(503,{'cache-control':'no-store'});res.end('PREFLIGHT_AUTH_CANONICAL_ORIGIN_NOT_CONFIGURED');return;
+  }
+ }
  const init={method:req.method,headers,redirect:'manual'};
  if(!['GET','HEAD'].includes(req.method)){const chunks=[];for await(const c of req)chunks.push(c);init.body=Buffer.concat(chunks);}
  if(directDevManagerWrite){
@@ -1387,7 +1405,8 @@ async function proxy(req,res){
 http.createServer(async(req,res)=>{
  try{
   const entry=canonicalDevEntry20({isDev:runtime.isDev,service:process.env.K_SERVICE,
-   host:req.headers.host,method:req.method,url:req.url});
+   host:req.headers.host,method:req.method,url:req.url,
+   taggedPreflightReadOnly:process.env.AMS_DEV_PREFLIGHT_READONLY_BROWSER_ENABLED==='true'});
   if(entry.action!=='PASS'){
    const headers={'cache-control':'no-store','x-content-type-options':'nosniff'};
    if(entry.action==='REDIRECT')headers.location=entry.location;

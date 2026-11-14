@@ -6,7 +6,8 @@
  */
 import {randomUUID} from 'node:crypto';
 const clone=x=>structuredClone(x);
-const initial={auditorId:'__planning_write_gate__',version:0,holder:null,lastCompleted:null};
+// Firestore reserves document IDs matching __.*__. Keep this gate ID legal.
+const initial={auditorId:'planning-write-gate-v2',version:0,holder:null,lastCompleted:null};
 export function createPlanningDistributedGate(adapter){
  if(typeof adapter?.read!=='function'||typeof adapter?.compareAndSwap!=='function')throw Error('PLANNING_GATE_ATOMIC_ADAPTER_REQUIRED');
  async function read(){

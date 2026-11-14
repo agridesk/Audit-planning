@@ -48,6 +48,7 @@ import {createPlanningLifecycleAtomicService} from './planning-lifecycle-atomic-
 import {createPlanningMultiLifecycleService} from './planning-multi-lifecycle-service-20.js';
 import {createPlanningAtomicTransferService} from './planning-atomic-transfer-service-20.js';
 import {createPlanningAtomicRecovery} from './planning-atomic-recovery-20.js';
+import {createPlanningAtomicForwardRecovery20} from './planning-atomic-forward-recovery-20.js';
 import {createPlanningAtomicParityVerifier} from './planning-atomic-parity-verifier-20.js';
 import {createPlanningGlobalClaimsParity} from './planning-global-claims-parity-20.js';
 import {createPlanningCutoverDataAudit} from './planning-cutover-data-audit-20.js';
@@ -523,6 +524,21 @@ const planningAtomicTransfer=planningAtomicEnabled?createPlanningAtomicTransferS
 const planningAtomicRecovery=planningAtomicEnabled?createPlanningAtomicRecovery({
  store:planningAtomicStore,projector:planningAtomicProjector,appendProjector:planningAtomicAppendProjector,
  gate:planningGlobalGate,availabilityService:service
+}):null;
+const planningAtomicForwardRecovery=planningAtomicRecovery?createPlanningAtomicForwardRecovery20({
+ store:planningAtomicStore,gate:planningGlobalGate,recovery:planningAtomicRecovery,
+ projector:createPlanningSheetsWritesetProjector({spreadsheetId:spreadsheet,getToken,
+  verifyFence:async({operationId,gateToken})=>{
+   const current=await planningGlobalGate.read();
+   if(current.holder?.operationId!==operationId||current.holder.token!==gateToken||
+      current.holder.state!=='RECOVERING')throw Error('ATOMIC_FORWARD_RECOVERY_FENCE_LOST');
+  }}),
+ appendProjector:createPlanningSheetsAppendProjector({spreadsheetId:spreadsheet,getToken,
+  verifyFence:async({operationId,gateToken})=>{
+   const current=await planningGlobalGate.read();
+   if(current.holder?.operationId!==operationId||current.holder.token!==gateToken||
+      current.holder.state!=='RECOVERING')throw Error('ATOMIC_FORWARD_RECOVERY_APPEND_FENCE_LOST');
+  }})
 }):null;
 // Start one bounded recovery scan on DEV startup; it never guesses missing writes.
 if(planningAtomicRecovery&&process.env.AMS_DEV_ATOMIC_RECOVERY_STARTUP_ENABLED==='true'){
@@ -1546,6 +1562,23 @@ http.createServer(async(req,res)=>{
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
    res.end(JSON.stringify({success:true,state:changed.state,operationId,quarantinedAt:changed.uncertainAt,
     note:'No unlock performed. Independent Sheets evidence and 30-minute UNCERTAIN quarantine still required.'}));return;
+  }
+  // Explicit manager-confirmed DEV rescue, only for a quarantined existing PLAN.
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-forward-recover'){
+   if(!runtime.isDev||!planningAtomicForwardRecovery){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401);res.end('Manager required');return;}
+   const origin=String(req.headers.origin||'');
+   if(!origin||new URL(origin).host!==String(req.headers.host||'')||
+      new URL(origin).protocol!=='https:')throw Error('ATOMIC_FORWARD_RECOVERY_ORIGIN_DENIED');
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)throw Error('ATOMIC_FORWARD_RECOVERY_BODY_TOO_LARGE');}
+   const input=String(req.headers['content-type']||'').startsWith('application/x-www-form-urlencoded')?
+    Object.fromEntries(new URLSearchParams(raw)):JSON.parse(raw||'{}');
+   if(input.confirm!=='RECOVER_VERIFIED_OPERATION')throw Error('ATOMIC_FORWARD_RECOVERY_CONFIRMATION_REQUIRED');
+   const result=await planningAtomicForwardRecovery.commit({operationId:String(input.operationId||'')});
+   planningCache.invalidate();
+   res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+   res.end(JSON.stringify(result));return;
   }
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-recover'){
    if(!planningAtomicRecovery){res.writeHead(404);res.end();return;}

@@ -82,7 +82,8 @@ const begin=await api(root.slice(0,-1)+':beginTransaction',token,'POST',{options
 if(!begin.transaction)fail('TRANSACTION_MISSING');
 const tx=begin.transaction,updates=[];
 async function inTransaction(name){
- const url=new URL(root+name.slice(prefix.length));
+ const rawDocumentId=name.slice((prefix+auditCollection+'/').length);
+ const url=new URL(root+auditCollection+'/'+encodeURIComponent(rawDocumentId));
  url.searchParams.set('transaction',tx);
  let res;try{res=await fetch(url.toString(),{headers:{authorization:'Bearer '+token},signal:AbortSignal.timeout(30000)});}catch{fail('TRANSACTION_READ_NETWORK_FAILED');}
  if(res.status===404)return null;

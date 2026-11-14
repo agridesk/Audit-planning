@@ -7,6 +7,7 @@ const clean=x=>String(x??'').trim();
 const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const normalizedRow=value=>{const row=(value||[]).map(x=>String(x??''));while(row.length&&row.at(-1)==='')row.pop();return row;};
 const sameRow=(a,b)=>JSON.stringify(normalizedRow(a))===JSON.stringify(normalizedRow(b));
+const normalizedHeaders=value=>{const headers=(value||[]).map(clean);while(headers.length&&headers.at(-1)==='')headers.pop();return headers;};
 export function createAtomicSelfPlanningService20({store,gate,preflight,projector}={}){
  if(typeof store?.readAudit!=='function'||typeof store?.readOutbox!=='function'||
     typeof store?.commit!=='function'||typeof store?.markProjected!=='function'||
@@ -58,7 +59,7 @@ export function createAtomicSelfPlanningService20({store,gate,preflight,projecto
     throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_WRITESET_INVALID');
    if(!sameRow(proof.projectionPreconditions[0].before,previous.snapshot.row))
     throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_SOURCE_ROW_MISMATCH');
-   if(JSON.stringify(proof.canonicalSnapshot.headers.map(clean))!==JSON.stringify(previous.snapshot.headers.map(clean)))
+   if(JSON.stringify(normalizedHeaders(proof.canonicalSnapshot.headers))!==JSON.stringify(normalizedHeaders(previous.snapshot.headers)))
     throw Error('SELF_PLANNING_ATOMIC_PREFLIGHT_HEADER_MISMATCH');
    const snapshot={...previous.snapshot,...proof.canonicalSnapshot,
     projectionWrites:proof.projectionWrites,projectionPreconditions:proof.projectionPreconditions,

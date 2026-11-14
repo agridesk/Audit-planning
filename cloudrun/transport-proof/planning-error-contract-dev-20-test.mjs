@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const s=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
+const i=s.lastIndexOf("}catch(e){const path=String(req.url||'/').split('?')[0]");
+assert.ok(i>0,'Missing centralized R15 catch');
+const handler=s.slice(i);
+assert.ok(handler.includes('runtime.isDev&&('),'Only DEV exposes exact codes');
+assert.ok(handler.includes('manager\\/(?:self-planning-direct|action|cancel-direct'),'Manager lifecycle and self planning must have exact codes');
+assert.ok(handler.includes('String(e?.message||\'UNKNOWN\').replace(/[^A-Za-z0-9_]/g,\'_\').slice(0,140)'),'Response must sanitize details');
+assert.ok(handler.includes(":code,diagnostic:"),'PROD fallback must stay generic');
+console.log('DEV_PLANNING_ERROR_CONTRACT_PASS');

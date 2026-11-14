@@ -2006,6 +2006,7 @@ http.createServer(async(req,res)=>{
       targets:rows.detail.map(x=>({range:x.range,target:x.target,before:x.before})),
       append:append.state,appendCount:append.count||0,
       missingAppendCount:append.missing?.length||0};
+     if(rows.state==='CONFLICT')matchingGate.projection.cellDiff=await planningAtomicProjector.inspectDiff(snapshot);
      matchingGate.recoveryEvidenceComplete=rows.state==='MATCH'&&append.state==='MATCH';
     }catch(error){
      matchingGate.projection={inspectionError:String(error?.message||'INSPECTION_FAILED').replace(/[^A-Za-z0-9_]/g,'_').slice(0,100)};

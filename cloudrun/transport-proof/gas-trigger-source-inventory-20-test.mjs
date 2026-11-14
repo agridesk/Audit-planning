@@ -8,8 +8,9 @@ assert.match(source,/name\.endsWith\('\.js'\)/);
 assert.match(source,/installed:'NOT_VERIFIED'/);
 assert.match(source,/liveTriggerState:'NOT_VERIFIED'/);
 const files=readdirSync(root).filter(name=>name.endsWith('.js'));
-assert.ok(files.includes('WeeklyTriggerRepair_20260525.js'));
+// Guard a currently tracked installer, not historical files absent from this checkout.
 assert.ok(files.includes('NotificationQueueAutoTrigger20.js'));
+assert.ok(readFileSync(resolve(root,'NotificationQueueAutoTrigger20.js'),'utf8').includes('ScriptApp.newTrigger('));
 let installers=0;
 for(const name of files){
  const body=readFileSync(resolve(root,name),'utf8');

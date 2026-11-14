@@ -1924,6 +1924,43 @@ http.createServer(async(req,res)=>{
   }
   // DEV manager-only, strictly read-only: probe availability reads using the
   // actual Cloud Run service identity, not an operator's gcloud credentials.
+  // Manual recovery approval page. GET remains read-only; only the explicit
+  // same-origin Manager form POST can start the fenced forward recovery.
+  if(req.method==='GET'&&u.pathname==='/manager/atomic-forward-recovery'){
+   if(!runtime.isDev||!planningAtomicForwardRecovery){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401);res.end('Manager required');return;}
+   const current=await planningGlobalGate.read(),holder=current.holder;
+   let eligible=false,condition='NO_QUARANTINED_PLAN';
+   const operationId=holder?.operationId||'';
+   if(holder?.state==='UNCERTAIN'&&/^[a-f0-9]{64}$/.test(operationId)){
+    const entry=await planningAtomicStore.readOutbox(operationId);
+    if(entry?.action==='PLAN'&&entry.state==='UNCERTAIN'&&entry.multi!==true&&entry.snapshot){
+     const since=Date.parse(holder.uncertainAt||'');
+     if(!Number.isFinite(since)||Date.now()-since<30*60*1000)condition='QUARANTINE_NOT_COMPLETE';
+     else{
+      const rows=await planningAtomicProjector.inspect(entry.snapshot);
+      const append=await planningAtomicAppendProjector.inspect(entry.snapshot.appendIntents);
+      eligible=['READY','MATCH'].includes(rows.state)&&['MISSING','MATCH'].includes(append.state);
+      condition=eligible?'READY_FOR_EXPLICIT_RECOVERY':'SOURCE_CONFLICT';
+     }
+    }
+   }
+   const safeId=/^[a-f0-9]{64}$/.test(operationId)?operationId:'';
+   const form=eligible?`<form method="post" action="/api/v1/planning/atomic-forward-recover">
+    <input type="hidden" name="operationId" value="${safeId}">
+    <input type="hidden" name="confirm" value="RECOVER_VERIFIED_OPERATION">
+    <button type="submit">Recover this verified DEV transaction</button></form>`:'';
+   const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AMS DEV - Atomic recovery</title></head><body style="font:16px system-ui;max-width:780px;margin:30px auto;padding:0 15px">
+    <h1>AMS DEV - Atomic recovery</h1><p>State: <strong>${condition}</strong></p>
+    <p>Operation: <code>${safeId||'none'}</code></p>
+    <p>This will complete the existing Firestore PLAN transaction in Sheets and queue notifications.
+    No new audit is created. Never retry Save while the gate is locked.</p>${form}
+    <p><a href="/api/v1/planning/atomic-write-health">View read-only write health</a></p></body></html>`;
+   res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
+   res.end(html);return;
+  }
   // Manager-only DEV read-only status: never releases a fence or replays an outbox.
   if(req.method==='GET'&&u.pathname==='/api/v1/planning/atomic-write-health'){
    if(!runtime.isDev||!planningAtomicEnabled){res.writeHead(404);res.end();return;}

@@ -84,15 +84,13 @@ function SYS_WRITE_GUARD_DECIDE_(actionName, auditId) {
   var env = String(SYS_getEnv_() || '').trim().toUpperCase();
 
   // DEV-only cutover fence. The legacy GAS script property must be set to
-  // CLOUD_RUN only after independent exclusive-writer verification. Missing
+  // CLOUD_RUN only after independent exclusive-writer verification. Once set,
+  // legacy SWAP is not an exception: a second planning writer is unsafe. Missing
   // property preserves existing legacy DEV behavior.
   if (env === 'DEV') {
     try {
       if (PropertiesService.getScriptProperties().getProperty('AMS_DEV_PLANNING_CANONICAL_OWNER_20') === 'CLOUD_RUN' &&
-          /^(STATUS_|PLANNING_|REJECT_)/.test(action) &&
-          !(action === 'PLANNING_SWAP20_LEGACY' &&
-            PropertiesService.getScriptProperties().getProperty('AMS_SWAP20_COMMIT_ENABLED') === 'true' &&
-            PropertiesService.getScriptProperties().getProperty('AMS_SWAP20_WRITE_AUTHORITY') !== 'FIRESTORE')) {
+          /^(STATUS_|PLANNING_|REJECT_)/.test(action)) {
         return {
           allowed: false, env: env, action: action, auditId: id,
           mode: 'CLOUD_RUN_CANONICAL_OWNER',

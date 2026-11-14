@@ -36,4 +36,11 @@ assert.equal(ctx.draftBlocks.length,2,'third day does not overplan full hours');
 assert.ok(notices.some(s=>s.includes('Required hours are already fully planned')));
 assert.ok(source.includes('blocks:draftBlocks.map(({_autoCombined20,...x})=>({...x}))'),
  'UI-only auto-allocation marker must not be sent to canonical writer');
+
+assert.ok(source.includes("const visitWindow=selectedVisitWindow();if(!visitWindow.valid){visitAuditIds.delete(auditId);el.checked=false"),
+ 'incompatible second audit must be rolled back before rerendering the calendar');
+assert.ok(source.includes("Cannot combine these audits: the planning windows do not overlap, or one audit lacks a valid planning window."),
+ 'incompatible combined visits must explain the missing calendar instead of silently clearing it');
+assert.ok(source.includes("const effectiveWindow=selectedVisitWindow();q('#date').min=effectiveWindow.valid?effectiveWindow.from:''"),
+ 'calendar must restore the original valid primary planning window after an invalid combination');
 console.log('Issue #87 combined calendar: 9h in one click, 8+1 across two clicks: PASS');

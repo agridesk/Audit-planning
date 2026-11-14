@@ -1322,11 +1322,12 @@ async function proxy(req,res){
   if(requestOrigin!==expectedPreflightOrigin&&!samePreflightForm){
    res.writeHead(403,{'cache-control':'no-store'});res.end('PREFLIGHT_AUTH_ORIGIN_FORBIDDEN');return;
   }
-  headers.origin=String(process.env.AMS_ALLOWED_ORIGIN||process.env.DEV_ALLOWED_ORIGIN||'');
-  if(!['https://ams-fase12-dev-zwtcar7xpa-ew.a.run.app',
-        'https://ams-fase12-dev-510075419067.europe-west1.run.app'].includes(headers.origin)){
-   res.writeHead(503,{'cache-control':'no-store'});res.end('PREFLIGHT_AUTH_CANONICAL_ORIGIN_NOT_CONFIGURED');return;
-  }
+  // R5 accepts an absent Origin but checks any supplied Origin against its
+  // independently configured AUTH_ORIGIN. The browser Origin has already
+  // been strictly verified here. Do not invent a canonical Origin: it can
+  // differ from the historical R5 DEV_ALLOWED_ORIGIN in deployed revisions.
+  // Strip it only on these four exact preflight authentication paths.
+  delete headers.origin;
  }
  const init={method:req.method,headers,redirect:'manual'};
  if(!['GET','HEAD'].includes(req.method)){const chunks=[];for await(const c of req)chunks.push(c);init.body=Buffer.concat(chunks);}

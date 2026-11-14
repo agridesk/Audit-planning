@@ -27,7 +27,7 @@ assert.match(r15,/if\(!dryRun&&\(planningAtomicEnabled\|\|!planningAtomicPrepEna
 // atomic-owned writes only. The backfill route must retire automatically.
 for(const path of ['/api/v1/planning/commit-handoff','/api/v1/manager/approve-direct',
  '/api/v1/auditor/action','/api/v1/manager/company-management/save',
- '/api/v1/planning/direct-commit','/api/v1/planning/visit-composition-atomic','/api/v1/planning/atomic-recover']){
+ '/api/v1/planning/direct-commit','/api/v1/planning/visit-composition-atomic','/api/v1/planning/atomic-recover','/api/v1/planning/atomic-forward-recover']){
  assert.deepEqual(freeze('POST',path,{atomicPlanningEnabled:true}),{allow:true,atomicOwned:true});
  for(const method of ['PUT','PATCH','DELETE'])assert.equal(freeze(method,path,{atomicPlanningEnabled:true}).allow,false);
 }

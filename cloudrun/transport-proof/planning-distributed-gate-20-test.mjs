@@ -28,4 +28,13 @@ assert.equal(quarantined.state,'UNCERTAIN');
 assert.ok(quarantined.uncertainAt);
 assert.equal(quarantined.operatorAttestation.actorId,'manager-a');
 await assert.rejects(()=>b.acquire({...req,operationId:'operation-d'}),/PLANNING_GATE_BUSY/);
+// A quarantined holder can be claimed by exactly one forward recovery writer.
+const recoveryDoc=docs.get('planning-write-gate-v2');
+recoveryDoc.holder.uncertainAt=new Date(Date.now()-31*60*1000).toISOString();
+docs.set('planning-write-gate-v2',recoveryDoc);
+const recoveryClaim=await a.beginRecovery({operationId:'operation-c'});
+assert.equal(recoveryClaim.state,'RECOVERING');
+await assert.rejects(()=>b.beginRecovery({operationId:'operation-c'}),/NOT_QUARANTINED/);
+await b.finishRecovery({operationId:'operation-c',token:recoveryClaim.token});
+assert.equal((await a.read()).holder.state,'UNCERTAIN');
 console.log('Distributed planning gate: concurrent acquisitions, unknown outcome and proof-only recovery OK');

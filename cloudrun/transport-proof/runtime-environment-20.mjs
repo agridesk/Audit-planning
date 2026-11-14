@@ -41,16 +41,25 @@ export function resolveAmsRuntimeConfig(env, projectId) {
 /** A Cloud Run revision tag is never a second functional AMS DEV environment.
  * Only the fixed public DEV hostname may serve interactive traffic.
  */
-export function canonicalDevEntry20({isDev,service,host,method,url}={}){
+export function canonicalDevEntry20({isDev,service,host,method,url,taggedPreflightReadOnly=false}={}){
  if(isDev!==true||service!=='ams-fase12-dev')return {action:'PASS'};
  const requestHost=String(host||'').toLowerCase().replace(/:443$/,'');
  const canonical='ams-fase12-dev-zwtcar7xpa-ew.a.run.app';
  const tagged=/^[a-z0-9-]+---ams-fase12-dev-zwtcar7xpa-ew\.a\.run\.app$/;
  if(!tagged.test(requestHost))return {action:'PASS'};
- if(!['GET','HEAD'].includes(String(method||'').toUpperCase()))
-  return {action:'REJECT',status:421};
+ const verb=String(method||'').toUpperCase();
  const path=String(url||'/');
  if(!path.startsWith('/')||path.startsWith('//'))
   return {action:'REJECT',status:400};
+ // The exact preflight tag can serve a read-only browser acceptance session,
+ // but only on an explicitly opted-in revision. This is never a second
+ // writable DEV environment and does not change canonical writer authority.
+ if(taggedPreflightReadOnly===true&&requestHost==='preflight---'+canonical){
+  if(['GET','HEAD'].includes(verb))return {action:'PASS'};
+  const authPosts=new Set(['/auth/otp/request','/auth/otp/verify','/auth/dev-login','/auth/logout']);
+  if(verb==='POST'&&authPosts.has(path.split('?')[0]))return {action:'PASS'};
+  return {action:'REJECT',status:421};
+ }
+ if(!['GET','HEAD'].includes(verb))return {action:'REJECT',status:421};
  return {action:'REDIRECT',status:302,location:'https://'+canonical+path};
 }

@@ -60,7 +60,12 @@ export function createPlanningAtomicFirestoreStore({projectId,getToken,fetchImpl
  const coll={audit:prefix+'_audits',claim:prefix+'_claims',outbox:prefix+'_outbox'};
  const doc=(type,id)=>{if(!coll[type]||!validId(id))throw Error('PLANNING_FIRESTORE_ID_INVALID');return base+'/'+coll[type]+'/'+encodeURIComponent(id)};
  // Firestore Write.update.name / Write.delete require a resource name, not an HTTP URL.
- const writeName=(type,id)=>doc(type,id).slice('https://firestore.googleapis.com/v1/'.length);
+ const writeName=(type,id)=>{
+  if(!coll[type]||!validId(id))throw Error('PLANNING_FIRESTORE_ID_INVALID');
+  // Write names are Firestore resource identifiers, NOT URI components.
+  // Encoding commas or non-ASCII chars here creates a different document ID.
+  return 'projects/'+projectId+'/databases/'+databaseId+'/documents/'+coll[type]+'/'+id;
+ };
  async function request(url,method='GET',body){
   const token=await getToken();if(!token)throw Error('PLANNING_FIRESTORE_TOKEN_REQUIRED');
   return fetchImpl(url,{method,headers:{authorization:'Bearer '+token,...(body?{'content-type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{})});

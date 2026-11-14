@@ -22,13 +22,13 @@ const fetchImpl=async(url,init={})=>{
   if(conflict){conflict=false;return response(409,{error:'ABORTED'});}
   const writes=input.writes;
   for(const w of writes){
-   const name=w.update?.name||w.delete,key=name.slice(db.length+1),existing=store.get(key),p=w.currentDocument;
+   const name=w.update?.name||w.delete;assert.match(name,/^projects\/audit-management-system-dev\/databases\/\(default\)\/documents\//);const key=name.slice(db.replace('https://firestore.googleapis.com/v1/','').length+1),existing=store.get(key),p=w.currentDocument;
    if(p?.exists===false&&existing||p?.updateTime&&p.updateTime!==existing?.updateTime)return response(409,{error:'ABORTED'});
   }
   for(const w of writes){
-   const name=w.update?.name||w.delete,key=name.slice(db.length+1);
+   const name=w.update?.name||w.delete;assert.match(name,/^projects\/audit-management-system-dev\/databases\/\(default\)\/documents\//);const key=name.slice(db.replace('https://firestore.googleapis.com/v1/','').length+1);
    if(w.delete)store.delete(key);
-   else store.set(key,{name,updateTime:'t'+(++clock),fields:copy(w.update.fields)});
+   else store.set(key,{name:'https://firestore.googleapis.com/v1/'+name,updateTime:'t'+(++clock),fields:copy(w.update.fields)});
   }
   return response(200,{commitTime:'2026-10-29T12:00:00Z',writeResults:writes.map(()=>({updateTime:'t'+clock}))});
  }

@@ -89,12 +89,6 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
   }
   // A verified outbox is enough to unlock the global gate. An availability lease
   // is released only if the exact auditor/audit pair and token are observed.
-  if(global.holder&&global.holder.operationId===entry.operationId){
-   // The same quarantined gate was already independently checked above.
-   const current=await gate.read();
-   if(current.holder?.token!==global.holder.token)throw Error('ATOMIC_RECOVERY_GATE_MOVED');
-   await gate.release({token:global.holder.token,verified:true,proof:'CANONICAL_FIRESTORE_SHEETS_OUTBOX_MATCH'});
-  }
   let leaseRecovered=false;
   if(availabilityService&&entry.auditorId&&typeof availabilityService.read==='function'&&typeof availabilityService.reconcilePlanningLease==='function'){
    const actor={role:'manager',id:'atomic-recovery'};
@@ -107,6 +101,14 @@ export function createPlanningAtomicRecovery({store,projector,appendProjector,ga
     await availabilityService.reconcilePlanningLease({actor,auditorId:entry.auditorId,token:lease.token,verifiedAuditId:entry.auditId,verifiedProjectionProof:proof.rowHash});
     leaseRecovered=true;
    }
+  }
+  // Do not unlock global planning until the owning availability lease has
+  // also been independently reconciled. On failure leave the gate fenced.
+  if(global.holder&&global.holder.operationId===entry.operationId){
+   // The same quarantined gate was already independently checked above.
+   const current=await gate.read();
+   if(current.holder?.token!==global.holder.token)throw Error('ATOMIC_RECOVERY_GATE_MOVED');
+   await gate.release({token:global.holder.token,verified:true,proof:'CANONICAL_FIRESTORE_SHEETS_OUTBOX_MATCH'});
   }
   if(settled&&!global.holder&&!leaseRecovered)return {state:'SKIPPED'};
   return {state:'PROJECTED'};

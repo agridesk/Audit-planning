@@ -48,6 +48,13 @@ function mock({preview=proof,old=before,inspection='MATCH',outbox=null}={}){
   'projectorApply','projectorInspect','markProjected','gateRelease']);
 }
 {
+ const paddedOld={...before,snapshot:{...before.snapshot,row:[...row,'','','']}};
+ const {service,events}=mock({old:paddedOld});
+ const result=await service.commit({actor,body});
+ assert.equal(result.success,true);
+ assert.ok(events.includes('firestoreCommit'));
+}
+{
  const {service,events}=mock({preview:{...proof,projectionPreconditions:[{
   range:'Audit planning!A2:C2',before:['audit-1','Pending Planning','Yes']}]}});
  await assert.rejects(service.commit({actor,body}),/PREFLIGHT_NOT_AUTHORITATIVE/);

@@ -11,6 +11,7 @@ import {buildCbNotificationOverview20} from './certification-body-notification-o
 import {buildRotationManager20} from './rotation-manager-20.mjs';
 import {diagnoseRotationUid20} from './rotation-uid-reconciliation-20.mjs';
 import {previewModelCVisitComposition20} from './model-c-scope-visit-preview-20.mjs';
+import {requiredTogetherScopePairs20,assertScopeSplitAllowed20} from './scope-dependency-policy-20.mjs';
 import {resolveAuditorScopeQualifications20} from './auditor-scope-qualifications-20.js';
 import {createSwapFirestoreReadmodel} from './swap-firestore-readmodel-20.mjs';
 import {createSwapProposalIndex} from './swap-proposal-index-20.mjs';
@@ -391,7 +392,7 @@ const planningAtomicComposition=compositionWriteRequested?createVisitComposition
    throw Error('VISIT_COMPOSITION_MANAGER_SPLIT_REQUIRED');
   const sources=[
    ['Audit_Obligations','AA',2000],['Audit_Visit_Obligations','F',2000],
-   ['Config_Scopes','Z',250],['Auditors','AF',500],
+   ['Config_Scope_Dependencies','G',1000],['Config_Scopes','Z',250],['Auditors','AF',500],
    ['Auditor_Scope_Qualifications','C',5000],['Companies','AZ',1200],
    ['Log realized audits','AZ',2500],['Concept Reservations','P',2000],
    ['Auditor Availability','AB',2500]
@@ -429,6 +430,22 @@ const planningAtomicComposition=compositionWriteRequested?createVisitComposition
     availabilityVersions[uid]=document.version;
    }
   }
+  // Enforce from freshly reread canonical rows inside the atomic
+  // transaction preflight, not from client-provided preview metadata.
+  const activeLinks=tables['Audit_Visit_Obligations'],linkHead=activeLinks[0]||[],
+   linkAudit=linkHead.indexOf('Audit_ID'),linkObligation=linkHead.indexOf('Obligation_ID'),
+   linkState=linkHead.indexOf('Link_State'),
+   obRows=tables['Audit_Obligations'],obHead=obRows[0]||[],
+   obId=obHead.indexOf('Obligation_ID'),obScope=obHead.indexOf('ScopeCode');
+  if([linkAudit,linkObligation,linkState,obId,obScope].some(x=>x<0))
+   throw Error('COMPOSITION_SPLIT_DEPENDENCY_SOURCE_SCHEMA_INVALID');
+  const activeIds=new Set(activeLinks.slice(1).filter(row=>
+   String(row[linkAudit]||'').trim()===String(body.auditId)&&
+   String(row[linkState]||'').trim().toUpperCase()==='ACTIVE').map(row=>String(row[linkObligation]||'').trim()));
+  const selectedCodes=obRows.slice(1).filter(row=>activeIds.has(String(row[obId]||'').trim()))
+   .map(row=>String(row[obScope]||'').trim());
+  if(selectedCodes.length!==activeIds.size)throw Error('COMPOSITION_SPLIT_DEPENDENCY_LINK_UNRESOLVED');
+  assertScopeSplitAllowed20({dependencies:tables['Config_Scope_Dependencies'],scopeCodes:selectedCodes});
   return prepareSeparateCompositionAuthority20({
    actor,body,sourceCanonical,planningRows,availabilityVersions,
    obligationRows:tables['Audit_Obligations'],linkRows:tables['Audit_Visit_Obligations'],
@@ -1918,6 +1935,15 @@ http.createServer(async(req,res)=>{
     data.push(rows);
    }
    const planningRows=await readPlanningRows();
+   // Load the canonical dependency table on every preview. Never offer
+   // Separately if an active Must_Audit_Together pair is present.
+   const dependencyRange="'Config_Scope_Dependencies'!A1:G1000";
+   const dependencyEndpoint='https://sheets.googleapis.com/v4/spreadsheets/'+
+    encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(dependencyRange);
+   const dependencyResponse=await fetch(dependencyEndpoint,{headers:{authorization:'Bearer '+await getToken()},cache:'no-store'});
+   if(!dependencyResponse.ok)throw Error('SCOPE_DEPENDENCY_READ_'+dependencyResponse.status);
+   const dependencyRows=(await dependencyResponse.json()).values||[];
+   if(!dependencyRows.length||dependencyRows.length>=1000)throw Error('SCOPE_DEPENDENCY_SOURCE_INCOMPLETE');
    const scopeRange="'Config_Scopes'!A1:AZ100";
    const scopeEndpoint='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent(scopeRange);
    const scopeResponse=await fetch(scopeEndpoint,{headers:{authorization:'Bearer '+await getToken()}});
@@ -1925,6 +1951,8 @@ http.createServer(async(req,res)=>{
    const configScopes=(await scopeResponse.json()).values||[];
    if(!configScopes.length||configScopes.length>=100)throw Error('MODEL_C_SCOPE_CATALOG_INCOMPLETE');
    const result=previewModelCVisitComposition20({auditId,obligations:data[0],links:data[1],planningRows,configScopes});
+   result.requiredTogetherPairs=requiredTogetherScopePairs20({dependencies:dependencyRows,scopeCodes:result.obligations.map(o=>o.scopeCode)});
+   result.separateAllowed=result.requiredTogetherPairs.length===0;
    const header=planningRows[0]||[],auditColumn=header.indexOf('Audit ID'),
     matches=planningRows.slice(1).filter(row=>String(row[auditColumn]||'').trim()===auditId);
    if(auditColumn<0||matches.length!==1)throw Error('VISIT_COMPOSITION_SOURCE_ROW_AMBIGUOUS');

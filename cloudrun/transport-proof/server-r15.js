@@ -1308,7 +1308,21 @@ async function proxy(req,res){
  if(runtime.isDev&&process.env.AMS_DEV_PREFLIGHT_READONLY_BROWSER_ENABLED==='true'&&
     String(req.headers.host||'').toLowerCase()===preflightHost&&
     req.method==='POST'&&preflightAuthRoutes.has(writerPath)){
-  if(req.headers.origin!=='https://'+preflightHost){
+  const expectedPreflightOrigin='https://'+preflightHost;
+  const requestOrigin=String(req.headers.origin||'');
+  // Browser-native HTML form submissions can omit Origin. Accept that case
+  // only for the DEV login form when both Referer and Fetch Metadata attest
+  // to the exact tagged host. API login requests still require Origin.
+  let samePreflightForm=false;
+  if(writerPath==='/auth/dev-login'&&!requestOrigin){
+   try{
+    const referer=new URL(String(req.headers.referer||''));
+    samePreflightForm=referer.origin===expectedPreflightOrigin&&
+     String(req.headers['sec-fetch-site']||'')==='same-origin'&&
+     String(req.headers['sec-fetch-mode']||'')==='navigate';
+   }catch{}
+  }
+  if(requestOrigin!==expectedPreflightOrigin&&!samePreflightForm){
    res.writeHead(403,{'cache-control':'no-store'});res.end('PREFLIGHT_AUTH_ORIGIN_FORBIDDEN');return;
   }
   headers.origin=String(process.env.AMS_ALLOWED_ORIGIN||process.env.DEV_ALLOWED_ORIGIN||'');

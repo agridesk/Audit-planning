@@ -154,4 +154,11 @@ await assert.rejects(()=>authority.commitMulti({
  entities:[{auditId:parent,expectedRevision:1,nextSnapshot:{auditId:parent,status:'Approved'}}],
  projectionPlan:{projectionWrites:[],projectionPreconditions:[],appendIntents:[]}
 }),/PLANNING_MULTI_CANONICAL_IDENTITY_RETIRED/);
+// Regression: Firestore Write resource names retain commas and UTF-8 characters.
+const accentedId='AUDIT, M\u00e9rida';
+const accentedSnapshot={auditId:accentedId,sourceRevision:'a'.repeat(24),sourceRow:200};
+assert.equal((await authority.seed({auditId:accentedId,snapshot:accentedSnapshot,auditorId:null,blocks:[]})).seeded,true);
+assert.equal((await authority.readAudit(accentedId)).snapshot.auditId,accentedId);
+assert.ok(store.has('ams_planning_20_dev_audits/'+accentedId));
+assert.ok(!store.has('ams_planning_20_dev_audits/'+encodeURIComponent(accentedId)));
 console.log('Multi-document Firestore transaction, replay, occupancy, crash ambiguity and settlement OK');

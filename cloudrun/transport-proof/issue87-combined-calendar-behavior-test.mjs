@@ -8,7 +8,7 @@ assert.ok(match,'Issue #87 calendar click handler exists');
 const fields={'#date':{value:''},'#start':{value:''},'#end':{value:''},'#location':{value:'HQ'},'#comment':{value:''}};
 let notices=[];
 const ctx={
- draftBlocks:[],composition20:{mode:'TOGETHER'},actorRole:'manager',
+ draftBlocks:[],composition20:{mode:'TOGETHER'},actorRole:'manager',model:{data:{audit:{minPlanningDate:''}}},
  q:key=>{assert.ok(fields[key],key);return fields[key]},
  hhmm:time=>{const [h,m]=String(time||'').split(':').map(Number);return h*60+m},
  blockHours:b=>(Number(b.end.slice(0,2))*60+Number(b.end.slice(3))-
@@ -34,6 +34,13 @@ assert.equal(ctx.draftBlocks.some(x=>x._autoCombined20),false,
 ctx.clickDay('2026-12-03','yes');
 assert.equal(ctx.draftBlocks.length,2,'third day does not overplan full hours');
 assert.ok(notices.some(s=>s.includes('Required hours are already fully planned')));
+ctx.model.data.audit.minPlanningDate='2027-05-03';
+const before=ctx.draftBlocks.length;
+ctx.clickDay('2027-05-02','yes');
+assert.equal(ctx.draftBlocks.length,before,'Earliest execution date must block earlier calendar picks');
+assert.ok(notices.some(s=>s.includes('Minimum audit interval: planning cannot start before 2027-05-03')));
+assert.ok(source.includes("No planning days available: the planning window ended on "), 'Expired windows must show an explicit calendar explanation');
+assert.ok(source.includes("beforeMinimum?'no':visualState"),'Calendar must render early dates as blocked');
 assert.ok(source.includes('blocks:draftBlocks.map(({_autoCombined20,...x})=>({...x}))'),
  'UI-only auto-allocation marker must not be sent to canonical writer');
 

@@ -998,8 +998,10 @@ async function directManagerSelfPlanning20(identity,body){
     expectedSourceRevision:expectedRevision,
     canonicalSnapshot:{auditId,sourceRow:found.sourceRow,headers:found.h,row:updated,
      status:'Pending Planning',sourceRevision:directRowRevision(found.h,updated)},
-    projectionWrites:[{range:rowRange,values:[updated]}],
-    projectionPreconditions:[{range:rowRange,before:found.row.slice()}],
+    // A Self planning toggle owns only the selected AD cell. A full-row
+    // CAS would reject unrelated numeric/formatted cells (e.g. total hours).
+    projectionWrites:[{range:targetRange,values:[[updated[index]]]}],
+    projectionPreconditions:[{range:targetRange,before:[found.row[index]??'']}],
     appendIntents:[],owner:'CLOUD_RUN_DEV_SELF_PLANNING_ATOMIC_PREFLIGHT'};
   }
   await sheetsValuesBatchUpdateRaw([{range:targetRange,values:[[value?'Yes':'No']]}]);

@@ -83,5 +83,37 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   await verifyFence({operationId,gateToken});
   return {operationId,idempotent:true,projected:true,replayed:false};
  }
- return Object.freeze({inspect,apply});
+ // Privacy-preserving forensic view: return only differing cell positions,
+ // scalar types and whether each cell matches the preflight BEFORE/AFTER.
+ // Never return cell values, including email, audit notes or identifiers.
+ async function inspectDiff(plan){
+  const changes=rows(plan),url=new URL(base+'/values:batchGet');
+  url.searchParams.set('valueRenderOption','UNFORMATTED_VALUE');
+  url.searchParams.set('dateTimeRenderOption','FORMATTED_STRING');
+  for(const change of changes)url.searchParams.append('ranges',change.range);
+  const results=(await request(url.toString())).valueRanges;
+  if(!Array.isArray(results)||results.length!==changes.length)throw Error('SHEETS_FORENSIC_READ_INCOMPLETE');
+  const type=x=>x===undefined||x===null?'empty':typeof x;
+  const values=[];
+  for(let i=0;i<changes.length;i++){
+   const change=changes[i],actual=results[i].values?.[0]||[],target=change.values,before=change.before;
+   const length=Math.max(actual.length,target.length,before.length);
+   const differing=[];let matchedTarget=0,matchedBefore=0;
+   for(let cell=0;cell<length;cell++){
+    const have=actual[cell]??'',want=target[cell]??'',old=before[cell]??'';
+    const targetMatch=str(have)===str(want),beforeMatch=str(have)===str(old);
+    if(targetMatch)matchedTarget++;if(beforeMatch)matchedBefore++;
+    if(!targetMatch){
+     differing.push({column:cell+1,actualType:type(actual[cell]),targetType:type(target[cell]),
+      beforeType:type(before[cell]),matchesBefore:beforeMatch,
+      numericStringCoercion:typeof actual[cell]==='number'&&typeof target[cell]==='string'&&
+       String(actual[cell])===target[cell]});
+    }
+   }
+   values.push({range:change.range,columns:length,matchedTarget,matchedBefore,
+    differingCount:differing.length,differing:differing.slice(0,80),truncated:differing.length>80});
+  }
+  return values;
+ }
+ return Object.freeze({inspect,inspectDiff,apply});
 }

@@ -341,7 +341,7 @@ function scopePlanningValid20(){
  if(composition20.qualification?.key!==qualificationKey||composition20.qualification.ok!==true)return false;
  if(composition20.mode==='TOGETHER')
   return composition20.writeTogether===true&&scopeAllocationDraft20()?.ok===true&&scopeOffsiteValid20();
- if(composition20.mode!=='SEPARATELY'||composition20.writeSeparate!==true)return false;
+ if(composition20.mode!=='SEPARATELY'||composition20.writeSeparate!==true||composition20.requiredTogetherPairs?.length>0)return false;
  const selected=separateVisitsDraft20().find(v=>v.obligationId===composition20.selectedScope);
  if(!selected)return false;
  const visits=[selected],locs=new Set((model?.data?.audit?.locations||[]).map(x=>String(x.code||x.name)));
@@ -410,7 +410,7 @@ function switchScopeDraft20(obligationId){
  renderDraft();verifyScopeAuditor20();
 }
 function switchMode20(mode){
- if(!composition20||!['TOGETHER','SEPARATELY'].includes(mode)||composition20.mode===mode||mode==='TOGETHER'&&(composition20.scopes.length<2||composition20.partialLineage===true))return;
+ if(!composition20||!['TOGETHER','SEPARATELY'].includes(mode)||composition20.mode===mode||mode==='SEPARATELY'&&composition20.requiredTogetherPairs?.length>0||mode==='TOGETHER'&&(composition20.scopes.length<2||composition20.partialLineage===true))return;
  if(composition20.mode==='SEPARATELY')saveActiveScopeDraft20();
  else {composition20.togetherDraft=draftBlocks.map(b=>({...b}));composition20.togetherManual=composition20.manual?composition20.manual.map(a=>({...a})):null;composition20.togetherAuditorEmail=q('#auditor').value;}
  composition20.mode=mode;composition20.manual=mode==='TOGETHER'?(composition20.togetherManual?composition20.togetherManual.map(a=>({...a})):null):null;
@@ -465,7 +465,8 @@ function renderScopePlanning20(){
   separate.reduce((n,v)=>n+v.blocks.reduce((m,b)=>m+Math.max(0,hhmm(b.end)-hhmm(b.start)),0),0);
  box.innerHTML='<div class="compositionHead20"><strong>Scope planning</strong><span class="muted">'+hour(totalPlanned)+' / '+hour(totalRequired)+'</span></div>'+
   '<div class="compositionModes20">'+(composition20.scopes.length>1&&!composition20.partialLineage?'<label><input type="radio" name="compositionMode20" value="TOGETHER"'+(mode==='TOGETHER'?' checked':'')+'> Together — one visit</label>':'')+
-  '<label><input type="radio" name="compositionMode20" value="SEPARATELY"'+(mode==='SEPARATELY'?' checked':'')+'> Separately — one visit per scope</label></div>'+
+  '<label><input type="radio" name="compositionMode20" value="SEPARATELY"'+(mode==='SEPARATELY'?' checked':'')+(composition20.requiredTogetherPairs?.length?' disabled title="Must_Audit_Together is YES in Config_Scope_Dependencies"':'')+'> Separately — one visit per scope</label></div>'+
+  (composition20.requiredTogetherPairs?.length?'<p class="compositionWriterNotice20">Scopes must be audited together: '+escHtml(composition20.requiredTogetherPairs.map(r=>r.parentScopeCode+' + '+r.childScopeCode).join(', '))+' (Config_Scope_Dependencies: Must_Audit_Together = YES). Separately is not allowed.</p>':'')+
   '<table class="compositionTable20"><thead><tr><th>Scope</th><th>Required</th><th>Planned</th><th>Remaining</th></tr></thead><tbody>'+rows+'</tbody></table>'+
   controls+(writerEnabled?'':'<p class="compositionWriterNotice20">Save is unavailable: the secure DEV atomic writer has not yet been enabled. Planned hours can be reviewed as a draft.</p>');
  box.querySelectorAll('[name="compositionMode20"]').forEach(input=>input.onchange=()=>switchMode20(input.value));
@@ -499,6 +500,7 @@ async function loadScopePlanning20(){
    return data;
   }));
   const preview=payload[0],scopes=(preview.obligations||[]).map(o=>({...o,requiredHours:Number(o.requiredHours),maxOffsiteHours:o.maxOffsiteHours!==null&&o.maxOffsiteHours!==undefined?Number(o.maxOffsiteHours):0}));
+  if(!Array.isArray(preview.requiredTogetherPairs)||typeof preview.separateAllowed!=='boolean')throw Error('Canonical scope dependencies could not be verified');
   if(!preview.sourceEvidenceReady||preview.source?.status!=='Pending Planning'||!preview.sourceRevisionAtomic||
    scopes.length<(previous?1:2)||scopes.some(o=>!o.obligationId||!o.scopeCode||!(o.requiredHours>0)))
    throw Error('Canonical obligation source incomplete');
@@ -518,7 +520,7 @@ async function loadScopePlanning20(){
    option.value=email;option.textContent=candidate.name;
    auditorSelect.appendChild(option);
   }
-  composition20={scopes,partialLineage:previous,mode:scopes.length===1||previous?'SEPARATELY':'TOGETHER',manual:null,sourceRevision:preview.sourceRevisionAtomic,
+  composition20={scopes,requiredTogetherPairs:preview.requiredTogetherPairs,partialLineage:previous,mode:scopes.length===1||previous?'SEPARATELY':'TOGETHER',manual:null,sourceRevision:preview.sourceRevisionAtomic,
    writeTogether:payload[1].togetherWriteEnabled===true,writeSeparate:payload[1].separateWriteEnabled===true,
    selectedScope:scopes[0].obligationId,separateDrafts:new Map(),togetherDraft:draftBlocks.map(b=>({...b})),
    auditorIds:new Map((payload[1].auditors||[]).map(x=>[String(x.email||'').trim().toLowerCase(),x.auditorId]))};

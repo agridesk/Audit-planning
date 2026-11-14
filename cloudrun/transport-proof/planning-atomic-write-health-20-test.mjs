@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const r15=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
+const start=r15.indexOf("if(req.method==='GET'&&u.pathname==='/api/v1/planning/atomic-write-health')");
+const end=r15.indexOf("if(req.method==='GET'&&u.pathname==='/api/v1/planning/availability-read-diagnostic')",start);
+assert.ok(start>0&&end>start);
+const handler=r15.slice(start,end);
+for(const required of ['actor?.role!==\'manager\'','planningGlobalGate.read()','planningAtomicStore.listOutbox','planningAtomicProjector.inspect(snapshot)','planningAtomicAppendProjector.inspect(snapshot.appendIntents)','recoveryEvidenceComplete','delete matchingGate.snapshot'])assert.ok(handler.includes(required),required);
+for(const forbidden of ['planningAtomicProjector.apply','planningAtomicAppendProjector.apply','planningGlobalGate.release','markProjected','atomicStore.commit','planningAtomicRecovery.scan'])assert.ok(!handler.includes(forbidden),forbidden);
+console.log('ATOMIC_WRITE_HEALTH_READONLY_PROJECTION_PASS');

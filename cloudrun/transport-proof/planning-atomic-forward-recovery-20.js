@@ -3,7 +3,7 @@
  * A timeout after starting Sheets writes leaves RECOVERING locked for operator
  * investigation, rather than attempting a blind retry.
  */
-export function createPlanningAtomicForwardRecovery20({store,gate,projector,appendProjector,recovery}={}){
+export function createPlanningAtomicForwardRecovery20({store,gate,projector,appendProjector,recovery,availabilityService}={}){
  const funcs=[[store,'readOutbox'],[store,'readAudit'],[gate,'beginRecovery'],[gate,'finishRecovery'],
   [gate,'read'],[projector,'inspect'],[projector,'apply'],[appendProjector,'inspect'],
   [appendProjector,'apply'],[recovery,'recoverOne']];
@@ -21,6 +21,20 @@ export function createPlanningAtomicForwardRecovery20({store,gate,projector,appe
   const audit=await store.readAudit(entry.auditId);
   if(!audit||audit.pendingOperationId!==operationId||audit.revision!==entry.revision)
    throw Error('ATOMIC_FORWARD_RECOVERY_FIRESTORE_CAS_FAILED');
+  // Do not settle the global operation while the owning auditor lease is
+  // still quarantined; a partial success must not masquerade as readiness.
+  if(entry.auditorId){
+   if(typeof availabilityService?.read!=='function')throw Error('ATOMIC_FORWARD_RECOVERY_LEASE_READER_REQUIRED');
+   const doc=await availabilityService.read({role:'manager',id:'atomic-recovery'},entry.auditorId);
+   const lease=doc?.planningLease;
+   if(lease){
+    if(lease.auditId!==entry.auditId||!lease.token||lease.state!=='UNCERTAIN')
+     throw Error('ATOMIC_FORWARD_RECOVERY_LEASE_NOT_QUARANTINED');
+    const since=Date.parse(lease.uncertainAt||'');
+    if(!Number.isFinite(since)||Date.now()-since<30*60*1000)
+     throw Error('ATOMIC_FORWARD_RECOVERY_LEASE_QUARANTINE_ACTIVE');
+   }
+  }
   const holder=await gate.beginRecovery({operationId});
   let mutationStarted=false,proofVerified=false;
   try{

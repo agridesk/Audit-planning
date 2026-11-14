@@ -149,4 +149,29 @@ const missingRoster=createPlanningAtomicRecovery({
 });
 assert.equal((await missingRoster.scan()).errors,1);
 
+// A failed auditor lease reconciliation must NOT unlock the global gate.
+let blockedRelease=0,leaseAttempt=0;
+const leaseConflictRecovery=createPlanningAtomicRecovery({
+ store:{
+  async listOutbox(){return {entries:[e],nextPageToken:null};},
+  async readAudit(){return {revision:1,pendingOperationId:'op1'};},
+  async markProjected(){return {state:'PROJECTED'};}
+ },
+ projector:{async inspect(){return {state:'MATCH',detail:[]};}},
+ appendProjector:{async inspect(){return {state:'MATCH',count:1};}},
+ gate:{
+  async read(){return {holder:{token:'guard',operationId:'op1',state:'UNCERTAIN',
+   acquiredAt:new Date(Date.now()-3600000).toISOString(),
+   uncertainAt:new Date(Date.now()-3600000).toISOString()}};},
+  async release(){blockedRelease++;}
+ },
+ availabilityService:{
+  async read(){return {planningLease:{token:'lease-conflict',auditId:'a1',state:'UNCERTAIN',
+   uncertainAt:new Date(Date.now()-3600000).toISOString()}};},
+  async reconcilePlanningLease(){leaseAttempt++;throw Error('LEASE_CAS_CONFLICT');}
+ }
+});
+assert.equal((await leaseConflictRecovery.scan()).errors,1);
+assert.equal(leaseAttempt,1);
+assert.equal(blockedRelease,0);
 console.log('Atomic recovery: no blind retries, verified projection and uncertain fence release passed');

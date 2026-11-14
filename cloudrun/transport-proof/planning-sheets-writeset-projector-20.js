@@ -35,7 +35,7 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
   return result.json();
  }
  async function metadata(){
-  const data=await request(base+'?fields=sheets(properties(sheetId,title,gridProperties(rowCount))');
+  const data=await request(base+'?fields='+encodeURIComponent('sheets(properties(sheetId,title,gridProperties(rowCount)))'));
   if(!Array.isArray(data.sheets))throw Error('SHEETS_PROJECTOR_METADATA_INVALID');
   return new Map(data.sheets.map(x=>[x.properties?.title,x.properties]));
  }

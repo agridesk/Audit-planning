@@ -8,6 +8,7 @@ on:
       - '.github/scripts/ams-fase7-firestore-inventory.mjs'
       - '.github/scripts/ams-fase7-dev-migration-preflight.mjs'
       - '.github/scripts/ams-fase7-dev-writer-fence-survey.mjs'
+      - '.github/scripts/ams-dev-atomic-blocker-readonly.mjs'
       - 'cloudrun/transport-proof/model-c-scope-extension-firestore-backfill-20.mjs'
       - 'cloudrun/transport-proof/model-c-scope-extension-staging-gate-20.mjs'
       - 'cloudrun/transport-proof/model-c-scope-extension-data-audit-20.mjs'

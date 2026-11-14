@@ -1889,6 +1889,26 @@ http.createServer(async(req,res)=>{
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
    res.end(JSON.stringify({success:true,authority:'FIRESTORE',projection:'GOOGLE_SHEETS',auditId,version:ledger.version,latestCommit:latest?{id:latest.id,state:latest.state,createdAt:latest.createdAt,updatedAt:latest.updatedAt||null}:null}));return;
   }
+  // DEV manager-only, strictly read-only: probe availability reads using the
+  // actual Cloud Run service identity, not an operator's gcloud credentials.
+  if(req.method==='GET'&&u.pathname==='/api/v1/planning/availability-read-diagnostic'){
+   if(!runtime.isDev){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401,{'cache-control':'no-store'});res.end('Manager required');return;}
+   const auditors=(await getRoster()).filter(x=>x.role==='auditor');
+   const results=[];
+   for(let index=0;index<auditors.length;index++){
+    const item=auditors[index];
+    try{
+     const record=await service.read({role:'manager',id:actor.auditorId},item.auditorId);
+     results.push({ordinal:index+1,ok:true,version:record.version,locked:!!record.planningLease});
+    }catch(error){
+     results.push({ordinal:index+1,ok:false,error:String(error?.message||'UNKNOWN').replace(/[^A-Za-z0-9_]/g,'_').slice(0,100)});
+    }
+   }
+   res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
+   res.end(JSON.stringify({success:true,dev:true,readonly:true,checked:results.length,failed:results.filter(x=>!x.ok).length,results}));return;
+  }
   if(req.method==='GET'&&u.pathname==='/api/v1/planning/lease-status'){
    if(!runtime.isDev){res.writeHead(404);res.end();return;}
    const actor=await session(req);

@@ -49,6 +49,7 @@ import {createPlanningMultiLifecycleService} from './planning-multi-lifecycle-se
 import {createPlanningAtomicTransferService} from './planning-atomic-transfer-service-20.js';
 import {createPlanningAtomicRecovery} from './planning-atomic-recovery-20.js';
 import {createPlanningAtomicForwardRecovery20} from './planning-atomic-forward-recovery-20.js';
+import {createPartialTimestampRepair20} from './planning-atomic-partial-timestamp-repair-20.js';
 import {createPlanningAtomicParityVerifier} from './planning-atomic-parity-verifier-20.js';
 import {createPlanningGlobalClaimsParity} from './planning-global-claims-parity-20.js';
 import {createPlanningCutoverDataAudit} from './planning-cutover-data-audit-20.js';
@@ -539,6 +540,43 @@ const planningAtomicForwardRecovery=planningAtomicRecovery?createPlanningAtomicF
    if(current.holder?.operationId!==operationId||current.holder.token!==gateToken||
       current.holder.state!=='RECOVERING')throw Error('ATOMIC_FORWARD_RECOVERY_APPEND_FENCE_LOST');
   }})
+}):null;
+const planningPartialTimestampRepair=planningAtomicForwardRecovery?createPartialTimestampRepair20({
+ store:planningAtomicStore,gate:planningGlobalGate,recovery:planningAtomicRecovery,
+ projector:planningAtomicProjector,
+ appendProjector:createPlanningSheetsAppendProjector({spreadsheetId:spreadsheet,getToken,
+  verifyFence:async({operationId,gateToken})=>{
+   const current=await planningGlobalGate.read();
+   if(current.holder?.operationId!==operationId||current.holder.token!==gateToken||
+      current.holder.state!=='RECOVERING')throw Error('PARTIAL_REPAIR_FENCE_LOST');
+  }}),
+ readHeader:async()=>{
+  const u='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values/'+encodeURIComponent('Auditor Availability!L1');
+  const response=await fetch(u,{headers:{authorization:'Bearer '+await getToken()}});
+  if(!response.ok)throw Error('PARTIAL_REPAIR_HEADER_HTTP_'+response.status);
+  const data=await response.json();
+  return String(data.values?.[0]?.[0]||'').trim();
+ },
+ writeRaw:async({operationId,token,replacement})=>{
+  if(!Array.isArray(replacement)||replacement.length!==2||
+     replacement.some(x=>!/^Auditor Availability!L(1067|1068)$/.test(x.range)||
+      !/^\\d{4}-\\d\\d-\\d\\d[ T]\\d\\d:\\d\\d:\\d\\d$/.test(x.value))||
+     new Set(replacement.map(x=>x.range)).size!==2)
+   throw Error('PARTIAL_REPAIR_RAW_SCOPE_INVALID');
+  const current=await planningGlobalGate.read();
+  if(current.holder?.operationId!==operationId||current.holder.token!==token||
+     current.holder.state!=='RECOVERING')throw Error('PARTIAL_REPAIR_RAW_FENCE_LOST');
+  const url='https://sheets.googleapis.com/v4/spreadsheets/'+encodeURIComponent(spreadsheet)+'/values:batchUpdate';
+  const response=await fetch(url,{method:'POST',headers:{
+    authorization:'Bearer '+await getToken(),'content-type':'application/json'},
+   body:JSON.stringify({valueInputOption:'RAW',data:replacement.map(x=>({range:x.range,values:[[x.value]]}))})});
+  if(!response.ok)throw Error('PARTIAL_REPAIR_RAW_HTTP_'+response.status);
+  const receipt=await response.json();
+  if(Number(receipt.totalUpdatedCells)!==2)throw Error('PARTIAL_REPAIR_RAW_ACK_INVALID');
+  const after=await planningGlobalGate.read();
+  if(after.holder?.operationId!==operationId||after.holder.token!==token||
+     after.holder.state!=='RECOVERING')throw Error('PARTIAL_REPAIR_RAW_POST_FENCE_LOST');
+ }
 }):null;
 // Start one bounded recovery scan on DEV startup; it never guesses missing writes.
 if(planningAtomicRecovery&&process.env.AMS_DEV_ATOMIC_RECOVERY_STARTUP_ENABLED==='true'){
@@ -1562,6 +1600,23 @@ http.createServer(async(req,res)=>{
    res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
    res.end(JSON.stringify({success:true,state:changed.state,operationId,quarantinedAt:changed.uncertainAt,
     note:'No unlock performed. Independent Sheets evidence and 30-minute UNCERTAIN quarantine still required.'}));return;
+  }
+  // Explicit one-operation, DEV-only RAW repair of two Last_Updated cells.
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-partial-repair'){
+   if(!runtime.isDev||!planningPartialTimestampRepair){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401);res.end('Manager required');return;}
+   const origin=String(req.headers.origin||'');
+   if(!origin||new URL(origin).host!==String(req.headers.host||'')||
+      new URL(origin).protocol!=='https:')throw Error('PARTIAL_REPAIR_ORIGIN_DENIED');
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)throw Error('PARTIAL_REPAIR_BODY_TOO_LARGE');}
+   const input=String(req.headers['content-type']||'').startsWith('application/x-www-form-urlencoded')?
+    Object.fromEntries(new URLSearchParams(raw)):JSON.parse(raw||'{}');
+   if(input.confirm!=='REPAIR_ONLY_TWO_LAST_UPDATED_CELLS')throw Error('PARTIAL_REPAIR_CONFIRMATION_REQUIRED');
+   const result=await planningPartialTimestampRepair.commit({operationId:String(input.operationId||'')});
+   planningCache.invalidate();
+   res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+   res.end(JSON.stringify(result));return;
   }
   // Explicit manager-confirmed DEV rescue, only for a quarantined existing PLAN.
   if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-forward-recover'){

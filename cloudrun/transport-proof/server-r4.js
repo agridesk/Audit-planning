@@ -1104,7 +1104,7 @@ async function lifecycleAuthorityPreflight20(identity,body,action,writer){
   const colNum=letters=>[...letters].reduce((value,ch)=>value*26+ch.charCodeAt(0)-64,0)-1;
   let updated=false;
   for(const write of capture.writes){
-   const match=/^Audit planning!([A-Z]+)(\\d+):([A-Z]+)(\\d+)$/.exec(write.range);
+   const match=/^Audit planning!([A-Z]+)(\d+):([A-Z]+)(\d+)$/.exec(write.range);
    if(!match)continue;
    if(Number(match[2])!==found.sourceRow||Number(match[4])!==found.sourceRow)continue;
    const from=colNum(match[1]),to=colNum(match[3]);
@@ -1122,10 +1122,10 @@ async function lifecycleAuthorityPreflight20(identity,body,action,writer){
    projectionWrites:capture.writes,projectionPreconditions:preconditions,appendIntents:capture.appends,
    projectionEnsureRows:capture.ensureRows,
    removedSourceRows:capture.deletes,
-   successorSnapshots:capture.writes.filter(w=>/^Audit planning!A(\\d+):/.test(w.range)&&Number(/^Audit planning!A(\\d+):/.exec(w.range)[1])>planning.length).map(w=>{
+   successorSnapshots:capture.writes.filter(w=>/^Audit planning!A(\d+):/.test(w.range)&&Number(/^Audit planning!A(\d+):/.exec(w.range)[1])>planning.length).map(w=>{
     const rr=w.values[0],nextId=val(rr,col(found.h,['Audit ID']));
     if(!nextId||nextId===auditId)throw Error('LIFECYCLE_PREFLIGHT_SUCCESSOR_ID_INVALID');
-    return {auditId:nextId,sourceRow:Number(/^Audit planning!A(\\d+):/.exec(w.range)[1]),headers:found.h,row:rr,status:val(rr,col(found.h,['Status'])),assignedTo:val(rr,col(found.h,['Assigned to'])),sourceRevision:directRowRevision(found.h,rr)};
+    return {auditId:nextId,sourceRow:Number(/^Audit planning!A(\d+):/.exec(w.range)[1]),headers:found.h,row:rr,status:val(rr,col(found.h,['Status'])),assignedTo:val(rr,col(found.h,['Assigned to'])),sourceRevision:directRowRevision(found.h,rr)};
    }),
    owner:'CLOUD_RUN_DEV_LIFECYCLE_PREFLIGHT'};
  });

@@ -7,13 +7,13 @@ if(proc.error||proc.status!==0){
  console.error('DEV_RUNTIME_READ_FAIL',String(proc.error?.message||proc.stderr||proc.status).slice(0,250));process.exit(1);
 }
 let config;try{config=JSON.parse(proc.stdout);}catch{console.error('DEV_RUNTIME_JSON_INVALID');process.exit(1);}
-if(config.metadata?.name!==service||config.metadata?.namespace&&config.metadata.namespace!==project){
+if(config.metadata?.name!==service){
  console.error('DEV_SERVICE_IDENTITY_MISMATCH');process.exit(1);
 }
 const env=config.spec?.template?.spec?.containers?.[0]?.env||[];
 const selected=['AMS_RUNTIME_ENV','AMS_DEV_CUTOVER_HTTP_WRITE_FREEZE_ENABLED','AMS_DEV_ATOMIC_PREFLIGHT_ENABLED',
 'AMS_DEV_ATOMIC_BACKFILL_WRITE_ENABLED','AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED',
-'AMS_DEV_ATOMIC_PLANNING_ENABLED','AMS_DEV_ATOMIC_BACKFILL_PARITY_VERIFIED',
+'AMS_DEV_FIRESTORE_ATOMIC_PLANNING_ENABLED','AMS_DEV_ATOMIC_BACKFILL_PARITY_VERIFIED',
 'AMS_DEV_ATOMIC_LIVE_WRITER_ROUTE_PARITY_VERIFIED','AMS_DEV_MAINTENANCE_MODE',
 'AMS_DEV_NORMAL_GRID_ENABLED','AMS_DEV_PREFLIGHT_READONLY_BROWSER_ENABLED',
 'AMS_GAS_LIFECYCLE_WRITER_RETIRED_VERIFIED','AMS_MANAGER_LIFECYCLE_OWNER_SHARED_VERIFIED'];

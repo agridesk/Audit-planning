@@ -1,12 +1,12 @@
 import {spawnSync} from 'node:child_process';
-import {readFileSync,existsSync} from 'node:fs';
+import {existsSync} from 'node:fs';
 const PROJECT='audit-management-system-dev';
 const REGION='europe-west1';
 const SERVICE='ams-fase12-dev';
 const SHEET='1NhgaGxCU3BsEPMlKk14Iiz2XbPedS3e9sXI7OzeOJRs';
 const PREFIX='ams_planning_20_dev_';
 const TOOL=process.platform==='win32'?'gcloud.cmd':'gcloud';
-const abort=(why)=>{console.error('DEV_BACKFILL_ENABLE_BLOCKED: '+why);process.exit(1);};
+const abort=(why)=>{throw new Error('DEV_BACKFILL_ENABLE_BLOCKED: '+why);};
 function command(args,timeout=35000){
  const p=spawnSync(TOOL,args,{encoding:'utf8',windowsHide:true,shell:process.platform==='win32',timeout,maxBuffer:1024*1024*5});
  if(p.error||p.status!==0)abort('GCLOUD_FAILED: '+args.slice(0,3).join(' ')+' '+String(p.error?.message||p.stderr||p.status).slice(0,180));
@@ -26,9 +26,9 @@ function assertState(v,after=false){
  }else if(e.AMS_DEV_ATOMIC_BACKFILL_WRITE_ENABLED==='true'||e.AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED==='true')abort('BACKFILL_FLAGS_ALREADY_ENABLED');
  return {revision:routes[0].revisionName,flags:e};
 }
-async function getJSON(url,token){
+async function getJSON(url,token,stage){
  let response;try{response=await fetch(url,{headers:{authorization:'Bearer '+token},signal:AbortSignal.timeout(30000)});}catch{abort('GOOGLE_API_READ_FAILED');}
- if(!response.ok)abort('GOOGLE_API_HTTP_'+response.status);
+ if(!response.ok)abort(stage+'_HTTP_'+response.status+(response.status===403&&stage==='SHEETS'?'_GCLOUD_DRIVE_SCOPE_REQUIRED':''));
  try{return await response.json();}catch{abort('GOOGLE_API_JSON_INVALID');}
 }
 if(!existsSync('.git')||!existsSync('.claspignore'))abort('RUN_FROM_REPOSITORY_ROOT');
@@ -38,17 +38,17 @@ const before=service(),original=assertState(before);
 const token=command(['auth','print-access-token']);
 if(!token)abort('GOOGLE_AUTH_MISSING');
 const sheetURL='https://sheets.googleapis.com/v4/spreadsheets/'+SHEET+'/values/';
-const cfg=await getJSON(sheetURL+encodeURIComponent("'System_Config'!A1:C35"),token);
+const cfg=await getJSON(sheetURL+encodeURIComponent("'System_Config'!A1:C35"),token,'SHEETS');
 const rows=cfg.values||[];
 const config=Object.fromEntries(rows.slice(1).map(r=>[r[0],r[1]]));
 if(rows[0]?.[0]!=='KEY'||rows[0]?.[1]!=='DEV'||rows[0]?.[2]!=='PROD'||config.ENV!=='DEV'||String(config.ALLOW_DEV_WRITES).toUpperCase()!=='FALSE'||config.DEV_WRITE_MODE!=='BLOCK')abort('GAS_WRITE_GUARD_NOT_FROZEN');
-const ids=await getJSON(sheetURL+encodeURIComponent("'Audit planning'!AI1:AI442"),token);
+const ids=await getJSON(sheetURL+encodeURIComponent("'Audit planning'!AI1:AI442"),token,'SHEETS');
 if(ids.values?.[0]?.[0]!=='Audit ID')abort('AUDIT_ID_COLUMN_CHANGED');
 const seen=(ids.values||[]).slice(1).map(x=>String(x[0]||'').trim()).filter(Boolean);
 if(seen.length!==111||new Set(seen).size!==111)abort('SOURCE_AUDIT_COUNT_OR_UNIQUENESS_DRIFT');
 const root='https://firestore.googleapis.com/v1/projects/'+PROJECT+'/databases/(default)/documents/';
 for(const suffix of ['audits','claims','outbox']){
- const result=await getJSON(root+PREFIX+suffix+'?pageSize=1',token);
+ const result=await getJSON(root+PREFIX+suffix+'?pageSize=1',token,'FIRESTORE');
  if(result.documents?.length||result.nextPageToken)abort('FIRESTORE_TARGET_NOT_EMPTY_'+suffix);
 }
 const reread=service();if(assertState(reread).revision!==original.revision)abort('CLOUD_RUN_REVISION_CHANGED');

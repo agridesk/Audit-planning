@@ -1,18 +1,18 @@
 import assert from 'node:assert/strict';
 import {createAtomicSelfPlanningService20} from './planning-atomic-self-planning-service-20.js';
 import {readFileSync} from 'node:fs';
-const row=['audit-1','Pending Planning','No'];
-const headers=['Audit ID','Status','Allow self planning'];
+const row=Array(30).fill('');row[0]='audit-1';row[1]='Pending Planning';row[18]='8,00';row[29]='No';
+const headers=Array.from({length:30},(_,i)=>i===29?'Allow self planning':i===18?'Total audit time in hours':i===0?'Audit ID':i===1?'Status':'Column '+i);
 const before={auditId:'audit-1',revision:7,pendingOperationId:null,
  claimIds:[],blocks:[],snapshot:{auditId:'audit-1',status:'Pending Planning',
  sourceRevision:'rev-before',headers,row,managerCommentLast:'preserve this comment'}};
-const after=['audit-1','Pending Planning','Yes'];
+const after=[...row];after[29]='Yes';
 const proof={success:true,authorityPreflight:true,auditId:'audit-1',allowSelfPlanning:true,
  expectedSourceRevision:'rev-before',
  canonicalSnapshot:{auditId:'audit-1',status:'Pending Planning',
  sourceRevision:'rev-after',headers,row:after,sourceRow:2},
- projectionWrites:[{range:'Audit planning!A2:C2',values:[after]}],
- projectionPreconditions:[{range:'Audit planning!A2:C2',before:row}],
+ projectionWrites:[{range:'Audit planning!AD2',values:[['Yes']]}],
+ projectionPreconditions:[{range:'Audit planning!AD2',before:['No']}],
  appendIntents:[]};
 const actor={role:'manager',auditorId:'manager-1'};
 const body={auditId:'audit-1',expectedRevision:'rev-before',
@@ -70,7 +70,7 @@ function mock({preview=proof,old=before,inspection='MATCH',outbox=null}={}){
 }
 {
  const {service,events}=mock({preview:{...proof,projectionPreconditions:[{
-  range:'Audit planning!A2:C2',before:['audit-1','Pending Planning','Yes']}]}});
+  range:'Audit planning!AD2',before:['Yes']}]}});
  await assert.rejects(service.commit({actor,body}),/PREFLIGHT_SOURCE_ROW_MISMATCH/);
  assert.ok(!events.includes('firestoreCommit'));assert.ok(events.includes('gateRelease'));
 }
@@ -105,6 +105,7 @@ assert.ok(r4.includes("const atomicPreflight=selfPlanningAtomicReadOnlyPreflight
 assert.ok(r4.includes("SELF_PLANNING_ATOMIC_LEGACY_WRITERS_NOT_FROZEN"));
 assert.ok(r4.includes("SELF_PLANNING_LEGACY_WRITER_FROZEN"));
 assert.ok(r4.includes("if(atomicPreflight){"));
+assert.ok(r4.includes("projectionWrites:[{range:targetRange,values:[[updated[index]]]}]"));
 assert.ok(r4.includes("const values=atomicPreflight?await readCanonicalPlanningRowsForAtomic20():result[0]?.values||[]"),
  'Self planning must compare the same formatted row and header as R15 backfill');
 assert.ok(r4.includes("encodeURIComponent('Audit planning!A1:BW2000')"),

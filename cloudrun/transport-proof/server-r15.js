@@ -12,6 +12,7 @@ import {buildRotationManager20} from './rotation-manager-20.mjs';
 import {diagnoseRotationUid20} from './rotation-uid-reconciliation-20.mjs';
 import {previewModelCVisitComposition20} from './model-c-scope-visit-preview-20.mjs';
 import {requiredTogetherScopePairs20,assertScopeSplitAllowed20} from './scope-dependency-policy-20.mjs';
+import {devCutoverFreezeDecision20} from './dev-cutover-freeze-20.mjs';
 import {resolveAuditorScopeQualifications20} from './auditor-scope-qualifications-20.js';
 import {createSwapFirestoreReadmodel} from './swap-firestore-readmodel-20.mjs';
 import {createSwapProposalIndex} from './swap-proposal-index-20.mjs';
@@ -1445,6 +1446,18 @@ http.createServer(async(req,res)=>{
    return;
   }
   const u=new URL(req.url||'/','http://localhost');
+  const cutoverFreeze=devCutoverFreezeDecision20({
+   isDev:runtime.isDev,
+   freezeEnabled:process.env.AMS_DEV_CUTOVER_HTTP_WRITE_FREEZE_ENABLED==='true',
+   method:req.method,path:u.pathname,
+   backfillWriteEnabled:process.env.AMS_DEV_ATOMIC_BACKFILL_WRITE_ENABLED==='true',
+   legacyWritersFrozen:process.env.AMS_DEV_LEGACY_WRITERS_FROZEN_VERIFIED==='true'
+  });
+  if(!cutoverFreeze.allow){
+   res.writeHead(cutoverFreeze.status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+   res.end(JSON.stringify({success:false,error:cutoverFreeze.error}));return;
+  }
+
   if(planningAtomicEnabled&&['POST','PUT','PATCH','DELETE'].includes(String(req.method||''))&&
      planningAtomicRetiredManagementRoutes20.includes(u.pathname)){
    res.writeHead(410,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});

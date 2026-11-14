@@ -107,7 +107,7 @@ const checks=[
  ['r69 window label is secondary context',r5.includes('id="windowLabel" class="muted"')],
  ['r70 rotation detail is per required scope',r5.includes('rotationByScope||{}')&&r5.includes("limit reached':m.nearLimit?' near limit")],
  ['r78 qualification fails closed while rotation remains advisory',r5.includes("if(c.hardBlockQualification||c.ineligible)return setStatus")&&r5.includes('hardQualified=!(candidate.hardBlockQualification||candidate.ineligible)')&&!r5.includes('candidate.ineligible||candidate.rotationCheckFailed')],
- ['r74 selected calendar days follow local draft membership',r5.includes("draftBlocks.some(b=>b.date===iso)?' selected':''")&&r5.includes("toggleCalendarDay(r.date,visualState)")],
+ ['r74 selected calendar days follow local draft membership',r5.includes("draftBlocks.some(b=>b.date===iso)?' selected':''")&&r5.includes("toggleCalendarDay(r.date,beforeMinimum?'no':visualState)")],
  ['r74 selected calendar day has explicit overriding colour',r5.includes('.day.selected,.day.yes.selected,.day.partial.selected,.day.no.selected{background:#bfdbfe!important;border:3px solid #1d4ed8!important')],
  ['r74 manual date activation synchronizes slot details and calendar',r5.includes("q('#date').addEventListener('change',function(){const b=draftBlocks.find(x=>x.date===this.value)")&&r5.includes("renderAvailability();validate()")],
  ['r75 DEV sessions persist for 30-day test cycles',r4.includes('SESSION_TTL_SECONDS=30*24*60*60')&&r5.includes('SESSION_TTL_SECONDS=30*24*60*60')],

@@ -41,7 +41,9 @@ export function createPlanningSheetsWritesetProjector({spreadsheetId,getToken,fe
  }
  async function inspect(plan){
   const changes=rows(plan),url=new URL(base+'/values:batchGet');
-  url.searchParams.set('valueRenderOption','FORMATTED_VALUE');
+  // Match the canonical R4 preflight reader: unformatted values, formatted dates.
+  url.searchParams.set('valueRenderOption','UNFORMATTED_VALUE');
+  url.searchParams.set('dateTimeRenderOption','FORMATTED_STRING');
   for(const change of changes)url.searchParams.append('ranges',change.range);
   const results=(await request(url.toString())).valueRanges;
   if(!Array.isArray(results)||results.length!==changes.length)throw Error('SHEETS_PROJECTION_READ_INCOMPLETE');

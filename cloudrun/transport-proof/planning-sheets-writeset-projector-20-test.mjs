@@ -77,4 +77,21 @@ assert.equal(diagnostic[0].differingCount,1);
 assert.equal(diagnostic[0].differing[0].column,2);
 assert.ok(!JSON.stringify(diagnostic).includes('alternate-auditor'));
 assert.ok(!JSON.stringify(diagnostic).includes('auditor@example.test'));
+
+// Single-cell AD7 recovery is a valid fenced write set, including replay.
+values.set('Audit planning!AD7',['No']);
+const toggle={projectionWrites:[{range:'Audit planning!AD7',values:[['Yes']]}],
+ projectionPreconditions:[{range:'Audit planning!AD7',before:['No']}]};
+assert.equal((await projector.inspect(toggle)).state,'READY');
+assert.equal((await projector.inspectDiff(toggle))[0].differing[0].column,1);
+const beforeToggleWrites=writeCount;
+await projector.apply({operationId:'self-planning-rescue',gateToken:'token-rescue',plan:toggle});
+assert.equal(values.get('Audit planning!AD7')[0],'Yes');
+assert.equal((await projector.inspect(toggle)).state,'MATCH');
+await projector.apply({operationId:'self-planning-rescue',gateToken:'token-rescue',plan:toggle});
+assert.equal(writeCount,beforeToggleWrites+1);
+await assert.rejects(()=>projector.inspect({
+ projectionWrites:[{range:'Audit planning!AD7',values:[['Yes','unexpected']]}],
+ projectionPreconditions:[{range:'Audit planning!AD7',before:['No']}]
+}),/SHEETS_PROJECTION_RANGE_INVALID/);
 console.log('Sheets writeset projection: raw idempotence, row expansion, replay, conflict and fencing passed');

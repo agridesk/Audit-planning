@@ -8,7 +8,7 @@ const fakeFetch=async(url,options={})=>{
   assert.equal(u.searchParams.get('fields'),'sheets(properties(sheetId,title,gridProperties(rowCount)))');
   return {ok:true,json:async()=>({sheets:[{properties:{sheetId:7,title:'Audit planning',gridProperties:{rowCount:20}}}]})};
  }
- if(u.pathname.endsWith('/values:batchGet'))return {ok:true,json:async()=>({valueRanges:[{values:[row]}]})};
+ if(u.pathname.endsWith('/values:batchGet')){assert.equal(u.searchParams.get('valueRenderOption'),'UNFORMATTED_VALUE');assert.equal(u.searchParams.get('dateTimeRenderOption'),'FORMATTED_STRING');return {ok:true,json:async()=>({valueRanges:[{values:[row]}]})};}
  if(u.pathname.endsWith('/values:batchUpdate')){
   assert.equal(options.method,'POST');
   const data=JSON.parse(options.body);

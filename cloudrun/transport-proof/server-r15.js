@@ -49,6 +49,7 @@ import {createPlanningMultiLifecycleService} from './planning-multi-lifecycle-se
 import {createPlanningAtomicTransferService} from './planning-atomic-transfer-service-20.js';
 import {createPlanningAtomicRecovery} from './planning-atomic-recovery-20.js';
 import {createPlanningAtomicForwardRecovery20} from './planning-atomic-forward-recovery-20.js';
+import {createVisitCompositionForwardRecovery20} from './visit-composition-forward-recovery-20.js';
 import {createAtomicSelfPlanningRescue20} from './planning-atomic-self-planning-rescue-20.js';
 import {createPartialTimestampRepair20} from './planning-atomic-partial-timestamp-repair-20.js';
 import {createPlanningAtomicParityVerifier} from './planning-atomic-parity-verifier-20.js';
@@ -541,6 +542,21 @@ const planningAtomicForwardRecovery=planningAtomicRecovery?createPlanningAtomicF
    const current=await planningGlobalGate.read();
    if(current.holder?.operationId!==operationId||current.holder.token!==gateToken||
       current.holder.state!=='RECOVERING')throw Error('ATOMIC_FORWARD_RECOVERY_APPEND_FENCE_LOST');
+  }})
+}):null;
+const visitCompositionForwardRecovery=planningAtomicRecovery?createVisitCompositionForwardRecovery20({
+ store:planningAtomicStore,gate:planningGlobalGate,recovery:planningAtomicRecovery,availabilityService:service,
+ projector:createPlanningSheetsWritesetProjector({spreadsheetId:spreadsheet,getToken,
+  verifyFence:async({operationId,gateToken})=>{
+   const current=await planningGlobalGate.read();
+   if(current.holder?.operationId!==operationId||current.holder.token!==gateToken||
+      current.holder.state!=='RECOVERING')throw Error('COMPOSITION_FORWARD_RECOVERY_FENCE_LOST');
+  }}),
+ appendProjector:createPlanningSheetsAppendProjector({spreadsheetId:spreadsheet,getToken,
+  verifyFence:async({operationId,gateToken})=>{
+   const current=await planningGlobalGate.read();
+   if(current.holder?.operationId!==operationId||current.holder.token!==gateToken||
+      current.holder.state!=='RECOVERING')throw Error('COMPOSITION_FORWARD_RECOVERY_APPEND_FENCE_LOST');
   }})
 }):null;
 const planningSelfPlanningRescue=planningAtomicRecovery?createAtomicSelfPlanningRescue20({
@@ -1692,6 +1708,23 @@ http.createServer(async(req,res)=>{
    if(input.confirm!=='RECOVER_ONLY_SELF_PLANNING_AD7')
     throw Error('SELF_PLANNING_RESCUE_CONFIRMATION_REQUIRED');
    const result=await planningSelfPlanningRescue.commit({operationId:String(input.operationId||'')});
+   planningCache.invalidate();
+   res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+   res.end(JSON.stringify(result));return;
+  }
+  // Manager-approved recovery of the already committed Separate composition.
+  if(req.method==='POST'&&u.pathname==='/api/v1/planning/atomic-composition-forward-recover'){
+   if(!runtime.isDev||!visitCompositionForwardRecovery){res.writeHead(404);res.end();return;}
+   const actor=await session(req);
+   if(actor?.role!=='manager'){res.writeHead(actor?403:401);res.end('Manager required');return;}
+   const origin=String(req.headers.origin||'');
+   if(!origin||new URL(origin).host!==String(req.headers.host||'')||
+      new URL(origin).protocol!=='https:')throw Error('COMPOSITION_RECOVERY_ORIGIN_DENIED');
+   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>2048)throw Error('COMPOSITION_RECOVERY_BODY_TOO_LARGE');}
+   const input=String(req.headers['content-type']||'').startsWith('application/x-www-form-urlencoded')?
+    Object.fromEntries(new URLSearchParams(raw)):JSON.parse(raw||'{}');
+   if(input.confirm!=='RECOVER_VERIFIED_COMPOSITION')throw Error('COMPOSITION_RECOVERY_CONFIRMATION_REQUIRED');
+   const result=await visitCompositionForwardRecovery.commit({operationId:String(input.operationId||'')});
    planningCache.invalidate();
    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
    res.end(JSON.stringify(result));return;

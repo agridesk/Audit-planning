@@ -77,7 +77,7 @@ export function createVisitCompositionForwardRecovery20({store,gate,projector,ap
     if(!mutation){await gate.finishRecovery({operationId,token:holder.token});throw e;}
     await gate.recordRecoveryFailure({operationId,token:holder.token,stage,
      code:String(e.message||'UNKNOWN').replace(/[^A-Za-z0-9_]/g,'_').slice(0,100)});
-    throw Error('COMPOSITION_FORWARD_RECOVERY_UNCERTAIN_'+stage);
+    throw Error('COMPOSITION_FORWARD_RECOVERY_UNCERTAIN_'+stage+'_'+String(e.message||'UNKNOWN').replace(/[^A-Za-z0-9_]/g,'_').slice(0,100));
    }
    await gate.finishRecovery({operationId,token:holder.token});
    const result=await recovery.recoverOne(entry,{normalizedPlan:plan});
@@ -111,7 +111,7 @@ export function createVisitCompositionForwardRecovery20({store,gate,projector,ap
    if(!mutation){await gate.finishRecovery({operationId,token:holder.token});throw e;}
    await gate.recordRecoveryFailure({operationId,token:holder.token,stage,
     code:String(e.message||'UNKNOWN').replace(/[^A-Za-z0-9_]/g,'_').slice(0,100)});
-   throw Error('COMPOSITION_FORWARD_RECOVERY_UNCERTAIN_'+stage);
+   throw Error('COMPOSITION_FORWARD_RECOVERY_UNCERTAIN_'+stage+'_'+String(e.message||'UNKNOWN').replace(/[^A-Za-z0-9_]/g,'_').slice(0,100));
   }
   await gate.finishRecovery({operationId,token:holder.token});
   // Canonical reconciliation must see the same normalized hour value.

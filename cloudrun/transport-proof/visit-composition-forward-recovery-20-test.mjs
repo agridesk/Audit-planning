@@ -65,3 +65,20 @@ test('RECOVERING resume retains fence when append write is uncertain',async()=>{
  await assert.rejects(()=>createVisitCompositionForwardRecovery20(x).commit({operationId:id}),/UNCERTAIN_APPENDS/);
  assert.deepEqual(x.events,['normalize-target','resume','normalize-target','failure']);
 });
+
+test('PROJECTED receipt retries lease settlement without any Sheets write',async()=>{
+ const x=setup();x.entry.state='PROJECTED';
+ x.gate.read=async()=>({holder:{operationId:id,state:'UNCERTAIN',uncertainAt:'2026-01-01T00:00:00Z'}});
+ x.projector.inspect=async()=>({state:'MATCH'});
+ x.appendProjector.inspect=async()=>({state:'MATCH'});
+ const result=await createVisitCompositionForwardRecovery20(x).commit({operationId:id});
+ assert.equal(result.settlementOnly,true);
+ assert.deepEqual(x.events,['normalize-target','settle']);
+});
+test('PROJECTED receipt refuses settlement when append proof is incomplete',async()=>{
+ const x=setup();x.entry.state='PROJECTED';
+ x.gate.read=async()=>({holder:{operationId:id,state:'UNCERTAIN',uncertainAt:'2026-01-01T00:00:00Z'}});
+ x.appendProjector.inspect=async()=>({state:'MISSING'});
+ await assert.rejects(()=>createVisitCompositionForwardRecovery20(x).commit({operationId:id}),/APPENDS_MISSING/);
+ assert.deepEqual(x.events,['normalize-target']);
+});

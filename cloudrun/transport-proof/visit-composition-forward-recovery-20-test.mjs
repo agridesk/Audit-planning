@@ -8,9 +8,9 @@ function setup(){
   auditId:'source',snapshot,entities:[{auditId:'source',revision:2},{auditId:'successor',revision:1}]};
  const plan=structuredClone(snapshot);
  const store={readOutbox:async()=>entry,readAudit:async auditId=>({pendingOperationId:id,revision:auditId==='source'?2:1})};
- const gate={beginRecovery:async()=>{events.push('begin');return {token:'fence'};},
+ const gate={read:async()=>({holder:{operationId:id,state:'UNCERTAIN'}}),resumeRecovery:async()=>{events.push('resume');return {token:'rotated'};},beginRecovery:async()=>{events.push('begin');return {token:'fence'};},
   finishRecovery:async()=>{events.push('finish');},recordRecoveryFailure:async()=>events.push('failure')};
- const projector={normalizeLegacySourceHours:async()=>{events.push('normalize');return plan;},
+ const projector={normalizeCommittedTargetHours:async()=>{events.push('normalize-target');return plan;},normalizeLegacySourceHours:async()=>{events.push('normalize');return plan;},
   inspect:async()=>({state:'READY'}),apply:async()=>events.push('rows')};
  const appendProjector={inspect:async()=>({state:'MISSING'}),apply:async()=>events.push('appends')};
  const recovery={recoverOne:async(_entry,{normalizedPlan})=>{assert.equal(normalizedPlan,plan);events.push('settle');return {state:'PROJECTED'};}};
@@ -37,4 +37,29 @@ test('uncertain row write leaves recovery gate locked',async()=>{
  await assert.rejects(()=>createVisitCompositionForwardRecovery20(x).commit({operationId:id}),
   /UNCERTAIN_ROWS/);
  assert.deepEqual(x.events,['normalize','begin','normalize','failure']);
+});
+
+test('RECOVERING resume verifies rows before writing only missing appends',async()=>{
+ const x=setup();
+ x.gate.read=async()=>({holder:{operationId:id,state:'RECOVERING'}});
+ x.projector.inspect=async()=>({state:'MATCH'});
+ x.appendProjector.inspect=async()=>({state:'MISSING'});
+ const result=await createVisitCompositionForwardRecovery20(x).commit({operationId:id});
+ assert.equal(result.resumed,true);
+ assert.deepEqual(x.events,['normalize-target','resume','normalize-target','appends','finish','settle']);
+});
+test('RECOVERING resume refuses a row conflict without gate takeover or mutation',async()=>{
+ const x=setup();
+ x.gate.read=async()=>({holder:{operationId:id,state:'RECOVERING'}});
+ x.projector.normalizeCommittedTargetHours=async()=>{throw Error('COMPOSITION_TARGET_RECOVERY_RENDER_MISMATCH');};
+ await assert.rejects(()=>createVisitCompositionForwardRecovery20(x).commit({operationId:id}),/RENDER_MISMATCH/);
+ assert.deepEqual(x.events,[]);
+});
+test('RECOVERING resume retains fence when append write is uncertain',async()=>{
+ const x=setup();
+ x.gate.read=async()=>({holder:{operationId:id,state:'RECOVERING'}});
+ x.projector.inspect=async()=>({state:'MATCH'});
+ x.appendProjector.apply=async()=>{throw Error('network');};
+ await assert.rejects(()=>createVisitCompositionForwardRecovery20(x).commit({operationId:id}),/UNCERTAIN_APPENDS/);
+ assert.deepEqual(x.events,['normalize-target','resume','normalize-target','failure']);
 });

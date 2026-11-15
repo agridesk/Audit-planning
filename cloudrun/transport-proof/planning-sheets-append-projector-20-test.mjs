@@ -10,12 +10,29 @@ const fetchImpl=async(url,init={})=>{
   const range=path.split('/values/')[1],sheet=range.split('!')[0];
   return ok({values:rows[sheet]});
  }
- if(method==='POST'&&path.endsWith(':append')){
-  assert.equal(u.searchParams.get('valueInputOption'),'RAW','Outbox append must preserve identifiers, dates and formula-like literals');
-  const sheet=path.split('/values/')[1].split('!')[0];
-  rows[sheet].push(...JSON.parse(init.body).values);appended++;
+ if(method==='GET'&&path.endsWith('/spreadsheets/dev-sheet')){
+  return ok({sheets:Object.keys(rows).map((title,sheetId)=>({properties:{title,sheetId}}))});
+ }
+ if(method==='POST'&&path.endsWith(':batchUpdate')){
+  const body=JSON.parse(init.body);
+  const request=body.requests?.[0]?.appendCells;
+  assert.equal(body.requests.length,1);
+  assert.equal(request.fields,'userEnteredValue');
+  const sheet=Object.keys(rows)[request.sheetId];
+  assert.ok(sheet,'appendCells must target an existing sheet');
+  for(const row of request.rows){
+   const values=row.values.map(cell=>{
+    const v=cell.userEnteredValue;
+    if(v.stringValue!==undefined)return v.stringValue;
+    if(v.numberValue!==undefined)return v.numberValue;
+    if(v.boolValue!==undefined)return v.boolValue;
+    return '';
+   });
+   rows[sheet].push(values);
+   appended++;
+  }
   if(loseFenceAfterAppend)deny=true;
-  return ok({updates:{updatedRows:1}});
+  return ok({replies:[{}]});
  }
  throw Error('HTTP_FIXTURE_UNKNOWN');
 };

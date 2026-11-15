@@ -61,11 +61,11 @@ function testFixture(mode='TOGETHER'){
   async commitMulti(x){if(fail==='commit')throw Error('WRITE_TIMEOUT');outbox.set(x.operationId,
     {auditId,actorId:'manager-1',action:'VISIT_COMPOSITION_'+mode,state:'PENDING'});
     return {replayed:false,entities:x.entities.map(e=>e.auditId)};},
-  async markProjected(x){mark++;outbox.get(x.operationId).state='PROJECTED';},
+  async markProjected(x){if(fail==='mark')throw Error('SETTLEMENT_TIMEOUT');mark++;outbox.get(x.operationId).state='PROJECTED';},
   async markUncertain(){uncertain++;}
  };
  const gate={async acquire(){locked=true;return {token:'gate-1'};},
-  async release(){locked=false;},async uncertain(){uncertain++;}};
+  async release(){if(fail==='gate-release')throw Error('GATE_RELEASE_TIMEOUT');locked=false;},async uncertain(){uncertain++;}};
  const availabilityService={
   async acquirePlanningLease(){leases++;return {token:'lease-1',version:1,document:{version:1}};},
   async releasePlanningLease(){if(fail==='release-lease')throw Error('LEASE_RELEASE_TIMEOUT');leases--;},
@@ -73,7 +73,7 @@ function testFixture(mode='TOGETHER'){
  };
  const projector={async apply(){applied++;if(fail==='project')throw Error('PROJECT_TIMEOUT');},
   async inspect(){return {state:'MATCH',detail:[]}}};
- const appendProjector={async apply(){},async inspect(){return {state:'MATCH',count:1}}};
+ const appendProjector={async apply(){if(fail==='append')throw Error('APPEND_TIMEOUT');},async inspect(){return {state:'MATCH',count:1}}};
  const service=createVisitCompositionAtomicService20({store,gate,availabilityService,hardGate:()=>{},
   preflight:async()=>preview,projector,appendProjector});
  return {service,preview,stats:()=>({applied,leases,uncertain,locked,mark}),setFail:x=>fail=x};
@@ -134,6 +134,12 @@ for(const mode of ['TOGETHER','SEPARATELY']){
  assert.equal(leaseFailure.stats().mark,1);
  assert.equal(leaseFailure.stats().locked,true,'Projected audit with uncertain lease must retain the global gate');
  assert.ok(leaseFailure.stats().uncertain>=2);
+ for(const [failure,pattern] of [['append',/APPEND_TIMEOUT/],['mark',/SETTLEMENT_TIMEOUT/],['gate-release',/GATE_RELEASE_TIMEOUT/]]){
+  const scenario=testFixture(mode);scenario.setFail(failure);
+  await assert.rejects(()=>scenario.service.commit(args),pattern);
+  assert.equal(scenario.stats().locked,true,'Uncertain post-commit stage must preserve the global fence: '+failure);
+  assert.ok(scenario.stats().uncertain>=1);
+ }
  const projectionFailure=testFixture(mode);projectionFailure.setFail('project');
  await assert.rejects(()=>projectionFailure.service.commit(args),/PROJECT_TIMEOUT/);
  assert.ok(projectionFailure.stats().uncertain>=2);

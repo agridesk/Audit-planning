@@ -5,9 +5,10 @@ import {createPlanningSheetsAppendProjector} from './planning-sheets-append-proj
 // No live Google API or Firestore calls.
 const sheets={'Audit_Visit_Obligations':[['Visit_ID','Obligation_ID']], 'Notification Queue':[['Event','Visit_ID']]};
 const ids={'Audit_Visit_Obligations':21,'Notification Queue':22};
+const notification=(status,visit)=>[status,visit,'','','','','','','','','hash-'+visit];
 const intents=[
  {range:'Audit_Visit_Obligations!A:Z',values:[['VIS-A','OB-A'],['VIS-B','OB-B']]},
- {range:'Notification Queue!A:M',values:[['SENT_DEV_REDIRECT','VIS-A'],['SENT_DEV_REDIRECT','VIS-B']]}
+ {range:'Notification Queue!A:M',values:[notification('SENT_DEV_REDIRECT','VIS-A'),notification('SENT_DEV_REDIRECT','VIS-B')]}
 ];
 let writes=0,failAfterWrite=false,failStatus=0;
 const ok=x=>({ok:true,status:200,json:async()=>structuredClone(x)});
@@ -46,13 +47,13 @@ assert.equal((await projector.inspect(intents)).state,'MATCH');
 assert.equal((await projector.apply({operationId:'op',gateToken:'fence',intents})).replayed,true);
 assert.equal(writes,4);
 // Duplicate stored row is a hard failure.
-sheets['Notification Queue'].push(['SENT_DEV_REDIRECT','VIS-A']);
-await assert.rejects(()=>projector.inspect(intents),/APPEND_PROJECTION_DUPLICATE_ALREADY_PRESENT/);
-await assert.rejects(()=>projector.apply({operationId:'op',gateToken:'fence',intents}),/APPEND_PROJECTION_DUPLICATE_ALREADY_PRESENT/);
+sheets['Notification Queue'].push(notification('SENT_DEV_REDIRECT','VIS-A'));
+await assert.rejects(()=>projector.inspect(intents),/APPEND_NOTIFICATION_LOGICAL_DUPLICATE_PRESENT/);
+await assert.rejects(()=>projector.apply({operationId:'op',gateToken:'fence',intents}),/APPEND_NOTIFICATION_LOGICAL_DUPLICATE_PRESENT/);
 sheets['Notification Queue'].pop();
 // HTTP 429/503 must never be interpreted as a successful append.
 for(const status of [429,503]){
- const extra=[{range:'Notification Queue!A:M',values:[['PENDING','VIS-C']]}];
+ const extra=[{range:'Notification Queue!A:M',values:[notification('PENDING','VIS-C')]}];
  failStatus=status;
  await assert.rejects(()=>projector.apply({operationId:'op',gateToken:'fence',intents:extra}),new RegExp('APPEND_PROJECTOR_HTTP_'+status));
  assert.equal(writes,4);
@@ -61,13 +62,13 @@ for(const status of [429,503]){
 // R4: a full 5000-row scan is not proof of absence; fail closed.
 const originalQueue=sheets['Notification Queue'];
 sheets['Notification Queue']=[originalQueue[0],...Array.from({length:4999},(_,i)=>['ROW-'+i])];
-await assert.rejects(()=>projector.inspect([{range:'Notification Queue!A:M',values:[['PENDING','VIS-Z']]}]),/APPEND_PROJECTION_SOURCE_TRUNCATED/);
+await assert.rejects(()=>projector.inspect([{range:'Notification Queue!A:M',values:[notification('PENDING','VIS-Z')]}]),/APPEND_PROJECTION_SOURCE_TRUNCATED/);
 sheets['Notification Queue']=originalQueue;
 // Fence lost after a committed write: recovery may inspect, but must not replay blindly.
 let fenceChecks=0,injectFenceFailure=true;
 const fenced=createPlanningSheetsAppendProjector({spreadsheetId:'dev-sheet',getToken:async()=> 'token',fetchImpl,
  verifyFence:async()=>{if(injectFenceFailure&&++fenceChecks===3)throw Error('R4_FENCE_LOST');}});
-const fenceIntent=[{range:'Notification Queue!A:M',values:[['PENDING','VIS-FENCE']]}];
+const fenceIntent=[{range:'Notification Queue!A:M',values:[notification('PENDING','VIS-FENCE')]}];
 const beforeFence=writes;
 await assert.rejects(()=>fenced.apply({operationId:'fence-op',gateToken:'fence',intents:fenceIntent}),/R4_FENCE_LOST/);
 assert.equal(writes,beforeFence);

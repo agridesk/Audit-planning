@@ -119,6 +119,13 @@ for(const mode of ['TOGETHER','SEPARATELY']){
  noRecipient.preview.appendIntents[0].values[0][3]='';
  await assert.rejects(()=>noRecipient.service.commit(args),/NOTIFICATION_RECIPIENT_MISSING/);
  assert.equal(noRecipient.stats().applied,0);
+ const precommitLeaseFailure=testFixture(mode);
+ precommitLeaseFailure.preview.availabilityVersions['aud-1']=9;
+ precommitLeaseFailure.setFail('release-lease');
+ await assert.rejects(()=>precommitLeaseFailure.service.commit(args),/AVAILABILITY_VERSION_DRIFT/);
+ assert.equal(precommitLeaseFailure.stats().mark,0);
+ assert.equal(precommitLeaseFailure.stats().locked,true,'Failed precommit lease cleanup must retain the global gate');
+ assert.ok(precommitLeaseFailure.stats().uncertain>=1);
  const drift=testFixture(mode);drift.preview.availabilityVersions['aud-1']=9;
  await assert.rejects(()=>drift.service.commit(args),/AVAILABILITY_VERSION_DRIFT/);
  assert.equal(drift.stats().leases,0);assert.equal(drift.stats().locked,false);

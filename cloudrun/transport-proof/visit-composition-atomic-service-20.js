@@ -253,6 +253,12 @@ export function createVisitCompositionAtomicService20({store,gate,availabilitySe
     availabilityLeaseAuditors:groups.map(x=>x.auditorId),
     projectionWrites:preview.projectionWrites,
     projectionPreconditions:preview.projectionPreconditions,appendIntents:preview.appendIntents};
+   // Check Sheets row preconditions before the irreversible Firestore CAS.
+   // A pre-existing row mismatch must not strand a committed outbox behind
+   // an UNCERTAIN global gate. Recheck still occurs inside projector.apply.
+   const sheetsBeforeCommit=await projector.inspect(plan);
+   if(sheetsBeforeCommit.state!=='READY'&&sheetsBeforeCommit.state!=='MATCH')
+    throw Error('VISIT_COMPOSITION_SHEETS_PRECONDITION_CONFLICT_BEFORE_COMMIT');
    attempted=true;
    const receipt=await store.commitMulti({operationId,actorId:actor.auditorId,
     action:'VISIT_COMPOSITION_'+mode,entities,projectionPlan:plan});

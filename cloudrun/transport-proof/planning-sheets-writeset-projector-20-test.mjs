@@ -95,4 +95,10 @@ await assert.rejects(()=>projector.inspect({
  projectionWrites:[{range:'Audit planning!AD7',values:[['Yes','unexpected']]}],
  projectionPreconditions:[{range:'Audit planning!AD7',before:['No']}]
 }),/SHEETS_PROJECTION_RANGE_INVALID/);
+// Read-only render parity must expose only column positions and match flags.
+const rendered=await projector.inspectRenderParity(plan);
+assert.equal(rendered.detail.length,2);
+assert.equal(typeof rendered.allFormattedBefore,'boolean');
+assert.ok(!JSON.stringify(rendered).includes('auditor@example.test'));
+assert.ok(!JSON.stringify(rendered).includes('alternate-auditor'));
 console.log('Sheets writeset projection: raw idempotence, row expansion, replay, conflict and fencing passed');

@@ -58,4 +58,22 @@ for(const status of [429,503]){
  assert.equal(writes,4);
  failStatus=0;
 }
+// R4: a full 5000-row scan is not proof of absence; fail closed.
+const originalQueue=sheets['Notification Queue'];
+sheets['Notification Queue']=[originalQueue[0],...Array.from({length:4999},(_,i)=>['ROW-'+i])];
+await assert.rejects(()=>projector.inspect([{range:'Notification Queue!A:M',values:[['PENDING','VIS-Z']]}]),/APPEND_PROJECTION_SOURCE_TRUNCATED/);
+sheets['Notification Queue']=originalQueue;
+// Fence lost after a committed write: recovery may inspect, but must not replay blindly.
+let fenceChecks=0,injectFenceFailure=true;
+const fenced=createPlanningSheetsAppendProjector({spreadsheetId:'dev-sheet',getToken:async()=> 'token',fetchImpl,
+ verifyFence:async()=>{if(injectFenceFailure&&++fenceChecks===3)throw Error('R4_FENCE_LOST');}});
+const fenceIntent=[{range:'Notification Queue!A:M',values:[['PENDING','VIS-FENCE']]}];
+const beforeFence=writes;
+await assert.rejects(()=>fenced.apply({operationId:'fence-op',gateToken:'fence',intents:fenceIntent}),/R4_FENCE_LOST/);
+assert.equal(writes,beforeFence);
+injectFenceFailure=false;
+assert.equal((await fenced.apply({operationId:'fence-op',gateToken:'new-fence',intents:fenceIntent})).confirmed,true);
+assert.equal(writes,beforeFence+1);
+assert.equal((await fenced.apply({operationId:'fence-op',gateToken:'new-fence',intents:fenceIntent})).replayed,true);
+assert.equal(writes,beforeFence+1);
 console.log('R1C append failure-injection: partial write, timeout, replay, duplicate, 429/503 PASS');

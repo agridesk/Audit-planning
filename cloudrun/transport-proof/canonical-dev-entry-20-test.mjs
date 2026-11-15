@@ -48,3 +48,6 @@ assert.ok(runtime.includes("preflightAuthRoutes.has(writerPath)"),'Only login/lo
 assert.ok(runtime.includes("delete headers.origin;"),'Public proxy validates preflight Origin, then strips it only for authorized login routes');
 assert.ok(!runtime.includes("PREFLIGHT_AUTH_CANONICAL_ORIGIN_NOT_CONFIGURED"),'Preflight login must not depend on a possibly absent canonical DEV origin setting');
 console.log('Canonical AMS DEV URL: tagged previews redirect; writes fail closed; PROD unaffected');
+
+assert.deepEqual(canonicalDevEntry20({...base,host:'r1-recovery---'+canonical,method:'GET',url:'/manager/atomic-composition-login'}),{action:'PASS'});
+assert.deepEqual(canonicalDevEntry20({...base,host:'r1-recovery---'+canonical,method:'POST',url:'/api/v1/planning/direct-commit'}),{action:'REJECT',status:421});

@@ -67,3 +67,5 @@ assert.equal(r1('POST','/api/v1/planning/atomic-composition-forward-recover').ac
 assert.equal(r1('POST','/auth/otp/verify').action,'PASS');
 assert.equal(r1('POST','/api/v1/planning/direct-commit').status,421);
 assert.equal(r1('GET','/manager/planning').status,421);
+
+assert.equal(r1('GET','/').action,'PASS');

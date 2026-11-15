@@ -41,7 +41,7 @@ assert.deepEqual(canonicalDevEntry20({...base,host:preflight,method:'GET',url:'/
 });
 const runtime=readFileSync(new URL('./server-r15.js',import.meta.url),'utf8');
 assert.ok(runtime.includes("taggedPreflightReadOnly:process.env.AMS_DEV_PREFLIGHT_READONLY_BROWSER_ENABLED==='true'"),'R15 must explicitly opt into preflight read-only gate');
-assert.ok(runtime.includes("String(req.headers.host||'').toLowerCase()===preflightHost"),'Preflight authorization requires the exact tagged host');
+assert.ok(runtime.includes("[preflightHost,recoveryHost].includes(String(req.headers.host||'').toLowerCase())"),'Preflight authorization requires the exact tagged host');
 assert.ok(runtime.includes("requestOrigin!==expectedPreflightOrigin&&!samePreflightForm"),'Preflight auth requires exact origin or verified same-origin form');
 assert.ok(runtime.includes("writerPath==='/auth/dev-login'&&")&&runtime.includes("(!requestOrigin||requestOrigin==='null')")&&runtime.includes("String(req.headers['sec-fetch-site']||'')==='same-origin'")&&runtime.includes("String(req.headers['sec-fetch-mode']||'')==='navigate'")&&runtime.includes("String(req.headers['sec-fetch-dest']||'')==='document'"),'Only a protected same-origin top-level browser DEV-login form may omit Origin or send null');
 assert.ok(runtime.includes("preflightAuthRoutes.has(writerPath)"),'Only login/logout requests receive the trusted auth bridge');

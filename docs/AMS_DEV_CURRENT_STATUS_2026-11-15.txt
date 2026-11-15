@@ -75,3 +75,10 @@ Notification Queue r769 EN r771: zelfde Visit ID VIS-484C04B11EFE19B89477, zelfd
 Config_Scope_Dependencies live: DEP_MPSGAP_GRASP, MPS-GAP -> GRASP, ADD_ON, Must_Audit_Together=YES, Share_Expiry=YES, Active=YES. De herstelde Separate-visits betreffen GAP en ABC; geen directe tegenspraak met deze dependency.
 PR #110 gemerged commit 0ccb9327243cc71e9c0f391112dee548eeb59134; twee CI-workflows geslaagd. R4 offline scan/fencing tests PASS, maar geen live E2E.
 BESLUIT: R1C NO-GO wegens dubbele notificatie-events, totdat exacte outbox-append-pariteit, Firestore leases en notificatie-writer/herkomst onafhankelijk bewezen zijn. Geen live planningwrites of notificatie-remediatie zonder forensische reconciliatie. R2 offline tests kunnen doorgaan.
+
+12. OFFLINE HARDENING 15 NOVEMBER 2026 — PR #113–#116
+PR #113 gemerged commit 909579eeb0f406a739ad7c61dc1b08831f95869f: notification append projector behandelt identieke PayloadHash als logische identiteit ondanks gewijzigde status, pogingen of verzendtijd; meerdere bestaande rijen met dezelfde hash veroorzaken fail-closed. CI beide PASS.
+PR #114 gemerged commit f2fcf0701a5724549e797febd79978ddbc9a15eb: extra R2 negatieve dependencyfixtures (dubbele ID, self-link, ongeldige Active, GAP+ABC separabel). CI beide PASS.
+PR #115 gemerged commit dd7b555a477a04bf3963a56a865c7bed2a46b05f: offline reproductie van beide live dubbele Visit ID/PayloadHash-paren; inspect en apply blokkeren nieuwe writes. CI beide PASS.
+PR #116 gemerged commit a59ab6eb1adf62bc23b2f792ee82d02a5fea0f96: ontbrekende en dubbele PayloadHashes in één atomic append-intent worden vóór I/O afgewezen; bijbehorende failure-injection- en lifecyclefixtures aangepast; CI beide PASS.
+Deze wijzigingen zijn uitsluitend GitHub dev-code en offline regressies. Geen deployment of live Sheets/Firestore-writes. R1C blijft NO-GO: bestaande duplicaten, Firestore outbox/leases en Cloud Run traffic zijn nog niet onafhankelijk gereconcilieerd. Issue #111 blijft OPEN. Historische dubbele notificaties mogen niet zonder bewijs worden verwijderd of opnieuw verzonden.

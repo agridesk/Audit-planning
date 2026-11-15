@@ -2127,6 +2127,19 @@ http.createServer(async(req,res)=>{
    if(gate.holder?.kind==='VISIT_COMPOSITION_SEPARATELY'&&
       /^[a-f0-9]{64}$/.test(operationId)){
     const entry=await planningAtomicStore.readOutbox(operationId);
+    if(entry?.state==='PROJECTED'&&entry.action==='VISIT_COMPOSITION_SEPARATELY'&&
+       gate.holder.state==='UNCERTAIN'){
+     const age=Date.now()-Date.parse(gate.holder.uncertainAt||'');
+     if(!Number.isFinite(age)||age<30*60*1000)condition='SETTLEMENT_QUARANTINE_ACTIVE';
+     else{
+      try{
+       await planningAtomicProjector.normalizeCommittedTargetHours(entry.snapshot);
+       const append=await planningAtomicAppendProjector.inspect(entry.snapshot.appendIntents);
+       eligible=append.state==='MATCH';
+       condition=eligible?'PROJECTED_LEASE_SETTLEMENT_VERIFIED':'SETTLEMENT_APPENDS_MISSING';
+      }catch{condition='SETTLEMENT_ROWS_CONFLICT';}
+     }
+    }
     if(entry?.state==='UNCERTAIN'&&entry.action==='VISIT_COMPOSITION_SEPARATELY'){
      if(gate.holder.state==='RECOVERING'){
       const age=Date.now()-Date.parse(gate.holder.recoveryStartedAt||'');

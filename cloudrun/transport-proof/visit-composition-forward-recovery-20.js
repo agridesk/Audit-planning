@@ -6,9 +6,25 @@ export function createVisitCompositionForwardRecovery20({store,gate,projector,ap
   if(!/^[a-f0-9]{64}$/.test(String(operationId||'')))throw Error('COMPOSITION_FORWARD_RECOVERY_ID_INVALID');
   const entry=await store.readOutbox(operationId);
   if(entry?.operationId!==operationId||entry.action!=='VISIT_COMPOSITION_SEPARATELY'||
-     entry.state!=='UNCERTAIN'||entry.multi!==true||!entry.snapshot||
+     !['UNCERTAIN','PROJECTED'].includes(entry.state)||entry.multi!==true||!entry.snapshot||
      !Array.isArray(entry.entities)||entry.entities.length<2)
    throw Error('COMPOSITION_FORWARD_RECOVERY_OUTBOX_INVALID');
+  // A crash after Firestore settlement but before auditor-lease reconciliation
+  // must be recoverable without replaying any Sheets mutation or receipt.
+  if(entry.state==='PROJECTED'){
+   const holder=(await gate.read()).holder;
+   if(!holder||holder.operationId!==operationId||holder.state!=='UNCERTAIN')
+    throw Error('COMPOSITION_SETTLEMENT_GATE_NOT_QUARANTINED');
+   const since=Date.parse(holder.uncertainAt||'');
+   if(!Number.isFinite(since)||Date.now()-since<30*60*1000)
+    throw Error('COMPOSITION_SETTLEMENT_QUARANTINE_ACTIVE');
+   const plan=await projector.normalizeCommittedTargetHours(entry.snapshot);
+   if((await appendProjector.inspect(entry.snapshot.appendIntents)).state!=='MATCH')
+    throw Error('COMPOSITION_SETTLEMENT_APPENDS_MISSING');
+   const result=await recovery.recoverOne(entry,{normalizedPlan:plan});
+   if(result.state!=='PROJECTED')throw Error('COMPOSITION_SETTLEMENT_INCOMPLETE');
+   return {success:true,operationId,state:'PROJECTED',settlementOnly:true};
+  }
   const source=await store.readAudit(entry.auditId);
   if(source?.pendingOperationId!==operationId)throw Error('COMPOSITION_FORWARD_RECOVERY_SOURCE_CAS');
   for(const entity of entry.entities){

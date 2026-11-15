@@ -101,11 +101,20 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   const before=await inspect(intents);
   if(before.state==='MATCH'){await verifyFence({operationId,gateToken});return {operationId,confirmed:true,replayed:true};}
   await verifyFence({operationId,gateToken});
+  // Reconcile each intent immediately before writing. A previous append can have
+  // succeeded despite a lost response; never replay that row without a fresh scan.
   for(const missing of before.missing){
    await verifyFence({operationId,gateToken});
+   const current=await inspect(intents);
+   if(current.state==='MATCH')break;
+   if(!current.missing.some(item=>item.sheet===missing.sheet&&same(item.row,missing.row)))continue;
    const url=base+'/values/'+encodeURIComponent(missing.range)+':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS';
+   // A transport failure leaves the outcome uncertain. Stop rather than retry.
    await request(url,'POST',{values:[missing.row]});
    await verifyFence({operationId,gateToken});
+   const confirmed=await inspect(intents);
+   if(confirmed.missing.some(item=>item.sheet===missing.sheet&&same(item.row,missing.row)))
+    throw Error('APPEND_ROW_NOT_VERIFIED_STOP');
   }
   const after=await inspect(intents);
   if(after.state!=='MATCH')throw Error('APPEND_PROJECTION_UNVERIFIED');

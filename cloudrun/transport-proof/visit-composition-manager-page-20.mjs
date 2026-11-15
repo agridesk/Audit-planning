@@ -7,7 +7,7 @@ return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" c
 var q=new URLSearchParams(location.search),id=q.get('auditId')||'',mode=q.get('mode')==='TOGETHER'?'TOGETHER':'SEPARATELY',source=null,roster=[],enabled=false;
 var el=x=>document.getElementById(x),esc=x=>{var d=document.createElement('div');d.textContent=String(x==null?'':x);return d.innerHTML;};
 function fail(x){el('state').textContent=String(x);el('state').className='warn';}
-function dateLabel(x){return x?String(x):'Not recorded in Model C';}
+function dateLabel(x){var iso=usableIsoDate(x);return iso?iso.slice(8,10)+'/'+iso.slice(5,7)+'/'+iso.slice(0,4):(x?String(x):'Not recorded in Model C');}
 function usableIsoDate(x){
  var value=String(x||'').trim();
  if(!value)return '';

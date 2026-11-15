@@ -31,5 +31,5 @@ assert.match(r5,/composition20\.requiredTogetherPairs\?\.length\?' disabled titl
 assert.match(r5,/composition20\.requiredTogetherPairs\?\.length>0\|\|mode==='TOGETHER'/);
 assert.match(r5,/if\(!Array\.isArray\(preview\.requiredTogetherPairs\)/);
 const editor=readFileSync(new URL('./visit-composition-manager-page-20.mjs',import.meta.url),'utf8');
-assert.match(editor,/el\('modeSeparate'\)\.disabled=!!source\.requiredTogetherPairs\?\.length/);
+assert.match(editor,/el\('modeSeparate'\)\.disabled=!source\.separateAllowed\|\|!!source\.requiredTogetherPairs\?\.length/);
 console.log('Scope dependency policy: canonical GAP/GRASP mandatory Together, UI and atomic preflight gates PASS');

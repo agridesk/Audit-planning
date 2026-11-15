@@ -68,7 +68,7 @@ export function canonicalDevEntry20({isDev,service,host,method,url,taggedPreflig
  // Isolated recovery tag: only the fenced recovery UI and auth endpoints.
  if(requestHost==='r1-recovery---'+canonical){
   const route=path.split('?')[0];
-  const get=new Set(['/','/manager/atomic-composition-recovery','/api/v1/planning/atomic-write-health']);
+  const get=new Set(['/','/manager/atomic-composition-login','/manager/atomic-composition-recovery','/api/v1/planning/atomic-write-health']);
   const post=new Set(['/api/v1/planning/atomic-composition-forward-recover',
    '/auth/otp/request','/auth/otp/verify','/auth/dev-login','/auth/logout']);
   if((verb==='GET'&&get.has(route))||(verb==='POST'&&post.has(route)))return {action:'PASS'};

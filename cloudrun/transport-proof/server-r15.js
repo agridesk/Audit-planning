@@ -2135,7 +2135,8 @@ http.createServer(async(req,res)=>{
       const rows=await planningAtomicProjector.inspect(entry.snapshot);
       const append=await planningAtomicAppendProjector.inspect(entry.snapshot.appendIntents);
       eligible=parity.allFormattedBefore&&rows.state==='CONFLICT'&&append.state==='MISSING'&&
-       entry.snapshot.projectionWrites?.length===5&&entry.snapshot.appendIntents?.length===6;
+       entry.snapshot.projectionWrites?.length===5&&
+       entry.snapshot.appendIntents?.reduce((n,intent)=>n+(Array.isArray(intent.values)?intent.values.length:0),0)===6;
       condition=eligible?'FORMATTED_SOURCE_VERIFIED':'SOURCE_NOT_ELIGIBLE';
      }
     }

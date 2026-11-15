@@ -2124,20 +2124,34 @@ http.createServer(async(req,res)=>{
    if(actor?.role!=='manager'){res.writeHead(actor?403:401);res.end('Manager required');return;}
    const gate=await planningGlobalGate.read(),operationId=gate.holder?.operationId||'';
    let eligible=false,condition='NO_QUARANTINED_COMPOSITION';
-   if(gate.holder?.state==='UNCERTAIN'&&gate.holder.kind==='VISIT_COMPOSITION_SEPARATELY'&&
+   if(gate.holder?.kind==='VISIT_COMPOSITION_SEPARATELY'&&
       /^[a-f0-9]{64}$/.test(operationId)){
     const entry=await planningAtomicStore.readOutbox(operationId);
     if(entry?.state==='UNCERTAIN'&&entry.action==='VISIT_COMPOSITION_SEPARATELY'){
-     const age=Date.now()-Date.parse(gate.holder.uncertainAt||'');
-     if(!Number.isFinite(age)||age<30*60*1000)condition='QUARANTINE_ACTIVE';
-     else{
-      const parity=await planningAtomicProjector.inspectRenderParity(entry.snapshot);
-      const rows=await planningAtomicProjector.inspect(entry.snapshot);
-      const append=await planningAtomicAppendProjector.inspect(entry.snapshot.appendIntents);
-      eligible=parity.allFormattedBefore&&rows.state==='CONFLICT'&&append.state==='MISSING'&&
-       entry.snapshot.projectionWrites?.length===5&&
-       entry.snapshot.appendIntents?.reduce((n,intent)=>n+(Array.isArray(intent.values)?intent.values.length:0),0)===6;
-      condition=eligible?'FORMATTED_SOURCE_VERIFIED':'SOURCE_NOT_ELIGIBLE';
+     if(gate.holder.state==='RECOVERING'){
+      const age=Date.now()-Date.parse(gate.holder.recoveryStartedAt||'');
+      if(!Number.isFinite(age)||age<30*60*1000)condition='RECOVERY_QUARANTINE_ACTIVE';
+      else{
+       try{
+        await planningAtomicProjector.normalizeCommittedTargetHours(entry.snapshot);
+        const append=await planningAtomicAppendProjector.inspect(entry.snapshot.appendIntents);
+        eligible=['MISSING','MATCH'].includes(append.state)&&
+         entry.snapshot.appendIntents?.reduce((n,intent)=>n+(Array.isArray(intent.values)?intent.values.length:0),0)===6;
+        condition=eligible?'COMMITTED_ROWS_VERIFIED_RESUME':'RECOVERY_RESUME_NOT_ELIGIBLE';
+       }catch{condition='RECOVERY_RESUME_SOURCE_CONFLICT';}
+      }
+     }else if(gate.holder.state==='UNCERTAIN'){
+      const age=Date.now()-Date.parse(gate.holder.uncertainAt||'');
+      if(!Number.isFinite(age)||age<30*60*1000)condition='QUARANTINE_ACTIVE';
+      else{
+       const parity=await planningAtomicProjector.inspectRenderParity(entry.snapshot);
+       const rows=await planningAtomicProjector.inspect(entry.snapshot);
+       const append=await planningAtomicAppendProjector.inspect(entry.snapshot.appendIntents);
+       eligible=parity.allFormattedBefore&&rows.state==='CONFLICT'&&append.state==='MISSING'&&
+        entry.snapshot.projectionWrites?.length===5&&
+        entry.snapshot.appendIntents?.reduce((n,intent)=>n+(Array.isArray(intent.values)?intent.values.length:0),0)===6;
+       condition=eligible?'FORMATTED_SOURCE_VERIFIED':'SOURCE_NOT_ELIGIBLE';
+      }
      }
     }
    }

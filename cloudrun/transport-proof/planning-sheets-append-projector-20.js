@@ -75,8 +75,13 @@ export function createPlanningSheetsAppendProjector({spreadsheetId,getToken,fetc
   await verifyFence({operationId,gateToken});
   for(const missing of before.missing){
    await verifyFence({operationId,gateToken});
-   const url=base+'/values/'+encodeURIComponent(missing.range)+':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS';
-   await request(url,'POST',{values:[missing.row]});
+   // values.append guesses a table boundary and can place data in a later column.
+   // appendCells always starts at column A, preserving RAW scalar types.
+   const metadata=await request(base+'?fields=sheets(properties(sheetId,title))');
+   const target=(metadata.sheets||[]).find(s=>s.properties?.title===missing.sheet);
+   if(!Number.isInteger(target?.properties?.sheetId))throw Error('APPEND_TARGET_SHEET_NOT_FOUND');
+   const values=missing.row.map(v=>({userEnteredValue:v===null?{}:typeof v==='string'?{stringValue:v}:typeof v==='boolean'?{boolValue:v}:{numberValue:v}}));
+   await request(base+':batchUpdate','POST',{requests:[{appendCells:{sheetId:target.properties.sheetId,rows:[{values}],fields:'userEnteredValue'}}]});
    await verifyFence({operationId,gateToken});
   }
   const after=await inspect(intents);

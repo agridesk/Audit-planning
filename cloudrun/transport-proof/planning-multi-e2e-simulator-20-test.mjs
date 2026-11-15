@@ -103,7 +103,7 @@ const store={
 const plan={auditId:'A1',sourceRevision:'rev-done',status:'Completed',assignedTo:'',
  projectionWrites:[{range:'Audit planning!A2:D2',values:[complete]},{range:'Audit planning!A10:D10',values:[successor]}],
  projectionPreconditions:[{range:'Audit planning!A2:D2',before:old},{range:'Audit planning!A10:D10',before:[]}],
- appendIntents:[{range:'Notification Queue!A:M',values:[['now','COMPLETE','A1']]}]
+ appendIntents:[{range:'Notification Queue!A:M',values:[['now','PENDING','COMPLETE','','A1','','','','','','hash-A1-COMPLETE']]}]
 };
 const preview={success:true,authorityPreflight:true,auditId:'A1',expectedSourceRevision:'rev-old',
  removedSourceRows:[{sheetTitle:'Audit planning',rowNumber:2}],canonicalSnapshot:plan,

@@ -148,6 +148,14 @@ await assert.rejects(()=>service.inspect(incidentIntents),/APPEND_NOTIFICATION_L
 await assert.rejects(()=>service.apply({operationId:'incident-111',gateToken:'fenced',intents:incidentIntents}),/APPEND_NOTIFICATION_LOGICAL_DUPLICATE_PRESENT/);
 assert.equal(appended,writesBeforeIncident);
 queue.splice(-4,4);
+// Reject malformed or internally contradictory notification batches before any I/O.
+const queueWritesBeforeValidation=appended;
+await assert.rejects(()=>service.inspect([{range:'Notification Queue!A:M',
+ values:[['stamp','PENDING','EVENT','','VIS-EMPTY','','','','','','']]}]),/APPEND_NOTIFICATION_HASH_REQUIRED/);
+await assert.rejects(()=>service.inspect([{range:'Notification Queue!A:M',
+ values:[['stamp','PENDING','EVENT','','VIS-1','','','','','','same-hash'],
+ ['stamp','PENDING','EVENT','','VIS-2','','','','','','same-hash']]}]),/APPEND_NOTIFICATION_DUPLICATE_HASH_INTENT/);
+assert.equal(appended,queueWritesBeforeValidation);
 console.log('Append projector: dedupe, replay, fence and unsupported-target guards passed');
 
 // Regression: a legacy append shifted into AG/BY must block any replay.

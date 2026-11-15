@@ -25,7 +25,21 @@ const sheetsFetch=async(url,opts={})=>{
  if(method==='GET'&&path.endsWith('/spreadsheets/simulator')){
   return result({sheets:[{properties:{title:'Audit planning',sheetId:1,gridProperties:{rowCount:5}}},{properties:{title:'Notification Queue',sheetId:2,gridProperties:{rowCount:100}}}]});
  }
- if(method==='POST'&&path.endsWith('/spreadsheets/simulator:batchUpdate')){expanded++;return result({});}
+ if(method==='POST'&&path.endsWith('/spreadsheets/simulator:batchUpdate')){
+  const body=JSON.parse(opts.body);
+  const append=body.requests?.[0]?.appendCells;
+  if(append){
+   const sheet=append.sheetId===1?'Audit planning':append.sheetId===2?'Notification Queue':null;
+   assert.ok(sheet,'appendCells target must be known');
+   const map=tabRows.get(sheet)||new Map();
+   for(const row of append.rows){
+    const values=row.values.map(c=>c.userEnteredValue?.stringValue??c.userEnteredValue?.numberValue??c.userEnteredValue?.boolValue??'');
+    map.set(Math.max(0,...map.keys())+1,values);appendWrites++;
+   }
+   tabRows.set(sheet,map);return result({replies:[{}]});
+  }
+  expanded++;return result({});
+ }
  if(method==='POST'&&path.endsWith('/values:batchUpdate')){
   for(const write of JSON.parse(opts.body).data){
    const match=/^([^!]+)![A-Z]+(\d+):/.exec(write.range);

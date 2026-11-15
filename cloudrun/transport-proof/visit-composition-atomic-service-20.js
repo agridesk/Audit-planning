@@ -282,7 +282,7 @@ export function createVisitCompositionAtomicService20({store,gate,availabilitySe
    }
    if(lock){
     if(!attempted)await gate.release({token:lock.token,verified:true,proof:'VISIT_COMPOSITION_PREFLIGHT_REJECTED'});
-    else if(projected)await gate.release({token:lock.token,verified:true,proof:'VISIT_COMPOSITION_PROJECTED_LEASE_UNCERTAIN'});
+    else if(projected)await gate.uncertain({token:lock.token,reason:'VISIT_COMPOSITION_PROJECTED_LEASE_RELEASE_UNCERTAIN'});
     else{
      if(committed&&typeof store.markUncertain==='function')
       await store.markUncertain({auditId:sourceAuditId,operationId,reason:'VISIT_COMPOSITION_PROJECTION_UNKNOWN'}).catch(()=>{});
